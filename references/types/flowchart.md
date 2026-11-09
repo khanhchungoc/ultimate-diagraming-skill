@@ -41,13 +41,15 @@ Never add pixel coordinates (`x`, `y`); `--layout` computes them.
 4. Keep labels short; long edge labels wrap, but long node labels shrink the fitted text.
 5. One lane per distinct actor or system.
 
-## Complexity budget
+## Diagram scale & viewing mode
 
-**At most 5 swimlanes, 12 nodes and 7 columns (the longest chain of sequential steps).** Columns matter most: every extra column shrinks text when the diagram is fitted to 1920px, and 8+ columns fall below the 11px readability minimum. If the process is larger, split it into a Level-1 overview and Level-2 detail flowcharts and say so in the report. `--verify` prints `[WARN]` when a budget is exceeded.
+The user's requested scope determines the diagram size and granularity. Never truncate, omit, or collapse workflow steps to fit an arbitrary node or column count.
+- **Interactive canvas (pan & zoom)**: Diagrams of any size (from small 5-node flows to 50+ node enterprise workflows) are supported. Users view and explore them interactively in the browser with pan, zoom, drag, and Auto-Tidy.
+- **Single-screen overview (optional)**: When a user explicitly asks for a summary, high-level overview, or single-slide deck flow, designing within ~7 columns and ~12 nodes allows the diagram to fit on a 1080p display without panning.
 
 ## Visual review checklist
 
-The layout report covers label occlusion and text size. Check the rest by eye on the screenshot:
+The layout report covers label occlusion. Check the rest by eye on the screenshot:
 
 1. **No coincident trunks**: parallel segments in one column gap are staggered so labels never stack.
 2. **Distinct decision exits**: branches leave a diamond from different ports (top/right/bottom).
@@ -59,7 +61,6 @@ The layout report covers label occlusion and text size. Check the rest by eye on
 
 - **Wrong loop edge or odd column placement in a cycle**: set `"feedback": true` on the edge that should loop back, then re-run `--layout`.
 - **Label overlap or crowding**: reorder lanes or simplify the JSON, re-run `--layout`, re-check.
-- **Text below 11px at Fit**: too many columns or too much text; shorten the chain, simplify labels or split the diagram. Never lower the minimum to pass.
 
 ## Verification evidence (flowchart additions to the shared gate)
 

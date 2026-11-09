@@ -32,9 +32,7 @@ SUPPORTED_TYPES = ("flowchart", "sequence")  # add a type here when its engine a
 DEFAULT_TYPE = "flowchart"
 SCHEMA_VERSION = 1
 
-MAX_NODES = 12
-MAX_LANES = 5
-MAX_COLUMNS = 7
+# Zero budget limits: diagrams can be as large as the user requires.
 DEFAULT_NODE_WIDTH = 168
 DEFAULT_NODE_HEIGHT = 56
 DECISION_NODE_HEIGHT = 64
@@ -244,13 +242,7 @@ class FlowchartAudit:
 
         max_x = max((float(n.get("x", 0)) for n in self.nodes), default=float(START_X))
         column_count = int(round((max_x - START_X) / DEFAULT_COL_WIDTH)) + 1
-        budget_warnings = []
-        if len(self.nodes) > MAX_NODES:
-            budget_warnings.append(f"{len(self.nodes)} nodes exceeds the budget of {MAX_NODES}; split into overview + detail diagrams.")
-        if len(self.lanes) > MAX_LANES:
-            budget_warnings.append(f"{len(self.lanes)} lanes exceeds the budget of {MAX_LANES}.")
-        if column_count > MAX_COLUMNS:
-            budget_warnings.append(f"{column_count} columns (longest path) exceeds the budget of {MAX_COLUMNS}; text will be too small at Fit zoom. Shorten the chain or split the diagram.")
+        budget_warnings: List[str] = []
 
         return {
             "passed": passed,
@@ -398,9 +390,21 @@ class FlowchartAudit:
                     to_port = "top" if tcy > fcy else "bottom"
                 elif (from_port == "right" and to_port == "left" and abs(tcy - fcy) > 30
                         and tx + tw / 2 > fx + fw + 24 and (v_id, tcy > fcy) not in vertical_entry):
-                    # Side exit into another lane, target clearly to the right: enter via bottom/top (one bend)
-                    to_port = "top" if tcy > fcy else "bottom"
-                    vertical_entry.add((v_id, tcy > fcy))
+                    # Side exit into another lane: enter via bottom/top (one bend)
+                    # unless an intermediate node obstructs the vertical drop at tcx
+                    min_y, max_y = min(fcy, tcy), max(fcy, tcy)
+                    blocked = False
+                    for other_node in self.nodes:
+                        oid = other_node["id"]
+                        if oid == u_id or oid == v_id or oid not in rects:
+                            continue
+                        ox, oy, ow, oh = rects[oid]
+                        if ox - 3 <= tcx <= ox + ow + 3 and oy < max_y and oy + oh > min_y:
+                            blocked = True
+                            break
+                    if not blocked:
+                        to_port = "top" if tcy > fcy else "bottom"
+                        vertical_entry.add((v_id, tcy > fcy))
                 ports[e["id"]] = (from_port, to_port)
 
         # Build polylines

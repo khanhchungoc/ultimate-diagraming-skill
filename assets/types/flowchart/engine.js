@@ -213,7 +213,7 @@
             const botId = (multi && downC.length) ? downC[0].id : null;
             fwdOuts.forEach(e => {
               const t = R(e.to);
-              const tcy = t.y + t.h / 2;
+              const tcx = t.x + t.w / 2, tcy = t.y + t.h / 2;
               let fromPort = 'right';
               if (e.id === topId && !topTaken) { fromPort = 'top'; topTaken = true; }
               else if (e.id === botId && !bottomTaken) { fromPort = 'bottom'; bottomTaken = true; }
@@ -229,8 +229,21 @@
                 toPort = tcy > fcy ? 'top' : 'bottom';
               } else if (fromPort === 'right' && toPort === 'left' && Math.abs(tcy - fcy) > 30
                   && t.x + t.w / 2 > f.x + f.w + 24 && !vertEntry.has(vk)) {
-                toPort = tcy > fcy ? 'top' : 'bottom';
-                vertEntry.add(vk);
+                const miny = Math.min(fcy, tcy), maxy = Math.max(fcy, tcy);
+                let blocked = false;
+                for (let k = 0; k < nodes.length; k++) {
+                  const o = nodes[k];
+                  if (o.id === e.from || o.id === e.to || !rects[o.id]) continue;
+                  const or = R(o.id);
+                  if (or.x - 3 <= tcx && tcx <= or.x + or.w + 3 && or.y < maxy && or.y + or.h > miny) {
+                    blocked = true;
+                    break;
+                  }
+                }
+                if (!blocked) {
+                  toPort = tcy > fcy ? 'top' : 'bottom';
+                  vertEntry.add(vk);
+                }
               }
               ports[e.id] = [fromPort, toPort];
             });

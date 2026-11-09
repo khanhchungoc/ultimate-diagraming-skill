@@ -132,12 +132,6 @@ class SequenceAudit:
 
         max_depth = max((depth(fid) for fid in spans), default=0)
         budget: List[str] = []
-        if len(ps) > MAX_PARTICIPANTS:
-            budget.append(f"{len(ps)} participants exceeds the budget of {MAX_PARTICIPANTS}; split the interaction.")
-        if len(ms) > MAX_MESSAGES:
-            budget.append(f"{len(ms)} messages exceeds the budget of {MAX_MESSAGES}; split into overview + detail diagrams.")
-        if max_depth > MAX_FRAGMENT_DEPTH:
-            budget.append(f"Fragments nest {max_depth} deep; the budget is {MAX_FRAGMENT_DEPTH}.")
 
         score = max(0, 100 - ERROR_PENALTY * len(errors))
         grade = "A+" if score >= 98 else "A" if score >= 90 else "B" if score >= 80 else "C" if score >= 60 else "F"

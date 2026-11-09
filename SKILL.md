@@ -1,13 +1,17 @@
 ---
-name: interactive-diagram
+name: ultimate-diagram
 description: "Create, verify, and edit diagrams as one standalone, editable HTML file (drag-and-drop, Auto-Tidy, Save). Supports swimlane flowcharts and sequence diagrams. Use for interactive, shareable diagram pages."
 ---
 
-# Interactive Diagram Skill
+# Ultimate Diagram Skill
 
 Produce stakeholder-ready diagrams as standalone HTML files. In the browser, users can drag elements, double-click to edit text, run **Auto-Tidy**, and **Save** the edited diagram back into the HTML file. Opening the file with `?present` hides all editing controls for a read-only view.
 
-**Paths:** `<skill-dir>` means the folder containing this `SKILL.md`. Run every script by its full path (`python "<skill-dir>/scripts/layout_engine.py" ...`) from the user's project folder, and write outputs there, never inside `<skill-dir>`.
+**Paths & Workspace Hygiene:**
+- `<skill-dir>` means the folder containing this `SKILL.md`. Run every script by its full path (`python "<skill-dir>/scripts/layout_engine.py" ...`).
+- **Target Output**: Write ONLY the requested final target HTML file to the user's workspace.
+- **Self-Contained HTML**: The generated HTML file is fully self-contained with the JSON embedded inside. An external `.json` file is NOT needed once the `.html` is generated and should not be left in the user's workspace unless the user explicitly requested a `.json` file.
+- **Scratch & Temp Isolation**: All intermediate authoring files, trial JSON payloads, and verification screenshot PNGs MUST be written to an external scratch or system temp directory (e.g. `tempfile.gettempdir()` or host scratch dir). NEVER litter intermediate trial files in the user's repository root.
 
 ---
 
@@ -34,33 +38,30 @@ Expect from the user or an orchestrating agent: the diagram content (actors, ste
 
 ## Procedure: New Diagram
 
-1. **Write the logical JSON** following the type reference. Never compute pixel coordinates. Respect the type's complexity budget; if the content is larger, split it into an overview plus detail diagrams and say so in the report.
+1. **Write the logical JSON in a temp/scratch file** following the type reference. Never compute pixel coordinates. The user's requested scope determines the diagram size and granularity; never truncate or omit steps to fit an artificial budget.
 
 2. **Lay out and scaffold the HTML** (needs Node.js, or Chrome/Chromium as a fallback; `--browser <path>` selects it):
    ```shell
-   python "<skill-dir>/scripts/layout_engine.py" --layout <input.json> -o <target.html>
+   python "<skill-dir>/scripts/layout_engine.py" --layout <temp_input.json> -o <target.html>
    ```
-   `[ERROR] Layout needs Node.js ... or Chrome`: neither is installed; install one or pass `--browser`. Report it rather than hand-placing coordinates.
+   `[ERROR] Layout needs Node.js ... or Chrome`: neither is installed; install one or pass `--browser`. Report it rather than hand-placing coordinates. Once `<target.html>` is generated, delete `<temp_input.json>` unless the user asked to keep it.
 
 3. **Run the automated audit:**
    ```shell
    python "<skill-dir>/scripts/layout_engine.py" --verify <target.html>
    ```
-   Required: exit code `0`, score ≥ 90/100, no issues listed, 0 external references (the type reference names its type-specific counters).
+   Required: exit code `0`, score ≥ 90/100, no issues listed, 0 external references.
 
-4. **Layout report + visual review.** One command measures the page and captures a clean screenshot (editing controls hidden, cropped to the diagram, 2x):
+4. **Layout report + visual review.** One command measures the page and captures a clean screenshot to a temporary path (editing controls hidden, cropped to the diagram, 2x):
    ```shell
-   python "<skill-dir>/scripts/render_screenshot.py" --input <target.html> --output <target.png>
+   python "<skill-dir>/scripts/render_screenshot.py" --input <target.html> --output <temp_path.png>
    ```
-   The default `--viewport wide` (1920x1080) is what the budgets and the readability minimum assume; a smaller screen such as `desktop` (1440x900) will correctly fail the text-size gate on a 7-column diagram.
-   - **Exit 3, `[ERROR]` overlap**: an edge label overlaps another label or a node. Fix it (see the type reference's failure handling) and re-run.
-   - **Exit 4, `[ERROR]` text size**: text renders below 11px (`--min-text-px`) at "Fit" zoom. Shorten, simplify or split the diagram. Do not lower the minimum to make it pass.
+   - **Exit 3, `[ERROR]` overlap**: an edge label overlaps another label or a node. Fix it and re-run.
+   - Text size is reported for visibility. For large diagrams (> 12 nodes or > 7 columns), users view and explore them interactively using pan and zoom on the HTML canvas.
    - **`[WARN] Layout report unavailable`**: the browser returned no DOM (seen with Edge, and rarely on a cold Chrome start). Chrome is tried first; pass `--browser <path-to-chrome>` or do the checks by eye and say so in the report.
    - If the render itself fails, read the error: it names the browser used; retry with `--browser <path>` or a larger `--timeout`. If no browser is available, report that the visual review could not be run instead of skipping it silently.
 
-   Then open the PNG with whatever image-viewing tool your host provides (e.g. `Read` on the PNG in Claude Code) and go through the type's visual checklist.
-
-   If a check fails, change the JSON structure, re-run step 2, and repeat steps 3–4 (at most two repair passes, then report the remaining problem). Delete the PNG when done unless the user asked to keep it.
+   Then open the PNG with whatever image-viewing tool your host provides (e.g. `Read` on the PNG in Claude Code) and go through the type's visual checklist. Delete the temporary PNG when review is complete.
 
 5. **Report back** (see [Final Report](#final-report)).
 
@@ -78,7 +79,7 @@ Completion needs every item, each with its evidence type. Do not claim an item t
 |---|---|---|
 | 1 | Self-contained: no CDN or external requests | **Automated**: `--verify` (fails on external `src`/`href`/`@import`/`url()`) |
 | 2 | Quality score ≥ 90, no audit issues, exit 0 | **Automated**: `--verify` |
-| 3 | No edge label overlaps another label or a node; text at least 11px at Fit on 1920x1080 | **Automated**: layout report from `render_screenshot.py` (Chrome; exit 3 / 4); otherwise by eye |
+| 3 | No edge label overlaps another label or a node | **Automated**: layout report from `render_screenshot.py` (Chrome; exit 3); otherwise by eye |
 | 4 | Type-specific layout checks | See the type reference (automated or visual, as stated there) |
 | 5 | Save works (Ctrl+S / Save button) | **Not testable headlessly**: needs a user click. State this and ask the user to save once to confirm |
 

@@ -42,13 +42,15 @@ An activation bar appears when a `sync` message is later answered by a `reply` g
 4. **Frames wrap whole messages only** and nest at most two deep. Use `alt` for either/or, `opt` for optional, `loop` for repetition.
 5. Order participants so most messages travel to a neighbour; long jumps across the diagram are hard to follow.
 
-## Complexity budget
+## Diagram scale & viewing mode
 
-**At most 6 participants, 16 messages and 2 levels of nested frames.** Beyond that the text shrinks below the 11px readability minimum at Fit zoom or the diagram becomes hard to follow. Split it by phase (for example "authenticate" and "place order") and say so in the report. `--verify` prints `[WARN]` when a budget is exceeded.
+The user's requested scope determines the interaction scale. Never truncate or omit messages unless the user specifically asks for an overview.
+- **Interactive canvas (pan & zoom)**: Complex interactions of any length are supported and explored interactively in the browser.
+- **Single-screen overview (optional)**: When an executive or single-slide interaction is requested, keeping within ~6 participants and ~16 messages allows the flow to fit on a single 1080p slide without panning.
 
 ## Visual review checklist
 
-The audit covers spacing, label fit and frame bounds; the layout report covers label overlap and text size. Check by eye on the screenshot:
+The audit covers spacing, label fit and frame bounds; the layout report covers label overlap. Check by eye on the screenshot:
 
 1. **Reading order**: messages go top to bottom in the intended sequence.
 2. **Activation bars** open at each call and close at its reply, with no bar left dangling.
@@ -59,7 +61,6 @@ The audit covers spacing, label fit and frame bounds; the layout report covers l
 
 - **`Label ... is wider than the space between its lifelines`** or a self-message running into a lifeline: this should not occur after `--layout`; shorten the label and re-run.
 - **Fragment errors** (`unknown message`, `starts after it ends`): fix the message ids in `from`, `to` or `elseAt`.
-- **Text below 11px at Fit**: too many participants or too long labels; split the diagram. Never lower the minimum.
 
 ## Verification evidence (sequence additions to the shared gate)
 

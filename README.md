@@ -1,4 +1,4 @@
-# Interactive Diagram Skill
+# Ultimate Diagram Skill
 
 An agent skill that creates diagrams as a single standalone HTML file. Open the file in a browser to drag elements, double-click to edit text, run **Auto-Tidy**, and **Save** the changes back into the same file. Add `?present` to the URL for a read-only view.
 
@@ -53,9 +53,38 @@ Known risks on untested systems:
 
 ## Install
 
-Copy the skill folder to wherever your agent loads skills from, and name the folder to match the skill name in the `SKILL.md` header (`interactive-diagram`). This repo's folder is currently called `final-diagram-skill`, so rename it when you install it.
+Install `ultimate-diagram` into your AI coding assistants (Antigravity, Claude Code, GitHub Copilot, OpenAI Codex, Gemini CLI, or Kiro):
 
-The `dev/` folder is for the skill's maintainers and can be left out of an installed copy.
+### 1. One-line NPX (Recommended)
+```shell
+npx ultimate-diagram
+```
+Options:
+- `-g, --global`: Install globally in user home directory (default).
+- `-p, --project`: Install into the current project workspace directory.
+- `-r, --runtime <name>`: Target specific runtime (`antigravity`, `claude`, `copilot`, `codex`, `gemini`, `kiro`, or `all`).
+- `-m, --mode <symlink|copy>`: Symlink/junction (live updates) or standalone copy.
+
+### 2. Python (Cross-platform)
+```shell
+python scripts/install.py
+# Or for a specific runtime:
+python scripts/install.py --runtime antigravity --scope user
+```
+
+### 3. PowerShell (Windows)
+```powershell
+.\scripts\install.ps1
+# Or for a specific runtime:
+.\scripts\install.ps1 -Runtime antigravity -Scope User
+```
+
+### 4. Bash (macOS / Linux)
+```bash
+./scripts/install.sh
+# Or for a specific runtime:
+./scripts/install.sh --runtime claude --scope user
+```
 
 ## Quick start
 

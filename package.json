@@ -1,0 +1,37 @@
+{
+  "name": "ultimate-diagram",
+  "version": "1.0.0",
+  "description": "Produce stakeholder-ready, interactive diagrams as standalone HTML files (drag-and-drop, Auto-Tidy, Save).",
+  "type": "module",
+  "bin": {
+    "ultimate-diagram": "./bin/install.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/khanhchungoc/ultimate-diagram.git"
+  },
+  "keywords": [
+    "diagram",
+    "flowchart",
+    "sequence",
+    "bpmn",
+    "agent",
+    "skill",
+    "antigravity",
+    "claude",
+    "copilot",
+    "codex",
+    "gemini",
+    "kiro"
+  ],
+  "author": "Khanh Chu Ngoc",
+  "license": "MIT",
+  "files": [
+    "bin",
+    "assets",
+    "references",
+    "scripts",
+    "SKILL.md",
+    "README.md"
+  ]
+}
