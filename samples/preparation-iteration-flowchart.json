@@ -1,0 +1,757 @@
+{
+  "diagramType": "flowchart",
+  "title": "Engineering - Preparation Iteration (Greenfield & Brownfield)",
+  "direction": "LR",
+  "lanes": [
+    {
+      "id": "lane-core",
+      "name": "P1. Core Team",
+      "color": "#fef3c7"
+    },
+    {
+      "id": "lane-ba",
+      "name": "P2. BA",
+      "color": "#e0f2fe"
+    },
+    {
+      "id": "lane-dev",
+      "name": "P3. Developer",
+      "color": "#dcfce7"
+    },
+    {
+      "id": "lane-devops",
+      "name": "P4. DevOps",
+      "color": "#fee2e2"
+    },
+    {
+      "id": "lane-tester",
+      "name": "P5. Tester",
+      "color": "#f3e8ff"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "n_start",
+      "laneId": "lane-core",
+      "type": "start",
+      "label": "Start Preparation Iteration"
+    },
+    {
+      "id": "n_core_spec",
+      "laneId": "lane-core",
+      "type": "task",
+      "label": "Setup Project Spec & Agents"
+    },
+    {
+      "id": "n_core_reveng",
+      "laneId": "lane-core",
+      "type": "task",
+      "label": "Reverse Engineer (Brownfield)"
+    },
+    {
+      "id": "n_core_dod",
+      "laneId": "lane-core",
+      "type": "task",
+      "label": "Complete DOD for Preparation"
+    },
+    {
+      "id": "n_end",
+      "laneId": "lane-core",
+      "type": "end",
+      "outcome": "success",
+      "label": "Iteration Complete"
+    },
+    {
+      "id": "n_ba_spec",
+      "laneId": "lane-ba",
+      "type": "task",
+      "label": "Create/Revise Product Spec"
+    },
+    {
+      "id": "n_ba_peer1",
+      "laneId": "lane-ba",
+      "type": "task",
+      "label": "Peer Review"
+    },
+    {
+      "id": "n_ba_gate1",
+      "laneId": "lane-ba",
+      "type": "decision",
+      "label": "Approved, optional?"
+    },
+    {
+      "id": "n_ba_docs",
+      "laneId": "lane-ba",
+      "type": "task",
+      "label": "Generate Product Docs"
+    },
+    {
+      "id": "n_ba_client",
+      "laneId": "lane-ba",
+      "type": "task",
+      "label": "Client Review"
+    },
+    {
+      "id": "n_ba_gate2",
+      "laneId": "lane-ba",
+      "type": "decision",
+      "label": "Approved?"
+    },
+    {
+      "id": "n_ba_baseline",
+      "laneId": "lane-ba",
+      "type": "task",
+      "label": "Confirm Scope Baseline"
+    },
+    {
+      "id": "n_ba_backlog",
+      "laneId": "lane-ba",
+      "type": "task",
+      "label": "Prepare Product Backlog"
+    },
+    {
+      "id": "n_ba_peer2",
+      "laneId": "lane-ba",
+      "type": "task",
+      "label": "Peer Review"
+    },
+    {
+      "id": "n_ba_gate3",
+      "laneId": "lane-ba",
+      "type": "decision",
+      "label": "Approved?"
+    },
+    {
+      "id": "n_dev_sad",
+      "laneId": "lane-dev",
+      "type": "task",
+      "label": "Create/Revise SAD Spec"
+    },
+    {
+      "id": "n_dev_peer1",
+      "laneId": "lane-dev",
+      "type": "task",
+      "label": "Peer Review"
+    },
+    {
+      "id": "n_dev_gate1",
+      "laneId": "lane-dev",
+      "type": "decision",
+      "label": "Approved?"
+    },
+    {
+      "id": "n_dev_docs",
+      "laneId": "lane-dev",
+      "type": "task",
+      "label": "Generate SAD Docs"
+    },
+    {
+      "id": "n_dev_client",
+      "laneId": "lane-dev",
+      "type": "task",
+      "label": "Client Review"
+    },
+    {
+      "id": "n_dev_gate2",
+      "laneId": "lane-dev",
+      "type": "decision",
+      "label": "Approved?"
+    },
+    {
+      "id": "n_dev_baseline",
+      "laneId": "lane-dev",
+      "type": "task",
+      "label": "Confirm Tech Baseline"
+    },
+    {
+      "id": "n_dev_skeleton",
+      "laneId": "lane-dev",
+      "type": "task",
+      "label": "Update Arch Skeleton"
+    },
+    {
+      "id": "n_dev_peer2",
+      "laneId": "lane-dev",
+      "type": "task",
+      "label": "Peer Review"
+    },
+    {
+      "id": "n_dev_gate3",
+      "laneId": "lane-dev",
+      "type": "decision",
+      "label": "Approved?"
+    },
+    {
+      "id": "n_ops_plan",
+      "laneId": "lane-devops",
+      "type": "task",
+      "label": "Generate DevOps Plans"
+    },
+    {
+      "id": "n_ops_peer1",
+      "laneId": "lane-devops",
+      "type": "task",
+      "label": "Peer Review"
+    },
+    {
+      "id": "n_ops_gate1",
+      "laneId": "lane-devops",
+      "type": "decision",
+      "label": "Approved?"
+    },
+    {
+      "id": "n_ops_docs",
+      "laneId": "lane-devops",
+      "type": "task",
+      "label": "Generate DevOps Docs"
+    },
+    {
+      "id": "n_ops_client",
+      "laneId": "lane-devops",
+      "type": "task",
+      "label": "Client Review"
+    },
+    {
+      "id": "n_ops_gate2",
+      "laneId": "lane-devops",
+      "type": "decision",
+      "label": "Approved?"
+    },
+    {
+      "id": "n_ops_exec",
+      "laneId": "lane-devops",
+      "type": "task",
+      "label": "Execute DevOps Plans"
+    },
+    {
+      "id": "n_ops_script",
+      "laneId": "lane-devops",
+      "type": "task",
+      "label": "Generate Provision Script"
+    },
+    {
+      "id": "n_ops_run",
+      "laneId": "lane-devops",
+      "type": "task",
+      "label": "Run Provisioning Script"
+    },
+    {
+      "id": "n_ops_rep",
+      "laneId": "lane-devops",
+      "type": "task",
+      "label": "Generate Provision Reports"
+    },
+    {
+      "id": "n_ops_peer2",
+      "laneId": "lane-devops",
+      "type": "task",
+      "label": "Peer Review"
+    },
+    {
+      "id": "n_ops_gate3",
+      "laneId": "lane-devops",
+      "type": "decision",
+      "label": "Approved?"
+    },
+    {
+      "id": "n_test_strat",
+      "laneId": "lane-tester",
+      "type": "task",
+      "label": "Create/Revise Test Strategy"
+    },
+    {
+      "id": "n_test_peer1",
+      "laneId": "lane-tester",
+      "type": "task",
+      "label": "Peer Review"
+    },
+    {
+      "id": "n_test_gate1",
+      "laneId": "lane-tester",
+      "type": "decision",
+      "label": "Approved?"
+    },
+    {
+      "id": "n_test_docs",
+      "laneId": "lane-tester",
+      "type": "task",
+      "label": "Generate Test Docs"
+    },
+    {
+      "id": "n_test_client",
+      "laneId": "lane-tester",
+      "type": "task",
+      "label": "Client Review"
+    },
+    {
+      "id": "n_test_gate2",
+      "laneId": "lane-tester",
+      "type": "decision",
+      "label": "Approved?"
+    },
+    {
+      "id": "n_test_baseline",
+      "laneId": "lane-tester",
+      "type": "task",
+      "label": "Confirm Test Baseline"
+    },
+    {
+      "id": "n_test_arch",
+      "laneId": "lane-tester",
+      "type": "task",
+      "label": "Update Test Architecture"
+    },
+    {
+      "id": "n_test_peer2",
+      "laneId": "lane-tester",
+      "type": "task",
+      "label": "Peer Review"
+    },
+    {
+      "id": "n_test_gate3",
+      "laneId": "lane-tester",
+      "type": "decision",
+      "label": "Approved?"
+    },
+    {
+      "id": "n_join_sync",
+      "laneId": "lane-core",
+      "type": "task",
+      "label": "All Streams Completed (Join)"
+    },
+    {
+      "id": "n_ba_ready",
+      "laneId": "lane-ba",
+      "type": "task",
+      "label": "Scope & Backlog Ready"
+    },
+    {
+      "id": "n_dev_ready",
+      "laneId": "lane-dev",
+      "type": "task",
+      "label": "Architecture & Code Ready"
+    },
+    {
+      "id": "n_test_ready",
+      "laneId": "lane-tester",
+      "type": "task",
+      "label": "Test Harness Ready"
+    },
+    {
+      "id": "n_test_run",
+      "laneId": "lane-tester",
+      "type": "task",
+      "label": "Run Test Architecture Verification"
+    }
+  ],
+  "edges": [
+    {
+      "id": "e_core_1",
+      "from": "n_start",
+      "to": "n_core_spec",
+      "label": ""
+    },
+    {
+      "id": "e_core_2",
+      "from": "n_core_spec",
+      "to": "n_core_reveng",
+      "label": ""
+    },
+    {
+      "id": "e_fork_ba",
+      "from": "n_core_reveng",
+      "to": "n_ba_spec",
+      "label": ""
+    },
+    {
+      "id": "e_fork_dev",
+      "from": "n_ba_spec",
+      "to": "n_dev_sad",
+      "label": ""
+    },
+    {
+      "id": "e_fork_ops",
+      "from": "n_dev_sad",
+      "to": "n_ops_plan",
+      "label": ""
+    },
+    {
+      "id": "e_fork_test",
+      "from": "n_ops_plan",
+      "to": "n_test_strat",
+      "label": ""
+    },
+    {
+      "id": "e_ba_1",
+      "from": "n_ba_spec",
+      "to": "n_ba_peer1",
+      "label": ""
+    },
+    {
+      "id": "e_ba_2",
+      "from": "n_ba_peer1",
+      "to": "n_ba_gate1",
+      "label": ""
+    },
+    {
+      "id": "e_ba_3",
+      "from": "n_ba_gate1",
+      "to": "n_ba_spec",
+      "label": "No",
+      "feedback": true
+    },
+    {
+      "id": "e_ba_4",
+      "from": "n_ba_gate1",
+      "to": "n_ba_docs",
+      "label": "Yes"
+    },
+    {
+      "id": "e_ba_5",
+      "from": "n_ba_docs",
+      "to": "n_ba_client",
+      "label": ""
+    },
+    {
+      "id": "e_ba_6",
+      "from": "n_ba_client",
+      "to": "n_ba_gate2",
+      "label": ""
+    },
+    {
+      "id": "e_ba_7",
+      "from": "n_ba_gate2",
+      "to": "n_ba_spec",
+      "label": "No",
+      "feedback": true
+    },
+    {
+      "id": "e_ba_8",
+      "from": "n_ba_gate2",
+      "to": "n_ba_baseline",
+      "label": "Yes"
+    },
+    {
+      "id": "e_ba_9",
+      "from": "n_ba_baseline",
+      "to": "n_ba_backlog",
+      "label": ""
+    },
+    {
+      "id": "e_ba_10",
+      "from": "n_ba_backlog",
+      "to": "n_ba_peer2",
+      "label": ""
+    },
+    {
+      "id": "e_ba_11",
+      "from": "n_ba_peer2",
+      "to": "n_ba_gate3",
+      "label": ""
+    },
+    {
+      "id": "e_ba_12",
+      "from": "n_ba_gate3",
+      "to": "n_ba_backlog",
+      "label": "No",
+      "feedback": true
+    },
+    {
+      "id": "e_dev_1",
+      "from": "n_dev_sad",
+      "to": "n_dev_peer1",
+      "label": ""
+    },
+    {
+      "id": "e_dev_2",
+      "from": "n_dev_peer1",
+      "to": "n_dev_gate1",
+      "label": ""
+    },
+    {
+      "id": "e_dev_3",
+      "from": "n_dev_gate1",
+      "to": "n_dev_sad",
+      "label": "No",
+      "feedback": true
+    },
+    {
+      "id": "e_dev_4",
+      "from": "n_dev_gate1",
+      "to": "n_dev_docs",
+      "label": "Yes"
+    },
+    {
+      "id": "e_dev_5",
+      "from": "n_dev_docs",
+      "to": "n_dev_client",
+      "label": ""
+    },
+    {
+      "id": "e_dev_6",
+      "from": "n_dev_client",
+      "to": "n_dev_gate2",
+      "label": ""
+    },
+    {
+      "id": "e_dev_7",
+      "from": "n_dev_gate2",
+      "to": "n_dev_sad",
+      "label": "No",
+      "feedback": true
+    },
+    {
+      "id": "e_dev_8",
+      "from": "n_dev_gate2",
+      "to": "n_dev_baseline",
+      "label": "Yes"
+    },
+    {
+      "id": "e_dev_9",
+      "from": "n_dev_baseline",
+      "to": "n_dev_skeleton",
+      "label": ""
+    },
+    {
+      "id": "e_dev_10",
+      "from": "n_dev_skeleton",
+      "to": "n_dev_peer2",
+      "label": ""
+    },
+    {
+      "id": "e_dev_11",
+      "from": "n_dev_peer2",
+      "to": "n_dev_gate3",
+      "label": ""
+    },
+    {
+      "id": "e_dev_12",
+      "from": "n_dev_gate3",
+      "to": "n_dev_skeleton",
+      "label": "No",
+      "feedback": true
+    },
+    {
+      "id": "e_ops_1",
+      "from": "n_ops_plan",
+      "to": "n_ops_peer1",
+      "label": ""
+    },
+    {
+      "id": "e_ops_2",
+      "from": "n_ops_peer1",
+      "to": "n_ops_gate1",
+      "label": ""
+    },
+    {
+      "id": "e_ops_3",
+      "from": "n_ops_gate1",
+      "to": "n_ops_plan",
+      "label": "No",
+      "feedback": true
+    },
+    {
+      "id": "e_ops_4",
+      "from": "n_ops_gate1",
+      "to": "n_ops_docs",
+      "label": "Yes"
+    },
+    {
+      "id": "e_ops_5",
+      "from": "n_ops_docs",
+      "to": "n_ops_client",
+      "label": ""
+    },
+    {
+      "id": "e_ops_6",
+      "from": "n_ops_client",
+      "to": "n_ops_gate2",
+      "label": ""
+    },
+    {
+      "id": "e_ops_7",
+      "from": "n_ops_gate2",
+      "to": "n_ops_plan",
+      "label": "No",
+      "feedback": true
+    },
+    {
+      "id": "e_ops_8",
+      "from": "n_ops_gate2",
+      "to": "n_ops_exec",
+      "label": "Yes"
+    },
+    {
+      "id": "e_ops_9",
+      "from": "n_ops_exec",
+      "to": "n_ops_script",
+      "label": ""
+    },
+    {
+      "id": "e_ops_10",
+      "from": "n_ops_script",
+      "to": "n_ops_run",
+      "label": ""
+    },
+    {
+      "id": "e_ops_11",
+      "from": "n_ops_run",
+      "to": "n_ops_rep",
+      "label": ""
+    },
+    {
+      "id": "e_ops_12",
+      "from": "n_ops_rep",
+      "to": "n_ops_peer2",
+      "label": ""
+    },
+    {
+      "id": "e_ops_13",
+      "from": "n_ops_peer2",
+      "to": "n_ops_gate3",
+      "label": ""
+    },
+    {
+      "id": "e_ops_14",
+      "from": "n_ops_gate3",
+      "to": "n_ops_exec",
+      "label": "No",
+      "feedback": true
+    },
+    {
+      "id": "e_test_1",
+      "from": "n_test_strat",
+      "to": "n_test_peer1",
+      "label": ""
+    },
+    {
+      "id": "e_test_2",
+      "from": "n_test_peer1",
+      "to": "n_test_gate1",
+      "label": ""
+    },
+    {
+      "id": "e_test_3",
+      "from": "n_test_gate1",
+      "to": "n_test_strat",
+      "label": "No",
+      "feedback": true
+    },
+    {
+      "id": "e_test_4",
+      "from": "n_test_gate1",
+      "to": "n_test_docs",
+      "label": "Yes"
+    },
+    {
+      "id": "e_test_5",
+      "from": "n_test_docs",
+      "to": "n_test_client",
+      "label": ""
+    },
+    {
+      "id": "e_test_6",
+      "from": "n_test_client",
+      "to": "n_test_gate2",
+      "label": ""
+    },
+    {
+      "id": "e_test_7",
+      "from": "n_test_gate2",
+      "to": "n_test_strat",
+      "label": "No",
+      "feedback": true
+    },
+    {
+      "id": "e_test_8",
+      "from": "n_test_gate2",
+      "to": "n_test_baseline",
+      "label": "Yes"
+    },
+    {
+      "id": "e_test_9",
+      "from": "n_test_baseline",
+      "to": "n_test_arch",
+      "label": ""
+    },
+    {
+      "id": "e_test_10",
+      "from": "n_test_run",
+      "to": "n_test_peer2",
+      "label": ""
+    },
+    {
+      "id": "e_test_11",
+      "from": "n_test_peer2",
+      "to": "n_test_gate3",
+      "label": ""
+    },
+    {
+      "id": "e_test_12",
+      "from": "n_test_gate3",
+      "to": "n_test_arch",
+      "label": "No",
+      "feedback": true
+    },
+    {
+      "id": "e_join_test",
+      "from": "n_test_ready",
+      "to": "n_join_sync",
+      "label": "Yes"
+    },
+    {
+      "id": "e_join_ops",
+      "from": "n_ops_gate3",
+      "to": "n_join_sync",
+      "label": "Yes"
+    },
+    {
+      "id": "e_join_dev",
+      "from": "n_dev_ready",
+      "to": "n_join_sync",
+      "label": "Yes"
+    },
+    {
+      "id": "e_join_ba",
+      "from": "n_ba_ready",
+      "to": "n_join_sync",
+      "label": "Yes"
+    },
+    {
+      "id": "e_end",
+      "from": "n_core_dod",
+      "to": "n_end",
+      "label": ""
+    },
+    {
+      "id": "e_sync_to_dod",
+      "from": "n_join_sync",
+      "to": "n_core_dod",
+      "label": ""
+    },
+    {
+      "id": "e_ba_to_ready",
+      "from": "n_ba_gate3",
+      "to": "n_ba_ready",
+      "label": "Yes"
+    },
+    {
+      "id": "e_dev_to_ready",
+      "from": "n_dev_gate3",
+      "to": "n_dev_ready",
+      "label": "Yes"
+    },
+    {
+      "id": "e_test_to_ready",
+      "from": "n_test_gate3",
+      "to": "n_test_ready",
+      "label": "Yes"
+    },
+    {
+      "id": "e_test_arch_to_run",
+      "from": "n_test_arch",
+      "to": "n_test_run",
+      "label": ""
+    }
+  ]
+}

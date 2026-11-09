@@ -72,7 +72,9 @@ ${c.cyan}${c.bold}Ultimate Diagram Installer${c.reset}
 ${c.dim}Interactive, standalone diagrams (swimlane flowcharts & sequence diagrams) for AI assistants.${c.reset}
 
 ${c.bold}Usage:${c.reset}
-  npx ultimate-diagram [options]
+  npx khanhchungoc/ultimate-diagram [options]
+  # or when cloned locally:
+  ultimate-diagram [options]
 
 ${c.bold}Options:${c.reset}
   -g, --global              Install globally in user home directory (default)
@@ -138,8 +140,8 @@ for (const rt of runtimesToInstall) {
 
 // Banner
 console.log('');
-console.log(`${c.cyan}${c.bold}  █░█ █░░ ▀█▀ █ █▄░█░█░█ ▀█▀ █▀▀   █▀▄ █ ▄▀█ █▀▀ █▀█ ▄▀█ █▀▄▀█${c.reset}`);
-console.log(`${c.cyan}${c.bold}  █▄█ █▄▄ ░█░ █ █░▀█ █▄█ ░█░ ██▄   █▄▀ █ █▀█ █▄█ █▀▄ █▀█ █░▀░█${c.reset}`);
+console.log(`${c.cyan}${c.bold}  █░█ █░░ ▀█▀ █ █▀▄▀█ ▄▀█ ▀█▀ █▀▀   █▀▄ █ ▄▀█ █▀▀ █▀█ ▄▀█ █▀▄▀█${c.reset}`);
+console.log(`${c.cyan}${c.bold}  █▄█ █▄▄ ░█░ █ █░▀░█ █▀█ ░█░ ██▄   █▄▀ █ █▀█ █░█ █▀▄ █▀█ █░▀░█${c.reset}`);
 console.log(`${c.dim}     Interactive Diagram Skill for AI Coding Assistants • v1.0.0${c.reset}\n`);
 
 // Configuration Section

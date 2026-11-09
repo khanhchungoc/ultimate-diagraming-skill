@@ -209,8 +209,10 @@
             upC.sort((a, b) => al(a) - al(b));
             downC.sort((a, b) => al(a) - al(b));
             const multi = uNode.type === 'decision' || fwdOuts.length > 1;
-            const topId = (multi && upC.length) ? upC[0].id : null;
-            const botId = (multi && downC.length) ? downC[0].id : null;
+            let topId = (multi && upC.length) ? upC[0].id : null;
+            let botId = (multi && downC.length) ? downC[0].id : null;
+            if (!topId && upC.length && Math.abs(cxOf(upC[0]) - fcx) < 30) topId = upC[0].id;
+            if (!botId && downC.length && Math.abs(cxOf(downC[0]) - fcx) < 30) botId = downC[0].id;
             fwdOuts.forEach(e => {
               const t = R(e.to);
               const tcx = t.x + t.w / 2, tcy = t.y + t.h / 2;
@@ -221,7 +223,7 @@
               if (hasLeftLoop.has(e.to)) {
                 toPort = tcy < fcy ? 'bottom' : 'top';
               } else if (fromPort === 'right' && fwdOuts.length === 1 && uNode.type !== 'decision'
-                  && Math.abs(tcy - fcy) > 30 && t.x > fcx + 40) {
+                  && Math.abs(tcy - fcy) > 30 && (Math.abs(tcx - fcx) < 30 || t.x > fcx + 40)) {
                 fromPort = tcy > fcy ? 'bottom' : 'top';
               }
               const vk = e.to + '\u0001' + (tcy > fcy);
@@ -270,6 +272,8 @@
               if (tcx < fcx - 30) {
                 const gy = fp === 'top' ? Math.min(f.y - 20, t.y - 20) : Math.max(f.y + f.h + 20, t.y + t.h + 20);
                 result[e.id] = [[fcx, sy], [fcx, gy], [tcx, gy], [tcx, ey]];
+              } else if (Math.abs(fcx - tcx) < 1) {
+                result[e.id] = [[fcx, sy], [tcx, ey]];
               } else {
                 const my = (sy + ey) / 2;
                 result[e.id] = [[fcx, sy], [fcx, my], [tcx, my], [tcx, ey]];

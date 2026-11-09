@@ -55,9 +55,15 @@ Known risks on untested systems:
 
 Install `ultimate-diagram` into your AI coding assistants (Antigravity, Claude Code, GitHub Copilot, OpenAI Codex, Gemini CLI, or Kiro):
 
-### 1. One-line NPX (Recommended)
+### 1. One-line NPX (from GitHub or local repo)
 ```shell
-npx ultimate-diagram
+# From GitHub:
+npx khanhchungoc/ultimate-diagram
+
+# Or from local clone:
+npx "C:\Users\KhanhChuNgoc\Documents\NTG Repos\ultimate-diagram"
+# Or if installed globally via npm install -g:
+ultimate-diagram
 ```
 Options:
 - `-g, --global`: Install globally in user home directory (default).

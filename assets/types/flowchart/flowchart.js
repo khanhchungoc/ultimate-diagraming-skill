@@ -365,8 +365,14 @@
           alignedFirst(upCands);
           alignedFirst(downCands);
 
-          const topEdgeId = (isMultiOrDecision && upCands.length > 0) ? upCands[0].id : null;
-          const bottomEdgeId = (isMultiOrDecision && downCands.length > 0) ? downCands[0].id : null;
+          let topEdgeId = (isMultiOrDecision && upCands.length > 0) ? upCands[0].id : null;
+          let bottomEdgeId = (isMultiOrDecision && downCands.length > 0) ? downCands[0].id : null;
+          if (!topEdgeId && upCands.length > 0 && Math.abs(rects[upCands[0].to].cx - f.cx) < 30) {
+            topEdgeId = upCands[0].id;
+          }
+          if (!bottomEdgeId && downCands.length > 0 && Math.abs(rects[downCands[0].to].cx - f.cx) < 30) {
+            bottomEdgeId = downCands[0].id;
+          }
 
           fwdOuts.forEach(e => {
             const t = rects[e.to];
@@ -383,7 +389,7 @@
             } else if (fromPort === 'right' && fwdOuts.length === 1 && uNode && uNode.type !== 'decision') {
               // One step into another lane: leave via top/bottom for a single bend instead of a Z
               const dy = t.cy - f.cy;
-              if (Math.abs(dy) > 30 && t.x > f.cx + 40) {
+              if (Math.abs(dy) > 30 && (Math.abs(t.cx - f.cx) < 30 || t.x > f.cx + 40)) {
                 const sy = dy > 0 ? f.y + f.h : f.y;
                 if (segmentClear(f.cx, sy, f.cx, t.cy, [uId, e.to]) && segmentClear(f.cx, t.cy, t.x, t.cy, [uId, e.to])) {
                   fromPort = dy > 0 ? 'bottom' : 'top';
@@ -421,6 +427,26 @@
             const outs = outEdges[nid].filter(e => edgePorts[e.id] && edgePorts[e.id].fromPort === side);
             const ins = inEdges[nid].filter(e => edgePorts[e.id] && edgePorts[e.id].toPort === side);
             if (!outs.length || !ins.length) return;
+
+            // If an edge is a straight vertical line to/from an aligned node, preserve it at cx (offset 0)
+            // and put the slot offset on the other edge(s) so arrowheads never collide with departure points
+            const isStraightOut = outs.some(e => Math.abs(rects[e.to].cx - rects[nid].cx) < 30 && (edgePorts[e.id].toPort === 'top' || edgePorts[e.id].toPort === 'bottom'));
+            const isStraightIn = ins.some(e => Math.abs(rects[e.from].cx - rects[nid].cx) < 30 && (edgePorts[e.id].fromPort === 'top' || edgePorts[e.id].fromPort === 'bottom'));
+
+            if (isStraightOut && !isStraightIn) {
+              outs.forEach(e => { fromOffX[e.id] = 0; });
+              const insMeanX = ins.reduce((s, e) => s + rects[e.from].cx, 0) / ins.length;
+              const slotDir = insMeanX >= rects[nid].cx ? 1 : -1;
+              ins.forEach(e => { toOffX[e.id] = slotDir * PORT_SLOT; });
+              return;
+            } else if (isStraightIn && !isStraightOut) {
+              ins.forEach(e => { toOffX[e.id] = 0; });
+              const outsMeanX = outs.reduce((s, e) => s + rects[e.to].cx, 0) / outs.length;
+              const slotDir = outsMeanX >= rects[nid].cx ? 1 : -1;
+              outs.forEach(e => { fromOffX[e.id] = slotDir * PORT_SLOT; });
+              return;
+            }
+
             const meanX = (list, key) => list.reduce((s, e) => s + rects[e[key]].cx, 0) / list.length;
             // Put each group on the side facing where its other ends are, to avoid new crossings
             const insFirst = meanX(ins, 'from') <= meanX(outs, 'to');

@@ -1586,11 +1586,13 @@
             upC.sort((a, b) => al(a) - al(b));
             downC.sort((a, b) => al(a) - al(b));
             const multi = uNode.type === 'decision' || fwdOuts.length > 1;
-            const topId = (multi && upC.length) ? upC[0].id : null;
-            const botId = (multi && downC.length) ? downC[0].id : null;
+            let topId = (multi && upC.length) ? upC[0].id : null;
+            let botId = (multi && downC.length) ? downC[0].id : null;
+            if (!topId && upC.length && Math.abs(cxOf(upC[0]) - fcx) < 30) topId = upC[0].id;
+            if (!botId && downC.length && Math.abs(cxOf(downC[0]) - fcx) < 30) botId = downC[0].id;
             fwdOuts.forEach(e => {
               const t = R(e.to);
-              const tcy = t.y + t.h / 2;
+              const tcx = t.x + t.w / 2, tcy = t.y + t.h / 2;
               let fromPort = 'right';
               if (e.id === topId && !topTaken) { fromPort = 'top'; topTaken = true; }
               else if (e.id === botId && !bottomTaken) { fromPort = 'bottom'; bottomTaken = true; }
@@ -1598,7 +1600,7 @@
               if (hasLeftLoop.has(e.to)) {
                 toPort = tcy < fcy ? 'bottom' : 'top';
               } else if (fromPort === 'right' && fwdOuts.length === 1 && uNode.type !== 'decision'
-                  && Math.abs(tcy - fcy) > 30 && t.x > fcx + 40) {
+                  && Math.abs(tcy - fcy) > 30 && (Math.abs(tcx - fcx) < 30 || t.x > fcx + 40)) {
                 fromPort = tcy > fcy ? 'bottom' : 'top';
               }
               const vk = e.to + '\u0001' + (tcy > fcy);
@@ -1606,8 +1608,21 @@
                 toPort = tcy > fcy ? 'top' : 'bottom';
               } else if (fromPort === 'right' && toPort === 'left' && Math.abs(tcy - fcy) > 30
                   && t.x + t.w / 2 > f.x + f.w + 24 && !vertEntry.has(vk)) {
-                toPort = tcy > fcy ? 'top' : 'bottom';
-                vertEntry.add(vk);
+                const miny = Math.min(fcy, tcy), maxy = Math.max(fcy, tcy);
+                let blocked = false;
+                for (let k = 0; k < nodes.length; k++) {
+                  const o = nodes[k];
+                  if (o.id === e.from || o.id === e.to || !rects[o.id]) continue;
+                  const or = R(o.id);
+                  if (or.x - 3 <= tcx && tcx <= or.x + or.w + 3 && or.y < maxy && or.y + or.h > miny) {
+                    blocked = true;
+                    break;
+                  }
+                }
+                if (!blocked) {
+                  toPort = tcy > fcy ? 'top' : 'bottom';
+                  vertEntry.add(vk);
+                }
               }
               ports[e.id] = [fromPort, toPort];
             });
@@ -1634,6 +1649,8 @@
               if (tcx < fcx - 30) {
                 const gy = fp === 'top' ? Math.min(f.y - 20, t.y - 20) : Math.max(f.y + f.h + 20, t.y + t.h + 20);
                 result[e.id] = [[fcx, sy], [fcx, gy], [tcx, gy], [tcx, ey]];
+              } else if (Math.abs(fcx - tcx) < 1) {
+                result[e.id] = [[fcx, sy], [tcx, ey]];
               } else {
                 const my = (sy + ey) / 2;
                 result[e.id] = [[fcx, sy], [fcx, my], [tcx, my], [tcx, ey]];
@@ -2213,8 +2230,14 @@
           alignedFirst(upCands);
           alignedFirst(downCands);
 
-          const topEdgeId = (isMultiOrDecision && upCands.length > 0) ? upCands[0].id : null;
-          const bottomEdgeId = (isMultiOrDecision && downCands.length > 0) ? downCands[0].id : null;
+          let topEdgeId = (isMultiOrDecision && upCands.length > 0) ? upCands[0].id : null;
+          let bottomEdgeId = (isMultiOrDecision && downCands.length > 0) ? downCands[0].id : null;
+          if (!topEdgeId && upCands.length > 0 && Math.abs(rects[upCands[0].to].cx - f.cx) < 30) {
+            topEdgeId = upCands[0].id;
+          }
+          if (!bottomEdgeId && downCands.length > 0 && Math.abs(rects[downCands[0].to].cx - f.cx) < 30) {
+            bottomEdgeId = downCands[0].id;
+          }
 
           fwdOuts.forEach(e => {
             const t = rects[e.to];
@@ -2231,7 +2254,7 @@
             } else if (fromPort === 'right' && fwdOuts.length === 1 && uNode && uNode.type !== 'decision') {
               // One step into another lane: leave via top/bottom for a single bend instead of a Z
               const dy = t.cy - f.cy;
-              if (Math.abs(dy) > 30 && t.x > f.cx + 40) {
+              if (Math.abs(dy) > 30 && (Math.abs(t.cx - f.cx) < 30 || t.x > f.cx + 40)) {
                 const sy = dy > 0 ? f.y + f.h : f.y;
                 if (segmentClear(f.cx, sy, f.cx, t.cy, [uId, e.to]) && segmentClear(f.cx, t.cy, t.x, t.cy, [uId, e.to])) {
                   fromPort = dy > 0 ? 'bottom' : 'top';
@@ -2269,6 +2292,26 @@
             const outs = outEdges[nid].filter(e => edgePorts[e.id] && edgePorts[e.id].fromPort === side);
             const ins = inEdges[nid].filter(e => edgePorts[e.id] && edgePorts[e.id].toPort === side);
             if (!outs.length || !ins.length) return;
+
+            // If an edge is a straight vertical line to/from an aligned node, preserve it at cx (offset 0)
+            // and put the slot offset on the other edge(s) so arrowheads never collide with departure points
+            const isStraightOut = outs.some(e => Math.abs(rects[e.to].cx - rects[nid].cx) < 30 && (edgePorts[e.id].toPort === 'top' || edgePorts[e.id].toPort === 'bottom'));
+            const isStraightIn = ins.some(e => Math.abs(rects[e.from].cx - rects[nid].cx) < 30 && (edgePorts[e.id].fromPort === 'top' || edgePorts[e.id].fromPort === 'bottom'));
+
+            if (isStraightOut && !isStraightIn) {
+              outs.forEach(e => { fromOffX[e.id] = 0; });
+              const insMeanX = ins.reduce((s, e) => s + rects[e.from].cx, 0) / ins.length;
+              const slotDir = insMeanX >= rects[nid].cx ? 1 : -1;
+              ins.forEach(e => { toOffX[e.id] = slotDir * PORT_SLOT; });
+              return;
+            } else if (isStraightIn && !isStraightOut) {
+              ins.forEach(e => { toOffX[e.id] = 0; });
+              const outsMeanX = outs.reduce((s, e) => s + rects[e.to].cx, 0) / outs.length;
+              const slotDir = outsMeanX >= rects[nid].cx ? 1 : -1;
+              outs.forEach(e => { fromOffX[e.id] = slotDir * PORT_SLOT; });
+              return;
+            }
+
             const meanX = (list, key) => list.reduce((s, e) => s + rects[e[key]].cx, 0) / list.length;
             // Put each group on the side facing where its other ends are, to avoid new crossings
             const insFirst = meanX(ins, 'from') <= meanX(outs, 'to');

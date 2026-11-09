@@ -88,7 +88,7 @@
       "laneId": "lane-c",
       "type": "task",
       "label": "Approve Case",
-      "x": 464,
+      "x": 392,
       "y": 52
     },
     {
@@ -96,7 +96,7 @@
       "laneId": "lane-b",
       "type": "task",
       "label": "Notify Customer",
-      "x": 464,
+      "x": 392,
       "y": 52
     },
     {
@@ -105,7 +105,7 @@
       "type": "end",
       "label": "Accepted",
       "outcome": "success",
-      "x": 632,
+      "x": 392,
       "y": 52
     },
     {
@@ -122,7 +122,7 @@
       "laneId": "lane-c",
       "type": "task",
       "label": "Archive Case",
-      "x": 704,
+      "x": 632,
       "y": 52
     },
     {
@@ -130,7 +130,7 @@
       "laneId": "lane-b",
       "type": "end",
       "label": "Closed",
-      "x": 872,
+      "x": 632,
       "y": 52
     }
   ],

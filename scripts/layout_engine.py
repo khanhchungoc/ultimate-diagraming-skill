@@ -366,6 +366,10 @@ class FlowchartAudit:
             is_multi_or_decision = u_node.get("type") == "decision" or len(fwd_outs) > 1
             top_edge_id = up_cands[0]["id"] if (is_multi_or_decision and up_cands) else None
             bottom_edge_id = down_cands[0]["id"] if (is_multi_or_decision and down_cands) else None
+            if not top_edge_id and up_cands and abs(rects[up_cands[0]["to"]][0] + rects[up_cands[0]["to"]][2] / 2 - fcx) < 30:
+                top_edge_id = up_cands[0]["id"]
+            if not bottom_edge_id and down_cands and abs(rects[down_cands[0]["to"]][0] + rects[down_cands[0]["to"]][2] / 2 - fcx) < 30:
+                bottom_edge_id = down_cands[0]["id"]
 
             for e in fwd_outs:
                 v_id = e["to"]
@@ -383,7 +387,7 @@ class FlowchartAudit:
                 if v_id in has_left_loopback:
                     to_port = "bottom" if tcy < fcy else "top"
                 elif (from_port == "right" and len(fwd_outs) == 1 and u_node.get("type") != "decision"
-                        and abs(tcy - fcy) > 30 and tx > fcx + 40):
+                        and abs(tcy - fcy) > 30 and (abs(tx + tw / 2 - fcx) < 30 or tx > fcx + 40)):
                     # One step into another lane: top/bottom exit gives a single-bend L
                     from_port = "bottom" if tcy > fcy else "top"
                 if from_port in ("top", "bottom") and abs((tx + tw / 2) - fcx) < 30:
@@ -435,6 +439,8 @@ class FlowchartAudit:
                 if tcx < fcx - 30:  # Leftward loopback
                     gutter_y = min(fy - 20, ty - 20) if from_port == "top" else max(fy + fh + 20, ty + th + 20)
                     result[eid] = [(fcx, sy), (fcx, gutter_y), (tcx, gutter_y), (tcx, ey)]
+                elif abs(fcx - tcx) < 1:
+                    result[eid] = [(fcx, sy), (tcx, ey)]
                 else:
                     mid_y = (sy + ey) / 2
                     result[eid] = [(fcx, sy), (fcx, mid_y), (tcx, mid_y), (tcx, ey)]
