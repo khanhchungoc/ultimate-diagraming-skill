@@ -1,0 +1,181 @@
+{
+  "title": "Customer Loan Application Process",
+  "direction": "LR",
+  "lanes": [
+    {
+      "id": "lane-customer",
+      "name": "Applicant / Customer",
+      "color": "#e0f2fe"
+    },
+    {
+      "id": "lane-officer",
+      "name": "Loan Officer",
+      "color": "#fef3c7"
+    },
+    {
+      "id": "lane-engine",
+      "name": "Automated Underwriting Engine",
+      "color": "#dcfce7"
+    },
+    {
+      "id": "lane-risk",
+      "name": "Risk & Compliance Committee",
+      "color": "#fee2e2"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "n1",
+      "laneId": "lane-customer",
+      "type": "start",
+      "label": "Submit Application"
+    },
+    {
+      "id": "n2",
+      "laneId": "lane-officer",
+      "type": "task",
+      "label": "Review & Validate Docs"
+    },
+    {
+      "id": "n3",
+      "laneId": "lane-officer",
+      "type": "decision",
+      "label": "Docs Complete?"
+    },
+    {
+      "id": "n4",
+      "laneId": "lane-customer",
+      "type": "task",
+      "label": "Provide Missing Docs"
+    },
+    {
+      "id": "n5",
+      "laneId": "lane-engine",
+      "type": "task",
+      "label": "Run Automated Credit & Fraud Check"
+    },
+    {
+      "id": "n6",
+      "laneId": "lane-engine",
+      "type": "decision",
+      "label": "Credit Score >= 700?"
+    },
+    {
+      "id": "n8",
+      "laneId": "lane-risk",
+      "type": "task",
+      "label": "Manual Risk Assessment"
+    },
+    {
+      "id": "n9",
+      "laneId": "lane-risk",
+      "type": "decision",
+      "label": "Risk Acceptable?"
+    },
+    {
+      "id": "n10",
+      "laneId": "lane-officer",
+      "type": "task",
+      "label": "Send Approval & Agreement"
+    },
+    {
+      "id": "n11",
+      "laneId": "lane-customer",
+      "type": "task",
+      "label": "Sign Loan Agreement"
+    },
+    {
+      "id": "n12",
+      "laneId": "lane-officer",
+      "type": "end",
+      "label": "Rejection Sent"
+    },
+    {
+      "id": "n13",
+      "laneId": "lane-customer",
+      "type": "end",
+      "label": "Loan Disbursed"
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "from": "n1",
+      "to": "n2",
+      "label": ""
+    },
+    {
+      "id": "e2",
+      "from": "n2",
+      "to": "n3",
+      "label": ""
+    },
+    {
+      "id": "e3",
+      "from": "n3",
+      "to": "n4",
+      "label": "No"
+    },
+    {
+      "id": "e4",
+      "from": "n4",
+      "to": "n2",
+      "label": "Resubmit",
+      "feedback": true
+    },
+    {
+      "id": "e5",
+      "from": "n3",
+      "to": "n5",
+      "label": "Yes"
+    },
+    {
+      "id": "e6",
+      "from": "n5",
+      "to": "n6",
+      "label": ""
+    },
+    {
+      "id": "e7",
+      "from": "n6",
+      "to": "n10",
+      "label": "Yes"
+    },
+    {
+      "id": "e8",
+      "from": "n6",
+      "to": "n8",
+      "label": "No"
+    },
+    {
+      "id": "e9",
+      "from": "n8",
+      "to": "n9",
+      "label": ""
+    },
+    {
+      "id": "e10",
+      "from": "n9",
+      "to": "n10",
+      "label": "Yes"
+    },
+    {
+      "id": "e12",
+      "from": "n9",
+      "to": "n12",
+      "label": "No"
+    },
+    {
+      "id": "e13",
+      "from": "n10",
+      "to": "n11",
+      "label": ""
+    },
+    {
+      "id": "e14",
+      "from": "n11",
+      "to": "n13",
+      "label": "Signed"
+    }
+  ]
+}

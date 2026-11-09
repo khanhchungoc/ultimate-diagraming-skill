@@ -1,0 +1,2290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Interactive Swimlane Flowchart</title>
+  <style>
+    :root {
+      --bg-page: #f8fafc;
+      --bg-panel: #ffffff;
+      --border-color: #e2e8f0;
+      --border-dark: #cbd5e1;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --success: #16a34a;
+      --warning: #f59e0b;
+      --danger: #dc2626;
+      --lane-header-width: 220px;
+      --lane-min-height: 160px;
+      --grid-dot: #cbd5e1;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: var(--bg-page);
+      color: var(--text-main);
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Top Navigation Toolbar */
+    header {
+      background: var(--bg-panel);
+      border-bottom: 1px solid var(--border-color);
+      height: 56px;
+      padding: 0 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      z-index: 100;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+
+    .toolbar-left, .toolbar-right, .toolbar-center {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .app-title-container {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+    }
+
+    h1#chart-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--text-main);
+      outline: none;
+      padding: 2px 6px;
+      border-radius: 4px;
+      border: 1px solid transparent;
+      user-select: text;
+    }
+    h1#chart-title:focus, h1#chart-title:hover {
+      border-color: var(--border-dark);
+      background: var(--bg-page);
+    }
+
+    .badge {
+      font-size: 0.72rem;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .badge-status {
+      background: #e2e8f0;
+      color: var(--text-muted);
+    }
+    .badge-status.saved {
+      background: #dcfce7;
+      color: #166534;
+    }
+    .badge-status.unsaved {
+      background: #fef3c7;
+      color: #92400e;
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      padding: 6px 12px;
+      border-radius: 6px;
+      border: 1px solid var(--border-color);
+      background: var(--bg-panel);
+      color: var(--text-main);
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .btn:hover {
+      background: #f1f5f9;
+      border-color: var(--border-dark);
+    }
+    .btn:active {
+      transform: translateY(1px);
+    }
+    .btn-primary {
+      background: var(--primary);
+      color: #ffffff;
+      border-color: var(--primary);
+    }
+    .btn-primary:hover {
+      background: var(--primary-hover);
+      border-color: var(--primary-hover);
+    }
+    .btn-success {
+      background: var(--success);
+      color: #ffffff;
+      border-color: var(--success);
+    }
+
+    .btn-icon {
+      padding: 6px 10px;
+      font-size: 0.9rem;
+    }
+
+    /* Banner for connecting mode */
+    #connecting-banner {
+      display: none;
+      background: #eff6ff;
+      border-bottom: 1px solid #bfdbfe;
+      color: #1e40af;
+      font-size: 0.82rem;
+      font-weight: 600;
+      padding: 6px 16px;
+      text-align: center;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      z-index: 90;
+    }
+    #connecting-banner.active {
+      display: flex;
+    }
+
+    /* Workspace & Viewport */
+    #viewport {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      background-color: #f1f5f9;
+      background-image: radial-gradient(var(--grid-dot) 1.2px, transparent 1.2px);
+      background-size: 24px 24px;
+      cursor: grab;
+    }
+    #viewport.panning {
+      cursor: grabbing;
+    }
+
+    #stage {
+      position: absolute;
+      top: 0;
+      left: 0;
+      transform-origin: 0 0;
+      min-width: 1800px;
+      min-height: 1000px;
+    }
+
+    /* Swimlanes Container */
+    #swimlanes-container {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      border: 1px solid var(--border-dark);
+      background: #ffffff;
+      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -2px rgba(0,0,0,0.05);
+      border-radius: 8px;
+      margin: 40px;
+      width: fit-content;
+      min-width: 1400px;
+    }
+
+    .swimlane {
+      display: flex;
+      position: relative;
+      border-bottom: 1px dashed var(--border-dark);
+      min-height: var(--lane-min-height);
+      transition: background 0.15s ease, outline 0.15s ease;
+    }
+    .swimlane:last-child {
+      border-bottom: none;
+    }
+    .swimlane.drag-over-lane {
+      outline: 2px dashed var(--primary);
+      background: rgba(37, 99, 235, 0.04);
+    }
+
+    .lane-header {
+      width: var(--lane-header-width);
+      min-width: var(--lane-header-width);
+      padding: 14px 12px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      border-right: 2px solid var(--border-dark);
+      background: #f8fafc;
+      font-weight: 700;
+      font-size: 0.9rem;
+      color: var(--text-main);
+      position: relative;
+      cursor: grab;
+      user-select: none;
+      transition: background 0.15s;
+    }
+    .lane-header.dragging-header {
+      opacity: 0.5;
+      background: #e2e8f0;
+    }
+    .lane-title {
+      outline: none;
+      user-select: none;
+      word-break: break-word;
+      border-radius: 4px;
+      padding: 2px 4px;
+      border: 1px solid transparent;
+      cursor: default;
+    }
+    .lane-title[contenteditable="true"] {
+      user-select: text;
+      cursor: text;
+      border-color: var(--primary);
+      background: #ffffff;
+    }
+    .lane-title:focus {
+      border-color: var(--primary);
+      background: #ffffff;
+    }
+
+    .lane-controls {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      margin-top: 8px;
+    }
+    .lane-order-btn {
+      width: 22px;
+      height: 20px;
+      border-radius: 4px;
+      border: 1px solid var(--border-dark);
+      background: #ffffff;
+      color: var(--text-muted);
+      font-size: 9px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .lane-order-btn:hover:not(:disabled) {
+      background: var(--primary);
+      color: #ffffff;
+      border-color: var(--primary);
+    }
+    .lane-order-btn:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+    .lane-drag-handle {
+      font-size: 11px;
+      color: var(--text-muted);
+      cursor: grab;
+      padding: 0 4px;
+      letter-spacing: -1px;
+      user-select: none;
+    }
+
+    .lane-track {
+      flex: 1;
+      position: relative;
+      min-width: 1400px;
+      background: rgba(248, 250, 252, 0.35);
+      transition: background 0.15s ease;
+    }
+    .lane-track.drag-hover-lane {
+      background: rgba(37, 99, 235, 0.06);
+    }
+
+    /* SVG Connector Overlay */
+    #connector-svg {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 15;
+    }
+    .connector-path {
+      fill: none;
+      stroke: #64748b;
+      stroke-width: 2.2px;
+      stroke-linejoin: round;
+      stroke-linecap: round;
+      pointer-events: stroke;
+      cursor: pointer;
+      transition: stroke 0.15s ease, stroke-width 0.15s ease;
+    }
+    .connector-path:hover, .connector-path.selected {
+      stroke: var(--primary);
+      stroke-width: 3.5px;
+    }
+
+    .edge-label-container {
+      position: absolute;
+      transform: translate(-50%, -50%);
+      background: #ffffff; /* Opaque mask shield over underlying connectors */
+      border: 1.5px solid var(--border-dark);
+      border-radius: 8px;
+      padding: 3px 8px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: var(--text-main);
+      cursor: pointer;
+      z-index: 30;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+      white-space: normal; /* Allow dropping into multiple lines if exceeding gap */
+      word-break: break-word;
+      text-align: center;
+      transition: all 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      line-height: 1.25;
+      box-sizing: border-box;
+      max-width: 180px;
+    }
+    .edge-label-container:hover, .edge-label-container.selected {
+      border-color: var(--primary);
+      box-shadow: 0 2px 8px rgba(37,99,235,0.22);
+    }
+    .edge-label-text {
+      outline: none;
+      min-width: 14px;
+      display: inline-block;
+      user-select: text;
+      white-space: normal;
+      word-break: break-word;
+      text-align: center;
+    }
+    .edge-label-text:focus {
+      color: var(--primary);
+    }
+    .edge-label-container.empty-placeholder {
+      display: none;
+      background: rgba(255, 255, 255, 0.95);
+      border: 1.5px dashed #94a3b8;
+      color: #64748b;
+      font-size: 0.72rem;
+      padding: 2px 8px;
+    }
+    .edge-label-container.empty-placeholder.hover-visible,
+    .edge-label-container.empty-placeholder.selected,
+    .edge-label-container.empty-placeholder:hover {
+      display: inline-flex !important;
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+    .edge-label-container.has-label {
+      display: inline-flex;
+    }
+    .edge-delete-btn {
+      width: 15px;
+      height: 15px;
+      border-radius: 50%;
+      background: #f1f5f9;
+      color: #64748b;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .edge-delete-btn:hover {
+      background: var(--danger);
+      color: #ffffff;
+    }
+
+    /* Flowchart Nodes - 4px Grid Alignment */
+    .flow-node {
+      position: absolute;
+      background: #ffffff;
+      border: 1.8px solid var(--border-dark);
+      border-radius: 8px;
+      padding: 6px 14px;
+      width: 168px;
+      height: 56px;
+      cursor: move;
+      z-index: 20;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.06);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      font-size: 0.81rem;
+      font-weight: 600;
+      line-height: 1.22;
+      user-select: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .flow-node:hover {
+      border-color: var(--primary);
+      box-shadow: 0 4px 10px rgba(0,0,0,0.12);
+    }
+    .flow-node.selected {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(37,99,235,0.25);
+    }
+    .flow-node.connect-target {
+      outline: 3px dashed var(--primary);
+      border-color: var(--primary);
+    }
+
+    /* Node Types */
+    .flow-node.type-start {
+      border-radius: 28px;
+      background: #ecfdf5;
+      border-color: #10b981;
+      color: #065f46;
+    }
+    .flow-node.type-end {
+      border-radius: 28px;
+      background: #fef2f2;
+      border-color: #ef4444;
+      color: #991b1b;
+    }
+    .flow-node.type-decision {
+      width: 168px;
+      height: 64px;
+      background: transparent !important;
+      border: none !important;
+      box-shadow: none !important;
+      padding: 0 !important;
+    }
+    .flow-node.type-decision .decision-diamond-svg {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+      pointer-events: none;
+    }
+    .flow-node.type-decision .diamond-poly {
+      fill: #fffbeb;
+      stroke: #f59e0b;
+      stroke-width: 1.8px;
+      transition: stroke 0.15s, fill 0.15s, stroke-width 0.15s;
+    }
+    .flow-node.type-decision:hover .diamond-poly {
+      stroke: var(--primary);
+      stroke-width: 2.2px;
+      fill: #ffffff;
+    }
+    .flow-node.type-decision.selected .diamond-poly {
+      stroke: var(--primary);
+      stroke-width: 2.5px;
+      filter: drop-shadow(0 0 4px rgba(37,99,235,0.35));
+    }
+    .flow-node.type-decision .node-label {
+      position: relative;
+      z-index: 2;
+      max-width: 110px;
+      font-size: 0.77rem;
+      line-height: 1.15;
+    }
+
+    .node-label {
+      outline: none;
+      user-select: none;
+      width: 100%;
+      word-break: break-word;
+      overflow: hidden;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      cursor: move;
+    }
+    .node-label[contenteditable="true"] {
+      user-select: text;
+      cursor: text;
+    }
+
+    /* Connection Ports (Hidden until hover/selected/connecting for clean publication look) */
+    .port {
+      position: absolute;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #ffffff;
+      border: 2.5px solid var(--primary);
+      opacity: 0;
+      cursor: crosshair;
+      transition: opacity 0.15s, transform 0.15s, background-color 0.15s;
+      z-index: 35;
+      transform: translate(-50%, -50%);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+    }
+    .flow-node:hover .port, .flow-node.selected .port, body.connecting .port {
+      opacity: 1;
+    }
+    .port:hover {
+      transform: translate(-50%, -50%) scale(1.35);
+      background: var(--primary);
+    }
+    .port-top { top: 0; left: 50%; }
+    .port-bottom { top: 100%; left: 50%; }
+    .port-left { top: 50%; left: 0; }
+    .port-right { top: 50%; left: 100%; }
+
+    /* Delete Button for Selected Node */
+    .node-delete-btn {
+      position: absolute;
+      top: -8px;
+      right: -8px;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: var(--danger);
+      color: #ffffff;
+      font-size: 11px;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+      z-index: 40;
+    }
+    .flow-node.selected .node-delete-btn {
+      display: flex;
+    }
+
+    /* Help Drawer / Modal */
+    #help-drawer {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: #ffffff;
+      border: 1px solid var(--border-dark);
+      padding: 12px 16px;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      z-index: 1000;
+      max-width: 340px;
+      display: none;
+    }
+    #help-drawer.open {
+      display: block;
+    }
+    #help-drawer kbd {
+      background: #f1f5f9;
+      border: 1px solid #cbd5e1;
+      padding: 1px 4px;
+      border-radius: 4px;
+      font-weight: 600;
+      color: var(--text-main);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Toolbar -->
+  <header>
+    <div class="toolbar-left">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--primary)"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M3 15h18"/><path d="M9 3v18"/></svg>
+      <div class="app-title-container">
+        <h1 id="chart-title" contenteditable="false" spellcheck="false" title="Double-click to rename flowchart">Interactive Swimlane Flowchart</h1>
+        <span id="save-status" class="badge badge-status">Ready</span>
+      </div>
+    </div>
+
+    <div class="toolbar-center">
+      <button id="btn-add-step" class="btn" title="Add Step Node in selected or first lane">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/><path d="M12 5v14"/></svg> Step
+      </button>
+      <button id="btn-add-decision" class="btn" title="Add Decision Gateway">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 12l10 10 10-10L12 2z"/></svg> Decision
+      </button>
+      <button id="btn-add-lane" class="btn" title="Add Swimlane">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 12h18"/></svg> + Lane
+      </button>
+      <button id="btn-auto-tidy" class="btn btn-primary" title="Automatically re-align and layout flowchart to minimize crossing arrows">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M7 12h10"/><path d="M10 18h4"/></svg> Auto-Tidy
+      </button>
+    </div>
+
+    <div class="toolbar-right">
+      <button id="btn-zoom-out" class="btn btn-icon" title="Zoom Out">−</button>
+      <span id="zoom-level" style="font-size:0.8rem; font-weight:600; width:45px; text-align:center;">100%</span>
+      <button id="btn-zoom-in" class="btn btn-icon" title="Zoom In">+</button>
+      <button id="btn-zoom-reset" class="btn" title="Fit to Screen">Fit</button>
+      <button id="btn-help" class="btn btn-icon" title="Keyboard Shortcuts">?</button>
+      <button id="btn-save" class="btn btn-success" title="Save directly into this HTML file (Ctrl+S)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save
+      </button>
+    </div>
+  </header>
+
+  <!-- Notification Banner when in Connecting Mode -->
+  <div id="connecting-banner">
+    <span id="connecting-text">Connecting from step... Click any target node or drag to it.</span>
+    <button id="btn-cancel-connecting" class="btn" style="padding:2px 8px; font-size:0.75rem;">Cancel (Esc)</button>
+  </div>
+
+  <!-- Viewport for Pan and Zoom -->
+  <div id="viewport">
+    <div id="stage">
+      <div id="swimlanes-container">
+        <!-- SVG Connections Overlay -->
+        <svg id="connector-svg">
+          <defs>
+            <marker id="arrowhead" markerWidth="8" markerHeight="8" refX="7.2" refY="4" orient="auto">
+              <polygon points="0 1, 7.5 4, 0 7" fill="#64748b"/>
+            </marker>
+            <marker id="arrowhead-selected" markerWidth="8" markerHeight="8" refX="7.2" refY="4" orient="auto">
+              <polygon points="0 1, 7.5 4, 0 7" fill="#2563eb"/>
+            </marker>
+          </defs>
+          <g id="edge-group"></g>
+          <path id="drag-edge" d="" style="display:none; fill:none; stroke:#2563eb; stroke-width:3px; stroke-dasharray: 6 6; pointer-events:none;"/>
+        </svg>
+
+        <!-- HTML Edge Labels Container -->
+        <div id="edge-labels-group" style="position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:30;"></div>
+
+        <!-- Swimlane Rows will be rendered here -->
+        <div id="lanes-root"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Help & Shortcuts Drawer -->
+  <div id="help-drawer">
+    <div style="font-weight:700; margin-bottom:6px; display:flex; justify-content:space-between;">
+      <span>Shortcuts & Interaction</span>
+      <span style="cursor:pointer;" onclick="document.getElementById('help-drawer').classList.remove('open')">×</span>
+    </div>
+    <ul style="list-style:none; line-height:1.6;">
+      <li><kbd>Ctrl</kbd> + <kbd>S</kbd> : Save changes directly into HTML</li>
+      <li><kbd>Click or Drag Port</kbd> : Connect two steps with an arrow</li>
+      <li><kbd>Double-Click Arrow</kbd> : Add or edit arrow label (or click <kbd>+ Add Label</kbd>)</li>
+      <li><kbd>Delete</kbd> : Delete selected step or arrow</li>
+      <li><kbd>Drag Node</kbd> : Move inside lane or drop into another lane</li>
+      <li><kbd>▲ / ▼ or Drag Header</kbd> : Reorder swimlanes up or down</li>
+      <li><kbd>Double Click</kbd> : Edit step text, lane names, or edge conditions</li>
+      <li><kbd>Drag Canvas</kbd> : Pan viewport</li>
+      <li><kbd>Scroll Wheel</kbd> : Zoom in / out</li>
+    </ul>
+  </div>
+
+  <!-- CANONICAL DATA BLOCK (Single Source of Truth) -->
+  <script id="flowchart-data" type="application/json">
+{
+  "title": "Interactive Swimlane Flowchart",
+  "direction": "LR",
+  "lanes": [
+    { "id": "lane-1", "name": "Actor / Role 1", "color": "#e0f2fe", "height": 160 },
+    { "id": "lane-2", "name": "System / Service 2", "color": "#fef3c7", "height": 160 }
+  ],
+  "nodes": [
+    { "id": "n1", "laneId": "lane-1", "type": "start", "label": "Start Process", "x": 80, "y": 53 },
+    { "id": "n2", "laneId": "lane-2", "type": "task", "label": "Process Request", "x": 360, "y": 53 },
+    { "id": "n3", "laneId": "lane-2", "type": "end", "label": "Complete", "x": 640, "y": 53 }
+  ],
+  "edges": [
+    { "id": "e1", "from": "n1", "to": "n2", "label": "" },
+    { "id": "e2", "from": "n2", "to": "n3", "label": "" }
+  ]
+}
+  </script>
+
+  <!-- Interactive Flowchart Script -->
+  <script>
+    (function () {
+      'use strict';
+
+      const NODE_WIDTH = 168;
+      const NODE_HEIGHT = 56;
+      const DECISION_WIDTH = 168;
+      const DECISION_HEIGHT = 64;
+      const LANE_MIN_HEIGHT = 160;
+      const LANE_BOTTOM_PAD = 48;
+
+      // --- STATE & INITIALIZATION ---
+      let chartData = { title: "", direction: "LR", lanes: [], nodes: [], edges: [] };
+      let selectedNodeId = null;
+      let selectedEdgeId = null;
+      let fileHandle = null;
+      let hasUnsavedChanges = false;
+
+      // Viewport Pan/Zoom state
+      let scale = 1.0;
+      let panX = 40;
+      let panY = 20;
+      let isPanning = false;
+      let panStartX = 0;
+      let panStartY = 0;
+
+      // Node Drag state
+      let draggingNode = null;
+      let dragStartX = 0;
+      let dragStartY = 0;
+      let dragStartGlobalX = 0;
+      let dragStartGlobalY = 0;
+
+      // Edge Connecting state
+      let connectingFromNodeId = null;
+      let connectingFromPort = null;
+      let connectingStartPoint = null;
+
+      // Elements
+      const viewport = document.getElementById('viewport');
+      const stage = document.getElementById('stage');
+      const swimlanesContainer = document.getElementById('swimlanes-container');
+      const lanesRoot = document.getElementById('lanes-root');
+      const edgeGroup = document.getElementById('edge-group');
+      const edgeLabelsGroup = document.getElementById('edge-labels-group');
+      const dragEdge = document.getElementById('drag-edge');
+      const chartTitleEl = document.getElementById('chart-title');
+      const saveStatus = document.getElementById('save-status');
+      const btnSave = document.getElementById('btn-save');
+      const btnAutoTidy = document.getElementById('btn-auto-tidy');
+      const btnAddStep = document.getElementById('btn-add-step');
+      const btnAddDecision = document.getElementById('btn-add-decision');
+      const btnAddLane = document.getElementById('btn-add-lane');
+      const btnZoomIn = document.getElementById('btn-zoom-in');
+      const btnZoomOut = document.getElementById('btn-zoom-out');
+      const btnZoomReset = document.getElementById('btn-zoom-reset');
+      const zoomLevelEl = document.getElementById('zoom-level');
+      const btnHelp = document.getElementById('btn-help');
+      const helpDrawer = document.getElementById('help-drawer');
+      const connectingBanner = document.getElementById('connecting-banner');
+      const connectingText = document.getElementById('connecting-text');
+      const btnCancelConnecting = document.getElementById('btn-cancel-connecting');
+
+      function loadInitialData() {
+        try {
+          const raw = document.getElementById('flowchart-data').textContent.trim();
+          if (raw) {
+            chartData = JSON.parse(raw);
+          }
+        } catch (err) {
+          console.error("Failed to parse flowchart-data JSON:", err);
+        }
+        chartTitleEl.textContent = chartData.title || "Interactive Swimlane Flowchart";
+
+        chartTitleEl.addEventListener('dblclick', (e) => {
+          e.stopPropagation();
+          chartTitleEl.contentEditable = 'true';
+          chartTitleEl.focus();
+          const range = document.createRange();
+          range.selectNodeContents(chartTitleEl);
+          const sel = window.getSelection();
+          sel.removeAllRanges();
+          sel.addRange(range);
+        });
+        chartTitleEl.addEventListener('blur', () => {
+          chartTitleEl.contentEditable = 'false';
+          const val = chartTitleEl.textContent.trim();
+          if (val && chartData.title !== val) {
+            chartData.title = val;
+            updateStatus(true);
+          }
+        });
+        chartTitleEl.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            chartTitleEl.blur();
+          }
+        });
+
+        render();
+        fitView();
+        updateStatus(false);
+
+        requestAnimationFrame(() => {
+          fitView();
+          if (/[?&]report(=|&|$)/.test(window.location.search)) setTimeout(publishRenderReport, 200);
+        });
+      }
+
+      function updateStatus(unsaved) {
+        hasUnsavedChanges = unsaved;
+        if (unsaved) {
+          saveStatus.textContent = "Unsaved Changes";
+          saveStatus.className = "badge badge-status unsaved";
+        } else {
+          saveStatus.textContent = fileHandle ? "Saved to File" : "Ready";
+          saveStatus.className = "badge badge-status saved";
+        }
+      }
+
+      // --- RENDERING ---
+      function render() {
+        const maxX = chartData.nodes.reduce((m, n) => Math.max(m, (n.x || 0) + NODE_WIDTH + 100), 1200);
+        swimlanesContainer.style.minWidth = `${maxX + 240}px`;
+
+        renderLanes(maxX);
+        renderNodes();
+        renderEdges();
+      }
+
+      function renderLanes(trackWidth) {
+        lanesRoot.innerHTML = '';
+        chartData.lanes.forEach((lane, index) => {
+          // Dynamically calculate required lane height from nodes in this lane
+          const laneNodes = chartData.nodes.filter(n => n.laneId === lane.id);
+          const maxNodeBottom = laneNodes.reduce((m, n) => {
+            const nh = (n.type === 'decision') ? DECISION_HEIGHT : NODE_HEIGHT;
+            return Math.max(m, (n.y || 48) + nh);
+          }, 100);
+          const computedHeight = Math.max(LANE_MIN_HEIGHT, lane.height || 0, maxNodeBottom + LANE_BOTTOM_PAD);
+          lane.height = computedHeight;
+
+          const laneEl = document.createElement('div');
+          laneEl.className = 'swimlane';
+          laneEl.dataset.laneId = lane.id;
+          laneEl.dataset.laneIndex = index;
+          laneEl.style.minHeight = `${computedHeight}px`;
+          laneEl.style.height = `${computedHeight}px`;
+
+          const header = document.createElement('div');
+          header.className = 'lane-header';
+          header.draggable = true;
+          if (lane.color) {
+            header.style.borderLeft = `6px solid ${lane.color}`;
+          }
+
+          // Header title with double-click edit
+          const title = document.createElement('div');
+          title.className = 'lane-title';
+          title.contentEditable = 'false';
+          title.spellcheck = false;
+          title.textContent = lane.name;
+          title.title = "Double-click to rename swimlane";
+
+          title.addEventListener('dblclick', (e) => {
+            e.stopPropagation();
+            title.contentEditable = 'true';
+            title.focus();
+            const range = document.createRange();
+            range.selectNodeContents(title);
+            const sel = window.getSelection();
+            sel.removeAllRanges();
+            sel.addRange(range);
+          });
+          title.addEventListener('blur', () => {
+            title.contentEditable = 'false';
+            if (lane.name !== title.textContent.trim()) {
+              lane.name = title.textContent.trim();
+              updateStatus(true);
+            }
+          });
+          title.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              title.blur();
+            }
+          });
+          header.appendChild(title);
+
+          // Lane Controls: Up / Down order buttons & drag handle
+          const controls = document.createElement('div');
+          controls.className = 'lane-controls';
+
+          const upBtn = document.createElement('button');
+          upBtn.type = 'button';
+          upBtn.className = 'lane-order-btn';
+          upBtn.innerHTML = '▲';
+          upBtn.title = 'Move swimlane up';
+          if (index === 0) upBtn.disabled = true;
+          upBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            moveLane(index, -1);
+          });
+
+          const downBtn = document.createElement('button');
+          downBtn.type = 'button';
+          downBtn.className = 'lane-order-btn';
+          downBtn.innerHTML = '▼';
+          downBtn.title = 'Move swimlane down';
+          if (index === chartData.lanes.length - 1) downBtn.disabled = true;
+          downBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            moveLane(index, 1);
+          });
+
+          const dragHandle = document.createElement('span');
+          dragHandle.className = 'lane-drag-handle';
+          dragHandle.innerHTML = '⋮⋮';
+          dragHandle.title = 'Drag to reorder swimlane';
+
+          controls.appendChild(upBtn);
+          controls.appendChild(downBtn);
+          controls.appendChild(dragHandle);
+          header.appendChild(controls);
+
+          // Drag-and-drop events for lane header re-ordering
+          header.addEventListener('dragstart', (e) => {
+            e.dataTransfer.setData('text/plain', index.toString());
+            header.classList.add('dragging-header');
+          });
+          header.addEventListener('dragend', () => {
+            header.classList.remove('dragging-header');
+            document.querySelectorAll('.swimlane').forEach(l => l.classList.remove('drag-over-lane'));
+          });
+          laneEl.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            laneEl.classList.add('drag-over-lane');
+          });
+          laneEl.addEventListener('dragleave', () => {
+            laneEl.classList.remove('drag-over-lane');
+          });
+          laneEl.addEventListener('drop', (e) => {
+            e.preventDefault();
+            laneEl.classList.remove('drag-over-lane');
+            const fromIdx = parseInt(e.dataTransfer.getData('text/plain'), 10);
+            if (!isNaN(fromIdx) && fromIdx !== index) {
+              const [moved] = chartData.lanes.splice(fromIdx, 1);
+              chartData.lanes.splice(index, 0, moved);
+              updateStatus(true);
+              render();
+            }
+          });
+
+          const track = document.createElement('div');
+          track.className = 'lane-track';
+          track.dataset.laneId = lane.id;
+          track.style.minWidth = `${trackWidth}px`;
+
+          laneEl.appendChild(header);
+          laneEl.appendChild(track);
+          lanesRoot.appendChild(laneEl);
+        });
+      }
+
+      function moveLane(index, delta) {
+        const targetIdx = index + delta;
+        if (targetIdx < 0 || targetIdx >= chartData.lanes.length) return;
+        const [moved] = chartData.lanes.splice(index, 1);
+        chartData.lanes.splice(targetIdx, 0, moved);
+        updateStatus(true);
+        render();
+      }
+
+      function renderNodes() {
+        document.querySelectorAll('.flow-node').forEach(el => el.remove());
+
+        chartData.nodes.forEach(node => {
+          const laneTrack = document.querySelector(`.lane-track[data-lane-id="${node.laneId}"]`);
+          if (!laneTrack) return;
+
+          const isDecision = node.type === 'decision';
+          const nodeEl = document.createElement('div');
+          nodeEl.className = `flow-node type-${node.type}`;
+          nodeEl.id = `node-${node.id}`;
+          nodeEl.dataset.nodeId = node.id;
+          nodeEl.style.left = `${node.x || 80}px`;
+          nodeEl.style.top = `${node.y || 53}px`;
+          if (node.id === selectedNodeId) nodeEl.classList.add('selected');
+
+          // Decision diamond shape SVG
+          if (isDecision) {
+            const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            svg.setAttribute('class', 'decision-diamond-svg');
+            svg.setAttribute('viewBox', '0 0 168 64');
+            svg.setAttribute('preserveAspectRatio', 'none');
+            const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+            poly.setAttribute('points', '84,2 166,32 84,62 2,32');
+            poly.setAttribute('class', 'diamond-poly');
+            svg.appendChild(poly);
+            nodeEl.appendChild(svg);
+          }
+
+          // Text content with double-click edit
+          const label = document.createElement('div');
+          label.className = 'node-label';
+          label.contentEditable = 'false';
+          label.spellcheck = false;
+          label.title = 'Double-click to edit text';
+          label.textContent = node.label;
+
+          label.addEventListener('dblclick', (e) => {
+            e.stopPropagation();
+            label.contentEditable = 'true';
+            label.focus();
+            const range = document.createRange();
+            range.selectNodeContents(label);
+            const sel = window.getSelection();
+            sel.removeAllRanges();
+            sel.addRange(range);
+          });
+          label.addEventListener('blur', () => {
+            label.contentEditable = 'false';
+            if (node.label !== label.textContent.trim()) {
+              node.label = label.textContent.trim();
+              updateStatus(true);
+            }
+          });
+          label.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              label.blur();
+            }
+          });
+          nodeEl.appendChild(label);
+
+          // Delete button
+          const delBtn = document.createElement('div');
+          delBtn.className = 'node-delete-btn';
+          delBtn.textContent = '×';
+          delBtn.title = 'Delete Node';
+          delBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            deleteNode(node.id);
+          });
+          nodeEl.appendChild(delBtn);
+
+          // 4 Anchor Ports
+          ['top', 'right', 'bottom', 'left'].forEach(pos => {
+            const port = document.createElement('div');
+            port.className = `port port-${pos}`;
+            port.dataset.port = pos;
+            port.dataset.nodeId = node.id;
+            port.title = `Click or drag to connect`;
+            port.addEventListener('pointerdown', (e) => handlePortPointerDown(e, node.id, pos));
+            nodeEl.appendChild(port);
+          });
+
+          nodeEl.addEventListener('pointerdown', (e) => handleNodePointerDown(e, node));
+          laneTrack.appendChild(nodeEl);
+        });
+      }
+
+      // --- PLANAR ORTHOGONAL ROUTING & CHANNEL STAGGERING ENGINE ---
+      function computeAllEdgeRoutes() {
+        const stageRect = swimlanesContainer.getBoundingClientRect();
+        const rects = {};
+        const nodeMap = {};
+
+        chartData.nodes.forEach(n => {
+          nodeMap[n.id] = n;
+          const el = document.getElementById(`node-${n.id}`);
+          if (!el) return;
+          const r = el.getBoundingClientRect();
+          const x = (r.left - stageRect.left) / scale;
+          const y = (r.top - stageRect.top) / scale;
+          const w = r.width / scale;
+          const h = r.height / scale;
+          rects[n.id] = { x, y, w, h, cx: x + w / 2, cy: y + h / 2 };
+        });
+
+        const outEdges = {};
+        const inEdges = {};
+        chartData.nodes.forEach(n => { outEdges[n.id] = []; inEdges[n.id] = []; });
+
+        const validEdges = chartData.edges.filter(e => rects[e.from] && rects[e.to]);
+        validEdges.forEach(e => {
+          outEdges[e.from].push(e);
+          inEdges[e.to].push(e);
+        });
+
+        // 1. Identify nodes that have a leftward loopback leaving their 'left' port
+        const hasLeftLoopback = new Set();
+        validEdges.forEach(e => {
+          const f = rects[e.from];
+          const t = rects[e.to];
+          if (t.cx < f.cx - 30 && Math.abs(t.cy - f.cy) > 30) {
+            hasLeftLoopback.add(e.from);
+          }
+        });
+
+        // 2. Assign departure and arrival ports per edge
+        const edgePorts = {};
+        Object.keys(outEdges).forEach(uId => {
+          const uOuts = outEdges[uId];
+          if (!uOuts.length) return;
+          const f = rects[uId];
+          const uNode = nodeMap[uId];
+          const fwdOuts = [];
+
+          uOuts.forEach(e => {
+            const t = rects[e.to];
+            if (t.cx < f.cx - 30) {
+              if (t.cy > f.cy + 30) {
+                edgePorts[e.id] = { fromPort: 'left', toPort: 'top' };
+              } else if (t.cy < f.cy - 30) {
+                edgePorts[e.id] = { fromPort: 'left', toPort: 'bottom' };
+              } else {
+                edgePorts[e.id] = { fromPort: 'bottom', toPort: 'bottom' };
+              }
+            } else {
+              fwdOuts.push(e);
+            }
+          });
+
+          const isMultiOrDecision = (uNode && uNode.type === 'decision') || fwdOuts.length > 1;
+          const upCands = fwdOuts.filter(e => rects[e.to].cy < f.cy - 30).sort((a, b) => rects[a.to].cy - rects[b.to].cy);
+          const downCands = fwdOuts.filter(e => rects[e.to].cy > f.cy + 30).sort((a, b) => rects[b.to].cy - rects[a.to].cy);
+
+          const topEdgeId = (isMultiOrDecision && upCands.length > 0) ? upCands[0].id : null;
+          const bottomEdgeId = (isMultiOrDecision && downCands.length > 0) ? downCands[0].id : null;
+
+          fwdOuts.forEach(e => {
+            const t = rects[e.to];
+            let fromPort = 'right';
+            if (e.id === topEdgeId) {
+              fromPort = 'top';
+            } else if (e.id === bottomEdgeId) {
+              fromPort = 'bottom';
+            }
+
+            let toPort = 'left';
+            if (hasLeftLoopback.has(e.to)) {
+              toPort = (t.cy < f.cy) ? 'bottom' : 'top';
+            }
+            edgePorts[e.id] = { fromPort, toPort };
+          });
+        });
+
+        // 3. Stagger vertical arrival offsets on shared 'left' ports
+        const toPortOffsetY = {};
+        Object.keys(inEdges).forEach(vId => {
+          const leftIns = inEdges[vId].filter(e => edgePorts[e.id] && edgePorts[e.id].toPort === 'left');
+          if (leftIns.length > 1) {
+            leftIns.sort((a, b) => rects[a.from].cy - rects[b.from].cy);
+            leftIns.forEach((e, idx) => {
+              toPortOffsetY[e.id] = (idx - (leftIns.length - 1) / 2) * 16;
+            });
+          } else if (leftIns.length === 1) {
+            toPortOffsetY[leftIns[0].id] = 0;
+          }
+        });
+
+        // 4. Stagger vertical channel X for right->left elbow edges sharing the same column gap
+        const channelXMap = {};
+        const rlElbows = validEdges.filter(e => {
+          const p = edgePorts[e.id];
+          if (!p || p.fromPort !== 'right' || p.toPort !== 'left') return false;
+          const sy = rects[e.from].cy;
+          const ey = rects[e.to].cy + (toPortOffsetY[e.id] || 0);
+          return Math.abs(sy - ey) >= 6;
+        });
+
+        // Group rlElbows by target column bucket
+        const gapGroups = {};
+        rlElbows.forEach(e => {
+          const tx = Math.round(rects[e.to].x / 100) * 100;
+          if (!gapGroups[tx]) gapGroups[tx] = [];
+          gapGroups[tx].push(e);
+        });
+
+        Object.values(gapGroups).forEach(group => {
+          if (group.length === 1) {
+            const e = group[0];
+            const sx = rects[e.from].x + rects[e.from].w;
+            const ex = rects[e.to].x;
+            channelXMap[e.id] = sx + (ex - sx) * 0.5;
+          } else {
+            // Sort upward edges by startY ascending, downward edges by startY descending for planar nesting
+            const goingUp = group.filter(e => rects[e.to].cy < rects[e.from].cy).sort((a, b) => rects[a.from].cy - rects[b.from].cy);
+            const goingDown = group.filter(e => rects[e.to].cy >= rects[e.from].cy).sort((a, b) => rects[b.from].cy - rects[a.from].cy);
+            const ordered = [...goingUp, ...goingDown];
+
+            ordered.forEach((e, idx) => {
+              const sx = rects[e.from].x + rects[e.from].w;
+              const ex = rects[e.to].x;
+              const gap = ex - sx;
+              const frac = (idx + 1) / (ordered.length + 1);
+              channelXMap[e.id] = sx + Math.max(24, Math.min(gap - 24, gap * frac));
+            });
+          }
+        });
+
+        // 5. First pass: build polylines for all edges
+        const edgePolylines = {};
+        validEdges.forEach(e => {
+          const p = edgePorts[e.id];
+          const f = rects[e.from];
+          const t = rects[e.to];
+          const offsetY = toPortOffsetY[e.id] || 0;
+          let points = [];
+
+          if (p.fromPort === 'left' && (p.toPort === 'top' || p.toPort === 'bottom')) {
+            const sx = f.x;
+            const sy = f.cy;
+            const ex = t.cx;
+            const ey = (p.toPort === 'top') ? t.y : (t.y + t.h);
+            const xExit = sx - 24;
+            // Dedicated Outer Bypass Corridor: route outside node rows
+            let bypassY = (p.toPort === 'top') ? Math.min(f.y - 20, t.y - 20) : Math.max(f.y + f.h + 20, t.y + t.h + 20);
+            bypassY = Math.max(20, bypassY);
+            points = [[sx, sy], [xExit, sy], [xExit, bypassY], [ex, bypassY], [ex, ey]];
+          } else if ((p.fromPort === 'top' || p.fromPort === 'bottom') && (p.toPort === 'top' || p.toPort === 'bottom')) {
+            const sx = f.cx;
+            const sy = (p.fromPort === 'top') ? f.y : (f.y + f.h);
+            const ex = t.cx;
+            const ey = (p.toPort === 'top') ? t.y : (t.y + t.h);
+            if (e.to === e.from || t.cx < f.cx - 30) {
+              const gutterY = Math.max(sy, ey) + 36;
+              points = [[sx, sy], [sx, gutterY], [ex, gutterY], [ex, ey]];
+            } else {
+              const midY = sy + (ey - sy) * 0.5;
+              points = [[sx, sy], [sx, midY], [ex, midY], [ex, ey]];
+            }
+          } else if ((p.fromPort === 'top' || p.fromPort === 'bottom') && p.toPort === 'left') {
+            const sx = f.cx;
+            const sy = (p.fromPort === 'top') ? f.y : (f.y + f.h);
+            const ex = t.x;
+            const ey = t.cy + offsetY;
+            points = [[sx, sy], [sx, ey], [ex, ey]];
+          } else {
+            const sx = f.x + f.w;
+            const sy = f.cy;
+            const ex = t.x;
+            const ey = t.cy + offsetY;
+
+            if (Math.abs(sy - ey) < 6) {
+              points = [[sx, sy], [ex, sy]];
+            } else {
+              const midX = channelXMap[e.id] !== undefined ? channelXMap[e.id] : (sx + (ex - sx) * 0.5);
+              points = [[sx, sy], [midX, sy], [midX, ey], [ex, ey]];
+            }
+          }
+          edgePolylines[e.id] = points;
+        });
+
+        // 6. Collect vertical segments from edges for planar bridge/hop overpasses
+        const verticalSegments = [];
+        validEdges.forEach(other => {
+          const pts = edgePolylines[other.id];
+          if (!pts) return;
+          for (let i = 0; i < pts.length - 1; i++) {
+            if (Math.abs(pts[i][0] - pts[i + 1][0]) < 1) {
+              const vx = pts[i][0];
+              const yMin = Math.min(pts[i][1], pts[i + 1][1]);
+              const yMax = Math.max(pts[i][1], pts[i + 1][1]);
+              verticalSegments.push({ edgeId: other.id, x: vx, yMin, yMax });
+            }
+          }
+        });
+
+        // 7. Second pass: choose collision-free label coordinates and generate curved/hop path
+        const placedLabels = [];
+        const allNodeBoxes = Object.values(rects);
+        const routes = {};
+
+        validEdges.forEach(e => {
+          const p = edgePorts[e.id];
+          const points = edgePolylines[e.id];
+
+          const otherObstacles = verticalSegments.filter(obs => {
+            if (obs.edgeId === e.id) return false;
+            const otherE = chartData.edges.find(ed => ed.id === obs.edgeId);
+            if (otherE && (otherE.from === e.from || otherE.to === e.to)) return false;
+            return true;
+          });
+
+          const d = buildCurvedPathWithHops(points, otherObstacles, 8);
+
+          const otherPolylines = [];
+          validEdges.forEach(other => {
+            if (other.id !== e.id && edgePolylines[other.id]) {
+              otherPolylines.push(edgePolylines[other.id]);
+            }
+          });
+
+          const labelPos = pickClearLabelPosition(points, p.fromPort, e.label, allNodeBoxes, placedLabels, otherPolylines);
+          if (e.label && e.label.trim()) {
+            const lw = Math.max(48, e.label.length * 7 + 20);
+            placedLabels.push({ x: labelPos.x - lw / 2, y: labelPos.y - 14, w: lw, h: 28 });
+          }
+
+          routes[e.id] = {
+            path: d,
+            midX: labelPos.x,
+            midY: labelPos.y,
+            fromRect: rects[e.from],
+            toRect: rects[e.to],
+          };
+        });
+
+        return routes;
+      }
+
+      function buildCurvedPathWithHops(points, verticalObstacles, r = 8) {
+        if (!points || points.length === 0) return '';
+        if (points.length === 1) return `M ${points[0][0]} ${points[0][1]}`;
+
+        // Insert bridge hop markers along horizontal segments that cross other vertical edges
+        const expanded = [points[0]];
+        for (let i = 0; i < points.length - 1; i++) {
+          const p1 = points[i];
+          const p2 = points[i + 1];
+          const isHorizontal = Math.abs(p1[1] - p2[1]) < 1;
+
+          if (isHorizontal && verticalObstacles && verticalObstacles.length > 0) {
+            const y = p1[1];
+            const minX = Math.min(p1[0], p2[0]);
+            const maxX = Math.max(p1[0], p2[0]);
+            const goingRight = p2[0] > p1[0];
+
+            const hops = [];
+            verticalObstacles.forEach(obs => {
+              const vx = obs.x;
+              if (vx > minX + 18 && vx < maxX - 18 && y > obs.yMin + 8 && y < obs.yMax - 8) {
+                hops.push(vx);
+              }
+            });
+
+            hops.sort((a, b) => goingRight ? a - b : b - a);
+            hops.forEach(vx => {
+              expanded.push({ isHop: true, x: vx, y: y, dir: goingRight ? 1 : -1 });
+            });
+          }
+          expanded.push(p2);
+        }
+
+        // Render rounded quarter-arc corners (r=8) and semicircular hops (r=6)
+        let d = `M ${expanded[0][0]} ${expanded[0][1]}`;
+        for (let i = 1; i < expanded.length; i++) {
+          const item = expanded[i];
+          if (item.isHop) {
+            const hx = item.x;
+            const hy = item.y;
+            const dir = item.dir;
+            const hopR = 6;
+            d += ` L ${(hx - hopR * dir).toFixed(1)} ${hy.toFixed(1)}`;
+            d += ` A ${hopR} ${hopR} 0 0 1 ${(hx + hopR * dir).toFixed(1)} ${hy.toFixed(1)}`;
+            continue;
+          }
+
+          const prev = expanded[i - 1];
+          const next = (i < expanded.length - 1 && !expanded[i + 1].isHop) ? expanded[i + 1] : null;
+
+          if (next) {
+            const pPrev = prev.isHop ? [prev.x + 6 * prev.dir, prev.y] : prev;
+            const pCurr = item;
+            const pNext = next;
+
+            const vIn = [pCurr[0] - pPrev[0], pCurr[1] - pPrev[1]];
+            const vOut = [pNext[0] - pCurr[0], pNext[1] - pCurr[1]];
+            const lenIn = Math.hypot(vIn[0], vIn[1]);
+            const lenOut = Math.hypot(vOut[0], vOut[1]);
+
+            if (lenIn >= 8 && lenOut >= 8) {
+              const curR = Math.min(r, lenIn / 2, lenOut / 2);
+              const startX = pCurr[0] - (vIn[0] / lenIn) * curR;
+              const startY = pCurr[1] - (vIn[1] / lenIn) * curR;
+              const endX = pCurr[0] + (vOut[0] / lenOut) * curR;
+              const endY = pCurr[1] + (vOut[1] / lenOut) * curR;
+
+              d += ` L ${startX.toFixed(1)} ${startY.toFixed(1)}`;
+              d += ` Q ${pCurr[0].toFixed(1)} ${pCurr[1].toFixed(1)} ${endX.toFixed(1)} ${endY.toFixed(1)}`;
+              continue;
+            }
+          }
+          d += ` L ${item[0]} ${item[1]}`;
+        }
+        return d;
+      }
+
+      function pickClearLabelPosition(points, fromPort, labelText, nodeBoxes, placedLabels, otherPolylines) {
+        const candidates = [];
+
+        if (points.length === 2) {
+          candidates.push({
+            x: (points[0][0] + points[1][0]) / 2,
+            y: (points[0][1] + points[1][1]) / 2
+          });
+        } else if (points.length === 3) {
+          if (fromPort === 'top' || fromPort === 'bottom') {
+            const p0 = points[0];
+            const p1 = points[1];
+            const p2 = points[2];
+            const sign = p1[1] > p0[1] ? 1 : -1;
+            const distY = Math.abs(p1[1] - p0[1]);
+            candidates.push({
+              x: p0[0],
+              y: p0[1] + sign * Math.min(34, distY * 0.45)
+            });
+            candidates.push({
+              x: (p1[0] + p2[0]) / 2,
+              y: p1[1]
+            });
+          } else {
+            candidates.push({
+              x: (points[0][0] + points[1][0]) / 2,
+              y: points[0][1]
+            });
+          }
+        } else if (points.length >= 4) {
+          const p0 = points[0];
+          const p1 = points[1];
+          const p2 = points[2];
+          const p3 = points[3];
+
+          if (Math.abs(p1[0] - p2[0]) < 2) {
+            for (const t of [0.5, 0.22, 0.78, 0.35, 0.65]) {
+              candidates.push({
+                x: p1[0],
+                y: p1[1] + (p2[1] - p1[1]) * t
+              });
+            }
+          } else {
+            candidates.push({
+              x: (p1[0] + p2[0]) / 2,
+              y: p1[1]
+            });
+          }
+          candidates.push({ x: (p0[0] + p1[0]) / 2, y: p0[1] });
+          candidates.push({ x: (p2[0] + p3[0]) / 2, y: p2[1] });
+        }
+
+        const textLen = labelText ? labelText.trim().length : 0;
+        const singleLineWidth = Math.max(40, textLen * 7.2 + 18);
+        let lw = singleLineWidth;
+        let lh = 24;
+
+        // Check horizontal span of edge points to determine available gap
+        let horizClearance = null;
+        if (points.length >= 2) {
+          const minX = Math.min(...points.map(p => p[0]));
+          const maxX = Math.max(...points.map(p => p[0]));
+          if (maxX - minX > 50) {
+            horizClearance = maxX - minX - 16;
+          }
+        }
+
+        // Allow arrow labels to drop into multiple lines if 1 line exceeds the horizontal gap
+        if (horizClearance && singleLineWidth > horizClearance) {
+          lw = Math.max(48, Math.min(singleLineWidth, horizClearance));
+          const lines = Math.ceil(singleLineWidth / lw);
+          lh = Math.max(24, lines * 15 + 8);
+        }
+
+        function BoxOverlap(bx, by, bw, bh, ox, oy, ow, oh, pad) {
+          return (
+            bx < ox + ow + pad &&
+            bx + bw > ox - pad &&
+            by < oy + oh + pad &&
+            by + bh > oy - pad
+          );
+        }
+
+        for (const cand of candidates) {
+          const bx = cand.x - lw / 2;
+          const by = cand.y - lh / 2;
+          let collides = false;
+
+          for (const nb of nodeBoxes) {
+            if (BoxOverlap(bx, by, lw, lh, nb.x, nb.y, nb.w, nb.h, 8)) {
+              collides = true;
+              break;
+            }
+          }
+          if (!collides) {
+            for (const pl of placedLabels) {
+              if (BoxOverlap(bx, by, lw, lh, pl.x, pl.y, pl.w, pl.h, 6)) {
+                collides = true;
+                break;
+              }
+            }
+          }
+          if (!collides && otherPolylines) {
+            for (const poly of otherPolylines) {
+              for (let i = 0; i < poly.length - 1; i++) {
+                const sx = Math.min(poly[i][0], poly[i + 1][0]);
+                const sy = Math.min(poly[i][1], poly[i + 1][1]);
+                const sw = Math.abs(poly[i + 1][0] - poly[i][0]);
+                const sh = Math.abs(poly[i + 1][1] - poly[i][1]);
+                if (BoxOverlap(bx, by, lw, lh, sx, sy, sw, sh, 6)) {
+                  collides = true;
+                  break;
+                }
+              }
+              if (collides) break;
+            }
+          }
+          if (!collides) {
+            return cand;
+          }
+        }
+
+        return candidates[0] || { x: points[0][0], y: points[0][1] };
+      }
+
+      function renderEdges() {
+        edgeGroup.innerHTML = '';
+        edgeLabelsGroup.innerHTML = '';
+
+        const routes = computeAllEdgeRoutes();
+
+        chartData.edges.forEach(edge => {
+          const pathD = routes[edge.id];
+          if (!pathD || !pathD.path) return;
+
+          const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+          path.setAttribute('d', pathD.path);
+          path.setAttribute('class', edge.id === selectedEdgeId ? 'connector-path selected' : 'connector-path');
+          path.dataset.edgeId = edge.id;
+          path.setAttribute('marker-end', edge.id === selectedEdgeId ? 'url(#arrowhead-selected)' : 'url(#arrowhead)');
+
+          path.addEventListener('click', (e) => {
+            e.stopPropagation();
+            selectEdge(edge.id);
+          });
+
+          path.addEventListener('dblclick', (e) => {
+            e.stopPropagation();
+            selectEdge(edge.id, false);
+            const labelEl = document.querySelector(`.edge-label-container[data-edge-id="${edge.id}"] .edge-label-text`);
+            if (labelEl) {
+              labelEl.focus();
+              const range = document.createRange();
+              range.selectNodeContents(labelEl);
+              const sel = window.getSelection();
+              sel.removeAllRanges();
+              sel.addRange(range);
+            }
+          });
+
+          edgeGroup.appendChild(path);
+
+          // Edge Label Pill
+          if (pathD.midX !== undefined && pathD.midY !== undefined) {
+            const labelContainer = document.createElement('div');
+            labelContainer.className = 'edge-label-container';
+            labelContainer.dataset.edgeId = edge.id;
+            labelContainer.style.pointerEvents = 'auto';
+            labelContainer.style.left = `${pathD.midX}px`;
+            labelContainer.style.top = `${pathD.midY}px`;
+
+            // Allow arrow labels to drop into multiple lines if 1 line exceeds the horizontal gap
+            const fRect = pathD.fromRect;
+            const tRect = pathD.toRect;
+            if (fRect && tRect && tRect.x > (fRect.x + fRect.w)) {
+              const horizGap = tRect.x - (fRect.x + fRect.w);
+              const maxLabelW = Math.max(56, Math.min(220, horizGap - 16));
+              labelContainer.style.maxWidth = `${maxLabelW}px`;
+            } else {
+              labelContainer.style.maxWidth = '180px';
+            }
+
+            const isSelected = (edge.id === selectedEdgeId);
+            const hasLabel = Boolean(edge.label && edge.label.trim());
+
+            if (isSelected) labelContainer.classList.add('selected');
+            if (hasLabel) {
+              labelContainer.classList.add('has-label');
+            } else {
+              labelContainer.classList.add('empty-placeholder');
+            }
+
+            const labelText = document.createElement('span');
+            labelText.className = 'edge-label-text';
+            labelText.contentEditable = 'false';
+            labelText.spellcheck = false;
+            labelText.title = 'Double-click to edit condition';
+            labelText.textContent = hasLabel ? edge.label : '+ Add Label';
+
+            labelText.addEventListener('pointerdown', (e) => {
+              e.stopPropagation();
+            });
+
+            labelText.addEventListener('blur', () => {
+              labelText.contentEditable = 'false';
+              const text = labelText.textContent.trim();
+              if (text === '' || text === '+ Add Label') {
+                edge.label = '';
+              } else {
+                edge.label = text;
+              }
+              updateStatus(true);
+              render();
+            });
+
+            labelText.addEventListener('keydown', (e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                labelText.blur();
+              } else if (e.key === 'Escape') {
+                e.preventDefault();
+                labelText.textContent = edge.label || '';
+                labelText.blur();
+              }
+            });
+
+            labelContainer.addEventListener('dblclick', (e) => {
+              e.stopPropagation();
+              labelText.contentEditable = 'true';
+              labelText.focus();
+              if (labelText.textContent.trim() === '+ Add Label') {
+                labelText.textContent = '';
+                labelContainer.classList.remove('empty-placeholder');
+              } else {
+                const range = document.createRange();
+                range.selectNodeContents(labelText);
+                const sel = window.getSelection();
+                sel.removeAllRanges();
+                sel.addRange(range);
+              }
+            });
+
+            labelContainer.appendChild(labelText);
+
+            if (isSelected) {
+              const delEdgeBtn = document.createElement('span');
+              delEdgeBtn.className = 'edge-delete-btn';
+              delEdgeBtn.textContent = '×';
+              delEdgeBtn.title = 'Delete connection';
+              delEdgeBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                deleteEdge(edge.id);
+              });
+              labelContainer.appendChild(delEdgeBtn);
+            }
+
+            labelContainer.addEventListener('click', (e) => {
+              e.stopPropagation();
+              selectEdge(edge.id, false);
+            });
+
+            edgeLabelsGroup.appendChild(labelContainer);
+
+            path.addEventListener('mouseenter', () => {
+              labelContainer.classList.add('hover-visible');
+            });
+            path.addEventListener('mouseleave', () => {
+              if (edge.id !== selectedEdgeId && !labelText.matches(':focus')) {
+                labelContainer.classList.remove('hover-visible');
+              }
+            });
+          }
+        });
+      }
+
+      // --- NODE DRAG INTERACTION ---
+      function handleNodePointerDown(e, node) {
+        if (e.target.classList.contains('port') || e.target.classList.contains('node-delete-btn') || e.target.isContentEditable) {
+          return;
+        }
+
+        if (connectingFromNodeId) {
+          if (connectingFromNodeId !== node.id) {
+            createConnection(connectingFromNodeId, node.id);
+          }
+          cancelConnecting();
+          return;
+        }
+
+        e.preventDefault();
+        selectNode(node.id);
+        draggingNode = node;
+        dragStartX = e.clientX;
+        dragStartY = e.clientY;
+
+        const nodeEl = document.getElementById(`node-${node.id}`);
+        const stageRect = swimlanesContainer.getBoundingClientRect();
+        const nRect = nodeEl.getBoundingClientRect();
+
+        dragStartGlobalX = (nRect.left - stageRect.left) / scale;
+        dragStartGlobalY = (nRect.top - stageRect.top) / scale;
+
+        window.addEventListener('pointermove', onDragNodeMove);
+        window.addEventListener('pointerup', onDragNodeUp);
+      }
+
+      function onDragNodeMove(e) {
+        if (!draggingNode) return;
+        const dx = (e.clientX - dragStartX) / scale;
+        const dy = (e.clientY - dragStartY) / scale;
+
+        const nodeEl = document.getElementById(`node-${draggingNode.id}`);
+        const isDecision = draggingNode.type === 'decision';
+        const nh = isDecision ? DECISION_HEIGHT : NODE_HEIGHT;
+
+        const currGlobalX = dragStartGlobalX + dx;
+        const currGlobalY = dragStartGlobalY + dy;
+
+        // Locate target swimlane containing the center of the dragged node
+        const nodeCenterY = currGlobalY + nh / 2;
+        let targetLane = chartData.lanes[0];
+        let targetLaneTop = 0;
+        let cumulativeY = 0;
+
+        for (let i = 0; i < chartData.lanes.length; i++) {
+          const lane = chartData.lanes[i];
+          const lh = lane.height || LANE_MIN_HEIGHT;
+          if (nodeCenterY >= cumulativeY && nodeCenterY < cumulativeY + lh) {
+            targetLane = lane;
+            targetLaneTop = cumulativeY;
+            break;
+          }
+          if (i === chartData.lanes.length - 1 && nodeCenterY >= cumulativeY) {
+            targetLane = lane;
+            targetLaneTop = cumulativeY;
+          }
+          cumulativeY += lh;
+        }
+
+        // Align local coordinates to 4px modular grid inside the target swimlane
+        const localX = Math.max(16, Math.round(currGlobalX / 4) * 4);
+        const localY = Math.max(12, Math.round((currGlobalY - targetLaneTop) / 4) * 4);
+
+        draggingNode.x = localX;
+        draggingNode.y = localY;
+
+        // If the node crossed swimlanes, reparent into the target lane track
+        if (draggingNode.laneId !== targetLane.id) {
+          draggingNode.laneId = targetLane.id;
+          const targetTrack = document.querySelector(`.lane-track[data-lane-id="${targetLane.id}"]`);
+          if (targetTrack && nodeEl.parentElement !== targetTrack) {
+            targetTrack.appendChild(nodeEl);
+          }
+        }
+
+        nodeEl.style.left = `${localX}px`;
+        nodeEl.style.top = `${localY}px`;
+
+        // Highlight active target swimlane
+        document.querySelectorAll('.lane-track').forEach(t => {
+          if (t.dataset.laneId === targetLane.id) {
+            t.classList.add('drag-hover-lane');
+          } else {
+            t.classList.remove('drag-hover-lane');
+          }
+        });
+
+        renderEdges();
+      }
+
+      function onDragNodeUp() {
+        document.querySelectorAll('.lane-track').forEach(t => t.classList.remove('drag-hover-lane'));
+        if (draggingNode) {
+          draggingNode = null;
+          updateStatus(true);
+          render();
+        }
+        window.removeEventListener('pointermove', onDragNodeMove);
+        window.removeEventListener('pointerup', onDragNodeUp);
+      }
+
+      // --- CONNECTION HANDLING (DRAG OR CLICK-TO-CONNECT) ---
+      function handlePortPointerDown(e, nodeId, port) {
+        e.stopPropagation();
+        e.preventDefault();
+
+        if (connectingFromNodeId && connectingFromNodeId === nodeId) {
+          cancelConnecting();
+          return;
+        }
+
+        startConnecting(e, nodeId, port);
+      }
+
+      function startConnecting(e, nodeId, port) {
+        connectingFromNodeId = nodeId;
+        connectingFromPort = port;
+        document.body.classList.add('connecting');
+
+        const fromNode = chartData.nodes.find(n => n.id === nodeId);
+        const fromEl = document.getElementById(`node-${nodeId}`);
+        const stageRect = swimlanesContainer.getBoundingClientRect();
+        const fRect = fromEl.getBoundingClientRect();
+
+        let sx, sy;
+        if (port === 'right') {
+          sx = (fRect.right - stageRect.left) / scale;
+          sy = (fRect.top + fRect.height / 2 - stageRect.top) / scale;
+        } else if (port === 'left') {
+          sx = (fRect.left - stageRect.left) / scale;
+          sy = (fRect.top + fRect.height / 2 - stageRect.top) / scale;
+        } else if (port === 'top') {
+          sx = (fRect.left + fRect.width / 2 - stageRect.left) / scale;
+          sy = (fRect.top - stageRect.top) / scale;
+        } else {
+          sx = (fRect.left + fRect.width / 2 - stageRect.left) / scale;
+          sy = (fRect.bottom - stageRect.top) / scale;
+        }
+
+        connectingStartPoint = { sx, sy };
+        dragEdge.style.display = 'block';
+        dragEdge.setAttribute('d', `M ${sx} ${sy} L ${sx} ${sy}`);
+
+        connectingBanner.classList.add('active');
+        connectingText.textContent = `Connecting from "${fromNode ? fromNode.label : nodeId}"... Click target node or release over it.`;
+
+        window.addEventListener('pointermove', onConnectingMove);
+        window.addEventListener('pointerup', onConnectingPointerUp);
+      }
+
+      function onConnectingMove(ev) {
+        if (!connectingStartPoint) return;
+        const stageRect = swimlanesContainer.getBoundingClientRect();
+        const mx = (ev.clientX - stageRect.left) / scale;
+        const my = (ev.clientY - stageRect.top) / scale;
+
+        dragEdge.setAttribute('d', `M ${connectingStartPoint.sx} ${connectingStartPoint.sy} L ${mx} ${my}`);
+
+        document.querySelectorAll('.flow-node').forEach(el => el.classList.remove('connect-target'));
+        const targetEl = document.elementFromPoint(ev.clientX, ev.clientY);
+        const targetNodeEl = targetEl ? targetEl.closest('.flow-node') : null;
+        if (targetNodeEl && targetNodeEl.dataset.nodeId !== connectingFromNodeId) {
+          targetNodeEl.classList.add('connect-target');
+        }
+      }
+
+      function onConnectingPointerUp(ev) {
+        const targetEl = document.elementFromPoint(ev.clientX, ev.clientY);
+        const targetNodeEl = targetEl ? targetEl.closest('.flow-node') : null;
+
+        if (targetNodeEl) {
+          const targetNodeId = targetNodeEl.dataset.nodeId;
+          if (targetNodeId && targetNodeId !== connectingFromNodeId) {
+            createConnection(connectingFromNodeId, targetNodeId);
+            cancelConnecting();
+            return;
+          }
+        }
+
+        const dist = Math.hypot(
+          ev.clientX - (connectingStartPoint.sx * scale + swimlanesContainer.getBoundingClientRect().left),
+          ev.clientY - (connectingStartPoint.sy * scale + swimlanesContainer.getBoundingClientRect().top)
+        );
+        if (dist > 25) {
+          cancelConnecting();
+        }
+      }
+
+      function createConnection(fromId, toId) {
+        const existing = chartData.edges.find(e => e.from === fromId && e.to === toId);
+        if (existing) return;
+
+        const fromNode = chartData.nodes.find(n => n.id === fromId);
+        const defaultLabel = (fromNode && fromNode.type === 'decision') ? 'Yes' : '';
+
+        const newEdge = {
+          id: `e_${Date.now()}`,
+          from: fromId,
+          to: toId,
+          label: defaultLabel
+        };
+        chartData.edges.push(newEdge);
+        updateStatus(true);
+        renderEdges();
+        selectEdge(newEdge.id);
+
+        setTimeout(() => {
+          const labelTextEl = document.querySelector(`.edge-label-container[data-edge-id="${newEdge.id}"] .edge-label-text`);
+          if (labelTextEl) {
+            labelTextEl.focus();
+            const range = document.createRange();
+            range.selectNodeContents(labelTextEl);
+            const sel = window.getSelection();
+            sel.removeAllRanges();
+            sel.addRange(range);
+          }
+        }, 50);
+      }
+
+      function cancelConnecting() {
+        connectingFromNodeId = null;
+        connectingFromPort = null;
+        connectingStartPoint = null;
+        document.body.classList.remove('connecting');
+        dragEdge.style.display = 'none';
+        connectingBanner.classList.remove('active');
+        document.querySelectorAll('.flow-node').forEach(el => el.classList.remove('connect-target'));
+
+        window.removeEventListener('pointermove', onConnectingMove);
+        window.removeEventListener('pointerup', onConnectingPointerUp);
+      }
+
+      btnCancelConnecting.addEventListener('click', cancelConnecting);
+
+      // --- SELECTION & DELETION ---
+      function selectNode(nodeId) {
+        selectedNodeId = nodeId;
+        selectedEdgeId = null;
+        document.querySelectorAll('.flow-node').forEach(el => el.classList.toggle('selected', el.dataset.nodeId === nodeId));
+        document.querySelectorAll('.connector-path').forEach(p => p.classList.remove('selected'));
+        document.querySelectorAll('.edge-label-container').forEach(c => c.classList.remove('selected'));
+      }
+
+      function selectEdge(edgeId, reRender = true) {
+        selectedEdgeId = edgeId;
+        selectedNodeId = null;
+        document.querySelectorAll('.flow-node').forEach(el => el.classList.remove('selected'));
+        if (reRender) {
+          renderEdges();
+        } else {
+          document.querySelectorAll('.connector-path').forEach(p => {
+            const isMatch = (p.dataset.edgeId === edgeId);
+            p.classList.toggle('selected', isMatch);
+            p.setAttribute('marker-end', isMatch ? 'url(#arrowhead-selected)' : 'url(#arrowhead)');
+          });
+          document.querySelectorAll('.edge-label-container').forEach(c => {
+            c.classList.toggle('selected', c.dataset.edgeId === edgeId);
+          });
+        }
+      }
+
+      function deleteNode(nodeId) {
+        chartData.nodes = chartData.nodes.filter(n => n.id !== nodeId);
+        chartData.edges = chartData.edges.filter(e => e.from !== nodeId && e.to !== nodeId);
+        selectedNodeId = null;
+        updateStatus(true);
+        render();
+      }
+
+      function deleteEdge(edgeId) {
+        chartData.edges = chartData.edges.filter(e => e.id !== edgeId);
+        selectedEdgeId = null;
+        updateStatus(true);
+        renderEdges();
+      }
+
+      // --- AUTO-TIDY LAYOUT (Sugiyama Layering with Cycle Breaking in JS) ---
+      function autoTidyLayout() {
+        const adj = {};
+        const color = {};
+        chartData.nodes.forEach(n => { adj[n.id] = []; color[n.id] = 0; });
+        // Edges marked feedback:true are always loops; DFS only decides the rest.
+        const backEdges = new Set();
+        chartData.edges.forEach(e => {
+          if (e.feedback) backEdges.add(`${e.from}->${e.to}`);
+          else if (adj[e.from]) adj[e.from].push(e.to);
+        });
+        function dfs(u) {
+          color[u] = 1;
+          (adj[u] || []).forEach(v => {
+            if (color[v] === 1) backEdges.add(`${u}->${v}`);
+            else if (color[v] === 0) dfs(v);
+          });
+          color[u] = 2;
+        }
+        chartData.nodes.forEach(n => { if (color[n.id] === 0) dfs(n.id); });
+
+        const fwdEdges = chartData.edges.filter(e => !backEdges.has(`${e.from}->${e.to}`));
+        const inDegree = {};
+        const ranks = {};
+        chartData.nodes.forEach(n => { inDegree[n.id] = 0; ranks[n.id] = 0; });
+        fwdEdges.forEach(e => { inDegree[e.to] = (inDegree[e.to] || 0) + 1; });
+
+        let queue = chartData.nodes.filter(n => inDegree[n.id] === 0).map(n => n.id);
+        if (queue.length === 0 && chartData.nodes.length > 0) queue = [chartData.nodes[0].id];
+
+        const visited = new Set();
+        while (queue.length > 0) {
+          const curr = queue.shift();
+          visited.add(curr);
+          const r = ranks[curr];
+          fwdEdges.filter(e => e.from === curr).forEach(e => {
+            ranks[e.to] = Math.max(ranks[e.to] || 0, r + 1);
+            inDegree[e.to]--;
+            if (inDegree[e.to] <= 0 && !visited.has(e.to)) queue.push(e.to);
+          });
+        }
+
+        const laneRankGroups = {};
+        const laneMaxSubrows = {};
+        chartData.nodes.forEach(n => {
+          const r = ranks[n.id] || 0;
+          const key = `${n.laneId}_${r}`;
+          if (!laneRankGroups[key]) laneRankGroups[key] = [];
+          laneRankGroups[key].push(n);
+          laneMaxSubrows[n.laneId] = Math.max(laneMaxSubrows[n.laneId] || 1, laneRankGroups[key].length);
+        });
+
+        const colWidth = 280;
+        const rowHeight = 96;
+        const startX = 80;
+
+        chartData.lanes.forEach(lane => {
+          const subrows = laneMaxSubrows[lane.id] || 1;
+          const maxNodeH = chartData.nodes
+            .filter(n => n.laneId === lane.id)
+            .reduce((m, n) => Math.max(m, n.type === 'decision' ? DECISION_HEIGHT : NODE_HEIGHT), NODE_HEIGHT);
+          lane.height = Math.max(LANE_MIN_HEIGHT, 48 + (subrows - 1) * rowHeight + maxNodeH + LANE_BOTTOM_PAD);
+        });
+
+        chartData.nodes.forEach(n => {
+          const r = ranks[n.id] || 0;
+          const key = `${n.laneId}_${r}`;
+          const group = laneRankGroups[key];
+          const subIdx = group.indexOf(n);
+          const laneObj = chartData.lanes.find(l => l.id === n.laneId);
+          const lh = laneObj ? laneObj.height : LANE_MIN_HEIGHT;
+          const nh = (n.type === 'decision') ? DECISION_HEIGHT : NODE_HEIGHT;
+
+          n.x = startX + r * colWidth;
+          if (group.length === 1 && (laneMaxSubrows[n.laneId] || 1) === 1) {
+            n.y = Math.floor((lh - nh) / 8) * 4;
+          } else {
+            n.y = 48 + subIdx * rowHeight;
+          }
+        });
+
+        render();
+        updateStatus(true);
+        fitView();
+      }
+
+      // --- ADD ELEMENTS ---
+      btnAddStep.addEventListener('click', () => {
+        const laneId = chartData.lanes[0] ? chartData.lanes[0].id : "lane-1";
+        const newNode = {
+          id: `n_${Date.now()}`,
+          laneId: laneId,
+          type: "task",
+          label: "New Step",
+          x: 80,
+          y: 53
+        };
+        chartData.nodes.push(newNode);
+        updateStatus(true);
+        render();
+        selectNode(newNode.id);
+      });
+
+      btnAddDecision.addEventListener('click', () => {
+        const laneId = chartData.lanes[0] ? chartData.lanes[0].id : "lane-1";
+        const newNode = {
+          id: `n_${Date.now()}`,
+          laneId: laneId,
+          type: "decision",
+          label: "Decision?",
+          x: 80,
+          y: 53
+        };
+        chartData.nodes.push(newNode);
+        updateStatus(true);
+        render();
+        selectNode(newNode.id);
+      });
+
+      btnAddLane.addEventListener('click', () => {
+        const colors = ["#e0f2fe", "#fef3c7", "#dcfce7", "#fee2e2", "#f3e8ff", "#ffedd5"];
+        const nextColor = colors[chartData.lanes.length % colors.length];
+        const newLane = {
+          id: `lane_${Date.now()}`,
+          name: `Actor / Role ${chartData.lanes.length + 1}`,
+          color: nextColor,
+          height: LANE_MIN_HEIGHT
+        };
+        chartData.lanes.push(newLane);
+        updateStatus(true);
+        render();
+      });
+
+      btnAutoTidy.addEventListener('click', autoTidyLayout);
+
+      // --- VIEWPORT PAN & ZOOM & FIT ---
+      function updateTransform() {
+        stage.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
+        zoomLevelEl.textContent = `${Math.round(scale * 100)}%`;
+      }
+
+      // --- RENDER REPORT (only when opened with ?report; used by scripts/render_screenshot.py) ---
+      function publishRenderReport() {
+        const box = (el) => { const r = el.getBoundingClientRect(); return { l: r.left, t: r.top, r: r.right, b: r.bottom }; };
+        const hit = (a, b) => a.l < b.r - 1 && b.l < a.r - 1 && a.t < b.b - 1 && b.t < a.b - 1;
+        const nodes = [...document.querySelectorAll('.flow-node')].map(el => ({ id: el.dataset.nodeId, box: box(el) }));
+        const labels = [...document.querySelectorAll('.edge-label-container')]
+          .map(el => ({ id: el.dataset.edgeId, text: (el.querySelector('.edge-label-text')?.textContent || '').trim(), box: box(el) }))
+          .filter(l => l.text);
+        const errors = [], warnings = [];
+        for (let i = 0; i < labels.length; i++) {
+          for (let j = i + 1; j < labels.length; j++) {
+            if (hit(labels[i].box, labels[j].box)) errors.push(`Edge labels overlap: "${labels[i].text}" (${labels[i].id}) and "${labels[j].text}" (${labels[j].id})`);
+          }
+          nodes.forEach(n => {
+            if (hit(labels[i].box, n.box)) errors.push(`Edge label "${labels[i].text}" (${labels[i].id}) overlaps node ${n.id}`);
+          });
+        }
+        const effPx = (sel) => {
+          const sizes = [...document.querySelectorAll(sel)].map(el => parseFloat(getComputedStyle(el).fontSize) * scale);
+          return sizes.length ? Math.round(Math.min(...sizes) * 10) / 10 : null;
+        };
+        const minNodeFontPx = effPx('.node-label');
+        const minEdgeFontPx = effPx('.edge-label-text');
+        const MIN_PX = 9;
+        if (minNodeFontPx !== null && minNodeFontPx < MIN_PX) warnings.push(`Node text renders at ${minNodeFontPx}px at Fit zoom (${Math.round(scale * 100)}%); below ${MIN_PX}px is hard to read. Reduce columns/nodes or split the diagram.`);
+        if (minEdgeFontPx !== null && minEdgeFontPx < MIN_PX) warnings.push(`Edge labels render at ${minEdgeFontPx}px at Fit zoom; below ${MIN_PX}px is hard to read.`);
+        const report = {
+          viewport: { w: window.innerWidth, h: window.innerHeight },
+          fitScale: Math.round(scale * 100) / 100,
+          nodeCount: nodes.length, labelCount: labels.length,
+          minNodeFontPx, minEdgeFontPx, errors, warnings
+        };
+        const el = document.createElement('script');
+        el.id = 'render-report';
+        el.type = 'application/json';
+        el.textContent = JSON.stringify(report);
+        document.body.appendChild(el);
+      }
+
+      function fitView() {
+        const vpRect = viewport.getBoundingClientRect();
+        const currentWidth = swimlanesContainer.offsetWidth || 1400;
+        const currentHeight = swimlanesContainer.offsetHeight || 800;
+
+        const availableWidth = vpRect.width - 80;
+        const availableHeight = vpRect.height - 80;
+
+        const scaleX = availableWidth / currentWidth;
+        const scaleY = availableHeight / currentHeight;
+
+        scale = Math.min(Math.max(Math.min(scaleX, scaleY), 0.25), 1.0);
+        panX = Math.max(20, (vpRect.width - currentWidth * scale) / 2);
+        panY = Math.max(20, (vpRect.height - currentHeight * scale) / 2);
+
+        updateTransform();
+      }
+
+      viewport.addEventListener('pointerdown', (e) => {
+        if (e.target === viewport || e.target.id === 'stage' || e.target.id === 'swimlanes-container' || e.target.classList.contains('lane-track')) {
+          if (connectingFromNodeId) {
+            cancelConnecting();
+            return;
+          }
+          isPanning = true;
+          panStartX = e.clientX - panX;
+          panStartY = e.clientY - panY;
+          viewport.classList.add('panning');
+          selectedNodeId = null;
+          selectedEdgeId = null;
+          document.querySelectorAll('.flow-node').forEach(el => el.classList.remove('selected'));
+          renderEdges();
+        }
+      });
+
+      window.addEventListener('pointermove', (e) => {
+        if (!isPanning) return;
+        panX = e.clientX - panStartX;
+        panY = e.clientY - panStartY;
+        updateTransform();
+      });
+
+      window.addEventListener('pointerup', () => {
+        isPanning = false;
+        viewport.classList.remove('panning');
+      });
+
+      viewport.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const zoomDelta = e.deltaY < 0 ? 1.12 : 0.88;
+        const newScale = Math.min(Math.max(scale * zoomDelta, 0.2), 2.5);
+        scale = newScale;
+        updateTransform();
+      }, { passive: false });
+
+      btnZoomIn.addEventListener('click', () => {
+        scale = Math.min(scale * 1.15, 2.5);
+        updateTransform();
+      });
+      btnZoomOut.addEventListener('click', () => {
+        scale = Math.max(scale * 0.85, 0.2);
+        updateTransform();
+      });
+      btnZoomReset.addEventListener('click', fitView);
+
+      btnHelp.addEventListener('click', () => {
+        helpDrawer.classList.toggle('open');
+      });
+
+      // --- SAVE MECHANISM (Direct to HTML File) ---
+      async function saveToFile() {
+        chartData.title = chartTitleEl.textContent.trim();
+        const updatedJson = JSON.stringify(chartData, null, 2);
+
+        let fullHtml = "";
+        try {
+          const res = await fetch(window.location.href);
+          if (res.ok) {
+            fullHtml = await res.text();
+          }
+        } catch (_) {}
+
+        if (!fullHtml || !fullHtml.includes('id="flowchart-data"')) {
+          fullHtml = "<!DOCTYPE html>\n" + document.documentElement.outerHTML;
+        }
+        fullHtml = fullHtml.replace(/<script id="render-report"[\s\S]*?<\/script>/, '');
+
+        const replacedHtml = fullHtml.replace(
+          /(<script id="flowchart-data" type="application\/json">)[\s\S]*?(<\/script>)/,
+          `$1\n${updatedJson}\n  $2`
+        );
+
+        document.getElementById('flowchart-data').textContent = `\n${updatedJson}\n  `;
+
+        if ('showSaveFilePicker' in window) {
+          try {
+            if (!fileHandle) {
+              const suggested = (chartData.title || "flowchart").toLowerCase().replace(/[^a-z0-9_-]/g, '-') + '.html';
+              fileHandle = await window.showSaveFilePicker({
+                suggestedName: suggested,
+                types: [{
+                  description: 'HTML Flowchart File',
+                  accept: { 'text/html': ['.html'] }
+                }]
+              });
+            }
+
+            const writable = await fileHandle.createWritable();
+            await writable.write(replacedHtml);
+            await writable.close();
+
+            updateStatus(false);
+            return;
+          } catch (err) {
+            if (err.name === 'AbortError') return;
+          }
+        }
+
+        try {
+          const blob = new Blob([replacedHtml], { type: 'text/html' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = (chartData.title || "flowchart").toLowerCase().replace(/[^a-z0-9_-]/g, '-') + '.html';
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+          updateStatus(false);
+        } catch (err) {
+          alert("Save failed: " + err.message);
+        }
+      }
+
+      btnSave.addEventListener('click', saveToFile);
+
+      window.addEventListener('keydown', (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+          e.preventDefault();
+          saveToFile();
+        } else if (e.key === 'Escape') {
+          cancelConnecting();
+        } else if (e.key === 'Delete' || e.key === 'Backspace') {
+          if (document.activeElement && (document.activeElement.isContentEditable || document.activeElement.tagName === 'INPUT')) {
+            return;
+          }
+          if (selectedNodeId) {
+            deleteNode(selectedNodeId);
+          } else if (selectedEdgeId) {
+            deleteEdge(selectedEdgeId);
+          }
+        }
+      });
+
+      loadInitialData();
+    })();
+  </script>
+</body>
+</html>
