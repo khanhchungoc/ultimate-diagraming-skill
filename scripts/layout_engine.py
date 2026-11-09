@@ -582,7 +582,7 @@ class FlowchartAudit:
         > bend > length, plus lane-divider hugging, crowding a node and left/right port clashes.
         Longest arrows go first; arrows already clean keep their standard route; switching needs a
         clear win (hysteresis), and changing sides is penalised against sliding a channel."""
-        C_OVERLAP, C_NEAR, C_CROSS, C_BEND, C_DIVIDER, C_NEAR_NODE, C_PORT = 20000, 2500, 1750, 1000, 1500, 400, 2500
+        C_OVERLAP, C_NEAR, C_CROSS, C_BEND, C_DIVIDER, C_NEAR_NODE, C_PORT = 20000, 2500, 1750, 1000, 1500, 600, 2500
         dividers = self._lane_dividers()
 
         def poly_clear(pts, ids) -> bool:
@@ -628,8 +628,8 @@ class FlowchartAudit:
                 (ax, ay), (bx, by) = pts[i], pts[i + 1]
                 if abs(ay - by) < 1 and abs(ax - bx) > 30 and any(abs(ay - y) < 8 for y in dividers):
                     d += C_DIVIDER
-                x1, x2 = min(ax, bx) - 14, max(ax, bx) + 14
-                y1, y2 = min(ay, by) - 14, max(ay, by) + 14
+                x1, x2 = min(ax, bx) - 20, max(ax, bx) + 20
+                y1, y2 = min(ay, by) - 20, max(ay, by) + 20
                 if any(oid not in ids and ox < x2 and ox + ow > x1 and oy < y2 and oy + oh > y1
                        for oid, (ox, oy, ow, oh) in rects.items()):
                     d += C_NEAR_NODE
@@ -646,11 +646,13 @@ class FlowchartAudit:
                     n += 1
             return n
 
-        def route_cost(pts, e, others, fp, tp):
+        def route_cost(pts, e, others, fp, tp, limit=float("inf")):
             ids = (e["from"], e["to"])
+            length = sum(abs(pts[i + 1][0] - pts[i][0]) + abs(pts[i + 1][1] - pts[i][1]) for i in range(len(pts) - 1))
+            if (len(pts) - 2) * C_BEND + length >= limit:
+                return None  # cannot beat the best so far
             if not poly_clear(pts, ids):
                 return None
-            length = sum(abs(pts[i + 1][0] - pts[i][0]) + abs(pts[i + 1][1] - pts[i][1]) for i in range(len(pts) - 1))
             defect = defects(pts, ids) + port_clashes(e, fp, tp) * C_PORT
             for o in others:
                 ov, ne, cr = relate(pts, result[o["id"]])
@@ -662,7 +664,10 @@ class FlowchartAudit:
             return {"top": (x + w / 2, y), "bottom": (x + w / 2, y + h),
                     "left": (x, y + h / 2), "right": (x + w, y + h / 2)}[side]
 
-        def alt_routes(f, t):
+        bounds = (min(r[0] for r in rects.values()), max(r[0] + r[2] for r in rects.values()),
+                  min(r[1] for r in rects.values()), max(r[1] + r[3] for r in rects.values()))
+
+        def alt_routes(f, t, deep):
             sides = ("top", "bottom", "left", "right")
             horiz = lambda s_: s_ in ("left", "right")
             for fp in sides:
@@ -696,18 +701,36 @@ class FlowchartAudit:
                                 g = min(sy, ey) - d if fp == "top" else max(sy, ey) + d
                                 if g >= 8:
                                     yield fp, tp, [(sx, sy), (sx, g), (ex, g), (ex, ey)], 0.0
-                    elif horiz(fp):
-                        if (ex <= sx + 20) if fp == "right" else (ex >= sx - 20):
-                            continue
-                        if (ey <= sy + 8) if tp == "top" else (ey >= sy - 8):
-                            continue
-                        yield fp, tp, [(sx, sy), (ex, sy), (ex, ey)], 0.0
                     else:
-                        if (sy <= ey + 8) if fp == "top" else (sy >= ey - 8):
+                        # mixed orientation: one-bend L, then (if asked) three-bend corridor routes
+                        if horiz(fp):
+                            if not ((ex <= sx + 20) if fp == "right" else (ex >= sx - 20)) \
+                                    and not ((ey <= sy + 8) if tp == "top" else (ey >= sy - 8)):
+                                yield fp, tp, [(sx, sy), (ex, sy), (ex, ey)], 0.0
+                        else:
+                            if not ((sy <= ey + 8) if fp == "top" else (sy >= ey - 8)) \
+                                    and not ((ex <= sx + 20) if tp == "left" else (ex >= sx - 20)):
+                                yield fp, tp, [(sx, sy), (sx, ey), (ex, ey)], 0.0
+                        if not deep:
                             continue
-                        if (ex <= sx + 20) if tp == "left" else (ex >= sx - 20):
-                            continue
-                        yield fp, tp, [(sx, sy), (sx, ey), (ex, ey)], 0.0
+                        if not horiz(fp):
+                            for d in (20, 36, 56):
+                                g = sy - d if fp == "top" else sy + d
+                                x = bounds[0] - 24
+                                while x <= bounds[1] + 24:
+                                    ok = x <= ex - 14 if tp == "left" else x >= ex + 14
+                                    if ok and abs(x - sx) >= 10 and abs(ey - g) >= 10:
+                                        yield fp, tp, [(sx, sy), (sx, g), (x, g), (x, ey), (ex, ey)], 0.0
+                                    x += 16
+                        else:
+                            for d in (20, 36, 56):
+                                x = sx + d if fp == "right" else sx - d
+                                g = bounds[2] - 24
+                                while g <= bounds[3] + 24:
+                                    ok = g <= ey - 14 if tp == "top" else g >= ey + 14
+                                    if ok and abs(g - sy) >= 10 and abs(ex - x) >= 10:
+                                        yield fp, tp, [(sx, sy), (x, sy), (x, g), (ex, g), (ex, ey)], 0.0
+                                    g += 16
 
         def manhattan(e) -> float:
             f, t = rects[e["from"]], rects[e["to"]]
@@ -725,8 +748,9 @@ class FlowchartAudit:
                 continue
             base_cost = float("inf") if base is None else base[0]
             best = None
-            for fp, tp, pts, dev in alt_routes(rects[e["from"]], rects[e["to"]]):
-                r = route_cost(pts, e, others, fp, tp)
+            deep = base is None or base[1] >= C_CROSS
+            for fp, tp, pts, dev in alt_routes(rects[e["from"]], rects[e["to"]], deep):
+                r = route_cost(pts, e, others, fp, tp, best[0] if best else base_cost - 250)
                 if r is None:
                     continue
                 cost = r[0] + dev * 0.3 + (600 if (fp, tp) != (cur_fp, cur_tp) else 0)

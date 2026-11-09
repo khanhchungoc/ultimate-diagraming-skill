@@ -356,6 +356,10 @@
           edges.forEach(e => {
             const pts = poly[e.id];
             if (!pts) return;
+            // A long arrow (3+ columns) is detoured around nodes by the renderer's route search, so the
+            // simplified route modelled here crossing a node must not veto an otherwise good alignment.
+            const eu = nodeMap[e.from], ev = nodeMap[e.to];
+            if (eu && ev && Math.abs(eu.x - ev.x) >= 3 * LE.COL_WIDTH) return;
             nodes.forEach(o => {
               if (o.id === e.from || o.id === e.to) return;
               const [ox, oy, ow, oh] = rects[o.id];
