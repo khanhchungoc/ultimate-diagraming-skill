@@ -1,0 +1,83 @@
+{
+  "diagramType": "flowchart",
+  "title": "Single lane chain",
+  "direction": "LR",
+  "lanes": [
+    {
+      "id": "lane-a",
+      "name": "Clerk",
+      "color": "#e0f2fe",
+      "height": 160
+    }
+  ],
+  "nodes": [
+    {
+      "id": "n1",
+      "laneId": "lane-a",
+      "type": "start",
+      "label": "Receive Form",
+      "x": 56,
+      "y": 52
+    },
+    {
+      "id": "n2",
+      "laneId": "lane-a",
+      "type": "task",
+      "label": "Check Form",
+      "x": 296,
+      "y": 52
+    },
+    {
+      "id": "n3",
+      "laneId": "lane-a",
+      "type": "task",
+      "label": "Enter Data",
+      "x": 536,
+      "y": 52
+    },
+    {
+      "id": "n4",
+      "laneId": "lane-a",
+      "type": "task",
+      "label": "File Copy",
+      "x": 776,
+      "y": 52
+    },
+    {
+      "id": "n5",
+      "laneId": "lane-a",
+      "type": "end",
+      "label": "Done",
+      "outcome": "success",
+      "x": 1016,
+      "y": 52
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "from": "n1",
+      "to": "n2",
+      "label": ""
+    },
+    {
+      "id": "e2",
+      "from": "n2",
+      "to": "n3",
+      "label": ""
+    },
+    {
+      "id": "e3",
+      "from": "n3",
+      "to": "n4",
+      "label": ""
+    },
+    {
+      "id": "e4",
+      "from": "n4",
+      "to": "n5",
+      "label": ""
+    }
+  ],
+  "schemaVersion": 1
+}

@@ -1,0 +1,67 @@
+{
+  "diagramType": "sequence",
+  "title": "Notifications",
+  "participants": [
+    {
+      "id": "p1",
+      "name": "Order Service",
+      "kind": "system"
+    },
+    {
+      "id": "p2",
+      "name": "Message Bus",
+      "kind": "system"
+    },
+    {
+      "id": "p3",
+      "name": "Mailer",
+      "kind": "system"
+    }
+  ],
+  "messages": [
+    {
+      "id": "m1",
+      "from": "p1",
+      "to": "p1",
+      "label": "Validate order",
+      "kind": "sync"
+    },
+    {
+      "id": "m2",
+      "from": "p1",
+      "to": "p2",
+      "label": "Publish OrderPlaced",
+      "kind": "async"
+    },
+    {
+      "id": "m3",
+      "from": "p2",
+      "to": "p3",
+      "label": "Deliver event",
+      "kind": "async"
+    },
+    {
+      "id": "m4",
+      "from": "p3",
+      "to": "p3",
+      "label": "Render email template",
+      "kind": "sync"
+    },
+    {
+      "id": "m5",
+      "from": "p3",
+      "to": "p1",
+      "label": "Delivery receipt",
+      "kind": "reply"
+    }
+  ],
+  "fragments": [
+    {
+      "id": "f1",
+      "kind": "loop",
+      "label": "for each recipient",
+      "from": "m3",
+      "to": "m4"
+    }
+  ]
+}

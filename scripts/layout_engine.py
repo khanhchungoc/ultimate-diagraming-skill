@@ -1,13 +1,11 @@
 #!/usr/bin/env python3
-"""Autonomous Layout & Verification Engine for Interactive Multi-Swimlane Flowcharts.
+"""Audit, scaffold and extract tool for interactive diagram HTML files.
 
-Features:
-- Sugiyama layered layout constrained to swimlanes (topological rank leveling).
-- Barycentric crossing reduction for parallel branches.
-- Dynamic lane height computation to prevent vertical node overflow.
-- Overlap detection and zero-penetration collision verification.
-- Scaffolding into self-saving standalone HTML templates.
-- Extraction of live JSON state from edited HTML files.
+- `--layout`: computes positions with the diagram type's JavaScript engine (assets/types/<type>/engine.js, the
+  same file the page runs for Auto-Tidy; see engine_runner.py), then writes one standalone HTML file.
+- `--verify`: routes every edge and audits overlaps, penetrations, lane overflow, crossings, straightness,
+  complexity budget and self-containment. Needs no browser or Node.js.
+- `--extract`: reads the live JSON back out of an edited HTML file.
 
 Zero external dependencies (uses standard library Python 3).
 """
@@ -18,29 +16,33 @@ import argparse
 import json
 import re
 import sys
-from collections import defaultdict, deque
+from collections import defaultdict
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
 
+from audit_sequence import SequenceAudit
+from engine_runner import EngineUnavailable, run_layout
+
 
 DEFAULT_COL_WIDTH = 240
-TIGHT_STEP = 168  # target's left edge lines up with the source's right edge (node width)
 START_X = 56
 
 # Complexity budget (a diagram beyond these is too dense to read at Fit zoom on a 1920px screen)
+SUPPORTED_TYPES = ("flowchart", "sequence")  # add a type here when its engine and reference exist
+DEFAULT_TYPE = "flowchart"
+SCHEMA_VERSION = 1
+
 MAX_NODES = 12
 MAX_LANES = 5
 MAX_COLUMNS = 7
-DEFAULT_ROW_HEIGHT = 96
 DEFAULT_NODE_WIDTH = 168
 DEFAULT_NODE_HEIGHT = 56
 DECISION_NODE_HEIGHT = 64
 LANE_MIN_HEIGHT = 160
-LANE_TOP_PADDING = 48
 LANE_BOTTOM_PADDING = 48
 
 
-class SwimlaneLayoutEngine:
+class FlowchartAudit:
     def __init__(self, data: Dict[str, Any]):
         self.data = data
         self.lanes: List[Dict[str, Any]] = data.get("lanes", [])
@@ -49,374 +51,26 @@ class SwimlaneLayoutEngine:
         self.lane_map = {lane["id"]: idx for idx, lane in enumerate(self.lanes)}
         self.node_map = {node["id"]: node for node in self.nodes}
 
-    def compute_layout(self) -> Dict[str, Any]:
-        """Compute optimal collision-free coordinates for all nodes in their swimlanes."""
-        if not self.nodes:
-            return self.data
+    title = "Flowchart"
 
-        # 1. Build adjacency graph & detect cycles/back-edges
-        adj: Dict[str, List[str]] = defaultdict(list)
-        rev_adj: Dict[str, List[str]] = defaultdict(list)
-        for edge in self.edges:
-            adj[edge["from"]].append(edge["to"])
-            rev_adj[edge["to"]].append(edge["from"])
+    def pass_line(self, report: Dict[str, Any]) -> str:
+        return (
+            f"[PASS] Quality Score: {report['score']}/100 ({report['grade']}). "
+            f"0 overlaps, 0 penetrations, {report['collinear_pct']}% collinear straightness."
+        )
 
-        # Edges marked "feedback": true are always loops; DFS only decides the rest.
-        forced_back = {(e["from"], e["to"]) for e in self.edges if e.get("feedback")}
-        search_adj: Dict[str, List[str]] = defaultdict(list)
-        for edge in self.edges:
-            if (edge["from"], edge["to"]) not in forced_back:
-                search_adj[edge["from"]].append(edge["to"])
-        back_edges = self._find_back_edges(search_adj) | forced_back
-        forward_edges = [e for e in self.edges if (e["from"], e["to"]) not in back_edges]
-
-        fwd_adj: Dict[str, List[str]] = defaultdict(list)
-        fwd_in_degree: Dict[str, int] = {node["id"]: 0 for node in self.nodes}
-        for edge in forward_edges:
-            fwd_adj[edge["from"]].append(edge["to"])
-            fwd_in_degree[edge["to"]] = fwd_in_degree.get(edge["to"], 0) + 1
-
-        # 2. Topological rank assignment (longest path layering)
-        ranks = self._assign_topological_ranks(fwd_adj, fwd_in_degree)
-        ranks, xs = self._choose_alignment(ranks, forward_edges, fwd_adj, rev_adj)
-        self._place_nodes(ranks, rev_adj, xs)
-        return self.data
-
-    def _place_nodes(
-        self, ranks: Dict[str, int], rev_adj: Dict[str, List[str]], xs: Optional[Dict[str, float]] = None
-    ) -> None:
-        """Steps 3-6: order nodes inside lanes, assign x/y, nudge to straight lines."""
-        # 3. Group nodes by (laneId, rank) and order by barycenter
-        lane_rank_groups: Dict[Tuple[str, int], List[Dict[str, Any]]] = defaultdict(list)
-        for node in self.nodes:
-            r = ranks.get(node["id"], 0)
-            lane_rank_groups[(node["laneId"], r)].append(node)
-
-        for (lane_id, r), group in lane_rank_groups.items():
-            if len(group) > 1:
-                group.sort(key=lambda n: self._compute_barycenter(n["id"], rev_adj, ranks))
-
-        # 4. Compute lane heights & vertical positions
-        lane_subrows: Dict[str, int] = defaultdict(lambda: 1)
-        for (lane_id, r), group in lane_rank_groups.items():
-            lane_subrows[lane_id] = max(lane_subrows[lane_id], len(group))
-
-        lane_positions: Dict[str, Tuple[int, int]] = {}
-        curr_y = 0
-        for lane in self.lanes:
-            lid = lane["id"]
-            subrows = lane_subrows[lid]
-            max_node_h = max(
-                (DECISION_NODE_HEIGHT if n.get("type") == "decision" else DEFAULT_NODE_HEIGHT for n in self.nodes if n.get("laneId") == lid),
-                default=DEFAULT_NODE_HEIGHT
-            )
-            req_height = LANE_TOP_PADDING + (subrows - 1) * DEFAULT_ROW_HEIGHT + max_node_h + LANE_BOTTOM_PADDING
-            height = max(LANE_MIN_HEIGHT, req_height)
-            lane["height"] = height
-            lane_positions[lid] = (curr_y, height)
-            curr_y += height
-
-        # 5. Assign concrete X, Y coordinates
-        start_x = START_X
-        for (lane_id, r), group in lane_rank_groups.items():
-            lane_top, lane_height = lane_positions.get(lane_id, (0, LANE_MIN_HEIGHT))
-            for sub_idx, node in enumerate(group):
-                nh = DECISION_NODE_HEIGHT if node.get("type") == "decision" else DEFAULT_NODE_HEIGHT
-                node["x"] = start_x + (xs[node["id"]] if xs else r * DEFAULT_COL_WIDTH)
-                if len(group) == 1 and lane_subrows[lane_id] == 1:
-                    # Center vertically in single-row lane, snapped to 4px
-                    node["y"] = int(((lane_height - nh) // 8) * 4)
-                else:
-                    node["y"] = LANE_TOP_PADDING + sub_idx * DEFAULT_ROW_HEIGHT
-                node["_globalY"] = lane_top + node["y"]
-
-        # 6. Apply Nudge-to-Align heuristic (<= 35px) for 0-turn collinear horizontal connections
-        self._apply_nudge_to_align(lane_positions, lane_rank_groups, ranks)
-
-    def _apply_nudge_to_align(
-        self,
-        lane_positions: Dict[str, Tuple[int, int]],
-        lane_rank_groups: Dict[Tuple[str, int], List[Dict[str, Any]]],
-        ranks: Dict[str, int],
-    ):
-        """Nudge nodes vertically (<= 35px) to achieve 0-turn collinear horizontal connections.
-        
-        Rule borrowed from BPMN & Draw.io layout standards: when sequential nodes within the same lane
-        have a minor vertical discrepancy (e.g. 56px task vs 64px decision, or subrow differences),
-        nudging the target or source node aligns their center Y and collapses 3-segment doglegs into
-        a razor-flat 0-degree straight horizontal line.
-        """
-        for edge in self.edges:
-            u_id = edge["from"]
-            v_id = edge["to"]
-            if u_id not in self.node_map or v_id not in self.node_map:
-                continue
-            u = self.node_map[u_id]
-            v = self.node_map[v_id]
-            if u["laneId"] != v["laneId"]:
-                continue
-            # Forward horizontal edge (v is to the right of u)
-            if v.get("x", 0) <= u.get("x", 0):
-                continue
-
-            lid = u["laneId"]
-            lane_top, lane_h = lane_positions.get(lid, (0, LANE_MIN_HEIGHT))
-            uh = DECISION_NODE_HEIGHT if u.get("type") == "decision" else DEFAULT_NODE_HEIGHT
-            vh = DECISION_NODE_HEIGHT if v.get("type") == "decision" else DEFAULT_NODE_HEIGHT
-            u_cy = u.get("y", 0) + uh / 2.0
-            v_cy = v.get("y", 0) + vh / 2.0
-
-            delta_y = u_cy - v_cy
-            if 0 < abs(delta_y) <= 35:
-                # Try nudging v to align its center with u
-                target_v_y = int(round((u_cy - vh / 2.0) / 4.0) * 4)
-                if target_v_y >= 20 and (target_v_y + vh) <= (lane_h - 20):
-                    v_rank = (v["laneId"], ranks.get(v["id"], 0))
-                    siblings = [s for s in lane_rank_groups.get(v_rank, []) if s["id"] != v["id"]]
-                    collides = False
-                    for s in siblings:
-                        sh = DECISION_NODE_HEIGHT if s.get("type") == "decision" else DEFAULT_NODE_HEIGHT
-                        sy = s.get("y", 0)
-                        if max(target_v_y, sy) < min(target_v_y + vh, sy + sh) + 12:
-                            collides = True
-                            break
-                    if not collides:
-                        v["y"] = target_v_y
-                        v["_globalY"] = lane_top + target_v_y
-
-    def _ranks_with_zero_edges(
-        self, forward_edges: List[Dict[str, Any]], zero: Set[Tuple[str, str]]
-    ) -> Dict[str, int]:
-        """Longest-path ranks where edges in `zero` span 0 columns (target shares the source column)."""
-        adj: Dict[str, List[str]] = defaultdict(list)
-        indeg: Dict[str, int] = {n["id"]: 0 for n in self.nodes}
-        for e in forward_edges:
-            adj[e["from"]].append(e["to"])
-            indeg[e["to"]] = indeg.get(e["to"], 0) + 1
-        ranks: Dict[str, int] = {n["id"]: 0 for n in self.nodes}
-        queue = deque([nid for nid, d in indeg.items() if d == 0])
-        if not queue and self.nodes:
-            queue.append(self.nodes[0]["id"])
-        seen: Set[str] = set()
-        while queue:
-            cur = queue.popleft()
-            seen.add(cur)
-            for nxt in adj.get(cur, []):
-                step = 0 if (cur, nxt) in zero else 1
-                ranks[nxt] = max(ranks[nxt], ranks[cur] + step)
-                indeg[nxt] -= 1
-                if indeg[nxt] <= 0 and nxt not in seen:
-                    queue.append(nxt)
-        for n in self.nodes:
-            if n["id"] not in seen:
-                ranks[n["id"]] = 0
-        return ranks
-
-    def _x_positions(
-        self,
-        forward_edges: List[Dict[str, Any]],
-        zero: Set[Tuple[str, str]],
-        tight: Set[Tuple[str, str]],
-    ) -> Dict[str, float]:
-        """Longest-path x offsets: normal step = column width, `zero` = 0, `tight` = node width."""
-        adj: Dict[str, List[str]] = defaultdict(list)
-        indeg: Dict[str, int] = {n["id"]: 0 for n in self.nodes}
-        for e in forward_edges:
-            adj[e["from"]].append(e["to"])
-            indeg[e["to"]] = indeg.get(e["to"], 0) + 1
-        xs: Dict[str, float] = {n["id"]: 0.0 for n in self.nodes}
-        queue = deque([nid for nid, d in indeg.items() if d == 0])
-        seen: Set[str] = set()
-        while queue:
-            cur = queue.popleft()
-            seen.add(cur)
-            for nxt in adj.get(cur, []):
-                step = 0 if (cur, nxt) in zero else (TIGHT_STEP if (cur, nxt) in tight else DEFAULT_COL_WIDTH)
-                xs[nxt] = max(xs[nxt], xs[cur] + step)
-                indeg[nxt] -= 1
-                if indeg[nxt] <= 0 and nxt not in seen:
-                    queue.append(nxt)
-        return xs
-
-    def _alignment_candidates(
-        self, forward_edges: List[Dict[str, Any]]
-    ) -> List[Tuple[Tuple[str, str], str]]:
-        """Every forward arrow that crosses lanes, as ((source, target), side).
-
-        Any of them may be given a compact step (the node type does not matter):
-        - "zero": target shares the source's column -> straight vertical arrow
-        - "tight": target sits one node width to the right -> its left edge lines up with the
-          source's right edge
-        `side` ("up"/"down") limits "zero" to one arrow per source per side (one vertex port each).
-        """
-        cands: List[Tuple[Tuple[str, str], str]] = []
-        for e in forward_edges:
-            src, dst = self.node_map.get(e["from"]), self.node_map.get(e["to"])
-            if not src or not dst:
-                continue
-            sl, dl = self.lane_map.get(src["laneId"]), self.lane_map.get(dst["laneId"])
-            if sl is None or dl is None or sl == dl:
-                continue
-            if any(c[0] == (src["id"], dst["id"]) for c in cands):
-                continue
-            cands.append(((src["id"], dst["id"]), "up" if dl < sl else "down"))
-        return cands
-
-    def _choose_alignment(
-        self,
-        ranks: Dict[str, int],
-        forward_edges: List[Dict[str, Any]],
-        fwd_adj: Dict[str, List[str]],
-        rev_adj: Dict[str, List[str]],
-    ) -> Tuple[Dict[str, int], Optional[Dict[str, float]]]:
-        """Choose a compact step ("zero" / "tight" / normal) for each cross-lane arrow.
-
-        Each configuration is laid out and scored with the verifier: fewest overlaps and
-        penetrations, then edge crossings, diagram width, bends and total arrow length.
-        Small problems are searched exhaustively, larger ones by coordinate descent.
-        """
-        cands = self._alignment_candidates(forward_edges)
-        if not cands:
-            return ranks, None
-        edges = [c[0] for c in cands]
-        side_of = {c[0]: c[1] for c in cands}
-
-        def valid(cfg: Dict[Tuple[str, str], str]) -> bool:
-            used: Set[Tuple[str, str]] = set()
-            for edge, mode in cfg.items():
-                if mode == "zero":
-                    key = (edge[0], side_of[edge])
-                    if key in used:
-                        return False
-                    used.add(key)
-            return True
-
-        cache: Dict[Tuple[Any, ...], Any] = {}
-
-        def evaluate(cfg: Dict[Tuple[str, str], str]):
-            ck = tuple(sorted(cfg.items()))
-            if ck in cache:
-                return cache[ck]
-            zero = {e for e, m in cfg.items() if m == "zero"}
-            tight = {e for e, m in cfg.items() if m == "tight"}
-            trial = self._ranks_with_zero_edges(forward_edges, zero)
-            xs = self._x_positions(forward_edges, zero, tight)
-            self._place_nodes(trial, rev_adj, xs)
-            rep = self.verify_collisions()
-            key = (
-                rep["overlaps_count"] + rep["penetrations_count"] + rep["overflows_count"],
-                rep["edge_crossings"],
-                rep["column_count"],
-                rep["bend_count"],
-                round(rep["total_edge_length"]),
-            )
-            cache[ck] = (key, trial, xs)
-            return cache[ck]
-
-        modes = [None, "zero", "tight"]
-        best_cfg: Dict[Tuple[str, str], str] = {}
-        best = evaluate(best_cfg)
-
-        if len(edges) <= 6:  # 3^6 = 729 combinations at most
-            def rec(i: int, cfg: Dict[Tuple[str, str], str]):
-                nonlocal best, best_cfg
-                if i == len(edges):
-                    if valid(cfg):
-                        res = evaluate(cfg)
-                        if res[0] < best[0]:
-                            best, best_cfg = res, dict(cfg)
-                    return
-                for m in modes:
-                    if m:
-                        cfg[edges[i]] = m
-                    rec(i + 1, cfg)
-                    cfg.pop(edges[i], None)
-            rec(0, {})
-        else:
-            for seed in ({}, {e: "tight" for e in edges}):
-                cfg = dict(seed)
-                if not valid(cfg):
-                    continue
-                cur = evaluate(cfg)
-                improved = True
-                while improved:
-                    improved = False
-                    for e in edges:
-                        for m in modes:
-                            if cfg.get(e) == m:
-                                continue
-                            trial_cfg = dict(cfg)
-                            if m:
-                                trial_cfg[e] = m
-                            else:
-                                trial_cfg.pop(e, None)
-                            if not valid(trial_cfg):
-                                continue
-                            res = evaluate(trial_cfg)
-                            if res[0] < cur[0]:
-                                cfg, cur, improved = trial_cfg, res, True
-                if cur[0] < best[0]:
-                    best, best_cfg = cur, dict(cfg)
-
-        _, best_ranks, best_xs = best
-        self._place_nodes(best_ranks, rev_adj, best_xs)
-        return best_ranks, best_xs
-
-    def _find_back_edges(self, adj: Dict[str, List[str]]) -> Set[Tuple[str, str]]:
-        """DFS traversal with 3-color marks (white=0, gray=1, black=2) to identify back-edges."""
-        color: Dict[str, int] = {node["id"]: 0 for node in self.nodes}
-        back_edges: Set[Tuple[str, str]] = set()
-
-        def dfs(u: str):
-            color[u] = 1
-            for v in adj.get(u, []):
-                if v not in color:
-                    continue
-                if color[v] == 1:
-                    back_edges.add((u, v))
-                elif color[v] == 0:
-                    dfs(v)
-            color[u] = 2
-
-        for node in self.nodes:
-            if color[node["id"]] == 0:
-                dfs(node["id"])
-
-        return back_edges
-
-    def _assign_topological_ranks(self, adj: Dict[str, List[str]], in_degree: Dict[str, int]) -> Dict[str, int]:
-        ranks: Dict[str, int] = {n["id"]: 0 for n in self.nodes}
-        queue = deque([nid for nid, deg in in_degree.items() if deg == 0])
-
-        if not queue and self.nodes:
-            queue.append(self.nodes[0]["id"])
-
-        visited = set()
-        while queue:
-            curr = queue.popleft()
-            visited.add(curr)
-            curr_rank = ranks[curr]
-            for nxt in adj.get(curr, []):
-                ranks[nxt] = max(ranks.get(nxt, 0), curr_rank + 1)
-                in_degree[nxt] = in_degree.get(nxt, 1) - 1
-                if in_degree[nxt] <= 0 and nxt not in visited:
-                    queue.append(nxt)
-
-        for node in self.nodes:
-            if node["id"] not in visited:
-                ranks[node["id"]] = 0
-
-        return ranks
-
-    def _compute_barycenter(self, node_id: str, rev_adj: Dict[str, List[str]], ranks: Dict[str, int]) -> float:
-        preds = rev_adj.get(node_id, [])
-        if not preds:
-            return 0.0
-        return sum(
-            self.lane_map.get(self.node_map[p]["laneId"], 0) * 100 + ranks.get(p, 0)
-            for p in preds
-            if p in self.node_map
-        ) / len(preds)
+    def summary_lines(self, report: Dict[str, Any]) -> List[str]:
+        return [
+            f"Structure: {report['lane_count']} Lanes | {report['node_count']} Nodes | {report['edge_count']} Edges | {report['column_count']} Columns",
+            f"Diagram Quality Score: {report['score']}/100  [GRADE: {report['grade']}]",
+            f"----------------------------------------------------------------------",
+            f"✓ Node-to-Node Overlaps:         {report['overlaps_count']} detected",
+            f"✓ Swimlane Boundary Fit:         {report['overflows_count']} overflows",
+            f"✓ Edge-through-Node Penetration: {report['penetrations_count']} penetrations",
+            f"✓ Collinear Straightness:        {report['collinear_pct']}% ({report['doglegs_count']} dogleg kinks)",
+            f"✓ Reference Integrity:           {report['dangling_count']} dangling endpoints",
+            f"✓ Orthogonal Edge Crossings:     {report['edge_crossings']} crossings",
+        ]
 
     def verify_collisions(self) -> Dict[str, Any]:
         """Comprehensive verification audit & diagram quality scoring engine.
@@ -836,34 +490,72 @@ class SwimlaneLayoutEngine:
         return False
 
 
+def normalize_diagram_type(data: Dict[str, Any]) -> Dict[str, Any]:
+    """Stamp diagramType/schemaVersion (files without them are flowcharts); reject unsupported types."""
+    kind = data.get("diagramType") or DEFAULT_TYPE
+    if kind not in SUPPORTED_TYPES:
+        raise SystemExit(
+            f"[ERROR] Unsupported diagramType {kind!r}. Supported: {', '.join(SUPPORTED_TYPES)}."
+        )
+    data["diagramType"] = kind
+    data.setdefault("schemaVersion", SCHEMA_VERSION)
+    return data
+
+
 def extract_data_from_html(html_content: str) -> Dict[str, Any]:
-    """Extract canonical flowchart-data JSON block from standalone HTML."""
-    match = re.search(
-        r'<script id="flowchart-data" type="application/json">\s*([\s\S]*?)\s*</script>',
-        html_content,
-    )
-    if not match:
-        raise ValueError('Could not find <script id="flowchart-data"> tag in the specified HTML file.')
-    return json.loads(match.group(1))
+    """Extract the canonical diagram JSON block from standalone HTML."""
+    for block_id in DATA_BLOCK_IDS:
+        match = re.search(
+            rf'<script id="{block_id}" type="application/json">\s*([\s\S]*?)\s*</script>',
+            html_content,
+        )
+        if match:
+            return json.loads(match.group(1))
+    raise ValueError('Could not find the diagram data block (<script id="diagram-data">) in the specified HTML file.')
 
 
-def scaffold_html(template_path: Path, data: Dict[str, Any], output_path: Path):
-    """Scaffold standalone HTML with auto-laid out diagram data."""
-    if not template_path.exists():
-        raise FileNotFoundError(f"Template not found at: {template_path}")
+AUDITS = {"flowchart": FlowchartAudit, "sequence": SequenceAudit}
 
-    template_str = template_path.read_text(encoding="utf-8")
-    json_str = json.dumps(data, indent=2)
+ASSETS_DIR = Path(__file__).resolve().parent.parent / "assets"
+DATA_BLOCK_IDS = ("diagram-data", "flowchart-data")  # flowchart-data: pages saved before the shell split
 
-    updated_html = re.sub(
-        r'(<script id="flowchart-data" type="application/json">)[\s\S]*?(</script>)',
-        f"\\1\n{json_str}\n  \\2",
-        template_str,
-    )
 
+def _read_asset(path: Path) -> str:
+    return path.read_text(encoding="utf-8")  # text mode normalizes CRLF to LF
+
+
+def assemble_page(kind: str, data: Optional[Dict[str, Any]] = None) -> str:
+    """Build one standalone HTML page: shared shell + the diagram type's plugin, with `data` embedded."""
+    type_dir = ASSETS_DIR / "types" / kind
+    if not type_dir.is_dir():
+        raise FileNotFoundError(f"No assets for diagram type {kind!r} at: {type_dir}")
+    meta = json.loads(_read_asset(type_dir / "meta.json"))
+    payload = _read_asset(type_dir / "default.json").rstrip(chr(10)) if data is None else json.dumps(data, indent=2)
+    parts = {
+        "TYPE_TITLE": meta["title"],
+        "SHELL_CSS": _read_asset(ASSETS_DIR / "shell" / "shell.css").rstrip(chr(10)),
+        "TYPE_CSS": _read_asset(type_dir / f"{kind}.css").rstrip(chr(10)),
+        "TYPE_TOOLBAR": _read_asset(type_dir / "toolbar.html").rstrip(chr(10)),
+        "TYPE_ICON": _read_asset(type_dir / "icon.html").strip(),
+        "TYPE_CHROME": _read_asset(type_dir / "chrome.html"),
+        "TYPE_STAGE": _read_asset(type_dir / "stage.html").rstrip(chr(10)),
+        "TYPE_HELP": _read_asset(type_dir / "help.html").rstrip(chr(10)),
+        "SHELL_HELP": _read_asset(ASSETS_DIR / "shell" / "help.html").rstrip(chr(10)),
+        "DATA": payload,
+        "SHELL_JS": _read_asset(ASSETS_DIR / "shell" / "shell.js").rstrip(chr(10)),
+        "ENGINE_JS": _read_asset(type_dir / "engine.js").rstrip(chr(10)),
+        "TYPE_JS": _read_asset(type_dir / f"{kind}.js").rstrip(chr(10)),
+    }
+    # One pass: substituted text is never re-scanned, and an unknown placeholder fails loudly.
+    return re.sub(r"\{\{([A-Z_]+)\}\}", lambda m: parts[m.group(1)], _read_asset(ASSETS_DIR / "shell" / "shell.html"))
+
+
+def scaffold_html(data: Dict[str, Any], output_path: Path):
+    """Write the standalone HTML for `data` (its diagramType selects the plugin)."""
+    html_text = assemble_page(data.get("diagramType") or DEFAULT_TYPE, data)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(updated_html, encoding="utf-8")
-    print(f"[OK] Generated interactive flowchart: {output_path}")
+    output_path.write_text(html_text, encoding="utf-8")
+    print(f"[OK] Generated interactive {data.get('diagramType') or DEFAULT_TYPE}: {output_path}")
 
 
 def _ensure_utf8_output() -> None:
@@ -880,12 +572,8 @@ def main():
     parser = argparse.ArgumentParser(description="Multi-Swimlane Flowchart Layout & Verification Engine")
     parser.add_argument("--layout", "-l", help="Input JSON file or HTML file to compute layout for")
     parser.add_argument("--output", "-o", help="Output HTML file path (or JSON path if extracting)")
-    parser.add_argument(
-        "--template",
-        "-t",
-        default=str(Path(__file__).parent.parent / "assets" / "flowchart-template.html"),
-        help="Path to flowchart-template.html",
-    )
+    parser.add_argument("--browser", help="Chrome/Chromium path for --layout when Node.js is not installed")
+    parser.add_argument("--timeout", type=int, default=30, help="Seconds allowed for the layout engine (default: 30)")
     parser.add_argument("--verify", "-v", help="Verify collisions and layout constraints for an HTML or JSON file")
     parser.add_argument("--extract", "-e", help="Extract canonical JSON data from an existing HTML file")
 
@@ -916,21 +604,15 @@ def main():
         else:
             data = json.loads(p.read_text(encoding="utf-8"))
 
-        engine = SwimlaneLayoutEngine(data)
-        report = engine.verify_collisions()
+        data = normalize_diagram_type(data)
+        audit = AUDITS[data["diagramType"]](data)
+        report = audit.verify_collisions()
 
         print(f"\n======================================================================")
-        print(f"--- Flowchart Verification & Quality Audit: {p.name} ---")
+        print(f"--- {audit.title} Verification & Quality Audit: {p.name} ---")
         print(f"======================================================================")
-        print(f"Structure: {report['lane_count']} Lanes | {report['node_count']} Nodes | {report['edge_count']} Edges | {report['column_count']} Columns")
-        print(f"Diagram Quality Score: {report['score']}/100  [GRADE: {report['grade']}]")
-        print(f"----------------------------------------------------------------------")
-        print(f"✓ Node-to-Node Overlaps:         {report['overlaps_count']} detected")
-        print(f"✓ Swimlane Boundary Fit:         {report['overflows_count']} overflows")
-        print(f"✓ Edge-through-Node Penetration: {report['penetrations_count']} penetrations")
-        print(f"✓ Collinear Straightness:        {report['collinear_pct']}% ({report['doglegs_count']} dogleg kinks)")
-        print(f"✓ Reference Integrity:           {report['dangling_count']} dangling endpoints")
-        print(f"✓ Orthogonal Edge Crossings:     {report['edge_crossings']} crossings")
+        for line in audit.summary_lines(report):
+            print(line)
         if p.suffix == ".html":
             print(f"{'✓' if not external_refs else '✗'} Self-Containment:              {len(external_refs)} external references")
         print(f"======================================================================")
@@ -958,23 +640,23 @@ def main():
         else:
             data = json.loads(in_p.read_text(encoding="utf-8"))
 
-        engine = SwimlaneLayoutEngine(data)
-        laid_out_data = engine.compute_layout()
-        report = engine.verify_collisions()
+        data = normalize_diagram_type(data)
+        try:
+            laid_out_data = run_layout(data["diagramType"], data, timeout=args.timeout, browser=args.browser)
+        except EngineUnavailable as exc:
+            sys.exit(f"[ERROR] {exc}")
+        audit = AUDITS[data["diagramType"]](laid_out_data)
+        report = audit.verify_collisions()
 
         out_path = Path(args.output) if args.output else in_p.with_suffix(".html")
-        template_path = Path(args.template)
-        scaffold_html(template_path, laid_out_data, out_path)
+        scaffold_html(laid_out_data, out_path)
 
         if not report["passed"]:
             print(f"[WARNING] Layout computed with quality score {report['score']}/100 ({report['grade']}):")
             for issue in report["issues"]:
                 print(f"  - {issue}")
         else:
-            print(
-                f"[PASS] Quality Score: {report['score']}/100 ({report['grade']}). "
-                f"0 overlaps, 0 penetrations, {report['collinear_pct']}% collinear straightness."
-            )
+            print(audit.pass_line(report))
 
 
 if __name__ == "__main__":

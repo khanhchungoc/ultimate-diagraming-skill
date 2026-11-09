@@ -87,6 +87,6 @@ The interactive HTML document can modify and persist itself directly on disk:
 
 ---
 
-## Two Copies of the Engine
+## One Engine
 
-The layout runs in Python (`scripts/layout_engine.py`, used by `--layout`) and in the page (`runLayoutEngine()` in `assets/flowchart-template.html`, used by the Auto-Tidy button). They must stay identical: same constants, ranking, ordering, compact-step search, scoring order and tie-breaks. After changing either, run `python scripts/check_tidy_parity.py <diagram.json>...`; it lays each diagram out with Python, scrambles positions, runs Auto-Tidy in headless Chrome (`?tidy`) and fails if any node position or lane height differs.
+The phases above are implemented once, in `assets/types/flowchart/engine.js`. The page runs it for the Auto-Tidy button and `scripts/layout_engine.py --layout` runs the same file through Node.js (headless Chrome as a fallback, see `scripts/engine_runner.py`). Regression tests: `python dev/check_golden.py` (see [architecture.md](architecture.md)). The Python side only audits (`--verify`).

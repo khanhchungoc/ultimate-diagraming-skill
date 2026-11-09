@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{TYPE_TITLE}}</title>
+  <style>
+{{SHELL_CSS}}
+{{TYPE_CSS}}
+  </style>
+</head>
+<body>
+
+  <!-- Top Toolbar -->
+  <header>
+    <div class="toolbar-left">
+      {{TYPE_ICON}}
+      <div class="app-title-container">
+        <h1 id="chart-title" contenteditable="false" spellcheck="false" title="Double-click to rename diagram">{{TYPE_TITLE}}</h1>
+        <span id="save-status" class="badge badge-status">Ready</span>
+      </div>
+    </div>
+
+    <div class="toolbar-right">
+      <button id="btn-zoom-out" class="btn btn-icon" title="Zoom Out">−</button>
+      <span id="zoom-level" style="font-size:0.8rem; font-weight:600; width:45px; text-align:center;">100%</span>
+      <button id="btn-zoom-in" class="btn btn-icon" title="Zoom In">+</button>
+      <button id="btn-zoom-reset" class="btn" title="Fit to Screen">Fit</button>
+      <button id="btn-theme" class="btn btn-icon" title="Toggle light / dark mode" aria-label="Toggle dark mode">🌙</button>
+      <button id="btn-help" class="btn btn-icon" title="Keyboard Shortcuts">?</button>
+      <button id="btn-save" class="btn btn-success" title="Save directly into this HTML file (Ctrl+S)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save
+      </button>
+    </div>
+  </header>
+
+  <!-- Add controls: floating at the bottom of the viewport, no background -->
+  <div class="toolbar-center">
+{{TYPE_TOOLBAR}}
+      <button id="btn-auto-tidy" class="btn btn-primary" title="Automatically re-align and lay out the diagram automatically">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M7 12h10"/><path d="M10 18h4"/></svg> Auto-Tidy
+      </button>
+  </div>
+
+{{TYPE_CHROME}}
+  <!-- Viewport for Pan and Zoom -->
+  <div id="viewport">
+    <div id="stage">
+{{TYPE_STAGE}}
+    </div>
+  </div>
+
+    <!-- Help & Shortcuts Drawer -->
+  <div id="help-drawer">
+    <div style="font-weight:700; margin-bottom:6px; display:flex; justify-content:space-between;">
+      <span>Shortcuts & Interaction</span>
+      <span style="cursor:pointer;" onclick="document.getElementById('help-drawer').classList.remove('open')">×</span>
+    </div>
+    <ul style="list-style:none; line-height:1.6;">
+{{TYPE_HELP}}
+{{SHELL_HELP}}
+    </ul>
+  </div>
+
+  <!-- CANONICAL DATA BLOCK (Single Source of Truth) -->
+  <script id="diagram-data" type="application/json">
+{{DATA}}
+  </script>
+
+  <!-- Interactive Diagram Script: shell, then the type's engine and plugin -->
+  <script>
+    (function () {
+      'use strict';
+
+{{SHELL_JS}}
+{{ENGINE_JS}}
+{{TYPE_JS}}
+      loadInitialData();
+    })();
+  </script>
+</body>
+</html>

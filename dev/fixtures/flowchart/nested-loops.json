@@ -1,0 +1,130 @@
+{
+  "diagramType": "flowchart",
+  "title": "Two loops",
+  "direction": "LR",
+  "lanes": [
+    {
+      "id": "lane-a",
+      "name": "Requester",
+      "color": "#e0f2fe"
+    },
+    {
+      "id": "lane-b",
+      "name": "Reviewer",
+      "color": "#fef3c7"
+    },
+    {
+      "id": "lane-c",
+      "name": "Approver",
+      "color": "#dcfce7"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "n1",
+      "laneId": "lane-a",
+      "type": "start",
+      "label": "Draft Request"
+    },
+    {
+      "id": "n2",
+      "laneId": "lane-b",
+      "type": "task",
+      "label": "Review Draft"
+    },
+    {
+      "id": "n3",
+      "laneId": "lane-b",
+      "type": "decision",
+      "label": "Complete?"
+    },
+    {
+      "id": "n4",
+      "laneId": "lane-a",
+      "type": "task",
+      "label": "Fix Draft"
+    },
+    {
+      "id": "n5",
+      "laneId": "lane-c",
+      "type": "task",
+      "label": "Assess Request"
+    },
+    {
+      "id": "n6",
+      "laneId": "lane-c",
+      "type": "decision",
+      "label": "Approved?"
+    },
+    {
+      "id": "n7",
+      "laneId": "lane-b",
+      "type": "task",
+      "label": "Request Changes"
+    },
+    {
+      "id": "n8",
+      "laneId": "lane-a",
+      "type": "end",
+      "label": "Granted",
+      "outcome": "success"
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "from": "n1",
+      "to": "n2",
+      "label": ""
+    },
+    {
+      "id": "e2",
+      "from": "n2",
+      "to": "n3",
+      "label": ""
+    },
+    {
+      "id": "e3",
+      "from": "n3",
+      "to": "n4",
+      "label": "No"
+    },
+    {
+      "id": "e4",
+      "from": "n4",
+      "to": "n2",
+      "label": "Resubmit",
+      "feedback": true
+    },
+    {
+      "id": "e5",
+      "from": "n3",
+      "to": "n5",
+      "label": "Yes"
+    },
+    {
+      "id": "e6",
+      "from": "n5",
+      "to": "n6",
+      "label": ""
+    },
+    {
+      "id": "e7",
+      "from": "n6",
+      "to": "n7",
+      "label": "No"
+    },
+    {
+      "id": "e8",
+      "from": "n7",
+      "to": "n5",
+      "label": "Reassess"
+    },
+    {
+      "id": "e9",
+      "from": "n6",
+      "to": "n8",
+      "label": "Yes"
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "diagramType": "sequence",
+  "title": "Interactive Sequence Diagram",
+  "participants": [
+    { "id": "p1", "name": "User", "kind": "actor" },
+    { "id": "p2", "name": "System", "kind": "system" }
+  ],
+  "messages": [
+    { "id": "m1", "from": "p1", "to": "p2", "label": "Request", "kind": "sync" },
+    { "id": "m2", "from": "p2", "to": "p1", "label": "Response", "kind": "reply" }
+  ],
+  "fragments": []
+}

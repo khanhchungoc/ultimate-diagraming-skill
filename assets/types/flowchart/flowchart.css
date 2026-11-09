@@ -1,0 +1,432 @@
+    /* Banner for connecting mode */
+    #connecting-banner {
+      display: none;
+      background: var(--banner-bg);
+      border-bottom: 1px solid var(--banner-border);
+      color: var(--banner-text);
+      font-size: 0.82rem;
+      font-weight: 600;
+      padding: 6px 16px;
+      text-align: center;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      z-index: 90;
+    }
+    #connecting-banner.active {
+      display: flex;
+    }
+
+
+    /* Swimlanes Container */
+    #swimlanes-container {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      border: 1px solid var(--border-dark);
+      background: var(--bg-panel);
+      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -2px rgba(0,0,0,0.05);
+      border-radius: 8px;
+      margin: 40px;
+      width: fit-content;
+      min-width: 1400px;
+    }
+
+    .swimlane {
+      display: flex;
+      position: relative;
+      border-bottom: 1px dashed var(--border-dark);
+      min-height: var(--lane-min-height);
+      transition: background 0.15s ease, outline 0.15s ease;
+    }
+    .swimlane:last-child {
+      border-bottom: none;
+    }
+
+    .lane-header {
+      width: var(--lane-header-width);
+      min-width: var(--lane-header-width);
+      padding: 14px 12px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      border-right: 2px solid var(--border-dark);
+      background: var(--bg-lane-header);
+      font-weight: 700;
+      font-size: 0.9rem;
+      color: var(--text-main);
+      position: relative;
+      cursor: grab;
+      user-select: none;
+      transition: background 0.15s;
+    }
+    .lane-header.dragging-header {
+      opacity: 0.5;
+      background: var(--bg-soft);
+    }
+    .lane-title {
+      outline: none;
+      user-select: none;
+      word-break: break-word;
+      border-radius: 4px;
+      padding: 2px 4px;
+      border: 1px solid transparent;
+      cursor: default;
+    }
+    .lane-title[contenteditable="true"] {
+      user-select: text;
+      cursor: text;
+      border-color: var(--primary);
+      background: var(--bg-input);
+    }
+    .lane-title:focus {
+      border-color: var(--primary);
+      background: var(--bg-input);
+    }
+
+    .snap-guide {
+      position: absolute;
+      display: none;
+      pointer-events: none;
+      z-index: 55;
+    }
+    .snap-guide-v {
+      top: 0; bottom: 0; width: 0;
+      border-left: 1.5px dashed #e11d48;
+    }
+    .snap-guide-h {
+      left: 0; right: 0; height: 0;
+      border-top: 1.5px dashed #e11d48;
+    }
+    #lane-drop-line {
+      position: absolute;
+      left: 0;
+      width: 100%;
+      height: 4px;
+      background: var(--primary);
+      border-radius: 2px;
+      box-shadow: 0 0 0 3px rgba(37,99,235,0.25);
+      z-index: 60;
+      pointer-events: none;
+      display: none;
+    }
+    #lane-drop-line::before {
+      content: '';
+      position: absolute;
+      left: -2px; top: -4px;
+      width: 12px; height: 12px;
+      border-radius: 50%;
+      background: var(--primary);
+    }
+    .swimlane.lane-dragging .lane-header { opacity: 0.45; }
+
+    .lane-track {
+      flex: 1;
+      position: relative;
+      min-width: 1400px;
+      background: var(--lane-track-tint);
+      transition: background 0.15s ease;
+    }
+    .lane-track.drag-hover-lane {
+      background: rgba(37, 99, 235, 0.06);
+    }
+
+    /* SVG Connector Overlay */
+    #connector-svg {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 15;
+    }
+    .connector-path {
+      fill: none;
+      stroke: var(--connector);
+      stroke-width: 1.8px;
+      stroke-linejoin: round;
+      stroke-linecap: round;
+      pointer-events: stroke;
+      cursor: pointer;
+      transition: stroke 0.15s ease, stroke-width 0.15s ease;
+    }
+    .connector-path:hover, .connector-path.selected {
+      stroke: var(--primary);
+      stroke-width: 2.6px;
+    }
+
+    .edge-label-container {
+      position: absolute;
+      transform: translate(-50%, -50%);
+      background: var(--edge-label-bg); /* Opaque mask shield over underlying connectors */
+      border: 1.5px solid var(--border-dark);
+      border-radius: 8px;
+      padding: 3px 8px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-main);
+      cursor: pointer;
+      z-index: 30;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+      white-space: normal; /* Allow dropping into multiple lines if exceeding gap */
+      overflow-wrap: break-word; /* wrap between words; only split a word that cannot fit at all */
+      text-align: center;
+      transition: all 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      line-height: 1.25;
+      box-sizing: border-box;
+      max-width: 180px;
+    }
+    .edge-label-container:hover, .edge-label-container.selected {
+      border-color: var(--primary);
+      box-shadow: 0 2px 8px rgba(37,99,235,0.22);
+    }
+    .edge-label-text {
+      outline: none;
+      min-width: 14px;
+      display: inline-block;
+      user-select: text;
+      white-space: normal;
+      overflow-wrap: break-word;
+      text-align: center;
+    }
+    .edge-label-text:focus {
+      color: var(--primary);
+    }
+    .edge-label-container.empty-placeholder {
+      display: none;
+      background: var(--edge-label-empty-bg);
+      border: 1.5px dashed var(--edge-label-empty-border);
+      color: var(--text-muted);
+      font-size: 0.8rem;
+      padding: 2px 8px;
+    }
+    .edge-label-container.empty-placeholder.hover-visible,
+    .edge-label-container.empty-placeholder.selected,
+    .edge-label-container.empty-placeholder:hover {
+      display: inline-flex !important;
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+    .edge-label-container.has-label {
+      display: inline-flex;
+    }
+    .edge-delete-btn {
+      width: 15px;
+      height: 15px;
+      border-radius: 50%;
+      background: var(--bg-hover);
+      color: var(--text-muted);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .edge-delete-btn:hover {
+      background: var(--danger);
+      color: #ffffff;
+    }
+
+    /* Flowchart Nodes - 4px Grid Alignment */
+    .flow-node {
+      position: absolute;
+      background: var(--node-bg);
+      border: 1.8px solid var(--border-dark);
+      border-radius: 8px;
+      padding: 6px 14px;
+      width: 168px;
+      height: 56px;
+      cursor: move;
+      z-index: 20;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.06);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      font-size: 0.81rem;
+      font-weight: 600;
+      line-height: 1.22;
+      user-select: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .flow-node:hover {
+      border-color: var(--primary);
+      box-shadow: 0 4px 10px rgba(0,0,0,0.12);
+    }
+    .flow-node.selected {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(37,99,235,0.25);
+    }
+    .flow-node.connect-target {
+      outline: 3px dashed var(--primary);
+      border-color: var(--primary);
+    }
+
+    /* Node Types */
+    .flow-node.type-start {
+      border-radius: 28px;
+      background: var(--start-bg);
+      border-color: var(--start-border);
+      color: var(--start-text);
+    }
+    .flow-node.type-end {
+      border-radius: 28px;
+      background: var(--end-bg);
+      border-color: var(--end-border);
+      color: var(--end-text);
+    }
+    .flow-node.type-decision {
+      width: 168px;
+      height: 64px;
+      background: transparent !important;
+      border: none !important;
+      box-shadow: none !important;
+      padding: 0 !important;
+    }
+    .flow-node.type-decision .decision-diamond-svg {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+      pointer-events: none;
+    }
+    .flow-node.type-decision .diamond-poly {
+      fill: var(--decision-fill);
+      stroke: var(--warning);
+      stroke-width: 1.8px;
+      transition: stroke 0.15s, fill 0.15s, stroke-width 0.15s;
+    }
+    .flow-node.type-decision:hover .diamond-poly {
+      stroke: var(--primary);
+      stroke-width: 2.2px;
+      fill: var(--decision-fill-hover);
+    }
+    .flow-node.type-decision.selected .diamond-poly {
+      stroke: var(--primary);
+      stroke-width: 2.5px;
+      filter: drop-shadow(0 0 4px rgba(37,99,235,0.35));
+    }
+    .flow-node.type-decision .node-label {
+      position: relative;
+      z-index: 2;
+      max-width: 110px;
+      font-size: 0.77rem;
+      line-height: 1.15;
+    }
+
+    .node-label {
+      outline: none;
+      user-select: none;
+      width: 100%;
+      word-break: break-word;
+      overflow: hidden;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      cursor: move;
+    }
+    .node-label[contenteditable="true"] {
+      user-select: text;
+      cursor: text;
+    }
+
+    /* Connection Ports (Hidden until hover/selected/connecting for clean publication look) */
+    .port {
+      position: absolute;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: var(--node-bg);
+      border: 2.5px solid var(--primary);
+      opacity: 0;
+      cursor: crosshair;
+      transition: opacity 0.15s, transform 0.15s, background-color 0.15s;
+      z-index: 35;
+      transform: translate(-50%, -50%);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+    }
+    .flow-node:hover .port, .flow-node.selected .port, body.connecting .port {
+      opacity: 1;
+    }
+    .port:hover {
+      transform: translate(-50%, -50%) scale(1.35);
+      background: var(--primary);
+    }
+    .port-top { top: 0; left: 50%; }
+    .port-bottom { top: 100%; left: 50%; }
+    .port-left { top: 50%; left: 0; }
+    .port-right { top: 50%; left: 100%; }
+
+    /* Delete Button for Selected Node */
+    .node-delete-btn {
+      position: absolute;
+      top: -8px;
+      right: -8px;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: var(--danger);
+      color: #ffffff;
+      font-size: 11px;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+      z-index: 40;
+    }
+    .flow-node.selected .node-delete-btn {
+      display: flex;
+    }
+
+    /* End-node outcomes (set "outcome": "success" | "failure" on an end node) */
+    .flow-node.type-end.outcome-success {
+      background: var(--end-success-bg);
+      border-color: var(--end-success-border);
+      color: var(--end-text);
+    }
+    .flow-node.type-end.outcome-failure {
+      background: var(--end-failure-bg);
+      border-color: var(--end-failure-border);
+      color: var(--end-text);
+    }
+    .flow-node.type-end.outcome-success,
+    .flow-node.type-end.outcome-failure {
+      padding-left: 38px;
+    }
+    .flow-node.type-end.outcome-success::before,
+    .flow-node.type-end.outcome-failure::before {
+      position: absolute;
+      left: 16px;
+      font-weight: 800;
+    }
+    .flow-node.type-end.outcome-success::before { content: '\2713'; }
+    .flow-node.type-end.outcome-failure::before { content: '\2715'; }
+
+
+    /* Presentation mode (?present): hide flowchart editing chrome, make elements inert */
+    body.presentation .port,
+    body.presentation .node-delete-btn,
+    body.presentation .edge-delete-btn { display: none !important; }
+    body.presentation .flow-node,
+    body.presentation .lane-header,
+    body.presentation .lane-title,
+    body.presentation .edge-label-container,
+    body.presentation .connector-path { pointer-events: none !important; }
+    body.presentation .lane-header { cursor: default; }
+    /* Capture mode: the diagram container goes edge to edge */
+    body.capture #swimlanes-container {
+      margin: 0;
+      border: none;
+      border-radius: 0;
+      box-shadow: none;
+    }

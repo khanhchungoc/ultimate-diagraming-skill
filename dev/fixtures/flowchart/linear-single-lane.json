@@ -1,0 +1,71 @@
+{
+  "diagramType": "flowchart",
+  "title": "Single lane chain",
+  "direction": "LR",
+  "lanes": [
+    {
+      "id": "lane-a",
+      "name": "Clerk",
+      "color": "#e0f2fe"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "n1",
+      "laneId": "lane-a",
+      "type": "start",
+      "label": "Receive Form"
+    },
+    {
+      "id": "n2",
+      "laneId": "lane-a",
+      "type": "task",
+      "label": "Check Form"
+    },
+    {
+      "id": "n3",
+      "laneId": "lane-a",
+      "type": "task",
+      "label": "Enter Data"
+    },
+    {
+      "id": "n4",
+      "laneId": "lane-a",
+      "type": "task",
+      "label": "File Copy"
+    },
+    {
+      "id": "n5",
+      "laneId": "lane-a",
+      "type": "end",
+      "label": "Done",
+      "outcome": "success"
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "from": "n1",
+      "to": "n2",
+      "label": ""
+    },
+    {
+      "id": "e2",
+      "from": "n2",
+      "to": "n3",
+      "label": ""
+    },
+    {
+      "id": "e3",
+      "from": "n3",
+      "to": "n4",
+      "label": ""
+    },
+    {
+      "id": "e4",
+      "from": "n4",
+      "to": "n5",
+      "label": ""
+    }
+  ]
+}

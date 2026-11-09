@@ -1,0 +1,182 @@
+{
+  "diagramType": "flowchart",
+  "title": "Budget-limit diagram",
+  "direction": "LR",
+  "lanes": [
+    {
+      "id": "lane-a",
+      "name": "Customer",
+      "color": "#e0f2fe"
+    },
+    {
+      "id": "lane-b",
+      "name": "Frontend",
+      "color": "#fef3c7"
+    },
+    {
+      "id": "lane-c",
+      "name": "Backend",
+      "color": "#dcfce7"
+    },
+    {
+      "id": "lane-d",
+      "name": "Risk",
+      "color": "#fee2e2"
+    },
+    {
+      "id": "lane-e",
+      "name": "Partner",
+      "color": "#f3e8ff"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "n1",
+      "laneId": "lane-a",
+      "type": "start",
+      "label": "Submit"
+    },
+    {
+      "id": "n2",
+      "laneId": "lane-b",
+      "type": "task",
+      "label": "Validate Input"
+    },
+    {
+      "id": "n3",
+      "laneId": "lane-c",
+      "type": "task",
+      "label": "Create Case"
+    },
+    {
+      "id": "n4",
+      "laneId": "lane-d",
+      "type": "decision",
+      "label": "Risky?"
+    },
+    {
+      "id": "n5",
+      "laneId": "lane-e",
+      "type": "task",
+      "label": "Verify Identity"
+    },
+    {
+      "id": "n6",
+      "laneId": "lane-d",
+      "type": "task",
+      "label": "Manual Review"
+    },
+    {
+      "id": "n7",
+      "laneId": "lane-c",
+      "type": "task",
+      "label": "Approve Case"
+    },
+    {
+      "id": "n8",
+      "laneId": "lane-b",
+      "type": "task",
+      "label": "Notify Customer"
+    },
+    {
+      "id": "n9",
+      "laneId": "lane-a",
+      "type": "end",
+      "label": "Accepted",
+      "outcome": "success"
+    },
+    {
+      "id": "n10",
+      "laneId": "lane-d",
+      "type": "end",
+      "label": "Declined",
+      "outcome": "failure"
+    },
+    {
+      "id": "n11",
+      "laneId": "lane-c",
+      "type": "task",
+      "label": "Archive Case"
+    },
+    {
+      "id": "n12",
+      "laneId": "lane-b",
+      "type": "end",
+      "label": "Closed"
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "from": "n1",
+      "to": "n2",
+      "label": ""
+    },
+    {
+      "id": "e2",
+      "from": "n2",
+      "to": "n3",
+      "label": ""
+    },
+    {
+      "id": "e3",
+      "from": "n3",
+      "to": "n4",
+      "label": ""
+    },
+    {
+      "id": "e4",
+      "from": "n4",
+      "to": "n5",
+      "label": "Yes"
+    },
+    {
+      "id": "e5",
+      "from": "n4",
+      "to": "n7",
+      "label": "No"
+    },
+    {
+      "id": "e6",
+      "from": "n5",
+      "to": "n6",
+      "label": ""
+    },
+    {
+      "id": "e7",
+      "from": "n6",
+      "to": "n7",
+      "label": ""
+    },
+    {
+      "id": "e8",
+      "from": "n6",
+      "to": "n10",
+      "label": ""
+    },
+    {
+      "id": "e9",
+      "from": "n7",
+      "to": "n8",
+      "label": ""
+    },
+    {
+      "id": "e10",
+      "from": "n8",
+      "to": "n9",
+      "label": ""
+    },
+    {
+      "id": "e11",
+      "from": "n7",
+      "to": "n11",
+      "label": ""
+    },
+    {
+      "id": "e12",
+      "from": "n11",
+      "to": "n12",
+      "label": ""
+    }
+  ]
+}

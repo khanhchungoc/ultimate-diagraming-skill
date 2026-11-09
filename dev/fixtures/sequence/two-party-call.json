@@ -1,0 +1,33 @@
+{
+  "diagramType": "sequence",
+  "title": "Login",
+  "participants": [
+    {
+      "id": "p1",
+      "name": "User",
+      "kind": "actor"
+    },
+    {
+      "id": "p2",
+      "name": "Auth Service",
+      "kind": "system"
+    }
+  ],
+  "messages": [
+    {
+      "id": "m1",
+      "from": "p1",
+      "to": "p2",
+      "label": "Submit credentials",
+      "kind": "sync"
+    },
+    {
+      "id": "m2",
+      "from": "p2",
+      "to": "p1",
+      "label": "Session token",
+      "kind": "reply"
+    }
+  ],
+  "fragments": []
+}

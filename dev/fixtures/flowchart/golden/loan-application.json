@@ -1,0 +1,171 @@
+{
+  "diagramType": "flowchart",
+  "title": "Customer Loan Application Process",
+  "direction": "LR",
+  "lanes": [
+    {
+      "id": "lane-customer",
+      "name": "Applicant / Customer",
+      "color": "#e0f2fe",
+      "height": 160
+    },
+    {
+      "id": "lane-officer",
+      "name": "Loan Officer",
+      "color": "#fef3c7",
+      "height": 160
+    },
+    {
+      "id": "lane-engine",
+      "name": "Automated Underwriting Engine",
+      "color": "#dcfce7",
+      "height": 160
+    },
+    {
+      "id": "lane-risk",
+      "name": "Risk & Compliance Committee",
+      "color": "#fee2e2",
+      "height": 160
+    }
+  ],
+  "nodes": [
+    {
+      "id": "n1",
+      "laneId": "lane-customer",
+      "type": "start",
+      "label": "Submit Application",
+      "x": 56,
+      "y": 52
+    },
+    {
+      "id": "n2",
+      "laneId": "lane-officer",
+      "type": "task",
+      "label": "Review & Validate Docs",
+      "x": 224,
+      "y": 52
+    },
+    {
+      "id": "n3",
+      "laneId": "lane-officer",
+      "type": "decision",
+      "label": "Docs Complete?",
+      "x": 464,
+      "y": 48
+    },
+    {
+      "id": "n4",
+      "laneId": "lane-customer",
+      "type": "task",
+      "label": "Provide Missing Docs",
+      "x": 464,
+      "y": 52
+    },
+    {
+      "id": "n5",
+      "laneId": "lane-engine",
+      "type": "task",
+      "label": "Run Credit & Fraud Check",
+      "x": 464,
+      "y": 52
+    },
+    {
+      "id": "n6",
+      "laneId": "lane-engine",
+      "type": "decision",
+      "label": "Credit Score >= 700?",
+      "x": 704,
+      "y": 48
+    },
+    {
+      "id": "n7",
+      "laneId": "lane-risk",
+      "type": "decision",
+      "label": "Risk Acceptable?",
+      "x": 872,
+      "y": 48
+    },
+    {
+      "id": "n8",
+      "laneId": "lane-officer",
+      "type": "end",
+      "outcome": "success",
+      "label": "Loan Approved",
+      "x": 872,
+      "y": 52
+    },
+    {
+      "id": "n9",
+      "laneId": "lane-customer",
+      "type": "end",
+      "outcome": "failure",
+      "label": "Application Rejected",
+      "x": 1040,
+      "y": 52
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "from": "n1",
+      "to": "n2",
+      "label": ""
+    },
+    {
+      "id": "e2",
+      "from": "n2",
+      "to": "n3",
+      "label": ""
+    },
+    {
+      "id": "e3",
+      "from": "n3",
+      "to": "n4",
+      "label": "No"
+    },
+    {
+      "id": "e4",
+      "from": "n4",
+      "to": "n2",
+      "label": "Resubmit",
+      "feedback": true
+    },
+    {
+      "id": "e5",
+      "from": "n3",
+      "to": "n5",
+      "label": "Yes"
+    },
+    {
+      "id": "e6",
+      "from": "n5",
+      "to": "n6",
+      "label": ""
+    },
+    {
+      "id": "e7",
+      "from": "n6",
+      "to": "n8",
+      "label": "Yes"
+    },
+    {
+      "id": "e8",
+      "from": "n6",
+      "to": "n7",
+      "label": "No"
+    },
+    {
+      "id": "e9",
+      "from": "n7",
+      "to": "n8",
+      "label": "Yes"
+    },
+    {
+      "id": "e10",
+      "from": "n7",
+      "to": "n9",
+      "label": "No"
+    }
+  ],
+  "schemaVersion": 1
+}

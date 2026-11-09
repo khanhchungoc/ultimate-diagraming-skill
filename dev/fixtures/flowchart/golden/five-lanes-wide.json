@@ -1,0 +1,212 @@
+{
+  "diagramType": "flowchart",
+  "title": "Budget-limit diagram",
+  "direction": "LR",
+  "lanes": [
+    {
+      "id": "lane-a",
+      "name": "Customer",
+      "color": "#e0f2fe",
+      "height": 160
+    },
+    {
+      "id": "lane-b",
+      "name": "Frontend",
+      "color": "#fef3c7",
+      "height": 160
+    },
+    {
+      "id": "lane-c",
+      "name": "Backend",
+      "color": "#dcfce7",
+      "height": 160
+    },
+    {
+      "id": "lane-d",
+      "name": "Risk",
+      "color": "#fee2e2",
+      "height": 160
+    },
+    {
+      "id": "lane-e",
+      "name": "Partner",
+      "color": "#f3e8ff",
+      "height": 160
+    }
+  ],
+  "nodes": [
+    {
+      "id": "n1",
+      "laneId": "lane-a",
+      "type": "start",
+      "label": "Submit",
+      "x": 56,
+      "y": 52
+    },
+    {
+      "id": "n2",
+      "laneId": "lane-b",
+      "type": "task",
+      "label": "Validate Input",
+      "x": 56,
+      "y": 52
+    },
+    {
+      "id": "n3",
+      "laneId": "lane-c",
+      "type": "task",
+      "label": "Create Case",
+      "x": 56,
+      "y": 52
+    },
+    {
+      "id": "n4",
+      "laneId": "lane-d",
+      "type": "decision",
+      "label": "Risky?",
+      "x": 224,
+      "y": 48
+    },
+    {
+      "id": "n5",
+      "laneId": "lane-e",
+      "type": "task",
+      "label": "Verify Identity",
+      "x": 392,
+      "y": 52
+    },
+    {
+      "id": "n6",
+      "laneId": "lane-d",
+      "type": "task",
+      "label": "Manual Review",
+      "x": 392,
+      "y": 52
+    },
+    {
+      "id": "n7",
+      "laneId": "lane-c",
+      "type": "task",
+      "label": "Approve Case",
+      "x": 464,
+      "y": 52
+    },
+    {
+      "id": "n8",
+      "laneId": "lane-b",
+      "type": "task",
+      "label": "Notify Customer",
+      "x": 464,
+      "y": 52
+    },
+    {
+      "id": "n9",
+      "laneId": "lane-a",
+      "type": "end",
+      "label": "Accepted",
+      "outcome": "success",
+      "x": 632,
+      "y": 52
+    },
+    {
+      "id": "n10",
+      "laneId": "lane-d",
+      "type": "end",
+      "label": "Declined",
+      "outcome": "failure",
+      "x": 632,
+      "y": 52
+    },
+    {
+      "id": "n11",
+      "laneId": "lane-c",
+      "type": "task",
+      "label": "Archive Case",
+      "x": 704,
+      "y": 52
+    },
+    {
+      "id": "n12",
+      "laneId": "lane-b",
+      "type": "end",
+      "label": "Closed",
+      "x": 872,
+      "y": 52
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "from": "n1",
+      "to": "n2",
+      "label": ""
+    },
+    {
+      "id": "e2",
+      "from": "n2",
+      "to": "n3",
+      "label": ""
+    },
+    {
+      "id": "e3",
+      "from": "n3",
+      "to": "n4",
+      "label": ""
+    },
+    {
+      "id": "e4",
+      "from": "n4",
+      "to": "n5",
+      "label": "Yes"
+    },
+    {
+      "id": "e5",
+      "from": "n4",
+      "to": "n7",
+      "label": "No"
+    },
+    {
+      "id": "e6",
+      "from": "n5",
+      "to": "n6",
+      "label": ""
+    },
+    {
+      "id": "e7",
+      "from": "n6",
+      "to": "n7",
+      "label": ""
+    },
+    {
+      "id": "e8",
+      "from": "n6",
+      "to": "n10",
+      "label": ""
+    },
+    {
+      "id": "e9",
+      "from": "n7",
+      "to": "n8",
+      "label": ""
+    },
+    {
+      "id": "e10",
+      "from": "n8",
+      "to": "n9",
+      "label": ""
+    },
+    {
+      "id": "e11",
+      "from": "n7",
+      "to": "n11",
+      "label": ""
+    },
+    {
+      "id": "e12",
+      "from": "n11",
+      "to": "n12",
+      "label": ""
+    }
+  ],
+  "schemaVersion": 1
+}

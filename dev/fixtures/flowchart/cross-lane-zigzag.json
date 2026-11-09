@@ -1,0 +1,104 @@
+{
+  "diagramType": "flowchart",
+  "title": "Zig-zag handoffs",
+  "direction": "LR",
+  "lanes": [
+    {
+      "id": "lane-a",
+      "name": "A",
+      "color": "#e0f2fe"
+    },
+    {
+      "id": "lane-b",
+      "name": "B",
+      "color": "#fef3c7"
+    },
+    {
+      "id": "lane-c",
+      "name": "C",
+      "color": "#dcfce7"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "n1",
+      "laneId": "lane-a",
+      "type": "start",
+      "label": "Begin"
+    },
+    {
+      "id": "n2",
+      "laneId": "lane-b",
+      "type": "task",
+      "label": "Step B1"
+    },
+    {
+      "id": "n3",
+      "laneId": "lane-c",
+      "type": "task",
+      "label": "Step C1"
+    },
+    {
+      "id": "n4",
+      "laneId": "lane-b",
+      "type": "task",
+      "label": "Step B2"
+    },
+    {
+      "id": "n5",
+      "laneId": "lane-a",
+      "type": "task",
+      "label": "Step A2"
+    },
+    {
+      "id": "n6",
+      "laneId": "lane-c",
+      "type": "task",
+      "label": "Step C2"
+    },
+    {
+      "id": "n7",
+      "laneId": "lane-a",
+      "type": "end",
+      "label": "Finish"
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "from": "n1",
+      "to": "n2",
+      "label": ""
+    },
+    {
+      "id": "e2",
+      "from": "n2",
+      "to": "n3",
+      "label": ""
+    },
+    {
+      "id": "e3",
+      "from": "n3",
+      "to": "n4",
+      "label": ""
+    },
+    {
+      "id": "e4",
+      "from": "n4",
+      "to": "n5",
+      "label": ""
+    },
+    {
+      "id": "e5",
+      "from": "n5",
+      "to": "n6",
+      "label": ""
+    },
+    {
+      "id": "e6",
+      "from": "n6",
+      "to": "n7",
+      "label": ""
+    }
+  ]
+}

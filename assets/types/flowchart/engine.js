@@ -1,0 +1,471 @@
+      // --- LAYOUT ENGINE ---
+      // JavaScript port of scripts/layout_engine.py (ranking, ordering, compact-step search, scoring).
+      // Keep both copies in sync: scripts/check_tidy_parity.py compares their output node by node.
+      const LE = {
+        COL_WIDTH: 240, TIGHT_STEP: 168, START_X: 56, ROW_HEIGHT: 96,
+        NODE_W: 168, NODE_H: 56, DEC_H: 64, LANE_MIN: 160, TOP_PAD: 48, BOTTOM_PAD: 48
+      };
+      // Python-style rounding (half to even) so scores tie-break identically in both engines
+      const pyRound = (x) => {
+        const f = Math.floor(x), d = x - f;
+        if (d < 0.5) return f;
+        if (d > 0.5) return f + 1;
+        return f % 2 === 0 ? f : f + 1;
+      };
+
+      function runLayoutEngine(lanes, nodes, edges) {
+        if (!nodes.length) return;
+        const KEY = (a, b) => a + '\u0001' + b;
+        const laneIdx = {};
+        lanes.forEach((l, i) => { laneIdx[l.id] = i; });
+        const nodeMap = {};
+        nodes.forEach(n => { nodeMap[n.id] = n; });
+        const nodeH = (n) => (n.type === 'decision' ? LE.DEC_H : LE.NODE_H);
+
+        // 1. Back edges: feedback-flagged edges plus DFS-detected loops
+        const forced = new Set(edges.filter(e => e.feedback).map(e => KEY(e.from, e.to)));
+        const searchAdj = {};
+        nodes.forEach(n => { searchAdj[n.id] = []; });
+        edges.forEach(e => { if (!forced.has(KEY(e.from, e.to)) && searchAdj[e.from]) searchAdj[e.from].push(e.to); });
+        const back = new Set(forced);
+        const color = {};
+        nodes.forEach(n => { color[n.id] = 0; });
+        const dfs = (u) => {
+          color[u] = 1;
+          (searchAdj[u] || []).forEach(v => {
+            if (!(v in color)) return;
+            if (color[v] === 1) back.add(KEY(u, v));
+            else if (color[v] === 0) dfs(v);
+          });
+          color[u] = 2;
+        };
+        nodes.forEach(n => { if (color[n.id] === 0) dfs(n.id); });
+        const forwardEdges = edges.filter(e => !back.has(KEY(e.from, e.to)) && nodeMap[e.from] && nodeMap[e.to]);
+
+        const revAdj = {};
+        edges.forEach(e => { (revAdj[e.to] = revAdj[e.to] || []).push(e.from); });
+
+        // Longest-path ranks; edges in `zero` span 0 columns
+        const ranksWithZero = (zero) => {
+          const adj = {}, indeg = {}, ranks = {};
+          nodes.forEach(n => { adj[n.id] = []; indeg[n.id] = 0; ranks[n.id] = 0; });
+          forwardEdges.forEach(e => { adj[e.from].push(e.to); indeg[e.to] = (indeg[e.to] || 0) + 1; });
+          const queue = nodes.filter(n => indeg[n.id] === 0).map(n => n.id);
+          if (!queue.length) queue.push(nodes[0].id);
+          const seen = new Set();
+          while (queue.length) {
+            const cur = queue.shift();
+            seen.add(cur);
+            (adj[cur] || []).forEach(nxt => {
+              const step = zero.has(KEY(cur, nxt)) ? 0 : 1;
+              ranks[nxt] = Math.max(ranks[nxt], ranks[cur] + step);
+              indeg[nxt] -= 1;
+              if (indeg[nxt] <= 0 && !seen.has(nxt)) queue.push(nxt);
+            });
+          }
+          nodes.forEach(n => { if (!seen.has(n.id)) ranks[n.id] = 0; });
+          return ranks;
+        };
+
+        // Longest-path x offsets: normal = column width, zero = 0, tight = node width
+        const xPositions = (zero, tight) => {
+          const adj = {}, indeg = {}, xs = {};
+          nodes.forEach(n => { adj[n.id] = []; indeg[n.id] = 0; xs[n.id] = 0; });
+          forwardEdges.forEach(e => { adj[e.from].push(e.to); indeg[e.to] = (indeg[e.to] || 0) + 1; });
+          const queue = nodes.filter(n => indeg[n.id] === 0).map(n => n.id);
+          const seen = new Set();
+          while (queue.length) {
+            const cur = queue.shift();
+            seen.add(cur);
+            (adj[cur] || []).forEach(nxt => {
+              const k = KEY(cur, nxt);
+              const step = zero.has(k) ? 0 : (tight.has(k) ? LE.TIGHT_STEP : LE.COL_WIDTH);
+              xs[nxt] = Math.max(xs[nxt], xs[cur] + step);
+              indeg[nxt] -= 1;
+              if (indeg[nxt] <= 0 && !seen.has(nxt)) queue.push(nxt);
+            });
+          }
+          return xs;
+        };
+
+        const barycenter = (id, ranks) => {
+          const preds = revAdj[id] || [];
+          if (!preds.length) return 0;
+          let sum = 0, cnt = 0;
+          preds.forEach(p => {
+            if (!nodeMap[p]) return;
+            sum += (laneIdx[nodeMap[p].laneId] || 0) * 100 + (ranks[p] || 0);
+            cnt += 1;
+          });
+          return sum / preds.length;
+        };
+
+        // Steps 3-6: order inside lanes, lane heights, x/y, nudge-to-align
+        const placeNodes = (ranks, xs) => {
+          const groups = new Map();
+          nodes.forEach(n => {
+            const r = ranks[n.id] || 0;
+            const k = KEY(n.laneId, r);
+            if (!groups.has(k)) groups.set(k, { laneId: n.laneId, r, list: [] });
+            groups.get(k).list.push(n);
+          });
+          groups.forEach(g => {
+            if (g.list.length > 1) {
+              const bc = new Map(g.list.map(n => [n.id, barycenter(n.id, ranks)]));
+              g.list.sort((a, b) => bc.get(a.id) - bc.get(b.id));
+            }
+          });
+          const subrows = {};
+          lanes.forEach(l => { subrows[l.id] = 1; });
+          groups.forEach(g => { subrows[g.laneId] = Math.max(subrows[g.laneId] || 1, g.list.length); });
+
+          const lanePos = {};
+          let curY = 0;
+          lanes.forEach(l => {
+            let maxH = LE.NODE_H;
+            const inLane = nodes.filter(n => n.laneId === l.id);
+            if (inLane.length) maxH = Math.max(...inLane.map(nodeH));
+            const req = LE.TOP_PAD + ((subrows[l.id] || 1) - 1) * LE.ROW_HEIGHT + maxH + LE.BOTTOM_PAD;
+            l.height = Math.max(LE.LANE_MIN, req);
+            lanePos[l.id] = { top: curY, h: l.height };
+            curY += l.height;
+          });
+
+          groups.forEach(g => {
+            const lp = lanePos[g.laneId] || { top: 0, h: LE.LANE_MIN };
+            g.list.forEach((n, sub) => {
+              n.x = LE.START_X + (xs ? xs[n.id] : g.r * LE.COL_WIDTH);
+              if (g.list.length === 1 && (subrows[g.laneId] || 1) === 1) {
+                n.y = Math.floor((lp.h - nodeH(n)) / 8) * 4;
+              } else {
+                n.y = LE.TOP_PAD + sub * LE.ROW_HEIGHT;
+              }
+            });
+          });
+
+          // Nudge (<= 35px) so same-lane forward neighbours form a straight horizontal line
+          edges.forEach(e => {
+            const u = nodeMap[e.from], v = nodeMap[e.to];
+            if (!u || !v || u.laneId !== v.laneId || v.x <= u.x) return;
+            const lp = lanePos[u.laneId] || { top: 0, h: LE.LANE_MIN };
+            const uh = nodeH(u), vh = nodeH(v);
+            const uCy = u.y + uh / 2, vCy = v.y + vh / 2;
+            const delta = uCy - vCy;
+            if (Math.abs(delta) > 0 && Math.abs(delta) <= 35) {
+              const targetY = Math.trunc(pyRound((uCy - vh / 2) / 4) * 4);
+              if (targetY >= 20 && targetY + vh <= lp.h - 20) {
+                const g = groups.get(KEY(v.laneId, ranks[v.id] || 0));
+                const sibs = g ? g.list.filter(s => s.id !== v.id) : [];
+                const collides = sibs.some(s => Math.max(targetY, s.y) < Math.min(targetY + vh, s.y + nodeH(s)) + 12);
+                if (!collides) v.y = targetY;
+              }
+            }
+          });
+        };
+
+        // --- Scoring (mirrors verify_collisions + _route_all_edges) ---
+        const routeAll = (rects) => {
+          const outEdges = new Map();
+          edges.forEach(e => {
+            if (rects[e.from] && rects[e.to]) {
+              if (!outEdges.has(e.from)) outEdges.set(e.from, []);
+              outEdges.get(e.from).push(e);
+            }
+          });
+          const R = (id) => { const r = rects[id]; return { x: r[0], y: r[1], w: r[2], h: r[3] }; };
+          const hasLeftLoop = new Set();
+          edges.forEach(e => {
+            if (!rects[e.from] || !rects[e.to]) return;
+            const f = R(e.from), t = R(e.to);
+            if (t.x + t.w / 2 < f.x + f.w / 2 - 30 && Math.abs((t.y + t.h / 2) - (f.y + f.h / 2)) > 30) hasLeftLoop.add(e.from);
+          });
+
+          const ports = {};
+          const vertEntry = new Set();
+          outEdges.forEach((uOuts, uId) => {
+            const f = R(uId);
+            const fcx = f.x + f.w / 2, fcy = f.y + f.h / 2;
+            const uNode = nodeMap[uId];
+            const fwdOuts = [];
+            uOuts.forEach(e => {
+              const t = R(e.to);
+              const tcx = t.x + t.w / 2, tcy = t.y + t.h / 2;
+              if (tcx < fcx - 30) {
+                if (tcy > fcy + 30) ports[e.id] = ['left', 'top'];
+                else if (tcy < fcy - 30) ports[e.id] = ['left', 'bottom'];
+                else ports[e.id] = ['bottom', 'bottom'];
+              } else {
+                fwdOuts.push(e);
+              }
+            });
+            let topTaken = false, bottomTaken = false;
+            const cyOf = (e) => { const t = R(e.to); return t.y + t.h / 2; };
+            const cxOf = (e) => { const t = R(e.to); return t.x + t.w / 2; };
+            const upC = fwdOuts.filter(e => cyOf(e) < fcy - 30);
+            const downC = fwdOuts.filter(e => cyOf(e) > fcy + 30);
+            upC.sort((a, b) => R(a.to).y - R(b.to).y);
+            downC.sort((a, b) => R(b.to).y - R(a.to).y);
+            const al = (e) => (Math.abs(cxOf(e) - fcx) < 30 ? 0 : 1);
+            upC.sort((a, b) => al(a) - al(b));
+            downC.sort((a, b) => al(a) - al(b));
+            const multi = uNode.type === 'decision' || fwdOuts.length > 1;
+            const topId = (multi && upC.length) ? upC[0].id : null;
+            const botId = (multi && downC.length) ? downC[0].id : null;
+            fwdOuts.forEach(e => {
+              const t = R(e.to);
+              const tcy = t.y + t.h / 2;
+              let fromPort = 'right';
+              if (e.id === topId && !topTaken) { fromPort = 'top'; topTaken = true; }
+              else if (e.id === botId && !bottomTaken) { fromPort = 'bottom'; bottomTaken = true; }
+              let toPort = 'left';
+              if (hasLeftLoop.has(e.to)) {
+                toPort = tcy < fcy ? 'bottom' : 'top';
+              } else if (fromPort === 'right' && fwdOuts.length === 1 && uNode.type !== 'decision'
+                  && Math.abs(tcy - fcy) > 30 && t.x > fcx + 40) {
+                fromPort = tcy > fcy ? 'bottom' : 'top';
+              }
+              const vk = e.to + '\u0001' + (tcy > fcy);
+              if ((fromPort === 'top' || fromPort === 'bottom') && Math.abs((t.x + t.w / 2) - fcx) < 30) {
+                toPort = tcy > fcy ? 'top' : 'bottom';
+              } else if (fromPort === 'right' && toPort === 'left' && Math.abs(tcy - fcy) > 30
+                  && t.x + t.w / 2 > f.x + f.w + 24 && !vertEntry.has(vk)) {
+                toPort = tcy > fcy ? 'top' : 'bottom';
+                vertEntry.add(vk);
+              }
+              ports[e.id] = [fromPort, toPort];
+            });
+          });
+
+          const result = {};
+          edges.forEach(e => {
+            const p = ports[e.id];
+            if (!p) return;
+            const [fp, tp] = p;
+            const f = R(e.from), t = R(e.to);
+            const fcx = f.x + f.w / 2, fcy = f.y + f.h / 2;
+            const tcx = t.x + t.w / 2, tcy = t.y + t.h / 2;
+            const vert = (x) => x === 'top' || x === 'bottom';
+            if (fp === 'left' && vert(tp)) {
+              const ey = tp === 'top' ? t.y : t.y + t.h;
+              const xExit = f.x - 24;
+              let by = tp === 'top' ? Math.min(f.y - 20, t.y - 20) : Math.max(f.y + f.h + 20, t.y + t.h + 20);
+              by = Math.max(20, by);
+              result[e.id] = [[f.x, fcy], [xExit, fcy], [xExit, by], [tcx, by], [tcx, ey]];
+            } else if (vert(fp) && vert(tp)) {
+              const sy = fp === 'top' ? f.y : f.y + f.h;
+              const ey = tp === 'top' ? t.y : t.y + t.h;
+              if (tcx < fcx - 30) {
+                const gy = fp === 'top' ? Math.min(f.y - 20, t.y - 20) : Math.max(f.y + f.h + 20, t.y + t.h + 20);
+                result[e.id] = [[fcx, sy], [fcx, gy], [tcx, gy], [tcx, ey]];
+              } else {
+                const my = (sy + ey) / 2;
+                result[e.id] = [[fcx, sy], [fcx, my], [tcx, my], [tcx, ey]];
+              }
+            } else if (fp === 'right' && vert(tp)) {
+              const ey = tp === 'top' ? t.y : t.y + t.h;
+              result[e.id] = [[f.x + f.w, fcy], [tcx, fcy], [tcx, ey]];
+            } else if (vert(fp) && tp === 'left') {
+              const sy = fp === 'top' ? f.y : f.y + f.h;
+              result[e.id] = [[fcx, sy], [fcx, tcy], [t.x, tcy]];
+            } else {
+              const sx = f.x + f.w, sy = fcy, ex = t.x, ey = tcy;
+              if (Math.abs(sy - ey) < 2) result[e.id] = [[sx, sy], [ex, sy]];
+              else {
+                const mx = sx + (ex - sx) / 2;
+                result[e.id] = [[sx, sy], [mx, sy], [mx, ey], [ex, ey]];
+              }
+            }
+          });
+          return result;
+        };
+
+        const segCross = (p1, p2, p3, p4) => {
+          const v1 = Math.abs(p1[0] - p2[0]) < 1, v2 = Math.abs(p3[0] - p4[0]) < 1;
+          const h1 = Math.abs(p1[1] - p2[1]) < 1, h2 = Math.abs(p3[1] - p4[1]) < 1;
+          if ((v1 && h2) || (h1 && v2)) {
+            let vx, vy1, vy2, hy, hx1, hx2;
+            if (v1) {
+              vx = p1[0]; vy1 = Math.min(p1[1], p2[1]); vy2 = Math.max(p1[1], p2[1]);
+              hy = p3[1]; hx1 = Math.min(p3[0], p4[0]); hx2 = Math.max(p3[0], p4[0]);
+            } else {
+              vx = p3[0]; vy1 = Math.min(p3[1], p4[1]); vy2 = Math.max(p3[1], p4[1]);
+              hy = p1[1]; hx1 = Math.min(p1[0], p2[0]); hx2 = Math.max(p1[0], p2[0]);
+            }
+            return hx1 + 1 < vx && vx < hx2 - 1 && vy1 + 1 < hy && hy < vy2 - 1;
+          }
+          const x1 = Math.min(p1[0], p2[0]), y1 = Math.min(p1[1], p2[1]);
+          const x2 = Math.max(p1[0], p2[0]), y2 = Math.max(p1[1], p2[1]);
+          const x3 = Math.min(p3[0], p4[0]), y3 = Math.min(p3[1], p4[1]);
+          const x4 = Math.max(p3[0], p4[0]), y4 = Math.max(p3[1], p4[1]);
+          if (v1 && v2) return Math.abs(x1 - x3) < 1 && Math.min(y2, y4) - Math.max(y1, y3) > 1;
+          if (h1 && h2) return Math.abs(y1 - y3) < 1 && Math.min(x2, x4) - Math.max(x1, x3) > 1;
+          return false;
+        };
+        const polyCross = (a, b) => {
+          for (let i = 0; i < a.length - 1; i++) for (let j = 0; j < b.length - 1; j++) {
+            if (segCross(a[i], a[i + 1], b[j], b[j + 1])) return true;
+          }
+          return false;
+        };
+
+        const score = () => {
+          // lane tops / heights (as in verify_collisions)
+          const laneTop = {}, laneH = {};
+          let cy = 0;
+          lanes.forEach(l => {
+            laneTop[l.id] = cy;
+            const ys = nodes.filter(n => n.laneId === l.id).map(n => n.y || 0);
+            const maxY = ys.length ? Math.max(...ys) : 48;
+            laneH[l.id] = Math.max(l.height || LE.LANE_MIN, maxY + LE.DEC_H + 30);
+            cy += laneH[l.id];
+          });
+          let overflows = 0, overlaps = 0, penetrations = 0;
+          nodes.forEach(n => {
+            if (!(n.laneId in laneIdx)) return;
+            const h = nodeH(n);
+            if (n.y < 10 || n.y + h > laneH[n.laneId]) overflows += 1;
+          });
+          for (let i = 0; i < nodes.length; i++) for (let j = i + 1; j < nodes.length; j++) {
+            const a = nodes[i], b = nodes[j];
+            if (a.laneId !== b.laneId) continue;
+            const ox = Math.max(0, Math.min(a.x + LE.NODE_W, b.x + LE.NODE_W) - Math.max(a.x, b.x));
+            const oy = Math.max(0, Math.min(a.y + nodeH(a), b.y + nodeH(b)) - Math.max(a.y, b.y));
+            if (ox > 0 && oy > 0) overlaps += 1;
+          }
+          const rects = {};
+          nodes.forEach(n => { rects[n.id] = [n.x, (laneTop[n.laneId] || 0) + n.y, LE.NODE_W, nodeH(n)]; });
+          const poly = routeAll(rects);
+
+          edges.forEach(e => {
+            const pts = poly[e.id];
+            if (!pts) return;
+            nodes.forEach(o => {
+              if (o.id === e.from || o.id === e.to) return;
+              const [ox, oy, ow, oh] = rects[o.id];
+              const bx1 = ox + 3, by1 = oy + 3, bx2 = ox + ow - 3, by2 = oy + oh - 3;
+              if (bx2 <= bx1 || by2 <= by1) return;
+              for (let k = 0; k < pts.length - 1; k++) {
+                const p1 = pts[k], p2 = pts[k + 1];
+                const sx1 = Math.min(p1[0], p2[0]), sx2 = Math.max(p1[0], p2[0]);
+                const sy1 = Math.min(p1[1], p2[1]), sy2 = Math.max(p1[1], p2[1]);
+                if (sx1 < bx2 && sx2 > bx1 && sy1 < by2 && sy2 > by1) {
+                  if (Math.abs(p1[0] - p2[0]) < 1) {
+                    if (bx1 <= p1[0] && p1[0] <= bx2 && !(sy2 <= by1 || sy1 >= by2)) { penetrations += 1; break; }
+                  } else if (Math.abs(p1[1] - p2[1]) < 1) {
+                    if (by1 <= p1[1] && p1[1] <= by2 && !(sx2 <= bx1 || sx1 >= bx2)) { penetrations += 1; break; }
+                  }
+                }
+              }
+            });
+          });
+
+          const listed = edges.filter(e => poly[e.id]);
+          let crossings = 0;
+          for (let i = 0; i < listed.length; i++) for (let j = i + 1; j < listed.length; j++) {
+            const a = listed[i], b = listed[j];
+            if (a.from === b.from || a.from === b.to || a.to === b.from || a.to === b.to) continue;
+            if (polyCross(poly[a.id], poly[b.id])) crossings += 1;
+          }
+          let bends = 0, length = 0;
+          Object.keys(poly).forEach(id => {
+            const pts = poly[id];
+            bends += Math.max(0, pts.length - 2);
+            for (let i = 0; i < pts.length - 1; i++) {
+              length += Math.abs(pts[i + 1][0] - pts[i][0]) + Math.abs(pts[i + 1][1] - pts[i][1]);
+            }
+          });
+          const maxX = Math.max(...nodes.map(n => n.x));
+          const columns = pyRound((maxX - LE.START_X) / LE.COL_WIDTH) + 1;
+          return [overlaps + penetrations + overflows, crossings, columns, bends, pyRound(length)];
+        };
+        const keyLess = (a, b) => {
+          for (let i = 0; i < a.length; i++) { if (a[i] !== b[i]) return a[i] < b[i]; }
+          return false;
+        };
+
+        // --- Choose compact steps for cross-lane arrows ---
+        const cands = [];
+        forwardEdges.forEach(e => {
+          const s = nodeMap[e.from], d = nodeMap[e.to];
+          if (!s || !d) return;
+          const sl = laneIdx[s.laneId], dl = laneIdx[d.laneId];
+          if (sl === undefined || dl === undefined || sl === dl) return;
+          if (cands.some(c => c.k === KEY(e.from, e.to))) return;
+          cands.push({ k: KEY(e.from, e.to), from: e.from, side: dl < sl ? 'up' : 'down' });
+        });
+
+        const valid = (cfg) => {
+          const used = new Set();
+          for (const c of cands) {
+            if (cfg.get(c.k) === 'zero') {
+              const sk = c.from + '\u0001' + c.side;
+              if (used.has(sk)) return false;
+              used.add(sk);
+            }
+          }
+          return true;
+        };
+        const cache = new Map();
+        const evaluate = (cfg) => {
+          const ck = cands.map(c => cfg.get(c.k) || '-').join(',');
+          if (cache.has(ck)) return cache.get(ck);
+          const zero = new Set(), tight = new Set();
+          cfg.forEach((m, k) => { (m === 'zero' ? zero : tight).add(k); });
+          const ranks = ranksWithZero(zero);
+          const xs = cands.length ? xPositions(zero, tight) : null;
+          placeNodes(ranks, xs);
+          const res = { key: score(), ranks, xs };
+          cache.set(ck, res);
+          return res;
+        };
+
+        let bestCfg = new Map();
+        let best = evaluate(bestCfg);
+        const modes = [null, 'zero', 'tight'];
+        if (cands.length && cands.length <= 6) {
+          const rec = (i, cfg) => {
+            if (i === cands.length) {
+              if (valid(cfg)) {
+                const res = evaluate(cfg);
+                if (keyLess(res.key, best.key)) { best = res; bestCfg = new Map(cfg); }
+              }
+              return;
+            }
+            for (const m of modes) {
+              if (m) cfg.set(cands[i].k, m);
+              rec(i + 1, cfg);
+              cfg.delete(cands[i].k);
+            }
+          };
+          rec(0, new Map());
+        } else if (cands.length) {
+          const seeds = [new Map(), new Map(cands.map(c => [c.k, 'tight']))];
+          seeds.forEach(seed => {
+            let cfg = new Map(seed);
+            if (!valid(cfg)) return;
+            let cur = evaluate(cfg);
+            let improved = true;
+            while (improved) {
+              improved = false;
+              cands.forEach(c => {
+                modes.forEach(m => {
+                  if ((cfg.get(c.k) || null) === m) return;
+                  const trial = new Map(cfg);
+                  if (m) trial.set(c.k, m); else trial.delete(c.k);
+                  if (!valid(trial)) return;
+                  const res = evaluate(trial);
+                  if (keyLess(res.key, cur.key)) { cfg = trial; cur = res; improved = true; }
+                });
+              });
+            }
+            if (keyLess(cur.key, best.key)) { best = cur; bestCfg = new Map(cfg); }
+          });
+        }
+        placeNodes(best.ranks, best.xs);
+      }
+
+      // Entry point shared by every diagram type: lay out `data` in place (no DOM access).
+      // Called by the page's Auto-Tidy button and by scripts/run_engine.mjs.
+      function layoutDiagram(data) {
+        runLayoutEngine(data.lanes || [], data.nodes || [], data.edges || []);
+      }

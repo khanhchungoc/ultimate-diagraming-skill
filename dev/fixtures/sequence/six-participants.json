@@ -1,0 +1,109 @@
+{
+  "diagramType": "sequence",
+  "title": "Budget-limit interaction",
+  "participants": [
+    {
+      "id": "p1",
+      "name": "Customer",
+      "kind": "actor"
+    },
+    {
+      "id": "p2",
+      "name": "Web App",
+      "kind": "system"
+    },
+    {
+      "id": "p3",
+      "name": "API",
+      "kind": "system"
+    },
+    {
+      "id": "p4",
+      "name": "Orders",
+      "kind": "system"
+    },
+    {
+      "id": "p5",
+      "name": "Billing",
+      "kind": "system"
+    },
+    {
+      "id": "p6",
+      "name": "Ledger",
+      "kind": "system"
+    }
+  ],
+  "messages": [
+    {
+      "id": "m1",
+      "from": "p1",
+      "to": "p2",
+      "label": "Open invoice",
+      "kind": "sync"
+    },
+    {
+      "id": "m2",
+      "from": "p2",
+      "to": "p3",
+      "label": "GET /invoice",
+      "kind": "sync"
+    },
+    {
+      "id": "m3",
+      "from": "p3",
+      "to": "p4",
+      "label": "Find order",
+      "kind": "sync"
+    },
+    {
+      "id": "m4",
+      "from": "p4",
+      "to": "p3",
+      "label": "Order",
+      "kind": "reply"
+    },
+    {
+      "id": "m5",
+      "from": "p3",
+      "to": "p5",
+      "label": "Create invoice",
+      "kind": "sync"
+    },
+    {
+      "id": "m6",
+      "from": "p5",
+      "to": "p6",
+      "label": "Post entry",
+      "kind": "sync"
+    },
+    {
+      "id": "m7",
+      "from": "p6",
+      "to": "p5",
+      "label": "Entry id",
+      "kind": "reply"
+    },
+    {
+      "id": "m8",
+      "from": "p5",
+      "to": "p3",
+      "label": "Invoice",
+      "kind": "reply"
+    },
+    {
+      "id": "m9",
+      "from": "p3",
+      "to": "p2",
+      "label": "200 OK",
+      "kind": "reply"
+    },
+    {
+      "id": "m10",
+      "from": "p2",
+      "to": "p1",
+      "label": "Show invoice",
+      "kind": "reply"
+    }
+  ],
+  "fragments": []
+}

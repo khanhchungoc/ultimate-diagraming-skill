@@ -1,0 +1,84 @@
+{
+  "diagramType": "sequence",
+  "title": "Notifications",
+  "participants": [
+    {
+      "id": "p1",
+      "name": "Order Service",
+      "kind": "system",
+      "x": 158
+    },
+    {
+      "id": "p2",
+      "name": "Message Bus",
+      "kind": "system",
+      "x": 358
+    },
+    {
+      "id": "p3",
+      "name": "Mailer",
+      "kind": "system",
+      "x": 558
+    }
+  ],
+  "messages": [
+    {
+      "id": "m1",
+      "from": "p1",
+      "to": "p1",
+      "label": "Validate order",
+      "kind": "sync",
+      "y": 166
+    },
+    {
+      "id": "m2",
+      "from": "p1",
+      "to": "p2",
+      "label": "Publish OrderPlaced",
+      "kind": "async",
+      "y": 262
+    },
+    {
+      "id": "m3",
+      "from": "p2",
+      "to": "p3",
+      "label": "Deliver event",
+      "kind": "async",
+      "y": 362
+    },
+    {
+      "id": "m4",
+      "from": "p3",
+      "to": "p3",
+      "label": "Render email template",
+      "kind": "sync",
+      "y": 422
+    },
+    {
+      "id": "m5",
+      "from": "p3",
+      "to": "p1",
+      "label": "Delivery receipt",
+      "kind": "reply",
+      "y": 546
+    }
+  ],
+  "fragments": [
+    {
+      "id": "f1",
+      "kind": "loop",
+      "label": "for each recipient",
+      "from": "m3",
+      "to": "m4",
+      "x": 322,
+      "w": 492,
+      "y": 300,
+      "h": 180
+    }
+  ],
+  "schemaVersion": 1,
+  "layout": {
+    "width": 870,
+    "height": 632
+  }
+}

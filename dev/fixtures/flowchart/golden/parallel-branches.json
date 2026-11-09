@@ -1,0 +1,115 @@
+{
+  "diagramType": "flowchart",
+  "title": "Parallel branches rejoin",
+  "direction": "LR",
+  "lanes": [
+    {
+      "id": "lane-a",
+      "name": "Customer",
+      "color": "#e0f2fe",
+      "height": 160
+    },
+    {
+      "id": "lane-b",
+      "name": "Sales",
+      "color": "#fef3c7",
+      "height": 160
+    },
+    {
+      "id": "lane-c",
+      "name": "Warehouse",
+      "color": "#dcfce7",
+      "height": 160
+    }
+  ],
+  "nodes": [
+    {
+      "id": "n1",
+      "laneId": "lane-a",
+      "type": "start",
+      "label": "Place Order",
+      "x": 56,
+      "y": 52
+    },
+    {
+      "id": "n2",
+      "laneId": "lane-b",
+      "type": "decision",
+      "label": "In Stock?",
+      "x": 56,
+      "y": 48
+    },
+    {
+      "id": "n3",
+      "laneId": "lane-c",
+      "type": "task",
+      "label": "Pick Items",
+      "x": 56,
+      "y": 52
+    },
+    {
+      "id": "n4",
+      "laneId": "lane-b",
+      "type": "task",
+      "label": "Backorder Item",
+      "x": 296,
+      "y": 52
+    },
+    {
+      "id": "n5",
+      "laneId": "lane-c",
+      "type": "task",
+      "label": "Pack Order",
+      "x": 464,
+      "y": 52
+    },
+    {
+      "id": "n6",
+      "laneId": "lane-a",
+      "type": "end",
+      "label": "Receive Order",
+      "outcome": "success",
+      "x": 632,
+      "y": 52
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "from": "n1",
+      "to": "n2",
+      "label": ""
+    },
+    {
+      "id": "e2",
+      "from": "n2",
+      "to": "n3",
+      "label": "Yes"
+    },
+    {
+      "id": "e3",
+      "from": "n2",
+      "to": "n4",
+      "label": "No"
+    },
+    {
+      "id": "e4",
+      "from": "n3",
+      "to": "n5",
+      "label": ""
+    },
+    {
+      "id": "e5",
+      "from": "n4",
+      "to": "n5",
+      "label": ""
+    },
+    {
+      "id": "e6",
+      "from": "n5",
+      "to": "n6",
+      "label": ""
+    }
+  ],
+  "schemaVersion": 1
+}
