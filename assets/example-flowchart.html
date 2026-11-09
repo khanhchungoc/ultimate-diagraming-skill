@@ -20,6 +20,60 @@
       --lane-header-width: 220px;
       --lane-min-height: 160px;
       --grid-dot: #cbd5e1;
+      --bg-viewport: #f1f5f9;
+      --bg-hover: #f1f5f9;
+      --bg-soft: #e2e8f0;
+      --bg-lane-header: #f8fafc;
+      --bg-input: #ffffff;
+      --lane-track-tint: rgba(248, 250, 252, 0.35);
+      --connector: #a3b0c2;
+      --edge-label-bg: #ffffff;
+      --edge-label-empty-bg: rgba(255, 255, 255, 0.95);
+      --edge-label-empty-border: #94a3b8;
+      --status-saved-bg: #dcfce7;  --status-saved-text: #166534;
+      --status-unsaved-bg: #fef3c7; --status-unsaved-text: #92400e;
+      --banner-bg: #eff6ff; --banner-border: #bfdbfe; --banner-text: #1e40af;
+      --start-bg: #ecfdf5; --start-border: #10b981; --start-text: #065f46;
+      --end-bg: #fef2f2;   --end-border: #ef4444;   --end-text: #991b1b;
+      --decision-fill: #fffbeb; --decision-fill-hover: #ffffff;
+      --node-bg: #ffffff;
+      --lane-tint-header: 0.3;
+      --lane-tint-track: 0.11;
+      color-scheme: light;
+    }
+
+    :root[data-theme="dark"] {
+      --bg-page: #0b1220;
+      --bg-panel: #111a2e;
+      --border-color: #243049;
+      --border-dark: #334361;
+      --text-main: #e2e8f0;
+      --text-muted: #94a3b8;
+      --primary: #60a5fa;
+      --primary-hover: #93c5fd;
+      --success: #22c55e;
+      --danger: #ef4444;
+      --grid-dot: #1e293b;
+      --bg-viewport: #0f172a;
+      --bg-hover: #1a2540;
+      --bg-soft: #243049;
+      --bg-lane-header: #131d33;
+      --bg-input: #0b1220;
+      --lane-track-tint: rgba(15, 23, 42, 0.35);
+      --connector: #64748b;
+      --edge-label-bg: #111a2e;
+      --edge-label-empty-bg: rgba(17, 26, 46, 0.95);
+      --edge-label-empty-border: #475569;
+      --status-saved-bg: #14532d;  --status-saved-text: #bbf7d0;
+      --status-unsaved-bg: #78350f; --status-unsaved-text: #fde68a;
+      --banner-bg: #172554; --banner-border: #1e3a8a; --banner-text: #bfdbfe;
+      --start-bg: #064e3b; --start-border: #10b981; --start-text: #a7f3d0;
+      --end-bg: #450a0a;   --end-border: #ef4444;   --end-text: #fecaca;
+      --decision-fill: #3b2a0a; --decision-fill-hover: #1a2540;
+      --node-bg: #17223b;
+      --lane-tint-header: 0.2;
+      --lane-tint-track: 0.07;
+      color-scheme: dark;
     }
 
     * {
@@ -51,6 +105,14 @@
       justify-content: space-between;
       z-index: 100;
       box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+
+    .toolbar-center {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 100;
     }
 
     .toolbar-left, .toolbar-right, .toolbar-center {
@@ -89,16 +151,16 @@
       letter-spacing: 0.05em;
     }
     .badge-status {
-      background: #e2e8f0;
+      background: var(--bg-soft);
       color: var(--text-muted);
     }
     .badge-status.saved {
-      background: #dcfce7;
-      color: #166534;
+      background: var(--status-saved-bg);
+      color: var(--status-saved-text);
     }
     .badge-status.unsaved {
-      background: #fef3c7;
-      color: #92400e;
+      background: var(--status-unsaved-bg);
+      color: var(--status-unsaved-text);
     }
 
     /* Buttons */
@@ -117,7 +179,7 @@
       transition: all 0.15s ease;
     }
     .btn:hover {
-      background: #f1f5f9;
+      background: var(--bg-hover);
       border-color: var(--border-dark);
     }
     .btn:active {
@@ -132,6 +194,7 @@
       background: var(--primary-hover);
       border-color: var(--primary-hover);
     }
+    :root[data-theme="dark"] .btn-primary { color: #0b1220; }
     .btn-success {
       background: var(--success);
       color: #ffffff;
@@ -146,9 +209,9 @@
     /* Banner for connecting mode */
     #connecting-banner {
       display: none;
-      background: #eff6ff;
-      border-bottom: 1px solid #bfdbfe;
-      color: #1e40af;
+      background: var(--banner-bg);
+      border-bottom: 1px solid var(--banner-border);
+      color: var(--banner-text);
       font-size: 0.82rem;
       font-weight: 600;
       padding: 6px 16px;
@@ -167,7 +230,7 @@
       flex: 1;
       position: relative;
       overflow: hidden;
-      background-color: #f1f5f9;
+      background-color: var(--bg-viewport);
       background-image: radial-gradient(var(--grid-dot) 1.2px, transparent 1.2px);
       background-size: 24px 24px;
       cursor: grab;
@@ -191,7 +254,7 @@
       display: flex;
       flex-direction: column;
       border: 1px solid var(--border-dark);
-      background: #ffffff;
+      background: var(--bg-panel);
       box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -2px rgba(0,0,0,0.05);
       border-radius: 8px;
       margin: 40px;
@@ -218,7 +281,7 @@
       flex-direction: column;
       justify-content: center;
       border-right: 2px solid var(--border-dark);
-      background: #f8fafc;
+      background: var(--bg-lane-header);
       font-weight: 700;
       font-size: 0.9rem;
       color: var(--text-main);
@@ -229,7 +292,7 @@
     }
     .lane-header.dragging-header {
       opacity: 0.5;
-      background: #e2e8f0;
+      background: var(--bg-soft);
     }
     .lane-title {
       outline: none;
@@ -244,13 +307,27 @@
       user-select: text;
       cursor: text;
       border-color: var(--primary);
-      background: #ffffff;
+      background: var(--bg-input);
     }
     .lane-title:focus {
       border-color: var(--primary);
-      background: #ffffff;
+      background: var(--bg-input);
     }
 
+    .snap-guide {
+      position: absolute;
+      display: none;
+      pointer-events: none;
+      z-index: 55;
+    }
+    .snap-guide-v {
+      top: 0; bottom: 0; width: 0;
+      border-left: 1.5px dashed #e11d48;
+    }
+    .snap-guide-h {
+      left: 0; right: 0; height: 0;
+      border-top: 1.5px dashed #e11d48;
+    }
     #lane-drop-line {
       position: absolute;
       left: 0;
@@ -277,7 +354,7 @@
       flex: 1;
       position: relative;
       min-width: 1400px;
-      background: rgba(248, 250, 252, 0.35);
+      background: var(--lane-track-tint);
       transition: background 0.15s ease;
     }
     .lane-track.drag-hover-lane {
@@ -296,7 +373,7 @@
     }
     .connector-path {
       fill: none;
-      stroke: #a3b0c2;
+      stroke: var(--connector);
       stroke-width: 1.8px;
       stroke-linejoin: round;
       stroke-linecap: round;
@@ -312,7 +389,7 @@
     .edge-label-container {
       position: absolute;
       transform: translate(-50%, -50%);
-      background: #ffffff; /* Opaque mask shield over underlying connectors */
+      background: var(--edge-label-bg); /* Opaque mask shield over underlying connectors */
       border: 1.5px solid var(--border-dark);
       border-radius: 8px;
       padding: 3px 8px;
@@ -352,9 +429,9 @@
     }
     .edge-label-container.empty-placeholder {
       display: none;
-      background: rgba(255, 255, 255, 0.95);
-      border: 1.5px dashed #94a3b8;
-      color: #64748b;
+      background: var(--edge-label-empty-bg);
+      border: 1.5px dashed var(--edge-label-empty-border);
+      color: var(--text-muted);
       font-size: 0.8rem;
       padding: 2px 8px;
     }
@@ -372,8 +449,8 @@
       width: 15px;
       height: 15px;
       border-radius: 50%;
-      background: #f1f5f9;
-      color: #64748b;
+      background: var(--bg-hover);
+      color: var(--text-muted);
       display: inline-flex;
       align-items: center;
       justify-content: center;
@@ -390,7 +467,7 @@
     /* Flowchart Nodes - 4px Grid Alignment */
     .flow-node {
       position: absolute;
-      background: #ffffff;
+      background: var(--node-bg);
       border: 1.8px solid var(--border-dark);
       border-radius: 8px;
       padding: 6px 14px;
@@ -425,15 +502,15 @@
     /* Node Types */
     .flow-node.type-start {
       border-radius: 28px;
-      background: #ecfdf5;
-      border-color: #10b981;
-      color: #065f46;
+      background: var(--start-bg);
+      border-color: var(--start-border);
+      color: var(--start-text);
     }
     .flow-node.type-end {
       border-radius: 28px;
-      background: #fef2f2;
-      border-color: #ef4444;
-      color: #991b1b;
+      background: var(--end-bg);
+      border-color: var(--end-border);
+      color: var(--end-text);
     }
     .flow-node.type-decision {
       width: 168px;
@@ -453,15 +530,15 @@
       pointer-events: none;
     }
     .flow-node.type-decision .diamond-poly {
-      fill: #fffbeb;
-      stroke: #f59e0b;
+      fill: var(--decision-fill);
+      stroke: var(--warning);
       stroke-width: 1.8px;
       transition: stroke 0.15s, fill 0.15s, stroke-width 0.15s;
     }
     .flow-node.type-decision:hover .diamond-poly {
       stroke: var(--primary);
       stroke-width: 2.2px;
-      fill: #ffffff;
+      fill: var(--decision-fill-hover);
     }
     .flow-node.type-decision.selected .diamond-poly {
       stroke: var(--primary);
@@ -498,7 +575,7 @@
       width: 12px;
       height: 12px;
       border-radius: 50%;
-      background: #ffffff;
+      background: var(--node-bg);
       border: 2.5px solid var(--primary);
       opacity: 0;
       cursor: crosshair;
@@ -546,7 +623,7 @@
       position: fixed;
       bottom: 20px;
       right: 20px;
-      background: #ffffff;
+      background: var(--bg-panel);
       border: 1px solid var(--border-dark);
       padding: 12px 16px;
       border-radius: 8px;
@@ -561,8 +638,8 @@
       display: block;
     }
     #help-drawer kbd {
-      background: #f1f5f9;
-      border: 1px solid #cbd5e1;
+      background: var(--bg-hover);
+      border: 1px solid var(--border-dark);
       padding: 1px 4px;
       border-radius: 4px;
       font-weight: 600;
@@ -576,9 +653,9 @@
       color: #ffffff;
     }
     .flow-node.type-end.outcome-failure {
-      background: #fef2f2;
-      border-color: #ef4444;
-      color: #991b1b;
+      background: var(--end-bg);
+      border-color: var(--end-border);
+      color: var(--end-text);
     }
     .flow-node.type-end.outcome-success,
     .flow-node.type-end.outcome-failure {
@@ -593,7 +670,7 @@
     .flow-node.type-end.outcome-success::before { content: '\2713'; }
     .flow-node.type-end.outcome-failure::before { content: '\2715'; }
 
-    /* Presentation mode (?present, or the Present button): read-only, no editing chrome */
+    /* Presentation mode (?present): read-only, no editing chrome */
     body.presentation .toolbar-center,
     body.presentation #btn-save,
     body.presentation #btn-help,
@@ -631,7 +708,21 @@
       </div>
     </div>
 
-    <div class="toolbar-center">
+    <div class="toolbar-right">
+      <button id="btn-zoom-out" class="btn btn-icon" title="Zoom Out">−</button>
+      <span id="zoom-level" style="font-size:0.8rem; font-weight:600; width:45px; text-align:center;">100%</span>
+      <button id="btn-zoom-in" class="btn btn-icon" title="Zoom In">+</button>
+      <button id="btn-zoom-reset" class="btn" title="Fit to Screen">Fit</button>
+      <button id="btn-theme" class="btn btn-icon" title="Toggle light / dark mode" aria-label="Toggle dark mode">🌙</button>
+      <button id="btn-help" class="btn btn-icon" title="Keyboard Shortcuts">?</button>
+      <button id="btn-save" class="btn btn-success" title="Save directly into this HTML file (Ctrl+S)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save
+      </button>
+    </div>
+  </header>
+
+  <!-- Add controls: floating at the bottom of the viewport, no background -->
+  <div class="toolbar-center">
       <button id="btn-add-step" class="btn" title="Add Step Node in selected or first lane">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/><path d="M12 5v14"/></svg> Step
       </button>
@@ -644,20 +735,7 @@
       <button id="btn-auto-tidy" class="btn btn-primary" title="Automatically re-align and layout flowchart to minimize crossing arrows">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M7 12h10"/><path d="M10 18h4"/></svg> Auto-Tidy
       </button>
-    </div>
-
-    <div class="toolbar-right">
-      <button id="btn-zoom-out" class="btn btn-icon" title="Zoom Out">−</button>
-      <span id="zoom-level" style="font-size:0.8rem; font-weight:600; width:45px; text-align:center;">100%</span>
-      <button id="btn-zoom-in" class="btn btn-icon" title="Zoom In">+</button>
-      <button id="btn-zoom-reset" class="btn" title="Fit to Screen">Fit</button>
-      <button id="btn-present" class="btn" title="Hide editing controls for a clean read-only view">Present</button>
-      <button id="btn-help" class="btn btn-icon" title="Keyboard Shortcuts">?</button>
-      <button id="btn-save" class="btn btn-success" title="Save directly into this HTML file (Ctrl+S)">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save
-      </button>
-    </div>
-  </header>
+  </div>
 
   <!-- Notification Banner when in Connecting Mode -->
   <div id="connecting-banner">
@@ -673,14 +751,14 @@
         <svg id="connector-svg">
           <defs>
             <marker id="arrowhead" markerWidth="8" markerHeight="8" refX="7.2" refY="4" orient="auto">
-              <polygon points="0 1, 7.5 4, 0 7" fill="#a3b0c2"/>
+              <polygon points="0 1, 7.5 4, 0 7" style="fill:var(--connector)"/>
             </marker>
             <marker id="arrowhead-selected" markerWidth="8" markerHeight="8" refX="7.2" refY="4" orient="auto">
-              <polygon points="0 1, 7.5 4, 0 7" fill="#2563eb"/>
+              <polygon points="0 1, 7.5 4, 0 7" style="fill:var(--primary)"/>
             </marker>
           </defs>
           <g id="edge-group"></g>
-          <path id="drag-edge" d="" style="display:none; fill:none; stroke:#2563eb; stroke-width:3px; stroke-dasharray: 6 6; pointer-events:none;"/>
+          <path id="drag-edge" d="" style="display:none; fill:none; stroke:var(--primary); stroke-width:3px; stroke-dasharray: 6 6; pointer-events:none;"/>
         </svg>
 
         <!-- HTML Edge Labels Container -->
@@ -689,6 +767,8 @@
         <!-- Swimlane Rows will be rendered here -->
         <div id="lanes-root"></div>
         <div id="lane-drop-line"></div>
+        <div id="snap-guide-v" class="snap-guide snap-guide-v"></div>
+        <div id="snap-guide-h" class="snap-guide snap-guide-h"></div>
       </div>
     </div>
   </div>
@@ -704,9 +784,9 @@
       <li><kbd>Click or Drag Port</kbd> : Connect two steps with an arrow</li>
       <li><kbd>Double-Click Arrow</kbd> : Add or edit arrow label (or click <kbd>+ Add Label</kbd>)</li>
       <li><kbd>Delete</kbd> : Delete selected step or arrow</li>
-      <li><kbd>Drag Node</kbd> : Move inside lane or drop into another lane</li>
+      <li><kbd>Drag Node</kbd> : Move inside lane or drop into another lane; snaps to other steps' centers and lane centers (dashed guide)</li>
       <li><kbd>Drag Lane Header</kbd> : Reorder swimlanes (a blue line shows where it will land)</li>
-      <li><kbd>Present</kbd> : Hide editing controls for a clean read-only view (<kbd>Edit</kbd> to return)</li>
+      <li><kbd>?present</kbd> in the URL : Hide editing controls for a clean read-only view</li>
       <li><kbd>Double Click</kbd> : Edit step text, lane names, or edge conditions</li>
       <li><kbd>Drag Canvas</kbd> : Pan viewport</li>
       <li><kbd>Scroll Wheel</kbd> : Zoom in / out</li>
@@ -804,7 +884,7 @@
       "laneId": "lane-risk",
       "type": "decision",
       "label": "Risk Acceptable?",
-      "x": 944.0,
+      "x": 872.0,
       "y": 48,
       "_globalY": 528
     },
@@ -814,7 +894,7 @@
       "type": "end",
       "outcome": "success",
       "label": "Loan Approved",
-      "x": 944.0,
+      "x": 872.0,
       "y": 52,
       "_globalY": 212
     },
@@ -824,7 +904,7 @@
       "type": "end",
       "outcome": "failure",
       "label": "Application Rejected",
-      "x": 1184.0,
+      "x": 1040.0,
       "y": 52,
       "_globalY": 52
     }
@@ -999,7 +1079,7 @@
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.has('present') || urlParams.has('capture')) document.body.classList.add('presentation');
         if (urlParams.has('capture')) document.body.classList.add('capture');
-        syncPresentButton();
+        initTheme();
 
         render();
         fitView();
@@ -1008,6 +1088,7 @@
         requestAnimationFrame(() => {
           fitView();
           if (/[?&]report(=|&|$)/.test(window.location.search)) setTimeout(publishRenderReport, 200);
+          if (/[?&]tidy(=|&|$)/.test(window.location.search)) publishTidyResult();
         });
       }
 
@@ -1057,7 +1138,7 @@
           header.title = 'Drag to reorder swimlane';
           if (lane.color) {
             header.style.borderLeft = `6px solid ${lane.color}`;
-            header.style.background = colorWithAlpha(lane.color, 0.3);
+            header.style.background = colorWithAlpha(lane.color, themeAlpha('--lane-tint-header'));
           }
 
           // Header title with double-click edit
@@ -1106,7 +1187,7 @@
           track.className = 'lane-track';
           track.dataset.laneId = lane.id;
           track.style.minWidth = `${trackWidth}px`;
-          if (lane.color) track.style.background = colorWithAlpha(lane.color, 0.11);
+          if (lane.color) track.style.background = colorWithAlpha(lane.color, themeAlpha('--lane-tint-track'));
 
           laneEl.appendChild(header);
           laneEl.appendChild(track);
@@ -1117,6 +1198,10 @@
       // --- Lane drag & drop helpers ---
       let laneDragFrom = -1;
       const laneDropLine = document.getElementById('lane-drop-line');
+
+      function themeAlpha(name) {
+        return parseFloat(getComputedStyle(document.documentElement).getPropertyValue(name)) || 0.3;
+      }
 
       function colorWithAlpha(color, alpha) {
         const m = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(String(color).trim());
@@ -1294,6 +1379,7 @@
           });
         };
 
+        const verticalEntryUsed = {};
         const outEdges = {};
         const inEdges = {};
         chartData.nodes.forEach(n => { outEdges[n.id] = []; inEdges[n.id] = []; });
@@ -1374,8 +1460,39 @@
             if ((fromPort === 'top' || fromPort === 'bottom') && Math.abs(t.cx - f.cx) < 30) {
               // Target sits directly above/below: straight vertical line
               toPort = (t.cy < f.cy) ? 'bottom' : 'top';
+            } else if (fromPort === 'right' && toPort === 'left' && Math.abs(t.cy - f.cy) > 30 && t.cx > f.x + f.w + 24) {
+              // Side exit into a node in another lane that lies clearly to the right:
+              // run along the source row, then enter the target from its bottom/top (one bend instead of two)
+              const enterSide = t.cy < f.cy ? 'bottom' : 'top';
+              const ey = enterSide === 'bottom' ? t.y + t.h : t.y;
+              const sideKey = e.to + ':' + enterSide;
+              if (!verticalEntryUsed[sideKey]
+                  && segmentClear(f.x + f.w, f.cy, t.cx, f.cy, [uId, e.to])
+                  && segmentClear(t.cx, f.cy, t.cx, ey, [uId, e.to])) {
+                toPort = enterSide;
+                verticalEntryUsed[sideKey] = true;
+              }
             }
             edgePorts[e.id] = { fromPort, toPort };
+          });
+        });
+
+        // 2b. Port roles: a top/bottom port must not serve as both an entry and an exit.
+        // When it does, split it into two slots (entries one side, exits the other) so the
+        // arrowhead of an incoming edge never sits on the departure point of an outgoing one.
+        const PORT_SLOT = 10;
+        const fromOffX = {};
+        const toOffX = {};
+        Object.keys(rects).forEach(nid => {
+          ['top', 'bottom'].forEach(side => {
+            const outs = outEdges[nid].filter(e => edgePorts[e.id] && edgePorts[e.id].fromPort === side);
+            const ins = inEdges[nid].filter(e => edgePorts[e.id] && edgePorts[e.id].toPort === side);
+            if (!outs.length || !ins.length) return;
+            const meanX = (list, key) => list.reduce((s, e) => s + rects[e[key]].cx, 0) / list.length;
+            // Put each group on the side facing where its other ends are, to avoid new crossings
+            const insFirst = meanX(ins, 'from') <= meanX(outs, 'to');
+            ins.forEach(e => { toOffX[e.id] = insFirst ? -PORT_SLOT : PORT_SLOT; });
+            outs.forEach(e => { fromOffX[e.id] = insFirst ? PORT_SLOT : -PORT_SLOT; });
           });
         });
 
@@ -1444,7 +1561,7 @@
           if (p.fromPort === 'left' && (p.toPort === 'top' || p.toPort === 'bottom')) {
             const sx = f.x;
             const sy = f.cy;
-            const ex = t.cx;
+            const ex = t.cx + (toOffX[e.id] || 0);
             const ey = (p.toPort === 'top') ? t.y : (t.y + t.h);
             const xExit = sx - 24;
             const sourceAbove = (p.toPort === 'top') ? (sy < ey - 8) : (sy > ey + 8);
@@ -1458,9 +1575,9 @@
               points = [[sx, sy], [xExit, sy], [xExit, bypassY], [ex, bypassY], [ex, ey]];
             }
           } else if ((p.fromPort === 'top' || p.fromPort === 'bottom') && (p.toPort === 'top' || p.toPort === 'bottom')) {
-            const sx = f.cx;
+            const sx = f.cx + (fromOffX[e.id] || 0);
             const sy = (p.fromPort === 'top') ? f.y : (f.y + f.h);
-            const ex = t.cx;
+            const ex = t.cx + (toOffX[e.id] || 0);
             const ey = (p.toPort === 'top') ? t.y : (t.y + t.h);
             if (e.to === e.from || t.cx < f.cx - 30) {
               const gutterY = Math.max(sy, ey) + 36;
@@ -1471,8 +1588,15 @@
               const midY = sy + (ey - sy) * 0.5;
               points = [[sx, sy], [sx, midY], [ex, midY], [ex, ey]];
             }
+          } else if (p.fromPort === 'right' && (p.toPort === 'top' || p.toPort === 'bottom')) {
+            // Side exit, then straight into the target's top/bottom: a single bend
+            const sx = f.x + f.w;
+            const sy = f.cy;
+            const ex = t.cx + (toOffX[e.id] || 0);
+            const ey = (p.toPort === 'top') ? t.y : (t.y + t.h);
+            points = [[sx, sy], [ex, sy], [ex, ey]];
           } else if ((p.fromPort === 'top' || p.fromPort === 'bottom') && p.toPort === 'left') {
-            const sx = f.cx;
+            const sx = f.cx + (fromOffX[e.id] || 0);
             const sy = (p.fromPort === 'top') ? f.y : (f.y + f.h);
             const ex = t.x;
             const ey = t.cy + offsetY;
@@ -1491,6 +1615,52 @@
             }
           }
           edgePolylines[e.id] = points;
+        });
+
+        // 5b. De-overlap: unrelated edges must not share a collinear stretch. Spread interior
+        // segments (never the port-attached first/last ones) onto parallel tracks.
+        // Edges sharing a source or a target may still merge/fork on purpose.
+        const TRACK_GAP = 8;
+        ['v', 'h'].forEach(orient => {
+          const segs = [];
+          validEdges.forEach(e => {
+            const pts = edgePolylines[e.id];
+            if (!pts) return;
+            for (let i = 1; i < pts.length - 2; i++) {
+              const a = pts[i], b = pts[i + 1];
+              const isV = Math.abs(a[0] - b[0]) < 1;
+              const isH = Math.abs(a[1] - b[1]) < 1;
+              if (orient === 'v' ? !isV : !isH) continue;
+              const k = orient === 'v' ? 0 : 1; // fixed axis
+              const m = 1 - k;                  // running axis
+              segs.push({ e, i, pos: a[k], lo: Math.min(a[m], b[m]), hi: Math.max(a[m], b[m]) });
+            }
+          });
+          const parent = segs.map((_, i) => i);
+          const find = (x) => (parent[x] === x ? x : (parent[x] = find(parent[x])));
+          for (let a = 0; a < segs.length; a++) {
+            for (let b = a + 1; b < segs.length; b++) {
+              const A = segs[a], B = segs[b];
+              if (A.e.id === B.e.id || A.e.from === B.e.from || A.e.to === B.e.to) continue;
+              if (Math.abs(A.pos - B.pos) >= 1) continue;
+              if (Math.min(A.hi, B.hi) - Math.max(A.lo, B.lo) <= 2) continue;
+              parent[find(a)] = find(b);
+            }
+          }
+          const clusters = {};
+          segs.forEach((s, idx) => { (clusters[find(idx)] = clusters[find(idx)] || []).push(s); });
+          Object.values(clusters).forEach(cl => {
+            if (cl.length < 2) return;
+            // Order tracks by where each edge heads next so nesting stays planar
+            cl.sort((p, q) => (orient === 'v' ? rects[p.e.to].cx - rects[q.e.to].cx : rects[p.e.to].cy - rects[q.e.to].cy));
+            cl.forEach((s, idx) => {
+              const shift = (idx - (cl.length - 1) / 2) * TRACK_GAP;
+              const pts = edgePolylines[s.e.id];
+              const k = orient === 'v' ? 0 : 1;
+              pts[s.i][k] += shift;
+              pts[s.i + 1][k] += shift;
+            });
+          });
         });
 
         // 6. Collect vertical segments from edges for planar bridge/hop overpasses
@@ -1977,9 +2147,15 @@
           cumulativeY += lh;
         }
 
-        // Align local coordinates to 4px modular grid inside the target swimlane
-        const localX = Math.max(16, Math.round(currGlobalX / 4) * 4);
-        const localY = Math.max(12, Math.round((currGlobalY - targetLaneTop) / 4) * 4);
+        // Align to 4px grid, then snap to other nodes' and lane centers when close
+        let gridX = Math.max(16, Math.round(currGlobalX / 4) * 4);
+        let gridY = Math.round(currGlobalY / 4) * 4;
+        const snap = computeSnap(draggingNode, nodeEl.offsetWidth || NODE_WIDTH, nh, currGlobalX, currGlobalY);
+        if (snap.x !== null) gridX = Math.max(16, Math.round(snap.x));
+        if (snap.y !== null) gridY = Math.round(snap.y);
+        const localX = gridX;
+        const localY = Math.max(12, gridY - targetLaneTop);
+        showSnapGuides(snap, localX, targetLaneTop + localY);
 
         draggingNode.x = localX;
         draggingNode.y = localY;
@@ -2008,7 +2184,89 @@
         renderEdges();
       }
 
+      // --- SNAP-TO-ALIGNMENT HELPERS ---
+      const SNAP_THRESHOLD = 6; // px (unscaled diagram units)
+
+      function laneTopOf(laneId) {
+        let top = 0;
+        for (const lane of chartData.lanes) {
+          if (lane.id === laneId) return top;
+          top += lane.height || LANE_MIN_HEIGHT;
+        }
+        return top;
+      }
+
+      // Returns {x, y} snapped top-left (global coords, null = no snap) plus guide positions
+      function computeSnap(dragNode, w, h, gx, gy) {
+        let bestX = null, bestY = null; // {delta, pos}
+        const mine = {
+          x: [gx, gx + w / 2, gx + w],
+          y: [gy, gy + h / 2, gy + h]
+        };
+        chartData.nodes.forEach(n => {
+          if (n.id === dragNode.id) return;
+          const el = document.getElementById(`node-${n.id}`);
+          const nw = el ? el.offsetWidth : NODE_WIDTH;
+          const nhh = n.type === 'decision' ? DECISION_HEIGHT : NODE_HEIGHT;
+          const nx = n.x || 0;
+          const ny = laneTopOf(n.laneId) + (n.y || 0);
+          const tx = [nx, nx + nw / 2, nx + nw];
+          const ty = [ny, ny + nhh / 2, ny + nhh];
+          // Center-to-center alignment only
+          const dx = tx[1] - mine.x[1];
+          if (Math.abs(dx) <= SNAP_THRESHOLD && (!bestX || Math.abs(dx) < Math.abs(bestX.delta))) bestX = { delta: dx, pos: tx[1] };
+          const dy = ty[1] - mine.y[1];
+          if (Math.abs(dy) <= SNAP_THRESHOLD && (!bestY || Math.abs(dy) < Math.abs(bestY.delta))) bestY = { delta: dy, pos: ty[1] };
+        });
+        // Lane vertical centers (the horizontal midline of each swimlane)
+        let laneTop = 0;
+        chartData.lanes.forEach(lane => {
+          const lh = lane.height || LANE_MIN_HEIGHT;
+          const dy = (laneTop + lh / 2) - mine.y[1];
+          if (Math.abs(dy) <= SNAP_THRESHOLD && (!bestY || Math.abs(dy) < Math.abs(bestY.delta))) bestY = { delta: dy, pos: laneTop + lh / 2 };
+          laneTop += lh;
+        });
+        return {
+          x: bestX ? gx + bestX.delta : null,
+          y: bestY ? gy + bestY.delta : null,
+          guideX: bestX ? bestX.pos : null,
+          guideY: bestY ? bestY.pos : null
+        };
+      }
+
+      function getSnapGuide(id, cls) {
+        let g = document.getElementById(id);
+        if (!g) {
+          g = document.createElement('div');
+          g.id = id;
+          g.className = `snap-guide ${cls}`;
+          swimlanesContainer.appendChild(g);
+        }
+        return g;
+      }
+
+      function showSnapGuides(snap) {
+        const vGuide = getSnapGuide('snap-guide-v', 'snap-guide-v');
+        const hGuide = getSnapGuide('snap-guide-h', 'snap-guide-h');
+        const firstTrack = document.querySelector('.lane-track');
+        const stageRect = swimlanesContainer.getBoundingClientRect();
+        const trackOffset = firstTrack ? (firstTrack.getBoundingClientRect().left - stageRect.left) / scale : 0;
+        if (snap.guideX !== null) {
+          vGuide.style.left = `${trackOffset + snap.guideX}px`;
+          vGuide.style.display = 'block';
+        } else vGuide.style.display = 'none';
+        if (snap.guideY !== null) {
+          hGuide.style.top = `${snap.guideY}px`;
+          hGuide.style.display = 'block';
+        } else hGuide.style.display = 'none';
+      }
+
+      function hideSnapGuides() {
+        document.querySelectorAll('.snap-guide').forEach(g => g.style.display = 'none');
+      }
+
       function onDragNodeUp() {
+        hideSnapGuides();
         document.querySelectorAll('.lane-track').forEach(t => t.classList.remove('drag-hover-lane'));
         if (draggingNode) {
           draggingNode = null;
@@ -2197,90 +2455,491 @@
         renderEdges();
       }
 
-      // --- AUTO-TIDY LAYOUT (Sugiyama Layering with Cycle Breaking in JS) ---
-      function autoTidyLayout() {
-        const adj = {};
+      // --- LAYOUT ENGINE ---
+      // JavaScript port of scripts/layout_engine.py (ranking, ordering, compact-step search, scoring).
+      // Keep both copies in sync: scripts/check_tidy_parity.py compares their output node by node.
+      const LE = {
+        COL_WIDTH: 240, TIGHT_STEP: 168, START_X: 56, ROW_HEIGHT: 96,
+        NODE_W: 168, NODE_H: 56, DEC_H: 64, LANE_MIN: 160, TOP_PAD: 48, BOTTOM_PAD: 48
+      };
+      // Python-style rounding (half to even) so scores tie-break identically in both engines
+      const pyRound = (x) => {
+        const f = Math.floor(x), d = x - f;
+        if (d < 0.5) return f;
+        if (d > 0.5) return f + 1;
+        return f % 2 === 0 ? f : f + 1;
+      };
+
+      function runLayoutEngine(lanes, nodes, edges) {
+        if (!nodes.length) return;
+        const KEY = (a, b) => a + '\u0001' + b;
+        const laneIdx = {};
+        lanes.forEach((l, i) => { laneIdx[l.id] = i; });
+        const nodeMap = {};
+        nodes.forEach(n => { nodeMap[n.id] = n; });
+        const nodeH = (n) => (n.type === 'decision' ? LE.DEC_H : LE.NODE_H);
+
+        // 1. Back edges: feedback-flagged edges plus DFS-detected loops
+        const forced = new Set(edges.filter(e => e.feedback).map(e => KEY(e.from, e.to)));
+        const searchAdj = {};
+        nodes.forEach(n => { searchAdj[n.id] = []; });
+        edges.forEach(e => { if (!forced.has(KEY(e.from, e.to)) && searchAdj[e.from]) searchAdj[e.from].push(e.to); });
+        const back = new Set(forced);
         const color = {};
-        chartData.nodes.forEach(n => { adj[n.id] = []; color[n.id] = 0; });
-        // Edges marked feedback:true are always loops; DFS only decides the rest.
-        const backEdges = new Set();
-        chartData.edges.forEach(e => {
-          if (e.feedback) backEdges.add(`${e.from}->${e.to}`);
-          else if (adj[e.from]) adj[e.from].push(e.to);
-        });
-        function dfs(u) {
+        nodes.forEach(n => { color[n.id] = 0; });
+        const dfs = (u) => {
           color[u] = 1;
-          (adj[u] || []).forEach(v => {
-            if (color[v] === 1) backEdges.add(`${u}->${v}`);
+          (searchAdj[u] || []).forEach(v => {
+            if (!(v in color)) return;
+            if (color[v] === 1) back.add(KEY(u, v));
             else if (color[v] === 0) dfs(v);
           });
           color[u] = 2;
-        }
-        chartData.nodes.forEach(n => { if (color[n.id] === 0) dfs(n.id); });
+        };
+        nodes.forEach(n => { if (color[n.id] === 0) dfs(n.id); });
+        const forwardEdges = edges.filter(e => !back.has(KEY(e.from, e.to)) && nodeMap[e.from] && nodeMap[e.to]);
 
-        const fwdEdges = chartData.edges.filter(e => !backEdges.has(`${e.from}->${e.to}`));
-        const inDegree = {};
-        const ranks = {};
-        chartData.nodes.forEach(n => { inDegree[n.id] = 0; ranks[n.id] = 0; });
-        fwdEdges.forEach(e => { inDegree[e.to] = (inDegree[e.to] || 0) + 1; });
+        const revAdj = {};
+        edges.forEach(e => { (revAdj[e.to] = revAdj[e.to] || []).push(e.from); });
 
-        let queue = chartData.nodes.filter(n => inDegree[n.id] === 0).map(n => n.id);
-        if (queue.length === 0 && chartData.nodes.length > 0) queue = [chartData.nodes[0].id];
+        // Longest-path ranks; edges in `zero` span 0 columns
+        const ranksWithZero = (zero) => {
+          const adj = {}, indeg = {}, ranks = {};
+          nodes.forEach(n => { adj[n.id] = []; indeg[n.id] = 0; ranks[n.id] = 0; });
+          forwardEdges.forEach(e => { adj[e.from].push(e.to); indeg[e.to] = (indeg[e.to] || 0) + 1; });
+          const queue = nodes.filter(n => indeg[n.id] === 0).map(n => n.id);
+          if (!queue.length) queue.push(nodes[0].id);
+          const seen = new Set();
+          while (queue.length) {
+            const cur = queue.shift();
+            seen.add(cur);
+            (adj[cur] || []).forEach(nxt => {
+              const step = zero.has(KEY(cur, nxt)) ? 0 : 1;
+              ranks[nxt] = Math.max(ranks[nxt], ranks[cur] + step);
+              indeg[nxt] -= 1;
+              if (indeg[nxt] <= 0 && !seen.has(nxt)) queue.push(nxt);
+            });
+          }
+          nodes.forEach(n => { if (!seen.has(n.id)) ranks[n.id] = 0; });
+          return ranks;
+        };
 
-        const visited = new Set();
-        while (queue.length > 0) {
-          const curr = queue.shift();
-          visited.add(curr);
-          const r = ranks[curr];
-          fwdEdges.filter(e => e.from === curr).forEach(e => {
-            ranks[e.to] = Math.max(ranks[e.to] || 0, r + 1);
-            inDegree[e.to]--;
-            if (inDegree[e.to] <= 0 && !visited.has(e.to)) queue.push(e.to);
+        // Longest-path x offsets: normal = column width, zero = 0, tight = node width
+        const xPositions = (zero, tight) => {
+          const adj = {}, indeg = {}, xs = {};
+          nodes.forEach(n => { adj[n.id] = []; indeg[n.id] = 0; xs[n.id] = 0; });
+          forwardEdges.forEach(e => { adj[e.from].push(e.to); indeg[e.to] = (indeg[e.to] || 0) + 1; });
+          const queue = nodes.filter(n => indeg[n.id] === 0).map(n => n.id);
+          const seen = new Set();
+          while (queue.length) {
+            const cur = queue.shift();
+            seen.add(cur);
+            (adj[cur] || []).forEach(nxt => {
+              const k = KEY(cur, nxt);
+              const step = zero.has(k) ? 0 : (tight.has(k) ? LE.TIGHT_STEP : LE.COL_WIDTH);
+              xs[nxt] = Math.max(xs[nxt], xs[cur] + step);
+              indeg[nxt] -= 1;
+              if (indeg[nxt] <= 0 && !seen.has(nxt)) queue.push(nxt);
+            });
+          }
+          return xs;
+        };
+
+        const barycenter = (id, ranks) => {
+          const preds = revAdj[id] || [];
+          if (!preds.length) return 0;
+          let sum = 0, cnt = 0;
+          preds.forEach(p => {
+            if (!nodeMap[p]) return;
+            sum += (laneIdx[nodeMap[p].laneId] || 0) * 100 + (ranks[p] || 0);
+            cnt += 1;
+          });
+          return sum / preds.length;
+        };
+
+        // Steps 3-6: order inside lanes, lane heights, x/y, nudge-to-align
+        const placeNodes = (ranks, xs) => {
+          const groups = new Map();
+          nodes.forEach(n => {
+            const r = ranks[n.id] || 0;
+            const k = KEY(n.laneId, r);
+            if (!groups.has(k)) groups.set(k, { laneId: n.laneId, r, list: [] });
+            groups.get(k).list.push(n);
+          });
+          groups.forEach(g => {
+            if (g.list.length > 1) {
+              const bc = new Map(g.list.map(n => [n.id, barycenter(n.id, ranks)]));
+              g.list.sort((a, b) => bc.get(a.id) - bc.get(b.id));
+            }
+          });
+          const subrows = {};
+          lanes.forEach(l => { subrows[l.id] = 1; });
+          groups.forEach(g => { subrows[g.laneId] = Math.max(subrows[g.laneId] || 1, g.list.length); });
+
+          const lanePos = {};
+          let curY = 0;
+          lanes.forEach(l => {
+            let maxH = LE.NODE_H;
+            const inLane = nodes.filter(n => n.laneId === l.id);
+            if (inLane.length) maxH = Math.max(...inLane.map(nodeH));
+            const req = LE.TOP_PAD + ((subrows[l.id] || 1) - 1) * LE.ROW_HEIGHT + maxH + LE.BOTTOM_PAD;
+            l.height = Math.max(LE.LANE_MIN, req);
+            lanePos[l.id] = { top: curY, h: l.height };
+            curY += l.height;
+          });
+
+          groups.forEach(g => {
+            const lp = lanePos[g.laneId] || { top: 0, h: LE.LANE_MIN };
+            g.list.forEach((n, sub) => {
+              n.x = LE.START_X + (xs ? xs[n.id] : g.r * LE.COL_WIDTH);
+              if (g.list.length === 1 && (subrows[g.laneId] || 1) === 1) {
+                n.y = Math.floor((lp.h - nodeH(n)) / 8) * 4;
+              } else {
+                n.y = LE.TOP_PAD + sub * LE.ROW_HEIGHT;
+              }
+            });
+          });
+
+          // Nudge (<= 35px) so same-lane forward neighbours form a straight horizontal line
+          edges.forEach(e => {
+            const u = nodeMap[e.from], v = nodeMap[e.to];
+            if (!u || !v || u.laneId !== v.laneId || v.x <= u.x) return;
+            const lp = lanePos[u.laneId] || { top: 0, h: LE.LANE_MIN };
+            const uh = nodeH(u), vh = nodeH(v);
+            const uCy = u.y + uh / 2, vCy = v.y + vh / 2;
+            const delta = uCy - vCy;
+            if (Math.abs(delta) > 0 && Math.abs(delta) <= 35) {
+              const targetY = Math.trunc(pyRound((uCy - vh / 2) / 4) * 4);
+              if (targetY >= 20 && targetY + vh <= lp.h - 20) {
+                const g = groups.get(KEY(v.laneId, ranks[v.id] || 0));
+                const sibs = g ? g.list.filter(s => s.id !== v.id) : [];
+                const collides = sibs.some(s => Math.max(targetY, s.y) < Math.min(targetY + vh, s.y + nodeH(s)) + 12);
+                if (!collides) v.y = targetY;
+              }
+            }
+          });
+        };
+
+        // --- Scoring (mirrors verify_collisions + _route_all_edges) ---
+        const routeAll = (rects) => {
+          const outEdges = new Map();
+          edges.forEach(e => {
+            if (rects[e.from] && rects[e.to]) {
+              if (!outEdges.has(e.from)) outEdges.set(e.from, []);
+              outEdges.get(e.from).push(e);
+            }
+          });
+          const R = (id) => { const r = rects[id]; return { x: r[0], y: r[1], w: r[2], h: r[3] }; };
+          const hasLeftLoop = new Set();
+          edges.forEach(e => {
+            if (!rects[e.from] || !rects[e.to]) return;
+            const f = R(e.from), t = R(e.to);
+            if (t.x + t.w / 2 < f.x + f.w / 2 - 30 && Math.abs((t.y + t.h / 2) - (f.y + f.h / 2)) > 30) hasLeftLoop.add(e.from);
+          });
+
+          const ports = {};
+          const vertEntry = new Set();
+          outEdges.forEach((uOuts, uId) => {
+            const f = R(uId);
+            const fcx = f.x + f.w / 2, fcy = f.y + f.h / 2;
+            const uNode = nodeMap[uId];
+            const fwdOuts = [];
+            uOuts.forEach(e => {
+              const t = R(e.to);
+              const tcx = t.x + t.w / 2, tcy = t.y + t.h / 2;
+              if (tcx < fcx - 30) {
+                if (tcy > fcy + 30) ports[e.id] = ['left', 'top'];
+                else if (tcy < fcy - 30) ports[e.id] = ['left', 'bottom'];
+                else ports[e.id] = ['bottom', 'bottom'];
+              } else {
+                fwdOuts.push(e);
+              }
+            });
+            let topTaken = false, bottomTaken = false;
+            const cyOf = (e) => { const t = R(e.to); return t.y + t.h / 2; };
+            const cxOf = (e) => { const t = R(e.to); return t.x + t.w / 2; };
+            const upC = fwdOuts.filter(e => cyOf(e) < fcy - 30);
+            const downC = fwdOuts.filter(e => cyOf(e) > fcy + 30);
+            upC.sort((a, b) => R(a.to).y - R(b.to).y);
+            downC.sort((a, b) => R(b.to).y - R(a.to).y);
+            const al = (e) => (Math.abs(cxOf(e) - fcx) < 30 ? 0 : 1);
+            upC.sort((a, b) => al(a) - al(b));
+            downC.sort((a, b) => al(a) - al(b));
+            const multi = uNode.type === 'decision' || fwdOuts.length > 1;
+            const topId = (multi && upC.length) ? upC[0].id : null;
+            const botId = (multi && downC.length) ? downC[0].id : null;
+            fwdOuts.forEach(e => {
+              const t = R(e.to);
+              const tcy = t.y + t.h / 2;
+              let fromPort = 'right';
+              if (e.id === topId && !topTaken) { fromPort = 'top'; topTaken = true; }
+              else if (e.id === botId && !bottomTaken) { fromPort = 'bottom'; bottomTaken = true; }
+              let toPort = 'left';
+              if (hasLeftLoop.has(e.to)) {
+                toPort = tcy < fcy ? 'bottom' : 'top';
+              } else if (fromPort === 'right' && fwdOuts.length === 1 && uNode.type !== 'decision'
+                  && Math.abs(tcy - fcy) > 30 && t.x > fcx + 40) {
+                fromPort = tcy > fcy ? 'bottom' : 'top';
+              }
+              const vk = e.to + '\u0001' + (tcy > fcy);
+              if ((fromPort === 'top' || fromPort === 'bottom') && Math.abs((t.x + t.w / 2) - fcx) < 30) {
+                toPort = tcy > fcy ? 'top' : 'bottom';
+              } else if (fromPort === 'right' && toPort === 'left' && Math.abs(tcy - fcy) > 30
+                  && t.x + t.w / 2 > f.x + f.w + 24 && !vertEntry.has(vk)) {
+                toPort = tcy > fcy ? 'top' : 'bottom';
+                vertEntry.add(vk);
+              }
+              ports[e.id] = [fromPort, toPort];
+            });
+          });
+
+          const result = {};
+          edges.forEach(e => {
+            const p = ports[e.id];
+            if (!p) return;
+            const [fp, tp] = p;
+            const f = R(e.from), t = R(e.to);
+            const fcx = f.x + f.w / 2, fcy = f.y + f.h / 2;
+            const tcx = t.x + t.w / 2, tcy = t.y + t.h / 2;
+            const vert = (x) => x === 'top' || x === 'bottom';
+            if (fp === 'left' && vert(tp)) {
+              const ey = tp === 'top' ? t.y : t.y + t.h;
+              const xExit = f.x - 24;
+              let by = tp === 'top' ? Math.min(f.y - 20, t.y - 20) : Math.max(f.y + f.h + 20, t.y + t.h + 20);
+              by = Math.max(20, by);
+              result[e.id] = [[f.x, fcy], [xExit, fcy], [xExit, by], [tcx, by], [tcx, ey]];
+            } else if (vert(fp) && vert(tp)) {
+              const sy = fp === 'top' ? f.y : f.y + f.h;
+              const ey = tp === 'top' ? t.y : t.y + t.h;
+              if (tcx < fcx - 30) {
+                const gy = fp === 'top' ? Math.min(f.y - 20, t.y - 20) : Math.max(f.y + f.h + 20, t.y + t.h + 20);
+                result[e.id] = [[fcx, sy], [fcx, gy], [tcx, gy], [tcx, ey]];
+              } else {
+                const my = (sy + ey) / 2;
+                result[e.id] = [[fcx, sy], [fcx, my], [tcx, my], [tcx, ey]];
+              }
+            } else if (fp === 'right' && vert(tp)) {
+              const ey = tp === 'top' ? t.y : t.y + t.h;
+              result[e.id] = [[f.x + f.w, fcy], [tcx, fcy], [tcx, ey]];
+            } else if (vert(fp) && tp === 'left') {
+              const sy = fp === 'top' ? f.y : f.y + f.h;
+              result[e.id] = [[fcx, sy], [fcx, tcy], [t.x, tcy]];
+            } else {
+              const sx = f.x + f.w, sy = fcy, ex = t.x, ey = tcy;
+              if (Math.abs(sy - ey) < 2) result[e.id] = [[sx, sy], [ex, sy]];
+              else {
+                const mx = sx + (ex - sx) / 2;
+                result[e.id] = [[sx, sy], [mx, sy], [mx, ey], [ex, ey]];
+              }
+            }
+          });
+          return result;
+        };
+
+        const segCross = (p1, p2, p3, p4) => {
+          const v1 = Math.abs(p1[0] - p2[0]) < 1, v2 = Math.abs(p3[0] - p4[0]) < 1;
+          const h1 = Math.abs(p1[1] - p2[1]) < 1, h2 = Math.abs(p3[1] - p4[1]) < 1;
+          if ((v1 && h2) || (h1 && v2)) {
+            let vx, vy1, vy2, hy, hx1, hx2;
+            if (v1) {
+              vx = p1[0]; vy1 = Math.min(p1[1], p2[1]); vy2 = Math.max(p1[1], p2[1]);
+              hy = p3[1]; hx1 = Math.min(p3[0], p4[0]); hx2 = Math.max(p3[0], p4[0]);
+            } else {
+              vx = p3[0]; vy1 = Math.min(p3[1], p4[1]); vy2 = Math.max(p3[1], p4[1]);
+              hy = p1[1]; hx1 = Math.min(p1[0], p2[0]); hx2 = Math.max(p1[0], p2[0]);
+            }
+            return hx1 + 1 < vx && vx < hx2 - 1 && vy1 + 1 < hy && hy < vy2 - 1;
+          }
+          const x1 = Math.min(p1[0], p2[0]), y1 = Math.min(p1[1], p2[1]);
+          const x2 = Math.max(p1[0], p2[0]), y2 = Math.max(p1[1], p2[1]);
+          const x3 = Math.min(p3[0], p4[0]), y3 = Math.min(p3[1], p4[1]);
+          const x4 = Math.max(p3[0], p4[0]), y4 = Math.max(p3[1], p4[1]);
+          if (v1 && v2) return Math.abs(x1 - x3) < 1 && Math.min(y2, y4) - Math.max(y1, y3) > 1;
+          if (h1 && h2) return Math.abs(y1 - y3) < 1 && Math.min(x2, x4) - Math.max(x1, x3) > 1;
+          return false;
+        };
+        const polyCross = (a, b) => {
+          for (let i = 0; i < a.length - 1; i++) for (let j = 0; j < b.length - 1; j++) {
+            if (segCross(a[i], a[i + 1], b[j], b[j + 1])) return true;
+          }
+          return false;
+        };
+
+        const score = () => {
+          // lane tops / heights (as in verify_collisions)
+          const laneTop = {}, laneH = {};
+          let cy = 0;
+          lanes.forEach(l => {
+            laneTop[l.id] = cy;
+            const ys = nodes.filter(n => n.laneId === l.id).map(n => n.y || 0);
+            const maxY = ys.length ? Math.max(...ys) : 48;
+            laneH[l.id] = Math.max(l.height || LE.LANE_MIN, maxY + LE.DEC_H + 30);
+            cy += laneH[l.id];
+          });
+          let overflows = 0, overlaps = 0, penetrations = 0;
+          nodes.forEach(n => {
+            if (!(n.laneId in laneIdx)) return;
+            const h = nodeH(n);
+            if (n.y < 10 || n.y + h > laneH[n.laneId]) overflows += 1;
+          });
+          for (let i = 0; i < nodes.length; i++) for (let j = i + 1; j < nodes.length; j++) {
+            const a = nodes[i], b = nodes[j];
+            if (a.laneId !== b.laneId) continue;
+            const ox = Math.max(0, Math.min(a.x + LE.NODE_W, b.x + LE.NODE_W) - Math.max(a.x, b.x));
+            const oy = Math.max(0, Math.min(a.y + nodeH(a), b.y + nodeH(b)) - Math.max(a.y, b.y));
+            if (ox > 0 && oy > 0) overlaps += 1;
+          }
+          const rects = {};
+          nodes.forEach(n => { rects[n.id] = [n.x, (laneTop[n.laneId] || 0) + n.y, LE.NODE_W, nodeH(n)]; });
+          const poly = routeAll(rects);
+
+          edges.forEach(e => {
+            const pts = poly[e.id];
+            if (!pts) return;
+            nodes.forEach(o => {
+              if (o.id === e.from || o.id === e.to) return;
+              const [ox, oy, ow, oh] = rects[o.id];
+              const bx1 = ox + 3, by1 = oy + 3, bx2 = ox + ow - 3, by2 = oy + oh - 3;
+              if (bx2 <= bx1 || by2 <= by1) return;
+              for (let k = 0; k < pts.length - 1; k++) {
+                const p1 = pts[k], p2 = pts[k + 1];
+                const sx1 = Math.min(p1[0], p2[0]), sx2 = Math.max(p1[0], p2[0]);
+                const sy1 = Math.min(p1[1], p2[1]), sy2 = Math.max(p1[1], p2[1]);
+                if (sx1 < bx2 && sx2 > bx1 && sy1 < by2 && sy2 > by1) {
+                  if (Math.abs(p1[0] - p2[0]) < 1) {
+                    if (bx1 <= p1[0] && p1[0] <= bx2 && !(sy2 <= by1 || sy1 >= by2)) { penetrations += 1; break; }
+                  } else if (Math.abs(p1[1] - p2[1]) < 1) {
+                    if (by1 <= p1[1] && p1[1] <= by2 && !(sx2 <= bx1 || sx1 >= bx2)) { penetrations += 1; break; }
+                  }
+                }
+              }
+            });
+          });
+
+          const listed = edges.filter(e => poly[e.id]);
+          let crossings = 0;
+          for (let i = 0; i < listed.length; i++) for (let j = i + 1; j < listed.length; j++) {
+            const a = listed[i], b = listed[j];
+            if (a.from === b.from || a.from === b.to || a.to === b.from || a.to === b.to) continue;
+            if (polyCross(poly[a.id], poly[b.id])) crossings += 1;
+          }
+          let bends = 0, length = 0;
+          Object.keys(poly).forEach(id => {
+            const pts = poly[id];
+            bends += Math.max(0, pts.length - 2);
+            for (let i = 0; i < pts.length - 1; i++) {
+              length += Math.abs(pts[i + 1][0] - pts[i][0]) + Math.abs(pts[i + 1][1] - pts[i][1]);
+            }
+          });
+          const maxX = Math.max(...nodes.map(n => n.x));
+          const columns = pyRound((maxX - LE.START_X) / LE.COL_WIDTH) + 1;
+          return [overlaps + penetrations + overflows, crossings, columns, bends, pyRound(length)];
+        };
+        const keyLess = (a, b) => {
+          for (let i = 0; i < a.length; i++) { if (a[i] !== b[i]) return a[i] < b[i]; }
+          return false;
+        };
+
+        // --- Choose compact steps for cross-lane arrows ---
+        const cands = [];
+        forwardEdges.forEach(e => {
+          const s = nodeMap[e.from], d = nodeMap[e.to];
+          if (!s || !d) return;
+          const sl = laneIdx[s.laneId], dl = laneIdx[d.laneId];
+          if (sl === undefined || dl === undefined || sl === dl) return;
+          if (cands.some(c => c.k === KEY(e.from, e.to))) return;
+          cands.push({ k: KEY(e.from, e.to), from: e.from, side: dl < sl ? 'up' : 'down' });
+        });
+
+        const valid = (cfg) => {
+          const used = new Set();
+          for (const c of cands) {
+            if (cfg.get(c.k) === 'zero') {
+              const sk = c.from + '\u0001' + c.side;
+              if (used.has(sk)) return false;
+              used.add(sk);
+            }
+          }
+          return true;
+        };
+        const cache = new Map();
+        const evaluate = (cfg) => {
+          const ck = cands.map(c => cfg.get(c.k) || '-').join(',');
+          if (cache.has(ck)) return cache.get(ck);
+          const zero = new Set(), tight = new Set();
+          cfg.forEach((m, k) => { (m === 'zero' ? zero : tight).add(k); });
+          const ranks = ranksWithZero(zero);
+          const xs = cands.length ? xPositions(zero, tight) : null;
+          placeNodes(ranks, xs);
+          const res = { key: score(), ranks, xs };
+          cache.set(ck, res);
+          return res;
+        };
+
+        let bestCfg = new Map();
+        let best = evaluate(bestCfg);
+        const modes = [null, 'zero', 'tight'];
+        if (cands.length && cands.length <= 6) {
+          const rec = (i, cfg) => {
+            if (i === cands.length) {
+              if (valid(cfg)) {
+                const res = evaluate(cfg);
+                if (keyLess(res.key, best.key)) { best = res; bestCfg = new Map(cfg); }
+              }
+              return;
+            }
+            for (const m of modes) {
+              if (m) cfg.set(cands[i].k, m);
+              rec(i + 1, cfg);
+              cfg.delete(cands[i].k);
+            }
+          };
+          rec(0, new Map());
+        } else if (cands.length) {
+          const seeds = [new Map(), new Map(cands.map(c => [c.k, 'tight']))];
+          seeds.forEach(seed => {
+            let cfg = new Map(seed);
+            if (!valid(cfg)) return;
+            let cur = evaluate(cfg);
+            let improved = true;
+            while (improved) {
+              improved = false;
+              cands.forEach(c => {
+                modes.forEach(m => {
+                  if ((cfg.get(c.k) || null) === m) return;
+                  const trial = new Map(cfg);
+                  if (m) trial.set(c.k, m); else trial.delete(c.k);
+                  if (!valid(trial)) return;
+                  const res = evaluate(trial);
+                  if (keyLess(res.key, cur.key)) { cfg = trial; cur = res; improved = true; }
+                });
+              });
+            }
+            if (keyLess(cur.key, best.key)) { best = cur; bestCfg = new Map(cfg); }
           });
         }
+        placeNodes(best.ranks, best.xs);
+      }
 
-        const laneRankGroups = {};
-        const laneMaxSubrows = {};
-        chartData.nodes.forEach(n => {
-          const r = ranks[n.id] || 0;
-          const key = `${n.laneId}_${r}`;
-          if (!laneRankGroups[key]) laneRankGroups[key] = [];
-          laneRankGroups[key].push(n);
-          laneMaxSubrows[n.laneId] = Math.max(laneMaxSubrows[n.laneId] || 1, laneRankGroups[key].length);
-        });
-
-        const colWidth = 280;
-        const rowHeight = 96;
-        const startX = 80;
-
-        chartData.lanes.forEach(lane => {
-          const subrows = laneMaxSubrows[lane.id] || 1;
-          const maxNodeH = chartData.nodes
-            .filter(n => n.laneId === lane.id)
-            .reduce((m, n) => Math.max(m, n.type === 'decision' ? DECISION_HEIGHT : NODE_HEIGHT), NODE_HEIGHT);
-          lane.height = Math.max(LANE_MIN_HEIGHT, 48 + (subrows - 1) * rowHeight + maxNodeH + LANE_BOTTOM_PAD);
-        });
-
-        chartData.nodes.forEach(n => {
-          const r = ranks[n.id] || 0;
-          const key = `${n.laneId}_${r}`;
-          const group = laneRankGroups[key];
-          const subIdx = group.indexOf(n);
-          const laneObj = chartData.lanes.find(l => l.id === n.laneId);
-          const lh = laneObj ? laneObj.height : LANE_MIN_HEIGHT;
-          const nh = (n.type === 'decision') ? DECISION_HEIGHT : NODE_HEIGHT;
-
-          n.x = startX + r * colWidth;
-          if (group.length === 1 && (laneMaxSubrows[n.laneId] || 1) === 1) {
-            n.y = Math.floor((lh - nh) / 8) * 4;
-          } else {
-            n.y = 48 + subIdx * rowHeight;
-          }
-        });
-
+      // --- AUTO-TIDY LAYOUT (same engine as the Python CLI) ---
+      function autoTidyLayout() {
+        runLayoutEngine(chartData.lanes, chartData.nodes, chartData.edges);
         render();
         updateStatus(true);
         fitView();
+      }
+
+      // ?tidy: run Auto-Tidy on load and publish the result (used by scripts/check_tidy_parity.py)
+      function publishTidyResult() {
+        runLayoutEngine(chartData.lanes, chartData.nodes, chartData.edges);
+        const out = { nodes: {}, lanes: {} };
+        chartData.nodes.forEach(n => { out.nodes[n.id] = { x: n.x, y: n.y }; });
+        chartData.lanes.forEach(l => { out.lanes[l.id] = l.height; });
+        const el = document.createElement('script');
+        el.id = 'tidy-result';
+        el.type = 'application/json';
+        el.textContent = JSON.stringify(out);
+        document.body.appendChild(el);
       }
 
       // --- ADD ELEMENTS ---
@@ -2332,16 +2991,29 @@
 
       btnAutoTidy.addEventListener('click', autoTidyLayout);
 
-      const btnPresent = document.getElementById('btn-present');
-      function syncPresentButton() {
-        btnPresent.textContent = document.body.classList.contains('presentation') ? 'Edit' : 'Present';
+      // --- THEME (light / dark) ---
+      // Priority: ?theme=dark|light  >  saved choice (localStorage)  >  OS preference
+      const btnTheme = document.getElementById('btn-theme');
+      function currentTheme() {
+        return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
       }
-      btnPresent.addEventListener('click', () => {
-        document.body.classList.toggle('presentation');
-        syncPresentButton();
-        render();
-        fitView();
-      });
+      function applyTheme(theme, persist) {
+        document.documentElement.setAttribute('data-theme', theme);
+        btnTheme.textContent = theme === 'dark' ? '\u2600\uFE0F' : '\uD83C\uDF19';
+        if (persist) { try { localStorage.setItem('flowchart-theme', theme); } catch (e) {} }
+        if (chartData.lanes.length) render();   // lane tints depend on the theme
+      }
+      function initTheme() {
+        let theme = null;
+        const q = new URLSearchParams(window.location.search).get('theme');
+        if (q === 'dark' || q === 'light') theme = q;
+        if (!theme) { try { theme = localStorage.getItem('flowchart-theme'); } catch (e) {} }
+        if (theme !== 'dark' && theme !== 'light') {
+          theme = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+        }
+        applyTheme(theme, false);
+      }
+      btnTheme.addEventListener('click', () => applyTheme(currentTheme() === 'dark' ? 'light' : 'dark', true));
 
       // --- VIEWPORT PAN & ZOOM & FIT ---
       function updateTransform() {

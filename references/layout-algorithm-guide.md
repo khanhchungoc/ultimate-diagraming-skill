@@ -52,9 +52,10 @@ Input Graph JSON ──> [1. Cycle Breaking] ──> [2. Topological Layering]
   - The horizontal return segment traverses along this outer highway completely outside the active task rows, eliminating line strikes across intermediate nodes.
 - **Incoming Port Staggering & Convergence**:
   - When multiple forward edges converge onto a target node's `Left` port, their vertical arrival coordinates are staggered ($\pm 8\text{px}$) so arrowheads and horizontal approach segments never overlap.
-- **Crossing-Minimising Column Alignment**:
-  - A cross-lane arrow can become a straight vertical line when its target shares the source's column, which also saves a column of width. Candidates: a task with a single outgoing arrow into another lane, and one branch per side (up/down) of a decision. The engine lays out every allowed combination (greedy search when there are more than 512), scores each with the verifier (overlaps/penetrations, then edge crossings, columns, bends, total arrow length) and keeps the best, so alignment is only applied when it does not make the diagram worse. A decision's top/bottom exit goes to the target directly above/below; other branches leave through the right port.
-  - A task with a single arrow into another lane can instead be placed one node width (168px) to the right rather than a full 240px column, so the target's left edge lines up with the source's right edge: the arrow drops from the source and enters the target's left side after a short run. It is scored like any other option.
+- **Crossing-Minimising Column Alignment** (node-type independent):
+  - Every forward arrow that crosses lanes may get a compact step, whatever the node types: `zero` (target shares the source's column, a straight vertical arrow; at most one per source per side) or `tight` (target sits one node width, 168px, to the right so its left edge lines up with the source's right edge instead of a full 240px column). The engine lays out each configuration (exhaustively up to 6 candidate arrows, then by coordinate descent), scores it with the verifier (overlaps/penetrations, then edge crossings, diagram width, bends, total arrow length) and keeps the best, so compaction is only applied when it does not make the diagram worse.
+- **Single-Bend Side Exit**:
+  - When an arrow leaves a node's right port for a target in another lane that lies clearly to the right, it runs along the source row and enters the target's bottom/top (one bend) instead of the default right-vertical-right Z (two bends). Used only when both segments are clear of other nodes and no other arrow already enters that side of the target; otherwise the Z route is kept.
 - **Vertical Channel Staggering**:
   - When multiple `Right` $\rightarrow$ `Left` elbow edges traverse the same column gap, their vertical turn channels (`channelX`) are sorted for planar nesting (upward edges sorted by `startY` ascending; downward edges by `startY` descending) and spaced across the gap.
 - **Quarter-Arc Elbows & Bridge Overpasses**:
@@ -83,3 +84,9 @@ The interactive HTML document can modify and persist itself directly on disk:
 3. **Multi-Tier Persistence Strategy**:
    - **Tier 1 (Chromium File System Access API)**: Uses `window.showSaveFilePicker()` and `handle.createWritable()` to stream the updated HTML file directly to disk.
    - **Tier 2 (Universal Blob Fallback)**: If the browser blocks the File System Access API, it creates a Blob and triggers an automated `<a download="...">` action.
+
+---
+
+## Two Copies of the Engine
+
+The layout runs in Python (`scripts/layout_engine.py`, used by `--layout`) and in the page (`runLayoutEngine()` in `assets/flowchart-template.html`, used by the Auto-Tidy button). They must stay identical: same constants, ranking, ordering, compact-step search, scoring order and tie-breaks. After changing either, run `python scripts/check_tidy_parity.py <diagram.json>...`; it lays each diagram out with Python, scrambles positions, runs Auto-Tidy in headless Chrome (`?tidy`) and fails if any node position or lane height differs.

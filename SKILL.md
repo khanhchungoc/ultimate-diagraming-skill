@@ -5,7 +5,7 @@ description: "Create, verify, and edit swimlane process flowcharts as one standa
 
 # Interactive Swimlane Flowchart Skill
 
-Produce stakeholder-ready swimlane flowcharts as standalone HTML files. In the browser, users can drag nodes across lanes, reorder lanes by dragging a lane header (a blue line shows where it will land), double-click to edit text, reconnect flows from decision-diamond ports, and **Save** the edited diagram back into the HTML file. A **Present** button hides all editing controls for a clean read-only view.
+Produce stakeholder-ready swimlane flowcharts as standalone HTML files. In the browser, users can drag nodes across lanes, reorder lanes by dragging a lane header (a blue line shows where it will land), double-click to edit text, reconnect flows from decision-diamond ports, and **Save** the edited diagram back into the HTML file. Opening the file with `?present` hides all editing controls for a clean read-only view.
 
 **Paths:** `<skill-dir>` below means the folder containing this `SKILL.md`. Run every script by its full path (`python "<skill-dir>/scripts/layout_engine.py" ...`) from the user's project folder, and write outputs there, never inside `<skill-dir>`.
 
@@ -118,9 +118,10 @@ Return: the output path(s); node and lane counts; audit result (score, exit code
 
 | Resource | Path | Purpose |
 |---|---|---|
-| **Layout & Audit Engine** | [layout_engine.py](scripts/layout_engine.py) | Layout, `--verify` audit, `--extract`. |
+| **Layout & Audit Engine** | [layout_engine.py](scripts/layout_engine.py) | Layout, `--verify` audit, `--extract`. The same engine also runs in the page (Auto-Tidy button) as `runLayoutEngine()` in the template. |
+| **Parity Check** | [check_tidy_parity.py](scripts/check_tidy_parity.py) | Run after changing layout logic: confirms browser Auto-Tidy and the Python engine place every node identically (Chrome required). |
 | **Screenshot Renderer** | [render_screenshot.py](scripts/render_screenshot.py) | Headless Chrome/Edge: clean 2x PNG plus label-overlap and text-size report. |
-| **Interactive Canvas Template** | [flowchart-template.html](assets/flowchart-template.html) | Standalone UI shell: router, drag/drop, save. |
-| **Example** | [example-flowchart.json](assets/example-flowchart.json) / [html](assets/example-flowchart.html) | 9-node, 4-lane, 7-column reference with success/failure outcomes. |
+| **Interactive Canvas Template** | [flowchart-template.html](assets/flowchart-template.html) | Standalone UI shell: router, drag/drop, save. Light/dark theme: toolbar toggle (🌙/☀️), remembered per browser; first visit follows the OS setting; `?theme=dark` or `?theme=light` forces one. |
+| **Example** | [example-flowchart.json](assets/example-flowchart.json) / [html](assets/example-flowchart.html) | 9-node, 4-lane, 5-column reference with success/failure outcomes. |
 | **Specification Guide** | [flowchart-spec.md](references/flowchart-spec.md) | Schema, node types, lane colors. |
 | **Algorithm Guide** | [layout-algorithm-guide.md](references/layout-algorithm-guide.md) | Layering, port assignment, label placement. |
