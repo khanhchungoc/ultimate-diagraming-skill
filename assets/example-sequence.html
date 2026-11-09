@@ -1,0 +1,1397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Interactive Sequence Diagram</title>
+  <style>
+    :root {
+      --bg-page: #f8fafc;
+      --bg-panel: #ffffff;
+      --border-color: #e2e8f0;
+      --border-dark: #cbd5e1;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --success: #16a34a;
+      --warning: #f59e0b;
+      --danger: #dc2626;
+      --lane-header-width: 220px;
+      --lane-min-height: 160px;
+      --grid-dot: #cbd5e1;
+      --bg-viewport: #f1f5f9;
+      --bg-hover: #f1f5f9;
+      --bg-soft: #e2e8f0;
+      --bg-lane-header: #f8fafc;
+      --bg-input: #ffffff;
+      --lane-track-tint: rgba(248, 250, 252, 0.35);
+      --connector: #a3b0c2;
+      --edge-label-bg: #ffffff;
+      --edge-label-empty-bg: rgba(255, 255, 255, 0.95);
+      --edge-label-empty-border: #94a3b8;
+      --status-saved-bg: #dcfce7;  --status-saved-text: #166534;
+      --status-unsaved-bg: #fef3c7; --status-unsaved-text: #92400e;
+      --banner-bg: #eff6ff; --banner-border: #bfdbfe; --banner-text: #1e40af;
+      --start-bg: #ecfdf5; --start-border: #10b981; --start-text: #065f46;
+      --end-bg: #1e293b;   --end-border: #0f172a;   --end-text: #f8fafc;
+      --end-success-bg: #166534; --end-success-border: #14532d;
+      --end-failure-bg: #991b1b; --end-failure-border: #7f1d1d;
+      --decision-fill: #fffbeb; --decision-fill-hover: #ffffff;
+      --node-bg: #ffffff;
+      --lane-tint-header: 0.3;
+      --lane-tint-track: 0.11;
+      color-scheme: light;
+    }
+
+    :root[data-theme="dark"] {
+      --bg-page: #0b1220;
+      --bg-panel: #111a2e;
+      --border-color: #243049;
+      --border-dark: #334361;
+      --text-main: #e2e8f0;
+      --text-muted: #94a3b8;
+      --primary: #60a5fa;
+      --primary-hover: #93c5fd;
+      --success: #22c55e;
+      --danger: #ef4444;
+      --grid-dot: #1e293b;
+      --bg-viewport: #0f172a;
+      --bg-hover: #1a2540;
+      --bg-soft: #243049;
+      --bg-lane-header: #131d33;
+      --bg-input: #0b1220;
+      --lane-track-tint: rgba(15, 23, 42, 0.35);
+      --connector: #64748b;
+      --edge-label-bg: #111a2e;
+      --edge-label-empty-bg: rgba(17, 26, 46, 0.95);
+      --edge-label-empty-border: #475569;
+      --status-saved-bg: #14532d;  --status-saved-text: #bbf7d0;
+      --status-unsaved-bg: #78350f; --status-unsaved-text: #fde68a;
+      --banner-bg: #172554; --banner-border: #1e3a8a; --banner-text: #bfdbfe;
+      --end-bg: #0b1220;   --end-border: #94a3b8;   --end-text: #f8fafc;
+      --end-success-bg: #15803d; --end-success-border: #86efac;
+      --end-failure-bg: #b91c1c; --end-failure-border: #fca5a5;
+      --decision-fill: #3b2a0a; --decision-fill-hover: #1a2540;
+      --node-bg: #17223b;
+      --lane-tint-header: 0.2;
+      --lane-tint-track: 0.07;
+      color-scheme: dark;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: var(--bg-page);
+      color: var(--text-main);
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Top Navigation Toolbar */
+    header {
+      background: var(--bg-panel);
+      border-bottom: 1px solid var(--border-color);
+      height: 56px;
+      padding: 0 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      z-index: 100;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+
+    .toolbar-center {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 100;
+    }
+
+    .toolbar-left, .toolbar-right, .toolbar-center {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .app-title-container {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+    }
+
+    h1#chart-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--text-main);
+      outline: none;
+      padding: 2px 6px;
+      border-radius: 4px;
+      border: 1px solid transparent;
+      user-select: text;
+    }
+    h1#chart-title:focus, h1#chart-title:hover {
+      border-color: var(--border-dark);
+      background: var(--bg-page);
+    }
+
+    .badge {
+      font-size: 0.72rem;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .badge-status {
+      background: var(--bg-soft);
+      color: var(--text-muted);
+    }
+    .badge-status.saved {
+      background: var(--status-saved-bg);
+      color: var(--status-saved-text);
+    }
+    .badge-status.unsaved {
+      background: var(--status-unsaved-bg);
+      color: var(--status-unsaved-text);
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      padding: 6px 12px;
+      border-radius: 6px;
+      border: 1px solid var(--border-color);
+      background: var(--bg-panel);
+      color: var(--text-main);
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .btn:hover {
+      background: var(--bg-hover);
+      border-color: var(--border-dark);
+    }
+    .btn:active {
+      transform: translateY(1px);
+    }
+    .btn-primary {
+      background: var(--primary);
+      color: #ffffff;
+      border-color: var(--primary);
+    }
+    .btn-primary:hover {
+      background: var(--primary-hover);
+      border-color: var(--primary-hover);
+    }
+    :root[data-theme="dark"] .btn-primary { color: #0b1220; }
+    .btn-success {
+      background: var(--success);
+      color: #ffffff;
+      border-color: var(--success);
+    }
+
+    .btn-icon {
+      padding: 6px 10px;
+      font-size: 0.9rem;
+    }
+
+
+    /* Workspace & Viewport */
+    #viewport {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      background-color: var(--bg-viewport);
+      background-image: radial-gradient(var(--grid-dot) 1.2px, transparent 1.2px);
+      background-size: 24px 24px;
+      cursor: grab;
+    }
+    #viewport.panning {
+      cursor: grabbing;
+    }
+
+    #stage {
+      position: absolute;
+      top: 0;
+      left: 0;
+      transform-origin: 0 0;
+      min-width: 1800px;
+      min-height: 1000px;
+    }
+
+
+    /* Help Drawer / Modal */
+    #help-drawer {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: var(--bg-panel);
+      border: 1px solid var(--border-dark);
+      padding: 12px 16px;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      z-index: 1000;
+      max-width: 340px;
+      display: none;
+    }
+    #help-drawer.open {
+      display: block;
+    }
+    #help-drawer kbd {
+      background: var(--bg-hover);
+      border: 1px solid var(--border-dark);
+      padding: 1px 4px;
+      border-radius: 4px;
+      font-weight: 600;
+      color: var(--text-main);
+    }
+
+
+    /* Presentation mode (?present): read-only, no editing chrome */
+    body.presentation .toolbar-center,
+    body.presentation #btn-save,
+    body.presentation #btn-help,
+    body.presentation #save-status,
+    body.presentation #help-drawer { display: none !important; }
+    body.presentation #chart-title { pointer-events: none !important; }
+    /* Capture mode (?capture, used for screenshots): diagram only, edge to edge */
+    body.capture header { display: none; }
+    /* Sequence diagram */
+    #seq-canvas { position: relative; margin: 24px; }
+    #seq-svg { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
+    #seq-html { position: absolute; left: 0; top: 0; }
+    .seq-lifeline { stroke: var(--border-dark); stroke-width: 1.5; stroke-dasharray: 6 5; }
+    .seq-activation { fill: var(--node-bg); stroke: var(--text-muted); stroke-width: 1.4; }
+    .seq-line { stroke: var(--text-main); stroke-width: 1.6; fill: none; }
+    .seq-line.is-reply { stroke-dasharray: 7 5; stroke: var(--text-muted); }
+    .seq-line.selected { stroke: var(--primary); stroke-width: 2.4; }
+    .seq-arrow-fill { fill: var(--text-main); }
+    .seq-arrow-open { fill: none; stroke: var(--text-main); stroke-width: 1.6; }
+    .seq-msg-hit { stroke: transparent; stroke-width: 18; fill: none; pointer-events: stroke; cursor: pointer; }
+    .seq-frag-box { fill: var(--primary); fill-opacity: 0.04; stroke: var(--border-dark); stroke-width: 1.4; pointer-events: none; }
+    .seq-frag-box.selected { stroke: var(--primary); stroke-width: 2.2; }
+    .seq-frag-else { stroke: var(--border-dark); stroke-width: 1.4; stroke-dasharray: 6 4; }
+    #seq-drop-line { stroke: var(--primary); stroke-width: 2.5; stroke-dasharray: 5 4; display: none; }
+    .seq-participant {
+      position: absolute; width: 148px; height: 56px; box-sizing: border-box;
+      display: flex; align-items: center; justify-content: center; text-align: center;
+      background: var(--node-bg); border: 1.5px solid var(--border-dark); border-radius: 8px;
+      color: var(--text-main); font-weight: 600; font-size: 14px; padding: 4px 10px; cursor: grab;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08); user-select: none; touch-action: none;
+    }
+    .seq-participant.is-actor { background: var(--start-bg); border-color: var(--start-border); color: var(--start-text); border-radius: 28px; }
+    .seq-participant.selected, .seq-participant:hover { border-color: var(--primary); }
+    .seq-participant.dragging, .seq-msg-label.dragging { opacity: 0.75; z-index: 20; }
+    .seq-participant-name { outline: none; min-width: 20px; }
+    .seq-msg-label {
+      position: absolute; height: 20px; line-height: 20px; padding: 0 6px; border-radius: 4px; white-space: nowrap;
+      font-size: 13px; color: var(--text-main); background: var(--edge-label-bg); cursor: pointer; user-select: none;
+    }
+    .seq-msg-label.is-self { transform: none; }
+    .seq-msg-label.selected { color: var(--primary); font-weight: 600; }
+    .seq-msg-label-text { outline: none; }
+    .seq-frag-label {
+      position: absolute; height: 22px; line-height: 22px; padding: 0 10px 0 8px; font-size: 12px; white-space: nowrap;
+      background: var(--bg-soft); border: 1.4px solid var(--border-dark); border-radius: 4px 12px 4px 4px;
+      color: var(--text-main); cursor: pointer; user-select: none;
+    }
+    .seq-frag-label.selected { border-color: var(--primary); color: var(--primary); }
+    .seq-frag-kind { font-weight: 700; text-transform: lowercase; margin-right: 6px; }
+    .seq-frag-text { outline: none; color: var(--text-muted); }
+    .seq-frag-else-label { position: absolute; font-size: 12px; color: var(--text-muted); user-select: none; }
+    body.presentation .seq-participant, body.presentation .seq-msg-label, body.presentation .seq-frag-label,
+    body.presentation .seq-msg-hit { pointer-events: none !important; cursor: default; }
+    body.capture #seq-canvas { margin: 0; padding: 12px; }
+  </style>
+</head>
+<body>
+
+  <!-- Top Toolbar -->
+  <header>
+    <div class="toolbar-left">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--primary)"><rect x="3" y="3" width="6" height="4" rx="1"/><rect x="15" y="3" width="6" height="4" rx="1"/><path d="M6 7v14M18 7v14"/><path d="M6 12h12"/><path d="m15 10 3 2-3 2"/></svg>
+      <div class="app-title-container">
+        <h1 id="chart-title" contenteditable="false" spellcheck="false" title="Double-click to rename diagram">Interactive Sequence Diagram</h1>
+        <span id="save-status" class="badge badge-status">Ready</span>
+      </div>
+    </div>
+
+    <div class="toolbar-right">
+      <button id="btn-zoom-out" class="btn btn-icon" title="Zoom Out">−</button>
+      <span id="zoom-level" style="font-size:0.8rem; font-weight:600; width:45px; text-align:center;">100%</span>
+      <button id="btn-zoom-in" class="btn btn-icon" title="Zoom In">+</button>
+      <button id="btn-zoom-reset" class="btn" title="Fit to Screen">Fit</button>
+      <button id="btn-theme" class="btn btn-icon" title="Toggle light / dark mode" aria-label="Toggle dark mode">🌙</button>
+      <button id="btn-help" class="btn btn-icon" title="Keyboard Shortcuts">?</button>
+      <button id="btn-save" class="btn btn-success" title="Save directly into this HTML file (Ctrl+S)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save
+      </button>
+    </div>
+  </header>
+
+  <!-- Add controls: floating at the bottom of the viewport, no background -->
+  <div class="toolbar-center">
+      <button id="btn-add-participant" class="btn" title="Add a participant (lifeline) at the right">+ Participant</button>
+      <button id="btn-add-message" class="btn" title="Add a message from the selected participant (or after the selected message)">+ Message</button>
+      <button id="btn-toggle-kind" class="btn" title="Cycle the selected message: call, reply, async">Call / Reply</button>
+      <button id="btn-frame" class="btn" title="Wrap the selected message in an opt frame; with a frame selected, cycle opt / alt / loop">Frame</button>
+      <button id="btn-auto-tidy" class="btn btn-primary" title="Automatically re-align and lay out the diagram automatically">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M7 12h10"/><path d="M10 18h4"/></svg> Auto-Tidy
+      </button>
+  </div>
+
+
+  <!-- Viewport for Pan and Zoom -->
+  <div id="viewport">
+    <div id="stage">
+      <div id="seq-canvas">
+        <svg id="seq-svg" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <marker id="seq-arrow-solid" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse">
+              <polygon points="0 1, 9 5, 0 9" class="seq-arrow-fill"/>
+            </marker>
+            <marker id="seq-arrow-open" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse">
+              <polyline points="1 1, 9 5, 1 9" class="seq-arrow-open"/>
+            </marker>
+          </defs>
+          <g id="seq-fragments"></g>
+          <g id="seq-lifelines"></g>
+          <g id="seq-activations"></g>
+          <g id="seq-messages"></g>
+          <line id="seq-drop-line" x1="0" x2="0" y1="0" y2="0"/>
+        </svg>
+        <div id="seq-html"></div>
+      </div>
+    </div>
+  </div>
+
+    <!-- Help & Shortcuts Drawer -->
+  <div id="help-drawer">
+    <div style="font-weight:700; margin-bottom:6px; display:flex; justify-content:space-between;">
+      <span>Shortcuts & Interaction</span>
+      <span style="cursor:pointer;" onclick="document.getElementById('help-drawer').classList.remove('open')">×</span>
+    </div>
+    <ul style="list-style:none; line-height:1.6;">
+      <li><kbd>Click</kbd> : Select a participant, message or frame</li>
+      <li><kbd>Drag Participant</kbd> : Move sideways to reorder lifelines</li>
+      <li><kbd>Drag Message</kbd> : Move up or down to change the order in time</li>
+      <li><kbd>Double Click</kbd> : Edit a participant name, message text or frame text</li>
+      <li><kbd>Delete</kbd> : Delete the selected item (a participant's messages go with it)</li>
+      <li><kbd>Ctrl</kbd> + <kbd>S</kbd> : Save changes directly into HTML</li>
+      <li><kbd>?present</kbd> in the URL : Hide editing controls for a clean read-only view</li>
+      <li><kbd>Drag Canvas</kbd> : Pan viewport</li>
+      <li><kbd>Scroll Wheel</kbd> : Zoom in / out</li>
+    </ul>
+  </div>
+
+  <!-- CANONICAL DATA BLOCK (Single Source of Truth) -->
+  <script id="diagram-data" type="application/json">
+{
+  "diagramType": "sequence",
+  "title": "Checkout",
+  "participants": [
+    {
+      "id": "p1",
+      "name": "Customer",
+      "kind": "actor",
+      "x": 158
+    },
+    {
+      "id": "p2",
+      "name": "Shop",
+      "kind": "system",
+      "x": 358
+    },
+    {
+      "id": "p3",
+      "name": "Payment",
+      "kind": "system",
+      "x": 558
+    },
+    {
+      "id": "p4",
+      "name": "Warehouse",
+      "kind": "system",
+      "x": 758
+    }
+  ],
+  "messages": [
+    {
+      "id": "m1",
+      "from": "p1",
+      "to": "p2",
+      "label": "Place order",
+      "kind": "sync",
+      "y": 166
+    },
+    {
+      "id": "m2",
+      "from": "p2",
+      "to": "p4",
+      "label": "Reserve stock",
+      "kind": "sync",
+      "y": 266
+    },
+    {
+      "id": "m3",
+      "from": "p4",
+      "to": "p2",
+      "label": "Stock reserved",
+      "kind": "reply",
+      "y": 326
+    },
+    {
+      "id": "m4",
+      "from": "p2",
+      "to": "p3",
+      "label": "Charge card",
+      "kind": "sync",
+      "y": 454
+    },
+    {
+      "id": "m5",
+      "from": "p3",
+      "to": "p2",
+      "label": "Payment result",
+      "kind": "reply",
+      "y": 514
+    },
+    {
+      "id": "m6",
+      "from": "p2",
+      "to": "p4",
+      "label": "Release stock",
+      "kind": "sync",
+      "y": 606
+    },
+    {
+      "id": "m7",
+      "from": "p2",
+      "to": "p1",
+      "label": "Order confirmed",
+      "kind": "reply",
+      "y": 694
+    }
+  ],
+  "fragments": [
+    {
+      "id": "f1",
+      "kind": "alt",
+      "label": "payment accepted",
+      "from": "m4",
+      "to": "m6",
+      "elseAt": "m6",
+      "x": 322,
+      "w": 472,
+      "y": 392,
+      "h": 236,
+      "elseY": 550
+    },
+    {
+      "id": "f2",
+      "kind": "opt",
+      "label": "stock available",
+      "from": "m2",
+      "to": "m3",
+      "x": 322,
+      "w": 472,
+      "y": 204,
+      "h": 144
+    }
+  ],
+  "schemaVersion": 1,
+  "layout": {
+    "width": 888,
+    "height": 780
+  }
+}
+  </script>
+
+  <!-- Interactive Diagram Script: shell, then the type's engine and plugin -->
+  <script>
+    (function () {
+      'use strict';
+
+// --- PLUGIN INTERFACE ---
+      // A diagram type registers itself once with registerDiagramPlugin({...}). The shell never touches
+      // type internals; it only calls these members:
+      //   id, defaultTitle, contentEl (element sized to fit/pan), report {node,label,labelText,nodeText},
+      //   render(), isBackground(el), clearSelection(),
+      //   cancelInteraction() -> true if something was cancelled, deleteSelection()
+      // The type's engine.js must define layoutDiagram(data): lay out `data` in place, no DOM access.
+      // Shared scope for plugins: chartData, scale/panX/panY, viewport, stage, updateStatus(), fitView().
+      let plugin = null;
+      function registerDiagramPlugin(p) { plugin = p; }
+
+      // --- STATE ---
+      let chartData = { title: "", direction: "LR", lanes: [], nodes: [], edges: [] };
+      let fileHandle = null;
+      let hasUnsavedChanges = false;
+
+      // Viewport Pan/Zoom state
+      let scale = 1.0;
+      let panX = 40;
+      let panY = 20;
+      let isPanning = false;
+      let panStartX = 0;
+      let panStartY = 0;
+
+
+// Elements
+      const viewport = document.getElementById('viewport');
+      const stage = document.getElementById('stage');
+      const chartTitleEl = document.getElementById('chart-title');
+      const saveStatus = document.getElementById('save-status');
+      const btnSave = document.getElementById('btn-save');
+      const btnAutoTidy = document.getElementById('btn-auto-tidy');
+      const btnZoomIn = document.getElementById('btn-zoom-in');
+      const btnZoomOut = document.getElementById('btn-zoom-out');
+      const btnZoomReset = document.getElementById('btn-zoom-reset');
+      const zoomLevelEl = document.getElementById('zoom-level');
+      const btnHelp = document.getElementById('btn-help');
+      const helpDrawer = document.getElementById('help-drawer');
+
+      function loadInitialData() {
+        try {
+          const raw = document.getElementById('diagram-data').textContent.trim();
+          if (raw) {
+            chartData = JSON.parse(raw);
+          }
+        } catch (err) {
+          console.error("Failed to parse diagram-data JSON:", err);
+        }
+        chartTitleEl.textContent = chartData.title || plugin.defaultTitle;
+
+        chartTitleEl.addEventListener('dblclick', (e) => {
+          e.stopPropagation();
+          chartTitleEl.contentEditable = 'true';
+          chartTitleEl.focus();
+          const range = document.createRange();
+          range.selectNodeContents(chartTitleEl);
+          const sel = window.getSelection();
+          sel.removeAllRanges();
+          sel.addRange(range);
+        });
+        chartTitleEl.addEventListener('blur', () => {
+          chartTitleEl.contentEditable = 'false';
+          const val = chartTitleEl.textContent.trim();
+          if (val && chartData.title !== val) {
+            chartData.title = val;
+            updateStatus(true);
+          }
+        });
+        chartTitleEl.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            chartTitleEl.blur();
+          }
+        });
+
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.has('present') || urlParams.has('capture')) document.body.classList.add('presentation');
+        if (urlParams.has('capture')) document.body.classList.add('capture');
+        initTheme();
+
+        plugin.render();
+        fitView();
+        updateStatus(false);
+
+        requestAnimationFrame(() => {
+          fitView();
+          if (/[?&]report(=|&|$)/.test(window.location.search)) setTimeout(publishRenderReport, 200);
+          if (/[?&]tidy(=|&|$)/.test(window.location.search)) publishTidyResult();
+        });
+      }
+
+      function updateStatus(unsaved) {
+        hasUnsavedChanges = unsaved;
+        if (unsaved) {
+          saveStatus.textContent = "Unsaved Changes";
+          saveStatus.className = "badge badge-status unsaved";
+        } else {
+          saveStatus.textContent = fileHandle ? "Saved to File" : "Ready";
+          saveStatus.className = "badge badge-status saved";
+        }
+      }
+
+      // --- AUTO-TIDY (the type's engine does the layout) ---
+      // ?tidy: run the engine on load and publish the laid-out data (used by scripts/engine_runner.py)
+      function publishTidyResult() {
+        layoutDiagram(chartData);
+        const el = document.createElement('script');
+        el.id = 'tidy-result';
+        el.type = 'application/json';
+        el.textContent = JSON.stringify(chartData);
+        document.body.appendChild(el);
+      }
+
+      btnAutoTidy.addEventListener('click', () => {
+        layoutDiagram(chartData);
+        plugin.render();
+        updateStatus(true);
+        fitView();
+      });
+
+      // --- THEME (light / dark) ---
+      // Priority: ?theme=dark|light  >  saved choice (localStorage)  >  OS preference
+      const btnTheme = document.getElementById('btn-theme');
+      function currentTheme() {
+        return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+      }
+      function applyTheme(theme, persist) {
+        document.documentElement.setAttribute('data-theme', theme);
+        btnTheme.textContent = theme === 'dark' ? '\u2600\uFE0F' : '\uD83C\uDF19';
+        if (persist) { try { localStorage.setItem('flowchart-theme', theme); } catch (e) {} }
+        if (plugin) plugin.render();   // type colors may depend on the theme
+      }
+      function initTheme() {
+        let theme = null;
+        const q = new URLSearchParams(window.location.search).get('theme');
+        if (q === 'dark' || q === 'light') theme = q;
+        if (!theme) { try { theme = localStorage.getItem('flowchart-theme'); } catch (e) {} }
+        if (theme !== 'dark' && theme !== 'light') {
+          theme = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+        }
+        applyTheme(theme, false);
+      }
+      btnTheme.addEventListener('click', () => applyTheme(currentTheme() === 'dark' ? 'light' : 'dark', true));
+
+      // --- VIEWPORT PAN & ZOOM & FIT ---
+      function updateTransform() {
+        stage.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
+        zoomLevelEl.textContent = `${Math.round(scale * 100)}%`;
+      }
+
+      // --- RENDER REPORT (only when opened with ?report; used by scripts/render_screenshot.py) ---
+      function publishRenderReport() {
+        const box = (el) => { const r = el.getBoundingClientRect(); return { l: r.left, t: r.top, r: r.right, b: r.bottom }; };
+        const hit = (a, b) => a.l < b.r - 1 && b.l < a.r - 1 && a.t < b.b - 1 && b.t < a.b - 1;
+        const nodes = [...document.querySelectorAll(plugin.report.node)].map(el => ({ id: el.dataset.nodeId, box: box(el) }));
+        const labels = [...document.querySelectorAll(plugin.report.label)]
+          .map(el => ({ id: el.dataset.edgeId, text: (el.querySelector(plugin.report.labelText)?.textContent || '').trim(), box: box(el) }))
+          .filter(l => l.text);
+        const errors = [], warnings = [];
+        for (let i = 0; i < labels.length; i++) {
+          for (let j = i + 1; j < labels.length; j++) {
+            if (hit(labels[i].box, labels[j].box)) errors.push(`Edge labels overlap: "${labels[i].text}" (${labels[i].id}) and "${labels[j].text}" (${labels[j].id})`);
+          }
+          nodes.forEach(n => {
+            if (hit(labels[i].box, n.box)) errors.push(`Edge label "${labels[i].text}" (${labels[i].id}) overlaps node ${n.id}`);
+          });
+        }
+        const effPx = (sel) => {
+          const sizes = [...document.querySelectorAll(sel)].map(el => parseFloat(getComputedStyle(el).fontSize) * scale);
+          return sizes.length ? Math.round(Math.min(...sizes) * 10) / 10 : null;
+        };
+        const minNodeFontPx = effPx(plugin.report.nodeText);
+        const minEdgeFontPx = effPx(plugin.report.labelText);
+        const MIN_PX = parseFloat(new URLSearchParams(window.location.search).get('minpx')) || 11;
+        const legibility = [];
+        if (minNodeFontPx !== null && minNodeFontPx < MIN_PX) legibility.push(`Node text renders at ${minNodeFontPx}px at Fit zoom (${Math.round(scale * 100)}%), below the ${MIN_PX}px minimum. Reduce columns/nodes or split the diagram.`);
+        if (minEdgeFontPx !== null && minEdgeFontPx < MIN_PX) legibility.push(`Edge labels render at ${minEdgeFontPx}px at Fit zoom, below the ${MIN_PX}px minimum.`);
+        const report = {
+          viewport: { w: window.innerWidth, h: window.innerHeight },
+          fitScale: Math.round(scale * 100) / 100,
+          nodeCount: nodes.length, labelCount: labels.length,
+          minNodeFontPx, minEdgeFontPx, minTextPx: MIN_PX, errors, legibility, warnings,
+          natural: { w: plugin.contentEl.offsetWidth, h: plugin.contentEl.offsetHeight }
+        };
+        const el = document.createElement('script');
+        el.id = 'render-report';
+        el.type = 'application/json';
+        el.textContent = JSON.stringify(report);
+        document.body.appendChild(el);
+      }
+
+      function fitView() {
+        const vpRect = viewport.getBoundingClientRect();
+        const currentWidth = plugin.contentEl.offsetWidth || 1400;
+        const currentHeight = plugin.contentEl.offsetHeight || 800;
+
+        // Capture mode: scale to the exact width requested (?capture&w=1600) and pin to the top-left,
+        // so the screenshot is the diagram only and does not depend on browser viewport quirks.
+        if (document.body.classList.contains('capture')) {
+          const reqW = parseFloat(new URLSearchParams(window.location.search).get('w'));
+          if (reqW > 0) {
+            scale = Math.min(1, reqW / currentWidth);
+            panX = 0;
+            panY = 0;
+            updateTransform();
+            return;
+          }
+        }
+
+        const pad = document.body.classList.contains('capture') ? 0 : 80;
+        const availableWidth = vpRect.width - pad;
+        const availableHeight = vpRect.height - pad;
+
+        const scaleX = availableWidth / currentWidth;
+        const scaleY = availableHeight / currentHeight;
+
+        scale = Math.min(Math.max(Math.min(scaleX, scaleY), 0.25), 1.0);
+        const minPan = document.body.classList.contains('capture') ? 0 : 20;
+        panX = Math.max(minPan, (vpRect.width - currentWidth * scale) / 2);
+        panY = Math.max(minPan, (vpRect.height - currentHeight * scale) / 2);
+
+        updateTransform();
+      }
+
+      viewport.addEventListener('pointerdown', (e) => {
+        if (e.target === viewport || e.target.id === 'stage' || plugin.isBackground(e.target)) {
+          if (plugin.cancelInteraction()) return;
+          isPanning = true;
+          panStartX = e.clientX - panX;
+          panStartY = e.clientY - panY;
+          viewport.classList.add('panning');
+          plugin.clearSelection();
+        }
+      });
+
+      window.addEventListener('pointermove', (e) => {
+        if (!isPanning) return;
+        panX = e.clientX - panStartX;
+        panY = e.clientY - panStartY;
+        updateTransform();
+      });
+
+      window.addEventListener('pointerup', () => {
+        isPanning = false;
+        viewport.classList.remove('panning');
+      });
+
+      viewport.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const unit = e.deltaMode === 1 ? 16 : (e.deltaMode === 2 ? 400 : 1);
+        const dX = e.deltaX * unit, dY = e.deltaY * unit;
+        const isPinch = e.ctrlKey || e.metaKey;
+        const isTrackpadScroll = !isPinch && e.deltaMode === 0 && (Math.abs(dX) > 0 || !Number.isInteger(dY) || Math.abs(dY) < 50);
+        if (isTrackpadScroll) {
+          // Two-finger scroll pans the diagram
+          panX -= dX;
+          panY -= dY;
+          updateTransform();
+          return;
+        }
+        // Pinch (ctrl+wheel) and mouse wheel zoom proportionally to the gesture, anchored at the cursor
+        const factor = isPinch ? Math.exp(-dY * 0.01) : Math.exp(-Math.sign(dY) * Math.min(Math.abs(dY), 100) * 0.0015);
+        const newScale = Math.min(Math.max(scale * factor, 0.2), 2.5);
+        const vp = viewport.getBoundingClientRect();
+        const cx = e.clientX - vp.left, cy = e.clientY - vp.top;
+        panX = cx - (cx - panX) * (newScale / scale);
+        panY = cy - (cy - panY) * (newScale / scale);
+        scale = newScale;
+        updateTransform();
+      }, { passive: false });
+
+      btnZoomIn.addEventListener('click', () => {
+        scale = Math.min(scale * 1.15, 2.5);
+        updateTransform();
+      });
+      btnZoomOut.addEventListener('click', () => {
+        scale = Math.max(scale * 0.85, 0.2);
+        updateTransform();
+      });
+      btnZoomReset.addEventListener('click', fitView);
+
+      btnHelp.addEventListener('click', () => {
+        helpDrawer.classList.toggle('open');
+      });
+
+      // --- SAVE MECHANISM (Direct to HTML File) ---
+      async function saveToFile() {
+        chartData.title = chartTitleEl.textContent.trim();
+        const updatedJson = JSON.stringify(chartData, null, 2);
+
+        let fullHtml = "";
+        try {
+          const res = await fetch(window.location.href);
+          if (res.ok) {
+            fullHtml = await res.text();
+          }
+        } catch (_) {}
+
+        if (!fullHtml || !fullHtml.includes('id="diagram-data"')) {
+          fullHtml = "<!DOCTYPE html>\n" + document.documentElement.outerHTML;
+        }
+        fullHtml = fullHtml.replace(/<script id="render-report"[\s\S]*?<\/script>/, '');
+
+        const replacedHtml = fullHtml.replace(
+          /(<script id="diagram-data" type="application\/json">)[\s\S]*?(<\/script>)/,
+          `$1\n${updatedJson}\n  $2`
+        );
+
+        document.getElementById('diagram-data').textContent = `\n${updatedJson}\n  `;
+
+        if ('showSaveFilePicker' in window) {
+          try {
+            if (!fileHandle) {
+              const suggested = (chartData.title || plugin.id).toLowerCase().replace(/[^a-z0-9_-]/g, '-') + '.html';
+              fileHandle = await window.showSaveFilePicker({
+                suggestedName: suggested,
+                types: [{
+                  description: 'HTML Diagram File',
+                  accept: { 'text/html': ['.html'] }
+                }]
+              });
+            }
+
+            const writable = await fileHandle.createWritable();
+            await writable.write(replacedHtml);
+            await writable.close();
+
+            updateStatus(false);
+            return;
+          } catch (err) {
+            if (err.name === 'AbortError') return;
+          }
+        }
+
+        try {
+          const blob = new Blob([replacedHtml], { type: 'text/html' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = (chartData.title || plugin.id).toLowerCase().replace(/[^a-z0-9_-]/g, '-') + '.html';
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+          updateStatus(false);
+        } catch (err) {
+          alert("Save failed: " + err.message);
+        }
+      }
+
+      btnSave.addEventListener('click', saveToFile);
+
+      window.addEventListener('keydown', (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+          e.preventDefault();
+          saveToFile();
+        } else if (e.key === 'Escape') {
+          plugin.cancelInteraction();
+        } else if (e.key === 'Delete' || e.key === 'Backspace') {
+          if (document.body.classList.contains('presentation')) return;
+          if (document.activeElement && (document.activeElement.isContentEditable || document.activeElement.tagName === 'INPUT')) {
+            return;
+          }
+          plugin.deleteSelection();
+        }
+      });
+      // --- SEQUENCE LAYOUT ENGINE ---
+      // Pure JS, no DOM access. Defines layoutDiagram(data) (see assets/shell/shell.js) and is run by the page
+      // (Auto-Tidy, edits) and by scripts/run_engine.mjs (--layout). The Python audit in scripts/audit_sequence.py
+      // mirrors the text-width constant below; keep SQ.CHAR_W in sync with it.
+      //
+      // Input:  participants[{id,name,kind}], messages[{id,from,to,label,kind}] (array order = time order),
+      //         fragments[{id,kind,label,from,to,elseAt?}] (from/to/elseAt are message ids)
+      // Output: participants[].x (center), messages[].y (arrow line), fragments[].{x,y,w,h,elseY},
+      //         layout {width,height}
+      const SQ = {
+        BOX_W: 148, BOX_H: 56, TOP: 24, MARGIN: 56, MIN_GAP: 200,
+        FIRST_GAP: 56, ROW: 60, SELF_ROW: 96, ARROW_AT: 30,
+        FRAG_TOP: 40, FRAG_STEP_BOTTOM: 28, ELSE_GAP: 32, ROW_BOTTOM_PAD: 8,
+        CHAR_W: 7.4, LABEL_PAD: 44, SELF_LOOP: 40, TAIL: 56, FRAG_PAD: 36, FRAG_PAD_STEP: 14, GRID: 4
+      };
+      const sqTextW = (t) => Math.ceil(String(t == null ? '' : t).length * SQ.CHAR_W);
+      const sqGrid = (v) => Math.ceil(v / SQ.GRID) * SQ.GRID;
+
+      function layoutDiagram(data) {
+        const ps = data.participants || [], ms = data.messages || [], fs = data.fragments || [];
+        const pIdx = {};
+        ps.forEach((p, i) => { pIdx[p.id] = i; });
+        const mIdx = {};
+        ms.forEach((m, i) => { mIdx[m.id] = i; });
+
+        // 1. Horizontal gaps: every message label must fit between its two lifelines.
+        const gaps = ps.slice(1).map(() => SQ.MIN_GAP);
+        const need = [];
+        ms.forEach((m) => {
+          const a = pIdx[m.from], b = pIdx[m.to];
+          if (a === undefined || b === undefined) return;
+          if (a === b) {
+            if (a < gaps.length) need.push({ lo: a, hi: a + 1, w: SQ.SELF_LOOP + 12 + sqTextW(m.label) + 24 });
+          } else {
+            need.push({ lo: Math.min(a, b), hi: Math.max(a, b), w: sqTextW(m.label) + SQ.LABEL_PAD });
+          }
+        });
+        need.sort((u, v) => (u.hi - u.lo) - (v.hi - v.lo));
+        need.forEach((n) => {
+          let sum = 0;
+          for (let i = n.lo; i < n.hi; i++) sum += gaps[i];
+          if (sum < n.w) {
+            const add = (n.w - sum) / (n.hi - n.lo);
+            for (let i = n.lo; i < n.hi; i++) gaps[i] += add;
+          }
+        });
+        let x = SQ.MARGIN + SQ.BOX_W / 2 + SQ.FRAG_PAD_STEP * 2;
+        ps.forEach((p, i) => {
+          if (i) x += sqGrid(gaps[i - 1]);
+          p.x = Math.round(x);
+        });
+
+        // 2. Fragments: resolve message ranges, nesting level (0 = innermost) and ordering.
+        const frs = fs
+          .map((f) => ({ f, a: mIdx[f.from], b: mIdx[f.to], e: f.elseAt === undefined ? undefined : mIdx[f.elseAt] }))
+          .filter((r) => r.a !== undefined && r.b !== undefined && r.a <= r.b);
+        fs.forEach((f) => { delete f.x; delete f.y; delete f.w; delete f.h; delete f.elseY; });
+        const span = (r) => r.b - r.a;
+        const outer = (o, i) => o !== i && o.a <= i.a && i.b <= o.b &&
+          (span(o) > span(i) || (span(o) === span(i) && frs.indexOf(o) < frs.indexOf(i)));
+        const levelOf = (r) => frs.reduce((lv, i) => (outer(r, i) ? Math.max(lv, levelOf(i) + 1) : lv), 0);
+        frs.forEach((r) => { r.level = levelOf(r); });
+
+        // 3. Vertical positions, inserting space where fragments open, split (else) and close.
+        let y = SQ.TOP + SQ.BOX_H + SQ.FIRST_GAP;
+        ms.forEach((m, k) => {
+          const starting = frs.filter((r) => r.a === k).sort((u, v) => span(v) - span(u) || frs.indexOf(u) - frs.indexOf(v));
+          const y0 = y;
+          starting.forEach((r, s) => { r.top = y0 + SQ.FRAG_TOP * s + 8; });
+          y += SQ.FRAG_TOP * starting.length;
+          frs.filter((r) => r.e === k && r.e > r.a && r.e <= r.b).forEach((r) => { r.elseY = y + 6; y += SQ.ELSE_GAP; });
+          const self = m.from === m.to;
+          const step = self ? SQ.SELF_ROW : SQ.ROW;
+          m.y = y + SQ.ARROW_AT;
+          const rowBottom = y + step - SQ.ROW_BOTTOM_PAD;
+          const ending = frs.filter((r) => r.b === k).sort((u, v) => span(u) - span(v) || frs.indexOf(v) - frs.indexOf(u));
+          ending.forEach((r, e) => { r.bottom = rowBottom + SQ.FRAG_STEP_BOTTOM * e; });
+          y += step + SQ.FRAG_STEP_BOTTOM * ending.length;
+        });
+
+        // 4. Fragment boxes: wide enough for every message they contain (and their tag), padded by nesting level.
+        let maxRight = ps.length ? ps[ps.length - 1].x + SQ.BOX_W / 2 : SQ.MARGIN;
+        frs.forEach((r) => {
+          let lo = Infinity, hi = -Infinity;
+          for (let k = r.a; k <= r.b; k++) {
+            const m = ms[k], pa = ps[pIdx[m.from]], pb = ps[pIdx[m.to]];
+            if (!pa || !pb) continue;
+            lo = Math.min(lo, pa.x, pb.x);
+            hi = Math.max(hi, pa.x, pb.x);
+            if (m.from === m.to) hi = Math.max(hi, pa.x + SQ.SELF_LOOP + 12 + sqTextW(m.label) + 12);
+          }
+          if (lo === Infinity) { lo = hi = SQ.MARGIN; }
+          const pad = SQ.FRAG_PAD + SQ.FRAG_PAD_STEP * r.level;
+          const tagW = sqTextW(r.f.kind) + sqTextW(r.f.label) + 56;
+          r.f.x = Math.round(lo - pad);
+          r.f.w = Math.round(Math.max(hi - lo + 2 * pad, tagW));
+          r.f.y = Math.round(r.top);
+          r.f.h = Math.round(r.bottom - r.top);
+          if (r.elseY !== undefined) r.f.elseY = Math.round(r.elseY);
+          maxRight = Math.max(maxRight, r.f.x + r.f.w);
+        });
+
+        ms.forEach((m) => { m.y = Math.round(m.y); });
+        data.layout = { width: Math.round(maxRight + SQ.MARGIN), height: Math.round(y + SQ.TAIL) };
+      }
+      // ===== SEQUENCE DIAGRAM PLUGIN =====
+      // Renders chartData (participants, messages, fragments) laid out by engine.js and handles editing.
+      // Positions are always derived by layoutDiagram(): edits change the logical model, then re-layout.
+      const seqCanvas = document.getElementById('seq-canvas');
+      const seqSvg = document.getElementById('seq-svg');
+      const seqHtml = document.getElementById('seq-html');
+      const seqFragG = document.getElementById('seq-fragments');
+      const seqLifeG = document.getElementById('seq-lifelines');
+      const seqActG = document.getElementById('seq-activations');
+      const seqMsgG = document.getElementById('seq-messages');
+      const seqDrop = document.getElementById('seq-drop-line');
+      const btnAddParticipant = document.getElementById('btn-add-participant');
+      const btnAddMessage = document.getElementById('btn-add-message');
+      const btnToggleKind = document.getElementById('btn-toggle-kind');
+      const btnFrame = document.getElementById('btn-frame');
+
+      const SVG_NS = 'http://www.w3.org/2000/svg';
+      const ACT_HALF = 6;      // half width of an activation bar
+      const ACT_STEP = 5;      // sideways offset per nested activation
+      const MSG_KINDS = ['sync', 'reply', 'async'];
+      const FRAG_KINDS = ['opt', 'alt', 'loop'];
+
+      let seqSel = null;       // { kind: 'participant' | 'message' | 'fragment', id }
+      let seqDrag = null;      // active drag: { kind, id, el, startX, startY, moved, target }
+      let seqCounter = 0;
+
+      function svgEl(name, attrs) {
+        const el = document.createElementNS(SVG_NS, name);
+        Object.keys(attrs).forEach((k) => el.setAttribute(k, attrs[k]));
+        return el;
+      }
+      function htmlEl(tag, className, styles) {
+        const el = document.createElement(tag);
+        el.className = className;
+        if (styles) Object.assign(el.style, styles);
+        return el;
+      }
+      const seqUid = (prefix) => `${prefix}_${Date.now().toString(36)}${(seqCounter++).toString(36)}`;
+      const px = (v) => `${v}px`;
+
+      function ensureModel() {
+        chartData.participants = chartData.participants || [];
+        chartData.messages = chartData.messages || [];
+        chartData.fragments = chartData.fragments || [];
+      }
+
+      // Activation bars: a call (sync) opens a bar on its target until the matching reply.
+      function seqActivations() {
+        const ms = chartData.messages, bars = [];
+        ms.forEach((m, i) => {
+          if (m.kind !== 'sync' || m.from === m.to) return;
+          for (let j = i + 1; j < ms.length; j++) {
+            const r = ms[j];
+            if (r.kind === 'reply' && r.from === m.to && r.to === m.from) {
+              bars.push({ pid: m.to, y1: m.y - 6, y2: r.y + 6 });
+              break;
+            }
+          }
+        });
+        bars.sort((a, b) => a.y1 - b.y1);
+        const open = {};
+        bars.forEach((b) => {
+          const stack = (open[b.pid] = (open[b.pid] || []).filter((o) => o.y2 > b.y1));
+          b.depth = stack.length;
+          stack.push(b);
+        });
+        return bars;
+      }
+
+      function render() {
+        ensureModel();
+        const ps = chartData.participants, ms = chartData.messages, fs = chartData.fragments;
+        const missing = !chartData.layout || ps.some((p) => p.x === undefined) || ms.some((m) => m.y === undefined);
+        if (missing) layoutDiagram(chartData);
+        const L = chartData.layout;
+        seqCanvas.style.width = px(L.width);
+        seqCanvas.style.height = px(L.height);
+        seqSvg.setAttribute('width', L.width);
+        seqSvg.setAttribute('height', L.height);
+        [seqFragG, seqLifeG, seqActG, seqMsgG].forEach((g) => { g.textContent = ''; });
+        seqHtml.textContent = '';
+        const byId = {};
+        ps.forEach((p) => { byId[p.id] = p; });
+
+        // Fragments (behind everything else)
+        fs.forEach((f) => {
+          if (f.x === undefined) return;
+          seqFragG.appendChild(svgEl('rect', { class: 'seq-frag-box', x: f.x, y: f.y, width: f.w, height: f.h, rx: 6, 'data-frag-id': f.id }));
+          const tag = htmlEl('div', 'seq-frag-label', { left: px(f.x), top: px(f.y) });
+          tag.dataset.fragId = f.id;
+          const kind = htmlEl('span', 'seq-frag-kind');
+          kind.textContent = f.kind;
+          const text = htmlEl('span', 'seq-frag-text');
+          text.textContent = f.label || 'condition';
+          tag.appendChild(kind);
+          tag.appendChild(text);
+          seqHtml.appendChild(tag);
+          if (f.elseY !== undefined) {
+            seqFragG.appendChild(svgEl('line', { class: 'seq-frag-else', x1: f.x, x2: f.x + f.w, y1: f.elseY, y2: f.elseY }));
+            const el = htmlEl('div', 'seq-frag-else-label', { left: px(f.x + f.w - 10), top: px(f.elseY + 3), transform: 'translateX(-100%)' });
+            el.textContent = 'else';
+            seqHtml.appendChild(el);
+          }
+        });
+
+        // Lifelines and participant boxes
+        ps.forEach((p) => {
+          seqLifeG.appendChild(svgEl('line', { class: 'seq-lifeline', x1: p.x, x2: p.x, y1: SQ.TOP + SQ.BOX_H, y2: L.height - 24 }));
+          const box = htmlEl('div', `seq-participant${p.kind === 'actor' ? ' is-actor' : ''}`, { left: px(p.x - SQ.BOX_W / 2), top: px(SQ.TOP) });
+          box.dataset.nodeId = p.id;
+          const name = htmlEl('span', 'seq-participant-name');
+          name.textContent = p.name;
+          box.appendChild(name);
+          seqHtml.appendChild(box);
+        });
+
+        // Activation bars
+        const bars = seqActivations();
+        bars.forEach((b) => {
+          const p = byId[b.pid];
+          if (!p) return;
+          seqActG.appendChild(svgEl('rect', { class: 'seq-activation', x: p.x - ACT_HALF + b.depth * ACT_STEP, y: b.y1, width: ACT_HALF * 2, height: b.y2 - b.y1, rx: 2 }));
+        });
+        const activeDepth = (pid, y) => bars.reduce((mx, b) => (b.pid === pid && b.y1 <= y && y <= b.y2 ? Math.max(mx, b.depth) : mx), -1);
+        const edgeX = (p, y, dir) => {
+          const d = activeDepth(p.id, y);
+          return d < 0 ? p.x : p.x + dir * (ACT_HALF + d * ACT_STEP);
+        };
+
+        // Messages
+        ms.forEach((m) => {
+          const a = byId[m.from], b = byId[m.to];
+          if (!a || !b) return;
+          const self = a === b;
+          let d, labelStyle;
+          if (self) {
+            const xs = edgeX(a, m.y, 1), xe = edgeX(a, m.y + 28, 1);
+            d = `M ${xs} ${m.y} H ${xs + SQ.SELF_LOOP} V ${m.y + 28} H ${xe}`;
+            labelStyle = { left: px(xs + SQ.SELF_LOOP + 8), top: px(m.y + 4) };
+          } else {
+            const dir = b.x > a.x ? 1 : -1;
+            const x1 = edgeX(a, m.y, dir), x2 = edgeX(b, m.y, -dir);
+            d = `M ${x1} ${m.y} H ${x2}`;
+            labelStyle = { left: px((x1 + x2) / 2), top: px(m.y - 26), transform: 'translateX(-50%)' };
+          }
+          const marker = m.kind === 'sync' ? 'url(#seq-arrow-solid)' : 'url(#seq-arrow-open)';
+          seqMsgG.appendChild(svgEl('path', { class: `seq-line${m.kind === 'reply' ? ' is-reply' : ''}`, d, 'marker-end': marker, 'data-edge-id': m.id }));
+          seqMsgG.appendChild(svgEl('path', { class: 'seq-msg-hit', d, 'data-edge-id': m.id }));
+          const label = htmlEl('div', `seq-msg-label${self ? ' is-self' : ''}`, labelStyle);
+          label.dataset.edgeId = m.id;
+          const text = htmlEl('span', 'seq-msg-label-text');
+          text.textContent = m.label || '';
+          label.appendChild(text);
+          seqHtml.appendChild(label);
+        });
+        applySelection();
+      }
+
+      function applySelection() {
+        const sel = seqSel || {};
+        document.querySelectorAll('.seq-participant').forEach((el) => el.classList.toggle('selected', sel.kind === 'participant' && el.dataset.nodeId === sel.id));
+        document.querySelectorAll('.seq-msg-label, .seq-line').forEach((el) => el.classList.toggle('selected', sel.kind === 'message' && el.dataset.edgeId === sel.id));
+        document.querySelectorAll('.seq-frag-label, .seq-frag-box').forEach((el) => el.classList.toggle('selected', sel.kind === 'fragment' && el.dataset.fragId === sel.id));
+      }
+
+      function select(kind, id) {
+        seqSel = kind ? { kind, id } : null;
+        applySelection();
+      }
+
+      function relayout() {
+        layoutDiagram(chartData);
+        render();
+        updateStatus(true);
+      }
+
+      // --- DRAG TO REORDER (participants sideways, messages up and down) ---
+      function dropTarget(drag) {
+        const ps = chartData.participants, ms = chartData.messages, L = chartData.layout;
+        if (drag.kind === 'participant') {
+          const me = ps.find((p) => p.id === drag.id);
+          const others = ps.filter((p) => p.id !== drag.id);
+          const at = others.filter((p) => p.x < me.x + drag.dx).length;
+          const left = others[at - 1], right = others[at];
+          const x = left && right ? (left.x + right.x) / 2 : left ? left.x + SQ.BOX_W / 2 + 16 : right.x - SQ.BOX_W / 2 - 16;
+          return { index: at, line: { x1: x, x2: x, y1: SQ.TOP - 10, y2: L.height - 30 } };
+        }
+        const me = ms.find((m) => m.id === drag.id);
+        const others = ms.filter((m) => m.id !== drag.id);
+        const at = others.filter((m) => m.y < me.y + drag.dy).length;
+        const above = others[at - 1], below = others[at];
+        const y = above && below ? (above.y + below.y) / 2 : above ? above.y + 34 : below ? below.y - 34 : me.y;
+        return { index: at, line: { x1: 8, x2: L.width - 8, y1: y, y2: y } };
+      }
+
+      function onSeqPointerDown(e) {
+        if (document.body.classList.contains('presentation') || e.button > 0) return;
+        if (e.target.isContentEditable) return;
+        const hit = e.target.closest('.seq-participant, .seq-msg-label, .seq-msg-hit, .seq-frag-label');
+        if (!hit) return;
+        let kind, id;
+        if (hit.classList.contains('seq-participant')) { kind = 'participant'; id = hit.dataset.nodeId; }
+        else if (hit.classList.contains('seq-frag-label')) { kind = 'fragment'; id = hit.dataset.fragId; }
+        else { kind = 'message'; id = hit.dataset.edgeId; }
+        select(kind, id);
+        if (kind === 'fragment') return;
+        seqDrag = { kind, id, el: hit, startX: e.clientX, startY: e.clientY, dx: 0, dy: 0, moved: false, target: null };
+        window.addEventListener('pointermove', onSeqPointerMove);
+        window.addEventListener('pointerup', onSeqPointerUp);
+      }
+
+      function onSeqPointerMove(e) {
+        if (!seqDrag) return;
+        seqDrag.dx = (e.clientX - seqDrag.startX) / scale;
+        seqDrag.dy = (e.clientY - seqDrag.startY) / scale;
+        if (!seqDrag.moved && Math.abs(seqDrag.dx) < 4 && Math.abs(seqDrag.dy) < 4) return;
+        seqDrag.moved = true;
+        const isP = seqDrag.kind === 'participant';
+        const el = isP ? seqDrag.el : document.querySelector(`.seq-msg-label[data-edge-id="${seqDrag.id}"]`);
+        if (!el) return;
+        el.classList.add('dragging');
+        const base = el.style.transform.replace(/translate[XY]\([^)]*\)/g, '').trim();
+        el.style.transform = `${base} ${isP ? `translateX(${seqDrag.dx}px)` : `translateY(${seqDrag.dy}px)`}`.trim();
+        seqDrag.target = dropTarget(seqDrag);
+        const line = seqDrag.target.line;
+        Object.keys(line).forEach((k) => seqDrop.setAttribute(k, line[k]));
+        seqDrop.style.display = 'block';
+      }
+
+      function endSeqDrag() {
+        window.removeEventListener('pointermove', onSeqPointerMove);
+        window.removeEventListener('pointerup', onSeqPointerUp);
+        seqDrop.style.display = 'none';
+        const drag = seqDrag;
+        seqDrag = null;
+        return drag;
+      }
+
+      function onSeqPointerUp() {
+        const drag = endSeqDrag();
+        if (!drag || !drag.moved || !drag.target) { render(); return; }
+        const list = drag.kind === 'participant' ? chartData.participants : chartData.messages;
+        const from = list.findIndex((item) => item.id === drag.id);
+        const [item] = list.splice(from, 1);
+        list.splice(drag.target.index, 0, item);
+        if (drag.kind === 'message') {
+          const order = chartData.messages.map((m) => m.id);
+          chartData.fragments.forEach((f) => {
+            if (order.indexOf(f.from) > order.indexOf(f.to)) { const t = f.from; f.from = f.to; f.to = t; }
+          });
+        }
+        if (drag.target.index !== from) relayout(); else render();
+      }
+
+      // --- INLINE TEXT EDITING (double-click) ---
+      seqHtml.addEventListener('dblclick', (e) => {
+        if (document.body.classList.contains('presentation')) return;
+        const el = e.target.closest('.seq-participant-name, .seq-msg-label-text, .seq-frag-text');
+        if (!el) return;
+        e.stopPropagation();
+        el.contentEditable = 'true';
+        el.focus();
+        const range = document.createRange();
+        range.selectNodeContents(el);
+        const s = window.getSelection();
+        s.removeAllRanges();
+        s.addRange(range);
+        const commit = () => {
+          el.removeEventListener('blur', commit);
+          el.contentEditable = 'false';
+          const value = el.textContent.trim();
+          const owner = el.closest('[data-node-id], [data-edge-id], [data-frag-id]');
+          let changed = false;
+          if (value && owner) {
+            if (owner.dataset.nodeId) { const p = chartData.participants.find((x) => x.id === owner.dataset.nodeId); if (p && p.name !== value) { p.name = value; changed = true; } }
+            else if (owner.dataset.edgeId) { const m = chartData.messages.find((x) => x.id === owner.dataset.edgeId); if (m && m.label !== value) { m.label = value; changed = true; } }
+            else if (owner.dataset.fragId) { const f = chartData.fragments.find((x) => x.id === owner.dataset.fragId); if (f && f.label !== value) { f.label = value; changed = true; } }
+          }
+          if (changed) relayout(); else render();
+        };
+        el.addEventListener('blur', commit);
+        el.addEventListener('keydown', (ke) => { if (ke.key === 'Enter') { ke.preventDefault(); el.blur(); } });
+      });
+
+      seqHtml.addEventListener('pointerdown', onSeqPointerDown);
+      seqSvg.addEventListener('pointerdown', onSeqPointerDown);
+
+      // --- EDITS ---
+      function removeMessages(ids) {
+        const gone = new Set(ids);
+        const order = chartData.messages.map((m) => m.id);
+        const survivor = (id, dir) => {
+          let i = order.indexOf(id);
+          while (i >= 0 && i < order.length && gone.has(order[i])) i += dir;
+          return i >= 0 && i < order.length ? order[i] : null;
+        };
+        chartData.fragments = chartData.fragments.filter((f) => {
+          const from = survivor(f.from, 1), to = survivor(f.to, -1);
+          if (!from || !to || order.indexOf(from) > order.indexOf(to)) return false;
+          f.from = from;
+          f.to = to;
+          if (f.elseAt !== undefined) {
+            const e = survivor(f.elseAt, 1);
+            if (e && order.indexOf(e) > order.indexOf(from) && order.indexOf(e) <= order.indexOf(to)) f.elseAt = e; else delete f.elseAt;
+          }
+          return true;
+        });
+        chartData.messages = chartData.messages.filter((m) => !gone.has(m.id));
+      }
+
+      function deleteSelection() {
+        if (!seqSel) return;
+        if (seqSel.kind === 'participant') {
+          const id = seqSel.id;
+          removeMessages(chartData.messages.filter((m) => m.from === id || m.to === id).map((m) => m.id));
+          chartData.participants = chartData.participants.filter((p) => p.id !== id);
+        } else if (seqSel.kind === 'message') {
+          removeMessages([seqSel.id]);
+        } else {
+          chartData.fragments = chartData.fragments.filter((f) => f.id !== seqSel.id);
+        }
+        seqSel = null;
+        relayout();
+      }
+
+      btnAddParticipant.addEventListener('click', () => {
+        ensureModel();
+        const p = { id: seqUid('p'), name: `Participant ${chartData.participants.length + 1}`, kind: 'system' };
+        chartData.participants.push(p);
+        seqSel = { kind: 'participant', id: p.id };
+        relayout();
+      });
+
+      btnAddMessage.addEventListener('click', () => {
+        ensureModel();
+        const ps = chartData.participants, ms = chartData.messages;
+        if (!ps.length) return;
+        let from, to, at = ms.length, kind = 'sync';
+        const selMsg = seqSel && seqSel.kind === 'message' ? ms.find((m) => m.id === seqSel.id) : null;
+        if (selMsg) {
+          from = selMsg.to; to = selMsg.from; at = ms.indexOf(selMsg) + 1; kind = 'reply';
+        } else {
+          const i = seqSel && seqSel.kind === 'participant' ? ps.findIndex((p) => p.id === seqSel.id) : 0;
+          from = ps[i].id;
+          to = (ps[i + 1] || ps[i - 1] || ps[i]).id;
+        }
+        const m = { id: seqUid('m'), from, to, label: 'Message', kind };
+        ms.splice(at, 0, m);
+        seqSel = { kind: 'message', id: m.id };
+        relayout();
+      });
+
+      btnToggleKind.addEventListener('click', () => {
+        if (!seqSel || seqSel.kind !== 'message') return;
+        const m = chartData.messages.find((x) => x.id === seqSel.id);
+        if (!m) return;
+        m.kind = MSG_KINDS[(MSG_KINDS.indexOf(m.kind) + 1) % MSG_KINDS.length];
+        relayout();
+      });
+
+      btnFrame.addEventListener('click', () => {
+        ensureModel();
+        if (seqSel && seqSel.kind === 'fragment') {
+          const f = chartData.fragments.find((x) => x.id === seqSel.id);
+          if (f) { f.kind = FRAG_KINDS[(FRAG_KINDS.indexOf(f.kind) + 1) % FRAG_KINDS.length]; relayout(); }
+          return;
+        }
+        if (!seqSel || seqSel.kind !== 'message') return;
+        const f = { id: seqUid('f'), kind: 'opt', label: 'condition', from: seqSel.id, to: seqSel.id };
+        chartData.fragments.push(f);
+        seqSel = { kind: 'fragment', id: f.id };
+        relayout();
+      });
+
+      // --- REGISTER WITH THE SHELL ---
+      registerDiagramPlugin({
+        id: 'sequence',
+        defaultTitle: 'Interactive Sequence Diagram',
+        contentEl: seqCanvas,
+        report: { node: '.seq-participant', label: '.seq-msg-label', labelText: '.seq-msg-label-text', nodeText: '.seq-participant-name' },
+        render,
+        isBackground: (el) => el === seqCanvas || el === seqSvg || el === seqHtml,
+        clearSelection() { select(null); },
+        cancelInteraction() {
+          if (!seqDrag) return false;
+          endSeqDrag();
+          render();
+          return true;
+        },
+        deleteSelection
+      });
+      loadInitialData();
+    })();
+  </script>
+</body>
+</html>

@@ -11,6 +11,15 @@ Supported diagram types:
 
 ERD and state diagrams are planned, not built yet.
 
+## Try it
+
+Open these in a browser, no setup needed:
+
+- [assets/example-flowchart.html](assets/example-flowchart.html): a loan application process across 4 swimlanes
+- [assets/example-sequence.html](assets/example-sequence.html): a checkout flow with `opt` and `alt` frames
+
+In the flowchart, drag a step to another lane, drag a lane header to reorder lanes, double-click text to edit, and press **Auto-Tidy** after moving things around. In the sequence diagram, drag a participant sideways or a message up and down to reorder, double-click to edit, and use **+ Participant**, **+ Message** and **Frame** in the toolbar. Press **Delete** to remove the selected item, and add `?present` to the address for a read-only view.
+
 ## Requirements
 
 | Need | For | Notes |
@@ -64,4 +73,4 @@ python scripts/render_screenshot.py --input flowchart.html --output flowchart.pn
 python scripts/layout_engine.py --extract flowchart.html -o current.json
 ```
 
-Try `assets/example-sequence.json` for a sequence diagram. In normal use you don't run these yourself: the agent does, following `SKILL.md`.
+The example JSON files in `assets/` are the inputs these pages were built from. In normal use you don't run these yourself: the agent does, following `SKILL.md`.

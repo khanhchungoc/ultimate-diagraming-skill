@@ -59,8 +59,16 @@ export async function launch(browser) {
     async open(file, query = '') {
       state.errors = [];
       const loaded = new Promise((r) => { state.onLoad = r; });
-      await send('Page.navigate', { url: pathToFileURL(file).href + query });
+      const url = pathToFileURL(file).href + query;
+      await send('Page.navigate', { url });
       await loaded;
+      // The first load event can belong to the previous page (about:blank): wait for the real one.
+      for (let i = 0; i < 50; i++) {
+        const r = await send('Runtime.evaluate', { expression: `location.href + '|' + document.readyState`, returnByValue: true });
+        const [href, ready] = String(r.result.value).split('|');
+        if (href === url && ready === 'complete') break;
+        await sleep(100);
+      }
       await sleep(700);
     },
     async ev(expression) {

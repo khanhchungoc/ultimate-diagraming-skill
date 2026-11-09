@@ -55,7 +55,7 @@
             const nh = (n.type === 'decision') ? DECISION_HEIGHT : NODE_HEIGHT;
             return Math.max(m, (n.y || 48) + nh);
           }, 100);
-          const computedHeight = Math.max(LANE_MIN_HEIGHT, lane.height || 0, maxNodeBottom + LANE_BOTTOM_PAD);
+          const computedHeight = Math.max(LANE_MIN_HEIGHT, maxNodeBottom + LANE_BOTTOM_PAD); // derived from nodes only, so lanes shrink back
           lane.height = computedHeight;
 
           const laneEl = document.createElement('div');
@@ -894,6 +894,13 @@
             }
           });
 
+          // Wide invisible hit area so thin arrows are easy to click and select
+          const hit = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+          hit.setAttribute('d', pathD.path);
+          hit.setAttribute('class', 'connector-hit');
+          hit.addEventListener('click', (e) => { e.stopPropagation(); selectEdge(edge.id); });
+          hit.addEventListener('dblclick', (e) => path.dispatchEvent(new MouseEvent('dblclick', { bubbles: false })));
+          edgeGroup.appendChild(hit);
           edgeGroup.appendChild(path);
 
           // Edge Label Pill
@@ -980,15 +987,19 @@
             labelContainer.appendChild(labelText);
 
             if (isSelected) {
-              const delEdgeBtn = document.createElement('span');
+              // Separate from the label so it reads as "delete the arrow", not "clear the label"
+              const delEdgeBtn = document.createElement('div');
               delEdgeBtn.className = 'edge-delete-btn';
-              delEdgeBtn.textContent = '×';
-              delEdgeBtn.title = 'Delete connection';
+              delEdgeBtn.textContent = '🗑 Delete arrow';
+              delEdgeBtn.title = 'Delete this arrow (Delete key)';
+              delEdgeBtn.style.left = `${pathD.midX}px`;
+              delEdgeBtn.style.top = `${pathD.midY - 30}px`;
+              delEdgeBtn.addEventListener('pointerdown', (e) => e.stopPropagation());
               delEdgeBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 deleteEdge(edge.id);
               });
-              labelContainer.appendChild(delEdgeBtn);
+              edgeLabelsGroup.appendChild(delEdgeBtn);
             }
 
             labelContainer.addEventListener('click', (e) => {
@@ -998,13 +1009,17 @@
 
             edgeLabelsGroup.appendChild(labelContainer);
 
-            path.addEventListener('mouseenter', () => {
-              labelContainer.classList.add('hover-visible');
-            });
-            path.addEventListener('mouseleave', () => {
-              if (edge.id !== selectedEdgeId && !labelText.matches(':focus')) {
-                labelContainer.classList.remove('hover-visible');
-              }
+            [path, hit].forEach(el => {
+              el.addEventListener('mouseenter', () => {
+                labelContainer.classList.add('hover-visible');
+                path.classList.add('hover');
+              });
+              el.addEventListener('mouseleave', () => {
+                path.classList.remove('hover');
+                if (edge.id !== selectedEdgeId && !labelText.matches(':focus')) {
+                  labelContainer.classList.remove('hover-visible');
+                }
+              });
             });
           }
         });
@@ -1389,15 +1404,40 @@
       }
 
       // --- ADD ELEMENTS ---
+      // Place a new node at the center of the visible viewport (lane + local coords)
+      function viewportCenterPlacement(nw, nh) {
+        const vp = viewport.getBoundingClientRect();
+        const cx = vp.left + vp.width / 2;
+        const cy = vp.top + vp.height / 2;
+        const stageRect = swimlanesContainer.getBoundingClientRect();
+        const track = document.querySelector('.lane-track');
+        const trackLeft = track ? track.getBoundingClientRect().left : stageRect.left;
+        const gx = (cx - trackLeft) / scale;
+        const gy = (cy - stageRect.top) / scale;
+        let top = 0, lane = chartData.lanes[0];
+        for (let i = 0; i < chartData.lanes.length; i++) {
+          const l = chartData.lanes[i];
+          const lh = l.height || LANE_MIN_HEIGHT;
+          lane = l;
+          if (gy < top + lh) break;
+          if (i < chartData.lanes.length - 1) top += lh;
+        }
+        return {
+          laneId: lane ? lane.id : "lane-1",
+          x: Math.max(16, Math.round((gx - nw / 2) / 4) * 4),
+          y: Math.max(12, Math.round((gy - top - nh / 2) / 4) * 4)
+        };
+      }
+
       btnAddStep.addEventListener('click', () => {
-        const laneId = chartData.lanes[0] ? chartData.lanes[0].id : "lane-1";
+        const p = viewportCenterPlacement(NODE_WIDTH, NODE_HEIGHT);
         const newNode = {
           id: `n_${Date.now()}`,
-          laneId: laneId,
+          laneId: p.laneId,
           type: "task",
           label: "New Step",
-          x: 80,
-          y: 53
+          x: p.x,
+          y: p.y
         };
         chartData.nodes.push(newNode);
         updateStatus(true);
@@ -1406,14 +1446,14 @@
       });
 
       btnAddDecision.addEventListener('click', () => {
-        const laneId = chartData.lanes[0] ? chartData.lanes[0].id : "lane-1";
+        const p = viewportCenterPlacement(NODE_WIDTH, DECISION_HEIGHT);
         const newNode = {
           id: `n_${Date.now()}`,
-          laneId: laneId,
+          laneId: p.laneId,
           type: "decision",
           label: "Decision?",
-          x: 80,
-          y: 53
+          x: p.x,
+          y: p.y
         };
         chartData.nodes.push(newNode);
         updateStatus(true);
