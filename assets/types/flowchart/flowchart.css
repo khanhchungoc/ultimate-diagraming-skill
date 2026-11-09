@@ -379,9 +379,32 @@
       transform: translate(-50%, -50%);
       box-shadow: 0 1px 3px rgba(0,0,0,0.15);
     }
-    .flow-node:hover .port, .flow-node.selected .port, body.connecting .port {
+    .flow-node:hover .port, .flow-node.selected .port {
       opacity: 1;
     }
+    /* While dragging an arrow, targets auto-anchor: no anchor points shown anywhere */
+    body.connecting .port, body.reconnecting .port {
+      opacity: 0 !important;
+      pointer-events: none;
+    }
+    /* Draggable arrow endpoints (shown on the selected arrow) */
+    .edge-end-handle {
+      position: absolute;
+      transform: translate(-50%, -50%);
+      width: 14px;
+      height: 14px;
+      box-sizing: border-box;
+      border-radius: 50%;
+      background: var(--node-bg);
+      border: 2.5px solid var(--primary);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+      cursor: grab;
+      pointer-events: auto;
+      z-index: 32;
+    }
+    .edge-end-handle:hover { background: var(--primary); }
+    body.reconnecting .edge-end-handle { cursor: grabbing; }
+    body.presentation .edge-end-handle { display: none !important; }
     .port:hover {
       transform: translate(-50%, -50%) scale(1.35);
       background: var(--primary);

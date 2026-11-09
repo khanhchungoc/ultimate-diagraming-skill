@@ -315,15 +315,103 @@ class FlowchartAudit:
                 out_edges[e["from"]].append(e)
                 in_edges[e["to"]].append(e)
 
-        # Identify which nodes have a leftward loopback leaving their 'left' port
-        has_left_loopback: Set[str] = set()
+        def segment_clear(x1: float, y1: float, x2: float, y2: float, ignore: Tuple[str, ...]) -> bool:
+            """True when an axis-aligned segment keeps 6px clear of every node except `ignore`."""
+            min_x, max_x = min(x1, x2) - 6, max(x1, x2) + 6
+            min_y, max_y = min(y1, y2) - 6, max(y1, y2) + 6
+            for oid, (ox, oy, ow, oh) in rects.items():
+                if oid in ignore:
+                    continue
+                if ox < max_x and ox + ow > min_x and oy < max_y and oy + oh > min_y:
+                    return False
+            return True
+
+        def back_route_bends(f, t, fp: str, tp: str, ids: Tuple[str, ...]) -> Optional[int]:
+            """Bend count of a candidate backward-arrow route, or None if invalid or blocked."""
+            fx, fy, fw, fh = f
+            tx, ty, tw, th = t
+            fcx, fcy, tcx, tcy = fx + fw / 2, fy + fh / 2, tx + tw / 2, ty + th / 2
+            if fp == "left" and tp == "right":
+                sx, sy, ex, ey = fx, fcy, tx + tw, tcy
+                if ex > sx - 12:
+                    return None
+                if abs(sy - ey) < 6:
+                    pts = [(sx, sy), (ex, sy)]
+                else:
+                    mx = (sx + ex) / 2
+                    pts = [(sx, sy), (mx, sy), (mx, ey), (ex, ey)]
+            elif fp == "left":
+                sx, sy, ex = fx, fcy, tcx
+                ey = ty if tp == "top" else ty + th
+                if ex > sx - 20 or (sy >= ey - 8 if tp == "top" else sy <= ey + 8):
+                    return None
+                pts = [(sx, sy), (ex, sy), (ex, ey)]
+            elif tp == "right":
+                sx, sy = fcx, (fy if fp == "top" else fy + fh)
+                ex, ey = tx + tw, tcy
+                if ex > sx - 20 or (ey >= sy - 8 if fp == "top" else ey <= sy + 8):
+                    return None
+                pts = [(sx, sy), (sx, ey), (ex, ey)]
+            elif fp == "bottom" and tp == "bottom":
+                sy, ey = fy + fh, ty + th
+                g = max(sy, ey) + 20
+                pts = [(fcx, sy), (fcx, g), (tcx, g), (tcx, ey)]
+            else:
+                return None
+            for i in range(len(pts) - 1):
+                if not segment_clear(pts[i][0], pts[i][1], pts[i + 1][0], pts[i + 1][1], ids):
+                    return None
+            return len(pts) - 2
+
+        # Backward arrows: fewest-bend clear route, falling back to the legacy fixed rule
+        back_ports: Dict[str, Tuple[str, str]] = {}
         for e in self.edges:
             if e["from"] not in rects or e["to"] not in rects:
                 continue
-            fx, fy, fw, fh = rects[e["from"]]
-            tx, ty, tw, th = rects[e["to"]]
-            if tx + tw / 2 < fx + fw / 2 - 30 and abs((ty + th / 2) - (fy + fh / 2)) > 30:
-                has_left_loopback.add(e["from"])
+            f, t = rects[e["from"]], rects[e["to"]]
+            fcx, fcy = f[0] + f[2] / 2, f[1] + f[3] / 2
+            tcx, tcy = t[0] + t[2] / 2, t[1] + t[3] / 2
+            if not tcx < fcx - 30:
+                continue
+            dy = tcy - fcy
+            legacy = ("left", "top") if dy > 30 else ("left", "bottom") if dy < -30 else ("bottom", "bottom")
+            left_exit_free = not any(
+                ie is not e and rects[ie["from"]][0] + rects[ie["from"]][2] / 2 < fcx - 30
+                and abs(rects[ie["from"]][1] + rects[ie["from"]][3] / 2 - fcy) <= 30
+                for ie in in_edges[e["from"]]
+            )
+            right_entry_free = not any(
+                o is not e and rects[o["to"]][0] + rects[o["to"]][2] / 2 >= tcx - 30
+                and abs(rects[o["to"]][0] + rects[o["to"]][2] / 2 - tcx) >= 30
+                for o in out_edges[e["to"]]
+            )
+            same_row = abs(dy) <= 30
+            cands: List[Tuple[str, str]] = []
+            if right_entry_free:
+                if left_exit_free:
+                    cands.append(("left", "right"))
+                if not same_row:
+                    cands.append(("top" if dy < 0 else "bottom", "right"))
+            if not same_row and left_exit_free:
+                cands.append(("left", "bottom" if dy < 0 else "top"))
+            cands.append(("bottom", "bottom"))
+            best: Optional[Tuple[int, Tuple[str, str]]] = None
+            for cand in cands:
+                bends = back_route_bends(f, t, cand[0], cand[1], (e["from"], e["to"]))
+                if bends is None:
+                    continue
+                if best is None or bends < best[0] or (bends == best[0] and cand == legacy):
+                    best = (bends, cand)
+            back_ports[e["id"]] = best[1] if best else legacy
+
+        # Identify which nodes have a leftward loopback leaving their 'left' port
+        has_left_loopback: Set[str] = set()
+        for e in self.edges:
+            bp = back_ports.get(e["id"])
+            if bp and bp[0] == "left":
+                tr, fr = rects[e["to"]], rects[e["from"]]
+                if abs((tr[1] + tr[3] / 2) - (fr[1] + fr[3] / 2)) > 30:
+                    has_left_loopback.add(e["from"])
 
         # Port selection per edge
         ports: Dict[str, Tuple[str, str]] = {}
@@ -338,12 +426,7 @@ class FlowchartAudit:
                 tx, ty, tw, th = rects[e["to"]]
                 tcx, tcy = tx + tw / 2, ty + th / 2
                 if tcx < fcx - 30:
-                    if tcy > fcy + 30:
-                        ports[e["id"]] = ("left", "top")
-                    elif tcy < fcy - 30:
-                        ports[e["id"]] = ("left", "bottom")
-                    else:
-                        ports[e["id"]] = ("bottom", "bottom")
+                    ports[e["id"]] = back_ports[e["id"]]
                 else:
                     fwd_outs.append(e)
 
@@ -384,7 +467,7 @@ class FlowchartAudit:
                     bottom_taken = True
 
                 to_port = "left"
-                if v_id in has_left_loopback:
+                if v_id in has_left_loopback and abs(tcy - fcy) > 30:
                     to_port = "bottom" if tcy < fcy else "top"
                 elif (from_port == "right" and len(fwd_outs) == 1 and u_node.get("type") != "decision"
                         and abs(tcy - fcy) > 30 and (abs(tx + tw / 2 - fcx) < 30 or tx > fcx + 40)):
@@ -423,9 +506,30 @@ class FlowchartAudit:
             fcx, fcy = fx + fw / 2, fy + fh / 2
             tcx, tcy = tx + tw / 2, ty + th / 2
 
-            if from_port == "left" and to_port in ("top", "bottom"):
+            if to_port == "right":
+                ex, ey = tx + tw, tcy
+                if from_port == "left":
+                    if abs(fcy - ey) < 6:
+                        result[eid] = [(fx, fcy), (ex, fcy)]
+                    else:
+                        mx = (fx + ex) / 2
+                        result[eid] = [(fx, fcy), (mx, fcy), (mx, ey), (ex, ey)]
+                else:
+                    sy = fy if from_port == "top" else fy + fh
+                    result[eid] = [(fcx, sy), (fcx, ey), (ex, ey)]
+            elif from_port == "left" and to_port in ("top", "bottom"):
                 ey = ty if to_port == "top" else ty + th
                 x_exit = fx - 24
+                ids = (e["from"], e["to"])
+                direct = (
+                    (fcy < ey - 8 if to_port == "top" else fcy > ey + 8)
+                    and tcx < fx - 20
+                    and segment_clear(tcx, fcy, fx, fcy, ids)
+                    and segment_clear(tcx, fcy, tcx, ey, ids)
+                )
+                if direct:
+                    result[eid] = [(fx, fcy), (tcx, fcy), (tcx, ey)]
+                    continue
                 # Dedicated Outer Bypass Corridor: route outside node rows
                 if to_port == "top":
                     bypass_y = min(fy - 20, ty - 20)
@@ -458,7 +562,179 @@ class FlowchartAudit:
                 else:
                     mid_x = sx + (ex - sx) / 2
                     result[eid] = [(sx, sy), (mid_x, sy), (mid_x, ey), (ex, ey)]
+
+        self._reroute_by_cost(result, rects, ports, segment_clear)
         return result
+
+    def _lane_dividers(self) -> List[float]:
+        """Y of every boundary between two stacked lanes (mirrors the browser's lane layout)."""
+        dividers: List[float] = []
+        curr_y = 0.0
+        for lane in self.lanes[:-1]:
+            lid = lane["id"]
+            max_y = max((n.get("y", 0) for n in self.nodes if n.get("laneId") == lid), default=48)
+            curr_y += max(lane.get("height", LANE_MIN_HEIGHT), max_y + DEFAULT_NODE_HEIGHT + LANE_BOTTOM_PADDING)
+            dividers.append(curr_y)
+        return dividers
+
+    def _reroute_by_cost(self, result, rects, ports, segment_clear) -> None:
+        """Mirror of the browser's step 5a. Cost: overlap >> near-parallel > crossing (~1.75 bends)
+        > bend > length, plus lane-divider hugging, crowding a node and left/right port clashes.
+        Longest arrows go first; arrows already clean keep their standard route; switching needs a
+        clear win (hysteresis), and changing sides is penalised against sliding a channel."""
+        C_OVERLAP, C_NEAR, C_CROSS, C_BEND, C_DIVIDER, C_NEAR_NODE, C_PORT = 20000, 2500, 1750, 1000, 1500, 400, 2500
+        dividers = self._lane_dividers()
+
+        def poly_clear(pts, ids) -> bool:
+            return all(segment_clear(pts[i][0], pts[i][1], pts[i + 1][0], pts[i + 1][1], ids)
+                       for i in range(len(pts) - 1))
+
+        def relate(pts, other):
+            overlap = near = cross = 0.0
+            for i in range(len(pts) - 1):
+                (ax, ay), (bx, by) = pts[i], pts[i + 1]
+                a_v, a_h = abs(ax - bx) < 1, abs(ay - by) < 1
+                for j in range(len(other) - 1):
+                    (cx, cy), (dx, dy) = other[j], other[j + 1]
+                    c_v, c_h = abs(cx - dx) < 1, abs(cy - dy) < 1
+                    if a_v and c_v:
+                        run = min(max(ay, by), max(cy, dy)) - max(min(ay, by), min(cy, dy))
+                        if run > 1:
+                            gap = abs(ax - cx)
+                            if gap < 2:
+                                overlap += run
+                            elif gap < 18:
+                                near += 1
+                    elif a_h and c_h:
+                        run = min(max(ax, bx), max(cx, dx)) - max(min(ax, bx), min(cx, dx))
+                        if run > 1:
+                            gap = abs(ay - cy)
+                            if gap < 2:
+                                overlap += run
+                            elif gap < 18:
+                                near += 1
+                    elif (a_v and c_h) or (a_h and c_v):
+                        if a_v:
+                            vx, vy1, vy2, hy, hx1, hx2 = ax, min(ay, by), max(ay, by), cy, min(cx, dx), max(cx, dx)
+                        else:
+                            vx, vy1, vy2, hy, hx1, hx2 = cx, min(cy, dy), max(cy, dy), ay, min(ax, bx), max(ax, bx)
+                        if hx1 + 1 < vx < hx2 - 1 and vy1 + 1 < hy < vy2 - 1:
+                            cross += 1
+            return overlap, near, cross
+
+        def defects(pts, ids) -> float:
+            d = 0.0
+            for i in range(len(pts) - 1):
+                (ax, ay), (bx, by) = pts[i], pts[i + 1]
+                if abs(ay - by) < 1 and abs(ax - bx) > 30 and any(abs(ay - y) < 8 for y in dividers):
+                    d += C_DIVIDER
+                x1, x2 = min(ax, bx) - 14, max(ax, bx) + 14
+                y1, y2 = min(ay, by) - 14, max(ay, by) + 14
+                if any(oid not in ids and ox < x2 and ox + ow > x1 and oy < y2 and oy + oh > y1
+                       for oid, (ox, oy, ow, oh) in rects.items()):
+                    d += C_NEAR_NODE
+            return d
+
+        def port_clashes(e, fp, tp) -> int:
+            n = 0
+            for o in self.edges:
+                if o is e or o["id"] not in ports:
+                    continue
+                if o["from"] == e["to"] and tp in ("left", "right") and ports[o["id"]][0] == tp:
+                    n += 1
+                if o["to"] == e["from"] and fp in ("left", "right") and ports[o["id"]][1] == fp:
+                    n += 1
+            return n
+
+        def route_cost(pts, e, others, fp, tp):
+            ids = (e["from"], e["to"])
+            if not poly_clear(pts, ids):
+                return None
+            length = sum(abs(pts[i + 1][0] - pts[i][0]) + abs(pts[i + 1][1] - pts[i][1]) for i in range(len(pts) - 1))
+            defect = defects(pts, ids) + port_clashes(e, fp, tp) * C_PORT
+            for o in others:
+                ov, ne, cr = relate(pts, result[o["id"]])
+                defect += (C_OVERLAP + ov if ov > 0 else 0) + ne * C_NEAR + cr * C_CROSS
+            return (len(pts) - 2) * C_BEND + length + defect, defect
+
+        def anchor(r, side):
+            x, y, w, h = r
+            return {"top": (x + w / 2, y), "bottom": (x + w / 2, y + h),
+                    "left": (x, y + h / 2), "right": (x + w, y + h / 2)}[side]
+
+        def alt_routes(f, t):
+            sides = ("top", "bottom", "left", "right")
+            horiz = lambda s_: s_ in ("left", "right")
+            for fp in sides:
+                for tp in sides:
+                    (sx, sy), (ex, ey) = anchor(f, fp), anchor(t, tp)
+                    if horiz(fp) and horiz(tp):
+                        if fp == tp:
+                            continue
+                        if not (ex > sx + 28 if fp == "right" else ex < sx - 28):
+                            continue
+                        if abs(sy - ey) < 6:
+                            yield fp, tp, [(sx, sy), (ex, ey)], 0.0
+                            continue
+                        x = min(sx, ex) + 14
+                        while x <= max(sx, ex) - 14:
+                            yield fp, tp, [(sx, sy), (x, sy), (x, ey), (ex, ey)], abs(x - (sx + ex) / 2)
+                            x += 10
+                    elif not horiz(fp) and not horiz(tp):
+                        if fp != tp:
+                            if not (ey > sy + 28 if fp == "bottom" else ey < sy - 28):
+                                continue
+                            if abs(sx - ex) < 1:
+                                yield fp, tp, [(sx, sy), (ex, ey)], 0.0
+                                continue
+                            y = min(sy, ey) + 14
+                            while y <= max(sy, ey) - 14:
+                                yield fp, tp, [(sx, sy), (sx, y), (ex, y), (ex, ey)], abs(y - (sy + ey) / 2)
+                                y += 10
+                        else:
+                            for d in (14, 20, 28, 36, 48, 72):
+                                g = min(sy, ey) - d if fp == "top" else max(sy, ey) + d
+                                if g >= 8:
+                                    yield fp, tp, [(sx, sy), (sx, g), (ex, g), (ex, ey)], 0.0
+                    elif horiz(fp):
+                        if (ex <= sx + 20) if fp == "right" else (ex >= sx - 20):
+                            continue
+                        if (ey <= sy + 8) if tp == "top" else (ey >= sy - 8):
+                            continue
+                        yield fp, tp, [(sx, sy), (ex, sy), (ex, ey)], 0.0
+                    else:
+                        if (sy <= ey + 8) if fp == "top" else (sy >= ey - 8):
+                            continue
+                        if (ex <= sx + 20) if tp == "left" else (ex >= sx - 20):
+                            continue
+                        yield fp, tp, [(sx, sy), (sx, ey), (ex, ey)], 0.0
+
+        def manhattan(e) -> float:
+            f, t = rects[e["from"]], rects[e["to"]]
+            return abs(f[0] + f[2] / 2 - t[0] - t[2] / 2) + abs(f[1] + f[3] / 2 - t[1] - t[3] / 2)
+
+        for e in sorted((x for x in self.edges if x["id"] in result and x["from"] != x["to"]),
+                        key=manhattan, reverse=True):
+            eid = e["id"]
+            cur_fp, cur_tp = ports[eid]
+            others = [o for o in self.edges
+                      if o is not e and o["id"] in result
+                      and not {o["from"], o["to"]} & {e["from"], e["to"]}]
+            base = route_cost(result[eid], e, others, cur_fp, cur_tp)
+            if base is not None and base[1] == 0:
+                continue
+            base_cost = float("inf") if base is None else base[0]
+            best = None
+            for fp, tp, pts, dev in alt_routes(rects[e["from"]], rects[e["to"]]):
+                r = route_cost(pts, e, others, fp, tp)
+                if r is None:
+                    continue
+                cost = r[0] + dev * 0.3 + (600 if (fp, tp) != (cur_fp, cur_tp) else 0)
+                if best is None or cost < best[0]:
+                    best = (cost, pts, fp, tp)
+            if best and best[0] < base_cost - 250:
+                result[eid] = best[1]
+                ports[eid] = (best[2], best[3])
 
     @staticmethod
     def _polylines_intersect(

@@ -653,9 +653,32 @@
       transform: translate(-50%, -50%);
       box-shadow: 0 1px 3px rgba(0,0,0,0.15);
     }
-    .flow-node:hover .port, .flow-node.selected .port, body.connecting .port {
+    .flow-node:hover .port, .flow-node.selected .port {
       opacity: 1;
     }
+    /* While dragging an arrow, targets auto-anchor: no anchor points shown anywhere */
+    body.connecting .port, body.reconnecting .port {
+      opacity: 0 !important;
+      pointer-events: none;
+    }
+    /* Draggable arrow endpoints (shown on the selected arrow) */
+    .edge-end-handle {
+      position: absolute;
+      transform: translate(-50%, -50%);
+      width: 14px;
+      height: 14px;
+      box-sizing: border-box;
+      border-radius: 50%;
+      background: var(--node-bg);
+      border: 2.5px solid var(--primary);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+      cursor: grab;
+      pointer-events: auto;
+      z-index: 32;
+    }
+    .edge-end-handle:hover { background: var(--primary); }
+    body.reconnecting .edge-end-handle { cursor: grabbing; }
+    body.presentation .edge-end-handle { display: none !important; }
     .port:hover {
       transform: translate(-50%, -50%) scale(1.35);
       background: var(--primary);
@@ -774,7 +797,7 @@
 
   <!-- Notification Banner when in Connecting Mode -->
   <div id="connecting-banner">
-    <span id="connecting-text">Connecting from step... Click any target node or drag to it.</span>
+    <span id="connecting-text">Connecting from step... Drag and release over the target node.</span>
     <button id="btn-cancel-connecting" class="btn" style="padding:2px 8px; font-size:0.75rem;">Cancel (Esc)</button>
   </div>
 
@@ -2282,8 +2305,10 @@
             upC.sort((a, b) => al(a) - al(b));
             downC.sort((a, b) => al(a) - al(b));
             const multi = uNode.type === 'decision' || fwdOuts.length > 1;
-            const topId = (multi && upC.length) ? upC[0].id : null;
-            const botId = (multi && downC.length) ? downC[0].id : null;
+            let topId = (multi && upC.length) ? upC[0].id : null;
+            let botId = (multi && downC.length) ? downC[0].id : null;
+            if (!topId && upC.length && Math.abs(cxOf(upC[0]) - fcx) < 30) topId = upC[0].id;
+            if (!botId && downC.length && Math.abs(cxOf(downC[0]) - fcx) < 30) botId = downC[0].id;
             fwdOuts.forEach(e => {
               const t = R(e.to);
               const tcx = t.x + t.w / 2, tcy = t.y + t.h / 2;
@@ -2294,7 +2319,7 @@
               if (hasLeftLoop.has(e.to)) {
                 toPort = tcy < fcy ? 'bottom' : 'top';
               } else if (fromPort === 'right' && fwdOuts.length === 1 && uNode.type !== 'decision'
-                  && Math.abs(tcy - fcy) > 30 && t.x > fcx + 40) {
+                  && Math.abs(tcy - fcy) > 30 && (Math.abs(tcx - fcx) < 30 || t.x > fcx + 40)) {
                 fromPort = tcy > fcy ? 'bottom' : 'top';
               }
               const vk = e.to + '\u0001' + (tcy > fcy);
@@ -2343,6 +2368,8 @@
               if (tcx < fcx - 30) {
                 const gy = fp === 'top' ? Math.min(f.y - 20, t.y - 20) : Math.max(f.y + f.h + 20, t.y + t.h + 20);
                 result[e.id] = [[fcx, sy], [fcx, gy], [tcx, gy], [tcx, ey]];
+              } else if (Math.abs(fcx - tcx) < 1) {
+                result[e.id] = [[fcx, sy], [tcx, ey]];
               } else {
                 const my = (sy + ey) / 2;
                 result[e.id] = [[fcx, sy], [fcx, my], [tcx, my], [tcx, ey]];
@@ -2880,12 +2907,72 @@
           inEdges[e.to].push(e);
         });
 
+        // 0. Backward arrows (target left of source): pick the exit/entry sides that give the
+        // fewest bends over a route that stays clear of every other node. When no candidate is
+        // clear, the legacy fixed rule below (left exit + bypass corridor / bottom U-turn) applies.
+        const backPorts = {};
+        const backRoute = (f, t, fp, tp, ids) => {
+          let pts;
+          if (fp === 'left' && tp === 'right') {
+            const sx = f.x, sy = f.cy, ex = t.x + t.w, ey = t.cy;
+            if (ex > sx - 12) return null;
+            if (Math.abs(sy - ey) < 6) pts = [[sx, sy], [ex, sy]];
+            else { const mx = (sx + ex) / 2; pts = [[sx, sy], [mx, sy], [mx, ey], [ex, ey]]; }
+          } else if (fp === 'left') {            // left exit, vertical entry into top/bottom: one bend
+            const sx = f.x, sy = f.cy, ex = t.cx;
+            const ey = tp === 'top' ? t.y : t.y + t.h;
+            if (ex > sx - 20 || (tp === 'top' ? sy >= ey - 8 : sy <= ey + 8)) return null;
+            pts = [[sx, sy], [ex, sy], [ex, ey]];
+          } else if (tp === 'right') {           // vertical exit, side entry: one bend
+            const sx = f.cx, sy = fp === 'top' ? f.y : f.y + f.h, ex = t.x + t.w, ey = t.cy;
+            if (ex > sx - 20 || (fp === 'top' ? ey >= sy - 8 : ey <= sy + 8)) return null;
+            pts = [[sx, sy], [sx, ey], [ex, ey]];
+          } else if (fp === 'bottom' && tp === 'bottom') { // U-turn below both nodes: two bends
+            const sx = f.cx, sy = f.y + f.h, ex = t.cx, ey = t.y + t.h;
+            const g = Math.max(sy, ey) + 36;
+            pts = [[sx, sy], [sx, g], [ex, g], [ex, ey]];
+          } else {
+            return null;
+          }
+          for (let i = 0; i < pts.length - 1; i++) {
+            if (!segmentClear(pts[i][0], pts[i][1], pts[i + 1][0], pts[i + 1][1], ids)) return null;
+          }
+          return pts.length - 2; // bends
+        };
+        validEdges.forEach(e => {
+          const f = rects[e.from], t = rects[e.to];
+          if (!(t.cx < f.cx - 30)) return;
+          const dy = t.cy - f.cy;
+          const legacy = dy > 30 ? { fromPort: 'left', toPort: 'top' }
+            : dy < -30 ? { fromPort: 'left', toPort: 'bottom' }
+            : { fromPort: 'bottom', toPort: 'bottom' };
+          // A side port is only reused when it is not already an exit/entry for a different role
+          const leftExitFree = !inEdges[e.from].some(ie => ie !== e && rects[ie.from].cx < f.cx - 30 && Math.abs(rects[ie.from].cy - f.cy) <= 30);
+          const rightEntryFree = !outEdges[e.to].some(o => o !== e && rects[o.to].cx >= t.cx - 30 && Math.abs(rects[o.to].cx - t.cx) >= 30);
+          const cands = [];
+          const sameRow = Math.abs(dy) <= 30;
+          if (rightEntryFree) {
+            if (leftExitFree) cands.push(['left', 'right']);
+            if (!sameRow) cands.push([dy < 0 ? 'top' : 'bottom', 'right']);
+          }
+          if (!sameRow && leftExitFree) cands.push(['left', dy < 0 ? 'bottom' : 'top']);
+          cands.push(['bottom', 'bottom']);
+          let best = null;
+          cands.forEach(([fp, tp]) => {
+            const bends = backRoute(f, t, fp, tp, [e.from, e.to]);
+            if (bends === null) return;
+            const isLegacy = fp === legacy.fromPort && tp === legacy.toPort;
+            // Fewest bends wins; on a tie keep the legacy choice
+            if (!best || bends < best.bends || (bends === best.bends && isLegacy)) best = { fromPort: fp, toPort: tp, bends };
+          });
+          backPorts[e.id] = best ? { fromPort: best.fromPort, toPort: best.toPort } : legacy;
+        });
+
         // 1. Identify nodes that have a leftward loopback leaving their 'left' port
         const hasLeftLoopback = new Set();
         validEdges.forEach(e => {
-          const f = rects[e.from];
-          const t = rects[e.to];
-          if (t.cx < f.cx - 30 && Math.abs(t.cy - f.cy) > 30) {
+          const bp = backPorts[e.id];
+          if (bp && bp.fromPort === 'left' && Math.abs(rects[e.to].cy - rects[e.from].cy) > 30) {
             hasLeftLoopback.add(e.from);
           }
         });
@@ -2902,13 +2989,7 @@
           uOuts.forEach(e => {
             const t = rects[e.to];
             if (t.cx < f.cx - 30) {
-              if (t.cy > f.cy + 30) {
-                edgePorts[e.id] = { fromPort: 'left', toPort: 'top' };
-              } else if (t.cy < f.cy - 30) {
-                edgePorts[e.id] = { fromPort: 'left', toPort: 'bottom' };
-              } else {
-                edgePorts[e.id] = { fromPort: 'bottom', toPort: 'bottom' };
-              }
+              edgePorts[e.id] = backPorts[e.id];
             } else {
               fwdOuts.push(e);
             }
@@ -2941,7 +3022,7 @@
             }
 
             let toPort = 'left';
-            if (hasLeftLoopback.has(e.to)) {
+            if (hasLeftLoopback.has(e.to) && Math.abs(t.cy - f.cy) > 30) {
               toPort = (t.cy < f.cy) ? 'bottom' : 'top';
             } else if (fromPort === 'right' && fwdOuts.length === 1 && uNode && uNode.type !== 'decision') {
               // One step into another lane: leave via top/bottom for a single bend instead of a Z
@@ -3074,7 +3155,23 @@
           const offsetY = toPortOffsetY[e.id] || 0;
           let points = [];
 
-          if (p.fromPort === 'left' && (p.toPort === 'top' || p.toPort === 'bottom')) {
+          if (p.toPort === 'right') {
+            // Backward arrow entering the target's right side
+            const ex = t.x + t.w, ey = t.cy;
+            if (p.fromPort === 'left') {
+              const sx = f.x, sy = f.cy;
+              if (Math.abs(sy - ey) < 6) {
+                points = [[sx, sy], [ex, sy]];
+              } else {
+                const mx = (sx + ex) / 2;
+                points = [[sx, sy], [mx, sy], [mx, ey], [ex, ey]];
+              }
+            } else {
+              const sx = f.cx + (fromOffX[e.id] || 0);
+              const sy = p.fromPort === 'top' ? f.y : f.y + f.h;
+              points = [[sx, sy], [sx, ey], [ex, ey]];
+            }
+          } else if (p.fromPort === 'left' && (p.toPort === 'top' || p.toPort === 'bottom')) {
             const sx = f.x;
             const sy = f.cy;
             const ex = t.cx + (toOffX[e.id] || 0);
@@ -3131,6 +3228,179 @@
             }
           }
           edgePolylines[e.id] = points;
+        });
+
+        // 5a. Obstructed routes: when the standard route runs through another node, search every
+        // exit/entry side pair (L, Z and U shapes) for a route that stays clear, preferring the
+        // fewest bends and the least overlap with other arrows. Unobstructed routes are untouched.
+        const polyClear = (pts, ids) => {
+          for (let i = 0; i < pts.length - 1; i++) {
+            if (!segmentClear(pts[i][0], pts[i][1], pts[i + 1][0], pts[i + 1][1], ids)) return false;
+          }
+          return true;
+        };
+        // How a route relates to another arrow: collinear overlap, near-parallel run (<18px) and
+        // perpendicular crossings. Arrows that share a node (forks/merges) are exempt by the caller.
+        const relate = (pts, otherPts) => {
+          let overlap = 0, near = 0, cross = 0;
+          for (let i = 0; i < pts.length - 1; i++) {
+            const [ax, ay] = pts[i], [bx, by] = pts[i + 1];
+            const aV = Math.abs(ax - bx) < 1, aH = Math.abs(ay - by) < 1;
+            for (let j = 0; j < otherPts.length - 1; j++) {
+              const [cx, cy] = otherPts[j], [dx, dy] = otherPts[j + 1];
+              const cV = Math.abs(cx - dx) < 1, cH = Math.abs(cy - dy) < 1;
+              if (aV && cV) {
+                const run = Math.min(Math.max(ay, by), Math.max(cy, dy)) - Math.max(Math.min(ay, by), Math.min(cy, dy));
+                if (run > 1) { const gap = Math.abs(ax - cx); if (gap < 2) overlap += run; else if (gap < 18) near += 1; }
+              } else if (aH && cH) {
+                const run = Math.min(Math.max(ax, bx), Math.max(cx, dx)) - Math.max(Math.min(ax, bx), Math.min(cx, dx));
+                if (run > 1) { const gap = Math.abs(ay - cy); if (gap < 2) overlap += run; else if (gap < 18) near += 1; }
+              } else if ((aV && cH) || (aH && cV)) {
+                const [vx, vy1, vy2, hy, hx1, hx2] = aV
+                  ? [ax, Math.min(ay, by), Math.max(ay, by), cy, Math.min(cx, dx), Math.max(cx, dx)]
+                  : [cx, Math.min(cy, dy), Math.max(cy, dy), ay, Math.min(ax, bx), Math.max(ax, bx)];
+                if (hx1 + 1 < vx && vx < hx2 - 1 && vy1 + 1 < hy && hy < vy2 - 1) cross += 1;
+              }
+            }
+          }
+          return { overlap, near, cross };
+        };
+        // Cost model: overlap >> near-parallel > crossing (~1.75 bends) > bend > length
+        const COST = { overlap: 20000, near: 2500, cross: 1750, bend: 1000, divider: 1500, nearNode: 400, portClash: 2500 };
+        const laneDividers = Array.from(document.querySelectorAll('.lane-track')).slice(0, -1)
+          .map(t => (t.getBoundingClientRect().bottom - stageRect.top) / scale);
+        const routeDefects = (pts, ids) => {
+          // Penalties independent of other arrows: hugging a lane divider, crowding a node
+          let d = 0;
+          for (let i = 0; i < pts.length - 1; i++) {
+            const [ax, ay] = pts[i], [bx, by] = pts[i + 1];
+            if (Math.abs(ay - by) < 1 && Math.abs(ax - bx) > 30 && laneDividers.some(y => Math.abs(ay - y) < 8)) d += COST.divider;
+            const x1 = Math.min(ax, bx) - 14, x2 = Math.max(ax, bx) + 14, y1 = Math.min(ay, by) - 14, y2 = Math.max(ay, by) + 14;
+            const tight = Object.keys(rects).some(id => {
+              if (ids.includes(id)) return false;
+              const r = rects[id];
+              return r.x < x2 && r.x + r.w > x1 && r.y < y2 && r.y + r.h > y1;
+            });
+            if (tight) d += COST.nearNode;
+          }
+          return d;
+        };
+        // An arrow must not enter a side of a node that another arrow leaves from (or vice versa)
+        // (top/bottom sides are exempt: they get separate entry/exit slots in 2b and 5a2)
+        const sideOnly = side => (side === 'left' || side === 'right') ? side : null;
+        const portClashes = (edge, fp, tp) => validEdges.filter(o => o !== edge && edgePorts[o.id] && (
+          (o.from === edge.to && sideOnly(tp) && edgePorts[o.id].fromPort === tp) ||
+          (o.to === edge.from && sideOnly(fp) && edgePorts[o.id].toPort === fp))).length;
+        const routeCost = (pts, edge, others, fp, tp) => {
+          const ids = [edge.from, edge.to];
+          if (!polyClear(pts, ids)) return Infinity;
+          let len = 0;
+          for (let i = 0; i < pts.length - 1; i++) len += Math.abs(pts[i + 1][0] - pts[i][0]) + Math.abs(pts[i + 1][1] - pts[i][1]);
+          let defect = routeDefects(pts, ids) + portClashes(edge, fp, tp) * COST.portClash;
+          others.forEach(o => {
+            const r = relate(pts, edgePolylines[o.id]);
+            defect += (r.overlap > 0 ? COST.overlap + r.overlap : 0) + r.near * COST.near + r.cross * COST.cross;
+          });
+          return { cost: (pts.length - 2) * COST.bend + len + defect, defect };
+        };
+        const anchor = (r, side) => side === 'top' ? [r.cx, r.y] : side === 'bottom' ? [r.cx, r.y + r.h]
+          : side === 'left' ? [r.x, r.cy] : [r.x + r.w, r.cy];
+        const altRoutes = (f, t) => {
+          const out = [];
+          const SIDES = ['top', 'bottom', 'left', 'right'];
+          const horiz = s => s === 'left' || s === 'right';
+          SIDES.forEach(fp => SIDES.forEach(tp => {
+            const [sx, sy] = anchor(f, fp), [ex, ey] = anchor(t, tp);
+            const add = (pts, dev = 0) => out.push({ fp, tp, pts, dev });
+            if (horiz(fp) && horiz(tp)) {
+              if (fp === tp) return;
+              const dirOk = fp === 'right' ? ex > sx + 28 : ex < sx - 28;
+              if (!dirOk) return;
+              if (Math.abs(sy - ey) < 6) { add([[sx, sy], [ex, sy]]); return; }
+              const lo = Math.min(sx, ex) + 14, hi = Math.max(sx, ex) - 14;
+              for (let x = lo; x <= hi; x += 10) add([[sx, sy], [x, sy], [x, ey], [ex, ey]], Math.abs(x - (sx + ex) / 2));
+            } else if (!horiz(fp) && !horiz(tp)) {
+              if (fp !== tp) {
+                const dirOk = fp === 'bottom' ? ey > sy + 28 : ey < sy - 28;
+                if (!dirOk) return;
+                if (Math.abs(sx - ex) < 1) { add([[sx, sy], [ex, ey]]); return; }
+                const lo = Math.min(sy, ey) + 14, hi = Math.max(sy, ey) - 14;
+                for (let y = lo; y <= hi; y += 10) add([[sx, sy], [sx, y], [ex, y], [ex, ey]], Math.abs(y - (sy + ey) / 2));
+              } else {
+                [14, 20, 28, 36, 48, 72].forEach(d => {
+                  const g = fp === 'top' ? Math.min(sy, ey) - d : Math.max(sy, ey) + d;
+                  if (g < 8) return;
+                  add([[sx, sy], [sx, g], [ex, g], [ex, ey]]);
+                });
+              }
+            } else if (horiz(fp)) {
+              // horizontal exit, vertical entry: one bend
+              if (fp === 'right' ? ex <= sx + 20 : ex >= sx - 20) return;
+              if (tp === 'top' ? ey <= sy + 8 : ey >= sy - 8) return;
+              add([[sx, sy], [ex, sy], [ex, ey]]);
+            } else {
+              // vertical exit, horizontal entry: one bend
+              if (fp === 'top' ? sy <= ey + 8 : sy >= ey - 8) return;
+              if (tp === 'left' ? ex <= sx + 20 : ex >= sx - 20) return;
+              add([[sx, sy], [sx, ey], [ex, ey]]);
+            }
+          }));
+          return out;
+        };
+        // Longest arrows first: they are the most constrained, shorter ones then route around them
+        const manhattan = e => Math.abs(rects[e.from].cx - rects[e.to].cx) + Math.abs(rects[e.from].cy - rects[e.to].cy);
+        [...validEdges].sort((a2, b2) => manhattan(b2) - manhattan(a2)).forEach(e => {
+          if (e.to === e.from) return;
+          const cur = edgePolylines[e.id];
+          if (!cur) return;
+          const others = validEdges.filter(o => o !== e && edgePolylines[o.id]
+            && o.from !== e.from && o.to !== e.to && o.from !== e.to && o.to !== e.from);
+          const base = routeCost(cur, e, others, edgePorts[e.id].fromPort, edgePorts[e.id].toPort);
+          // Already clean (clear of nodes, no overlap/crossing/crowding): keep it
+          if (base !== Infinity && base.defect === 0) return;
+          const baseCost = base === Infinity ? Infinity : base.cost;
+          let best = null;
+          altRoutes(rects[e.from], rects[e.to]).forEach(c => {
+            const r = routeCost(c.pts, e, others, c.fp, c.tp);
+            if (r === Infinity) return;
+            // Changing sides is a bigger visual change than sliding a channel, so it must earn it
+            const sideChange = (c.fp !== edgePorts[e.id].fromPort || c.tp !== edgePorts[e.id].toPort) ? 600 : 0;
+            const cost = r.cost + c.dev * 0.3 + sideChange;
+            if (!best || cost < best.cost) best = { cost, c };
+          });
+          // Hysteresis: only switch for a clear win, so near-ties keep the standard route
+          if (best && best.cost < baseCost - 250) {
+            edgePolylines[e.id] = best.c.pts;
+            edgePorts[e.id] = { fromPort: best.c.fp, toPort: best.c.tp };
+          }
+        });
+
+        // 5a2. Port separation: where an arrow enters and another leaves the same side of a node,
+        // keep their contact points at least 16px apart so an arrowhead never sits on a departure.
+        const SEP = 16, SHIFT = 9;
+        Object.keys(rects).forEach(nid => {
+          const r = rects[nid];
+          [['top', 0, r.y], ['bottom', 0, r.y + r.h], ['left', 1, r.x], ['right', 1, r.x + r.w]].forEach(([side, ai, edgeCoord]) => {
+            const fi = 1 - ai; // ai: coordinate that slides along the side, fi: the fixed one
+            const ends = [];
+            validEdges.forEach(e => {
+              const pts = edgePolylines[e.id];
+              if (!pts || pts.length < 3) return;       // straight lines stay aligned
+              const n = pts.length;
+              if (e.from === nid && Math.abs(pts[0][fi] - edgeCoord) < 1 && Math.abs(pts[0][ai] - pts[1][ai]) < 1) ends.push({ e, role: 'out', a: 0, b: 1, other: pts[n - 1][ai] });
+              if (e.to === nid && Math.abs(pts[n - 1][fi] - edgeCoord) < 1 && Math.abs(pts[n - 1][ai] - pts[n - 2][ai]) < 1) ends.push({ e, role: 'in', a: n - 1, b: n - 2, other: pts[0][ai] });
+            });
+            const outs = ends.filter(x => x.role === 'out'), ins = ends.filter(x => x.role === 'in');
+            if (!outs.length || !ins.length) return;
+            const at = x => edgePolylines[x.e.id][x.a][ai];
+            const minGap = Math.min(...ins.flatMap(i => outs.map(o => Math.abs(at(i) - at(o)))));
+            if (minGap >= SEP) return;
+            const mean = l => l.reduce((s2, x) => s2 + x.other, 0) / l.length;
+            const insLow = mean(ins) <= mean(outs);
+            const shift = (x, d) => { edgePolylines[x.e.id][x.a][ai] += d; edgePolylines[x.e.id][x.b][ai] += d; };
+            ins.forEach(x => shift(x, insLow ? -SHIFT : SHIFT));
+            outs.forEach(x => shift(x, insLow ? SHIFT : -SHIFT));
+          });
         });
 
         // 5b. De-overlap: unrelated edges must not share a collinear stretch. Spread interior
@@ -3593,6 +3863,18 @@
                 deleteEdge(edge.id);
               });
               edgeLabelsGroup.appendChild(delEdgeBtn);
+
+              // Drag either end of the selected arrow onto another node to re-attach it
+              ['from', 'to'].forEach(end => {
+                const pt = path.getPointAtLength(end === 'from' ? 0 : total);
+                const h = document.createElement('div');
+                h.className = 'edge-end-handle';
+                h.title = end === 'from' ? 'Drag to change the source node' : 'Drag to change the target node';
+                h.style.left = `${pt.x}px`;
+                h.style.top = `${pt.y}px`;
+                h.addEventListener('pointerdown', (e) => startReconnect(e, edge, end, path));
+                edgeLabelsGroup.appendChild(h);
+              });
             }
 
             labelContainer.addEventListener('click', (e) => {
@@ -3866,7 +4148,7 @@
         dragEdge.setAttribute('d', `M ${sx} ${sy} L ${sx} ${sy}`);
 
         connectingBanner.classList.add('active');
-        connectingText.textContent = `Connecting from "${fromNode ? fromNode.label : nodeId}"... Click target node or release over it.`;
+        connectingText.textContent = `Connecting from "${fromNode ? fromNode.label : nodeId}"... Release over a target node.`;
 
         window.addEventListener('pointermove', onConnectingMove);
         window.addEventListener('pointerup', onConnectingPointerUp);
@@ -3901,13 +4183,63 @@
           }
         }
 
-        const dist = Math.hypot(
-          ev.clientX - (connectingStartPoint.sx * scale + swimlanesContainer.getBoundingClientRect().left),
-          ev.clientY - (connectingStartPoint.sy * scale + swimlanesContainer.getBoundingClientRect().top)
-        );
-        if (dist > 25) {
-          cancelConnecting();
-        }
+        // Released away from any node: drop the connection attempt
+        cancelConnecting();
+      }
+
+      // --- RE-ATTACH AN EXISTING ARROW END TO A DIFFERENT NODE ---
+      function startReconnect(e, edge, end, path) {
+        e.stopPropagation();
+        e.preventDefault();
+        const total = path.getTotalLength();
+        const fixed = path.getPointAtLength(end === 'from' ? total : 0); // the end that stays put
+        const otherId = end === 'from' ? edge.to : edge.from;
+        document.body.classList.add('reconnecting');
+        path.style.opacity = '0.35';
+        dragEdge.style.display = 'block';
+        const toLocal = (ev) => {
+          const r = swimlanesContainer.getBoundingClientRect();
+          return { x: (ev.clientX - r.left) / scale, y: (ev.clientY - r.top) / scale };
+        };
+        const nodeAt = (ev) => {
+          const el = document.elementFromPoint(ev.clientX, ev.clientY);
+          return el ? el.closest('.flow-node') : null;
+        };
+        const draw = (ev) => {
+          const m = toLocal(ev);
+          dragEdge.setAttribute('d', end === 'from'
+            ? `M ${m.x} ${m.y} L ${fixed.x} ${fixed.y}`
+            : `M ${fixed.x} ${fixed.y} L ${m.x} ${m.y}`);
+        };
+        draw(e);
+        const move = (ev) => {
+          draw(ev);
+          document.querySelectorAll('.flow-node').forEach(n => n.classList.remove('connect-target'));
+          const n = nodeAt(ev);
+          if (n && n.dataset.nodeId !== otherId) n.classList.add('connect-target');
+        };
+        const up = (ev) => {
+          window.removeEventListener('pointermove', move);
+          window.removeEventListener('pointerup', up);
+          document.body.classList.remove('reconnecting');
+          dragEdge.style.display = 'none';
+          document.querySelectorAll('.flow-node').forEach(n => n.classList.remove('connect-target'));
+          const n = nodeAt(ev);
+          const newId = n ? n.dataset.nodeId : null;
+          const current = end === 'from' ? edge.from : edge.to;
+          if (newId && newId !== otherId && newId !== current) {
+            const f = end === 'from' ? newId : edge.from;
+            const t = end === 'to' ? newId : edge.to;
+            if (!chartData.edges.some(x => x !== edge && x.from === f && x.to === t)) {
+              edge.from = f;
+              edge.to = t;
+              updateStatus(true);
+            }
+          }
+          renderEdges();
+        };
+        window.addEventListener('pointermove', move);
+        window.addEventListener('pointerup', up);
       }
 
       function createConnection(fromId, toId) {
