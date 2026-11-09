@@ -52,7 +52,7 @@
       "id": "n5",
       "laneId": "lane-engine",
       "type": "task",
-      "label": "Run Automated Credit & Fraud Check"
+      "label": "Run Credit & Fraud Check"
     },
     {
       "id": "n6",
@@ -61,40 +61,24 @@
       "label": "Credit Score >= 700?"
     },
     {
-      "id": "n8",
-      "laneId": "lane-risk",
-      "type": "task",
-      "label": "Manual Risk Assessment"
-    },
-    {
-      "id": "n9",
+      "id": "n7",
       "laneId": "lane-risk",
       "type": "decision",
       "label": "Risk Acceptable?"
     },
     {
-      "id": "n10",
-      "laneId": "lane-officer",
-      "type": "task",
-      "label": "Send Approval & Agreement"
-    },
-    {
-      "id": "n11",
-      "laneId": "lane-customer",
-      "type": "task",
-      "label": "Sign Loan Agreement"
-    },
-    {
-      "id": "n12",
+      "id": "n8",
       "laneId": "lane-officer",
       "type": "end",
-      "label": "Rejection Sent"
+      "outcome": "success",
+      "label": "Loan Approved"
     },
     {
-      "id": "n13",
+      "id": "n9",
       "laneId": "lane-customer",
       "type": "end",
-      "label": "Loan Disbursed"
+      "outcome": "failure",
+      "label": "Application Rejected"
     }
   ],
   "edges": [
@@ -138,44 +122,26 @@
     {
       "id": "e7",
       "from": "n6",
-      "to": "n10",
+      "to": "n8",
       "label": "Yes"
     },
     {
       "id": "e8",
       "from": "n6",
-      "to": "n8",
+      "to": "n7",
       "label": "No"
     },
     {
       "id": "e9",
-      "from": "n8",
-      "to": "n9",
-      "label": ""
-    },
-    {
-      "id": "e10",
-      "from": "n9",
-      "to": "n10",
+      "from": "n7",
+      "to": "n8",
       "label": "Yes"
     },
     {
-      "id": "e12",
-      "from": "n9",
-      "to": "n12",
+      "id": "e10",
+      "from": "n7",
+      "to": "n9",
       "label": "No"
-    },
-    {
-      "id": "e13",
-      "from": "n10",
-      "to": "n11",
-      "label": ""
-    },
-    {
-      "id": "e14",
-      "from": "n11",
-      "to": "n13",
-      "label": "Signed"
     }
   ]
 }

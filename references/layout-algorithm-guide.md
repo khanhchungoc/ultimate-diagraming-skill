@@ -26,7 +26,7 @@ Input Graph JSON ──> [1. Cycle Breaking] ──> [2. Topological Layering]
 ### Phase 2: Topological Layering (X-Axis Columns)
 - Using the forward DAG, each node is assigned an integer rank:
   $$\text{Rank}(v) = \max_{u \in \text{preds}(v)} (\text{Rank}(u)) + 1$$
-- This guarantees sequential flow from Left to Right ($x = \text{start\_x} + \text{Rank} \times 280\text{px}$).
+- This guarantees sequential flow from Left to Right ($x = \text{start\_x} + \text{Rank} \times 240\text{px}$).
 
 ### Phase 3: Barycentric Crossing Reduction, Dynamic Lane Height & Nudge-to-Align
 - When multiple nodes occupy the same lane and column rank:
@@ -64,7 +64,7 @@ Input Graph JSON ──> [1. Cycle Breaking] ──> [2. Topological Layering]
   - Labels are enclosed in an opaque mask shield (`#ffffff` / `rgba(255,255,255,0.96)`) so intersecting lines never strike through label text.
 - For each edge label, the router evaluates candidate anchor points (`50%`, `22%`, `78%`, `35%`, `65%` along the vertical leg and horizontal midpoints) against node boxes, placed labels, and other edges to guarantee zero occlusion.
 - **Direct Cross-Lane Drag Translation**: During direct node dragging across swimlanes, stage-relative coordinates are converted to the target swimlane's coordinate space with automatic 4px grid snapping and DOM reparenting.
-- **Swimlane Permutation**: Re-ordering swimlanes (via `▲` / `▼` buttons or header dragging) permutes `chartData.lanes` and triggers an automatic planar reroute of all cross-lane connections.
+- **Swimlane Permutation**: Re-ordering swimlanes (by dragging a lane header) permutes `chartData.lanes` and triggers an automatic planar reroute of all cross-lane connections.
 
 ---
 

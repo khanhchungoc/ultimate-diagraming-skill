@@ -23,7 +23,13 @@ from pathlib import Path
 from typing import Any, Dict, List, Set, Tuple
 
 
-DEFAULT_COL_WIDTH = 280
+DEFAULT_COL_WIDTH = 240
+START_X = 56
+
+# Complexity budget (a diagram beyond these is too dense to read at Fit zoom on a 1920px screen)
+MAX_NODES = 12
+MAX_LANES = 5
+MAX_COLUMNS = 7
 DEFAULT_ROW_HEIGHT = 96
 DEFAULT_NODE_WIDTH = 168
 DEFAULT_NODE_HEIGHT = 56
@@ -103,7 +109,7 @@ class SwimlaneLayoutEngine:
             curr_y += height
 
         # 5. Assign concrete X, Y coordinates
-        start_x = 80
+        start_x = START_X
         for (lane_id, r), group in lane_rank_groups.items():
             lane_top, lane_height = lane_positions.get(lane_id, (0, LANE_MIN_HEIGHT))
             for sub_idx, node in enumerate(group):
@@ -158,7 +164,7 @@ class SwimlaneLayoutEngine:
                 # Try nudging v to align its center with u
                 target_v_y = int(round((u_cy - vh / 2.0) / 4.0) * 4)
                 if target_v_y >= 20 and (target_v_y + vh) <= (lane_h - 20):
-                    v_rank = (v["laneId"], int((v.get("x", 80) - 80) // DEFAULT_COL_WIDTH))
+                    v_rank = (v["laneId"], int((v.get("x", START_X) - START_X) // DEFAULT_COL_WIDTH))
                     siblings = [s for s in lane_rank_groups.get(v_rank, []) if s["id"] != v["id"]]
                     collides = False
                     for s in siblings:
@@ -392,6 +398,15 @@ class SwimlaneLayoutEngine:
             and len(penetrations) == 0
         )
 
+        column_count = len({round(float(n.get("x", 0)) / 8) for n in self.nodes})
+        budget_warnings = []
+        if len(self.nodes) > MAX_NODES:
+            budget_warnings.append(f"{len(self.nodes)} nodes exceeds the budget of {MAX_NODES}; split into overview + detail diagrams.")
+        if len(self.lanes) > MAX_LANES:
+            budget_warnings.append(f"{len(self.lanes)} lanes exceeds the budget of {MAX_LANES}.")
+        if column_count > MAX_COLUMNS:
+            budget_warnings.append(f"{column_count} columns (longest path) exceeds the budget of {MAX_COLUMNS}; text will be too small at Fit zoom. Shorten the chain or split the diagram.")
+
         return {
             "passed": passed,
             "score": score,
@@ -407,6 +422,8 @@ class SwimlaneLayoutEngine:
             "overflows_count": len(overflow_issues),
             "dangling_count": len(dangling_issues),
             "doglegs_count": len(dogleg_issues),
+            "column_count": column_count,
+            "budget_warnings": budget_warnings,
         }
 
     def _count_crossings_from_polylines(
@@ -677,7 +694,7 @@ def main():
         print(f"\n======================================================================")
         print(f"--- Flowchart Verification & Quality Audit: {p.name} ---")
         print(f"======================================================================")
-        print(f"Structure: {report['lane_count']} Lanes | {report['node_count']} Nodes | {report['edge_count']} Edges")
+        print(f"Structure: {report['lane_count']} Lanes | {report['node_count']} Nodes | {report['edge_count']} Edges | {report['column_count']} Columns")
         print(f"Diagram Quality Score: {report['score']}/100  [GRADE: {report['grade']}]")
         print(f"----------------------------------------------------------------------")
         print(f"✓ Node-to-Node Overlaps:         {report['overlaps_count']} detected")
@@ -690,6 +707,8 @@ def main():
             print(f"{'✓' if not external_refs else '✗'} Self-Containment:              {len(external_refs)} external references")
         print(f"======================================================================")
 
+        for warning in report["budget_warnings"]:
+            print(f"[WARN] {warning}")
         if external_refs:
             print("[FAIL] HTML loads external resources (must be fully self-contained):")
             for ref in external_refs:

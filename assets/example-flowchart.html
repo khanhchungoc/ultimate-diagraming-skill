@@ -209,10 +209,6 @@
     .swimlane:last-child {
       border-bottom: none;
     }
-    .swimlane.drag-over-lane {
-      outline: 2px dashed var(--primary);
-      background: rgba(37, 99, 235, 0.04);
-    }
 
     .lane-header {
       width: var(--lane-header-width);
@@ -255,43 +251,27 @@
       background: #ffffff;
     }
 
-    .lane-controls {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      margin-top: 8px;
-    }
-    .lane-order-btn {
-      width: 22px;
-      height: 20px;
-      border-radius: 4px;
-      border: 1px solid var(--border-dark);
-      background: #ffffff;
-      color: var(--text-muted);
-      font-size: 9px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      transition: all 0.15s ease;
-    }
-    .lane-order-btn:hover:not(:disabled) {
+    #lane-drop-line {
+      position: absolute;
+      left: 0;
+      width: 100%;
+      height: 4px;
       background: var(--primary);
-      color: #ffffff;
-      border-color: var(--primary);
+      border-radius: 2px;
+      box-shadow: 0 0 0 3px rgba(37,99,235,0.25);
+      z-index: 60;
+      pointer-events: none;
+      display: none;
     }
-    .lane-order-btn:disabled {
-      opacity: 0.3;
-      cursor: not-allowed;
+    #lane-drop-line::before {
+      content: '';
+      position: absolute;
+      left: -2px; top: -4px;
+      width: 12px; height: 12px;
+      border-radius: 50%;
+      background: var(--primary);
     }
-    .lane-drag-handle {
-      font-size: 11px;
-      color: var(--text-muted);
-      cursor: grab;
-      padding: 0 4px;
-      letter-spacing: -1px;
-      user-select: none;
-    }
+    .swimlane.lane-dragging .lane-header { opacity: 0.45; }
 
     .lane-track {
       flex: 1;
@@ -336,7 +316,7 @@
       border: 1.5px solid var(--border-dark);
       border-radius: 8px;
       padding: 3px 8px;
-      font-size: 0.72rem;
+      font-size: 0.8rem;
       font-weight: 600;
       color: var(--text-main);
       cursor: pointer;
@@ -375,7 +355,7 @@
       background: rgba(255, 255, 255, 0.95);
       border: 1.5px dashed #94a3b8;
       color: #64748b;
-      font-size: 0.72rem;
+      font-size: 0.8rem;
       padding: 2px 8px;
     }
     .edge-label-container.empty-placeholder.hover-visible,
@@ -588,6 +568,55 @@
       font-weight: 600;
       color: var(--text-main);
     }
+
+    /* End-node outcomes (set "outcome": "success" | "failure" on an end node) */
+    .flow-node.type-end.outcome-success {
+      background: #16a34a;
+      border-color: #15803d;
+      color: #ffffff;
+    }
+    .flow-node.type-end.outcome-failure {
+      background: #fef2f2;
+      border-color: #ef4444;
+      color: #991b1b;
+    }
+    .flow-node.type-end.outcome-success,
+    .flow-node.type-end.outcome-failure {
+      padding-left: 38px;
+    }
+    .flow-node.type-end.outcome-success::before,
+    .flow-node.type-end.outcome-failure::before {
+      position: absolute;
+      left: 16px;
+      font-weight: 800;
+    }
+    .flow-node.type-end.outcome-success::before { content: '\2713'; }
+    .flow-node.type-end.outcome-failure::before { content: '\2715'; }
+
+    /* Presentation mode (?present, or the Present button): read-only, no editing chrome */
+    body.presentation .toolbar-center,
+    body.presentation #btn-save,
+    body.presentation #btn-help,
+    body.presentation #save-status,
+    body.presentation .port,
+    body.presentation .node-delete-btn,
+    body.presentation .edge-delete-btn,
+    body.presentation #help-drawer { display: none !important; }
+    body.presentation .flow-node,
+    body.presentation .lane-header,
+    body.presentation .lane-title,
+    body.presentation .edge-label-container,
+    body.presentation .connector-path,
+    body.presentation #chart-title { pointer-events: none !important; }
+    body.presentation .lane-header { cursor: default; }
+    /* Capture mode (?capture, used for screenshots): diagram only, edge to edge */
+    body.capture header { display: none; }
+    body.capture #swimlanes-container {
+      margin: 0;
+      border: none;
+      border-radius: 0;
+      box-shadow: none;
+    }
   </style>
 </head>
 <body>
@@ -622,6 +651,7 @@
       <span id="zoom-level" style="font-size:0.8rem; font-weight:600; width:45px; text-align:center;">100%</span>
       <button id="btn-zoom-in" class="btn btn-icon" title="Zoom In">+</button>
       <button id="btn-zoom-reset" class="btn" title="Fit to Screen">Fit</button>
+      <button id="btn-present" class="btn" title="Hide editing controls for a clean read-only view">Present</button>
       <button id="btn-help" class="btn btn-icon" title="Keyboard Shortcuts">?</button>
       <button id="btn-save" class="btn btn-success" title="Save directly into this HTML file (Ctrl+S)">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save
@@ -658,6 +688,7 @@
 
         <!-- Swimlane Rows will be rendered here -->
         <div id="lanes-root"></div>
+        <div id="lane-drop-line"></div>
       </div>
     </div>
   </div>
@@ -674,7 +705,8 @@
       <li><kbd>Double-Click Arrow</kbd> : Add or edit arrow label (or click <kbd>+ Add Label</kbd>)</li>
       <li><kbd>Delete</kbd> : Delete selected step or arrow</li>
       <li><kbd>Drag Node</kbd> : Move inside lane or drop into another lane</li>
-      <li><kbd>▲ / ▼ or Drag Header</kbd> : Reorder swimlanes up or down</li>
+      <li><kbd>Drag Lane Header</kbd> : Reorder swimlanes (a blue line shows where it will land)</li>
+      <li><kbd>Present</kbd> : Hide editing controls for a clean read-only view (<kbd>Edit</kbd> to return)</li>
       <li><kbd>Double Click</kbd> : Edit step text, lane names, or edge conditions</li>
       <li><kbd>Drag Canvas</kbd> : Pan viewport</li>
       <li><kbd>Scroll Wheel</kbd> : Zoom in / out</li>
@@ -697,7 +729,7 @@
       "id": "lane-officer",
       "name": "Loan Officer",
       "color": "#fef3c7",
-      "height": 256
+      "height": 160
     },
     {
       "id": "lane-engine",
@@ -718,7 +750,7 @@
       "laneId": "lane-customer",
       "type": "start",
       "label": "Submit Application",
-      "x": 80,
+      "x": 56,
       "y": 52,
       "_globalY": 52
     },
@@ -727,25 +759,25 @@
       "laneId": "lane-officer",
       "type": "task",
       "label": "Review & Validate Docs",
-      "x": 360,
-      "y": 48,
-      "_globalY": 208
+      "x": 296,
+      "y": 52,
+      "_globalY": 212
     },
     {
       "id": "n3",
       "laneId": "lane-officer",
       "type": "decision",
       "label": "Docs Complete?",
-      "x": 640,
-      "y": 44,
-      "_globalY": 204
+      "x": 536,
+      "y": 48,
+      "_globalY": 208
     },
     {
       "id": "n4",
       "laneId": "lane-customer",
       "type": "task",
       "label": "Provide Missing Docs",
-      "x": 920,
+      "x": 776,
       "y": 52,
       "_globalY": 52
     },
@@ -753,71 +785,46 @@
       "id": "n5",
       "laneId": "lane-engine",
       "type": "task",
-      "label": "Run Automated Credit & Fraud Check",
-      "x": 920,
+      "label": "Run Credit & Fraud Check",
+      "x": 776,
       "y": 52,
-      "_globalY": 468
+      "_globalY": 372
     },
     {
       "id": "n6",
       "laneId": "lane-engine",
       "type": "decision",
       "label": "Credit Score >= 700?",
-      "x": 1200,
+      "x": 1016,
       "y": 48,
-      "_globalY": 464
+      "_globalY": 368
     },
     {
-      "id": "n8",
-      "laneId": "lane-risk",
-      "type": "task",
-      "label": "Manual Risk Assessment",
-      "x": 1480,
-      "y": 52,
-      "_globalY": 628
-    },
-    {
-      "id": "n9",
+      "id": "n7",
       "laneId": "lane-risk",
       "type": "decision",
       "label": "Risk Acceptable?",
-      "x": 1760,
+      "x": 1256,
       "y": 48,
-      "_globalY": 624
+      "_globalY": 528
     },
     {
-      "id": "n10",
+      "id": "n8",
       "laneId": "lane-officer",
-      "type": "task",
-      "label": "Send Approval & Agreement",
-      "x": 2040,
-      "y": 48,
-      "_globalY": 208
-    },
-    {
-      "id": "n11",
-      "laneId": "lane-customer",
-      "type": "task",
-      "label": "Sign Loan Agreement",
-      "x": 2320,
+      "type": "end",
+      "outcome": "success",
+      "label": "Loan Approved",
+      "x": 1496,
       "y": 52,
-      "_globalY": 52
+      "_globalY": 212
     },
     {
-      "id": "n12",
-      "laneId": "lane-officer",
-      "type": "end",
-      "label": "Rejection Sent",
-      "x": 2040,
-      "y": 144,
-      "_globalY": 304
-    },
-    {
-      "id": "n13",
+      "id": "n9",
       "laneId": "lane-customer",
       "type": "end",
-      "label": "Loan Disbursed",
-      "x": 2600,
+      "outcome": "failure",
+      "label": "Application Rejected",
+      "x": 1496,
       "y": 52,
       "_globalY": 52
     }
@@ -863,44 +870,26 @@
     {
       "id": "e7",
       "from": "n6",
-      "to": "n10",
+      "to": "n8",
       "label": "Yes"
     },
     {
       "id": "e8",
       "from": "n6",
-      "to": "n8",
+      "to": "n7",
       "label": "No"
     },
     {
       "id": "e9",
-      "from": "n8",
-      "to": "n9",
-      "label": ""
-    },
-    {
-      "id": "e10",
-      "from": "n9",
-      "to": "n10",
+      "from": "n7",
+      "to": "n8",
       "label": "Yes"
     },
     {
-      "id": "e12",
-      "from": "n9",
-      "to": "n12",
+      "id": "e10",
+      "from": "n7",
+      "to": "n9",
       "label": "No"
-    },
-    {
-      "id": "e13",
-      "from": "n10",
-      "to": "n11",
-      "label": ""
-    },
-    {
-      "id": "e14",
-      "from": "n11",
-      "to": "n13",
-      "label": "Signed"
     }
   ]
 }
@@ -1006,6 +995,11 @@
           }
         });
 
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.has('present') || urlParams.has('capture')) document.body.classList.add('presentation');
+        if (urlParams.has('capture')) document.body.classList.add('capture');
+        syncPresentButton();
+
         render();
         fitView();
         updateStatus(false);
@@ -1029,8 +1023,8 @@
 
       // --- RENDERING ---
       function render() {
-        const maxX = chartData.nodes.reduce((m, n) => Math.max(m, (n.x || 0) + NODE_WIDTH + 100), 1200);
-        swimlanesContainer.style.minWidth = `${maxX + 240}px`;
+        const maxX = chartData.nodes.reduce((m, n) => Math.max(m, (n.x || 0) + NODE_WIDTH + 48), 1200);
+        swimlanesContainer.style.minWidth = `${maxX + 224}px`;
 
         renderLanes(maxX);
         renderNodes();
@@ -1058,9 +1052,11 @@
 
           const header = document.createElement('div');
           header.className = 'lane-header';
-          header.draggable = true;
+          header.draggable = !document.body.classList.contains('presentation');
+          header.title = 'Drag to reorder swimlane';
           if (lane.color) {
             header.style.borderLeft = `6px solid ${lane.color}`;
+            header.style.background = colorWithAlpha(lane.color, 0.7);
           }
 
           // Header title with double-click edit
@@ -1096,74 +1092,20 @@
           });
           header.appendChild(title);
 
-          // Lane Controls: Up / Down order buttons & drag handle
-          const controls = document.createElement('div');
-          controls.className = 'lane-controls';
-
-          const upBtn = document.createElement('button');
-          upBtn.type = 'button';
-          upBtn.className = 'lane-order-btn';
-          upBtn.innerHTML = '▲';
-          upBtn.title = 'Move swimlane up';
-          if (index === 0) upBtn.disabled = true;
-          upBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            moveLane(index, -1);
-          });
-
-          const downBtn = document.createElement('button');
-          downBtn.type = 'button';
-          downBtn.className = 'lane-order-btn';
-          downBtn.innerHTML = '▼';
-          downBtn.title = 'Move swimlane down';
-          if (index === chartData.lanes.length - 1) downBtn.disabled = true;
-          downBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            moveLane(index, 1);
-          });
-
-          const dragHandle = document.createElement('span');
-          dragHandle.className = 'lane-drag-handle';
-          dragHandle.innerHTML = '⋮⋮';
-          dragHandle.title = 'Drag to reorder swimlane';
-
-          controls.appendChild(upBtn);
-          controls.appendChild(downBtn);
-          controls.appendChild(dragHandle);
-          header.appendChild(controls);
-
-          // Drag-and-drop events for lane header re-ordering
+          // Drag the header to reorder; a blue line shows where the lane will land
           header.addEventListener('dragstart', (e) => {
-            e.dataTransfer.setData('text/plain', index.toString());
-            header.classList.add('dragging-header');
+            laneDragFrom = index;
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', String(index));
+            laneEl.classList.add('lane-dragging');
           });
-          header.addEventListener('dragend', () => {
-            header.classList.remove('dragging-header');
-            document.querySelectorAll('.swimlane').forEach(l => l.classList.remove('drag-over-lane'));
-          });
-          laneEl.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            laneEl.classList.add('drag-over-lane');
-          });
-          laneEl.addEventListener('dragleave', () => {
-            laneEl.classList.remove('drag-over-lane');
-          });
-          laneEl.addEventListener('drop', (e) => {
-            e.preventDefault();
-            laneEl.classList.remove('drag-over-lane');
-            const fromIdx = parseInt(e.dataTransfer.getData('text/plain'), 10);
-            if (!isNaN(fromIdx) && fromIdx !== index) {
-              const [moved] = chartData.lanes.splice(fromIdx, 1);
-              chartData.lanes.splice(index, 0, moved);
-              updateStatus(true);
-              render();
-            }
-          });
+          header.addEventListener('dragend', endLaneDrag);
 
           const track = document.createElement('div');
           track.className = 'lane-track';
           track.dataset.laneId = lane.id;
           track.style.minWidth = `${trackWidth}px`;
+          if (lane.color) track.style.background = colorWithAlpha(lane.color, 0.32);
 
           laneEl.appendChild(header);
           laneEl.appendChild(track);
@@ -1171,14 +1113,67 @@
         });
       }
 
-      function moveLane(index, delta) {
-        const targetIdx = index + delta;
-        if (targetIdx < 0 || targetIdx >= chartData.lanes.length) return;
-        const [moved] = chartData.lanes.splice(index, 1);
-        chartData.lanes.splice(targetIdx, 0, moved);
-        updateStatus(true);
-        render();
+      // --- Lane drag & drop helpers ---
+      let laneDragFrom = -1;
+      const laneDropLine = document.getElementById('lane-drop-line');
+
+      function colorWithAlpha(color, alpha) {
+        const m = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(String(color).trim());
+        if (!m) return color;
+        let hex = m[1];
+        if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
+        const n = parseInt(hex, 16);
+        return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
       }
+
+      function laneInsertIndexAt(clientY) {
+        const lanes = [...lanesRoot.children];
+        for (let i = 0; i < lanes.length; i++) {
+          const r = lanes[i].getBoundingClientRect();
+          if (clientY < r.top + r.height / 2) return i;
+        }
+        return lanes.length;
+      }
+
+      function showLaneDropLine(insertIdx) {
+        const lanes = [...lanesRoot.children];
+        if (!lanes.length) return;
+        const y = insertIdx < lanes.length
+          ? lanes[insertIdx].offsetTop
+          : lanes[lanes.length - 1].offsetTop + lanes[lanes.length - 1].offsetHeight;
+        laneDropLine.style.top = `${y - 2}px`;
+        laneDropLine.style.display = 'block';
+      }
+
+      function endLaneDrag() {
+        laneDragFrom = -1;
+        laneDropLine.style.display = 'none';
+        document.querySelectorAll('.swimlane.lane-dragging').forEach(l => l.classList.remove('lane-dragging'));
+      }
+
+      swimlanesContainer.addEventListener('dragover', (e) => {
+        if (laneDragFrom < 0) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        showLaneDropLine(laneInsertIndexAt(e.clientY));
+      });
+      swimlanesContainer.addEventListener('dragleave', (e) => {
+        if (laneDragFrom >= 0 && !swimlanesContainer.contains(e.relatedTarget)) laneDropLine.style.display = 'none';
+      });
+      swimlanesContainer.addEventListener('drop', (e) => {
+        if (laneDragFrom < 0) return;
+        e.preventDefault();
+        const from = laneDragFrom;
+        const insertIdx = laneInsertIndexAt(e.clientY);
+        const to = insertIdx > from ? insertIdx - 1 : insertIdx;
+        endLaneDrag();
+        if (to !== from) {
+          const [moved] = chartData.lanes.splice(from, 1);
+          chartData.lanes.splice(to, 0, moved);
+          updateStatus(true);
+          render();
+        }
+      });
 
       function renderNodes() {
         document.querySelectorAll('.flow-node').forEach(el => el.remove());
@@ -1189,7 +1184,7 @@
 
           const isDecision = node.type === 'decision';
           const nodeEl = document.createElement('div');
-          nodeEl.className = `flow-node type-${node.type}`;
+          nodeEl.className = `flow-node type-${node.type}` + (node.type === 'end' && node.outcome ? ` outcome-${node.outcome}` : '');
           nodeEl.id = `node-${node.id}`;
           nodeEl.dataset.nodeId = node.id;
           nodeEl.style.left = `${node.x || 80}px`;
@@ -1361,9 +1356,8 @@
           const leftIns = inEdges[vId].filter(e => edgePorts[e.id] && edgePorts[e.id].toPort === 'left');
           if (leftIns.length > 1) {
             leftIns.sort((a, b) => rects[a.from].cy - rects[b.from].cy);
-            leftIns.forEach((e, idx) => {
-              toPortOffsetY[e.id] = (idx - (leftIns.length - 1) / 2) * 16;
-            });
+            // Arrows entering the same port converge on one entry point (single arrowhead)
+            leftIns.forEach(e => { toPortOffsetY[e.id] = 0; });
           } else if (leftIns.length === 1) {
             toPortOffsetY[leftIns[0].id] = 0;
           }
@@ -2288,6 +2282,17 @@
 
       btnAutoTidy.addEventListener('click', autoTidyLayout);
 
+      const btnPresent = document.getElementById('btn-present');
+      function syncPresentButton() {
+        btnPresent.textContent = document.body.classList.contains('presentation') ? 'Edit' : 'Present';
+      }
+      btnPresent.addEventListener('click', () => {
+        document.body.classList.toggle('presentation');
+        syncPresentButton();
+        render();
+        fitView();
+      });
+
       // --- VIEWPORT PAN & ZOOM & FIT ---
       function updateTransform() {
         stage.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
@@ -2317,14 +2322,16 @@
         };
         const minNodeFontPx = effPx('.node-label');
         const minEdgeFontPx = effPx('.edge-label-text');
-        const MIN_PX = 9;
-        if (minNodeFontPx !== null && minNodeFontPx < MIN_PX) warnings.push(`Node text renders at ${minNodeFontPx}px at Fit zoom (${Math.round(scale * 100)}%); below ${MIN_PX}px is hard to read. Reduce columns/nodes or split the diagram.`);
-        if (minEdgeFontPx !== null && minEdgeFontPx < MIN_PX) warnings.push(`Edge labels render at ${minEdgeFontPx}px at Fit zoom; below ${MIN_PX}px is hard to read.`);
+        const MIN_PX = parseFloat(new URLSearchParams(window.location.search).get('minpx')) || 11;
+        const legibility = [];
+        if (minNodeFontPx !== null && minNodeFontPx < MIN_PX) legibility.push(`Node text renders at ${minNodeFontPx}px at Fit zoom (${Math.round(scale * 100)}%), below the ${MIN_PX}px minimum. Reduce columns/nodes or split the diagram.`);
+        if (minEdgeFontPx !== null && minEdgeFontPx < MIN_PX) legibility.push(`Edge labels render at ${minEdgeFontPx}px at Fit zoom, below the ${MIN_PX}px minimum.`);
         const report = {
           viewport: { w: window.innerWidth, h: window.innerHeight },
           fitScale: Math.round(scale * 100) / 100,
           nodeCount: nodes.length, labelCount: labels.length,
-          minNodeFontPx, minEdgeFontPx, errors, warnings
+          minNodeFontPx, minEdgeFontPx, minTextPx: MIN_PX, errors, legibility, warnings,
+          natural: { w: swimlanesContainer.offsetWidth, h: swimlanesContainer.offsetHeight }
         };
         const el = document.createElement('script');
         el.id = 'render-report';
@@ -2338,15 +2345,30 @@
         const currentWidth = swimlanesContainer.offsetWidth || 1400;
         const currentHeight = swimlanesContainer.offsetHeight || 800;
 
-        const availableWidth = vpRect.width - 80;
-        const availableHeight = vpRect.height - 80;
+        // Capture mode: scale to the exact width requested (?capture&w=1600) and pin to the top-left,
+        // so the screenshot is the diagram only and does not depend on browser viewport quirks.
+        if (document.body.classList.contains('capture')) {
+          const reqW = parseFloat(new URLSearchParams(window.location.search).get('w'));
+          if (reqW > 0) {
+            scale = Math.min(1, reqW / currentWidth);
+            panX = 0;
+            panY = 0;
+            updateTransform();
+            return;
+          }
+        }
+
+        const pad = document.body.classList.contains('capture') ? 0 : 80;
+        const availableWidth = vpRect.width - pad;
+        const availableHeight = vpRect.height - pad;
 
         const scaleX = availableWidth / currentWidth;
         const scaleY = availableHeight / currentHeight;
 
         scale = Math.min(Math.max(Math.min(scaleX, scaleY), 0.25), 1.0);
-        panX = Math.max(20, (vpRect.width - currentWidth * scale) / 2);
-        panY = Math.max(20, (vpRect.height - currentHeight * scale) / 2);
+        const minPan = document.body.classList.contains('capture') ? 0 : 20;
+        panX = Math.max(minPan, (vpRect.width - currentWidth * scale) / 2);
+        panY = Math.max(minPan, (vpRect.height - currentHeight * scale) / 2);
 
         updateTransform();
       }
@@ -2476,6 +2498,7 @@
         } else if (e.key === 'Escape') {
           cancelConnecting();
         } else if (e.key === 'Delete' || e.key === 'Backspace') {
+          if (document.body.classList.contains('presentation')) return;
           if (document.activeElement && (document.activeElement.isContentEditable || document.activeElement.tagName === 'INPUT')) {
             return;
           }

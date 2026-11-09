@@ -64,7 +64,7 @@ Lanes define actors, systems, or organizational roles responsible for steps:
 | `start` | Rounded Pill (`rx=28px`, Green tint) | Trigger, event, or process start point. | $168 \times 56\text{px}$ |
 | `task` | Rounded Rectangle Card (`rx=8px`) | Concrete action verb + noun executed by the lane owner. | $168 \times 56\text{px}$ |
 | `decision` | **Geometric Diamond** (Amber outline) | Business rule, condition check, or gateway question with 4 tip ports. | $168 \times 64\text{px}$ |
-| `end` | Rounded Pill (`rx=28px`, Red tint) | Terminal milestone, outcome, or closed status. | $168 \times 56\text{px}$ |
+| `end` | Rounded Pill (`rx=28px`, Red tint) | Terminal milestone, outcome, or closed status. Optional `"outcome": "success"` renders solid green with a check; `"failure"` renders red with a cross. | $168 \times 56\text{px}$ |
 
 ### Node Writing Rules
 1. **Concise Business Verbs**: Use `Verb + Noun` (e.g. `"Validate Order"`, not `"The order needs to be validated"`).
@@ -83,8 +83,7 @@ The standalone HTML flowchart provides fluid, desktop-grade direct manipulation:
 2. **Cross-Lane Node Drag & Drop**:
    - Grab any node by its body or text and drag it into a different swimlane. The canvas tracks global coordinates, highlights the active target lane, and automatically reassigns the node's `laneId` and local coordinates on release.
 3. **Swimlane Re-ordering**:
-   - Reorder lanes up or down using the `▲` and `▼` buttons located inside each lane header.
-   - Alternatively, drag the lane header (`⋮⋮` handle) directly to swap positions with another lane.
+   - Drag a lane header up or down. A blue line between lanes shows where the lane will land; release to drop. There are no up/down buttons.
 4. **Smooth Quarter-Arc Elbows (`r=8px`)**:
    - All orthogonal path turns render with smooth quarter-arc corners rather than sharp $90^\circ$ angles.
 5. **Bridge / Hop Overpass for Crossing Arrows**:
@@ -124,8 +123,9 @@ python scripts/layout_engine.py --layout input.json -o process.html
 # 2. Run deterministic pre-flight audit & Diagram Quality Scoring (0-100)
 python scripts/layout_engine.py --verify process.html
 
-# 3. Render screenshot for visual review; also prints a layout report
-#    (label overlaps = exit code 3, text-size warnings). Page report mode: open <file>.html?report
+# 3. Clean 2x screenshot (controls hidden, cropped to the diagram) + layout report:
+#    label overlap = exit 3, text below --min-text-px (default 11) at Fit = exit 4.
+#    Page URL modes: ?present (read-only), ?capture&w=1600 (screenshot), ?report (measure)
 python scripts/render_screenshot.py --input process.html --output process.png --viewport wide
 
 # 4. Extract updated JSON from user-edited HTML

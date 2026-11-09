@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
-"""Headless Chromium/Edge Screenshot Renderer for Interactive HTML Flowcharts.
+"""Headless Chromium/Edge renderer and layout checker for interactive HTML flowcharts.
 
-Renders a standalone HTML flowchart into a crisp PNG image for automated
-multimodal visual review (view_image / read_file).
-Zero external dependencies (uses standard library Python 3 + system Chrome/Edge).
+1. Opens the page in report mode and measures it (edge-label overlaps, rendered text
+   size at the "Fit" zoom, natural diagram size).
+2. Captures a clean PNG: editing controls hidden, cropped to the diagram, 2x by default.
+
+Exit codes: 0 ok, 1 render failure, 3 edge-label overlap, 4 text below --min-text-px.
+Zero external dependencies (standard library Python 3 + system Chrome/Edge).
 """
 
 from __future__ import annotations
@@ -11,10 +14,12 @@ from __future__ import annotations
 import argparse
 import html
 import json
+import math
 import os
-import shutil
-import subprocess
 import re
+import shutil
+import struct
+import subprocess
 import sys
 import tempfile
 import time
@@ -23,7 +28,7 @@ from pathlib import Path
 
 
 # Chrome/Chromium first: Edge's launcher can return before the screenshot is
-# written, so it is only a fallback (the wait loop in main() still handles it).
+# written, so it is only a fallback (the wait loop below still handles it).
 BROWSER_NAMES = (
     "chrome",
     "google-chrome",
@@ -117,13 +122,22 @@ def remove_stale_temp_files(output_path: Path) -> None:
                 pass
 
 
-def collect_layout_report(browser: Path, uri: str, width: int, height: int, timeout: int):
-    """Open the page with ?report=1 and read the layout report it publishes into the DOM."""
+def _ensure_utf8_output() -> None:
+    """Avoid UnicodeEncodeError on Windows consoles that default to cp1252."""
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError):
+            pass
+
+
+def collect_layout_report(browser: Path, uri: str, width: int, height: int, timeout: int, min_px: float):
+    """Open the page in report mode and read the layout report it publishes into the DOM."""
     profile = tempfile.mkdtemp(prefix="flowchart_report_")
     cmd = [
         str(browser), "--headless", "--disable-gpu", "--disable-dev-shm-usage", "--hide-scrollbars",
         f"--user-data-dir={profile}", f"--window-size={width},{height}",
-        "--virtual-time-budget=4000", "--dump-dom", f"{uri}?report=1",
+        "--virtual-time-budget=4000", "--dump-dom", f"{uri}?report&present&minpx={min_px}",
     ]
     try:
         res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
@@ -138,24 +152,74 @@ def collect_layout_report(browser: Path, uri: str, width: int, height: int, time
         shutil.rmtree(profile, ignore_errors=True)
 
 
-def _ensure_utf8_output() -> None:
-    """Avoid UnicodeEncodeError on Windows consoles that default to cp1252."""
-    for stream in (sys.stdout, sys.stderr):
+def take_screenshot(browser: Path, uri: str, width: int, height: int, scale: float,
+                    output_path: Path, timeout: int) -> None:
+    profile = tempfile.mkdtemp(prefix="flowchart_render_")
+    temp_out = output_path.with_name(f"{output_path.name}.{uuid.uuid4().hex}.png")
+    cmd = [
+        str(browser),
+        "--headless",
+        "--disable-gpu",
+        "--disable-dev-shm-usage",
+        "--hide-scrollbars",
+        f"--user-data-dir={profile}",
+        f"--window-size={width},{height}",
+        f"--force-device-scale-factor={scale:g}",
+        "--virtual-time-budget=4000",
+        f"--screenshot={temp_out}",
+        uri,
+    ]
+    deadline = time.monotonic() + timeout
+    try:
         try:
-            stream.reconfigure(encoding="utf-8", errors="replace")
-        except (AttributeError, ValueError):
-            pass
+            res = subprocess.run(
+                cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+                encoding="utf-8", errors="replace", timeout=timeout, check=False,
+            )
+        except subprocess.TimeoutExpired:
+            raise RuntimeError(f"Browser did not finish within {timeout}s (try --timeout).")
+        if res.returncode != 0:
+            raise RuntimeError(f"Browser exited with code {res.returncode}: {res.stderr.strip()}")
+        if not wait_for_png(temp_out, deadline):
+            raise RuntimeError(
+                f"Screenshot not written within {timeout}s by {browser.name}. "
+                f"Try --browser with another Chrome/Edge path or a larger --timeout. "
+                f"Browser stderr: {res.stderr.strip()[-300:]}"
+            )
+        raw = temp_out.read_bytes()
+        if len(raw) < 24 or raw[:8] != PNG_SIGNATURE:
+            raise RuntimeError("Rendered output is not a valid PNG file.")
+        os.replace(temp_out, output_path)
+    finally:
+        if temp_out.exists():
+            temp_out.unlink()
+        shutil.rmtree(profile, ignore_errors=True)
+
+
+def png_size(path: Path) -> tuple[int, int]:
+    with path.open("rb") as fh:
+        head = fh.read(24)
+    return struct.unpack(">II", head[16:24])
 
 
 def main() -> int:
     _ensure_utf8_output()
-    parser = argparse.ArgumentParser(description="Render an HTML flowchart to PNG for visual inspection.")
+    parser = argparse.ArgumentParser(description="Render an HTML flowchart to PNG and check its layout.")
     parser.add_argument("--input", "-i", required=True, help="Input HTML flowchart file")
     parser.add_argument("--output", "-o", help="Output PNG path (defaults to <input>.png)")
-    parser.add_argument("--viewport", default="desktop", help="Viewport size preset or WIDTHxHEIGHT (default: 1440x900)")
+    parser.add_argument("--viewport", default="wide",
+                        help="Screen size the diagram is judged at: wide (1920x1080), desktop (1440x900), compact, or WIDTHxHEIGHT (default: wide)")
     parser.add_argument("--timeout", type=int, default=20, help="Render timeout in seconds")
     parser.add_argument("--browser", help="Explicit path to Chrome/Edge executable")
-    parser.add_argument("--no-report", action="store_true", help="Skip the in-page layout report (label overlaps, text size)")
+    parser.add_argument("--scale", type=float, default=2.0, help="Screenshot device scale factor (default: 2)")
+    parser.add_argument("--max-width", type=int, default=1600,
+                        help="Widest the cropped screenshot is laid out, in CSS px (default: 1600)")
+    parser.add_argument("--min-text-px", type=float, default=11.0,
+                        help="Fail (exit 4) when text renders smaller than this at Fit zoom on --viewport (default: 11)")
+    parser.add_argument("--full-window", action="store_true",
+                        help="Screenshot the whole viewport instead of cropping to the diagram")
+    parser.add_argument("--no-report", action="store_true",
+                        help="Skip the layout report (label overlaps, text size); screenshot only")
     args = parser.parse_args()
 
     input_path = Path(args.input).resolve()
@@ -165,73 +229,54 @@ def main() -> int:
     output_path = Path(args.output).resolve() if args.output else input_path.with_suffix(".png")
     width, height = parse_viewport(args.viewport)
     browser = Path(args.browser).resolve() if args.browser else find_browser()
+    uri = input_path.as_uri()
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     remove_stale_temp_files(output_path)
-    profile = tempfile.mkdtemp(prefix="flowchart_render_")
-    temp_out = output_path.with_name(f"{output_path.name}.{uuid.uuid4().hex}.png")
 
-    cmd = [
-        str(browser),
-        "--headless",
-        "--disable-gpu",
-        "--disable-dev-shm-usage",
-        "--hide-scrollbars",
-        f"--user-data-dir={profile}",
-        f"--window-size={width},{height}",
-        "--force-device-scale-factor=1",
-        f"--screenshot={temp_out}",
-        input_path.as_uri(),
-    ]
+    report = None
+    if not args.no_report:
+        for _attempt in range(2):  # the first browser launch occasionally returns no DOM
+            report = collect_layout_report(browser, uri, width, height, args.timeout, args.min_text_px)
+            if report is not None:
+                break
 
-    deadline = time.monotonic() + args.timeout
-    try:
-        try:
-            res = subprocess.run(
-                cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
-                timeout=args.timeout,
-                check=False,
-            )
-        except subprocess.TimeoutExpired:
-            raise RuntimeError(f"Browser did not finish within {args.timeout}s (try --timeout).")
-        if res.returncode != 0:
-            raise RuntimeError(f"Browser exited with code {res.returncode}: {res.stderr.strip()}")
-        if not wait_for_png(temp_out, deadline):
-            raise RuntimeError(
-                f"Screenshot not written within {args.timeout}s by {browser.name}. "
-                f"Try --browser with another Chrome/Edge path or a larger --timeout. "
-                f"Browser stderr: {res.stderr.strip()[-300:]}"
-            )
-        raw = temp_out.read_bytes()
-        if len(raw) < 24 or raw[:8] != PNG_SIGNATURE:
-            raise RuntimeError("Rendered output is not a valid PNG file.")
-        os.replace(temp_out, output_path)
-        print(f"[OK] Rendered screenshot ({width}x{height}): {output_path}")
-        if args.no_report:
-            return 0
-        report = collect_layout_report(browser, input_path.as_uri(), width, height, args.timeout)
-        if report is None:
-            print("[WARN] Layout report unavailable (the page may be an older template, or this browser returned no DOM). Review the screenshot manually.")
-            return 0
-        print(f"[REPORT] Fit zoom {int(report['fitScale'] * 100)}%; smallest node text {report['minNodeFontPx']}px, "
-              f"smallest edge label {report['minEdgeFontPx']}px; {report['labelCount']} labels checked.")
-        for msg in report["warnings"]:
-            print(f"[WARN] {msg}")
-        for msg in report["errors"]:
-            print(f"[ERROR] {msg}")
-        if report["errors"]:
-            return 3
-        print("[PASS] No edge-label overlaps with other labels or nodes.")
+    shot_w, shot_h, query = width, height, "?present"
+    cropped = False
+    if report and report.get("natural") and report["natural"].get("w") and not args.full_window:
+        nat = report["natural"]
+        crop_w = min(int(nat["w"]), args.max_width)
+        crop_h = math.ceil(nat["h"] * crop_w / nat["w"])
+        # In screenshot mode the page viewport equals the window, so no offset is needed.
+        shot_w, shot_h, query, cropped = crop_w, crop_h, f"?capture&w={crop_w}", True
+
+    take_screenshot(browser, uri + query, shot_w, shot_h, args.scale, output_path, args.timeout)
+    px_w, px_h = png_size(output_path)
+    mode = "cropped to diagram" if cropped else "full window"
+    print(f"[OK] Rendered screenshot ({px_w}x{px_h}px, {args.scale:g}x, {mode}): {output_path}")
+
+    if args.no_report:
         return 0
-    finally:
-        if temp_out.exists():
-            temp_out.unlink()
-        shutil.rmtree(profile, ignore_errors=True)
+    if report is None:
+        print("[WARN] Layout report unavailable (older template, or this browser returned no DOM). "
+              "Review the screenshot manually.")
+        return 0
+
+    print(f"[REPORT] Fit zoom {int(report['fitScale'] * 100)}% on {width}x{height}; "
+          f"smallest node text {report['minNodeFontPx']}px, smallest edge label {report['minEdgeFontPx']}px "
+          f"(minimum {args.min_text_px:g}px); {report['labelCount']} labels checked.")
+    for msg in report.get("warnings", []):
+        print(f"[WARN] {msg}")
+    for msg in report["errors"]:
+        print(f"[ERROR] {msg}")
+    for msg in report.get("legibility", []):
+        print(f"[ERROR] {msg}")
+    if report["errors"]:
+        return 3
+    if report.get("legibility"):
+        return 4
+    print("[PASS] No edge-label overlaps; text is legible at Fit zoom.")
+    return 0
 
 
 if __name__ == "__main__":
