@@ -15,8 +15,8 @@ ERD and state diagrams are planned, not built yet.
 
 Open these in a browser, no setup needed:
 
-- [assets/example-flowchart.html](assets/example-flowchart.html): a loan application process across 4 swimlanes
-- [assets/example-sequence.html](assets/example-sequence.html): a checkout flow with `opt` and `alt` frames
+- [samples/example-flowchart.html](samples/example-flowchart.html): a loan application process across 4 swimlanes
+- [samples/example-sequence.html](samples/example-sequence.html): a checkout flow with `opt` and `alt` frames
 
 In the flowchart, drag a step to another lane, drag a lane header to reorder lanes, double-click text to edit, and press **Auto-Tidy** after moving things around. In the sequence diagram, drag a participant sideways or a message up and down to reorder, double-click to edit, and use **+ Participant**, **+ Message** and **Frame** in the toolbar. Press **Delete** to remove the selected item, and add `?present` to the address for a read-only view.
 
@@ -58,7 +58,7 @@ Install `ultimate-diagram` into your AI coding assistants (Antigravity, Claude C
 ### 1. One-line NPX (from GitHub or local repo)
 ```shell
 # From GitHub:
-npx khanhchungoc/ultimate-diagram
+npx khanhchungoc/ultimate-diagraming-skill
 
 # Or from local clone:
 npx "C:\Users\KhanhChuNgoc\Documents\NTG Repos\ultimate-diagram"
@@ -96,7 +96,7 @@ python scripts/install.py --runtime antigravity --scope user
 
 ```shell
 # create: JSON in, standalone HTML out
-python scripts/layout_engine.py --layout assets/example-flowchart.json -o flowchart.html
+python scripts/layout_engine.py --layout samples/example-flowchart.json -o flowchart.html
 
 # audit the result (score must be 90 or more, exit code 0)
 python scripts/layout_engine.py --verify flowchart.html

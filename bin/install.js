@@ -72,7 +72,7 @@ ${c.cyan}${c.bold}Ultimate Diagram Installer${c.reset}
 ${c.dim}Interactive, standalone diagrams (swimlane flowcharts & sequence diagrams) for AI assistants.${c.reset}
 
 ${c.bold}Usage:${c.reset}
-  npx khanhchungoc/ultimate-diagram [options]
+  npx khanhchungoc/ultimate-diagraming-skill [options]
   # or when cloned locally:
   ultimate-diagram [options]
 
@@ -264,5 +264,5 @@ console.log(`${c.border}${boxLine(`${c.bold}${c.white}How to use:${c.reset}`)}${
 console.log(`${c.border}${boxLine(`  Ask your AI assistant: "create a flowchart for..."${c.reset}`)}${c.reset}`);
 console.log(`${c.border}${boxLine(`  or reference ${c.cyan}/ultimate-diagram${c.reset} in chat${c.reset}`)}${c.reset}`);
 console.log(`${c.border}${emptyLine}${c.reset}`);
-console.log(`${c.border}${boxLine(`${c.dim}Repository: https://github.com/khanhchungoc/ultimate-diagram${c.reset}`)}${c.reset}`);
+console.log(`${c.border}${boxLine(`${c.dim}Repository: https://github.com/khanhchungoc/ultimate-diagraming-skill${c.reset}`)}${c.reset}`);
 console.log(`${c.border}${bottomBorder}${c.reset}\n`);
