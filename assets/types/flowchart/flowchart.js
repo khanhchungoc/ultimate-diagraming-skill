@@ -883,15 +883,9 @@
           path.addEventListener('dblclick', (e) => {
             e.stopPropagation();
             selectEdge(edge.id, false);
-            const labelEl = document.querySelector(`.edge-label-container[data-edge-id="${edge.id}"] .edge-label-text`);
-            if (labelEl) {
-              labelEl.focus();
-              const range = document.createRange();
-              range.selectNodeContents(labelEl);
-              const sel = window.getSelection();
-              sel.removeAllRanges();
-              sel.addRange(range);
-            }
+            // Reuse the label's own double-click handler (makes it editable, clears the "+" placeholder)
+            const labelBox = document.querySelector(`.edge-label-container[data-edge-id="${edge.id}"]`);
+            if (labelBox) labelBox.dispatchEvent(new MouseEvent('dblclick', { bubbles: false }));
           });
 
           // Wide invisible hit area so thin arrows are easy to click and select
@@ -939,7 +933,7 @@
             labelText.contentEditable = 'false';
             labelText.spellcheck = false;
             labelText.title = 'Double-click to edit condition';
-            labelText.textContent = hasLabel ? edge.label : '+ Add Label';
+            labelText.textContent = hasLabel ? edge.label : '+';
 
             labelText.addEventListener('pointerdown', (e) => {
               e.stopPropagation();
@@ -948,7 +942,7 @@
             labelText.addEventListener('blur', () => {
               labelText.contentEditable = 'false';
               const text = labelText.textContent.trim();
-              if (text === '' || text === '+ Add Label') {
+              if (text === '' || text === '+') {
                 edge.label = '';
               } else {
                 edge.label = text;
@@ -972,7 +966,7 @@
               e.stopPropagation();
               labelText.contentEditable = 'true';
               labelText.focus();
-              if (labelText.textContent.trim() === '+ Add Label') {
+              if (labelText.textContent.trim() === '+') {
                 labelText.textContent = '';
                 labelContainer.classList.remove('empty-placeholder');
               } else {
@@ -985,15 +979,31 @@
             });
 
             labelContainer.appendChild(labelText);
+            edgeLabelsGroup.appendChild(labelContainer); // in DOM so it can be measured below
 
             if (isSelected) {
               // Separate from the label so it reads as "delete the arrow", not "clear the label"
               const delEdgeBtn = document.createElement('div');
               delEdgeBtn.className = 'edge-delete-btn';
-              delEdgeBtn.textContent = '🗑 Delete arrow';
+              delEdgeBtn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M6 6l1 14h10l1-14"/><path d="M10 11v6M14 11v6"/></svg>';
+              delEdgeBtn.setAttribute('aria-label', 'Delete arrow');
               delEdgeBtn.title = 'Delete this arrow (Delete key)';
-              delEdgeBtn.style.left = `${pathD.midX}px`;
-              delEdgeBtn.style.top = `${pathD.midY - 30}px`;
+              // Sit on the arrow itself, as near its middle as possible without covering the label pill
+              const lw = labelContainer.offsetWidth / 2 + 18, lh = labelContainer.offsetHeight / 2 + 18;
+              const total = path.getTotalLength();
+              // Clearance > 0 means the 28px button is fully outside the label box (plus a small gap)
+              const clearance = (pt) => Math.max(Math.abs(pt.x - pathD.midX) - lw, Math.abs(pt.y - pathD.midY) - lh);
+              let spot = null, best = -Infinity;
+              const steps = [];
+              for (let i = 0; i <= 90; i++) steps.push(0.5 + (i % 2 ? 1 : -1) * Math.ceil(i / 2) * 0.01);
+              for (const f of steps) {          // nearest to the middle first
+                const pt = path.getPointAtLength(total * Math.min(0.95, Math.max(0.05, f)));
+                const c = clearance(pt);
+                if (c > 0) { spot = pt; break; }
+                if (c > best) { best = c; spot = pt; }
+              }
+              delEdgeBtn.style.left = `${spot.x}px`;
+              delEdgeBtn.style.top = `${spot.y}px`;
               delEdgeBtn.addEventListener('pointerdown', (e) => e.stopPropagation());
               delEdgeBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -1005,9 +1015,11 @@
             labelContainer.addEventListener('click', (e) => {
               e.stopPropagation();
               selectEdge(edge.id, false);
+              // The "+" placeholder starts typing on a single click
+              if (labelContainer.classList.contains('empty-placeholder') && labelText.contentEditable !== 'true') {
+                labelContainer.dispatchEvent(new MouseEvent('dblclick', { bubbles: false }));
+              }
             });
-
-            edgeLabelsGroup.appendChild(labelContainer);
 
             [path, hit].forEach(el => {
               el.addEventListener('mouseenter', () => {
