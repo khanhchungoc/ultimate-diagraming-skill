@@ -52,6 +52,9 @@ Input Graph JSON ──> [1. Cycle Breaking] ──> [2. Topological Layering]
   - The horizontal return segment traverses along this outer highway completely outside the active task rows, eliminating line strikes across intermediate nodes.
 - **Incoming Port Staggering & Convergence**:
   - When multiple forward edges converge onto a target node's `Left` port, their vertical arrival coordinates are staggered ($\pm 8\text{px}$) so arrowheads and horizontal approach segments never overlap.
+- **Crossing-Minimising Column Alignment**:
+  - A cross-lane arrow can become a straight vertical line when its target shares the source's column, which also saves a column of width. Candidates: a task with a single outgoing arrow into another lane, and one branch per side (up/down) of a decision. The engine lays out every allowed combination (greedy search when there are more than 512), scores each with the verifier (overlaps/penetrations, then edge crossings, columns, bends, total arrow length) and keeps the best, so alignment is only applied when it does not make the diagram worse. A decision's top/bottom exit goes to the target directly above/below; other branches leave through the right port.
+  - A task with a single arrow into another lane can instead be placed one node width (168px) to the right rather than a full 240px column, so the target's left edge lines up with the source's right edge: the arrow drops from the source and enters the target's left side after a short run. It is scored like any other option.
 - **Vertical Channel Staggering**:
   - When multiple `Right` $\rightarrow$ `Left` elbow edges traverse the same column gap, their vertical turn channels (`channelX`) are sorted for planar nesting (upward edges sorted by `startY` ascending; downward edges by `startY` descending) and spaced across the gap.
 - **Quarter-Arc Elbows & Bridge Overpasses**:

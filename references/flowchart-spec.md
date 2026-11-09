@@ -84,9 +84,11 @@ The standalone HTML flowchart provides fluid, desktop-grade direct manipulation:
    - Grab any node by its body or text and drag it into a different swimlane. The canvas tracks global coordinates, highlights the active target lane, and automatically reassigns the node's `laneId` and local coordinates on release.
 3. **Swimlane Re-ordering**:
    - Drag a lane header up or down. A blue line between lanes shows where the lane will land; release to drop. There are no up/down buttons.
-4. **Smooth Quarter-Arc Elbows (`r=8px`)**:
+4. **Pan & Zoom**:
+   - Trackpad: pinch zooms at the cursor, two-finger scroll pans. Mouse wheel zooms in small steps. Toolbar +/- and Fit also work.
+5. **Smooth Quarter-Arc Elbows (`r=8px`)**:
    - All orthogonal path turns render with smooth quarter-arc corners rather than sharp $90^\circ$ angles.
-5. **Bridge / Hop Overpass for Crossing Arrows**:
+6. **Bridge / Hop Overpass for Crossing Arrows**:
    - When a horizontal arrow crosses a vertical connector, it renders a semicircular bridge hop (`A 6 6 0 0 1 ...`) to eliminate visual ambiguity.
 
 ---

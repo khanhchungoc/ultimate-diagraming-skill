@@ -20,10 +20,11 @@ import re
 import sys
 from collections import defaultdict, deque
 from pathlib import Path
-from typing import Any, Dict, List, Set, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 
 DEFAULT_COL_WIDTH = 240
+TIGHT_STEP = 168  # target's left edge lines up with the source's right edge (node width)
 START_X = 56
 
 # Complexity budget (a diagram beyond these is too dense to read at Fit zoom on a 1920px screen)
@@ -77,7 +78,14 @@ class SwimlaneLayoutEngine:
 
         # 2. Topological rank assignment (longest path layering)
         ranks = self._assign_topological_ranks(fwd_adj, fwd_in_degree)
+        ranks, xs = self._choose_alignment(ranks, forward_edges, fwd_adj, rev_adj)
+        self._place_nodes(ranks, rev_adj, xs)
+        return self.data
 
+    def _place_nodes(
+        self, ranks: Dict[str, int], rev_adj: Dict[str, List[str]], xs: Optional[Dict[str, float]] = None
+    ) -> None:
+        """Steps 3-6: order nodes inside lanes, assign x/y, nudge to straight lines."""
         # 3. Group nodes by (laneId, rank) and order by barycenter
         lane_rank_groups: Dict[Tuple[str, int], List[Dict[str, Any]]] = defaultdict(list)
         for node in self.nodes:
@@ -114,7 +122,7 @@ class SwimlaneLayoutEngine:
             lane_top, lane_height = lane_positions.get(lane_id, (0, LANE_MIN_HEIGHT))
             for sub_idx, node in enumerate(group):
                 nh = DECISION_NODE_HEIGHT if node.get("type") == "decision" else DEFAULT_NODE_HEIGHT
-                node["x"] = start_x + r * DEFAULT_COL_WIDTH
+                node["x"] = start_x + (xs[node["id"]] if xs else r * DEFAULT_COL_WIDTH)
                 if len(group) == 1 and lane_subrows[lane_id] == 1:
                     # Center vertically in single-row lane, snapped to 4px
                     node["y"] = int(((lane_height - nh) // 8) * 4)
@@ -124,8 +132,6 @@ class SwimlaneLayoutEngine:
 
         # 6. Apply Nudge-to-Align heuristic (<= 35px) for 0-turn collinear horizontal connections
         self._apply_nudge_to_align(lane_positions, lane_rank_groups)
-
-        return self.data
 
     def _apply_nudge_to_align(
         self,
@@ -176,6 +182,158 @@ class SwimlaneLayoutEngine:
                     if not collides:
                         v["y"] = target_v_y
                         v["_globalY"] = lane_top + target_v_y
+
+    def _ranks_with_zero_edges(
+        self, forward_edges: List[Dict[str, Any]], zero: Set[Tuple[str, str]]
+    ) -> Dict[str, int]:
+        """Longest-path ranks where edges in `zero` span 0 columns (target shares the source column)."""
+        adj: Dict[str, List[str]] = defaultdict(list)
+        indeg: Dict[str, int] = {n["id"]: 0 for n in self.nodes}
+        for e in forward_edges:
+            adj[e["from"]].append(e["to"])
+            indeg[e["to"]] = indeg.get(e["to"], 0) + 1
+        ranks: Dict[str, int] = {n["id"]: 0 for n in self.nodes}
+        queue = deque([nid for nid, d in indeg.items() if d == 0])
+        if not queue and self.nodes:
+            queue.append(self.nodes[0]["id"])
+        seen: Set[str] = set()
+        while queue:
+            cur = queue.popleft()
+            seen.add(cur)
+            for nxt in adj.get(cur, []):
+                step = 0 if (cur, nxt) in zero else 1
+                ranks[nxt] = max(ranks[nxt], ranks[cur] + step)
+                indeg[nxt] -= 1
+                if indeg[nxt] <= 0 and nxt not in seen:
+                    queue.append(nxt)
+        for n in self.nodes:
+            if n["id"] not in seen:
+                ranks[n["id"]] = 0
+        return ranks
+
+    def _x_positions(
+        self,
+        forward_edges: List[Dict[str, Any]],
+        zero: Set[Tuple[str, str]],
+        tight: Set[Tuple[str, str]],
+    ) -> Dict[str, float]:
+        """Longest-path x offsets: normal step = column width, `zero` = 0, `tight` = node width."""
+        adj: Dict[str, List[str]] = defaultdict(list)
+        indeg: Dict[str, int] = {n["id"]: 0 for n in self.nodes}
+        for e in forward_edges:
+            adj[e["from"]].append(e["to"])
+            indeg[e["to"]] = indeg.get(e["to"], 0) + 1
+        xs: Dict[str, float] = {n["id"]: 0.0 for n in self.nodes}
+        queue = deque([nid for nid, d in indeg.items() if d == 0])
+        seen: Set[str] = set()
+        while queue:
+            cur = queue.popleft()
+            seen.add(cur)
+            for nxt in adj.get(cur, []):
+                step = 0 if (cur, nxt) in zero else (TIGHT_STEP if (cur, nxt) in tight else DEFAULT_COL_WIDTH)
+                xs[nxt] = max(xs[nxt], xs[cur] + step)
+                indeg[nxt] -= 1
+                if indeg[nxt] <= 0 and nxt not in seen:
+                    queue.append(nxt)
+        return xs
+
+    def _alignment_candidates(
+        self, forward_edges: List[Dict[str, Any]]
+    ) -> List[List[Tuple[str, str]]]:
+        """Cross-lane edges whose target could share the source's column (straight vertical arrow).
+
+        Returns exclusive groups; at most one edge per group is applied:
+        - a task/start with a single outgoing edge into another lane -> its own group
+        - a decision's branches, one group per side (up/down), since a vertex port serves one line
+        """
+        out: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+        for e in forward_edges:
+            out[e["from"]].append(e)
+
+        groups: Dict[Tuple[str, str], List[Tuple[str, str]]] = defaultdict(list)
+        for e in forward_edges:
+            src, dst = self.node_map.get(e["from"]), self.node_map.get(e["to"])
+            if not src or not dst:
+                continue
+            sl, dl = self.lane_map.get(src["laneId"]), self.lane_map.get(dst["laneId"])
+            if sl is None or dl is None or sl == dl:
+                continue
+            if src.get("type") == "decision":
+                key = (src["id"], "up" if dl < sl else "down")
+            elif len(out[src["id"]]) == 1:
+                key = (src["id"], "only")
+            else:
+                continue
+            groups[key].append((src["id"], dst["id"]))
+        return list(groups.values())
+
+    def _choose_alignment(
+        self,
+        ranks: Dict[str, int],
+        forward_edges: List[Dict[str, Any]],
+        fwd_adj: Dict[str, List[str]],
+        rev_adj: Dict[str, List[str]],
+    ) -> Tuple[Dict[str, int], Optional[Dict[str, float]]]:
+        """Pick which cross-lane edges become straight vertical arrows (shared column).
+
+        Combinations are laid out and scored with the verifier: fewest overlaps/penetrations,
+        then edge crossings, columns, bends and total arrow length. Falls back to a greedy
+        search when there are too many combinations.
+        """
+        groups = self._alignment_candidates(forward_edges)
+        if not groups:
+            return ranks, None
+
+        def evaluate(chosen: Tuple[Tuple[Tuple[str, str], str], ...]):
+            zero = {e for e, m in chosen if m == "zero"}
+            tight = {e for e, m in chosen if m == "tight"}
+            trial = self._ranks_with_zero_edges(forward_edges, zero)
+            xs = self._x_positions(forward_edges, zero, tight)
+            self._place_nodes(trial, rev_adj, xs)
+            rep = self.verify_collisions()
+            key = (
+                rep["overlaps_count"] + rep["penetrations_count"] + rep["overflows_count"],
+                rep["edge_crossings"],
+                rep["column_count"],
+                rep["bend_count"],
+                round(rep["total_edge_length"]),
+            )
+            return key, trial, xs
+
+        def modes_for(edge: Tuple[str, str]) -> List[str]:
+            src = self.node_map[edge[0]]
+            return ["zero"] if src.get("type") == "decision" else ["zero", "tight"]
+
+        total = 1
+        for g in groups:
+            total *= 1 + sum(len(modes_for(e)) for e in g)
+
+        best_key, best_ranks, best_xs = evaluate(())
+        if total <= 512:
+            combos: List[Tuple[Any, ...]] = [()]
+            for g in groups:
+                opts: List[Any] = [None] + [(e, m) for e in g for m in modes_for(e)]
+                combos = [c + ((o,) if o else ()) for c in combos for o in opts]
+            for combo in combos[1:]:
+                key, trial, xs = evaluate(combo)
+                if key < best_key:
+                    best_key, best_ranks, best_xs = key, trial, xs
+        else:
+            chosen: List[Any] = []
+            improved = True
+            while improved:
+                improved = False
+                for g in groups:
+                    for e in g:
+                        for m in modes_for(e):
+                            if any(c[0] in g for c in chosen):
+                                continue
+                            key, trial, xs = evaluate(tuple(chosen) + ((e, m),))
+                            if key < best_key:
+                                best_key, best_ranks, best_xs, improved = key, trial, xs, True
+                                chosen.append((e, m))
+        self._place_nodes(best_ranks, rev_adj, best_xs)
+        return best_ranks, best_xs
 
     def _find_back_edges(self, adj: Dict[str, List[str]]) -> Set[Tuple[str, str]]:
         """DFS traversal with 3-color marks (white=0, gray=1, black=2) to identify back-edges."""
@@ -377,6 +535,11 @@ class SwimlaneLayoutEngine:
 
         # 7. Crossings Count
         edge_crossings = self._count_crossings_from_polylines(polylines)
+        bend_count = sum(max(0, len(pts) - 2) for pts in polylines.values())
+        total_edge_length = sum(
+            abs(pts[i + 1][0] - pts[i][0]) + abs(pts[i + 1][1] - pts[i][1])
+            for pts in polylines.values() for i in range(len(pts) - 1)
+        )
 
         # 8. Score Calculation (0-100)
         score = 100
@@ -398,7 +561,8 @@ class SwimlaneLayoutEngine:
             and len(penetrations) == 0
         )
 
-        column_count = len({round(float(n.get("x", 0)) / 8) for n in self.nodes})
+        max_x = max((float(n.get("x", 0)) for n in self.nodes), default=float(START_X))
+        column_count = int(round((max_x - START_X) / DEFAULT_COL_WIDTH)) + 1
         budget_warnings = []
         if len(self.nodes) > MAX_NODES:
             budget_warnings.append(f"{len(self.nodes)} nodes exceeds the budget of {MAX_NODES}; split into overview + detail diagrams.")
@@ -416,6 +580,8 @@ class SwimlaneLayoutEngine:
             "edge_count": len(self.edges),
             "lane_count": len(self.lanes),
             "edge_crossings": edge_crossings,
+            "bend_count": bend_count,
+            "total_edge_length": total_edge_length,
             "collinear_pct": round(collinear_pct, 1),
             "penetrations_count": len(penetrations),
             "overlaps_count": len(overlap_issues),
@@ -519,6 +685,9 @@ class SwimlaneLayoutEngine:
             ]
             up_cands.sort(key=lambda e: rects[e["to"]][1])
             down_cands.sort(key=lambda e: rects[e["to"]][1], reverse=True)
+            # A target directly above/below gets the top/bottom exit (straight line)
+            up_cands.sort(key=lambda e: 0 if abs(rects[e["to"]][0] + rects[e["to"]][2] / 2 - fcx) < 30 else 1)
+            down_cands.sort(key=lambda e: 0 if abs(rects[e["to"]][0] + rects[e["to"]][2] / 2 - fcx) < 30 else 1)
 
             is_multi_or_decision = u_node.get("type") == "decision" or len(fwd_outs) > 1
             top_edge_id = up_cands[0]["id"] if (is_multi_or_decision and up_cands) else None
@@ -539,6 +708,12 @@ class SwimlaneLayoutEngine:
                 to_port = "left"
                 if v_id in has_left_loopback:
                     to_port = "bottom" if tcy < fcy else "top"
+                elif (from_port == "right" and len(fwd_outs) == 1 and u_node.get("type") != "decision"
+                        and abs(tcy - fcy) > 30 and tx > fcx + 40):
+                    # One step into another lane: top/bottom exit gives a single-bend L
+                    from_port = "bottom" if tcy > fcy else "top"
+                if from_port in ("top", "bottom") and abs((tx + tw / 2) - fcx) < 30:
+                    to_port = "top" if tcy > fcy else "bottom"
                 ports[e["id"]] = (from_port, to_port)
 
         # Build polylines
@@ -595,11 +770,28 @@ class SwimlaneLayoutEngine:
             p3: Tuple[float, float],
             p4: Tuple[float, float],
         ) -> bool:
+            v1, v2 = abs(p1[0] - p2[0]) < 1, abs(p3[0] - p4[0]) < 1  # vertical?
+            h1, h2 = abs(p1[1] - p2[1]) < 1, abs(p3[1] - p4[1]) < 1  # horizontal?
+            if (v1 and h2) or (h1 and v2):
+                # Perpendicular: crossing strictly inside both segments (endpoint contacts are joins)
+                (vx, vy1, vy2), (hy, hx1, hx2) = (
+                    ((p1[0], min(p1[1], p2[1]), max(p1[1], p2[1])),
+                     (p3[1], min(p3[0], p4[0]), max(p3[0], p4[0])))
+                    if v1 else
+                    ((p3[0], min(p3[1], p4[1]), max(p3[1], p4[1])),
+                     (p1[1], min(p1[0], p2[0]), max(p1[0], p2[0])))
+                )
+                return hx1 + 1 < vx < hx2 - 1 and vy1 + 1 < hy < vy2 - 1
+            # Parallel: only a real overlap along a shared line counts
             x1, y1 = min(p1[0], p2[0]), min(p1[1], p2[1])
             x2, y2 = max(p1[0], p2[0]), max(p1[1], p2[1])
             x3, y3 = min(p3[0], p4[0]), min(p3[1], p4[1])
             x4, y4 = max(p3[0], p4[0]), max(p3[1], p4[1])
-            return max(x1, x3) <= min(x2, x4) - 1 and max(y1, y3) <= min(y2, y4) - 1
+            if v1 and v2:
+                return abs(x1 - x3) < 1 and min(y2, y4) - max(y1, y3) > 1
+            if h1 and h2:
+                return abs(y1 - y3) < 1 and min(x2, x4) - max(x1, x3) > 1
+            return False
 
         for i in range(len(pts1) - 1):
             for j in range(len(pts2) - 1):
