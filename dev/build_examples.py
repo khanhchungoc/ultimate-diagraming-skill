@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build the viewable example pages samples/example-<name>.html from samples/example-<name>.json.
+"""Build the viewable example pages dev/samples/example-<name>.html from dev/samples/example-<name>.json.
 
 The pages are generated output (shell + type plugin + laid-out data), so they go stale whenever the shell, a
 plugin or an engine changes. Rebuild them after such a change:
@@ -32,12 +32,12 @@ def main() -> int:
             stream.reconfigure(encoding="utf-8", errors="replace")
         except (AttributeError, ValueError):
             pass
-    parser = argparse.ArgumentParser(description="Build samples/example-*.html from the example JSON files.")
+    parser = argparse.ArgumentParser(description="Build dev/samples/example-*.html from the example JSON files.")
     parser.add_argument("--check", action="store_true", help="Report pages that are missing or stale; write nothing")
     args = parser.parse_args()
 
     stale = False
-    for source in sorted((ROOT / "samples").glob("example-*.json")):
+    for source in sorted((ROOT / "dev" / "samples").glob("example-*.json")):
         target = source.with_suffix(".html")
         page = build(source)
         # Compare as text so a CRLF checkout does not look stale.

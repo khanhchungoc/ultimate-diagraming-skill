@@ -15,8 +15,8 @@ ERD and state diagrams are planned, not built yet.
 
 Open these in a browser, no setup needed:
 
-- [samples/example-flowchart.html](samples/example-flowchart.html): a loan application process across 4 swimlanes
-- [samples/example-sequence.html](samples/example-sequence.html): a checkout flow with `opt` and `alt` frames
+- [dev/samples/example-flowchart.html](dev/samples/example-flowchart.html): a loan application process across 4 swimlanes
+- [dev/samples/example-sequence.html](dev/samples/example-sequence.html): a checkout flow with `opt` and `alt` frames
 
 In the flowchart, drag a step to another lane, drag a lane header to reorder lanes, double-click text to edit, and press **Auto-Tidy** after moving things around. In the sequence diagram, drag a participant sideways or a message up and down to reorder, double-click to edit, and use **+ Participant**, **+ Message** and **Frame** in the toolbar. Press **Delete** to remove the selected item, and add `?present` to the address for a read-only view.
 
@@ -96,7 +96,7 @@ python scripts/install.py --runtime antigravity --scope user
 
 ```shell
 # create: JSON in, standalone HTML out
-python scripts/layout_engine.py --layout samples/example-flowchart.json -o flowchart.html
+python scripts/layout_engine.py --layout dev/samples/example-flowchart.json -o flowchart.html
 
 # audit the result (score must be 90 or more, exit code 0)
 python scripts/layout_engine.py --verify flowchart.html

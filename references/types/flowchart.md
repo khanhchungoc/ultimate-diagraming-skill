@@ -1,6 +1,6 @@
 # Swimlane Flowchart (`diagramType: "flowchart"`)
 
-Use for swimlane, cross-functional or BPMN-style process flows. Layout, routing, label placement and styling are computed by the tooling; author only the logical graph. A complete file: [example-flowchart.json](../../samples/example-flowchart.json).
+Use for swimlane, cross-functional or BPMN-style process flows. Layout, routing, label placement and styling are computed by the tooling; author only the logical graph. A complete file: [example-flowchart.json](../../dev/samples/example-flowchart.json).
 
 ## Schema
 
