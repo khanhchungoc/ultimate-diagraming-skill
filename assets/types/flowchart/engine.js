@@ -2,8 +2,8 @@
       // JavaScript port of scripts/layout_engine.py (ranking, ordering, compact-step search, scoring).
       // Keep both copies in sync: scripts/check_tidy_parity.py compares their output node by node.
       const LE = {
-        COL_WIDTH: 240, TIGHT_STEP: 168, START_X: 56, ROW_HEIGHT: 96,
-        NODE_W: 168, NODE_H: 56, DEC_H: 64, LANE_MIN: 160, TOP_PAD: 48, BOTTOM_PAD: 48
+        COL_WIDTH: 240, TIGHT_STEP: 144, START_X: 56, ROW_HEIGHT: 120,
+        NODE_W: 144, NODE_H: 64, DEC_H: 80, LANE_MIN: 192, TOP_PAD: 56, BOTTOM_PAD: 56
       };
       // Python-style rounding (half to even) so scores tie-break identically in both engines
       const pyRound = (x) => {
@@ -40,7 +40,7 @@
           color[u] = 2;
         };
         nodes.forEach(n => { if (color[n.id] === 0) dfs(n.id); });
-        const forwardEdges = edges.filter(e => !back.has(KEY(e.from, e.to)) && nodeMap[e.from] && nodeMap[e.to]);
+        let forwardEdges = edges.filter(e => !back.has(KEY(e.from, e.to)) && nodeMap[e.from] && nodeMap[e.to]);
 
         const revAdj = {};
         edges.forEach(e => { (revAdj[e.to] = revAdj[e.to] || []).push(e.from); });
@@ -66,6 +66,38 @@
           nodes.forEach(n => { if (!seen.has(n.id)) ranks[n.id] = 0; });
           return ranks;
         };
+
+        // Loop-closing arrows: if u -> v only pushes v (and everything after it) further right, and v
+        // already loops back to u through a back edge, then u -> v is the arrow that closes the loop.
+        // Treat it as a back edge too, so adding it does not rearrange the whole diagram.
+        {
+          const ranks0 = ranksWithZero(new Set());
+          const backOut = {};
+          back.forEach(k => { const [a, b] = k.split(''); (backOut[a] = backOut[a] || []).push(b); });
+          const reaches = (from, to, fwd) => {
+            const adj = {};
+            fwd.forEach(x => { (adj[x.from] = adj[x.from] || []).push(x.to); });
+            const seenR = new Set([from]), stack = [from];
+            while (stack.length) {
+              const c = stack.pop();
+              if (c === to) return true;
+              (adj[c] || []).forEach(n => { if (!seenR.has(n)) { seenR.add(n); stack.push(n); } });
+            }
+            return false;
+          };
+          forwardEdges.slice().forEach(e => {
+            const bo = backOut[e.to];
+            if (!bo) return;
+            const others = forwardEdges.filter(x => x !== e && x.to === e.to);
+            if (!others.length) return;
+            const without = Math.max(...others.map(x => ranks0[x.from] + 1));
+            if (ranks0[e.from] + 1 <= without) return;
+            const rest = forwardEdges.filter(x => x !== e);
+            if (!bo.some(w => w === e.from || reaches(w, e.from, rest))) return;
+            back.add(KEY(e.from, e.to));
+            forwardEdges = rest;
+          });
+        }
 
         // Longest-path x offsets: normal = column width, zero = 0, tight = node width
         const xPositions = (zero, tight) => {
@@ -360,24 +392,67 @@
             // simplified route modelled here crossing a node must not veto an otherwise good alignment.
             const eu = nodeMap[e.from], ev = nodeMap[e.to];
             if (eu && ev && Math.abs(eu.x - ev.x) >= 3 * LE.COL_WIDTH) return;
-            nodes.forEach(o => {
-              if (o.id === e.from || o.id === e.to) return;
-              const [ox, oy, ow, oh] = rects[o.id];
-              const bx1 = ox + 3, by1 = oy + 3, bx2 = ox + ow - 3, by2 = oy + oh - 3;
-              if (bx2 <= bx1 || by2 <= by1) return;
-              for (let k = 0; k < pts.length - 1; k++) {
-                const p1 = pts[k], p2 = pts[k + 1];
-                const sx1 = Math.min(p1[0], p2[0]), sx2 = Math.max(p1[0], p2[0]);
-                const sy1 = Math.min(p1[1], p2[1]), sy2 = Math.max(p1[1], p2[1]);
-                if (sx1 < bx2 && sx2 > bx1 && sy1 < by2 && sy2 > by1) {
-                  if (Math.abs(p1[0] - p2[0]) < 1) {
-                    if (bx1 <= p1[0] && p1[0] <= bx2 && !(sy2 <= by1 || sy1 >= by2)) { penetrations += 1; break; }
-                  } else if (Math.abs(p1[1] - p2[1]) < 1) {
-                    if (by1 <= p1[1] && p1[1] <= by2 && !(sx2 <= bx1 || sx1 >= bx2)) { penetrations += 1; break; }
+            // Nodes a route passes through. The renderer re-routes an arrow that its standard route would
+            // send through a node, so only count a penetration when no simple alternative route is clear.
+            const through = (rt) => {
+              let n = 0;
+              nodes.forEach(o => {
+                if (o.id === e.from || o.id === e.to) return;
+                const [ox, oy, ow, oh] = rects[o.id];
+                const bx1 = ox + 3, by1 = oy + 3, bx2 = ox + ow - 3, by2 = oy + oh - 3;
+                if (bx2 <= bx1 || by2 <= by1) return;
+                for (let k = 0; k < rt.length - 1; k++) {
+                  const p1 = rt[k], p2 = rt[k + 1];
+                  const sx1 = Math.min(p1[0], p2[0]), sx2 = Math.max(p1[0], p2[0]);
+                  const sy1 = Math.min(p1[1], p2[1]), sy2 = Math.max(p1[1], p2[1]);
+                  if (sx1 < bx2 && sx2 > bx1 && sy1 < by2 && sy2 > by1) {
+                    if (Math.abs(p1[0] - p2[0]) < 1) {
+                      if (bx1 <= p1[0] && p1[0] <= bx2 && !(sy2 <= by1 || sy1 >= by2)) { n += 1; break; }
+                    } else if (Math.abs(p1[1] - p2[1]) < 1) {
+                      if (by1 <= p1[1] && p1[1] <= by2 && !(sx2 <= bx1 || sx1 >= bx2)) { n += 1; break; }
+                    }
                   }
                 }
+              });
+              return n;
+            };
+            // Crossings of a route against the other arrows' current routes
+            const crossesOf = (rt) => {
+              let n = 0;
+              edges.forEach(o => {
+                const op = poly[o.id];
+                if (!op || o === e || o.from === e.from || o.from === e.to || o.to === e.from || o.to === e.to) return;
+                if (polyCross(rt, op)) n += 1;
+              });
+              return n;
+            };
+            let pen = through(pts);
+            if (pen > 0 || crossesOf(pts) > 0) {
+              const f = rects[e.from], t = rects[e.to];
+              const fcx = f[0] + f[2] / 2, fcy = f[1] + f[3] / 2, tcx = t[0] + t[2] / 2, tcy = t[1] + t[3] / 2;
+              const alts = [];
+              if (t[0] > f[0] + f[2] + 24) {
+                const ey = tcy > fcy ? t[1] : t[1] + t[3];
+                alts.push([[f[0] + f[2], fcy], [tcx, fcy], [tcx, ey]]);                 // right, then up/down into top/bottom
+                alts.push([[f[0] + f[2], fcy], [t[0] - 20, fcy], [t[0] - 20, tcy], [t[0], tcy]]);   // right, drop in the gap before the target
+                alts.push([[fcx, tcy > fcy ? f[1] + f[3] : f[1]], [fcx, tcy], [t[0], tcy]]);        // up/down first, then across
               }
-            });
+              if (tcx < fcx - 30) {
+                // backward arrow: across then into the target's bottom/top, or vertical first into its right side
+                const ey = tcy < fcy ? t[1] + t[3] : t[1];
+                alts.push([[f[0], fcy], [tcx, fcy], [tcx, ey]]);
+                alts.push([[fcx, tcy < fcy ? f[1] : f[1] + f[3]], [fcx, tcy], [t[0] + t[2], tcy]]);
+              }
+              // Keep whichever route has the fewest penetrations, then crossings (the standard route wins ties)
+              let bestRt = pts, bestKey = [pen, crossesOf(pts)];
+              alts.forEach(rt => {
+                const k = [through(rt), crossesOf(rt)];
+                if (k[0] < bestKey[0] || (k[0] === bestKey[0] && k[1] < bestKey[1])) { bestRt = rt; bestKey = k; }
+              });
+              pen = bestKey[0];
+              poly[e.id] = bestRt;
+            }
+            penetrations += pen;
           });
 
           const listed = edges.filter(e => poly[e.id]);

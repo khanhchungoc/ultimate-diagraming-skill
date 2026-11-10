@@ -780,7 +780,9 @@
         const unit = e.deltaMode === 1 ? 16 : (e.deltaMode === 2 ? 400 : 1);
         const dX = e.deltaX * unit, dY = e.deltaY * unit;
         const isPinch = e.ctrlKey || e.metaKey;
-        const isTrackpadScroll = !isPinch && e.deltaMode === 0 && (Math.abs(dX) > 0 || !Number.isInteger(dY) || Math.abs(dY) < 50);
+        // A mouse wheel only moves vertically (and may report small or fractional deltas with display scaling or
+        // smooth scrolling), so only treat the gesture as a trackpad two-finger scroll when it has a horizontal part.
+        const isTrackpadScroll = !isPinch && e.deltaMode === 0 && Math.abs(dX) > 0;
         if (isTrackpadScroll) {
           // Two-finger scroll pans the diagram
           panX -= dX;

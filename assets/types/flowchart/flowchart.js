@@ -1,9 +1,9 @@
-      const NODE_WIDTH = 168;
-      const NODE_HEIGHT = 56;
-      const DECISION_WIDTH = 168;
-      const DECISION_HEIGHT = 64;
-      const LANE_MIN_HEIGHT = 160;
-      const LANE_BOTTOM_PAD = 48;
+      const NODE_WIDTH = 144;
+      const NODE_HEIGHT = 64;
+      const DECISION_WIDTH = 144;
+      const DECISION_HEIGHT = 80;
+      const LANE_MIN_HEIGHT = 192;
+      const LANE_BOTTOM_PAD = 56;
 
       // --- STATE & INITIALIZATION ---
 
@@ -32,9 +32,6 @@
       const btnAddStep = document.getElementById('btn-add-step');
       const btnAddDecision = document.getElementById('btn-add-decision');
       const btnAddLane = document.getElementById('btn-add-lane');
-      const connectingBanner = document.getElementById('connecting-banner');
-      const connectingText = document.getElementById('connecting-text');
-      const btnCancelConnecting = document.getElementById('btn-cancel-connecting');
 
       // --- RENDERING ---
       function render() {
@@ -214,10 +211,10 @@
           if (isDecision) {
             const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
             svg.setAttribute('class', 'decision-diamond-svg');
-            svg.setAttribute('viewBox', '0 0 168 64');
+            svg.setAttribute('viewBox', '0 0 144 80');
             svg.setAttribute('preserveAspectRatio', 'none');
             const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-            poly.setAttribute('points', '84,2 166,32 84,62 2,32');
+            poly.setAttribute('points', '72,2 142,40 72,78 2,40');
             poly.setAttribute('class', 'diamond-poly');
             svg.appendChild(poly);
             nodeEl.appendChild(svg);
@@ -1614,7 +1611,6 @@
         connectingFromPort = port;
         document.body.classList.add('connecting');
 
-        const fromNode = chartData.nodes.find(n => n.id === nodeId);
         const fromEl = document.getElementById(`node-${nodeId}`);
         const stageRect = swimlanesContainer.getBoundingClientRect();
         const fRect = fromEl.getBoundingClientRect();
@@ -1637,9 +1633,6 @@
         connectingStartPoint = { sx, sy };
         dragEdge.style.display = 'block';
         dragEdge.setAttribute('d', `M ${sx} ${sy} L ${sx} ${sy}`);
-
-        connectingBanner.classList.add('active');
-        connectingText.textContent = `Connecting from "${fromNode ? fromNode.label : nodeId}"... Release over a target node.`;
 
         window.addEventListener('pointermove', onConnectingMove);
         window.addEventListener('pointerup', onConnectingPointerUp);
@@ -1770,14 +1763,11 @@
         connectingStartPoint = null;
         document.body.classList.remove('connecting');
         dragEdge.style.display = 'none';
-        connectingBanner.classList.remove('active');
         document.querySelectorAll('.flow-node').forEach(el => el.classList.remove('connect-target'));
 
         window.removeEventListener('pointermove', onConnectingMove);
         window.removeEventListener('pointerup', onConnectingPointerUp);
       }
-
-      btnCancelConnecting.addEventListener('click', cancelConnecting);
 
       // --- SELECTION & DELETION ---
       function selectNode(nodeId) {
