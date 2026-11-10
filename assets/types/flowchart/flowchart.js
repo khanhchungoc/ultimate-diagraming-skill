@@ -771,6 +771,30 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
             const ins = inEdges[nid].filter(e => edgePorts[e.id] && edgePorts[e.id].toPort === side);
             if (!outs.length || !ins.length) return;
 
+            // A decision's branches must leave from vertices. When the top/bottom vertex already takes the
+            // incoming arrow, sliding the exit sideways would put it on the diamond's slanted edge, so move
+            // the exits to a free vertex instead (right first, then the opposite top/bottom vertex).
+            if (nodeMap[nid] && nodeMap[nid].type === 'decision') {
+              const opp = side === 'top' ? 'bottom' : 'top';
+              const oppHasIn = inEdges[nid].some(e => edgePorts[e.id] && edgePorts[e.id].toPort === opp);
+              const lbl = e => (e.label || '').trim().toLowerCase();
+              const taken = {};   // vertex -> labels of branches already leaving from it
+              outEdges[nid].forEach(e => {
+                const p = edgePorts[e.id];
+                if (p && p.fromPort !== side) (taken[p.fromPort] = taken[p.fromPort] || []).push(lbl(e));
+              });
+              const moved = [];
+              outs.forEach(e => {
+                const cands = ['right', ...(oppHasIn ? [] : [opp])];
+                const v = cands.find(c => !taken[c] || taken[c].every(l => l === lbl(e)));
+                if (!v) return;
+                edgePorts[e.id] = { fromPort: v, toPort: edgePorts[e.id].toPort };
+                (taken[v] = taken[v] || []).push(lbl(e));
+                moved.push(e);
+              });
+              if (moved.length === outs.length) return;
+            }
+
             // If an edge is a straight vertical line to/from an aligned node, preserve it at cx (offset 0)
             // and put the slot offset on the other edge(s) so arrowheads never collide with departure points
             const isStraightOut = outs.some(e => Math.abs(rects[e.to].cx - rects[nid].cx) < 30 && (edgePorts[e.id].toPort === 'top' || edgePorts[e.id].toPort === 'bottom'));
@@ -1151,7 +1175,12 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           let best = null;
           // 3-bend corridor routes are only worth searching when the standard route is in real trouble
           const deep = base === Infinity || base.defect >= COST.cross;
+          // A decision never leaves from a top/bottom vertex that already takes an incoming arrow
+          const srcIsDecision = nodeMap[e.from] && nodeMap[e.from].type === 'decision';
+          const entryVertex = s => srcIsDecision && (s === 'top' || s === 'bottom')
+            && (inEdges[e.from] || []).some(o => edgePorts[o.id] && edgePorts[o.id].toPort === s);
           altRoutes(rects[e.from], rects[e.to], deep).forEach(c => {
+            if (entryVertex(c.fp)) return;
             const r = routeCost(c.pts, e, others, c.fp, c.tp, best ? best.cost : baseCost - 250);
             if (r === Infinity) return;
             // Changing sides is a bigger visual change than sliding a channel, so it must earn it

@@ -247,6 +247,24 @@
               sub[n.id] = next++;
             });
           });
+          // An end node whose predecessor is two or more lanes away cannot be entered from below/above when
+          // another node sits in its column in a lane between them: the arrow would have to wrap around to the
+          // node's far side. Nothing is downstream of an end node, so move it just right of the blocker.
+          nodes.forEach(n => {
+            if ((fwdOut[n.id] || []).length) return;
+            const ln = laneIdx[n.laneId];
+            const lps = (fwdIn[n.id] || []).filter(p => nodeMap[p]).map(p => laneIdx[nodeMap[p].laneId]);
+            let newX = X[n.id];
+            nodes.forEach(m => {
+              if (m === n || Math.abs(X[m.id] - X[n.id]) >= LE.NODE_W + LE.MIN_GAP) return;
+              const lm = laneIdx[m.laneId];
+              if (lps.some(lp => Math.min(ln, lp) < lm && lm < Math.max(ln, lp))) newX = Math.max(newX, X[m.id] + LE.NODE_W + LE.MIN_GAP);
+            });
+            if (newX === X[n.id]) return;
+            const sameLane = nodes.filter(m => m !== n && m.laneId === n.laneId);
+            if (sameLane.every(m => clear(newX, X[m.id]))) X[n.id] = newX;
+          });
+
           const subrows = {};
           lanes.forEach(l => { subrows[l.id] = 1; });
           nodes.forEach(n => { subrows[n.laneId] = Math.max(subrows[n.laneId] || 1, sub[n.id] + 1); });
