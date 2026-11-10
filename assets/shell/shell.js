@@ -4,6 +4,8 @@
       //   id, defaultTitle, contentEl (element sized to fit/pan), report {node,label,labelText,nodeText},
       //   render(), isBackground(el), clearSelection(),
       //   cancelInteraction() -> true if something was cancelled, deleteSelection()
+      // Undo/redo is the shell's job: every updateStatus(true) records a snapshot of chartData, so a plugin
+      // gets undo for free as long as it calls updateStatus(true) once per finished edit (not per pointermove).
       // The type's engine.js must define layoutDiagram(data): lay out `data` in place, no DOM access.
       // Shared scope for plugins: chartData, scale/panX/panY, viewport, stage, updateStatus(), fitView().
       let plugin = null;
@@ -13,6 +15,14 @@
       let chartData = { title: "", direction: "LR", lanes: [], nodes: [], edges: [] };
       let fileHandle = null;
       let hasUnsavedChanges = false;
+
+      // Undo / redo history: JSON snapshots of chartData, taken at each committed edit
+      const HISTORY_LIMIT = 100;
+      let undoStack = [];
+      let redoStack = [];
+      let committedJson = null;   // chartData as of the last commit (the state an undo returns to)
+      let savedJson = null;       // chartData as of the last load/save (decides the Unsaved badge after undo)
+      let pointerHeld = false;    // no undo mid-drag: plugins hold references into chartData while dragging
 
       // Viewport Pan/Zoom state
       let scale = 1.0;
@@ -34,6 +44,8 @@
       const btnZoomOut = document.getElementById('btn-zoom-out');
       const btnZoomReset = document.getElementById('btn-zoom-reset');
       const zoomLevelEl = document.getElementById('zoom-level');
+      const btnUndo = document.getElementById('btn-undo');
+      const btnRedo = document.getElementById('btn-redo');
       const btnHelp = document.getElementById('btn-help');
       const helpDrawer = document.getElementById('help-drawer');
 
@@ -81,6 +93,8 @@
         plugin.render();
         fitView();
         updateStatus(false);
+        committedJson = savedJson = JSON.stringify(chartData);
+        updateHistoryButtons();
 
         requestAnimationFrame(() => {
           fitView();
@@ -90,6 +104,11 @@
       }
 
       function updateStatus(unsaved) {
+        if (unsaved) recordHistory();
+        setStatusBadge(unsaved);
+      }
+
+      function setStatusBadge(unsaved) {
         hasUnsavedChanges = unsaved;
         if (unsaved) {
           saveStatus.textContent = "Unsaved Changes";
@@ -99,6 +118,52 @@
           saveStatus.className = "badge badge-status saved";
         }
       }
+
+      // --- UNDO / REDO ---
+      function recordHistory() {
+        if (committedJson === null) return;          // still loading
+        const now = JSON.stringify(chartData);
+        if (now === committedJson) return;           // nothing actually changed
+        undoStack.push(committedJson);
+        if (undoStack.length > HISTORY_LIMIT) undoStack.shift();
+        redoStack = [];
+        committedJson = now;
+        updateHistoryButtons();
+      }
+
+      function restoreSnapshot(json) {
+        plugin.cancelInteraction();
+        plugin.clearSelection();
+        chartData = JSON.parse(json);
+        committedJson = json;
+        chartTitleEl.textContent = chartData.title || plugin.defaultTitle;
+        plugin.render();
+        setStatusBadge(json !== savedJson);
+        updateHistoryButtons();
+      }
+
+      function undo() {
+        if (!undoStack.length || pointerHeld) return;
+        redoStack.push(committedJson);
+        restoreSnapshot(undoStack.pop());
+      }
+
+      function redo() {
+        if (!redoStack.length || pointerHeld) return;
+        undoStack.push(committedJson);
+        restoreSnapshot(redoStack.pop());
+      }
+
+      function updateHistoryButtons() {
+        btnUndo.disabled = !undoStack.length;
+        btnRedo.disabled = !redoStack.length;
+      }
+
+      btnUndo.addEventListener('click', undo);
+      btnRedo.addEventListener('click', redo);
+      window.addEventListener('pointerdown', () => { pointerHeld = true; }, true);
+      window.addEventListener('pointerup', () => { pointerHeld = false; }, true);
+      window.addEventListener('pointercancel', () => { pointerHeld = false; }, true);
 
       // --- AUTO-TIDY (the type's engine does the layout) ---
       // ?tidy: run the engine on load and publish the laid-out data (used by scripts/engine_runner.py)
@@ -327,6 +392,7 @@
             await writable.write(replacedHtml);
             await writable.close();
 
+            savedJson = JSON.stringify(chartData);
             updateStatus(false);
             return;
           } catch (err) {
@@ -344,6 +410,7 @@
           a.click();
           document.body.removeChild(a);
           URL.revokeObjectURL(url);
+          savedJson = JSON.stringify(chartData);
           updateStatus(false);
         } catch (err) {
           alert("Save failed: " + err.message);
@@ -356,6 +423,12 @@
         if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
           e.preventDefault();
           saveToFile();
+        } else if ((e.ctrlKey || e.metaKey) && (e.key.toLowerCase() === 'z' || e.key.toLowerCase() === 'y')) {
+          // Leave text editing (title, labels) to the browser's own undo
+          if (document.activeElement && (document.activeElement.isContentEditable || document.activeElement.tagName === 'INPUT')) return;
+          if (document.body.classList.contains('presentation')) return;
+          e.preventDefault();
+          if (e.key.toLowerCase() === 'y' || e.shiftKey) redo(); else undo();
         } else if (e.key === 'Escape') {
           plugin.cancelInteraction();
         } else if (e.key === 'Delete' || e.key === 'Backspace') {

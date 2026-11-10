@@ -45,6 +45,8 @@ A type's `<type>.js` ends by calling `registerDiagramPlugin({...})`. The shell c
 
 Plugins share the shell's scope: `chartData`, `scale`/`panX`/`panY`, `viewport`, `stage`, `updateStatus()`, `fitView()`.
 
+Undo/redo lives in the shell: each `updateStatus(true)` snapshots `chartData` (as JSON) onto the history, and undo swaps `chartData` for the previous snapshot and calls `render()`. A plugin therefore gets undo for free if it calls `updateStatus(true)` exactly once per finished edit (on pointerup, not on every pointermove) and keeps no references into `chartData` across renders.
+
 ## One engine per type
 
 Layout lives only in `assets/types/<type>/engine.js`. The page runs it for the Auto-Tidy button; `--layout` runs the same file through Node.js (or headless Chrome if Node is missing), so there is nothing to keep in sync. The Python `--verify` audit routes edges itself to check the result; it never computes layout. If `FlowchartAudit` and the page's renderer ever disagree on a route, trust the render report and fix the audit.
@@ -64,6 +66,6 @@ The `sequence` type is the reference for a type that shares nothing with the flo
 |---|---|
 | `python dev/build_examples.py --check` | `dev/samples/example-*.html` match what the current shell, plugins and engines would build. Run without `--check` to rebuild them after any change. |
 | `python dev/check_golden.py` | Engine output for every `dev/fixtures/*.json` equals `dev/fixtures/golden/`, and the audit scores >= 90. Use `--update` after an intentional engine change and review the diff. |
-| `node dev/e2e_shell.mjs --browser <chrome> --laid <html> --scrambled <html>` | Shell wiring through the flowchart plugin: Auto-Tidy button, Delete/Escape, background click, theme, Save path, `?present` |
+| `node dev/e2e_shell.mjs --browser <chrome> --laid <html> --scrambled <html>` | Shell wiring through the flowchart plugin: Auto-Tidy button, Delete/Escape, undo/redo, background click, theme, Save path, `?present` |
 | `node dev/e2e_sequence.mjs --browser <chrome> --page <html>` | Sequence plugin: select/delete, reorder by drag, add, frames, inline edit, `?present` |
 | `python scripts/render_screenshot.py --input <html>` | Render report and legibility gates |

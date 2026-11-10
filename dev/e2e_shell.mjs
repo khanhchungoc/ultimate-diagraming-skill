@@ -31,6 +31,16 @@ try {
   const gone = await t.ev(`!document.querySelector('.flow-node[data-node-id="${firstId}"]')`);
   t.check('Delete key removes the selected node via plugin.deleteSelection', selected && afterDelete === nodeCount - 1 && gone, `selected=${selected} before=${nodeCount} after=${afterDelete}`);
 
+  // 2b. Undo / redo (shell history snapshots taken at updateStatus(true))
+  await t.ev(t.key('z', { ctrlKey: true }));
+  const afterUndo = await t.ev(`document.querySelectorAll('.flow-node').length`);
+  const backAgain = await t.ev(`!!document.querySelector('.flow-node[data-node-id="${firstId}"]')`);
+  const undoStatus = await t.ev(`document.getElementById('save-status').textContent`);
+  t.check('Ctrl+Z restores the deleted node and clears the Unsaved badge', afterUndo === nodeCount && backAgain && !/unsaved/i.test(undoStatus), `after=${afterUndo} status=${undoStatus}`);
+  await t.ev(t.key('y', { ctrlKey: true }));
+  const afterRedo = await t.ev(`document.querySelectorAll('.flow-node').length`);
+  t.check('Ctrl+Y redoes the delete', afterRedo === nodeCount - 1 && (await t.ev(`document.getElementById('btn-redo').disabled`)), `after=${afterRedo}`);
+
   // 3. Background click clears selection (shell pointerdown -> plugin.isBackground/clearSelection); Escape is safe
   await t.ev(`document.getElementById('viewport').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: 5, clientY: 5, pointerId: 1 }))`);
   await t.ev(`window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }))`);

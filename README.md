@@ -18,7 +18,7 @@ Open these in a browser, no setup needed:
 - [dev/samples/example-flowchart.html](dev/samples/example-flowchart.html): a loan application process across 4 swimlanes
 - [dev/samples/example-sequence.html](dev/samples/example-sequence.html): a checkout flow with `opt` and `alt` frames
 
-In the flowchart, drag a step to another lane, drag a lane header to reorder lanes, double-click text to edit, and press **Auto-Tidy** after moving things around. In the sequence diagram, drag a participant sideways or a message up and down to reorder, double-click to edit, and use **+ Participant**, **+ Message** and **Frame** in the toolbar. Press **Delete** to remove the selected item, and add `?present` to the address for a read-only view.
+In the flowchart, drag a step to another lane, drag a lane header to reorder lanes, double-click text to edit, and press **Auto-Tidy** after moving things around. In the sequence diagram, drag a participant sideways or a message up and down to reorder, double-click to edit, and use **+ Participant**, **+ Message** and **Frame** in the toolbar. Press **Delete** to remove the selected item, **Ctrl+Z** / **Ctrl+Y** (or the arrow buttons in the header) to undo and redo edits, and add `?present` to the address for a read-only view.
 
 ## Requirements
 

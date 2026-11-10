@@ -118,6 +118,30 @@
       z-index: 100;
     }
 
+    .toolbar-zoom {
+      position: fixed;
+      bottom: 20px;
+      left: 20px;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px;
+      background: var(--bg-panel);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    .toolbar-zoom .btn { border-color: transparent; }
+    #zoom-level {
+      font-size: 0.8rem;
+      font-weight: 600;
+      width: 45px;
+      text-align: center;
+      color: var(--text-main);
+      font-variant-numeric: tabular-nums;
+    }
+
     .toolbar-left, .toolbar-right, .toolbar-center {
       display: flex;
       align-items: center;
@@ -187,6 +211,14 @@
     }
     .btn:active {
       transform: translateY(1px);
+    }
+    .btn:disabled,
+    .btn:disabled:hover {
+      opacity: 0.4;
+      cursor: default;
+      background: var(--bg-panel);
+      border-color: var(--border-color);
+      transform: none;
     }
     .btn-primary {
       background: var(--primary);
@@ -267,11 +299,14 @@
     body.presentation .toolbar-center,
     body.presentation #btn-save,
     body.presentation #btn-help,
+    body.presentation #btn-undo,
+    body.presentation #btn-redo,
     body.presentation #save-status,
     body.presentation #help-drawer { display: none !important; }
     body.presentation #chart-title { pointer-events: none !important; }
     /* Capture mode (?capture, used for screenshots): diagram only, edge to edge */
-    body.capture header { display: none; }
+    body.capture header,
+    body.capture .toolbar-zoom { display: none; }
     /* Swimlanes Container */
     #swimlanes-container {
       position: relative;
@@ -747,10 +782,12 @@
     </div>
 
     <div class="toolbar-right">
-      <button id="btn-zoom-out" class="btn btn-icon" title="Zoom Out">−</button>
-      <span id="zoom-level" style="font-size:0.8rem; font-weight:600; width:45px; text-align:center;">100%</span>
-      <button id="btn-zoom-in" class="btn btn-icon" title="Zoom In">+</button>
-      <button id="btn-zoom-reset" class="btn" title="Fit to Screen">Fit</button>
+      <button id="btn-undo" class="btn btn-icon" title="Undo (Ctrl+Z)" aria-label="Undo" disabled>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>
+      </button>
+      <button id="btn-redo" class="btn btn-icon" title="Redo (Ctrl+Y / Ctrl+Shift+Z)" aria-label="Redo" disabled>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg>
+      </button>
       <button id="btn-theme" class="btn btn-icon" title="Toggle light / dark mode" aria-label="Toggle dark mode">🌙</button>
       <button id="btn-help" class="btn btn-icon" title="Keyboard Shortcuts">?</button>
       <button id="btn-save" class="btn btn-success" title="Save directly into this HTML file (Ctrl+S)">
@@ -773,6 +810,14 @@
       <button id="btn-auto-tidy" class="btn btn-primary" title="Automatically re-align and lay out the diagram automatically">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M7 12h10"/><path d="M10 18h4"/></svg> Auto-Tidy
       </button>
+  </div>
+
+  <!-- Zoom controls: floating in the bottom-left corner of the viewport -->
+  <div class="toolbar-zoom">
+    <button id="btn-zoom-out" class="btn btn-icon" title="Zoom Out">−</button>
+    <span id="zoom-level">100%</span>
+    <button id="btn-zoom-in" class="btn btn-icon" title="Zoom In">+</button>
+    <button id="btn-zoom-reset" class="btn" title="Fit to Screen">Fit</button>
   </div>
 
   <!-- No extra page chrome: connecting an arrow shows no banner, so the canvas never shifts -->
@@ -821,6 +866,7 @@
       <li><kbd>Drag Lane Header</kbd> : Reorder swimlanes (a blue line shows where it will land)</li>
       <li><kbd>Double Click</kbd> : Edit step text, lane names, or edge conditions</li>
       <li><kbd>Ctrl</kbd> + <kbd>S</kbd> : Save changes directly into HTML</li>
+      <li><kbd>Ctrl</kbd> + <kbd>Z</kbd> / <kbd>Ctrl</kbd> + <kbd>Y</kbd> : Undo / redo the last edit (also <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Z</kbd>)</li>
       <li><kbd>?present</kbd> in the URL : Hide editing controls for a clean read-only view</li>
       <li><kbd>Drag Canvas</kbd> : Pan viewport</li>
       <li><kbd>Scroll Wheel</kbd> : Zoom in / out</li>
@@ -1709,6 +1755,8 @@
       //   id, defaultTitle, contentEl (element sized to fit/pan), report {node,label,labelText,nodeText},
       //   render(), isBackground(el), clearSelection(),
       //   cancelInteraction() -> true if something was cancelled, deleteSelection()
+      // Undo/redo is the shell's job: every updateStatus(true) records a snapshot of chartData, so a plugin
+      // gets undo for free as long as it calls updateStatus(true) once per finished edit (not per pointermove).
       // The type's engine.js must define layoutDiagram(data): lay out `data` in place, no DOM access.
       // Shared scope for plugins: chartData, scale/panX/panY, viewport, stage, updateStatus(), fitView().
       let plugin = null;
@@ -1718,6 +1766,14 @@
       let chartData = { title: "", direction: "LR", lanes: [], nodes: [], edges: [] };
       let fileHandle = null;
       let hasUnsavedChanges = false;
+
+      // Undo / redo history: JSON snapshots of chartData, taken at each committed edit
+      const HISTORY_LIMIT = 100;
+      let undoStack = [];
+      let redoStack = [];
+      let committedJson = null;   // chartData as of the last commit (the state an undo returns to)
+      let savedJson = null;       // chartData as of the last load/save (decides the Unsaved badge after undo)
+      let pointerHeld = false;    // no undo mid-drag: plugins hold references into chartData while dragging
 
       // Viewport Pan/Zoom state
       let scale = 1.0;
@@ -1739,6 +1795,8 @@
       const btnZoomOut = document.getElementById('btn-zoom-out');
       const btnZoomReset = document.getElementById('btn-zoom-reset');
       const zoomLevelEl = document.getElementById('zoom-level');
+      const btnUndo = document.getElementById('btn-undo');
+      const btnRedo = document.getElementById('btn-redo');
       const btnHelp = document.getElementById('btn-help');
       const helpDrawer = document.getElementById('help-drawer');
 
@@ -1786,6 +1844,8 @@
         plugin.render();
         fitView();
         updateStatus(false);
+        committedJson = savedJson = JSON.stringify(chartData);
+        updateHistoryButtons();
 
         requestAnimationFrame(() => {
           fitView();
@@ -1795,6 +1855,11 @@
       }
 
       function updateStatus(unsaved) {
+        if (unsaved) recordHistory();
+        setStatusBadge(unsaved);
+      }
+
+      function setStatusBadge(unsaved) {
         hasUnsavedChanges = unsaved;
         if (unsaved) {
           saveStatus.textContent = "Unsaved Changes";
@@ -1804,6 +1869,52 @@
           saveStatus.className = "badge badge-status saved";
         }
       }
+
+      // --- UNDO / REDO ---
+      function recordHistory() {
+        if (committedJson === null) return;          // still loading
+        const now = JSON.stringify(chartData);
+        if (now === committedJson) return;           // nothing actually changed
+        undoStack.push(committedJson);
+        if (undoStack.length > HISTORY_LIMIT) undoStack.shift();
+        redoStack = [];
+        committedJson = now;
+        updateHistoryButtons();
+      }
+
+      function restoreSnapshot(json) {
+        plugin.cancelInteraction();
+        plugin.clearSelection();
+        chartData = JSON.parse(json);
+        committedJson = json;
+        chartTitleEl.textContent = chartData.title || plugin.defaultTitle;
+        plugin.render();
+        setStatusBadge(json !== savedJson);
+        updateHistoryButtons();
+      }
+
+      function undo() {
+        if (!undoStack.length || pointerHeld) return;
+        redoStack.push(committedJson);
+        restoreSnapshot(undoStack.pop());
+      }
+
+      function redo() {
+        if (!redoStack.length || pointerHeld) return;
+        undoStack.push(committedJson);
+        restoreSnapshot(redoStack.pop());
+      }
+
+      function updateHistoryButtons() {
+        btnUndo.disabled = !undoStack.length;
+        btnRedo.disabled = !redoStack.length;
+      }
+
+      btnUndo.addEventListener('click', undo);
+      btnRedo.addEventListener('click', redo);
+      window.addEventListener('pointerdown', () => { pointerHeld = true; }, true);
+      window.addEventListener('pointerup', () => { pointerHeld = false; }, true);
+      window.addEventListener('pointercancel', () => { pointerHeld = false; }, true);
 
       // --- AUTO-TIDY (the type's engine does the layout) ---
       // ?tidy: run the engine on load and publish the laid-out data (used by scripts/engine_runner.py)
@@ -2032,6 +2143,7 @@
             await writable.write(replacedHtml);
             await writable.close();
 
+            savedJson = JSON.stringify(chartData);
             updateStatus(false);
             return;
           } catch (err) {
@@ -2049,6 +2161,7 @@
           a.click();
           document.body.removeChild(a);
           URL.revokeObjectURL(url);
+          savedJson = JSON.stringify(chartData);
           updateStatus(false);
         } catch (err) {
           alert("Save failed: " + err.message);
@@ -2061,6 +2174,12 @@
         if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
           e.preventDefault();
           saveToFile();
+        } else if ((e.ctrlKey || e.metaKey) && (e.key.toLowerCase() === 'z' || e.key.toLowerCase() === 'y')) {
+          // Leave text editing (title, labels) to the browser's own undo
+          if (document.activeElement && (document.activeElement.isContentEditable || document.activeElement.tagName === 'INPUT')) return;
+          if (document.body.classList.contains('presentation')) return;
+          e.preventDefault();
+          if (e.key.toLowerCase() === 'y' || e.shiftKey) redo(); else undo();
         } else if (e.key === 'Escape') {
           plugin.cancelInteraction();
         } else if (e.key === 'Delete' || e.key === 'Backspace') {

@@ -111,6 +111,30 @@
       z-index: 100;
     }
 
+    .toolbar-zoom {
+      position: fixed;
+      bottom: 20px;
+      left: 20px;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px;
+      background: var(--bg-panel);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    .toolbar-zoom .btn { border-color: transparent; }
+    #zoom-level {
+      font-size: 0.8rem;
+      font-weight: 600;
+      width: 45px;
+      text-align: center;
+      color: var(--text-main);
+      font-variant-numeric: tabular-nums;
+    }
+
     .toolbar-left, .toolbar-right, .toolbar-center {
       display: flex;
       align-items: center;
@@ -180,6 +204,14 @@
     }
     .btn:active {
       transform: translateY(1px);
+    }
+    .btn:disabled,
+    .btn:disabled:hover {
+      opacity: 0.4;
+      cursor: default;
+      background: var(--bg-panel);
+      border-color: var(--border-color);
+      transform: none;
     }
     .btn-primary {
       background: var(--primary);
@@ -260,8 +292,11 @@
     body.presentation .toolbar-center,
     body.presentation #btn-save,
     body.presentation #btn-help,
+    body.presentation #btn-undo,
+    body.presentation #btn-redo,
     body.presentation #save-status,
     body.presentation #help-drawer { display: none !important; }
     body.presentation #chart-title { pointer-events: none !important; }
     /* Capture mode (?capture, used for screenshots): diagram only, edge to edge */
-    body.capture header { display: none; }
+    body.capture header,
+    body.capture .toolbar-zoom { display: none; }

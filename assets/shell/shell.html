@@ -22,10 +22,12 @@
     </div>
 
     <div class="toolbar-right">
-      <button id="btn-zoom-out" class="btn btn-icon" title="Zoom Out">−</button>
-      <span id="zoom-level" style="font-size:0.8rem; font-weight:600; width:45px; text-align:center;">100%</span>
-      <button id="btn-zoom-in" class="btn btn-icon" title="Zoom In">+</button>
-      <button id="btn-zoom-reset" class="btn" title="Fit to Screen">Fit</button>
+      <button id="btn-undo" class="btn btn-icon" title="Undo (Ctrl+Z)" aria-label="Undo" disabled>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>
+      </button>
+      <button id="btn-redo" class="btn btn-icon" title="Redo (Ctrl+Y / Ctrl+Shift+Z)" aria-label="Redo" disabled>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg>
+      </button>
       <button id="btn-theme" class="btn btn-icon" title="Toggle light / dark mode" aria-label="Toggle dark mode">🌙</button>
       <button id="btn-help" class="btn btn-icon" title="Keyboard Shortcuts">?</button>
       <button id="btn-save" class="btn btn-success" title="Save directly into this HTML file (Ctrl+S)">
@@ -40,6 +42,14 @@
       <button id="btn-auto-tidy" class="btn btn-primary" title="Automatically re-align and lay out the diagram automatically">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M7 12h10"/><path d="M10 18h4"/></svg> Auto-Tidy
       </button>
+  </div>
+
+  <!-- Zoom controls: floating in the bottom-left corner of the viewport -->
+  <div class="toolbar-zoom">
+    <button id="btn-zoom-out" class="btn btn-icon" title="Zoom Out">−</button>
+    <span id="zoom-level">100%</span>
+    <button id="btn-zoom-in" class="btn btn-icon" title="Zoom In">+</button>
+    <button id="btn-zoom-reset" class="btn" title="Fit to Screen">Fit</button>
   </div>
 
 {{TYPE_CHROME}}
