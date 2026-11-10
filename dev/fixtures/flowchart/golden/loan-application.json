@@ -13,13 +13,13 @@
       "id": "lane-officer",
       "name": "Loan Officer",
       "color": "#fef3c7",
-      "height": 152
+      "height": 176
     },
     {
       "id": "lane-engine",
       "name": "Automated Underwriting Engine",
       "color": "#dcfce7",
-      "height": 152
+      "height": 176
     },
     {
       "id": "lane-risk",
@@ -35,7 +35,7 @@
       "type": "start",
       "label": "Submit Application",
       "x": 56,
-      "y": 68
+      "y": 56
     },
     {
       "id": "n2",
@@ -43,7 +43,7 @@
       "type": "task",
       "label": "Review & Validate Docs",
       "x": 200,
-      "y": 44
+      "y": 56
     },
     {
       "id": "n3",
@@ -51,7 +51,7 @@
       "type": "decision",
       "label": "Docs Complete?",
       "x": 400,
-      "y": 36
+      "y": 48
     },
     {
       "id": "n4",
@@ -59,7 +59,7 @@
       "type": "task",
       "label": "Provide Missing Docs",
       "x": 400,
-      "y": 68
+      "y": 56
     },
     {
       "id": "n5",
@@ -67,7 +67,7 @@
       "type": "task",
       "label": "Run Credit & Fraud Check",
       "x": 400,
-      "y": 44
+      "y": 56
     },
     {
       "id": "n6",
@@ -75,7 +75,7 @@
       "type": "decision",
       "label": "Credit Score >= 700?",
       "x": 600,
-      "y": 36
+      "y": 48
     },
     {
       "id": "n7",
@@ -83,7 +83,7 @@
       "type": "decision",
       "label": "Risk Acceptable?",
       "x": 600,
-      "y": 36
+      "y": 48
     },
     {
       "id": "n8",
@@ -92,7 +92,7 @@
       "outcome": "success",
       "label": "Loan Approved",
       "x": 818.2,
-      "y": 44
+      "y": 56
     },
     {
       "id": "n9",
@@ -101,7 +101,7 @@
       "outcome": "failure",
       "label": "Application Rejected",
       "x": 810.8,
-      "y": 68
+      "y": 56
     }
   ],
   "edges": [

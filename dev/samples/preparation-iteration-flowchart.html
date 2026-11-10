@@ -23,7 +23,6 @@
       --bg-hover: #f1f5f9;
       --bg-soft: #e2e8f0;
       --bg-input: #ffffff;
-      --lane-track-tint: rgba(248, 250, 252, 0.35);
       --connector: #94a3b8;
       --edge-label-bg: #ffffff;
       --edge-label-empty-bg: rgba(255, 255, 255, 0.95);
@@ -38,11 +37,9 @@
       --start-bg: #f0f7f3; --start-border: #6aa886; --start-text: #1f4d37;   /* faint sage */
       --end-bg: #1e293b;   --end-border: #0f172a;   --end-text: #f8fafc;
       --task-accent: #475569; --start-accent: #2f7d57; --end-accent: #64748b; --decision-accent: #a16f0b;   /* darker, more saturated edge on hover/select */
-      --lane-active-wash: rgba(15, 23, 42, 0.035);
       --decision-fill: #fbf6e8; --decision-fill-hover: #ffffff; --decision-stroke: #c4a052;   /* faint sand, muted gold edge */
       --decision-text: #6a4a0f;      /* dark ochre on the sand fill (>= 7:1) */
       --node-bg: #ffffff;
-      --lane-tint-track: 0.11;
       --text-soft: #475569;          /* secondary text that must stay readable on --bg-soft (>= 4.5:1) */
       --primary-ring: rgba(37, 99, 235, 0.25);
       --primary-glow: rgba(37, 99, 235, 0.22);
@@ -68,7 +65,6 @@
       --bg-hover: #1a2540;
       --bg-soft: #243049;
       --bg-input: #0b1220;
-      --lane-track-tint: rgba(15, 23, 42, 0.35);
       --connector: #64748b;
       --edge-label-bg: #111a2e;
       --edge-label-empty-bg: rgba(17, 26, 46, 0.95);
@@ -83,11 +79,9 @@
       --start-bg: #14261f; --start-border: #4d9a79; --start-text: #b7e0cd;
       --end-bg: #0b1220;   --end-border: #94a3b8;   --end-text: #f8fafc;
       --task-accent: #cbd5e1; --start-accent: #6fcf9f; --end-accent: #e2e8f0; --decision-accent: #e6bf55;
-      --lane-active-wash: rgba(255, 255, 255, 0.035);
       --decision-fill: #2b2718; --decision-fill-hover: #342f1d; --decision-stroke: #b89a4e;
       --decision-text: #ead7a0;      /* soft sand on the warm dark fill */
       --node-bg: #17223b;
-      --lane-tint-track: 0.05;
       --text-soft: #cbd5e1;
       --primary-ring: rgba(96, 165, 250, 0.4);
       --primary-glow: rgba(96, 165, 250, 0.35);
@@ -529,21 +523,19 @@
     .lane-gutter {
       flex: none;
       width: var(--lane-gutter, 0px);
-      background: var(--lane-track-tint);
+      background: var(--lane-bg);
       transition: background 0.15s ease;
     }
     .lane-track {
       flex: 1;
       position: relative;
       min-width: 1400px;
-      background: var(--lane-track-tint);
+      background: var(--lane-bg);
       transition: background 0.15s ease;
     }
-    /* The lane under the pointer (see trackLaneHover) or holding the selected node gets a faint wash (inset shadow overlays the inline tint) */
-    .swimlane.lane-hover .lane-track,
-    .swimlane.lane-hover .lane-gutter,
-    .swimlane:has(.flow-node.selected) .lane-track,
-    .swimlane:has(.flow-node.selected) .lane-gutter { box-shadow: inset 0 0 0 100vmax var(--lane-active-wash); }
+    /* The lane under the pointer (see setHoverLane), holding the selected node, or selected itself takes one solid
+       highlight colour, the same whether it is a white or a grey lane (it is set in --lane-bg, so the pill halo
+       follows it). See the lane colour tokens below. */
 
     .lane-track.drag-hover-lane {
       background: var(--primary-wash);
@@ -617,6 +609,14 @@
       border-color: var(--primary);
       box-shadow: 0 2px 8px var(--primary-glow);
     }
+    /* Highlighted (hover, selected, linked to a hovered node): the node border weight (2px). The padding gives
+       back what the border adds so the label does not jump: the 1.5px rest border is drawn 1px wide at 100%
+       display scaling, so that is 1px */
+    .edge-label-container:is(:hover, .linked, .selected, .hl-in, .hl-out) {
+      border-width: 2px;
+      padding: 2px 7px;
+    }
+    .edge-label-container.empty-placeholder:is(:hover, .linked, .selected, .hl-in, .hl-out) { padding: 0; }
     .edge-label-text {
       outline: none;
       min-width: 14px;
@@ -658,31 +658,6 @@
     .edge-label-container.has-label {
       display: inline-flex;
     }
-    .edge-delete-btn {
-      position: absolute;
-      transform: translate(-50%, -50%);
-      pointer-events: auto;
-      z-index: 31;
-      width: 28px;
-      height: 28px;
-      box-sizing: border-box;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: 50%;
-      border: 1.5px solid var(--danger);
-      background: var(--edge-label-bg);
-      color: var(--danger);
-      cursor: pointer;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.12);
-      transition: background-color var(--ease), color var(--ease);
-    }
-    .edge-delete-btn svg { display: block; }
-    .edge-delete-btn:hover {
-      background: var(--danger);
-      color: #ffffff;
-    }
-
     /* Flowchart Nodes - 4px Grid Alignment */
     .flow-node {
       position: absolute;
@@ -855,32 +830,8 @@
     .port-left { top: 50%; left: 0; }
     .port-right { top: 50%; left: 100%; }
 
-    /* Delete Button for Selected Node */
-    .node-delete-btn {
-      position: absolute;
-      top: -8px;
-      right: -8px;
-      width: 18px;
-      height: 18px;
-      border-radius: 50%;
-      background: var(--danger);
-      color: #ffffff;
-      font-size: 11px;
-      display: none;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.3);
-      z-index: 40;
-    }
-    .flow-node.selected .node-delete-btn {
-      display: flex;
-    }
-
     /* Presentation mode (?present): hide flowchart editing chrome, make elements inert */
-    body.presentation .port,
-    body.presentation .node-delete-btn,
-    body.presentation .edge-delete-btn { display: none !important; }
+    body.presentation .port { display: none !important; }
     body.presentation .flow-node,
     body.presentation .lane-pill,
     body.presentation .lane-title,
@@ -902,6 +853,8 @@
       --lane-accent-mix: 70%;  --lane-accent-base: #475569; /* lane stripe */
       --lane-pill-mix: 45%;
       --lane-solid-mix: 42%;   --lane-solid-base: #1e293b;  --lane-solid-ink: #ffffff; /* active pill: deep lane hue, white text */
+      --lane-alt-bg: #fafbfc;  /* every second lane: a very light grey against the white ones */
+      --lane-hover-bg: #f1f4f8; /* hovered / active lane, white or grey: darker than both */
     }
     :root[data-theme="dark"] {
       --lane-chip-mix: 30%;    --lane-chip-base: #111a2e;
@@ -909,13 +862,40 @@
       --lane-accent-mix: 80%;  --lane-accent-base: #94a3b8;
       --lane-pill-mix: 22%;
       --lane-solid-mix: 80%;   --lane-solid-base: #e2e8f0;  --lane-solid-ink: #0f172a; /* inverted on dark */
+      --lane-alt-bg: #131d33;  /* a faint step lighter than --bg-panel */
+      --lane-hover-bg: #1a2742; /* hovered / active lane: stands out from both (lighter, as highlights are on dark) */
     }
 
     /* Lane name pill + rail (no header column; see pinLaneHeaders): the pill labels each lane at its visible
        top-left, and the rail is a lane-colour stripe at the visible left edge. The pill wears a halo in the lane's
        own background colour, so an arrow passing behind it is cut cleanly around it instead of running through.
        Both sit above arrows (15), nodes (20) and edge labels (30). */
-    .swimlane { --lane-bg: color-mix(in srgb, var(--lane-color) calc(var(--lane-tint-track) * 100%), var(--bg-panel)); }
+    .swimlane {
+      --lane-bg: var(--bg-panel);   /* no lane-colour tint (the pill and stripe carry the colour): lanes alternate */
+      /* Stripe and pill colours. Fallback: the lane colour mixed toward slate, which stays pale with pastel lanes */
+      --lane-stripe: color-mix(in srgb, var(--lane-color) var(--lane-accent-mix), var(--lane-accent-base));
+      --lane-pill-bg: color-mix(in srgb, var(--lane-color) var(--lane-pill-mix), var(--bg-panel));
+      --lane-pill-ink: var(--text-soft);
+      --lane-pill-solid: color-mix(in srgb, var(--lane-color) var(--lane-solid-mix), var(--lane-solid-base));
+    }
+    /* Where relative colours are supported, derive deeper, more saturated shades of the lane's own hue: same hue,
+       lightness set per role, chroma boosted (capped so strong lane colours do not turn garish) */
+    @supports (color: oklch(from red l c h)) {
+      .swimlane {
+        --lane-stripe: oklch(from var(--lane-color) 0.66 min(calc(c * 4), 0.15) h);
+        --lane-pill-bg: oklch(from var(--lane-color) 0.9 min(calc(c * 2.4), 0.07) h);
+        --lane-pill-ink: oklch(from var(--lane-color) 0.36 min(calc(c * 4), 0.12) h);
+        --lane-pill-solid: oklch(from var(--lane-color) 0.45 min(calc(c * 4.5), 0.15) h);
+      }
+      :root[data-theme="dark"] .swimlane {
+        --lane-stripe: oklch(from var(--lane-color) 0.74 min(calc(c * 4), 0.14) h);
+        --lane-pill-bg: oklch(from var(--lane-color) 0.36 min(calc(c * 2.4), 0.07) h);
+        --lane-pill-ink: oklch(from var(--lane-color) 0.92 min(calc(c * 2), 0.06) h);
+        --lane-pill-solid: oklch(from var(--lane-color) 0.84 min(calc(c * 3.5), 0.12) h);
+      }
+    }
+    .swimlane.lane-alt { --lane-bg: var(--lane-alt-bg); }
+    .swimlane.lane-hover, .swimlane.lane-selected, .swimlane:has(.flow-node.selected) { --lane-bg: var(--lane-hover-bg); }
     .lane-rail {
       position: absolute;
       top: 0;
@@ -924,7 +904,7 @@
       width: 0;
       z-index: 39;
       pointer-events: none;
-      border-left: var(--rail-b, 3px) solid color-mix(in srgb, var(--lane-color) var(--lane-accent-mix), var(--lane-accent-base));
+      border-left: var(--rail-b, 3px) solid var(--lane-stripe);
     }
     .lane-pill {
       position: absolute;
@@ -933,13 +913,13 @@
       z-index: 40;
       display: inline-flex;
       align-items: center;
-      gap: 5px;
-      max-width: 220px;
-      padding: 2px 9px 2px 7px;
+      gap: 6px;
+      max-width: 260px;
+      padding: 4px 11px 4px 9px;
       border-radius: 999px;
-      background: color-mix(in srgb, var(--lane-color) var(--lane-pill-mix), var(--bg-panel));
-      color: var(--text-soft);
-      font-size: 12px;
+      background: var(--lane-pill-bg);
+      color: var(--lane-pill-ink);
+      font-size: 14px;
       font-weight: 600;
       line-height: 1.3;
       white-space: nowrap;
@@ -956,14 +936,12 @@
     /* The lane under the mouse (or holding the selection) turns its pill solid: a "you are here" marker. The halo
        picks up the same hover wash as the lane, so the ring stays invisible against it. */
     .swimlane.lane-hover .lane-pill,
-    .swimlane:has(.flow-node.selected) .lane-pill {
-      --halo: 0 0 0 5px var(--lane-active-wash), 0 0 0 5px var(--lane-bg);
-      background: color-mix(in srgb, var(--lane-color) var(--lane-solid-mix), var(--lane-solid-base));
+    .swimlane:has(.flow-node.selected) .lane-pill,
+    .swimlane.lane-selected .lane-pill {
+      background: var(--lane-pill-solid);
       color: var(--lane-solid-ink);
     }
-    .lane-pill .lane-icon { width: auto; height: auto; border: none; background: none; border-radius: 0; }
-    .swimlane.lane-hover .lane-pill .lane-icon,
-    .swimlane:has(.flow-node.selected) .lane-pill .lane-icon { color: inherit; }
+    .lane-pill .lane-icon { width: auto; height: auto; border: none; background: none; border-radius: 0; color: inherit; }
     /* Exports draw each pill and stripe at the lane's own top-left, whatever the view, in the resting style */
     body.exporting .lane-pill { transform: translate(12px, 12px) !important; }
     body.exporting .lane-rail { left: 0 !important; border-left-width: 3px !important; }
@@ -1020,6 +998,42 @@
       40% { box-shadow: 0 0 0 10px var(--primary-ring); }
       100% { box-shadow: 0 0 0 0 transparent; }
     }
+
+    /* Top-to-bottom ("direction": "TB"): lanes are side-by-side columns, the pill gutter is a band along the top
+       of each column, and the lane stripe runs along the visible top edge (see pinLaneHeaders) */
+    #swimlanes-container.dir-tb { min-width: 0; }
+    #swimlanes-container.dir-tb #lanes-root { display: flex; flex-direction: row; align-items: stretch; }
+    #swimlanes-container.dir-tb .swimlane {
+      flex-direction: column;
+      min-height: 0;
+      border-bottom: none;
+      border-right: 1px dashed var(--border-dark);
+    }
+    #swimlanes-container.dir-tb .swimlane:last-child { border-right: none; }
+    #swimlanes-container.dir-tb .lane-gutter { width: auto; height: var(--lane-gutter, 0px); }
+    #swimlanes-container.dir-tb .lane-track { min-width: 0; }
+    #swimlanes-container.dir-tb .lane-rail {
+      top: var(--rail-y, 0px);
+      bottom: auto;
+      left: 0;
+      right: 0;
+      width: auto;
+      height: 0;
+      border-left: none;
+      border-top: var(--rail-b, 3px) solid var(--lane-stripe);
+    }
+    #swimlanes-container.dir-tb #lane-drop-line { top: 0; left: 0; width: 4px; height: 100%; }
+    #swimlanes-container.dir-tb #lane-drop-line::before { left: -4px; top: -2px; }
+    #swimlanes-container.dir-tb.no-swimlanes .swimlane { border-right: none; }
+    body.exporting #swimlanes-container.dir-tb .lane-rail { top: 0 !important; border-top-width: 3px !important; }
+    /* Columns are narrow, so a long lane name wraps (up to two lines) instead of being cut off */
+    #swimlanes-container.dir-tb .lane-pill { white-space: normal; border-radius: 12px; justify-content: center; }
+    #swimlanes-container.dir-tb .lane-pill .lane-title {
+      display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere;
+    }
+    /* Top-to-bottom: the pill is centred on its column (see pinLaneHeaders), wrapped names too, and so in exports */
+    #swimlanes-container.dir-tb .lane-pill { text-align: center; }
+    body.exporting #swimlanes-container.dir-tb .lane-pill { transform: translate(var(--pill-cx, 12px), 12px) !important; }
   </style>
 </head>
 <body>
@@ -1076,6 +1090,9 @@
       </button>
       <button id="btn-add-lane" class="btn" title="Add a swimlane" aria-label="Lane">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 12h18"/></svg><span class="btn-label">Lane</span>
+      </button>
+      <button id="btn-direction" class="btn" title="Switch to a top-to-bottom layout" aria-label="Vertical">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v18"/><path d="m7 16 5 5 5-5"/></svg><span class="btn-label">Vertical</span>
       </button>
       <span class="dock-sep" aria-hidden="true"></span>
       <button id="btn-auto-tidy" class="btn" title="Re-align and lay out the whole diagram automatically" aria-label="Auto-Tidy">
@@ -1148,8 +1165,10 @@
       <li><kbd>Drop onto an Arrow</kbd> : Inserts the step between the two steps it joins and tidies the layout (also works for a step with no arrows yet)</li>
       <li><kbd>Click or Drag Port</kbd> : Connect two steps with an arrow</li>
       <li><kbd>Double-Click Arrow</kbd> : Add or edit arrow label (or click <kbd>+ Add Label</kbd>)</li>
-      <li><kbd>Delete</kbd> : Delete selected step or arrow</li>
+      <li><kbd>Delete</kbd> : Delete the selected step, arrow or lane</li>
+      <li><kbd>Click Lane Name</kbd> : Select the lane; <kbd>Delete</kbd> then removes it with its steps and their arrows (undo brings them back; the last lane stays)</li>
       <li><kbd>Drag Node</kbd> : Move inside lane or drop into another lane; snaps to other steps' centers and lane centers (dashed guide)</li>
+      <li><kbd>Vertical / Horizontal</kbd> : Switch between a left-to-right and a top-to-bottom layout (lanes become columns); saved with the file</li>
       <li><kbd>Drag Lane Name</kbd> : Drag a lane's name pill to reorder swimlanes (a blue line shows where it will land); double-click the name to rename</li>
       <li><kbd>Double Click</kbd> : Edit step text, lane names, or edge conditions</li>
       <li><kbd>Ctrl</kbd> + <kbd>S</kbd> : Save changes directly into HTML</li>
@@ -1157,7 +1176,8 @@
       <li><kbd>Ctrl</kbd> + <kbd>Z</kbd> / <kbd>Ctrl</kbd> + <kbd>Y</kbd> : Undo / redo the last edit (also <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Z</kbd>)</li>
       <li><kbd>?present</kbd> in the URL : Hide editing controls for a clean read-only view</li>
       <li><kbd>Drag Canvas</kbd> : Pan viewport</li>
-      <li><kbd>Scroll Wheel</kbd> : Zoom in / out</li>
+      <li><kbd>Scroll Wheel</kbd> : Scroll the canvas up / down (<kbd>Shift</kbd> + wheel: left / right)</li>
+      <li><kbd>Ctrl</kbd> + <kbd>Scroll Wheel</kbd> : Zoom in / out at the cursor</li>
     </ul>
   </aside>
 
@@ -1180,28 +1200,28 @@
       "name": "P2. BA",
       "color": "#e0f2fe",
       "icon": "clipboard",
-      "height": 152
+      "height": 192
     },
     {
       "id": "lane-dev",
       "name": "P3. Developer",
       "color": "#dcfce7",
       "icon": "code",
-      "height": 152
+      "height": 192
     },
     {
       "id": "lane-devops",
       "name": "P4. DevOps",
       "color": "#fee2e2",
       "icon": "cog",
-      "height": 152
+      "height": 192
     },
     {
       "id": "lane-tester",
       "name": "P5. Tester",
       "color": "#f3e8ff",
       "icon": "check",
-      "height": 176
+      "height": 192
     }
   ],
   "nodes": [
@@ -1211,7 +1231,7 @@
       "type": "start",
       "label": "Start Preparation Iteration",
       "x": 56,
-      "y": 68
+      "y": 56
     },
     {
       "id": "n_core_spec",
@@ -1219,7 +1239,7 @@
       "type": "task",
       "label": "Setup Project Spec & Agents",
       "x": 256,
-      "y": 68
+      "y": 56
     },
     {
       "id": "n_core_reveng",
@@ -1227,7 +1247,7 @@
       "type": "task",
       "label": "Reverse Engineer (Brownfield)",
       "x": 456,
-      "y": 68
+      "y": 56
     },
     {
       "id": "n_core_dod",
@@ -1235,7 +1255,7 @@
       "type": "task",
       "label": "Complete DOD for Preparation",
       "x": 3110.6,
-      "y": 68
+      "y": 56
     },
     {
       "id": "n_end",
@@ -1243,7 +1263,7 @@
       "type": "end",
       "label": "Iteration Complete",
       "x": 3310.6,
-      "y": 68
+      "y": 56
     },
     {
       "id": "n_ba_spec",
@@ -1251,7 +1271,7 @@
       "type": "task",
       "label": "Create/Revise Product Spec",
       "x": 456,
-      "y": 44
+      "y": 32
     },
     {
       "id": "n_ba_peer1",
@@ -1259,7 +1279,7 @@
       "type": "task",
       "label": "Peer Review",
       "x": 656,
-      "y": 44
+      "y": 32
     },
     {
       "id": "n_ba_gate1",
@@ -1267,7 +1287,7 @@
       "type": "decision",
       "label": "Approved, optional?",
       "x": 856,
-      "y": 36
+      "y": 24
     },
     {
       "id": "n_ba_docs",
@@ -1275,7 +1295,7 @@
       "type": "task",
       "label": "Generate Product Docs",
       "x": 1074.2,
-      "y": 44
+      "y": 32
     },
     {
       "id": "n_ba_client",
@@ -1283,7 +1303,7 @@
       "type": "task",
       "label": "Client Review",
       "x": 1274.2,
-      "y": 44
+      "y": 32
     },
     {
       "id": "n_ba_gate2",
@@ -1291,7 +1311,7 @@
       "type": "decision",
       "label": "Approved?",
       "x": 1474.2,
-      "y": 36
+      "y": 24
     },
     {
       "id": "n_ba_baseline",
@@ -1299,7 +1319,7 @@
       "type": "task",
       "label": "Confirm Scope Baseline",
       "x": 1692.4,
-      "y": 44
+      "y": 32
     },
     {
       "id": "n_ba_backlog",
@@ -1307,7 +1327,7 @@
       "type": "task",
       "label": "Prepare Product Backlog",
       "x": 1892.4,
-      "y": 44
+      "y": 32
     },
     {
       "id": "n_ba_peer2",
@@ -1315,7 +1335,7 @@
       "type": "task",
       "label": "Peer Review",
       "x": 2092.4,
-      "y": 44
+      "y": 32
     },
     {
       "id": "n_ba_gate3",
@@ -1323,7 +1343,7 @@
       "type": "decision",
       "label": "Approved?",
       "x": 2292.4,
-      "y": 36
+      "y": 24
     },
     {
       "id": "n_dev_sad",
@@ -1331,7 +1351,7 @@
       "type": "task",
       "label": "Create/Revise SAD Spec",
       "x": 456,
-      "y": 44
+      "y": 32
     },
     {
       "id": "n_dev_peer1",
@@ -1339,7 +1359,7 @@
       "type": "task",
       "label": "Peer Review",
       "x": 656,
-      "y": 44
+      "y": 32
     },
     {
       "id": "n_dev_gate1",
@@ -1347,7 +1367,7 @@
       "type": "decision",
       "label": "Approved?",
       "x": 856,
-      "y": 36
+      "y": 24
     },
     {
       "id": "n_dev_docs",
@@ -1355,7 +1375,7 @@
       "type": "task",
       "label": "Generate SAD Docs",
       "x": 1074.2,
-      "y": 44
+      "y": 32
     },
     {
       "id": "n_dev_client",
@@ -1363,7 +1383,7 @@
       "type": "task",
       "label": "Client Review",
       "x": 1274.2,
-      "y": 44
+      "y": 32
     },
     {
       "id": "n_dev_gate2",
@@ -1371,7 +1391,7 @@
       "type": "decision",
       "label": "Approved?",
       "x": 1474.2,
-      "y": 36
+      "y": 24
     },
     {
       "id": "n_dev_baseline",
@@ -1379,7 +1399,7 @@
       "type": "task",
       "label": "Confirm Tech Baseline",
       "x": 1692.4,
-      "y": 44
+      "y": 32
     },
     {
       "id": "n_dev_skeleton",
@@ -1387,7 +1407,7 @@
       "type": "task",
       "label": "Update Arch Skeleton",
       "x": 1892.4,
-      "y": 44
+      "y": 32
     },
     {
       "id": "n_dev_peer2",
@@ -1395,7 +1415,7 @@
       "type": "task",
       "label": "Peer Review",
       "x": 2092.4,
-      "y": 44
+      "y": 32
     },
     {
       "id": "n_dev_gate3",
@@ -1403,7 +1423,7 @@
       "type": "decision",
       "label": "Approved?",
       "x": 2292.4,
-      "y": 36
+      "y": 24
     },
     {
       "id": "n_ops_plan",
@@ -1411,7 +1431,7 @@
       "type": "task",
       "label": "Generate DevOps Plans",
       "x": 456,
-      "y": 44
+      "y": 32
     },
     {
       "id": "n_ops_peer1",
@@ -1419,7 +1439,7 @@
       "type": "task",
       "label": "Peer Review",
       "x": 656,
-      "y": 44
+      "y": 32
     },
     {
       "id": "n_ops_gate1",
@@ -1427,7 +1447,7 @@
       "type": "decision",
       "label": "Approved?",
       "x": 856,
-      "y": 36
+      "y": 24
     },
     {
       "id": "n_ops_docs",
@@ -1435,7 +1455,7 @@
       "type": "task",
       "label": "Generate DevOps Docs",
       "x": 1074.2,
-      "y": 44
+      "y": 32
     },
     {
       "id": "n_ops_client",
@@ -1443,7 +1463,7 @@
       "type": "task",
       "label": "Client Review",
       "x": 1274.2,
-      "y": 44
+      "y": 32
     },
     {
       "id": "n_ops_gate2",
@@ -1451,7 +1471,7 @@
       "type": "decision",
       "label": "Approved?",
       "x": 1474.2,
-      "y": 36
+      "y": 24
     },
     {
       "id": "n_ops_exec",
@@ -1459,7 +1479,7 @@
       "type": "task",
       "label": "Execute DevOps Plans",
       "x": 1692.4,
-      "y": 44
+      "y": 32
     },
     {
       "id": "n_ops_script",
@@ -1467,7 +1487,7 @@
       "type": "task",
       "label": "Generate Provision Script",
       "x": 1892.4,
-      "y": 44
+      "y": 32
     },
     {
       "id": "n_ops_run",
@@ -1475,7 +1495,7 @@
       "type": "task",
       "label": "Run Provisioning Script",
       "x": 2092.4,
-      "y": 44
+      "y": 32
     },
     {
       "id": "n_ops_rep",
@@ -1483,7 +1503,7 @@
       "type": "task",
       "label": "Generate Provision Reports",
       "x": 2292.4,
-      "y": 44
+      "y": 32
     },
     {
       "id": "n_ops_peer2",
@@ -1491,7 +1511,7 @@
       "type": "task",
       "label": "Peer Review",
       "x": 2492.4,
-      "y": 44
+      "y": 32
     },
     {
       "id": "n_ops_gate3",
@@ -1499,7 +1519,7 @@
       "type": "decision",
       "label": "Approved?",
       "x": 2692.4,
-      "y": 36
+      "y": 24
     },
     {
       "id": "n_test_strat",
@@ -1507,7 +1527,7 @@
       "type": "task",
       "label": "Create/Revise Test Strategy",
       "x": 456,
-      "y": 44
+      "y": 32
     },
     {
       "id": "n_test_peer1",
@@ -1515,7 +1535,7 @@
       "type": "task",
       "label": "Peer Review",
       "x": 656,
-      "y": 44
+      "y": 32
     },
     {
       "id": "n_test_gate1",
@@ -1523,7 +1543,7 @@
       "type": "decision",
       "label": "Approved?",
       "x": 856,
-      "y": 36
+      "y": 24
     },
     {
       "id": "n_test_docs",
@@ -1531,7 +1551,7 @@
       "type": "task",
       "label": "Generate Test Docs",
       "x": 1074.2,
-      "y": 44
+      "y": 32
     },
     {
       "id": "n_test_client",
@@ -1539,7 +1559,7 @@
       "type": "task",
       "label": "Client Review",
       "x": 1274.2,
-      "y": 44
+      "y": 32
     },
     {
       "id": "n_test_gate2",
@@ -1547,7 +1567,7 @@
       "type": "decision",
       "label": "Approved?",
       "x": 1474.2,
-      "y": 36
+      "y": 24
     },
     {
       "id": "n_test_baseline",
@@ -1555,7 +1575,7 @@
       "type": "task",
       "label": "Confirm Test Baseline",
       "x": 1692.4,
-      "y": 44
+      "y": 32
     },
     {
       "id": "n_test_arch",
@@ -1563,7 +1583,7 @@
       "type": "task",
       "label": "Update Test Architecture",
       "x": 1892.4,
-      "y": 44
+      "y": 32
     },
     {
       "id": "n_test_peer2",
@@ -1571,7 +1591,7 @@
       "type": "task",
       "label": "Peer Review",
       "x": 2292.4,
-      "y": 44
+      "y": 32
     },
     {
       "id": "n_test_gate3",
@@ -1579,7 +1599,7 @@
       "type": "decision",
       "label": "Approved?",
       "x": 2492.4,
-      "y": 36
+      "y": 24
     },
     {
       "id": "n_join_sync",
@@ -1587,7 +1607,7 @@
       "type": "task",
       "label": "All Streams Completed (Join)",
       "x": 2910.6,
-      "y": 68
+      "y": 56
     },
     {
       "id": "n_ba_ready",
@@ -1595,7 +1615,7 @@
       "type": "task",
       "label": "Scope & Backlog Ready",
       "x": 2510.6,
-      "y": 44
+      "y": 32
     },
     {
       "id": "n_dev_ready",
@@ -1603,7 +1623,7 @@
       "type": "task",
       "label": "Architecture & Code Ready",
       "x": 2510.6,
-      "y": 44
+      "y": 32
     },
     {
       "id": "n_test_ready",
@@ -1611,7 +1631,7 @@
       "type": "task",
       "label": "Test Harness Ready",
       "x": 2710.6,
-      "y": 44
+      "y": 32
     },
     {
       "id": "n_test_run",
@@ -1619,7 +1639,7 @@
       "type": "task",
       "label": "Run Test Architecture Verification",
       "x": 2092.4,
-      "y": 44
+      "y": 32
     }
   ],
   "edges": [
@@ -2332,8 +2352,13 @@
         }
 
         const pad = document.body.classList.contains('capture') ? 0 : 80;
+        // The floating dock covers the bottom of the viewport: fit the diagram into the band above it
+        // (this matters for tall diagrams, e.g. a top-to-bottom flowchart, whose fit is limited by height)
+        const dock = document.querySelector('.dock-area');
+        const dockRect = dock && getComputedStyle(dock).display !== 'none' ? dock.getBoundingClientRect() : null;
+        const dockBand = dockRect && dockRect.height ? Math.max(0, vpRect.bottom - dockRect.top) : 0;
         const availableWidth = vpRect.width - pad;
-        const availableHeight = vpRect.height - pad;
+        const availableHeight = vpRect.height - dockBand - pad;
 
         const scaleX = availableWidth / currentWidth;
         const scaleY = availableHeight / currentHeight;
@@ -2341,7 +2366,7 @@
         scale = Math.min(Math.max(Math.min(scaleX, scaleY), 0.25), 1.0);
         const minPan = document.body.classList.contains('capture') ? 0 : 20;
         panX = Math.max(minPan, (vpRect.width - currentWidth * scale) / 2);
-        panY = Math.max(minPan, (vpRect.height - currentHeight * scale) / 2);
+        panY = Math.max(minPan, (vpRect.height - dockBand - currentHeight * scale) / 2);
 
         updateTransform();
       }
@@ -2382,24 +2407,29 @@
         viewport.classList.remove('panning');
       });
 
+      const WHEEL_SCROLL = 0.4;   // canvas px per px a mouse wheel notch reports (~40px per notch)
       viewport.addEventListener('wheel', (e) => {
         e.preventDefault();
         const unit = e.deltaMode === 1 ? 16 : (e.deltaMode === 2 ? 400 : 1);
         const dX = e.deltaX * unit, dY = e.deltaY * unit;
-        const isPinch = e.ctrlKey || e.metaKey;
-        // A mouse wheel only moves vertically (and may report small or fractional deltas with display scaling or
-        // smooth scrolling), so only treat the gesture as a trackpad two-finger scroll when it has a horizontal part.
-        const isTrackpadScroll = !isPinch && e.deltaMode === 0 && Math.abs(dX) > 0;
-        if (isTrackpadScroll) {
-          // Two-finger scroll pans the diagram
-          panX -= dX;
-          panY -= dY;
+        const isZoom = e.ctrlKey || e.metaKey;   // Ctrl/Cmd + wheel, and a trackpad pinch (reported as ctrl+wheel)
+        if (!isZoom) {
+          // The wheel scrolls the canvas: vertically, or sideways with Shift (or a trackpad's horizontal swipe)
+          // A mouse wheel notch reports ~100px (or a line/page unit), which moves the canvas too far: scroll it 40%
+          // of that. A trackpad sends many small deltas, which stay 1:1 so the canvas follows the fingers.
+          const notch = e.deltaMode !== 0 || Math.max(Math.abs(dX), Math.abs(dY)) >= 50;
+          const k = notch ? WHEEL_SCROLL : 1;
+          const sideways = e.shiftKey && !dX;
+          panX -= (sideways ? dY : dX) * k;
+          panY -= (sideways ? 0 : dY) * k;
           updateTransform();
           return;
         }
-        // Pinch (ctrl+wheel) and mouse wheel zoom proportionally to the gesture, anchored at the cursor
-        const factor = isPinch ? Math.exp(-dY * 0.01) : Math.exp(-Math.sign(dY) * Math.min(Math.abs(dY), 100) * 0.0015);
-        const newScale = Math.min(Math.max(scale * factor, 0.2), 2.5);
+        // Zoom anchored at the cursor. A mouse wheel notch reports ~100px, a pinch a few px per event: the step is
+        // proportional to the gesture but capped at 15% per event, so one notch is one gentle step, not a jump to
+        // the zoom limit
+        const step = Math.sign(dY) * Math.min(Math.abs(dY) * 0.01, 0.14);
+        const newScale = Math.min(Math.max(scale * Math.exp(-step), 0.2), 2.5);
         const vp = viewport.getBoundingClientRect();
         const cx = e.clientX - vp.left, cy = e.clientY - vp.top;
         panX = cx - (cx - panX) * (newScale / scale);
@@ -2657,10 +2687,44 @@
       // --- LAYOUT ENGINE ---
       // JavaScript port of scripts/layout_engine.py (ranking, ordering, compact-step search, scoring).
       // Keep both copies in sync: scripts/check_tidy_parity.py compares their output node by node.
-      const LE = {
-        COL_WIDTH: 200, TIGHT_STEP: 144, START_X: 56, ROW_HEIGHT: 104,
-        NODE_W: 144, MIN_GAP: 32, LABEL_MAX_W: 140, LABEL_STUB: 16, NODE_H: 64, DEC_H: 80, LANE_MIN: 152, TOP_PAD: 36, BOTTOM_PAD: 36, OUTER_PAD: 24
+      // The engine always works in flow terms: x runs along the flow (rank by rank) and y runs across the lanes.
+      // In a left-to-right diagram that is the screen's x and y. In a top-to-bottom one ("direction": "TB") the
+      // renderer draws x downwards and y rightwards, so the same engine lays out a vertical diagram; only the
+      // sizes differ, because nodes are wide and short: along the flow a node takes its screen height, across
+      // the lane its screen width. NODE_W/NODE_H/DEC_H are a node's extent along/across the flow.
+      const LE_PROFILES = {
+        LR: {
+          COL_WIDTH: 200, TIGHT_STEP: 144, START_X: 56, ROW_HEIGHT: 104,
+          NODE_W: 144, MIN_GAP: 32, LABEL_MAX_W: 140, LABEL_STUB: 16, NODE_H: 64, DEC_H: 80, LANE_MIN: 176, TOP_PAD: 36, BOTTOM_PAD: 36, NEAR_MIN: 24, LOOP_ROOM: 72, LOOP_STEP: 16,
+          LABEL_ACROSS: false
+        },
+        TB: {
+          COL_WIDTH: 136, TIGHT_STEP: 80, START_X: 56, ROW_HEIGHT: 184,
+          NODE_W: 80, MIN_GAP: 32, LABEL_MAX_W: 140, LABEL_STUB: 16, NODE_H: 144, DEC_H: 144, LANE_MIN: 240, TOP_PAD: 32, BOTTOM_PAD: 32, NEAR_MIN: 24, LOOP_ROOM: 72, LOOP_STEP: 16,
+          LABEL_ACROSS: true   // an arrow label sits across a vertical arrow, so it needs its height, not its width, of room
+        }
       };
+      const LE = Object.assign({}, LE_PROFILES.LR);
+
+      // Room a lane keeps clear on its far side for its loop-backs: arrows between two of its own nodes that run
+      // back against the flow. They nest one channel further out per overlapping loop. 0 when it has none.
+      // Shared by the engine and the renderer's lane sizing; xOf gives a node's position along the flow.
+      function laneLoopRoom(nodes, edges, laneId, xOf) {
+        const lane = {};
+        nodes.forEach(n => { if (n.laneId === laneId) lane[n.id] = true; });
+        const spans = [];
+        edges.forEach(e => {
+          if (!lane[e.from] || !lane[e.to] || e.from === e.to) return;
+          const a = xOf(e.from), b = xOf(e.to);
+          if (b < a - 1) spans.push([b, a]);
+        });
+        const depth = spans.reduce((d, [p0]) => Math.max(d, spans.filter(([p, q]) => p <= p0 && p0 <= q).length), 0);
+        return depth ? LE.LOOP_ROOM + (depth - 1) * LE.LOOP_STEP : 0;
+      }
+      // Switch LE to the profile for `data.direction` (anything but "TB" is left-to-right)
+      function useDirection(data) {
+        Object.assign(LE, LE_PROFILES[data && data.direction === 'TB' ? 'TB' : 'LR']);
+      }
       // Python-style rounding (half to even) so scores tie-break identically in both engines
       const pyRound = (x) => {
         const f = Math.floor(x), d = x - f;
@@ -2763,7 +2827,9 @@
           const longest = Math.max(...t.split(/\s+/).map(w => w.length));
           // Wraps at LABEL_MAX_W, but a single long word cannot wrap, so it sets the floor
           const w = Math.max(longest * 7.4 + 20, Math.min(t.length * 6.6 + 18, LE.LABEL_MAX_W));
-          labelGap[KEY(e.from, e.to)] = w + 2 * LE.LABEL_STUB;
+          // Top-to-bottom: the label wraps at LABEL_MAX_W and sits on the vertical arrow, so it needs its height
+          const lines = Math.ceil((t.length * 6.6 + 18) / LE.LABEL_MAX_W);
+          labelGap[KEY(e.from, e.to)] = (LE.LABEL_ACROSS ? 8 + 17 * Math.min(lines, 3) : w) + 2 * LE.LABEL_STUB;
         });
 
         // Horizontal step an arrow needs: normal = column width, zero = 0, tight = node width; a labelled
@@ -2871,19 +2937,28 @@
           lanes.forEach(l => { subrows[l.id] = 1; });
           nodes.forEach(n => { subrows[n.laneId] = Math.max(subrows[n.laneId] || 1, sub[n.id] + 1); });
 
-          // The first and last lanes get OUTER_PAD extra on the diagram's outer edge: loop-backs and corridor routes
-          // run around the nodes there, and unlike inner lanes there is no neighbouring lane to borrow room from.
+          // Every lane is the same size (LANE_MIN) unless it stacks branches across it, with its nodes centred. LANE_MIN
+          // leaves room on both sides of a node for the loop-backs and corridor routes that run around the nodes,
+          // including on the diagram's outer edge, where there is no neighbouring lane to borrow room from.
+          // Same-lane loop-backs run around the nodes on the lane's far side (below them; right of them top-to-bottom),
+          // nested one channel further out per overlapping loop, with their labels on the channel. A single-row lane
+          // with loops keeps that room (LOOP_ROOM, + LOOP_STEP per extra nesting level) clear on its far side and
+          // moves its nodes toward the near side instead of centring them, growing only if that is not enough.
+          const loopRoom = id => laneLoopRoom(nodes, edges, id, nid => X[nid]);
+
           const lanePos = {};
           let curY = 0;
-          lanes.forEach((l, i) => {
+          lanes.forEach(l => {
             let maxH = LE.NODE_H;
             const inLane = nodes.filter(n => n.laneId === l.id);
             if (inLane.length) maxH = Math.max(...inLane.map(nodeH));
-            const req = LE.TOP_PAD + ((subrows[l.id] || 1) - 1) * LE.ROW_HEIGHT + maxH + LE.BOTTOM_PAD;
+            const rows = subrows[l.id] || 1;
+            const req = rows === 1 && loopRoom(l.id)
+              ? LE.NEAR_MIN + maxH + loopRoom(l.id)
+              : LE.TOP_PAD + (rows - 1) * LE.ROW_HEIGHT + maxH + LE.BOTTOM_PAD;
             const inner = Math.max(LE.LANE_MIN, req);
-            const off = i === 0 ? LE.OUTER_PAD : 0;
-            l.height = inner + off + (i === lanes.length - 1 ? LE.OUTER_PAD : 0);
-            lanePos[l.id] = { top: curY, h: l.height, inner, off };
+            l.height = inner;
+            lanePos[l.id] = { top: curY, h: l.height, inner, maxH };
             curY += l.height;
           });
 
@@ -2891,9 +2966,14 @@
             const lp = lanePos[n.laneId] || { top: 0, h: LE.LANE_MIN };
             n.x = X[n.id];
             if ((subrows[n.laneId] || 1) === 1) {
-              n.y = (lp.off || 0) + Math.floor(((lp.inner || lp.h) - nodeH(n)) / 8) * 4;
+              const inner = lp.inner || lp.h;
+              const room = loopRoom(n.laneId);
+              // Centred, or pulled toward the near side just enough to leave the loops their room
+              const centre = Math.floor((inner - nodeH(n)) / 8) * 4;
+              const blockTop = room ? Math.min(Math.floor((inner - lp.maxH) / 8) * 4, Math.floor((inner - room - lp.maxH) / 4) * 4) : null;
+              n.y = room ? Math.max(LE.NEAR_MIN, blockTop + Math.floor((lp.maxH - nodeH(n)) / 8) * 4) : centre;
             } else {
-              n.y = (lp.off || 0) + LE.TOP_PAD + sub[n.id] * LE.ROW_HEIGHT;
+              n.y = LE.TOP_PAD + sub[n.id] * LE.ROW_HEIGHT;
             }
           });
 
@@ -3287,6 +3367,7 @@
       // Entry point shared by every diagram type: lay out `data` in place (no DOM access).
       // Called by the page's Auto-Tidy button and by scripts/run_engine.mjs.
       function layoutDiagram(data) {
+        useDirection(data);
         if (data.swimlanes === false) normalizeSwimlanes(data);
         runLayoutEngine(data.lanes || [], data.nodes || [], data.edges || []);
       }
@@ -3305,14 +3386,52 @@ const TYPE_ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\
       const NODE_HEIGHT = 64;
       const DECISION_WIDTH = 144;
       const DECISION_HEIGHT = 80;
-      const LANE_MIN_HEIGHT = 152;
-      const LANE_BOTTOM_PAD = 36;
-      const LANE_OUTER_PAD = 24; // extra room below the last lane for loop-backs routed around the diagram (engine OUTER_PAD)
+      // Lane sizes come from the engine's LE (LANE_MIN, BOTTOM_PAD), which follows the diagram's direction
+
+      // --- DIRECTION ---
+      // "direction": "TB" draws the diagram top-to-bottom: lanes become columns and steps run downwards. Node data
+      // is always kept in flow terms (see engine.js LE_PROFILES): n.x runs along the flow from the start of the lane
+      // track and n.y across the lane from its edge. In a left-to-right diagram those are the screen's x and y; in a
+      // top-to-bottom one, n.x is the screen y and n.y the screen x. Every node takes an 80px slot along the flow
+      // (a decision's height), and a 64px step is centred in it so steps and decisions line up on one axis.
+      const isTB = () => chartData.direction === 'TB';
+      const nodeScreenH = (n) => (n.type === 'decision' ? DECISION_HEIGHT : NODE_HEIGHT);
+      const flowInset = (n) => (isTB() ? (DECISION_HEIGHT - nodeScreenH(n)) / 2 : 0);
+      // A node's extent across its lane (lane sizing, lane hit tests) and along the flow (snapping)
+      const crossSize = (n) => (isTB() ? NODE_WIDTH : nodeScreenH(n));
+      const flowSize = (n, el) => (isTB() ? DECISION_HEIGHT : ((el && el.offsetWidth) || NODE_WIDTH));
+      function placeNodeEl(el, n) {
+        if (isTB()) {
+          el.style.left = `${n.y || 0}px`;
+          el.style.top = `${(n.x || 0) + flowInset(n)}px`;
+        } else {
+          el.style.left = `${n.x || 80}px`;
+          el.style.top = `${n.y || 53}px`;
+        }
+      }
+      // Pointer position in flow terms: gx along the flow from the start of the lane tracks, gy across the lanes from
+      // the container's edge (so gy - laneTopOf(lane) is a node's n.y)
+      function trackOffset() {
+        const track = lanesRoot.querySelector('.lane-track');
+        if (!track) return 0;
+        const sr = swimlanesContainer.getBoundingClientRect(), tr = track.getBoundingClientRect();
+        return (isTB() ? tr.top - sr.top : tr.left - sr.left) / scale;
+      }
+      function flowPoint(clientX, clientY) {
+        const sr = swimlanesContainer.getBoundingClientRect();
+        const x = (clientX - sr.left) / scale, y = (clientY - sr.top) / scale;
+        return isTB() ? { gx: y - trackOffset(), gy: x } : { gx: x - trackOffset(), gy: y };
+      }
+      // Flow coordinates -> container coordinates (where an overlay such as a snap guide is drawn)
+      function flowToContainer(gx, gy) {
+        return isTB() ? { x: gy, y: trackOffset() + gx } : { x: trackOffset() + gx, y: gy };
+      }
 
       // --- STATE & INITIALIZATION ---
 
       let selectedNodeId = null;
       let selectedEdgeId = null;
+      let selectedLaneId = null;   // a lane selected by clicking its name pill (Delete removes it)
       let hoveredNodeId = null;
 
       // Node Drag state
@@ -3344,6 +3463,7 @@ const TYPE_ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\
       const edgeLabelsGroup = document.getElementById('edge-labels-group');
       const dragEdge = document.getElementById('drag-edge');
       const btnAddLane = document.getElementById('btn-add-lane');
+      const btnDirection = document.getElementById('btn-direction');
 
       // --- RENDERING ---
       function render() {
@@ -3351,14 +3471,48 @@ const TYPE_ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\
         if (noLanes) normalizeSwimlanes(chartData);
         swimlanesContainer.classList.toggle('no-swimlanes', noLanes);
         updateLaneButton();
+        useDirection(chartData);
+        const tb = isTB();
+        swimlanesContainer.classList.toggle('dir-tb', tb);
+        updateDirectionButton();
 
-        const maxX = chartData.nodes.reduce((m, n) => Math.max(m, (n.x || 0) + NODE_WIDTH + 48), 1200);
+        // Length of the lane tracks along the flow: past the furthest node, and at least a screenful
+        const maxX = chartData.nodes.reduce((m, n) => Math.max(m, (n.x || 0) + (tb ? DECISION_HEIGHT : NODE_WIDTH) + 48), tb ? 640 : 1200);
 
         renderLanes(maxX);   // also sizes the pill gutter (--lane-gutter)
-        swimlanesContainer.style.minWidth = `${maxX + 4 + (parseFloat(swimlanesContainer.style.getPropertyValue('--lane-gutter')) || 0)}px`;
+        const along = `${maxX + 4 + (parseFloat(swimlanesContainer.style.getPropertyValue('--lane-gutter')) || 0)}px`;
+        swimlanesContainer.style.minWidth = tb ? '' : along;
+        swimlanesContainer.style.minHeight = tb ? along : '';
         renderNodes();
         renderEdges();
+        // The last lane has no neighbour beyond it, so loop-backs that run around its nodes (and their labels)
+        // can reach its outer edge. Grow it on that side until they are OUTER_CLEAR inside. Measured against the
+        // lane without the extra, so it shrinks back; it only re-renders when the needed room changed.
+        const need = outerReach();
+        if (need !== outerExtra) {
+          outerExtra = need;
+          renderLanes(maxX);
+          renderNodes();
+          renderEdges();
+        }
         pinLaneHeaders();
+      }
+
+      const OUTER_CLEAR = 16;   // px between the outermost arrow/label and the last lane's outer edge
+      let outerExtra = 0;       // px added to the last lane's outer side (renderer only, never shifts a node)
+      function outerReach() {
+        const last = lanesRoot.lastElementChild;
+        if (!last || chartData.swimlanes === false) return 0;
+        const tb = isTB(), lr = last.getBoundingClientRect();
+        const s = lr.width / last.offsetWidth || 1;   // current zoom
+        let reach = -Infinity;
+        const take = el => { const r = el.getBoundingClientRect(); if (r.width || r.height) reach = Math.max(reach, tb ? r.right : r.bottom); };
+        edgeGroup.querySelectorAll('.connector-path').forEach(take);
+        edgeLabelsGroup.querySelectorAll('.edge-label-container.has-label').forEach(take);
+        if (reach === -Infinity) return 0;
+        const base = (tb ? lr.right : lr.bottom) - outerExtra * s;   // outer edge without the extra
+        const need = (reach - base) / s + OUTER_CLEAR;
+        return need > 0 ? Math.ceil(need / 4) * 4 : 0;
       }
 
       // --- LANE HOVER ---
@@ -3372,7 +3526,11 @@ const TYPE_ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\
         if (el) el.classList.add('lane-hover');
       }
       swimlanesContainer.addEventListener('pointermove', (e) => {
-        const lane = [...lanesRoot.children].find(l => { const r = l.getBoundingClientRect(); return e.clientY >= r.top && e.clientY < r.bottom; });
+        const tb = isTB();
+        const lane = [...lanesRoot.children].find(l => {
+          const r = l.getBoundingClientRect();
+          return tb ? e.clientX >= r.left && e.clientX < r.right : e.clientY >= r.top && e.clientY < r.bottom;
+        });
         setHoverLane(lane || null);
       });
       swimlanesContainer.addEventListener('pointerleave', () => setHoverLane(null));
@@ -3390,10 +3548,36 @@ const TYPE_ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\
         const top = swimlanesContainer.offsetTop + swimlanesContainer.clientTop;
         const visLeft = -panX / scale - left;   // viewport's left edge in container coords
         const visTop = -panY / scale - top;
-        const x0 = Math.max(0, visLeft);       // visible left edge of the lanes
-        swimlanesContainer.classList.toggle('lanes-pinned', visLeft > 0);
         const inset = PILL_INSET;
         const cs = swimlanesContainer.style;
+        if (isTB()) {
+          // Top-to-bottom: lanes are columns, so the stripe and the pills sit at the visible top edge instead,
+          // and each pill follows its column sideways when the column is wider than the screen
+          const y0 = Math.max(0, visTop);
+          swimlanesContainer.classList.toggle('lanes-pinned', visTop > 0);
+          cs.removeProperty('--rail-x');
+          cs.removeProperty('--pill-x');
+          cs.setProperty('--rail-y', `${y0}px`);
+          cs.setProperty('--rail-b', `${3 / scale}px`);
+          cs.setProperty('--pill-y', `${y0 + inset}px`);
+          // Each pill is centred on the visible part of its column (the whole column when it is on screen)
+          const visRight = visLeft + viewport.clientWidth / scale;
+          lanesRoot.querySelectorAll('.swimlane').forEach(laneEl => {
+            const pill = laneEl.querySelector('.lane-pill');
+            if (!pill) return;
+            const w = laneEl.offsetWidth, pw = pill.offsetWidth;
+            const a = Math.max(0, visLeft - laneEl.offsetLeft), b = Math.min(w, visRight - laneEl.offsetLeft);
+            const maxX = Math.max(inset, w - pw - inset);
+            const x = Math.min(Math.max(b > a ? (a + b - pw) / 2 : (w - pw) / 2, inset), maxX);
+            laneEl.style.setProperty('--pill-x', `${x}px`);
+            laneEl.style.setProperty('--pill-cx', `${Math.max(inset, (w - pw) / 2)}px`);   // centred at rest (exports)
+          });
+          return;
+        }
+        const x0 = Math.max(0, visLeft);       // visible left edge of the lanes
+        swimlanesContainer.classList.toggle('lanes-pinned', visLeft > 0);
+        cs.removeProperty('--rail-y');
+        cs.removeProperty('--pill-y');
         cs.setProperty('--rail-x', `${x0}px`);
         cs.setProperty('--rail-b', `${3 / scale}px`);
         cs.setProperty('--pill-x', `${x0 + inset}px`);
@@ -3411,30 +3595,40 @@ const TYPE_ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\
         const hoverIdx = hoverLaneEl ? [...lanesRoot.children].indexOf(hoverLaneEl) : -1;
         hoverLaneEl = null;
         lanesRoot.innerHTML = '';
+        const xById = {};
+        chartData.nodes.forEach(n => { xById[n.id] = n.x || 0; });
         chartData.lanes.forEach((lane, index) => {
           // Dynamically calculate required lane height from nodes in this lane
           const laneNodes = chartData.nodes.filter(n => n.laneId === lane.id);
-          const maxNodeBottom = laneNodes.reduce((m, n) => {
-            const nh = (n.type === 'decision') ? DECISION_HEIGHT : NODE_HEIGHT;
-            return Math.max(m, (n.y || 48) + nh);
-          }, 100);
-          const outer = index === chartData.lanes.length - 1 ? LANE_OUTER_PAD : 0;
-          const computedHeight = Math.max(LANE_MIN_HEIGHT, maxNodeBottom + LANE_BOTTOM_PAD) + outer; // derived from nodes only, so lanes shrink back
+          // (lane.height is the lane's size across the flow: its screen width when the diagram runs top-to-bottom)
+          const maxNodeBottom = laneNodes.reduce((m, n) => Math.max(m, (n.y || 48) + crossSize(n)), 100);
+          // Past the lowest node: the bottom pad, or the room its loop-backs need (same rule as the engine)
+          const loopRoom = laneLoopRoom(chartData.nodes, chartData.edges, lane.id, id => xById[id] || 0);
+          const computedHeight = Math.max(LE.LANE_MIN, maxNodeBottom + Math.max(LE.BOTTOM_PAD, loopRoom)) // derived from nodes only, so lanes shrink back
+            + (index === chartData.lanes.length - 1 ? outerExtra : 0);             // room for outer loop-backs (render)
           lane.height = computedHeight;
+          const tb = isTB();
 
           const laneEl = document.createElement('div');
           laneEl.className = 'swimlane';
           laneEl.dataset.laneId = lane.id;
           laneEl.dataset.laneIndex = index;
-          laneEl.style.minHeight = `${computedHeight}px`;
-          laneEl.style.height = `${computedHeight}px`;
+          if (tb) {
+            laneEl.style.minWidth = `${computedHeight}px`;
+            laneEl.style.width = `${computedHeight}px`;
+          } else {
+            laneEl.style.minHeight = `${computedHeight}px`;
+            laneEl.style.height = `${computedHeight}px`;
+          }
           laneEl.style.setProperty('--lane-color', lane.color || '#e2e8f0');   // stripe, icon, pill tint
+          if (index % 2) laneEl.classList.add('lane-alt');                     // lanes alternate white / light grey
+          if (lane.id === selectedLaneId) laneEl.classList.add('lane-selected');
 
           const track = document.createElement('div');
           track.className = 'lane-track';
           track.dataset.laneId = lane.id;
-          track.style.minWidth = `${trackWidth}px`;
-          if (lane.color) track.style.background = colorWithAlpha(lane.color, themeAlpha('--lane-tint-track'));
+          if (tb) track.style.minHeight = `${trackWidth}px`;
+          else track.style.minWidth = `${trackWidth}px`;
 
           // Lane name pill (there is no header column): icon + name at the visible top-left of the lane.
           // Drag it to reorder lanes, double-click the name to rename. Positioned by pinLaneHeaders.
@@ -3442,14 +3636,19 @@ const TYPE_ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\
           const pill = document.createElement('div');
           pill.className = 'lane-pill';
           pill.draggable = editable;
-          pill.dataset.tip = 'Drag to reorder swimlane \u00b7 double-click to rename';
-          pill.appendChild(laneIconEl(lane, 12));
+          pill.dataset.tip = 'Click to select (Delete removes the lane) \u00b7 drag to reorder \u00b7 double-click to rename';
+          pill.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (editable && !pill.classList.contains('editing')) selectLane(lane.id);
+          });
+          pill.appendChild(laneIconEl(lane, 15));
           const title = document.createElement('span');
           title.className = 'lane-title';
           title.contentEditable = 'false';
           title.spellcheck = false;
           title.textContent = lane.name;
           pill.appendChild(title);
+          if (tb) pill.style.maxWidth = `${Math.max(80, computedHeight - 2 * PILL_INSET)}px`;   // stays inside its column
 
           title.addEventListener('dblclick', (e) => {
             if (!editable) return;
@@ -3497,7 +3696,6 @@ const TYPE_ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\
           // Empty gutter left of the track (node x is measured from the track), sized below to clear the pills
           const gutter = document.createElement('div');
           gutter.className = 'lane-gutter';
-          if (lane.color) gutter.style.background = track.style.background;
 
           laneEl.appendChild(gutter);
           laneEl.appendChild(track);
@@ -3512,12 +3710,14 @@ const TYPE_ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\
       // The gutter indents every node and arrow so the lane pills (at the lane's top-left) never sit on them.
       // Sized from the widest pill at 1:1 scale: nodes start LE.START_X (56) into the track and loop-back
       // corridors run 24px left of a node, so the gutter only needs to cover what the pill adds beyond that.
+      // Top-to-bottom, the gutter is a band above the nodes, sized from the tallest pill instead.
       const GUTTER_CLEAR = 12;   // px between the pill's right edge and the nearest corridor
       function sizeLaneGutter() {
         let g = 0;
         if (chartData.swimlanes !== false) {
-          const widest = Math.max(0, ...[...lanesRoot.querySelectorAll('.lane-pill')].map(p => p.offsetWidth));
-          g = Math.max(0, Math.ceil(PILL_INSET + widest + GUTTER_CLEAR - (56 - 24)));
+          const pills = [...lanesRoot.querySelectorAll('.lane-pill')];
+          const extent = Math.max(0, ...pills.map(p => (isTB() ? p.offsetHeight : p.offsetWidth)));
+          g = Math.max(0, Math.ceil(PILL_INSET + extent + GUTTER_CLEAR - (LE.START_X - 24)));
         }
         swimlanesContainer.style.setProperty('--lane-gutter', `${g}px`);
         return g;
@@ -3564,24 +3764,13 @@ const TYPE_ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\
       let laneDragFrom = -1;
       const laneDropLine = document.getElementById('lane-drop-line');
 
-      function themeAlpha(name) {
-        return parseFloat(getComputedStyle(document.documentElement).getPropertyValue(name)) || 0.3;
-      }
 
-      function colorWithAlpha(color, alpha) {
-        const m = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(String(color).trim());
-        if (!m) return color;
-        let hex = m[1];
-        if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
-        const n = parseInt(hex, 16);
-        return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
-      }
-
-      function laneInsertIndexAt(clientY) {
+      // Lanes are stacked rows left-to-right and side-by-side columns top-to-bottom
+      function laneInsertIndexAt(clientX, clientY) {
         const lanes = [...lanesRoot.children];
         for (let i = 0; i < lanes.length; i++) {
           const r = lanes[i].getBoundingClientRect();
-          if (clientY < r.top + r.height / 2) return i;
+          if (isTB() ? clientX < r.left + r.width / 2 : clientY < r.top + r.height / 2) return i;
         }
         return lanes.length;
       }
@@ -3589,10 +3778,16 @@ const TYPE_ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\
       function showLaneDropLine(insertIdx) {
         const lanes = [...lanesRoot.children];
         if (!lanes.length) return;
-        const y = insertIdx < lanes.length
-          ? lanes[insertIdx].offsetTop
-          : lanes[lanes.length - 1].offsetTop + lanes[lanes.length - 1].offsetHeight;
-        laneDropLine.style.top = `${y - 2}px`;
+        const last = lanes[lanes.length - 1];
+        if (isTB()) {
+          const x = insertIdx < lanes.length ? lanes[insertIdx].offsetLeft : last.offsetLeft + last.offsetWidth;
+          laneDropLine.style.left = `${x - 2}px`;
+          laneDropLine.style.top = '';
+        } else {
+          const y = insertIdx < lanes.length ? lanes[insertIdx].offsetTop : last.offsetTop + last.offsetHeight;
+          laneDropLine.style.top = `${y - 2}px`;
+          laneDropLine.style.left = '';
+        }
         laneDropLine.style.display = 'block';
       }
 
@@ -3606,7 +3801,7 @@ const TYPE_ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\
         if (laneDragFrom < 0) return;
         e.preventDefault();
         e.dataTransfer.dropEffect = 'move';
-        showLaneDropLine(laneInsertIndexAt(e.clientY));
+        showLaneDropLine(laneInsertIndexAt(e.clientX, e.clientY));
       });
       swimlanesContainer.addEventListener('dragleave', (e) => {
         if (laneDragFrom >= 0 && !swimlanesContainer.contains(e.relatedTarget)) laneDropLine.style.display = 'none';
@@ -3615,7 +3810,7 @@ const TYPE_ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\
         if (laneDragFrom < 0) return;
         e.preventDefault();
         const from = laneDragFrom;
-        const insertIdx = laneInsertIndexAt(e.clientY);
+        const insertIdx = laneInsertIndexAt(e.clientX, e.clientY);
         const to = insertIdx > from ? insertIdx - 1 : insertIdx;
         endLaneDrag();
         if (to !== from) {
@@ -3643,8 +3838,7 @@ const TYPE_ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\
           nodeEl.className = `flow-node type-${node.type}` + (isDot(node) ? ' terminal-dot' : '');
           nodeEl.id = `node-${node.id}`;
           nodeEl.dataset.nodeId = node.id;
-          nodeEl.style.left = `${node.x || 80}px`;
-          nodeEl.style.top = `${node.y || 53}px`;
+          placeNodeEl(nodeEl, node);
           if (node.id === selectedNodeId) nodeEl.classList.add('selected');
 
           // Decision diamond shape SVG
@@ -3696,17 +3890,6 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           });
           nodeEl.appendChild(label);
 
-          // Delete button
-          const delBtn = document.createElement('div');
-          delBtn.className = 'node-delete-btn';
-          delBtn.textContent = '×';
-          delBtn.dataset.tip = 'Delete Node';
-          delBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            deleteNode(node.id);
-          });
-          nodeEl.appendChild(delBtn);
-
           // 4 Anchor Ports
           ['top', 'right', 'bottom', 'left'].forEach(pos => {
             const port = document.createElement('div');
@@ -3726,10 +3909,14 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
       }
 
       // --- PLANAR ORTHOGONAL ROUTING & CHANNEL STAGGERING ENGINE ---
+      // Top-to-bottom diagrams are routed in flow terms too: node boxes are transposed (x <-> y) before the route
+      // search, so every rule written for a left-to-right flow applies unchanged, and the finished polylines are
+      // transposed back before hops and labels are placed on screen (step 6).
       function computeAllEdgeRoutes() {
         const stageRect = swimlanesContainer.getBoundingClientRect();
         const rects = {};
         const nodeMap = {};
+        const tb = isTB();
 
         chartData.nodes.forEach(n => {
           nodeMap[n.id] = n;
@@ -3740,7 +3927,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           const y = (r.top - stageRect.top) / scale;
           const w = r.width / scale;
           const h = r.height / scale;
-          rects[n.id] = { x, y, w, h, cx: x + w / 2, cy: y + h / 2 };
+          rects[n.id] = tb ? { x: y, y: x, w: h, h: w, cx: y + h / 2, cy: x + w / 2 } : { x, y, w, h, cx: x + w / 2, cy: y + h / 2 };
         });
 
         // True when an axis-aligned segment keeps 6px clear of every node except `ignore`
@@ -4178,7 +4365,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         // Cost model: overlap >> near-parallel > crossing (~1.75 bends) > bend > length
         const COST = { overlap: 20000, near: 2500, cross: 1750, bend: 1000, divider: 1500, nearNode: 600, portClash: 2500, sharedBranch: 1200 };
         const laneDividers = Array.from(document.querySelectorAll('.lane-track')).slice(0, -1)
-          .map(t => (t.getBoundingClientRect().bottom - stageRect.top) / scale);
+          .map(t => (tb ? t.getBoundingClientRect().right - stageRect.left : t.getBoundingClientRect().bottom - stageRect.top) / scale);
         const routeDefects = (pts, ids) => {
           // Penalties independent of other arrows: hugging a lane divider, crowding a node
           let d = 0;
@@ -4654,6 +4841,20 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           snap(e.to, pts.length - 1, pts.length - 2);
         });
 
+        // 5e. Top-to-bottom: back to screen coordinates (flow x -> screen y). A port named in flow terms maps to the
+        // screen side it faces: along the flow ('right') is down, against it ('left') up, across the lanes sideways.
+        if (tb) {
+          const SIDE = { right: 'bottom', left: 'top', bottom: 'right', top: 'left' };
+          Object.keys(edgePolylines).forEach(id => { edgePolylines[id] = edgePolylines[id].map(([a, b]) => [b, a]); });
+          Object.keys(edgePorts).forEach(id => {
+            const p = edgePorts[id];
+            if (p) edgePorts[id] = { ...p, fromPort: SIDE[p.fromPort] || p.fromPort, toPort: SIDE[p.toPort] || p.toPort };
+          });
+          Object.values(rects).forEach(r => {
+            [r.x, r.y, r.w, r.h, r.cx, r.cy] = [r.y, r.x, r.h, r.w, r.cy, r.cx];
+          });
+        }
+
         // 6. Collect vertical segments from edges for planar bridge/hop overpasses
         const verticalSegments = [];
         validEdges.forEach(other => {
@@ -5120,34 +5321,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
             }
 
             if (isSelected) {
-              // Separate from the label so it reads as "delete the arrow", not "clear the label"
-              const delEdgeBtn = document.createElement('div');
-              delEdgeBtn.className = 'edge-delete-btn';
-              delEdgeBtn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M6 6l1 14h10l1-14"/><path d="M10 11v6M14 11v6"/></svg>';
-              delEdgeBtn.setAttribute('aria-label', 'Delete arrow');
-              delEdgeBtn.dataset.tip = 'Delete this arrow (Delete key)';
-              // Sit on the arrow itself, as near its middle as possible without covering the label pill
-              const lw = labelContainer.offsetWidth / 2 + 18, lh = labelContainer.offsetHeight / 2 + 18;
               const total = path.getTotalLength();
-              // Clearance > 0 means the 28px button is fully outside the label box (plus a small gap)
-              const clearance = (pt) => Math.max(Math.abs(pt.x - pathD.midX) - lw, Math.abs(pt.y - pathD.midY) - lh);
-              let spot = null, best = -Infinity;
-              const steps = [];
-              for (let i = 0; i <= 90; i++) steps.push(0.5 + (i % 2 ? 1 : -1) * Math.ceil(i / 2) * 0.01);
-              for (const f of steps) {          // nearest to the middle first
-                const pt = path.getPointAtLength(total * Math.min(0.95, Math.max(0.05, f)));
-                const c = clearance(pt);
-                if (c > 0) { spot = pt; break; }
-                if (c > best) { best = c; spot = pt; }
-              }
-              delEdgeBtn.style.left = `${spot.x}px`;
-              delEdgeBtn.style.top = `${spot.y}px`;
-              delEdgeBtn.addEventListener('pointerdown', (e) => e.stopPropagation());
-              delEdgeBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                deleteEdge(edge.id);
-              });
-              edgeLabelsGroup.appendChild(delEdgeBtn);
 
               // Drag either end of the selected arrow onto another node to re-attach it
               ['from', 'to'].forEach(end => {
@@ -5219,7 +5393,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
 
       // --- NODE DRAG INTERACTION ---
       function handleNodePointerDown(e, node) {
-        if (e.target.classList.contains('port') || e.target.classList.contains('node-delete-btn') || e.target.isContentEditable) {
+        if (e.target.classList.contains('port') || e.target.isContentEditable) {
           return;
         }
 
@@ -5238,17 +5412,20 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         dragStartY = e.clientY;
 
         const nodeEl = document.getElementById(`node-${node.id}`);
-        const stageRect = swimlanesContainer.getBoundingClientRect();
         const nRect = nodeEl.getBoundingClientRect();
 
-        // Global X is measured from the lane track
-        const trackEl = nodeEl.parentElement;
-        const trackLeft = trackEl ? trackEl.getBoundingClientRect().left : stageRect.left;
+        // Drag in flow terms (see flowPoint): global X along the flow from the lane track, global Y across the lanes
         dragMoved = false;
         dragCanInsert = canInsert(node.type) && !nodeHasEdges(node.id);
         const dOff = dotOffset(node);   // circle nodes are drawn inset from their slot; data x/y is the slot corner
-        dragStartGlobalX = (nRect.left - trackLeft) / scale - dOff.x;
-        dragStartGlobalY = (nRect.top - stageRect.top) / scale - dOff.y;
+        const at = flowPoint(nRect.left, nRect.top);
+        if (isTB()) {
+          dragStartGlobalX = at.gx - dOff.y - flowInset(node);
+          dragStartGlobalY = at.gy - dOff.x;
+        } else {
+          dragStartGlobalX = at.gx - dOff.x;
+          dragStartGlobalY = at.gy - dOff.y;
+        }
 
         window.addEventListener('pointermove', onDragNodeMove);
         window.addEventListener('pointerup', onDragNodeUp);
@@ -5258,12 +5435,12 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         if (!draggingNode) return;
         if (!dragMoved && Math.hypot(e.clientX - dragStartX, e.clientY - dragStartY) < 4) return;
         dragMoved = true;
-        const dx = (e.clientX - dragStartX) / scale;
-        const dy = (e.clientY - dragStartY) / scale;
+        const sdx = (e.clientX - dragStartX) / scale;
+        const sdy = (e.clientY - dragStartY) / scale;
+        const [dx, dy] = isTB() ? [sdy, sdx] : [sdx, sdy];   // along / across the flow
 
         const nodeEl = document.getElementById(`node-${draggingNode.id}`);
-        const isDecision = draggingNode.type === 'decision';
-        const nh = isDecision ? DECISION_HEIGHT : NODE_HEIGHT;
+        const nh = crossSize(draggingNode);
 
         const currGlobalX = dragStartGlobalX + dx;
         const currGlobalY = dragStartGlobalY + dy;
@@ -5276,7 +5453,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
 
         for (let i = 0; i < chartData.lanes.length; i++) {
           const lane = chartData.lanes[i];
-          const lh = lane.height || LANE_MIN_HEIGHT;
+          const lh = lane.height || LE.LANE_MIN;
           if (nodeCenterY >= cumulativeY && nodeCenterY < cumulativeY + lh) {
             targetLane = lane;
             targetLaneTop = cumulativeY;
@@ -5292,7 +5469,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         // Align to 4px grid, then snap to other nodes' and lane centers when close
         let gridX = Math.max(16, Math.round(currGlobalX / 4) * 4);
         let gridY = Math.round(currGlobalY / 4) * 4;
-        const snap = computeSnap(draggingNode, nodeEl.offsetWidth || NODE_WIDTH, nh, currGlobalX, currGlobalY);
+        const snap = computeSnap(draggingNode, flowSize(draggingNode, nodeEl), nh, currGlobalX, currGlobalY);
         if (snap.x !== null) gridX = Math.max(16, Math.round(snap.x));
         if (snap.y !== null) gridY = Math.round(snap.y);
         const localX = gridX;
@@ -5311,8 +5488,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           }
         }
 
-        nodeEl.style.left = `${localX}px`;
-        nodeEl.style.top = `${localY}px`;
+        placeNodeEl(nodeEl, draggingNode);
 
         // An unconnected node over an arrow offers to be inserted into it
         let target = null;
@@ -5346,12 +5522,13 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         let top = 0;
         for (const lane of chartData.lanes) {
           if (lane.id === laneId) return top;
-          top += lane.height || LANE_MIN_HEIGHT;
+          top += lane.height || LE.LANE_MIN;
         }
         return top;
       }
 
-      // Returns {x, y} snapped top-left (global coords, null = no snap) plus guide positions
+      // Returns {x, y} snapped top-left (global flow coords: x along the flow, y across the lanes; null = no snap)
+      // plus guide positions. w/h are the node's extent along/across the flow.
       function computeSnap(dragNode, w, h, gx, gy) {
         let bestX = null, bestY = null; // {delta, pos}
         const mine = {
@@ -5361,8 +5538,8 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         chartData.nodes.forEach(n => {
           if (n.id === dragNode.id) return;
           const el = document.getElementById(`node-${n.id}`);
-          const nw = el ? el.offsetWidth : NODE_WIDTH;
-          const nhh = n.type === 'decision' ? DECISION_HEIGHT : NODE_HEIGHT;
+          const nw = flowSize(n, el);
+          const nhh = crossSize(n);
           const nx = n.x || 0;
           const ny = laneTopOf(n.laneId) + (n.y || 0);
           const tx = [nx, nx + nw / 2, nx + nw];
@@ -5376,7 +5553,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         // Lane vertical centers (the horizontal midline of each swimlane)
         let laneTop = 0;
         chartData.lanes.forEach(lane => {
-          const lh = lane.height || LANE_MIN_HEIGHT;
+          const lh = lane.height || LE.LANE_MIN;
           const dy = (laneTop + lh / 2) - mine.y[1];
           if (Math.abs(dy) <= SNAP_THRESHOLD && (!bestY || Math.abs(dy) < Math.abs(bestY.delta))) bestY = { delta: dy, pos: laneTop + lh / 2 };
           laneTop += lh;
@@ -5400,20 +5577,21 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         return g;
       }
 
+      // guideX is a position along the flow, guideY across the lanes: top-to-bottom, those are drawn as a
+      // horizontal and a vertical line respectively
       function showSnapGuides(snap) {
         const vGuide = getSnapGuide('snap-guide-v', 'snap-guide-v');
         const hGuide = getSnapGuide('snap-guide-h', 'snap-guide-h');
-        const firstTrack = document.querySelector('.lane-track');
-        const stageRect = swimlanesContainer.getBoundingClientRect();
-        const trackOffset = firstTrack ? (firstTrack.getBoundingClientRect().left - stageRect.left) / scale : 0;
+        const [flowGuide, crossGuide] = isTB() ? [hGuide, vGuide] : [vGuide, hGuide];
+        const flowProp = isTB() ? 'top' : 'left', crossProp = isTB() ? 'left' : 'top';
         if (snap.guideX !== null) {
-          vGuide.style.left = `${trackOffset + snap.guideX}px`;
-          vGuide.style.display = 'block';
-        } else vGuide.style.display = 'none';
+          flowGuide.style[flowProp] = `${trackOffset() + snap.guideX}px`;
+          flowGuide.style.display = 'block';
+        } else flowGuide.style.display = 'none';
         if (snap.guideY !== null) {
-          hGuide.style.top = `${snap.guideY}px`;
-          hGuide.style.display = 'block';
-        } else hGuide.style.display = 'none';
+          crossGuide.style[crossProp] = `${snap.guideY}px`;
+          crossGuide.style.display = 'block';
+        } else crossGuide.style.display = 'none';
       }
 
       function hideSnapGuides() {
@@ -5619,9 +5797,37 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
       }
 
       // --- SELECTION & DELETION ---
+      function markSelectedLane() {
+        lanesRoot.querySelectorAll('.swimlane').forEach(l => l.classList.toggle('lane-selected', l.dataset.laneId === selectedLaneId));
+      }
+
+      function selectLane(laneId) {
+        const hadEdge = selectedEdgeId;
+        selectedLaneId = laneId;
+        selectedNodeId = null;
+        selectedEdgeId = null;
+        document.querySelectorAll('.flow-node').forEach(el => el.classList.remove('selected'));
+        if (hadEdge) renderEdges();
+        markSelectedLane();
+      }
+
+      // Removes a lane together with its steps and every arrow attached to them (one undo step).
+      // The last remaining lane cannot be deleted: every step needs a lane.
+      function deleteLane(laneId) {
+        if (chartData.lanes.length <= 1 || !chartData.lanes.some(l => l.id === laneId)) return;
+        const gone = new Set(chartData.nodes.filter(n => n.laneId === laneId).map(n => n.id));
+        chartData.lanes = chartData.lanes.filter(l => l.id !== laneId);
+        chartData.nodes = chartData.nodes.filter(n => !gone.has(n.id));
+        chartData.edges = chartData.edges.filter(e => !gone.has(e.from) && !gone.has(e.to));
+        selectedLaneId = null;
+        updateStatus(true);
+        render();
+      }
+
       function selectNode(nodeId) {
         selectedNodeId = nodeId;
         selectedEdgeId = null;
+        if (selectedLaneId) { selectedLaneId = null; markSelectedLane(); }
         document.querySelectorAll('.flow-node').forEach(el => el.classList.toggle('selected', el.dataset.nodeId === nodeId));
         document.querySelectorAll('.connector-path').forEach(p => p.classList.remove('selected'));
         document.querySelectorAll('.edge-label-container').forEach(c => c.classList.remove('selected'));
@@ -5630,6 +5836,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
       function selectEdge(edgeId, reRender = true) {
         selectedEdgeId = edgeId;
         selectedNodeId = null;
+        if (selectedLaneId) { selectedLaneId = null; markSelectedLane(); }
         document.querySelectorAll('.flow-node').forEach(el => el.classList.remove('selected'));
         if (reRender) {
           renderEdges();
@@ -5662,16 +5869,13 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
 
       // --- ADD ELEMENTS ---
       // Lane + lane-local top-left for a node of size nw x nh centred on a screen point
+      // nw/nh: the node's extent along/across the flow (typeFlowSize / typeCrossSize)
       function placementAt(clientX, clientY, nw, nh) {
-        const stageRect = swimlanesContainer.getBoundingClientRect();
-        const track = document.querySelector('.lane-track');
-        const trackLeft = track ? track.getBoundingClientRect().left : stageRect.left;
-        const gx = (clientX - trackLeft) / scale;
-        const gy = (clientY - stageRect.top) / scale;
+        const { gx, gy } = flowPoint(clientX, clientY);
         let top = 0, lane = chartData.lanes[0];
         for (let i = 0; i < chartData.lanes.length; i++) {
           const l = chartData.lanes[i];
-          const lh = l.height || LANE_MIN_HEIGHT;
+          const lh = l.height || LE.LANE_MIN;
           lane = l;
           if (gy < top + lh) break;
           if (i < chartData.lanes.length - 1) top += lh;
@@ -5692,6 +5896,8 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
 
       const NODE_DEFAULTS = { start: 'Start', end: 'End', task: 'New Step', decision: 'Decision?' };
       const nodeHeightOf = (type) => (type === 'decision' ? DECISION_HEIGHT : NODE_HEIGHT);
+      const typeFlowSize = (type) => (isTB() ? DECISION_HEIGHT : NODE_WIDTH);
+      const typeCrossSize = (type) => (isTB() ? NODE_WIDTH : nodeHeightOf(type));
 
       // Ids that cannot collide even when two are made in the same millisecond
       function uid(prefix) {
@@ -5719,7 +5925,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         btn.addEventListener('click', (e) => {
           if (btn.dataset.dragged) { delete btn.dataset.dragged; e.preventDefault(); return; }
           const type = btn.dataset.nodeType;
-          addNodeAt(type, viewportCenterPlacement(NODE_WIDTH, nodeHeightOf(type)));
+          addNodeAt(type, viewportCenterPlacement(typeFlowSize(type), typeCrossSize(type)));
         });
         btn.addEventListener('pointerdown', (e) => startPaletteDrag(e, btn));
       });
@@ -5827,12 +6033,13 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           pd.ghost = buildGhost(pd.type);
           document.body.classList.add('palette-dragging');
         }
-        const nw = NODE_WIDTH, nh = nodeHeightOf(pd.type);
+        const nw = typeFlowSize(pd.type), nh = typeCrossSize(pd.type);         // flow terms, for placement
+        const sw = NODE_WIDTH, sh = nodeHeightOf(pd.type);                      // on screen, for the ghost
         const under = document.elementFromPoint(e.clientX, e.clientY);
         pd.onCanvas = !!under && viewport.contains(under) && !under.closest('.dock-area');
         pd.ghost.classList.toggle('off-canvas', !pd.onCanvas);
 
-        let gx = e.clientX - (nw * scale) / 2, gy = e.clientY - (nh * scale) / 2;   // ghost top-left on screen
+        let gx = e.clientX - (sw * scale) / 2, gy = e.clientY - (sh * scale) / 2;   // ghost top-left on screen
         pd.placement = null;
         let target = null;
         if (pd.onCanvas) {
@@ -5845,10 +6052,10 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
             if (snap.x !== null) p.x = Math.max(16, Math.round(snap.x));
             if (snap.y !== null) p.y = Math.max(12, Math.round(snap.y - p.laneTop));
             showSnapGuides(snap);
-            const track = document.querySelector('.lane-track');
             const sr = swimlanesContainer.getBoundingClientRect();
-            gx = (track ? track.getBoundingClientRect().left : sr.left) + p.x * scale;
-            gy = sr.top + (p.laneTop + p.y) * scale;
+            const c = flowToContainer(p.x, p.laneTop + p.y);
+            gx = sr.left + c.x * scale;
+            gy = sr.top + (c.y + (isTB() ? (DECISION_HEIGHT - sh) / 2 : 0)) * scale;
           } else {
             // Over an arrow: the ghost trails below-right of the cursor so the marching arrow and pill stay visible
             hideSnapGuides();
@@ -5922,11 +6129,37 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           name: `Actor / Role ${chartData.lanes.length + 1}`,
           color: nextColor,
           icon: 'users',
-          height: LANE_MIN_HEIGHT
+          height: LE.LANE_MIN
         };
         chartData.lanes.push(newLane);
         updateStatus(true);
         render();
+      });
+
+      // --- DIRECTION TOGGLE ---
+      // Switches between left-to-right and top-to-bottom ("direction": "TB" in the data, so it is saved with the
+      // file and undoable). Node positions mean different things in each, so the switch always re-runs the layout.
+      const DIR_ICONS = {
+        LR: '<path d="M3 12h18"/><path d="m16 7 5 5-5 5"/>',
+        TB: '<path d="M12 3v18"/><path d="m7 16 5 5 5-5"/>'
+      };
+      function updateDirectionButton() {
+        if (!btnDirection) return;
+        const next = isTB() ? 'LR' : 'TB';
+        const label = next === 'TB' ? 'Vertical' : 'Horizontal';
+        btnDirection.querySelector('.btn-label').textContent = label;
+        btnDirection.querySelector('svg').innerHTML = DIR_ICONS[next];
+        btnDirection.title = next === 'TB' ? 'Switch to a top-to-bottom layout' : 'Switch to a left-to-right layout';
+        btnDirection.setAttribute('aria-label', label);
+      }
+      if (btnDirection) btnDirection.addEventListener('click', () => {
+        if (isTB()) delete chartData.direction;
+        else chartData.direction = 'TB';
+        selectedEdgeId = null;
+        layoutDiagram(chartData);
+        render();
+        updateStatus(true);
+        fitView();
       });
 
       // --- REGISTER WITH THE SHELL ---
@@ -5940,6 +6173,8 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         clearSelection() {
           selectedNodeId = null;
           selectedEdgeId = null;
+          selectedLaneId = null;
+          markSelectedLane();
           document.querySelectorAll('.flow-node').forEach(el => el.classList.remove('selected'));
           renderEdges();
         },
@@ -5952,6 +6187,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         deleteSelection() {
           if (selectedNodeId) deleteNode(selectedNodeId);
           else if (selectedEdgeId) deleteEdge(selectedEdgeId);
+          else if (selectedLaneId) deleteLane(selectedLaneId);
         }
       });
       loadInitialData();

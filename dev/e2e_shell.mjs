@@ -6,6 +6,9 @@
 // --laid:      page produced by `layout_engine.py --layout` (reference positions)
 // --scrambled: same diagram with node x/y scrambled (Auto-Tidy must restore the reference positions)
 // Exit codes: 0 all passed, 1 setup error, 2 a check failed.
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { argOf, launch, sleep } from './cdp.mjs';
 
 const browser = argOf('browser'), laid = argOf('laid'), scrambled = argOf('scrambled');
@@ -40,6 +43,25 @@ try {
   await t.ev(t.key('y', { ctrlKey: true }));
   const afterRedo = await t.ev(`document.querySelectorAll('.flow-node').length`);
   t.check('Ctrl+Y redoes the delete', afterRedo === nodeCount - 1 && (await t.ev(`document.getElementById('btn-redo').disabled`)), `after=${afterRedo}`);
+
+  // 2c. Lanes alternate white / grey (no lane-colour tint); click a lane pill + Delete removes the lane with its
+  // steps; undo restores it
+  const laneBgs = await t.ev(`[...document.querySelectorAll('.lane-track')].slice(0, 2).map(e => getComputedStyle(e).backgroundColor)`);
+  t.check('lanes alternate two plain backgrounds', laneBgs.length === 2 && laneBgs[0] !== laneBgs[1]
+    && laneBgs.every(c => { const [r, g, b] = c.match(/\d+/g).map(Number); return Math.max(r, g, b) - Math.min(r, g, b) <= 8; }), JSON.stringify(laneBgs));
+  const lanesBefore = await t.ev(`document.querySelectorAll('.swimlane').length`);
+  const nodesBefore = await t.ev(`document.querySelectorAll('.flow-node').length`);
+  const laneNodes = await t.ev(`document.querySelectorAll('.swimlane:nth-child(2) .flow-node').length`);
+  await t.ev(`document.querySelector('.swimlane:nth-child(2) .lane-pill').click()`);
+  const laneSel = await t.ev(`!!document.querySelector('.swimlane:nth-child(2).lane-selected')`);
+  await t.ev(t.key('Delete'));
+  const lanesAfter = await t.ev(`document.querySelectorAll('.swimlane').length`);
+  const nodesAfter = await t.ev(`document.querySelectorAll('.flow-node').length`);
+  t.check('clicking a lane pill selects the lane and Delete removes it with its steps', laneSel && lanesAfter === lanesBefore - 1
+    && nodesAfter === nodesBefore - laneNodes, `selected=${laneSel} lanes ${lanesBefore}->${lanesAfter} nodes ${nodesBefore}->${nodesAfter} (lane had ${laneNodes})`);
+  await t.ev(t.key('z', { ctrlKey: true }));
+  t.check('Ctrl+Z restores the deleted lane', (await t.ev(`document.querySelectorAll('.swimlane').length`)) === lanesBefore
+    && (await t.ev(`document.querySelectorAll('.flow-node').length`)) === nodesBefore);
 
   // 3. Background click clears selection (shell pointerdown -> plugin.isBackground/clearSelection); Escape is safe
   await t.ev(`document.getElementById('viewport').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: 5, clientY: 5, pointerId: 1 }))`);
@@ -164,7 +186,9 @@ try {
     const lane = [...document.querySelectorAll('.swimlane')].find(l => { const b = l.getBoundingClientRect(); return y >= b.top && y < b.bottom; });
     label.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: x, clientY: y }));
     const lit = [...document.querySelectorAll('.swimlane.lane-hover')];
-    const ok = lit.length === 1 && lit[0] === lane && getComputedStyle(lane.querySelector('.lane-track')).boxShadow !== 'none';
+    // The hovered lane's background token switches to the one shared highlight colour (white and grey lanes alike)
+    const cs = getComputedStyle(lane);
+    const ok = lit.length === 1 && lit[0] === lane && cs.getPropertyValue('--lane-bg').trim() === cs.getPropertyValue('--lane-hover-bg').trim();
     c.dispatchEvent(new PointerEvent('pointerleave'));
     return ok && !document.querySelector('.swimlane.lane-hover');
   })()`);
@@ -192,7 +216,7 @@ try {
   const shown = await t.ev(pills), z1 = await t.ev(zoom);
   t.check('after panning right, every pill sits at the viewport left edge',
     shown.length === laneCount && shown.every(p => Math.abs(p.dx - 12 * z1) <= 2), `shown=${JSON.stringify(shown)} zoom=${z1}`);
-  t.check('pill text scales with the diagram (12px at 100%)', shown.every(p => Math.abs(p.px - 12 * z1) <= 0.6), `px=${shown.map(p => p.px)} zoom=${z1}`);
+  t.check('pill text scales with the diagram (14px at 100%)', shown.every(p => Math.abs(p.px - 14 * z1) <= 0.6), `px=${shown.map(p => p.px)} zoom=${z1}`);
   // An export taken while panned draws every pill once, at its lane's own top-left (no view offset)
   const svgText = await t.ev(`new Promise(res => {
     const orig = URL.createObjectURL;
@@ -236,6 +260,76 @@ try {
     const shown = await t.ev(visiblePills);
     t.check('the Lane button ("' + label + '") turns swimlanes back on', shown === 1, `pills=${shown}`);
   }
+
+  // 9a. Mouse wheel: scrolls the canvas (Shift: sideways); Ctrl + wheel zooms one gentle step per notch
+  await t.open(laid);
+  const view = `(() => { const r = document.getElementById('swimlanes-container').getBoundingClientRect(); return { x: Math.round(r.left), y: Math.round(r.top), z: parseInt(document.getElementById('zoom-level').textContent) }; })()`;
+  const wheel = (o) => `document.getElementById('viewport').dispatchEvent(new WheelEvent('wheel', Object.assign({ bubbles: true, cancelable: true, deltaX: 0, deltaY: 0, deltaMode: 0, clientX: 600, clientY: 400 }, ${JSON.stringify(o)})))`;
+  const w0 = await t.ev(view);
+  await t.ev(wheel({ deltaY: 100 }));
+  const w1 = await t.ev(view);
+  await t.ev(wheel({ deltaY: 100, shiftKey: true }));
+  const w2 = await t.ev(view);
+  await t.ev(wheel({ deltaY: 10 }));
+  const w3 = await t.ev(view);
+  t.check('a wheel notch scrolls the canvas 40px vertically (Shift: sideways) without zooming; small trackpad deltas stay 1:1',
+    w1.y === w0.y - 40 && w1.x === w0.x && w1.z === w0.z && w2.x === w1.x - 40 && w2.y === w1.y && w2.z === w0.z && w3.y === w2.y - 10,
+    JSON.stringify([w0, w1, w2, w3]));
+  await t.ev(wheel({ deltaY: -100, ctrlKey: true }));
+  const zA = (await t.ev(view)).z;
+  await t.ev(wheel({ deltaY: -100, ctrlKey: true }));
+  const zB = (await t.ev(view)).z;
+  t.check('Ctrl + wheel zooms in one ~15% step per notch, not to the zoom limit',
+    zA > w0.z && zA <= Math.ceil(w0.z * 1.16) && zB > zA && zB <= Math.ceil(zA * 1.16), `zoom ${w0.z}% -> ${zA}% -> ${zB}%`);
+
+  // 9b. Top-to-bottom layout: the dock's direction toggle lays the diagram out vertically (lanes as columns),
+  //     is saved in the data ("direction": "TB") so the file reopens vertical, and toggling back restores the
+  //     left-to-right layout exactly
+  await t.open(laid);
+  const refLaid = await t.ev(positions);
+  await t.ev(`document.getElementById('btn-direction').click()`);
+  await sleep(300);
+  const columns = `(() => {
+    const lanes = [...document.querySelectorAll('.swimlane')].map(l => l.getBoundingClientRect());
+    const sideBySide = lanes.every((r, i) => i === 0 || (r.left >= lanes[i - 1].right - 2 && Math.abs(r.top - lanes[0].top) < 1));
+    const nodes = [...document.querySelectorAll('.flow-node')].map(n => ({ r: n.getBoundingClientRect(), lane: n.closest('.swimlane').getBoundingClientRect() }));
+    const inLane = nodes.every(({ r, lane }) => r.left >= lane.left - 1 && r.right <= lane.right + 1);
+    const overlaps = nodes.filter((a, i) => nodes.some((b, j) => j > i && a.r.left < b.r.right && b.r.left < a.r.right && a.r.top < b.r.bottom && b.r.top < a.r.bottom)).length;
+    const pills = [...document.querySelectorAll('.swimlane')].map(l => { const p = l.querySelector('.lane-pill').getBoundingClientRect(), r = l.getBoundingClientRect(); return { dy: Math.round(p.top - r.top), inside: p.left >= r.left && p.right <= r.right + 1, off: Math.round((p.left + p.right) / 2 - (r.left + r.right) / 2) }; });
+    const firstNodeTop = Math.min(...nodes.map(n => n.r.top)), pillBottom = Math.max(...[...document.querySelectorAll('.lane-pill')].map(p => p.getBoundingClientRect().bottom));
+    return { tb: document.getElementById('swimlanes-container').classList.contains('dir-tb'), sideBySide, inLane, overlaps, pills, clear: firstNodeTop > pillBottom,
+      label: document.querySelector('#btn-direction .btn-label').textContent, arrows: document.querySelectorAll('.connector-path').length, status: document.getElementById('save-status').textContent };
+  })()`;
+  const v = await t.ev(columns);
+  t.check('the Vertical toggle lays lanes out as side-by-side columns with every node inside its column, none overlapping',
+    v.tb && v.sideBySide && v.inLane && v.overlaps === 0 && v.arrows > 0 && v.label === 'Horizontal' && /unsaved/i.test(v.status) && t.errors.length === 0,
+    JSON.stringify(v) + ' ' + t.errors.join(' | '));
+  t.check('vertical: every pill sits centred at the top of its own column, above the first node',
+    v.pills.every(p => p.dy >= 3 && p.dy <= 20 && p.inside && Math.abs(p.off) <= 1) && v.clear, JSON.stringify(v.pills));
+  await t.ev(`document.getElementById('viewport').dispatchEvent(new WheelEvent('wheel', { bubbles: true, cancelable: true, deltaX: 0, deltaY: 500, deltaMode: 0, clientX: 600, clientY: 400 }))`);
+  await sleep(100);
+  const pinnedTop = await t.ev(`(() => { const vp = document.getElementById('viewport').getBoundingClientRect(), c = document.getElementById('swimlanes-container').getBoundingClientRect();
+    return { below: c.top < vp.top, dy: [...document.querySelectorAll('.lane-pill')].map(p => Math.round(p.getBoundingClientRect().top - vp.top)) }; })()`);
+  t.check('vertical: after panning down, every pill sits at the viewport top edge',
+    pinnedTop.below && pinnedTop.dy.every(d => d >= 4 && d <= 20), JSON.stringify(pinnedTop));
+  // Save, then reopen the saved file: it opens vertical
+  await t.ev(t.key('s', { ctrlKey: true }));
+  await sleep(400);
+  // (as the shell's save does: the page's file with its diagram-data block replaced)
+  const savedJson = await t.ev(`document.getElementById('diagram-data').textContent`);
+  const savedHtml = readFileSync(laid, 'utf8').replace(/(<script id="diagram-data" type="application\/json">)[\s\S]*?(<\/script>)/, (m, a, b) => a + savedJson + b);
+  const savedFile = join(mkdtempSync(join(tmpdir(), 'tb_')), 'vertical.html');
+  writeFileSync(savedFile, savedHtml);
+  t.check('vertical: Save writes "direction": "TB" into the diagram data', /"direction":\s*"TB"/.test(savedHtml));
+  await t.open(savedFile);
+  const reopened = await t.ev(columns);
+  t.check('vertical: the saved file reopens top-to-bottom', reopened.tb && reopened.sideBySide && reopened.overlaps === 0 && reopened.label === 'Horizontal' && t.errors.length === 0,
+    JSON.stringify(reopened) + ' ' + t.errors.join(' | '));
+  await t.ev(`document.getElementById('btn-direction').click()`);
+  await sleep(300);
+  const back = await t.ev(positions);
+  t.check('toggling back to Horizontal restores the left-to-right layout exactly', back === refLaid && !(await t.ev(`document.getElementById('swimlanes-container').classList.contains('dir-tb')`)),
+    `got ${back.slice(0, 120)}...`);
 
   // 10. ?present hides editing chrome
   await t.open(laid, '?present');

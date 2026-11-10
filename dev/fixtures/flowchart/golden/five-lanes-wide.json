@@ -13,19 +13,19 @@
       "id": "lane-b",
       "name": "Frontend",
       "color": "#fef3c7",
-      "height": 152
+      "height": 176
     },
     {
       "id": "lane-c",
       "name": "Backend",
       "color": "#dcfce7",
-      "height": 152
+      "height": 176
     },
     {
       "id": "lane-d",
       "name": "Risk",
       "color": "#fee2e2",
-      "height": 152
+      "height": 176
     },
     {
       "id": "lane-e",
@@ -41,7 +41,7 @@
       "type": "start",
       "label": "Submit",
       "x": 56,
-      "y": 68
+      "y": 56
     },
     {
       "id": "n2",
@@ -49,7 +49,7 @@
       "type": "task",
       "label": "Validate Input",
       "x": 56,
-      "y": 44
+      "y": 56
     },
     {
       "id": "n3",
@@ -57,7 +57,7 @@
       "type": "task",
       "label": "Create Case",
       "x": 56,
-      "y": 44
+      "y": 56
     },
     {
       "id": "n4",
@@ -65,7 +65,7 @@
       "type": "decision",
       "label": "Risky?",
       "x": 56,
-      "y": 36
+      "y": 48
     },
     {
       "id": "n5",
@@ -73,7 +73,7 @@
       "type": "task",
       "label": "Verify Identity",
       "x": 56,
-      "y": 44
+      "y": 56
     },
     {
       "id": "n6",
@@ -81,7 +81,7 @@
       "type": "task",
       "label": "Manual Review",
       "x": 256,
-      "y": 44
+      "y": 56
     },
     {
       "id": "n7",
@@ -89,7 +89,7 @@
       "type": "task",
       "label": "Approve Case",
       "x": 256,
-      "y": 44
+      "y": 56
     },
     {
       "id": "n8",
@@ -97,7 +97,7 @@
       "type": "task",
       "label": "Notify Customer",
       "x": 256,
-      "y": 44
+      "y": 56
     },
     {
       "id": "n9",
@@ -106,7 +106,7 @@
       "label": "Accepted",
       "outcome": "success",
       "x": 256,
-      "y": 68
+      "y": 56
     },
     {
       "id": "n10",
@@ -115,7 +115,7 @@
       "label": "Declined",
       "outcome": "failure",
       "x": 456,
-      "y": 44
+      "y": 56
     },
     {
       "id": "n11",
@@ -123,7 +123,7 @@
       "type": "task",
       "label": "Archive Case",
       "x": 456,
-      "y": 44
+      "y": 56
     },
     {
       "id": "n12",
@@ -131,7 +131,7 @@
       "type": "end",
       "label": "Closed",
       "x": 456,
-      "y": 44
+      "y": 56
     }
   ],
   "edges": [

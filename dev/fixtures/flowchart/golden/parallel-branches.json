@@ -13,7 +13,7 @@
       "id": "lane-b",
       "name": "Sales",
       "color": "#fef3c7",
-      "height": 152
+      "height": 176
     },
     {
       "id": "lane-c",
@@ -29,7 +29,7 @@
       "type": "start",
       "label": "Place Order",
       "x": 56,
-      "y": 68
+      "y": 56
     },
     {
       "id": "n2",
@@ -37,7 +37,7 @@
       "type": "decision",
       "label": "In Stock?",
       "x": 56,
-      "y": 36
+      "y": 48
     },
     {
       "id": "n3",
@@ -45,7 +45,7 @@
       "type": "task",
       "label": "Pick Items",
       "x": 56,
-      "y": 44
+      "y": 56
     },
     {
       "id": "n4",
@@ -53,7 +53,7 @@
       "type": "task",
       "label": "Backorder Item",
       "x": 266.8,
-      "y": 44
+      "y": 56
     },
     {
       "id": "n5",
@@ -61,7 +61,7 @@
       "type": "task",
       "label": "Pack Order",
       "x": 266.8,
-      "y": 44
+      "y": 56
     },
     {
       "id": "n6",
@@ -70,7 +70,7 @@
       "label": "Receive Order",
       "outcome": "success",
       "x": 466.8,
-      "y": 68
+      "y": 56
     }
   ],
   "edges": [

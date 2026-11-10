@@ -7,7 +7,7 @@
       "id": "lane-a",
       "name": "Clerk",
       "color": "#e0f2fe",
-      "height": 200
+      "height": 176
     }
   ],
   "nodes": [
@@ -17,7 +17,7 @@
       "type": "start",
       "label": "Receive Form",
       "x": 56,
-      "y": 68
+      "y": 56
     },
     {
       "id": "n2",
@@ -25,7 +25,7 @@
       "type": "task",
       "label": "Check Form",
       "x": 256,
-      "y": 68
+      "y": 56
     },
     {
       "id": "n3",
@@ -33,7 +33,7 @@
       "type": "task",
       "label": "Enter Data",
       "x": 456,
-      "y": 68
+      "y": 56
     },
     {
       "id": "n4",
@@ -41,7 +41,7 @@
       "type": "task",
       "label": "File Copy",
       "x": 656,
-      "y": 68
+      "y": 56
     },
     {
       "id": "n5",
@@ -50,7 +50,7 @@
       "label": "Done",
       "outcome": "success",
       "x": 856,
-      "y": 68
+      "y": 56
     }
   ],
   "edges": [

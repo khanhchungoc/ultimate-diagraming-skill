@@ -23,6 +23,7 @@ Never add pixel coordinates (`x`, `y`); `--layout` computes them.
 | Node | `id`, `laneId`, `type`, `label` | `type` is `start`, `task`, `decision` or `end`. |
 | Edge | `id`, `from`, `to`, `label` | `label` is `"Yes"`, `"No"`, `"Resubmit"`, etc.; `""` for unconditional steps. |
 | Diagram | `swimlanes` | Optional `false` for a process with **one actor**: no lane header column, tint or borders. Keep exactly one lane in `lanes` and put every node in it (the tooling creates `lane-main` if `lanes` is empty). The lane icon rule does not apply. The page's Lane button turns swimlanes back on. |
+| Diagram | `direction` | Optional `"TB"` lays the diagram out **top to bottom**: lanes become columns and steps run downwards. Leave it out for left to right (the default). Use it for a long process with few lanes, which fits a page better vertically. The page's Vertical/Horizontal button switches between the two (re-running the layout), and Save keeps the choice. |
 | Edge | `feedback` | Optional `true` marks a loop-back edge so it always routes through the outer corridor. Without it the engine picks the loop edge by traversal order, which may choose the wrong edge of a cycle. |
 
 | Lane role | Color |

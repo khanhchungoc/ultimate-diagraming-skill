@@ -289,8 +289,13 @@
         }
 
         const pad = document.body.classList.contains('capture') ? 0 : 80;
+        // The floating dock covers the bottom of the viewport: fit the diagram into the band above it
+        // (this matters for tall diagrams, e.g. a top-to-bottom flowchart, whose fit is limited by height)
+        const dock = document.querySelector('.dock-area');
+        const dockRect = dock && getComputedStyle(dock).display !== 'none' ? dock.getBoundingClientRect() : null;
+        const dockBand = dockRect && dockRect.height ? Math.max(0, vpRect.bottom - dockRect.top) : 0;
         const availableWidth = vpRect.width - pad;
-        const availableHeight = vpRect.height - pad;
+        const availableHeight = vpRect.height - dockBand - pad;
 
         const scaleX = availableWidth / currentWidth;
         const scaleY = availableHeight / currentHeight;
@@ -298,7 +303,7 @@
         scale = Math.min(Math.max(Math.min(scaleX, scaleY), 0.25), 1.0);
         const minPan = document.body.classList.contains('capture') ? 0 : 20;
         panX = Math.max(minPan, (vpRect.width - currentWidth * scale) / 2);
-        panY = Math.max(minPan, (vpRect.height - currentHeight * scale) / 2);
+        panY = Math.max(minPan, (vpRect.height - dockBand - currentHeight * scale) / 2);
 
         updateTransform();
       }
@@ -339,24 +344,29 @@
         viewport.classList.remove('panning');
       });
 
+      const WHEEL_SCROLL = 0.4;   // canvas px per px a mouse wheel notch reports (~40px per notch)
       viewport.addEventListener('wheel', (e) => {
         e.preventDefault();
         const unit = e.deltaMode === 1 ? 16 : (e.deltaMode === 2 ? 400 : 1);
         const dX = e.deltaX * unit, dY = e.deltaY * unit;
-        const isPinch = e.ctrlKey || e.metaKey;
-        // A mouse wheel only moves vertically (and may report small or fractional deltas with display scaling or
-        // smooth scrolling), so only treat the gesture as a trackpad two-finger scroll when it has a horizontal part.
-        const isTrackpadScroll = !isPinch && e.deltaMode === 0 && Math.abs(dX) > 0;
-        if (isTrackpadScroll) {
-          // Two-finger scroll pans the diagram
-          panX -= dX;
-          panY -= dY;
+        const isZoom = e.ctrlKey || e.metaKey;   // Ctrl/Cmd + wheel, and a trackpad pinch (reported as ctrl+wheel)
+        if (!isZoom) {
+          // The wheel scrolls the canvas: vertically, or sideways with Shift (or a trackpad's horizontal swipe)
+          // A mouse wheel notch reports ~100px (or a line/page unit), which moves the canvas too far: scroll it 40%
+          // of that. A trackpad sends many small deltas, which stay 1:1 so the canvas follows the fingers.
+          const notch = e.deltaMode !== 0 || Math.max(Math.abs(dX), Math.abs(dY)) >= 50;
+          const k = notch ? WHEEL_SCROLL : 1;
+          const sideways = e.shiftKey && !dX;
+          panX -= (sideways ? dY : dX) * k;
+          panY -= (sideways ? 0 : dY) * k;
           updateTransform();
           return;
         }
-        // Pinch (ctrl+wheel) and mouse wheel zoom proportionally to the gesture, anchored at the cursor
-        const factor = isPinch ? Math.exp(-dY * 0.01) : Math.exp(-Math.sign(dY) * Math.min(Math.abs(dY), 100) * 0.0015);
-        const newScale = Math.min(Math.max(scale * factor, 0.2), 2.5);
+        // Zoom anchored at the cursor. A mouse wheel notch reports ~100px, a pinch a few px per event: the step is
+        // proportional to the gesture but capped at 15% per event, so one notch is one gentle step, not a jump to
+        // the zoom limit
+        const step = Math.sign(dY) * Math.min(Math.abs(dY) * 0.01, 0.14);
+        const newScale = Math.min(Math.max(scale * Math.exp(-step), 0.2), 2.5);
         const vp = viewport.getBoundingClientRect();
         const cx = e.clientX - vp.left, cy = e.clientY - vp.top;
         panX = cx - (cx - panX) * (newScale / scale);

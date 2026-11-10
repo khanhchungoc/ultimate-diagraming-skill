@@ -1,10 +1,44 @@
       // --- LAYOUT ENGINE ---
       // JavaScript port of scripts/layout_engine.py (ranking, ordering, compact-step search, scoring).
       // Keep both copies in sync: scripts/check_tidy_parity.py compares their output node by node.
-      const LE = {
-        COL_WIDTH: 200, TIGHT_STEP: 144, START_X: 56, ROW_HEIGHT: 104,
-        NODE_W: 144, MIN_GAP: 32, LABEL_MAX_W: 140, LABEL_STUB: 16, NODE_H: 64, DEC_H: 80, LANE_MIN: 152, TOP_PAD: 36, BOTTOM_PAD: 36, OUTER_PAD: 24
+      // The engine always works in flow terms: x runs along the flow (rank by rank) and y runs across the lanes.
+      // In a left-to-right diagram that is the screen's x and y. In a top-to-bottom one ("direction": "TB") the
+      // renderer draws x downwards and y rightwards, so the same engine lays out a vertical diagram; only the
+      // sizes differ, because nodes are wide and short: along the flow a node takes its screen height, across
+      // the lane its screen width. NODE_W/NODE_H/DEC_H are a node's extent along/across the flow.
+      const LE_PROFILES = {
+        LR: {
+          COL_WIDTH: 200, TIGHT_STEP: 144, START_X: 56, ROW_HEIGHT: 104,
+          NODE_W: 144, MIN_GAP: 32, LABEL_MAX_W: 140, LABEL_STUB: 16, NODE_H: 64, DEC_H: 80, LANE_MIN: 176, TOP_PAD: 36, BOTTOM_PAD: 36, NEAR_MIN: 24, LOOP_ROOM: 72, LOOP_STEP: 16,
+          LABEL_ACROSS: false
+        },
+        TB: {
+          COL_WIDTH: 136, TIGHT_STEP: 80, START_X: 56, ROW_HEIGHT: 184,
+          NODE_W: 80, MIN_GAP: 32, LABEL_MAX_W: 140, LABEL_STUB: 16, NODE_H: 144, DEC_H: 144, LANE_MIN: 240, TOP_PAD: 32, BOTTOM_PAD: 32, NEAR_MIN: 24, LOOP_ROOM: 72, LOOP_STEP: 16,
+          LABEL_ACROSS: true   // an arrow label sits across a vertical arrow, so it needs its height, not its width, of room
+        }
       };
+      const LE = Object.assign({}, LE_PROFILES.LR);
+
+      // Room a lane keeps clear on its far side for its loop-backs: arrows between two of its own nodes that run
+      // back against the flow. They nest one channel further out per overlapping loop. 0 when it has none.
+      // Shared by the engine and the renderer's lane sizing; xOf gives a node's position along the flow.
+      function laneLoopRoom(nodes, edges, laneId, xOf) {
+        const lane = {};
+        nodes.forEach(n => { if (n.laneId === laneId) lane[n.id] = true; });
+        const spans = [];
+        edges.forEach(e => {
+          if (!lane[e.from] || !lane[e.to] || e.from === e.to) return;
+          const a = xOf(e.from), b = xOf(e.to);
+          if (b < a - 1) spans.push([b, a]);
+        });
+        const depth = spans.reduce((d, [p0]) => Math.max(d, spans.filter(([p, q]) => p <= p0 && p0 <= q).length), 0);
+        return depth ? LE.LOOP_ROOM + (depth - 1) * LE.LOOP_STEP : 0;
+      }
+      // Switch LE to the profile for `data.direction` (anything but "TB" is left-to-right)
+      function useDirection(data) {
+        Object.assign(LE, LE_PROFILES[data && data.direction === 'TB' ? 'TB' : 'LR']);
+      }
       // Python-style rounding (half to even) so scores tie-break identically in both engines
       const pyRound = (x) => {
         const f = Math.floor(x), d = x - f;
@@ -107,7 +141,9 @@
           const longest = Math.max(...t.split(/\s+/).map(w => w.length));
           // Wraps at LABEL_MAX_W, but a single long word cannot wrap, so it sets the floor
           const w = Math.max(longest * 7.4 + 20, Math.min(t.length * 6.6 + 18, LE.LABEL_MAX_W));
-          labelGap[KEY(e.from, e.to)] = w + 2 * LE.LABEL_STUB;
+          // Top-to-bottom: the label wraps at LABEL_MAX_W and sits on the vertical arrow, so it needs its height
+          const lines = Math.ceil((t.length * 6.6 + 18) / LE.LABEL_MAX_W);
+          labelGap[KEY(e.from, e.to)] = (LE.LABEL_ACROSS ? 8 + 17 * Math.min(lines, 3) : w) + 2 * LE.LABEL_STUB;
         });
 
         // Horizontal step an arrow needs: normal = column width, zero = 0, tight = node width; a labelled
@@ -215,19 +251,28 @@
           lanes.forEach(l => { subrows[l.id] = 1; });
           nodes.forEach(n => { subrows[n.laneId] = Math.max(subrows[n.laneId] || 1, sub[n.id] + 1); });
 
-          // The first and last lanes get OUTER_PAD extra on the diagram's outer edge: loop-backs and corridor routes
-          // run around the nodes there, and unlike inner lanes there is no neighbouring lane to borrow room from.
+          // Every lane is the same size (LANE_MIN) unless it stacks branches across it, with its nodes centred. LANE_MIN
+          // leaves room on both sides of a node for the loop-backs and corridor routes that run around the nodes,
+          // including on the diagram's outer edge, where there is no neighbouring lane to borrow room from.
+          // Same-lane loop-backs run around the nodes on the lane's far side (below them; right of them top-to-bottom),
+          // nested one channel further out per overlapping loop, with their labels on the channel. A single-row lane
+          // with loops keeps that room (LOOP_ROOM, + LOOP_STEP per extra nesting level) clear on its far side and
+          // moves its nodes toward the near side instead of centring them, growing only if that is not enough.
+          const loopRoom = id => laneLoopRoom(nodes, edges, id, nid => X[nid]);
+
           const lanePos = {};
           let curY = 0;
-          lanes.forEach((l, i) => {
+          lanes.forEach(l => {
             let maxH = LE.NODE_H;
             const inLane = nodes.filter(n => n.laneId === l.id);
             if (inLane.length) maxH = Math.max(...inLane.map(nodeH));
-            const req = LE.TOP_PAD + ((subrows[l.id] || 1) - 1) * LE.ROW_HEIGHT + maxH + LE.BOTTOM_PAD;
+            const rows = subrows[l.id] || 1;
+            const req = rows === 1 && loopRoom(l.id)
+              ? LE.NEAR_MIN + maxH + loopRoom(l.id)
+              : LE.TOP_PAD + (rows - 1) * LE.ROW_HEIGHT + maxH + LE.BOTTOM_PAD;
             const inner = Math.max(LE.LANE_MIN, req);
-            const off = i === 0 ? LE.OUTER_PAD : 0;
-            l.height = inner + off + (i === lanes.length - 1 ? LE.OUTER_PAD : 0);
-            lanePos[l.id] = { top: curY, h: l.height, inner, off };
+            l.height = inner;
+            lanePos[l.id] = { top: curY, h: l.height, inner, maxH };
             curY += l.height;
           });
 
@@ -235,9 +280,14 @@
             const lp = lanePos[n.laneId] || { top: 0, h: LE.LANE_MIN };
             n.x = X[n.id];
             if ((subrows[n.laneId] || 1) === 1) {
-              n.y = (lp.off || 0) + Math.floor(((lp.inner || lp.h) - nodeH(n)) / 8) * 4;
+              const inner = lp.inner || lp.h;
+              const room = loopRoom(n.laneId);
+              // Centred, or pulled toward the near side just enough to leave the loops their room
+              const centre = Math.floor((inner - nodeH(n)) / 8) * 4;
+              const blockTop = room ? Math.min(Math.floor((inner - lp.maxH) / 8) * 4, Math.floor((inner - room - lp.maxH) / 4) * 4) : null;
+              n.y = room ? Math.max(LE.NEAR_MIN, blockTop + Math.floor((lp.maxH - nodeH(n)) / 8) * 4) : centre;
             } else {
-              n.y = (lp.off || 0) + LE.TOP_PAD + sub[n.id] * LE.ROW_HEIGHT;
+              n.y = LE.TOP_PAD + sub[n.id] * LE.ROW_HEIGHT;
             }
           });
 
@@ -631,6 +681,7 @@
       // Entry point shared by every diagram type: lay out `data` in place (no DOM access).
       // Called by the page's Auto-Tidy button and by scripts/run_engine.mjs.
       function layoutDiagram(data) {
+        useDirection(data);
         if (data.swimlanes === false) normalizeSwimlanes(data);
         runLayoutEngine(data.lanes || [], data.nodes || [], data.edges || []);
       }

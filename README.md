@@ -1,111 +1,80 @@
 # Ultimate Diagram Skill
 
-An agent skill that creates diagrams as a single standalone HTML file. Open the file in a browser to drag elements, double-click to edit text, run **Auto-Tidy**, and **Save** the changes back into the same file. Add `?present` to the URL for a read-only view.
+**Ask your AI for a diagram. Get one you can actually edit.**
 
-Supported diagram types:
+Describe a process, and your AI assistant hands back a single HTML file. Open it in any browser, drag things around, fix a label, and save. No account, no app to install, no internet needed.
 
-| Type | Use for |
+![Swimlane flowchart, horizontal](docs/img/example-flowchart.png)
+
+## What you get
+
+- ⚡ **Faster and cheaper.** The AI writes a short description of your diagram (about 2.8 KB for the example above), not thousands of lines of drawing code. You wait less, spend fewer tokens, and long diagrams don't eat your usage limit.
+- ✏️ **Fix it yourself, no re-prompting.** Wrong label? Step in the wrong lane? Drag it, retype it, delete it. Undo and redo work. Press **Save** and the changes are stored in the same file.
+- 🧹 **One-click tidy.** Moved things around and it looks messy? **Auto-Tidy** re-arranges everything and re-routes the arrows.
+- 💬 **Your edits and the AI's edits combine.** Tweak the diagram by hand, then tell the AI "add an approval step after review". It picks up from your edited version instead of starting over and undoing your work.
+- ↔️ ↕️ **Wide or tall.** Flip between left-to-right and top-to-bottom with one button. Pick whichever fits your page or slide.
+- ✅ **Arrives clean.** The AI checks its own result for overlapping boxes and unreadable labels before showing you.
+- 📦 **Just a file.** Email it, put it in a repo, attach it to a ticket, or open it offline. Add `?present` to the address for a read-only view when presenting.
+
+### Same diagram, tall layout
+
+![Same flowchart, vertical](docs/img/example-flowchart-vertical.png)
+
+## How it compares
+
+| | **Ultimate Diagram** | **draw.io** | **bpmn.io** | **Other AI chart tools** (Mermaid, images) |
+|---|:---:|:---:|:---:|:---:|
+| AI generates it quickly and cheaply | ✅ | ❌ slow, verbose | ❌ slow, verbose | ⚠️ text ok, images heavy |
+| You can edit the result by hand | ✅ | ✅ | ✅ | ❌ ask the AI again |
+| Double-click the file and edit, nothing to install | ✅ | ⚠️ needs the app or website | ⚠️ needs a modeler or website | ❌ |
+| Swimlanes built in | ✅ | ✅ | ✅ | ❌ |
+| Switch wide / tall in one click | ✅ | ❌ | ❌ | ⚠️ regenerate |
+| One-click tidy after editing | ✅ | ⚠️ limited | ❌ | ❌ |
+| Shareable: one editable file, opens in any browser, no extra apps | ✅ | ❌ recipient needs draw.io | ❌ recipient needs a BPMN viewer | ⚠️ image or text only, not editable |
+| Huge shape and icon library | ❌ | ✅ | ❌ | ❌ |
+| Official BPMN for workflow engines | ❌ | ❌ | ✅ | ❌ |
+
+**Pick draw.io** for free-form drawing with lots of shapes. **Pick bpmn.io** when you need standard BPMN that a workflow system will run. **Pick this** for clear, editable process diagrams from your AI, fast. Cost and speed comparisons are estimates and vary by diagram.
+
+## Diagram types
+
+| Type | Status |
 |---|---|
-| `flowchart` | Swimlane / cross-functional process flows with decisions and loops |
-| `sequence` | Messages between participants over time, with `opt` / `alt` / `loop` frames |
+| **Flowchart**: swimlanes, decisions, loops, wide or tall | ✅ Available |
+| **Sequence**: who talks to whom over time, with optional, alternative and loop sections | ✅ Available |
 
-ERD and state diagrams are planned, not built yet.
+![Sequence diagram](docs/img/example-sequence.png)
 
-## Try it
+## Coming next
 
-Open these in a browser, no setup needed:
+| | Planned |
+|---|---|
+| 🔜 | **BPMN**: pools, lanes, events, gateways |
+| 🔜 | **ERD**: database tables and relationships |
+| 🔜 | **State diagram**: states and transitions |
+| 💡 | Class and component diagrams |
+| 💡 | Gantt / timeline |
+| 💡 | Mind map / org chart |
+| 💡 | Export to SVG, PNG, PDF; import from Mermaid; export to draw.io and BPMN |
+| 💡 | Themes and dark mode |
 
-- [dev/samples/example-flowchart.html](dev/samples/example-flowchart.html): a loan application process across 4 swimlanes
-- [dev/samples/example-sequence.html](dev/samples/example-sequence.html): a checkout flow with `opt` and `alt` frames
+🔜 next, 💡 later. Order may change.
 
-In the flowchart, each swimlane header shows an icon beside the lane name (set with the lane's `icon` field). Drag a step to another lane, drag a lane header to reorder lanes, double-click text to edit, and press **Auto-Tidy** after moving things around. In the sequence diagram, drag a participant sideways or a message up and down to reorder, double-click to edit, and use **Participant**, **Message** and **Frame** in the toolbar (under **Add**). Press **Delete** to remove the selected item, **Ctrl+Z** / **Ctrl+Y** (or the arrow buttons in the header) to undo and redo edits, and add `?present` to the address for a read-only view.
+## Get started
+
+1. Install the skill into your AI assistant:
+   ```shell
+   npx khanhchungoc/ultimate-diagraming-skill
+   ```
+   Works with Claude Code, GitHub Copilot, OpenAI Codex, Gemini CLI, Antigravity and Kiro.
+2. Ask: *"Draw a swimlane flowchart of our loan approval process."*
+3. Open the HTML file it creates and edit.
 
 ## Requirements
 
-| Need | For | Notes |
-|---|---|---|
-| **Python 3.9 or newer** | Every script | Standard library only: no `pip install`. Developed on 3.14; older versions have not been run. |
-| **Node.js 18 or newer**, *or* **Chrome / Chromium** | Creating a diagram | Node is used first and is fast. Chrome is a slower fallback. If neither is installed, creating a diagram stops with an error. |
-| **Chrome / Chromium** | The screenshot and legibility check | Chrome is tried first, then Edge. Edge's headless launcher has returned no output in earlier runs, so use Chrome where you can, or pass `--browser <path>`. |
-| **Any modern browser** | Opening and editing the finished HTML | Save writes straight to the file in Chrome and Edge. Firefox and Safari download a copy instead, which you then move over the original. |
+Needs `Python 3.9+` and `Node 18+` (or `Chrome`).
 
-No network access is needed at any point, and the generated HTML loads nothing external.
+## Try it first
 
-### What works without Node or Chrome
-
-| Works | Needs Node or Chrome |
-|---|---|
-| Quality audit (`--verify`) | Creating a diagram (`--layout`) |
-| Reading data back out of a saved page (`--extract`) | Screenshot and legibility check |
-| Opening a generated page, including the Auto-Tidy button | |
-
-### Command names on your system
-
-The skill's instructions say `python`. On macOS and many Linux systems the command is `python3`, and on Windows it can be `py`. Use whichever runs Python 3 on your machine.
-
-### Tested on
-
-Windows 11 with Chrome, Python 3.14 and Node 24. These have **not** been tested: macOS, Linux, Edge-only machines, containers or CI, older Python or Node versions, and Firefox or Safari.
-
-Known risks on untested systems:
-- **Running as root** (Docker, some CI): Chrome refuses to start without `--no-sandbox`, and the scripts do not pass it.
-- **Fonts:** the page uses each system's own font. Sequence diagrams space labels with a fixed width estimate, so a wider font on another OS could make a label run into a neighbouring lifeline. The screenshot step catches label-on-label overlaps on the machine where it runs, but the quality audit cannot catch this.
-
-## Install
-
-Install `ultimate-diagram` into your AI coding assistants (Antigravity, Claude Code, GitHub Copilot, OpenAI Codex, Gemini CLI, or Kiro):
-
-### 1. One-line NPX (from GitHub or local repo)
-```shell
-# From GitHub:
-npx khanhchungoc/ultimate-diagraming-skill
-
-# Or from local clone:
-npx "C:\Users\KhanhChuNgoc\Documents\NTG Repos\ultimate-diagram"
-# Or if installed globally via npm install -g:
-ultimate-diagram
-```
-Options:
-- `-g, --global`: Install globally in user home directory (default).
-- `-p, --project`: Install into the current project workspace directory.
-- `-r, --runtime <name>`: Target specific runtime (`antigravity`, `claude`, `copilot`, `codex`, `gemini`, `kiro`, or `all`).
-- `-m, --mode <symlink|copy>`: Symlink/junction (live updates) or standalone copy.
-
-### 2. Python (Cross-platform)
-```shell
-python scripts/install.py
-# Or for a specific runtime:
-python scripts/install.py --runtime antigravity --scope user
-```
-
-### 3. PowerShell (Windows)
-```powershell
-.\scripts\install.ps1
-# Or for a specific runtime:
-.\scripts\install.ps1 -Runtime antigravity -Scope User
-```
-
-### 4. Bash (macOS / Linux)
-```bash
-./scripts/install.sh
-# Or for a specific runtime:
-./scripts/install.sh --runtime claude --scope user
-```
-
-## Quick start
-
-```shell
-# create: JSON in, standalone HTML out
-python scripts/layout_engine.py --layout dev/samples/example-flowchart.json -o flowchart.html
-
-# audit the result (score must be 90 or more, exit code 0)
-python scripts/layout_engine.py --verify flowchart.html
-
-# screenshot plus a legibility report
-python scripts/render_screenshot.py --input flowchart.html --output flowchart.png
-
-# read the data back out of a saved page
-python scripts/layout_engine.py --extract flowchart.html -o current.json
-```
-
-The example JSON files in `assets/` are the inputs these pages were built from. In normal use you don't run these yourself: the agent does, following `SKILL.md`.
+- [Loan application flowchart](dev/samples/example-flowchart.html)
+- [Checkout sequence diagram](dev/samples/example-sequence.html)

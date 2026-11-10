@@ -2,14 +2,52 @@
       const NODE_HEIGHT = 64;
       const DECISION_WIDTH = 144;
       const DECISION_HEIGHT = 80;
-      const LANE_MIN_HEIGHT = 152;
-      const LANE_BOTTOM_PAD = 36;
-      const LANE_OUTER_PAD = 24; // extra room below the last lane for loop-backs routed around the diagram (engine OUTER_PAD)
+      // Lane sizes come from the engine's LE (LANE_MIN, BOTTOM_PAD), which follows the diagram's direction
+
+      // --- DIRECTION ---
+      // "direction": "TB" draws the diagram top-to-bottom: lanes become columns and steps run downwards. Node data
+      // is always kept in flow terms (see engine.js LE_PROFILES): n.x runs along the flow from the start of the lane
+      // track and n.y across the lane from its edge. In a left-to-right diagram those are the screen's x and y; in a
+      // top-to-bottom one, n.x is the screen y and n.y the screen x. Every node takes an 80px slot along the flow
+      // (a decision's height), and a 64px step is centred in it so steps and decisions line up on one axis.
+      const isTB = () => chartData.direction === 'TB';
+      const nodeScreenH = (n) => (n.type === 'decision' ? DECISION_HEIGHT : NODE_HEIGHT);
+      const flowInset = (n) => (isTB() ? (DECISION_HEIGHT - nodeScreenH(n)) / 2 : 0);
+      // A node's extent across its lane (lane sizing, lane hit tests) and along the flow (snapping)
+      const crossSize = (n) => (isTB() ? NODE_WIDTH : nodeScreenH(n));
+      const flowSize = (n, el) => (isTB() ? DECISION_HEIGHT : ((el && el.offsetWidth) || NODE_WIDTH));
+      function placeNodeEl(el, n) {
+        if (isTB()) {
+          el.style.left = `${n.y || 0}px`;
+          el.style.top = `${(n.x || 0) + flowInset(n)}px`;
+        } else {
+          el.style.left = `${n.x || 80}px`;
+          el.style.top = `${n.y || 53}px`;
+        }
+      }
+      // Pointer position in flow terms: gx along the flow from the start of the lane tracks, gy across the lanes from
+      // the container's edge (so gy - laneTopOf(lane) is a node's n.y)
+      function trackOffset() {
+        const track = lanesRoot.querySelector('.lane-track');
+        if (!track) return 0;
+        const sr = swimlanesContainer.getBoundingClientRect(), tr = track.getBoundingClientRect();
+        return (isTB() ? tr.top - sr.top : tr.left - sr.left) / scale;
+      }
+      function flowPoint(clientX, clientY) {
+        const sr = swimlanesContainer.getBoundingClientRect();
+        const x = (clientX - sr.left) / scale, y = (clientY - sr.top) / scale;
+        return isTB() ? { gx: y - trackOffset(), gy: x } : { gx: x - trackOffset(), gy: y };
+      }
+      // Flow coordinates -> container coordinates (where an overlay such as a snap guide is drawn)
+      function flowToContainer(gx, gy) {
+        return isTB() ? { x: gy, y: trackOffset() + gx } : { x: trackOffset() + gx, y: gy };
+      }
 
       // --- STATE & INITIALIZATION ---
 
       let selectedNodeId = null;
       let selectedEdgeId = null;
+      let selectedLaneId = null;   // a lane selected by clicking its name pill (Delete removes it)
       let hoveredNodeId = null;
 
       // Node Drag state
@@ -41,6 +79,7 @@
       const edgeLabelsGroup = document.getElementById('edge-labels-group');
       const dragEdge = document.getElementById('drag-edge');
       const btnAddLane = document.getElementById('btn-add-lane');
+      const btnDirection = document.getElementById('btn-direction');
 
       // --- RENDERING ---
       function render() {
@@ -48,14 +87,48 @@
         if (noLanes) normalizeSwimlanes(chartData);
         swimlanesContainer.classList.toggle('no-swimlanes', noLanes);
         updateLaneButton();
+        useDirection(chartData);
+        const tb = isTB();
+        swimlanesContainer.classList.toggle('dir-tb', tb);
+        updateDirectionButton();
 
-        const maxX = chartData.nodes.reduce((m, n) => Math.max(m, (n.x || 0) + NODE_WIDTH + 48), 1200);
+        // Length of the lane tracks along the flow: past the furthest node, and at least a screenful
+        const maxX = chartData.nodes.reduce((m, n) => Math.max(m, (n.x || 0) + (tb ? DECISION_HEIGHT : NODE_WIDTH) + 48), tb ? 640 : 1200);
 
         renderLanes(maxX);   // also sizes the pill gutter (--lane-gutter)
-        swimlanesContainer.style.minWidth = `${maxX + 4 + (parseFloat(swimlanesContainer.style.getPropertyValue('--lane-gutter')) || 0)}px`;
+        const along = `${maxX + 4 + (parseFloat(swimlanesContainer.style.getPropertyValue('--lane-gutter')) || 0)}px`;
+        swimlanesContainer.style.minWidth = tb ? '' : along;
+        swimlanesContainer.style.minHeight = tb ? along : '';
         renderNodes();
         renderEdges();
+        // The last lane has no neighbour beyond it, so loop-backs that run around its nodes (and their labels)
+        // can reach its outer edge. Grow it on that side until they are OUTER_CLEAR inside. Measured against the
+        // lane without the extra, so it shrinks back; it only re-renders when the needed room changed.
+        const need = outerReach();
+        if (need !== outerExtra) {
+          outerExtra = need;
+          renderLanes(maxX);
+          renderNodes();
+          renderEdges();
+        }
         pinLaneHeaders();
+      }
+
+      const OUTER_CLEAR = 16;   // px between the outermost arrow/label and the last lane's outer edge
+      let outerExtra = 0;       // px added to the last lane's outer side (renderer only, never shifts a node)
+      function outerReach() {
+        const last = lanesRoot.lastElementChild;
+        if (!last || chartData.swimlanes === false) return 0;
+        const tb = isTB(), lr = last.getBoundingClientRect();
+        const s = lr.width / last.offsetWidth || 1;   // current zoom
+        let reach = -Infinity;
+        const take = el => { const r = el.getBoundingClientRect(); if (r.width || r.height) reach = Math.max(reach, tb ? r.right : r.bottom); };
+        edgeGroup.querySelectorAll('.connector-path').forEach(take);
+        edgeLabelsGroup.querySelectorAll('.edge-label-container.has-label').forEach(take);
+        if (reach === -Infinity) return 0;
+        const base = (tb ? lr.right : lr.bottom) - outerExtra * s;   // outer edge without the extra
+        const need = (reach - base) / s + OUTER_CLEAR;
+        return need > 0 ? Math.ceil(need / 4) * 4 : 0;
       }
 
       // --- LANE HOVER ---
@@ -69,7 +142,11 @@
         if (el) el.classList.add('lane-hover');
       }
       swimlanesContainer.addEventListener('pointermove', (e) => {
-        const lane = [...lanesRoot.children].find(l => { const r = l.getBoundingClientRect(); return e.clientY >= r.top && e.clientY < r.bottom; });
+        const tb = isTB();
+        const lane = [...lanesRoot.children].find(l => {
+          const r = l.getBoundingClientRect();
+          return tb ? e.clientX >= r.left && e.clientX < r.right : e.clientY >= r.top && e.clientY < r.bottom;
+        });
         setHoverLane(lane || null);
       });
       swimlanesContainer.addEventListener('pointerleave', () => setHoverLane(null));
@@ -87,10 +164,36 @@
         const top = swimlanesContainer.offsetTop + swimlanesContainer.clientTop;
         const visLeft = -panX / scale - left;   // viewport's left edge in container coords
         const visTop = -panY / scale - top;
-        const x0 = Math.max(0, visLeft);       // visible left edge of the lanes
-        swimlanesContainer.classList.toggle('lanes-pinned', visLeft > 0);
         const inset = PILL_INSET;
         const cs = swimlanesContainer.style;
+        if (isTB()) {
+          // Top-to-bottom: lanes are columns, so the stripe and the pills sit at the visible top edge instead,
+          // and each pill follows its column sideways when the column is wider than the screen
+          const y0 = Math.max(0, visTop);
+          swimlanesContainer.classList.toggle('lanes-pinned', visTop > 0);
+          cs.removeProperty('--rail-x');
+          cs.removeProperty('--pill-x');
+          cs.setProperty('--rail-y', `${y0}px`);
+          cs.setProperty('--rail-b', `${3 / scale}px`);
+          cs.setProperty('--pill-y', `${y0 + inset}px`);
+          // Each pill is centred on the visible part of its column (the whole column when it is on screen)
+          const visRight = visLeft + viewport.clientWidth / scale;
+          lanesRoot.querySelectorAll('.swimlane').forEach(laneEl => {
+            const pill = laneEl.querySelector('.lane-pill');
+            if (!pill) return;
+            const w = laneEl.offsetWidth, pw = pill.offsetWidth;
+            const a = Math.max(0, visLeft - laneEl.offsetLeft), b = Math.min(w, visRight - laneEl.offsetLeft);
+            const maxX = Math.max(inset, w - pw - inset);
+            const x = Math.min(Math.max(b > a ? (a + b - pw) / 2 : (w - pw) / 2, inset), maxX);
+            laneEl.style.setProperty('--pill-x', `${x}px`);
+            laneEl.style.setProperty('--pill-cx', `${Math.max(inset, (w - pw) / 2)}px`);   // centred at rest (exports)
+          });
+          return;
+        }
+        const x0 = Math.max(0, visLeft);       // visible left edge of the lanes
+        swimlanesContainer.classList.toggle('lanes-pinned', visLeft > 0);
+        cs.removeProperty('--rail-y');
+        cs.removeProperty('--pill-y');
         cs.setProperty('--rail-x', `${x0}px`);
         cs.setProperty('--rail-b', `${3 / scale}px`);
         cs.setProperty('--pill-x', `${x0 + inset}px`);
@@ -108,30 +211,40 @@
         const hoverIdx = hoverLaneEl ? [...lanesRoot.children].indexOf(hoverLaneEl) : -1;
         hoverLaneEl = null;
         lanesRoot.innerHTML = '';
+        const xById = {};
+        chartData.nodes.forEach(n => { xById[n.id] = n.x || 0; });
         chartData.lanes.forEach((lane, index) => {
           // Dynamically calculate required lane height from nodes in this lane
           const laneNodes = chartData.nodes.filter(n => n.laneId === lane.id);
-          const maxNodeBottom = laneNodes.reduce((m, n) => {
-            const nh = (n.type === 'decision') ? DECISION_HEIGHT : NODE_HEIGHT;
-            return Math.max(m, (n.y || 48) + nh);
-          }, 100);
-          const outer = index === chartData.lanes.length - 1 ? LANE_OUTER_PAD : 0;
-          const computedHeight = Math.max(LANE_MIN_HEIGHT, maxNodeBottom + LANE_BOTTOM_PAD) + outer; // derived from nodes only, so lanes shrink back
+          // (lane.height is the lane's size across the flow: its screen width when the diagram runs top-to-bottom)
+          const maxNodeBottom = laneNodes.reduce((m, n) => Math.max(m, (n.y || 48) + crossSize(n)), 100);
+          // Past the lowest node: the bottom pad, or the room its loop-backs need (same rule as the engine)
+          const loopRoom = laneLoopRoom(chartData.nodes, chartData.edges, lane.id, id => xById[id] || 0);
+          const computedHeight = Math.max(LE.LANE_MIN, maxNodeBottom + Math.max(LE.BOTTOM_PAD, loopRoom)) // derived from nodes only, so lanes shrink back
+            + (index === chartData.lanes.length - 1 ? outerExtra : 0);             // room for outer loop-backs (render)
           lane.height = computedHeight;
+          const tb = isTB();
 
           const laneEl = document.createElement('div');
           laneEl.className = 'swimlane';
           laneEl.dataset.laneId = lane.id;
           laneEl.dataset.laneIndex = index;
-          laneEl.style.minHeight = `${computedHeight}px`;
-          laneEl.style.height = `${computedHeight}px`;
+          if (tb) {
+            laneEl.style.minWidth = `${computedHeight}px`;
+            laneEl.style.width = `${computedHeight}px`;
+          } else {
+            laneEl.style.minHeight = `${computedHeight}px`;
+            laneEl.style.height = `${computedHeight}px`;
+          }
           laneEl.style.setProperty('--lane-color', lane.color || '#e2e8f0');   // stripe, icon, pill tint
+          if (index % 2) laneEl.classList.add('lane-alt');                     // lanes alternate white / light grey
+          if (lane.id === selectedLaneId) laneEl.classList.add('lane-selected');
 
           const track = document.createElement('div');
           track.className = 'lane-track';
           track.dataset.laneId = lane.id;
-          track.style.minWidth = `${trackWidth}px`;
-          if (lane.color) track.style.background = colorWithAlpha(lane.color, themeAlpha('--lane-tint-track'));
+          if (tb) track.style.minHeight = `${trackWidth}px`;
+          else track.style.minWidth = `${trackWidth}px`;
 
           // Lane name pill (there is no header column): icon + name at the visible top-left of the lane.
           // Drag it to reorder lanes, double-click the name to rename. Positioned by pinLaneHeaders.
@@ -139,14 +252,19 @@
           const pill = document.createElement('div');
           pill.className = 'lane-pill';
           pill.draggable = editable;
-          pill.dataset.tip = 'Drag to reorder swimlane \u00b7 double-click to rename';
-          pill.appendChild(laneIconEl(lane, 12));
+          pill.dataset.tip = 'Click to select (Delete removes the lane) \u00b7 drag to reorder \u00b7 double-click to rename';
+          pill.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (editable && !pill.classList.contains('editing')) selectLane(lane.id);
+          });
+          pill.appendChild(laneIconEl(lane, 15));
           const title = document.createElement('span');
           title.className = 'lane-title';
           title.contentEditable = 'false';
           title.spellcheck = false;
           title.textContent = lane.name;
           pill.appendChild(title);
+          if (tb) pill.style.maxWidth = `${Math.max(80, computedHeight - 2 * PILL_INSET)}px`;   // stays inside its column
 
           title.addEventListener('dblclick', (e) => {
             if (!editable) return;
@@ -194,7 +312,6 @@
           // Empty gutter left of the track (node x is measured from the track), sized below to clear the pills
           const gutter = document.createElement('div');
           gutter.className = 'lane-gutter';
-          if (lane.color) gutter.style.background = track.style.background;
 
           laneEl.appendChild(gutter);
           laneEl.appendChild(track);
@@ -209,12 +326,14 @@
       // The gutter indents every node and arrow so the lane pills (at the lane's top-left) never sit on them.
       // Sized from the widest pill at 1:1 scale: nodes start LE.START_X (56) into the track and loop-back
       // corridors run 24px left of a node, so the gutter only needs to cover what the pill adds beyond that.
+      // Top-to-bottom, the gutter is a band above the nodes, sized from the tallest pill instead.
       const GUTTER_CLEAR = 12;   // px between the pill's right edge and the nearest corridor
       function sizeLaneGutter() {
         let g = 0;
         if (chartData.swimlanes !== false) {
-          const widest = Math.max(0, ...[...lanesRoot.querySelectorAll('.lane-pill')].map(p => p.offsetWidth));
-          g = Math.max(0, Math.ceil(PILL_INSET + widest + GUTTER_CLEAR - (56 - 24)));
+          const pills = [...lanesRoot.querySelectorAll('.lane-pill')];
+          const extent = Math.max(0, ...pills.map(p => (isTB() ? p.offsetHeight : p.offsetWidth)));
+          g = Math.max(0, Math.ceil(PILL_INSET + extent + GUTTER_CLEAR - (LE.START_X - 24)));
         }
         swimlanesContainer.style.setProperty('--lane-gutter', `${g}px`);
         return g;
@@ -261,24 +380,13 @@
       let laneDragFrom = -1;
       const laneDropLine = document.getElementById('lane-drop-line');
 
-      function themeAlpha(name) {
-        return parseFloat(getComputedStyle(document.documentElement).getPropertyValue(name)) || 0.3;
-      }
 
-      function colorWithAlpha(color, alpha) {
-        const m = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(String(color).trim());
-        if (!m) return color;
-        let hex = m[1];
-        if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
-        const n = parseInt(hex, 16);
-        return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
-      }
-
-      function laneInsertIndexAt(clientY) {
+      // Lanes are stacked rows left-to-right and side-by-side columns top-to-bottom
+      function laneInsertIndexAt(clientX, clientY) {
         const lanes = [...lanesRoot.children];
         for (let i = 0; i < lanes.length; i++) {
           const r = lanes[i].getBoundingClientRect();
-          if (clientY < r.top + r.height / 2) return i;
+          if (isTB() ? clientX < r.left + r.width / 2 : clientY < r.top + r.height / 2) return i;
         }
         return lanes.length;
       }
@@ -286,10 +394,16 @@
       function showLaneDropLine(insertIdx) {
         const lanes = [...lanesRoot.children];
         if (!lanes.length) return;
-        const y = insertIdx < lanes.length
-          ? lanes[insertIdx].offsetTop
-          : lanes[lanes.length - 1].offsetTop + lanes[lanes.length - 1].offsetHeight;
-        laneDropLine.style.top = `${y - 2}px`;
+        const last = lanes[lanes.length - 1];
+        if (isTB()) {
+          const x = insertIdx < lanes.length ? lanes[insertIdx].offsetLeft : last.offsetLeft + last.offsetWidth;
+          laneDropLine.style.left = `${x - 2}px`;
+          laneDropLine.style.top = '';
+        } else {
+          const y = insertIdx < lanes.length ? lanes[insertIdx].offsetTop : last.offsetTop + last.offsetHeight;
+          laneDropLine.style.top = `${y - 2}px`;
+          laneDropLine.style.left = '';
+        }
         laneDropLine.style.display = 'block';
       }
 
@@ -303,7 +417,7 @@
         if (laneDragFrom < 0) return;
         e.preventDefault();
         e.dataTransfer.dropEffect = 'move';
-        showLaneDropLine(laneInsertIndexAt(e.clientY));
+        showLaneDropLine(laneInsertIndexAt(e.clientX, e.clientY));
       });
       swimlanesContainer.addEventListener('dragleave', (e) => {
         if (laneDragFrom >= 0 && !swimlanesContainer.contains(e.relatedTarget)) laneDropLine.style.display = 'none';
@@ -312,7 +426,7 @@
         if (laneDragFrom < 0) return;
         e.preventDefault();
         const from = laneDragFrom;
-        const insertIdx = laneInsertIndexAt(e.clientY);
+        const insertIdx = laneInsertIndexAt(e.clientX, e.clientY);
         const to = insertIdx > from ? insertIdx - 1 : insertIdx;
         endLaneDrag();
         if (to !== from) {
@@ -340,8 +454,7 @@
           nodeEl.className = `flow-node type-${node.type}` + (isDot(node) ? ' terminal-dot' : '');
           nodeEl.id = `node-${node.id}`;
           nodeEl.dataset.nodeId = node.id;
-          nodeEl.style.left = `${node.x || 80}px`;
-          nodeEl.style.top = `${node.y || 53}px`;
+          placeNodeEl(nodeEl, node);
           if (node.id === selectedNodeId) nodeEl.classList.add('selected');
 
           // Decision diamond shape SVG
@@ -393,17 +506,6 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           });
           nodeEl.appendChild(label);
 
-          // Delete button
-          const delBtn = document.createElement('div');
-          delBtn.className = 'node-delete-btn';
-          delBtn.textContent = '×';
-          delBtn.dataset.tip = 'Delete Node';
-          delBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            deleteNode(node.id);
-          });
-          nodeEl.appendChild(delBtn);
-
           // 4 Anchor Ports
           ['top', 'right', 'bottom', 'left'].forEach(pos => {
             const port = document.createElement('div');
@@ -423,10 +525,14 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
       }
 
       // --- PLANAR ORTHOGONAL ROUTING & CHANNEL STAGGERING ENGINE ---
+      // Top-to-bottom diagrams are routed in flow terms too: node boxes are transposed (x <-> y) before the route
+      // search, so every rule written for a left-to-right flow applies unchanged, and the finished polylines are
+      // transposed back before hops and labels are placed on screen (step 6).
       function computeAllEdgeRoutes() {
         const stageRect = swimlanesContainer.getBoundingClientRect();
         const rects = {};
         const nodeMap = {};
+        const tb = isTB();
 
         chartData.nodes.forEach(n => {
           nodeMap[n.id] = n;
@@ -437,7 +543,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           const y = (r.top - stageRect.top) / scale;
           const w = r.width / scale;
           const h = r.height / scale;
-          rects[n.id] = { x, y, w, h, cx: x + w / 2, cy: y + h / 2 };
+          rects[n.id] = tb ? { x: y, y: x, w: h, h: w, cx: y + h / 2, cy: x + w / 2 } : { x, y, w, h, cx: x + w / 2, cy: y + h / 2 };
         });
 
         // True when an axis-aligned segment keeps 6px clear of every node except `ignore`
@@ -875,7 +981,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         // Cost model: overlap >> near-parallel > crossing (~1.75 bends) > bend > length
         const COST = { overlap: 20000, near: 2500, cross: 1750, bend: 1000, divider: 1500, nearNode: 600, portClash: 2500, sharedBranch: 1200 };
         const laneDividers = Array.from(document.querySelectorAll('.lane-track')).slice(0, -1)
-          .map(t => (t.getBoundingClientRect().bottom - stageRect.top) / scale);
+          .map(t => (tb ? t.getBoundingClientRect().right - stageRect.left : t.getBoundingClientRect().bottom - stageRect.top) / scale);
         const routeDefects = (pts, ids) => {
           // Penalties independent of other arrows: hugging a lane divider, crowding a node
           let d = 0;
@@ -1351,6 +1457,20 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           snap(e.to, pts.length - 1, pts.length - 2);
         });
 
+        // 5e. Top-to-bottom: back to screen coordinates (flow x -> screen y). A port named in flow terms maps to the
+        // screen side it faces: along the flow ('right') is down, against it ('left') up, across the lanes sideways.
+        if (tb) {
+          const SIDE = { right: 'bottom', left: 'top', bottom: 'right', top: 'left' };
+          Object.keys(edgePolylines).forEach(id => { edgePolylines[id] = edgePolylines[id].map(([a, b]) => [b, a]); });
+          Object.keys(edgePorts).forEach(id => {
+            const p = edgePorts[id];
+            if (p) edgePorts[id] = { ...p, fromPort: SIDE[p.fromPort] || p.fromPort, toPort: SIDE[p.toPort] || p.toPort };
+          });
+          Object.values(rects).forEach(r => {
+            [r.x, r.y, r.w, r.h, r.cx, r.cy] = [r.y, r.x, r.h, r.w, r.cy, r.cx];
+          });
+        }
+
         // 6. Collect vertical segments from edges for planar bridge/hop overpasses
         const verticalSegments = [];
         validEdges.forEach(other => {
@@ -1817,34 +1937,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
             }
 
             if (isSelected) {
-              // Separate from the label so it reads as "delete the arrow", not "clear the label"
-              const delEdgeBtn = document.createElement('div');
-              delEdgeBtn.className = 'edge-delete-btn';
-              delEdgeBtn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M6 6l1 14h10l1-14"/><path d="M10 11v6M14 11v6"/></svg>';
-              delEdgeBtn.setAttribute('aria-label', 'Delete arrow');
-              delEdgeBtn.dataset.tip = 'Delete this arrow (Delete key)';
-              // Sit on the arrow itself, as near its middle as possible without covering the label pill
-              const lw = labelContainer.offsetWidth / 2 + 18, lh = labelContainer.offsetHeight / 2 + 18;
               const total = path.getTotalLength();
-              // Clearance > 0 means the 28px button is fully outside the label box (plus a small gap)
-              const clearance = (pt) => Math.max(Math.abs(pt.x - pathD.midX) - lw, Math.abs(pt.y - pathD.midY) - lh);
-              let spot = null, best = -Infinity;
-              const steps = [];
-              for (let i = 0; i <= 90; i++) steps.push(0.5 + (i % 2 ? 1 : -1) * Math.ceil(i / 2) * 0.01);
-              for (const f of steps) {          // nearest to the middle first
-                const pt = path.getPointAtLength(total * Math.min(0.95, Math.max(0.05, f)));
-                const c = clearance(pt);
-                if (c > 0) { spot = pt; break; }
-                if (c > best) { best = c; spot = pt; }
-              }
-              delEdgeBtn.style.left = `${spot.x}px`;
-              delEdgeBtn.style.top = `${spot.y}px`;
-              delEdgeBtn.addEventListener('pointerdown', (e) => e.stopPropagation());
-              delEdgeBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                deleteEdge(edge.id);
-              });
-              edgeLabelsGroup.appendChild(delEdgeBtn);
 
               // Drag either end of the selected arrow onto another node to re-attach it
               ['from', 'to'].forEach(end => {
@@ -1916,7 +2009,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
 
       // --- NODE DRAG INTERACTION ---
       function handleNodePointerDown(e, node) {
-        if (e.target.classList.contains('port') || e.target.classList.contains('node-delete-btn') || e.target.isContentEditable) {
+        if (e.target.classList.contains('port') || e.target.isContentEditable) {
           return;
         }
 
@@ -1935,17 +2028,20 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         dragStartY = e.clientY;
 
         const nodeEl = document.getElementById(`node-${node.id}`);
-        const stageRect = swimlanesContainer.getBoundingClientRect();
         const nRect = nodeEl.getBoundingClientRect();
 
-        // Global X is measured from the lane track
-        const trackEl = nodeEl.parentElement;
-        const trackLeft = trackEl ? trackEl.getBoundingClientRect().left : stageRect.left;
+        // Drag in flow terms (see flowPoint): global X along the flow from the lane track, global Y across the lanes
         dragMoved = false;
         dragCanInsert = canInsert(node.type) && !nodeHasEdges(node.id);
         const dOff = dotOffset(node);   // circle nodes are drawn inset from their slot; data x/y is the slot corner
-        dragStartGlobalX = (nRect.left - trackLeft) / scale - dOff.x;
-        dragStartGlobalY = (nRect.top - stageRect.top) / scale - dOff.y;
+        const at = flowPoint(nRect.left, nRect.top);
+        if (isTB()) {
+          dragStartGlobalX = at.gx - dOff.y - flowInset(node);
+          dragStartGlobalY = at.gy - dOff.x;
+        } else {
+          dragStartGlobalX = at.gx - dOff.x;
+          dragStartGlobalY = at.gy - dOff.y;
+        }
 
         window.addEventListener('pointermove', onDragNodeMove);
         window.addEventListener('pointerup', onDragNodeUp);
@@ -1955,12 +2051,12 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         if (!draggingNode) return;
         if (!dragMoved && Math.hypot(e.clientX - dragStartX, e.clientY - dragStartY) < 4) return;
         dragMoved = true;
-        const dx = (e.clientX - dragStartX) / scale;
-        const dy = (e.clientY - dragStartY) / scale;
+        const sdx = (e.clientX - dragStartX) / scale;
+        const sdy = (e.clientY - dragStartY) / scale;
+        const [dx, dy] = isTB() ? [sdy, sdx] : [sdx, sdy];   // along / across the flow
 
         const nodeEl = document.getElementById(`node-${draggingNode.id}`);
-        const isDecision = draggingNode.type === 'decision';
-        const nh = isDecision ? DECISION_HEIGHT : NODE_HEIGHT;
+        const nh = crossSize(draggingNode);
 
         const currGlobalX = dragStartGlobalX + dx;
         const currGlobalY = dragStartGlobalY + dy;
@@ -1973,7 +2069,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
 
         for (let i = 0; i < chartData.lanes.length; i++) {
           const lane = chartData.lanes[i];
-          const lh = lane.height || LANE_MIN_HEIGHT;
+          const lh = lane.height || LE.LANE_MIN;
           if (nodeCenterY >= cumulativeY && nodeCenterY < cumulativeY + lh) {
             targetLane = lane;
             targetLaneTop = cumulativeY;
@@ -1989,7 +2085,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         // Align to 4px grid, then snap to other nodes' and lane centers when close
         let gridX = Math.max(16, Math.round(currGlobalX / 4) * 4);
         let gridY = Math.round(currGlobalY / 4) * 4;
-        const snap = computeSnap(draggingNode, nodeEl.offsetWidth || NODE_WIDTH, nh, currGlobalX, currGlobalY);
+        const snap = computeSnap(draggingNode, flowSize(draggingNode, nodeEl), nh, currGlobalX, currGlobalY);
         if (snap.x !== null) gridX = Math.max(16, Math.round(snap.x));
         if (snap.y !== null) gridY = Math.round(snap.y);
         const localX = gridX;
@@ -2008,8 +2104,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           }
         }
 
-        nodeEl.style.left = `${localX}px`;
-        nodeEl.style.top = `${localY}px`;
+        placeNodeEl(nodeEl, draggingNode);
 
         // An unconnected node over an arrow offers to be inserted into it
         let target = null;
@@ -2043,12 +2138,13 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         let top = 0;
         for (const lane of chartData.lanes) {
           if (lane.id === laneId) return top;
-          top += lane.height || LANE_MIN_HEIGHT;
+          top += lane.height || LE.LANE_MIN;
         }
         return top;
       }
 
-      // Returns {x, y} snapped top-left (global coords, null = no snap) plus guide positions
+      // Returns {x, y} snapped top-left (global flow coords: x along the flow, y across the lanes; null = no snap)
+      // plus guide positions. w/h are the node's extent along/across the flow.
       function computeSnap(dragNode, w, h, gx, gy) {
         let bestX = null, bestY = null; // {delta, pos}
         const mine = {
@@ -2058,8 +2154,8 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         chartData.nodes.forEach(n => {
           if (n.id === dragNode.id) return;
           const el = document.getElementById(`node-${n.id}`);
-          const nw = el ? el.offsetWidth : NODE_WIDTH;
-          const nhh = n.type === 'decision' ? DECISION_HEIGHT : NODE_HEIGHT;
+          const nw = flowSize(n, el);
+          const nhh = crossSize(n);
           const nx = n.x || 0;
           const ny = laneTopOf(n.laneId) + (n.y || 0);
           const tx = [nx, nx + nw / 2, nx + nw];
@@ -2073,7 +2169,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         // Lane vertical centers (the horizontal midline of each swimlane)
         let laneTop = 0;
         chartData.lanes.forEach(lane => {
-          const lh = lane.height || LANE_MIN_HEIGHT;
+          const lh = lane.height || LE.LANE_MIN;
           const dy = (laneTop + lh / 2) - mine.y[1];
           if (Math.abs(dy) <= SNAP_THRESHOLD && (!bestY || Math.abs(dy) < Math.abs(bestY.delta))) bestY = { delta: dy, pos: laneTop + lh / 2 };
           laneTop += lh;
@@ -2097,20 +2193,21 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         return g;
       }
 
+      // guideX is a position along the flow, guideY across the lanes: top-to-bottom, those are drawn as a
+      // horizontal and a vertical line respectively
       function showSnapGuides(snap) {
         const vGuide = getSnapGuide('snap-guide-v', 'snap-guide-v');
         const hGuide = getSnapGuide('snap-guide-h', 'snap-guide-h');
-        const firstTrack = document.querySelector('.lane-track');
-        const stageRect = swimlanesContainer.getBoundingClientRect();
-        const trackOffset = firstTrack ? (firstTrack.getBoundingClientRect().left - stageRect.left) / scale : 0;
+        const [flowGuide, crossGuide] = isTB() ? [hGuide, vGuide] : [vGuide, hGuide];
+        const flowProp = isTB() ? 'top' : 'left', crossProp = isTB() ? 'left' : 'top';
         if (snap.guideX !== null) {
-          vGuide.style.left = `${trackOffset + snap.guideX}px`;
-          vGuide.style.display = 'block';
-        } else vGuide.style.display = 'none';
+          flowGuide.style[flowProp] = `${trackOffset() + snap.guideX}px`;
+          flowGuide.style.display = 'block';
+        } else flowGuide.style.display = 'none';
         if (snap.guideY !== null) {
-          hGuide.style.top = `${snap.guideY}px`;
-          hGuide.style.display = 'block';
-        } else hGuide.style.display = 'none';
+          crossGuide.style[crossProp] = `${snap.guideY}px`;
+          crossGuide.style.display = 'block';
+        } else crossGuide.style.display = 'none';
       }
 
       function hideSnapGuides() {
@@ -2316,9 +2413,37 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
       }
 
       // --- SELECTION & DELETION ---
+      function markSelectedLane() {
+        lanesRoot.querySelectorAll('.swimlane').forEach(l => l.classList.toggle('lane-selected', l.dataset.laneId === selectedLaneId));
+      }
+
+      function selectLane(laneId) {
+        const hadEdge = selectedEdgeId;
+        selectedLaneId = laneId;
+        selectedNodeId = null;
+        selectedEdgeId = null;
+        document.querySelectorAll('.flow-node').forEach(el => el.classList.remove('selected'));
+        if (hadEdge) renderEdges();
+        markSelectedLane();
+      }
+
+      // Removes a lane together with its steps and every arrow attached to them (one undo step).
+      // The last remaining lane cannot be deleted: every step needs a lane.
+      function deleteLane(laneId) {
+        if (chartData.lanes.length <= 1 || !chartData.lanes.some(l => l.id === laneId)) return;
+        const gone = new Set(chartData.nodes.filter(n => n.laneId === laneId).map(n => n.id));
+        chartData.lanes = chartData.lanes.filter(l => l.id !== laneId);
+        chartData.nodes = chartData.nodes.filter(n => !gone.has(n.id));
+        chartData.edges = chartData.edges.filter(e => !gone.has(e.from) && !gone.has(e.to));
+        selectedLaneId = null;
+        updateStatus(true);
+        render();
+      }
+
       function selectNode(nodeId) {
         selectedNodeId = nodeId;
         selectedEdgeId = null;
+        if (selectedLaneId) { selectedLaneId = null; markSelectedLane(); }
         document.querySelectorAll('.flow-node').forEach(el => el.classList.toggle('selected', el.dataset.nodeId === nodeId));
         document.querySelectorAll('.connector-path').forEach(p => p.classList.remove('selected'));
         document.querySelectorAll('.edge-label-container').forEach(c => c.classList.remove('selected'));
@@ -2327,6 +2452,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
       function selectEdge(edgeId, reRender = true) {
         selectedEdgeId = edgeId;
         selectedNodeId = null;
+        if (selectedLaneId) { selectedLaneId = null; markSelectedLane(); }
         document.querySelectorAll('.flow-node').forEach(el => el.classList.remove('selected'));
         if (reRender) {
           renderEdges();
@@ -2359,16 +2485,13 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
 
       // --- ADD ELEMENTS ---
       // Lane + lane-local top-left for a node of size nw x nh centred on a screen point
+      // nw/nh: the node's extent along/across the flow (typeFlowSize / typeCrossSize)
       function placementAt(clientX, clientY, nw, nh) {
-        const stageRect = swimlanesContainer.getBoundingClientRect();
-        const track = document.querySelector('.lane-track');
-        const trackLeft = track ? track.getBoundingClientRect().left : stageRect.left;
-        const gx = (clientX - trackLeft) / scale;
-        const gy = (clientY - stageRect.top) / scale;
+        const { gx, gy } = flowPoint(clientX, clientY);
         let top = 0, lane = chartData.lanes[0];
         for (let i = 0; i < chartData.lanes.length; i++) {
           const l = chartData.lanes[i];
-          const lh = l.height || LANE_MIN_HEIGHT;
+          const lh = l.height || LE.LANE_MIN;
           lane = l;
           if (gy < top + lh) break;
           if (i < chartData.lanes.length - 1) top += lh;
@@ -2389,6 +2512,8 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
 
       const NODE_DEFAULTS = { start: 'Start', end: 'End', task: 'New Step', decision: 'Decision?' };
       const nodeHeightOf = (type) => (type === 'decision' ? DECISION_HEIGHT : NODE_HEIGHT);
+      const typeFlowSize = (type) => (isTB() ? DECISION_HEIGHT : NODE_WIDTH);
+      const typeCrossSize = (type) => (isTB() ? NODE_WIDTH : nodeHeightOf(type));
 
       // Ids that cannot collide even when two are made in the same millisecond
       function uid(prefix) {
@@ -2416,7 +2541,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         btn.addEventListener('click', (e) => {
           if (btn.dataset.dragged) { delete btn.dataset.dragged; e.preventDefault(); return; }
           const type = btn.dataset.nodeType;
-          addNodeAt(type, viewportCenterPlacement(NODE_WIDTH, nodeHeightOf(type)));
+          addNodeAt(type, viewportCenterPlacement(typeFlowSize(type), typeCrossSize(type)));
         });
         btn.addEventListener('pointerdown', (e) => startPaletteDrag(e, btn));
       });
@@ -2524,12 +2649,13 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           pd.ghost = buildGhost(pd.type);
           document.body.classList.add('palette-dragging');
         }
-        const nw = NODE_WIDTH, nh = nodeHeightOf(pd.type);
+        const nw = typeFlowSize(pd.type), nh = typeCrossSize(pd.type);         // flow terms, for placement
+        const sw = NODE_WIDTH, sh = nodeHeightOf(pd.type);                      // on screen, for the ghost
         const under = document.elementFromPoint(e.clientX, e.clientY);
         pd.onCanvas = !!under && viewport.contains(under) && !under.closest('.dock-area');
         pd.ghost.classList.toggle('off-canvas', !pd.onCanvas);
 
-        let gx = e.clientX - (nw * scale) / 2, gy = e.clientY - (nh * scale) / 2;   // ghost top-left on screen
+        let gx = e.clientX - (sw * scale) / 2, gy = e.clientY - (sh * scale) / 2;   // ghost top-left on screen
         pd.placement = null;
         let target = null;
         if (pd.onCanvas) {
@@ -2542,10 +2668,10 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
             if (snap.x !== null) p.x = Math.max(16, Math.round(snap.x));
             if (snap.y !== null) p.y = Math.max(12, Math.round(snap.y - p.laneTop));
             showSnapGuides(snap);
-            const track = document.querySelector('.lane-track');
             const sr = swimlanesContainer.getBoundingClientRect();
-            gx = (track ? track.getBoundingClientRect().left : sr.left) + p.x * scale;
-            gy = sr.top + (p.laneTop + p.y) * scale;
+            const c = flowToContainer(p.x, p.laneTop + p.y);
+            gx = sr.left + c.x * scale;
+            gy = sr.top + (c.y + (isTB() ? (DECISION_HEIGHT - sh) / 2 : 0)) * scale;
           } else {
             // Over an arrow: the ghost trails below-right of the cursor so the marching arrow and pill stay visible
             hideSnapGuides();
@@ -2619,11 +2745,37 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           name: `Actor / Role ${chartData.lanes.length + 1}`,
           color: nextColor,
           icon: 'users',
-          height: LANE_MIN_HEIGHT
+          height: LE.LANE_MIN
         };
         chartData.lanes.push(newLane);
         updateStatus(true);
         render();
+      });
+
+      // --- DIRECTION TOGGLE ---
+      // Switches between left-to-right and top-to-bottom ("direction": "TB" in the data, so it is saved with the
+      // file and undoable). Node positions mean different things in each, so the switch always re-runs the layout.
+      const DIR_ICONS = {
+        LR: '<path d="M3 12h18"/><path d="m16 7 5 5-5 5"/>',
+        TB: '<path d="M12 3v18"/><path d="m7 16 5 5 5-5"/>'
+      };
+      function updateDirectionButton() {
+        if (!btnDirection) return;
+        const next = isTB() ? 'LR' : 'TB';
+        const label = next === 'TB' ? 'Vertical' : 'Horizontal';
+        btnDirection.querySelector('.btn-label').textContent = label;
+        btnDirection.querySelector('svg').innerHTML = DIR_ICONS[next];
+        btnDirection.title = next === 'TB' ? 'Switch to a top-to-bottom layout' : 'Switch to a left-to-right layout';
+        btnDirection.setAttribute('aria-label', label);
+      }
+      if (btnDirection) btnDirection.addEventListener('click', () => {
+        if (isTB()) delete chartData.direction;
+        else chartData.direction = 'TB';
+        selectedEdgeId = null;
+        layoutDiagram(chartData);
+        render();
+        updateStatus(true);
+        fitView();
       });
 
       // --- REGISTER WITH THE SHELL ---
@@ -2637,6 +2789,8 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         clearSelection() {
           selectedNodeId = null;
           selectedEdgeId = null;
+          selectedLaneId = null;
+          markSelectedLane();
           document.querySelectorAll('.flow-node').forEach(el => el.classList.remove('selected'));
           renderEdges();
         },
@@ -2649,5 +2803,6 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         deleteSelection() {
           if (selectedNodeId) deleteNode(selectedNodeId);
           else if (selectedEdgeId) deleteEdge(selectedEdgeId);
+          else if (selectedLaneId) deleteLane(selectedLaneId);
         }
       });

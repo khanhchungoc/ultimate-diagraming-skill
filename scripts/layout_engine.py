@@ -36,7 +36,7 @@ SCHEMA_VERSION = 1
 DEFAULT_NODE_WIDTH = 144
 DEFAULT_NODE_HEIGHT = 64
 DECISION_NODE_HEIGHT = 80
-LANE_MIN_HEIGHT = 152
+LANE_MIN_HEIGHT = 176
 LANE_BOTTOM_PADDING = 36
 
 
@@ -48,6 +48,18 @@ class FlowchartAudit:
         self.edges: List[Dict[str, Any]] = data.get("edges", [])
         self.lane_map = {lane["id"]: idx for idx, lane in enumerate(self.lanes)}
         self.node_map = {node["id"]: node for node in self.nodes}
+        # Node x/y are in flow terms (x along the flow, y across the lane) in both directions; a top-to-bottom
+        # diagram ("direction": "TB") has its own sizes in those terms (engine.js LE_PROFILES.TB)
+        if data.get("direction") == "TB":
+            self.node_w, self.base_h, self.dec_h = 80, 144, 144
+            self.lane_min, self.bottom_pad, self.col_w = 240, 32, 136
+        else:
+            self.node_w, self.base_h, self.dec_h = DEFAULT_NODE_WIDTH, DEFAULT_NODE_HEIGHT, DECISION_NODE_HEIGHT
+            self.lane_min, self.bottom_pad, self.col_w = LANE_MIN_HEIGHT, LANE_BOTTOM_PADDING, DEFAULT_COL_WIDTH
+
+    def node_h(self, node: Dict[str, Any]) -> int:
+        """A node's extent across its lane."""
+        return self.dec_h if node.get("type") == "decision" else self.base_h
 
     title = "Flowchart"
 
@@ -102,14 +114,14 @@ class FlowchartAudit:
             lid = lane["id"]
             lane_tops[lid] = curr_y
             max_y = max((n.get("y", 0) for n in self.nodes if n.get("laneId") == lid), default=48)
-            h = max(lane.get("height", LANE_MIN_HEIGHT), max_y + DECISION_NODE_HEIGHT + 30)
+            h = max(lane.get("height", self.lane_min), max_y + self.dec_h + 30)
             lane_heights[lid] = h
             curr_y += h
 
         # 2. Containment Checks
         for node in self.nodes:
             lid = node["laneId"]
-            nh = DECISION_NODE_HEIGHT if node.get("type") == "decision" else DEFAULT_NODE_HEIGHT
+            nh = self.node_h(node)
             if lid not in self.lane_map:
                 dangling_issues.append(f"Node '{node['id']}' references non-existent lane '{lid}'.")
             else:
@@ -124,8 +136,8 @@ class FlowchartAudit:
         for i, n1 in enumerate(self.nodes):
             x1 = n1.get("x", 0)
             y1 = n1.get("y", 0)
-            w1 = DEFAULT_NODE_WIDTH
-            h1 = DECISION_NODE_HEIGHT if n1.get("type") == "decision" else DEFAULT_NODE_HEIGHT
+            w1 = self.node_w
+            h1 = self.node_h(n1)
 
             for j in range(i + 1, len(self.nodes)):
                 n2 = self.nodes[j]
@@ -133,8 +145,8 @@ class FlowchartAudit:
                     continue
                 x2 = n2.get("x", 0)
                 y2 = n2.get("y", 0)
-                w2 = DEFAULT_NODE_WIDTH
-                h2 = DECISION_NODE_HEIGHT if n2.get("type") == "decision" else DEFAULT_NODE_HEIGHT
+                w2 = self.node_w
+                h2 = self.node_h(n2)
 
                 overlap_x = max(0, min(x1 + w1, x2 + w2) - max(x1, x2))
                 overlap_y = max(0, min(y1 + h1, y2 + h2) - max(y1, y2))
@@ -150,8 +162,8 @@ class FlowchartAudit:
         for n in self.nodes:
             nx = float(n.get("x", 0))
             ny = float(lane_tops.get(n["laneId"], 0) + n.get("y", 0))
-            nh = float(DECISION_NODE_HEIGHT if n.get("type") == "decision" else DEFAULT_NODE_HEIGHT)
-            rects[n["id"]] = (nx, ny, float(DEFAULT_NODE_WIDTH), nh)
+            nh = float(self.node_h(n))
+            rects[n["id"]] = (nx, ny, float(self.node_w), nh)
 
         polylines = self._route_all_edges(rects)
 
@@ -241,7 +253,7 @@ class FlowchartAudit:
         )
 
         max_x = max((float(n.get("x", 0)) for n in self.nodes), default=float(START_X))
-        column_count = int(round((max_x - START_X) / DEFAULT_COL_WIDTH)) + 1
+        column_count = int(round((max_x - START_X) / self.col_w)) + 1
         budget_warnings: List[str] = self._lane_icon_warnings() + self._outcome_label_warnings()
 
         return {
@@ -328,15 +340,15 @@ class FlowchartAudit:
             lid = lane["id"]
             lane_tops[lid] = curr_y
             max_y = max((n.get("y", 0) for n in self.nodes if n.get("laneId") == lid), default=48)
-            h = max(lane.get("height", LANE_MIN_HEIGHT), max_y + DEFAULT_NODE_HEIGHT + LANE_BOTTOM_PADDING)
+            h = max(lane.get("height", self.lane_min), max_y + self.base_h + self.bottom_pad)
             curr_y += h
 
         rects: Dict[str, Tuple[float, float, float, float]] = {}
         for n in self.nodes:
             nx = float(n.get("x", 0))
             ny = float(lane_tops.get(n["laneId"], 0) + n.get("y", 0))
-            nh = float(DECISION_NODE_HEIGHT if n.get("type") == "decision" else DEFAULT_NODE_HEIGHT)
-            rects[n["id"]] = (nx, ny, float(DEFAULT_NODE_WIDTH), nh)
+            nh = float(self.node_h(n))
+            rects[n["id"]] = (nx, ny, float(self.node_w), nh)
 
         polylines = self._route_all_edges(rects)
         return self._count_crossings_from_polylines(polylines)
@@ -610,7 +622,7 @@ class FlowchartAudit:
         for lane in self.lanes[:-1]:
             lid = lane["id"]
             max_y = max((n.get("y", 0) for n in self.nodes if n.get("laneId") == lid), default=48)
-            curr_y += max(lane.get("height", LANE_MIN_HEIGHT), max_y + DEFAULT_NODE_HEIGHT + LANE_BOTTOM_PADDING)
+            curr_y += max(lane.get("height", self.lane_min), max_y + self.base_h + self.bottom_pad)
             dividers.append(curr_y)
         return dividers
 

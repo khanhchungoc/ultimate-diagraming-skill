@@ -97,21 +97,19 @@
     .lane-gutter {
       flex: none;
       width: var(--lane-gutter, 0px);
-      background: var(--lane-track-tint);
+      background: var(--lane-bg);
       transition: background 0.15s ease;
     }
     .lane-track {
       flex: 1;
       position: relative;
       min-width: 1400px;
-      background: var(--lane-track-tint);
+      background: var(--lane-bg);
       transition: background 0.15s ease;
     }
-    /* The lane under the pointer (see trackLaneHover) or holding the selected node gets a faint wash (inset shadow overlays the inline tint) */
-    .swimlane.lane-hover .lane-track,
-    .swimlane.lane-hover .lane-gutter,
-    .swimlane:has(.flow-node.selected) .lane-track,
-    .swimlane:has(.flow-node.selected) .lane-gutter { box-shadow: inset 0 0 0 100vmax var(--lane-active-wash); }
+    /* The lane under the pointer (see setHoverLane), holding the selected node, or selected itself takes one solid
+       highlight colour, the same whether it is a white or a grey lane (it is set in --lane-bg, so the pill halo
+       follows it). See the lane colour tokens below. */
 
     .lane-track.drag-hover-lane {
       background: var(--primary-wash);
@@ -185,6 +183,14 @@
       border-color: var(--primary);
       box-shadow: 0 2px 8px var(--primary-glow);
     }
+    /* Highlighted (hover, selected, linked to a hovered node): the node border weight (2px). The padding gives
+       back what the border adds so the label does not jump: the 1.5px rest border is drawn 1px wide at 100%
+       display scaling, so that is 1px */
+    .edge-label-container:is(:hover, .linked, .selected, .hl-in, .hl-out) {
+      border-width: 2px;
+      padding: 2px 7px;
+    }
+    .edge-label-container.empty-placeholder:is(:hover, .linked, .selected, .hl-in, .hl-out) { padding: 0; }
     .edge-label-text {
       outline: none;
       min-width: 14px;
@@ -226,31 +232,6 @@
     .edge-label-container.has-label {
       display: inline-flex;
     }
-    .edge-delete-btn {
-      position: absolute;
-      transform: translate(-50%, -50%);
-      pointer-events: auto;
-      z-index: 31;
-      width: 28px;
-      height: 28px;
-      box-sizing: border-box;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: 50%;
-      border: 1.5px solid var(--danger);
-      background: var(--edge-label-bg);
-      color: var(--danger);
-      cursor: pointer;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.12);
-      transition: background-color var(--ease), color var(--ease);
-    }
-    .edge-delete-btn svg { display: block; }
-    .edge-delete-btn:hover {
-      background: var(--danger);
-      color: #ffffff;
-    }
-
     /* Flowchart Nodes - 4px Grid Alignment */
     .flow-node {
       position: absolute;
@@ -423,32 +404,8 @@
     .port-left { top: 50%; left: 0; }
     .port-right { top: 50%; left: 100%; }
 
-    /* Delete Button for Selected Node */
-    .node-delete-btn {
-      position: absolute;
-      top: -8px;
-      right: -8px;
-      width: 18px;
-      height: 18px;
-      border-radius: 50%;
-      background: var(--danger);
-      color: #ffffff;
-      font-size: 11px;
-      display: none;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.3);
-      z-index: 40;
-    }
-    .flow-node.selected .node-delete-btn {
-      display: flex;
-    }
-
     /* Presentation mode (?present): hide flowchart editing chrome, make elements inert */
-    body.presentation .port,
-    body.presentation .node-delete-btn,
-    body.presentation .edge-delete-btn { display: none !important; }
+    body.presentation .port { display: none !important; }
     body.presentation .flow-node,
     body.presentation .lane-pill,
     body.presentation .lane-title,
@@ -470,6 +427,8 @@
       --lane-accent-mix: 70%;  --lane-accent-base: #475569; /* lane stripe */
       --lane-pill-mix: 45%;
       --lane-solid-mix: 42%;   --lane-solid-base: #1e293b;  --lane-solid-ink: #ffffff; /* active pill: deep lane hue, white text */
+      --lane-alt-bg: #fafbfc;  /* every second lane: a very light grey against the white ones */
+      --lane-hover-bg: #f1f4f8; /* hovered / active lane, white or grey: darker than both */
     }
     :root[data-theme="dark"] {
       --lane-chip-mix: 30%;    --lane-chip-base: #111a2e;
@@ -477,13 +436,40 @@
       --lane-accent-mix: 80%;  --lane-accent-base: #94a3b8;
       --lane-pill-mix: 22%;
       --lane-solid-mix: 80%;   --lane-solid-base: #e2e8f0;  --lane-solid-ink: #0f172a; /* inverted on dark */
+      --lane-alt-bg: #131d33;  /* a faint step lighter than --bg-panel */
+      --lane-hover-bg: #1a2742; /* hovered / active lane: stands out from both (lighter, as highlights are on dark) */
     }
 
     /* Lane name pill + rail (no header column; see pinLaneHeaders): the pill labels each lane at its visible
        top-left, and the rail is a lane-colour stripe at the visible left edge. The pill wears a halo in the lane's
        own background colour, so an arrow passing behind it is cut cleanly around it instead of running through.
        Both sit above arrows (15), nodes (20) and edge labels (30). */
-    .swimlane { --lane-bg: color-mix(in srgb, var(--lane-color) calc(var(--lane-tint-track) * 100%), var(--bg-panel)); }
+    .swimlane {
+      --lane-bg: var(--bg-panel);   /* no lane-colour tint (the pill and stripe carry the colour): lanes alternate */
+      /* Stripe and pill colours. Fallback: the lane colour mixed toward slate, which stays pale with pastel lanes */
+      --lane-stripe: color-mix(in srgb, var(--lane-color) var(--lane-accent-mix), var(--lane-accent-base));
+      --lane-pill-bg: color-mix(in srgb, var(--lane-color) var(--lane-pill-mix), var(--bg-panel));
+      --lane-pill-ink: var(--text-soft);
+      --lane-pill-solid: color-mix(in srgb, var(--lane-color) var(--lane-solid-mix), var(--lane-solid-base));
+    }
+    /* Where relative colours are supported, derive deeper, more saturated shades of the lane's own hue: same hue,
+       lightness set per role, chroma boosted (capped so strong lane colours do not turn garish) */
+    @supports (color: oklch(from red l c h)) {
+      .swimlane {
+        --lane-stripe: oklch(from var(--lane-color) 0.66 min(calc(c * 4), 0.15) h);
+        --lane-pill-bg: oklch(from var(--lane-color) 0.9 min(calc(c * 2.4), 0.07) h);
+        --lane-pill-ink: oklch(from var(--lane-color) 0.36 min(calc(c * 4), 0.12) h);
+        --lane-pill-solid: oklch(from var(--lane-color) 0.45 min(calc(c * 4.5), 0.15) h);
+      }
+      :root[data-theme="dark"] .swimlane {
+        --lane-stripe: oklch(from var(--lane-color) 0.74 min(calc(c * 4), 0.14) h);
+        --lane-pill-bg: oklch(from var(--lane-color) 0.36 min(calc(c * 2.4), 0.07) h);
+        --lane-pill-ink: oklch(from var(--lane-color) 0.92 min(calc(c * 2), 0.06) h);
+        --lane-pill-solid: oklch(from var(--lane-color) 0.84 min(calc(c * 3.5), 0.12) h);
+      }
+    }
+    .swimlane.lane-alt { --lane-bg: var(--lane-alt-bg); }
+    .swimlane.lane-hover, .swimlane.lane-selected, .swimlane:has(.flow-node.selected) { --lane-bg: var(--lane-hover-bg); }
     .lane-rail {
       position: absolute;
       top: 0;
@@ -492,7 +478,7 @@
       width: 0;
       z-index: 39;
       pointer-events: none;
-      border-left: var(--rail-b, 3px) solid color-mix(in srgb, var(--lane-color) var(--lane-accent-mix), var(--lane-accent-base));
+      border-left: var(--rail-b, 3px) solid var(--lane-stripe);
     }
     .lane-pill {
       position: absolute;
@@ -501,13 +487,13 @@
       z-index: 40;
       display: inline-flex;
       align-items: center;
-      gap: 5px;
-      max-width: 220px;
-      padding: 2px 9px 2px 7px;
+      gap: 6px;
+      max-width: 260px;
+      padding: 4px 11px 4px 9px;
       border-radius: 999px;
-      background: color-mix(in srgb, var(--lane-color) var(--lane-pill-mix), var(--bg-panel));
-      color: var(--text-soft);
-      font-size: 12px;
+      background: var(--lane-pill-bg);
+      color: var(--lane-pill-ink);
+      font-size: 14px;
       font-weight: 600;
       line-height: 1.3;
       white-space: nowrap;
@@ -524,14 +510,12 @@
     /* The lane under the mouse (or holding the selection) turns its pill solid: a "you are here" marker. The halo
        picks up the same hover wash as the lane, so the ring stays invisible against it. */
     .swimlane.lane-hover .lane-pill,
-    .swimlane:has(.flow-node.selected) .lane-pill {
-      --halo: 0 0 0 5px var(--lane-active-wash), 0 0 0 5px var(--lane-bg);
-      background: color-mix(in srgb, var(--lane-color) var(--lane-solid-mix), var(--lane-solid-base));
+    .swimlane:has(.flow-node.selected) .lane-pill,
+    .swimlane.lane-selected .lane-pill {
+      background: var(--lane-pill-solid);
       color: var(--lane-solid-ink);
     }
-    .lane-pill .lane-icon { width: auto; height: auto; border: none; background: none; border-radius: 0; }
-    .swimlane.lane-hover .lane-pill .lane-icon,
-    .swimlane:has(.flow-node.selected) .lane-pill .lane-icon { color: inherit; }
+    .lane-pill .lane-icon { width: auto; height: auto; border: none; background: none; border-radius: 0; color: inherit; }
     /* Exports draw each pill and stripe at the lane's own top-left, whatever the view, in the resting style */
     body.exporting .lane-pill { transform: translate(12px, 12px) !important; }
     body.exporting .lane-rail { left: 0 !important; border-left-width: 3px !important; }
@@ -588,3 +572,39 @@
       40% { box-shadow: 0 0 0 10px var(--primary-ring); }
       100% { box-shadow: 0 0 0 0 transparent; }
     }
+
+    /* Top-to-bottom ("direction": "TB"): lanes are side-by-side columns, the pill gutter is a band along the top
+       of each column, and the lane stripe runs along the visible top edge (see pinLaneHeaders) */
+    #swimlanes-container.dir-tb { min-width: 0; }
+    #swimlanes-container.dir-tb #lanes-root { display: flex; flex-direction: row; align-items: stretch; }
+    #swimlanes-container.dir-tb .swimlane {
+      flex-direction: column;
+      min-height: 0;
+      border-bottom: none;
+      border-right: 1px dashed var(--border-dark);
+    }
+    #swimlanes-container.dir-tb .swimlane:last-child { border-right: none; }
+    #swimlanes-container.dir-tb .lane-gutter { width: auto; height: var(--lane-gutter, 0px); }
+    #swimlanes-container.dir-tb .lane-track { min-width: 0; }
+    #swimlanes-container.dir-tb .lane-rail {
+      top: var(--rail-y, 0px);
+      bottom: auto;
+      left: 0;
+      right: 0;
+      width: auto;
+      height: 0;
+      border-left: none;
+      border-top: var(--rail-b, 3px) solid var(--lane-stripe);
+    }
+    #swimlanes-container.dir-tb #lane-drop-line { top: 0; left: 0; width: 4px; height: 100%; }
+    #swimlanes-container.dir-tb #lane-drop-line::before { left: -4px; top: -2px; }
+    #swimlanes-container.dir-tb.no-swimlanes .swimlane { border-right: none; }
+    body.exporting #swimlanes-container.dir-tb .lane-rail { top: 0 !important; border-top-width: 3px !important; }
+    /* Columns are narrow, so a long lane name wraps (up to two lines) instead of being cut off */
+    #swimlanes-container.dir-tb .lane-pill { white-space: normal; border-radius: 12px; justify-content: center; }
+    #swimlanes-container.dir-tb .lane-pill .lane-title {
+      display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere;
+    }
+    /* Top-to-bottom: the pill is centred on its column (see pinLaneHeaders), wrapped names too, and so in exports */
+    #swimlanes-container.dir-tb .lane-pill { text-align: center; }
+    body.exporting #swimlanes-container.dir-tb .lane-pill { transform: translate(var(--pill-cx, 12px), 12px) !important; }

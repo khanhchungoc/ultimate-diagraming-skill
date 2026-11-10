@@ -16,7 +16,6 @@
       --bg-hover: #f1f5f9;
       --bg-soft: #e2e8f0;
       --bg-input: #ffffff;
-      --lane-track-tint: rgba(248, 250, 252, 0.35);
       --connector: #94a3b8;
       --edge-label-bg: #ffffff;
       --edge-label-empty-bg: rgba(255, 255, 255, 0.95);
@@ -31,11 +30,9 @@
       --start-bg: #f0f7f3; --start-border: #6aa886; --start-text: #1f4d37;   /* faint sage */
       --end-bg: #1e293b;   --end-border: #0f172a;   --end-text: #f8fafc;
       --task-accent: #475569; --start-accent: #2f7d57; --end-accent: #64748b; --decision-accent: #a16f0b;   /* darker, more saturated edge on hover/select */
-      --lane-active-wash: rgba(15, 23, 42, 0.035);
       --decision-fill: #fbf6e8; --decision-fill-hover: #ffffff; --decision-stroke: #c4a052;   /* faint sand, muted gold edge */
       --decision-text: #6a4a0f;      /* dark ochre on the sand fill (>= 7:1) */
       --node-bg: #ffffff;
-      --lane-tint-track: 0.11;
       --text-soft: #475569;          /* secondary text that must stay readable on --bg-soft (>= 4.5:1) */
       --primary-ring: rgba(37, 99, 235, 0.25);
       --primary-glow: rgba(37, 99, 235, 0.22);
@@ -61,7 +58,6 @@
       --bg-hover: #1a2540;
       --bg-soft: #243049;
       --bg-input: #0b1220;
-      --lane-track-tint: rgba(15, 23, 42, 0.35);
       --connector: #64748b;
       --edge-label-bg: #111a2e;
       --edge-label-empty-bg: rgba(17, 26, 46, 0.95);
@@ -76,11 +72,9 @@
       --start-bg: #14261f; --start-border: #4d9a79; --start-text: #b7e0cd;
       --end-bg: #0b1220;   --end-border: #94a3b8;   --end-text: #f8fafc;
       --task-accent: #cbd5e1; --start-accent: #6fcf9f; --end-accent: #e2e8f0; --decision-accent: #e6bf55;
-      --lane-active-wash: rgba(255, 255, 255, 0.035);
       --decision-fill: #2b2718; --decision-fill-hover: #342f1d; --decision-stroke: #b89a4e;
       --decision-text: #ead7a0;      /* soft sand on the warm dark fill */
       --node-bg: #17223b;
-      --lane-tint-track: 0.05;
       --text-soft: #cbd5e1;
       --primary-ring: rgba(96, 165, 250, 0.4);
       --primary-glow: rgba(96, 165, 250, 0.35);

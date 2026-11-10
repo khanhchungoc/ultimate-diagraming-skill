@@ -52,6 +52,14 @@ Undo/redo lives in the shell: each `updateStatus(true)` snapshots `chartData` (a
 
 Layout lives only in `assets/types/<type>/engine.js`. The page runs it for the Auto-Tidy button; `--layout` runs the same file through Node.js (or headless Chrome if Node is missing), so there is nothing to keep in sync. The Python `--verify` audit routes edges itself to check the result; it never computes layout. If `FlowchartAudit` and the page's renderer ever disagree on a route, trust the render report and fix the audit.
 
+### Flowchart direction (`"direction": "TB"`)
+
+A top-to-bottom flowchart uses the same engine, router and audit as a left-to-right one. Node `x`/`y` are always in **flow terms**: `x` runs along the flow (from the start of the lane track) and `y` across the lane (from its edge). Only the sizes change:
+- `engine.js` `useDirection(data)` switches `LE` to `LE_PROFILES.TB`. Nodes are 80px along the flow and 144px across it.
+- `FlowchartAudit` picks the matching sizes.
+- The renderer turns flow terms into the screen: n.x becomes the screen y and n.y the screen x (`placeNodeEl`, `flowPoint`, `flowToContainer`).
+- `computeAllEdgeRoutes` transposes the node boxes before the route search and the polylines back afterwards (step 5e), so every routing rule is written once, for left to right.
+
 ## Adding a type
 
 1. `assets/types/<type>/` with the files above and a reference in `references/types/<type>.md`.
