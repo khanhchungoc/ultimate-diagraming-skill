@@ -55,9 +55,20 @@ try {
   await t.ev(`document.querySelector('.swimlane:nth-child(2) .lane-pill').click()`);
   const laneSel = await t.ev(`!!document.querySelector('.swimlane:nth-child(2).lane-selected')`);
   await t.ev(t.key('Delete'));
+  // Deleting a lane asks first: the popover names the lane; Cancel (and Escape) keep it
+  const asked = await t.ev(`document.querySelector('.lane-confirm')?.textContent || ''`);
+  await t.ev(`document.querySelector('.lane-confirm-cancel').click()`);
+  const keptOnCancel = (await t.ev(`document.querySelectorAll('.swimlane').length`)) === lanesBefore && !(await t.ev(`!!document.querySelector('.lane-confirm')`));
+  await t.ev(t.key('Delete'));
+  await t.ev(t.key('Escape'));
+  const keptOnEscape = (await t.ev(`document.querySelectorAll('.swimlane').length`)) === lanesBefore && !(await t.ev(`!!document.querySelector('.lane-confirm')`));
+  t.check('deleting a lane asks for confirmation; Cancel and Escape keep the lane', /delete/i.test(asked) && keptOnCancel && keptOnEscape,
+    `asked=${JSON.stringify(asked)} cancel=${keptOnCancel} escape=${keptOnEscape}`);
+  await t.ev(t.key('Delete'));
+  await t.ev(`document.querySelector('.lane-confirm-delete').click()`);
   const lanesAfter = await t.ev(`document.querySelectorAll('.swimlane').length`);
   const nodesAfter = await t.ev(`document.querySelectorAll('.flow-node').length`);
-  t.check('clicking a lane pill selects the lane and Delete removes it with its steps', laneSel && lanesAfter === lanesBefore - 1
+  t.check('clicking a lane pill selects the lane and Delete (confirmed) removes it with its steps', laneSel && lanesAfter === lanesBefore - 1
     && nodesAfter === nodesBefore - laneNodes, `selected=${laneSel} lanes ${lanesBefore}->${lanesAfter} nodes ${nodesBefore}->${nodesAfter} (lane had ${laneNodes})`);
   await t.ev(t.key('z', { ctrlKey: true }));
   t.check('Ctrl+Z restores the deleted lane', (await t.ev(`document.querySelectorAll('.swimlane').length`)) === lanesBefore
@@ -72,9 +83,31 @@ try {
       vis(document.querySelector('.swimlane:nth-child(1) .lane-tools'))];
   })()`);
   await t.ev(`document.querySelector('.swimlane:nth-child(2) .lane-tool-delete').click()`);
+  await t.ev(`document.querySelector('.lane-confirm-delete').click()`);
   const lanesAfterTool = await t.ev(`document.querySelectorAll('.swimlane').length`);
-  t.check('hovering a lane shows reorder + delete under its pill (only that lane), and delete removes the lane',
+  t.check('hovering a lane shows reorder + delete under its pill (only that lane), and delete (confirmed) removes the lane',
     toolsShown[0] && toolsShown[1] && !toolsShown[2] && lanesAfterTool === lanesBefore - 1, `${JSON.stringify(toolsShown)} lanes=${lanesAfterTool}`);
+  await t.ev(t.key('z', { ctrlKey: true }));
+
+  // 2e. A real (native, trusted) drag of the reorder grip moves the lane: mouse press on the grip, move down past the
+  // third lane, release (Chrome runs the HTML5 drag-and-drop itself)
+  const gripNames = `[...document.querySelectorAll('.lane-title')].map(e => e.textContent)`;
+  const namesBefore = await t.ev(gripNames);
+  const [gx, gy, tx, ty] = await t.ev(`(() => {
+    const L = document.querySelectorAll('.swimlane'), r = L[0].getBoundingClientRect();
+    L[0].dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: r.left + 400, clientY: r.top + 40 }));
+    const g = L[0].querySelector('.lane-tool-move').getBoundingClientRect(), d = L[2].getBoundingClientRect();
+    return [g.left + g.width / 2, g.top + g.height / 2, d.left + 400, d.bottom - 10];
+  })()`);
+  const mouse = (type, x, y, buttons = 1) => t.send('Input.dispatchMouseEvent', { type, x, y, button: 'left', buttons, clickCount: 1 });
+  await mouse('mouseMoved', gx, gy, 0);
+  await mouse('mousePressed', gx, gy);
+  for (let k = 1; k <= 20; k++) await mouse('mouseMoved', gx + (tx - gx) * k / 20, gy + (ty - gy) * k / 20);
+  await mouse('mouseReleased', tx, ty, 0);
+  await new Promise((r) => setTimeout(r, 300));
+  const namesAfter = await t.ev(gripNames);
+  t.check('dragging the reorder grip moves the lane (real mouse drag)', namesAfter[2] === namesBefore[0] && namesAfter[0] === namesBefore[1],
+    `${JSON.stringify(namesBefore)} -> ${JSON.stringify(namesAfter)}`);
   await t.ev(t.key('z', { ctrlKey: true }));
 
   // 3. Background click clears selection (shell pointerdown -> plugin.isBackground/clearSelection); Escape is safe

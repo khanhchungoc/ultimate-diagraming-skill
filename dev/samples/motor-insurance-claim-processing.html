@@ -952,8 +952,8 @@
     }
     .swimlane.lane-hover .lane-tools,
     .swimlane.lane-selected .lane-tools { display: flex; }
+    /* (not hidden while the lane is dragged: removing the drag source from layout makes Chrome cancel the drag) */
     .lane-pill.editing .lane-tools,
-    .swimlane.lane-dragging .lane-tools,
     body.exporting .lane-tools { display: none !important; }
     .lane-tool {
       width: 28px;
@@ -976,6 +976,27 @@
     .lane-tool-delete { cursor: pointer; font: inherit; }
     .lane-tool-delete:hover { background: var(--danger); border-color: var(--danger); color: #ffffff; }
     #swimlanes-container.dir-tb .lane-tools { left: 50%; transform: translateX(-50%); }
+    /* Confirmation popover for deleting a lane (screen-fixed, outside the zoomed canvas) */
+    .lane-confirm {
+      position: fixed;
+      z-index: 2000;
+      width: 260px;
+      box-sizing: border-box;
+      padding: 14px 14px 12px;
+      border-radius: 10px;
+      border: 1px solid var(--border-dark);
+      background: var(--bg-panel);
+      color: var(--text-main);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.18);
+      font-size: 13px;
+      line-height: 1.4;
+    }
+    .lane-confirm-title { font-weight: 600; font-size: 14px; margin-bottom: 4px; overflow-wrap: anywhere; }
+    .lane-confirm-msg { color: var(--text-soft); margin-bottom: 12px; }
+    .lane-confirm-actions { display: flex; justify-content: flex-end; gap: 8px; }
+    .lane-confirm .btn { padding: 6px 12px; font-size: 13px; }
+    .lane-confirm-delete { background: var(--danger); border-color: var(--danger); color: #ffffff; }
+    .lane-confirm-delete:hover { filter: brightness(0.92); background: var(--danger); color: #ffffff; }
     .lane-pill .lane-icon { width: auto; height: auto; border: none; background: none; border-radius: 0; color: inherit; }
     /* Exports draw each pill and stripe at the lane's own top-left, whatever the view, in the resting style */
     body.exporting .lane-pill { transform: translate(12px, 12px) !important; }
@@ -1201,8 +1222,8 @@
       <li><kbd>Click or Drag Port</kbd> : Connect two steps with an arrow</li>
       <li><kbd>Double-Click Arrow</kbd> : Add or edit arrow label (or click <kbd>+ Add Label</kbd>)</li>
       <li><kbd>Delete</kbd> : Delete the selected step, arrow or lane</li>
-      <li><kbd>Hover a Lane</kbd> : Shows a reorder grip (drag it) and a delete button under the lane name</li>
-      <li><kbd>Click Lane Name</kbd> : Select the lane; <kbd>Delete</kbd> then removes it with its steps and their arrows (undo brings them back; the last lane stays)</li>
+      <li><kbd>Hover a Lane</kbd> : Shows a reorder grip (drag it) and a delete button (asks to confirm) under the lane name</li>
+      <li><kbd>Click Lane Name</kbd> : Select the lane; <kbd>Delete</kbd> then asks to confirm and removes it with its steps and their arrows (undo brings them back; the last lane stays)</li>
       <li><kbd>Drag Node</kbd> : Move inside lane or drop into another lane; snaps to other steps' centers and lane centers (dashed guide)</li>
       <li><kbd>Vertical / Horizontal</kbd> : Switch between a left-to-right and a top-to-bottom layout (lanes become columns); saved with the file</li>
       <li><kbd>Drag Lane Name</kbd> : Drag a lane's name pill to reorder swimlanes (a blue line shows where it will land); double-click the name to rename</li>
@@ -3537,7 +3558,7 @@ const TYPE_ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\
               del.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M6 6l1 14h10l1-14"/><path d="M10 11v6M14 11v6"/></svg>';
               del.addEventListener('pointerdown', (e) => e.stopPropagation());
               del.addEventListener('dragstart', (e) => { e.preventDefault(); e.stopPropagation(); });
-              del.addEventListener('click', (e) => { e.stopPropagation(); deleteLane(lane.id); });
+              del.addEventListener('click', (e) => { e.stopPropagation(); confirmDeleteLane(lane.id, del); });
               tools.appendChild(del);
             }
             pill.appendChild(tools);
@@ -3574,11 +3595,13 @@ const TYPE_ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\
           });
 
           // Drag the pill to reorder; a blue line shows where the lane will land
+          // (also from the reorder grip under it, which is inside the pill)
           pill.addEventListener('dragstart', (e) => {
             laneDragFrom = index;
             e.dataTransfer.effectAllowed = 'move';
             e.dataTransfer.setData('text/plain', String(index));
-            laneEl.classList.add('lane-dragging');
+            // Restyle after dragstart returns: Chrome cancels a drag whose source changes under the cursor during it
+            setTimeout(() => { if (laneDragFrom === index) laneEl.classList.add('lane-dragging'); }, 0);
           });
           pill.addEventListener('dragend', endLaneDrag);
 
@@ -5718,6 +5741,66 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         render();
       }
 
+      // Deleting a lane also deletes its steps, so it is confirmed first: a small popover under the delete button
+      // (or under the lane's pill for the Delete key). Escape, Cancel, a click elsewhere or a pan/zoom dismisses it.
+      let laneConfirmEl = null;
+      function closeLaneConfirm() {
+        if (!laneConfirmEl) return false;
+        laneConfirmEl.remove();
+        laneConfirmEl = null;
+        document.removeEventListener('pointerdown', onLaneConfirmOutside, true);
+        return true;
+      }
+      function onLaneConfirmOutside(e) {
+        if (laneConfirmEl && !laneConfirmEl.contains(e.target)) closeLaneConfirm();
+      }
+      function confirmDeleteLane(laneId, anchorEl) {
+        closeLaneConfirm();
+        const lane = chartData.lanes.find(l => l.id === laneId);
+        if (!lane || chartData.lanes.length <= 1) return;
+        const steps = chartData.nodes.filter(n => n.laneId === laneId).length;
+        const box = document.createElement('div');
+        box.className = 'lane-confirm';
+        box.dataset.exportSkip = '';
+        box.setAttribute('role', 'alertdialog');
+        box.setAttribute('aria-label', 'Delete swimlane');
+        const title = document.createElement('div');
+        title.className = 'lane-confirm-title';
+        title.textContent = `Delete \u201c${lane.name}\u201d?`;
+        const msg = document.createElement('div');
+        msg.className = 'lane-confirm-msg';
+        msg.textContent = steps ? `Its ${steps} step${steps === 1 ? '' : 's'} and their arrows will be deleted too.` : 'This lane is empty.';
+        const row = document.createElement('div');
+        row.className = 'lane-confirm-actions';
+        const cancel = document.createElement('button');
+        cancel.type = 'button';
+        cancel.className = 'btn lane-confirm-cancel';
+        cancel.textContent = 'Cancel';
+        cancel.addEventListener('click', () => closeLaneConfirm());
+        const ok = document.createElement('button');
+        ok.type = 'button';
+        ok.className = 'btn lane-confirm-delete';
+        ok.textContent = 'Delete lane';
+        ok.addEventListener('click', () => { closeLaneConfirm(); deleteLane(laneId); });
+        row.append(cancel, ok);
+        box.append(title, msg, row);
+        box.addEventListener('keydown', (e) => {
+          // Keep keys inside the popover from reaching the shell (Delete/Backspace would re-open it)
+          if (e.key === 'Escape') { e.preventDefault(); closeLaneConfirm(); }
+          if (e.key !== 'Tab') e.stopPropagation();
+        });
+        document.body.appendChild(box);
+        laneConfirmEl = box;
+        // Under the anchor (the delete button, else the lane's pill), kept on screen
+        const anchor = anchorEl || lanesRoot.querySelector(`.swimlane[data-lane-id="${laneId}"] .lane-pill`);
+        const r = anchor ? anchor.getBoundingClientRect() : { left: innerWidth / 2, bottom: innerHeight / 3 };
+        const bw = box.offsetWidth, bh = box.offsetHeight;
+        box.style.left = `${Math.max(8, Math.min(r.left, innerWidth - bw - 8))}px`;
+        box.style.top = `${Math.max(8, Math.min(r.bottom + 8, innerHeight - bh - 8))}px`;
+        cancel.focus();
+        document.addEventListener('pointerdown', onLaneConfirmOutside, true);
+      }
+
       function selectNode(nodeId) {
         selectedNodeId = nodeId;
         selectedEdgeId = null;
@@ -6073,15 +6156,16 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           renderEdges();
         },
         cancelInteraction() {
+          if (closeLaneConfirm()) return true;
           const wasConnecting = !!connectingFromNodeId;
           cancelConnecting();
           return cancelPaletteDrag() || wasConnecting;
         },
-        onViewChange: pinLaneHeaders,
+        onViewChange() { closeLaneConfirm(); pinLaneHeaders(); },
         deleteSelection() {
           if (selectedNodeId) deleteNode(selectedNodeId);
           else if (selectedEdgeId) deleteEdge(selectedEdgeId);
-          else if (selectedLaneId) deleteLane(selectedLaneId);
+          else if (selectedLaneId) confirmDeleteLane(selectedLaneId);
         }
       });
       loadInitialData();

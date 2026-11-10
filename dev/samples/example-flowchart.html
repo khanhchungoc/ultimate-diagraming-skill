@@ -1222,8 +1222,8 @@
       <li><kbd>Click or Drag Port</kbd> : Connect two steps with an arrow</li>
       <li><kbd>Double-Click Arrow</kbd> : Add or edit arrow label (or click <kbd>+ Add Label</kbd>)</li>
       <li><kbd>Delete</kbd> : Delete the selected step, arrow or lane</li>
-      <li><kbd>Hover a Lane</kbd> : Shows a reorder grip (drag it) and a delete button under the lane name</li>
-      <li><kbd>Click Lane Name</kbd> : Select the lane; <kbd>Delete</kbd> then removes it with its steps and their arrows (undo brings them back; the last lane stays)</li>
+      <li><kbd>Hover a Lane</kbd> : Shows a reorder grip (drag it) and a delete button (asks to confirm) under the lane name</li>
+      <li><kbd>Click Lane Name</kbd> : Select the lane; <kbd>Delete</kbd> then asks to confirm and removes it with its steps and their arrows (undo brings them back; the last lane stays)</li>
       <li><kbd>Drag Node</kbd> : Move inside lane or drop into another lane; snaps to other steps' centers and lane centers (dashed guide)</li>
       <li><kbd>Vertical / Horizontal</kbd> : Switch between a left-to-right and a top-to-bottom layout (lanes become columns); saved with the file</li>
       <li><kbd>Drag Lane Name</kbd> : Drag a lane's name pill to reorder swimlanes (a blue line shows where it will land); double-click the name to rename</li>
@@ -3067,11 +3067,13 @@ const TYPE_ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\
           });
 
           // Drag the pill to reorder; a blue line shows where the lane will land
+          // (also from the reorder grip under it, which is inside the pill)
           pill.addEventListener('dragstart', (e) => {
             laneDragFrom = index;
             e.dataTransfer.effectAllowed = 'move';
             e.dataTransfer.setData('text/plain', String(index));
-            laneEl.classList.add('lane-dragging');
+            // Restyle after dragstart returns: Chrome cancels a drag whose source changes under the cursor during it
+            setTimeout(() => { if (laneDragFrom === index) laneEl.classList.add('lane-dragging'); }, 0);
           });
           pill.addEventListener('dragend', endLaneDrag);
 
