@@ -77,12 +77,10 @@
       // --- LANE NAME PILLS ---
       // Each lane is labelled by a pill (icon + name) at the visible top-left of the lane, with a lane-colour
       // stripe at the visible left edge. They follow the view: when the canvas is panned right they stay at the
-      // viewport's left edge (plus a soft fade behind the pill, so clipped nodes and arrows there fade out), and the
-      // pill follows a lane taller than the screen. The pill scales with the diagram exactly like a node, so the lane
-      // gutter (sizeLaneGutter) keeps it clear of every node at any zoom. Called after every render and, via
-      // plugin.onViewChange, after every pan/zoom.
+      // viewport's left edge, and the pill follows a lane taller than the screen. The pill scales with the diagram
+      // exactly like a node, so the lane gutter (sizeLaneGutter) keeps it clear of every node at any zoom. Called
+      // after every render and, via plugin.onViewChange, after every pan/zoom.
       const PILL_INSET = 12;     // diagram px from the visible left edge / the lane's visible top
-      const FADE_W = 230, FADE_H = 64;   // screen px: half-axes of the oval fade centred on the pill
       function pinLaneHeaders() {
         if (chartData.swimlanes === false) { swimlanesContainer.classList.remove('lanes-pinned'); return; }
         const left = swimlanesContainer.offsetLeft + swimlanesContainer.clientLeft;   // container origin, stage coords
@@ -94,10 +92,7 @@
         const inset = PILL_INSET;
         const cs = swimlanesContainer.style;
         cs.setProperty('--rail-x', `${x0}px`);
-        cs.setProperty('--rail-w', `${FADE_W / scale}px`);
         cs.setProperty('--rail-b', `${3 / scale}px`);
-        cs.setProperty('--fade-w', `${FADE_W / scale}px`);
-        cs.setProperty('--fade-h', `${FADE_H / scale}px`);
         cs.setProperty('--pill-x', `${x0 + inset}px`);
         lanesRoot.querySelectorAll('.swimlane').forEach(laneEl => {
           const pill = laneEl.querySelector('.lane-pill');
@@ -106,7 +101,6 @@
           const maxY = Math.max(inset, laneEl.offsetHeight - pillH - inset);
           const y = Math.min(Math.max(visTop - laneEl.offsetTop + inset, inset), maxY);
           laneEl.style.setProperty('--pill-y', `${y}px`);
-          laneEl.style.setProperty('--fade-cy', `${y + pillH / 2}px`);
         });
       }
 
