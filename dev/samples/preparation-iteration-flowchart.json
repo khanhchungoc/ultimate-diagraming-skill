@@ -697,7 +697,7 @@
       "id": "e_join_test",
       "from": "n_test_ready",
       "to": "n_join_sync",
-      "label": "Yes"
+      "label": ""
     },
     {
       "id": "e_join_ops",
@@ -709,13 +709,13 @@
       "id": "e_join_dev",
       "from": "n_dev_ready",
       "to": "n_join_sync",
-      "label": "Yes"
+      "label": ""
     },
     {
       "id": "e_join_ba",
       "from": "n_ba_ready",
       "to": "n_join_sync",
-      "label": "Yes"
+      "label": ""
     },
     {
       "id": "e_end",

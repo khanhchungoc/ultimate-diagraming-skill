@@ -36,7 +36,7 @@ Never add pixel coordinates (`x`, `y`); `--layout` computes them.
 ## Writing rules
 
 1. **Verb + Noun** for tasks (`"Validate Order"`, not `"The order needs to be validated"`).
-2. **Decisions end in `?`** (`"Docs Complete?"`) and every outgoing branch is labeled.
+2. **Decisions end in `?`** (`"Docs Complete?"`) and every outgoing branch is labeled. Only decision branches get `Yes`/`No` labels: an edge leaving a step is `""` (`--verify` warns about a `Yes`/`No` on a step).
 3. **One owner per node**: place each node in the lane of the actor who performs it.
 4. Keep labels short; long edge labels wrap, but long node labels shrink the fitted text.
 5. One lane per distinct actor or system.

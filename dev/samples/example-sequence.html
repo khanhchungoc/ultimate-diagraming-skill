@@ -814,7 +814,7 @@
         const minEdgeFontPx = effPx(plugin.report.labelText);
         const MIN_PX = parseFloat(new URLSearchParams(window.location.search).get('minpx')) || 11;
         const legibility = [];
-        if (minNodeFontPx !== null && minNodeFontPx < MIN_PX) legibility.push(`Node text renders at ${minNodeFontPx}px at Fit zoom (${Math.round(scale * 100)}%), below the ${MIN_PX}px minimum. Reduce columns/nodes or split the diagram.`);
+        if (minNodeFontPx !== null && minNodeFontPx < MIN_PX) legibility.push(`Node text renders at ${minNodeFontPx}px at Fit zoom (${Math.round(scale * 100)}%), below the ${MIN_PX}px minimum.`);
         if (minEdgeFontPx !== null && minEdgeFontPx < MIN_PX) legibility.push(`Edge labels render at ${minEdgeFontPx}px at Fit zoom, below the ${MIN_PX}px minimum.`);
         const report = {
           viewport: { w: window.innerWidth, h: window.innerHeight },

@@ -1293,7 +1293,7 @@
         const minEdgeFontPx = effPx(plugin.report.labelText);
         const MIN_PX = parseFloat(new URLSearchParams(window.location.search).get('minpx')) || 11;
         const legibility = [];
-        if (minNodeFontPx !== null && minNodeFontPx < MIN_PX) legibility.push(`Node text renders at ${minNodeFontPx}px at Fit zoom (${Math.round(scale * 100)}%), below the ${MIN_PX}px minimum. Reduce columns/nodes or split the diagram.`);
+        if (minNodeFontPx !== null && minNodeFontPx < MIN_PX) legibility.push(`Node text renders at ${minNodeFontPx}px at Fit zoom (${Math.round(scale * 100)}%), below the ${MIN_PX}px minimum.`);
         if (minEdgeFontPx !== null && minEdgeFontPx < MIN_PX) legibility.push(`Edge labels render at ${minEdgeFontPx}px at Fit zoom, below the ${MIN_PX}px minimum.`);
         const report = {
           viewport: { w: window.innerWidth, h: window.innerHeight },
@@ -2886,8 +2886,8 @@
 
         // 5a1. Spread arrows that share one contact point on a top/bottom side: several entries from
         // different sources, or several exits to different targets, would otherwise merge into a single
-        // line. They get 14px apart (a straight, aligned arrow keeps the centre and the others move away).
-        const SPREAD = 14;
+        // line. They get 24px apart (a straight, aligned arrow keeps the centre and the others move away).
+        const SPREAD = 24;
         Object.keys(rects).forEach(nid => {
           const r = rects[nid];
           [['top', r.y], ['bottom', r.y + r.h]].forEach(([side, edgeY]) => {
@@ -2951,6 +2951,61 @@
             const shift = (x, d) => { edgePolylines[x.e.id][x.a][ai] += d; edgePolylines[x.e.id][x.b][ai] += d; };
             ins.forEach(x => shift(x, insLow ? -SHIFT : SHIFT));
             outs.forEach(x => shift(x, insLow ? SHIFT : -SHIFT));
+          });
+        });
+
+        // 5a3. Arrowhead clearance on top/bottom sides. Every contact point (entry or exit) on one side
+        // must be at least CLEAR px from the next one. 5a1/5a2 leave gaps they cannot see: a straight,
+        // aligned arrow keeps the side's centre and was exempt, so a neighbouring arrowhead could land
+        // 3px from it. Straight arrows stay where they are; the others slide to the side their other end
+        // lies on. Edges that merge on purpose (same role, same other node, same spot) move together.
+        const CLEAR = 24;
+        Object.keys(rects).forEach(nid => {
+          const r = rects[nid];
+          [['top', r.y], ['bottom', r.y + r.h]].forEach(([side, edgeY]) => {
+            const units = new Map();
+            validEdges.forEach(e => {
+              const pts = edgePolylines[e.id];
+              if (!pts) return;
+              const n = pts.length;
+              const add = (role, a, b, peer, far) => {
+                const key = role + '|' + peer + '|' + Math.round(pts[a][0]);
+                if (!units.has(key)) units.set(key, { x: pts[a][0], fixed: false, far, ends: [] });
+                const u = units.get(key);
+                u.ends.push({ pts, a, b });
+                if (n < 3) u.fixed = true;
+              };
+              if (e.from === nid && Math.abs(pts[0][1] - edgeY) < 1 && Math.abs(pts[0][0] - pts[1][0]) < 1) add('out', 0, 1, e.to, pts[n - 1][0]);
+              if (e.to === nid && Math.abs(pts[n - 1][1] - edgeY) < 1 && Math.abs(pts[n - 1][0] - pts[n - 2][0]) < 1) add('in', n - 1, n - 2, e.from, pts[0][0]);
+            });
+            const sorted = [...units.values()].sort((u1, u2) => u1.x - u2.x);
+            const lo = r.x + 14, hi = r.x + r.w - 14;
+            const place = (u, nx) => {
+              const x = Math.max(lo, Math.min(hi, nx));
+              u.ends.forEach(en => { en.pts[en.a][0] = x; en.pts[en.b][0] = x; });
+              u.x = x;
+            };
+            let i = 0;
+            while (i < sorted.length) {
+              let j = i + 1;
+              while (j < sorted.length && sorted[j].x - sorted[j - 1].x < CLEAR - 0.5) j++;
+              const cluster = sorted.slice(i, j);
+              i = j;
+              const fixed = cluster.filter(u => u.fixed);
+              const movable = cluster.filter(u => !u.fixed).sort((u1, u2) => u1.far - u2.far);
+              if (cluster.length < 2 || !movable.length) continue;
+              if (!fixed.length) {
+                const mean = cluster.reduce((s2, u) => s2 + u.x, 0) / cluster.length;
+                movable.forEach((u, k) => place(u, mean + (k - (movable.length - 1) / 2) * CLEAR));
+              } else {
+                const fMin = Math.min(...fixed.map(u => u.x)), fMax = Math.max(...fixed.map(u => u.x));
+                const anchor = (fMin + fMax) / 2;
+                const left = movable.filter(u => u.far < anchor - 1).sort((u1, u2) => u2.far - u1.far);
+                const right = movable.filter(u => !(u.far < anchor - 1));
+                left.forEach((u, k) => place(u, fMin - CLEAR * (k + 1)));
+                right.forEach((u, k) => place(u, fMax + CLEAR * (k + 1)));
+              }
+            }
           });
         });
 
@@ -3027,7 +3082,10 @@
           const otherObstacles = verticalSegments.filter(obs => {
             if (obs.edgeId === e.id) return false;
             const otherE = chartData.edges.find(ed => ed.id === obs.edgeId);
-            if (otherE && (otherE.from === e.from || otherE.to === e.to)) return false;
+            // Forks (same source) and true merges (same target, same entry side) meet on purpose. Two arrows
+            // into one node through different sides are separate lines, so where they cross, one hops.
+            if (otherE && otherE.from === e.from) return false;
+            if (otherE && otherE.to === e.to && edgePorts[otherE.id] && edgePorts[otherE.id].toPort === p.toPort) return false;
             return true;
           });
 
@@ -3187,6 +3245,19 @@
           candidates.push({ x: (p2[0] + p3[0]) / 2, y: p2[1] });
         }
 
+        // Fallback spots along every long segment, tried after the preferred ones above (middle outwards,
+        // 22px clear of corners). Without them a label whose one preferred spot sits on a crossing or
+        // junction had nowhere else to go and stayed on it.
+        for (let i = 0; i < points.length - 1; i++) {
+          const p = points[i], q = points[i + 1];
+          const len = Math.abs(q[0] - p[0]) + Math.abs(q[1] - p[1]);
+          if (len < 56) continue;
+          for (const t of [0.5, 0.35, 0.65, 0.25, 0.75, 0.15, 0.85]) {
+            if (len * t < 22 || len * (1 - t) < 22) continue;
+            candidates.push({ x: p[0] + (q[0] - p[0]) * t, y: p[1] + (q[1] - p[1]) * t });
+          }
+        }
+
         const textLen = labelText ? labelText.trim().length : 0;
         const singleLineWidth = Math.max(40, textLen * 7.2 + 18);
         let lw = singleLineWidth;
@@ -3221,46 +3292,36 @@
           );
         }
 
+        // The first spot that touches nothing wins. When every spot touches something, take the least bad one
+        // (a node or another label is far worse than sitting on another arrow) instead of the first.
+        let fallback = null;
         for (const cand of candidates) {
           const bx = cand.x - lw / 2;
           const by = cand.y - lh / 2;
-          let collides = false;
+          let penalty = 0;
 
           for (const nb of nodeBoxes) {
-            if (BoxOverlap(bx, by, lw, lh, nb.x, nb.y, nb.w, nb.h, 8)) {
-              collides = true;
-              break;
-            }
+            if (BoxOverlap(bx, by, lw, lh, nb.x, nb.y, nb.w, nb.h, 8)) penalty += 1000;
           }
-          if (!collides) {
-            for (const pl of placedLabels) {
-              if (BoxOverlap(bx, by, lw, lh, pl.x, pl.y, pl.w, pl.h, 6)) {
-                collides = true;
-                break;
-              }
-            }
+          for (const pl of placedLabels) {
+            if (BoxOverlap(bx, by, lw, lh, pl.x, pl.y, pl.w, pl.h, 6)) penalty += 1000;
           }
-          if (!collides && otherPolylines) {
+          if (otherPolylines) {
             for (const poly of otherPolylines) {
               for (let i = 0; i < poly.length - 1; i++) {
                 const sx = Math.min(poly[i][0], poly[i + 1][0]);
                 const sy = Math.min(poly[i][1], poly[i + 1][1]);
                 const sw = Math.abs(poly[i + 1][0] - poly[i][0]);
                 const sh = Math.abs(poly[i + 1][1] - poly[i][1]);
-                if (BoxOverlap(bx, by, lw, lh, sx, sy, sw, sh, 6)) {
-                  collides = true;
-                  break;
-                }
+                if (BoxOverlap(bx, by, lw, lh, sx, sy, sw, sh, 6)) penalty += 10;
               }
-              if (collides) break;
             }
           }
-          if (!collides) {
-            return cand;
-          }
+          if (penalty === 0) return cand;
+          if (!fallback || penalty < fallback.penalty) fallback = { cand, penalty };
         }
 
-        return candidates[0] || { x: points[0][0], y: points[0][1] };
+        return fallback ? fallback.cand : (candidates[0] || { x: points[0][0], y: points[0][1] });
       }
 
       function renderEdges() {

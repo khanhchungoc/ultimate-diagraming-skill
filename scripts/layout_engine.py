@@ -242,7 +242,7 @@ class FlowchartAudit:
 
         max_x = max((float(n.get("x", 0)) for n in self.nodes), default=float(START_X))
         column_count = int(round((max_x - START_X) / DEFAULT_COL_WIDTH)) + 1
-        budget_warnings: List[str] = []
+        budget_warnings: List[str] = self._outcome_label_warnings()
 
         return {
             "passed": passed,
@@ -264,6 +264,26 @@ class FlowchartAudit:
             "column_count": column_count,
             "budget_warnings": budget_warnings,
         }
+
+    OUTCOME_LABELS = {"yes", "no", "true", "false", "y", "n"}
+
+    def _outcome_label_warnings(self, limit: int = 5) -> List[str]:
+        """Yes/No labels belong on the branches of a decision. On an edge leaving a step they read as a
+        question nobody asked, and the renderer draws them exactly like real outcomes."""
+        stray = []
+        for edge in self.edges:
+            label = str(edge.get("label", "")).strip().lower().rstrip("?")
+            src = self.node_map.get(edge.get("from"))
+            if label in self.OUTCOME_LABELS and src and src.get("type") != "decision":
+                dst = self.node_map.get(edge.get("to"), {})
+                stray.append(
+                    f"Edge '{edge.get('id')}' ({src.get('label', src['id'])} -> {dst.get('label', edge.get('to'))}) "
+                    f"is labelled '{edge.get('label')}' but leaves a {src.get('type', 'task')}, not a decision. "
+                    f"Clear the label, or make the source a decision."
+                )
+        if len(stray) > limit:
+            stray = stray[:limit] + [f"... and {len(stray) - limit} more edges labelled Yes/No that do not leave a decision."]
+        return stray
 
     def _count_crossings_from_polylines(
         self, polylines: Dict[str, List[Tuple[float, float]]]

@@ -57,7 +57,8 @@ Expect from the user or an orchestrating agent: the diagram content (actors, ste
    python "<skill-dir>/scripts/render_screenshot.py" --input <target.html> --output <temp_path.png>
    ```
    - **Exit 3, `[ERROR]` overlap**: an edge label overlaps another label or a node. Fix it and re-run.
-   - Text size is reported for visibility. For large diagrams (> 12 nodes or > 7 columns), users view and explore them interactively using pan and zoom on the HTML canvas.
+   - **Exit 4, `[ERROR]` text size**: in a diagram of 12 nodes or fewer, text renders below 11px at Fit. Shorten labels, drop steps or columns, or split it, then re-run.
+   - For large diagrams (> 12 nodes), small text at Fit is only an `[INFO]` line: users view and explore them interactively using pan and zoom on the HTML canvas.
    - **`[WARN] Layout report unavailable`**: the browser returned no DOM (seen with Edge, and rarely on a cold Chrome start). Chrome is tried first; pass `--browser <path-to-chrome>` or do the checks by eye and say so in the report.
    - If the render itself fails, read the error: it names the browser used; retry with `--browser <path>` or a larger `--timeout`. If no browser is available, report that the visual review could not be run instead of skipping it silently.
 

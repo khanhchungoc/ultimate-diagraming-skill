@@ -5,7 +5,8 @@
    size at the "Fit" zoom, natural diagram size).
 2. Captures a clean PNG: editing controls hidden, cropped to the diagram, 2x by default.
 
-Exit codes: 0 ok, 1 render failure, 3 edge-label overlap, 4 text below --min-text-px.
+Exit codes: 0 ok, 1 render failure, 3 edge-label overlap, 4 text below --min-text-px (diagrams of 12 nodes
+or fewer; larger diagrams are read with pan and zoom, so for them it is only an [INFO] line).
 Zero external dependencies (standard library Python 3 + system Chrome/Edge).
 """
 
@@ -38,6 +39,9 @@ BROWSER_NAMES = (
     "msedge",
     "microsoft-edge",
 )
+
+# Diagrams above this size are explored with pan and zoom, so small text at Fit is not an error for them.
+SINGLE_SCREEN_MAX_NODES = 12
 
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 POLL_INTERVAL = 0.2
@@ -215,7 +219,8 @@ def main() -> int:
     parser.add_argument("--max-width", type=int, default=1600,
                         help="Widest the cropped screenshot is laid out, in CSS px (default: 1600)")
     parser.add_argument("--min-text-px", type=float, default=11.0,
-                        help="Fail (exit 4) when text renders smaller than this at Fit zoom on --viewport (default: 11)")
+                        help="Fail (exit 4) when text renders smaller than this at Fit zoom on --viewport, for diagrams of 12 nodes or fewer; "
+                             "larger ones only get an [INFO] line (default: 11)")
     parser.add_argument("--full-window", action="store_true",
                         help="Screenshot the whole viewport instead of cropping to the diagram")
     parser.add_argument("--no-report", action="store_true",
@@ -269,11 +274,20 @@ def main() -> int:
         print(f"[WARN] {msg}")
     for msg in report["errors"]:
         print(f"[ERROR] {msg}")
-    for msg in report.get("legibility", []):
-        print(f"[INFO] {msg}")
+    # Small text is a defect in a diagram meant to be read on one screen, and expected in a large one
+    # that is explored with pan and zoom (SKILL.md: more than 12 nodes). Only the first fails the run.
+    legibility = report.get("legibility", [])
+    single_screen = report.get("nodeCount", 0) <= SINGLE_SCREEN_MAX_NODES
+    for msg in legibility:
+        if single_screen:
+            print(f"[ERROR] {msg} Shorten labels, drop steps or columns, or split the diagram.")
+        else:
+            print(f"[INFO] {msg} Large diagram ({report['nodeCount']} nodes): read it with pan and zoom.")
     if report["errors"]:
         return 3
     print("[PASS] No edge-label overlaps detected.")
+    if legibility and single_screen:
+        return 4
     return 0
 
 
