@@ -748,7 +748,6 @@
     .flow-node.type-end:hover, .flow-node.type-end.selected { border-color: var(--node-accent); }
     .flow-node.type-decision:hover .diamond-poly {
       stroke: var(--node-accent);
-      fill: var(--decision-fill-hover);
     }
     .flow-node.type-decision.selected .diamond-poly {
       stroke: var(--node-accent);
@@ -1952,6 +1951,38 @@
       window.addEventListener('keydown', (e) => { if (e.key === 'Escape') setExportOpen(false); });
 
       // --- SAVE MECHANISM (Direct to HTML File) ---
+      // Remember the file handle per page URL (IndexedDB) so a reopened diagram
+      // can save straight back to its file without showing the folder dialog.
+      function handleDb() {
+        return new Promise((resolve, reject) => {
+          const req = indexedDB.open('ultimate-diagram', 1);
+          req.onupgradeneeded = () => req.result.createObjectStore('handles');
+          req.onsuccess = () => resolve(req.result);
+          req.onerror = () => reject(req.error);
+        });
+      }
+      async function loadStoredHandle() {
+        try {
+          const db = await handleDb();
+          const h = await new Promise((resolve, reject) => {
+            const r = db.transaction('handles').objectStore('handles').get(location.href);
+            r.onsuccess = () => resolve(r.result || null);
+            r.onerror = () => reject(r.error);
+          });
+          if (!h) return null;
+          const opts = { mode: 'readwrite' };
+          if ((await h.queryPermission(opts)) === 'granted') return h;
+          if ((await h.requestPermission(opts)) === 'granted') return h;
+        } catch (_) {}
+        return null;
+      }
+      async function storeHandle(h) {
+        try {
+          const db = await handleDb();
+          db.transaction('handles', 'readwrite').objectStore('handles').put(h, location.href);
+        } catch (_) {}
+      }
+
       async function saveToFile() {
         chartData.title = chartTitleEl.textContent.trim();
         const updatedJson = JSON.stringify(chartData, null, 2);
@@ -1978,15 +2009,27 @@
 
         if ('showSaveFilePicker' in window) {
           try {
+            if (!fileHandle) fileHandle = await loadStoredHandle();
             if (!fileHandle) {
-              const suggested = (chartData.title || plugin.id).toLowerCase().replace(/[^a-z0-9_-]/g, '-') + '.html';
+              // Browsers cannot read a page's own folder, so reuse the current file name
+              // (saving over it) and a stable picker id so the dialog reopens in the
+              // last folder used for diagrams.
+              let currentName = '';
+              try {
+                currentName = decodeURIComponent(location.pathname.split('/').pop() || '');
+              } catch (_) {}
+              const suggested = /\.html?$/i.test(currentName)
+                ? currentName
+                : (chartData.title || plugin.id).toLowerCase().replace(/[^a-z0-9_-]/g, '-') + '.html';
               fileHandle = await window.showSaveFilePicker({
+                id: 'ultimate-diagram-save',
                 suggestedName: suggested,
                 types: [{
                   description: 'HTML Diagram File',
                   accept: { 'text/html': ['.html'] }
                 }]
               });
+              storeHandle(fileHandle);
             }
 
             const writable = await fileHandle.createWritable();
