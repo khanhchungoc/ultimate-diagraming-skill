@@ -23,33 +23,41 @@
 
     <div class="toolbar-right">
       <button id="btn-undo" class="btn btn-icon" title="Undo (Ctrl+Z)" aria-label="Undo" disabled>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>
+        <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>
       </button>
       <button id="btn-redo" class="btn btn-icon" title="Redo (Ctrl+Y / Ctrl+Shift+Z)" aria-label="Redo" disabled>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg>
+        <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg>
       </button>
-      <button id="btn-theme" class="btn btn-icon" title="Toggle light / dark mode" aria-label="Toggle dark mode">🌙</button>
-      <button id="btn-help" class="btn btn-icon" title="Keyboard Shortcuts">?</button>
-      <button id="btn-save" class="btn btn-success" title="Save directly into this HTML file (Ctrl+S)">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save
+      <button id="btn-theme" class="btn btn-icon" title="Switch to dark mode" aria-label="Switch to dark mode"></button>
+      <button id="btn-help" class="btn btn-icon" title="Keyboard shortcuts" aria-label="Keyboard shortcuts" aria-expanded="false" aria-controls="help-drawer">?</button>
+      <button id="btn-save" class="btn btn-primary" title="Save directly into this HTML file (Ctrl+S)" aria-label="Save">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg><span class="btn-label">Save</span>
       </button>
     </div>
   </header>
 
-  <!-- Add controls: floating at the bottom of the viewport, no background -->
-  <div class="toolbar-center">
+  <!-- Add controls: a floating dock at the bottom of the viewport, styled like the zoom dock -->
+  <div class="dock-area">
+  <div class="toolbar-center" role="toolbar" aria-label="Add to the diagram">
+      <span class="dock-label">Add</span>
 {{TYPE_TOOLBAR}}
-      <button id="btn-auto-tidy" class="btn btn-primary" title="Automatically re-align and lay out the diagram automatically">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M7 12h10"/><path d="M10 18h4"/></svg> Auto-Tidy
+      <span class="dock-sep" aria-hidden="true"></span>
+      <button id="btn-auto-tidy" class="btn" title="Re-align and lay out the whole diagram automatically" aria-label="Auto-Tidy">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M7 12h10"/><path d="M10 18h4"/></svg><span class="btn-label">Auto-Tidy</span>
       </button>
   </div>
 
   <!-- Zoom controls: floating in the bottom-left corner of the viewport -->
-  <div class="toolbar-zoom">
-    <button id="btn-zoom-out" class="btn btn-icon" title="Zoom Out">−</button>
+  <div class="toolbar-zoom" role="group" aria-label="Zoom">
+    <button id="btn-zoom-out" class="btn btn-icon" title="Zoom out" aria-label="Zoom out">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14"/></svg>
+    </button>
     <span id="zoom-level">100%</span>
-    <button id="btn-zoom-in" class="btn btn-icon" title="Zoom In">+</button>
-    <button id="btn-zoom-reset" class="btn" title="Fit to Screen">Fit</button>
+    <button id="btn-zoom-in" class="btn btn-icon" title="Zoom in" aria-label="Zoom in">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+    </button>
+    <button id="btn-zoom-reset" class="btn" title="Fit to screen">Fit</button>
+  </div>
   </div>
 
 {{TYPE_CHROME}}
@@ -60,17 +68,19 @@
     </div>
   </div>
 
-    <!-- Help & Shortcuts Drawer -->
-  <div id="help-drawer">
-    <div style="font-weight:700; margin-bottom:6px; display:flex; justify-content:space-between;">
-      <span>Shortcuts & Interaction</span>
-      <span style="cursor:pointer;" onclick="document.getElementById('help-drawer').classList.remove('open')">×</span>
+  <!-- Help & Shortcuts Drawer -->
+  <aside id="help-drawer" role="dialog" aria-labelledby="help-title">
+    <div class="help-head">
+      <span id="help-title">Shortcuts &amp; Interaction</span>
+      <button id="help-close" class="help-close" type="button" title="Close (Esc)" aria-label="Close shortcuts">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+      </button>
     </div>
-    <ul style="list-style:none; line-height:1.6;">
+    <ul class="help-list">
 {{TYPE_HELP}}
 {{SHELL_HELP}}
     </ul>
-  </div>
+  </aside>
 
   <!-- CANONICAL DATA BLOCK (Single Source of Truth) -->
   <script id="diagram-data" type="application/json">

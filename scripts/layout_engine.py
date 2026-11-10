@@ -37,7 +37,7 @@ DEFAULT_NODE_WIDTH = 144
 DEFAULT_NODE_HEIGHT = 64
 DECISION_NODE_HEIGHT = 80
 LANE_MIN_HEIGHT = 192
-LANE_BOTTOM_PADDING = 56
+LANE_BOTTOM_PADDING = 72
 
 
 class FlowchartAudit:
@@ -242,7 +242,7 @@ class FlowchartAudit:
 
         max_x = max((float(n.get("x", 0)) for n in self.nodes), default=float(START_X))
         column_count = int(round((max_x - START_X) / DEFAULT_COL_WIDTH)) + 1
-        budget_warnings: List[str] = self._outcome_label_warnings()
+        budget_warnings: List[str] = self._lane_icon_warnings() + self._outcome_label_warnings()
 
         return {
             "passed": passed,
@@ -264,6 +264,21 @@ class FlowchartAudit:
             "column_count": column_count,
             "budget_warnings": budget_warnings,
         }
+
+    def _lane_icon_warnings(self) -> List[str]:
+        """Every swimlane header carries an icon: it makes the owner recognisable at a glance."""
+        icons_file = ASSETS_DIR / "types" / "flowchart" / "icons.json"
+        known = set(json.loads(icons_file.read_text(encoding="utf-8"))) if icons_file.is_file() else set()
+        names = ", ".join(sorted(known))
+        warnings = []
+        for lane in self.lanes:
+            label = lane.get("name", lane.get("id"))
+            icon = lane.get("icon")
+            if not icon:
+                warnings.append(f"Lane '{label}' has no \"icon\". Give every lane one (names: {names}).")
+            elif known and icon not in known:
+                warnings.append(f"Lane '{label}' uses unknown icon '{icon}'. Use one of: {names}.")
+        return warnings
 
     OUTCOME_LABELS = {"yes", "no", "true", "false", "y", "n"}
 
@@ -861,6 +876,9 @@ def assemble_page(kind: str, data: Optional[Dict[str, Any]] = None) -> str:
         raise FileNotFoundError(f"No assets for diagram type {kind!r} at: {type_dir}")
     meta = json.loads(_read_asset(type_dir / "meta.json"))
     payload = _read_asset(type_dir / "default.json").rstrip(chr(10)) if data is None else json.dumps(data, indent=2)
+    # Optional per-type icon set (name -> SVG inner markup), embedded so the page stays self-contained
+    icons_path = type_dir / "icons.json"
+    icons_js = f"const TYPE_ICONS = {json.dumps(json.loads(_read_asset(icons_path)), separators=(',', ':'))};\n" if icons_path.is_file() else ""
     parts = {
         "TYPE_TITLE": meta["title"],
         "SHELL_CSS": _read_asset(ASSETS_DIR / "shell" / "shell.css").rstrip(chr(10)),
@@ -874,7 +892,7 @@ def assemble_page(kind: str, data: Optional[Dict[str, Any]] = None) -> str:
         "DATA": payload,
         "SHELL_JS": _read_asset(ASSETS_DIR / "shell" / "shell.js").rstrip(chr(10)),
         "ENGINE_JS": _read_asset(type_dir / "engine.js").rstrip(chr(10)),
-        "TYPE_JS": _read_asset(type_dir / f"{kind}.js").rstrip(chr(10)),
+        "TYPE_JS": icons_js + _read_asset(type_dir / f"{kind}.js").rstrip(chr(10)),
     }
     # One pass: substituted text is never re-scanned, and an unknown placeholder fails loudly.
     return re.sub(r"\{\{([A-Z_]+)\}\}", lambda m: parts[m.group(1)], _read_asset(ASSETS_DIR / "shell" / "shell.html"))

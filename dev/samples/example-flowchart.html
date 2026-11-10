@@ -35,12 +35,17 @@
       --banner-bg: #eff6ff; --banner-border: #bfdbfe; --banner-text: #1e40af;
       --start-bg: #ecfdf5; --start-border: #10b981; --start-text: #065f46;
       --end-bg: #1e293b;   --end-border: #0f172a;   --end-text: #f8fafc;
-      --end-success-bg: #166534; --end-success-border: #14532d;
-      --end-failure-bg: #991b1b; --end-failure-border: #7f1d1d;
       --decision-fill: #fffbeb; --decision-fill-hover: #ffffff;
+      --decision-text: #92400e;      /* decision label: amber-800 on the light amber fill (7:1) */
       --node-bg: #ffffff;
       --lane-tint-header: 0.3;
       --lane-tint-track: 0.11;
+      --text-soft: #475569;          /* secondary text that must stay readable on --bg-soft (>= 4.5:1) */
+      --primary-ring: rgba(37, 99, 235, 0.25);
+      --primary-glow: rgba(37, 99, 235, 0.22);
+      --primary-wash: rgba(37, 99, 235, 0.06);
+      --guide: #e11d48;              /* alignment snap guides */
+      --ease: 0.15s ease;
       color-scheme: light;
     }
 
@@ -69,13 +74,18 @@
       --status-saved-bg: #14532d;  --status-saved-text: #bbf7d0;
       --status-unsaved-bg: #78350f; --status-unsaved-text: #fde68a;
       --banner-bg: #172554; --banner-border: #1e3a8a; --banner-text: #bfdbfe;
+      --start-bg: #0f2f2a; --start-border: #34d399; --start-text: #a7f3d0;
       --end-bg: #0b1220;   --end-border: #94a3b8;   --end-text: #f8fafc;
-      --end-success-bg: #15803d; --end-success-border: #86efac;
-      --end-failure-bg: #b91c1c; --end-failure-border: #fca5a5;
-      --decision-fill: #3b2a0a; --decision-fill-hover: #1a2540;
+      --decision-fill: #2f2a22; --decision-fill-hover: #3a3326;
+      --decision-text: #fcd34d;      /* amber-300 on the warm dark fill */
       --node-bg: #17223b;
-      --lane-tint-header: 0.2;
-      --lane-tint-track: 0.07;
+      --lane-tint-header: 0.08;
+      --lane-tint-track: 0.05;
+      --text-soft: #cbd5e1;
+      --primary-ring: rgba(96, 165, 250, 0.4);
+      --primary-glow: rgba(96, 165, 250, 0.35);
+      --primary-wash: rgba(96, 165, 250, 0.1);
+      --guide: #fb7185;
       color-scheme: dark;
     }
 
@@ -93,6 +103,7 @@
       overflow: hidden;
       width: 100vw;
       height: 100vh;
+      height: 100dvh;
       display: flex;
       flex-direction: column;
     }
@@ -110,29 +121,54 @@
       box-shadow: 0 1px 3px rgba(0,0,0,0.04);
     }
 
-    .toolbar-center {
+    /* Floating docks (add controls, zoom): one pill style so they read as the same family */
+    /* Shared invisible container: zoom sits left, add dock centred; on narrow screens they stack full width */
+    .dock-area {
       position: fixed;
-      bottom: 20px;
-      left: 50%;
-      transform: translateX(-50%);
+      left: 20px; right: 20px; bottom: 20px;
       z-index: 100;
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: end;
+      gap: 8px;
+      pointer-events: none;
     }
-
+    .dock-area > * { pointer-events: auto; }
+    .toolbar-center,
     .toolbar-zoom {
-      position: fixed;
-      bottom: 20px;
-      left: 20px;
-      z-index: 100;
       display: flex;
       align-items: center;
       gap: 4px;
       padding: 4px;
       background: var(--bg-panel);
       border: 1px solid var(--border-color);
-      border-radius: 8px;
+      border-radius: 10px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.08);
     }
+    .toolbar-center {
+      grid-column: 2;
+      grid-row: 1;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .toolbar-zoom { grid-column: 1; grid-row: 1; justify-self: start; }
+    .toolbar-center .btn,
     .toolbar-zoom .btn { border-color: transparent; }
+    .toolbar-center .btn:hover,
+    .toolbar-zoom .btn:hover { border-color: var(--border-dark); }
+    .dock-label {
+      padding: 0 4px 0 8px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-soft);
+      letter-spacing: 0.02em;
+    }
+    .dock-sep {
+      width: 1px;
+      align-self: stretch;
+      margin: 4px 2px;
+      background: var(--border-color);
+    }
     #zoom-level {
       font-size: 0.8rem;
       font-weight: 600;
@@ -142,16 +178,18 @@
       font-variant-numeric: tabular-nums;
     }
 
-    .toolbar-left, .toolbar-right, .toolbar-center {
+    .toolbar-left, .toolbar-right {
       display: flex;
       align-items: center;
       gap: 10px;
     }
+    .toolbar-left > svg { flex: none; }
 
     .app-title-container {
       display: flex;
       align-items: baseline;
       gap: 8px;
+      min-width: 0;
     }
 
     h1#chart-title {
@@ -163,6 +201,10 @@
       border-radius: 4px;
       border: 1px solid transparent;
       user-select: text;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
     h1#chart-title:focus, h1#chart-title:hover {
       border-color: var(--border-dark);
@@ -170,16 +212,14 @@
     }
 
     .badge {
-      font-size: 0.72rem;
+      font-size: 0.78rem;
       font-weight: 600;
-      padding: 2px 8px;
+      padding: 2px 10px;
       border-radius: 12px;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
     }
     .badge-status {
       background: var(--bg-soft);
-      color: var(--text-muted);
+      color: var(--text-soft);
     }
     .badge-status.saved {
       background: var(--status-saved-bg);
@@ -203,8 +243,10 @@
       background: var(--bg-panel);
       color: var(--text-main);
       cursor: pointer;
-      transition: all 0.15s ease;
+      touch-action: manipulation;
+      transition: background-color var(--ease), border-color var(--ease), color var(--ease), transform var(--ease);
     }
+    .btn svg { flex: none; }
     .btn:hover {
       background: var(--bg-hover);
       border-color: var(--border-dark);
@@ -234,6 +276,15 @@
       background: var(--success);
       color: #ffffff;
       border-color: var(--success);
+    }
+    :root[data-theme="dark"] .btn-success { color: #0b1220; }
+
+    /* Keyboard focus: visible on every control, in both themes */
+    .btn:focus-visible,
+    .help-close:focus-visible,
+    h1#chart-title:focus-visible {
+      outline: 2px solid var(--primary);
+      outline-offset: 2px;
     }
 
     .btn-icon {
@@ -277,14 +328,37 @@
       border-radius: 8px;
       box-shadow: 0 4px 12px rgba(0,0,0,0.1);
       font-size: 0.8rem;
-      color: var(--text-muted);
+      color: var(--text-soft);
       z-index: 1000;
-      max-width: 340px;
+      max-width: min(340px, calc(100vw - 40px));
       display: none;
     }
     #help-drawer.open {
       display: block;
     }
+    .help-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 6px;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+    .help-close {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      border: none;
+      border-radius: 6px;
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+    }
+    .help-close:hover { background: var(--bg-hover); color: var(--text-main); }
+    .help-list { list-style: none; line-height: 1.6; }
     #help-drawer kbd {
       background: var(--bg-hover);
       border: 1px solid var(--border-dark);
@@ -307,6 +381,34 @@
     /* Capture mode (?capture, used for screenshots): diagram only, edge to edge */
     body.capture header,
     body.capture .toolbar-zoom { display: none; }
+
+    /* Narrow screens (a shared link opened on a phone): icon-only docks, compact header */
+    @media (max-width: 720px) {
+      header { padding: 0 10px; }
+      .toolbar-left { min-width: 0; flex: 1 1 auto; }
+      .toolbar-right { gap: 6px; flex: none; }
+      .btn-label, .dock-label { display: none; }
+      #btn-help { display: none; }   /* keyboard shortcuts mean little on a phone; frees room for the title */
+      .dock-area { left: 12px; right: 12px; bottom: 12px; grid-template-columns: 1fr; }
+      .toolbar-center { grid-column: 1; grid-row: 1; justify-content: space-evenly; }
+      .toolbar-center .btn { flex: 1 1 0; justify-content: center; }
+      .toolbar-zoom { grid-column: 1; grid-row: 2; }
+      #help-drawer { right: 12px; bottom: 120px; }
+    }
+    /* Medium widths: stack as soon as the three-column row would crowd */
+    @media (min-width: 721px) and (max-width: 1100px) {
+      .dock-area { grid-template-columns: 1fr; }
+      .toolbar-center { grid-column: 1; grid-row: 1; }
+      .toolbar-zoom { grid-column: 1; grid-row: 2; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        transition-duration: 0.01ms !important;
+        animation-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+      }
+    }
     /* Swimlanes Container */
     #swimlanes-container {
       position: relative;
@@ -337,12 +439,14 @@
       min-width: var(--lane-header-width);
       padding: 14px 12px;
       display: flex;
-      flex-direction: column;
-      justify-content: center;
+      flex-direction: row;
+      align-items: center;
+      gap: 10px;
       border-right: 2px solid var(--border-dark);
       background: var(--bg-lane-header);
       font-weight: 700;
-      font-size: 0.9rem;
+      font-size: 1.0625rem;
+      line-height: 1.25;
       color: var(--text-main);
       position: relative;
       cursor: grab;
@@ -353,7 +457,20 @@
       opacity: 0.5;
       background: var(--bg-soft);
     }
+    .lane-icon {
+      flex: none;
+      width: 34px;
+      height: 34px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 9px;
+      border: 1px solid var(--border-dark);
+      color: var(--text-main);
+      pointer-events: none;
+    }
     .lane-title {
+      min-width: 0;
       outline: none;
       user-select: none;
       word-break: break-word;
@@ -381,11 +498,11 @@
     }
     .snap-guide-v {
       top: 0; bottom: 0; width: 0;
-      border-left: 1.5px dashed #e11d48;
+      border-left: 1.5px dashed var(--guide);
     }
     .snap-guide-h {
       left: 0; right: 0; height: 0;
-      border-top: 1.5px dashed #e11d48;
+      border-top: 1.5px dashed var(--guide);
     }
     #lane-drop-line {
       position: absolute;
@@ -394,7 +511,7 @@
       height: 4px;
       background: var(--primary);
       border-radius: 2px;
-      box-shadow: 0 0 0 3px rgba(37,99,235,0.25);
+      box-shadow: 0 0 0 3px var(--primary-ring);
       z-index: 60;
       pointer-events: none;
       display: none;
@@ -417,7 +534,7 @@
       transition: background 0.15s ease;
     }
     .lane-track.drag-hover-lane {
-      background: rgba(37, 99, 235, 0.06);
+      background: var(--primary-wash);
     }
 
     /* SVG Connector Overlay */
@@ -433,7 +550,7 @@
     .connector-path {
       fill: none;
       stroke: var(--connector);
-      stroke-width: 1.8px;
+      stroke-width: 1.5px;
       stroke-linejoin: round;
       stroke-linecap: round;
       pointer-events: stroke;
@@ -450,7 +567,7 @@
     body.presentation .connector-hit { pointer-events: none !important; }
     .connector-path:hover, .connector-path.hover, .connector-path.selected {
       stroke: var(--primary);
-      stroke-width: 2.6px;
+      stroke-width: 2px;
     }
 
     .edge-label-container {
@@ -460,7 +577,7 @@
       border: 1.5px solid var(--border-dark);
       border-radius: 8px;
       padding: 3px 8px;
-      font-size: 0.8rem;
+      font-size: 0.8125rem;
       font-weight: 600;
       color: var(--text-main);
       cursor: pointer;
@@ -469,7 +586,7 @@
       white-space: normal; /* Allow dropping into multiple lines if exceeding gap */
       overflow-wrap: break-word; /* wrap between words; only split a word that cannot fit at all */
       text-align: center;
-      transition: all 0.15s ease;
+      transition: border-color var(--ease), box-shadow var(--ease), color var(--ease);
       display: inline-flex;
       align-items: center;
       justify-content: center;
@@ -480,7 +597,7 @@
     }
     .edge-label-container:hover, .edge-label-container.selected {
       border-color: var(--primary);
-      box-shadow: 0 2px 8px rgba(37,99,235,0.22);
+      box-shadow: 0 2px 8px var(--primary-glow);
     }
     .edge-label-text {
       outline: none;
@@ -498,8 +615,8 @@
       display: none;
       background: var(--edge-label-empty-bg);
       border: 1.5px dashed var(--edge-label-empty-border);
-      color: var(--text-muted);
-      font-size: 0.8rem;
+      color: var(--text-soft);
+      font-size: 0.8125rem;
       padding: 2px 8px;
     }
     .edge-label-container.empty-placeholder {
@@ -540,7 +657,7 @@
       color: var(--danger);
       cursor: pointer;
       box-shadow: 0 1px 4px rgba(0,0,0,0.12);
-      transition: all 0.15s;
+      transition: background-color var(--ease), color var(--ease);
     }
     .edge-delete-btn svg { display: block; }
     .edge-delete-btn:hover {
@@ -552,7 +669,8 @@
     .flow-node {
       position: absolute;
       background: var(--node-bg);
-      border: 1.8px solid var(--border-dark);
+      --node-stroke: 2px; /* single border weight shared by every node type */
+      border: var(--node-stroke) solid var(--border-dark);
       border-radius: 8px;
       padding: 6px 14px;
       width: 144px;
@@ -564,7 +682,7 @@
       align-items: center;
       justify-content: center;
       text-align: center;
-      font-size: 0.81rem;
+      font-size: 0.875rem;
       font-weight: 600;
       line-height: 1.22;
       user-select: none;
@@ -576,7 +694,7 @@
     }
     .flow-node.selected {
       border-color: var(--primary);
-      box-shadow: 0 0 0 3px rgba(37,99,235,0.25);
+      box-shadow: 0 0 0 3px var(--primary-ring);
     }
     .flow-node.connect-target {
       outline: 3px dashed var(--primary);
@@ -585,17 +703,26 @@
 
     /* Node Types */
     .flow-node.type-start {
-      border-radius: 28px;
+      border-radius: 999px;
       background: var(--start-bg);
       border-color: var(--start-border);
       color: var(--start-text);
     }
     .flow-node.type-end {
-      border-radius: 28px;
+      border-radius: 999px;
       background: var(--end-bg);
       border-color: var(--end-border);
       color: var(--end-text);
     }
+    /* Unlabelled start/end: a plain circle, centred in the usual 144x64 slot (margins = (slot - size) / 2) */
+    .flow-node.terminal-dot {
+      width: 40px;
+      height: 40px;
+      margin: 12px 52px;
+      padding: 0;
+      border-radius: 50%;
+    }
+    .flow-node.terminal-dot .node-label { width: 100%; height: 100%; min-width: 0; }
     .flow-node.type-decision {
       width: 144px;
       height: 80px;
@@ -616,24 +743,25 @@
     .flow-node.type-decision .diamond-poly {
       fill: var(--decision-fill);
       stroke: var(--warning);
-      stroke-width: 1.8px;
-      transition: stroke 0.15s, fill 0.15s, stroke-width 0.15s;
+      stroke-width: var(--node-stroke); /* same weight as rect nodes; never changes on hover/select */
+      stroke-linejoin: round;
+      transition: stroke 0.15s, fill 0.15s;
     }
     .flow-node.type-decision:hover .diamond-poly {
       stroke: var(--primary);
-      stroke-width: 2.2px;
       fill: var(--decision-fill-hover);
     }
     .flow-node.type-decision.selected .diamond-poly {
       stroke: var(--primary);
-      stroke-width: 2.5px;
-      filter: drop-shadow(0 0 4px rgba(37,99,235,0.35));
+      filter: drop-shadow(0 0 4px var(--primary-glow));
     }
     .flow-node.type-decision .node-label {
       position: relative;
       z-index: 2;
+      color: var(--decision-text);
+      font-weight: 700;
       max-width: 92px;
-      font-size: 0.77rem;
+      font-size: 0.8125rem;
       line-height: 1.15;
     }
 
@@ -660,7 +788,7 @@
       height: 12px;
       border-radius: 50%;
       background: var(--node-bg);
-      border: 2.5px solid var(--primary);
+      border: 2px solid var(--primary);
       opacity: 0;
       cursor: crosshair;
       transition: opacity 0.15s, transform 0.15s, background-color 0.15s;
@@ -685,7 +813,7 @@
       box-sizing: border-box;
       border-radius: 50%;
       background: var(--node-bg);
-      border: 2.5px solid var(--primary);
+      border: 2px solid var(--primary);
       box-shadow: 0 1px 3px rgba(0,0,0,0.2);
       cursor: grab;
       pointer-events: auto;
@@ -725,31 +853,6 @@
       display: flex;
     }
 
-    /* End-node outcomes (set "outcome": "success" | "failure" on an end node) */
-    .flow-node.type-end.outcome-success {
-      background: var(--end-success-bg);
-      border-color: var(--end-success-border);
-      color: var(--end-text);
-    }
-    .flow-node.type-end.outcome-failure {
-      background: var(--end-failure-bg);
-      border-color: var(--end-failure-border);
-      color: var(--end-text);
-    }
-    .flow-node.type-end.outcome-success,
-    .flow-node.type-end.outcome-failure {
-      padding-left: 38px;
-    }
-    .flow-node.type-end.outcome-success::before,
-    .flow-node.type-end.outcome-failure::before {
-      position: absolute;
-      left: 16px;
-      font-weight: 800;
-    }
-    .flow-node.type-end.outcome-success::before { content: '\2713'; }
-    .flow-node.type-end.outcome-failure::before { content: '\2715'; }
-
-
     /* Presentation mode (?present): hide flowchart editing chrome, make elements inert */
     body.presentation .port,
     body.presentation .node-delete-btn,
@@ -783,41 +886,55 @@
 
     <div class="toolbar-right">
       <button id="btn-undo" class="btn btn-icon" title="Undo (Ctrl+Z)" aria-label="Undo" disabled>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>
+        <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>
       </button>
       <button id="btn-redo" class="btn btn-icon" title="Redo (Ctrl+Y / Ctrl+Shift+Z)" aria-label="Redo" disabled>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg>
+        <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg>
       </button>
-      <button id="btn-theme" class="btn btn-icon" title="Toggle light / dark mode" aria-label="Toggle dark mode">🌙</button>
-      <button id="btn-help" class="btn btn-icon" title="Keyboard Shortcuts">?</button>
-      <button id="btn-save" class="btn btn-success" title="Save directly into this HTML file (Ctrl+S)">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save
+      <button id="btn-theme" class="btn btn-icon" title="Switch to dark mode" aria-label="Switch to dark mode"></button>
+      <button id="btn-help" class="btn btn-icon" title="Keyboard shortcuts" aria-label="Keyboard shortcuts" aria-expanded="false" aria-controls="help-drawer">?</button>
+      <button id="btn-save" class="btn btn-primary" title="Save directly into this HTML file (Ctrl+S)" aria-label="Save">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg><span class="btn-label">Save</span>
       </button>
     </div>
   </header>
 
-  <!-- Add controls: floating at the bottom of the viewport, no background -->
-  <div class="toolbar-center">
-      <button id="btn-add-step" class="btn" title="Add Step Node in selected or first lane">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/><path d="M12 5v14"/></svg> Step
+  <!-- Add controls: a floating dock at the bottom of the viewport, styled like the zoom dock -->
+  <div class="dock-area">
+  <div class="toolbar-center" role="toolbar" aria-label="Add to the diagram">
+      <span class="dock-label">Add</span>
+      <button id="btn-add-start" class="btn" title="Add a Start terminator" aria-label="Start">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="7" width="20" height="10" rx="5"/></svg><span class="btn-label">Start</span>
       </button>
-      <button id="btn-add-decision" class="btn" title="Add Decision Gateway">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 12l10 10 10-10L12 2z"/></svg> Decision
+      <button id="btn-add-end" class="btn" title="Add an End terminator" aria-label="End">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="7" width="20" height="10" rx="5"/><circle cx="12" cy="12" r="2" fill="currentColor"/></svg><span class="btn-label">End</span>
       </button>
-      <button id="btn-add-lane" class="btn" title="Add Swimlane">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 12h18"/></svg> + Lane
+      <button id="btn-add-step"class="btn" title="Add a step in the selected or first lane" aria-label="Step">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="3"/></svg><span class="btn-label">Step</span>
       </button>
-      <button id="btn-auto-tidy" class="btn btn-primary" title="Automatically re-align and lay out the diagram automatically">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M7 12h10"/><path d="M10 18h4"/></svg> Auto-Tidy
+      <button id="btn-add-decision" class="btn" title="Add a decision (Yes / No branch)" aria-label="Decision">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2 2 12l10 10 10-10L12 2z"/></svg><span class="btn-label">Decision</span>
+      </button>
+      <button id="btn-add-lane" class="btn" title="Add a swimlane" aria-label="Lane">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 12h18"/></svg><span class="btn-label">Lane</span>
+      </button>
+      <span class="dock-sep" aria-hidden="true"></span>
+      <button id="btn-auto-tidy" class="btn" title="Re-align and lay out the whole diagram automatically" aria-label="Auto-Tidy">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M7 12h10"/><path d="M10 18h4"/></svg><span class="btn-label">Auto-Tidy</span>
       </button>
   </div>
 
   <!-- Zoom controls: floating in the bottom-left corner of the viewport -->
-  <div class="toolbar-zoom">
-    <button id="btn-zoom-out" class="btn btn-icon" title="Zoom Out">−</button>
+  <div class="toolbar-zoom" role="group" aria-label="Zoom">
+    <button id="btn-zoom-out" class="btn btn-icon" title="Zoom out" aria-label="Zoom out">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14"/></svg>
+    </button>
     <span id="zoom-level">100%</span>
-    <button id="btn-zoom-in" class="btn btn-icon" title="Zoom In">+</button>
-    <button id="btn-zoom-reset" class="btn" title="Fit to Screen">Fit</button>
+    <button id="btn-zoom-in" class="btn btn-icon" title="Zoom in" aria-label="Zoom in">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+    </button>
+    <button id="btn-zoom-reset" class="btn" title="Fit to screen">Fit</button>
+  </div>
   </div>
 
   <!-- No extra page chrome: connecting an arrow shows no banner, so the canvas never shifts -->
@@ -852,13 +969,15 @@
     </div>
   </div>
 
-    <!-- Help & Shortcuts Drawer -->
-  <div id="help-drawer">
-    <div style="font-weight:700; margin-bottom:6px; display:flex; justify-content:space-between;">
-      <span>Shortcuts & Interaction</span>
-      <span style="cursor:pointer;" onclick="document.getElementById('help-drawer').classList.remove('open')">×</span>
+  <!-- Help & Shortcuts Drawer -->
+  <aside id="help-drawer" role="dialog" aria-labelledby="help-title">
+    <div class="help-head">
+      <span id="help-title">Shortcuts &amp; Interaction</span>
+      <button id="help-close" class="help-close" type="button" title="Close (Esc)" aria-label="Close shortcuts">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+      </button>
     </div>
-    <ul style="list-style:none; line-height:1.6;">
+    <ul class="help-list">
       <li><kbd>Click or Drag Port</kbd> : Connect two steps with an arrow</li>
       <li><kbd>Double-Click Arrow</kbd> : Add or edit arrow label (or click <kbd>+ Add Label</kbd>)</li>
       <li><kbd>Delete</kbd> : Delete selected step or arrow</li>
@@ -871,7 +990,7 @@
       <li><kbd>Drag Canvas</kbd> : Pan viewport</li>
       <li><kbd>Scroll Wheel</kbd> : Zoom in / out</li>
     </ul>
-  </div>
+  </aside>
 
   <!-- CANONICAL DATA BLOCK (Single Source of Truth) -->
   <script id="diagram-data" type="application/json">
@@ -884,24 +1003,28 @@
       "id": "lane-customer",
       "name": "Applicant / Customer",
       "color": "#e0f2fe",
+      "icon": "user",
       "height": 192
     },
     {
       "id": "lane-officer",
       "name": "Loan Officer",
       "color": "#fef3c7",
+      "icon": "briefcase",
       "height": 192
     },
     {
       "id": "lane-engine",
       "name": "Automated Underwriting Engine",
       "color": "#dcfce7",
+      "icon": "cpu",
       "height": 192
     },
     {
       "id": "lane-risk",
       "name": "Risk & Compliance Committee",
       "color": "#fee2e2",
+      "icon": "shield",
       "height": 192
     }
   ],
@@ -966,7 +1089,6 @@
       "id": "n8",
       "laneId": "lane-officer",
       "type": "end",
-      "outcome": "success",
       "label": "Loan Approved",
       "x": 824,
       "y": 64
@@ -975,7 +1097,6 @@
       "id": "n9",
       "laneId": "lane-customer",
       "type": "end",
-      "outcome": "failure",
       "label": "Application Rejected",
       "x": 968,
       "y": 64
@@ -1069,6 +1190,7 @@
       // --- STATE ---
       let chartData = { title: "", direction: "LR", lanes: [], nodes: [], edges: [] };
       let fileHandle = null;
+      let everSaved = false;
       let hasUnsavedChanges = false;
 
       // Undo / redo history: JSON snapshots of chartData, taken at each committed edit
@@ -1163,14 +1285,21 @@
         setStatusBadge(unsaved);
       }
 
+      // Green means "this is on disk". A page nobody has saved yet is just "Ready" (neutral).
       function setStatusBadge(unsaved) {
         hasUnsavedChanges = unsaved;
         if (unsaved) {
-          saveStatus.textContent = "Unsaved Changes";
+          saveStatus.textContent = "Unsaved changes";
           saveStatus.className = "badge badge-status unsaved";
-        } else {
-          saveStatus.textContent = fileHandle ? "Saved to File" : "Ready";
+        } else if (fileHandle) {
+          saveStatus.textContent = "Saved to file";
           saveStatus.className = "badge badge-status saved";
+        } else if (everSaved) {
+          saveStatus.textContent = "Downloaded";
+          saveStatus.className = "badge badge-status saved";
+        } else {
+          saveStatus.textContent = "Ready";
+          saveStatus.className = "badge badge-status";
         }
       }
 
@@ -1244,9 +1373,15 @@
       function currentTheme() {
         return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
       }
+      // The button shows the theme you would switch TO (stroke icons, same family as the other controls)
+      const ICON_SUN = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>';
+      const ICON_MOON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>';
       function applyTheme(theme, persist) {
         document.documentElement.setAttribute('data-theme', theme);
-        btnTheme.textContent = theme === 'dark' ? '\u2600\uFE0F' : '\uD83C\uDF19';
+        btnTheme.innerHTML = theme === 'dark' ? ICON_SUN : ICON_MOON;
+        const next = theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode';
+        btnTheme.title = next;
+        btnTheme.setAttribute('aria-label', next);
         if (persist) { try { localStorage.setItem('flowchart-theme', theme); } catch (e) {} }
         if (plugin) plugin.render();   // type colors may depend on the theme
       }
@@ -1401,9 +1536,14 @@
       });
       btnZoomReset.addEventListener('click', fitView);
 
-      btnHelp.addEventListener('click', () => {
-        helpDrawer.classList.toggle('open');
-      });
+      function setHelpOpen(open) {
+        helpDrawer.classList.toggle('open', open);
+        btnHelp.setAttribute('aria-expanded', String(open));
+        if (open) document.getElementById('help-close').focus();
+        else if (helpDrawer.contains(document.activeElement)) btnHelp.focus();
+      }
+      btnHelp.addEventListener('click', () => setHelpOpen(!helpDrawer.classList.contains('open')));
+      document.getElementById('help-close').addEventListener('click', () => setHelpOpen(false));
 
       // --- SAVE MECHANISM (Direct to HTML File) ---
       async function saveToFile() {
@@ -1448,6 +1588,7 @@
             await writable.close();
 
             savedJson = JSON.stringify(chartData);
+            everSaved = true;
             updateStatus(false);
             return;
           } catch (err) {
@@ -1466,6 +1607,7 @@
           document.body.removeChild(a);
           URL.revokeObjectURL(url);
           savedJson = JSON.stringify(chartData);
+          everSaved = true;
           updateStatus(false);
         } catch (err) {
           alert("Save failed: " + err.message);
@@ -1485,6 +1627,7 @@
           e.preventDefault();
           if (e.key.toLowerCase() === 'y' || e.shiftKey) redo(); else undo();
         } else if (e.key === 'Escape') {
+          if (helpDrawer.classList.contains('open')) { setHelpOpen(false); return; }
           plugin.cancelInteraction();
         } else if (e.key === 'Delete' || e.key === 'Backspace') {
           if (document.body.classList.contains('presentation')) return;
@@ -2061,12 +2204,13 @@
       function layoutDiagram(data) {
         runLayoutEngine(data.lanes || [], data.nodes || [], data.edges || []);
       }
+const TYPE_ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><circle cx=\"12\" cy=\"7\" r=\"4\"/>","users":"<path d=\"M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2\"/><circle cx=\"9\" cy=\"7\" r=\"4\"/><path d=\"M22 21v-2a4 4 0 0 0-3-3.87\"/><path d=\"M16 3.13a4 4 0 0 1 0 7.75\"/>","briefcase":"<rect width=\"20\" height=\"14\" x=\"2\" y=\"7\" rx=\"2\"/><path d=\"M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16\"/>","building":"<rect width=\"16\" height=\"20\" x=\"4\" y=\"2\" rx=\"2\"/><path d=\"M9 22v-4h6v4\"/><path d=\"M8 6h.01M12 6h.01M16 6h.01M8 10h.01M12 10h.01M16 10h.01M8 14h.01M12 14h.01M16 14h.01\"/>","headset":"<path d=\"M3 14v-2a9 9 0 0 1 18 0v2\"/><path d=\"M21 16a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 16a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z\"/><path d=\"M21 17v1a4 4 0 0 1-4 4h-4\"/>","monitor":"<rect width=\"20\" height=\"14\" x=\"2\" y=\"3\" rx=\"2\"/><path d=\"M8 21h8M12 17v4\"/>","code":"<polyline points=\"16 18 22 12 16 6\"/><polyline points=\"8 6 2 12 8 18\"/>","server":"<rect width=\"20\" height=\"8\" x=\"2\" y=\"2\" rx=\"2\"/><rect width=\"20\" height=\"8\" x=\"2\" y=\"14\" rx=\"2\"/><path d=\"M6 6h.01M6 18h.01\"/>","database":"<ellipse cx=\"12\" cy=\"5\" rx=\"9\" ry=\"3\"/><path d=\"M3 5v14a9 3 0 0 0 18 0V5\"/><path d=\"M3 12a9 3 0 0 0 18 0\"/>","cloud":"<path d=\"M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z\"/>","cpu":"<rect width=\"16\" height=\"16\" x=\"4\" y=\"4\" rx=\"2\"/><rect width=\"6\" height=\"6\" x=\"9\" y=\"9\" rx=\"1\"/><path d=\"M15 2v2M15 20v2M9 2v2M9 20v2M2 15h2M2 9h2M20 15h2M20 9h2\"/>","cog":"<circle cx=\"12\" cy=\"12\" r=\"3\"/><path d=\"M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12\"/>","shield":"<path d=\"M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z\"/>","scale":"<path d=\"m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z\"/><path d=\"m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z\"/><path d=\"M7 21h10M12 3v18M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2\"/>","banknote":"<rect width=\"20\" height=\"12\" x=\"2\" y=\"6\" rx=\"2\"/><circle cx=\"12\" cy=\"12\" r=\"2\"/><path d=\"M6 12h.01M18 12h.01\"/>","credit-card":"<rect width=\"20\" height=\"14\" x=\"2\" y=\"5\" rx=\"2\"/><path d=\"M2 10h20\"/>","mail":"<rect width=\"20\" height=\"16\" x=\"2\" y=\"4\" rx=\"2\"/><path d=\"m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7\"/>","package":"<path d=\"m7.5 4.27 9 5.15\"/><path d=\"M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z\"/><path d=\"m3.3 7 8.7 5 8.7-5M12 22V12\"/>","truck":"<path d=\"M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2\"/><path d=\"M15 18H9\"/><path d=\"M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14\"/><circle cx=\"17\" cy=\"18\" r=\"2\"/><circle cx=\"7\" cy=\"18\" r=\"2\"/>","cart":"<circle cx=\"8\" cy=\"21\" r=\"1\"/><circle cx=\"19\" cy=\"21\" r=\"1\"/><path d=\"M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12\"/>","clipboard":"<rect width=\"8\" height=\"4\" x=\"8\" y=\"2\" rx=\"1\"/><path d=\"M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2\"/><path d=\"M9 12h6M9 16h4\"/>","check":"<path d=\"M22 11.08V12a10 10 0 1 1-5.93-9.14\"/><path d=\"m9 11 3 3L22 4\"/>","layers":"<path d=\"m12 2 10 5-10 5L2 7z\"/><path d=\"m2 17 10 5 10-5\"/><path d=\"m2 12 10 5 10-5\"/>","globe":"<circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"M2 12h20\"/><path d=\"M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z\"/>","flag":"<path d=\"M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z\"/><path d=\"M4 22v-7\"/>"};
       const NODE_WIDTH = 144;
       const NODE_HEIGHT = 64;
       const DECISION_WIDTH = 144;
       const DECISION_HEIGHT = 80;
       const LANE_MIN_HEIGHT = 192;
-      const LANE_BOTTOM_PAD = 56;
+      const LANE_BOTTOM_PAD = 72;
 
       // --- STATE & INITIALIZATION ---
 
@@ -2165,6 +2309,7 @@
               title.blur();
             }
           });
+          header.appendChild(laneIconEl(lane));
           header.appendChild(title);
 
           // Drag the header to reorder; a blue line shows where the lane will land
@@ -2186,6 +2331,48 @@
           laneEl.appendChild(track);
           lanesRoot.appendChild(laneEl);
         });
+      }
+
+      // Lane icons: lane.icon names an entry of TYPE_ICONS (assets/types/flowchart/icons.json). A lane without one
+      // (older files, hand-edited JSON) gets a guess from its name, so every header still carries an icon.
+      const LANE_ICON_GUESS = [
+        [/risk|compliance|security|legal|audit|fraud|admin/, 'shield'],
+        [/customer|client|applicant|requester|end.?user|\buser\b/, 'user'],
+        [/support|help.?desk|service.?desk|call.?cent/, 'headset'],
+        [/finance|billing|treasury|account(?:s|ing)\b/, 'banknote'],
+        [/payment|card/, 'credit-card'],
+        [/warehouse|logistic|shipping|delivery|fulfil/, 'truck'],
+        [/inventory|package|parcel/, 'package'],
+        [/mail|notif|message/, 'mail'],
+        [/external|third.?party|partner|vendor|integration/, 'globe'],
+        [/devops|\bops\b|operat|platform|infra|sre|release/, 'cog'],
+        [/test|\bqa\b|quality|verif/, 'check'],
+        [/\bba\b|analyst|product|requirement|\bpo\b/, 'clipboard'],
+        [/front.?end|\bui\b|\bux\b|web|portal|browser|mobile/, 'monitor'],
+        [/develop|engineer|back.?end|software|\bapi\b|\bcode/, 'code'],
+        [/data|storage/, 'database'],
+        [/engine|system|automat|service|bot|workflow|underwrit/, 'cpu'],
+        [/cloud/, 'cloud'],
+        [/sales|account manager|officer|manager|broker/, 'briefcase'],
+        [/core|lead|exec|board|committee|steer|management/, 'flag']
+      ];
+      function laneIconName(lane) {
+        if (lane.icon && TYPE_ICONS[lane.icon]) return lane.icon;
+        const name = String(lane.name || '').toLowerCase();
+        const hit = LANE_ICON_GUESS.find(([re]) => re.test(name));
+        return hit ? hit[1] : 'users';
+      }
+      function laneIconEl(lane) {
+        const chip = document.createElement('span');
+        chip.className = 'lane-icon';
+        chip.setAttribute('aria-hidden', 'true');   // decorative: the lane name sits right beside it
+        chip.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${TYPE_ICONS[laneIconName(lane)]}</svg>`;
+        if (lane.color) {
+          const dark = document.documentElement.getAttribute('data-theme') === 'dark';
+          chip.style.background = dark ? colorWithAlpha(lane.color, 0.18) : lane.color;
+          if (dark) chip.style.color = lane.color;
+        }
+        return chip;
       }
 
       // --- Lane drag & drop helpers ---
@@ -2254,6 +2441,11 @@
         }
       });
 
+      // A start/end node with no label collapses to a circle, centred in its normal 144x64 slot
+      const DOT_SIZE = 40;
+      function isDot(n) { return (n.type === 'start' || n.type === 'end') && !(n.label || '').trim(); }
+      function dotOffset(n) { return isDot(n) ? { x: (NODE_WIDTH - DOT_SIZE) / 2, y: (NODE_HEIGHT - DOT_SIZE) / 2 } : { x: 0, y: 0 }; }
+
       function renderNodes() {
         document.querySelectorAll('.flow-node').forEach(el => el.remove());
 
@@ -2263,7 +2455,7 @@
 
           const isDecision = node.type === 'decision';
           const nodeEl = document.createElement('div');
-          nodeEl.className = `flow-node type-${node.type}` + (node.type === 'end' && node.outcome ? ` outcome-${node.outcome}` : '');
+          nodeEl.className = `flow-node type-${node.type}` + (isDot(node) ? ' terminal-dot' : '');
           nodeEl.id = `node-${node.id}`;
           nodeEl.dataset.nodeId = node.id;
           nodeEl.style.left = `${node.x || 80}px`;
@@ -2277,7 +2469,7 @@
             svg.setAttribute('viewBox', '0 0 144 80');
             svg.setAttribute('preserveAspectRatio', 'none');
             const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-            poly.setAttribute('points', '72,2 142,40 72,78 2,40');
+            poly.setAttribute('points', '72,1 143,40 72,79 1,40');
             poly.setAttribute('class', 'diamond-poly');
             svg.appendChild(poly);
             nodeEl.appendChild(svg);
@@ -2288,8 +2480,9 @@
           label.className = 'node-label';
           label.contentEditable = 'false';
           label.spellcheck = false;
-          label.title = 'Double-click to edit text';
-          label.textContent = node.label;
+          label.title = `${node.label || ''}
+Double-click to edit text`;   // full text: the label is clamped to 2 lines
+          label.textContent = node.label || '';
 
           label.addEventListener('dblclick', (e) => {
             e.stopPropagation();
@@ -2303,9 +2496,11 @@
           });
           label.addEventListener('blur', () => {
             label.contentEditable = 'false';
-            if (node.label !== label.textContent.trim()) {
+            if ((node.label || '') !== label.textContent.trim()) {
+              const wasDot = isDot(node);
               node.label = label.textContent.trim();
               updateStatus(true);
+              if (wasDot !== isDot(node)) render();
             }
           });
           label.addEventListener('keydown', (e) => {
@@ -2523,11 +2718,13 @@
               // arrow: a source in a farther lane (same side) whose column lies between this source and
               // the target climbs straight up to the target's left port, so crossing it is unavoidable
               // here. Enter the left port instead (the sibling trunk then nests inside this route).
+              // A sibling in the target's own column (|dx| < 30) climbs straight into the same
+              // top/bottom port, so the row run would cut across it just the same.
               const cutsSiblingTrunk = (inEdges[e.to] || []).some(o => {
                 if (o === e || !rects[o.from]) return false;
                 const s = rects[o.from];
                 const farther = enterSide === 'bottom' ? s.cy > f.cy + 30 : s.cy < f.cy - 30;
-                return farther && s.cx > f.x + f.w && s.cx < t.cx - 30;
+                return farther && s.cx > f.x + f.w && s.cx < t.cx + 30;
               });
               if (!verticalEntryUsed[sideKey] && !cutsSiblingTrunk
                   && segmentClear(f.x + f.w, f.cy, t.cx, f.cy, [uId, e.to])
@@ -2579,6 +2776,9 @@
           });
         });
 
+        // Arrow-end rule (references/types/flowchart.md, checklist item 7): short left/right sides MERGE
+        // same-role ends (one arrowhead / one fork point); long top/bottom sides SPREAD them 24px apart
+        // (5a1, 5a3); entries and exits never share a point on any side (2b, 5a2).
         // 3. Stagger vertical arrival offsets on shared 'left' ports
         const toPortOffsetY = {};
         Object.keys(inEdges).forEach(vId => {
@@ -2715,6 +2915,25 @@
           }
           edgePolylines[e.id] = points;
         });
+
+        // 4b. Bottom U-turn loop-backs that share a gutter and overlap horizontally would draw on
+        // top of each other: give each its own gutter row, shortest spans nearest the nodes.
+        {
+          const isU = pts => pts && pts.length === 4 && Math.abs(pts[1][1] - pts[2][1]) < 1 &&
+            Math.abs(pts[0][0] - pts[1][0]) < 1 && Math.abs(pts[2][0] - pts[3][0]) < 1 && pts[1][1] > pts[0][1] && pts[2][1] > pts[3][1];
+          const us = validEdges.filter(e => isU(edgePolylines[e.id])).map(e => {
+            const pts = edgePolylines[e.id];
+            return { e, y: pts[1][1], lo: Math.min(pts[0][0], pts[3][0]), hi: Math.max(pts[0][0], pts[3][0]) };
+          }).sort((a, b) => (a.hi - a.lo) - (b.hi - b.lo));
+          const placed = [];
+          us.forEach(u => {
+            let k = 0;
+            while (placed.some(q => Math.abs(q.y - (u.y + k * 14)) < 2 && q.lo < u.hi && u.lo < q.hi)) k++;
+            const pts = edgePolylines[u.e.id];
+            if (k) { pts[1][1] += k * 14; pts[2][1] += k * 14; }
+            placed.push({ y: pts[1][1], lo: u.lo, hi: u.hi });
+          });
+        }
 
         // 5a. Obstructed routes: when the standard route runs through another node, search every
         // exit/entry side pair (L, Z and U shapes) for a route that stays clear, preferring the
@@ -2921,12 +3140,23 @@
                 i = j;
                 if (cluster.length < 2 || new Set(cluster.map(c => c.peer)).size < 2) continue;
                 const fixed = cluster.filter(c => c.fixed), movable = cluster.filter(c => !c.fixed).sort((p1, p2) => p1.far - p2.far);
+                // Nested U-turn loop-backs (each deeper than the last): the one whose source is furthest away
+                // sits in the deepest gutter, so it must land first/left or its rising leg cuts the shallower loop
+                if (movable.length > 1 && movable.every(c => edgePolylines[c.e.id].length === 4)) movable.reverse();
                 if (!movable.length) continue;
                 const base0 = cluster.reduce((s2, c) => s2 + c.x, 0) / cluster.length;
                 const shiftEnd = (c, nx) => { edgePolylines[c.e.id][c.a][0] = nx; edgePolylines[c.e.id][c.b][0] = nx; };
                 if (fixed.length) {
                   const fx = fixed[0].x;
-                  movable.forEach((c, k) => shiftEnd(c, fx + (k % 2 ? -1 : 1) * SPREAD * (Math.floor(k / 2) + 1)));
+                  // Each moved end slides toward the side its other end lies on, so it never has to cross
+                  // the straight arrow (movable is sorted by `far`, so the nearest-to-centre ends sit closest)
+                  const sideCount = { '-1': 0, '1': 0 };
+                  const ordered = [...movable].sort((p1, p2) => Math.abs(p1.far - fx) - Math.abs(p2.far - fx));
+                  ordered.forEach(c => {
+                    const dir = c.far < fx - 1 ? -1 : c.far > fx + 1 ? 1 : (sideCount['1'] <= sideCount['-1'] ? 1 : -1);
+                    sideCount[dir] += 1;
+                    shiftEnd(c, fx + dir * SPREAD * sideCount[dir]);
+                  });
                 } else {
                   const m = movable.length;
                   movable.forEach((c, k) => shiftEnd(c, base0 + (k - (m - 1) / 2) * SPREAD));
@@ -3004,13 +3234,18 @@
               const fixed = cluster.filter(u => u.fixed);
               const movable = cluster.filter(u => !u.fixed).sort((u1, u2) => u1.far - u2.far);
               if (cluster.length < 2 || !movable.length) continue;
+              // Nested U-turn loop-backs: the arrow with the furthest source runs in the deepest gutter, so it
+              // must take the slot nearest the fixed/centre line (or the outermost on the other side), never
+              // the reverse, or its rising leg cuts through the shallower loop
+              const nested = movable.length > 1 && movable.every(u => u.ends.every(en => en.pts.length === 4));
+              if (nested) movable.reverse();
               if (!fixed.length) {
                 const mean = cluster.reduce((s2, u) => s2 + u.x, 0) / cluster.length;
                 movable.forEach((u, k) => place(u, mean + (k - (movable.length - 1) / 2) * CLEAR));
               } else {
                 const fMin = Math.min(...fixed.map(u => u.x)), fMax = Math.max(...fixed.map(u => u.x));
                 const anchor = (fMin + fMax) / 2;
-                const left = movable.filter(u => u.far < anchor - 1).sort((u1, u2) => u2.far - u1.far);
+                const left = movable.filter(u => u.far < anchor - 1).sort((u1, u2) => nested ? u1.far - u2.far : u2.far - u1.far);
                 const right = movable.filter(u => !(u.far < anchor - 1));
                 left.forEach((u, k) => place(u, fMin - CLEAR * (k + 1)));
                 right.forEach((u, k) => place(u, fMax + CLEAR * (k + 1)));
@@ -3065,6 +3300,94 @@
           });
         });
 
+        // 5c. Two-way connections (A->B plus B->A) between vertically stacked nodes: draw them as two
+        // straight parallel arrows, side by side, instead of two lines that swap sides and have to hop.
+        {
+          const PAIR_GAP = 20;
+          const done = new Set();
+          validEdges.forEach(a => {
+            if (done.has(a.id)) return;
+            const b = validEdges.find(o => o !== a && o.from === a.to && o.to === a.from && !done.has(o.id));
+            if (!b) return;
+            const pa = edgePolylines[a.id], pb = edgePolylines[b.id];
+            const f = rects[a.from], t = rects[a.to];
+            if (!pa || !pb || !f || !t) return;
+            const vertEnds = pts => pts.length >= 2 && Math.abs(pts[0][0] - pts[1][0]) < 1 &&
+              Math.abs(pts[pts.length - 1][0] - pts[pts.length - 2][0]) < 1;
+            if (!vertEnds(pa) || !vertEnds(pb)) return;
+            const lo = Math.max(f.x, t.x) + 14, hi = Math.min(f.x + f.w, t.x + t.w) - 14;
+            if (hi - lo < PAIR_GAP) {
+              // Nodes offset sideways: two nested S-shapes. The downward arrow takes the inner side at both
+              // ends and the lower crossbar; the upward arrow the outer side and the upper crossbar.
+              const aDown = f.y < t.y;
+              const U = aDown ? f : t, L = aDown ? t : f;
+              const y0 = U.y + U.h, y1 = L.y;
+              if (y1 - y0 < 48 || Math.abs(L.cx - U.cx) < 30) return;
+              const sgn = L.cx > U.cx ? 1 : -1, h = PAIR_GAP / 2;
+              const midY = (y0 + y1) / 2;
+              // Centre of the pair on one node side: nearest to the node centre where neither line sits
+              // within 14px of another arrow's contact point on that side
+              const pickCentre = (nodeId, node, edgeY) => {
+                const others = [];
+                validEdges.forEach(o => {
+                  if (o === a || o === b) return;
+                  const q = edgePolylines[o.id];
+                  if (!q) return;
+                  if (o.from === nodeId && Math.abs(q[0][1] - edgeY) < 1) others.push(q[0][0]);
+                  if (o.to === nodeId && Math.abs(q[q.length - 1][1] - edgeY) < 1) others.push(q[q.length - 1][0]);
+                });
+                const lo2 = node.x + 14 + h, hi2 = node.x + node.w - 14 - h;
+                for (let d = 0; d <= 60; d += 4) {
+                  for (const c of d ? [node.cx - d, node.cx + d] : [node.cx]) {
+                    if (c < lo2 || c > hi2) continue;
+                    if (others.every(ox => Math.abs(ox - (c - h)) >= 14 && Math.abs(ox - (c + h)) >= 14)) return c;
+                  }
+                }
+                return node.cx;
+              };
+              const uId = aDown ? a.from : a.to, lId = aDown ? a.to : a.from;
+              const cU = pickCentre(uId, U, y0), cL = pickCentre(lId, L, y1);
+              const down = [[cU - h * sgn, y0], [cU - h * sgn, midY + 6], [cL - h * sgn, midY + 6], [cL - h * sgn, y1]];
+              const up = [[cL + h * sgn, y1], [cL + h * sgn, midY - 6], [cU + h * sgn, midY - 6], [cU + h * sgn, y0]];
+              const [sa2, sb2] = aDown ? [down, up] : [up, down];
+              if (!polyClear(sa2, [a.from, a.to]) || !polyClear(sb2, [b.from, b.to])) return;
+              edgePolylines[a.id] = sa2;
+              edgePolylines[b.id] = sb2;
+              done.add(a.id); done.add(b.id);
+              return;
+            }
+            const c = Math.max(lo + PAIR_GAP / 2, Math.min(hi - PAIR_GAP / 2, (f.cx + t.cx) / 2));
+            const xa = c - PAIR_GAP / 2, xb = c + PAIR_GAP / 2;
+            const sa = [[xa, pa[0][1]], [xa, pa[pa.length - 1][1]]];
+            const sb = [[xb, pb[0][1]], [xb, pb[pb.length - 1][1]]];
+            if (!polyClear(sa, [a.from, a.to]) || !polyClear(sb, [b.from, b.to])) return;
+            edgePolylines[a.id] = sa;
+            edgePolylines[b.id] = sb;
+            done.add(a.id); done.add(b.id);
+          });
+        }
+
+        // 5d. A diamond's top/bottom side is a vertex, not a flat edge: an arrow whose contact point was
+        // spread away from the centre would otherwise start/stop in mid-air above the slanted outline.
+        // Slide those ends along their vertical leg onto the diamond's edge.
+        validEdges.forEach(e => {
+          const pts = edgePolylines[e.id];
+          if (!pts || pts.length < 2) return;
+          const snap = (nid, a, b) => {
+            const node = nodeMap[nid], r = rects[nid];
+            if (!node || node.type !== 'decision') return;
+            if (Math.abs(pts[a][0] - pts[b][0]) >= 1) return;          // only vertical end legs
+            const atTop = Math.abs(pts[a][1] - r.y) < 1, atBottom = Math.abs(pts[a][1] - (r.y + r.h)) < 1;
+            if (!atTop && !atBottom) return;
+            const inset = (r.h / 2) * Math.min(1, Math.abs(pts[a][0] - r.cx) / (r.w / 2));
+            const ny = atTop ? r.y + inset : r.y + r.h - inset;
+            // keep the leg pointing the same way and at least 4px long
+            if (Math.abs(pts[b][1] - ny) >= 4 && Math.sign(pts[b][1] - ny) === Math.sign(pts[b][1] - pts[a][1])) pts[a][1] = ny;
+          };
+          snap(e.from, 0, 1);
+          snap(e.to, pts.length - 1, pts.length - 2);
+        });
+
         // 6. Collect vertical segments from edges for planar bridge/hop overpasses
         const verticalSegments = [];
         validEdges.forEach(other => {
@@ -3094,8 +3417,12 @@
             const otherE = chartData.edges.find(ed => ed.id === obs.edgeId);
             // Forks (same source) and true merges (same target, same entry side) meet on purpose. Two arrows
             // into one node through different sides are separate lines, so where they cross, one hops.
-            if (otherE && otherE.from === e.from) return false;
-            if (otherE && otherE.to === e.to && edgePorts[otherE.id] && edgePorts[otherE.id].toPort === p.toPort) return false;
+            // Only exempt them when they really share the contact point: arrows entering one side at
+            // different x positions are separate lines, so a crossing between them must still hop.
+            const oPts = edgePolylines[obs.edgeId];
+            if (otherE && otherE.from === e.from && oPts && Math.abs(oPts[0][0] - points[0][0]) < 2 && Math.abs(oPts[0][1] - points[0][1]) < 2) return false;
+            if (otherE && otherE.to === e.to && edgePorts[otherE.id] && edgePorts[otherE.id].toPort === p.toPort &&
+                oPts && Math.abs(oPts[oPts.length - 1][0] - points[points.length - 1][0]) < 2 && Math.abs(oPts[oPts.length - 1][1] - points[points.length - 1][1]) < 2) return false;
             return true;
           });
 
@@ -3552,8 +3879,9 @@
         const trackEl = nodeEl.parentElement;
         const trackLeft = trackEl ? trackEl.getBoundingClientRect().left : stageRect.left;
         dragMoved = false;
-        dragStartGlobalX = (nRect.left - trackLeft) / scale;
-        dragStartGlobalY = (nRect.top - stageRect.top) / scale;
+        const dOff = dotOffset(node);   // circle nodes are drawn inset from their slot; data x/y is the slot corner
+        dragStartGlobalX = (nRect.left - trackLeft) / scale - dOff.x;
+        dragStartGlobalY = (nRect.top - stageRect.top) / scale - dOff.y;
 
         window.addEventListener('pointermove', onDragNodeMove);
         window.addEventListener('pointerup', onDragNodeUp);
@@ -3987,6 +4315,19 @@
         selectNode(newNode.id);
       });
 
+      [['btn-add-start', 'start', 'Start'], ['btn-add-end', 'end', 'End']].forEach(([id, type, label]) => {
+        const btn = document.getElementById(id);
+        if (!btn) return;
+        btn.addEventListener('click', () => {
+          const p = viewportCenterPlacement(NODE_WIDTH, NODE_HEIGHT);
+          const newNode = { id: `n_${Date.now()}`, laneId: p.laneId, type, label, x: p.x, y: p.y };
+          chartData.nodes.push(newNode);
+          updateStatus(true);
+          render();
+          selectNode(newNode.id);
+        });
+      });
+
       btnAddDecision.addEventListener('click', () => {
         const p = viewportCenterPlacement(NODE_WIDTH, DECISION_HEIGHT);
         const newNode = {
@@ -4010,6 +4351,7 @@
           id: `lane_${Date.now()}`,
           name: `Actor / Role ${chartData.lanes.length + 1}`,
           color: nextColor,
+          icon: 'users',
           height: LANE_MIN_HEIGHT
         };
         chartData.lanes.push(newLane);

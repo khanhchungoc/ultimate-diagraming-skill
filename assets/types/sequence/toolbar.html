@@ -1,4 +1,13 @@
-      <button id="btn-add-participant" class="btn" title="Add a participant (lifeline) at the right">+ Participant</button>
-      <button id="btn-add-message" class="btn" title="Add a message from the selected participant (or after the selected message)">+ Message</button>
-      <button id="btn-toggle-kind" class="btn" title="Cycle the selected message: call, reply, async">Call / Reply</button>
-      <button id="btn-frame" class="btn" title="Wrap the selected message in an opt frame; with a frame selected, cycle opt / alt / loop">Frame</button>
+      <button id="btn-add-participant" class="btn" title="Add a participant (lifeline) at the right" aria-label="Participant">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="16" height="6" rx="1.5"/><path d="M12 9v12" stroke-dasharray="3 3"/></svg><span class="btn-label">Participant</span>
+      </button>
+      <button id="btn-add-message" class="btn" title="Add a message from the selected participant (or after the selected message)" aria-label="Message">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h16"/><path d="m14 6 6 6-6 6"/></svg><span class="btn-label">Message</span>
+      </button>
+      <span class="dock-sep" aria-hidden="true"></span>
+      <button id="btn-toggle-kind" class="btn" title="Change the selected message type: call, reply, async" aria-label="Message type">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 3l4 4-4 4"/><path d="M21 7H8"/><path d="M7 21l-4-4 4-4"/><path d="M3 17h13"/></svg><span class="btn-label">Message type</span>
+      </button>
+      <button id="btn-frame" class="btn" title="Wrap the selected message in an opt frame; with a frame selected, cycle opt / alt / loop" aria-label="Frame">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h8V4"/></svg><span class="btn-label">Frame</span>
+      </button>

@@ -3,7 +3,7 @@
       const DECISION_WIDTH = 144;
       const DECISION_HEIGHT = 80;
       const LANE_MIN_HEIGHT = 192;
-      const LANE_BOTTOM_PAD = 56;
+      const LANE_BOTTOM_PAD = 72;
 
       // --- STATE & INITIALIZATION ---
 
@@ -102,6 +102,7 @@
               title.blur();
             }
           });
+          header.appendChild(laneIconEl(lane));
           header.appendChild(title);
 
           // Drag the header to reorder; a blue line shows where the lane will land
@@ -123,6 +124,48 @@
           laneEl.appendChild(track);
           lanesRoot.appendChild(laneEl);
         });
+      }
+
+      // Lane icons: lane.icon names an entry of TYPE_ICONS (assets/types/flowchart/icons.json). A lane without one
+      // (older files, hand-edited JSON) gets a guess from its name, so every header still carries an icon.
+      const LANE_ICON_GUESS = [
+        [/risk|compliance|security|legal|audit|fraud|admin/, 'shield'],
+        [/customer|client|applicant|requester|end.?user|\buser\b/, 'user'],
+        [/support|help.?desk|service.?desk|call.?cent/, 'headset'],
+        [/finance|billing|treasury|account(?:s|ing)\b/, 'banknote'],
+        [/payment|card/, 'credit-card'],
+        [/warehouse|logistic|shipping|delivery|fulfil/, 'truck'],
+        [/inventory|package|parcel/, 'package'],
+        [/mail|notif|message/, 'mail'],
+        [/external|third.?party|partner|vendor|integration/, 'globe'],
+        [/devops|\bops\b|operat|platform|infra|sre|release/, 'cog'],
+        [/test|\bqa\b|quality|verif/, 'check'],
+        [/\bba\b|analyst|product|requirement|\bpo\b/, 'clipboard'],
+        [/front.?end|\bui\b|\bux\b|web|portal|browser|mobile/, 'monitor'],
+        [/develop|engineer|back.?end|software|\bapi\b|\bcode/, 'code'],
+        [/data|storage/, 'database'],
+        [/engine|system|automat|service|bot|workflow|underwrit/, 'cpu'],
+        [/cloud/, 'cloud'],
+        [/sales|account manager|officer|manager|broker/, 'briefcase'],
+        [/core|lead|exec|board|committee|steer|management/, 'flag']
+      ];
+      function laneIconName(lane) {
+        if (lane.icon && TYPE_ICONS[lane.icon]) return lane.icon;
+        const name = String(lane.name || '').toLowerCase();
+        const hit = LANE_ICON_GUESS.find(([re]) => re.test(name));
+        return hit ? hit[1] : 'users';
+      }
+      function laneIconEl(lane) {
+        const chip = document.createElement('span');
+        chip.className = 'lane-icon';
+        chip.setAttribute('aria-hidden', 'true');   // decorative: the lane name sits right beside it
+        chip.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${TYPE_ICONS[laneIconName(lane)]}</svg>`;
+        if (lane.color) {
+          const dark = document.documentElement.getAttribute('data-theme') === 'dark';
+          chip.style.background = dark ? colorWithAlpha(lane.color, 0.18) : lane.color;
+          if (dark) chip.style.color = lane.color;
+        }
+        return chip;
       }
 
       // --- Lane drag & drop helpers ---
@@ -191,6 +234,11 @@
         }
       });
 
+      // A start/end node with no label collapses to a circle, centred in its normal 144x64 slot
+      const DOT_SIZE = 40;
+      function isDot(n) { return (n.type === 'start' || n.type === 'end') && !(n.label || '').trim(); }
+      function dotOffset(n) { return isDot(n) ? { x: (NODE_WIDTH - DOT_SIZE) / 2, y: (NODE_HEIGHT - DOT_SIZE) / 2 } : { x: 0, y: 0 }; }
+
       function renderNodes() {
         document.querySelectorAll('.flow-node').forEach(el => el.remove());
 
@@ -200,7 +248,7 @@
 
           const isDecision = node.type === 'decision';
           const nodeEl = document.createElement('div');
-          nodeEl.className = `flow-node type-${node.type}` + (node.type === 'end' && node.outcome ? ` outcome-${node.outcome}` : '');
+          nodeEl.className = `flow-node type-${node.type}` + (isDot(node) ? ' terminal-dot' : '');
           nodeEl.id = `node-${node.id}`;
           nodeEl.dataset.nodeId = node.id;
           nodeEl.style.left = `${node.x || 80}px`;
@@ -214,7 +262,7 @@
             svg.setAttribute('viewBox', '0 0 144 80');
             svg.setAttribute('preserveAspectRatio', 'none');
             const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-            poly.setAttribute('points', '72,2 142,40 72,78 2,40');
+            poly.setAttribute('points', '72,1 143,40 72,79 1,40');
             poly.setAttribute('class', 'diamond-poly');
             svg.appendChild(poly);
             nodeEl.appendChild(svg);
@@ -225,8 +273,9 @@
           label.className = 'node-label';
           label.contentEditable = 'false';
           label.spellcheck = false;
-          label.title = 'Double-click to edit text';
-          label.textContent = node.label;
+          label.title = `${node.label || ''}
+Double-click to edit text`;   // full text: the label is clamped to 2 lines
+          label.textContent = node.label || '';
 
           label.addEventListener('dblclick', (e) => {
             e.stopPropagation();
@@ -240,9 +289,11 @@
           });
           label.addEventListener('blur', () => {
             label.contentEditable = 'false';
-            if (node.label !== label.textContent.trim()) {
+            if ((node.label || '') !== label.textContent.trim()) {
+              const wasDot = isDot(node);
               node.label = label.textContent.trim();
               updateStatus(true);
+              if (wasDot !== isDot(node)) render();
             }
           });
           label.addEventListener('keydown', (e) => {
@@ -460,11 +511,13 @@
               // arrow: a source in a farther lane (same side) whose column lies between this source and
               // the target climbs straight up to the target's left port, so crossing it is unavoidable
               // here. Enter the left port instead (the sibling trunk then nests inside this route).
+              // A sibling in the target's own column (|dx| < 30) climbs straight into the same
+              // top/bottom port, so the row run would cut across it just the same.
               const cutsSiblingTrunk = (inEdges[e.to] || []).some(o => {
                 if (o === e || !rects[o.from]) return false;
                 const s = rects[o.from];
                 const farther = enterSide === 'bottom' ? s.cy > f.cy + 30 : s.cy < f.cy - 30;
-                return farther && s.cx > f.x + f.w && s.cx < t.cx - 30;
+                return farther && s.cx > f.x + f.w && s.cx < t.cx + 30;
               });
               if (!verticalEntryUsed[sideKey] && !cutsSiblingTrunk
                   && segmentClear(f.x + f.w, f.cy, t.cx, f.cy, [uId, e.to])
@@ -516,6 +569,9 @@
           });
         });
 
+        // Arrow-end rule (references/types/flowchart.md, checklist item 7): short left/right sides MERGE
+        // same-role ends (one arrowhead / one fork point); long top/bottom sides SPREAD them 24px apart
+        // (5a1, 5a3); entries and exits never share a point on any side (2b, 5a2).
         // 3. Stagger vertical arrival offsets on shared 'left' ports
         const toPortOffsetY = {};
         Object.keys(inEdges).forEach(vId => {
@@ -652,6 +708,25 @@
           }
           edgePolylines[e.id] = points;
         });
+
+        // 4b. Bottom U-turn loop-backs that share a gutter and overlap horizontally would draw on
+        // top of each other: give each its own gutter row, shortest spans nearest the nodes.
+        {
+          const isU = pts => pts && pts.length === 4 && Math.abs(pts[1][1] - pts[2][1]) < 1 &&
+            Math.abs(pts[0][0] - pts[1][0]) < 1 && Math.abs(pts[2][0] - pts[3][0]) < 1 && pts[1][1] > pts[0][1] && pts[2][1] > pts[3][1];
+          const us = validEdges.filter(e => isU(edgePolylines[e.id])).map(e => {
+            const pts = edgePolylines[e.id];
+            return { e, y: pts[1][1], lo: Math.min(pts[0][0], pts[3][0]), hi: Math.max(pts[0][0], pts[3][0]) };
+          }).sort((a, b) => (a.hi - a.lo) - (b.hi - b.lo));
+          const placed = [];
+          us.forEach(u => {
+            let k = 0;
+            while (placed.some(q => Math.abs(q.y - (u.y + k * 14)) < 2 && q.lo < u.hi && u.lo < q.hi)) k++;
+            const pts = edgePolylines[u.e.id];
+            if (k) { pts[1][1] += k * 14; pts[2][1] += k * 14; }
+            placed.push({ y: pts[1][1], lo: u.lo, hi: u.hi });
+          });
+        }
 
         // 5a. Obstructed routes: when the standard route runs through another node, search every
         // exit/entry side pair (L, Z and U shapes) for a route that stays clear, preferring the
@@ -858,12 +933,23 @@
                 i = j;
                 if (cluster.length < 2 || new Set(cluster.map(c => c.peer)).size < 2) continue;
                 const fixed = cluster.filter(c => c.fixed), movable = cluster.filter(c => !c.fixed).sort((p1, p2) => p1.far - p2.far);
+                // Nested U-turn loop-backs (each deeper than the last): the one whose source is furthest away
+                // sits in the deepest gutter, so it must land first/left or its rising leg cuts the shallower loop
+                if (movable.length > 1 && movable.every(c => edgePolylines[c.e.id].length === 4)) movable.reverse();
                 if (!movable.length) continue;
                 const base0 = cluster.reduce((s2, c) => s2 + c.x, 0) / cluster.length;
                 const shiftEnd = (c, nx) => { edgePolylines[c.e.id][c.a][0] = nx; edgePolylines[c.e.id][c.b][0] = nx; };
                 if (fixed.length) {
                   const fx = fixed[0].x;
-                  movable.forEach((c, k) => shiftEnd(c, fx + (k % 2 ? -1 : 1) * SPREAD * (Math.floor(k / 2) + 1)));
+                  // Each moved end slides toward the side its other end lies on, so it never has to cross
+                  // the straight arrow (movable is sorted by `far`, so the nearest-to-centre ends sit closest)
+                  const sideCount = { '-1': 0, '1': 0 };
+                  const ordered = [...movable].sort((p1, p2) => Math.abs(p1.far - fx) - Math.abs(p2.far - fx));
+                  ordered.forEach(c => {
+                    const dir = c.far < fx - 1 ? -1 : c.far > fx + 1 ? 1 : (sideCount['1'] <= sideCount['-1'] ? 1 : -1);
+                    sideCount[dir] += 1;
+                    shiftEnd(c, fx + dir * SPREAD * sideCount[dir]);
+                  });
                 } else {
                   const m = movable.length;
                   movable.forEach((c, k) => shiftEnd(c, base0 + (k - (m - 1) / 2) * SPREAD));
@@ -941,13 +1027,18 @@
               const fixed = cluster.filter(u => u.fixed);
               const movable = cluster.filter(u => !u.fixed).sort((u1, u2) => u1.far - u2.far);
               if (cluster.length < 2 || !movable.length) continue;
+              // Nested U-turn loop-backs: the arrow with the furthest source runs in the deepest gutter, so it
+              // must take the slot nearest the fixed/centre line (or the outermost on the other side), never
+              // the reverse, or its rising leg cuts through the shallower loop
+              const nested = movable.length > 1 && movable.every(u => u.ends.every(en => en.pts.length === 4));
+              if (nested) movable.reverse();
               if (!fixed.length) {
                 const mean = cluster.reduce((s2, u) => s2 + u.x, 0) / cluster.length;
                 movable.forEach((u, k) => place(u, mean + (k - (movable.length - 1) / 2) * CLEAR));
               } else {
                 const fMin = Math.min(...fixed.map(u => u.x)), fMax = Math.max(...fixed.map(u => u.x));
                 const anchor = (fMin + fMax) / 2;
-                const left = movable.filter(u => u.far < anchor - 1).sort((u1, u2) => u2.far - u1.far);
+                const left = movable.filter(u => u.far < anchor - 1).sort((u1, u2) => nested ? u1.far - u2.far : u2.far - u1.far);
                 const right = movable.filter(u => !(u.far < anchor - 1));
                 left.forEach((u, k) => place(u, fMin - CLEAR * (k + 1)));
                 right.forEach((u, k) => place(u, fMax + CLEAR * (k + 1)));
@@ -1002,6 +1093,94 @@
           });
         });
 
+        // 5c. Two-way connections (A->B plus B->A) between vertically stacked nodes: draw them as two
+        // straight parallel arrows, side by side, instead of two lines that swap sides and have to hop.
+        {
+          const PAIR_GAP = 20;
+          const done = new Set();
+          validEdges.forEach(a => {
+            if (done.has(a.id)) return;
+            const b = validEdges.find(o => o !== a && o.from === a.to && o.to === a.from && !done.has(o.id));
+            if (!b) return;
+            const pa = edgePolylines[a.id], pb = edgePolylines[b.id];
+            const f = rects[a.from], t = rects[a.to];
+            if (!pa || !pb || !f || !t) return;
+            const vertEnds = pts => pts.length >= 2 && Math.abs(pts[0][0] - pts[1][0]) < 1 &&
+              Math.abs(pts[pts.length - 1][0] - pts[pts.length - 2][0]) < 1;
+            if (!vertEnds(pa) || !vertEnds(pb)) return;
+            const lo = Math.max(f.x, t.x) + 14, hi = Math.min(f.x + f.w, t.x + t.w) - 14;
+            if (hi - lo < PAIR_GAP) {
+              // Nodes offset sideways: two nested S-shapes. The downward arrow takes the inner side at both
+              // ends and the lower crossbar; the upward arrow the outer side and the upper crossbar.
+              const aDown = f.y < t.y;
+              const U = aDown ? f : t, L = aDown ? t : f;
+              const y0 = U.y + U.h, y1 = L.y;
+              if (y1 - y0 < 48 || Math.abs(L.cx - U.cx) < 30) return;
+              const sgn = L.cx > U.cx ? 1 : -1, h = PAIR_GAP / 2;
+              const midY = (y0 + y1) / 2;
+              // Centre of the pair on one node side: nearest to the node centre where neither line sits
+              // within 14px of another arrow's contact point on that side
+              const pickCentre = (nodeId, node, edgeY) => {
+                const others = [];
+                validEdges.forEach(o => {
+                  if (o === a || o === b) return;
+                  const q = edgePolylines[o.id];
+                  if (!q) return;
+                  if (o.from === nodeId && Math.abs(q[0][1] - edgeY) < 1) others.push(q[0][0]);
+                  if (o.to === nodeId && Math.abs(q[q.length - 1][1] - edgeY) < 1) others.push(q[q.length - 1][0]);
+                });
+                const lo2 = node.x + 14 + h, hi2 = node.x + node.w - 14 - h;
+                for (let d = 0; d <= 60; d += 4) {
+                  for (const c of d ? [node.cx - d, node.cx + d] : [node.cx]) {
+                    if (c < lo2 || c > hi2) continue;
+                    if (others.every(ox => Math.abs(ox - (c - h)) >= 14 && Math.abs(ox - (c + h)) >= 14)) return c;
+                  }
+                }
+                return node.cx;
+              };
+              const uId = aDown ? a.from : a.to, lId = aDown ? a.to : a.from;
+              const cU = pickCentre(uId, U, y0), cL = pickCentre(lId, L, y1);
+              const down = [[cU - h * sgn, y0], [cU - h * sgn, midY + 6], [cL - h * sgn, midY + 6], [cL - h * sgn, y1]];
+              const up = [[cL + h * sgn, y1], [cL + h * sgn, midY - 6], [cU + h * sgn, midY - 6], [cU + h * sgn, y0]];
+              const [sa2, sb2] = aDown ? [down, up] : [up, down];
+              if (!polyClear(sa2, [a.from, a.to]) || !polyClear(sb2, [b.from, b.to])) return;
+              edgePolylines[a.id] = sa2;
+              edgePolylines[b.id] = sb2;
+              done.add(a.id); done.add(b.id);
+              return;
+            }
+            const c = Math.max(lo + PAIR_GAP / 2, Math.min(hi - PAIR_GAP / 2, (f.cx + t.cx) / 2));
+            const xa = c - PAIR_GAP / 2, xb = c + PAIR_GAP / 2;
+            const sa = [[xa, pa[0][1]], [xa, pa[pa.length - 1][1]]];
+            const sb = [[xb, pb[0][1]], [xb, pb[pb.length - 1][1]]];
+            if (!polyClear(sa, [a.from, a.to]) || !polyClear(sb, [b.from, b.to])) return;
+            edgePolylines[a.id] = sa;
+            edgePolylines[b.id] = sb;
+            done.add(a.id); done.add(b.id);
+          });
+        }
+
+        // 5d. A diamond's top/bottom side is a vertex, not a flat edge: an arrow whose contact point was
+        // spread away from the centre would otherwise start/stop in mid-air above the slanted outline.
+        // Slide those ends along their vertical leg onto the diamond's edge.
+        validEdges.forEach(e => {
+          const pts = edgePolylines[e.id];
+          if (!pts || pts.length < 2) return;
+          const snap = (nid, a, b) => {
+            const node = nodeMap[nid], r = rects[nid];
+            if (!node || node.type !== 'decision') return;
+            if (Math.abs(pts[a][0] - pts[b][0]) >= 1) return;          // only vertical end legs
+            const atTop = Math.abs(pts[a][1] - r.y) < 1, atBottom = Math.abs(pts[a][1] - (r.y + r.h)) < 1;
+            if (!atTop && !atBottom) return;
+            const inset = (r.h / 2) * Math.min(1, Math.abs(pts[a][0] - r.cx) / (r.w / 2));
+            const ny = atTop ? r.y + inset : r.y + r.h - inset;
+            // keep the leg pointing the same way and at least 4px long
+            if (Math.abs(pts[b][1] - ny) >= 4 && Math.sign(pts[b][1] - ny) === Math.sign(pts[b][1] - pts[a][1])) pts[a][1] = ny;
+          };
+          snap(e.from, 0, 1);
+          snap(e.to, pts.length - 1, pts.length - 2);
+        });
+
         // 6. Collect vertical segments from edges for planar bridge/hop overpasses
         const verticalSegments = [];
         validEdges.forEach(other => {
@@ -1031,8 +1210,12 @@
             const otherE = chartData.edges.find(ed => ed.id === obs.edgeId);
             // Forks (same source) and true merges (same target, same entry side) meet on purpose. Two arrows
             // into one node through different sides are separate lines, so where they cross, one hops.
-            if (otherE && otherE.from === e.from) return false;
-            if (otherE && otherE.to === e.to && edgePorts[otherE.id] && edgePorts[otherE.id].toPort === p.toPort) return false;
+            // Only exempt them when they really share the contact point: arrows entering one side at
+            // different x positions are separate lines, so a crossing between them must still hop.
+            const oPts = edgePolylines[obs.edgeId];
+            if (otherE && otherE.from === e.from && oPts && Math.abs(oPts[0][0] - points[0][0]) < 2 && Math.abs(oPts[0][1] - points[0][1]) < 2) return false;
+            if (otherE && otherE.to === e.to && edgePorts[otherE.id] && edgePorts[otherE.id].toPort === p.toPort &&
+                oPts && Math.abs(oPts[oPts.length - 1][0] - points[points.length - 1][0]) < 2 && Math.abs(oPts[oPts.length - 1][1] - points[points.length - 1][1]) < 2) return false;
             return true;
           });
 
@@ -1489,8 +1672,9 @@
         const trackEl = nodeEl.parentElement;
         const trackLeft = trackEl ? trackEl.getBoundingClientRect().left : stageRect.left;
         dragMoved = false;
-        dragStartGlobalX = (nRect.left - trackLeft) / scale;
-        dragStartGlobalY = (nRect.top - stageRect.top) / scale;
+        const dOff = dotOffset(node);   // circle nodes are drawn inset from their slot; data x/y is the slot corner
+        dragStartGlobalX = (nRect.left - trackLeft) / scale - dOff.x;
+        dragStartGlobalY = (nRect.top - stageRect.top) / scale - dOff.y;
 
         window.addEventListener('pointermove', onDragNodeMove);
         window.addEventListener('pointerup', onDragNodeUp);
@@ -1924,6 +2108,19 @@
         selectNode(newNode.id);
       });
 
+      [['btn-add-start', 'start', 'Start'], ['btn-add-end', 'end', 'End']].forEach(([id, type, label]) => {
+        const btn = document.getElementById(id);
+        if (!btn) return;
+        btn.addEventListener('click', () => {
+          const p = viewportCenterPlacement(NODE_WIDTH, NODE_HEIGHT);
+          const newNode = { id: `n_${Date.now()}`, laneId: p.laneId, type, label, x: p.x, y: p.y };
+          chartData.nodes.push(newNode);
+          updateStatus(true);
+          render();
+          selectNode(newNode.id);
+        });
+      });
+
       btnAddDecision.addEventListener('click', () => {
         const p = viewportCenterPlacement(NODE_WIDTH, DECISION_HEIGHT);
         const newNode = {
@@ -1947,6 +2144,7 @@
           id: `lane_${Date.now()}`,
           name: `Actor / Role ${chartData.lanes.length + 1}`,
           color: nextColor,
+          icon: 'users',
           height: LANE_MIN_HEIGHT
         };
         chartData.lanes.push(newLane);

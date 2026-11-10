@@ -11,7 +11,7 @@ Never add pixel coordinates (`x`, `y`); `--layout` computes them.
   "diagramType": "flowchart",
   "title": "Process Title",
   "direction": "LR",
-  "lanes": [{ "id": "lane-customer", "name": "Customer", "color": "#e0f2fe" }],
+  "lanes": [{ "id": "lane-customer", "name": "Customer", "color": "#e0f2fe", "icon": "user" }],
   "nodes": [{ "id": "n1", "laneId": "lane-customer", "type": "start", "label": "Submit Request" }],
   "edges": [{ "id": "e1", "from": "n1", "to": "n2", "label": "" }]
 }
@@ -19,9 +19,8 @@ Never add pixel coordinates (`x`, `y`); `--layout` computes them.
 
 | Object | Field | Description |
 |---|---|---|
-| Lane | `id`, `name`, `color` | Unique id (`lane-<slug>`), actor or system name, hex color from the table below. |
+| Lane | `id`, `name`, `color`, `icon` | Unique id (`lane-<slug>`), actor or system name, hex color from the table below, and an **icon name from the table below. Always set one on every lane.** It is drawn beside the lane name so each owner is recognisable at a glance. |
 | Node | `id`, `laneId`, `type`, `label` | `type` is `start`, `task`, `decision` or `end`. |
-| Node (`end` only) | `outcome` | Optional `"success"` (dark green, check) or `"failure"` (dark red, cross). Plain `end` is dark slate. All terminators use light text on a dark fill; `start` stays light with dark text, so good and bad endings look different. |
 | Edge | `id`, `from`, `to`, `label` | `label` is `"Yes"`, `"No"`, `"Resubmit"`, etc.; `""` for unconditional steps. |
 | Edge | `feedback` | Optional `true` marks a loop-back edge so it always routes through the outer corridor. Without it the engine picks the loop edge by traversal order, which may choose the wrong edge of a cycle. |
 
@@ -40,6 +39,35 @@ Never add pixel coordinates (`x`, `y`); `--layout` computes them.
 3. **One owner per node**: place each node in the lane of the actor who performs it.
 4. Keep labels short; long edge labels wrap, but long node labels shrink the fitted text.
 5. One lane per distinct actor or system.
+6. **Every lane gets an `icon`**, chosen from the table below to match the actor or system. Use a different icon for each lane in one diagram, and never leave one out (`--verify` prints a `[WARN]` for a lane without one, or with a name that is not in the table).
+
+| Icon | Use for |
+|---|---|
+| `user` | a person, customer, applicant, requester |
+| `users` | a team, group, generic role |
+| `briefcase` | sales, account or relationship manager, officer, broker |
+| `building` | organisation, branch, department, agency |
+| `headset` | support, help desk, call centre |
+| `monitor` | frontend, UI, web or mobile app, portal |
+| `code` | developer, engineer, backend, API |
+| `server` | server, infrastructure host |
+| `database` | data store, data team, reporting |
+| `cloud` | cloud platform, SaaS |
+| `cpu` | automated system, engine, bot, workflow service |
+| `cog` | DevOps, operations, platform, release |
+| `shield` | risk, compliance, security, fraud, legal, audit |
+| `scale` | legal, governance, regulator |
+| `banknote` | finance, billing, treasury |
+| `credit-card` | payments, card processor |
+| `mail` | notifications, email, messaging |
+| `package` | inventory, product, parcel |
+| `truck` | warehouse, logistics, shipping, delivery |
+| `cart` | shop, checkout, order channel |
+| `clipboard` | business analyst, product owner, requirements |
+| `check` | QA, tester, verification |
+| `layers` | architecture, a layered or composite system |
+| `globe` | external party, third party, partner, vendor |
+| `flag` | core team, lead, steering group, management |
 
 ## Diagram scale & viewing mode
 
@@ -57,6 +85,13 @@ The layout report covers label occlusion. Check the rest by eye on the screensho
 4. **Orthogonal lines**: same-lane connections are flat, with no diagonal kinks.
 5. **Loop edges** use the outer corridors.
 6. **Fan-in joins do not cross**: when several lanes feed one join node, the arrows nest like a staircase (the nearest lane's arrow arrives lowest). A row-run that cuts across another arrow's vertical climb means a source took the join's top/bottom port while a farther lane's arrow climbs to its left port. Re-run `--layout`; if it persists, reorder lanes so the join's sources sit next to each other.
+7. **Arrow ends follow the side rule**: whether arrows that touch the same side of a node share one end point depends on how much room that side has.
+   - **Left/right sides (short, 64px) merge**: all arrows entering a side share one arrowhead; all arrows leaving a side share one exit point and fork after the first bend.
+   - **Top/bottom sides (long, 144px) spread**: each arrow gets its own end point, 24px apart. An arrow that runs straight to a node directly above/below keeps the centre; the others move toward the side their other end lies on.
+   - **Entries and exits never share a point** on any side: they stay at least 16px apart, so an arrowhead never sits on a departure.
+   - **Always separate**: the two arrows of a two-way pair (A↔B), and a decision's labelled branches (each leaves from its own side).
+
+   Merged and spread ends are both correct. Flag only an arrowhead touching a departure point, or two spread ends closer than 24px.
 
 ## Failure handling
 
@@ -69,6 +104,7 @@ The layout report covers label occlusion. Check the rest by eye on the screensho
 |---|---|
 | Same-lane connections are flat | **Automated**: collinear % and dogleg count in `--verify` |
 | Loop edges use outer corridors; branches exit distinct ports | **Visual** (checklist 2, 5) |
+| Every lane has a known `icon` | **Automated**: `--verify` prints a `[WARN]` per lane that has none or an unknown name |
 | Lane containment and flat lines | **Visual** (checklist 3, 4) |
 
 ## Final report additions

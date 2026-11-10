@@ -14,6 +14,7 @@
       // --- STATE ---
       let chartData = { title: "", direction: "LR", lanes: [], nodes: [], edges: [] };
       let fileHandle = null;
+      let everSaved = false;
       let hasUnsavedChanges = false;
 
       // Undo / redo history: JSON snapshots of chartData, taken at each committed edit
@@ -108,14 +109,21 @@
         setStatusBadge(unsaved);
       }
 
+      // Green means "this is on disk". A page nobody has saved yet is just "Ready" (neutral).
       function setStatusBadge(unsaved) {
         hasUnsavedChanges = unsaved;
         if (unsaved) {
-          saveStatus.textContent = "Unsaved Changes";
+          saveStatus.textContent = "Unsaved changes";
           saveStatus.className = "badge badge-status unsaved";
-        } else {
-          saveStatus.textContent = fileHandle ? "Saved to File" : "Ready";
+        } else if (fileHandle) {
+          saveStatus.textContent = "Saved to file";
           saveStatus.className = "badge badge-status saved";
+        } else if (everSaved) {
+          saveStatus.textContent = "Downloaded";
+          saveStatus.className = "badge badge-status saved";
+        } else {
+          saveStatus.textContent = "Ready";
+          saveStatus.className = "badge badge-status";
         }
       }
 
@@ -189,9 +197,15 @@
       function currentTheme() {
         return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
       }
+      // The button shows the theme you would switch TO (stroke icons, same family as the other controls)
+      const ICON_SUN = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>';
+      const ICON_MOON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>';
       function applyTheme(theme, persist) {
         document.documentElement.setAttribute('data-theme', theme);
-        btnTheme.textContent = theme === 'dark' ? '\u2600\uFE0F' : '\uD83C\uDF19';
+        btnTheme.innerHTML = theme === 'dark' ? ICON_SUN : ICON_MOON;
+        const next = theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode';
+        btnTheme.title = next;
+        btnTheme.setAttribute('aria-label', next);
         if (persist) { try { localStorage.setItem('flowchart-theme', theme); } catch (e) {} }
         if (plugin) plugin.render();   // type colors may depend on the theme
       }
@@ -346,9 +360,14 @@
       });
       btnZoomReset.addEventListener('click', fitView);
 
-      btnHelp.addEventListener('click', () => {
-        helpDrawer.classList.toggle('open');
-      });
+      function setHelpOpen(open) {
+        helpDrawer.classList.toggle('open', open);
+        btnHelp.setAttribute('aria-expanded', String(open));
+        if (open) document.getElementById('help-close').focus();
+        else if (helpDrawer.contains(document.activeElement)) btnHelp.focus();
+      }
+      btnHelp.addEventListener('click', () => setHelpOpen(!helpDrawer.classList.contains('open')));
+      document.getElementById('help-close').addEventListener('click', () => setHelpOpen(false));
 
       // --- SAVE MECHANISM (Direct to HTML File) ---
       async function saveToFile() {
@@ -393,6 +412,7 @@
             await writable.close();
 
             savedJson = JSON.stringify(chartData);
+            everSaved = true;
             updateStatus(false);
             return;
           } catch (err) {
@@ -411,6 +431,7 @@
           document.body.removeChild(a);
           URL.revokeObjectURL(url);
           savedJson = JSON.stringify(chartData);
+          everSaved = true;
           updateStatus(false);
         } catch (err) {
           alert("Save failed: " + err.message);
@@ -430,6 +451,7 @@
           e.preventDefault();
           if (e.key.toLowerCase() === 'y' || e.shiftKey) redo(); else undo();
         } else if (e.key === 'Escape') {
+          if (helpDrawer.classList.contains('open')) { setHelpOpen(false); return; }
           plugin.cancelInteraction();
         } else if (e.key === 'Delete' || e.key === 'Backspace') {
           if (document.body.classList.contains('presentation')) return;

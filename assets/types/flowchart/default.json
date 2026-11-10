@@ -2,8 +2,8 @@
   "title": "Interactive Swimlane Flowchart",
   "direction": "LR",
   "lanes": [
-    { "id": "lane-1", "name": "Actor / Role 1", "color": "#e0f2fe", "height": 160 },
-    { "id": "lane-2", "name": "System / Service 2", "color": "#fef3c7", "height": 160 }
+    { "id": "lane-1", "name": "Actor / Role 1", "color": "#e0f2fe", "icon": "user", "height": 160 },
+    { "id": "lane-2", "name": "System / Service 2", "color": "#fef3c7", "icon": "cpu", "height": 160 }
   ],
   "nodes": [
     { "id": "n1", "laneId": "lane-1", "type": "start", "label": "Start Process", "x": 80, "y": 53 },

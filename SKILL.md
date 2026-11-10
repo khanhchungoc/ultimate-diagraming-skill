@@ -38,7 +38,7 @@ Expect from the user or an orchestrating agent: the diagram content (actors, ste
 
 ## Procedure: New Diagram
 
-1. **Write the logical JSON in a temp/scratch file** following the type reference. Never compute pixel coordinates. The user's requested scope determines the diagram size and granularity; never truncate or omit steps to fit an artificial budget.
+1. **Write the logical JSON in a temp/scratch file** following the type reference. Never compute pixel coordinates. For a flowchart, give **every lane an `icon`** from the type reference's icon table; a lane header without one looks unfinished. The user's requested scope determines the diagram size and granularity; never truncate or omit steps to fit an artificial budget.
 
 2. **Lay out and scaffold the HTML** (needs Node.js, or Chrome/Chromium as a fallback; `--browser <path>` selects it):
    ```shell
@@ -50,7 +50,7 @@ Expect from the user or an orchestrating agent: the diagram content (actors, ste
    ```shell
    python "<skill-dir>/scripts/layout_engine.py" --verify <target.html>
    ```
-   Required: exit code `0`, score ≥ 90/100, no issues listed, 0 external references.
+   Required: exit code `0`, score ≥ 90/100, no issues listed, 0 external references, and no `[WARN]` about a lane icon (add the missing `icon`, then re-run step 2).
 
 4. **Layout report + visual review.** One command measures the page and captures a clean screenshot to a temporary path (editing controls hidden, cropped to the diagram, 2x):
    ```shell

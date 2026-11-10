@@ -6,27 +6,32 @@
     {
       "id": "lane-core",
       "name": "P1. Core Team",
-      "color": "#fef3c7"
+      "color": "#fef3c7",
+      "icon": "flag"
     },
     {
       "id": "lane-ba",
       "name": "P2. BA",
-      "color": "#e0f2fe"
+      "color": "#e0f2fe",
+      "icon": "clipboard"
     },
     {
       "id": "lane-dev",
       "name": "P3. Developer",
-      "color": "#dcfce7"
+      "color": "#dcfce7",
+      "icon": "code"
     },
     {
       "id": "lane-devops",
       "name": "P4. DevOps",
-      "color": "#fee2e2"
+      "color": "#fee2e2",
+      "icon": "cog"
     },
     {
       "id": "lane-tester",
       "name": "P5. Tester",
-      "color": "#f3e8ff"
+      "color": "#f3e8ff",
+      "icon": "check"
     }
   ],
   "nodes": [
@@ -58,7 +63,6 @@
       "id": "n_end",
       "laneId": "lane-core",
       "type": "end",
-      "outcome": "success",
       "label": "Iteration Complete"
     },
     {

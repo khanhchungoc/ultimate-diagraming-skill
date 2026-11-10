@@ -28,12 +28,14 @@
       min-width: var(--lane-header-width);
       padding: 14px 12px;
       display: flex;
-      flex-direction: column;
-      justify-content: center;
+      flex-direction: row;
+      align-items: center;
+      gap: 10px;
       border-right: 2px solid var(--border-dark);
       background: var(--bg-lane-header);
       font-weight: 700;
-      font-size: 0.9rem;
+      font-size: 1.0625rem;
+      line-height: 1.25;
       color: var(--text-main);
       position: relative;
       cursor: grab;
@@ -44,7 +46,20 @@
       opacity: 0.5;
       background: var(--bg-soft);
     }
+    .lane-icon {
+      flex: none;
+      width: 34px;
+      height: 34px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 9px;
+      border: 1px solid var(--border-dark);
+      color: var(--text-main);
+      pointer-events: none;
+    }
     .lane-title {
+      min-width: 0;
       outline: none;
       user-select: none;
       word-break: break-word;
@@ -72,11 +87,11 @@
     }
     .snap-guide-v {
       top: 0; bottom: 0; width: 0;
-      border-left: 1.5px dashed #e11d48;
+      border-left: 1.5px dashed var(--guide);
     }
     .snap-guide-h {
       left: 0; right: 0; height: 0;
-      border-top: 1.5px dashed #e11d48;
+      border-top: 1.5px dashed var(--guide);
     }
     #lane-drop-line {
       position: absolute;
@@ -85,7 +100,7 @@
       height: 4px;
       background: var(--primary);
       border-radius: 2px;
-      box-shadow: 0 0 0 3px rgba(37,99,235,0.25);
+      box-shadow: 0 0 0 3px var(--primary-ring);
       z-index: 60;
       pointer-events: none;
       display: none;
@@ -108,7 +123,7 @@
       transition: background 0.15s ease;
     }
     .lane-track.drag-hover-lane {
-      background: rgba(37, 99, 235, 0.06);
+      background: var(--primary-wash);
     }
 
     /* SVG Connector Overlay */
@@ -124,7 +139,7 @@
     .connector-path {
       fill: none;
       stroke: var(--connector);
-      stroke-width: 1.8px;
+      stroke-width: 1.5px;
       stroke-linejoin: round;
       stroke-linecap: round;
       pointer-events: stroke;
@@ -141,7 +156,7 @@
     body.presentation .connector-hit { pointer-events: none !important; }
     .connector-path:hover, .connector-path.hover, .connector-path.selected {
       stroke: var(--primary);
-      stroke-width: 2.6px;
+      stroke-width: 2px;
     }
 
     .edge-label-container {
@@ -151,7 +166,7 @@
       border: 1.5px solid var(--border-dark);
       border-radius: 8px;
       padding: 3px 8px;
-      font-size: 0.8rem;
+      font-size: 0.8125rem;
       font-weight: 600;
       color: var(--text-main);
       cursor: pointer;
@@ -160,7 +175,7 @@
       white-space: normal; /* Allow dropping into multiple lines if exceeding gap */
       overflow-wrap: break-word; /* wrap between words; only split a word that cannot fit at all */
       text-align: center;
-      transition: all 0.15s ease;
+      transition: border-color var(--ease), box-shadow var(--ease), color var(--ease);
       display: inline-flex;
       align-items: center;
       justify-content: center;
@@ -171,7 +186,7 @@
     }
     .edge-label-container:hover, .edge-label-container.selected {
       border-color: var(--primary);
-      box-shadow: 0 2px 8px rgba(37,99,235,0.22);
+      box-shadow: 0 2px 8px var(--primary-glow);
     }
     .edge-label-text {
       outline: none;
@@ -189,8 +204,8 @@
       display: none;
       background: var(--edge-label-empty-bg);
       border: 1.5px dashed var(--edge-label-empty-border);
-      color: var(--text-muted);
-      font-size: 0.8rem;
+      color: var(--text-soft);
+      font-size: 0.8125rem;
       padding: 2px 8px;
     }
     .edge-label-container.empty-placeholder {
@@ -231,7 +246,7 @@
       color: var(--danger);
       cursor: pointer;
       box-shadow: 0 1px 4px rgba(0,0,0,0.12);
-      transition: all 0.15s;
+      transition: background-color var(--ease), color var(--ease);
     }
     .edge-delete-btn svg { display: block; }
     .edge-delete-btn:hover {
@@ -243,7 +258,8 @@
     .flow-node {
       position: absolute;
       background: var(--node-bg);
-      border: 1.8px solid var(--border-dark);
+      --node-stroke: 2px; /* single border weight shared by every node type */
+      border: var(--node-stroke) solid var(--border-dark);
       border-radius: 8px;
       padding: 6px 14px;
       width: 144px;
@@ -255,7 +271,7 @@
       align-items: center;
       justify-content: center;
       text-align: center;
-      font-size: 0.81rem;
+      font-size: 0.875rem;
       font-weight: 600;
       line-height: 1.22;
       user-select: none;
@@ -267,7 +283,7 @@
     }
     .flow-node.selected {
       border-color: var(--primary);
-      box-shadow: 0 0 0 3px rgba(37,99,235,0.25);
+      box-shadow: 0 0 0 3px var(--primary-ring);
     }
     .flow-node.connect-target {
       outline: 3px dashed var(--primary);
@@ -276,17 +292,26 @@
 
     /* Node Types */
     .flow-node.type-start {
-      border-radius: 28px;
+      border-radius: 999px;
       background: var(--start-bg);
       border-color: var(--start-border);
       color: var(--start-text);
     }
     .flow-node.type-end {
-      border-radius: 28px;
+      border-radius: 999px;
       background: var(--end-bg);
       border-color: var(--end-border);
       color: var(--end-text);
     }
+    /* Unlabelled start/end: a plain circle, centred in the usual 144x64 slot (margins = (slot - size) / 2) */
+    .flow-node.terminal-dot {
+      width: 40px;
+      height: 40px;
+      margin: 12px 52px;
+      padding: 0;
+      border-radius: 50%;
+    }
+    .flow-node.terminal-dot .node-label { width: 100%; height: 100%; min-width: 0; }
     .flow-node.type-decision {
       width: 144px;
       height: 80px;
@@ -307,24 +332,25 @@
     .flow-node.type-decision .diamond-poly {
       fill: var(--decision-fill);
       stroke: var(--warning);
-      stroke-width: 1.8px;
-      transition: stroke 0.15s, fill 0.15s, stroke-width 0.15s;
+      stroke-width: var(--node-stroke); /* same weight as rect nodes; never changes on hover/select */
+      stroke-linejoin: round;
+      transition: stroke 0.15s, fill 0.15s;
     }
     .flow-node.type-decision:hover .diamond-poly {
       stroke: var(--primary);
-      stroke-width: 2.2px;
       fill: var(--decision-fill-hover);
     }
     .flow-node.type-decision.selected .diamond-poly {
       stroke: var(--primary);
-      stroke-width: 2.5px;
-      filter: drop-shadow(0 0 4px rgba(37,99,235,0.35));
+      filter: drop-shadow(0 0 4px var(--primary-glow));
     }
     .flow-node.type-decision .node-label {
       position: relative;
       z-index: 2;
+      color: var(--decision-text);
+      font-weight: 700;
       max-width: 92px;
-      font-size: 0.77rem;
+      font-size: 0.8125rem;
       line-height: 1.15;
     }
 
@@ -351,7 +377,7 @@
       height: 12px;
       border-radius: 50%;
       background: var(--node-bg);
-      border: 2.5px solid var(--primary);
+      border: 2px solid var(--primary);
       opacity: 0;
       cursor: crosshair;
       transition: opacity 0.15s, transform 0.15s, background-color 0.15s;
@@ -376,7 +402,7 @@
       box-sizing: border-box;
       border-radius: 50%;
       background: var(--node-bg);
-      border: 2.5px solid var(--primary);
+      border: 2px solid var(--primary);
       box-shadow: 0 1px 3px rgba(0,0,0,0.2);
       cursor: grab;
       pointer-events: auto;
@@ -415,31 +441,6 @@
     .flow-node.selected .node-delete-btn {
       display: flex;
     }
-
-    /* End-node outcomes (set "outcome": "success" | "failure" on an end node) */
-    .flow-node.type-end.outcome-success {
-      background: var(--end-success-bg);
-      border-color: var(--end-success-border);
-      color: var(--end-text);
-    }
-    .flow-node.type-end.outcome-failure {
-      background: var(--end-failure-bg);
-      border-color: var(--end-failure-border);
-      color: var(--end-text);
-    }
-    .flow-node.type-end.outcome-success,
-    .flow-node.type-end.outcome-failure {
-      padding-left: 38px;
-    }
-    .flow-node.type-end.outcome-success::before,
-    .flow-node.type-end.outcome-failure::before {
-      position: absolute;
-      left: 16px;
-      font-weight: 800;
-    }
-    .flow-node.type-end.outcome-success::before { content: '\2713'; }
-    .flow-node.type-end.outcome-failure::before { content: '\2715'; }
-
 
     /* Presentation mode (?present): hide flowchart editing chrome, make elements inert */
     body.presentation .port,
