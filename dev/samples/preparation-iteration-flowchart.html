@@ -155,6 +155,13 @@
     .toolbar-zoom { grid-column: 1; grid-row: 1; justify-self: start; }
     .toolbar-center .btn,
     .toolbar-zoom .btn { border-color: transparent; }
+    /* One fixed button height in both docks, so the bars are always the same height whatever the font */
+    .toolbar-center > .btn,
+    .dock-pop-trigger,
+    .toolbar-zoom > .btn { height: 32px; }
+    /* Larger icons on the edit dock's own buttons (not the caret, not the bubble's tiles) */
+    .toolbar-center > .btn > svg:first-child,
+    .dock-pop-trigger > svg:first-child { width: 18px; height: 18px; }
     .toolbar-center .btn:hover,
     .toolbar-zoom .btn:hover { border-color: var(--border-dark); }
     .dock-label {
@@ -169,6 +176,123 @@
       align-self: stretch;
       margin: 4px 2px;
       background: var(--border-color);
+    }
+
+    /* Dock popover (e.g. the flowchart's Shapes): a bubble that blows up from the trigger, above it.
+       Generic: any [data-dock-pop] wrapper with a .dock-pop-trigger and a .dock-pop holding a .dock-pop-grid.
+       The grid takes up to 6 columns (set by shell.js) and wraps into more rows, scrolling if it gets tall. */
+    .dock-pop-wrap { position: relative; display: inline-flex; }
+    .dock-pop-caret { opacity: 0.6; transition: transform 0.25s ease; }
+    .dock-pop-wrap.open .dock-pop-caret { transform: rotate(180deg); }
+    .dock-pop-wrap.open > .dock-pop-trigger { background: var(--bg-hover); border-color: var(--border-dark); }
+    .dock-pop {
+      --pop-shift: 0px;     /* set by shell.js to keep the bubble on screen; the tail stays on the trigger */
+      position: absolute;
+      bottom: calc(100% + 14px);
+      left: 50%;
+      z-index: 2;
+      padding: 6px;
+      background: var(--bg-panel);
+      border: 1px solid var(--border-color);
+      border-radius: 14px;
+      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.16), 0 2px 6px rgba(0, 0, 0, 0.06);
+      transform-origin: calc(50% - var(--pop-shift)) calc(100% + 14px);
+      transform: translateX(calc(-50% + var(--pop-shift))) translateY(8px) scale(0.3);
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      /* closing: quick shrink back into the trigger */
+      transition: transform 0.16s ease-in, opacity 0.14s ease-in, visibility 0s linear 0.16s;
+    }
+    .dock-pop-wrap.open .dock-pop {
+      transform: translateX(calc(-50% + var(--pop-shift))) translateY(0) scale(1);
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+      /* opening: springy overshoot, like a bubble being blown up */
+      transition: transform 0.42s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.16s ease-out, visibility 0s;
+    }
+    /* Tail pointing at the trigger, and an invisible bridge over the gap so the hover is not lost */
+    .dock-pop::after {
+      content: '';
+      position: absolute;
+      top: 100%;
+      left: calc(50% - var(--pop-shift));
+      width: 12px; height: 12px;
+      margin: -6px 0 0 -6px;
+      background: var(--bg-panel);
+      border-right: 1px solid var(--border-color);
+      border-bottom: 1px solid var(--border-color);
+      transform: rotate(45deg);
+      border-bottom-right-radius: 3px;
+    }
+    .dock-pop::before {
+      content: '';
+      position: absolute;
+      top: 100%; left: 0; right: 0;
+      height: 18px;
+    }
+    .dock-pop-grid {
+      position: relative;   /* above the tail */
+      z-index: 1;
+      display: grid;
+      grid-template-columns: repeat(var(--pop-cols, 4), 60px);
+      gap: 6px;
+    }
+    /* Only a grid with more rows than fit scrolls (shell.js adds .scrolls); otherwise the tiles' springy
+       pop-in would flash a scrollbar while they overshoot */
+    .dock-pop-grid.scrolls {
+      max-height: min(50vh, 340px);
+      overflow-y: auto;
+      overscroll-behavior: contain;
+    }
+    .dock-pop-grid > .btn {
+      width: 60px;
+      height: 60px;
+      padding: 0;
+      justify-content: center;
+      color: var(--text-soft);
+      border-color: transparent;
+    }
+    .dock-pop-grid > .btn:hover { color: var(--text-main); background: var(--bg-hover); border-color: var(--border-dark); }
+    .dock-pop-wrap.open .dock-pop-grid > .btn {
+      animation: dock-pop-tile 0.34s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+      animation-delay: calc(60ms + var(--i, 0) * 28ms);
+    }
+    @keyframes dock-pop-tile {
+      from { opacity: 0; transform: translateY(6px) scale(0.6); }
+      to   { opacity: 1; transform: none; }
+    }
+    /* While a tile is being dragged onto the canvas, get the bubble out of the way */
+    body.palette-dragging .dock-pop { opacity: 0; visibility: hidden; pointer-events: none; }
+
+    /* Delete: collapsed to nothing until something is selected, then slides open */
+    .toolbar-center .dock-delete {
+      max-width: 120px;
+      overflow: hidden;
+      white-space: nowrap;
+      transition: max-width 0.25s ease, padding 0.25s ease, margin 0.25s ease, opacity 0.2s ease,
+                  background-color var(--ease), border-color var(--ease), color var(--ease);
+    }
+    /* Red text and icon only; hover adds a light red background and a red border */
+    .toolbar-center .dock-delete,
+    .toolbar-center .dock-delete:hover {
+      color: var(--danger);
+      background: transparent;
+      border-color: transparent;
+    }
+    .toolbar-center .dock-delete:hover {
+      background: color-mix(in srgb, var(--danger) 10%, var(--bg-panel));
+      border-color: var(--danger);
+    }
+    .toolbar-center .dock-delete:not(.show) {
+      max-width: 0;
+      padding-left: 0;
+      padding-right: 0;
+      margin-left: -4px;    /* swallow the dock's flex gap */
+      opacity: 0;
+      border-width: 0;
+      pointer-events: none;
     }
     #zoom-level {
       font-size: 0.8rem;
@@ -392,7 +516,9 @@
       #btn-help { display: none; }   /* keyboard shortcuts mean little on a phone; frees room for the title */
       .dock-area { left: 12px; right: 12px; bottom: 12px; grid-template-columns: 1fr; }
       .toolbar-center { grid-column: 1; grid-row: 1; justify-content: space-evenly; }
-      .toolbar-center .btn { flex: 1 1 0; justify-content: center; }
+      .toolbar-center > .btn, .toolbar-center > .dock-pop-wrap { flex: 1 1 0; justify-content: center; }
+      .dock-pop-wrap > .dock-pop-trigger { flex: 1 1 auto; justify-content: center; }
+      .toolbar-center > .dock-delete:not(.show) { flex: 0 0 0; }
       .toolbar-zoom { grid-column: 1; grid-row: 2; }
       #help-drawer { right: 12px; bottom: 120px; }
     }
@@ -1010,6 +1136,17 @@
 
     /* Dragging a shape out of the dock */
     .btn-shape { cursor: grab; touch-action: none; }
+    /* Shapes bubble: each tile is drawn in its node's own fill and border (theme-aware), and takes the
+       node's darker accent edge on hover, like the node itself */
+    .btn-shape svg > * { transition: stroke var(--ease); }
+    .btn-shape[data-node-type="start"] svg > *    { fill: var(--start-bg);      stroke: var(--start-border); }
+    .btn-shape[data-node-type="end"] svg > *      { fill: var(--end-bg);        stroke: var(--end-border); }
+    .btn-shape[data-node-type="task"] svg > *     { fill: var(--node-bg);       stroke: var(--border-dark); }
+    .btn-shape[data-node-type="decision"] svg > * { fill: var(--decision-fill); stroke: var(--decision-stroke); }
+    .btn-shape[data-node-type="start"]:hover svg > *    { stroke: var(--start-accent); }
+    .btn-shape[data-node-type="end"]:hover svg > *      { stroke: var(--end-accent); }
+    .btn-shape[data-node-type="task"]:hover svg > *     { stroke: var(--task-accent); }
+    .btn-shape[data-node-type="decision"]:hover svg > * { stroke: var(--decision-accent); }
     .palette-ghost {
       position: fixed;
       z-index: 1000;
@@ -1129,26 +1266,43 @@
 
   <!-- Add controls: a floating dock at the bottom of the viewport, styled like the zoom dock -->
   <div class="dock-area">
-  <div class="toolbar-center" role="toolbar" aria-label="Add to the diagram">
+  <div class="toolbar-center" role="toolbar" aria-label="Edit the diagram">
       <span class="dock-label">Add</span>
-      <button id="btn-add-start" class="btn btn-shape" data-node-type="start" title="Add a Start terminator (click, or drag onto the canvas)" aria-label="Start">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="7" width="20" height="10" rx="5"/></svg><span class="btn-label">Start</span>
-      </button>
-      <button id="btn-add-end" class="btn btn-shape" data-node-type="end" title="Add an End terminator (click, or drag onto the canvas)" aria-label="End">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="7" width="20" height="10" rx="5"/><circle cx="12" cy="12" r="2" fill="currentColor"/></svg><span class="btn-label">End</span>
-      </button>
-      <button id="btn-add-step" class="btn btn-shape" data-node-type="task" title="Add a step (click, or drag onto the canvas or onto an arrow)" aria-label="Step">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="3"/></svg><span class="btn-label">Step</span>
-      </button>
-      <button id="btn-add-decision" class="btn btn-shape" data-node-type="decision" title="Add a decision (click, or drag onto the canvas or onto an arrow)" aria-label="Decision">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2 2 12l10 10 10-10L12 2z"/></svg><span class="btn-label">Decision</span>
-      </button>
+      <!-- Shapes popover: hover (or click / tap) the trigger, then click a tile or drag it onto the canvas.
+           To add a shape, add one more .btn-shape tile with its data-node-type; the grid wraps on its own. -->
+      <div class="dock-pop-wrap" data-dock-pop>
+        <button id="btn-add-shape" class="btn dock-pop-trigger" aria-label="Shapes" aria-haspopup="true" aria-expanded="false" aria-controls="shape-pop">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="13" width="8" height="8" rx="1.5"/><circle cx="17" cy="17" r="4"/><path d="M12 3 7.5 10h9z"/></svg><span class="btn-label">Shapes</span>
+          <svg class="dock-pop-caret" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 15 6-6 6 6"/></svg>
+        </button>
+        <div id="shape-pop" class="dock-pop" role="group" aria-label="Shapes: click to add, or drag onto the canvas">
+          <div class="dock-pop-grid">
+            <button id="btn-add-start" class="btn btn-shape" data-node-type="start" title="Start (click, or drag onto the canvas)" aria-label="Start">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="7" width="20" height="10" rx="5"/></svg>
+            </button>
+            <button id="btn-add-end" class="btn btn-shape" data-node-type="end" title="End (click, or drag onto the canvas)" aria-label="End">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="7" width="20" height="10" rx="5"/></svg>
+            </button>
+            <button id="btn-add-step" class="btn btn-shape" data-node-type="task" title="Step (click, or drag onto the canvas or onto an arrow)" aria-label="Step">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="2.5"/></svg>
+            </button>
+            <button id="btn-add-decision" class="btn btn-shape" data-node-type="decision" title="Decision (click, or drag onto the canvas or onto an arrow)" aria-label="Decision">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 2 12l10 9 10-9z"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
       <button id="btn-add-lane" class="btn" title="Add a swimlane" aria-label="Lane">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 12h18"/></svg><span class="btn-label">Lane</span>
       </button>
-      <button id="btn-direction" class="btn" title="Switch to a top-to-bottom layout" aria-label="Vertical">
+      <button id="btn-direction" class="btn" data-dock-group="layout" title="Switch to a top-to-bottom layout" aria-label="Vertical">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v18"/><path d="m7 16 5 5 5-5"/></svg><span class="btn-label">Vertical</span>
       </button>
+      <!-- Shown only while something is selected (plugin.hasSelection) -->
+      <button id="btn-delete-selection" class="btn dock-delete" title="Delete the selection (Delete key)" aria-label="Delete selection" aria-hidden="true" tabindex="-1">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg><span class="btn-label">Delete</span>
+      </button>
+      <!-- Layout controls: type buttons marked data-dock-group="layout" are moved here, before Auto-Tidy -->
       <span class="dock-sep" aria-hidden="true"></span>
       <button id="btn-auto-tidy" class="btn" title="Re-align and lay out the whole diagram automatically" aria-label="Auto-Tidy">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M7 12h10"/><path d="M10 18h4"/></svg><span class="btn-label">Auto-Tidy</span>
@@ -1216,11 +1370,11 @@
       </button>
     </div>
     <ul class="help-list">
-      <li><kbd>Drag a Shape</kbd> : Drag Start, End, Step or Decision from the bottom bar onto the canvas</li>
+      <li><kbd>Drag a Shape</kbd> : Hover <b>Shapes</b> in the bottom bar, then click a shape or drag it onto the canvas (or onto an arrow)</li>
       <li><kbd>Drop onto an Arrow</kbd> : Inserts the step between the two steps it joins and tidies the layout (also works for a step with no arrows yet)</li>
       <li><kbd>Click or Drag Port</kbd> : Connect two steps with an arrow</li>
       <li><kbd>Double-Click Arrow</kbd> : Add or edit arrow label (or click <kbd>+ Add Label</kbd>)</li>
-      <li><kbd>Delete</kbd> : Delete the selected step, arrow or lane</li>
+      <li><kbd>Delete</kbd> : Delete the selected step, arrow or lane (or the bar's Delete button, shown while something is selected)</li>
       <li><kbd>Hover a Lane</kbd> : Shows a reorder grip (drag it) and a delete button (asks to confirm) under the lane name</li>
       <li><kbd>Click Lane Name</kbd> : Select the lane; <kbd>Delete</kbd> then asks to confirm and removes it with its steps and their arrows (undo brings them back; the last lane stays)</li>
       <li><kbd>Drag Node</kbd> : Move inside lane or drop into another lane; snaps to other steps' centers and lane centers (dashed guide)</li>
@@ -2122,7 +2276,8 @@
       // type internals; it only calls these members:
       //   id, defaultTitle, contentEl (element sized to fit/pan), report {node,label,labelText,nodeText},
       //   render(), isBackground(el), clearSelection(),
-      //   cancelInteraction() -> true if something was cancelled, deleteSelection()
+      //   cancelInteraction() -> true if something was cancelled, deleteSelection(anchorEl?)
+      //   optional: hasSelection() -> true when deleteSelection() would delete something (shows the dock's Delete)
       //   optional: onViewChange() after every pan/zoom (body.exporting is set while an export reads styles)
       // Undo/redo is the shell's job: every updateStatus(true) records a snapshot of chartData, so a plugin
       // gets undo for free as long as it calls updateStatus(true) once per finished edit (not per pointermove).
@@ -2227,6 +2382,7 @@
       function updateStatus(unsaved) {
         if (unsaved) recordHistory();
         setStatusBadge(unsaved);
+        if (typeof queueDeleteRefresh === 'function') queueDeleteRefresh();
       }
 
       // Green means "this is on disk". A page nobody has saved yet is just "Ready" (neutral).
@@ -2648,7 +2804,127 @@
       document.addEventListener('click', () => setExportOpen(false));
       window.addEventListener('keydown', (e) => { if (e.key === 'Escape') setExportOpen(false); });
 
+      // --- DOCK: layout group, popovers, delete ---
+      // Two groups split by a separator: editing controls (type buttons, Delete) | layout controls
+      // (type buttons marked data-dock-group="layout", then Auto-Tidy).
+      document.querySelectorAll('.toolbar-center [data-dock-group="layout"]').forEach(el => btnAutoTidy.before(el));
+
+      // A [data-dock-pop] wrapper opens its .dock-pop bubble on hover (mouse/pen), or on click/tap/keyboard.
+      // Its items can be anything; the grid width follows the item count (max 6 columns, then more rows).
+      const DOCK_POP_MAX_COLS = 6;
+      document.querySelectorAll('[data-dock-pop]').forEach(wrap => {
+        const trigger = wrap.querySelector('.dock-pop-trigger');
+        const pop = wrap.querySelector('.dock-pop');
+        if (!trigger || !pop) return;
+        const items = [...pop.querySelectorAll('.dock-pop-grid > *')];
+        const cols = Math.max(1, Math.min(items.length, DOCK_POP_MAX_COLS));
+        pop.style.setProperty('--pop-cols', cols);
+        // Scroll only past 5 rows (60px tiles + 6px gaps ~ the grid's max height)
+        const grid = pop.querySelector('.dock-pop-grid');
+        if (grid) grid.classList.toggle('scrolls', Math.ceil(items.length / cols) > 5);
+        items.forEach((el, i) => el.style.setProperty('--i', i));
+        let closeTimer = null;
+        const isOpen = () => wrap.classList.contains('open');
+        // Keep the bubble inside the window: shift it sideways, the tail keeps pointing at the trigger
+        function clampToWindow() {
+          const t = trigger.getBoundingClientRect(), w = pop.offsetWidth, m = 8;
+          const left = t.left + t.width / 2 - w / 2;
+          const shift = Math.max(m - left, 0) + Math.min(innerWidth - m - (left + w), 0);
+          pop.style.setProperty('--pop-shift', `${Math.round(shift)}px`);
+        }
+        function setOpen(open) {
+          clearTimeout(closeTimer);
+          if (open === isOpen()) return;
+          if (open) clampToWindow();
+          wrap.classList.toggle('open', open);
+          trigger.setAttribute('aria-expanded', String(open));
+        }
+        const closeSoon = () => { clearTimeout(closeTimer); closeTimer = setTimeout(() => setOpen(false), 160); };
+        wrap.addEventListener('pointerenter', (e) => {
+          if (e.pointerType === 'touch' || document.body.classList.contains('palette-dragging')) return;
+          setOpen(true);
+        });
+        wrap.addEventListener('pointerleave', (e) => { if (e.pointerType !== 'touch') closeSoon(); });
+        // How a click was made: '' for keyboard (detail 0), else the pointer type of the press that caused it
+        let lastPointerType = '';
+        wrap.addEventListener('pointerdown', (e) => { lastPointerType = e.pointerType; });
+        const clickKind = (e) => (e.detail === 0 ? '' : (e.pointerType || lastPointerType));
+        const isHoverPointer = (k) => k === 'mouse' || k === 'pen';
+        // Mouse clicks keep it open (hover already opened it); taps and Enter/Space toggle it
+        trigger.addEventListener('click', (e) => setOpen(isHoverPointer(clickKind(e)) ? true : !isOpen()));
+        // A mouse user may add several shapes in a row; tap and keyboard picks close the bubble
+        pop.addEventListener('click', (e) => {
+          const kind = clickKind(e);
+          if (!e.target.closest('.dock-pop-grid > *') || isHoverPointer(kind)) return;
+          setOpen(false);
+          if (!kind) trigger.focus();
+        });
+        wrap.addEventListener('keydown', (e) => {
+          if (e.key === 'Escape' && isOpen()) { e.stopPropagation(); setOpen(false); trigger.focus(); }
+        });
+        wrap.addEventListener('focusout', (e) => { if (!wrap.contains(e.relatedTarget)) closeSoon(); });
+        document.addEventListener('pointerdown', (e) => { if (isOpen() && !wrap.contains(e.target)) setOpen(false); }, true);
+        window.addEventListener('resize', () => { if (isOpen()) clampToWindow(); });
+      });
+
+      // Delete: visible only while the plugin reports a deletable selection. Selection lives in the plugin, so
+      // re-check after every input event (cheap) and every committed edit (undo/redo, add, delete).
+      const btnDelete = document.getElementById('btn-delete-selection');
+      let deleteCheckQueued = false;
+      function refreshDeleteButton() {
+        deleteCheckQueued = false;
+        if (!btnDelete || !plugin) return;
+        const on = !document.body.classList.contains('presentation') && !!(plugin.hasSelection && plugin.hasSelection());
+        if (on === btnDelete.classList.contains('show')) return;
+        btnDelete.classList.toggle('show', on);
+        btnDelete.setAttribute('aria-hidden', String(!on));
+        btnDelete.tabIndex = on ? 0 : -1;
+      }
+      function queueDeleteRefresh() {
+        if (deleteCheckQueued) return;
+        deleteCheckQueued = true;
+        requestAnimationFrame(refreshDeleteButton);
+      }
+      ['pointerup', 'click', 'keyup'].forEach(type => window.addEventListener(type, queueDeleteRefresh));
+      if (btnDelete) btnDelete.addEventListener('click', () => {
+        if (!btnDelete.classList.contains('show')) return;
+        plugin.deleteSelection(btnDelete);
+        queueDeleteRefresh();
+      });
+
       // --- SAVE MECHANISM (Direct to HTML File) ---
+      // Remember the file handle per page URL (IndexedDB) so a reopened diagram
+      // can save straight back to its file without showing the folder dialog.
+      function handleDb() {
+        return new Promise((resolve, reject) => {
+          const req = indexedDB.open('ultimate-diagram', 1);
+          req.onupgradeneeded = () => req.result.createObjectStore('handles');
+          req.onsuccess = () => resolve(req.result);
+          req.onerror = () => reject(req.error);
+        });
+      }
+      async function loadStoredHandle() {
+        try {
+          const db = await handleDb();
+          const h = await new Promise((resolve, reject) => {
+            const r = db.transaction('handles').objectStore('handles').get(location.href);
+            r.onsuccess = () => resolve(r.result || null);
+            r.onerror = () => reject(r.error);
+          });
+          if (!h) return null;
+          const opts = { mode: 'readwrite' };
+          if ((await h.queryPermission(opts)) === 'granted') return h;
+          if ((await h.requestPermission(opts)) === 'granted') return h;
+        } catch (_) {}
+        return null;
+      }
+      async function storeHandle(h) {
+        try {
+          const db = await handleDb();
+          db.transaction('handles', 'readwrite').objectStore('handles').put(h, location.href);
+        } catch (_) {}
+      }
+
       async function saveToFile() {
         chartData.title = chartTitleEl.textContent.trim();
         const updatedJson = JSON.stringify(chartData, null, 2);
@@ -2675,15 +2951,27 @@
 
         if ('showSaveFilePicker' in window) {
           try {
+            if (!fileHandle) fileHandle = await loadStoredHandle();
             if (!fileHandle) {
-              const suggested = (chartData.title || plugin.id).toLowerCase().replace(/[^a-z0-9_-]/g, '-') + '.html';
+              // Browsers cannot read a page's own folder, so reuse the current file name
+              // (saving over it) and a stable picker id so the dialog reopens in the
+              // last folder used for diagrams.
+              let currentName = '';
+              try {
+                currentName = decodeURIComponent(location.pathname.split('/').pop() || '');
+              } catch (_) {}
+              const suggested = /\.html?$/i.test(currentName)
+                ? currentName
+                : (chartData.title || plugin.id).toLowerCase().replace(/[^a-z0-9_-]/g, '-') + '.html';
               fileHandle = await window.showSaveFilePicker({
+                id: 'ultimate-diagram-save',
                 suggestedName: suggested,
                 types: [{
                   description: 'HTML Diagram File',
                   accept: { 'text/html': ['.html'] }
                 }]
               });
+              storeHandle(fileHandle);
             }
 
             const writable = await fileHandle.createWritable();
@@ -5960,12 +6248,14 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         });
         document.body.appendChild(box);
         laneConfirmEl = box;
-        // Under the anchor (the delete button, else the lane's pill), kept on screen
+        // Under the anchor (a delete button, else the lane's pill), or above it when there is no room below
+        // (the dock's Delete sits at the bottom of the window); kept on screen
         const anchor = anchorEl || lanesRoot.querySelector(`.swimlane[data-lane-id="${laneId}"] .lane-pill`);
-        const r = anchor ? anchor.getBoundingClientRect() : { left: innerWidth / 2, bottom: innerHeight / 3 };
+        const r = anchor ? anchor.getBoundingClientRect() : { left: innerWidth / 2, top: innerHeight / 3, bottom: innerHeight / 3 };
         const bw = box.offsetWidth, bh = box.offsetHeight;
+        const top = r.bottom + 8 + bh > innerHeight - 8 ? r.top - 8 - bh : r.bottom + 8;
         box.style.left = `${Math.max(8, Math.min(r.left, innerWidth - bw - 8))}px`;
-        box.style.top = `${Math.max(8, Math.min(r.bottom + 8, innerHeight - bh - 8))}px`;
+        box.style.top = `${Math.max(8, Math.min(top, innerHeight - bh - 8))}px`;
         cancel.focus();
         document.addEventListener('pointerdown', onLaneConfirmOutside, true);
       }
@@ -6331,10 +6621,13 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           return cancelPaletteDrag() || wasConnecting;
         },
         onViewChange() { closeLaneConfirm(); pinLaneHeaders(); },
-        deleteSelection() {
+        hasSelection() {
+          return !!(selectedNodeId || selectedEdgeId || (selectedLaneId && chartData.lanes.length > 1));
+        },
+        deleteSelection(anchorEl) {
           if (selectedNodeId) deleteNode(selectedNodeId);
           else if (selectedEdgeId) deleteEdge(selectedEdgeId);
-          else if (selectedLaneId) confirmDeleteLane(selectedLaneId);
+          else if (selectedLaneId) confirmDeleteLane(selectedLaneId, anchorEl);
         }
       });
       loadInitialData();

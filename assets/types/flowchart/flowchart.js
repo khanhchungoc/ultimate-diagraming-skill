@@ -2520,12 +2520,14 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         });
         document.body.appendChild(box);
         laneConfirmEl = box;
-        // Under the anchor (the delete button, else the lane's pill), kept on screen
+        // Under the anchor (a delete button, else the lane's pill), or above it when there is no room below
+        // (the dock's Delete sits at the bottom of the window); kept on screen
         const anchor = anchorEl || lanesRoot.querySelector(`.swimlane[data-lane-id="${laneId}"] .lane-pill`);
-        const r = anchor ? anchor.getBoundingClientRect() : { left: innerWidth / 2, bottom: innerHeight / 3 };
+        const r = anchor ? anchor.getBoundingClientRect() : { left: innerWidth / 2, top: innerHeight / 3, bottom: innerHeight / 3 };
         const bw = box.offsetWidth, bh = box.offsetHeight;
+        const top = r.bottom + 8 + bh > innerHeight - 8 ? r.top - 8 - bh : r.bottom + 8;
         box.style.left = `${Math.max(8, Math.min(r.left, innerWidth - bw - 8))}px`;
-        box.style.top = `${Math.max(8, Math.min(r.bottom + 8, innerHeight - bh - 8))}px`;
+        box.style.top = `${Math.max(8, Math.min(top, innerHeight - bh - 8))}px`;
         cancel.focus();
         document.addEventListener('pointerdown', onLaneConfirmOutside, true);
       }
@@ -2891,9 +2893,12 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           return cancelPaletteDrag() || wasConnecting;
         },
         onViewChange() { closeLaneConfirm(); pinLaneHeaders(); },
-        deleteSelection() {
+        hasSelection() {
+          return !!(selectedNodeId || selectedEdgeId || (selectedLaneId && chartData.lanes.length > 1));
+        },
+        deleteSelection(anchorEl) {
           if (selectedNodeId) deleteNode(selectedNodeId);
           else if (selectedEdgeId) deleteEdge(selectedEdgeId);
-          else if (selectedLaneId) confirmDeleteLane(selectedLaneId);
+          else if (selectedLaneId) confirmDeleteLane(selectedLaneId, anchorEl);
         }
       });

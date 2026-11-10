@@ -387,5 +387,6 @@
           render();
           return true;
         },
+        hasSelection: () => !!seqSel,
         deleteSelection
       });

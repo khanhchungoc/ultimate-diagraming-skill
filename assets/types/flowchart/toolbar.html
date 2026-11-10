@@ -1,18 +1,30 @@
-      <button id="btn-add-start" class="btn btn-shape" data-node-type="start" title="Add a Start terminator (click, or drag onto the canvas)" aria-label="Start">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="7" width="20" height="10" rx="5"/></svg><span class="btn-label">Start</span>
-      </button>
-      <button id="btn-add-end" class="btn btn-shape" data-node-type="end" title="Add an End terminator (click, or drag onto the canvas)" aria-label="End">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="7" width="20" height="10" rx="5"/><circle cx="12" cy="12" r="2" fill="currentColor"/></svg><span class="btn-label">End</span>
-      </button>
-      <button id="btn-add-step" class="btn btn-shape" data-node-type="task" title="Add a step (click, or drag onto the canvas or onto an arrow)" aria-label="Step">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="3"/></svg><span class="btn-label">Step</span>
-      </button>
-      <button id="btn-add-decision" class="btn btn-shape" data-node-type="decision" title="Add a decision (click, or drag onto the canvas or onto an arrow)" aria-label="Decision">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2 2 12l10 10 10-10L12 2z"/></svg><span class="btn-label">Decision</span>
-      </button>
+      <!-- Shapes popover: hover (or click / tap) the trigger, then click a tile or drag it onto the canvas.
+           To add a shape, add one more .btn-shape tile with its data-node-type; the grid wraps on its own. -->
+      <div class="dock-pop-wrap" data-dock-pop>
+        <button id="btn-add-shape" class="btn dock-pop-trigger" aria-label="Shapes" aria-haspopup="true" aria-expanded="false" aria-controls="shape-pop">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="13" width="8" height="8" rx="1.5"/><circle cx="17" cy="17" r="4"/><path d="M12 3 7.5 10h9z"/></svg><span class="btn-label">Shapes</span>
+          <svg class="dock-pop-caret" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 15 6-6 6 6"/></svg>
+        </button>
+        <div id="shape-pop" class="dock-pop" role="group" aria-label="Shapes: click to add, or drag onto the canvas">
+          <div class="dock-pop-grid">
+            <button id="btn-add-start" class="btn btn-shape" data-node-type="start" title="Start (click, or drag onto the canvas)" aria-label="Start">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="7" width="20" height="10" rx="5"/></svg>
+            </button>
+            <button id="btn-add-end" class="btn btn-shape" data-node-type="end" title="End (click, or drag onto the canvas)" aria-label="End">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="7" width="20" height="10" rx="5"/></svg>
+            </button>
+            <button id="btn-add-step" class="btn btn-shape" data-node-type="task" title="Step (click, or drag onto the canvas or onto an arrow)" aria-label="Step">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="2.5"/></svg>
+            </button>
+            <button id="btn-add-decision" class="btn btn-shape" data-node-type="decision" title="Decision (click, or drag onto the canvas or onto an arrow)" aria-label="Decision">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 2 12l10 9 10-9z"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
       <button id="btn-add-lane" class="btn" title="Add a swimlane" aria-label="Lane">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 12h18"/></svg><span class="btn-label">Lane</span>
       </button>
-      <button id="btn-direction" class="btn" title="Switch to a top-to-bottom layout" aria-label="Vertical">
+      <button id="btn-direction" class="btn" data-dock-group="layout" title="Switch to a top-to-bottom layout" aria-label="Vertical">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v18"/><path d="m7 16 5 5 5-5"/></svg><span class="btn-label">Vertical</span>
       </button>

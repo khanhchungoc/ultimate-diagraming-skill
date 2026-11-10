@@ -584,6 +584,17 @@
 
     /* Dragging a shape out of the dock */
     .btn-shape { cursor: grab; touch-action: none; }
+    /* Shapes bubble: each tile is drawn in its node's own fill and border (theme-aware), and takes the
+       node's darker accent edge on hover, like the node itself */
+    .btn-shape svg > * { transition: stroke var(--ease); }
+    .btn-shape[data-node-type="start"] svg > *    { fill: var(--start-bg);      stroke: var(--start-border); }
+    .btn-shape[data-node-type="end"] svg > *      { fill: var(--end-bg);        stroke: var(--end-border); }
+    .btn-shape[data-node-type="task"] svg > *     { fill: var(--node-bg);       stroke: var(--border-dark); }
+    .btn-shape[data-node-type="decision"] svg > * { fill: var(--decision-fill); stroke: var(--decision-stroke); }
+    .btn-shape[data-node-type="start"]:hover svg > *    { stroke: var(--start-accent); }
+    .btn-shape[data-node-type="end"]:hover svg > *      { stroke: var(--end-accent); }
+    .btn-shape[data-node-type="task"]:hover svg > *     { stroke: var(--task-accent); }
+    .btn-shape[data-node-type="decision"]:hover svg > * { stroke: var(--decision-accent); }
     .palette-ghost {
       position: fixed;
       z-index: 1000;

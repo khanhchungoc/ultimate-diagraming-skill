@@ -3,7 +3,8 @@
       // type internals; it only calls these members:
       //   id, defaultTitle, contentEl (element sized to fit/pan), report {node,label,labelText,nodeText},
       //   render(), isBackground(el), clearSelection(),
-      //   cancelInteraction() -> true if something was cancelled, deleteSelection()
+      //   cancelInteraction() -> true if something was cancelled, deleteSelection(anchorEl?)
+      //   optional: hasSelection() -> true when deleteSelection() would delete something (shows the dock's Delete)
       //   optional: onViewChange() after every pan/zoom (body.exporting is set while an export reads styles)
       // Undo/redo is the shell's job: every updateStatus(true) records a snapshot of chartData, so a plugin
       // gets undo for free as long as it calls updateStatus(true) once per finished edit (not per pointermove).
@@ -108,6 +109,7 @@
       function updateStatus(unsaved) {
         if (unsaved) recordHistory();
         setStatusBadge(unsaved);
+        if (typeof queueDeleteRefresh === 'function') queueDeleteRefresh();
       }
 
       // Green means "this is on disk". A page nobody has saved yet is just "Ready" (neutral).
@@ -528,6 +530,94 @@
       });
       document.addEventListener('click', () => setExportOpen(false));
       window.addEventListener('keydown', (e) => { if (e.key === 'Escape') setExportOpen(false); });
+
+      // --- DOCK: layout group, popovers, delete ---
+      // Two groups split by a separator: editing controls (type buttons, Delete) | layout controls
+      // (type buttons marked data-dock-group="layout", then Auto-Tidy).
+      document.querySelectorAll('.toolbar-center [data-dock-group="layout"]').forEach(el => btnAutoTidy.before(el));
+
+      // A [data-dock-pop] wrapper opens its .dock-pop bubble on hover (mouse/pen), or on click/tap/keyboard.
+      // Its items can be anything; the grid width follows the item count (max 6 columns, then more rows).
+      const DOCK_POP_MAX_COLS = 6;
+      document.querySelectorAll('[data-dock-pop]').forEach(wrap => {
+        const trigger = wrap.querySelector('.dock-pop-trigger');
+        const pop = wrap.querySelector('.dock-pop');
+        if (!trigger || !pop) return;
+        const items = [...pop.querySelectorAll('.dock-pop-grid > *')];
+        const cols = Math.max(1, Math.min(items.length, DOCK_POP_MAX_COLS));
+        pop.style.setProperty('--pop-cols', cols);
+        // Scroll only past 5 rows (60px tiles + 6px gaps ~ the grid's max height)
+        const grid = pop.querySelector('.dock-pop-grid');
+        if (grid) grid.classList.toggle('scrolls', Math.ceil(items.length / cols) > 5);
+        items.forEach((el, i) => el.style.setProperty('--i', i));
+        let closeTimer = null;
+        const isOpen = () => wrap.classList.contains('open');
+        // Keep the bubble inside the window: shift it sideways, the tail keeps pointing at the trigger
+        function clampToWindow() {
+          const t = trigger.getBoundingClientRect(), w = pop.offsetWidth, m = 8;
+          const left = t.left + t.width / 2 - w / 2;
+          const shift = Math.max(m - left, 0) + Math.min(innerWidth - m - (left + w), 0);
+          pop.style.setProperty('--pop-shift', `${Math.round(shift)}px`);
+        }
+        function setOpen(open) {
+          clearTimeout(closeTimer);
+          if (open === isOpen()) return;
+          if (open) clampToWindow();
+          wrap.classList.toggle('open', open);
+          trigger.setAttribute('aria-expanded', String(open));
+        }
+        const closeSoon = () => { clearTimeout(closeTimer); closeTimer = setTimeout(() => setOpen(false), 160); };
+        wrap.addEventListener('pointerenter', (e) => {
+          if (e.pointerType === 'touch' || document.body.classList.contains('palette-dragging')) return;
+          setOpen(true);
+        });
+        wrap.addEventListener('pointerleave', (e) => { if (e.pointerType !== 'touch') closeSoon(); });
+        // How a click was made: '' for keyboard (detail 0), else the pointer type of the press that caused it
+        let lastPointerType = '';
+        wrap.addEventListener('pointerdown', (e) => { lastPointerType = e.pointerType; });
+        const clickKind = (e) => (e.detail === 0 ? '' : (e.pointerType || lastPointerType));
+        const isHoverPointer = (k) => k === 'mouse' || k === 'pen';
+        // Mouse clicks keep it open (hover already opened it); taps and Enter/Space toggle it
+        trigger.addEventListener('click', (e) => setOpen(isHoverPointer(clickKind(e)) ? true : !isOpen()));
+        // A mouse user may add several shapes in a row; tap and keyboard picks close the bubble
+        pop.addEventListener('click', (e) => {
+          const kind = clickKind(e);
+          if (!e.target.closest('.dock-pop-grid > *') || isHoverPointer(kind)) return;
+          setOpen(false);
+          if (!kind) trigger.focus();
+        });
+        wrap.addEventListener('keydown', (e) => {
+          if (e.key === 'Escape' && isOpen()) { e.stopPropagation(); setOpen(false); trigger.focus(); }
+        });
+        wrap.addEventListener('focusout', (e) => { if (!wrap.contains(e.relatedTarget)) closeSoon(); });
+        document.addEventListener('pointerdown', (e) => { if (isOpen() && !wrap.contains(e.target)) setOpen(false); }, true);
+        window.addEventListener('resize', () => { if (isOpen()) clampToWindow(); });
+      });
+
+      // Delete: visible only while the plugin reports a deletable selection. Selection lives in the plugin, so
+      // re-check after every input event (cheap) and every committed edit (undo/redo, add, delete).
+      const btnDelete = document.getElementById('btn-delete-selection');
+      let deleteCheckQueued = false;
+      function refreshDeleteButton() {
+        deleteCheckQueued = false;
+        if (!btnDelete || !plugin) return;
+        const on = !document.body.classList.contains('presentation') && !!(plugin.hasSelection && plugin.hasSelection());
+        if (on === btnDelete.classList.contains('show')) return;
+        btnDelete.classList.toggle('show', on);
+        btnDelete.setAttribute('aria-hidden', String(!on));
+        btnDelete.tabIndex = on ? 0 : -1;
+      }
+      function queueDeleteRefresh() {
+        if (deleteCheckQueued) return;
+        deleteCheckQueued = true;
+        requestAnimationFrame(refreshDeleteButton);
+      }
+      ['pointerup', 'click', 'keyup'].forEach(type => window.addEventListener(type, queueDeleteRefresh));
+      if (btnDelete) btnDelete.addEventListener('click', () => {
+        if (!btnDelete.classList.contains('show')) return;
+        plugin.deleteSelection(btnDelete);
+        queueDeleteRefresh();
+      });
 
       // --- SAVE MECHANISM (Direct to HTML File) ---
       // Remember the file handle per page URL (IndexedDB) so a reopened diagram
