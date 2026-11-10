@@ -4,6 +4,7 @@
       //   id, defaultTitle, contentEl (element sized to fit/pan), report {node,label,labelText,nodeText},
       //   render(), isBackground(el), clearSelection(),
       //   cancelInteraction() -> true if something was cancelled, deleteSelection()
+      //   optional: onViewChange() after every pan/zoom (body.exporting is set while an export reads styles)
       // Undo/redo is the shell's job: every updateStatus(true) records a snapshot of chartData, so a plugin
       // gets undo for free as long as it calls updateStatus(true) once per finished edit (not per pointermove).
       // The type's engine.js must define layoutDiagram(data): lay out `data` in place, no DOM access.
@@ -225,6 +226,7 @@
       function updateTransform() {
         stage.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
         zoomLevelEl.textContent = `${Math.round(scale * 100)}%`;
+        if (plugin && plugin.onViewChange) plugin.onViewChange();   // e.g. keep frozen headers pinned
       }
 
       // --- RENDER REPORT (only when opened with ?report; used by scripts/render_screenshot.py) ---
@@ -387,7 +389,7 @@
       // foreignObject. The result is a self-contained SVG, and the PNG is that SVG rasterised.
       const btnExport = document.getElementById('btn-export');
       const exportMenu = document.getElementById('export-menu');
-      const TRANSIENT_CLASSES = ['selected', 'hover', 'linked', 'hl-in', 'hl-out', 'multi-selected', 'dragging'];
+      const TRANSIENT_CLASSES = ['selected', 'hover', 'linked', 'hl-in', 'hl-out', 'multi-selected', 'dragging', 'lane-hover'];
       const SKIP_SELECTOR = '#drag-edge, .snap-guide, #lane-drop-line, #seq-drop-line, [data-export-skip]';
       const EXPORT_SVG_NS = 'http://www.w3.org/2000/svg';
       let defaultStyleCache = null;
@@ -435,6 +437,7 @@
         const frozen = document.createElement('style');
         frozen.textContent = '*,*::before,*::after{transition:none!important;animation:none!important}';
         document.head.appendChild(frozen);
+        document.body.classList.add('exporting');   // view-dependent styles (frozen headers) reset for the export
         const touched = [];
         TRANSIENT_CLASSES.forEach(cls => stage.querySelectorAll('.' + cls).forEach(el => { el.classList.remove(cls); touched.push([el, cls]); }));
         try {
@@ -465,6 +468,7 @@
         } finally {
           touched.forEach(([el, cls]) => el.classList.add(cls));
           frozen.remove();
+          document.body.classList.remove('exporting');
         }
       }
 

@@ -20,11 +20,19 @@
       let dragStartY = 0;
       let dragStartGlobalX = 0;
       let dragStartGlobalY = 0;
+      let dragCanInsert = false;   // the dragged node has no arrows, so it may be dropped into one
 
       // Edge Connecting state
       let connectingFromNodeId = null;
       let connectingFromPort = null;
       let connectingStartPoint = null;
+
+      // Last computed arrow routes (renderEdges), and the arrow a dragged node would be inserted into
+      let lastRoutes = {};
+      let insertTarget = null;   // { edgeId, x, y } in container coords, or null
+
+      // Dragging a new shape out of the bottom dock
+      let paletteDrag = null;    // { type, ghost, startX, startY, moved, placement }
 
 // Elements
       const swimlanesContainer = document.getElementById('swimlanes-container');
@@ -32,21 +40,83 @@
       const edgeGroup = document.getElementById('edge-group');
       const edgeLabelsGroup = document.getElementById('edge-labels-group');
       const dragEdge = document.getElementById('drag-edge');
-      const btnAddStep = document.getElementById('btn-add-step');
-      const btnAddDecision = document.getElementById('btn-add-decision');
       const btnAddLane = document.getElementById('btn-add-lane');
 
       // --- RENDERING ---
       function render() {
+        const noLanes = chartData.swimlanes === false;
+        if (noLanes) normalizeSwimlanes(chartData);
+        swimlanesContainer.classList.toggle('no-swimlanes', noLanes);
+        updateLaneButton();
+
         const maxX = chartData.nodes.reduce((m, n) => Math.max(m, (n.x || 0) + NODE_WIDTH + 48), 1200);
-        swimlanesContainer.style.minWidth = `${maxX + 224}px`;
+        swimlanesContainer.style.minWidth = `${maxX + (noLanes ? 4 : 224)}px`;
 
         renderLanes(maxX);
         renderNodes();
         renderEdges();
+        pinLaneHeaders();
+      }
+
+      // --- LANE HOVER ---
+      // The lane under the pointer gets a wash, by pointer Y rather than CSS :hover, so it stays lit while the
+      // pointer crosses arrows and edge labels (they live in overlays above the lanes, not inside them).
+      let hoverLaneEl = null;
+      function setHoverLane(el) {
+        if (el === hoverLaneEl) return;
+        if (hoverLaneEl) hoverLaneEl.classList.remove('lane-hover');
+        hoverLaneEl = el;
+        if (el) el.classList.add('lane-hover');
+      }
+      swimlanesContainer.addEventListener('pointermove', (e) => {
+        const lane = [...lanesRoot.children].find(l => { const r = l.getBoundingClientRect(); return e.clientY >= r.top && e.clientY < r.bottom; });
+        setHoverLane(lane || null);
+      });
+      swimlanesContainer.addEventListener('pointerleave', () => setHoverLane(null));
+
+      // --- FLOATING LANE PILLS ---
+      // Once the header column is panned out of view, each lane shows a rail at the viewport's left edge (a thin
+      // stripe in the lane colour, plus a soft corner fade behind the pill so clipped nodes and arrows there fade
+      // out) and a small name pill. The pill scales with the diagram like the header, at a smaller size, and only stops
+      // shrinking at PILL_MIN_PX on screen. Called after every render and, via plugin.onViewChange, every pan/zoom.
+      const PILL_INSET = 12;     // screen px from the viewport's left edge / the lane's visible top
+      const PILL_FONT = 12;      // diagram px (the header title is 17)
+      const PILL_MIN_PX = 11;    // never smaller than this on screen (the render report minimum)
+      const FADE_W = 230, FADE_H = 64;   // screen px: half-axes of the oval fade centred on the pill
+      function pinLaneHeaders() {
+        const header = lanesRoot.querySelector('.lane-header');
+        const left = swimlanesContainer.offsetLeft + swimlanesContainer.clientLeft;   // container origin, stage coords
+        const top = swimlanesContainer.offsetTop + swimlanesContainer.clientTop;
+        const visLeft = -panX / scale - left;   // viewport's left edge in container coords
+        const visTop = -panY / scale - top;
+        const show = chartData.swimlanes !== false && !document.body.classList.contains('capture')
+          && !!header && visLeft > header.offsetWidth - 48;   // header (nearly) gone from view
+        swimlanesContainer.classList.toggle('lanes-pinned', show);
+        if (!show) return;
+        const k = Math.max(1, PILL_MIN_PX / (PILL_FONT * scale));
+        const inset = PILL_INSET / scale;
+        const cs = swimlanesContainer.style;
+        cs.setProperty('--rail-x', `${visLeft}px`);
+        cs.setProperty('--rail-w', `${FADE_W / scale}px`);
+        cs.setProperty('--fade-w', `${FADE_W / scale}px`);
+        cs.setProperty('--fade-h', `${FADE_H / scale}px`);
+        cs.setProperty('--rail-b', `${3 / scale}px`);
+        cs.setProperty('--pill-x', `${visLeft + inset}px`);
+        cs.setProperty('--pill-k', String(k));
+        lanesRoot.querySelectorAll('.swimlane').forEach(laneEl => {
+          const pill = laneEl.querySelector('.lane-pill');
+          if (!pill) return;
+          const pillH = pill.offsetHeight * k;
+          const maxY = Math.max(inset, laneEl.offsetHeight - pillH - inset);
+          const y = Math.min(Math.max(visTop - laneEl.offsetTop + inset, inset), maxY);
+          laneEl.style.setProperty('--pill-y', `${y}px`);
+          laneEl.style.setProperty('--fade-cy', `${y + pillH / 2}px`);
+        });
       }
 
       function renderLanes(trackWidth) {
+        const hoverIdx = hoverLaneEl ? [...lanesRoot.children].indexOf(hoverLaneEl) : -1;
+        hoverLaneEl = null;
         lanesRoot.innerHTML = '';
         chartData.lanes.forEach((lane, index) => {
           // Dynamically calculate required lane height from nodes in this lane
@@ -65,13 +135,12 @@
           laneEl.dataset.laneIndex = index;
           laneEl.style.minHeight = `${computedHeight}px`;
           laneEl.style.height = `${computedHeight}px`;
+          laneEl.style.setProperty('--lane-color', lane.color || '#e2e8f0');   // header tint, accent, icon chip, pill
 
           const header = document.createElement('div');
           header.className = 'lane-header';
           header.draggable = !document.body.classList.contains('presentation');
           header.dataset.tip = 'Drag to reorder swimlane';
-          // Lane colour stays as identity only: a thin rule on the header (the header itself is neutral)
-          if (lane.color) header.style.borderLeft = `3px solid color-mix(in srgb, ${lane.color} 60%, #64748b)`;
 
           // Header title with double-click edit
           const title = document.createElement('div');
@@ -95,6 +164,7 @@
             title.contentEditable = 'false';
             if (lane.name !== title.textContent.trim()) {
               lane.name = title.textContent.trim();
+              pillName.textContent = lane.name;
               updateStatus(true);
             }
           });
@@ -122,9 +192,26 @@
           track.style.minWidth = `${trackWidth}px`;
           if (lane.color) track.style.background = colorWithAlpha(lane.color, themeAlpha('--lane-tint-track'));
 
+          // Floating name pill: shown at the visible top-left of the lane once the header column is panned away
+          const pill = document.createElement('div');
+          pill.className = 'lane-pill';
+          pill.setAttribute('aria-hidden', 'true');
+          pill.appendChild(laneIconEl(lane, 12));
+          const pillName = document.createElement('span');
+          pillName.className = 'lane-pill-name';
+          pillName.textContent = lane.name;
+          pill.appendChild(pillName);
+
+          const rail = document.createElement('div');
+          rail.className = 'lane-rail';
+          rail.setAttribute('aria-hidden', 'true');
+
           laneEl.appendChild(header);
           laneEl.appendChild(track);
+          laneEl.appendChild(rail);
+          laneEl.appendChild(pill);
           lanesRoot.appendChild(laneEl);
+          if (index === hoverIdx) setHoverLane(laneEl);   // keep the wash across re-renders
         });
       }
 
@@ -157,12 +244,12 @@
         const hit = LANE_ICON_GUESS.find(([re]) => re.test(name));
         return hit ? hit[1] : 'users';
       }
-      function laneIconEl(lane) {
+      function laneIconEl(lane, size = 20) {
         const chip = document.createElement('span');
         chip.className = 'lane-icon';
         chip.setAttribute('aria-hidden', 'true');   // decorative: the lane name sits right beside it
-        chip.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${TYPE_ICONS[laneIconName(lane)]}</svg>`;
-        return chip;   // neutral chip (see .lane-icon); the lane colour lives in the header's left rule
+        chip.innerHTML = `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${TYPE_ICONS[laneIconName(lane)]}</svg>`;
+        return chip;   // tinted with the lane colour (see .lane-icon)
       }
 
       // --- Lane drag & drop helpers ---
@@ -1314,6 +1401,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
 
           routes[e.id] = {
             path: d,
+            points,   // final polyline (container coords): used to find the arrow under a dragged node
             midX: labelPos.x,
             midY: labelPos.y,
             fromRect: rects[e.from],
@@ -1592,6 +1680,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         edgeLabelsGroup.innerHTML = '';
 
         const routes = computeAllEdgeRoutes();
+        lastRoutes = routes;
 
         chartData.edges.forEach(edge => {
           const pathD = routes[edge.id];
@@ -1848,6 +1937,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         const trackEl = nodeEl.parentElement;
         const trackLeft = trackEl ? trackEl.getBoundingClientRect().left : stageRect.left;
         dragMoved = false;
+        dragCanInsert = canInsert(node.type) && !nodeHasEdges(node.id);
         const dOff = dotOffset(node);   // circle nodes are drawn inset from their slot; data x/y is the slot corner
         dragStartGlobalX = (nRect.left - trackLeft) / scale - dOff.x;
         dragStartGlobalY = (nRect.top - stageRect.top) / scale - dOff.y;
@@ -1916,14 +2006,23 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         nodeEl.style.left = `${localX}px`;
         nodeEl.style.top = `${localY}px`;
 
+        // An unconnected node over an arrow offers to be inserted into it
+        let target = null;
+        if (dragCanInsert) {
+          const c = toContainer(e.clientX, e.clientY);
+          target = edgeNear(c.x, c.y, draggingNode.id);
+          if (target) hideSnapGuides();
+          setInsertTarget(target);
+        }
+
         // Highlight active target swimlane
         document.querySelectorAll('.lane-track').forEach(t => {
-          if (t.dataset.laneId === targetLane.id) {
-            t.classList.add('drag-hover-lane');
-          } else {
-            t.classList.remove('drag-hover-lane');
-          }
+          t.classList.toggle('drag-hover-lane', !target && t.dataset.laneId === targetLane.id);
         });
+
+        // A node without arrows changes no route of its own; re-routing the others around it would make the
+        // arrow under the pointer jump away, so wait for the drop.
+        if (dragCanInsert) return;
 
         // Re-route at most once per frame: pointer events can arrive faster than a full route pass,
         // and handling each one synchronously queues them up so the node trails the cursor
@@ -2013,18 +2112,24 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         document.querySelectorAll('.snap-guide').forEach(g => g.style.display = 'none');
       }
 
-      function onDragNodeUp() {
+      function onDragNodeUp(e) {
         if (dragEdgeFrame) { cancelAnimationFrame(dragEdgeFrame); dragEdgeFrame = 0; }
         hideSnapGuides();
         document.querySelectorAll('.lane-track').forEach(t => t.classList.remove('drag-hover-lane'));
+        const target = insertTarget;
+        setInsertTarget(null);
         if (draggingNode) {
+          const node = draggingNode;
           draggingNode = null;
-          if (dragMoved) {
+          if (dragMoved && target) {
+            insertIntoEdge(node, target.edgeId, e.clientX, e.clientY);
+          } else if (dragMoved) {
             updateStatus(true);
             render();
           }
           dragMoved = false;
         }
+        dragCanInsert = false;
         window.removeEventListener('pointermove', onDragNodeMove);
         window.removeEventListener('pointerup', onDragNodeUp);
       }
@@ -2248,16 +2353,13 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
       }
 
       // --- ADD ELEMENTS ---
-      // Place a new node at the center of the visible viewport (lane + local coords)
-      function viewportCenterPlacement(nw, nh) {
-        const vp = viewport.getBoundingClientRect();
-        const cx = vp.left + vp.width / 2;
-        const cy = vp.top + vp.height / 2;
+      // Lane + lane-local top-left for a node of size nw x nh centred on a screen point
+      function placementAt(clientX, clientY, nw, nh) {
         const stageRect = swimlanesContainer.getBoundingClientRect();
         const track = document.querySelector('.lane-track');
         const trackLeft = track ? track.getBoundingClientRect().left : stageRect.left;
-        const gx = (cx - trackLeft) / scale;
-        const gy = (cy - stageRect.top) / scale;
+        const gx = (clientX - trackLeft) / scale;
+        const gy = (clientY - stageRect.top) / scale;
         let top = 0, lane = chartData.lanes[0];
         for (let i = 0; i < chartData.lanes.length; i++) {
           const l = chartData.lanes[i];
@@ -2268,57 +2370,243 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         }
         return {
           laneId: lane ? lane.id : "lane-1",
+          laneTop: top,
           x: Math.max(16, Math.round((gx - nw / 2) / 4) * 4),
           y: Math.max(12, Math.round((gy - top - nh / 2) / 4) * 4)
         };
       }
 
-      btnAddStep.addEventListener('click', () => {
-        const p = viewportCenterPlacement(NODE_WIDTH, NODE_HEIGHT);
-        const newNode = {
-          id: `n_${Date.now()}`,
-          laneId: p.laneId,
-          type: "task",
-          label: "New Step",
-          x: p.x,
-          y: p.y
-        };
-        chartData.nodes.push(newNode);
+      // Place a new node at the center of the visible viewport
+      function viewportCenterPlacement(nw, nh) {
+        const vp = viewport.getBoundingClientRect();
+        return placementAt(vp.left + vp.width / 2, vp.top + vp.height / 2, nw, nh);
+      }
+
+      const NODE_DEFAULTS = { start: 'Start', end: 'End', task: 'New Step', decision: 'Decision?' };
+      const nodeHeightOf = (type) => (type === 'decision' ? DECISION_HEIGHT : NODE_HEIGHT);
+
+      // Ids that cannot collide even when two are made in the same millisecond
+      function uid(prefix) {
+        let id = `${prefix}_${Date.now()}`, k = 1;
+        while (chartData.nodes.some(n => n.id === id) || chartData.edges.some(e => e.id === id)) id = `${prefix}_${Date.now()}_${k++}`;
+        return id;
+      }
+
+      function makeNode(type, p) {
+        const node = { id: uid('n'), laneId: p.laneId, type, label: NODE_DEFAULTS[type] || 'New Step', x: p.x, y: p.y };
+        chartData.nodes.push(node);
+        return node;
+      }
+
+      function addNodeAt(type, p) {
+        const node = makeNode(type, p);
         updateStatus(true);
         render();
-        selectNode(newNode.id);
-      });
+        selectNode(node.id);
+        return node;
+      }
 
-      [['btn-add-start', 'start', 'Start'], ['btn-add-end', 'end', 'End']].forEach(([id, type, label]) => {
-        const btn = document.getElementById(id);
-        if (!btn) return;
-        btn.addEventListener('click', () => {
-          const p = viewportCenterPlacement(NODE_WIDTH, NODE_HEIGHT);
-          const newNode = { id: `n_${Date.now()}`, laneId: p.laneId, type, label, x: p.x, y: p.y };
-          chartData.nodes.push(newNode);
-          updateStatus(true);
-          render();
-          selectNode(newNode.id);
+      // Click (no drag) on a dock shape: drop it at the centre of the view, as before
+      document.querySelectorAll('[data-node-type]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          if (btn.dataset.dragged) { delete btn.dataset.dragged; e.preventDefault(); return; }
+          const type = btn.dataset.nodeType;
+          addNodeAt(type, viewportCenterPlacement(NODE_WIDTH, nodeHeightOf(type)));
         });
+        btn.addEventListener('pointerdown', (e) => startPaletteDrag(e, btn));
       });
 
-      btnAddDecision.addEventListener('click', () => {
-        const p = viewportCenterPlacement(NODE_WIDTH, DECISION_HEIGHT);
-        const newNode = {
-          id: `n_${Date.now()}`,
-          laneId: p.laneId,
-          type: "decision",
-          label: "Decision?",
-          x: p.x,
-          y: p.y
-        };
-        chartData.nodes.push(newNode);
-        updateStatus(true);
+      // --- INSERT INTO AN ARROW ---
+      // Dropping a step or decision onto an arrow A->B rewires it to A->new->B and re-runs the layout,
+      // so the new node lands between the two. Only new shapes and nodes without arrows can be inserted:
+      // moving an already-connected node never rewires anything.
+      const INSERT_RANGE = 20;   // diagram px between the pointer and the arrow
+      const canInsert = (type) => type === 'task' || type === 'decision';
+      const nodeHasEdges = (id) => chartData.edges.some(e => e.from === id || e.to === id);
+
+      function toContainer(clientX, clientY) {
+        const r = swimlanesContainer.getBoundingClientRect();
+        return { x: (clientX - r.left) / scale, y: (clientY - r.top) / scale };
+      }
+
+      // Nearest arrow whose route passes within INSERT_RANGE of (px, py), with the closest point on it
+      function edgeNear(px, py, excludeNodeId) {
+        let best = null;
+        chartData.edges.forEach(e => {
+          if (excludeNodeId && (e.from === excludeNodeId || e.to === excludeNodeId)) return;
+          const pts = lastRoutes[e.id] && lastRoutes[e.id].points;
+          if (!pts) return;
+          for (let i = 0; i < pts.length - 1; i++) {
+            const [x1, y1] = pts[i], [x2, y2] = pts[i + 1];
+            const dx = x2 - x1, dy = y2 - y1, len2 = dx * dx + dy * dy;
+            const t = len2 ? Math.max(0, Math.min(1, ((px - x1) * dx + (py - y1) * dy) / len2)) : 0;
+            const qx = x1 + t * dx, qy = y1 + t * dy, d = Math.hypot(px - qx, py - qy);
+            if (d <= INSERT_RANGE && (!best || d < best.d)) best = { edgeId: e.id, x: qx, y: qy, d };
+          }
+        });
+        return best;
+      }
+
+      function setInsertTarget(t) {
+        insertTarget = t;
+        edgeGroup.querySelectorAll('.connector-path.insert-target').forEach(p => p.classList.remove('insert-target'));
+        const hint = document.getElementById('insert-hint');
+        if (!t) { if (hint) hint.style.display = 'none'; return; }
+        const path = [...edgeGroup.querySelectorAll('.connector-path')].find(p => p.dataset.edgeId === t.edgeId);
+        if (path) path.classList.add('insert-target');
+        if (hint) {
+          hint.style.left = `${t.x}px`;
+          hint.style.top = `${t.y}px`;
+          hint.style.display = 'block';
+        }
+      }
+
+      // Splice `node` (already in chartData) into arrow `edgeId`, tidy, and keep the node under the pointer
+      function insertIntoEdge(node, edgeId, clientX, clientY) {
+        const edge = chartData.edges.find(x => x.id === edgeId);
+        if (!edge) return false;
+        const target = edge.to;
+        edge.to = node.id;   // keeps its id and label: a decision's "Yes" stays on the decision's side
+        const second = { id: uid('e'), from: node.id, to: target, label: node.type === 'decision' ? 'Yes' : '' };
+        if (edge.feedback) { second.feedback = true; delete edge.feedback; }   // the loop-back is the leg that returns
+        chartData.edges.push(second);
+        layoutDiagram(chartData);
         render();
-        selectNode(newNode.id);
-      });
+        updateStatus(true);
+        selectNode(node.id);
+        // Same zoom, re-panned so the new node sits where it was dropped (no Fit jump on big diagrams)
+        const el = document.getElementById(`node-${node.id}`);
+        if (el) {
+          const r = el.getBoundingClientRect();
+          panX += clientX - (r.left + r.width / 2);
+          panY += clientY - (r.top + r.height / 2);
+          updateTransform();
+          el.classList.add('just-inserted');
+          setTimeout(() => el.classList.remove('just-inserted'), 900);
+        }
+        return true;
+      }
+
+      // --- DRAG A SHAPE OUT OF THE DOCK ---
+      function buildGhost(type) {
+        const g = document.createElement('div');
+        g.className = `flow-node type-${type} palette-ghost`;
+        if (type === 'decision') {
+          g.innerHTML = '<svg class="decision-diamond-svg" viewBox="0 0 144 80" preserveAspectRatio="none"><polygon class="diamond-poly" points="72,1 143,40 72,79 1,40"/></svg>';
+        }
+        const label = document.createElement('div');
+        label.className = 'node-label';
+        label.textContent = NODE_DEFAULTS[type];
+        g.appendChild(label);
+        g.style.transform = `scale(${scale})`;
+        document.body.appendChild(g);
+        return g;
+      }
+
+      function startPaletteDrag(e, btn) {
+        if (e.button !== 0 || document.body.classList.contains('presentation')) return;
+        paletteDrag = { type: btn.dataset.nodeType, btn, ghost: null, startX: e.clientX, startY: e.clientY, placement: null, onCanvas: false };
+        window.addEventListener('pointermove', onPaletteMove);
+        window.addEventListener('pointerup', onPaletteUp);
+        window.addEventListener('pointercancel', cancelPaletteDrag);
+      }
+
+      function onPaletteMove(e) {
+        const pd = paletteDrag;
+        if (!pd) return;
+        if (!pd.ghost) {
+          if (Math.hypot(e.clientX - pd.startX, e.clientY - pd.startY) < 4) return;
+          pd.ghost = buildGhost(pd.type);
+          document.body.classList.add('palette-dragging');
+        }
+        const nw = NODE_WIDTH, nh = nodeHeightOf(pd.type);
+        const under = document.elementFromPoint(e.clientX, e.clientY);
+        pd.onCanvas = !!under && viewport.contains(under) && !under.closest('.dock-area');
+        pd.ghost.classList.toggle('off-canvas', !pd.onCanvas);
+
+        let gx = e.clientX - (nw * scale) / 2, gy = e.clientY - (nh * scale) / 2;   // ghost top-left on screen
+        pd.placement = null;
+        let target = null;
+        if (pd.onCanvas) {
+          const c = toContainer(e.clientX, e.clientY);
+          target = canInsert(pd.type) ? edgeNear(c.x, c.y) : null;
+          const p = placementAt(e.clientX, e.clientY, nw, nh);
+          if (!target) {
+            // Snap to other nodes' and lane centres like a node drag, and show the ghost where it will land
+            const snap = computeSnap({ id: '__palette__' }, nw, nh, p.x, p.laneTop + p.y);
+            if (snap.x !== null) p.x = Math.max(16, Math.round(snap.x));
+            if (snap.y !== null) p.y = Math.max(12, Math.round(snap.y - p.laneTop));
+            showSnapGuides(snap);
+            const track = document.querySelector('.lane-track');
+            const sr = swimlanesContainer.getBoundingClientRect();
+            gx = (track ? track.getBoundingClientRect().left : sr.left) + p.x * scale;
+            gy = sr.top + (p.laneTop + p.y) * scale;
+          } else {
+            // Over an arrow: the ghost trails below-right of the cursor so the marching arrow and pill stay visible
+            hideSnapGuides();
+            gx = e.clientX + 14;
+            gy = e.clientY + 14;
+          }
+          pd.placement = p;
+          document.querySelectorAll('.lane-track').forEach(t => t.classList.toggle('drag-hover-lane', !target && t.dataset.laneId === p.laneId));
+        } else {
+          hideSnapGuides();
+          document.querySelectorAll('.lane-track').forEach(t => t.classList.remove('drag-hover-lane'));
+        }
+        setInsertTarget(target);
+        pd.ghost.classList.toggle('inserting', !!target);
+        pd.ghost.style.transform = `scale(${scale})`;
+        pd.ghost.style.left = `${gx}px`;
+        pd.ghost.style.top = `${gy}px`;
+      }
+
+      function onPaletteUp(e) {
+        const pd = paletteDrag;
+        const target = insertTarget;
+        const dragged = !!(pd && pd.ghost);
+        if (dragged) pd.btn.dataset.dragged = '1';   // swallow the click that may follow on the button
+        cancelPaletteDrag();
+        if (!dragged || !pd.onCanvas || !pd.placement) return;
+        if (target) {
+          const node = makeNode(pd.type, pd.placement);
+          insertIntoEdge(node, target.edgeId, e.clientX, e.clientY);
+        } else {
+          addNodeAt(pd.type, pd.placement);
+        }
+      }
+
+      function cancelPaletteDrag() {
+        const had = !!paletteDrag;
+        if (paletteDrag && paletteDrag.ghost) paletteDrag.ghost.remove();
+        if (paletteDrag && !paletteDrag.ghost) delete paletteDrag.btn.dataset.dragged;
+        paletteDrag = null;
+        document.body.classList.remove('palette-dragging');
+        hideSnapGuides();
+        setInsertTarget(null);
+        document.querySelectorAll('.lane-track').forEach(t => t.classList.remove('drag-hover-lane'));
+        window.removeEventListener('pointermove', onPaletteMove);
+        window.removeEventListener('pointerup', onPaletteUp);
+        window.removeEventListener('pointercancel', cancelPaletteDrag);
+        return had;
+      }
+
+      // --- LANES ---
+      // In no-swimlane mode the Lane button turns swimlanes back on (revealing the single lane's header)
+      function updateLaneButton() {
+        const label = btnAddLane.querySelector('.btn-label');
+        const off = chartData.swimlanes === false;
+        if (label) label.textContent = off ? 'Show lanes' : 'Lane';
+        btnAddLane.title = off ? 'Show swimlanes (name the actor, then add more lanes)' : 'Add a swimlane';
+        btnAddLane.setAttribute('aria-label', off ? 'Show swimlanes' : 'Lane');
+      }
 
       btnAddLane.addEventListener('click', () => {
+        if (chartData.swimlanes === false) {
+          delete chartData.swimlanes;
+          updateStatus(true);
+          render();
+          return;
+        }
         const colors = ["#e0f2fe", "#fef3c7", "#dcfce7", "#fee2e2", "#f3e8ff", "#ffedd5"];
         const nextColor = colors[chartData.lanes.length % colors.length];
         const newLane = {
@@ -2350,8 +2638,9 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         cancelInteraction() {
           const wasConnecting = !!connectingFromNodeId;
           cancelConnecting();
-          return wasConnecting;
+          return cancelPaletteDrag() || wasConnecting;
         },
+        onViewChange: pinLaneHeaders,
         deleteSelection() {
           if (selectedNodeId) deleteNode(selectedNodeId);
           else if (selectedEdgeId) deleteEdge(selectedEdgeId);

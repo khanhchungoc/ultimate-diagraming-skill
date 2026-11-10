@@ -42,6 +42,7 @@ A type's `<type>.js` ends by calling `registerDiagramPlugin({...})`. The shell c
 | `tidyResult()` | Publish positions as `<script id="tidy-result">` (used by `?tidy` and the parity check) |
 | `isBackground(el)` | True for blank canvas, so a drag pans instead of selecting |
 | `clearSelection()`, `cancelInteraction()`, `deleteSelection()` | Selection and Escape/Delete handling; `cancelInteraction()` returns true if it cancelled something |
+| `onViewChange()` (optional) | Called after every pan/zoom. The flowchart uses it to float a lane name pill at the visible top-left of each lane once the header column is panned out of view. While an export reads computed styles the shell sets `body.exporting`, so view-dependent styles can reset there. |
 
 Plugins share the shell's scope: `chartData`, `scale`/`panX`/`panY`, `viewport`, `stage`, `updateStatus()`, `fitView()`.
 

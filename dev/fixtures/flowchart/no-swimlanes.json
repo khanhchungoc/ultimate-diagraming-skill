@@ -1,0 +1,23 @@
+{
+  "diagramType": "flowchart",
+  "title": "Single actor, no swimlanes",
+  "direction": "LR",
+  "swimlanes": false,
+  "lanes": [],
+  "nodes": [
+    { "id": "n1", "type": "start", "label": "Receive Form" },
+    { "id": "n2", "type": "task", "label": "Check Form" },
+    { "id": "n3", "type": "decision", "label": "Complete?" },
+    { "id": "n4", "type": "task", "label": "Request Missing Info" },
+    { "id": "n5", "type": "task", "label": "File Form" },
+    { "id": "n6", "type": "end", "label": "Done" }
+  ],
+  "edges": [
+    { "id": "e1", "from": "n1", "to": "n2", "label": "" },
+    { "id": "e2", "from": "n2", "to": "n3", "label": "" },
+    { "id": "e3", "from": "n3", "to": "n5", "label": "Yes" },
+    { "id": "e4", "from": "n3", "to": "n4", "label": "No" },
+    { "id": "e5", "from": "n4", "to": "n2", "label": "", "feedback": true },
+    { "id": "e6", "from": "n5", "to": "n6", "label": "" }
+  ]
+}

@@ -22,6 +22,7 @@ Never add pixel coordinates (`x`, `y`); `--layout` computes them.
 | Lane | `id`, `name`, `color`, `icon` | Unique id (`lane-<slug>`), actor or system name, hex color from the table below, and an **icon name from the table below. Always set one on every lane.** It is drawn beside the lane name so each owner is recognisable at a glance. |
 | Node | `id`, `laneId`, `type`, `label` | `type` is `start`, `task`, `decision` or `end`. |
 | Edge | `id`, `from`, `to`, `label` | `label` is `"Yes"`, `"No"`, `"Resubmit"`, etc.; `""` for unconditional steps. |
+| Diagram | `swimlanes` | Optional `false` for a process with **one actor**: no lane header column, tint or borders. Keep exactly one lane in `lanes` and put every node in it (the tooling creates `lane-main` if `lanes` is empty). The lane icon rule does not apply. The page's Lane button turns swimlanes back on. |
 | Edge | `feedback` | Optional `true` marks a loop-back edge so it always routes through the outer corridor. Without it the engine picks the loop edge by traversal order, which may choose the wrong edge of a cycle. |
 
 | Lane role | Color |
@@ -38,7 +39,7 @@ Never add pixel coordinates (`x`, `y`); `--layout` computes them.
 2. **Decisions end in `?`** (`"Docs Complete?"`) and every outgoing branch is labeled. Only decision branches get `Yes`/`No` labels: an edge leaving a step is `""` (`--verify` warns about a `Yes`/`No` on a step).
 3. **One owner per node**: place each node in the lane of the actor who performs it.
 4. Keep labels short; long edge labels wrap, but long node labels shrink the fitted text.
-5. One lane per distinct actor or system.
+5. One lane per distinct actor or system. When the whole process has a single actor, set `"swimlanes": false` instead of drawing one named lane.
 6. **Every lane gets an `icon`**, chosen from the table below to match the actor or system. Use a different icon for each lane in one diagram, and never leave one out (`--verify` prints a `[WARN]` for a lane without one, or with a name that is not in the table).
 
 | Icon | Use for |

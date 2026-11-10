@@ -271,6 +271,8 @@ class FlowchartAudit:
         known = set(json.loads(icons_file.read_text(encoding="utf-8"))) if icons_file.is_file() else set()
         names = ", ".join(sorted(known))
         warnings = []
+        if self.data.get("swimlanes") is False:
+            return warnings  # no-swimlane mode: the single lane has no visible header
         for lane in self.lanes:
             label = lane.get("name", lane.get("id"))
             icon = lane.get("icon")
