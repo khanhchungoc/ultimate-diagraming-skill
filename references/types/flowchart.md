@@ -56,6 +56,7 @@ The layout report covers label occlusion. Check the rest by eye on the screensho
 3. **Lane containment**: every node sits inside its lane with at least 40px bottom margin.
 4. **Orthogonal lines**: same-lane connections are flat, with no diagonal kinks.
 5. **Loop edges** use the outer corridors.
+6. **Fan-in joins do not cross**: when several lanes feed one join node, the arrows nest like a staircase (the nearest lane's arrow arrives lowest). A row-run that cuts across another arrow's vertical climb means a source took the join's top/bottom port while a farther lane's arrow climbs to its left port. Re-run `--layout`; if it persists, reorder lanes so the join's sources sit next to each other.
 
 ## Failure handling
 

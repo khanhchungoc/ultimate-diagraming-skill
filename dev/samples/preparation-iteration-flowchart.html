@@ -3215,7 +3215,17 @@
               const enterSide = t.cy < f.cy ? 'bottom' : 'top';
               const ey = enterSide === 'bottom' ? t.y + t.h : t.y;
               const sideKey = e.to + ':' + enterSide;
-              if (!verticalEntryUsed[sideKey]
+              // The run along the source row must not cut across the vertical trunk of a sibling fan-in
+              // arrow: a source in a farther lane (same side) whose column lies between this source and
+              // the target climbs straight up to the target's left port, so crossing it is unavoidable
+              // here. Enter the left port instead (the sibling trunk then nests inside this route).
+              const cutsSiblingTrunk = (inEdges[e.to] || []).some(o => {
+                if (o === e || !rects[o.from]) return false;
+                const s = rects[o.from];
+                const farther = enterSide === 'bottom' ? s.cy > f.cy + 30 : s.cy < f.cy - 30;
+                return farther && s.cx > f.x + f.w && s.cx < t.cx - 30;
+              });
+              if (!verticalEntryUsed[sideKey] && !cutsSiblingTrunk
                   && segmentClear(f.x + f.w, f.cy, t.cx, f.cy, [uId, e.to])
                   && segmentClear(t.cx, f.cy, t.cx, ey, [uId, e.to])) {
                 toPort = enterSide;
