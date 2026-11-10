@@ -50,9 +50,9 @@
         updateLaneButton();
 
         const maxX = chartData.nodes.reduce((m, n) => Math.max(m, (n.x || 0) + NODE_WIDTH + 48), 1200);
-        swimlanesContainer.style.minWidth = `${maxX + (noLanes ? 4 : 224)}px`;
 
-        renderLanes(maxX);
+        renderLanes(maxX);   // also sizes the pill gutter (--lane-gutter)
+        swimlanesContainer.style.minWidth = `${maxX + 4 + (parseFloat(swimlanesContainer.style.getPropertyValue('--lane-gutter')) || 0)}px`;
         renderNodes();
         renderEdges();
         pinLaneHeaders();
@@ -74,39 +74,35 @@
       });
       swimlanesContainer.addEventListener('pointerleave', () => setHoverLane(null));
 
-      // --- FLOATING LANE PILLS ---
-      // Once the header column is panned out of view, each lane shows a rail at the viewport's left edge (a thin
-      // stripe in the lane colour, plus a soft corner fade behind the pill so clipped nodes and arrows there fade
-      // out) and a small name pill. The pill scales with the diagram like the header, at a smaller size, and only stops
-      // shrinking at PILL_MIN_PX on screen. Called after every render and, via plugin.onViewChange, every pan/zoom.
-      const PILL_INSET = 12;     // screen px from the viewport's left edge / the lane's visible top
-      const PILL_FONT = 12;      // diagram px (the header title is 17)
-      const PILL_MIN_PX = 11;    // never smaller than this on screen (the render report minimum)
+      // --- LANE NAME PILLS ---
+      // Each lane is labelled by a pill (icon + name) at the visible top-left of the lane, with a lane-colour
+      // stripe at the visible left edge. They follow the view: when the canvas is panned right they stay at the
+      // viewport's left edge (plus a soft fade behind the pill, so clipped nodes and arrows there fade out), and the
+      // pill follows a lane taller than the screen. The pill scales with the diagram exactly like a node, so the lane
+      // gutter (sizeLaneGutter) keeps it clear of every node at any zoom. Called after every render and, via
+      // plugin.onViewChange, after every pan/zoom.
+      const PILL_INSET = 12;     // diagram px from the visible left edge / the lane's visible top
       const FADE_W = 230, FADE_H = 64;   // screen px: half-axes of the oval fade centred on the pill
       function pinLaneHeaders() {
-        const header = lanesRoot.querySelector('.lane-header');
+        if (chartData.swimlanes === false) { swimlanesContainer.classList.remove('lanes-pinned'); return; }
         const left = swimlanesContainer.offsetLeft + swimlanesContainer.clientLeft;   // container origin, stage coords
         const top = swimlanesContainer.offsetTop + swimlanesContainer.clientTop;
         const visLeft = -panX / scale - left;   // viewport's left edge in container coords
         const visTop = -panY / scale - top;
-        const show = chartData.swimlanes !== false && !document.body.classList.contains('capture')
-          && !!header && visLeft > header.offsetWidth - 48;   // header (nearly) gone from view
-        swimlanesContainer.classList.toggle('lanes-pinned', show);
-        if (!show) return;
-        const k = Math.max(1, PILL_MIN_PX / (PILL_FONT * scale));
-        const inset = PILL_INSET / scale;
+        const x0 = Math.max(0, visLeft);       // visible left edge of the lanes
+        swimlanesContainer.classList.toggle('lanes-pinned', visLeft > 0);
+        const inset = PILL_INSET;
         const cs = swimlanesContainer.style;
-        cs.setProperty('--rail-x', `${visLeft}px`);
+        cs.setProperty('--rail-x', `${x0}px`);
         cs.setProperty('--rail-w', `${FADE_W / scale}px`);
+        cs.setProperty('--rail-b', `${3 / scale}px`);
         cs.setProperty('--fade-w', `${FADE_W / scale}px`);
         cs.setProperty('--fade-h', `${FADE_H / scale}px`);
-        cs.setProperty('--rail-b', `${3 / scale}px`);
-        cs.setProperty('--pill-x', `${visLeft + inset}px`);
-        cs.setProperty('--pill-k', String(k));
+        cs.setProperty('--pill-x', `${x0 + inset}px`);
         lanesRoot.querySelectorAll('.swimlane').forEach(laneEl => {
           const pill = laneEl.querySelector('.lane-pill');
           if (!pill) return;
-          const pillH = pill.offsetHeight * k;
+          const pillH = pill.offsetHeight;
           const maxY = Math.max(inset, laneEl.offsetHeight - pillH - inset);
           const y = Math.min(Math.max(visTop - laneEl.offsetTop + inset, inset), maxY);
           laneEl.style.setProperty('--pill-y', `${y}px`);
@@ -135,23 +131,34 @@
           laneEl.dataset.laneIndex = index;
           laneEl.style.minHeight = `${computedHeight}px`;
           laneEl.style.height = `${computedHeight}px`;
-          laneEl.style.setProperty('--lane-color', lane.color || '#e2e8f0');   // header tint, accent, icon chip, pill
+          laneEl.style.setProperty('--lane-color', lane.color || '#e2e8f0');   // stripe, icon, pill tint
 
-          const header = document.createElement('div');
-          header.className = 'lane-header';
-          header.draggable = !document.body.classList.contains('presentation');
-          header.dataset.tip = 'Drag to reorder swimlane';
+          const track = document.createElement('div');
+          track.className = 'lane-track';
+          track.dataset.laneId = lane.id;
+          track.style.minWidth = `${trackWidth}px`;
+          if (lane.color) track.style.background = colorWithAlpha(lane.color, themeAlpha('--lane-tint-track'));
 
-          // Header title with double-click edit
-          const title = document.createElement('div');
+          // Lane name pill (there is no header column): icon + name at the visible top-left of the lane.
+          // Drag it to reorder lanes, double-click the name to rename. Positioned by pinLaneHeaders.
+          const editable = !document.body.classList.contains('presentation');
+          const pill = document.createElement('div');
+          pill.className = 'lane-pill';
+          pill.draggable = editable;
+          pill.dataset.tip = 'Drag to reorder swimlane \u00b7 double-click to rename';
+          pill.appendChild(laneIconEl(lane, 12));
+          const title = document.createElement('span');
           title.className = 'lane-title';
           title.contentEditable = 'false';
           title.spellcheck = false;
           title.textContent = lane.name;
-          title.dataset.tip = "Double-click to rename swimlane";
+          pill.appendChild(title);
 
           title.addEventListener('dblclick', (e) => {
+            if (!editable) return;
             e.stopPropagation();
+            pill.draggable = false;   // a draggable ancestor would swallow text selection
+            pill.classList.add('editing');
             title.contentEditable = 'true';
             title.focus();
             const range = document.createRange();
@@ -162,61 +169,65 @@
           });
           title.addEventListener('blur', () => {
             title.contentEditable = 'false';
-            if (lane.name !== title.textContent.trim()) {
-              lane.name = title.textContent.trim();
-              pillName.textContent = lane.name;
+            pill.draggable = editable;
+            pill.classList.remove('editing');
+            const name = title.textContent.trim();
+            if (name && lane.name !== name) {
+              lane.name = name;
               updateStatus(true);
-            }
+            } else title.textContent = lane.name;
+            pinLaneHeaders();   // the pill's height may change
           });
           title.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-              e.preventDefault();
-              title.blur();
-            }
+            if (e.key === 'Enter') { e.preventDefault(); title.blur(); }
+            else if (e.key === 'Escape') { title.textContent = lane.name; title.blur(); }
           });
-          header.appendChild(laneIconEl(lane));
-          header.appendChild(title);
 
-          // Drag the header to reorder; a blue line shows where the lane will land
-          header.addEventListener('dragstart', (e) => {
+          // Drag the pill to reorder; a blue line shows where the lane will land
+          pill.addEventListener('dragstart', (e) => {
             laneDragFrom = index;
             e.dataTransfer.effectAllowed = 'move';
             e.dataTransfer.setData('text/plain', String(index));
             laneEl.classList.add('lane-dragging');
           });
-          header.addEventListener('dragend', endLaneDrag);
+          pill.addEventListener('dragend', endLaneDrag);
 
-          const track = document.createElement('div');
-          track.className = 'lane-track';
-          track.dataset.laneId = lane.id;
-          track.style.minWidth = `${trackWidth}px`;
-          if (lane.color) track.style.background = colorWithAlpha(lane.color, themeAlpha('--lane-tint-track'));
-
-          // Floating name pill: shown at the visible top-left of the lane once the header column is panned away
-          const pill = document.createElement('div');
-          pill.className = 'lane-pill';
-          pill.setAttribute('aria-hidden', 'true');
-          pill.appendChild(laneIconEl(lane, 12));
-          const pillName = document.createElement('span');
-          pillName.className = 'lane-pill-name';
-          pillName.textContent = lane.name;
-          pill.appendChild(pillName);
-
+          // Lane-colour stripe at the visible left edge; once panned, also a soft fade behind the pill
           const rail = document.createElement('div');
           rail.className = 'lane-rail';
           rail.setAttribute('aria-hidden', 'true');
 
-          laneEl.appendChild(header);
+          // Empty gutter left of the track (node x is measured from the track), sized below to clear the pills
+          const gutter = document.createElement('div');
+          gutter.className = 'lane-gutter';
+          if (lane.color) gutter.style.background = track.style.background;
+
+          laneEl.appendChild(gutter);
           laneEl.appendChild(track);
           laneEl.appendChild(rail);
           laneEl.appendChild(pill);
           lanesRoot.appendChild(laneEl);
           if (index === hoverIdx) setHoverLane(laneEl);   // keep the wash across re-renders
         });
+        sizeLaneGutter();
+      }
+
+      // The gutter indents every node and arrow so the lane pills (at the lane's top-left) never sit on them.
+      // Sized from the widest pill at 1:1 scale: nodes start LE.START_X (56) into the track and loop-back
+      // corridors run 24px left of a node, so the gutter only needs to cover what the pill adds beyond that.
+      const GUTTER_CLEAR = 12;   // px between the pill's right edge and the nearest corridor
+      function sizeLaneGutter() {
+        let g = 0;
+        if (chartData.swimlanes !== false) {
+          const widest = Math.max(0, ...[...lanesRoot.querySelectorAll('.lane-pill')].map(p => p.offsetWidth));
+          g = Math.max(0, Math.ceil(PILL_INSET + widest + GUTTER_CLEAR - (56 - 24)));
+        }
+        swimlanesContainer.style.setProperty('--lane-gutter', `${g}px`);
+        return g;
       }
 
       // Lane icons: lane.icon names an entry of TYPE_ICONS (assets/types/flowchart/icons.json). A lane without one
-      // (older files, hand-edited JSON) gets a guess from its name, so every header still carries an icon.
+      // (older files, hand-edited JSON) gets a guess from its name, so every lane pill still carries an icon.
       const LANE_ICON_GUESS = [
         [/risk|compliance|security|legal|audit|fraud|admin/, 'shield'],
         [/customer|client|applicant|requester|end.?user|\buser\b/, 'user'],
@@ -1933,7 +1944,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         const stageRect = swimlanesContainer.getBoundingClientRect();
         const nRect = nodeEl.getBoundingClientRect();
 
-        // Global X is measured from the lane track, so the lane header width is excluded
+        // Global X is measured from the lane track
         const trackEl = nodeEl.parentElement;
         const trackLeft = trackEl ? trackEl.getBoundingClientRect().left : stageRect.left;
         dragMoved = false;
@@ -2591,7 +2602,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
       }
 
       // --- LANES ---
-      // In no-swimlane mode the Lane button turns swimlanes back on (revealing the single lane's header)
+      // In no-swimlane mode the Lane button turns swimlanes back on (revealing the single lane's name pill)
       function updateLaneButton() {
         const label = btnAddLane.querySelector('.btn-label');
         const off = chartData.swimlanes === false;
@@ -2628,7 +2639,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         contentEl: swimlanesContainer,
         report: { node: '.flow-node', label: '.edge-label-container', labelText: '.edge-label-text', nodeText: '.node-label' },
         render,
-        isBackground: (el) => el.id === 'swimlanes-container' || el.classList.contains('lane-track'),
+        isBackground: (el) => el.id === 'swimlanes-container' || el.classList.contains('lane-track') || el.classList.contains('lane-gutter'),
         clearSelection() {
           selectedNodeId = null;
           selectedEdgeId = null;

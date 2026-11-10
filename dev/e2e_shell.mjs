@@ -170,28 +170,30 @@ try {
   })()`);
   t.check('the lane under the pointer is highlighted (also over an arrow label) and clears on leave', hoverCheck);
 
-  // 8. Floating lane pills: pan the header column out of view and every lane shows its name pill near the
-  //    viewport's left edge (on the lane rail); the pill text stays smaller than the header text but never
-  //    below 11px on screen; Fit hides them again
+  // 8. Lane name pills (no header column): every lane always shows its pill at the visible top-left; a gutter
+  //    indents the nodes so no pill sits on one at any zoom; the pill follows the viewport's left edge when
+  //    panned, scales with the diagram, and exports at the lane's own top-left
   const pills = `(() => { const vp = document.getElementById('viewport').getBoundingClientRect();
     return [...document.querySelectorAll('.lane-pill')].filter(p => getComputedStyle(p).display !== 'none')
-      .map(p => { const r = p.getBoundingClientRect(), k = r.width / p.offsetWidth;
-        return { dx: Math.round(r.left - vp.left), px: Math.round(parseFloat(getComputedStyle(p).fontSize) * k * 10) / 10 }; }); })()`;
+      .map(p => { const r = p.getBoundingClientRect(), k = r.width / p.offsetWidth, laneEl = p.closest('.swimlane'), lane = laneEl.getBoundingClientRect();
+        const firstNode = Math.min(...[...laneEl.querySelectorAll('.flow-node')].map(n => n.getBoundingClientRect().left));
+        return { dx: Math.round(r.left - vp.left), laneDx: Math.round(r.left - lane.left), clear: Math.round(firstNode - r.right), px: Math.round(parseFloat(getComputedStyle(p).fontSize) * k * 10) / 10 }; }); })()`;
   const laneCount = await t.ev(`document.querySelectorAll('.swimlane').length`);
-  t.check('no lane pills while the header column is in view', (await t.ev(pills)).length === 0);
-  await t.ev(`document.getElementById('viewport').dispatchEvent(new WheelEvent('wheel', { bubbles: true, cancelable: true, deltaX: 900, deltaY: 0, deltaMode: 0, clientX: 600, clientY: 400 }))`);
   const zoom = `parseInt(document.getElementById('zoom-level').textContent) / 100`;
-  const shown = await t.ev(pills), z1 = await t.ev(zoom);
+  const atRest = await t.ev(pills);
   for (let i = 0; i < 6; i++) await t.ev(`document.getElementById('btn-zoom-out').click()`);
-  const zoomedOut = await t.ev(pills), z2 = await t.ev(zoom);
-  const titlePx = await t.ev(`parseFloat(getComputedStyle(document.querySelector('.lane-title')).fontSize)`);
-  t.check('after panning right, every lane shows a name pill at the viewport left edge',
-    shown.length === laneCount && shown.every(p => Math.abs(p.dx - 12) <= 2) && zoomedOut.length === laneCount,
-    `shown=${JSON.stringify(shown)} zoomedOut=${JSON.stringify(zoomedOut)}`);
-  t.check('pill text is smaller than the header text at the same zoom, and never below 11px on screen',
-    shown[0].px < titlePx * z1 && zoomedOut[0].px >= 10.9 && zoomedOut[0].px <= shown[0].px,
-    `pill=${shown[0]?.px}px header=${titlePx * z1}px at ${z1}; zoomed-out pill=${zoomedOut[0]?.px}px at ${z2}`);
-  // An export taken while the pills are showing leaves them out (each lane name appears once, in its header)
+  const restOut = await t.ev(pills);
+  await t.ev(`document.getElementById('btn-zoom-reset').click()`);
+  t.check("no header column: every lane shows its pill at its top-left, clear of the lane's nodes at any zoom",
+    !(await t.ev(`!!document.querySelector('.lane-header')`)) && atRest.length === laneCount
+      && [...atRest, ...restOut].every(p => p.laneDx >= 3 && p.laneDx <= 20 && p.clear > 0),
+    `fit=${JSON.stringify(atRest)} zoomedOut=${JSON.stringify(restOut)}`);
+  await t.ev(`document.getElementById('viewport').dispatchEvent(new WheelEvent('wheel', { bubbles: true, cancelable: true, deltaX: 900, deltaY: 0, deltaMode: 0, clientX: 600, clientY: 400 }))`);
+  const shown = await t.ev(pills), z1 = await t.ev(zoom);
+  t.check('after panning right, every pill sits at the viewport left edge',
+    shown.length === laneCount && shown.every(p => Math.abs(p.dx - 12 * z1) <= 2), `shown=${JSON.stringify(shown)} zoom=${z1}`);
+  t.check('pill text scales with the diagram (12px at 100%)', shown.every(p => Math.abs(p.px - 12 * z1) <= 0.6), `px=${shown.map(p => p.px)} zoom=${z1}`);
+  // An export taken while panned draws every pill once, at its lane's own top-left (no view offset)
   const svgText = await t.ev(`new Promise(res => {
     const orig = URL.createObjectURL;
     URL.createObjectURL = (b) => { URL.createObjectURL = orig; b.text().then(res); return 'blob:x'; };
@@ -200,21 +202,39 @@ try {
   const laneNames = await t.ev(`[...document.querySelectorAll('.lane-title')].map(t => t.textContent)`);
   const esc = (x) => x.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   const counts = laneNames.map(n => svgText.split('>' + esc(n) + '<').length - 1);
-  t.check('SVG export leaves the floating pills out', counts.every(c => c === 1), `counts=${counts}`);
+  const pillMoves = [...svgText.matchAll(/matrix\(1, 0, 0, 1, ([\d.]+), ([\d.]+)\)/g)].filter(m => +m[1] === 12 && +m[2] === 12).length;
+  t.check("SVG export names every lane once, with pills at the lanes' own top-left", counts.every(c => c === 1) && pillMoves === laneCount, `counts=${counts} pillsAtLaneCorner=${pillMoves}/${laneCount}`);
   await t.ev(`document.getElementById('btn-zoom-reset').click()`);
-  t.check('Fit hides the pills again', (await t.ev(pills)).length === 0);
+  const afterFit = await t.ev(pills);
+  t.check("Fit brings the pills back to the lanes' top-left", afterFit.every(p => p.laneDx >= 3 && p.laneDx <= 20), JSON.stringify(afterFit));
+  // Rename by double-clicking the pill's name
+  const renamed = await t.ev(`(async () => {
+    const title = document.querySelector('.lane-pill .lane-title');
+    title.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+    const editing = title.isContentEditable;
+    title.textContent = 'Renamed Lane';
+    title.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    // Headless Chrome has no window focus, so Enter's blur() fires no blur event there: deliver it by hand
+    if (title.isContentEditable) title.dispatchEvent(new FocusEvent('blur'));
+    await new Promise(r => setTimeout(r, 50));
+    const ok = editing && document.querySelector('.lane-pill .lane-title').textContent === 'Renamed Lane' && /unsaved/i.test(document.getElementById('save-status').textContent);
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'z', ctrlKey: true, bubbles: true }));
+    return ok;
+  })()`);
+  t.check('double-clicking a pill renames the lane (undoable)', renamed);
 
   // 9. No-swimlane mode ("swimlanes": false)
   const nolanes = argOf('nolanes');
   if (nolanes) {
     await t.open(nolanes);
-    const visible = await t.ev(`[...document.querySelectorAll('.lane-header')].filter(h => getComputedStyle(h).display !== 'none').length`);
+    const visiblePills = `[...document.querySelectorAll('.lane-pill')].filter(h => getComputedStyle(h).display !== 'none').length`;
+    const visible = await t.ev(visiblePills);
     const n = await t.ev(`document.querySelectorAll('.flow-node').length`);
     const label = await t.ev(`document.querySelector('#btn-add-lane .btn-label').textContent`);
-    t.check('swimlanes:false renders the nodes with no visible lane header', n > 0 && visible === 0 && t.errors.length === 0, `nodes=${n} headers=${visible} errors=${t.errors.join(' | ')}`);
+    t.check('swimlanes:false renders the nodes with no lane pill', n > 0 && visible === 0 && t.errors.length === 0, `nodes=${n} pills=${visible} errors=${t.errors.join(' | ')}`);
     await t.ev(`document.getElementById('btn-add-lane').click()`);
-    const shown = await t.ev(`[...document.querySelectorAll('.lane-header')].filter(h => getComputedStyle(h).display !== 'none').length`);
-    t.check('the Lane button ("' + label + '") turns swimlanes back on', shown === 1, `headers=${shown}`);
+    const shown = await t.ev(visiblePills);
+    t.check('the Lane button ("' + label + '") turns swimlanes back on', shown === 1, `pills=${shown}`);
   }
 
   // 10. ?present hides editing chrome

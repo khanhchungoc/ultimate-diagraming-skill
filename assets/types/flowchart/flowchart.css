@@ -23,30 +23,6 @@
       border-bottom: none;
     }
 
-    .lane-header {
-      width: var(--lane-header-width);
-      min-width: var(--lane-header-width);
-      padding: 14px 12px;
-      display: flex;
-      flex-direction: row;
-      align-items: center;
-      gap: 10px;
-      border-right: 1px solid color-mix(in srgb, var(--lane-color, #e2e8f0) 50%, var(--border-dark));
-      border-left: 4px solid color-mix(in srgb, var(--lane-color, #e2e8f0) var(--lane-accent-mix), var(--lane-accent-base));
-      background: color-mix(in srgb, var(--lane-color, #e2e8f0) var(--lane-header-mix), var(--bg-lane-header));
-      font-weight: 700;
-      font-size: 1.0625rem;
-      line-height: 1.25;
-      color: var(--text-main);
-      position: relative;
-      cursor: grab;
-      user-select: none;
-      transition: background 0.15s;
-    }
-    .lane-header.dragging-header {
-      opacity: 0.5;
-      background: var(--bg-soft);
-    }
     .lane-icon {
       flex: none;
       width: 34px;
@@ -60,25 +36,25 @@
       color: color-mix(in srgb, var(--lane-color, #e2e8f0) var(--lane-ink-mix), var(--lane-ink-base));
       pointer-events: none;
     }
+    /* Lane name (inside the pill): double-click to rename */
     .lane-title {
       min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
       outline: none;
       user-select: none;
-      word-break: break-word;
       border-radius: 4px;
-      padding: 2px 4px;
+      padding: 0 2px;
+      margin: 0 -2px;
       border: 1px solid transparent;
-      cursor: default;
     }
     .lane-title[contenteditable="true"] {
       user-select: text;
       cursor: text;
+      overflow: visible;
       border-color: var(--primary);
       background: var(--bg-input);
-    }
-    .lane-title:focus {
-      border-color: var(--primary);
-      background: var(--bg-input);
+      color: var(--text-main);
     }
 
     .snap-guide {
@@ -115,8 +91,15 @@
       border-radius: 50%;
       background: var(--primary);
     }
-    .swimlane.lane-dragging .lane-header { opacity: 0.45; }
+    .swimlane.lane-dragging .lane-pill { opacity: 0.45; }
 
+    /* Empty left gutter that indents nodes past the lane name pill (width set by sizeLaneGutter) */
+    .lane-gutter {
+      flex: none;
+      width: var(--lane-gutter, 0px);
+      background: var(--lane-track-tint);
+      transition: background 0.15s ease;
+    }
     .lane-track {
       flex: 1;
       position: relative;
@@ -126,9 +109,10 @@
     }
     /* The lane under the pointer (see trackLaneHover) or holding the selected node gets a faint wash (inset shadow overlays the inline tint) */
     .swimlane.lane-hover .lane-track,
-    .swimlane:has(.flow-node.selected) .lane-track { box-shadow: inset 0 0 0 100vmax var(--lane-active-wash); }
-    .swimlane.lane-hover .lane-header,
-    .swimlane:has(.flow-node.selected) .lane-header { background: color-mix(in srgb, var(--lane-color, #e2e8f0) var(--lane-header-mix-active), var(--bg-lane-header)); }
+    .swimlane.lane-hover .lane-gutter,
+    .swimlane:has(.flow-node.selected) .lane-track,
+    .swimlane:has(.flow-node.selected) .lane-gutter { box-shadow: inset 0 0 0 100vmax var(--lane-active-wash); }
+
     .lane-track.drag-hover-lane {
       background: var(--primary-wash);
     }
@@ -466,11 +450,11 @@
     body.presentation .node-delete-btn,
     body.presentation .edge-delete-btn { display: none !important; }
     body.presentation .flow-node,
-    body.presentation .lane-header,
+    body.presentation .lane-pill,
     body.presentation .lane-title,
     body.presentation .edge-label-container,
     body.presentation .connector-path { pointer-events: none !important; }
-    body.presentation .lane-header { cursor: default; }
+
     /* Capture mode: the diagram container goes edge to edge */
     body.capture #swimlanes-container {
       margin: 0;
@@ -479,78 +463,77 @@
       box-shadow: none;
     }
 
-    /* Lane colour tokens: how strongly --lane-color (set per lane) tints the header, its accent and icon chip */
+    /* Lane colour tokens: how strongly --lane-color (set per lane) tints the icon, the stripe and the pill */
     :root {
-      --lane-header-mix: 38%;  --lane-header-mix-active: 58%;
       --lane-chip-mix: 85%;    --lane-chip-base: #ffffff;
       --lane-ink-mix: 30%;     --lane-ink-base: #1e293b;    /* icon stroke: lane hue, darkened */
-      --lane-accent-mix: 70%;  --lane-accent-base: #475569; /* 4px left rule */
+      --lane-accent-mix: 70%;  --lane-accent-base: #475569; /* lane stripe */
       --lane-pill-mix: 45%;
     }
     :root[data-theme="dark"] {
-      --lane-header-mix: 15%;  --lane-header-mix-active: 22%;
       --lane-chip-mix: 30%;    --lane-chip-base: #111a2e;
       --lane-ink-mix: 85%;     --lane-ink-base: #e2e8f0;    /* pastel lane hue reads well on dark */
       --lane-accent-mix: 80%;  --lane-accent-base: #94a3b8;
       --lane-pill-mix: 22%;
     }
 
-    /* Floating lane pill + rail: once the header column is panned out of view (see pinLaneHeaders), each lane
-       gets a rail at the viewport's left edge (lane-colour stripe, plus an oval fade in the top-left corner behind
-       the pill so clipped nodes and arrows there fade out) and a quiet name pill. Both sit above arrows (15), nodes (20) and labels (30). */
+    /* Lane name pill + rail (no header column; see pinLaneHeaders): the pill labels each lane at its visible
+       top-left, and the rail is a lane-colour stripe at the visible left edge. Once the canvas is panned right, the
+       rail also fades the lane's top-left corner behind the pill so clipped nodes and arrows there fade out.
+       Both sit above arrows (15), nodes (20) and edge labels (30). */
     .lane-rail {
       position: absolute;
       top: 0;
       bottom: 0;
       left: var(--rail-x, 0px);
-      width: var(--rail-w, 104px);
+      width: var(--rail-w, 230px);
       z-index: 39;
-      display: none;
       pointer-events: none;
+      border-left: var(--rail-b, 3px) solid color-mix(in srgb, var(--lane-color) var(--lane-accent-mix), var(--lane-accent-base));
       --lane-bg: color-mix(in srgb, var(--lane-color) calc(var(--lane-tint-track) * 100%), var(--bg-panel));
-      background:
-        /* full-height accent stripe at the viewport edge */
-        linear-gradient(color-mix(in srgb, var(--lane-color) var(--lane-accent-mix), var(--lane-accent-base)) 0 0)
-          0 0 / var(--rail-b, 3px) 100% no-repeat,
-        /* soft oval fade centred on the pill: only the lane's top-left corner is masked */
-        radial-gradient(var(--fade-w, 230px) var(--fade-h, 64px) at 0 var(--fade-cy, 24px),
-          var(--lane-bg) 0%, var(--lane-bg) 30%, color-mix(in srgb, var(--lane-bg) 70%, transparent) 60%, transparent 100%)
-          no-repeat;
+    }
+    #swimlanes-container.lanes-pinned .lane-rail {
+      /* soft oval fade centred on the pill: only the lane's top-left corner is masked */
+      background: radial-gradient(var(--fade-w, 230px) var(--fade-h, 64px) at 0 var(--fade-cy, 24px),
+        var(--lane-bg) 0%, var(--lane-bg) 30%, color-mix(in srgb, var(--lane-bg) 70%, transparent) 60%, transparent 100%) no-repeat;
     }
     .lane-pill {
       position: absolute;
       left: 0;
       top: 0;
       z-index: 40;
-      display: none;
+      display: inline-flex;
       align-items: center;
       gap: 5px;
-      max-width: 200px;
+      max-width: 220px;
       padding: 2px 9px 2px 7px;
       border-radius: 999px;
       background: color-mix(in srgb, var(--lane-color) var(--lane-pill-mix), var(--bg-panel));
       color: var(--text-soft);
-      font-size: 12px;   /* PILL_FONT in flowchart.js; the header title is 17px */
+      font-size: 12px;
       font-weight: 600;
       line-height: 1.3;
       white-space: nowrap;
-      pointer-events: none;
+      cursor: grab;
+      user-select: none;
       transform-origin: 0 0;
-      transform: translate(var(--pill-x, 0px), var(--pill-y, 0px)) scale(var(--pill-k, 1));
+      transform: translate(var(--pill-x, 12px), var(--pill-y, 12px));
+      transition: background var(--ease), color var(--ease), box-shadow var(--ease);
     }
-    #swimlanes-container.lanes-pinned .lane-pill { display: inline-flex; }
-    .swimlane.lane-hover .lane-pill { background: color-mix(in srgb, var(--lane-color) calc(var(--lane-pill-mix) + 20%), var(--bg-panel)); color: var(--text-main); }
-    #swimlanes-container.lanes-pinned .lane-rail { display: block; }
+    .lane-pill:hover { box-shadow: 0 0 0 1px color-mix(in srgb, var(--lane-color) 60%, var(--border-dark)); }
+    .lane-pill.editing { cursor: default; }
+    .swimlane.lane-hover .lane-pill,
+    .swimlane:has(.flow-node.selected) .lane-pill { background: color-mix(in srgb, var(--lane-color) calc(var(--lane-pill-mix) + 20%), var(--bg-panel)); color: var(--text-main); }
     .lane-pill .lane-icon { width: auto; height: auto; border: none; background: none; border-radius: 0; }
-    .lane-pill-name { overflow: hidden; text-overflow: ellipsis; }
-    body.exporting .lane-rail,
+    /* Exports draw each pill and stripe at the lane's own top-left, whatever the view */
+    body.exporting .lane-pill { transform: translate(12px, 12px) !important; box-shadow: none; }
+    body.exporting .lane-rail { left: 0 !important; border-left-width: 3px !important; background: none !important; }
+    #swimlanes-container.no-swimlanes .lane-pill,
     #swimlanes-container.no-swimlanes .lane-rail { display: none !important; }
-    body.exporting .lane-pill,
-    #swimlanes-container.no-swimlanes .lane-pill { display: none !important; }
 
-    /* No-swimlane mode ("swimlanes": false): one hidden lane, no header column, tint or lane borders */
-    #swimlanes-container.no-swimlanes .lane-header { display: none; }
+    /* No-swimlane mode ("swimlanes": false): one hidden lane, no name pill, stripe, tint or lane borders */
     #swimlanes-container.no-swimlanes .swimlane { border-bottom: none; }
+    #swimlanes-container.no-swimlanes .lane-gutter { display: none; }
     #swimlanes-container.no-swimlanes .lane-track { background: transparent !important; box-shadow: none !important; }
 
     /* Dragging a shape out of the dock */
