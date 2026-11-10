@@ -153,10 +153,10 @@
           return (step > 0 && labelGap[k]) ? Math.max(step, LE.NODE_W + labelGap[k]) : step;
         };
 
-        // Longest-path x offsets
-        const xPositions = (zero, tight) => {
+        // Longest-path x offsets (optionally no less than a per-node floor)
+        const xPositions = (zero, tight, floor = {}) => {
           const adj = {}, indeg = {}, xs = {};
-          nodes.forEach(n => { adj[n.id] = []; indeg[n.id] = 0; xs[n.id] = 0; });
+          nodes.forEach(n => { adj[n.id] = []; indeg[n.id] = 0; xs[n.id] = floor[n.id] || 0; });
           forwardEdges.forEach(e => { adj[e.from].push(e.to); indeg[e.to] = (indeg[e.to] || 0) + 1; });
           const queue = nodes.filter(n => indeg[n.id] === 0).map(n => n.id);
           const seen = new Set();
@@ -247,24 +247,6 @@
               sub[n.id] = next++;
             });
           });
-          // An end node whose predecessor is two or more lanes away cannot be entered from below/above when
-          // another node sits in its column in a lane between them: the arrow would have to wrap around to the
-          // node's far side. Nothing is downstream of an end node, so move it just right of the blocker.
-          nodes.forEach(n => {
-            if ((fwdOut[n.id] || []).length) return;
-            const ln = laneIdx[n.laneId];
-            const lps = (fwdIn[n.id] || []).filter(p => nodeMap[p]).map(p => laneIdx[nodeMap[p].laneId]);
-            let newX = X[n.id];
-            nodes.forEach(m => {
-              if (m === n || Math.abs(X[m.id] - X[n.id]) >= LE.NODE_W + LE.MIN_GAP) return;
-              const lm = laneIdx[m.laneId];
-              if (lps.some(lp => Math.min(ln, lp) < lm && lm < Math.max(ln, lp))) newX = Math.max(newX, X[m.id] + LE.NODE_W + LE.MIN_GAP);
-            });
-            if (newX === X[n.id]) return;
-            const sameLane = nodes.filter(m => m !== n && m.laneId === n.laneId);
-            if (sameLane.every(m => clear(newX, X[m.id]))) X[n.id] = newX;
-          });
-
           const subrows = {};
           lanes.forEach(l => { subrows[l.id] = 1; });
           nodes.forEach(n => { subrows[n.laneId] = Math.max(subrows[n.laneId] || 1, sub[n.id] + 1); });
@@ -622,9 +604,31 @@
           const sl = laneIdx[s.laneId], dl = laneIdx[d.laneId];
           if (sl === undefined || dl === undefined || sl === dl) return;
           if (cands.some(c => c.k === KEY(e.from, e.to))) return;
-          cands.push({ k: KEY(e.from, e.to), from: e.from, side: dl < sl ? 'up' : 'down' });
+          cands.push({ k: KEY(e.from, e.to), from: e.from, to: e.to, side: dl < sl ? 'up' : 'down' });
         });
 
+        // Stacking v straight under (or over) u leaves a loop-back that arrives from u's side no way into v's
+        // near side (u is in the way), so it would have to wrap around u. Such an arrow keeps its own column.
+        const loopBlocked = (c) => [...back].some(k => {
+          const [a, b] = k.split('');
+          if (b !== c.to || !nodeMap[a]) return false;
+          const la = laneIdx[nodeMap[a].laneId], lu = laneIdx[nodeMap[c.from].laneId];
+          return c.side === 'down' ? la <= lu : la >= lu;
+        });
+        // Stacking a decision v straight under (or over) u makes the incoming arrow take v's near vertex. When one
+        // branch of v stays in v's lane (it takes the right vertex) and another heads back toward u's side, that
+        // branch has no free vertex facing its target and leaves beside the incoming arrow. Unstacked, the
+        // incoming arrow enters v's side vertex and frees the near one for that branch.
+        const exitBlocked = (c) => {
+          const v = nodeMap[c.to];
+          if (!v || v.type !== 'decision') return false;
+          const lv = laneIdx[v.laneId];
+          const outs = forwardEdges.filter(e => e.from === c.to && nodeMap[e.to]);
+          const sameLane = outs.some(e => laneIdx[nodeMap[e.to].laneId] === lv);
+          const towardU = outs.some(e => e.to !== c.from
+            && (c.side === 'down' ? laneIdx[nodeMap[e.to].laneId] < lv : laneIdx[nodeMap[e.to].laneId] > lv));
+          return sameLane && towardU;
+        };
         const valid = (cfg) => {
           const used = new Set();
           for (const c of cands) {
@@ -693,7 +697,72 @@
             if (keyLess(cur.key, best.key)) { best = cur; bestCfg = new Map(cfg); }
           });
         }
-        placeNodes(best.ranks, best.xs, best.zero, best.tight);
+        // Undo loop-blocked stacking on the winning layout only (filtering it inside the search would steer the
+        // greedy search to a different layout elsewhere). Kept only when it adds no overlap or crossing.
+        {
+          // The unstacked node goes edge to edge with its source (tight); a full column only if tight is not clean.
+          const blocked = cands.filter(c => bestCfg.get(c.k) === 'zero' && (loopBlocked(c) || exitBlocked(c)));
+          if (blocked.length) {
+            for (const mode of ['tight', null]) {
+              const trial = new Map(bestCfg);
+              blocked.forEach(c => { if (mode) trial.set(c.k, mode); else trial.delete(c.k); });
+              const res = evaluate(trial);
+              if (res.key[0] <= best.key[0] && res.key[1] <= best.key[1]) { best = res; bestCfg = trial; break; }
+            }
+          }
+        }
+        // Column alignment: nodes in different lanes that land less than half a node apart (labels of different
+        // widths push siblings to slightly different x) snap to the right-most of them, so they share one centre
+        // line. Only ever moves nodes right, then re-propagates, so every arrow keeps at least its required room.
+        let finalXs = best.xs;
+        {
+          const SNAP = LE.NODE_W / 2;
+          const floor = {};
+          for (let iter = 0; iter < 8; iter++) {
+            const sorted = nodes.map(n => n.id).sort((a, b) => finalXs[a] - finalXs[b]);
+            let changed = false;
+            let i = 0;
+            while (i < sorted.length) {
+              let j = i + 1;
+              while (j < sorted.length && finalXs[sorted[j]] - finalXs[sorted[i]] < SNAP) j++;
+              const group = sorted.slice(i, j);
+              const lanesIn = new Set(group.map(id => nodeMap[id].laneId));
+              if (group.length > 1 && lanesIn.size > 1) {
+                const target = Math.max(...group.map(id => finalXs[id]));
+                group.forEach(id => { if (finalXs[id] < target - 0.01) { floor[id] = target; changed = true; } });
+              }
+              i = j;
+            }
+            if (!changed) break;
+            finalXs = xPositions(best.zero, best.tight, floor);
+          }
+        }
+        placeNodes(best.ranks, finalXs, best.zero, best.tight);
+
+        // An end node whose predecessor is two or more lanes away cannot be entered from below/above when
+        // another node sits in its column in a lane between them: the arrow would have to wrap around to the
+        // node's far side. Nothing is downstream of an end node, so move it just right of the blocker: its left
+        // edge lines up with the blocker's right edge (no gap), which still clears its centre column for the arrow.
+        // Runs once on the final layout (not inside the search) so it never changes which layout wins.
+        {
+          const hasOut = new Set(edges.map(e => e.from));   // loop-backs count: only true end nodes move
+          const preds = {};
+          forwardEdges.forEach(e => { (preds[e.to] = preds[e.to] || []).push(e.from); });
+          const SPAN = LE.NODE_W + LE.MIN_GAP;
+          nodes.forEach(n => {
+            if (hasOut.has(n.id)) return;
+            const ln = laneIdx[n.laneId];
+            const lps = (preds[n.id] || []).filter(p => nodeMap[p]).map(p => laneIdx[nodeMap[p].laneId]);
+            let newX = n.x;
+            nodes.forEach(m => {
+              if (m === n || Math.abs(m.x - n.x) >= SPAN) return;
+              const lm = laneIdx[m.laneId];
+              if (lps.some(lp => Math.min(ln, lp) < lm && lm < Math.max(ln, lp))) newX = Math.max(newX, m.x + LE.NODE_W);
+            });
+            if (newX === n.x) return;
+            if (nodes.every(m => m === n || m.laneId !== n.laneId || Math.abs(newX - m.x) >= SPAN)) n.x = newX;
+          });
+        }
       }
 
       // Entry point shared by every diagram type: lay out `data` in place (no DOM access).

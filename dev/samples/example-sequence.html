@@ -1527,11 +1527,16 @@
         if (!fullHtml || !fullHtml.includes('id="diagram-data"')) {
           fullHtml = "<!DOCTYPE html>\n" + document.documentElement.outerHTML;
         }
-        fullHtml = fullHtml.replace(/<script id="render-report"[\s\S]*?<\/script>/, '');
+        // Both patterns spell the full tag with type="application\/json": this file's own source contains
+        // these regexes, and with the escaped slash they cannot match their own text. A shorter pattern such
+        // as <script id="render-report"[\s\S]*?<\/script> matches this code itself and deletes the rest of
+        // the page's main script, so the saved file opens with nothing working.
+        fullHtml = fullHtml.replace(/<script id="render-report" type="application\/json">[\s\S]*?<\/script>/, '');
 
+        // A replacement function, not a string: labels may contain $&, $' or $` that a string would expand
         const replacedHtml = fullHtml.replace(
           /(<script id="diagram-data" type="application\/json">)[\s\S]*?(<\/script>)/,
-          `$1\n${updatedJson}\n  $2`
+          (_, open, close) => `${open}\n${updatedJson}\n  ${close}`
         );
 
         document.getElementById('diagram-data').textContent = `\n${updatedJson}\n  `;

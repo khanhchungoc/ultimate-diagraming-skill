@@ -771,30 +771,6 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
             const ins = inEdges[nid].filter(e => edgePorts[e.id] && edgePorts[e.id].toPort === side);
             if (!outs.length || !ins.length) return;
 
-            // A decision's branches must leave from vertices. When the top/bottom vertex already takes the
-            // incoming arrow, sliding the exit sideways would put it on the diamond's slanted edge, so move
-            // the exits to a free vertex instead (right first, then the opposite top/bottom vertex).
-            if (nodeMap[nid] && nodeMap[nid].type === 'decision') {
-              const opp = side === 'top' ? 'bottom' : 'top';
-              const oppHasIn = inEdges[nid].some(e => edgePorts[e.id] && edgePorts[e.id].toPort === opp);
-              const lbl = e => (e.label || '').trim().toLowerCase();
-              const taken = {};   // vertex -> labels of branches already leaving from it
-              outEdges[nid].forEach(e => {
-                const p = edgePorts[e.id];
-                if (p && p.fromPort !== side) (taken[p.fromPort] = taken[p.fromPort] || []).push(lbl(e));
-              });
-              const moved = [];
-              outs.forEach(e => {
-                const cands = ['right', ...(oppHasIn ? [] : [opp])];
-                const v = cands.find(c => !taken[c] || taken[c].every(l => l === lbl(e)));
-                if (!v) return;
-                edgePorts[e.id] = { fromPort: v, toPort: edgePorts[e.id].toPort };
-                (taken[v] = taken[v] || []).push(lbl(e));
-                moved.push(e);
-              });
-              if (moved.length === outs.length) return;
-            }
-
             // If an edge is a straight vertical line to/from an aligned node, preserve it at cx (offset 0)
             // and put the slot offset on the other edge(s) so arrowheads never collide with departure points
             const isStraightOut = outs.some(e => Math.abs(rects[e.to].cx - rects[nid].cx) < 30 && (edgePorts[e.id].toPort === 'top' || edgePorts[e.id].toPort === 'bottom'));
@@ -1033,7 +1009,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           return { overlap, near, cross };
         };
         // Cost model: overlap >> near-parallel > crossing (~1.75 bends) > bend > length
-        const COST = { overlap: 20000, near: 2500, cross: 1750, bend: 1000, divider: 1500, nearNode: 600, portClash: 2500, sharedBranch: 1200 };
+        const COST = { overlap: 20000, near: 2500, cross: 1750, bend: 1000, divider: 1500, nearNode: 600, portClash: 2500, sharedBranch: 1200, entryShare: 1500 };
         const laneDividers = Array.from(document.querySelectorAll('.lane-track')).slice(0, -1)
           .map(t => (tb ? t.getBoundingClientRect().right - stageRect.left : t.getBoundingClientRect().bottom - stageRect.top) / scale);
         const routeDefects = (pts, ids) => {
@@ -1067,12 +1043,27 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           return outEdges[edge.from].filter(o => o !== edge && edgePorts[o.id] && edgePorts[o.id].fromPort === fp
             && (o.label || '').trim().toLowerCase() !== (edge.label || '').trim().toLowerCase()).length;
         };
+        const ownBodyClear = (pts, edge) => {
+          for (const id of [edge.from, edge.to]) {
+            const r = rects[id];
+            if (!r) continue;
+            const x1 = r.x + 3, x2 = r.x + r.w - 3, y1 = r.y + 3, y2 = r.y + r.h - 3;
+            for (let i = 0; i < pts.length - 1; i++) {
+              const ax = Math.min(pts[i][0], pts[i + 1][0]), bx = Math.max(pts[i][0], pts[i + 1][0]);
+              const ay = Math.min(pts[i][1], pts[i + 1][1]), by = Math.max(pts[i][1], pts[i + 1][1]);
+              if (ax < x2 && bx > x1 && ay < y2 && by > y1) return false;
+            }
+          }
+          return true;
+        };
         const routeCost = (pts, edge, others, fp, tp, limit = Infinity) => {
           const ids = [edge.from, edge.to];
           let len = 0;
           for (let i = 0; i < pts.length - 1; i++) len += Math.abs(pts[i + 1][0] - pts[i][0]) + Math.abs(pts[i + 1][1] - pts[i][1]);
           if ((pts.length - 2) * COST.bend + len >= limit) return Infinity;   // cannot beat the best so far
           if (!polyClear(pts, ids)) return Infinity;
+          // A route must not run back through the body of its own source or target node
+          if (!ownBodyClear(pts, edge)) return Infinity;
           // Every penalty is non-negative, so once the running cost reaches `limit` this route cannot win: stop
           const fixed = (pts.length - 2) * COST.bend + len;
           let defect = portClashes(edge, fp, tp) * COST.portClash + sharedBranchVertex(edge, fp) * COST.sharedBranch;
@@ -1168,24 +1159,26 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           if (!cur) return;
           const others = validEdges.filter(o => o !== e && edgePolylines[o.id]
             && o.from !== e.from && o.to !== e.to && o.from !== e.to && o.to !== e.from);
-          const base = routeCost(cur, e, others, edgePorts[e.id].fromPort, edgePorts[e.id].toPort);
-          // Already clean (clear of nodes, no overlap/crossing/crowding): keep it
-          if (base !== Infinity && base.defect === 0) return;
-          const baseCost = base === Infinity ? Infinity : base.cost;
-          let best = null;
-          // 3-bend corridor routes are only worth searching when the standard route is in real trouble
-          const deep = base === Infinity || base.defect >= COST.cross;
-          // A decision never leaves from a top/bottom vertex that already takes an incoming arrow
+          // A decision branch that leaves from the top/bottom vertex an incoming arrow already takes gets pushed
+          // off the vertex onto the diamond's slanted edge (2b/5a2). That is a cost, not a ban: the branch moves
+          // to a free vertex only when that route is clean enough to beat it (a detour that adds a crossing does not).
           const srcIsDecision = nodeMap[e.from] && nodeMap[e.from].type === 'decision';
           const entryVertex = s => srcIsDecision && (s === 'top' || s === 'bottom')
             && (inEdges[e.from] || []).some(o => edgePorts[o.id] && edgePorts[o.id].toPort === s);
+          const entryShare = s => entryVertex(s) ? COST.entryShare : 0;
+          const base = routeCost(cur, e, others, edgePorts[e.id].fromPort, edgePorts[e.id].toPort);
+          // Already clean (clear of nodes, no overlap/crossing/crowding, on its own vertex): keep it
+          if (base !== Infinity && base.defect === 0 && !entryVertex(edgePorts[e.id].fromPort)) return;
+          const baseCost = base === Infinity ? Infinity : base.cost + entryShare(edgePorts[e.id].fromPort);
+          let best = null;
+          // 3-bend corridor routes are only worth searching when the standard route is in real trouble
+          const deep = base === Infinity || base.defect >= COST.cross;
           altRoutes(rects[e.from], rects[e.to], deep).forEach(c => {
-            if (entryVertex(c.fp)) return;
             const r = routeCost(c.pts, e, others, c.fp, c.tp, best ? best.cost : baseCost - 250);
             if (r === Infinity) return;
             // Changing sides is a bigger visual change than sliding a channel, so it must earn it
             const sideChange = (c.fp !== edgePorts[e.id].fromPort || c.tp !== edgePorts[e.id].toPort) ? 600 : 0;
-            const cost = r.cost + c.dev * 0.3 + sideChange;
+            const cost = r.cost + c.dev * 0.3 + sideChange + entryShare(c.fp);
             if (!best || cost < best.cost) best = { cost, c };
           });
           // Hysteresis: only switch for a clear win, so near-ties keep the standard route
@@ -1199,6 +1192,14 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         // different sources, or several exits to different targets, would otherwise merge into a single
         // line. They get 24px apart (a straight, aligned arrow keeps the centre and the others move away).
         const SPREAD = 24;
+        // Order of arrow ends along a top/bottom side: by where their other end lies. On a tie (targets in one
+        // column), the arrow whose vertical run is longer goes on the inside of the turn, so the shorter one,
+        // turning first, never has its horizontal run cut by the longer one's vertical.
+        const farOrder = (far1, far2, cx, pts1, a1, b1, pts2, a2, b2) => {
+          if (Math.abs(far1 - far2) >= 1) return far1 - far2;
+          const run1 = Math.abs(pts1[b1][1] - pts1[a1][1]), run2 = Math.abs(pts2[b2][1] - pts2[a2][1]);
+          return far1 > cx ? run2 - run1 : run1 - run2;
+        };
         Object.keys(rects).forEach(nid => {
           const r = rects[nid];
           [['top', r.y], ['bottom', r.y + r.h]].forEach(([side, edgeY]) => {
@@ -1223,7 +1224,8 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
                 const cluster = ends.slice(i, j);
                 i = j;
                 if (cluster.length < 2 || new Set(cluster.map(c => c.peer)).size < 2) continue;
-                const fixed = cluster.filter(c => c.fixed), movable = cluster.filter(c => !c.fixed).sort((p1, p2) => p1.far - p2.far);
+                const fixed = cluster.filter(c => c.fixed), movable = cluster.filter(c => !c.fixed).sort((p1, p2) =>
+                  farOrder(p1.far, p2.far, r.cx, edgePolylines[p1.e.id], p1.a, p1.b, edgePolylines[p2.e.id], p2.a, p2.b));
                 // Nested U-turn loop-backs (each deeper than the last): the one whose source is furthest away
                 // sits in the deepest gutter, so it must land first/left or its rising leg cuts the shallower loop
                 if (movable.length > 1 && movable.every(c => edgePolylines[c.e.id].length === 4)) movable.reverse();
@@ -1317,7 +1319,8 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
               const cluster = sorted.slice(i, j);
               i = j;
               const fixed = cluster.filter(u => u.fixed);
-              const movable = cluster.filter(u => !u.fixed).sort((u1, u2) => u1.far - u2.far);
+              const movable = cluster.filter(u => !u.fixed).sort((u1, u2) => farOrder(u1.far, u2.far, r.cx,
+                u1.ends[0].pts, u1.ends[0].a, u1.ends[0].b, u2.ends[0].pts, u2.ends[0].a, u2.ends[0].b));
               if (cluster.length < 2 || !movable.length) continue;
               // Nested U-turn loop-backs: the arrow with the furthest source runs in the deepest gutter, so it
               // must take the slot nearest the fixed/centre line (or the outermost on the other side), never
