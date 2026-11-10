@@ -14,7 +14,7 @@ Describe a process, and your AI assistant hands back a single HTML file. Open it
 - 💬 **Your edits and the AI's edits combine.** Tweak the diagram by hand, then tell the AI "add an approval step after review". It picks up from your edited version instead of starting over and undoing your work.
 - ↔️ ↕️ **Wide or tall.** Flip between left-to-right and top-to-bottom with one button. Pick whichever fits your page or slide.
 - ✅ **Arrives clean.** The AI checks its own result for overlapping boxes and unreadable labels before showing you.
-- 📦 **Just a file.** Email it, put it in a repo, attach it to a ticket, or open it offline. Add `?present` to the address for a read-only view when presenting.
+- 📦 **Just a file.** Email it, put it in a repo, attach it to a ticket, or open it offline.
 
 ### Same diagram, tall layout
 

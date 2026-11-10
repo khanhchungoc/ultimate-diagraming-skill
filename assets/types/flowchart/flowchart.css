@@ -515,6 +515,62 @@
       background: var(--lane-pill-solid);
       color: var(--lane-solid-ink);
     }
+    /* Hover tools under the pill: reorder grip + delete, shown while the lane is hovered or selected */
+    .lane-tools {
+      position: absolute;
+      top: calc(100% + 8px);
+      left: 0;
+      display: none;
+      gap: 6px;
+      cursor: default;
+    }
+    .swimlane.lane-hover .lane-tools,
+    .swimlane.lane-selected .lane-tools { display: flex; }
+    /* (not hidden while the lane is dragged: removing the drag source from layout makes Chrome cancel the drag) */
+    .lane-pill.editing .lane-tools,
+    body.exporting .lane-tools { display: none !important; }
+    .lane-tool {
+      width: 28px;
+      height: 28px;
+      box-sizing: border-box;
+      padding: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      border: 1px solid var(--border-dark);
+      background: var(--bg-panel);
+      color: var(--text-soft);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+      transition: background var(--ease), color var(--ease), border-color var(--ease);
+    }
+    .lane-tool svg { display: block; }
+    .lane-tool-move { cursor: grab; }
+    .lane-tool-move:hover { color: var(--text-main); border-color: var(--lane-stripe); }
+    .lane-tool-delete { cursor: pointer; font: inherit; }
+    .lane-tool-delete:hover { background: var(--danger); border-color: var(--danger); color: #ffffff; }
+    #swimlanes-container.dir-tb .lane-tools { left: 50%; transform: translateX(-50%); }
+    /* Confirmation popover for deleting a lane (screen-fixed, outside the zoomed canvas) */
+    .lane-confirm {
+      position: fixed;
+      z-index: 2000;
+      width: 260px;
+      box-sizing: border-box;
+      padding: 14px 14px 12px;
+      border-radius: 10px;
+      border: 1px solid var(--border-dark);
+      background: var(--bg-panel);
+      color: var(--text-main);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.18);
+      font-size: 13px;
+      line-height: 1.4;
+    }
+    .lane-confirm-title { font-weight: 600; font-size: 14px; margin-bottom: 4px; overflow-wrap: anywhere; }
+    .lane-confirm-msg { color: var(--text-soft); margin-bottom: 12px; }
+    .lane-confirm-actions { display: flex; justify-content: flex-end; gap: 8px; }
+    .lane-confirm .btn { padding: 6px 12px; font-size: 13px; }
+    .lane-confirm-delete { background: var(--danger); border-color: var(--danger); color: #ffffff; }
+    .lane-confirm-delete:hover { filter: brightness(0.92); background: var(--danger); color: #ffffff; }
     .lane-pill .lane-icon { width: auto; height: auto; border: none; background: none; border-radius: 0; color: inherit; }
     /* Exports draw each pill and stripe at the lane's own top-left, whatever the view, in the resting style */
     body.exporting .lane-pill { transform: translate(12px, 12px) !important; }

@@ -941,6 +941,41 @@
       background: var(--lane-pill-solid);
       color: var(--lane-solid-ink);
     }
+    /* Hover tools under the pill: reorder grip + delete, shown while the lane is hovered or selected */
+    .lane-tools {
+      position: absolute;
+      top: calc(100% + 8px);
+      left: 0;
+      display: none;
+      gap: 6px;
+      cursor: default;
+    }
+    .swimlane.lane-hover .lane-tools,
+    .swimlane.lane-selected .lane-tools { display: flex; }
+    .lane-pill.editing .lane-tools,
+    .swimlane.lane-dragging .lane-tools,
+    body.exporting .lane-tools { display: none !important; }
+    .lane-tool {
+      width: 28px;
+      height: 28px;
+      box-sizing: border-box;
+      padding: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      border: 1px solid var(--border-dark);
+      background: var(--bg-panel);
+      color: var(--text-soft);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+      transition: background var(--ease), color var(--ease), border-color var(--ease);
+    }
+    .lane-tool svg { display: block; }
+    .lane-tool-move { cursor: grab; }
+    .lane-tool-move:hover { color: var(--text-main); border-color: var(--lane-stripe); }
+    .lane-tool-delete { cursor: pointer; font: inherit; }
+    .lane-tool-delete:hover { background: var(--danger); border-color: var(--danger); color: #ffffff; }
+    #swimlanes-container.dir-tb .lane-tools { left: 50%; transform: translateX(-50%); }
     .lane-pill .lane-icon { width: auto; height: auto; border: none; background: none; border-radius: 0; color: inherit; }
     /* Exports draw each pill and stripe at the lane's own top-left, whatever the view, in the resting style */
     body.exporting .lane-pill { transform: translate(12px, 12px) !important; }
@@ -1166,6 +1201,7 @@
       <li><kbd>Click or Drag Port</kbd> : Connect two steps with an arrow</li>
       <li><kbd>Double-Click Arrow</kbd> : Add or edit arrow label (or click <kbd>+ Add Label</kbd>)</li>
       <li><kbd>Delete</kbd> : Delete the selected step, arrow or lane</li>
+      <li><kbd>Hover a Lane</kbd> : Shows a reorder grip (drag it) and a delete button under the lane name</li>
       <li><kbd>Click Lane Name</kbd> : Select the lane; <kbd>Delete</kbd> then removes it with its steps and their arrows (undo brings them back; the last lane stays)</li>
       <li><kbd>Drag Node</kbd> : Move inside lane or drop into another lane; snaps to other steps' centers and lane centers (dashed guide)</li>
       <li><kbd>Vertical / Horizontal</kbd> : Switch between a left-to-right and a top-to-bottom layout (lanes become columns); saved with the file</li>
@@ -3414,7 +3450,7 @@ const TYPE_ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\
         lanesRoot.querySelectorAll('.swimlane').forEach(laneEl => {
           const pill = laneEl.querySelector('.lane-pill');
           if (!pill) return;
-          const pillH = pill.offsetHeight;
+          const pillH = pill.offsetHeight + (pill.querySelector('.lane-tools') ? 36 : 0);   // + hover tools below it
           const maxY = Math.max(inset, laneEl.offsetHeight - pillH - inset);
           const y = Math.min(Math.max(visTop - laneEl.offsetTop + inset, inset), maxY);
           laneEl.style.setProperty('--pill-y', `${y}px`);
@@ -3478,6 +3514,34 @@ const TYPE_ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\
           title.spellcheck = false;
           title.textContent = lane.name;
           pill.appendChild(title);
+          // Hover tools under the pill (shown while the lane is hovered): a reorder grip, which drags the pill it
+          // belongs to, and a delete button (hidden when this is the only lane)
+          if (editable) {
+            const tools = document.createElement('div');
+            tools.className = 'lane-tools';
+            tools.dataset.exportSkip = '';
+            const grip = document.createElement('span');
+            grip.className = 'lane-tool lane-tool-move';
+            grip.dataset.tip = 'Drag to reorder swimlane';
+            grip.setAttribute('aria-label', 'Reorder swimlane');
+            grip.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>';
+            grip.addEventListener('click', (e) => e.stopPropagation());
+            tools.appendChild(grip);
+            if (chartData.lanes.length > 1) {
+              const del = document.createElement('button');
+              del.type = 'button';
+              del.className = 'lane-tool lane-tool-delete';
+              del.draggable = false;
+              del.dataset.tip = 'Delete swimlane (with its steps)';
+              del.setAttribute('aria-label', 'Delete swimlane');
+              del.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M6 6l1 14h10l1-14"/><path d="M10 11v6M14 11v6"/></svg>';
+              del.addEventListener('pointerdown', (e) => e.stopPropagation());
+              del.addEventListener('dragstart', (e) => { e.preventDefault(); e.stopPropagation(); });
+              del.addEventListener('click', (e) => { e.stopPropagation(); deleteLane(lane.id); });
+              tools.appendChild(del);
+            }
+            pill.appendChild(tools);
+          }
           if (tb) pill.style.maxWidth = `${Math.max(80, computedHeight - 2 * PILL_INSET)}px`;   // stays inside its column
 
           title.addEventListener('dblclick', (e) => {

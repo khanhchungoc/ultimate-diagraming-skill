@@ -63,6 +63,20 @@ try {
   t.check('Ctrl+Z restores the deleted lane', (await t.ev(`document.querySelectorAll('.swimlane').length`)) === lanesBefore
     && (await t.ev(`document.querySelectorAll('.flow-node').length`)) === nodesBefore);
 
+  // 2d. Hovering a lane shows reorder + delete tools under its pill; the delete button removes the lane
+  const toolsShown = await t.ev(`(() => {
+    const L = document.querySelector('.swimlane:nth-child(2)'), r = L.getBoundingClientRect();
+    L.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: r.left + 400, clientY: r.top + 40 }));
+    const vis = el => !!el && el.getBoundingClientRect().width > 0;
+    return [vis(L.querySelector('.lane-tool-move')), vis(L.querySelector('.lane-tool-delete')),
+      vis(document.querySelector('.swimlane:nth-child(1) .lane-tools'))];
+  })()`);
+  await t.ev(`document.querySelector('.swimlane:nth-child(2) .lane-tool-delete').click()`);
+  const lanesAfterTool = await t.ev(`document.querySelectorAll('.swimlane').length`);
+  t.check('hovering a lane shows reorder + delete under its pill (only that lane), and delete removes the lane',
+    toolsShown[0] && toolsShown[1] && !toolsShown[2] && lanesAfterTool === lanesBefore - 1, `${JSON.stringify(toolsShown)} lanes=${lanesAfterTool}`);
+  await t.ev(t.key('z', { ctrlKey: true }));
+
   // 3. Background click clears selection (shell pointerdown -> plugin.isBackground/clearSelection); Escape is safe
   await t.ev(`document.getElementById('viewport').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: 5, clientY: 5, pointerId: 1 }))`);
   await t.ev(`window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }))`);

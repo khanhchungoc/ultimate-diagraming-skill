@@ -42,9 +42,11 @@ export async function launch(browser) {
       pending.delete(msg.id);
       msg.error ? p.reject(new Error(msg.error.message)) : p.resolve(msg.result);
     } else if (msg.method === 'Page.loadEventFired' && state.onLoad) { state.onLoad(); state.onLoad = null; }
-    else if (msg.method === 'Runtime.exceptionThrown') state.errors.push(msg.params.exceptionDetails.exception?.description || msg.params.exceptionDetails.text);
+    else if (msg.method && listeners[msg.method]) listeners[msg.method].forEach((f) => f(msg.params));
+    if (msg.method === 'Runtime.exceptionThrown') state.errors.push(msg.params.exceptionDetails.exception?.description || msg.params.exceptionDetails.text);
     else if (msg.method === 'Runtime.consoleAPICalled' && msg.params.type === 'error') state.errors.push(msg.params.args.map((a) => a.value ?? a.description).join(' '));
   };
+  const listeners = {};
   const send = (method, params = {}) => {
     const id = nextId++;
     ws.send(JSON.stringify({ id, method, params }));
@@ -56,6 +58,9 @@ export async function launch(browser) {
   const results = [];
   const api = {
     get errors() { return state.errors; },
+    /** Raw CDP command (e.g. Input.dispatchMouseEvent) and event subscription, for real input such as native drags. */
+    send,
+    on(method, fn) { (listeners[method] = listeners[method] || []).push(fn); },
     async open(file, query = '') {
       state.errors = [];
       const loaded = new Promise((r) => { state.onLoad = r; });
