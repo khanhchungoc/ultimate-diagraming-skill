@@ -301,6 +301,19 @@
         updateTransform();
       }
 
+      // Middle button only pans, wherever it lands: no node drag, selection or edit sees it
+      viewport.addEventListener('pointerdown', (e) => {
+        if (e.button !== 1) return;
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        isPanning = true;
+        panStartX = e.clientX - panX;
+        panStartY = e.clientY - panY;
+        viewport.classList.add('panning');
+      }, true);
+      viewport.addEventListener('mousedown', (e) => { if (e.button === 1) e.preventDefault(); }, true);
+      viewport.addEventListener('auxclick', (e) => { if (e.button === 1) { e.preventDefault(); e.stopPropagation(); } }, true);
+
       viewport.addEventListener('pointerdown', (e) => {
         if (e.target === viewport || e.target.id === 'stage' || plugin.isBackground(e.target)) {
           if (plugin.cancelInteraction()) return;
@@ -368,6 +381,139 @@
       }
       btnHelp.addEventListener('click', () => setHelpOpen(!helpDrawer.classList.contains('open')));
       document.getElementById('help-close').addEventListener('click', () => setHelpOpen(false));
+
+      // --- EXPORT (SVG / PNG) ---
+      // The stage is HTML plus SVG, so the export inlines every computed style into a clone and wraps it in a
+      // foreignObject. The result is a self-contained SVG, and the PNG is that SVG rasterised.
+      const btnExport = document.getElementById('btn-export');
+      const exportMenu = document.getElementById('export-menu');
+      const TRANSIENT_CLASSES = ['selected', 'hover', 'linked', 'hl-in', 'hl-out', 'multi-selected', 'dragging'];
+      const SKIP_SELECTOR = '#drag-edge, .snap-guide, #lane-drop-line, #seq-drop-line, [data-export-skip]';
+      const EXPORT_SVG_NS = 'http://www.w3.org/2000/svg';
+      let defaultStyleCache = null;
+
+      function defaultStyleFor(el) {
+        if (!defaultStyleCache) {
+          const frame = document.createElement('iframe');
+          frame.style.cssText = 'position:fixed;left:-9999px;width:10px;height:10px;visibility:hidden';
+          document.body.appendChild(frame);
+          defaultStyleCache = { frame, doc: frame.contentDocument, map: {} };
+          defaultStyleCache.doc.body.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg"></svg>';
+        }
+        const c = defaultStyleCache, key = el.namespaceURI + '|' + el.localName;
+        if (!c.map[key]) {
+          const probe = c.doc.createElementNS(el.namespaceURI, el.localName);
+          (el.namespaceURI === EXPORT_SVG_NS ? c.doc.body.firstChild : c.doc.body).appendChild(probe);
+          const cs = c.frame.contentWindow.getComputedStyle(probe), o = {};
+          for (let i = 0; i < cs.length; i++) o[cs[i]] = cs.getPropertyValue(cs[i]);
+          c.map[key] = o;
+        }
+        return c.map[key];
+      }
+
+      function inlineStyles(src, dst) {
+        const cs = getComputedStyle(src), def = defaultStyleFor(src);
+        let css = '';
+        for (let i = 0; i < cs.length; i++) {
+          const prop = cs[i], v = cs.getPropertyValue(prop);
+          if (def[prop] !== v) css += prop + ':' + v + ';';
+        }
+        css = css.replace(/url\("?#arrowhead-(selected|in|out)"?\)/g, 'url("#arrowhead")');
+        dst.setAttribute('style', css);
+        dst.removeAttribute('class');
+        const sk = Array.from(src.children), dk = Array.from(dst.children);
+        for (let i = 0; i < sk.length; i++) {
+          if (sk[i].matches(SKIP_SELECTOR) || (sk[i].namespaceURI !== EXPORT_SVG_NS && getComputedStyle(sk[i]).display === 'none')) { dk[i].remove(); continue; }
+          inlineStyles(sk[i], dk[i]);
+        }
+      }
+
+      function buildExportSvg() {
+        const root = stage.firstElementChild;
+        if (!root) throw new Error('Nothing to export');
+        // Freeze transitions and drop selection/hover state while computed styles are read
+        const frozen = document.createElement('style');
+        frozen.textContent = '*,*::before,*::after{transition:none!important;animation:none!important}';
+        document.head.appendChild(frozen);
+        const touched = [];
+        TRANSIENT_CLASSES.forEach(cls => stage.querySelectorAll('.' + cls).forEach(el => { el.classList.remove(cls); touched.push([el, cls]); }));
+        try {
+          const rr = root.getBoundingClientRect(), pad = 24;
+          let minX = 0, minY = 0, maxX = rr.width / scale, maxY = rr.height / scale;
+          root.querySelectorAll('*').forEach(el => {
+            if (el.matches(SKIP_SELECTOR) || el.closest('defs')) return;
+            const r = el.getBoundingClientRect();
+            if (!r.width && !r.height) return;
+            minX = Math.min(minX, (r.left - rr.left) / scale); minY = Math.min(minY, (r.top - rr.top) / scale);
+            maxX = Math.max(maxX, (r.right - rr.left) / scale); maxY = Math.max(maxY, (r.bottom - rr.top) / scale);
+          });
+          const w = Math.ceil(maxX - minX + pad * 2), h = Math.ceil(maxY - minY + pad * 2);
+          const clone = root.cloneNode(true);
+          inlineStyles(root, clone);
+          clone.style.transform = 'none';
+          clone.style.position = 'absolute';
+          clone.style.left = (pad - minX) + 'px';
+          clone.style.top = (pad - minY) + 'px';
+          const wrap = document.createElement('div');
+          wrap.setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
+          wrap.setAttribute('style', 'position:relative;width:' + w + 'px;height:' + h + 'px;overflow:hidden;background:' + getComputedStyle(viewport).backgroundColor);
+          wrap.appendChild(clone);
+          const xml = new XMLSerializer().serializeToString(wrap);
+          const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + ' ' + h + '">' +
+            '<foreignObject x="0" y="0" width="' + w + '" height="' + h + '">' + xml + '</foreignObject></svg>';
+          return { svg, w, h };
+        } finally {
+          touched.forEach(([el, cls]) => el.classList.add(cls));
+          frozen.remove();
+        }
+      }
+
+      function downloadBlob(blob, ext) {
+        const url = URL.createObjectURL(blob), a = document.createElement('a');
+        a.href = url;
+        a.download = ((chartData.title || plugin.id).toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '') || 'diagram') + '.' + ext;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 2000);
+      }
+
+      function exportDiagram(format) {
+        try {
+          const { svg, w, h } = buildExportSvg();
+          const svgText = '<?xml version="1.0" encoding="UTF-8"?>\n' + svg;
+          const svgBlob = new Blob([svgText], { type: 'image/svg+xml;charset=utf-8' });
+          if (format === 'svg') { downloadBlob(svgBlob, 'svg'); return; }
+          const k = Math.min(2, 16000 / Math.max(w, h), Math.sqrt(100e6 / (w * h)));
+          const img = new Image();
+          // A data: URL keeps the canvas untainted; a blob: URL of a foreignObject SVG taints it in Chromium
+          const url = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgText);
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.round(w * k); canvas.height = Math.round(h * k);
+            const ctx = canvas.getContext('2d');
+            ctx.scale(k, k);
+            ctx.drawImage(img, 0, 0, w, h);
+            canvas.toBlob(b => b ? downloadBlob(b, 'png') : alert('PNG export failed: image too large'), 'image/png');
+          };
+          img.onerror = () => alert('PNG export failed');
+          img.src = url;
+        } catch (err) {
+          alert('Export failed: ' + err.message);
+        }
+      }
+
+      function setExportOpen(open) {
+        exportMenu.hidden = !open;
+        btnExport.setAttribute('aria-expanded', String(open));
+      }
+      btnExport.addEventListener('click', (e) => { e.stopPropagation(); setExportOpen(exportMenu.hidden); });
+      exportMenu.addEventListener('click', (e) => {
+        const b = e.target.closest('[data-export]');
+        if (!b) return;
+        setExportOpen(false);
+        exportDiagram(b.dataset.export);
+      });
+      document.addEventListener('click', () => setExportOpen(false));
+      window.addEventListener('keydown', (e) => { if (e.key === 'Escape') setExportOpen(false); });
 
       // --- SAVE MECHANISM (Direct to HTML File) ---
       async function saveToFile() {

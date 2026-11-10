@@ -26,19 +26,25 @@
       --bg-lane-header: #f8fafc;
       --bg-input: #ffffff;
       --lane-track-tint: rgba(248, 250, 252, 0.35);
-      --connector: #a3b0c2;
+      --connector: #94a3b8;
       --edge-label-bg: #ffffff;
       --edge-label-empty-bg: rgba(255, 255, 255, 0.95);
       --edge-label-empty-border: #94a3b8;
+      --edge-in: #b45309;   /* arrows entering the hovered node: amber-700 */
+      --edge-out: #2563eb;  /* arrows leaving the hovered node: blue (a colour-blind-safe pair; node fills are only faintly tinted) */
+      --edge-in-glow: rgba(180, 83, 9, 0.28);
+      --edge-out-glow: rgba(37, 99, 235, 0.28);
       --status-saved-bg: #dcfce7;  --status-saved-text: #166534;
       --status-unsaved-bg: #fef3c7; --status-unsaved-text: #92400e;
       --banner-bg: #eff6ff; --banner-border: #bfdbfe; --banner-text: #1e40af;
-      --start-bg: #ecfdf5; --start-border: #10b981; --start-text: #065f46;
+      --start-bg: #f0f7f3; --start-border: #6aa886; --start-text: #1f4d37;   /* faint sage */
       --end-bg: #1e293b;   --end-border: #0f172a;   --end-text: #f8fafc;
-      --decision-fill: #fffbeb; --decision-fill-hover: #ffffff;
-      --decision-text: #92400e;      /* decision label: amber-800 on the light amber fill (7:1) */
+      --task-accent: #475569; --start-accent: #2f7d57; --end-accent: #64748b; --decision-accent: #a16f0b;   /* darker, more saturated edge on hover/select */
+      --lane-active-wash: rgba(15, 23, 42, 0.035); --lane-active-header: #eef2f7;
+      --decision-fill: #fbf6e8; --decision-fill-hover: #ffffff; --decision-stroke: #c4a052;   /* faint sand, muted gold edge */
+      --decision-text: #6a4a0f;      /* dark ochre on the sand fill (>= 7:1) */
       --node-bg: #ffffff;
-      --lane-tint-header: 0.3;
+      --lane-tint-header: 0;         /* lane colour is only a thin rule + a faint track wash */
       --lane-tint-track: 0.11;
       --text-soft: #475569;          /* secondary text that must stay readable on --bg-soft (>= 4.5:1) */
       --primary-ring: rgba(37, 99, 235, 0.25);
@@ -71,15 +77,21 @@
       --edge-label-bg: #111a2e;
       --edge-label-empty-bg: rgba(17, 26, 46, 0.95);
       --edge-label-empty-border: #475569;
+      --edge-in: #fbbf24;
+      --edge-out: #60a5fa;
+      --edge-in-glow: rgba(251, 191, 36, 0.35);
+      --edge-out-glow: rgba(96, 165, 250, 0.35);
       --status-saved-bg: #14532d;  --status-saved-text: #bbf7d0;
       --status-unsaved-bg: #78350f; --status-unsaved-text: #fde68a;
       --banner-bg: #172554; --banner-border: #1e3a8a; --banner-text: #bfdbfe;
-      --start-bg: #0f2f2a; --start-border: #34d399; --start-text: #a7f3d0;
+      --start-bg: #14261f; --start-border: #4d9a79; --start-text: #b7e0cd;
       --end-bg: #0b1220;   --end-border: #94a3b8;   --end-text: #f8fafc;
-      --decision-fill: #2f2a22; --decision-fill-hover: #3a3326;
-      --decision-text: #fcd34d;      /* amber-300 on the warm dark fill */
+      --task-accent: #cbd5e1; --start-accent: #6fcf9f; --end-accent: #e2e8f0; --decision-accent: #e6bf55;
+      --lane-active-wash: rgba(255, 255, 255, 0.035); --lane-active-header: #16213a;
+      --decision-fill: #2b2718; --decision-fill-hover: #342f1d; --decision-stroke: #b89a4e;
+      --decision-text: #ead7a0;      /* soft sand on the warm dark fill */
       --node-bg: #17223b;
-      --lane-tint-header: 0.08;
+      --lane-tint-header: 0;
       --lane-tint-track: 0.05;
       --text-soft: #cbd5e1;
       --primary-ring: rgba(96, 165, 250, 0.4);
@@ -409,6 +421,20 @@
         scroll-behavior: auto !important;
       }
     }
+
+    /* Export menu */
+    .export-wrap { position: relative; }
+    .export-menu {
+      position: absolute; right: 0; top: calc(100% + 6px); z-index: 200; min-width: 150px;
+      background: var(--bg-panel); border: 1px solid var(--border, #cbd5e1); border-radius: 8px;
+      box-shadow: 0 8px 24px rgba(15, 23, 42, .15); padding: 4px; display: flex; flex-direction: column;
+    }
+    .export-menu[hidden] { display: none; }
+    .export-menu button {
+      background: none; border: 0; text-align: left; padding: 7px 10px; border-radius: 6px;
+      font: inherit; font-size: 13px; color: var(--text, inherit); cursor: pointer;
+    }
+    .export-menu button:hover, .export-menu button:focus-visible { background: var(--bg-hover); outline: none; }
     /* Sequence diagram */
     /* The diagram sits on a card, like the flowchart's swimlane container */
     #seq-canvas {
@@ -484,6 +510,15 @@
       </button>
       <button id="btn-theme" class="btn btn-icon" title="Switch to dark mode" aria-label="Switch to dark mode"></button>
       <button id="btn-help" class="btn btn-icon" title="Keyboard shortcuts" aria-label="Keyboard shortcuts" aria-expanded="false" aria-controls="help-drawer">?</button>
+      <div class="export-wrap">
+        <button id="btn-export" class="btn" title="Export the diagram as an image" aria-label="Export" aria-haspopup="menu" aria-expanded="false">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg><span class="btn-label">Export</span>
+        </button>
+        <div id="export-menu" class="export-menu" role="menu" hidden>
+          <button type="button" role="menuitem" data-export="svg">SVG image</button>
+          <button type="button" role="menuitem" data-export="png">PNG image (2x)</button>
+        </div>
+      </div>
       <button id="btn-save" class="btn btn-primary" title="Save directly into this HTML file (Ctrl+S)" aria-label="Save">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg><span class="btn-label">Save</span>
       </button>
@@ -566,6 +601,7 @@
       <li><kbd>Double Click</kbd> : Edit a participant name, message text or frame text</li>
       <li><kbd>Delete</kbd> : Delete the selected item (a participant's messages go with it)</li>
       <li><kbd>Ctrl</kbd> + <kbd>S</kbd> : Save changes directly into HTML</li>
+      <li><b>Export</b> (top right): download the whole diagram as an SVG or a 2x PNG</li>
       <li><kbd>Ctrl</kbd> + <kbd>Z</kbd> / <kbd>Ctrl</kbd> + <kbd>Y</kbd> : Undo / redo the last edit (also <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Z</kbd>)</li>
       <li><kbd>?present</kbd> in the URL : Hide editing controls for a clean read-only view</li>
       <li><kbd>Drag Canvas</kbd> : Pan viewport</li>
@@ -1004,6 +1040,19 @@
         updateTransform();
       }
 
+      // Middle button only pans, wherever it lands: no node drag, selection or edit sees it
+      viewport.addEventListener('pointerdown', (e) => {
+        if (e.button !== 1) return;
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        isPanning = true;
+        panStartX = e.clientX - panX;
+        panStartY = e.clientY - panY;
+        viewport.classList.add('panning');
+      }, true);
+      viewport.addEventListener('mousedown', (e) => { if (e.button === 1) e.preventDefault(); }, true);
+      viewport.addEventListener('auxclick', (e) => { if (e.button === 1) { e.preventDefault(); e.stopPropagation(); } }, true);
+
       viewport.addEventListener('pointerdown', (e) => {
         if (e.target === viewport || e.target.id === 'stage' || plugin.isBackground(e.target)) {
           if (plugin.cancelInteraction()) return;
@@ -1071,6 +1120,139 @@
       }
       btnHelp.addEventListener('click', () => setHelpOpen(!helpDrawer.classList.contains('open')));
       document.getElementById('help-close').addEventListener('click', () => setHelpOpen(false));
+
+      // --- EXPORT (SVG / PNG) ---
+      // The stage is HTML plus SVG, so the export inlines every computed style into a clone and wraps it in a
+      // foreignObject. The result is a self-contained SVG, and the PNG is that SVG rasterised.
+      const btnExport = document.getElementById('btn-export');
+      const exportMenu = document.getElementById('export-menu');
+      const TRANSIENT_CLASSES = ['selected', 'hover', 'linked', 'hl-in', 'hl-out', 'multi-selected', 'dragging'];
+      const SKIP_SELECTOR = '#drag-edge, .snap-guide, #lane-drop-line, #seq-drop-line, [data-export-skip]';
+      const EXPORT_SVG_NS = 'http://www.w3.org/2000/svg';
+      let defaultStyleCache = null;
+
+      function defaultStyleFor(el) {
+        if (!defaultStyleCache) {
+          const frame = document.createElement('iframe');
+          frame.style.cssText = 'position:fixed;left:-9999px;width:10px;height:10px;visibility:hidden';
+          document.body.appendChild(frame);
+          defaultStyleCache = { frame, doc: frame.contentDocument, map: {} };
+          defaultStyleCache.doc.body.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg"></svg>';
+        }
+        const c = defaultStyleCache, key = el.namespaceURI + '|' + el.localName;
+        if (!c.map[key]) {
+          const probe = c.doc.createElementNS(el.namespaceURI, el.localName);
+          (el.namespaceURI === EXPORT_SVG_NS ? c.doc.body.firstChild : c.doc.body).appendChild(probe);
+          const cs = c.frame.contentWindow.getComputedStyle(probe), o = {};
+          for (let i = 0; i < cs.length; i++) o[cs[i]] = cs.getPropertyValue(cs[i]);
+          c.map[key] = o;
+        }
+        return c.map[key];
+      }
+
+      function inlineStyles(src, dst) {
+        const cs = getComputedStyle(src), def = defaultStyleFor(src);
+        let css = '';
+        for (let i = 0; i < cs.length; i++) {
+          const prop = cs[i], v = cs.getPropertyValue(prop);
+          if (def[prop] !== v) css += prop + ':' + v + ';';
+        }
+        css = css.replace(/url\("?#arrowhead-(selected|in|out)"?\)/g, 'url("#arrowhead")');
+        dst.setAttribute('style', css);
+        dst.removeAttribute('class');
+        const sk = Array.from(src.children), dk = Array.from(dst.children);
+        for (let i = 0; i < sk.length; i++) {
+          if (sk[i].matches(SKIP_SELECTOR) || (sk[i].namespaceURI !== EXPORT_SVG_NS && getComputedStyle(sk[i]).display === 'none')) { dk[i].remove(); continue; }
+          inlineStyles(sk[i], dk[i]);
+        }
+      }
+
+      function buildExportSvg() {
+        const root = stage.firstElementChild;
+        if (!root) throw new Error('Nothing to export');
+        // Freeze transitions and drop selection/hover state while computed styles are read
+        const frozen = document.createElement('style');
+        frozen.textContent = '*,*::before,*::after{transition:none!important;animation:none!important}';
+        document.head.appendChild(frozen);
+        const touched = [];
+        TRANSIENT_CLASSES.forEach(cls => stage.querySelectorAll('.' + cls).forEach(el => { el.classList.remove(cls); touched.push([el, cls]); }));
+        try {
+          const rr = root.getBoundingClientRect(), pad = 24;
+          let minX = 0, minY = 0, maxX = rr.width / scale, maxY = rr.height / scale;
+          root.querySelectorAll('*').forEach(el => {
+            if (el.matches(SKIP_SELECTOR) || el.closest('defs')) return;
+            const r = el.getBoundingClientRect();
+            if (!r.width && !r.height) return;
+            minX = Math.min(minX, (r.left - rr.left) / scale); minY = Math.min(minY, (r.top - rr.top) / scale);
+            maxX = Math.max(maxX, (r.right - rr.left) / scale); maxY = Math.max(maxY, (r.bottom - rr.top) / scale);
+          });
+          const w = Math.ceil(maxX - minX + pad * 2), h = Math.ceil(maxY - minY + pad * 2);
+          const clone = root.cloneNode(true);
+          inlineStyles(root, clone);
+          clone.style.transform = 'none';
+          clone.style.position = 'absolute';
+          clone.style.left = (pad - minX) + 'px';
+          clone.style.top = (pad - minY) + 'px';
+          const wrap = document.createElement('div');
+          wrap.setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
+          wrap.setAttribute('style', 'position:relative;width:' + w + 'px;height:' + h + 'px;overflow:hidden;background:' + getComputedStyle(viewport).backgroundColor);
+          wrap.appendChild(clone);
+          const xml = new XMLSerializer().serializeToString(wrap);
+          const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + ' ' + h + '">' +
+            '<foreignObject x="0" y="0" width="' + w + '" height="' + h + '">' + xml + '</foreignObject></svg>';
+          return { svg, w, h };
+        } finally {
+          touched.forEach(([el, cls]) => el.classList.add(cls));
+          frozen.remove();
+        }
+      }
+
+      function downloadBlob(blob, ext) {
+        const url = URL.createObjectURL(blob), a = document.createElement('a');
+        a.href = url;
+        a.download = ((chartData.title || plugin.id).toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '') || 'diagram') + '.' + ext;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 2000);
+      }
+
+      function exportDiagram(format) {
+        try {
+          const { svg, w, h } = buildExportSvg();
+          const svgText = '<?xml version="1.0" encoding="UTF-8"?>\n' + svg;
+          const svgBlob = new Blob([svgText], { type: 'image/svg+xml;charset=utf-8' });
+          if (format === 'svg') { downloadBlob(svgBlob, 'svg'); return; }
+          const k = Math.min(2, 16000 / Math.max(w, h), Math.sqrt(100e6 / (w * h)));
+          const img = new Image();
+          // A data: URL keeps the canvas untainted; a blob: URL of a foreignObject SVG taints it in Chromium
+          const url = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgText);
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.round(w * k); canvas.height = Math.round(h * k);
+            const ctx = canvas.getContext('2d');
+            ctx.scale(k, k);
+            ctx.drawImage(img, 0, 0, w, h);
+            canvas.toBlob(b => b ? downloadBlob(b, 'png') : alert('PNG export failed: image too large'), 'image/png');
+          };
+          img.onerror = () => alert('PNG export failed');
+          img.src = url;
+        } catch (err) {
+          alert('Export failed: ' + err.message);
+        }
+      }
+
+      function setExportOpen(open) {
+        exportMenu.hidden = !open;
+        btnExport.setAttribute('aria-expanded', String(open));
+      }
+      btnExport.addEventListener('click', (e) => { e.stopPropagation(); setExportOpen(exportMenu.hidden); });
+      exportMenu.addEventListener('click', (e) => {
+        const b = e.target.closest('[data-export]');
+        if (!b) return;
+        setExportOpen(false);
+        exportDiagram(b.dataset.export);
+      });
+      document.addEventListener('click', () => setExportOpen(false));
+      window.addEventListener('keydown', (e) => { if (e.key === 'Escape') setExportOpen(false); });
 
       // --- SAVE MECHANISM (Direct to HTML File) ---
       async function saveToFile() {

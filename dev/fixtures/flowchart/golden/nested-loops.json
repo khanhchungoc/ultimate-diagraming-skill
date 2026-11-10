@@ -7,19 +7,19 @@
       "id": "lane-a",
       "name": "Requester",
       "color": "#e0f2fe",
-      "height": 160
+      "height": 176
     },
     {
       "id": "lane-b",
       "name": "Reviewer",
       "color": "#fef3c7",
-      "height": 160
+      "height": 152
     },
     {
       "id": "lane-c",
       "name": "Approver",
       "color": "#dcfce7",
-      "height": 160
+      "height": 176
     }
   ],
   "nodes": [
@@ -29,55 +29,55 @@
       "type": "start",
       "label": "Draft Request",
       "x": 56,
-      "y": 52
+      "y": 68
     },
     {
       "id": "n2",
       "laneId": "lane-b",
       "type": "task",
       "label": "Review Draft",
-      "x": 224,
-      "y": 52
+      "x": 200,
+      "y": 44
     },
     {
       "id": "n3",
       "laneId": "lane-b",
       "type": "decision",
       "label": "Complete?",
-      "x": 464,
-      "y": 48
+      "x": 400,
+      "y": 36
     },
     {
       "id": "n4",
       "laneId": "lane-a",
       "type": "task",
       "label": "Fix Draft",
-      "x": 464,
-      "y": 52
+      "x": 400,
+      "y": 68
     },
     {
       "id": "n5",
       "laneId": "lane-c",
       "type": "task",
       "label": "Assess Request",
-      "x": 632,
-      "y": 52
+      "x": 618.2,
+      "y": 44
     },
     {
       "id": "n6",
       "laneId": "lane-c",
       "type": "decision",
       "label": "Approved?",
-      "x": 872,
-      "y": 48
+      "x": 818.2,
+      "y": 36
     },
     {
       "id": "n7",
       "laneId": "lane-b",
       "type": "task",
       "label": "Request Changes",
-      "x": 872,
-      "y": 52
+      "x": 818.2,
+      "y": 44
     },
     {
       "id": "n8",
@@ -85,8 +85,8 @@
       "type": "end",
       "label": "Granted",
       "outcome": "success",
-      "x": 1040,
-      "y": 52
+      "x": 1036.4,
+      "y": 68
     }
   ],
   "edges": [

@@ -19,19 +19,25 @@
       --bg-lane-header: #f8fafc;
       --bg-input: #ffffff;
       --lane-track-tint: rgba(248, 250, 252, 0.35);
-      --connector: #a3b0c2;
+      --connector: #94a3b8;
       --edge-label-bg: #ffffff;
       --edge-label-empty-bg: rgba(255, 255, 255, 0.95);
       --edge-label-empty-border: #94a3b8;
+      --edge-in: #b45309;   /* arrows entering the hovered node: amber-700 */
+      --edge-out: #2563eb;  /* arrows leaving the hovered node: blue (a colour-blind-safe pair; node fills are only faintly tinted) */
+      --edge-in-glow: rgba(180, 83, 9, 0.28);
+      --edge-out-glow: rgba(37, 99, 235, 0.28);
       --status-saved-bg: #dcfce7;  --status-saved-text: #166534;
       --status-unsaved-bg: #fef3c7; --status-unsaved-text: #92400e;
       --banner-bg: #eff6ff; --banner-border: #bfdbfe; --banner-text: #1e40af;
-      --start-bg: #ecfdf5; --start-border: #10b981; --start-text: #065f46;
+      --start-bg: #f0f7f3; --start-border: #6aa886; --start-text: #1f4d37;   /* faint sage */
       --end-bg: #1e293b;   --end-border: #0f172a;   --end-text: #f8fafc;
-      --decision-fill: #fffbeb; --decision-fill-hover: #ffffff;
-      --decision-text: #92400e;      /* decision label: amber-800 on the light amber fill (7:1) */
+      --task-accent: #475569; --start-accent: #2f7d57; --end-accent: #64748b; --decision-accent: #a16f0b;   /* darker, more saturated edge on hover/select */
+      --lane-active-wash: rgba(15, 23, 42, 0.035); --lane-active-header: #eef2f7;
+      --decision-fill: #fbf6e8; --decision-fill-hover: #ffffff; --decision-stroke: #c4a052;   /* faint sand, muted gold edge */
+      --decision-text: #6a4a0f;      /* dark ochre on the sand fill (>= 7:1) */
       --node-bg: #ffffff;
-      --lane-tint-header: 0.3;
+      --lane-tint-header: 0;         /* lane colour is only a thin rule + a faint track wash */
       --lane-tint-track: 0.11;
       --text-soft: #475569;          /* secondary text that must stay readable on --bg-soft (>= 4.5:1) */
       --primary-ring: rgba(37, 99, 235, 0.25);
@@ -64,15 +70,21 @@
       --edge-label-bg: #111a2e;
       --edge-label-empty-bg: rgba(17, 26, 46, 0.95);
       --edge-label-empty-border: #475569;
+      --edge-in: #fbbf24;
+      --edge-out: #60a5fa;
+      --edge-in-glow: rgba(251, 191, 36, 0.35);
+      --edge-out-glow: rgba(96, 165, 250, 0.35);
       --status-saved-bg: #14532d;  --status-saved-text: #bbf7d0;
       --status-unsaved-bg: #78350f; --status-unsaved-text: #fde68a;
       --banner-bg: #172554; --banner-border: #1e3a8a; --banner-text: #bfdbfe;
-      --start-bg: #0f2f2a; --start-border: #34d399; --start-text: #a7f3d0;
+      --start-bg: #14261f; --start-border: #4d9a79; --start-text: #b7e0cd;
       --end-bg: #0b1220;   --end-border: #94a3b8;   --end-text: #f8fafc;
-      --decision-fill: #2f2a22; --decision-fill-hover: #3a3326;
-      --decision-text: #fcd34d;      /* amber-300 on the warm dark fill */
+      --task-accent: #cbd5e1; --start-accent: #6fcf9f; --end-accent: #e2e8f0; --decision-accent: #e6bf55;
+      --lane-active-wash: rgba(255, 255, 255, 0.035); --lane-active-header: #16213a;
+      --decision-fill: #2b2718; --decision-fill-hover: #342f1d; --decision-stroke: #b89a4e;
+      --decision-text: #ead7a0;      /* soft sand on the warm dark fill */
       --node-bg: #17223b;
-      --lane-tint-header: 0.08;
+      --lane-tint-header: 0;
       --lane-tint-track: 0.05;
       --text-soft: #cbd5e1;
       --primary-ring: rgba(96, 165, 250, 0.4);
@@ -402,3 +414,17 @@
         scroll-behavior: auto !important;
       }
     }
+
+    /* Export menu */
+    .export-wrap { position: relative; }
+    .export-menu {
+      position: absolute; right: 0; top: calc(100% + 6px); z-index: 200; min-width: 150px;
+      background: var(--bg-panel); border: 1px solid var(--border, #cbd5e1); border-radius: 8px;
+      box-shadow: 0 8px 24px rgba(15, 23, 42, .15); padding: 4px; display: flex; flex-direction: column;
+    }
+    .export-menu[hidden] { display: none; }
+    .export-menu button {
+      background: none; border: 0; text-align: left; padding: 7px 10px; border-radius: 6px;
+      font: inherit; font-size: 13px; color: var(--text, inherit); cursor: pointer;
+    }
+    .export-menu button:hover, .export-menu button:focus-visible { background: var(--bg-hover); outline: none; }

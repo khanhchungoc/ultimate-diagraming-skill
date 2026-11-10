@@ -55,7 +55,8 @@
       justify-content: center;
       border-radius: 9px;
       border: 1px solid var(--border-dark);
-      color: var(--text-main);
+      background: var(--bg-hover);
+      color: var(--text-soft);
       pointer-events: none;
     }
     .lane-title {
@@ -122,6 +123,9 @@
       background: var(--lane-track-tint);
       transition: background 0.15s ease;
     }
+    /* The lane holding the hovered or selected node gets a faint wash (inset shadow overlays the inline tint) */
+    .swimlane:has(.flow-node:hover, .flow-node.selected) .lane-track { box-shadow: inset 0 0 0 100vmax var(--lane-active-wash); }
+    .swimlane:has(.flow-node:hover, .flow-node.selected) .lane-header { background: var(--lane-active-header); }
     .lane-track.drag-hover-lane {
       background: var(--primary-wash);
     }
@@ -159,6 +163,12 @@
       stroke-width: 2px;
     }
 
+    /* Hovering a node: arrows entering it and arrows leaving it get their own colour */
+    .connector-path.hl-in  { stroke: var(--edge-in);  stroke-width: 2px; }
+    .connector-path.hl-out { stroke: var(--edge-out); stroke-width: 2px; }
+    .edge-label-container.hl-in  { border-color: var(--edge-in);  box-shadow: 0 2px 8px var(--edge-in-glow); }
+    .edge-label-container.hl-out { border-color: var(--edge-out); box-shadow: 0 2px 8px var(--edge-out-glow); }
+
     .edge-label-container {
       position: absolute;
       transform: translate(-50%, -50%);
@@ -167,7 +177,7 @@
       border-radius: 8px;
       padding: 3px 8px;
       font-size: 0.8125rem;
-      font-weight: 600;
+      font-weight: 400; /* annotation weight: keeps node text the primary layer */
       color: var(--text-main);
       cursor: pointer;
       z-index: 30;
@@ -182,9 +192,9 @@
       gap: 6px;
       line-height: 1.25;
       box-sizing: border-box;
-      max-width: 180px;
+      max-width: 140px; /* keep in sync with LE.LABEL_MAX_W */
     }
-    .edge-label-container:hover, .edge-label-container.selected {
+    .edge-label-container:hover, .edge-label-container.linked, .edge-label-container.selected {
       border-color: var(--primary);
       box-shadow: 0 2px 8px var(--primary-glow);
     }
@@ -277,13 +287,17 @@
       user-select: none;
       transition: border-color 0.15s, box-shadow 0.15s;
     }
+    .flow-node { --node-accent: var(--task-accent); }
+    .flow-node.type-start { --node-accent: var(--start-accent); }
+    .flow-node.type-end { --node-accent: var(--end-accent); }
+    .flow-node.type-decision { --node-accent: var(--decision-accent); }
     .flow-node:hover {
-      border-color: var(--primary);
+      border-color: var(--node-accent);
       box-shadow: 0 4px 10px rgba(0,0,0,0.12);
     }
     .flow-node.selected {
-      border-color: var(--primary);
-      box-shadow: 0 0 0 3px var(--primary-ring);
+      border-color: var(--node-accent);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--node-accent) 25%, transparent);
     }
     .flow-node.connect-target {
       outline: 3px dashed var(--primary);
@@ -331,18 +345,20 @@
     }
     .flow-node.type-decision .diamond-poly {
       fill: var(--decision-fill);
-      stroke: var(--warning);
+      stroke: var(--decision-stroke);
       stroke-width: var(--node-stroke); /* same weight as rect nodes; never changes on hover/select */
       stroke-linejoin: round;
       transition: stroke 0.15s, fill 0.15s;
     }
+    .flow-node.type-start:hover, .flow-node.type-start.selected,
+    .flow-node.type-end:hover, .flow-node.type-end.selected { border-color: var(--node-accent); }
     .flow-node.type-decision:hover .diamond-poly {
-      stroke: var(--primary);
+      stroke: var(--node-accent);
       fill: var(--decision-fill-hover);
     }
     .flow-node.type-decision.selected .diamond-poly {
-      stroke: var(--primary);
-      filter: drop-shadow(0 0 4px var(--primary-glow));
+      stroke: var(--node-accent);
+      filter: drop-shadow(0 0 4px color-mix(in srgb, var(--node-accent) 45%, transparent));
     }
     .flow-node.type-decision .node-label {
       position: relative;
@@ -377,7 +393,7 @@
       height: 12px;
       border-radius: 50%;
       background: var(--node-bg);
-      border: 2px solid var(--primary);
+      border: 2px solid var(--node-accent, var(--primary));
       opacity: 0;
       cursor: crosshair;
       transition: opacity 0.15s, transform 0.15s, background-color 0.15s;
@@ -413,7 +429,7 @@
     body.presentation .edge-end-handle { display: none !important; }
     .port:hover {
       transform: translate(-50%, -50%) scale(1.35);
-      background: var(--primary);
+      background: var(--node-accent, var(--primary));
     }
     .port-top { top: 0; left: 50%; }
     .port-bottom { top: 100%; left: 50%; }

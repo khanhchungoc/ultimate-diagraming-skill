@@ -7,31 +7,31 @@
       "id": "lane-a",
       "name": "Customer",
       "color": "#e0f2fe",
-      "height": 160
+      "height": 176
     },
     {
       "id": "lane-b",
       "name": "Frontend",
       "color": "#fef3c7",
-      "height": 160
+      "height": 152
     },
     {
       "id": "lane-c",
       "name": "Backend",
       "color": "#dcfce7",
-      "height": 160
+      "height": 152
     },
     {
       "id": "lane-d",
       "name": "Risk",
       "color": "#fee2e2",
-      "height": 160
+      "height": 152
     },
     {
       "id": "lane-e",
       "name": "Partner",
       "color": "#f3e8ff",
-      "height": 160
+      "height": 176
     }
   ],
   "nodes": [
@@ -41,7 +41,7 @@
       "type": "start",
       "label": "Submit",
       "x": 56,
-      "y": 52
+      "y": 68
     },
     {
       "id": "n2",
@@ -49,7 +49,7 @@
       "type": "task",
       "label": "Validate Input",
       "x": 56,
-      "y": 52
+      "y": 44
     },
     {
       "id": "n3",
@@ -57,47 +57,47 @@
       "type": "task",
       "label": "Create Case",
       "x": 56,
-      "y": 52
+      "y": 44
     },
     {
       "id": "n4",
       "laneId": "lane-d",
       "type": "decision",
       "label": "Risky?",
-      "x": 224,
-      "y": 48
+      "x": 56,
+      "y": 36
     },
     {
       "id": "n5",
       "laneId": "lane-e",
       "type": "task",
       "label": "Verify Identity",
-      "x": 392,
-      "y": 52
+      "x": 56,
+      "y": 44
     },
     {
       "id": "n6",
       "laneId": "lane-d",
       "type": "task",
       "label": "Manual Review",
-      "x": 392,
-      "y": 52
+      "x": 256,
+      "y": 44
     },
     {
       "id": "n7",
       "laneId": "lane-c",
       "type": "task",
       "label": "Approve Case",
-      "x": 392,
-      "y": 52
+      "x": 256,
+      "y": 44
     },
     {
       "id": "n8",
       "laneId": "lane-b",
       "type": "task",
       "label": "Notify Customer",
-      "x": 392,
-      "y": 52
+      "x": 256,
+      "y": 44
     },
     {
       "id": "n9",
@@ -105,8 +105,8 @@
       "type": "end",
       "label": "Accepted",
       "outcome": "success",
-      "x": 392,
-      "y": 52
+      "x": 256,
+      "y": 68
     },
     {
       "id": "n10",
@@ -114,24 +114,24 @@
       "type": "end",
       "label": "Declined",
       "outcome": "failure",
-      "x": 632,
-      "y": 52
+      "x": 456,
+      "y": 44
     },
     {
       "id": "n11",
       "laneId": "lane-c",
       "type": "task",
       "label": "Archive Case",
-      "x": 632,
-      "y": 52
+      "x": 456,
+      "y": 44
     },
     {
       "id": "n12",
       "laneId": "lane-b",
       "type": "end",
       "label": "Closed",
-      "x": 632,
-      "y": 52
+      "x": 456,
+      "y": 44
     }
   ],
   "edges": [

@@ -24,7 +24,7 @@ from audit_sequence import SequenceAudit
 from engine_runner import EngineUnavailable, run_layout
 
 
-DEFAULT_COL_WIDTH = 240
+DEFAULT_COL_WIDTH = 200
 START_X = 56
 
 # Complexity budget (a diagram beyond these is too dense to read at Fit zoom on a 1920px screen)
@@ -36,8 +36,8 @@ SCHEMA_VERSION = 1
 DEFAULT_NODE_WIDTH = 144
 DEFAULT_NODE_HEIGHT = 64
 DECISION_NODE_HEIGHT = 80
-LANE_MIN_HEIGHT = 192
-LANE_BOTTOM_PADDING = 72
+LANE_MIN_HEIGHT = 152
+LANE_BOTTOM_PADDING = 36
 
 
 class FlowchartAudit:

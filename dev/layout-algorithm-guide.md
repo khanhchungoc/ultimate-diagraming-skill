@@ -26,14 +26,16 @@ Input Graph JSON ──> [1. Cycle Breaking] ──> [2. Topological Layering]
 ### Phase 2: Topological Layering (X-Axis Columns)
 - Using the forward DAG, each node is assigned an integer rank:
   $$\text{Rank}(v) = \max_{u \in \text{preds}(v)} (\text{Rank}(u)) + 1$$
-- This guarantees sequential flow from Left to Right ($x = \text{start\_x} + \text{Rank} \times 240\text{px}$).
+- This guarantees sequential flow from Left to Right ($x = \text{start\_x} + \text{Rank} \times 200\text{px}$).
+- A labelled arrow widens its step to $\max(200, \text{node width} + \text{label width} + 2 \times 16)\text{px}$, so long labels always have room between the two nodes.
 
 ### Phase 3: Barycentric Crossing Reduction, Dynamic Lane Height & Nudge-to-Align
 - When multiple nodes occupy the same lane and column rank:
   - The engine computes the barycentric index of each node based on the vertical positions of its predecessors:
     $$\text{Barycenter}(u) = \frac{1}{|P(u)|} \sum_{p \in P(u)} \left(\text{LaneIndex}(p) \times 100 + \text{Rank}(p)\right)$$
-  - Nodes in the same column are sorted by this value and placed into sub-rows ($y = 48 + \text{sub\_row} \times 96\text{px}$).
-  - Each swimlane's height is dynamically computed from its maximum sub-rows and node heights ($\max(160\text{px}, \text{maxNodeBottom} + 48\text{px})$) so nodes never overflow lane boundaries.
+  - Nodes in the same column are sorted by this value. The first keeps row 0.
+  - **One row per lane unless it branches**: a further node is stacked into a sub-row ($y = 36 + \text{sub\_row} \times 104\text{px}$) only when it shares a parent with another node in that column (a fork). Any other node moves right into the first free row-0 slot instead, if one exists within its slack (before the x its successors require, so nothing downstream moves), at most 1.5 columns away (end nodes may go further), and not on top of a straight same-lane arrow or a vertical arrow crossing the lane. Only when no such slot exists does it take a sub-row.
+  - Each swimlane's height is computed from its sub-rows and node heights ($\max(152\text{px}, 36 + \text{rows} + 36\text{px})$); single-row lanes centre their nodes. The first and last lanes get 24px extra on the diagram's outer edge, where loop-backs route around the nodes.
   - Nodes follow a strict 4px modular grid: standard cards are $168 \times 56\text{px}$, and decision diamonds are $168 \times 64\text{px}$.
   - **Node Nudge-to-Align ($\le 35\text{px}$)**:
     - Whenever sequential nodes within the same lane have minor vertical offsets ($|\Delta y| \le 35\text{px}$, such as $56\text{px}$ tasks connecting to $64\text{px}$ diamonds), the engine shifts the node's center Y to achieve exact collinear alignment.
@@ -53,7 +55,7 @@ Input Graph JSON ──> [1. Cycle Breaking] ──> [2. Topological Layering]
 - **Incoming Port Staggering & Convergence**:
   - When multiple forward edges converge onto a target node's `Left` port, their vertical arrival coordinates are staggered ($\pm 8\text{px}$) so arrowheads and horizontal approach segments never overlap.
 - **Crossing-Minimising Column Alignment** (node-type independent):
-  - Every forward arrow that crosses lanes may get a compact step, whatever the node types: `zero` (target shares the source's column, a straight vertical arrow; at most one per source per side) or `tight` (target sits one node width, 168px, to the right so its left edge lines up with the source's right edge instead of a full 240px column). The engine lays out each configuration (exhaustively up to 6 candidate arrows, then by coordinate descent), scores it with the verifier (overlaps/penetrations, then edge crossings, diagram width, bends, total arrow length) and keeps the best, so compaction is only applied when it does not make the diagram worse.
+  - Every forward arrow that crosses lanes may get a compact step, whatever the node types: `zero` (target shares the source's column, a straight vertical arrow; at most one per source per side) or `tight` (target sits one node width, 168px, to the right so its left edge lines up with the source's right edge instead of a full 200px column). The engine lays out each configuration (exhaustively up to 6 candidate arrows, then by coordinate descent), scores it with the verifier (overlaps/penetrations, then edge crossings, diagram width, bends, total arrow length) and keeps the best, so compaction is only applied when it does not make the diagram worse.
 - **Fan-in Trunk Guard**: the single-bend side exit is refused when its row-run would cut across the vertical trunk of a sibling arrow into the same target (a source in a farther lane whose column lies between this source and the target). The arrow then enters the target's left port and nests inside the sibling's trunk, so join fan-ins form a crossing-free staircase.
 - **Single-Bend Side Exit**:
   - When an arrow leaves a node's right port for a target in another lane that lies clearly to the right, it runs along the source row and enters the target's bottom/top (one bend) instead of the default right-vertical-right Z (two bends). Used only when both segments are clear of other nodes and no other arrow already enters that side of the target; otherwise the Z route is kept.

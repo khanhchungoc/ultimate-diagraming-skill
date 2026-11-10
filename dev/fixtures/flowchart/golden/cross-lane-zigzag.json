@@ -7,19 +7,19 @@
       "id": "lane-a",
       "name": "A",
       "color": "#e0f2fe",
-      "height": 160
+      "height": 176
     },
     {
       "id": "lane-b",
       "name": "B",
       "color": "#fef3c7",
-      "height": 160
+      "height": 152
     },
     {
       "id": "lane-c",
       "name": "C",
       "color": "#dcfce7",
-      "height": 160
+      "height": 176
     }
   ],
   "nodes": [
@@ -29,7 +29,7 @@
       "type": "start",
       "label": "Begin",
       "x": 56,
-      "y": 52
+      "y": 68
     },
     {
       "id": "n2",
@@ -37,47 +37,47 @@
       "type": "task",
       "label": "Step B1",
       "x": 56,
-      "y": 52
+      "y": 44
     },
     {
       "id": "n3",
       "laneId": "lane-c",
       "type": "task",
       "label": "Step C1",
-      "x": 224,
-      "y": 52
+      "x": 256,
+      "y": 44
     },
     {
       "id": "n4",
       "laneId": "lane-b",
       "type": "task",
       "label": "Step B2",
-      "x": 224,
-      "y": 52
+      "x": 256,
+      "y": 44
     },
     {
       "id": "n5",
       "laneId": "lane-a",
       "type": "task",
       "label": "Step A2",
-      "x": 392,
-      "y": 52
+      "x": 256,
+      "y": 68
     },
     {
       "id": "n6",
       "laneId": "lane-c",
       "type": "task",
       "label": "Step C2",
-      "x": 560,
-      "y": 52
+      "x": 456,
+      "y": 44
     },
     {
       "id": "n7",
       "laneId": "lane-a",
       "type": "end",
       "label": "Finish",
-      "x": 560,
-      "y": 52
+      "x": 456,
+      "y": 68
     }
   ],
   "edges": [

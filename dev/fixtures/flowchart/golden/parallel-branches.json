@@ -7,19 +7,19 @@
       "id": "lane-a",
       "name": "Customer",
       "color": "#e0f2fe",
-      "height": 160
+      "height": 176
     },
     {
       "id": "lane-b",
       "name": "Sales",
       "color": "#fef3c7",
-      "height": 160
+      "height": 152
     },
     {
       "id": "lane-c",
       "name": "Warehouse",
       "color": "#dcfce7",
-      "height": 160
+      "height": 176
     }
   ],
   "nodes": [
@@ -29,7 +29,7 @@
       "type": "start",
       "label": "Place Order",
       "x": 56,
-      "y": 52
+      "y": 68
     },
     {
       "id": "n2",
@@ -37,7 +37,7 @@
       "type": "decision",
       "label": "In Stock?",
       "x": 56,
-      "y": 48
+      "y": 36
     },
     {
       "id": "n3",
@@ -45,23 +45,23 @@
       "type": "task",
       "label": "Pick Items",
       "x": 56,
-      "y": 52
+      "y": 44
     },
     {
       "id": "n4",
       "laneId": "lane-b",
       "type": "task",
       "label": "Backorder Item",
-      "x": 296,
-      "y": 52
+      "x": 266.8,
+      "y": 44
     },
     {
       "id": "n5",
       "laneId": "lane-c",
       "type": "task",
       "label": "Pack Order",
-      "x": 464,
-      "y": 52
+      "x": 266.8,
+      "y": 44
     },
     {
       "id": "n6",
@@ -69,8 +69,8 @@
       "type": "end",
       "label": "Receive Order",
       "outcome": "success",
-      "x": 464,
-      "y": 52
+      "x": 466.8,
+      "y": 68
     }
   ],
   "edges": [

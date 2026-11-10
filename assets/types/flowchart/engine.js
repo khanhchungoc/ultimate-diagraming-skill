@@ -2,8 +2,8 @@
       // JavaScript port of scripts/layout_engine.py (ranking, ordering, compact-step search, scoring).
       // Keep both copies in sync: scripts/check_tidy_parity.py compares their output node by node.
       const LE = {
-        COL_WIDTH: 240, TIGHT_STEP: 144, START_X: 56, ROW_HEIGHT: 120,
-        NODE_W: 144, NODE_H: 64, DEC_H: 80, LANE_MIN: 192, TOP_PAD: 56, BOTTOM_PAD: 56
+        COL_WIDTH: 200, TIGHT_STEP: 144, START_X: 56, ROW_HEIGHT: 104,
+        NODE_W: 144, MIN_GAP: 32, LABEL_MAX_W: 140, LABEL_STUB: 16, NODE_H: 64, DEC_H: 80, LANE_MIN: 152, TOP_PAD: 36, BOTTOM_PAD: 36, OUTER_PAD: 24
       };
       // Python-style rounding (half to even) so scores tie-break identically in both engines
       const pyRound = (x) => {
@@ -99,7 +99,25 @@
           });
         }
 
-        // Longest-path x offsets: normal = column width, zero = 0, tight = node width
+        // Horizontal room each labelled edge needs: label width (capped, then wrapped) plus arrow stubs
+        const labelGap = {};
+        edges.forEach(e => {
+          const t = String(e.label || '').trim();
+          if (!t) return;
+          const longest = Math.max(...t.split(/\s+/).map(w => w.length));
+          // Wraps at LABEL_MAX_W, but a single long word cannot wrap, so it sets the floor
+          const w = Math.max(longest * 7.4 + 20, Math.min(t.length * 6.6 + 18, LE.LABEL_MAX_W));
+          labelGap[KEY(e.from, e.to)] = w + 2 * LE.LABEL_STUB;
+        });
+
+        // Horizontal step an arrow needs: normal = column width, zero = 0, tight = node width; a labelled
+        // arrow also needs room for its label between the two nodes (vertical arrows, step 0, do not)
+        const stepOf = (k, zero, tight) => {
+          const step = zero.has(k) ? 0 : (tight.has(k) ? LE.TIGHT_STEP : LE.COL_WIDTH);
+          return (step > 0 && labelGap[k]) ? Math.max(step, LE.NODE_W + labelGap[k]) : step;
+        };
+
+        // Longest-path x offsets
         const xPositions = (zero, tight) => {
           const adj = {}, indeg = {}, xs = {};
           nodes.forEach(n => { adj[n.id] = []; indeg[n.id] = 0; xs[n.id] = 0; });
@@ -110,9 +128,7 @@
             const cur = queue.shift();
             seen.add(cur);
             (adj[cur] || []).forEach(nxt => {
-              const k = KEY(cur, nxt);
-              const step = zero.has(k) ? 0 : (tight.has(k) ? LE.TIGHT_STEP : LE.COL_WIDTH);
-              xs[nxt] = Math.max(xs[nxt], xs[cur] + step);
+              xs[nxt] = Math.max(xs[nxt], xs[cur] + stepOf(KEY(cur, nxt), zero, tight));
               indeg[nxt] -= 1;
               if (indeg[nxt] <= 0 && !seen.has(nxt)) queue.push(nxt);
             });
@@ -133,7 +149,7 @@
         };
 
         // Steps 3-6: order inside lanes, lane heights, x/y, nudge-to-align
-        const placeNodes = (ranks, xs) => {
+        const placeNodes = (ranks, xs, zero, tight) => {
           const groups = new Map();
           nodes.forEach(n => {
             const r = ranks[n.id] || 0;
@@ -147,32 +163,82 @@
               g.list.sort((a, b) => bc.get(a.id) - bc.get(b.id));
             }
           });
+          const X = {};
+          nodes.forEach(n => { X[n.id] = LE.START_X + (xs ? xs[n.id] : (ranks[n.id] || 0) * LE.COL_WIDTH); });
+          const sub = {};
+          groups.forEach(g => g.list.forEach((n, i) => { sub[n.id] = i; }));
+
+          // One row per lane unless the lane holds a branch. Nodes sharing a column are stacked only when they are
+          // branches of the same parent (a fork reads as one); any other node moves right into a free row-0 slot,
+          // within its slack only (before its successors' required x), so nothing downstream moves. It may move at
+          // most 1.5 columns (an end node, with nothing downstream, may go further) and never onto a straight same-lane arrow or a vertical arrow crossing the lane.
+          const fwdOut = {}, fwdIn = {};
+          forwardEdges.forEach(e => {
+            (fwdOut[e.from] = fwdOut[e.from] || []).push(e.to);
+            (fwdIn[e.to] = fwdIn[e.to] || []).push(e.from);
+          });
+          const siblings = (a, b) => (fwdIn[a.id] || []).some(p => (fwdIn[b.id] || []).includes(p));
+          const clear = (xa, xb) => Math.abs(xa - xb) >= LE.NODE_W + LE.MIN_GAP;
+          const lastX = Math.max(...nodes.map(n => X[n.id]));
+          groups.forEach(g => {
+            if (g.list.length < 2) return;
+            let next = 1;
+            g.list.slice(1).forEach(n => {
+              if (!g.list.some(m => m !== n && siblings(m, n))) {
+                const succ = fwdOut[n.id] || [];
+                const maxX = succ.length
+                  ? Math.min(...succ.map(v => X[v] - stepOf(KEY(n.id, v), zero, tight)))
+                  : lastX;
+                const row0 = nodes.filter(m => m !== n && m.laneId === n.laneId && sub[m.id] === 0);
+                const slots = [X[n.id], ...row0.map(m => X[m.id] + LE.COL_WIDTH)]
+                  .filter(x => x >= X[n.id] && x <= maxX).sort((a, b) => a - b);
+                const li = laneIdx[n.laneId];
+                const blocked = (x) => forwardEdges.some(e => {
+                  const u = nodeMap[e.from], v = nodeMap[e.to];
+                  if (!u || !v || u === n || v === n) return false;
+                  if (u.laneId === n.laneId && v.laneId === n.laneId && sub[u.id] === 0 && sub[v.id] === 0) {
+                    return x + LE.NODE_W > X[u.id] + LE.NODE_W && x < X[v.id];   // sits on a same-lane arrow
+                  }
+                  const lu = laneIdx[u.laneId], lv = laneIdx[v.laneId];
+                  const cx = X[u.id] + LE.NODE_W / 2;
+                  return Math.abs(X[u.id] - X[v.id]) < 1 && Math.min(lu, lv) < li && li < Math.max(lu, lv)
+                    && x - 12 < cx && cx < x + LE.NODE_W + 12;                         // sits on a vertical pass-through
+                });
+                const slot = slots.find(x => (!succ.length || x - X[n.id] <= 1.5 * LE.COL_WIDTH)
+                  && row0.every(m => clear(x, X[m.id])) && !blocked(x));
+                if (slot !== undefined) { X[n.id] = slot; sub[n.id] = 0; return; }
+              }
+              sub[n.id] = next++;
+            });
+          });
           const subrows = {};
           lanes.forEach(l => { subrows[l.id] = 1; });
-          groups.forEach(g => { subrows[g.laneId] = Math.max(subrows[g.laneId] || 1, g.list.length); });
+          nodes.forEach(n => { subrows[n.laneId] = Math.max(subrows[n.laneId] || 1, sub[n.id] + 1); });
 
+          // The first and last lanes get OUTER_PAD extra on the diagram's outer edge: loop-backs and corridor routes
+          // run around the nodes there, and unlike inner lanes there is no neighbouring lane to borrow room from.
           const lanePos = {};
           let curY = 0;
-          lanes.forEach(l => {
+          lanes.forEach((l, i) => {
             let maxH = LE.NODE_H;
             const inLane = nodes.filter(n => n.laneId === l.id);
             if (inLane.length) maxH = Math.max(...inLane.map(nodeH));
             const req = LE.TOP_PAD + ((subrows[l.id] || 1) - 1) * LE.ROW_HEIGHT + maxH + LE.BOTTOM_PAD;
-            l.height = Math.max(LE.LANE_MIN, req);
-            lanePos[l.id] = { top: curY, h: l.height };
+            const inner = Math.max(LE.LANE_MIN, req);
+            const off = i === 0 ? LE.OUTER_PAD : 0;
+            l.height = inner + off + (i === lanes.length - 1 ? LE.OUTER_PAD : 0);
+            lanePos[l.id] = { top: curY, h: l.height, inner, off };
             curY += l.height;
           });
 
-          groups.forEach(g => {
-            const lp = lanePos[g.laneId] || { top: 0, h: LE.LANE_MIN };
-            g.list.forEach((n, sub) => {
-              n.x = LE.START_X + (xs ? xs[n.id] : g.r * LE.COL_WIDTH);
-              if (g.list.length === 1 && (subrows[g.laneId] || 1) === 1) {
-                n.y = Math.floor((lp.h - nodeH(n)) / 8) * 4;
-              } else {
-                n.y = LE.TOP_PAD + sub * LE.ROW_HEIGHT;
-              }
-            });
+          nodes.forEach(n => {
+            const lp = lanePos[n.laneId] || { top: 0, h: LE.LANE_MIN };
+            n.x = X[n.id];
+            if ((subrows[n.laneId] || 1) === 1) {
+              n.y = (lp.off || 0) + Math.floor(((lp.inner || lp.h) - nodeH(n)) / 8) * 4;
+            } else {
+              n.y = (lp.off || 0) + LE.TOP_PAD + sub[n.id] * LE.ROW_HEIGHT;
+            }
           });
 
           // Nudge (<= 35px) so same-lane forward neighbours form a straight horizontal line
@@ -186,8 +252,7 @@
             if (Math.abs(delta) > 0 && Math.abs(delta) <= 35) {
               const targetY = Math.trunc(pyRound((uCy - vh / 2) / 4) * 4);
               if (targetY >= 20 && targetY + vh <= lp.h - 20) {
-                const g = groups.get(KEY(v.laneId, ranks[v.id] || 0));
-                const sibs = g ? g.list.filter(s => s.id !== v.id) : [];
+                const sibs = nodes.filter(s => s !== v && s.laneId === v.laneId && !clear(s.x, v.x));
                 const collides = sibs.some(s => Math.max(targetY, s.y) < Math.min(targetY + vh, s.y + nodeH(s)) + 12);
                 if (!collides) v.y = targetY;
               }
@@ -377,7 +442,9 @@
           for (let i = 0; i < nodes.length; i++) for (let j = i + 1; j < nodes.length; j++) {
             const a = nodes[i], b = nodes[j];
             if (a.laneId !== b.laneId) continue;
-            const ox = Math.max(0, Math.min(a.x + LE.NODE_W, b.x + LE.NODE_W) - Math.max(a.x, b.x));
+            // Two nodes in one lane must keep MIN_GAP clear between them, not merely avoid overlapping: the compact
+            // 'tight'/'zero' steps otherwise let a node land flush against a neighbour in the same row.
+            const ox = Math.max(0, Math.min(a.x + LE.NODE_W + LE.MIN_GAP, b.x + LE.NODE_W + LE.MIN_GAP) - Math.max(a.x, b.x));
             const oy = Math.max(0, Math.min(a.y + nodeH(a), b.y + nodeH(b)) - Math.max(a.y, b.y));
             if (ox > 0 && oy > 0) overlaps += 1;
           }
@@ -508,9 +575,10 @@
           const zero = new Set(), tight = new Set();
           cfg.forEach((m, k) => { (m === 'zero' ? zero : tight).add(k); });
           const ranks = ranksWithZero(zero);
-          const xs = cands.length ? xPositions(zero, tight) : null;
-          placeNodes(ranks, xs);
-          const res = { key: score(), ranks, xs };
+          // Always pixel-based, so labelled arrows get room for their labels even without cross-lane candidates
+          const xs = xPositions(zero, tight);
+          placeNodes(ranks, xs, zero, tight);
+          const res = { key: score(), ranks, xs, zero, tight };
           cache.set(ck, res);
           return res;
         };
@@ -557,7 +625,7 @@
             if (keyLess(cur.key, best.key)) { best = cur; bestCfg = new Map(cfg); }
           });
         }
-        placeNodes(best.ranks, best.xs);
+        placeNodes(best.ranks, best.xs, best.zero, best.tight);
       }
 
       // Entry point shared by every diagram type: lay out `data` in place (no DOM access).

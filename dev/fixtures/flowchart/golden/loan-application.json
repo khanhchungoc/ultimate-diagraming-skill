@@ -7,25 +7,25 @@
       "id": "lane-customer",
       "name": "Applicant / Customer",
       "color": "#e0f2fe",
-      "height": 160
+      "height": 176
     },
     {
       "id": "lane-officer",
       "name": "Loan Officer",
       "color": "#fef3c7",
-      "height": 160
+      "height": 152
     },
     {
       "id": "lane-engine",
       "name": "Automated Underwriting Engine",
       "color": "#dcfce7",
-      "height": 160
+      "height": 152
     },
     {
       "id": "lane-risk",
       "name": "Risk & Compliance Committee",
       "color": "#fee2e2",
-      "height": 160
+      "height": 176
     }
   ],
   "nodes": [
@@ -35,55 +35,55 @@
       "type": "start",
       "label": "Submit Application",
       "x": 56,
-      "y": 52
+      "y": 68
     },
     {
       "id": "n2",
       "laneId": "lane-officer",
       "type": "task",
       "label": "Review & Validate Docs",
-      "x": 224,
-      "y": 52
+      "x": 200,
+      "y": 44
     },
     {
       "id": "n3",
       "laneId": "lane-officer",
       "type": "decision",
       "label": "Docs Complete?",
-      "x": 464,
-      "y": 48
+      "x": 400,
+      "y": 36
     },
     {
       "id": "n4",
       "laneId": "lane-customer",
       "type": "task",
       "label": "Provide Missing Docs",
-      "x": 464,
-      "y": 52
+      "x": 400,
+      "y": 68
     },
     {
       "id": "n5",
       "laneId": "lane-engine",
       "type": "task",
       "label": "Run Credit & Fraud Check",
-      "x": 464,
-      "y": 52
+      "x": 400,
+      "y": 44
     },
     {
       "id": "n6",
       "laneId": "lane-engine",
       "type": "decision",
       "label": "Credit Score >= 700?",
-      "x": 704,
-      "y": 48
+      "x": 600,
+      "y": 36
     },
     {
       "id": "n7",
       "laneId": "lane-risk",
       "type": "decision",
       "label": "Risk Acceptable?",
-      "x": 872,
-      "y": 48
+      "x": 600,
+      "y": 36
     },
     {
       "id": "n8",
@@ -91,8 +91,8 @@
       "type": "end",
       "outcome": "success",
       "label": "Loan Approved",
-      "x": 872,
-      "y": 52
+      "x": 818.2,
+      "y": 44
     },
     {
       "id": "n9",
@@ -100,8 +100,8 @@
       "type": "end",
       "outcome": "failure",
       "label": "Application Rejected",
-      "x": 1040,
-      "y": 52
+      "x": 810.8,
+      "y": 68
     }
   ],
   "edges": [

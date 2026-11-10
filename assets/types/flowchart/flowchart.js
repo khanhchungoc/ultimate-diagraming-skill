@@ -2,16 +2,19 @@
       const NODE_HEIGHT = 64;
       const DECISION_WIDTH = 144;
       const DECISION_HEIGHT = 80;
-      const LANE_MIN_HEIGHT = 192;
-      const LANE_BOTTOM_PAD = 72;
+      const LANE_MIN_HEIGHT = 152;
+      const LANE_BOTTOM_PAD = 36;
+      const LANE_OUTER_PAD = 24; // extra room below the last lane for loop-backs routed around the diagram (engine OUTER_PAD)
 
       // --- STATE & INITIALIZATION ---
 
       let selectedNodeId = null;
       let selectedEdgeId = null;
+      let hoveredNodeId = null;
 
       // Node Drag state
       let draggingNode = null;
+      let dragEdgeFrame = 0;   // pending requestAnimationFrame for edge re-routing while dragging
       let dragMoved = false;
       let dragStartX = 0;
       let dragStartY = 0;
@@ -52,7 +55,8 @@
             const nh = (n.type === 'decision') ? DECISION_HEIGHT : NODE_HEIGHT;
             return Math.max(m, (n.y || 48) + nh);
           }, 100);
-          const computedHeight = Math.max(LANE_MIN_HEIGHT, maxNodeBottom + LANE_BOTTOM_PAD); // derived from nodes only, so lanes shrink back
+          const outer = index === chartData.lanes.length - 1 ? LANE_OUTER_PAD : 0;
+          const computedHeight = Math.max(LANE_MIN_HEIGHT, maxNodeBottom + LANE_BOTTOM_PAD) + outer; // derived from nodes only, so lanes shrink back
           lane.height = computedHeight;
 
           const laneEl = document.createElement('div');
@@ -65,11 +69,9 @@
           const header = document.createElement('div');
           header.className = 'lane-header';
           header.draggable = !document.body.classList.contains('presentation');
-          header.title = 'Drag to reorder swimlane';
-          if (lane.color) {
-            header.style.borderLeft = `6px solid ${lane.color}`;
-            header.style.background = colorWithAlpha(lane.color, themeAlpha('--lane-tint-header'));
-          }
+          header.dataset.tip = 'Drag to reorder swimlane';
+          // Lane colour stays as identity only: a thin rule on the header (the header itself is neutral)
+          if (lane.color) header.style.borderLeft = `3px solid color-mix(in srgb, ${lane.color} 60%, #64748b)`;
 
           // Header title with double-click edit
           const title = document.createElement('div');
@@ -77,7 +79,7 @@
           title.contentEditable = 'false';
           title.spellcheck = false;
           title.textContent = lane.name;
-          title.title = "Double-click to rename swimlane";
+          title.dataset.tip = "Double-click to rename swimlane";
 
           title.addEventListener('dblclick', (e) => {
             e.stopPropagation();
@@ -160,12 +162,7 @@
         chip.className = 'lane-icon';
         chip.setAttribute('aria-hidden', 'true');   // decorative: the lane name sits right beside it
         chip.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${TYPE_ICONS[laneIconName(lane)]}</svg>`;
-        if (lane.color) {
-          const dark = document.documentElement.getAttribute('data-theme') === 'dark';
-          chip.style.background = dark ? colorWithAlpha(lane.color, 0.18) : lane.color;
-          if (dark) chip.style.color = lane.color;
-        }
-        return chip;
+        return chip;   // neutral chip (see .lane-icon); the lane colour lives in the header's left rule
       }
 
       // --- Lane drag & drop helpers ---
@@ -273,7 +270,7 @@
           label.className = 'node-label';
           label.contentEditable = 'false';
           label.spellcheck = false;
-          label.title = `${node.label || ''}
+          label.dataset.tip = `${node.label || ''}
 Double-click to edit text`;   // full text: the label is clamped to 2 lines
           label.textContent = node.label || '';
 
@@ -308,7 +305,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           const delBtn = document.createElement('div');
           delBtn.className = 'node-delete-btn';
           delBtn.textContent = '×';
-          delBtn.title = 'Delete Node';
+          delBtn.dataset.tip = 'Delete Node';
           delBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             deleteNode(node.id);
@@ -321,12 +318,14 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
             port.className = `port port-${pos}`;
             port.dataset.port = pos;
             port.dataset.nodeId = node.id;
-            port.title = `Click or drag to connect`;
+            port.dataset.tip = `Click or drag to connect`;
             port.addEventListener('pointerdown', (e) => handlePortPointerDown(e, node.id, pos));
             nodeEl.appendChild(port);
           });
 
           nodeEl.addEventListener('pointerdown', (e) => handleNodePointerDown(e, node));
+          nodeEl.addEventListener('mouseenter', () => { hoveredNodeId = node.id; applyNodeHover(); });
+          nodeEl.addEventListener('mouseleave', () => { if (hoveredNodeId === node.id) hoveredNodeId = null; applyNodeHover(); });
           laneTrack.appendChild(nodeEl);
         });
       }
@@ -350,14 +349,16 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         });
 
         // True when an axis-aligned segment keeps 6px clear of every node except `ignore`
+        // (route search calls this hundreds of thousands of times per render, so it is a plain loop)
+        const rectList = Object.keys(rects).map(id => [id, rects[id]]);
         const segmentClear = (x1, y1, x2, y2, ignore) => {
           const minX = Math.min(x1, x2) - 6, maxX = Math.max(x1, x2) + 6;
           const minY = Math.min(y1, y2) - 6, maxY = Math.max(y1, y2) + 6;
-          return !Object.keys(rects).some(id => {
-            if (ignore.includes(id)) return false;
-            const r = rects[id];
-            return r.x < maxX && r.x + r.w > minX && r.y < maxY && r.y + r.h > minY;
-          });
+          for (let k = 0; k < rectList.length; k++) {
+            const r = rectList[k][1];
+            if (r.x < maxX && r.x + r.w > minX && r.y < maxY && r.y + r.h > minY && !ignore.includes(rectList[k][0])) return false;
+          }
+          return true;
         };
 
         const verticalEntryUsed = {};
@@ -739,7 +740,23 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         };
         // How a route relates to another arrow: collinear overlap, near-parallel run (<18px) and
         // perpendicular crossings. Arrows that share a node (forks/merges) are exempt by the caller.
+        const bboxCache = new WeakMap();
+        const bboxOf = (pts) => {
+          let b = bboxCache.get(pts);
+          if (b) return b;
+          b = [Infinity, Infinity, -Infinity, -Infinity];
+          for (const [x, y] of pts) { b[0] = Math.min(b[0], x); b[1] = Math.min(b[1], y); b[2] = Math.max(b[2], x); b[3] = Math.max(b[3], y); }
+          bboxCache.set(pts, b);
+          return b;
+        };
+        const NONE = { overlap: 0, near: 0, cross: 0 };
         const relate = (pts, otherPts) => {
+          // Every relation needs the two routes within 18px of each other: skip pairs whose boxes are further apart.
+          // Only stable (unmutated) polylines are cached; the candidate route is measured fresh.
+          const a = bboxOf(otherPts);
+          let x1 = Infinity, y1 = Infinity, x2 = -Infinity, y2 = -Infinity;
+          for (const [x, y] of pts) { if (x < x1) x1 = x; if (x > x2) x2 = x; if (y < y1) y1 = y; if (y > y2) y2 = y; }
+          if (x1 > a[2] + 18 || a[0] > x2 + 18 || y1 > a[3] + 18 || a[1] > y2 + 18) return NONE;
           let overlap = 0, near = 0, cross = 0;
           for (let i = 0; i < pts.length - 1; i++) {
             const [ax, ay] = pts[i], [bx, by] = pts[i + 1];
@@ -764,7 +781,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           return { overlap, near, cross };
         };
         // Cost model: overlap >> near-parallel > crossing (~1.75 bends) > bend > length
-        const COST = { overlap: 20000, near: 2500, cross: 1750, bend: 1000, divider: 1500, nearNode: 600, portClash: 2500 };
+        const COST = { overlap: 20000, near: 2500, cross: 1750, bend: 1000, divider: 1500, nearNode: 600, portClash: 2500, sharedBranch: 1200 };
         const laneDividers = Array.from(document.querySelectorAll('.lane-track')).slice(0, -1)
           .map(t => (t.getBoundingClientRect().bottom - stageRect.top) / scale);
         const routeDefects = (pts, ids) => {
@@ -774,11 +791,11 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
             const [ax, ay] = pts[i], [bx, by] = pts[i + 1];
             if (Math.abs(ay - by) < 1 && Math.abs(ax - bx) > 30 && laneDividers.some(y => Math.abs(ay - y) < 8)) d += COST.divider;
             const x1 = Math.min(ax, bx) - 20, x2 = Math.max(ax, bx) + 20, y1 = Math.min(ay, by) - 20, y2 = Math.max(ay, by) + 20;
-            const tight = Object.keys(rects).some(id => {
-              if (ids.includes(id)) return false;
-              const r = rects[id];
-              return r.x < x2 && r.x + r.w > x1 && r.y < y2 && r.y + r.h > y1;
-            });
+            let tight = false;
+            for (let k = 0; k < rectList.length && !tight; k++) {
+              const r = rectList[k][1];
+              tight = r.x < x2 && r.x + r.w > x1 && r.y < y2 && r.y + r.h > y1 && !ids.includes(rectList[k][0]);
+            }
             if (tight) d += COST.nearNode;
           }
           return d;
@@ -789,18 +806,33 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         const portClashes = (edge, fp, tp) => validEdges.filter(o => o !== edge && edgePorts[o.id] && (
           (o.from === edge.to && sideOnly(tp) && edgePorts[o.id].fromPort === tp) ||
           (o.to === edge.from && sideOnly(fp) && edgePorts[o.id].toPort === fp))).length;
+        // Two branches of one decision that carry different labels should leave from different vertices.
+        // Not a hard rule (a diamond has only four): it is a cost, so a branch moves to another side only
+        // when that side has less overlap/crossing, and shares a vertex when every alternative is worse.
+        const sharedBranchVertex = (edge, fp) => {
+          const src = nodeMap[edge.from];
+          if (!src || src.type !== 'decision') return 0;
+          return outEdges[edge.from].filter(o => o !== edge && edgePorts[o.id] && edgePorts[o.id].fromPort === fp
+            && (o.label || '').trim().toLowerCase() !== (edge.label || '').trim().toLowerCase()).length;
+        };
         const routeCost = (pts, edge, others, fp, tp, limit = Infinity) => {
           const ids = [edge.from, edge.to];
           let len = 0;
           for (let i = 0; i < pts.length - 1; i++) len += Math.abs(pts[i + 1][0] - pts[i][0]) + Math.abs(pts[i + 1][1] - pts[i][1]);
           if ((pts.length - 2) * COST.bend + len >= limit) return Infinity;   // cannot beat the best so far
           if (!polyClear(pts, ids)) return Infinity;
-          let defect = routeDefects(pts, ids) + portClashes(edge, fp, tp) * COST.portClash;
-          others.forEach(o => {
-            const r = relate(pts, edgePolylines[o.id]);
+          // Every penalty is non-negative, so once the running cost reaches `limit` this route cannot win: stop
+          const fixed = (pts.length - 2) * COST.bend + len;
+          let defect = portClashes(edge, fp, tp) * COST.portClash + sharedBranchVertex(edge, fp) * COST.sharedBranch;
+          if (fixed + defect >= limit) return Infinity;
+          for (let k = 0; k < others.length; k++) {
+            const r = relate(pts, edgePolylines[others[k].id]);
             defect += (r.overlap > 0 ? COST.overlap + r.overlap : 0) + r.near * COST.near + r.cross * COST.cross;
-          });
-          return { cost: (pts.length - 2) * COST.bend + len + defect, defect };
+            if (fixed + defect >= limit) return Infinity;
+          }
+          defect += routeDefects(pts, ids);
+          if (fixed + defect >= limit) return Infinity;
+          return { cost: fixed + defect, defect };
         };
         const anchor = (r, side) => side === 'top' ? [r.cx, r.y] : side === 'bottom' ? [r.cx, r.y + r.h]
           : side === 'left' ? [r.x, r.cy] : [r.x + r.w, r.cy];
@@ -914,6 +946,8 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           const r = rects[nid];
           [['top', r.y], ['bottom', r.y + r.h]].forEach(([side, edgeY]) => {
             ['out', 'in'].forEach(role => {
+              // A decision takes all its incoming arrows on one vertex (one arrowhead): never spread them
+              if (role === 'in' && nodeMap[nid] && nodeMap[nid].type === 'decision') return;
               const ends = [];
               validEdges.forEach(e => {
                 const pts = edgePolylines[e.id];
@@ -1002,7 +1036,8 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
               if (!pts) return;
               const n = pts.length;
               const add = (role, a, b, peer, far) => {
-                const key = role + '|' + peer + '|' + Math.round(pts[a][0]);
+                const mergeIn = role === 'in' && nodeMap[nid] && nodeMap[nid].type === 'decision';
+                const key = role + '|' + (mergeIn ? '*' : peer) + '|' + Math.round(pts[a][0]);
                 if (!units.has(key)) units.set(key, { x: pts[a][0], fixed: false, far, ends: [] });
                 const u = units.get(key);
                 u.ends.push({ pts, a, b });
@@ -1160,6 +1195,49 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           });
         }
 
+        // 5c2. Tiny jogs: an end leg offset from the leg before it by less than two corner radii draws a cramped
+        // S-bend whose corners cannot take the normal radius (nodes a few px apart, or a contact point spread
+        // a few px off centre). Slide the end along its node's flat side to line up with the leg instead, when
+        // that spot is on the side, is not a diamond vertex, and keeps CLEAR from other arrows' contact points.
+        {
+          const JOG = 16, CLEAR_PT = 24;
+          const ends = (nid, skipId) => {
+            const out = [];
+            validEdges.forEach(o => {
+              if (o.id === skipId) return;
+              const op = edgePolylines[o.id];
+              if (!op) return;
+              if (o.from === nid) out.push(op[0]);
+              if (o.to === nid) out.push(op[op.length - 1]);
+            });
+            return out;
+          };
+          validEdges.forEach(e => {
+            const pts = edgePolylines[e.id];
+            if (!pts || pts.length < 4) return;
+            // [end, leg, jog, rest]: indices for the source end, then for the target end
+            [[e.from, 0, 1, 2, 3], [e.to, pts.length - 1, pts.length - 2, pts.length - 3, pts.length - 4]].forEach(([nid, a, b, c, d]) => {
+              const node = nodeMap[nid], r = rects[nid];
+              if (!node || !r || node.type === 'decision') return;
+              const vertLeg = Math.abs(pts[a][0] - pts[b][0]) < 1 && Math.abs(pts[c][0] - pts[d][0]) < 1 && Math.abs(pts[b][1] - pts[c][1]) < 1;
+              const horizLeg = Math.abs(pts[a][1] - pts[b][1]) < 1 && Math.abs(pts[c][1] - pts[d][1]) < 1 && Math.abs(pts[b][0] - pts[c][0]) < 1;
+              const ax = vertLeg ? 0 : horizLeg ? 1 : -1;      // the coordinate that slides along the node's side
+              if (ax < 0) return;
+              const target = pts[c][ax];
+              const off = Math.abs(target - pts[a][ax]);
+              if (off < 0.5 || off >= JOG) return;
+              const lo = ax === 0 ? r.x + 14 : r.y + 14, hi = ax === 0 ? r.x + r.w - 14 : r.y + r.h - 14;
+              if (target < lo || target > hi) return;
+              const side = pts[a][1 - ax];
+              const crowded = ends(nid, e.id).some(p => Math.abs(p[1 - ax] - side) < 1 &&
+                Math.abs(p[ax] - target) >= 1 && Math.abs(p[ax] - target) < CLEAR_PT);
+              if (crowded) return;
+              pts[a][ax] = target;
+              pts[b][ax] = target;
+            });
+          });
+        }
+
         // 5d. A diamond's top/bottom side is a vertex, not a flat edge: an arrow whose contact point was
         // spread away from the centre would otherwise start/stop in mid-air above the slanted outline.
         // Slide those ends along their vertical leg onto the diamond's edge.
@@ -1250,6 +1328,15 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         if (!points || points.length === 0) return '';
         if (points.length === 1) return `M ${points[0][0]} ${points[0][1]}`;
 
+        // Drop repeated and collinear points: a zero-length segment or a straight "corner" would otherwise
+        // leave the real bend next to it unrounded
+        points = points.filter((p, i) => i === 0 || Math.hypot(p[0] - points[i - 1][0], p[1] - points[i - 1][1]) > 0.5);
+        points = points.filter((p, i) => {
+          if (i === 0 || i === points.length - 1) return true;
+          const a = points[i - 1], b = points[i + 1];
+          return Math.abs((p[0] - a[0]) * (b[1] - p[1]) - (p[1] - a[1]) * (b[0] - p[0])) > 0.5;
+        });
+
         // Insert bridge hop markers along horizontal segments that cross other vertical edges
         const expanded = [points[0]];
         for (let i = 0; i < points.length - 1; i++) {
@@ -1279,7 +1366,10 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           expanded.push(p2);
         }
 
-        // Render rounded quarter-arc corners (r=8) and semicircular hops (r=6)
+        // Render rounded quarter-arc corners (r=8) and semicircular hops (r=6). Every bend gets the same radius r;
+        // it shrinks only when a segment is too short to hold it (a segment shared by two bends gives each half).
+        const hopR = 6;
+        const hopEdge = (h, side) => [h.x + side * hopR * h.dir, h.y];   // side -1: where the hop starts, +1: ends
         let d = `M ${expanded[0][0]} ${expanded[0][1]}`;
         for (let i = 1; i < expanded.length; i++) {
           const item = expanded[i];
@@ -1287,27 +1377,30 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
             const hx = item.x;
             const hy = item.y;
             const dir = item.dir;
-            const hopR = 6;
             d += ` L ${(hx - hopR * dir).toFixed(1)} ${hy.toFixed(1)}`;
             d += ` A ${hopR} ${hopR} 0 0 1 ${(hx + hopR * dir).toFixed(1)} ${hy.toFixed(1)}`;
             continue;
           }
 
           const prev = expanded[i - 1];
-          const next = (i < expanded.length - 1 && !expanded[i + 1].isHop) ? expanded[i + 1] : null;
+          const next = i < expanded.length - 1 ? expanded[i + 1] : null;
 
           if (next) {
-            const pPrev = prev.isHop ? [prev.x + 6 * prev.dir, prev.y] : prev;
+            // A hop next to the bend bounds that segment like an end point does (its arc needs the rest)
+            const pPrev = prev.isHop ? hopEdge(prev, 1) : prev;
             const pCurr = item;
-            const pNext = next;
+            const pNext = next.isHop ? hopEdge(next, -1) : next;
 
             const vIn = [pCurr[0] - pPrev[0], pCurr[1] - pPrev[1]];
             const vOut = [pNext[0] - pCurr[0], pNext[1] - pCurr[1]];
             const lenIn = Math.hypot(vIn[0], vIn[1]);
             const lenOut = Math.hypot(vOut[0], vOut[1]);
 
-            if (lenIn >= 8 && lenOut >= 8) {
-              const curR = Math.min(r, lenIn / 2, lenOut / 2);
+            if (lenIn > 0.5 && lenOut > 0.5) {
+              // The first segment and hop-bounded segments belong to this bend alone; others are shared
+              const roomIn = (i - 1 === 0 || prev.isHop) ? lenIn : lenIn / 2;
+              const roomOut = next.isHop ? lenOut : lenOut / 2;
+              const curR = Math.min(r, roomIn, roomOut);
               const startX = pCurr[0] - (vIn[0] / lenIn) * curR;
               const startY = pCurr[1] - (vIn[1] / lenIn) * curR;
               const endX = pCurr[0] + (vOut[0] / lenOut) * curR;
@@ -1322,6 +1415,8 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         }
         return d;
       }
+
+      let measureLabelCtx = null;
 
       function pickClearLabelPosition(points, fromPort, labelText, nodeBoxes, placedLabels, otherPolylines) {
         const candidates = [];
@@ -1388,8 +1483,41 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           }
         }
 
+        // Stretches of this arrow that another arrow runs along (collinear overlap): a label there could
+        // belong to either arrow, so it must sit on a part of its own line that only it occupies.
+        const sharedStretches = [];
+        if (otherPolylines) {
+          for (let i = 0; i < points.length - 1; i++) {
+            const p = points[i], q = points[i + 1];
+            const isV = Math.abs(p[0] - q[0]) < 1, isH = Math.abs(p[1] - q[1]) < 1;
+            if (!isV && !isH) continue;
+            const k = isV ? 0 : 1, m = 1 - k;                       // k: fixed axis, m: running axis
+            const lo = Math.min(p[m], q[m]), hi = Math.max(p[m], q[m]);
+            for (const poly of otherPolylines) {
+              for (let j = 0; j < poly.length - 1; j++) {
+                const c = poly[j], d = poly[j + 1];
+                if (Math.abs(c[k] - d[k]) >= 1 || Math.abs(c[k] - p[k]) >= 2) continue;
+                const a0 = Math.max(lo, Math.min(c[m], d[m])), a1 = Math.min(hi, Math.max(c[m], d[m]));
+                if (a1 - a0 > 2) sharedStretches.push(isV ? { x: p[0], y: a0, w: 0, h: a1 - a0 } : { x: a0, y: p[1], w: a1 - a0, h: 0 });
+              }
+            }
+          }
+        }
+        // Dense spots along every long segment, so a short clear stretch (e.g. next to the source) is found
+        if (sharedStretches.length) {
+          for (let i = 0; i < points.length - 1; i++) {
+            const p = points[i], q = points[i + 1];
+            const len = Math.abs(q[0] - p[0]) + Math.abs(q[1] - p[1]);
+            if (len < 56) continue;
+            for (let d = 22; d <= len - 22; d += 14) {
+              const t = d / len;
+              candidates.push({ x: p[0] + (q[0] - p[0]) * t, y: p[1] + (q[1] - p[1]) * t });
+            }
+          }
+        }
+
         const textLen = labelText ? labelText.trim().length : 0;
-        const singleLineWidth = Math.max(40, textLen * 7.2 + 18);
+        const singleLineWidth = Math.max(40, textLen * 6.6 + 18);
         let lw = singleLineWidth;
         let lh = 24;
 
@@ -1404,11 +1532,13 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         }
 
         // Allow arrow labels to drop into multiple lines if 1 line exceeds the horizontal gap
-        if (horizClearance && singleLineWidth > horizClearance) {
+        // Labels also never grow past LABEL_MAX_W (matches the CSS max-width); longer text wraps
+        const wrapAt = Math.min(horizClearance || Infinity, LE.LABEL_MAX_W);
+        if (singleLineWidth > wrapAt) {
           // Never narrower than the longest word, so words are not split mid-word
           const longestWord = Math.max(0, ...String(labelText || '').trim().split(/\s+/).map(w => w.length));
-          const minWordW = Math.max(66, longestWord * 7.6 + 20);
-          lw = Math.max(minWordW, Math.min(singleLineWidth, horizClearance));
+          const minWordW = Math.max(40, longestWord * 7.4 + 20);
+          lw = Math.max(minWordW, Math.min(singleLineWidth, wrapAt));
           const lines = Math.ceil(singleLineWidth / lw);
           lh = Math.max(24, lines * 15 + 8);
         }
@@ -1446,6 +1576,9 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
                 if (BoxOverlap(bx, by, lw, lh, sx, sy, sw, sh, 6)) penalty += 10;
               }
             }
+          }
+          for (const st of sharedStretches) {
+            if (BoxOverlap(bx, by, lw, lh, st.x, st.y, st.w, st.h, 2)) { penalty += 300; break; }
           }
           if (penalty === 0) return cand;
           if (!fallback || penalty < fallback.penalty) fallback = { cand, penalty };
@@ -1506,11 +1639,12 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
             const tRect = pathD.toRect;
             if (fRect && tRect && tRect.x > (fRect.x + fRect.w)) {
               const horizGap = tRect.x - (fRect.x + fRect.w);
-              const longestWordW = Math.max(0, ...String(edge.label || '').trim().split(/\s+/).map(w => w.length)) * 7.6 + 20;
-              const maxLabelW = Math.max(66, longestWordW, Math.min(220, horizGap - 6));
+              const longestWordW = Math.max(0, ...String(edge.label || '').trim().split(/\s+/).map(w => w.length)) * 7.4 + 20;
+              // Fit the gap with the arrow stubs kept clear, never past LABEL_MAX_W, never narrower than the longest word
+              const maxLabelW = Math.max(40, longestWordW, Math.min(LE.LABEL_MAX_W, horizGap - 2 * LE.LABEL_STUB));
               labelContainer.style.maxWidth = `${maxLabelW}px`;
             } else {
-              labelContainer.style.maxWidth = '180px';
+              labelContainer.style.maxWidth = `${LE.LABEL_MAX_W}px`;
             }
 
             const isSelected = (edge.id === selectedEdgeId);
@@ -1527,7 +1661,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
             labelText.className = 'edge-label-text';
             labelText.contentEditable = 'false';
             labelText.spellcheck = false;
-            labelText.title = 'Double-click to edit condition';
+            labelText.dataset.tip = 'Double-click to edit condition';
             labelText.textContent = hasLabel ? edge.label : '+';
 
             labelText.addEventListener('pointerdown', (e) => {
@@ -1576,13 +1710,25 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
             labelContainer.appendChild(labelText);
             edgeLabelsGroup.appendChild(labelContainer); // in DOM so it can be measured below
 
+            // Never let the box be narrower than its longest word: the width estimates above are approximate,
+            // so measure the real text and widen the box if a word would otherwise be split ("approve/d")
+            if (hasLabel) {
+              const cs = getComputedStyle(labelText);
+              const ctx = (measureLabelCtx = measureLabelCtx || document.createElement('canvas').getContext('2d'));
+              ctx.font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+              const words = String(edge.label).trim().split(/\s+/);
+              const wordW = Math.max(...words.map(w => ctx.measureText(w).width));
+              const need = Math.ceil(wordW + 16 + 3 + 4);   // padding + border + slack
+              if (need > parseFloat(labelContainer.style.maxWidth)) labelContainer.style.maxWidth = `${need}px`;
+            }
+
             if (isSelected) {
               // Separate from the label so it reads as "delete the arrow", not "clear the label"
               const delEdgeBtn = document.createElement('div');
               delEdgeBtn.className = 'edge-delete-btn';
               delEdgeBtn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M6 6l1 14h10l1-14"/><path d="M10 11v6M14 11v6"/></svg>';
               delEdgeBtn.setAttribute('aria-label', 'Delete arrow');
-              delEdgeBtn.title = 'Delete this arrow (Delete key)';
+              delEdgeBtn.dataset.tip = 'Delete this arrow (Delete key)';
               // Sit on the arrow itself, as near its middle as possible without covering the label pill
               const lw = labelContainer.offsetWidth / 2 + 18, lh = labelContainer.offsetHeight / 2 + 18;
               const total = path.getTotalLength();
@@ -1611,7 +1757,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
                 const pt = path.getPointAtLength(end === 'from' ? 0 : total);
                 const h = document.createElement('div');
                 h.className = 'edge-end-handle';
-                h.title = end === 'from' ? 'Drag to change the source node' : 'Drag to change the target node';
+                h.dataset.tip = end === 'from' ? 'Drag to change the source node' : 'Drag to change the target node';
                 h.style.left = `${pt.x}px`;
                 h.style.top = `${pt.y}px`;
                 h.addEventListener('pointerdown', (e) => startReconnect(e, edge, end, path));
@@ -1628,19 +1774,49 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
               }
             });
 
+            // Hovering the arrow or its label lights up both, so it is clear which label belongs to which arrow
+            const setLinked = (on) => {
+              path.classList.toggle('hover', on);
+              labelContainer.classList.toggle('linked', on);
+              if (edge.id !== selectedEdgeId) path.setAttribute('marker-end', on ? 'url(#arrowhead-selected)' : 'url(#arrowhead)');
+            };
             [path, hit].forEach(el => {
               el.addEventListener('mouseenter', () => {
                 labelContainer.classList.add('hover-visible');
-                path.classList.add('hover');
+                setLinked(true);
               });
               el.addEventListener('mouseleave', () => {
-                path.classList.remove('hover');
+                setLinked(false);
                 if (edge.id !== selectedEdgeId && !labelText.matches(':focus')) {
                   labelContainer.classList.remove('hover-visible');
                 }
               });
             });
+            labelContainer.addEventListener('mouseenter', () => setLinked(true));
+            labelContainer.addEventListener('mouseleave', () => setLinked(false));
           }
+        });
+        applyNodeHover(); // keep the hover highlight across a re-render (e.g. while dragging)
+      }
+
+      // Hovering a node highlights every arrow touching it (and its label): amber for those entering the
+      // node, green for those leaving it (a self-loop counts as leaving)
+      function applyNodeHover() {
+        document.querySelectorAll('.connector-path, .edge-label-container').forEach(el => el.classList.remove('hl-in', 'hl-out'));
+        document.querySelectorAll('.connector-path').forEach(p => {
+          p.setAttribute('marker-end', p.dataset.edgeId === selectedEdgeId ? 'url(#arrowhead-selected)' : 'url(#arrowhead)');
+        });
+        if (!hoveredNodeId) return;
+        chartData.edges.forEach(edge => {
+          const kind = edge.from === hoveredNodeId ? 'out' : edge.to === hoveredNodeId ? 'in' : null;
+          if (!kind) return;
+          const path = document.querySelector(`.connector-path[data-edge-id="${edge.id}"]`);
+          const label = document.querySelector(`.edge-label-container[data-edge-id="${edge.id}"]`);
+          if (path) {
+            path.classList.add('hl-' + kind);
+            path.setAttribute('marker-end', `url(#arrowhead-${kind})`);
+          }
+          if (label) label.classList.add('hl-' + kind);
         });
       }
 
@@ -1749,7 +1925,11 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           }
         });
 
-        renderEdges();
+        // Re-route at most once per frame: pointer events can arrive faster than a full route pass,
+        // and handling each one synchronously queues them up so the node trails the cursor
+        if (!dragEdgeFrame) {
+          dragEdgeFrame = requestAnimationFrame(() => { dragEdgeFrame = 0; renderEdges(); });
+        }
       }
 
       // --- SNAP-TO-ALIGNMENT HELPERS ---
@@ -1834,6 +2014,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
       }
 
       function onDragNodeUp() {
+        if (dragEdgeFrame) { cancelAnimationFrame(dragEdgeFrame); dragEdgeFrame = 0; }
         hideSnapGuides();
         document.querySelectorAll('.lane-track').forEach(t => t.classList.remove('drag-hover-lane'));
         if (draggingNode) {
