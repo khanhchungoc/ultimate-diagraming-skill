@@ -87,9 +87,6 @@ Keep it short, about 5 lines. The user wants the file and anything that needs th
 
 - the output path(s) and a one-line description (type, node/lane count);
 - problems only: audit score if below 100, any `[WARN]` left, a split diagram and why, what a re-layout reset (update runs). Say nothing about checks that passed;
-- one line asking the user to click Save once, since you could not test it.
-
-Do not list per-check results, repeat the audit output, describe the visual checklist, or explain features the toolbar already shows. The type reference lists any additions.
 
 ---
 
