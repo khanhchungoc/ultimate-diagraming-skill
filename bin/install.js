@@ -165,7 +165,7 @@ function copySkillDirectory(src, dest) {
   fs.mkdirSync(dest, { recursive: true });
   const entries = fs.readdirSync(src, { withFileTypes: true });
 
-  const ignored = new Set(['.git', 'node_modules', '.github', 'agent', '.agents', '.claude', 'dev', 'skills-lock.json']);
+  const ignored = new Set(['.git', 'node_modules', '.github', 'agent', '.agents', '.claude', 'dev', 'bin', 'docs', 'skills-lock.json']);
 
   for (const entry of entries) {
     if (ignored.has(entry.name)) continue;
