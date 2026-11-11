@@ -74,29 +74,38 @@ try {
   t.check('Ctrl+Z restores the deleted lane', (await t.ev(`document.querySelectorAll('.swimlane').length`)) === lanesBefore
     && (await t.ev(`document.querySelectorAll('.flow-node').length`)) === nodesBefore);
 
-  // 2d. Hovering a lane shows reorder + delete tools under its pill; the delete button removes the lane
+  // 2d. Hovering a lane shows no tools; selecting it (pill click) shows reorder + delete, and delete removes the lane
   const toolsShown = await t.ev(`(() => {
     const L = document.querySelector('.swimlane:nth-child(2)'), r = L.getBoundingClientRect();
     L.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: r.left + 400, clientY: r.top + 40 }));
     const vis = el => !!el && el.getBoundingClientRect().width > 0;
-    return [vis(L.querySelector('.lane-tool-move')), vis(L.querySelector('.lane-tool-delete')),
+    const onHover = vis(L.querySelector('.lane-tools'));
+    L.querySelector('.lane-pill').click();
+    return [onHover, vis(L.querySelector('.lane-tool-move')), vis(L.querySelector('.lane-tool-delete')),
       vis(document.querySelector('.swimlane:nth-child(1) .lane-tools'))];
   })()`);
   await t.ev(`document.querySelector('.swimlane:nth-child(2) .lane-tool-delete').click()`);
   await t.ev(`document.querySelector('.lane-confirm-delete').click()`);
   const lanesAfterTool = await t.ev(`document.querySelectorAll('.swimlane').length`);
-  t.check('hovering a lane shows reorder + delete under its pill (only that lane), and delete (confirmed) removes the lane',
-    toolsShown[0] && toolsShown[1] && !toolsShown[2] && lanesAfterTool === lanesBefore - 1, `${JSON.stringify(toolsShown)} lanes=${lanesAfterTool}`);
+  t.check('hovering a lane hides its tools; selecting it shows reorder + delete (only that lane), and delete (confirmed) removes the lane',
+    !toolsShown[0] && toolsShown[1] && toolsShown[2] && !toolsShown[3] && lanesAfterTool === lanesBefore - 1, `${JSON.stringify(toolsShown)} lanes=${lanesAfterTool}`);
   await t.ev(t.key('z', { ctrlKey: true }));
 
-  // 2e. A real (native, trusted) drag of the reorder grip moves the lane: mouse press on the grip, move down past the
+  // 2d2. The pill reads as a drag handle: move cursor, and a primary ring when the pointer is on it
+  const pillLook = await t.ev(`(() => {
+    const p = document.querySelector('.swimlane:nth-child(1) .lane-pill'), cs = getComputedStyle(p);
+    const ring = [...document.styleSheets].flatMap(s => [...s.cssRules]).find(r => r.selectorText === '.lane-pill:hover');
+    return [cs.cursor, ring ? ring.style.boxShadow : ''];
+  })()`);
+  t.check('the lane pill shows a move cursor and a 2px primary ring on hover', pillLook[0] === 'move' && pillLook[1].includes('2px var(--primary)'), JSON.stringify(pillLook));
+
+  // 2e. A real (native, trusted) drag of the pill itself moves the lane: mouse press on the pill, move down past the
   // third lane, release (Chrome runs the HTML5 drag-and-drop itself)
   const gripNames = `[...document.querySelectorAll('.lane-title')].map(e => e.textContent)`;
   const namesBefore = await t.ev(gripNames);
   const [gx, gy, tx, ty] = await t.ev(`(() => {
-    const L = document.querySelectorAll('.swimlane'), r = L[0].getBoundingClientRect();
-    L[0].dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: r.left + 400, clientY: r.top + 40 }));
-    const g = L[0].querySelector('.lane-tool-move').getBoundingClientRect(), d = L[2].getBoundingClientRect();
+    const L = document.querySelectorAll('.swimlane');
+    const g = L[0].querySelector('.lane-pill').getBoundingClientRect(), d = L[2].getBoundingClientRect();
     return [g.left + g.width / 2, g.top + g.height / 2, d.left + 400, d.bottom - 10];
   })()`);
   const mouse = (type, x, y, buttons = 1) => t.send('Input.dispatchMouseEvent', { type, x, y, button: 'left', buttons, clickCount: 1 });
@@ -106,7 +115,7 @@ try {
   await mouse('mouseReleased', tx, ty, 0);
   await new Promise((r) => setTimeout(r, 300));
   const namesAfter = await t.ev(gripNames);
-  t.check('dragging the reorder grip moves the lane (real mouse drag)', namesAfter[2] === namesBefore[0] && namesAfter[0] === namesBefore[1],
+  t.check('dragging the lane pill moves the lane (real mouse drag)', namesAfter[2] === namesBefore[0] && namesAfter[0] === namesBefore[1],
     `${JSON.stringify(namesBefore)} -> ${JSON.stringify(namesAfter)}`);
   await t.ev(t.key('z', { ctrlKey: true }));
 
@@ -125,9 +134,14 @@ try {
   // 5. Auto-Tidy button restores the reference layout from scrambled positions
   await t.open(scrambled);
   const scrambledPositions = await t.ev(positions);
+  const stageView = `document.getElementById('stage').style.transform`;
+  await t.ev(`document.getElementById('btn-zoom-in').click()`);
+  await sleep(100);
+  const viewBefore = await t.ev(stageView);
   await t.ev(`document.getElementById('btn-auto-tidy').click()`);
   await sleep(300);
   const tidied = await t.ev(positions);
+  t.check('Auto-Tidy keeps the current zoom and pan', viewBefore !== '' && (await t.ev(stageView)) === viewBefore, `before=${viewBefore}`);
   const status = await t.ev(`document.getElementById('save-status').textContent`);
   t.check('scrambled page differs from the reference before Auto-Tidy', scrambledPositions !== refPositions);
   t.check('Auto-Tidy button restores the reference positions', tidied === refPositions, `got ${tidied.slice(0, 120)}...`);

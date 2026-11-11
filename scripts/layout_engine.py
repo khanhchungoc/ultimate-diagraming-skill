@@ -946,6 +946,14 @@ def assemble_page(kind: str, data: Optional[Dict[str, Any]] = None) -> str:
     return re.sub(r"\{\{([A-Z_]+)\}\}", lambda m: parts[m.group(1)], _read_asset(ASSETS_DIR / "shell" / "shell.html"))
 
 
+def find_external_refs(html_text: str) -> List[str]:
+    """Network references that would break the self-contained page."""
+    return sorted(set(re.findall(
+        r"""(?:src|href)\s*=\s*["']https?://[^"']+|@import[^;]+|url\(\s*["']?https?://[^)]+""",
+        html_text,
+    )))
+
+
 def scaffold_html(data: Dict[str, Any], output_path: Path):
     """Write the standalone HTML for `data` (its diagramType selects the plugin)."""
     html_text = assemble_page(data.get("diagramType") or DEFAULT_TYPE, data)
@@ -993,10 +1001,7 @@ def main():
         if p.suffix == ".html":
             html_text = p.read_text(encoding="utf-8")
             data = extract_data_from_html(html_text)
-            external_refs = sorted(set(re.findall(
-                r"""(?:src|href)\s*=\s*["']https?://[^"']+|@import[^;]+|url\(\s*["']?https?://[^)]+""",
-                html_text,
-            )))
+            external_refs = find_external_refs(html_text)
         else:
             data = json.loads(p.read_text(encoding="utf-8"))
 
@@ -1047,12 +1052,25 @@ def main():
         out_path = Path(args.output) if args.output else in_p.with_suffix(".html")
         scaffold_html(laid_out_data, out_path)
 
+        # Same gates as --verify, so the agent never needs a second audit run.
+        failed = False
+        for warning in report["budget_warnings"]:
+            print(f"[WARN] {warning}")
+        external_refs = find_external_refs(out_path.read_text(encoding="utf-8"))
+        if external_refs:
+            failed = True
+            print("[FAIL] HTML loads external resources (must be fully self-contained):")
+            for ref in external_refs:
+                print(f"  - {ref}")
         if not report["passed"]:
-            print(f"[WARNING] Layout computed with quality score {report['score']}/100 ({report['grade']}):")
+            failed = True
+            print(f"[FAIL] Quality score {report['score']}/100 did not meet threshold (>= 90); HTML still written:")
             for issue in report["issues"]:
                 print(f"  - {issue}")
         else:
             print(audit.pass_line(report))
+        if failed:
+            sys.exit(1)
 
 
 if __name__ == "__main__":

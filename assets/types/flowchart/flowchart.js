@@ -268,7 +268,7 @@
           title.spellcheck = false;
           title.textContent = lane.name;
           pill.appendChild(title);
-          // Hover tools under the pill (shown while the lane is hovered): a reorder grip, which drags the pill it
+          // Tools under the pill (shown while the lane is selected): a reorder grip, which drags the pill it
           // belongs to, and a delete button (hidden when this is the only lane)
           if (editable) {
             const tools = document.createElement('div');
@@ -700,12 +700,17 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           alignedFirst(upCands);
           alignedFirst(downCands);
 
-          let topEdgeId = (isMultiOrDecision && upCands.length > 0) ? upCands[0].id : null;
-          let bottomEdgeId = (isMultiOrDecision && downCands.length > 0) ? downCands[0].id : null;
-          if (!topEdgeId && upCands.length > 0 && Math.abs(rects[upCands[0].to].cx - f.cx) < 30) {
+          // A decision gives each branch its own vertex: a vertex already taken by a loop-back branch
+          // is not reused for a forward one (it would leave the diamond's slanted sides, off the vertex)
+          const backTaken = new Set(uNode && uNode.type === 'decision'
+            ? uOuts.filter(e => !fwdOuts.includes(e)).map(e => edgePorts[e.id] && edgePorts[e.id].fromPort)
+            : []);
+          let topEdgeId = (isMultiOrDecision && upCands.length > 0 && !backTaken.has('top')) ? upCands[0].id : null;
+          let bottomEdgeId = (isMultiOrDecision && downCands.length > 0 && !backTaken.has('bottom')) ? downCands[0].id : null;
+          if (!topEdgeId && upCands.length > 0 && !backTaken.has('top') && Math.abs(rects[upCands[0].to].cx - f.cx) < 30) {
             topEdgeId = upCands[0].id;
           }
-          if (!bottomEdgeId && downCands.length > 0 && Math.abs(rects[downCands[0].to].cx - f.cx) < 30) {
+          if (!bottomEdgeId && downCands.length > 0 && !backTaken.has('bottom') && Math.abs(rects[downCands[0].to].cx - f.cx) < 30) {
             bottomEdgeId = downCands[0].id;
           }
 
@@ -1218,8 +1223,9 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           const r = rects[nid];
           [['top', r.y], ['bottom', r.y + r.h]].forEach(([side, edgeY]) => {
             ['out', 'in'].forEach(role => {
-              // A decision takes all its incoming arrows on one vertex (one arrowhead): never spread them
-              if (role === 'in' && nodeMap[nid] && nodeMap[nid].type === 'decision') return;
+              // A decision's top/bottom side is a single vertex: never spread arrows along it (incoming
+              // ones share one arrowhead; outgoing branches each get their own vertex in step 2)
+              if (nodeMap[nid] && nodeMap[nid].type === 'decision') return;
               const ends = [];
               validEdges.forEach(e => {
                 const pts = edgePolylines[e.id];

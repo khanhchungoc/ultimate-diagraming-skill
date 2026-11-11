@@ -34,7 +34,7 @@ Never add pixel coordinates (`x`, `y`); `--layout` computes them.
 ## Writing rules
 
 1. **Verb + Noun** for tasks (`"Validate Order"`, not `"The order needs to be validated"`).
-2. **Decisions end in `?`** (`"Docs Complete?"`) and every outgoing branch is labeled. Only decision branches get `Yes`/`No` labels: an edge leaving a step is `""` (`--verify` warns about a `Yes`/`No` on a step).
+2. **Decisions end in `?`** (`"Docs Complete?"`) and every outgoing branch is labeled. Only decision branches get `Yes`/`No` labels: an edge leaving a step is `""` (`--layout` warns about a `Yes`/`No` on a step).
 3. **One owner per node**: place each node in the lane of the actor who performs it.
 4. **Fit the 2-line label clamp** so text never truncates with `...`:
    - **Tasks / Start / End (`144x64px`)**: `<= 28` chars (~14–16 chars/line). A 13-char word like `"Authorisation"` fits beside one or two short words.
@@ -48,7 +48,7 @@ Never add pixel coordinates (`x`, `y`); `--layout` computes them.
    - A system is an actor only when it acts (`"Core Banking"` validating something). Don't add a lane for a system that is only mentioned.
    - If the source doesn't name actors, infer them from who performs each verb. If you can't, or the whole process has one actor, set `"swimlanes": false`. Never use a generic lane such as `"Process"`, `"Steps"` or `"Other"`.
    - **Exception, phase lanes**: if the source groups steps into sequential containers (step, phase, stage, milestone, sprint, gate, quarter), use one lane per container, in order (`lane-step1`, `lane-step2`, ...), as in the phases example. Test: does every step in group 2 happen after every step in group 1? Yes → phase lanes; no → actor lanes. Each phase starts where the previous one ended, so the layout is a **diagonal staircase**. That is expected and correct: don't try to change it or check the engine. Phase lanes drop ownership, so keep the actor in a label where it matters (`"Officer Reviews Docs"`). A step that jumps back to an earlier phase is a loop-back edge. If the source shows both actors and phases, follow whichever it groups by visually.
-8. **Every lane gets an `icon`**, chosen from the table below to match the actor or system. Use a different icon for each lane in one diagram, and never leave one out (`--verify` prints a `[WARN]` for a lane without one, or with a name that is not in the table). For phase lanes pick icons that suit each stage (`clipboard`, `check`, `shield`, `flag`, ...).
+8. **Every lane gets an `icon`**, chosen from the table below to match the actor or system. Use a different icon for each lane in one diagram, and never leave one out (`--layout` prints a `[WARN]` for a lane without one, or with a name that is not in the table). For phase lanes pick icons that suit each stage (`clipboard`, `check`, `shield`, `flag`, ...).
 
 | Icon | Use for |
 |---|---|

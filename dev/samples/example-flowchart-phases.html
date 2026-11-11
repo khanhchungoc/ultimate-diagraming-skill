@@ -1065,7 +1065,7 @@
       font-weight: 600;
       line-height: 1.3;
       white-space: nowrap;
-      cursor: grab;
+      cursor: move;
       user-select: none;
       transform-origin: 0 0;
       transform: translate(var(--pill-x, 12px), var(--pill-y, 12px));
@@ -1073,8 +1073,9 @@
       --halo: 0 0 0 5px var(--lane-bg);
       box-shadow: var(--halo);
     }
-    .lane-pill:hover { box-shadow: 0 0 0 1px color-mix(in srgb, var(--lane-color) 60%, var(--border-dark)), var(--halo); }
-    .lane-pill.editing { cursor: default; }
+    /* Pointer directly on the pill: a strong ring says "this is the handle you can drag" */
+    .lane-pill:hover { box-shadow: 0 0 0 2px var(--primary), var(--halo); }
+    .lane-pill.editing { cursor: default; box-shadow: var(--halo); }
     /* The lane under the mouse (or holding the selection) turns its pill solid: a "you are here" marker. The halo
        picks up the same hover wash as the lane, so the ring stays invisible against it. */
     .swimlane.lane-hover .lane-pill,
@@ -1083,7 +1084,7 @@
       background: var(--lane-pill-solid);
       color: var(--lane-solid-ink);
     }
-    /* Hover tools under the pill: reorder grip + delete, shown while the lane is hovered or selected */
+    /* Tools under the pill: reorder grip + delete, shown only while the lane is selected (hover would clutter) */
     .lane-tools {
       position: absolute;
       top: calc(100% + 8px);
@@ -1092,7 +1093,6 @@
       gap: 6px;
       cursor: default;
     }
-    .swimlane.lane-hover .lane-tools,
     .swimlane.lane-selected .lane-tools { display: flex; }
     /* (not hidden while the lane is dragged: removing the drag source from layout makes Chrome cancel the drag) */
     .lane-pill.editing .lane-tools,
@@ -1326,7 +1326,7 @@
       <!-- Layout controls: type buttons marked data-dock-group="layout" are moved here, before Auto-Tidy -->
       <span class="dock-sep" aria-hidden="true"></span>
       <button id="btn-auto-tidy" class="btn" title="Re-align and lay out the whole diagram automatically" aria-label="Auto-Tidy">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M7 12h10"/><path d="M10 18h4"/></svg><span class="btn-label">Auto-Tidy</span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21.64 3.64-1.28-1.28a1.21 1.21 0 0 0-1.72 0L2.36 18.64a1.21 1.21 0 0 0 0 1.72l1.28 1.28a1.2 1.2 0 0 0 1.72 0L21.64 5.36a1.2 1.2 0 0 0 0-1.72"/><path d="m14 7 3 3"/><path d="M5 6v4"/><path d="M19 14v4"/><path d="M10 2v2"/><path d="M7 8H3"/><path d="M21 16h-4"/><path d="M11 3H9"/></svg><span class="btn-label">Auto-Tidy</span>
       </button>
   </div>
 
@@ -1396,8 +1396,7 @@
       <li><kbd>Click or Drag Port</kbd> : Connect two steps with an arrow</li>
       <li><kbd>Double-Click Arrow</kbd> : Add or edit arrow label (or click <kbd>+ Add Label</kbd>)</li>
       <li><kbd>Delete</kbd> : Delete the selected step, arrow or lane (or the bar's Delete button, shown while something is selected)</li>
-      <li><kbd>Hover a Lane</kbd> : Shows a reorder grip (drag it) and a delete button (asks to confirm) under the lane name</li>
-      <li><kbd>Click Lane Name</kbd> : Select the lane; <kbd>Delete</kbd> then asks to confirm and removes it with its steps and their arrows (undo brings them back; the last lane stays)</li>
+      <li><kbd>Click Lane Name</kbd> : Select the lane (a reorder grip and a delete button appear under its name); <kbd>Delete</kbd> then asks to confirm and removes it with its steps and their arrows (undo brings them back; the last lane stays)</li>
       <li><kbd>Drag Node</kbd> : Move inside lane or drop into another lane; snaps to other steps' centers and lane centers (dashed guide)</li>
       <li><kbd>Vertical / Horizontal</kbd> : Switch between a left-to-right and a top-to-bottom layout (lanes become columns); saved with the file</li>
       <li><kbd>Drag Lane Name</kbd> : Drag a lane's name pill to reorder swimlanes (a blue line shows where it will land); double-click the name to rename</li>
@@ -1773,11 +1772,11 @@
         document.body.appendChild(el);
       }
 
+      // Keep the current zoom and pan so the user stays where they were (Fit/100% is one click away).
       btnAutoTidy.addEventListener('click', () => {
         layoutDiagram(chartData);
         plugin.render();
         updateStatus(true);
-        fitView();
       });
 
       // --- THEME (light / dark) ---
@@ -3491,7 +3490,7 @@ const TYPE_ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\
           title.spellcheck = false;
           title.textContent = lane.name;
           pill.appendChild(title);
-          // Hover tools under the pill (shown while the lane is hovered): a reorder grip, which drags the pill it
+          // Tools under the pill (shown while the lane is selected): a reorder grip, which drags the pill it
           // belongs to, and a delete button (hidden when this is the only lane)
           if (editable) {
             const tools = document.createElement('div');
@@ -3923,12 +3922,17 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           alignedFirst(upCands);
           alignedFirst(downCands);
 
-          let topEdgeId = (isMultiOrDecision && upCands.length > 0) ? upCands[0].id : null;
-          let bottomEdgeId = (isMultiOrDecision && downCands.length > 0) ? downCands[0].id : null;
-          if (!topEdgeId && upCands.length > 0 && Math.abs(rects[upCands[0].to].cx - f.cx) < 30) {
+          // A decision gives each branch its own vertex: a vertex already taken by a loop-back branch
+          // is not reused for a forward one (it would leave the diamond's slanted sides, off the vertex)
+          const backTaken = new Set(uNode && uNode.type === 'decision'
+            ? uOuts.filter(e => !fwdOuts.includes(e)).map(e => edgePorts[e.id] && edgePorts[e.id].fromPort)
+            : []);
+          let topEdgeId = (isMultiOrDecision && upCands.length > 0 && !backTaken.has('top')) ? upCands[0].id : null;
+          let bottomEdgeId = (isMultiOrDecision && downCands.length > 0 && !backTaken.has('bottom')) ? downCands[0].id : null;
+          if (!topEdgeId && upCands.length > 0 && !backTaken.has('top') && Math.abs(rects[upCands[0].to].cx - f.cx) < 30) {
             topEdgeId = upCands[0].id;
           }
-          if (!bottomEdgeId && downCands.length > 0 && Math.abs(rects[downCands[0].to].cx - f.cx) < 30) {
+          if (!bottomEdgeId && downCands.length > 0 && !backTaken.has('bottom') && Math.abs(rects[downCands[0].to].cx - f.cx) < 30) {
             bottomEdgeId = downCands[0].id;
           }
 
@@ -4441,8 +4445,9 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           const r = rects[nid];
           [['top', r.y], ['bottom', r.y + r.h]].forEach(([side, edgeY]) => {
             ['out', 'in'].forEach(role => {
-              // A decision takes all its incoming arrows on one vertex (one arrowhead): never spread them
-              if (role === 'in' && nodeMap[nid] && nodeMap[nid].type === 'decision') return;
+              // A decision's top/bottom side is a single vertex: never spread arrows along it (incoming
+              // ones share one arrowhead; outgoing branches each get their own vertex in step 2)
+              if (nodeMap[nid] && nodeMap[nid].type === 'decision') return;
               const ends = [];
               validEdges.forEach(e => {
                 const pts = edgePolylines[e.id];

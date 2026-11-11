@@ -187,11 +187,11 @@
         document.body.appendChild(el);
       }
 
+      // Keep the current zoom and pan so the user stays where they were (Fit/100% is one click away).
       btnAutoTidy.addEventListener('click', () => {
         layoutDiagram(chartData);
         plugin.render();
         updateStatus(true);
-        fitView();
       });
 
       // --- THEME (light / dark) ---
