@@ -51,6 +51,7 @@ Expect from the user or an orchestrating agent: the diagram content (actors, ste
    python "<skill-dir>/scripts/layout_engine.py" --verify <target.html>
    ```
    Required: exit code `0`, score ≥ 90/100, no issues listed, 0 external references, and no `[WARN]` about a lane icon (add the missing `icon`, then re-run step 2).
+   Workflow fidelity comes first: never merge, drop or reroute steps, branches or end states to raise the score. If the complete diagram cannot pass, keep it complete and report the score and the issues behind it.
 
 4. **Layout report + visual review.** One command measures the page and captures a clean screenshot to a temporary path (editing controls hidden, cropped to the diagram, 2x):
    ```shell

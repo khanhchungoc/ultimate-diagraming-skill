@@ -40,8 +40,9 @@ Never add pixel coordinates (`x`, `y`); `--layout` computes them.
 2. **Decisions end in `?`** (`"Docs Complete?"`) and every outgoing branch is labeled. Only decision branches get `Yes`/`No` labels: an edge leaving a step is `""` (`--verify` warns about a `Yes`/`No` on a step).
 3. **One owner per node**: place each node in the lane of the actor who performs it.
 4. Keep labels short; long edge labels wrap, but long node labels shrink the fitted text.
-5. One lane per distinct actor or system. When the whole process has a single actor, set `"swimlanes": false` instead of drawing one named lane.
-6. **Every lane gets an `icon`**, chosen from the table below to match the actor or system. Use a different icon for each lane in one diagram, and never leave one out (`--verify` prints a `[WARN]` for a lane without one, or with a name that is not in the table).
+5. **Exceptions end in their own end state.** A path that finishes unresolved (manual intervention, escalation, an unhandled fallback) ends in a separate `end` node named for that outcome (`"Manual Payment Required"`), never merged into the success end (`"Claim Settled"`). Creating a task for someone else is not completion.
+6. One lane per distinct actor or system. When the whole process has a single actor, set `"swimlanes": false` instead of drawing one named lane.
+7. **Every lane gets an `icon`**, chosen from the table below to match the actor or system. Use a different icon for each lane in one diagram, and never leave one out (`--verify` prints a `[WARN]` for a lane without one, or with a name that is not in the table).
 
 | Icon | Use for |
 |---|---|
