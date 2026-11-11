@@ -5,10 +5,10 @@ description: "Create, verify, and edit diagrams as one standalone, editable HTML
 
 # Ultimate Diagram Skill
 
-Produce stakeholder-ready diagrams as standalone HTML files. In the browser, users can drag elements, double-click to edit text, press **Tidy** (flowcharts also re-arrange themselves while **Auto-Tidy** is on), and **Save** the edited diagram back into the HTML file. Opening the file with `?present` hides all editing controls for a read-only view; `?theme=dark` / `?theme=light` forces a theme (otherwise the toolbar toggle or the OS setting applies).
+Turn a process description into one self-contained, editable HTML diagram. You write only the logical JSON; the tooling does layout, styling and the audit.
 
 **Paths and files:**
-- `<skill-dir>` is the folder containing this `SKILL.md`. Run scripts by full path (`python "<skill-dir>/scripts/layout_engine.py" ...`).
+- `<skill-dir>` is the folder containing this `SKILL.md`. Run scripts by full path (`python "<skill-dir>/scripts/layout_engine.py" ...`; use `python3` where `python` is not on PATH).
 - **Workspace**: write only the final HTML there: the user's path, else `<title-slug>.html` in the workspace root. The HTML embeds its JSON; leave no `.json` in the workspace unless the user asked for one.
 - **Scratch**: the authoring JSON and the screenshot PNG go to the host's scratch directory (else the system temp directory). Delete them in one command at the end; do not check the deletion or probe the workspace afterwards.
 
@@ -18,22 +18,22 @@ Produce stakeholder-ready diagrams as standalone HTML files. In the browser, use
 
 Every diagram JSON has a top-level `"diagramType"` (missing means `flowchart`).
 
-| `diagramType` | Use for | Read (both files, in one parallel batch) |
+| `diagramType` | Use for | Type reference |
 |---|---|---|
-| `flowchart` | Swimlane / cross-functional process flows with decisions and loops | `references/types/flowchart.md` + `references/examples/example-flowchart-phases.json` if the source groups steps into Step / Phase / Stage boxes, else `references/examples/example-flowchart.json` |
-| `sequence` | Messages between participants over time (API calls, system interactions) | `references/types/sequence.md` + `references/examples/example-sequence.json` |
+| `flowchart` | Swimlane / cross-functional process flows with decisions and loops | [references/types/flowchart.md](references/types/flowchart.md) |
+| `sequence` | Messages between participants over time (API calls, system interactions) | [references/types/sequence.md](references/types/sequence.md) |
 
-`erd` and `state` are planned, not supported: say so; do not force them into a flowchart. Paths are relative to `<skill-dir>`.
+`erd` and `state` are planned, not supported: say so; do not force them into a flowchart. The type reference owns the schema, writing rules and visual checklist, and names the one example to copy.
 
 ---
 
 ## Procedure: New Diagram
 
-Make exactly these calls. The two files above and the command below are the complete interface: no `--help`, no reading scripts or `dev/`, no test runs on the example, no listing directories, no trial directions or lane modes.
+Make exactly these calls. The type reference, the example it names and the command below are the complete interface: no `--help`, no reading scripts or `dev/`, no test runs on the example, no listing directories, no trying alternative structures.
 
-1. **Read** the type reference and its example in one parallel batch (table above). Decide the structure once from the type reference's *Choosing the structure* table.
+1. **Read** the type reference, then the one example it names (at the path it gives). Decide the structure once from the type reference.
 2. **Write the JSON once** to scratch with your file-write tool. Fit every label to the character budget before the first run. No pixel coordinates, no `python -c`, no helper `.py` scripts. Include every step the user's scope asks for.
-3. **Run one command**, writing the HTML straight to the target path (needs Node.js, else Chrome/Chromium; `--browser <path>` selects one):
+3. **Run one command**, writing the HTML straight to the target path (needs Chrome, Chromium or Edge; Node.js makes layout faster; `--browser <path>` selects a browser):
    ```shell
    python "<skill-dir>/scripts/layout_engine.py" --layout <scratch.json> -o <target.html> --screenshot <scratch.png>
    ```
@@ -44,7 +44,7 @@ Make exactly these calls. The two files above and the command below are the comp
    | `[DONE]` | Go to step 5. |
    | `[INFO]` | None. Small text in a diagram over 12 nodes is expected (pan and zoom). |
    | `[WARN]` truncated text (`...`) | Shorten that label to the budget, re-run step 3. |
-   | `[WARN]` note / icon / `Yes`-`No` on a step | Fix that item, re-run step 3. |
+   | Any other `[WARN]` | Fix what it names (the type reference has the rule), re-run step 3. |
    | `[FAIL]` score below 90 | Fix the listed issues. Never merge, drop or reroute steps, branches or end states to raise the score: if the complete diagram cannot pass, keep it complete and report the score. |
    | `[ERROR]` overlap (exit 3) | Fix the overlapping edge label, re-run step 3. |
    | `[ERROR]` text size (exit 4, 12 nodes or fewer) | Shorten labels, drop columns or split the diagram, re-run step 3. |

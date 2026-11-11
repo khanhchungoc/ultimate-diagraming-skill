@@ -2,7 +2,9 @@
 
 Use for swimlane, cross-functional or BPMN-style process flows. Layout, routing, label placement and styling are computed by the tooling; author only the logical graph.
 
-**Example to copy:** `references/examples/example-flowchart-phases.json` (phase lanes, rule 7) or `references/examples/example-flowchart.json` (actor lanes), read alongside this file as SKILL.md says.
+**Example to copy (read one next; paths are from `<skill-dir>`):**
+- the source groups steps into Step / Phase / Stage boxes: `references/examples/example-flowchart-phases.json` (phase lanes, rule 7);
+- otherwise: `references/examples/example-flowchart.json` (actor lanes).
 
 ## Schema
 

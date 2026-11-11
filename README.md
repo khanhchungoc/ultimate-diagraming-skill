@@ -56,7 +56,6 @@ Describe a process, and your AI assistant hands back a single HTML file. Open it
 | 💡 | Gantt / timeline |
 | 💡 | Mind map / org chart |
 | 💡 | Export to SVG, PNG, PDF; import from Mermaid; export to draw.io and BPMN |
-| 💡 | Themes and dark mode |
 
 🔜 next, 💡 later. Order may change.
 
@@ -70,9 +69,18 @@ Describe a process, and your AI assistant hands back a single HTML file. Open it
 2. Ask: *"Draw a swimlane flowchart of our loan approval process."*
 3. Open the HTML file it creates and edit.
 
+### Viewing options
+
+Add these to the end of the file's address in the browser:
+
+| Add | Effect |
+|---|---|
+| `?present` | Read-only view with all editing controls hidden, for presenting or sharing |
+| `?theme=dark` or `?theme=light` | Forces a theme. Without it, the toolbar toggle or your system setting decides |
+
 ## Requirements
 
-Needs `Python 3.9+` and `Node 18+` (or `Chrome`).
+Needs `Python 3.9+` and `Chrome`, `Chromium` or `Edge` (used to lay out and check every diagram). `Node 18+` is optional and makes layout faster. The installer checks all of these and tells you what is missing.
 
 ## Try it first
 

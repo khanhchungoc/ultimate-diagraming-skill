@@ -33,7 +33,7 @@ param (
     [ValidateSet("User", "Project")]
     [string]$Scope = "User",
 
-    [ValidateSet("all", "antigravity", "claude", "claude-code", "copilot", "github-copilot", "codex", "gemini", "kiro")]
+    [ValidateSet("all", "antigravity", "claude", "claude-code", "copilot", "github-copilot", "vscode-copilot", "codex", "gemini", "kiro")]
     [string]$Runtime = "all",
 
     [ValidateSet("Symlink", "Copy")]
@@ -44,6 +44,8 @@ param (
 
 $ErrorActionPreference = 'Stop'
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
+$lastDest = $repoRoot
+$copyExcluded = @(".git", "node_modules", ".github", "agent", ".agents", ".claude", "dev", "bin", "docs", "skills-lock.json", ".gitignore")
 $userHome = [System.Environment]::GetFolderPath([System.Environment+SpecialFolder]::UserProfile)
 
 Write-Host "==> Installing ultimate-diagram" -ForegroundColor Cyan
@@ -62,6 +64,7 @@ if ($Scope -eq "User") {
     $destinations["gemini"]      = Join-Path $userHome ".gemini\skills\ultimate-diagram"
     $destinations["kiro"]        = Join-Path $userHome ".kiro\skills\ultimate-diagram"
 } else {
+    New-Item -ItemType Directory -Path $TargetPath -Force | Out-Null   # like the other installers
     $targetDir = (Resolve-Path $TargetPath).Path
     $destinations["antigravity"] = Join-Path $targetDir ".agents\skills\ultimate-diagram"
     $destinations["claude"]      = Join-Path $targetDir ".claude\skills\ultimate-diagram"
@@ -73,6 +76,7 @@ if ($Scope -eq "User") {
 
 $normalizedRuntime = switch ($Runtime) {
     "github-copilot" { "copilot" }
+    "vscode-copilot" { "copilot" }
     "claude-code"    { "claude" }
     default          { $Runtime }
 }
@@ -94,9 +98,10 @@ foreach ($rt in $runtimesToInstall) {
         New-Item -ItemType Directory -Path $parentDir -Force | Out-Null
     }
 
-    if (Test-Path $dest) {
+    # Get-Item (not Test-Path) so a junction whose source moved is still found and replaced.
+    $item = Get-Item $dest -Force -ErrorAction SilentlyContinue
+    if ($item) {
         Write-Host "    Removing existing target at $dest" -ForegroundColor Yellow
-        $item = Get-Item $dest -Force
         if ($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) {
             cmd /c rmdir "$dest" | Out-Null
         } else {
@@ -104,22 +109,39 @@ foreach ($rt in $runtimesToInstall) {
         }
     }
 
-    if ($Mode -eq "Symlink") {
+    $copy = ($Mode -eq "Copy")
+    if (-not $copy) {
         Write-Host "    Linking ($rt) -> $dest" -ForegroundColor Green
-        try {
-            cmd /c mklink /J "$dest" "$repoRoot" | Out-Null
-        } catch {
+        # mklink is a native command: it reports failure through the exit code, not an exception.
+        cmd /c mklink /J "$dest" "$repoRoot" | Out-Null
+        if ($LASTEXITCODE -ne 0) {
             Write-Warning "Junction creation failed. Falling back to copy..."
-            Copy-Item -Path "$repoRoot\*" -Destination $dest -Recurse -Force -Exclude ".git", "node_modules", ".github", "dev"
-        }
-    } else {
-        Write-Host "    Copying ($rt) -> $dest" -ForegroundColor Green
-        New-Item -ItemType Directory -Path $dest -Force | Out-Null
-        Get-ChildItem -Path $repoRoot -Exclude ".git", "node_modules", ".github", "dev" | ForEach-Object {
-            Copy-Item -Path $_.FullName -Destination $dest -Recurse -Force
+            $copy = $true
         }
     }
+    if ($copy) {
+        Write-Host "    Copying ($rt) -> $dest" -ForegroundColor Green
+        New-Item -ItemType Directory -Path $dest -Force | Out-Null
+        Get-ChildItem -Path $repoRoot -Force -Exclude $copyExcluded | ForEach-Object {
+            Copy-Item -Path $_.FullName -Destination $dest -Recurse -Force
+        }
+        Get-ChildItem -Path $dest -Recurse -Directory -Filter "__pycache__" | Remove-Item -Recurse -Force
+    }
+    $lastDest = $dest
 }
 
 Write-Host ""
-Write-Host "[SUCCESS] Successfully installed ultimate-diagram!" -ForegroundColor Green
+Write-Host "[SUCCESS] Installed ultimate-diagram." -ForegroundColor Green
+Write-Host ""
+
+# Check the installed copy can run: its files, Python 3.9+, a browser, Node.js.
+$checkScript = Join-Path $lastDest "scripts\check_env.py"
+foreach ($py in @(@("python"), @("py", "-3"), @("python3"))) {
+    if (Get-Command $py[0] -ErrorAction SilentlyContinue) {
+        $pyArgs = @($py | Select-Object -Skip 1) + $checkScript
+        & $py[0] @pyArgs
+        if ($LASTEXITCODE -ne 9009) { exit $LASTEXITCODE }   # 9009: Windows Store alias stub, not real Python
+    }
+}
+Write-Host "[MISSING] Python 3.9+ is not on PATH; the skill's scripts need it." -ForegroundColor Red
+exit 1

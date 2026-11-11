@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 #
 # Installs ultimate-diagram into target AI agent runtimes at either User (global) or Project level.
+# Works with bash 3.2 (macOS default): no associative arrays.
 #
 # Usage:
 #   ./scripts/install.sh [--scope user|project] [--runtime all|antigravity|claude|copilot|codex|gemini|kiro] [--mode symlink|copy] [--target-path <path>]
@@ -20,7 +21,7 @@ while [[ "$#" -gt 0 ]]; do
         --mode|-m) MODE="$2"; shift ;;
         --target-path|-t) TARGET_PATH="$2"; shift ;;
         --help|-h)
-            echo "Usage: $0 [--scope user|project] [--runtime all|antigravity|claude|copilot|codex|gemini|kiro] [--mode symlink|copy]"
+            echo "Usage: $0 [--scope user|project] [--runtime all|antigravity|claude|copilot|codex|gemini|kiro] [--mode symlink|copy] [--target-path <path>]"
             exit 0
             ;;
         *) echo "Unknown parameter: $1"; exit 1 ;;
@@ -37,55 +38,47 @@ echo "    Scope:   $SCOPE"
 echo "    Mode:    $MODE"
 echo "    Target:  $RUNTIME"
 
-declare -A DESTINATIONS
+if [[ "$SCOPE" == "user" ]]; then BASE="$HOME"; else BASE="$TARGET_PATH"; fi
 
-if [[ "$SCOPE" == "user" ]]; then
-    DESTINATIONS["antigravity"]="$HOME/.gemini/config/skills/ultimate-diagram"
-    DESTINATIONS["claude"]="$HOME/.claude/skills/ultimate-diagram"
-    DESTINATIONS["copilot"]="$HOME/.copilot/skills/ultimate-diagram"
-    DESTINATIONS["codex"]="$HOME/.agents/skills/ultimate-diagram"
-    DESTINATIONS["gemini"]="$HOME/.gemini/skills/ultimate-diagram"
-    DESTINATIONS["kiro"]="$HOME/.kiro/skills/ultimate-diagram"
-else
-    DESTINATIONS["antigravity"]="$TARGET_PATH/.agents/skills/ultimate-diagram"
-    DESTINATIONS["claude"]="$TARGET_PATH/.claude/skills/ultimate-diagram"
-    DESTINATIONS["copilot"]="$TARGET_PATH/.github/skills/ultimate-diagram"
-    DESTINATIONS["codex"]="$TARGET_PATH/.agents/skills/ultimate-diagram"
-    DESTINATIONS["gemini"]="$TARGET_PATH/.gemini/skills/ultimate-diagram"
-    DESTINATIONS["kiro"]="$TARGET_PATH/.kiro/skills/ultimate-diagram"
-fi
+destination() {
+    case "$1" in
+        antigravity) if [[ "$SCOPE" == "user" ]]; then echo "$BASE/.gemini/config/skills/ultimate-diagram"; else echo "$BASE/.agents/skills/ultimate-diagram"; fi ;;
+        claude)      echo "$BASE/.claude/skills/ultimate-diagram" ;;
+        copilot)     if [[ "$SCOPE" == "user" ]]; then echo "$BASE/.copilot/skills/ultimate-diagram"; else echo "$BASE/.github/skills/ultimate-diagram"; fi ;;
+        codex)       echo "$BASE/.agents/skills/ultimate-diagram" ;;
+        gemini)      echo "$BASE/.gemini/skills/ultimate-diagram" ;;
+        kiro)        echo "$BASE/.kiro/skills/ultimate-diagram" ;;
+        *) return 1 ;;
+    esac
+}
 
-if [[ "$RUNTIME" == "claude-code" ]]; then
-    RUNTIME="claude"
-elif [[ "$RUNTIME" == "github-copilot" || "$RUNTIME" == "vscode-copilot" ]]; then
-    RUNTIME="copilot"
-fi
+case "$RUNTIME" in
+    claude-code) RUNTIME="claude" ;;
+    github-copilot|vscode-copilot) RUNTIME="copilot" ;;
+esac
 
 if [[ "$RUNTIME" == "all" ]]; then
     RUNTIMES=("antigravity" "claude" "copilot" "codex" "gemini" "kiro")
 else
+    destination "$RUNTIME" >/dev/null || { echo "Error: unknown runtime '$RUNTIME'"; exit 1; }
     RUNTIMES=("$RUNTIME")
 fi
 
-canonical_repo="$(cd "$REPO_ROOT" && pwd)"
-
+installed=0
+last_dest="$REPO_ROOT"
 for rt in "${RUNTIMES[@]}"; do
-    dest="${DESTINATIONS[$rt]}"
-    parent_dir="$(dirname "$dest")"
-    mkdir -p "$parent_dir"
+    dest="$(destination "$rt")"
+    mkdir -p "$(dirname "$dest")"
 
-    if [[ -d "$dest" ]]; then
-        canonical_dest="$(cd "$dest" && pwd)"
-    else
-        canonical_dest="$(cd "$parent_dir" && pwd)/$(basename "$dest")"
-    fi
-
-    if [[ "$canonical_dest" == "$canonical_repo" ]]; then
+    # A link (even one pointing at the repo) is safe to replace; a real folder that IS the repo is not.
+    if [[ ! -L "$dest" && -d "$dest" && "$(cd "$dest" && pwd -P)" == "$(cd "$REPO_ROOT" && pwd -P)" ]]; then
         echo "    Target ($rt) -> $dest is the source repository; skipping to prevent self-deletion."
         continue
     fi
 
-    if [[ -e "$dest" || -L "$dest" ]]; then
+    if [[ -L "$dest" ]]; then
+        rm "$dest"                       # the link only, never what it points to
+    elif [[ -e "$dest" ]]; then
         echo "    Removing existing target at $dest"
         rm -rf "$dest"
     fi
@@ -97,14 +90,27 @@ for rt in "${RUNTIMES[@]}"; do
         echo "    Copying ($rt) -> $dest"
         mkdir -p "$dest"
         for item in "$REPO_ROOT"/*; do
-            base="$(basename "$item")"
-            case "$base" in
-                .git|node_modules|.github|dev|skills-lock.json) continue ;;
+            case "$(basename "$item")" in
+                node_modules|dev|bin|docs|skills-lock.json) continue ;;
                 *) cp -R "$item" "$dest/" ;;
             esac
         done
+        find "$dest" -name __pycache__ -type d -prune -exec rm -rf {} +
     fi
+    installed=$((installed + 1))
+    last_dest="$dest"
 done
 
 echo ""
-echo "[SUCCESS] Successfully installed ultimate-diagram to ${#RUNTIMES[@]} target(s)."
+echo "[SUCCESS] Installed ultimate-diagram to $installed target(s)."
+echo ""
+
+# Check the installed copy can run: its files, Python 3.9+, a browser, Node.js.
+for py in python3 python; do
+    # Probe first: skips stubs (e.g. the Windows Store alias) and interpreters older than 3.9.
+    if "$py" -c 'import sys; sys.exit(sys.version_info < (3, 9))' >/dev/null 2>&1; then
+        exec "$py" "$last_dest/scripts/check_env.py"
+    fi
+done
+echo "[MISSING] Python 3.9+ is not on PATH; the skill's scripts need it."
+exit 1

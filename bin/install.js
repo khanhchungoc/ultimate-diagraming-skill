@@ -3,6 +3,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
+import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -165,7 +166,7 @@ function copySkillDirectory(src, dest) {
   fs.mkdirSync(dest, { recursive: true });
   const entries = fs.readdirSync(src, { withFileTypes: true });
 
-  const ignored = new Set(['.git', 'node_modules', '.github', 'agent', '.agents', '.claude', 'dev', 'bin', 'docs', 'skills-lock.json']);
+  const ignored = new Set(['.git', 'node_modules', '.github', 'agent', '.agents', '.claude', 'dev', 'bin', 'docs', 'skills-lock.json', '__pycache__', '.gitignore']);
 
   for (const entry of entries) {
     if (ignored.has(entry.name)) continue;
@@ -180,21 +181,21 @@ function copySkillDirectory(src, dest) {
   }
 }
 
+function lexists(p) {
+  // existsSync follows links, so a link whose source repo moved reads as absent and blocks the new install.
+  try { fs.lstatSync(p); return true; } catch { return false; }
+}
+
 function safeRemove(dest) {
-  try {
-    const stat = fs.lstatSync(dest);
-    if (stat.isSymbolicLink() || (process.platform === 'win32' && stat.isDirectory())) {
-      fs.rmSync(dest, { recursive: true, force: true });
-    } else {
-      fs.rmSync(dest, { recursive: true, force: true });
-    }
-  } catch {
-    if (fs.existsSync(dest)) {
-      fs.rmSync(dest, { recursive: true, force: true });
-    }
+  const stat = fs.lstatSync(dest);
+  if (stat.isSymbolicLink()) {
+    fs.unlinkSync(dest); // removes the link or junction only, never the source repo it points to
+  } else {
+    fs.rmSync(dest, { recursive: true, force: true });
   }
 }
 
+let installedDest = null;
 for (const rt of runtimesToInstall) {
   const dest = destinations[scope][rt];
   const canonicalDest = path.resolve(dest).toLowerCase();
@@ -212,9 +213,10 @@ for (const rt of runtimesToInstall) {
     fs.mkdirSync(parentDir, { recursive: true });
   }
 
-  if (fs.existsSync(dest)) {
+  if (lexists(dest)) {
     safeRemove(dest);
   }
+  installedDest = dest;
 
   if (mode === 'symlink') {
     const symlinkType = process.platform === 'win32' ? 'junction' : 'dir';
@@ -256,9 +258,31 @@ const topBorder    = `╭${'─'.repeat(boxWidth - 2)}╮`;
 const bottomBorder = `╰${'─'.repeat(boxWidth - 2)}╯`;
 const emptyLine    = `│${' '.repeat(boxWidth - 2)}│`;
 
+// Verify the installed copy can run: its files, Python 3.9+, a browser, Node.js.
+function runCheck(skillDir) {
+  const script = path.join(skillDir, 'scripts', 'check_env.py');
+  const candidates = process.platform === 'win32'
+    ? [['python', []], ['py', ['-3']], ['python3', []]]
+    : [['python3', []], ['python', []]];
+  for (const [cmd, pre] of candidates) {
+    const res = spawnSync(cmd, [...pre, script], { encoding: 'utf8' });
+    if (res.error || res.status === 9009) continue; // not on PATH (9009: Windows store alias stub)
+    const out = (res.stdout || '') + (res.stderr || '');
+    if (/Python was not found/i.test(out)) continue;
+    console.log(out.trimEnd().split('\n').map((l) => `    ${l}`).join('\n'));
+    return res.status === 0;
+  }
+  console.log(`    ${c.red}[MISSING] Python 3.9+ is not on PATH; the skill's scripts need it.${c.reset}`);
+  return false;
+}
+
+console.log(`\n${c.cyan} ✓  CHECKING ENVIRONMENT${c.reset}`);
+const ready = runCheck(installedDest || REPO_ROOT);
+
 console.log('');
 console.log(`${c.border}${topBorder}${c.reset}`);
-console.log(`${c.border}${boxLine(`${c.green}✨ Installation Successful!${c.reset}`)}${c.reset}`);
+console.log(`${c.border}${boxLine(ready ? `${c.green}✨ Installation Successful!${c.reset}`
+  : `${c.yellow}⚠ Installed, but install what is marked [MISSING] above${c.reset}`)}${c.reset}`);
 console.log(`${c.border}${emptyLine}${c.reset}`);
 console.log(`${c.border}${boxLine(`${c.bold}${c.white}How to use:${c.reset}`)}${c.reset}`);
 console.log(`${c.border}${boxLine(`  Ask your AI assistant: "create a flowchart for..."${c.reset}`)}${c.reset}`);

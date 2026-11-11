@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import os
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -43,17 +44,33 @@ def normalize_runtime(runtime: str) -> str:
         return "claude"
     return r
 
+COPY_IGNORED = (".git", "node_modules", ".github", "agent", ".agents", ".claude", "dev", "bin", "docs",
+                "skills-lock.json", "__pycache__", ".gitignore")
+
+
+def is_link(target: Path) -> bool:
+    """Symlink or Windows junction. Path.is_junction() needs Python 3.12, so read the reparse flag."""
+    if target.is_symlink():
+        return True
+    if sys.platform == "win32":
+        try:
+            return bool(os.lstat(target).st_file_attributes & 0x400)  # FILE_ATTRIBUTE_REPARSE_POINT
+        except OSError:
+            return False
+    return False
+
+
 def remove_existing(target: Path) -> None:
-    if target.is_symlink() or (sys.platform == "win32" and target.is_junction()):
-        target.unlink()
+    if is_link(target):
+        # Removes only the link or junction, never the source repo it points to.
+        os.rmdir(target) if sys.platform == "win32" and not target.is_symlink() else target.unlink()
     elif target.is_dir():
         shutil.rmtree(target)
     elif target.exists():
         target.unlink()
 
 def copy_skill(source: Path, target: Path) -> None:
-    ignored = shutil.ignore_patterns(".git", "node_modules", ".github", "dev", "skills-lock.json", "__pycache__")
-    shutil.copytree(source, target, ignore=ignored)
+    shutil.copytree(source, target, ignore=shutil.ignore_patterns(*COPY_IGNORED))
 
 def create_link(source: Path, target: Path) -> None:
     try:
@@ -125,15 +142,17 @@ def main() -> int:
 
     canonical_repo = repo_root.resolve()
     installed = 0
+    last_dest = repo_root
     for rt, dest in targets.items():
-        canonical_dest = dest.resolve() if dest.exists() else dest
-        if canonical_dest == canonical_repo:
+        # A link pointing at the repo is safe to replace (only the link is removed); a real folder
+        # that IS the repo is not.
+        if not is_link(dest) and dest.resolve() == canonical_repo:
             print(f"    Target ({rt}) -> {dest} is the source repository; skipping to prevent self-deletion.")
             continue
 
         print(f"==> Processing [{rt}] -> {dest}")
         dest.parent.mkdir(parents=True, exist_ok=True)
-        if dest.exists() or dest.is_symlink() or (sys.platform == "win32" and dest.is_junction()):
+        if dest.exists() or is_link(dest):
             print(f"    Existing installation found at {dest}. Replacing...")
             remove_existing(dest)
 
@@ -144,10 +163,14 @@ def main() -> int:
             copy_skill(repo_root, dest)
             print(f"    [+] Copied to {dest}")
         installed += 1
+        last_dest = dest
 
     print()
-    print(f"[SUCCESS] Successfully installed ultimate-diagram to {installed} target(s).")
-    return 0
+    print(f"[SUCCESS] Installed ultimate-diagram to {installed} target(s).")
+    print(flush=True)
+    # Check the installed copy itself, so a copy that missed files is caught.
+    check = subprocess.run([sys.executable, str(last_dest / "scripts" / "check_env.py")])
+    return check.returncode
 
 if __name__ == "__main__":
     sys.exit(main())

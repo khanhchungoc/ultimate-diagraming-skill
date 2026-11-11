@@ -30,7 +30,10 @@
     "bin",
     "assets",
     "references",
-    "scripts",
+    "scripts/*.py",
+    "scripts/*.mjs",
+    "scripts/*.sh",
+    "scripts/*.ps1",
     "SKILL.md",
     "README.md"
   ]
