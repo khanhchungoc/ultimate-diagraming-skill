@@ -1196,8 +1196,13 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         // column), the arrow whose vertical run is longer goes on the inside of the turn, so the shorter one,
         // turning first, never has its horizontal run cut by the longer one's vertical.
         const farOrder = (far1, far2, cx, pts1, a1, b1, pts2, a2, b2) => {
-          if (Math.abs(far1 - far2) >= 1) return far1 - far2;
           const run1 = Math.abs(pts1[b1][1] - pts1[a1][1]), run2 = Math.abs(pts2[b2][1] - pts2[a2][1]);
+          // Both heading the same way with different-depth turns: the deeper run goes on the inside, so the
+          // shallower one's horizontal never crosses it (ordering by target x alone made them cross)
+          if (Math.abs(run1 - run2) >= 1 && (far1 > cx) === (far2 > cx) && pts1.length === 3 && pts2.length === 3) {
+            return far1 > cx ? run2 - run1 : run1 - run2;
+          }
+          if (Math.abs(far1 - far2) >= 1) return far1 - far2;
           return far1 > cx ? run2 - run1 : run1 - run2;
         };
         Object.keys(rects).forEach(nid => {

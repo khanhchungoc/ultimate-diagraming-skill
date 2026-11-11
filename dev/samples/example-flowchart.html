@@ -550,6 +550,12 @@
       font: inherit; font-size: 13px; color: var(--text, inherit); cursor: pointer;
     }
     .export-menu button:hover, .export-menu button:focus-visible { background: var(--bg-hover); outline: none; }
+    .export-menu button[hidden] { display: none; }
+    .export-menu-label {
+      padding: 6px 10px 2px; font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase;
+      color: var(--text-muted, #64748b); user-select: none;
+    }
+    .export-menu-label:not(:first-child) { margin-top: 4px; border-top: 1px solid var(--border, #cbd5e1); padding-top: 8px; }
     /* Swimlanes Container */
     #swimlanes-container {
       position: relative;
@@ -1250,12 +1256,15 @@
       <button id="btn-theme" class="btn btn-icon" title="Switch to dark mode" aria-label="Switch to dark mode"></button>
       <button id="btn-help" class="btn btn-icon" title="Keyboard shortcuts" aria-label="Keyboard shortcuts" aria-expanded="false" aria-controls="help-drawer">?</button>
       <div class="export-wrap">
-        <button id="btn-export" class="btn" title="Export the diagram as an image" aria-label="Export" aria-haspopup="menu" aria-expanded="false">
+        <button id="btn-export" class="btn" title="Download or copy the diagram as an image" aria-label="Export" aria-haspopup="menu" aria-expanded="false">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg><span class="btn-label">Export</span>
         </button>
         <div id="export-menu" class="export-menu" role="menu" hidden>
+          <div class="export-menu-label" role="presentation">Download</div>
           <button type="button" role="menuitem" data-export="svg">SVG image</button>
           <button type="button" role="menuitem" data-export="png">PNG image (2x)</button>
+          <div class="export-menu-label" role="presentation" data-copy-label>Copy</div>
+          <button type="button" role="menuitem" data-copy="png">PNG image (2x)</button>
         </div>
       </div>
       <button id="btn-save" class="btn btn-primary" title="Save directly into this HTML file (Ctrl+S)" aria-label="Save">
@@ -1382,7 +1391,7 @@
       <li><kbd>Drag Lane Name</kbd> : Drag a lane's name pill to reorder swimlanes (a blue line shows where it will land); double-click the name to rename</li>
       <li><kbd>Double Click</kbd> : Edit step text, lane names, or edge conditions</li>
       <li><kbd>Ctrl</kbd> + <kbd>S</kbd> : Save changes directly into HTML</li>
-      <li><b>Export</b> (top right): download the whole diagram as an SVG or a 2x PNG</li>
+      <li><b>Export</b> (top right): download the whole diagram as an SVG or a 2x PNG, or copy it to the clipboard as a 2x PNG</li>
       <li><kbd>Ctrl</kbd> + <kbd>Z</kbd> / <kbd>Ctrl</kbd> + <kbd>Y</kbd> : Undo / redo the last edit (also <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Z</kbd>)</li>
       <li><kbd>?present</kbd> in the URL : Hide editing controls for a clean read-only view</li>
       <li><kbd>Drag Canvas</kbd> : Pan viewport</li>
@@ -2067,30 +2076,69 @@
         setTimeout(() => URL.revokeObjectURL(url), 2000);
       }
 
-      function exportDiagram(format) {
-        try {
-          const { svg, w, h } = buildExportSvg();
-          const svgText = '<?xml version="1.0" encoding="UTF-8"?>\n' + svg;
-          const svgBlob = new Blob([svgText], { type: 'image/svg+xml;charset=utf-8' });
-          if (format === 'svg') { downloadBlob(svgBlob, 'svg'); return; }
-          const k = Math.min(2, 16000 / Math.max(w, h), Math.sqrt(100e6 / (w * h)));
+      function svgDocument(svg) { return '<?xml version="1.0" encoding="UTF-8"?>\n' + svg; }
+
+      // Rasterise the export SVG at up to 2x. The SVG is built synchronously (styles are read now);
+      // only the image decode and canvas encode are async. Rejects if the image cannot be produced.
+      function exportPngBlob() {
+        const { svg, w, h } = buildExportSvg();
+        const k = Math.min(2, 16000 / Math.max(w, h), Math.sqrt(100e6 / (w * h)));
+        return new Promise((resolve, reject) => {
           const img = new Image();
-          // A data: URL keeps the canvas untainted; a blob: URL of a foreignObject SVG taints it in Chromium
-          const url = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgText);
           img.onload = () => {
             const canvas = document.createElement('canvas');
             canvas.width = Math.round(w * k); canvas.height = Math.round(h * k);
             const ctx = canvas.getContext('2d');
             ctx.scale(k, k);
             ctx.drawImage(img, 0, 0, w, h);
-            canvas.toBlob(b => b ? downloadBlob(b, 'png') : alert('PNG export failed: image too large'), 'image/png');
+            canvas.toBlob(b => b ? resolve(b) : reject(new Error('image too large')), 'image/png');
           };
-          img.onerror = () => alert('PNG export failed');
-          img.src = url;
+          img.onerror = () => reject(new Error('the diagram could not be drawn as an image'));
+          // A data: URL keeps the canvas untainted; a blob: URL of a foreignObject SVG taints it in Chromium
+          img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgDocument(svg));
+        });
+      }
+
+      function exportDiagram(format) {
+        try {
+          if (format === 'svg') {
+            downloadBlob(new Blob([svgDocument(buildExportSvg().svg)], { type: 'image/svg+xml;charset=utf-8' }), 'svg');
+            return;
+          }
+          exportPngBlob().then(b => downloadBlob(b, 'png'), err => alert('PNG export failed: ' + err.message));
         } catch (err) {
           alert('Export failed: ' + err.message);
         }
       }
+
+      // --- COPY TO CLIPBOARD ---
+      const canCopyPng = !!(navigator.clipboard && navigator.clipboard.write) && typeof ClipboardItem !== 'undefined';
+      let copyFlashTimer = null;
+
+      function flashCopied(what) {
+        saveStatus.textContent = 'Copied as ' + what;
+        saveStatus.className = 'badge badge-status saved';
+        clearTimeout(copyFlashTimer);
+        copyFlashTimer = setTimeout(() => setStatusBadge(hasUnsavedChanges), 1500);
+      }
+
+      // Must be called straight from the click: the clipboard write has to start inside the user gesture,
+      // so the PNG is handed to ClipboardItem as a Promise rather than awaited first (Safari, Chromium).
+      function copyDiagram(format) {
+        let job;
+        try {
+          if (format !== 'png') throw new Error('unknown format ' + format);
+          if (!canCopyPng) throw new Error('this browser cannot copy images');
+          job = navigator.clipboard.write([new ClipboardItem({ 'image/png': exportPngBlob() })]);
+        } catch (err) {
+          job = Promise.reject(err);
+        }
+        job.then(() => flashCopied(format.toUpperCase()),
+                 err => alert('Copy failed: ' + (err && err.message || err) + '\nUse Export › Download instead.'));
+      }
+      document.querySelectorAll('[data-copy="png"]').forEach(el => { el.hidden = !canCopyPng; });
+      // Drop the "Copy" heading when this browser has no copy items to offer
+      document.querySelectorAll('[data-copy-label]').forEach(el => { el.hidden = !document.querySelector('[data-copy]:not([hidden])'); });
 
       function setExportOpen(open) {
         exportMenu.hidden = !open;
@@ -2098,10 +2146,11 @@
       }
       btnExport.addEventListener('click', (e) => { e.stopPropagation(); setExportOpen(exportMenu.hidden); });
       exportMenu.addEventListener('click', (e) => {
-        const b = e.target.closest('[data-export]');
+        const b = e.target.closest('[data-export], [data-copy]');
         if (!b) return;
         setExportOpen(false);
-        exportDiagram(b.dataset.export);
+        if (b.dataset.copy) copyDiagram(b.dataset.copy);
+        else exportDiagram(b.dataset.export);
       });
       document.addEventListener('click', () => setExportOpen(false));
       window.addEventListener('keydown', (e) => { if (e.key === 'Escape') setExportOpen(false); });
@@ -3064,7 +3113,8 @@
               while (j < sorted.length && finalXs[sorted[j]] - finalXs[sorted[i]] < SNAP) j++;
               const group = sorted.slice(i, j);
               const lanesIn = new Set(group.map(id => nodeMap[id].laneId));
-              if (group.length > 1 && lanesIn.size > 1) {
+              // Same-lane nodes this close can only be stacked sub-rows (a row would overlap), so they align too
+              if (group.length > 1 && (lanesIn.size > 1 || group.some(id => finalXs[id] !== finalXs[group[0]]))) {
                 const target = Math.max(...group.map(id => finalXs[id]));
                 group.forEach(id => { if (finalXs[id] < target - 0.01) { floor[id] = target; changed = true; } });
               }
@@ -4318,8 +4368,13 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         // column), the arrow whose vertical run is longer goes on the inside of the turn, so the shorter one,
         // turning first, never has its horizontal run cut by the longer one's vertical.
         const farOrder = (far1, far2, cx, pts1, a1, b1, pts2, a2, b2) => {
-          if (Math.abs(far1 - far2) >= 1) return far1 - far2;
           const run1 = Math.abs(pts1[b1][1] - pts1[a1][1]), run2 = Math.abs(pts2[b2][1] - pts2[a2][1]);
+          // Both heading the same way with different-depth turns: the deeper run goes on the inside, so the
+          // shallower one's horizontal never crosses it (ordering by target x alone made them cross)
+          if (Math.abs(run1 - run2) >= 1 && (far1 > cx) === (far2 > cx) && pts1.length === 3 && pts2.length === 3) {
+            return far1 > cx ? run2 - run1 : run1 - run2;
+          }
+          if (Math.abs(far1 - far2) >= 1) return far1 - far2;
           return far1 > cx ? run2 - run1 : run1 - run2;
         };
         Object.keys(rects).forEach(nid => {

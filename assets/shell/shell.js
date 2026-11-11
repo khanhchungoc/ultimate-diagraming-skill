@@ -492,30 +492,69 @@
         setTimeout(() => URL.revokeObjectURL(url), 2000);
       }
 
-      function exportDiagram(format) {
-        try {
-          const { svg, w, h } = buildExportSvg();
-          const svgText = '<?xml version="1.0" encoding="UTF-8"?>\n' + svg;
-          const svgBlob = new Blob([svgText], { type: 'image/svg+xml;charset=utf-8' });
-          if (format === 'svg') { downloadBlob(svgBlob, 'svg'); return; }
-          const k = Math.min(2, 16000 / Math.max(w, h), Math.sqrt(100e6 / (w * h)));
+      function svgDocument(svg) { return '<?xml version="1.0" encoding="UTF-8"?>\n' + svg; }
+
+      // Rasterise the export SVG at up to 2x. The SVG is built synchronously (styles are read now);
+      // only the image decode and canvas encode are async. Rejects if the image cannot be produced.
+      function exportPngBlob() {
+        const { svg, w, h } = buildExportSvg();
+        const k = Math.min(2, 16000 / Math.max(w, h), Math.sqrt(100e6 / (w * h)));
+        return new Promise((resolve, reject) => {
           const img = new Image();
-          // A data: URL keeps the canvas untainted; a blob: URL of a foreignObject SVG taints it in Chromium
-          const url = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgText);
           img.onload = () => {
             const canvas = document.createElement('canvas');
             canvas.width = Math.round(w * k); canvas.height = Math.round(h * k);
             const ctx = canvas.getContext('2d');
             ctx.scale(k, k);
             ctx.drawImage(img, 0, 0, w, h);
-            canvas.toBlob(b => b ? downloadBlob(b, 'png') : alert('PNG export failed: image too large'), 'image/png');
+            canvas.toBlob(b => b ? resolve(b) : reject(new Error('image too large')), 'image/png');
           };
-          img.onerror = () => alert('PNG export failed');
-          img.src = url;
+          img.onerror = () => reject(new Error('the diagram could not be drawn as an image'));
+          // A data: URL keeps the canvas untainted; a blob: URL of a foreignObject SVG taints it in Chromium
+          img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgDocument(svg));
+        });
+      }
+
+      function exportDiagram(format) {
+        try {
+          if (format === 'svg') {
+            downloadBlob(new Blob([svgDocument(buildExportSvg().svg)], { type: 'image/svg+xml;charset=utf-8' }), 'svg');
+            return;
+          }
+          exportPngBlob().then(b => downloadBlob(b, 'png'), err => alert('PNG export failed: ' + err.message));
         } catch (err) {
           alert('Export failed: ' + err.message);
         }
       }
+
+      // --- COPY TO CLIPBOARD ---
+      const canCopyPng = !!(navigator.clipboard && navigator.clipboard.write) && typeof ClipboardItem !== 'undefined';
+      let copyFlashTimer = null;
+
+      function flashCopied(what) {
+        saveStatus.textContent = 'Copied as ' + what;
+        saveStatus.className = 'badge badge-status saved';
+        clearTimeout(copyFlashTimer);
+        copyFlashTimer = setTimeout(() => setStatusBadge(hasUnsavedChanges), 1500);
+      }
+
+      // Must be called straight from the click: the clipboard write has to start inside the user gesture,
+      // so the PNG is handed to ClipboardItem as a Promise rather than awaited first (Safari, Chromium).
+      function copyDiagram(format) {
+        let job;
+        try {
+          if (format !== 'png') throw new Error('unknown format ' + format);
+          if (!canCopyPng) throw new Error('this browser cannot copy images');
+          job = navigator.clipboard.write([new ClipboardItem({ 'image/png': exportPngBlob() })]);
+        } catch (err) {
+          job = Promise.reject(err);
+        }
+        job.then(() => flashCopied(format.toUpperCase()),
+                 err => alert('Copy failed: ' + (err && err.message || err) + '\nUse Export › Download instead.'));
+      }
+      document.querySelectorAll('[data-copy="png"]').forEach(el => { el.hidden = !canCopyPng; });
+      // Drop the "Copy" heading when this browser has no copy items to offer
+      document.querySelectorAll('[data-copy-label]').forEach(el => { el.hidden = !document.querySelector('[data-copy]:not([hidden])'); });
 
       function setExportOpen(open) {
         exportMenu.hidden = !open;
@@ -523,10 +562,11 @@
       }
       btnExport.addEventListener('click', (e) => { e.stopPropagation(); setExportOpen(exportMenu.hidden); });
       exportMenu.addEventListener('click', (e) => {
-        const b = e.target.closest('[data-export]');
+        const b = e.target.closest('[data-export], [data-copy]');
         if (!b) return;
         setExportOpen(false);
-        exportDiagram(b.dataset.export);
+        if (b.dataset.copy) copyDiagram(b.dataset.copy);
+        else exportDiagram(b.dataset.export);
       });
       document.addEventListener('click', () => setExportOpen(false));
       window.addEventListener('keydown', (e) => { if (e.key === 'Escape') setExportOpen(false); });

@@ -727,7 +727,8 @@
               while (j < sorted.length && finalXs[sorted[j]] - finalXs[sorted[i]] < SNAP) j++;
               const group = sorted.slice(i, j);
               const lanesIn = new Set(group.map(id => nodeMap[id].laneId));
-              if (group.length > 1 && lanesIn.size > 1) {
+              // Same-lane nodes this close can only be stacked sub-rows (a row would overlap), so they align too
+              if (group.length > 1 && (lanesIn.size > 1 || group.some(id => finalXs[id] !== finalXs[group[0]]))) {
                 const target = Math.max(...group.map(id => finalXs[id]));
                 group.forEach(id => { if (finalXs[id] < target - 0.01) { floor[id] = target; changed = true; } });
               }

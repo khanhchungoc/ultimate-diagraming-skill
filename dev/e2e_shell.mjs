@@ -378,6 +378,34 @@ try {
   t.check('toggling back to Horizontal restores the left-to-right layout exactly', back === refLaid && !(await t.ev(`document.getElementById('swimlanes-container').classList.contains('dir-tb')`)),
     `got ${back.slice(0, 120)}...`);
 
+  // 9b. Export › Copy › PNG puts a PNG of the diagram on the clipboard and flashes the badge
+  await t.open(laid);
+  await t.send('Browser.grantPermissions', { permissions: ['clipboardReadWrite', 'clipboardSanitizedWrite'] });
+  await t.send('Emulation.setFocusEmulationEnabled', { enabled: true });   // headless has no focused window
+  const badgeBefore = await t.ev(`document.getElementById('save-status').textContent`);
+  const copyVisible = await t.ev(`!document.querySelector('[data-copy="png"]').hidden && !document.querySelector('[data-copy-label]').hidden`);
+  // userGesture: the clipboard write must start inside a user activation, as a real click gives
+  await t.send('Runtime.evaluate', { expression: `document.querySelector('[data-copy="png"]').click()`, userGesture: true });
+  let copied = null;
+  for (let i = 0; i < 40 && !copied; i++) {
+    await sleep(100);
+    if (/copied/i.test(await t.ev(`document.getElementById('save-status').textContent`))) {
+      copied = await t.ev(`navigator.clipboard.read().then(async items => {
+        const it = items.find(x => x.types.includes('image/png'));
+        if (!it) return { types: items.flatMap(x => x.types) };
+        const b = await it.getType('image/png'), head = new Uint8Array(await b.slice(0, 8).arrayBuffer());
+        const bmp = await createImageBitmap(b);
+        return { size: b.size, png: head[1] === 0x50 && head[2] === 0x4e && head[3] === 0x47, w: bmp.width, h: bmp.height };
+      }, e => ({ error: e.message }))`);
+    }
+  }
+  const badgeCopied = await t.ev(`document.getElementById('save-status').textContent`);
+  await sleep(1700);
+  const badgeAfter = await t.ev(`document.getElementById('save-status').textContent`);
+  t.check('Copy › PNG puts a 2x PNG on the clipboard; the badge says "Copied as PNG" then returns', copyVisible && copied && copied.png && copied.size > 1000
+    && copied.w > 200 && copied.h > 100 && /copied as png/i.test(badgeCopied) && badgeAfter === badgeBefore && t.errors.length === 0,
+    `visible=${copyVisible} clip=${JSON.stringify(copied)} badge=${badgeBefore}->${badgeCopied}->${badgeAfter} errors=${t.errors.join(' | ')}`);
+
   // 10. ?present hides editing chrome
   await t.open(laid, '?present');
   t.check('?present hides Save and toolbar', await t.ev(`document.body.classList.contains('presentation') && getComputedStyle(document.getElementById('btn-save')).display === 'none' && getComputedStyle(document.querySelector('.toolbar-center')).display === 'none'`));
