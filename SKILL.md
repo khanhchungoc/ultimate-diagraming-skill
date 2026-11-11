@@ -9,7 +9,7 @@ Produce stakeholder-ready diagrams as standalone HTML files. In the browser, use
 
 **Paths & Workspace Hygiene:**
 - `<skill-dir>` means the folder containing this `SKILL.md`. Run every script by its full path (`python "<skill-dir>/scripts/layout_engine.py" ...`).
-- **Target Output**: Write ONLY the requested final target HTML file to the user's workspace.
+- **Target Output**: Write ONLY the final target HTML file to the user's workspace (use the user-specified path, or default to `<title-slug>.html` in the workspace root).
 - **Self-Contained HTML**: The generated HTML file is fully self-contained with the JSON embedded inside. An external `.json` file is NOT needed once the `.html` is generated and should not be left in the user's workspace unless the user explicitly requested a `.json` file.
 - **Scratch & Temp Isolation**: All intermediate authoring files, trial JSON payloads, and verification screenshot PNGs MUST be written to an external scratch or system temp directory (e.g. `tempfile.gettempdir()` or host scratch dir). NEVER litter intermediate trial files in the user's repository root.
 
@@ -30,15 +30,11 @@ If the request needs a planned type, say it is not supported yet and do not forc
 
 ---
 
-## Inputs
-
-Expect from the user or an orchestrating agent: the diagram content (actors, steps, decisions; or the equivalent for the type) and a **target path** for the HTML file. Use the path given; do not invent a folder convention.
-
----
-
 ## Procedure: New Diagram
 
-1. **Write the logical JSON directly to a temp/scratch file** using your file-writing tool, following the type reference. Never compute pixel coordinates, and never write custom `.py` wrapper scripts to generate JSON or invoke the CLI. For a flowchart, give **every lane an `icon`** from the type reference's icon table; a lane header without one looks unfinished. The user's requested scope determines the diagram size and granularity; never truncate or omit steps to fit an artificial budget.
+Target output path: use the path specified by the user, or default to `<title-slug>.html` in the workspace root if omitted. Start immediately with Step 1.
+
+1. **Write the logical JSON directly to a temp/scratch file** using your file-writing tool (`write_file`), following the type reference. Never compute pixel coordinates, and never write custom `.py` wrapper scripts to generate JSON or invoke the CLI. For a flowchart, give **every lane an `icon`** from the type reference's icon table; a lane header without one looks unfinished. The user's requested scope determines the diagram size and granularity; never truncate or omit steps to fit an artificial budget.
 
 2. **Lay out, scaffold, and audit the HTML** (needs Node.js, or Chrome/Chromium as a fallback; `--browser <path>` selects it):
    ```shell
