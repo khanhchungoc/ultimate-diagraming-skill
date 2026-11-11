@@ -77,13 +77,13 @@ try {
     && (await t.ev(allPos)) === posBeforeArrow);
   await t.ev(t.key('z', { ctrlKey: true }));
 
-  // 2b4. The dock's Auto toggle: off, a drag inside the lane stays where it is dropped; turning it on tidies at once
+  // 2b4. The dock's Auto-Tidy switch: off, a drag inside the lane stays where it is dropped; turning it on tidies at once
   const autoBtn = `document.getElementById('btn-auto-layout')`;
-  t.check('Auto layout is on by default (pressed)', (await t.ev(`${autoBtn}.getAttribute('aria-pressed')`)) === 'true');
+  t.check('the Auto-Tidy switch is on by default', (await t.ev(`${autoBtn}.getAttribute('aria-checked')`)) === 'true');
   await t.ev(`${autoBtn}.click()`);
   await t.ev(t.drag(`.flow-node[data-node-id="${dragId}"]`, 160, 0));
   const manual = await t.ev(posOf);
-  t.check('Auto off: a dragged step stays where it is dropped', (await t.ev(`${autoBtn}.getAttribute('aria-pressed')`)) === 'false'
+  t.check('Auto off: a dragged step stays where it is dropped', (await t.ev(`${autoBtn}.getAttribute('aria-checked')`)) === 'false'
     && manual[0] !== before2[0], `${JSON.stringify(before2)} -> ${JSON.stringify(manual)}`);
   await t.ev(`${autoBtn}.click()`);
   t.check('turning Auto back on re-lays out the diagram', JSON.stringify(await t.ev(posOf)) === JSON.stringify(before2) && (await t.ev(tidy)));

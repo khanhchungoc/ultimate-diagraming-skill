@@ -30,13 +30,13 @@
       <button id="btn-add-lane" class="btn" title="Add a swimlane" aria-label="Lane">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 12h18"/></svg><span class="btn-label">Lane</span>
       </button>
-      <button id="btn-notes" class="btn" data-dock-group="layout" title="Show all notes" aria-label="Notes" aria-pressed="false">
+      <button id="btn-notes" class="btn" title="Show all notes" aria-label="Notes" aria-pressed="false">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15.5 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8.5z"/><path d="M15 3v5a1 1 0 0 0 1 1h5"/><path d="M7 13h7"/><path d="M7 17h4"/></svg><span class="btn-label">Notes</span><span class="btn-count" hidden></span>
       </button>
       <button id="btn-direction"class="btn" data-dock-group="layout" title="Switch to a top-to-bottom layout" aria-label="Vertical">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v18"/><path d="m7 16 5 5 5-5"/></svg><span class="btn-label">Vertical</span>
       </button>
-      <!-- Auto layout toggle (see AUTO LAYOUT in flowchart.js); the shell places it just before Auto-Tidy -->
-      <button id="btn-auto-layout" class="btn" data-dock-group="layout" title="Auto layout is on: the diagram re-arranges itself after every step edit (click to place steps by hand)" aria-label="Auto layout" aria-pressed="true">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg><span class="btn-label">Auto</span>
+      <!-- Auto-Tidy on/off (see AUTO LAYOUT in flowchart.js), a sliding switch; the shell places it just before Tidy -->
+      <button id="btn-auto-layout" class="btn btn-switch" role="switch" data-dock-group="layout" title="Auto-Tidy is on: the diagram re-arranges itself after every step edit (click to place steps by hand)" aria-label="Auto-Tidy" aria-checked="true">
+        <span class="switch-track" aria-hidden="true"><span class="switch-knob"></span></span><span class="btn-label">Auto-Tidy</span>
       </button>

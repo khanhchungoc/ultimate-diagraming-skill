@@ -2,7 +2,7 @@
 
 Use for messages exchanged between participants over time: API calls, system integrations, user-to-system interactions. Not for process flows with decisions and ownership (use `flowchart`). Positions, spacing, activation bars and frame boxes are computed by the tooling; author only the logical model.
 
-**Example to copy (read it next):** [example-sequence.json](../examples/example-sequence.json).
+**Example to copy:** `references/examples/example-sequence.json`, read alongside this file as SKILL.md says.
 
 ## Schema
 

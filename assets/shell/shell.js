@@ -634,7 +634,7 @@
 
       // --- DOCK: layout group, popovers, delete ---
       // Two groups split by a separator: editing controls (type buttons, Delete) | layout controls
-      // (type buttons marked data-dock-group="layout", then Auto-Tidy).
+      // (type buttons marked data-dock-group="layout", then Tidy).
       document.querySelectorAll('.toolbar-center [data-dock-group="layout"]').forEach(el => btnAutoTidy.before(el));
 
       // A [data-dock-pop] wrapper opens its .dock-pop bubble on hover (mouse/pen), or on click/tap/keyboard.

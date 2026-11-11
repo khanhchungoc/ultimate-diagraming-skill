@@ -1,0 +1,123 @@
+# Plan: On-page connectors
+
+A connector replaces one long arrow with a pair of small lettered circles: the flow runs **into** circle `A` next to its source, and continues **out of** circle `A` next to its target.
+
+```
+ … → [Validate Claim] → (A)                 (A) → [Pay Invoice] → …
+```
+
+It is the classic flowchart remedy for an arrow that would cross half the diagram, typically a loop back to an early step or a jump across many lanes. Split out of [plan-classic-shapes.md](plan-classic-shapes.md) because, unlike the other shapes, it needs engine work and its own page behaviour.
+
+**Status:** planned, not started. Ship [plan-classic-shapes.md](plan-classic-shapes.md) first; build this when a real diagram needs it. Our router already draws long arrows cleanly and the page pans and zooms, so connectors are an improvement for large diagrams, not a gap.
+
+## Goals
+
+- Splitting an arrow into a connector pair never moves any step: the layout is the one the whole arrow would get.
+- A reader can always find the other end: hover shows it, click jumps to it.
+- Creating, renaming and removing a pair is one action and one undo step; the user never wires two circles by hand.
+- Agents use connectors only when the source does.
+
+## Non-goals
+
+- **Off-page connectors** (pentagon; a link to another diagram or file). Possible later, as a connector with an `href`.
+- **Automatic splitting** (the page or the engine deciding an arrow is too long and splitting it). Possible later as a suggestion; not now.
+- **Wrapping a long flow into rows** (a "snake" layout joined by connectors). That is a layout mode, not a shape.
+
+## Data
+
+A connector is a node, and the letter is its label; two connectors with the same letter are a pair:
+
+```json
+"nodes": [
+  { "id": "n7",  "laneId": "lane-officer", "type": "connector", "label": "A" },
+  { "id": "n12", "laneId": "lane-finance", "type": "connector", "label": "A" }
+],
+"edges": [
+  { "id": "e7",  "from": "n6",  "to": "n7",  "label": "No", "feedback": true },
+  { "id": "e12", "from": "n12", "to": "n2",  "label": "" }
+]
+```
+
+| Rule | Why |
+|---|---|
+| An **in-connector** has arrows in and none out; an **out-connector** has arrows out and none in | It is one end of one arrow |
+| A letter has **exactly one out-connector** and **one or more in-connectors** | Several flows may merge at one continuation (classic practice); one entry continuing in two places would be a hidden fork |
+| The label is the letter | The classic notation; no new field |
+| The arrow's own label (`No`) and `feedback` flag stay on the arrow **into** the in-connector | The condition belongs where the branch leaves its decision; `feedback` marks the whole split arrow as a loop-back |
+
+Letters: `A` to `Z`, skipping `I` and `O` (read as 1 and 0), then `AA`, `AB`, …
+
+## Layout: lay out the whole arrow, then place the circles
+
+Treating connectors as ordinary nodes breaks the layout two ways:
+
+1. **The continuation restarts.** The out-connector has no incoming arrow, so the engine ranks it as a new start: everything after it jumps back to the first column.
+2. **It costs columns.** Even with a hidden edge between the pair, the two circles take a rank each: one split arrow adds two columns, and the diagram grows exactly where it was meant to get tidier.
+
+So `layoutDiagram` (engine.js) handles connectors in three steps:
+
+1. **Collapse.** For every in-connector `C_in` with letter `L`, and the out-connector `C_out` of `L`: replace `src → C_in` and `C_out → tgt` with one virtual edge `src → tgt` carrying the in-arrow's `label` and `feedback`. Remove the connectors. A virtual loop-back is then detected as a back edge like any other, so a split loop does not force a cycle into the ranking.
+2. **Lay out** the collapsed diagram exactly as today. Every step lands where it would with the whole arrow: this is the invariant the tests check.
+3. **Place the circles as satellites** next to the step they attach to (`C_in` beside `src`, `C_out` beside `tgt`, each in that step's lane), in flow terms like every other position:
+   - Candidates: the side facing the other end first (for `C_in` of a forward arrow, the source's exit side along the flow), then the two sides across the flow, then the remaining side; at a stub distance that leaves room for the arrow's label if it has one.
+   - First candidate that keeps `NOTE_GAP`-style clearance from every step and every other satellite wins; inside the lane's bounds.
+   - Fallback when nothing is clear (a tight column, `TIGHT_STEP`): grow that one column step by the circle and its stubs (the engine already widens steps for labels via `labelGap`; a satellite adds to it). This is the only case where a connector moves anything.
+
+Satellite size: a 32px circle (smaller than the 40px terminal dot: it must fit in the 56px gap between normal columns, with stubs).
+
+### What else changes because of it
+
+| Where | Change |
+|---|---|
+| flowchart.js sizes | `nodeScreenH`, `crossSize`, `flowSize`, `placeNodeEl`: a connector is a 32px box at its own x/y, not a slot with an offset (`dotOffset` is for the 40px terminal dot) |
+| Router | Draws the short stubs like any arrow; nothing connector-specific beyond the circle being a dot for `5d`-style end snapping (centred, like the terminal dot) |
+| `FlowchartAudit` (layout_engine.py) | `node_w`/`node_h` for connectors are 32, or the overlap check flags satellites against the gap they sit in; the audit's own routing treats stubs as ordinary edges |
+| Lane sizing | Satellites stay inside the lane's existing bounds (step 3), so lane heights do not change |
+| Goldens | Unchanged for every existing fixture (no connectors). New fixtures below |
+
+## Page behaviour
+
+### Creating a pair: split an arrow
+
+Connectors are made from an arrow, never placed alone: a lone connector is an error state the moment it lands.
+
+- **Selected arrow → "Split" chip** at its midpoint (next to the label or `+`): replaces the arrow with an `A` pair (next free letter), keeping its label and `feedback` on the in-side. One undo step. With Auto-Tidy on, the layout runs and nothing moves but the new circles.
+- **Merging into an existing letter** (a second source continuing at the same out-connector): see open question 2.
+- No Shapes-menu tile (see open question 1).
+
+### Finding the other end
+
+- **Hover** a connector: every connector with its letter gets the selection outline, and a faint dotted guide line joins each in-connector to the out-connector. Hover-only, never exported.
+- **Click** a connector: pan (keeping the zoom) so its partner is centred, with a short pulse on it. Works in `?present` too: there, it is the main reason connectors are readable. The plugin shares the shell's `panX`/`panY`/`updateTransform`, so no shell change.
+- **Accessible name**: `aria-label="Connector A, continues at Pay Invoice"` / `"Connector A, from Validate Claim"`.
+
+### Renaming and removing
+
+- **Double-click** a connector to change its letter: every connector with the old letter changes with it (a pair is renamed, never split by a rename). A letter already in use is refused.
+- **Delete** a connector = **join**: put the whole arrow back (`src → tgt`, label and `feedback` restored) and remove the circles. For a merge (several in-connectors), deleting one in-connector joins only that source; deleting the out-connector joins every source.
+- **Notes:** no badge or `+` chip on connectors (a connector is not a step); notes are fitted around them like any node.
+- **Drop onto an arrow** (`canInsert`): never a connector.
+- **Shape picker** ([plan-classic-shapes.md](plan-classic-shapes.md), open question 1): connectors excluded.
+
+### Look
+
+Navy like the end node (`--end-bg`, `--end-text`), the letter bold and centred: matching pairs read as a set. The selected/hover outline uses the node accent. Light and dark from the existing tokens.
+
+## Skill and audit
+
+- [flowchart.md](../../references/types/flowchart.md): a rule saying agents use connectors **only when the source shows them** (keep its letters); otherwise draw the arrow and let the router route it. The data rules above go in the schema row.
+- `layout_engine.py` `[WARN]`s: a letter with no out-connector, two out-connectors for one letter, a connector with arrows both in and out, a connector with no arrows, a label that is not a valid letter.
+
+## Implementation steps
+
+1. **Engine**: collapse, lay out, place satellites (with the column-widening fallback). Fixtures: `connector-forward.json` (a long forward arrow across lanes, split), `connector-loop.json` (a `feedback` loop, split), `connector-merge.json` (two in-connectors, one out). For each, a twin with the arrow unsplit: every non-connector node position must be identical between the pair. Freeze goldens.
+2. **Renderer**: connector size and placement, look, partner hover/guide, click-to-pan.
+3. **Editing**: Split chip, rename-as-pair, delete-as-join, exclusions (notes, insert, picker).
+4. **Audit and skill** as above.
+5. **Tests**: a new `dev/e2e_connectors.mjs` (split → two circles, no step moved; hover lights the partner; click pans to it; rename renames both; delete joins and restores label and `feedback`; undo/redo each); then the existing suites (notes, shell, sequence, goldens, examples).
+
+## Open questions
+
+1. **A Shapes-menu tile?** Proposed: none, since a lone connector is invalid and splitting an arrow covers creation. The cost: users who think "I'll add a connector" won't find it in the menu. A tile that, on drop, waits for an arrow to click (like the Note tile waits for a step) would bridge that.
+2. **Merging.** Creating a second in-connector for an existing letter: via the Split chip offering existing letters ("Split into new A / join B"), or by re-attaching an arrow's end onto a connector? The first is easier to discover.
+3. **Tight columns.** Is growing a column the right fallback, or should a connector that does not fit sit across the flow (above/below the step) even when that is further from the arrow's direction?

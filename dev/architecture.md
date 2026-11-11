@@ -17,7 +17,7 @@ assets/
     engine.js               layout engine: pure JS, no DOM; the ONE implementation of the type's layout
     toolbar.html, stage.html, chrome.html, help.html, default.json
 scripts/
-  layout_engine.py          CLI: --layout (assembles the page), --verify (Python audit), --extract; AUDITS registry
+  layout_engine.py          CLI: --layout (assembles the page; --screenshot also renders + prints [DONE]/[NEXT]), --verify, --extract; AUDITS registry
   audit_sequence.py         sequence audit
   engine_runner.py          runs engine.js for --layout: Node.js via run_engine.mjs, else headless Chrome
   run_engine.mjs            Node entry: loads engine.js, reads diagram JSON on stdin, writes laid-out JSON
@@ -49,7 +49,7 @@ Plugins share the shell's scope: `chartData`, `scale`/`panX`/`panY`, `viewport`,
 
 Undo/redo lives in the shell: each `updateStatus(true)` snapshots `chartData` (as JSON) onto the history, and undo swaps `chartData` for the previous snapshot and calls `render()`. A plugin therefore gets undo for free if it calls `updateStatus(true)` exactly once per finished edit (on pointerup, not on every pointermove) and keeps no references into `chartData` across renders.
 
-The sequence plugin always derives positions from its engine. The flowchart has an **auto layout** mode (on by default; the dock's Auto button, remembered in `localStorage`, not saved in the file). While it is on, `relayout()` (engine, render, then `updateStatus(true)`, so the edit and its re-layout are one undo step) runs after every *step* edit: adding, moving or deleting a step, and adding, reordering or deleting a lane. *Arrow* edits (connect, reconnect, delete, label) deliberately do not re-lay out: reordering steps means rewiring several arrows, and re-laying out each intermediate graph would make the diagram jump. The engine reads only structure (arrows, lane membership, lane order), not x/y, so with auto layout on a drag only chooses a lane or an arrow to insert into. With it off, the page behaves as a manual editor (drop where you like, snap guides) and only Auto-Tidy re-lays out.
+The sequence plugin always derives positions from its engine. The flowchart has an **auto layout** mode (on by default; the dock's Auto-Tidy switch, remembered in `localStorage`, not saved in the file). While it is on, `relayout()` (engine, render, then `updateStatus(true)`, so the edit and its re-layout are one undo step) runs after every *step* edit: adding, moving or deleting a step, and adding, reordering or deleting a lane. *Arrow* edits (connect, reconnect, delete, label) deliberately do not re-lay out: reordering steps means rewiring several arrows, and re-laying out each intermediate graph would make the diagram jump. The engine reads only structure (arrows, lane membership, lane order), not x/y, so with auto layout on a drag only chooses a lane or an arrow to insert into. With it off, the page behaves as a manual editor (drop where you like, snap guides) and only the Tidy button re-lays out.
 
 ## One engine per type
 

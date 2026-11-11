@@ -157,13 +157,6 @@
     .dock-pop-trigger > svg:first-child { width: 18px; height: 18px; }
     .toolbar-center .btn:hover,
     .toolbar-zoom .btn:hover { border-color: var(--border-dark); }
-    .dock-label {
-      padding: 0 4px 0 8px;
-      font-size: 0.75rem;
-      font-weight: 600;
-      color: var(--text-soft);
-      letter-spacing: 0.02em;
-    }
     .dock-sep {
       width: 1px;
       align-self: stretch;
@@ -515,7 +508,7 @@
       header { padding: 0 10px; }
       .toolbar-left { min-width: 0; flex: 1 1 auto; }
       .toolbar-right { gap: 6px; flex: none; }
-      .btn-label, .dock-label { display: none; }
+      .btn-label { display: none; }
       #btn-help { display: none; }   /* keyboard shortcuts mean little on a phone; frees room for the title */
       .dock-area { left: 12px; right: 12px; bottom: 12px; grid-template-columns: 1fr; }
       .toolbar-center { grid-column: 1; grid-row: 1; justify-content: space-evenly; }

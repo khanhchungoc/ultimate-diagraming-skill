@@ -225,8 +225,9 @@
           const laneNodes = chartData.nodes.filter(n => n.laneId === lane.id);
           // (lane.height is the lane's size across the flow: its screen width when the diagram runs top-to-bottom)
           const maxNodeBottom = laneNodes.reduce((m, n) => Math.max(m, (n.y || 48) + crossSize(n)), 100);
-          // Past the lowest node: the bottom pad, or the room its loop-backs need (same rule as the engine)
-          const loopRoom = laneLoopRoom(chartData.nodes, chartData.edges, lane.id, id => xById[id] || 0);
+          // Past the lowest node: the bottom pad, or the room its far-side loop-backs need (same rule as the engine;
+          // near-side loops run above the nodes, in room the node positions already leave)
+          const loopRoom = laneLoopRooms(chartData.nodes, chartData.edges, chartData.lanes, lane.id, id => xById[id] || 0).far;
           const computedHeight = Math.max(LE.LANE_MIN, maxNodeBottom + Math.max(LE.BOTTOM_PAD, loopRoom)) // derived from nodes only, so lanes shrink back
             + (index === chartData.lanes.length - 1 ? outerExtra : 0);             // room for outer loop-backs (render)
           lane.height = computedHeight;
@@ -639,6 +640,10 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
             const sx = f.cx, sy = f.y + f.h, ex = t.cx, ey = t.y + t.h;
             const g = Math.max(sy, ey) + 36;
             pts = [[sx, sy], [sx, g], [ex, g], [ex, ey]];
+          } else if (fp === 'top' && tp === 'top') {       // U-turn above both nodes (a near-side loop, see loopSides)
+            const sx = f.cx, sy = f.y, ex = t.cx, ey = t.y;
+            const g = Math.min(sy, ey) - 36;
+            pts = [[sx, sy], [sx, g], [ex, g], [ex, ey]];
           } else {
             return null;
           }
@@ -647,13 +652,16 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           }
           return pts.length - 2; // bends
         };
+        // A same-lane loop-back U-turns on the side its lane reserved for it (the layout's loopSides rule)
+        const loopSide = loopSides(chartData.nodes, chartData.edges, chartData.lanes);
         validEdges.forEach(e => {
           const f = rects[e.from], t = rects[e.to];
           if (!(t.cx < f.cx - 30)) return;
           const dy = t.cy - f.cy;
+          const uTurn = nodeMap[e.from].laneId === nodeMap[e.to].laneId && loopSide(e) === 'near' ? 'top' : 'bottom';
           const legacy = dy > 30 ? { fromPort: 'left', toPort: 'top' }
             : dy < -30 ? { fromPort: 'left', toPort: 'bottom' }
-            : { fromPort: 'bottom', toPort: 'bottom' };
+            : { fromPort: uTurn, toPort: uTurn };
           // A side port is only reused when it is not already an exit/entry for a different role
           const leftExitFree = !inEdges[e.from].some(ie => ie !== e && rects[ie.from].cx < f.cx - 30 && Math.abs(rects[ie.from].cy - f.cy) <= 30);
           const rightEntryFree = !outEdges[e.to].some(o => o !== e && rects[o.to].cx >= t.cx - 30 && Math.abs(rects[o.to].cx - t.cx) >= 30);
@@ -664,7 +672,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
             if (!sameRow) cands.push([dy < 0 ? 'top' : 'bottom', 'right']);
           }
           if (!sameRow && leftExitFree) cands.push(['left', dy < 0 ? 'bottom' : 'top']);
-          cands.push(['bottom', 'bottom']);
+          cands.push([uTurn, uTurn]);
           let best = null;
           cands.forEach(([fp, tp]) => {
             const bends = backRoute(f, t, fp, tp, [e.from, e.to]);
@@ -921,7 +929,8 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
             const ex = t.cx + (toOffX[e.id] || 0);
             const ey = (p.toPort === 'top') ? t.y : (t.y + t.h);
             if (e.to === e.from || t.cx < f.cx - 30) {
-              const gutterY = Math.max(sy, ey) + 36;
+              // U-turn: below both nodes, or above them when it leaves and enters through their tops
+              const gutterY = p.fromPort === 'top' && p.toPort === 'top' ? Math.min(sy, ey) - 36 : Math.max(sy, ey) + 36;
               points = [[sx, sy], [sx, gutterY], [ex, gutterY], [ex, ey]];
             } else if (Math.abs(sx - ex) < 1) {
               points = [[sx, sy], [ex, ey]];
@@ -958,11 +967,13 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           edgePolylines[e.id] = points;
         });
 
-        // 4b. Bottom U-turn loop-backs that share a gutter and overlap horizontally would draw on
-        // top of each other: give each its own gutter row, shortest spans nearest the nodes.
-        {
+        // 4b. U-turn loop-backs that share a gutter and overlap horizontally would draw on top of each other:
+        // give each its own gutter row, shortest spans nearest the nodes (further down below the nodes, further up
+        // above them).
+        [1, -1].forEach(dir => {
           const isU = pts => pts && pts.length === 4 && Math.abs(pts[1][1] - pts[2][1]) < 1 &&
-            Math.abs(pts[0][0] - pts[1][0]) < 1 && Math.abs(pts[2][0] - pts[3][0]) < 1 && pts[1][1] > pts[0][1] && pts[2][1] > pts[3][1];
+            Math.abs(pts[0][0] - pts[1][0]) < 1 && Math.abs(pts[2][0] - pts[3][0]) < 1 &&
+            (pts[1][1] - pts[0][1]) * dir > 0 && (pts[2][1] - pts[3][1]) * dir > 0;
           const us = validEdges.filter(e => isU(edgePolylines[e.id])).map(e => {
             const pts = edgePolylines[e.id];
             return { e, y: pts[1][1], lo: Math.min(pts[0][0], pts[3][0]), hi: Math.max(pts[0][0], pts[3][0]) };
@@ -970,12 +981,12 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           const placed = [];
           us.forEach(u => {
             let k = 0;
-            while (placed.some(q => Math.abs(q.y - (u.y + k * 14)) < 2 && q.lo < u.hi && u.lo < q.hi)) k++;
+            while (placed.some(q => Math.abs(q.y - (u.y + dir * k * 14)) < 2 && q.lo < u.hi && u.lo < q.hi)) k++;
             const pts = edgePolylines[u.e.id];
-            if (k) { pts[1][1] += k * 14; pts[2][1] += k * 14; }
+            if (k) { pts[1][1] += dir * k * 14; pts[2][1] += dir * k * 14; }
             placed.push({ y: pts[1][1], lo: u.lo, hi: u.hi });
           });
-        }
+        });
 
         // 5a. Obstructed routes: when the standard route runs through another node, search every
         // exit/entry side pair (L, Z and U shapes) for a route that stays clear, preferring the
@@ -2774,12 +2785,12 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
       }
 
       // --- AUTO LAYOUT ---
-      // With auto layout on (the default; the dock's Auto button toggles it, remembered per browser), every step edit
+      // With auto layout on (the default; the dock's Auto-Tidy switch toggles it, remembered per browser), every step edit
       // re-runs the layout engine: adding, moving or deleting a step, and reordering, adding or deleting a lane.
       // Arrow edits (connect, reconnect, delete, label) do NOT re-lay out, so the order can be rewired one arrow at a
-      // time without the diagram jumping; the next step edit (or Auto-Tidy) lays the result out. The engine reads only
+      // time without the diagram jumping; the next step edit (or Tidy) lays the result out. The engine reads only
       // structure (arrows, lanes), not x/y, so with auto layout on a drag only picks a lane. Off, steps stay where
-      // they are dropped (with snap guides) and only Auto-Tidy re-lays out.
+      // they are dropped (with snap guides) and only the Tidy button re-lays out.
       // The re-layout runs before updateStatus, so the edit and its re-layout are a single undo step. With `focusId`,
       // the view is re-panned so that step stays where it was on screen (a step just added appears where it was dropped).
       function relayout(focusId) {
@@ -2987,15 +2998,15 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
       });
 
       // --- AUTO LAYOUT TOGGLE ---
-      // Pressed = auto layout on (see AUTO LAYOUT). Turning it on tidies the diagram right away. The choice is an
+      // Switch on (aria-checked) = auto layout on (see AUTO LAYOUT). Turning it on tidies the diagram right away. The choice is an
       // editing preference of this browser, not part of the diagram, so it is not saved into the file.
       const btnAutoLayout = document.getElementById('btn-auto-layout');
       function updateAutoLayoutButton() {
         if (!btnAutoLayout) return;
-        btnAutoLayout.setAttribute('aria-pressed', String(autoLayout));
+        btnAutoLayout.setAttribute('aria-checked', String(autoLayout));
         btnAutoLayout.title = autoLayout
-          ? 'Auto layout is on: the diagram re-arranges itself after every step edit (click to place steps by hand)'
-          : 'Auto layout is off: steps stay where you drop them (click to re-arrange after every step edit)';
+          ? 'Auto-Tidy is on: the diagram re-arranges itself after every step edit (click to place steps by hand)'
+          : 'Auto-Tidy is off: steps stay where you drop them (click to re-arrange after every step edit)';
       }
       if (btnAutoLayout) btnAutoLayout.addEventListener('click', () => {
         autoLayout = !autoLayout;

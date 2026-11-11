@@ -5,82 +5,66 @@ description: "Create, verify, and edit diagrams as one standalone, editable HTML
 
 # Ultimate Diagram Skill
 
-Produce stakeholder-ready diagrams as standalone HTML files. In the browser, users can drag elements, double-click to edit text, run **Auto-Tidy**, and **Save** the edited diagram back into the HTML file. Opening the file with `?present` hides all editing controls for a read-only view; `?theme=dark` / `?theme=light` forces a theme (otherwise the toolbar toggle or the OS setting applies).
+Produce stakeholder-ready diagrams as standalone HTML files. In the browser, users can drag elements, double-click to edit text, press **Tidy** (flowcharts also re-arrange themselves while **Auto-Tidy** is on), and **Save** the edited diagram back into the HTML file. Opening the file with `?present` hides all editing controls for a read-only view; `?theme=dark` / `?theme=light` forces a theme (otherwise the toolbar toggle or the OS setting applies).
 
-**Paths & Workspace Hygiene:**
-- `<skill-dir>` means the folder containing this `SKILL.md`. Run every script by its full path (`python "<skill-dir>/scripts/layout_engine.py" ...`).
-- **Target Output**: Write ONLY the final target HTML file to the user's workspace (use the user-specified path, or default to `<title-slug>.html` in the workspace root).
-- **Self-Contained HTML**: The generated HTML file is fully self-contained with the JSON embedded inside. An external `.json` file is NOT needed once the `.html` is generated and should not be left in the user's workspace unless the user explicitly requested a `.json` file.
-- **Scratch & Temp Isolation**: All intermediate authoring files, trial JSON payloads, and verification screenshot PNGs MUST be written to the host's scratch directory when it provides one, otherwise the system temp directory. NEVER litter intermediate files in the user's workspace. Delete them in one command once the diagram is final (Step 3); do not verify the deletion or probe the workspace afterwards (`Test-Path`, `dir`, `git status`).
+**Paths and files:**
+- `<skill-dir>` is the folder containing this `SKILL.md`. Run scripts by full path (`python "<skill-dir>/scripts/layout_engine.py" ...`).
+- **Workspace**: write only the final HTML there: the user's path, else `<title-slug>.html` in the workspace root. The HTML embeds its JSON; leave no `.json` in the workspace unless the user asked for one.
+- **Scratch**: the authoring JSON and the screenshot PNG go to the host's scratch directory (else the system temp directory). Delete them in one command at the end; do not check the deletion or probe the workspace afterwards.
 
 ---
 
 ## Pick the diagram type
 
-Every diagram JSON has a top-level `"diagramType"`. A file without it is read as `flowchart`.
+Every diagram JSON has a top-level `"diagramType"` (missing means `flowchart`).
 
-| `diagramType` | Use for | Status | Read before authoring |
-|---|---|---|---|
-| `flowchart` | Swimlane / cross-functional process flows with decisions and loops | Supported | [types/flowchart.md](references/types/flowchart.md) |
-| `sequence` | Messages between participants over time (API calls, system interactions) | Supported | [types/sequence.md](references/types/sequence.md) |
-| `erd` | Entities, attributes, relationships | Planned | not available yet |
-| `state` | States and transitions | Planned | not available yet |
+| `diagramType` | Use for | Read (both files, in one parallel batch) |
+|---|---|---|
+| `flowchart` | Swimlane / cross-functional process flows with decisions and loops | `references/types/flowchart.md` + `references/examples/example-flowchart-phases.json` if the source groups steps into Step / Phase / Stage boxes, else `references/examples/example-flowchart.json` |
+| `sequence` | Messages between participants over time (API calls, system interactions) | `references/types/sequence.md` + `references/examples/example-sequence.json` |
 
-If the request needs a planned type, say it is not supported yet and do not force it into a flowchart. The type reference owns the schema, the complexity budget, writing rules and the visual checklist, and names the example file to copy the shape from. Nothing else is needed: the scripts are used only through the commands below, and `dev/` is maintainer material.
+`erd` and `state` are planned, not supported: say so; do not force them into a flowchart. Paths are relative to `<skill-dir>`.
 
 ---
 
 ## Procedure: New Diagram
 
-Target output path: use the path specified by the user, or default to `<title-slug>.html` in the workspace root if omitted.
+Make exactly these calls. The two files above and the command below are the complete interface: no `--help`, no reading scripts or `dev/`, no test runs on the example, no listing directories, no trial directions or lane modes.
 
-0. **Read the type reference** from [Pick the diagram type](#pick-the-diagram-type), then the example it names for your source. Together with the commands below they are the complete interface. Decide the structure once from the type reference; do not trial other directions or lane modes.
-
-1. **Write the logical JSON once** to the scratch directory (see Workspace Hygiene) with your file-write tool, following the type reference. Fit every label to the type reference's character budget **before** the first layout. Never compute pixel coordinates, never use inline `python -c`, and never write `.py` wrapper scripts to generate JSON or invoke the CLI (multi-line `-c` breaks on Windows PowerShell quoting). The user's requested scope determines the diagram size and granularity; never truncate or omit steps to fit an artificial budget.
-
-2. **Lay out, scaffold, and audit the HTML** (needs Node.js, or Chrome/Chromium as a fallback; `--browser <path>` selects it):
+1. **Read** the type reference and its example in one parallel batch (table above). Decide the structure once from the type reference's *Choosing the structure* table.
+2. **Write the JSON once** to scratch with your file-write tool. Fit every label to the character budget before the first run. No pixel coordinates, no `python -c`, no helper `.py` scripts. Include every step the user's scope asks for.
+3. **Run one command**, writing the HTML straight to the target path (needs Node.js, else Chrome/Chromium; `--browser <path>` selects one):
    ```shell
-   python "<skill-dir>/scripts/layout_engine.py" --layout <temp_input.json> -o <target.html>
+   python "<skill-dir>/scripts/layout_engine.py" --layout <scratch.json> -o <target.html> --screenshot <scratch.png>
    ```
-   `--layout` runs the full audit (`score ≥ 90/100`, `0` issues, `0` external references) and prints any `[WARN]` lines (such as missing lane icons). Exit 1 with `[FAIL]` means the score or self-containment failed; the HTML is still written so you can inspect it. `--verify` repeats the same audit, so use it only on an existing HTML file. Chain steps 2 and 3 in one command (`layout ; render`); if layout printed `[ERROR]`, the render output belongs to an older file, so ignore it.
-   `[ERROR] Layout needs Node.js ... or Chrome`: neither is installed; install one or pass `--browser`. Report it rather than hand-placing coordinates.
-   Workflow fidelity comes first: never merge, drop or reroute steps, branches or end states to raise the score. If the complete diagram cannot pass, keep it complete and report the score and the issues behind it.
+4. **Read the output**, last line first:
 
-3. **Layout report + visual review.** One command measures the page (including label overlaps, text size, and ellipsis truncation warnings) and captures a clean screenshot to a temporary path (editing controls hidden, cropped to the diagram, 2x):
-   ```shell
-   python "<skill-dir>/scripts/render_screenshot.py" --input <target.html> --output <temp_path.png>
-   ```
-   - **Exit 3, `[ERROR]` overlap**: an edge label overlaps another label or a node. Fix it and re-run.
-   - **Exit 4, `[ERROR]` text size**: in a diagram of 12 nodes or fewer, text renders below 11px at Fit. Shorten labels, drop steps or columns, or split it, then re-run.
-   - **`[WARN]` truncated text (`...`)**: a node label or lane title overflowed its 2-line box; shorten it per the type reference's character budget and re-run.
-   - For large diagrams (> 12 nodes), small text at Fit is only an `[INFO]` line: users view and explore them interactively using pan and zoom on the HTML canvas.
-   - **`[WARN] Layout report unavailable`**: the browser returned no DOM (seen with Edge, and rarely on a cold Chrome start). Chrome is tried first; pass `--browser <path-to-chrome>` or do the checks by eye and say so in the report.
-   - If the render itself fails, read the error: it names the browser used; retry with `--browser <path>` or a larger `--timeout`. If no browser is available, report that the visual review could not be run instead of skipping it silently.
+   | Output | Action |
+   |---|---|
+   | `[DONE]` | Go to step 5. |
+   | `[INFO]` | None. Small text in a diagram over 12 nodes is expected (pan and zoom). |
+   | `[WARN]` truncated text (`...`) | Shorten that label to the budget, re-run step 3. |
+   | `[WARN]` note / icon / `Yes`-`No` on a step | Fix that item, re-run step 3. |
+   | `[FAIL]` score below 90 | Fix the listed issues. Never merge, drop or reroute steps, branches or end states to raise the score: if the complete diagram cannot pass, keep it complete and report the score. |
+   | `[ERROR]` overlap (exit 3) | Fix the overlapping edge label, re-run step 3. |
+   | `[ERROR]` text size (exit 4, 12 nodes or fewer) | Shorten labels, drop columns or split the diagram, re-run step 3. |
+   | `[ERROR] Layout needs Node.js ... or Chrome` | Stop. Report it; never hand-place coordinates. |
+   | `[WARN] Layout report unavailable` | Do the overlap check by eye and say so in the report. |
+   | Render failed | Retry once with `--browser <chrome path>`. If no browser works, report that the visual review could not run. |
 
-   Then open the PNG once with your image-viewing tool and go through the type's visual checklist.
-
-   **Stop when clean.** If `--layout` passes with no `[WARN]`, `[FAIL]` or `[ERROR]` and the screenshot passes the checklist, you are done. Do not re-word labels, re-run the layout or re-render. Re-run only on one of those lines, a failed checklist item, or a user request.
-
-   Delete the PNG and scratch JSON (unless the user asked to keep the JSON).
-
-4. **Report back** (see [Final Report](#final-report)).
+5. **View the PNG once** and go through the type's visual checklist. Re-run step 3 only for a failed checklist item.
+6. **Stop.** A clean run is final: do not re-word labels, re-run or re-render. Delete the scratch JSON and PNG in one command, then report.
 
 ## Procedure: Update an Existing Diagram
 
-Extract, edit and re-layout; know what a re-layout resets; read-only extraction. Follow [editing-and-save.md](references/editing-and-save.md).
-
----
-
-## Verification Gate
-
-- If the render's layout report was unavailable, say the overlap check was done by eye.
-- Save (Ctrl+S / Save button) cannot be tested headlessly. Say so and ask the user to save once to confirm.
+Follow [editing-and-save.md](references/editing-and-save.md).
 
 ---
 
 ## Final Report
 
-Keep it short, about 5 lines. The user wants the file and anything that needs their action, not a log of your checks. Return:
+About 5 lines: the file, and anything that needs the user's action. Not a log of your checks.
 
-- the output path(s) and a one-line description (type, and node/lane or participant/message counts);
-- problems only: audit score if below 100, any `[WARN]` left, labels you shortened from the user's wording, a split diagram and why, what a re-layout reset (update runs). Say nothing about checks that passed.
+- the output path and a one-line description (type, and node/lane or participant/message counts);
+- problems only: score if below 100, any `[WARN]` left, labels shortened from the user's wording, a split diagram and why, what a re-layout reset (updates), an overlap check done by eye;
+- always: Save (Ctrl+S / Save button) cannot be tested headlessly; ask the user to save once to confirm.

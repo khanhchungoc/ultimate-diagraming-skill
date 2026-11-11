@@ -52,16 +52,15 @@
   <!-- Add controls: a floating dock at the bottom of the viewport, styled like the zoom dock -->
   <div class="dock-area">
   <div class="toolbar-center" role="toolbar" aria-label="Edit the diagram">
-      <span class="dock-label">Add</span>
 {{TYPE_TOOLBAR}}
       <!-- Shown only while something is selected (plugin.hasSelection) -->
       <button id="btn-delete-selection" class="btn dock-delete" title="Delete the selection (Delete key)" aria-label="Delete selection" aria-hidden="true" tabindex="-1">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg><span class="btn-label">Delete</span>
       </button>
-      <!-- Layout controls: type buttons marked data-dock-group="layout" are moved here, before Auto-Tidy -->
+      <!-- Layout controls: type buttons marked data-dock-group="layout" are moved here, before Tidy -->
       <span class="dock-sep" aria-hidden="true"></span>
-      <button id="btn-auto-tidy" class="btn" title="Re-align and lay out the whole diagram automatically" aria-label="Auto-Tidy">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21.64 3.64-1.28-1.28a1.21 1.21 0 0 0-1.72 0L2.36 18.64a1.21 1.21 0 0 0 0 1.72l1.28 1.28a1.2 1.2 0 0 0 1.72 0L21.64 5.36a1.2 1.2 0 0 0 0-1.72"/><path d="m14 7 3 3"/><path d="M5 6v4"/><path d="M19 14v4"/><path d="M10 2v2"/><path d="M7 8H3"/><path d="M21 16h-4"/><path d="M11 3H9"/></svg><span class="btn-label">Auto-Tidy</span>
+      <button id="btn-auto-tidy" class="btn" title="Tidy: re-align and lay out the whole diagram now" aria-label="Tidy">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21.64 3.64-1.28-1.28a1.21 1.21 0 0 0-1.72 0L2.36 18.64a1.21 1.21 0 0 0 0 1.72l1.28 1.28a1.2 1.2 0 0 0 1.72 0L21.64 5.36a1.2 1.2 0 0 0 0-1.72"/><path d="m14 7 3 3"/><path d="M5 6v4"/><path d="M19 14v4"/><path d="M10 2v2"/><path d="M7 8H3"/><path d="M21 16h-4"/><path d="M11 3H9"/></svg><span class="btn-label">Tidy</span>
       </button>
   </div>
 

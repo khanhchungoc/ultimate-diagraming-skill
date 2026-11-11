@@ -20,20 +20,44 @@
       };
       const LE = Object.assign({}, LE_PROFILES.LR);
 
-      // Room a lane keeps clear on its far side for its loop-backs: arrows between two of its own nodes that run
-      // back against the flow. They nest one channel further out per overlapping loop. 0 when it has none.
-      // Shared by the engine and the renderer's lane sizing; xOf gives a node's position along the flow.
-      function laneLoopRoom(nodes, edges, laneId, xOf) {
+      // Which side of its lane a same-lane loop-back runs on (a loop-back: an arrow between two nodes of one lane
+      // that runs back against the flow). Normally the far side: below the nodes, right of them top-to-bottom.
+      // It runs on the near side instead when its source or target already sends an arrow into a farther lane and
+      // neither sends one into a nearer lane: that arrow (e.g. a decision's "Yes" down into the next lane) takes
+      // the node's far vertex, and a loop leaving there would run along it. The layout (room reserved per side),
+      // the renderer's lane sizing and its router all use this one rule, so the room is where the loop is drawn.
+      // Returns side(edge) -> 'far' | 'near'.
+      function loopSides(nodes, edges, lanes) {
+        const li = {}, laneOf = {}, far = {}, near = {};
+        lanes.forEach((l, i) => { li[l.id] = i; });
+        nodes.forEach(n => { laneOf[n.id] = li[n.laneId]; });
+        edges.forEach(e => {
+          const a = laneOf[e.from], b = laneOf[e.to];
+          if (a === undefined || b === undefined) return;
+          if (b > a) far[e.from] = true;
+          if (b < a) near[e.from] = true;
+        });
+        return (e) => ((far[e.from] || far[e.to]) && !(near[e.from] || near[e.to]) ? 'near' : 'far');
+      }
+
+      // Room a lane keeps clear on each side for its loop-backs ({ far, near }, 0 where it has none). Loops on one
+      // side nest one channel further out per overlapping loop. Shared by the engine and the renderer's lane sizing;
+      // xOf gives a node's position along the flow.
+      function laneLoopRooms(nodes, edges, lanes, laneId, xOf) {
         const lane = {};
         nodes.forEach(n => { if (n.laneId === laneId) lane[n.id] = true; });
-        const spans = [];
+        const side = loopSides(nodes, edges, lanes);
+        const spans = { far: [], near: [] };
         edges.forEach(e => {
           if (!lane[e.from] || !lane[e.to] || e.from === e.to) return;
           const a = xOf(e.from), b = xOf(e.to);
-          if (b < a - 1) spans.push([b, a]);
+          if (b < a - 1) spans[side(e)].push([b, a]);
         });
-        const depth = spans.reduce((d, [p0]) => Math.max(d, spans.filter(([p, q]) => p <= p0 && p0 <= q).length), 0);
-        return depth ? LE.LOOP_ROOM + (depth - 1) * LE.LOOP_STEP : 0;
+        const room = (list) => {
+          const depth = list.reduce((d, [p0]) => Math.max(d, list.filter(([p, q]) => p <= p0 && p0 <= q).length), 0);
+          return depth ? LE.LOOP_ROOM + (depth - 1) * LE.LOOP_STEP : 0;
+        };
+        return { far: room(spans.far), near: room(spans.near) };
       }
       // Switch LE to the profile for `data.direction` (anything but "TB" is left-to-right)
       function useDirection(data) {
@@ -254,11 +278,12 @@
           // Every lane is the same size (LANE_MIN) unless it stacks branches across it, with its nodes centred. LANE_MIN
           // leaves room on both sides of a node for the loop-backs and corridor routes that run around the nodes,
           // including on the diagram's outer edge, where there is no neighbouring lane to borrow room from.
-          // Same-lane loop-backs run around the nodes on the lane's far side (below them; right of them top-to-bottom),
-          // nested one channel further out per overlapping loop, with their labels on the channel. A single-row lane
-          // with loops keeps that room (LOOP_ROOM, + LOOP_STEP per extra nesting level) clear on its far side and
-          // moves its nodes toward the near side instead of centring them, growing only if that is not enough.
-          const loopRoom = id => laneLoopRoom(nodes, edges, id, nid => X[nid]);
+          // Same-lane loop-backs run around the nodes on one side of the lane (see loopSides: normally the far side,
+          // below them; right of them top-to-bottom), nested one channel further out per overlapping loop, with their
+          // labels on the channel. A single-row lane with loops keeps that room (LOOP_ROOM, + LOOP_STEP per extra
+          // nesting level) clear on each side that has loops and moves its nodes toward the other side instead of
+          // centring them, growing only if that is not enough.
+          const loopRooms = id => laneLoopRooms(nodes, edges, lanes, id, nid => X[nid]);
 
           const lanePos = {};
           let curY = 0;
@@ -269,12 +294,13 @@
             const rows = subrows[l.id] || 1;
             // In LR mode with visible swimlanes, the pinned .lane-pill sits at y=12..54px; reserve 56px top pad on multi-row lanes so row-0 nodes never collide with the pill when panned
             const topPad = (rows > 1 && !LE.LABEL_ACROSS && lanes.length > 1) ? 56 : LE.TOP_PAD;
-            const req = rows === 1 && loopRoom(l.id)
-              ? LE.NEAR_MIN + maxH + loopRoom(l.id)
+            const rooms = loopRooms(l.id);
+            const req = rows === 1 && (rooms.far || rooms.near)
+              ? (rooms.near || LE.NEAR_MIN) + maxH + (rooms.far || LE.NEAR_MIN)
               : topPad + (rows - 1) * LE.ROW_HEIGHT + maxH + LE.BOTTOM_PAD;
             const inner = Math.max(LE.LANE_MIN, req);
             l.height = inner;
-            lanePos[l.id] = { top: curY, h: l.height, inner, maxH, topPad };
+            lanePos[l.id] = { top: curY, h: l.height, inner, maxH, topPad, rooms };
             curY += l.height;
           });
 
@@ -283,11 +309,16 @@
             n.x = X[n.id];
             if ((subrows[n.laneId] || 1) === 1) {
               const inner = lp.inner || lp.h;
-              const room = loopRoom(n.laneId);
-              // Centred, or pulled toward the near side just enough to leave the loops their room
+              const { far, near } = lp.rooms || { far: 0, near: 0 };
+              // Centred, or pushed away from each side with loops just enough to leave them their room
               const centre = Math.floor((inner - nodeH(n)) / 8) * 4;
-              const blockTop = room ? Math.min(Math.floor((inner - lp.maxH) / 8) * 4, Math.floor((inner - room - lp.maxH) / 4) * 4) : null;
-              n.y = room ? Math.max(LE.NEAR_MIN, blockTop + Math.floor((lp.maxH - nodeH(n)) / 8) * 4) : centre;
+              if (!far && !near) n.y = centre;
+              else {
+                let blockTop = Math.floor((inner - lp.maxH) / 8) * 4;
+                if (far) blockTop = Math.min(blockTop, Math.floor((inner - far - lp.maxH) / 4) * 4);
+                if (near) blockTop = Math.max(blockTop, Math.ceil(near / 4) * 4);
+                n.y = Math.max(LE.NEAR_MIN, blockTop + Math.floor((lp.maxH - nodeH(n)) / 8) * 4);
+              }
             } else {
               n.y = (lp.topPad || LE.TOP_PAD) + sub[n.id] * LE.ROW_HEIGHT;
             }
@@ -332,6 +363,7 @@
 
           const ports = {};
           const vertEntry = new Set();
+          const loopSide = loopSides(nodes, edges, lanes);
           outEdges.forEach((uOuts, uId) => {
             const f = R(uId);
             const fcx = f.x + f.w / 2, fcy = f.y + f.h / 2;
@@ -343,7 +375,7 @@
               if (tcx < fcx - 30) {
                 if (tcy > fcy + 30) ports[e.id] = ['left', 'top'];
                 else if (tcy < fcy - 30) ports[e.id] = ['left', 'bottom'];
-                else ports[e.id] = ['bottom', 'bottom'];
+                else ports[e.id] = loopSide(e) === 'near' ? ['top', 'top'] : ['bottom', 'bottom'];   // U-turn on the loop's side
               } else {
                 fwdOuts.push(e);
               }

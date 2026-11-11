@@ -15,6 +15,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import subprocess
 import sys
 from collections import defaultdict
 from pathlib import Path
@@ -1008,6 +1009,9 @@ def main():
     parser.add_argument("--timeout", type=int, default=30, help="Seconds allowed for the layout engine (default: 30)")
     parser.add_argument("--verify", "-v", help="Verify collisions and layout constraints for an HTML or JSON file")
     parser.add_argument("--extract", "-e", help="Extract canonical JSON data from an existing HTML file")
+    parser.add_argument("--screenshot", "-s",
+                        help="With --layout: also render a PNG here and run the layout report (one command does both)")
+    parser.epilog = "SKILL.md documents every flag an agent needs; no others are required."
 
     args = parser.parse_args()
 
@@ -1097,8 +1101,32 @@ def main():
                 print(f"  - {issue}")
         else:
             print(audit.pass_line(report))
+
+        clean = not failed and not report["budget_warnings"]
+        render_code = 0
+        if args.screenshot:
+            render_code, render_clean = run_render(out_path, Path(args.screenshot), args.browser)
+            clean = clean and render_clean
+            print("[DONE] Clean. View the PNG once against the visual checklist; if it passes, the diagram is final: "
+                  "do not re-word, re-run or re-render." if clean else
+                  "[NEXT] Fix only the [WARN]/[FAIL]/[ERROR] lines above, then re-run this same command.")
         if failed:
             sys.exit(1)
+        if render_code:
+            sys.exit(render_code)
+
+
+def run_render(html_path: Path, png_path: Path, browser: Optional[str]) -> Tuple[int, bool]:
+    """Run render_screenshot.py on the written HTML; return (exit code, clean = no WARN/ERROR lines)."""
+    cmd = [sys.executable, str(Path(__file__).with_name("render_screenshot.py")),
+           "--input", str(html_path), "--output", str(png_path)]
+    if browser:
+        cmd += ["--browser", browser]
+    proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace")
+    out = proc.stdout + proc.stderr
+    print(out, end="" if out.endswith("\n") or not out else "\n")
+    clean = proc.returncode == 0 and "[WARN]" not in out and "[ERROR]" not in out
+    return proc.returncode, clean
 
 
 if __name__ == "__main__":

@@ -2,9 +2,7 @@
 
 Use for swimlane, cross-functional or BPMN-style process flows. Layout, routing, label placement and styling are computed by the tooling; author only the logical graph.
 
-**Example to copy (read one, after deciding the structure):**
-- the source groups steps into Step / Phase / Stage containers: [example-flowchart-phases.json](../examples/example-flowchart-phases.json) (phase lanes, see rule 7);
-- otherwise: [example-flowchart.json](../examples/example-flowchart.json) (actor lanes).
+**Example to copy:** `references/examples/example-flowchart-phases.json` (phase lanes, rule 7) or `references/examples/example-flowchart.json` (actor lanes), read alongside this file as SKILL.md says.
 
 ## Schema
 
@@ -39,7 +37,7 @@ Never add pixel coordinates (`x`, `y`); `--layout` computes them.
 1. **Labels name the step; notes explain it.** The label is what a reader scans to follow the flow, so it carries only the step. Everything that explains the step goes in a note (rule 9).
    - **Tasks**: an imperative verb + the business object, 2–4 words, Title Case (`"Validate Order"`, `"Approve Loan"`), never a sentence (`"The order needs to be validated"`).
    - **Specific verbs**: a generic verb (`"Process"`, `"Handle"`, `"Manage"`, `"Do"`) hides what happens; name the action (`"Handle Claim"` → `"Assess Claim"`).
-   - **Leave out** articles and pronouns, the actor (the lane says who), the element type (`"Decision:"`, `"Task:"`), step numbers, and every system name, threshold, amount, duration, document or reference: those belong in the note. The one exception is the condition a decision tests, which is its question (`"Credit Score >= 700?"`).
+   - **Leave out** articles and pronouns, the actor (the lane says who; phase lanes are the exception, rule 7), the element type (`"Decision:"`, `"Task:"`), step numbers, and every system name, threshold, amount, duration, document or reference: those belong in the note. The one exception is the condition a decision tests, which is its question (`"Credit Score >= 700?"`).
    - **Start** names the trigger, as an event (`"Order Received"`) or the first action (`"Submit Application"`); **end** names the resulting state (`"Loan Approved"`, `"Claim Settled"`), one per outcome (rule 6).
    - **Distinct names**: no two steps share a label. If the same work really happens twice, loop back to it with an edge instead of repeating the node.
 2. **Decisions end in `?`** (`"Docs Complete?"`) and every outgoing branch is labeled. Only decision branches get `Yes`/`No` labels: an edge leaving a step is `""` (`--layout` warns about a `Yes`/`No` on a step).
@@ -48,14 +46,14 @@ Never add pixel coordinates (`x`, `y`); `--layout` computes them.
    - **Tasks / Start / End (`144x64px`)**: `<= 28` chars (~14–16 chars/line). A 13-char word like `"Authorisation"` fits beside one or two short words.
    - **Decisions (`92px` inner diamond)**: `<= 24` chars (~12 chars/line, e.g. `"User Still Authorised?"`).
    - **Lane names**: `<= 32` chars so the floating pill never truncates.
-   - **Fidelity**: keep the user's wording when it fits the budget and rule 1. Otherwise cut the label to its verb + object and move the rest of the user's wording into a note on that step, so no detail is lost; list the changed labels in the final report. Never abbreviate words (`"Auth"`) to save space.
+   - **Fidelity**: keep the user's wording when it fits the budget and rule 1. Otherwise cut the label to its verb + object; if the cut removed real detail (rule 9's list), put only that detail in a note, never the whole original sentence. List the changed labels in the final report. Never abbreviate words (`"Auth"`) to save space.
 5. **Overview requests**: if the user asks for a summary, high-level overview or one-slide flow, aim for about 7 columns and 12 nodes so it fits a 1080p screen without panning. Otherwise include every step the source has; the page pans and zooms.
 6. **Exceptions end in their own end state.** A path that finishes unresolved (manual intervention, escalation, an unhandled fallback) ends in a separate `end` node named for that outcome (`"Manual Payment Required"`), never merged into the success end (`"Claim Settled"`). Creating a task for someone else is not completion.
 7. **One lane per actor.** A lane is who does the work: a role, team, organisation or system that performs steps.
    - Name lanes as actor nouns (`"Loan Officer"`, `"Customer"`, `"Payment Gateway"`), never an activity (`"Review"`), a status (`"Pending"`) or a category (`"Manual Tasks"`). Prefer roles to people's names.
    - A system is an actor only when it acts (`"Core Banking"` validating something). Don't add a lane for a system that is only mentioned.
    - If the source doesn't name actors, infer them from who performs each verb. If you can't, or the whole process has one actor, set `"swimlanes": false`. Never use a generic lane such as `"Process"`, `"Steps"` or `"Other"`.
-   - **Exception, phase lanes**: if the source groups steps into sequential containers (step, phase, stage, milestone, sprint, gate, quarter), use one lane per container, in order (`lane-step1`, `lane-step2`, ...), as in the phases example. Test: does every step in group 2 happen after every step in group 1? Yes → phase lanes; no → actor lanes. Each phase starts where the previous one ended, so the layout is a **diagonal staircase**. That is expected and correct: don't try to change it or check the engine. Phase lanes drop ownership, so keep the actor in a label where it matters (`"Officer Reviews Docs"`). A step that jumps back to an earlier phase is a loop-back edge. If the source shows both actors and phases, follow whichever it groups by visually.
+   - **Exception, phase lanes**: if the source groups steps into sequential containers (step, phase, stage, milestone, sprint, gate, quarter), use one lane per container, in order (`lane-step1`, `lane-step2`, ...), as in the phases example. Test: does every step in group 2 happen after every step in group 1? Yes → phase lanes; no → actor lanes. Each phase starts where the previous one ended, so the layout is a **diagonal staircase** with empty space beside it. That is correct: never change direction, lanes or labels to fill it. Phase lanes drop ownership, so here, and only here, keep the actor in a label where it matters (`"Officer Reviews Docs"`). A step that jumps back to an earlier phase is a loop-back edge. If the source shows both actors and phases, follow whichever it groups by visually.
 8. **Every lane gets an `icon`**, chosen from the table below to match the actor or system. Use a different icon for each lane in one diagram, and never leave one out (`--layout` prints a `[WARN]` for a lane without one, or with a name that is not in the table). For phase lanes pick icons that suit each stage (`clipboard`, `check`, `shield`, `flag`, ...).
 
 | Icon | Use for |
@@ -86,7 +84,7 @@ Never add pixel coordinates (`x`, `y`); `--layout` computes them.
 | `globe` | external party, third party, partner, vendor |
 | `flag` | core team, lead, steering group, management |
 
-9. **Notes hold what the label leaves out.** Add a note only where the source says more about a step than its label (rule 1); most steps need none.
+9. **Notes hold what the label leaves out.** Add a note only where the source gives a detail from the list below that the label lacks; most steps need none. A longer sentence saying the same thing as the label is not a note: drop it.
    - **In a note**: how or why the step is done (method, criteria), business rules and thresholds, amounts, SLAs, durations and schedules, the system or tool used, documents and forms, policy, regulation or ticket references, and examples. Keep the source's figures, names and IDs exactly.
    - **Never in a note**: flow. A step, branch, loop, hand-off or outcome that changes what happens next is a node or an edge, so a reader who never opens a note still sees the whole process. Never repeat the label.
    - **Form**: a fragment or one or two short sentences, facts over prose, `<= 140` chars; `\n` separates distinct facts.

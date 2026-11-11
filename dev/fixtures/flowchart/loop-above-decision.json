@@ -1,0 +1,139 @@
+{
+  "diagramType": "flowchart",
+  "title": "Decision loop with a branch into the next lane (loop runs above the nodes)",
+  "lanes": [
+    {
+      "id": "lane-step1",
+      "name": "Step 1: Request",
+      "icon": "clipboard"
+    },
+    {
+      "id": "lane-step2",
+      "name": "Step 2: Document Review",
+      "icon": "check"
+    },
+    {
+      "id": "lane-step3",
+      "name": "Step 3: Risk Assessment",
+      "icon": "shield"
+    },
+    {
+      "id": "lane-step4",
+      "name": "Step 4: Activation",
+      "icon": "flag"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "n1",
+      "laneId": "lane-step1",
+      "type": "start",
+      "label": "Request New Supplier"
+    },
+    {
+      "id": "n2",
+      "laneId": "lane-step1",
+      "type": "task",
+      "label": "Complete Supplier Form"
+    },
+    {
+      "id": "n3",
+      "laneId": "lane-step1",
+      "type": "task",
+      "label": "Check Documents"
+    },
+    {
+      "id": "n4",
+      "laneId": "lane-step1",
+      "type": "decision",
+      "label": "Documents Complete?"
+    },
+    {
+      "id": "n5",
+      "laneId": "lane-step3",
+      "type": "task",
+      "label": "Run Risk Assessment"
+    },
+    {
+      "id": "n6",
+      "laneId": "lane-step3",
+      "type": "decision",
+      "label": "Risk Acceptable?"
+    },
+    {
+      "id": "n7",
+      "laneId": "lane-step3",
+      "type": "end",
+      "label": "Supplier Rejected"
+    },
+    {
+      "id": "n8",
+      "laneId": "lane-step4",
+      "type": "task",
+      "label": "Create Supplier Record"
+    },
+    {
+      "id": "n9",
+      "laneId": "lane-step4",
+      "type": "end",
+      "label": "Supplier Active"
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "from": "n1",
+      "to": "n2",
+      "label": ""
+    },
+    {
+      "id": "e2",
+      "from": "n2",
+      "to": "n3",
+      "label": ""
+    },
+    {
+      "id": "e3",
+      "from": "n3",
+      "to": "n4",
+      "label": ""
+    },
+    {
+      "id": "e4",
+      "from": "n4",
+      "to": "n2",
+      "label": "No",
+      "feedback": true
+    },
+    {
+      "id": "e5",
+      "from": "n4",
+      "to": "n5",
+      "label": "Yes"
+    },
+    {
+      "id": "e6",
+      "from": "n5",
+      "to": "n6",
+      "label": ""
+    },
+    {
+      "id": "e7",
+      "from": "n6",
+      "to": "n7",
+      "label": "No"
+    },
+    {
+      "id": "e8",
+      "from": "n6",
+      "to": "n8",
+      "label": "Yes"
+    },
+    {
+      "id": "e9",
+      "from": "n8",
+      "to": "n9",
+      "label": ""
+    }
+  ]
+}
