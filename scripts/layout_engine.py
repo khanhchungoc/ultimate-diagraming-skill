@@ -90,7 +90,7 @@ class FlowchartAudit:
         2. Node-to-Node Collisions (Bounding box overlaps)
         3. Swimlane Boundary Containment (Height & padding overflows)
         4. Edge Penetration (Connector lines cutting through non-incident nodes)
-        5. Collinear Straightness (Ratio of 0-turn straight horizontal connections)
+        5. Collinear Straightness (Ratio of 0-turn straight horizontal connections between same-row nodes in a lane)
         6. Orthogonal Edge Crossings
         """
         dangling_issues: List[str] = []
@@ -215,6 +215,13 @@ class FlowchartAudit:
                 continue
             u, v = self.node_map[u_id], self.node_map[v_id]
             if u["laneId"] == v["laneId"] and v.get("x", 0) > u.get("x", 0):
+                # Nodes on different sub-rows (a fork/join or a branch bypass) need a bend to connect;
+                # only edges whose endpoints share a row can be flat, so only those are judged.
+                if u_id in rects and v_id in rects:
+                    ucy = rects[u_id][1] + rects[u_id][3] / 2
+                    vcy = rects[v_id][1] + rects[v_id][3] / 2
+                    if abs(ucy - vcy) >= 2:
+                        continue
                 same_lane_fwd_count += 1
                 pts = polylines[eid]
                 if len(pts) == 2 and abs(pts[0][1] - pts[1][1]) < 2:
