@@ -324,8 +324,34 @@
       }
 
       // Middle button only pans, wherever it lands: no node drag, selection or edit sees it
+      // Holding Space does the same with the primary button, and makes nodes, edges and lanes unclickable
+      let spaceHeld = false;
+      const typingInField = () => {
+        const a = document.activeElement;
+        return !!a && (a.isContentEditable || a.tagName === 'INPUT' || a.tagName === 'TEXTAREA' || a.tagName === 'SELECT');
+      };
+      const setSpaceHeld = (on) => {
+        spaceHeld = on;
+        document.body.classList.toggle('space-pan', on);
+      };
+      window.addEventListener('keydown', (e) => {
+        if (e.code !== 'Space' || typingInField()) return;
+        e.preventDefault();
+        if (!e.repeat) setSpaceHeld(true);
+      }, true);
+      window.addEventListener('keyup', (e) => {
+        if (e.code !== 'Space') return;
+        if (spaceHeld) e.preventDefault();
+        setSpaceHeld(false);
+      }, true);
+      window.addEventListener('blur', () => setSpaceHeld(false));
+      // Swallow the click that ends a Space-drag so nothing underneath activates
+      viewport.addEventListener('click', (e) => {
+        if (spaceHeld) { e.preventDefault(); e.stopImmediatePropagation(); }
+      }, true);
+
       viewport.addEventListener('pointerdown', (e) => {
-        if (e.button !== 1) return;
+        if (!(e.button === 1 || (e.button === 0 && spaceHeld))) return;
         e.preventDefault();
         e.stopImmediatePropagation();
         isPanning = true;
@@ -556,9 +582,15 @@
       function copyDiagram(format) {
         let job;
         try {
-          if (format !== 'png') throw new Error('unknown format ' + format);
-          if (!canCopyPng) throw new Error('this browser cannot copy images');
-          job = navigator.clipboard.write([new ClipboardItem({ 'image/png': exportPngBlob() })]);
+          if (!navigator.clipboard) throw new Error('the clipboard is not available in this browser');
+          if (format === 'svg') {
+            job = navigator.clipboard.writeText(svgDocument(buildExportSvg().svg));
+          } else if (format === 'png') {
+            if (!canCopyPng) throw new Error('this browser cannot copy images');
+            job = navigator.clipboard.write([new ClipboardItem({ 'image/png': exportPngBlob() })]);
+          } else {
+            throw new Error('unknown format ' + format);
+          }
         } catch (err) {
           job = Promise.reject(err);
         }
@@ -566,6 +598,7 @@
                  err => alert('Copy failed: ' + (err && err.message || err) + '\nUse Export › Download instead.'));
       }
       document.querySelectorAll('[data-copy="png"]').forEach(el => { el.hidden = !canCopyPng; });
+      document.querySelectorAll('[data-copy="svg"]').forEach(el => { el.hidden = !(navigator.clipboard && navigator.clipboard.writeText); });
       // Drop the "Copy" heading when this browser has no copy items to offer
       document.querySelectorAll('[data-copy-label]').forEach(el => { el.hidden = !document.querySelector('[data-copy]:not([hidden])'); });
 

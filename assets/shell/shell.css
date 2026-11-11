@@ -424,6 +424,16 @@
     #viewport.panning {
       cursor: grabbing;
     }
+    /* Space held: the canvas is a pure pan surface, nothing in it is clickable or hoverable */
+    body.space-pan #stage {
+      pointer-events: none;
+    }
+    body.space-pan #viewport {
+      cursor: grab;
+    }
+    body.space-pan #viewport.panning {
+      cursor: grabbing;
+    }
 
     #stage {
       position: absolute;

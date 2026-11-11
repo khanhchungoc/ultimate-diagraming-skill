@@ -90,6 +90,26 @@ The interactive HTML document can modify and persist itself directly on disk:
 
 ---
 
+## Flowchart layout invariants
+
+Moved from the agent-facing visual checklist: the engine guarantees these, so a failure is an engine bug, not an authoring error. Check them when changing `engine.js` or reviewing goldens.
+
+1. **No coincident trunks**: parallel segments in one column gap are staggered so labels never stack.
+2. **Distinct decision exits**: branches leave a diamond from different ports (top/right/bottom).
+3. **Lane containment**: every node sits inside its lane with at least 40px bottom margin.
+4. **Orthogonal lines**: same-lane connections are flat, with no diagonal kinks (`--verify` reports collinear % and dogleg count).
+5. **Loop edges** use the outer corridors.
+6. **Fan-in joins nest**: when several lanes feed one join node, the nearest lane's arrow arrives lowest. A row-run cutting across another arrow's vertical climb means a source took the join's top/bottom port while a farther lane's arrow climbs to its left port.
+7. **Arrow ends follow the side rule**: whether arrows touching the same side of a node share one end point depends on how much room that side has.
+   - **Left/right sides (short, 64px) merge**: all arrows entering a side share one arrowhead; all arrows leaving a side share one exit point and fork after the first bend.
+   - **Top/bottom sides (long, 144px) spread**: each arrow gets its own end point, 24px apart. An arrow that runs straight to a node directly above/below keeps the centre; the others move toward the side their other end lies on.
+   - **Entries and exits never share a point** on any side: they stay at least 16px apart, so an arrowhead never sits on a departure.
+   - **Always separate**: the two arrows of a two-way pair (A↔B), and a decision's labelled branches (each leaves from its own side).
+
+   Merged and spread ends are both correct. A bug is an arrowhead touching a departure point, or two spread ends closer than 24px.
+
+---
+
 ## One Engine
 
 The phases above are implemented once, in `assets/types/flowchart/engine.js`. The page runs it for the Auto-Tidy button and `scripts/layout_engine.py --layout` runs the same file through Node.js (headless Chrome as a fallback, see `scripts/engine_runner.py`). Regression tests: `python dev/check_golden.py` (see [architecture.md](architecture.md)). The Python side only audits (`--verify`).

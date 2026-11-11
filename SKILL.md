@@ -5,7 +5,7 @@ description: "Create, verify, and edit diagrams as one standalone, editable HTML
 
 # Ultimate Diagram Skill
 
-Produce stakeholder-ready diagrams as standalone HTML files. In the browser, users can drag elements, double-click to edit text, run **Auto-Tidy**, and **Save** the edited diagram back into the HTML file. Opening the file with `?present` hides all editing controls for a read-only view.
+Produce stakeholder-ready diagrams as standalone HTML files. In the browser, users can drag elements, double-click to edit text, run **Auto-Tidy**, and **Save** the edited diagram back into the HTML file. Opening the file with `?present` hides all editing controls for a read-only view; `?theme=dark` / `?theme=light` forces a theme (otherwise the toolbar toggle or the OS setting applies).
 
 **Paths & Workspace Hygiene:**
 - `<skill-dir>` means the folder containing this `SKILL.md`. Run every script by its full path (`python "<skill-dir>/scripts/layout_engine.py" ...`).
@@ -19,24 +19,27 @@ Produce stakeholder-ready diagrams as standalone HTML files. In the browser, use
 
 Every diagram JSON has a top-level `"diagramType"`. A file without it is read as `flowchart`.
 
-| `diagramType` | Use for | Status | Read before authoring |
+| `diagramType` | Use for | Status | Read before authoring (one parallel turn) |
 |---|---|---|---|
-| `flowchart` | Swimlane / cross-functional process flows with decisions and loops | Supported | [types/flowchart.md](references/types/flowchart.md) |
-| `sequence` | Messages between participants over time (API calls, system interactions) | Supported | [types/sequence.md](references/types/sequence.md) |
+| `flowchart` | Swimlane / cross-functional process flows with decisions and loops | Supported | [types/flowchart.md](references/types/flowchart.md) + [example-flowchart.json](references/examples/example-flowchart.json) |
+| `sequence` | Messages between participants over time (API calls, system interactions) | Supported | [types/sequence.md](references/types/sequence.md) + [example-sequence.json](references/examples/example-sequence.json) |
 | `erd` | Entities, attributes, relationships | Planned | not available yet |
 | `state` | States and transitions | Planned | not available yet |
 
-If the request needs a planned type, say it is not supported yet and do not force it into a flowchart. Read the type reference before writing JSON: it owns the schema, the complexity budget, writing rules and the visual checklist.
+If the request needs a planned type, say it is not supported yet and do not force it into a flowchart. The type reference owns the schema, the complexity budget, writing rules and the visual checklist; the example is a complete input file to copy the shape from. Nothing else is needed: the scripts are used only through the commands below, and `dev/` is maintainer material.
 
 ---
 
 ## Procedure: New Diagram
 
-Target output path: use the path specified by the user, or default to `<title-slug>.html` in the workspace root if omitted. Start immediately with Step 1.
+Target output path: use the path specified by the user, or default to `<title-slug>.html` in the workspace root if omitted.
 
-0. **Read in one parallel turn:** this file, the type reference from Step 0 and its example JSON. The type reference is authoritative: do not read `assets/` or `scripts/` source to check what is supported, and do not trial other directions or lane modes.
+> **Recipe (about 6 tool calls):** one parallel read → one JSON write → one `layout ; render` command → one image view → one cleanup command → report.
+> Do not read `assets/` or `scripts/` source, run `--help`, list the skill directory, or read `icons.json`. Everything you need is in the type reference and its example. Decide the structure once from the type reference; do not trial other directions or lane modes.
 
-1. **Write the logical JSON once** to the host scratch directory (never `%TEMP%` or the workspace) using `write_file`, following the type reference. Fit every label to the type reference's character budget **before** the first layout. Never compute pixel coordinates, never use inline `python -c`, and never write `.py` wrapper scripts to generate JSON or invoke the CLI (multi-line `-c` breaks on Windows PowerShell quoting). For a flowchart, give **every lane an `icon`** from the type reference's icon table; a lane header without one looks unfinished. The user's requested scope determines the diagram size and granularity; never truncate or omit steps to fit an artificial budget.
+0. **Read in one parallel turn** the two files listed for the type in Step 0.
+
+1. **Write the logical JSON once** to the host scratch directory (never `%TEMP%` or the workspace) using `write_file`, following the type reference. Fit every label to the type reference's character budget **before** the first layout. Never compute pixel coordinates, never use inline `python -c`, and never write `.py` wrapper scripts to generate JSON or invoke the CLI (multi-line `-c` breaks on Windows PowerShell quoting). The user's requested scope determines the diagram size and granularity; never truncate or omit steps to fit an artificial budget.
 
 2. **Lay out, scaffold, and audit the HTML** (needs Node.js, or Chrome/Chromium as a fallback; `--browser <path>` selects it):
    ```shell
@@ -57,7 +60,11 @@ Target output path: use the path specified by the user, or default to `<title-sl
    - **`[WARN] Layout report unavailable`**: the browser returned no DOM (seen with Edge, and rarely on a cold Chrome start). Chrome is tried first; pass `--browser <path-to-chrome>` or do the checks by eye and say so in the report.
    - If the render itself fails, read the error: it names the browser used; retry with `--browser <path>` or a larger `--timeout`. If no browser is available, report that the visual review could not be run instead of skipping it silently.
 
-   Then open the PNG once with your image-viewing tool and go through the type's visual checklist. Re-render only after a `[WARN]` or `[ERROR]`. Delete the PNG and scratch JSON when done (one command). Skip `dir`, `git status` and other workspace probes.
+   Then open the PNG once with your image-viewing tool and go through the type's visual checklist.
+
+   **Stop when clean.** If `--layout` scores ≥ 90 with no `[WARN]` or `[ERROR]` and the screenshot passes the checklist, you are done. Do not re-word labels, re-run the layout or re-render. Re-run only on a `[WARN]`/`[ERROR]`, a failed checklist item, or a user request.
+
+   Delete the PNG and scratch JSON in one command. Do not verify the deletion or probe the workspace afterwards (`Test-Path`, `dir`, `git status`).
 
 4. **Report back** (see [Final Report](#final-report)).
 
@@ -69,15 +76,9 @@ Extract, edit and re-layout; know what a re-layout resets; read-only extraction.
 
 ## Verification Gate
 
-Completion needs every item, each with its evidence type. Do not claim an item the evidence column says you cannot test. The type reference adds type-specific rows.
-
-| # | Check | How it is verified |
-|---|---|---|
-| 1 | Self-contained: no CDN or external requests | **Automated**: `--verify` (fails on external `src`/`href`/`@import`/`url()`) |
-| 2 | Quality score ≥ 90, no audit issues, exit 0 | **Automated**: `--verify` |
-| 3 | No edge label overlaps another label or a node | **Automated**: layout report from `render_screenshot.py` (Chrome; exit 3); otherwise by eye |
-| 4 | Type-specific layout checks | See the type reference (automated or visual, as stated there) |
-| 5 | Save works (Ctrl+S / Save button) | **Not testable headlessly**: needs a user click. State this and ask the user to save once to confirm |
+- `--layout` and the render command enforce self-containment (no external requests), the score ≥ 90, label overlaps and text size. Fix what they report; if the render's layout report was unavailable, say the overlap check was done by eye.
+- The type reference's visual checklist is checked on the screenshot.
+- Save (Ctrl+S / Save button) cannot be tested headlessly. Say so and ask the user to save once to confirm.
 
 ---
 
@@ -85,20 +86,5 @@ Completion needs every item, each with its evidence type. Do not claim an item t
 
 Keep it short, about 5 lines. The user wants the file and anything that needs their action, not a log of your checks. Return:
 
-- the output path(s) and a one-line description (type, node/lane count);
-- problems only: audit score if below 100, any `[WARN]` left, a split diagram and why, what a re-layout reset (update runs). Say nothing about checks that passed;
-
----
-
-## Resources
-
-| Resource | Path | Purpose |
-|---|---|---|
-| **Type references** | [references/types/](references/types/) | Schema, budget, writing rules and visual checklist per diagram type |
-| **Editing & Save** | [editing-and-save.md](references/editing-and-save.md) | Update procedure, re-layout effects, page modes |
-| **Layout & Audit CLI** | [layout_engine.py](scripts/layout_engine.py) | `--layout` (runs the type's JS engine via [engine_runner.py](scripts/engine_runner.py)), `--verify` audit (Python only, no browser; per-type audits in `layout_engine.py` and [audit_sequence.py](scripts/audit_sequence.py)), `--extract`. The page's Auto-Tidy button runs the same engine file. |
-| **Screenshot Renderer** | [render_screenshot.py](scripts/render_screenshot.py) | Headless Chrome/Edge: clean 2x PNG plus label-overlap and text-size report |
-| **Page shell + type plugins** | [assets/shell/](assets/shell/), [assets/types/](assets/types/) | Shared UI shell (toolbar, pan/zoom, theme, Save, present mode) plus one plugin folder per diagram type. `--layout` assembles them into one standalone HTML file. Theme: toolbar toggle; `?theme=dark` / `?theme=light` forces one. |
-| **Examples** | [example-flowchart.json](references/examples/example-flowchart.json), [example-sequence.json](references/examples/example-sequence.json) | Complete input files: a 9-node, 4-lane flowchart with outcomes; a 4-participant sequence with `opt` and `alt` frames. Built pages for people to open live in `dev/samples/` (not installed); the agent only needs the JSON. |
-
-Maintainer material (algorithm notes, the Python/browser parity check) lives in [dev/](dev/) and is not needed to author diagrams.
+- the output path(s) and a one-line description (type, and node/lane or participant/message counts);
+- problems only: audit score if below 100, any `[WARN]` left, labels you shortened from the user's wording, a split diagram and why, what a re-layout reset (update runs). Say nothing about checks that passed.
