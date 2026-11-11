@@ -10,7 +10,7 @@ Describe a process, and your AI assistant hands back a single HTML file. Open it
 
 - ⚡ **Faster and cheaper.** The AI writes a short description of your diagram (about 2.8 KB for the example above), not thousands of lines of drawing code. You wait less, spend fewer tokens, and long diagrams don't eat your usage limit.
 - ✏️ **Fix it yourself, no re-prompting.** Wrong label? Step in the wrong lane? Drag it, retype it, delete it. Undo and redo work. Press **Save** and the changes are stored in the same file.
-- 🧹 **One-click tidy.** Moved things around and it looks messy? **Auto-Tidy** re-arranges everything and re-routes the arrows.
+- 🧹 **Always tidy.** Add, move or delete a step and the diagram re-arranges itself and re-routes the arrows (switch **Auto** off to place steps by hand). **Auto-Tidy** does the same on demand.
 - 💬 **Your edits and the AI's edits combine.** Tweak the diagram by hand, then tell the AI "add an approval step after review". It picks up from your edited version instead of starting over and undoing your work.
 - ↔️ ↕️ **Wide or tall.** Flip between left-to-right and top-to-bottom with one button. Pick whichever fits your page or slide.
 - ✅ **Arrives clean.** The AI checks its own result for overlapping boxes and unreadable labels before showing you.

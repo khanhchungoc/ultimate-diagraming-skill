@@ -44,6 +44,52 @@ try {
   const afterRedo = await t.ev(`document.querySelectorAll('.flow-node').length`);
   t.check('Ctrl+Y redoes the delete', afterRedo === nodeCount - 1 && (await t.ev(`document.getElementById('btn-redo').disabled`)), `after=${afterRedo}`);
 
+  // 2b2. Auto-tidy on edit: after a structural edit every node sits where the engine puts it; a drag inside the
+  // lane snaps back into the flow; each edit plus its re-layout is one undo step
+  // "Already tidy" = pressing Auto-Tidy moves nothing (an unchanged snapshot adds no undo step, so this probe is safe)
+  const tidy = `(() => { const pos = () => JSON.stringify([...document.querySelectorAll('.flow-node')].map(n => [n.dataset.nodeId, n.style.left, n.style.top]));
+    const a = pos(); document.getElementById('btn-auto-tidy').click(); return a === pos(); })()`;
+  t.check('after a delete the layout equals a fresh Auto-Tidy', await t.ev(tidy));
+  const dragId = await t.ev(`document.querySelectorAll('.flow-node')[1].dataset.nodeId`);
+  const posOf = `(() => { const n = document.getElementById('node-${dragId}'); return [n.style.left, n.style.top, n.closest('.lane-track').dataset.laneId]; })()`;
+  const before2 = await t.ev(posOf);
+  await t.ev(t.drag(`.flow-node[data-node-id="${dragId}"]`, 160, 0));
+  const after2 = await t.ev(posOf);
+  t.check('a drag inside the lane is re-laid out back into the flow', JSON.stringify(before2) === JSON.stringify(after2) && (await t.ev(tidy)),
+    `${JSON.stringify(before2)} -> ${JSON.stringify(after2)}`);
+  // Drag it into the next lane: it keeps that lane, the rest re-flows, and one Ctrl+Z puts it back
+  const dyLane = await t.ev(`(() => { const el = document.getElementById('node-${dragId}'), L = el.closest('.swimlane'), nx = L.nextElementSibling || L.previousElementSibling;
+    const r = el.getBoundingClientRect(), q = nx.getBoundingClientRect(); return (q.top + q.height / 2 - (r.top + r.height / 2)); })()`);
+  await t.ev(t.drag(`.flow-node[data-node-id="${dragId}"]`, 0, dyLane));
+  const after3 = await t.ev(posOf);
+  t.check('a drag into another lane keeps that lane and re-lays out the diagram', after3[2] !== before2[2] && (await t.ev(tidy)), `${before2[2]} -> ${after3[2]}`);
+  await t.ev(t.key('z', { ctrlKey: true }));
+  t.check('one Ctrl+Z undoes the move and its re-layout', JSON.stringify(await t.ev(posOf)) === JSON.stringify(before2)
+    && (await t.ev(`document.querySelectorAll('.flow-node').length`)) === nodeCount - 1);
+
+  // 2b3. Arrow edits never re-lay out (so the order can be rewired one arrow at a time); undo brings the arrow back
+  const allPos = `JSON.stringify([...document.querySelectorAll('.flow-node')].map(n => [n.dataset.nodeId, n.style.left, n.style.top]))`;
+  const posBeforeArrow = await t.ev(allPos);
+  const edgesBefore = await t.ev(`document.querySelectorAll('.connector-path').length`);
+  await t.ev(`document.querySelector('.connector-hit').dispatchEvent(new MouseEvent('click', { bubbles: true }))`);
+  await t.ev(t.key('Delete'));
+  t.check('deleting an arrow moves no step', (await t.ev(`document.querySelectorAll('.connector-path').length`)) === edgesBefore - 1
+    && (await t.ev(allPos)) === posBeforeArrow);
+  await t.ev(t.key('z', { ctrlKey: true }));
+
+  // 2b4. The dock's Auto toggle: off, a drag inside the lane stays where it is dropped; turning it on tidies at once
+  const autoBtn = `document.getElementById('btn-auto-layout')`;
+  t.check('Auto layout is on by default (pressed)', (await t.ev(`${autoBtn}.getAttribute('aria-pressed')`)) === 'true');
+  await t.ev(`${autoBtn}.click()`);
+  await t.ev(t.drag(`.flow-node[data-node-id="${dragId}"]`, 160, 0));
+  const manual = await t.ev(posOf);
+  t.check('Auto off: a dragged step stays where it is dropped', (await t.ev(`${autoBtn}.getAttribute('aria-pressed')`)) === 'false'
+    && manual[0] !== before2[0], `${JSON.stringify(before2)} -> ${JSON.stringify(manual)}`);
+  await t.ev(`${autoBtn}.click()`);
+  t.check('turning Auto back on re-lays out the diagram', JSON.stringify(await t.ev(posOf)) === JSON.stringify(before2) && (await t.ev(tidy)));
+  await t.ev(t.key('z', { ctrlKey: true }));
+  await t.ev(t.key('z', { ctrlKey: true }));
+
   // 2c. Lanes alternate white / grey (no lane-colour tint); click a lane pill + Delete removes the lane with its
   // steps; undo restores it
   const laneBgs = await t.ev(`[...document.querySelectorAll('.lane-track')].slice(0, 2).map(e => getComputedStyle(e).backgroundColor)`);

@@ -124,6 +124,7 @@
       height: 100%;
       pointer-events: none;
       z-index: 15;
+      overflow: visible;   /* a note dragged into the margin keeps its whole dashed leader (inline SVG clips by default) */
     }
     .connector-path {
       fill: none;
@@ -638,6 +639,233 @@
       40% { box-shadow: 0 0 0 10px var(--primary-ring); }
       100% { box-shadow: 0 0 0 0 transparent; }
     }
+
+    /* Node notes (see renderNotes): extra detail for a step, kept off the node so its label stays short. A neutral
+       slate paper card with a bracket edge (the classic flowchart annotation, which has no colour of its own),
+       joined to its node by a dashed leader. Neutral on purpose: every hue on the canvas already means something
+       (gold decision, green start, blue selection, amber incoming arrows), and a note is secondary detail.
+       Hidden until the Notes button shows them all (.show) or a hover / selection peeks one (.peek). */
+    :root {
+      --note-bg: #f8fafc;  --note-border: #cbd5e1;  --note-accent: #64748b;  --note-ink: #334155;
+      --note-leader: #94a3b8;
+    }
+    :root[data-theme="dark"] {
+      --note-bg: #1c2740;  --note-border: #3a4a69;  --note-accent: #94a3b8;  --note-ink: #cbd5e1;
+      --note-leader: #52627f;
+    }
+    #notes-layer {
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 100%;
+      pointer-events: none;
+      z-index: 45;   /* above nodes (20), edge labels (30) and lane pills (40); below snap guides (55) */
+    }
+    .flow-note {
+      position: absolute;
+      display: none;
+      box-sizing: border-box;
+      width: max-content;
+      min-width: 96px;
+      max-width: 200px;   /* keep in sync with the fitting in renderNotes: it measures the cards, never assumes */
+      padding: 6px 10px 7px 10px;
+      border: 1px solid var(--note-border);
+      border-left: 3px solid var(--note-accent);
+      border-radius: 3px 8px 8px 3px;
+      background: var(--note-bg);
+      color: var(--note-ink);
+      font-size: 0.75rem;
+      font-weight: 400;
+      line-height: 1.4;
+      text-align: left;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+      pointer-events: auto;
+      cursor: move;
+      user-select: none;
+      transition: box-shadow var(--ease), border-color var(--ease);
+    }
+    .flow-note.show, .flow-note.peek { display: block; }
+    .flow-note.peek:not(.show) { animation: note-in 0.14s ease-out; box-shadow: 0 6px 18px rgba(0,0,0,0.14); }
+    @keyframes note-in { from { opacity: 0; transform: translateY(3px); } }
+    #notes-layer.measuring .flow-note { display: block; visibility: hidden; animation: none; }
+    .flow-note:hover { border-color: color-mix(in srgb, var(--note-accent) 60%, var(--note-border)); border-left-color: var(--note-accent); }
+    .flow-note.selected {
+      border-color: var(--note-accent);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--note-accent) 28%, transparent), 0 4px 12px rgba(0,0,0,0.12);
+    }
+    .flow-note.dragging { box-shadow: 0 10px 24px rgba(0,0,0,0.18); }
+    .note-text {
+      outline: none;
+      white-space: pre-wrap;
+      overflow-wrap: break-word;
+      min-height: 1.4em;
+    }
+    .note-text[contenteditable="true"] { user-select: text; cursor: text; }
+    .note-text:empty::before { content: attr(data-placeholder); color: var(--text-muted); }
+    /* Delete: a small round button on the card's corner, shown on hover or while the note is selected */
+    .note-del {
+      position: absolute;
+      top: -8px; right: -8px;
+      width: 18px; height: 18px;
+      padding: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      border: 1px solid var(--border-dark);
+      background: var(--bg-panel);
+      color: var(--text-soft);
+      cursor: pointer;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+    }
+    .note-del:hover { background: var(--danger); border-color: var(--danger); color: #ffffff; }
+    .flow-note:hover .note-del, .flow-note.selected .note-del { display: inline-flex; }
+    /* Link handle (bottom-right): drag it onto a step to link the note to that step too, or to unlink it */
+    .note-link {
+      position: absolute;
+      bottom: -9px; right: -9px;
+      width: 20px; height: 20px;
+      padding: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      border: 1px solid var(--note-border);
+      background: var(--bg-panel);
+      color: var(--note-accent);
+      cursor: crosshair;
+      touch-action: none;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+    }
+    .note-link:hover { background: var(--note-accent); border-color: var(--note-accent); color: var(--bg-panel); }
+    .flow-note:hover .note-link, .flow-note.selected .note-link { display: inline-flex; }
+    .note-leader.linking { display: inline; stroke: var(--note-accent); stroke-dasharray: 4 3; stroke-width: 1.5px; }
+    body.note-linking, body.note-linking * { cursor: crosshair !important; }
+    /* The steps the selected note explains */
+    .flow-node.note-linked { outline: 1.5px dashed var(--note-accent); outline-offset: 5px; }
+    .note-leader {
+      display: none;
+      stroke: var(--note-leader);
+      stroke-width: 1.25px;
+      stroke-dasharray: 3 3;
+      fill: none;
+    }
+    .note-leader.show, .note-leader.peek { display: inline; }
+    /* Exports show what the Notes button shows: a note only peeked by hover or selection stays out */
+    body.exporting .flow-note.peek:not(.show),
+    body.exporting .note-leader.peek:not(.show) { display: none !important; }
+
+    /* Badge on a node with a note: a small paper chip on its top-right corner. Hover peeks the note, click edits it.
+       The "+" chip in the same place adds a note to the selected node. Both are editing hints, never exported. */
+    .note-badge, .note-add {
+      position: absolute;
+      top: -8px; right: -8px;
+      z-index: 3;   /* above the decision diamond (1) and its label (2) */
+      width: 18px; height: 18px;
+      box-sizing: border-box;
+      padding: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      cursor: pointer;
+      font: inherit;
+      transition: transform var(--ease), background var(--ease), border-color var(--ease), opacity var(--ease);
+    }
+    .note-badge {
+      border: 1px solid var(--note-border);
+      background: var(--note-bg);
+      color: var(--note-accent);
+      box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+    }
+    .note-badge:hover { transform: scale(1.15); border-color: var(--note-accent); }
+    .note-add {
+      display: none;
+      width: 22px; height: 22px;   /* a little larger than the badge: it is a button to aim at, not a hint */
+      top: -10px; right: -10px;
+      border: 1px dashed var(--note-accent);
+      background: var(--bg-panel);
+      color: var(--note-accent);
+    }
+    .note-add:hover { background: var(--note-bg); border-style: solid; }
+    .flow-node:hover .note-add, .flow-node.selected .note-add { display: inline-flex; }
+    /* Not while something else is being dragged or connected: the chip would only be in the way */
+    body:is(.palette-dragging, .connecting, .reconnecting, .note-picking) .flow-node:not(.selected) .note-add { display: none; }
+    .note-badge svg, .note-add svg { display: block; }
+    /* Pills keep their corner free: the badge sits on the straight top edge, near the right end */
+    .flow-node.type-start:not(.terminal-dot) :is(.note-badge, .note-add),
+    .flow-node.type-end:not(.terminal-dot) :is(.note-badge, .note-add) { right: 14px; }
+    /* Decision: on the diamond's upper-right edge rather than the empty corner of its box */
+    .flow-node.type-decision :is(.note-badge, .note-add) { top: 8px; right: 24px; }
+    .flow-node.type-decision .note-add { top: 6px; right: 22px; }
+    /* With every note on show the badges would only repeat them */
+    #swimlanes-container.notes-on .note-badge { display: none; }
+    body.presentation .note-add,
+    body.presentation .note-del,
+    body.presentation .note-link { display: none !important; }
+    /* Presentation is read-only, but notes still open: hover a badge, or click it to keep the note open */
+    body.presentation .note-badge,
+    body.presentation .flow-note { pointer-events: auto !important; cursor: default; }
+
+    /* Note tile in the Shapes menu, drawn as the note card itself; its drag ghost; the step it would land on */
+    .btn-note-tool svg .note-paper { fill: var(--note-bg); stroke: var(--note-accent); }
+    .btn-note-tool svg .note-fold { fill: var(--note-border); stroke: var(--note-accent); }
+    .btn-note-tool svg .note-lines { stroke: var(--note-accent); }
+    .btn-note-tool:hover svg .note-paper { fill: color-mix(in srgb, var(--note-accent) 18%, var(--note-bg)); }
+    .flow-note.note-ghost {
+      position: fixed;
+      display: block;
+      z-index: 1000;
+      pointer-events: none;
+      transform-origin: 0 0;
+      opacity: 0.95;
+      box-shadow: 0 10px 24px rgba(0,0,0,0.18);
+      transition: opacity 0.1s;
+    }
+    .flow-note.note-ghost.off-target { opacity: 0.5; }
+    .flow-node.note-target,
+    body.note-picking .flow-node:hover {
+      outline: 2px dashed var(--note-accent);
+      outline-offset: 4px;
+    }
+    body.note-picking .flow-node, body.note-picking .flow-node * { cursor: copy !important; }
+    /* "Click a step" prompt, above the dock while the Note tile waits for a step */
+    .note-pick-hint {
+      position: fixed;
+      left: 50%;
+      bottom: 76px;
+      transform: translateX(-50%);
+      z-index: 150;
+      padding: 6px 12px;
+      border-radius: 999px;
+      border: 1px solid var(--note-border);
+      background: var(--note-bg);
+      color: var(--note-ink);
+      font-size: 0.8125rem;
+      font-weight: 500;
+      white-space: nowrap;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.12);
+      pointer-events: none;
+    }
+    .note-pick-hint kbd { font: inherit; font-weight: 600; }
+
+    /* Notes toggle in the dock: pressed while every note is on show; the count says how many there are */
+    #btn-notes[aria-pressed="true"],
+    #btn-auto-layout[aria-pressed="true"] {
+      background: var(--primary-wash);
+      border-color: var(--primary-ring);
+      color: var(--primary);
+    }
+    #btn-notes .btn-count {
+      min-width: 16px;
+      padding: 0 4px;
+      box-sizing: border-box;
+      border-radius: 999px;
+      background: var(--bg-soft);
+      color: var(--text-soft);
+      font-size: 0.6875rem;
+      line-height: 16px;
+      text-align: center;
+    }
+    #btn-notes[aria-pressed="true"] .btn-count { background: var(--primary); color: var(--bg-panel); }
 
     /* Top-to-bottom ("direction": "TB"): lanes are side-by-side columns, the pill gutter is a band along the top
        of each column, and the lane stripe runs along the visible top edge (see pinLaneHeaders) */

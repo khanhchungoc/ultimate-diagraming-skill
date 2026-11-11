@@ -17,7 +17,8 @@ Never add pixel coordinates (`x`, `y`); `--layout` computes them.
   "direction": "LR",
   "lanes": [{ "id": "lane-customer", "name": "Customer", "icon": "user" }],
   "nodes": [{ "id": "n1", "laneId": "lane-customer", "type": "start", "label": "Submit Request" }],
-  "edges": [{ "id": "e1", "from": "n1", "to": "n2", "label": "" }]
+  "edges": [{ "id": "e1", "from": "n1", "to": "n2", "label": "" }],
+  "notes": [{ "id": "note-1", "text": "Online form or branch visit", "nodes": ["n1"] }]
 }
 ```
 
@@ -27,20 +28,27 @@ Never add pixel coordinates (`x`, `y`); `--layout` computes them.
 | Lane | `color` | Optional. Omit it: lanes get palette colours in order. Set a hex tint only to match the source's colours, or to give related lanes the same colour on purpose. |
 | Node | `id`, `laneId`, `type`, `label` | `type` is `start`, `task`, `decision` or `end`. `start` and `end` render as rounded pills in their own colours (a plain circle if the label is empty); `task` is a box, `decision` a diamond. |
 | Edge | `id`, `from`, `to`, `label` | `label` is `"Yes"`, `"No"`, `"Resubmit"`, etc.; `""` for unconditional steps. |
+| Note | `id`, `text`, `nodes` | Optional list `notes`: plain text that explains one or more steps (what goes in it: rule 9). `nodes` lists the ids of the steps it explains; the first is where it sits. Each linked step shows a small badge the reader hovers to see the note. |
+| Diagram | `showNotes` | Optional `true` shows every note on the page (fitted into the gaps near its node) instead of on hover; when to set it: rule 9. The page's Notes button toggles it. |
 | Diagram | `swimlanes` | Optional `false` for a process with **one actor**: no lane header column, tint or borders. Keep exactly one lane in `lanes` and put every node in it (the tooling creates `lane-main` if `lanes` is empty). The lane icon rule does not apply. The page's Lane button turns swimlanes back on. |
 | Diagram | `direction` | Optional `"TB"` lays the diagram out **top to bottom**: lanes become columns and steps run downwards. Leave it out for left to right (the default). Use it for a long process with few lanes, which fits a page better vertically. The page's Vertical/Horizontal button switches between the two (re-running the layout), and Save keeps the choice. |
 | Edge | `feedback` | Optional `true` marks a loop-back edge so it always routes through the outer corridor. Without it the engine picks the loop edge by traversal order, which may choose the wrong edge of a cycle. |
 
 ## Writing rules
 
-1. **Verb + Noun** for tasks (`"Validate Order"`, not `"The order needs to be validated"`).
+1. **Labels name the step; notes explain it.** The label is what a reader scans to follow the flow, so it carries only the step. Everything that explains the step goes in a note (rule 9).
+   - **Tasks**: an imperative verb + the business object, 2–4 words, Title Case (`"Validate Order"`, `"Approve Loan"`), never a sentence (`"The order needs to be validated"`).
+   - **Specific verbs**: a generic verb (`"Process"`, `"Handle"`, `"Manage"`, `"Do"`) hides what happens; name the action (`"Handle Claim"` → `"Assess Claim"`).
+   - **Leave out** articles and pronouns, the actor (the lane says who), the element type (`"Decision:"`, `"Task:"`), step numbers, and every system name, threshold, amount, duration, document or reference: those belong in the note. The one exception is the condition a decision tests, which is its question (`"Credit Score >= 700?"`).
+   - **Start** names the trigger, as an event (`"Order Received"`) or the first action (`"Submit Application"`); **end** names the resulting state (`"Loan Approved"`, `"Claim Settled"`), one per outcome (rule 6).
+   - **Distinct names**: no two steps share a label. If the same work really happens twice, loop back to it with an edge instead of repeating the node.
 2. **Decisions end in `?`** (`"Docs Complete?"`) and every outgoing branch is labeled. Only decision branches get `Yes`/`No` labels: an edge leaving a step is `""` (`--layout` warns about a `Yes`/`No` on a step).
 3. **One owner per node**: place each node in the lane of the actor who performs it.
 4. **Fit the 2-line label clamp** so text never truncates with `...`:
    - **Tasks / Start / End (`144x64px`)**: `<= 28` chars (~14–16 chars/line). A 13-char word like `"Authorisation"` fits beside one or two short words.
    - **Decisions (`92px` inner diamond)**: `<= 24` chars (~12 chars/line, e.g. `"User Still Authorised?"`).
    - **Lane names**: `<= 32` chars so the floating pill never truncates.
-   - **Fidelity**: keep the user's wording when it fits the budget. Otherwise shorten it and list the changed labels in the final report. Never abbreviate words (`"Auth"`) to save space.
+   - **Fidelity**: keep the user's wording when it fits the budget and rule 1. Otherwise cut the label to its verb + object and move the rest of the user's wording into a note on that step, so no detail is lost; list the changed labels in the final report. Never abbreviate words (`"Auth"`) to save space.
 5. **Overview requests**: if the user asks for a summary, high-level overview or one-slide flow, aim for about 7 columns and 12 nodes so it fits a 1080p screen without panning. Otherwise include every step the source has; the page pans and zooms.
 6. **Exceptions end in their own end state.** A path that finishes unresolved (manual intervention, escalation, an unhandled fallback) ends in a separate `end` node named for that outcome (`"Manual Payment Required"`), never merged into the success end (`"Claim Settled"`). Creating a task for someone else is not completion.
 7. **One lane per actor.** A lane is who does the work: a role, team, organisation or system that performs steps.
@@ -77,6 +85,22 @@ Never add pixel coordinates (`x`, `y`); `--layout` computes them.
 | `layers` | architecture, a layered or composite system |
 | `globe` | external party, third party, partner, vendor |
 | `flag` | core team, lead, steering group, management |
+
+9. **Notes hold what the label leaves out.** Add a note only where the source says more about a step than its label (rule 1); most steps need none.
+   - **In a note**: how or why the step is done (method, criteria), business rules and thresholds, amounts, SLAs, durations and schedules, the system or tool used, documents and forms, policy, regulation or ticket references, and examples. Keep the source's figures, names and IDs exactly.
+   - **Never in a note**: flow. A step, branch, loop, hand-off or outcome that changes what happens next is a node or an edge, so a reader who never opens a note still sees the whole process. Never repeat the label.
+   - **Form**: a fragment or one or two short sentences, facts over prose, `<= 140` chars; `\n` separates distinct facts.
+   - **`showNotes`**: leave it out by default (notes open on hover). Set `true` when the reader needs the notes without interacting: the diagram is meant for export, print or a presentation, or the user asks for the detail to be visible.
+   - **One note, several steps**: when the same fact explains several steps (one policy behind two decisions, one system doing three steps), write one note and list every step in `nodes`, never copies of it.
+   - **Never write `pos`**: the page fits each note into a free gap; a note the user drags keeps its own place.
+   - `--layout` prints a `[WARN]` for a note over the budget, one that repeats its step's label, or one linked to no existing step.
+
+   ```json
+   "nodes": [{ "id": "n5", "laneId": "lane-engine", "type": "task", "label": "Check Credit" }, ...],
+   "notes": [{ "id": "note-2", "nodes": ["n5"],
+               "text": "Experian bureau pull plus internal fraud rules\nScore < 620 is declined automatically" }]
+   ```
+   not `"label": "Run Experian Credit Check (Score >= 620)"` with no note.
 
 ## Choosing the structure
 

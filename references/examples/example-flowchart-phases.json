@@ -19,6 +19,12 @@
     { "id": "n8", "laneId": "lane-step4", "type": "task", "label": "Create Supplier Record" },
     { "id": "n9", "laneId": "lane-step4", "type": "end", "label": "Supplier Active" }
   ],
+  "notes": [
+    { "id": "note-1", "text": "Supplier portal form: legal entity, bank details, tax ID", "nodes": ["n2"] },
+    { "id": "note-2", "text": "Certificate of incorporation, W-9 or VAT certificate, proof of insurance", "nodes": ["n3", "n4"] },
+    { "id": "note-3", "text": "Sanctions screening and Dun & Bradstreet credit check\nOwner: Procurement Risk", "nodes": ["n5"] },
+    { "id": "note-4", "text": "ERP vendor master; payment terms Net 30 unless agreed otherwise", "nodes": ["n8"] }
+  ],
   "edges": [
     { "id": "e1", "from": "n1", "to": "n2", "label": "" },
     { "id": "e2", "from": "n2", "to": "n3", "label": "" },

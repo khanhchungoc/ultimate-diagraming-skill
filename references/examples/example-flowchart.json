@@ -80,6 +80,28 @@
       "label": "Application Rejected"
     }
   ],
+  "notes": [
+    {
+      "id": "note-1",
+      "text": "Online portal or branch\nID, payslips and 3 months of bank statements",
+      "nodes": ["n1"]
+    },
+    {
+      "id": "note-2",
+      "text": "Experian bureau pull plus internal fraud rules; about 2 minutes",
+      "nodes": ["n5"]
+    },
+    {
+      "id": "note-3",
+      "text": "Thresholds set by Lending Policy LP-7, reviewed quarterly",
+      "nodes": ["n6", "n7"]
+    },
+    {
+      "id": "note-4",
+      "text": "Decline letter with the reason within 30 days",
+      "nodes": ["n9"]
+    }
+  ],
   "edges": [
     {
       "id": "e1",

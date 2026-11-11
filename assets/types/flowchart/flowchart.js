@@ -61,6 +61,8 @@
       let dragStartY = 0;
       let dragStartGlobalX = 0;
       let dragStartGlobalY = 0;
+      let autoLayout = true;   // see AUTO LAYOUT
+      try { autoLayout = localStorage.getItem('flowchart-auto-layout') !== 'off'; } catch (e) {}
       let dragCanInsert = false;   // the dragged node has no arrows, so it may be dropped into one
 
       // Edge Connecting state
@@ -86,6 +88,7 @@
 
       // --- RENDERING ---
       function render() {
+        pruneNotes();
         const noLanes = chartData.swimlanes === false;
         if (noLanes) normalizeSwimlanes(chartData);
         swimlanesContainer.classList.toggle('no-swimlanes', noLanes);
@@ -114,6 +117,7 @@
           renderNodes();
           renderEdges();
         }
+        renderNotes(true);   // last: notes are fitted around the final nodes, arrows and labels
         pinLaneHeaders();
       }
 
@@ -466,8 +470,7 @@
         if (to !== from) {
           const [moved] = chartData.lanes.splice(from, 1);
           chartData.lanes.splice(to, 0, moved);
-          updateStatus(true);
-          render();
+          relayout();   // lane order changes how steps are ordered and where loop-backs run
         }
       });
 
@@ -551,9 +554,17 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
             nodeEl.appendChild(port);
           });
 
+          nodeEl.appendChild(buildNoteBadge(node));   // note badge, or the "+" chip to add one
+
           nodeEl.addEventListener('pointerdown', (e) => handleNodePointerDown(e, node));
-          nodeEl.addEventListener('mouseenter', () => { hoveredNodeId = node.id; applyNodeHover(); });
-          nodeEl.addEventListener('mouseleave', () => { if (hoveredNodeId === node.id) hoveredNodeId = null; applyNodeHover(); });
+          nodeEl.addEventListener('mouseenter', () => {
+            hoveredNodeId = node.id; applyNodeHover();
+            if (notesOf(node.id).length) peekSoon(node.id, NOTE_PEEK_DELAY);
+          });
+          nodeEl.addEventListener('mouseleave', () => {
+            if (hoveredNodeId === node.id) hoveredNodeId = null; applyNodeHover();
+            unpeekSoon(node.id);
+          });
           laneTrack.appendChild(nodeEl);
         });
       }
@@ -2070,6 +2081,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           }
         });
         applyNodeHover(); // keep the hover highlight across a re-render (e.g. while dragging)
+        positionNotes();  // notes follow their nodes (a dragged node moves its note with it)
       }
 
       // Hovering a node highlights every arrow touching it (and its label): amber for those entering the
@@ -2096,6 +2108,20 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
       // --- NODE DRAG INTERACTION ---
       function handleNodePointerDown(e, node) {
         if (e.target.classList.contains('port') || e.target.isContentEditable) {
+          return;
+        }
+
+        // Shift+click with a note selected links the note to this step (or unlinks it)
+        if (selectedNoteId && e.shiftKey && !isPresenting()) {
+          e.preventDefault();
+          toggleNoteLink(selectedNoteId, node.id);
+          return;
+        }
+
+        // The Note tile is waiting for a step: this one gets the note
+        if (notePicking) {
+          e.preventDefault();
+          giveNoteTo(node.id);
           return;
         }
 
@@ -2168,15 +2194,19 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           cumulativeY += lh;
         }
 
-        // Align to 4px grid, then snap to other nodes' and lane centers when close
+        // Align to 4px grid. With auto layout on, the drop only picks the lane (or an arrow to insert into) and the
+        // re-layout decides where the step sits, so there is nothing to snap to. Off, snap to other nodes' and
+        // lane centers when close
         let gridX = Math.max(16, Math.round(currGlobalX / 4) * 4);
         let gridY = Math.round(currGlobalY / 4) * 4;
-        const snap = computeSnap(draggingNode, flowSize(draggingNode, nodeEl), nh, currGlobalX, currGlobalY);
-        if (snap.x !== null) gridX = Math.max(16, Math.round(snap.x));
-        if (snap.y !== null) gridY = Math.round(snap.y);
+        if (!autoLayout) {
+          const snap = computeSnap(draggingNode, flowSize(draggingNode, nodeEl), nh, currGlobalX, currGlobalY);
+          if (snap.x !== null) gridX = Math.max(16, Math.round(snap.x));
+          if (snap.y !== null) gridY = Math.round(snap.y);
+          showSnapGuides(snap);
+        }
         const localX = gridX;
         const localY = Math.max(12, gridY - targetLaneTop);
-        showSnapGuides(snap, localX, targetLaneTop + localY);
 
         draggingNode.x = localX;
         draggingNode.y = localY;
@@ -2191,6 +2221,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         }
 
         placeNodeEl(nodeEl, draggingNode);
+        positionNotes();
 
         // An unconnected node over an arrow offers to be inserted into it
         let target = null;
@@ -2217,7 +2248,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         }
       }
 
-      // --- SNAP-TO-ALIGNMENT HELPERS ---
+      // --- SNAP-TO-ALIGNMENT HELPERS (manual layout: auto layout off) ---
       const SNAP_THRESHOLD = 6; // px (unscaled diagram units)
 
       function laneTopOf(laneId) {
@@ -2312,8 +2343,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           if (dragMoved && target) {
             insertIntoEdge(node, target.edgeId, e.clientX, e.clientY);
           } else if (dragMoved) {
-            updateStatus(true);
-            render();
+            relayout();   // the lane it was dropped in is kept; its place in the lane comes from the flow
           }
           dragMoved = false;
         }
@@ -2521,9 +2551,9 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         chartData.lanes = chartData.lanes.filter(l => l.id !== laneId);
         chartData.nodes = chartData.nodes.filter(n => !gone.has(n.id));
         chartData.edges = chartData.edges.filter(e => !gone.has(e.from) && !gone.has(e.to));
+        pruneNotes();
         selectedLaneId = null;
-        updateStatus(true);
-        render();
+        relayout();
       }
 
       // Deleting a lane also deletes its steps, so it is confirmed first: a small popover under the delete button
@@ -2591,15 +2621,19 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
       function selectNode(nodeId) {
         selectedNodeId = nodeId;
         selectedEdgeId = null;
+        selectedNoteId = null;
         if (selectedLaneId) { selectedLaneId = null; markSelectedLane(); }
         document.querySelectorAll('.flow-node').forEach(el => el.classList.toggle('selected', el.dataset.nodeId === nodeId));
         document.querySelectorAll('.connector-path').forEach(p => p.classList.remove('selected'));
         document.querySelectorAll('.edge-label-container').forEach(c => c.classList.remove('selected'));
+        applyNoteVisibility();   // a selected node shows its note
       }
 
       function selectEdge(edgeId, reRender = true) {
         selectedEdgeId = edgeId;
         selectedNodeId = null;
+        selectedNoteId = null;
+        applyNoteVisibility();
         if (selectedLaneId) { selectedLaneId = null; markSelectedLane(); }
         document.querySelectorAll('.flow-node').forEach(el => el.classList.remove('selected'));
         if (reRender) {
@@ -2619,9 +2653,9 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
       function deleteNode(nodeId) {
         chartData.nodes = chartData.nodes.filter(n => n.id !== nodeId);
         chartData.edges = chartData.edges.filter(e => e.from !== nodeId && e.to !== nodeId);
+        pruneNotes();   // its notes lose the link (a note explaining only this step goes with it)
         selectedNodeId = null;
-        updateStatus(true);
-        render();
+        relayout();
       }
 
       function deleteEdge(edgeId) {
@@ -2678,8 +2712,8 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
 
       function addNodeAt(type, p) {
         const node = makeNode(type, p);
-        updateStatus(true);
-        render();
+        render();              // draw it where it was dropped first, so relayout can keep it there on screen
+        relayout(node.id);
         selectNode(node.id);
         return node;
       }
@@ -2736,6 +2770,31 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           hint.style.left = `${t.x}px`;
           hint.style.top = `${t.y}px`;
           hint.style.display = 'block';
+        }
+      }
+
+      // --- AUTO LAYOUT ---
+      // With auto layout on (the default; the dock's Auto button toggles it, remembered per browser), every step edit
+      // re-runs the layout engine: adding, moving or deleting a step, and reordering, adding or deleting a lane.
+      // Arrow edits (connect, reconnect, delete, label) do NOT re-lay out, so the order can be rewired one arrow at a
+      // time without the diagram jumping; the next step edit (or Auto-Tidy) lays the result out. The engine reads only
+      // structure (arrows, lanes), not x/y, so with auto layout on a drag only picks a lane. Off, steps stay where
+      // they are dropped (with snap guides) and only Auto-Tidy re-lays out.
+      // The re-layout runs before updateStatus, so the edit and its re-layout are a single undo step. With `focusId`,
+      // the view is re-panned so that step stays where it was on screen (a step just added appears where it was dropped).
+      function relayout(focusId) {
+        if (!autoLayout) { render(); updateStatus(true); return; }
+        const before = focusId && document.getElementById(`node-${focusId}`);
+        const r0 = before && before.getBoundingClientRect();
+        layoutDiagram(chartData);
+        render();
+        updateStatus(true);
+        const el = focusId && document.getElementById(`node-${focusId}`);
+        if (r0 && el) {
+          const r = el.getBoundingClientRect();
+          panX += (r0.left + r0.width / 2) - (r.left + r.width / 2);
+          panY += (r0.top + r0.height / 2) - (r.top + r.height / 2);
+          updateTransform();
         }
       }
 
@@ -2811,11 +2870,14 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           target = canInsert(pd.type) ? edgeNear(c.x, c.y) : null;
           const p = placementAt(e.clientX, e.clientY, nw, nh);
           if (!target) {
-            // Snap to other nodes' and lane centres like a node drag, and show the ghost where it will land
-            const snap = computeSnap({ id: '__palette__' }, nw, nh, p.x, p.laneTop + p.y);
-            if (snap.x !== null) p.x = Math.max(16, Math.round(snap.x));
-            if (snap.y !== null) p.y = Math.max(12, Math.round(snap.y - p.laneTop));
-            showSnapGuides(snap);
+            // The ghost shows the drop point. Auto layout off: snap to other nodes' and lane centres like a node drag
+            // (on, the re-layout on drop places the new step in the flow)
+            if (!autoLayout) {
+              const snap = computeSnap({ id: '__palette__' }, nw, nh, p.x, p.laneTop + p.y);
+              if (snap.x !== null) p.x = Math.max(16, Math.round(snap.x));
+              if (snap.y !== null) p.y = Math.max(12, Math.round(snap.y - p.laneTop));
+              showSnapGuides(snap);
+            }
             const sr = swimlanesContainer.getBoundingClientRect();
             const c = flowToContainer(p.x, p.laneTop + p.y);
             gx = sr.left + c.x * scale;
@@ -2893,8 +2955,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           height: LE.LANE_MIN
         };
         chartData.lanes.push(newLane);
-        updateStatus(true);
-        render();
+        relayout();
       });
 
       // --- DIRECTION TOGGLE ---
@@ -2917,10 +2978,704 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         if (isTB()) delete chartData.direction;
         else chartData.direction = 'TB';
         selectedEdgeId = null;
+        // A moved note's offset is in screen terms, which the switch turns sideways: let every note be re-fitted
+        notesList().forEach(n => { delete n.pos; });
         layoutDiagram(chartData);
         render();
         updateStatus(true);
         fitView();
+      });
+
+      // --- AUTO LAYOUT TOGGLE ---
+      // Pressed = auto layout on (see AUTO LAYOUT). Turning it on tidies the diagram right away. The choice is an
+      // editing preference of this browser, not part of the diagram, so it is not saved into the file.
+      const btnAutoLayout = document.getElementById('btn-auto-layout');
+      function updateAutoLayoutButton() {
+        if (!btnAutoLayout) return;
+        btnAutoLayout.setAttribute('aria-pressed', String(autoLayout));
+        btnAutoLayout.title = autoLayout
+          ? 'Auto layout is on: the diagram re-arranges itself after every step edit (click to place steps by hand)'
+          : 'Auto layout is off: steps stay where you drop them (click to re-arrange after every step edit)';
+      }
+      if (btnAutoLayout) btnAutoLayout.addEventListener('click', () => {
+        autoLayout = !autoLayout;
+        try { localStorage.setItem('flowchart-auto-layout', autoLayout ? 'on' : 'off'); } catch (e) {}
+        updateAutoLayoutButton();
+        if (autoLayout) relayout();
+      });
+      updateAutoLayoutButton();
+
+      // --- NOTES ---
+      // A note explains one or more steps, so their labels can stay short. Notes live in chartData.notes:
+      //   { "id": "note-1", "text": "...", "nodes": ["n2", "n5"], "pos": {x, y}? }
+      // The first id in "nodes" is the note's anchor. Every linked node carries a small badge; hovering it (or the
+      // node) peeks its notes, and the dock's Notes button shows them all ("showNotes": true, saved with the file).
+      // A dashed leader joins the card to each linked node. Notes are not part of the layout: on every render each
+      // unpinned note is fitted into a clear gap a little away from its nodes, diagonal to a single node, clear of
+      // nodes, other notes, arrows and labels. Notes belong to no lane and may sit beyond the diagram's edge.
+      // Dragging a note pins it: "pos" keeps its top-left relative to its anchor's top-left (screen px), so it
+      // follows its anchor and is never re-fitted. Linking: drag a selected note's link handle onto a step, or
+      // Shift+click a step while the note is selected; the same on a linked step unlinks it (never the last one).
+      const SVG_NS = 'http://www.w3.org/2000/svg';
+      const notesLayer = document.getElementById('notes-layer');
+      const noteLeaderGroup = document.getElementById('note-leader-group');
+      const btnNotes = document.getElementById('btn-notes');
+      const NOTE_GAP = 8;            // px kept clear around nodes, notes and labels
+      const NOTE_MIN_GAP = 10;       // a note never sits closer than this to a node it explains
+      const NOTE_IDEAL_GAP = 20;     // preferred distance: clearly separate from the node, still close to it
+      const NOTE_REACH = 168;        // how far (px) from its nodes a note may be fitted
+      const NOTE_STEP = 8;           // fitting grid
+      const NOTE_PEEK_DELAY = 100;   // ms on a node before its notes peek: feels instant, skips quick fly-overs (the badge peeks at once)
+      const NOTE_ICON = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" aria-hidden="true"><path d="M5 7h14"/><path d="M5 12h14"/><path d="M5 17h9"/></svg>';
+      const NOTE_ADD_ICON = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg>';
+      const NOTE_DEL_ICON = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
+      const NOTE_LINK_ICON = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>';
+      let noteOffsets = {};          // noteId -> {x, y}: last fitted top-left relative to its anchor (screen px)
+      let noteSizes = {};            // noteId -> {w, h}: measured card size
+      let peekNodeId = null;         // node whose notes are peeked by hover
+      let selectedNoteId = null;     // the note card itself is selected (Delete removes the note)
+      let editingNoteId = null;
+      let peekTimer = 0;
+      let noteDrag = null;           // { id, card, sx, sy, x, y, nx, ny, moved }
+      let noteLink = null;           // { id, line, target }: dragging a note's link handle
+
+      const nodeById = (id) => chartData.nodes.find(n => n.id === id);
+      const nodeElOf = (id) => document.getElementById(`node-${id}`);
+      const notesList = () => (Array.isArray(chartData.notes) ? chartData.notes : []);
+      const noteById = (id) => notesList().find(n => n.id === id);
+      const noteTextOf = (note) => (note && typeof note.text === 'string' ? note.text.trim() : '');
+      const isLive = (note) => !!noteTextOf(note) || note.id === editingNoteId;
+      const linkedIds = (note) => (note.nodes || []).filter(id => nodeElOf(id));
+      // Notes with text that explain a node (the one being typed counts too, so its card exists)
+      const notesOf = (nodeId) => notesList().filter(n => isLive(n) && (n.nodes || []).includes(nodeId));
+      const noteCard = (id) => notesLayer && [...notesLayer.children].find(el => el.dataset.noteId === id);
+      const isPresenting = () => document.body.classList.contains('presentation');
+
+      function noteUid() {
+        let i = notesList().length + 1;
+        while (noteById(`note-${i}`)) i++;
+        return `note-${i}`;
+      }
+
+      // Keep notes consistent with the nodes: links to deleted nodes go, a note left with no node goes, and a
+      // note written the old way (a node's own "note" / "notePos") moves into chartData.notes
+      function pruneNotes() {
+        const ids = new Set(chartData.nodes.map(n => n.id));
+        chartData.nodes.forEach(n => {
+          if (typeof n.note === 'string' && n.note.trim()) {
+            chartData.notes = notesList();
+            const note = { id: noteUid(), text: n.note.trim(), nodes: [n.id] };
+            if (n.notePos) note.pos = n.notePos;
+            chartData.notes.push(note);
+          }
+          delete n.note;
+          delete n.notePos;
+        });
+        if (!Array.isArray(chartData.notes)) return;
+        chartData.notes.forEach(note => {
+          const kept = (note.nodes || []).filter(id => ids.has(id));
+          if (kept[0] !== (note.nodes || [])[0]) delete note.pos;   // the anchor changed: let it be re-fitted
+          note.nodes = kept;
+        });
+        chartData.notes = chartData.notes.filter(n => n.nodes.length && (noteTextOf(n) || n.id === editingNoteId));
+        if (!chartData.notes.length) delete chartData.notes;
+      }
+
+      // An element's box in container coordinates (the frame arrows, labels and notes are drawn in)
+      function containerBox(el) {
+        const c = swimlanesContainer.getBoundingClientRect(), r = el.getBoundingClientRect();
+        return { x: (r.left - c.left) / scale, y: (r.top - c.top) / scale, w: r.width / scale, h: r.height / scale };
+      }
+      const boxesOverlap = (a, b, pad = 0) =>
+        a.x < b.x + b.w + pad && a.x + a.w + pad > b.x && a.y < b.y + b.h + pad && a.y + a.h + pad > b.y;
+      // Distance between two boxes (0 when they touch or overlap)
+      const boxGap = (a, b) => Math.hypot(Math.max(0, b.x - (a.x + a.w), a.x - (b.x + b.w)), Math.max(0, b.y - (a.y + a.h), a.y - (b.y + b.h)));
+      // Length of an axis-aligned arrow segment that runs under box b
+      function lengthUnder(s, b) {
+        const [x1, y1, x2, y2] = s;
+        if (y1 === y2) return (y1 > b.y && y1 < b.y + b.h) ? Math.max(0, Math.min(Math.max(x1, x2), b.x + b.w) - Math.max(Math.min(x1, x2), b.x)) : 0;
+        if (x1 === x2) return (x1 > b.x && x1 < b.x + b.w) ? Math.max(0, Math.min(Math.max(y1, y2), b.y + b.h) - Math.max(Math.min(y1, y2), b.y)) : 0;
+        return boxesOverlap({ x: Math.min(x1, x2), y: Math.min(y1, y2), w: Math.abs(x2 - x1), h: Math.abs(y2 - y1) }, b) ? 1 : 0;
+      }
+
+      function renderNotes(refit) {
+        if (!notesLayer) return;
+        notesLayer.textContent = '';
+        noteLeaderGroup.textContent = '';
+        const live = notesList().filter(n => isLive(n) && linkedIds(n).length);
+        live.forEach(note => {
+          notesLayer.appendChild(buildNoteCard(note));
+          linkedIds(note).forEach(nodeId => {
+            const line = document.createElementNS(SVG_NS, 'line');
+            line.setAttribute('class', 'note-leader');
+            line.dataset.noteId = note.id;
+            line.dataset.nodeId = nodeId;
+            noteLeaderGroup.appendChild(line);
+          });
+        });
+        // Hidden cards have no size: measure them all at once, laid out but invisible
+        notesLayer.classList.add('measuring');
+        noteSizes = {};
+        live.forEach(n => { const c = noteCard(n.id); noteSizes[n.id] = { w: c.offsetWidth, h: c.offsetHeight }; });
+        notesLayer.classList.remove('measuring');
+        if (refit) noteOffsets = {};
+        fitNotes(live);
+        positionNotes();
+        applyNoteVisibility();
+        updateNotesButton();
+      }
+
+      // Give every note that is neither pinned nor fitted yet the cheapest spot within NOTE_REACH of its nodes.
+      // Cost: how far each linked node is from NOTE_IDEAL_GAP away; for a one-node note, a preference for a
+      // diagonal corner (not squarely beside, above or below), so it reads as an annotation rather than a step;
+      // heavy penalties for covering a node, another note, an arrow label or the lane-name gutter (where the lane
+      // pills sit); a lighter one for hiding arrows; and a small one for leaving the diagram.
+      function fitNotes(live) {
+        const todo = live.filter(n => !n.pos && !noteOffsets[n.id]);
+        if (!todo.length) return;
+        const W = swimlanesContainer.clientWidth, H = swimlanesContainer.clientHeight;
+        const off = trackOffset();
+        const gutter = isTB() ? { x: 0, y: 0, w: W, h: off } : { x: 0, y: 0, w: off, h: H };
+        const nodeBoxes = chartData.nodes.map(n => nodeElOf(n.id)).filter(Boolean).map(containerBox);
+        const labelBoxes = [...edgeLabelsGroup.querySelectorAll('.edge-label-container.has-label')].map(containerBox);
+        const segs = [];
+        Object.values(lastRoutes).forEach(r => {
+          const p = r && r.points;
+          if (p) for (let i = 0; i < p.length - 1; i++) segs.push([p[i][0], p[i][1], p[i + 1][0], p[i + 1][1]]);
+        });
+        const segBox = ([x1, y1, x2, y2]) => ({ x: Math.min(x1, x2), y: Math.min(y1, y2), w: Math.abs(x2 - x1), h: Math.abs(y2 - y1) });
+        const boxesOf = {};
+        live.forEach(n => { boxesOf[n.id] = linkedIds(n).map(id => containerBox(nodeElOf(id))); });
+        const placed = live.filter(n => n.pos || noteOffsets[n.id]).map(n => {
+          const o = n.pos || noteOffsets[n.id], a = boxesOf[n.id][0];
+          return { x: a.x + o.x, y: a.y + o.y, w: noteSizes[n.id].w, h: noteSizes[n.id].h };
+        });
+        // Reading order (along the flow, then across), so earlier steps get the nearer gaps
+        const along = (b) => (isTB() ? [b.y, b.x] : [b.x, b.y]);
+        todo.sort((a, b) => { const [a1, a2] = along(boxesOf[a.id][0]), [b1, b2] = along(boxesOf[b.id][0]); return a1 - b1 || a2 - b2; });
+
+        todo.forEach(n => {
+          const R = boxesOf[n.id], s = noteSizes[n.id], single = R.length === 1;
+          const ux = Math.min(...R.map(r => r.x)), uy = Math.min(...R.map(r => r.y));
+          const ur = Math.max(...R.map(r => r.x + r.w)), ub = Math.max(...R.map(r => r.y + r.h));
+          const win = { x: ux - s.w - NOTE_REACH, y: uy - s.h - NOTE_REACH, w: ur - ux + 2 * (s.w + NOTE_REACH), h: ub - uy + 2 * (s.h + NOTE_REACH) };
+          const nb = nodeBoxes.filter(b => boxesOverlap(b, win, NOTE_GAP));
+          const lb = labelBoxes.filter(b => boxesOverlap(b, win, NOTE_GAP));
+          const pb = placed.filter(b => boxesOverlap(b, win, NOTE_GAP));
+          const sg = segs.filter(sgm => boxesOverlap(segBox(sgm), win, 2));
+          let best = null;
+          for (let y = Math.round(win.y); y <= win.y + win.h - s.h; y += NOTE_STEP) {
+            for (let x = Math.round(win.x); x <= win.x + win.w - s.w; x += NOTE_STEP) {
+              const b = { x, y, w: s.w, h: s.h };
+              let cost = 0, tooClose = false;
+              for (const r of R) {
+                const gap = boxGap(b, r);
+                if (gap < NOTE_MIN_GAP) { tooClose = true; break; }
+                cost += Math.abs(gap - NOTE_IDEAL_GAP) * 10 / R.length;
+              }
+              if (tooClose) continue;
+              if (single) {
+                // Off-centre, not centred: a note squarely above/below or beside its node reads as part of the
+                // flow, so it pays for how centred it is on that side, nothing once shifted by half the node
+                const r = R[0];
+                const dxc = Math.abs(x + s.w / 2 - (r.x + r.w / 2)), dyc = Math.abs(y + s.h / 2 - (r.y + r.h / 2));
+                const aboveOrBelow = y + s.h <= r.y || y >= r.y + r.h;
+                cost += 160 * (aboveOrBelow ? Math.max(0, 1 - dxc / (r.w / 2)) : Math.max(0, 1 - dyc / (r.h / 2)));
+              }
+              if (best && cost >= best.cost) continue;   // every penalty below only adds
+              if (off > 0 && boxesOverlap(b, gutter)) cost += 1e6;
+              if (x < 0 || y < 0 || x + s.w > W || y + s.h > H) cost += 600;
+              for (const o of nb) if (boxesOverlap(b, o, NOTE_GAP)) cost += 1e5;
+              for (const o of pb) if (boxesOverlap(b, o, NOTE_GAP)) cost += 1e5;
+              for (const o of lb) if (boxesOverlap(b, o, 4)) cost += 2e4;
+              if (best && cost >= best.cost) continue;
+              // Hiding an arrow (or sitting right on it) costs more than leaving the diagram: the flow must stay readable
+              const halo = { x: x - 6, y: y - 6, w: s.w + 12, h: s.h + 12 };
+              for (const sgm of sg) { const len = lengthUnder(sgm, halo); if (len) cost += 5000 + 30 * len; }
+              if (!best || cost < best.cost) best = { x, y, cost };
+            }
+          }
+          if (!best) best = { x: ur + NOTE_IDEAL_GAP, y: uy - s.h - NOTE_GAP, cost: 0 };
+          noteOffsets[n.id] = { x: best.x - R[0].x, y: best.y - R[0].y };
+          placed.push({ x: best.x, y: best.y, w: s.w, h: s.h });
+        });
+      }
+
+      // Put every card at its anchor + offset (pinned or fitted) and draw its leaders
+      function positionNotes() {
+        if (!notesLayer) return;
+        [...notesLayer.children].forEach(card => {
+          const note = noteById(card.dataset.noteId);
+          if (!note || (noteDrag && noteDrag.id === note.id)) return;
+          const anchor = linkedIds(note)[0], o = note.pos || noteOffsets[note.id];
+          if (!anchor || !o) return;
+          const a = containerBox(nodeElOf(anchor)), x = a.x + o.x, y = a.y + o.y;
+          card.style.left = `${x}px`;
+          card.style.top = `${y}px`;
+          drawLeaders(note.id, { x, y, ...(noteSizes[note.id] || { w: 0, h: 0 }) });
+        });
+      }
+
+      // Centre to centre: the leaders run under the cards and the nodes (both opaque), so each one shows only
+      // between the card's outline and the node's, aimed at the middle of both whatever the node's shape
+      function drawLeaders(noteId, b) {
+        [...noteLeaderGroup.children].forEach(line => {
+          if (line.dataset.noteId !== noteId || line.classList.contains('linking')) return;
+          const el = nodeElOf(line.dataset.nodeId);
+          if (!el) return;
+          const r = containerBox(el), cx = r.x + r.w / 2, cy = r.y + r.h / 2;
+          line.setAttribute('x1', b.x + b.w / 2);
+          line.setAttribute('y1', b.y + b.h / 2);
+          line.setAttribute('x2', cx);
+          line.setAttribute('y2', cy);
+        });
+      }
+
+      function notePeeked(note) {
+        const ids = note.nodes || [];
+        return note.id === selectedNoteId || note.id === editingNoteId || !!(noteDrag && noteDrag.id === note.id)
+          || !!(noteLink && noteLink.id === note.id) || ids.includes(peekNodeId) || ids.includes(selectedNodeId);
+      }
+      function applyNoteVisibility() {
+        if (!notesLayer) return;
+        const all = !!chartData.showNotes;
+        swimlanesContainer.classList.toggle('notes-on', all);
+        [...notesLayer.children, ...noteLeaderGroup.children].forEach(el => {
+          const note = noteById(el.dataset.noteId);
+          if (!note) return;
+          el.classList.toggle('show', all);
+          el.classList.toggle('peek', notePeeked(note));
+          if (el.classList.contains('flow-note')) el.classList.toggle('selected', note.id === selectedNoteId);
+        });
+        // The selected note's steps are outlined, so it is clear which ones it explains
+        const sel = selectedNoteId && noteById(selectedNoteId);
+        document.querySelectorAll('.flow-node').forEach(el => el.classList.toggle('note-linked', !!sel && (sel.nodes || []).includes(el.dataset.nodeId)));
+      }
+
+      // Hover: a node peeks its notes after NOTE_PEEK_DELAY, its badge at once; leaving lets them go after a grace period, so the
+      // pointer can travel from the node to a card (which holds the peek while hovered) without the card vanishing
+      // on the way.
+      function peekSoon(nodeId, delay) {
+        clearTimeout(peekTimer);
+        peekTimer = setTimeout(() => {
+          if (draggingNode || noteDrag || noteLink || noteToolDrag || paletteDrag || connectingFromNodeId) return;
+          if (peekNodeId !== nodeId) { peekNodeId = nodeId; applyNoteVisibility(); }
+        }, delay);
+      }
+      function unpeekSoon(nodeId) {
+        clearTimeout(peekTimer);
+        peekTimer = setTimeout(() => {
+          if (peekNodeId === nodeId) { peekNodeId = null; applyNoteVisibility(); }
+        }, 220);
+      }
+
+      function buildNoteBadge(node) {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.setAttribute('data-export-skip', '');
+        b.addEventListener('pointerdown', (e) => e.stopPropagation());   // never starts a node drag
+        const notes = notesOf(node.id).filter(n => noteTextOf(n));
+        if (notes.length) {
+          b.className = 'note-badge';
+          b.setAttribute('aria-label', notes.map(n => `Note: ${noteTextOf(n)}`).join(' · '));
+          b.innerHTML = NOTE_ICON;
+          b.addEventListener('mouseenter', () => peekSoon(node.id, 0));
+          b.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (isPresenting()) {   // read-only: a click keeps the note open (or closes it again)
+              selectedNoteId = selectedNoteId === notes[0].id ? null : notes[0].id;
+              applyNoteVisibility();
+            } else editNote(notes[0].id);
+          });
+        } else {
+          b.className = 'note-add';
+          b.title = 'Add a note (N)';
+          b.setAttribute('aria-label', 'Add a note');
+          b.innerHTML = NOTE_ADD_ICON;
+          b.addEventListener('click', (e) => { e.stopPropagation(); addNoteTo(node.id); });
+        }
+        return b;
+      }
+
+      function buildNoteCard(note) {
+        const card = document.createElement('div');
+        card.className = 'flow-note';
+        card.dataset.noteId = note.id;
+        card.dataset.nodes = (note.nodes || []).join(' ');
+        const text = document.createElement('div');
+        text.className = 'note-text';
+        text.spellcheck = false;
+        text.dataset.placeholder = 'Add a note…';
+        text.textContent = note.text || '';
+        card.appendChild(text);
+
+        const tool = (cls, title, icon) => {
+          const b = document.createElement('button');
+          b.type = 'button';
+          b.className = cls;
+          b.title = title;
+          b.setAttribute('aria-label', title);
+          b.setAttribute('data-export-skip', '');
+          b.innerHTML = icon;
+          card.appendChild(b);
+          return b;
+        };
+        const del = tool('note-del', 'Delete note', NOTE_DEL_ICON);
+        del.addEventListener('pointerdown', (e) => e.stopPropagation());
+        del.addEventListener('click', (e) => { e.stopPropagation(); removeNote(note.id); });
+        const link = tool('note-link', 'Link to another step: drag onto it (onto a linked step to unlink; or Shift+click the step)', NOTE_LINK_ICON);
+        link.addEventListener('pointerdown', (e) => startNoteLink(e, note.id, card));
+        link.addEventListener('click', (e) => e.stopPropagation());
+
+        card.addEventListener('pointerdown', (e) => onNotePointerDown(e, note.id, card));
+        card.addEventListener('dblclick', (e) => { e.stopPropagation(); editNote(note.id); });
+        card.addEventListener('click', (e) => e.stopPropagation());
+        card.addEventListener('mouseenter', () => { if ((note.nodes || []).includes(peekNodeId)) clearTimeout(peekTimer); });
+        card.addEventListener('mouseleave', () => { if (peekNodeId) unpeekSoon(peekNodeId); });
+
+        // Plain text only. Enter starts a new line; Ctrl/Cmd+Enter, Esc or clicking away finishes.
+        text.addEventListener('paste', (e) => {
+          e.preventDefault();
+          document.execCommand('insertText', false, (e.clipboardData || window.clipboardData).getData('text/plain'));
+        });
+        text.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' && !(e.ctrlKey || e.metaKey)) {
+            e.preventDefault();   // a plain line break, not the <div> the browser would wrap the new line in
+            document.execCommand('insertLineBreak');
+          } else if (e.key === 'Escape' || e.key === 'Enter') {
+            // Commit directly too: blur() fires no blur event while the window itself is not focused
+            e.preventDefault(); e.stopPropagation(); text.blur(); commitNote(note, text);
+          }
+        });
+        text.addEventListener('input', () => {   // the card grows as it is typed into: keep its leaders attached
+          noteSizes[note.id] = { w: card.offsetWidth, h: card.offsetHeight };
+          positionNotes();
+        });
+        text.addEventListener('blur', () => commitNote(note, text));
+        return card;
+      }
+
+      function selectNote(id) {
+        const hadEdge = !!selectedEdgeId;
+        selectNode(null);
+        selectedNoteId = id;
+        if (hadEdge) renderEdges();
+        applyNoteVisibility();
+        queueDeleteRefresh();
+      }
+
+      // N, the "+" chip and the Note tile: open the step's note, or start a new one (dropped again if left empty)
+      function addNoteTo(nodeId) {
+        if (!nodeById(nodeId) || isPresenting()) return;
+        const existing = notesOf(nodeId)[0];
+        if (existing) { editNote(existing.id); return; }
+        const note = { id: noteUid(), text: '', nodes: [nodeId] };
+        chartData.notes = notesList();
+        chartData.notes.push(note);
+        editNote(note.id);
+      }
+
+      function editNote(id) {
+        const note = noteById(id);
+        if (!note || isPresenting()) return;
+        cancelConnecting();
+        setNotePicking(false);
+        editingNoteId = id;
+        selectedNoteId = id;
+        if (!noteCard(id)) renderNotes(false); else applyNoteVisibility();
+        const card = noteCard(id);
+        if (!card) return;
+        const text = card.querySelector('.note-text');
+        text.contentEditable = 'true';
+        text.focus();
+        const range = document.createRange();
+        range.selectNodeContents(text);
+        range.collapse(false);   // caret at the end: adding to a note is more common than replacing it
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+      }
+
+      function commitNote(note, text) {
+        text.contentEditable = 'false';
+        if (editingNoteId !== note.id) return;
+        editingNoteId = null;
+        const value = text.innerText.replace(/ /g, ' ').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+        if (value) note.text = value;
+        else {
+          chartData.notes = notesList().filter(n => n !== note);
+          if (!chartData.notes.length) delete chartData.notes;
+          if (selectedNoteId === note.id) selectedNoteId = null;
+        }
+        updateStatus(true);
+        render();   // badges appear or go, and the notes are re-fitted around the new size
+      }
+
+      // Clicking anywhere else finishes the note being typed (a node press calls preventDefault, which would
+      // otherwise keep the focus in the note)
+      window.addEventListener('pointerdown', (e) => {
+        if (!editingNoteId) return;
+        const card = noteCard(editingNoteId);
+        if (card && card.contains(e.target)) return;
+        const text = card && card.querySelector('.note-text'), note = noteById(editingNoteId);
+        if (text) text.blur();
+        if (text && note) commitNote(note, text);   // no-op if the blur already committed it
+      }, true);
+
+      function removeNote(id) {
+        if (!noteById(id)) return;
+        chartData.notes = notesList().filter(n => n.id !== id);
+        if (!chartData.notes.length) delete chartData.notes;
+        if (editingNoteId === id) editingNoteId = null;
+        if (selectedNoteId === id) selectedNoteId = null;
+        updateStatus(true);
+        render();
+      }
+
+      // Link a note to a step, or unlink it when it is linked already (a note keeps at least one step). A pinned
+      // note whose anchor goes keeps its place on screen, measured from its new anchor.
+      function toggleNoteLink(noteId, nodeId) {
+        const note = noteById(noteId);
+        if (!note || !nodeById(nodeId)) return;
+        const ids = note.nodes || [];
+        if (!ids.includes(nodeId)) note.nodes = ids.concat(nodeId);
+        else if (ids.length > 1) {
+          if (ids[0] === nodeId && note.pos) {
+            const card = noteCard(noteId), next = nodeElOf(ids[1]);
+            if (card && next) {
+              const c = containerBox(card), a = containerBox(next);
+              note.pos = { x: Math.round(c.x - a.x), y: Math.round(c.y - a.y) };
+            } else delete note.pos;
+          }
+          note.nodes = ids.filter(id => id !== nodeId);
+        } else return;   // the last step: delete the note instead
+        selectedNoteId = noteId;
+        updateStatus(true);
+        render();
+      }
+
+      // --- Dragging a note's link handle onto a step ---
+      function startNoteLink(e, noteId, card) {
+        if (e.button !== 0 || isPresenting()) return;
+        e.stopPropagation();
+        e.preventDefault();
+        selectNote(noteId);
+        const line = document.createElementNS(SVG_NS, 'line');
+        line.setAttribute('class', 'note-leader linking');
+        line.dataset.noteId = noteId;
+        noteLeaderGroup.appendChild(line);
+        const c = containerBox(card);
+        noteLink = { id: noteId, line, target: null, x: c.x + c.w / 2, y: c.y + c.h / 2 };
+        document.body.classList.add('note-linking');
+        window.addEventListener('pointermove', onNoteLinkMove);
+        window.addEventListener('pointerup', onNoteLinkUp);
+        window.addEventListener('pointercancel', cancelNoteLink);
+      }
+      function onNoteLinkMove(e) {
+        const d = noteLink;
+        if (!d) return;
+        const p = toContainer(e.clientX, e.clientY);
+        d.line.setAttribute('x1', d.x); d.line.setAttribute('y1', d.y);
+        d.line.setAttribute('x2', p.x); d.line.setAttribute('y2', p.y);
+        d.target = nodeIdAt(e.clientX, e.clientY);
+        markNoteTarget(d.target);
+      }
+      function endNoteLink() {
+        window.removeEventListener('pointermove', onNoteLinkMove);
+        window.removeEventListener('pointerup', onNoteLinkUp);
+        window.removeEventListener('pointercancel', cancelNoteLink);
+        const d = noteLink;
+        noteLink = null;
+        document.body.classList.remove('note-linking');
+        if (d) d.line.remove();
+        markNoteTarget(null);
+        return d;
+      }
+      function onNoteLinkUp() {
+        const d = endNoteLink();
+        if (d && d.target) toggleNoteLink(d.id, d.target);
+        else applyNoteVisibility();
+      }
+      function cancelNoteLink() { return !!endNoteLink(); }
+
+      // --- Dragging a note: free placement, pinned relative to its anchor on drop ---
+      function onNotePointerDown(e, id, card) {
+        if (e.button !== 0 || e.target.isContentEditable) return;
+        e.stopPropagation();
+        if (isPresenting()) return;
+        e.preventDefault();
+        if (connectingFromNodeId) cancelConnecting();
+        selectNote(id);
+        noteDrag = { id, card, sx: e.clientX, sy: e.clientY, x: parseFloat(card.style.left) || 0, y: parseFloat(card.style.top) || 0, moved: false };
+        window.addEventListener('pointermove', onNoteMove);
+        window.addEventListener('pointerup', onNoteUp);
+        window.addEventListener('pointercancel', cancelNoteDrag);
+      }
+      function onNoteMove(e) {
+        const d = noteDrag;
+        if (!d) return;
+        if (!d.moved && Math.hypot(e.clientX - d.sx, e.clientY - d.sy) < 4) return;
+        d.moved = true;
+        d.card.classList.add('dragging');
+        d.nx = Math.round((d.x + (e.clientX - d.sx) / scale) / 4) * 4;
+        d.ny = Math.round((d.y + (e.clientY - d.sy) / scale) / 4) * 4;
+        d.card.style.left = `${d.nx}px`;
+        d.card.style.top = `${d.ny}px`;
+        drawLeaders(d.id, { x: d.nx, y: d.ny, ...(noteSizes[d.id] || { w: 0, h: 0 }) });
+      }
+      function endNoteDrag() {
+        window.removeEventListener('pointermove', onNoteMove);
+        window.removeEventListener('pointerup', onNoteUp);
+        window.removeEventListener('pointercancel', cancelNoteDrag);
+        const d = noteDrag;
+        noteDrag = null;
+        if (d) d.card.classList.remove('dragging');
+        return d;
+      }
+      function onNoteUp() {
+        const d = endNoteDrag();
+        if (!d || !d.moved) return;
+        const note = noteById(d.id), anchor = note && linkedIds(note)[0];
+        if (!anchor) return;
+        const a = containerBox(nodeElOf(anchor));
+        note.pos = { x: Math.round(d.nx - a.x), y: Math.round(d.ny - a.y) };
+        updateStatus(true);
+      }
+      function cancelNoteDrag() {
+        const d = endNoteDrag();
+        if (!d) return false;
+        if (d.moved) positionNotes();   // back where it was
+        return d.moved;
+      }
+
+      // N adds a note to the selected step (or opens the one it has), or opens the selected note
+      window.addEventListener('keydown', (e) => {
+        if (e.key !== 'n' && e.key !== 'N') return;
+        if (e.ctrlKey || e.metaKey || e.altKey || isPresenting()) return;
+        const a = document.activeElement;
+        if (a && (a.isContentEditable || a.tagName === 'INPUT' || a.tagName === 'TEXTAREA')) return;
+        if (!selectedNodeId && !selectedNoteId) return;
+        e.preventDefault();
+        if (selectedNodeId) addNoteTo(selectedNodeId); else editNote(selectedNoteId);
+      });
+
+      // --- NOTE TOOL (last tile in the Shapes menu) ---
+      // A note belongs to a step, so the tile gives one to a step instead of adding a node: drag it onto a step,
+      // or click it to add a note to the selected step. With nothing selected, a click waits for the next step
+      // clicked (a prompt says so; Escape or a click on the canvas cancels).
+      const btnAddNote = document.getElementById('btn-add-note');
+      let notePicking = false;
+      let noteToolDrag = null;   // { startX, startY, ghost, target }
+
+      function setNotePicking(on) {
+        notePicking = on;
+        document.body.classList.toggle('note-picking', on);
+        let hint = document.querySelector('.note-pick-hint');
+        if (on && !hint) {
+          hint = document.createElement('div');
+          hint.className = 'note-pick-hint';
+          hint.setAttribute('role', 'status');
+          hint.innerHTML = 'Click a step to add a note · <kbd>Esc</kbd> to cancel';
+          document.body.appendChild(hint);
+        } else if (!on && hint) hint.remove();
+      }
+      // The step under a screen point (ghosts and overlays ignore the pointer, so they never get in the way)
+      function nodeIdAt(clientX, clientY) {
+        const el = document.elementFromPoint(clientX, clientY);
+        const n = el && el.closest('.flow-node');
+        return n ? n.dataset.nodeId : null;
+      }
+      function giveNoteTo(nodeId) {
+        setNotePicking(false);
+        selectNode(nodeId);
+        addNoteTo(nodeId);
+      }
+
+      if (btnAddNote) {
+        btnAddNote.addEventListener('click', (e) => {
+          if (btnAddNote.dataset.dragged) { delete btnAddNote.dataset.dragged; e.preventDefault(); return; }
+          if (isPresenting()) return;
+          const nodeId = selectedNodeId, noteId = !nodeId && selectedNoteId;
+          // After this click is done: the Shapes bubble hands focus back to its trigger on a keyboard or tap pick,
+          // which would otherwise take it straight out of the note just opened
+          if (nodeId) setTimeout(() => giveNoteTo(nodeId));
+          else if (noteId) setTimeout(() => editNote(noteId));
+          else setNotePicking(!notePicking);
+        });
+        btnAddNote.addEventListener('pointerdown', (e) => {
+          delete btnAddNote.dataset.dragged;
+          if (e.button !== 0 || isPresenting()) return;
+          noteToolDrag = { startX: e.clientX, startY: e.clientY, ghost: null, target: null };
+          window.addEventListener('pointermove', onNoteToolMove);
+          window.addEventListener('pointerup', onNoteToolUp);
+          window.addEventListener('pointercancel', cancelNoteToolDrag);
+        });
+      }
+      function markNoteTarget(id) {
+        document.querySelectorAll('.flow-node.note-target').forEach(el => el.classList.remove('note-target'));
+        const el = id && nodeElOf(id);
+        if (el) el.classList.add('note-target');
+      }
+      function onNoteToolMove(e) {
+        const d = noteToolDrag;
+        if (!d) return;
+        if (!d.ghost) {
+          if (Math.hypot(e.clientX - d.startX, e.clientY - d.startY) < 4) return;
+          setNotePicking(false);
+          d.ghost = document.createElement('div');
+          d.ghost.className = 'flow-note note-ghost';
+          d.ghost.innerHTML = '<div class="note-text">Note</div>';
+          document.body.appendChild(d.ghost);
+          document.body.classList.add('palette-dragging');
+        }
+        // Trails below-right of the cursor, so the step being pointed at stays in view
+        d.ghost.style.transform = `scale(${scale})`;
+        d.ghost.style.left = `${e.clientX + 12}px`;
+        d.ghost.style.top = `${e.clientY + 12}px`;
+        d.target = nodeIdAt(e.clientX, e.clientY);
+        d.ghost.classList.toggle('off-target', !d.target);
+        markNoteTarget(d.target);
+      }
+      function endNoteToolDrag() {
+        window.removeEventListener('pointermove', onNoteToolMove);
+        window.removeEventListener('pointerup', onNoteToolUp);
+        window.removeEventListener('pointercancel', cancelNoteToolDrag);
+        const d = noteToolDrag;
+        noteToolDrag = null;
+        if (d && d.ghost) { d.ghost.remove(); document.body.classList.remove('palette-dragging'); }
+        markNoteTarget(null);
+        return d;
+      }
+      function onNoteToolUp() {
+        const d = endNoteToolDrag();
+        if (!d || !d.ghost) return;
+        btnAddNote.dataset.dragged = '1';   // swallow the click that may follow on the tile
+        if (d.target) giveNoteTo(d.target);
+      }
+      function cancelNoteToolDrag() {
+        const d = endNoteToolDrag();
+        return !!(d && d.ghost);
+      }
+
+      // --- NOTES BUTTON (dock) ---
+      function updateNotesButton() {
+        if (!btnNotes) return;
+        const count = notesList().filter(n => noteTextOf(n)).length;
+        const on = !!chartData.showNotes;
+        btnNotes.setAttribute('aria-pressed', String(on));
+        btnNotes.disabled = !count && !on;
+        const c = btnNotes.querySelector('.btn-count');
+        if (c) { c.textContent = count ? String(count) : ''; c.hidden = !count; }
+        btnNotes.title = !count ? 'No notes yet: select a step and press N (or click its + chip) to add one'
+          : on ? 'Hide the notes (hover a step’s badge to peek at one)' : 'Show all notes';
+      }
+      if (btnNotes) btnNotes.addEventListener('click', () => {
+        if (chartData.showNotes) delete chartData.showNotes;
+        else chartData.showNotes = true;
+        peekNodeId = null;
+        applyNoteVisibility();
+        updateNotesButton();
+        updateStatus(true);
       });
 
       // --- REGISTER WITH THE SHELL ---
@@ -2935,22 +3690,44 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           selectedNodeId = null;
           selectedEdgeId = null;
           selectedLaneId = null;
+          selectedNoteId = null;
+          peekNodeId = null;
           markSelectedLane();
           document.querySelectorAll('.flow-node').forEach(el => el.classList.remove('selected'));
           renderEdges();
+          applyNoteVisibility();
         },
         cancelInteraction() {
           if (closeLaneConfirm()) return true;
           const wasConnecting = !!connectingFromNodeId;
           cancelConnecting();
-          return cancelPaletteDrag() || wasConnecting;
+          const wasPicking = notePicking;
+          setNotePicking(false);
+          return cancelNoteLink() || cancelNoteToolDrag() || cancelNoteDrag() || cancelPaletteDrag() || wasConnecting || wasPicking;
         },
         onViewChange() { closeLaneConfirm(); pinLaneHeaders(); },
+        // Notes on show may sit in the margin outside the lanes: Fit and screenshots take them in (peeked ones
+        // are transient and do not count)
+        contentOverflow() {
+          if (!notesLayer || !chartData.showNotes) return null;
+          const W = swimlanesContainer.offsetWidth, H = swimlanesContainer.offsetHeight, PAD = 12;
+          const o = { left: 0, top: 0, right: 0, bottom: 0 };
+          [...notesLayer.children].forEach(card => {
+            const b = containerBox(card);
+            if (!b.w) return;
+            o.left = Math.max(o.left, PAD - b.x);
+            o.top = Math.max(o.top, PAD - b.y);
+            o.right = Math.max(o.right, b.x + b.w + PAD - W);
+            o.bottom = Math.max(o.bottom, b.y + b.h + PAD - H);
+          });
+          return o;
+        },
         hasSelection() {
-          return !!(selectedNodeId || selectedEdgeId || (selectedLaneId && chartData.lanes.length > 1));
+          return !!(selectedNodeId || selectedEdgeId || selectedNoteId || (selectedLaneId && chartData.lanes.length > 1));
         },
         deleteSelection(anchorEl) {
-          if (selectedNodeId) deleteNode(selectedNodeId);
+          if (selectedNoteId) removeNote(selectedNoteId);
+          else if (selectedNodeId) deleteNode(selectedNodeId);
           else if (selectedEdgeId) deleteEdge(selectedEdgeId);
           else if (selectedLaneId) confirmDeleteLane(selectedLaneId, anchorEl);
         }

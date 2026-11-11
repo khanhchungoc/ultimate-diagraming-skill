@@ -261,7 +261,7 @@ class FlowchartAudit:
 
         max_x = max((float(n.get("x", 0)) for n in self.nodes), default=float(START_X))
         column_count = int(round((max_x - START_X) / self.col_w)) + 1
-        budget_warnings: List[str] = self._lane_icon_warnings() + self._outcome_label_warnings()
+        budget_warnings: List[str] = self._lane_icon_warnings() + self._outcome_label_warnings() + self._note_warnings()
 
         return {
             "passed": passed,
@@ -320,6 +320,34 @@ class FlowchartAudit:
         if len(stray) > limit:
             stray = stray[:limit] + [f"... and {len(stray) - limit} more edges labelled Yes/No that do not leave a decision."]
         return stray
+
+    NOTE_BUDGET = 140  # chars: about five lines of the 200px note card; keep in sync with references/types/flowchart.md
+
+    def _note_warnings(self) -> List[str]:
+        """Notes ("notes": [{id, text, nodes}]) add what labels cannot say. One linked to no existing step is never
+        drawn; one that repeats its step's label adds nothing; one past the budget turns into a tall card that
+        covers the gaps the other notes are fitted into."""
+        warnings = []
+        notes = self.data.get("notes") or []
+        if not isinstance(notes, list):
+            return ["\"notes\" must be a list of {\"id\", \"text\", \"nodes\"} objects."]
+        for note in notes:
+            text = str(note.get("text", "")).strip() if isinstance(note, dict) else ""
+            nid = note.get("id", "?") if isinstance(note, dict) else "?"
+            if not text:
+                warnings.append(f"Note '{nid}' has no \"text\"; remove it.")
+                continue
+            ids = note.get("nodes") or []
+            unknown = [i for i in ids if i not in self.node_map]
+            if not ids or unknown:
+                warnings.append(f"Note '{nid}' links to {'no step' if not ids else 'unknown node ids ' + ', '.join(map(str, unknown))}; "
+                                f"\"nodes\" lists the ids of the steps it explains.")
+            if len(text) > self.NOTE_BUDGET:
+                warnings.append(f"Note '{nid}' is {len(text)} chars (budget {self.NOTE_BUDGET}). Keep the facts a reader needs; cut the rest.")
+            labels = [str(self.node_map[i].get("label", "")).strip() for i in ids if i in self.node_map]
+            if any(l and text.rstrip("?.!").lower() == l.rstrip("?.!").lower() for l in labels):
+                warnings.append(f"Note '{nid}' repeats its step's label. Remove the note, or say what the label cannot.")
+        return warnings
 
     def _count_crossings_from_polylines(
         self, polylines: Dict[str, List[Tuple[float, float]]]

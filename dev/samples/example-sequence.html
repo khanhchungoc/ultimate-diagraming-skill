@@ -887,6 +887,8 @@
       //   cancelInteraction() -> true if something was cancelled, deleteSelection(anchorEl?)
       //   optional: hasSelection() -> true when deleteSelection() would delete something (shows the dock's Delete)
       //   optional: onViewChange() after every pan/zoom (body.exporting is set while an export reads styles)
+      //   optional: contentOverflow() -> {left, top, right, bottom}: unscaled px that content reaches past
+      //             contentEl's edges, so Fit and screenshots frame it too
       // Undo/redo is the shell's job: every updateStatus(true) records a snapshot of chartData, so a plugin
       // gets undo for free as long as it calls updateStatus(true) once per finished edit (not per pointermove).
       // The type's engine.js must define layoutDiagram(data): lay out `data` in place, no DOM access.
@@ -1157,7 +1159,7 @@
           fitScale: Math.round(scale * 100) / 100,
           nodeCount: nodes.length, labelCount: labels.length,
           minNodeFontPx, minEdgeFontPx, minTextPx: MIN_PX, errors, legibility, warnings,
-          natural: { w: plugin.contentEl.offsetWidth, h: plugin.contentEl.offsetHeight }
+          natural: (() => { const f = contentFrame(); return { w: f.w, h: f.h }; })()
         };
         const el = document.createElement('script');
         el.id = 'render-report';
@@ -1166,10 +1168,23 @@
         document.body.appendChild(el);
       }
 
+      // What Fit and screenshots frame: contentEl, grown by whatever the plugin says reaches past its edges
+      // (plugin.contentOverflow, e.g. flowchart notes in the margin). Unscaled px; x/y <= 0 is the left/top reach.
+      function contentFrame() {
+        const o = (plugin.contentOverflow && plugin.contentOverflow()) || {};
+        const l = o.left || 0, t = o.top || 0;
+        return {
+          x: -l, y: -t,
+          w: (plugin.contentEl.offsetWidth || 1400) + l + (o.right || 0),
+          h: (plugin.contentEl.offsetHeight || 800) + t + (o.bottom || 0)
+        };
+      }
+
       function fitView() {
         const vpRect = viewport.getBoundingClientRect();
-        const currentWidth = plugin.contentEl.offsetWidth || 1400;
-        const currentHeight = plugin.contentEl.offsetHeight || 800;
+        const frame = contentFrame();
+        const currentWidth = frame.w;
+        const currentHeight = frame.h;
 
         // Capture mode: scale to the exact width requested (?capture&w=1600) and pin to the top-left,
         // so the screenshot is the diagram only and does not depend on browser viewport quirks.
@@ -1177,8 +1192,8 @@
           const reqW = parseFloat(new URLSearchParams(window.location.search).get('w'));
           if (reqW > 0) {
             scale = Math.min(1, reqW / currentWidth);
-            panX = 0;
-            panY = 0;
+            panX = -frame.x * scale;
+            panY = -frame.y * scale;
             updateTransform();
             return;
           }
@@ -1198,8 +1213,8 @@
 
         scale = Math.min(Math.max(Math.min(scaleX, scaleY), 0.25), 1.0);
         const minPan = document.body.classList.contains('capture') ? 0 : 20;
-        panX = Math.max(minPan, (vpRect.width - currentWidth * scale) / 2);
-        panY = Math.max(minPan, (vpRect.height - dockBand - currentHeight * scale) / 2);
+        panX = Math.max(minPan, (vpRect.width - currentWidth * scale) / 2) - frame.x * scale;
+        panY = Math.max(minPan, (vpRect.height - dockBand - currentHeight * scale) / 2) - frame.y * scale;
 
         updateTransform();
       }

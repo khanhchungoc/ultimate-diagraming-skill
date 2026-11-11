@@ -15,6 +15,8 @@
               <polygon points="0 0.75, 5.6 3, 0 5.25" style="fill:var(--edge-out)"/>
             </marker>
           </defs>
+          <!-- Dashed leaders from each visible note to its node (under the nodes, so they stop at the node's edge) -->
+          <g id="note-leader-group"></g>
           <g id="edge-group"></g>
           <path id="drag-edge" d="" style="display:none; fill:none; stroke:var(--primary); stroke-width:3px; stroke-dasharray: 6 6; pointer-events:none;"/>
         </svg>
@@ -24,6 +26,8 @@
 
         <!-- Swimlane Rows will be rendered here -->
         <div id="lanes-root"></div>
+        <!-- Node notes: free-floating cards above the diagram, fitted into gaps near their node (see renderNotes) -->
+        <div id="notes-layer"></div>
         <div id="lane-drop-line"></div>
         <div id="snap-guide-v" class="snap-guide snap-guide-v"></div>
         <div id="snap-guide-h" class="snap-guide snap-guide-h"></div>

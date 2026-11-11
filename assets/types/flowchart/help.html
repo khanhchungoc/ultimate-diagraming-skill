@@ -4,7 +4,14 @@
       <li><kbd>Double-Click Arrow</kbd> : Add or edit arrow label (or click <kbd>+ Add Label</kbd>)</li>
       <li><kbd>Delete</kbd> : Delete the selected step, arrow or lane (or the bar's Delete button, shown while something is selected)</li>
       <li><kbd>Click Lane Name</kbd> : Select the lane (a reorder grip and a delete button appear under its name); <kbd>Delete</kbd> then asks to confirm and removes it with its steps and their arrows (undo brings them back; the last lane stays)</li>
-      <li><kbd>Drag Node</kbd> : Move inside lane or drop into another lane; snaps to other steps' centers and lane centers (dashed guide)</li>
+      <li><kbd>Drag Node</kbd> : Drop a step into another lane (or onto an arrow). With <b>Auto</b> on, the layout tidies itself after every step you add, move or delete (<kbd>Ctrl+Z</kbd> undoes both at once); with it off, steps stay where you drop them and snap to other steps' and lane centers</li>
+      <li><kbd>Reorder Steps</kbd> : Rewire the arrows (drag an arrow's end to another step, or delete and redraw it). Arrow edits never re-arrange the diagram, so it holds still while you rewire; press <b>Auto-Tidy</b> (or edit a step) to lay out the new order</li>
+      <li><kbd>Auto</kbd> : Turn automatic layout on or off (remembered in this browser)</li>
+      <li><kbd>Note</kbd> (last tile under <b>Shapes</b>) : Drag it onto a step to give that step a note, or click it to add one to the selected step (with nothing selected, click the step next; <kbd>Esc</kbd> cancels)</li>
+      <li><kbd>N</kbd> : Add a note to the selected step (or click the <kbd>+</kbd> chip on the corner of a hovered or selected step); <kbd>Enter</kbd> starts a new line, <kbd>Ctrl+Enter</kbd>, <kbd>Esc</kbd> or a click elsewhere finishes, an empty note is removed</li>
+      <li><kbd>Link a Note</kbd> : One note can explain several steps. Select the note, then drag its link handle (bottom-right corner) onto a step, or <kbd>Shift</kbd>+click the step; do the same on a linked step to unlink it</li>
+      <li><kbd>Note Badge</kbd> : A step with a note shows a small badge: hover the badge (or the step) to peek at the note, click it to edit</li>
+      <li><kbd>Notes</kbd> : Show or hide every note at once; they are fitted into the gaps between steps (saved with the file). Drag a note to place it yourself: it then follows its step. Double-click to edit, <kbd>Delete</kbd> removes the selected note</li>
       <li><kbd>Vertical / Horizontal</kbd> : Switch between a left-to-right and a top-to-bottom layout (lanes become columns); saved with the file</li>
       <li><kbd>Drag Lane Name</kbd> : Drag a lane's name pill to reorder swimlanes (a blue line shows where it will land); double-click the name to rename</li>
       <li><kbd>Double Click</kbd> : Edit step text, lane names, or edge conditions</li>
