@@ -38,34 +38,30 @@ Expect from the user or an orchestrating agent: the diagram content (actors, ste
 
 ## Procedure: New Diagram
 
-1. **Write the logical JSON in a temp/scratch file** following the type reference. Never compute pixel coordinates. For a flowchart, give **every lane an `icon`** from the type reference's icon table; a lane header without one looks unfinished. The user's requested scope determines the diagram size and granularity; never truncate or omit steps to fit an artificial budget.
+1. **Write the logical JSON directly to a temp/scratch file** using your file-writing tool, following the type reference. Never compute pixel coordinates, and never write custom `.py` wrapper scripts to generate JSON or invoke the CLI. For a flowchart, give **every lane an `icon`** from the type reference's icon table; a lane header without one looks unfinished. The user's requested scope determines the diagram size and granularity; never truncate or omit steps to fit an artificial budget.
 
-2. **Lay out and scaffold the HTML** (needs Node.js, or Chrome/Chromium as a fallback; `--browser <path>` selects it):
+2. **Lay out, scaffold, and audit the HTML** (needs Node.js, or Chrome/Chromium as a fallback; `--browser <path>` selects it):
    ```shell
    python "<skill-dir>/scripts/layout_engine.py" --layout <temp_input.json> -o <target.html>
    ```
+   `--layout` automatically runs the `--verify` audit (`score ≥ 90/100`, `0` issues, `0` external references) and prints any `[WARN]` lines (such as missing lane icons). Only run `--verify <target.html>` standalone when auditing an existing HTML file without re-laying it out.
    `[ERROR] Layout needs Node.js ... or Chrome`: neither is installed; install one or pass `--browser`. Report it rather than hand-placing coordinates. Once `<target.html>` is generated, delete `<temp_input.json>` unless the user asked to keep it.
-
-3. **Run the automated audit:**
-   ```shell
-   python "<skill-dir>/scripts/layout_engine.py" --verify <target.html>
-   ```
-   Required: exit code `0`, score ≥ 90/100, no issues listed, 0 external references, and no `[WARN]` about a lane icon (add the missing `icon`, then re-run step 2).
    Workflow fidelity comes first: never merge, drop or reroute steps, branches or end states to raise the score. If the complete diagram cannot pass, keep it complete and report the score and the issues behind it.
 
-4. **Layout report + visual review.** One command measures the page and captures a clean screenshot to a temporary path (editing controls hidden, cropped to the diagram, 2x):
+3. **Layout report + visual review.** One command measures the page (including label overlaps, text size, and ellipsis truncation warnings) and captures a clean screenshot to a temporary path (editing controls hidden, cropped to the diagram, 2x):
    ```shell
    python "<skill-dir>/scripts/render_screenshot.py" --input <target.html> --output <temp_path.png>
    ```
    - **Exit 3, `[ERROR]` overlap**: an edge label overlaps another label or a node. Fix it and re-run.
    - **Exit 4, `[ERROR]` text size**: in a diagram of 12 nodes or fewer, text renders below 11px at Fit. Shorten labels, drop steps or columns, or split it, then re-run.
+   - **`[WARN]` truncated text (`...`)**: a node label or lane title overflowed its 2-line box; shorten it per the type reference's character budget and re-run.
    - For large diagrams (> 12 nodes), small text at Fit is only an `[INFO]` line: users view and explore them interactively using pan and zoom on the HTML canvas.
    - **`[WARN] Layout report unavailable`**: the browser returned no DOM (seen with Edge, and rarely on a cold Chrome start). Chrome is tried first; pass `--browser <path-to-chrome>` or do the checks by eye and say so in the report.
    - If the render itself fails, read the error: it names the browser used; retry with `--browser <path>` or a larger `--timeout`. If no browser is available, report that the visual review could not be run instead of skipping it silently.
 
    Then open the PNG with whatever image-viewing tool your host provides (e.g. `Read` on the PNG in Claude Code) and go through the type's visual checklist. Delete the temporary PNG when review is complete.
 
-5. **Report back** (see [Final Report](#final-report)).
+4. **Report back** (see [Final Report](#final-report)).
 
 ## Procedure: Update an Existing Diagram
 

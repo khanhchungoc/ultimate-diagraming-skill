@@ -978,7 +978,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           return b;
         };
         const NONE = { overlap: 0, near: 0, cross: 0 };
-        const relate = (pts, otherPts) => {
+        const relate = (pts, otherPts, skipFirst = false, skipLast = false) => {
           // Every relation needs the two routes within 18px of each other: skip pairs whose boxes are further apart.
           // Only stable (unmutated) polylines are cached; the candidate route is measured fresh.
           const a = bboxOf(otherPts);
@@ -986,10 +986,12 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           for (const [x, y] of pts) { if (x < x1) x1 = x; if (x > x2) x2 = x; if (y < y1) y1 = y; if (y > y2) y2 = y; }
           if (x1 > a[2] + 18 || a[0] > x2 + 18 || y1 > a[3] + 18 || a[1] > y2 + 18) return NONE;
           let overlap = 0, near = 0, cross = 0;
+          const lastI = pts.length - 2, lastJ = otherPts.length - 2;
           for (let i = 0; i < pts.length - 1; i++) {
             const [ax, ay] = pts[i], [bx, by] = pts[i + 1];
             const aV = Math.abs(ax - bx) < 1, aH = Math.abs(ay - by) < 1;
             for (let j = 0; j < otherPts.length - 1; j++) {
+              if ((skipFirst && i === 0 && j === 0) || (skipLast && i === lastI && j === lastJ)) continue;
               const [cx, cy] = otherPts[j], [dx, dy] = otherPts[j + 1];
               const cV = Math.abs(cx - dx) < 1, cH = Math.abs(cy - dy) < 1;
               if (aV && cV) {
@@ -1018,7 +1020,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           for (let i = 0; i < pts.length - 1; i++) {
             const [ax, ay] = pts[i], [bx, by] = pts[i + 1];
             if (Math.abs(ay - by) < 1 && Math.abs(ax - bx) > 30 && laneDividers.some(y => Math.abs(ay - y) < 8)) d += COST.divider;
-            const x1 = Math.min(ax, bx) - 20, x2 = Math.max(ax, bx) + 20, y1 = Math.min(ay, by) - 20, y2 = Math.max(ay, by) + 20;
+            const x1 = Math.min(ax, bx) - 14, x2 = Math.max(ax, bx) + 14, y1 = Math.min(ay, by) - 14, y2 = Math.max(ay, by) + 14;
             let tight = false;
             for (let k = 0; k < rectList.length && !tight; k++) {
               const r = rectList[k][1];
@@ -1069,8 +1071,12 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           let defect = portClashes(edge, fp, tp) * COST.portClash + sharedBranchVertex(edge, fp) * COST.sharedBranch;
           if (fixed + defect >= limit) return Infinity;
           for (let k = 0; k < others.length; k++) {
-            const r = relate(pts, edgePolylines[others[k].id]);
-            defect += (r.overlap > 0 ? COST.overlap + r.overlap : 0) + r.near * COST.near + r.cross * COST.cross;
+            const o = others[k], op = edgePorts[o.id];
+            const incident = o.from === edge.from || o.to === edge.to || o.from === edge.to || o.to === edge.from;
+            const skipFirst = o.from === edge.from && op && op.fromPort === fp;
+            const skipLast = o.to === edge.to && op && op.toPort === tp;
+            const r = relate(pts, edgePolylines[o.id], skipFirst, skipLast);
+            defect += (r.overlap > 0 ? COST.overlap + r.overlap : 0) + (incident ? 0 : r.near * COST.near) + r.cross * COST.cross;
             if (fixed + defect >= limit) return Infinity;
           }
           defect += routeDefects(pts, ids);
@@ -1128,7 +1134,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
               const STEP = 16;
               if (!horiz(fp)) {
                 // vertical exit -> corridor above/below -> sideways to x -> vertical -> horizontal entry
-                [20, 36, 56].forEach(d => {
+                [16, 20, 36, 56].forEach(d => {
                   const g = fp === 'top' ? sy - d : sy + d;
                   for (let x = bounds.minX - 24; x <= bounds.maxX + 24; x += STEP) {
                     if (tp === 'left' ? x > ex - 14 : x < ex + 14) continue;
@@ -1138,7 +1144,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
                 });
               } else {
                 // horizontal exit -> out to x -> vertical to corridor g -> across -> vertical entry
-                [20, 36, 56].forEach(d => {
+                [16, 20, 36, 56].forEach(d => {
                   const x = fp === 'right' ? sx + d : sx - d;
                   for (let g = bounds.minY - 24; g <= bounds.maxY + 24; g += STEP) {
                     if (tp === 'top' ? g > ey - 14 : g < ey + 14) continue;
@@ -1157,8 +1163,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           if (e.to === e.from) return;
           const cur = edgePolylines[e.id];
           if (!cur) return;
-          const others = validEdges.filter(o => o !== e && edgePolylines[o.id]
-            && o.from !== e.from && o.to !== e.to && o.from !== e.to && o.to !== e.from);
+          const others = validEdges.filter(o => o !== e && edgePolylines[o.id]);
           // A decision branch that leaves from the top/bottom vertex an incoming arrow already takes gets pushed
           // off the vertex onto the diamond's slanted edge (2b/5a2). That is a cost, not a ban: the branch moves
           // to a free vertex only when that route is clean enough to beat it (a detour that adds a crossing does not).
@@ -1743,11 +1748,15 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           } else {
             candidates.push({
               x: (p1[0] + p2[0]) / 2,
-              y: p1[1]
+              y: (p1[1] + p2[1]) / 2
             });
           }
-          candidates.push({ x: (p0[0] + p1[0]) / 2, y: p0[1] });
-          candidates.push({ x: (p2[0] + p3[0]) / 2, y: p2[1] });
+          candidates.push({ x: (p0[0] + p1[0]) / 2, y: (p0[1] + p1[1]) / 2 });
+          candidates.push({ x: (p2[0] + p3[0]) / 2, y: (p2[1] + p3[1]) / 2 });
+          if (points.length >= 5) {
+            const p4 = points[4];
+            candidates.push({ x: (p3[0] + p4[0]) / 2, y: (p3[1] + p4[1]) / 2 });
+          }
         }
 
         // Fallback spots along every long segment, tried after the preferred ones above (middle outwards,

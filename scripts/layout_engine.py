@@ -324,7 +324,7 @@ class FlowchartAudit:
     def _count_crossings_from_polylines(
         self, polylines: Dict[str, List[Tuple[float, float]]]
     ) -> int:
-        """Count orthogonal intersections between non-incident edges."""
+        """Count orthogonal intersections between edges (perpendicular only for incident edges)."""
         crossings = 0
         listed = [e for e in self.edges if e["id"] in polylines]
         for i in range(len(listed)):
@@ -332,10 +332,9 @@ class FlowchartAudit:
             pts1 = polylines[e1["id"]]
             for j in range(i + 1, len(listed)):
                 e2 = listed[j]
-                if e1["from"] in (e2["from"], e2["to"]) or e1["to"] in (e2["from"], e2["to"]):
-                    continue
+                incident = e1["from"] in (e2["from"], e2["to"]) or e1["to"] in (e2["from"], e2["to"])
                 pts2 = polylines[e2["id"]]
-                if self._polylines_intersect(pts1, pts2):
+                if self._polylines_intersect(pts1, pts2, incident=incident):
                     crossings += 1
         return crossings
 
@@ -638,19 +637,25 @@ class FlowchartAudit:
         > bend > length, plus lane-divider hugging, crowding a node and left/right port clashes.
         Longest arrows go first; arrows already clean keep their standard route; switching needs a
         clear win (hysteresis), and changing sides is penalised against sliding a channel."""
-        C_OVERLAP, C_NEAR, C_CROSS, C_BEND, C_DIVIDER, C_NEAR_NODE, C_PORT = 20000, 2500, 1750, 1000, 1500, 600, 2500
+        C_OVERLAP, C_NEAR, C_CROSS, C_BEND, C_DIVIDER, C_NEAR_NODE, C_PORT, C_SHARED_BRANCH = (
+            20000, 2500, 1750, 1000, 1500, 600, 2500, 1200
+        )
         dividers = self._lane_dividers()
 
         def poly_clear(pts, ids) -> bool:
             return all(segment_clear(pts[i][0], pts[i][1], pts[i + 1][0], pts[i + 1][1], ids)
                        for i in range(len(pts) - 1))
 
-        def relate(pts, other):
+        def relate(pts, other, skip_first: bool = False, skip_last: bool = False):
             overlap = near = cross = 0.0
             for i in range(len(pts) - 1):
                 (ax, ay), (bx, by) = pts[i], pts[i + 1]
                 a_v, a_h = abs(ax - bx) < 1, abs(ay - by) < 1
                 for j in range(len(other) - 1):
+                    if skip_first and i == 0 and j == 0:
+                        continue
+                    if skip_last and i == len(pts) - 2 and j == len(other) - 2:
+                        continue
                     (cx, cy), (dx, dy) = other[j], other[j + 1]
                     c_v, c_h = abs(cx - dx) < 1, abs(cy - dy) < 1
                     if a_v and c_v:
@@ -684,8 +689,8 @@ class FlowchartAudit:
                 (ax, ay), (bx, by) = pts[i], pts[i + 1]
                 if abs(ay - by) < 1 and abs(ax - bx) > 30 and any(abs(ay - y) < 8 for y in dividers):
                     d += C_DIVIDER
-                x1, x2 = min(ax, bx) - 20, max(ax, bx) + 20
-                y1, y2 = min(ay, by) - 20, max(ay, by) + 20
+                x1, x2 = min(ax, bx) - 14, max(ax, bx) + 14
+                y1, y2 = min(ay, by) - 14, max(ay, by) + 14
                 if any(oid not in ids and ox < x2 and ox + ow > x1 and oy < y2 and oy + oh > y1
                        for oid, (ox, oy, ow, oh) in rects.items()):
                     d += C_NEAR_NODE
@@ -702,6 +707,18 @@ class FlowchartAudit:
                     n += 1
             return n
 
+        def shared_branch_vertex(e, fp) -> int:
+            fn = self.node_map.get(e["from"])
+            if not fn or fn.get("type") != "decision":
+                return 0
+            lbl = (e.get("label") or "").strip().lower()
+            n = 0
+            for o in self.edges:
+                if o is not e and o["from"] == e["from"] and o["id"] in ports and ports[o["id"]][0] == fp:
+                    if lbl != (o.get("label") or "").strip().lower():
+                        n += 1
+            return n
+
         def route_cost(pts, e, others, fp, tp, limit=float("inf")):
             ids = (e["from"], e["to"])
             length = sum(abs(pts[i + 1][0] - pts[i][0]) + abs(pts[i + 1][1] - pts[i][1]) for i in range(len(pts) - 1))
@@ -709,10 +726,18 @@ class FlowchartAudit:
                 return None  # cannot beat the best so far
             if not poly_clear(pts, ids):
                 return None
-            defect = defects(pts, ids) + port_clashes(e, fp, tp) * C_PORT
+            defect = (
+                defects(pts, ids)
+                + port_clashes(e, fp, tp) * C_PORT
+                + shared_branch_vertex(e, fp) * C_SHARED_BRANCH
+            )
             for o in others:
-                ov, ne, cr = relate(pts, result[o["id"]])
-                defect += (C_OVERLAP + ov if ov > 0 else 0) + ne * C_NEAR + cr * C_CROSS
+                op = ports.get(o["id"])
+                skip_first = bool(op and o["from"] == e["from"] and op[0] == fp)
+                skip_last = bool(op and o["to"] == e["to"] and op[1] == tp)
+                ov, ne, cr = relate(pts, result[o["id"]], skip_first, skip_last)
+                incident = bool({o["from"], o["to"]} & {e["from"], e["to"]})
+                defect += (C_OVERLAP + ov if ov > 0 else 0) + (0 if incident else ne * C_NEAR) + cr * C_CROSS
             return (len(pts) - 2) * C_BEND + length + defect, defect
 
         def anchor(r, side):
@@ -770,7 +795,7 @@ class FlowchartAudit:
                         if not deep:
                             continue
                         if not horiz(fp):
-                            for d in (20, 36, 56):
+                            for d in (16, 20, 36, 56):
                                 g = sy - d if fp == "top" else sy + d
                                 x = bounds[0] - 24
                                 while x <= bounds[1] + 24:
@@ -779,7 +804,7 @@ class FlowchartAudit:
                                         yield fp, tp, [(sx, sy), (sx, g), (x, g), (x, ey), (ex, ey)], 0.0
                                     x += 16
                         else:
-                            for d in (20, 36, 56):
+                            for d in (16, 20, 36, 56):
                                 x = sx + d if fp == "right" else sx - d
                                 g = bounds[2] - 24
                                 while g <= bounds[3] + 24:
@@ -796,9 +821,7 @@ class FlowchartAudit:
                         key=manhattan, reverse=True):
             eid = e["id"]
             cur_fp, cur_tp = ports[eid]
-            others = [o for o in self.edges
-                      if o is not e and o["id"] in result
-                      and not {o["from"], o["to"]} & {e["from"], e["to"]}]
+            others = [o for o in self.edges if o is not e and o["id"] in result]
             base = route_cost(result[eid], e, others, cur_fp, cur_tp)
             if base is not None and base[1] == 0:
                 continue
@@ -818,7 +841,9 @@ class FlowchartAudit:
 
     @staticmethod
     def _polylines_intersect(
-        pts1: List[Tuple[float, float]], pts2: List[Tuple[float, float]]
+        pts1: List[Tuple[float, float]],
+        pts2: List[Tuple[float, float]],
+        incident: bool = False,
     ) -> bool:
         def seg_intersect(
             p1: Tuple[float, float],
@@ -838,6 +863,8 @@ class FlowchartAudit:
                      (p1[1], min(p1[0], p2[0]), max(p1[0], p2[0])))
                 )
                 return hx1 + 1 < vx < hx2 - 1 and vy1 + 1 < hy < vy2 - 1
+            if incident:
+                return False
             # Parallel: only a real overlap along a shared line counts
             x1, y1 = min(p1[0], p2[0]), min(p1[1], p2[1])
             x2, y2 = max(p1[0], p2[0]), max(p1[1], p2[1])

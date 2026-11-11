@@ -39,9 +39,12 @@ Never add pixel coordinates (`x`, `y`); `--layout` computes them.
 1. **Verb + Noun** for tasks (`"Validate Order"`, not `"The order needs to be validated"`).
 2. **Decisions end in `?`** (`"Docs Complete?"`) and every outgoing branch is labeled. Only decision branches get `Yes`/`No` labels: an edge leaving a step is `""` (`--verify` warns about a `Yes`/`No` on a step).
 3. **One owner per node**: place each node in the lane of the actor who performs it.
-4. Keep labels short; long edge labels wrap, but long node labels shrink the fitted text.
+4. **Fit the 2-line label clamp** so text never truncates with `...`:
+   - **Tasks / Start / End (`144x64px`)**: `<= 28` chars (~14–16 chars/line; avoid pairing a 12+ char word like `"Authorisation"` or `"Restrictions"` with more than one short word).
+   - **Decisions (`92px` inner diamond)**: `<= 24` chars (~12 chars/line, e.g. `"User Still Authorised?"`).
+   - **Lane names**: `<= 32` chars so the floating pill never truncates.
 5. **Exceptions end in their own end state.** A path that finishes unresolved (manual intervention, escalation, an unhandled fallback) ends in a separate `end` node named for that outcome (`"Manual Payment Required"`), never merged into the success end (`"Claim Settled"`). Creating a task for someone else is not completion.
-6. One lane per distinct actor or system. When the whole process has a single actor, set `"swimlanes": false` instead of drawing one named lane.
+6. **One lane per distinct actor, system, or phase container.** When the whole process has a single actor and no phase containers, set `"swimlanes": false` instead of drawing one named lane. When recreating a diagram grouped into sequential **Step / Phase containers** (`"Step 1: ..."`, `"Step 2: ..."`), map each container to a lane (`lane-step1`, `lane-step2`, ...) and set `"direction": "TB"` if the source flow runs top-to-bottom.
 7. **Every lane gets an `icon`**, chosen from the table below to match the actor or system. Use a different icon for each lane in one diagram, and never leave one out (`--verify` prints a `[WARN]` for a lane without one, or with a name that is not in the table).
 
 | Icon | Use for |

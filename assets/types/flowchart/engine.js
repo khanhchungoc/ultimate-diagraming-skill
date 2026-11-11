@@ -267,17 +267,19 @@
             const inLane = nodes.filter(n => n.laneId === l.id);
             if (inLane.length) maxH = Math.max(...inLane.map(nodeH));
             const rows = subrows[l.id] || 1;
+            // In LR mode with visible swimlanes, the pinned .lane-pill sits at y=12..54px; reserve 56px top pad on multi-row lanes so row-0 nodes never collide with the pill when panned
+            const topPad = (rows > 1 && !LE.LABEL_ACROSS && lanes.length > 1) ? 56 : LE.TOP_PAD;
             const req = rows === 1 && loopRoom(l.id)
               ? LE.NEAR_MIN + maxH + loopRoom(l.id)
-              : LE.TOP_PAD + (rows - 1) * LE.ROW_HEIGHT + maxH + LE.BOTTOM_PAD;
+              : topPad + (rows - 1) * LE.ROW_HEIGHT + maxH + LE.BOTTOM_PAD;
             const inner = Math.max(LE.LANE_MIN, req);
             l.height = inner;
-            lanePos[l.id] = { top: curY, h: l.height, inner, maxH };
+            lanePos[l.id] = { top: curY, h: l.height, inner, maxH, topPad };
             curY += l.height;
           });
 
           nodes.forEach(n => {
-            const lp = lanePos[n.laneId] || { top: 0, h: LE.LANE_MIN };
+            const lp = lanePos[n.laneId] || { top: 0, h: LE.LANE_MIN, topPad: LE.TOP_PAD };
             n.x = X[n.id];
             if ((subrows[n.laneId] || 1) === 1) {
               const inner = lp.inner || lp.h;
@@ -287,7 +289,7 @@
               const blockTop = room ? Math.min(Math.floor((inner - lp.maxH) / 8) * 4, Math.floor((inner - room - lp.maxH) / 4) * 4) : null;
               n.y = room ? Math.max(LE.NEAR_MIN, blockTop + Math.floor((lp.maxH - nodeH(n)) / 8) * 4) : centre;
             } else {
-              n.y = LE.TOP_PAD + sub[n.id] * LE.ROW_HEIGHT;
+              n.y = (lp.topPad || LE.TOP_PAD) + sub[n.id] * LE.ROW_HEIGHT;
             }
           });
 
@@ -295,13 +297,14 @@
           edges.forEach(e => {
             const u = nodeMap[e.from], v = nodeMap[e.to];
             if (!u || !v || u.laneId !== v.laneId || v.x <= u.x) return;
-            const lp = lanePos[u.laneId] || { top: 0, h: LE.LANE_MIN };
+            const lp = lanePos[u.laneId] || { top: 0, h: LE.LANE_MIN, topPad: LE.TOP_PAD };
+            const minTop = (lp.topPad || LE.TOP_PAD) > 36 ? 48 : 20;
             const uh = nodeH(u), vh = nodeH(v);
             const uCy = u.y + uh / 2, vCy = v.y + vh / 2;
             const delta = uCy - vCy;
             if (Math.abs(delta) > 0 && Math.abs(delta) <= 35) {
               const targetY = Math.trunc(pyRound((uCy - vh / 2) / 4) * 4);
-              if (targetY >= 20 && targetY + vh <= lp.h - 20) {
+              if (targetY >= minTop && targetY + vh <= lp.h - 20) {
                 const sibs = nodes.filter(s => s !== v && s.laneId === v.laneId && !clear(s.x, v.x));
                 const collides = sibs.some(s => Math.max(targetY, s.y) < Math.min(targetY + vh, s.y + nodeH(s)) + 12);
                 if (!collides) v.y = targetY;

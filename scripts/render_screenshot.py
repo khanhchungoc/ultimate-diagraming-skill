@@ -100,11 +100,19 @@ def parse_viewport(value: str) -> tuple[int, int]:
 
 
 def wait_for_png(path: Path, deadline: float) -> bool:
-    """Wait until `path` exists and stops growing (some launchers return before writing)."""
+    """Wait until `path` exists and finishes writing (checks PNG IEND trailer or size stability)."""
     last_size, stable_since = -1, 0.0
     while time.monotonic() < deadline:
         if path.is_file():
-            size = path.stat().st_size
+            try:
+                size = path.stat().st_size
+                if size >= 24:
+                    with path.open("rb") as fh:
+                        fh.seek(max(0, size - 12))
+                        if fh.read().endswith(b"IEND\xaeB`\x82"):
+                            return True
+            except OSError:
+                size = 0
             now = time.monotonic()
             if size > 0 and size == last_size:
                 if now - stable_since >= STABLE_SECONDS:
@@ -141,7 +149,7 @@ def collect_layout_report(browser: Path, uri: str, width: int, height: int, time
     cmd = [
         str(browser), "--headless", "--disable-gpu", "--disable-dev-shm-usage", "--hide-scrollbars",
         f"--user-data-dir={profile}", f"--window-size={width},{height}",
-        "--virtual-time-budget=4000", "--dump-dom", f"{uri}?report&present&minpx={min_px}",
+        "--virtual-time-budget=500", "--dump-dom", f"{uri}?report&present&minpx={min_px}",
     ]
     try:
         res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
@@ -169,7 +177,7 @@ def take_screenshot(browser: Path, uri: str, width: int, height: int, scale: flo
         f"--user-data-dir={profile}",
         f"--window-size={width},{height}",
         f"--force-device-scale-factor={scale:g}",
-        "--virtual-time-budget=4000",
+        "--virtual-time-budget=500",
         f"--screenshot={temp_out}",
         uri,
     ]

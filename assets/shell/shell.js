@@ -248,6 +248,19 @@
             if (hit(labels[i].box, n.box)) errors.push(`Edge label "${labels[i].text}" (${labels[i].id}) overlaps node ${n.id}`);
           });
         }
+        if (plugin.report.nodeText) {
+          document.querySelectorAll(plugin.report.nodeText).forEach(el => {
+            if (el.scrollHeight > el.clientHeight + 2 || el.scrollWidth > el.clientWidth + 2) {
+              const nid = el.closest(plugin.report.node)?.dataset.nodeId || 'node';
+              warnings.push(`Node label truncated ("..."): "${el.textContent.trim()}" (${nid}) — shorten to fit 2 lines`);
+            }
+          });
+        }
+        document.querySelectorAll('.lane-title').forEach(el => {
+          if (el.scrollHeight > el.clientHeight + 2 || el.scrollWidth > el.clientWidth + 2) {
+            warnings.push(`Lane title truncated ("..."): "${el.textContent.trim()}" — shorten lane name`);
+          }
+        });
         const effPx = (sel) => {
           const sizes = [...document.querySelectorAll(sel)].map(el => parseFloat(getComputedStyle(el).fontSize) * scale);
           return sizes.length ? Math.round(Math.min(...sizes) * 10) / 10 : null;
