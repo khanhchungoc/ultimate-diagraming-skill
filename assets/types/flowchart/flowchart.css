@@ -239,7 +239,7 @@
       --node-stroke: 2px; /* single border weight shared by every node type */
       border: var(--node-stroke) solid var(--border-dark);
       border-radius: 8px;
-      padding: 6px 14px;
+      padding: 6px 8px;
       width: 144px;
       height: 64px;
       cursor: move;

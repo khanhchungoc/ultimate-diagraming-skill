@@ -40,11 +40,12 @@ Never add pixel coordinates (`x`, `y`); `--layout` computes them.
 2. **Decisions end in `?`** (`"Docs Complete?"`) and every outgoing branch is labeled. Only decision branches get `Yes`/`No` labels: an edge leaving a step is `""` (`--verify` warns about a `Yes`/`No` on a step).
 3. **One owner per node**: place each node in the lane of the actor who performs it.
 4. **Fit the 2-line label clamp** so text never truncates with `...`:
-   - **Tasks / Start / End (`144x64px`)**: `<= 28` chars (~14–16 chars/line; avoid pairing a 12+ char word like `"Authorisation"` or `"Restrictions"` with more than one short word).
+   - **Tasks / Start / End (`144x64px`)**: `<= 28` chars (~14–16 chars/line). A 13-char word like `"Authorisation"` fits beside one or two short words.
    - **Decisions (`92px` inner diamond)**: `<= 24` chars (~12 chars/line, e.g. `"User Still Authorised?"`).
    - **Lane names**: `<= 32` chars so the floating pill never truncates.
+   - **Fidelity**: keep the user's wording when it fits the budget. Otherwise shorten it and list the changed labels in the final report. Never abbreviate words (`"Auth"`) to save space.
 5. **Exceptions end in their own end state.** A path that finishes unresolved (manual intervention, escalation, an unhandled fallback) ends in a separate `end` node named for that outcome (`"Manual Payment Required"`), never merged into the success end (`"Claim Settled"`). Creating a task for someone else is not completion.
-6. **One lane per distinct actor, system, or phase container.** When the whole process has a single actor and no phase containers, set `"swimlanes": false` instead of drawing one named lane. When recreating a diagram grouped into sequential **Step / Phase containers** (`"Step 1: ..."`, `"Step 2: ..."`), map each container to a lane (`lane-step1`, `lane-step2`, ...) and set `"direction": "TB"` if the source flow runs top-to-bottom.
+6. **One lane per distinct actor, system, or phase container.** When the whole process has a single actor and no phase containers, set `"swimlanes": false` instead of drawing one named lane. When recreating a diagram grouped into sequential **Step / Phase containers** (`"Step 1: ..."`, `"Step 2: ..."`), map each container to a lane (`lane-step1`, `lane-step2`, ...) and set `"direction": "TB"` if the source flow runs top-to-bottom. See [Choosing the structure](#choosing-the-structure).
 7. **Every lane gets an `icon`**, chosen from the table below to match the actor or system. Use a different icon for each lane in one diagram, and never leave one out (`--verify` prints a `[WARN]` for a lane without one, or with a name that is not in the table).
 
 | Icon | Use for |
@@ -74,6 +75,17 @@ Never add pixel coordinates (`x`, `y`); `--layout` computes them.
 | `layers` | architecture, a layered or composite system |
 | `globe` | external party, third party, partner, vendor |
 | `flag` | core team, lead, steering group, management |
+
+## Choosing the structure
+
+Decide from the source, once. Do not trial the alternatives.
+
+| Source looks like | Lanes | `direction` |
+|---|---|---|
+| Several actors or systems handing work over | one lane per actor | omit (`LR`) |
+| One actor, one sequence | `"swimlanes": false` | `TB` if long, else omit |
+| Sequential boxes titled `Step N` / `Phase N`, flowing downwards | one lane per container (`lane-step1`, ...) | `TB` |
+| Few lanes but many steps | keep the lanes | `TB` (fits a page better) |
 
 ## Diagram scale & viewing mode
 

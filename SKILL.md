@@ -34,13 +34,15 @@ If the request needs a planned type, say it is not supported yet and do not forc
 
 Target output path: use the path specified by the user, or default to `<title-slug>.html` in the workspace root if omitted. Start immediately with Step 1.
 
-1. **Write the logical JSON directly to a temp/scratch file** using your file-writing tool (`write_file`), following the type reference. Never compute pixel coordinates, and never write custom `.py` wrapper scripts to generate JSON or invoke the CLI. For a flowchart, give **every lane an `icon`** from the type reference's icon table; a lane header without one looks unfinished. The user's requested scope determines the diagram size and granularity; never truncate or omit steps to fit an artificial budget.
+0. **Read in one parallel turn:** this file, the type reference from Step 0 and its example JSON. The type reference is authoritative: do not read `assets/` or `scripts/` source to check what is supported, and do not trial other directions or lane modes.
+
+1. **Write the logical JSON once** to the host scratch directory (never `%TEMP%` or the workspace) using `write_file`, following the type reference. Fit every label to the type reference's character budget **before** the first layout. Never compute pixel coordinates, never use inline `python -c`, and never write `.py` wrapper scripts to generate JSON or invoke the CLI (multi-line `-c` breaks on Windows PowerShell quoting). For a flowchart, give **every lane an `icon`** from the type reference's icon table; a lane header without one looks unfinished. The user's requested scope determines the diagram size and granularity; never truncate or omit steps to fit an artificial budget.
 
 2. **Lay out, scaffold, and audit the HTML** (needs Node.js, or Chrome/Chromium as a fallback; `--browser <path>` selects it):
    ```shell
    python "<skill-dir>/scripts/layout_engine.py" --layout <temp_input.json> -o <target.html>
    ```
-   `--layout` automatically runs the `--verify` audit (`score ≥ 90/100`, `0` issues, `0` external references) and prints any `[WARN]` lines (such as missing lane icons). Only run `--verify <target.html>` standalone when auditing an existing HTML file without re-laying it out.
+   `--layout` automatically runs the `--verify` audit (`score ≥ 90/100`, `0` issues, `0` external references) and prints any `[WARN]` lines (such as missing lane icons). Never run `--verify` after `--layout`; use it standalone only to audit an existing HTML file. Chain steps 2 and 3 in one command (`layout ; render`).
    `[ERROR] Layout needs Node.js ... or Chrome`: neither is installed; install one or pass `--browser`. Report it rather than hand-placing coordinates. Once `<target.html>` is generated, delete `<temp_input.json>` unless the user asked to keep it.
    Workflow fidelity comes first: never merge, drop or reroute steps, branches or end states to raise the score. If the complete diagram cannot pass, keep it complete and report the score and the issues behind it.
 
@@ -55,7 +57,7 @@ Target output path: use the path specified by the user, or default to `<title-sl
    - **`[WARN] Layout report unavailable`**: the browser returned no DOM (seen with Edge, and rarely on a cold Chrome start). Chrome is tried first; pass `--browser <path-to-chrome>` or do the checks by eye and say so in the report.
    - If the render itself fails, read the error: it names the browser used; retry with `--browser <path>` or a larger `--timeout`. If no browser is available, report that the visual review could not be run instead of skipping it silently.
 
-   Then open the PNG with whatever image-viewing tool your host provides (e.g. `Read` on the PNG in Claude Code) and go through the type's visual checklist. Delete the temporary PNG when review is complete.
+   Then open the PNG once with your image-viewing tool and go through the type's visual checklist. Re-render only after a `[WARN]` or `[ERROR]`. Delete the PNG and scratch JSON when done (one command). Skip `dir`, `git status` and other workspace probes.
 
 4. **Report back** (see [Final Report](#final-report)).
 
@@ -81,7 +83,13 @@ Completion needs every item, each with its evidence type. Do not claim an item t
 
 ## Final Report
 
-Return: output path(s); element counts; audit result (score, exit code); which visual checks you reviewed and the outcome; whether the diagram was split and why; what a re-layout reset (update runs); any `[WARN]` lines left from the audit or layout report; and the Save limitation (not tested by you). The type reference lists any additions.
+Keep it short, about 5 lines. The user wants the file and anything that needs their action, not a log of your checks. Return:
+
+- the output path(s) and a one-line description (type, node/lane count);
+- problems only: audit score if below 100, any `[WARN]` left, a split diagram and why, what a re-layout reset (update runs). Say nothing about checks that passed;
+- one line asking the user to click Save once, since you could not test it.
+
+Do not list per-check results, repeat the audit output, describe the visual checklist, or explain features the toolbar already shows. The type reference lists any additions.
 
 ---
 
@@ -90,7 +98,7 @@ Return: output path(s); element counts; audit result (score, exit code); which v
 | Resource | Path | Purpose |
 |---|---|---|
 | **Type references** | [references/types/](references/types/) | Schema, budget, writing rules and visual checklist per diagram type |
-| **Editing & Save** | [editing-and-save.md](references/editing-and-save.md) | Update procedure, re-layout effects, Save behavior, page modes |
+| **Editing & Save** | [editing-and-save.md](references/editing-and-save.md) | Update procedure, re-layout effects, page modes |
 | **Layout & Audit CLI** | [layout_engine.py](scripts/layout_engine.py) | `--layout` (runs the type's JS engine via [engine_runner.py](scripts/engine_runner.py)), `--verify` audit (Python only, no browser; per-type audits in `layout_engine.py` and [audit_sequence.py](scripts/audit_sequence.py)), `--extract`. The page's Auto-Tidy button runs the same engine file. |
 | **Screenshot Renderer** | [render_screenshot.py](scripts/render_screenshot.py) | Headless Chrome/Edge: clean 2x PNG plus label-overlap and text-size report |
 | **Page shell + type plugins** | [assets/shell/](assets/shell/), [assets/types/](assets/types/) | Shared UI shell (toolbar, pan/zoom, theme, Save, present mode) plus one plugin folder per diagram type. `--layout` assembles them into one standalone HTML file. Theme: toolbar toggle; `?theme=dark` / `?theme=light` forces one. |
