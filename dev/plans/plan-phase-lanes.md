@@ -8,6 +8,8 @@ Changes to the flowchart type:
 
 There's no engine work for the MVP. Phase lanes are ordinary lanes.
 
+**Status (2026-11-11):** Parts 1–3 are implemented. Goldens pass, the shell e2e passes, and the phases example scores 100/100. Remaining: step 4, re-running the original Step-container test in a fresh session.
+
 The agent-speed doc fixes from the same review (fixed recipe, "stop when clean" rule, probe ban, doc trim, SKILL.md as a router) are already done.
 
 ## Background
@@ -27,7 +29,7 @@ Lanes share one timeline: a node sits after its predecessor whatever lane that i
 - Agents pick the lane structure from one clear rule and don't investigate the staircase.
 - Lanes in a normal diagram always represent an actor (role, team, organisation or system).
 - Lane colours need no decision from the agent.
-- Re-running the original Step-container test takes about 6 tool calls and 1–1.5 min.
+- Re-running the original Step-container test takes about 7 tool calls and 1–1.5 min.
 
 ## Non-goals
 
@@ -99,7 +101,7 @@ Add `references/examples/example-flowchart-phases.json`:
 
 - **Shape**: a small TB file with phase lanes (about 4 phases, 8–10 nodes, two decisions, one loop back to an earlier phase).
 - **Purpose**: it mirrors the Step-container diagram from the test run, so agents copy its shape instead of exploring.
-- **Links**: from the top of `flowchart.md`, from the phase-lanes exception in rule 7, and in the flowchart row of SKILL.md's Step 0 table ("read the phases example instead when the source has Step/Phase containers").
+- **Links**: from the "Example to copy" list at the top of `flowchart.md`. SKILL.md links only the type reference (progressive disclosure), and the type reference picks the example.
 - **Check**: build it with `--layout` and the render command; it must score ≥ 90 with no `[WARN]`.
 
 ## Order of work
@@ -107,7 +109,7 @@ Add `references/examples/example-flowchart-phases.json`:
 1. Part 1 lane rules (docs only).
 2. Part 3 phases example.
 3. Part 2 automatic colours (renderer, then the doc cleanup).
-4. Re-run the original Step-container test. Target: about 6 tool calls, about 1–1.5 min, no source reading.
+4. Re-run the original Step-container test. Target: about 7 tool calls, about 1–1.5 min, no source reading.
 
 ## Later: phase restart layout
 

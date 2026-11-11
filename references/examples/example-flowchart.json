@@ -6,25 +6,21 @@
     {
       "id": "lane-customer",
       "name": "Applicant / Customer",
-      "color": "#e0f2fe",
       "icon": "user"
     },
     {
       "id": "lane-officer",
       "name": "Loan Officer",
-      "color": "#fef3c7",
       "icon": "briefcase"
     },
     {
       "id": "lane-engine",
       "name": "Automated Underwriting Engine",
-      "color": "#dcfce7",
       "icon": "cpu"
     },
     {
       "id": "lane-risk",
       "name": "Risk & Compliance Committee",
-      "color": "#fee2e2",
       "icon": "shield"
     }
   ],

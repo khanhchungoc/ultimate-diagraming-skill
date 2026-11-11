@@ -431,6 +431,16 @@
     #viewport.panning {
       cursor: grabbing;
     }
+    /* Space held: the canvas is a pure pan surface, nothing in it is clickable or hoverable */
+    body.space-pan #stage {
+      pointer-events: none;
+    }
+    body.space-pan #viewport {
+      cursor: grab;
+    }
+    body.space-pan #viewport.panning {
+      cursor: grabbing;
+    }
 
     #stage {
       position: absolute;
@@ -522,11 +532,12 @@
       .toolbar-zoom { grid-column: 1; grid-row: 2; }
       #help-drawer { right: 12px; bottom: 120px; }
     }
-    /* Medium widths: stack as soon as the three-column row would crowd */
+    /* Medium widths: keep one row, but centre the add dock in the space right of the zoom dock instead of on the
+       viewport, so the two never collide. If the add dock still runs out of room, its buttons wrap inside it. */
     @media (min-width: 721px) and (max-width: 1100px) {
-      .dock-area { grid-template-columns: 1fr; }
-      .toolbar-center { grid-column: 1; grid-row: 1; }
-      .toolbar-zoom { grid-column: 1; grid-row: 2; }
+      .dock-area { grid-template-columns: auto minmax(0, 1fr); }
+      .toolbar-zoom { grid-column: 1; grid-row: 1; }
+      .toolbar-center { grid-column: 2; grid-row: 1; justify-self: center; }
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -797,7 +808,7 @@
       --node-stroke: 2px; /* single border weight shared by every node type */
       border: var(--node-stroke) solid var(--border-dark);
       border-radius: 8px;
-      padding: 6px 14px;
+      padding: 6px 8px;
       width: 144px;
       height: 64px;
       cursor: move;
@@ -1045,7 +1056,7 @@
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      max-width: 260px;
+      max-width: 340px;
       padding: 4px 11px 4px 9px;
       border-radius: 999px;
       background: var(--lane-pill-bg);
@@ -1264,6 +1275,7 @@
           <button type="button" role="menuitem" data-export="svg">SVG image</button>
           <button type="button" role="menuitem" data-export="png">PNG image (2x)</button>
           <div class="export-menu-label" role="presentation" data-copy-label>Copy</div>
+          <button type="button" role="menuitem" data-copy="svg">SVG (text)</button>
           <button type="button" role="menuitem" data-copy="png">PNG image (2x)</button>
         </div>
       </div>
@@ -1410,28 +1422,24 @@
     {
       "id": "lane-customer",
       "name": "Applicant / Customer",
-      "color": "#e0f2fe",
       "icon": "user",
       "height": 176
     },
     {
       "id": "lane-officer",
       "name": "Loan Officer",
-      "color": "#fef3c7",
       "icon": "briefcase",
       "height": 176
     },
     {
       "id": "lane-engine",
       "name": "Automated Underwriting Engine",
-      "color": "#dcfce7",
       "icon": "cpu",
       "height": 176
     },
     {
       "id": "lane-risk",
       "name": "Risk & Compliance Committee",
-      "color": "#fee2e2",
       "icon": "shield",
       "height": 176
     }
@@ -1832,6 +1840,19 @@
             if (hit(labels[i].box, n.box)) errors.push(`Edge label "${labels[i].text}" (${labels[i].id}) overlaps node ${n.id}`);
           });
         }
+        if (plugin.report.nodeText) {
+          document.querySelectorAll(plugin.report.nodeText).forEach(el => {
+            if (el.scrollHeight > el.clientHeight + 2 || el.scrollWidth > el.clientWidth + 2) {
+              const nid = el.closest(plugin.report.node)?.dataset.nodeId || 'node';
+              warnings.push(`Node label truncated ("..."): "${el.textContent.trim()}" (${nid}) — shorten to fit 2 lines`);
+            }
+          });
+        }
+        document.querySelectorAll('.lane-title').forEach(el => {
+          if (el.scrollHeight > el.clientHeight + 2 || el.scrollWidth > el.clientWidth + 2) {
+            warnings.push(`Lane title truncated ("..."): "${el.textContent.trim()}" — shorten lane name`);
+          }
+        });
         const effPx = (sel) => {
           const sizes = [...document.querySelectorAll(sel)].map(el => parseFloat(getComputedStyle(el).fontSize) * scale);
           return sizes.length ? Math.round(Math.min(...sizes) * 10) / 10 : null;
@@ -1895,8 +1916,34 @@
       }
 
       // Middle button only pans, wherever it lands: no node drag, selection or edit sees it
+      // Holding Space does the same with the primary button, and makes nodes, edges and lanes unclickable
+      let spaceHeld = false;
+      const typingInField = () => {
+        const a = document.activeElement;
+        return !!a && (a.isContentEditable || a.tagName === 'INPUT' || a.tagName === 'TEXTAREA' || a.tagName === 'SELECT');
+      };
+      const setSpaceHeld = (on) => {
+        spaceHeld = on;
+        document.body.classList.toggle('space-pan', on);
+      };
+      window.addEventListener('keydown', (e) => {
+        if (e.code !== 'Space' || typingInField()) return;
+        e.preventDefault();
+        if (!e.repeat) setSpaceHeld(true);
+      }, true);
+      window.addEventListener('keyup', (e) => {
+        if (e.code !== 'Space') return;
+        if (spaceHeld) e.preventDefault();
+        setSpaceHeld(false);
+      }, true);
+      window.addEventListener('blur', () => setSpaceHeld(false));
+      // Swallow the click that ends a Space-drag so nothing underneath activates
+      viewport.addEventListener('click', (e) => {
+        if (spaceHeld) { e.preventDefault(); e.stopImmediatePropagation(); }
+      }, true);
+
       viewport.addEventListener('pointerdown', (e) => {
-        if (e.button !== 1) return;
+        if (!(e.button === 1 || (e.button === 0 && spaceHeld))) return;
         e.preventDefault();
         e.stopImmediatePropagation();
         isPanning = true;
@@ -2127,9 +2174,15 @@
       function copyDiagram(format) {
         let job;
         try {
-          if (format !== 'png') throw new Error('unknown format ' + format);
-          if (!canCopyPng) throw new Error('this browser cannot copy images');
-          job = navigator.clipboard.write([new ClipboardItem({ 'image/png': exportPngBlob() })]);
+          if (!navigator.clipboard) throw new Error('the clipboard is not available in this browser');
+          if (format === 'svg') {
+            job = navigator.clipboard.writeText(svgDocument(buildExportSvg().svg));
+          } else if (format === 'png') {
+            if (!canCopyPng) throw new Error('this browser cannot copy images');
+            job = navigator.clipboard.write([new ClipboardItem({ 'image/png': exportPngBlob() })]);
+          } else {
+            throw new Error('unknown format ' + format);
+          }
         } catch (err) {
           job = Promise.reject(err);
         }
@@ -2137,6 +2190,7 @@
                  err => alert('Copy failed: ' + (err && err.message || err) + '\nUse Export › Download instead.'));
       }
       document.querySelectorAll('[data-copy="png"]').forEach(el => { el.hidden = !canCopyPng; });
+      document.querySelectorAll('[data-copy="svg"]').forEach(el => { el.hidden = !(navigator.clipboard && navigator.clipboard.writeText); });
       // Drop the "Copy" heading when this browser has no copy items to offer
       document.querySelectorAll('[data-copy-label]').forEach(el => { el.hidden = !document.querySelector('[data-copy]:not([hidden])'); });
 
@@ -2653,17 +2707,19 @@
             const inLane = nodes.filter(n => n.laneId === l.id);
             if (inLane.length) maxH = Math.max(...inLane.map(nodeH));
             const rows = subrows[l.id] || 1;
+            // In LR mode with visible swimlanes, the pinned .lane-pill sits at y=12..54px; reserve 56px top pad on multi-row lanes so row-0 nodes never collide with the pill when panned
+            const topPad = (rows > 1 && !LE.LABEL_ACROSS && lanes.length > 1) ? 56 : LE.TOP_PAD;
             const req = rows === 1 && loopRoom(l.id)
               ? LE.NEAR_MIN + maxH + loopRoom(l.id)
-              : LE.TOP_PAD + (rows - 1) * LE.ROW_HEIGHT + maxH + LE.BOTTOM_PAD;
+              : topPad + (rows - 1) * LE.ROW_HEIGHT + maxH + LE.BOTTOM_PAD;
             const inner = Math.max(LE.LANE_MIN, req);
             l.height = inner;
-            lanePos[l.id] = { top: curY, h: l.height, inner, maxH };
+            lanePos[l.id] = { top: curY, h: l.height, inner, maxH, topPad };
             curY += l.height;
           });
 
           nodes.forEach(n => {
-            const lp = lanePos[n.laneId] || { top: 0, h: LE.LANE_MIN };
+            const lp = lanePos[n.laneId] || { top: 0, h: LE.LANE_MIN, topPad: LE.TOP_PAD };
             n.x = X[n.id];
             if ((subrows[n.laneId] || 1) === 1) {
               const inner = lp.inner || lp.h;
@@ -2673,7 +2729,7 @@
               const blockTop = room ? Math.min(Math.floor((inner - lp.maxH) / 8) * 4, Math.floor((inner - room - lp.maxH) / 4) * 4) : null;
               n.y = room ? Math.max(LE.NEAR_MIN, blockTop + Math.floor((lp.maxH - nodeH(n)) / 8) * 4) : centre;
             } else {
-              n.y = LE.TOP_PAD + sub[n.id] * LE.ROW_HEIGHT;
+              n.y = (lp.topPad || LE.TOP_PAD) + sub[n.id] * LE.ROW_HEIGHT;
             }
           });
 
@@ -2681,13 +2737,14 @@
           edges.forEach(e => {
             const u = nodeMap[e.from], v = nodeMap[e.to];
             if (!u || !v || u.laneId !== v.laneId || v.x <= u.x) return;
-            const lp = lanePos[u.laneId] || { top: 0, h: LE.LANE_MIN };
+            const lp = lanePos[u.laneId] || { top: 0, h: LE.LANE_MIN, topPad: LE.TOP_PAD };
+            const minTop = (lp.topPad || LE.TOP_PAD) > 36 ? 48 : 20;
             const uh = nodeH(u), vh = nodeH(v);
             const uCy = u.y + uh / 2, vCy = v.y + vh / 2;
             const delta = uCy - vCy;
             if (Math.abs(delta) > 0 && Math.abs(delta) <= 35) {
               const targetY = Math.trunc(pyRound((uCy - vh / 2) / 4) * 4);
-              if (targetY >= 20 && targetY + vh <= lp.h - 20) {
+              if (targetY >= minTop && targetY + vh <= lp.h - 20) {
                 const sibs = nodes.filter(s => s !== v && s.laneId === v.laneId && !clear(s.x, v.x));
                 const collides = sibs.some(s => Math.max(targetY, s.y) < Math.min(targetY + vh, s.y + nodeH(s)) + 12);
                 if (!collides) v.y = targetY;
@@ -3175,6 +3232,9 @@ const TYPE_ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\
       const DECISION_WIDTH = 144;
       const DECISION_HEIGHT = 80;
       // Lane sizes come from the engine's LE (LANE_MIN, BOTTOM_PAD), which follows the diagram's direction
+      // Lane colours by position for lanes without their own "color": sky, amber, emerald, rose, purple, orange,
+      // teal, indigo. Light tints; flowchart.css derives the stripe, pill and dark-theme shades from the hue.
+      const LANE_PALETTE = ['#e0f2fe', '#fef3c7', '#dcfce7', '#fee2e2', '#f3e8ff', '#ffedd5', '#ccfbf1', '#e0e7ff'];
 
       // --- DIRECTION ---
       // "direction": "TB" draws the diagram top-to-bottom: lanes become columns and steps run downwards. Node data
@@ -3408,7 +3468,8 @@ const TYPE_ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\
             laneEl.style.minHeight = `${computedHeight}px`;
             laneEl.style.height = `${computedHeight}px`;
           }
-          laneEl.style.setProperty('--lane-color', lane.color || '#e2e8f0');   // stripe, icon, pill tint
+          // stripe, icon, pill tint; a lane without its own colour takes the palette colour for its position (not saved)
+          laneEl.style.setProperty('--lane-color', lane.color || LANE_PALETTE[index % LANE_PALETTE.length]);
           if (index % 2) laneEl.classList.add('lane-alt');                     // lanes alternate white / light grey
           if (lane.id === selectedLaneId) laneEl.classList.add('lane-selected');
 
@@ -4150,7 +4211,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           return b;
         };
         const NONE = { overlap: 0, near: 0, cross: 0 };
-        const relate = (pts, otherPts) => {
+        const relate = (pts, otherPts, skipFirst = false, skipLast = false) => {
           // Every relation needs the two routes within 18px of each other: skip pairs whose boxes are further apart.
           // Only stable (unmutated) polylines are cached; the candidate route is measured fresh.
           const a = bboxOf(otherPts);
@@ -4158,10 +4219,12 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           for (const [x, y] of pts) { if (x < x1) x1 = x; if (x > x2) x2 = x; if (y < y1) y1 = y; if (y > y2) y2 = y; }
           if (x1 > a[2] + 18 || a[0] > x2 + 18 || y1 > a[3] + 18 || a[1] > y2 + 18) return NONE;
           let overlap = 0, near = 0, cross = 0;
+          const lastI = pts.length - 2, lastJ = otherPts.length - 2;
           for (let i = 0; i < pts.length - 1; i++) {
             const [ax, ay] = pts[i], [bx, by] = pts[i + 1];
             const aV = Math.abs(ax - bx) < 1, aH = Math.abs(ay - by) < 1;
             for (let j = 0; j < otherPts.length - 1; j++) {
+              if ((skipFirst && i === 0 && j === 0) || (skipLast && i === lastI && j === lastJ)) continue;
               const [cx, cy] = otherPts[j], [dx, dy] = otherPts[j + 1];
               const cV = Math.abs(cx - dx) < 1, cH = Math.abs(cy - dy) < 1;
               if (aV && cV) {
@@ -4190,7 +4253,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           for (let i = 0; i < pts.length - 1; i++) {
             const [ax, ay] = pts[i], [bx, by] = pts[i + 1];
             if (Math.abs(ay - by) < 1 && Math.abs(ax - bx) > 30 && laneDividers.some(y => Math.abs(ay - y) < 8)) d += COST.divider;
-            const x1 = Math.min(ax, bx) - 20, x2 = Math.max(ax, bx) + 20, y1 = Math.min(ay, by) - 20, y2 = Math.max(ay, by) + 20;
+            const x1 = Math.min(ax, bx) - 14, x2 = Math.max(ax, bx) + 14, y1 = Math.min(ay, by) - 14, y2 = Math.max(ay, by) + 14;
             let tight = false;
             for (let k = 0; k < rectList.length && !tight; k++) {
               const r = rectList[k][1];
@@ -4241,8 +4304,12 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           let defect = portClashes(edge, fp, tp) * COST.portClash + sharedBranchVertex(edge, fp) * COST.sharedBranch;
           if (fixed + defect >= limit) return Infinity;
           for (let k = 0; k < others.length; k++) {
-            const r = relate(pts, edgePolylines[others[k].id]);
-            defect += (r.overlap > 0 ? COST.overlap + r.overlap : 0) + r.near * COST.near + r.cross * COST.cross;
+            const o = others[k], op = edgePorts[o.id];
+            const incident = o.from === edge.from || o.to === edge.to || o.from === edge.to || o.to === edge.from;
+            const skipFirst = o.from === edge.from && op && op.fromPort === fp;
+            const skipLast = o.to === edge.to && op && op.toPort === tp;
+            const r = relate(pts, edgePolylines[o.id], skipFirst, skipLast);
+            defect += (r.overlap > 0 ? COST.overlap + r.overlap : 0) + (incident ? 0 : r.near * COST.near) + r.cross * COST.cross;
             if (fixed + defect >= limit) return Infinity;
           }
           defect += routeDefects(pts, ids);
@@ -4300,7 +4367,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
               const STEP = 16;
               if (!horiz(fp)) {
                 // vertical exit -> corridor above/below -> sideways to x -> vertical -> horizontal entry
-                [20, 36, 56].forEach(d => {
+                [16, 20, 36, 56].forEach(d => {
                   const g = fp === 'top' ? sy - d : sy + d;
                   for (let x = bounds.minX - 24; x <= bounds.maxX + 24; x += STEP) {
                     if (tp === 'left' ? x > ex - 14 : x < ex + 14) continue;
@@ -4310,7 +4377,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
                 });
               } else {
                 // horizontal exit -> out to x -> vertical to corridor g -> across -> vertical entry
-                [20, 36, 56].forEach(d => {
+                [16, 20, 36, 56].forEach(d => {
                   const x = fp === 'right' ? sx + d : sx - d;
                   for (let g = bounds.minY - 24; g <= bounds.maxY + 24; g += STEP) {
                     if (tp === 'top' ? g > ey - 14 : g < ey + 14) continue;
@@ -4329,8 +4396,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           if (e.to === e.from) return;
           const cur = edgePolylines[e.id];
           if (!cur) return;
-          const others = validEdges.filter(o => o !== e && edgePolylines[o.id]
-            && o.from !== e.from && o.to !== e.to && o.from !== e.to && o.to !== e.from);
+          const others = validEdges.filter(o => o !== e && edgePolylines[o.id]);
           // A decision branch that leaves from the top/bottom vertex an incoming arrow already takes gets pushed
           // off the vertex onto the diamond's slanted edge (2b/5a2). That is a cost, not a ban: the branch moves
           // to a free vertex only when that route is clean enough to beat it (a detour that adds a crossing does not).
@@ -4915,11 +4981,15 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           } else {
             candidates.push({
               x: (p1[0] + p2[0]) / 2,
-              y: p1[1]
+              y: (p1[1] + p2[1]) / 2
             });
           }
-          candidates.push({ x: (p0[0] + p1[0]) / 2, y: p0[1] });
-          candidates.push({ x: (p2[0] + p3[0]) / 2, y: p2[1] });
+          candidates.push({ x: (p0[0] + p1[0]) / 2, y: (p0[1] + p1[1]) / 2 });
+          candidates.push({ x: (p2[0] + p3[0]) / 2, y: (p2[1] + p3[1]) / 2 });
+          if (points.length >= 5) {
+            const p4 = points[4];
+            candidates.push({ x: (p3[0] + p4[0]) / 2, y: (p3[1] + p4[1]) / 2 });
+          }
         }
 
         // Fallback spots along every long segment, tried after the preferred ones above (middle outwards,
@@ -6039,12 +6109,9 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           render();
           return;
         }
-        const colors = ["#e0f2fe", "#fef3c7", "#dcfce7", "#fee2e2", "#f3e8ff", "#ffedd5"];
-        const nextColor = colors[chartData.lanes.length % colors.length];
-        const newLane = {
+        const newLane = {                     // no color: the renderer assigns the palette colour for its position
           id: `lane_${Date.now()}`,
           name: `Actor / Role ${chartData.lanes.length + 1}`,
-          color: nextColor,
           icon: 'users',
           height: LE.LANE_MIN
         };

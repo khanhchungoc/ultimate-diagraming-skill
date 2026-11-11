@@ -19,14 +19,14 @@ Produce stakeholder-ready diagrams as standalone HTML files. In the browser, use
 
 Every diagram JSON has a top-level `"diagramType"`. A file without it is read as `flowchart`.
 
-| `diagramType` | Use for | Status | Read before authoring (one parallel turn) |
+| `diagramType` | Use for | Status | Read before authoring |
 |---|---|---|---|
-| `flowchart` | Swimlane / cross-functional process flows with decisions and loops | Supported | [types/flowchart.md](references/types/flowchart.md) + [example-flowchart.json](references/examples/example-flowchart.json) |
-| `sequence` | Messages between participants over time (API calls, system interactions) | Supported | [types/sequence.md](references/types/sequence.md) + [example-sequence.json](references/examples/example-sequence.json) |
+| `flowchart` | Swimlane / cross-functional process flows with decisions and loops | Supported | [types/flowchart.md](references/types/flowchart.md) |
+| `sequence` | Messages between participants over time (API calls, system interactions) | Supported | [types/sequence.md](references/types/sequence.md) |
 | `erd` | Entities, attributes, relationships | Planned | not available yet |
 | `state` | States and transitions | Planned | not available yet |
 
-If the request needs a planned type, say it is not supported yet and do not force it into a flowchart. The type reference owns the schema, the complexity budget, writing rules and the visual checklist; the example is a complete input file to copy the shape from. Nothing else is needed: the scripts are used only through the commands below, and `dev/` is maintainer material.
+If the request needs a planned type, say it is not supported yet and do not force it into a flowchart. The type reference owns the schema, the complexity budget, writing rules and the visual checklist, and names the example file to copy the shape from. Nothing else is needed: the scripts are used only through the commands below, and `dev/` is maintainer material.
 
 ---
 
@@ -34,10 +34,10 @@ If the request needs a planned type, say it is not supported yet and do not forc
 
 Target output path: use the path specified by the user, or default to `<title-slug>.html` in the workspace root if omitted.
 
-> **Recipe (about 6 tool calls):** one parallel read → one JSON write → one `layout ; render` command → one image view → one cleanup command → report.
+> **Recipe (about 7 tool calls):** read the type reference → read the one example it points you to → one JSON write → one `layout ; render` command → one image view → one cleanup command → report.
 > Do not read `assets/` or `scripts/` source, run `--help`, list the skill directory, or read `icons.json`. Everything you need is in the type reference and its example. Decide the structure once from the type reference; do not trial other directions or lane modes.
 
-0. **Read in one parallel turn** the two files listed for the type in Step 0.
+0. **Read the type reference** from Step 0, then **the one example it points you to** for your source. Read no other files.
 
 1. **Write the logical JSON once** to the host scratch directory (never `%TEMP%` or the workspace) using `write_file`, following the type reference. Fit every label to the type reference's character budget **before** the first layout. Never compute pixel coordinates, never use inline `python -c`, and never write `.py` wrapper scripts to generate JSON or invoke the CLI (multi-line `-c` breaks on Windows PowerShell quoting). The user's requested scope determines the diagram size and granularity; never truncate or omit steps to fit an artificial budget.
 

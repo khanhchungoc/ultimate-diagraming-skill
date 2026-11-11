@@ -3,6 +3,9 @@
       const DECISION_WIDTH = 144;
       const DECISION_HEIGHT = 80;
       // Lane sizes come from the engine's LE (LANE_MIN, BOTTOM_PAD), which follows the diagram's direction
+      // Lane colours by position for lanes without their own "color": sky, amber, emerald, rose, purple, orange,
+      // teal, indigo. Light tints; flowchart.css derives the stripe, pill and dark-theme shades from the hue.
+      const LANE_PALETTE = ['#e0f2fe', '#fef3c7', '#dcfce7', '#fee2e2', '#f3e8ff', '#ffedd5', '#ccfbf1', '#e0e7ff'];
 
       // --- DIRECTION ---
       // "direction": "TB" draws the diagram top-to-bottom: lanes become columns and steps run downwards. Node data
@@ -236,7 +239,8 @@
             laneEl.style.minHeight = `${computedHeight}px`;
             laneEl.style.height = `${computedHeight}px`;
           }
-          laneEl.style.setProperty('--lane-color', lane.color || '#e2e8f0');   // stripe, icon, pill tint
+          // stripe, icon, pill tint; a lane without its own colour takes the palette colour for its position (not saved)
+          laneEl.style.setProperty('--lane-color', lane.color || LANE_PALETTE[index % LANE_PALETTE.length]);
           if (index % 2) laneEl.classList.add('lane-alt');                     // lanes alternate white / light grey
           if (lane.id === selectedLaneId) laneEl.classList.add('lane-selected');
 
@@ -2876,12 +2880,9 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           render();
           return;
         }
-        const colors = ["#e0f2fe", "#fef3c7", "#dcfce7", "#fee2e2", "#f3e8ff", "#ffedd5"];
-        const nextColor = colors[chartData.lanes.length % colors.length];
-        const newLane = {
+        const newLane = {                     // no color: the renderer assigns the palette colour for its position
           id: `lane_${Date.now()}`,
           name: `Actor / Role ${chartData.lanes.length + 1}`,
-          color: nextColor,
           icon: 'users',
           height: LE.LANE_MIN
         };

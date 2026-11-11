@@ -431,6 +431,16 @@
     #viewport.panning {
       cursor: grabbing;
     }
+    /* Space held: the canvas is a pure pan surface, nothing in it is clickable or hoverable */
+    body.space-pan #stage {
+      pointer-events: none;
+    }
+    body.space-pan #viewport {
+      cursor: grab;
+    }
+    body.space-pan #viewport.panning {
+      cursor: grabbing;
+    }
 
     #stage {
       position: absolute;
@@ -522,11 +532,12 @@
       .toolbar-zoom { grid-column: 1; grid-row: 2; }
       #help-drawer { right: 12px; bottom: 120px; }
     }
-    /* Medium widths: stack as soon as the three-column row would crowd */
+    /* Medium widths: keep one row, but centre the add dock in the space right of the zoom dock instead of on the
+       viewport, so the two never collide. If the add dock still runs out of room, its buttons wrap inside it. */
     @media (min-width: 721px) and (max-width: 1100px) {
-      .dock-area { grid-template-columns: 1fr; }
-      .toolbar-center { grid-column: 1; grid-row: 1; }
-      .toolbar-zoom { grid-column: 1; grid-row: 2; }
+      .dock-area { grid-template-columns: auto minmax(0, 1fr); }
+      .toolbar-zoom { grid-column: 1; grid-row: 1; }
+      .toolbar-center { grid-column: 2; grid-row: 1; justify-self: center; }
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -640,6 +651,7 @@
           <button type="button" role="menuitem" data-export="svg">SVG image</button>
           <button type="button" role="menuitem" data-export="png">PNG image (2x)</button>
           <div class="export-menu-label" role="presentation" data-copy-label>Copy</div>
+          <button type="button" role="menuitem" data-copy="svg">SVG (text)</button>
           <button type="button" role="menuitem" data-copy="png">PNG image (2x)</button>
         </div>
       </div>
@@ -1117,6 +1129,19 @@
             if (hit(labels[i].box, n.box)) errors.push(`Edge label "${labels[i].text}" (${labels[i].id}) overlaps node ${n.id}`);
           });
         }
+        if (plugin.report.nodeText) {
+          document.querySelectorAll(plugin.report.nodeText).forEach(el => {
+            if (el.scrollHeight > el.clientHeight + 2 || el.scrollWidth > el.clientWidth + 2) {
+              const nid = el.closest(plugin.report.node)?.dataset.nodeId || 'node';
+              warnings.push(`Node label truncated ("..."): "${el.textContent.trim()}" (${nid}) — shorten to fit 2 lines`);
+            }
+          });
+        }
+        document.querySelectorAll('.lane-title').forEach(el => {
+          if (el.scrollHeight > el.clientHeight + 2 || el.scrollWidth > el.clientWidth + 2) {
+            warnings.push(`Lane title truncated ("..."): "${el.textContent.trim()}" — shorten lane name`);
+          }
+        });
         const effPx = (sel) => {
           const sizes = [...document.querySelectorAll(sel)].map(el => parseFloat(getComputedStyle(el).fontSize) * scale);
           return sizes.length ? Math.round(Math.min(...sizes) * 10) / 10 : null;
@@ -1180,8 +1205,34 @@
       }
 
       // Middle button only pans, wherever it lands: no node drag, selection or edit sees it
+      // Holding Space does the same with the primary button, and makes nodes, edges and lanes unclickable
+      let spaceHeld = false;
+      const typingInField = () => {
+        const a = document.activeElement;
+        return !!a && (a.isContentEditable || a.tagName === 'INPUT' || a.tagName === 'TEXTAREA' || a.tagName === 'SELECT');
+      };
+      const setSpaceHeld = (on) => {
+        spaceHeld = on;
+        document.body.classList.toggle('space-pan', on);
+      };
+      window.addEventListener('keydown', (e) => {
+        if (e.code !== 'Space' || typingInField()) return;
+        e.preventDefault();
+        if (!e.repeat) setSpaceHeld(true);
+      }, true);
+      window.addEventListener('keyup', (e) => {
+        if (e.code !== 'Space') return;
+        if (spaceHeld) e.preventDefault();
+        setSpaceHeld(false);
+      }, true);
+      window.addEventListener('blur', () => setSpaceHeld(false));
+      // Swallow the click that ends a Space-drag so nothing underneath activates
+      viewport.addEventListener('click', (e) => {
+        if (spaceHeld) { e.preventDefault(); e.stopImmediatePropagation(); }
+      }, true);
+
       viewport.addEventListener('pointerdown', (e) => {
-        if (e.button !== 1) return;
+        if (!(e.button === 1 || (e.button === 0 && spaceHeld))) return;
         e.preventDefault();
         e.stopImmediatePropagation();
         isPanning = true;
@@ -1412,9 +1463,15 @@
       function copyDiagram(format) {
         let job;
         try {
-          if (format !== 'png') throw new Error('unknown format ' + format);
-          if (!canCopyPng) throw new Error('this browser cannot copy images');
-          job = navigator.clipboard.write([new ClipboardItem({ 'image/png': exportPngBlob() })]);
+          if (!navigator.clipboard) throw new Error('the clipboard is not available in this browser');
+          if (format === 'svg') {
+            job = navigator.clipboard.writeText(svgDocument(buildExportSvg().svg));
+          } else if (format === 'png') {
+            if (!canCopyPng) throw new Error('this browser cannot copy images');
+            job = navigator.clipboard.write([new ClipboardItem({ 'image/png': exportPngBlob() })]);
+          } else {
+            throw new Error('unknown format ' + format);
+          }
         } catch (err) {
           job = Promise.reject(err);
         }
@@ -1422,6 +1479,7 @@
                  err => alert('Copy failed: ' + (err && err.message || err) + '\nUse Export › Download instead.'));
       }
       document.querySelectorAll('[data-copy="png"]').forEach(el => { el.hidden = !canCopyPng; });
+      document.querySelectorAll('[data-copy="svg"]').forEach(el => { el.hidden = !(navigator.clipboard && navigator.clipboard.writeText); });
       // Drop the "Copy" heading when this browser has no copy items to offer
       document.querySelectorAll('[data-copy-label]').forEach(el => { el.hidden = !document.querySelector('[data-copy]:not([hidden])'); });
 
