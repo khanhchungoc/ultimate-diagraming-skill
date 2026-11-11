@@ -32,6 +32,7 @@ Every diagram JSON has a top-level `"diagramType"` (missing means `flowchart`).
 Make exactly these calls. The type reference, the example it names and the command below are the complete interface: no `--help`, no reading scripts or `dev/`, no test runs on the example, no listing directories, no trying alternative structures.
 
 1. **Read** the type reference, then the one example it names (at the path it gives). Decide the structure once from the type reference.
+   - **Trace the requirements** before writing: list each clause of the source as a step, decision or outcome. A clause joined by "and" (`3 quotes AND budget approval`) is two steps. Every item maps to a node, edge or message; a note may add detail but never be the only place a step appears.
 2. **Write the JSON once** to scratch with your file-write tool. Fit every label to the character budget before the first run. No pixel coordinates, no `python -c`, no helper `.py` scripts. Include every step the user's scope asks for.
 3. **Run one command**, writing the HTML straight to the target path (needs Chrome, Chromium or Edge; Node.js makes layout faster; `--browser <path>` selects a browser):
    ```shell
@@ -66,5 +67,5 @@ Follow [editing-and-save.md](references/editing-and-save.md).
 About 5 lines: the file, and anything that needs the user's action. Not a log of your checks.
 
 - the output path and a one-line description (type, and node/lane or participant/message counts);
+- assumptions: outcomes you added that the source did not state (e.g. a rejection end state), and lanes reordered from the user's list;
 - problems only: score if below 100, any `[WARN]` left, labels shortened from the user's wording, a split diagram and why, what a re-layout reset (updates), an overlap check done by eye;
-- always: Save (Ctrl+S / Save button) cannot be tested headlessly; ask the user to save once to confirm.
