@@ -46,13 +46,25 @@
     {
       "id": "n4",
       "laneId": "lane-customer",
+      "type": "io",
+      "label": "Upload Missing Docs"
+    },
+    {
+      "id": "n14",
+      "laneId": "lane-officer",
       "type": "task",
-      "label": "Provide Missing Docs"
+      "label": "Verify Income & Employment"
+    },
+    {
+      "id": "n10",
+      "laneId": "lane-engine",
+      "type": "database",
+      "label": "Store Application Record"
     },
     {
       "id": "n5",
       "laneId": "lane-engine",
-      "type": "task",
+      "type": "subprocess",
       "label": "Run Credit & Fraud Check"
     },
     {
@@ -62,16 +74,64 @@
       "label": "Credit Score >= 700?"
     },
     {
+      "id": "n15",
+      "laneId": "lane-risk",
+      "type": "task",
+      "label": "Review Exception Case"
+    },
+    {
       "id": "n7",
       "laneId": "lane-risk",
       "type": "decision",
       "label": "Risk Acceptable?"
     },
     {
+      "id": "n11",
+      "laneId": "lane-officer",
+      "type": "document",
+      "label": "Issue Loan Offer"
+    },
+    {
+      "id": "n12",
+      "laneId": "lane-customer",
+      "type": "delay",
+      "label": "Wait Cooling-Off Period"
+    },
+    {
+      "id": "n16",
+      "laneId": "lane-customer",
+      "type": "task",
+      "label": "Sign Loan Agreement"
+    },
+    {
+      "id": "n17",
+      "laneId": "lane-officer",
+      "type": "task",
+      "label": "Disburse Loan Funds"
+    },
+    {
       "id": "n8",
       "laneId": "lane-officer",
       "type": "end",
-      "label": "Loan Approved"
+      "label": "Loan Funded"
+    },
+    {
+      "id": "n13",
+      "laneId": "lane-risk",
+      "type": "document",
+      "label": "Issue Decline Letter"
+    },
+    {
+      "id": "c1",
+      "laneId": "lane-risk",
+      "type": "connector",
+      "label": "A"
+    },
+    {
+      "id": "c2",
+      "laneId": "lane-customer",
+      "type": "connector",
+      "label": "A"
     },
     {
       "id": "n9",
@@ -84,22 +144,45 @@
     {
       "id": "note-1",
       "text": "Online portal or branch\nID, payslips and 3 months of bank statements",
-      "nodes": ["n1"]
+      "nodes": [
+        "n1"
+      ]
     },
     {
       "id": "note-2",
       "text": "Experian bureau pull plus internal fraud rules; about 2 minutes",
-      "nodes": ["n5"]
+      "nodes": [
+        "n5"
+      ]
     },
     {
       "id": "note-3",
       "text": "Thresholds set by Lending Policy LP-7, reviewed quarterly",
-      "nodes": ["n6", "n7"]
+      "nodes": [
+        "n6",
+        "n7"
+      ]
     },
     {
       "id": "note-4",
-      "text": "Decline letter with the reason within 30 days",
-      "nodes": ["n9"]
+      "text": "Sent within 30 days, stating the reason",
+      "nodes": [
+        "n13"
+      ]
+    },
+    {
+      "id": "note-5",
+      "text": "14 days; the applicant may withdraw without penalty",
+      "nodes": [
+        "n12"
+      ]
+    },
+    {
+      "id": "note-6",
+      "text": "Payslips checked against the employer; self-employed applicants need 2 years of accounts",
+      "nodes": [
+        "n14"
+      ]
     }
   ],
   "edges": [
@@ -131,8 +214,20 @@
     {
       "id": "e5",
       "from": "n3",
-      "to": "n5",
+      "to": "n14",
       "label": "Yes"
+    },
+    {
+      "id": "e16",
+      "from": "n14",
+      "to": "n10",
+      "label": ""
+    },
+    {
+      "id": "e11",
+      "from": "n10",
+      "to": "n5",
+      "label": ""
     },
     {
       "id": "e6",
@@ -143,26 +238,68 @@
     {
       "id": "e7",
       "from": "n6",
-      "to": "n8",
+      "to": "n11",
       "label": "Yes"
     },
     {
       "id": "e8",
       "from": "n6",
-      "to": "n7",
+      "to": "n15",
       "label": "No"
+    },
+    {
+      "id": "e17",
+      "from": "n15",
+      "to": "n7",
+      "label": ""
     },
     {
       "id": "e9",
       "from": "n7",
-      "to": "n8",
+      "to": "n11",
       "label": "Yes"
+    },
+    {
+      "id": "e12",
+      "from": "n11",
+      "to": "n12",
+      "label": ""
+    },
+    {
+      "id": "e13",
+      "from": "n12",
+      "to": "n16",
+      "label": ""
+    },
+    {
+      "id": "e18",
+      "from": "n16",
+      "to": "n17",
+      "label": ""
+    },
+    {
+      "id": "e19",
+      "from": "n17",
+      "to": "n8",
+      "label": ""
     },
     {
       "id": "e10",
       "from": "n7",
-      "to": "n9",
+      "to": "n13",
       "label": "No"
+    },
+    {
+      "id": "e14",
+      "from": "n13",
+      "to": "c1",
+      "label": ""
+    },
+    {
+      "id": "e15",
+      "from": "c2",
+      "to": "n9",
+      "label": ""
     }
   ]
 }

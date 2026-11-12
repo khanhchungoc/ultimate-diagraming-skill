@@ -78,6 +78,15 @@ try {
   await t.ev(`(${conn('in')}).dispatchEvent(new MouseEvent('mouseleave'))`);
   const unlit = await t.ev(`document.querySelectorAll('.pair-lit, .connector-guide').length`);
   t.check('hovering a connector lights its partner and draws one guide; leaving clears both', lit[0] === 2 && lit[1] === 1 && unlit === 0, `lit=${JSON.stringify(lit)} unlit=${unlit}`);
+  // Hovering the step the arrow leaves (wired to the in-connector) shows the same pair and guide
+  const srcStep = `document.getElementById('node-' + ${JSON.stringify(e8.from)})`;
+  await t.ev(`(${srcStep}).dispatchEvent(new MouseEvent('mouseenter'))`);
+  const litStep = await t.ev(`[document.querySelectorAll('.flow-node.type-connector.pair-lit').length, document.querySelectorAll('.connector-guide').length]`);
+  await t.ev(`(${srcStep}).dispatchEvent(new MouseEvent('mouseleave'))`);
+  const unlitStep = await t.ev(`document.querySelectorAll('.pair-lit, .connector-guide').length`);
+  t.check('hovering a step wired to a connector lights the pair and draws its guide; leaving clears both', litStep[0] === 2 && litStep[1] === 1 && unlitStep === 0, `lit=${JSON.stringify(litStep)} unlit=${unlitStep}`);
+  const look = await t.ev(`(() => { const s = getComputedStyle(${conn('in')}); return [s.borderTopStyle, s.borderTopWidth]; })()`);
+  t.check('a connector wears a solid 2px ring (not the terminator look)', look[0] === 'solid' && look[1] === '2px', JSON.stringify(look));
 
   // 3. A click pans to the partner (same zoom) and pulses it
   const zoom0 = await t.ev(`document.getElementById('zoom-level')?.textContent || ''`);

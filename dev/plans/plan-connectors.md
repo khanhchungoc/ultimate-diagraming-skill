@@ -98,7 +98,7 @@ Connectors are made from an arrow, never placed alone: a lone connector is an er
 
 ### Finding the other end
 
-- **Hover** a connector: every connector with its letter gets the selection outline, and a faint dotted guide line joins each in-connector to the out-connector. Hover-only, never exported.
+- **Hover** a connector: every connector with its letter gets the selection outline, and a faint dotted guide line joins each in-connector to the out-connector. Hovering a **step** wired to a connector shows the same guides for every connector it is wired to. Hover-only, never exported.
 - **Click** a connector: pan (keeping the zoom) so its partner is centred, with a short pulse on it. Works in `?present` too: there, it is the main reason connectors are readable. The plugin shares the shell's `panX`/`panY`/`updateTransform`, so no shell change.
 - **Accessible name**: `aria-label="Connector A, continues at Pay Invoice"` / `"Connector A, from Validate Claim"`.
 
@@ -112,7 +112,7 @@ Connectors are made from an arrow, never placed alone: a lone connector is an er
 
 ### Look
 
-Navy like the end node (`--end-bg`, `--end-text`), the letter bold and centred: matching pairs read as a set. The selected/hover outline uses the node accent. Light and dark from the existing tokens.
+A pale violet disc with a 2px solid violet ring (`--conn-bg`, `--conn-border`, `--conn-text`, `--conn-accent` in shell.css, light and dark), the letter bold and centred: matching pairs read as a set, and the circle never reads as a terminator (the end node is a navy pill). The selected/hover outline uses `--conn-accent`; the hover guide line is violet too.
 
 ## Skill and audit
 

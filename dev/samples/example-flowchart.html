@@ -36,6 +36,7 @@
       --banner-bg: #eff6ff; --banner-border: #bfdbfe; --banner-text: #1e40af;
       --start-bg: #f0f7f3; --start-border: #6aa886; --start-text: #1f4d37;   /* faint sage */
       --end-bg: #1e293b;   --end-border: #0f172a;   --end-text: #f8fafc;
+      --conn-bg: #f5f3ff;  --conn-border: #7c3aed;  --conn-text: #5b21b6;  --conn-accent: #5b21b6;   /* on-page connector: violet ring */
       --task-accent: #475569; --start-accent: #2f7d57; --end-accent: #64748b; --decision-accent: #a16f0b;   /* darker, more saturated edge on hover/select */
       --decision-fill: #fbf6e8; --decision-fill-hover: #ffffff; --decision-stroke: #c4a052;   /* faint sand, muted gold edge */
       --decision-text: #6a4a0f;      /* dark ochre on the sand fill (>= 7:1) */
@@ -78,6 +79,7 @@
       --banner-bg: #172554; --banner-border: #1e3a8a; --banner-text: #bfdbfe;
       --start-bg: #14261f; --start-border: #4d9a79; --start-text: #b7e0cd;
       --end-bg: #0b1220;   --end-border: #94a3b8;   --end-text: #f8fafc;
+      --conn-bg: #231a3d;  --conn-border: #a78bfa;  --conn-text: #ddd6fe;  --conn-accent: #c4b5fd;
       --task-accent: #cbd5e1; --start-accent: #6fcf9f; --end-accent: #e2e8f0; --decision-accent: #e6bf55;
       --decision-fill: #2b2718; --decision-fill-hover: #342f1d; --decision-stroke: #b89a4e;
       --decision-text: #ead7a0;      /* soft sand on the warm dark fill */
@@ -1026,18 +1028,18 @@
     body.reconnecting .edge-end-handle { cursor: grabbing; }
     body.presentation .edge-end-handle { display: none !important; }
 
-    /* On-page connector: a 32px circle with its letter, navy like the end node so a pair reads as a set. No ports
-       (a pair is never wired by hand) and no note chip (a connector is not a step). Clickable in ?present: a click
-       jumps to the other end. */
+    /* On-page connector: a 32px circle with its letter, a pale violet disc with a solid violet ring, so it never
+       reads as a terminator (navy pill). No ports (a pair is never wired by hand) and no note chip (a connector is
+       not a step). Clickable in ?present: a click jumps to the other end. */
     .flow-node.type-connector {
-      --node-accent: var(--end-accent);
+      --node-accent: var(--conn-accent);
       width: 32px;
       height: 32px;
       padding: 0;
       border-radius: 50%;
-      background: var(--end-bg);
-      border-color: var(--end-border);
-      color: var(--end-text);
+      background: var(--conn-bg);
+      border: 2px solid var(--conn-border);
+      color: var(--conn-text);
       font-size: 0.875rem;
       font-weight: 700;
       cursor: pointer;
@@ -1045,11 +1047,11 @@
     .flow-node.type-connector .node-label { width: 100%; min-width: 0; -webkit-line-clamp: 1; cursor: pointer; }
     .flow-node.type-connector .node-label[contenteditable="true"] { cursor: text; }
     .flow-node.type-connector:is(:hover, .selected, .pair-lit) { border-color: var(--node-accent); }
-    .flow-node.type-connector.pair-lit { box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 35%, transparent); }
+    .flow-node.type-connector.pair-lit { box-shadow: 0 0 0 3px color-mix(in srgb, var(--conn-border) 35%, transparent); }
     .flow-node.type-connector .port { display: none !important; }
     body.presentation .flow-node.type-connector { pointer-events: auto !important; }
     .connector-guide {
-      stroke: var(--primary);
+      stroke: var(--conn-border);
       stroke-width: 1.5px;
       stroke-dasharray: 1 5;
       stroke-linecap: round;
@@ -1317,10 +1319,10 @@
     .btn-shape:is([data-node-type="subprocess"], [data-node-type="io"], [data-node-type="document"],
       [data-node-type="database"], [data-node-type="delay"]):hover svg > * { stroke: var(--task-accent); }
     .btn-shape svg > .tile-line { fill: none; }
-    /* Connector tile: the pair of navy circles a split arrow becomes */
-    .btn-connector-tool svg > circle { fill: var(--end-bg); stroke: var(--end-border); }
+    /* Connector tile: the pair of violet circles a split arrow becomes */
+    .btn-connector-tool svg > circle { fill: var(--conn-bg); stroke: var(--conn-border); }
     .btn-connector-tool svg > .tile-line { stroke: var(--border-dark); }
-    .btn-connector-tool:hover svg > circle { stroke: var(--end-accent); }
+    .btn-connector-tool:hover svg > circle { stroke: var(--conn-accent); }
     /* Dragging the Connector tile: a lettered circle trails the cursor; over an arrow that can be split, it is solid */
     .connector-ghost {
       position: fixed;
@@ -1871,7 +1873,7 @@
       <li><kbd>Double-Click Arrow</kbd> : Add or edit arrow label (or click <kbd>+ Add Label</kbd>)</li>
       <li><kbd>Connector</kbd> (under <b>Shapes</b>, <b>Flow</b>) : Drag it onto a long arrow to break that arrow into a lettered pair, <b>A</b> beside its source and <b>A</b> beside its target; nothing else moves. Or click it to split the selected arrow (with none selected, click the arrow next; <kbd>Esc</kbd> cancels). The chip beside a selected arrow's label does the same, and offers to join an existing pair that continues at the same step</li>
       <li><kbd>Re-point a Pair</kbd> : Drag a circle onto a step to move that end there. Or select the short arrow at a circle: its handle at the circle end moves the circle the same way, and any arrow's arrowhead dropped on a circle sends that arrow into the pair</li>
-      <li><kbd>Connector</kbd> : Hover a lettered circle to light its partner; click it to jump there (also when presenting). <b>Drag a circle onto a step</b> to move that end of the pair: the flow then continues at that step (or comes from it). Double-click to change the letter of the whole pair; <kbd>Delete</kbd> joins the arrow back together</li>
+      <li><kbd>Connector</kbd> : Hover a lettered circle (or a step wired to one) to light its partner; click it to jump there (also when presenting). <b>Drag a circle onto a step</b> to move that end of the pair: the flow then continues at that step (or comes from it). Double-click to change the letter of the whole pair; <kbd>Delete</kbd> joins the arrow back together</li>
       <li><kbd>Delete</kbd> : Delete the selected step, arrow or lane (or the bar's Delete button, shown while something is selected)</li>
       <li><kbd>Click Lane Name</kbd> : Select the lane (a reorder grip and a delete button appear under its name); <kbd>Delete</kbd> then asks to confirm and removes it with its steps and their arrows (undo brings them back; the last lane stays)</li>
       <li><kbd>Drag Node</kbd> : Drop a step into another lane (or onto an arrow). With <b>Auto-Tidy</b> on, the layout tidies itself after every step you add, move or delete (<kbd>Ctrl+Z</kbd> undoes both at once), except a shape dragged onto blank canvas, which stays where you drop it until you connect it; with it off, steps stay where you drop them and snap to other steps' and lane centers</li>
@@ -1956,17 +1958,33 @@
     {
       "id": "n4",
       "laneId": "lane-customer",
-      "type": "task",
-      "label": "Provide Missing Docs",
+      "type": "io",
+      "label": "Upload Missing Docs",
       "x": 400,
+      "y": 56
+    },
+    {
+      "id": "n14",
+      "laneId": "lane-officer",
+      "type": "task",
+      "label": "Verify Income & Employment",
+      "x": 618.2,
+      "y": 56
+    },
+    {
+      "id": "n10",
+      "laneId": "lane-engine",
+      "type": "database",
+      "label": "Store Application Record",
+      "x": 618.2,
       "y": 56
     },
     {
       "id": "n5",
       "laneId": "lane-engine",
-      "type": "task",
+      "type": "subprocess",
       "label": "Run Credit & Fraud Check",
-      "x": 400,
+      "x": 818.2,
       "y": 56
     },
     {
@@ -1974,31 +1992,95 @@
       "laneId": "lane-engine",
       "type": "decision",
       "label": "Credit Score >= 700?",
-      "x": 600,
+      "x": 1018.2,
       "y": 48
+    },
+    {
+      "id": "n15",
+      "laneId": "lane-risk",
+      "type": "task",
+      "label": "Review Exception Case",
+      "x": 1018.2,
+      "y": 56
     },
     {
       "id": "n7",
       "laneId": "lane-risk",
       "type": "decision",
       "label": "Risk Acceptable?",
-      "x": 600,
+      "x": 1218.2,
       "y": 48
+    },
+    {
+      "id": "n11",
+      "laneId": "lane-officer",
+      "type": "document",
+      "label": "Issue Loan Offer",
+      "x": 1218.2,
+      "y": 56
+    },
+    {
+      "id": "n12",
+      "laneId": "lane-customer",
+      "type": "delay",
+      "label": "Wait Cooling-Off Period",
+      "x": 1218.2,
+      "y": 56
+    },
+    {
+      "id": "n16",
+      "laneId": "lane-customer",
+      "type": "task",
+      "label": "Sign Loan Agreement",
+      "x": 1429,
+      "y": 56
+    },
+    {
+      "id": "n17",
+      "laneId": "lane-officer",
+      "type": "task",
+      "label": "Disburse Loan Funds",
+      "x": 1429,
+      "y": 56
     },
     {
       "id": "n8",
       "laneId": "lane-officer",
       "type": "end",
-      "label": "Loan Approved",
-      "x": 818.2,
+      "label": "Loan Funded",
+      "x": 1629,
       "y": 56
+    },
+    {
+      "id": "n13",
+      "laneId": "lane-risk",
+      "type": "document",
+      "label": "Issue Decline Letter",
+      "x": 1429,
+      "y": 56
+    },
+    {
+      "id": "c1",
+      "laneId": "lane-risk",
+      "type": "connector",
+      "label": "A",
+      "x": 1605,
+      "y": 72
+    },
+    {
+      "id": "c2",
+      "laneId": "lane-customer",
+      "type": "connector",
+      "label": "A",
+      "x": 1709,
+      "y": 72
     },
     {
       "id": "n9",
       "laneId": "lane-customer",
       "type": "end",
       "label": "Application Rejected",
-      "x": 962.2,
+      "x": 1773,
       "y": 56
     }
   ],
@@ -2027,9 +2109,23 @@
     },
     {
       "id": "note-4",
-      "text": "Decline letter with the reason within 30 days",
+      "text": "Sent within 30 days, stating the reason",
       "nodes": [
-        "n9"
+        "n13"
+      ]
+    },
+    {
+      "id": "note-5",
+      "text": "14 days; the applicant may withdraw without penalty",
+      "nodes": [
+        "n12"
+      ]
+    },
+    {
+      "id": "note-6",
+      "text": "Payslips checked against the employer; self-employed applicants need 2 years of accounts",
+      "nodes": [
+        "n14"
       ]
     }
   ],
@@ -2062,8 +2158,20 @@
     {
       "id": "e5",
       "from": "n3",
-      "to": "n5",
+      "to": "n14",
       "label": "Yes"
+    },
+    {
+      "id": "e16",
+      "from": "n14",
+      "to": "n10",
+      "label": ""
+    },
+    {
+      "id": "e11",
+      "from": "n10",
+      "to": "n5",
+      "label": ""
     },
     {
       "id": "e6",
@@ -2074,26 +2182,68 @@
     {
       "id": "e7",
       "from": "n6",
-      "to": "n8",
+      "to": "n11",
       "label": "Yes"
     },
     {
       "id": "e8",
       "from": "n6",
-      "to": "n7",
+      "to": "n15",
       "label": "No"
+    },
+    {
+      "id": "e17",
+      "from": "n15",
+      "to": "n7",
+      "label": ""
     },
     {
       "id": "e9",
       "from": "n7",
-      "to": "n8",
+      "to": "n11",
       "label": "Yes"
+    },
+    {
+      "id": "e12",
+      "from": "n11",
+      "to": "n12",
+      "label": ""
+    },
+    {
+      "id": "e13",
+      "from": "n12",
+      "to": "n16",
+      "label": ""
+    },
+    {
+      "id": "e18",
+      "from": "n16",
+      "to": "n17",
+      "label": ""
+    },
+    {
+      "id": "e19",
+      "from": "n17",
+      "to": "n8",
+      "label": ""
     },
     {
       "id": "e10",
       "from": "n7",
-      "to": "n9",
+      "to": "n13",
       "label": "No"
+    },
+    {
+      "id": "e14",
+      "from": "n13",
+      "to": "c1",
+      "label": ""
+    },
+    {
+      "id": "e15",
+      "from": "c2",
+      "to": "n9",
+      "label": ""
     }
   ],
   "schemaVersion": 1
@@ -4697,12 +4847,27 @@ const TYPE_ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\
       }
 
       // Light every circle of the hovered connector's letter and join each in-connector to its out-connector with a
-      // dotted guide (hover only; data-export-skip keeps it out of exports)
+      // dotted guide (hover only; data-export-skip keeps it out of exports). A hovered step shows the guides of every
+      // connector wired to it. Accepts one node, a list of nodes, or null to clear.
       function showConnectorPair(node) {
         document.querySelectorAll('.flow-node.pair-lit').forEach(el => el.classList.remove('pair-lit'));
         edgeGroup.querySelectorAll('.connector-guide').forEach(l => l.remove());
         if (!node) return;
-        const all = connectorsLettered(connectorLetter(node));
+        const letters = new Set((Array.isArray(node) ? node : [node]).map(connectorLetter));
+        letters.forEach(drawConnectorGuides);
+      }
+      // Connectors joined to a step by an arrow, in either direction
+      function connectorsAttachedTo(id) {
+        const out = [];
+        chartData.edges.forEach(e => {
+          const other = e.from === id ? e.to : e.to === id ? e.from : null;
+          const n = other && nodeById(other);
+          if (isConnector(n)) out.push(n);
+        });
+        return out;
+      }
+      function drawConnectorGuides(letter) {
+        const all = connectorsLettered(letter);
         all.forEach(n => { const el = nodeElOf(n.id); if (el) el.classList.add('pair-lit'); });
         const centre = (id) => { const el = nodeElOf(id); if (!el) return null; const b = containerBox(el); return [b.x + b.w / 2, b.y + b.h / 2]; };
         const outs = all.filter(n => connectorRole(n.id) === 'out');
@@ -5034,10 +5199,13 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           nodeEl.addEventListener('pointerdown', (e) => handleNodePointerDown(e, node));
           nodeEl.addEventListener('mouseenter', () => {
             hoveredNodeId = node.id; applyNodeHover();
+            const attached = connectorsAttachedTo(node.id);
+            if (attached.length) showConnectorPair(attached);
             if (notesOf(node.id).length) peekSoon(node.id, NOTE_PEEK_DELAY);
           });
           nodeEl.addEventListener('mouseleave', () => {
             if (hoveredNodeId === node.id) hoveredNodeId = null; applyNodeHover();
+            showConnectorPair(null);
             unpeekSoon(node.id);
           });
           laneTrack.appendChild(nodeEl);

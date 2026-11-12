@@ -638,12 +638,27 @@
       }
 
       // Light every circle of the hovered connector's letter and join each in-connector to its out-connector with a
-      // dotted guide (hover only; data-export-skip keeps it out of exports)
+      // dotted guide (hover only; data-export-skip keeps it out of exports). A hovered step shows the guides of every
+      // connector wired to it. Accepts one node, a list of nodes, or null to clear.
       function showConnectorPair(node) {
         document.querySelectorAll('.flow-node.pair-lit').forEach(el => el.classList.remove('pair-lit'));
         edgeGroup.querySelectorAll('.connector-guide').forEach(l => l.remove());
         if (!node) return;
-        const all = connectorsLettered(connectorLetter(node));
+        const letters = new Set((Array.isArray(node) ? node : [node]).map(connectorLetter));
+        letters.forEach(drawConnectorGuides);
+      }
+      // Connectors joined to a step by an arrow, in either direction
+      function connectorsAttachedTo(id) {
+        const out = [];
+        chartData.edges.forEach(e => {
+          const other = e.from === id ? e.to : e.to === id ? e.from : null;
+          const n = other && nodeById(other);
+          if (isConnector(n)) out.push(n);
+        });
+        return out;
+      }
+      function drawConnectorGuides(letter) {
+        const all = connectorsLettered(letter);
         all.forEach(n => { const el = nodeElOf(n.id); if (el) el.classList.add('pair-lit'); });
         const centre = (id) => { const el = nodeElOf(id); if (!el) return null; const b = containerBox(el); return [b.x + b.w / 2, b.y + b.h / 2]; };
         const outs = all.filter(n => connectorRole(n.id) === 'out');
@@ -975,10 +990,13 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           nodeEl.addEventListener('pointerdown', (e) => handleNodePointerDown(e, node));
           nodeEl.addEventListener('mouseenter', () => {
             hoveredNodeId = node.id; applyNodeHover();
+            const attached = connectorsAttachedTo(node.id);
+            if (attached.length) showConnectorPair(attached);
             if (notesOf(node.id).length) peekSoon(node.id, NOTE_PEEK_DELAY);
           });
           nodeEl.addEventListener('mouseleave', () => {
             if (hoveredNodeId === node.id) hoveredNodeId = null; applyNodeHover();
+            showConnectorPair(null);
             unpeekSoon(node.id);
           });
           laneTrack.appendChild(nodeEl);

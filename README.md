@@ -8,11 +8,12 @@ Describe a process, and your AI assistant hands back a single HTML file. Open it
 
 ## What you get
 
-- ⚡ **Faster and cheaper.** The AI writes a short description of your diagram (about 2.8 KB for the example above), not thousands of lines of drawing code. You wait less, spend fewer tokens, and long diagrams don't eat your usage limit.
+- ⚡ **Faster and cheaper.** The AI writes a short description of your diagram (about 5.6 KB for the example above), not thousands of lines of drawing code. You wait less, spend fewer tokens, and long diagrams don't eat your usage limit.
 - ✏️ **Fix it yourself, no re-prompting.** Wrong label? Step in the wrong lane? Drag it, retype it, delete it. Undo and redo work. Press **Save** and the changes are stored in the same file.
 - 🧹 **Always tidy.** Add, move or delete a step and the diagram re-arranges itself and re-routes the arrows (switch **Auto-Tidy** off to place steps by hand). **Tidy** does the same on demand.
 - 💬 **Your edits and the AI's edits combine.** Tweak the diagram by hand, then tell the AI "add an approval step after review". It picks up from your edited version instead of starting over and undoing your work.
 - ↔️ ↕️ **Wide or tall.** Flip between left-to-right and top-to-bottom with one button. Pick whichever fits your page or slide.
+- 🔤 **Long arrows stay readable.** An arrow that would cross half the diagram becomes a pair of lettered circles (A → A). Hover a circle, or the step it's attached to, to see where the flow continues; click it to jump there.
 - ✅ **Arrives clean.** The AI checks its own result for overlapping boxes and unreadable labels before showing you.
 - 📦 **Just a file.** Email it, put it in a repo, attach it to a ticket, or open it offline.
 
@@ -40,7 +41,7 @@ Describe a process, and your AI assistant hands back a single HTML file. Open it
 
 | Type | Status |
 |---|---|
-| **Flowchart**: swimlanes, decisions, loops, wide or tall | ✅ Available |
+| **Flowchart**: swimlanes, decisions, loops, wide or tall; classic shapes (document, database, input/output, subprocess, delay) and lettered connectors for long arrows | ✅ Available |
 | **Sequence**: who talks to whom over time, with optional, alternative and loop sections | ✅ Available |
 
 ![Sequence diagram](docs/img/example-sequence.png)
@@ -68,15 +69,6 @@ Describe a process, and your AI assistant hands back a single HTML file. Open it
    Works with Claude Code, GitHub Copilot, OpenAI Codex, Gemini CLI, Antigravity and Kiro.
 2. Ask: *"Draw a swimlane flowchart of our loan approval process."*
 3. Open the HTML file it creates and edit.
-
-### Viewing options
-
-Add these to the end of the file's address in the browser:
-
-| Add | Effect |
-|---|---|
-| `?present` | Read-only view with all editing controls hidden, for presenting or sharing |
-| `?theme=dark` or `?theme=light` | Forces a theme. Without it, the toolbar toggle or your system setting decides |
 
 ## Requirements
 

@@ -86,7 +86,9 @@ Never add pixel coordinates (`x`, `y`); `--layout` computes them.
 | `database` | cylinder | reads or writes a system of record | `"Store Claim Record"` |
 | `delay` | D-shape | is a wait (cooling-off, SLA timer, batch window) | `"Wait for Payment Run"` |
 
-11. **On-page connectors only where the source shows them**, keeping its letters; otherwise draw the arrow and let the router route it. A connector is a small lettered circle standing for one end of a long arrow: the flow runs into circle `A` beside its source and continues out of circle `A` beside its target. The layout places the circles; never set their `x`/`y`, and they move no step. `--layout` warns about every rule below that is broken.
+11. **On-page connectors where the source shows them, or where an arrow is too long to follow**; otherwise draw the arrow and let the router route it. A connector is a small lettered circle standing for one end of a long arrow: the flow runs into circle `A` beside its source and continues out of circle `A` beside its target. The layout places the circles; never set their `x`/`y`, and they move no step. `--layout` warns about every rule below that is broken.
+   - **Source shows them**: keep its pairs and its letters.
+   - **Long arrow** (judged on the screenshot, [checklist](#visual-review-checklist) item 5): first lay out with plain arrows. Then split an arrow into a pair only when it is **long**, meaning its source and target lanes are 3 or more lanes apart (it passes through at least 2 other lanes) or it is a loop-back that returns 4 or more columns, **and tangled**, meaning it crosses another arrow or runs alongside one for most of its length. A handoff to a neighbouring lane, or a long arrow with a clear path, stays an arrow. Add at most 3 pairs per diagram, longest arrow first. If more qualify, the lane order is the problem: fix that first (checklist item 2). Report each pair you added.
    - `"type": "connector"`, `"label"`: the letter (`A`–`Z` without `I` and `O`, then `AA`, `AB`, ...). Two connectors with one letter are a pair; put each in the lane of the step it sits beside.
    - An **in-connector** has arrows in and none out; an **out-connector** has arrows out and none in. A letter has exactly **one out-connector** and one or more in-connectors (several flows may merge at one continuation).
    - The branch's `label` and `feedback` stay on the arrow **into** the in-connector; the arrow out of the out-connector is `""`.
@@ -121,6 +123,7 @@ Routing, ports, arrow ends and lane containment are the engine's job; it does no
 2. **Lane order keeps handoffs short**: no knot of long arrows bridging an uninvolved lane, and fan-in joins nest without one arrow cutting across another. If a knot remains with lanes in flow order ("Lane order follows the flow"), move the actor in the knot next to the lane it hands off to most often. Keep the initiator first, never move phase lanes (rule 7), re-run, and say in the report that you reordered.
 3. **Every node is in the right lane**: the lane of the actor who performs it (rule 3).
 4. **Every lane header names who does the work**: an actor, team or system, not an activity or category, or one sequential stage, for phase lanes (rule 7).
+5. **No arrow too long to follow**: once lane order is settled (item 2), an arrow that is both long and tangled (rule 11) becomes a connector pair. Replace the arrow with an in-connector in the source's lane and an out-connector in the target's lane, keeping its `label` and `feedback` on the arrow into the in-connector, then re-run `--layout`. No step moves, so this is the last fix.
 
 ## Lane icons
 

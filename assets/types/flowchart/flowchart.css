@@ -441,18 +441,18 @@
     body.reconnecting .edge-end-handle { cursor: grabbing; }
     body.presentation .edge-end-handle { display: none !important; }
 
-    /* On-page connector: a 32px circle with its letter, navy like the end node so a pair reads as a set. No ports
-       (a pair is never wired by hand) and no note chip (a connector is not a step). Clickable in ?present: a click
-       jumps to the other end. */
+    /* On-page connector: a 32px circle with its letter, a pale violet disc with a solid violet ring, so it never
+       reads as a terminator (navy pill). No ports (a pair is never wired by hand) and no note chip (a connector is
+       not a step). Clickable in ?present: a click jumps to the other end. */
     .flow-node.type-connector {
-      --node-accent: var(--end-accent);
+      --node-accent: var(--conn-accent);
       width: 32px;
       height: 32px;
       padding: 0;
       border-radius: 50%;
-      background: var(--end-bg);
-      border-color: var(--end-border);
-      color: var(--end-text);
+      background: var(--conn-bg);
+      border: 2px solid var(--conn-border);
+      color: var(--conn-text);
       font-size: 0.875rem;
       font-weight: 700;
       cursor: pointer;
@@ -460,11 +460,11 @@
     .flow-node.type-connector .node-label { width: 100%; min-width: 0; -webkit-line-clamp: 1; cursor: pointer; }
     .flow-node.type-connector .node-label[contenteditable="true"] { cursor: text; }
     .flow-node.type-connector:is(:hover, .selected, .pair-lit) { border-color: var(--node-accent); }
-    .flow-node.type-connector.pair-lit { box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 35%, transparent); }
+    .flow-node.type-connector.pair-lit { box-shadow: 0 0 0 3px color-mix(in srgb, var(--conn-border) 35%, transparent); }
     .flow-node.type-connector .port { display: none !important; }
     body.presentation .flow-node.type-connector { pointer-events: auto !important; }
     .connector-guide {
-      stroke: var(--primary);
+      stroke: var(--conn-border);
       stroke-width: 1.5px;
       stroke-dasharray: 1 5;
       stroke-linecap: round;
@@ -732,10 +732,10 @@
     .btn-shape:is([data-node-type="subprocess"], [data-node-type="io"], [data-node-type="document"],
       [data-node-type="database"], [data-node-type="delay"]):hover svg > * { stroke: var(--task-accent); }
     .btn-shape svg > .tile-line { fill: none; }
-    /* Connector tile: the pair of navy circles a split arrow becomes */
-    .btn-connector-tool svg > circle { fill: var(--end-bg); stroke: var(--end-border); }
+    /* Connector tile: the pair of violet circles a split arrow becomes */
+    .btn-connector-tool svg > circle { fill: var(--conn-bg); stroke: var(--conn-border); }
     .btn-connector-tool svg > .tile-line { stroke: var(--border-dark); }
-    .btn-connector-tool:hover svg > circle { stroke: var(--end-accent); }
+    .btn-connector-tool:hover svg > circle { stroke: var(--conn-accent); }
     /* Dragging the Connector tile: a lettered circle trails the cursor; over an arrow that can be split, it is solid */
     .connector-ghost {
       position: fixed;
