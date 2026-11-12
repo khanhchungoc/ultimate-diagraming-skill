@@ -200,7 +200,7 @@ Open a saved HTML file over `file://` in Chrome, Edge, Firefox and Safari. Paste
 
 ## Docs
 
-- [references/editing-and-save.md](../references/editing-and-save.md): add one paragraph on the Copy items, and say that Mermaid keeps structure but not layout.
+- [SKILL.md](../SKILL.md) (*Procedure: Update an Existing Diagram*): add one paragraph on the Copy items, and say that Mermaid keeps structure but not layout.
 - [README.md](../README.md): add Copy as Mermaid/SVG/PNG to the feature list.
 - [architecture.md](architecture.md): the plugin table row and `mermaid.js` in the layer tree.
 

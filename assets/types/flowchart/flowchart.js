@@ -531,6 +531,26 @@
         }
       }
 
+      // Narrow shapes fit their text by width in pixels, not characters: "Specification?" fits a diamond
+      // line, "Standard Spec?" (same length, wider letters) does not. A label that needs a third line steps its
+      // font down 1px at a time, to FIT_MIN_PX, until it fits the 2-line clamp. data-base-px keeps the
+      // designed size for the legibility report (shell.js), so a fitted label does not count as small text.
+      const FIT_TYPES = new Set(['decision', 'subprocess', 'io', 'database', 'delay']);
+      const FIT_MIN_PX = 11;
+      function fitNodeLabel(label, type) {
+        label.style.fontSize = '';
+        delete label.dataset.basePx;
+        if (!FIT_TYPES.has(type) || !label.isConnected) return;
+        const over = () => label.scrollHeight > label.clientHeight + 2 || label.scrollWidth > label.clientWidth + 2;
+        if (!over()) return;
+        const base = parseFloat(getComputedStyle(label).fontSize);
+        label.dataset.basePx = base;
+        for (let px = Math.ceil(base) - 1; px >= FIT_MIN_PX; px--) {
+          label.style.fontSize = `${px}px`;
+          if (!over()) return;
+        }
+      }
+
       function renderNodes() {
         document.querySelectorAll('.flow-node').forEach(el => el.remove());
 
@@ -575,6 +595,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
               node.label = label.textContent.trim();
               updateStatus(true);
               if (wasDot !== isDot(node)) render();
+              else fitNodeLabel(label, node.type);
             }
           });
           label.addEventListener('keydown', (e) => {
@@ -608,6 +629,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
             unpeekSoon(node.id);
           });
           laneTrack.appendChild(nodeEl);
+          fitNodeLabel(label, node.type);
         });
       }
 

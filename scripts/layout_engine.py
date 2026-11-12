@@ -67,7 +67,8 @@ class FlowchartAudit:
     def pass_line(self, report: Dict[str, Any]) -> str:
         return (
             f"[PASS] Quality Score: {report['score']}/100 ({report['grade']}). "
-            f"0 overlaps, 0 penetrations, {report['collinear_pct']}% collinear straightness."
+            f"0 overlaps, 0 penetrations, {report['collinear_pct']}% collinear straightness"
+            + (f", {report['edge_crossings']} edge crossings (score only, not a defect)." if report["edge_crossings"] else ".")
         )
 
     def summary_lines(self, report: Dict[str, Any]) -> List[str]:
@@ -257,19 +258,16 @@ class FlowchartAudit:
         score -= len(overflow_issues) * 20
         score -= len(penetrations) * 15
         score -= len(dogleg_issues) * 5
+        # Crossings lower the score but never fail the gate: a large cross-functional process has
+        # crossings no lane order removes, and failing on them only sends the agent chasing them.
+        defect_score = max(0, score)
         score -= min(15, edge_crossings * 2)
         score = max(0, min(100, score))
 
         grade = "A+" if score >= 95 else ("A" if score >= 90 else ("B" if score >= 80 else ("C" if score >= 70 else "F")))
         all_issues = dangling_issues + overlap_issues + overflow_issues + penetrations + dogleg_issues
-        if edge_crossings:
-            # Listed so the score is fully explained; crossings are fixed by lane order (visual checklist 2)
-            all_issues.append(
-                f"{edge_crossings} edge crossings (-{min(15, edge_crossings * 2)}): reorder lanes so "
-                "actors that hand off often sit next to each other"
-            )
         passed = (
-            score >= 90
+            defect_score >= 90
             and len(dangling_issues) == 0
             and len(overlap_issues) == 0
             and len(overflow_issues) == 0

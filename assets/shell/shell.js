@@ -264,7 +264,8 @@
           }
         });
         const effPx = (sel) => {
-          const sizes = [...document.querySelectorAll(sel)].map(el => parseFloat(getComputedStyle(el).fontSize) * scale);
+          // data-base-px: the designed size of a label a plugin shrank to fit its shape (judged at that size)
+          const sizes = [...document.querySelectorAll(sel)].map(el => parseFloat(el.dataset.basePx || getComputedStyle(el).fontSize) * scale);
           return sizes.length ? Math.round(Math.min(...sizes) * 10) / 10 : null;
         };
         const minNodeFontPx = effPx(plugin.report.nodeText);

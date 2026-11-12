@@ -19,7 +19,6 @@ MIN_NODE = 18
 
 REQUIRED_FILES = [
     "SKILL.md",
-    "references/editing-and-save.md",
     "references/types/flowchart.md",
     "references/types/sequence.md",
     "references/examples/example-flowchart.json",
