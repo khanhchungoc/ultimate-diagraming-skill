@@ -446,7 +446,7 @@
     body.presentation .edge-end-handle { display: none !important; }
 
     /* On-page connector: a 32px circle with its letter, a pale violet disc with a solid violet ring, so it never
-       reads as a terminator (navy pill). No ports (a pair is never wired by hand) and no note chip (a connector is
+       reads as a terminator (solid slate pill). No ports (a pair is never wired by hand) and no note chip (a connector is
        not a step). Clickable in ?present: a click jumps to the other end. */
     .flow-node.type-connector {
       --node-accent: var(--conn-accent);
