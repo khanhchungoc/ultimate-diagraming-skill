@@ -12,7 +12,11 @@ Add the classic (ISO 5807-style) flowchart symbols that process diagrams use mos
 
 On-page connectors are planned separately in [plan-connectors.md](plan-connectors.md): they need engine work and page behaviour these five shapes don't. BPMN-only symbols (events, typed gateways, message flows) stay out: the notation is classic flowchart (decided 2026-11-11).
 
-**Status:** planned, not started.
+**Status:** implemented 2026-11-12 (steps 1–4; tile grouping follows option B of open question 2). Open question 1 (the shape picker) is not built. Deviations from the plan:
+
+- The outline snap runs as step **5f**, after the top-to-bottom transpose (5e), so it works directly on screen sides rather than mapping flow sides through `SIDE`. It also covers the diamond's left/right vertices and the cylinder's bottom ellipse.
+- The document's wave is a classic S-curve that stays inside the box: it is 6px above the box bottom at the centre, and the snap brings ends onto it. The plan's "crosses the box bottom at the centre" would have pushed half of the wave out of the box.
+- Measured label budgets match the plan: ≤ 24 chars fit `subprocess`, `io`, `database` and `delay`, and 28 fits `document`. A 27-char label truncates on `delay`.
 
 ## What the code does today
 

@@ -47,6 +47,7 @@ Input Graph JSON ──> [1. Cycle Breaking] ──> [2. Topological Layering]
   - Upward cross-lane branches exit from the `Top` tip.
   - Downward cross-lane branches exit from the `Bottom` tip.
   - Forward same-lane branches exit from the `Right` tip.
+- **Arrow ends on shaped outlines** (step 5f in `computeAllEdgeRoutes`): every shaped node (the decision and the classic symbols `subprocess`, `io`, `document`, `database`, `delay`) keeps a task-like box for layout and routing and draws its outline inside it (`SHAPE_OUTLINES` in `flowchart.js`). After the top-to-bottom transpose, each arrow end on such a node slides along its end leg onto the outline by `outlineInset(type, rect, screenSide, along)`. It works on screen sides because shapes keep their screen orientation in a top-to-bottom diagram (the document's wave stays at the bottom). The engine never sees the shapes: a classic symbol lays out exactly like a `task` (the `classic-shapes` fixture checks this).
 - **Dedicated Outer Bypass Loopback Routing**:
   - Feedback/loopback flows (target $X <$ source $X$) exit from the source node's `Left` port and step immediately into a dedicated boundary bypass channel:
     - Upper bypass corridor: $Y = \min(\text{source } Y - 20, \text{target } Y - 20)$

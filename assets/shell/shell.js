@@ -548,11 +548,11 @@
 
       function svgDocument(svg) { return '<?xml version="1.0" encoding="UTF-8"?>\n' + svg; }
 
-      // Rasterise the export SVG at up to 2x. The SVG is built synchronously (styles are read now);
+      // Rasterise the export SVG at up to 1.5x. The SVG is built synchronously (styles are read now);
       // only the image decode and canvas encode are async. Rejects if the image cannot be produced.
       function exportPngBlob() {
         const { svg, w, h } = buildExportSvg();
-        const k = Math.min(2, 16000 / Math.max(w, h), Math.sqrt(100e6 / (w * h)));
+        const k = Math.min(1.5, 16000 / Math.max(w, h), Math.sqrt(100e6 / (w * h)));
         return new Promise((resolve, reject) => {
           const img = new Image();
           img.onload = () => {
@@ -638,18 +638,21 @@
       document.querySelectorAll('.toolbar-center [data-dock-group="layout"]').forEach(el => btnAutoTidy.before(el));
 
       // A [data-dock-pop] wrapper opens its .dock-pop bubble on hover (mouse/pen), or on click/tap/keyboard.
-      // Its items can be anything; the grid width follows the item count (max 6 columns, then more rows).
+      // Its items can be anything; the grid width follows the item count (max 6 columns, then more rows). The bubble
+      // may hold one .dock-pop-grid, or several in labelled .dock-pop-section blocks: every grid then takes the
+      // column count of the largest, so the sections line up.
       const DOCK_POP_MAX_COLS = 6;
       document.querySelectorAll('[data-dock-pop]').forEach(wrap => {
         const trigger = wrap.querySelector('.dock-pop-trigger');
         const pop = wrap.querySelector('.dock-pop');
         if (!trigger || !pop) return;
         const items = [...pop.querySelectorAll('.dock-pop-grid > *')];
-        const cols = Math.max(1, Math.min(items.length, DOCK_POP_MAX_COLS));
+        const grids = [...pop.querySelectorAll('.dock-pop-grid')];
+        const largest = Math.max(1, ...grids.map(g => g.children.length));
+        const cols = Math.max(1, Math.min(largest, DOCK_POP_MAX_COLS));
         pop.style.setProperty('--pop-cols', cols);
         // Scroll only past 5 rows (60px tiles + 6px gaps ~ the grid's max height)
-        const grid = pop.querySelector('.dock-pop-grid');
-        if (grid) grid.classList.toggle('scrolls', Math.ceil(items.length / cols) > 5);
+        grids.forEach(grid => grid.classList.toggle('scrolls', Math.ceil(grid.children.length / cols) > 5));
         items.forEach((el, i) => el.style.setProperty('--i', i));
         let closeTimer = null;
         const isOpen = () => wrap.classList.contains('open');

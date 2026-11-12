@@ -26,7 +26,7 @@ Never add pixel coordinates (`x`, `y`); `--layout` computes them.
 |---|---|---|
 | Lane | `id`, `name`, `icon` | Unique id (`lane-<slug>`), the actor's name (or the phase's, see rule 7), and an `icon` (see rule 8). |
 | Lane | `color` | Optional. Omit it: lanes get palette colours in order. Set a hex tint only to match the source's colours, or to give related lanes the same colour on purpose. |
-| Node | `id`, `laneId`, `type`, `label` | `type` is `start`, `task`, `decision` or `end`. `start` and `end` render as rounded pills in their own colours (a plain circle if the label is empty); `task` is a box, `decision` a diamond. |
+| Node | `id`, `laneId`, `type`, `label` | `type` is `start`, `task`, `decision`, `end`, or a classic symbol (rule 10). `start` and `end` render as rounded pills in their own colours (a plain circle if the label is empty); `task` is a box, `decision` a diamond. |
 | Edge | `id`, `from`, `to`, `label` | `label` is `"Yes"`, `"No"`, `"Resubmit"`, etc.; `""` for unconditional steps. |
 | Note | `id`, `text`, `nodes` | Optional list `notes`: plain text that explains one or more steps (what goes in it: rule 9). `nodes` lists the ids of the steps it explains; the first is where it sits. Each linked step shows a small badge the reader hovers to see the note. |
 | Diagram | `showNotes` | Optional `true` shows every note on the page (fitted into the gaps near its node) instead of on hover; when to set it: rule 9. The page's Notes button toggles it. |
@@ -47,11 +47,12 @@ Never add pixel coordinates (`x`, `y`); `--layout` computes them.
 4. **Fit the 2-line label clamp** so text never truncates with `...`:
    - **Tasks / Start / End (`144x64px`)**: `<= 28` chars (~14–16 chars/line). A 13-char word like `"Authorisation"` fits beside one or two short words.
    - **Decisions (`92px` inner diamond)**: `<= 24` chars (~12 chars/line, e.g. `"User Still Authorised?"`).
+   - **Classic symbols (rule 10)**: `document` `<= 28` chars, like a task; `subprocess`, `io`, `database` and `delay` `<= 24` chars (their outline takes room from the text).
    - **Lane names**: `<= 32` chars so the floating pill never truncates.
    - **Fidelity**: keep the user's wording when it fits the budget and rule 1. Otherwise cut the label to its verb + object; if the cut removed real detail (rule 9's list), put only that detail in a note, never the whole original sentence. List the changed labels in the final report. Never abbreviate words (`"Auth"`) to save space.
-5. **Overview requests**: if the user asks for a summary, high-level overview or one-slide flow, aim for about 7 columns and 12 nodes so it fits a 1080p screen without panning. Otherwise include every step the source has; the page pans and zooms.
+5. **Overview requests**: if the user asks for a summary, high-level overview or one-slide flow, aim for about 7 columns and 12 nodes so it fits a 1080p screen without panning. Otherwise include every step the source has; the page pans and zooms. On a text-size `[ERROR]` (exit 4), dropping columns is also a fix.
 6. **Exceptions end in their own end state.** A path that finishes unresolved (manual intervention, escalation, an unhandled fallback) ends in a separate `end` node named for that outcome (`"Manual Payment Required"`), never merged into the success end (`"Claim Settled"`). Creating a task for someone else is not completion.
-   - **Approvals are decisions.** An approval, sign-off or authorisation is a decision node (`"Budget Approved?"`) with both outcomes, even when the source names only the approval. If the source does not say what happens on rejection, end it in its own state (`"Request Rejected"`) and list it as an assumption in the report. This applies to approve / sign-off / authorise only: a plain review or check with no stated failure outcome stays a task.
+   - **Approvals are decisions.** An approval, sign-off or authorisation is a decision node (`"Budget Approved?"`) with both outcomes, even when the source names only the approval. If the source does not say what happens on rejection, end it in its own state (`"Request Rejected"`) and list it as an assumption in the report; the decision itself is this rule's choice, so leave it out of the report. This applies to approve / sign-off / authorise only: a plain review or check with no stated failure outcome stays a task.
 7. **One lane per actor.** A lane is who does the work: a role, team, organisation or system that performs steps.
    - Name lanes as actor nouns (`"Loan Officer"`, `"Customer"`, `"Payment Gateway"`), never an activity (`"Review"`), a status (`"Pending"`) or a category (`"Manual Tasks"`). Prefer roles to people's names.
    - A system is an actor only when it acts (`"Core Banking"` validating something). Don't add a lane for a system that is only mentioned.
@@ -89,7 +90,7 @@ Never add pixel coordinates (`x`, `y`); `--layout` computes them.
 
 9. **Notes hold what the label leaves out.** Add a note only where the source gives a detail from the list below that the label lacks; most steps need none. A longer sentence saying the same thing as the label is not a note: drop it.
    - **In a note**: how or why the step is done (method, criteria), business rules and thresholds, amounts, SLAs, durations and schedules, the system or tool used, documents and forms, policy, regulation or ticket references, and examples. Keep the source's figures, names and IDs exactly.
-   - **Never in a note**: flow. A step, branch, loop, hand-off or outcome that changes what happens next is a node or an edge, so a reader who never opens a note still sees the whole process. Never repeat the label.
+   - **Never in a note**: flow. A step, branch, loop, hand-off or outcome that changes what happens next is a node or an edge, so a reader who never opens a note still sees the whole process. A note may add detail to a step but is never the only place a step appears. Never repeat the label.
    - **Form**: a fragment or one or two short sentences, facts over prose, `<= 140` chars; `\n` separates distinct facts.
    - **`showNotes`**: leave it out by default (notes open on hover). Set `true` when the reader needs the notes without interacting: the diagram is meant for export, print or a presentation, or the user asks for the detail to be visible.
    - **One note, several steps**: when the same fact explains several steps (one policy behind two decisions, one system doing three steps), write one note and list every step in `nodes`, never copies of it.
@@ -103,6 +104,16 @@ Never add pixel coordinates (`x`, `y`); `--layout` computes them.
    ```
    not `"label": "Run Experian Credit Check (Score >= 620)"` with no note.
 
+10. **Classic symbols only where the source shows that kind of step**; otherwise use `task`. Each is a step in the sequence (arrows in and out), never a side box off the flow, with a task's size and colours. Labels stay verb + object (rule 1). `--layout` warns about an unknown `type`.
+
+| `type` | Drawn as | Use when the step | Example |
+|---|---|---|---|
+| `subprocess` | box, double side bars | is a process documented elsewhere | `"Run Onboarding Process"` |
+| `io` | parallelogram | receives or sends data (form, file) | `"Receive Claim Form"` |
+| `document` | wavy-bottom box | produces a document (letter, invoice, report) | `"Issue Decline Letter"` |
+| `database` | cylinder | reads or writes a system of record | `"Store Claim Record"` |
+| `delay` | D-shape | is a wait (cooling-off, SLA timer, batch window) | `"Wait for Payment Run"` |
+
 ## Choosing the structure
 
 Decide from the source, once, top row first. Do not trial the alternatives.
@@ -114,11 +125,13 @@ Decide from the source, once, top row first. Do not trial the alternatives.
 | Few actors but many steps | keep the actor lanes | `TB` (fits a page better) |
 | One actor, one sequence | `"swimlanes": false` | `TB` if long, else omit |
 
+**Lane order follows the flow, not the user's list.** The user's list of actors is a set, not an order. Walk the main (happy) path from the start node and list each actor the first time it does a step: that is the lane order, initiator first. Example: `Employee` submits, `IT` checks the request, `Line Manager` approves, then `Procurement`, `Finance`, `Supplier`. `IT` goes second even if the user listed it after `Line Manager`. Actors reached only on an exception path go after the last main-path actor they hand off to. Phase lanes (rule 7) keep their sequence. If this differs from the user's list, say so in the report.
+
 ## Visual review checklist
 
 Routing, ports, arrow ends and lane containment are the engine's job; it does not need checking. Check these by eye on the screenshot, and apply the fix if one fails:
 
 1. **Loop edges**: the edge that loops back is the intended one and runs through the outer corridor. If the wrong edge loops, or a node in a cycle sits in an odd column, set `"feedback": true` on the edge that should loop back and re-run `--layout`.
-2. **Lane order keeps handoffs short**: no knot of long arrows bridging an uninvolved lane, and fan-in joins nest without one arrow cutting across another. The user's lane list is a set of actors, not a fixed order. If arrows bridge or cross, keep the initiator's lane first and reorder the rest so actors with many handoffs or a shared loop (and a join's sources) sit next to each other, re-run, and say in the report that you reordered. Phase lanes (rule 7) keep their sequence.
+2. **Lane order keeps handoffs short**: no knot of long arrows bridging an uninvolved lane, and fan-in joins nest without one arrow cutting across another. First check that the order is the flow order (see "Lane order follows the flow"). Only if a knot remains, move the actor in the knot next to the lane it hands off to most often. Keep the initiator first, re-run, and say in the report that you reordered. Phase lanes (rule 7) keep their sequence.
 3. **Every node is in the right lane**: the lane of the actor who performs it (rule 3).
 4. **Every lane header names who does the work**: an actor, team or system, not an activity or category, or one sequential stage, for phase lanes (rule 7).

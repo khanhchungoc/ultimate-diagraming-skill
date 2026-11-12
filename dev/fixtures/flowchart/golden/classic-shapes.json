@@ -1,0 +1,150 @@
+{
+  "diagramType": "flowchart",
+  "title": "Classic shapes: one of each, wired in a small flow with a loop",
+  "lanes": [
+    {
+      "id": "lane-employee",
+      "name": "Employee",
+      "icon": "user",
+      "height": 176
+    },
+    {
+      "id": "lane-finance",
+      "name": "Finance",
+      "icon": "banknote",
+      "height": 176
+    }
+  ],
+  "nodes": [
+    {
+      "id": "n1",
+      "laneId": "lane-employee",
+      "type": "start",
+      "label": "Expense Incurred",
+      "x": 56,
+      "y": 72
+    },
+    {
+      "id": "n2",
+      "laneId": "lane-employee",
+      "type": "io",
+      "label": "Upload Receipts",
+      "x": 256,
+      "y": 72
+    },
+    {
+      "id": "n3",
+      "laneId": "lane-finance",
+      "type": "subprocess",
+      "label": "Run Policy Check",
+      "x": 256,
+      "y": 56
+    },
+    {
+      "id": "n4",
+      "laneId": "lane-finance",
+      "type": "decision",
+      "label": "Within Policy?",
+      "x": 456,
+      "y": 48
+    },
+    {
+      "id": "n5",
+      "laneId": "lane-employee",
+      "type": "task",
+      "label": "Correct Claim",
+      "x": 456,
+      "y": 72
+    },
+    {
+      "id": "n6",
+      "laneId": "lane-finance",
+      "type": "database",
+      "label": "Record Expense",
+      "x": 674.2,
+      "y": 56
+    },
+    {
+      "id": "n7",
+      "laneId": "lane-finance",
+      "type": "delay",
+      "label": "Wait for Payment Run",
+      "x": 874.2,
+      "y": 56
+    },
+    {
+      "id": "n8",
+      "laneId": "lane-finance",
+      "type": "document",
+      "label": "Issue Remittance Advice",
+      "x": 1074.2,
+      "y": 56
+    },
+    {
+      "id": "n9",
+      "laneId": "lane-employee",
+      "type": "end",
+      "label": "Expense Paid",
+      "x": 1074.2,
+      "y": 72
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "from": "n1",
+      "to": "n2",
+      "label": ""
+    },
+    {
+      "id": "e2",
+      "from": "n2",
+      "to": "n3",
+      "label": ""
+    },
+    {
+      "id": "e3",
+      "from": "n3",
+      "to": "n4",
+      "label": ""
+    },
+    {
+      "id": "e4",
+      "from": "n4",
+      "to": "n6",
+      "label": "Yes"
+    },
+    {
+      "id": "e5",
+      "from": "n4",
+      "to": "n5",
+      "label": "No"
+    },
+    {
+      "id": "e6",
+      "from": "n5",
+      "to": "n2",
+      "label": "",
+      "feedback": true
+    },
+    {
+      "id": "e7",
+      "from": "n6",
+      "to": "n7",
+      "label": ""
+    },
+    {
+      "id": "e8",
+      "from": "n7",
+      "to": "n8",
+      "label": ""
+    },
+    {
+      "id": "e9",
+      "from": "n8",
+      "to": "n9",
+      "label": ""
+    }
+  ],
+  "schemaVersion": 1
+}

@@ -328,6 +328,51 @@
       stroke: var(--node-accent);
       filter: drop-shadow(0 0 4px color-mix(in srgb, var(--node-accent) 45%, transparent));
     }
+    /* Classic flowchart shapes (subprocess, io, document, database, delay): the task's 144x64 slot and colours,
+       the box transparent and the outline drawn inside it (SHAPE_OUTLINES in flowchart.js); the outline carries
+       the meaning. Each label is inset clear of its outline. */
+    .flow-node:is(.type-subprocess, .type-io, .type-document, .type-database, .type-delay) {
+      background: transparent !important;
+      border: none !important;
+      box-shadow: none !important;
+    }
+    .flow-node .shape-outline {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+      overflow: visible;
+      pointer-events: none;
+    }
+    .flow-node .shape-outline > * {
+      vector-effect: non-scaling-stroke;
+      stroke-width: var(--node-stroke); /* same weight as rect nodes; never changes on hover/select */
+      stroke-linejoin: round;
+      transition: stroke 0.15s, fill 0.15s;
+    }
+    .flow-node:not(.type-decision) .shape-outline .shape-path { fill: var(--node-bg); stroke: var(--border-dark); }
+    .flow-node .shape-outline .shape-line { fill: none; stroke: var(--border-dark); }
+    .flow-node:not(.type-decision):hover .shape-outline > * { stroke: var(--node-accent); }
+    .flow-node:not(.type-decision):hover .shape-outline .shape-path { filter: drop-shadow(0 3px 5px rgba(0,0,0,0.12)); }
+    .flow-node:not(.type-decision).selected .shape-outline > * { stroke: var(--node-accent); }
+    .flow-node:not(.type-decision).selected .shape-outline .shape-path {
+      filter: drop-shadow(0 0 4px color-mix(in srgb, var(--node-accent) 45%, transparent));
+    }
+    .flow-node:is(.type-subprocess, .type-io, .type-document, .type-database, .type-delay) .node-label {
+      position: relative;
+      z-index: 2;
+    }
+    .flow-node.type-subprocess { padding: 4px 16px; }            /* clear of the two bars */
+    .flow-node.type-io         { padding: 4px 16px; }            /* clear of the slanted sides */
+    .flow-node.type-document   { padding: 3px 8px 11px; }        /* centred above the wave */
+    .flow-node.type-database   { padding: 15px 10px 5px; }       /* below the top rim */
+    .flow-node.type-delay      { padding: 4px 26px 4px 10px; }   /* clear of the arc */
+    /* Ports on the outline, not the box edge, where the two differ at the side's midpoint */
+    .flow-node.type-io .port-left { left: 6px; }
+    .flow-node.type-io .port-right { left: calc(100% - 6px); }
+    .flow-node.type-document .port-bottom { top: calc(100% - 6px); }
+
     .flow-node.type-decision .node-label {
       position: relative;
       z-index: 2;
@@ -596,6 +641,12 @@
     .btn-shape[data-node-type="end"]:hover svg > *      { stroke: var(--end-accent); }
     .btn-shape[data-node-type="task"]:hover svg > *     { stroke: var(--task-accent); }
     .btn-shape[data-node-type="decision"]:hover svg > * { stroke: var(--decision-accent); }
+    /* Classic shapes: the task's colours; .tile-line is an inner stroke (bars, rim) left unfilled */
+    .btn-shape:is([data-node-type="subprocess"], [data-node-type="io"], [data-node-type="document"],
+      [data-node-type="database"], [data-node-type="delay"]) svg > * { fill: var(--node-bg); stroke: var(--border-dark); }
+    .btn-shape:is([data-node-type="subprocess"], [data-node-type="io"], [data-node-type="document"],
+      [data-node-type="database"], [data-node-type="delay"]):hover svg > * { stroke: var(--task-accent); }
+    .btn-shape svg > .tile-line { fill: none; }
     .palette-ghost {
       position: fixed;
       z-index: 1000;
@@ -605,7 +656,9 @@
       box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
       transition: opacity 0.1s;
     }
-    .palette-ghost.type-decision { box-shadow: none; filter: drop-shadow(0 8px 14px rgba(0, 0, 0, 0.18)); }
+    .palette-ghost:is(.type-decision, .type-subprocess, .type-io, .type-document, .type-database, .type-delay) {
+      box-shadow: none; filter: drop-shadow(0 8px 14px rgba(0, 0, 0, 0.18));
+    }
     .palette-ghost.off-canvas { opacity: 0.4; }
     .palette-ghost.inserting { opacity: 0.75; }
     body.palette-dragging, body.palette-dragging * { cursor: grabbing !important; user-select: none; }
@@ -796,6 +849,11 @@
     /* Decision: on the diamond's upper-right edge rather than the empty corner of its box */
     .flow-node.type-decision :is(.note-badge, .note-add) { top: 8px; right: 24px; }
     .flow-node.type-decision .note-add { top: 6px; right: 22px; }
+    /* Cylinder and delay: on the curve near the top-right, not the empty corner of the box */
+    .flow-node.type-database .note-badge { top: -5px; right: 7px; }
+    .flow-node.type-database .note-add { top: -7px; right: 5px; }
+    .flow-node.type-delay .note-badge { top: 1px; right: 2px; }
+    .flow-node.type-delay .note-add { top: -1px; right: 0; }
     /* With every note on show the badges would only repeat them */
     #swimlanes-container.notes-on .note-badge { display: none; }
     body.presentation .note-add,

@@ -480,6 +480,57 @@
       function isDot(n) { return (n.type === 'start' || n.type === 'end') && !(n.label || '').trim(); }
       function dotOffset(n) { return isDot(n) ? { x: (NODE_WIDTH - DOT_SIZE) / 2, y: (NODE_HEIGHT - DOT_SIZE) / 2 } : { x: 0, y: 0 }; }
 
+      // --- SHAPED NODES ---
+      // A shaped node keeps its slot's box (144x64; a decision 144x80), made transparent by flowchart.css, and draws
+      // its outline inside it as an SVG stretched to the box (preserveAspectRatio="none", non-scaling stroke). The
+      // outline stays 1px inside the box so the 2px stroke ends on the box edge, like a task's border. `.shape-path`
+      // is the filled outline, `.shape-line` an inner stroke (the subprocess bars, the cylinder's front rim).
+      // Shapes keep their screen orientation in a top-to-bottom diagram: the document's wave is always at the
+      // bottom, the delay's arc always on the right. Keep outlineInset() in step with any change here.
+      const SHAPE_OUTLINES = {
+        decision:   { h: 80, svg: '<polygon class="shape-path diamond-poly" points="72,1 143,40 72,79 1,40"/>' },
+        subprocess: { h: 64, svg: '<rect class="shape-path" x="1" y="1" width="142" height="62" rx="2"/><path class="shape-line" d="M13 1V63M131 1V63"/>' },
+        document:   { h: 64, svg: '<path class="shape-path" d="M1 1H143V57C119 49 96 49 72 57C48 65 25 65 1 57Z"/>' },
+        io:         { h: 64, svg: '<polygon class="shape-path" points="13,1 143,1 131,63 1,63"/>' },
+        database:   { h: 64, svg: '<path class="shape-path" d="M1 9A71 8 0 0 1 143 9V55A71 8 0 0 1 1 55Z"/><path class="shape-line" d="M1 9A71 8 0 0 0 143 9"/>' },
+        delay:      { h: 64, svg: '<path class="shape-path" d="M1 1H111A32 31 0 0 1 111 63H1Z"/>' },
+      };
+      function shapeOutlineSvg(type) {
+        const s = SHAPE_OUTLINES[type];
+        return s ? `<svg class="shape-outline${type === 'decision' ? ' decision-diamond-svg' : ''}" viewBox="0 0 144 ${s.h}" preserveAspectRatio="none" aria-hidden="true">${s.svg}</svg>` : '';
+      }
+      // How far inside its box a shaped node's outline is, on screen side `side` of box `r` (screen coordinates),
+      // at `along` (screen x for top/bottom, screen y for left/right). 0 where the outline runs on the box edge.
+      // The router ends arrows on the box; the outline snap (5f) moves each end in by this much.
+      function outlineInset(type, r, side, along) {
+        const s = SHAPE_OUTLINES[type];
+        if (!s) return 0;
+        const horiz = side === 'top' || side === 'bottom';
+        const c = Math.max(0, Math.min(1, horiz ? (along - r.x) / r.w : (along - r.y) / r.h));   // 0..1 along the side
+        const sx = r.w / 144, sy = r.h / s.h;                            // viewBox units -> px
+        const vx = c * 144;                                              // viewBox x (top/bottom sides)
+        const arc = (t) => 1 - Math.sqrt(Math.max(0, 1 - t * t));        // depth of a unit ellipse at offset t from its axis
+        switch (type) {
+          case 'decision':   // four vertices at the side midpoints
+            return (horiz ? r.h : r.w) / 2 * Math.min(1, Math.abs(c - 0.5) * 2);
+          case 'io':         // slanted sides: 12 units in at the top-left and the bottom-right
+            return side === 'left' ? 12 * sx * (1 - c) : side === 'right' ? 12 * sx * c : 0;
+          case 'database':   // elliptical top and bottom, 8 units deep, spanning the width
+            return horiz ? 8 * sy * arc(2 * c - 1) : 0;
+          case 'delay':      // half-ellipse on the right: 32 units wide from x = 111, the full height
+            if (side === 'right') return 32 * sx * arc(2 * c - 1);
+            if (horiz && vx > 111) return 31 * sy * arc((vx - 111) / 32);
+            return 0;
+          case 'document': { // wave on the bottom: two cubic halves from y = 57, up to 51 on the right, down to 63 on the left
+            if (side !== 'bottom') return 0;
+            const right = vx > 72, t = right ? (143 - vx) / 71 : (72 - vx) / 71;
+            const y = 57 + (right ? -1 : 1) * 24 * t * (1 - t);
+            return Math.max(0, 63 - y) * sy;
+          }
+          default: return 0;
+        }
+      }
+
       function renderNodes() {
         document.querySelectorAll('.flow-node').forEach(el => el.remove());
 
@@ -487,7 +538,6 @@
           const laneTrack = document.querySelector(`.lane-track[data-lane-id="${node.laneId}"]`);
           if (!laneTrack) return;
 
-          const isDecision = node.type === 'decision';
           const nodeEl = document.createElement('div');
           nodeEl.className = `flow-node type-${node.type}` + (isDot(node) ? ' terminal-dot' : '');
           nodeEl.id = `node-${node.id}`;
@@ -495,18 +545,9 @@
           placeNodeEl(nodeEl, node);
           if (node.id === selectedNodeId) nodeEl.classList.add('selected');
 
-          // Decision diamond shape SVG
-          if (isDecision) {
-            const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-            svg.setAttribute('class', 'decision-diamond-svg');
-            svg.setAttribute('viewBox', '0 0 144 80');
-            svg.setAttribute('preserveAspectRatio', 'none');
-            const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-            poly.setAttribute('points', '72,1 143,40 72,79 1,40');
-            poly.setAttribute('class', 'diamond-poly');
-            svg.appendChild(poly);
-            nodeEl.appendChild(svg);
-          }
+          // Shaped nodes (decision, subprocess, document, ...): an SVG outline drawn inside the box
+          const outline = shapeOutlineSvg(node.type);
+          if (outline) nodeEl.insertAdjacentHTML('afterbegin', outline);
 
           // Text content with double-click edit
           const label = document.createElement('div');
@@ -1540,27 +1581,6 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           });
         }
 
-        // 5d. A diamond's top/bottom side is a vertex, not a flat edge: an arrow whose contact point was
-        // spread away from the centre would otherwise start/stop in mid-air above the slanted outline.
-        // Slide those ends along their vertical leg onto the diamond's edge.
-        validEdges.forEach(e => {
-          const pts = edgePolylines[e.id];
-          if (!pts || pts.length < 2) return;
-          const snap = (nid, a, b) => {
-            const node = nodeMap[nid], r = rects[nid];
-            if (!node || node.type !== 'decision') return;
-            if (Math.abs(pts[a][0] - pts[b][0]) >= 1) return;          // only vertical end legs
-            const atTop = Math.abs(pts[a][1] - r.y) < 1, atBottom = Math.abs(pts[a][1] - (r.y + r.h)) < 1;
-            if (!atTop && !atBottom) return;
-            const inset = (r.h / 2) * Math.min(1, Math.abs(pts[a][0] - r.cx) / (r.w / 2));
-            const ny = atTop ? r.y + inset : r.y + r.h - inset;
-            // keep the leg pointing the same way and at least 4px long
-            if (Math.abs(pts[b][1] - ny) >= 4 && Math.sign(pts[b][1] - ny) === Math.sign(pts[b][1] - pts[a][1])) pts[a][1] = ny;
-          };
-          snap(e.from, 0, 1);
-          snap(e.to, pts.length - 1, pts.length - 2);
-        });
-
         // 5e. Top-to-bottom: back to screen coordinates (flow x -> screen y). A port named in flow terms maps to the
         // screen side it faces: along the flow ('right') is down, against it ('left') up, across the lanes sideways.
         if (tb) {
@@ -1574,6 +1594,35 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
             [r.x, r.y, r.w, r.h, r.cx, r.cy] = [r.y, r.x, r.h, r.w, r.cy, r.cx];
           });
         }
+
+        // 5f. Arrow ends on the outline. The router ends arrows on the node's box; a shaped node's outline runs inside
+        // it in places (a diamond's sides away from the vertices, the io's slant, the cylinder's ellipses, the delay's
+        // arc, the document's wave), so an end there would stop in mid-air. Slide each such end along its end leg
+        // onto the outline (outlineInset). Runs in screen coordinates (after 5e): shapes keep their screen orientation
+        // in a top-to-bottom diagram, so the side that matters is the screen side.
+        validEdges.forEach(e => {
+          const pts = edgePolylines[e.id];
+          if (!pts || pts.length < 2) return;
+          const snap = (nid, a, b) => {
+            const node = nodeMap[nid], r = rects[nid];
+            if (!node || !r || !SHAPE_OUTLINES[node.type]) return;
+            const vertLeg = Math.abs(pts[a][0] - pts[b][0]) < 1, horizLeg = Math.abs(pts[a][1] - pts[b][1]) < 1;
+            let side = null;
+            if (vertLeg && Math.abs(pts[a][1] - r.y) < 1) side = 'top';
+            else if (vertLeg && Math.abs(pts[a][1] - (r.y + r.h)) < 1) side = 'bottom';
+            else if (horizLeg && Math.abs(pts[a][0] - r.x) < 1) side = 'left';
+            else if (horizLeg && Math.abs(pts[a][0] - (r.x + r.w)) < 1) side = 'right';
+            if (!side) return;
+            const ax = (side === 'top' || side === 'bottom') ? 1 : 0;   // the coordinate that moves
+            const inset = outlineInset(node.type, r, side, pts[a][1 - ax]);
+            if (inset < 0.5) return;
+            const nv = (side === 'top' || side === 'left') ? pts[a][ax] + inset : pts[a][ax] - inset;
+            // keep the leg pointing the same way and at least 4px long
+            if (Math.abs(pts[b][ax] - nv) >= 4 && Math.sign(pts[b][ax] - nv) === Math.sign(pts[b][ax] - pts[a][ax])) pts[a][ax] = nv;
+          };
+          snap(e.from, 0, 1);
+          snap(e.to, pts.length - 1, pts.length - 2);
+        });
 
         // 6. Collect vertical segments from edges for planar bridge/hop overpasses
         const verticalSegments = [];
@@ -2703,7 +2752,10 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         return placementAt(vp.left + vp.width / 2, vp.top + vp.height / 2, nw, nh);
       }
 
-      const NODE_DEFAULTS = { start: 'Start', end: 'End', task: 'New Step', decision: 'Decision?' };
+      const NODE_DEFAULTS = {
+        start: 'Start', end: 'End', task: 'New Step', decision: 'Decision?',
+        subprocess: 'Subprocess', io: 'Input / Output', document: 'New Document', database: 'Database', delay: 'Wait',
+      };
       const nodeHeightOf = (type) => (type === 'decision' ? DECISION_HEIGHT : NODE_HEIGHT);
       const typeFlowSize = (type) => (isTB() ? DECISION_HEIGHT : NODE_WIDTH);
       const typeCrossSize = (type) => (isTB() ? NODE_WIDTH : nodeHeightOf(type));
@@ -2740,11 +2792,11 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
       });
 
       // --- INSERT INTO AN ARROW ---
-      // Dropping a step or decision onto an arrow A->B rewires it to A->new->B and re-runs the layout,
+      // Dropping a step, decision or classic shape onto an arrow A->B rewires it to A->new->B and re-runs the layout,
       // so the new node lands between the two. Only new shapes and nodes without arrows can be inserted:
       // moving an already-connected node never rewires anything.
       const INSERT_RANGE = 20;   // diagram px between the pointer and the arrow
-      const canInsert = (type) => type === 'task' || type === 'decision';
+      const canInsert = (type) => type !== 'start' && type !== 'end';
       const nodeHasEdges = (id) => chartData.edges.some(e => e.from === id || e.to === id);
 
       function toContainer(clientX, clientY) {
@@ -2839,9 +2891,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
       function buildGhost(type) {
         const g = document.createElement('div');
         g.className = `flow-node type-${type} palette-ghost`;
-        if (type === 'decision') {
-          g.innerHTML = '<svg class="decision-diamond-svg" viewBox="0 0 144 80" preserveAspectRatio="none"><polygon class="diamond-poly" points="72,1 143,40 72,79 1,40"/></svg>';
-        }
+        g.innerHTML = shapeOutlineSvg(type);
         const label = document.createElement('div');
         label.className = 'node-label';
         label.textContent = NODE_DEFAULTS[type];

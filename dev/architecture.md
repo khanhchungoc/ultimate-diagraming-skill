@@ -79,5 +79,6 @@ The `sequence` type is the reference for a type that shares nothing with the flo
 | `python dev/build_examples.py --check` | `dev/samples/example-*.html` (built from `references/examples/example-*.json`) match what the current shell, plugins and engines would build. Run without `--check` to rebuild them after any change. |
 | `python dev/check_golden.py` | Engine output for every `dev/fixtures/*.json` equals `dev/fixtures/golden/`, and the audit scores >= 90. Use `--update` after an intentional engine change and review the diff. |
 | `node dev/e2e_shell.mjs --browser <chrome> --laid <html> --scrambled <html>` | Shell wiring through the flowchart plugin: Auto-Tidy button, tidy-on-edit, Delete/Escape, undo/redo, background click, theme, Save path, `?present` |
+| `node dev/e2e_shapes.mjs --browser <chrome> --page <html>` | Classic flowchart shapes, on `dev/fixtures/flowchart/classic-shapes.json` laid out: each Shapes tile adds its type, drop onto an arrow, arrow ends on the outline (left to right and top to bottom), SVG export carries each outline |
 | `node dev/e2e_sequence.mjs --browser <chrome> --page <html>` | Sequence plugin: select/delete, reorder by drag, add, frames, inline edit, `?present` |
 | `python scripts/render_screenshot.py --input <html>` | Render report and legibility gates |

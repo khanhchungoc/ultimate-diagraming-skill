@@ -1,5 +1,6 @@
       <!-- Shapes popover: hover (or click / tap) the trigger, then click a tile or drag it onto the canvas.
-           To add a shape, add one more .btn-shape tile with its data-node-type; the grid wraps on its own.
+           Tiles are grouped in labelled .dock-pop-section blocks (Flow, Classic, Annotate), each tile captioned.
+           To add a shape, add one more .btn-shape tile with its data-node-type to a section; the grid wraps on its own.
            The last tile, Note, attaches a note to a step rather than adding a node. -->
       <div class="dock-pop-wrap" data-dock-pop>
         <button id="btn-add-shape" class="btn dock-pop-trigger" aria-label="Shapes" aria-haspopup="true" aria-expanded="false" aria-controls="shape-pop">
@@ -7,23 +8,51 @@
           <svg class="dock-pop-caret" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 15 6-6 6 6"/></svg>
         </button>
         <div id="shape-pop" class="dock-pop" role="group" aria-label="Shapes: click to add, or drag onto the canvas">
-          <div class="dock-pop-grid">
-            <button id="btn-add-start" class="btn btn-shape" data-node-type="start" title="Start (click, or drag onto the canvas)" aria-label="Start">
-              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="7" width="20" height="10" rx="5"/></svg>
-            </button>
-            <button id="btn-add-end" class="btn btn-shape" data-node-type="end" title="End (click, or drag onto the canvas)" aria-label="End">
-              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="7" width="20" height="10" rx="5"/></svg>
-            </button>
-            <button id="btn-add-step" class="btn btn-shape" data-node-type="task" title="Step (click, or drag onto the canvas or onto an arrow)" aria-label="Step">
-              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="2.5"/></svg>
-            </button>
-            <button id="btn-add-decision" class="btn btn-shape" data-node-type="decision" title="Decision (click, or drag onto the canvas or onto an arrow)" aria-label="Decision">
-              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 2 12l10 9 10-9z"/></svg>
-            </button>
-            <!-- Not a shape of its own: a note belongs to a step (no data-node-type; see the NOTE TOOL in flowchart.js) -->
-            <button id="btn-add-note" class="btn btn-shape btn-note-tool" title="Note (drag onto a step, or click to add one to the selected step)" aria-label="Note">
-              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path class="note-paper" d="M4 5h16v10l-5 5H4z"/><path class="note-fold" d="M20 15h-5v5"/><path class="note-lines" d="M7.5 9.5h9M7.5 13h6"/></svg>
-            </button>
+          <div class="dock-pop-section">
+            <div class="dock-pop-heading" aria-hidden="true">Flow</div>
+            <div class="dock-pop-grid" role="group" aria-label="Flow">
+              <button id="btn-add-start" class="btn btn-shape" data-node-type="start" title="Start (click, or drag onto the canvas)" aria-label="Start">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="7" width="20" height="10" rx="5"/></svg><span class="tile-caption">Start</span>
+              </button>
+              <button id="btn-add-end" class="btn btn-shape" data-node-type="end" title="End (click, or drag onto the canvas)" aria-label="End">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="7" width="20" height="10" rx="5"/></svg><span class="tile-caption">End</span>
+              </button>
+              <button id="btn-add-step" class="btn btn-shape" data-node-type="task" title="Step (click, or drag onto the canvas or onto an arrow)" aria-label="Step">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="2.5"/></svg><span class="tile-caption">Step</span>
+              </button>
+              <button id="btn-add-decision" class="btn btn-shape" data-node-type="decision" title="Decision (click, or drag onto the canvas or onto an arrow)" aria-label="Decision">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 2 12l10 9 10-9z"/></svg><span class="tile-caption">Decision</span>
+              </button>
+            </div>
+          </div>
+          <div class="dock-pop-section">
+            <div class="dock-pop-heading" aria-hidden="true">Classic</div>
+            <div class="dock-pop-grid" role="group" aria-label="Classic">
+              <button id="btn-add-subprocess" class="btn btn-shape" data-node-type="subprocess" title="Subprocess: a process documented elsewhere (click, or drag onto the canvas or onto an arrow)" aria-label="Subprocess">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="1"/><path class="tile-line" d="M5.5 6v12M18.5 6v12"/></svg><span class="tile-caption">Subprocess</span>
+              </button>
+              <button id="btn-add-io" class="btn btn-shape" data-node-type="io" title="Data: input or output (click, or drag onto the canvas or onto an arrow)" aria-label="Data">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6h16l-4 12H2z"/></svg><span class="tile-caption">Data</span>
+              </button>
+              <button id="btn-add-document" class="btn btn-shape" data-node-type="document" title="Document (click, or drag onto the canvas or onto an arrow)" aria-label="Document">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5h18v11c-3-1.6-6-1.6-9 0s-6 1.6-9 0z"/></svg><span class="tile-caption">Document</span>
+              </button>
+              <button id="btn-add-database" class="btn btn-shape" data-node-type="database" title="Database: stored data (click, or drag onto the canvas or onto an arrow)" aria-label="Database">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6.5a8 2.5 0 0 1 16 0v11a8 2.5 0 0 1-16 0z"/><path class="tile-line" d="M4 6.5a8 2.5 0 0 0 16 0"/></svg><span class="tile-caption">Database</span>
+              </button>
+              <button id="btn-add-delay" class="btn btn-shape" data-node-type="delay" title="Delay: a wait (click, or drag onto the canvas or onto an arrow)" aria-label="Delay">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h11a6 6 0 0 1 0 12H3z"/></svg><span class="tile-caption">Delay</span>
+              </button>
+            </div>
+          </div>
+          <div class="dock-pop-section">
+            <div class="dock-pop-heading" aria-hidden="true">Annotate</div>
+            <div class="dock-pop-grid" role="group" aria-label="Annotate">
+              <!-- Not a shape of its own: a note belongs to a step (no data-node-type; see the NOTE TOOL in flowchart.js) -->
+              <button id="btn-add-note" class="btn btn-shape btn-note-tool" title="Note (drag onto a step, or click to add one to the selected step)" aria-label="Note">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path class="note-paper" d="M4 5h16v10l-5 5H4z"/><path class="note-fold" d="M20 15h-5v5"/><path class="note-lines" d="M7.5 9.5h9M7.5 13h6"/></svg><span class="tile-caption">Note</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>

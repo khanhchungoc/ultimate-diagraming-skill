@@ -248,6 +248,29 @@
       border-color: transparent;
     }
     .dock-pop-grid > .btn:hover { color: var(--text-main); background: var(--bg-hover); border-color: var(--border-dark); }
+    /* Optional labelled sections: a small heading above each grid */
+    .dock-pop-section { position: relative; z-index: 1; }
+    .dock-pop-section + .dock-pop-section { margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--border-color); }
+    .dock-pop-heading {
+      padding: 0 4px 4px;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--text-soft);
+    }
+    /* Optional caption under a tile's icon */
+    .dock-pop-grid > .btn:has(> .tile-caption) { flex-direction: column; gap: 1px; }
+    .tile-caption {
+      max-width: 100%;
+      padding: 0 2px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 10px;
+      font-weight: 500;
+      line-height: 1.2;
+    }
     .dock-pop-wrap.open .dock-pop-grid > .btn {
       animation: dock-pop-tile 0.34s cubic-bezier(0.34, 1.56, 0.64, 1) both;
       animation-delay: calc(60ms + var(--i, 0) * 28ms);
@@ -642,10 +665,10 @@
         <div id="export-menu" class="export-menu" role="menu" hidden>
           <div class="export-menu-label" role="presentation">Download</div>
           <button type="button" role="menuitem" data-export="svg">SVG image</button>
-          <button type="button" role="menuitem" data-export="png">PNG image (2x)</button>
+          <button type="button" role="menuitem" data-export="png">PNG image (1.5x)</button>
           <div class="export-menu-label" role="presentation" data-copy-label>Copy</div>
           <button type="button" role="menuitem" data-copy="svg">SVG (text)</button>
-          <button type="button" role="menuitem" data-copy="png">PNG image (2x)</button>
+          <button type="button" role="menuitem" data-copy="png">PNG image (1.5x)</button>
         </div>
       </div>
       <button id="btn-save" class="btn btn-primary" title="Save directly into this HTML file (Ctrl+S)" aria-label="Save">
@@ -734,7 +757,7 @@
       <li><kbd>Double Click</kbd> : Edit a participant name, message text or frame text</li>
       <li><kbd>Delete</kbd> : Delete the selected item (a participant's messages go with it)</li>
       <li><kbd>Ctrl</kbd> + <kbd>S</kbd> : Save changes directly into HTML</li>
-      <li><b>Export</b> (top right): download the whole diagram as an SVG or a 2x PNG, or copy it to the clipboard as a 2x PNG</li>
+      <li><b>Export</b> (top right): download the whole diagram as an SVG or a 1.5x PNG, or copy it to the clipboard as a 1.5x PNG</li>
       <li><kbd>Ctrl</kbd> + <kbd>Z</kbd> / <kbd>Ctrl</kbd> + <kbd>Y</kbd> : Undo / redo the last edit (also <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Z</kbd>)</li>
       <li><kbd>?present</kbd> in the URL : Hide editing controls for a clean read-only view</li>
       <li><kbd>Drag Canvas</kbd> : Pan viewport</li>
@@ -1421,11 +1444,11 @@
 
       function svgDocument(svg) { return '<?xml version="1.0" encoding="UTF-8"?>\n' + svg; }
 
-      // Rasterise the export SVG at up to 2x. The SVG is built synchronously (styles are read now);
+      // Rasterise the export SVG at up to 1.5x. The SVG is built synchronously (styles are read now);
       // only the image decode and canvas encode are async. Rejects if the image cannot be produced.
       function exportPngBlob() {
         const { svg, w, h } = buildExportSvg();
-        const k = Math.min(2, 16000 / Math.max(w, h), Math.sqrt(100e6 / (w * h)));
+        const k = Math.min(1.5, 16000 / Math.max(w, h), Math.sqrt(100e6 / (w * h)));
         return new Promise((resolve, reject) => {
           const img = new Image();
           img.onload = () => {
@@ -1511,18 +1534,21 @@
       document.querySelectorAll('.toolbar-center [data-dock-group="layout"]').forEach(el => btnAutoTidy.before(el));
 
       // A [data-dock-pop] wrapper opens its .dock-pop bubble on hover (mouse/pen), or on click/tap/keyboard.
-      // Its items can be anything; the grid width follows the item count (max 6 columns, then more rows).
+      // Its items can be anything; the grid width follows the item count (max 6 columns, then more rows). The bubble
+      // may hold one .dock-pop-grid, or several in labelled .dock-pop-section blocks: every grid then takes the
+      // column count of the largest, so the sections line up.
       const DOCK_POP_MAX_COLS = 6;
       document.querySelectorAll('[data-dock-pop]').forEach(wrap => {
         const trigger = wrap.querySelector('.dock-pop-trigger');
         const pop = wrap.querySelector('.dock-pop');
         if (!trigger || !pop) return;
         const items = [...pop.querySelectorAll('.dock-pop-grid > *')];
-        const cols = Math.max(1, Math.min(items.length, DOCK_POP_MAX_COLS));
+        const grids = [...pop.querySelectorAll('.dock-pop-grid')];
+        const largest = Math.max(1, ...grids.map(g => g.children.length));
+        const cols = Math.max(1, Math.min(largest, DOCK_POP_MAX_COLS));
         pop.style.setProperty('--pop-cols', cols);
         // Scroll only past 5 rows (60px tiles + 6px gaps ~ the grid's max height)
-        const grid = pop.querySelector('.dock-pop-grid');
-        if (grid) grid.classList.toggle('scrolls', Math.ceil(items.length / cols) > 5);
+        grids.forEach(grid => grid.classList.toggle('scrolls', Math.ceil(grid.children.length / cols) > 5));
         items.forEach((el, i) => el.style.setProperty('--i', i));
         let closeTimer = null;
         const isOpen = () => wrap.classList.contains('open');

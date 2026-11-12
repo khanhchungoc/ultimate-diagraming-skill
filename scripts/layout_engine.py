@@ -223,6 +223,16 @@ class FlowchartAudit:
                     vcy = rects[v_id][1] + rects[v_id][3] / 2
                     if abs(ucy - vcy) >= 2:
                         continue
+                    # A row-mate between the two ends blocks the straight line, so the detour is
+                    # unavoidable (a branch skipping ahead to a join); only a clear row is judged.
+                    x_lo = rects[u_id][0] + rects[u_id][2]
+                    x_hi = rects[v_id][0]
+                    if any(
+                        oid not in (u_id, v_id)
+                        and ox < x_hi and ox + ow > x_lo and oy < ucy < oy + oh
+                        for oid, (ox, oy, ow, oh) in rects.items()
+                    ):
+                        continue
                 same_lane_fwd_count += 1
                 pts = polylines[eid]
                 if len(pts) == 2 and abs(pts[0][1] - pts[1][1]) < 2:
@@ -252,6 +262,12 @@ class FlowchartAudit:
 
         grade = "A+" if score >= 95 else ("A" if score >= 90 else ("B" if score >= 80 else ("C" if score >= 70 else "F")))
         all_issues = dangling_issues + overlap_issues + overflow_issues + penetrations + dogleg_issues
+        if edge_crossings:
+            # Listed so the score is fully explained; crossings are fixed by lane order (visual checklist 2)
+            all_issues.append(
+                f"{edge_crossings} edge crossings (-{min(15, edge_crossings * 2)}): reorder lanes so "
+                "actors that hand off often sit next to each other"
+            )
         passed = (
             score >= 90
             and len(dangling_issues) == 0
@@ -262,7 +278,8 @@ class FlowchartAudit:
 
         max_x = max((float(n.get("x", 0)) for n in self.nodes), default=float(START_X))
         column_count = int(round((max_x - START_X) / self.col_w)) + 1
-        budget_warnings: List[str] = self._lane_icon_warnings() + self._outcome_label_warnings() + self._note_warnings()
+        budget_warnings: List[str] = (self._node_type_warnings() + self._lane_icon_warnings()
+                                      + self._outcome_label_warnings() + self._note_warnings())
 
         return {
             "passed": passed,
@@ -284,6 +301,18 @@ class FlowchartAudit:
             "column_count": column_count,
             "budget_warnings": budget_warnings,
         }
+
+    # Keep in sync with SHAPE_OUTLINES / NODE_DEFAULTS in flowchart.js and the schema in references/types/flowchart.md
+    NODE_TYPES = ("start", "end", "task", "decision", "subprocess", "io", "document", "database", "delay")
+
+    def _node_type_warnings(self) -> List[str]:
+        """An unknown node type renders as a plain box, so the shape the author meant silently disappears."""
+        valid = ", ".join(self.NODE_TYPES)
+        return [
+            f"Node '{n.get('id')}' ({n.get('label', '')}) has unknown type '{n.get('type')}'. Use one of: {valid}."
+            for n in self.nodes
+            if n.get("type", "task") not in self.NODE_TYPES
+        ]
 
     def _lane_icon_warnings(self) -> List[str]:
         """Every swimlane header carries an icon: it makes the owner recognisable at a glance."""

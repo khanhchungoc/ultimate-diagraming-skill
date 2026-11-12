@@ -3,7 +3,7 @@
 
 1. Opens the page in report mode and measures it (edge-label overlaps, rendered text
    size at the "Fit" zoom, natural diagram size).
-2. Captures a clean PNG: editing controls hidden, cropped to the diagram, 2x by default.
+2. Captures a clean PNG: editing controls hidden, cropped to the diagram, 1.5x by default.
 
 Exit codes: 0 ok, 1 render failure, 3 edge-label overlap, 4 text below --min-text-px (diagrams of 12 nodes
 or fewer; larger diagrams are read with pan and zoom, so for them it is only an [INFO] line).
@@ -223,7 +223,7 @@ def main() -> int:
                         help="Screen size the diagram is judged at: wide (1920x1080), desktop (1440x900), compact, or WIDTHxHEIGHT (default: wide)")
     parser.add_argument("--timeout", type=int, default=20, help="Render timeout in seconds")
     parser.add_argument("--browser", help="Explicit path to Chrome/Edge executable")
-    parser.add_argument("--scale", type=float, default=2.0, help="Screenshot device scale factor (default: 2)")
+    parser.add_argument("--scale", type=float, default=1.5, help="Screenshot device scale factor (default: 1.5)")
     parser.add_argument("--max-width", type=int, default=1600,
                         help="Widest the cropped screenshot is laid out, in CSS px (default: 1600)")
     parser.add_argument("--min-text-px", type=float, default=11.0,

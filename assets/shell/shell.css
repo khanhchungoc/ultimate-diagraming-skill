@@ -241,6 +241,29 @@
       border-color: transparent;
     }
     .dock-pop-grid > .btn:hover { color: var(--text-main); background: var(--bg-hover); border-color: var(--border-dark); }
+    /* Optional labelled sections: a small heading above each grid */
+    .dock-pop-section { position: relative; z-index: 1; }
+    .dock-pop-section + .dock-pop-section { margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--border-color); }
+    .dock-pop-heading {
+      padding: 0 4px 4px;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--text-soft);
+    }
+    /* Optional caption under a tile's icon */
+    .dock-pop-grid > .btn:has(> .tile-caption) { flex-direction: column; gap: 1px; }
+    .tile-caption {
+      max-width: 100%;
+      padding: 0 2px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 10px;
+      font-weight: 500;
+      line-height: 1.2;
+    }
     .dock-pop-wrap.open .dock-pop-grid > .btn {
       animation: dock-pop-tile 0.34s cubic-bezier(0.34, 1.56, 0.64, 1) both;
       animation-delay: calc(60ms + var(--i, 0) * 28ms);

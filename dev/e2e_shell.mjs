@@ -462,7 +462,7 @@ try {
   const badgeCopied = await t.ev(`document.getElementById('save-status').textContent`);
   await sleep(1700);
   const badgeAfter = await t.ev(`document.getElementById('save-status').textContent`);
-  t.check('Copy › PNG puts a 2x PNG on the clipboard; the badge says "Copied as PNG" then returns', copyVisible && copied && copied.png && copied.size > 1000
+  t.check('Copy › PNG puts a 1.5x PNG on the clipboard; the badge says "Copied as PNG" then returns', copyVisible && copied && copied.png && copied.size > 1000
     && copied.w > 200 && copied.h > 100 && /copied as png/i.test(badgeCopied) && badgeAfter === badgeBefore && t.errors.length === 0,
     `visible=${copyVisible} clip=${JSON.stringify(copied)} badge=${badgeBefore}->${badgeCopied}->${badgeAfter} errors=${t.errors.join(' | ')}`);
 
