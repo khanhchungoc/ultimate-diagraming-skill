@@ -13,6 +13,7 @@ Zero external dependencies (uses standard library Python 3).
 from __future__ import annotations
 
 import argparse
+import base64
 import json
 import re
 import subprocess
@@ -1031,6 +1032,16 @@ def _read_asset(path: Path) -> str:
     return path.read_text(encoding="utf-8")  # text mode normalizes CRLF to LF
 
 
+def _inline_fonts_css() -> str:
+    """shell/fonts.css with each url("fonts/x.woff2") inlined as a data: URI, so the page stays offline-capable."""
+    shell = ASSETS_DIR / "shell"
+    return re.sub(
+        r'url\("(fonts/[^"]+\.woff2)"\)',
+        lambda m: 'url("data:font/woff2;base64,' + base64.b64encode((shell / m.group(1)).read_bytes()).decode("ascii") + '")',
+        _read_asset(shell / "fonts.css"),
+    ).rstrip(chr(10))
+
+
 def assemble_page(kind: str, data: Optional[Dict[str, Any]] = None) -> str:
     """Build one standalone HTML page: shared shell + the diagram type's plugin, with `data` embedded."""
     type_dir = ASSETS_DIR / "types" / kind
@@ -1043,6 +1054,7 @@ def assemble_page(kind: str, data: Optional[Dict[str, Any]] = None) -> str:
     icons_js = f"const TYPE_ICONS = {json.dumps(json.loads(_read_asset(icons_path)), separators=(',', ':'))};\n" if icons_path.is_file() else ""
     parts = {
         "TYPE_TITLE": meta["title"],
+        "SHELL_FONTS": _inline_fonts_css(),
         "SHELL_CSS": _read_asset(ASSETS_DIR / "shell" / "shell.css").rstrip(chr(10)),
         "TYPE_CSS": _read_asset(type_dir / f"{kind}.css").rstrip(chr(10)),
         "TYPE_TOOLBAR": _read_asset(type_dir / "toolbar.html").rstrip(chr(10)),

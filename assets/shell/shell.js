@@ -103,8 +103,15 @@
 
         requestAnimationFrame(() => {
           fitView();
-          if (/[?&]report(=|&|$)/.test(window.location.search)) setTimeout(publishRenderReport, 200);
-          if (/[?&]tidy(=|&|$)/.test(window.location.search)) publishTidyResult();
+          // The embedded web font (shell/fonts.css) decodes asynchronously: render again once it is in, so label
+          // fitting and edge-label widths are measured with the real glyphs, and only then report or tidy.
+          const fontsIn = document.fonts && document.fonts.status !== 'loaded'
+            ? document.fonts.ready.then(() => { plugin.render(); fitView(); })
+            : Promise.resolve();
+          fontsIn.then(() => {
+            if (/[?&]report(=|&|$)/.test(window.location.search)) setTimeout(publishRenderReport, 200);
+            if (/[?&]tidy(=|&|$)/.test(window.location.search)) publishTidyResult();
+          });
         });
       }
 

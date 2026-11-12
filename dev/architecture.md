@@ -10,6 +10,8 @@ assets/
     shell.html              page skeleton with {{PLACEHOLDERS}}
     shell.css, shell.js     toolbar, pan/zoom/fit, theme, Save, present mode, render report
     help.html               shared help-drawer entries
+    fonts.css, fonts/       Nunito Sans (variable 400-700, latin + vietnamese subsets, SIL OFL); assemble_page inlines
+                            the woff2 files as data: URIs so the page stays self-contained
   types/<type>/             one folder per diagram type (flowchart, sequence)
     meta.json               {"title": ...}
     icon.html               header icon

@@ -34,6 +34,7 @@
       --decision-fill: #fbf6e8; --decision-fill-hover: #ffffff; --decision-stroke: #c4a052;   /* faint sand, muted gold edge */
       --decision-text: #6a4a0f;      /* dark ochre on the sand fill (>= 7:1) */
       --node-bg: #ffffff;
+      --node-border: #7c8ba1;        /* step outlines: >= 3:1 on white and the lane tints */
       --text-soft: #475569;          /* secondary text that must stay readable on --bg-soft (>= 4.5:1) */
       --primary-ring: rgba(37, 99, 235, 0.25);
       --primary-glow: rgba(37, 99, 235, 0.22);
@@ -77,6 +78,7 @@
       --decision-fill: #2b2718; --decision-fill-hover: #342f1d; --decision-stroke: #b89a4e;
       --decision-text: #ead7a0;      /* soft sand on the warm dark fill */
       --node-bg: #17223b;
+      --node-border: #64789a;        /* step outlines: >= 3:1 on the dark node fill */
       --text-soft: #cbd5e1;
       --primary-ring: rgba(96, 165, 250, 0.4);
       --primary-glow: rgba(96, 165, 250, 0.35);
@@ -93,7 +95,7 @@
     }
 
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      font-family: "Nunito Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
       background-color: var(--bg-page);
       color: var(--text-main);
       overflow: hidden;
@@ -103,6 +105,8 @@
       display: flex;
       flex-direction: column;
     }
+    /* Form controls and kbd do not inherit the page font by default (buttons fall back to Arial, kbd to monospace) */
+    button, input, select, textarea, kbd { font-family: inherit; }
 
     /* Top Navigation Toolbar */
     header {

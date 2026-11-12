@@ -31,6 +31,7 @@ REQUIRED_FILES = [
     "scripts/run_engine.mjs",
     "assets/shell/shell.html",
     "assets/shell/shell.css",
+    "assets/shell/fonts.css",
     "assets/shell/shell.js",
     "assets/types/flowchart/engine.js",
     "assets/types/sequence/engine.js",
