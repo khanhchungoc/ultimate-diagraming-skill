@@ -5,6 +5,9 @@ For every dev/fixtures/<type>/*.json it runs the diagram type's JavaScript engin
 for Auto-Tidy) and compares the full laid-out data with dev/fixtures/<type>/golden/<name>.json, then audits the
 result with `layout_engine.py --verify` logic (score >= 90, no overlaps/penetrations/overflows).
 
+For a flowchart it also checks that the page's disk format is layout-neutral: writing the laid-out diagram with
+its steps in flow order (disk_format.py) and laying that out again moves nothing, left to right and top to bottom.
+
 Usage:
   python dev/check_golden.py            check all fixtures
   python dev/check_golden.py --update   rewrite the goldens after an intentional engine change (review the diff)
@@ -22,6 +25,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
 from engine_runner import run_layout  # noqa: E402
+from disk_format import from_disk, to_disk  # noqa: E402
 from layout_engine import AUDITS, normalize_diagram_type  # noqa: E402
 
 
@@ -67,6 +71,26 @@ def twin_problems(path: Path, data: dict, laid: dict) -> list:
     return problems
 
 
+def flow_order_problems(data: dict, laid: dict) -> list:
+    """Saving writes the steps in flow order. If the engine broke ties by input order, a save followed by Tidy
+    would move steps: lay out the saved (sorted) model again and require identical positions."""
+    if data["diagramType"] != "flowchart":
+        return []
+    problems = []
+    for direction in ("LR", "TB"):
+        a = copy.deepcopy(data)
+        a["direction"] = direction
+        first = laid if direction == (data.get("direction") or "LR") else run_layout("flowchart", a)
+        again = run_layout("flowchart", from_disk("flowchart", to_disk("flowchart", first)))
+        where = {n["id"]: (n.get("laneId"), n.get("x"), n.get("y")) for n in again["nodes"]}
+        moved = [n["id"] for n in first["nodes"] if where.get(n["id"]) != (n.get("laneId"), n.get("x"), n.get("y"))]
+        if moved:
+            problems.append(f"{direction}: laying out the flow-ordered save moves {', '.join(moved[:6])}")
+        if [l.get("height") for l in first["lanes"]] != [l.get("height") for l in again["lanes"]]:
+            problems.append(f"{direction}: laying out the flow-ordered save changes lane heights")
+    return problems
+
+
 def main() -> int:
     for stream in (sys.stdout, sys.stderr):
         try:
@@ -94,6 +118,7 @@ def main() -> int:
             continue
         problems = list(differences(json.loads(golden_path.read_text(encoding="utf-8")), laid))
         problems += twin_problems(path, data, laid)
+        problems += flow_order_problems(data, laid)
         report = AUDITS[data["diagramType"]](copy.deepcopy(laid)).verify_collisions()
         if not report["passed"]:
             problems.append(f"audit failed: score {report['score']}, issues {report['issues']}")

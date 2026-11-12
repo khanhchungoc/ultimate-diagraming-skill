@@ -2,7 +2,8 @@
 //   node dev/e2e_sequence.mjs --browser <chrome> --page <laid-out sequence.html>
 // Use dev/fixtures/sequence/checkout-with-fragments.json laid out with `layout_engine.py --layout`.
 // Exit codes: 0 all passed, 1 setup error, 2 a check failed.
-import { argOf, launch } from './cdp.mjs';
+import { readFileSync } from 'node:fs';
+import { argOf, launch, sleep } from './cdp.mjs';
 
 const browser = argOf('browser'), page = argOf('page');
 if (!browser || !page) { console.error('usage: --browser <chrome> --page <html>'); process.exit(1); }
@@ -64,6 +65,16 @@ try {
   await t.ev(`document.getElementById('btn-auto-tidy').click()`);
   await t.ev(t.key('s', { ctrlKey: true }));
   t.check('Auto-Tidy and Ctrl+S run without errors', t.errors.length === 0, t.errors.join(' | '));
+
+  // Round-trip parity: a generated page saved without edits writes its data block byte-identical (the page's
+  // toDisk + formatJson agree with scripts/disk_format.py), and no positions are saved
+  await t.open(page);
+  const block = (readFileSync(page, 'utf8').replace(/\r\n/g, '\n').match(/<script id="diagram-data" type="application\/json">([\s\S]*?)<\/script>/) || [])[1];
+  await t.ev(t.key('s', { ctrlKey: true }));
+  await sleep(300);
+  const savedBlock = await t.ev(`document.getElementById('diagram-data').textContent`);
+  t.check('Save without edits writes the data block byte-identical to the generated page, with no positions',
+    savedBlock === block && !/"(x|y|w|h|elseY|layout)":/.test(savedBlock), JSON.stringify(savedBlock.slice(0, 200)));
 
   // Present mode
   await t.open(page, '?present');

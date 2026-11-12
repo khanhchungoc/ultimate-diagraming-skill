@@ -2066,8 +2066,11 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
 
           const labelPos = pickClearLabelPosition(points, p.fromPort, e.label, allNodeBoxes, placedLabels, otherPolylines);
           if (e.label && e.label.trim()) {
-            const lw = Math.max(48, e.label.length * 7 + 20);
-            placedLabels.push({ x: labelPos.x - lw / 2, y: labelPos.y - 14, w: lw, h: 28 });
+            // Reserve the box the label is drawn in: one line is estimated generously; a wrapped label is as wide
+            // as its wrap width and as tall as its lines (a 28px box let the next label sit on its second line)
+            const lw = labelPos.wrapped ? labelPos.w : Math.max(48, e.label.length * 7 + 20);
+            const lh = Math.max(28, labelPos.h);
+            placedLabels.push({ x: labelPos.x - lw / 2, y: labelPos.y - lh / 2, w: lw, h: lh });
           }
 
           routes[e.id] = {
@@ -2351,11 +2354,14 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           for (const st of sharedStretches) {
             if (BoxOverlap(bx, by, lw, lh, st.x, st.y, st.w, st.h, 2)) { penalty += 300; break; }
           }
-          if (penalty === 0) return cand;
+          if (penalty === 0) return { x: cand.x, y: cand.y, w: lw, h: lh, wrapped: lw < singleLineWidth };
           if (!fallback || penalty < fallback.penalty) fallback = { cand, penalty };
         }
 
-        return fallback ? fallback.cand : (candidates[0] || { x: points[0][0], y: points[0][1] });
+        // The size checked here comes back with the spot, so the caller reserves the box the label really takes
+        // (a wrapped label is narrower but taller than one line)
+        const spot = fallback ? fallback.cand : (candidates[0] || { x: points[0][0], y: points[0][1] });
+        return { x: spot.x, y: spot.y, w: lw, h: lh, wrapped: lw < singleLineWidth };
       }
 
       function renderEdges() {
@@ -2373,6 +2379,8 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           path.setAttribute('d', pathD.path);
           path.setAttribute('class', edge.id === selectedEdgeId ? 'connector-path selected' : 'connector-path');
           path.dataset.edgeId = edge.id;
+          path.dataset.from = edge.from;   // ends, so a test can find an arrow by its steps (saved ids may differ)
+          path.dataset.to = edge.to;
           path.setAttribute('marker-end', edge.id === selectedEdgeId ? 'url(#arrowhead-selected)' : 'url(#arrowhead)');
 
           path.addEventListener('click', (e) => {
@@ -4284,10 +4292,97 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         updateStatus(true);
       });
 
+      // --- DISK FORMAT (the page's data block) ---
+      // Written for a reader: fixed key order, steps in flow order, editor-generated ids renamed after their
+      // label, and every position in one trailing "layout" map. The in-memory model keeps x/y/height/color on
+      // the objects. scripts/disk_format.py is the Python twin: keep the two byte-identical.
+      const DISK_KEYS = ['diagramType', 'schemaVersion', 'title', 'direction', 'swimlanes', 'showNotes',
+        'lanes', 'nodes', 'edges', 'notes', 'layout'];
+      const NODE_LAYOUT = ['x', 'y'], LANE_LAYOUT = ['height', 'color'];
+      const GENERATED_ID = /^(n|c|e|lane)_\d{12,}(_\d+)?$/;   // uid(): <prefix>_<Date.now()>[_k]
+      const SLUG_MAX = 30;
+
+      function slug(text, sep = '_') {
+        let s = String(text || '').toLowerCase().replace(/đ/g, 'd').normalize('NFKD').replace(/[̀-ͯ]/g, '');
+        s = s.replace(/[^a-z0-9]+/g, sep).replace(new RegExp(`^${sep}+|${sep}+$`, 'g'), '');
+        if (s.length > SLUG_MAX) s = s.slice(0, SLUG_MAX).replace(new RegExp(`${sep}+$`), '');
+        return s;
+      }
+
+      function renameGeneratedIds(d) {
+        const lanes = d.lanes || [], nodes = d.nodes || [], edges = d.edges || [];
+        const used = new Set([...lanes, ...nodes, ...edges].map(o => o.id));
+        const rename = new Map();
+        const take = (base) => {
+          let id = base, k = 2;
+          while (used.has(id)) id = `${base}_${k++}`;
+          used.add(id);
+          return id;
+        };
+        lanes.forEach(l => { if (GENERATED_ID.test(String(l.id || ''))) rename.set(l.id, take('lane-' + (slug(l.name, '-') || 'lane'))); });
+        nodes.forEach(n => {
+          if (!GENERATED_ID.test(String(n.id || ''))) return;
+          if (n.type === 'connector') {
+            const role = edges.some(e => e.to === n.id) ? 'in' : 'out';
+            rename.set(n.id, take(`c_${slug(n.label) || 'x'}_${role}`));
+          } else {
+            rename.set(n.id, take('n_' + (slug(n.label) || 'step')));
+          }
+        });
+        let count = 1;
+        edges.forEach(e => {
+          if (!GENERATED_ID.test(String(e.id || ''))) return;
+          while (used.has(`e${count}`)) count++;
+          rename.set(e.id, take(`e${count}`));
+        });
+        if (!rename.size) return;
+        const r = (id) => (rename.has(id) ? rename.get(id) : id);
+        [...lanes, ...nodes, ...edges].forEach(o => { o.id = r(o.id); });
+        nodes.forEach(n => { if ('laneId' in n) n.laneId = r(n.laneId); });
+        edges.forEach(e => ['from', 'to'].forEach(k => { if (k in e) e[k] = r(e[k]); }));
+        (d.notes || []).forEach(note => { if (Array.isArray(note.nodes)) note.nodes = note.nodes.map(r); });
+      }
+
+      function orderedKeys(d, keys) {
+        const out = {};
+        keys.forEach(k => { if (k in d) out[k] = d[k]; });
+        Object.keys(d).forEach(k => { if (!(k in out)) out[k] = d[k]; });
+        return out;
+      }
+
+      function toDisk(data) {
+        const d = JSON.parse(JSON.stringify(data));
+        delete d.layout;
+        const lanes = d.lanes || [], nodes = d.nodes || [];
+        const laneIndex = new Map(lanes.map((l, i) => [l.id, i]));
+        // Flow order: x runs along the flow in both directions (the engine has ranked the steps already)
+        nodes.sort((a, b) => ((a.x || 0) - (b.x || 0)) || ((laneIndex.get(a.laneId) || 0) - (laneIndex.get(b.laneId) || 0))
+          || ((a.y || 0) - (b.y || 0)));
+        renameGeneratedIds(d);
+        const layout = {};
+        [[lanes, LANE_LAYOUT], [nodes, NODE_LAYOUT]].forEach(([items, keys]) => items.forEach(o => {
+          const pos = {};
+          keys.forEach(k => { if (k in o) { pos[k] = o[k]; delete o[k]; } });
+          if (Object.keys(pos).length) layout[o.id] = pos;
+        }));
+        if (Object.keys(layout).length) d.layout = layout;
+        return orderedKeys(d, DISK_KEYS);
+      }
+
+      function fromDisk(data) {
+        const d = JSON.parse(JSON.stringify(data));
+        const layout = d.layout || {};
+        delete d.layout;
+        [...(d.lanes || []), ...(d.nodes || [])].forEach(o => Object.assign(o, layout[o.id] || {}));
+        return d;
+      }
+
       // --- REGISTER WITH THE SHELL ---
       registerDiagramPlugin({
         id: 'flowchart',
         defaultTitle: 'Interactive Swimlane Flowchart',
+        toDisk,
+        fromDisk,
         contentEl: swimlanesContainer,
         report: { node: '.flow-node', label: '.edge-label-container', labelText: '.edge-label-text', nodeText: '.node-label' },
         render,

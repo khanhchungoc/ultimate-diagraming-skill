@@ -9,31 +9,31 @@
     { "id": "lane-step4", "name": "Step 4: Activation", "icon": "flag" }
   ],
   "nodes": [
-    { "id": "n1", "laneId": "lane-step1", "type": "start", "label": "Request New Supplier" },
-    { "id": "n2", "laneId": "lane-step1", "type": "task", "label": "Complete Supplier Form" },
-    { "id": "n3", "laneId": "lane-step2", "type": "task", "label": "Check Documents" },
-    { "id": "n4", "laneId": "lane-step2", "type": "decision", "label": "Documents Complete?" },
-    { "id": "n5", "laneId": "lane-step3", "type": "task", "label": "Run Risk Assessment" },
-    { "id": "n6", "laneId": "lane-step3", "type": "decision", "label": "Risk Acceptable?" },
-    { "id": "n7", "laneId": "lane-step3", "type": "end", "label": "Supplier Rejected" },
-    { "id": "n8", "laneId": "lane-step4", "type": "database", "label": "Create Supplier Record" },
-    { "id": "n9", "laneId": "lane-step4", "type": "end", "label": "Supplier Active" }
-  ],
-  "notes": [
-    { "id": "note-1", "text": "Supplier portal form: legal entity, bank details, tax ID", "nodes": ["n2"] },
-    { "id": "note-2", "text": "Certificate of incorporation, W-9 or VAT certificate, proof of insurance", "nodes": ["n3", "n4"] },
-    { "id": "note-3", "text": "Sanctions screening and Dun & Bradstreet credit check\nOwner: Procurement Risk", "nodes": ["n5"] },
-    { "id": "note-4", "text": "ERP vendor master; payment terms Net 30 unless agreed otherwise", "nodes": ["n8"] }
+    { "id": "n_request_new_supplier", "laneId": "lane-step1", "type": "start", "label": "Request New Supplier" },
+    { "id": "n_complete_supplier_form", "laneId": "lane-step1", "type": "task", "label": "Complete Supplier Form" },
+    { "id": "n_check_documents", "laneId": "lane-step2", "type": "task", "label": "Check Documents" },
+    { "id": "n_documents_complete", "laneId": "lane-step2", "type": "decision", "label": "Documents Complete?" },
+    { "id": "n_run_risk_assessment", "laneId": "lane-step3", "type": "task", "label": "Run Risk Assessment" },
+    { "id": "n_risk_acceptable", "laneId": "lane-step3", "type": "decision", "label": "Risk Acceptable?" },
+    { "id": "n_supplier_rejected", "laneId": "lane-step3", "type": "end", "label": "Supplier Rejected" },
+    { "id": "n_create_supplier_record", "laneId": "lane-step4", "type": "database", "label": "Create Supplier Record" },
+    { "id": "n_supplier_active", "laneId": "lane-step4", "type": "end", "label": "Supplier Active" }
   ],
   "edges": [
-    { "id": "e1", "from": "n1", "to": "n2", "label": "" },
-    { "id": "e2", "from": "n2", "to": "n3", "label": "" },
-    { "id": "e3", "from": "n3", "to": "n4", "label": "" },
-    { "id": "e4", "from": "n4", "to": "n2", "label": "No", "feedback": true },
-    { "id": "e5", "from": "n4", "to": "n5", "label": "Yes" },
-    { "id": "e6", "from": "n5", "to": "n6", "label": "" },
-    { "id": "e7", "from": "n6", "to": "n7", "label": "No" },
-    { "id": "e8", "from": "n6", "to": "n8", "label": "Yes" },
-    { "id": "e9", "from": "n8", "to": "n9", "label": "" }
+    { "id": "e1", "from": "n_request_new_supplier", "to": "n_complete_supplier_form", "label": "" },
+    { "id": "e2", "from": "n_complete_supplier_form", "to": "n_check_documents", "label": "" },
+    { "id": "e3", "from": "n_check_documents", "to": "n_documents_complete", "label": "" },
+    { "id": "e4", "from": "n_documents_complete", "to": "n_complete_supplier_form", "label": "No", "feedback": true },
+    { "id": "e5", "from": "n_documents_complete", "to": "n_run_risk_assessment", "label": "Yes" },
+    { "id": "e6", "from": "n_run_risk_assessment", "to": "n_risk_acceptable", "label": "" },
+    { "id": "e7", "from": "n_risk_acceptable", "to": "n_supplier_rejected", "label": "No" },
+    { "id": "e8", "from": "n_risk_acceptable", "to": "n_create_supplier_record", "label": "Yes" },
+    { "id": "e9", "from": "n_create_supplier_record", "to": "n_supplier_active", "label": "" }
+  ],
+  "notes": [
+    { "id": "note-1", "text": "Supplier portal form: legal entity, bank details, tax ID", "nodes": ["n_complete_supplier_form"] },
+    { "id": "note-2", "text": "Certificate of incorporation, W-9 or VAT certificate, proof of insurance", "nodes": ["n_check_documents", "n_documents_complete"] },
+    { "id": "note-3", "text": "Sanctions screening and Dun & Bradstreet credit check\nOwner: Procurement Risk", "nodes": ["n_run_risk_assessment"] },
+    { "id": "note-4", "text": "ERP vendor master; payment terms Net 30 unless agreed otherwise", "nodes": ["n_create_supplier_record"] }
   ]
 }

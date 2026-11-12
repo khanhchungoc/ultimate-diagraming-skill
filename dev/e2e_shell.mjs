@@ -6,7 +6,7 @@
 // --laid:      page produced by `layout_engine.py --layout` (reference positions)
 // --scrambled: same diagram with node x/y scrambled (Auto-Tidy must restore the reference positions)
 // Exit codes: 0 all passed, 1 setup error, 2 a check failed.
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { argOf, launch, sleep } from './cdp.mjs';
@@ -475,6 +475,77 @@ try {
   // 10. ?present hides editing chrome
   await t.open(laid, '?present');
   t.check('?present hides Save and toolbar', await t.ev(`document.body.classList.contains('presentation') && getComputedStyle(document.getElementById('btn-save')).display === 'none' && getComputedStyle(document.querySelector('.toolbar-center')).display === 'none'`));
+
+  // 11. The saved file (dev/plans/plan-agent-readable-data.md). Without a user gesture the file picker refuses, so
+  //     Save takes its download path: capture the download and read what an agent would read
+  const dlDir = mkdtempSync(join(tmpdir(), 'save_'));
+  await t.send('Browser.setDownloadBehavior', { behavior: 'allow', downloadPath: dlDir });
+  const saveAndRead = async () => {
+    readdirSync(dlDir).forEach(f => rmSync(join(dlDir, f), { force: true }));
+    await t.ev(t.key('s', { ctrlKey: true }));
+    for (let i = 0; i < 60; i++) {
+      const f = readdirSync(dlDir).find(n => n.endsWith('.html'));
+      if (f) { await sleep(200); return readFileSync(join(dlDir, f), 'utf8'); }
+      await sleep(100);
+    }
+    return '';
+  };
+  const blockOf = (html) => (html.match(/<script id="diagram-data" type="application\/json">([\s\S]*?)<\/script>/) || [])[1];
+  const generated = readFileSync(laid, 'utf8').replace(/\r\n/g, '\n');
+  const genModel = JSON.parse(blockOf(generated));
+
+  // 11a. Round-trip parity: the page's toDisk + formatJson write exactly what Python's assemble_page() wrote
+  await t.open(laid);
+  const saved0 = await saveAndRead();
+  t.check('Save without edits writes the data block byte-identical to the generated page (JS and Python codecs agree)',
+    saved0 && blockOf(saved0) === blockOf(generated), `saved ${saved0.length} chars; block ${JSON.stringify((blockOf(saved0) || '').slice(0, 200))}`);
+  t.check('the saved file keeps the reading guide on line 2 and the end marker after the block',
+    saved0.split('\n')[1].startsWith('<!-- For agents:') && /<\/script>\n {2}<!-- end diagram-data -->/.test(saved0) && saved0.indexOf(`id="diagram-data"`) < saved0.indexOf('</head>'),
+    saved0.split('\n').slice(0, 3).join(' / '));
+
+  // 11b. Save writes the diagram title into <title> and the header <h1>, escaped
+  await t.ev(`(() => { const h = document.getElementById('chart-title'); h.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+    h.textContent = 'A & <B>'; h.blur(); if (h.isContentEditable) h.dispatchEvent(new FocusEvent('blur')); })()`);
+  const saved1 = await saveAndRead();
+  t.check('Save writes the renamed title, escaped, into <title> and <h1>',
+    saved1.includes('<title>A &amp; &lt;B&gt;</title>') && /<h1 id="chart-title"[^>]*>A &amp; &lt;B&gt;<\/h1>/.test(saved1) && JSON.parse(blockOf(saved1)).title === 'A & <B>',
+    (saved1.match(/<title>[\s\S]*?<\/title>/) || [''])[0]);
+  const reopenFile = join(dlDir, 'reopen.html');
+  writeFileSync(reopenFile, saved1);
+  await t.open(reopenFile);
+  t.check('the saved file reopens with its title and every step', (await t.ev(`document.getElementById('chart-title').textContent`)) === 'A & <B>'
+    && (await t.ev(`document.title`)) === 'A & <B>' && (await t.ev(`document.querySelectorAll('.flow-node').length`)) === genModel.nodes.length && t.errors.length === 0,
+    t.errors.join(' | '));
+
+  // 11c. Ids the editor generates are renamed on save (after the label / connector letter / next free e<N>);
+  //      authored ids and the page's own (in-memory) ids are untouched
+  await t.open(laid);
+  await t.ev(`document.querySelector('.btn-shape[data-node-type="task"]').click()`);
+  await sleep(200);
+  const pathBetweenSteps = `[...document.querySelectorAll('.connector-path')].find(p => !/^c/.test(p.dataset.from) && !/^c/.test(p.dataset.to) && document.getElementById('node-' + p.dataset.to)?.classList.contains('type-task'))`;
+  await t.ev(`(${pathBetweenSteps}).dispatchEvent(new MouseEvent('click', { bubbles: true }))`);
+  await t.ev(`document.querySelector('.edge-split-chip')?.click()`);
+  await sleep(200);
+  const saved2 = JSON.parse(blockOf(await saveAndRead()));
+  const ids = new Set(saved2.nodes.map(n => n.id));
+  const generatedId = /^(n|c|e|lane)_\d{12,}(_\d+)?$/;
+  const all = [...saved2.lanes, ...saved2.nodes, ...saved2.edges].map(o => o.id);
+  const keptAuthored = [...genModel.lanes, ...genModel.nodes, ...genModel.edges].every(o => all.includes(o.id));
+  const conns = saved2.nodes.filter(n => n.type === 'connector').map(n => n.id).sort();
+  const refsOk = saved2.edges.every(e => ids.has(e.from) && ids.has(e.to)) && (saved2.notes || []).every(n => n.nodes.every(i => ids.has(i)))
+    && Object.keys(saved2.layout).every(k => ids.has(k) || saved2.lanes.some(l => l.id === k)) && saved2.nodes.every(n => saved2.layout[n.id]);
+  t.check('Save renames generated ids: a new step is n_new_step, a split pair c_<letter>_in/out, its arrow e<N>; references follow',
+    ids.has('n_new_step') && conns.length === 2 && /^c_[a-z]+_in$/.test(conns[0]) && /^c_[a-z]+_out$/.test(conns[1]) && !all.some(i => generatedId.test(i)) && refsOk,
+    JSON.stringify({ conns, generated: all.filter(i => generatedId.test(i)), refsOk, ids: [...ids] }));
+  t.check('Save keeps every authored id', keptAuthored);
+  t.check('in the page the new step keeps its own id until it is reopened (selection and undo are undisturbed)',
+    await t.ev(`!!document.querySelector('.flow-node[data-node-id^="n_1"]') && !document.querySelector('.flow-node[data-node-id="n_new_step"]')`));
+  const laneIdx = Object.fromEntries(saved2.lanes.map((l, i) => [l.id, i]));
+  const keyOf = (n) => [saved2.layout[n.id].x, laneIdx[n.laneId], saved2.layout[n.id].y];
+  const inFlowOrder = saved2.nodes.every((n, i) => i === 0 || (() => { const a = keyOf(saved2.nodes[i - 1]), b = keyOf(n);
+    return a[0] < b[0] || (a[0] === b[0] && (a[1] < b[1] || (a[1] === b[1] && a[2] <= b[2]))); })());
+  t.check('saved steps are in flow order (x, then lane, then y), with positions only in "layout"',
+    inFlowOrder && saved2.nodes.every(n => !('x' in n) && !('y' in n)) && saved2.lanes.every(l => !('height' in l)));
 } catch (err) {
   console.error('[ERROR]', err.message);
   code = 1;

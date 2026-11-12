@@ -82,9 +82,9 @@ The interactive HTML document can modify and persist itself directly on disk:
 
 1. **State Preservation**: The web app maintains live in-memory state. Edits to node text, positions, lanes, or connections update `chartData`.
 2. **Deterministic String Replacement**: On Save (`Ctrl+S` or toolbar click):
-   - The app serializes `chartData` to JSON.
+   - The app converts `chartData` to the disk format (`plugin.toDisk`: steps in flow order, positions in a trailing `layout` map) and writes it one flat object per line (`formatJson`).
    - The outer HTML source string is read.
-   - A regex replaces `<script id="flowchart-data" type="application/json">...</script>` with the updated JSON.
+   - A regex replaces `<script id="diagram-data" type="application/json">...</script>` (in `<head>`) with the updated JSON, and `<title>` / the header `<h1>` with the diagram title.
 3. **Multi-Tier Persistence Strategy**:
    - **Tier 1 (Chromium File System Access API)**: Uses `window.showSaveFilePicker()` and `handle.createWritable()` to stream the updated HTML file directly to disk.
    - **Tier 2 (Universal Blob Fallback)**: If the browser blocks the File System Access API, it creates a Blob and triggers an automated `<a download="...">` action.

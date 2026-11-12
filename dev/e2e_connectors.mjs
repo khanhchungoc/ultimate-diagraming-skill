@@ -19,11 +19,16 @@ if (!browser || Object.values(pages).some(p => !p)) {
 const t = await launch(browser).catch((e) => { console.error('[ERROR]', e.message); process.exit(1); });
 let code = 0;
 
-// The diagram as saved, plus summaries of it
+// The diagram as saved, plus summaries of it. The saved block keeps positions in its "layout" map: merge them
+// back onto the steps (as the page's fromDisk does). Ids the editor generated are renamed in the saved block
+// only, so an element in the page is found through the DOM (stubPath), never by a saved generated id.
 async function state() {
   await t.ev(t.key('s', { ctrlKey: true }));
   await sleep(250);
-  return JSON.parse(await t.ev(`document.getElementById('diagram-data').textContent`));
+  const d = JSON.parse(await t.ev(`document.getElementById('diagram-data').textContent`));
+  const layout = d.layout || {};
+  [...(d.lanes || []), ...d.nodes].forEach(o => Object.assign(o, layout[o.id] || {}));
+  return d;
 }
 const stepsOf = (d) => JSON.stringify(d.nodes.filter(n => n.type !== 'connector').map(n => [n.id, n.laneId, n.x, n.y]));
 const connsOf = (d) => d.nodes.filter(n => n.type === 'connector');
@@ -32,6 +37,8 @@ const edgeOf = (d, id) => d.edges.find(e => e.id === id) || null;
 // Page-side selectors and actions (DOM only). A connector's role shows in its accessible name.
 const conn = (role) => `[...document.querySelectorAll('.flow-node.type-connector')].find(el => /${role === 'in' ? 'continues at' : ', from '}/.test(el.getAttribute('aria-label')))`;
 const selectEdge = (id) => t.ev(`document.querySelector('.connector-path[data-edge-id="${id}"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))`);
+// The stub arrow leaving the out-connector
+const selectStub = () => t.ev(`document.querySelector('.connector-path[data-from="' + (${conn('out')}).dataset.nodeId + '"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))`);
 const split = async (id) => { await selectEdge(id); await t.ev(`document.querySelector('.edge-split-chip').click()`); };
 const click = (sel) => t.ev(`(() => {
   const el = ${sel}; const r = el.getBoundingClientRect();
@@ -146,8 +153,7 @@ try {
   t.check('a connector takes no note (N does nothing)', !(d3.notes || []).length && !(await t.ev(`document.querySelector('.flow-note')`)));
 
   // 7. Deleting a stub arrow deletes the whole split arrow
-  const stub = d3.edges.find(e => connsOf(d3).some(c => c.id === e.from)).id;
-  await selectEdge(stub);
+  await selectStub();
   await t.ev(t.key('Delete'));
   const d4 = await state();
   t.check('deleting a stub removes the pair and the in-arrow', !connsOf(d4).length && !edgeOf(d4, 'e8'), JSON.stringify(connsOf(d4)));
@@ -202,8 +208,7 @@ try {
   t.check('a circle dropped on empty canvas goes back beside its step, nothing rewired',
     outEdge(g2).to === 'n8' && JSON.stringify(connsOf(g2)) === JSON.stringify(connsOf(g0)), JSON.stringify(connsOf(g2)));
   // The old way still works: re-attach the stub's step end; the circle follows
-  const stubId = outEdge(g2).id;
-  await selectEdge(stubId);
+  await selectStub();
   await t.ev(`(() => {
     const h = document.querySelector('.edge-end-handle:not(.at-connector)'), r = h.getBoundingClientRect(), s = document.getElementById('node-n9').getBoundingClientRect();
     const o = (x, y) => ({ bubbles: true, button: 0, clientX: x, clientY: y, pointerId: 1, isPrimary: true });
@@ -222,7 +227,7 @@ try {
     window.dispatchEvent(new PointerEvent('pointermove', o(s.left + s.width / 2, s.top + s.height / 2)));
     window.dispatchEvent(new PointerEvent('pointerup', o(s.left + s.width / 2, s.top + s.height / 2)));
   })()`);
-  await selectEdge(outEdge(await state()).id);
+  await selectStub();
   const handles = await t.ev(`[document.querySelectorAll('.edge-end-handle').length, document.querySelectorAll('.edge-end-handle.at-connector').length]`);
   await dragHandle('.edge-end-handle.at-connector', `document.getElementById('node-n8')`);
   const near3 = await gapBetween(conn('out'), `document.getElementById('node-n8')`);

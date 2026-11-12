@@ -6,7 +6,7 @@ Use for messages exchanged between participants over time: API calls, system int
 
 ## Schema
 
-Never add coordinates (`x`, `y`, `w`, `h`, `layout`); `--layout` computes them. Array order is time order, top to bottom.
+Never add coordinates (`x`, `y`, `w`, `h`, `layout`); `--layout` computes them. Array order is time order, top to bottom. A saved page embeds exactly this JSON: positions are not saved, the page lays them out on load.
 
 ```json
 {

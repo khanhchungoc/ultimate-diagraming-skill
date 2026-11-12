@@ -8,6 +8,11 @@
       //   optional: onViewChange() after every pan/zoom (body.exporting is set while an export reads styles)
       //   optional: contentOverflow() -> {left, top, right, bottom}: unscaled px that content reaches past
       //             contentEl's edges, so Fit and screenshots frame it too
+      //   optional: toDisk(data) -> a new object to write into the page's data block (the disk format: semantic
+      //             fields in a fixed order, positions moved out or dropped); must not mutate data
+      //   optional: fromDisk(data) -> the in-memory model read from the data block (inverse of toDisk)
+      //             Missing members mean the block holds the in-memory model as is. scripts/disk_format.py
+      //             does the same in Python; a generated page saved without edits must come out byte-identical.
       // Undo/redo is the shell's job: every updateStatus(true) records a snapshot of chartData, so a plugin
       // gets undo for free as long as it calls updateStatus(true) once per finished edit (not per pointermove).
       // The type's engine.js must define layoutDiagram(data): lay out `data` in place, no DOM access.
@@ -58,7 +63,8 @@
         try {
           const raw = document.getElementById('diagram-data').textContent.trim();
           if (raw) {
-            chartData = JSON.parse(raw);
+            const disk = JSON.parse(raw);
+            chartData = plugin.fromDisk ? plugin.fromDisk(disk) : disk;
           }
         } catch (err) {
           console.error("Failed to parse diagram-data JSON:", err);
@@ -80,6 +86,7 @@
           const val = chartTitleEl.textContent.trim();
           if (val && chartData.title !== val) {
             chartData.title = val;
+            document.title = val;
             updateStatus(true);
           }
         });
@@ -157,6 +164,7 @@
         chartData = JSON.parse(json);
         committedJson = json;
         chartTitleEl.textContent = chartData.title || plugin.defaultTitle;
+        document.title = chartTitleEl.textContent;
         plugin.render();
         setStatusBadge(json !== savedJson);
         updateHistoryButtons();
@@ -764,9 +772,35 @@
         } catch (_) {}
       }
 
+      // JSON with one line per flat object (a lane, a node, an edge, a layout entry), so the data block reads as a
+      // list. A container is flat when its values are scalars or arrays of scalars; the top level always expands.
+      // scripts/disk_format.py format_json() writes the same text.
+      function formatJson(v, indent = '') {
+        const scalar = (x) => x === null || typeof x !== 'object';
+        if (scalar(v)) return JSON.stringify(v);
+        const isObj = !Array.isArray(v);
+        const items = isObj ? Object.entries(v).filter(([, x]) => x !== undefined) : v.map(x => [null, x]);
+        if (!items.length) return isObj ? '{}' : '[]';
+        const key = (k) => (k === null ? '' : JSON.stringify(k) + ': ');
+        const flat = items.every(([, x]) => scalar(x) || (Array.isArray(x) && x.every(scalar)));
+        if (indent && flat) {
+          const inline = (x) => (scalar(x) ? JSON.stringify(x) : `[${x.map(y => JSON.stringify(y)).join(', ')}]`);
+          const body = items.map(([k, x]) => key(k) + inline(x)).join(', ');
+          return isObj ? `{ ${body} }` : `[${body}]`;
+        }
+        const inner = indent + '  ';
+        const body = items.map(([k, x]) => inner + key(k) + formatJson(x, inner)).join(',\n');
+        return (isObj ? '{' : '[') + '\n' + body + '\n' + indent + (isObj ? '}' : ']');
+      }
+
+      // Text for HTML element content (same escaping as Python's html.escape(s, quote=False))
+      function escapeHtml(text) {
+        return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      }
+
       async function saveToFile() {
         chartData.title = chartTitleEl.textContent.trim();
-        const updatedJson = JSON.stringify(chartData, null, 2);
+        const updatedJson = formatJson(plugin.toDisk ? plugin.toDisk(chartData) : chartData);
 
         let fullHtml = "";
         try {
@@ -777,7 +811,9 @@
         } catch (_) {}
 
         if (!fullHtml || !fullHtml.includes('id="diagram-data"')) {
-          fullHtml = "<!DOCTYPE html>\n" + document.documentElement.outerHTML;
+          // Rebuild from the live document, keeping the top-level comments (the reading guide on line 2)
+          fullHtml = [...document.childNodes].map(n => n.nodeType === Node.DOCUMENT_TYPE_NODE ? '<!DOCTYPE html>'
+            : n.nodeType === Node.COMMENT_NODE ? `<!--${n.data}-->` : (n.outerHTML || '')).join('\n');
         }
         // Both patterns spell the full tag with type="application\/json": this file's own source contains
         // these regexes, and with the escaped slash they cannot match their own text. A shorter pattern such
@@ -786,10 +822,16 @@
         fullHtml = fullHtml.replace(/<script id="render-report" type="application\/json">[\s\S]*?<\/script>/, '');
 
         // A replacement function, not a string: labels may contain $&, $' or $` that a string would expand
-        const replacedHtml = fullHtml.replace(
-          /(<script id="diagram-data" type="application\/json">)[\s\S]*?(<\/script>)/,
-          (_, open, close) => `${open}\n${updatedJson}\n  ${close}`
-        );
+        // The page title (<title> and the header's <h1>) follows the diagram title. Both come before the main
+        // script, so the first match is the real element; closing tags are spelled <\/...> like the patterns above.
+        const pageTitle = escapeHtml(chartData.title || plugin.defaultTitle);
+        const replacedHtml = fullHtml
+          .replace(
+            /(<script id="diagram-data" type="application\/json">)[\s\S]*?(<\/script>)/,
+            (_, open, close) => `${open}\n${updatedJson}\n  ${close}`
+          )
+          .replace(/(<title>)[\s\S]*?(<\/title>)/, (_, open, close) => `${open}${pageTitle}${close}`)
+          .replace(/(<h1 id="chart-title"[^>]*>)[\s\S]*?(<\/h1>)/, (_, open, close) => `${open}${pageTitle}${close}`);
 
         document.getElementById('diagram-data').textContent = `\n${updatedJson}\n  `;
 

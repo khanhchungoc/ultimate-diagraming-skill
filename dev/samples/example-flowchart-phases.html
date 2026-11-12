@@ -1,9 +1,76 @@
 <!DOCTYPE html>
+<!-- For agents: this whole diagram is the JSON block with id "diagram-data" a few lines below.
+     Read only as far as the "end diagram-data" comment; everything after it is editor code
+     (CSS, JS, icons) and says nothing about the diagram. To print just the model:
+     sed -n '/<script id="diagram-data" type="application\/json">/,/<\/script>/p' FILE
+     python -c "import re,sys;print(re.search(r'<script id=\"diagram-data\" type=\"application\/json\">(.*?)<\/script>',open(sys.argv[1],encoding='utf8').read(),re.S)[1])" FILE -->
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Interactive Swimlane Flowchart</title>
+  <title>Supplier Onboarding</title>
+  <!-- Diagram model: the source of truth for this page.
+       "nodes" are in flow order; "feedback": true marks an arrow that loops back to an earlier
+       step; "layout" is display-only (positions, sizes, colours) and can be skipped.
+       Everything after this block is the editor. -->
+  <script id="diagram-data" type="application/json">
+{
+  "diagramType": "flowchart",
+  "schemaVersion": 1,
+  "title": "Supplier Onboarding",
+  "direction": "TB",
+  "lanes": [
+    { "id": "lane-step1", "name": "Step 1: Request", "icon": "clipboard" },
+    { "id": "lane-step2", "name": "Step 2: Document Review", "icon": "check" },
+    { "id": "lane-step3", "name": "Step 3: Risk Assessment", "icon": "shield" },
+    { "id": "lane-step4", "name": "Step 4: Activation", "icon": "flag" }
+  ],
+  "nodes": [
+    { "id": "n_request_new_supplier", "laneId": "lane-step1", "type": "start", "label": "Request New Supplier" },
+    { "id": "n_complete_supplier_form", "laneId": "lane-step1", "type": "task", "label": "Complete Supplier Form" },
+    { "id": "n_check_documents", "laneId": "lane-step2", "type": "task", "label": "Check Documents" },
+    { "id": "n_documents_complete", "laneId": "lane-step2", "type": "decision", "label": "Documents Complete?" },
+    { "id": "n_run_risk_assessment", "laneId": "lane-step3", "type": "task", "label": "Run Risk Assessment" },
+    { "id": "n_risk_acceptable", "laneId": "lane-step3", "type": "decision", "label": "Risk Acceptable?" },
+    { "id": "n_create_supplier_record", "laneId": "lane-step4", "type": "database", "label": "Create Supplier Record" },
+    { "id": "n_supplier_rejected", "laneId": "lane-step3", "type": "end", "label": "Supplier Rejected" },
+    { "id": "n_supplier_active", "laneId": "lane-step4", "type": "end", "label": "Supplier Active" }
+  ],
+  "edges": [
+    { "id": "e1", "from": "n_request_new_supplier", "to": "n_complete_supplier_form", "label": "" },
+    { "id": "e2", "from": "n_complete_supplier_form", "to": "n_check_documents", "label": "" },
+    { "id": "e3", "from": "n_check_documents", "to": "n_documents_complete", "label": "" },
+    { "id": "e4", "from": "n_documents_complete", "to": "n_complete_supplier_form", "label": "No", "feedback": true },
+    { "id": "e5", "from": "n_documents_complete", "to": "n_run_risk_assessment", "label": "Yes" },
+    { "id": "e6", "from": "n_run_risk_assessment", "to": "n_risk_acceptable", "label": "" },
+    { "id": "e7", "from": "n_risk_acceptable", "to": "n_supplier_rejected", "label": "No" },
+    { "id": "e8", "from": "n_risk_acceptable", "to": "n_create_supplier_record", "label": "Yes" },
+    { "id": "e9", "from": "n_create_supplier_record", "to": "n_supplier_active", "label": "" }
+  ],
+  "notes": [
+    { "id": "note-1", "text": "Supplier portal form: legal entity, bank details, tax ID", "nodes": ["n_complete_supplier_form"] },
+    { "id": "note-2", "text": "Certificate of incorporation, W-9 or VAT certificate, proof of insurance", "nodes": ["n_check_documents", "n_documents_complete"] },
+    { "id": "note-3", "text": "Sanctions screening and Dun & Bradstreet credit check\nOwner: Procurement Risk", "nodes": ["n_run_risk_assessment"] },
+    { "id": "note-4", "text": "ERP vendor master; payment terms Net 30 unless agreed otherwise", "nodes": ["n_create_supplier_record"] }
+  ],
+  "layout": {
+    "lane-step1": { "height": 240 },
+    "lane-step2": { "height": 240 },
+    "lane-step3": { "height": 240 },
+    "lane-step4": { "height": 240 },
+    "n_request_new_supplier": { "x": 56, "y": 48 },
+    "n_complete_supplier_form": { "x": 192, "y": 48 },
+    "n_check_documents": { "x": 192, "y": 48 },
+    "n_documents_complete": { "x": 328, "y": 48 },
+    "n_run_risk_assessment": { "x": 328, "y": 48 },
+    "n_risk_acceptable": { "x": 464, "y": 48 },
+    "n_create_supplier_record": { "x": 464, "y": 48 },
+    "n_supplier_rejected": { "x": 601, "y": 48 },
+    "n_supplier_active": { "x": 601, "y": 48 }
+  }
+}
+  </script>
+  <!-- end diagram-data -->
   <style>
     /* Nunito Sans variable (wght 400-700, opsz 6-12), vietnamese subset (SIL OFL 1.1, see fonts/OFL.txt) */
     @font-face {
@@ -1707,7 +1774,7 @@
     <div class="toolbar-left">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--primary)"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M3 15h18"/><path d="M9 3v18"/></svg>
       <div class="app-title-container">
-        <h1 id="chart-title" contenteditable="false" spellcheck="false" title="Double-click to rename diagram">Interactive Swimlane Flowchart</h1>
+        <h1 id="chart-title" contenteditable="false" spellcheck="false" title="Double-click to rename diagram">Supplier Onboarding</h1>
         <span id="save-status" class="badge badge-status">Ready</span>
       </div>
     </div>
@@ -1925,204 +1992,6 @@
     </ul>
   </aside>
 
-  <!-- CANONICAL DATA BLOCK (Single Source of Truth) -->
-  <script id="diagram-data" type="application/json">
-{
-  "diagramType": "flowchart",
-  "title": "Supplier Onboarding",
-  "direction": "TB",
-  "lanes": [
-    {
-      "id": "lane-step1",
-      "name": "Step 1: Request",
-      "icon": "clipboard",
-      "height": 240
-    },
-    {
-      "id": "lane-step2",
-      "name": "Step 2: Document Review",
-      "icon": "check",
-      "height": 240
-    },
-    {
-      "id": "lane-step3",
-      "name": "Step 3: Risk Assessment",
-      "icon": "shield",
-      "height": 240
-    },
-    {
-      "id": "lane-step4",
-      "name": "Step 4: Activation",
-      "icon": "flag",
-      "height": 240
-    }
-  ],
-  "nodes": [
-    {
-      "id": "n1",
-      "laneId": "lane-step1",
-      "type": "start",
-      "label": "Request New Supplier",
-      "x": 56,
-      "y": 48
-    },
-    {
-      "id": "n2",
-      "laneId": "lane-step1",
-      "type": "task",
-      "label": "Complete Supplier Form",
-      "x": 192,
-      "y": 48
-    },
-    {
-      "id": "n3",
-      "laneId": "lane-step2",
-      "type": "task",
-      "label": "Check Documents",
-      "x": 192,
-      "y": 48
-    },
-    {
-      "id": "n4",
-      "laneId": "lane-step2",
-      "type": "decision",
-      "label": "Documents Complete?",
-      "x": 328,
-      "y": 48
-    },
-    {
-      "id": "n5",
-      "laneId": "lane-step3",
-      "type": "task",
-      "label": "Run Risk Assessment",
-      "x": 328,
-      "y": 48
-    },
-    {
-      "id": "n6",
-      "laneId": "lane-step3",
-      "type": "decision",
-      "label": "Risk Acceptable?",
-      "x": 464,
-      "y": 48
-    },
-    {
-      "id": "n7",
-      "laneId": "lane-step3",
-      "type": "end",
-      "label": "Supplier Rejected",
-      "x": 601,
-      "y": 48
-    },
-    {
-      "id": "n8",
-      "laneId": "lane-step4",
-      "type": "database",
-      "label": "Create Supplier Record",
-      "x": 464,
-      "y": 48
-    },
-    {
-      "id": "n9",
-      "laneId": "lane-step4",
-      "type": "end",
-      "label": "Supplier Active",
-      "x": 601,
-      "y": 48
-    }
-  ],
-  "notes": [
-    {
-      "id": "note-1",
-      "text": "Supplier portal form: legal entity, bank details, tax ID",
-      "nodes": [
-        "n2"
-      ]
-    },
-    {
-      "id": "note-2",
-      "text": "Certificate of incorporation, W-9 or VAT certificate, proof of insurance",
-      "nodes": [
-        "n3",
-        "n4"
-      ]
-    },
-    {
-      "id": "note-3",
-      "text": "Sanctions screening and Dun & Bradstreet credit check\nOwner: Procurement Risk",
-      "nodes": [
-        "n5"
-      ]
-    },
-    {
-      "id": "note-4",
-      "text": "ERP vendor master; payment terms Net 30 unless agreed otherwise",
-      "nodes": [
-        "n8"
-      ]
-    }
-  ],
-  "edges": [
-    {
-      "id": "e1",
-      "from": "n1",
-      "to": "n2",
-      "label": ""
-    },
-    {
-      "id": "e2",
-      "from": "n2",
-      "to": "n3",
-      "label": ""
-    },
-    {
-      "id": "e3",
-      "from": "n3",
-      "to": "n4",
-      "label": ""
-    },
-    {
-      "id": "e4",
-      "from": "n4",
-      "to": "n2",
-      "label": "No",
-      "feedback": true
-    },
-    {
-      "id": "e5",
-      "from": "n4",
-      "to": "n5",
-      "label": "Yes"
-    },
-    {
-      "id": "e6",
-      "from": "n5",
-      "to": "n6",
-      "label": ""
-    },
-    {
-      "id": "e7",
-      "from": "n6",
-      "to": "n7",
-      "label": "No"
-    },
-    {
-      "id": "e8",
-      "from": "n6",
-      "to": "n8",
-      "label": "Yes"
-    },
-    {
-      "id": "e9",
-      "from": "n8",
-      "to": "n9",
-      "label": ""
-    }
-  ],
-  "schemaVersion": 1
-}
-  </script>
-
   <!-- Interactive Diagram Script: shell, then the type's engine and plugin -->
   <script>
     (function () {
@@ -2138,6 +2007,11 @@
       //   optional: onViewChange() after every pan/zoom (body.exporting is set while an export reads styles)
       //   optional: contentOverflow() -> {left, top, right, bottom}: unscaled px that content reaches past
       //             contentEl's edges, so Fit and screenshots frame it too
+      //   optional: toDisk(data) -> a new object to write into the page's data block (the disk format: semantic
+      //             fields in a fixed order, positions moved out or dropped); must not mutate data
+      //   optional: fromDisk(data) -> the in-memory model read from the data block (inverse of toDisk)
+      //             Missing members mean the block holds the in-memory model as is. scripts/disk_format.py
+      //             does the same in Python; a generated page saved without edits must come out byte-identical.
       // Undo/redo is the shell's job: every updateStatus(true) records a snapshot of chartData, so a plugin
       // gets undo for free as long as it calls updateStatus(true) once per finished edit (not per pointermove).
       // The type's engine.js must define layoutDiagram(data): lay out `data` in place, no DOM access.
@@ -2188,7 +2062,8 @@
         try {
           const raw = document.getElementById('diagram-data').textContent.trim();
           if (raw) {
-            chartData = JSON.parse(raw);
+            const disk = JSON.parse(raw);
+            chartData = plugin.fromDisk ? plugin.fromDisk(disk) : disk;
           }
         } catch (err) {
           console.error("Failed to parse diagram-data JSON:", err);
@@ -2210,6 +2085,7 @@
           const val = chartTitleEl.textContent.trim();
           if (val && chartData.title !== val) {
             chartData.title = val;
+            document.title = val;
             updateStatus(true);
           }
         });
@@ -2287,6 +2163,7 @@
         chartData = JSON.parse(json);
         committedJson = json;
         chartTitleEl.textContent = chartData.title || plugin.defaultTitle;
+        document.title = chartTitleEl.textContent;
         plugin.render();
         setStatusBadge(json !== savedJson);
         updateHistoryButtons();
@@ -2894,9 +2771,35 @@
         } catch (_) {}
       }
 
+      // JSON with one line per flat object (a lane, a node, an edge, a layout entry), so the data block reads as a
+      // list. A container is flat when its values are scalars or arrays of scalars; the top level always expands.
+      // scripts/disk_format.py format_json() writes the same text.
+      function formatJson(v, indent = '') {
+        const scalar = (x) => x === null || typeof x !== 'object';
+        if (scalar(v)) return JSON.stringify(v);
+        const isObj = !Array.isArray(v);
+        const items = isObj ? Object.entries(v).filter(([, x]) => x !== undefined) : v.map(x => [null, x]);
+        if (!items.length) return isObj ? '{}' : '[]';
+        const key = (k) => (k === null ? '' : JSON.stringify(k) + ': ');
+        const flat = items.every(([, x]) => scalar(x) || (Array.isArray(x) && x.every(scalar)));
+        if (indent && flat) {
+          const inline = (x) => (scalar(x) ? JSON.stringify(x) : `[${x.map(y => JSON.stringify(y)).join(', ')}]`);
+          const body = items.map(([k, x]) => key(k) + inline(x)).join(', ');
+          return isObj ? `{ ${body} }` : `[${body}]`;
+        }
+        const inner = indent + '  ';
+        const body = items.map(([k, x]) => inner + key(k) + formatJson(x, inner)).join(',\n');
+        return (isObj ? '{' : '[') + '\n' + body + '\n' + indent + (isObj ? '}' : ']');
+      }
+
+      // Text for HTML element content (same escaping as Python's html.escape(s, quote=False))
+      function escapeHtml(text) {
+        return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      }
+
       async function saveToFile() {
         chartData.title = chartTitleEl.textContent.trim();
-        const updatedJson = JSON.stringify(chartData, null, 2);
+        const updatedJson = formatJson(plugin.toDisk ? plugin.toDisk(chartData) : chartData);
 
         let fullHtml = "";
         try {
@@ -2907,7 +2810,9 @@
         } catch (_) {}
 
         if (!fullHtml || !fullHtml.includes('id="diagram-data"')) {
-          fullHtml = "<!DOCTYPE html>\n" + document.documentElement.outerHTML;
+          // Rebuild from the live document, keeping the top-level comments (the reading guide on line 2)
+          fullHtml = [...document.childNodes].map(n => n.nodeType === Node.DOCUMENT_TYPE_NODE ? '<!DOCTYPE html>'
+            : n.nodeType === Node.COMMENT_NODE ? `<!--${n.data}-->` : (n.outerHTML || '')).join('\n');
         }
         // Both patterns spell the full tag with type="application\/json": this file's own source contains
         // these regexes, and with the escaped slash they cannot match their own text. A shorter pattern such
@@ -2916,10 +2821,16 @@
         fullHtml = fullHtml.replace(/<script id="render-report" type="application\/json">[\s\S]*?<\/script>/, '');
 
         // A replacement function, not a string: labels may contain $&, $' or $` that a string would expand
-        const replacedHtml = fullHtml.replace(
-          /(<script id="diagram-data" type="application\/json">)[\s\S]*?(<\/script>)/,
-          (_, open, close) => `${open}\n${updatedJson}\n  ${close}`
-        );
+        // The page title (<title> and the header's <h1>) follows the diagram title. Both come before the main
+        // script, so the first match is the real element; closing tags are spelled <\/...> like the patterns above.
+        const pageTitle = escapeHtml(chartData.title || plugin.defaultTitle);
+        const replacedHtml = fullHtml
+          .replace(
+            /(<script id="diagram-data" type="application\/json">)[\s\S]*?(<\/script>)/,
+            (_, open, close) => `${open}\n${updatedJson}\n  ${close}`
+          )
+          .replace(/(<title>)[\s\S]*?(<\/title>)/, (_, open, close) => `${open}${pageTitle}${close}`)
+          .replace(/(<h1 id="chart-title"[^>]*>)[\s\S]*?(<\/h1>)/, (_, open, close) => `${open}${pageTitle}${close}`);
 
         document.getElementById('diagram-data').textContent = `\n${updatedJson}\n  `;
 
@@ -3989,9 +3900,21 @@
         };
         const used = {};
         const use = (id, side) => { (used[id] = used[id] || new Set()).add(side); };
+        const branchSides = {};   // decision id -> sides its outgoing branches take
         real.forEach(e => {
           if (e.from === e.to) return;
-          use(e.from, sideFor(e.from, e.to, true));
+          let out = sideFor(e.from, e.to, true);
+          // A decision gives each branch its own side: a second branch toward a side already taken by a branch
+          // leaves across, toward its target's lane (as the router draws it)
+          if (byId[e.from].type === 'decision') {
+            const taken = branchSides[e.from] = branchSides[e.from] || new Set();
+            if (taken.has(out) && (out === 'after' || out === 'before')) {
+              const ln = laneIdx[byId[e.from].laneId], lm = laneIdx[byId[e.to].laneId];
+              if (lm !== ln) out = lm > ln ? 'far' : 'near';
+            }
+            taken.add(out);
+          }
+          use(e.from, out);
           use(e.to, sideFor(e.to, e.from, false));
         });
 
@@ -4057,9 +3980,14 @@
           const free = (k) => !(used[id] && used[id].has(k.side));
           // Comfortable spacing first (a free side, then any side), then the same spots with tight spacing
           const tight = cands.map(k => ({ ...k, compact: true }));
-          let pick = cands.find(k => free(k) && ok(k)) || cands.find(ok) || tight.find(k => free(k) && ok(k)) || tight.find(ok);
-          if (!pick) {
-            pick = tight[0];
+          let pick = cands.find(k => free(k) && ok(k)) || tight.find(k => free(k) && ok(k));
+          // No free side: a stub that leaves through a side another arrow uses shares that arrow's first stretch, so
+          // a labelled stub's label and the other arrow's label compete for one gap. Widen the column (below) so both
+          // fit, as when the connector fits nowhere. An unlabelled stub just takes the used side.
+          const crowded = !pick && !!String(s.stub.label || '').trim();
+          pick = pick || cands.find(ok) || tight.find(ok);
+          if (!pick || crowded) {
+            pick = pick || tight[0];
             if (!final) {
               // Widen the column on the preferred side along the flow
               const side = sides.find(x => x === 'after' || x === 'before');
@@ -6155,8 +6083,11 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
 
           const labelPos = pickClearLabelPosition(points, p.fromPort, e.label, allNodeBoxes, placedLabels, otherPolylines);
           if (e.label && e.label.trim()) {
-            const lw = Math.max(48, e.label.length * 7 + 20);
-            placedLabels.push({ x: labelPos.x - lw / 2, y: labelPos.y - 14, w: lw, h: 28 });
+            // Reserve the box the label is drawn in: one line is estimated generously; a wrapped label is as wide
+            // as its wrap width and as tall as its lines (a 28px box let the next label sit on its second line)
+            const lw = labelPos.wrapped ? labelPos.w : Math.max(48, e.label.length * 7 + 20);
+            const lh = Math.max(28, labelPos.h);
+            placedLabels.push({ x: labelPos.x - lw / 2, y: labelPos.y - lh / 2, w: lw, h: lh });
           }
 
           routes[e.id] = {
@@ -6440,11 +6371,14 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           for (const st of sharedStretches) {
             if (BoxOverlap(bx, by, lw, lh, st.x, st.y, st.w, st.h, 2)) { penalty += 300; break; }
           }
-          if (penalty === 0) return cand;
+          if (penalty === 0) return { x: cand.x, y: cand.y, w: lw, h: lh, wrapped: lw < singleLineWidth };
           if (!fallback || penalty < fallback.penalty) fallback = { cand, penalty };
         }
 
-        return fallback ? fallback.cand : (candidates[0] || { x: points[0][0], y: points[0][1] });
+        // The size checked here comes back with the spot, so the caller reserves the box the label really takes
+        // (a wrapped label is narrower but taller than one line)
+        const spot = fallback ? fallback.cand : (candidates[0] || { x: points[0][0], y: points[0][1] });
+        return { x: spot.x, y: spot.y, w: lw, h: lh, wrapped: lw < singleLineWidth };
       }
 
       function renderEdges() {
@@ -6462,6 +6396,8 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           path.setAttribute('d', pathD.path);
           path.setAttribute('class', edge.id === selectedEdgeId ? 'connector-path selected' : 'connector-path');
           path.dataset.edgeId = edge.id;
+          path.dataset.from = edge.from;   // ends, so a test can find an arrow by its steps (saved ids may differ)
+          path.dataset.to = edge.to;
           path.setAttribute('marker-end', edge.id === selectedEdgeId ? 'url(#arrowhead-selected)' : 'url(#arrowhead)');
 
           path.addEventListener('click', (e) => {
@@ -8373,10 +8309,97 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         updateStatus(true);
       });
 
+      // --- DISK FORMAT (the page's data block) ---
+      // Written for a reader: fixed key order, steps in flow order, editor-generated ids renamed after their
+      // label, and every position in one trailing "layout" map. The in-memory model keeps x/y/height/color on
+      // the objects. scripts/disk_format.py is the Python twin: keep the two byte-identical.
+      const DISK_KEYS = ['diagramType', 'schemaVersion', 'title', 'direction', 'swimlanes', 'showNotes',
+        'lanes', 'nodes', 'edges', 'notes', 'layout'];
+      const NODE_LAYOUT = ['x', 'y'], LANE_LAYOUT = ['height', 'color'];
+      const GENERATED_ID = /^(n|c|e|lane)_\d{12,}(_\d+)?$/;   // uid(): <prefix>_<Date.now()>[_k]
+      const SLUG_MAX = 30;
+
+      function slug(text, sep = '_') {
+        let s = String(text || '').toLowerCase().replace(/đ/g, 'd').normalize('NFKD').replace(/[̀-ͯ]/g, '');
+        s = s.replace(/[^a-z0-9]+/g, sep).replace(new RegExp(`^${sep}+|${sep}+$`, 'g'), '');
+        if (s.length > SLUG_MAX) s = s.slice(0, SLUG_MAX).replace(new RegExp(`${sep}+$`), '');
+        return s;
+      }
+
+      function renameGeneratedIds(d) {
+        const lanes = d.lanes || [], nodes = d.nodes || [], edges = d.edges || [];
+        const used = new Set([...lanes, ...nodes, ...edges].map(o => o.id));
+        const rename = new Map();
+        const take = (base) => {
+          let id = base, k = 2;
+          while (used.has(id)) id = `${base}_${k++}`;
+          used.add(id);
+          return id;
+        };
+        lanes.forEach(l => { if (GENERATED_ID.test(String(l.id || ''))) rename.set(l.id, take('lane-' + (slug(l.name, '-') || 'lane'))); });
+        nodes.forEach(n => {
+          if (!GENERATED_ID.test(String(n.id || ''))) return;
+          if (n.type === 'connector') {
+            const role = edges.some(e => e.to === n.id) ? 'in' : 'out';
+            rename.set(n.id, take(`c_${slug(n.label) || 'x'}_${role}`));
+          } else {
+            rename.set(n.id, take('n_' + (slug(n.label) || 'step')));
+          }
+        });
+        let count = 1;
+        edges.forEach(e => {
+          if (!GENERATED_ID.test(String(e.id || ''))) return;
+          while (used.has(`e${count}`)) count++;
+          rename.set(e.id, take(`e${count}`));
+        });
+        if (!rename.size) return;
+        const r = (id) => (rename.has(id) ? rename.get(id) : id);
+        [...lanes, ...nodes, ...edges].forEach(o => { o.id = r(o.id); });
+        nodes.forEach(n => { if ('laneId' in n) n.laneId = r(n.laneId); });
+        edges.forEach(e => ['from', 'to'].forEach(k => { if (k in e) e[k] = r(e[k]); }));
+        (d.notes || []).forEach(note => { if (Array.isArray(note.nodes)) note.nodes = note.nodes.map(r); });
+      }
+
+      function orderedKeys(d, keys) {
+        const out = {};
+        keys.forEach(k => { if (k in d) out[k] = d[k]; });
+        Object.keys(d).forEach(k => { if (!(k in out)) out[k] = d[k]; });
+        return out;
+      }
+
+      function toDisk(data) {
+        const d = JSON.parse(JSON.stringify(data));
+        delete d.layout;
+        const lanes = d.lanes || [], nodes = d.nodes || [];
+        const laneIndex = new Map(lanes.map((l, i) => [l.id, i]));
+        // Flow order: x runs along the flow in both directions (the engine has ranked the steps already)
+        nodes.sort((a, b) => ((a.x || 0) - (b.x || 0)) || ((laneIndex.get(a.laneId) || 0) - (laneIndex.get(b.laneId) || 0))
+          || ((a.y || 0) - (b.y || 0)));
+        renameGeneratedIds(d);
+        const layout = {};
+        [[lanes, LANE_LAYOUT], [nodes, NODE_LAYOUT]].forEach(([items, keys]) => items.forEach(o => {
+          const pos = {};
+          keys.forEach(k => { if (k in o) { pos[k] = o[k]; delete o[k]; } });
+          if (Object.keys(pos).length) layout[o.id] = pos;
+        }));
+        if (Object.keys(layout).length) d.layout = layout;
+        return orderedKeys(d, DISK_KEYS);
+      }
+
+      function fromDisk(data) {
+        const d = JSON.parse(JSON.stringify(data));
+        const layout = d.layout || {};
+        delete d.layout;
+        [...(d.lanes || []), ...(d.nodes || [])].forEach(o => Object.assign(o, layout[o.id] || {}));
+        return d;
+      }
+
       // --- REGISTER WITH THE SHELL ---
       registerDiagramPlugin({
         id: 'flowchart',
         defaultTitle: 'Interactive Swimlane Flowchart',
+        toDisk,
+        fromDisk,
         contentEl: swimlanesContainer,
         report: { node: '.flow-node', label: '.edge-label-container', labelText: '.edge-label-text', nodeText: '.node-label' },
         render,

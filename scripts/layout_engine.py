@@ -5,7 +5,11 @@
   same file the page runs for Auto-Tidy; see engine_runner.py), then writes one standalone HTML file.
 - `--verify`: routes every edge and audits overlaps, penetrations, lane overflow, crossings, straightness,
   complexity budget and self-containment. Needs no browser or Node.js.
-- `--extract`: reads the live JSON back out of an edited HTML file.
+- `--extract`: reads the live JSON back out of an edited HTML file, as authoring JSON (no positions).
+
+The page stores the model in its disk format (disk_format.py): positions sit in one trailing `layout` map
+(flowchart) or are not saved (sequence). Everything here works on the in-memory model, with positions on the
+objects; `assemble_page()` and `extract_data_from_html()` convert at the boundary.
 
 Zero external dependencies (uses standard library Python 3).
 """
@@ -14,6 +18,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+import html
 import json
 import re
 import subprocess
@@ -23,6 +28,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 from audit_sequence import SequenceAudit
+from disk_format import DISK_CODECS, authoring_json, format_json, from_disk, to_disk  # noqa: F401 (DISK_CODECS: registry)
 from engine_runner import EngineUnavailable, run_layout
 
 
@@ -1010,22 +1016,26 @@ def normalize_diagram_type(data: Dict[str, Any]) -> Dict[str, Any]:
     return data
 
 
+def read_data_block(html_content: str) -> Dict[str, Any]:
+    """The diagram JSON block of a standalone page, exactly as stored (disk format)."""
+    # The full opening tag, so the page's reading-guide comment (which never spells it) cannot match
+    match = re.search(r'<script id="diagram-data" type="application/json">\s*([\s\S]*?)\s*</script>', html_content)
+    if not match:
+        raise ValueError('Could not find the diagram data block (<script id="diagram-data">) in the specified HTML file.')
+    return json.loads(match.group(1))
+
+
 def extract_data_from_html(html_content: str) -> Dict[str, Any]:
-    """Extract the canonical diagram JSON block from standalone HTML."""
-    for block_id in DATA_BLOCK_IDS:
-        match = re.search(
-            rf'<script id="{block_id}" type="application/json">\s*([\s\S]*?)\s*</script>',
-            html_content,
-        )
-        if match:
-            return json.loads(match.group(1))
-    raise ValueError('Could not find the diagram data block (<script id="diagram-data">) in the specified HTML file.')
+    """The in-memory model of a page: its data block with the saved positions merged back onto the objects.
+    A sequence page saves no positions; run its engine (engine_runner.run_layout) before auditing it."""
+    data = read_data_block(html_content)
+    return from_disk(data.get("diagramType") or DEFAULT_TYPE, data)
 
 
 AUDITS = {"flowchart": FlowchartAudit, "sequence": SequenceAudit}
+# DISK_CODECS (disk_format.py): per type, (to_disk, from_disk) between the in-memory model and the page block
 
 ASSETS_DIR = Path(__file__).resolve().parent.parent / "assets"
-DATA_BLOCK_IDS = ("diagram-data", "flowchart-data")  # flowchart-data: pages saved before the shell split
 
 
 def _read_asset(path: Path) -> str:
@@ -1048,12 +1058,16 @@ def assemble_page(kind: str, data: Optional[Dict[str, Any]] = None) -> str:
     if not type_dir.is_dir():
         raise FileNotFoundError(f"No assets for diagram type {kind!r} at: {type_dir}")
     meta = json.loads(_read_asset(type_dir / "meta.json"))
-    payload = _read_asset(type_dir / "default.json").rstrip(chr(10)) if data is None else json.dumps(data, indent=2)
+    if data is None:
+        data = json.loads(_read_asset(type_dir / "default.json"))
+    # Same text as the page's Save (formatJson in shell.js), so an unedited save changes nothing
+    payload = format_json(to_disk(kind, data))
     # Optional per-type icon set (name -> SVG inner markup), embedded so the page stays self-contained
     icons_path = type_dir / "icons.json"
     icons_js = f"const TYPE_ICONS = {json.dumps(json.loads(_read_asset(icons_path)), separators=(',', ':'))};\n" if icons_path.is_file() else ""
     parts = {
-        "TYPE_TITLE": meta["title"],
+        "PAGE_TITLE": html.escape(str(data.get("title") or meta["title"]), quote=False),
+        "TYPE_DATA_NOTE": meta["dataNote"],
         "SHELL_FONTS": _inline_fonts_css(),
         "SHELL_CSS": _read_asset(ASSETS_DIR / "shell" / "shell.css").rstrip(chr(10)),
         "TYPE_CSS": _read_asset(type_dir / f"{kind}.css").rstrip(chr(10)),
@@ -1114,14 +1128,17 @@ def main():
 
     if args.extract:
         html_path = Path(args.extract)
-        data = extract_data_from_html(html_path.read_text(encoding="utf-8"))
+        raw = read_data_block(html_path.read_text(encoding="utf-8"))
+        # Authoring JSON: the block without its `layout` map (--layout recomputes positions anyway)
+        data = authoring_json(raw.get("diagramType") or DEFAULT_TYPE, from_disk(raw.get("diagramType") or DEFAULT_TYPE, raw))
+        text = format_json(data)
         if args.output:
             out_p = Path(args.output)
             out_p.parent.mkdir(parents=True, exist_ok=True)
-            out_p.write_text(json.dumps(data, indent=2), encoding="utf-8")
+            out_p.write_text(text + chr(10), encoding="utf-8")
             print(f"[OK] Extracted data saved to: {out_p}")
         else:
-            print(json.dumps(data, indent=2))
+            print(text)
         return
 
     if args.verify:
@@ -1135,6 +1152,12 @@ def main():
             data = json.loads(p.read_text(encoding="utf-8"))
 
         data = normalize_diagram_type(data)
+        if p.suffix == ".html" and data["diagramType"] == "sequence":
+            # A sequence page saves no positions: lay it out with the engine, as the page does on load
+            try:
+                data = run_layout("sequence", data, timeout=args.timeout, browser=args.browser)
+            except EngineUnavailable as exc:
+                sys.exit(f"[ERROR] {exc}")
         audit = AUDITS[data["diagramType"]](data)
         report = audit.verify_collisions()
 

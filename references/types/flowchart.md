@@ -8,7 +8,7 @@ Use for swimlane, cross-functional or BPMN-style process flows. Layout, routing,
 
 ## Schema
 
-Never add pixel coordinates (`x`, `y`); `--layout` computes them.
+Never add pixel coordinates (`x`, `y`); `--layout` computes them. A saved page embeds exactly this JSON, steps in flow order, plus a trailing `layout` map of positions that only the page writes.
 
 ```json
 {
@@ -16,9 +16,9 @@ Never add pixel coordinates (`x`, `y`); `--layout` computes them.
   "title": "Process Title",
   "direction": "LR",
   "lanes": [{ "id": "lane-customer", "name": "Customer", "icon": "user" }],
-  "nodes": [{ "id": "n1", "laneId": "lane-customer", "type": "start", "label": "Submit Request" }],
-  "edges": [{ "id": "e1", "from": "n1", "to": "n2", "label": "" }],
-  "notes": [{ "id": "note-1", "text": "Online form or branch visit", "nodes": ["n1"] }]
+  "nodes": [{ "id": "n_submit_request", "laneId": "lane-customer", "type": "start", "label": "Submit Request" }],
+  "edges": [{ "id": "e1", "from": "n_submit_request", "to": "n_validate_request", "label": "" }],
+  "notes": [{ "id": "note-1", "text": "Online form or branch visit", "nodes": ["n_submit_request"] }]
 }
 ```
 
@@ -26,7 +26,7 @@ Never add pixel coordinates (`x`, `y`); `--layout` computes them.
 |---|---|---|
 | Lane | `id`, `name`, `icon` | Unique id (`lane-<slug>`), the actor's name (or the phase's, see rule 7), and an `icon` (see rule 8). |
 | Lane | `color` | Optional. Omit it: lanes get palette colours in order. Set a hex tint only to match the source's colours, or to give related lanes the same colour on purpose. |
-| Node | `id`, `laneId`, `type`, `label` | `type` is `start`, `task`, `decision`, `end`, a classic symbol (rule 10), or `connector` (rule 11). `start` and `end` render as rounded pills in their own colours (a plain circle if the label is empty); `task` is a box, `decision` a diamond. |
+| Node | `id`, `laneId`, `type`, `label` | `id` is a short slug of the label (`n_validate_policy`, not `n5`), so every edge reads on its own; a connector is `c_<letter>_in` / `c_<letter>_out`. `type` is `start`, `task`, `decision`, `end`, a classic symbol (rule 10), or `connector` (rule 11). `start` and `end` render as rounded pills in their own colours (a plain circle if the label is empty); `task` is a box, `decision` a diamond. |
 | Edge | `id`, `from`, `to`, `label` | `label` is `"Yes"`, `"No"`, `"Resubmit"`, etc.; `""` for unconditional steps. |
 | Note | `id`, `text`, `nodes` | Optional list `notes`: plain text that explains one or more steps (what goes in it: rule 9). `nodes` lists the ids of the steps it explains; the first is where it sits. Each linked step shows a small badge the reader hovers to see the note. |
 | Diagram | `showNotes` | Optional `true` shows every note on the page (fitted into the gaps near its node) instead of on hover; when to set it: rule 9. |
@@ -70,8 +70,8 @@ Never add pixel coordinates (`x`, `y`); `--layout` computes them.
    - `--layout` prints a `[WARN]` for a note over the budget, one that repeats its step's label, or one linked to no existing step.
 
    ```json
-   "nodes": [{ "id": "n5", "laneId": "lane-engine", "type": "task", "label": "Check Credit" }, ...],
-   "notes": [{ "id": "note-2", "nodes": ["n5"],
+   "nodes": [{ "id": "n_check_credit", "laneId": "lane-engine", "type": "task", "label": "Check Credit" }, ...],
+   "notes": [{ "id": "note-2", "nodes": ["n_check_credit"],
                "text": "Experian bureau pull plus internal fraud rules\nScore < 620 is declined automatically" }]
    ```
    not `"label": "Run Experian Credit Check (Score >= 620)"` with no note.
@@ -94,10 +94,10 @@ Never add pixel coordinates (`x`, `y`); `--layout` computes them.
    - The branch's `label` and `feedback` stay on the arrow **into** the in-connector; the arrow out of the out-connector is `""`.
 
    ```json
-   "nodes": [{ "id": "c1", "laneId": "lane-officer", "type": "connector", "label": "A" },
-             { "id": "c2", "laneId": "lane-intake", "type": "connector", "label": "A" }, ...],
-   "edges": [{ "id": "e7", "from": "n6", "to": "c1", "label": "No", "feedback": true },
-             { "id": "e12", "from": "c2", "to": "n2", "label": "" }, ...]
+   "nodes": [{ "id": "c_a_in", "laneId": "lane-officer", "type": "connector", "label": "A" },
+             { "id": "c_a_out", "laneId": "lane-intake", "type": "connector", "label": "A" }, ...],
+   "edges": [{ "id": "e7", "from": "n_docs_complete", "to": "c_a_in", "label": "No", "feedback": true },
+             { "id": "e12", "from": "c_a_out", "to": "n_review_docs", "label": "" }, ...]
    ```
 
 ## Choosing the structure

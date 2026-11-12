@@ -2,7 +2,7 @@
 
 Make the saved HTML easy for an agent to read and understand without an extra outline to maintain. The embedded JSON becomes the readable version: found at the top of the file, written in flow order, with meaning first and positions kept apart.
 
-**Status (2026-11-12):** Not started.
+**Status (2026-11-12):** Implemented (Parts 1–6). Additions beyond the text below: the data block is written one flat object per line (`format_json` in `scripts/disk_format.py`, `formatJson` in `shell.js`) to match the target shape; the header comment's type-specific sentence comes from `meta.json` `dataNote`; arrow paths carry `data-from`/`data-to` so tests can find an arrow whose saved id was renamed; `references/examples/example-flowchart*.json` use label-slug ids. The Python codec lives in `scripts/disk_format.py` and is registered as `DISK_CODECS`.
 
 ## Background
 

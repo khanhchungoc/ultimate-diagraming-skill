@@ -3,303 +3,59 @@
   "title": "Customer Loan Application Process",
   "direction": "LR",
   "lanes": [
-    {
-      "id": "lane-customer",
-      "name": "Applicant / Customer",
-      "icon": "user"
-    },
-    {
-      "id": "lane-officer",
-      "name": "Loan Officer",
-      "icon": "briefcase"
-    },
-    {
-      "id": "lane-engine",
-      "name": "Automated Underwriting Engine",
-      "icon": "cpu"
-    },
-    {
-      "id": "lane-risk",
-      "name": "Risk & Compliance Committee",
-      "icon": "shield"
-    }
+    { "id": "lane-customer", "name": "Applicant / Customer", "icon": "user" },
+    { "id": "lane-officer", "name": "Loan Officer", "icon": "briefcase" },
+    { "id": "lane-engine", "name": "Automated Underwriting Engine", "icon": "cpu" },
+    { "id": "lane-risk", "name": "Risk & Compliance Committee", "icon": "shield" }
   ],
   "nodes": [
-    {
-      "id": "n1",
-      "laneId": "lane-customer",
-      "type": "start",
-      "label": "Submit Application"
-    },
-    {
-      "id": "n2",
-      "laneId": "lane-officer",
-      "type": "task",
-      "label": "Review & Validate Docs"
-    },
-    {
-      "id": "n3",
-      "laneId": "lane-officer",
-      "type": "decision",
-      "label": "Docs Complete?"
-    },
-    {
-      "id": "n4",
-      "laneId": "lane-customer",
-      "type": "io",
-      "label": "Upload Missing Docs"
-    },
-    {
-      "id": "n14",
-      "laneId": "lane-officer",
-      "type": "task",
-      "label": "Verify Income & Employment"
-    },
-    {
-      "id": "n10",
-      "laneId": "lane-engine",
-      "type": "database",
-      "label": "Store Application Record"
-    },
-    {
-      "id": "n5",
-      "laneId": "lane-engine",
-      "type": "subprocess",
-      "label": "Run Credit & Fraud Check"
-    },
-    {
-      "id": "n6",
-      "laneId": "lane-engine",
-      "type": "decision",
-      "label": "Credit Score >= 700?"
-    },
-    {
-      "id": "n15",
-      "laneId": "lane-risk",
-      "type": "task",
-      "label": "Review Exception Case"
-    },
-    {
-      "id": "n7",
-      "laneId": "lane-risk",
-      "type": "decision",
-      "label": "Risk Acceptable?"
-    },
-    {
-      "id": "n11",
-      "laneId": "lane-officer",
-      "type": "document",
-      "label": "Issue Loan Offer"
-    },
-    {
-      "id": "n12",
-      "laneId": "lane-customer",
-      "type": "delay",
-      "label": "Wait Cooling-Off Period"
-    },
-    {
-      "id": "n16",
-      "laneId": "lane-customer",
-      "type": "task",
-      "label": "Sign Loan Agreement"
-    },
-    {
-      "id": "n17",
-      "laneId": "lane-officer",
-      "type": "task",
-      "label": "Disburse Loan Funds"
-    },
-    {
-      "id": "n8",
-      "laneId": "lane-officer",
-      "type": "end",
-      "label": "Loan Funded"
-    },
-    {
-      "id": "n13",
-      "laneId": "lane-risk",
-      "type": "document",
-      "label": "Issue Decline Letter"
-    },
-    {
-      "id": "c1",
-      "laneId": "lane-risk",
-      "type": "connector",
-      "label": "A"
-    },
-    {
-      "id": "c2",
-      "laneId": "lane-customer",
-      "type": "connector",
-      "label": "A"
-    },
-    {
-      "id": "n9",
-      "laneId": "lane-customer",
-      "type": "end",
-      "label": "Application Rejected"
-    }
-  ],
-  "notes": [
-    {
-      "id": "note-1",
-      "text": "Online portal or branch\nID, payslips and 3 months of bank statements",
-      "nodes": [
-        "n1"
-      ]
-    },
-    {
-      "id": "note-2",
-      "text": "Experian bureau pull plus internal fraud rules; about 2 minutes",
-      "nodes": [
-        "n5"
-      ]
-    },
-    {
-      "id": "note-3",
-      "text": "Thresholds set by Lending Policy LP-7, reviewed quarterly",
-      "nodes": [
-        "n6",
-        "n7"
-      ]
-    },
-    {
-      "id": "note-4",
-      "text": "Sent within 30 days, stating the reason",
-      "nodes": [
-        "n13"
-      ]
-    },
-    {
-      "id": "note-5",
-      "text": "14 days; the applicant may withdraw without penalty",
-      "nodes": [
-        "n12"
-      ]
-    },
-    {
-      "id": "note-6",
-      "text": "Payslips checked against the employer; self-employed applicants need 2 years of accounts",
-      "nodes": [
-        "n14"
-      ]
-    }
+    { "id": "n_submit_application", "laneId": "lane-customer", "type": "start", "label": "Submit Application" },
+    { "id": "n_upload_missing_docs", "laneId": "lane-customer", "type": "io", "label": "Upload Missing Docs" },
+    { "id": "n_wait_cooling_off_period", "laneId": "lane-customer", "type": "delay", "label": "Wait Cooling-Off Period" },
+    { "id": "n_sign_loan_agreement", "laneId": "lane-customer", "type": "task", "label": "Sign Loan Agreement" },
+    { "id": "c_a_out", "laneId": "lane-customer", "type": "connector", "label": "A" },
+    { "id": "n_application_rejected", "laneId": "lane-customer", "type": "end", "label": "Application Rejected" },
+    { "id": "n_review_validate_docs", "laneId": "lane-officer", "type": "task", "label": "Review & Validate Docs" },
+    { "id": "n_docs_complete", "laneId": "lane-officer", "type": "decision", "label": "Docs Complete?" },
+    { "id": "n_verify_income_employment", "laneId": "lane-officer", "type": "task", "label": "Verify Income & Employment" },
+    { "id": "n_issue_loan_offer", "laneId": "lane-officer", "type": "document", "label": "Issue Loan Offer" },
+    { "id": "n_disburse_loan_funds", "laneId": "lane-officer", "type": "task", "label": "Disburse Loan Funds" },
+    { "id": "n_loan_funded", "laneId": "lane-officer", "type": "end", "label": "Loan Funded" },
+    { "id": "n_store_application_record", "laneId": "lane-engine", "type": "database", "label": "Store Application Record" },
+    { "id": "n_run_credit_fraud_check", "laneId": "lane-engine", "type": "subprocess", "label": "Run Credit & Fraud Check" },
+    { "id": "n_credit_score_700", "laneId": "lane-engine", "type": "decision", "label": "Credit Score >= 700?" },
+    { "id": "n_review_exception_case", "laneId": "lane-risk", "type": "task", "label": "Review Exception Case" },
+    { "id": "n_risk_acceptable", "laneId": "lane-risk", "type": "decision", "label": "Risk Acceptable?" },
+    { "id": "n_issue_decline_letter", "laneId": "lane-risk", "type": "document", "label": "Issue Decline Letter" },
+    { "id": "c_a_in", "laneId": "lane-risk", "type": "connector", "label": "A" }
   ],
   "edges": [
-    {
-      "id": "e1",
-      "from": "n1",
-      "to": "n2",
-      "label": ""
-    },
-    {
-      "id": "e2",
-      "from": "n2",
-      "to": "n3",
-      "label": ""
-    },
-    {
-      "id": "e3",
-      "from": "n3",
-      "to": "n4",
-      "label": "No"
-    },
-    {
-      "id": "e4",
-      "from": "n4",
-      "to": "n2",
-      "label": "Resubmit",
-      "feedback": true
-    },
-    {
-      "id": "e5",
-      "from": "n3",
-      "to": "n14",
-      "label": "Yes"
-    },
-    {
-      "id": "e16",
-      "from": "n14",
-      "to": "n10",
-      "label": ""
-    },
-    {
-      "id": "e11",
-      "from": "n10",
-      "to": "n5",
-      "label": ""
-    },
-    {
-      "id": "e6",
-      "from": "n5",
-      "to": "n6",
-      "label": ""
-    },
-    {
-      "id": "e7",
-      "from": "n6",
-      "to": "n11",
-      "label": "Yes"
-    },
-    {
-      "id": "e8",
-      "from": "n6",
-      "to": "n15",
-      "label": "No"
-    },
-    {
-      "id": "e17",
-      "from": "n15",
-      "to": "n7",
-      "label": ""
-    },
-    {
-      "id": "e9",
-      "from": "n7",
-      "to": "n11",
-      "label": "Yes"
-    },
-    {
-      "id": "e12",
-      "from": "n11",
-      "to": "n12",
-      "label": ""
-    },
-    {
-      "id": "e13",
-      "from": "n12",
-      "to": "n16",
-      "label": ""
-    },
-    {
-      "id": "e18",
-      "from": "n16",
-      "to": "n17",
-      "label": ""
-    },
-    {
-      "id": "e19",
-      "from": "n17",
-      "to": "n8",
-      "label": ""
-    },
-    {
-      "id": "e10",
-      "from": "n7",
-      "to": "n13",
-      "label": "No"
-    },
-    {
-      "id": "e14",
-      "from": "n13",
-      "to": "c1",
-      "label": ""
-    },
-    {
-      "id": "e15",
-      "from": "c2",
-      "to": "n9",
-      "label": ""
-    }
+    { "id": "e1", "from": "n_submit_application", "to": "n_review_validate_docs", "label": "" },
+    { "id": "e2", "from": "n_review_validate_docs", "to": "n_docs_complete", "label": "" },
+    { "id": "e3", "from": "n_docs_complete", "to": "n_upload_missing_docs", "label": "No" },
+    { "id": "e4", "from": "n_upload_missing_docs", "to": "n_review_validate_docs", "label": "Resubmit", "feedback": true },
+    { "id": "e5", "from": "n_docs_complete", "to": "n_verify_income_employment", "label": "Yes" },
+    { "id": "e16", "from": "n_verify_income_employment", "to": "n_store_application_record", "label": "" },
+    { "id": "e11", "from": "n_store_application_record", "to": "n_run_credit_fraud_check", "label": "" },
+    { "id": "e6", "from": "n_run_credit_fraud_check", "to": "n_credit_score_700", "label": "" },
+    { "id": "e7", "from": "n_credit_score_700", "to": "n_issue_loan_offer", "label": "Yes" },
+    { "id": "e8", "from": "n_credit_score_700", "to": "n_review_exception_case", "label": "No" },
+    { "id": "e17", "from": "n_review_exception_case", "to": "n_risk_acceptable", "label": "" },
+    { "id": "e9", "from": "n_risk_acceptable", "to": "n_issue_loan_offer", "label": "Yes" },
+    { "id": "e12", "from": "n_issue_loan_offer", "to": "n_wait_cooling_off_period", "label": "" },
+    { "id": "e13", "from": "n_wait_cooling_off_period", "to": "n_sign_loan_agreement", "label": "" },
+    { "id": "e18", "from": "n_sign_loan_agreement", "to": "n_disburse_loan_funds", "label": "" },
+    { "id": "e19", "from": "n_disburse_loan_funds", "to": "n_loan_funded", "label": "" },
+    { "id": "e10", "from": "n_risk_acceptable", "to": "n_issue_decline_letter", "label": "No" },
+    { "id": "e14", "from": "n_issue_decline_letter", "to": "c_a_in", "label": "" },
+    { "id": "e15", "from": "c_a_out", "to": "n_application_rejected", "label": "" }
+  ],
+  "notes": [
+    { "id": "note-1", "text": "Online portal or branch\nID, payslips and 3 months of bank statements", "nodes": ["n_submit_application"] },
+    { "id": "note-2", "text": "Experian bureau pull plus internal fraud rules; about 2 minutes", "nodes": ["n_run_credit_fraud_check"] },
+    { "id": "note-3", "text": "Thresholds set by Lending Policy LP-7, reviewed quarterly", "nodes": ["n_credit_score_700", "n_risk_acceptable"] },
+    { "id": "note-4", "text": "Sent within 30 days, stating the reason", "nodes": ["n_issue_decline_letter"] },
+    { "id": "note-5", "text": "14 days; the applicant may withdraw without penalty", "nodes": ["n_wait_cooling_off_period"] },
+    { "id": "note-6", "text": "Payslips checked against the employer; self-employed applicants need 2 years of accounts", "nodes": ["n_verify_income_employment"] }
   ]
 }

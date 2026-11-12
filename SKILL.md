@@ -64,7 +64,7 @@ Use when the user saved edits in the browser, or asks to change a diagram that a
    ```shell
    python "<skill-dir>/scripts/layout_engine.py" --extract <target.html> -o <scratch.json>
    ```
-   If the task is only to read the user's edits (e.g. to update user stories or specs), stop here and use the extracted JSON; do not re-layout.
+   The output is the authoring JSON, without positions. If the task is only to read the user's edits (e.g. to update user stories or specs), stop here and use the extracted JSON; do not re-layout.
 2. **Know what a re-layout resets.** `--layout` recomputes every node's position and the container sizes, so positions the user dragged by hand are lost. Structure the user cares about (order, membership, labels, notes, flags) is kept; the type reference says what else survives. Tell the user before overwriting, and write to a new file name if they might want the old arrangement.
 3. **Edit the JSON** and run steps 3–6 of *Procedure: New Diagram*, writing to the same `<target.html>` (or the new name).
 

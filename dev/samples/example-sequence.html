@@ -1,9 +1,45 @@
 <!DOCTYPE html>
+<!-- For agents: this whole diagram is the JSON block with id "diagram-data" a few lines below.
+     Read only as far as the "end diagram-data" comment; everything after it is editor code
+     (CSS, JS, icons) and says nothing about the diagram. To print just the model:
+     sed -n '/<script id="diagram-data" type="application\/json">/,/<\/script>/p' FILE
+     python -c "import re,sys;print(re.search(r'<script id=\"diagram-data\" type=\"application\/json\">(.*?)<\/script>',open(sys.argv[1],encoding='utf8').read(),re.S)[1])" FILE -->
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Interactive Sequence Diagram</title>
+  <title>Checkout</title>
+  <!-- Diagram model: the source of truth for this page.
+       "participants" are in column order and "messages" in time order; a fragment frames the
+       messages "from" .. "to" (message ids). Positions are not saved: the page lays them out on load.
+       Everything after this block is the editor. -->
+  <script id="diagram-data" type="application/json">
+{
+  "diagramType": "sequence",
+  "schemaVersion": 1,
+  "title": "Checkout",
+  "participants": [
+    { "id": "p1", "name": "Customer", "kind": "actor" },
+    { "id": "p2", "name": "Shop", "kind": "system" },
+    { "id": "p3", "name": "Payment", "kind": "system" },
+    { "id": "p4", "name": "Warehouse", "kind": "system" }
+  ],
+  "messages": [
+    { "id": "m1", "from": "p1", "to": "p2", "label": "Place order", "kind": "sync" },
+    { "id": "m2", "from": "p2", "to": "p4", "label": "Reserve stock", "kind": "sync" },
+    { "id": "m3", "from": "p4", "to": "p2", "label": "Stock reserved", "kind": "reply" },
+    { "id": "m4", "from": "p2", "to": "p3", "label": "Charge card", "kind": "sync" },
+    { "id": "m5", "from": "p3", "to": "p2", "label": "Payment result", "kind": "reply" },
+    { "id": "m6", "from": "p2", "to": "p4", "label": "Release stock", "kind": "sync" },
+    { "id": "m7", "from": "p2", "to": "p1", "label": "Order confirmed", "kind": "reply" }
+  ],
+  "fragments": [
+    { "id": "f1", "kind": "alt", "label": "payment accepted", "from": "m4", "to": "m6", "elseAt": "m6" },
+    { "id": "f2", "kind": "opt", "label": "stock available", "from": "m2", "to": "m3" }
+  ]
+}
+  </script>
+  <!-- end diagram-data -->
   <style>
     /* Nunito Sans variable (wght 400-700, opsz 6-12), vietnamese subset (SIL OFL 1.1, see fonts/OFL.txt) */
     @font-face {
@@ -668,7 +704,7 @@
     <div class="toolbar-left">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--primary)"><rect x="3" y="3" width="6" height="4" rx="1"/><rect x="15" y="3" width="6" height="4" rx="1"/><path d="M6 7v14M18 7v14"/><path d="M6 12h12"/><path d="m15 10 3 2-3 2"/></svg>
       <div class="app-title-container">
-        <h1 id="chart-title" contenteditable="false" spellcheck="false" title="Double-click to rename diagram">Interactive Sequence Diagram</h1>
+        <h1 id="chart-title" contenteditable="false" spellcheck="false" title="Double-click to rename diagram">Checkout</h1>
         <span id="save-status" class="badge badge-status">Ready</span>
       </div>
     </div>
@@ -790,129 +826,6 @@
     </ul>
   </aside>
 
-  <!-- CANONICAL DATA BLOCK (Single Source of Truth) -->
-  <script id="diagram-data" type="application/json">
-{
-  "diagramType": "sequence",
-  "title": "Checkout",
-  "participants": [
-    {
-      "id": "p1",
-      "name": "Customer",
-      "kind": "actor",
-      "x": 158
-    },
-    {
-      "id": "p2",
-      "name": "Shop",
-      "kind": "system",
-      "x": 358
-    },
-    {
-      "id": "p3",
-      "name": "Payment",
-      "kind": "system",
-      "x": 558
-    },
-    {
-      "id": "p4",
-      "name": "Warehouse",
-      "kind": "system",
-      "x": 758
-    }
-  ],
-  "messages": [
-    {
-      "id": "m1",
-      "from": "p1",
-      "to": "p2",
-      "label": "Place order",
-      "kind": "sync",
-      "y": 166
-    },
-    {
-      "id": "m2",
-      "from": "p2",
-      "to": "p4",
-      "label": "Reserve stock",
-      "kind": "sync",
-      "y": 266
-    },
-    {
-      "id": "m3",
-      "from": "p4",
-      "to": "p2",
-      "label": "Stock reserved",
-      "kind": "reply",
-      "y": 326
-    },
-    {
-      "id": "m4",
-      "from": "p2",
-      "to": "p3",
-      "label": "Charge card",
-      "kind": "sync",
-      "y": 454
-    },
-    {
-      "id": "m5",
-      "from": "p3",
-      "to": "p2",
-      "label": "Payment result",
-      "kind": "reply",
-      "y": 514
-    },
-    {
-      "id": "m6",
-      "from": "p2",
-      "to": "p4",
-      "label": "Release stock",
-      "kind": "sync",
-      "y": 606
-    },
-    {
-      "id": "m7",
-      "from": "p2",
-      "to": "p1",
-      "label": "Order confirmed",
-      "kind": "reply",
-      "y": 694
-    }
-  ],
-  "fragments": [
-    {
-      "id": "f1",
-      "kind": "alt",
-      "label": "payment accepted",
-      "from": "m4",
-      "to": "m6",
-      "elseAt": "m6",
-      "x": 322,
-      "w": 472,
-      "y": 392,
-      "h": 236,
-      "elseY": 550
-    },
-    {
-      "id": "f2",
-      "kind": "opt",
-      "label": "stock available",
-      "from": "m2",
-      "to": "m3",
-      "x": 322,
-      "w": 472,
-      "y": 204,
-      "h": 144
-    }
-  ],
-  "schemaVersion": 1,
-  "layout": {
-    "width": 888,
-    "height": 780
-  }
-}
-  </script>
-
   <!-- Interactive Diagram Script: shell, then the type's engine and plugin -->
   <script>
     (function () {
@@ -928,6 +841,11 @@
       //   optional: onViewChange() after every pan/zoom (body.exporting is set while an export reads styles)
       //   optional: contentOverflow() -> {left, top, right, bottom}: unscaled px that content reaches past
       //             contentEl's edges, so Fit and screenshots frame it too
+      //   optional: toDisk(data) -> a new object to write into the page's data block (the disk format: semantic
+      //             fields in a fixed order, positions moved out or dropped); must not mutate data
+      //   optional: fromDisk(data) -> the in-memory model read from the data block (inverse of toDisk)
+      //             Missing members mean the block holds the in-memory model as is. scripts/disk_format.py
+      //             does the same in Python; a generated page saved without edits must come out byte-identical.
       // Undo/redo is the shell's job: every updateStatus(true) records a snapshot of chartData, so a plugin
       // gets undo for free as long as it calls updateStatus(true) once per finished edit (not per pointermove).
       // The type's engine.js must define layoutDiagram(data): lay out `data` in place, no DOM access.
@@ -978,7 +896,8 @@
         try {
           const raw = document.getElementById('diagram-data').textContent.trim();
           if (raw) {
-            chartData = JSON.parse(raw);
+            const disk = JSON.parse(raw);
+            chartData = plugin.fromDisk ? plugin.fromDisk(disk) : disk;
           }
         } catch (err) {
           console.error("Failed to parse diagram-data JSON:", err);
@@ -1000,6 +919,7 @@
           const val = chartTitleEl.textContent.trim();
           if (val && chartData.title !== val) {
             chartData.title = val;
+            document.title = val;
             updateStatus(true);
           }
         });
@@ -1077,6 +997,7 @@
         chartData = JSON.parse(json);
         committedJson = json;
         chartTitleEl.textContent = chartData.title || plugin.defaultTitle;
+        document.title = chartTitleEl.textContent;
         plugin.render();
         setStatusBadge(json !== savedJson);
         updateHistoryButtons();
@@ -1684,9 +1605,35 @@
         } catch (_) {}
       }
 
+      // JSON with one line per flat object (a lane, a node, an edge, a layout entry), so the data block reads as a
+      // list. A container is flat when its values are scalars or arrays of scalars; the top level always expands.
+      // scripts/disk_format.py format_json() writes the same text.
+      function formatJson(v, indent = '') {
+        const scalar = (x) => x === null || typeof x !== 'object';
+        if (scalar(v)) return JSON.stringify(v);
+        const isObj = !Array.isArray(v);
+        const items = isObj ? Object.entries(v).filter(([, x]) => x !== undefined) : v.map(x => [null, x]);
+        if (!items.length) return isObj ? '{}' : '[]';
+        const key = (k) => (k === null ? '' : JSON.stringify(k) + ': ');
+        const flat = items.every(([, x]) => scalar(x) || (Array.isArray(x) && x.every(scalar)));
+        if (indent && flat) {
+          const inline = (x) => (scalar(x) ? JSON.stringify(x) : `[${x.map(y => JSON.stringify(y)).join(', ')}]`);
+          const body = items.map(([k, x]) => key(k) + inline(x)).join(', ');
+          return isObj ? `{ ${body} }` : `[${body}]`;
+        }
+        const inner = indent + '  ';
+        const body = items.map(([k, x]) => inner + key(k) + formatJson(x, inner)).join(',\n');
+        return (isObj ? '{' : '[') + '\n' + body + '\n' + indent + (isObj ? '}' : ']');
+      }
+
+      // Text for HTML element content (same escaping as Python's html.escape(s, quote=False))
+      function escapeHtml(text) {
+        return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      }
+
       async function saveToFile() {
         chartData.title = chartTitleEl.textContent.trim();
-        const updatedJson = JSON.stringify(chartData, null, 2);
+        const updatedJson = formatJson(plugin.toDisk ? plugin.toDisk(chartData) : chartData);
 
         let fullHtml = "";
         try {
@@ -1697,7 +1644,9 @@
         } catch (_) {}
 
         if (!fullHtml || !fullHtml.includes('id="diagram-data"')) {
-          fullHtml = "<!DOCTYPE html>\n" + document.documentElement.outerHTML;
+          // Rebuild from the live document, keeping the top-level comments (the reading guide on line 2)
+          fullHtml = [...document.childNodes].map(n => n.nodeType === Node.DOCUMENT_TYPE_NODE ? '<!DOCTYPE html>'
+            : n.nodeType === Node.COMMENT_NODE ? `<!--${n.data}-->` : (n.outerHTML || '')).join('\n');
         }
         // Both patterns spell the full tag with type="application\/json": this file's own source contains
         // these regexes, and with the escaped slash they cannot match their own text. A shorter pattern such
@@ -1706,10 +1655,16 @@
         fullHtml = fullHtml.replace(/<script id="render-report" type="application\/json">[\s\S]*?<\/script>/, '');
 
         // A replacement function, not a string: labels may contain $&, $' or $` that a string would expand
-        const replacedHtml = fullHtml.replace(
-          /(<script id="diagram-data" type="application\/json">)[\s\S]*?(<\/script>)/,
-          (_, open, close) => `${open}\n${updatedJson}\n  ${close}`
-        );
+        // The page title (<title> and the header's <h1>) follows the diagram title. Both come before the main
+        // script, so the first match is the real element; closing tags are spelled <\/...> like the patterns above.
+        const pageTitle = escapeHtml(chartData.title || plugin.defaultTitle);
+        const replacedHtml = fullHtml
+          .replace(
+            /(<script id="diagram-data" type="application\/json">)[\s\S]*?(<\/script>)/,
+            (_, open, close) => `${open}\n${updatedJson}\n  ${close}`
+          )
+          .replace(/(<title>)[\s\S]*?(<\/title>)/, (_, open, close) => `${open}${pageTitle}${close}`)
+          .replace(/(<h1 id="chart-title"[^>]*>)[\s\S]*?(<\/h1>)/, (_, open, close) => `${open}${pageTitle}${close}`);
 
         document.getElementById('diagram-data').textContent = `\n${updatedJson}\n  `;
 
@@ -2271,10 +2226,27 @@
         relayout();
       });
 
+      // --- DISK FORMAT (the page's data block) ---
+      // No positions are saved: render() lays out whatever is missing, so the block holds only the logical model,
+      // in a fixed key order. scripts/disk_format.py is the Python twin: keep the two byte-identical.
+      // fromDisk is not needed (the block is the model minus positions).
+      const DISK_KEYS = ['diagramType', 'schemaVersion', 'title', 'participants', 'messages', 'fragments'];
+      function toDisk(data) {
+        const d = JSON.parse(JSON.stringify(data));
+        delete d.layout;   // canvas size, derived by the engine
+        [['participants', ['x']], ['messages', ['y']], ['fragments', ['x', 'y', 'w', 'h', 'elseY']]].forEach(([list, keys]) =>
+          (d[list] || []).forEach(o => keys.forEach(k => { delete o[k]; })));
+        const out = {};
+        DISK_KEYS.forEach(k => { if (k in d) out[k] = d[k]; });
+        Object.keys(d).forEach(k => { if (!(k in out)) out[k] = d[k]; });
+        return out;
+      }
+
       // --- REGISTER WITH THE SHELL ---
       registerDiagramPlugin({
         id: 'sequence',
         defaultTitle: 'Interactive Sequence Diagram',
+        toDisk,
         contentEl: seqCanvas,
         report: { node: '.seq-participant', label: '.seq-msg-label', labelText: '.seq-msg-label-text', nodeText: '.seq-participant-name' },
         render,

@@ -1,3 +1,4 @@
 {
-  "title": "Interactive Swimlane Flowchart"
+  "title": "Interactive Swimlane Flowchart",
+  "dataNote": "\"nodes\" are in flow order; \"feedback\": true marks an arrow that loops back to an earlier\n       step; \"layout\" is display-only (positions, sizes, colours) and can be skipped."
 }

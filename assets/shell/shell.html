@@ -1,9 +1,21 @@
 <!DOCTYPE html>
+<!-- For agents: this whole diagram is the JSON block with id "diagram-data" a few lines below.
+     Read only as far as the "end diagram-data" comment; everything after it is editor code
+     (CSS, JS, icons) and says nothing about the diagram. To print just the model:
+     sed -n '/<script id="diagram-data" type="application\/json">/,/<\/script>/p' FILE
+     python -c "import re,sys;print(re.search(r'<script id=\"diagram-data\" type=\"application\/json\">(.*?)<\/script>',open(sys.argv[1],encoding='utf8').read(),re.S)[1])" FILE -->
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{{TYPE_TITLE}}</title>
+  <title>{{PAGE_TITLE}}</title>
+  <!-- Diagram model: the source of truth for this page.
+       {{TYPE_DATA_NOTE}}
+       Everything after this block is the editor. -->
+  <script id="diagram-data" type="application/json">
+{{DATA}}
+  </script>
+  <!-- end diagram-data -->
   <style>
 {{SHELL_FONTS}}
 {{SHELL_CSS}}
@@ -17,7 +29,7 @@
     <div class="toolbar-left">
       {{TYPE_ICON}}
       <div class="app-title-container">
-        <h1 id="chart-title" contenteditable="false" spellcheck="false" title="Double-click to rename diagram">{{TYPE_TITLE}}</h1>
+        <h1 id="chart-title" contenteditable="false" spellcheck="false" title="Double-click to rename diagram">{{PAGE_TITLE}}</h1>
         <span id="save-status" class="badge badge-status">Ready</span>
       </div>
     </div>
@@ -99,11 +111,6 @@
 {{SHELL_HELP}}
     </ul>
   </aside>
-
-  <!-- CANONICAL DATA BLOCK (Single Source of Truth) -->
-  <script id="diagram-data" type="application/json">
-{{DATA}}
-  </script>
 
   <!-- Interactive Diagram Script: shell, then the type's engine and plugin -->
   <script>

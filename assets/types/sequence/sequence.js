@@ -372,10 +372,27 @@
         relayout();
       });
 
+      // --- DISK FORMAT (the page's data block) ---
+      // No positions are saved: render() lays out whatever is missing, so the block holds only the logical model,
+      // in a fixed key order. scripts/disk_format.py is the Python twin: keep the two byte-identical.
+      // fromDisk is not needed (the block is the model minus positions).
+      const DISK_KEYS = ['diagramType', 'schemaVersion', 'title', 'participants', 'messages', 'fragments'];
+      function toDisk(data) {
+        const d = JSON.parse(JSON.stringify(data));
+        delete d.layout;   // canvas size, derived by the engine
+        [['participants', ['x']], ['messages', ['y']], ['fragments', ['x', 'y', 'w', 'h', 'elseY']]].forEach(([list, keys]) =>
+          (d[list] || []).forEach(o => keys.forEach(k => { delete o[k]; })));
+        const out = {};
+        DISK_KEYS.forEach(k => { if (k in d) out[k] = d[k]; });
+        Object.keys(d).forEach(k => { if (!(k in out)) out[k] = d[k]; });
+        return out;
+      }
+
       // --- REGISTER WITH THE SHELL ---
       registerDiagramPlugin({
         id: 'sequence',
         defaultTitle: 'Interactive Sequence Diagram',
+        toDisk,
         contentEl: seqCanvas,
         report: { node: '.seq-participant', label: '.seq-msg-label', labelText: '.seq-msg-label-text', nodeText: '.seq-participant-name' },
         render,

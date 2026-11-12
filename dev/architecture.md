@@ -21,6 +21,7 @@ assets/
 scripts/
   layout_engine.py          CLI: --layout (assembles the page; --screenshot also renders + prints [DONE]/[NEXT]), --verify, --extract; AUDITS registry
   audit_sequence.py         sequence audit
+  disk_format.py            the page's data-block format: DISK_CODECS (to_disk/from_disk per type), format_json
   engine_runner.py          runs engine.js for --layout: Node.js via run_engine.mjs, else headless Chrome
   run_engine.mjs            Node entry: loads engine.js, reads diagram JSON on stdin, writes laid-out JSON
   render_screenshot.py      type-agnostic: screenshot + render report
@@ -44,6 +45,8 @@ A type's `<type>.js` ends by calling `registerDiagramPlugin({...})`. The shell c
 | `tidyResult()` | Publish positions as `<script id="tidy-result">` (used by `?tidy` and the parity check) |
 | `isBackground(el)` | True for blank canvas, so a drag pans instead of selecting |
 | `clearSelection()`, `cancelInteraction()`, `deleteSelection()` | Selection and Escape/Delete handling; `cancelInteraction()` returns true if it cancelled something |
+| `toDisk(data)` (optional) | Returns a new object to write into the page's data block (the [disk format](#disk-format)); must not mutate `chartData`. Missing means the block holds the in-memory model as is. |
+| `fromDisk(data)` (optional) | Inverse of `toDisk`: the in-memory model from the data block. Missing means identity (the sequence plugin needs none). |
 | `contentOverflow()` (optional) | `{left, top, right, bottom}`: unscaled px that content reaches past `contentEl`'s edges, so Fit and the screenshot crop include it. The flowchart reports notes on show that sit in the margin. |
 | `onViewChange()` (optional) | Called after every pan/zoom. The flowchart uses it to float a lane name pill at the visible top-left of each lane once the header column is panned out of view. While an export reads computed styles the shell sets `body.exporting`, so view-dependent styles can reset there. |
 
@@ -52,6 +55,21 @@ Plugins share the shell's scope: `chartData`, `scale`/`panX`/`panY`, `viewport`,
 Undo/redo lives in the shell: each `updateStatus(true)` snapshots `chartData` (as JSON) onto the history, and undo swaps `chartData` for the previous snapshot and calls `render()`. A plugin therefore gets undo for free if it calls `updateStatus(true)` exactly once per finished edit (on pointerup, not on every pointermove) and keeps no references into `chartData` across renders.
 
 The sequence plugin always derives positions from its engine. The flowchart has an **auto layout** mode (on by default; the dock's Auto-Tidy switch, remembered in `localStorage`, not saved in the file). While it is on, `relayout()` (engine, render, then `updateStatus(true)`, so the edit and its re-layout are one undo step) runs after every *step* edit: adding, moving or deleting a step, and adding, reordering or deleting a lane. The exception is a shape dragged from the dock onto blank canvas: it has no arrows yet, so it stays where it is dropped (a re-layout would only throw it to the start of the flow). *Arrow* edits (connect, reconnect, delete, label) deliberately do not re-lay out: reordering steps means rewiring several arrows, and re-laying out each intermediate graph would make the diagram jump. The engine reads only structure (arrows, lane membership, lane order), not x/y, so with auto layout on a drag only chooses a lane or an arrow to insert into. With it off, the page behaves as a manual editor (drop where you like, snap guides) and only the Tidy button re-lays out.
+
+## Disk format
+
+The page's `<script id="diagram-data">` block is written for a reader (an agent opening the file), not for the engine. It sits in `<head>` straight after `<title>`, with a reading guide on line 2 and an `<!-- end diagram-data -->` marker after it, so the model is in the first lines of the file. The in-memory model (engines, renderers, audits, undo history) is unchanged; the conversion happens only where JSON is read from or written to the page:
+
+| | In memory | On disk |
+|---|---|---|
+| Key order | any | fixed: flowchart `diagramType, schemaVersion, title, direction, swimlanes, showNotes, lanes, nodes, edges, notes, layout`; sequence `diagramType, schemaVersion, title, participants, messages, fragments`; unknown keys last |
+| Flowchart positions | node `x`/`y`, lane `height`/`color` on the objects | one trailing `layout` map keyed by id |
+| Flowchart node order | any | flow order: `(x, lane index, y)`. `x` runs along the flow in both directions, so no graph walk is needed. `check_golden.py` proves the order never changes a layout |
+| Editor-generated ids (`n_<timestamp>`, `c_`, `e_`, `lane_`) | kept for the session | renamed: `n_<label slug>`, `c_<letter>_in/out`, next free `e<N>`, `lane-<name slug>`; references follow. Authored ids are never touched |
+| Sequence positions | `participants[].x`, `messages[].y`, fragment boxes, `layout` size | not saved: `render()` lays out what is missing |
+| Formatting | | `format_json` / `formatJson`: one line per flat object (a lane, a node, an edge, a layout entry) |
+
+Two implementations exist: `scripts/disk_format.py` (`DISK_CODECS`, used by `assemble_page()`, `extract_data_from_html()` and `--extract`) and the plugins' `toDisk`/`fromDisk` plus the shell's `formatJson`. They must agree byte for byte: `e2e_shell.mjs` and `e2e_sequence.mjs` save a generated page without edits and compare the block. `--extract` prints the authoring JSON: the disk model without `layout`. On Save the shell also writes the diagram title into `<title>` and the header `<h1>`.
 
 ## One engine per type
 
@@ -78,11 +96,11 @@ The `sequence` type is the reference for a type that shares nothing with the flo
 
 | Command | Proves |
 |---|---|
-| `python dev/build_examples.py --check` | `dev/samples/example-*.html` (built from `references/examples/example-*.json`) match what the current shell, plugins and engines would build. Run without `--check` to rebuild them after any change. |
-| `python dev/check_golden.py` | Engine output for every `dev/fixtures/*.json` equals `dev/fixtures/golden/`, and the audit scores >= 90. Use `--update` after an intentional engine change and review the diff. |
-| `node dev/e2e_shell.mjs --browser <chrome> --laid <html> --scrambled <html>` | Shell wiring through the flowchart plugin: Auto-Tidy button, tidy-on-edit, Delete/Escape, undo/redo, background click, theme, Save path, `?present` |
+| `python dev/build_examples.py --check` | `dev/samples/example-*.html` (built from `references/examples/example-*.json`) match what the current shell, plugins and engines would build, and each has what an agent reads first: the reading guide on line 2, the data block in `<head>` with its end marker, the real title, and guide commands that print valid JSON. Run without `--check` to rebuild them after any change. |
+| `python dev/check_golden.py` | Engine output for every `dev/fixtures/*.json` equals `dev/fixtures/golden/`, and the audit scores >= 90. For flowcharts, laying out the flow-ordered disk model again moves nothing (both directions). Use `--update` after an intentional engine change and review the diff. |
+| `node dev/e2e_shell.mjs --browser <chrome> --laid <html> --scrambled <html>` | Shell wiring through the flowchart plugin: Auto-Tidy button, tidy-on-edit, Delete/Escape, undo/redo, background click, theme, Save path, `?present`; the saved file (captured as a download): data block byte-identical to the generated one, title written escaped, generated ids renamed and authored ids kept, steps in flow order |
 | `node dev/e2e_connectors.mjs --browser <chrome> --forward <html> --loop <html> --merge <html> --split <html>` | On-page connectors, on the `dev/fixtures/flowchart/unsplit/connector-*.json` twins laid out (`--split`: `connector-forward.json` laid out): Split chip makes a pair with no step moved, hover lights the partner, click pans to it (also in `?present`), rename renames both and refuses a letter in use, Delete joins and restores label and `feedback`, merge via the chip, undo/redo, refusals (hand-drawn arrows, notes), SVG export |
 | `python dev/make_unsplit.py [--check]` | Rewrites (or checks) the unsplit twin of each `connector-*.json` fixture. `check_golden.py` lays out both, left to right and top to bottom, and fails if any step or lane height differs: splitting an arrow never moves a step. |
 | `node dev/e2e_shapes.mjs --browser <chrome> --page <html>` | Classic flowchart shapes, on `dev/fixtures/flowchart/classic-shapes.json` laid out: each Shapes tile adds its type, drop onto an arrow, arrow ends on the outline (left to right and top to bottom), SVG export carries each outline |
-| `node dev/e2e_sequence.mjs --browser <chrome> --page <html>` | Sequence plugin: select/delete, reorder by drag, add, frames, inline edit, `?present` |
+| `node dev/e2e_sequence.mjs --browser <chrome> --page <html>` | Sequence plugin: select/delete, reorder by drag, add, frames, inline edit, `?present`, and a save without edits writes the generated block unchanged (no positions) |
 | `python scripts/render_screenshot.py --input <html>` | Render report and legibility gates |

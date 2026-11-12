@@ -985,9 +985,21 @@
         };
         const used = {};
         const use = (id, side) => { (used[id] = used[id] || new Set()).add(side); };
+        const branchSides = {};   // decision id -> sides its outgoing branches take
         real.forEach(e => {
           if (e.from === e.to) return;
-          use(e.from, sideFor(e.from, e.to, true));
+          let out = sideFor(e.from, e.to, true);
+          // A decision gives each branch its own side: a second branch toward a side already taken by a branch
+          // leaves across, toward its target's lane (as the router draws it)
+          if (byId[e.from].type === 'decision') {
+            const taken = branchSides[e.from] = branchSides[e.from] || new Set();
+            if (taken.has(out) && (out === 'after' || out === 'before')) {
+              const ln = laneIdx[byId[e.from].laneId], lm = laneIdx[byId[e.to].laneId];
+              if (lm !== ln) out = lm > ln ? 'far' : 'near';
+            }
+            taken.add(out);
+          }
+          use(e.from, out);
           use(e.to, sideFor(e.to, e.from, false));
         });
 
@@ -1053,9 +1065,14 @@
           const free = (k) => !(used[id] && used[id].has(k.side));
           // Comfortable spacing first (a free side, then any side), then the same spots with tight spacing
           const tight = cands.map(k => ({ ...k, compact: true }));
-          let pick = cands.find(k => free(k) && ok(k)) || cands.find(ok) || tight.find(k => free(k) && ok(k)) || tight.find(ok);
-          if (!pick) {
-            pick = tight[0];
+          let pick = cands.find(k => free(k) && ok(k)) || tight.find(k => free(k) && ok(k));
+          // No free side: a stub that leaves through a side another arrow uses shares that arrow's first stretch, so
+          // a labelled stub's label and the other arrow's label compete for one gap. Widen the column (below) so both
+          // fit, as when the connector fits nowhere. An unlabelled stub just takes the used side.
+          const crowded = !pick && !!String(s.stub.label || '').trim();
+          pick = pick || cands.find(ok) || tight.find(ok);
+          if (!pick || crowded) {
+            pick = pick || tight[0];
             if (!final) {
               // Widen the column on the preferred side along the flow
               const side = sides.find(x => x === 'after' || x === 'before');

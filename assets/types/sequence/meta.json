@@ -1,3 +1,4 @@
 {
-  "title": "Interactive Sequence Diagram"
+  "title": "Interactive Sequence Diagram",
+  "dataNote": "\"participants\" are in column order and \"messages\" in time order; a fragment frames the\n       messages \"from\" .. \"to\" (message ids). Positions are not saved: the page lays them out on load."
 }
