@@ -23,6 +23,10 @@
               <button id="btn-add-decision" class="btn btn-shape" data-node-type="decision" title="Decision (click, or drag onto the canvas or onto an arrow)" aria-label="Decision">
                 <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 2 12l10 9 10-9z"/></svg><span class="tile-caption">Decision</span>
               </button>
+              <!-- Not a node of its own: a connector pair replaces an arrow (no data-node-type; see the CONNECTOR TOOL in flowchart.js) -->
+              <button id="btn-add-connector" class="btn btn-shape btn-connector-tool" title="Connector: drag onto an arrow to break it into a lettered pair (or click to split the selected arrow)" aria-label="Connector">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path class="tile-line" d="M0.5 12H2M22 12h1.5"/><path class="tile-line tile-gap" d="M10.5 12h3" stroke-dasharray="1 2"/><circle cx="6" cy="12" r="4"/><circle cx="18" cy="12" r="4"/></svg><span class="tile-caption">Connector</span>
+              </button>
             </div>
           </div>
           <div class="dock-pop-section">

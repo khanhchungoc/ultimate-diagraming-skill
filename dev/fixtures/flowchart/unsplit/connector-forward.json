@@ -1,0 +1,138 @@
+{
+  "diagramType": "flowchart",
+  "title": "Connector: a long forward arrow across lanes, split into an A pair (unsplit twin)",
+  "lanes": [
+    {
+      "id": "lane-customer",
+      "name": "Customer",
+      "icon": "user"
+    },
+    {
+      "id": "lane-agent",
+      "name": "Claims Agent",
+      "icon": "headset"
+    },
+    {
+      "id": "lane-assessor",
+      "name": "Assessor",
+      "icon": "clipboard"
+    },
+    {
+      "id": "lane-finance",
+      "name": "Finance",
+      "icon": "banknote"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "n1",
+      "laneId": "lane-customer",
+      "type": "start",
+      "label": "Claim Filed"
+    },
+    {
+      "id": "n2",
+      "laneId": "lane-customer",
+      "type": "task",
+      "label": "Submit Claim Form"
+    },
+    {
+      "id": "n3",
+      "laneId": "lane-agent",
+      "type": "task",
+      "label": "Register Claim"
+    },
+    {
+      "id": "n4",
+      "laneId": "lane-agent",
+      "type": "decision",
+      "label": "Fast-Track Eligible?"
+    },
+    {
+      "id": "n5",
+      "laneId": "lane-assessor",
+      "type": "task",
+      "label": "Inspect Vehicle"
+    },
+    {
+      "id": "n6",
+      "laneId": "lane-assessor",
+      "type": "task",
+      "label": "Estimate Repair Cost"
+    },
+    {
+      "id": "n7",
+      "laneId": "lane-assessor",
+      "type": "task",
+      "label": "Approve Estimate"
+    },
+    {
+      "id": "n8",
+      "laneId": "lane-finance",
+      "type": "task",
+      "label": "Pay Claim"
+    },
+    {
+      "id": "n9",
+      "laneId": "lane-finance",
+      "type": "end",
+      "label": "Claim Settled"
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "from": "n1",
+      "to": "n2",
+      "label": ""
+    },
+    {
+      "id": "e2",
+      "from": "n2",
+      "to": "n3",
+      "label": ""
+    },
+    {
+      "id": "e3",
+      "from": "n3",
+      "to": "n4",
+      "label": ""
+    },
+    {
+      "id": "e4",
+      "from": "n4",
+      "to": "n5",
+      "label": "No"
+    },
+    {
+      "id": "e5",
+      "from": "n5",
+      "to": "n6",
+      "label": ""
+    },
+    {
+      "id": "e6",
+      "from": "n6",
+      "to": "n7",
+      "label": ""
+    },
+    {
+      "id": "e7",
+      "from": "n7",
+      "to": "n8",
+      "label": ""
+    },
+    {
+      "id": "e8",
+      "from": "n4",
+      "to": "n8",
+      "label": "Yes"
+    },
+    {
+      "id": "e10",
+      "from": "n8",
+      "to": "n9",
+      "label": ""
+    }
+  ]
+}

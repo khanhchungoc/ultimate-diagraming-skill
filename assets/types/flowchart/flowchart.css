@@ -440,6 +440,91 @@
     .edge-end-handle:hover { background: var(--primary); }
     body.reconnecting .edge-end-handle { cursor: grabbing; }
     body.presentation .edge-end-handle { display: none !important; }
+
+    /* On-page connector: a 32px circle with its letter, navy like the end node so a pair reads as a set. No ports
+       (a pair is never wired by hand) and no note chip (a connector is not a step). Clickable in ?present: a click
+       jumps to the other end. */
+    .flow-node.type-connector {
+      --node-accent: var(--end-accent);
+      width: 32px;
+      height: 32px;
+      padding: 0;
+      border-radius: 50%;
+      background: var(--end-bg);
+      border-color: var(--end-border);
+      color: var(--end-text);
+      font-size: 0.875rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .flow-node.type-connector .node-label { width: 100%; min-width: 0; -webkit-line-clamp: 1; cursor: pointer; }
+    .flow-node.type-connector .node-label[contenteditable="true"] { cursor: text; }
+    .flow-node.type-connector:is(:hover, .selected, .pair-lit) { border-color: var(--node-accent); }
+    .flow-node.type-connector.pair-lit { box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 35%, transparent); }
+    .flow-node.type-connector .port { display: none !important; }
+    body.presentation .flow-node.type-connector { pointer-events: auto !important; }
+    .connector-guide {
+      stroke: var(--primary);
+      stroke-width: 1.5px;
+      stroke-dasharray: 1 5;
+      stroke-linecap: round;
+      fill: none;
+      pointer-events: none;
+    }
+    .flow-node.connector-pulse { animation: connector-pulse 1.1s ease-out; }
+    @keyframes connector-pulse {
+      0%   { box-shadow: 0 0 0 0 color-mix(in srgb, var(--primary) 65%, transparent); }
+      100% { box-shadow: 0 0 0 18px color-mix(in srgb, var(--primary) 0%, transparent); }
+    }
+    @media (prefers-reduced-motion: reduce) { .flow-node.connector-pulse { animation: none; box-shadow: 0 0 0 3px var(--primary); } }
+    /* The selected arrow's Split chip, beside its label, and the choice it opens when a pair can be joined */
+    .edge-split-chip {
+      position: absolute;
+      transform: translate(-50%, -50%);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px;
+      height: 24px;
+      padding: 0;
+      border-radius: 999px;
+      border: 1.5px solid var(--primary);
+      background: var(--node-bg);
+      color: var(--primary);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+      cursor: pointer;
+      pointer-events: auto;
+      z-index: 33;
+    }
+    .edge-split-chip:hover, .edge-split-chip:focus-visible { background: var(--primary); color: var(--node-bg); }
+    .edge-split-menu {
+      position: absolute;
+      transform: translateX(-50%);
+      display: flex;
+      flex-direction: column;
+      min-width: 140px;
+      padding: 4px;
+      border-radius: 8px;
+      border: 1px solid var(--border-dark);
+      background: var(--bg-panel);
+      box-shadow: 0 6px 18px rgba(0,0,0,0.16);
+      pointer-events: auto;
+      z-index: 34;
+    }
+    .edge-split-menu button {
+      padding: 6px 10px;
+      border: none;
+      border-radius: 6px;
+      background: transparent;
+      color: inherit;
+      font: inherit;
+      font-size: 0.8125rem;
+      text-align: left;
+      white-space: nowrap;
+      cursor: pointer;
+    }
+    .edge-split-menu button:is(:hover, :focus-visible) { background: color-mix(in srgb, var(--primary) 14%, transparent); outline: none; }
+    body.presentation :is(.edge-split-chip, .edge-split-menu) { display: none !important; }
     .port:hover {
       transform: translate(-50%, -50%) scale(1.35);
       background: var(--node-accent, var(--primary));
@@ -647,6 +732,22 @@
     .btn-shape:is([data-node-type="subprocess"], [data-node-type="io"], [data-node-type="document"],
       [data-node-type="database"], [data-node-type="delay"]):hover svg > * { stroke: var(--task-accent); }
     .btn-shape svg > .tile-line { fill: none; }
+    /* Connector tile: the pair of navy circles a split arrow becomes */
+    .btn-connector-tool svg > circle { fill: var(--end-bg); stroke: var(--end-border); }
+    .btn-connector-tool svg > .tile-line { stroke: var(--border-dark); }
+    .btn-connector-tool:hover svg > circle { stroke: var(--end-accent); }
+    /* Dragging the Connector tile: a lettered circle trails the cursor; over an arrow that can be split, it is solid */
+    .connector-ghost {
+      position: fixed;
+      z-index: 1000;
+      pointer-events: none;
+      transform-origin: 0 0;
+      left: 0; top: 0;
+      opacity: 0.55;
+    }
+    .connector-ghost.over-arrow { opacity: 0.95; }
+    body.connector-picking .connector-hit { cursor: copy !important; }
+    body.connector-picking .connector-path:hover { stroke: var(--primary); }
     .palette-ghost {
       position: fixed;
       z-index: 1000;

@@ -1,0 +1,135 @@
+{
+  "diagramType": "flowchart",
+  "title": "Connector: a long same-lane loop-back, split into an A pair",
+  "lanes": [
+    {
+      "id": "lane-applicant",
+      "name": "Applicant",
+      "icon": "user"
+    },
+    {
+      "id": "lane-reviewer",
+      "name": "Credit Reviewer",
+      "icon": "shield"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "n1",
+      "laneId": "lane-applicant",
+      "type": "start",
+      "label": "Loan Requested"
+    },
+    {
+      "id": "n2",
+      "laneId": "lane-applicant",
+      "type": "task",
+      "label": "Submit Application"
+    },
+    {
+      "id": "n3",
+      "laneId": "lane-reviewer",
+      "type": "task",
+      "label": "Check Identity"
+    },
+    {
+      "id": "n4",
+      "laneId": "lane-reviewer",
+      "type": "task",
+      "label": "Check Income"
+    },
+    {
+      "id": "n5",
+      "laneId": "lane-reviewer",
+      "type": "task",
+      "label": "Check Credit History"
+    },
+    {
+      "id": "n6",
+      "laneId": "lane-reviewer",
+      "type": "decision",
+      "label": "Risk Acceptable?"
+    },
+    {
+      "id": "c1",
+      "laneId": "lane-reviewer",
+      "type": "connector",
+      "label": "A"
+    },
+    {
+      "id": "c2",
+      "laneId": "lane-reviewer",
+      "type": "connector",
+      "label": "A"
+    },
+    {
+      "id": "n7",
+      "laneId": "lane-reviewer",
+      "type": "task",
+      "label": "Approve Loan"
+    },
+    {
+      "id": "n8",
+      "laneId": "lane-applicant",
+      "type": "end",
+      "label": "Loan Granted"
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "from": "n1",
+      "to": "n2",
+      "label": ""
+    },
+    {
+      "id": "e2",
+      "from": "n2",
+      "to": "n3",
+      "label": ""
+    },
+    {
+      "id": "e3",
+      "from": "n3",
+      "to": "n4",
+      "label": ""
+    },
+    {
+      "id": "e4",
+      "from": "n4",
+      "to": "n5",
+      "label": ""
+    },
+    {
+      "id": "e5",
+      "from": "n5",
+      "to": "n6",
+      "label": ""
+    },
+    {
+      "id": "e6",
+      "from": "n6",
+      "to": "n7",
+      "label": "Yes"
+    },
+    {
+      "id": "e7",
+      "from": "n6",
+      "to": "c1",
+      "label": "No",
+      "feedback": true
+    },
+    {
+      "id": "e8",
+      "from": "c2",
+      "to": "n3",
+      "label": ""
+    },
+    {
+      "id": "e9",
+      "from": "n7",
+      "to": "n8",
+      "label": ""
+    }
+  ]
+}

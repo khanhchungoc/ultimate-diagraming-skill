@@ -58,9 +58,24 @@ class FlowchartAudit:
             self.node_w, self.base_h, self.dec_h = DEFAULT_NODE_WIDTH, DEFAULT_NODE_HEIGHT, DECISION_NODE_HEIGHT
             self.lane_min, self.bottom_pad, self.col_w = LANE_MIN_HEIGHT, LANE_BOTTOM_PADDING, DEFAULT_COL_WIDTH
 
+    CONNECTOR_SIZE = 32  # engine.js CONN.SIZE: an on-page connector is a 32px circle at its own x/y, in both directions
+
     def node_h(self, node: Dict[str, Any]) -> int:
         """A node's extent across its lane."""
+        if node.get("type") == "connector":
+            return self.CONNECTOR_SIZE
         return self.dec_h if node.get("type") == "decision" else self.base_h
+
+    def node_wf(self, node: Dict[str, Any]) -> int:
+        """A node's extent along the flow."""
+        return self.CONNECTOR_SIZE if node.get("type") == "connector" else self.node_w
+
+    def _lane_floor(self, lid: str) -> int:
+        """How tall a lane must be for its nodes: the lowest step plus decision room, or the lowest connector's bottom
+        (a connector is placed inside the lane's existing bounds, so it never makes room for a decision below it)."""
+        steps = [n.get("y", 0) for n in self.nodes if n.get("laneId") == lid and n.get("type") != "connector"]
+        conns = [n.get("y", 0) + self.CONNECTOR_SIZE for n in self.nodes if n.get("laneId") == lid and n.get("type") == "connector"]
+        return max([(max(steps) if steps else 48) + self.dec_h + 30] + conns)
 
     title = "Flowchart"
 
@@ -115,8 +130,7 @@ class FlowchartAudit:
         for lane in self.lanes:
             lid = lane["id"]
             lane_tops[lid] = curr_y
-            max_y = max((n.get("y", 0) for n in self.nodes if n.get("laneId") == lid), default=48)
-            h = max(lane.get("height", self.lane_min), max_y + self.dec_h + 30)
+            h = max(lane.get("height", self.lane_min), self._lane_floor(lid))
             lane_heights[lid] = h
             curr_y += h
 
@@ -129,7 +143,8 @@ class FlowchartAudit:
             else:
                 ny = node.get("y", 0)
                 lh = lane_heights[lid]
-                if ny < 10 or ny + nh > lh:
+                top_min = 2 if node.get("type") == "connector" else 10
+                if ny < top_min or ny + nh > lh:
                     overflow_issues.append(
                         f"Node '{node['id']}' (y={ny}, h={nh}) overflows lane '{lid}' height ({lh}px)."
                     )
@@ -138,7 +153,7 @@ class FlowchartAudit:
         for i, n1 in enumerate(self.nodes):
             x1 = n1.get("x", 0)
             y1 = n1.get("y", 0)
-            w1 = self.node_w
+            w1 = self.node_wf(n1)
             h1 = self.node_h(n1)
 
             for j in range(i + 1, len(self.nodes)):
@@ -147,7 +162,7 @@ class FlowchartAudit:
                     continue
                 x2 = n2.get("x", 0)
                 y2 = n2.get("y", 0)
-                w2 = self.node_w
+                w2 = self.node_wf(n2)
                 h2 = self.node_h(n2)
 
                 overlap_x = max(0, min(x1 + w1, x2 + w2) - max(x1, x2))
@@ -165,7 +180,7 @@ class FlowchartAudit:
             nx = float(n.get("x", 0))
             ny = float(lane_tops.get(n["laneId"], 0) + n.get("y", 0))
             nh = float(self.node_h(n))
-            rects[n["id"]] = (nx, ny, float(self.node_w), nh)
+            rects[n["id"]] = (nx, ny, float(self.node_wf(n)), nh)
 
         polylines = self._route_all_edges(rects)
 
@@ -276,7 +291,7 @@ class FlowchartAudit:
 
         max_x = max((float(n.get("x", 0)) for n in self.nodes), default=float(START_X))
         column_count = int(round((max_x - START_X) / self.col_w)) + 1
-        budget_warnings: List[str] = (self._node_type_warnings() + self._lane_icon_warnings()
+        budget_warnings: List[str] = (self._node_type_warnings() + self._connector_warnings() + self._lane_icon_warnings()
                                       + self._outcome_label_warnings() + self._note_warnings())
 
         return {
@@ -301,7 +316,7 @@ class FlowchartAudit:
         }
 
     # Keep in sync with SHAPE_OUTLINES / NODE_DEFAULTS in flowchart.js and the schema in references/types/flowchart.md
-    NODE_TYPES = ("start", "end", "task", "decision", "subprocess", "io", "document", "database", "delay")
+    NODE_TYPES = ("start", "end", "task", "decision", "subprocess", "io", "document", "database", "delay", "connector")
 
     def _node_type_warnings(self) -> List[str]:
         """An unknown node type renders as a plain box, so the shape the author meant silently disappears."""
@@ -311,6 +326,49 @@ class FlowchartAudit:
             for n in self.nodes
             if n.get("type", "task") not in self.NODE_TYPES
         ]
+
+    # engine.js CONNECTOR_LETTERS: A-Z without I and O (read as 1 and 0), then AA, AB, ...
+    CONNECTOR_LETTER = re.compile(r"^[A-HJ-NP-Z]+$")
+
+    def _connector_warnings(self) -> List[str]:
+        """On-page connectors come in pairs by letter: one out-connector (arrows out, none in) and one or more
+        in-connectors (arrows in, none out). Anything else leaves a reader with an end that leads nowhere."""
+        conns = [n for n in self.nodes if n.get("type") == "connector"]
+        if not conns:
+            return []
+        ins = {c["id"]: [e for e in self.edges if e.get("to") == c["id"]] for c in conns}
+        outs = {c["id"]: [e for e in self.edges if e.get("from") == c["id"]] for c in conns}
+        warnings: List[str] = []
+        by_letter: Dict[str, Dict[str, List[str]]] = {}
+        for c in conns:
+            cid, letter = c["id"], str(c.get("label", "")).strip().upper()
+            if not self.CONNECTOR_LETTER.match(letter):
+                warnings.append(f"Connector '{cid}' has label '{c.get('label', '')}'. A connector's label is its letter: "
+                                f"A to Z without I and O, then AA, AB, ...")
+            if ins[cid] and outs[cid]:
+                warnings.append(f"Connector '{cid}' ({letter}) has arrows both in and out. An in-connector only takes "
+                                f"arrows in, its out-connector only sends them on.")
+            elif not ins[cid] and not outs[cid]:
+                warnings.append(f"Connector '{cid}' ({letter}) has no arrows. Remove it, or connect it.")
+            role = "in" if ins[cid] and not outs[cid] else "out" if outs[cid] and not ins[cid] else None
+            if role:
+                by_letter.setdefault(letter, {"in": [], "out": []})[role].append(cid)
+            for e in ins[cid] + outs[cid]:
+                other = self.node_map.get(e.get("from") if e.get("to") == cid else e.get("to"))
+                if other and other.get("type") == "connector":
+                    warnings.append(f"Edge '{e.get('id')}' joins two connectors. Each connector is one end of an arrow "
+                                    f"between two steps.")
+        for letter, roles in by_letter.items():
+            if roles["in"] and not roles["out"]:
+                warnings.append(f"Connector letter '{letter}' has no out-connector: the flow into "
+                                f"{', '.join(roles['in'])} continues nowhere. Add one with an arrow to the next step.")
+            if roles["out"] and not roles["in"]:
+                warnings.append(f"Connector letter '{letter}' has no in-connector: nothing flows into "
+                                f"{', '.join(roles['out'])}. Add one next to the step the flow comes from.")
+            if len(roles["out"]) > 1:
+                warnings.append(f"Connector letter '{letter}' has {len(roles['out'])} out-connectors "
+                                f"({', '.join(roles['out'])}): one flow cannot continue in two places. Keep one.")
+        return warnings
 
     def _lane_icon_warnings(self) -> List[str]:
         """Every swimlane header carries an icon: it makes the owner recognisable at a glance."""
@@ -410,7 +468,7 @@ class FlowchartAudit:
             nx = float(n.get("x", 0))
             ny = float(lane_tops.get(n["laneId"], 0) + n.get("y", 0))
             nh = float(self.node_h(n))
-            rects[n["id"]] = (nx, ny, float(self.node_w), nh)
+            rects[n["id"]] = (nx, ny, float(self.node_wf(n)), nh)
 
         polylines = self._route_all_edges(rects)
         return self._count_crossings_from_polylines(polylines)

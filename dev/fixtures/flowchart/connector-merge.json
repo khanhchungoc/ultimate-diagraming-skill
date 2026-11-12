@@ -1,0 +1,175 @@
+{
+  "diagramType": "flowchart",
+  "title": "Connector: two in-connectors continuing at one out-connector",
+  "lanes": [
+    {
+      "id": "lane-customer",
+      "name": "Customer",
+      "icon": "user"
+    },
+    {
+      "id": "lane-support",
+      "name": "Support",
+      "icon": "headset"
+    },
+    {
+      "id": "lane-eng",
+      "name": "Engineering",
+      "icon": "cog"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "n1",
+      "laneId": "lane-customer",
+      "type": "start",
+      "label": "Ticket Raised"
+    },
+    {
+      "id": "n2",
+      "laneId": "lane-support",
+      "type": "task",
+      "label": "Triage Ticket"
+    },
+    {
+      "id": "n3",
+      "laneId": "lane-support",
+      "type": "decision",
+      "label": "Known Issue?"
+    },
+    {
+      "id": "c1",
+      "laneId": "lane-support",
+      "type": "connector",
+      "label": "A"
+    },
+    {
+      "id": "n4",
+      "laneId": "lane-eng",
+      "type": "task",
+      "label": "Reproduce Bug"
+    },
+    {
+      "id": "n5",
+      "laneId": "lane-eng",
+      "type": "decision",
+      "label": "Reproducible?"
+    },
+    {
+      "id": "c2",
+      "laneId": "lane-eng",
+      "type": "connector",
+      "label": "A"
+    },
+    {
+      "id": "n6",
+      "laneId": "lane-eng",
+      "type": "task",
+      "label": "Fix Bug"
+    },
+    {
+      "id": "n7",
+      "laneId": "lane-eng",
+      "type": "task",
+      "label": "Deploy Fix"
+    },
+    {
+      "id": "n8",
+      "laneId": "lane-customer",
+      "type": "task",
+      "label": "Confirm Fix"
+    },
+    {
+      "id": "c3",
+      "laneId": "lane-support",
+      "type": "connector",
+      "label": "A"
+    },
+    {
+      "id": "n9",
+      "laneId": "lane-support",
+      "type": "task",
+      "label": "Close Ticket"
+    },
+    {
+      "id": "n10",
+      "laneId": "lane-support",
+      "type": "end",
+      "label": "Ticket Closed"
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "from": "n1",
+      "to": "n2",
+      "label": ""
+    },
+    {
+      "id": "e2",
+      "from": "n2",
+      "to": "n3",
+      "label": ""
+    },
+    {
+      "id": "e3",
+      "from": "n3",
+      "to": "c1",
+      "label": "Yes"
+    },
+    {
+      "id": "e4",
+      "from": "n3",
+      "to": "n4",
+      "label": "No"
+    },
+    {
+      "id": "e5",
+      "from": "n4",
+      "to": "n5",
+      "label": ""
+    },
+    {
+      "id": "e6",
+      "from": "n5",
+      "to": "c2",
+      "label": "No"
+    },
+    {
+      "id": "e7",
+      "from": "n5",
+      "to": "n6",
+      "label": "Yes"
+    },
+    {
+      "id": "e8",
+      "from": "n6",
+      "to": "n7",
+      "label": ""
+    },
+    {
+      "id": "e9",
+      "from": "n7",
+      "to": "n8",
+      "label": ""
+    },
+    {
+      "id": "e10",
+      "from": "n8",
+      "to": "n9",
+      "label": ""
+    },
+    {
+      "id": "e11",
+      "from": "c3",
+      "to": "n9",
+      "label": ""
+    },
+    {
+      "id": "e12",
+      "from": "n9",
+      "to": "n10",
+      "label": ""
+    }
+  ]
+}

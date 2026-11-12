@@ -71,7 +71,9 @@
         return f % 2 === 0 ? f : f + 1;
       };
 
-      function runLayoutEngine(lanes, nodes, edges) {
+      // `room` (optional, from placeConnectors' fallback): { after: {id: px}, before: {id: px} }, the gap a step needs
+      // after / before itself along the flow, so a connector fits there. It widens that one column step only.
+      function runLayoutEngine(lanes, nodes, edges, room) {
         if (!nodes.length) return;
         const KEY = (a, b) => a + '\u0001' + b;
         const laneIdx = {};
@@ -173,8 +175,13 @@
         // Horizontal step an arrow needs: normal = column width, zero = 0, tight = node width; a labelled
         // arrow also needs room for its label between the two nodes (vertical arrows, step 0, do not)
         const stepOf = (k, zero, tight) => {
-          const step = zero.has(k) ? 0 : (tight.has(k) ? LE.TIGHT_STEP : LE.COL_WIDTH);
-          return (step > 0 && labelGap[k]) ? Math.max(step, LE.NODE_W + labelGap[k]) : step;
+          let step = zero.has(k) ? 0 : (tight.has(k) ? LE.TIGHT_STEP : LE.COL_WIDTH);
+          if (step > 0 && labelGap[k]) step = Math.max(step, LE.NODE_W + labelGap[k]);
+          if (step > 0 && room) {
+            const [a, b] = k.split('\u0001');
+            step = Math.max(step, LE.NODE_W + (room.after[a] || 0), LE.NODE_W + (room.before[b] || 0));
+          }
+          return step;
         };
 
         // Longest-path x offsets (optionally no less than a per-node floor)
@@ -208,6 +215,16 @@
           return sum / preds.length;
         };
 
+        // Mean lane index the node's arrows (forward and loop-backs) lead to; its own lane when it has none
+        const outLanes = {};
+        edges.forEach(e => {
+          if (nodeMap[e.from] && nodeMap[e.to] && e.from !== e.to) (outLanes[e.from] = outLanes[e.from] || []).push(laneIdx[nodeMap[e.to].laneId] || 0);
+        });
+        const successorPull = (id, laneId) => {
+          const ls = outLanes[id];
+          return ls ? ls.reduce((s, l) => s + l, 0) / ls.length : (laneIdx[laneId] || 0);
+        };
+
         // Steps 3-6: order inside lanes, lane heights, x/y, nudge-to-align
         const placeNodes = (ranks, xs, zero, tight) => {
           const groups = new Map();
@@ -220,7 +237,12 @@
           groups.forEach(g => {
             if (g.list.length > 1) {
               const bc = new Map(g.list.map(n => [n.id, barycenter(n.id, ranks)]));
-              g.list.sort((a, b) => bc.get(a.id) - bc.get(b.id));
+              // Ties (typically branches of one decision) go by where each node's arrows lead: a node whose
+              // successors sit in lanes above (or that has none) takes the upper row, one heading to a lane below
+              // the lower row, so its arrow leaves toward its target instead of wrapping around its sibling
+              const pl = new Map(g.list.map(n => [n.id, successorPull(n.id, g.laneId)]));
+              g.list.sort((a, b) => (Math.abs(bc.get(a.id) - bc.get(b.id)) > 1e-9
+                ? bc.get(a.id) - bc.get(b.id) : pl.get(a.id) - pl.get(b.id)));
             }
           });
           const X = {};
@@ -806,7 +828,249 @@
       function layoutDiagram(data) {
         useDirection(data);
         if (data.swimlanes === false) normalizeSwimlanes(data);
-        runLayoutEngine(data.lanes || [], data.nodes || [], data.edges || []);
+        const lanes = data.lanes || [], nodes = data.nodes || [], edges = data.edges || [];
+        const c = collapseConnectors(nodes, edges);
+        runLayoutEngine(lanes, c.steps, c.edges);
+        if (!c.sats.length && !c.loose.length) return;
+        // A connector that fits nowhere widens the column next to its step (the only case where one moves a step),
+        // then every connector is placed again on the new layout
+        const room = placeConnectors(lanes, c);
+        if (room) {
+          runLayoutEngine(lanes, c.steps, c.edges, room);
+          placeConnectors(lanes, c, true);
+        }
+        centreLooseConnectors(c.loose);
+      }
+
+      // --- ON-PAGE CONNECTORS ---
+      // A connector ("type": "connector") is a small lettered circle standing for one end of a long arrow: the flow
+      // runs into circle A next to its source and continues out of circle A next to its target. Same letter = one
+      // pair: one out-connector (arrows out, none in) and one or more in-connectors (arrows in, none out).
+      // The layout must not see them: an out-connector has no incoming arrow, so it would rank as a new start, and
+      // each circle would cost a column. So layoutDiagram collapses every pair back into the whole arrow
+      // (src -> tgt, with the in-arrow's label and feedback flag), lays that out exactly as without connectors, and
+      // places each circle afterwards as a satellite beside the step it is attached to. Connector x/y are the
+      // circle's own top-left (CONN.SIZE square), in flow terms like a step's, not a slot corner.
+      // GAP: stub length without a label; LABEL_PAD: clear room on each side of a stub's label
+      const CONN = { SIZE: 32, GAP: 32, GAP_ACROSS: 20, LABEL_PAD: 16, CLEAR: 16, EDGE: 4, OFF_LINE: 8, CORNER_GAP: 12, CORNER_LEG: 56,
+        GAP_TIGHT: 24, LABEL_PAD_TIGHT: 6, CORNER_LEG_TIGHT: 48 };
+      const isConnector = (n) => !!n && n.type === 'connector';
+      const connectorLetter = (n) => String((n && n.label) || '').trim().toUpperCase();
+      // A, B, ... Z without I and O (read as 1 and 0), then AA, AB, ...
+      const CONNECTOR_LETTERS = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+      const isConnectorLetter = (s) => new RegExp(`^[${CONNECTOR_LETTERS}]+$`).test(String(s || ''));
+      function nextConnectorLetter(nodes) {
+        const used = new Set((nodes || []).filter(isConnector).map(connectorLetter));
+        for (let i = 0; ; i++) {
+          let s = '', k = i;
+          if (k < CONNECTOR_LETTERS.length) s = CONNECTOR_LETTERS[k];
+          else { k -= CONNECTOR_LETTERS.length; s = CONNECTOR_LETTERS[Math.floor(k / CONNECTOR_LETTERS.length) % CONNECTOR_LETTERS.length] + CONNECTOR_LETTERS[k % CONNECTOR_LETTERS.length]; }
+          if (!used.has(s)) return s;
+        }
+      }
+
+      // Split the diagram into what the layout sees and the connectors placed around it afterwards.
+      //   steps: every node but the satellites; edges: arrows between steps plus one virtual arrow per split arrow
+      //   (it takes the in-arrow's place and id, so the layout is the one the whole arrow gets)
+      //   sats: { node, anchor, role, stub, other } for each connector with one attached step; `other` is the step at
+      //   the far end of its pair (null without a partner)
+      //   loose: connectors with arrows both in and out, or none: laid out as ordinary steps (the audit warns)
+      function collapseConnectors(nodes, edges) {
+        const byId = {};
+        nodes.forEach(n => { byId[n.id] = n; });
+        const ins = {}, outs = {};
+        edges.forEach(e => {
+          if (isConnector(byId[e.to])) (ins[e.to] = ins[e.to] || []).push(e);
+          if (isConnector(byId[e.from])) (outs[e.from] = outs[e.from] || []).push(e);
+        });
+        const sats = [], satOf = {}, loose = [];
+        nodes.forEach(n => {
+          if (!isConnector(n)) return;
+          const i = ins[n.id] || [], o = outs[n.id] || [];
+          const role = i.length && !o.length ? 'in' : (o.length && !i.length ? 'out' : null);
+          const stub = role === 'in' ? i[0] : role === 'out' ? o[0] : null;
+          const anchor = stub && byId[role === 'in' ? stub.from : stub.to];
+          if (!anchor || isConnector(anchor)) { loose.push(n); return; }
+          satOf[n.id] = { node: n, anchor, role, stub, other: null, ids: new Set() };
+          sats.push(satOf[n.id]);
+        });
+        const outOf = {};   // letter -> its out-connector (the first one, if a letter has two: the audit warns)
+        sats.forEach(s => { if (s.role === 'out' && !outOf[connectorLetter(s.node)]) outOf[connectorLetter(s.node)] = s; });
+        const flat = [];
+        edges.forEach(e => {
+          const si = satOf[e.to];
+          if (si) {
+            const so = outOf[connectorLetter(si.node)];
+            if (!so) return;
+            outs[so.node.id].forEach((o, k) => {
+              if (!byId[o.to] || isConnector(byId[o.to])) return;
+              const v = { id: k ? `${e.id}~${o.id}` : e.id, from: e.from, to: o.to, label: e.label || '' };
+              if (e.feedback) v.feedback = true;
+              flat.push(v);
+              si.ids.add(v.id); so.ids.add(v.id);
+              if (!si.other) si.other = o.to;
+              if (!so.other) so.other = e.from;
+            });
+            return;
+          }
+          if (satOf[e.from]) return;
+          flat.push(e);
+        });
+        const virtual = new Set();
+        sats.forEach(s => s.ids.forEach(id => virtual.add(id)));
+        return { steps: nodes.filter(n => !satOf[n.id]), edges: flat, sats, loose, virtual };
+      }
+
+      // Auto layout off: steps stay where they are; only the connectors are placed beside them (lane heights as drawn)
+      function placeConnectorsInPlace(data) {
+        useDirection(data);
+        const c = collapseConnectors(data.nodes || [], data.edges || []);
+        if (c.sats.length) placeConnectors(data.lanes || [], c, true);
+      }
+
+      // A loose connector was laid out in a step's slot: centre its circle there
+      function centreLooseConnectors(loose) {
+        loose.forEach(n => {
+          n.x = (n.x || 0) + Math.round((LE.NODE_W - CONN.SIZE) / 2);
+          n.y = (n.y || 0) + Math.round((LE.NODE_H - CONN.SIZE) / 2);
+        });
+      }
+
+      // Place each satellite beside its step, in that step's lane. Sides, in flow terms: 'after' / 'before' along the
+      // flow, 'far' / 'near' across it (toward later / earlier lanes). Tried in order of preference:
+      //   - a split forward arrow: the side facing the other end along the flow (after the source, before the
+      //     target), then across toward the other end's lane, then the other across side, then the remaining side
+      //   - a split loop-back: across first (that is where loops run; along the flow carries the main line), then
+      //     after, then before
+      // then the same along-the-flow sides moved just off the step's centre line (beside an arrow leaving straight).
+      // A side already used by one of the step's own arrows is taken only when no free side fits. A spot fits when it
+      // stays inside the lane, keeps CLEAR from every step and connector and does not sit on a straight arrow. When
+      // none fits: with `final`, the first candidate is taken anyway; otherwise the column next to the step is widened
+      // (returned as `room` for runLayoutEngine) and the caller places every connector again.
+      function placeConnectors(lanes, c, final) {
+        const S = CONN.SIZE;
+        const laneIdx = {}, laneTop = {}, laneH = {};
+        let top = 0;
+        lanes.forEach((l, i) => { laneIdx[l.id] = i; laneTop[l.id] = top; laneH[l.id] = l.height || LE.LANE_MIN; top += laneH[l.id]; });
+        const nodeH = n => (n.type === 'decision' ? LE.DEC_H : LE.NODE_H);
+        const box = n => isConnector(n)
+          ? { x: n.x || 0, y: (laneTop[n.laneId] || 0) + (n.y || 0), w: S, h: S }
+          : { x: n.x || 0, y: (laneTop[n.laneId] || 0) + (n.y || 0), w: LE.NODE_W, h: nodeH(n) };
+        const byId = {};
+        c.steps.forEach(n => { byId[n.id] = n; });
+        const real = c.edges.filter(e => !c.virtual.has(e.id) && byId[e.from] && byId[e.to]);
+
+        // Straight arrows between steps (centres aligned): a connector must not sit on one
+        const segs = [];
+        real.forEach(e => {
+          const a = box(byId[e.from]), b = box(byId[e.to]);
+          const acx = a.x + a.w / 2, acy = a.y + a.h / 2, bcx = b.x + b.w / 2, bcy = b.y + b.h / 2;
+          if (Math.abs(acy - bcy) < 2) {
+            const [l, r] = acx < bcx ? [a, b] : [b, a];
+            segs.push({ x: l.x + l.w, y: acy - 1, w: r.x - l.x - l.w, h: 2 });
+          } else if (Math.abs(acx - bcx) < 2) {
+            const [t, d] = acy < bcy ? [a, b] : [b, a];
+            segs.push({ x: acx - 1, y: t.y + t.h, w: 2, h: d.y - t.y - t.h });
+          }
+        });
+
+        // The side of step `id` an arrow to or from step `o` uses (roughly where the router takes it)
+        const sideFor = (id, o, out) => {
+          const n = byId[id], m = byId[o];
+          const ln = laneIdx[n.laneId], lm = laneIdx[m.laneId];
+          const across = lm > ln ? 'far' : 'near';
+          if (ln === lm) return (m.x > n.x + 1) === out ? (out ? 'after' : 'before') : 'far';
+          if (Math.abs(m.x - n.x) < 30) return across;
+          return out ? (m.x > n.x ? 'after' : across) : (m.x < n.x ? 'before' : across);
+        };
+        const used = {};
+        const use = (id, side) => { (used[id] = used[id] || new Set()).add(side); };
+        real.forEach(e => {
+          if (e.from === e.to) return;
+          use(e.from, sideFor(e.from, e.to, true));
+          use(e.to, sideFor(e.to, e.from, false));
+        });
+
+        // Gap between the step and the circle: room for the stub's label when it has one. The label sits on the
+        // stub: along a screen-vertical stub it needs its height, along a horizontal one its width. `compact`: the
+        // tight spacing tried only where the comfortable one fits nowhere (before any column is widened).
+        const gapFor = (s, alongFlow, compact) => {
+          const t = String(s.stub.label || '').trim();
+          if (!t) return alongFlow ? (compact ? CONN.GAP_TIGHT : CONN.GAP) : CONN.GAP_ACROSS;
+          const w = Math.min(Math.max(40, t.length * 6.6 + 18), LE.LABEL_MAX_W);
+          const lines = Math.ceil((t.length * 6.6 + 18) / LE.LABEL_MAX_W);
+          const vertical = alongFlow ? LE.LABEL_ACROSS : !LE.LABEL_ACROSS;
+          return (vertical ? 24 + 15 * (Math.min(lines, 3) - 1) : w) + 2 * (compact ? CONN.LABEL_PAD_TIGHT : CONN.LABEL_PAD);
+        };
+        // Top-left of the circle on `side` of box a, `gap` away. `off` ('far' / 'near') moves an along-the-flow spot just
+        // off the step's centre line, so it clears an arrow leaving that side straight.
+        const spot = (a, side, gap, off) => {
+          const cx = a.x + a.w / 2 - S / 2, mid = a.y + a.h / 2;
+          const y = off === 'far' ? mid + CONN.OFF_LINE : off === 'near' ? mid - CONN.OFF_LINE - S : mid - S / 2;
+          if (side === 'after') return { x: a.x + a.w + gap, y };
+          if (side === 'before') return { x: a.x - gap - S, y };
+          if (side === 'far') return { x: cx, y: a.y + a.h + gap };
+          return { x: cx, y: a.y - gap - S };
+        };
+
+        const placed = [];
+        // `ownPad`: clearance from the connector's own step (a corner spot sits closer to it than to anything else)
+        const fits = (s, p, ownPad = CONN.CLEAR) => {
+          const lt = laneTop[s.anchor.laneId] || 0, lh = laneH[s.anchor.laneId] || LE.LANE_MIN;
+          if (p.y < lt + CONN.EDGE || p.y + S > lt + lh - CONN.EDGE || p.x < 8) return false;
+          const hit = (b, pad) => p.x < b.x + b.w + pad && p.x + S + pad > b.x && p.y < b.y + b.h + pad && p.y + S + pad > b.y;
+          return !c.steps.some(n => hit(box(n), n === s.anchor ? ownPad : CONN.CLEAR)) && !placed.some(b => hit(b, CONN.CLEAR)) && !segs.some(g => hit(g, 4));
+        };
+
+        let room = null;
+        c.sats.forEach(s => {
+          const a = box(s.anchor), id = s.anchor.id;
+          const other = s.other && byId[s.other];
+          const back = other && (s.role === 'in' ? other.x <= s.anchor.x : other.x >= s.anchor.x);
+          const lo = other ? laneIdx[other.laneId] : undefined, la = laneIdx[s.anchor.laneId];
+          const toward = lo === undefined || lo === la ? ['far', 'near'] : (lo > la ? ['far', 'near'] : ['near', 'far']);
+          const facing = s.role === 'in' ? 'after' : 'before', away = s.role === 'in' ? 'before' : 'after';
+          const sides = back ? [...toward, facing, away] : [facing, ...toward, away];
+          const cands = sides.map(side => ({ side, off: null }));
+          // Corner spots: just across the step's edge, moved along the flow toward the other end. The stub leaves
+          // the step's top/bottom and turns along the flow into the circle (its label on that leg), all inside the
+          // step's own column, so it needs no wider column. Tried before the spots off the centre line.
+          toward.forEach(side => cands.push({ side, corner: facing }));
+          [facing, away].forEach(side => toward.forEach(off => cands.push({ side, off })));
+          const at = (k) => {
+            if (k.corner) {
+              // Long enough for the stub's label on that leg with CLEAR-ish room on both sides (the router puts it mid-leg)
+              const leg = Math.max(k.compact ? CONN.CORNER_LEG_TIGHT : CONN.CORNER_LEG, String(s.stub.label || '').trim() ? gapFor(s, true, k.compact) : 0);
+              const x = k.corner === 'after' ? a.x + a.w / 2 + leg : a.x + a.w / 2 - leg - S;
+              const y = k.side === 'far' ? a.y + a.h + CONN.CORNER_GAP : a.y - CONN.CORNER_GAP - S;
+              return { x: Math.round(x), y: Math.round(y) };
+            }
+            const along = k.side === 'after' || k.side === 'before';
+            const p = spot(a, k.side, gapFor(s, along, k.compact), k.off);
+            return { x: Math.round(p.x), y: Math.round(p.y) };
+          };
+          const ok = (k) => fits(s, at(k), k.corner ? CONN.CORNER_GAP - 2 : CONN.CLEAR);
+          const free = (k) => !(used[id] && used[id].has(k.side));
+          // Comfortable spacing first (a free side, then any side), then the same spots with tight spacing
+          const tight = cands.map(k => ({ ...k, compact: true }));
+          let pick = cands.find(k => free(k) && ok(k)) || cands.find(ok) || tight.find(k => free(k) && ok(k)) || tight.find(ok);
+          if (!pick) {
+            pick = tight[0];
+            if (!final) {
+              // Widen the column on the preferred side along the flow
+              const side = sides.find(x => x === 'after' || x === 'before');
+              room = room || { after: {}, before: {} };
+              room[side][id] = Math.max(room[side][id] || 0, gapFor(s, true, true) + S + CONN.CLEAR);
+            }
+          }
+          const p = at(pick);
+          use(id, pick.side);
+          placed.push({ x: p.x, y: p.y, w: S, h: S });
+          s.node.laneId = s.anchor.laneId;
+          s.node.x = p.x;
+          s.node.y = p.y - (laneTop[s.anchor.laneId] || 0);
+        });
+        return room;
       }
 
       // No-swimlane mode ("swimlanes": false): the diagram still holds exactly one (hidden) lane, so ranking,

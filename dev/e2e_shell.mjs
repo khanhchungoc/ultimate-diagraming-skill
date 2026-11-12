@@ -228,10 +228,16 @@ try {
     return null;
   })()`);
   if (emptyPt) {
+    const xy0 = JSON.parse(await t.ev(`JSON.stringify(Object.fromEntries([...document.querySelectorAll('.flow-node')].map(n => [n.dataset.nodeId, [n.style.left, n.style.top, n.parentElement.dataset.laneId]])))`));
     const hl = await t.ev(paletteDrop('task', emptyPt[0], emptyPt[1]));
     const g1 = JSON.parse(await t.ev(graph));
     const lane = await t.ev(`document.querySelector('.flow-node.selected')?.parentElement.dataset.laneId`);
     t.check('dragging Step from the dock onto empty canvas adds exactly one node in the lane under the pointer', !hl && g1.n === g0.n + 1 && g1.e === g0.e && lane === emptyPt[2], `hl=${hl} before=${JSON.stringify(g0)} after=${JSON.stringify(g1)} lane=${lane} want=${emptyPt[2]}`);
+    // No Auto-Tidy on a palette drop: the new node stays where it was dropped and no other node moves
+    const moved = await t.ev(`(() => { const before = ${JSON.stringify(xy0)};
+      return [...document.querySelectorAll('.flow-node')].filter(n => { const b = before[n.dataset.nodeId];
+        return b && (b[0] !== n.style.left || b[1] !== n.style.top || b[2] !== n.parentElement.dataset.laneId); }).length; })()`);
+    t.check('a shape dropped on empty canvas does not re-lay out the diagram (no Auto-Tidy)', moved === 0, `moved=${moved}`);
     await t.ev(t.key('z', { ctrlKey: true }));
   } else t.check('found an empty canvas spot for the dock-drag test', false);
 

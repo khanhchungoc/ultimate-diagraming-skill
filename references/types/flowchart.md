@@ -26,7 +26,7 @@ Never add pixel coordinates (`x`, `y`); `--layout` computes them.
 |---|---|---|
 | Lane | `id`, `name`, `icon` | Unique id (`lane-<slug>`), the actor's name (or the phase's, see rule 7), and an `icon` (see rule 8). |
 | Lane | `color` | Optional. Omit it: lanes get palette colours in order. Set a hex tint only to match the source's colours, or to give related lanes the same colour on purpose. |
-| Node | `id`, `laneId`, `type`, `label` | `type` is `start`, `task`, `decision`, `end`, or a classic symbol (rule 10). `start` and `end` render as rounded pills in their own colours (a plain circle if the label is empty); `task` is a box, `decision` a diamond. |
+| Node | `id`, `laneId`, `type`, `label` | `type` is `start`, `task`, `decision`, `end`, a classic symbol (rule 10), or `connector` (rule 11). `start` and `end` render as rounded pills in their own colours (a plain circle if the label is empty); `task` is a box, `decision` a diamond. |
 | Edge | `id`, `from`, `to`, `label` | `label` is `"Yes"`, `"No"`, `"Resubmit"`, etc.; `""` for unconditional steps. |
 | Note | `id`, `text`, `nodes` | Optional list `notes`: plain text that explains one or more steps (what goes in it: rule 9). `nodes` lists the ids of the steps it explains; the first is where it sits. Each linked step shows a small badge the reader hovers to see the note. |
 | Diagram | `showNotes` | Optional `true` shows every note on the page (fitted into the gaps near its node) instead of on hover; when to set it: rule 9. |
@@ -85,6 +85,18 @@ Never add pixel coordinates (`x`, `y`); `--layout` computes them.
 | `document` | wavy-bottom box | produces a document (letter, invoice, report) | `"Issue Decline Letter"` |
 | `database` | cylinder | reads or writes a system of record | `"Store Claim Record"` |
 | `delay` | D-shape | is a wait (cooling-off, SLA timer, batch window) | `"Wait for Payment Run"` |
+
+11. **On-page connectors only where the source shows them**, keeping its letters; otherwise draw the arrow and let the router route it. A connector is a small lettered circle standing for one end of a long arrow: the flow runs into circle `A` beside its source and continues out of circle `A` beside its target. The layout places the circles; never set their `x`/`y`, and they move no step. `--layout` warns about every rule below that is broken.
+   - `"type": "connector"`, `"label"`: the letter (`A`–`Z` without `I` and `O`, then `AA`, `AB`, ...). Two connectors with one letter are a pair; put each in the lane of the step it sits beside.
+   - An **in-connector** has arrows in and none out; an **out-connector** has arrows out and none in. A letter has exactly **one out-connector** and one or more in-connectors (several flows may merge at one continuation).
+   - The branch's `label` and `feedback` stay on the arrow **into** the in-connector; the arrow out of the out-connector is `""`.
+
+   ```json
+   "nodes": [{ "id": "c1", "laneId": "lane-officer", "type": "connector", "label": "A" },
+             { "id": "c2", "laneId": "lane-intake", "type": "connector", "label": "A" }, ...],
+   "edges": [{ "id": "e7", "from": "n6", "to": "c1", "label": "No", "feedback": true },
+             { "id": "e12", "from": "c2", "to": "n2", "label": "" }, ...]
+   ```
 
 ## Choosing the structure
 

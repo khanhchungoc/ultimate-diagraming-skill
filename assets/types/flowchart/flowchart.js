@@ -14,13 +14,17 @@
       // top-to-bottom one, n.x is the screen y and n.y the screen x. Every node takes an 80px slot along the flow
       // (a decision's height), and a 64px step is centred in it so steps and decisions line up on one axis.
       const isTB = () => chartData.direction === 'TB';
-      const nodeScreenH = (n) => (n.type === 'decision' ? DECISION_HEIGHT : NODE_HEIGHT);
-      const flowInset = (n) => (isTB() ? (DECISION_HEIGHT - nodeScreenH(n)) / 2 : 0);
+      // An on-page connector (engine.js CONN) is a CONN.SIZE circle at its own x/y, not a slot with an offset
+      const nodeScreenH = (n) => (isConnector(n) ? CONN.SIZE : n.type === 'decision' ? DECISION_HEIGHT : NODE_HEIGHT);
+      const flowInset = (n) => (isTB() && !isConnector(n) ? (DECISION_HEIGHT - nodeScreenH(n)) / 2 : 0);
       // A node's extent across its lane (lane sizing, lane hit tests) and along the flow (snapping)
-      const crossSize = (n) => (isTB() ? NODE_WIDTH : nodeScreenH(n));
-      const flowSize = (n, el) => (isTB() ? DECISION_HEIGHT : ((el && el.offsetWidth) || NODE_WIDTH));
+      const crossSize = (n) => (isConnector(n) ? CONN.SIZE : isTB() ? NODE_WIDTH : nodeScreenH(n));
+      const flowSize = (n, el) => (isConnector(n) ? CONN.SIZE : isTB() ? DECISION_HEIGHT : ((el && el.offsetWidth) || NODE_WIDTH));
       function placeNodeEl(el, n) {
-        if (isTB()) {
+        if (isConnector(n)) {
+          el.style.left = `${(isTB() ? n.y : n.x) || 0}px`;
+          el.style.top = `${(isTB() ? n.x : n.y) || 0}px`;
+        } else if (isTB()) {
           el.style.left = `${n.y || 0}px`;
           el.style.top = `${(n.x || 0) + flowInset(n)}px`;
         } else {
@@ -224,11 +228,13 @@
           // Dynamically calculate required lane height from nodes in this lane
           const laneNodes = chartData.nodes.filter(n => n.laneId === lane.id);
           // (lane.height is the lane's size across the flow: its screen width when the diagram runs top-to-bottom)
-          const maxNodeBottom = laneNodes.reduce((m, n) => Math.max(m, (n.y || 48) + crossSize(n)), 100);
+          const maxNodeBottom = laneNodes.reduce((m, n) => (isConnector(n) ? m : Math.max(m, (n.y || 48) + crossSize(n))), 100);
+          // Connectors are placed inside the lane's bounds (engine.js placeConnectors): they only need to fit
+          const maxConnBottom = laneNodes.reduce((m, n) => (isConnector(n) ? Math.max(m, (n.y || 0) + CONN.SIZE + CONN.EDGE) : m), 0);
           // Past the lowest node: the bottom pad, or the room its far-side loop-backs need (same rule as the engine;
           // near-side loops run above the nodes, in room the node positions already leave)
           const loopRoom = laneLoopRooms(chartData.nodes, chartData.edges, chartData.lanes, lane.id, id => xById[id] || 0).far;
-          const computedHeight = Math.max(LE.LANE_MIN, maxNodeBottom + Math.max(LE.BOTTOM_PAD, loopRoom)) // derived from nodes only, so lanes shrink back
+          const computedHeight = Math.max(LE.LANE_MIN, maxNodeBottom + Math.max(LE.BOTTOM_PAD, loopRoom), maxConnBottom) // derived from nodes only, so lanes shrink back
             + (index === chartData.lanes.length - 1 ? outerExtra : 0);             // room for outer loop-backs (render)
           lane.height = computedHeight;
           const tb = isTB();
@@ -503,6 +509,11 @@
       // at `along` (screen x for top/bottom, screen y for left/right). 0 where the outline runs on the box edge.
       // The router ends arrows on the box; the outline snap (5f) moves each end in by this much.
       function outlineInset(type, r, side, along) {
+        if (type === 'connector') {   // a circle filling its box
+          const horiz = side === 'top' || side === 'bottom';
+          const t = 2 * Math.max(0, Math.min(1, horiz ? (along - r.x) / r.w : (along - r.y) / r.h)) - 1;
+          return (horiz ? r.h : r.w) / 2 * (1 - Math.sqrt(Math.max(0, 1 - t * t)));
+        }
         const s = SHAPE_OUTLINES[type];
         if (!s) return 0;
         const horiz = side === 'top' || side === 'bottom';
@@ -551,12 +562,354 @@
         }
       }
 
+      // --- ON-PAGE CONNECTORS ---
+      // A pair of lettered circles standing for one long arrow (engine.js ON-PAGE CONNECTORS has the data rules and
+      // the layout). A pair is made by splitting a selected arrow (the Split chip), never by wiring circles by hand:
+      // connectors have no ports and refuse new arrows. Hover lights every circle of the letter and draws a dotted
+      // guide between them (never exported); a click pans to the partner; a rename renames the whole pair; Delete
+      // joins the arrow back together.
+      const connectorRole = (id) => {
+        const i = chartData.edges.some(e => e.to === id), o = chartData.edges.some(e => e.from === id);
+        return i && !o ? 'in' : o && !i ? 'out' : null;
+      };
+      const connectorsLettered = (letter) => chartData.nodes.filter(n => isConnector(n) && connectorLetter(n) === letter);
+      // The circles a reader looks for from this one: an in-connector's out-connector, an out-connector's in-connectors
+      function connectorPartners(node) {
+        const role = connectorRole(node.id), want = role === 'in' ? 'out' : role === 'out' ? 'in' : null;
+        return connectorsLettered(connectorLetter(node)).filter(n => n.id !== node.id && (!want || connectorRole(n.id) === want));
+      }
+      const stepLabel = (id) => { const n = nodeById(id); return n ? (n.label || n.id) : id; };
+      function connectorAria(node) {
+        const letter = connectorLetter(node), role = connectorRole(node.id);
+        if (role === 'in') {
+          const to = connectorPartners(node).flatMap(p => chartData.edges.filter(e => e.from === p.id).map(e => stepLabel(e.to)));
+          return to.length ? `Connector ${letter}, continues at ${to.join(', ')}` : `Connector ${letter}, continues nowhere`;
+        }
+        if (role === 'out') {
+          const from = connectorPartners(node).flatMap(p => chartData.edges.filter(e => e.to === p.id).map(e => stepLabel(e.from)));
+          return from.length ? `Connector ${letter}, from ${from.join(', ')}` : `Connector ${letter}, from nowhere`;
+        }
+        return `Connector ${letter}`;
+      }
+
+      function buildConnectorEl(node) {
+        const el = document.createElement('div');
+        el.className = 'flow-node type-connector';
+        el.id = `node-${node.id}`;
+        el.dataset.nodeId = node.id;
+        el.setAttribute('role', 'button');
+        el.setAttribute('aria-label', connectorAria(node));
+        el.dataset.tip = `${connectorAria(node)}\nClick to jump there · Drag onto a step to move this end there · Double-click to change the letter`;
+        placeNodeEl(el, node);
+        if (node.id === selectedNodeId) el.classList.add('selected');
+        const label = document.createElement('div');
+        label.className = 'node-label';
+        label.spellcheck = false;
+        label.textContent = connectorLetter(node);
+        el.appendChild(label);
+        el.addEventListener('dblclick', (e) => {
+          e.stopPropagation();
+          if (isPresenting()) return;
+          label.contentEditable = 'true';
+          label.focus();
+          const range = document.createRange();
+          range.selectNodeContents(label);
+          const sel = window.getSelection();
+          sel.removeAllRanges();
+          sel.addRange(range);
+        });
+        label.addEventListener('blur', () => {
+          if (label.contentEditable !== 'true') return;
+          label.contentEditable = 'false';
+          renameConnector(node, label.textContent);
+        });
+        label.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') { e.preventDefault(); label.blur(); }
+          else if (e.key === 'Escape') { e.preventDefault(); label.textContent = connectorLetter(node); label.blur(); }
+          e.stopPropagation();
+        });
+        el.addEventListener('pointerdown', (e) => {
+          if (isPresenting()) { e.preventDefault(); e.stopPropagation(); jumpToPartner(node); return; }
+          handleNodePointerDown(e, node);
+        });
+        el.addEventListener('mouseenter', () => { hoveredNodeId = node.id; applyNodeHover(); showConnectorPair(node); });
+        el.addEventListener('mouseleave', () => { if (hoveredNodeId === node.id) hoveredNodeId = null; applyNodeHover(); showConnectorPair(null); });
+        return el;
+      }
+
+      // Light every circle of the hovered connector's letter and join each in-connector to its out-connector with a
+      // dotted guide (hover only; data-export-skip keeps it out of exports)
+      function showConnectorPair(node) {
+        document.querySelectorAll('.flow-node.pair-lit').forEach(el => el.classList.remove('pair-lit'));
+        edgeGroup.querySelectorAll('.connector-guide').forEach(l => l.remove());
+        if (!node) return;
+        const all = connectorsLettered(connectorLetter(node));
+        all.forEach(n => { const el = nodeElOf(n.id); if (el) el.classList.add('pair-lit'); });
+        const centre = (id) => { const el = nodeElOf(id); if (!el) return null; const b = containerBox(el); return [b.x + b.w / 2, b.y + b.h / 2]; };
+        const outs = all.filter(n => connectorRole(n.id) === 'out');
+        const ins = all.filter(n => connectorRole(n.id) !== 'out');
+        const pairs = outs.length ? ins.flatMap(i => outs.map(o => [i, o])) : ins.slice(1).map(i => [ins[0], i]);
+        pairs.forEach(([a, b]) => {
+          const p = centre(a.id), q = centre(b.id);
+          if (!p || !q) return;
+          const line = document.createElementNS(SVG_NS, 'line');
+          line.setAttribute('class', 'connector-guide');
+          line.setAttribute('data-export-skip', '');
+          line.setAttribute('x1', p[0]); line.setAttribute('y1', p[1]);
+          line.setAttribute('x2', q[0]); line.setAttribute('y2', q[1]);
+          edgeGroup.appendChild(line);
+        });
+      }
+
+      // Pan (same zoom) so the partner is centred, with a short pulse on it. An out-connector with several
+      // in-connectors steps through them on each click.
+      let jumpTurn = 0, panAnim = 0;
+      function jumpToPartner(node) {
+        const partners = connectorPartners(node);
+        if (!partners.length) return;
+        const p = partners[jumpTurn++ % partners.length];
+        const el = nodeElOf(p.id);
+        if (!el) return;
+        const vp = viewport.getBoundingClientRect(), r = el.getBoundingClientRect();
+        const dx = (vp.left + vp.width / 2) - (r.left + r.width / 2), dy = (vp.top + vp.height / 2) - (r.top + r.height / 2);
+        const x0 = panX, y0 = panY, t0 = performance.now(), MS = 280;
+        cancelAnimationFrame(panAnim);
+        const stepPan = (t) => {
+          const k = Math.min(1, (t - t0) / MS), ease = 1 - Math.pow(1 - k, 3);
+          panX = x0 + dx * ease;
+          panY = y0 + dy * ease;
+          updateTransform();
+          if (k < 1) panAnim = requestAnimationFrame(stepPan);
+        };
+        panAnim = requestAnimationFrame(stepPan);
+        el.classList.remove('connector-pulse');
+        void el.offsetWidth;   // restart the animation
+        el.classList.add('connector-pulse');
+        setTimeout(() => el.classList.remove('connector-pulse'), 1200);
+      }
+
+      // A short message above the dock (e.g. why a rename was refused)
+      let hintTimer = 0;
+      function flashHint(text) {
+        let hint = document.querySelector('.flow-hint');
+        if (!hint) {
+          hint = document.createElement('div');
+          hint.className = 'note-pick-hint flow-hint';
+          hint.setAttribute('role', 'status');
+          hint.dataset.exportSkip = '';
+          document.body.appendChild(hint);
+        }
+        hint.textContent = text;
+        clearTimeout(hintTimer);
+        hintTimer = setTimeout(() => hint.remove(), 2600);
+      }
+
+      // Every circle of the old letter takes the new one: a rename never splits a pair. A letter in use is refused.
+      function renameConnector(node, text) {
+        const from = connectorLetter(node), to = String(text || '').trim().toUpperCase();
+        if (to === from) { render(); return; }
+        if (!isConnectorLetter(to)) { flashHint(`A connector's letter is A to Z (no I or O), then AA, AB, …`); render(); return; }
+        if (connectorsLettered(to).length) { flashHint(`Letter ${to} is already used by another connector pair`); render(); return; }
+        connectorsLettered(from).forEach(n => { n.label = to; });
+        render();
+        updateStatus(true);
+      }
+
+      // Split arrow `edgeId` into a connector pair: src -> (L) ... (L) -> tgt. The arrow keeps its id, label and feedback
+      // flag on the in-side. With `joinLetter`, the arrow joins that letter's existing pair instead (a merge: only
+      // offered when that pair continues at the same step).
+      function splitEdge(edgeId, joinLetter) {
+        const edge = chartData.edges.find(e => e.id === edgeId);
+        if (!edge) return;
+        const src = nodeById(edge.from), tgt = nodeById(edge.to);
+        if (!src || !tgt || isConnector(src) || isConnector(tgt)) return;
+        const letter = joinLetter || nextConnectorLetter(chartData.nodes);
+        const cIn = { id: uid('c'), laneId: src.laneId, type: 'connector', label: letter, x: src.x || 0, y: src.y || 0 };
+        chartData.nodes.push(cIn);
+        if (!joinLetter) {
+          const cOut = { id: uid('c'), laneId: tgt.laneId, type: 'connector', label: letter, x: tgt.x || 0, y: tgt.y || 0 };
+          chartData.nodes.push(cOut);
+          chartData.edges.push({ id: uid('e'), from: cOut.id, to: tgt.id, label: '' });
+        }
+        edge.to = cIn.id;
+        selectedEdgeId = null;
+        placeAfterConnectorEdit();
+        selectNode(cIn.id);
+      }
+
+      // The selected arrow's Split chip (beside its label). When a pair already continues at this arrow's target, it
+      // opens a choice: a new pair, or join that pair (a merge: several sources continuing at one out-connector).
+      const SPLIT_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" aria-hidden="true"><path d="M2 12h4"/><circle cx="9" cy="12" r="3"/><circle cx="15" cy="12" r="3"/><path d="M18 12h4"/></svg>';
+      function buildSplitChip(edge, labelContainer, route) {
+        const chip = document.createElement('button');
+        chip.type = 'button';
+        chip.className = 'edge-split-chip';
+        chip.dataset.exportSkip = '';
+        chip.title = 'Split into a connector pair';
+        chip.setAttribute('aria-label', 'Split this arrow into a connector pair');
+        chip.innerHTML = SPLIT_ICON;
+        chip.style.left = `${route.midX + labelContainer.offsetWidth / 2 + 18}px`;
+        chip.style.top = `${route.midY}px`;
+        chip.addEventListener('pointerdown', (e) => e.stopPropagation());
+        chip.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const joins = joinableLetters(edge.to);
+          if (!joins.length) { splitEdge(edge.id); return; }
+          const menu = document.createElement('div');
+          menu.className = 'edge-split-menu';
+          menu.dataset.exportSkip = '';
+          menu.setAttribute('role', 'menu');
+          const item = (text, fn) => {
+            const b = document.createElement('button');
+            b.type = 'button';
+            b.setAttribute('role', 'menuitem');
+            b.textContent = text;
+            b.addEventListener('pointerdown', (ev) => ev.stopPropagation());
+            b.addEventListener('click', (ev) => { ev.stopPropagation(); fn(); });
+            menu.appendChild(b);
+            return b;
+          };
+          const first = item(`Split into new ${nextConnectorLetter(chartData.nodes)}`, () => splitEdge(edge.id));
+          joins.forEach(l => item(`Join ${l} (continues at ${stepLabel(edge.to)})`, () => splitEdge(edge.id, l)));
+          menu.style.left = chip.style.left;
+          menu.style.top = `${route.midY + 16}px`;
+          chip.after(menu);
+          first.focus();
+          menu.addEventListener('keydown', (ev) => { if (ev.key === 'Escape') { ev.stopPropagation(); menu.remove(); chip.focus(); } });
+        });
+        return chip;
+      }
+
+      // Pairs whose out-connector continues at step `toId`: an arrow into that step may join them
+      const joinableLetters = (toId) => [...new Set(chartData.nodes
+        .filter(n => isConnector(n) && connectorRole(n.id) === 'out' && chartData.edges.some(e => e.from === n.id && e.to === toId))
+        .map(connectorLetter))];
+
+      // Delete a connector = join: the whole arrow comes back (src -> tgt, with its label and feedback flag). Deleting
+      // one in-connector of a merge joins only its source; deleting the out-connector joins every source.
+      function joinConnector(node) {
+        const letter = connectorLetter(node), role = connectorRole(node.id);
+        const outs = connectorsLettered(letter).filter(n => connectorRole(n.id) === 'out');
+        const targets = outs.flatMap(o => chartData.edges.filter(e => e.from === o.id).map(e => e.to)).filter(t => !isConnector(nodeById(t)));
+        const ins = role === 'in' ? [node] : role === 'out' ? connectorsLettered(letter).filter(n => connectorRole(n.id) === 'in') : [];
+        const gone = new Set([node.id]);
+        ins.forEach(c => {
+          gone.add(c.id);
+          chartData.edges.filter(e => e.to === c.id).forEach(e => {
+            if (targets.length && !chartData.edges.some(x => x !== e && x.from === e.from && x.to === targets[0])) e.to = targets[0];
+          });
+        });
+        // The out-connector goes too once no in-connector is left for it
+        const left = connectorsLettered(letter).filter(n => !gone.has(n.id) && connectorRole(n.id) === 'in');
+        if (!left.length) outs.forEach(o => gone.add(o.id));
+        chartData.nodes = chartData.nodes.filter(n => !gone.has(n.id));
+        chartData.edges = chartData.edges.filter(e => !gone.has(e.from) && !gone.has(e.to));
+        pruneNotes();
+        selectedNodeId = null;
+        placeAfterConnectorEdit();
+      }
+
+      // After an edit breaks a pair (its step or a stub arrow deleted): a connector with no arrows goes, and so does
+      // a letter left without its in- or out-side, with its stub arrows. Deleting either stub deletes the whole arrow.
+      function pruneConnectors() {
+        let changed = true;
+        while (changed) {
+          changed = false;
+          const conns = chartData.nodes.filter(isConnector);
+          const gone = new Set(conns.filter(c => !connectorRole(c.id) && !chartData.edges.some(e => e.from === c.id || e.to === c.id)).map(c => c.id));
+          const letters = new Set(conns.map(connectorLetter));
+          letters.forEach(l => {
+            const set = connectorsLettered(l).filter(c => !gone.has(c.id));
+            const hasIn = set.some(c => connectorRole(c.id) === 'in'), hasOut = set.some(c => connectorRole(c.id) === 'out');
+            if (hasIn !== hasOut) set.forEach(c => gone.add(c.id));
+          });
+          if (gone.size) {
+            chartData.nodes = chartData.nodes.filter(n => !gone.has(n.id));
+            chartData.edges = chartData.edges.filter(e => !gone.has(e.from) && !gone.has(e.to));
+            changed = true;
+          }
+        }
+      }
+
+      // Moving one end of a pair: drag its circle onto a step. An out-connector then continues at that step; an
+      // in-connector takes its flow from that step (the arrow keeps its label). Refused when it would join a step to
+      // itself through the pair. Returns false when nothing changed.
+      function stepUnder(clientX, clientY, skipId) {
+        for (const el of document.elementsFromPoint(clientX, clientY)) {
+          const n = el.closest('.flow-node');
+          if (n && n.dataset.nodeId !== skipId && !n.classList.contains('type-connector')) return n.dataset.nodeId;
+        }
+        return null;
+      }
+      function markConnectorTarget(id) {
+        document.querySelectorAll('.flow-node.connect-target').forEach(el => el.classList.remove('connect-target'));
+        const el = id && nodeElOf(id);
+        if (el) el.classList.add('connect-target');
+      }
+      function moveConnectorTo(node, stepId) {
+        const role = connectorRole(node.id), step = nodeById(stepId);
+        if (!role || !step) return false;
+        const mine = chartData.edges.filter(e => (role === 'out' ? e.from === node.id : e.to === node.id));
+        if (mine.some(e => (role === 'out' ? e.to : e.from) === stepId)) return false;   // already there
+        // The step at the pair's other end: a pair from a step back into itself is refused
+        const others = connectorPartners(node).flatMap(p => chartData.edges
+          .filter(e => (role === 'out' ? e.to === p.id : e.from === p.id)).map(e => (role === 'out' ? e.from : e.to)));
+        if (others.includes(stepId)) { flashHint('That step is already the other end of this pair'); return false; }
+        mine.forEach(e => { if (role === 'out') e.to = stepId; else e.from = stepId; });
+        node.laneId = step.laneId;
+        placeAfterConnectorEdit();
+        selectNode(node.id);
+        return true;
+      }
+
+      // An arrowhead dropped on a circle of pair `letter`: the arrow now flows into that pair, through a new in-circle
+      // beside its source (the merge "Join A" makes from the Split chip). Its label and feedback flag stay on it. A
+      // circle it no longer reaches goes (pruneConnectors). Refused when the pair continues at the arrow's own source.
+      function joinEdgeTo(edge, letter) {
+        const src = nodeById(edge.from);
+        if (!src || isConnector(src)) return false;
+        const pair = connectorsLettered(letter);
+        const continuesAt = pair.flatMap(c => chartData.edges.filter(e => e.from === c.id).map(e => e.to));
+        if (continuesAt.includes(src.id)) { flashHint(`Pair ${letter} already continues at this step`); return false; }
+        if (pair.some(c => c.id === edge.to)) return false;   // already flows into it
+        if (pair.some(c => chartData.edges.some(e => e !== edge && e.from === src.id && e.to === c.id))) {
+          flashHint(`This step already flows into pair ${letter}`);
+          return false;
+        }
+        const cIn = { id: uid('c'), laneId: src.laneId, type: 'connector', label: letter, x: src.x || 0, y: src.y || 0 };
+        chartData.nodes.push(cIn);
+        edge.to = cIn.id;
+        pruneConnectors();
+        selectedEdgeId = null;
+        placeAfterConnectorEdit();
+        selectNode(cIn.id);
+        return true;
+      }
+
+      // Re-place only the circles (an arrow edit moved a stub to another step): steps stay where they are
+      function placeCirclesOnly() {
+        render();
+        placeConnectorsInPlace(chartData);
+        render();
+      }
+
+      // Lay out after a connector edit: Auto-Tidy on, the whole layout (no step moves, only the circles appear);
+      // off, the steps stay where they are and only the circles are placed beside them
+      function placeAfterConnectorEdit() {
+        if (autoLayout) { relayout(); return; }
+        render();   // sizes the lanes the circles are fitted into
+        placeConnectorsInPlace(chartData);
+        render();
+        updateStatus(true);
+      }
+
       function renderNodes() {
         document.querySelectorAll('.flow-node').forEach(el => el.remove());
 
         chartData.nodes.forEach(node => {
           const laneTrack = document.querySelector(`.lane-track[data-lane-id="${node.laneId}"]`);
           if (!laneTrack) return;
+          if (isConnector(node)) { laneTrack.appendChild(buildConnectorEl(node)); return; }
 
           const nodeEl = document.createElement('div');
           nodeEl.className = `flow-node type-${node.type}` + (isDot(node) ? ' terminal-dot' : '');
@@ -1627,7 +1980,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           if (!pts || pts.length < 2) return;
           const snap = (nid, a, b) => {
             const node = nodeMap[nid], r = rects[nid];
-            if (!node || !r || !SHAPE_OUTLINES[node.type]) return;
+            if (!node || !r || !(SHAPE_OUTLINES[node.type] || isConnector(node))) return;
             const vertLeg = Math.abs(pts[a][0] - pts[b][0]) < 1, horizLeg = Math.abs(pts[a][1] - pts[b][1]) < 1;
             let side = null;
             if (vertLeg && Math.abs(pts[a][1] - r.y) < 1) side = 'top';
@@ -1737,11 +2090,17 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
             const minX = Math.min(p1[0], p2[0]);
             const maxX = Math.max(p1[0], p2[0]);
             const goingRight = p2[0] > p1[0];
+            // Room a hop needs from each end of the segment: past a bend, the corner's radius plus the hop's
+            // (8 + 6); at the arrow's source, just the hop plus a little; at its target, room for the arrowhead.
+            // (A flat 18px dropped crossings next to a source, e.g. an arrow rising just right of a decision vertex.)
+            const endRoom = (k) => (k === 0 ? 8 : k === points.length - 1 ? 18 : 14);
+            const lo1 = endRoom(i), lo2 = endRoom(i + 1);
+            const minRoom = goingRight ? lo1 : lo2, maxRoom = goingRight ? lo2 : lo1;
 
             const hops = [];
             verticalObstacles.forEach(obs => {
               const vx = obs.x;
-              if (vx > minX + 18 && vx < maxX - 18 && y > obs.yMin + 8 && y < obs.yMax - 8) {
+              if (vx > minX + minRoom && vx < maxX - maxRoom && y > obs.yMin + 8 && y < obs.yMax - 8) {
                 hops.push(vx);
               }
             });
@@ -1834,6 +2193,8 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
               x: (points[0][0] + points[1][0]) / 2,
               y: points[0][1]
             });
+            // The second leg too: a short first leg (an arrow into a connector beside its step) has no room
+            candidates.push({ x: (points[1][0] + points[2][0]) / 2, y: (points[1][1] + points[2][1]) / 2 });
           }
         } else if (points.length >= 4) {
           const p0 = points[0];
@@ -2118,17 +2479,26 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
             if (isSelected) {
               const total = path.getTotalLength();
 
-              // Drag either end of the selected arrow onto another node to re-attach it
+              // Drag either end of the selected arrow onto another node to re-attach it. At a connector circle, the
+              // handle moves the circle (onto a step) or joins another pair (onto a circle); an arrowhead dropped on a
+              // circle sends the arrow into that pair (see startReconnect)
               ['from', 'to'].forEach(end => {
+                const atCircle = isConnector(nodeById(end === 'from' ? edge.from : edge.to));
                 const pt = path.getPointAtLength(end === 'from' ? 0 : total);
                 const h = document.createElement('div');
-                h.className = 'edge-end-handle';
-                h.dataset.tip = end === 'from' ? 'Drag to change the source node' : 'Drag to change the target node';
+                h.className = 'edge-end-handle' + (atCircle ? ' at-connector' : '');
+                h.dataset.tip = atCircle ? 'Drag onto a step to move this circle there'
+                  : end === 'from' ? 'Drag to change the source node' : 'Drag to change the target node, or onto a connector circle to send this arrow into that pair';
                 h.style.left = `${pt.x}px`;
                 h.style.top = `${pt.y}px`;
                 h.addEventListener('pointerdown', (e) => startReconnect(e, edge, end, path));
                 edgeLabelsGroup.appendChild(h);
               });
+
+              // Split chip beside the label: replace this arrow with a connector pair
+              if (!isConnector(nodeById(edge.from)) && !isConnector(nodeById(edge.to)) && edge.from !== edge.to) {
+                labelContainer.after(buildSplitChip(edge, labelContainer, pathD));
+              }
             }
 
             labelContainer.addEventListener('click', (e) => {
@@ -2303,6 +2673,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         }
 
         placeNodeEl(nodeEl, draggingNode);
+        if (isConnector(draggingNode)) markConnectorTarget(stepUnder(e.clientX, e.clientY, draggingNode.id));
         positionNotes();
 
         // An unconnected node over an arrow offers to be inserted into it
@@ -2422,10 +2793,17 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         if (draggingNode) {
           const node = draggingNode;
           draggingNode = null;
-          if (dragMoved && target) {
+          if (dragMoved && isConnector(node)) {
+            // A circle dropped on a step moves that end of the pair there; dropped anywhere else it goes back
+            const stepId = stepUnder(e.clientX, e.clientY, node.id);
+            markConnectorTarget(null);
+            if (!stepId || !moveConnectorTo(node, stepId)) placeCirclesOnly();
+          } else if (dragMoved && target) {
             insertIntoEdge(node, target.edgeId, e.clientX, e.clientY);
           } else if (dragMoved) {
             relayout();   // the lane it was dropped in is kept; its place in the lane comes from the flow
+          } else if (isConnector(node)) {
+            jumpToPartner(node);   // a click (no drag) on a connector takes the reader to the other end
           }
           dragMoved = false;
         }
@@ -2552,6 +2930,18 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           const n = nodeAt(ev);
           const newId = n ? n.dataset.nodeId : null;
           const current = end === 'from' ? edge.from : edge.to;
+          // Connector ends: an arrowhead dropped on a circle sends the arrow into that pair; a circle's end of a stub
+          // dropped on a step moves the circle there (like dragging the circle itself)
+          if (newId && newId !== current && isConnector(nodeById(newId))) {
+            if (end === 'to' && !isConnector(nodeById(edge.from)) && joinEdgeTo(edge, connectorLetter(nodeById(newId)))) return;
+            if (end === 'from') flashHint('An arrow can flow into a connector pair, not out of one: drop its arrowhead on the circle');
+            renderEdges();
+            return;
+          }
+          if (newId && newId !== current && isConnector(nodeById(current))) {
+            if (!moveConnectorTo(nodeById(current), newId)) renderEdges();
+            return;
+          }
           if (newId && newId !== otherId && newId !== current) {
             const f = end === 'from' ? newId : edge.from;
             const t = end === 'to' ? newId : edge.to;
@@ -2559,6 +2949,8 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
               edge.from = f;
               edge.to = t;
               updateStatus(true);
+              // A stub re-attached to another step: its circle follows to that step (steps stay put)
+              if (isConnector(nodeById(edge.from)) || isConnector(nodeById(edge.to))) { placeCirclesOnly(); return; }
             }
           }
           renderEdges();
@@ -2570,6 +2962,11 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
       function createConnection(fromId, toId) {
         const existing = chartData.edges.find(e => e.from === fromId && e.to === toId);
         if (existing) return;
+        // A pair is never wired by hand: connectors come from splitting an arrow
+        if (isConnector(nodeById(fromId)) || isConnector(nodeById(toId))) {
+          flashHint('Connectors are made by splitting an arrow (select it, then Split)');
+          return;
+        }
 
         const fromNode = chartData.nodes.find(n => n.id === fromId);
         const defaultLabel = (fromNode && fromNode.type === 'decision') ? 'Yes' : '';
@@ -2633,6 +3030,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         chartData.lanes = chartData.lanes.filter(l => l.id !== laneId);
         chartData.nodes = chartData.nodes.filter(n => !gone.has(n.id));
         chartData.edges = chartData.edges.filter(e => !gone.has(e.from) && !gone.has(e.to));
+        pruneConnectors();   // a pair with one end in the lane goes with it
         pruneNotes();
         selectedLaneId = null;
         relayout();
@@ -2712,6 +3110,12 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
       }
 
       function selectEdge(edgeId, reRender = true) {
+        // The Connector tile is waiting for an arrow: this one is split
+        if (connectorPicking) {
+          setConnectorPicking(false);
+          if (canSplitEdge(edgeId)) { splitEdge(edgeId); return; }
+          flashHint('That arrow already ends at a connector');
+        }
         selectedEdgeId = edgeId;
         selectedNodeId = null;
         selectedNoteId = null;
@@ -2733,18 +3137,23 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
       }
 
       function deleteNode(nodeId) {
+        const node = nodeById(nodeId);
+        if (isConnector(node)) { joinConnector(node); return; }   // deleting a connector puts the whole arrow back
         chartData.nodes = chartData.nodes.filter(n => n.id !== nodeId);
         chartData.edges = chartData.edges.filter(e => e.from !== nodeId && e.to !== nodeId);
+        pruneConnectors();   // a pair attached to this step goes with it
         pruneNotes();   // its notes lose the link (a note explaining only this step goes with it)
         selectedNodeId = null;
         relayout();
       }
 
       function deleteEdge(edgeId) {
+        const before = chartData.nodes.length;
         chartData.edges = chartData.edges.filter(e => e.id !== edgeId);
+        pruneConnectors();   // deleting either stub of a split arrow deletes the whole arrow
         selectedEdgeId = null;
         updateStatus(true);
-        renderEdges();
+        if (chartData.nodes.length !== before) render(); else renderEdges();
       }
 
       // --- ADD ELEMENTS ---
@@ -2818,7 +3227,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
       // so the new node lands between the two. Only new shapes and nodes without arrows can be inserted:
       // moving an already-connected node never rewires anything.
       const INSERT_RANGE = 20;   // diagram px between the pointer and the arrow
-      const canInsert = (type) => type !== 'start' && type !== 'end';
+      const canInsert = (type) => type !== 'start' && type !== 'end' && type !== 'connector';
       const nodeHasEdges = (id) => chartData.edges.some(e => e.from === id || e.to === id);
 
       function toContainer(clientX, clientY) {
@@ -2861,6 +3270,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
       // --- AUTO LAYOUT ---
       // With auto layout on (the default; the dock's Auto-Tidy switch toggles it, remembered per browser), every step edit
       // re-runs the layout engine: adding, moving or deleting a step, and reordering, adding or deleting a lane.
+      // One exception: a shape dragged from the dock onto blank canvas stays where it is dropped (onPaletteUp).
       // Arrow edits (connect, reconnect, delete, label) do NOT re-lay out, so the order can be rewired one arrow at a
       // time without the diagram jumping; the next step edit (or Tidy) lays the result out. The engine reads only
       // structure (arrows, lanes), not x/y, so with auto layout on a drag only picks a lane. Off, steps stay where
@@ -2953,14 +3363,12 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           target = canInsert(pd.type) ? edgeNear(c.x, c.y) : null;
           const p = placementAt(e.clientX, e.clientY, nw, nh);
           if (!target) {
-            // The ghost shows the drop point. Auto layout off: snap to other nodes' and lane centres like a node drag
-            // (on, the re-layout on drop places the new step in the flow)
-            if (!autoLayout) {
-              const snap = computeSnap({ id: '__palette__' }, nw, nh, p.x, p.laneTop + p.y);
-              if (snap.x !== null) p.x = Math.max(16, Math.round(snap.x));
-              if (snap.y !== null) p.y = Math.max(12, Math.round(snap.y - p.laneTop));
-              showSnapGuides(snap);
-            }
+            // The ghost shows the drop point, snapped to other nodes' and lane centres like a manual node drag: the
+            // shape stays where it is dropped (no re-layout on a palette drop, see onPaletteUp)
+            const snap = computeSnap({ id: '__palette__' }, nw, nh, p.x, p.laneTop + p.y);
+            if (snap.x !== null) p.x = Math.max(16, Math.round(snap.x));
+            if (snap.y !== null) p.y = Math.max(12, Math.round(snap.y - p.laneTop));
+            showSnapGuides(snap);
             const sr = swimlanesContainer.getBoundingClientRect();
             const c = flowToContainer(p.x, p.laneTop + p.y);
             gx = sr.left + c.x * scale;
@@ -2995,7 +3403,13 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           const node = makeNode(pd.type, pd.placement);
           insertIntoEdge(node, target.edgeId, e.clientX, e.clientY);
         } else {
-          addNodeAt(pd.type, pd.placement);
+          // A shape dropped onto blank canvas stays where it was dropped, even with Auto-Tidy on: it has no
+          // arrows yet, so a re-layout would only throw it to the start of the flow. The next step edit (or
+          // Tidy) lays it out once it is connected.
+          const node = makeNode(pd.type, pd.placement);
+          render();
+          updateStatus(true);
+          selectNode(node.id);
         }
       }
 
@@ -3449,7 +3863,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
 
       // N, the "+" chip and the Note tile: open the step's note, or start a new one (dropped again if left empty)
       function addNoteTo(nodeId) {
-        if (!nodeById(nodeId) || isPresenting()) return;
+        if (!nodeById(nodeId) || isConnector(nodeById(nodeId)) || isPresenting()) return;   // a connector is not a step
         const existing = notesOf(nodeId)[0];
         if (existing) { editNote(existing.id); return; }
         const note = { id: noteUid(), text: '', nodes: [nodeId] };
@@ -3519,7 +3933,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
       // note whose anchor goes keeps its place on screen, measured from its new anchor.
       function toggleNoteLink(noteId, nodeId) {
         const note = noteById(noteId);
-        if (!note || !nodeById(nodeId)) return;
+        if (!note || !nodeById(nodeId) || isConnector(nodeById(nodeId))) return;
         const ids = note.nodes || [];
         if (!ids.includes(nodeId)) note.nodes = ids.concat(nodeId);
         else if (ids.length > 1) {
@@ -3665,7 +4079,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
       // The step under a screen point (ghosts and overlays ignore the pointer, so they never get in the way)
       function nodeIdAt(clientX, clientY) {
         const el = document.elementFromPoint(clientX, clientY);
-        const n = el && el.closest('.flow-node');
+        const n = el && el.closest('.flow-node:not(.type-connector)');   // a connector is not a step: no notes
         return n ? n.dataset.nodeId : null;
       }
       function giveNoteTo(nodeId) {
@@ -3740,6 +4154,97 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         return !!(d && d.ghost);
       }
 
+      // --- CONNECTOR TOOL (Shapes menu, Flow) ---
+      // A connector pair replaces an arrow, so the tile never drops a lone circle: drag it onto an arrow to break that
+      // arrow into a lettered pair, or click it to split the selected arrow. With no arrow selected, a click waits for
+      // the next arrow clicked (a prompt says so; Escape or a click on the canvas cancels).
+      const btnAddConnector = document.getElementById('btn-add-connector');
+      let connectorPicking = false;
+      let connectorToolDrag = null;   // { startX, startY, ghost, target, hintText }
+      function canSplitEdge(edgeId) {
+        const e = chartData.edges.find(x => x.id === edgeId);
+        return !!e && e.from !== e.to && !!nodeById(e.from) && !!nodeById(e.to) && !isConnector(nodeById(e.from)) && !isConnector(nodeById(e.to));
+      }
+      function setConnectorPicking(on) {
+        connectorPicking = on;
+        document.body.classList.toggle('connector-picking', on);
+        let hint = document.querySelector('.connector-pick-hint');
+        if (on && !hint) {
+          hint = document.createElement('div');
+          hint.className = 'note-pick-hint connector-pick-hint';
+          hint.setAttribute('role', 'status');
+          hint.dataset.exportSkip = '';
+          hint.innerHTML = 'Click an arrow to break it into a connector pair · <kbd>Esc</kbd> to cancel';
+          document.body.appendChild(hint);
+        } else if (!on && hint) hint.remove();
+      }
+      if (btnAddConnector) {
+        btnAddConnector.addEventListener('click', (e) => {
+          if (btnAddConnector.dataset.dragged) { delete btnAddConnector.dataset.dragged; e.preventDefault(); return; }
+          if (isPresenting()) return;
+          const edgeId = selectedEdgeId;
+          // After this click is done (the Shapes bubble hands focus back to its trigger)
+          if (edgeId && canSplitEdge(edgeId)) setTimeout(() => splitEdge(edgeId));
+          else setConnectorPicking(!connectorPicking);
+        });
+        btnAddConnector.addEventListener('pointerdown', (e) => {
+          delete btnAddConnector.dataset.dragged;
+          if (e.button !== 0 || isPresenting()) return;
+          connectorToolDrag = { startX: e.clientX, startY: e.clientY, ghost: null, target: null, hintText: null };
+          window.addEventListener('pointermove', onConnectorToolMove);
+          window.addEventListener('pointerup', onConnectorToolUp);
+          window.addEventListener('pointercancel', cancelConnectorToolDrag);
+        });
+      }
+      function onConnectorToolMove(e) {
+        const d = connectorToolDrag;
+        if (!d) return;
+        if (!d.ghost) {
+          if (Math.hypot(e.clientX - d.startX, e.clientY - d.startY) < 4) return;
+          setConnectorPicking(false);
+          d.ghost = document.createElement('div');
+          d.ghost.className = 'flow-node type-connector connector-ghost';
+          d.ghost.innerHTML = `<div class="node-label">${nextConnectorLetter(chartData.nodes)}</div>`;
+          document.body.appendChild(d.ghost);
+          document.body.classList.add('palette-dragging');
+          const hint = document.getElementById('insert-hint');
+          if (hint) { d.hintText = hint.textContent; hint.textContent = 'Break into a connector pair'; }
+        }
+        const c = toContainer(e.clientX, e.clientY);
+        const near = edgeNear(c.x, c.y);
+        d.target = near && canSplitEdge(near.edgeId) ? near : null;
+        setInsertTarget(d.target);
+        // Centred on the cursor (it is small and half transparent, so the arrow under it stays visible)
+        const half = (CONN.SIZE / 2) * scale;
+        d.ghost.style.transform = `translate(${e.clientX - half}px, ${e.clientY - half}px) scale(${scale})`;
+        d.ghost.classList.toggle('over-arrow', !!d.target);
+      }
+      function endConnectorToolDrag() {
+        window.removeEventListener('pointermove', onConnectorToolMove);
+        window.removeEventListener('pointerup', onConnectorToolUp);
+        window.removeEventListener('pointercancel', cancelConnectorToolDrag);
+        const d = connectorToolDrag;
+        connectorToolDrag = null;
+        if (d && d.ghost) {
+          d.ghost.remove();
+          document.body.classList.remove('palette-dragging');
+          const hint = document.getElementById('insert-hint');
+          if (hint && d.hintText !== null) hint.textContent = d.hintText;
+        }
+        setInsertTarget(null);
+        return d;
+      }
+      function onConnectorToolUp() {
+        const d = endConnectorToolDrag();
+        if (!d || !d.ghost) return;
+        btnAddConnector.dataset.dragged = '1';   // swallow the click that may follow on the tile
+        if (d.target) splitEdge(d.target.edgeId);
+      }
+      function cancelConnectorToolDrag() {
+        const d = endConnectorToolDrag();
+        return !!(d && d.ghost);
+      }
+
       // --- NOTES BUTTON (dock) ---
       function updateNotesButton() {
         if (!btnNotes) return;
@@ -3775,6 +4280,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           selectedLaneId = null;
           selectedNoteId = null;
           peekNodeId = null;
+          setConnectorPicking(false);   // a click on the canvas cancels waiting for an arrow
           markSelectedLane();
           document.querySelectorAll('.flow-node').forEach(el => el.classList.remove('selected'));
           renderEdges();
@@ -3784,9 +4290,10 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           if (closeLaneConfirm()) return true;
           const wasConnecting = !!connectingFromNodeId;
           cancelConnecting();
-          const wasPicking = notePicking;
+          const wasPicking = notePicking || connectorPicking;
           setNotePicking(false);
-          return cancelNoteLink() || cancelNoteToolDrag() || cancelNoteDrag() || cancelPaletteDrag() || wasConnecting || wasPicking;
+          setConnectorPicking(false);
+          return cancelNoteLink() || cancelNoteToolDrag() || cancelConnectorToolDrag() || cancelNoteDrag() || cancelPaletteDrag() || wasConnecting || wasPicking;
         },
         onViewChange() { closeLaneConfirm(); pinLaneHeaders(); },
         // Notes on show may sit in the margin outside the lanes: Fit and screenshots take them in (peeked ones
