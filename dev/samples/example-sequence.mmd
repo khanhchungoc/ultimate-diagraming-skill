@@ -1,0 +1,20 @@
+---
+title: Checkout
+---
+sequenceDiagram
+  actor p1 as Customer
+  participant p2 as Shop
+  participant p3 as Payment
+  participant p4 as Warehouse
+  p1->>p2: Place order
+  opt stock available
+    p2->>p4: Reserve stock
+    p4-->>p2: Stock reserved
+  end
+  alt payment accepted
+    p2->>p3: Charge card
+    p3-->>p2: Payment result
+  else
+    p2->>p4: Release stock
+  end
+  p2-->>p1: Order confirmed

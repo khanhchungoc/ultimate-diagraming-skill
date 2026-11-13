@@ -1,4 +1,4 @@
 {
   "title": "Interactive Sequence Diagram",
-  "dataNote": "\"participants\" are in column order and \"messages\" in time order; a fragment frames the\n       messages \"from\" .. \"to\" (message ids). Positions are not saved: the page lays them out on load."
+  "dataNote": "\"participants\" are in column order and \"messages\" in time order; a fragment frames the messages \"from\" .. \"to\" (message ids, inclusive); an \"alt\" fragment's \"label\" is its first branch's condition and \"elseAt\" is the message where the unlabelled \"else\" branch starts. Positions are not saved: the page lays them out on load."
 }

@@ -1,6 +1,6 @@
 <!DOCTYPE html>
-<!-- For agents: the whole diagram is the JSON (application/json) in the "diagram-data" script on lines 15-42 of this file. Read lines 1-42 only (offset 1, limit 42); everything after line 42 is editor code (CSS, JS, icons) and says nothing about the diagram.
-     The model's first key, "_readme", says how to read it. Stop at the "end diagram-data" comment. To print just the model:
+<!-- For agents: the whole diagram is the JSON (application/json) in the "diagram-data" script on lines 12-39 of this file. Read lines 1-39 only (offset 1, limit 39); everything after line 39 is editor code (CSS, JS, icons) and says nothing about the diagram.
+     The model's first key, "_readme", says how to read it. The "end diagram-data" comment marks the true end: if it is not on the line named above (the JSON was edited by hand since the last save), trust the comment. To print just the model:
      sed -n '/<script id="diagram-data" type="application\/json">/,/<\/script>/p' FILE
      python -c "import re,sys;print(re.search(r'<script id=\"diagram-data\" type=\"application\/json\">(.*?)<\/script>',open(sys.argv[1],encoding='utf8').read(),re.S)[1])" FILE -->
 <html lang="en">
@@ -8,13 +8,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Checkout</title>
-  <!-- Diagram model: the source of truth for this page.
-       "participants" are in column order and "messages" in time order; a fragment frames the
-       messages "from" .. "to" (message ids). Positions are not saved: the page lays them out on load.
-       Everything after this block is the editor. -->
+  <!-- Diagram model: the source of truth for this page. Everything after this block is the editor. -->
   <script id="diagram-data" type="application/json">
 {
-  "_readme": "How to read this model: \"participants\" are in column order and \"messages\" in time order; a fragment frames the messages \"from\" .. \"to\" (message ids). Positions are not saved: the page lays them out on load.",
+  "_readme": "How to read this model: \"participants\" are in column order and \"messages\" in time order; a fragment frames the messages \"from\" .. \"to\" (message ids, inclusive); an \"alt\" fragment's \"label\" is its first branch's condition and \"elseAt\" is the message where the unlabelled \"else\" branch starts. Positions are not saved: the page lays them out on load.",
   "diagramType": "sequence",
   "schemaVersion": 1,
   "title": "Checkout",

@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!-- For agents: the whole diagram is the JSON (application/json) in the "diagram-data" script on lines 0-0 of this file. Read lines 1-0 only (offset 1, limit 0); everything after line 0 is editor code (CSS, JS, icons) and says nothing about the diagram.
-     The model's first key, "_readme", says how to read it. Stop at the "end diagram-data" comment. To print just the model:
+     The model's first key, "_readme", says how to read it. The "end diagram-data" comment marks the true end: if it is not on the line named above (the JSON was edited by hand since the last save), trust the comment. To print just the model:
      sed -n '/<script id="diagram-data" type="application\/json">/,/<\/script>/p' FILE
      python -c "import re,sys;print(re.search(r'<script id=\"diagram-data\" type=\"application\/json\">(.*?)<\/script>',open(sys.argv[1],encoding='utf8').read(),re.S)[1])" FILE -->
 <html lang="en">
@@ -8,9 +8,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{{PAGE_TITLE}}</title>
-  <!-- Diagram model: the source of truth for this page.
-       {{TYPE_DATA_NOTE}}
-       Everything after this block is the editor. -->
+  <!-- Diagram model: the source of truth for this page. Everything after this block is the editor. -->
   <script id="diagram-data" type="application/json">
 {{DATA}}
   </script>

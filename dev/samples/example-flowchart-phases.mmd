@@ -1,0 +1,44 @@
+---
+title: Supplier Onboarding
+---
+flowchart TB
+  subgraph lane-step1["Step 1: Request"]
+    direction TB
+    n_request_new_supplier(["Request New Supplier"])
+    n_complete_supplier_form["Complete Supplier Form"]
+  end
+  subgraph lane-step2["Step 2: Document Review"]
+    direction TB
+    n_check_documents["Check Documents"]
+    n_documents_complete{"Documents Complete?"}
+  end
+  subgraph lane-step3["Step 3: Risk Assessment"]
+    direction TB
+    n_run_risk_assessment["Run Risk Assessment"]
+    n_risk_acceptable{"Risk Acceptable?"}
+    n_supplier_rejected(["Supplier Rejected"])
+  end
+  subgraph lane-step4["Step 4: Activation"]
+    direction TB
+    n_create_supplier_record[("Create Supplier Record")]
+    n_supplier_active(["Supplier Active"])
+  end
+  n_request_new_supplier --> n_complete_supplier_form
+  n_complete_supplier_form --> n_check_documents
+  n_check_documents --> n_documents_complete
+  n_documents_complete -.->|"No"| n_complete_supplier_form
+  n_documents_complete -->|"Yes"| n_run_risk_assessment
+  n_run_risk_assessment --> n_risk_acceptable
+  n_risk_acceptable -->|"No"| n_supplier_rejected
+  n_risk_acceptable -->|"Yes"| n_create_supplier_record
+  n_create_supplier_record --> n_supplier_active
+  note_1["Supplier portal form: legal entity, bank details, tax ID"]:::note
+  note_1 -.- n_complete_supplier_form
+  note_2["Certificate of incorporation, W-9 or VAT certificate, proof of insurance"]:::note
+  note_2 -.- n_check_documents
+  note_2 -.- n_documents_complete
+  note_3["Sanctions screening and Dun & Bradstreet credit check<br>Owner: Procurement Risk"]:::note
+  note_3 -.- n_run_risk_assessment
+  note_4["ERP vendor master; payment terms Net 30 unless agreed otherwise"]:::note
+  note_4 -.- n_create_supplier_record
+  classDef note fill:#fff8c5,stroke:#d4a72c,color:#3b2e00

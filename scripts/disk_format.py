@@ -197,7 +197,7 @@ def with_readme(disk: Dict[str, Any], readme: str) -> Dict[str, Any]:
 
 
 def readme_text(data_note: str) -> str:
-    """meta.json dataNote (wrapped for the header comment) as one line."""
+    """meta.json dataNote as the block's "_readme" line (the only place the page states it)."""
     return "How to read this model: " + " ".join(data_note.split())
 
 

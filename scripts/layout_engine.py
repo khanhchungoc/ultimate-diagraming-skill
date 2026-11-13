@@ -1057,7 +1057,6 @@ def assemble_page(kind: str, data: Optional[Dict[str, Any]] = None) -> str:
     icons_js = f"const TYPE_ICONS = {json.dumps(json.loads(_read_asset(icons_path)), separators=(',', ':'))};\n" if icons_path.is_file() else ""
     parts = {
         "PAGE_TITLE": html.escape(str(data.get("title") or meta["title"]), quote=False),
-        "TYPE_DATA_NOTE": meta["dataNote"],
         "SHELL_CSS": _read_asset(ASSETS_DIR / "shell" / "shell.css").rstrip(chr(10)),
         "TYPE_CSS": _read_asset(type_dir / f"{kind}.css").rstrip(chr(10)),
         "TYPE_TOOLBAR": _read_asset(type_dir / "toolbar.html").rstrip(chr(10)),
@@ -1167,6 +1166,10 @@ def main():
 
         for warning in report["budget_warnings"]:
             print(f"[WARN] {warning}")
+        if p.suffix == ".html" and stamp_reading_guide(html_text) != html_text:
+            # The JSON was edited by hand: line 2 names the wrong range (Save or --layout rewrites it)
+            print("[WARN] The reading guide's line numbers (line 2) no longer match the data block. "
+                  "Save the page or re-run --layout to update them.")
         if external_refs:
             print("[FAIL] HTML loads external resources (must be fully self-contained):")
             for ref in external_refs:

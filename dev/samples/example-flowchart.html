@@ -1,6 +1,6 @@
 <!DOCTYPE html>
-<!-- For agents: the whole diagram is the JSON (application/json) in the "diagram-data" script on lines 15-105 of this file. Read lines 1-105 only (offset 1, limit 105); everything after line 105 is editor code (CSS, JS, icons) and says nothing about the diagram.
-     The model's first key, "_readme", says how to read it. Stop at the "end diagram-data" comment. To print just the model:
+<!-- For agents: the whole diagram is the JSON (application/json) in the "diagram-data" script on lines 12-102 of this file. Read lines 1-102 only (offset 1, limit 102); everything after line 102 is editor code (CSS, JS, icons) and says nothing about the diagram.
+     The model's first key, "_readme", says how to read it. The "end diagram-data" comment marks the true end: if it is not on the line named above (the JSON was edited by hand since the last save), trust the comment. To print just the model:
      sed -n '/<script id="diagram-data" type="application\/json">/,/<\/script>/p' FILE
      python -c "import re,sys;print(re.search(r'<script id=\"diagram-data\" type=\"application\/json\">(.*?)<\/script>',open(sys.argv[1],encoding='utf8').read(),re.S)[1])" FILE -->
 <html lang="en">
@@ -8,10 +8,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Customer Loan Application Process</title>
-  <!-- Diagram model: the source of truth for this page.
-       "nodes" are in flow order; "feedback": true marks an arrow that loops back to an earlier
-       step; "layout" is display-only (positions, sizes, colours) and can be skipped.
-       Everything after this block is the editor. -->
+  <!-- Diagram model: the source of truth for this page. Everything after this block is the editor. -->
   <script id="diagram-data" type="application/json">
 {
   "_readme": "How to read this model: \"nodes\" are in flow order; \"feedback\": true marks an arrow that loops back to an earlier step; \"layout\" is display-only (positions, sizes, colours) and can be skipped.",
