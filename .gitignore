@@ -2,7 +2,4 @@ __pycache__/
 *.pyc
 
 # Local working diagrams (not shipped examples)
-/dev/samples/preparation-iteration-flowchart.html
-/dev/samples/preparation-iteration-flowchart.json
-/dev/samples/motor-insurance-claim-processing.html
-/dev/samples/motor-insurance-claim-processing-other.html
+/dev/samples/*

@@ -55,6 +55,12 @@ READABLE_ZOOM = 0.84
 TB_MIN_GAIN = 0.05  # top to bottom must make lanes-fill-the-screen zoom this much bigger to be worth the switch
 TB_MAX_SCORE_LOSS = 5  # ... and may score at most this much lower in the audit (an extra crossing or two)
 
+# Long arrows (flowchart rule 11): a routed arrow at least this many column widths long that crosses another arrow is
+# hard to follow and should become a connector pair. Calibrated on dev/fixtures (longest 4.6 columns, none flagged).
+LONG_ARROW_COLS = 6
+LONG_ARROW_PENALTY, LONG_ARROW_MAX_PENALTY = 5, 15
+LONG_ARROW_MAX_PAIRS = 3
+
 
 class FlowchartAudit:
     def __init__(self, data: Dict[str, Any]):
@@ -98,7 +104,9 @@ class FlowchartAudit:
         return (
             f"[PASS] Quality Score: {report['score']}/100 ({report['grade']}). "
             f"0 overlaps, 0 penetrations, {report['collinear_pct']}% collinear straightness"
-            + (f", {report['edge_crossings']} edge crossings (score only, not a defect)." if report["edge_crossings"] else ".")
+            + (f", {report['edge_crossings']} edge crossings" if report["edge_crossings"] else "")
+            + (f", {report['long_arrows_count']} long arrows" if report["long_arrows_count"] else "")
+            + (" (score only, not a defect)." if report["edge_crossings"] or report["long_arrows_count"] else ".")
         )
 
     def summary_lines(self, report: Dict[str, Any]) -> List[str]:
@@ -112,6 +120,7 @@ class FlowchartAudit:
             f"✓ Collinear Straightness:        {report['collinear_pct']}% ({report['doglegs_count']} dogleg kinks)",
             f"✓ Reference Integrity:           {report['dangling_count']} dangling endpoints",
             f"✓ Orthogonal Edge Crossings:     {report['edge_crossings']} crossings",
+            f"✓ Long Tangled Arrows:           {report['long_arrows_count']} (connector candidates)",
         ]
 
     def verify_collisions(self) -> Dict[str, Any]:
@@ -292,6 +301,9 @@ class FlowchartAudit:
         # crossings no lane order removes, and failing on them only sends the agent chasing them.
         defect_score = max(0, score)
         score -= min(15, edge_crossings * 2)
+        # Long tangled arrows likewise: score only, with a [WARN] that names the fix (a connector pair).
+        long_arrows = self._long_arrows(polylines)
+        score -= min(LONG_ARROW_MAX_PENALTY, len(long_arrows) * LONG_ARROW_PENALTY)
         score = max(0, min(100, score))
 
         grade = "A+" if score >= 95 else ("A" if score >= 90 else ("B" if score >= 80 else ("C" if score >= 70 else "F")))
@@ -307,7 +319,8 @@ class FlowchartAudit:
         max_x = max((float(n.get("x", 0)) for n in self.nodes), default=float(START_X))
         column_count = int(round((max_x - START_X) / self.col_w)) + 1
         budget_warnings: List[str] = (self._node_type_warnings() + self._connector_warnings() + self._lane_icon_warnings()
-                                      + self._outcome_label_warnings() + self._note_warnings())
+                                      + self._outcome_label_warnings() + self._note_warnings()
+                                      + self._long_arrow_warnings(long_arrows))
 
         return {
             "passed": passed,
@@ -318,6 +331,7 @@ class FlowchartAudit:
             "edge_count": len(self.edges),
             "lane_count": len(self.lanes),
             "edge_crossings": edge_crossings,
+            "long_arrows_count": len(long_arrows),
             "bend_count": bend_count,
             "total_edge_length": total_edge_length,
             "collinear_pct": round(collinear_pct, 1),
@@ -448,6 +462,51 @@ class FlowchartAudit:
             labels = [str(self.node_map[i].get("label", "")).strip() for i in ids if i in self.node_map]
             if any(l and text.rstrip("?.!").lower() == l.rstrip("?.!").lower() for l in labels):
                 warnings.append(f"Note '{nid}' repeats its step's label. Remove the note, or say what the label cannot.")
+        return warnings
+
+    def _long_arrows(self, polylines: Dict[str, List[Tuple[float, float]]]) -> List[Tuple[Dict[str, Any], float, int]]:
+        """Arrows hard to follow (rule 11): routed at least LONG_ARROW_COLS column widths long, whether across lanes,
+        round a detour or back along a loop, and crossing at least one other arrow. Longest first, as
+        (edge, length in columns, crossings). Arrows into or out of a connector are already split."""
+        found = []
+        for e in self.edges:
+            pts = polylines.get(e["id"])
+            ends = (self.node_map.get(e["from"]), self.node_map.get(e["to"]))
+            if not pts or any(n is None or n.get("type") == "connector" for n in ends):
+                continue
+            length = sum(abs(pts[i + 1][0] - pts[i][0]) + abs(pts[i + 1][1] - pts[i][1]) for i in range(len(pts) - 1))
+            cols = length / self.col_w
+            if cols < LONG_ARROW_COLS:
+                continue
+            crossings = sum(
+                1 for o in self.edges
+                if o is not e and o["id"] in polylines and self._polylines_intersect(
+                    pts, polylines[o["id"]], incident=bool({e["from"], e["to"]} & {o["from"], o["to"]})))
+            if crossings:
+                found.append((e, cols, crossings))
+        found.sort(key=lambda f: -f[1])
+        return found
+
+    def _long_arrow_warnings(self, long_arrows: List[Tuple[Dict[str, Any], float, int]]) -> List[str]:
+        """One [WARN] per connector letter to add (rule 11), longest arrow first, at most LONG_ARROW_MAX_PAIRS letters.
+        Long arrows into the same step share one letter (one out-connector, an in-connector per arrow). More letters
+        than that means lane order is the problem (checklist item 2)."""
+        groups: Dict[str, List[Tuple[Dict[str, Any], float, int]]] = {}
+        for item in long_arrows:  # longest first, so groups are ordered by their longest arrow
+            groups.setdefault(item[0]["to"], []).append(item)
+        if not groups:
+            return []
+        label = lambda nid: self.node_map[nid].get("label") or nid
+        warnings = []
+        if len(groups) > LONG_ARROW_MAX_PAIRS:
+            warnings.append(f"{len(groups)} long, tangled arrow targets need connectors, more than {LONG_ARROW_MAX_PAIRS}: "
+                            f"check lane order first (checklist item 2), then split only the {LONG_ARROW_MAX_PAIRS} "
+                            f"below and report the rest.")
+        for target, items in list(groups.items())[:LONG_ARROW_MAX_PAIRS]:
+            arrows = "; ".join(f"'{e['id']}' ({label(e['from'])} -> {label(target)}, {cols:.0f} column widths, "
+                               f"crosses {n})" for e, cols, n in items)
+            warnings.append(f"Long arrow{'s' if len(items) > 1 else ''} {arrows}: split into a connector pair (rule 11)"
+                            + (", one letter for all of them." if len(items) > 1 else "."))
         return warnings
 
     def _count_crossings_from_polylines(

@@ -462,6 +462,11 @@
       font-weight: 700;
       cursor: pointer;
     }
+    /* Pairs tell apart in one hue (no extra colours): by letter, 0 pale disc + 2px ring (above), 1 solid disc,
+       2 mid tint + thick ring, 3 double ring (flowchart.js connectorStyle) */
+    .flow-node.type-connector[data-style="1"] { background: var(--conn-border); color: var(--conn-bg); }
+    .flow-node.type-connector[data-style="2"] { background: color-mix(in srgb, var(--conn-border) 28%, var(--conn-bg)); border-width: 4px; }
+    .flow-node.type-connector[data-style="3"] { border: 5px double var(--conn-border); }
     .flow-node.type-connector .node-label { width: 100%; min-width: 0; -webkit-line-clamp: 1; cursor: pointer; }
     .flow-node.type-connector .node-label[contenteditable="true"] { cursor: text; }
     .flow-node.type-connector:is(:hover, .selected, .pair-lit) { border-color: var(--node-accent); }

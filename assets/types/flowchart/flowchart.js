@@ -573,6 +573,13 @@
         return i && !o ? 'in' : o && !i ? 'out' : null;
       };
       const connectorsLettered = (letter) => chartData.nodes.filter(n => isConnector(n) && connectorLetter(n) === letter);
+      // Which of the 4 one-hue styles (flowchart.css, data-style) a letter wears, by its place in the sequence
+      // (A 0, B 1, ... AA 24): neighbouring letters always differ, and a pair always matches.
+      function connectorStyle(letter) {
+        const L = CONNECTOR_LETTERS.length, idx = [...letter].reduce((k, ch) => k * L + Math.max(0, CONNECTOR_LETTERS.indexOf(ch)), 0)
+          + (letter.length > 1 ? L : 0);
+        return idx % 4;
+      }
       // The circles a reader looks for from this one: an in-connector's out-connector, an out-connector's in-connectors
       function connectorPartners(node) {
         const role = connectorRole(node.id), want = role === 'in' ? 'out' : role === 'out' ? 'in' : null;
@@ -595,6 +602,7 @@
       function buildConnectorEl(node) {
         const el = document.createElement('div');
         el.className = 'flow-node type-connector';
+        el.dataset.style = connectorStyle(connectorLetter(node));
         el.id = `node-${node.id}`;
         el.dataset.nodeId = node.id;
         el.setAttribute('role', 'button');
