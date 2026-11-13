@@ -23,6 +23,7 @@
       let seqSel = null;       // { kind: 'participant' | 'message' | 'fragment', id }
       let seqDrag = null;      // active drag: { kind, id, el, startX, startY, moved, target }
       let seqCounter = 0;
+      let seqSelStash = null;  // { sel, data }: the selection the shell cleared, and the model it belonged to
 
       function svgEl(name, attrs) {
         const el = document.createElementNS(SVG_NS, name);
@@ -69,6 +70,10 @@
 
       function render() {
         ensureModel();
+        // Undo and redo swap chartData for a snapshot and clear the selection first: put it back if the object is
+        // still there, so undo, look, redo does not mean selecting again each time
+        if (seqSelStash && seqSelStash.data !== chartData && !seqSel && selExists(seqSelStash.sel)) seqSel = seqSelStash.sel;
+        seqSelStash = null;
         const ps = chartData.participants, ms = chartData.messages, fs = chartData.fragments;
         const missing = !chartData.layout || ps.some((p) => p.x === undefined) || ms.some((m) => m.y === undefined);
         if (missing) layoutDiagram(chartData);
@@ -161,11 +166,32 @@
         document.querySelectorAll('.seq-participant').forEach((el) => el.classList.toggle('selected', sel.kind === 'participant' && el.dataset.nodeId === sel.id));
         document.querySelectorAll('.seq-msg-label, .seq-line').forEach((el) => el.classList.toggle('selected', sel.kind === 'message' && el.dataset.edgeId === sel.id));
         document.querySelectorAll('.seq-frag-label, .seq-frag-box').forEach((el) => el.classList.toggle('selected', sel.kind === 'fragment' && el.dataset.fragId === sel.id));
+        refreshDock();
+      }
+
+      // Nothing silent: a dock button that cannot act is disabled and its tooltip says what to select
+      function setDockButton(btn, enabled, title) {
+        btn.disabled = !enabled;
+        btn.title = title;
+      }
+      function refreshDock() {
+        const kind = seqSel && seqSel.kind;
+        setDockButton(btnAddMessage, !!chartData.participants.length,
+          chartData.participants.length ? 'Add a message from the selected participant (or after the selected message)' : 'Add a participant first');
+        setDockButton(btnToggleKind, kind === 'message',
+          kind === 'message' ? 'Change the selected message type: call, reply, async' : 'Select a message to change its type');
+        setDockButton(btnFrame, kind === 'message' || kind === 'fragment',
+          kind === 'fragment' ? 'Change the selected frame: opt, alt, loop' : kind === 'message' ? 'Wrap the selected message in an opt frame' : 'Select a message to wrap it in a frame');
       }
 
       function select(kind, id) {
         seqSel = kind ? { kind, id } : null;
         applySelection();
+      }
+      function selExists(sel) {
+        if (!sel) return false;
+        const list = sel.kind === 'participant' ? chartData.participants : sel.kind === 'message' ? chartData.messages : chartData.fragments;
+        return (list || []).some((o) => o.id === sel.id);
       }
 
       function relayout() {
@@ -238,7 +264,11 @@
 
       function onSeqPointerUp() {
         const drag = endSeqDrag();
-        if (!drag || !drag.moved || !drag.target) { render(); return; }
+        if (!drag) return;
+        // A click without movement must not rebuild the DOM: the second click of a double-click has to land on
+        // the same element, or the browser's dblclick never reaches the text
+        if (!drag.moved) { applySelection(); return; }
+        if (!drag.target) { render(); return; }
         const list = drag.kind === 'participant' ? chartData.participants : chartData.messages;
         const from = list.findIndex((item) => item.id === drag.id);
         const [item] = list.splice(from, 1);
@@ -252,12 +282,11 @@
         if (drag.target.index !== from) relayout(); else render();
       }
 
-      // --- INLINE TEXT EDITING (double-click) ---
-      seqHtml.addEventListener('dblclick', (e) => {
-        if (document.body.classList.contains('presentation')) return;
-        const el = e.target.closest('.seq-participant-name, .seq-msg-label-text, .seq-frag-text');
-        if (!el) return;
-        e.stopPropagation();
+      // --- INLINE TEXT EDITING (double-click, or straight after creating something) ---
+      const EDIT_TEXT = '.seq-participant-name, .seq-msg-label-text, .seq-frag-text';
+      const EDIT_OWNER = { participant: '.seq-participant[data-node-id="ID"]', message: '.seq-msg-label[data-edge-id="ID"]', fragment: '.seq-frag-label[data-frag-id="ID"]' };
+      function beginEdit(el) {
+        if (!el || el.isContentEditable) return;
         el.contentEditable = 'true';
         el.focus();
         const range = document.createRange();
@@ -265,8 +294,10 @@
         const s = window.getSelection();
         s.removeAllRanges();
         s.addRange(range);
+        const original = el.textContent;
         const commit = () => {
           el.removeEventListener('blur', commit);
+          el.removeEventListener('keydown', onKey);
           el.contentEditable = 'false';
           const value = el.textContent.trim();
           const owner = el.closest('[data-node-id], [data-edge-id], [data-frag-id]');
@@ -276,11 +307,48 @@
             else if (owner.dataset.edgeId) { const m = chartData.messages.find((x) => x.id === owner.dataset.edgeId); if (m && m.label !== value) { m.label = value; changed = true; } }
             else if (owner.dataset.fragId) { const f = chartData.fragments.find((x) => x.id === owner.dataset.fragId); if (f && f.label !== value) { f.label = value; changed = true; } }
           }
-          if (changed) relayout(); else render();
+          if (changed) relayout(); else el.textContent = original;
+        };
+        // Enter commits; Escape puts the text back (the keys stay inside the editor)
+        const onKey = (ke) => {
+          if (ke.key === 'Enter') { ke.preventDefault(); el.blur(); }
+          else if (ke.key === 'Escape') { ke.preventDefault(); ke.stopPropagation(); el.textContent = original; el.blur(); }
         };
         el.addEventListener('blur', commit);
-        el.addEventListener('keydown', (ke) => { if (ke.key === 'Enter') { ke.preventDefault(); el.blur(); } });
-      });
+        el.addEventListener('keydown', onKey);
+      }
+      function onSeqDblClick(e) {
+        if (document.body.classList.contains('presentation')) return;
+        const box = e.target.closest('.seq-participant, .seq-msg-label, .seq-frag-label');
+        const el = e.target.closest(EDIT_TEXT) || (box && box.querySelector(EDIT_TEXT));
+        if (!el) return;
+        e.stopPropagation();
+        beginEdit(el);
+      }
+      seqHtml.addEventListener('dblclick', onSeqDblClick);
+
+      // Bring an element into the viewport (a created object can land below or right of the screen)
+      function panIntoView(el) {
+        if (!el) return;
+        const r = el.getBoundingClientRect(), v = viewport.getBoundingClientRect(), pad = 60;
+        const dock = document.querySelector('.dock-area .toolbar-center');
+        const bottom = Math.min(v.bottom, dock && dock.offsetHeight ? dock.getBoundingClientRect().top : v.bottom);
+        let dx = 0, dy = 0;
+        if (r.left < v.left + pad) dx = v.left + pad - r.left; else if (r.right > v.right - pad) dx = v.right - pad - r.right;
+        if (r.top < v.top + pad) dy = v.top + pad - r.top; else if (r.bottom > bottom - pad) dy = bottom - pad - r.bottom;
+        if (!dx && !dy) return;
+        panX += dx;
+        panY += dy;
+        updateTransform();
+      }
+      // Create means name: a new object is selected, on screen, and its placeholder text is in edit
+      function editCreated(kind, id) {
+        seqSel = { kind, id };
+        relayout();
+        const box = seqHtml.querySelector(EDIT_OWNER[kind].replace('ID', id));
+        panIntoView(box);
+        beginEdit(box && box.querySelector(EDIT_TEXT));
+      }
 
       seqHtml.addEventListener('pointerdown', onSeqPointerDown);
       seqSvg.addEventListener('pointerdown', onSeqPointerDown);
@@ -327,8 +395,7 @@
         ensureModel();
         const p = { id: seqUid('p'), name: `Participant ${chartData.participants.length + 1}`, kind: 'system' };
         chartData.participants.push(p);
-        seqSel = { kind: 'participant', id: p.id };
-        relayout();
+        editCreated('participant', p.id);
       });
 
       btnAddMessage.addEventListener('click', () => {
@@ -346,8 +413,7 @@
         }
         const m = { id: seqUid('m'), from, to, label: 'Message', kind };
         ms.splice(at, 0, m);
-        seqSel = { kind: 'message', id: m.id };
-        relayout();
+        editCreated('message', m.id);
       });
 
       btnToggleKind.addEventListener('click', () => {
@@ -368,9 +434,15 @@
         if (!seqSel || seqSel.kind !== 'message') return;
         const f = { id: seqUid('f'), kind: 'opt', label: 'condition', from: seqSel.id, to: seqSel.id };
         chartData.fragments.push(f);
-        seqSel = { kind: 'fragment', id: f.id };
-        relayout();
+        editCreated('fragment', f.id);
       });
+
+      // Escape clears the selection, unless it has a drag to cancel first (the shell does that) or a text is in edit
+      window.addEventListener('keydown', (e) => {
+        if (e.key !== 'Escape' || seqDrag || !seqSel) return;
+        if (document.activeElement && document.activeElement.isContentEditable) return;
+        select(null);
+      }, true);
 
       // --- DISK FORMAT (the page's data block) ---
       // No positions are saved: render() lays out whatever is missing, so the block holds only the logical model,
@@ -397,7 +469,7 @@
         report: { node: '.seq-participant', label: '.seq-msg-label', labelText: '.seq-msg-label-text', nodeText: '.seq-participant-name' },
         render,
         isBackground: (el) => el === seqCanvas || el === seqSvg || el === seqHtml,
-        clearSelection() { select(null); },
+        clearSelection() { seqSelStash = { sel: seqSel, data: chartData }; select(null); },
         cancelInteraction() {
           if (!seqDrag) return false;
           endSeqDrag();

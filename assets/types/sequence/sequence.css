@@ -14,7 +14,7 @@
     .seq-line.selected { stroke: var(--primary); stroke-width: 2; }
     .seq-arrow-fill { fill: var(--text-main); }
     .seq-arrow-open { fill: none; stroke: var(--text-main); stroke-width: 1.5; }
-    .seq-msg-hit { stroke: transparent; stroke-width: 18; fill: none; pointer-events: stroke; cursor: pointer; }
+    .seq-msg-hit { stroke: transparent; stroke-width: 18; fill: none; pointer-events: stroke; cursor: pointer; touch-action: none; }
     .seq-frag-box { fill: var(--primary); fill-opacity: 0.04; stroke: var(--border-dark); stroke-width: 1.5; pointer-events: none; }
     .seq-frag-box.selected { stroke: var(--primary); stroke-width: 2; }
     .seq-frag-else { stroke: var(--border-dark); stroke-width: 1.5; stroke-dasharray: 6 4; }
@@ -32,7 +32,7 @@
     .seq-participant-name { outline: none; min-width: 20px; }
     .seq-msg-label {
       position: absolute; height: 20px; line-height: 20px; padding: 0 6px; border-radius: 4px; white-space: nowrap;
-      font-size: 13px; color: var(--text-main); cursor: pointer; user-select: none;
+      font-size: 13px; color: var(--text-main); cursor: pointer; user-select: none; touch-action: none;
       text-shadow: 0 0 2px var(--bg-panel), 0 0 2px var(--bg-panel), 0 0 5px var(--bg-panel), 0 0 5px var(--bg-panel);
     }
     .seq-msg-label.is-self { transform: none; }
