@@ -14,7 +14,6 @@ Never add pixel coordinates (`x`, `y`); `--layout` computes them. A saved page e
 {
   "diagramType": "flowchart",
   "title": "Process Title",
-  "direction": "LR",
   "lanes": [{ "id": "lane-customer", "name": "Customer", "icon": "user" }],
   "nodes": [{ "id": "n_submit_request", "laneId": "lane-customer", "type": "start", "label": "Submit Request" }],
   "edges": [{ "id": "e1", "from": "n_submit_request", "to": "n_validate_request", "label": "" }],
@@ -31,7 +30,7 @@ Never add pixel coordinates (`x`, `y`); `--layout` computes them. A saved page e
 | Note | `id`, `text`, `nodes` | Optional list `notes`: plain text that explains one or more steps (what goes in it: rule 9). `nodes` lists the ids of the steps it explains; the first is where it sits. Each linked step shows a small badge the reader hovers to see the note. |
 | Diagram | `showNotes` | Optional `true` shows every note on the page (fitted into the gaps near its node) instead of on hover; when to set it: rule 9. |
 | Diagram | `swimlanes` | Optional `false` hides the lane header column, tint and borders (when: rule 7 and "Choosing the structure"). Keep exactly one lane in `lanes` and put every node in it (the tooling creates `lane-main` if `lanes` is empty). The lane icon rule does not apply. |
-| Diagram | `direction` | Optional `"TB"` lays the diagram out **top to bottom**: lanes become columns and steps run downwards. Leave it out for left to right (the default). When: "Choosing the structure". |
+| Diagram | `direction` | Usually leave it out: `--layout` then picks the direction that reads best (left to right if the whole diagram fits the screen, else usually top to bottom) and says so in an `[INFO]` line. Set `"LR"` or `"TB"` only when the user asks or "Choosing the structure" says to. `"TB"` lays the diagram out **top to bottom**: lanes become columns and steps run downwards. |
 | Edge | `feedback` | Optional `true` marks a loop-back edge so it always routes through the outer corridor. Without it the engine picks the loop edge by traversal order, which may choose the wrong edge of a cycle. |
 
 ## Writing rules
@@ -107,9 +106,11 @@ Decide from the source, once, top row first. Do not trial the alternatives.
 | Source looks like | Lanes | `direction` |
 |---|---|---|
 | Sequential boxes titled `Step N` / `Phase N` / `Stage N` | one lane per container, in order (rule 7) | `TB` if they stack downwards, else omit |
-| Several actors or systems handing work over | one lane per actor | omit (`LR`) |
-| Few actors but many steps | keep the actor lanes | `TB` (fits a page better) |
-| One actor, one sequence | `"swimlanes": false` | `TB` if long, else omit |
+| Several actors or systems handing work over | one lane per actor | omit (the tool picks) |
+| One actor, one sequence | `"swimlanes": false` | omit (the tool picks) |
+| The user names a direction ("vertical", "left to right") | as above | `TB` or `LR` as asked |
+
+**Why the tool picks.** It lays the diagram out left to right; if the whole diagram fits the screen at a readable zoom, that stays. Otherwise it also lays it out top to bottom and keeps the direction in which the lanes fill the screen at the bigger zoom, so the reader scrolls one way only, along the flow. A long flow (41 steps in 7 lanes: about 5,000 × 1,300 px left to right, 1,800 × 3,000 px top to bottom) almost always goes top to bottom. Do not set a direction to override this choice unless the user asked.
 
 **Lane order follows the flow, not the user's list.** Order lanes by each actor's first step on the main (happy) path, initiator first: `Employee` submits, `IT` checks, `Line Manager` approves gives that order however the user listed them. An actor only on an exception path goes after the last main-path actor it hands off to. Phase lanes keep their container order (rule 7). Report any difference from the user's list.
 

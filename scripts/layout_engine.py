@@ -47,6 +47,14 @@ DECISION_NODE_HEIGHT = 80
 LANE_MIN_HEIGHT = 176
 LANE_BOTTOM_PADDING = 36
 
+# Direction choice for a flowchart whose JSON leaves "direction" out (choose_flowchart_direction). The screen the page
+# opens on, less fitView's 80px padding a side and the dock band; and the zoom at which node text (about 13px at 100%)
+# stays at the 11px legibility minimum.
+VIEW_W, VIEW_H = 1920 - 160, 1080 - 160 - 64
+READABLE_ZOOM = 0.84
+TB_MIN_GAIN = 0.05  # top to bottom must make lanes-fill-the-screen zoom this much bigger to be worth the switch
+TB_MAX_SCORE_LOSS = 5  # ... and may score at most this much lower in the audit (an extra crossing or two)
+
 
 class FlowchartAudit:
     def __init__(self, data: Dict[str, Any]):
@@ -1105,6 +1113,41 @@ def _ensure_utf8_output() -> None:
             pass
 
 
+def _flowchart_canvas(laid: Dict[str, Any]) -> Tuple[float, float]:
+    """(along the flow, across the lanes) in px, from laid-out positions."""
+    audit = FlowchartAudit(laid)
+    along = max((n.get("x", 0) + audit.node_wf(n) for n in laid.get("nodes") or []), default=0) + START_X
+    across = sum(lane.get("height", audit.lane_min) for lane in laid.get("lanes") or []) or audit.lane_min
+    return along, across
+
+
+def choose_flowchart_direction(data: Dict[str, Any], timeout: int, browser: Optional[str]) -> Tuple[Dict[str, Any], str]:
+    """Lay out a flowchart that does not set "direction", in the direction that reads best; return (laid data, why).
+
+    Left to right is kept when the whole diagram fits the screen at a readable zoom. Otherwise the lanes should fill
+    the screen while the reader scrolls along the flow, and the direction whose lanes fill it at the bigger zoom wins:
+    a landscape screen is about twice as wide as tall, so a long flow almost always reads better top to bottom. Only
+    positions are compared (no render); the second layout costs about 0.2 s with Node.js."""
+    lr = run_layout("flowchart", {**data, "direction": "LR"}, timeout=timeout, browser=browser)
+    along, across = _flowchart_canvas(lr)
+    fit_all = min(1.0, VIEW_W / along, VIEW_H / across)
+    if fit_all >= READABLE_ZOOM:
+        return lr, ""
+    tb = run_layout("flowchart", {**data, "direction": "TB"}, timeout=timeout, browser=browser)
+    tb_along, tb_across = _flowchart_canvas(tb)
+    lr_zoom, tb_zoom = min(1.0, VIEW_H / across), min(1.0, VIEW_W / tb_across)
+    # Rotating the same graph can add an edge crossing or two (score only, never a gate failure); that is worth much
+    # bigger lanes, but a real defect (overlap, penetration, overflow) that left to right does not have is not.
+    lr_report, tb_report = FlowchartAudit(lr).verify_collisions(), FlowchartAudit(tb).verify_collisions()
+    tb_quality_ok = (tb_report["passed"] or not lr_report["passed"]) and \
+        tb_report["score"] >= lr_report["score"] - TB_MAX_SCORE_LOSS
+    if tb_zoom >= lr_zoom + TB_MIN_GAIN and tb_quality_ok:
+        return tb, (f"top to bottom: a long flow; lanes fill the screen at {tb_zoom:.0%} "
+                    f"({tb_across:.0f} x {tb_along:.0f} px) against {lr_zoom:.0%} left to right "
+                    f"({along:.0f} x {across:.0f} px)")
+    return lr, ""
+
+
 def main():
     _ensure_utf8_output()
     parser = argparse.ArgumentParser(description="Multi-Swimlane Flowchart Layout & Verification Engine")
@@ -1192,10 +1235,16 @@ def main():
             data = json.loads(in_p.read_text(encoding="utf-8"))
 
         data = normalize_diagram_type(data)
+        direction_note = ""
         try:
-            laid_out_data = run_layout(data["diagramType"], data, timeout=args.timeout, browser=args.browser)
+            if data["diagramType"] == "flowchart" and "direction" not in data:
+                laid_out_data, direction_note = choose_flowchart_direction(data, args.timeout, args.browser)
+            else:
+                laid_out_data = run_layout(data["diagramType"], data, timeout=args.timeout, browser=args.browser)
         except EngineUnavailable as exc:
             sys.exit(f"[ERROR] {exc}")
+        if direction_note:
+            print(f"[INFO] Direction: {direction_note}. To force one, set \"direction\" in the JSON.")
         audit = AUDITS[data["diagramType"]](laid_out_data)
         report = audit.verify_collisions()
 

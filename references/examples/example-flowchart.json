@@ -1,7 +1,6 @@
 {
   "diagramType": "flowchart",
   "title": "Customer Loan Application Process",
-  "direction": "LR",
   "lanes": [
     { "id": "lane-customer", "name": "Applicant / Customer", "icon": "user" },
     { "id": "lane-officer", "name": "Loan Officer", "icon": "briefcase" },
