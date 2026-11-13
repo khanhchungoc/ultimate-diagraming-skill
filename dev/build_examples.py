@@ -9,9 +9,10 @@ plugin or an engine changes. Rebuild them after such a change:
   python dev/build_examples.py           rebuild every example page
   python dev/build_examples.py --check   exit 2 if any page is missing or out of date (does not write)
 
---check also checks what an agent reading a page relies on: the reading guide on line 2, the data block in
-<head> with the end marker straight after it, the real title, and that the guide's sed and python commands
-print the model as valid JSON.
+--check also checks what an agent reading a page relies on: the reading guide on line 2 with the data block's
+real line numbers, the data block in <head> with the end marker straight after it and "_readme" as its first
+key, no huge (font) lines just past it, the real title, and that the guide's sed and python commands print the
+model as valid JSON.
 """
 
 from __future__ import annotations
@@ -50,6 +51,21 @@ def reader_problems(page: str, title: str) -> list:
     close = page.find("</script>", start)
     if not page[close:].startswith("</script>" + chr(10) + "  <!-- end diagram-data -->"):
         problems.append("the end marker does not follow the data block")
+    # The guide's line numbers name the real block, and reading exactly that many lines gets the whole model
+    first, last = page.count(chr(10), 0, start) + 1, page.count(chr(10), 0, page.find("<!-- end diagram-data -->")) + 1
+    expect = f"on lines {first}-{last} of this file. Read lines 1-{last} only (offset 1, limit {last}); everything after line {last} "
+    if expect not in lines[1]:
+        problems.append(f"the reading guide's line numbers are wrong (expected {expect!r})")
+    try:
+        model = json.loads(chr(10).join(lines[first:last - 2]))
+        if next(iter(model)) != "_readme":
+            problems.append('"_readme" is not the first key of the model')
+    except ValueError:
+        problems.append(f"lines {first + 1}-{last - 2} are not the model JSON")
+    # A reader that overshoots the end marker must not land on huge lines (inlined assets of tens of KB)
+    long_line = next((i + 1 for i, line in enumerate(lines[last:last + 500], start=last) if len(line) > 2000), None)
+    if long_line:
+        problems.append(f"line {long_line} (within 500 lines after the data block) is over 2000 characters")
     escaped = html.escape(title, quote=False)
     if f"<title>{escaped}</title>" not in page or f'title="Double-click to rename diagram">{escaped}</h1>' not in page:
         problems.append(f"<title>/<h1> do not show the diagram title {title!r}")

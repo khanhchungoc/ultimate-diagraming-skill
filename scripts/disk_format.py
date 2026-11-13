@@ -175,6 +175,7 @@ def to_disk(kind: str, data: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def from_disk(kind: str, data: Dict[str, Any]) -> Dict[str, Any]:
+    data = {k: v for k, v in data.items() if k != README_KEY}
     return DISK_CODECS[kind][1](data) if kind in DISK_CODECS else data
 
 
@@ -182,5 +183,40 @@ def authoring_json(kind: str, data: Dict[str, Any]) -> Dict[str, Any]:
     """The disk model without `layout`: what an agent writes, and what `--extract` prints."""
     d = to_disk(kind, data)
     d.pop("layout", None)
+    d.pop(README_KEY, None)
     return d
+
+
+# The block's first key: a one-line "how to read this model" for an agent that parsed the JSON and never saw the
+# header comment. The page carries it through load and Save unchanged (shell.js); readers drop it (from_disk).
+README_KEY = "_readme"
+
+
+def with_readme(disk: Dict[str, Any], readme: str) -> Dict[str, Any]:
+    return {README_KEY: readme, **{k: v for k, v in disk.items() if k != README_KEY}}
+
+
+def readme_text(data_note: str) -> str:
+    """meta.json dataNote (wrapped for the header comment) as one line."""
+    return "How to read this model: " + " ".join(data_note.split())
+
+
+# The reading guide on line 2 names the data block's line range. stamp_reading_guide() rewrites those numbers
+# from the page's actual text; the page's Save does the same (stampReadingGuide in shell.js) so they never go stale.
+GUIDE_START = "<!-- For agents:"
+DATA_OPEN_TAG = '<script id="diagram-data" type="application/json">'
+DATA_END_MARKER = "<!-- end diagram-data -->"
+
+
+def stamp_reading_guide(page: str) -> str:
+    g = page.find(GUIDE_START)
+    o, e = page.find(DATA_OPEN_TAG), page.find(DATA_END_MARKER)
+    if g < 0 or o < 0 or e < 0:
+        return page
+    g_end = page.find("\n", g)
+    g_end = len(page) if g_end < 0 else g_end
+    start, end = page.count("\n", 0, o) + 1, page.count("\n", 0, e) + 1
+    line = re.sub(r"on lines \d+-\d+ of this file", f"on lines {start}-{end} of this file", page[g:g_end])
+    line = re.sub(r"(Read lines 1-|limit |after line )\d+", lambda m: f"{m.group(1)}{end}", line)
+    return page[:g] + line + page[g_end:]
 

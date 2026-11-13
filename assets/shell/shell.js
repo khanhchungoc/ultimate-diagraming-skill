@@ -59,11 +59,16 @@
       const btnHelp = document.getElementById('btn-help');
       const helpDrawer = document.getElementById('help-drawer');
 
+      let dataReadme = null;   // the data block's "_readme" line (written by scripts/layout_engine.py assemble_page)
+
       function loadInitialData() {
         try {
           const raw = document.getElementById('diagram-data').textContent.trim();
           if (raw) {
             const disk = JSON.parse(raw);
+            // "_readme" is for readers of the file, not the model: keep it aside and write it back first on Save
+            if (typeof disk._readme === 'string') dataReadme = disk._readme;
+            delete disk._readme;
             chartData = plugin.fromDisk ? plugin.fromDisk(disk) : disk;
           }
         } catch (err) {
@@ -110,7 +115,7 @@
 
         requestAnimationFrame(() => {
           fitView();
-          // The embedded web font (shell/fonts.css) decodes asynchronously: render again once it is in, so label
+          // The web font (Google Fonts link in shell.html) loads asynchronously: render again once it is in, so label
           // fitting and edge-label widths are measured with the real glyphs, and only then report or tidy.
           const fontsIn = document.fonts && document.fonts.status !== 'loaded'
             ? document.fonts.ready.then(() => { plugin.render(); fitView(); })
@@ -798,9 +803,29 @@
         return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
       }
 
+      // The reading guide on line 2 names the data block's line range ("on lines S-E of this file", "Read lines
+      // 1-E", "limit E", "after line E"); recompute it from the text being saved. Only the guide line is
+      // rewritten, so this code's own text is never touched. Mirrors stamp_reading_guide() in disk_format.py.
+      function stampReadingGuide(html) {
+        const g = html.indexOf('<!-- For agents:');
+        const o = html.indexOf('<script id="diagram-data" type="application\/json">');
+        const e = html.indexOf('<!-- end diagram-' + 'data -->');
+        if (g < 0 || o < 0 || e < 0) return html;
+        let gEnd = html.indexOf('\n', g);
+        if (gEnd < 0) gEnd = html.length;
+        const lineOf = (i) => html.slice(0, i).split('\n').length;
+        const start = lineOf(o), end = lineOf(e);
+        const line = html.slice(g, gEnd)
+          .replace(/on lines \d+-\d+ of this file/, `on lines ${start}-${end} of this file`)
+          .replace(/(Read lines 1-|limit |after line )\d+/g, (_, p) => p + end);
+        return html.slice(0, g) + line + html.slice(gEnd);
+      }
+
       async function saveToFile() {
         chartData.title = chartTitleEl.textContent.trim();
-        const updatedJson = formatJson(plugin.toDisk ? plugin.toDisk(chartData) : chartData);
+        const disk = plugin.toDisk ? plugin.toDisk(chartData) : { ...chartData };
+        delete disk._readme;
+        const updatedJson = formatJson(dataReadme === null ? disk : { _readme: dataReadme, ...disk });
 
         let fullHtml = "";
         try {
@@ -825,13 +850,13 @@
         // The page title (<title> and the header's <h1>) follows the diagram title. Both come before the main
         // script, so the first match is the real element; closing tags are spelled <\/...> like the patterns above.
         const pageTitle = escapeHtml(chartData.title || plugin.defaultTitle);
-        const replacedHtml = fullHtml
+        const replacedHtml = stampReadingGuide(fullHtml
           .replace(
             /(<script id="diagram-data" type="application\/json">)[\s\S]*?(<\/script>)/,
             (_, open, close) => `${open}\n${updatedJson}\n  ${close}`
           )
           .replace(/(<title>)[\s\S]*?(<\/title>)/, (_, open, close) => `${open}${pageTitle}${close}`)
-          .replace(/(<h1 id="chart-title"[^>]*>)[\s\S]*?(<\/h1>)/, (_, open, close) => `${open}${pageTitle}${close}`);
+          .replace(/(<h1 id="chart-title"[^>]*>)[\s\S]*?(<\/h1>)/, (_, open, close) => `${open}${pageTitle}${close}`));
 
         document.getElementById('diagram-data').textContent = `\n${updatedJson}\n  `;
 

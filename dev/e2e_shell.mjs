@@ -140,7 +140,8 @@ try {
   // 2d2. The pill reads as a drag handle: move cursor, and a primary ring when the pointer is on it
   const pillLook = await t.ev(`(() => {
     const p = document.querySelector('.swimlane:nth-child(1) .lane-pill'), cs = getComputedStyle(p);
-    const ring = [...document.styleSheets].flatMap(s => [...s.cssRules]).find(r => r.selectorText === '.lane-pill:hover');
+    // (skip the cross-origin Google Fonts sheet: reading its rules throws)
+    const ring = [...document.styleSheets].flatMap(s => { try { return [...s.cssRules]; } catch (_) { return []; } }).find(r => r.selectorText === '.lane-pill:hover');
     return [cs.cursor, ring ? ring.style.boxShadow : ''];
   })()`);
   t.check('the lane pill shows a move cursor and a 2px primary ring on hover', pillLook[0] === 'move' && pillLook[1].includes('2px var(--primary)'), JSON.stringify(pillLook));

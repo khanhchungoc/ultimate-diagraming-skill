@@ -1,7 +1,6 @@
 <!DOCTYPE html>
-<!-- For agents: this whole diagram is the JSON block with id "diagram-data" a few lines below.
-     Read only as far as the "end diagram-data" comment; everything after it is editor code
-     (CSS, JS, icons) and says nothing about the diagram. To print just the model:
+<!-- For agents: the whole diagram is the JSON (application/json) in the "diagram-data" script on lines 0-0 of this file. Read lines 1-0 only (offset 1, limit 0); everything after line 0 is editor code (CSS, JS, icons) and says nothing about the diagram.
+     The model's first key, "_readme", says how to read it. Stop at the "end diagram-data" comment. To print just the model:
      sed -n '/<script id="diagram-data" type="application\/json">/,/<\/script>/p' FILE
      python -c "import re,sys;print(re.search(r'<script id=\"diagram-data\" type=\"application\/json\">(.*?)<\/script>',open(sys.argv[1],encoding='utf8').read(),re.S)[1])" FILE -->
 <html lang="en">
@@ -16,8 +15,13 @@
 {{DATA}}
   </script>
   <!-- end diagram-data -->
+  <!-- Nunito Sans from Google Fonts (the only network request). Offline it fails fast and the page uses the
+       system fallback in shell.css; label fitting measures whichever font is in use. A blocking stylesheet on
+       purpose: the @font-face rules exist before the main script runs, so its fonts.ready re-render still fires. -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito+Sans:opsz,wght@6..12,400..700&amp;display=swap">
   <style>
-{{SHELL_FONTS}}
 {{SHELL_CSS}}
 {{TYPE_CSS}}
   </style>

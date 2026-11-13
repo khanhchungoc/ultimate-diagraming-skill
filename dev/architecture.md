@@ -10,8 +10,8 @@ assets/
     shell.html              page skeleton with {{PLACEHOLDERS}}
     shell.css, shell.js     toolbar, pan/zoom/fit, theme, Save, present mode, render report
     help.html               shared help-drawer entries
-    fonts.css, fonts/       Nunito Sans (variable 400-700, latin + vietnamese subsets, SIL OFL); assemble_page inlines
-                            the woff2 files as data: URIs so the page stays self-contained
+                            (Nunito Sans is linked from Google Fonts in shell.html, the page's only network request;
+                            offline the page falls back to the system font stack in shell.css)
   types/<type>/             one folder per diagram type (flowchart, sequence)
     meta.json               {"title": ...}
     icon.html               header icon
@@ -68,6 +68,9 @@ The page's `<script id="diagram-data">` block is written for a reader (an agent 
 | Editor-generated ids (`n_<timestamp>`, `c_`, `e_`, `lane_`) | kept for the session | renamed: `n_<label slug>`, `c_<letter>_in/out`, next free `e<N>`, `lane-<name slug>`; references follow. Authored ids are never touched |
 | Sequence positions | `participants[].x`, `messages[].y`, fragment boxes, `layout` size | not saved: `render()` lays out what is missing |
 | Formatting | | `format_json` / `formatJson`: one line per flat object (a lane, a node, an edge, a layout entry) |
+| `_readme` | not in the model | first key: a one-line "how to read this model" from `meta.json` `dataNote`, for an agent that parsed the JSON and never saw the header comment. Python writes it (`with_readme`) and drops it on read (`from_disk`); the shell keeps it aside on load and writes it back first on Save |
+
+**Reading guide line numbers.** Line 2 names the block's real line range ("on lines S-E of this file. Read lines 1-E only (offset 1, limit E)"), because an agent's file tools work in line ranges and a whole-file read of a ~500 KB page fails before the agent sees any text. The numbers are stamped from the finished text by `stamp_reading_guide()` (in `assemble_page()`) and `stampReadingGuide()` (on Save); only the guide line is rewritten. No huge lines may sit just past the block (the fonts used to be inlined there), so a read that overshoots the end marker lands on ordinary CSS. `build_examples.py --check` checks all of this.
 
 Two implementations exist: `scripts/disk_format.py` (`DISK_CODECS`, used by `assemble_page()`, `extract_data_from_html()` and `--extract`) and the plugins' `toDisk`/`fromDisk` plus the shell's `formatJson`. They must agree byte for byte: `e2e_shell.mjs` and `e2e_sequence.mjs` save a generated page without edits and compare the block. `--extract` prints the authoring JSON: the disk model without `layout`. On Save the shell also writes the diagram title into `<title>` and the header `<h1>`.
 

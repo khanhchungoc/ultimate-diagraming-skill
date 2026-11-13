@@ -84,7 +84,7 @@ Sequence diagrams save **no layout at all**. The sequence plugin always derives 
      <html lang="en">
      ```
      - **The commands work without the skill installed.**
-     - **No line numbers:** they'd be derived values that Save would have to keep correct.
+     - **No line numbers:** they'd be derived values that Save would have to keep correct. *(Reversed 2026-11-12: an agent test showed the whole-file read fails before the guide is seen, then a guessed range overshoots into the fonts. Both writers now stamp the range; see "Reading guide line numbers" in architecture.md.)*
      - **Self-match rule.** The comment never spells the real opening tag, and the commands write the slashes as `\/`. The text of the guide can't match its own patterns, so both commands skip it and print the real block. The same rule keeps `saveToFile()`'s `diagram-data` regex and `extract_data_from_html()` from matching the comment.
      - **No `-->` inside the comment,** or it closes early.
    - **End marker:** `<!-- end diagram-data -->` straight after the block's `</script>`, so a reader paging through knows where to stop.
