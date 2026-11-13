@@ -5,7 +5,7 @@ sequenceDiagram
   actor p1 as Customer
   participant p2 as Shop
   participant p3 as Payment
-  participant p4 as Warehouse
+  participant p4 as Warehouseaaaaaa
   p1->>p2: Place order
   opt stock available
     p2->>p4: Reserve stock
@@ -18,4 +18,6 @@ sequenceDiagram
     p2->>p4: Release stock
   end
   p2-->>p1: Order confirmed
+    p2-->>p1: Order confirmed
+
 ```

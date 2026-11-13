@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- For agents: the whole diagram is the JSON (application/json) in the "diagram-data" script on lines 12-70 of this file. Read lines 1-70 only (offset 1, limit 70); everything after line 70 is editor code (CSS, JS, icons) and says nothing about the diagram.
+<!-- For agents: the whole diagram is the JSON (application/json) in the "diagram-data" script on lines 12-64 of this file. Read lines 1-64 only (offset 1, limit 64); everything after line 64 is editor code (CSS, JS, icons) and says nothing about the diagram.
      The model's first key, "_readme", says how to read it. The "end diagram-data" comment marks the true end: if it is not on the line named above (the JSON was edited by hand since the last save), trust the comment. To print just the model:
      sed -n '/<script id="diagram-data" type="application\/json">/,/<\/script>/p' FILE
      python -c "import re,sys;print(re.search(r'<script id=\"diagram-data\" type=\"application\/json\">(.*?)<\/script>',open(sys.argv[1],encoding='utf8').read(),re.S)[1])" FILE -->
@@ -25,9 +25,7 @@
   "nodes": [
     { "id": "n_request_new_supplier", "laneId": "lane-step1", "type": "start", "label": "Request New Supplier" },
     { "id": "n_complete_supplier_form", "laneId": "lane-step1", "type": "task", "label": "Complete Supplier Form" },
-    { "id": "n_check_documents", "laneId": "lane-step2", "type": "task", "label": "Check Documents" },
     { "id": "n_documents_complete", "laneId": "lane-step2", "type": "decision", "label": "Documents Complete?" },
-    { "id": "n_run_risk_assessment", "laneId": "lane-step3", "type": "task", "label": "Run Risk Assessment" },
     { "id": "n_risk_acceptable", "laneId": "lane-step3", "type": "decision", "label": "Risk Acceptable?" },
     { "id": "n_create_supplier_record", "laneId": "lane-step4", "type": "database", "label": "Create Supplier Record" },
     { "id": "n_supplier_rejected", "laneId": "lane-step3", "type": "end", "label": "Supplier Rejected" },
@@ -35,19 +33,17 @@
   ],
   "edges": [
     { "id": "e1", "from": "n_request_new_supplier", "to": "n_complete_supplier_form", "label": "" },
-    { "id": "e2", "from": "n_complete_supplier_form", "to": "n_check_documents", "label": "" },
-    { "id": "e3", "from": "n_check_documents", "to": "n_documents_complete", "label": "" },
+    { "id": "e2", "from": "n_complete_supplier_form", "to": "n_documents_complete", "label": "" },
     { "id": "e4", "from": "n_documents_complete", "to": "n_complete_supplier_form", "label": "No", "feedback": true },
-    { "id": "e5", "from": "n_documents_complete", "to": "n_run_risk_assessment", "label": "Yes" },
-    { "id": "e6", "from": "n_run_risk_assessment", "to": "n_risk_acceptable", "label": "" },
+    { "id": "e5", "from": "n_documents_complete", "to": "n_risk_acceptable", "label": "Yes" },
     { "id": "e7", "from": "n_risk_acceptable", "to": "n_supplier_rejected", "label": "No" },
     { "id": "e8", "from": "n_risk_acceptable", "to": "n_create_supplier_record", "label": "Yes" },
     { "id": "e9", "from": "n_create_supplier_record", "to": "n_supplier_active", "label": "" }
   ],
   "notes": [
     { "id": "note-1", "text": "Supplier portal form: legal entity, bank details, tax ID", "nodes": ["n_complete_supplier_form"] },
-    { "id": "note-2", "text": "Certificate of incorporation, W-9 or VAT certificate, proof of insurance", "nodes": ["n_check_documents", "n_documents_complete"] },
-    { "id": "note-3", "text": "Sanctions screening and Dun & Bradstreet credit check\nOwner: Procurement Risk", "nodes": ["n_run_risk_assessment"] },
+    { "id": "note-2", "text": "Certificate of incorporation, W-9 or VAT certificate, proof of insurance", "nodes": ["n_documents_complete"] },
+    { "id": "note-3", "text": "Sanctions screening and Dun & Bradstreet credit check\nOwner: Procurement Risk", "nodes": ["n_risk_acceptable"] },
     { "id": "note-4", "text": "ERP vendor master; payment terms Net 30 unless agreed otherwise", "nodes": ["n_create_supplier_record"] }
   ],
   "layout": {
@@ -57,13 +53,11 @@
     "lane-step4": { "height": 240 },
     "n_request_new_supplier": { "x": 56, "y": 48 },
     "n_complete_supplier_form": { "x": 192, "y": 48 },
-    "n_check_documents": { "x": 192, "y": 48 },
-    "n_documents_complete": { "x": 328, "y": 48 },
-    "n_run_risk_assessment": { "x": 328, "y": 48 },
-    "n_risk_acceptable": { "x": 464, "y": 48 },
-    "n_create_supplier_record": { "x": 464, "y": 48 },
-    "n_supplier_rejected": { "x": 601, "y": 48 },
-    "n_supplier_active": { "x": 601, "y": 48 }
+    "n_documents_complete": { "x": 192, "y": 48 },
+    "n_risk_acceptable": { "x": 192, "y": 48 },
+    "n_create_supplier_record": { "x": 192, "y": 48 },
+    "n_supplier_rejected": { "x": 329, "y": 48 },
+    "n_supplier_active": { "x": 329, "y": 48 }
   }
 }
   </script>

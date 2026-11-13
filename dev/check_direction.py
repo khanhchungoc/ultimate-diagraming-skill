@@ -36,7 +36,7 @@ def main() -> int:
     page = (ROOT / "dev" / "samples" / "corporate-laptop-purchase-request.html").read_text(encoding="utf-8")
     laptop = authoring_json("flowchart", read_data_block(page))
     laptop.pop("direction", None)
-    cases = [("loan example, 4 lanes, 19 steps", loan, "LR"), ("laptop sample, 7 lanes, 55 steps", laptop, "TB")]
+    cases = [("loan example, 4 lanes, 17 steps", loan, "LR"), ("laptop sample, 7 lanes, 55 steps", laptop, "TB")]
     # 9 lanes: top to bottom has two more edge crossings (88 against 92); crossings never fail the audit, so TB
     cases += [(f"laptop sample + {k} lanes ({7 + k} lanes)", with_extra_lanes(laptop, k), "TB") for k in (1, 2, 3, 5)]
     failed = 0

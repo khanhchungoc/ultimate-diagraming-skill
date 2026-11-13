@@ -41,7 +41,8 @@ Never add pixel coordinates (`x`, `y`); `--layout` computes them. A saved page e
    - **Leave out** articles and pronouns, the actor (the lane says who; phase lanes are the exception, rule 7), the element type (`"Decision:"`, `"Task:"`), step numbers, and every detail rule 9 puts in a note. The one exception is the condition a decision tests, which is its question (`"Credit Score >= 700?"`).
    - **Start** names the trigger, as an event (`"Order Received"`) or the first action (`"Submit Application"`); **end** names the resulting state (`"Loan Approved"`, `"Claim Settled"`), one per outcome (rule 6).
    - **Distinct names**: no two steps share a label. If the same work really happens twice, loop back to it with an edge instead of repeating the node.
-2. **Decisions end in `?`** (`"Docs Complete?"`) and every outgoing branch is labeled. A decision may have three or more branches, one edge per outcome (`"Purchase Value Band?"` → `"<= $1,500"`, `"$1,500–5,000"`, `"> $5,000"`); never chain Yes/No diamonds to split one question. Only decision branches get `Yes`/`No` labels: an edge leaving a step is `""` (`--layout` warns about a `Yes`/`No` on a step).
+   - **A check is its decision**: a check, review, validation, verification, inspection or assessment whose only result is the answer to the next decision *is* that decision (`"Laptop in Stock?"`, never `"Check Stock"` → `"Laptop in Stock?"`). It sits in the checker's lane, and a loop that returned to the check returns to the decision. Keep a separate step only when it also produces something else (a record, a report, a configured device) or is a `subprocess`.
+2. **Decisions end in `?`** (`"Docs Complete?"`) and every outgoing branch is labeled. A two-way decision is a yes/no question with `Yes`/`No` branches (`"Justification Approved?"`, not Approve/Reject), whatever words the sources use for the outcomes. Use named outcomes only for three or more branches, one edge per outcome (`"Purchase Value Band?"` → `"<= $1,500"`, `"$1,501–$5,000"`, `"> $5,000"`). Never mix the two styles on one decision, and never chain Yes/No diamonds to split one question. Numeric branches keep the sources' exact boundaries and never overlap. Only decision branches get `Yes`/`No` labels: an edge leaving a step is `""` (`--layout` warns about a `Yes`/`No` on a step).
 3. **One owner per node**: place each node in the lane of the actor who performs it.
 4. **Fit the 2-line label clamp** so text never truncates with `...`:
    - **Tasks / Start / End (`144x64px`)**: `<= 28` chars (~14–16 chars/line). A 13-char word like `"Authorisation"` fits beside one or two short words.
@@ -54,6 +55,7 @@ Never add pixel coordinates (`x`, `y`); `--layout` computes them. A saved page e
    - **Approvals are decisions.** An approval, sign-off or authorisation is a decision node (`"Budget Approved?"`) with both outcomes, even when the source names only the approval; a plain review or check with no stated failure outcome stays a task. An unstated rejection ends in its own state (`"Request Rejected"`): report that end state as an assumption, but not the decision itself (this rule chose it).
 7. **One lane per actor.** A lane is who does the work: a role, team, organisation or system that performs steps.
    - Name lanes as actor nouns (`"Loan Officer"`, `"Customer"`, `"Payment Gateway"`), never an activity (`"Review"`), a status (`"Pending"`) or a category (`"Manual Tasks"`). Prefer roles to people's names.
+   - **One name per actor**: when sources name one actor differently (`"IT Support"`, `"IT Department"`), use the name the sources use most often (on a tie, the shortest) and report the choice as an assumption.
    - A system is an actor only when it acts (`"Core Banking"` validating something). Don't add a lane for a system that is only mentioned.
    - If the source doesn't name actors, infer them from who performs each verb. If you can't, or the whole process has one actor, set `"swimlanes": false`. Never use a generic lane such as `"Process"`, `"Steps"` or `"Other"`.
    - **Exception, phase lanes**: if the source groups steps into sequential containers (step, phase, stage, milestone, sprint, gate, quarter) and every step in one group happens after every step in the previous one, use one lane per container, in order (`lane-step1`, ...), as in the phases example; otherwise use actor lanes. If the source shows both, follow whichever it groups by visually. The result is a **diagonal staircase** with empty space beside it: correct, so never change direction, lanes or labels to fill it. Phase lanes drop ownership, so only here keep the actor in a label where it matters (`"Officer Reviews Docs"`). A jump back to an earlier phase is a loop-back edge.
@@ -61,7 +63,7 @@ Never add pixel coordinates (`x`, `y`); `--layout` computes them. A saved page e
 
 9. **Notes hold what the label leaves out.** Add a note only where the source gives a detail from the list below that the label lacks; most steps need none. A longer sentence saying the same thing as the label is not a note: drop it.
    - **In a note**: how or why the step is done (method, criteria), business rules and thresholds, amounts, SLAs, durations and schedules, the system or tool used, documents and forms, policy, regulation or ticket references, and examples. Keep the source's figures, names and IDs exactly.
-   - **Never in a note**: flow. A step, branch, loop, hand-off or outcome that changes what happens next is a node or an edge, so a reader who never opens a note still sees the whole process. A note may add detail to a step but is never the only place a step appears. Never repeat the label.
+   - **Never in a note**: flow. A step, branch, loop, hand-off or outcome that changes what happens next is a node or an edge, so a reader who never opens a note still sees the whole process. A note may add detail to a step but is never the only place a step appears. Never repeat the label. Test: if deleting the note would change what a reader thinks happens next, it is flow.
    - **Form**: a fragment or one or two short sentences, facts over prose, `<= 140` chars; `\n` separates distinct facts.
    - **`showNotes`**: leave it out by default (notes open on hover). Set `true` when the reader needs the notes without interacting: the diagram is meant for export, print or a presentation, or the user asks for the detail to be visible.
    - **One note, several steps**: when the same fact explains several steps (one policy behind two decisions, one system doing three steps), write one note and list every step in `nodes`, never copies of it.
@@ -75,14 +77,14 @@ Never add pixel coordinates (`x`, `y`); `--layout` computes them. A saved page e
    ```
    not `"label": "Run Experian Credit Check (Score >= 620)"` with no note.
 
-10. **Classic symbols only where the source shows that kind of step**; otherwise use `task`. Each is a step in the sequence (arrows in and out), never a side box off the flow, with a task's size and colours. Labels stay verb + object (rule 1). `--layout` warns about an unknown `type`.
+10. **Classic symbols by the step's object**: use the `type` whose row matches the step. Anything else is a `task`, including every step where the actor decides, writes content or does physical work, and every step you are unsure about. Each is a step in the sequence (arrows in and out), never a side box off the flow, with a task's size and colours. Labels stay verb + object (rule 1). `--layout` warns about an unknown `type`.
 
 | `type` | Drawn as | Use when the step | Example |
 |---|---|---|---|
 | `subprocess` | box, double side bars | is a process documented elsewhere | `"Run Onboarding Process"` |
-| `io` | parallelogram | receives or sends data (form, file) | `"Receive Claim Form"` |
-| `document` | wavy-bottom box | produces a document (letter, invoice, report) | `"Issue Decline Letter"` |
-| `database` | cylinder | reads or writes a system of record | `"Store Claim Record"` |
+| `io` | parallelogram | only transfers a form, file or data between parties (upload, submit, send, receive) | `"Upload Missing Docs"` |
+| `document` | wavy-bottom box | produces a named document for someone else (letter, purchase order, invoice, contract, report) | `"Issue Decline Letter"` |
+| `database` | cylinder | reads or writes a named system of record (ERP, CRM, asset register) | `"Store Claim Record"` |
 | `delay` | D-shape | is a wait (cooling-off, SLA timer, batch window) | `"Wait for Payment Run"` |
 
 11. **On-page connectors where the source shows them, or where an arrow is too long to follow**; otherwise draw the arrow and let the router route it. A connector is a small lettered circle standing for one end of a long arrow: the flow runs into circle `A` beside its source and continues out of circle `A` beside its target. The layout places the circles; never set their `x`/`y`, and they move no step. `--layout` warns about every rule below that is broken.
