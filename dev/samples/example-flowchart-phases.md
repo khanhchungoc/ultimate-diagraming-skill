@@ -1,6 +1,6 @@
----
-title: Supplier Onboarding
----
+# Supplier Onboarding
+
+```mermaid
 flowchart TB
   subgraph lane-step1["Step 1: Request"]
     direction TB
@@ -42,3 +42,4 @@ flowchart TB
   note_4["ERP vendor master; payment terms Net 30 unless agreed otherwise"]:::note
   note_4 -.- n_create_supplier_record
   classDef note fill:#fff8c5,stroke:#d4a72c,color:#3b2e00
+```

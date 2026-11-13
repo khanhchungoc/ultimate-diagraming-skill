@@ -1,6 +1,6 @@
----
-title: Checkout
----
+# Checkout
+
+```mermaid
 sequenceDiagram
   actor p1 as Customer
   participant p2 as Shop
@@ -18,3 +18,4 @@ sequenceDiagram
     p2->>p4: Release stock
   end
   p2-->>p1: Order confirmed
+```

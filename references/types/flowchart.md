@@ -8,7 +8,7 @@ Use for swimlane, cross-functional or BPMN-style process flows. Layout, routing,
 
 ## Schema
 
-Never add pixel coordinates (`x`, `y`); `--layout` computes them. A saved page embeds exactly this JSON, steps in flow order, plus a trailing `layout` map of positions that only the page writes.
+Never add pixel coordinates (`x`, `y`); `--layout` computes them. A saved page embeds exactly this JSON, steps sorted by position along the flow, plus a trailing `layout` map of positions that only the page writes.
 
 ```json
 {

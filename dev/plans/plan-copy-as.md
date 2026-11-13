@@ -122,11 +122,20 @@ flowchart LR
 | `start`, `end` | `(["label"])` stadium |
 | `task` | `["label"]` |
 | `decision` | `{"label"}` |
+| `io` | `[/"label"/]` parallelogram |
+| `database` | `[("label")]` cylinder |
+| `subprocess` | `[["label"]]` |
+| `connector` | `(("label"))` circle (a split pair is two circles with the same letter) |
+| `delay` | `id@{ shape: delay, label: "label" }` |
+| `document` | `id@{ shape: doc, label: "label" }` |
 | edge | `a --> b`, or `a -->|"label"| b` when the label is not empty |
 | edge with `feedback: true` | `-.->` (dashed) |
+| note | a node `<noteId>["text"]:::note`, joined to each of its `nodes` by `<noteId> -.- <nodeId>`, plus one `classDef note fill:#fff8c5,stroke:#d4a72c,color:#3b2e00`. Written after the edges, outside every subgraph |
 
 - **Order**: write the lanes in array order. Inside each lane, sort the nodes by flow position `x` (then `y`). Then write the edges in array order. Mermaid's layout partly follows the order it reads things in, so this keeps the result closer to the on-screen layout.
 - If a node's `laneId` doesn't exist, write it at the top level instead of dropping it.
+- **Note links use `-.-`** (dotted, no arrowhead), so they can't be mistaken for a feedback arrow (`-.->`). A note's text goes through the same escaping as labels (newlines become `<br>`); its id passes through `safeId`.
+- **`delay` and `document` need Mermaid ≥ 11.3**, which added the `@{ shape: … }` syntax. Every other shape is long-standing syntax. An unknown node type falls back to `task`.
 
 ### Sequence
 
@@ -220,5 +229,5 @@ Total: about 1.5–2 days. Steps 1–2 can ship on their own before the Mermaid 
 ## Risks
 
 - **Clipboard permission or gesture errors** in some browsers, especially Copy PNG in Safari. Passing the Promise to `ClipboardItem` handles this. If it still fails, the error alert should suggest using Download instead.
-- **Mermaid syntax changes** between versions. Use only long-standing syntax: `flowchart`, `subgraph`, `style`, stadium/diamond shapes, and `sequenceDiagram` with `opt`/`alt`/`loop`. YAML front matter titles need Mermaid ≥ 9.3. If older renderers matter, switch to `%% title` comments.
+- **Mermaid syntax changes** between versions. Use only long-standing syntax: `flowchart`, `subgraph`, `style`, `classDef`, the classic bracket shapes, and `sequenceDiagram` with `opt`/`alt`/`loop`. The one exception is `@{ shape: … }` for `delay` and `document` (Mermaid ≥ 11.3); if older renderers matter, map both to `["label"]`. YAML front matter titles need Mermaid ≥ 9.3. If older renderers matter, switch to `%% title` comments.
 - **Large PNGs**: copying uses the same size cap as the download (`k` in the current code). A diagram that is too large rejects with the existing "image too large" message.

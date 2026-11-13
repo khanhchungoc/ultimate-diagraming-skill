@@ -1,6 +1,6 @@
 ---
 name: ultimate-diagram
-description: "Create, verify, and edit diagrams as one standalone, editable HTML file (drag-and-drop, Auto-Tidy, Save). Supports swimlane flowcharts and sequence diagrams. Use for interactive, shareable diagram pages."
+description: "Create, verify, edit and read diagrams as one standalone, editable HTML file (drag-and-drop, Auto-Tidy, Save). Supports swimlane flowcharts and sequence diagrams. Use for interactive, shareable diagram pages, and to read, summarize or explain an existing diagram page (an .html with a \"diagram-data\" block)."
 ---
 
 # Ultimate Diagram Skill
@@ -56,6 +56,17 @@ Make exactly these calls. The type reference, the example it names and the comma
 5. **View the PNG once** and go through the type's visual checklist. Re-run step 3 only for a failed checklist item.
 6. **Stop.** A clean run is final: do not re-word labels, re-run or re-render. Delete the scratch JSON and PNG in one command, then report.
 
+## Procedure: Read an Existing Diagram
+
+Use to summarize, explain or answer questions about a diagram page.
+
+1. **Do not open the `.html` with a file-read tool**: almost all of it is editor code. Your first call prints the diagram's meaning (no positions, no editor code):
+   ```shell
+   python "<skill-dir>/scripts/layout_engine.py" --extract <page.html>
+   ```
+   If that cannot run, read only the lines the page's line 2 names (the `"diagram-data"` JSON block).
+2. Answer from that JSON alone. Flowchart: `nodes` are sorted along the flow, so follow `edges` for the path; `"feedback": true` is a loop back; each note's `nodes` lists the steps it is attached to. Sequence: `messages` are in time order; a fragment covers messages `from`..`to` inclusive, and an `alt` fragment's `elseAt` is where its `else` branch starts.
+
 ## Procedure: Update an Existing Diagram
 
 Use when the user saved edits in the browser, or asks to change a diagram that already exists.
@@ -64,7 +75,7 @@ Use when the user saved edits in the browser, or asks to change a diagram that a
    ```shell
    python "<skill-dir>/scripts/layout_engine.py" --extract <target.html> -o <scratch.json>
    ```
-   The output is the authoring JSON, without positions. If the task is only to read the user's edits (e.g. to update user stories or specs), stop here and use the extracted JSON; do not re-layout.
+   The output is the authoring JSON, without positions. If the task is only to read the diagram, use *Procedure: Read an Existing Diagram* instead; do not re-layout.
 2. **Know what a re-layout resets.** `--layout` recomputes every node's position and the container sizes, so positions the user dragged by hand are lost. Structure the user cares about (order, membership, labels, notes, flags) is kept; the type reference says what else survives. Tell the user before overwriting, and write to a new file name if they might want the old arrangement.
 3. **Edit the JSON** and run steps 3–6 of *Procedure: New Diagram*, writing to the same `<target.html>` (or the new name).
 
@@ -74,7 +85,6 @@ Use when the user saved edits in the browser, or asks to change a diagram that a
 
 About 5 lines: the file, and anything that needs the user's action. Not a log of your checks.
 
-- the output path and a one-line description (type, and node/lane or participant/message counts);
-- assumptions: anything you added or reordered that the source did not state (the type reference names these);
-- problems only: score if below 100, any `[WARN]` left, labels shortened from the user's wording, a split diagram and why, what a re-layout reset (updates), an overlap check done by eye;
-- leave out: what the run did (checks, deletions, next steps), the small-text `[INFO]`, choices a rule made for you, and a cause for a score the `[FAIL]` list does not give.
+- the output path and a concise description (type, and participant list);
+- assumptions: anything you added or reordered that the source did not state;
+- problems only: score if below 100, any `[WARN]` left, labels shortened from the user's wording, a split diagram and why, what a re-layout reset (updates), an overlap check done by eye.

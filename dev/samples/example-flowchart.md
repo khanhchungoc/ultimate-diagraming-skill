@@ -1,6 +1,6 @@
----
-title: Customer Loan Application Process
----
+# Customer Loan Application Process
+
+```mermaid
 flowchart LR
   subgraph lane-customer["Applicant / Customer"]
     direction LR
@@ -66,3 +66,4 @@ flowchart LR
   note_6["Payslips checked against the employer; self-employed applicants need 2 years of accounts"]:::note
   note_6 -.- n_verify_income_employment
   classDef note fill:#fff8c5,stroke:#d4a72c,color:#3b2e00
+```

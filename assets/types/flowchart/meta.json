@@ -1,4 +1,4 @@
 {
   "title": "Interactive Swimlane Flowchart",
-  "dataNote": "\"nodes\" are in flow order; \"feedback\": true marks an arrow that loops back to an earlier step; \"layout\" is display-only (positions, sizes, colours) and can be skipped."
+  "dataNote": "\"nodes\" are sorted by position along the flow, so parallel branches interleave: follow \"edges\" for the path. \"feedback\": true marks an arrow that loops back to an earlier step; \"layout\" is display-only (positions, sizes, colours) and can be skipped."
 }

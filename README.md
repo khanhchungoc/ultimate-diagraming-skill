@@ -70,6 +70,10 @@ Describe a process, and your AI assistant hands back a single HTML file. Open it
 2. Ask: *"Draw a swimlane flowchart of our loan approval process."*
 3. Open the HTML file it creates and edit.
 
+## Ask your AI about a diagram
+
+Hand any diagram file to an AI assistant and ask "summarize this flow" or "who approves the refund?". The diagram is stored as a short block of data at the top of the file, and the file's second line tells the assistant exactly which lines to read, so it skips the editor code below. With this skill installed, the assistant pulls out just that data in one step.
+
 ## Requirements
 
 Needs `Python 3.9+` and `Chrome`, `Chromium` or `Edge` (used to lay out and check every diagram). `Node 18+` is optional and makes layout faster. The installer checks all of these and tells you what is missing.

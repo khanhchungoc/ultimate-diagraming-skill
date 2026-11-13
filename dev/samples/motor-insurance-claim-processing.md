@@ -1,6 +1,6 @@
----
-title: Motor Insurance Claim Processing
----
+# Motor Insurance Claim Processing
+
+```mermaid
 flowchart LR
   subgraph lane-customer["Customer"]
     direction LR
@@ -138,3 +138,4 @@ flowchart LR
   note_9["Assigned to the Finance payments queue"]:::note
   note_9 -.- n_fn_manual
   classDef note fill:#fff8c5,stroke:#d4a72c,color:#3b2e00
+```
