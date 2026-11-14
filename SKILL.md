@@ -35,7 +35,7 @@ Every diagram JSON has a top-level `"diagramType"` (missing means `flowchart`).
 | `sequence` | Messages between participants over time (API calls, system interactions) | [references/types/sequence.md](references/types/sequence.md) |
 | `erd` | Database schema: tables, columns, keys and relationships (crow's-foot), optionally grouped into subject areas | [references/types/erd.md](references/types/erd.md) |
 
-`state` is planned, not supported: say so; do not force them into a flowchart. The type reference owns the schema, writing rules and visual checklist, and names the one example to copy.
+`state` is planned, not supported: say so; do not force it into a flowchart. The type reference owns the schema, writing rules and visual checklist, and names the one example to copy.
 
 ---
 
