@@ -1,8 +1,8 @@
-# Plan: Narrower, more focused sequence diagrams (lifespans, rails, simpler message types)
+# Plan: Narrower, more focused sequence diagrams (lifespans, rails, simpler message types, participant colours)
 
-A long sequence diagram is as wide as all of its participants, all the way down, although a reader at any point is looking at a few of them. This plan makes a sequence diagram narrower where it can be, and makes the part the reader is looking at take the space. It also removes a control the editor does not need: the three-way message type picker.
+A long sequence diagram is as wide as all of its participants, all the way down, although a reader at any point is looking at a few of them. This plan makes a sequence diagram narrower where it can be, and makes the part the reader is looking at take the space. It also removes a control the editor does not need, the three-way message type picker, and lets participants carry a colour, so a reader can tell whose systems are whose down the whole length of a diagram.
 
-**Status:** proposed 2026-11-14; all open questions settled as proposed the same day. Nothing is implemented. It revisits one non-goal of `archive/plan-sequence-v2.md` ("Create and destroy markers"), on new evidence.
+**Status:** proposed 2026-11-14. Open questions 1–4 settled as proposed the same day; Part 3 (participant colours) was added later that day and its questions 5–7 are open. Only drawn-message kind inference is implemented. It revisits two non-goals of `archive/plan-sequence-v2.md` ("Create and destroy markers", "Participant colours"), on new evidence and on request.
 
 ## What the acceptance case says
 
@@ -33,6 +33,7 @@ So the plan has two parts.
 - Participants whose lifespans never overlap can share one column, when the author asks for it.
 - The pinned participant row names only the lifelines alive at the rows on screen, and it never names a lifeline that is not there.
 - A message's kind is right without the author picking it: a call is a call, the answer to a call is its reply.
+- A participant can carry a colour that follows it everywhere it appears (box, lifeline, bars, rail, pinned row), so ownership (our services, a partner's, a third party's) reads at any scroll position.
 - Pages saved before this change open and look the same.
 
 ## Non-goals
@@ -40,7 +41,8 @@ So the plan has two parts.
 - **Columns that move while the reader scrolls.** It is tempting to compact the diagram to whatever is on screen, but lifelines that slide sideways mid-scroll break the one thing a sequence diagram promises: a participant is a fixed vertical line. It would also make a screenshot depend on the scroll position. Rejected.
 - **Free authoring of create and destroy points** that disagree with the messages (a lifeline that starts long before its first message). A lifespan is derived from the messages, with one override (see [Data](#data)).
 - **New arrowhead styles.** Kinds stay `sync`, `reply` and `async`.
-- **Participant colours** (still a v2 non-goal).
+- **Coloured messages.** An arrow takes no colour from its sender or receiver: with 40 arrows that would be noise, and colour is already spent on phases and participants.
+- **Free colour values** (hex codes, custom palettes). Participants use the six named colours frames already use.
 
 ## Part 1: drop the message type picker
 
@@ -120,6 +122,57 @@ Collapse is already saved per frame (`collapsed`, from v2). Rails need no new fi
 - Tell agents to keep writing `kind`. The editor's inference is for people.
 - Add audit rules: `column` with an overlap, `column` without `lifespans`, `start`/`end` that would cut off a message, and a host that is itself sharing a column. Chains are not allowed.
 
+## Part 3: coloured participants and lifelines
+
+v2 kept participant colours out so colour could mean "phase". Frames tint a band of rows, a participant colour tints a column, and the two read apart as long as the column treatment uses stroke and solid fills, not the frames' wash. Participant colour should mean **who owns it** (our services, a partner, a third party, the customer's side), not "every participant gets its own colour". A rainbow tells the reader nothing that the name doesn't already tell them.
+
+### Data
+
+```json
+{
+  "participants": [
+    { "id": "fe",  "name": "Q&B UI",      "kind": "ui",       "color": "blue" },
+    { "id": "pol", "name": "Policy Svc",  "kind": "system",   "color": "blue" },
+    { "id": "spm", "name": "SPM",         "kind": "external", "color": "purple" }
+  ],
+  "colorKey": { "blue": "Our services", "purple": "Third parties" }
+}
+```
+
+| Field | Meaning |
+|---|---|
+| `color` (participant) | Optional: `blue`, `green`, `yellow`, `red`, `purple`, `gray`, the palette frames use. No colour is today's look. |
+| `colorKey` (top level) | Optional: what each colour used on participants means. When present, the page shows a small key, and exports include it. |
+
+### Drawing (`sequence.js`, `sequence.css`)
+
+| Element | Coloured how |
+|---|---|
+| Participant box | A 4px top border in the colour and a faint 10% tint behind the name, so the name still reads at full contrast. The pill of an `actor` gets the same. |
+| Lifeline | The dashes take the colour at about 55% strength, mixed with the border colour as the frame strokes are. The selected and target styles still win. |
+| Activation bar | Its stroke takes the colour and its fill gets a 20% tint, so bars still stand out from the lifeline and from a frame's wash. |
+| Rail (Part 2) | The rail line and its vertical name take the colour. This helps most here, because a rail has no room for a box. |
+| Pinned row | The boxes keep their colour, since they are the same elements. |
+| Colour key | A small row of swatches and labels under the title on the canvas. It's drawn in the SVG and HTML export, not just the page chrome. |
+
+- **Light and dark:** each colour comes from the existing `--seq-tint` tokens through `color-mix`, as frames do, so both themes work with no new tokens. Check a coloured lifeline against `--bg-panel` and against a frame's wash in both themes, aiming for a contrast of at least 3:1.
+- **Not colour alone:** the name and the kind icon still say what a participant is, and the key says what a colour means, so the page also works for a reader who cannot tell the colours apart.
+
+### Editing
+
+- The participant action bar gets the six swatches and a "none" swatch, like the frame action bar. Each change is one undo step.
+- **Colour key:** the first time a colour is given to a participant, the key gains an entry with an empty label, shown in edit mode as "What does blue mean?". Double-click edits it, like any label. An entry whose colour no participant uses any more is dropped on save.
+- With several participants selected (not supported today), a swatch would colour them all. That is noted for later, not part of this plan.
+
+### Agent reference and audit
+
+- Document `color` and `colorKey`. Use colour for ownership or domain, at most 4 colours, and give a `colorKey` whenever colour is used.
+- Add audit rules:
+  - an unknown colour is an error.
+  - participant colour without a `colorKey` is a warning.
+  - a `colorKey` entry no participant uses is a warning.
+  - more than 4 distinct participant colours, or every participant a different colour, is a warning, with the reason "colour should group participants, not label each one".
+
 ## Tests
 
 - `dev/fixtures/sequence/`:
@@ -139,6 +192,13 @@ Collapse is already saved per frame (`collapsed`, from v2). Rails need no new fi
   - Start and end handles drag.
   - The pinned row shows only living lifelines, at two scroll positions.
 - `e2e_touch.mjs`: long-press on a rail shows its name, and Focus works by tap.
+- Colours:
+  - `dev/fixtures/sequence/colours.json` with a golden.
+  - `e2e_sequence.mjs`: a swatch colours the box, lifeline and bars in one undo step; "none" clears it.
+  - The key gains and drops entries, and its label edits by double-click.
+  - The SVG export carries the colours and the key.
+  - Both themes reach at least 3:1 for a coloured lifeline on a frame's wash.
+- `test_audit_sequence.py`: the four colour rules.
 - Width check on the acceptance sample: Focus on "SPM" makes the canvas at least 35% narrower than with everything expanded.
 
 ## Steps
@@ -147,11 +207,18 @@ Collapse is already saved per frame (`collapsed`, from v2). Rails need no new fi
 2. **Rails:** add rails and Focus (engine, page, Show all, e2e). This is the step that gives the width, and it needs no new data.
 3. **Lifespans:** add `lifespans`, header slots, end caps, the pinned row that follows lifespans, and the dock toggle.
 4. **Shared columns and overrides:** add `column` and `start`/`end`, the drag to share, the handles, and the audit rules.
-5. **Reference, fixtures and samples:** rebuild the payment sample with `lifespans` and SPM and Background Job sharing a column, then archive the plan.
+5. **Participant colours:** add `color`, `colorKey`, drawing in both themes, the action bar swatches, the key, and the audit. It's independent of steps 2–4 and can go at any point after step 1.
+6. **Reference, fixtures and samples:** rebuild the payment sample with `lifespans`, SPM and Background Job sharing a column, and colours (blue for our services, purple for third parties, gray for the customer side), then archive the plan.
 
-## Open questions (settled 2026-11-14: each as proposed)
+## Open questions
+
+Questions 1–4 were settled on 2026-11-14, each as proposed. Questions 5–7 are open.
+
 
 1. **Rails from collapse only, or also an explicit "hide this participant"?** The plan derives rails from collapse, so a rail can never hide a message. An explicit hide would let a reader drop a busy but uninteresting lifeline, such as a logger, but it would have to hide its messages too.
 2. **Should new diagrams default to `lifespans: true`?** Pages saved before keep `false` either way. Turning it on for new diagrams changes what agents produce, so it's better decided after seeing step 3 on the acceptance sample.
 3. **End cap style:** a short tick (proposed) or the UML ×? The × is standard, but on a business diagram it reads as "failed".
 4. **Can Focus nest?** Focusing a frame inside a phase would collapse that frame's siblings within the phase, as well as the other phases. The plan focuses top-level frames only.
+5. **Colour key: required or optional?** The plan makes it optional, with an audit warning when it's missing. Making it required stops colours that mean nothing, but it costs agents and people one more field.
+6. **Should a phase colour and a participant colour share the palette?** Sharing keeps one set of six. The risk is a blue phase next to blue participants. The plan keeps one palette and relies on the different treatments (a wash for phases, stroke and solid fills for participants). The alternative is to reserve two colours for each.
+7. **Should a participant's colour reach its outgoing messages' labels** (for example, a coloured step number)? The plan says no (see non-goals). It's worth looking at again once the acceptance sample has colours.
