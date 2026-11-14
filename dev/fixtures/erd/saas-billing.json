@@ -1,0 +1,255 @@
+{
+  "diagramType": "erd",
+  "title": "SaaS billing",
+  "groups": [
+    { "id": "accounts", "name": "Accounts", "color": "#e0f2fe" },
+    { "id": "catalogue", "name": "Catalogue", "color": "#dcfce7" },
+    { "id": "billing", "name": "Billing", "color": "#fef3c7" },
+    { "id": "audit", "name": "Audit", "color": "#ccfbf1" }
+  ],
+  "entities": [
+    { "id": "organization", "name": "organization", "group": "accounts", "columns": [
+      { "name": "id", "type": "uuid", "pk": true },
+      { "name": "name", "type": "text" },
+      { "name": "slug", "type": "text", "unique": true },
+      { "name": "country", "type": "text" },
+      { "name": "created_at", "type": "timestamptz" }
+    ] },
+    { "id": "app_user", "name": "app_user", "group": "accounts", "columns": [
+      { "name": "id", "type": "uuid", "pk": true },
+      { "name": "email", "type": "text", "unique": true },
+      { "name": "full_name", "type": "text" },
+      { "name": "password_hash", "type": "text" },
+      { "name": "last_login_at", "type": "timestamptz", "nullable": true }
+    ] },
+    { "id": "role", "name": "role", "group": "accounts", "columns": [
+      { "name": "id", "type": "uuid", "pk": true },
+      { "name": "name", "type": "text", "unique": true },
+      { "name": "description", "type": "text", "nullable": true }
+    ] },
+    { "id": "membership", "name": "membership", "group": "accounts", "columns": [
+      { "name": "organization_id", "type": "uuid", "pk": true, "fk": true },
+      { "name": "user_id", "type": "uuid", "pk": true, "fk": true },
+      { "name": "role_id", "type": "uuid", "fk": true },
+      { "name": "joined_at", "type": "timestamptz" }
+    ] },
+    { "id": "team", "name": "team", "group": "accounts", "columns": [
+      { "name": "id", "type": "uuid", "pk": true },
+      { "name": "organization_id", "type": "uuid", "fk": true },
+      { "name": "name", "type": "text" }
+    ] },
+    { "id": "employee", "name": "employee", "group": "accounts", "columns": [
+      { "name": "id", "type": "uuid", "pk": true },
+      { "name": "user_id", "type": "uuid", "fk": true, "unique": true, "nullable": true },
+      { "name": "team_id", "type": "uuid", "fk": true, "nullable": true },
+      { "name": "manager_id", "type": "uuid", "fk": true, "nullable": true },
+      { "name": "title", "type": "text" }
+    ] },
+    { "id": "api_key", "name": "api_key", "group": "accounts", "columns": [
+      { "name": "id", "type": "uuid", "pk": true },
+      { "name": "organization_id", "type": "uuid", "fk": true },
+      { "name": "created_by", "type": "uuid", "fk": true },
+      { "name": "prefix", "type": "text", "unique": true },
+      { "name": "revoked_at", "type": "timestamptz", "nullable": true }
+    ] },
+    { "id": "address", "name": "address", "group": "accounts", "columns": [
+      { "name": "id", "type": "uuid", "pk": true },
+      { "name": "organization_id", "type": "uuid", "fk": true },
+      { "name": "line1", "type": "text" },
+      { "name": "city", "type": "text" },
+      { "name": "postcode", "type": "text" },
+      { "name": "country", "type": "text" }
+    ] },
+    { "id": "product", "name": "product", "group": "catalogue", "columns": [
+      { "name": "id", "type": "uuid", "pk": true },
+      { "name": "name", "type": "text" },
+      { "name": "description", "type": "text", "nullable": true },
+      { "name": "active", "type": "bool" }
+    ] },
+    { "id": "plan", "name": "plan", "group": "catalogue", "columns": [
+      { "name": "id", "type": "uuid", "pk": true },
+      { "name": "product_id", "type": "uuid", "fk": true },
+      { "name": "name", "type": "text" },
+      { "name": "interval", "type": "text" },
+      { "name": "trial_days", "type": "int" }
+    ] },
+    { "id": "price", "name": "price", "group": "catalogue", "columns": [
+      { "name": "id", "type": "uuid", "pk": true },
+      { "name": "plan_id", "type": "uuid", "fk": true },
+      { "name": "currency_code", "type": "text", "fk": true },
+      { "name": "amount", "type": "numeric" },
+      { "name": "valid_from", "type": "date" }
+    ] },
+    { "id": "currency", "name": "currency", "group": "catalogue", "columns": [
+      { "name": "code", "type": "text", "pk": true },
+      { "name": "name", "type": "text" },
+      { "name": "minor_units", "type": "int" }
+    ] },
+    { "id": "feature", "name": "feature", "group": "catalogue", "columns": [
+      { "name": "id", "type": "uuid", "pk": true },
+      { "name": "key", "type": "text", "unique": true },
+      { "name": "name", "type": "text" }
+    ] },
+    { "id": "plan_feature", "name": "plan_feature", "group": "catalogue", "columns": [
+      { "name": "plan_id", "type": "uuid", "pk": true, "fk": true },
+      { "name": "feature_id", "type": "uuid", "pk": true, "fk": true },
+      { "name": "limit_value", "type": "int", "nullable": true }
+    ] },
+    { "id": "tax_rate", "name": "tax_rate", "group": "catalogue", "columns": [
+      { "name": "id", "type": "uuid", "pk": true },
+      { "name": "country", "type": "text" },
+      { "name": "rate", "type": "numeric" },
+      { "name": "valid_from", "type": "date" }
+    ] },
+    { "id": "coupon", "name": "coupon", "group": "catalogue", "columns": [
+      { "name": "id", "type": "uuid", "pk": true },
+      { "name": "code", "type": "text", "unique": true },
+      { "name": "percent_off", "type": "numeric" },
+      { "name": "redeem_by", "type": "date", "nullable": true }
+    ] },
+    { "id": "customer", "name": "customer", "group": "billing", "columns": [
+      { "name": "id", "type": "uuid", "pk": true },
+      { "name": "organization_id", "type": "uuid", "fk": true, "unique": true },
+      { "name": "currency_code", "type": "text", "fk": true },
+      { "name": "billing_email", "type": "text" },
+      { "name": "tax_id", "type": "text", "nullable": true }
+    ] },
+    { "id": "payment_method", "name": "payment_method", "group": "billing", "columns": [
+      { "name": "id", "type": "uuid", "pk": true },
+      { "name": "customer_id", "type": "uuid", "fk": true },
+      { "name": "kind", "type": "text" },
+      { "name": "last4", "type": "text", "nullable": true },
+      { "name": "expires", "type": "date", "nullable": true }
+    ] },
+    { "id": "subscription", "name": "subscription", "group": "billing", "columns": [
+      { "name": "id", "type": "uuid", "pk": true },
+      { "name": "customer_id", "type": "uuid", "fk": true },
+      { "name": "plan_id", "type": "uuid", "fk": true },
+      { "name": "coupon_id", "type": "uuid", "fk": true, "nullable": true },
+      { "name": "status", "type": "text" },
+      { "name": "started_at", "type": "timestamptz" },
+      { "name": "ends_at", "type": "timestamptz", "nullable": true }
+    ] },
+    { "id": "subscription_item", "name": "subscription_item", "group": "billing", "columns": [
+      { "name": "id", "type": "uuid", "pk": true },
+      { "name": "subscription_id", "type": "uuid", "fk": true },
+      { "name": "feature_id", "type": "uuid", "fk": true },
+      { "name": "quantity", "type": "int" }
+    ] },
+    { "id": "usage_record", "name": "usage_record", "group": "billing", "columns": [
+      { "name": "id", "type": "uuid", "pk": true },
+      { "name": "subscription_item_id", "type": "uuid", "fk": true },
+      { "name": "quantity", "type": "int" },
+      { "name": "recorded_at", "type": "timestamptz" }
+    ] },
+    { "id": "invoice", "name": "invoice", "group": "billing", "columns": [
+      { "name": "id", "type": "uuid", "pk": true },
+      { "name": "customer_id", "type": "uuid", "fk": true },
+      { "name": "subscription_id", "type": "uuid", "fk": true, "nullable": true },
+      { "name": "number", "type": "text", "unique": true },
+      { "name": "total", "type": "numeric" },
+      { "name": "issued_at", "type": "timestamptz" },
+      { "name": "due_at", "type": "date" }
+    ] },
+    { "id": "invoice_line", "name": "invoice_line", "group": "billing", "columns": [
+      { "name": "id", "type": "uuid", "pk": true },
+      { "name": "invoice_id", "type": "uuid", "fk": true },
+      { "name": "tax_rate_id", "type": "uuid", "fk": true, "nullable": true },
+      { "name": "description", "type": "text" },
+      { "name": "amount", "type": "numeric" }
+    ] },
+    { "id": "payment", "name": "payment", "group": "billing", "columns": [
+      { "name": "id", "type": "uuid", "pk": true },
+      { "name": "invoice_id", "type": "uuid", "fk": true },
+      { "name": "payment_method_id", "type": "uuid", "fk": true, "nullable": true },
+      { "name": "amount", "type": "numeric" },
+      { "name": "paid_at", "type": "timestamptz" }
+    ] },
+    { "id": "refund", "name": "refund", "group": "billing", "columns": [
+      { "name": "id", "type": "uuid", "pk": true },
+      { "name": "payment_id", "type": "uuid", "fk": true },
+      { "name": "amount", "type": "numeric" },
+      { "name": "reason", "type": "text", "nullable": true }
+    ] },
+    { "id": "credit_note", "name": "credit_note", "group": "billing", "columns": [
+      { "name": "id", "type": "uuid", "pk": true },
+      { "name": "invoice_id", "type": "uuid", "fk": true },
+      { "name": "amount", "type": "numeric" }
+    ] },
+    { "id": "audit_event", "name": "audit_event", "group": "audit", "columns": [
+      { "name": "id", "type": "uuid", "pk": true },
+      { "name": "organization_id", "type": "uuid", "fk": true },
+      { "name": "actor_id", "type": "uuid", "fk": true, "nullable": true },
+      { "name": "action", "type": "text" },
+      { "name": "occurred_at", "type": "timestamptz" },
+      { "name": "detail", "type": "jsonb", "nullable": true }
+    ] },
+    { "id": "login_attempt", "name": "login_attempt", "group": "audit", "columns": [
+      { "name": "id", "type": "uuid", "pk": true },
+      { "name": "user_id", "type": "uuid", "fk": true, "nullable": true },
+      { "name": "ip", "type": "text" },
+      { "name": "succeeded", "type": "bool" },
+      { "name": "at", "type": "timestamptz" }
+    ] },
+    { "id": "webhook_delivery", "name": "webhook_delivery", "group": "audit", "columns": [
+      { "name": "id", "type": "uuid", "pk": true },
+      { "name": "organization_id", "type": "uuid", "fk": true },
+      { "name": "event_id", "type": "uuid", "fk": true },
+      { "name": "status", "type": "int" },
+      { "name": "attempts", "type": "int" }
+    ] },
+    { "id": "data_export", "name": "data_export", "group": "audit", "columns": [
+      { "name": "id", "type": "uuid", "pk": true },
+      { "name": "requested_by", "type": "uuid", "fk": true },
+      { "name": "organization_id", "type": "uuid", "fk": true },
+      { "name": "status", "type": "text" },
+      { "name": "requested_at", "type": "timestamptz" }
+    ] }
+  ],
+  "relationships": [
+    { "id": "r1", "from": "membership", "to": "organization", "columns": ["organization_id"], "fromEnd": "zeroOrMany", "identifying": true },
+    { "id": "r2", "from": "membership", "to": "app_user", "columns": ["user_id"], "identifying": true },
+    { "id": "r3", "from": "membership", "to": "role", "columns": ["role_id"] },
+    { "id": "r4", "from": "team", "to": "organization", "columns": ["organization_id"] },
+    { "id": "r5", "from": "employee", "to": "app_user", "columns": ["user_id"], "fromEnd": "zeroOrOne", "toEnd": "zeroOrOne", "label": "is" },
+    { "id": "r6", "from": "employee", "to": "team", "columns": ["team_id"] },
+    { "id": "r7", "from": "employee", "to": "employee", "columns": ["manager_id"], "label": "reports to" },
+    { "id": "r8", "from": "api_key", "to": "organization", "columns": ["organization_id"] },
+    { "id": "r9", "from": "api_key", "to": "app_user", "columns": ["created_by"] },
+    { "id": "r10", "from": "address", "to": "organization", "columns": ["organization_id"] },
+    { "id": "r11", "from": "plan", "to": "product", "columns": ["product_id"] },
+    { "id": "r12", "from": "price", "to": "plan", "columns": ["plan_id"] },
+    { "id": "r13", "from": "price", "to": "currency", "columns": ["currency_code"] },
+    { "id": "r14", "from": "plan_feature", "to": "plan", "columns": ["plan_id"], "fromEnd": "oneOrMany", "identifying": true },
+    { "id": "r15", "from": "plan_feature", "to": "feature", "columns": ["feature_id"], "identifying": true },
+    { "id": "r16", "from": "customer", "to": "organization", "columns": ["organization_id"], "fromEnd": "zeroOrOne", "label": "bills" },
+    { "id": "r17", "from": "customer", "to": "currency", "columns": ["currency_code"] },
+    { "id": "r18", "from": "payment_method", "to": "customer", "columns": ["customer_id"] },
+    { "id": "r19", "from": "subscription", "to": "customer", "columns": ["customer_id"], "label": "holds" },
+    { "id": "r20", "from": "subscription", "to": "plan", "columns": ["plan_id"] },
+    { "id": "r21", "from": "subscription", "to": "coupon", "columns": ["coupon_id"] },
+    { "id": "r22", "from": "subscription_item", "to": "subscription", "columns": ["subscription_id"], "fromEnd": "oneOrMany" },
+    { "id": "r23", "from": "subscription_item", "to": "feature", "columns": ["feature_id"] },
+    { "id": "r24", "from": "usage_record", "to": "subscription_item", "columns": ["subscription_item_id"] },
+    { "id": "r25", "from": "invoice", "to": "customer", "columns": ["customer_id"] },
+    { "id": "r26", "from": "invoice", "to": "subscription", "columns": ["subscription_id"] },
+    { "id": "r27", "from": "invoice_line", "to": "invoice", "columns": ["invoice_id"], "fromEnd": "oneOrMany" },
+    { "id": "r28", "from": "invoice_line", "to": "tax_rate", "columns": ["tax_rate_id"] },
+    { "id": "r29", "from": "payment", "to": "invoice", "columns": ["invoice_id"], "label": "settles" },
+    { "id": "r30", "from": "payment", "to": "payment_method", "columns": ["payment_method_id"] },
+    { "id": "r31", "from": "refund", "to": "payment", "columns": ["payment_id"] },
+    { "id": "r32", "from": "credit_note", "to": "invoice", "columns": ["invoice_id"] },
+    { "id": "r33", "from": "audit_event", "to": "organization", "columns": ["organization_id"] },
+    { "id": "r34", "from": "audit_event", "to": "app_user", "columns": ["actor_id"] },
+    { "id": "r35", "from": "login_attempt", "to": "app_user", "columns": ["user_id"] },
+    { "id": "r36", "from": "webhook_delivery", "to": "organization", "columns": ["organization_id"] },
+    { "id": "r37", "from": "webhook_delivery", "to": "audit_event", "columns": ["event_id"] },
+    { "id": "r38", "from": "data_export", "to": "app_user", "columns": ["requested_by"] },
+    { "id": "r39", "from": "data_export", "to": "organization", "columns": ["organization_id"] }
+  ],
+  "notes": [
+    { "id": "n1", "text": "Invoices are immutable once issued; corrections go through credit_note", "entities": ["invoice", "credit_note"] },
+    { "id": "n2", "text": "employee.user_id is optional: contractors have no login", "entities": ["employee"] },
+    { "id": "n3", "text": "Amounts are stored in minor units of the customer currency", "entities": ["payment", "refund"] }
+  ]
+}

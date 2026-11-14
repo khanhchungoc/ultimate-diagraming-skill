@@ -1,0 +1,131 @@
+{
+  "diagramType": "erd",
+  "title": "Org chart",
+  "direction": "LR",
+  "entities": [
+    {
+      "id": "department",
+      "name": "department",
+      "columns": [
+        {
+          "name": "id",
+          "type": "int",
+          "pk": true
+        },
+        {
+          "name": "name",
+          "type": "text"
+        }
+      ],
+      "x": 40,
+      "y": 106,
+      "box": {
+        "x": 40,
+        "y": 106,
+        "w": 168,
+        "h": 88
+      }
+    },
+    {
+      "id": "employee",
+      "name": "employee",
+      "columns": [
+        {
+          "name": "id",
+          "type": "int",
+          "pk": true
+        },
+        {
+          "name": "name",
+          "type": "text"
+        },
+        {
+          "name": "manager_id",
+          "type": "int",
+          "fk": true,
+          "nullable": true
+        },
+        {
+          "name": "department_id",
+          "type": "int",
+          "fk": true
+        }
+      ],
+      "x": 320,
+      "y": 28,
+      "box": {
+        "x": 320,
+        "y": 28,
+        "w": 192,
+        "h": 140
+      }
+    }
+  ],
+  "relationships": [
+    {
+      "id": "r1",
+      "from": "employee",
+      "to": "employee",
+      "columns": [
+        "manager_id"
+      ],
+      "fromEnd": "zeroOrMany",
+      "toEnd": "zeroOrOne",
+      "label": "reports to",
+      "points": [
+        [
+          512,
+          129
+        ],
+        [
+          552,
+          129
+        ],
+        [
+          552,
+          77
+        ],
+        [
+          512,
+          77
+        ]
+      ],
+      "labelBox": {
+        "x": 560,
+        "y": 92,
+        "w": 90,
+        "h": 22
+      }
+    },
+    {
+      "id": "r2",
+      "from": "employee",
+      "to": "department",
+      "columns": [
+        "department_id"
+      ],
+      "points": [
+        [
+          320,
+          155
+        ],
+        [
+          208,
+          155
+        ]
+      ]
+    }
+  ],
+  "schemaVersion": 1,
+  "_band": {
+    "x": 0,
+    "y": 0,
+    "w": 690,
+    "h": 222
+  },
+  "canvas": {
+    "width": 690,
+    "height": 222,
+    "crossings": 0
+  }
+}

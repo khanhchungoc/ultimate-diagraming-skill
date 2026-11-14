@@ -475,6 +475,10 @@ try {
     && copied.w > 200 && copied.h > 100 && /copied as png/i.test(badgeCopied) && badgeAfter === badgeBefore && t.errors.length === 0,
     `visible=${copyVisible} clip=${JSON.stringify(copied)} badge=${badgeBefore}->${badgeCopied}->${badgeAfter} errors=${t.errors.join(' | ')}`);
 
+  // 9c. The flowchart has no toMermaid: the Mermaid item stays hidden and the other Copy items stay
+  t.check('flowchart: the Copy group hides Mermaid but keeps SVG and the heading',
+    await t.ev(`document.querySelector('[data-copy="mermaid"]').hidden && !document.querySelector('[data-copy="svg"]').hidden && !document.querySelector('[data-copy-label]').hidden`));
+
   // 10. ?present hides editing chrome
   await t.open(laid, '?present');
   t.check('?present hides Save and toolbar', await t.ev(`document.body.classList.contains('presentation') && getComputedStyle(document.getElementById('btn-save')).display === 'none' && getComputedStyle(document.querySelector('.toolbar-center')).display === 'none'`));

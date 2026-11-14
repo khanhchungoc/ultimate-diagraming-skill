@@ -1,0 +1,172 @@
+{
+  "diagramType": "erd",
+  "title": "Orders and products",
+  "direction": "LR",
+  "groups": [
+    {
+      "id": "sales",
+      "name": "Sales",
+      "color": "#e0f2fe",
+      "box": {
+        "x": 0,
+        "y": 0,
+        "w": 612,
+        "h": 170
+      }
+    },
+    {
+      "id": "catalog",
+      "name": "Catalog",
+      "color": "#dcfce7",
+      "box": {
+        "x": 0,
+        "y": 170,
+        "w": 612,
+        "h": 170
+      }
+    }
+  ],
+  "entities": [
+    {
+      "id": "order",
+      "name": "order",
+      "group": "sales",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "pk": true
+        },
+        {
+          "name": "placed_at",
+          "type": "timestamptz"
+        }
+      ],
+      "x": 40,
+      "y": 28,
+      "box": {
+        "x": 88,
+        "y": 28,
+        "w": 204,
+        "h": 88
+      }
+    },
+    {
+      "id": "order_item",
+      "name": "order_item",
+      "group": "sales",
+      "columns": [
+        {
+          "name": "order_id",
+          "type": "uuid",
+          "pk": true,
+          "fk": true
+        },
+        {
+          "name": "product_id",
+          "type": "uuid",
+          "pk": true,
+          "fk": true
+        },
+        {
+          "name": "qty",
+          "type": "int"
+        }
+      ],
+      "x": 356,
+      "y": 28,
+      "box": {
+        "x": 404,
+        "y": 28,
+        "w": 168,
+        "h": 114
+      }
+    },
+    {
+      "id": "product",
+      "name": "product",
+      "group": "catalog",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "pk": true
+        },
+        {
+          "name": "name",
+          "type": "text"
+        },
+        {
+          "name": "price",
+          "type": "numeric"
+        }
+      ],
+      "x": 40,
+      "y": 28,
+      "box": {
+        "x": 88,
+        "y": 198,
+        "w": 168,
+        "h": 114
+      }
+    }
+  ],
+  "relationships": [
+    {
+      "id": "r1",
+      "from": "order_item",
+      "to": "order",
+      "columns": [
+        "order_id"
+      ],
+      "fromEnd": "oneOrMany",
+      "toEnd": "one",
+      "identifying": true,
+      "points": [
+        [
+          404,
+          77
+        ],
+        [
+          292,
+          77
+        ]
+      ]
+    },
+    {
+      "id": "r2",
+      "from": "order_item",
+      "to": "product",
+      "columns": [
+        "product_id"
+      ],
+      "fromEnd": "zeroOrMany",
+      "toEnd": "one",
+      "identifying": true,
+      "points": [
+        [
+          404,
+          103
+        ],
+        [
+          304,
+          103
+        ],
+        [
+          304,
+          247
+        ],
+        [
+          256,
+          247
+        ]
+      ]
+    }
+  ],
+  "schemaVersion": 1,
+  "canvas": {
+    "width": 612,
+    "height": 340,
+    "crossings": 0
+  }
+}

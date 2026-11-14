@@ -1,0 +1,87 @@
+{
+  "diagramType": "erd",
+  "title": "Four areas",
+  "direction": "LR",
+  "groups": [
+    { "id": "a", "name": "Alpha", "color": "#e0f2fe" },
+    { "id": "b", "name": "Beta", "color": "#dcfce7" },
+    { "id": "c", "name": "Gamma", "color": "#fef3c7" },
+    { "id": "d", "name": "Delta", "color": "#ccfbf1" }
+  ],
+  "entities": [
+    { "id": "a1", "name": "a1", "group": "a", "columns": [
+      { "name": "id", "type": "int", "pk": true },
+      { "name": "name", "type": "text" },
+      { "name": "label", "type": "text" },
+      { "name": "extra", "type": "text" }
+    ] },
+    { "id": "a2", "name": "a2", "group": "a", "columns": [
+      { "name": "id", "type": "int", "pk": true },
+      { "name": "a1_id", "type": "int", "fk": true },
+      { "name": "label", "type": "text" }
+    ] },
+    { "id": "a3", "name": "a3", "group": "a", "columns": [
+      { "name": "id", "type": "int", "pk": true },
+      { "name": "a2_id", "type": "int", "fk": true },
+      { "name": "label", "type": "text" }
+    ] },
+    { "id": "b1", "name": "b1", "group": "b", "columns": [
+      { "name": "id", "type": "int", "pk": true },
+      { "name": "name", "type": "int", "fk": true },
+      { "name": "label", "type": "text" }
+    ] },
+    { "id": "b2", "name": "b2", "group": "b", "columns": [
+      { "name": "id", "type": "int", "pk": true },
+      { "name": "b1_id", "type": "int", "fk": true },
+      { "name": "label", "type": "text" }
+    ] },
+    { "id": "b3", "name": "b3", "group": "b", "columns": [
+      { "name": "id", "type": "int", "pk": true },
+      { "name": "b2_id", "type": "int", "fk": true },
+      { "name": "label", "type": "text" }
+    ] },
+    { "id": "c1", "name": "c1", "group": "c", "columns": [
+      { "name": "id", "type": "int", "pk": true },
+      { "name": "name", "type": "int", "fk": true },
+      { "name": "label", "type": "text" }
+    ] },
+    { "id": "c2", "name": "c2", "group": "c", "columns": [
+      { "name": "id", "type": "int", "pk": true },
+      { "name": "c1_id", "type": "int", "fk": true },
+      { "name": "label", "type": "text" }
+    ] },
+    { "id": "c3", "name": "c3", "group": "c", "columns": [
+      { "name": "id", "type": "int", "pk": true },
+      { "name": "c2_id", "type": "int", "fk": true },
+      { "name": "label", "type": "text" }
+    ] },
+    { "id": "d1", "name": "d1", "group": "d", "columns": [
+      { "name": "id", "type": "int", "pk": true },
+      { "name": "name", "type": "int", "fk": true },
+      { "name": "label", "type": "text" }
+    ] },
+    { "id": "d2", "name": "d2", "group": "d", "columns": [
+      { "name": "id", "type": "int", "pk": true },
+      { "name": "d1_id", "type": "int", "fk": true },
+      { "name": "label", "type": "text" }
+    ] },
+    { "id": "d3", "name": "d3", "group": "d", "columns": [
+      { "name": "id", "type": "int", "pk": true },
+      { "name": "d2_id", "type": "int", "fk": true },
+      { "name": "label", "type": "text" }
+    ] }
+  ],
+  "relationships": [
+    { "id": "ar2", "from": "a2", "to": "a1", "columns": ["a1_id"] },
+    { "id": "ar3", "from": "a3", "to": "a2", "columns": ["a2_id"] },
+    { "id": "br2", "from": "b2", "to": "b1", "columns": ["b1_id"] },
+    { "id": "br3", "from": "b3", "to": "b2", "columns": ["b2_id"] },
+    { "id": "x1", "from": "b1", "to": "a3", "columns": ["name"], "label": "ref" },
+    { "id": "cr2", "from": "c2", "to": "c1", "columns": ["c1_id"] },
+    { "id": "cr3", "from": "c3", "to": "c2", "columns": ["c2_id"] },
+    { "id": "x2", "from": "c1", "to": "b3", "columns": ["name"], "label": "ref" },
+    { "id": "dr2", "from": "d2", "to": "d1", "columns": ["d1_id"] },
+    { "id": "dr3", "from": "d3", "to": "d2", "columns": ["d2_id"] },
+    { "id": "x3", "from": "d1", "to": "c3", "columns": ["name"], "label": "ref" }
+  ]
+}

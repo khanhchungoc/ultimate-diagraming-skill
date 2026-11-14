@@ -1,0 +1,352 @@
+{
+  "diagramType": "erd",
+  "title": "Blog",
+  "direction": "LR",
+  "entities": [
+    {
+      "id": "author",
+      "name": "author",
+      "columns": [
+        {
+          "name": "id",
+          "type": "int",
+          "pk": true
+        },
+        {
+          "name": "name",
+          "type": "text"
+        },
+        {
+          "name": "bio",
+          "type": "text",
+          "nullable": true
+        }
+      ],
+      "x": 40,
+      "y": 98,
+      "box": {
+        "x": 40,
+        "y": 98,
+        "w": 168,
+        "h": 114
+      }
+    },
+    {
+      "id": "post",
+      "name": "post",
+      "columns": [
+        {
+          "name": "id",
+          "type": "int",
+          "pk": true
+        },
+        {
+          "name": "author_id",
+          "type": "int",
+          "fk": true
+        },
+        {
+          "name": "title",
+          "type": "text"
+        },
+        {
+          "name": "body",
+          "type": "text"
+        }
+      ],
+      "x": 320,
+      "y": 93,
+      "box": {
+        "x": 320,
+        "y": 93,
+        "w": 168,
+        "h": 140
+      }
+    },
+    {
+      "id": "comment",
+      "name": "comment",
+      "columns": [
+        {
+          "name": "id",
+          "type": "int",
+          "pk": true
+        },
+        {
+          "name": "post_id",
+          "type": "int",
+          "fk": true
+        },
+        {
+          "name": "author_id",
+          "type": "int",
+          "fk": true,
+          "nullable": true
+        },
+        {
+          "name": "body",
+          "type": "text"
+        }
+      ],
+      "x": 600,
+      "y": 28,
+      "box": {
+        "x": 600,
+        "y": 28,
+        "w": 168,
+        "h": 140
+      }
+    },
+    {
+      "id": "tag",
+      "name": "tag",
+      "columns": [
+        {
+          "name": "id",
+          "type": "int",
+          "pk": true
+        },
+        {
+          "name": "label",
+          "type": "text",
+          "unique": true
+        }
+      ],
+      "x": 320,
+      "y": 273,
+      "box": {
+        "x": 320,
+        "y": 273,
+        "w": 168,
+        "h": 88
+      }
+    },
+    {
+      "id": "post_tag",
+      "name": "post_tag",
+      "columns": [
+        {
+          "name": "post_id",
+          "type": "int",
+          "pk": true,
+          "fk": true
+        },
+        {
+          "name": "tag_id",
+          "type": "int",
+          "pk": true,
+          "fk": true
+        }
+      ],
+      "x": 600,
+      "y": 208,
+      "box": {
+        "x": 600,
+        "y": 208,
+        "w": 168,
+        "h": 88
+      }
+    },
+    {
+      "id": "audit_note",
+      "name": "audit_note",
+      "columns": [
+        {
+          "name": "id",
+          "type": "int",
+          "pk": true
+        },
+        {
+          "name": "text",
+          "type": "text"
+        }
+      ],
+      "x": 40,
+      "y": 252,
+      "box": {
+        "x": 40,
+        "y": 252,
+        "w": 168,
+        "h": 88
+      }
+    }
+  ],
+  "relationships": [
+    {
+      "id": "r1",
+      "from": "post",
+      "to": "author",
+      "columns": [
+        "author_id"
+      ],
+      "points": [
+        [
+          320,
+          168
+        ],
+        [
+          228,
+          168
+        ],
+        [
+          228,
+          147
+        ],
+        [
+          208,
+          147
+        ]
+      ]
+    },
+    {
+      "id": "r2",
+      "from": "comment",
+      "to": "post",
+      "columns": [
+        "post_id"
+      ],
+      "label": "on",
+      "points": [
+        [
+          600,
+          103
+        ],
+        [
+          516,
+          103
+        ],
+        [
+          516,
+          142
+        ],
+        [
+          488,
+          142
+        ]
+      ],
+      "labelBox": {
+        "x": 543,
+        "y": 92,
+        "w": 31,
+        "h": 22
+      }
+    },
+    {
+      "id": "r3",
+      "from": "comment",
+      "to": "author",
+      "columns": [
+        "author_id"
+      ],
+      "points": [
+        [
+          600,
+          129
+        ],
+        [
+          520,
+          129
+        ],
+        [
+          520,
+          103
+        ],
+        [
+          516,
+          103
+        ],
+        [
+          516,
+          81
+        ],
+        [
+          228,
+          81
+        ],
+        [
+          228,
+          147
+        ],
+        [
+          208,
+          147
+        ]
+      ]
+    },
+    {
+      "id": "r4",
+      "from": "post_tag",
+      "to": "post",
+      "columns": [
+        "post_id"
+      ],
+      "identifying": true,
+      "points": [
+        [
+          600,
+          257
+        ],
+        [
+          516,
+          257
+        ],
+        [
+          516,
+          142
+        ],
+        [
+          488,
+          142
+        ]
+      ]
+    },
+    {
+      "id": "r5",
+      "from": "post_tag",
+      "to": "tag",
+      "columns": [
+        "tag_id"
+      ],
+      "identifying": true,
+      "points": [
+        [
+          600,
+          283
+        ],
+        [
+          508,
+          283
+        ],
+        [
+          508,
+          322
+        ],
+        [
+          488,
+          322
+        ]
+      ]
+    }
+  ],
+  "notes": [
+    {
+      "id": "n1",
+      "text": "audit_note is standalone",
+      "entities": [
+        "audit_note"
+      ]
+    }
+  ],
+  "schemaVersion": 1,
+  "_band": {
+    "x": 0,
+    "y": 0,
+    "w": 808,
+    "h": 389
+  },
+  "canvas": {
+    "width": 808,
+    "height": 389,
+    "crossings": 0
+  }
+}

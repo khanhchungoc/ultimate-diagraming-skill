@@ -3,7 +3,7 @@
 The in-memory model (what the engines, renderers and audits use) keeps positions on the objects: node x/y,
 lane height/color, sequence participant x, message y. On disk the model is written for a reader instead:
 semantic fields first, in a fixed key order, with every position moved into one trailing `layout` map
-(flowchart) or dropped altogether (sequence: the page lays it out on load).
+(flowchart, erd: table x/y only) or dropped altogether (sequence: the page lays it out on load).
 
 The page does the same in JavaScript (plugin.toDisk / plugin.fromDisk in assets/types/<type>/<type>.js).
 The two must stay byte-identical: dev/e2e_shell.mjs and dev/e2e_sequence.mjs save a generated page without
@@ -27,6 +27,11 @@ SEQUENCE_KEYS = ("diagramType", "schemaVersion", "title", "numbered", "showDetai
 # Engine output on the sequence model, never saved: positions, hidden (inside a collapsed frame), frame dividers
 SEQUENCE_LAYOUT = (("participants", ("x", "rail", "top", "bottom")), ("messages", ("y", "hidden")),
                    ("fragments", ("x", "y", "w", "h", "elseY", "dividers")), ("notes", ("x", "y", "w", "h")))
+ERD_KEYS = ("diagramType", "schemaVersion", "title", "direction", "detail", "showTypes", "showNotes", "colorKey",
+            "groups", "entities", "relationships", "notes", "layout")
+ERD_ENTITY_LAYOUT = ("x", "y")  # flow-term position of a table: moved into the trailing `layout` map
+# Engine output on the ERD model, never saved (plus the top-level "canvas" and "_band")
+ERD_DERIVED = (("entities", ("box",)), ("groups", ("box",)), ("relationships", ("points", "labelBox")))
 NODE_LAYOUT = ("x", "y")
 LANE_LAYOUT = ("height", "color")
 GENERATED_ID = re.compile(r"^(n|c|e|lane)_\d{12,}(_\d+)?$")  # editor ids: <prefix>_<Date.now()>[_k]
@@ -204,10 +209,88 @@ def sequence_from_disk(data: Dict[str, Any]) -> Dict[str, Any]:
     return copy.deepcopy(data)  # positions are derived on load (sequence.js render(), or engine_runner)
 
 
+ERD_GENERATED_ID = re.compile(r"^(t|r|g|n)_\d{12,}(_\d+)?$")  # page ids: <prefix>_<Date.now()>[_k]
+
+
+def _rename_erd_ids(d: Dict[str, Any]) -> None:
+    """Readable names for page-generated ids (in place): table and area ids from their name, r<N>, n<N>.
+    Authored ids are never touched. Mirrors erd.js."""
+    gs, es = d.get("groups") or [], d.get("entities") or []
+    rs, ns = d.get("relationships") or [], d.get("notes") or []
+    used = {o.get("id") for o in gs + es + rs + ns}
+    rename: Dict[str, str] = {}
+
+    def take(base: str) -> str:
+        new, k = base, 2
+        while new in used:
+            new, k = f"{base}_{k}", k + 1
+        used.add(new)
+        return new
+
+    def generated(o: Dict[str, Any]) -> bool:
+        return bool(ERD_GENERATED_ID.match(str(o.get("id", ""))))
+
+    for items, fallback in ((es, "table"), (gs, "area")):
+        for o in items:
+            if generated(o):
+                rename[o["id"]] = take(slug(o.get("name")) or fallback)
+    for items, prefix in ((rs, "r"), (ns, "n")):
+        count = 1
+        for o in items:
+            if generated(o):
+                while f"{prefix}{count}" in used:
+                    count += 1
+                rename[o["id"]] = take(f"{prefix}{count}")
+    if not rename:
+        return
+    r = lambda i: rename.get(i, i)  # noqa: E731
+    for o in gs + es + rs + ns:
+        o["id"] = r(o["id"])
+    for e in es:
+        if "group" in e:
+            e["group"] = r(e["group"])
+    for rel in rs:
+        for k in ("from", "to"):
+            if k in rel:
+                rel[k] = r(rel[k])
+    for n in ns:
+        if isinstance(n.get("entities"), list):
+            n["entities"] = [r(i) for i in n["entities"]]
+
+
+def erd_to_disk(data: Dict[str, Any]) -> Dict[str, Any]:
+    d = copy.deepcopy(data)
+    d.pop("layout", None)
+    d.pop("canvas", None)
+    d.pop("_band", None)
+    for items, keys in ERD_DERIVED:
+        for o in d.get(items) or []:
+            for k in keys:
+                o.pop(k, None)
+    _rename_erd_ids(d)
+    layout: Dict[str, Any] = {}
+    for e in d.get("entities") or []:
+        pos = {k: e.pop(k) for k in ERD_ENTITY_LAYOUT if k in e}
+        if pos:
+            layout[e["id"]] = pos
+    if layout:
+        d["layout"] = layout
+    return _ordered(d, ERD_KEYS)
+
+
+def erd_from_disk(data: Dict[str, Any]) -> Dict[str, Any]:
+    d = copy.deepcopy(data)
+    layout = d.pop("layout", None) or {}
+    for e in d.get("entities") or []:
+        e.update(layout.get(e.get("id")) or {})
+    return d
+
+
 Codec = Tuple[Callable[[Dict[str, Any]], Dict[str, Any]], Callable[[Dict[str, Any]], Dict[str, Any]]]
 DISK_CODECS: Dict[str, Codec] = {
     "flowchart": (flowchart_to_disk, flowchart_from_disk),
     "sequence": (sequence_to_disk, sequence_from_disk),
+    "erd": (erd_to_disk, erd_from_disk),
 }
 
 

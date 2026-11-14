@@ -1,0 +1,115 @@
+{
+  "diagramType": "erd",
+  "title": "Shop",
+  "direction": "LR",
+  "groups": [
+    { "id": "sales", "name": "Sales", "color": "#e0f2fe" },
+    { "id": "catalog", "name": "Catalog", "color": "#dcfce7" }
+  ],
+  "entities": [
+    {
+      "id": "customer",
+      "name": "customer",
+      "group": "sales",
+      "columns": [
+        { "name": "id", "type": "uuid", "pk": true },
+        { "name": "email", "type": "text", "unique": true },
+        { "name": "name", "type": "text" },
+        { "name": "phone", "type": "text", "nullable": true }
+      ]
+    },
+    {
+      "id": "address",
+      "name": "address",
+      "group": "sales",
+      "columns": [
+        { "name": "id", "type": "uuid", "pk": true },
+        { "name": "customer_id", "type": "uuid", "fk": true },
+        { "name": "street", "type": "text" },
+        { "name": "city", "type": "text" },
+        { "name": "country", "type": "char(2)" }
+      ]
+    },
+    {
+      "id": "order",
+      "name": "order",
+      "group": "sales",
+      "columns": [
+        { "name": "id", "type": "uuid", "pk": true },
+        { "name": "customer_id", "type": "uuid", "fk": true },
+        { "name": "shipping_address_id", "type": "uuid", "fk": true, "nullable": true },
+        { "name": "status", "type": "text", "note": "new, paid, shipped, cancelled" },
+        { "name": "placed_at", "type": "timestamptz" }
+      ]
+    },
+    {
+      "id": "order_item",
+      "name": "order_item",
+      "group": "sales",
+      "columns": [
+        { "name": "order_id", "type": "uuid", "pk": true, "fk": true },
+        { "name": "product_id", "type": "uuid", "pk": true, "fk": true },
+        { "name": "qty", "type": "int", "note": "1 to 99" },
+        { "name": "unit_price", "type": "numeric" }
+      ]
+    },
+    {
+      "id": "payment",
+      "name": "payment",
+      "group": "sales",
+      "columns": [
+        { "name": "id", "type": "uuid", "pk": true },
+        { "name": "order_id", "type": "uuid", "fk": true, "unique": true },
+        { "name": "amount", "type": "numeric" },
+        { "name": "paid_at", "type": "timestamptz", "nullable": true }
+      ]
+    },
+    {
+      "id": "product",
+      "name": "product",
+      "group": "catalog",
+      "columns": [
+        { "name": "id", "type": "uuid", "pk": true },
+        { "name": "category_id", "type": "uuid", "fk": true },
+        { "name": "sku", "type": "text", "unique": true },
+        { "name": "name", "type": "text" },
+        { "name": "price", "type": "numeric" }
+      ]
+    },
+    {
+      "id": "category",
+      "name": "category",
+      "group": "catalog",
+      "columns": [
+        { "name": "id", "type": "uuid", "pk": true },
+        { "name": "name", "type": "text", "unique": true }
+      ]
+    },
+    {
+      "id": "review",
+      "name": "review",
+      "group": "catalog",
+      "columns": [
+        { "name": "id", "type": "uuid", "pk": true },
+        { "name": "product_id", "type": "uuid", "fk": true },
+        { "name": "customer_id", "type": "uuid", "fk": true },
+        { "name": "rating", "type": "int" },
+        { "name": "body", "type": "text", "nullable": true }
+      ]
+    }
+  ],
+  "relationships": [
+    { "id": "r1", "from": "address", "to": "customer", "columns": ["customer_id"], "fromEnd": "zeroOrMany", "toEnd": "one", "label": "has" },
+    { "id": "r2", "from": "order", "to": "customer", "columns": ["customer_id"], "fromEnd": "zeroOrMany", "toEnd": "one", "label": "places" },
+    { "id": "r3", "from": "order", "to": "address", "columns": ["shipping_address_id"], "fromEnd": "zeroOrMany", "toEnd": "zeroOrOne", "label": "ships to" },
+    { "id": "r4", "from": "order_item", "to": "order", "columns": ["order_id"], "fromEnd": "oneOrMany", "toEnd": "one", "identifying": true },
+    { "id": "r5", "from": "order_item", "to": "product", "columns": ["product_id"], "fromEnd": "zeroOrMany", "toEnd": "one", "identifying": true },
+    { "id": "r6", "from": "payment", "to": "order", "columns": ["order_id"], "fromEnd": "zeroOrOne", "toEnd": "one", "label": "settles" },
+    { "id": "r7", "from": "product", "to": "category", "columns": ["category_id"], "fromEnd": "zeroOrMany", "toEnd": "one", "label": "in" },
+    { "id": "r8", "from": "review", "to": "product", "columns": ["product_id"], "fromEnd": "zeroOrMany", "toEnd": "one" },
+    { "id": "r9", "from": "review", "to": "customer", "columns": ["customer_id"], "fromEnd": "zeroOrMany", "toEnd": "one" }
+  ],
+  "notes": [
+    { "id": "n1", "text": "Orders are never deleted; cancelled orders keep their items", "entities": ["order"] }
+  ]
+}

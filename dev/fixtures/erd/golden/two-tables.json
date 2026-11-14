@@ -1,0 +1,104 @@
+{
+  "diagramType": "erd",
+  "title": "Two tables",
+  "direction": "LR",
+  "entities": [
+    {
+      "id": "customer",
+      "name": "customer",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "pk": true
+        },
+        {
+          "name": "email",
+          "type": "text",
+          "unique": true
+        },
+        {
+          "name": "name",
+          "type": "text"
+        }
+      ],
+      "x": 40,
+      "y": 54,
+      "box": {
+        "x": 40,
+        "y": 54,
+        "w": 168,
+        "h": 114
+      }
+    },
+    {
+      "id": "order",
+      "name": "order",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "pk": true
+        },
+        {
+          "name": "customer_id",
+          "type": "uuid",
+          "fk": true
+        },
+        {
+          "name": "placed_at",
+          "type": "timestamptz"
+        }
+      ],
+      "x": 320,
+      "y": 28,
+      "box": {
+        "x": 320,
+        "y": 28,
+        "w": 220,
+        "h": 114
+      }
+    }
+  ],
+  "relationships": [
+    {
+      "id": "r1",
+      "from": "order",
+      "to": "customer",
+      "columns": [
+        "customer_id"
+      ],
+      "fromEnd": "zeroOrMany",
+      "toEnd": "one",
+      "label": "places",
+      "points": [
+        [
+          320,
+          103
+        ],
+        [
+          208,
+          103
+        ]
+      ],
+      "labelBox": {
+        "x": 234,
+        "y": 92,
+        "w": 61,
+        "h": 22
+      }
+    }
+  ],
+  "schemaVersion": 1,
+  "_band": {
+    "x": 0,
+    "y": 0,
+    "w": 580,
+    "h": 196
+  },
+  "canvas": {
+    "width": 580,
+    "height": 196,
+    "crossings": 0
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "diagramType": "erd",
+  "title": "Org chart",
+  "direction": "LR",
+  "entities": [
+    { "id": "department", "name": "department", "columns": [
+      { "name": "id", "type": "int", "pk": true },
+      { "name": "name", "type": "text" }
+    ] },
+    { "id": "employee", "name": "employee", "columns": [
+      { "name": "id", "type": "int", "pk": true },
+      { "name": "name", "type": "text" },
+      { "name": "manager_id", "type": "int", "fk": true, "nullable": true },
+      { "name": "department_id", "type": "int", "fk": true }
+    ] }
+  ],
+  "relationships": [
+    { "id": "r1", "from": "employee", "to": "employee", "columns": ["manager_id"], "fromEnd": "zeroOrMany", "toEnd": "zeroOrOne", "label": "reports to" },
+    { "id": "r2", "from": "employee", "to": "department", "columns": ["department_id"] }
+  ]
+}

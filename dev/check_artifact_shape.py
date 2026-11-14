@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Checks the `--target artifact` page shape (plan: dev/plans/plan-artifact-output.md).
 
-For every dev/fixtures/<type>/*.json (assembled without running the layout engine, the shape does not depend on it):
+For every dev/fixtures/<type>/*.json, the ER diagram's included (assembled without running the layout engine, the shape does not depend on it):
   - the page starts with the exact artifact skeleton and ends with `</body></html>`
   - <head> holds nothing but the skeleton's own tags (checked on the text, whitespace included)
   - <title> is the first thing in <body>, and no <head>/<body>/<html> tag or doctype appears twice
@@ -100,6 +100,14 @@ for fx in fixtures:
     check(f"{label}: --extract round-trips (same JSON as the file page)", extract(ap) == extract(fp))
     check(f"{label}: file target is the unmodified shell.html fill", file_page.startswith("<!DOCTYPE html>\n<!-- For agents:"))
     check(f"{label}: no external references beyond the font", le.find_external_refs(art) == [])
+
+# Every type with fixtures is covered above; say so for the ER diagram, whose page also carries the `layout` map
+erd_fixtures = [f for f in fixtures if f.parent.name == "erd" and "golden" not in f.parts]
+check("the ERD fixtures are covered by the page checks above", len(erd_fixtures) >= 5 and "erd" in le.SUPPORTED_TYPES)
+example = le.normalize_diagram_type(json.loads((ROOT / "references" / "examples" / "example-erd.json").read_text(encoding="utf-8")))
+erd_art = le.assemble_page("erd", le.choose_erd_direction(example, 30, None)[0], "artifact")
+check("references/examples/example-erd.json (laid out) gives an artifact page in the skeleton",
+      erd_art.startswith(expected_head + "\n") and erd_art.endswith("</body></html>") and le.find_external_refs(erd_art) == [])
 
 print(f"{'all passed' if not failures else str(failures) + ' check(s) failed'}")
 sys.exit(2 if failures else 0)

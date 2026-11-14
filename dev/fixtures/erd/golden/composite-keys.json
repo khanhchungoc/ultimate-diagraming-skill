@@ -1,0 +1,209 @@
+{
+  "diagramType": "erd",
+  "title": "Composite keys",
+  "direction": "LR",
+  "entities": [
+    {
+      "id": "region",
+      "name": "region",
+      "columns": [
+        {
+          "name": "code",
+          "type": "text",
+          "pk": true
+        }
+      ],
+      "x": 40,
+      "y": 28,
+      "box": {
+        "x": 40,
+        "y": 28,
+        "w": 168,
+        "h": 62
+      }
+    },
+    {
+      "id": "store",
+      "name": "store",
+      "columns": [
+        {
+          "name": "region",
+          "type": "text",
+          "pk": true,
+          "fk": true
+        },
+        {
+          "name": "number",
+          "type": "int",
+          "pk": true
+        },
+        {
+          "name": "name",
+          "type": "text"
+        }
+      ],
+      "x": 320,
+      "y": 28,
+      "box": {
+        "x": 320,
+        "y": 28,
+        "w": 168,
+        "h": 114
+      }
+    },
+    {
+      "id": "shift",
+      "name": "shift",
+      "columns": [
+        {
+          "name": "region",
+          "type": "text",
+          "pk": true,
+          "fk": true
+        },
+        {
+          "name": "store_number",
+          "type": "int",
+          "pk": true,
+          "fk": true
+        },
+        {
+          "name": "day",
+          "type": "date",
+          "pk": true
+        },
+        {
+          "name": "slot",
+          "type": "text",
+          "pk": true
+        }
+      ],
+      "x": 600,
+      "y": 28,
+      "box": {
+        "x": 600,
+        "y": 28,
+        "w": 180,
+        "h": 140
+      }
+    },
+    {
+      "id": "assignment",
+      "name": "assignment",
+      "columns": [
+        {
+          "name": "region",
+          "type": "text",
+          "pk": true,
+          "fk": true
+        },
+        {
+          "name": "store_number",
+          "type": "int",
+          "pk": true,
+          "fk": true
+        },
+        {
+          "name": "day",
+          "type": "date",
+          "pk": true,
+          "fk": true
+        },
+        {
+          "name": "slot",
+          "type": "text",
+          "pk": true,
+          "fk": true
+        },
+        {
+          "name": "employee_id",
+          "type": "int",
+          "pk": true
+        }
+      ],
+      "x": 892,
+      "y": 28,
+      "box": {
+        "x": 892,
+        "y": 28,
+        "w": 180,
+        "h": 166
+      }
+    }
+  ],
+  "relationships": [
+    {
+      "id": "r1",
+      "from": "store",
+      "to": "region",
+      "columns": [
+        "region"
+      ],
+      "identifying": true,
+      "points": [
+        [
+          320,
+          77
+        ],
+        [
+          208,
+          77
+        ]
+      ]
+    },
+    {
+      "id": "r2",
+      "from": "shift",
+      "to": "store",
+      "columns": [
+        "region",
+        "store_number"
+      ],
+      "identifying": true,
+      "points": [
+        [
+          600,
+          77
+        ],
+        [
+          488,
+          77
+        ]
+      ]
+    },
+    {
+      "id": "r3",
+      "from": "assignment",
+      "to": "shift",
+      "columns": [
+        "region",
+        "store_number",
+        "day",
+        "slot"
+      ],
+      "identifying": true,
+      "points": [
+        [
+          892,
+          77
+        ],
+        [
+          780,
+          77
+        ]
+      ]
+    }
+  ],
+  "schemaVersion": 1,
+  "_band": {
+    "x": 0,
+    "y": 0,
+    "w": 1112,
+    "h": 222
+  },
+  "canvas": {
+    "width": 1112,
+    "height": 222,
+    "crossings": 0
+  }
+}

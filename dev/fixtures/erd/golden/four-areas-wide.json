@@ -1,0 +1,655 @@
+{
+  "diagramType": "erd",
+  "title": "Four areas",
+  "direction": "LR",
+  "groups": [
+    {
+      "id": "a",
+      "name": "Alpha",
+      "color": "#e0f2fe",
+      "box": {
+        "x": 0,
+        "y": 0,
+        "w": 3376,
+        "h": 248
+      }
+    },
+    {
+      "id": "b",
+      "name": "Beta",
+      "color": "#dcfce7",
+      "box": {
+        "x": 0,
+        "y": 248,
+        "w": 3376,
+        "h": 222
+      }
+    },
+    {
+      "id": "c",
+      "name": "Gamma",
+      "color": "#fef3c7",
+      "box": {
+        "x": 0,
+        "y": 470,
+        "w": 3376,
+        "h": 222
+      }
+    },
+    {
+      "id": "d",
+      "name": "Delta",
+      "color": "#ccfbf1",
+      "box": {
+        "x": 0,
+        "y": 692,
+        "w": 3376,
+        "h": 222
+      }
+    }
+  ],
+  "entities": [
+    {
+      "id": "a1",
+      "name": "a1",
+      "group": "a",
+      "columns": [
+        {
+          "name": "id",
+          "type": "int",
+          "pk": true
+        },
+        {
+          "name": "name",
+          "type": "text"
+        },
+        {
+          "name": "label",
+          "type": "text"
+        },
+        {
+          "name": "extra",
+          "type": "text"
+        }
+      ],
+      "x": 40,
+      "y": 80,
+      "box": {
+        "x": 88,
+        "y": 80,
+        "w": 168,
+        "h": 140
+      }
+    },
+    {
+      "id": "a2",
+      "name": "a2",
+      "group": "a",
+      "columns": [
+        {
+          "name": "id",
+          "type": "int",
+          "pk": true
+        },
+        {
+          "name": "a1_id",
+          "type": "int",
+          "fk": true
+        },
+        {
+          "name": "label",
+          "type": "text"
+        }
+      ],
+      "x": 320,
+      "y": 54,
+      "box": {
+        "x": 368,
+        "y": 54,
+        "w": 168,
+        "h": 114
+      }
+    },
+    {
+      "id": "a3",
+      "name": "a3",
+      "group": "a",
+      "columns": [
+        {
+          "name": "id",
+          "type": "int",
+          "pk": true
+        },
+        {
+          "name": "a2_id",
+          "type": "int",
+          "fk": true
+        },
+        {
+          "name": "label",
+          "type": "text"
+        }
+      ],
+      "x": 600,
+      "y": 28,
+      "box": {
+        "x": 648,
+        "y": 28,
+        "w": 168,
+        "h": 114
+      }
+    },
+    {
+      "id": "b1",
+      "name": "b1",
+      "group": "b",
+      "columns": [
+        {
+          "name": "id",
+          "type": "int",
+          "pk": true
+        },
+        {
+          "name": "name",
+          "type": "int",
+          "fk": true
+        },
+        {
+          "name": "label",
+          "type": "text"
+        }
+      ],
+      "x": 880,
+      "y": 80,
+      "box": {
+        "x": 928,
+        "y": 328,
+        "w": 168,
+        "h": 114
+      }
+    },
+    {
+      "id": "b2",
+      "name": "b2",
+      "group": "b",
+      "columns": [
+        {
+          "name": "id",
+          "type": "int",
+          "pk": true
+        },
+        {
+          "name": "b1_id",
+          "type": "int",
+          "fk": true
+        },
+        {
+          "name": "label",
+          "type": "text"
+        }
+      ],
+      "x": 1160,
+      "y": 54,
+      "box": {
+        "x": 1208,
+        "y": 302,
+        "w": 168,
+        "h": 114
+      }
+    },
+    {
+      "id": "b3",
+      "name": "b3",
+      "group": "b",
+      "columns": [
+        {
+          "name": "id",
+          "type": "int",
+          "pk": true
+        },
+        {
+          "name": "b2_id",
+          "type": "int",
+          "fk": true
+        },
+        {
+          "name": "label",
+          "type": "text"
+        }
+      ],
+      "x": 1440,
+      "y": 28,
+      "box": {
+        "x": 1488,
+        "y": 276,
+        "w": 168,
+        "h": 114
+      }
+    },
+    {
+      "id": "c1",
+      "name": "c1",
+      "group": "c",
+      "columns": [
+        {
+          "name": "id",
+          "type": "int",
+          "pk": true
+        },
+        {
+          "name": "name",
+          "type": "int",
+          "fk": true
+        },
+        {
+          "name": "label",
+          "type": "text"
+        }
+      ],
+      "x": 1720,
+      "y": 80,
+      "box": {
+        "x": 1768,
+        "y": 550,
+        "w": 168,
+        "h": 114
+      }
+    },
+    {
+      "id": "c2",
+      "name": "c2",
+      "group": "c",
+      "columns": [
+        {
+          "name": "id",
+          "type": "int",
+          "pk": true
+        },
+        {
+          "name": "c1_id",
+          "type": "int",
+          "fk": true
+        },
+        {
+          "name": "label",
+          "type": "text"
+        }
+      ],
+      "x": 2000,
+      "y": 54,
+      "box": {
+        "x": 2048,
+        "y": 524,
+        "w": 168,
+        "h": 114
+      }
+    },
+    {
+      "id": "c3",
+      "name": "c3",
+      "group": "c",
+      "columns": [
+        {
+          "name": "id",
+          "type": "int",
+          "pk": true
+        },
+        {
+          "name": "c2_id",
+          "type": "int",
+          "fk": true
+        },
+        {
+          "name": "label",
+          "type": "text"
+        }
+      ],
+      "x": 2280,
+      "y": 28,
+      "box": {
+        "x": 2328,
+        "y": 498,
+        "w": 168,
+        "h": 114
+      }
+    },
+    {
+      "id": "d1",
+      "name": "d1",
+      "group": "d",
+      "columns": [
+        {
+          "name": "id",
+          "type": "int",
+          "pk": true
+        },
+        {
+          "name": "name",
+          "type": "int",
+          "fk": true
+        },
+        {
+          "name": "label",
+          "type": "text"
+        }
+      ],
+      "x": 2560,
+      "y": 80,
+      "box": {
+        "x": 2608,
+        "y": 772,
+        "w": 168,
+        "h": 114
+      }
+    },
+    {
+      "id": "d2",
+      "name": "d2",
+      "group": "d",
+      "columns": [
+        {
+          "name": "id",
+          "type": "int",
+          "pk": true
+        },
+        {
+          "name": "d1_id",
+          "type": "int",
+          "fk": true
+        },
+        {
+          "name": "label",
+          "type": "text"
+        }
+      ],
+      "x": 2840,
+      "y": 54,
+      "box": {
+        "x": 2888,
+        "y": 746,
+        "w": 168,
+        "h": 114
+      }
+    },
+    {
+      "id": "d3",
+      "name": "d3",
+      "group": "d",
+      "columns": [
+        {
+          "name": "id",
+          "type": "int",
+          "pk": true
+        },
+        {
+          "name": "d2_id",
+          "type": "int",
+          "fk": true
+        },
+        {
+          "name": "label",
+          "type": "text"
+        }
+      ],
+      "x": 3120,
+      "y": 28,
+      "box": {
+        "x": 3168,
+        "y": 720,
+        "w": 168,
+        "h": 114
+      }
+    }
+  ],
+  "relationships": [
+    {
+      "id": "ar2",
+      "from": "a2",
+      "to": "a1",
+      "columns": [
+        "a1_id"
+      ],
+      "points": [
+        [
+          368,
+          129
+        ],
+        [
+          256,
+          129
+        ]
+      ]
+    },
+    {
+      "id": "ar3",
+      "from": "a3",
+      "to": "a2",
+      "columns": [
+        "a2_id"
+      ],
+      "points": [
+        [
+          648,
+          103
+        ],
+        [
+          536,
+          103
+        ]
+      ]
+    },
+    {
+      "id": "br2",
+      "from": "b2",
+      "to": "b1",
+      "columns": [
+        "b1_id"
+      ],
+      "points": [
+        [
+          1208,
+          377
+        ],
+        [
+          1096,
+          377
+        ]
+      ]
+    },
+    {
+      "id": "br3",
+      "from": "b3",
+      "to": "b2",
+      "columns": [
+        "b2_id"
+      ],
+      "points": [
+        [
+          1488,
+          351
+        ],
+        [
+          1376,
+          351
+        ]
+      ]
+    },
+    {
+      "id": "x1",
+      "from": "b1",
+      "to": "a3",
+      "columns": [
+        "name"
+      ],
+      "label": "ref",
+      "points": [
+        [
+          928,
+          403
+        ],
+        [
+          836,
+          403
+        ],
+        [
+          836,
+          77
+        ],
+        [
+          816,
+          77
+        ]
+      ],
+      "labelBox": {
+        "x": 817,
+        "y": 229,
+        "w": 39,
+        "h": 22
+      }
+    },
+    {
+      "id": "cr2",
+      "from": "c2",
+      "to": "c1",
+      "columns": [
+        "c1_id"
+      ],
+      "points": [
+        [
+          2048,
+          599
+        ],
+        [
+          1936,
+          599
+        ]
+      ]
+    },
+    {
+      "id": "cr3",
+      "from": "c3",
+      "to": "c2",
+      "columns": [
+        "c2_id"
+      ],
+      "points": [
+        [
+          2328,
+          573
+        ],
+        [
+          2216,
+          573
+        ]
+      ]
+    },
+    {
+      "id": "x2",
+      "from": "c1",
+      "to": "b3",
+      "columns": [
+        "name"
+      ],
+      "label": "ref",
+      "points": [
+        [
+          1768,
+          625
+        ],
+        [
+          1676,
+          625
+        ],
+        [
+          1676,
+          325
+        ],
+        [
+          1656,
+          325
+        ]
+      ],
+      "labelBox": {
+        "x": 1657,
+        "y": 464,
+        "w": 39,
+        "h": 22
+      }
+    },
+    {
+      "id": "dr2",
+      "from": "d2",
+      "to": "d1",
+      "columns": [
+        "d1_id"
+      ],
+      "points": [
+        [
+          2888,
+          821
+        ],
+        [
+          2776,
+          821
+        ]
+      ]
+    },
+    {
+      "id": "dr3",
+      "from": "d3",
+      "to": "d2",
+      "columns": [
+        "d2_id"
+      ],
+      "points": [
+        [
+          3168,
+          795
+        ],
+        [
+          3056,
+          795
+        ]
+      ]
+    },
+    {
+      "id": "x3",
+      "from": "d1",
+      "to": "c3",
+      "columns": [
+        "name"
+      ],
+      "label": "ref",
+      "points": [
+        [
+          2608,
+          847
+        ],
+        [
+          2516,
+          847
+        ],
+        [
+          2516,
+          547
+        ],
+        [
+          2496,
+          547
+        ]
+      ],
+      "labelBox": {
+        "x": 2497,
+        "y": 686,
+        "w": 39,
+        "h": 22
+      }
+    }
+  ],
+  "schemaVersion": 1,
+  "canvas": {
+    "width": 3376,
+    "height": 914,
+    "crossings": 0
+  }
+}

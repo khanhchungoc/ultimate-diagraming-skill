@@ -1,0 +1,197 @@
+{
+  "diagramType": "erd",
+  "title": "Mutual references",
+  "direction": "LR",
+  "entities": [
+    {
+      "id": "a",
+      "name": "a",
+      "columns": [
+        {
+          "name": "id",
+          "type": "int",
+          "pk": true
+        },
+        {
+          "name": "b_id",
+          "type": "int",
+          "fk": true,
+          "nullable": true
+        },
+        {
+          "name": "label",
+          "type": "text"
+        }
+      ],
+      "x": 40,
+      "y": 88,
+      "box": {
+        "x": 40,
+        "y": 88,
+        "w": 168,
+        "h": 114
+      }
+    },
+    {
+      "id": "b",
+      "name": "b",
+      "columns": [
+        {
+          "name": "id",
+          "type": "int",
+          "pk": true
+        },
+        {
+          "name": "a_id",
+          "type": "int",
+          "fk": true,
+          "nullable": true
+        },
+        {
+          "name": "label",
+          "type": "text"
+        }
+      ],
+      "x": 320,
+      "y": 28,
+      "box": {
+        "x": 320,
+        "y": 28,
+        "w": 168,
+        "h": 114
+      }
+    },
+    {
+      "id": "c",
+      "name": "c",
+      "columns": [
+        {
+          "name": "id",
+          "type": "int",
+          "pk": true
+        },
+        {
+          "name": "a_id",
+          "type": "int",
+          "fk": true
+        }
+      ],
+      "x": 320,
+      "y": 182,
+      "box": {
+        "x": 320,
+        "y": 182,
+        "w": 168,
+        "h": 88
+      }
+    }
+  ],
+  "relationships": [
+    {
+      "id": "r1",
+      "from": "a",
+      "to": "b",
+      "columns": [
+        "b_id"
+      ],
+      "points": [
+        [
+          208,
+          163
+        ],
+        [
+          296,
+          163
+        ],
+        [
+          296,
+          103
+        ],
+        [
+          300,
+          103
+        ],
+        [
+          300,
+          77
+        ],
+        [
+          320,
+          77
+        ]
+      ]
+    },
+    {
+      "id": "r2",
+      "from": "b",
+      "to": "a",
+      "columns": [
+        "a_id"
+      ],
+      "points": [
+        [
+          320,
+          103
+        ],
+        [
+          228,
+          103
+        ],
+        [
+          228,
+          137
+        ],
+        [
+          208,
+          137
+        ]
+      ]
+    },
+    {
+      "id": "r3",
+      "from": "c",
+      "to": "a",
+      "columns": [
+        "a_id"
+      ],
+      "points": [
+        [
+          320,
+          257
+        ],
+        [
+          232,
+          257
+        ],
+        [
+          232,
+          163
+        ],
+        [
+          228,
+          163
+        ],
+        [
+          228,
+          137
+        ],
+        [
+          208,
+          137
+        ]
+      ]
+    }
+  ],
+  "schemaVersion": 1,
+  "_band": {
+    "x": 0,
+    "y": 0,
+    "w": 528,
+    "h": 298
+  },
+  "canvas": {
+    "width": 528,
+    "height": 298,
+    "crossings": 0
+  }
+}

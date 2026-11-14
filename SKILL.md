@@ -1,6 +1,6 @@
 ---
 name: ultimate-diagram
-description: "Create, verify, edit and read diagrams as one standalone, editable HTML file or claude.ai Artifact (drag-and-drop, Auto-Tidy, Save). Supports swimlane flowcharts and sequence diagrams. Use for interactive, shareable diagram pages, and to read, summarize or explain an existing diagram page (an .html with a \"diagram-data\" block): run its --extract command, never open the .html whole."
+description: "Create, verify, edit and read diagrams as one standalone, editable HTML file or claude.ai Artifact (drag-and-drop, Auto-Tidy, Save). Supports swimlane flowcharts, sequence diagrams and ER diagrams (database tables, columns, keys, relationships). Use for interactive, shareable diagram pages, and to read, summarize or explain an existing diagram page (an .html with a \"diagram-data\" block): run its --extract command, never open the .html whole."
 ---
 
 # Ultimate Diagram Skill
@@ -33,8 +33,9 @@ Every diagram JSON has a top-level `"diagramType"` (missing means `flowchart`).
 |---|---|---|
 | `flowchart` | Swimlane / cross-functional process flows with decisions and loops | [references/types/flowchart.md](references/types/flowchart.md) |
 | `sequence` | Messages between participants over time (API calls, system interactions) | [references/types/sequence.md](references/types/sequence.md) |
+| `erd` | Database schema: tables, columns, keys and relationships (crow's-foot), optionally grouped into subject areas | [references/types/erd.md](references/types/erd.md) |
 
-`erd` and `state` are planned, not supported: say so; do not force them into a flowchart. The type reference owns the schema, writing rules and visual checklist, and names the one example to copy.
+`state` is planned, not supported: say so; do not force it into a flowchart. The type reference owns the schema, writing rules and visual checklist, and names the one example to copy.
 
 ---
 
@@ -76,7 +77,7 @@ Use to summarize, explain or answer questions about a diagram page.
    python "<skill-dir>/scripts/layout_engine.py" --extract <page.html>
    ```
    If that cannot run, read only the lines the page's line 2 names (the `"diagram-data"` JSON block).
-2. Answer from that JSON alone. Flowchart: `nodes` are sorted along the flow, so follow `edges` for the path; `"feedback": true` is a loop back; each note's `nodes` lists the steps it is attached to. Sequence: `messages` are in time order (a step number is a message's position there); a fragment covers messages `from`..`to` inclusive, an `alt`/`par` fragment's `branches[].at` (or `elseAt`, one unlabelled else) is where each further branch starts, and a note sits `over` a participant `after`/`before` a message.
+2. Answer from that JSON alone. Flowchart: `nodes` are sorted along the flow, so follow `edges` for the path; `"feedback": true` is a loop back; each note's `nodes` lists the steps it is attached to. Sequence: `messages` are in time order (a step number is a message's position there); a fragment covers messages `from`..`to` inclusive, an `alt`/`par` fragment's `branches[].at` (or `elseAt`, one unlabelled else) is where each further branch starts, and a note sits `over` a participant `after`/`before` a message. ERD: `entities` hold `columns` (`pk`, `fk`, `unique`, `nullable`); each `relationships` entry runs from the child (the table holding the foreign key) to the parent, its two ends (`fromEnd`, `toEnd`: `one`, `zeroOrOne`, `oneOrMany`, `zeroOrMany`) say how many rows sit on each side, and `groups` are the subject areas the tables belong to.
 
 ## Procedure: Update an Existing Diagram
 

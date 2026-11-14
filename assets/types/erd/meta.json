@@ -1,0 +1,4 @@
+{
+  "title": "Interactive ER Diagram",
+  "dataNote": "\"entities\" are tables, each with \"columns\" in order (\"pk\", \"fk\", \"unique\", \"nullable\"); each relationship goes \"from\" the child table that holds the foreign key \"columns\" \"to\" the parent; \"fromEnd\"/\"toEnd\" are crow's-foot ends (one, zeroOrOne, oneOrMany, zeroOrMany); \"identifying\": true means the key is part of the child's primary key; \"groups\" are subject areas; \"layout\" is display-only and can be skipped."
+}

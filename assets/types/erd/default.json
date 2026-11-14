@@ -1,0 +1,21 @@
+{
+  "diagramType": "erd",
+  "title": "Interactive ER Diagram",
+  "direction": "LR",
+  "entities": [
+    { "id": "customer", "name": "customer",
+      "columns": [
+        { "name": "id", "type": "uuid", "pk": true },
+        { "name": "email", "type": "text", "unique": true }
+      ] },
+    { "id": "order", "name": "order",
+      "columns": [
+        { "name": "id", "type": "uuid", "pk": true },
+        { "name": "customer_id", "type": "uuid", "fk": true },
+        { "name": "placed_at", "type": "timestamptz" }
+      ] }
+  ],
+  "relationships": [
+    { "id": "r1", "from": "order", "to": "customer", "columns": ["customer_id"], "fromEnd": "zeroOrMany", "toEnd": "one", "label": "places" }
+  ]
+}
