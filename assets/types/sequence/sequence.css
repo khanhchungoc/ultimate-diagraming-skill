@@ -130,6 +130,12 @@
     }
     .seq-participant.is-rail:hover .seq-rail-tip, .seq-participant.is-rail.selected .seq-rail-tip { display: block; }
     body.exporting .seq-rail-tip, body.capture .seq-rail-tip { display: none !important; }
+    /* Lifespans: a short cap ends a lifeline; a pinned box whose lifeline has ended above the row fades out */
+    .seq-cap { stroke: var(--border-dark); stroke-width: 2; stroke-linecap: round; }
+    .seq-cap.selected { stroke: var(--primary); stroke-width: 3; }
+    .seq-participant { transition: opacity var(--ease); }
+    .seq-participant.is-gone { opacity: 0; pointer-events: none; }
+    body.exporting .seq-participant.is-gone, body.capture .seq-participant.is-gone { opacity: 1 !important; }
     .seq-lifeline.is-rail { stroke-dasharray: 2 5; opacity: 0.6; }
     /* Notes: a folded paper card over one lifeline, or stretched over two */
     #seq-canvas { --seq-note-bg: #fefce8; --seq-note-border: #e5d38a; --seq-note-ink: #3f3a1d; }

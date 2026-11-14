@@ -16,6 +16,7 @@
       const btnNumbers = document.getElementById('btn-numbers');
       const btnDetails = document.getElementById('btn-details');
       const btnShowAll = document.getElementById('btn-show-all');
+      const btnLifespans = document.getElementById('btn-lifespans');
 
       const SVG_NS = 'http://www.w3.org/2000/svg';
       const ACT_HALF = 6;      // half width of an activation bar
@@ -187,13 +188,16 @@
           }
         });
 
-        // Lifelines and participant boxes (a rail is a thin box with the kind icon and the name written downwards)
+        // Lifelines and participant boxes (a rail is a thin box with the kind icon and the name written downwards).
+        // With lifespans a box sits at the top of its lifeline (p.top) and the lifeline ends in a short cap (p.bottom).
         ps.forEach((p) => {
-          const rail = !!p.rail, boxH = rail ? SQ.RAIL_H : SQ.BOX_H;
-          seqLifeG.appendChild(svgEl('line', { class: `seq-lifeline${rail ? ' is-rail' : ''}`, x1: p.x, x2: p.x, y1: SQ.TOP + boxH, y2: L.height - 24, 'data-node-id': p.id }));
+          const rail = !!p.rail, boxH = rail ? SQ.RAIL_H : SQ.BOX_H, top = p.top === undefined ? SQ.TOP : p.top;
+          const y2 = p.bottom === undefined ? L.height - 24 : p.bottom;
+          seqLifeG.appendChild(svgEl('line', { class: `seq-lifeline${rail ? ' is-rail' : ''}`, x1: p.x, x2: p.x, y1: top + boxH, y2, 'data-node-id': p.id }));
           // A wide invisible stroke over the lifeline: dragging from it draws a message (see DRAW FROM A LIFELINE)
-          seqLifeG.appendChild(svgEl('line', { class: 'seq-life-hit', x1: p.x, x2: p.x, y1: SQ.TOP + boxH, y2: L.height - 24, 'data-pid': p.id, 'data-export-skip': '' }));
-          const box = htmlEl('div', `seq-participant${p.kind === 'actor' ? ' is-actor' : ''}${KIND_ICONS[p.kind] ? ` is-${p.kind}` : ''}${rail ? ' is-rail' : ''}`, { left: px(p.x - (rail ? SQ.RAIL_W : SQ.BOX_W) / 2), top: px(SQ.TOP) });
+          seqLifeG.appendChild(svgEl('line', { class: 'seq-life-hit', x1: p.x, x2: p.x, y1: top + boxH, y2, 'data-pid': p.id, 'data-export-skip': '' }));
+          if (p.bottom !== undefined) seqLifeG.appendChild(svgEl('line', { class: 'seq-cap', x1: p.x - 7, x2: p.x + 7, y1: p.bottom, y2: p.bottom, 'data-node-id': p.id }));
+          const box = htmlEl('div', `seq-participant${p.kind === 'actor' ? ' is-actor' : ''}${KIND_ICONS[p.kind] ? ` is-${p.kind}` : ''}${rail ? ' is-rail' : ''}`, { left: px(p.x - (rail ? SQ.RAIL_W : SQ.BOX_W) / 2), top: px(top) });
           box.dataset.nodeId = p.id;
           if (KIND_ICONS[p.kind] || rail) box.appendChild(kindIcon(p.kind));
           const name = htmlEl('span', 'seq-participant-name');
@@ -314,6 +318,16 @@
         seqCanvas.style.setProperty('--pin-h', `${topRowH() + 16}px`);
         seqCanvas.style.setProperty('--pin-dy', `${on ? Math.max(0, dy) : 0}px`);
         seqCanvas.style.setProperty('--pin-top', `${on ? Math.max(0, dy) + SQ.TOP - PIN_INSET : 0}px`);
+        // With lifespans the row names only the lifelines alive at the rows under it: a box rides at the top once its
+        // own place has scrolled past it, and fades out when its lifeline has ended above. Nothing moves sideways.
+        const pinTop = SQ.TOP + (on ? Math.max(0, dy) : 0);
+        seqHtml.querySelectorAll('.seq-participant').forEach((el) => {
+          const p = chartData.lifespans ? partById(el.dataset.nodeId) : null;
+          if (!p || !seqCanvas.classList.contains('seq-pinned')) { el.style.translate = ''; el.classList.remove('is-gone'); return; }
+          const own = Math.max(0, pinTop - (p.top === undefined ? SQ.TOP : p.top));
+          el.style.translate = own > 0 ? `0 ${own}px` : 'none';
+          el.classList.toggle('is-gone', p.bottom !== undefined && p.bottom < pinTop);
+        });
       }
 
       // --- LOOKUPS ---
@@ -412,6 +426,7 @@
         document.querySelectorAll('.seq-life-hit, .seq-activation').forEach((el) => {
           el.toggleAttribute('data-touch-drag', sel.kind === 'participant' && (el.dataset.pid || el.dataset.nodeId) === sel.id);
         });
+        document.querySelectorAll('.seq-cap').forEach((el) => el.classList.toggle('selected', sel.kind === 'participant' && el.dataset.nodeId === sel.id));
         document.querySelectorAll('.seq-msg-label, .seq-line, .seq-msg-detail').forEach((el) => el.classList.toggle('selected', ids.includes(el.dataset.edgeId)));
         document.querySelectorAll('.seq-frag-label, .seq-frag-box').forEach((el) => el.classList.toggle('selected', sel.kind === 'fragment' && el.dataset.fragId === sel.id));
         document.querySelectorAll('.seq-note').forEach((el) => el.classList.toggle('selected', sel.kind === 'note' && el.dataset.noteId === sel.id));
@@ -453,6 +468,8 @@
         btnDetails.setAttribute('aria-pressed', String(hasDetails && chartData.showDetails !== false));
         setDockButton(btnDetails, hasDetails, !hasDetails ? 'No message has a detail yet: select a message, press Enter, then Tab'
           : chartData.showDetails !== false ? 'Hide the details under the arrows (the detail becomes the label\'s tooltip)' : 'Show each message\'s detail under its arrow');
+        btnLifespans.setAttribute('aria-pressed', String(!!chartData.lifespans));
+        btnLifespans.title = chartData.lifespans ? 'Draw every lifeline from the top to the bottom again' : 'Trim lifelines: each one runs only from its participant\'s first message to its last';
         const anyCollapsed = chartData.fragments.some((f) => f.collapsed);
         btnShowAll.hidden = !anyCollapsed;
         btnShowAll.title = 'Expand every collapsed frame';
@@ -1510,6 +1527,10 @@
         if (chartData.numbered) delete chartData.numbered; else chartData.numbered = true;
         relayout();
       });
+      btnLifespans.addEventListener('click', () => {
+        if (chartData.lifespans) delete chartData.lifespans; else chartData.lifespans = true;
+        relayout();
+      });
       btnDetails.addEventListener('click', () => {
         if (chartData.showDetails === false) delete chartData.showDetails; else chartData.showDetails = false;
         relayout();
@@ -1573,9 +1594,9 @@
       // No positions are saved: render() lays out whatever is missing, so the block holds only the logical model,
       // in a fixed key order. scripts/disk_format.py is the Python twin: keep the two byte-identical.
       // fromDisk is not needed (the block is the model minus positions).
-      const DISK_KEYS = ['diagramType', 'schemaVersion', 'title', 'numbered', 'showDetails', 'rails', 'participants', 'messages', 'fragments', 'notes'];
+      const DISK_KEYS = ['diagramType', 'schemaVersion', 'title', 'numbered', 'showDetails', 'rails', 'lifespans', 'participants', 'messages', 'fragments', 'notes'];
       // Engine output, never saved: positions, hidden (inside a collapsed frame), frame dividers, note boxes
-      const DISK_LAYOUT = [['participants', ['x', 'rail']], ['messages', ['y', 'hidden']], ['fragments', ['x', 'y', 'w', 'h', 'elseY', 'dividers']], ['notes', ['x', 'y', 'w', 'h']]];
+      const DISK_LAYOUT = [['participants', ['x', 'rail', 'top', 'bottom']], ['messages', ['y', 'hidden']], ['fragments', ['x', 'y', 'w', 'h', 'elseY', 'dividers']], ['notes', ['x', 'y', 'w', 'h']]];
       // Ids made in the page are renamed on save so the file stays readable to an agent: m<next free number>,
       // p_<name slug>, f<N>, n<N>; every reference follows. Ids an author chose are never touched.
       const GENERATED_ID = /^(p|m|f|n)_\d{12,}(_\d+)?$/;

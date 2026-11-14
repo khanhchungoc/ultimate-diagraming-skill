@@ -65,7 +65,7 @@ class SequenceAudit:
         show_details = self.data.get("showDetails") is not False
 
         # Structure: unique ids, known references and kinds.
-        for flag in ("numbered", "showDetails", "rails"):
+        for flag in ("numbered", "showDetails", "rails", "lifespans"):
             if flag in self.data and not isinstance(self.data[flag], bool):
                 errors.append(f"'{flag}' must be true or false.")
         for label, items in (("participant", ps), ("message", ms), ("fragment", fs), ("note", ns)):

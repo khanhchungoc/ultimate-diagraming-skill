@@ -8,9 +8,12 @@
       //         fragments[{id,kind,label,from,to,elseAt?|branches?[{at,label}],color?,collapsed?}]
       //           (from/to/elseAt/at are message ids),
       //         notes?[{id,text,over,after?|before?}] (over: a participant id, or two ids to span between them),
-      //         rails? (true: a participant with nothing to show outside collapsed frames is a thin rail)
+      //         rails? (true: a participant with nothing to show outside collapsed frames is a thin rail),
+      //         lifespans? (true: a lifeline runs only from its participant's first message to its last; participants
+      //           may carry start?/end? message ids that widen it)
       // Output: participants[].x (center), messages[].y (arrow line), messages[].hidden (inside a collapsed frame),
-      //         participants[].rail (true on a rail), fragments[].{x,y,w,h,dividers[{at,y,label}]}, notes[].{x,y,w,h},
+      //         participants[].rail (true on a rail), participants[].top/bottom (with lifespans: the box's top and where the
+      //         lifeline ends), fragments[].{x,y,w,h,dividers[{at,y,label}]}, notes[].{x,y,w,h},
       //         layout {width,height}.
       //         A frame or note inside a collapsed frame gets no box. None of this is saved (see toDisk).
       // A file that uses none of the optional fields is laid out exactly as before they existed.
@@ -145,6 +148,38 @@
           p.x = Math.round(x);
         });
 
+        // 4. Lifespans (only with "lifespans": true): the rows of a participant's first and last message or note, widened
+        //    by "start" and "end". A message hidden in a collapsed frame counts as the frame's summary row.
+        const lifespans = data.lifespans === true;
+        const rowOf = (k) => { const C = ownerOf(k); return C ? C.a : k; };
+        const life = ps.map(() => null);   // [first row, last row] (message indices) or null: no events at all
+        const live = (i, k) => {
+          if (i === undefined || k === undefined) return;
+          const r = rowOf(k);
+          life[i] = life[i] ? [Math.min(life[i][0], r), Math.max(life[i][1], r)] : [r, r];
+        };
+        ps.forEach((p) => { delete p.top; delete p.bottom; });
+        if (lifespans) {
+          ms.forEach((m, k) => { live(pIdx[m.from], k); live(pIdx[m.to], k); });
+          ns.forEach((n) => {
+            const key = n.after !== undefined ? 'after' : n.before !== undefined ? 'before' : null;
+            const k = key ? mIdx[n[key]] : ms.length ? 0 : undefined;   // a free note sits above the first message
+            sqNoteOver(n).forEach((id) => live(pIdx[id], k));
+          });
+          ps.forEach((p, i) => {
+            if (!life[i]) return;
+            if (mIdx[p.start] !== undefined) life[i][0] = Math.min(life[i][0], rowOf(mIdx[p.start]));
+            if (mIdx[p.end] !== undefined) life[i][1] = Math.max(life[i][1], rowOf(mIdx[p.end]));
+          });
+        }
+        // Boxes that begin below the top row get a header slot above their first row (a participant that starts in the
+        // first row, or has nothing at all to show, stays in the top row)
+        const startAt = {};
+        if (lifespans) life.forEach((l, i) => { if (l && l[0] > 0) (startAt[l[0]] = startAt[l[0]] || []).push(i); });
+        const boxH = (i) => (rail[i] ? SQ.RAIL_H : SQ.BOX_H);
+        const topRows = ps.map((p, i) => i).filter((i) => !(life[i] && life[i][0] > 0));
+        const topH = Math.max(SQ.BOX_H, ...topRows.map((i) => (rail[i] ? SQ.RAIL_H : 0)));
+
         // Notes: where each one hangs, and its box (width from what it sits over, height from the wrapped text)
         const floating = [], beforeOf = {}, afterOf = {};
         const noteBox = (n) => {
@@ -167,7 +202,8 @@
 
         // 3. Vertical positions, inserting space where fragments open, split (a further branch) and close, and a
         //    row for every note.
-        let y = SQ.TOP + (anyRail ? SQ.RAIL_H : SQ.BOX_H) + SQ.FIRST_GAP;
+        let y = SQ.TOP + topH + SQ.FIRST_GAP;
+        const rowEnd = {};
         const placeNotes = (list) => (list || []).forEach((n) => {
           const box = noteBox(n);
           if (!box) return;
@@ -183,6 +219,10 @@
               r.divs.push({ at: br.at, y: Math.round(y + 6), label: br.label });
               y += SQ.ELSE_GAP;
             }));
+            if (startAt[k]) {
+              startAt[k].forEach((i) => { ps[i].top = Math.round(y); });
+              y += Math.max.apply(null, startAt[k].map(boxH)) + SQ.NOTE_GAP;
+            }
             placeNotes(beforeOf[k]);
             const starting = frs.filter((r) => !r.hidden && r.a === k).sort((u, v) => span(v) - span(u) || frs.indexOf(u) - frs.indexOf(v));
             const y0 = y;
@@ -197,6 +237,7 @@
               y += (m.from === m.to ? SQ.SELF_ROW : SQ.ROW) + (detailOf(m) ? SQ.DETAIL_ROW : 0);
               placeNotes(afterOf[k]);   // inside every frame the message is in: before any of them closes
             }
+            rowEnd[k] = y - SQ.ROW_BOTTOM_PAD;
           }
           if (C) { m.y = C.rowY; m.hidden = true; } else delete m.hidden;
           const rowBottom = C ? C.rowBottom : y - SQ.ROW_BOTTOM_PAD;
@@ -232,6 +273,13 @@
             left = Math.min(left, n.x - notePad);
             right = Math.max(right, n.x + n.w + notePad);
           });
+          // A box that begins inside the frame (its header slot) is wider than the frame's own padding
+          ps.forEach((p, i) => {
+            if (life[i] && life[i][0] > r.a && life[i][0] <= r.b) {
+              left = Math.min(left, p.x - half(i) - 8);
+              right = Math.max(right, p.x + half(i) + 8);
+            }
+          });
           // The tag of a group shows its label only
           const tagW = (r.f.kind === 'group' ? 0 : sqTextW(r.f.kind)) + sqTextW(r.f.label) + 56;
           const branchW = r.branches.reduce((w, br) => Math.max(w, sqTextW(br.label) + 40), 0);
@@ -245,5 +293,11 @@
         ns.forEach((n) => { if (n.x !== undefined) maxRight = Math.max(maxRight, n.x + n.w); });
 
         ms.forEach((m) => { m.y = Math.round(m.y); });
+        if (lifespans) {
+          ps.forEach((p, i) => {
+            if (p.top === undefined) p.top = SQ.TOP;
+            p.bottom = Math.round(life[i] ? rowEnd[life[i][1]] + 12 : y + SQ.TAIL - 24);
+          });
+        }
         data.layout = { width: Math.round(maxRight + SQ.MARGIN), height: Math.round(y + SQ.TAIL) };
       }

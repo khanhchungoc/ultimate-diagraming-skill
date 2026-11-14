@@ -64,6 +64,8 @@ CASES = [
     ("numbered is not a boolean", dict(numbered="yes"), "'numbered' must be true or false"),
     ("rails is not a boolean", dict(rails="yes"), "'rails' must be true or false"),
     ("rails true is valid", dict(rails=True), None),
+    ("lifespans is not a boolean", dict(lifespans="yes"), "'lifespans' must be true or false"),
+    ("lifespans true is valid", dict(lifespans=True), None),
 ]
 
 

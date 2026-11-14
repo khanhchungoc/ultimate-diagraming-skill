@@ -23,9 +23,9 @@ from typing import Any, Callable, Dict, Tuple
 FLOWCHART_KEYS = ("diagramType", "schemaVersion", "title", "direction", "swimlanes", "showNotes",
                   "lanes", "nodes", "edges", "notes", "layout")
 SEQUENCE_KEYS = ("diagramType", "schemaVersion", "title", "numbered", "showDetails", "rails",
-                 "participants", "messages", "fragments", "notes")
+                 "lifespans", "participants", "messages", "fragments", "notes")
 # Engine output on the sequence model, never saved: positions, hidden (inside a collapsed frame), frame dividers
-SEQUENCE_LAYOUT = (("participants", ("x", "rail")), ("messages", ("y", "hidden")),
+SEQUENCE_LAYOUT = (("participants", ("x", "rail", "top", "bottom")), ("messages", ("y", "hidden")),
                    ("fragments", ("x", "y", "w", "h", "elseY", "dividers")), ("notes", ("x", "y", "w", "h")))
 NODE_LAYOUT = ("x", "y")
 LANE_LAYOUT = ("height", "color")

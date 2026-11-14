@@ -519,6 +519,51 @@ try {
   t.check('drawing a message to a rail expands the frames that hide it, so it is never drawn into a collapsed frame',
     (await count('.seq-participant.is-rail[data-node-id="pol"]')) === 0 && t.errors.length === 0, `${await rails()} ${t.errors.join(' | ')}`);
 
+  // --- Lifespans (step 3) ---
+  await t.open(long);
+  const boxTop = (pid) => t.ev(`parseFloat(document.querySelector('.seq-participant[data-node-id="${pid}"]').style.top)`);
+  const lifeLen = (pid) => t.ev(`(() => { const l = document.querySelector('.seq-lifeline[data-node-id="${pid}"]'); return +l.getAttribute('y2') - +l.getAttribute('y1'); })()`);
+  const fullH = await t.ev(`document.getElementById('seq-canvas').offsetHeight`);
+  const tallLife = await lifeLen('spm');
+  await t.clickOn('#btn-lifespans');
+  const trimmed = { spm: await boxTop('spm'), cust: await boxTop('cust'), job: await boxTop('job'), len: await lifeLen('spm') };
+  t.check('Trim lifelines draws each box at the top of its lifeline, which ends in a short cap',
+    trimmed.cust === 24 && trimmed.spm > 400 && trimmed.job > trimmed.spm && trimmed.len < tallLife / 2 && (await count('.seq-cap')) === 8, JSON.stringify(trimmed));
+  t.check('the participants that start in the top rows stay in the top row; a header slot makes the diagram taller, not wider',
+    (await t.ev(`document.getElementById('seq-canvas').offsetHeight`)) > fullH && (await t.ev(`document.getElementById('btn-lifespans').getAttribute('aria-pressed')`)) === 'true');
+  await t.press('z', { modifiers: 2 });
+  t.check('the toggle is one undo step', (await count('.seq-cap')) === 0 && (await boxTop('spm')) === 24 && (await lifeLen('spm')) === tallLife);
+  await t.press('y', { modifiers: 2 });
+  // The pinned row names only the lifelines alive under it, at two scroll positions
+  const scrollTo = async (sel, y) => {
+    for (let i = 0; i < 6; i++) {
+      const cur = await t.ev(`document.querySelector(${JSON.stringify(sel)}).getBoundingClientRect().top`);
+      if (Math.abs(cur - y) < 12) return;
+      await t.ev(`document.getElementById('viewport').dispatchEvent(new WheelEvent('wheel', { bubbles: true, cancelable: true, deltaY: ${cur - y}, deltaMode: 0, clientX: 600, clientY: 400 }))`);
+      await sleep(80);
+    }
+  };
+  const pinnedNow = () => t.ev(`(() => { const vp = document.getElementById('viewport').getBoundingClientRect();
+    return JSON.stringify([...document.querySelectorAll('.seq-participant')].filter((e) => e.getBoundingClientRect().top < vp.top + 90 && e.getBoundingClientRect().bottom > vp.top && !e.classList.contains('is-gone')).map((e) => e.dataset.nodeId).sort()); })()`);
+  await t.press('Escape');
+  for (let i = 0; i < 4; i++) await t.clickOn('#btn-zoom-in');   // about 100%: the viewport shows a few rows, as on a screen
+  await scrollTo('.seq-line[data-edge-id="m14"]', 300);
+  const posA = JSON.parse(await pinnedNow());
+  await scrollTo('.seq-line[data-edge-id="m33"]', 300);
+  const posB = JSON.parse(await pinnedNow());
+  t.check('the pinned row shows only the lifelines alive at the rows under it (SPM phase: no Background Job, no bus yet)',
+    posA.includes('spm') && posA.includes('cust') && !posA.includes('job') && !posA.includes('bus'), posA.join());
+  t.check('further down it has dropped SPM and named Background Job and the bus, which have begun',
+    !posB.includes('spm') && posB.includes('job') && posB.includes('bus'), posB.join());
+  const exported = await t.ev(`new Promise(res => {
+    const orig = URL.createObjectURL;
+    URL.createObjectURL = (b) => { URL.createObjectURL = orig; b.text().then(res); return 'blob:x'; };
+    document.querySelector('[data-export="svg"]').click();
+  })`);
+  t.check('an SVG export of a trimmed diagram has every box at the start of its lifeline (nothing pinned, nothing faded)',
+    !/translate:\s*0px\s+[1-9]/.test(exported) && !/opacity:\s*0;/.test(exported.replace(/[^;]*seq-pin[^;]*;/g, '')) && exported.length > 1000);
+  t.check('and no page errors so far', t.errors.length === 0, t.errors.join(' | '));
+
   // ?present: read-only, but frames still collapse and expand
   await t.open(long, '?present');
   t.check('?present makes the diagram read-only', await t.ev(`getComputedStyle(document.querySelector('.seq-participant')).pointerEvents === 'none'`));
