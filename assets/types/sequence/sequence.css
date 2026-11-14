@@ -9,6 +9,10 @@
     #seq-html { position: absolute; left: 0; top: 0; }
     .seq-lifeline { stroke: var(--border-dark); stroke-width: 1.5; stroke-dasharray: 6 5; }
     .seq-activation { fill: var(--node-bg); stroke: var(--text-muted); stroke-width: 1.5; }
+    /* Drag sources for a new message: the activation bars and a wide invisible stroke over each lifeline */
+    .seq-activation { pointer-events: fill; cursor: crosshair; touch-action: none; }
+    .seq-life-hit { stroke: transparent; stroke-width: 14; fill: none; pointer-events: stroke; cursor: crosshair; touch-action: none; }
+    body.presentation .seq-activation, body.presentation .seq-life-hit { pointer-events: none; cursor: default; }
     .seq-line { stroke: var(--text-main); stroke-width: 1.5; fill: none; }
     .seq-line.is-reply { stroke-dasharray: 7 5; stroke: var(--text-muted); }
     .seq-line.selected { stroke: var(--primary); stroke-width: 2; }

@@ -46,7 +46,7 @@ So the plan has two parts.
 
 Today a selected message's action bar opens with three buttons: Call, Reply, Async. They change the arrowhead and dash, and with them the activation bars. In practice the kind follows from the message's position in the flow, so the picker is mostly a chance to get it wrong.
 
-- **Drawn or added messages get their kind from the flow.** A message drawn from B to A while A's call to B is still open (no reply yet, and A has sent B nothing since) becomes that call's **reply**. Any other message is a **call**. The existing **Reply** button keeps adding the answer under a call.
+- **Drawn or added messages get their kind from the flow.** *(Done 2026-11-14 for drawn messages, with drawing from any lifeline or activation bar.)* A message drawn from B to A while A's call to B is still open (no reply yet, and A has sent B nothing since) becomes that call's **reply**. Any other message is a **call**. The existing **Reply** button keeps adding the answer under a call.
 - **Moving or retargeting a message does not change its kind.** If an author drags a reply somewhere else, it stays a reply. The audit already warns about a reply that answers no call.
 - **Async becomes one toggle,** shown only on a call or an async message: "No reply expected" (on = `async`). Async is rare, and agents set it in the data, so it doesn't need a slot of its own.
 - **Reverse** stays. Reversing a reply that has turned back into an open call's direction leaves it a reply, and the audit decides whether it is valid.

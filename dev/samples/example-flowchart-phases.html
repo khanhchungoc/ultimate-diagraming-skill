@@ -2016,8 +2016,9 @@
       //   optional: fromDisk(data) -> the in-memory model read from the data block (inverse of toDisk)
       //             Missing members mean the block holds the in-memory model as is. scripts/disk_format.py
       //             does the same in Python; a generated page saved without edits must come out byte-identical.
-      // Touch (see TOUCH): a plugin marks selected items with the class `selected`. A one-finger touch reaches the
-      // plugin only when it lands inside a .selected element; any other touch pans, and a tap is replayed to the
+      // Touch (see TOUCH): a plugin marks selected items with the class `selected` (and anything else a finger may
+      // drag right now with the attribute data-touch-drag). A one-finger touch reaches the plugin only when it lands
+      // inside such an element; any other touch pans, and a tap is replayed to the
       // item as a synthetic pointerdown + pointerup, so selecting on pointerdown keeps working.
       // Undo/redo is the shell's job: every updateStatus(true) records a snapshot of chartData, so a plugin
       // gets undo for free as long as it calls updateStatus(true) once per finished edit (not per pointermove).
@@ -2459,7 +2460,7 @@
         const hit = document.elementFromPoint(e.clientX, e.clientY);
         const target = hit && viewport.contains(hit) ? hit : e.target;
         const bg = isBlankCanvas(target);
-        if (!bg && target.closest && target.closest('.selected')) {   // the plugin drags it
+        if (!bg && target.closest && target.closest('.selected, [data-touch-drag]')) {   // the plugin drags it
           touchGesture = null;
           if (target !== e.target) { e.stopImmediatePropagation(); replayPress(target, e, false); }
           return;

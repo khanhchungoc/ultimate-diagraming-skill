@@ -1,7 +1,8 @@
 // Touch test for the shell's pan and zoom on a phone: one finger pans 1:1, two fingers pinch-zoom (the page itself
 // never zooms), a drag that starts on an unselected item pans instead of moving it, a tap selects (even when the
 // browser's touch adjustment would have hit a step's connect port), a selected item drags, a tap on blank canvas
-// clears the selection; and the sequence participant row pins, over an opaque band, once panned off by touch.
+// clears the selection; the sequence participant row pins, over an opaque band, once panned off by touch; and a
+// sequence message is drawn by touch from the lifeline of a selected participant (an unselected one pans).
 // Real touch input over the Chrome DevTools Protocol (Input.dispatchTouchEvent), phone-sized and mobile-emulated.
 //
 //   node dev/e2e_touch.mjs --browser <chrome> --sequence <html> --flowchart <html>
@@ -67,6 +68,24 @@ const pin = await t.ev(`(() => {
 t.check('the participant row pins once panned off by touch', pin.pinned);
 t.check('the pinned row sits at the top of the viewport', pin.boxTop >= pin.vpTop - 1 && pin.boxTop < pin.vpTop + 60, `${pin.boxTop} vs ${pin.vpTop}`);
 t.check('the band behind the pinned row spans the diagram and covers the boxes', Math.abs(pin.bandW - pin.canvasW) < 4 && pin.bandCovers, JSON.stringify(pin));
+
+// --- Sequence: drawing a message by touch: tap a lifeline (selects its participant), then drag from it ---
+const ids = await t.ev(`[...document.querySelectorAll('.seq-participant')].map((e) => e.dataset.nodeId)`);
+const lineX = (pid) => t.ev(`(() => { const r = document.querySelector('.seq-life-hit[data-pid="${pid}"]').getBoundingClientRect(); return r.left + r.width / 2; })()`);
+const msgCount = () => t.ev(`document.querySelectorAll('.seq-msg-label').length`);
+const [pa, pb] = [ids[1], ids[2]];
+const ya = 600, xa = await lineX(pa), xb = await lineX(pb);
+const n0 = await msgCount(), u0 = await view();
+await drag(xa, ya, xb - xa, 0);
+const u1 = await view();
+t.check('a drag from an unselected lifeline pans and draws nothing', (await msgCount()) === n0 && Math.abs(u1.x - u0.x - (xb - xa)) < 2, `${n0} ${JSON.stringify([u0, u1])}`);
+const xa2 = await lineX(pa), xb2 = await lineX(pb);
+await tap(xa2, ya);
+t.check('a tap on a lifeline selects its participant', await t.ev(`document.querySelector('.seq-participant.selected')?.dataset.nodeId`) === pa);
+await drag(xa2, ya, xb2 - xa2, 0);
+await sleep(300);
+const drew = await t.ev(`(() => { const a = document.activeElement; return !!a && a.isContentEditable; })()`);
+t.check('then a drag from that lifeline to another draws a message (its label opens for editing)', (await msgCount()) === n0 + 1 && drew, `${n0} -> ${await msgCount()}`);
 
 // --- Flowchart: what a touch on a step does ---
 await t.open(flowchart);

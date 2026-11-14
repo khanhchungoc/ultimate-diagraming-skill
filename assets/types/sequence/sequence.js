@@ -178,6 +178,8 @@
         // Lifelines and participant boxes
         ps.forEach((p) => {
           seqLifeG.appendChild(svgEl('line', { class: 'seq-lifeline', x1: p.x, x2: p.x, y1: SQ.TOP + SQ.BOX_H, y2: L.height - 24, 'data-node-id': p.id }));
+          // A wide invisible stroke over the lifeline: dragging from it draws a message (see DRAW FROM A LIFELINE)
+          seqLifeG.appendChild(svgEl('line', { class: 'seq-life-hit', x1: p.x, x2: p.x, y1: SQ.TOP + SQ.BOX_H, y2: L.height - 24, 'data-pid': p.id, 'data-export-skip': '' }));
           const box = htmlEl('div', `seq-participant${p.kind === 'actor' ? ' is-actor' : ''}${KIND_ICONS[p.kind] ? ` is-${p.kind}` : ''}`, { left: px(p.x - SQ.BOX_W / 2), top: px(SQ.TOP) });
           box.dataset.nodeId = p.id;
           if (KIND_ICONS[p.kind]) box.appendChild(kindIcon(p.kind));
@@ -384,6 +386,10 @@
         const sel = seqSel || {};
         const ids = selIds(sel);
         document.querySelectorAll('.seq-participant').forEach((el) => el.classList.toggle('selected', sel.kind === 'participant' && el.dataset.nodeId === sel.id));
+        // On touch a drag from a lifeline pans unless its participant is selected (the shell's data-touch-drag rule)
+        document.querySelectorAll('.seq-life-hit, .seq-activation').forEach((el) => {
+          el.toggleAttribute('data-touch-drag', sel.kind === 'participant' && (el.dataset.pid || el.dataset.nodeId) === sel.id);
+        });
         document.querySelectorAll('.seq-msg-label, .seq-line, .seq-msg-detail').forEach((el) => el.classList.toggle('selected', ids.includes(el.dataset.edgeId)));
         document.querySelectorAll('.seq-frag-label, .seq-frag-box').forEach((el) => el.classList.toggle('selected', sel.kind === 'fragment' && el.dataset.fragId === sel.id));
         document.querySelectorAll('.seq-note').forEach((el) => el.classList.toggle('selected', sel.kind === 'note' && el.dataset.noteId === sel.id));
@@ -589,7 +595,7 @@
       // lights the lifeline it would land on and shows the row. Released on the same lifeline: a self-message.
       const seqPlus = htmlEl('div', 'seq-plus');
       seqPlus.dataset.exportSkip = '';
-      seqPlus.title = 'Drag to another lifeline to add a message here';
+      seqPlus.title = 'Drag to another lifeline to add a message here (or drag from any lifeline or activation bar)';
       seqPlus.textContent = '+';
       function hidePlus() { seqPlus.style.display = 'none'; }
       function onCanvasHover(e) {
@@ -599,7 +605,8 @@
         if (e.target === seqPlus) return;
         // On a lifeline the + wins over a frame's border or a branch divider crossing it
         const free = e.target === seqCanvas || e.target === seqSvg || e.target === seqHtml || e.target.classList.contains('seq-pin-band')
-          || e.target.classList.contains('seq-frag-hit') || e.target.classList.contains('seq-div-hit');
+          || e.target.classList.contains('seq-frag-hit') || e.target.classList.contains('seq-div-hit')
+          || e.target.classList.contains('seq-life-hit') || e.target.classList.contains('seq-activation');
         const p = free && pt.y > SQ.TOP + SQ.BOX_H + 8 && pt.y < chartData.layout.height - 30 ? nearestParticipant(pt.x) : null;
         if (!p || Math.abs(p.x - pt.x) > 16) { hidePlus(); return; }
         const slot = nearestSlot(rowSlots(), pt.y);
@@ -611,12 +618,16 @@
       }
       seqCanvas.addEventListener('pointermove', onCanvasHover);
       seqCanvas.addEventListener('pointerleave', () => { hidePlus(); seqCanvas.classList.remove('seq-row-hover'); });
-      function connectDrag() {
-        const from = partById(seqPlus.dataset.pid), index = +seqPlus.dataset.index, y = +seqPlus.dataset.y;
+      // fromLine: the drag started on a lifeline or an activation bar, not on the + (a click there selects the
+      // participant). A self-message needs the pointer to have gone 30px out from the lifeline, so a wobble draws nothing.
+      function connectDrag(pid = seqPlus.dataset.pid, index = +seqPlus.dataset.index, y = +seqPlus.dataset.y, fromLine = false) {
+        const from = partById(pid);
         return {
           move(pt, d) {
             hidePlus();
-            const to = nearestParticipant(pt.x);
+            d.away = Math.max(d.away || 0, Math.abs(pt.x - from.x));
+            let to = nearestParticipant(pt.x);
+            if (to && to.id === from.id && d.away < 30) to = null;   // a self-message: out to the side and back
             d.to = to;
             lightLifeline(to && to.id);
             showRubber(from.x, y, pt.x, y + (pt.y - y) * 0.15);
@@ -624,12 +635,25 @@
           },
           drop(pt, d) {
             if (!d.to) { render(); return; }
-            const m = { id: seqUid('m'), from: from.id, to: d.to.id, label: 'Message', kind: 'sync' };
+            const kind = drawnKind(from.id, d.to.id, index);
+            const m = { id: seqUid('m'), from: from.id, to: d.to.id, label: kind === 'reply' ? 'Reply' : 'Message', kind };
             chartData.messages.splice(index, 0, m);
             editCreated('message', m.id);
           },
-          click() { hidePlus(); }
+          click() { hidePlus(); if (fromLine) select('participant', from.id); }
         };
+      }
+      // The kind of a message drawn from `from` to `to` at `index`: the reply of the latest call from `to` to `from`
+      // that is still open there (no reply to it yet, and `to` has sent `from` nothing since); otherwise a call
+      function drawnKind(from, to, index) {
+        if (from === to) return 'sync';
+        const ms = chartData.messages;
+        for (let i = index - 1; i >= 0; i--) {
+          const m = ms[i];
+          if (m.from === from && m.to === to && m.kind === 'reply') return 'sync';   // already answered
+          if (m.from === to && m.to === from) return (m.kind || 'sync') === 'sync' ? 'reply' : 'sync';
+        }
+        return 'sync';
       }
 
       // --- HANDLES ON THE SELECTION ---
@@ -786,6 +810,14 @@
         const handle = e.target.closest('.seq-handle');
         if (handle) { e.stopPropagation(); const d = handleDrag(handle); if (d) beginDrag(e, d); return; }
         if (e.target === seqPlus) { e.stopPropagation(); beginDrag(e, connectDrag()); return; }
+        // DRAW FROM A LIFELINE: a drag from a lifeline or an activation bar draws a message from the nearest row gap
+        const src = e.target.closest('.seq-life-hit, .seq-activation');
+        if (src) {
+          e.stopPropagation();
+          const slot = nearestSlot(rowSlots(), canvasPoint(e).y);
+          beginDrag(e, connectDrag(src.dataset.pid || src.dataset.nodeId, slot.index, slot.y, true));
+          return;
+        }
         const hit = e.target.closest('.seq-participant, .seq-msg-label, .seq-msg-hit, .seq-msg-detail, .seq-frag-label, .seq-frag-hit, .seq-div-hit, .seq-frag-branch-label, .seq-frag-else-label, .seq-note');
         if (!hit) {
           // Shift + drag on blank canvas draws a marquee instead of panning

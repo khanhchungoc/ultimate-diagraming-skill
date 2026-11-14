@@ -148,11 +148,18 @@ try {
   await t.mouse('mouseMoved', shopB.x, yGap2);
   await sleep(80);
   const plus2 = await t.at('.seq-plus');
-  await t.dragTo(plus2.x, plus2.y, shopB.x + 6, yGap2 + 30);
+  // Out to the side and back onto the same lifeline (a self-message needs the pointer to leave the lifeline)
+  await t.mouse('mousePressed', plus2.x, plus2.y, { button: 'left', buttons: 1, clickCount: 1 });
+  for (const [x, y] of [[plus2.x + 30, plus2.y + 10], [plus2.x + 60, plus2.y + 20], [shopB.x + 6, yGap2 + 30]]) {
+    await t.mouse('mouseMoved', x, y, { button: 'left', buttons: 1 });
+    await sleep(15);
+  }
+  await t.mouse('mouseReleased', shopB.x + 6, yGap2 + 30, { button: 'left', buttons: 0, clickCount: 1 });
+  await sleep(80);
   await t.press('Enter');
   d = await saved();
   const selfMsg = d.messages.find((m) => m.from === 'p2' && m.to === 'p2');
-  t.check('dragging from a lifeline + onto the same lifeline makes a self-message', !!selfMsg, JSON.stringify(d.messages.map((m) => m.from + m.to)));
+  t.check('dragging from a lifeline + out to the side and back onto the same lifeline makes a self-message', !!selfMsg, JSON.stringify(d.messages.map((m) => m.from + m.to)));
   t.check('ids made in the page are saved as readable ids, references intact',
     d.messages.every((m) => /^m\d+$/.test(m.id)) && new Set(d.messages.map((m) => m.id)).size === d.messages.length
       && d.fragments.every((f) => d.messages.some((m) => m.id === f.from) && d.messages.some((m) => m.id === f.to)), JSON.stringify(d.messages.map((m) => m.id)));
@@ -324,6 +331,36 @@ try {
   await t.dragTo(st.x, st.y, wh.x, st.y);
   d = await saved();
   t.check("the note's stretch handle spans it over a second lifeline", JSON.stringify(d.notes[0].over) === '["p3","p4"]', JSON.stringify(d.notes[0]));
+
+  // Draw from a lifeline or an activation bar: a drag to another lifeline adds a message from that row gap. Drawn back
+  // to a caller whose call is still open, it is the call's reply; otherwise a call. A click selects the participant.
+  await t.open(page);
+  const barAt = (pid, y) => t.ev(`(() => { const r = [...document.querySelectorAll('.seq-activation[data-node-id="${pid}"]')]
+    .map((b) => b.getBoundingClientRect()).find((b) => b.top <= ${y} && ${y} <= b.bottom); return r ? { x: r.left + r.width / 2, y: ${y} } : null; })()`);
+  const gy = await gapY('m2', 'm3');
+  const bar = await barAt('p4', gy);
+  const shop = await lifelineAt('p2', gy);
+  await t.dragTo(bar.x, bar.y, shop.x, gy, { steps: 10 });
+  await t.press('Enter');   // leave the label editor the new message opens in
+  d = await saved();
+  const fromBar = d.messages[2];
+  t.check('a drag from an activation bar back to the caller adds the reply of the open call, in that row gap',
+    !!bar && fromBar.from === 'p4' && fromBar.to === 'p2' && fromBar.kind === 'reply' && d.messages[3].id === 'm3', JSON.stringify(fromBar));
+  const gy2 = await gapY('m1', 'm2');
+  const cust = await lifelineAt('p1', gy2), pay = await lifelineAt('p3', gy2);
+  await t.dragTo(cust.x, gy2, pay.x, gy2, { steps: 10 });
+  await t.press('Enter');
+  d = await saved();
+  t.check('a drag from a lifeline with no bar adds a call', d.messages[1].from === 'p1' && d.messages[1].to === 'p3' && d.messages[1].kind === 'sync', JSON.stringify(d.messages[1]));
+  const msgsBefore = d.messages.length;
+  const c1 = await lifelineAt('p1', await gapY('m4', 'm5'));
+  await t.dragTo(c1.x, c1.y, c1.x + 6, c1.y + 14, { steps: 4 });
+  const msgsAfter = (await saved()).messages.length;
+  t.check('a wobble along a lifeline draws nothing', msgsAfter === msgsBefore, `${msgsBefore} -> ${msgsAfter}`);
+  const barClick = await barAt('p4', await gapY('m2', 'm3'));
+  await t.click(barClick.x, barClick.y);
+  t.check('a click on an activation bar selects its participant',
+    await t.ev(`document.querySelector('.seq-participant.selected')?.dataset.nodeId`) === 'p4');
 
   // Keyboard: arrows walk, Enter edits, Tab moves to the detail, Alt+Down moves, Shift+Down grows a range
   await t.open(page);
