@@ -52,7 +52,8 @@ try {
   await t.clickOn(`.seq-msg-label[data-edge-id="m6"]`);
   const selected = await t.ev(`!!document.querySelector('.seq-msg-label.selected')`);
   t.check('selecting a message enables Message, Frame and Note, and shows its action bar',
-    !(await disabled('btn-add-message')) && !(await disabled('btn-frame')) && !(await disabled('btn-add-note')) && (await count('.seq-actionbar .seq-ab-btn[data-act="type"]')) === 3);
+    !(await disabled('btn-add-message')) && !(await disabled('btn-frame')) && !(await disabled('btn-add-note')) && (await count('.seq-actionbar .seq-ab-btn[data-act="type"]')) === 0
+      && (await count('.seq-actionbar .seq-ab-btn[data-act="async"]')) === 1);
   await t.press('Delete');
   const m1 = JSON.parse(await t.ev(labels));
   t.check('click selects a message and Delete removes it', selected && m1.length === 6 && !m1.includes('Release stock'), JSON.stringify(m1));
@@ -63,14 +64,18 @@ try {
   await t.press('Escape');
   t.check('Escape clears the selection', (await count('.seq-msg-label.selected')) === 0);
   await t.clickOn(`.seq-msg-label[data-edge-id="m2"]`);
-  await t.clickOn('.seq-actionbar .seq-ab-btn[data-value="async"]');
+  await t.clickOn('.seq-actionbar .seq-ab-btn[data-act="async"]');
   const typed = await t.ev(`document.querySelector('.seq-line[data-edge-id="m2"]').getAttribute('marker-end')`);
+  const pressedOn = await t.ev(`document.querySelector('.seq-ab-btn[data-act="async"]').getAttribute('aria-pressed')`);
   await t.press('z', { modifiers: 2 });
   const afterUndo = await t.ev(`document.querySelector('.seq-msg-label.selected')?.dataset.edgeId`);
   await t.press('y', { modifiers: 2 });
   const afterRedo = await t.ev(`document.querySelector('.seq-msg-label.selected')?.dataset.edgeId`);
-  t.check('the action bar sets the message type (current one pressed)', /open/.test(typed)
-    && (await t.ev(`document.querySelector('.seq-ab-btn[data-value="async"]').getAttribute('aria-pressed')`)) === 'true');
+  await t.clickOn('.seq-actionbar .seq-ab-btn[data-act="async"]');
+  const typedBack = await t.ev(`document.querySelector('.seq-line[data-edge-id="m2"]').getAttribute('marker-end')`);
+  t.check('"No reply expected" toggles a call to async and back (pressed while on)', /open/.test(typed) && pressedOn === 'true' && /solid/.test(typedBack), `${typed} ${pressedOn} ${typedBack}`);
+  await t.clickOn('.seq-msg-label[data-edge-id="m3"]');
+  t.check('a reply has no "No reply expected" toggle', (await count('.seq-actionbar .seq-ab-btn[data-act="async"]')) === 0);
   t.check('undo and redo keep the selection', afterUndo === 'm2' && afterRedo === 'm2', `${afterUndo} ${afterRedo}`);
 
   await t.open(page);
@@ -123,6 +128,27 @@ try {
   await t.press('Enter');
   t.check('Frame wraps the selected message and opens its condition in edit',
     newF === 'condition' && (await count('.seq-frag-label')) === 3 && (await t.ev(`document.querySelector('.seq-frag-label.selected .seq-frag-text').textContent`)) === 'ledger enabled' && t.errors.length === 0, `${newF} ${t.errors.join(' | ')}`);
+
+  // The dock's Message button infers the kind like drawing does: a call, or the reply of an open call
+  await t.open(page);
+  await t.clickOn('.seq-msg-label[data-edge-id="m1"]');
+  await t.clickOn('#btn-add-message');
+  await t.press('Enter');
+  await t.clickOn('.seq-ab-btn[data-act="reverse"]');
+  let dk = await saved();
+  const x1 = dk.messages[1];
+  await t.clickOn('#btn-add-message');
+  await t.press('Enter');
+  dk = await saved();
+  t.check('Message after a message adds a call; after a call that reopens the other way, the reply of the open call',
+    x1.kind === 'sync' && x1.from === 'p2' && x1.to === 'p1' && dk.messages[2].kind === 'reply' && dk.messages[2].label === 'Reply' && dk.messages[2].from === 'p2' && dk.messages[2].to === 'p1',
+    JSON.stringify(dk.messages.slice(0, 4)));
+  await t.open(page);
+  await t.clickOn('.seq-participant[data-node-id="p2"]');
+  await t.clickOn('#btn-add-message');
+  await t.press('Enter');
+  dk = await saved();
+  t.check('Message from a selected participant adds a call at the first row', dk.messages[0].kind === 'sync' && dk.messages[0].from === 'p2', JSON.stringify(dk.messages[0]));
 
   // --- Messages and participants (step 4) ---
   // Drag from the + on a lifeline to another lifeline: a call at the dropped row, label in edit

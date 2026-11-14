@@ -643,7 +643,7 @@
           click() { hidePlus(); if (fromLine) select('participant', from.id); }
         };
       }
-      // The kind of a message drawn from `from` to `to` at `index`: the reply of the latest call from `to` to `from`
+      // The kind of a message added from `from` to `to` at `index` (drawn, or added by the dock's Message button): the reply of the latest call from `to` to `from`
       // that is still open there (no reply to it yet, and `to` has sent `from` nothing since); otherwise a call
       function drawnKind(from, to, index) {
         if (from === to) return 'sync';
@@ -849,8 +849,6 @@
 
       // --- ACTION BAR AND HANDLES (drawn on the selection, never exported) ---
       const ICON = {
-        sync: '<path d="M3 12h15"/><path d="m14 7 6 5-6 5z" fill="currentColor"/>',
-        reply: '<path d="M21 12H6" stroke-dasharray="3 3"/><path d="m10 7-5 5 5 5"/>',
         async: '<path d="M3 12h16"/><path d="m14 7 6 5-6 5"/>',
         reverse: '<path d="M4 8h16"/><path d="m16 4 4 4-4 4"/><path d="M20 16H4"/><path d="m8 12-4 4 4 4"/>',
         reply2: '<path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/>',
@@ -888,9 +886,11 @@
           const m = msgById(sel.id), a = byId[m && m.from], b = byId[m && m.to];
           if (!m || !a || !b || m.hidden) return;
           bar.setAttribute('aria-label', 'Message');
-          [['sync', 'Call (solid line, opens an activation bar)'], ['reply', 'Reply (dashed line, closes the bar of its call)'], ['async', 'Async (fire and forget)']]
-            .forEach(([k, t]) => bar.appendChild(abButton('type', iconSvg(ICON[k]), t, (m.kind || 'sync') === k, k)));
-          bar.appendChild(htmlEl('span', 'seq-ab-sep'));
+          // Kind follows from the flow (see drawnKind), so the one choice left is a call nobody answers
+          if ((m.kind || 'sync') !== 'reply') {
+            bar.appendChild(abButton('async', iconSvg(ICON.async), 'No reply expected (fire and forget: an open arrowhead, no activation bar)', m.kind === 'async'));
+            bar.appendChild(htmlEl('span', 'seq-ab-sep'));
+          }
           bar.appendChild(abButton('reverse', iconSvg(ICON.reverse), 'Reverse the direction'));
           if ((m.kind || 'sync') === 'sync' && m.from !== m.to) bar.appendChild(abButton('reply', `${iconSvg(ICON.reply2)}<span>Reply</span>`, 'Add the reply under this call (or under the last message of its bar)'));
           const self = m.from === m.to;
@@ -956,7 +956,7 @@
         if (sel.kind === 'message') {
           const m = msgById(sel.id);
           if (!m) return;
-          if (act === 'type') { if ((m.kind || 'sync') === value) return; m.kind = value; relayout(); }
+          if (act === 'async') { if (m.kind === 'reply') return; m.kind = m.kind === 'async' ? 'sync' : 'async'; relayout(); }
           else if (act === 'reverse') { const t = m.from; m.from = m.to; m.to = t; relayout(); }
           else if (act === 'reply') addReply(m);
         } else if (sel.kind === 'participant') {
@@ -1375,14 +1375,15 @@
         if (seqSel.kind === 'message') {
           const ids = selIds(seqSel), last = msgById(ids[ids.length - 1]);
           if (!last) return;
-          m = { id: seqUid('m'), from: last.from, to: last.to, label: 'Message', kind: 'sync' };
-          const i = ms.indexOf(last);
+          const i = ms.indexOf(last), kind = drawnKind(last.from, last.to, i + 1);
+          m = { id: seqUid('m'), from: last.from, to: last.to, label: kind === 'reply' ? 'Reply' : 'Message', kind };
           ms.splice(i + 1, 0, m);
           // A frame that ended at the selected message takes the new one in
           chartData.fragments.forEach((f) => { if (f.to === last.id && f.from !== last.id) f.to = m.id; });
         } else {
           const i = ps.findIndex((p) => p.id === seqSel.id);
-          m = { id: seqUid('m'), from: ps[i].id, to: (ps[i + 1] || ps[i - 1] || ps[i]).id, label: 'Message', kind: 'sync' };
+          const to = (ps[i + 1] || ps[i - 1] || ps[i]).id, kind = drawnKind(ps[i].id, to, 0);
+          m = { id: seqUid('m'), from: ps[i].id, to, label: kind === 'reply' ? 'Reply' : 'Message', kind };
           ms.unshift(m);
         }
         editCreated('message', m.id);
