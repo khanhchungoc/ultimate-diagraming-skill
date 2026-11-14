@@ -1,0 +1,33 @@
+{
+  "diagramType": "erd",
+  "title": "Composite keys",
+  "direction": "LR",
+  "entities": [
+    { "id": "region", "name": "region", "columns": [
+      { "name": "code", "type": "text", "pk": true }
+    ] },
+    { "id": "store", "name": "store", "columns": [
+      { "name": "region", "type": "text", "pk": true, "fk": true },
+      { "name": "number", "type": "int", "pk": true },
+      { "name": "name", "type": "text" }
+    ] },
+    { "id": "shift", "name": "shift", "columns": [
+      { "name": "region", "type": "text", "pk": true, "fk": true },
+      { "name": "store_number", "type": "int", "pk": true, "fk": true },
+      { "name": "day", "type": "date", "pk": true },
+      { "name": "slot", "type": "text", "pk": true }
+    ] },
+    { "id": "assignment", "name": "assignment", "columns": [
+      { "name": "region", "type": "text", "pk": true, "fk": true },
+      { "name": "store_number", "type": "int", "pk": true, "fk": true },
+      { "name": "day", "type": "date", "pk": true, "fk": true },
+      { "name": "slot", "type": "text", "pk": true, "fk": true },
+      { "name": "employee_id", "type": "int", "pk": true }
+    ] }
+  ],
+  "relationships": [
+    { "id": "r1", "from": "store", "to": "region", "columns": ["region"], "identifying": true },
+    { "id": "r2", "from": "shift", "to": "store", "columns": ["region", "store_number"], "identifying": true },
+    { "id": "r3", "from": "assignment", "to": "shift", "columns": ["region", "store_number", "day", "slot"], "identifying": true }
+  ]
+}

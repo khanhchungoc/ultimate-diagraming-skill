@@ -1,0 +1,46 @@
+{
+  "diagramType": "erd",
+  "title": "Blog",
+  "direction": "LR",
+  "entities": [
+    { "id": "author", "name": "author", "columns": [
+      { "name": "id", "type": "int", "pk": true },
+      { "name": "name", "type": "text" },
+      { "name": "bio", "type": "text", "nullable": true }
+    ] },
+    { "id": "post", "name": "post", "columns": [
+      { "name": "id", "type": "int", "pk": true },
+      { "name": "author_id", "type": "int", "fk": true },
+      { "name": "title", "type": "text" },
+      { "name": "body", "type": "text" }
+    ] },
+    { "id": "comment", "name": "comment", "columns": [
+      { "name": "id", "type": "int", "pk": true },
+      { "name": "post_id", "type": "int", "fk": true },
+      { "name": "author_id", "type": "int", "fk": true, "nullable": true },
+      { "name": "body", "type": "text" }
+    ] },
+    { "id": "tag", "name": "tag", "columns": [
+      { "name": "id", "type": "int", "pk": true },
+      { "name": "label", "type": "text", "unique": true }
+    ] },
+    { "id": "post_tag", "name": "post_tag", "columns": [
+      { "name": "post_id", "type": "int", "pk": true, "fk": true },
+      { "name": "tag_id", "type": "int", "pk": true, "fk": true }
+    ] },
+    { "id": "audit_note", "name": "audit_note", "columns": [
+      { "name": "id", "type": "int", "pk": true },
+      { "name": "text", "type": "text" }
+    ] }
+  ],
+  "relationships": [
+    { "id": "r1", "from": "post", "to": "author", "columns": ["author_id"] },
+    { "id": "r2", "from": "comment", "to": "post", "columns": ["post_id"], "label": "on" },
+    { "id": "r3", "from": "comment", "to": "author", "columns": ["author_id"] },
+    { "id": "r4", "from": "post_tag", "to": "post", "columns": ["post_id"], "identifying": true },
+    { "id": "r5", "from": "post_tag", "to": "tag", "columns": ["tag_id"], "identifying": true }
+  ],
+  "notes": [
+    { "id": "n1", "text": "audit_note is standalone", "entities": ["audit_note"] }
+  ]
+}

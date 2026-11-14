@@ -1,0 +1,41 @@
+{
+  "diagramType": "erd",
+  "title": "Top to bottom",
+  "direction": "TB",
+  "groups": [
+    { "id": "sales", "name": "Sales", "color": "#e0f2fe" },
+    { "id": "catalog", "name": "Catalog", "color": "#dcfce7" }
+  ],
+  "entities": [
+    { "id": "customer", "name": "customer", "group": "sales", "columns": [
+      { "name": "id", "type": "uuid", "pk": true },
+      { "name": "email", "type": "text", "unique": true },
+      { "name": "phone", "type": "text", "nullable": true }
+    ] },
+    { "id": "order", "name": "order", "group": "sales", "columns": [
+      { "name": "id", "type": "uuid", "pk": true },
+      { "name": "customer_id", "type": "uuid", "fk": true },
+      { "name": "placed_at", "type": "timestamptz" }
+    ] },
+    { "id": "order_item", "name": "order_item", "group": "sales", "columns": [
+      { "name": "order_id", "type": "uuid", "pk": true, "fk": true },
+      { "name": "product_id", "type": "uuid", "pk": true, "fk": true },
+      { "name": "qty", "type": "int" }
+    ] },
+    { "id": "product", "name": "product", "group": "catalog", "columns": [
+      { "name": "id", "type": "uuid", "pk": true },
+      { "name": "name", "type": "text" },
+      { "name": "category_id", "type": "uuid", "fk": true, "nullable": true }
+    ] },
+    { "id": "category", "name": "category", "group": "catalog", "columns": [
+      { "name": "id", "type": "uuid", "pk": true },
+      { "name": "name", "type": "text" }
+    ] }
+  ],
+  "relationships": [
+    { "id": "r1", "from": "order", "to": "customer", "columns": ["customer_id"], "label": "places" },
+    { "id": "r2", "from": "order_item", "to": "order", "columns": ["order_id"], "fromEnd": "oneOrMany", "identifying": true },
+    { "id": "r3", "from": "order_item", "to": "product", "columns": ["product_id"], "identifying": true },
+    { "id": "r4", "from": "product", "to": "category", "columns": ["category_id"] }
+  ]
+}

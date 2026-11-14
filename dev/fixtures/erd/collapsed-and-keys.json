@@ -1,0 +1,58 @@
+{
+  "diagramType": "erd",
+  "title": "Keys only",
+  "direction": "LR",
+  "detail": "keys",
+  "groups": [
+    { "id": "core", "name": "Core", "color": "#e0f2fe" },
+    { "id": "ext", "name": "Extra", "color": "#dcfce7" }
+  ],
+  "entities": [
+    { "id": "account", "name": "account", "group": "core", "columns": [
+      { "name": "id", "type": "uuid", "pk": true },
+      { "name": "email", "type": "text", "unique": true },
+      { "name": "created_at", "type": "timestamptz" },
+      { "name": "plan_id", "type": "uuid", "fk": true }
+    ] },
+    { "id": "plan", "name": "plan", "group": "core", "columns": [
+      { "name": "id", "type": "uuid", "pk": true },
+      { "name": "name", "type": "text" },
+      { "name": "price", "type": "numeric" }
+    ] },
+    { "id": "invoice", "name": "invoice", "group": "core", "columns": [
+      { "name": "id", "type": "uuid", "pk": true },
+      { "name": "account_id", "type": "uuid", "fk": true },
+      { "name": "field_1", "type": "text" },
+      { "name": "field_2", "type": "text" },
+      { "name": "field_3", "type": "text" },
+      { "name": "field_4", "type": "text" },
+      { "name": "field_5", "type": "text" },
+      { "name": "field_6", "type": "text" },
+      { "name": "field_7", "type": "text" },
+      { "name": "field_8", "type": "text" }
+    ] },
+    { "id": "invoice_line", "name": "invoice_line", "group": "core", "collapsed": true, "columns": [
+      { "name": "id", "type": "uuid", "pk": true },
+      { "name": "invoice_id", "type": "uuid", "fk": true },
+      { "name": "qty", "type": "int" }
+    ] },
+    { "id": "event", "name": "event", "group": "ext", "collapsed": true, "columns": [
+      { "name": "id", "type": "uuid", "pk": true },
+      { "name": "account_id", "type": "uuid", "fk": true },
+      { "name": "kind", "type": "text" },
+      { "name": "payload", "type": "jsonb", "nullable": true }
+    ] },
+    { "id": "setting", "name": "setting", "group": "ext", "columns": [
+      { "name": "account_id", "type": "uuid", "pk": true, "fk": true },
+      { "name": "key", "type": "text", "pk": true },
+      { "name": "value", "type": "text" }
+    ] }
+  ],
+  "relationships": [
+    { "id": "r1", "from": "account", "to": "plan", "columns": ["plan_id"] },
+    { "id": "r2", "from": "invoice", "to": "account", "columns": ["account_id"] },
+    { "id": "r3", "from": "invoice_line", "to": "invoice", "columns": ["invoice_id"], "identifying": false },
+    { "id": "r4", "from": "event", "to": "account", "columns": ["account_id"] },
+    { "id": "r5", "from": "setting", "to": "account", "columns": ["account_id"], "identifying": true }
+  ]
+}

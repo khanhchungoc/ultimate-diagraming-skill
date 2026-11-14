@@ -1,0 +1,26 @@
+{
+  "diagramType": "erd",
+  "title": "Mutual references",
+  "direction": "LR",
+  "entities": [
+    { "id": "a", "name": "a", "columns": [
+      { "name": "id", "type": "int", "pk": true },
+      { "name": "b_id", "type": "int", "fk": true, "nullable": true },
+      { "name": "label", "type": "text" }
+    ] },
+    { "id": "b", "name": "b", "columns": [
+      { "name": "id", "type": "int", "pk": true },
+      { "name": "a_id", "type": "int", "fk": true, "nullable": true },
+      { "name": "label", "type": "text" }
+    ] },
+    { "id": "c", "name": "c", "columns": [
+      { "name": "id", "type": "int", "pk": true },
+      { "name": "a_id", "type": "int", "fk": true }
+    ] }
+  ],
+  "relationships": [
+    { "id": "r1", "from": "a", "to": "b", "columns": ["b_id"] },
+    { "id": "r2", "from": "b", "to": "a", "columns": ["a_id"] },
+    { "id": "r3", "from": "c", "to": "a", "columns": ["a_id"] }
+  ]
+}
