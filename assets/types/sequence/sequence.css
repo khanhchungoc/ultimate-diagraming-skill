@@ -83,9 +83,19 @@
       white-space: nowrap; cursor: pointer;
     }
     .seq-frag-summary:hover { border-color: var(--primary); color: var(--primary); }
+    /* Focus: collapse the other phases (the participants they leave become rails) */
+    .seq-frag-focus {
+      display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; margin: 0 -4px 0 6px;
+      padding: 0; border: none; border-radius: 4px; background: transparent; color: var(--text-soft); cursor: pointer;
+      vertical-align: -4px;
+    }
+    .seq-frag-focus:hover { background: var(--bg-hover); color: var(--text-main); }
+    .seq-frag-focus[aria-pressed="true"] { background: var(--primary-wash); color: var(--primary); }
+    #btn-show-all[hidden] { display: none; }
     /* Screenshots and exports of an expanded frame look as they did before frames could collapse */
     body.capture .seq-frag-label:not(.is-collapsed) .seq-frag-chev,
-    body.exporting .seq-frag-label:not(.is-collapsed) .seq-frag-chev { display: none; }
+    body.exporting .seq-frag-label:not(.is-collapsed) .seq-frag-chev,
+    body.capture .seq-frag-focus, body.exporting .seq-frag-focus { display: none; }
     /* Message details (payload) under the arrow, and step numbers before the label */
     .seq-msg-detail {
       position: absolute; height: 16px; line-height: 16px; padding: 0 4px; white-space: nowrap; font-size: 11px;
@@ -103,6 +113,24 @@
     /* Participant kinds: a small icon before the name (system and actor have none) */
     .seq-kind-icon { flex: none; margin-right: 6px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; color: var(--text-soft); }
     .seq-participant.is-external { border-style: dashed; }
+    /* A rail: a participant with nothing to show in the expanded part of the diagram. The kind icon, and the name
+       written downwards (cut short if long: hover or select the rail for the full name) */
+    .seq-participant.is-rail {
+      width: 36px; height: 80px; flex-direction: column; justify-content: flex-start; padding: 9px 0 6px; border-radius: 18px;
+      font-size: 12px; font-weight: 600; box-shadow: none; background: var(--bg-soft);
+    }
+    .seq-participant.is-rail .seq-kind-icon { margin: 0 0 5px; }
+    .seq-participant.is-rail .seq-participant-name {
+      writing-mode: vertical-rl; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-height: 0; max-height: 48px;
+    }
+    .seq-rail-tip {
+      display: none; position: absolute; left: 100%; top: 4px; margin-left: 8px; padding: 3px 8px; z-index: 12;
+      border: 1px solid var(--border-dark); border-radius: 6px; background: var(--bg-panel); color: var(--text-main);
+      font-size: 12px; font-weight: 600; white-space: nowrap; pointer-events: none; box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+    }
+    .seq-participant.is-rail:hover .seq-rail-tip, .seq-participant.is-rail.selected .seq-rail-tip { display: block; }
+    body.exporting .seq-rail-tip, body.capture .seq-rail-tip { display: none !important; }
+    .seq-lifeline.is-rail { stroke-dasharray: 2 5; opacity: 0.6; }
     /* Notes: a folded paper card over one lifeline, or stretched over two */
     #seq-canvas { --seq-note-bg: #fefce8; --seq-note-border: #e5d38a; --seq-note-ink: #3f3a1d; }
     :root[data-theme="dark"] #seq-canvas { --seq-note-bg: #2a2814; --seq-note-border: #6b6230; --seq-note-ink: #ece6c2; }
@@ -118,10 +146,10 @@
     body.presentation .seq-msg-hit, body.presentation .seq-msg-detail, body.presentation .seq-note,
     body.presentation .seq-frag-hit, body.presentation .seq-div-hit, body.presentation .seq-frag-branch-label { pointer-events: none !important; cursor: default; }
     /* In ?present the chevron and the summary row stay live: they walk an audience through the flow phase by phase */
-    body.presentation .seq-frag-chev, body.presentation .seq-frag-summary { pointer-events: auto; }
+    body.presentation .seq-frag-chev, body.presentation .seq-frag-summary, body.presentation .seq-frag-focus { pointer-events: auto; }
     /* Pinned participant row (see pinParticipants): the boxes ride over an opaque band at the viewport's top */
     .seq-pin-band {
-      display: none; position: absolute; left: 0; right: 0; top: var(--pin-top, 0px); height: 72px; z-index: 5;
+      display: none; position: absolute; left: 0; right: 0; top: var(--pin-top, 0px); height: var(--pin-h, 72px); z-index: 5;
       background: var(--bg-panel); border-bottom: 1px solid var(--border-dark); box-shadow: 0 4px 8px -4px rgba(0,0,0,0.12);
       pointer-events: none;
     }

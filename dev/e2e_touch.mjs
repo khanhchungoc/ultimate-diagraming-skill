@@ -87,6 +87,32 @@ await sleep(300);
 const drew = await t.ev(`(() => { const a = document.activeElement; return !!a && a.isContentEditable; })()`);
 t.check('then a drag from that lifeline to another draws a message (its label opens for editing)', (await msgCount()) === n0 + 1 && drew, `${n0} -> ${await msgCount()}`);
 
+// --- Sequence: Focus by tap, and a rail named by a long press ---
+await t.open(sequence);
+for (let i = 0; i < 4; i++) { await t.ev(`document.getElementById('btn-zoom-in').click()`); await sleep(60); }
+// Pan by touch until the element is on screen (one finger pans 1:1)
+async function bringIntoView(sel) {
+  for (let i = 0; i < 40; i++) {
+    const r = await t.ev(`(() => { const e = document.querySelector(${JSON.stringify(sel)}); if (!e) return null; const r = e.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`);
+    const dx = r.x < 40 ? 200 : r.x > W - 40 ? -200 : 0, dy = r.y < 130 ? 200 : r.y > H - 140 ? -200 : 0;
+    if (!dx && !dy) return r;
+    await drag(W / 2, H / 2, dx, dy, 6);
+  }
+  return null;
+}
+const summaries = () => t.ev(`document.querySelectorAll('.seq-frag-summary').length`);
+const focusBtn = await bringIntoView('.seq-frag-label[data-frag-id="f3"] .seq-frag-focus');
+await tap(focusBtn.x, focusBtn.y);
+const railCount = await t.ev(`document.querySelectorAll('.seq-participant.is-rail').length`);
+t.check('a tap on a phase\'s Focus button collapses the other phases and turns the participants they leave into rails', (await summaries()) === 3 && railCount === 2, `${await summaries()} ${railCount}`);
+const railPos = await bringIntoView('.seq-participant.is-rail[data-node-id="pol"]');
+await touch('touchStart', [{ x: railPos.x, y: railPos.y, id: 1 }]);
+await sleep(700);
+await touch('touchEnd', []);
+await sleep(250);
+const tipTouch = await t.ev(`(() => { const e = document.querySelector('.seq-participant.is-rail.selected .seq-rail-tip'); return e ? [e.textContent, getComputedStyle(e).display] : null; })()`);
+t.check('a long press on a rail selects it and shows its full name', !!tipTouch && tipTouch[0] === 'Policy Svc' && tipTouch[1] === 'block', JSON.stringify(tipTouch));
+
 // --- Flowchart: what a touch on a step does ---
 await t.open(flowchart);
 const id = await t.ev(`document.querySelector('.flow-node:not(.terminal-dot)').dataset.nodeId`);

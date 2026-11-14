@@ -463,6 +463,62 @@ try {
   })`);
   t.check('an SVG export shows the row unpinned (no band, no offset)', !/seq-pin-band|translate: 0px \d/.test(svgText) && !/translate:\s*0px\s+[1-9]/.test(svgText) && svgText.length > 1000);
 
+  // --- Rails and Focus (step 2) ---
+  // The long diagram has phases for most of its messages: wrap the three loose ones (steps 17-19) in a frame too, so that
+  // every participant outside the SPM phase has something to fold. Then Focus on SPM.
+  await t.open(long);
+  const canvasW = () => t.ev(`document.getElementById('seq-canvas').offsetWidth`);
+  const summaries = () => count('.seq-frag-summary');
+  const rails = () => t.ev(`JSON.stringify([...document.querySelectorAll('.seq-participant.is-rail')].map((e) => e.dataset.nodeId))`);
+  await t.clickOn('.seq-msg-label[data-edge-id="m17"]');
+  await t.clickOn('.seq-msg-label[data-edge-id="m19"]', { modifiers: 8 });
+  await t.clickOn('#btn-frame');
+  await t.type('Status update');
+  await t.press('Enter');
+  await t.press('Escape');
+  const wideW = await canvasW();
+  t.check('with every frame expanded there are no rails, and the Show all button is not offered',
+    (await count('.seq-participant.is-rail')) === 0 && (await t.ev(`document.getElementById('btn-show-all').hidden`)), `${await rails()}`);
+  await t.clickOn('.seq-frag-label[data-frag-id="f3"] .seq-frag-focus');
+  const narrowW = await canvasW();
+  const railList = JSON.parse(await rails());
+  const railBox = await t.ev(`(() => { const e = document.querySelector('.seq-participant.is-rail'); return e ? e.getBoundingClientRect().width / (document.getElementById('seq-canvas').getBoundingClientRect().width / document.getElementById('seq-canvas').offsetWidth) : 0; })()`);
+  t.check('Focus on a phase collapses every other top-level frame and expands that one',
+    (await summaries()) === 4 && (await t.ev(`!document.querySelector('.seq-frag-label[data-frag-id="f3"]').classList.contains('is-collapsed')`)), `${await summaries()}`);
+  t.check('the participants the other phases leave become rails, RAIL_W wide', railList.sort().join() === 'bus,db,job,pol' && Math.round(railBox) === 36, `${railList} ${railBox}`);
+  t.check('Focus on SPM makes the canvas at least 35% narrower', narrowW <= wideW * 0.65, `${wideW} -> ${narrowW} (${(100 - 100 * narrowW / wideW).toFixed(1)}%)`);
+  t.check('the Show all button appears while a frame is collapsed', !(await t.ev(`document.getElementById('btn-show-all').hidden`)));
+  await t.press('z', { modifiers: 2 });
+  t.check('Focus is one undo step', (await summaries()) === 0 && (await count('.seq-participant.is-rail')) === 0 && (await canvasW()) === wideW, `${await summaries()} ${await rails()}`);
+  await t.press('y', { modifiers: 2 });
+  t.check('and one redo step', (await summaries()) === 4 && (await count('.seq-participant.is-rail')) === 4);
+  // A rail: select it, hover shows the name, and Show opens the frames that hide it
+  await t.clickOn('.seq-participant.is-rail[data-node-id="spm"], .seq-participant.is-rail[data-node-id="bus"]');
+  const tip = await t.ev(`(() => { const e = document.querySelector('.seq-participant.is-rail.selected .seq-rail-tip'); return e ? [e.textContent, getComputedStyle(e).display] : null; })()`);
+  t.check('clicking a rail selects its participant and names it in full', !!tip && tip[0] === 'Service Bus' && tip[1] === 'block', JSON.stringify(tip));
+  t.check('its frames stay collapsed, and its action bar offers Show', (await summaries()) === 4 && (await count('.seq-actionbar .seq-ab-btn[data-act="show"]')) === 1);
+  await t.clickOn('.seq-actionbar .seq-ab-btn[data-act="show"]');
+  t.check('Show expands the frames that hide the participant, so it is no longer a rail',
+    !JSON.parse(await rails()).includes('bus') && (await summaries()) < 4 && (await count('.seq-participant.is-rail')) < 4, `${await rails()} ${await summaries()}`);
+  await t.clickOn('#btn-show-all');
+  t.check('Show all expands every frame again (and then hides itself)', (await summaries()) === 0 && (await count('.seq-participant.is-rail')) === 0 && (await t.ev(`document.getElementById('btn-show-all').hidden`)));
+  // Focus is a toggle, and a frame's action bar has it too
+  await t.clickOn('.seq-frag-label[data-frag-id="f3"] .seq-frag-kind, .seq-frag-label[data-frag-id="f3"] .seq-frag-text');
+  await t.clickOn('.seq-actionbar .seq-ab-btn[data-act="focus"]');
+  const viaBar = await summaries();
+  await t.clickOn('.seq-actionbar .seq-ab-btn[data-act="focus"]');
+  t.check('a frame\'s action bar has Focus, and pressing it again on the focused frame shows everything',
+    viaBar === 4 && (await summaries()) === 0, `${viaBar} ${await summaries()}`);
+  // Drawing a message to a rail opens the frames that hide it first
+  await t.clickOn('.seq-frag-label[data-frag-id="f3"] .seq-frag-focus');
+  const railX = await t.ev(`(() => { const r = document.querySelector('.seq-life-hit[data-pid="pol"]').getBoundingClientRect(); return r.left + r.width / 2; })()`);
+  const fromX = await t.ev(`(() => { const r = document.querySelector('.seq-life-hit[data-pid="spm"]').getBoundingClientRect(); return r.left + r.width / 2; })()`);
+  const rowY = (await t.at('.seq-msg-label[data-edge-id="m14"]')).y + 14;
+  await t.dragTo(fromX, rowY, railX, rowY, { steps: 10 });
+  await t.press('Enter');
+  t.check('drawing a message to a rail expands the frames that hide it, so it is never drawn into a collapsed frame',
+    (await count('.seq-participant.is-rail[data-node-id="pol"]')) === 0 && t.errors.length === 0, `${await rails()} ${t.errors.join(' | ')}`);
+
   // ?present: read-only, but frames still collapse and expand
   await t.open(long, '?present');
   t.check('?present makes the diagram read-only', await t.ev(`getComputedStyle(document.querySelector('.seq-participant')).pointerEvents === 'none'`));
@@ -470,6 +526,13 @@ try {
   const presentCollapsed = await count('.seq-frag-summary');
   const badge = await t.ev(`document.getElementById('save-status').textContent`);
   await t.clickOn('.seq-frag-summary');
+  const unsavedBefore = /unsaved/i.test(await t.ev(`document.getElementById('save-status').textContent`));
+  await t.clickOn('.seq-frag-label[data-frag-id="f3"] .seq-frag-focus');
+  const focusedPresent = await summaries();
+  t.check('Focus works in ?present and changes the view only (no unsaved badge)',
+    focusedPresent >= 3 && (await count('.seq-participant.is-rail')) >= 1 && !unsavedBefore && !/unsaved/i.test(await t.ev(`document.getElementById('save-status').textContent`)), `${focusedPresent}`);
+  await t.clickOn('.seq-frag-label[data-frag-id="f3"] .seq-frag-focus');
+  t.check('and pressing Focus again there shows every frame', (await summaries()) === 0);
   t.check('collapse and expand work in ?present, and change the view only', presentCollapsed === 1 && (await count('.seq-frag-summary')) === 0 && !/unsaved/i.test(badge) && t.errors.length === 0, `${presentCollapsed} ${badge}`);
 } catch (err) {
   console.error('[ERROR]', err.message);

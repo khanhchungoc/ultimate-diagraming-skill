@@ -7,9 +7,11 @@
       //         participants[{id,name,kind}], messages[{id,from,to,label,detail?,kind}] (array order = time order),
       //         fragments[{id,kind,label,from,to,elseAt?|branches?[{at,label}],color?,collapsed?}]
       //           (from/to/elseAt/at are message ids),
-      //         notes?[{id,text,over,after?|before?}] (over: a participant id, or two ids to span between them)
+      //         notes?[{id,text,over,after?|before?}] (over: a participant id, or two ids to span between them),
+      //         rails? (true: a participant with nothing to show outside collapsed frames is a thin rail)
       // Output: participants[].x (center), messages[].y (arrow line), messages[].hidden (inside a collapsed frame),
-      //         fragments[].{x,y,w,h,dividers[{at,y,label}]}, notes[].{x,y,w,h}, layout {width,height}.
+      //         participants[].rail (true on a rail), fragments[].{x,y,w,h,dividers[{at,y,label}]}, notes[].{x,y,w,h},
+      //         layout {width,height}.
       //         A frame or note inside a collapsed frame gets no box. None of this is saved (see toDisk).
       // A file that uses none of the optional fields is laid out exactly as before they existed.
       const SQ = {
@@ -20,7 +22,10 @@
         NUM_W: 26,                              // room for the step number before a label ("numbered")
         DETAIL_CHAR_W: 6.4, DETAIL_ROW: 12,     // a message's detail line: smaller text, and the extra row height
         NOTE_W: 184, NOTE_SPAN_PAD: 64, NOTE_CHAR_W: 6.2, NOTE_PAD: 10, NOTE_LINE: 17, NOTE_GAP: 14,
-        SUMMARY_ROW: 44                         // the one row a collapsed frame takes
+        SUMMARY_ROW: 44,                        // the one row a collapsed frame takes
+        RAIL_W: 36, RAIL_H: 80,                 // a rail's width and height
+        GAP_CLEAR: 52, RAIL_CLEAR: 24,          // clear space between two boxes (MIN_GAP - BOX_W), and beside a rail
+        SUMMARY_W: 236                          // a collapsed frame is at least this wide when rails make the diagram narrow
       };
       const sqTextW = (t) => Math.ceil(String(t == null ? '' : t).length * SQ.CHAR_W);
       const sqGrid = (v) => Math.ceil(v / SQ.GRID) * SQ.GRID;
@@ -59,35 +64,8 @@
         // What a message needs sideways: the longer of its label (plus the step number) and its detail
         const msgW = (m) => Math.max(sqTextW(m.label) + (data.numbered ? SQ.NUM_W : 0), Math.ceil(detailOf(m).length * SQ.DETAIL_CHAR_W));
 
-        // 1. Horizontal gaps: every message label must fit between its two lifelines. Messages hidden in a
-        //    collapsed frame still count, so collapsing a frame never moves a lifeline.
-        const gaps = ps.slice(1).map(() => SQ.MIN_GAP);
-        const need = [];
-        ms.forEach((m) => {
-          const a = pIdx[m.from], b = pIdx[m.to];
-          if (a === undefined || b === undefined) return;
-          if (a === b) {
-            if (a < gaps.length) need.push({ lo: a, hi: a + 1, w: SQ.SELF_LOOP + 12 + msgW(m) + 24 });
-          } else {
-            need.push({ lo: Math.min(a, b), hi: Math.max(a, b), w: msgW(m) + SQ.LABEL_PAD });
-          }
-        });
-        need.sort((u, v) => (u.hi - u.lo) - (v.hi - v.lo));
-        need.forEach((n) => {
-          let sum = 0;
-          for (let i = n.lo; i < n.hi; i++) sum += gaps[i];
-          if (sum < n.w) {
-            const add = (n.w - sum) / (n.hi - n.lo);
-            for (let i = n.lo; i < n.hi; i++) gaps[i] += add;
-          }
-        });
-        let x = SQ.MARGIN + SQ.BOX_W / 2 + SQ.FRAG_PAD_STEP * 2;
-        ps.forEach((p, i) => {
-          if (i) x += sqGrid(gaps[i - 1]);
-          p.x = Math.round(x);
-        });
-
-        // 2. Fragments: resolve message ranges, nesting level (0 = innermost) and ordering.
+        // 1. Fragments: resolve message ranges, nesting level (0 = innermost) and ordering. Done first: which messages a
+        //    collapsed frame hides decides which participants are rails, and so the horizontal layout.
         const frs = fs
           .map((f) => ({ f, a: mIdx[f.from], b: mIdx[f.to], divs: [] }))
           .filter((r) => r.a !== undefined && r.b !== undefined && r.a <= r.b);
@@ -111,6 +89,62 @@
         frs.forEach((r) => { r.hidden = collapsed.some((c) => outer(c, r)); });
         const ownerOf = (k) => collapsed.find((c) => c.own && c.a <= k && k <= c.b);
 
+        // 2. Rails: a participant that has something in the collapsed parts of the diagram and nothing in the rest is
+        //    drawn as a thin rail, so collapsing (or focusing on) a phase makes the diagram narrower. A note counts as
+        //    drawn when it is placed (see below): before a collapsed frame's first message it is, on any other message
+        //    inside the frame it is not. With every frame expanded nothing is hidden, so there are no rails. Only with
+        //    "rails": true (Focus sets it): a page saved before rails existed keeps its collapsed frames as they were.
+        const noteShown = (n) => {
+          const key = n.after !== undefined ? 'after' : n.before !== undefined ? 'before' : null;
+          if (!key) return true;
+          const k = mIdx[n[key]];
+          if (k === undefined) return false;
+          const C = ownerOf(k);
+          return !C || (key === 'before' && k === C.a);
+        };
+        const seen = ps.map(() => false), folded = ps.map(() => false);
+        ms.forEach((m, k) => {
+          const into = ownerOf(k) ? folded : seen;
+          [pIdx[m.from], pIdx[m.to]].forEach((i) => { if (i !== undefined) into[i] = true; });
+        });
+        ns.forEach((n) => sqNoteOver(n).forEach((id) => {
+          if (pIdx[id] !== undefined) (noteShown(n) ? seen : folded)[pIdx[id]] = true;
+        }));
+        const rail = ps.map((p, i) => data.rails === true && folded[i] && !seen[i]);
+        if (rail.every(Boolean)) rail.fill(false);   // nothing at all would be left to read
+        const anyRail = rail.some(Boolean);
+        ps.forEach((p, i) => { if (rail[i]) p.rail = true; else delete p.rail; });
+        const half = (i) => (rail[i] ? SQ.RAIL_W : SQ.BOX_W) / 2;
+
+        // 3. Horizontal gaps: every message label must fit between its two lifelines. Without rails, messages hidden in
+        //    a collapsed frame still count, so collapsing a frame never moves a lifeline; with rails the diagram is
+        //    narrower on purpose, so they do not.
+        const gaps = ps.slice(1).map((p, i) => half(i) + half(i + 1) + (rail[i] || rail[i + 1] ? SQ.RAIL_CLEAR : SQ.GAP_CLEAR));
+        const need = [];
+        ms.forEach((m, k) => {
+          const a = pIdx[m.from], b = pIdx[m.to];
+          if (a === undefined || b === undefined || (anyRail && ownerOf(k))) return;
+          if (a === b) {
+            if (a < gaps.length) need.push({ lo: a, hi: a + 1, w: SQ.SELF_LOOP + 12 + msgW(m) + 24 });
+          } else {
+            need.push({ lo: Math.min(a, b), hi: Math.max(a, b), w: msgW(m) + SQ.LABEL_PAD });
+          }
+        });
+        need.sort((u, v) => (u.hi - u.lo) - (v.hi - v.lo));
+        need.forEach((n) => {
+          let sum = 0;
+          for (let i = n.lo; i < n.hi; i++) sum += gaps[i];
+          if (sum < n.w) {
+            const add = (n.w - sum) / (n.hi - n.lo);
+            for (let i = n.lo; i < n.hi; i++) gaps[i] += add;
+          }
+        });
+        let x = SQ.MARGIN + half(0) + SQ.FRAG_PAD_STEP * 2;
+        ps.forEach((p, i) => {
+          if (i) x += sqGrid(gaps[i - 1]);
+          p.x = Math.round(x);
+        });
+
         // Notes: where each one hangs, and its box (width from what it sits over, height from the wrapped text)
         const floating = [], beforeOf = {}, afterOf = {};
         const noteBox = (n) => {
@@ -133,7 +167,7 @@
 
         // 3. Vertical positions, inserting space where fragments open, split (a further branch) and close, and a
         //    row for every note.
-        let y = SQ.TOP + SQ.BOX_H + SQ.FIRST_GAP;
+        let y = SQ.TOP + (anyRail ? SQ.RAIL_H : SQ.BOX_H) + SQ.FIRST_GAP;
         const placeNotes = (list) => (list || []).forEach((n) => {
           const box = noteBox(n);
           if (!box) return;
@@ -173,7 +207,7 @@
 
         // 4. Fragment boxes: wide enough for every message and note they contain, their tag and their branch
         //    labels, padded by nesting level.
-        let maxRight = ps.length ? ps[ps.length - 1].x + SQ.BOX_W / 2 : SQ.MARGIN;
+        let maxRight = ps.length ? ps[ps.length - 1].x + half(ps.length - 1) : SQ.MARGIN;
         const noteIn = (n, r) => {
           if (n.x === undefined) return false;
           const k = n.after !== undefined ? mIdx[n.after] : n.before !== undefined ? mIdx[n.before] : undefined;
@@ -187,10 +221,10 @@
             if (!pa || !pb) continue;
             lo = Math.min(lo, pa.x, pb.x);
             hi = Math.max(hi, pa.x, pb.x);
-            if (m.from === m.to) hi = Math.max(hi, pa.x + SQ.SELF_LOOP + 12 + msgW(m) + 12);
+            if (m.from === m.to && !(anyRail && ownerOf(k))) hi = Math.max(hi, pa.x + SQ.SELF_LOOP + 12 + msgW(m) + 12);
           }
           if (lo === Infinity) { lo = hi = SQ.MARGIN; }
-          const pad = SQ.FRAG_PAD + SQ.FRAG_PAD_STEP * r.level;
+          const pad = SQ.FRAG_PAD + SQ.FRAG_PAD_STEP * (anyRail && r.f.collapsed ? 0 : r.level);   // a folded frame draws nothing inside
           let left = lo - pad, right = hi + pad;
           const notePad = 8 + SQ.FRAG_PAD_STEP * r.level;
           ns.forEach((n) => {
@@ -202,7 +236,7 @@
           const tagW = (r.f.kind === 'group' ? 0 : sqTextW(r.f.kind)) + sqTextW(r.f.label) + 56;
           const branchW = r.branches.reduce((w, br) => Math.max(w, sqTextW(br.label) + 40), 0);
           r.f.x = Math.round(left);
-          r.f.w = Math.round(Math.max(right - left, tagW, branchW));
+          r.f.w = Math.round(Math.max(right - left, tagW, branchW, anyRail && r.f.collapsed ? SQ.SUMMARY_W : 0));
           r.f.y = Math.round(r.top);
           r.f.h = Math.round(r.bottom - r.top);
           if (r.divs.length) r.f.dividers = r.divs;

@@ -62,6 +62,8 @@ CASES = [
      dict(fragments=[{"id": "f1", "kind": "group", "label": "x", "from": "m1", "to": "m5", "collapsed": True},
                      {"id": "f2", "kind": "opt", "label": "y", "from": "m2", "to": "m3"}]), None),
     ("numbered is not a boolean", dict(numbered="yes"), "'numbered' must be true or false"),
+    ("rails is not a boolean", dict(rails="yes"), "'rails' must be true or false"),
+    ("rails true is valid", dict(rails=True), None),
 ]
 
 

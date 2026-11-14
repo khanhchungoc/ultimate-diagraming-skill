@@ -15,6 +15,7 @@
       const btnFrame = document.getElementById('btn-frame');
       const btnNumbers = document.getElementById('btn-numbers');
       const btnDetails = document.getElementById('btn-details');
+      const btnShowAll = document.getElementById('btn-show-all');
 
       const SVG_NS = 'http://www.w3.org/2000/svg';
       const ACT_HALF = 6;      // half width of an activation bar
@@ -140,6 +141,17 @@
           const text = htmlEl('span', 'seq-frag-text');
           text.textContent = f.label || (f.kind === 'group' ? 'phase' : 'condition');
           tag.appendChild(text);
+          const foc = focusState(f.id);
+          if (foc && foc.toCollapse.length) {
+            const on = isFocused(foc);
+            const fb = htmlEl('button', 'seq-frag-focus');
+            fb.type = 'button';
+            fb.title = on ? 'Show every phase again' : 'Focus on this phase: collapse the others (the participants they leave become rails)';
+            fb.setAttribute('aria-label', fb.title);
+            fb.setAttribute('aria-pressed', String(on));
+            fb.innerHTML = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.5" fill="currentColor"/></svg>';
+            tag.appendChild(fb);
+          }
           seqHtml.appendChild(tag);
           (f.dividers || []).forEach((d) => {
             seqFragG.appendChild(svgEl('line', { class: 'seq-frag-else', x1: f.x, x2: f.x + f.w, y1: d.y, y2: d.y }));
@@ -175,22 +187,29 @@
           }
         });
 
-        // Lifelines and participant boxes
+        // Lifelines and participant boxes (a rail is a thin box with the kind icon and the name written downwards)
         ps.forEach((p) => {
-          seqLifeG.appendChild(svgEl('line', { class: 'seq-lifeline', x1: p.x, x2: p.x, y1: SQ.TOP + SQ.BOX_H, y2: L.height - 24, 'data-node-id': p.id }));
+          const rail = !!p.rail, boxH = rail ? SQ.RAIL_H : SQ.BOX_H;
+          seqLifeG.appendChild(svgEl('line', { class: `seq-lifeline${rail ? ' is-rail' : ''}`, x1: p.x, x2: p.x, y1: SQ.TOP + boxH, y2: L.height - 24, 'data-node-id': p.id }));
           // A wide invisible stroke over the lifeline: dragging from it draws a message (see DRAW FROM A LIFELINE)
-          seqLifeG.appendChild(svgEl('line', { class: 'seq-life-hit', x1: p.x, x2: p.x, y1: SQ.TOP + SQ.BOX_H, y2: L.height - 24, 'data-pid': p.id, 'data-export-skip': '' }));
-          const box = htmlEl('div', `seq-participant${p.kind === 'actor' ? ' is-actor' : ''}${KIND_ICONS[p.kind] ? ` is-${p.kind}` : ''}`, { left: px(p.x - SQ.BOX_W / 2), top: px(SQ.TOP) });
+          seqLifeG.appendChild(svgEl('line', { class: 'seq-life-hit', x1: p.x, x2: p.x, y1: SQ.TOP + boxH, y2: L.height - 24, 'data-pid': p.id, 'data-export-skip': '' }));
+          const box = htmlEl('div', `seq-participant${p.kind === 'actor' ? ' is-actor' : ''}${KIND_ICONS[p.kind] ? ` is-${p.kind}` : ''}${rail ? ' is-rail' : ''}`, { left: px(p.x - (rail ? SQ.RAIL_W : SQ.BOX_W) / 2), top: px(SQ.TOP) });
           box.dataset.nodeId = p.id;
-          if (KIND_ICONS[p.kind]) box.appendChild(kindIcon(p.kind));
+          if (KIND_ICONS[p.kind] || rail) box.appendChild(kindIcon(p.kind));
           const name = htmlEl('span', 'seq-participant-name');
           name.textContent = p.name;
           box.appendChild(name);
+          if (rail) {
+            const tip = htmlEl('span', 'seq-rail-tip');
+            tip.textContent = p.name;
+            tip.dataset.exportSkip = '';
+            box.appendChild(tip);
+          }
           seqHtml.appendChild(box);
         });
         // Insert a participant between two boxes, or at the right end (shown while the pointer is on the row)
         ps.forEach((p, i) => {
-          const x = i + 1 < ps.length ? (p.x + ps[i + 1].x) / 2 : p.x + SQ.BOX_W / 2 + 26;
+          const x = i + 1 < ps.length ? (p.x + ps[i + 1].x) / 2 : p.x + (p.rail ? SQ.RAIL_W : SQ.BOX_W) / 2 + 26;
           const ins = htmlEl('button', 'seq-insert', { left: px(x), top: px(SQ.TOP + SQ.BOX_H / 2) });
           ins.type = 'button';
           ins.dataset.index = i + 1;
@@ -282,6 +301,8 @@
       // Called after every render and, via plugin.onViewChange, after every pan/zoom. Exports (body.exporting) and
       // screenshots (body.capture) reset it in CSS, so they always show the row at the diagram's top.
       const PIN_INSET = 8;
+      // Height of the participant row: taller when a rail is in it
+      const topRowH = () => (chartData.participants.some((p) => p.rail) ? SQ.RAIL_H : SQ.BOX_H);
       function pinParticipants() {
         const L = chartData.layout;
         if (!L) return;
@@ -290,6 +311,7 @@
         const on = visTop + PIN_INSET > SQ.TOP && !document.body.classList.contains('capture');
         const dy = Math.min(visTop + PIN_INSET - SQ.TOP, L.height - SQ.BOX_H - SQ.TOP - 40);
         seqCanvas.classList.toggle('seq-pinned', on && dy > 0);
+        seqCanvas.style.setProperty('--pin-h', `${topRowH() + 16}px`);
         seqCanvas.style.setProperty('--pin-dy', `${on ? Math.max(0, dy) : 0}px`);
         seqCanvas.style.setProperty('--pin-top', `${on ? Math.max(0, dy) + SQ.TOP - PIN_INSET : 0}px`);
       }
@@ -431,6 +453,9 @@
         btnDetails.setAttribute('aria-pressed', String(hasDetails && chartData.showDetails !== false));
         setDockButton(btnDetails, hasDetails, !hasDetails ? 'No message has a detail yet: select a message, press Enter, then Tab'
           : chartData.showDetails !== false ? 'Hide the details under the arrows (the detail becomes the label\'s tooltip)' : 'Show each message\'s detail under its arrow');
+        const anyCollapsed = chartData.fragments.some((f) => f.collapsed);
+        btnShowAll.hidden = !anyCollapsed;
+        btnShowAll.title = 'Expand every collapsed frame';
         setDockButton(btnAddParticipant, true, kind === 'participant' ? 'Add a participant to the right of the selected one' : 'Add a participant at the right end');
         const msgOk = kind === 'participant' || kind === 'message';
         setDockButton(btnAddMessage, msgOk, msgOk ? 'Add a message after the selected one (or at the first row from the selected participant). Or drag from a lifeline\'s + to another lifeline'
@@ -636,6 +661,7 @@
           drop(pt, d) {
             if (!d.to) { render(); return; }
             const kind = drawnKind(from.id, d.to.id, index);
+            expandFramesHiding([from.id, d.to.id]);   // never draw into a collapsed frame: open the ones that hide a rail
             const m = { id: seqUid('m'), from: from.id, to: d.to.id, label: kind === 'reply' ? 'Reply' : 'Message', kind };
             chartData.messages.splice(index, 0, m);
             editCreated('message', m.id);
@@ -806,7 +832,7 @@
       function onSeqPointerDown(e) {
         if (isPresent() || e.button > 0) return;
         if (e.target.isContentEditable) return;
-        if (e.target.closest('.seq-frag-chev, .seq-frag-summary, .seq-actionbar, .seq-insert, .seq-add-branch')) return;   // handled on click
+        if (e.target.closest('.seq-frag-chev, .seq-frag-summary, .seq-frag-focus, .seq-actionbar, .seq-insert, .seq-add-branch')) return;   // handled on click
         const handle = e.target.closest('.seq-handle');
         if (handle) { e.stopPropagation(); const d = handleDrag(handle); if (d) beginDrag(e, d); return; }
         if (e.target === seqPlus) { e.stopPropagation(); beginDrag(e, connectDrag()); return; }
@@ -852,6 +878,8 @@
         async: '<path d="M3 12h16"/><path d="m14 7 6 5-6 5"/>',
         reverse: '<path d="M4 8h16"/><path d="m16 4 4 4-4 4"/><path d="M20 16H4"/><path d="m8 12-4 4 4 4"/>',
         reply2: '<path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/>',
+        show: '<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+        focus: '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.5" fill="currentColor"/>',
         trash: '<path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M6 6l1 14h10l1-14"/>'
       };
       const iconSvg = (body) => `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${body}</svg>`;
@@ -902,9 +930,13 @@
           const p = byId[sel.id];
           if (!p) return;
           bar.setAttribute('aria-label', 'Participant kind');
+          if (p.rail) {
+            bar.appendChild(abButton('show', `${iconSvg(ICON.show)}<span>Show</span>`, 'Expand the frames that hide this participant'));
+            bar.appendChild(htmlEl('span', 'seq-ab-sep'));
+          }
           PARTICIPANT_KINDS.forEach((k) => bar.appendChild(abButton('pkind', KIND_ICONS[k] ? iconSvg(KIND_ICONS[k]) : `<span>${k === 'actor' ? 'Actor' : 'System'}</span>`,
             `Kind: ${k}`, (p.kind || 'system') === k, k)));
-          at = { x: p.x, y: SQ.TOP + SQ.BOX_H + 8 };
+          at = { x: p.x, y: SQ.TOP + (p.rail ? SQ.RAIL_H : SQ.BOX_H) + 8 };
           bar.classList.add('is-below');
         } else if (sel.kind === 'fragment') {
           const f = fragById(sel.id);
@@ -915,6 +947,12 @@
           bar.appendChild(abButton('color', '<span class="seq-swatch is-none"></span>', 'No colour', !f.color, ''));
           FRAG_COLORS.forEach((c) => bar.appendChild(abButton('color', `<span class="seq-swatch seq-tint-${c}"></span>`, `Colour: ${c}`, f.color === c, c)));
           bar.appendChild(htmlEl('span', 'seq-ab-sep'));
+          const foc = focusState(f.id);
+          if (foc && foc.toCollapse.length) {
+            const on = isFocused(foc);
+            bar.appendChild(abButton('focus', `${iconSvg(ICON.focus)}<span>Focus</span>`, on ? 'Show every phase again' : 'Collapse the other phases and expand this one', on));
+            bar.appendChild(htmlEl('span', 'seq-ab-sep'));
+          }
           bar.appendChild(abButton('delete-with', `${iconSvg(ICON.trash)}<span>With messages</span>`, 'Delete the frame and every message in it'));
           at = { x: f.x + 150, y: f.y - 40 };
           if (!f.collapsed) {
@@ -962,6 +1000,7 @@
         } else if (sel.kind === 'participant') {
           const p = partById(sel.id);
           if (p && act === 'pkind' && (p.kind || 'system') !== value) { p.kind = value; relayout(); }
+          else if (p && act === 'show') { expandFramesHiding([p.id]); relayout(); }
         } else if (sel.kind === 'fragment') {
           const f = fragById(sel.id);
           if (!f) return;
@@ -973,6 +1012,8 @@
           } else if (act === 'color' && (f.color || '') !== value) {
             if (value) f.color = value; else delete f.color;
             relayout();
+          } else if (act === 'focus') {
+            focusFrame(f.id);
           } else if (act === 'delete-with') {
             const [a, b] = fragRange(f);
             chartData.fragments = chartData.fragments.filter((x) => x.id !== f.id);
@@ -1138,7 +1179,7 @@
       }
       function onSeqDblClick(e) {
         if (isPresent()) return;
-        if (e.target.closest('.seq-frag-chev, .seq-frag-summary, .seq-actionbar')) return;
+        if (e.target.closest('.seq-frag-chev, .seq-frag-summary, .seq-frag-focus, .seq-actionbar')) return;
         const div = e.target.closest('.seq-div-hit, .seq-frag-branch-label, .seq-frag-else-label');
         if (div) { e.stopPropagation(); editBranch(div.dataset.fragId, div.dataset.at); return; }
         const note = e.target.closest('.seq-note');
@@ -1148,6 +1189,7 @@
         const lab = e.target.closest('.seq-msg-label');
         if (lab) { e.stopPropagation(); editMessage(lab.dataset.edgeId); return; }
         const box = e.target.closest('.seq-participant, .seq-frag-label');
+        if (box && box.classList.contains('is-rail')) return;   // a rail's name is written downwards: Show it to rename
         const el = e.target.closest(EDIT_TEXT) || (box && box.querySelector(EDIT_TEXT));
         if (!el) return;
         e.stopPropagation();
@@ -1162,7 +1204,7 @@
         const dock = document.querySelector('.dock-area .toolbar-center');
         const bottom = Math.min(v.bottom, dock && dock.offsetHeight ? dock.getBoundingClientRect().top : v.bottom);
         // The pinned participant row covers the top of the viewport
-        const top = v.top + (seqCanvas.classList.contains('seq-pinned') ? (SQ.BOX_H + 24) * scale : 0);
+        const top = v.top + (seqCanvas.classList.contains('seq-pinned') ? (topRowH() + 24) * scale : 0);
         let dx = 0, dy = 0;
         if (r.left < v.left + pad) dx = v.left + pad - r.left; else if (r.right > v.right - pad) dx = v.right - pad - r.right;
         if (r.top < top + pad) dy = top + pad - r.top; else if (r.bottom > bottom - pad) dy = bottom - pad - r.bottom;
@@ -1198,15 +1240,63 @@
         const f = fragById(fid);
         if (!f) return;
         if (f.collapsed) delete f.collapsed; else f.collapsed = true;
+        commitView(fid);
+      }
+      // A change of what is shown: in ?present the view only, otherwise one undo step with the frame selected
+      function commitView(fid) {
         if (isPresent()) { layoutDiagram(chartData); render(); return; }
-        seqSel = { kind: 'fragment', id: fid };
+        if (fid) seqSel = { kind: 'fragment', id: fid };
         relayout();
       }
+      // --- FOCUS: collapse every other top-level frame, expand this one and the frames around it ---
+      // The participants those phases leave behind become rails (the diagram sets "rails"), so it gets narrower.
+      // Only top-level frames fold: a frame that crosses another one's edge is left alone (it could not be collapsed
+      // without cutting that frame in half). Pressing Focus on the focused frame shows everything again.
+      function frameSpans() {
+        return chartData.fragments.map((f) => ({ f, a: msgIndex(f.from), b: msgIndex(f.to) })).filter((r) => r.a >= 0 && r.b >= r.a);
+      }
+      function focusState(fid) {
+        const rs = frameSpans(), me = rs.find((r) => r.f.id === fid);
+        if (!me) return null;
+        const encloses = (o, i) => o !== i && o.a <= i.a && i.b <= o.b && (o.b - o.a > i.b - i.a || (o.b - o.a === i.b - i.a && rs.indexOf(o) < rs.indexOf(i)));
+        const crossing = (r) => rs.some((o) => o !== r && ((o.a < r.a && r.a <= o.b && o.b < r.b) || (r.a < o.a && o.a <= r.b && r.b < o.b)));
+        const tops = rs.filter((r) => !rs.some((o) => encloses(o, r)));
+        const keep = rs.filter((r) => r === me || encloses(r, me));
+        const toCollapse = tops.filter((r) => !keep.includes(r) && !crossing(r));
+        return { me, keep, toCollapse };
+      }
+      const isFocused = (st) => st.keep.every((r) => !r.f.collapsed) && st.toCollapse.length > 0 && st.toCollapse.every((r) => r.f.collapsed);
+      function focusFrame(fid) {
+        const st = focusState(fid);
+        if (!st) return;
+        if (isFocused(st)) { chartData.fragments.forEach((f) => { delete f.collapsed; }); delete chartData.rails; }
+        else {
+          st.keep.forEach((r) => { delete r.f.collapsed; });
+          st.toCollapse.forEach((r) => { r.f.collapsed = true; });
+          chartData.rails = true;
+        }
+        commitView(fid);
+        panIntoView(seqHtml.querySelector(`.seq-frag-label[data-frag-id="${fid}"]`));
+      }
+      function showAll() {
+        chartData.fragments.forEach((f) => { delete f.collapsed; });
+        commitView(null);
+      }
+      // Expand every collapsed frame that hides a message of (or a note over) one of these participants
+      function expandFramesHiding(pids) {
+        const ms = chartData.messages;
+        frameSpans().forEach((r) => {
+          if (!r.f.collapsed) return;
+          if (ms.slice(r.a, r.b + 1).some((m) => pids.includes(m.from) || pids.includes(m.to))) delete r.f.collapsed;
+        });
+      }
+      btnShowAll.addEventListener('click', showAll);
       seqHtml.addEventListener('click', (e) => {
-        const btn = e.target.closest('.seq-frag-chev, .seq-frag-summary');
+        const btn = e.target.closest('.seq-frag-chev, .seq-frag-summary, .seq-frag-focus');
         if (!btn) return;
         e.stopPropagation();
-        toggleCollapsed(btn.closest('[data-frag-id]').dataset.fragId);
+        const fid = btn.closest('[data-frag-id]').dataset.fragId;
+        if (btn.classList.contains('seq-frag-focus')) focusFrame(fid); else toggleCollapsed(fid);
       });
 
       // --- EDITS ---
@@ -1483,9 +1573,9 @@
       // No positions are saved: render() lays out whatever is missing, so the block holds only the logical model,
       // in a fixed key order. scripts/disk_format.py is the Python twin: keep the two byte-identical.
       // fromDisk is not needed (the block is the model minus positions).
-      const DISK_KEYS = ['diagramType', 'schemaVersion', 'title', 'numbered', 'showDetails', 'participants', 'messages', 'fragments', 'notes'];
+      const DISK_KEYS = ['diagramType', 'schemaVersion', 'title', 'numbered', 'showDetails', 'rails', 'participants', 'messages', 'fragments', 'notes'];
       // Engine output, never saved: positions, hidden (inside a collapsed frame), frame dividers, note boxes
-      const DISK_LAYOUT = [['participants', ['x']], ['messages', ['y', 'hidden']], ['fragments', ['x', 'y', 'w', 'h', 'elseY', 'dividers']], ['notes', ['x', 'y', 'w', 'h']]];
+      const DISK_LAYOUT = [['participants', ['x', 'rail']], ['messages', ['y', 'hidden']], ['fragments', ['x', 'y', 'w', 'h', 'elseY', 'dividers']], ['notes', ['x', 'y', 'w', 'h']]];
       // Ids made in the page are renamed on save so the file stays readable to an agent: m<next free number>,
       // p_<name slug>, f<N>, n<N>; every reference follows. Ids an author chose are never touched.
       const GENERATED_ID = /^(p|m|f|n)_\d{12,}(_\d+)?$/;

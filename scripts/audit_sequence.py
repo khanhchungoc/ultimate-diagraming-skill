@@ -1,7 +1,7 @@
 """Audit for sequence diagrams (diagramType "sequence"): structure, geometry and complexity budget.
 
 Checks the laid-out JSON only, so it needs no browser. Geometry constants mirror assets/types/sequence/engine.js
-(SQ.BOX_W, SQ.SELF_LOOP, SQ.CHAR_W, SQ.DETAIL_CHAR_W, SQ.NUM_W); keep them in sync.
+(SQ.BOX_W, SQ.RAIL_W, SQ.SELF_LOOP, SQ.CHAR_W, SQ.DETAIL_CHAR_W, SQ.NUM_W); keep them in sync.
 """
 
 from __future__ import annotations
@@ -10,6 +10,7 @@ import math
 from typing import Any, Dict, List
 
 BOX_W = 148
+RAIL_W = 36              # a rail: the thin column of a participant with nothing to show outside collapsed frames
 SELF_LOOP = 40
 CHAR_W = 7.4
 DETAIL_CHAR_W = 6.4      # a message's detail line (smaller text)
@@ -64,7 +65,7 @@ class SequenceAudit:
         show_details = self.data.get("showDetails") is not False
 
         # Structure: unique ids, known references and kinds.
-        for flag in ("numbered", "showDetails"):
+        for flag in ("numbered", "showDetails", "rails"):
             if flag in self.data and not isinstance(self.data[flag], bool):
                 errors.append(f"'{flag}' must be true or false.")
         for label, items in (("participant", ps), ("message", ms), ("fragment", fs), ("note", ns)):
@@ -149,8 +150,9 @@ class SequenceAudit:
         elif laid_out:
             layout = self.data.get("layout") or {}
             width, height = layout.get("width", math.inf), layout.get("height", math.inf)
+            half = lambda p: (RAIL_W if p.get("rail") else BOX_W) / 2  # noqa: E731
             for left, right in zip(ps, ps[1:]):
-                if right["x"] - left["x"] < BOX_W + LABEL_MARGIN:
+                if right["x"] - left["x"] < half(left) + half(right) + LABEL_MARGIN:
                     overlaps += 1
                     errors.append(f"Participants '{left['name']}' and '{right['name']}' overlap.")
             for earlier, later in zip(ms, ms[1:]):
@@ -160,6 +162,11 @@ class SequenceAudit:
             for m in ms:
                 a, b = pmap.get(m.get("from")), pmap.get(m.get("to"))
                 if not a or not b:
+                    continue
+                if m.get("hidden"):
+                    # Folded into a collapsed frame's summary row: nothing is drawn, and with rails the gap may be narrower
+                    if m["y"] > height:
+                        overflows += 1
                     continue
                 detail = m.get("detail") if show_details else None
                 label_w = max(text_width(m.get("label")) + (NUM_W if numbered else 0),
