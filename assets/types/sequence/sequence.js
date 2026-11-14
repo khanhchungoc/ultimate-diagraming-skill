@@ -266,7 +266,10 @@
           seqHtml.appendChild(el);
         });
         // The opaque band the participant row rides on once the top of the diagram is panned off screen
-        seqHtml.appendChild(htmlEl('div', 'seq-pin-band'));
+        // (#seq-html is a shrink-to-fit box with no width of its own, so left/right: 0 would give the band none)
+        const band = htmlEl('div', 'seq-pin-band');
+        band.style.width = `${chartData.layout ? chartData.layout.width : 0}px`;
+        seqHtml.appendChild(band);
         applySelection();
         pinParticipants();
       }

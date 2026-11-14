@@ -442,9 +442,14 @@
       background-image: radial-gradient(var(--grid-dot) 1.2px, transparent 1.2px);
       background-size: 24px 24px;
       cursor: grab;
+      touch-action: none;   /* shell.js handles one-finger pan and pinch zoom; the browser never takes over */
     }
     #viewport.panning {
       cursor: grabbing;
+    }
+    /* Only while a touch gesture runs: composite the stage on the GPU (it re-rasters sharp when the class drops) */
+    #viewport.gesturing #stage {
+      will-change: transform;
     }
     /* Selection box: Shift + drag on blank canvas, for diagram types that define selectInRect */
     .marquee {

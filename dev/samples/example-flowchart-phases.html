@@ -513,9 +513,14 @@
       background-image: radial-gradient(var(--grid-dot) 1.2px, transparent 1.2px);
       background-size: 24px 24px;
       cursor: grab;
+      touch-action: none;   /* shell.js handles one-finger pan and pinch zoom; the browser never takes over */
     }
     #viewport.panning {
       cursor: grabbing;
+    }
+    /* Only while a touch gesture runs: composite the stage on the GPU (it re-rasters sharp when the class drops) */
+    #viewport.gesturing #stage {
+      will-change: transform;
     }
     /* Selection box: Shift + drag on blank canvas, for diagram types that define selectInRect */
     .marquee {
@@ -1986,6 +1991,7 @@
       <li><kbd>Drag Canvas</kbd> : Pan viewport</li>
       <li><kbd>Scroll Wheel</kbd> : Scroll the canvas up / down (<kbd>Shift</kbd> + wheel: left / right)</li>
       <li><kbd>Ctrl</kbd> + <kbd>Scroll Wheel</kbd> : Zoom in / out at the cursor</li>
+      <li><b>Touch</b> : drag with one finger to pan, pinch with two to zoom. A drag that starts on an item pans unless the item is already selected; tap an item to select it, then drag it</li>
     </ul>
   </aside>
 
@@ -2010,6 +2016,9 @@
       //   optional: fromDisk(data) -> the in-memory model read from the data block (inverse of toDisk)
       //             Missing members mean the block holds the in-memory model as is. scripts/disk_format.py
       //             does the same in Python; a generated page saved without edits must come out byte-identical.
+      // Touch (see TOUCH): a plugin marks selected items with the class `selected`. A one-finger touch reaches the
+      // plugin only when it lands inside a .selected element; any other touch pans, and a tap is replayed to the
+      // item as a synthetic pointerdown + pointerup, so selecting on pointerdown keeps working.
       // Undo/redo is the shell's job: every updateStatus(true) records a snapshot of chartData, so a plugin
       // gets undo for free as long as it calls updateStatus(true) once per finished edit (not per pointermove).
       // The type's engine.js must define layoutDiagram(data): lay out `data` in place, no DOM access.
@@ -2406,6 +2415,124 @@
           plugin.clearSelection();
         }
       });
+
+      // --- TOUCH: one finger pans, two fingers pinch-zoom ---
+      // The viewport sets touch-action: none, so the browser never takes a gesture over (no page zoom, no
+      // pointercancel halfway through a pan). The shell owns every touch except one that lands on an item that is
+      // already selected, which goes to the plugin so it can be dragged. A finger that lands on any other item pans
+      // like blank canvas, so brushing past a step while panning moves nothing; a tap (no movement) is replayed to
+      // the item as a pointerdown/pointerup pair, so it selects exactly as a click does. A tap on blank canvas clears
+      // the selection; a pan does not. A second finger turns the gesture into a pinch anchored at the midpoint, and
+      // freezes any drag the plugin started. Moves are applied once per animation frame.
+      const touches = new Map();     // pointerId -> { x, y }
+      let touchGesture = null;       // { kind: 'pan', sx, sy, panX, panY, moved, bg, target, init } | { kind: 'pinch', ... }
+      let replayingTap = false;
+      const TAP_SLOP = 8;            // px a finger may wander and still be a tap
+      let transformQueued = false;
+      function scheduleTransform() {
+        if (transformQueued) return;
+        transformQueued = true;
+        requestAnimationFrame(() => { transformQueued = false; updateTransform(); });
+      }
+      const isBlankCanvas = (el) => el === viewport || el.id === 'stage' || plugin.isBackground(el);
+      function startPinch() {
+        const [a, b] = [...touches.values()];
+        touchGesture = { kind: 'pinch', dist: Math.hypot(a.x - b.x, a.y - b.y) || 1,
+          mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2, scale, panX, panY };
+      }
+      viewport.addEventListener('pointerdown', (e) => {
+        if (e.pointerType !== 'touch' || replayingTap) return;
+        touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        if (touches.size >= 2) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          if (touches.size > 2) return;
+          endMarquee();
+          isPanning = false;
+          plugin.cancelInteraction();
+          viewport.classList.add('panning', 'gesturing');
+          startPinch();
+          return;
+        }
+        // The browser's touch adjustment snaps a touch's target to the nearest small interactive element (a step's
+        // connect port, say), which is how a tap near a step starts an arrow. Use what is really under the finger.
+        const hit = document.elementFromPoint(e.clientX, e.clientY);
+        const target = hit && viewport.contains(hit) ? hit : e.target;
+        const bg = isBlankCanvas(target);
+        if (!bg && target.closest && target.closest('.selected')) {   // the plugin drags it
+          touchGesture = null;
+          if (target !== e.target) { e.stopImmediatePropagation(); replayPress(target, e, false); }
+          return;
+        }
+        e.stopImmediatePropagation();
+        touchGesture = { kind: 'pan', sx: e.clientX, sy: e.clientY, panX, panY, moved: false, bg, target, init: e };
+      }, true);
+      // Hand a target a press it never saw (and, for a tap, the release): plugins select and drag on pointerdown
+      function replayPress(target, init, withUp) {
+        const opts = { bubbles: true, cancelable: true, composed: true, pointerId: init.pointerId, pointerType: 'touch',
+          isPrimary: true, clientX: init.clientX, clientY: init.clientY, button: 0, buttons: 1,
+          shiftKey: init.shiftKey, ctrlKey: init.ctrlKey, metaKey: init.metaKey, altKey: init.altKey };
+        replayingTap = true;
+        try {
+          target.dispatchEvent(new PointerEvent('pointerdown', opts));
+          if (withUp) target.dispatchEvent(new PointerEvent('pointerup', Object.assign({}, opts, { buttons: 0 })));
+        } finally { replayingTap = false; }
+      }
+      window.addEventListener('pointermove', (e) => {
+        if (e.pointerType !== 'touch' || !touches.has(e.pointerId)) return;
+        touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        const g = touchGesture;
+        if (!g) return;                       // a plugin drag of a selected item
+        e.stopPropagation();                  // nothing else follows a finger the shell owns (or a frozen drag)
+        if (g.kind === 'pinch') {
+          if (touches.size < 2) return;
+          const [a, b] = [...touches.values()];
+          const d = Math.hypot(a.x - b.x, a.y - b.y) || 1;
+          const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+          const ns = Math.min(Math.max(g.scale * d / g.dist, 0.2), 2.5);
+          const vp = viewport.getBoundingClientRect();
+          // The canvas point that was under the starting midpoint stays under the current midpoint
+          panX = (mx - vp.left) - (g.mx - vp.left - g.panX) * (ns / g.scale);
+          panY = (my - vp.top) - (g.my - vp.top - g.panY) * (ns / g.scale);
+          scale = ns;
+          scheduleTransform();
+          return;
+        }
+        const dx = e.clientX - g.sx, dy = e.clientY - g.sy;
+        if (!g.moved && Math.hypot(dx, dy) < TAP_SLOP) return;
+        if (!g.moved) { g.moved = true; viewport.classList.add('panning', 'gesturing'); }
+        panX = g.panX + dx;
+        panY = g.panY + dy;
+        scheduleTransform();
+      }, true);
+      function endTouch(e) {
+        if (e.pointerType !== 'touch' || !touches.has(e.pointerId)) return;
+        touches.delete(e.pointerId);
+        const g = touchGesture;
+        if (!g) return;
+        if (g.kind === 'pinch') {
+          if (touches.size === 1) {           // one finger left: carry on panning with it
+            const [rest] = [...touches.values()];
+            touchGesture = { kind: 'pan', sx: rest.x, sy: rest.y, panX, panY, moved: true };
+          } else if (touches.size === 0) {
+            touchGesture = null;
+            viewport.classList.remove('panning', 'gesturing');
+          }
+          return;
+        }
+        touchGesture = null;
+        viewport.classList.remove('panning', 'gesturing');
+        if (g.moved || e.type !== 'pointerup' || touches.size) return;
+        if (g.bg) {                           // a tap on blank canvas
+          if (!plugin.cancelInteraction()) plugin.clearSelection();
+          return;
+        }
+        // A tap on an item: hand it the press it never saw, after this pointerup has finished its own dispatch
+        const { target, init } = g;
+        setTimeout(() => { if (target.isConnected) replayPress(target, init, true); }, 0);
+      }
+      window.addEventListener('pointerup', endTouch, true);
+      window.addEventListener('pointercancel', endTouch, true);
 
       // --- SELECTION BOX (opt-in: only for a plugin that defines selectInRect / selectAll) ---
       // Shift + drag on blank canvas draws a box; Ctrl/Cmd + Shift + drag makes it a toggle box. On every move the
