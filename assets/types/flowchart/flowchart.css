@@ -951,6 +951,9 @@
     }
     .note-add:hover { background: var(--note-bg); border-style: solid; }
     .flow-node:hover .note-add, .flow-node.selected .note-add { display: inline-flex; }
+    /* Several steps selected: no connect ports (a drag always moves the selection), and the "+" chip only on hover */
+    .multi-select .flow-node .port { display: none !important; }
+    .multi-select .flow-node.selected:not(:hover) .note-add { display: none; }
     /* Not while something else is being dragged or connected: the chip would only be in the way */
     body:is(.palette-dragging, .connecting, .reconnecting, .note-picking) .flow-node:not(.selected) .note-add { display: none; }
     .note-badge svg, .note-add svg { display: block; }

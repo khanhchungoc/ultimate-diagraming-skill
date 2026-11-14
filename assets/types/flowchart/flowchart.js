@@ -52,7 +52,8 @@
 
       // --- STATE & INITIALIZATION ---
 
-      let selectedNodeId = null;
+      let selectedNodeId = null;         // the primary step: the one clicked last (notes, the N key, the Shift+click anchor)
+      let selectedNodeIds = new Set();   // every selected step (see MULTI-SELECT); always contains selectedNodeId
       let selectedEdgeId = null;
       let selectedLaneId = null;   // a lane selected by clicking its name pill (Delete removes it)
       let hoveredNodeId = null;
@@ -68,6 +69,8 @@
       let autoLayout = true;   // see AUTO LAYOUT
       try { autoLayout = localStorage.getItem('flowchart-auto-layout') !== 'off'; } catch (e) {}
       let dragCanInsert = false;   // the dragged node has no arrows, so it may be dropped into one
+      let dragGroup = null;        // the other selected steps moving with draggingNode: [{ node, x, gy, lane }]
+      let dragOrigin = null;       // where the drag started: { x, gy, lane, saved: [{ node, x, y, laneId }] }
 
       // Edge Connecting state
       let connectingFromNodeId = null;
@@ -93,6 +96,7 @@
       // --- RENDERING ---
       function render() {
         pruneNotes();
+        pruneNodeSelection();   // an undo/redo may have removed a selected step
         const noLanes = chartData.swimlanes === false;
         if (noLanes) normalizeSwimlanes(chartData);
         swimlanesContainer.classList.toggle('no-swimlanes', noLanes);
@@ -609,7 +613,7 @@
         el.setAttribute('aria-label', connectorAria(node));
         el.dataset.tip = `${connectorAria(node)}\nClick to jump there · Drag onto a step to move this end there · Double-click to change the letter`;
         placeNodeEl(el, node);
-        if (node.id === selectedNodeId) el.classList.add('selected');
+        if (selectedNodeIds.has(node.id)) el.classList.add('selected');
         const label = document.createElement('div');
         label.className = 'node-label';
         label.spellcheck = false;
@@ -811,6 +815,12 @@
       // Delete a connector = join: the whole arrow comes back (src -> tgt, with its label and feedback flag). Deleting
       // one in-connector of a merge joins only its source; deleting the out-connector joins every source.
       function joinConnector(node) {
+        joinConnectorData(node);
+        pruneNotes();
+        clearNodeSelection();
+        placeAfterConnectorEdit();
+      }
+      function joinConnectorData(node) {
         const letter = connectorLetter(node), role = connectorRole(node.id);
         const outs = connectorsLettered(letter).filter(n => connectorRole(n.id) === 'out');
         const targets = outs.flatMap(o => chartData.edges.filter(e => e.from === o.id).map(e => e.to)).filter(t => !isConnector(nodeById(t)));
@@ -827,9 +837,6 @@
         if (!left.length) outs.forEach(o => gone.add(o.id));
         chartData.nodes = chartData.nodes.filter(n => !gone.has(n.id));
         chartData.edges = chartData.edges.filter(e => !gone.has(e.from) && !gone.has(e.to));
-        pruneNotes();
-        selectedNodeId = null;
-        placeAfterConnectorEdit();
       }
 
       // After an edit breaks a pair (its step or a stub arrow deleted): a connector with no arrows goes, and so does
@@ -939,7 +946,7 @@
           nodeEl.id = `node-${node.id}`;
           nodeEl.dataset.nodeId = node.id;
           placeNodeEl(nodeEl, node);
-          if (node.id === selectedNodeId) nodeEl.classList.add('selected');
+          if (selectedNodeIds.has(node.id)) nodeEl.classList.add('selected');
 
           // Shaped nodes (decision, subprocess, document, ...): an SVG outline drawn inside the box
           const outline = shapeOutlineSvg(node.type);
@@ -2620,8 +2627,20 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         }
 
         e.preventDefault();
-        selectNode(node.id);
+        // MULTI-SELECT: Ctrl/Cmd+click adds the step or takes it out, Shift+click selects the run from the step
+        // clicked last. Neither starts a drag.
+        if ((e.ctrlKey || e.metaKey) && !isPresenting()) { toggleNode(node.id); return; }
+        if (e.shiftKey && !isPresenting()) { selectRun(selectedNodeId, node.id); return; }
+        // A step that is one of several selected keeps the selection and drags all of it (a circle is always
+        // dragged alone: it moves its end of the pair); any other step becomes the only one selected
+        const group = !isConnector(node) && selectedNodeIds.size > 1 && isNodeSelected(node.id);
+        if (group) { selectedNodeId = node.id; applyNoteVisibility(); } else selectNode(node.id);
         draggingNode = node;
+        const laneIndexOf = (n) => Math.max(0, chartData.lanes.findIndex(l => l.id === n.laneId));
+        const startOf = (n) => ({ node: n, x: n.x || 0, gy: laneTopOf(n.laneId) + (n.y || 0), lane: laneIndexOf(n) });
+        dragGroup = group ? [...selectedNodeIds].map(nodeById).filter(n => n && n !== node && !isConnector(n)).map(startOf) : null;
+        dragOrigin = startOf(node);
+        dragOrigin.saved = [node, ...(dragGroup || []).map(g => g.node)].map(n => ({ node: n, x: n.x, y: n.y, laneId: n.laneId }));
         dragStartX = e.clientX;
         dragStartY = e.clientY;
 
@@ -2630,7 +2649,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
 
         // Drag in flow terms (see flowPoint): global X along the flow from the lane track, global Y across the lanes
         dragMoved = false;
-        dragCanInsert = canInsert(node.type) && !nodeHasEdges(node.id);
+        dragCanInsert = !group && canInsert(node.type) && !nodeHasEdges(node.id);
         const dOff = dotOffset(node);   // circle nodes are drawn inset from their slot; data x/y is the slot corner
         const at = flowPoint(nRect.left, nRect.top);
         if (isTB()) {
@@ -2707,16 +2726,47 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         }
 
         placeNodeEl(nodeEl, draggingNode);
+        // The other selected steps move by the same distance and the same number of lanes (held within the first
+        // and last lane), so a selection that spans lanes keeps its shape
+        if (dragGroup) {
+          const ddx = localX - dragOrigin.x, ddy = targetLaneTop + localY - dragOrigin.gy;
+          const dLane = chartData.lanes.indexOf(targetLane) - dragOrigin.lane, last = chartData.lanes.length - 1;
+          dragGroup.forEach(g => {
+            const lane = chartData.lanes[Math.max(0, Math.min(last, g.lane + dLane))];
+            const el = nodeElOf(g.node.id);
+            g.node.x = Math.max(16, g.x + ddx);
+            g.node.y = g.gy + ddy - laneTopOf(lane.id);
+            if (g.node.laneId !== lane.id) {
+              g.node.laneId = lane.id;
+              const track = document.querySelector(`.lane-track[data-lane-id="${lane.id}"]`);
+              if (track && el && el.parentElement !== track) track.appendChild(el);
+            }
+            if (el) placeNodeEl(el, g.node);
+          });
+        }
         if (isConnector(draggingNode)) markConnectorTarget(stepUnder(e.clientX, e.clientY, draggingNode.id));
         positionNotes();
 
-        // An unconnected node over an arrow offers to be inserted into it
+        // An unconnected node over an arrow offers to be inserted into it. Connected steps offer it only while Alt
+        // is held, and only as a run (see REORDER): without Alt a drag across lanes never rewires anything.
         let target = null;
         if (dragCanInsert) {
           const c = toContainer(e.clientX, e.clientY);
           target = edgeNear(c.x, c.y, draggingNode.id);
           if (target) hideSnapGuides();
           setInsertTarget(target);
+        } else if (e.altKey && !isConnector(draggingNode)) {
+          const run = runOf(draggedIds());
+          if (run) {
+            const c = toContainer(e.clientX, e.clientY);
+            target = edgeNear(c.x, c.y, run.set);
+            if (target) hideSnapGuides();
+          } else {
+            flashHint(RUN_HINT);
+          }
+          setInsertTarget(target, 'Move here');
+        } else if (insertTarget) {
+          setInsertTarget(null);
         }
 
         // Highlight active target swimlane
@@ -2726,7 +2776,8 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
 
         // A node without arrows changes no route of its own; re-routing the others around it would make the
         // arrow under the pointer jump away, so wait for the drop.
-        if (dragCanInsert) return;
+        // The same holds while Alt looks for an arrow to move a run into.
+        if (dragCanInsert || e.altKey) return;
 
         // Re-route at most once per frame: pointer events can arrive faster than a full route pass,
         // and handling each one synchronously queues them up so the node trails the cursor
@@ -2825,19 +2876,31 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         const target = insertTarget;
         setInsertTarget(null);
         if (draggingNode) {
-          const node = draggingNode;
+          const node = draggingNode, group = dragGroup, origin = dragOrigin;
+          const ids = draggedIds();
           draggingNode = null;
+          dragGroup = null;
+          dragOrigin = null;
           if (dragMoved && isConnector(node)) {
             // A circle dropped on a step moves that end of the pair there; dropped anywhere else it goes back
             const stepId = stepUnder(e.clientX, e.clientY, node.id);
             markConnectorTarget(null);
             if (!stepId || !moveConnectorTo(node, stepId)) placeCirclesOnly();
           } else if (dragMoved && target) {
-            insertIntoEdge(node, target.edgeId, e.clientX, e.clientY);
+            moveRunIntoEdge(ids, target.edgeId, e.clientX, e.clientY, node.id);
+          } else if (dragMoved && e.altKey && !dragCanInsert && !runOf(ids)) {
+            // Alt asked for a move into an arrow, but this is not a run: everything goes back where it was
+            origin.saved.forEach(o => { o.node.x = o.x; o.node.y = o.y; o.node.laneId = o.laneId; });
+            render();
+            flashHint(RUN_HINT);
+          } else if (dragMoved && group) {
+            finishStepMove([node, ...group.map(g => g.node)]);
           } else if (dragMoved) {
             relayout();   // the lane it was dropped in is kept; its place in the lane comes from the flow
           } else if (isConnector(node)) {
             jumpToPartner(node);   // a click (no drag) on a connector takes the reader to the other end
+          } else if (group) {
+            selectNode(node.id);   // a click (no drag) on one of several selected steps selects only that one
           }
           dragMoved = false;
         }
@@ -3049,9 +3112,8 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
       function selectLane(laneId) {
         const hadEdge = selectedEdgeId;
         selectedLaneId = laneId;
-        selectedNodeId = null;
+        clearNodeSelection();
         selectedEdgeId = null;
-        document.querySelectorAll('.flow-node').forEach(el => el.classList.remove('selected'));
         if (hadEdge) renderEdges();
         markSelectedLane();
       }
@@ -3134,13 +3196,104 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
 
       function selectNode(nodeId) {
         selectedNodeId = nodeId;
+        selectedNodeIds = new Set(nodeId ? [nodeId] : []);
         selectedEdgeId = null;
         selectedNoteId = null;
         if (selectedLaneId) { selectedLaneId = null; markSelectedLane(); }
-        document.querySelectorAll('.flow-node').forEach(el => el.classList.toggle('selected', el.dataset.nodeId === nodeId));
+        markSelectedNodes();
         document.querySelectorAll('.connector-path').forEach(p => p.classList.remove('selected'));
         document.querySelectorAll('.edge-label-container').forEach(c => c.classList.remove('selected'));
         applyNoteVisibility();   // a selected node shows its note
+      }
+
+      // --- MULTI-SELECT (steps only) ---
+      // selectedNodeIds holds every selected step and selectedNodeId the primary (the one clicked last), which is all
+      // that notes, the N key and note linking look at. Ctrl/Cmd+click toggles a step, Shift+click selects the run
+      // along the arrows from the primary, Shift+drag on blank canvas draws a box (the shell calls selectInRect) and
+      // Ctrl/Cmd+A selects every step (selectAll). Delete, a drag and Alt+arrows then act on the whole selection as
+      // one edit. Arrows, notes and lanes are still selected one at a time, and selecting one clears the steps.
+      // The selection is never saved.
+      const isNodeSelected = (id) => selectedNodeIds.has(id);
+      const deleteLabelEl = document.querySelector('#btn-delete-selection .btn-label');
+      let boxBase = [];   // the selection a toggle box started from (selectInRect)
+
+      // Show the selection: the outline on each selected step, and the count on the dock's Delete ("Delete 3").
+      // With several selected, .multi-select hides the connect ports so a drag always moves the selection.
+      function markSelectedNodes() {
+        const many = selectedNodeIds.size > 1;
+        document.querySelectorAll('.flow-node[data-node-id]').forEach(el => el.classList.toggle('selected', isNodeSelected(el.dataset.nodeId)));
+        swimlanesContainer.classList.toggle('multi-select', many);
+        if (deleteLabelEl) deleteLabelEl.textContent = many ? `Delete ${selectedNodeIds.size}` : 'Delete';
+      }
+
+      function clearNodeSelection() {
+        selectedNodeId = null;
+        selectedNodeIds.clear();
+        markSelectedNodes();
+      }
+
+      // Drop ids whose step is gone (deleted by an undo or redo)
+      function pruneNodeSelection() {
+        if (!selectedNodeIds.size) return;
+        selectedNodeIds.forEach(id => { if (!nodeById(id)) selectedNodeIds.delete(id); });
+        if (!selectedNodeIds.has(selectedNodeId)) selectedNodeId = [...selectedNodeIds].pop() || null;
+        markSelectedNodes();
+      }
+
+      // Select exactly `ids`. The primary is `primary` when it is among them, else the last of them. Like
+      // selectNode, a step selection replaces a selected arrow, note or lane.
+      function setNodeSelection(ids, primary) {
+        const hadEdge = !!selectedEdgeId;
+        selectedEdgeId = null;
+        selectedNoteId = null;
+        if (selectedLaneId) { selectedLaneId = null; markSelectedLane(); }
+        selectedNodeIds = new Set(ids.filter(id => nodeById(id)));
+        selectedNodeId = selectedNodeIds.has(primary) ? primary : ([...selectedNodeIds].pop() || null);
+        markSelectedNodes();
+        if (hadEdge) renderEdges();
+        applyNoteVisibility();   // the primary shows its note
+        queueDeleteRefresh();
+      }
+
+      // Ctrl/Cmd+click: add the step to the selection, or take it out
+      function toggleNode(id) {
+        const ids = [...selectedNodeIds].filter(x => x !== id);
+        if (!isNodeSelected(id)) ids.push(id);
+        setNodeSelection(ids, id);
+      }
+
+      // mode: 'replace' (select only these), 'add', or 'toggle' (each one is added or taken out)
+      function selectNodes(ids, mode = 'replace') {
+        const next = new Set(mode === 'replace' ? [] : selectedNodeIds);
+        ids.forEach(id => { if (mode === 'toggle' && next.has(id)) next.delete(id); else next.add(id); });
+        setNodeSelection([...next], mode === 'replace' ? selectedNodeId : ids[ids.length - 1]);
+      }
+
+      // Shortest path along the arrows from one step to another, or null. Loop-backs (feedback arrows) are not
+      // followed, so a range never grows into a whole loop. A connector pair is one hop: circle in -> circle out.
+      function flowPath(fromId, toId) {
+        const prev = new Map([[fromId, null]]), queue = [fromId];
+        while (queue.length) {
+          const id = queue.shift();
+          if (id === toId) {
+            const path = [];
+            for (let p = id; p; p = prev.get(p)) path.unshift(p);
+            return path;
+          }
+          const next = chartData.edges.filter(e => e.from === id && !e.feedback).map(e => e.to);
+          const node = nodeById(id);
+          if (isConnector(node) && connectorRole(id) === 'in') connectorPartners(node).forEach(p => next.push(p.id));
+          next.forEach(n => { if (!prev.has(n)) { prev.set(n, id); queue.push(n); } });
+        }
+        return null;
+      }
+
+      // Shift+click: the run of steps along the flow between the primary and this step (forward first, then
+      // backward). With no path between them the step is added, as with Ctrl/Cmd+click.
+      function selectRun(fromId, toId) {
+        if (!fromId || !nodeById(fromId)) { selectNode(toId); return; }
+        const path = flowPath(fromId, toId) || flowPath(toId, fromId);
+        if (path) setNodeSelection(path, toId); else selectNodes([toId], 'add');
       }
 
       function selectEdge(edgeId, reRender = true) {
@@ -3151,11 +3304,10 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           flashHint('That arrow already ends at a connector');
         }
         selectedEdgeId = edgeId;
-        selectedNodeId = null;
+        clearNodeSelection();
         selectedNoteId = null;
         applyNoteVisibility();
         if (selectedLaneId) { selectedLaneId = null; markSelectedLane(); }
-        document.querySelectorAll('.flow-node').forEach(el => el.classList.remove('selected'));
         if (reRender) {
           renderEdges();
         } else {
@@ -3177,7 +3329,22 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         chartData.edges = chartData.edges.filter(e => e.from !== nodeId && e.to !== nodeId);
         pruneConnectors();   // a pair attached to this step goes with it
         pruneNotes();   // its notes lose the link (a note explaining only this step goes with it)
-        selectedNodeId = null;
+        clearNodeSelection();
+        relayout();
+      }
+
+      // Delete several steps as one edit, so one undo brings them all back. Like a single delete, the arrows around
+      // the hole go with it (no bridging).
+      function deleteNodes(ids) {
+        const gone = new Set(ids.filter(id => nodeById(id) && !isConnector(nodeById(id))));
+        chartData.nodes = chartData.nodes.filter(n => !gone.has(n.id));
+        chartData.edges = chartData.edges.filter(e => !gone.has(e.from) && !gone.has(e.to));
+        pruneConnectors();   // a pair attached to a deleted step goes with it
+        // A selected circle whose pair is still there: the whole arrow comes back, as when it is deleted alone
+        ids.forEach(id => { const n = nodeById(id); if (isConnector(n)) joinConnectorData(n); });
+        pruneConnectors();
+        pruneNotes();
+        clearNodeSelection();
         relayout();
       }
 
@@ -3270,10 +3437,12 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
       }
 
       // Nearest arrow whose route passes within INSERT_RANGE of (px, py), with the closest point on it
-      function edgeNear(px, py, excludeNodeId) {
+      // (not offered: arrows touching `exclude`, a node id or a Set of ids)
+      function edgeNear(px, py, exclude) {
         let best = null;
+        const skip = exclude instanceof Set ? exclude : new Set(exclude ? [exclude] : []);
         chartData.edges.forEach(e => {
-          if (excludeNodeId && (e.from === excludeNodeId || e.to === excludeNodeId)) return;
+          if (skip.has(e.from) || skip.has(e.to)) return;
           const pts = lastRoutes[e.id] && lastRoutes[e.id].points;
           if (!pts) return;
           for (let i = 0; i < pts.length - 1; i++) {
@@ -3287,7 +3456,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         return best;
       }
 
-      function setInsertTarget(t) {
+      function setInsertTarget(t, text = '+ Insert step') {
         insertTarget = t;
         edgeGroup.querySelectorAll('.connector-path.insert-target').forEach(p => p.classList.remove('insert-target'));
         const hint = document.getElementById('insert-hint');
@@ -3295,6 +3464,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         const path = [...edgeGroup.querySelectorAll('.connector-path')].find(p => p.dataset.edgeId === t.edgeId);
         if (path) path.classList.add('insert-target');
         if (hint) {
+          hint.textContent = text;
           hint.style.left = `${t.x}px`;
           hint.style.top = `${t.y}px`;
           hint.style.display = 'block';
@@ -3327,31 +3497,159 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         }
       }
 
-      // Splice `node` (already in chartData) into arrow `edgeId`, tidy, and keep the node under the pointer
-      function insertIntoEdge(node, edgeId, clientX, clientY) {
+      // --- REORDER: MOVE A RUN OF STEPS INTO AN ARROW ---
+      // A step's place along the flow comes from the arrows, so moving steps earlier or later means rewiring. A run
+      // is a set of steps with one way in and one way out:
+      //   - every arrow from outside points at one step (the entry);
+      //   - at most one arrow leaves the set, from one step (the exit); branches that rejoin inside are fine;
+      //   - no Start or End, and no loop-back (feedback arrow) crosses its boundary.
+      // A connector pair is part of the set when every step it joins is. A single step is a run of one; so is a new
+      // or unconnected step, which is how "drop onto an arrow" inserts it.
+      // Alt + drag onto an arrow, or Alt + arrow keys along the flow, moves the run there (moveRunIntoEdge).
+      const RUN_HINT = 'Only a connected run of steps (one way in, one way out) can move into an arrow.';
+
+      // The steps being dragged: the grabbed one first
+      const draggedIds = () => (draggingNode ? [draggingNode.id, ...(dragGroup || []).map(g => g.node.id)] : []);
+
+      // { set, entry, exit, ins, out } for a run, or null: `ins` are the arrows from outside into the entry, `out`
+      // the arrow leaving the exit (null when the run ends the flow)
+      function runOf(ids) {
+        const set = new Set(ids.filter(id => nodeById(id) && !isConnector(nodeById(id))));
+        if (!set.size || [...set].some(id => ['start', 'end'].includes(nodeById(id).type))) return null;
+        const links = [];   // arrows inside the set, plus the hop across each pair inside it
+        new Set(chartData.nodes.filter(isConnector).map(connectorLetter)).forEach(letter => {
+          const circles = connectorsLettered(letter), cids = new Set(circles.map(c => c.id));
+          const steps = chartData.edges.filter(e => cids.has(e.from) !== cids.has(e.to)).map(e => (cids.has(e.from) ? e.to : e.from));
+          if (!steps.length || !steps.every(id => set.has(id))) return;
+          circles.forEach(c => {
+            set.add(c.id);
+            if (connectorRole(c.id) === 'in') connectorPartners(c).forEach(o => links.push([c.id, o.id]));
+          });
+        });
+        const ins = chartData.edges.filter(e => !set.has(e.from) && set.has(e.to));
+        const outs = chartData.edges.filter(e => set.has(e.from) && !set.has(e.to));
+        if (outs.length > 1 || [...ins, ...outs].some(e => e.feedback)) return null;
+        chartData.edges.forEach(e => { if (set.has(e.from) && set.has(e.to) && e.from !== e.to && !e.feedback) links.push([e.from, e.to]); });
+        const entries = ins.length ? [...new Set(ins.map(e => e.to))] : [...set].filter(id => !links.some(l => l[1] === id));
+        const exits = outs.length ? [outs[0].from] : [...set].filter(id => !links.some(l => l[0] === id));
+        if (entries.length !== 1 || exits.length !== 1) return null;
+        // Connected: every member is reached from the entry
+        const seen = new Set(entries), queue = [...entries];
+        while (queue.length) {
+          const id = queue.shift();
+          links.forEach(l => { if (l[0] === id && !seen.has(l[1])) { seen.add(l[1]); queue.push(l[1]); } });
+        }
+        if (seen.size !== set.size) return null;
+        return { set, entry: entries[0], exit: exits[0], ins, out: outs[0] || null };
+      }
+
+      // Move the run `ids` into arrow C -> D (`edgeId`): one edit, one undo step. Returns false when refused.
+      //   Lift:   each arrow P -> entry is re-pointed to S, the step after the run (keeping its id, label and
+      //           feedback flag), and exit -> S goes. With no S the arrows into the run go; an arrow that would
+      //           duplicate another is dropped.
+      //   Splice: C -> D becomes C -> entry (keeping its id and label, so a decision's "Yes" stays on the decision's
+      //           side) and a new arrow exit -> D is added. A loop-back flag moves to exit -> D: the leg that returns.
+      // A new or unconnected step is the run of one with nothing to lift: A -> B becomes A -> new -> B.
+      // With auto layout on (and always for a step that had no arrows) the layout is tidied; off, the steps of a
+      // moved run stay where they were dropped and Tidy lays the result out. Given a pointer position, the view is
+      // re-panned so that `focusId` (default: the entry) sits under it.
+      function moveRunIntoEdge(ids, edgeId, clientX, clientY, focusId) {
+        const run = runOf(ids);
         const edge = chartData.edges.find(x => x.id === edgeId);
-        if (!edge) return false;
+        if (!run || !edge || run.set.has(edge.from) || run.set.has(edge.to)) return false;
+        const lifted = run.ins.length > 0 || !!run.out;
+        const after = run.out ? run.out.to : null;
+        const drop = new Set(run.out ? [run.out] : []);
+        run.ins.forEach(p => {
+          const dup = chartData.edges.some(x => x !== p && !drop.has(x) && x.from === p.from && x.to === after);
+          if (after && p.from !== after && !dup) p.to = after; else drop.add(p);
+        });
+        chartData.edges = chartData.edges.filter(x => !drop.has(x));
         const target = edge.to;
-        edge.to = node.id;   // keeps its id and label: a decision's "Yes" stays on the decision's side
-        const second = { id: uid('e'), from: node.id, to: target, label: node.type === 'decision' ? 'Yes' : '' };
-        if (edge.feedback) { second.feedback = true; delete edge.feedback; }   // the loop-back is the leg that returns
+        edge.to = run.entry;
+        const second = { id: uid('e'), from: run.exit, to: target, label: run.out ? (run.out.label || '') : (nodeById(run.exit).type === 'decision' ? 'Yes' : '') };
+        if (edge.feedback) { second.feedback = true; delete edge.feedback; }
         chartData.edges.push(second);
-        layoutDiagram(chartData);
+        if (autoLayout || !lifted) layoutDiagram(chartData);
         render();
         updateStatus(true);
-        selectNode(node.id);
-        // Same zoom, re-panned so the new node sits where it was dropped (no Fit jump on big diagrams)
-        const el = document.getElementById(`node-${node.id}`);
+        if (ids.length === 1) selectNode(ids[0]); else setNodeSelection(ids, selectedNodeId);
+        // Same zoom, re-panned so the step sits where it was dropped (no Fit jump on big diagrams)
+        const el = clientX != null && nodeElOf(focusId || run.entry);
         if (el) {
           const r = el.getBoundingClientRect();
           panX += clientX - (r.left + r.width / 2);
           panY += clientY - (r.top + r.height / 2);
           updateTransform();
-          el.classList.add('just-inserted');
-          setTimeout(() => el.classList.remove('just-inserted'), 900);
         }
+        run.set.forEach(id => {
+          const moved = nodeElOf(id);
+          if (!moved) return;
+          moved.classList.add('just-inserted');
+          setTimeout(() => moved.classList.remove('just-inserted'), 900);
+        });
         return true;
       }
+
+      // Alt + arrow along the flow: the selected run swaps places with its neighbour, P -> [run] -> S. Only along a
+      // straight part of the flow: the neighbour must have a single arrow in and a single arrow out.
+      function shiftRunAlongFlow(dir) {
+        const ids = [...selectedNodeIds], run = runOf(ids);
+        if (!run) { flashHint(RUN_HINT); return; }
+        const straight = (id) => {
+          const i = chartData.edges.filter(e => e.to === id), o = chartData.edges.filter(e => e.from === id);
+          return !isConnector(nodeById(id)) && i.length === 1 && o.length === 1 && !i[0].feedback && !o[0].feedback ? { in: i[0], out: o[0] } : null;
+        };
+        let edge = null;
+        if (dir > 0 && run.out) edge = (straight(run.out.to) || {}).out;
+        if (dir < 0 && run.ins.length === 1) edge = (straight(run.ins[0].from) || {}).in;
+        if (!edge || !moveRunIntoEdge(ids, edge.id)) flashHint('Steps can only move past a step with one arrow in and one arrow out.');
+      }
+
+      // Alt + arrow across the lanes: every selected step moves one lane over. The selection stops as a whole at
+      // the first and last lane, so it keeps its shape.
+      function shiftSelectionLanes(dir) {
+        const nodes = [...selectedNodeIds].map(nodeById).filter(n => n && !isConnector(n));
+        const at = nodes.map(n => chartData.lanes.findIndex(l => l.id === n.laneId) + dir);
+        if (!nodes.length || at.some(i => i < 0 || i >= chartData.lanes.length)) return;
+        nodes.forEach((n, k) => { n.laneId = chartData.lanes[at[k]].id; });
+        finishStepMove(nodes);
+      }
+
+      // Steps were moved to other lanes as one edit. Auto layout on: one re-layout. Off: they stay where they were
+      // put (kept inside their lane), and connector circles on a moved step go back beside it.
+      function finishStepMove(nodes) {
+        if (autoLayout) { relayout(); return; }
+        nodes.forEach(n => {
+          const lane = chartData.lanes.find(l => l.id === n.laneId);
+          const room = ((lane && lane.height) || LE.LANE_MIN) - crossSize(n) - 12;
+          n.y = Math.max(12, Math.min(n.y || 0, room));
+        });
+        const moved = new Set(nodes.map(n => n.id));
+        const circles = chartData.edges.some(e => (moved.has(e.from) && isConnector(nodeById(e.to))) || (moved.has(e.to) && isConnector(nodeById(e.from))));
+        if (circles) placeCirclesOnly(); else render();
+        updateStatus(true);
+      }
+
+      // Escape clears a selection of several steps (one selected step stays selected, as before)
+      window.addEventListener('keydown', (e) => {
+        if (e.key !== 'Escape' || selectedNodeIds.size < 2 || draggingNode) return;
+        clearNodeSelection();
+        applyNoteVisibility();
+      });
+
+      // Alt + arrows follow the screen: across the lanes moves the selection one lane over, along the flow moves a
+      // run one step earlier or later (left to right: up/down change lane; top to bottom: left/right do)
+      window.addEventListener('keydown', (e) => {
+        if (!e.altKey || e.ctrlKey || e.metaKey || !/^Arrow(Up|Down|Left|Right)$/.test(e.key)) return;
+        if (isPresenting() || draggingNode || !selectedNodeIds.size) return;
+        const a = document.activeElement;
+        if (a && (a.isContentEditable || a.tagName === 'INPUT' || a.tagName === 'TEXTAREA')) return;
+        e.preventDefault();
+        const dir = e.key === 'ArrowDown' || e.key === 'ArrowRight' ? 1 : -1;
+        const alongFlow = (e.key === 'ArrowLeft' || e.key === 'ArrowRight') !== isTB();
+        if (alongFlow) shiftRunAlongFlow(dir); else shiftSelectionLanes(dir);
+      });
 
       // --- DRAG A SHAPE OUT OF THE DOCK ---
       function buildGhost(type) {
@@ -3435,7 +3733,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         if (!dragged || !pd.onCanvas || !pd.placement) return;
         if (target) {
           const node = makeNode(pd.type, pd.placement);
-          insertIntoEdge(node, target.edgeId, e.clientX, e.clientY);
+          moveRunIntoEdge([node.id], target.edgeId, e.clientX, e.clientY);
         } else {
           // A shape dropped onto blank canvas stays where it was dropped, even with Auto-Tidy on: it has no
           // arrows yet, so a re-layout would only throw it to the start of the flow. The next step edit (or
@@ -4396,17 +4694,31 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         render,
         isBackground: (el) => el.id === 'swimlanes-container' || el.classList.contains('lane-track') || el.classList.contains('lane-gutter'),
         clearSelection() {
-          selectedNodeId = null;
+          clearNodeSelection();
           selectedEdgeId = null;
           selectedLaneId = null;
           selectedNoteId = null;
           peekNodeId = null;
           setConnectorPicking(false);   // a click on the canvas cancels waiting for an arrow
           markSelectedLane();
-          document.querySelectorAll('.flow-node').forEach(el => el.classList.remove('selected'));
           renderEdges();
           applyNoteVisibility();
         },
+        // Shift + drag on blank canvas: the steps (and connector circles) the box touches. `start` is true on the
+        // first call of a box, so a toggle box always toggles against the selection it started from.
+        selectInRect(r, mode, start) {
+          if (start) boxBase = [...selectedNodeIds];
+          const hit = [...document.querySelectorAll('.flow-node[data-node-id]')].filter(el => {
+            const b = el.getBoundingClientRect();
+            return b.left < r.right && b.right > r.left && b.top < r.bottom && b.bottom > r.top;
+          }).map(el => el.dataset.nodeId);
+          const next = mode === 'toggle'
+            ? boxBase.filter(id => !hit.includes(id)).concat(hit.filter(id => !boxBase.includes(id)))
+            : hit;
+          const same = next.length === selectedNodeIds.size && next.every(id => selectedNodeIds.has(id));
+          if (!same || selectedEdgeId || selectedNoteId || selectedLaneId) setNodeSelection(next, selectedNodeId);
+        },
+        selectAll() { setNodeSelection(chartData.nodes.map(n => n.id), selectedNodeId); },
         cancelInteraction() {
           if (closeLaneConfirm()) return true;
           const wasConnecting = !!connectingFromNodeId;
@@ -4434,10 +4746,11 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           return o;
         },
         hasSelection() {
-          return !!(selectedNodeId || selectedEdgeId || selectedNoteId || (selectedLaneId && chartData.lanes.length > 1));
+          return !!(selectedNodeIds.size || selectedEdgeId || selectedNoteId || (selectedLaneId && chartData.lanes.length > 1));
         },
         deleteSelection(anchorEl) {
           if (selectedNoteId) removeNote(selectedNoteId);
+          else if (selectedNodeIds.size > 1) deleteNodes([...selectedNodeIds]);
           else if (selectedNodeId) deleteNode(selectedNodeId);
           else if (selectedEdgeId) deleteEdge(selectedEdgeId);
           else if (selectedLaneId) confirmDeleteLane(selectedLaneId, anchorEl);
