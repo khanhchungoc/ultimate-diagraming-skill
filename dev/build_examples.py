@@ -30,13 +30,15 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
 from engine_runner import run_layout  # noqa: E402
-from layout_engine import assemble_page, choose_flowchart_direction, normalize_diagram_type  # noqa: E402
+from layout_engine import assemble_page, choose_erd_direction, choose_flowchart_direction, normalize_diagram_type  # noqa: E402
 
 
 def build(source: Path) -> str:
     data = normalize_diagram_type(json.loads(source.read_text(encoding="utf-8")))
     if data["diagramType"] == "flowchart" and "direction" not in data:  # as --layout does
         return assemble_page("flowchart", choose_flowchart_direction(data, 30, None)[0])
+    if data["diagramType"] == "erd" and "direction" not in data:
+        return assemble_page("erd", choose_erd_direction(data, 30, None)[0])
     return assemble_page(data["diagramType"], run_layout(data["diagramType"], data))
 
 

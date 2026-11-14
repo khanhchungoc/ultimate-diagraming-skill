@@ -1,0 +1,413 @@
+    /* ER diagram. Colours, fonts and the swatch roles (--sw-*) come from shell.css; the note tokens, switch and counter
+       are copied from the flowchart's stylesheet on purpose (a type never imports another type's files). */
+
+    /* Tokens */
+    :root {
+      --erd-band-alt: #fafbfc;
+      --note-bg: #f8fafc;  --note-border: #cbd5e1;  --note-accent: #64748b;  --note-ink: #334155;
+      --note-leader: #94a3b8;
+      --erd-key: #a16f0b;       /* primary-key glyph: the shell's decision ochre */
+      --erd-fk: #64748b;
+    }
+    :root[data-theme="dark"] {
+      --erd-band-alt: #131d33;
+      --note-bg: #1c2740;  --note-border: #3a4a69;  --note-accent: #94a3b8;  --note-ink: #cbd5e1;
+      --note-leader: #52627f;
+      --erd-key: #e6bf55;
+      --erd-fk: #94a3b8;
+    }
+
+    /* The canvas is a card, like the flowchart's lane container. Its size is set by render() from the engine. */
+    #erd-canvas {
+      position: relative;
+      box-sizing: content-box;
+      margin: 40px;
+      background: var(--bg-panel);
+      border: 1px solid var(--border-dark);
+      border-radius: 8px;
+      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -2px rgba(0,0,0,0.05);
+    }
+    /* No stacking context on the layers below: a band's name pill (z 40) rises above the tables (20) as it floats */
+    #erd-bands { position: absolute; inset: 0; border-radius: 7px; overflow: hidden; }
+    #erd-svg { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; z-index: 10; }
+    #erd-html { position: absolute; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; }
+
+    /* Capture mode (screenshots): the canvas goes edge to edge */
+    body.capture #erd-canvas { margin: 0; border: none; border-radius: 0; box-shadow: none; }
+    body.capture #erd-bands { border-radius: 0; }
+
+    /* --- Area bands --- */
+    .erd-band {
+      --band-bg: color-mix(in srgb, var(--sw-stripe) 5%, var(--bg-panel));
+      --band-head-bg: color-mix(in srgb, var(--sw-stripe) 13%, var(--bg-panel));
+      position: absolute;
+      box-sizing: border-box;
+      background: var(--band-bg);
+      border-bottom: 1px dashed var(--border-dark);
+    }
+    .erd-band.erd-band-alt { --band-bg: color-mix(in srgb, var(--sw-stripe) 8%, var(--erd-band-alt)); }
+    .erd-band:last-child { border-bottom: none; }
+    /* The header column (LR) or row (TB): a slightly stronger tint with a hairline where the tables start */
+    .erd-band::before {
+      content: '';
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      width: var(--band-head, 48px);
+      background: var(--band-head-bg);
+      border-right: 1px solid color-mix(in srgb, var(--sw-stripe) 30%, var(--border-color));
+    }
+    #erd-canvas.erd-no-bands .erd-band { display: none; }
+    .erd-band-rail {
+      position: absolute;
+      top: 0; bottom: 0;
+      left: var(--rail-x, 0px);
+      width: 0;
+      z-index: 39;
+      pointer-events: none;
+      border-left: var(--rail-b, 3px) solid var(--sw-stripe);
+    }
+    /* Name pill: vertical along the header column (LR); floats at the visible edge once panned past (pinBands) */
+    .erd-band-pill {
+      position: absolute;
+      left: var(--pill-x, 10px);
+      top: var(--pill-y, 12px);
+      z-index: 40;
+      display: inline-block;
+      box-sizing: border-box;
+      padding: 10px 6px;
+      border-radius: 999px;
+      background: var(--sw-pill-bg);
+      color: var(--sw-pill-ink);
+      font-size: 14px;
+      font-weight: 600;
+      line-height: 18px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      user-select: none;
+      writing-mode: vertical-rl;
+      transform: rotate(180deg);
+      box-shadow: 0 0 0 5px var(--band-bg);   /* a halo in the band's own colour: a line passing behind is cut around the pill */
+    }
+    #erd-canvas.dir-tb .erd-band { border-bottom: none; border-right: 1px dashed var(--border-dark); }
+    #erd-canvas.dir-tb .erd-band:last-child { border-right: none; }
+    #erd-canvas.dir-tb .erd-band::before { width: auto; right: 0; bottom: auto; height: var(--band-head, 48px); border-right: none; border-bottom: 1px solid color-mix(in srgb, var(--sw-stripe) 30%, var(--border-color)); }
+    #erd-canvas.dir-tb .erd-band-rail {
+      top: var(--rail-y, 0px); bottom: auto; left: 0; right: 0; width: auto; height: 0;
+      border-left: none; border-top: var(--rail-b, 3px) solid var(--sw-stripe);
+    }
+    #erd-canvas.dir-tb .erd-band-pill { writing-mode: horizontal-tb; transform: none; padding: 4px 11px; max-width: calc(100% - 20px); }
+    /* Exports draw each pill and stripe at the band's own start, whatever the view */
+    body.exporting .erd-band-pill { left: 10px !important; top: 12px !important; }
+    body.exporting .erd-band-rail { left: 0 !important; border-left-width: 3px !important; }
+    body.exporting #erd-canvas.dir-tb .erd-band-pill { left: var(--pill-cx, 12px) !important; top: 11px !important; }
+    body.exporting #erd-canvas.dir-tb .erd-band-rail { top: 0 !important; border-top-width: 3px !important; }
+
+    /* --- Relationship lines --- */
+    .erd-rel-line {
+      fill: none;
+      stroke: var(--connector);
+      stroke-width: 1.25px;
+      stroke-linejoin: round;
+      stroke-linecap: round;
+      pointer-events: none;
+      transition: stroke 0.15s ease, stroke-width 0.15s ease, opacity 0.15s ease;
+      marker-start: var(--mk-s);
+      marker-end: var(--mk-e);
+    }
+    .erd-rel-line:not(.identifying) { stroke-dasharray: 6 4; }
+    .erd-rel-hit {
+      fill: none;
+      stroke: transparent;
+      stroke-width: 14px;
+      pointer-events: stroke;
+      cursor: pointer;
+    }
+    body.presentation .erd-rel-hit { cursor: default; }
+    .erd-rel.hl-in  .erd-rel-line { stroke: var(--edge-in);  stroke-width: 2px; marker-start: var(--mk-s-in);  marker-end: var(--mk-e-in); }
+    .erd-rel.hl-out .erd-rel-line { stroke: var(--edge-out); stroke-width: 2px; marker-start: var(--mk-s-out); marker-end: var(--mk-e-out); }
+    .erd-rel.hover .erd-rel-line, .erd-rel.selected .erd-rel-line { stroke: var(--primary); stroke-width: 2px; marker-start: var(--mk-s-sel); marker-end: var(--mk-e-sel); }
+    .erd-rel.is-dim { opacity: 0.16; }
+    /* Marker content: the line colour of its variant (--mk is set on the -in, -out and -sel copies) */
+    .erd-mk path, .erd-mk circle {
+      stroke: var(--mk, var(--connector));
+      stroke-width: 1.25px;
+      fill: none;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    .erd-mk circle { fill: var(--bg-panel); }
+
+    /* Label on a line: a pill like a flowchart edge label */
+    .erd-rel-label {
+      position: absolute;
+      box-sizing: border-box;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 8px;
+      background: var(--edge-label-bg);
+      border: 1.5px solid var(--border-dark);
+      border-radius: 8px;
+      color: var(--text-main);
+      font-size: 0.75rem;
+      font-weight: 400;
+      line-height: 1;
+      white-space: nowrap;
+      cursor: pointer;
+      z-index: 30;
+      pointer-events: auto;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+      transition: border-color var(--ease), box-shadow var(--ease), opacity var(--ease);
+    }
+    .erd-rel-label-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+    .erd-rel-label.hl-in  { border-color: var(--edge-in);  box-shadow: 0 2px 8px var(--edge-in-glow); }
+    .erd-rel-label.hl-out { border-color: var(--edge-out); box-shadow: 0 2px 8px var(--edge-out-glow); }
+    .erd-rel-label.hover, .erd-rel-label.selected { border-color: var(--primary); box-shadow: 0 2px 8px var(--primary-glow); }
+    .erd-rel-label.is-dim { opacity: 0.25; }
+
+    /* --- Tables --- */
+    .erd-entity {
+      --ring: var(--node-border);
+      --node-accent: var(--task-accent);
+      position: absolute;
+      box-sizing: border-box;
+      background: var(--node-bg);
+      border-radius: 8px;
+      color: var(--text-main);
+      font-size: 13px;
+      z-index: 20;
+      pointer-events: auto;
+      cursor: pointer;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.06);
+      transition: box-shadow 0.15s, opacity 0.15s;
+    }
+    /* The outline is an overlay ring (it stays on top of the rows), as the flowchart's step outline is an inset shadow */
+    .erd-entity::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 8px;
+      box-shadow: inset 0 0 0 1.5px var(--ring);
+      pointer-events: none;
+      transition: box-shadow 0.15s;
+    }
+    .erd-entity:hover { --ring: var(--node-accent); box-shadow: 0 4px 10px rgba(0,0,0,0.12); }
+    .erd-entity.linked { --ring: var(--node-accent); }
+    .erd-entity.selected { --ring: var(--primary); box-shadow: 0 0 0 3px var(--primary-ring); }
+    .erd-entity.is-dim { opacity: 0.38; }
+    body.exporting .is-dim { opacity: 1 !important; }
+
+    .erd-head {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      height: 36px;
+      padding: 0 8px 0 12px;
+      border-radius: 8px 8px 0 0;
+      background: var(--sw-pill-bg, var(--bg-soft));
+      color: var(--sw-pill-ink, var(--text-main));
+      border-bottom: 1px solid color-mix(in srgb, var(--sw-stripe, var(--border-dark)) 45%, var(--border-color));
+    }
+    .erd-entity.is-flat .erd-head { border-radius: 8px; border-bottom: none; }
+    .erd-name {
+      flex: 1 1 auto;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 14px;
+      font-weight: 700;
+      line-height: 20px;
+    }
+    .erd-chevron {
+      flex: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 22px; height: 22px;
+      padding: 0;
+      border: none;
+      border-radius: 5px;
+      background: transparent;
+      color: inherit;
+      opacity: 0.7;
+      cursor: pointer;
+    }
+    .erd-chevron:hover { opacity: 1; background: color-mix(in srgb, currentColor 14%, transparent); }
+    .erd-chevron svg { display: block; transition: transform var(--ease); }
+    .erd-entity.is-collapsed .erd-chevron svg { transform: rotate(-90deg); }
+
+    .erd-row {
+      display: flex;
+      align-items: center;
+      height: 26px;
+      padding: 0 12px 0 12px;
+      white-space: nowrap;
+      transition: background-color 0.12s;
+    }
+    .erd-row + .erd-row { border-top: 1px solid color-mix(in srgb, var(--border-color) 55%, transparent); }
+    .erd-glyph {
+      flex: none;
+      display: inline-flex;
+      align-items: center;
+      width: 22px;
+      gap: 0;
+    }
+    .erd-glyph svg { flex: none; display: block; }
+    .erd-glyph .g-pk { color: var(--erd-key); }
+    .erd-glyph .g-fk { color: var(--erd-fk); }
+    .erd-glyph.both svg { width: 10.5px; height: 10.5px; }
+    .erd-col-name { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-weight: 500; padding-left: 3px; }
+    .erd-row.pk .erd-col-name { font-weight: 700; }
+    .erd-uniq {
+      flex: none;
+      margin-left: 6px;
+      padding: 0 4px;
+      border-radius: 4px;
+      background: var(--bg-soft);
+      color: var(--text-soft);
+      font-size: 9.5px;
+      font-weight: 700;
+      line-height: 14px;
+      letter-spacing: 0.02em;
+    }
+    .erd-col-note { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; padding: 0 8px; color: var(--text-muted); font-size: 11px; }
+    .erd-col-type { flex: none; margin-left: auto; padding-left: 12px; color: var(--text-muted); font-size: 12px; }
+    .erd-col-note + .erd-col-type { margin-left: 0; padding-left: 4px; }
+    .erd-more {
+      height: 22px;
+      padding: 0 12px 0 34px;
+      line-height: 20px;
+      color: var(--text-muted);
+      font-size: 11.5px;
+      font-style: italic;
+      border-top: 1px solid color-mix(in srgb, var(--border-color) 55%, transparent);
+    }
+    /* Columns a hovered table or line joins: the line's own colour as a wash */
+    .erd-row.hl-in  { background: color-mix(in srgb, var(--edge-in) 20%, transparent); }
+    .erd-row.hl-out { background: color-mix(in srgb, var(--edge-out) 18%, transparent); }
+    .erd-row.hover  { background: color-mix(in srgb, var(--primary) 18%, transparent); }
+    .erd-head.hl-in  { box-shadow: inset 0 0 0 100px color-mix(in srgb, var(--edge-in) 16%, transparent); }
+    .erd-head.hl-out { box-shadow: inset 0 0 0 100px color-mix(in srgb, var(--edge-out) 14%, transparent); }
+    .erd-head.hover  { box-shadow: inset 0 0 0 100px color-mix(in srgb, var(--primary) 14%, transparent); }
+
+    /* --- Notes (the flowchart's card, badge and peek, for a table) --- */
+    #erd-notes {
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 100%;
+      pointer-events: none;
+      z-index: 45;
+    }
+    .erd-note {
+      position: absolute;
+      display: none;
+      box-sizing: border-box;
+      width: max-content;
+      min-width: 96px;
+      max-width: 200px;
+      padding: 6px 10px 7px 10px;
+      border: 1px solid var(--note-border);
+      border-left: 3px solid var(--note-accent);
+      border-radius: 3px 8px 8px 3px;
+      background: var(--note-bg);
+      color: var(--note-ink);
+      font-size: 0.75rem;
+      font-weight: 400;
+      line-height: 1.4;
+      text-align: left;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+      pointer-events: auto;
+      cursor: default;
+      user-select: none;
+      transition: box-shadow var(--ease), border-color var(--ease);
+    }
+    .erd-note.show, .erd-note.peek { display: block; }
+    .erd-note.peek:not(.show) { animation: erd-note-in 0.14s ease-out; box-shadow: 0 6px 18px rgba(0,0,0,0.14); }
+    @keyframes erd-note-in { from { opacity: 0; transform: translateY(3px); } }
+    #erd-notes.measuring .erd-note { display: block; visibility: hidden; animation: none; }
+    .erd-note:hover { border-color: color-mix(in srgb, var(--note-accent) 60%, var(--note-border)); border-left-color: var(--note-accent); }
+    .erd-note.selected {
+      border-color: var(--note-accent);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--note-accent) 28%, transparent), 0 4px 12px rgba(0,0,0,0.12);
+    }
+    .erd-note-text { white-space: pre-wrap; overflow-wrap: break-word; }
+    .erd-note-leader {
+      display: none;
+      stroke: var(--note-leader);
+      stroke-width: 1.25px;
+      stroke-dasharray: 3 3;
+      fill: none;
+    }
+    .erd-note-leader.show, .erd-note-leader.peek { display: inline; }
+    /* Exports show what the Notes button shows: a note only peeked by hover or selection stays out */
+    body.exporting .erd-note.peek:not(.show),
+    body.exporting .erd-note-leader.peek:not(.show) { display: none !important; }
+    /* Badge on a table with a note: a small paper chip on its top-right corner. An editing hint, never exported. */
+    .erd-note-badge {
+      position: absolute;
+      top: -8px; right: -8px;
+      z-index: 3;
+      width: 18px; height: 18px;
+      box-sizing: border-box;
+      padding: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      border: 1px solid var(--note-border);
+      background: var(--note-bg);
+      color: var(--note-accent);
+      box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+      cursor: pointer;
+      font: inherit;
+      transition: transform var(--ease), border-color var(--ease);
+    }
+    .erd-note-badge:hover { transform: scale(1.15); border-color: var(--note-accent); }
+    .erd-note-badge svg { display: block; }
+    /* With every note on show the badges would only repeat them */
+    #erd-canvas.notes-on .erd-note-badge { display: none; }
+    body.presentation .erd-note { pointer-events: auto !important; }
+
+    /* --- Dock --- */
+    .erd-toggle[aria-pressed="true"], #btn-notes[aria-pressed="true"] {
+      background: var(--primary-wash);
+      border-color: var(--primary-ring);
+      color: var(--primary);
+    }
+    #btn-columns .erd-mode, #btn-notes .btn-count {
+      min-width: 16px;
+      padding: 0 5px;
+      box-sizing: border-box;
+      border-radius: 999px;
+      background: var(--bg-soft);
+      color: var(--text-soft);
+      font-size: 0.6875rem;
+      line-height: 16px;
+      text-align: center;
+    }
+    #btn-notes[aria-pressed="true"] .btn-count { background: var(--primary); color: var(--bg-panel); }
+    #btn-notes .btn-count[hidden] { display: none; }
+    /* Auto-Tidy on/off: a sliding switch (knob right and track filled while on) */
+    .btn-switch .switch-track {
+      position: relative;
+      width: 28px; height: 16px;
+      flex: none;
+      border-radius: 999px;
+      background: var(--border-dark);
+      transition: background-color 0.18s;
+    }
+    .btn-switch .switch-knob {
+      position: absolute;
+      top: 2px; left: 2px;
+      width: 12px; height: 12px;
+      border-radius: 50%;
+      background: #ffffff;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+      transition: transform 0.18s;
+    }
+    .btn-switch[aria-checked="true"] .switch-track { background: var(--primary); }
+    .btn-switch[aria-checked="true"] .switch-knob { transform: translateX(12px); }
+    @media (prefers-reduced-motion: reduce) {
+      .btn-switch .switch-track, .btn-switch .switch-knob { transition: none; }
+    }

@@ -1,0 +1,2692 @@
+{
+  "diagramType": "erd",
+  "title": "SaaS billing",
+  "groups": [
+    {
+      "id": "accounts",
+      "name": "Accounts",
+      "color": "#e0f2fe",
+      "box": {
+        "x": 0,
+        "y": 0,
+        "w": 2226,
+        "h": 855
+      }
+    },
+    {
+      "id": "catalogue",
+      "name": "Catalogue",
+      "color": "#dcfce7",
+      "box": {
+        "x": 0,
+        "y": 855,
+        "w": 2226,
+        "h": 556
+      }
+    },
+    {
+      "id": "billing",
+      "name": "Billing",
+      "color": "#fef3c7",
+      "box": {
+        "x": 0,
+        "y": 1411,
+        "w": 2226,
+        "h": 762
+      }
+    },
+    {
+      "id": "audit",
+      "name": "Audit",
+      "color": "#ccfbf1",
+      "box": {
+        "x": 0,
+        "y": 2173,
+        "w": 2226,
+        "h": 707
+      }
+    }
+  ],
+  "entities": [
+    {
+      "id": "organization",
+      "name": "organization",
+      "group": "accounts",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "pk": true
+        },
+        {
+          "name": "name",
+          "type": "text"
+        },
+        {
+          "name": "slug",
+          "type": "text",
+          "unique": true
+        },
+        {
+          "name": "country",
+          "type": "text"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz"
+        }
+      ],
+      "x": 40,
+      "y": 455,
+      "box": {
+        "x": 88,
+        "y": 455,
+        "w": 212,
+        "h": 166
+      }
+    },
+    {
+      "id": "app_user",
+      "name": "app_user",
+      "group": "accounts",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "pk": true
+        },
+        {
+          "name": "email",
+          "type": "text",
+          "unique": true
+        },
+        {
+          "name": "full_name",
+          "type": "text"
+        },
+        {
+          "name": "password_hash",
+          "type": "text"
+        },
+        {
+          "name": "last_login_at",
+          "type": "timestamptz",
+          "nullable": true
+        }
+      ],
+      "x": 40,
+      "y": 661,
+      "box": {
+        "x": 88,
+        "y": 661,
+        "w": 248,
+        "h": 166
+      }
+    },
+    {
+      "id": "role",
+      "name": "role",
+      "group": "accounts",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "pk": true
+        },
+        {
+          "name": "name",
+          "type": "text",
+          "unique": true
+        },
+        {
+          "name": "description",
+          "type": "text",
+          "nullable": true
+        }
+      ],
+      "x": 40,
+      "y": 301,
+      "box": {
+        "x": 88,
+        "y": 301,
+        "w": 184,
+        "h": 114
+      }
+    },
+    {
+      "id": "membership",
+      "name": "membership",
+      "group": "accounts",
+      "columns": [
+        {
+          "name": "organization_id",
+          "type": "uuid",
+          "pk": true,
+          "fk": true
+        },
+        {
+          "name": "user_id",
+          "type": "uuid",
+          "pk": true,
+          "fk": true
+        },
+        {
+          "name": "role_id",
+          "type": "uuid",
+          "fk": true
+        },
+        {
+          "name": "joined_at",
+          "type": "timestamptz"
+        }
+      ],
+      "x": 400,
+      "y": 463,
+      "box": {
+        "x": 448,
+        "y": 463,
+        "w": 248,
+        "h": 140
+      }
+    },
+    {
+      "id": "team",
+      "name": "team",
+      "group": "accounts",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "pk": true
+        },
+        {
+          "name": "organization_id",
+          "type": "uuid",
+          "fk": true
+        },
+        {
+          "name": "name",
+          "type": "text"
+        }
+      ],
+      "x": 400,
+      "y": 309,
+      "box": {
+        "x": 448,
+        "y": 309,
+        "w": 200,
+        "h": 114
+      }
+    },
+    {
+      "id": "employee",
+      "name": "employee",
+      "group": "accounts",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "pk": true
+        },
+        {
+          "name": "user_id",
+          "type": "uuid",
+          "fk": true,
+          "unique": true,
+          "nullable": true
+        },
+        {
+          "name": "team_id",
+          "type": "uuid",
+          "fk": true,
+          "nullable": true
+        },
+        {
+          "name": "manager_id",
+          "type": "uuid",
+          "fk": true,
+          "nullable": true
+        },
+        {
+          "name": "title",
+          "type": "text"
+        }
+      ],
+      "x": 772,
+      "y": 356,
+      "box": {
+        "x": 820,
+        "y": 356,
+        "w": 176,
+        "h": 166
+      }
+    },
+    {
+      "id": "api_key",
+      "name": "api_key",
+      "group": "accounts",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "pk": true
+        },
+        {
+          "name": "organization_id",
+          "type": "uuid",
+          "fk": true
+        },
+        {
+          "name": "created_by",
+          "type": "uuid",
+          "fk": true
+        },
+        {
+          "name": "prefix",
+          "type": "text",
+          "unique": true
+        },
+        {
+          "name": "revoked_at",
+          "type": "timestamptz",
+          "nullable": true
+        }
+      ],
+      "x": 400,
+      "y": 643,
+      "box": {
+        "x": 448,
+        "y": 643,
+        "w": 260,
+        "h": 166
+      }
+    },
+    {
+      "id": "address",
+      "name": "address",
+      "group": "accounts",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "pk": true
+        },
+        {
+          "name": "organization_id",
+          "type": "uuid",
+          "fk": true
+        },
+        {
+          "name": "line1",
+          "type": "text"
+        },
+        {
+          "name": "city",
+          "type": "text"
+        },
+        {
+          "name": "postcode",
+          "type": "text"
+        },
+        {
+          "name": "country",
+          "type": "text"
+        }
+      ],
+      "x": 400,
+      "y": 28,
+      "box": {
+        "x": 448,
+        "y": 28,
+        "w": 200,
+        "h": 192
+      }
+    },
+    {
+      "id": "product",
+      "name": "product",
+      "group": "catalogue",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "pk": true
+        },
+        {
+          "name": "name",
+          "type": "text"
+        },
+        {
+          "name": "description",
+          "type": "text",
+          "nullable": true
+        },
+        {
+          "name": "active",
+          "type": "bool"
+        }
+      ],
+      "x": 40,
+      "y": 54,
+      "box": {
+        "x": 88,
+        "y": 909,
+        "w": 184,
+        "h": 140
+      }
+    },
+    {
+      "id": "plan",
+      "name": "plan",
+      "group": "catalogue",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "pk": true
+        },
+        {
+          "name": "product_id",
+          "type": "uuid",
+          "fk": true
+        },
+        {
+          "name": "name",
+          "type": "text"
+        },
+        {
+          "name": "interval",
+          "type": "text"
+        },
+        {
+          "name": "trial_days",
+          "type": "int"
+        }
+      ],
+      "x": 400,
+      "y": 28,
+      "box": {
+        "x": 448,
+        "y": 883,
+        "w": 168,
+        "h": 166
+      }
+    },
+    {
+      "id": "price",
+      "name": "price",
+      "group": "catalogue",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "pk": true
+        },
+        {
+          "name": "plan_id",
+          "type": "uuid",
+          "fk": true
+        },
+        {
+          "name": "currency_code",
+          "type": "text",
+          "fk": true
+        },
+        {
+          "name": "amount",
+          "type": "numeric"
+        },
+        {
+          "name": "valid_from",
+          "type": "date"
+        }
+      ],
+      "x": 772,
+      "y": 182,
+      "box": {
+        "x": 820,
+        "y": 1037,
+        "w": 208,
+        "h": 166
+      }
+    },
+    {
+      "id": "currency",
+      "name": "currency",
+      "group": "catalogue",
+      "columns": [
+        {
+          "name": "code",
+          "type": "text",
+          "pk": true
+        },
+        {
+          "name": "name",
+          "type": "text"
+        },
+        {
+          "name": "minor_units",
+          "type": "int"
+        }
+      ],
+      "x": 40,
+      "y": 234,
+      "box": {
+        "x": 88,
+        "y": 1089,
+        "w": 172,
+        "h": 114
+      }
+    },
+    {
+      "id": "feature",
+      "name": "feature",
+      "group": "catalogue",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "pk": true
+        },
+        {
+          "name": "key",
+          "type": "text",
+          "unique": true
+        },
+        {
+          "name": "name",
+          "type": "text"
+        }
+      ],
+      "x": 400,
+      "y": 234,
+      "box": {
+        "x": 448,
+        "y": 1089,
+        "w": 168,
+        "h": 114
+      }
+    },
+    {
+      "id": "plan_feature",
+      "name": "plan_feature",
+      "group": "catalogue",
+      "columns": [
+        {
+          "name": "plan_id",
+          "type": "uuid",
+          "pk": true,
+          "fk": true
+        },
+        {
+          "name": "feature_id",
+          "type": "uuid",
+          "pk": true,
+          "fk": true
+        },
+        {
+          "name": "limit_value",
+          "type": "int",
+          "nullable": true
+        }
+      ],
+      "x": 772,
+      "y": 28,
+      "box": {
+        "x": 820,
+        "y": 883,
+        "w": 180,
+        "h": 114
+      }
+    },
+    {
+      "id": "tax_rate",
+      "name": "tax_rate",
+      "group": "catalogue",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "pk": true
+        },
+        {
+          "name": "country",
+          "type": "text"
+        },
+        {
+          "name": "rate",
+          "type": "numeric"
+        },
+        {
+          "name": "valid_from",
+          "type": "date"
+        }
+      ],
+      "x": 1198,
+      "y": 28,
+      "box": {
+        "x": 1246,
+        "y": 883,
+        "w": 184,
+        "h": 140
+      }
+    },
+    {
+      "id": "coupon",
+      "name": "coupon",
+      "group": "catalogue",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "pk": true
+        },
+        {
+          "name": "code",
+          "type": "text",
+          "unique": true
+        },
+        {
+          "name": "percent_off",
+          "type": "numeric"
+        },
+        {
+          "name": "redeem_by",
+          "type": "date",
+          "nullable": true
+        }
+      ],
+      "x": 400,
+      "y": 388,
+      "box": {
+        "x": 448,
+        "y": 1243,
+        "w": 192,
+        "h": 140
+      }
+    },
+    {
+      "id": "customer",
+      "name": "customer",
+      "group": "billing",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "pk": true
+        },
+        {
+          "name": "organization_id",
+          "type": "uuid",
+          "fk": true,
+          "unique": true
+        },
+        {
+          "name": "currency_code",
+          "type": "text",
+          "fk": true
+        },
+        {
+          "name": "billing_email",
+          "type": "text"
+        },
+        {
+          "name": "tax_id",
+          "type": "text",
+          "nullable": true
+        }
+      ],
+      "x": 400,
+      "y": 438,
+      "box": {
+        "x": 448,
+        "y": 1849,
+        "w": 216,
+        "h": 166
+      }
+    },
+    {
+      "id": "payment_method",
+      "name": "payment_method",
+      "group": "billing",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "pk": true
+        },
+        {
+          "name": "customer_id",
+          "type": "uuid",
+          "fk": true
+        },
+        {
+          "name": "kind",
+          "type": "text"
+        },
+        {
+          "name": "last4",
+          "type": "text",
+          "nullable": true
+        },
+        {
+          "name": "expires",
+          "type": "date",
+          "nullable": true
+        }
+      ],
+      "x": 772,
+      "y": 542,
+      "box": {
+        "x": 820,
+        "y": 1953,
+        "w": 184,
+        "h": 166
+      }
+    },
+    {
+      "id": "subscription",
+      "name": "subscription",
+      "group": "billing",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "pk": true
+        },
+        {
+          "name": "customer_id",
+          "type": "uuid",
+          "fk": true
+        },
+        {
+          "name": "plan_id",
+          "type": "uuid",
+          "fk": true
+        },
+        {
+          "name": "coupon_id",
+          "type": "uuid",
+          "fk": true,
+          "nullable": true
+        },
+        {
+          "name": "status",
+          "type": "text"
+        },
+        {
+          "name": "started_at",
+          "type": "timestamptz"
+        },
+        {
+          "name": "ends_at",
+          "type": "timestamptz",
+          "nullable": true
+        }
+      ],
+      "x": 772,
+      "y": 284,
+      "box": {
+        "x": 820,
+        "y": 1695,
+        "w": 232,
+        "h": 218
+      }
+    },
+    {
+      "id": "subscription_item",
+      "name": "subscription_item",
+      "group": "billing",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "pk": true
+        },
+        {
+          "name": "subscription_id",
+          "type": "uuid",
+          "fk": true
+        },
+        {
+          "name": "feature_id",
+          "type": "uuid",
+          "fk": true
+        },
+        {
+          "name": "quantity",
+          "type": "int"
+        }
+      ],
+      "x": 1198,
+      "y": 230,
+      "box": {
+        "x": 1246,
+        "y": 1641,
+        "w": 200,
+        "h": 140
+      }
+    },
+    {
+      "id": "usage_record",
+      "name": "usage_record",
+      "group": "billing",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "pk": true
+        },
+        {
+          "name": "subscription_item_id",
+          "type": "uuid",
+          "fk": true
+        },
+        {
+          "name": "quantity",
+          "type": "int"
+        },
+        {
+          "name": "recorded_at",
+          "type": "timestamptz"
+        }
+      ],
+      "x": 1558,
+      "y": 234,
+      "box": {
+        "x": 1606,
+        "y": 1645,
+        "w": 284,
+        "h": 140
+      }
+    },
+    {
+      "id": "invoice",
+      "name": "invoice",
+      "group": "billing",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "pk": true
+        },
+        {
+          "name": "customer_id",
+          "type": "uuid",
+          "fk": true
+        },
+        {
+          "name": "subscription_id",
+          "type": "uuid",
+          "fk": true,
+          "nullable": true
+        },
+        {
+          "name": "number",
+          "type": "text",
+          "unique": true
+        },
+        {
+          "name": "total",
+          "type": "numeric"
+        },
+        {
+          "name": "issued_at",
+          "type": "timestamptz"
+        },
+        {
+          "name": "due_at",
+          "type": "date"
+        }
+      ],
+      "x": 1198,
+      "y": 410,
+      "box": {
+        "x": 1246,
+        "y": 1821,
+        "w": 248,
+        "h": 218
+      }
+    },
+    {
+      "id": "invoice_line",
+      "name": "invoice_line",
+      "group": "billing",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "pk": true
+        },
+        {
+          "name": "invoice_id",
+          "type": "uuid",
+          "fk": true
+        },
+        {
+          "name": "tax_rate_id",
+          "type": "uuid",
+          "fk": true,
+          "nullable": true
+        },
+        {
+          "name": "description",
+          "type": "text"
+        },
+        {
+          "name": "amount",
+          "type": "numeric"
+        }
+      ],
+      "x": 1558,
+      "y": 28,
+      "box": {
+        "x": 1606,
+        "y": 1439,
+        "w": 192,
+        "h": 166
+      }
+    },
+    {
+      "id": "payment",
+      "name": "payment",
+      "group": "billing",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "pk": true
+        },
+        {
+          "name": "invoice_id",
+          "type": "uuid",
+          "fk": true
+        },
+        {
+          "name": "payment_method_id",
+          "type": "uuid",
+          "fk": true,
+          "nullable": true
+        },
+        {
+          "name": "amount",
+          "type": "numeric"
+        },
+        {
+          "name": "paid_at",
+          "type": "timestamptz"
+        }
+      ],
+      "x": 1558,
+      "y": 414,
+      "box": {
+        "x": 1606,
+        "y": 1825,
+        "w": 264,
+        "h": 166
+      }
+    },
+    {
+      "id": "refund",
+      "name": "refund",
+      "group": "billing",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "pk": true
+        },
+        {
+          "name": "payment_id",
+          "type": "uuid",
+          "fk": true
+        },
+        {
+          "name": "amount",
+          "type": "numeric"
+        },
+        {
+          "name": "reason",
+          "type": "text",
+          "nullable": true
+        }
+      ],
+      "x": 1954,
+      "y": 388,
+      "box": {
+        "x": 2002,
+        "y": 1799,
+        "w": 184,
+        "h": 140
+      }
+    },
+    {
+      "id": "credit_note",
+      "name": "credit_note",
+      "group": "billing",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "pk": true
+        },
+        {
+          "name": "invoice_id",
+          "type": "uuid",
+          "fk": true
+        },
+        {
+          "name": "amount",
+          "type": "numeric"
+        }
+      ],
+      "x": 1558,
+      "y": 620,
+      "box": {
+        "x": 1606,
+        "y": 2031,
+        "w": 184,
+        "h": 114
+      }
+    },
+    {
+      "id": "audit_event",
+      "name": "audit_event",
+      "group": "audit",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "pk": true
+        },
+        {
+          "name": "organization_id",
+          "type": "uuid",
+          "fk": true
+        },
+        {
+          "name": "actor_id",
+          "type": "uuid",
+          "fk": true,
+          "nullable": true
+        },
+        {
+          "name": "action",
+          "type": "text"
+        },
+        {
+          "name": "occurred_at",
+          "type": "timestamptz"
+        },
+        {
+          "name": "detail",
+          "type": "jsonb",
+          "nullable": true
+        }
+      ],
+      "x": 400,
+      "y": 75,
+      "box": {
+        "x": 448,
+        "y": 2248,
+        "w": 248,
+        "h": 192
+      }
+    },
+    {
+      "id": "login_attempt",
+      "name": "login_attempt",
+      "group": "audit",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "pk": true
+        },
+        {
+          "name": "user_id",
+          "type": "uuid",
+          "fk": true,
+          "nullable": true
+        },
+        {
+          "name": "ip",
+          "type": "text"
+        },
+        {
+          "name": "succeeded",
+          "type": "bool"
+        },
+        {
+          "name": "at",
+          "type": "timestamptz"
+        }
+      ],
+      "x": 400,
+      "y": 513,
+      "box": {
+        "x": 448,
+        "y": 2686,
+        "w": 204,
+        "h": 166
+      }
+    },
+    {
+      "id": "webhook_delivery",
+      "name": "webhook_delivery",
+      "group": "audit",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "pk": true
+        },
+        {
+          "name": "organization_id",
+          "type": "uuid",
+          "fk": true
+        },
+        {
+          "name": "event_id",
+          "type": "uuid",
+          "fk": true
+        },
+        {
+          "name": "status",
+          "type": "int"
+        },
+        {
+          "name": "attempts",
+          "type": "int"
+        }
+      ],
+      "x": 772,
+      "y": 28,
+      "box": {
+        "x": 820,
+        "y": 2201,
+        "w": 200,
+        "h": 166
+      }
+    },
+    {
+      "id": "data_export",
+      "name": "data_export",
+      "group": "audit",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "pk": true
+        },
+        {
+          "name": "requested_by",
+          "type": "uuid",
+          "fk": true
+        },
+        {
+          "name": "organization_id",
+          "type": "uuid",
+          "fk": true
+        },
+        {
+          "name": "status",
+          "type": "text"
+        },
+        {
+          "name": "requested_at",
+          "type": "timestamptz"
+        }
+      ],
+      "x": 400,
+      "y": 307,
+      "box": {
+        "x": 448,
+        "y": 2480,
+        "w": 248,
+        "h": 166
+      }
+    }
+  ],
+  "relationships": [
+    {
+      "id": "r1",
+      "from": "membership",
+      "to": "organization",
+      "columns": [
+        "organization_id"
+      ],
+      "fromEnd": "zeroOrMany",
+      "identifying": true,
+      "points": [
+        [
+          448,
+          512
+        ],
+        [
+          364,
+          512
+        ],
+        [
+          364,
+          504
+        ],
+        [
+          300,
+          504
+        ]
+      ]
+    },
+    {
+      "id": "r2",
+      "from": "membership",
+      "to": "app_user",
+      "columns": [
+        "user_id"
+      ],
+      "identifying": true,
+      "points": [
+        [
+          448,
+          538
+        ],
+        [
+          356,
+          538
+        ],
+        [
+          356,
+          710
+        ],
+        [
+          336,
+          710
+        ]
+      ]
+    },
+    {
+      "id": "r3",
+      "from": "membership",
+      "to": "role",
+      "columns": [
+        "role_id"
+      ],
+      "points": [
+        [
+          448,
+          564
+        ],
+        [
+          428,
+          564
+        ],
+        [
+          428,
+          538
+        ],
+        [
+          424,
+          538
+        ],
+        [
+          424,
+          512
+        ],
+        [
+          420,
+          512
+        ],
+        [
+          420,
+          384
+        ],
+        [
+          416,
+          384
+        ],
+        [
+          416,
+          350
+        ],
+        [
+          272,
+          350
+        ]
+      ]
+    },
+    {
+      "id": "r4",
+      "from": "team",
+      "to": "organization",
+      "columns": [
+        "organization_id"
+      ],
+      "points": [
+        [
+          448,
+          384
+        ],
+        [
+          364,
+          384
+        ],
+        [
+          364,
+          504
+        ],
+        [
+          300,
+          504
+        ]
+      ]
+    },
+    {
+      "id": "r5",
+      "from": "employee",
+      "to": "app_user",
+      "columns": [
+        "user_id"
+      ],
+      "fromEnd": "zeroOrOne",
+      "toEnd": "zeroOrOne",
+      "label": "is",
+      "points": [
+        [
+          820,
+          431
+        ],
+        [
+          756,
+          431
+        ],
+        [
+          756,
+          435
+        ],
+        [
+          708,
+          435
+        ],
+        [
+          708,
+          631
+        ],
+        [
+          368,
+          631
+        ],
+        [
+          368,
+          633
+        ],
+        [
+          356,
+          633
+        ],
+        [
+          356,
+          710
+        ],
+        [
+          336,
+          710
+        ]
+      ],
+      "labelBox": {
+        "x": 523,
+        "y": 620,
+        "w": 31,
+        "h": 22
+      }
+    },
+    {
+      "id": "r6",
+      "from": "employee",
+      "to": "team",
+      "columns": [
+        "team_id"
+      ],
+      "points": [
+        [
+          820,
+          457
+        ],
+        [
+          756,
+          457
+        ],
+        [
+          756,
+          358
+        ],
+        [
+          648,
+          358
+        ]
+      ]
+    },
+    {
+      "id": "r7",
+      "from": "employee",
+      "to": "employee",
+      "columns": [
+        "manager_id"
+      ],
+      "label": "reports to",
+      "points": [
+        [
+          996,
+          483
+        ],
+        [
+          1036,
+          483
+        ],
+        [
+          1036,
+          405
+        ],
+        [
+          996,
+          405
+        ]
+      ],
+      "labelBox": {
+        "x": 1044,
+        "y": 433,
+        "w": 90,
+        "h": 22
+      }
+    },
+    {
+      "id": "r8",
+      "from": "api_key",
+      "to": "organization",
+      "columns": [
+        "organization_id"
+      ],
+      "points": [
+        [
+          448,
+          718
+        ],
+        [
+          368,
+          718
+        ],
+        [
+          368,
+          538
+        ],
+        [
+          364,
+          538
+        ],
+        [
+          364,
+          504
+        ],
+        [
+          300,
+          504
+        ]
+      ]
+    },
+    {
+      "id": "r9",
+      "from": "api_key",
+      "to": "app_user",
+      "columns": [
+        "created_by"
+      ],
+      "points": [
+        [
+          448,
+          744
+        ],
+        [
+          356,
+          744
+        ],
+        [
+          356,
+          710
+        ],
+        [
+          336,
+          710
+        ]
+      ]
+    },
+    {
+      "id": "r10",
+      "from": "address",
+      "to": "organization",
+      "columns": [
+        "organization_id"
+      ],
+      "points": [
+        [
+          448,
+          103
+        ],
+        [
+          368,
+          103
+        ],
+        [
+          368,
+          350
+        ],
+        [
+          364,
+          350
+        ],
+        [
+          364,
+          504
+        ],
+        [
+          300,
+          504
+        ]
+      ]
+    },
+    {
+      "id": "r11",
+      "from": "plan",
+      "to": "product",
+      "columns": [
+        "product_id"
+      ],
+      "points": [
+        [
+          448,
+          958
+        ],
+        [
+          272,
+          958
+        ]
+      ]
+    },
+    {
+      "id": "r12",
+      "from": "price",
+      "to": "plan",
+      "columns": [
+        "plan_id"
+      ],
+      "points": [
+        [
+          820,
+          1112
+        ],
+        [
+          796,
+          1112
+        ],
+        [
+          796,
+          932
+        ],
+        [
+          616,
+          932
+        ]
+      ]
+    },
+    {
+      "id": "r13",
+      "from": "price",
+      "to": "currency",
+      "columns": [
+        "currency_code"
+      ],
+      "points": [
+        [
+          820,
+          1138
+        ],
+        [
+          796,
+          1138
+        ],
+        [
+          796,
+          1215
+        ],
+        [
+          280,
+          1215
+        ],
+        [
+          280,
+          1138
+        ],
+        [
+          260,
+          1138
+        ]
+      ]
+    },
+    {
+      "id": "r14",
+      "from": "plan_feature",
+      "to": "plan",
+      "columns": [
+        "plan_id"
+      ],
+      "fromEnd": "oneOrMany",
+      "identifying": true,
+      "points": [
+        [
+          820,
+          932
+        ],
+        [
+          616,
+          932
+        ]
+      ]
+    },
+    {
+      "id": "r15",
+      "from": "plan_feature",
+      "to": "feature",
+      "columns": [
+        "feature_id"
+      ],
+      "identifying": true,
+      "points": [
+        [
+          820,
+          958
+        ],
+        [
+          800,
+          958
+        ],
+        [
+          800,
+          1112
+        ],
+        [
+          796,
+          1112
+        ],
+        [
+          796,
+          1138
+        ],
+        [
+          616,
+          1138
+        ]
+      ]
+    },
+    {
+      "id": "r16",
+      "from": "customer",
+      "to": "organization",
+      "columns": [
+        "organization_id"
+      ],
+      "fromEnd": "zeroOrOne",
+      "label": "bills",
+      "points": [
+        [
+          448,
+          1924
+        ],
+        [
+          376,
+          1924
+        ],
+        [
+          376,
+          1215
+        ],
+        [
+          372,
+          1215
+        ],
+        [
+          372,
+          958
+        ],
+        [
+          368,
+          958
+        ],
+        [
+          368,
+          744
+        ],
+        [
+          372,
+          744
+        ],
+        [
+          372,
+          631
+        ],
+        [
+          368,
+          631
+        ],
+        [
+          368,
+          538
+        ],
+        [
+          364,
+          538
+        ],
+        [
+          364,
+          504
+        ],
+        [
+          300,
+          504
+        ]
+      ],
+      "labelBox": {
+        "x": 350,
+        "y": 1559,
+        "w": 53,
+        "h": 22
+      }
+    },
+    {
+      "id": "r17",
+      "from": "customer",
+      "to": "currency",
+      "columns": [
+        "currency_code"
+      ],
+      "points": [
+        [
+          448,
+          1950
+        ],
+        [
+          280,
+          1950
+        ],
+        [
+          280,
+          1138
+        ],
+        [
+          260,
+          1138
+        ]
+      ]
+    },
+    {
+      "id": "r18",
+      "from": "payment_method",
+      "to": "customer",
+      "columns": [
+        "customer_id"
+      ],
+      "points": [
+        [
+          820,
+          2028
+        ],
+        [
+          728,
+          2028
+        ],
+        [
+          728,
+          1898
+        ],
+        [
+          664,
+          1898
+        ]
+      ]
+    },
+    {
+      "id": "r19",
+      "from": "subscription",
+      "to": "customer",
+      "columns": [
+        "customer_id"
+      ],
+      "label": "holds",
+      "points": [
+        [
+          820,
+          1770
+        ],
+        [
+          728,
+          1770
+        ],
+        [
+          728,
+          1898
+        ],
+        [
+          664,
+          1898
+        ]
+      ],
+      "labelBox": {
+        "x": 702,
+        "y": 1823,
+        "w": 53,
+        "h": 22
+      }
+    },
+    {
+      "id": "r20",
+      "from": "subscription",
+      "to": "plan",
+      "columns": [
+        "plan_id"
+      ],
+      "points": [
+        [
+          820,
+          1796
+        ],
+        [
+          800,
+          1796
+        ],
+        [
+          800,
+          1770
+        ],
+        [
+          796,
+          1770
+        ],
+        [
+          796,
+          1215
+        ],
+        [
+          792,
+          1215
+        ],
+        [
+          792,
+          1138
+        ],
+        [
+          788,
+          1138
+        ],
+        [
+          788,
+          932
+        ],
+        [
+          616,
+          932
+        ]
+      ]
+    },
+    {
+      "id": "r21",
+      "from": "subscription",
+      "to": "coupon",
+      "columns": [
+        "coupon_id"
+      ],
+      "points": [
+        [
+          820,
+          1822
+        ],
+        [
+          736,
+          1822
+        ],
+        [
+          736,
+          1770
+        ],
+        [
+          732,
+          1770
+        ],
+        [
+          732,
+          1292
+        ],
+        [
+          640,
+          1292
+        ]
+      ]
+    },
+    {
+      "id": "r22",
+      "from": "subscription_item",
+      "to": "subscription",
+      "columns": [
+        "subscription_id"
+      ],
+      "fromEnd": "oneOrMany",
+      "points": [
+        [
+          1246,
+          1716
+        ],
+        [
+          1080,
+          1716
+        ],
+        [
+          1080,
+          1744
+        ],
+        [
+          1052,
+          1744
+        ]
+      ]
+    },
+    {
+      "id": "r23",
+      "from": "subscription_item",
+      "to": "feature",
+      "columns": [
+        "feature_id"
+      ],
+      "points": [
+        [
+          1246,
+          1742
+        ],
+        [
+          1125,
+          1742
+        ],
+        [
+          1125,
+          1716
+        ],
+        [
+          1117,
+          1716
+        ],
+        [
+          1117,
+          1623
+        ],
+        [
+          796,
+          1623
+        ],
+        [
+          796,
+          1621
+        ],
+        [
+          792,
+          1621
+        ],
+        [
+          792,
+          1215
+        ],
+        [
+          788,
+          1215
+        ],
+        [
+          788,
+          1138
+        ],
+        [
+          616,
+          1138
+        ]
+      ]
+    },
+    {
+      "id": "r24",
+      "from": "usage_record",
+      "to": "subscription_item",
+      "columns": [
+        "subscription_item_id"
+      ],
+      "points": [
+        [
+          1606,
+          1720
+        ],
+        [
+          1522,
+          1720
+        ],
+        [
+          1522,
+          1690
+        ],
+        [
+          1446,
+          1690
+        ]
+      ]
+    },
+    {
+      "id": "r25",
+      "from": "invoice",
+      "to": "customer",
+      "columns": [
+        "customer_id"
+      ],
+      "points": [
+        [
+          1246,
+          1896
+        ],
+        [
+          1080,
+          1896
+        ],
+        [
+          1080,
+          1898
+        ],
+        [
+          1064,
+          1898
+        ],
+        [
+          1064,
+          1925
+        ],
+        [
+          728,
+          1925
+        ],
+        [
+          728,
+          1898
+        ],
+        [
+          664,
+          1898
+        ]
+      ]
+    },
+    {
+      "id": "r26",
+      "from": "invoice",
+      "to": "subscription",
+      "columns": [
+        "subscription_id"
+      ],
+      "points": [
+        [
+          1246,
+          1922
+        ],
+        [
+          1080,
+          1922
+        ],
+        [
+          1080,
+          1744
+        ],
+        [
+          1052,
+          1744
+        ]
+      ]
+    },
+    {
+      "id": "r27",
+      "from": "invoice_line",
+      "to": "invoice",
+      "columns": [
+        "invoice_id"
+      ],
+      "fromEnd": "oneOrMany",
+      "points": [
+        [
+          1606,
+          1514
+        ],
+        [
+          1518,
+          1514
+        ],
+        [
+          1518,
+          1690
+        ],
+        [
+          1514,
+          1690
+        ],
+        [
+          1514,
+          1870
+        ],
+        [
+          1494,
+          1870
+        ]
+      ]
+    },
+    {
+      "id": "r28",
+      "from": "invoice_line",
+      "to": "tax_rate",
+      "columns": [
+        "tax_rate_id"
+      ],
+      "points": [
+        [
+          1606,
+          1540
+        ],
+        [
+          1534,
+          1540
+        ],
+        [
+          1534,
+          1514
+        ],
+        [
+          1530,
+          1514
+        ],
+        [
+          1530,
+          932
+        ],
+        [
+          1430,
+          932
+        ]
+      ]
+    },
+    {
+      "id": "r29",
+      "from": "payment",
+      "to": "invoice",
+      "columns": [
+        "invoice_id"
+      ],
+      "label": "settles",
+      "points": [
+        [
+          1606,
+          1900
+        ],
+        [
+          1514,
+          1900
+        ],
+        [
+          1514,
+          1870
+        ],
+        [
+          1494,
+          1870
+        ]
+      ],
+      "labelBox": {
+        "x": 1526,
+        "y": 1889,
+        "w": 68,
+        "h": 22
+      }
+    },
+    {
+      "id": "r30",
+      "from": "payment",
+      "to": "payment_method",
+      "columns": [
+        "payment_method_id"
+      ],
+      "points": [
+        [
+          1606,
+          1926
+        ],
+        [
+          1514,
+          1926
+        ],
+        [
+          1514,
+          1925
+        ],
+        [
+          1506,
+          1925
+        ],
+        [
+          1506,
+          2051
+        ],
+        [
+          1028,
+          2051
+        ],
+        [
+          1028,
+          2002
+        ],
+        [
+          1004,
+          2002
+        ]
+      ]
+    },
+    {
+      "id": "r31",
+      "from": "refund",
+      "to": "payment",
+      "columns": [
+        "payment_id"
+      ],
+      "points": [
+        [
+          2002,
+          1874
+        ],
+        [
+          1870,
+          1874
+        ]
+      ]
+    },
+    {
+      "id": "r32",
+      "from": "credit_note",
+      "to": "invoice",
+      "columns": [
+        "invoice_id"
+      ],
+      "points": [
+        [
+          1606,
+          2106
+        ],
+        [
+          1514,
+          2106
+        ],
+        [
+          1514,
+          1870
+        ],
+        [
+          1494,
+          1870
+        ]
+      ]
+    },
+    {
+      "id": "r33",
+      "from": "audit_event",
+      "to": "organization",
+      "columns": [
+        "organization_id"
+      ],
+      "points": [
+        [
+          448,
+          2323
+        ],
+        [
+          372,
+          2323
+        ],
+        [
+          372,
+          1950
+        ],
+        [
+          376,
+          1950
+        ],
+        [
+          376,
+          1215
+        ],
+        [
+          372,
+          1215
+        ],
+        [
+          372,
+          958
+        ],
+        [
+          368,
+          958
+        ],
+        [
+          368,
+          744
+        ],
+        [
+          372,
+          744
+        ],
+        [
+          372,
+          631
+        ],
+        [
+          368,
+          631
+        ],
+        [
+          368,
+          538
+        ],
+        [
+          364,
+          538
+        ],
+        [
+          364,
+          504
+        ],
+        [
+          300,
+          504
+        ]
+      ]
+    },
+    {
+      "id": "r34",
+      "from": "audit_event",
+      "to": "app_user",
+      "columns": [
+        "actor_id"
+      ],
+      "points": [
+        [
+          448,
+          2349
+        ],
+        [
+          368,
+          2349
+        ],
+        [
+          368,
+          1950
+        ],
+        [
+          364,
+          1950
+        ],
+        [
+          364,
+          1215
+        ],
+        [
+          360,
+          1215
+        ],
+        [
+          360,
+          958
+        ],
+        [
+          356,
+          958
+        ],
+        [
+          356,
+          710
+        ],
+        [
+          336,
+          710
+        ]
+      ]
+    },
+    {
+      "id": "r35",
+      "from": "login_attempt",
+      "to": "app_user",
+      "columns": [
+        "user_id"
+      ],
+      "points": [
+        [
+          448,
+          2761
+        ],
+        [
+          368,
+          2761
+        ],
+        [
+          368,
+          1950
+        ],
+        [
+          364,
+          1950
+        ],
+        [
+          364,
+          1215
+        ],
+        [
+          360,
+          1215
+        ],
+        [
+          360,
+          958
+        ],
+        [
+          356,
+          958
+        ],
+        [
+          356,
+          710
+        ],
+        [
+          336,
+          710
+        ]
+      ]
+    },
+    {
+      "id": "r36",
+      "from": "webhook_delivery",
+      "to": "organization",
+      "columns": [
+        "organization_id"
+      ],
+      "points": [
+        [
+          820,
+          2276
+        ],
+        [
+          708,
+          2276
+        ],
+        [
+          708,
+          2236
+        ],
+        [
+          372,
+          2236
+        ],
+        [
+          372,
+          1950
+        ],
+        [
+          376,
+          1950
+        ],
+        [
+          376,
+          1215
+        ],
+        [
+          372,
+          1215
+        ],
+        [
+          372,
+          958
+        ],
+        [
+          368,
+          958
+        ],
+        [
+          368,
+          744
+        ],
+        [
+          372,
+          744
+        ],
+        [
+          372,
+          631
+        ],
+        [
+          368,
+          631
+        ],
+        [
+          368,
+          538
+        ],
+        [
+          364,
+          538
+        ],
+        [
+          364,
+          504
+        ],
+        [
+          300,
+          504
+        ]
+      ]
+    },
+    {
+      "id": "r37",
+      "from": "webhook_delivery",
+      "to": "audit_event",
+      "columns": [
+        "event_id"
+      ],
+      "points": [
+        [
+          820,
+          2302
+        ],
+        [
+          716,
+          2302
+        ],
+        [
+          716,
+          2297
+        ],
+        [
+          696,
+          2297
+        ]
+      ]
+    },
+    {
+      "id": "r38",
+      "from": "data_export",
+      "to": "app_user",
+      "columns": [
+        "requested_by"
+      ],
+      "points": [
+        [
+          448,
+          2555
+        ],
+        [
+          368,
+          2555
+        ],
+        [
+          368,
+          1950
+        ],
+        [
+          364,
+          1950
+        ],
+        [
+          364,
+          1215
+        ],
+        [
+          360,
+          1215
+        ],
+        [
+          360,
+          958
+        ],
+        [
+          356,
+          958
+        ],
+        [
+          356,
+          710
+        ],
+        [
+          336,
+          710
+        ]
+      ]
+    },
+    {
+      "id": "r39",
+      "from": "data_export",
+      "to": "organization",
+      "columns": [
+        "organization_id"
+      ],
+      "points": [
+        [
+          448,
+          2581
+        ],
+        [
+          372,
+          2581
+        ],
+        [
+          372,
+          2555
+        ],
+        [
+          376,
+          2555
+        ],
+        [
+          376,
+          2349
+        ],
+        [
+          372,
+          2349
+        ],
+        [
+          372,
+          1950
+        ],
+        [
+          376,
+          1950
+        ],
+        [
+          376,
+          1215
+        ],
+        [
+          372,
+          1215
+        ],
+        [
+          372,
+          958
+        ],
+        [
+          368,
+          958
+        ],
+        [
+          368,
+          744
+        ],
+        [
+          372,
+          744
+        ],
+        [
+          372,
+          631
+        ],
+        [
+          368,
+          631
+        ],
+        [
+          368,
+          538
+        ],
+        [
+          364,
+          538
+        ],
+        [
+          364,
+          504
+        ],
+        [
+          300,
+          504
+        ]
+      ]
+    }
+  ],
+  "notes": [
+    {
+      "id": "n1",
+      "text": "Invoices are immutable once issued; corrections go through credit_note",
+      "entities": [
+        "invoice",
+        "credit_note"
+      ]
+    },
+    {
+      "id": "n2",
+      "text": "employee.user_id is optional: contractors have no login",
+      "entities": [
+        "employee"
+      ]
+    },
+    {
+      "id": "n3",
+      "text": "Amounts are stored in minor units of the customer currency",
+      "entities": [
+        "payment",
+        "refund"
+      ]
+    }
+  ],
+  "schemaVersion": 1,
+  "canvas": {
+    "width": 2226,
+    "height": 2880,
+    "crossings": 4
+  }
+}

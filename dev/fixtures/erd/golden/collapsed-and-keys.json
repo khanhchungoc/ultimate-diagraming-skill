@@ -1,0 +1,362 @@
+{
+  "diagramType": "erd",
+  "title": "Keys only",
+  "direction": "LR",
+  "detail": "keys",
+  "groups": [
+    {
+      "id": "core",
+      "name": "Core",
+      "color": "#e0f2fe",
+      "box": {
+        "x": 0,
+        "y": 0,
+        "w": 1136,
+        "h": 192
+      }
+    },
+    {
+      "id": "ext",
+      "name": "Extra",
+      "color": "#dcfce7",
+      "box": {
+        "x": 0,
+        "y": 192,
+        "w": 1136,
+        "h": 242
+      }
+    }
+  ],
+  "entities": [
+    {
+      "id": "account",
+      "name": "account",
+      "group": "core",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "pk": true
+        },
+        {
+          "name": "email",
+          "type": "text",
+          "unique": true
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz"
+        },
+        {
+          "name": "plan_id",
+          "type": "uuid",
+          "fk": true
+        }
+      ],
+      "x": 320,
+      "y": 54,
+      "box": {
+        "x": 368,
+        "y": 54,
+        "w": 168,
+        "h": 110
+      }
+    },
+    {
+      "id": "plan",
+      "name": "plan",
+      "group": "core",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "pk": true
+        },
+        {
+          "name": "name",
+          "type": "text"
+        },
+        {
+          "name": "price",
+          "type": "numeric"
+        }
+      ],
+      "x": 40,
+      "y": 80,
+      "box": {
+        "x": 88,
+        "y": 80,
+        "w": 168,
+        "h": 84
+      }
+    },
+    {
+      "id": "invoice",
+      "name": "invoice",
+      "group": "core",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "pk": true
+        },
+        {
+          "name": "account_id",
+          "type": "uuid",
+          "fk": true
+        },
+        {
+          "name": "field_1",
+          "type": "text"
+        },
+        {
+          "name": "field_2",
+          "type": "text"
+        },
+        {
+          "name": "field_3",
+          "type": "text"
+        },
+        {
+          "name": "field_4",
+          "type": "text"
+        },
+        {
+          "name": "field_5",
+          "type": "text"
+        },
+        {
+          "name": "field_6",
+          "type": "text"
+        },
+        {
+          "name": "field_7",
+          "type": "text"
+        },
+        {
+          "name": "field_8",
+          "type": "text"
+        }
+      ],
+      "x": 600,
+      "y": 28,
+      "box": {
+        "x": 648,
+        "y": 28,
+        "w": 168,
+        "h": 110
+      }
+    },
+    {
+      "id": "invoice_line",
+      "name": "invoice_line",
+      "group": "core",
+      "collapsed": true,
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "pk": true
+        },
+        {
+          "name": "invoice_id",
+          "type": "uuid",
+          "fk": true
+        },
+        {
+          "name": "qty",
+          "type": "int"
+        }
+      ],
+      "x": 880,
+      "y": 59,
+      "box": {
+        "x": 928,
+        "y": 59,
+        "w": 168,
+        "h": 36
+      }
+    },
+    {
+      "id": "event",
+      "name": "event",
+      "group": "ext",
+      "collapsed": true,
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "pk": true
+        },
+        {
+          "name": "account_id",
+          "type": "uuid",
+          "fk": true
+        },
+        {
+          "name": "kind",
+          "type": "text"
+        },
+        {
+          "name": "payload",
+          "type": "jsonb",
+          "nullable": true
+        }
+      ],
+      "x": 600,
+      "y": 28,
+      "box": {
+        "x": 648,
+        "y": 220,
+        "w": 168,
+        "h": 36
+      }
+    },
+    {
+      "id": "setting",
+      "name": "setting",
+      "group": "ext",
+      "columns": [
+        {
+          "name": "account_id",
+          "type": "uuid",
+          "pk": true,
+          "fk": true
+        },
+        {
+          "name": "key",
+          "type": "text",
+          "pk": true
+        },
+        {
+          "name": "value",
+          "type": "text"
+        }
+      ],
+      "x": 600,
+      "y": 104,
+      "box": {
+        "x": 648,
+        "y": 296,
+        "w": 168,
+        "h": 110
+      }
+    }
+  ],
+  "relationships": [
+    {
+      "id": "r1",
+      "from": "account",
+      "to": "plan",
+      "columns": [
+        "plan_id"
+      ],
+      "points": [
+        [
+          368,
+          129
+        ],
+        [
+          256,
+          129
+        ]
+      ]
+    },
+    {
+      "id": "r2",
+      "from": "invoice",
+      "to": "account",
+      "columns": [
+        "account_id"
+      ],
+      "points": [
+        [
+          648,
+          103
+        ],
+        [
+          536,
+          103
+        ]
+      ]
+    },
+    {
+      "id": "r3",
+      "from": "invoice_line",
+      "to": "invoice",
+      "columns": [
+        "invoice_id"
+      ],
+      "identifying": false,
+      "points": [
+        [
+          928,
+          77
+        ],
+        [
+          816,
+          77
+        ]
+      ]
+    },
+    {
+      "id": "r4",
+      "from": "event",
+      "to": "account",
+      "columns": [
+        "account_id"
+      ],
+      "points": [
+        [
+          648,
+          238
+        ],
+        [
+          628,
+          238
+        ],
+        [
+          628,
+          103
+        ],
+        [
+          536,
+          103
+        ]
+      ]
+    },
+    {
+      "id": "r5",
+      "from": "setting",
+      "to": "account",
+      "columns": [
+        "account_id"
+      ],
+      "identifying": true,
+      "points": [
+        [
+          648,
+          345
+        ],
+        [
+          628,
+          345
+        ],
+        [
+          628,
+          103
+        ],
+        [
+          536,
+          103
+        ]
+      ]
+    }
+  ],
+  "schemaVersion": 1,
+  "canvas": {
+    "width": 1136,
+    "height": 434,
+    "crossings": 0
+  }
+}

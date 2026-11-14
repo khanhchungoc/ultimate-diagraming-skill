@@ -11,6 +11,9 @@ it also checks back-compatibility: every x, y, w, h is unchanged, and the old el
 For a flowchart it also checks that the page's disk format is layout-neutral: writing the laid-out diagram with
 its steps in flow order (disk_format.py) and laying that out again moves nothing, left to right and top to bottom.
 
+For an ERD it also checks that laying out the saved model again moves nothing (tables and routes), and that the detail
+levels (all, keys, names) change sizes only: rank and order of the tables are the same.
+
 Usage:
   python dev/check_golden.py            check all fixtures
   python dev/check_golden.py --update   rewrite the goldens after an intentional engine change (review the diff)
@@ -174,6 +177,38 @@ def lifespan_problems(data: dict, laid: dict) -> list:
     return problems
 
 
+def erd_problems(data: dict, laid: dict) -> list:
+    """ERD: laying out the disk model again moves nothing, and the detail levels (all, keys, names) only change sizes:
+    every table keeps its rank (distinct flow-term x, in order) and its place in its (area, rank) list."""
+    if data["diagramType"] != "erd":
+        return []
+    problems = []
+    again = run_layout("erd", from_disk("erd", to_disk("erd", laid)))
+    moved = [e["id"] for e, f in zip(laid["entities"], again["entities"])
+             if (e.get("x"), e.get("y"), e.get("box")) != (f.get("x"), f.get("y"), f.get("box"))]
+    if moved:
+        problems.append(f"laying out the saved model moves {', '.join(moved[:6])}")
+    if list(differences(laid.get("relationships"), again.get("relationships"))):
+        problems.append("laying out the saved model changes the routes")
+
+    def shape(result: dict) -> list:
+        groups = [g["id"] for g in result.get("groups") or []]
+        band = lambda e: groups.index(e["group"]) if e.get("group") in groups else 0  # noqa: E731
+        ranks = sorted({e["x"] for e in result["entities"]})
+        lists: dict = {}
+        for e in result["entities"]:
+            lists.setdefault((band(e), ranks.index(e["x"])), []).append(e)
+        return sorted((k, [e["id"] for e in sorted(v, key=lambda e: e["y"])]) for k, v in lists.items())
+
+    base = shape(laid)
+    for detail in ("all", "keys", "names"):
+        d = copy.deepcopy(data)
+        d["detail"] = detail
+        if shape(run_layout("erd", d)) != base:
+            problems.append(f"detail '{detail}' changes the rank or order of the tables")
+    return problems
+
+
 def main() -> int:
     for stream in (sys.stdout, sys.stderr):
         try:
@@ -204,6 +239,7 @@ def main() -> int:
         problems += flow_order_problems(data, laid)
         problems += legacy_problems(path, laid)
         problems += rail_problems(data, laid) + lifespan_problems(data, laid)
+        problems += erd_problems(data, laid)
         report = AUDITS[data["diagramType"]](copy.deepcopy(laid)).verify_collisions()
         if not report["passed"]:
             problems.append(f"audit failed: score {report['score']}, issues {report['issues']}")

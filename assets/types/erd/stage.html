@@ -1,0 +1,28 @@
+      <div id="erd-canvas">
+        <!-- Area bands (tinted fill, name pill); the pill floats at the visible edge when panned (pinBands) -->
+        <div id="erd-bands"></div>
+        <svg id="erd-svg" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <!-- Crow's-foot ends. Drawn pointing at the box: the tip (x = 0) sits on the box edge, the line comes in from
+                 the left, and orient="auto-start-reverse" turns the start marker round. erd.js adds the -in, -out and
+                 -sel variants (line colour when a table is hovered, and selected) from these four. -->
+            <marker id="erd-end-one" class="erd-mk" viewBox="-24 -9 28 18" markerWidth="28" markerHeight="18" refX="0" refY="0" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+              <path d="M-7 -6V6M-12 -6V6"/>
+            </marker>
+            <marker id="erd-end-zeroOrOne" class="erd-mk" viewBox="-24 -9 28 18" markerWidth="28" markerHeight="18" refX="0" refY="0" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+              <circle cx="-14" cy="0" r="4"/><path d="M-7 -6V6"/>
+            </marker>
+            <marker id="erd-end-oneOrMany" class="erd-mk" viewBox="-24 -9 28 18" markerWidth="28" markerHeight="18" refX="0" refY="0" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+              <path d="M-11 0 0 -6M-11 0H0M-11 0 0 6M-15 -6V6"/>
+            </marker>
+            <marker id="erd-end-zeroOrMany" class="erd-mk" viewBox="-24 -9 28 18" markerWidth="28" markerHeight="18" refX="0" refY="0" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+              <circle cx="-15.5" cy="0" r="4"/><path d="M-11 0 0 -6M-11 0H0M-11 0 0 6"/>
+            </marker>
+          </defs>
+          <!-- Dashed leaders from each visible note to its table (under the tables, so they stop at the table's edge) -->
+          <g id="erd-note-leaders"></g>
+          <g id="erd-rels"></g>
+        </svg>
+        <!-- Tables, relationship labels, notes -->
+        <div id="erd-html"></div>
+      </div>

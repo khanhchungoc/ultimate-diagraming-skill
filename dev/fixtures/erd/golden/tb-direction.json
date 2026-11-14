@@ -1,0 +1,329 @@
+{
+  "diagramType": "erd",
+  "title": "Top to bottom",
+  "direction": "TB",
+  "groups": [
+    {
+      "id": "sales",
+      "name": "Sales",
+      "color": "#e0f2fe",
+      "box": {
+        "x": 0,
+        "y": 0,
+        "w": 276,
+        "h": 694
+      }
+    },
+    {
+      "id": "catalog",
+      "name": "Catalog",
+      "color": "#dcfce7",
+      "box": {
+        "x": 276,
+        "y": 0,
+        "w": 240,
+        "h": 694
+      }
+    }
+  ],
+  "entities": [
+    {
+      "id": "customer",
+      "name": "customer",
+      "group": "sales",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "pk": true
+        },
+        {
+          "name": "email",
+          "type": "text",
+          "unique": true
+        },
+        {
+          "name": "phone",
+          "type": "text",
+          "nullable": true
+        }
+      ],
+      "x": 40,
+      "y": 54,
+      "box": {
+        "x": 54,
+        "y": 88,
+        "w": 168,
+        "h": 114
+      }
+    },
+    {
+      "id": "order",
+      "name": "order",
+      "group": "sales",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "pk": true
+        },
+        {
+          "name": "customer_id",
+          "type": "uuid",
+          "fk": true
+        },
+        {
+          "name": "placed_at",
+          "type": "timestamptz"
+        }
+      ],
+      "x": 266,
+      "y": 28,
+      "box": {
+        "x": 28,
+        "y": 314,
+        "w": 220,
+        "h": 114
+      }
+    },
+    {
+      "id": "order_item",
+      "name": "order_item",
+      "group": "sales",
+      "columns": [
+        {
+          "name": "order_id",
+          "type": "uuid",
+          "pk": true,
+          "fk": true
+        },
+        {
+          "name": "product_id",
+          "type": "uuid",
+          "pk": true,
+          "fk": true
+        },
+        {
+          "name": "qty",
+          "type": "int"
+        }
+      ],
+      "x": 492,
+      "y": 54,
+      "box": {
+        "x": 54,
+        "y": 540,
+        "w": 168,
+        "h": 114
+      }
+    },
+    {
+      "id": "product",
+      "name": "product",
+      "group": "catalog",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "pk": true
+        },
+        {
+          "name": "name",
+          "type": "text"
+        },
+        {
+          "name": "category_id",
+          "type": "uuid",
+          "fk": true,
+          "nullable": true
+        }
+      ],
+      "x": 266,
+      "y": 28,
+      "box": {
+        "x": 304,
+        "y": 314,
+        "w": 184,
+        "h": 114
+      }
+    },
+    {
+      "id": "category",
+      "name": "category",
+      "group": "catalog",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "pk": true
+        },
+        {
+          "name": "name",
+          "type": "text"
+        }
+      ],
+      "x": 40,
+      "y": 36,
+      "box": {
+        "x": 312,
+        "y": 88,
+        "w": 168,
+        "h": 88
+      }
+    }
+  ],
+  "relationships": [
+    {
+      "id": "r1",
+      "from": "order",
+      "to": "customer",
+      "columns": [
+        "customer_id"
+      ],
+      "label": "places",
+      "points": [
+        [
+          248,
+          389
+        ],
+        [
+          268,
+          389
+        ],
+        [
+          268,
+          363
+        ],
+        [
+          260,
+          363
+        ],
+        [
+          260,
+          137
+        ],
+        [
+          222,
+          137
+        ]
+      ],
+      "labelBox": {
+        "x": 230,
+        "y": 239,
+        "w": 61,
+        "h": 22
+      }
+    },
+    {
+      "id": "r2",
+      "from": "order_item",
+      "to": "order",
+      "columns": [
+        "order_id"
+      ],
+      "fromEnd": "oneOrMany",
+      "identifying": true,
+      "points": [
+        [
+          222,
+          589
+        ],
+        [
+          276,
+          589
+        ],
+        [
+          276,
+          363
+        ],
+        [
+          248,
+          363
+        ]
+      ]
+    },
+    {
+      "id": "r3",
+      "from": "order_item",
+      "to": "product",
+      "columns": [
+        "product_id"
+      ],
+      "identifying": true,
+      "points": [
+        [
+          222,
+          615
+        ],
+        [
+          284,
+          615
+        ],
+        [
+          284,
+          415
+        ],
+        [
+          292,
+          415
+        ],
+        [
+          292,
+          302
+        ],
+        [
+          284,
+          302
+        ],
+        [
+          284,
+          363
+        ],
+        [
+          304,
+          363
+        ]
+      ]
+    },
+    {
+      "id": "r4",
+      "from": "product",
+      "to": "category",
+      "columns": [
+        "category_id"
+      ],
+      "points": [
+        [
+          304,
+          415
+        ],
+        [
+          284,
+          415
+        ],
+        [
+          284,
+          363
+        ],
+        [
+          276,
+          363
+        ],
+        [
+          276,
+          137
+        ],
+        [
+          312,
+          137
+        ]
+      ]
+    }
+  ],
+  "schemaVersion": 1,
+  "canvas": {
+    "width": 516,
+    "height": 694,
+    "crossings": 0
+  }
+}
