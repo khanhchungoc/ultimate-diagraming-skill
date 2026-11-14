@@ -239,6 +239,7 @@
     .erd-entity.is-collapsed .erd-chevron svg { transform: rotate(-90deg); }
 
     .erd-row {
+      position: relative;
       display: flex;
       align-items: center;
       height: 26px;
@@ -257,7 +258,10 @@
     .erd-glyph svg { flex: none; display: block; }
     .erd-glyph .g-pk { color: var(--erd-key); }
     .erd-glyph .g-fk { color: var(--erd-fk); }
-    .erd-glyph.both svg { width: 10.5px; height: 10.5px; }
+    /* A column that is both PK and FK: the two glyphs stack in the 22px slot (key over link) instead of running into the
+       name; the slot is the engine's ER.GLYPH_W, so no width changes */
+    .erd-glyph.both { flex-direction: column; justify-content: center; align-items: flex-start; gap: 0; }
+    .erd-glyph.both svg { width: 11px; height: 11px; }
     .erd-col-name { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-weight: 500; padding-left: 3px; }
     .erd-row.pk .erd-col-name { font-weight: 700; }
     .erd-uniq {
@@ -411,3 +415,198 @@
     @media (prefers-reduced-motion: reduce) {
       .btn-switch .switch-track, .btn-switch .switch-knob { transition: none; }
     }
+
+    /* =====================================================================================================
+       EDITING (wave 3): ports, handles, action bar, inline edits, drags, confirm. Everything here is an editing
+       aid ([data-export-skip] in the DOM) and is hidden in ?present.
+       ===================================================================================================== */
+    .erd-entity, .erd-band-pill, .erd-rel-label { -webkit-user-select: none; user-select: none; }
+    [contenteditable]:not([contenteditable="false"]) { -webkit-user-select: text; user-select: text; cursor: text; outline: none; }
+    .erd-head { position: relative; }
+    .erd-name.is-editing, .erd-col-name.is-editing, .erd-col-type.is-editing, .erd-band-pill.is-editing, .erd-rel-label-text.is-editing {
+      min-width: 36px;
+      background: var(--bg-panel);
+      color: var(--text-main);
+      outline: 1.5px solid var(--primary-ring);
+      border-radius: 3px;
+      padding-left: 3px;
+      padding-right: 3px;
+      overflow: visible;
+      text-overflow: clip;
+    }
+    .erd-col-type.is-editing { text-align: right; }
+    .erd-col-type:empty { min-width: 28px; }
+    .erd-col-name.is-editing { flex: 1 1 auto; }
+    /* A band's name is written along its header column; while it is edited it lies flat so it can be read and typed */
+    .erd-band-pill.is-editing { writing-mode: horizontal-tb; transform: none; padding: 6px 12px; width: max-content; max-width: none; max-height: none !important; z-index: 60; }
+
+    /* Connect ports: on the right edge of each row and of the header, shown on hover (all of them while the Relationship tool is armed) */
+    .erd-port {
+      position: absolute;
+      right: -6px; top: 50%;
+      width: 12px; height: 12px;
+      margin-top: -6px;
+      box-sizing: border-box;
+      border-radius: 50%;
+      border: 2px solid var(--primary);
+      background: var(--bg-panel);
+      display: none;
+      cursor: crosshair;
+      z-index: 4;
+      touch-action: none;
+      padding: 0;
+    }
+    .erd-port:hover { background: var(--primary); }
+    .erd-row:hover > .erd-port, .erd-head:hover > .erd-port, body.erd-armed .erd-port { display: block; }
+    body.erd-dragging .erd-port { display: none; }
+    body.erd-armed .erd-row, body.erd-armed .erd-head { cursor: crosshair; }
+    body.erd-armed .erd-chevron { display: none; }
+    /* The row or header a connection would end at, and the table around it */
+    .erd-row.erd-target, .erd-head.erd-target { background: var(--primary-wash); box-shadow: inset 0 0 0 2px var(--primary); }
+    .erd-entity.erd-target { --ring: var(--primary); }
+    #erd-rubber { stroke: var(--primary); stroke-width: 2; stroke-dasharray: 6 4; display: none; fill: none; pointer-events: none; }
+    .erd-row.selected { background: color-mix(in srgb, var(--primary) 13%, transparent); box-shadow: inset 0 0 0 1.5px var(--primary); }
+    .erd-row.is-dragging, .erd-entity.is-dragging, .erd-band-pill.is-dragging { opacity: 0.8; z-index: 50; box-shadow: 0 8px 20px rgba(0,0,0,0.16); background: var(--node-bg); }
+    .erd-band-pill.is-dragging { background: var(--sw-pill-bg); }
+    .erd-band.selected .erd-band-pill { box-shadow: 0 0 0 5px var(--band-bg), 0 0 0 7px var(--primary); }
+    .erd-band.drop-target { outline: 2px dashed var(--primary); outline-offset: -3px; }
+    .erd-band-pill { cursor: grab; }
+    .erd-drop-line { position: absolute; display: none; height: 4px; background: var(--primary); border-radius: 2px; z-index: 60; pointer-events: none; }
+    .erd-guide { position: absolute; display: none; pointer-events: none; z-index: 55; }
+    .erd-guide-v { top: 0; bottom: 0; width: 0; border-left: 1.5px dashed var(--guide); }
+    .erd-guide-h { left: 0; right: 0; height: 0; border-top: 1.5px dashed var(--guide); }
+
+    /* The table dragged out of the dock */
+    .erd-entity.erd-ghost { position: fixed; z-index: 1000; pointer-events: none; transform-origin: 0 0; opacity: 0.95; box-shadow: 0 10px 24px rgba(0,0,0,0.18); }
+    .erd-entity.erd-ghost.off-target { opacity: 0.5; }
+    body.palette-dragging, body.palette-dragging * { cursor: grabbing !important; user-select: none; }
+
+    /* End handles of the selected line */
+    .erd-handle {
+      position: absolute;
+      width: 12px; height: 12px;
+      margin: -6px 0 0 -6px;
+      box-sizing: border-box;
+      z-index: 52;
+      border-radius: 50%;
+      border: 2px solid var(--primary);
+      background: var(--bg-panel);
+      cursor: grab;
+      touch-action: none;
+      pointer-events: auto;
+    }
+    .erd-handle:hover { background: var(--primary); }
+
+    /* Action bar over the selection (the sequence type's, renamed) */
+    .erd-actionbar {
+      position: absolute;
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      padding: 3px;
+      z-index: 53;
+      transform: translate(-50%, -100%);
+      background: var(--bg-panel);
+      border: 1px solid var(--border-dark);
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+      white-space: nowrap;
+      pointer-events: auto;
+      cursor: default;
+      -webkit-user-select: none; user-select: none;
+    }
+    .erd-actionbar.is-below { transform: translate(-50%, 0); }
+    .erd-actionbar.is-left { transform: none; }
+    .erd-actionbar.is-wrap { flex-wrap: wrap; justify-content: center; max-width: 292px; row-gap: 2px; }
+    .erd-ab-break { flex-basis: 100%; height: 0; }
+    .erd-ab-btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 4px; height: 26px; min-width: 26px; padding: 0 6px; box-sizing: border-box;
+      border: 1px solid transparent; border-radius: 6px; background: transparent; color: var(--text-soft);
+      font: inherit; font-size: 12px; font-weight: 600; cursor: pointer;
+    }
+    .erd-ab-btn:hover { background: var(--bg-hover); color: var(--text-main); }
+    .erd-ab-btn[aria-pressed="true"] { background: var(--primary-wash); border-color: var(--primary-ring); color: var(--primary); }
+    .erd-ab-btn.is-danger:hover { background: color-mix(in srgb, var(--danger) 10%, var(--bg-panel)); color: var(--danger); }
+    .erd-ab-btn svg { display: block; }
+    .erd-ab-btn circle { fill: var(--bg-panel); }
+    .erd-ab-glyph { padding: 0 3px; }
+    .erd-ab-sep { width: 1px; height: 18px; margin: 0 3px; background: var(--border-color); }
+    .erd-ab-tag { padding: 0 4px 0 6px; font-size: 10.5px; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; color: var(--text-muted); }
+    .erd-ab-swatch { height: 26px; width: 26px; }
+    body.erd-dragging .erd-actionbar, body.erd-dragging .erd-handle, body.erd-dragging .erd-note-add { display: none !important; }
+    .erd-rel-label.is-editing-label { z-index: 60; }
+
+    /* The + chip that adds a note to a table (the badge's place) */
+    .erd-note-add {
+      position: absolute;
+      top: -10px; right: -10px;
+      z-index: 3;
+      width: 22px; height: 22px;
+      box-sizing: border-box;
+      padding: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      border: 1px dashed var(--note-accent);
+      background: var(--bg-panel);
+      color: var(--note-accent);
+      cursor: pointer;
+      font: inherit;
+    }
+    .erd-note-add:hover { background: var(--note-bg); border-style: solid; }
+    .erd-note-add svg { display: block; }
+    .erd-entity:hover > .erd-note-add, .erd-entity.selected > .erd-note-add { display: inline-flex; }
+    body:is(.palette-dragging, .erd-dragging, .erd-armed, .erd-note-picking) .erd-entity:not(.selected) > .erd-note-add { display: none; }
+
+    /* Note card editing: delete, link handle, plain-text edit */
+    .erd-note { cursor: move; }
+    .erd-note-text { outline: none; min-height: 1.4em; }
+    .erd-note-text[contenteditable="true"] { -webkit-user-select: text; user-select: text; cursor: text; }
+    .erd-note-text:empty::before { content: attr(data-placeholder); color: var(--text-muted); }
+    .erd-note.dragging { box-shadow: 0 10px 24px rgba(0,0,0,0.18); }
+    .erd-note-del {
+      position: absolute; top: -8px; right: -8px; width: 18px; height: 18px; padding: 0; display: none; align-items: center; justify-content: center;
+      border-radius: 50%; border: 1px solid var(--border-dark); background: var(--bg-panel); color: var(--text-soft); cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+    }
+    .erd-note-del:hover { background: var(--danger); border-color: var(--danger); color: #ffffff; }
+    .erd-note-link {
+      position: absolute; bottom: -9px; right: -9px; width: 20px; height: 20px; padding: 0; display: none; align-items: center; justify-content: center;
+      border-radius: 50%; border: 1px solid var(--note-border); background: var(--bg-panel); color: var(--note-accent); cursor: crosshair; touch-action: none; box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+    }
+    .erd-note-link:hover { background: var(--note-accent); border-color: var(--note-accent); color: var(--bg-panel); }
+    .erd-note:hover .erd-note-del, .erd-note.selected .erd-note-del, .erd-note:hover .erd-note-link, .erd-note.selected .erd-note-link { display: inline-flex; }
+    .erd-note-leader.linking { display: inline; stroke: var(--note-accent); stroke-dasharray: 4 3; stroke-width: 1.5px; }
+    body.erd-note-linking, body.erd-note-linking * { cursor: crosshair !important; }
+    .erd-entity.note-target, body.erd-note-picking .erd-entity:hover { outline: 2px dashed var(--note-accent); outline-offset: 4px; }
+    body.erd-note-picking .erd-entity, body.erd-note-picking .erd-entity * { cursor: copy !important; }
+    .erd-note.note-ghost { position: fixed; display: block; z-index: 1000; pointer-events: none; transform-origin: 0 0; opacity: 0.95; box-shadow: 0 10px 24px rgba(0,0,0,0.18); }
+    .erd-note.note-ghost.off-target { opacity: 0.5; }
+    .erd-entity.note-linked { outline: 1.5px dashed var(--note-accent); outline-offset: 5px; }
+    /* The prompt above the dock while a tool waits for a click */
+    .erd-hint {
+      position: fixed; left: 50%; bottom: 76px; transform: translateX(-50%); z-index: 150; padding: 6px 12px; border-radius: 999px;
+      border: 1px solid var(--border-dark); background: var(--bg-panel); color: var(--text-main); font-size: 0.8125rem; font-weight: 500;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.12); max-width: calc(100vw - 32px); text-align: center; pointer-events: none;
+    }
+    .erd-hint kbd { font: inherit; font-weight: 600; }
+    #btn-add-relationship[aria-pressed="true"], #btn-add-note[aria-pressed="true"] { background: var(--primary-wash); border-color: var(--primary-ring); color: var(--primary); }
+
+    /* Delete confirmation bubble (the sequence type's) */
+    .erd-confirm {
+      position: fixed; z-index: 2000; width: 260px; box-sizing: border-box; padding: 14px 14px 12px; border-radius: 10px;
+      border: 1px solid var(--border-dark); background: var(--bg-panel); color: var(--text-main);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.18); font-size: 13px; line-height: 1.4;
+    }
+    .erd-confirm-msg { font-weight: 600; margin-bottom: 12px; overflow-wrap: anywhere; }
+    .erd-confirm-actions { display: flex; justify-content: flex-end; gap: 8px; }
+    .erd-confirm .btn { padding: 6px 12px; font-size: 13px; }
+    .erd-confirm-delete { background: var(--danger); border-color: var(--danger); color: #ffffff; }
+    .erd-confirm-delete:hover { filter: brightness(0.92); background: var(--danger); color: #ffffff; }
+
+    /* ?present: read only. Hover, highlight and collapse still work. */
+    body.presentation .erd-port, body.presentation .erd-handle, body.presentation .erd-actionbar, body.presentation .erd-note-add,
+    body.presentation .erd-note-del, body.presentation .erd-note-link, body.presentation .erd-band-pill { cursor: default; }
+    body.presentation .erd-port, body.presentation .erd-handle, body.presentation .erd-actionbar, body.presentation .erd-note-add,
+    body.presentation .erd-note-del, body.presentation .erd-note-link, body.presentation .erd-drop-line, body.presentation .erd-guide { display: none !important; }
+    body.presentation .erd-note { cursor: default; }
