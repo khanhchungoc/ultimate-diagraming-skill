@@ -761,6 +761,16 @@
     .swatch-btn[aria-pressed="true"] { background: var(--primary-wash); border-color: var(--primary-ring); }
     .swatch-dot { display: block; width: 14px; height: 14px; border-radius: 50%; background: var(--sw-stripe); border: 1px solid rgba(0,0,0,0.18); box-sizing: border-box; }
     .swatch-dot.is-none { background: var(--bg-panel); border: 1.5px dashed var(--border-dark); }
+
+    .btn[hidden] { display: none; }
+
+    /* A short message (save conflicts, blocked downloads) inside a claude.ai artifact */
+    .toast {
+      position: fixed; left: 50%; bottom: 84px; transform: translateX(-50%); z-index: 50;
+      max-width: min(90vw, 420px); padding: 8px 14px; border-radius: 8px;
+      background: var(--text-main, #0f172a); color: var(--bg-panel, #fff);
+      font-size: 13px; box-shadow: 0 4px 16px rgba(0,0,0,.25);
+    }
     /* Sequence diagram */
     /* The diagram sits on a card, like the flowchart's swimlane container */
     #seq-canvas {
@@ -1242,6 +1252,58 @@
         return row;
       }
 
+      // --- CLAUDE.AI ARTIFACT (only active inside a published claude.ai artifact; elsewhere none of this runs) ---
+      // A page that republishes itself must send a document in exactly the shape the Artifact tool publishes:
+      // this skeleton, the page content, then the closing tags (nothing else in <head>, no whitespace between its
+      // tags). ARTIFACT_RESET_CSS / ARTIFACT_HEAD mirror ARTIFACT_RESET_CSS / ARTIFACT_HEAD in scripts/layout_engine.py;
+      // dev/check_artifact_shape.py fails if the two differ.
+      // The RESET text is copied byte for byte from a published artifact (verified 2026-11-14, runtime contract 0.2.96).
+      const ARTIFACT_RESET_CSS = ':root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}';
+      const ARTIFACT_HEAD = '<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>' + ARTIFACT_RESET_CSS + '</style></head><body>';
+      const ARTIFACT_TAIL = '</body></html>';
+      // = ARTIFACT_END_MARKER in layout_engine.py; spelled in two parts so this script's own text never matches it
+      const ARTIFACT_END_MARKER = '<!-- end ultimate-diagram ' + 'page -->';
+
+      // A pristine copy of the page, taken before the first render: Save regenerates the document from this plus the
+      // model and never serializes the live DOM (which by then holds the rendered diagram and selection state).
+      // It is taken while this script runs, so the browser has parsed the page only up to this script: anything the
+      // claude.ai viewer appends to <body> later is not in it. Our content runs from <title> to this script; inside
+      // that span only our own two scripts are kept (the diagram-data block and this one), so a script the viewer
+      // inserted earlier, the generator's render report and any meta/base element are dropped too. The end marker
+      // (ARTIFACT_END_MARKER) is written back after this script, as the generator writes it.
+      function capturePristineBody() {
+        try {
+          const self = document.currentScript;
+          const c = document.body.cloneNode(true);
+          c.querySelectorAll(':scope > meta, :scope > base').forEach(n => n.remove());
+          c.querySelectorAll('script').forEach(n => {
+            if (n.id === 'diagram-data' && n.type === 'application/json') return;
+            if (self && !n.id && !n.src && n.textContent === self.textContent) return;
+            n.remove();
+          });
+          // An artifact page has <title> as the first element of <body>; a plain file keeps it in <head>
+          const title = c.querySelector(':scope > title');
+          if (!title) return null;
+          while (c.firstChild !== title) c.removeChild(c.firstChild);
+          const html = c.innerHTML;
+          const end = html.lastIndexOf('<\/script>');   // spelled <\/ so this inline script is not cut short
+          if (end < 0) return null;
+          return '\n' + html.slice(0, end + '<\/script>'.length) + '\n' + ARTIFACT_END_MARKER + '\n';
+        } catch (_) { return null; }
+      }
+      const pristineBody = capturePristineBody();
+      // Only a page generated with --target artifact (title first in <body>) may republish itself
+      const artifactShaped = typeof pristineBody === 'string';
+      // window.claude carries only use(); resolve namespaces through it, never read window.claude.<name>
+      const claudeHost = artifactShaped && window.claude && typeof window.claude.use === 'function' ? window.claude : null;
+      // null: a plain file; 'pending': use() has not answered yet; 'publish': Save publishes a new artifact
+      // version; 'view-only': the viewer cannot save (Save hidden, Download .html offered)
+      let artifactMode = claudeHost ? 'pending' : null;
+      let artifactApi = null;
+      let downloadsApi = null;
+      let publishing = false;
+      let reloadExpected = false;   // a publish (or a conflict) makes the platform reload this view
+
       // --- STATE ---
       let chartData = { title: "", direction: "LR", lanes: [], nodes: [], edges: [] };
       let fileHandle = null;
@@ -1358,6 +1420,18 @@
       // Green means "this is on disk". A page nobody has saved yet is just "Ready" (neutral).
       function setStatusBadge(unsaved) {
         hasUnsavedChanges = unsaved;
+        if (unsaved) reloadExpected = false;
+        if (artifactMode === 'view-only') {
+          saveStatus.textContent = "View only";
+          saveStatus.className = "badge badge-status";
+          saveStatus.title = unsaved ? 'Your edits are not kept. Use Download .html to keep them.' : 'You cannot save this artifact.';
+          return;
+        }
+        if (artifactMode === 'publish' && !unsaved) {
+          saveStatus.textContent = "Saved to artifact";
+          saveStatus.className = "badge badge-status saved";
+          return;
+        }
         if (unsaved) {
           saveStatus.textContent = "Unsaved changes";
           saveStatus.className = "badge badge-status unsaved";
@@ -1940,12 +2014,36 @@
         }
       }
 
-      function downloadBlob(blob, ext) {
+      function exportFileName(ext) {
+        return ((chartData.title || plugin.id).toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '') || 'diagram') + '.' + ext;
+      }
+
+      // Inside an artifact the page cannot start a download itself; the viewer confirms one through the downloads
+      // capability. Anywhere else (or when it was not granted) this is the usual <a download>.
+      async function deliverFile(filename, blob) {
+        if (downloadsApi) {
+          try { await downloadsApi.save({ filename, data: blob }); } catch (err) {
+            showToast('Download did not complete: ' + (err && err.message || err));
+          }
+          return;
+        }
         const url = URL.createObjectURL(blob), a = document.createElement('a');
         a.href = url;
-        a.download = ((chartData.title || plugin.id).toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '') || 'diagram') + '.' + ext;
+        a.download = filename;
         document.body.appendChild(a); a.click(); document.body.removeChild(a);
         setTimeout(() => URL.revokeObjectURL(url), 2000);
+      }
+
+      function downloadBlob(blob, ext) { return deliverFile(exportFileName(ext), blob); }
+
+      // A short message that fades out; used for save and download problems inside an artifact
+      function showToast(message) {
+        const t = document.createElement('div');
+        t.className = 'toast';
+        t.setAttribute('role', 'status');
+        t.textContent = message;
+        document.body.appendChild(t);
+        setTimeout(() => t.remove(), 6000);
       }
 
       function svgDocument(svg) { return '<?xml version="1.0" encoding="UTF-8"?>\n' + svg; }
@@ -1973,6 +2071,7 @@
 
       function exportDiagram(format) {
         try {
+          if (format === 'html') { downloadHtmlFile(); return; }
           if (format === 'svg') {
             downloadBlob(new Blob([svgDocument(buildExportSvg().svg)], { type: 'image/svg+xml;charset=utf-8' }), 'svg');
             return;
@@ -2202,12 +2301,8 @@
         return html.slice(0, g) + line + html.slice(gEnd);
       }
 
-      async function saveToFile() {
-        chartData.title = chartTitleEl.textContent.trim();
-        const disk = plugin.toDisk ? plugin.toDisk(chartData) : { ...chartData };
-        delete disk._readme;
-        const updatedJson = formatJson(dataReadme === null ? disk : { _readme: dataReadme, ...disk });
-
+      // The text of this page as it was loaded: the file itself where the browser lets us fetch it, else the live document
+      async function loadSourceText() {
         let fullHtml = "";
         try {
           const res = await fetch(window.location.href);
@@ -2221,11 +2316,22 @@
           fullHtml = [...document.childNodes].map(n => n.nodeType === Node.DOCUMENT_TYPE_NODE ? '<!DOCTYPE html>'
             : n.nodeType === Node.COMMENT_NODE ? `<!--${n.data}-->` : (n.outerHTML || '')).join('\n');
         }
+        return fullHtml;
+      }
+
+      // The document to store: `sourceText` (this page's text) with the model, title and reading guide updated.
+      // Shared by the file and artifact writers; only the source text differs.
+      function buildSavedHtml(sourceText) {
+        chartData.title = chartTitleEl.textContent.trim();
+        const disk = plugin.toDisk ? plugin.toDisk(chartData) : { ...chartData };
+        delete disk._readme;
+        const updatedJson = formatJson(dataReadme === null ? disk : { _readme: dataReadme, ...disk });
+
         // Both patterns spell the full tag with type="application\/json": this file's own source contains
         // these regexes, and with the escaped slash they cannot match their own text. A shorter pattern such
         // as <script id="render-report"[\s\S]*?<\/script> matches this code itself and deletes the rest of
         // the page's main script, so the saved file opens with nothing working.
-        fullHtml = fullHtml.replace(/<script id="render-report" type="application\/json">[\s\S]*?<\/script>/, '');
+        const fullHtml = sourceText.replace(/<script id="render-report" type="application\/json">[\s\S]*?<\/script>/, '');
 
         // A replacement function, not a string: labels may contain $&, $' or $` that a string would expand
         // The page title (<title> and the header's <h1>) follows the diagram title. Both come before the main
@@ -2240,7 +2346,88 @@
           .replace(/(<h1 id="chart-title"[^>]*>)[\s\S]*?(<\/h1>)/, (_, open, close) => `${open}${pageTitle}${close}`));
 
         document.getElementById('diagram-data').textContent = `\n${updatedJson}\n  `;
+        return replacedHtml;
+      }
 
+      // The artifact-shaped document for the current state, built from the pristine copy of the page
+      function buildArtifactHtml() {
+        return buildSavedHtml(ARTIFACT_HEAD + pristineBody + ARTIFACT_TAIL);
+      }
+
+      // File shape of an artifact document (for Download .html): the title, reading guide, data block and styles go
+      // back into <head> in the order shell.html has them. Falls back to the document as is if the layout is unknown.
+      function artifactToFileHtml(doc) {
+        const body = doc.slice(ARTIFACT_HEAD.length, doc.length - ARTIFACT_TAIL.length);
+        const m = /^\s*(<title>[\s\S]*?<\/title>)\n(<!--[\s\S]*?-->)\n([\s\S]*?<\/style>)([\s\S]*)$/.exec(body);
+        if (!m) return doc;
+        return stampReadingGuide('<!DOCTYPE html>\n' + m[2] + '\n<html lang="en">\n<head>\n  <meta charset="UTF-8">\n' +
+          '  <meta name="viewport" content="width=device-width, initial-scale=1.0">\n  ' + m[1] + '\n' + m[3] +
+          '\n</head>\n<body>' + m[4].replace(ARTIFACT_END_MARKER + '\n', '') + '</body>\n</html>\n');
+      }
+
+      async function downloadHtmlFile() {
+        if (!artifactMode) return;
+        try {
+          const html = artifactToFileHtml(buildArtifactHtml());
+          await deliverFile(exportFileName('html'), new Blob([html], { type: 'text/html' }));
+        } catch (err) {
+          showToast('Download failed: ' + (err && err.message || err));
+        }
+      }
+
+      async function publishToArtifact() {
+        if (publishing || !artifactApi) return;
+        publishing = true;   // held until the whole attempt, including the one retry and its delay, is over
+        btnSave.disabled = true;
+        try {
+          for (let attempt = 0; ; attempt++) {
+            let html, snapshot;
+            try {
+              html = buildArtifactHtml();
+              snapshot = JSON.stringify(chartData);   // what this publish carries; an edit made while it runs is not in it
+              await artifactApi.publish(html);
+              savedJson = snapshot;
+              everSaved = true;
+              reloadExpected = true;   // the platform reloads every open view to the new version
+              updateStatus(false);
+              if (JSON.stringify(chartData) !== snapshot) updateStatus(true);   // edited mid-publish: still unsaved
+              return;
+            } catch (err) {
+              // Branch on err.code only (runtime contract: the message is not stable). Unknown codes count as upstream_error.
+              const KNOWN = ['conflict', 'not_writer', 'not_declared', 'too_large', 'invalid_content', 'read_only_path', 'rate_limited',
+                             'consent_required', 'upstream_error', 'not_granted', 'capability_disabled', 'capability_removed', 'transform_error'];
+              const code = err && KNOWN.includes(err.code) ? err.code : 'upstream_error';
+              if (code === 'conflict') {
+                // Someone else saved first. This view is already reloading to their version: no retry, no "unsaved" prompt
+                reloadExpected = true;
+                showToast('Someone else saved first. Showing their version.');
+              } else if (['not_writer', 'not_granted', 'not_declared', 'consent_required', 'capability_disabled',
+                          'capability_removed', 'read_only_path'].includes(code)) {
+                // Read-only for this view, permanently: hide Save, offer Download .html
+                artifactMode = 'view-only';
+                applyArtifactUi();
+                showToast('This view is read-only. Use Download .html to keep your edits.');
+              } else if (code === 'rate_limited') {
+                showToast('Saving too often. Wait a moment, then save again.');
+              } else if (code === 'too_large') {
+                showToast('This diagram is too large to save to the artifact. Use Download .html instead.');
+              } else if (code === 'upstream_error' && attempt === 0) {
+                // The one retryable failure: once more, after a short random delay
+                await new Promise(r => setTimeout(r, 500 + Math.random() * 1000));
+                continue;
+              } else {
+                showToast('Save failed (' + code + '): ' + ((err && err.message) || 'unknown error'));
+              }
+              return;
+            }
+          }
+        } finally {
+          publishing = false;
+          if (artifactMode === 'publish') btnSave.disabled = false;
+        }
+      }
+
+      async function writeFile(replacedHtml) {
         if ('showSaveFilePicker' in window) {
           try {
             if (!fileHandle) fileHandle = await loadStoredHandle();
@@ -2295,6 +2482,58 @@
         } catch (err) {
           alert("Save failed: " + err.message);
         }
+      }
+
+      async function saveToFile() {
+        if (artifactMode === 'publish') return publishToArtifact();
+        if (artifactMode === 'view-only') return downloadHtmlFile();
+        if (artifactMode === 'pending') return;   // use() has not answered yet; Save is disabled until it does
+        await writeFile(buildSavedHtml(await loadSourceText()));
+      }
+
+      // --- CLAUDE.AI ARTIFACT: which Save this page has ---
+      // use() resolves later (never during this first run) and gives null when this is not claude.ai, the capability
+      // was not granted, or the viewer cannot write. The page renders without it and switches over when it answers.
+      function applyArtifactUi() {
+        const old = document.getElementById('btn-download-html');
+        if (old) old.remove();
+        btnSave.hidden = artifactMode === 'view-only';
+        btnSave.disabled = artifactMode === 'pending' || publishing;
+        btnSave.title = artifactMode === 'pending' ? 'Connecting to claude.ai...' : 'Save a new version of this artifact (Ctrl+S)';
+        if (artifactMode === 'view-only') {
+          const b = btnSave.cloneNode(true);
+          b.id = 'btn-download-html';
+          b.hidden = false; b.disabled = false;
+          b.title = 'Download this diagram as an HTML file you can edit offline';
+          b.setAttribute('aria-label', 'Download HTML file');
+          b.querySelector('.btn-label').textContent = 'Download .html';
+          b.addEventListener('click', downloadHtmlFile);
+          btnSave.after(b);
+        }
+        if (!exportMenu.querySelector('[data-export="html"]')) {
+          const item = document.createElement('button');
+          item.type = 'button'; item.setAttribute('role', 'menuitem'); item.dataset.export = 'html';
+          item.textContent = 'HTML file (editable)';
+          exportMenu.querySelector('[data-export="png"]').after(item);
+        }
+        setStatusBadge(hasUnsavedChanges);
+      }
+
+      if (claudeHost) {
+        const useNamespace = (name) => {
+          try { return Promise.resolve(claudeHost.use(name)).then(v => v || null, () => null); }
+          catch (_) { return Promise.resolve(null); }
+        };
+        applyArtifactUi();
+        useNamespace('artifact').then(a => {
+          artifactApi = a;
+          artifactMode = a ? 'publish' : 'view-only';
+          applyArtifactUi();
+        });
+        useNamespace('downloads').then(d => { downloadsApi = d; });
+        window.addEventListener('beforeunload', (e) => {
+          if (artifactMode === 'publish' && hasUnsavedChanges && !reloadExpected) { e.preventDefault(); e.returnValue = ''; }
+        });
       }
 
       btnSave.addEventListener('click', saveToFile);

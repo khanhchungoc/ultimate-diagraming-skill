@@ -651,3 +651,13 @@
     .swatch-btn[aria-pressed="true"] { background: var(--primary-wash); border-color: var(--primary-ring); }
     .swatch-dot { display: block; width: 14px; height: 14px; border-radius: 50%; background: var(--sw-stripe); border: 1px solid rgba(0,0,0,0.18); box-sizing: border-box; }
     .swatch-dot.is-none { background: var(--bg-panel); border: 1.5px dashed var(--border-dark); }
+
+    .btn[hidden] { display: none; }
+
+    /* A short message (save conflicts, blocked downloads) inside a claude.ai artifact */
+    .toast {
+      position: fixed; left: 50%; bottom: 84px; transform: translateX(-50%); z-index: 50;
+      max-width: min(90vw, 420px); padding: 8px 14px; border-radius: 8px;
+      background: var(--text-main, #0f172a); color: var(--bg-panel, #fff);
+      font-size: 13px; box-shadow: 0 4px 16px rgba(0,0,0,.25);
+    }

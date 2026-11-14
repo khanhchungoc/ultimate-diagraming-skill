@@ -1,17 +1,19 @@
 // Interaction test for the shared shell through the flowchart plugin (the shell is type-independent;
 // dev/e2e_sequence.mjs covers the second plugin). Driven over the Chrome DevTools Protocol, see cdp.mjs.
 //
-//   node dev/e2e_shell.mjs --browser <chrome> --laid <laid-out.html> --scrambled <scrambled-positions.html>
+//   node dev/e2e_shell.mjs --browser <chrome> --laid <laid-out.html> --scrambled <scrambled-positions.html> [--artifact <html>]
 //
 // --laid:      page produced by `layout_engine.py --layout` (reference positions)
 // --scrambled: same diagram with node x/y scrambled (Auto-Tidy must restore the reference positions)
+// --artifact:  the same diagram from `layout_engine.py --layout ... --target artifact` (enables the claude.ai Artifact
+//              checks: Save publishes through a stubbed window.claude, see dev/plans/plan-artifact-output.md)
 // Exit codes: 0 all passed, 1 setup error, 2 a check failed.
 import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { argOf, launch, sleep } from './cdp.mjs';
 
-const browser = argOf('browser'), laid = argOf('laid'), scrambled = argOf('scrambled');
+const browser = argOf('browser'), laid = argOf('laid'), scrambled = argOf('scrambled'), artifact = argOf('artifact');
 if (!browser || !laid || !scrambled) { console.error('usage: --browser <chrome> --laid <html> --scrambled <html>'); process.exit(1); }
 
 const t = await launch(browser).catch((e) => { console.error('[ERROR]', e.message); process.exit(1); });
@@ -547,6 +549,168 @@ try {
     return a[0] < b[0] || (a[0] === b[0] && (a[1] < b[1] || (a[1] === b[1] && a[2] <= b[2]))); })());
   t.check('saved steps are in flow order (x, then lane, then y), with positions only in "layout"',
     inFlowOrder && saved2.nodes.every(n => !('x' in n) && !('y' in n)) && saved2.lanes.every(l => !('height' in l)));
+  // 12. claude.ai Artifact (only with --artifact): Save publishes through the artifact capability. window.claude is
+  //     stubbed before the page's scripts run; use() answers from a script-controlled config.
+  if (artifact) {
+    const generatedArt = readFileSync(artifact, 'utf8').replace(/\r\n/g, '\n');
+    const skeleton = generatedArt.slice(0, generatedArt.indexOf('<body>') + 6);
+    const stub = (cfg) => `(() => {
+      const cfg = ${JSON.stringify(cfg)};
+      window.__pub = []; window.__dl = [];
+      window.claude = { use: async (name) => {
+        if (name === 'artifact') {
+          if (cfg.artifact === null) return null;
+          return { publish: async (html) => { window.__pub.push(html); await new Promise(r => setTimeout(r, window.__delay || 150)); if (window.__reject) throw Object.assign(new Error('stub ' + window.__reject), { code: window.__reject }); } };
+        }
+        if (name === 'downloads') return cfg.downloads === false ? null : { save: async (a) => { window.__dl.push({ filename: a.filename, type: a.data.type, text: typeof a.data === 'string' ? a.data : await a.data.text() }); } };
+        return null;
+      } };
+      // What a viewer may inject at run time: a runtime script in <head> and one appended to <body> after our content
+      if (cfg.inject) document.addEventListener('DOMContentLoaded', () => {
+        const s = document.createElement('script'); s.id = 'claude-runtime-probe'; s.textContent = '/* injected */';
+        document.head.appendChild(s.cloneNode(true)); document.body.appendChild(s);
+      });
+    })()`;
+    let stubId = null;
+    const openWith = async (cfg) => {
+      if (stubId) await t.send('Page.removeScriptToEvaluateOnNewDocument', { identifier: stubId });
+      stubId = cfg ? (await t.send('Page.addScriptToEvaluateOnNewDocument', { source: stub(cfg) })).identifier : null;
+      await t.open(artifact);
+      await sleep(300);
+    };
+    const badge = () => t.ev(`document.getElementById('save-status').textContent`);
+    const toast = () => t.ev(`[...document.querySelectorAll('.toast')].map(x => x.textContent).join('|')`);
+    const saveVisible = () => t.ev(`getComputedStyle(document.getElementById('btn-save')).display !== 'none' && !document.getElementById('btn-save').disabled`);
+    const dataBlockOf = (html) => (html.match(/<script id="diagram-data" type="application\/json">([\s\S]*?)<\/script>/) || [])[1];
+    const genBlock = dataBlockOf(generatedArt);
+    const rename = (name) => t.ev(`(() => { const h = document.getElementById('chart-title'); h.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+      h.textContent = ${JSON.stringify(name)}; h.blur(); if (h.isContentEditable) h.dispatchEvent(new FocusEvent('blur')); })()`);
+
+    // 12a. Inside an artifact: Save publishes once (a double click is one publish), in the exact skeleton
+    await openWith({ inject: true });
+    t.check('artifact: badge reads "Saved to artifact" and Save is enabled once use("artifact") resolves',
+      (await badge()) === 'Saved to artifact' && await saveVisible() && t.errors.length === 0, `${await badge()} ${t.errors.join(' | ')}`);
+    await t.ev(`(() => { document.getElementById('btn-save').click(); document.getElementById('btn-save').click(); window.dispatchEvent(new KeyboardEvent('keydown', { key: 's', ctrlKey: true, bubbles: true })); })()`);
+    await sleep(500);
+    const pub = JSON.parse(await t.ev(`JSON.stringify(window.__pub)`));
+    t.check('artifact: Save publishes exactly once (double click and Ctrl+S while in flight add nothing)', pub.length === 1, `publishes=${pub.length}`);
+    const doc = pub[0] || '';
+    t.check('artifact: the published document starts with the exact skeleton and ends with </body></html>',
+      doc.startsWith(skeleton + '\n<title>') && doc.endsWith('</body></html>') && doc.slice(0, doc.indexOf('<body>') + 6) === skeleton, doc.slice(0, 300));
+    t.check('artifact: the published data block is byte-identical to the generator\'s', dataBlockOf(doc) === genBlock);
+    t.check('artifact: nothing the viewer injected is published (scripts added to <head> and after our content)',
+      doc.length > 0 && !doc.includes('claude-runtime-probe') && doc.endsWith('<!-- end ultimate-diagram page -->\n</body></html>'), doc.slice(-120));
+    t.check('artifact: nothing the page added at runtime is published (render report, selection state)',
+      !doc.includes('<script id="render-report" type="application/json">') && !/class="[^"]*\bselected\b/.test(doc.slice(0, doc.lastIndexOf('<script>'))) && doc.split('<script id="diagram-data" type="application/json">').length === 2);
+    const starts = (h, n) => h.split('\n').slice(0, n).join('\n');
+    const gl = doc.match(/on lines (\d+)-(\d+) of this file/);
+    const realStart = doc.slice(0, doc.indexOf('<script id="diagram-data" type="application/json">')).split('\n').length, realEnd = doc.slice(0, doc.indexOf('<!-- end diagram-data -->')).split('\n').length;
+    t.check('artifact: the published reading guide names the real line range', gl && +gl[1] === realStart && +gl[2] === realEnd, `${gl && gl[0]} vs ${realStart}-${realEnd}`);
+    t.check('artifact: the page after publishing says "Saved to artifact"', (await badge()) === 'Saved to artifact' && await saveVisible());
+    // The page's own markup survives the round trip: same top-level structure as the generated page
+    const tags = (h) => [...h.matchAll(/<(header|aside|style|link|script)\b/g)].map(m => m[1]).join(',');
+    t.check('artifact: the published page keeps the generated page\'s elements (header, styles, scripts, help)', tags(doc) === tags(generatedArt), `${tags(doc)} vs ${tags(generatedArt)}`);
+
+    // 12b. An edit: Unsaved changes, then the published title and data follow it
+    await rename('Edited <title>');
+    t.check('artifact: an edit shows "Unsaved changes"', (await badge()) === 'Unsaved changes');
+    await t.ev(`document.getElementById('btn-save').click()`);
+    await sleep(500);
+    const pub2 = JSON.parse(await t.ev(`JSON.stringify(window.__pub)`));
+    const doc2 = pub2[1] || '';
+    t.check('artifact: the second publish carries the new title in <title>, <h1> and the data block',
+      pub2.length === 2 && doc2.startsWith(skeleton + '\n<title>Edited &lt;title&gt;</title>') && /<h1 id="chart-title"[^>]*>Edited &lt;title&gt;<\/h1>/.test(doc2)
+      && JSON.parse(dataBlockOf(doc2)).title === 'Edited <title>', doc2.slice(skeleton.length, skeleton.length + 80));
+    // A published document opens as a plain file with the same diagram (round trip through --extract's data block)
+    const pubFile = join(dlDir, 'published.html');
+    writeFileSync(pubFile, doc2);
+    await t.open(pubFile);
+    t.check('artifact: the published document opens (no window.claude) with its title and every step',
+      (await t.ev(`document.getElementById('chart-title').textContent`)) === 'Edited <title>'
+      && (await t.ev(`document.querySelectorAll('.flow-node').length`)) === genModel.nodes.length && t.errors.length === 0, t.errors.join(' | '));
+
+    // 12c. Rejections
+    await openWith({});
+    await t.ev(`window.__reject = 'conflict'`);
+    await rename('X1');
+    await t.ev(`document.getElementById('btn-save').click()`);
+    await sleep(500);
+    t.check('artifact: a conflict shows a toast and is not retried', /Someone else saved first/.test(await toast()) && (await t.ev(`window.__pub.length`)) === 1, await toast());
+    await openWith({});
+    await t.ev(`window.__reject = 'not_writer'`);
+    await rename('X2');
+    await t.ev(`document.getElementById('btn-save').click()`);
+    await sleep(500);
+    t.check('artifact: not_writer switches to View only with Download .html',
+      (await badge()) === 'View only' && !(await saveVisible()) && await t.ev(`!!document.getElementById('btn-download-html')`) && /read-only/.test(await toast()), `${await badge()} ${await toast()}`);
+    await openWith({});
+    await t.ev(`window.__reject = 'network down'`);   // an unknown code counts as upstream_error: retried once
+    await rename('X3');
+    await t.ev(`document.getElementById('btn-save').click()`);
+    await sleep(2600);
+    t.check('artifact: upstream_error (or an unknown code) is retried once, then toasts, keeps "Unsaved changes" and re-enables Save',
+      /Save failed \(upstream_error\)/.test(await toast()) && (await t.ev(`window.__pub.length`)) === 2 && (await badge()) === 'Unsaved changes' && await saveVisible(),
+      `${await toast()} ${await badge()} publishes=${await t.ev(`window.__pub.length`)}`);
+    await openWith({});
+    await t.ev(`window.__reject = 'rate_limited'`);
+    await rename('X4');
+    await t.ev(`document.getElementById('btn-save').click()`);
+    await sleep(500);
+    t.check('artifact: rate_limited is not retried and asks the viewer to wait',
+      /Saving too often/.test(await toast()) && (await t.ev(`window.__pub.length`)) === 1 && await saveVisible(), await toast());
+
+    // 12c'. Ctrl+S while the one retry waits is not a second publish
+    await openWith({});
+    await t.ev(`window.__reject = 'upstream_error'`);
+    await rename('X5');
+    await t.ev(`document.getElementById('btn-save').click()`);
+    await sleep(400);   // the first publish has failed and the retry delay (0.5-1.5 s) is running
+    await t.ev(`window.dispatchEvent(new KeyboardEvent('keydown', { key: 's', ctrlKey: true, bubbles: true }))`);
+    await sleep(2600);
+    t.check('artifact: Ctrl+S during the retry delay adds no third publish (first try + one retry only)',
+      (await t.ev(`window.__pub.length`)) === 2, `publishes=${await t.ev(`window.__pub.length`)}`);
+    // 12c''. An edit made while a publish is in flight stays "Unsaved changes"
+    await openWith({});
+    await t.ev(`window.__delay = 600`);
+    await t.ev(`document.getElementById('btn-save').click()`);
+    await sleep(150);
+    await rename('Edited mid-publish');
+    await sleep(900);
+    t.check('artifact: an edit made while a publish is in flight is not reported as saved',
+      (await badge()) === 'Unsaved changes', await badge());
+
+    // 12d. use("artifact") -> null: a viewer who cannot save
+    await openWith({ artifact: null });
+    t.check('artifact: use() -> null shows "View only", hides Save and offers Download .html',
+      (await badge()) === 'View only' && !(await saveVisible()) && await t.ev(`!!document.getElementById('btn-download-html') && !document.getElementById('btn-download-html').hidden`), await badge());
+    await t.ev(`document.getElementById('btn-download-html').click()`);
+    await sleep(500);
+    const dl = JSON.parse(await t.ev(`JSON.stringify(window.__dl)`));
+    const fileDoc = (dl[0] || {}).text || '';
+    t.check('artifact: Download .html hands the downloads capability a file-shaped page (doctype, head, data block, guide on line 2)',
+      dl.length === 1 && /\.html$/.test(dl[0].filename) && fileDoc.startsWith('<!DOCTYPE html>\n<!-- For agents:') && fileDoc.indexOf('<head>') > 0
+      && fileDoc.indexOf('id="diagram-data"') < fileDoc.indexOf('</head>') && dataBlockOf(fileDoc) === genBlock && (await t.ev(`window.__pub.length`)) === 0, fileDoc.slice(0, 200));
+    const dlFile = join(dlDir, 'downloaded.html');
+    writeFileSync(dlFile, fileDoc);
+    await t.open(dlFile);
+    t.check('artifact: the downloaded file opens as an ordinary diagram page',
+      (await t.ev(`document.querySelectorAll('.flow-node').length`)) === genModel.nodes.length && t.errors.length === 0 && (await badge()) === 'Ready', t.errors.join(' | '));
+    // Export SVG goes through the downloads capability instead of <a download>
+    await openWith({});
+    await t.ev(`document.getElementById('btn-export').click()`);
+    await t.ev(`document.querySelector('[data-export="svg"]').click()`);
+    await sleep(500);
+    const dl2 = JSON.parse(await t.ev(`JSON.stringify(window.__dl)`));
+    t.check('artifact: Export SVG goes through downloads.save', dl2.length === 1 && /\.svg$/.test(dl2[0].filename) && dl2[0].text.includes('<svg'), JSON.stringify(dl2).slice(0, 200));
+
+    // 12e. No window.claude: exactly today's file behaviour
+    await openWith(null);
+    t.check('artifact page without window.claude behaves as a file: Ready badge, Save enabled, no artifact UI',
+      (await badge()) === 'Ready' && await saveVisible() && await t.ev(`!document.getElementById('btn-download-html') && !document.querySelector('[data-export="html"]')`));
+    const savedArt = await saveAndRead();
+    t.check('artifact page without window.claude: Save downloads a file whose data block is byte-identical',
+      savedArt && dataBlockOf(savedArt) === genBlock && (await badge()) !== 'Saved to artifact', `${savedArt.length} chars`);
+  }
 } catch (err) {
   console.error('[ERROR]', err.message);
   code = 1;

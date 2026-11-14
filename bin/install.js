@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { spawnSync } from 'node:child_process';
+import readline from 'node:readline/promises';
 import { fileURLToPath } from 'node:url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -30,6 +31,8 @@ let scope = 'user';
 let runtime = 'all';
 let mode = 'symlink';
 let targetPath = process.cwd();
+let claudeOutput = null;   // ask | artifact | file; null = not given (prompt when interactive)
+const CLAUDE_OUTPUTS = ['ask', 'artifact', 'file'];
 
 // Detect if running from a temporary npx cache
 const isNpxCache = REPO_ROOT.includes('_npx') || 
@@ -61,6 +64,13 @@ for (let i = 0; i < args.length; i++) {
     mode = 'symlink';
   } else if (arg === '--target-path' || arg === '-t') {
     targetPath = path.resolve(args[++i] || process.cwd());
+  } else if (arg === '--claude-output') {
+    const val = (args[++i] || '').toLowerCase();
+    if (!CLAUDE_OUTPUTS.includes(val)) {
+      console.error(`\n${c.red}✖ Error: --claude-output must be one of: ${CLAUDE_OUTPUTS.join(', ')}${c.reset}\n`);
+      process.exit(1);
+    }
+    claudeOutput = val;
   } else if (arg === '--help' || arg === '-h') {
     printHelp();
     process.exit(0);
@@ -82,6 +92,10 @@ ${c.bold}Options:${c.reset}
   -p, --project             Install in current project / workspace directory
   -a, -r, --runtime <name>  Target runtime: antigravity, claude, copilot, codex, gemini, kiro, or all (default: all)
   -m, --mode <symlink|copy> Installation method (auto-detected: copy for npx, symlink for local clones)
+  --claude-output <ask|artifact|file>
+                            Claude Code only: publish diagrams as claude.ai Artifacts, write HTML files, or ask each
+                            time (default: ask). Saved to .claude/ultimate-diagram.json (never in the skill folder);
+                            prompted when run in a terminal without this flag.
   -h, --help                Show this help message
 
 ${c.bold}Supported Runtimes:${c.reset}
@@ -150,6 +164,42 @@ console.log(`${c.cyan} ⚙  CONFIGURATION${c.reset}`);
 console.log(`    ${c.gray}•${c.reset} Scope:    ${c.white}${scope === 'user' ? 'Global' : 'Project'}${c.reset} ${c.dim}(${scope === 'user' ? 'User Home' : targetPath})${c.reset}`);
 console.log(`    ${c.gray}•${c.reset} Mode:     ${c.white}${mode === 'symlink' ? 'Symlink' : 'Copy'}${c.reset} ${c.dim}(${mode === 'symlink' ? 'auto-updating junction' : 'standalone copy'})${c.reset}`);
 console.log(`    ${c.gray}•${c.reset} Target:   ${c.white}${normalizedRuntime === 'all' ? 'All Runtimes' : (runtimeLabels[normalizedRuntime] || normalizedRuntime)}${c.reset} ${c.dim}(${runtimesToInstall.length} runtime${runtimesToInstall.length > 1 ? 's' : ''})${c.reset}\n`);
+
+// Claude Code only: where a diagram goes. Stored beside Claude Code's own settings, never inside the skill folder
+// (which may be a symlink to this repo). SKILL.md reads it.
+const claudeSelected = runtimesToInstall.includes('claude');
+const claudeConfigPath = scope === 'user'
+  ? path.join(USER_HOME, '.claude', 'ultimate-diagram.json')
+  : path.join(targetPath, '.claude', 'ultimate-diagram.json');
+
+async function promptClaudeOutput() {
+  console.log(`${c.cyan} ?  CLAUDE CODE OUTPUT${c.reset}`);
+  console.log('    In Claude Code, publish diagrams as claude.ai Artifacts, write HTML files, or ask each time?');
+  console.log(`      ${c.white}1${c.reset} ask each time ${c.dim}(default)${c.reset}`);
+  console.log(`      ${c.white}2${c.reset} claude.ai Artifact ${c.dim}(private page, Save updates it in place)${c.reset}`);
+  console.log(`      ${c.white}3${c.reset} HTML file ${c.dim}(in the project folder, works offline)${c.reset}`);
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+  try {
+    const answer = (await rl.question('    Choose [1-3]: ')).trim().toLowerCase();
+    console.log('');
+    return { '2': 'artifact', artifact: 'artifact', '3': 'file', file: 'file' }[answer] || 'ask';
+  } finally {
+    rl.close();
+  }
+}
+
+let claudeOutputWritten = false;
+if (claudeSelected && claudeOutput === null && process.stdin.isTTY && process.stdout.isTTY) {
+  claudeOutput = await promptClaudeOutput();
+}
+if (claudeSelected && claudeOutput !== null) {
+  let cfg = {};
+  try { cfg = JSON.parse(fs.readFileSync(claudeConfigPath, 'utf8')) || {}; } catch { /* none yet */ }
+  cfg.output = claudeOutput;
+  fs.mkdirSync(path.dirname(claudeConfigPath), { recursive: true });
+  fs.writeFileSync(claudeConfigPath, JSON.stringify(cfg, null, 2) + '\n');
+  claudeOutputWritten = true;
+}
 
 console.log(`${c.cyan} ✦  INSTALLING RUNTIMES${c.reset}`);
 
@@ -287,6 +337,11 @@ console.log(`${c.border}${emptyLine}${c.reset}`);
 console.log(`${c.border}${boxLine(`${c.bold}${c.white}How to use:${c.reset}`)}${c.reset}`);
 console.log(`${c.border}${boxLine(`  Ask your AI assistant: "create a flowchart for..."${c.reset}`)}${c.reset}`);
 console.log(`${c.border}${boxLine(`  or reference ${c.cyan}/ultimate-diagram${c.reset} in chat${c.reset}`)}${c.reset}`);
+if (claudeSelected) {
+  const shown = claudeOutputWritten ? claudeOutput : 'ask';
+  console.log(`${c.border}${boxLine(`  Claude Code output: ${c.cyan}${shown}${c.reset}${claudeOutputWritten ? '' : c.dim + ' (default)' + c.reset}`)}${c.reset}`);
+  console.log(`${c.border}${boxLine(`${c.dim}  change: --claude-output, or .claude/ultimate-diagram.json${c.reset}`)}${c.reset}`);
+}
 console.log(`${c.border}${emptyLine}${c.reset}`);
 console.log(`${c.border}${boxLine(`${c.dim}Repository: https://github.com/khanhchungoc/ultimate-diagraming-skill${c.reset}`)}${c.reset}`);
 console.log(`${c.border}${bottomBorder}${c.reset}\n`);

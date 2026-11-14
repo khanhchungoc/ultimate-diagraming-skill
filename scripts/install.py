@@ -10,6 +10,7 @@ Zero external dependencies - standard library only.
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import shutil
 import subprocess
@@ -115,6 +116,15 @@ def main() -> int:
         help="Target workspace root for project-level scope. Default: current working directory.",
     )
 
+    parser.add_argument(
+        "--claude-output",
+        choices=["ask", "artifact", "file"],
+        default=None,
+        help="Claude Code only: publish diagrams as claude.ai Artifacts, write HTML files, or ask each time "
+             "(default: ask). Saved to .claude/ultimate-diagram.json, never inside the skill folder; "
+             "prompted when run in a terminal without this flag.",
+    )
+
     args = parser.parse_args()
 
     repo_root = Path(__file__).resolve().parent.parent
@@ -139,6 +149,31 @@ def main() -> int:
         targets = {selected_runtime: destinations[selected_runtime]}
     else:
         targets = destinations
+
+    # Claude Code only: where a diagram goes. Stored beside Claude Code's own settings, never inside the skill
+    # folder (which may be a symlink to this repo). SKILL.md reads it.
+    claude_selected = "claude" in targets
+    claude_config = (Path.home() if args.scope == "user" else target_path) / ".claude" / "ultimate-diagram.json"
+    claude_output = args.claude_output
+    if claude_selected and claude_output is None and sys.stdin.isatty() and sys.stdout.isatty():
+        print("In Claude Code, publish diagrams as claude.ai Artifacts, write HTML files, or ask each time?")
+        print("  1) ask each time (default)\n  2) claude.ai Artifact (private page, Save updates it in place)\n"
+              "  3) HTML file (in the project folder, works offline)")
+        try:
+            answer = input("Choose [1-3]: ").strip().lower()
+        except EOFError:
+            answer = ""
+        claude_output = {"2": "artifact", "artifact": "artifact", "3": "file", "file": "file"}.get(answer, "ask")
+        print()
+    if claude_selected and claude_output is not None:
+        try:
+            cfg = json.loads(claude_config.read_text(encoding="utf-8"))
+            cfg = cfg if isinstance(cfg, dict) else {}
+        except (OSError, ValueError):
+            cfg = {}
+        cfg["output"] = claude_output
+        claude_config.parent.mkdir(parents=True, exist_ok=True)
+        claude_config.write_text(json.dumps(cfg, indent=2) + "\n", encoding="utf-8")
 
     canonical_repo = repo_root.resolve()
     installed = 0
@@ -167,6 +202,9 @@ def main() -> int:
 
     print()
     print(f"[SUCCESS] Installed ultimate-diagram to {installed} target(s).")
+    if claude_selected:
+        shown = claude_output if claude_output is not None else "ask (default)"
+        print(f"    Claude Code output: {shown}. Change it with --claude-output or \"output\" in {claude_config}")
     print(flush=True)
     # Check the installed copy itself, so a copy that missed files is caught.
     check = subprocess.run([sys.executable, str(last_dest / "scripts" / "check_env.py")])

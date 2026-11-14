@@ -1,16 +1,18 @@
 // Interaction test for the sequence plugin: selection, editing (create, rename, retarget, reorder, frames, branches,
-// notes, keyboard), reading a long diagram (pinned row, collapse, ?present) and the saved data block.
+// notes, keyboard), reading a long diagram (pinned row, collapse, ?present), the saved data block and, with
+// --artifact, Save inside a claude.ai artifact.
 // Driven with real mouse and keyboard input over the Chrome DevTools Protocol (see cdp.mjs): a synthetic DOM
 // event may only be used where a comment says why.
-//   node dev/e2e_sequence.mjs --browser <chrome> --page <checkout.html> --long <payment.html>
+//   node dev/e2e_sequence.mjs --browser <chrome> --page <checkout.html> --long <payment.html> [--artifact <html>]
 // --page: dev/fixtures/sequence/checkout-with-fragments.json laid out with `layout_engine.py --layout`.
 // --long: dev/fixtures/sequence/payment-phases.json laid out the same way (uses every optional field).
+// --artifact: the --page fixture laid out with `--target artifact`.
 // Exit codes: 0 all passed, 1 setup error, 2 a check failed.
 import { readFileSync } from 'node:fs';
 import { argOf, launch, sleep } from './cdp.mjs';
 
-const browser = argOf('browser'), page = argOf('page'), long = argOf('long');
-if (!browser || !page || !long) { console.error('usage: --browser <chrome> --page <html> --long <html>'); process.exit(1); }
+const browser = argOf('browser'), page = argOf('page'), long = argOf('long'), artifact = argOf('artifact');
+if (!browser || !page || !long) { console.error('usage: --browser <chrome> --page <html> --long <html> [--artifact <html>]'); process.exit(1); }
 
 const t = await launch(browser).catch((e) => { console.error('[ERROR]', e.message); process.exit(1); });
 let code = 0;
@@ -713,6 +715,24 @@ try {
   await t.clickOn('.seq-frag-label[data-frag-id="f3"] .seq-frag-focus');
   t.check('and pressing Focus again there shows every frame', (await summaries()) === 0);
   t.check('collapse and expand work in ?present, and change the view only', presentCollapsed === 1 && (await count('.seq-frag-summary')) === 0 && !/unsaved/i.test(badge) && t.errors.length === 0, `${presentCollapsed} ${badge}`);
+
+  // claude.ai Artifact (only with --artifact): Save publishes through a stubbed window.claude; the sequence page
+  // saves no positions, so the published block must still be the generated one
+  if (artifact) {
+    const gen = readFileSync(artifact, 'utf8').replace(/\r\n/g, '\n');
+    const skeleton = gen.slice(0, gen.indexOf('<body>') + 6);
+    const blockOf = (h) => (h.match(/<script id="diagram-data" type="application\/json">([\s\S]*?)<\/script>/) || [])[1];
+    const { identifier } = await t.send('Page.addScriptToEvaluateOnNewDocument', { source: `window.__pub = [];
+      window.claude = { use: async (n) => n === 'artifact' ? { publish: async (h) => { window.__pub.push(h); } } : null };` });
+    await t.open(artifact);
+    await t.ev(`document.getElementById('btn-save').click()`);
+    await sleep(400);
+    const pub = JSON.parse(await t.ev(`JSON.stringify(window.__pub)`));
+    t.check('artifact: Save publishes once, in the skeleton, with the generated data block and no positions',
+      pub.length === 1 && pub[0].startsWith(skeleton + '\n<title>') && pub[0].endsWith('</body></html>') && blockOf(pub[0]) === blockOf(gen)
+      && !/"(x|y|w|h|elseY|layout)":/.test(blockOf(pub[0])) && t.errors.length === 0, `${pub.length} ${t.errors.join(' | ')}`);
+    await t.send('Page.removeScriptToEvaluateOnNewDocument', { identifier });
+  }
 } catch (err) {
   console.error('[ERROR]', err.message);
   code = 1;

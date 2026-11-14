@@ -1,6 +1,6 @@
 ---
 name: ultimate-diagram
-description: "Create, verify, edit and read diagrams as one standalone, editable HTML file (drag-and-drop, Auto-Tidy, Save). Supports swimlane flowcharts and sequence diagrams. Use for interactive, shareable diagram pages, and to read, summarize or explain an existing diagram page (an .html with a \"diagram-data\" block): run its --extract command, never open the .html whole."
+description: "Create, verify, edit and read diagrams as one standalone, editable HTML file or claude.ai Artifact (drag-and-drop, Auto-Tidy, Save). Supports swimlane flowcharts and sequence diagrams. Use for interactive, shareable diagram pages, and to read, summarize or explain an existing diagram page (an .html with a \"diagram-data\" block): run its --extract command, never open the .html whole."
 ---
 
 # Ultimate Diagram Skill
@@ -11,6 +11,17 @@ Turn a process description into one self-contained, editable HTML diagram. You w
 - `<skill-dir>` is the folder containing this `SKILL.md`. Run scripts by full path (`python "<skill-dir>/scripts/layout_engine.py" ...`; use `python3` where `python` is not on PATH).
 - **Workspace**: write only the final HTML there: the user's path, else `<title-slug>.html` in the workspace root. The HTML embeds its JSON; leave no `.json` in the workspace unless the user asked for one.
 - **Scratch**: the authoring JSON and the screenshot PNG go to the host's scratch directory (else the system temp directory). Delete them in one command at the end; do not check the deletion or probe the workspace afterwards.
+
+---
+
+## Output choice (Claude Code only)
+
+Applies only if your tools include `Artifact` (it publishes claude.ai Artifacts). Without it, write the HTML file as below and do not ask. Otherwise decide once, before writing anything:
+1. The user already said ("as an artifact", "save to docs/flow.html"): follow it.
+2. Else a saved default: `output` in `<project>/.claude/ultimate-diagram.json`, else in `~/.claude/ultimate-diagram.json`. `artifact` or `file`: follow it. `ask` or no file: go to 3.
+3. Else ask once with `AskUserQuestion`: **Artifact** (private claude.ai page, editable, Save updates it in place, shareable by link) or **HTML file** (`<title-slug>.html` in the project folder, works offline). Keep the answer for the rest of the conversation. If the user says "always", write `{"output": "artifact"}` (or `file`) to `<project>/.claude/ultimate-diagram.json`.
+
+*Artifact output* changes the procedures below only as stated in [Artifact output](#artifact-output).
 
 ---
 
@@ -81,10 +92,18 @@ Use when the user saved edits in the browser, or asks to change a diagram that a
 
 ---
 
+## Artifact output
+
+- **New**: step 3 uses `--target artifact` and writes to scratch (`-o <scratch>/<title-slug>.html`), never the workspace. After a clean run (step 6), publish with the `Artifact` tool: `file_path` = that HTML, `icon: "chart"`, `capabilities: {artifact: {}, downloads: true}`, and a one-sentence `description`. Delete the scratch JSON and PNG, but keep the scratch HTML until the conversation ends: an update republishes from it.
+- **Read**: `Artifact read` with the URL saves the page to a local file and names it; run `--extract` on that file. Never read it whole. For an artifact the user does not own, the read returns a summary only: say so and offer a new artifact.
+- **Update**: `Artifact read` (returns the user's latest in-browser saves) → `--extract <saved file> -o <scratch.json>` → edit → `--layout <scratch.json> --target artifact -o <saved file>` → publish again with `url` = the artifact's URL and no `capabilities`. The re-layout warning applies.
+
+---
+
 ## Final Report
 
 About 5 lines: the file, and anything that needs the user's action. Not a log of your checks.
 
-- the output path and a concise description (type, and participant list);
+- the output path (for an artifact: its link, that Save inside it updates it, that only people with edit access can save, and that it is private until the user shares it from claude.ai) and a concise description (type, and participant list);
 - assumptions: anything you added or reordered that the source did not state, and each conflict between sources with the version you followed;
 - problems only: score if below 100, any `[WARN]` left, labels shortened from the user's wording, a split diagram and why, what a re-layout reset (updates), an overlap check done by eye.

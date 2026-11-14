@@ -1103,14 +1103,52 @@ AUDITS = {"flowchart": FlowchartAudit, "sequence": SequenceAudit}
 # DISK_CODECS (disk_format.py): per type, (to_disk, from_disk) between the in-memory model and the page block
 
 ASSETS_DIR = Path(__file__).resolve().parent.parent / "assets"
+TARGETS = ("file", "artifact")
 
 
 def _read_asset(path: Path) -> str:
     return path.read_text(encoding="utf-8")  # text mode normalizes CRLF to LF
 
 
-def assemble_page(kind: str, data: Optional[Dict[str, Any]] = None) -> str:
-    """Build one standalone HTML page: shared shell + the diagram type's plugin, with `data` embedded."""
+# --- claude.ai Artifact target ---------------------------------------------------------------------------------
+# A page that republishes itself (editor Save inside a claude.ai artifact) must be exactly this skeleton, then the
+# page content, then the closing tags: that is the shape the Artifact tool publishes, and any other shape makes a
+# later publish nest one page inside another. Nothing else may sit in <head>, with no whitespace between the tags.
+# The same two constants live in assets/shell/shell.js (ARTIFACT_RESET_CSS, ARTIFACT_HEAD); dev/check_artifact_shape.py
+# fails if they differ. The RESET text is copied byte for byte from an `Artifact read` of a published page (verified
+# 2026-11-14, runtime contract 0.2.96); if claude.ai changes its skeleton, copy the new one into both constants.
+ARTIFACT_RESET_CSS = ":root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}"
+ARTIFACT_HEAD = ('<!doctype html><html><head><meta charset=utf8><meta name=viewport '
+                 'content="width=device-width,initial-scale=1,viewport-fit=cover">'
+                 f'<style>{ARTIFACT_RESET_CSS}</style></head><body>')
+ARTIFACT_TAIL = "</body></html>"
+# Last line of our own content in an artifact page. The editor keeps only <title>..this marker when it republishes,
+# so anything the claude.ai viewer appends to <body> at run time is never saved back. Mirrored in shell.js.
+ARTIFACT_END_MARKER = "<!-- end ultimate-diagram page -->"
+
+
+def artifact_template(shell_html: str) -> str:
+    """The artifact page template, derived from shell.html so the two cannot drift: the skeleton, then the page's
+    title, reading guide, data block, fonts and styles (everything shell.html keeps in <head>) moved into <body>,
+    then the unchanged body. The doctype and the head's own charset/viewport metas are dropped (the skeleton has
+    them). The data block stays above the styles, so an agent's read of lines 1-E still ends before the CSS."""
+    m = re.match(r"(?P<pre>\s*<!DOCTYPE html>\n)(?P<guide><!--[\s\S]*?-->\n)<html[^>]*>\n<head>\n"
+                 r"(?P<head>[\s\S]*?)</head>\n<body>(?P<body>[\s\S]*)</body>\n</html>\s*$", shell_html)
+    if not m:
+        raise ValueError("shell.html no longer has the expected doctype / guide / head / body layout")
+    head = re.sub(r"^[ \t]*<meta [^>]*>\n", "", m["head"], flags=re.M)
+    title = re.search(r"[ \t]*<title>[^\n]*</title>\n", head)
+    if not title or head.count("<title>") != 1:
+        raise ValueError("shell.html head must hold exactly one <title> line")
+    head = head.replace(title[0], "", 1)
+    return ARTIFACT_HEAD + "\n" + title[0].lstrip() + m["guide"] + head + m["body"] + ARTIFACT_END_MARKER + "\n" + ARTIFACT_TAIL
+
+
+def assemble_page(kind: str, data: Optional[Dict[str, Any]] = None, target: str = "file") -> str:
+    """Build one standalone HTML page: shared shell + the diagram type's plugin, with `data` embedded.
+    target "file" is the page as saved on disk; "artifact" is the same page in the claude.ai Artifact shape."""
+    if target not in TARGETS:
+        raise ValueError(f"unknown target {target!r}; expected one of {', '.join(TARGETS)}")
     type_dir = ASSETS_DIR / "types" / kind
     if not type_dir.is_dir():
         raise FileNotFoundError(f"No assets for diagram type {kind!r} at: {type_dir}")
@@ -1138,7 +1176,10 @@ def assemble_page(kind: str, data: Optional[Dict[str, Any]] = None) -> str:
         "TYPE_JS": icons_js + _read_asset(type_dir / f"{kind}.js").rstrip(chr(10)),
     }
     # One pass: substituted text is never re-scanned, and an unknown placeholder fails loudly.
-    page = re.sub(r"\{\{([A-Z_]+)\}\}", lambda m: parts[m.group(1)], _read_asset(ASSETS_DIR / "shell" / "shell.html"))
+    template = _read_asset(ASSETS_DIR / "shell" / "shell.html")
+    if target == "artifact":
+        template = artifact_template(template)
+    page = re.sub(r"\{\{([A-Z_]+)\}\}", lambda m: parts[m.group(1)], template)
     return stamp_reading_guide(page)  # the guide's line numbers, from the finished text
 
 
@@ -1155,9 +1196,9 @@ def find_external_refs(html_text: str) -> List[str]:
     return sorted({r for r in refs if not ALLOWED_EXTERNAL.match(re.sub(r"""^(?:src|href)\s*=\s*["']""", "", r))})
 
 
-def scaffold_html(data: Dict[str, Any], output_path: Path):
+def scaffold_html(data: Dict[str, Any], output_path: Path, target: str = "file"):
     """Write the standalone HTML for `data` (its diagramType selects the plugin)."""
-    html_text = assemble_page(data.get("diagramType") or DEFAULT_TYPE, data)
+    html_text = assemble_page(data.get("diagramType") or DEFAULT_TYPE, data, target)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(html_text, encoding="utf-8")
     print(f"[OK] Generated interactive {data.get('diagramType') or DEFAULT_TYPE}: {output_path}")
@@ -1216,6 +1257,9 @@ def main():
     parser.add_argument("--timeout", type=int, default=30, help="Seconds allowed for the layout engine (default: 30)")
     parser.add_argument("--verify", "-v", help="Verify collisions and layout constraints for an HTML or JSON file")
     parser.add_argument("--extract", "-e", help="Extract canonical JSON data from an existing HTML file")
+    parser.add_argument("--target", choices=TARGETS, default="file",
+                        help="With --layout: file (default) writes the standalone HTML file; artifact writes the page "
+                             "in the shape a claude.ai Artifact needs (publish it with the Artifact tool)")
     parser.add_argument("--screenshot", "-s",
                         help="With --layout: also render a PNG here and run the layout report (one command does both)")
     parser.epilog = "SKILL.md documents every flag an agent needs; no others are required."
@@ -1308,7 +1352,7 @@ def main():
         report = audit.verify_collisions()
 
         out_path = Path(args.output) if args.output else in_p.with_suffix(".html")
-        scaffold_html(laid_out_data, out_path)
+        scaffold_html(laid_out_data, out_path, args.target)
 
         # Same gates as --verify, so the agent never needs a second audit run.
         failed = False

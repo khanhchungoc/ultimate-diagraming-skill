@@ -13,6 +13,7 @@ SCOPE="user"
 RUNTIME="all"
 MODE="symlink"
 TARGET_PATH="$(pwd)"
+CLAUDE_OUTPUT=""   # ask | artifact | file; empty = not given (prompt when interactive)
 
 while [[ "$#" -gt 0 ]]; do
     case $1 in
@@ -20,8 +21,16 @@ while [[ "$#" -gt 0 ]]; do
         --runtime|-r) RUNTIME="$2"; shift ;;
         --mode|-m) MODE="$2"; shift ;;
         --target-path|-t) TARGET_PATH="$2"; shift ;;
+        --claude-output)
+            case "$2" in
+                ask|artifact|file) CLAUDE_OUTPUT="$2" ;;
+                *) echo "Error: --claude-output must be one of: ask, artifact, file"; exit 1 ;;
+            esac
+            shift ;;
         --help|-h)
-            echo "Usage: $0 [--scope user|project] [--runtime all|antigravity|claude|copilot|codex|gemini|kiro] [--mode symlink|copy] [--target-path <path>]"
+            echo "Usage: $0 [--scope user|project] [--runtime all|antigravity|claude|copilot|codex|gemini|kiro] [--mode symlink|copy] [--target-path <path>] [--claude-output ask|artifact|file]"
+            echo "  --claude-output  Claude Code only: publish diagrams as claude.ai Artifacts, write HTML files, or ask each time (default: ask)."
+            echo "                   Saved to .claude/ultimate-diagram.json, never inside the skill folder; prompted in a terminal without this flag."
             exit 0
             ;;
         *) echo "Unknown parameter: $1"; exit 1 ;;
@@ -64,6 +73,45 @@ else
     RUNTIMES=("$RUNTIME")
 fi
 
+# Claude Code only: where a diagram goes. Stored beside Claude Code's own settings, never inside the skill folder
+# (which may be a symlink to this repo). SKILL.md reads it.
+CLAUDE_SELECTED=0
+for rt in "${RUNTIMES[@]}"; do [[ "$rt" == "claude" ]] && CLAUDE_SELECTED=1; done
+CLAUDE_CONFIG="$BASE/.claude/ultimate-diagram.json"
+if [[ "$CLAUDE_SELECTED" == 1 && -z "$CLAUDE_OUTPUT" && -t 0 && -t 1 ]]; then
+    echo "In Claude Code, publish diagrams as claude.ai Artifacts, write HTML files, or ask each time?"
+    echo "  1) ask each time (default)"
+    echo "  2) claude.ai Artifact (private page, Save updates it in place)"
+    echo "  3) HTML file (in the project folder, works offline)"
+    read -r -p "Choose [1-3]: " answer || answer=""
+    case "$answer" in 2|artifact) CLAUDE_OUTPUT="artifact" ;; 3|file) CLAUDE_OUTPUT="file" ;; *) CLAUDE_OUTPUT="ask" ;; esac
+    echo ""
+fi
+if [[ "$CLAUDE_SELECTED" == 1 && -n "$CLAUDE_OUTPUT" ]]; then
+    mkdir -p "$(dirname "$CLAUDE_CONFIG")"
+    # Keep other keys of an existing file when Python is around; else write the one key
+    for py in python3 python; do
+        if "$py" -c 'import sys; sys.exit(sys.version_info < (3, 9))' >/dev/null 2>&1; then
+            "$py" - "$CLAUDE_CONFIG" "$CLAUDE_OUTPUT" <<'PYEOF' && break
+import json, sys
+path, value = sys.argv[1], sys.argv[2]
+try:
+    cfg = json.load(open(path, encoding="utf-8"))
+    cfg = cfg if isinstance(cfg, dict) else {}
+except (OSError, ValueError):
+    cfg = {}
+cfg["output"] = value
+open(path, "w", encoding="utf-8").write(json.dumps(cfg, indent=2) + "\n")
+PYEOF
+        fi
+    done
+    if [[ ! -f "$CLAUDE_CONFIG" ]]; then
+        printf '{\n  "output": "%s"\n}\n' "$CLAUDE_OUTPUT" > "$CLAUDE_CONFIG"
+    elif ! grep -q "\"output\": *\"$CLAUDE_OUTPUT\"" "$CLAUDE_CONFIG" 2>/dev/null; then
+        echo "    Warning: Python 3.9+ not found, so $CLAUDE_CONFIG was left as is. Set \"output\": \"$CLAUDE_OUTPUT\" in it by hand." >&2
+    fi
+fi
+
 installed=0
 last_dest="$REPO_ROOT"
 for rt in "${RUNTIMES[@]}"; do
@@ -103,6 +151,9 @@ done
 
 echo ""
 echo "[SUCCESS] Installed ultimate-diagram to $installed target(s)."
+if [[ "$CLAUDE_SELECTED" == 1 ]]; then
+    echo "    Claude Code output: ${CLAUDE_OUTPUT:-ask (default)}. Change it with --claude-output or \"output\" in $CLAUDE_CONFIG"
+fi
 echo ""
 
 # Check the installed copy can run: its files, Python 3.9+, a browser, Node.js.
