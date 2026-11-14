@@ -72,6 +72,12 @@ CASES = [
     ("rails true is valid", dict(rails=True), None),
     ("lifespans is not a boolean", dict(lifespans="yes"), "'lifespans' must be true or false"),
     ("lifespans true is valid", dict(lifespans=True), None),
+    # Participant colours: errors here, warnings in COLOUR_CASES below
+    ("a participant colour that is not a lane swatch",
+     dict(participants=[{"id": "a", "name": "A", "color": "#123456"}, {"id": "b", "name": "B"}], colorKey={"#123456": "x"}), "unknown color '#123456'"),
+    ("a flowchart swatch is a valid participant colour",
+     dict(participants=[{"id": "a", "name": "A", "color": "#e0f2fe"}, {"id": "b", "name": "B"}], colorKey={"#e0f2fe": "Ours"}), None),
+    ("colorKey is not an object", dict(colorKey=["#e0f2fe"]), "'colorKey' must be an object"),
     # Shared columns, start and end
     ("column without lifespans", dict(participants=COLS("a")), "no 'lifespans': true"),
     ("column that is not earlier", dict(lifespans=True, participants=[{"id": "a", "name": "A", "column": "c"}, {"id": "b", "name": "B"}, {"id": "c", "name": "C"}]), "must be an earlier participant"),
@@ -107,7 +113,39 @@ def main() -> int:
     ok = not three["budget_warnings"] and any("nest 4 deep" in w for w in four["budget_warnings"])
     failed += not ok
     print(f"[{'PASS' if ok else 'FAIL'}] nesting depth warns above 3 - {three['budget_warnings']} {four['budget_warnings']}")
-    print(f"{len(CASES) + 1 - failed}/{len(CASES) + 1} cases passed")
+    # Colour warnings (not errors): a colour without a key, a key nobody uses, a rainbow
+    def coloured(n, key, **kw):
+        cols = ["#e0f2fe", "#fef3c7", "#dcfce7", "#fee2e2", "#f3e8ff", "#ffedd5"][:n]
+        ps = [{"id": f"p{i}", "name": f"P{i}", "color": c} for i, c in enumerate(cols)]
+        return audit(participants=ps, messages=[{"id": "m1", "from": "p0", "to": "p1", "label": "x"}], **dict(kw, **({"colorKey": key} if key is not None else {})))
+    allkey = {c: "meaning" for c in ["#e0f2fe", "#fef3c7", "#dcfce7", "#fee2e2", "#f3e8ff", "#ffedd5"]}
+    colour_cases = [
+        ("colour without a colorKey warns", coloured(2, None)[1]["budget_warnings"], "does not say what it means"),
+        ("an entry with no label warns", coloured(2, {"#e0f2fe": "", "#fef3c7": "Customer"})[1]["budget_warnings"], "does not say what it means"),
+        ("a colorKey entry nobody uses warns", audit(participants=[{"id": "a", "name": "A"}, {"id": "b", "name": "B"}], colorKey={"#e0f2fe": "Ours"})[1]["budget_warnings"], "no participant uses"),
+        ("more than 4 colours warns", coloured(5, allkey)[1]["budget_warnings"], "should group participants"),
+        ("every participant a different colour warns", coloured(3, allkey)[1]["budget_warnings"], "not label each one"),
+    ]
+    for name, warnings, expect in colour_cases:
+        ok = any(expect in w for w in warnings)
+        failed += not ok
+        print(f"[{'PASS' if ok else 'FAIL'}] {name} - {warnings}")
+    two = coloured(2, {"#e0f2fe": "Ours", "#fef3c7": "Customer"})[1]["budget_warnings"]
+    ok = not two
+    failed += not ok
+    print(f"[{'PASS' if ok else 'FAIL'}] two coloured participants with a full colorKey do not warn - {two}")
+    # The audit lists the same swatches as the page (SWATCHES in assets/shell/shell.js)
+    import re
+    from audit_sequence import SWATCHES
+    shell = (ROOT / "assets" / "shell" / "shell.js").read_text(encoding="utf-8")
+    block = shell[shell.index("const SWATCHES = ["):]
+    block = block[:block.index("];")]
+    in_shell = tuple(re.findall(r"hex: '(#[0-9a-f]{6})'", block))
+    ok = in_shell == SWATCHES
+    failed += not ok
+    print(f"[{'PASS' if ok else 'FAIL'}] the audit's swatches are the shell's, in order - {in_shell}")
+    total = len(CASES) + 1 + len(colour_cases) + 2
+    print(f"{total - failed}/{total} cases passed")
     return 2 if failed else 0
 
 

@@ -25,6 +25,39 @@
       let plugin = null;
       function registerDiagramPlugin(p) { plugin = p; }
 
+      // --- SWATCHES: the eight colours a flowchart lane or a sequence participant may carry ---
+      // sky, amber, emerald, rose, purple, orange, teal, indigo: light tints, written in the data as the hex. shell.css
+      // derives each one's stripe, pill and dark-theme shades from the hue (see --swatch-color), so a swatch looks the
+      // same in both diagram types. scripts/audit_sequence.py lists the same hexes.
+      const SWATCHES = [
+        { hex: '#e0f2fe', name: 'sky' }, { hex: '#fef3c7', name: 'amber' }, { hex: '#dcfce7', name: 'emerald' }, { hex: '#fee2e2', name: 'rose' },
+        { hex: '#f3e8ff', name: 'purple' }, { hex: '#ffedd5', name: 'orange' }, { hex: '#ccfbf1', name: 'teal' }, { hex: '#e0e7ff', name: 'indigo' }
+      ];
+      // A row of colour buttons: "none", then each swatch. `current` is the hex now in use (or empty); onPick(hex) gets
+      // the chosen hex, or '' for none. opts.btnClass adds a class to every button. Returns the row element.
+      function swatchRow(current, onPick, opts) {
+        const row = document.createElement('span');
+        row.className = 'swatch-row';
+        row.setAttribute('role', 'group');
+        row.setAttribute('aria-label', 'Colour');
+        [{ hex: '', name: 'none' }].concat(SWATCHES).forEach((sw) => {
+          const b = document.createElement('button');
+          b.type = 'button';
+          b.className = `swatch-btn${opts && opts.btnClass ? ' ' + opts.btnClass : ''}`;
+          b.dataset.value = sw.hex;
+          b.title = sw.hex ? `Colour: ${sw.name}` : 'No colour';
+          b.setAttribute('aria-label', b.title);
+          b.setAttribute('aria-pressed', String((current || '') === sw.hex));
+          const dot = document.createElement('span');
+          dot.className = sw.hex ? 'swatch-dot swatch-scope' : 'swatch-dot is-none';
+          if (sw.hex) dot.style.setProperty('--swatch-color', sw.hex);
+          b.appendChild(dot);
+          b.addEventListener('click', (e) => { e.stopPropagation(); onPick(sw.hex); });
+          row.appendChild(b);
+        });
+        return row;
+      }
+
       // --- STATE ---
       let chartData = { title: "", direction: "LR", lanes: [], nodes: [], edges: [] };
       let fileHandle = null;

@@ -23,7 +23,7 @@ from typing import Any, Callable, Dict, Tuple
 FLOWCHART_KEYS = ("diagramType", "schemaVersion", "title", "direction", "swimlanes", "showNotes",
                   "lanes", "nodes", "edges", "notes", "layout")
 SEQUENCE_KEYS = ("diagramType", "schemaVersion", "title", "numbered", "showDetails", "rails",
-                 "lifespans", "participants", "messages", "fragments", "notes")
+                 "lifespans", "colorKey", "participants", "messages", "fragments", "notes")
 # Engine output on the sequence model, never saved: positions, hidden (inside a collapsed frame), frame dividers
 SEQUENCE_LAYOUT = (("participants", ("x", "rail", "top", "bottom")), ("messages", ("y", "hidden")),
                    ("fragments", ("x", "y", "w", "h", "elseY", "dividers")), ("notes", ("x", "y", "w", "h")))
@@ -192,6 +192,11 @@ def sequence_to_disk(data: Dict[str, Any]) -> Dict[str, Any]:
         for o in d.get(items) or []:
             for k in keys:
                 o.pop(k, None)
+    if isinstance(d.get("colorKey"), dict):  # the colour key keeps only the swatches a participant still uses
+        used = {p.get("color") for p in d.get("participants") or []}
+        d["colorKey"] = {k: v for k, v in d["colorKey"].items() if k in used}
+        if not d["colorKey"]:
+            del d["colorKey"]
     return _ordered(d, SEQUENCE_KEYS)
 
 

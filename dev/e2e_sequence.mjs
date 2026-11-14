@@ -621,6 +621,83 @@ try {
   t.check('turning Trim lifelines off drops the shared columns (they need lifespans)', d.lifespans === undefined && d.participants.every((q) => q.column === undefined));
   t.check('no page errors in the column steps', t.errors.length === 0, t.errors.join(' | '));
 
+  // --- Participant colours (step 5) ---
+  await t.open(page);
+  const SKY = '#e0f2fe', AMBER = '#fef3c7';
+  const boxStyle = (pid) => t.ev(`(() => { const b = document.querySelector('.seq-participant[data-node-id="${pid}"]'); const c = getComputedStyle(b);
+    return { top: c.borderTopWidth, topColor: c.borderTopColor, bg: c.backgroundColor, scoped: b.classList.contains('swatch-scope') }; })()`);
+  const plain = await boxStyle('p2');
+  await t.clickOn('.seq-participant[data-node-id="p2"]');
+  t.check('a participant\'s action bar has a "none" swatch and the eight flowchart swatches', (await count('.seq-actionbar .swatch-btn')) === 9);
+  await t.clickOn(`.seq-actionbar .swatch-btn[data-value="${SKY}"]`);
+  const coloured = await boxStyle('p2');
+  const lifeStroke = await t.ev(`getComputedStyle(document.querySelector('.seq-lifeline[data-node-id="p2"]')).stroke`);
+  const plainLife = await t.ev(`getComputedStyle(document.querySelector('.seq-lifeline[data-node-id="p3"]')).stroke`);
+  const barFill = await t.ev(`(() => { const b = document.querySelector('.seq-activation[data-node-id="p2"]'); return b ? [b.classList.contains('swatch-scope'), getComputedStyle(b).stroke, getComputedStyle(b).fill] : null; })()`);
+  t.check('a swatch colours the box (4px top border, faint tint), the lifeline and the activation bars',
+    coloured.scoped && coloured.top === '4px' && coloured.topColor !== plain.topColor && coloured.bg !== plain.bg && lifeStroke !== plainLife
+      && !!barFill && barFill[0] && barFill[1] !== 'rgb(100, 116, 139)', `${JSON.stringify([plain, coloured, lifeStroke, plainLife, barFill])}`);
+  const keyItems = await t.ev(`[...document.querySelectorAll('.seq-key-item')].map((e) => [e.querySelector('.seq-key-label').textContent, e.querySelector('.seq-key-label').dataset.hint])`);
+  t.check('the first use of a colour adds a key entry with no label, prompting "What does sky mean?"', JSON.stringify(keyItems) === JSON.stringify([['', 'What does sky mean?']]), JSON.stringify(keyItems));
+  await t.press('z', { modifiers: 2 });
+  t.check('one undo takes the colour and the key entry away together', !(await boxStyle('p2')).scoped && (await count('.seq-key')) === 0 && !(await t.ev(`!!document.querySelector('.seq-activation.swatch-scope')`)));
+  await t.press('y', { modifiers: 2 });
+  await t.clickOn('.seq-key-label', { count: 2 });
+  await t.type('Our services');
+  await t.press('Enter');
+  d = await saved();
+  t.check('the key label edits by double-click and is saved in colorKey, the participant colour as its hex',
+    d.colorKey && d.colorKey[SKY] === 'Our services' && d.participants[1].color === SKY && Object.keys(d)[Object.keys(d).indexOf('participants') - 1] === 'colorKey', JSON.stringify([d.colorKey, d.participants[1]]));
+  await t.clickOn('.seq-participant[data-node-id="p3"]');
+  await t.clickOn(`.seq-actionbar .swatch-btn[data-value="${AMBER}"]`);
+  t.check('a second colour adds a second key entry', (await count('.seq-key-item')) === 2);
+  // Export: the SVG carries the colours and the key
+  const topColor = (await boxStyle('p2')).topColor;
+  const svgOut = await t.ev(`new Promise(res => {
+    const orig = URL.createObjectURL;
+    URL.createObjectURL = (b) => { URL.createObjectURL = orig; b.text().then(res); return 'blob:x'; };
+    document.querySelector('[data-export="svg"]').click();
+  })`);
+  t.check('an SVG export carries the participant colours and the key, including its label', svgOut.includes('Our services') && svgOut.includes('border-top-width:4px') && /stroke:(oklch|oklab)\(/.test(svgOut)
+    && !/What does/.test(svgOut), `${svgOut.includes('Our services')} ${svgOut.includes('border-top-width:4px')} ${/stroke:(oklch|oklab)\(/.test(svgOut)} ${(svgOut.match(/.{30}What does.{30}/) || [''])[0]}`);
+  // Clearing: "none" removes the colour, and an unused key entry is dropped on save
+  await t.clickOn('.seq-participant[data-node-id="p2"]');
+  await t.clickOn('.seq-actionbar .swatch-btn[data-value=""]');
+  d = await saved();
+  t.check('"none" clears the colour; a key entry no participant uses is dropped on save',
+    !(await boxStyle('p2')).scoped && d.participants[1].color === undefined && d.colorKey && !(SKY in d.colorKey) && AMBER in d.colorKey, JSON.stringify(d.colorKey));
+  await t.clickOn('.seq-participant[data-node-id="p3"]');
+  await t.clickOn('.seq-actionbar .swatch-btn[data-value=""]');
+  d = await saved();
+  t.check('with no colour left, the key goes too', d.colorKey === undefined && (await count('.seq-key')) === 0, JSON.stringify(d.colorKey));
+  // Contrast: every swatch's line colour on the panel and on a frame's wash (one or two layers), both themes
+  const contrast = () => t.ev(`(() => {
+    const cv = document.createElement('canvas'); cv.width = cv.height = 1; const cx = cv.getContext('2d', { willReadFrequently: true });
+    const rgb = (css) => { cx.clearRect(0, 0, 1, 1); cx.fillStyle = '#000'; cx.fillStyle = css; cx.fillRect(0, 0, 1, 1); const d = cx.getImageData(0, 0, 1, 1).data; return [d[0], d[1], d[2]]; };
+    const lum = ([r, g, b]) => { const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }; return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b); };
+    const ratio = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
+    const over = (top, a, base) => top.map((v, i) => v * a + base[i] * (1 - a));
+    const probe = document.createElement('div'); document.body.appendChild(probe);
+    probe.style.color = 'var(--bg-panel)'; const panel = rgb(getComputedStyle(probe).color);
+    const tints = ['blue', 'green', 'yellow', 'red', 'purple', 'gray'].map((n) => { probe.className = 'seq-tint-' + n; return rgb(getComputedStyle(probe).getPropertyValue('--seq-tint').trim()); });
+    let min = 99;
+    ['#e0f2fe', '#fef3c7', '#dcfce7', '#fee2e2', '#f3e8ff', '#ffedd5', '#ccfbf1', '#e0e7ff'].forEach((hex) => {
+      const el = document.createElement('div'); el.className = 'swatch-scope'; el.style.setProperty('--swatch-color', hex); document.body.appendChild(el);
+      el.style.color = 'var(--sw-line)'; const line = rgb(getComputedStyle(el).color);
+      min = Math.min(min, ratio(line, panel));
+      tints.forEach((c) => [0.07, 0.14].forEach((a) => { min = Math.min(min, ratio(line, over(c, a, panel))); }));
+      el.remove();
+    });
+    probe.remove();
+    return min;
+  })()`);
+  const lightMin = await contrast();
+  await t.clickOn('#btn-theme');
+  const darkMin = await contrast();
+  await t.clickOn('#btn-theme');
+  t.check('every swatch\'s line colour reaches 3:1 on the panel and on a frame\'s wash, in both themes', lightMin >= 3 && darkMin >= 3, `light ${lightMin.toFixed(2)} dark ${darkMin.toFixed(2)}`);
+  t.check('no page errors in the colour steps', t.errors.length === 0, t.errors.join(' | '));
+
   // ?present: read-only, but frames still collapse and expand
   await t.open(long, '?present');
   t.check('?present makes the diagram read-only', await t.ev(`getComputedStyle(document.querySelector('.seq-participant')).pointerEvents === 'none'`));

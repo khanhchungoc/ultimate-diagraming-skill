@@ -130,6 +130,29 @@
     }
     .seq-participant.is-rail:hover .seq-rail-tip, .seq-participant.is-rail.selected .seq-rail-tip { display: block; }
     body.exporting .seq-rail-tip, body.capture .seq-rail-tip { display: none !important; }
+    /* Participant colours (the flowchart's swatches; shell.css derives the shades from --swatch-color). Colour means who
+       owns a participant: a 4px top border and a faint tint on the box, the swatch's line colour on its lifeline, cap
+       and rail, a tinted bar. The name stays at full contrast, and the selected and target styles still win. */
+    .seq-participant.swatch-scope { border-top: 4px solid var(--sw-stripe); background: color-mix(in srgb, var(--sw-stripe) 10%, var(--node-bg)); }
+    .seq-participant.is-actor.swatch-scope { background: color-mix(in srgb, var(--sw-stripe) 10%, var(--start-bg)); }
+    .seq-participant.is-rail.swatch-scope { border-color: var(--sw-line); background: color-mix(in srgb, var(--sw-stripe) 14%, var(--bg-soft)); color: var(--sw-pill-ink); }
+    .seq-participant.is-rail.swatch-scope .seq-kind-icon { color: var(--sw-pill-ink); }
+    .seq-participant.swatch-scope.selected, .seq-participant.swatch-scope:hover { border-color: var(--primary); border-top-color: var(--sw-stripe); }
+    .seq-lifeline.swatch-scope, .seq-cap.swatch-scope { stroke: var(--sw-line); }
+    .seq-cap.swatch-scope.selected { stroke: var(--primary); }
+    .seq-activation.swatch-scope { stroke: var(--sw-line); fill: color-mix(in srgb, var(--sw-stripe) 20%, var(--node-bg)); }
+    /* The colour key above the card's top-left corner */
+    .seq-key { position: absolute; left: 0; top: -34px; display: flex; width: max-content; gap: 4px 18px; white-space: nowrap; font-size: 12px; color: var(--text-soft); user-select: none; }
+    .seq-key-item { display: inline-flex; align-items: center; gap: 6px; }
+    .seq-key-dot { width: 12px; height: 12px; border-radius: 3px; background: var(--sw-stripe); border: 1px solid rgba(0,0,0,0.15); box-sizing: border-box; }
+    .seq-key-label { outline: none; min-width: 12px; cursor: text; }
+    .seq-key-label.is-empty::before { content: attr(data-hint); font-style: italic; color: var(--text-muted); }
+    body.presentation .seq-key-item.is-unnamed, body.exporting .seq-key-item.is-unnamed, body.capture .seq-key-item.is-unnamed { display: none; }
+    body.presentation .seq-key-label { pointer-events: none; }
+    /* The participant action bar has a second row for the swatches */
+    .seq-actionbar.is-wrap { flex-wrap: wrap; justify-content: center; max-width: 292px; row-gap: 2px; }
+    .seq-ab-break { flex-basis: 100%; height: 0; }
+    .seq-ab-swatch { height: 26px; width: 26px; }
     /* Lifespans: a short cap ends a lifeline; a pinned box whose lifeline has ended above the row fades out */
     .seq-cap { stroke: var(--border-dark); stroke-width: 2; stroke-linecap: round; }
     .seq-cap.selected { stroke: var(--primary); stroke-width: 3; }

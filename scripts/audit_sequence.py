@@ -24,6 +24,10 @@ MESSAGE_KINDS = {"sync", "reply", "async"}
 FRAGMENT_KINDS = {"opt", "alt", "loop", "par", "group"}
 BRANCH_KINDS = {"alt", "par"}
 FRAGMENT_COLORS = {"blue", "green", "yellow", "red", "purple", "gray"}
+# A participant's colour is one of the flowchart's lane swatches (SWATCHES in assets/shell/shell.js), as the hex:
+# sky, amber, emerald, rose, purple, orange, teal, indigo
+SWATCHES = ("#e0f2fe", "#fef3c7", "#dcfce7", "#fee2e2", "#f3e8ff", "#ffedd5", "#ccfbf1", "#e0e7ff")
+MAX_PARTICIPANT_COLORS = 4
 ERROR_PENALTY = 12
 
 
@@ -66,6 +70,23 @@ class SequenceAudit:
             lo = min(lo, midx.get(p.get("start"), lo))
             hi = max(hi, midx.get(p.get("end"), hi))
         return [lo, hi]
+
+    def color_warnings(self) -> List[str]:
+        """Participant colour means ownership: say what each colour means, and use few of them."""
+        key = self.data.get("colorKey") if isinstance(self.data.get("colorKey"), dict) else {}
+        colours = [p.get("color") for p in self.participants if p.get("color") in SWATCHES]
+        used = list(dict.fromkeys(colours))
+        out = []
+        for c in used:
+            if not str(key.get(c) or "").strip():
+                out.append(f"Participants use {c} but 'colorKey' does not say what it means: add \"colorKey\": {{\"{c}\": \"Our services\"}}.")
+        for c in key:
+            if c not in used:
+                out.append(f"'colorKey' has an entry for {c} but no participant uses that colour: drop it.")
+        if len(used) > MAX_PARTICIPANT_COLORS or (len(used) >= 3 and len(used) == len(colours)):
+            out.append(f"{len(used)} participant colours for {len(colours)} coloured participants: colour should group participants "
+                       f"(ours, a partner's, a third party's; at most {MAX_PARTICIPANT_COLORS}), not label each one.")
+        return out
 
     def column_errors(self, midx: Dict[Any, int]) -> List[str]:
         """Lifespans, shared columns and their start / end overrides."""
@@ -138,6 +159,10 @@ class SequenceAudit:
         for p in ps:
             if p.get("kind", "system") not in PARTICIPANT_KINDS:
                 errors.append(f"Participant '{p['id']}' has unknown kind '{p.get('kind')}'.")
+            if p.get("color") is not None and p.get("color") not in SWATCHES:
+                errors.append(f"Participant '{p['id']}' has unknown color '{p.get('color')}' (use one of the lane swatches: {', '.join(SWATCHES)}).")
+        if "colorKey" in self.data and not isinstance(self.data["colorKey"], dict):
+            errors.append("'colorKey' must be an object of swatch hex -> what it means.")
         dangling = 0
         for m in ms:
             if m.get("kind", "sync") not in MESSAGE_KINDS:
@@ -281,6 +306,8 @@ class SequenceAudit:
         if max_depth > MAX_FRAGMENT_DEPTH:
             budget.append(f"Frames nest {max_depth} deep (keep to {MAX_FRAGMENT_DEPTH}): put a rare exit in a note, "
                           "or split the flow.")
+
+        budget.extend(self.color_warnings())
 
         score = max(0, 100 - ERROR_PENALTY * len(errors))
         grade = "A+" if score >= 98 else "A" if score >= 90 else "B" if score >= 80 else "C" if score >= 60 else "F"

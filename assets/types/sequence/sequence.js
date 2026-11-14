@@ -45,6 +45,17 @@
       const seqUid = (prefix) => `${prefix}_${Date.now()}_${seqCounter++}`;
       const px = (v) => `${v}px`;
 
+      // A participant's colour: one of the shell's SWATCHES (a hex), or none. Anything else is drawn as no colour (the
+      // audit reports it). The element then reads the swatch's shades from shell.css (--sw-stripe, --sw-line, ...).
+      const swatchOf = (p) => (p && SWATCHES.some((w) => w.hex === p.color) ? p.color : null);
+      function paintSwatch(el, hex) {
+        if (!hex) return el;
+        el.classList.add('swatch-scope');
+        el.style.setProperty('--swatch-color', hex);
+        return el;
+      }
+      const swatchName = (hex) => (SWATCHES.find((w) => w.hex === hex) || {}).name || hex;
+
       function ensureModel() {
         chartData.participants = chartData.participants || [];
         chartData.messages = chartData.messages || [];
@@ -193,12 +204,14 @@
         ps.forEach((p) => {
           const rail = !!p.rail, boxH = rail ? SQ.RAIL_H : SQ.BOX_H, top = p.top === undefined ? SQ.TOP : p.top;
           const y2 = p.bottom === undefined ? L.height - 24 : p.bottom;
-          seqLifeG.appendChild(svgEl('line', { class: `seq-lifeline${rail ? ' is-rail' : ''}`, x1: p.x, x2: p.x, y1: top + boxH, y2, 'data-node-id': p.id }));
+          const sw = swatchOf(p);
+          seqLifeG.appendChild(paintSwatch(svgEl('line', { class: `seq-lifeline${rail ? ' is-rail' : ''}`, x1: p.x, x2: p.x, y1: top + boxH, y2, 'data-node-id': p.id }), sw));
           // A wide invisible stroke over the lifeline: dragging from it draws a message (see DRAW FROM A LIFELINE)
           seqLifeG.appendChild(svgEl('line', { class: 'seq-life-hit', x1: p.x, x2: p.x, y1: top + boxH, y2, 'data-pid': p.id, 'data-export-skip': '' }));
-          if (p.bottom !== undefined) seqLifeG.appendChild(svgEl('line', { class: 'seq-cap', x1: p.x - 7, x2: p.x + 7, y1: p.bottom, y2: p.bottom, 'data-node-id': p.id }));
+          if (p.bottom !== undefined) seqLifeG.appendChild(paintSwatch(svgEl('line', { class: 'seq-cap', x1: p.x - 7, x2: p.x + 7, y1: p.bottom, y2: p.bottom, 'data-node-id': p.id }), sw));
           const box = htmlEl('div', `seq-participant${p.kind === 'actor' ? ' is-actor' : ''}${KIND_ICONS[p.kind] ? ` is-${p.kind}` : ''}${rail ? ' is-rail' : ''}`, { left: px(p.x - (rail ? SQ.RAIL_W : SQ.BOX_W) / 2), top: px(top) });
           box.dataset.nodeId = p.id;
+          paintSwatch(box, sw);
           if (KIND_ICONS[p.kind] || rail) box.appendChild(kindIcon(p.kind));
           const name = htmlEl('span', 'seq-participant-name');
           name.textContent = p.name;
@@ -229,7 +242,7 @@
         bars.forEach((b) => {
           const p = byId[b.pid];
           if (!p) return;
-          seqActG.appendChild(svgEl('rect', { class: 'seq-activation', x: p.x - ACT_HALF + b.depth * ACT_STEP, y: b.y1, width: ACT_HALF * 2, height: b.y2 - b.y1, rx: 2, 'data-node-id': b.pid }));
+          seqActG.appendChild(paintSwatch(svgEl('rect', { class: 'seq-activation', x: p.x - ACT_HALF + b.depth * ACT_STEP, y: b.y1, width: ACT_HALF * 2, height: b.y2 - b.y1, rx: 2, 'data-node-id': b.pid }), swatchOf(p)));
         });
         const activeDepth = (pid, y) => bars.reduce((mx, b) => (b.pid === pid && b.y1 <= y && y <= b.y2 ? Math.max(mx, b.depth) : mx), -1);
         const edgeX = (p, y, dir) => {
@@ -290,6 +303,25 @@
           el.appendChild(t);
           seqHtml.appendChild(el);
         });
+        // Colour key: the swatches in use and what each means ("colorKey"), above the card's top-left corner. An entry
+        // with no label yet is a prompt in edit, and left out of ?present and exports.
+        const used = [];
+        ps.forEach((p) => { const sw = swatchOf(p); if (sw && !used.includes(sw)) used.push(sw); });
+        if (used.length) {
+          const key = htmlEl('div', 'seq-key');
+          used.forEach((hex) => {
+            const label = (chartData.colorKey && chartData.colorKey[hex]) || '';
+            const item = htmlEl('div', `seq-key-item${label ? '' : ' is-unnamed'}`);
+            item.appendChild(paintSwatch(htmlEl('span', 'seq-key-dot'), hex));
+            const text = htmlEl('span', `seq-key-label${label ? '' : ' is-empty'}`);
+            text.dataset.hex = hex;
+            if (!label) text.dataset.hint = `What does ${swatchName(hex)} mean?`;
+            text.textContent = label;
+            item.appendChild(text);
+            key.appendChild(item);
+          });
+          seqHtml.appendChild(key);
+        }
         // The opaque band the participant row rides on once the top of the diagram is panned off screen
         // (#seq-html is a shrink-to-fit box with no width of its own, so left/right: 0 would give the band none)
         const band = htmlEl('div', 'seq-pin-band');
@@ -571,6 +603,17 @@
         }
         guests.forEach((g) => { g.column = host.id; });
         seqSel = { kind: 'participant', id: guest.id };
+        relayout();
+      }
+      // Colour a participant (one undo step). The first time a swatch is used the key gains an entry with no label yet.
+      function setParticipantColor(pid, hex) {
+        const p = partById(pid);
+        if (!p || (p.color || '') === hex) return;
+        if (hex) {
+          p.color = hex;
+          chartData.colorKey = chartData.colorKey || {};
+          if (!(hex in chartData.colorKey)) chartData.colorKey[hex] = '';
+        } else delete p.color;
         relayout();
       }
       // A short message above the dock (why a drop was refused)
@@ -1067,13 +1110,16 @@
         } else if (sel.kind === 'participant') {
           const p = byId[sel.id];
           if (!p) return;
-          bar.setAttribute('aria-label', 'Participant kind');
+          bar.setAttribute('aria-label', 'Participant');
+          bar.classList.add('is-wrap');
           if (p.rail) {
             bar.appendChild(abButton('show', `${iconSvg(ICON.show)}<span>Show</span>`, 'Expand the frames that hide this participant'));
             bar.appendChild(htmlEl('span', 'seq-ab-sep'));
           }
           PARTICIPANT_KINDS.forEach((k) => bar.appendChild(abButton('pkind', KIND_ICONS[k] ? iconSvg(KIND_ICONS[k]) : `<span>${k === 'actor' ? 'Actor' : 'System'}</span>`,
             `Kind: ${k}`, (p.kind || 'system') === k, k)));
+          bar.appendChild(htmlEl('span', 'seq-ab-break'));
+          bar.appendChild(swatchRow(swatchOf(p) || '', (hex) => setParticipantColor(p.id, hex), { btnClass: 'seq-ab-swatch' }));
           if (p.column) {
             bar.appendChild(htmlEl('span', 'seq-ab-sep'));
             bar.appendChild(abButton('own', '<span>Own column</span>', 'Give this participant a column of its own again'));
@@ -1313,6 +1359,21 @@
           }
         });
       }
+      // A colour key label: double-click. An empty label is allowed (it stays a prompt)
+      function editKey(el) {
+        const hex = el.dataset.hex;
+        el.classList.remove('is-empty');
+        beginEdit(el, {
+          raw: (chartData.colorKey && chartData.colorKey[hex]) || '', restore: true,
+          apply: (e, value) => {
+            const was = (chartData.colorKey && chartData.colorKey[hex]) || '';
+            if (value === was) return false;
+            chartData.colorKey = chartData.colorKey || {};
+            chartData.colorKey[hex] = value.replace(/\s*\n\s*/g, ' ');
+            return true;
+          }
+        });
+      }
       function editSelection() {
         const sel = seqSel;
         if (!sel) return;
@@ -1327,6 +1388,8 @@
       function onSeqDblClick(e) {
         if (isPresent()) return;
         if (e.target.closest('.seq-frag-chev, .seq-frag-summary, .seq-frag-focus, .seq-actionbar')) return;
+        const kl = e.target.closest('.seq-key-label');
+        if (kl) { e.stopPropagation(); editKey(kl); return; }
         const div = e.target.closest('.seq-div-hit, .seq-frag-branch-label, .seq-frag-else-label');
         if (div) { e.stopPropagation(); editBranch(div.dataset.fragId, div.dataset.at); return; }
         const note = e.target.closest('.seq-note');
@@ -1726,7 +1789,7 @@
       // No positions are saved: render() lays out whatever is missing, so the block holds only the logical model,
       // in a fixed key order. scripts/disk_format.py is the Python twin: keep the two byte-identical.
       // fromDisk is not needed (the block is the model minus positions).
-      const DISK_KEYS = ['diagramType', 'schemaVersion', 'title', 'numbered', 'showDetails', 'rails', 'lifespans', 'participants', 'messages', 'fragments', 'notes'];
+      const DISK_KEYS = ['diagramType', 'schemaVersion', 'title', 'numbered', 'showDetails', 'rails', 'lifespans', 'colorKey', 'participants', 'messages', 'fragments', 'notes'];
       // Engine output, never saved: positions, hidden (inside a collapsed frame), frame dividers, note boxes
       const DISK_LAYOUT = [['participants', ['x', 'rail', 'top', 'bottom']], ['messages', ['y', 'hidden']], ['fragments', ['x', 'y', 'w', 'h', 'elseY', 'dividers']], ['notes', ['x', 'y', 'w', 'h']]];
       // Ids made in the page are renamed on save so the file stays readable to an agent: m<next free number>,
@@ -1779,6 +1842,12 @@
         delete d.layout;   // canvas size, derived by the engine
         renameGeneratedIds(d);
         DISK_LAYOUT.forEach(([list, keys]) => (d[list] || []).forEach(o => keys.forEach(k => { delete o[k]; })));
+        // The colour key keeps only the swatches a participant still uses
+        if (d.colorKey) {
+          const inUse = new Set((d.participants || []).map((q) => q.color));
+          Object.keys(d.colorKey).forEach((k) => { if (!inUse.has(k)) delete d.colorKey[k]; });
+          if (!Object.keys(d.colorKey).length) delete d.colorKey;
+        }
         const out = {};
         DISK_KEYS.forEach(k => { if (k in d) out[k] = d[k]; });
         Object.keys(d).forEach(k => { if (!(k in out)) out[k] = d[k]; });
@@ -1804,5 +1873,7 @@
         },
         hasSelection: () => !!seqSel,
         onViewChange() { closeConfirm(); pinParticipants(); },
+        // The colour key sits above the card
+        contentOverflow: () => (seqHtml.querySelector('.seq-key') ? { top: 40 } : null),
         deleteSelection
       });
