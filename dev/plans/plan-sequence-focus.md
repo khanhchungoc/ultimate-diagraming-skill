@@ -2,7 +2,7 @@
 
 A long sequence diagram is as wide as all of its participants, all the way down, although a reader at any point is looking at a few of them. This plan makes a sequence diagram narrower where it can be, and makes the part the reader is looking at take the space. It also removes a control the editor does not need: the three-way message type picker.
 
-**Status:** proposed 2026-11-14. Nothing is implemented. It revisits one non-goal of `archive/plan-sequence-v2.md` ("Create and destroy markers"), on new evidence.
+**Status:** proposed 2026-11-14; all open questions settled as proposed the same day. Nothing is implemented. It revisits one non-goal of `archive/plan-sequence-v2.md` ("Create and destroy markers"), on new evidence.
 
 ## What the acceptance case says
 
@@ -149,7 +149,7 @@ Collapse is already saved per frame (`collapsed`, from v2). Rails need no new fi
 4. **Shared columns and overrides:** add `column` and `start`/`end`, the drag to share, the handles, and the audit rules.
 5. **Reference, fixtures and samples:** rebuild the payment sample with `lifespans` and SPM and Background Job sharing a column, then archive the plan.
 
-## Open questions
+## Open questions (settled 2026-11-14: each as proposed)
 
 1. **Rails from collapse only, or also an explicit "hide this participant"?** The plan derives rails from collapse, so a rail can never hide a message. An explicit hide would let a reader drop a busy but uninteresting lifeline, such as a logger, but it would have to hide its messages too.
 2. **Should new diagrams default to `lifespans: true`?** Pages saved before keep `false` either way. Turning it on for new diagrams changes what agents produce, so it's better decided after seeing step 3 on the acceptance sample.
