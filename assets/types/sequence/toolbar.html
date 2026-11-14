@@ -1,13 +1,19 @@
-      <button id="btn-add-participant" class="btn" title="Add a participant (lifeline) at the right" aria-label="Participant">
+      <button id="btn-add-participant" class="btn" title="Add a participant at the right end" aria-label="Participant">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="16" height="6" rx="1.5"/><path d="M12 9v12" stroke-dasharray="3 3"/></svg><span class="btn-label">Participant</span>
       </button>
-      <button id="btn-add-message" class="btn" title="Add a message from the selected participant (or after the selected message)" aria-label="Message">
+      <button id="btn-add-message" class="btn" title="Add a message after the selected one" aria-label="Message">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h16"/><path d="m14 6 6 6-6 6"/></svg><span class="btn-label">Message</span>
       </button>
-      <span class="dock-sep" aria-hidden="true"></span>
-      <button id="btn-toggle-kind" class="btn" title="Change the selected message type: call, reply, async" aria-label="Message type">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 3l4 4-4 4"/><path d="M21 7H8"/><path d="M7 21l-4-4 4-4"/><path d="M3 17h13"/></svg><span class="btn-label">Message type</span>
-      </button>
-      <button id="btn-frame" class="btn" title="Wrap the selected message in an opt frame; with a frame selected, cycle opt / alt / loop" aria-label="Frame">
+      <button id="btn-frame" class="btn" title="Wrap the selected messages in a frame" aria-label="Frame">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h8V4"/></svg><span class="btn-label">Frame</span>
+      </button>
+      <button id="btn-add-note" class="btn" title="Add a note to the selected message or participant" aria-label="Note">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16v11l-5 5H4z"/><path d="M20 15h-5v5"/><path d="M8 9h8M8 13h5"/></svg><span class="btn-label">Note</span>
+      </button>
+      <span class="dock-sep" aria-hidden="true"></span>
+      <button id="btn-numbers" class="btn seq-toggle" title="Number every message" aria-label="Numbers" aria-pressed="false">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 6h11M10 12h11M10 18h11"/><path d="M4 6h1v4"/><path d="M4 10h2"/><path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"/></svg><span class="btn-label">Numbers</span>
+      </button>
+      <button id="btn-details" class="btn seq-toggle" title="Show each message's detail under its arrow" aria-label="Details" aria-pressed="false">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9h16"/><path d="m16 5 4 4-4 4"/><path d="M6 17h10" stroke-dasharray="2 3"/></svg><span class="btn-label">Details</span>
       </button>

@@ -5,6 +5,9 @@ For every dev/fixtures/<type>/*.json it runs the diagram type's JavaScript engin
 for Auto-Tidy) and compares the full laid-out data with dev/fixtures/<type>/golden/<name>.json, then audits the
 result with `layout_engine.py --verify` logic (score >= 90, no overlaps/penetrations/overflows).
 
+For a sequence fixture frozen before frames had branches, notes and collapsing (dev/fixtures/sequence/golden/v1/),
+it also checks back-compatibility: every x, y, w, h is unchanged, and the old elseY is the one divider's y.
+
 For a flowchart it also checks that the page's disk format is layout-neutral: writing the laid-out diagram with
 its steps in flow order (disk_format.py) and laying that out again moves nothing, left to right and top to bottom.
 
@@ -91,6 +94,25 @@ def flow_order_problems(data: dict, laid: dict) -> list:
     return problems
 
 
+def legacy_problems(path: Path, laid: dict) -> list:
+    """A sequence page saved before the v2 fields must lay out exactly as it did (golden/v1 was frozen then)."""
+    v1_path = path.parent / "golden" / "v1" / path.name
+    if not v1_path.is_file():
+        return []
+    v1 = json.loads(v1_path.read_text(encoding="utf-8"))
+    problems = []
+    if v1.get("layout") != laid.get("layout"):
+        problems.append(f"v1: canvas {v1.get('layout')} became {laid.get('layout')}")
+    for items in ("participants", "messages", "fragments"):
+        for old, new in zip(v1.get(items) or [], laid.get(items) or []):
+            for k in ("x", "y", "w", "h"):
+                if old.get(k) != new.get(k):
+                    problems.append(f"v1: {items} {old.get('id')} {k} {old.get(k)} became {new.get(k)}")
+            if "elseY" in old and [d.get("y") for d in new.get("dividers") or []] != [old["elseY"]]:
+                problems.append(f"v1: fragment {old.get('id')} elseY {old['elseY']} is not its divider")
+    return problems
+
+
 def main() -> int:
     for stream in (sys.stdout, sys.stderr):
         try:
@@ -119,6 +141,7 @@ def main() -> int:
         problems = list(differences(json.loads(golden_path.read_text(encoding="utf-8")), laid))
         problems += twin_problems(path, data, laid)
         problems += flow_order_problems(data, laid)
+        problems += legacy_problems(path, laid)
         report = AUDITS[data["diagramType"]](copy.deepcopy(laid)).verify_collisions()
         if not report["passed"]:
             problems.append(f"audit failed: score {report['score']}, issues {report['issues']}")

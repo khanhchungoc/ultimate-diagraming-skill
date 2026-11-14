@@ -1,0 +1,116 @@
+{
+  "diagramType": "sequence",
+  "title": "Order lookup",
+  "numbered": true,
+  "participants": [
+    {
+      "id": "c",
+      "name": "Support Agent",
+      "kind": "actor",
+      "x": 158
+    },
+    {
+      "id": "crm",
+      "name": "CRM",
+      "kind": "ui",
+      "x": 358
+    },
+    {
+      "id": "ord",
+      "name": "Order Service",
+      "kind": "system",
+      "x": 666
+    },
+    {
+      "id": "q",
+      "name": "Event Queue",
+      "kind": "queue",
+      "x": 874
+    }
+  ],
+  "messages": [
+    {
+      "id": "m1",
+      "from": "c",
+      "to": "crm",
+      "label": "Search order",
+      "detail": "order number or email",
+      "kind": "sync",
+      "y": 166
+    },
+    {
+      "id": "m2",
+      "from": "crm",
+      "to": "ord",
+      "label": "Get order",
+      "detail": "orderId, include=lines,payments,shipments",
+      "kind": "sync",
+      "y": 238
+    },
+    {
+      "id": "m3",
+      "from": "ord",
+      "to": "crm",
+      "label": "Order",
+      "detail": "status, lines, totals",
+      "kind": "reply",
+      "y": 310
+    },
+    {
+      "id": "m4",
+      "from": "ord",
+      "to": "q",
+      "label": "OrderViewed",
+      "kind": "async",
+      "y": 422
+    },
+    {
+      "id": "m5",
+      "from": "ord",
+      "to": "ord",
+      "label": "Mask card data",
+      "detail": "PAN to last 4 digits",
+      "kind": "sync",
+      "y": 514
+    },
+    {
+      "id": "m6",
+      "from": "crm",
+      "to": "c",
+      "label": "Order summary",
+      "kind": "reply",
+      "y": 650
+    }
+  ],
+  "fragments": [
+    {
+      "id": "f1",
+      "kind": "par",
+      "label": "audit",
+      "from": "m4",
+      "to": "m5",
+      "branches": [
+        {
+          "at": "m5",
+          "label": "privacy"
+        }
+      ],
+      "x": 630,
+      "w": 280,
+      "y": 360,
+      "h": 224,
+      "dividers": [
+        {
+          "at": "m5",
+          "y": 458,
+          "label": "privacy"
+        }
+      ]
+    }
+  ],
+  "schemaVersion": 1,
+  "layout": {
+    "width": 1004,
+    "height": 736
+  }
+}

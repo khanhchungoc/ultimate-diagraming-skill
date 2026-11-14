@@ -1,0 +1,130 @@
+{
+  "diagramType": "sequence",
+  "title": "Budget-limit interaction",
+  "participants": [
+    {
+      "id": "p1",
+      "name": "Customer",
+      "kind": "actor",
+      "x": 158
+    },
+    {
+      "id": "p2",
+      "name": "Web App",
+      "kind": "system",
+      "x": 358
+    },
+    {
+      "id": "p3",
+      "name": "API",
+      "kind": "system",
+      "x": 558
+    },
+    {
+      "id": "p4",
+      "name": "Orders",
+      "kind": "system",
+      "x": 758
+    },
+    {
+      "id": "p5",
+      "name": "Billing",
+      "kind": "system",
+      "x": 958
+    },
+    {
+      "id": "p6",
+      "name": "Ledger",
+      "kind": "system",
+      "x": 1158
+    }
+  ],
+  "messages": [
+    {
+      "id": "m1",
+      "from": "p1",
+      "to": "p2",
+      "label": "Open invoice",
+      "kind": "sync",
+      "y": 166
+    },
+    {
+      "id": "m2",
+      "from": "p2",
+      "to": "p3",
+      "label": "GET /invoice",
+      "kind": "sync",
+      "y": 226
+    },
+    {
+      "id": "m3",
+      "from": "p3",
+      "to": "p4",
+      "label": "Find order",
+      "kind": "sync",
+      "y": 286
+    },
+    {
+      "id": "m4",
+      "from": "p4",
+      "to": "p3",
+      "label": "Order",
+      "kind": "reply",
+      "y": 346
+    },
+    {
+      "id": "m5",
+      "from": "p3",
+      "to": "p5",
+      "label": "Create invoice",
+      "kind": "sync",
+      "y": 406
+    },
+    {
+      "id": "m6",
+      "from": "p5",
+      "to": "p6",
+      "label": "Post entry",
+      "kind": "sync",
+      "y": 466
+    },
+    {
+      "id": "m7",
+      "from": "p6",
+      "to": "p5",
+      "label": "Entry id",
+      "kind": "reply",
+      "y": 526
+    },
+    {
+      "id": "m8",
+      "from": "p5",
+      "to": "p3",
+      "label": "Invoice",
+      "kind": "reply",
+      "y": 586
+    },
+    {
+      "id": "m9",
+      "from": "p3",
+      "to": "p2",
+      "label": "200 OK",
+      "kind": "reply",
+      "y": 646
+    },
+    {
+      "id": "m10",
+      "from": "p2",
+      "to": "p1",
+      "label": "Show invoice",
+      "kind": "reply",
+      "y": 706
+    }
+  ],
+  "fragments": [],
+  "schemaVersion": 1,
+  "layout": {
+    "width": 1288,
+    "height": 792
+  }
+}

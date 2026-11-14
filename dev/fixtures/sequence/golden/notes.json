@@ -1,0 +1,142 @@
+{
+  "diagramType": "sequence",
+  "title": "Session rules",
+  "participants": [
+    {
+      "id": "u",
+      "name": "Customer",
+      "kind": "actor",
+      "x": 158
+    },
+    {
+      "id": "web",
+      "name": "Web App",
+      "kind": "ui",
+      "x": 358
+    },
+    {
+      "id": "api",
+      "name": "Session API",
+      "kind": "system",
+      "x": 558
+    },
+    {
+      "id": "db",
+      "name": "Session Store",
+      "kind": "database",
+      "x": 758
+    }
+  ],
+  "messages": [
+    {
+      "id": "m1",
+      "from": "u",
+      "to": "web",
+      "label": "Sign in",
+      "kind": "sync",
+      "y": 217
+    },
+    {
+      "id": "m2",
+      "from": "web",
+      "to": "api",
+      "label": "Create session",
+      "kind": "sync",
+      "y": 277
+    },
+    {
+      "id": "m3",
+      "from": "api",
+      "to": "db",
+      "label": "Store token",
+      "kind": "sync",
+      "y": 445
+    },
+    {
+      "id": "m4",
+      "from": "db",
+      "to": "api",
+      "label": "Stored",
+      "kind": "reply",
+      "y": 573
+    },
+    {
+      "id": "m5",
+      "from": "api",
+      "to": "web",
+      "label": "Session token",
+      "kind": "reply",
+      "y": 712
+    },
+    {
+      "id": "m6",
+      "from": "web",
+      "to": "u",
+      "label": "Home page",
+      "kind": "reply",
+      "y": 772
+    }
+  ],
+  "fragments": [
+    {
+      "id": "f1",
+      "kind": "opt",
+      "label": "remember me",
+      "from": "m3",
+      "to": "m4",
+      "x": 522,
+      "w": 336,
+      "y": 383,
+      "h": 212
+    }
+  ],
+  "notes": [
+    {
+      "id": "n1",
+      "text": "Starts on the sign-in page",
+      "over": "web",
+      "x": 266,
+      "w": 184,
+      "h": 37,
+      "y": 136
+    },
+    {
+      "id": "n2",
+      "text": "Token lives 30 days; it is renewed on every visit",
+      "over": "db",
+      "after": "m3",
+      "x": 666,
+      "w": 184,
+      "h": 54,
+      "y": 475
+    },
+    {
+      "id": "n3",
+      "text": "Both sides log the session id for support",
+      "over": [
+        "web",
+        "api"
+      ],
+      "before": "m5",
+      "x": 294,
+      "w": 328,
+      "h": 37,
+      "y": 631
+    },
+    {
+      "id": "n4",
+      "text": "Rate limit: 5 attempts a minute",
+      "over": "api",
+      "before": "m3",
+      "x": 466,
+      "w": 184,
+      "h": 54,
+      "y": 307
+    }
+  ],
+  "schemaVersion": 1,
+  "layout": {
+    "width": 914,
+    "height": 858
+  }
+}
