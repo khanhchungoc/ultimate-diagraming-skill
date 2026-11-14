@@ -11,7 +11,7 @@
       const seqDrop = document.getElementById('seq-drop-line');
       const btnAddParticipant = document.getElementById('btn-add-participant');
       const btnAddMessage = document.getElementById('btn-add-message');
-      const btnToggleKind = document.getElementById('btn-toggle-kind');
+      const btnAddNote = document.getElementById('btn-add-note');
       const btnFrame = document.getElementById('btn-frame');
       const btnNumbers = document.getElementById('btn-numbers');
       const btnDetails = document.getElementById('btn-details');
@@ -19,11 +19,12 @@
       const SVG_NS = 'http://www.w3.org/2000/svg';
       const ACT_HALF = 6;      // half width of an activation bar
       const ACT_STEP = 5;      // sideways offset per nested activation
-      const MSG_KINDS = ['sync', 'reply', 'async'];
-      const FRAG_KINDS = ['opt', 'alt', 'loop'];
+      const FRAG_KINDS = ['opt', 'alt', 'loop', 'par', 'group'];
 
-      let seqSel = null;       // { kind: 'participant' | 'message' | 'fragment', id }
-      let seqDrag = null;      // active drag: { kind, id, el, startX, startY, moved, target }
+      // Selection: { kind: 'participant' | 'fragment' | 'note', id }, { kind: 'message', id, ids?, anchor? } (ids: a
+      // range of messages, in time order), or { kind: 'divider', id: <fragment id>, at: <message id> } (a branch)
+      let seqSel = null;
+      let seqDrag = null;      // active drag (see beginDrag)
       let seqCounter = 0;
       let seqSelStash = null;  // { sel, data }: the selection the shell cleared, and the model it belonged to
 
@@ -38,7 +39,8 @@
         if (styles) Object.assign(el.style, styles);
         return el;
       }
-      const seqUid = (prefix) => `${prefix}_${Date.now().toString(36)}${(seqCounter++).toString(36)}`;
+      // Editor ids: <prefix>_<Date.now()>_<k>. toDisk renames them to readable ids (see renameGeneratedIds)
+      const seqUid = (prefix) => `${prefix}_${Date.now()}_${seqCounter++}`;
       const px = (v) => `${v}px`;
 
       function ensureModel() {
@@ -184,6 +186,18 @@
           box.appendChild(name);
           seqHtml.appendChild(box);
         });
+        // Insert a participant between two boxes, or at the right end (shown while the pointer is on the row)
+        ps.forEach((p, i) => {
+          const x = i + 1 < ps.length ? (p.x + ps[i + 1].x) / 2 : p.x + SQ.BOX_W / 2 + 26;
+          const ins = htmlEl('button', 'seq-insert', { left: px(x), top: px(SQ.TOP + SQ.BOX_H / 2) });
+          ins.type = 'button';
+          ins.dataset.index = i + 1;
+          ins.dataset.exportSkip = '';
+          ins.title = i + 1 < ps.length ? 'Insert a participant here' : 'Add a participant at the right end';
+          ins.setAttribute('aria-label', ins.title);
+          ins.textContent = '+';
+          seqHtml.appendChild(ins);
+        });
 
         // Activation bars
         const bars = seqActivations();
@@ -275,25 +289,113 @@
         seqCanvas.style.setProperty('--pin-top', `${on ? Math.max(0, dy) + SQ.TOP - PIN_INSET : 0}px`);
       }
 
+      // --- LOOKUPS ---
+      const isPresent = () => document.body.classList.contains('presentation');
+      const msgById = (id) => chartData.messages.find((m) => m.id === id);
+      const fragById = (id) => chartData.fragments.find((f) => f.id === id);
+      const noteById = (id) => (chartData.notes || []).find((n) => n.id === id);
+      const partById = (id) => chartData.participants.find((p) => p.id === id);
+      const msgIndex = (id) => chartData.messages.findIndex((m) => m.id === id);
+      const selIds = (sel) => (sel && sel.kind === 'message' ? (sel.ids || [sel.id]) : []);
+      // A point of the pointer in diagram (canvas) coordinates
+      function canvasPoint(e) {
+        const r = seqHtml.getBoundingClientRect();
+        return { x: (e.clientX - r.left) / scale, y: (e.clientY - r.top) / scale };
+      }
+      // The participant whose lifeline is nearest to x
+      function nearestParticipant(x) {
+        let best = null;
+        chartData.participants.forEach((p) => { if (!best || Math.abs(p.x - x) < Math.abs(best.x - x)) best = p; });
+        return best;
+      }
+      // A fragment's branches as [{at, label}] (the short form elseAt is one unlabelled branch), and the way back:
+      // one unlabelled branch of an alt is written as elseAt, the form an old page has
+      function branchList(f) {
+        if (Array.isArray(f.branches)) return f.branches.map((b) => ({ at: b.at, label: b.label || '' }));
+        return f.elseAt === undefined ? [] : [{ at: f.elseAt, label: '' }];
+      }
+      function setBranches(f, list) {
+        const order = chartData.messages.map((m) => m.id);
+        const a = order.indexOf(f.from), b = order.indexOf(f.to), seen = new Set();
+        list = list.filter((br) => { const i = order.indexOf(br.at); if (i <= a || i > b || seen.has(i)) return false; seen.add(i); return true; })
+          .sort((u, v) => order.indexOf(u.at) - order.indexOf(v.at));
+        delete f.elseAt;
+        delete f.branches;
+        if (!list.length || (f.kind !== 'alt' && f.kind !== 'par')) return;
+        if (f.kind === 'alt' && list.length === 1 && !list[0].label) f.elseAt = list[0].at;
+        else f.branches = list.map((br) => ({ at: br.at, label: br.label || '' }));
+      }
+      // Message index range of a frame
+      const fragRange = (f) => [msgIndex(f.from), msgIndex(f.to)];
+      // Would a frame over messages [a, b] cross the edge of another frame (half in, half out)?
+      function crossesFrame(a, b, skipId) {
+        return chartData.fragments.some((o) => {
+          if (o.id === skipId) return false;
+          const [oa, ob] = fragRange(o);
+          return (oa < a && a <= ob && ob < b) || (a < oa && oa <= b && b < ob);
+        });
+      }
+
+      // Row gaps: where a message (or a note) can go. Each gap has the index a new message would take and its y.
+      // Messages hidden in a collapsed frame have no gap of their own.
+      function rowSlots(skipId) {
+        const ms = chartData.messages.filter((m) => m.id !== skipId);
+        const vis = [];
+        ms.forEach((m, i) => { if (!m.hidden) vis.push({ m, i }); });
+        if (!vis.length) return [{ index: ms.length, y: SQ.TOP + SQ.BOX_H + SQ.FIRST_GAP + SQ.ARROW_AT }];
+        const slots = [{ index: vis[0].i, y: vis[0].m.y - 34 }];
+        for (let k = 1; k < vis.length; k++) slots.push({ index: vis[k].i, y: (vis[k - 1].m.y + vis[k].m.y) / 2 });
+        let last = vis[vis.length - 1].i + 1;
+        while (last < ms.length && ms[last].hidden) last++;
+        slots.push({ index: last, y: vis[vis.length - 1].m.y + 34 });
+        return slots;
+      }
+      const nearestSlot = (slots, y) => slots.reduce((b, s) => (Math.abs(s.y - y) < Math.abs(b.y - y) ? s : b), slots[0]);
+      // The innermost drawn frame a message inserted at `index` (of the list without skipId) would land in
+      function frameAtSlot(index, skipId) {
+        const order = chartData.messages.map((m) => m.id).filter((id) => id !== skipId);
+        const full = chartData.messages.map((m) => m.id);
+        let best = null;
+        chartData.fragments.forEach((f) => {
+          if (f.x === undefined) return;
+          // A frame whose first or last message is the one moving keeps its edge on the neighbour that stays
+          let fa = full.indexOf(f.from), fb = full.indexOf(f.to);
+          while (fa <= fb && full[fa] === skipId) fa++;
+          while (fb >= fa && full[fb] === skipId) fb--;
+          if (fa > fb) return;
+          const a = order.indexOf(full[fa]), b = order.indexOf(full[fb]);
+          if (a < index && index <= b && (!best || b - a < best.span)) best = { f, span: b - a };
+        });
+        return best && best.f;
+      }
+      function showDropLine(y, frame) {
+        const L = chartData.layout;
+        const x1 = frame ? frame.x + 6 : 8, x2 = frame ? frame.x + frame.w - 6 : L.width - 8;
+        Object.entries({ x1, x2, y1: y, y2: y }).forEach(([k, v]) => seqDrop.setAttribute(k, v));
+        seqDrop.style.display = 'block';
+      }
+
       // Focus: a selected participant dims every message that does not touch it; a selected message lights its
       // two participant boxes (which matters once the row is pinned far from the message)
       function applySelection() {
         const sel = seqSel || {};
-        const ids = sel.kind === 'message' ? (sel.ids || [sel.id]) : [];
+        const ids = selIds(sel);
         document.querySelectorAll('.seq-participant').forEach((el) => el.classList.toggle('selected', sel.kind === 'participant' && el.dataset.nodeId === sel.id));
         document.querySelectorAll('.seq-msg-label, .seq-line, .seq-msg-detail').forEach((el) => el.classList.toggle('selected', ids.includes(el.dataset.edgeId)));
         document.querySelectorAll('.seq-frag-label, .seq-frag-box').forEach((el) => el.classList.toggle('selected', sel.kind === 'fragment' && el.dataset.fragId === sel.id));
-        const touching = (m) => m.from === sel.id || m.to === sel.id;
+        document.querySelectorAll('.seq-note').forEach((el) => el.classList.toggle('selected', sel.kind === 'note' && el.dataset.noteId === sel.id));
+        const isDiv = (el) => sel.kind === 'divider' && el.dataset.fragId === sel.id && el.dataset.at === sel.at;
+        document.querySelectorAll('.seq-frag-else, .seq-frag-branch-label, .seq-frag-else-label').forEach((el) => el.classList.toggle('selected', isDiv(el)));
         const byMsg = {};
         chartData.messages.forEach((m) => { byMsg[m.id] = m; });
         document.querySelectorAll('.seq-msg-label, .seq-line, .seq-msg-detail').forEach((el) => {
           const m = byMsg[el.dataset.edgeId];
-          el.classList.toggle('is-dim', sel.kind === 'participant' && !!m && !touching(m));
+          el.classList.toggle('is-dim', sel.kind === 'participant' && !!m && m.from !== sel.id && m.to !== sel.id);
         });
         const lit = new Set();
         ids.forEach((id) => { const m = byMsg[id]; if (m) { lit.add(m.from); lit.add(m.to); } });
         document.querySelectorAll('.seq-participant').forEach((el) => el.classList.toggle('linked', lit.has(el.dataset.nodeId)));
-        if (typeof applySelectionExtras === 'function') applySelectionExtras(sel);
+        drawSelectionTools(sel);
         refreshDock();
       }
 
@@ -301,6 +403,15 @@
       function setDockButton(btn, enabled, title) {
         btn.disabled = !enabled;
         btn.title = title;
+      }
+      // The frame the Frame button would make: the selected message range, if no frame's edge cuts through it
+      function frameCandidate() {
+        const ids = selIds(seqSel);
+        if (!ids.length) return null;
+        const idx = ids.map(msgIndex).filter((i) => i >= 0).sort((u, v) => u - v);
+        if (!idx.length) return null;
+        const a = idx[0], b = idx[idx.length - 1];
+        return { a, b, ok: !crossesFrame(a, b) };
       }
       function refreshDock() {
         const kind = seqSel && seqSel.kind;
@@ -311,22 +422,30 @@
         btnDetails.setAttribute('aria-pressed', String(hasDetails && chartData.showDetails !== false));
         setDockButton(btnDetails, hasDetails, !hasDetails ? 'No message has a detail yet: select a message, press Enter, then Tab'
           : chartData.showDetails !== false ? 'Hide the details under the arrows (the detail becomes the label\'s tooltip)' : 'Show each message\'s detail under its arrow');
-        setDockButton(btnAddMessage, !!chartData.participants.length,
-          chartData.participants.length ? 'Add a message from the selected participant (or after the selected message)' : 'Add a participant first');
-        setDockButton(btnToggleKind, kind === 'message',
-          kind === 'message' ? 'Change the selected message type: call, reply, async' : 'Select a message to change its type');
-        setDockButton(btnFrame, kind === 'message' || kind === 'fragment',
-          kind === 'fragment' ? 'Change the selected frame: opt, alt, loop' : kind === 'message' ? 'Wrap the selected message in an opt frame' : 'Select a message to wrap it in a frame');
+        setDockButton(btnAddParticipant, true, kind === 'participant' ? 'Add a participant to the right of the selected one' : 'Add a participant at the right end');
+        const msgOk = kind === 'participant' || kind === 'message';
+        setDockButton(btnAddMessage, msgOk, msgOk ? 'Add a message after the selected one (or at the first row from the selected participant). Or drag from a lifeline\'s + to another lifeline'
+          : chartData.participants.length ? 'Select a participant or a message first (or drag from a lifeline\'s + to another lifeline)' : 'Add a participant first');
+        const fc = frameCandidate();
+        setDockButton(btnFrame, !!(fc && fc.ok), !fc ? 'Select a message, or a range (Shift+click a second message), to wrap it in a frame'
+          : fc.ok ? `Wrap the selected message${fc.a === fc.b ? '' : 's'} in a frame` : 'A frame edge cuts through the selection: select whole frames only');
+        const noteOk = kind === 'participant' || kind === 'message';
+        setDockButton(btnAddNote, noteOk, noteOk ? (kind === 'message' ? 'Add a note under the selected message, over its sender' : 'Add a note over the selected participant, above the first message')
+          : 'Select a message or a participant to add a note');
       }
 
-      function select(kind, id) {
-        seqSel = kind ? { kind, id } : null;
+      function select(kind, id, extra) {
+        seqSel = kind ? Object.assign({ kind, id }, extra || {}) : null;
         applySelection();
       }
       function selExists(sel) {
         if (!sel) return false;
-        const list = sel.kind === 'participant' ? chartData.participants : sel.kind === 'message' ? chartData.messages : chartData.fragments;
-        return (list || []).some((o) => o.id === sel.id);
+        if (sel.kind === 'participant') return !!partById(sel.id);
+        if (sel.kind === 'message') return selIds(sel).every((id) => !!msgById(id));
+        if (sel.kind === 'note') return !!noteById(sel.id);
+        const f = fragById(sel.id);
+        if (sel.kind === 'divider') return !!f && branchList(f).some((b) => b.at === sel.at);
+        return !!f;
       }
 
       function relayout() {
@@ -335,95 +454,548 @@
         updateStatus(true);
       }
 
-      // --- DRAG TO REORDER (participants sideways, messages up and down) ---
-      function dropTarget(drag) {
-        const ps = chartData.participants, ms = chartData.messages, L = chartData.layout;
-        if (drag.kind === 'participant') {
-          const me = ps.find((p) => p.id === drag.id);
-          const others = ps.filter((p) => p.id !== drag.id);
-          const at = others.filter((p) => p.x < me.x + drag.dx).length;
-          const left = others[at - 1], right = others[at];
-          const x = left && right ? (left.x + right.x) / 2 : left ? left.x + SQ.BOX_W / 2 + 16 : right.x - SQ.BOX_W / 2 - 16;
-          return { index: at, line: { x1: x, x2: x, y1: SQ.TOP - 10, y2: L.height - 30 } };
+      // --- DRAGS ---
+      // One drag at a time: beginDrag arms it on pointerdown; it starts after 4px of movement. While it runs the
+      // action bar is hidden (body.seq-dragging). cancelInteraction (Escape) drops it.
+      function beginDrag(e, d) {
+        seqDrag = Object.assign({ startX: e.clientX, startY: e.clientY, dx: 0, dy: 0, moved: false }, d);
+        window.addEventListener('pointermove', onDragMove);
+        window.addEventListener('pointerup', onDragUp);
+      }
+      function onDragMove(e) {
+        const d = seqDrag;
+        if (!d) return;
+        d.dx = (e.clientX - d.startX) / scale;
+        d.dy = (e.clientY - d.startY) / scale;
+        if (!d.moved && Math.abs(d.dx) < 4 && Math.abs(d.dy) < 4) return;
+        if (!d.moved) { d.moved = true; document.body.classList.add('seq-dragging'); }
+        if (d.move) d.move(canvasPoint(e), d);
+      }
+      function endSeqDrag() {
+        window.removeEventListener('pointermove', onDragMove);
+        window.removeEventListener('pointerup', onDragUp);
+        document.body.classList.remove('seq-dragging');
+        seqDrop.style.display = 'none';
+        seqRubber.style.display = 'none';
+        document.querySelectorAll('.seq-lifeline.is-target').forEach((el) => el.classList.remove('is-target'));
+        const d = seqDrag;
+        seqDrag = null;
+        return d;
+      }
+      function onDragUp(e) {
+        const d = endSeqDrag();
+        if (!d) return;
+        // A click without movement must not rebuild the DOM: the second click of a double-click has to land on
+        // the same element, or the browser's dblclick never reaches the text
+        if (!d.moved) { if (d.click) d.click(); else applySelection(); return; }
+        if (d.drop) d.drop(canvasPoint(e), d); else render();
+      }
+      // The rubber band of a connect or retarget drag, and the lifeline it would land on
+      const seqRubber = svgEl('line', { id: 'seq-rubber', x1: 0, y1: 0, x2: 0, y2: 0, 'marker-end': 'url(#seq-arrow-solid)' });
+      seqSvg.appendChild(seqRubber);
+      function showRubber(x1, y1, x2, y2) {
+        Object.entries({ x1, y1, x2, y2 }).forEach(([k, v]) => seqRubber.setAttribute(k, v));
+        seqRubber.style.display = 'block';
+      }
+      function lightLifeline(pid) {
+        document.querySelectorAll('.seq-lifeline').forEach((el) => el.classList.toggle('is-target', el.dataset.nodeId === pid));
+      }
+
+      // Reorder participants sideways
+      function participantDrag(id, el) {
+        return {
+          move(pt, d) {
+            el.classList.add('dragging');
+            el.style.transform = `translateX(${d.dx}px)`;
+            const ps = chartData.participants, me = partById(id), L = chartData.layout;
+            const others = ps.filter((p) => p.id !== id);
+            d.index = others.filter((p) => p.x < me.x + d.dx).length;
+            const left = others[d.index - 1], right = others[d.index];
+            const x = left && right ? (left.x + right.x) / 2 : left ? left.x + SQ.BOX_W / 2 + 16 : right ? right.x - SQ.BOX_W / 2 - 16 : me.x;
+            Object.entries({ x1: x, x2: x, y1: SQ.TOP - 10, y2: L.height - 30 }).forEach(([k, v]) => seqDrop.setAttribute(k, v));
+            seqDrop.style.display = 'block';
+          },
+          drop(pt, d) {
+            const ps = chartData.participants, from = ps.findIndex((p) => p.id === id);
+            if (d.index === undefined || d.index === from) { render(); return; }
+            const [p] = ps.splice(from, 1);
+            ps.splice(d.index, 0, p);
+            relayout();
+          }
+        };
+      }
+
+      // --- MOVING A MESSAGE, AND WHICH FRAME IT BELONGS TO ---
+      // A message belongs to a frame when it sits between the frame's first and last message. Before a move the
+      // message is detached: a frame whose first or last it was keeps its edge on the neighbour that stays (a frame
+      // whose only message leaves is removed), and a branch starting at it moves to the next message of the frame
+      // (or goes, if that would leave a branch empty). Dropped between two messages of a frame, it then joins it.
+      function detachMessage(id) {
+        const order = chartData.messages.map((m) => m.id), i = order.indexOf(id);
+        chartData.fragments = chartData.fragments.filter((f) => {
+          const brs = branchList(f);
+          let a = order.indexOf(f.from), b = order.indexOf(f.to);
+          if (a === i && b === i) return false;
+          if (a === i) { f.from = order[i + 1]; a = i + 1; }
+          if (b === i) { f.to = order[i - 1]; b = i - 1; }
+          const next = brs.map((br) => {
+            if (br.at !== id) return br;
+            const n = i + 1;
+            return n <= b && !brs.some((o) => o.at === order[n]) ? { at: order[n], label: br.label } : null;
+          }).filter(Boolean);
+          // A branch now at the frame's first message would be empty: it merges into the one above
+          const kept = next.filter((br) => order.indexOf(br.at) > a);
+          if (kept.length !== brs.length || next.some((br, k) => br.at !== brs[k].at)) {
+            const short = f.elseAt !== undefined;
+            delete f.elseAt; delete f.branches;
+            if (kept.length) { if (short && kept.length === 1 && !kept[0].label) f.elseAt = kept[0].at; else f.branches = kept; }
+          }
+          return true;
+        });
+      }
+      // Move a message to `index` in the list without it
+      function moveMessage(id, index) {
+        const ms = chartData.messages, from = msgIndex(id);
+        if (from < 0 || index === from) return false;
+        detachMessage(id);
+        const [m] = ms.splice(from, 1);
+        ms.splice(Math.max(0, Math.min(index, ms.length)), 0, m);
+        return true;
+      }
+      function messageDrag(id) {
+        return {
+          move(pt, d) {
+            const el = document.querySelector(`.seq-msg-label[data-edge-id="${id}"]`);
+            if (el) {
+              el.classList.add('dragging');
+              const base = el.style.transform.replace(/translate[XY]\([^)]*\)/g, '').trim();
+              el.style.transform = `${base} translateY(${d.dy}px)`.trim();
+            }
+            const m = msgById(id);
+            d.slot = nearestSlot(rowSlots(id), m.y + d.dy);
+            showDropLine(d.slot.y, frameAtSlot(d.slot.index, id));
+          },
+          drop(pt, d) {
+            if (d.slot && moveMessage(id, d.slot.index)) relayout(); else render();
+          }
+        };
+      }
+
+      // --- CREATE A MESSAGE BY DRAWING IT: from a lifeline's + to another lifeline ---
+      // Hovering a lifeline shows a + dot snapped to the gap between two rows; dragging it draws a rubber-band arrow,
+      // lights the lifeline it would land on and shows the row. Released on the same lifeline: a self-message.
+      const seqPlus = htmlEl('div', 'seq-plus');
+      seqPlus.dataset.exportSkip = '';
+      seqPlus.title = 'Drag to another lifeline to add a message here';
+      seqPlus.textContent = '+';
+      function hidePlus() { seqPlus.style.display = 'none'; }
+      function onCanvasHover(e) {
+        if (seqDrag || isPresent() || !chartData.layout) { hidePlus(); return; }
+        const pt = canvasPoint(e);
+        seqCanvas.classList.toggle('seq-row-hover', pt.y < SQ.TOP + SQ.BOX_H + 22 && pt.y > 0);
+        if (e.target === seqPlus) return;
+        // On a lifeline the + wins over a frame's border or a branch divider crossing it
+        const free = e.target === seqCanvas || e.target === seqSvg || e.target === seqHtml || e.target.classList.contains('seq-pin-band')
+          || e.target.classList.contains('seq-frag-hit') || e.target.classList.contains('seq-div-hit');
+        const p = free && pt.y > SQ.TOP + SQ.BOX_H + 8 && pt.y < chartData.layout.height - 30 ? nearestParticipant(pt.x) : null;
+        if (!p || Math.abs(p.x - pt.x) > 16) { hidePlus(); return; }
+        const slot = nearestSlot(rowSlots(), pt.y);
+        if (!seqPlus.isConnected) seqHtml.appendChild(seqPlus);
+        Object.assign(seqPlus.style, { display: 'flex', left: px(p.x), top: px(slot.y) });
+        seqPlus.dataset.pid = p.id;
+        seqPlus.dataset.index = slot.index;
+        seqPlus.dataset.y = slot.y;
+      }
+      seqCanvas.addEventListener('pointermove', onCanvasHover);
+      seqCanvas.addEventListener('pointerleave', () => { hidePlus(); seqCanvas.classList.remove('seq-row-hover'); });
+      function connectDrag() {
+        const from = partById(seqPlus.dataset.pid), index = +seqPlus.dataset.index, y = +seqPlus.dataset.y;
+        return {
+          move(pt, d) {
+            hidePlus();
+            const to = nearestParticipant(pt.x);
+            d.to = to;
+            lightLifeline(to && to.id);
+            showRubber(from.x, y, pt.x, y + (pt.y - y) * 0.15);
+            showDropLine(y, frameAtSlot(index));
+          },
+          drop(pt, d) {
+            if (!d.to) { render(); return; }
+            const m = { id: seqUid('m'), from: from.id, to: d.to.id, label: 'Message', kind: 'sync' };
+            chartData.messages.splice(index, 0, m);
+            editCreated('message', m.id);
+          },
+          click() { hidePlus(); }
+        };
+      }
+
+      // --- HANDLES ON THE SELECTION ---
+      // Retarget: drag a message end to another lifeline. Frame range: drag its top or bottom edge to a row gap.
+      // Note: stretch it over a second lifeline from its right edge.
+      function handleDrag(h) {
+        const role = h.dataset.role;
+        if (role === 'from' || role === 'to') {
+          const m = msgById(h.dataset.id);
+          const fixed = partById(role === 'from' ? m.to : m.from);
+          return {
+            move(pt, d) {
+              const p = nearestParticipant(pt.x);
+              d.target = p;
+              lightLifeline(p && p.id);
+              if (role === 'to') showRubber(fixed.x, m.y, pt.x, m.y); else showRubber(pt.x, m.y, fixed.x, m.y);
+            },
+            drop(pt, d) {
+              if (!d.target || d.target.id === m[role]) { render(); return; }
+              m[role] = d.target.id;
+              relayout();
+            }
+          };
         }
-        const me = ms.find((m) => m.id === drag.id);
-        const others = ms.filter((m) => m.id !== drag.id);
-        const at = others.filter((m) => m.y < me.y + drag.dy).length;
-        const above = others[at - 1], below = others[at];
-        const y = above && below ? (above.y + below.y) / 2 : above ? above.y + 34 : below ? below.y - 34 : me.y;
-        return { index: at, line: { x1: 8, x2: L.width - 8, y1: y, y2: y } };
+        if (role === 'top' || role === 'bottom') {
+          const f = fragById(h.dataset.id);
+          return {
+            move(pt, d) {
+              d.slot = nearestSlot(rowSlots(), pt.y);
+              showDropLine(d.slot.y, null);
+            },
+            drop(pt, d) {
+              const ms = chartData.messages;
+              let [a, b] = fragRange(f);
+              if (role === 'top') a = d.slot.index; else b = d.slot.index - 1;
+              if (a > b || a < 0 || b >= ms.length || crossesFrame(a, b, f.id)) { render(); return; }
+              const brs = branchList(f);
+              f.from = ms[a].id;
+              f.to = ms[b].id;
+              setBranches(f, brs);   // a branch now outside the frame goes
+              relayout();
+            }
+          };
+        }
+        if (role === 'stretch') {
+          const n = noteById(h.dataset.id);
+          return {
+            move(pt, d) {
+              const p = nearestParticipant(pt.x);
+              d.target = p;
+              lightLifeline(p && p.id);
+            },
+            drop(pt, d) {
+              const first = Array.isArray(n.over) ? n.over[0] : n.over;
+              if (!d.target) { render(); return; }
+              const over = d.target.id === first ? first : [first, d.target.id];
+              if (JSON.stringify(over) === JSON.stringify(n.over)) { render(); return; }
+              n.over = over;
+              relayout();
+            }
+          };
+        }
+        return null;
+      }
+
+      // Move a note: vertically to another row gap, sideways to another lifeline (a stretched note keeps its span)
+      function noteDrag(id, el) {
+        const n = noteById(id);
+        return {
+          move(pt, d) {
+            el.classList.add('dragging');
+            el.style.transform = `translate(${d.dx}px, ${d.dy}px)`;
+            d.slot = nearestSlot(rowSlots(), n.y + d.dy);
+            showDropLine(d.slot.y, null);
+            const p = nearestParticipant(n.x + n.w / 2 + d.dx);
+            lightLifeline(p && p.id);
+          },
+          drop(pt, d) {
+            const ps = chartData.participants, ms = chartData.messages;
+            const over = Array.isArray(n.over) ? n.over : [n.over];
+            const centre = nearestParticipant(n.x + n.w / 2 + d.dx);
+            const was = nearestParticipant(n.x + n.w / 2);
+            const shift = ps.indexOf(centre) - ps.indexOf(was);
+            const idx = over.map((pid) => Math.max(0, Math.min(ps.length - 1, ps.findIndex((p) => p.id === pid) + shift)));
+            n.over = idx.length > 1 && idx[0] !== idx[1] ? idx.map((i) => ps[i].id) : ps[idx[0]].id;
+            delete n.after;
+            delete n.before;
+            if (d.slot.index < ms.length) n.before = ms[d.slot.index].id;
+            else if (ms.length) n.after = ms[ms.length - 1].id;
+            relayout();
+          }
+        };
+      }
+
+      // Move a branch divider to another row gap inside its frame
+      function dividerDrag(fid, at) {
+        const f = fragById(fid);
+        return {
+          move(pt, d) {
+            d.slot = nearestSlot(rowSlots(), pt.y);
+            showDropLine(d.slot.y, f);
+          },
+          drop(pt, d) {
+            const ms = chartData.messages, [a, b] = fragRange(f), k = d.slot.index;
+            const brs = branchList(f);
+            if (k <= a || k > b || !ms[k] || brs.some((br) => br.at === ms[k].id)) { render(); return; }
+            brs.forEach((br) => { if (br.at === at) br.at = ms[k].id; });
+            setBranches(f, brs);
+            seqSel = { kind: 'divider', id: fid, at: ms[k].id };
+            relayout();
+          }
+        };
+      }
+
+      // Shift + drag on blank canvas: a marquee selects every message it touches, as one range
+      function marqueeDrag(e) {
+        const start = canvasPoint(e);
+        const box = htmlEl('div', 'seq-marquee');
+        box.dataset.exportSkip = '';
+        seqHtml.appendChild(box);
+        const rect = (pt) => ({ x: Math.min(start.x, pt.x), y: Math.min(start.y, pt.y), w: Math.abs(pt.x - start.x), h: Math.abs(pt.y - start.y) });
+        return {
+          move(pt) {
+            const r = rect(pt);
+            Object.assign(box.style, { left: px(r.x), top: px(r.y), width: px(r.w), height: px(r.h) });
+          },
+          drop(pt) {
+            box.remove();
+            const r = rect(pt);
+            const byId = {};
+            chartData.participants.forEach((p) => { byId[p.id] = p; });
+            const ids = chartData.messages.filter((m) => {
+              if (m.hidden || !byId[m.from] || !byId[m.to]) return false;
+              const lo = Math.min(byId[m.from].x, byId[m.to].x), hi = Math.max(byId[m.from].x, byId[m.to].x) + (m.from === m.to ? SQ.SELF_LOOP : 0);
+              return m.y >= r.y && m.y <= r.y + r.h && hi >= r.x && lo <= r.x + r.w;
+            }).map((m) => m.id);
+            if (ids.length) selectRange(ids[0], ids[ids.length - 1]); else select(null);
+          },
+          click() { box.remove(); }
+        };
+      }
+      // A range of messages from anchor to id (in time order, inclusive)
+      function selectRange(anchor, id) {
+        const ms = chartData.messages, a = msgIndex(anchor), b = msgIndex(id);
+        const lo = Math.min(a, b), hi = Math.max(a, b);
+        const ids = ms.slice(lo, hi + 1).filter((m) => !m.hidden || m.id === anchor || m.id === id).map((m) => m.id);
+        select('message', id, ids.length > 1 ? { ids, anchor } : {});
       }
 
       function onSeqPointerDown(e) {
-        if (document.body.classList.contains('presentation') || e.button > 0) return;
+        if (isPresent() || e.button > 0) return;
         if (e.target.isContentEditable) return;
-        if (e.target.closest('.seq-frag-chev, .seq-frag-summary')) return;   // handled on click
-        const hit = e.target.closest('.seq-participant, .seq-msg-label, .seq-msg-hit, .seq-frag-label');
-        if (!hit) return;
-        let kind, id;
-        if (hit.classList.contains('seq-participant')) { kind = 'participant'; id = hit.dataset.nodeId; }
-        else if (hit.classList.contains('seq-frag-label')) { kind = 'fragment'; id = hit.dataset.fragId; }
-        else { kind = 'message'; id = hit.dataset.edgeId; }
-        select(kind, id);
-        if (kind === 'fragment') return;
-        seqDrag = { kind, id, el: hit, startX: e.clientX, startY: e.clientY, dx: 0, dy: 0, moved: false, target: null };
-        window.addEventListener('pointermove', onSeqPointerMove);
-        window.addEventListener('pointerup', onSeqPointerUp);
-      }
-
-      function onSeqPointerMove(e) {
-        if (!seqDrag) return;
-        seqDrag.dx = (e.clientX - seqDrag.startX) / scale;
-        seqDrag.dy = (e.clientY - seqDrag.startY) / scale;
-        if (!seqDrag.moved && Math.abs(seqDrag.dx) < 4 && Math.abs(seqDrag.dy) < 4) return;
-        seqDrag.moved = true;
-        const isP = seqDrag.kind === 'participant';
-        const el = isP ? seqDrag.el : document.querySelector(`.seq-msg-label[data-edge-id="${seqDrag.id}"]`);
-        if (!el) return;
-        el.classList.add('dragging');
-        const base = el.style.transform.replace(/translate[XY]\([^)]*\)/g, '').trim();
-        el.style.transform = `${base} ${isP ? `translateX(${seqDrag.dx}px)` : `translateY(${seqDrag.dy}px)`}`.trim();
-        seqDrag.target = dropTarget(seqDrag);
-        const line = seqDrag.target.line;
-        Object.keys(line).forEach((k) => seqDrop.setAttribute(k, line[k]));
-        seqDrop.style.display = 'block';
-      }
-
-      function endSeqDrag() {
-        window.removeEventListener('pointermove', onSeqPointerMove);
-        window.removeEventListener('pointerup', onSeqPointerUp);
-        seqDrop.style.display = 'none';
-        const drag = seqDrag;
-        seqDrag = null;
-        return drag;
-      }
-
-      function onSeqPointerUp() {
-        const drag = endSeqDrag();
-        if (!drag) return;
-        // A click without movement must not rebuild the DOM: the second click of a double-click has to land on
-        // the same element, or the browser's dblclick never reaches the text
-        if (!drag.moved) { applySelection(); return; }
-        if (!drag.target) { render(); return; }
-        const list = drag.kind === 'participant' ? chartData.participants : chartData.messages;
-        const from = list.findIndex((item) => item.id === drag.id);
-        const [item] = list.splice(from, 1);
-        list.splice(drag.target.index, 0, item);
-        if (drag.kind === 'message') {
-          const order = chartData.messages.map((m) => m.id);
-          chartData.fragments.forEach((f) => {
-            if (order.indexOf(f.from) > order.indexOf(f.to)) { const t = f.from; f.from = f.to; f.to = t; }
-          });
+        if (e.target.closest('.seq-frag-chev, .seq-frag-summary, .seq-actionbar, .seq-insert, .seq-add-branch')) return;   // handled on click
+        const handle = e.target.closest('.seq-handle');
+        if (handle) { e.stopPropagation(); const d = handleDrag(handle); if (d) beginDrag(e, d); return; }
+        if (e.target === seqPlus) { e.stopPropagation(); beginDrag(e, connectDrag()); return; }
+        const hit = e.target.closest('.seq-participant, .seq-msg-label, .seq-msg-hit, .seq-msg-detail, .seq-frag-label, .seq-frag-hit, .seq-div-hit, .seq-frag-branch-label, .seq-frag-else-label, .seq-note');
+        if (!hit) {
+          // Shift + drag on blank canvas draws a marquee instead of panning
+          if (e.shiftKey && (e.target === seqCanvas || e.target === seqSvg || e.target === seqHtml || e.target.classList.contains('seq-pin-band'))) {
+            e.stopPropagation();
+            beginDrag(e, marqueeDrag(e));
+          }
+          return;
         }
-        if (drag.target.index !== from) relayout(); else render();
+        const cl = hit.classList;
+        if (cl.contains('seq-participant')) {
+          select('participant', hit.dataset.nodeId);
+          beginDrag(e, participantDrag(hit.dataset.nodeId, hit));
+        } else if (cl.contains('seq-frag-label') || cl.contains('seq-frag-hit')) {
+          select('fragment', hit.dataset.fragId);
+        } else if (cl.contains('seq-div-hit') || cl.contains('seq-frag-branch-label') || cl.contains('seq-frag-else-label')) {
+          select('divider', hit.dataset.fragId, { at: hit.dataset.at });
+          beginDrag(e, dividerDrag(hit.dataset.fragId, hit.dataset.at));
+        } else if (cl.contains('seq-note')) {
+          select('note', hit.dataset.noteId);
+          beginDrag(e, noteDrag(hit.dataset.noteId, hit));
+        } else {
+          const id = hit.dataset.edgeId;
+          if (e.shiftKey && seqSel && seqSel.kind === 'message') { selectRange(seqSel.anchor || seqSel.id, id); return; }
+          select('message', id);
+          beginDrag(e, messageDrag(id));
+        }
       }
 
-      // --- INLINE TEXT EDITING (double-click, or straight after creating something) ---
+      // --- ACTION BAR AND HANDLES (drawn on the selection, never exported) ---
+      const ICON = {
+        sync: '<path d="M3 12h15"/><path d="m14 7 6 5-6 5z" fill="currentColor"/>',
+        reply: '<path d="M21 12H6" stroke-dasharray="3 3"/><path d="m10 7-5 5 5 5"/>',
+        async: '<path d="M3 12h16"/><path d="m14 7 6 5-6 5"/>',
+        reverse: '<path d="M4 8h16"/><path d="m16 4 4 4-4 4"/><path d="M20 16H4"/><path d="m8 12-4 4 4 4"/>',
+        reply2: '<path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/>',
+        trash: '<path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M6 6l1 14h10l1-14"/>'
+      };
+      const iconSvg = (body) => `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${body}</svg>`;
+      function abButton(act, html, title, pressed, value) {
+        const b = htmlEl('button', 'seq-ab-btn');
+        b.type = 'button';
+        b.dataset.act = act;
+        if (value !== undefined) b.dataset.value = value;
+        b.title = title;
+        b.setAttribute('aria-label', title);
+        if (pressed !== undefined) b.setAttribute('aria-pressed', String(!!pressed));
+        b.innerHTML = html;
+        return b;
+      }
+      function addHandle(role, id, x, y, extraClass) {
+        const h = htmlEl('div', `seq-handle ${extraClass || ''}`.trim(), { left: px(x), top: px(y) });
+        h.dataset.role = role;
+        h.dataset.id = id;
+        h.dataset.exportSkip = '';
+        seqHtml.appendChild(h);
+      }
+      function drawSelectionTools(sel) {
+        seqHtml.querySelectorAll('.seq-actionbar, .seq-handle, .seq-add-branch').forEach((el) => el.remove());
+        if (!sel.kind || isPresent()) return;
+        const bar = htmlEl('div', 'seq-actionbar');
+        bar.dataset.exportSkip = '';
+        bar.setAttribute('role', 'toolbar');
+        let at = null;
+        const byId = {};
+        chartData.participants.forEach((p) => { byId[p.id] = p; });
+        if (sel.kind === 'message' && !sel.ids) {
+          const m = msgById(sel.id), a = byId[m && m.from], b = byId[m && m.to];
+          if (!m || !a || !b || m.hidden) return;
+          bar.setAttribute('aria-label', 'Message');
+          [['sync', 'Call (solid line, opens an activation bar)'], ['reply', 'Reply (dashed line, closes the bar of its call)'], ['async', 'Async (fire and forget)']]
+            .forEach(([k, t]) => bar.appendChild(abButton('type', iconSvg(ICON[k]), t, (m.kind || 'sync') === k, k)));
+          bar.appendChild(htmlEl('span', 'seq-ab-sep'));
+          bar.appendChild(abButton('reverse', iconSvg(ICON.reverse), 'Reverse the direction'));
+          if ((m.kind || 'sync') === 'sync' && m.from !== m.to) bar.appendChild(abButton('reply', `${iconSvg(ICON.reply2)}<span>Reply</span>`, 'Add the reply under this call (or under the last message of its bar)'));
+          const self = m.from === m.to;
+          at = { x: self ? a.x + SQ.SELF_LOOP + 60 : (a.x + b.x) / 2, y: m.y - 62 };
+          // End handles: drag one to another lifeline to move that end
+          if (self) { addHandle('from', m.id, a.x, m.y, 'seq-end'); addHandle('to', m.id, a.x, m.y + 28, 'seq-end'); }
+          else { addHandle('from', m.id, a.x, m.y, 'seq-end'); addHandle('to', m.id, b.x, m.y, 'seq-end'); }
+        } else if (sel.kind === 'participant') {
+          const p = byId[sel.id];
+          if (!p) return;
+          bar.setAttribute('aria-label', 'Participant kind');
+          PARTICIPANT_KINDS.forEach((k) => bar.appendChild(abButton('pkind', KIND_ICONS[k] ? iconSvg(KIND_ICONS[k]) : `<span>${k === 'actor' ? 'Actor' : 'System'}</span>`,
+            `Kind: ${k}`, (p.kind || 'system') === k, k)));
+          at = { x: p.x, y: SQ.TOP + SQ.BOX_H + 8 };
+          bar.classList.add('is-below');
+        } else if (sel.kind === 'fragment') {
+          const f = fragById(sel.id);
+          if (!f || f.x === undefined) return;
+          bar.setAttribute('aria-label', 'Frame');
+          FRAG_KINDS.forEach((k) => bar.appendChild(abButton('fkind', `<span>${k}</span>`, `Kind: ${k}`, f.kind === k, k)));
+          bar.appendChild(htmlEl('span', 'seq-ab-sep'));
+          bar.appendChild(abButton('color', '<span class="seq-swatch is-none"></span>', 'No colour', !f.color, ''));
+          FRAG_COLORS.forEach((c) => bar.appendChild(abButton('color', `<span class="seq-swatch seq-tint-${c}"></span>`, `Colour: ${c}`, f.color === c, c)));
+          bar.appendChild(htmlEl('span', 'seq-ab-sep'));
+          bar.appendChild(abButton('delete-with', `${iconSvg(ICON.trash)}<span>With messages</span>`, 'Delete the frame and every message in it'));
+          at = { x: f.x + 150, y: f.y - 40 };
+          if (!f.collapsed) {
+            addHandle('top', f.id, f.x + f.w / 2, f.y, 'seq-edge');
+            addHandle('bottom', f.id, f.x + f.w / 2, f.y + f.h, 'seq-edge');
+            if (f.kind === 'alt' || f.kind === 'par') {
+              const add = htmlEl('button', 'seq-add-branch', { left: px(f.x + f.w / 2 + 24), top: px(f.y + f.h) });
+              add.type = 'button';
+              add.dataset.exportSkip = '';
+              add.dataset.fragId = f.id;
+              add.textContent = '+ branch';
+              add.title = 'Add a branch above the frame\'s last message';
+              seqHtml.appendChild(add);
+            }
+          }
+        } else if (sel.kind === 'note') {
+          const n = noteById(sel.id);
+          if (n && n.x !== undefined) addHandle('stretch', n.id, n.x + n.w, n.y + n.h / 2, 'seq-stretch');
+          return;
+        } else {
+          return;
+        }
+        Object.assign(bar.style, { left: px(at.x), top: px(Math.max(2, at.y)) });
+        seqHtml.appendChild(bar);
+      }
+
+      seqHtml.addEventListener('click', (e) => {
+        const add = e.target.closest('.seq-add-branch');
+        if (add) { e.stopPropagation(); addBranch(add.dataset.fragId); return; }
+        const ins = e.target.closest('.seq-insert');
+        if (ins) { e.stopPropagation(); insertParticipant(+ins.dataset.index); return; }
+        const b = e.target.closest('.seq-ab-btn');
+        if (!b || !seqSel) return;
+        e.stopPropagation();
+        runAction(b.dataset.act, b.dataset.value);
+      });
+      function runAction(act, value) {
+        const sel = seqSel;
+        if (sel.kind === 'message') {
+          const m = msgById(sel.id);
+          if (!m) return;
+          if (act === 'type') { if ((m.kind || 'sync') === value) return; m.kind = value; relayout(); }
+          else if (act === 'reverse') { const t = m.from; m.from = m.to; m.to = t; relayout(); }
+          else if (act === 'reply') addReply(m);
+        } else if (sel.kind === 'participant') {
+          const p = partById(sel.id);
+          if (p && act === 'pkind' && (p.kind || 'system') !== value) { p.kind = value; relayout(); }
+        } else if (sel.kind === 'fragment') {
+          const f = fragById(sel.id);
+          if (!f) return;
+          if (act === 'fkind' && f.kind !== value) {
+            const brs = branchList(f);
+            f.kind = value;
+            setBranches(f, brs);   // away from alt/par the branches go, in the same undo step
+            relayout();
+          } else if (act === 'color' && (f.color || '') !== value) {
+            if (value) f.color = value; else delete f.color;
+            relayout();
+          } else if (act === 'delete-with') {
+            const [a, b] = fragRange(f);
+            chartData.fragments = chartData.fragments.filter((x) => x.id !== f.id);
+            removeMessages(chartData.messages.slice(a, b + 1).map((x) => x.id));
+            seqSel = null;
+            relayout();
+          }
+        }
+      }
+      // Reply: the reverse dashed message under the call, or under the last message of its bar
+      function addReply(m) {
+        const ms = chartData.messages, i = ms.indexOf(m);
+        let at = i + 1;
+        // Inside the bar: everything until the callee next answers or the caller calls it again
+        for (let j = i + 1; j < ms.length; j++) {
+          const r = ms[j];
+          if ((r.from === m.from && r.to === m.to) || (r.kind === 'reply' && r.from === m.to && r.to === m.from)) break;
+          if (r.from === m.to || r.to === m.to) at = j + 1; else break;
+        }
+        const reply = { id: seqUid('m'), from: m.to, to: m.from, label: 'Reply', kind: 'reply' };
+        ms.splice(at, 0, reply);
+        // It stays in the frames its call is in: a frame that ended at the last message of the bar grows
+        chartData.fragments.forEach((f) => { if (msgIndex(f.to) === at - 1 && msgIndex(f.from) <= i) f.to = reply.id; });
+        editCreated('message', reply.id);
+      }
+      // + branch: a divider above the frame's last message that does not start a branch yet
+      function addBranch(fid) {
+        const f = fragById(fid);
+        if (!f) return;
+        const [a, b] = fragRange(f), brs = branchList(f), ms = chartData.messages;
+        let k = b;
+        while (k > a && brs.some((br) => br.at === ms[k].id)) k--;
+        if (k <= a) return;
+        brs.push({ at: ms[k].id, label: 'condition' });
+        setBranches(f, brs);
+        seqSel = { kind: 'divider', id: fid, at: ms[k].id };
+        relayout();
+        editBranch(fid, ms[k].id);
+      }
+
+      // --- INLINE TEXT EDITING (double-click, Enter / F2, or straight after creating something) ---
+      // Enter commits; Escape keeps the old text. A note takes Shift+Enter for a line break. Tab in a message's label
+      // moves on to its detail; an empty detail removes it.
       const EDIT_TEXT = '.seq-participant-name, .seq-msg-label-text, .seq-frag-text';
       const EDIT_OWNER = { participant: '.seq-participant[data-node-id="ID"]', message: '.seq-msg-label[data-edge-id="ID"]', fragment: '.seq-frag-label[data-frag-id="ID"]' };
-      function beginEdit(el) {
+      function applyText(el, value) {
+        const owner = el.closest('[data-node-id], [data-edge-id], [data-frag-id]');
+        if (!value || !owner) return false;
+        if (owner.dataset.nodeId) { const p = partById(owner.dataset.nodeId); if (p && p.name !== value) { p.name = value; return true; } }
+        else if (owner.dataset.edgeId) { const m = msgById(owner.dataset.edgeId); if (m && m.label !== value) { m.label = value; return true; } }
+        else if (owner.dataset.fragId) { const f = fragById(owner.dataset.fragId); if (f && f.label !== value) { f.label = value; return true; } }
+        return false;
+      }
+      function beginEdit(el, opts = {}) {
         if (!el || el.isContentEditable) return;
-        el.contentEditable = 'true';
+        const multi = !!opts.multiline;
+        if (opts.raw !== undefined) el.textContent = opts.raw;
+        el.contentEditable = multi ? 'plaintext-only' : 'true';
         el.focus();
         const range = document.createRange();
         range.selectNodeContents(el);
@@ -431,31 +1003,116 @@
         s.removeAllRanges();
         s.addRange(range);
         const original = el.textContent;
+        let tabbed = false;
         const commit = () => {
           el.removeEventListener('blur', commit);
           el.removeEventListener('keydown', onKey);
           el.contentEditable = 'false';
-          const value = el.textContent.trim();
-          const owner = el.closest('[data-node-id], [data-edge-id], [data-frag-id]');
-          let changed = false;
-          if (value && owner) {
-            if (owner.dataset.nodeId) { const p = chartData.participants.find((x) => x.id === owner.dataset.nodeId); if (p && p.name !== value) { p.name = value; changed = true; } }
-            else if (owner.dataset.edgeId) { const m = chartData.messages.find((x) => x.id === owner.dataset.edgeId); if (m && m.label !== value) { m.label = value; changed = true; } }
-            else if (owner.dataset.fragId) { const f = chartData.fragments.find((x) => x.id === owner.dataset.fragId); if (f && f.label !== value) { f.label = value; changed = true; } }
-          }
-          if (changed) relayout(); else el.textContent = original;
+          const value = (multi ? el.innerText : el.textContent).replace(/\r/g, '').replace(/^\s+|\s+$/g, '');
+          const changed = (opts.apply || applyText)(el, value);
+          if (changed) relayout();
+          else if (opts.restore) render();
+          else el.textContent = original;
+          if (tabbed && opts.onTab) opts.onTab();
         };
-        // Enter commits; Escape puts the text back (the keys stay inside the editor)
         const onKey = (ke) => {
-          if (ke.key === 'Enter') { ke.preventDefault(); el.blur(); }
+          // The keys an edit uses stop here: an Enter that reached the window would open the selection's edit again
+          if (ke.key === 'Enter' || ke.key === 'Tab' || ke.key === 'F2') ke.stopPropagation();
+          if (ke.key === 'Enter' && multi && ke.shiftKey) { ke.preventDefault(); document.execCommand('insertText', false, '\n'); }
+          else if (ke.key === 'Enter') { ke.preventDefault(); el.blur(); }
           else if (ke.key === 'Escape') { ke.preventDefault(); ke.stopPropagation(); el.textContent = original; el.blur(); }
+          else if (ke.key === 'Tab' && opts.onTab) { ke.preventDefault(); tabbed = true; el.blur(); }
         };
         el.addEventListener('blur', commit);
         el.addEventListener('keydown', onKey);
       }
+      function editMessage(id) {
+        const el = seqHtml.querySelector(`.seq-msg-label[data-edge-id="${id}"] .seq-msg-label-text`);
+        beginEdit(el, { onTab: () => editDetail(id) });
+      }
+      // The detail line under a message's arrow; one is made for the edit when the message has none (or details are hidden)
+      function editDetail(id) {
+        const m = msgById(id);
+        if (!m || m.hidden) return;
+        let el = seqHtml.querySelector(`.seq-msg-detail[data-edge-id="${id}"] .seq-msg-detail-text`);
+        if (!el) {
+          const label = seqHtml.querySelector(`.seq-msg-label[data-edge-id="${id}"]`);
+          if (!label) return;
+          const box = htmlEl('div', `seq-msg-detail is-editing${m.from === m.to ? ' is-self' : ''}`, {
+            left: label.style.left, top: px(m.from === m.to ? m.y + 24 : m.y + 3), transform: label.style.transform });
+          box.dataset.edgeId = id;
+          el = htmlEl('span', 'seq-msg-detail-text');
+          box.appendChild(el);
+          seqHtml.appendChild(box);
+        }
+        beginEdit(el, {
+          raw: m.detail || '', restore: true,
+          apply: (e, value) => {
+            if ((m.detail || '') === value) return false;
+            if (value) m.detail = value.replace(/\s*\n\s*/g, ' '); else delete m.detail;
+            return true;
+          }
+        });
+      }
+      function editNote(id) {
+        const n = noteById(id);
+        const el = seqHtml.querySelector(`.seq-note[data-note-id="${id}"] .seq-note-text`);
+        if (!n || !el) return;
+        beginEdit(el, {
+          multiline: true, raw: n.text || '', restore: true,
+          apply: (e, value) => { if (!value || value === n.text) return false; n.text = value; return true; }
+        });
+      }
+      // A branch's condition. An "else" (no label) is given a label element for the edit
+      function editBranch(fid, at) {
+        const f = fragById(fid);
+        if (!f || f.x === undefined) return;
+        const d = (f.dividers || []).find((x) => x.at === at);
+        if (!d) return;
+        let el = seqHtml.querySelector(`.seq-frag-branch-label[data-frag-id="${fid}"][data-at="${at}"] .seq-branch-text`);
+        if (!el) {
+          seqHtml.querySelectorAll(`.seq-frag-else-label[data-frag-id="${fid}"][data-at="${at}"]`).forEach((x) => x.remove());
+          const box = htmlEl('div', 'seq-frag-branch-label is-editing', { left: px(f.x + 10), top: px(d.y + 3) });
+          box.dataset.fragId = fid;
+          box.dataset.at = at;
+          el = htmlEl('span', 'seq-branch-text');
+          box.appendChild(el);
+          seqHtml.appendChild(box);
+        }
+        const brs = branchList(f), br = brs.find((x) => x.at === at);
+        beginEdit(el, {
+          raw: br ? br.label : '', restore: true,
+          apply: (e, value) => {
+            if (!br || br.label === value) return false;
+            br.label = value;
+            setBranches(f, brs);
+            return true;
+          }
+        });
+      }
+      function editSelection() {
+        const sel = seqSel;
+        if (!sel) return;
+        if (sel.kind === 'message') editMessage(sel.id);
+        else if (sel.kind === 'note') editNote(sel.id);
+        else if (sel.kind === 'divider') editBranch(sel.id, sel.at);
+        else {
+          const box = seqHtml.querySelector(EDIT_OWNER[sel.kind].replace('ID', sel.id));
+          beginEdit(box && box.querySelector(EDIT_TEXT));
+        }
+      }
       function onSeqDblClick(e) {
-        if (document.body.classList.contains('presentation')) return;
-        const box = e.target.closest('.seq-participant, .seq-msg-label, .seq-frag-label');
+        if (isPresent()) return;
+        if (e.target.closest('.seq-frag-chev, .seq-frag-summary, .seq-actionbar')) return;
+        const div = e.target.closest('.seq-div-hit, .seq-frag-branch-label, .seq-frag-else-label');
+        if (div) { e.stopPropagation(); editBranch(div.dataset.fragId, div.dataset.at); return; }
+        const note = e.target.closest('.seq-note');
+        if (note) { e.stopPropagation(); editNote(note.dataset.noteId); return; }
+        const det = e.target.closest('.seq-msg-detail');
+        if (det) { e.stopPropagation(); editDetail(det.dataset.edgeId); return; }
+        const lab = e.target.closest('.seq-msg-label');
+        if (lab) { e.stopPropagation(); editMessage(lab.dataset.edgeId); return; }
+        const box = e.target.closest('.seq-participant, .seq-frag-label');
         const el = e.target.closest(EDIT_TEXT) || (box && box.querySelector(EDIT_TEXT));
         if (!el) return;
         e.stopPropagation();
@@ -469,9 +1126,11 @@
         const r = el.getBoundingClientRect(), v = viewport.getBoundingClientRect(), pad = 60;
         const dock = document.querySelector('.dock-area .toolbar-center');
         const bottom = Math.min(v.bottom, dock && dock.offsetHeight ? dock.getBoundingClientRect().top : v.bottom);
+        // The pinned participant row covers the top of the viewport
+        const top = v.top + (seqCanvas.classList.contains('seq-pinned') ? (SQ.BOX_H + 24) * scale : 0);
         let dx = 0, dy = 0;
         if (r.left < v.left + pad) dx = v.left + pad - r.left; else if (r.right > v.right - pad) dx = v.right - pad - r.right;
-        if (r.top < v.top + pad) dy = v.top + pad - r.top; else if (r.bottom > bottom - pad) dy = bottom - pad - r.bottom;
+        if (r.top < top + pad) dy = top + pad - r.top; else if (r.bottom > bottom - pad) dy = bottom - pad - r.bottom;
         if (!dx && !dy) return;
         panX += dx;
         panY += dy;
@@ -481,23 +1140,30 @@
       function editCreated(kind, id) {
         seqSel = { kind, id };
         relayout();
+        if (kind === 'note') {
+          panIntoView(seqHtml.querySelector(`.seq-note[data-note-id="${id}"]`));
+          editNote(id);
+          return;
+        }
         const box = seqHtml.querySelector(EDIT_OWNER[kind].replace('ID', id));
         panIntoView(box);
-        beginEdit(box && box.querySelector(EDIT_TEXT));
+        if (kind === 'message') editMessage(id); else beginEdit(box && box.querySelector(EDIT_TEXT));
       }
 
       seqHtml.addEventListener('pointerdown', onSeqPointerDown);
       seqSvg.addEventListener('pointerdown', onSeqPointerDown);
+      // Shift + drag on blank canvas: the canvas itself is the target there
+      seqCanvas.addEventListener('pointerdown', (e) => { if (e.target === seqCanvas) onSeqPointerDown(e); });
 
       // --- COLLAPSE AND EXPAND (the chevron in a frame tag, or a collapsed frame's summary row) ---
       // "collapsed" is saved, so an author can ship a page that opens as an overview. In ?present it is how a
       // presenter walks the audience through the flow phase by phase: there it changes the view only (no undo
       // step, no unsaved badge).
       function toggleCollapsed(fid) {
-        const f = chartData.fragments.find((x) => x.id === fid);
+        const f = fragById(fid);
         if (!f) return;
         if (f.collapsed) delete f.collapsed; else f.collapsed = true;
-        if (document.body.classList.contains('presentation')) { layoutDiagram(chartData); render(); return; }
+        if (isPresent()) { layoutDiagram(chartData); render(); return; }
         seqSel = { kind: 'fragment', id: fid };
         relayout();
       }
@@ -543,6 +1209,7 @@
               br.at = e;
               return true;
             });
+            if (!f.branches.length) delete f.branches;
           }
           return true;
         });
@@ -568,76 +1235,150 @@
           n.over = over.length === 1 ? over[0] : over;
           return true;
         });
+        if (!chartData.notes.length) delete chartData.notes;
+      }
+      function deleteParticipant(id) {
+        removeMessages(chartData.messages.filter((m) => m.from === id || m.to === id).map((m) => m.id));
+        removeParticipantNotes(id);
+        chartData.participants = chartData.participants.filter((p) => p.id !== id);
+        seqSel = null;
+        relayout();
       }
 
-      function deleteSelection() {
-        if (!seqSel) return;
-        if (seqSel.kind === 'participant') {
-          const id = seqSel.id;
-          removeMessages(chartData.messages.filter((m) => m.from === id || m.to === id).map((m) => m.id));
-          removeParticipantNotes(id);
-          chartData.participants = chartData.participants.filter((p) => p.id !== id);
-        } else if (seqSel.kind === 'message') {
-          removeMessages([seqSel.id]);
+      // Deleting a participant with messages is confirmed first, in a small bubble at the button (or the box)
+      let seqConfirmEl = null;
+      function closeConfirm() {
+        if (!seqConfirmEl) return false;
+        seqConfirmEl.remove();
+        seqConfirmEl = null;
+        document.removeEventListener('pointerdown', onConfirmOutside, true);
+        return true;
+      }
+      function onConfirmOutside(e) { if (seqConfirmEl && !seqConfirmEl.contains(e.target)) closeConfirm(); }
+      function confirmDeleteParticipant(p, count, anchorEl) {
+        closeConfirm();
+        const box = htmlEl('div', 'seq-confirm');
+        box.dataset.exportSkip = '';
+        box.setAttribute('role', 'alertdialog');
+        box.setAttribute('aria-label', 'Delete participant');
+        const msg = htmlEl('div', 'seq-confirm-msg');
+        msg.textContent = `Delete ${p.name} and its ${count} message${count === 1 ? '' : 's'}?`;
+        const row = htmlEl('div', 'seq-confirm-actions');
+        const cancel = htmlEl('button', 'btn seq-confirm-cancel');
+        cancel.type = 'button';
+        cancel.textContent = 'Cancel';
+        cancel.addEventListener('click', () => closeConfirm());
+        const ok = htmlEl('button', 'btn seq-confirm-delete');
+        ok.type = 'button';
+        ok.textContent = 'Delete';
+        ok.addEventListener('click', () => { closeConfirm(); deleteParticipant(p.id); });
+        row.append(cancel, ok);
+        box.append(msg, row);
+        box.addEventListener('keydown', (e) => {
+          // Keys inside the bubble stay there (Delete/Backspace would open it again)
+          if (e.key === 'Escape') { e.preventDefault(); closeConfirm(); }
+          if (e.key !== 'Tab') e.stopPropagation();
+        });
+        document.body.appendChild(box);
+        seqConfirmEl = box;
+        const anchor = anchorEl || seqHtml.querySelector(`.seq-participant[data-node-id="${p.id}"]`);
+        const r = anchor ? anchor.getBoundingClientRect() : { left: innerWidth / 2, top: innerHeight / 3, bottom: innerHeight / 3 };
+        const bw = box.offsetWidth, bh = box.offsetHeight;
+        const top = r.bottom + 8 + bh > innerHeight - 8 ? r.top - 8 - bh : r.bottom + 8;
+        box.style.left = `${Math.max(8, Math.min(r.left, innerWidth - bw - 8))}px`;
+        box.style.top = `${Math.max(8, Math.min(top, innerHeight - bh - 8))}px`;
+        cancel.focus();
+        document.addEventListener('pointerdown', onConfirmOutside, true);
+      }
+
+      function deleteSelection(anchorEl) {
+        const sel = seqSel;
+        if (!sel) return;
+        if (sel.kind === 'participant') {
+          const p = partById(sel.id);
+          if (!p) return;
+          const count = chartData.messages.filter((m) => m.from === p.id || m.to === p.id).length;
+          if (count) { confirmDeleteParticipant(p, count, anchorEl); return; }
+          deleteParticipant(p.id);
+          return;
+        }
+        if (sel.kind === 'message') removeMessages(selIds(sel));
+        else if (sel.kind === 'note') {
+          chartData.notes = (chartData.notes || []).filter((n) => n.id !== sel.id);
+          if (!chartData.notes.length) delete chartData.notes;
+        } else if (sel.kind === 'divider') {
+          // The messages of the branch merge into the branch above
+          const f = fragById(sel.id);
+          if (f) setBranches(f, branchList(f).filter((br) => br.at !== sel.at));
         } else {
-          chartData.fragments = chartData.fragments.filter((f) => f.id !== seqSel.id);
+          chartData.fragments = chartData.fragments.filter((f) => f.id !== sel.id);
         }
         seqSel = null;
         relayout();
       }
 
-      btnAddParticipant.addEventListener('click', () => {
+      // --- CREATE (dock buttons and the + between participant boxes) ---
+      function insertParticipant(index) {
         ensureModel();
         const p = { id: seqUid('p'), name: `Participant ${chartData.participants.length + 1}`, kind: 'system' };
-        chartData.participants.push(p);
+        chartData.participants.splice(Math.max(0, Math.min(index, chartData.participants.length)), 0, p);
         editCreated('participant', p.id);
+      }
+      btnAddParticipant.addEventListener('click', () => {
+        ensureModel();
+        const i = seqSel && seqSel.kind === 'participant' ? chartData.participants.findIndex((p) => p.id === seqSel.id) : -1;
+        insertParticipant(i >= 0 ? i + 1 : chartData.participants.length);
       });
 
+      // The keyboard and touch path to a new message: after the selected message (same two ends), or at the
+      // first row from the selected participant to its neighbour
       btnAddMessage.addEventListener('click', () => {
         ensureModel();
         const ps = chartData.participants, ms = chartData.messages;
-        if (!ps.length) return;
-        let from, to, at = ms.length, kind = 'sync';
-        const selMsg = seqSel && seqSel.kind === 'message' ? ms.find((m) => m.id === seqSel.id) : null;
-        if (selMsg) {
-          from = selMsg.to; to = selMsg.from; at = ms.indexOf(selMsg) + 1; kind = 'reply';
+        if (!seqSel || (seqSel.kind !== 'message' && seqSel.kind !== 'participant')) return;
+        let m;
+        if (seqSel.kind === 'message') {
+          const ids = selIds(seqSel), last = msgById(ids[ids.length - 1]);
+          if (!last) return;
+          m = { id: seqUid('m'), from: last.from, to: last.to, label: 'Message', kind: 'sync' };
+          const i = ms.indexOf(last);
+          ms.splice(i + 1, 0, m);
+          // A frame that ended at the selected message takes the new one in
+          chartData.fragments.forEach((f) => { if (f.to === last.id && f.from !== last.id) f.to = m.id; });
         } else {
-          const i = seqSel && seqSel.kind === 'participant' ? ps.findIndex((p) => p.id === seqSel.id) : 0;
-          from = ps[i].id;
-          to = (ps[i + 1] || ps[i - 1] || ps[i]).id;
+          const i = ps.findIndex((p) => p.id === seqSel.id);
+          m = { id: seqUid('m'), from: ps[i].id, to: (ps[i + 1] || ps[i - 1] || ps[i]).id, label: 'Message', kind: 'sync' };
+          ms.unshift(m);
         }
-        const m = { id: seqUid('m'), from, to, label: 'Message', kind };
-        ms.splice(at, 0, m);
         editCreated('message', m.id);
-      });
-
-      btnToggleKind.addEventListener('click', () => {
-        if (!seqSel || seqSel.kind !== 'message') return;
-        const m = chartData.messages.find((x) => x.id === seqSel.id);
-        if (!m) return;
-        m.kind = MSG_KINDS[(MSG_KINDS.indexOf(m.kind) + 1) % MSG_KINDS.length];
-        relayout();
       });
 
       btnFrame.addEventListener('click', () => {
         ensureModel();
-        if (seqSel && seqSel.kind === 'fragment') {
-          const f = chartData.fragments.find((x) => x.id === seqSel.id);
-          if (f) { f.kind = FRAG_KINDS[(FRAG_KINDS.indexOf(f.kind) + 1) % FRAG_KINDS.length]; relayout(); }
-          return;
-        }
-        if (!seqSel || seqSel.kind !== 'message') return;
-        const f = { id: seqUid('f'), kind: 'opt', label: 'condition', from: seqSel.id, to: seqSel.id };
+        const fc = frameCandidate();
+        if (!fc || !fc.ok) return;
+        const ms = chartData.messages;
+        const f = { id: seqUid('f'), kind: 'opt', label: 'condition', from: ms[fc.a].id, to: ms[fc.b].id };
         chartData.fragments.push(f);
         editCreated('fragment', f.id);
       });
 
-      // Escape clears the selection, unless it has a drag to cancel first (the shell does that) or a text is in edit
-      window.addEventListener('keydown', (e) => {
-        if (e.key !== 'Escape' || seqDrag || !seqSel) return;
-        if (document.activeElement && document.activeElement.isContentEditable) return;
-        select(null);
-      }, true);
+      btnAddNote.addEventListener('click', () => {
+        if (!seqSel || (seqSel.kind !== 'message' && seqSel.kind !== 'participant')) return;
+        const n = { id: seqUid('n'), text: 'Note' };
+        if (seqSel.kind === 'message') {
+          const ids = selIds(seqSel), m = msgById(ids[ids.length - 1]);
+          if (!m) return;
+          n.over = m.from;
+          n.after = m.id;
+        } else {
+          n.over = seqSel.id;
+          if (chartData.messages.length) n.before = chartData.messages[0].id;
+        }
+        chartData.notes = chartData.notes || [];
+        chartData.notes.push(n);
+        editCreated('note', n.id);
+      });
 
       btnNumbers.addEventListener('click', () => {
         if (chartData.numbered) delete chartData.numbered; else chartData.numbered = true;
@@ -648,6 +1389,60 @@
         relayout();
       });
 
+      // --- KEYBOARD ---
+      // Enter or F2 edits; Escape cancels the edit, then clears the selection; Up/Down walk the messages,
+      // Left/Right the participants; Alt+Up/Down move a message; Shift+Up/Down grow the range.
+      window.addEventListener('keydown', (e) => {
+        if (e.key !== 'Escape' || seqDrag || !seqSel) return;
+        if (document.activeElement && document.activeElement.isContentEditable) return;
+        if (closeConfirm()) return;
+        select(null);
+      }, true);
+      window.addEventListener('keydown', (e) => {
+        if (isPresent() || seqDrag || e.ctrlKey || e.metaKey) return;
+        const a = document.activeElement;
+        if (a && (a.isContentEditable || a.tagName === 'INPUT' || a.tagName === 'TEXTAREA' || (a.tagName === 'BUTTON' && e.key === 'Enter'))) return;
+        if ((e.key === 'Enter' || e.key === 'F2') && seqSel) { e.preventDefault(); editSelection(); return; }
+        const ms = chartData.messages.filter((m) => !m.hidden), ps = chartData.participants;
+        if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+          const dir = e.key === 'ArrowUp' ? -1 : 1;
+          if (!ms.length) return;
+          e.preventDefault();
+          if (e.altKey && seqSel && seqSel.kind === 'message' && !seqSel.ids) {
+            const vi = ms.findIndex((m) => m.id === seqSel.id), other = ms[vi + dir];
+            if (!other) return;
+            // In the list without the moving message, past the neighbour in that direction is the neighbour's own
+            // index both ways (down: it moved up one; up: it is still there)
+            if (moveMessage(seqSel.id, msgIndex(other.id))) { relayout(); panIntoView(seqHtml.querySelector(`.seq-msg-label[data-edge-id="${seqSel.id}"]`)); }
+            return;
+          }
+          if (e.shiftKey && seqSel && seqSel.kind === 'message') {
+            const cur = seqSel.id, vi = ms.findIndex((m) => m.id === cur), next = ms[vi + dir];
+            if (next) selectRange(seqSel.anchor || cur, next.id);
+            return;
+          }
+          let next;
+          if (seqSel && seqSel.kind === 'message') { const vi = ms.findIndex((m) => m.id === seqSel.id); next = ms[Math.max(0, Math.min(ms.length - 1, vi + dir))]; }
+          else if (seqSel && seqSel.kind === 'participant') next = ms.find((m) => m.from === seqSel.id || m.to === seqSel.id) || ms[0];
+          else next = dir > 0 ? ms[0] : ms[ms.length - 1];
+          select('message', next.id);
+          panIntoView(seqHtml.querySelector(`.seq-msg-label[data-edge-id="${next.id}"]`));
+          return;
+        }
+        if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+          if (!ps.length || e.altKey) return;
+          e.preventDefault();
+          const dir = e.key === 'ArrowLeft' ? -1 : 1;
+          let next;
+          if (seqSel && seqSel.kind === 'participant') { const i = ps.findIndex((p) => p.id === seqSel.id); next = ps[Math.max(0, Math.min(ps.length - 1, i + dir))]; }
+          else if (seqSel && seqSel.kind === 'message') { const m = msgById(seqSel.id); next = partById(dir < 0 ? m.from : m.to); }
+          else next = dir > 0 ? ps[0] : ps[ps.length - 1];
+          if (!next) return;
+          select('participant', next.id);
+          panIntoView(seqHtml.querySelector(`.seq-participant[data-node-id="${next.id}"]`));
+        }
+      });
+
       // --- DISK FORMAT (the page's data block) ---
       // No positions are saved: render() lays out whatever is missing, so the block holds only the logical model,
       // in a fixed key order. scripts/disk_format.py is the Python twin: keep the two byte-identical.
@@ -655,9 +1450,54 @@
       const DISK_KEYS = ['diagramType', 'schemaVersion', 'title', 'numbered', 'showDetails', 'participants', 'messages', 'fragments', 'notes'];
       // Engine output, never saved: positions, hidden (inside a collapsed frame), frame dividers, note boxes
       const DISK_LAYOUT = [['participants', ['x']], ['messages', ['y', 'hidden']], ['fragments', ['x', 'y', 'w', 'h', 'elseY', 'dividers']], ['notes', ['x', 'y', 'w', 'h']]];
+      // Ids made in the page are renamed on save so the file stays readable to an agent: m<next free number>,
+      // p_<name slug>, f<N>, n<N>; every reference follows. Ids an author chose are never touched.
+      const GENERATED_ID = /^(p|m|f|n)_\d{12,}(_\d+)?$/;
+      function slug(text, sep = '_') {
+        let s = String(text || '').toLowerCase().replace(/đ/g, 'd').normalize('NFKD').replace(/[\u0300-\u036f]/g, '');
+        s = s.replace(/[^a-z0-9]+/g, sep).replace(new RegExp(`^${sep}+|${sep}+$`, 'g'), '');
+        if (s.length > 30) s = s.slice(0, 30).replace(new RegExp(`${sep}+$`), '');
+        return s;
+      }
+      function renameGeneratedIds(d) {
+        const ps = d.participants || [], ms = d.messages || [], fs = d.fragments || [], ns = d.notes || [];
+        const used = new Set([...ps, ...ms, ...fs, ...ns].map((o) => o.id));
+        const rename = new Map();
+        const take = (base) => {
+          let id = base, k = 2;
+          while (used.has(id)) id = `${base}_${k++}`;
+          used.add(id);
+          return id;
+        };
+        const numbered = (list, prefix) => {
+          let count = 1;
+          list.forEach((o) => {
+            if (!GENERATED_ID.test(String(o.id || ''))) return;
+            while (used.has(`${prefix}${count}`)) count++;
+            rename.set(o.id, take(`${prefix}${count}`));
+          });
+        };
+        ps.forEach((p) => { if (GENERATED_ID.test(String(p.id || ''))) rename.set(p.id, take('p_' + (slug(p.name) || 'participant'))); });
+        numbered(ms, 'm');
+        numbered(fs, 'f');
+        numbered(ns, 'n');
+        if (!rename.size) return;
+        const r = (id) => (rename.has(id) ? rename.get(id) : id);
+        [...ps, ...ms, ...fs, ...ns].forEach((o) => { o.id = r(o.id); });
+        ms.forEach((m) => ['from', 'to'].forEach((k) => { if (k in m) m[k] = r(m[k]); }));
+        fs.forEach((f) => {
+          ['from', 'to', 'elseAt'].forEach((k) => { if (k in f) f[k] = r(f[k]); });
+          if (Array.isArray(f.branches)) f.branches.forEach((b) => { if ('at' in b) b.at = r(b.at); });
+        });
+        ns.forEach((n) => {
+          if (Array.isArray(n.over)) n.over = n.over.map(r); else if ('over' in n) n.over = r(n.over);
+          ['after', 'before'].forEach((k) => { if (k in n) n[k] = r(n[k]); });
+        });
+      }
       function toDisk(data) {
         const d = JSON.parse(JSON.stringify(data));
         delete d.layout;   // canvas size, derived by the engine
+        renameGeneratedIds(d);
         DISK_LAYOUT.forEach(([list, keys]) => (d[list] || []).forEach(o => keys.forEach(k => { delete o[k]; })));
         const out = {};
         DISK_KEYS.forEach(k => { if (k in d) out[k] = d[k]; });
@@ -676,12 +1516,13 @@
         isBackground: (el) => el === seqCanvas || el === seqSvg || el === seqHtml,
         clearSelection() { seqSelStash = { sel: seqSel, data: chartData }; select(null); },
         cancelInteraction() {
+          if (closeConfirm()) return true;
           if (!seqDrag) return false;
           endSeqDrag();
           render();
           return true;
         },
         hasSelection: () => !!seqSel,
-        onViewChange: pinParticipants,
+        onViewChange() { closeConfirm(); pinParticipants(); },
         deleteSelection
       });

@@ -124,9 +124,66 @@ def flowchart_from_disk(data: Dict[str, Any]) -> Dict[str, Any]:
     return d
 
 
+SEQUENCE_GENERATED_ID = re.compile(r"^(p|m|f|n)_\d{12,}(_\d+)?$")  # page ids: <prefix>_<Date.now()>_<k>
+
+
+def _rename_sequence_ids(d: Dict[str, Any]) -> None:
+    """Readable names for page-generated ids (in place): m<N>, p_<name slug>, f<N>, n<N>. Mirrors sequence.js."""
+    ps, ms = d.get("participants") or [], d.get("messages") or []
+    fs, ns = d.get("fragments") or [], d.get("notes") or []
+    used = {o.get("id") for o in ps + ms + fs + ns}
+    rename: Dict[str, str] = {}
+
+    def take(base: str) -> str:
+        new, k = base, 2
+        while new in used:
+            new, k = f"{base}_{k}", k + 1
+        used.add(new)
+        return new
+
+    def generated(o: Dict[str, Any]) -> bool:
+        return bool(SEQUENCE_GENERATED_ID.match(str(o.get("id", ""))))
+
+    for p in ps:
+        if generated(p):
+            rename[p["id"]] = take("p_" + (slug(p.get("name")) or "participant"))
+    for items, prefix in ((ms, "m"), (fs, "f"), (ns, "n")):
+        count = 1
+        for o in items:
+            if generated(o):
+                while f"{prefix}{count}" in used:
+                    count += 1
+                rename[o["id"]] = take(f"{prefix}{count}")
+    if not rename:
+        return
+    r = lambda i: rename.get(i, i)  # noqa: E731
+    for o in ps + ms + fs + ns:
+        o["id"] = r(o["id"])
+    for m in ms:
+        for k in ("from", "to"):
+            if k in m:
+                m[k] = r(m[k])
+    for f in fs:
+        for k in ("from", "to", "elseAt"):
+            if k in f:
+                f[k] = r(f[k])
+        for b in f.get("branches") or []:
+            if isinstance(b, dict) and "at" in b:
+                b["at"] = r(b["at"])
+    for n in ns:
+        if isinstance(n.get("over"), list):
+            n["over"] = [r(i) for i in n["over"]]
+        elif "over" in n:
+            n["over"] = r(n["over"])
+        for k in ("after", "before"):
+            if k in n:
+                n[k] = r(n[k])
+
+
 def sequence_to_disk(data: Dict[str, Any]) -> Dict[str, Any]:
     d = copy.deepcopy(data)
     d.pop("layout", None)  # canvas size, derived by the engine
+    _rename_sequence_ids(d)
     for items, keys in SEQUENCE_LAYOUT:
         for o in d.get(items) or []:
             for k in keys:
