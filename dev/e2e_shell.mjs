@@ -560,11 +560,16 @@ try {
       window.claude = { use: async (name) => {
         if (name === 'artifact') {
           if (cfg.artifact === null) return null;
-          return { publish: async (html) => { window.__pub.push(html); await new Promise(r => setTimeout(r, 150)); if (window.__reject) throw new Error(window.__reject); } };
+          return { publish: async (html) => { window.__pub.push(html); await new Promise(r => setTimeout(r, 150)); if (window.__reject) throw Object.assign(new Error('stub ' + window.__reject), { code: window.__reject }); } };
         }
         if (name === 'downloads') return cfg.downloads === false ? null : { save: async (a) => { window.__dl.push({ filename: a.filename, type: a.data.type, text: typeof a.data === 'string' ? a.data : await a.data.text() }); } };
         return null;
       } };
+      // What a viewer may inject at run time: a runtime script in <head> and one appended to <body> after our content
+      if (cfg.inject) document.addEventListener('DOMContentLoaded', () => {
+        const s = document.createElement('script'); s.id = 'claude-runtime-probe'; s.textContent = '/* injected */';
+        document.head.appendChild(s.cloneNode(true)); document.body.appendChild(s);
+      });
     })()`;
     let stubId = null;
     const openWith = async (cfg) => {
@@ -582,7 +587,7 @@ try {
       h.textContent = ${JSON.stringify(name)}; h.blur(); if (h.isContentEditable) h.dispatchEvent(new FocusEvent('blur')); })()`);
 
     // 12a. Inside an artifact: Save publishes once (a double click is one publish), in the exact skeleton
-    await openWith({});
+    await openWith({ inject: true });
     t.check('artifact: badge reads "Saved to artifact" and Save is enabled once use("artifact") resolves',
       (await badge()) === 'Saved to artifact' && await saveVisible() && t.errors.length === 0, `${await badge()} ${t.errors.join(' | ')}`);
     await t.ev(`(() => { document.getElementById('btn-save').click(); document.getElementById('btn-save').click(); window.dispatchEvent(new KeyboardEvent('keydown', { key: 's', ctrlKey: true, bubbles: true })); })()`);
@@ -593,6 +598,8 @@ try {
     t.check('artifact: the published document starts with the exact skeleton and ends with </body></html>',
       doc.startsWith(skeleton + '\n<title>') && doc.endsWith('</body></html>') && doc.slice(0, doc.indexOf('<body>') + 6) === skeleton, doc.slice(0, 300));
     t.check('artifact: the published data block is byte-identical to the generator\'s', dataBlockOf(doc) === genBlock);
+    t.check('artifact: nothing the viewer injected is published (scripts added to <head> and after our content)',
+      doc.length > 0 && !doc.includes('claude-runtime-probe') && doc.endsWith('<!-- end ultimate-diagram page -->\n</body></html>'), doc.slice(-120));
     t.check('artifact: nothing the page added at runtime is published (render report, selection state)',
       !doc.includes('<script id="render-report" type="application/json">') && !/class="[^"]*\bselected\b/.test(doc.slice(0, doc.lastIndexOf('<script>'))) && doc.split('<script id="diagram-data" type="application/json">').length === 2);
     const starts = (h, n) => h.split('\n').slice(0, n).join('\n');
@@ -635,14 +642,22 @@ try {
     await t.ev(`document.getElementById('btn-save').click()`);
     await sleep(500);
     t.check('artifact: not_writer switches to View only with Download .html',
-      (await badge()) === 'View only' && !(await saveVisible()) && await t.ev(`!!document.getElementById('btn-download-html')`) && /cannot save/.test(await toast()), `${await badge()} ${await toast()}`);
+      (await badge()) === 'View only' && !(await saveVisible()) && await t.ev(`!!document.getElementById('btn-download-html')`) && /read-only/.test(await toast()), `${await badge()} ${await toast()}`);
     await openWith({});
-    await t.ev(`window.__reject = 'network down'`);
+    await t.ev(`window.__reject = 'network down'`);   // an unknown code counts as upstream_error: retried once
     await rename('X3');
     await t.ev(`document.getElementById('btn-save').click()`);
+    await sleep(2600);
+    t.check('artifact: upstream_error (or an unknown code) is retried once, then toasts, keeps "Unsaved changes" and re-enables Save',
+      /Save failed \(upstream_error\)/.test(await toast()) && (await t.ev(`window.__pub.length`)) === 2 && (await badge()) === 'Unsaved changes' && await saveVisible(),
+      `${await toast()} ${await badge()} publishes=${await t.ev(`window.__pub.length`)}`);
+    await openWith({});
+    await t.ev(`window.__reject = 'rate_limited'`);
+    await rename('X4');
+    await t.ev(`document.getElementById('btn-save').click()`);
     await sleep(500);
-    t.check('artifact: another error toasts, keeps "Unsaved changes" and re-enables Save',
-      /Save failed: network down/.test(await toast()) && (await badge()) === 'Unsaved changes' && await saveVisible(), `${await toast()} ${await badge()}`);
+    t.check('artifact: rate_limited is not retried and asks the viewer to wait',
+      /Saving too often/.test(await toast()) && (await t.ev(`window.__pub.length`)) === 1 && await saveVisible(), await toast());
 
     // 12d. use("artifact") -> null: a viewer who cannot save
     await openWith({ artifact: null });

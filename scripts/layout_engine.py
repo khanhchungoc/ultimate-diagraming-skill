@@ -1115,13 +1115,16 @@ def _read_asset(path: Path) -> str:
 # page content, then the closing tags: that is the shape the Artifact tool publishes, and any other shape makes a
 # later publish nest one page inside another. Nothing else may sit in <head>, with no whitespace between the tags.
 # The same two constants live in assets/shell/shell.js (ARTIFACT_RESET_CSS, ARTIFACT_HEAD); dev/check_artifact_shape.py
-# fails if they differ. TODO(verify against a real published artifact, plan Phase 0): the RESET text below is a
-# PLACEHOLDER; copy the exact <style> content of an `Artifact read` of any published page into both constants.
-ARTIFACT_RESET_CSS = "*,*::before,*::after{box-sizing:border-box}html,body{margin:0}"
+# fails if they differ. The RESET text is copied byte for byte from an `Artifact read` of a published page (verified
+# 2026-11-14, runtime contract 0.2.96); if claude.ai changes its skeleton, copy the new one into both constants.
+ARTIFACT_RESET_CSS = ":root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}"
 ARTIFACT_HEAD = ('<!doctype html><html><head><meta charset=utf8><meta name=viewport '
                  'content="width=device-width,initial-scale=1,viewport-fit=cover">'
                  f'<style>{ARTIFACT_RESET_CSS}</style></head><body>')
 ARTIFACT_TAIL = "</body></html>"
+# Last line of our own content in an artifact page. The editor keeps only <title>..this marker when it republishes,
+# so anything the claude.ai viewer appends to <body> at run time is never saved back. Mirrored in shell.js.
+ARTIFACT_END_MARKER = "<!-- end ultimate-diagram page -->"
 
 
 def artifact_template(shell_html: str) -> str:
@@ -1138,7 +1141,7 @@ def artifact_template(shell_html: str) -> str:
     if not title or head.count("<title>") != 1:
         raise ValueError("shell.html head must hold exactly one <title> line")
     head = head.replace(title[0], "", 1)
-    return ARTIFACT_HEAD + "\n" + title[0].lstrip() + m["guide"] + head + m["body"] + ARTIFACT_TAIL
+    return ARTIFACT_HEAD + "\n" + title[0].lstrip() + m["guide"] + head + m["body"] + ARTIFACT_END_MARKER + "\n" + ARTIFACT_TAIL
 
 
 def assemble_page(kind: str, data: Optional[Dict[str, Any]] = None, target: str = "file") -> str:

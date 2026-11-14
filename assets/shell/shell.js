@@ -25,30 +25,43 @@
       // this skeleton, the page content, then the closing tags (nothing else in <head>, no whitespace between its
       // tags). ARTIFACT_RESET_CSS / ARTIFACT_HEAD mirror ARTIFACT_RESET_CSS / ARTIFACT_HEAD in scripts/layout_engine.py;
       // dev/check_artifact_shape.py fails if the two differ.
-      // TODO(verify against a real published artifact, plan Phase 0): the RESET text is a PLACEHOLDER.
-      const ARTIFACT_RESET_CSS = '*,*::before,*::after{box-sizing:border-box}html,body{margin:0}';
+      // The RESET text is copied byte for byte from a published artifact (verified 2026-11-14, runtime contract 0.2.96).
+      const ARTIFACT_RESET_CSS = ':root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}';
       const ARTIFACT_HEAD = '<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>' + ARTIFACT_RESET_CSS + '</style></head><body>';
       const ARTIFACT_TAIL = '</body></html>';
+      // = ARTIFACT_END_MARKER in layout_engine.py; spelled in two parts so this script's own text never matches it
+      const ARTIFACT_END_MARKER = '<!-- end ultimate-diagram ' + 'page -->';
 
       // A pristine copy of the page, taken before the first render: Save regenerates the document from this plus the
       // model and never serializes the live DOM (which by then holds the rendered diagram and selection state).
-      // Conservative filter: drop what is not ours (the render report; meta/base elements; scripts with a src; elements the
-      // viewer marks id="claude..." or data-claude*; an inline script that is not the page's own main script).
-      // Anything else is kept, because dropping our own markup would break the page.
+      // It is taken while this script runs, so the browser has parsed the page only up to this script: anything the
+      // claude.ai viewer appends to <body> later is not in it. Our content runs from <title> to this script; inside
+      // that span only our own two scripts are kept (the diagram-data block and this one), so a script the viewer
+      // inserted earlier, the generator's render report and any meta/base element are dropped too. The end marker
+      // (ARTIFACT_END_MARKER) is written back after this script, as the generator writes it.
       function capturePristineBody() {
         try {
+          const self = document.currentScript;
           const c = document.body.cloneNode(true);
-          c.querySelectorAll(':scope > #render-report, :scope > meta, :scope > base, :scope > script[src], :scope > [id^="claude"], :scope > [data-claude]')
-            .forEach(n => n.remove());
-          c.querySelectorAll(':scope > script:not([id]):not([src])').forEach(n => {
-            if (!/registerDiagramPlugin/.test(n.textContent)) n.remove();
+          c.querySelectorAll(':scope > meta, :scope > base').forEach(n => n.remove());
+          c.querySelectorAll('script').forEach(n => {
+            if (n.id === 'diagram-data' && n.type === 'application/json') return;
+            if (self && !n.id && !n.src && n.textContent === self.textContent) return;
+            n.remove();
           });
-          return c.innerHTML;
+          // An artifact page has <title> as the first element of <body>; a plain file keeps it in <head>
+          const title = c.querySelector(':scope > title');
+          if (!title) return null;
+          while (c.firstChild !== title) c.removeChild(c.firstChild);
+          const html = c.innerHTML;
+          const end = html.lastIndexOf('<\/script>');   // spelled <\/ so this inline script is not cut short
+          if (end < 0) return null;
+          return '\n' + html.slice(0, end + '<\/script>'.length) + '\n' + ARTIFACT_END_MARKER + '\n';
         } catch (_) { return null; }
       }
       const pristineBody = capturePristineBody();
       // Only a page generated with --target artifact (title first in <body>) may republish itself
-      const artifactShaped = typeof pristineBody === 'string' && /^\s*<title>/.test(pristineBody);
+      const artifactShaped = typeof pristineBody === 'string';
       // window.claude carries only use(); resolve namespaces through it, never read window.claude.<name>
       const claudeHost = artifactShaped && window.claude && typeof window.claude.use === 'function' ? window.claude : null;
       // null: a plain file; 'pending': use() has not answered yet; 'publish': Save publishes a new artifact
@@ -958,7 +971,7 @@
         if (!m) return doc;
         return stampReadingGuide('<!DOCTYPE html>\n' + m[2] + '\n<html lang="en">\n<head>\n  <meta charset="UTF-8">\n' +
           '  <meta name="viewport" content="width=device-width, initial-scale=1.0">\n  ' + m[1] + '\n' + m[3] +
-          '\n</head>\n<body>' + m[4] + '</body>\n</html>\n');
+          '\n</head>\n<body>' + m[4].replace(ARTIFACT_END_MARKER + '\n', '') + '</body>\n</html>\n');
       }
 
       async function downloadHtmlFile() {
@@ -971,8 +984,9 @@
         }
       }
 
-      async function publishToArtifact() {
+      async function publishToArtifact(retried = false) {
         if (publishing || !artifactApi) return;
+        let retry = false;
         publishing = true;
         btnSave.disabled = true;
         try {
@@ -983,21 +997,36 @@
           reloadExpected = true;   // the platform reloads every open view to the new version
           updateStatus(false);
         } catch (err) {
-          const why = String(err && (err.code || err.reason || err.message) || err);
-          if (/conflict/i.test(why)) {
-            // Someone else saved first. This view reloads to their version; no retry, and no "unsaved" prompt on the way
+          // Branch on err.code only (runtime contract: the message is not stable). Unknown codes count as upstream_error.
+          const KNOWN = ['conflict', 'not_writer', 'not_declared', 'too_large', 'invalid_content', 'read_only_path', 'rate_limited',
+                         'consent_required', 'upstream_error', 'not_granted', 'capability_disabled', 'capability_removed', 'transform_error'];
+          const code = err && KNOWN.includes(err.code) ? err.code : 'upstream_error';
+          if (code === 'conflict') {
+            // Someone else saved first. This view is already reloading to their version: no retry, no "unsaved" prompt
             reloadExpected = true;
             showToast('Someone else saved first. Showing their version.');
-          } else if (/not_granted|not_writer/i.test(why)) {
+          } else if (['not_writer', 'not_granted', 'not_declared', 'consent_required', 'capability_disabled',
+                      'capability_removed', 'read_only_path'].includes(code)) {
+            // Read-only for this view, permanently: hide Save, offer Download .html
             artifactMode = 'view-only';
             applyArtifactUi();
-            showToast('You cannot save this artifact. Use Download .html to keep your edits.');
+            showToast('This view is read-only. Use Download .html to keep your edits.');
+          } else if (code === 'rate_limited') {
+            showToast('Saving too often. Wait a moment, then save again.');
+          } else if (code === 'too_large') {
+            showToast('This diagram is too large to save to the artifact. Use Download .html instead.');
+          } else if (code === 'upstream_error' && !retried) {
+            retry = true;   // the one retryable failure: once more, after a short random delay (below)
           } else {
-            showToast('Save failed: ' + why);
+            showToast('Save failed (' + code + '): ' + ((err && err.message) || 'unknown error'));
           }
         } finally {
           publishing = false;
-          if (artifactMode === 'publish') btnSave.disabled = false;
+          if (artifactMode === 'publish' && !retry) btnSave.disabled = false;
+        }
+        if (retry) {
+          await new Promise(r => setTimeout(r, 500 + Math.random() * 1000));
+          return publishToArtifact(true);
         }
       }
 

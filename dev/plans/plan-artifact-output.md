@@ -2,14 +2,28 @@
 
 Today the skill writes one standalone `.html` file, and **Save** writes it back to disk (File System Access API, or a download). This plan adds a second output for Claude Code: the diagram is published as a **claude.ai Artifact**, and **Save** inside the artifact publishes a new version of that same artifact. Claude Code asks the user which output they want.
 
-**Status:** Phases 1, 2, 3, 4 and 5 are implemented and tested against a stubbed `window.claude` (`dev/check_artifact_shape.py`, `dev/e2e_shell.mjs --artifact`, `dev/e2e_sequence.mjs --artifact`). **Phase 0 (the spike on a real published artifact) has not been done**, so these stay open and the code marks them `TODO(verify ... plan Phase 0)`:
+**Status:** Phases 1–5 are implemented and tested against a stubbed `window.claude` (`dev/check_artifact_shape.py`, `dev/e2e_shell.mjs --artifact`, `dev/e2e_sequence.mjs --artifact`). Phase 0 has been done in part (2026-11-14, runtime contract 0.2.96): one probe artifact was published and read back, and the platform's type definitions were checked.
 
-- The exact `RESET` CSS. `ARTIFACT_RESET_CSS` in `scripts/layout_engine.py` and `assets/shell/shell.js` is a placeholder (`*,*::before,*::after{box-sizing:border-box}html,body{margin:0}`). Replace both with the text from an `Artifact read` of any published page.
-- Whether the Artifact tool accepts a complete document (skeleton first) as `file_path` as is, or wants a fragment it wraps itself. The generator writes the complete document, as the plan's "required document shape" says.
-- Whether the order inside `<body>` matters. The page puts `<title>`, the reading guide and the data block first and the styles after them (so a read of lines 1-E ends before the CSS), not `<title>` and `<style>` first.
-- What the viewer injects into the document (the pristine-body filter in `capturePristineBody` is deliberately conservative), whether `fetch(location.href)` returns the source (the artifact path never uses it), and what the sandbox allows (`showSaveFilePicker`, `<a download>`, clipboard, IndexedDB, `localStorage`).
-- The `downloads.save({filename, data})` data type: the page passes a `Blob`. Check that text and PNG are accepted that way.
-- Whether Google Fonts loads from `<body>`, the size of a large page against 16 MB, and the shape of the `publish()` rejection (the page matches `conflict`, `not_granted` and `not_writer` in the error's `code`, `reason` or `message`).
+Settled by Phase 0:
+
+- **Skeleton.** `ARTIFACT_RESET_CSS` is copied byte for byte from an `Artifact read`. The tool wraps a published file as `skeleton + "\n" + content + "\n</body></html>"`, and a page that already starts with the skeleton is stored as is. The skeleton's own CSS (`color-scheme:light`, white `body`) is overridden by `shell.css`: light and dark themes render correctly.
+- **Body order.** The tool keeps the page content in the order written, so `<title>` first, then the reading guide and data block, then the styles is fine.
+- **`publish()` rejections** are `{code, message}`. The page branches on `code` only:
+  - `conflict`: no retry.
+  - `not_writer`, `not_granted`, `not_declared`, `consent_required`, `capability_disabled`, `capability_removed` and `read_only_path`: View only.
+  - `rate_limited`: ask the viewer to wait.
+  - `too_large`: suggest Download .html.
+  - `upstream_error`: one retry after a random delay. Unknown codes count as `upstream_error`.
+- **Read-only viewers.** A read-only view still gets the `artifact` namespace (its `publish` rejects `not_writer`/`not_granted`). `use("artifact")` resolving `null` means the capability cannot run in this view at all. Both lead to View only.
+- **Viewer-injected code.** The type definitions confirm that `outerHTML` holds viewer-session state and injected runtime scripts. The page now keeps only our own span: `<title>` through the main script, taken while that script runs, so later additions are not parsed yet. Inside the span it keeps only our two scripts (`diagram-data` and the main one), then writes `ARTIFACT_END_MARKER`. `e2e_shell.mjs` injects scripts into `<head>` and after our content and checks that neither is published.
+- **`downloads.save`** accepts `string | Blob | ArrayBuffer | ArrayBufferView` for `data`, so the page's `Blob` is fine.
+
+Still open (needs the probe artifact opened in a browser, which records its findings in the artifact's database):
+
+- Whether the claude.ai sandbox allows `<a download>`, clipboard writes and IndexedDB, and loads Google Fonts from `<body>`. The page already prefers the `downloads` capability and hides Copy when there is no clipboard.
+- One real Save round trip: edit, Save, reload, then ask Claude to change the diagram and confirm it starts from the saved version.
+
+Possible later improvement: the `artifact` capability also has a **files form** (`publish({"diagram.json": json})`). It is meant for editor-style artifacts whose page stays fixed while a data file changes. The view keeps running instead of reloading, and Claude can read just the data file. It is not available on publicly shared artifacts and needs a multi-file artifact, so the html form stays the default for now.
 
 ## Goals
 
