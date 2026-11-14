@@ -582,3 +582,13 @@
       color: var(--text-muted, #64748b); user-select: none;
     }
     .export-menu-label:not(:first-child) { margin-top: 4px; border-top: 1px solid var(--border, #cbd5e1); padding-top: 8px; }
+
+    .btn[hidden] { display: none; }
+
+    /* A short message (save conflicts, blocked downloads) inside a claude.ai artifact */
+    .toast {
+      position: fixed; left: 50%; bottom: 84px; transform: translateX(-50%); z-index: 50;
+      max-width: min(90vw, 420px); padding: 8px 14px; border-radius: 8px;
+      background: var(--text-main, #0f172a); color: var(--bg-panel, #fff);
+      font-size: 13px; box-shadow: 0 4px 16px rgba(0,0,0,.25);
+    }
