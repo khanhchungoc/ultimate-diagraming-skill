@@ -1,0 +1,22 @@
+{
+  "diagramType": "sequence",
+  "title": "Payment outcome",
+  "participants": [
+    { "id": "ui", "name": "Checkout UI", "kind": "ui" },
+    { "id": "pay", "name": "Payment Service", "kind": "system" },
+    { "id": "psp", "name": "Card Provider", "kind": "external" }
+  ],
+  "messages": [
+    { "id": "m1", "from": "ui", "to": "pay", "label": "Get payment status", "kind": "sync" },
+    { "id": "m2", "from": "pay", "to": "psp", "label": "Query transaction", "kind": "sync" },
+    { "id": "m3", "from": "psp", "to": "pay", "label": "Transaction state", "kind": "reply" },
+    { "id": "m4", "from": "pay", "to": "ui", "label": "Cancelled", "kind": "reply" },
+    { "id": "m5", "from": "pay", "to": "ui", "label": "Error code", "kind": "reply" },
+    { "id": "m6", "from": "pay", "to": "pay", "label": "Mark as paid", "kind": "sync" },
+    { "id": "m7", "from": "pay", "to": "ui", "label": "Receipt", "kind": "reply" }
+  ],
+  "fragments": [
+    { "id": "f1", "kind": "alt", "label": "status = Cancelled", "from": "m4", "to": "m7",
+      "branches": [ { "at": "m5", "label": "status = any error" }, { "at": "m6", "label": "status = Success" } ] }
+  ]
+}

@@ -22,7 +22,11 @@ from typing import Any, Callable, Dict, Tuple
 
 FLOWCHART_KEYS = ("diagramType", "schemaVersion", "title", "direction", "swimlanes", "showNotes",
                   "lanes", "nodes", "edges", "notes", "layout")
-SEQUENCE_KEYS = ("diagramType", "schemaVersion", "title", "participants", "messages", "fragments")
+SEQUENCE_KEYS = ("diagramType", "schemaVersion", "title", "numbered", "showDetails",
+                 "participants", "messages", "fragments", "notes")
+# Engine output on the sequence model, never saved: positions, hidden (inside a collapsed frame), frame dividers
+SEQUENCE_LAYOUT = (("participants", ("x",)), ("messages", ("y", "hidden")),
+                   ("fragments", ("x", "y", "w", "h", "elseY", "dividers")), ("notes", ("x", "y", "w", "h")))
 NODE_LAYOUT = ("x", "y")
 LANE_LAYOUT = ("height", "color")
 GENERATED_ID = re.compile(r"^(n|c|e|lane)_\d{12,}(_\d+)?$")  # editor ids: <prefix>_<Date.now()>[_k]
@@ -123,7 +127,7 @@ def flowchart_from_disk(data: Dict[str, Any]) -> Dict[str, Any]:
 def sequence_to_disk(data: Dict[str, Any]) -> Dict[str, Any]:
     d = copy.deepcopy(data)
     d.pop("layout", None)  # canvas size, derived by the engine
-    for items, keys in (("participants", ("x",)), ("messages", ("y",)), ("fragments", ("x", "y", "w", "h", "elseY"))):
+    for items, keys in SEQUENCE_LAYOUT:
         for o in d.get(items) or []:
             for k in keys:
                 o.pop(k, None)

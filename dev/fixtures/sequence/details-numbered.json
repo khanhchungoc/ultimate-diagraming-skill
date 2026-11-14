@@ -1,0 +1,22 @@
+{
+  "diagramType": "sequence",
+  "title": "Order lookup",
+  "numbered": true,
+  "participants": [
+    { "id": "c", "name": "Support Agent", "kind": "actor" },
+    { "id": "crm", "name": "CRM", "kind": "ui" },
+    { "id": "ord", "name": "Order Service", "kind": "system" },
+    { "id": "q", "name": "Event Queue", "kind": "queue" }
+  ],
+  "messages": [
+    { "id": "m1", "from": "c", "to": "crm", "label": "Search order", "detail": "order number or email", "kind": "sync" },
+    { "id": "m2", "from": "crm", "to": "ord", "label": "Get order", "detail": "orderId, include=lines,payments,shipments", "kind": "sync" },
+    { "id": "m3", "from": "ord", "to": "crm", "label": "Order", "detail": "status, lines, totals", "kind": "reply" },
+    { "id": "m4", "from": "ord", "to": "q", "label": "OrderViewed", "kind": "async" },
+    { "id": "m5", "from": "ord", "to": "ord", "label": "Mask card data", "detail": "PAN to last 4 digits", "kind": "sync" },
+    { "id": "m6", "from": "crm", "to": "c", "label": "Order summary", "kind": "reply" }
+  ],
+  "fragments": [
+    { "id": "f1", "kind": "par", "label": "audit", "from": "m4", "to": "m5", "branches": [ { "at": "m5", "label": "privacy" } ] }
+  ]
+}
