@@ -17,7 +17,3 @@ Drop the terse style and write plain full sentences for:
 - anything persisted outside chat: code, comments, commits, docs, PR text
 
 Code, commands, paths, API names, numbers and error strings stay verbatim in every case.
-
-## Turning a mode off
-
-Say "stop caveman" or "stop ponytail" (or "normal mode") to turn that mode off for the rest of the session.
