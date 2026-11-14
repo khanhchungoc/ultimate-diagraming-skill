@@ -3009,49 +3009,55 @@
         }
       }
 
-      async function publishToArtifact(retried = false) {
+      async function publishToArtifact() {
         if (publishing || !artifactApi) return;
-        let retry = false;
-        publishing = true;
+        publishing = true;   // held until the whole attempt, including the one retry and its delay, is over
         btnSave.disabled = true;
         try {
-          const html = buildArtifactHtml();
-          await artifactApi.publish(html);
-          savedJson = JSON.stringify(chartData);
-          everSaved = true;
-          reloadExpected = true;   // the platform reloads every open view to the new version
-          updateStatus(false);
-        } catch (err) {
-          // Branch on err.code only (runtime contract: the message is not stable). Unknown codes count as upstream_error.
-          const KNOWN = ['conflict', 'not_writer', 'not_declared', 'too_large', 'invalid_content', 'read_only_path', 'rate_limited',
-                         'consent_required', 'upstream_error', 'not_granted', 'capability_disabled', 'capability_removed', 'transform_error'];
-          const code = err && KNOWN.includes(err.code) ? err.code : 'upstream_error';
-          if (code === 'conflict') {
-            // Someone else saved first. This view is already reloading to their version: no retry, no "unsaved" prompt
-            reloadExpected = true;
-            showToast('Someone else saved first. Showing their version.');
-          } else if (['not_writer', 'not_granted', 'not_declared', 'consent_required', 'capability_disabled',
-                      'capability_removed', 'read_only_path'].includes(code)) {
-            // Read-only for this view, permanently: hide Save, offer Download .html
-            artifactMode = 'view-only';
-            applyArtifactUi();
-            showToast('This view is read-only. Use Download .html to keep your edits.');
-          } else if (code === 'rate_limited') {
-            showToast('Saving too often. Wait a moment, then save again.');
-          } else if (code === 'too_large') {
-            showToast('This diagram is too large to save to the artifact. Use Download .html instead.');
-          } else if (code === 'upstream_error' && !retried) {
-            retry = true;   // the one retryable failure: once more, after a short random delay (below)
-          } else {
-            showToast('Save failed (' + code + '): ' + ((err && err.message) || 'unknown error'));
+          for (let attempt = 0; ; attempt++) {
+            let html, snapshot;
+            try {
+              html = buildArtifactHtml();
+              snapshot = JSON.stringify(chartData);   // what this publish carries; an edit made while it runs is not in it
+              await artifactApi.publish(html);
+              savedJson = snapshot;
+              everSaved = true;
+              reloadExpected = true;   // the platform reloads every open view to the new version
+              updateStatus(false);
+              if (JSON.stringify(chartData) !== snapshot) updateStatus(true);   // edited mid-publish: still unsaved
+              return;
+            } catch (err) {
+              // Branch on err.code only (runtime contract: the message is not stable). Unknown codes count as upstream_error.
+              const KNOWN = ['conflict', 'not_writer', 'not_declared', 'too_large', 'invalid_content', 'read_only_path', 'rate_limited',
+                             'consent_required', 'upstream_error', 'not_granted', 'capability_disabled', 'capability_removed', 'transform_error'];
+              const code = err && KNOWN.includes(err.code) ? err.code : 'upstream_error';
+              if (code === 'conflict') {
+                // Someone else saved first. This view is already reloading to their version: no retry, no "unsaved" prompt
+                reloadExpected = true;
+                showToast('Someone else saved first. Showing their version.');
+              } else if (['not_writer', 'not_granted', 'not_declared', 'consent_required', 'capability_disabled',
+                          'capability_removed', 'read_only_path'].includes(code)) {
+                // Read-only for this view, permanently: hide Save, offer Download .html
+                artifactMode = 'view-only';
+                applyArtifactUi();
+                showToast('This view is read-only. Use Download .html to keep your edits.');
+              } else if (code === 'rate_limited') {
+                showToast('Saving too often. Wait a moment, then save again.');
+              } else if (code === 'too_large') {
+                showToast('This diagram is too large to save to the artifact. Use Download .html instead.');
+              } else if (code === 'upstream_error' && attempt === 0) {
+                // The one retryable failure: once more, after a short random delay
+                await new Promise(r => setTimeout(r, 500 + Math.random() * 1000));
+                continue;
+              } else {
+                showToast('Save failed (' + code + '): ' + ((err && err.message) || 'unknown error'));
+              }
+              return;
+            }
           }
         } finally {
           publishing = false;
-          if (artifactMode === 'publish' && !retry) btnSave.disabled = false;
-        }
-        if (retry) {
-          await new Promise(r => setTimeout(r, 500 + Math.random() * 1000));
-          return publishToArtifact(true);
+          if (artifactMode === 'publish') btnSave.disabled = false;
         }
       }
 

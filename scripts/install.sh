@@ -105,7 +105,11 @@ open(path, "w", encoding="utf-8").write(json.dumps(cfg, indent=2) + "\n")
 PYEOF
         fi
     done
-    [[ -f "$CLAUDE_CONFIG" ]] || printf '{\n  "output": "%s"\n}\n' "$CLAUDE_OUTPUT" > "$CLAUDE_CONFIG"
+    if [[ ! -f "$CLAUDE_CONFIG" ]]; then
+        printf '{\n  "output": "%s"\n}\n' "$CLAUDE_OUTPUT" > "$CLAUDE_CONFIG"
+    elif ! grep -q "\"output\": *\"$CLAUDE_OUTPUT\"" "$CLAUDE_CONFIG" 2>/dev/null; then
+        echo "    Warning: Python 3.9+ not found, so $CLAUDE_CONFIG was left as is. Set \"output\": \"$CLAUDE_OUTPUT\" in it by hand." >&2
+    fi
 fi
 
 installed=0

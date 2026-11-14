@@ -111,7 +111,7 @@ if ($claudeSelected -and $ClaudeOutput) {
     }
     $cfg["output"] = $ClaudeOutput
     New-Item -ItemType Directory -Path (Split-Path $claudeConfig -Parent) -Force | Out-Null
-    [System.IO.File]::WriteAllText($claudeConfig, (($cfg | ConvertTo-Json) + "`n"), (New-Object System.Text.UTF8Encoding($false)))
+    [System.IO.File]::WriteAllText($claudeConfig, (($cfg | ConvertTo-Json -Depth 10) + "`n"), (New-Object System.Text.UTF8Encoding($false)))
 }
 
 foreach ($rt in $runtimesToInstall) {

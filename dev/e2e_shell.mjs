@@ -560,7 +560,7 @@ try {
       window.claude = { use: async (name) => {
         if (name === 'artifact') {
           if (cfg.artifact === null) return null;
-          return { publish: async (html) => { window.__pub.push(html); await new Promise(r => setTimeout(r, 150)); if (window.__reject) throw Object.assign(new Error('stub ' + window.__reject), { code: window.__reject }); } };
+          return { publish: async (html) => { window.__pub.push(html); await new Promise(r => setTimeout(r, window.__delay || 150)); if (window.__reject) throw Object.assign(new Error('stub ' + window.__reject), { code: window.__reject }); } };
         }
         if (name === 'downloads') return cfg.downloads === false ? null : { save: async (a) => { window.__dl.push({ filename: a.filename, type: a.data.type, text: typeof a.data === 'string' ? a.data : await a.data.text() }); } };
         return null;
@@ -658,6 +658,26 @@ try {
     await sleep(500);
     t.check('artifact: rate_limited is not retried and asks the viewer to wait',
       /Saving too often/.test(await toast()) && (await t.ev(`window.__pub.length`)) === 1 && await saveVisible(), await toast());
+
+    // 12c'. Ctrl+S while the one retry waits is not a second publish
+    await openWith({});
+    await t.ev(`window.__reject = 'upstream_error'`);
+    await rename('X5');
+    await t.ev(`document.getElementById('btn-save').click()`);
+    await sleep(400);   // the first publish has failed and the retry delay (0.5-1.5 s) is running
+    await t.ev(`window.dispatchEvent(new KeyboardEvent('keydown', { key: 's', ctrlKey: true, bubbles: true }))`);
+    await sleep(2600);
+    t.check('artifact: Ctrl+S during the retry delay adds no third publish (first try + one retry only)',
+      (await t.ev(`window.__pub.length`)) === 2, `publishes=${await t.ev(`window.__pub.length`)}`);
+    // 12c''. An edit made while a publish is in flight stays "Unsaved changes"
+    await openWith({});
+    await t.ev(`window.__delay = 600`);
+    await t.ev(`document.getElementById('btn-save').click()`);
+    await sleep(150);
+    await rename('Edited mid-publish');
+    await sleep(900);
+    t.check('artifact: an edit made while a publish is in flight is not reported as saved',
+      (await badge()) === 'Unsaved changes', await badge());
 
     // 12d. use("artifact") -> null: a viewer who cannot save
     await openWith({ artifact: null });
