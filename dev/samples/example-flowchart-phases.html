@@ -666,6 +666,62 @@
       color: var(--text-muted, #64748b); user-select: none;
     }
     .export-menu-label:not(:first-child) { margin-top: 4px; border-top: 1px solid var(--border, #cbd5e1); padding-top: 8px; }
+
+    /* Swatches: the eight colours (SWATCHES in shell.js) a flowchart lane or a sequence participant may carry. An element
+       sets --swatch-color to one of them; the roles below are derived from it, so a swatch looks the same in both diagram
+       types. The tokens say how strongly it tints an icon chip, a stripe and a pill. */
+    :root {
+      --swatch-chip-mix: 85%;    --swatch-chip-base: #ffffff;
+      --swatch-ink-mix: 30%;     --swatch-ink-base: #1e293b;    /* icon stroke: swatch hue, darkened */
+      --swatch-accent-mix: 70%;  --swatch-accent-base: #475569; /* stripe */
+      --swatch-pill-mix: 45%;
+      --swatch-solid-mix: 42%;   --swatch-solid-base: #1e293b;  --swatch-solid-ink: #ffffff; /* active pill: deep hue, white text */
+    }
+    :root[data-theme="dark"] {
+      --swatch-chip-mix: 30%;    --swatch-chip-base: #111a2e;
+      --swatch-ink-mix: 85%;     --swatch-ink-base: #e2e8f0;    /* pastel hue reads well on dark */
+      --swatch-accent-mix: 80%;  --swatch-accent-base: #94a3b8;
+      --swatch-pill-mix: 22%;
+      --swatch-solid-mix: 80%;   --swatch-solid-base: #e2e8f0;  --swatch-solid-ink: #0f172a; /* inverted on dark */
+    }
+    /* Roles: stripe (a line or border), pill (a soft fill and its ink) and solid (the deep fill). Fallback: the swatch
+       mixed toward slate, which stays pale with pastel swatches. (.swimlane is the flowchart's lane: its --lane-color
+       becomes --swatch-color in flowchart.css.) */
+    .swatch-scope, .swimlane {
+      --sw-stripe: color-mix(in srgb, var(--swatch-color) var(--swatch-accent-mix), var(--swatch-accent-base));
+      --sw-pill-bg: color-mix(in srgb, var(--swatch-color) var(--swatch-pill-mix), var(--bg-panel));
+      --sw-pill-ink: var(--text-soft);
+      --sw-pill-solid: color-mix(in srgb, var(--swatch-color) var(--swatch-solid-mix), var(--swatch-solid-base));
+      --sw-line: color-mix(in srgb, var(--swatch-color) 40%, #334155);
+    }
+    /* Where relative colours are supported, derive deeper, more saturated shades of the swatch's own hue: same hue,
+       lightness set per role, chroma boosted (capped so strong swatches do not turn garish) */
+    @supports (color: oklch(from red l c h)) {
+      .swatch-scope, .swimlane {
+        --sw-stripe: oklch(from var(--swatch-color) 0.66 min(calc(c * 4), 0.15) h);
+        --sw-pill-bg: oklch(from var(--swatch-color) 0.9 min(calc(c * 2.4), 0.07) h);
+        --sw-pill-ink: oklch(from var(--swatch-color) 0.36 min(calc(c * 4), 0.12) h);
+        --sw-pill-solid: oklch(from var(--swatch-color) 0.45 min(calc(c * 4.5), 0.15) h);
+        --sw-line: oklch(from var(--swatch-color) 0.56 min(calc(c * 4), 0.15) h);   /* a thin line that must stay visible on the panel and on a frame's wash */
+      }
+      :root[data-theme="dark"] .swatch-scope, :root[data-theme="dark"] .swimlane {
+        --sw-stripe: oklch(from var(--swatch-color) 0.74 min(calc(c * 4), 0.14) h);
+        --sw-pill-bg: oklch(from var(--swatch-color) 0.36 min(calc(c * 2.4), 0.07) h);
+        --sw-pill-ink: oklch(from var(--swatch-color) 0.92 min(calc(c * 2), 0.06) h);
+        --sw-pill-solid: oklch(from var(--swatch-color) 0.84 min(calc(c * 3.5), 0.12) h);
+        --sw-line: oklch(from var(--swatch-color) 0.74 min(calc(c * 4), 0.14) h);
+      }
+    }
+    /* swatchRow(): the row of colour buttons (a "none" button, then one per swatch) */
+    .swatch-row { display: inline-flex; align-items: center; gap: 2px; }
+    .swatch-btn {
+      display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; padding: 0; box-sizing: border-box;
+      border: 1px solid transparent; border-radius: 6px; background: transparent; cursor: pointer;
+    }
+    .swatch-btn:hover { background: var(--bg-hover); }
+    .swatch-btn[aria-pressed="true"] { background: var(--primary-wash); border-color: var(--primary-ring); }
+    .swatch-dot { display: block; width: 14px; height: 14px; border-radius: 50%; background: var(--sw-stripe); border: 1px solid rgba(0,0,0,0.18); box-sizing: border-box; }
+    .swatch-dot.is-none { background: var(--bg-panel); border: 1.5px dashed var(--border-dark); }
     /* Swimlanes Container */
     #swimlanes-container {
       position: relative;
@@ -700,8 +756,8 @@
       justify-content: center;
       border-radius: 9px;
       border: 1px solid color-mix(in srgb, var(--lane-color, #e2e8f0) 60%, var(--border-dark));
-      background: color-mix(in srgb, var(--lane-color, #e2e8f0) var(--lane-chip-mix), var(--lane-chip-base));
-      color: color-mix(in srgb, var(--lane-color, #e2e8f0) var(--lane-ink-mix), var(--lane-ink-base));
+      background: color-mix(in srgb, var(--lane-color, #e2e8f0) var(--swatch-chip-mix), var(--swatch-chip-base));
+      color: color-mix(in srgb, var(--lane-color, #e2e8f0) var(--swatch-ink-mix), var(--swatch-ink-base));
       pointer-events: none;
     }
     /* Lane name (inside the pill): double-click to rename */
@@ -1228,22 +1284,12 @@
       box-shadow: none;
     }
 
-    /* Lane colour tokens: how strongly --lane-color (set per lane) tints the icon, the stripe and the pill */
+    /* Lane backgrounds: every second lane, and the hovered or active one (the swatch tokens live in shell.css) */
     :root {
-      --lane-chip-mix: 85%;    --lane-chip-base: #ffffff;
-      --lane-ink-mix: 30%;     --lane-ink-base: #1e293b;    /* icon stroke: lane hue, darkened */
-      --lane-accent-mix: 70%;  --lane-accent-base: #475569; /* lane stripe */
-      --lane-pill-mix: 45%;
-      --lane-solid-mix: 42%;   --lane-solid-base: #1e293b;  --lane-solid-ink: #ffffff; /* active pill: deep lane hue, white text */
       --lane-alt-bg: #fafbfc;  /* every second lane: a very light grey against the white ones */
       --lane-hover-bg: #f1f4f8; /* hovered / active lane, white or grey: darker than both */
     }
     :root[data-theme="dark"] {
-      --lane-chip-mix: 30%;    --lane-chip-base: #111a2e;
-      --lane-ink-mix: 85%;     --lane-ink-base: #e2e8f0;    /* pastel lane hue reads well on dark */
-      --lane-accent-mix: 80%;  --lane-accent-base: #94a3b8;
-      --lane-pill-mix: 22%;
-      --lane-solid-mix: 80%;   --lane-solid-base: #e2e8f0;  --lane-solid-ink: #0f172a; /* inverted on dark */
       --lane-alt-bg: #131d33;  /* a faint step lighter than --bg-panel */
       --lane-hover-bg: #1a2742; /* hovered / active lane: stands out from both (lighter, as highlights are on dark) */
     }
@@ -1254,27 +1300,12 @@
        Both sit above arrows (15), nodes (20) and edge labels (30). */
     .swimlane {
       --lane-bg: var(--bg-panel);   /* no lane-colour tint (the pill and stripe carry the colour): lanes alternate */
-      /* Stripe and pill colours. Fallback: the lane colour mixed toward slate, which stays pale with pastel lanes */
-      --lane-stripe: color-mix(in srgb, var(--lane-color) var(--lane-accent-mix), var(--lane-accent-base));
-      --lane-pill-bg: color-mix(in srgb, var(--lane-color) var(--lane-pill-mix), var(--bg-panel));
-      --lane-pill-ink: var(--text-soft);
-      --lane-pill-solid: color-mix(in srgb, var(--lane-color) var(--lane-solid-mix), var(--lane-solid-base));
-    }
-    /* Where relative colours are supported, derive deeper, more saturated shades of the lane's own hue: same hue,
-       lightness set per role, chroma boosted (capped so strong lane colours do not turn garish) */
-    @supports (color: oklch(from red l c h)) {
-      .swimlane {
-        --lane-stripe: oklch(from var(--lane-color) 0.66 min(calc(c * 4), 0.15) h);
-        --lane-pill-bg: oklch(from var(--lane-color) 0.9 min(calc(c * 2.4), 0.07) h);
-        --lane-pill-ink: oklch(from var(--lane-color) 0.36 min(calc(c * 4), 0.12) h);
-        --lane-pill-solid: oklch(from var(--lane-color) 0.45 min(calc(c * 4.5), 0.15) h);
-      }
-      :root[data-theme="dark"] .swimlane {
-        --lane-stripe: oklch(from var(--lane-color) 0.74 min(calc(c * 4), 0.14) h);
-        --lane-pill-bg: oklch(from var(--lane-color) 0.36 min(calc(c * 2.4), 0.07) h);
-        --lane-pill-ink: oklch(from var(--lane-color) 0.92 min(calc(c * 2), 0.06) h);
-        --lane-pill-solid: oklch(from var(--lane-color) 0.84 min(calc(c * 3.5), 0.12) h);
-      }
+      /* Stripe and pill colours: the lane colour as a swatch (see shell.css) */
+      --swatch-color: var(--lane-color);
+      --lane-stripe: var(--sw-stripe);
+      --lane-pill-bg: var(--sw-pill-bg);
+      --lane-pill-ink: var(--sw-pill-ink);
+      --lane-pill-solid: var(--sw-pill-solid);
     }
     .swimlane.lane-alt { --lane-bg: var(--lane-alt-bg); }
     .swimlane.lane-hover, .swimlane.lane-selected, .swimlane:has(.flow-node.selected) { --lane-bg: var(--lane-hover-bg); }
@@ -1322,7 +1353,7 @@
     .swimlane:has(.flow-node.selected) .lane-pill,
     .swimlane.lane-selected .lane-pill {
       background: var(--lane-pill-solid);
-      color: var(--lane-solid-ink);
+      color: var(--swatch-solid-ink);
     }
     /* Tools under the pill: reorder grip + delete, shown only while the lane is selected (hover would clutter) */
     .lane-tools {
@@ -2026,6 +2057,39 @@
       // Shared scope for plugins: chartData, scale/panX/panY, viewport, stage, updateStatus(), fitView().
       let plugin = null;
       function registerDiagramPlugin(p) { plugin = p; }
+
+      // --- SWATCHES: the eight colours a flowchart lane or a sequence participant may carry ---
+      // sky, amber, emerald, rose, purple, orange, teal, indigo: light tints, written in the data as the hex. shell.css
+      // derives each one's stripe, pill and dark-theme shades from the hue (see --swatch-color), so a swatch looks the
+      // same in both diagram types. scripts/audit_sequence.py lists the same hexes.
+      const SWATCHES = [
+        { hex: '#e0f2fe', name: 'sky' }, { hex: '#fef3c7', name: 'amber' }, { hex: '#dcfce7', name: 'emerald' }, { hex: '#fee2e2', name: 'rose' },
+        { hex: '#f3e8ff', name: 'purple' }, { hex: '#ffedd5', name: 'orange' }, { hex: '#ccfbf1', name: 'teal' }, { hex: '#e0e7ff', name: 'indigo' }
+      ];
+      // A row of colour buttons: "none", then each swatch. `current` is the hex now in use (or empty); onPick(hex) gets
+      // the chosen hex, or '' for none. opts.btnClass adds a class to every button. Returns the row element.
+      function swatchRow(current, onPick, opts) {
+        const row = document.createElement('span');
+        row.className = 'swatch-row';
+        row.setAttribute('role', 'group');
+        row.setAttribute('aria-label', 'Colour');
+        [{ hex: '', name: 'none' }].concat(SWATCHES).forEach((sw) => {
+          const b = document.createElement('button');
+          b.type = 'button';
+          b.className = `swatch-btn${opts && opts.btnClass ? ' ' + opts.btnClass : ''}`;
+          b.dataset.value = sw.hex;
+          b.title = sw.hex ? `Colour: ${sw.name}` : 'No colour';
+          b.setAttribute('aria-label', b.title);
+          b.setAttribute('aria-pressed', String((current || '') === sw.hex));
+          const dot = document.createElement('span');
+          dot.className = sw.hex ? 'swatch-dot swatch-scope' : 'swatch-dot is-none';
+          if (sw.hex) dot.style.setProperty('--swatch-color', sw.hex);
+          b.appendChild(dot);
+          b.addEventListener('click', (e) => { e.stopPropagation(); onPick(sw.hex); });
+          row.appendChild(b);
+        });
+        return row;
+      }
 
       // --- STATE ---
       let chartData = { title: "", direction: "LR", lanes: [], nodes: [], edges: [] };
@@ -4212,9 +4276,7 @@ const TYPE_ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\
       const DECISION_WIDTH = 144;
       const DECISION_HEIGHT = 80;
       // Lane sizes come from the engine's LE (LANE_MIN, BOTTOM_PAD), which follows the diagram's direction
-      // Lane colours by position for lanes without their own "color": sky, amber, emerald, rose, purple, orange,
-      // teal, indigo. Light tints; flowchart.css derives the stripe, pill and dark-theme shades from the hue.
-      const LANE_PALETTE = ['#e0f2fe', '#fef3c7', '#dcfce7', '#fee2e2', '#f3e8ff', '#ffedd5', '#ccfbf1', '#e0e7ff'];
+      // Lane colours by position for lanes without their own "color": the shell's SWATCHES (shell.js), in order
 
       // --- DIRECTION ---
       // "direction": "TB" draws the diagram top-to-bottom: lanes become columns and steps run downwards. Node data
@@ -4464,7 +4526,7 @@ const TYPE_ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\
             laneEl.style.height = `${computedHeight}px`;
           }
           // stripe, icon, pill tint; a lane without its own colour takes the palette colour for its position (not saved)
-          laneEl.style.setProperty('--lane-color', lane.color || LANE_PALETTE[index % LANE_PALETTE.length]);
+          laneEl.style.setProperty('--lane-color', lane.color || SWATCHES[index % SWATCHES.length].hex);
           if (index % 2) laneEl.classList.add('lane-alt');                     // lanes alternate white / light grey
           if (lane.id === selectedLaneId) laneEl.classList.add('lane-selected');
 
