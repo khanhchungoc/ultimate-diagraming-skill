@@ -1870,6 +1870,7 @@
           <button type="button" role="menuitem" data-export="svg">SVG image</button>
           <button type="button" role="menuitem" data-export="png">PNG image (1.5x)</button>
           <div class="export-menu-label" role="presentation" data-copy-label>Copy</div>
+          <button type="button" role="menuitem" data-copy="mermaid">Mermaid</button>
           <button type="button" role="menuitem" data-copy="svg">SVG (text)</button>
           <button type="button" role="menuitem" data-copy="png">PNG image (1.5x)</button>
         </div>
@@ -2098,7 +2099,7 @@
       // The type's engine.js must define layoutDiagram(data): lay out `data` in place, no DOM access.
       // Shared scope for plugins: chartData, scale/panX/panY, viewport, stage, updateStatus(), fitView().
       let plugin = null;
-      function registerDiagramPlugin(p) { plugin = p; }
+      function registerDiagramPlugin(p) { plugin = p; if (typeof syncCopyMenu === 'function') syncCopyMenu(); }
 
       // --- SWATCHES: the eight colours a flowchart lane or a sequence participant may carry ---
       // sky, amber, emerald, rose, purple, orange, teal, indigo: light tints, written in the data as the hex. shell.css
@@ -2982,6 +2983,9 @@
           if (!navigator.clipboard) throw new Error('the clipboard is not available in this browser');
           if (format === 'svg') {
             job = navigator.clipboard.writeText(svgDocument(buildExportSvg().svg));
+          } else if (format === 'mermaid') {
+            if (typeof plugin.toMermaid !== 'function') throw new Error('this diagram type has no Mermaid export');
+            job = navigator.clipboard.writeText(plugin.toMermaid());
           } else if (format === 'png') {
             if (!canCopyPng) throw new Error('this browser cannot copy images');
             job = navigator.clipboard.write([new ClipboardItem({ 'image/png': exportPngBlob() })]);
@@ -2991,13 +2995,18 @@
         } catch (err) {
           job = Promise.reject(err);
         }
-        job.then(() => flashCopied(format.toUpperCase()),
+        job.then(() => flashCopied(format === 'mermaid' ? 'Mermaid' : format.toUpperCase()),
                  err => alert('Copy failed: ' + (err && err.message || err) + '\nUse Export › Download instead.'));
       }
       document.querySelectorAll('[data-copy="png"]').forEach(el => { el.hidden = !canCopyPng; });
       document.querySelectorAll('[data-copy="svg"]').forEach(el => { el.hidden = !(navigator.clipboard && navigator.clipboard.writeText); });
-      // Drop the "Copy" heading when this browser has no copy items to offer
-      document.querySelectorAll('[data-copy-label]').forEach(el => { el.hidden = !document.querySelector('[data-copy]:not([hidden])'); });
+      // Mermaid is offered only when the diagram type can write it (the type script registers after this one runs)
+      function syncCopyMenu() {
+        document.querySelectorAll('[data-copy="mermaid"]').forEach(el => { el.hidden = !(plugin && typeof plugin.toMermaid === 'function' && navigator.clipboard && navigator.clipboard.writeText); });
+        // Drop the "Copy" heading when this browser has no copy items to offer
+        document.querySelectorAll('[data-copy-label]').forEach(el => { el.hidden = !document.querySelector('[data-copy]:not([hidden])'); });
+      }
+      syncCopyMenu();
 
       function setExportOpen(open) {
         exportMenu.hidden = !open;

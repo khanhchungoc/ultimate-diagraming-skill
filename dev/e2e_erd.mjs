@@ -1,6 +1,6 @@
 // Interaction test for the ER diagram plugin: selection, adding and renaming tables and columns, keys, reordering,
 // drawing / re-pointing / reversing relationships and their inferred ends, cardinality pickers, areas, notes, delete,
-// Auto-Tidy on and off with snap guides, undo/redo (one step per finished edit), ?present, and the saved data block
+// multi-select of tables, Auto-Tidy on and off with snap guides (Columns and Types keep hand-placed tables), undo/redo (one step per finished edit), ?present, and the saved data block
 // (byte-identical without edits; generated ids renamed, authored ids kept; Python codec agrees).
 // Driven with real mouse and keyboard input over the Chrome DevTools Protocol (see cdp.mjs): a synthetic DOM
 // event may only be used where a comment says why.
@@ -746,6 +746,162 @@ sys.stdout.write(format_json(out))`;
     else if (afterRedo !== after) stepProblems.push(`${what}: redo differs`);
   }
   t.check(`each of ${cases.length} kinds of edit is one undo step and redo puts it back`, stepProblems.length === 0, stepProblems.join('; '));
+
+  // --- Multi-select (tables only) ---
+  {
+  const selCount = () => count('.erd-entity.selected');
+  const selIds = async () => JSON.parse(await t.ev(`JSON.stringify([...document.querySelectorAll('.erd-entity.selected')].map((e) => e.dataset.nodeId).sort())`));
+  const deleteLabel = () => t.ev(`(() => { const b = document.getElementById('btn-delete-selection'); return b.classList.contains('show') ? b.querySelector('.btn-label').textContent : null; })()`);
+  const ctrlClick = async (sel) => { const q = await t.at(sel); await t.click(q.x, q.y, { modifiers: 2 }); };
+  const overlapping = () => t.ev(`(() => { const b = [...document.querySelectorAll('.erd-entity')].map((e) => [e.dataset.nodeId, e.getBoundingClientRect()]); const out = [];
+    for (let i = 0; i < b.length; i++) for (let j = i + 1; j < b.length; j++) { const p = b[i][1], q = b[j][1]; if (p.left < q.right - 0.5 && p.right > q.left + 0.5 && p.top < q.bottom - 0.5 && p.bottom > q.top + 0.5) out.push(b[i][0] + '/' + b[j][0]); } return out; })()`);
+  // A point on blank canvas (not on a table, note or line label), scanning the viewport from the top-left
+  const blankPoint = () => t.ev(`(() => { const v = document.getElementById('viewport').getBoundingClientRect();
+    for (let y = v.top + 8; y < v.bottom - 8; y += 12) for (let x = v.left + 8; x < v.right - 8; x += 12) {
+      const el = document.elementFromPoint(x, y); if (el && !el.closest('.erd-entity, .erd-note, .erd-rel-label, .erd-band-pill, .erd-rel, .toolbar-center, .toolbar, .dock-area') && (el.id === 'viewport' || el.id === 'stage' || el.closest('#erd-canvas') || el === document.getElementById('viewport'))) return { x, y }; }
+    return null; })()`);
+
+  await freshPage();
+  await ctrlClick(head('customer'));
+  await ctrlClick(head('order'));
+  t.check('multi: Ctrl+click adds tables to the selection (both outlined, the dock Delete shows the count)', J(await selIds()) === J(['customer', 'order']) && (await deleteLabel()) === 'Delete 2', `${J(await selIds())} ${await deleteLabel()}`);
+  t.check('multi: the last clicked table is the primary and has the action bar', (await count('.erd-actionbar')) === 1 && (await t.ev(`(() => { const b = document.querySelector('.erd-actionbar').getBoundingClientRect(), o = document.querySelector('.erd-entity[data-node-id="order"]').getBoundingClientRect(); return Math.abs((b.left + b.right) / 2 - (o.left + o.right) / 2) < 6; })()`)));
+  t.check('multi: with several selected no ports show on hover', await (async () => { const r = await t.at(row('order', 'status')); await t.mouse('mouseMoved', r.x, r.y); await sleep(80); return t.ev(`[...document.querySelectorAll('.erd-port')].every((p) => getComputedStyle(p).display === 'none')`); })());
+  await ctrlClick(head('customer'));
+  t.check('multi: Ctrl+click on a selected table takes it out again', J(await selIds()) === J(['order']) && (await deleteLabel()) === 'Delete');
+  await t.press('Escape');
+  await sleep(80);
+  t.check('multi: Escape clears the selection', (await selCount()) === 0 && (await deleteLabel()) === null);
+  t.check('multi: selecting is not an edit (nothing unsaved, no undo step)', !(await unsaved()) && (await undoDisabled()));
+
+  // Shift+drag on blank canvas: the box selects what it touches, live; Ctrl+Shift toggles against the selection it started from
+  const bp = await blankPoint();
+  const target1 = await t.at(head('address'));
+  const rectIds = (x1, y1, x2, y2) => t.ev(`(() => { const L = Math.min(${x1}, ${x2}), R = Math.max(${x1}, ${x2}), T = Math.min(${y1}, ${y2}), B = Math.max(${y1}, ${y2});
+    return [...document.querySelectorAll('.erd-entity')].filter((e) => { const b = e.getBoundingClientRect(); return b.left < R && b.right > L && b.top < B && b.bottom > T; }).map((e) => e.dataset.nodeId).sort(); })()`);
+  const expectBox = await rectIds(bp.x, bp.y, target1.x, target1.y);
+  await t.dragTo(bp.x, bp.y, target1.x, target1.y, { modifiers: 8 });
+  t.check('multi: Shift+drag on blank canvas selects the tables the box touches', expectBox.length >= 1 && J(await selIds()) === J(expectBox) && (await count('.marquee')) === 0, `${J(expectBox)} vs ${J(await selIds())}`);
+  await t.dragTo(bp.x, bp.y, target1.x, target1.y, { modifiers: 8 | 2 });
+  t.check('multi: a Ctrl+Shift box toggles: the same box again takes them out', (await selCount()) === 0, J(await selIds()));
+  const live = await (async () => {
+    await t.mouse('mouseMoved', bp.x, bp.y, { modifiers: 8 });
+    await t.mouse('mousePressed', bp.x, bp.y, { button: 'left', buttons: 1, clickCount: 1, modifiers: 8 });
+    for (let i = 1; i <= 4; i++) await t.mouse('mouseMoved', bp.x + (target1.x - bp.x) * i / 4, bp.y + (target1.y - bp.y) * i / 4, { button: 'left', buttons: 1, modifiers: 8 });
+    const during = { box: await count('.marquee'), sel: await selCount() };
+    await t.mouse('mouseReleased', target1.x, target1.y, { button: 'left', buttons: 0, clickCount: 1, modifiers: 8 });
+    await sleep(60);
+    return during;
+  })();
+  t.check('multi: the box previews the selection live while it is drawn', live.box === 1 && live.sel === expectBox.length, J(live));
+  await t.press('Escape');
+  await t.press('a', { modifiers: 2 });
+  t.check('multi: Ctrl+A selects every table (Delete 8)', (await selCount()) === 8 && (await deleteLabel()) === 'Delete 8');
+  await t.press('Escape');
+  await t.dragTo(bp.x, bp.y, bp.x + 30, bp.y + 30);
+  t.check('multi: a plain drag on blank canvas still pans and selects nothing', (await selCount()) === 0);
+
+  // Drag several: Auto-Tidy on, to another area (they keep their areas relative to each other)
+  await freshPage();
+  await ctrlClick(head('customer'));
+  await ctrlClick(head('address'));
+  const hc = await t.at(head('customer')), cat = await bandRect('catalog');
+  await t.dragTo(hc.x, hc.y, cat.x + cat.w / 2, cat.y + cat.h / 2);
+  d = await saved();
+  t.check('multi: Auto-Tidy on: dragging one of the selected tables to another area moves them all there', ent(d, 'customer').group === 'catalog' && ent(d, 'address').group === 'catalog' && ent(d, 'order').group === 'sales', J(d.entities.map((e) => e.group)));
+  t.check('multi: and they stay selected', J(await selIds()) === J(['address', 'customer']));
+  await undo();
+  d = await saved();
+  t.check('multi: one undo puts both back', ent(d, 'customer').group === 'sales' && ent(d, 'address').group === 'sales' && (await undoDisabled()));
+  // a drag that stays in the area changes nothing
+  await freshPage();
+  await ctrlClick(head('customer'));
+  await ctrlClick(head('address'));
+  const lay00 = await layoutOf();
+  const hc2 = await t.at(head('customer'));
+  await t.dragTo(hc2.x, hc2.y, hc2.x + 40, hc2.y + 6);
+  t.check('multi: Auto-Tidy on: a drop inside the same area changes nothing', J(await layoutOf()) === J(lay00) && (await undoDisabled()));
+
+  // Drag several: Auto-Tidy off: each keeps its offset
+  await setAuto(false);
+  await t.open(page);
+  await ctrlClick(head('customer'));
+  await ctrlClick(head('order'));
+  const lay0 = await layoutOf();
+  const hc3 = await t.at(head('order'));
+  await t.dragTo(hc3.x, hc3.y, hc3.x + 100, hc3.y);
+  const lay1 = await layoutOf();
+  const mv = (id) => ({ dx: lay1[id].x - lay0[id].x, dy: lay1[id].y - lay0[id].y });
+  const others = Object.keys(lay0).filter((k) => k !== 'customer' && k !== 'order');
+  t.check('multi: Auto-Tidy off: the selected tables move together by the same amount and no other table moves',
+    Math.abs(mv('customer').dx - mv('order').dx) <= 4 && Math.abs(mv('customer').dy - mv('order').dy) <= 4 && mv('order').dx >= 80 && mv('order').dx <= 120 && others.every((k) => J(lay0[k]) === J(lay1[k])), J([mv('customer'), mv('order')]));
+  t.check('multi: and they stay selected', J(await selIds()) === J(['customer', 'order']));
+  await undo();
+  t.check('multi: one undo restores both', J(await layoutOf()) === J(lay0) && (await undoDisabled()));
+  // dropped in another area: each takes the area where it lands
+  const cat2 = await bandRect('catalog'), hc4 = await t.at(head('order'));
+  await t.dragTo(hc4.x, hc4.y, hc4.x, cat2.y + cat2.h / 2);
+  d = await saved();
+  t.check('multi: Auto-Tidy off: each table takes the area it lands in', ent(d, 'order').group === 'catalog' && ent(d, 'address').group === 'sales', J(d.entities.filter((e) => ['order', 'customer'].includes(e.id)).map((e) => [e.id, e.group])));
+  await setAuto(true);
+
+  // Delete several: one confirm, one undo step
+  await freshPage();
+  await ctrlClick(head('customer'));
+  await ctrlClick(head('order'));
+  await t.press('Delete');
+  t.check('multi: Delete with relationships asks once, naming the count', (await count('.erd-confirm')) === 1 && /2 tables and their \d+ relationships?/.test(await text('.erd-confirm-msg')), await text('.erd-confirm-msg'));
+  await t.clickOn('.erd-confirm-delete');
+  d = await saved();
+  t.check('multi: confirmed: both tables, their relationships and note links go', !ent(d, 'customer') && !ent(d, 'order') && d.entities.length === 6
+    && d.relationships.every((r) => !['customer', 'order'].includes(r.from) && !['customer', 'order'].includes(r.to)) && d.relationships.length === 3 && (await selCount()) === 0, `${d.entities.length} ${d.relationships.length}`);
+  await undo();
+  d = await saved();
+  t.check('multi: one undo brings back the tables and their relationships', d.entities.length === 8 && d.relationships.length === 9 && (await undoDisabled()));
+  await t.press('a', { modifiers: 2 });
+  await t.clickOn('#btn-delete-selection');
+  t.check('multi: the dock Delete button deletes the whole selection (after one confirm)', (await count('.erd-confirm')) === 1);
+  await t.press('Escape');
+  t.check('multi: Escape cancels the confirm and deletes nothing', (await count('.erd-entity')) === 8);
+  await t.press('Escape');
+
+  // ?present: no multi-select
+  await freshPage(page, '?present');
+  await ctrlClick(head('customer'));
+  await ctrlClick(head('order'));
+  await t.press('a', { modifiers: 2 });
+  const pb = await blankPoint(), pt2 = await t.at(head('address'));
+  await t.dragTo(pb.x, pb.y, pt2.x, pt2.y, { modifiers: 8 });
+  t.check('?present: Ctrl+click, Ctrl+A and the Shift box select at most one table', (await selCount()) <= 1 && (await count('.marquee')) === 0, `${await selCount()}`);
+
+  // --- Columns and Types with Auto-Tidy off keep hand-placed tables where they are ---
+  await setAuto(false);
+  await t.open(page);
+  const cl0 = await layoutOf();
+  await t.clickOn('#btn-columns');
+  await t.clickOn('#btn-columns');
+  const cl1 = await layoutOf();
+  t.check('off: Columns (to key columns, then names) moves no table', J(cl1) === J(cl0) && (await text('#btn-columns .erd-mode')) === 'Names');
+  await t.clickOn('#btn-types');
+  t.check('off: Types moves no table', J(await layoutOf()) === J(cl0));
+  await t.clickOn('#btn-types');
+  // Hand-place address just under customer while both are only headers, then grow them back to all columns
+  const ca = await t.ev(`(() => { const r = (id) => { const b = document.querySelector('.erd-entity[data-node-id="' + id + '"]').getBoundingClientRect(); return { l: b.left, t: b.top, b: b.bottom }; }; return { c: r('customer'), a: r('address') }; })()`);
+  const hdA = await t.at(head('address'));
+  await t.dragTo(hdA.x, hdA.y, hdA.x + (ca.c.l - ca.a.l), hdA.y + (ca.c.b + 8 - ca.a.t));
+  const preOverlap = await overlapping();
+  const cl2 = await layoutOf();
+  await t.clickOn('#btn-columns');
+  const cl3 = await layoutOf();
+  const post = await overlapping();
+  const moved = Object.keys(cl2).filter((k) => J(cl2[k]) !== J(cl3[k]));
+  t.check('off: Columns back to all columns (tables grow) leaves no two tables overlapping', preOverlap.length === 0 && post.length === 0 && (await text('#btn-columns .erd-mode')) === 'All', `${J(preOverlap)} ${J(post)}`);
+  t.check('off: and moves only the tables that would otherwise overlap', moved.length >= 1 && moved.length <= 3 && cl2.customer && J(cl2.customer) === J(cl3.customer), J(moved));
+  await undo();
+  t.check('off: that is one undo step', J(await layoutOf()) === J(cl2) && (await text('#btn-columns .erd-mode')) === 'Names');
+  await setAuto(true);
+
+  }
 
   // --- ?present ---
   await freshPage(page, '?present');

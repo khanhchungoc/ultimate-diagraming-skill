@@ -40,6 +40,10 @@
 
       // --- STATE ---
       let erdSel = null;              // { kind: 'entity' | 'rel' | 'band', id } | { kind: 'col', entity, col }: class `selected`
+      // Several tables selected (see MULTI-SELECT): the ids, valid only while erdSel is still the primary's selection
+      // object they were made for (a direct erdSel = ... elsewhere drops the group). Never saved.
+      let erdMultiIds = [];
+      let erdMultiOwner = null;
       let hoverEntityId = null;
       let hoverRelId = null;
       let autoLayout = true;          // Auto-Tidy switch (not saved in the file)
@@ -52,6 +56,16 @@
       const erdGroups = () => chartData.groups || [];
       const erdEntity = (id) => erdEntities().find((e) => e.id === id);
       const erdRel = (id) => erdRelsList().find((r) => r.id === id);
+      // The selected tables, primary last (one table when a single table or one of its columns is selected)
+      function selectedEntityIds() {
+        if (erdSel && erdSel.kind === 'entity' && erdSel === erdMultiOwner) {
+          const ids = erdMultiIds.filter((id) => erdEntity(id));
+          if (ids.length > 1 && ids.includes(erdSel.id)) return ids.filter((id) => id !== erdSel.id).concat(erdSel.id);
+        }
+        const one = erdSel && (erdSel.kind === 'entity' ? erdSel.id : erdSel.kind === 'col' ? erdSel.entity : null);
+        return one && erdEntity(one) ? [one] : [];
+      }
+      const isMultiSelected = () => selectedEntityIds().length > 1 && erdSel.kind === 'entity';
       const erdDetail = () => (ERD_DETAILS.includes(chartData.detail) ? chartData.detail : 'all');
 
       function erdSvgEl(tag, attrs) {
@@ -450,7 +464,10 @@
         // Selection
         erdCanvas.querySelectorAll('.selected').forEach((el) => el.classList.remove('selected'));
         if (erdSel) {
-          if (erdSel.kind === 'entity') { const el = entityEl(erdSel.id); if (el) el.classList.add('selected'); }
+          if (erdSel.kind === 'entity') {
+            const many = isMultiSelected();
+            (many ? selectedEntityIds() : [erdSel.id]).forEach((id) => { const el = entityEl(id); if (el) el.classList.add('selected'); });
+          }
           else if (erdSel.kind === 'rel') {
             const el = relEl(erdSel.id), label = labelEl(erdSel.id);
             if (el) el.classList.add('selected');
@@ -464,14 +481,35 @@
             if (band) band.classList.add('selected');
           }
         }
+        markTouchPorts();
         applyNoteVisibility();
       }
+
+      // Touch: a finger reaches the plugin only inside `.selected` or `[data-touch-drag]` (the shell's rule). The ports of
+      // the selected table (or of the table whose row is selected) and the end handles of a selected line are such
+      // targets, and show (erd-touch) so a finger can drag a relationship out of a row. With several tables selected
+      // there are no ports: a drag moves them all.
+      function markTouchPorts() {
+        const many = isMultiSelected();
+        erdCanvas.classList.toggle('erd-multi', many);
+        erdCanvas.querySelectorAll('.erd-port[data-touch-drag]').forEach((p) => p.removeAttribute('data-touch-drag'));
+        const id = !many && !erdPresenting() ? erdSelectedEntityId() : null;
+        const el = id && entityEl(id);
+        if (el) el.querySelectorAll('.erd-port').forEach((p) => p.setAttribute('data-touch-drag', ''));
+        el && el.classList.add('touch-ports');
+        erdCanvas.querySelectorAll('.erd-entity.touch-ports').forEach((x) => { if (x !== el) x.classList.remove('touch-ports'); });
+        if (deleteLabelEl) deleteLabelEl.textContent = many ? `Delete ${selectedEntityIds().length}` : 'Delete';
+      }
+      const deleteLabelEl = document.querySelector('#btn-delete-selection .btn-label');
+      window.addEventListener('pointerdown', (e) => { document.body.classList.toggle('erd-touch', e.pointerType === 'touch'); }, true);
 
       // Selecting changes classes and the tools drawn on the selection, never the tables themselves: the second click
       // of a double-click must land on the element the first one did
       function setSelection(sel) {
         selectedNoteId = null;
         erdSel = sel;
+        erdMultiIds = [];
+        erdMultiOwner = null;
         applyHighlight();
         drawSelectionTools();
         if (typeof queueDeleteRefresh === 'function') queueDeleteRefresh();
@@ -480,6 +518,54 @@
       const selectRel = (id) => setSelection({ kind: 'rel', id });
       const selectCol = (entity, col) => setSelection({ kind: 'col', entity, col });
       const selectBand = (id) => setSelection({ kind: 'band', id });
+
+      // --- MULTI-SELECT (tables only) ---
+      // erdSel is the primary table (the one clicked last: the action bar and notes follow it) and erdMultiIds holds all
+      // of them. Ctrl/Cmd+click toggles a table, Shift+drag on blank canvas draws the shell's box (selectInRect), Ctrl/Cmd+A
+      // selects every table (selectAll), Esc or a click on blank canvas clears. A drag moves them all, Delete deletes them
+      // all as one undo step. Lines, columns, areas and notes are still selected one at a time. Never saved; off in ?present.
+      function setEntitySelection(ids, primary) {
+        ids = ids.filter((id) => erdEntity(id));
+        selectedNoteId = null;
+        if (ids.length <= 1) {
+          if (ids.length) selectEntity(ids[0]); else setSelection(null);
+          return;
+        }
+        const main = ids.includes(primary) ? primary : ids[ids.length - 1];
+        erdSel = { kind: 'entity', id: main };
+        erdMultiIds = ids.slice();
+        erdMultiOwner = erdSel;
+        applyHighlight();
+        drawSelectionTools();
+        if (typeof queueDeleteRefresh === 'function') queueDeleteRefresh();
+      }
+      function toggleEntity(id) {
+        const cur = selectedEntityIds();
+        const ids = cur.filter((x) => x !== id);
+        if (!cur.includes(id)) ids.push(id);
+        setEntitySelection(ids, id);
+      }
+      let erdBoxBase = [];   // the selection a toggle box started from (selectInRect)
+      function erdSelectInRect(r, mode, start) {
+        if (erdPresenting()) return;
+        if (start) erdBoxBase = erdSel && (erdSel.kind === 'entity' || erdSel.kind === 'col') ? selectedEntityIds() : [];
+        const hit = erdEntities().filter((e) => {
+          const el = entityEl(e.id);
+          if (!el) return false;
+          const b = el.getBoundingClientRect();
+          return b.left < r.right && b.right > r.left && b.top < r.bottom && b.bottom > r.top;
+        }).map((e) => e.id);
+        const next = mode === 'toggle'
+          ? erdBoxBase.filter((id) => !hit.includes(id)).concat(hit.filter((id) => !erdBoxBase.includes(id)))
+          : hit;
+        const cur = selectedEntityIds();
+        const same = next.length === cur.length && next.every((id) => cur.includes(id)) && !(erdSel && erdSel.kind !== 'entity') && (next.length > 0 || !erdSel);
+        if (!same) setEntitySelection(next, erdSel && erdSel.kind === 'entity' ? erdSel.id : null);
+      }
+      function erdSelectAll() {
+        if (erdPresenting()) return;
+        setEntitySelection(erdEntities().map((e) => e.id), erdSel && erdSel.kind === 'entity' ? erdSel.id : null);
+      }
 
       // --- BAND NAME PILLS ---
       // Each area's pill sits at its band's start; once the view is panned past the header it stays at the visible
@@ -559,17 +645,41 @@
         updateNotesButton();
       }
 
+      // The tables changed size (Columns, Types). Auto-Tidy on: the whole diagram re-lays out. Off: hand-placed tables stay
+      // where they are and only the lines are re-routed; a table that now overlaps another (flow terms, same area) is
+      // pushed on along the flow, past the ones before it, and only as far as it must.
+      function resizeLayout() {
+        if (autoLayout || erdEntities().some((e) => !erdIsPlaced(e))) { erdLayout(); return; }
+        const tb = isTB(), gap = ER.RANK_GAP / 2;
+        const items = erdEntities().map((e) => {
+          const s = erEntitySize(e, chartData);
+          return { e, band: erdEffGroup(e) || '', along: tb ? s.h : s.w, across: tb ? s.w : s.h };
+        });
+        const placed = [];
+        items.slice().sort((a, b) => a.e.x - b.e.x || a.e.y - b.e.y).forEach((it) => {
+          for (let pass = 0; pass < 50; pass++) {
+            const hit = placed.find((o) => o.band === it.band && it.e.x < o.e.x + o.along && o.e.x < it.e.x + it.along
+              && it.e.y < o.e.y + o.across && o.e.y < it.e.y + it.across);
+            if (!hit) break;
+            it.e.x = erdRound4(hit.e.x + hit.along + gap + 3);
+          }
+          placed.push(it);
+        });
+        routeDiagram(chartData);
+        routedSig = inputSignature();
+      }
+
       if (erdBtnColumns) erdBtnColumns.addEventListener('click', () => {
         const next = ERD_DETAILS[(ERD_DETAILS.indexOf(erdDetail()) + 1) % ERD_DETAILS.length];
         if (next === 'all') delete chartData.detail; else chartData.detail = next;
-        erdLayout();   // sizes change; rank and order do not (check_golden.py)
+        resizeLayout();   // sizes change; rank and order do not (check_golden.py)
         render();
         updateStatus(true);
         fitView();
       });
       if (erdBtnTypes) erdBtnTypes.addEventListener('click', () => {
         if (chartData.showTypes === false) delete chartData.showTypes; else chartData.showTypes = false;
-        erdLayout();
+        resizeLayout();
         render();
         updateStatus(true);
       });
@@ -1128,6 +1238,7 @@
         h.dataset.role = role;
         h.dataset.id = id;
         h.dataset.exportSkip = '';
+        h.setAttribute('data-touch-drag', '');   // a finger may drag it (the shell's touch rule)
         h.title = role === 'from' ? 'Drag to another table or column to move the child end' : 'Drag to another table or column to move the parent end';
         Object.assign(h.style, { left: erdPx(x), top: erdPx(y) });
         erdHtml.appendChild(h);
@@ -1153,7 +1264,8 @@
               e.collapsed ? 'Show the columns again' : 'Collapse the table to its header', e.collapsed === true));
           }
           bar.appendChild(abButton('note', erdIconSvg(ERD_ICON.note), 'Add a note to this table (N)'));
-          bar.appendChild(abButton('delete', erdIconSvg(ERD_ICON.trash), 'Delete this table and its relationships', undefined, undefined, 'is-danger'));
+          const nSel = selectedEntityIds().length;
+          bar.appendChild(abButton('delete', erdIconSvg(ERD_ICON.trash), nSel > 1 ? `Delete these ${nSel} tables and their relationships` : 'Delete this table and its relationships', undefined, undefined, 'is-danger'));
           bar.appendChild(erdHtmlEl('span', 'erd-ab-break'));
           const gs = erdGroups();
           const g = gs.find((x) => x.id === erdEffGroup(e));
@@ -1326,6 +1438,15 @@
         const id = entEl.dataset.nodeId;
         if (notePicking) { e.preventDefault(); giveNoteTo(id); return; }
         if (selectedNoteId && e.shiftKey) { e.preventDefault(); toggleNoteLink(selectedNoteId, id); return; }
+        // MULTI-SELECT: Ctrl/Cmd+click adds the table or takes it out; it never starts a drag
+        if ((e.ctrlKey || e.metaKey) && !t.closest('.erd-port')) { e.preventDefault(); toggleEntity(id); return; }
+        // A table of several selected: a press anywhere on it (ports are hidden) drags them all
+        const group = isMultiSelected() && selectedEntityIds().includes(id) ? selectedEntityIds() : null;
+        if (group) {
+          if (erdSel.id !== id) { erdSel = { kind: 'entity', id }; erdMultiOwner = erdSel; applyHighlight(); drawSelectionTools(); }
+          beginDrag(e, Object.assign(entityDrag(id, entEl, group), { click: () => selectEntity(id) }));
+          return;
+        }
         const port = t.closest('.erd-port'), row = t.closest('.erd-row'), head = t.closest('.erd-head');
         if (port) {
           const from = { entity: id, col: port.dataset.col || null };
@@ -1333,6 +1454,13 @@
           return;
         }
         if (relArmed && (row || head)) { beginDrag(e, connectDrag({ entity: id, col: row ? row.dataset.col : null })); return; }
+        // A finger on a row of the selected table moves the table (a tap selects the row); a mouse drags the row
+        if (row && e.pointerType === 'touch' && erdSel && erdSel.kind === 'entity' && erdSel.id === id) {
+          const drag = entityDrag(id, entEl);
+          drag.click = () => selectCol(id, row.dataset.col);
+          beginDrag(e, drag);
+          return;
+        }
         if (row) { selectCol(id, row.dataset.col); beginDrag(e, rowDrag(id, row.dataset.col, row)); return; }
         selectEntity(id);
         beginDrag(e, entityDrag(id, entEl));
@@ -1451,11 +1579,14 @@
       }
 
       // --- Move a table: Auto-Tidy on, a drop only chooses the area (the layout decides the place); off, it stays where dropped ---
-      function entityDrag(id, el) {
+      // `group`: ids of every table moving together (several selected); each keeps its offset from the others
+      function entityDrag(id, el, group) {
         const e = erdEntity(id);
+        const ids = group || [id];
+        const els = ids.map((x) => entityEl(x)).filter(Boolean);
         return {
           move(ev, d) {
-            el.classList.add('is-dragging');
+            els.forEach((x) => x.classList.add('is-dragging'));
             let dx = d.dx, dy = d.dy;
             const pt = erdPoint(ev);
             markBand(erdBandIndexAt(pt));
@@ -1464,7 +1595,7 @@
               const cx = e.box.x + e.box.w / 2 + dx, cy = e.box.y + e.box.h / 2 + dy;
               let sx = null, sy = null;
               erdEntities().forEach((o) => {
-                if (o === e || !o.box) return;
+                if (ids.includes(o.id) || !o.box) return;
                 const ox = o.box.x + o.box.w / 2, oy = o.box.y + o.box.h / 2;
                 if (Math.abs(ox - cx) <= 6 && (sx === null || Math.abs(ox - cx) < Math.abs(sx - cx))) sx = ox;
                 if (Math.abs(oy - cy) <= 6 && (sy === null || Math.abs(oy - cy) < Math.abs(sy - cy))) sy = oy;
@@ -1473,10 +1604,11 @@
               if (sy !== null) { dy += sy - cy; erdGuideH.style.top = erdPx(sy); erdGuideH.style.display = 'block'; } else erdGuideH.style.display = 'none';
               d.sdx = dx; d.sdy = dy;
             }
-            el.style.translate = `${dx}px ${dy}px`;
+            els.forEach((x) => { x.style.translate = `${dx}px ${dy}px`; });
           },
           drop(ev, d) {
             const gi = erdBandIndexAt(erdPoint(ev)), groups = erdGroups(), g = gi >= 0 ? groups[gi] : null;
+            if (group) { dropGroup(group, gi, d); return; }
             if (autoLayout) {
               if (g && g.id !== erdEffGroup(e)) { e.group = g.id; commit(); } else render();
               return;
@@ -1490,6 +1622,39 @@
             updateStatus(true);
           }
         };
+      }
+      // Several tables dropped: they move by the same band offset the pointer's band is from the primary's (so tables
+      // from different areas stay in different areas) and, with Auto-Tidy on, one re-layout places them. With it off each
+      // keeps its offset from the others and takes its area from where it lands.
+      function dropGroup(ids, pointerBand, d) {
+        const groups = erdGroups(), ents = ids.map(erdEntity).filter((x) => x && x.box);
+        if (!ents.length) { render(); return; }
+        if (autoLayout) {
+          const main = ents[ents.length - 1];
+          const at = (e) => Math.max(0, groups.findIndex((q) => q.id === erdEffGroup(e)));
+          const delta = groups.length && pointerBand >= 0 ? pointerBand - at(main) : 0;
+          let changed = false;
+          if (delta) ents.forEach((e) => {
+            const to = groups[Math.max(0, Math.min(groups.length - 1, at(e) + delta))];
+            if (to && to.id !== e.group) { e.group = to.id; changed = true; }
+          });
+          if (changed) commit(); else render();
+          return;
+        }
+        const dx = d.sdx === undefined ? d.dx : d.sdx, dy = d.sdy === undefined ? d.dy : d.sdy;
+        const moves = ents.map((e) => {
+          const b = { x: e.box.x + dx, y: e.box.y + dy, w: e.box.w, h: e.box.h };
+          const gi = erdBandIndexAt({ x: b.x + b.w / 2, y: b.y + b.h / 2 });
+          return { e, b, g: gi >= 0 ? groups[gi] : null };
+        });
+        moves.forEach(({ e, b, g }) => {
+          if (g) e.group = g.id;
+          const pos = flowFromScreen(g, b.x, b.y);
+          e.x = pos.x;
+          e.y = pos.y;
+        });
+        render();
+        updateStatus(true);
       }
 
       // --- Reorder a column: drag its row within the table ---
@@ -1899,13 +2064,16 @@
       }
 
       // --- Delete ---
-      function deleteEntity(id) {
-        if (!erdEntity(id)) return;
-        chartData.entities = erdEntities().filter((e) => e.id !== id);
-        chartData.relationships = erdRelsList().filter((r) => r.from !== id && r.to !== id);
-        // A note loses the table; one left with no table goes
+      function deleteEntity(id) { deleteEntities([id]); }
+      function deleteEntities(ids) {
+        ids = ids.filter((id) => erdEntity(id));
+        if (!ids.length) return;
+        const gone = new Set(ids);
+        chartData.entities = erdEntities().filter((e) => !gone.has(e.id));
+        chartData.relationships = erdRelsList().filter((r) => !gone.has(r.from) && !gone.has(r.to));
+        // A note loses the tables; one left with no table goes
         if (Array.isArray(chartData.notes)) {
-          chartData.notes.forEach((n) => { n.entities = (n.entities || []).filter((x) => x !== id); });
+          chartData.notes.forEach((n) => { n.entities = (n.entities || []).filter((x) => !gone.has(x)); });
           chartData.notes = chartData.notes.filter((n) => n.entities.length);
           if (!chartData.notes.length) delete chartData.notes;
         }
@@ -1965,7 +2133,13 @@
         if (selectedNoteId && !erdSel) { removeNote(selectedNoteId); return; }
         const s = erdSel;
         if (!s) return;
-        if (s.kind === 'entity') {
+        if (s.kind === 'entity' && isMultiSelected()) {
+          const ids = selectedEntityIds(), set = new Set(ids);
+          const count = erdRelsList().filter((r) => set.has(r.from) || set.has(r.to)).length;
+          if (count) {
+            confirmDelete(`Delete ${ids.length} tables and their ${count} relationship${count === 1 ? '' : 's'}?`, 'Delete tables', () => deleteEntities(ids), anchorEl || entityEl(s.id));
+          } else deleteEntities(ids);
+        } else if (s.kind === 'entity') {
           const e = erdEntity(s.id);
           if (!e) return;
           const count = erdRelsList().filter((r) => r.from === e.id || r.to === e.id).length;
@@ -2323,7 +2497,7 @@
         const a = document.activeElement;
         if (a && a.isContentEditable) return;   // the edit's own handler keeps or drops the text
         if (cancelErdInteraction()) return;
-        if (erdSel || selectedNoteId) { erdSel = null; selectedNoteId = null; peekEntityId = null; applyHighlight(); drawSelectionTools(); }
+        if (erdSel || selectedNoteId) { erdSel = null; erdMultiIds = []; erdMultiOwner = null; selectedNoteId = null; peekEntityId = null; applyHighlight(); drawSelectionTools(); }
       }, true);
 
       window.addEventListener('keydown', (e) => {
@@ -2466,7 +2640,11 @@
       function toMermaid() {
         const left = { one: '||', zeroOrOne: '|o', oneOrMany: '}|', zeroOrMany: '}o' };
         const right = { one: '||', zeroOrOne: 'o|', oneOrMany: '|{', zeroOrMany: 'o{' };
-        const word = (s, fallback) => String(s == null ? '' : s).replace(/[^A-Za-z0-9_\-\[\]()]+/g, '_').replace(/^_+|_+$/g, '') || fallback;
+        // Mermaid attribute words start with a letter or underscore and hold letters, digits, - _ [ ] ( ) only
+        const word = (s, fallback) => {
+          const w = String(s == null ? '' : s).replace(/[^A-Za-z0-9_\-\[\]()]+/g, '_').replace(/^_+|_+$/g, '') || fallback;
+          return /^[A-Za-z_]/.test(w) ? w : '_' + w;
+        };
         const nameOf = (e) => {
           const n = String(erName(e));
           return /^[A-Za-z_][A-Za-z0-9_-]*$/.test(n) ? n : `"${n.replace(/"/g, "'")}"`;
@@ -2506,6 +2684,8 @@
           || el.classList.contains('erd-band') || el.classList.contains('erd-band-rail'),
         clearSelection() {
           erdSel = null;
+          erdMultiIds = [];
+          erdMultiOwner = null;
           selectedNoteId = null;
           peekEntityId = null;
           applyHighlight();
@@ -2513,6 +2693,8 @@
         },
         cancelInteraction: cancelErdInteraction,
         hasSelection: () => !!erdSel || !!selectedNoteId,
+        selectInRect: erdSelectInRect,
+        selectAll: erdSelectAll,
         deleteSelection,
         onViewChange: pinBands,
         // Notes on show may sit in the margin outside the canvas: Fit and screenshots take them in (peeked ones are

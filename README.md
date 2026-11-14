@@ -75,15 +75,17 @@ We asked an AI (Claude Haiku) to summarize 4 saved diagrams, from 9 to 41 steps 
 |---|---|
 | **Flowchart**: swimlanes, decisions, loops, wide or tall; classic shapes (document, database, input/output, subprocess, delay) and lettered connectors for long arrows | ✅ Available |
 | **Sequence**: who talks to whom over time, with optional, alternative and loop sections | ✅ Available |
+| **ERD**: database tables, columns, keys and crow's-foot relationships, grouped into coloured subject areas; collapse tables, add notes, copy as Mermaid | ✅ Available |
 
 ![Sequence diagram](docs/img/example-sequence.png)
+
+![ER diagram](docs/img/example-erd.png)
 
 ## Coming next
 
 | | Planned |
 |---|---|
 | 🔜 | **BPMN**: pools, lanes, events, gateways |
-| 🔜 | **ERD**: database tables and relationships |
 | 🔜 | **State diagram**: states and transitions |
 | 💡 | Class and component diagrams |
 | 💡 | Gantt / timeline |
@@ -126,3 +128,4 @@ Needs `Python 3.9+` and `Chrome`, `Chromium` or `Edge` (used to lay out and chec
 
 - [Loan application flowchart](dev/samples/example-flowchart.html)
 - [Checkout sequence diagram](dev/samples/example-sequence.html)
+- [Shop ER diagram](dev/samples/example-erd.html)

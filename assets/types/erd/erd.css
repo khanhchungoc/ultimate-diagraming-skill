@@ -459,6 +459,13 @@
     .erd-port:hover { background: var(--primary); }
     .erd-row:hover > .erd-port, .erd-head:hover > .erd-port, body.erd-armed .erd-port { display: block; }
     body.erd-dragging .erd-port { display: none; }
+    /* Several tables selected: no ports, a drag moves them all */
+    .erd-multi .erd-port { display: none !important; }
+    /* Touch: the selected table shows its ports (the row ports and the header's) as finger-sized targets, and a selected
+       line's end handles grow; elsewhere a drag pans (the shell's touch rule: only .selected and [data-touch-drag] reach this file) */
+    body.erd-touch .erd-entity.touch-ports .erd-port { display: block; width: 22px; height: 22px; right: -11px; margin-top: -11px; border-width: 2.5px; }
+    body.erd-touch .erd-handle { width: 22px; height: 22px; margin: -11px 0 0 -11px; border-width: 2.5px; }
+    body.erd-touch .erd-rel-hit { stroke-width: 26px; }
     body.erd-armed .erd-row, body.erd-armed .erd-head { cursor: crosshair; }
     body.erd-armed .erd-chevron { display: none; }
     /* The row or header a connection would end at, and the table around it */

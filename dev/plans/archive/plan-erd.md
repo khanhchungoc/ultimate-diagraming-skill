@@ -2,7 +2,17 @@
 
 Add entity-relationship diagrams as the third type, next to `flowchart` and `sequence`. Same promise as the other two: the agent writes a short logical JSON, the tooling lays it out, audits it and assembles one standalone, editable HTML page (or claude.ai Artifact) with the shared shell: pan/zoom/fit, theme, Save, undo/redo, Export and Copy, `?present`, help drawer, touch, Artifact Save. Nothing in the shell changes except where this plan says so.
 
-**Status:** approved 2026-11-14; decisions settled as proposed (see [Decisions](#decisions)). Implementation follows [Implementation details](#implementation-details) and the [work split](#work-split).
+**Status:** implemented 2026-11-14 (waves 1–4). Approved 2026-11-14; decisions settled as proposed (see [Decisions](#decisions)); decision 7 was added after wave 3. Deviations from the text below:
+
+- **Ranking:** a root table (no parent) that has children is pulled right to sit one rank before its nearest child (`ER.PULL_ROOTS`), instead of strict longest-path rank 0. Parents still come first.
+- **Cycles:** the edge that closes a cycle (found by a DFS in authored order) is ignored for ranking and only routed around; it is not reversed.
+- **Routes:** lines into one parent row share a trunk (the `TRUNK` cost), so they merge instead of running side by side in staggered channels.
+- **Crossings:** `canvas.crossings` counts forced crossings only, not every crossing of an earlier route the search could have avoided.
+- **No Vertical/Horizontal button** in the ERD dock (decision 7); the engine keeps `TB` and `--layout` still chooses it when `direction` is missing.
+- **Area pills:** in `LR` the band name pill is vertical text along the header column (horizontal in `TB` and while editing).
+- **Column action bar** sits above the table header of the selected row's table, not over the row above it.
+- **Mermaid copy:** the menu item is shown by `syncCopyMenu()` in `shell.js`, which `registerDiagramPlugin` calls, because a type script registers after the shell script has run. `toMermaid` prefixes `_` to attribute types and names that start with a digit; its output for the example, `saas-billing` and a quoted-name edge case was parsed and rendered by Mermaid 10.9.1.
+
 
 **Acceptance case:** a SaaS billing schema of about **30 tables in 4 subject areas** (accounts, catalogue, billing, audit), with composite keys, a self-reference (`employee.manager_id`), two junction tables and one optional one-to-one. It must be authored in one pass from a written description or from SQL DDL pasted by the user, pass the audit at 90 or more with no `[WARN]`, fit a 1080p screen at "Keys only" with Fit, and let a reader find "which tables point at `invoice`" in under 10 seconds (hover `invoice`). A small example (8 tables, 2 areas) is the reference example.
 
