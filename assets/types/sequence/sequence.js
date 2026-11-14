@@ -13,6 +13,8 @@
       const btnAddMessage = document.getElementById('btn-add-message');
       const btnToggleKind = document.getElementById('btn-toggle-kind');
       const btnFrame = document.getElementById('btn-frame');
+      const btnNumbers = document.getElementById('btn-numbers');
+      const btnDetails = document.getElementById('btn-details');
 
       const SVG_NS = 'http://www.w3.org/2000/svg';
       const ACT_HALF = 6;      // half width of an activation bar
@@ -249,14 +251,49 @@
           el.appendChild(t);
           seqHtml.appendChild(el);
         });
+        // The opaque band the participant row rides on once the top of the diagram is panned off screen
+        seqHtml.appendChild(htmlEl('div', 'seq-pin-band'));
         applySelection();
+        pinParticipants();
       }
 
+      // --- PINNED PARTICIPANT ROW ---
+      // Below the first screen of a long diagram no lifeline would have a name: once the boxes are panned off the
+      // top, they ride at the top of the viewport over an opaque band (as the flowchart pins its lane pills).
+      // Called after every render and, via plugin.onViewChange, after every pan/zoom. Exports (body.exporting) and
+      // screenshots (body.capture) reset it in CSS, so they always show the row at the diagram's top.
+      const PIN_INSET = 8;
+      function pinParticipants() {
+        const L = chartData.layout;
+        if (!L) return;
+        const top = seqCanvas.offsetTop + seqCanvas.clientTop;     // canvas origin, stage coords
+        const visTop = -panY / scale - top;                        // viewport's top edge in canvas coords
+        const on = visTop + PIN_INSET > SQ.TOP && !document.body.classList.contains('capture');
+        const dy = Math.min(visTop + PIN_INSET - SQ.TOP, L.height - SQ.BOX_H - SQ.TOP - 40);
+        seqCanvas.classList.toggle('seq-pinned', on && dy > 0);
+        seqCanvas.style.setProperty('--pin-dy', `${on ? Math.max(0, dy) : 0}px`);
+        seqCanvas.style.setProperty('--pin-top', `${on ? Math.max(0, dy) + SQ.TOP - PIN_INSET : 0}px`);
+      }
+
+      // Focus: a selected participant dims every message that does not touch it; a selected message lights its
+      // two participant boxes (which matters once the row is pinned far from the message)
       function applySelection() {
         const sel = seqSel || {};
+        const ids = sel.kind === 'message' ? (sel.ids || [sel.id]) : [];
         document.querySelectorAll('.seq-participant').forEach((el) => el.classList.toggle('selected', sel.kind === 'participant' && el.dataset.nodeId === sel.id));
-        document.querySelectorAll('.seq-msg-label, .seq-line').forEach((el) => el.classList.toggle('selected', sel.kind === 'message' && el.dataset.edgeId === sel.id));
+        document.querySelectorAll('.seq-msg-label, .seq-line, .seq-msg-detail').forEach((el) => el.classList.toggle('selected', ids.includes(el.dataset.edgeId)));
         document.querySelectorAll('.seq-frag-label, .seq-frag-box').forEach((el) => el.classList.toggle('selected', sel.kind === 'fragment' && el.dataset.fragId === sel.id));
+        const touching = (m) => m.from === sel.id || m.to === sel.id;
+        const byMsg = {};
+        chartData.messages.forEach((m) => { byMsg[m.id] = m; });
+        document.querySelectorAll('.seq-msg-label, .seq-line, .seq-msg-detail').forEach((el) => {
+          const m = byMsg[el.dataset.edgeId];
+          el.classList.toggle('is-dim', sel.kind === 'participant' && !!m && !touching(m));
+        });
+        const lit = new Set();
+        ids.forEach((id) => { const m = byMsg[id]; if (m) { lit.add(m.from); lit.add(m.to); } });
+        document.querySelectorAll('.seq-participant').forEach((el) => el.classList.toggle('linked', lit.has(el.dataset.nodeId)));
+        if (typeof applySelectionExtras === 'function') applySelectionExtras(sel);
         refreshDock();
       }
 
@@ -267,6 +304,13 @@
       }
       function refreshDock() {
         const kind = seqSel && seqSel.kind;
+        // View toggles: pressed while on. They are saved flags ("numbered", "showDetails"), so each is one undo step.
+        btnNumbers.setAttribute('aria-pressed', String(!!chartData.numbered));
+        btnNumbers.title = chartData.numbered ? 'Hide the step numbers' : 'Number every message (the number stays the same when a frame is collapsed)';
+        const hasDetails = chartData.messages.some((m) => m.detail);
+        btnDetails.setAttribute('aria-pressed', String(hasDetails && chartData.showDetails !== false));
+        setDockButton(btnDetails, hasDetails, !hasDetails ? 'No message has a detail yet: select a message, press Enter, then Tab'
+          : chartData.showDetails !== false ? 'Hide the details under the arrows (the detail becomes the label\'s tooltip)' : 'Show each message\'s detail under its arrow');
         setDockButton(btnAddMessage, !!chartData.participants.length,
           chartData.participants.length ? 'Add a message from the selected participant (or after the selected message)' : 'Add a participant first');
         setDockButton(btnToggleKind, kind === 'message',
@@ -595,6 +639,15 @@
         select(null);
       }, true);
 
+      btnNumbers.addEventListener('click', () => {
+        if (chartData.numbered) delete chartData.numbered; else chartData.numbered = true;
+        relayout();
+      });
+      btnDetails.addEventListener('click', () => {
+        if (chartData.showDetails === false) delete chartData.showDetails; else chartData.showDetails = false;
+        relayout();
+      });
+
       // --- DISK FORMAT (the page's data block) ---
       // No positions are saved: render() lays out whatever is missing, so the block holds only the logical model,
       // in a fixed key order. scripts/disk_format.py is the Python twin: keep the two byte-identical.
@@ -629,5 +682,6 @@
           return true;
         },
         hasSelection: () => !!seqSel,
+        onViewChange: pinParticipants,
         deleteSelection
       });

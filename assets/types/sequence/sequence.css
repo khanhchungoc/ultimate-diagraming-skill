@@ -115,4 +115,21 @@
     body.presentation .seq-frag-hit, body.presentation .seq-div-hit, body.presentation .seq-frag-branch-label { pointer-events: none !important; cursor: default; }
     /* In ?present the chevron and the summary row stay live: they walk an audience through the flow phase by phase */
     body.presentation .seq-frag-chev, body.presentation .seq-frag-summary { pointer-events: auto; }
+    /* Pinned participant row (see pinParticipants): the boxes ride over an opaque band at the viewport's top */
+    .seq-pin-band {
+      display: none; position: absolute; left: 0; right: 0; top: var(--pin-top, 0px); height: 72px; z-index: 5;
+      background: var(--bg-panel); border-bottom: 1px solid var(--border-dark); box-shadow: 0 4px 8px -4px rgba(0,0,0,0.12);
+      pointer-events: none;
+    }
+    #seq-canvas.seq-pinned .seq-pin-band { display: block; }
+    #seq-canvas.seq-pinned .seq-participant { translate: 0 var(--pin-dy, 0px); z-index: 6; }
+    body.exporting .seq-pin-band, body.capture .seq-pin-band { display: none !important; }
+    body.exporting #seq-canvas .seq-participant, body.capture #seq-canvas .seq-participant { translate: none !important; }
+    /* Focus: messages that do not touch the selected participant step back; a selected message lights its ends */
+    .seq-line.is-dim, .seq-msg-label.is-dim, .seq-msg-detail.is-dim { opacity: 0.22; }
+    /* "linked" is one of the shell's transient classes, so an export drops it */
+    .seq-participant.linked { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-ring); }
+    body.exporting .is-dim { opacity: 1 !important; }
+    /* View toggles in the dock: pressed while on */
+    .seq-toggle[aria-pressed="true"] { background: var(--primary-wash); border-color: var(--primary-ring); color: var(--primary); }
     body.capture #seq-canvas { margin: 0; padding: 12px; border: none; border-radius: 0; box-shadow: none; }
