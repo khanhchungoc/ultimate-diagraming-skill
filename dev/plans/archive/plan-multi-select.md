@@ -2,7 +2,15 @@
 
 Today the flowchart selects one thing at a time: one step, one arrow, one note or one lane. This plan lets an author select several steps and then delete them, move them to another lane, or move them to another place in the flow, each as **one edit and one undo step**.
 
-**Status:** proposed 2026-11-13. Nothing is implemented.
+**Status:** implemented 2026-11-14 (phases 1–5). Open decisions taken as proposed: Alt for reorder-on-drop, the box selects what it touches, Shift + click selects a range along the flow. Deviations and details:
+- Esc clears a selection of several steps; with one step selected it does what it did before (nothing), so single selection is unchanged.
+- `selectInRect` gets a third argument, `start` (true on a box's first call), so a toggle box toggles against the selection it started from while it previews live.
+- Ctrl/Cmd + click and Shift + click change the selection without starting a drag; a click (no drag) on one of several selected steps selects only that step.
+- Alt + drag onto an arrow is offered for any run, including a run of one connected step. While Alt is held, arrows are not re-routed during the drag (as for an unconnected step), so the target stays put. A non-run Alt-drop puts every step back where it was.
+- The new arrow `exit → D` takes the label of the run's old outgoing arrow.
+- Manual layout: after a group move, connector circles on any moved step (not only selected circles) go back beside their steps.
+- The README has no editing section, so only `help.html` and `architecture.md` were updated.
+- Tests: `dev/e2e_multiselect.mjs` uses `loan-application.json` for selection, delete, lane moves and refusals, `cross-lane-zigzag.json` for reorder (the loan flow has no straight 2-step run), and `connector-forward.json` for the connector case; the top-to-bottom cases switch direction in the page.
 
 ## Gestures
 

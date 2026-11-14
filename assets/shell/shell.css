@@ -446,6 +446,14 @@
     #viewport.panning {
       cursor: grabbing;
     }
+    /* Selection box: Shift + drag on blank canvas, for diagram types that define selectInRect */
+    .marquee {
+      position: fixed;
+      z-index: 60;
+      pointer-events: none;
+      border: 1px dashed var(--primary);
+      background: var(--primary-wash);
+    }
     /* Space held: the canvas is a pure pan surface, nothing in it is clickable or hoverable */
     body.space-pan #stage {
       pointer-events: none;

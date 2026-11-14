@@ -492,6 +492,14 @@
     #viewport.panning {
       cursor: grabbing;
     }
+    /* Selection box: Shift + drag on blank canvas, for diagram types that define selectInRect */
+    .marquee {
+      position: fixed;
+      z-index: 60;
+      pointer-events: none;
+      border: 1px dashed var(--primary);
+      background: var(--primary-wash);
+    }
     /* Space held: the canvas is a pure pan surface, nothing in it is clickable or hoverable */
     body.space-pan #stage {
       pointer-events: none;
@@ -823,6 +831,7 @@
       //   render(), isBackground(el), clearSelection(),
       //   cancelInteraction() -> true if something was cancelled, deleteSelection(anchorEl?)
       //   optional: hasSelection() -> true when deleteSelection() would delete something (shows the dock's Delete)
+      //   optional: selectInRect(clientRect, mode, start) and selectAll(): multi-select, see SELECTION BOX
       //   optional: onViewChange() after every pan/zoom (body.exporting is set while an export reads styles)
       //   optional: contentOverflow() -> {left, top, right, bottom}: unscaled px that content reaches past
       //             contentEl's edges, so Fit and screenshots frame it too
@@ -1219,12 +1228,53 @@
       viewport.addEventListener('pointerdown', (e) => {
         if (e.target === viewport || e.target.id === 'stage' || plugin.isBackground(e.target)) {
           if (plugin.cancelInteraction()) return;
+          if (startMarquee(e)) return;   // Shift + drag draws a selection box instead of panning
           isPanning = true;
           panStartX = e.clientX - panX;
           panStartY = e.clientY - panY;
           viewport.classList.add('panning');
           plugin.clearSelection();
         }
+      });
+
+      // --- SELECTION BOX (opt-in: only for a plugin that defines selectInRect / selectAll) ---
+      // Shift + drag on blank canvas draws a box; Ctrl/Cmd + Shift + drag makes it a toggle box. On every move the
+      // plugin's selectInRect(rect, mode, start) selects what the box touches, so the selection previews live:
+      // rect is in client coordinates, mode is 'replace' or 'toggle', start is true on a box's first call. The
+      // selection is not cleared when a box starts. Ctrl/Cmd + A calls selectAll(). Without these members
+      // Shift + drag pans and Ctrl/Cmd + A is the browser's own. Both are off in present mode.
+      let marquee = null;   // { el, x, y, mode }
+      const isTyping = () => { const a = document.activeElement; return !!a && (a.isContentEditable || a.tagName === 'INPUT' || a.tagName === 'TEXTAREA'); };
+      function startMarquee(e) {
+        if (!e.shiftKey || !plugin.selectInRect || document.body.classList.contains('presentation')) return false;
+        e.preventDefault();
+        if (isTyping()) document.activeElement.blur();   // commit a label being edited, as any click on the canvas does
+        const el = document.createElement('div');
+        el.className = 'marquee';
+        document.body.appendChild(el);
+        marquee = { el, x: e.clientX, y: e.clientY, mode: (e.ctrlKey || e.metaKey) ? 'toggle' : 'replace' };
+        moveMarquee(e, true);
+        return true;
+      }
+      function moveMarquee(e, start = false) {
+        const left = Math.min(marquee.x, e.clientX), top = Math.min(marquee.y, e.clientY);
+        const width = Math.abs(e.clientX - marquee.x), height = Math.abs(e.clientY - marquee.y);
+        Object.assign(marquee.el.style, { left: `${left}px`, top: `${top}px`, width: `${width}px`, height: `${height}px` });
+        plugin.selectInRect({ left, top, right: left + width, bottom: top + height, width, height }, marquee.mode, start);
+      }
+      function endMarquee() {
+        if (!marquee) return;
+        marquee.el.remove();
+        marquee = null;
+      }
+      window.addEventListener('pointermove', (e) => { if (marquee) moveMarquee(e); });
+      window.addEventListener('pointerup', endMarquee);
+      window.addEventListener('pointercancel', endMarquee);
+      window.addEventListener('keydown', (e) => {
+        if (!(e.ctrlKey || e.metaKey) || e.altKey || e.key.toLowerCase() !== 'a' || !plugin.selectAll) return;
+        if (isTyping() || document.body.classList.contains('presentation')) return;
+        e.preventDefault();
+        plugin.selectAll();
       });
 
       window.addEventListener('pointermove', (e) => {
