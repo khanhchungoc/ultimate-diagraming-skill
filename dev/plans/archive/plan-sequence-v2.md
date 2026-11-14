@@ -2,7 +2,12 @@
 
 The sequence type today draws a short call-and-reply exchange well. It cannot express, or stay readable for, a real integration flow. The acceptance case is **Payment v6 Q&B** (sequencediagram.org source, 8 participants, 42 messages, 7 frames, 4,100px tall as a PNG): the plan is what it takes to build that diagram as a page, and to make the page better than the picture.
 
-**Status:** proposed 2026-11-13. Nothing is implemented. The Editing section was rewritten the same day after a review of the editor with real input: renaming by double-click is broken today, so editing is no longer the last step.
+**Status:** implemented 2026-11-14 (steps 0–6). Open questions settled as proposed: detail shown under the arrow with a Details toggle (1); `collapsed` is saved (2); the nesting limit is 3, a warning above it (3); the source oddities became an `opt` "CreateSystemTask failed" and the loop label kept as in the source (4); the installed copy is not reinstalled here (5). The original sequencediagram.org source was not in the repo, so `dev/fixtures/sequence/payment-phases.json` (and `dev/samples/payment-v6-qb.html`, built from it) reconstructs the case from this plan's description: 8 participants, 42 messages, 7 frames, 4 notes. Deviations:
+- The frame kind is chosen in the action bar (one button per kind), not a dock-pop menu on the tag: the shell's dock-pop is wired once at load and frame tags are rebuilt on every render.
+- Branch dividers store `{at, y, label}` (the message id is kept so a divider can be selected and dragged).
+- An unlabelled `alt` branch still shows "else" at the right; a labelled one shows `[condition]` at the left. One unlabelled branch of an `alt` is written back as `elseAt`, the short form.
+- The `actor` kind keeps its pill and gets no icon, so pages saved before this change look the same.
+- Steps 4 and 5 shipped as one commit; step 3's engine and renderer shipped with step 1.
 
 ## What the acceptance case needs
 

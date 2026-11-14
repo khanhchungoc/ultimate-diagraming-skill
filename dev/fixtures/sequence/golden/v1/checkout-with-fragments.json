@@ -1,0 +1,119 @@
+{
+  "diagramType": "sequence",
+  "title": "Checkout",
+  "participants": [
+    {
+      "id": "p1",
+      "name": "Customer",
+      "kind": "actor",
+      "x": 158
+    },
+    {
+      "id": "p2",
+      "name": "Shop",
+      "kind": "system",
+      "x": 358
+    },
+    {
+      "id": "p3",
+      "name": "Payment",
+      "kind": "system",
+      "x": 558
+    },
+    {
+      "id": "p4",
+      "name": "Warehouse",
+      "kind": "system",
+      "x": 758
+    }
+  ],
+  "messages": [
+    {
+      "id": "m1",
+      "from": "p1",
+      "to": "p2",
+      "label": "Place order",
+      "kind": "sync",
+      "y": 166
+    },
+    {
+      "id": "m2",
+      "from": "p2",
+      "to": "p4",
+      "label": "Reserve stock",
+      "kind": "sync",
+      "y": 266
+    },
+    {
+      "id": "m3",
+      "from": "p4",
+      "to": "p2",
+      "label": "Stock reserved",
+      "kind": "reply",
+      "y": 326
+    },
+    {
+      "id": "m4",
+      "from": "p2",
+      "to": "p3",
+      "label": "Charge card",
+      "kind": "sync",
+      "y": 454
+    },
+    {
+      "id": "m5",
+      "from": "p3",
+      "to": "p2",
+      "label": "Payment result",
+      "kind": "reply",
+      "y": 514
+    },
+    {
+      "id": "m6",
+      "from": "p2",
+      "to": "p4",
+      "label": "Release stock",
+      "kind": "sync",
+      "y": 606
+    },
+    {
+      "id": "m7",
+      "from": "p2",
+      "to": "p1",
+      "label": "Order confirmed",
+      "kind": "reply",
+      "y": 694
+    }
+  ],
+  "fragments": [
+    {
+      "id": "f1",
+      "kind": "alt",
+      "label": "payment accepted",
+      "from": "m4",
+      "to": "m6",
+      "elseAt": "m6",
+      "x": 322,
+      "w": 472,
+      "y": 392,
+      "h": 236,
+      "elseY": 550
+    },
+    {
+      "id": "f2",
+      "kind": "opt",
+      "label": "stock available",
+      "from": "m2",
+      "to": "m3",
+      "x": 322,
+      "w": 472,
+      "y": 204,
+      "h": 144
+    }
+  ],
+  "schemaVersion": 1,
+  "layout": {
+    "width": 888,
+    "height": 780
+  }
+}

@@ -32,8 +32,8 @@
       justify-content: center;
       border-radius: 9px;
       border: 1px solid color-mix(in srgb, var(--lane-color, #e2e8f0) 60%, var(--border-dark));
-      background: color-mix(in srgb, var(--lane-color, #e2e8f0) var(--lane-chip-mix), var(--lane-chip-base));
-      color: color-mix(in srgb, var(--lane-color, #e2e8f0) var(--lane-ink-mix), var(--lane-ink-base));
+      background: color-mix(in srgb, var(--lane-color, #e2e8f0) var(--swatch-chip-mix), var(--swatch-chip-base));
+      color: color-mix(in srgb, var(--lane-color, #e2e8f0) var(--swatch-ink-mix), var(--swatch-ink-base));
       pointer-events: none;
     }
     /* Lane name (inside the pill): double-click to rename */
@@ -560,22 +560,12 @@
       box-shadow: none;
     }
 
-    /* Lane colour tokens: how strongly --lane-color (set per lane) tints the icon, the stripe and the pill */
+    /* Lane backgrounds: every second lane, and the hovered or active one (the swatch tokens live in shell.css) */
     :root {
-      --lane-chip-mix: 85%;    --lane-chip-base: #ffffff;
-      --lane-ink-mix: 30%;     --lane-ink-base: #1e293b;    /* icon stroke: lane hue, darkened */
-      --lane-accent-mix: 70%;  --lane-accent-base: #475569; /* lane stripe */
-      --lane-pill-mix: 45%;
-      --lane-solid-mix: 42%;   --lane-solid-base: #1e293b;  --lane-solid-ink: #ffffff; /* active pill: deep lane hue, white text */
       --lane-alt-bg: #fafbfc;  /* every second lane: a very light grey against the white ones */
       --lane-hover-bg: #f1f4f8; /* hovered / active lane, white or grey: darker than both */
     }
     :root[data-theme="dark"] {
-      --lane-chip-mix: 30%;    --lane-chip-base: #111a2e;
-      --lane-ink-mix: 85%;     --lane-ink-base: #e2e8f0;    /* pastel lane hue reads well on dark */
-      --lane-accent-mix: 80%;  --lane-accent-base: #94a3b8;
-      --lane-pill-mix: 22%;
-      --lane-solid-mix: 80%;   --lane-solid-base: #e2e8f0;  --lane-solid-ink: #0f172a; /* inverted on dark */
       --lane-alt-bg: #131d33;  /* a faint step lighter than --bg-panel */
       --lane-hover-bg: #1a2742; /* hovered / active lane: stands out from both (lighter, as highlights are on dark) */
     }
@@ -586,27 +576,12 @@
        Both sit above arrows (15), nodes (20) and edge labels (30). */
     .swimlane {
       --lane-bg: var(--bg-panel);   /* no lane-colour tint (the pill and stripe carry the colour): lanes alternate */
-      /* Stripe and pill colours. Fallback: the lane colour mixed toward slate, which stays pale with pastel lanes */
-      --lane-stripe: color-mix(in srgb, var(--lane-color) var(--lane-accent-mix), var(--lane-accent-base));
-      --lane-pill-bg: color-mix(in srgb, var(--lane-color) var(--lane-pill-mix), var(--bg-panel));
-      --lane-pill-ink: var(--text-soft);
-      --lane-pill-solid: color-mix(in srgb, var(--lane-color) var(--lane-solid-mix), var(--lane-solid-base));
-    }
-    /* Where relative colours are supported, derive deeper, more saturated shades of the lane's own hue: same hue,
-       lightness set per role, chroma boosted (capped so strong lane colours do not turn garish) */
-    @supports (color: oklch(from red l c h)) {
-      .swimlane {
-        --lane-stripe: oklch(from var(--lane-color) 0.66 min(calc(c * 4), 0.15) h);
-        --lane-pill-bg: oklch(from var(--lane-color) 0.9 min(calc(c * 2.4), 0.07) h);
-        --lane-pill-ink: oklch(from var(--lane-color) 0.36 min(calc(c * 4), 0.12) h);
-        --lane-pill-solid: oklch(from var(--lane-color) 0.45 min(calc(c * 4.5), 0.15) h);
-      }
-      :root[data-theme="dark"] .swimlane {
-        --lane-stripe: oklch(from var(--lane-color) 0.74 min(calc(c * 4), 0.14) h);
-        --lane-pill-bg: oklch(from var(--lane-color) 0.36 min(calc(c * 2.4), 0.07) h);
-        --lane-pill-ink: oklch(from var(--lane-color) 0.92 min(calc(c * 2), 0.06) h);
-        --lane-pill-solid: oklch(from var(--lane-color) 0.84 min(calc(c * 3.5), 0.12) h);
-      }
+      /* Stripe and pill colours: the lane colour as a swatch (see shell.css) */
+      --swatch-color: var(--lane-color);
+      --lane-stripe: var(--sw-stripe);
+      --lane-pill-bg: var(--sw-pill-bg);
+      --lane-pill-ink: var(--sw-pill-ink);
+      --lane-pill-solid: var(--sw-pill-solid);
     }
     .swimlane.lane-alt { --lane-bg: var(--lane-alt-bg); }
     .swimlane.lane-hover, .swimlane.lane-selected, .swimlane:has(.flow-node.selected) { --lane-bg: var(--lane-hover-bg); }
@@ -654,7 +629,7 @@
     .swimlane:has(.flow-node.selected) .lane-pill,
     .swimlane.lane-selected .lane-pill {
       background: var(--lane-pill-solid);
-      color: var(--lane-solid-ink);
+      color: var(--swatch-solid-ink);
     }
     /* Tools under the pill: reorder grip + delete, shown only while the lane is selected (hover would clutter) */
     .lane-tools {
@@ -951,6 +926,9 @@
     }
     .note-add:hover { background: var(--note-bg); border-style: solid; }
     .flow-node:hover .note-add, .flow-node.selected .note-add { display: inline-flex; }
+    /* Several steps selected: no connect ports (a drag always moves the selection), and the "+" chip only on hover */
+    .multi-select .flow-node .port { display: none !important; }
+    .multi-select .flow-node.selected:not(:hover) .note-add { display: none; }
     /* Not while something else is being dragged or connected: the chip would only be in the way */
     body:is(.palette-dragging, .connecting, .reconnecting, .note-picking) .flow-node:not(.selected) .note-add { display: none; }
     .note-badge svg, .note-add svg { display: block; }

@@ -1,0 +1,145 @@
+{
+  "diagramType": "sequence",
+  "title": "Collapsed phase",
+  "numbered": true,
+  "participants": [
+    {
+      "id": "a",
+      "name": "Client",
+      "kind": "ui",
+      "x": 158
+    },
+    {
+      "id": "b",
+      "name": "Gateway",
+      "kind": "system",
+      "x": 358
+    },
+    {
+      "id": "c",
+      "name": "Ledger",
+      "kind": "database",
+      "x": 558
+    }
+  ],
+  "messages": [
+    {
+      "id": "m1",
+      "from": "a",
+      "to": "b",
+      "label": "Start transfer",
+      "kind": "sync",
+      "y": 206
+    },
+    {
+      "id": "m2",
+      "from": "b",
+      "to": "c",
+      "label": "Lock account",
+      "kind": "sync",
+      "y": 298,
+      "hidden": true
+    },
+    {
+      "id": "m3",
+      "from": "c",
+      "to": "b",
+      "label": "Locked",
+      "kind": "reply",
+      "y": 298,
+      "hidden": true
+    },
+    {
+      "id": "m4",
+      "from": "b",
+      "to": "c",
+      "label": "Write entries",
+      "detail": "debit, credit, reference",
+      "kind": "sync",
+      "y": 298,
+      "hidden": true
+    },
+    {
+      "id": "m5",
+      "from": "c",
+      "to": "b",
+      "label": "Written",
+      "kind": "reply",
+      "y": 298,
+      "hidden": true
+    },
+    {
+      "id": "m6",
+      "from": "b",
+      "to": "a",
+      "label": "Transfer done",
+      "kind": "reply",
+      "y": 378
+    },
+    {
+      "id": "m7",
+      "from": "a",
+      "to": "a",
+      "label": "Show receipt",
+      "kind": "sync",
+      "y": 466
+    }
+  ],
+  "fragments": [
+    {
+      "id": "f1",
+      "kind": "group",
+      "label": "Transfer",
+      "color": "green",
+      "from": "m1",
+      "to": "m6",
+      "x": 94,
+      "w": 528,
+      "y": 144,
+      "h": 256
+    },
+    {
+      "id": "f2",
+      "kind": "group",
+      "label": "Ledger work",
+      "color": "blue",
+      "from": "m2",
+      "to": "m5",
+      "collapsed": true,
+      "x": 308,
+      "w": 300,
+      "y": 244,
+      "h": 72
+    },
+    {
+      "id": "f3",
+      "kind": "opt",
+      "label": "account locked",
+      "from": "m4",
+      "to": "m5"
+    }
+  ],
+  "notes": [
+    {
+      "id": "n1",
+      "text": "Inside the collapsed phase: not drawn",
+      "over": "c",
+      "after": "m4"
+    },
+    {
+      "id": "n2",
+      "text": "Receipt stays on screen",
+      "over": "a",
+      "after": "m7",
+      "x": 66,
+      "w": 184,
+      "h": 37,
+      "y": 532
+    }
+  ],
+  "schemaVersion": 1,
+  "layout": {
+    "width": 688,
+    "height": 639
+  }
+}

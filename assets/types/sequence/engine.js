@@ -1,38 +1,150 @@
       // --- SEQUENCE LAYOUT ENGINE ---
       // Pure JS, no DOM access. Defines layoutDiagram(data) (see assets/shell/shell.js) and is run by the page
       // (Auto-Tidy, edits) and by scripts/run_engine.mjs (--layout). The Python audit in scripts/audit_sequence.py
-      // mirrors the text-width constant below; keep SQ.CHAR_W in sync with it.
+      // mirrors the text-width constants below; keep SQ.CHAR_W, SQ.DETAIL_CHAR_W and SQ.NUM_W in sync with it.
       //
-      // Input:  participants[{id,name,kind}], messages[{id,from,to,label,kind}] (array order = time order),
-      //         fragments[{id,kind,label,from,to,elseAt?}] (from/to/elseAt are message ids)
-      // Output: participants[].x (center), messages[].y (arrow line), fragments[].{x,y,w,h,elseY},
-      //         layout {width,height}
+      // Input:  numbered?, showDetails?,
+      //         participants[{id,name,kind}], messages[{id,from,to,label,detail?,kind}] (array order = time order),
+      //         fragments[{id,kind,label,from,to,elseAt?|branches?[{at,label}],color?,collapsed?}]
+      //           (from/to/elseAt/at are message ids),
+      //         notes?[{id,text,over,after?|before?}] (over: a participant id, or two ids to span between them),
+      //         rails? (true: a participant with nothing to show outside collapsed frames is a thin rail),
+      //         lifespans? (true: a lifeline runs only from its participant's first message to its last; participants
+      //           may carry start?/end? message ids that widen it, and column?: the id of an earlier participant whose
+      //           column it reuses, for participants whose lifespans never overlap)
+      // Output: participants[].x (center), messages[].y (arrow line), messages[].hidden (inside a collapsed frame),
+      //         participants[].rail (true on a rail), participants[].top/bottom (with lifespans: the box's top and where the
+      //         lifeline ends), fragments[].{x,y,w,h,dividers[{at,y,label}]}, notes[].{x,y,w,h},
+      //         layout {width,height}.
+      //         A frame or note inside a collapsed frame gets no box. None of this is saved (see toDisk).
+      // A file that uses none of the optional fields is laid out exactly as before they existed.
       const SQ = {
         BOX_W: 148, BOX_H: 56, TOP: 24, MARGIN: 56, MIN_GAP: 200,
         FIRST_GAP: 56, ROW: 60, SELF_ROW: 96, ARROW_AT: 30,
         FRAG_TOP: 40, FRAG_STEP_BOTTOM: 28, ELSE_GAP: 32, ROW_BOTTOM_PAD: 8,
-        CHAR_W: 7.4, LABEL_PAD: 44, SELF_LOOP: 40, TAIL: 56, FRAG_PAD: 36, FRAG_PAD_STEP: 14, GRID: 4
+        CHAR_W: 7.4, LABEL_PAD: 44, SELF_LOOP: 40, TAIL: 56, FRAG_PAD: 36, FRAG_PAD_STEP: 14, GRID: 4,
+        NUM_W: 26,                              // room for the step number before a label ("numbered")
+        DETAIL_CHAR_W: 6.4, DETAIL_ROW: 12,     // a message's detail line: smaller text, and the extra row height
+        NOTE_W: 184, NOTE_SPAN_PAD: 64, NOTE_CHAR_W: 6.2, NOTE_PAD: 10, NOTE_LINE: 17, NOTE_GAP: 14,
+        SUMMARY_ROW: 44,                        // the one row a collapsed frame takes
+        RAIL_W: 36, RAIL_H: 80,                 // a rail's width and height
+        GAP_CLEAR: 52, RAIL_CLEAR: 24,          // clear space between two boxes (MIN_GAP - BOX_W), and beside a rail
+        SUMMARY_W: 236                          // a collapsed frame is at least this wide when rails make the diagram narrow
       };
       const sqTextW = (t) => Math.ceil(String(t == null ? '' : t).length * SQ.CHAR_W);
       const sqGrid = (v) => Math.ceil(v / SQ.GRID) * SQ.GRID;
+      // A fragment's further branches as [{at, label}]: "branches", or the short form "elseAt" (one unlabelled branch)
+      const sqBranches = (f) => (Array.isArray(f.branches) ? f.branches : f.elseAt === undefined ? [] : [{ at: f.elseAt }]);
+      // The participant ids a note sits over: one, or two to span between
+      const sqNoteOver = (n) => (Array.isArray(n.over) ? n.over : n.over === undefined ? [] : [n.over]).slice(0, 2);
+      // Note text wrapped by character count: explicit line breaks kept, words kept whole unless longer than a line
+      function sqWrap(text, maxChars) {
+        const lines = [];
+        String(text == null ? '' : text).split('\n').forEach((para) => {
+          let line = '';
+          para.split(/\s+/).filter(Boolean).forEach((word) => {
+            while (word.length > maxChars) {
+              if (line) { lines.push(line); line = ''; }
+              lines.push(word.slice(0, maxChars));
+              word = word.slice(maxChars);
+            }
+            if (!line) line = word;
+            else if (line.length + 1 + word.length <= maxChars) line += ' ' + word;
+            else { lines.push(line); line = word; }
+          });
+          lines.push(line);
+        });
+        return lines;
+      }
 
       function layoutDiagram(data) {
-        const ps = data.participants || [], ms = data.messages || [], fs = data.fragments || [];
+        const ps = data.participants || [], ms = data.messages || [], fs = data.fragments || [], ns = data.notes || [];
         const pIdx = {};
         ps.forEach((p, i) => { pIdx[p.id] = i; });
         const mIdx = {};
         ms.forEach((m, i) => { mIdx[m.id] = i; });
+        const showDetails = data.showDetails !== false;
+        const detailOf = (m) => (showDetails && m.detail ? String(m.detail) : '');
+        // What a message needs sideways: the longer of its label (plus the step number) and its detail
+        const msgW = (m) => Math.max(sqTextW(m.label) + (data.numbered ? SQ.NUM_W : 0), Math.ceil(detailOf(m).length * SQ.DETAIL_CHAR_W));
 
-        // 1. Horizontal gaps: every message label must fit between its two lifelines.
-        const gaps = ps.slice(1).map(() => SQ.MIN_GAP);
+        // 1. Fragments: resolve message ranges, nesting level (0 = innermost) and ordering. Done first: which messages a
+        //    collapsed frame hides decides which participants are rails, and so the horizontal layout.
+        const frs = fs
+          .map((f) => ({ f, a: mIdx[f.from], b: mIdx[f.to], divs: [] }))
+          .filter((r) => r.a !== undefined && r.b !== undefined && r.a <= r.b);
+        fs.forEach((f) => { delete f.x; delete f.y; delete f.w; delete f.h; delete f.elseY; delete f.dividers; });
+        ns.forEach((n) => { delete n.x; delete n.y; delete n.w; delete n.h; });
+        const span = (r) => r.b - r.a;
+        const outer = (o, i) => o !== i && o.a <= i.a && i.b <= o.b &&
+          (span(o) > span(i) || (span(o) === span(i) && frs.indexOf(o) < frs.indexOf(i)));
+        const levelOf = (r) => frs.reduce((lv, i) => (outer(r, i) ? Math.max(lv, levelOf(i) + 1) : lv), 0);
+        frs.forEach((r) => { r.level = levelOf(r); });
+        // A further branch starts at message index e, after the frame's first message and no later than its last
+        frs.forEach((r) => {
+          const seen = {};
+          r.branches = sqBranches(r.f)
+            .map((br) => ({ at: br.at, label: br.label || '', e: mIdx[br.at] }))
+            .filter((br) => br.e !== undefined && br.e > r.a && br.e <= r.b && !seen[br.e] && (seen[br.e] = true));
+        });
+        // Collapsed frames: the outermost collapsed frame around a message owns it; frames inside it are not drawn
+        const collapsed = frs.filter((r) => r.f.collapsed);
+        collapsed.forEach((c) => { c.own = !collapsed.some((o) => outer(o, c)); });
+        frs.forEach((r) => { r.hidden = collapsed.some((c) => outer(c, r)); });
+        const ownerOf = (k) => collapsed.find((c) => c.own && c.a <= k && k <= c.b);
+
+        // 2. Rails: a participant that has something in the collapsed parts of the diagram and nothing in the rest is
+        //    drawn as a thin rail, so collapsing (or focusing on) a phase makes the diagram narrower. A note counts as
+        //    drawn when it is placed (see below): before a collapsed frame's first message it is, on any other message
+        //    inside the frame it is not. With every frame expanded nothing is hidden, so there are no rails. Only with
+        //    "rails": true (Focus sets it): a page saved before rails existed keeps its collapsed frames as they were.
+        const lifespans = data.lifespans === true;
+        const noteShown = (n) => {
+          const key = n.after !== undefined ? 'after' : n.before !== undefined ? 'before' : null;
+          if (!key) return true;
+          const k = mIdx[n[key]];
+          if (k === undefined) return false;
+          const C = ownerOf(k);
+          return !C || (key === 'before' && k === C.a);
+        };
+        const seen = ps.map(() => false), folded = ps.map(() => false);
+        ms.forEach((m, k) => {
+          const into = ownerOf(k) ? folded : seen;
+          [pIdx[m.from], pIdx[m.to]].forEach((i) => { if (i !== undefined) into[i] = true; });
+        });
+        ns.forEach((n) => sqNoteOver(n).forEach((id) => {
+          if (pIdx[id] !== undefined) (noteShown(n) ? seen : folded)[pIdx[id]] = true;
+        }));
+        const rail = ps.map((p, i) => data.rails === true && folded[i] && !seen[i]);
+        // Columns: one per participant, except that with lifespans a participant with "column" takes the column of the
+        // earlier participant it names (a chain is followed to its first). A column is a rail only if all of them are.
+        const colOf = [], cols = [];
+        ps.forEach((p, i) => {
+          let h = i;
+          while (lifespans && ps[h].column !== undefined && pIdx[ps[h].column] !== undefined && pIdx[ps[h].column] < h) h = pIdx[ps[h].column];
+          if (h === i) { colOf[i] = cols.length; cols.push([i]); } else { colOf[i] = colOf[h]; cols[colOf[h]].push(i); }
+        });
+        const colRail = cols.map((c) => c.every((i) => rail[i]));
+        if (colRail.every(Boolean)) colRail.fill(false);   // nothing at all would be left to read
+        ps.forEach((p, i) => { rail[i] = colRail[colOf[i]]; });
+        const anyRail = rail.some(Boolean);
+        ps.forEach((p, i) => { if (rail[i]) p.rail = true; else delete p.rail; });
+        const half = (i) => (rail[i] ? SQ.RAIL_W : SQ.BOX_W) / 2;
+        const colHalf = (c) => (colRail[c] ? SQ.RAIL_W : SQ.BOX_W) / 2;
+
+        // 3. Horizontal gaps: every message label must fit between its two lifelines. Without rails, messages hidden in
+        //    a collapsed frame still count, so collapsing a frame never moves a lifeline; with rails the diagram is
+        //    narrower on purpose, so they do not. A shared column adds no width of its own: only the messages of the
+        //    participants alive in it are measured.
+        const gaps = cols.slice(1).map((c, i) => colHalf(i) + colHalf(i + 1) + (colRail[i] || colRail[i + 1] ? SQ.RAIL_CLEAR : SQ.GAP_CLEAR));
         const need = [];
-        ms.forEach((m) => {
-          const a = pIdx[m.from], b = pIdx[m.to];
-          if (a === undefined || b === undefined) return;
+        ms.forEach((m, k) => {
+          const a = colOf[pIdx[m.from]], b = colOf[pIdx[m.to]];
+          if (a === undefined || b === undefined || (anyRail && ownerOf(k))) return;
           if (a === b) {
-            if (a < gaps.length) need.push({ lo: a, hi: a + 1, w: SQ.SELF_LOOP + 12 + sqTextW(m.label) + 24 });
+            if (m.from === m.to && a < gaps.length) need.push({ lo: a, hi: a + 1, w: SQ.SELF_LOOP + 12 + msgW(m) + 24 });
           } else {
-            need.push({ lo: Math.min(a, b), hi: Math.max(a, b), w: sqTextW(m.label) + SQ.LABEL_PAD });
+            need.push({ lo: Math.min(a, b), hi: Math.max(a, b), w: msgW(m) + SQ.LABEL_PAD });
           }
         });
         need.sort((u, v) => (u.hi - u.lo) - (v.hi - v.lo));
@@ -44,62 +156,163 @@
             for (let i = n.lo; i < n.hi; i++) gaps[i] += add;
           }
         });
-        let x = SQ.MARGIN + SQ.BOX_W / 2 + SQ.FRAG_PAD_STEP * 2;
-        ps.forEach((p, i) => {
+        const colX = [];
+        let x = SQ.MARGIN + colHalf(0) + SQ.FRAG_PAD_STEP * 2;
+        cols.forEach((c, i) => {
           if (i) x += sqGrid(gaps[i - 1]);
-          p.x = Math.round(x);
+          colX[i] = Math.round(x);
+        });
+        ps.forEach((p, i) => { p.x = colX[colOf[i]]; });
+
+        // 4. Lifespans (only with "lifespans": true): the rows of a participant's first and last message or note, widened
+        //    by "start" and "end". A message hidden in a collapsed frame counts as the frame's summary row.
+        const rowOf = (k) => { const C = ownerOf(k); return C ? C.a : k; };
+        const life = ps.map(() => null);   // [first row, last row] (message indices) or null: no events at all
+        const live = (i, k) => {
+          if (i === undefined || k === undefined) return;
+          const r = rowOf(k);
+          life[i] = life[i] ? [Math.min(life[i][0], r), Math.max(life[i][1], r)] : [r, r];
+        };
+        ps.forEach((p) => { delete p.top; delete p.bottom; });
+        if (lifespans) {
+          ms.forEach((m, k) => { live(pIdx[m.from], k); live(pIdx[m.to], k); });
+          ns.forEach((n) => {
+            const key = n.after !== undefined ? 'after' : n.before !== undefined ? 'before' : null;
+            const k = key ? mIdx[n[key]] : ms.length ? 0 : undefined;   // a free note sits above the first message
+            sqNoteOver(n).forEach((id) => live(pIdx[id], k));
+          });
+          ps.forEach((p, i) => {
+            if (!life[i]) return;
+            if (mIdx[p.start] !== undefined) life[i][0] = Math.min(life[i][0], rowOf(mIdx[p.start]));
+            if (mIdx[p.end] !== undefined) life[i][1] = Math.max(life[i][1], rowOf(mIdx[p.end]));
+          });
+        }
+        // Boxes that begin below the top row get a header slot above their first row (a participant that starts in the
+        // first row, or has nothing at all to show, stays in the top row)
+        const startAt = {};
+        if (lifespans) life.forEach((l, i) => { if (l && l[0] > 0) (startAt[l[0]] = startAt[l[0]] || []).push(i); });
+        const boxH = (i) => (rail[i] ? SQ.RAIL_H : SQ.BOX_H);
+        const topRows = ps.map((p, i) => i).filter((i) => !(life[i] && life[i][0] > 0));
+        const topH = Math.max(SQ.BOX_H, ...topRows.map((i) => (rail[i] ? SQ.RAIL_H : 0)));
+
+        // Notes: where each one hangs, and its box (width from what it sits over, height from the wrapped text)
+        const floating = [], beforeOf = {}, afterOf = {};
+        const noteBox = (n) => {
+          const over = sqNoteOver(n).map((id) => ps[pIdx[id]]);
+          if (!over.length || over.some((p) => !p)) return null;
+          const xs = over.map((p) => p.x);
+          const lo = Math.min.apply(null, xs), hi = Math.max.apply(null, xs);
+          const w = hi > lo ? hi - lo + 2 * SQ.NOTE_SPAN_PAD : SQ.NOTE_W;
+          const lines = sqWrap(n.text, Math.max(4, Math.floor((w - 2 * SQ.NOTE_PAD) / SQ.NOTE_CHAR_W)));
+          return { x: Math.round((lo + hi) / 2 - w / 2), w: Math.round(w), h: lines.length * SQ.NOTE_LINE + 2 * SQ.NOTE_PAD };
+        };
+        ns.forEach((n) => {
+          const key = n.after !== undefined ? 'after' : n.before !== undefined ? 'before' : null;
+          if (!key) { floating.push(n); return; }
+          const k = mIdx[n[key]];
+          if (k === undefined) return;   // unknown message: not drawn (the audit reports it)
+          const map = key === 'after' ? afterOf : beforeOf;
+          (map[k] = map[k] || []).push(n);
         });
 
-        // 2. Fragments: resolve message ranges, nesting level (0 = innermost) and ordering.
-        const frs = fs
-          .map((f) => ({ f, a: mIdx[f.from], b: mIdx[f.to], e: f.elseAt === undefined ? undefined : mIdx[f.elseAt] }))
-          .filter((r) => r.a !== undefined && r.b !== undefined && r.a <= r.b);
-        fs.forEach((f) => { delete f.x; delete f.y; delete f.w; delete f.h; delete f.elseY; });
-        const span = (r) => r.b - r.a;
-        const outer = (o, i) => o !== i && o.a <= i.a && i.b <= o.b &&
-          (span(o) > span(i) || (span(o) === span(i) && frs.indexOf(o) < frs.indexOf(i)));
-        const levelOf = (r) => frs.reduce((lv, i) => (outer(r, i) ? Math.max(lv, levelOf(i) + 1) : lv), 0);
-        frs.forEach((r) => { r.level = levelOf(r); });
-
-        // 3. Vertical positions, inserting space where fragments open, split (else) and close.
-        let y = SQ.TOP + SQ.BOX_H + SQ.FIRST_GAP;
+        // 3. Vertical positions, inserting space where fragments open, split (a further branch) and close, and a
+        //    row for every note.
+        let y = SQ.TOP + topH + SQ.FIRST_GAP;
+        const rowEnd = {};
+        const placeNotes = (list) => (list || []).forEach((n) => {
+          const box = noteBox(n);
+          if (!box) return;
+          n.x = box.x; n.w = box.w; n.h = box.h; n.y = Math.round(y);
+          y += box.h + SQ.NOTE_GAP;
+        });
+        placeNotes(floating);
         ms.forEach((m, k) => {
-          const starting = frs.filter((r) => r.a === k).sort((u, v) => span(v) - span(u) || frs.indexOf(u) - frs.indexOf(v));
-          const y0 = y;
-          starting.forEach((r, s) => { r.top = y0 + SQ.FRAG_TOP * s + 8; });
-          y += SQ.FRAG_TOP * starting.length;
-          frs.filter((r) => r.e === k && r.e > r.a && r.e <= r.b).forEach((r) => { r.elseY = y + 6; y += SQ.ELSE_GAP; });
-          const self = m.from === m.to;
-          const step = self ? SQ.SELF_ROW : SQ.ROW;
-          m.y = y + SQ.ARROW_AT;
-          const rowBottom = y + step - SQ.ROW_BOTTOM_PAD;
-          const ending = frs.filter((r) => r.b === k).sort((u, v) => span(u) - span(v) || frs.indexOf(v) - frs.indexOf(u));
+          const C = ownerOf(k);
+          if (!C || k === C.a) {
+            // This message opens a row (its own, or the summary row of the collapsed frame it starts)
+            frs.filter((r) => !r.hidden && r !== C).forEach((r) => r.branches.filter((br) => br.e === k).forEach((br) => {
+              r.divs.push({ at: br.at, y: Math.round(y + 6), label: br.label });
+              y += SQ.ELSE_GAP;
+            }));
+            if (startAt[k]) {
+              startAt[k].forEach((i) => { ps[i].top = Math.round(y); });
+              y += Math.max.apply(null, startAt[k].map(boxH)) + SQ.NOTE_GAP;
+            }
+            placeNotes(beforeOf[k]);
+            const starting = frs.filter((r) => !r.hidden && r.a === k).sort((u, v) => span(v) - span(u) || frs.indexOf(u) - frs.indexOf(v));
+            const y0 = y;
+            starting.forEach((r, s) => { r.top = y0 + SQ.FRAG_TOP * s + 8; });
+            y += SQ.FRAG_TOP * starting.length;
+            if (C) {
+              C.rowY = y + SQ.SUMMARY_ROW / 2;
+              y += SQ.SUMMARY_ROW;
+              C.rowBottom = y - 4;
+            } else {
+              m.y = y + SQ.ARROW_AT;
+              y += (m.from === m.to ? SQ.SELF_ROW : SQ.ROW) + (detailOf(m) ? SQ.DETAIL_ROW : 0);
+              placeNotes(afterOf[k]);   // inside every frame the message is in: before any of them closes
+            }
+            rowEnd[k] = y - SQ.ROW_BOTTOM_PAD;
+          }
+          if (C) { m.y = C.rowY; m.hidden = true; } else delete m.hidden;
+          const rowBottom = C ? C.rowBottom : y - SQ.ROW_BOTTOM_PAD;
+          const ending = frs.filter((r) => !r.hidden && r.b === k).sort((u, v) => span(u) - span(v) || frs.indexOf(v) - frs.indexOf(u));
           ending.forEach((r, e) => { r.bottom = rowBottom + SQ.FRAG_STEP_BOTTOM * e; });
-          y += step + SQ.FRAG_STEP_BOTTOM * ending.length;
+          y += SQ.FRAG_STEP_BOTTOM * ending.length;
         });
 
-        // 4. Fragment boxes: wide enough for every message they contain (and their tag), padded by nesting level.
-        let maxRight = ps.length ? ps[ps.length - 1].x + SQ.BOX_W / 2 : SQ.MARGIN;
+        // 4. Fragment boxes: wide enough for every message and note they contain, their tag and their branch
+        //    labels, padded by nesting level.
+        let maxRight = cols.length ? colX[cols.length - 1] + colHalf(cols.length - 1) : SQ.MARGIN;
+        const noteIn = (n, r) => {
+          if (n.x === undefined) return false;
+          const k = n.after !== undefined ? mIdx[n.after] : n.before !== undefined ? mIdx[n.before] : undefined;
+          return k !== undefined && k <= r.b && (n.after !== undefined ? k >= r.a : k > r.a);
+        };
         frs.forEach((r) => {
+          if (r.hidden || r.top === undefined || r.bottom === undefined) return;
           let lo = Infinity, hi = -Infinity;
           for (let k = r.a; k <= r.b; k++) {
             const m = ms[k], pa = ps[pIdx[m.from]], pb = ps[pIdx[m.to]];
             if (!pa || !pb) continue;
             lo = Math.min(lo, pa.x, pb.x);
             hi = Math.max(hi, pa.x, pb.x);
-            if (m.from === m.to) hi = Math.max(hi, pa.x + SQ.SELF_LOOP + 12 + sqTextW(m.label) + 12);
+            if (m.from === m.to && !(anyRail && ownerOf(k))) hi = Math.max(hi, pa.x + SQ.SELF_LOOP + 12 + msgW(m) + 12);
           }
           if (lo === Infinity) { lo = hi = SQ.MARGIN; }
-          const pad = SQ.FRAG_PAD + SQ.FRAG_PAD_STEP * r.level;
-          const tagW = sqTextW(r.f.kind) + sqTextW(r.f.label) + 56;
-          r.f.x = Math.round(lo - pad);
-          r.f.w = Math.round(Math.max(hi - lo + 2 * pad, tagW));
+          const pad = SQ.FRAG_PAD + SQ.FRAG_PAD_STEP * (anyRail && r.f.collapsed ? 0 : r.level);   // a folded frame draws nothing inside
+          let left = lo - pad, right = hi + pad;
+          const notePad = 8 + SQ.FRAG_PAD_STEP * r.level;
+          ns.forEach((n) => {
+            if (!noteIn(n, r)) return;
+            left = Math.min(left, n.x - notePad);
+            right = Math.max(right, n.x + n.w + notePad);
+          });
+          // A box that begins inside the frame (its header slot) is wider than the frame's own padding
+          ps.forEach((p, i) => {
+            if (life[i] && life[i][0] > r.a && life[i][0] <= r.b) {
+              left = Math.min(left, p.x - half(i) - 8);
+              right = Math.max(right, p.x + half(i) + 8);
+            }
+          });
+          // The tag of a group shows its label only
+          const tagW = (r.f.kind === 'group' ? 0 : sqTextW(r.f.kind)) + sqTextW(r.f.label) + 56;
+          const branchW = r.branches.reduce((w, br) => Math.max(w, sqTextW(br.label) + 40), 0);
+          r.f.x = Math.round(left);
+          r.f.w = Math.round(Math.max(right - left, tagW, branchW, anyRail && r.f.collapsed ? SQ.SUMMARY_W : 0));
           r.f.y = Math.round(r.top);
           r.f.h = Math.round(r.bottom - r.top);
-          if (r.elseY !== undefined) r.f.elseY = Math.round(r.elseY);
+          if (r.divs.length) r.f.dividers = r.divs;
           maxRight = Math.max(maxRight, r.f.x + r.f.w);
         });
+        ns.forEach((n) => { if (n.x !== undefined) maxRight = Math.max(maxRight, n.x + n.w); });
 
         ms.forEach((m) => { m.y = Math.round(m.y); });
+        if (lifespans) {
+          ps.forEach((p, i) => {
+            if (p.top === undefined) p.top = SQ.TOP;
+            p.bottom = Math.round(life[i] ? rowEnd[life[i][1]] + 12 : y + SQ.TAIL - 24);
+          });
+        }
         data.layout = { width: Math.round(maxRight + SQ.MARGIN), height: Math.round(y + SQ.TAIL) };
       }

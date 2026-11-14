@@ -1,7 +1,7 @@
 """Audit for sequence diagrams (diagramType "sequence"): structure, geometry and complexity budget.
 
 Checks the laid-out JSON only, so it needs no browser. Geometry constants mirror assets/types/sequence/engine.js
-(SQ.BOX_W, SQ.SELF_LOOP, SQ.CHAR_W); keep them in sync.
+(SQ.BOX_W, SQ.RAIL_W, SQ.SELF_LOOP, SQ.CHAR_W, SQ.DETAIL_CHAR_W, SQ.NUM_W); keep them in sync.
 """
 
 from __future__ import annotations
@@ -10,15 +10,24 @@ import math
 from typing import Any, Dict, List
 
 BOX_W = 148
+RAIL_W = 36              # a rail: the thin column of a participant with nothing to show outside collapsed frames
 SELF_LOOP = 40
 CHAR_W = 7.4
+DETAIL_CHAR_W = 6.4      # a message's detail line (smaller text)
+NUM_W = 26               # the step number before a label when "numbered"
 LABEL_MARGIN = 16        # clear space a label needs beside its arrow ends
 MAX_PARTICIPANTS = 6
 MAX_MESSAGES = 16
-MAX_FRAGMENT_DEPTH = 2
-PARTICIPANT_KINDS = {"actor", "system"}
+MAX_FRAGMENT_DEPTH = 3   # deeper nesting is a warning, not an error
+PARTICIPANT_KINDS = {"actor", "system", "ui", "database", "queue", "external"}
 MESSAGE_KINDS = {"sync", "reply", "async"}
-FRAGMENT_KINDS = {"opt", "alt", "loop"}
+FRAGMENT_KINDS = {"opt", "alt", "loop", "par", "group"}
+BRANCH_KINDS = {"alt", "par"}
+FRAGMENT_COLORS = {"blue", "green", "yellow", "red", "purple", "gray"}
+# A participant's colour is one of the flowchart's lane swatches (SWATCHES in assets/shell/shell.js), as the hex:
+# sky, amber, emerald, rose, purple, orange, teal, indigo
+SWATCHES = ("#e0f2fe", "#fef3c7", "#dcfce7", "#fee2e2", "#f3e8ff", "#ffedd5", "#ccfbf1", "#e0e7ff")
+MAX_PARTICIPANT_COLORS = 4
 ERROR_PENALTY = 12
 
 
@@ -26,8 +35,97 @@ def text_width(text: Any) -> int:
     return math.ceil(len("" if text is None else str(text)) * CHAR_W)
 
 
+def branches_of(f: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """A fragment's further branches as [{at, label}]: "branches", or the short form "elseAt"."""
+    if isinstance(f.get("branches"), list):
+        return [b if isinstance(b, dict) else {} for b in f["branches"]]
+    return [] if f.get("elseAt") is None else [{"at": f["elseAt"]}]
+
+
+def note_over(n: Dict[str, Any]) -> List[Any]:
+    over = n.get("over")
+    return list(over) if isinstance(over, list) else [] if over is None else [over]
+
+
 class SequenceAudit:
     title = "Sequence"
+
+    def own_span(self, pid: Any, widen: bool = False) -> Any:
+        """[first, last] message index of a participant's messages and the notes over it (a free note counts as
+        the first message); with `widen`, also its "start" / "end". None when it has none."""
+        midx = {m.get("id"): i for i, m in enumerate(self.messages)}
+        events = [i for i, m in enumerate(self.messages) if pid in (m.get("from"), m.get("to"))]
+        for n in self.notes:
+            if pid not in note_over(n):
+                continue
+            key = "after" if n.get("after") is not None else "before" if n.get("before") is not None else None
+            at = midx.get(n[key]) if key else (0 if self.messages else None)
+            if at is not None:
+                events.append(at)
+        if not events:
+            return None
+        lo, hi = min(events), max(events)
+        if widen:
+            p = next((q for q in self.participants if q.get("id") == pid), {})
+            lo = min(lo, midx.get(p.get("start"), lo))
+            hi = max(hi, midx.get(p.get("end"), hi))
+        return [lo, hi]
+
+    def color_warnings(self) -> List[str]:
+        """Participant colour means ownership: say what each colour means, and use few of them."""
+        key = self.data.get("colorKey") if isinstance(self.data.get("colorKey"), dict) else {}
+        colours = [p.get("color") for p in self.participants if p.get("color") in SWATCHES]
+        used = list(dict.fromkeys(colours))
+        out = []
+        for c in used:
+            if not str(key.get(c) or "").strip():
+                out.append(f"Participants use {c} but 'colorKey' does not say what it means: add \"colorKey\": {{\"{c}\": \"Our services\"}}.")
+        for c in key:
+            if c not in used:
+                out.append(f"'colorKey' has an entry for {c} but no participant uses that colour: drop it.")
+        if len(used) > MAX_PARTICIPANT_COLORS or (len(used) >= 3 and len(used) == len(colours)):
+            out.append(f"{len(used)} participant colours for {len(colours)} coloured participants: colour should group participants "
+                       f"(ours, a partner's, a third party's; at most {MAX_PARTICIPANT_COLORS}), not label each one.")
+        return out
+
+    def column_errors(self, midx: Dict[Any, int]) -> List[str]:
+        """Lifespans, shared columns and their start / end overrides."""
+        ps, errors = self.participants, []
+        lifespans = self.data.get("lifespans") is True
+        pidx = {p.get("id"): i for i, p in enumerate(ps)}
+        for i, p in enumerate(ps):
+            own = self.own_span(p.get("id"))
+            for key in ("start", "end"):
+                if p.get(key) is None:
+                    continue
+                if p[key] not in midx:
+                    errors.append(f"Participant '{p.get('id')}' {key} unknown message '{p[key]}'.")
+                elif own and key == "start" and midx[p[key]] > own[0]:
+                    errors.append(f"Participant '{p.get('id')}' start '{p[key]}' is after its first message: start can only begin a lifeline earlier.")
+                elif own and key == "end" and midx[p[key]] < own[1]:
+                    errors.append(f"Participant '{p.get('id')}' end '{p[key]}' is before its last message: end can only end a lifeline later.")
+            host = p.get("column")
+            if host is None:
+                continue
+            if not lifespans:
+                errors.append(f"Participant '{p.get('id')}' has 'column' but the diagram has no 'lifespans': true.")
+            elif host not in pidx:
+                errors.append(f"Participant '{p.get('id')}' column is unknown participant '{host}'.")
+            elif pidx[host] >= i:
+                errors.append(f"Participant '{p.get('id')}' column '{host}' must be an earlier participant.")
+            elif ps[pidx[host]].get("column") is not None:
+                errors.append(f"Participant '{p.get('id')}' column '{host}' is itself in column '{ps[pidx[host]]['column']}': "
+                              "chains are not allowed, name that one.")
+            else:
+                a, b = self.own_span(host, True), self.own_span(p.get("id"), True)
+                for other in ps[:i]:
+                    if other.get("id") != host and other.get("column") != host:
+                        continue
+                    a = self.own_span(other.get("id"), True)
+                    if a and b and max(a[0], b[0]) <= min(a[1], b[1]):
+                        errors.append(f"Participants '{other.get('name')}' and '{p.get('name')}' share a column but are both active at "
+                                      f"step {max(a[0], b[0]) + 1}.")
+        return errors
 
     def pass_line(self, report: Dict[str, Any]) -> str:
         return f"[PASS] Quality Score: {report['score']}/100 ({report['grade']}). No spacing, label-fit or bounds problems."
@@ -37,23 +135,34 @@ class SequenceAudit:
         self.participants: List[Dict[str, Any]] = data.get("participants", [])
         self.messages: List[Dict[str, Any]] = data.get("messages", [])
         self.fragments: List[Dict[str, Any]] = data.get("fragments", [])
+        self.notes: List[Dict[str, Any]] = data.get("notes") or []
 
     def verify_collisions(self) -> Dict[str, Any]:
         errors: List[str] = []
-        ps, ms, fs = self.participants, self.messages, self.fragments
+        ps, ms, fs, ns = self.participants, self.messages, self.fragments, self.notes
         pmap = {p.get("id"): p for p in ps}
         midx = {m.get("id"): i for i, m in enumerate(ms)}
+        numbered = bool(self.data.get("numbered"))
+        show_details = self.data.get("showDetails") is not False
 
         # Structure: unique ids, known references and kinds.
-        for label, items in (("participant", ps), ("message", ms), ("fragment", fs)):
+        for flag in ("numbered", "showDetails", "rails", "lifespans"):
+            if flag in self.data and not isinstance(self.data[flag], bool):
+                errors.append(f"'{flag}' must be true or false.")
+        for label, items in (("participant", ps), ("message", ms), ("fragment", fs), ("note", ns)):
             seen = set()
             for item in items:
                 if item.get("id") in seen:
                     errors.append(f"Duplicate {label} id '{item.get('id')}'.")
                 seen.add(item.get("id"))
+        errors.extend(self.column_errors(midx))
         for p in ps:
             if p.get("kind", "system") not in PARTICIPANT_KINDS:
                 errors.append(f"Participant '{p['id']}' has unknown kind '{p.get('kind')}'.")
+            if p.get("color") is not None and p.get("color") not in SWATCHES:
+                errors.append(f"Participant '{p['id']}' has unknown color '{p.get('color')}' (use one of the lane swatches: {', '.join(SWATCHES)}).")
+        if "colorKey" in self.data and not isinstance(self.data["colorKey"], dict):
+            errors.append("'colorKey' must be an object of swatch hex -> what it means.")
         dangling = 0
         for m in ms:
             if m.get("kind", "sync") not in MESSAGE_KINDS:
@@ -73,6 +182,51 @@ class SequenceAudit:
                 errors.append(f"Fragment '{f['id']}' starts after it ends.")
             elif f.get("elseAt") is not None and not (a < midx.get(f["elseAt"], -1) <= b):
                 errors.append(f"Fragment '{f['id']}' elseAt must be a message after its first and within its range.")
+            if f.get("color") is not None and f.get("color") not in FRAGMENT_COLORS:
+                errors.append(f"Fragment '{f['id']}' has unknown color '{f.get('color')}' (use {', '.join(sorted(FRAGMENT_COLORS))}).")
+            if "branches" in f:
+                if f.get("elseAt") is not None:
+                    errors.append(f"Fragment '{f['id']}' has both 'branches' and 'elseAt': use one.")
+                if not isinstance(f["branches"], list):
+                    errors.append(f"Fragment '{f['id']}' branches must be a list of {{at, label}}.")
+            if (f.get("elseAt") is not None or f.get("branches")) and f.get("kind") not in BRANCH_KINDS:
+                errors.append(f"Fragment '{f['id']}' is a '{f.get('kind')}': only alt and par have branches.")
+            seen_at = set()
+            for br in branches_of(f) if "branches" in f else []:
+                at = midx.get(br.get("at"))
+                if at is None:
+                    dangling += 1
+                    errors.append(f"Fragment '{f['id']}' branch at unknown message '{br.get('at')}'.")
+                elif a is not None and b is not None and not (a < at <= b):
+                    errors.append(f"Fragment '{f['id']}' branch at '{br.get('at')}' must be after its first message and within its range.")
+                elif at in seen_at:
+                    errors.append(f"Fragment '{f['id']}' has two branches at '{br.get('at')}'.")
+                seen_at.add(at)
+        for n in ns:
+            over = note_over(n)
+            if not str(n.get("text") or "").strip():
+                errors.append(f"Note '{n.get('id')}' has no text.")
+            if not 1 <= len(over) <= 2:
+                errors.append(f"Note '{n.get('id')}' over must be one participant id, or two to span between.")
+            for pid in over:
+                if pid not in pmap:
+                    dangling += 1
+                    errors.append(f"Note '{n.get('id')}' is over unknown participant '{pid}'.")
+            if n.get("after") is not None and n.get("before") is not None:
+                errors.append(f"Note '{n.get('id')}' has both 'after' and 'before': use one.")
+            for key in ("after", "before"):
+                if n.get(key) is not None and n[key] not in midx:
+                    dangling += 1
+                    errors.append(f"Note '{n.get('id')}' {key} unknown message '{n[key]}'.")
+        # A collapsed frame hides everything inside it, so no frame may cross its edge
+        ranges = [(f, midx[f["from"]], midx[f["to"]]) for f in fs
+                  if f.get("from") in midx and f.get("to") in midx and midx[f["from"]] <= midx[f["to"]]]
+        for f, a, b in ranges:
+            if not f.get("collapsed"):
+                continue
+            for o, oa, ob in ranges:
+                if o is not f and (oa < a <= ob < b or a < oa <= b < ob):
+                    errors.append(f"Collapsed fragment '{f['id']}' partly overlaps fragment '{o['id']}': half a frame cannot be hidden.")
 
         # Geometry (only meaningful once laid out).
         laid_out = all(isinstance(p.get("x"), (int, float)) for p in ps) and all(isinstance(m.get("y"), (int, float)) for m in ms)
@@ -82,21 +236,34 @@ class SequenceAudit:
         elif laid_out:
             layout = self.data.get("layout") or {}
             width, height = layout.get("width", math.inf), layout.get("height", math.inf)
-            for left, right in zip(ps, ps[1:]):
-                if right["x"] - left["x"] < BOX_W + LABEL_MARGIN:
+            half = lambda p: (RAIL_W if p.get("rail") else BOX_W) / 2  # noqa: E731
+            columns = {}  # participants that share a column have one x
+            for p in ps:
+                columns.setdefault(p["x"], p)
+            xs = sorted(columns)
+            for lx, rx in zip(xs, xs[1:]):
+                left, right = columns[lx], columns[rx]
+                if rx - lx < half(left) + half(right) + LABEL_MARGIN:
                     overlaps += 1
                     errors.append(f"Participants '{left['name']}' and '{right['name']}' overlap.")
             for earlier, later in zip(ms, ms[1:]):
-                if later["y"] <= earlier["y"]:
+                # Messages hidden in one collapsed frame share its summary row
+                if later["y"] < earlier["y"] or (later["y"] == earlier["y"] and not (earlier.get("hidden") and later.get("hidden"))):
                     errors.append(f"Messages '{earlier['id']}' and '{later['id']}' are out of time order.")
             for m in ms:
                 a, b = pmap.get(m.get("from")), pmap.get(m.get("to"))
                 if not a or not b:
                     continue
-                label_w = text_width(m.get("label"))
+                if m.get("hidden"):
+                    # Folded into a collapsed frame's summary row: nothing is drawn, and with rails the gap may be narrower
+                    if m["y"] > height:
+                        overflows += 1
+                    continue
+                detail = m.get("detail") if show_details else None
+                label_w = max(text_width(m.get("label")) + (NUM_W if numbered else 0),
+                              math.ceil(len(str(detail or "")) * DETAIL_CHAR_W))
                 if a is b:
-                    pos = ps.index(a)
-                    nxt = ps[pos + 1]["x"] if pos + 1 < len(ps) else math.inf
+                    nxt = min((q["x"] for q in ps if q["x"] > a["x"]), default=math.inf)
                     if a["x"] + SELF_LOOP + 8 + label_w + 8 > nxt:
                         overlaps += 1
                         errors.append(f"Self-message '{m.get('label')}' runs into the next lifeline.")
@@ -121,6 +288,10 @@ class SequenceAudit:
                 if f["x"] + f["w"] > width:
                     overflows += 1
                     errors.append(f"Fragment '{f['id']}' extends past the diagram edge.")
+            for n in ns:
+                if "x" in n and (n["x"] < 0 or n["x"] + n["w"] > width or n["y"] + n["h"] > height):
+                    overflows += 1
+                    errors.append(f"Note '{n.get('id')}' extends past the diagram edge.")
 
         # Nesting depth and budget.
         spans = {f["id"]: (midx[f["from"]], midx[f["to"]]) for f in fs if f.get("from") in midx and f.get("to") in midx}
@@ -132,19 +303,24 @@ class SequenceAudit:
 
         max_depth = max((depth(fid) for fid in spans), default=0)
         budget: List[str] = []
+        if max_depth > MAX_FRAGMENT_DEPTH:
+            budget.append(f"Frames nest {max_depth} deep (keep to {MAX_FRAGMENT_DEPTH}): put a rare exit in a note, "
+                          "or split the flow.")
+
+        budget.extend(self.color_warnings())
 
         score = max(0, 100 - ERROR_PENALTY * len(errors))
         grade = "A+" if score >= 98 else "A" if score >= 90 else "B" if score >= 80 else "C" if score >= 60 else "F"
         return {
             "passed": score >= 90 and not errors, "score": score, "grade": grade, "issues": errors,
-            "participant_count": len(ps), "message_count": len(ms), "fragment_count": len(fs),
+            "participant_count": len(ps), "message_count": len(ms), "fragment_count": len(fs), "note_count": len(ns),
             "overlaps_count": overlaps, "overflows_count": overflows, "dangling_count": dangling,
             "budget_warnings": budget,
         }
 
     def summary_lines(self, report: Dict[str, Any]) -> List[str]:
         return [
-            f"Structure: {report['participant_count']} Participants | {report['message_count']} Messages | {report['fragment_count']} Fragments",
+            f"Structure: {report['participant_count']} Participants | {report['message_count']} Messages | {report['fragment_count']} Fragments | {report['note_count']} Notes",
             f"Diagram Quality Score: {report['score']}/100  [GRADE: {report['grade']}]",
             "-" * 70,
             f"✓ Spacing and Label Fit:         {report['overlaps_count']} problems",

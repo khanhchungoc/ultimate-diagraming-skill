@@ -1,0 +1,27 @@
+{
+  "diagramType": "sequence",
+  "title": "Session rules",
+  "participants": [
+    { "id": "u", "name": "Customer", "kind": "actor" },
+    { "id": "web", "name": "Web App", "kind": "ui" },
+    { "id": "api", "name": "Session API", "kind": "system" },
+    { "id": "db", "name": "Session Store", "kind": "database" }
+  ],
+  "messages": [
+    { "id": "m1", "from": "u", "to": "web", "label": "Sign in", "kind": "sync" },
+    { "id": "m2", "from": "web", "to": "api", "label": "Create session", "kind": "sync" },
+    { "id": "m3", "from": "api", "to": "db", "label": "Store token", "kind": "sync" },
+    { "id": "m4", "from": "db", "to": "api", "label": "Stored", "kind": "reply" },
+    { "id": "m5", "from": "api", "to": "web", "label": "Session token", "kind": "reply" },
+    { "id": "m6", "from": "web", "to": "u", "label": "Home page", "kind": "reply" }
+  ],
+  "fragments": [
+    { "id": "f1", "kind": "opt", "label": "remember me", "from": "m3", "to": "m4" }
+  ],
+  "notes": [
+    { "id": "n1", "text": "Starts on the sign-in page", "over": "web" },
+    { "id": "n2", "text": "Token lives 30 days; it is renewed on every visit", "over": "db", "after": "m3" },
+    { "id": "n3", "text": "Both sides log the session id for support", "over": ["web", "api"], "before": "m5" },
+    { "id": "n4", "text": "Rate limit: 5 attempts a minute", "over": "api", "before": "m3" }
+  ]
+}

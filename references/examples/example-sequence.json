@@ -50,7 +50,8 @@
       "from": "p2",
       "to": "p3",
       "label": "Charge card",
-      "kind": "sync"
+      "kind": "sync",
+      "detail": "amount, currency, card token"
     },
     {
       "id": "m5",
@@ -81,7 +82,12 @@
       "label": "payment accepted",
       "from": "m4",
       "to": "m6",
-      "elseAt": "m6"
+      "branches": [
+        {
+          "at": "m6",
+          "label": "payment declined"
+        }
+      ]
     },
     {
       "id": "f2",
@@ -89,6 +95,14 @@
       "label": "stock available",
       "from": "m2",
       "to": "m3"
+    }
+  ],
+  "notes": [
+    {
+      "id": "n1",
+      "text": "Stock is held for 15 minutes",
+      "over": "p4",
+      "after": "m3"
     }
   ]
 }

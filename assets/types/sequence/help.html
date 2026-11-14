@@ -1,5 +1,19 @@
-      <li><kbd>Click</kbd> : Select a participant, message or frame</li>
+      <li><kbd>Click</kbd> : Select a participant, message, frame (its tag or border), branch divider or note</li>
+      <li><kbd>Drag</kbd> from any lifeline or activation bar (or its <kbd>+</kbd>) to another lifeline : Draw a message at that row. Drawn back to a caller still waiting on its call, it is that call's reply; otherwise a call. Out to the side and back onto the same lifeline: a self-message. On touch, tap the lifeline first</li>
+      <li><kbd>Drag</kbd> a selected message's end handle : Move that end to another lifeline</li>
+      <li><kbd>+</kbd> between two participant boxes : Insert a participant there</li>
       <li><kbd>Drag Participant</kbd> : Move sideways to reorder lifelines</li>
-      <li><kbd>Drag Message</kbd> : Move up or down to change the order in time</li>
-      <li><kbd>Double Click</kbd> : Edit a participant name, message text or frame text</li>
-      <li><kbd>Delete</kbd> : Delete the selected item (a participant's messages go with it)</li>
+      <li><kbd>Drag Message</kbd> : Move up or down to change the order in time (dropped inside a frame, it joins it)</li>
+      <li><kbd>Shift</kbd> + <kbd>Click</kbd> a second message, or <kbd>Shift</kbd> + drag on blank canvas : Select a range, then <b>Frame</b> wraps it</li>
+      <li><kbd>Drag</kbd> a selected frame's top or bottom handle : Change the messages it covers</li>
+      <li><b>Action bar</b> over the selection : <b>No reply expected</b> (async), reverse, reply; participant kind; frame kind, colour, <b>+ branch</b></li>
+      <li><kbd>Double Click</kbd>, <kbd>Enter</kbd> or <kbd>F2</kbd> : Edit the text (<kbd>Tab</kbd> from a message label to its detail; <kbd>Shift</kbd> + <kbd>Enter</kbd> breaks a note's line)</li>
+      <li><kbd>&uarr;</kbd> <kbd>&darr;</kbd> / <kbd>&larr;</kbd> <kbd>&rarr;</kbd> : Walk the messages / the participants (<kbd>Shift</kbd> grows a range, <kbd>Alt</kbd> moves the message)</li>
+      <li><b>Chevron</b> in a frame tag : Collapse the frame to one row, or expand it (also in <kbd>?present</kbd>)</li>
+      <li><b>Focus</b> in a frame tag (or its action bar) : Collapse every other phase and expand this one; the participants the others leave become thin <b>rails</b> (click a rail to select it, <b>Show</b> opens the frames hiding it). Press it again, or <b>Show all</b> in the dock, to expand everything (also in <kbd>?present</kbd>)</li>
+      <li><b>Trim lifelines</b> : Draw each lifeline only from its participant's first message to its last. A box then sits at the start of its lifeline, and the pinned row names only the lifelines alive under it</li>
+      <li><kbd>Drag</kbd> a participant's box onto another lifeline (with <b>Trim lifelines</b> on) : They share one column, if they are never active together (otherwise it says when they are). <b>Own column</b> in the action bar undoes it. The handles on a selected participant's start box and cap make its lifeline begin earlier or end later</li>
+      <li><b>Colour</b> swatches in a selected participant's action bar : Colour a participant by who owns it (its box, lifeline, bars and rail). The key above the diagram says what each colour means: double-click an entry to name it</li>
+      <li><b>Numbers</b> / <b>Details</b> : Show step numbers / show each message's detail under its arrow</li>
+      <li><kbd>Delete</kbd> : Delete the selection (a participant with messages asks first; a frame keeps its messages)</li>
+      <li><kbd>Esc</kbd> : Cancel the edit, then clear the selection</li>

@@ -5,6 +5,7 @@
       //   render(), isBackground(el), clearSelection(),
       //   cancelInteraction() -> true if something was cancelled, deleteSelection(anchorEl?)
       //   optional: hasSelection() -> true when deleteSelection() would delete something (shows the dock's Delete)
+      //   optional: selectInRect(clientRect, mode, start) and selectAll(): multi-select, see SELECTION BOX
       //   optional: onViewChange() after every pan/zoom (body.exporting is set while an export reads styles)
       //   optional: contentOverflow() -> {left, top, right, bottom}: unscaled px that content reaches past
       //             contentEl's edges, so Fit and screenshots frame it too
@@ -13,12 +14,49 @@
       //   optional: fromDisk(data) -> the in-memory model read from the data block (inverse of toDisk)
       //             Missing members mean the block holds the in-memory model as is. scripts/disk_format.py
       //             does the same in Python; a generated page saved without edits must come out byte-identical.
+      // Touch (see TOUCH): a plugin marks selected items with the class `selected` (and anything else a finger may
+      // drag right now with the attribute data-touch-drag). A one-finger touch reaches the plugin only when it lands
+      // inside such an element; any other touch pans, and a tap is replayed to the
+      // item as a synthetic pointerdown + pointerup, so selecting on pointerdown keeps working.
       // Undo/redo is the shell's job: every updateStatus(true) records a snapshot of chartData, so a plugin
       // gets undo for free as long as it calls updateStatus(true) once per finished edit (not per pointermove).
       // The type's engine.js must define layoutDiagram(data): lay out `data` in place, no DOM access.
       // Shared scope for plugins: chartData, scale/panX/panY, viewport, stage, updateStatus(), fitView().
       let plugin = null;
       function registerDiagramPlugin(p) { plugin = p; }
+
+      // --- SWATCHES: the eight colours a flowchart lane or a sequence participant may carry ---
+      // sky, amber, emerald, rose, purple, orange, teal, indigo: light tints, written in the data as the hex. shell.css
+      // derives each one's stripe, pill and dark-theme shades from the hue (see --swatch-color), so a swatch looks the
+      // same in both diagram types. scripts/audit_sequence.py lists the same hexes.
+      const SWATCHES = [
+        { hex: '#e0f2fe', name: 'sky' }, { hex: '#fef3c7', name: 'amber' }, { hex: '#dcfce7', name: 'emerald' }, { hex: '#fee2e2', name: 'rose' },
+        { hex: '#f3e8ff', name: 'purple' }, { hex: '#ffedd5', name: 'orange' }, { hex: '#ccfbf1', name: 'teal' }, { hex: '#e0e7ff', name: 'indigo' }
+      ];
+      // A row of colour buttons: "none", then each swatch. `current` is the hex now in use (or empty); onPick(hex) gets
+      // the chosen hex, or '' for none. opts.btnClass adds a class to every button. Returns the row element.
+      function swatchRow(current, onPick, opts) {
+        const row = document.createElement('span');
+        row.className = 'swatch-row';
+        row.setAttribute('role', 'group');
+        row.setAttribute('aria-label', 'Colour');
+        [{ hex: '', name: 'none' }].concat(SWATCHES).forEach((sw) => {
+          const b = document.createElement('button');
+          b.type = 'button';
+          b.className = `swatch-btn${opts && opts.btnClass ? ' ' + opts.btnClass : ''}`;
+          b.dataset.value = sw.hex;
+          b.title = sw.hex ? `Colour: ${sw.name}` : 'No colour';
+          b.setAttribute('aria-label', b.title);
+          b.setAttribute('aria-pressed', String((current || '') === sw.hex));
+          const dot = document.createElement('span');
+          dot.className = sw.hex ? 'swatch-dot swatch-scope' : 'swatch-dot is-none';
+          if (sw.hex) dot.style.setProperty('--swatch-color', sw.hex);
+          b.appendChild(dot);
+          b.addEventListener('click', (e) => { e.stopPropagation(); onPick(sw.hex); });
+          row.appendChild(b);
+        });
+        return row;
+      }
 
       // --- CLAUDE.AI ARTIFACT (only active inside a published claude.ai artifact; elsewhere none of this runs) ---
       // A page that republishes itself must send a document in exactly the shape the Artifact tool publishes:
@@ -465,12 +503,171 @@
       viewport.addEventListener('pointerdown', (e) => {
         if (e.target === viewport || e.target.id === 'stage' || plugin.isBackground(e.target)) {
           if (plugin.cancelInteraction()) return;
+          if (startMarquee(e)) return;   // Shift + drag draws a selection box instead of panning
           isPanning = true;
           panStartX = e.clientX - panX;
           panStartY = e.clientY - panY;
           viewport.classList.add('panning');
           plugin.clearSelection();
         }
+      });
+
+      // --- TOUCH: one finger pans, two fingers pinch-zoom ---
+      // The viewport sets touch-action: none, so the browser never takes a gesture over (no page zoom, no
+      // pointercancel halfway through a pan). The shell owns every touch except one that lands on an item that is
+      // already selected, which goes to the plugin so it can be dragged. A finger that lands on any other item pans
+      // like blank canvas, so brushing past a step while panning moves nothing; a tap (no movement) is replayed to
+      // the item as a pointerdown/pointerup pair, so it selects exactly as a click does. A tap on blank canvas clears
+      // the selection; a pan does not. A second finger turns the gesture into a pinch anchored at the midpoint, and
+      // freezes any drag the plugin started. Moves are applied once per animation frame.
+      const touches = new Map();     // pointerId -> { x, y }
+      let touchGesture = null;       // { kind: 'pan', sx, sy, panX, panY, moved, bg, target, init } | { kind: 'pinch', ... }
+      let replayingTap = false;
+      const TAP_SLOP = 8;            // px a finger may wander and still be a tap
+      let transformQueued = false;
+      function scheduleTransform() {
+        if (transformQueued) return;
+        transformQueued = true;
+        requestAnimationFrame(() => { transformQueued = false; updateTransform(); });
+      }
+      const isBlankCanvas = (el) => el === viewport || el.id === 'stage' || plugin.isBackground(el);
+      function startPinch() {
+        const [a, b] = [...touches.values()];
+        touchGesture = { kind: 'pinch', dist: Math.hypot(a.x - b.x, a.y - b.y) || 1,
+          mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2, scale, panX, panY };
+      }
+      viewport.addEventListener('pointerdown', (e) => {
+        if (e.pointerType !== 'touch' || replayingTap) return;
+        touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        if (touches.size >= 2) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          if (touches.size > 2) return;
+          endMarquee();
+          isPanning = false;
+          plugin.cancelInteraction();
+          viewport.classList.add('panning', 'gesturing');
+          startPinch();
+          return;
+        }
+        // The browser's touch adjustment snaps a touch's target to the nearest small interactive element (a step's
+        // connect port, say), which is how a tap near a step starts an arrow. Use what is really under the finger.
+        const hit = document.elementFromPoint(e.clientX, e.clientY);
+        const target = hit && viewport.contains(hit) ? hit : e.target;
+        const bg = isBlankCanvas(target);
+        if (!bg && target.closest && target.closest('.selected, [data-touch-drag]')) {   // the plugin drags it
+          touchGesture = null;
+          if (target !== e.target) { e.stopImmediatePropagation(); replayPress(target, e, false); }
+          return;
+        }
+        e.stopImmediatePropagation();
+        touchGesture = { kind: 'pan', sx: e.clientX, sy: e.clientY, panX, panY, moved: false, bg, target, init: e };
+      }, true);
+      // Hand a target a press it never saw (and, for a tap, the release): plugins select and drag on pointerdown
+      function replayPress(target, init, withUp) {
+        const opts = { bubbles: true, cancelable: true, composed: true, pointerId: init.pointerId, pointerType: 'touch',
+          isPrimary: true, clientX: init.clientX, clientY: init.clientY, button: 0, buttons: 1,
+          shiftKey: init.shiftKey, ctrlKey: init.ctrlKey, metaKey: init.metaKey, altKey: init.altKey };
+        replayingTap = true;
+        try {
+          target.dispatchEvent(new PointerEvent('pointerdown', opts));
+          if (withUp) target.dispatchEvent(new PointerEvent('pointerup', Object.assign({}, opts, { buttons: 0 })));
+        } finally { replayingTap = false; }
+      }
+      window.addEventListener('pointermove', (e) => {
+        if (e.pointerType !== 'touch' || !touches.has(e.pointerId)) return;
+        touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        const g = touchGesture;
+        if (!g) return;                       // a plugin drag of a selected item
+        e.stopPropagation();                  // nothing else follows a finger the shell owns (or a frozen drag)
+        if (g.kind === 'pinch') {
+          if (touches.size < 2) return;
+          const [a, b] = [...touches.values()];
+          const d = Math.hypot(a.x - b.x, a.y - b.y) || 1;
+          const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+          const ns = Math.min(Math.max(g.scale * d / g.dist, 0.2), 2.5);
+          const vp = viewport.getBoundingClientRect();
+          // The canvas point that was under the starting midpoint stays under the current midpoint
+          panX = (mx - vp.left) - (g.mx - vp.left - g.panX) * (ns / g.scale);
+          panY = (my - vp.top) - (g.my - vp.top - g.panY) * (ns / g.scale);
+          scale = ns;
+          scheduleTransform();
+          return;
+        }
+        const dx = e.clientX - g.sx, dy = e.clientY - g.sy;
+        if (!g.moved && Math.hypot(dx, dy) < TAP_SLOP) return;
+        if (!g.moved) { g.moved = true; viewport.classList.add('panning', 'gesturing'); }
+        panX = g.panX + dx;
+        panY = g.panY + dy;
+        scheduleTransform();
+      }, true);
+      function endTouch(e) {
+        if (e.pointerType !== 'touch' || !touches.has(e.pointerId)) return;
+        touches.delete(e.pointerId);
+        const g = touchGesture;
+        if (!g) return;
+        if (g.kind === 'pinch') {
+          if (touches.size === 1) {           // one finger left: carry on panning with it
+            const [rest] = [...touches.values()];
+            touchGesture = { kind: 'pan', sx: rest.x, sy: rest.y, panX, panY, moved: true };
+          } else if (touches.size === 0) {
+            touchGesture = null;
+            viewport.classList.remove('panning', 'gesturing');
+          }
+          return;
+        }
+        touchGesture = null;
+        viewport.classList.remove('panning', 'gesturing');
+        if (g.moved || e.type !== 'pointerup' || touches.size) return;
+        if (g.bg) {                           // a tap on blank canvas
+          if (!plugin.cancelInteraction()) plugin.clearSelection();
+          return;
+        }
+        // A tap on an item: hand it the press it never saw, after this pointerup has finished its own dispatch
+        const { target, init } = g;
+        setTimeout(() => { if (target.isConnected) replayPress(target, init, true); }, 0);
+      }
+      window.addEventListener('pointerup', endTouch, true);
+      window.addEventListener('pointercancel', endTouch, true);
+
+      // --- SELECTION BOX (opt-in: only for a plugin that defines selectInRect / selectAll) ---
+      // Shift + drag on blank canvas draws a box; Ctrl/Cmd + Shift + drag makes it a toggle box. On every move the
+      // plugin's selectInRect(rect, mode, start) selects what the box touches, so the selection previews live:
+      // rect is in client coordinates, mode is 'replace' or 'toggle', start is true on a box's first call. The
+      // selection is not cleared when a box starts. Ctrl/Cmd + A calls selectAll(). Without these members
+      // Shift + drag pans and Ctrl/Cmd + A is the browser's own. Both are off in present mode.
+      let marquee = null;   // { el, x, y, mode }
+      const isTyping = () => { const a = document.activeElement; return !!a && (a.isContentEditable || a.tagName === 'INPUT' || a.tagName === 'TEXTAREA'); };
+      function startMarquee(e) {
+        if (!e.shiftKey || !plugin.selectInRect || document.body.classList.contains('presentation')) return false;
+        e.preventDefault();
+        if (isTyping()) document.activeElement.blur();   // commit a label being edited, as any click on the canvas does
+        const el = document.createElement('div');
+        el.className = 'marquee';
+        document.body.appendChild(el);
+        marquee = { el, x: e.clientX, y: e.clientY, mode: (e.ctrlKey || e.metaKey) ? 'toggle' : 'replace' };
+        moveMarquee(e, true);
+        return true;
+      }
+      function moveMarquee(e, start = false) {
+        const left = Math.min(marquee.x, e.clientX), top = Math.min(marquee.y, e.clientY);
+        const width = Math.abs(e.clientX - marquee.x), height = Math.abs(e.clientY - marquee.y);
+        Object.assign(marquee.el.style, { left: `${left}px`, top: `${top}px`, width: `${width}px`, height: `${height}px` });
+        plugin.selectInRect({ left, top, right: left + width, bottom: top + height, width, height }, marquee.mode, start);
+      }
+      function endMarquee() {
+        if (!marquee) return;
+        marquee.el.remove();
+        marquee = null;
+      }
+      window.addEventListener('pointermove', (e) => { if (marquee) moveMarquee(e); });
+      window.addEventListener('pointerup', endMarquee);
+      window.addEventListener('pointercancel', endMarquee);
+      window.addEventListener('keydown', (e) => {
+        if (!(e.ctrlKey || e.metaKey) || e.altKey || e.key.toLowerCase() !== 'a' || !plugin.selectAll) return;
+        if (isTyping() || document.body.classList.contains('presentation')) return;
+        e.preventDefault();
+        plugin.selectAll();
       });
 
       window.addEventListener('pointermove', (e) => {

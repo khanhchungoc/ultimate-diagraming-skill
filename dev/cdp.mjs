@@ -96,6 +96,55 @@ export async function launch(browser) {
       window.dispatchEvent(new PointerEvent('pointermove', o(x + ${dx}, y + ${dy})));
       window.dispatchEvent(new PointerEvent('pointerup', o(x + ${dx}, y + ${dy})));
     })()`,
+    // --- Real input (Input.dispatchMouseEvent / dispatchKeyEvent): the browser hit-tests and synthesises
+    // click, dblclick and pointer events itself, exactly as for a person. Coordinates are viewport px.
+    /** Centre of the first element matching `selector` (or null); `fx`/`fy` pick another point of its box (0..1). */
+    async at(selector, fx = 0.5, fy = 0.5) {
+      return api.ev(`(() => { const el = document.querySelector(${JSON.stringify(selector)}); if (!el) return null;
+        const r = el.getBoundingClientRect(); return { x: r.left + r.width * ${fx}, y: r.top + r.height * ${fy} }; })()`);
+    },
+    mouse(type, x, y, extra = {}) {
+      return send('Input.dispatchMouseEvent', { type, x, y, button: 'none', buttons: 0, modifiers: 0, pointerType: 'mouse', ...extra });
+    },
+    /** A real click at (x, y); `count: 2` is a double-click. modifiers: Alt 1, Ctrl 2, Meta 4, Shift 8. */
+    async click(x, y, { count = 1, modifiers = 0 } = {}) {
+      await api.mouse('mouseMoved', x, y, { modifiers });
+      for (let c = 1; c <= count; c++) {
+        await api.mouse('mousePressed', x, y, { button: 'left', buttons: 1, clickCount: c, modifiers });
+        await api.mouse('mouseReleased', x, y, { button: 'left', buttons: 0, clickCount: c, modifiers });
+      }
+      await sleep(60);
+    },
+    async clickOn(selector, opts = {}) {
+      const p = await api.at(selector);
+      if (!p) throw new Error(`clickOn: nothing matches ${selector}`);
+      await api.click(p.x, p.y, opts);
+    },
+    /** A real drag from (x1, y1) to (x2, y2) in `steps` moves. */
+    async dragTo(x1, y1, x2, y2, { steps = 6, modifiers = 0 } = {}) {
+      await api.mouse('mouseMoved', x1, y1, { modifiers });
+      await api.mouse('mousePressed', x1, y1, { button: 'left', buttons: 1, clickCount: 1, modifiers });
+      for (let i = 1; i <= steps; i++) {
+        await api.mouse('mouseMoved', x1 + (x2 - x1) * i / steps, y1 + (y2 - y1) * i / steps, { button: 'left', buttons: 1, modifiers });
+        await sleep(15);
+      }
+      await api.mouse('mouseReleased', x2, y2, { button: 'left', buttons: 0, clickCount: 1, modifiers });
+      await sleep(80);
+    },
+    /** A real key press (keydown + keyup) on the focused element. */
+    async press(key, { modifiers = 0 } = {}) {
+      const codes = { Enter: 13, Escape: 27, Delete: 46, Backspace: 8, Tab: 9, F2: 113, ArrowLeft: 37, ArrowUp: 38, ArrowRight: 39, ArrowDown: 40 };
+      const vk = codes[key] || key.toUpperCase().charCodeAt(0);
+      const base = { key, code: codes[key] ? key : `Key${key.toUpperCase()}`, windowsVirtualKeyCode: vk, nativeVirtualKeyCode: vk, modifiers };
+      await send('Input.dispatchKeyEvent', { type: 'rawKeyDown', ...base });
+      await send('Input.dispatchKeyEvent', { type: 'keyUp', ...base });
+      await sleep(40);
+    },
+    /** Type text into the focused element (replaces the selection), as the keyboard would. */
+    async type(text) {
+      await send('Input.insertText', { text });
+      await sleep(40);
+    },
     async close() {
       try { ws.close(); } catch { /* ignore */ }
       chrome.kill();

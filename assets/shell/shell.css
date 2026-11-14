@@ -442,9 +442,22 @@
       background-image: radial-gradient(var(--grid-dot) 1.2px, transparent 1.2px);
       background-size: 24px 24px;
       cursor: grab;
+      touch-action: none;   /* shell.js handles one-finger pan and pinch zoom; the browser never takes over */
     }
     #viewport.panning {
       cursor: grabbing;
+    }
+    /* Only while a touch gesture runs: composite the stage on the GPU (it re-rasters sharp when the class drops) */
+    #viewport.gesturing #stage {
+      will-change: transform;
+    }
+    /* Selection box: Shift + drag on blank canvas, for diagram types that define selectInRect */
+    .marquee {
+      position: fixed;
+      z-index: 60;
+      pointer-events: none;
+      border: 1px dashed var(--primary);
+      background: var(--primary-wash);
     }
     /* Space held: the canvas is a pure pan surface, nothing in it is clickable or hoverable */
     body.space-pan #stage {
@@ -582,6 +595,62 @@
       color: var(--text-muted, #64748b); user-select: none;
     }
     .export-menu-label:not(:first-child) { margin-top: 4px; border-top: 1px solid var(--border, #cbd5e1); padding-top: 8px; }
+
+    /* Swatches: the eight colours (SWATCHES in shell.js) a flowchart lane or a sequence participant may carry. An element
+       sets --swatch-color to one of them; the roles below are derived from it, so a swatch looks the same in both diagram
+       types. The tokens say how strongly it tints an icon chip, a stripe and a pill. */
+    :root {
+      --swatch-chip-mix: 85%;    --swatch-chip-base: #ffffff;
+      --swatch-ink-mix: 30%;     --swatch-ink-base: #1e293b;    /* icon stroke: swatch hue, darkened */
+      --swatch-accent-mix: 70%;  --swatch-accent-base: #475569; /* stripe */
+      --swatch-pill-mix: 45%;
+      --swatch-solid-mix: 42%;   --swatch-solid-base: #1e293b;  --swatch-solid-ink: #ffffff; /* active pill: deep hue, white text */
+    }
+    :root[data-theme="dark"] {
+      --swatch-chip-mix: 30%;    --swatch-chip-base: #111a2e;
+      --swatch-ink-mix: 85%;     --swatch-ink-base: #e2e8f0;    /* pastel hue reads well on dark */
+      --swatch-accent-mix: 80%;  --swatch-accent-base: #94a3b8;
+      --swatch-pill-mix: 22%;
+      --swatch-solid-mix: 80%;   --swatch-solid-base: #e2e8f0;  --swatch-solid-ink: #0f172a; /* inverted on dark */
+    }
+    /* Roles: stripe (a line or border), pill (a soft fill and its ink) and solid (the deep fill). Fallback: the swatch
+       mixed toward slate, which stays pale with pastel swatches. (.swimlane is the flowchart's lane: its --lane-color
+       becomes --swatch-color in flowchart.css.) */
+    .swatch-scope, .swimlane {
+      --sw-stripe: color-mix(in srgb, var(--swatch-color) var(--swatch-accent-mix), var(--swatch-accent-base));
+      --sw-pill-bg: color-mix(in srgb, var(--swatch-color) var(--swatch-pill-mix), var(--bg-panel));
+      --sw-pill-ink: var(--text-soft);
+      --sw-pill-solid: color-mix(in srgb, var(--swatch-color) var(--swatch-solid-mix), var(--swatch-solid-base));
+      --sw-line: color-mix(in srgb, var(--swatch-color) 40%, #334155);
+    }
+    /* Where relative colours are supported, derive deeper, more saturated shades of the swatch's own hue: same hue,
+       lightness set per role, chroma boosted (capped so strong swatches do not turn garish) */
+    @supports (color: oklch(from red l c h)) {
+      .swatch-scope, .swimlane {
+        --sw-stripe: oklch(from var(--swatch-color) 0.66 min(calc(c * 4), 0.15) h);
+        --sw-pill-bg: oklch(from var(--swatch-color) 0.9 min(calc(c * 2.4), 0.07) h);
+        --sw-pill-ink: oklch(from var(--swatch-color) 0.36 min(calc(c * 4), 0.12) h);
+        --sw-pill-solid: oklch(from var(--swatch-color) 0.45 min(calc(c * 4.5), 0.15) h);
+        --sw-line: oklch(from var(--swatch-color) 0.56 min(calc(c * 4), 0.15) h);   /* a thin line that must stay visible on the panel and on a frame's wash */
+      }
+      :root[data-theme="dark"] .swatch-scope, :root[data-theme="dark"] .swimlane {
+        --sw-stripe: oklch(from var(--swatch-color) 0.74 min(calc(c * 4), 0.14) h);
+        --sw-pill-bg: oklch(from var(--swatch-color) 0.36 min(calc(c * 2.4), 0.07) h);
+        --sw-pill-ink: oklch(from var(--swatch-color) 0.92 min(calc(c * 2), 0.06) h);
+        --sw-pill-solid: oklch(from var(--swatch-color) 0.84 min(calc(c * 3.5), 0.12) h);
+        --sw-line: oklch(from var(--swatch-color) 0.74 min(calc(c * 4), 0.14) h);
+      }
+    }
+    /* swatchRow(): the row of colour buttons (a "none" button, then one per swatch) */
+    .swatch-row { display: inline-flex; align-items: center; gap: 2px; }
+    .swatch-btn {
+      display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; padding: 0; box-sizing: border-box;
+      border: 1px solid transparent; border-radius: 6px; background: transparent; cursor: pointer;
+    }
+    .swatch-btn:hover { background: var(--bg-hover); }
+    .swatch-btn[aria-pressed="true"] { background: var(--primary-wash); border-color: var(--primary-ring); }
+    .swatch-dot { display: block; width: 14px; height: 14px; border-radius: 50%; background: var(--sw-stripe); border: 1px solid rgba(0,0,0,0.18); box-sizing: border-box; }
+    .swatch-dot.is-none { background: var(--bg-panel); border: 1.5px dashed var(--border-dark); }
 
     .btn[hidden] { display: none; }
 

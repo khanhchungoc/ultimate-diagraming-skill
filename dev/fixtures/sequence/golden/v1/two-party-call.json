@@ -1,0 +1,42 @@
+{
+  "diagramType": "sequence",
+  "title": "Login",
+  "participants": [
+    {
+      "id": "p1",
+      "name": "User",
+      "kind": "actor",
+      "x": 158
+    },
+    {
+      "id": "p2",
+      "name": "Auth Service",
+      "kind": "system",
+      "x": 358
+    }
+  ],
+  "messages": [
+    {
+      "id": "m1",
+      "from": "p1",
+      "to": "p2",
+      "label": "Submit credentials",
+      "kind": "sync",
+      "y": 166
+    },
+    {
+      "id": "m2",
+      "from": "p2",
+      "to": "p1",
+      "label": "Session token",
+      "kind": "reply",
+      "y": 226
+    }
+  ],
+  "fragments": [],
+  "schemaVersion": 1,
+  "layout": {
+    "width": 488,
+    "height": 312
+  }
+}
