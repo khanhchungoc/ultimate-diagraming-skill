@@ -1,7 +1,6 @@
 {
   "diagramType": "erd",
   "title": "Orders and products",
-  "direction": "LR",
   "groups": [
     { "id": "sales", "name": "Sales", "color": "#e0f2fe" },
     { "id": "catalog", "name": "Catalog", "color": "#dcfce7" }

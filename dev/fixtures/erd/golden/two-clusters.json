@@ -1,0 +1,663 @@
+{
+  "diagramType": "erd",
+  "title": "Two clusters",
+  "groups": [
+    {
+      "id": "sales",
+      "name": "Sales",
+      "color": "#e0f2fe",
+      "x": 40,
+      "y": 40,
+      "box": {
+        "x": 40,
+        "y": 40,
+        "w": 796,
+        "h": 398
+      }
+    },
+    {
+      "id": "support",
+      "name": "Support",
+      "color": "#fef3c7",
+      "x": 40,
+      "y": 526,
+      "box": {
+        "x": 40,
+        "y": 526,
+        "w": 796,
+        "h": 476
+      }
+    }
+  ],
+  "entities": [
+    {
+      "id": "customer",
+      "name": "customer",
+      "group": "sales",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "pk": true
+        },
+        {
+          "name": "status",
+          "type": "text"
+        }
+      ],
+      "x": 282,
+      "y": 204,
+      "box": {
+        "x": 354,
+        "y": 292,
+        "w": 168,
+        "h": 88
+      }
+    },
+    {
+      "id": "order",
+      "name": "order",
+      "group": "sales",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "pk": true
+        },
+        {
+          "name": "customer_id",
+          "type": "uuid",
+          "fk": true
+        },
+        {
+          "name": "note",
+          "type": "text"
+        }
+      ],
+      "x": 280,
+      "y": 26,
+      "box": {
+        "x": 352,
+        "y": 114,
+        "w": 172,
+        "h": 114
+      }
+    },
+    {
+      "id": "order_item",
+      "name": "order_item",
+      "group": "sales",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "pk": true
+        },
+        {
+          "name": "order_id",
+          "type": "uuid",
+          "fk": true
+        },
+        {
+          "name": "product_id",
+          "type": "uuid",
+          "fk": true
+        },
+        {
+          "name": "note",
+          "type": "text"
+        }
+      ],
+      "x": 0,
+      "y": 0,
+      "box": {
+        "x": 72,
+        "y": 88,
+        "w": 168,
+        "h": 140
+      }
+    },
+    {
+      "id": "product",
+      "name": "product",
+      "group": "sales",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "pk": true
+        },
+        {
+          "name": "status",
+          "type": "text"
+        }
+      ],
+      "x": 0,
+      "y": 204,
+      "box": {
+        "x": 72,
+        "y": 292,
+        "w": 168,
+        "h": 88
+      }
+    },
+    {
+      "id": "invoice",
+      "name": "invoice",
+      "group": "sales",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "pk": true
+        },
+        {
+          "name": "order_id",
+          "type": "uuid",
+          "fk": true
+        },
+        {
+          "name": "note",
+          "type": "text"
+        }
+      ],
+      "x": 564,
+      "y": 0,
+      "box": {
+        "x": 636,
+        "y": 88,
+        "w": 168,
+        "h": 114
+      }
+    },
+    {
+      "id": "payment",
+      "name": "payment",
+      "group": "sales",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "pk": true
+        },
+        {
+          "name": "invoice_id",
+          "type": "uuid",
+          "fk": true
+        },
+        {
+          "name": "note",
+          "type": "text"
+        }
+      ],
+      "x": 564,
+      "y": 204,
+      "box": {
+        "x": 636,
+        "y": 292,
+        "w": 168,
+        "h": 114
+      }
+    },
+    {
+      "id": "agent",
+      "name": "agent",
+      "group": "support",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "pk": true
+        },
+        {
+          "name": "status",
+          "type": "text"
+        }
+      ],
+      "x": 0,
+      "y": 26,
+      "box": {
+        "x": 72,
+        "y": 600,
+        "w": 168,
+        "h": 88
+      }
+    },
+    {
+      "id": "team",
+      "name": "team",
+      "group": "support",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "pk": true
+        },
+        {
+          "name": "status",
+          "type": "text"
+        }
+      ],
+      "x": 564,
+      "y": 52,
+      "box": {
+        "x": 636,
+        "y": 626,
+        "w": 168,
+        "h": 88
+      }
+    },
+    {
+      "id": "ticket",
+      "name": "ticket",
+      "group": "support",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "pk": true
+        },
+        {
+          "name": "agent_id",
+          "type": "uuid",
+          "fk": true
+        },
+        {
+          "name": "team_id",
+          "type": "uuid",
+          "fk": true
+        },
+        {
+          "name": "note",
+          "type": "text"
+        },
+        {
+          "name": "customer_id",
+          "type": "uuid",
+          "fk": true
+        }
+      ],
+      "x": 280,
+      "y": 0,
+      "box": {
+        "x": 352,
+        "y": 574,
+        "w": 172,
+        "h": 166
+      }
+    },
+    {
+      "id": "message",
+      "name": "message",
+      "group": "support",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "pk": true
+        },
+        {
+          "name": "ticket_id",
+          "type": "uuid",
+          "fk": true
+        },
+        {
+          "name": "agent_id",
+          "type": "uuid",
+          "fk": true
+        },
+        {
+          "name": "note",
+          "type": "text"
+        }
+      ],
+      "x": 282,
+      "y": 256,
+      "box": {
+        "x": 354,
+        "y": 830,
+        "w": 168,
+        "h": 140
+      }
+    },
+    {
+      "id": "attachment",
+      "name": "attachment",
+      "group": "support",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "pk": true
+        },
+        {
+          "name": "message_id",
+          "type": "uuid",
+          "fk": true
+        },
+        {
+          "name": "note",
+          "type": "text"
+        }
+      ],
+      "x": 0,
+      "y": 230,
+      "box": {
+        "x": 72,
+        "y": 804,
+        "w": 168,
+        "h": 114
+      }
+    }
+  ],
+  "relationships": [
+    {
+      "id": "r1",
+      "from": "order",
+      "to": "customer",
+      "columns": [
+        "customer_id"
+      ],
+      "fromEnd": "zeroOrMany",
+      "toEnd": "one",
+      "points": [
+        [
+          524,
+          189
+        ],
+        [
+          544,
+          189
+        ],
+        [
+          544,
+          341
+        ],
+        [
+          522,
+          341
+        ]
+      ]
+    },
+    {
+      "id": "r2",
+      "from": "order_item",
+      "to": "order",
+      "columns": [
+        "order_id"
+      ],
+      "fromEnd": "zeroOrMany",
+      "toEnd": "one",
+      "points": [
+        [
+          240,
+          163
+        ],
+        [
+          352,
+          163
+        ]
+      ]
+    },
+    {
+      "id": "r3",
+      "from": "order_item",
+      "to": "product",
+      "columns": [
+        "product_id"
+      ],
+      "fromEnd": "zeroOrMany",
+      "toEnd": "one",
+      "points": [
+        [
+          240,
+          189
+        ],
+        [
+          268,
+          189
+        ],
+        [
+          268,
+          341
+        ],
+        [
+          240,
+          341
+        ]
+      ]
+    },
+    {
+      "id": "r4",
+      "from": "invoice",
+      "to": "order",
+      "columns": [
+        "order_id"
+      ],
+      "fromEnd": "zeroOrMany",
+      "toEnd": "one",
+      "points": [
+        [
+          636,
+          163
+        ],
+        [
+          524,
+          163
+        ]
+      ]
+    },
+    {
+      "id": "r5",
+      "from": "payment",
+      "to": "invoice",
+      "columns": [
+        "invoice_id"
+      ],
+      "fromEnd": "zeroOrMany",
+      "toEnd": "one",
+      "points": [
+        [
+          636,
+          367
+        ],
+        [
+          616,
+          367
+        ],
+        [
+          616,
+          163
+        ],
+        [
+          608,
+          163
+        ],
+        [
+          608,
+          137
+        ],
+        [
+          636,
+          137
+        ]
+      ]
+    },
+    {
+      "id": "r6",
+      "from": "ticket",
+      "to": "agent",
+      "columns": [
+        "agent_id"
+      ],
+      "fromEnd": "zeroOrMany",
+      "toEnd": "one",
+      "points": [
+        [
+          352,
+          649
+        ],
+        [
+          240,
+          649
+        ]
+      ]
+    },
+    {
+      "id": "r7",
+      "from": "ticket",
+      "to": "team",
+      "columns": [
+        "team_id"
+      ],
+      "fromEnd": "zeroOrMany",
+      "toEnd": "one",
+      "points": [
+        [
+          524,
+          675
+        ],
+        [
+          636,
+          675
+        ]
+      ]
+    },
+    {
+      "id": "r8",
+      "from": "ticket",
+      "to": "customer",
+      "columns": [
+        "customer_id"
+      ],
+      "fromEnd": "zeroOrMany",
+      "toEnd": "one",
+      "points": [
+        [
+          524,
+          727
+        ],
+        [
+          544,
+          727
+        ],
+        [
+          544,
+          675
+        ],
+        [
+          552,
+          675
+        ],
+        [
+          552,
+          341
+        ],
+        [
+          522,
+          341
+        ]
+      ]
+    },
+    {
+      "id": "r9",
+      "from": "message",
+      "to": "ticket",
+      "columns": [
+        "ticket_id"
+      ],
+      "fromEnd": "zeroOrMany",
+      "toEnd": "one",
+      "points": [
+        [
+          522,
+          905
+        ],
+        [
+          552,
+          905
+        ],
+        [
+          552,
+          675
+        ],
+        [
+          544,
+          675
+        ],
+        [
+          544,
+          623
+        ],
+        [
+          524,
+          623
+        ]
+      ]
+    },
+    {
+      "id": "r10",
+      "from": "message",
+      "to": "agent",
+      "columns": [
+        "agent_id"
+      ],
+      "fromEnd": "zeroOrMany",
+      "toEnd": "one",
+      "points": [
+        [
+          354,
+          931
+        ],
+        [
+          334,
+          931
+        ],
+        [
+          334,
+          879
+        ],
+        [
+          332,
+          879
+        ],
+        [
+          332,
+          649
+        ],
+        [
+          240,
+          649
+        ]
+      ]
+    },
+    {
+      "id": "r11",
+      "from": "attachment",
+      "to": "message",
+      "columns": [
+        "message_id"
+      ],
+      "fromEnd": "zeroOrMany",
+      "toEnd": "one",
+      "points": [
+        [
+          240,
+          879
+        ],
+        [
+          354,
+          879
+        ]
+      ]
+    }
+  ],
+  "schemaVersion": 2,
+  "canvas": {
+    "width": 876,
+    "height": 1042,
+    "crossings": 1,
+    "length": 2430,
+    "bends": 20
+  }
+}

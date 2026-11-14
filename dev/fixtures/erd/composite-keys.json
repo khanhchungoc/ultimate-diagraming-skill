@@ -1,7 +1,6 @@
 {
   "diagramType": "erd",
   "title": "Composite keys",
-  "direction": "LR",
   "entities": [
     { "id": "region", "name": "region", "columns": [
       { "name": "code", "type": "text", "pk": true }

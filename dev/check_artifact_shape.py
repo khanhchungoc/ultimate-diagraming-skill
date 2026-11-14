@@ -105,7 +105,7 @@ for fx in fixtures:
 erd_fixtures = [f for f in fixtures if f.parent.name == "erd" and "golden" not in f.parts]
 check("the ERD fixtures are covered by the page checks above", len(erd_fixtures) >= 5 and "erd" in le.SUPPORTED_TYPES)
 example = le.normalize_diagram_type(json.loads((ROOT / "references" / "examples" / "example-erd.json").read_text(encoding="utf-8")))
-erd_art = le.assemble_page("erd", le.choose_erd_direction(example, 30, None)[0], "artifact")
+erd_art = le.assemble_page("erd", le.run_layout("erd", example, timeout=30, browser=None), "artifact")
 check("references/examples/example-erd.json (laid out) gives an artifact page in the skeleton",
       erd_art.startswith(expected_head + "\n") and erd_art.endswith("</body></html>") and le.find_external_refs(erd_art) == [])
 

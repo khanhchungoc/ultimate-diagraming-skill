@@ -1,0 +1,76 @@
+{
+  "diagramType": "erd",
+  "title": "Hub and spokes",
+  "groups": [
+    { "id": "core", "name": "Core", "color": "#e0f2fe" }
+  ],
+  "entities": [
+    { "id": "customer", "name": "customer", "group": "core", "columns": [
+      { "name": "id", "type": "uuid", "pk": true },
+      { "name": "email", "type": "text" },
+      { "name": "name", "type": "text" }
+    ] },
+    { "id": "invoice", "name": "invoice", "group": "core", "columns": [
+      { "name": "id", "type": "uuid", "pk": true },
+      { "name": "customer_id", "type": "uuid", "fk": true },
+      { "name": "status", "type": "text" }
+    ] },
+    { "id": "order", "name": "order", "group": "core", "columns": [
+      { "name": "id", "type": "uuid", "pk": true },
+      { "name": "customer_id", "type": "uuid", "fk": true },
+      { "name": "created_at", "type": "text" }
+    ] },
+    { "id": "address", "name": "address", "group": "core", "columns": [
+      { "name": "id", "type": "uuid", "pk": true },
+      { "name": "customer_id", "type": "uuid", "fk": true },
+      { "name": "status", "type": "text" }
+    ] },
+    { "id": "payment_method", "name": "payment_method", "group": "core", "columns": [
+      { "name": "id", "type": "uuid", "pk": true },
+      { "name": "customer_id", "type": "uuid", "fk": true },
+      { "name": "created_at", "type": "text" }
+    ] },
+    { "id": "subscription", "name": "subscription", "group": "core", "columns": [
+      { "name": "id", "type": "uuid", "pk": true },
+      { "name": "customer_id", "type": "uuid", "fk": true },
+      { "name": "status", "type": "text" }
+    ] },
+    { "id": "session", "name": "session", "group": "core", "columns": [
+      { "name": "id", "type": "uuid", "pk": true },
+      { "name": "customer_id", "type": "uuid", "fk": true },
+      { "name": "created_at", "type": "text" }
+    ] },
+    { "id": "ticket", "name": "ticket", "group": "core", "columns": [
+      { "name": "id", "type": "uuid", "pk": true },
+      { "name": "customer_id", "type": "uuid", "fk": true },
+      { "name": "status", "type": "text" }
+    ] },
+    { "id": "review", "name": "review", "group": "core", "columns": [
+      { "name": "id", "type": "uuid", "pk": true },
+      { "name": "customer_id", "type": "uuid", "fk": true },
+      { "name": "created_at", "type": "text" }
+    ] },
+    { "id": "wishlist", "name": "wishlist", "group": "core", "columns": [
+      { "name": "id", "type": "uuid", "pk": true },
+      { "name": "customer_id", "type": "uuid", "fk": true },
+      { "name": "status", "type": "text" }
+    ] },
+    { "id": "login_event", "name": "login_event", "group": "core", "columns": [
+      { "name": "id", "type": "uuid", "pk": true },
+      { "name": "customer_id", "type": "uuid", "fk": true },
+      { "name": "created_at", "type": "text" }
+    ] }
+  ],
+  "relationships": [
+    { "id": "r1", "from": "invoice", "to": "customer", "columns": ["customer_id"], "fromEnd": "zeroOrMany", "toEnd": "one" },
+    { "id": "r2", "from": "order", "to": "customer", "columns": ["customer_id"], "fromEnd": "zeroOrMany", "toEnd": "one" },
+    { "id": "r3", "from": "address", "to": "customer", "columns": ["customer_id"], "fromEnd": "zeroOrMany", "toEnd": "one" },
+    { "id": "r4", "from": "payment_method", "to": "customer", "columns": ["customer_id"], "fromEnd": "zeroOrMany", "toEnd": "one" },
+    { "id": "r5", "from": "subscription", "to": "customer", "columns": ["customer_id"], "fromEnd": "zeroOrMany", "toEnd": "one" },
+    { "id": "r6", "from": "session", "to": "customer", "columns": ["customer_id"], "fromEnd": "zeroOrMany", "toEnd": "one" },
+    { "id": "r7", "from": "ticket", "to": "customer", "columns": ["customer_id"], "fromEnd": "zeroOrMany", "toEnd": "one" },
+    { "id": "r8", "from": "review", "to": "customer", "columns": ["customer_id"], "fromEnd": "zeroOrMany", "toEnd": "one" },
+    { "id": "r9", "from": "wishlist", "to": "customer", "columns": ["customer_id"], "fromEnd": "zeroOrMany", "toEnd": "one" },
+    { "id": "r10", "from": "login_event", "to": "customer", "columns": ["customer_id"], "fromEnd": "zeroOrMany", "toEnd": "one" }
+  ]
+}

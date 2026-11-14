@@ -1,7 +1,6 @@
 {
   "diagramType": "erd",
   "title": "Four areas",
-  "direction": "LR",
   "groups": [
     { "id": "a", "name": "Alpha", "color": "#e0f2fe" },
     { "id": "b", "name": "Beta", "color": "#dcfce7" },

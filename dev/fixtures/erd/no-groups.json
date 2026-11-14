@@ -1,7 +1,6 @@
 {
   "diagramType": "erd",
   "title": "Blog",
-  "direction": "LR",
   "entities": [
     { "id": "author", "name": "author", "columns": [
       { "name": "id", "type": "int", "pk": true },

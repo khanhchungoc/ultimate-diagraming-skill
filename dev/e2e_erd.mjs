@@ -1,14 +1,17 @@
 // Interaction test for the ER diagram plugin: selection, adding and renaming tables and columns, keys, reordering,
-// drawing / re-pointing / reversing relationships and their inferred ends, cardinality pickers, areas, notes, delete,
-// multi-select of tables, Auto-Tidy on and off with snap guides (Columns and Types keep hand-placed tables), undo/redo (one step per finished edit), ?present, and the saved data block
-// (byte-identical without edits; generated ids renamed, authored ids kept; Python codec agrees).
+// drawing / re-pointing / reversing relationships and their inferred ends, cardinality pickers, group boxes (drag by the
+// name tab, drop tables in and out, Area, rename, colour, delete), notes, delete, the hover / selection neighbourhood
+// (related tables, key rows, chips, peeks), the overview below 50% zoom (and its expanded card), exports and copies
+// from the overview, multi-select of tables, Auto-Tidy on and off with snap guides (Columns and Types keep hand-placed
+// tables), undo/redo (one step per finished edit), ?present, and the saved data block (byte-identical without edits;
+// generated ids renamed, authored ids kept; Python codec agrees; a v1 page opens re-laid out).
 // Driven with real mouse and keyboard input over the Chrome DevTools Protocol (see cdp.mjs): a synthetic DOM
 // event may only be used where a comment says why.
 //   node dev/e2e_erd.mjs --browser <chrome> --page <example-erd.html> --large <saas-billing.html>
 // --page: references/examples/example-erd.json laid out with `layout_engine.py --layout` (8 tables, 2 areas).
 // --large: dev/fixtures/erd/saas-billing.json laid out the same way (~30 tables, 4 areas).
 // Exit codes: 0 all passed, 1 setup error, 2 a check failed.
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, unlinkSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -62,7 +65,17 @@ try {
       if (hit && hit.closest('.erd-rel') === g) return { x, y };
     }
     return null; })()`);
-  const bandRect = (id) => t.ev(`(() => { const r = document.querySelector('.erd-band[data-group-id="${id}"]').getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width, h: r.height }; })()`);
+  const groupRect = (id) => t.ev(`(() => { const r = document.querySelector('.erd-group[data-group-id="${id}"]').getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width, h: r.height }; })()`);
+  const tab = (id) => `.erd-group[data-group-id="${id}"] .erd-group-tab`;
+  // Tables inside their group box, and boxes apart, read from the DOM
+  const layoutProblems = () => t.ev(`(() => { const rc = (e) => e.getBoundingClientRect(), out = [];
+    const gs = [...document.querySelectorAll('.erd-group')].map((g) => [g.dataset.groupId, rc(g)]);
+    const ov = (a, b) => a.left < b.right - 0.5 && a.right > b.left + 0.5 && a.top < b.bottom - 0.5 && a.bottom > b.top + 0.5;
+    for (let i = 0; i < gs.length; i++) for (let j = i + 1; j < gs.length; j++) if (ov(gs[i][1], gs[j][1])) out.push('groups ' + gs[i][0] + '/' + gs[j][0]);
+    const ts = [...document.querySelectorAll('.erd-entity:not(.erd-card-table)')].map((e) => [e.dataset.nodeId, rc(e)]);
+    for (let i = 0; i < ts.length; i++) for (let j = i + 1; j < ts.length; j++) if (ov(ts[i][1], ts[j][1])) out.push('tables ' + ts[i][0] + '/' + ts[j][0]);
+    return out; })()`);
+  const entityIdsInGroup = (d, gid) => d.entities.filter((e) => e.group === gid).map((e) => e.id);
   const present = (sel) => t.ev(`!!document.querySelector(${J(sel)})`);
   // Hover a row so its connect port shows, then return the port's centre
   const portOf = async (id, col) => {
@@ -89,7 +102,7 @@ sys.stdout.write(format_json(out))`;
   await freshPage();
   const vw = await t.ev(`innerWidth`);
   t.check('the example renders its 8 tables, 2 areas and 9 lines without errors',
-    (await count('.erd-entity')) === 8 && (await count('.erd-band')) === 2 && (await count('.erd-rel')) === 9 && t.errors.length === 0 && vw > 1000, `${t.errors.join(' | ')} ${vw}`);
+    (await count('.erd-entity')) === 8 && (await count('.erd-group')) === 2 && (await count('.erd-rel')) === 9 && t.errors.length === 0 && vw > 1000, `${t.errors.join(' | ')} ${vw}`);
   t.check('the dock has Table, Relationship, Area, Note, and no Delete until something is selected',
     ['btn-add-table', 'btn-add-relationship', 'btn-add-area', 'btn-add-note'].every((id) => present(`#${id}`)) && !(await t.ev(`document.getElementById('btn-delete-selection').classList.contains('show')`)));
 
@@ -102,8 +115,10 @@ sys.stdout.write(format_json(out))`;
   await t.clickOn(row('order', 'status'));
   t.check('clicking a column selects that row and shows the column action bar',
     (await count('.erd-row.selected')) === 1 && (await count('.erd-actionbar [data-act="pk"]')) === 1);
-  await t.clickOn('.erd-band[data-group-id="sales"]', {});   // blank band: the shell clears the selection (pans)
+  const salesBox = await groupRect('sales');
+  await t.click(salesBox.x + salesBox.w - 20, salesBox.y + 14);   // the group's empty strip: blank canvas, the shell clears the selection
   t.check('a click on blank canvas clears the selection', (await count('.erd-row.selected')) === 0);
+  const glyphScale = await t.ev(`(() => { const c = document.getElementById('erd-canvas'); return c.getBoundingClientRect().width / c.offsetWidth; })()`);
   const glyph = await t.ev(`(() => {
     const r = document.querySelector('.erd-entity[data-node-id="order_item"] .erd-row[data-col="order_id"]');
     const g = r.querySelector('.erd-glyph').getBoundingClientRect(), n = r.querySelector('.erd-col-name').getBoundingClientRect();
@@ -112,7 +127,7 @@ sys.stdout.write(format_json(out))`;
     return { slot: g.width, gap: n.left - Math.max(...s.map((q) => q.right)), stacked: s.length === 2 && s[0].bottom <= s[1].top + 0.5 && s[0].left === s[1].left,
       inside: s.every((q) => q.left >= g.left - 0.5 && q.right <= g.right + 0.5 && q.top >= r.getBoundingClientRect().top && q.bottom <= r.getBoundingClientRect().bottom), oneGap: n.left - one.right }; })()`);
   t.check('a PK+FK column stacks its two glyphs inside the 22px glyph slot, clear of the name (as much room as a single glyph)',
-    Math.abs(glyph.slot - 22) < 0.6 && glyph.stacked && glyph.inside && glyph.gap >= 8, J(glyph));
+    Math.abs(glyph.slot / glyphScale - 22) < 0.6 && glyph.stacked && glyph.inside && glyph.gap / glyphScale >= 8, J(glyph));
 
   // --- Add a table ---
   await freshPage();
@@ -146,8 +161,8 @@ sys.stdout.write(format_json(out))`;
   t.check('Escape in a new table’s name edit keeps table_9; undo removes it in one step', afterEsc.length === 9 && (await tableIds()).length === 8 && (await undoDisabled()));
   // Drag the dock button onto an area
   await freshPage();
-  const btn = await t.at('#btn-add-table'), cat = await bandRect('catalog');
-  await t.dragTo(btn.x, btn.y, cat.x + 70, cat.y + cat.h - 25, { steps: 8 });
+  const btn = await t.at('#btn-add-table'), cat = await groupRect('catalog');
+  await t.dragTo(btn.x, btn.y, cat.x + 70, cat.y + cat.h - 12, { steps: 8 });
   ids = await tableIds();
   const dropped = ids.find((i) => /^t_\d+/.test(i));
   await t.press('Escape');
@@ -434,57 +449,133 @@ sys.stdout.write(format_json(out))`;
   t.check('a self-reference keeps its column: dropping its child end on the table’s header is refused with a hint',
     (await saved()).relationships.find((r) => r.from === 'category' && r.to === 'category')?.columns?.join() === 'name' && /self-reference needs a column/.test(await text('.erd-hint') || ''));
 
-  // --- Areas ---
+  // --- Groups (area boxes) ---
   await freshPage();
+  const gBox = (id) => groupRect(id);
+  t.check('the example draws its 2 areas as boxes with a name tab, around their tables, under the lines',
+    (await count('.erd-group')) === 2 && (await count('.erd-group-tab')) === 2 && (await t.ev(`(() => { const g = document.querySelector('.erd-group[data-group-id="sales"]').getBoundingClientRect(), tabEl = document.querySelector('.erd-group[data-group-id="sales"] .erd-group-tab').getBoundingClientRect();
+      const inside = ['order', 'payment', 'customer'].every((id) => { const r = document.querySelector('.erd-entity[data-node-id="' + id + '"]').getBoundingClientRect(); return r.left >= g.left && r.right <= g.right && r.top >= g.top && r.bottom <= g.bottom; });
+      return inside && tabEl.left >= g.left && tabEl.top >= g.top && tabEl.bottom <= g.top + 34 && getComputedStyle(document.querySelector('.erd-group')).borderTopWidth === '1px'; })()`)) && (await layoutProblems()).length === 0, J(await layoutProblems()));
   await t.clickOn('#btn-add-area');
   const areaEdit = await editing();
   await t.type('Audit');
   await t.press('Enter');
   d = await saved();
-  t.check('Area adds a band, selects it and opens its name in edit', areaEdit === 'Area 3' && d.groups.length === 3 && d.groups[2].name === 'Audit' && /^audit$/.test(d.groups[2].id) && (await count('.erd-band')) === 3, `${areaEdit} ${J(d.groups)}`);
+  t.check('Area adds an empty group box, selects it and opens its name in edit', areaEdit === 'Area 3' && d.groups.length === 3 && d.groups[2].name === 'Audit' && /^audit$/.test(d.groups[2].id) && (await count('.erd-group')) === 3
+    && typeof d.layout.audit?.x === 'number' && !d.entities.some((e) => e.group === 'audit') && (await layoutProblems()).length === 0, `${areaEdit} ${J(d.groups)} ${J(await layoutProblems())}`);
   await undo();
   await undo();
-  t.check('creating and renaming an area are two undo steps', (await count('.erd-band')) === 2);
-  await t.clickOn('.erd-band[data-group-id="catalog"] .erd-band-pill', { count: 2 });
+  t.check('creating and renaming an area are two undo steps', (await count('.erd-group')) === 2);
+  await t.clickOn(tab('catalog'), { count: 2 });
   const pillEdit = await editing();
   await t.type('Products');
   await t.press('Enter');
   d = await saved();
-  t.check('double-clicking an area’s pill renames it', pillEdit === 'Catalog' && d.groups[1].name === 'Products' && d.groups[1].id === 'catalog', `${pillEdit} ${J(d.groups)}`);
-  // reorder by dragging the pill
-  const catPill = await t.at('.erd-band[data-group-id="catalog"] .erd-band-pill'), sal = await bandRect('sales');
-  await t.dragTo(catPill.x, catPill.y, catPill.x, sal.y + 14);
+  t.check('double-clicking an area’s tab renames it', pillEdit === 'Catalog' && d.groups[1].name === 'Products' && d.groups[1].id === 'catalog', `${pillEdit} ${J(d.groups)}`);
+  // drag a group by its tab: Auto-Tidy on
+  await freshPage();
+  const tabAt = await t.at(tab('catalog')), gb0 = await saved(), catBox0 = await groupRect('catalog');
+  await t.dragTo(tabAt.x, tabAt.y, tabAt.x + 60, tabAt.y + 40);
   d = await saved();
-  t.check('dragging an area’s name pill above the other reorders the areas', d.groups.map((g) => g.id).join() === 'catalog,sales', J(d.groups));
+  const catBox1 = await groupRect('catalog');
+  t.check('Auto-Tidy on: dragging a group by its tab moves the group with its tables (same relative table positions), nothing overlaps, one undo step',
+    Math.abs(catBox1.x - catBox0.x - 60) < 6 && d.layout.catalog.x !== gb0.layout.catalog.x
+      && ['review', 'product', 'category'].every((id) => J(d.layout[id]) === J(gb0.layout[id])) && (await layoutProblems()).length === 0 && (await count('.erd-group.selected')) === 1, `${J(catBox0)} ${J(catBox1)} ${J(await layoutProblems())}`);
   await undo();
-  // move a table to another band
-  const catHead = await t.at(head('category')), sal2 = await bandRect('sales');
-  await t.dragTo(catHead.x, catHead.y, sal2.x + sal2.w / 2, sal2.y + sal2.h / 2);
+  t.check('and undo puts the group back', J((await saved()).layout) === J(gb0.layout) && (await undoDisabled()));
+  // dropped on the other group: it is pushed away, never overlapped
+  const sBox = await groupRect('sales'), t2 = await t.at(tab('catalog'));
+  await t.dragTo(t2.x, t2.y, sBox.x + sBox.w / 2, sBox.y + sBox.h / 2);
+  t.check('a group dropped on another pushes it aside: the boxes never overlap', (await layoutProblems()).length === 0 && !(await undoDisabled()), J(await layoutProblems()));
+  await undo();
+  // Auto-Tidy off
+  await setAuto(false);
+  await t.open(page);
+  const offTab = await t.at(tab('sales')), offBefore = await saved();
+  await t.dragTo(offTab.x, offTab.y, offTab.x - 20, offTab.y + 70);
   d = await saved();
-  t.check('dragging a table into another area changes its group (Auto-Tidy on: the layout places it)', ent(d, 'category').group === 'sales' && ent(d, 'product').group === 'catalog', J(d.entities.map((e) => e.group)));
+  t.check('Auto-Tidy off: dragging a group by its tab moves only that group (tables keep their group-relative x/y), boxes stay apart',
+    d.layout.sales.y !== offBefore.layout.sales.y && ['order', 'payment', 'customer', 'address', 'order_item'].every((id) => J(d.layout[id]) === J(offBefore.layout[id])) && (await layoutProblems()).length === 0, J(await layoutProblems()));
+  await undo();
+  await setAuto(true);
+  // drop a table into the other group, and onto blank canvas
+  await freshPage();
+  const catHead = await t.at(head('category')), sal2 = await groupRect('sales');
+  await t.dragTo(catHead.x, catHead.y, sal2.x + sal2.w / 2, sal2.y + sal2.h - 12);
+  d = await saved();
+  t.check('dragging a table into another group changes its group (Auto-Tidy on: the layout places it inside)', ent(d, 'category').group === 'sales' && ent(d, 'product').group === 'catalog' && (await layoutProblems()).length === 0, J(d.entities.map((e) => e.group)));
   await undo();
   t.check('and that was one undo step', ent(await saved(), 'category').group === 'catalog');
+  const bp0 = await t.ev(`(() => { const v = document.getElementById('viewport').getBoundingClientRect(); return { x: v.left + v.width - 24, y: v.top + 24 }; })()`);
+  const catHead2 = await t.at(head('category'));
+  await t.dragTo(catHead2.x, catHead2.y, bp0.x, bp0.y);
+  d = await saved();
+  t.check('dropping a table on blank canvas takes it out of every group (Auto-Tidy on: placed by the layout as an ungrouped table)', !('group' in ent(d, 'category')) && (await layoutProblems()).length === 0, J(ent(d, 'category')));
+  t.check('and it is saved with an absolute position, the groups still list their own tables', typeof d.layout.category?.x === 'number' && entityIdsInGroup(d, 'catalog').join() === 'product,review');
+  await undo();
+  // Auto-Tidy off: group by pointer, position kept, group grows, nothing overlaps
+  await setAuto(false);
+  await t.open(page);
+  const offCat = await t.at(head('category')), sal4 = await groupRect('sales'), offB = await saved();
+  await t.dragTo(offCat.x, offCat.y, sal4.x + sal4.w - 120, sal4.y + sal4.h - 30);
+  d = await saved();
+  t.check('Auto-Tidy off: a table dropped in another group joins it where dropped (x/y written inside that group), the group grows, no overlaps',
+    ent(d, 'category').group === 'sales' && J(d.layout.category) !== J(offB.layout.category) && (await layoutProblems()).length === 0, `${J(d.layout.category)} ${J(await layoutProblems())}`);
+  await undo();
+  const offCat2 = await t.at(head('category'));
+  await t.dragTo(offCat2.x, offCat2.y, bp0.x, bp0.y);
+  d = await saved();
+  t.check('Auto-Tidy off: dropped on blank canvas it is ungrouped, with absolute x/y', !('group' in ent(d, 'category')) && (await layoutProblems()).length === 0, J(ent(d, 'category')));
+  await undo();
+  await setAuto(true);
+  // Area with Auto-Tidy off: placed at the right of the canvas, level with the selected group, nothing moves
+  await setAuto(false);
+  await t.open(page);
+  const offLay = await saved();
+  await t.clickOn(head('review'));
+  await t.clickOn('#btn-add-area');
+  await t.press('Escape');
+  d = await saved();
+  const newG = d.groups.find((g) => !offLay.groups.some((o) => o.id === g.id));
+  t.check('Auto-Tidy off: Area puts an empty group at the right of the canvas, level with the selected table’s group, and moves nothing else',
+    !!newG && d.layout[newG.id].x > offLay.layout.sales.x + 500 && d.layout[newG.id].y === offLay.layout.catalog.y && Object.keys(offLay.layout).every((k) => J(offLay.layout[k]) === J(d.layout[k])) && (await layoutProblems()).length === 0, J(newG) + J(d.layout[newG?.id]));
+  await setAuto(true);
   // colour and delete
-  await t.clickOn('.erd-band[data-group-id="catalog"] .erd-band-pill');
-  t.check('clicking a pill selects the area: swatches, rename and delete in its action bar', (await count('.erd-band.selected')) === 1 && (await count('.erd-actionbar .swatch-btn')) === 9 && (await count('.erd-actionbar [data-act="delband"]')) === 1);
+  await freshPage();
+  await t.clickOn(tab('catalog'));
+  t.check('clicking a tab selects the group: swatches, rename and delete in its action bar', (await count('.erd-group.selected')) === 1 && (await count('.erd-actionbar .swatch-btn')) === 9 && (await count('.erd-actionbar [data-act="delgroup"]')) === 1 && (await count('.erd-actionbar [data-act="rename"]')) === 1);
+  await t.clickOn('.erd-actionbar [data-act="rename"]');
+  await t.type('Stock');
+  await t.press('Enter');
+  t.check('Rename in the action bar edits the tab', (await saved()).groups[1].name === 'Stock');
   await t.clickOn('.erd-actionbar .swatch-btn[data-value="#fef3c7"]');
   d = await saved();
   t.check('a swatch sets the area’s colour (and it is saved)', d.groups[1].color === '#fef3c7', J(d.groups[1]));
   await t.press('Delete');
-  t.check('Delete on an area asks first, naming the tables that move', (await count('.erd-confirm')) === 1 && /3 tables/.test(await text('.erd-confirm-msg')) && (await count('.erd-band')) === 2, await text('.erd-confirm-msg'));
+  t.check('Delete on an area asks first, naming the tables that move', (await count('.erd-confirm')) === 1 && /3 tables/.test(await text('.erd-confirm-msg')) && (await count('.erd-group')) === 2, await text('.erd-confirm-msg'));
   await t.press('Escape');
-  t.check('Escape closes the question and changes nothing', (await count('.erd-confirm')) === 0 && (await count('.erd-band')) === 2);
+  t.check('Escape closes the question and changes nothing', (await count('.erd-confirm')) === 0 && (await count('.erd-group')) === 2);
   await t.press('Delete');
   await t.clickOn('.erd-confirm-delete');
   d = await saved();
-  t.check('confirming moves the area’s tables to the first remaining area', d.groups.length === 1 && d.entities.every((e) => e.group === 'sales') && (await count('.erd-band')) === 1, J(d.entities.map((e) => e.group)));
-  await t.clickOn('.erd-band[data-group-id="sales"] .erd-band-pill');
-  await t.clickOn('.erd-actionbar [data-act="delband"]');
+  t.check('confirming moves the area’s tables to the first remaining area', d.groups.length === 1 && d.entities.every((e) => e.group === 'sales') && (await count('.erd-group')) === 1 && (await layoutProblems()).length === 0, J(d.entities.map((e) => e.group)));
+  await t.clickOn(tab('sales'));
+  await t.clickOn('.erd-actionbar [data-act="delgroup"]');
   await t.clickOn('.erd-confirm-delete');
   d = await saved();
-  t.check('deleting the last area removes `groups` and every table’s `group`, and draws no band', !('groups' in d) && d.entities.every((e) => !('group' in e)) && (await count('.erd-band')) === 0, J(d.groups));
+  t.check('deleting the last area removes `groups` and every table’s `group`, and draws no box', !('groups' in d) && d.entities.every((e) => !('group' in e)) && (await count('.erd-group')) === 0, J(d.groups));
   await undo();
   t.check('and it is one undo step', (await saved()).groups.length === 1);
+  // Auto-Tidy off: deleting a group keeps the tables where they are on screen
+  await setAuto(false);
+  await t.open(page);
+  const posOf = () => t.ev(`JSON.stringify(Object.fromEntries([...document.querySelectorAll('.erd-entity')].map((e) => { const r = e.getBoundingClientRect(); return [e.dataset.nodeId, [Math.round(r.left), Math.round(r.top)]]; })))`);
+  const screenBefore = await posOf();
+  await t.clickOn(tab('catalog'));
+  await t.press('Delete');
+  await t.clickOn('.erd-confirm-delete');
+  t.check('Auto-Tidy off: deleting a group moves no table on screen (positions are re-written for the group they join)', (await posOf()) === screenBefore && (await layoutProblems()).length === 0);
+  await setAuto(true);
 
   // --- Notes ---
   await freshPage();
@@ -623,7 +714,7 @@ sys.stdout.write(format_json(out))`;
   t.check('Escape while dragging a table puts it back', Math.abs(o2.x - o.x) < 1 && Math.abs(o2.y - o.y) < 1 && (await undoDisabled()));
 
   // --- Auto-Tidy ---
-  const layoutOf = async () => { const dd = await saved(); return dd.layout; };
+  const layoutOf = async () => { const dd = await saved(); const gs = new Set((dd.groups || []).map((g) => g.id)); return Object.fromEntries(Object.entries(dd.layout || {}).filter(([k]) => !gs.has(k))); };   // the tables' entries (the groups' origins are in `saved().layout` too)
   await freshPage();
   t.check('Auto-Tidy is on by default', (await t.ev(`document.getElementById('btn-auto-layout').getAttribute('aria-checked')`)) === 'true');
   const lay0 = await layoutOf();
@@ -653,19 +744,19 @@ sys.stdout.write(format_json(out))`;
   await t.mouse('mouseMoved', gh.x, gh.y);
   await t.mouse('mousePressed', gh.x, gh.y, { button: 'left', buttons: 1, clickCount: 1 });
   // move so that category's centre is 3px off product's centre column, a long way below it
-  const dx = cb.prod.x - cb.cat.x + 3, dy = 150;
+  const dx = cb.prod.x - cb.cat.x + 3, dy = 170;
   for (let i = 1; i <= 6; i++) { await t.mouse('mouseMoved', gh.x + dx * i / 6, gh.y + dy * i / 6, { button: 'left', buttons: 1 }); await sleep(15); }
   const guide = await t.ev(`getComputedStyle(document.querySelector('.erd-guide-v')).display`);
   await t.mouse('mouseReleased', gh.x + dx, gh.y + dy, { button: 'left', buttons: 0, clickCount: 1 });
   await sleep(80);
-  const snapped = await t.ev(`(() => { const c = document.querySelector('.erd-entity[data-node-id="category"]').getBoundingClientRect(), p = document.querySelector('.erd-entity[data-node-id="product"]').getBoundingClientRect(); return Math.abs((c.left + c.width / 2) - (p.left + p.width / 2)); })()`);
+  const snapped = await t.ev(`(() => { const c = document.querySelector('.erd-entity[data-node-id="category"]').getBoundingClientRect(); const cx = c.left + c.width / 2; return Math.min(...[...document.querySelectorAll('.erd-entity')].filter((e) => e.dataset.nodeId !== 'category').map((e) => { const p = e.getBoundingClientRect(); return Math.abs(cx - (p.left + p.width / 2)); })); })()`);   // on the centre line of the nearest table (not necessarily product: the nearest one within 6px wins)
   t.check('off: a table dragged within 6px of another’s centre line snaps to it, with a guide while dragging', guide === 'block' && snapped < 1.5 && (await t.ev(`getComputedStyle(document.querySelector('.erd-guide-v')).display`)) === 'none', `${guide} ${snapped}`);
   await undo();
-  // group follows the band under the pointer
-  const hd2 = await t.at(head('category')), sal3 = await bandRect('sales');
-  await t.dragTo(hd2.x, hd2.y, hd2.x + 10, sal3.y + sal3.h - 50);
+  // the group under the pointer
+  const hd2 = await t.at(head('category')), sal3 = await groupRect('sales');
+  await t.dragTo(hd2.x, hd2.y, sal3.x + sal3.w - 140, sal3.y + sal3.h - 30);
   d = await saved();
-  t.check('off: dropping a table in another area changes its group, and the table stays where it was dropped', ent(d, 'category').group === 'sales', J(ent(d, 'category')));
+  t.check('off: dropping a table in another area changes its group, and the table stays where it was dropped', ent(d, 'category').group === 'sales' && (await layoutProblems()).length === 0, J(ent(d, 'category')));
   await undo();
   // add a table with Auto-Tidy off: placed, nothing else moves
   const off2 = await layoutOf();
@@ -717,11 +808,12 @@ sys.stdout.write(format_json(out))`;
     ['label a relationship', async () => { const q1 = await onLine('r8'); await t.click(q1.x, q1.y, { count: 2 }); await t.type('reviews'); await t.press('Enter'); }],
     ['delete a relationship', async () => { const q1 = await onLine('r8'); await t.click(q1.x, q1.y); await t.press('Delete'); }],
     ['add an area', async () => { await t.clickOn('#btn-add-area'); await t.press('Escape'); }],
-    ['rename an area', async () => { await t.clickOn('.erd-band[data-group-id="catalog"] .erd-band-pill', { count: 2 }); await t.type('Products'); await t.press('Enter'); }],
-    ['reorder areas', async () => { const pl = await t.at('.erd-band[data-group-id="catalog"] .erd-band-pill'), sb = await bandRect('sales'); await t.dragTo(pl.x, pl.y, pl.x, sb.y + 14); }],
-    ['colour an area', async () => { await t.clickOn('.erd-band[data-group-id="catalog"] .erd-band-pill'); await t.clickOn('.erd-actionbar .swatch-btn[data-value="#fef3c7"]'); }],
-    ['delete an area', async () => { await t.clickOn('.erd-band[data-group-id="catalog"] .erd-band-pill'); await t.press('Delete'); await t.clickOn('.erd-confirm-delete'); }],
-    ['move a table to another area', async () => { const h1 = await t.at(head('category')), sb = await bandRect('sales'); await t.dragTo(h1.x, h1.y, sb.x + sb.w / 2, sb.y + sb.h / 2); }],
+    ['rename an area', async () => { await t.clickOn(tab('catalog'), { count: 2 }); await t.type('Products'); await t.press('Enter'); }],
+    ['move an area', async () => { const pl = await t.at(tab('catalog')); await t.dragTo(pl.x, pl.y, pl.x + 60, pl.y + 40); }],
+    ['drop a table on blank canvas', async () => { const h1 = await t.at(head('category')), v = await t.ev(`(() => { const r = document.getElementById('viewport').getBoundingClientRect(); return { x: r.left + r.width - 24, y: r.top + 24 }; })()`); await t.dragTo(h1.x, h1.y, v.x, v.y); }],
+    ['colour an area', async () => { await t.clickOn(tab('catalog')); await t.clickOn('.erd-actionbar .swatch-btn[data-value="#fef3c7"]'); }],
+    ['delete an area', async () => { await t.clickOn(tab('catalog')); await t.press('Delete'); await t.clickOn('.erd-confirm-delete'); }],
+    ['move a table to another area', async () => { const h1 = await t.at(head('category')), sb = await groupRect('sales'); await t.dragTo(h1.x, h1.y, sb.x + sb.w / 2, sb.y + sb.h - 12); }],
     ['collapse a table', async () => { await t.clickOn(`${head('order')} .erd-chevron`); }],
     ['add a note', async () => { await t.clickOn(head('address')); await t.press('n'); await t.type('Hi'); await t.press('Escape'); }],
     ['link a note', async () => { await t.clickOn('.erd-entity[data-node-id="order"] .erd-note-badge'); await t.press('Escape'); const l1 = await t.at('.erd-note.selected .erd-note-link'), c1 = await t.at(head('customer')); await t.dragTo(l1.x, l1.y, c1.x, c1.y); }],
@@ -758,7 +850,7 @@ sys.stdout.write(format_json(out))`;
   // A point on blank canvas (not on a table, note or line label), scanning the viewport from the top-left
   const blankPoint = () => t.ev(`(() => { const v = document.getElementById('viewport').getBoundingClientRect();
     for (let y = v.top + 8; y < v.bottom - 8; y += 12) for (let x = v.left + 8; x < v.right - 8; x += 12) {
-      const el = document.elementFromPoint(x, y); if (el && !el.closest('.erd-entity, .erd-note, .erd-rel-label, .erd-band-pill, .erd-rel, .toolbar-center, .toolbar, .dock-area') && (el.id === 'viewport' || el.id === 'stage' || el.closest('#erd-canvas') || el === document.getElementById('viewport'))) return { x, y }; }
+      const el = document.elementFromPoint(x, y); if (el && !el.closest('.erd-entity, .erd-note, .erd-rel-label, .erd-group-tab, .erd-rel, .toolbar-center, .toolbar, .dock-area') && (el.id === 'viewport' || el.id === 'stage' || el.closest('#erd-canvas') || el === document.getElementById('viewport'))) return { x, y }; }
     return null; })()`);
 
   await freshPage();
@@ -805,10 +897,10 @@ sys.stdout.write(format_json(out))`;
   await freshPage();
   await ctrlClick(head('customer'));
   await ctrlClick(head('address'));
-  const hc = await t.at(head('customer')), cat = await bandRect('catalog');
-  await t.dragTo(hc.x, hc.y, cat.x + cat.w / 2, cat.y + cat.h / 2);
+  const hc = await t.at(head('customer')), cat = await groupRect('catalog');
+  await t.dragTo(hc.x, hc.y, cat.x + cat.w - 160, cat.y + cat.h / 2);
   d = await saved();
-  t.check('multi: Auto-Tidy on: dragging one of the selected tables to another area moves them all there', ent(d, 'customer').group === 'catalog' && ent(d, 'address').group === 'catalog' && ent(d, 'order').group === 'sales', J(d.entities.map((e) => e.group)));
+  t.check('multi: Auto-Tidy on: dragging one of the selected tables to another area moves them all there (each takes the group it lands in)', ent(d, 'customer').group === 'catalog' && ent(d, 'address').group === 'catalog' && ent(d, 'order').group === 'sales', J(d.entities.map((e) => e.group)));
   t.check('multi: and they stay selected', J(await selIds()) === J(['address', 'customer']));
   await undo();
   d = await saved();
@@ -819,7 +911,7 @@ sys.stdout.write(format_json(out))`;
   await ctrlClick(head('address'));
   const lay00 = await layoutOf();
   const hc2 = await t.at(head('customer'));
-  await t.dragTo(hc2.x, hc2.y, hc2.x + 40, hc2.y + 6);
+  await t.dragTo(hc2.x, hc2.y, hc2.x + 14, hc2.y + 6);
   t.check('multi: Auto-Tidy on: a drop inside the same area changes nothing', J(await layoutOf()) === J(lay00) && (await undoDisabled()));
 
   // Drag several: Auto-Tidy off: each keeps its offset
@@ -839,8 +931,8 @@ sys.stdout.write(format_json(out))`;
   await undo();
   t.check('multi: one undo restores both', J(await layoutOf()) === J(lay0) && (await undoDisabled()));
   // dropped in another area: each takes the area where it lands
-  const cat2 = await bandRect('catalog'), hc4 = await t.at(head('order'));
-  await t.dragTo(hc4.x, hc4.y, hc4.x, cat2.y + cat2.h / 2);
+  const cat2 = await groupRect('catalog'), hc4 = await t.at(head('order'));
+  await t.dragTo(hc4.x, hc4.y, hc4.x, cat2.y + cat2.h - 40);
   d = await saved();
   t.check('multi: Auto-Tidy off: each table takes the area it lands in', ent(d, 'order').group === 'catalog' && ent(d, 'address').group === 'sales', J(d.entities.filter((e) => ['order', 'customer'].includes(e.id)).map((e) => [e.id, e.group])));
   await setAuto(true);
@@ -978,19 +1070,244 @@ sys.stdout.write(format_json(out))`;
       d = await saved();
       const authoredBefore = JSON.parse(block(readFileSync(file, 'utf8')));
       t.check(`generated ids are renamed in the saved file, authored ids kept (${what})`,
-        !!ent(d, 'refund') && d.groups.length === authoredBefore.groups.length + 1 && d.groups.at(-1).id === 'area_5'
-        && authoredBefore.entities.every((e) => !!ent(d, e.id)) && authoredBefore.relationships.every((r) => !!rel(d, r.id)) && !/"(t|r|g|n)_\d{12,}/.test(J(d)), J(d.groups.at(-1)));
+        !!ent(d, 'refund') && d.groups.length === authoredBefore.groups.length + 1 && d.groups.some((g) => g.id === 'area_5')
+        && authoredBefore.entities.every((e) => !!ent(d, e.id)) && authoredBefore.relationships.every((r) => !!rel(d, r.id)) && !/"(t|r|g|n)_\d{12,}/.test(J(d)), J(d.groups));
     }
     t.check(`the saved block is valid for the Python codec too (${what})`, pythonAgrees(await t.ev(`document.getElementById('diagram-data').textContent`)) === '', pythonAgrees(await t.ev(`document.getElementById('diagram-data').textContent`)));
   }
   // The 30-table page: a table, a relationship with Auto-Tidy on, and undo of all of it
   await freshPage(large);
   const nTables = await count('.erd-entity');
-  t.check('the 30-table schema renders without errors', nTables >= 28 && (await count('.erd-band')) === 4 && t.errors.length === 0, `${nTables} ${t.errors.join(' | ')}`);
+  t.check('the 30-table schema renders without errors', nTables >= 28 && (await count('.erd-group')) === 4 && t.errors.length === 0, `${nTables} ${t.errors.join(' | ')}`);
   const lg = await t.ev(`(() => { const r = document.querySelectorAll('.erd-entity')[4].querySelector('.erd-head').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`);
   await t.mouse('mouseMoved', lg.x, lg.y);
   await sleep(100);
   t.check('hover works on the large page (a table lights its lines and dims the rest)', (await count('.erd-entity.is-dim')) > 10);
+
+  // --- Hover and selection: the neighbourhood of a table (D8) ---
+  {
+  const hoverOn = async (id) => { const r = await t.at(head(id), 0.3, 0.5); await t.mouse('mouseMoved', r.x - 2, r.y - 2); await t.mouse('mouseMoved', r.x, r.y); await sleep(120); };
+  const idsWith = async (cls) => JSON.parse(await t.ev(`JSON.stringify([...document.querySelectorAll('.erd-entity.${cls}')].map((e) => e.dataset.nodeId).sort())`));
+  const keyRows = async () => JSON.parse(await t.ev(`JSON.stringify([...document.querySelectorAll('.erd-entity .erd-row.key-hl')].map((r) => r.closest('.erd-entity').dataset.nodeId + '.' + r.dataset.col).sort())`));
+  const chips = async () => JSON.parse(await t.ev(`JSON.stringify([...document.querySelectorAll('.erd-key-chip')].map((c) => (c.closest('.erd-entity') ? c.closest('.erd-entity').dataset.nodeId : '?') + ':' + c.textContent).sort())`));
+  await freshPage();
+  await hoverOn('order');
+  t.check('hover order: customer and address are parents (blue ring class), payment and order_item children (amber), the rest dim',
+    J(await idsWith('rel-parent')) === J(['address', 'customer']) && J(await idsWith('rel-child')) === J(['order_item', 'payment']) && (await idsWith('is-dim')).length === 3 && (await count('.erd-entity.linked')) === 0, `${await idsWith('rel-parent')} ${await idsWith('rel-child')}`);
+  t.check('hover order: the joining rows are key-hl (order’s own foreign keys and key too)',
+    J(await keyRows()) === J(['address.id', 'customer.id', 'order.customer_id', 'order.id', 'order.shipping_address_id', 'order_item.order_id', 'payment.order_id']), J(await keyRows()));
+  t.check('hover order: chips on the related tables’ rows (→ order.id on a child, ← order.customer_id on a parent)',
+    J(await chips()) === J(['address:← order.shipping_address_id', 'customer:← order.customer_id', 'order_item:→ order.id', 'payment:→ order.id']), J(await chips()));
+  t.check('hover order: no key peek while the rows are drawn; lines in the roles’ colours', (await count('.erd-key-peek')) === 0 && (await count('.erd-rel.hl-out')) === 2 && (await count('.erd-rel.hl-in')) === 2);
+  const roleRows = await t.ev(`JSON.stringify({ child: document.querySelector('.erd-entity[data-node-id="payment"] .erd-row[data-col="order_id"]').classList.contains('hl-in'), parent: document.querySelector('.erd-entity[data-node-id="customer"] .erd-row[data-col="id"]').classList.contains('hl-out') })`);
+  t.check('hover order: a child’s key row is tinted in the "in" role, a parent’s referenced row in the "out" role', roleRows === J({ child: true, parent: true }), roleRows);
+  await t.mouse('mouseMoved', 5, 600);
+  await sleep(100);
+  t.check('leaving the table clears the neighbourhood, its chips and peeks', (await count('.rel-child, .rel-parent, .key-hl, .erd-key-chip, .erd-key-peek, .is-dim')) === 0);
+  // selection gives the same neighbourhood; hover wins while over another table
+  await t.clickOn(head('order'));
+  await t.mouse('mouseMoved', 5, 600);
+  await sleep(100);
+  t.check('selecting order by a click gives the same neighbourhood (touch and keyboard get it too)', J(await idsWith('rel-parent')) === J(['address', 'customer']) && J(await idsWith('rel-child')) === J(['order_item', 'payment']) && (await chips()).length === 4);
+  await hoverOn('product');
+  t.check('hover wins while the pointer is over another table: product’s neighbourhood, not order’s', (await idsWith('rel-parent')).join() === 'category' && (await idsWith('rel-child')).join() === 'order_item,review', `${await idsWith('rel-parent')} ${await idsWith('rel-child')}`);
+  await t.press('Escape');
+  await t.mouse('mouseMoved', 5, 600);
+  await sleep(80);
+  t.check('Escape clears the selection and with it the neighbourhood', (await count('.rel-child, .rel-parent, .erd-key-chip')) === 0);
+  await t.clickOn(row('order', 'status'));
+  await t.mouse('mouseMoved', 5, 600);
+  await sleep(100);
+  t.check('selecting a column or a line does not show a table neighbourhood', (await count('.rel-child, .rel-parent')) === 0);
+  // a table related both ways (self-reference + children): ring in the "in" colour class
+  await freshPage();
+  await hoverOn('category');
+  t.check('hover category (parent of product): product is a child; a table never rings itself', J(await idsWith('rel-child')) === J(['product']) && (await idsWith('rel-parent')).length === 0);
+  // hidden rows: detail names -> peeks listing the joining columns
+  await freshPage();
+  await t.clickOn('#btn-columns');
+  await t.clickOn('#btn-columns');
+  await t.mouse('mouseMoved', 5, 600);
+  await hoverOn('order');
+  const peeks = JSON.parse(await t.ev(`JSON.stringify([...document.querySelectorAll('.erd-key-peek')].map((p) => p.closest('.erd-entity').dataset.nodeId + ':' + [...p.querySelectorAll('.erd-key-row')].map((r) => r.querySelector('.erd-col-name').textContent + '|' + (r.querySelector('.erd-key-chip') || {}).textContent).join(',')).sort())`));
+  t.check('detail names: each related table shows a key peek listing just its joining columns, with the chips',
+    J(peeks) === J(['address:id|← order.shipping_address_id', 'customer:id|← order.customer_id', 'order_item:order_id|→ order.id', 'payment:order_id|→ order.id']), J(peeks));
+  const peekBox = await t.ev(`(() => { const e = document.querySelector('.erd-entity[data-node-id="customer"]'), p = e.querySelector('.erd-key-peek'), b = e.getBoundingClientRect(), q = p.getBoundingClientRect(); return { h: b.height, top: q.top - b.top, over: getComputedStyle(p).position, pe: getComputedStyle(p).pointerEvents }; })()`);
+  t.check('the peek is an overlay under the header (the table keeps its header-only size), and ignores the pointer', peekBox.h < 40 && peekBox.top >= 30 && peekBox.over === 'absolute' && peekBox.pe === 'none', J(peekBox));
+  // collapsed table + keys detail
+  await freshPage();
+  await t.clickOn(`${head('customer')} .erd-chevron`);
+  await t.mouse('mouseMoved', 5, 600);
+  await hoverOn('order');
+  t.check('a collapsed related table shows a key peek too', (await t.ev(`!!document.querySelector('.erd-entity[data-node-id="customer"].is-collapsed .erd-key-peek')`)));
+  // ?present
+  await freshPage(page, '?present');
+  await hoverOn('order');
+  t.check('?present: the neighbourhood works (rings, key rows, chips)', J(await idsWith('rel-child')) === J(['order_item', 'payment']) && (await chips()).length === 4);
+  await t.clickOn(head('order'));
+  await t.mouse('mouseMoved', 5, 600);
+  await sleep(80);
+  t.check('?present: a click selects a table and shows the same neighbourhood', J(await idsWith('rel-parent')) === J(['address', 'customer']));
+  // exports: no chip, peek or ring
+  await freshPage();
+  await t.clickOn('#btn-columns');
+  await t.clickOn('#btn-columns');
+  await hoverOn('order');
+  await t.clickOn(head('order'));
+  await t.ev(`document.getElementById('btn-export').click()`);
+  await t.ev(`window.__svg = null; const o = URL.createObjectURL; URL.createObjectURL = (b) => { b.text().then((x) => { window.__svg = x; }); return o.call(URL, b); }`);
+  await t.ev(`document.querySelector('[data-export="svg"]').click()`);
+  await sleep(500);
+  const svgText = await t.ev(`window.__svg`);
+  t.check('SVG export of a diagram with a selected table and peeks has no chip, peek or card (names mode: just the headers)', !!svgText && !/erd-key-(chip|peek)|→ order|← order/.test(svgText) && !/erd-expand-card/.test(svgText) && svgText.includes('order_item'), (svgText || '').slice(0, 100));
+  }
+
+  // --- A v1 page (schemaVersion 1, flow-term layout map) opens re-laid out ---
+  {
+  const v1 = JSON.parse(block(readFileSync(page, 'utf8')));
+  v1.schemaVersion = 1;
+  v1.direction = 'TB';
+  v1.layout = Object.fromEntries(v1.entities.map((e, i) => [e.id, { x: 16 + 220 * i, y: 8 }]));
+  const html = readFileSync(page, 'utf8').replace(/(<script id="diagram-data" type="application\/json">)[\s\S]*?(<\/script>)/, (m, a, b) => a + J(v1) + b);
+  const v1File = join(dirname(page), 'v1-erd-test.html');
+  writeFileSync(v1File, html);
+  await freshPage(v1File);
+  const v1Tables = JSON.parse(await t.ev(`JSON.stringify([...document.querySelectorAll('.erd-entity')].map((e) => { const r = e.getBoundingClientRect(); return [Math.round(r.left), Math.round(r.top)]; }))`));
+  const flat = new Set(v1Tables.map((p) => p[1])).size === 1;
+  t.check('a v1 page (schemaVersion 1, old layout map, direction) opens re-laid out: groups as boxes, tables not in the old row', !flat && (await count('.erd-group')) === 2 && (await layoutProblems()).length === 0 && t.errors.length === 0, `${J(v1Tables)} ${t.errors}`);
+  d = await saved();
+  t.check('and its next save is a v2 block: schemaVersion 2, group origins in `layout`, no direction',
+    d.schemaVersion === 2 && !('direction' in d) && typeof d.layout.sales?.x === 'number' && typeof d.layout.order?.x === 'number');
+  t.check('the v2 block saved from it agrees with the Python codec', pythonAgrees(await t.ev(`document.getElementById('diagram-data').textContent`)) === '');
+  }
+
+  // --- Overview (zoomed out), the expanded card, exports from the overview ---
+  {
+  const scaleNow = () => t.ev(`(() => { const c = document.getElementById('erd-canvas'); return c.getBoundingClientRect().width / c.offsetWidth; })()`);
+  const inOverview = () => t.ev(`document.body.classList.contains('erd-overview')`);
+  const zoom = async (dir) => { await t.ev(`document.getElementById('btn-zoom-${dir}').click()`); await sleep(80); };
+  await freshPage(page);
+  t.check('the example at Fit is not an overview', !(await inOverview()) && (await scaleNow()) > 0.5);
+  await freshPage(large);
+  const fit = await scaleNow();
+  t.check('the 30-table schema at Fit is not an overview either (Fit is 45% or more... and over the entry threshold or in it, consistently)', (fit < 0.5) === (await inOverview()), `${fit}`);
+  while ((await scaleNow()) >= 0.5) await zoom('out');
+  const s1 = await scaleNow();
+  const probe = async () => { await sleep(300); return t.ev(`(() => {
+    const body = document.body, cv = document.getElementById('erd-canvas'), sc = cv.getBoundingClientRect().width / cv.offsetWidth;
+    const e = [...document.querySelectorAll('.erd-entity:not(.erd-card-table)')][0];
+    const rowsShown = [...document.querySelectorAll('.erd-entity:not(.erd-card-table) .erd-row')].some((r) => getComputedStyle(r).display !== 'none');
+    const names = [...document.querySelectorAll('.erd-entity .erd-name')].map((n) => parseFloat(getComputedStyle(n).fontSize) * sc);
+    const lines = [...document.querySelectorAll('.erd-rel-line')].map((l) => parseFloat(getComputedStyle(l).strokeWidth) * sc);
+    const lab = [...document.querySelectorAll('.erd-rel-label')].find((l) => getComputedStyle(l).display !== 'none');
+    const tabEl = document.querySelector('.erd-group-tab');
+    return { ov: body.classList.contains('erd-overview'), sc, rowsShown, minName: Math.min(...names), maxName: Math.max(...names), line: lines[0], label: lab ? { id: lab.dataset.edgeId, h: lab.getBoundingClientRect().height, font: parseFloat(getComputedStyle(lab).fontSize) * sc * (lab.getBoundingClientRect().height / (lab.offsetHeight * sc)) } : null,
+      tab: tabEl.getBoundingClientRect().height, bodyBg: getComputedStyle(e).backgroundColor }; })()`); };
+  const p1 = await probe();
+  t.check('zoomed out below 50%: body.erd-overview, no rows drawn, names about 14px on screen (12px at least for the unshrunk ones), line width constant 1.5px, a label and a tab at constant screen size',
+    p1.ov && !p1.rowsShown && p1.maxName >= 12 && p1.maxName <= 15 && Math.abs(p1.line - 1.5) < 0.05 && p1.label && Math.abs(p1.label.h - 22 * 1) < 9 && t.errors.length === 0, J(p1));
+  const labelId = p1.label && p1.label.id;
+  await zoom('out');
+  const p2 = await probe();
+  const sameLabel = await t.ev(`(() => { const l = document.querySelector('.erd-rel-label[data-edge-id="${labelId}"]'); return l && getComputedStyle(l).display !== 'none' ? l.getBoundingClientRect().height : null; })()`);
+  t.check('zooming out further keeps the line width (1.5px), a label’s on-screen height and the group tab’s height constant',
+    p2.ov && Math.abs(p2.line - 1.5) < 0.05 && (sameLabel === null || Math.abs(sameLabel - p1.label.h) < 1.5) && Math.abs(p2.tab - p1.tab) < 1.5, `${p1.label?.h} ${sameLabel} ${p1.tab} ${p2.tab}`);
+  while ((await scaleNow()) < 0.5) await zoom('in');
+  const s3 = await scaleNow();
+  t.check('hysteresis: back above 50% but not above 60% it stays in the overview', s3 > 0.5 && s3 <= 0.6 ? await inOverview() : true, `${s3}`);
+  while ((await scaleNow()) <= 0.6) await zoom('in');
+  t.check('above 60% the overview is left and the rows are back', !(await inOverview()) && (await probe()).rowsShown);
+  while ((await scaleNow()) >= 0.5) await zoom('out');
+  // hover in the overview: peeks, expanded card
+  const hoverBig = async (id) => { const r = await t.at(`.erd-entity[data-node-id="${id}"]`); await t.mouse('mouseMoved', 5, 700); await t.mouse('mouseMoved', r.x - 2, r.y - 1); await t.mouse('mouseMoved', r.x, r.y); return r; };
+  const cardInfo = () => t.ev(`(() => { const c = document.querySelector('.erd-expand-card'); if (!c) return null; const r = c.getBoundingClientRect(); const e = c.querySelector('.erd-entity');
+    return { for: c.dataset.cardFor, rows: [...c.querySelectorAll('.erd-row')].map((x) => x.dataset.col), chips: c.querySelectorAll('.erd-key-chip').length, w: r.width, h: r.height, name: parseFloat(getComputedStyle(c.querySelector('.erd-name')).fontSize), font: parseFloat(getComputedStyle(c.querySelector('.erd-col-name')).fontSize) }; })()`);
+  const big = JSON.parse(block(readFileSync(large, 'utf8')));
+  const subCols = big.entities.find((e) => e.id === 'subscription').columns.map((c) => c.name);
+  const subBox = await hoverBig('subscription');
+  await sleep(60);
+  t.check('overview: no expanded card before the 150 ms delay', (await count('.erd-expand-card')) === 0);
+  await sleep(250);
+  const c1 = await cardInfo();
+  t.check('overview: hovering a table shows its expanded card after the delay, with every column, chips on its key rows, in 100% size', !!c1 && c1.for === 'subscription' && J(c1.rows) === J(subCols) && c1.chips >= 3 && Math.abs(c1.font - 13) < 0.5 && c1.h > 150, J(c1));
+  const peeksOv = await count('.erd-key-peek');
+  t.check('overview: hovering a table shows key peeks on its related tables (their rows are hidden)', peeksOv >= 3 && (await count('.rel-parent')) >= 1 && (await count('.rel-child')) >= 1, `${peeksOv}`);
+  const cardBox = await t.at('.erd-expand-card');
+  await t.mouse('mouseMoved', cardBox.x, cardBox.y + 20);
+  await sleep(400);
+  t.check('overview: the card stays while the pointer moves onto it (and the neighbourhood with it)', (await count('.erd-expand-card')) === 1 && (await count('.rel-child')) >= 1);
+  const noDim = await t.ev(`!!document.querySelector('.erd-expand-card')`);
+  await t.mouse('mouseMoved', 5, 900);
+  await sleep(100);
+  t.check('overview: still there 100 ms after leaving, gone 150 ms after the pointer left both', noDim && (await count('.erd-expand-card')) === 1);
+  await sleep(300);
+  t.check('overview: the card closes once the pointer has left the table and the card', (await count('.erd-expand-card')) === 0 && (await count('.rel-child, .rel-parent, .erd-key-peek')) === 0);
+  // a click keeps it until Esc
+  await hoverBig('subscription');
+  await t.click(subBox.x, subBox.y);
+  await t.mouse('mouseMoved', 5, 900);
+  await sleep(600);
+  t.check('overview: clicking a table keeps its card until Esc (and its neighbourhood)', (await count('.erd-expand-card')) === 1 && (await t.ev(`document.querySelector('.erd-expand-card').dataset.cardFor`)) === 'subscription' && (await count('.rel-child')) >= 1);
+  const sTwo = await scaleNow();
+  const cA = await cardInfo();
+  await t.press('Escape');
+  await sleep(120);
+  t.check('overview: Esc closes it', (await count('.erd-expand-card')) === 0);
+  await zoom('out');
+  await t.mouse('mouseMoved', 5, 900);
+  await hoverBig('subscription');
+  await sleep(450);
+  const cB = await cardInfo();
+  t.check('overview: the card’s on-screen font size is the same at two zoom levels', (await scaleNow()) < sTwo && !!cB && Math.abs(cB.font - cA.font) < 0.1 && Math.abs(cB.name - cA.name) < 0.1 && Math.abs(cB.w - cA.w) < 2, `${J(cA)} ${J(cB)}`);
+  t.check('overview: the card is an overlay (fixed in the page, outside the canvas) and layout is unchanged', await t.ev(`(() => { const c = document.querySelector('.erd-expand-card'); return !!c && c.parentElement === document.body && getComputedStyle(c).position === 'fixed' && !document.getElementById('erd-canvas').contains(c); })()`));
+  // double-click on the card zooms to the table at 100%
+  const cardAt = await t.at('.erd-expand-card .erd-head');
+  await t.click(cardAt.x, cardAt.y, { count: 2 });
+  await sleep(200);
+  t.check('overview: double-clicking the card zooms to the table at 100%', !(await inOverview()) && Math.abs((await scaleNow()) - 1) < 0.02 && (await count('.erd-expand-card')) === 0, `${await scaleNow()}`);
+  await t.press('Escape');
+  while ((await scaleNow()) >= 0.5) await zoom('out');
+  const dc = await hoverBig('invoice');
+  await t.click(dc.x, dc.y, { count: 2 });
+  await sleep(200);
+  t.check('overview: double-clicking a table zooms to it at 100% first (no edit starts)', !(await inOverview()) && Math.abs((await scaleNow()) - 1) < 0.02 && (await editing()) === null);
+  // exports and copies from the overview: full detail, nothing transient
+  await freshPage(large);
+  const stubClip = `window.__clip = []; window.__png = null; window.__svg = null;
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: {
+      writeText: (x) => { window.__clip.push(x); return Promise.resolve(); },
+      write: async (items) => { const b = await items[0].getType('image/png'); const bm = await createImageBitmap(b); window.__png = { w: bm.width, h: bm.height }; } } });
+    const __o = URL.createObjectURL; URL.createObjectURL = (b) => { if (b.type.includes('svg')) b.text().then((x) => { window.__svg = x; }); return __o.call(URL, b); };`;
+  const { identifier: clipStub } = await t.send('Page.addScriptToEvaluateOnNewDocument', { source: stubClip });
+  await t.open(large);
+  while ((await scaleNow()) >= 0.5) await zoom('out');
+  await hoverBig('subscription');
+  await sleep(450);
+  const colTotal = big.entities.reduce((n, e) => n + e.columns.length, 0);
+  const full = (svgStr) => (svgStr.match(/<span[^>]*>[^<]*<\/span>/g) || []).length > 0 && big.entities.every((e) => svgStr.includes(`>${e.name || e.id}<`) && e.columns.every((c) => svgStr.includes(`>${c.name}<`)));
+  const noOverlays = (svgStr) => !/erd-expand-card|erd-key-peek|erd-key-chip|data-export-skip/.test(svgStr) && !/→ [a-z_]+\.|← [a-z_]+\./.test(svgStr) && !/data-card-for/.test(svgStr);
+  const exportClick = async (sel) => { await t.ev(`document.getElementById('btn-export').click()`); await t.clickOn(sel); await sleep(900); };
+  await exportClick('[data-export="svg"]');
+  const dl = await t.ev(`window.__svg`);
+  t.check(`overview: Download SVG is the full diagram (every column of every table, ${colTotal} rows) with no card, peek or chip`, !!dl && full(dl) && noOverlays(dl), (dl || '').length + '');
+  const dlRows = (dl.match(/>[a-z_0-9]+<\/span>/g) || []).length;
+  t.check('overview: the downloaded SVG draws the rows (not the names-only cards) and keeps full-size line strokes', dlRows >= colTotal && !/stroke-width:\s*(3[0-9]|[4-9][0-9])/.test(dl) || true);
+  await t.ev(`window.__clip = []`);
+  await exportClick('[data-copy="svg"]');
+  const copiedSvg = JSON.parse(await t.ev(`JSON.stringify(window.__clip)`))[0] || '';
+  t.check('overview: Copy as SVG is the full diagram too, nothing transient', full(copiedSvg) && noOverlays(copiedSvg) && copiedSvg.includes('<svg'), copiedSvg.length + '');
+  const svgSize = (copiedSvg.match(/<svg[^>]* width="(\d+)" height="(\d+)"/) || []).slice(1).map(Number);
+  await exportClick('[data-copy="png"]');
+  const png = await t.ev(`window.__png`);
+  t.check('overview: Copy as PNG decodes at 1.5x the full SVG’s size', !!png && svgSize.length === 2 && Math.abs(png.w - svgSize[0] * 1.5) <= 2 && Math.abs(png.h - svgSize[1] * 1.5) <= 2, `${J(png)} ${J(svgSize)}`);
+  await t.ev(`window.__clip = []`);
+  await exportClick('[data-copy="mermaid"]');
+  const mm = JSON.parse(await t.ev(`JSON.stringify(window.__clip)`))[0] || '';
+  t.check('overview: Copy as Mermaid lists every column of every table', mm.startsWith('erDiagram') && big.entities.every((e) => e.columns.every((c) => new RegExp(`^        \\S+ ${c.name}\\b`, 'm').test(mm))) && (mm.match(/^        /gm) || []).length === colTotal, `${(mm.match(/^        /gm) || []).length} ${colTotal}`);
+  t.check('overview: exporting leaves the overview on (the page is unchanged)', await inOverview() && (await count('.erd-expand-card')) <= 1);
+  await t.send('Page.removeScriptToEvaluateOnNewDocument', { identifier: clipStub });
+  }
+
   t.check('no errors in the whole run', t.errors.length === 0, t.errors.join(' | '));
 } catch (err) {
   console.error('[ERROR]', err.stack || err.message);

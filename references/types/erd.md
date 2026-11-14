@@ -1,18 +1,17 @@
 # ER Diagram (`diagramType: "erd"`)
 
-Use for a database schema: tables, their columns and keys, and the relationships between them (crow's-foot notation). Not for process flows (use `flowchart`) or messages over time (use `sequence`). Positions, box sizes, subject-area bands and the routes of the lines are computed by the tooling; author only the logical model.
+Use for a database schema: tables, their columns and keys, and the relationships between them (crow's-foot notation). Not for process flows (use `flowchart`) or messages over time (use `sequence`). Positions, box sizes, subject-area boxes and the routes of the lines are computed by the tooling; author only the logical model.
 
 **Example to copy (read it next; path is from `<skill-dir>`):** `references/examples/example-erd.json`.
 
 ## Schema
 
-Never add coordinates or sizes (`x`, `y`, `w`, `h`, `box`, `points`, `layout`); `--layout` computes them. Array order is display order: tables in `entities` order within their area, columns in `columns` order, areas in `groups` order. A saved page embeds this JSON plus a trailing `layout` map of table positions (display-only; leave it out when you write). Every field marked optional can be left out.
+Never add coordinates or sizes (`x`, `y`, `w`, `h`, `box`, `points`, `layout`); `--layout` computes them. Array order is display order: tables in `entities` order, columns in `columns` order. Order only breaks ties: the layout puts the most connected table of each area in the middle of its box. A saved page embeds this JSON plus a trailing `layout` map (area origins and table positions inside their area; display-only; leave it out when you write). Every field marked optional can be left out.
 
 ```json
 {
   "diagramType": "erd",
   "title": "Shop",
-  "direction": "LR",
   "groups": [
     { "id": "sales", "name": "Sales", "color": "#e0f2fe" },
     { "id": "catalog", "name": "Catalog", "color": "#dcfce7" }
@@ -52,12 +51,11 @@ Never add coordinates or sizes (`x`, `y`, `w`, `h`, `box`, `points`, `layout`); 
 
 | Object | Field | Description |
 |---|---|---|
-| Diagram | `direction` | Optional. `LR` (default) or `TB`. Parent tables (the ones other tables point to) come first along the flow: left in `LR`, top in `TB`. If you leave it out, `--layout` tries both and keeps `TB` only when it makes the whole diagram fit the screen at a clearly bigger zoom. The page has no button to switch it: set it here when the user asks for a vertical (or horizontal) layout. |
 | Diagram | `detail` | Optional. `all` (default: every column), `keys` (only `pk` and `fk` columns, plus a "+ N more" row), `names` (table headers only). The page's **Columns** button cycles it. |
 | Diagram | `showTypes` | Optional. `false` hides the type column. |
 | Diagram | `showNotes` | Optional. `true` draws notes on the canvas instead of as badges. |
 | Diagram | `colorKey` | Optional, only when you colour tables with `color` instead of using `groups`: `{ "#e0f2fe": "Billing" }`, what each colour means. |
-| Group | `id`, `name`, `color` | A subject area, drawn as a coloured band behind its tables (like a swimlane). `color` is one of the flowchart's lane swatches, as the hex: `#e0f2fe` sky, `#fef3c7` amber, `#dcfce7` emerald, `#fee2e2` rose, `#f3e8ff` purple, `#ffedd5` orange, `#ccfbf1` teal, `#e0e7ff` indigo. Leave `color` out to take the next swatch in order. Array order is band order. With no `groups` there are no bands. |
+| Group | `id`, `name`, `color` | A subject area, drawn as a rounded box, tinted with its colour, that fits its tables, with its name in a tab on the top edge. The boxes are packed side by side in two dimensions. `color` is one of the flowchart's lane swatches, as the hex: `#e0f2fe` sky, `#fef3c7` amber, `#dcfce7` emerald, `#fee2e2` rose, `#f3e8ff` purple, `#ffedd5` orange, `#ccfbf1` teal, `#e0e7ff` indigo. Leave `color` out to take the next swatch in order. With no `groups` there are no boxes, and the tables are laid out in one block. |
 | Entity | `id`, `name`, `group` | One table. `name` is shown as written, so keep the database's casing. `group` is a group id (a table with none goes in the first area). |
 | Entity | `columns` | Array, shown in order. Each column: `name` (unique within the table), `type` (optional, free text shown as written), `pk`, `fk`, `unique`, `nullable` (optional booleans), `note` (optional: a tooltip, and a muted suffix at detail `all`). |
 | Entity | `collapsed` | Optional. `true` draws the header only. Never author it unless the user asks for an overview. |
@@ -82,7 +80,7 @@ The audit's budgets: table name 28 characters, column name 28, type 16, relation
 5. **Mark `identifying: true` when the FK is part of the child's primary key** (a junction or line-item table: every FK column is also `pk`). Everything else stays non-identifying, which draws dashed.
 6. **Self-references** (`employee.manager_id` to `employee.id`) are one relationship with `from` equal to `to` and `columns`.
 7. **Many-to-many goes through a junction table** when the source has one: it is its own entity with two relationships. Only draw a many-to-many directly (both ends `*OrMany`) for a conceptual model; the audit then prints an `[INFO]` suggesting a junction table.
-8. **Use `groups` for subject areas** whenever the schema has more than about 8 tables: one area per bounded context (accounts, catalogue, billing, audit), named as the source names them, with each table in exactly one. At most 8 areas (one swatch each), and no more than 12 tables stacked in one column of an area.
+8. **Use `groups` for subject areas** whenever the schema has more than about 8 tables: one area per bounded context (accounts, catalogue, billing, audit), named as the source names them, with each table in exactly one. At most 8 areas (one swatch each). An area may hold any number of tables: it grows into a grid, not a column.
 9. **Set `"detail": "keys"` for more than about 15 tables**, or whenever a table has more than 25 columns: the page opens with only the key columns and a "+ N more" row, and the reader widens it with the **Columns** button. Keep every column in the JSON anyway; `detail` only changes what is drawn.
 10. **Every rule, enum, default or caveat in the source is a `note`** on the table it concerns, or a column's `note` when it is about one column (`"1 to 99"`, `"new, paid, shipped"`). There are no index, view or trigger objects: put one in a note.
 11. **Keep the database's names and casing** for `name` and column names; `id` values are short and lower case (`order_item`). Use the database's type text as written (`varchar(255)`, `timestamptz`) only if it fits 16 characters; otherwise shorten it and keep the full text in the column's `note`.
@@ -95,8 +93,8 @@ The audit covers references, box overlap, routes through tables and label overla
 1. **Crow's feet** sit on the right ends: the many side (three prongs) at the child that holds the key, the single bar or the circle at the parent.
 2. **Lines end at column rows**: each line starts at its FK row and enters at the parent's PK row, never on the header or a different column.
 3. **Solid and dashed lines**: solid only where the FK is part of the child's primary key.
-4. **Parents come first** along the flow, and tables that belong together sit in the same area band.
-5. **Area bands** have readable names, and every table is inside the band it was given.
+4. **Hub tables** (the most referenced) sit in the middle of their area, with the tables that reference them around them; areas with many relationships between them are side by side.
+5. **Area boxes** have readable names, every table is inside the box of its area, and no box is mostly empty.
 6. **Key glyphs and flags**: PK and FK icons on the right rows, `?` after a nullable type, a `U` chip on unique columns.
 7. **Labels** are readable, short and not hiding a table or another label; lines do not run through tables.
 8. **Text** in table names, column names and types is not cut off.
@@ -109,13 +107,12 @@ The audit covers references, box overlap, routes through tables and label overla
 - **`unknown fromEnd` / `unknown toEnd`**: use `one`, `zeroOrOne`, `oneOrMany` or `zeroOrMany`.
 - **`Duplicate entity id` / `Duplicate column` / `Duplicate group id` / `Duplicate relationship id`**: ids are unique, and column names are unique within a table.
 - **`unknown color`**: a group or table colour must be one of the lane swatch hex values listed above.
-- **`Entities ... overlap`, `passes through entity`, `Labels ... overlap`, `sits over entity`, `route is not orthogonal`, `needs a horizontal stub`, `extends past the diagram edge`**: layout problems; re-run `--layout` (never edit positions or routes by hand). If it persists, shorten the label or split the area.
+- **`Entities ... overlap`, `passes through entity`, `Labels ... overlap`, `sits over entity`, `route is not orthogonal`, `needs a horizontal stub`, `extends past the diagram edge`, `is outside the box of its area`, `Areas ... overlap`**: layout problems; re-run `--layout` (never edit positions or routes by hand). If it persists, shorten the label or split the area.
 - **`Diagram is not laid out`**: run `--layout`.
 - **`marked fk but no relationship uses it`** (warning): add the relationship, or drop `fk`.
 - **`not marked fk`** (warning): add `"fk": true` to the column named in `columns`.
 - **`has no primary key`** (warning): mark the `pk` column, or say why in the table's `note`.
 - **`every column in 'columns' is a pk, so it is identifying`** (warning): add `"identifying": true`.
 - **`columns at detail 'all'`** (warning): set `"detail": "keys"`.
-- **`tables stack in one rank`** (warning): split the area into two.
 - **`is over N characters and will be truncated`** (warning): shorten the name, type, label or note.
 - **`[INFO] N line crossings` / `many-to-many drawn directly`**: not a failure. For crossings, reorder `entities` or split areas if the picture is hard to follow; for many-to-many, add a junction table if the schema is physical.

@@ -1,0 +1,583 @@
+{
+  "diagramType": "erd",
+  "title": "Grouped and loose tables",
+  "groups": [
+    {
+      "id": "core",
+      "name": "Core",
+      "color": "#e0f2fe",
+      "x": 40,
+      "y": 40,
+      "box": {
+        "x": 40,
+        "y": 40,
+        "w": 856,
+        "h": 194
+      }
+    },
+    {
+      "id": "content",
+      "name": "Content",
+      "color": "#dcfce7",
+      "x": 612,
+      "y": 322,
+      "box": {
+        "x": 612,
+        "y": 322,
+        "w": 236,
+        "h": 398
+      }
+    }
+  ],
+  "entities": [
+    {
+      "id": "organization",
+      "name": "organization",
+      "group": "core",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "pk": true
+        },
+        {
+          "name": "label",
+          "type": "text"
+        }
+      ],
+      "x": 0,
+      "y": 26,
+      "box": {
+        "x": 72,
+        "y": 114,
+        "w": 168,
+        "h": 88
+      }
+    },
+    {
+      "id": "app_user",
+      "name": "app_user",
+      "group": "core",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "pk": true
+        },
+        {
+          "name": "organization_id",
+          "type": "uuid",
+          "fk": true
+        },
+        {
+          "name": "label",
+          "type": "text"
+        }
+      ],
+      "x": 280,
+      "y": 0,
+      "box": {
+        "x": 352,
+        "y": 88,
+        "w": 200,
+        "h": 114
+      }
+    },
+    {
+      "id": "role",
+      "name": "role",
+      "group": "core",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "pk": true
+        },
+        {
+          "name": "organization_id",
+          "type": "uuid",
+          "fk": true
+        },
+        {
+          "name": "label",
+          "type": "text"
+        }
+      ],
+      "x": 592,
+      "y": 0,
+      "box": {
+        "x": 664,
+        "y": 88,
+        "w": 200,
+        "h": 114
+      }
+    },
+    {
+      "id": "article",
+      "name": "article",
+      "group": "content",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "pk": true
+        },
+        {
+          "name": "app_user_id",
+          "type": "uuid",
+          "fk": true
+        },
+        {
+          "name": "label",
+          "type": "text"
+        }
+      ],
+      "x": 0,
+      "y": 0,
+      "box": {
+        "x": 644,
+        "y": 370,
+        "w": 172,
+        "h": 114
+      }
+    },
+    {
+      "id": "comment",
+      "name": "comment",
+      "group": "content",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "pk": true
+        },
+        {
+          "name": "article_id",
+          "type": "uuid",
+          "fk": true
+        },
+        {
+          "name": "app_user_id",
+          "type": "uuid",
+          "fk": true
+        },
+        {
+          "name": "label",
+          "type": "text"
+        }
+      ],
+      "x": 0,
+      "y": 178,
+      "box": {
+        "x": 644,
+        "y": 548,
+        "w": 172,
+        "h": 140
+      }
+    },
+    {
+      "id": "audit_log",
+      "name": "audit_log",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "pk": true
+        },
+        {
+          "name": "app_user_id",
+          "type": "uuid",
+          "fk": true
+        },
+        {
+          "name": "label",
+          "type": "text"
+        }
+      ],
+      "x": 352,
+      "y": 322,
+      "box": {
+        "x": 352,
+        "y": 322,
+        "w": 172,
+        "h": 114
+      }
+    },
+    {
+      "id": "setting",
+      "name": "setting",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "pk": true
+        },
+        {
+          "name": "organization_id",
+          "type": "uuid",
+          "fk": true
+        },
+        {
+          "name": "label",
+          "type": "text"
+        }
+      ],
+      "x": 40,
+      "y": 322,
+      "box": {
+        "x": 40,
+        "y": 322,
+        "w": 200,
+        "h": 114
+      }
+    },
+    {
+      "id": "country",
+      "name": "country",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "pk": true
+        },
+        {
+          "name": "label",
+          "type": "text"
+        }
+      ],
+      "x": 56,
+      "y": 526,
+      "box": {
+        "x": 56,
+        "y": 526,
+        "w": 168,
+        "h": 88
+      }
+    },
+    {
+      "id": "address",
+      "name": "address",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "pk": true
+        },
+        {
+          "name": "country_id",
+          "type": "uuid",
+          "fk": true
+        },
+        {
+          "name": "app_user_id",
+          "type": "uuid",
+          "fk": true
+        },
+        {
+          "name": "label",
+          "type": "text"
+        }
+      ],
+      "x": 352,
+      "y": 500,
+      "box": {
+        "x": 352,
+        "y": 500,
+        "w": 172,
+        "h": 140
+      }
+    }
+  ],
+  "relationships": [
+    {
+      "id": "r1",
+      "from": "app_user",
+      "to": "organization",
+      "columns": [
+        "organization_id"
+      ],
+      "fromEnd": "zeroOrMany",
+      "toEnd": "one",
+      "points": [
+        [
+          352,
+          163
+        ],
+        [
+          240,
+          163
+        ]
+      ]
+    },
+    {
+      "id": "r2",
+      "from": "role",
+      "to": "organization",
+      "columns": [
+        "organization_id"
+      ],
+      "fromEnd": "zeroOrMany",
+      "toEnd": "one",
+      "points": [
+        [
+          664,
+          163
+        ],
+        [
+          624,
+          163
+        ],
+        [
+          624,
+          76
+        ],
+        [
+          312,
+          76
+        ],
+        [
+          312,
+          163
+        ],
+        [
+          240,
+          163
+        ]
+      ]
+    },
+    {
+      "id": "r3",
+      "from": "article",
+      "to": "app_user",
+      "columns": [
+        "app_user_id"
+      ],
+      "fromEnd": "zeroOrMany",
+      "toEnd": "one",
+      "points": [
+        [
+          644,
+          445
+        ],
+        [
+          624,
+          445
+        ],
+        [
+          624,
+          419
+        ],
+        [
+          614,
+          419
+        ],
+        [
+          614,
+          137
+        ],
+        [
+          552,
+          137
+        ]
+      ]
+    },
+    {
+      "id": "r4",
+      "from": "comment",
+      "to": "article",
+      "columns": [
+        "article_id"
+      ],
+      "fromEnd": "zeroOrMany",
+      "toEnd": "one",
+      "points": [
+        [
+          644,
+          623
+        ],
+        [
+          614,
+          623
+        ],
+        [
+          614,
+          419
+        ],
+        [
+          644,
+          419
+        ]
+      ]
+    },
+    {
+      "id": "r5",
+      "from": "comment",
+      "to": "app_user",
+      "columns": [
+        "app_user_id"
+      ],
+      "fromEnd": "zeroOrMany",
+      "toEnd": "one",
+      "points": [
+        [
+          644,
+          649
+        ],
+        [
+          606,
+          649
+        ],
+        [
+          606,
+          137
+        ],
+        [
+          552,
+          137
+        ]
+      ]
+    },
+    {
+      "id": "r6",
+      "from": "audit_log",
+      "to": "app_user",
+      "columns": [
+        "app_user_id"
+      ],
+      "fromEnd": "zeroOrMany",
+      "toEnd": "one",
+      "points": [
+        [
+          352,
+          397
+        ],
+        [
+          312,
+          397
+        ],
+        [
+          312,
+          163
+        ],
+        [
+          320,
+          163
+        ],
+        [
+          320,
+          137
+        ],
+        [
+          352,
+          137
+        ]
+      ]
+    },
+    {
+      "id": "r7",
+      "from": "setting",
+      "to": "organization",
+      "columns": [
+        "organization_id"
+      ],
+      "fromEnd": "zeroOrMany",
+      "toEnd": "one",
+      "points": [
+        [
+          240,
+          397
+        ],
+        [
+          260,
+          397
+        ],
+        [
+          260,
+          163
+        ],
+        [
+          240,
+          163
+        ]
+      ]
+    },
+    {
+      "id": "r8",
+      "from": "address",
+      "to": "country",
+      "columns": [
+        "country_id"
+      ],
+      "fromEnd": "zeroOrMany",
+      "toEnd": "one",
+      "points": [
+        [
+          352,
+          575
+        ],
+        [
+          224,
+          575
+        ]
+      ]
+    },
+    {
+      "id": "r9",
+      "from": "address",
+      "to": "app_user",
+      "columns": [
+        "app_user_id"
+      ],
+      "fromEnd": "zeroOrMany",
+      "toEnd": "one",
+      "points": [
+        [
+          352,
+          601
+        ],
+        [
+          320,
+          601
+        ],
+        [
+          320,
+          575
+        ],
+        [
+          312,
+          575
+        ],
+        [
+          312,
+          163
+        ],
+        [
+          320,
+          163
+        ],
+        [
+          320,
+          137
+        ],
+        [
+          352,
+          137
+        ]
+      ]
+    }
+  ],
+  "schemaVersion": 2,
+  "_loose": {
+    "x": 40,
+    "y": 322,
+    "w": 484,
+    "h": 318
+  },
+  "canvas": {
+    "width": 936,
+    "height": 760,
+    "crossings": 0,
+    "length": 3264,
+    "bends": 24
+  }
+}

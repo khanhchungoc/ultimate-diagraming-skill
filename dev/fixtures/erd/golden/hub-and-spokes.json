@@ -1,0 +1,613 @@
+{
+  "diagramType": "erd",
+  "title": "Hub and spokes",
+  "groups": [
+    {
+      "id": "core",
+      "name": "Core",
+      "color": "#e0f2fe",
+      "x": 40,
+      "y": 40,
+      "box": {
+        "x": 40,
+        "y": 40,
+        "w": 804,
+        "h": 754
+      }
+    }
+  ],
+  "entities": [
+    {
+      "id": "customer",
+      "name": "customer",
+      "group": "core",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "pk": true
+        },
+        {
+          "name": "email",
+          "type": "text"
+        },
+        {
+          "name": "name",
+          "type": "text"
+        }
+      ],
+      "x": 286,
+      "y": 204,
+      "box": {
+        "x": 358,
+        "y": 292,
+        "w": 168,
+        "h": 114
+      }
+    },
+    {
+      "id": "invoice",
+      "name": "invoice",
+      "group": "core",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "pk": true
+        },
+        {
+          "name": "customer_id",
+          "type": "uuid",
+          "fk": true
+        },
+        {
+          "name": "status",
+          "type": "text"
+        }
+      ],
+      "x": 284,
+      "y": 0,
+      "box": {
+        "x": 356,
+        "y": 88,
+        "w": 172,
+        "h": 114
+      }
+    },
+    {
+      "id": "order",
+      "name": "order",
+      "group": "core",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "pk": true
+        },
+        {
+          "name": "customer_id",
+          "type": "uuid",
+          "fk": true
+        },
+        {
+          "name": "created_at",
+          "type": "text"
+        }
+      ],
+      "x": 284,
+      "y": 382,
+      "box": {
+        "x": 356,
+        "y": 470,
+        "w": 172,
+        "h": 114
+      }
+    },
+    {
+      "id": "address",
+      "name": "address",
+      "group": "core",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "pk": true
+        },
+        {
+          "name": "customer_id",
+          "type": "uuid",
+          "fk": true
+        },
+        {
+          "name": "status",
+          "type": "text"
+        }
+      ],
+      "x": 0,
+      "y": 178,
+      "box": {
+        "x": 72,
+        "y": 266,
+        "w": 172,
+        "h": 114
+      }
+    },
+    {
+      "id": "payment_method",
+      "name": "payment_method",
+      "group": "core",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "pk": true
+        },
+        {
+          "name": "customer_id",
+          "type": "uuid",
+          "fk": true
+        },
+        {
+          "name": "created_at",
+          "type": "text"
+        }
+      ],
+      "x": 568,
+      "y": 178,
+      "box": {
+        "x": 640,
+        "y": 266,
+        "w": 172,
+        "h": 114
+      }
+    },
+    {
+      "id": "subscription",
+      "name": "subscription",
+      "group": "core",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "pk": true
+        },
+        {
+          "name": "customer_id",
+          "type": "uuid",
+          "fk": true
+        },
+        {
+          "name": "status",
+          "type": "text"
+        }
+      ],
+      "x": 0,
+      "y": 0,
+      "box": {
+        "x": 72,
+        "y": 88,
+        "w": 172,
+        "h": 114
+      }
+    },
+    {
+      "id": "session",
+      "name": "session",
+      "group": "core",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "pk": true
+        },
+        {
+          "name": "customer_id",
+          "type": "uuid",
+          "fk": true
+        },
+        {
+          "name": "created_at",
+          "type": "text"
+        }
+      ],
+      "x": 568,
+      "y": 0,
+      "box": {
+        "x": 640,
+        "y": 88,
+        "w": 172,
+        "h": 114
+      }
+    },
+    {
+      "id": "ticket",
+      "name": "ticket",
+      "group": "core",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "pk": true
+        },
+        {
+          "name": "customer_id",
+          "type": "uuid",
+          "fk": true
+        },
+        {
+          "name": "status",
+          "type": "text"
+        }
+      ],
+      "x": 0,
+      "y": 382,
+      "box": {
+        "x": 72,
+        "y": 470,
+        "w": 172,
+        "h": 114
+      }
+    },
+    {
+      "id": "review",
+      "name": "review",
+      "group": "core",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "pk": true
+        },
+        {
+          "name": "customer_id",
+          "type": "uuid",
+          "fk": true
+        },
+        {
+          "name": "created_at",
+          "type": "text"
+        }
+      ],
+      "x": 568,
+      "y": 382,
+      "box": {
+        "x": 640,
+        "y": 470,
+        "w": 172,
+        "h": 114
+      }
+    },
+    {
+      "id": "wishlist",
+      "name": "wishlist",
+      "group": "core",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "pk": true
+        },
+        {
+          "name": "customer_id",
+          "type": "uuid",
+          "fk": true
+        },
+        {
+          "name": "status",
+          "type": "text"
+        }
+      ],
+      "x": 0,
+      "y": 560,
+      "box": {
+        "x": 72,
+        "y": 648,
+        "w": 172,
+        "h": 114
+      }
+    },
+    {
+      "id": "login_event",
+      "name": "login_event",
+      "group": "core",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "pk": true
+        },
+        {
+          "name": "customer_id",
+          "type": "uuid",
+          "fk": true
+        },
+        {
+          "name": "created_at",
+          "type": "text"
+        }
+      ],
+      "x": 284,
+      "y": 560,
+      "box": {
+        "x": 356,
+        "y": 648,
+        "w": 172,
+        "h": 114
+      }
+    }
+  ],
+  "relationships": [
+    {
+      "id": "r1",
+      "from": "invoice",
+      "to": "customer",
+      "columns": [
+        "customer_id"
+      ],
+      "fromEnd": "zeroOrMany",
+      "toEnd": "one",
+      "points": [
+        [
+          528,
+          163
+        ],
+        [
+          548,
+          163
+        ],
+        [
+          548,
+          341
+        ],
+        [
+          526,
+          341
+        ]
+      ]
+    },
+    {
+      "id": "r2",
+      "from": "order",
+      "to": "customer",
+      "columns": [
+        "customer_id"
+      ],
+      "fromEnd": "zeroOrMany",
+      "toEnd": "one",
+      "points": [
+        [
+          528,
+          545
+        ],
+        [
+          548,
+          545
+        ],
+        [
+          548,
+          341
+        ],
+        [
+          526,
+          341
+        ]
+      ]
+    },
+    {
+      "id": "r3",
+      "from": "address",
+      "to": "customer",
+      "columns": [
+        "customer_id"
+      ],
+      "fromEnd": "zeroOrMany",
+      "toEnd": "one",
+      "points": [
+        [
+          244,
+          341
+        ],
+        [
+          358,
+          341
+        ]
+      ]
+    },
+    {
+      "id": "r4",
+      "from": "payment_method",
+      "to": "customer",
+      "columns": [
+        "customer_id"
+      ],
+      "fromEnd": "zeroOrMany",
+      "toEnd": "one",
+      "points": [
+        [
+          640,
+          341
+        ],
+        [
+          526,
+          341
+        ]
+      ]
+    },
+    {
+      "id": "r5",
+      "from": "subscription",
+      "to": "customer",
+      "columns": [
+        "customer_id"
+      ],
+      "fromEnd": "zeroOrMany",
+      "toEnd": "one",
+      "points": [
+        [
+          244,
+          163
+        ],
+        [
+          264,
+          163
+        ],
+        [
+          264,
+          341
+        ],
+        [
+          358,
+          341
+        ]
+      ]
+    },
+    {
+      "id": "r6",
+      "from": "session",
+      "to": "customer",
+      "columns": [
+        "customer_id"
+      ],
+      "fromEnd": "zeroOrMany",
+      "toEnd": "one",
+      "points": [
+        [
+          640,
+          163
+        ],
+        [
+          548,
+          163
+        ],
+        [
+          548,
+          341
+        ],
+        [
+          526,
+          341
+        ]
+      ]
+    },
+    {
+      "id": "r7",
+      "from": "ticket",
+      "to": "customer",
+      "columns": [
+        "customer_id"
+      ],
+      "fromEnd": "zeroOrMany",
+      "toEnd": "one",
+      "points": [
+        [
+          244,
+          545
+        ],
+        [
+          264,
+          545
+        ],
+        [
+          264,
+          341
+        ],
+        [
+          358,
+          341
+        ]
+      ]
+    },
+    {
+      "id": "r8",
+      "from": "review",
+      "to": "customer",
+      "columns": [
+        "customer_id"
+      ],
+      "fromEnd": "zeroOrMany",
+      "toEnd": "one",
+      "points": [
+        [
+          640,
+          545
+        ],
+        [
+          548,
+          545
+        ],
+        [
+          548,
+          341
+        ],
+        [
+          526,
+          341
+        ]
+      ]
+    },
+    {
+      "id": "r9",
+      "from": "wishlist",
+      "to": "customer",
+      "columns": [
+        "customer_id"
+      ],
+      "fromEnd": "zeroOrMany",
+      "toEnd": "one",
+      "points": [
+        [
+          244,
+          723
+        ],
+        [
+          264,
+          723
+        ],
+        [
+          264,
+          341
+        ],
+        [
+          358,
+          341
+        ]
+      ]
+    },
+    {
+      "id": "r10",
+      "from": "login_event",
+      "to": "customer",
+      "columns": [
+        "customer_id"
+      ],
+      "fromEnd": "zeroOrMany",
+      "toEnd": "one",
+      "points": [
+        [
+          528,
+          723
+        ],
+        [
+          548,
+          723
+        ],
+        [
+          548,
+          341
+        ],
+        [
+          526,
+          341
+        ]
+      ]
+    }
+  ],
+  "schemaVersion": 2,
+  "canvas": {
+    "width": 884,
+    "height": 834,
+    "crossings": 0,
+    "length": 2834,
+    "bends": 16
+  }
+}

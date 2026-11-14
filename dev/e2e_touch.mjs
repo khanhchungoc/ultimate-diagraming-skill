@@ -229,6 +229,7 @@ if (erd) {
   t.check('erd: a drag from a selected table\'s row port to another table\'s row draws a relationship', drawn, `${JSON.stringify(port)} ${JSON.stringify(goal)}`);
   t.check('erd: the new line is selected and its end handles are touch targets', await t.ev(`document.querySelectorAll('.erd-handle[data-touch-drag]').length`) === 2);
   // Re-point the new line's parent end by touch
+  await pinch(W / 2, H / 2, 200, 110);   // zoom out: the neighbours of the two tables come on screen too
   const h = await t.at('.erd-handle[data-role="to"]');
   const ids2 = await t.ev(`[...document.querySelectorAll('.erd-entity')].map((e) => e.dataset.nodeId).filter((id) => id !== 'review' && id !== 'product')`);
   let goal2 = null, newTo = null;

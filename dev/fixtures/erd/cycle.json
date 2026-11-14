@@ -1,7 +1,6 @@
 {
   "diagramType": "erd",
   "title": "Mutual references",
-  "direction": "LR",
   "entities": [
     { "id": "a", "name": "a", "columns": [
       { "name": "id", "type": "int", "pk": true },

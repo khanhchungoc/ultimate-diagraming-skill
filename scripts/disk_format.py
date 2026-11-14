@@ -3,7 +3,7 @@
 The in-memory model (what the engines, renderers and audits use) keeps positions on the objects: node x/y,
 lane height/color, sequence participant x, message y. On disk the model is written for a reader instead:
 semantic fields first, in a fixed key order, with every position moved into one trailing `layout` map
-(flowchart, erd: table x/y only) or dropped altogether (sequence: the page lays it out on load).
+(flowchart; erd: group origins and group-relative table x/y) or dropped altogether (sequence: the page lays it out on load).
 
 The page does the same in JavaScript (plugin.toDisk / plugin.fromDisk in assets/types/<type>/<type>.js).
 The two must stay byte-identical: dev/e2e_shell.mjs and dev/e2e_sequence.mjs save a generated page without
@@ -27,10 +27,12 @@ SEQUENCE_KEYS = ("diagramType", "schemaVersion", "title", "numbered", "showDetai
 # Engine output on the sequence model, never saved: positions, hidden (inside a collapsed frame), frame dividers
 SEQUENCE_LAYOUT = (("participants", ("x", "rail", "top", "bottom")), ("messages", ("y", "hidden")),
                    ("fragments", ("x", "y", "w", "h", "elseY", "dividers")), ("notes", ("x", "y", "w", "h")))
-ERD_KEYS = ("diagramType", "schemaVersion", "title", "direction", "detail", "showTypes", "showNotes", "colorKey",
+ERD_KEYS = ("diagramType", "schemaVersion", "title", "detail", "showTypes", "showNotes", "colorKey",
             "groups", "entities", "relationships", "notes", "layout")
-ERD_ENTITY_LAYOUT = ("x", "y")  # flow-term position of a table: moved into the trailing `layout` map
-# Engine output on the ERD model, never saved (plus the top-level "canvas" and "_band")
+ERD_SCHEMA_VERSION = 2  # v2: free 2D layout; v1 positions were flow terms and are dropped on read
+ERD_ENTITY_LAYOUT = ("x", "y")  # a table's top-left inside its group (absolute when ungrouped), in the `layout` map
+ERD_GROUP_LAYOUT = ("x", "y")   # screen top-left of a group box, in the same `layout` map keyed by group id
+# Engine output on the ERD model, never saved (plus the top-level "canvas", "_loose" and "_band")
 ERD_DERIVED = (("entities", ("box",)), ("groups", ("box",)), ("relationships", ("points", "labelBox")))
 NODE_LAYOUT = ("x", "y")
 LANE_LAYOUT = ("height", "color")
@@ -263,16 +265,20 @@ def erd_to_disk(data: Dict[str, Any]) -> Dict[str, Any]:
     d.pop("layout", None)
     d.pop("canvas", None)
     d.pop("_band", None)
+    d.pop("_loose", None)
+    d.pop("direction", None)
+    d["schemaVersion"] = ERD_SCHEMA_VERSION
     for items, keys in ERD_DERIVED:
         for o in d.get(items) or []:
             for k in keys:
                 o.pop(k, None)
     _rename_erd_ids(d)
     layout: Dict[str, Any] = {}
-    for e in d.get("entities") or []:
-        pos = {k: e.pop(k) for k in ERD_ENTITY_LAYOUT if k in e}
-        if pos:
-            layout[e["id"]] = pos
+    for items, keys in ((d.get("groups") or [], ERD_GROUP_LAYOUT), (d.get("entities") or [], ERD_ENTITY_LAYOUT)):
+        for o in items:
+            pos = {k: o.pop(k) for k in keys if k in o}
+            if pos:
+                layout[o["id"]] = pos
     if layout:
         d["layout"] = layout
     return _ordered(d, ERD_KEYS)
@@ -281,8 +287,11 @@ def erd_to_disk(data: Dict[str, Any]) -> Dict[str, Any]:
 def erd_from_disk(data: Dict[str, Any]) -> Dict[str, Any]:
     d = copy.deepcopy(data)
     layout = d.pop("layout", None) or {}
-    for e in d.get("entities") or []:
-        e.update(layout.get(e.get("id")) or {})
+    d.pop("direction", None)
+    if d.get("schemaVersion") != ERD_SCHEMA_VERSION:
+        return d  # a v1 block: its positions are flow terms, so the page and --layout lay it out afresh
+    for o in (d.get("groups") or []) + (d.get("entities") or []):
+        o.update(layout.get(o.get("id")) or {})
     return d
 
 

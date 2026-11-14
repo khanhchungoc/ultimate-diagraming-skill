@@ -1,0 +1,66 @@
+{
+  "diagramType": "erd",
+  "title": "Grouped and loose tables",
+  "groups": [
+    { "id": "core", "name": "Core", "color": "#e0f2fe" },
+    { "id": "content", "name": "Content", "color": "#dcfce7" }
+  ],
+  "entities": [
+    { "id": "organization", "name": "organization", "group": "core", "columns": [
+      { "name": "id", "type": "uuid", "pk": true },
+      { "name": "label", "type": "text" }
+    ] },
+    { "id": "app_user", "name": "app_user", "group": "core", "columns": [
+      { "name": "id", "type": "uuid", "pk": true },
+      { "name": "organization_id", "type": "uuid", "fk": true },
+      { "name": "label", "type": "text" }
+    ] },
+    { "id": "role", "name": "role", "group": "core", "columns": [
+      { "name": "id", "type": "uuid", "pk": true },
+      { "name": "organization_id", "type": "uuid", "fk": true },
+      { "name": "label", "type": "text" }
+    ] },
+    { "id": "article", "name": "article", "group": "content", "columns": [
+      { "name": "id", "type": "uuid", "pk": true },
+      { "name": "app_user_id", "type": "uuid", "fk": true },
+      { "name": "label", "type": "text" }
+    ] },
+    { "id": "comment", "name": "comment", "group": "content", "columns": [
+      { "name": "id", "type": "uuid", "pk": true },
+      { "name": "article_id", "type": "uuid", "fk": true },
+      { "name": "app_user_id", "type": "uuid", "fk": true },
+      { "name": "label", "type": "text" }
+    ] },
+    { "id": "audit_log", "name": "audit_log", "columns": [
+      { "name": "id", "type": "uuid", "pk": true },
+      { "name": "app_user_id", "type": "uuid", "fk": true },
+      { "name": "label", "type": "text" }
+    ] },
+    { "id": "setting", "name": "setting", "columns": [
+      { "name": "id", "type": "uuid", "pk": true },
+      { "name": "organization_id", "type": "uuid", "fk": true },
+      { "name": "label", "type": "text" }
+    ] },
+    { "id": "country", "name": "country", "columns": [
+      { "name": "id", "type": "uuid", "pk": true },
+      { "name": "label", "type": "text" }
+    ] },
+    { "id": "address", "name": "address", "columns": [
+      { "name": "id", "type": "uuid", "pk": true },
+      { "name": "country_id", "type": "uuid", "fk": true },
+      { "name": "app_user_id", "type": "uuid", "fk": true },
+      { "name": "label", "type": "text" }
+    ] }
+  ],
+  "relationships": [
+    { "id": "r1", "from": "app_user", "to": "organization", "columns": ["organization_id"], "fromEnd": "zeroOrMany", "toEnd": "one" },
+    { "id": "r2", "from": "role", "to": "organization", "columns": ["organization_id"], "fromEnd": "zeroOrMany", "toEnd": "one" },
+    { "id": "r3", "from": "article", "to": "app_user", "columns": ["app_user_id"], "fromEnd": "zeroOrMany", "toEnd": "one" },
+    { "id": "r4", "from": "comment", "to": "article", "columns": ["article_id"], "fromEnd": "zeroOrMany", "toEnd": "one" },
+    { "id": "r5", "from": "comment", "to": "app_user", "columns": ["app_user_id"], "fromEnd": "zeroOrMany", "toEnd": "one" },
+    { "id": "r6", "from": "audit_log", "to": "app_user", "columns": ["app_user_id"], "fromEnd": "zeroOrMany", "toEnd": "one" },
+    { "id": "r7", "from": "setting", "to": "organization", "columns": ["organization_id"], "fromEnd": "zeroOrMany", "toEnd": "one" },
+    { "id": "r8", "from": "address", "to": "country", "columns": ["country_id"], "fromEnd": "zeroOrMany", "toEnd": "one" },
+    { "id": "r9", "from": "address", "to": "app_user", "columns": ["app_user_id"], "fromEnd": "zeroOrMany", "toEnd": "one" }
+  ]
+}

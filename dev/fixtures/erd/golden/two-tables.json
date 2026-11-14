@@ -1,7 +1,6 @@
 {
   "diagramType": "erd",
   "title": "Two tables",
-  "direction": "LR",
   "entities": [
     {
       "id": "customer",
@@ -22,11 +21,11 @@
           "type": "text"
         }
       ],
-      "x": 40,
-      "y": 54,
+      "x": 66,
+      "y": 40,
       "box": {
-        "x": 40,
-        "y": 54,
+        "x": 66,
+        "y": 40,
         "w": 168,
         "h": 114
       }
@@ -50,11 +49,11 @@
           "type": "timestamptz"
         }
       ],
-      "x": 320,
-      "y": 28,
+      "x": 40,
+      "y": 218,
       "box": {
-        "x": 320,
-        "y": 28,
+        "x": 40,
+        "y": 218,
         "w": 220,
         "h": 114
       }
@@ -73,32 +72,42 @@
       "label": "places",
       "points": [
         [
-          320,
-          103
+          260,
+          293
         ],
         [
-          208,
-          103
+          280,
+          293
+        ],
+        [
+          280,
+          89
+        ],
+        [
+          234,
+          89
         ]
       ],
       "labelBox": {
-        "x": 234,
-        "y": 92,
+        "x": 250,
+        "y": 180,
         "w": 61,
         "h": 22
       }
     }
   ],
-  "schemaVersion": 1,
-  "_band": {
-    "x": 0,
-    "y": 0,
-    "w": 580,
-    "h": 196
+  "schemaVersion": 2,
+  "_loose": {
+    "x": 40,
+    "y": 40,
+    "w": 220,
+    "h": 292
   },
   "canvas": {
-    "width": 580,
-    "height": 196,
-    "crossings": 0
+    "width": 351,
+    "height": 372,
+    "crossings": 0,
+    "length": 270,
+    "bends": 2
   }
 }

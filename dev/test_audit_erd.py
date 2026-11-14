@@ -21,8 +21,7 @@ ORDER = [{"name": "id", "type": "uuid", "pk": True}, {"name": "customer_id", "ty
          {"name": "placed_at", "type": "timestamptz"}]
 BASE = {
     "diagramType": "erd",
-    "direction": "LR",
-    "groups": [{"id": "sales", "name": "Sales", "color": "#e0f2fe"}],
+    "groups": [{"id": "sales", "name": "Sales", "color": "#e0f2fe", "box": {"x": 16, "y": 8, "w": 500, "h": 200}}],
     "entities": [
         {"id": "customer", "name": "customer", "group": "sales", "columns": CUSTOMER,
          "box": {"x": 40, "y": 40, "w": 168, "h": HEAD_H + 2 * ROW_H}},
@@ -35,7 +34,7 @@ BASE = {
          "label": "places", "points": [[320, 115], [270, 115], [270, 89], [208, 89]],
          "labelBox": {"x": 212, "y": 60, "w": 56, "h": 22}},
     ],
-    "canvas": {"width": 600, "height": 240, "crossings": 0},
+    "canvas": {"width": 600, "height": 240, "crossings": 0, "length": 168, "bends": 2},
 }
 
 
@@ -100,7 +99,6 @@ CASES = [
     ("a lane swatch is a valid group colour", dict(groups=[{"id": "sales", "name": "Sales", "color": "#e0f2fe"}]), None),
     ("unknown detail", dict(detail="some"), "'detail' must be all, keys or names"),
     ("detail keys is valid", dict(detail="keys"), None),
-    ("unknown direction", dict(direction="RL"), "'direction' must be LR or TB"),
     ("showTypes is not a boolean", dict(showTypes="no"), "'showTypes' must be true or false"),
     ("a note without text", dict(notes=[{"id": "n1", "text": " ", "entities": ["order"]}]), "has no text"),
     ("a note on an unknown entity", dict(notes=[{"id": "n1", "text": "t", "entities": ["ghost"]}]), "unknown entity 'ghost'"),
@@ -112,6 +110,15 @@ CASES = [
      dict(entities=[BASE["entities"][0], {**BASE["entities"][1], "box": {"x": 208, "y": 40, "w": 168, "h": 114}}],
           relationships=[route([[208, 115], [188, 115], [188, 89], [208, 89]], labelBox={"x": 100, "y": 150, "w": 56, "h": 22})]),
      None),
+    ("an entity outside its group box",
+     dict(entities=[BASE["entities"][0], {**BASE["entities"][1], "box": {"x": 420, "y": 40, "w": 168, "h": 114}}],
+          relationships=[route([[420, 115], [370, 115], [370, 89], [208, 89]], labelBox={"x": 212, "y": 60, "w": 56, "h": 22})]),
+     "outside the box of its area 'sales'"),
+    ("two group boxes overlap",
+     dict(groups=[BASE["groups"][0], {"id": "ops", "name": "Ops", "box": {"x": 400, "y": 100, "w": 150, "h": 100}}]),
+     "Areas 'sales' and 'ops' overlap"),
+    ("group boxes that touch do not overlap",
+     dict(groups=[BASE["groups"][0], {"id": "ops", "name": "Ops", "box": {"x": 516, "y": 8, "w": 80, "h": 100}}]), None),
     ("an entity past the canvas edge", dict(canvas={"width": 400, "height": 240, "crossings": 0}), "past the diagram edge"),
     ("a route through another entity",
      dict(entities=BASE["entities"] + [ent("log", [{"name": "id", "pk": True}], 240, 90)],
@@ -144,9 +151,6 @@ WARNINGS = [
     ("25 columns at detail all is fine",
      dict(entities=[BASE["entities"][0], ent("order", [{"name": "id", "pk": True}, {"name": "customer_id", "fk": True}] + [{"name": f"c{i}"} for i in range(23)], 320, 40)]),
      None),
-    ("more than 12 tables in one rank of an area",
-     dict(entities=[ent(f"t{i}", [{"name": "id", "pk": True}], 40, 40 + 80 * i) for i in range(13)], relationships=[],
-          canvas={"width": 600, "height": 2000, "crossings": 0}), "13 tables stack in one rank of area 'Sales'"),
     ("a label over 20 characters", edit({"label": "x" * 21}), "Label 'xxxxxxxxxxxxxxxxxxxxx' is over 20"),
     ("a table name over 28 characters", edit(entity=ent("customer", CUSTOMER, 40, 40, name="x" * 29)), "Table name"),
     ("a column name over 28 characters", edit(entity=ent("customer", [{"name": "x" * 29, "pk": True}], 40, 40)), "Column name"),
@@ -222,7 +226,42 @@ def main() -> int:
     ok = in_shell == SWATCHES
     failed += not ok
     print(f"[{'PASS' if ok else 'FAIL'}] the audit's swatches are the shell's, in order - {in_shell}")
-    total = len(CASES) + len(WARNINGS) + 6
+    # Codec: v2 round trip, v1 block drops layout, renamed group ids rename their layout keys
+    from disk_format import from_disk, to_disk
+    laid = copy.deepcopy(BASE)
+    laid["groups"][0].update(x=16, y=8)
+    laid["entities"][0].update(x=24, y=40)
+    laid["entities"][1].update(x=320, y=40)
+    laid["direction"] = "LR"
+    laid["_loose"] = {"x": 0, "y": 0, "w": 1, "h": 1}
+    disk = to_disk("erd", laid)
+    ok = (disk["schemaVersion"] == 2 and "direction" not in disk and "_loose" not in disk and "canvas" not in disk
+          and list(disk["layout"]) == ["sales", "customer", "order"] and disk["layout"]["sales"] == {"x": 16, "y": 8}
+          and disk["layout"]["order"] == {"x": 320, "y": 40}
+          and all(k not in disk["entities"][0] for k in ("x", "y", "box")) and "box" not in disk["groups"][0]
+          and list(disk)[:2] == ["diagramType", "schemaVersion"])
+    back = from_disk("erd", disk)
+    ok = ok and back["groups"][0]["x"] == 16 and back["groups"][0]["y"] == 8 and "layout" not in back \
+        and (back["entities"][0]["x"], back["entities"][0]["y"]) == (24, 40) and (back["entities"][1]["x"], back["entities"][1]["y"]) == (320, 40)
+    failed += not ok
+    print(f"[{'PASS' if ok else 'FAIL'}] codec: v2 round trip keeps group and table positions - {disk.get('layout')}")
+    v1 = {**disk, "schemaVersion": 1}
+    ok = "layout" not in from_disk("erd", v1) and "x" not in from_disk("erd", v1)["entities"][0]
+    v0 = {k: v for k, v in disk.items() if k != "schemaVersion"}
+    ok = ok and "layout" not in from_disk("erd", v0) and "direction" not in from_disk("erd", {**v1, "direction": "TB"})
+    failed += not ok
+    print(f"[{'PASS' if ok else 'FAIL'}] codec: a v1 (or unversioned) block drops its layout")
+    gen = copy.deepcopy(laid)
+    gen["groups"][0]["id"] = "g_170000000000001"
+    gen["groups"][0]["name"] = "Sales Area"
+    for e in gen["entities"]:
+        e["group"] = "g_170000000000001"
+    gdisk = to_disk("erd", gen)
+    ok = "sales_area" in gdisk["layout"] and "g_170000000000001" not in gdisk["layout"] \
+        and gdisk["entities"][0]["group"] == "sales_area" and from_disk("erd", gdisk)["groups"][0]["x"] == 16
+    failed += not ok
+    print(f"[{'PASS' if ok else 'FAIL'}] codec: renamed group ids rename their layout keys - {list(gdisk['layout'])}")
+    total = len(CASES) + len(WARNINGS) + 9
     print(f"{total - failed}/{total} cases passed")
     return 2 if failed else 0
 

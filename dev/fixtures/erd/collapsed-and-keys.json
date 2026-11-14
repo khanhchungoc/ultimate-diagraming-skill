@@ -1,7 +1,6 @@
 {
   "diagramType": "erd",
   "title": "Keys only",
-  "direction": "LR",
   "detail": "keys",
   "groups": [
     { "id": "core", "name": "Core", "color": "#e0f2fe" },

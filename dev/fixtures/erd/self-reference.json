@@ -1,7 +1,6 @@
 {
   "diagramType": "erd",
   "title": "Org chart",
-  "direction": "LR",
   "entities": [
     { "id": "department", "name": "department", "columns": [
       { "name": "id", "type": "int", "pk": true },

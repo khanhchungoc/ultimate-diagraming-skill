@@ -3,14 +3,12 @@
 
     /* Tokens */
     :root {
-      --erd-band-alt: #fafbfc;
       --note-bg: #f8fafc;  --note-border: #cbd5e1;  --note-accent: #64748b;  --note-ink: #334155;
       --note-leader: #94a3b8;
       --erd-key: #a16f0b;       /* primary-key glyph: the shell's decision ochre */
       --erd-fk: #64748b;
     }
     :root[data-theme="dark"] {
-      --erd-band-alt: #131d33;
       --note-bg: #1c2740;  --note-border: #3a4a69;  --note-accent: #94a3b8;  --note-ink: #cbd5e1;
       --note-leader: #52627f;
       --erd-key: #e6bf55;
@@ -27,81 +25,41 @@
       border-radius: 8px;
       box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -2px rgba(0,0,0,0.05);
     }
-    /* No stacking context on the layers below: a band's name pill (z 40) rises above the tables (20) as it floats */
-    #erd-bands { position: absolute; inset: 0; border-radius: 7px; overflow: hidden; }
+    /* No stacking context on the layers below */
+    #erd-groups { position: absolute; inset: 0; }
     #erd-svg { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; z-index: 10; }
     #erd-html { position: absolute; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; }
 
     /* Capture mode (screenshots): the canvas goes edge to edge */
     body.capture #erd-canvas { margin: 0; border: none; border-radius: 0; box-shadow: none; }
-    body.capture #erd-bands { border-radius: 0; }
 
-    /* --- Area bands --- */
-    .erd-band {
-      --band-bg: color-mix(in srgb, var(--sw-stripe) 5%, var(--bg-panel));
-      --band-head-bg: color-mix(in srgb, var(--sw-stripe) 13%, var(--bg-panel));
+    /* --- Group boxes: a rounded container fitted to its tables, a low-opacity swatch fill and a 1px swatch border (the
+       sequence frame's look), with the name on a tab at the top-left. Under the lines and the tables. --- */
+    .erd-group {
       position: absolute;
       box-sizing: border-box;
-      background: var(--band-bg);
-      border-bottom: 1px dashed var(--border-dark);
+      border-radius: 8px;
+      background: color-mix(in srgb, var(--sw-stripe) 7%, transparent);
+      border: 1px solid color-mix(in srgb, var(--sw-stripe) 45%, var(--border-dark));
     }
-    .erd-band.erd-band-alt { --band-bg: color-mix(in srgb, var(--sw-stripe) 8%, var(--erd-band-alt)); }
-    .erd-band:last-child { border-bottom: none; }
-    /* The header column (LR) or row (TB): a slightly stronger tint with a hairline where the tables start */
-    .erd-band::before {
-      content: '';
+    .erd-group-tab {
       position: absolute;
-      left: 0; top: 0; bottom: 0;
-      width: var(--band-head, 48px);
-      background: var(--band-head-bg);
-      border-right: 1px solid color-mix(in srgb, var(--sw-stripe) 30%, var(--border-color));
-    }
-    #erd-canvas.erd-no-bands .erd-band { display: none; }
-    .erd-band-rail {
-      position: absolute;
-      top: 0; bottom: 0;
-      left: var(--rail-x, 0px);
-      width: 0;
-      z-index: 39;
-      pointer-events: none;
-      border-left: var(--rail-b, 3px) solid var(--sw-stripe);
-    }
-    /* Name pill: vertical along the header column (LR); floats at the visible edge once panned past (pinBands) */
-    .erd-band-pill {
-      position: absolute;
-      left: var(--pill-x, 10px);
-      top: var(--pill-y, 12px);
-      z-index: 40;
-      display: inline-block;
+      left: 8px; top: 5px;
       box-sizing: border-box;
-      padding: 10px 6px;
+      max-width: calc(100% - 16px);
+      height: 22px;
+      padding: 0 11px;
       border-radius: 999px;
       background: var(--sw-pill-bg);
       color: var(--sw-pill-ink);
-      font-size: 14px;
+      font-size: 13px;
       font-weight: 600;
-      line-height: 18px;
+      line-height: 22px;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      user-select: none;
-      writing-mode: vertical-rl;
-      transform: rotate(180deg);
-      box-shadow: 0 0 0 5px var(--band-bg);   /* a halo in the band's own colour: a line passing behind is cut around the pill */
+      transform-origin: 0 0;
     }
-    #erd-canvas.dir-tb .erd-band { border-bottom: none; border-right: 1px dashed var(--border-dark); }
-    #erd-canvas.dir-tb .erd-band:last-child { border-right: none; }
-    #erd-canvas.dir-tb .erd-band::before { width: auto; right: 0; bottom: auto; height: var(--band-head, 48px); border-right: none; border-bottom: 1px solid color-mix(in srgb, var(--sw-stripe) 30%, var(--border-color)); }
-    #erd-canvas.dir-tb .erd-band-rail {
-      top: var(--rail-y, 0px); bottom: auto; left: 0; right: 0; width: auto; height: 0;
-      border-left: none; border-top: var(--rail-b, 3px) solid var(--sw-stripe);
-    }
-    #erd-canvas.dir-tb .erd-band-pill { writing-mode: horizontal-tb; transform: none; padding: 4px 11px; max-width: calc(100% - 20px); }
-    /* Exports draw each pill and stripe at the band's own start, whatever the view */
-    body.exporting .erd-band-pill { left: 10px !important; top: 12px !important; }
-    body.exporting .erd-band-rail { left: 0 !important; border-left-width: 3px !important; }
-    body.exporting #erd-canvas.dir-tb .erd-band-pill { left: var(--pill-cx, 12px) !important; top: 11px !important; }
-    body.exporting #erd-canvas.dir-tb .erd-band-rail { top: 0 !important; border-top-width: 3px !important; }
 
     /* --- Relationship lines --- */
     .erd-rel-line {
@@ -193,7 +151,14 @@
       transition: box-shadow 0.15s;
     }
     .erd-entity:hover { --ring: var(--node-accent); box-shadow: 0 4px 10px rgba(0,0,0,0.12); }
-    .erd-entity.linked { --ring: var(--node-accent); }
+    /* The neighbourhood of the hovered or selected table: children (they point at it) in the "in" colour, parents (it points
+       at them) in the "out" colour; related both ways: "in" */
+    .erd-entity.rel-parent { --ring: var(--edge-out); box-shadow: 0 0 0 3px var(--edge-out-glow), 0 2px 4px rgba(0,0,0,0.06); }
+    .erd-entity.rel-child, .erd-entity.rel-child.rel-parent { --ring: var(--edge-in); box-shadow: 0 0 0 3px var(--edge-in-glow), 0 2px 4px rgba(0,0,0,0.06); }
+    .erd-entity.rel-parent::after, .erd-entity.rel-child::after { box-shadow: inset 0 0 0 2px var(--ring); }
+    .erd-entity.rel-parent .erd-head { box-shadow: inset 0 0 0 100px color-mix(in srgb, var(--edge-out) 16%, transparent); }
+    .erd-entity.rel-child .erd-head { box-shadow: inset 0 0 0 100px color-mix(in srgb, var(--edge-in) 18%, transparent); }
+    .erd-entity.has-peek { z-index: 35; }
     .erd-entity.selected { --ring: var(--primary); box-shadow: 0 0 0 3px var(--primary-ring); }
     .erd-entity.is-dim { opacity: 0.38; }
     body.exporting .is-dim { opacity: 1 !important; }
@@ -292,6 +257,43 @@
     .erd-row.hl-in  { background: color-mix(in srgb, var(--edge-in) 20%, transparent); }
     .erd-row.hl-out { background: color-mix(in srgb, var(--edge-out) 18%, transparent); }
     .erd-row.hover  { background: color-mix(in srgb, var(--primary) 18%, transparent); }
+    .erd-row.key-hl .erd-col-name, .erd-key-row.key-hl .erd-col-name { font-weight: 700; }
+    /* The chip on a joining row of a related table: it takes the place of the type text */
+    .erd-key-chip {
+      flex: 0 1 auto; min-width: 0; margin-left: auto; padding: 0 7px;
+      border-radius: 999px; box-sizing: border-box;
+      font-size: 10.5px; font-weight: 600; line-height: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      background: color-mix(in srgb, var(--chip, var(--primary)) 20%, var(--bg-panel));
+      color: var(--text-main);
+      border: 1px solid color-mix(in srgb, var(--chip, var(--primary)) 55%, transparent);
+    }
+    .erd-row.hl-in, .erd-key-row.hl-in { --chip: var(--edge-in); }
+    .erd-row.hl-out, .erd-key-row.hl-out { --chip: var(--edge-out); }
+    .erd-row.has-chip .erd-col-type, .erd-row.has-chip .erd-col-note { display: none; }
+    .erd-row.has-chip .erd-col-name { flex-shrink: 0; }
+    /* The key peek: the joining columns of a related table whose rows are not drawn, under its header (an overlay) */
+    .erd-key-peek {
+      position: absolute; left: 0; top: 40px; z-index: 6;
+      min-width: 100%; width: max-content; max-width: 340px; box-sizing: border-box;
+      padding: 3px 0; border-radius: 8px;
+      background: var(--bg-panel); border: 1px solid var(--border-dark);
+      box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+      pointer-events: none; font-size: 13px;
+    }
+    .erd-key-row { display: flex; align-items: center; gap: 0; height: 24px; padding: 0 10px 0 12px; white-space: nowrap; }
+    .erd-key-row.hl-in { background: color-mix(in srgb, var(--edge-in) 18%, transparent); }
+    .erd-key-row.hl-out { background: color-mix(in srgb, var(--edge-out) 16%, transparent); }
+    .erd-key-row .erd-col-type { padding-left: 10px; margin-left: 0; }
+    .erd-key-row .erd-key-chip { margin-left: 10px; }
+    /* Never in an export: no chips or peeks, no neighbourhood rings, the types back */
+    body.exporting .erd-key-chip, body.exporting .erd-key-peek { display: none !important; }
+    body.exporting .erd-row.has-chip .erd-col-type { display: block !important; }
+    body.exporting .erd-row.has-chip .erd-col-note { display: block !important; }
+    body.exporting .erd-entity.rel-parent, body.exporting .erd-entity.rel-child { --ring: var(--node-border); box-shadow: 0 2px 4px rgba(0,0,0,0.06); }
+    body.exporting .erd-entity.rel-parent::after, body.exporting .erd-entity.rel-child::after { box-shadow: inset 0 0 0 1.5px var(--ring); }
+    body.exporting .erd-entity.rel-parent .erd-head, body.exporting .erd-entity.rel-child .erd-head { box-shadow: none; }
+    body.exporting .erd-row.key-hl:not(.pk) .erd-col-name { font-weight: 500; }
+    body.exporting .erd-entity.has-peek { z-index: 20; }
     .erd-head.hl-in  { box-shadow: inset 0 0 0 100px color-mix(in srgb, var(--edge-in) 16%, transparent); }
     .erd-head.hl-out { box-shadow: inset 0 0 0 100px color-mix(in srgb, var(--edge-out) 14%, transparent); }
     .erd-head.hover  { box-shadow: inset 0 0 0 100px color-mix(in srgb, var(--primary) 14%, transparent); }
@@ -420,10 +422,10 @@
        EDITING (wave 3): ports, handles, action bar, inline edits, drags, confirm. Everything here is an editing
        aid ([data-export-skip] in the DOM) and is hidden in ?present.
        ===================================================================================================== */
-    .erd-entity, .erd-band-pill, .erd-rel-label { -webkit-user-select: none; user-select: none; }
+    .erd-entity, .erd-group-tab, .erd-rel-label { -webkit-user-select: none; user-select: none; }
     [contenteditable]:not([contenteditable="false"]) { -webkit-user-select: text; user-select: text; cursor: text; outline: none; }
     .erd-head { position: relative; }
-    .erd-name.is-editing, .erd-col-name.is-editing, .erd-col-type.is-editing, .erd-band-pill.is-editing, .erd-rel-label-text.is-editing {
+    .erd-name.is-editing, .erd-col-name.is-editing, .erd-col-type.is-editing, .erd-group-tab.is-editing, .erd-rel-label-text.is-editing {
       min-width: 36px;
       background: var(--bg-panel);
       color: var(--text-main);
@@ -437,8 +439,7 @@
     .erd-col-type.is-editing { text-align: right; }
     .erd-col-type:empty { min-width: 28px; }
     .erd-col-name.is-editing { flex: 1 1 auto; }
-    /* A band's name is written along its header column; while it is edited it lies flat so it can be read and typed */
-    .erd-band-pill.is-editing { writing-mode: horizontal-tb; transform: none; padding: 6px 12px; width: max-content; max-width: none; max-height: none !important; z-index: 60; }
+    .erd-group-tab.is-editing { width: max-content; max-width: none; z-index: 60; overflow: visible; }
 
     /* Connect ports: on the right edge of each row and of the header, shown on hover (all of them while the Relationship tool is armed) */
     .erd-port {
@@ -473,11 +474,12 @@
     .erd-entity.erd-target { --ring: var(--primary); }
     #erd-rubber { stroke: var(--primary); stroke-width: 2; stroke-dasharray: 6 4; display: none; fill: none; pointer-events: none; }
     .erd-row.selected { background: color-mix(in srgb, var(--primary) 13%, transparent); box-shadow: inset 0 0 0 1.5px var(--primary); }
-    .erd-row.is-dragging, .erd-entity.is-dragging, .erd-band-pill.is-dragging { opacity: 0.8; z-index: 50; box-shadow: 0 8px 20px rgba(0,0,0,0.16); background: var(--node-bg); }
-    .erd-band-pill.is-dragging { background: var(--sw-pill-bg); }
-    .erd-band.selected .erd-band-pill { box-shadow: 0 0 0 5px var(--band-bg), 0 0 0 7px var(--primary); }
-    .erd-band.drop-target { outline: 2px dashed var(--primary); outline-offset: -3px; }
-    .erd-band-pill { cursor: grab; }
+    .erd-row.is-dragging, .erd-entity.is-dragging { opacity: 0.8; z-index: 50; box-shadow: 0 8px 20px rgba(0,0,0,0.16); background: var(--node-bg); }
+    .erd-group.is-dragging { opacity: 0.85; z-index: 5; box-shadow: 0 8px 20px rgba(0,0,0,0.12); }
+    .erd-group.selected { border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary-ring); }
+    .erd-group.selected .erd-group-tab { box-shadow: 0 0 0 2px var(--primary); }
+    .erd-group.drop-target { outline: 2px dashed var(--primary); outline-offset: -3px; }
+    .erd-group-tab { cursor: grab; }
     .erd-drop-line { position: absolute; display: none; height: 4px; background: var(--primary); border-radius: 2px; z-index: 60; pointer-events: none; }
     .erd-guide { position: absolute; display: none; pointer-events: none; z-index: 55; }
     .erd-guide-v { top: 0; bottom: 0; width: 0; border-left: 1.5px dashed var(--guide); }
@@ -613,7 +615,51 @@
 
     /* ?present: read only. Hover, highlight and collapse still work. */
     body.presentation .erd-port, body.presentation .erd-handle, body.presentation .erd-actionbar, body.presentation .erd-note-add,
-    body.presentation .erd-note-del, body.presentation .erd-note-link, body.presentation .erd-band-pill { cursor: default; }
+    body.presentation .erd-note-del, body.presentation .erd-note-link, body.presentation .erd-group-tab { cursor: default; }
     body.presentation .erd-port, body.presentation .erd-handle, body.presentation .erd-actionbar, body.presentation .erd-note-add,
     body.presentation .erd-note-del, body.presentation .erd-note-link, body.presentation .erd-drop-line, body.presentation .erd-guide { display: none !important; }
     body.presentation .erd-note { cursor: default; }
+
+    /* =====================================================================================================
+       OVERVIEW (zoomed out, body.erd-overview; set by erd.js below 50% zoom, off above 60%). Every rule is keyed to
+       :not(.exporting), so an export or copy is the full diagram. --inv is 1 / scale, set on the canvas.
+       ===================================================================================================== */
+    body.erd-overview:not(.exporting) .erd-entity:not(.erd-card-table) { background: color-mix(in srgb, var(--sw-pill-bg, var(--bg-soft)) 45%, var(--node-bg)); }
+    body.erd-overview:not(.exporting) .erd-entity:not(.erd-card-table) > .erd-row,
+    body.erd-overview:not(.exporting) .erd-entity:not(.erd-card-table) > .erd-more,
+    body.erd-overview:not(.exporting) .erd-entity:not(.erd-card-table) .erd-port,
+    body.erd-overview:not(.exporting) .erd-entity:not(.erd-card-table) .erd-chevron,
+    body.erd-overview:not(.exporting) .erd-entity:not(.erd-card-table) .erd-note-add,
+    body.erd-overview:not(.exporting) .erd-note-badge { display: none !important; }
+    body.erd-overview:not(.exporting) .erd-entity:not(.erd-card-table) > .erd-head {
+      position: absolute; inset: 0; height: auto; padding: 0 8px; justify-content: center; border-radius: 8px; border-bottom: none;
+    }
+    body.erd-overview:not(.exporting) .erd-entity:not(.erd-card-table) .erd-name {
+      flex: 0 1 auto; max-width: 100%; text-align: center; font-size: max(13px, calc(14px * var(--inv))); line-height: 1.25;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    body.erd-overview:not(.exporting) .erd-entity:not(.erd-card-table)::after { box-shadow: inset 0 0 0 calc(1.5px * var(--inv)) var(--ring); }
+    body.erd-overview:not(.exporting) .erd-entity.rel-parent::after, body.erd-overview:not(.exporting) .erd-entity.rel-child::after { box-shadow: inset 0 0 0 calc(2.5px * var(--inv)) var(--ring); }
+    /* Lines: constant on-screen width, dashes and hit area too; markers scaled back up */
+    body.erd-overview:not(.exporting) .erd-rel-line { stroke-width: calc(1.5px * var(--inv)); }
+    body.erd-overview:not(.exporting) .erd-rel-line:not(.identifying) { stroke-dasharray: calc(6px * var(--inv)) calc(4px * var(--inv)); }
+    body.erd-overview:not(.exporting) .erd-rel.hl-in .erd-rel-line, body.erd-overview:not(.exporting) .erd-rel.hl-out .erd-rel-line,
+    body.erd-overview:not(.exporting) .erd-rel.hover .erd-rel-line, body.erd-overview:not(.exporting) .erd-rel.selected .erd-rel-line { stroke-width: calc(2.5px * var(--inv)); }
+    body.erd-overview:not(.exporting) .erd-rel-hit { stroke-width: calc(14px * var(--inv)); }
+    body.erd-overview:not(.exporting) .erd-mk { overflow: visible; }
+    body.erd-overview:not(.exporting) .erd-mk path, body.erd-overview:not(.exporting) .erd-mk circle { transform: scale(var(--inv)); transform-origin: 0 0; }
+    /* Labels, group tabs, notes: constant on-screen size, scaled about their centre (tabs: their corner) */
+    body.erd-overview:not(.exporting) .erd-rel-label { transform: scale(var(--inv)); transform-origin: 50% 50%; }
+    body.erd-overview:not(.exporting) .erd-rel-label.ov-hide:not(.ov-show):not(.is-editing-label) { display: none; }
+    body.erd-overview:not(.exporting) .erd-group-tab { transform: scale(var(--inv)); max-width: calc((100% - 16px) / var(--inv)); }
+    body.erd-overview:not(.exporting) .erd-group { border-width: calc(1px * var(--inv)); }
+    body.erd-overview:not(.exporting) .erd-note { transform: scale(var(--inv)); transform-origin: 50% 50%; }
+    /* The key peek stays readable too, under the card's box */
+    body.erd-overview:not(.exporting) .erd-key-peek { top: calc(100% + 4px * var(--inv)); transform: scale(var(--inv)); transform-origin: 0 0; }
+
+    /* The expanded card: the full table at 100% size, fixed over the table's box, above everything; never exported */
+    .erd-expand-card { position: fixed; z-index: 900; pointer-events: auto; }
+    .erd-expand-card .erd-entity { position: relative; width: max-content; z-index: auto; cursor: default; box-shadow: 0 10px 28px rgba(0,0,0,0.28); transition: none; }
+    .erd-expand-card .erd-row.has-chip .erd-col-type { display: block; }
+    .erd-expand-card .erd-key-chip { margin-left: 10px; }
+    body.exporting .erd-expand-card { display: none !important; }

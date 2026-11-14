@@ -1,7 +1,6 @@
 {
   "diagramType": "erd",
   "title": "Two tables",
-  "direction": "LR",
   "entities": [
     { "id": "customer", "name": "customer", "columns": [
       { "name": "id", "type": "uuid", "pk": true },

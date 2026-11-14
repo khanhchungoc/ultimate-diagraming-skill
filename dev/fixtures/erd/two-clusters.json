@@ -1,0 +1,78 @@
+{
+  "diagramType": "erd",
+  "title": "Two clusters",
+  "groups": [
+    { "id": "sales", "name": "Sales", "color": "#e0f2fe" },
+    { "id": "support", "name": "Support", "color": "#fef3c7" }
+  ],
+  "entities": [
+    { "id": "customer", "name": "customer", "group": "sales", "columns": [
+      { "name": "id", "type": "uuid", "pk": true },
+      { "name": "status", "type": "text" }
+    ] },
+    { "id": "order", "name": "order", "group": "sales", "columns": [
+      { "name": "id", "type": "uuid", "pk": true },
+      { "name": "customer_id", "type": "uuid", "fk": true },
+      { "name": "note", "type": "text" }
+    ] },
+    { "id": "order_item", "name": "order_item", "group": "sales", "columns": [
+      { "name": "id", "type": "uuid", "pk": true },
+      { "name": "order_id", "type": "uuid", "fk": true },
+      { "name": "product_id", "type": "uuid", "fk": true },
+      { "name": "note", "type": "text" }
+    ] },
+    { "id": "product", "name": "product", "group": "sales", "columns": [
+      { "name": "id", "type": "uuid", "pk": true },
+      { "name": "status", "type": "text" }
+    ] },
+    { "id": "invoice", "name": "invoice", "group": "sales", "columns": [
+      { "name": "id", "type": "uuid", "pk": true },
+      { "name": "order_id", "type": "uuid", "fk": true },
+      { "name": "note", "type": "text" }
+    ] },
+    { "id": "payment", "name": "payment", "group": "sales", "columns": [
+      { "name": "id", "type": "uuid", "pk": true },
+      { "name": "invoice_id", "type": "uuid", "fk": true },
+      { "name": "note", "type": "text" }
+    ] },
+    { "id": "agent", "name": "agent", "group": "support", "columns": [
+      { "name": "id", "type": "uuid", "pk": true },
+      { "name": "status", "type": "text" }
+    ] },
+    { "id": "team", "name": "team", "group": "support", "columns": [
+      { "name": "id", "type": "uuid", "pk": true },
+      { "name": "status", "type": "text" }
+    ] },
+    { "id": "ticket", "name": "ticket", "group": "support", "columns": [
+      { "name": "id", "type": "uuid", "pk": true },
+      { "name": "agent_id", "type": "uuid", "fk": true },
+      { "name": "team_id", "type": "uuid", "fk": true },
+      { "name": "note", "type": "text" },
+      { "name": "customer_id", "type": "uuid", "fk": true }
+    ] },
+    { "id": "message", "name": "message", "group": "support", "columns": [
+      { "name": "id", "type": "uuid", "pk": true },
+      { "name": "ticket_id", "type": "uuid", "fk": true },
+      { "name": "agent_id", "type": "uuid", "fk": true },
+      { "name": "note", "type": "text" }
+    ] },
+    { "id": "attachment", "name": "attachment", "group": "support", "columns": [
+      { "name": "id", "type": "uuid", "pk": true },
+      { "name": "message_id", "type": "uuid", "fk": true },
+      { "name": "note", "type": "text" }
+    ] }
+  ],
+  "relationships": [
+    { "id": "r1", "from": "order", "to": "customer", "columns": ["customer_id"], "fromEnd": "zeroOrMany", "toEnd": "one" },
+    { "id": "r2", "from": "order_item", "to": "order", "columns": ["order_id"], "fromEnd": "zeroOrMany", "toEnd": "one" },
+    { "id": "r3", "from": "order_item", "to": "product", "columns": ["product_id"], "fromEnd": "zeroOrMany", "toEnd": "one" },
+    { "id": "r4", "from": "invoice", "to": "order", "columns": ["order_id"], "fromEnd": "zeroOrMany", "toEnd": "one" },
+    { "id": "r5", "from": "payment", "to": "invoice", "columns": ["invoice_id"], "fromEnd": "zeroOrMany", "toEnd": "one" },
+    { "id": "r6", "from": "ticket", "to": "agent", "columns": ["agent_id"], "fromEnd": "zeroOrMany", "toEnd": "one" },
+    { "id": "r7", "from": "ticket", "to": "team", "columns": ["team_id"], "fromEnd": "zeroOrMany", "toEnd": "one" },
+    { "id": "r8", "from": "ticket", "to": "customer", "columns": ["customer_id"], "fromEnd": "zeroOrMany", "toEnd": "one" },
+    { "id": "r9", "from": "message", "to": "ticket", "columns": ["ticket_id"], "fromEnd": "zeroOrMany", "toEnd": "one" },
+    { "id": "r10", "from": "message", "to": "agent", "columns": ["agent_id"], "fromEnd": "zeroOrMany", "toEnd": "one" },
+    { "id": "r11", "from": "attachment", "to": "message", "columns": ["message_id"], "fromEnd": "zeroOrMany", "toEnd": "one" }
+  ]
+}

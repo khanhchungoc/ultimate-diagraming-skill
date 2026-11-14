@@ -11,8 +11,9 @@ it also checks back-compatibility: every x, y, w, h is unchanged, and the old el
 For a flowchart it also checks that the page's disk format is layout-neutral: writing the laid-out diagram with
 its steps in flow order (disk_format.py) and laying that out again moves nothing, left to right and top to bottom.
 
-For an ERD it also checks that laying out the saved model again moves nothing (tables and routes), and that the detail
-levels (all, keys, names) change sizes only: rank and order of the tables are the same.
+For an ERD it also checks that laying out the saved model again moves nothing (group origins, tables and routes), that
+every table is inside its group box, that group boxes never overlap, and that the detail levels (all, keys, names) never
+change which table is in which group (the cell assignment itself is the engine's; sizes change pixel positions).
 
 Usage:
   python dev/check_golden.py            check all fixtures
@@ -178,34 +179,49 @@ def lifespan_problems(data: dict, laid: dict) -> list:
 
 
 def erd_problems(data: dict, laid: dict) -> list:
-    """ERD: laying out the disk model again moves nothing, and the detail levels (all, keys, names) only change sizes:
-    every table keeps its rank (distinct flow-term x, in order) and its place in its (area, rank) list."""
+    """ERD (layout v2): laying out the disk model again moves nothing (positions come from the group origins), every
+    table sits inside its group box, group boxes never overlap, and the detail levels (all, keys, names) only change
+    sizes: every group keeps the same set of tables and the same left-to-right, top-to-bottom order of them."""
     if data["diagramType"] != "erd":
         return []
     problems = []
     again = run_layout("erd", from_disk("erd", to_disk("erd", laid)))
     moved = [e["id"] for e, f in zip(laid["entities"], again["entities"])
              if (e.get("x"), e.get("y"), e.get("box")) != (f.get("x"), f.get("y"), f.get("box"))]
+    moved += [g["id"] for g, h in zip(laid.get("groups") or [], again.get("groups") or [])
+              if (g.get("x"), g.get("y"), g.get("box")) != (h.get("x"), h.get("y"), h.get("box"))]
     if moved:
         problems.append(f"laying out the saved model moves {', '.join(moved[:6])}")
     if list(differences(laid.get("relationships"), again.get("relationships"))):
         problems.append("laying out the saved model changes the routes")
 
+    def inside(b, g):
+        return b["x"] >= g["x"] and b["y"] >= g["y"] and b["x"] + b["w"] <= g["x"] + g["w"] and b["y"] + b["h"] <= g["y"] + g["h"]
+
+    boxes = {g["id"]: g["box"] for g in laid.get("groups") or [] if g.get("box")}
+    for e in laid["entities"]:
+        if e.get("group") in boxes and not inside(e["box"], boxes[e["group"]]):
+            problems.append(f"table {e['id']} is outside its group box {e['group']}")
+    ids = list(boxes)
+    for i, a in enumerate(ids):
+        for b in ids[i + 1:]:
+            p, q = boxes[a], boxes[b]
+            if p["x"] < q["x"] + q["w"] and q["x"] < p["x"] + p["w"] and p["y"] < q["y"] + q["h"] and q["y"] < p["y"] + p["h"]:
+                problems.append(f"group boxes {a} and {b} overlap")
+
     def shape(result: dict) -> list:
-        groups = [g["id"] for g in result.get("groups") or []]
-        band = lambda e: groups.index(e["group"]) if e.get("group") in groups else 0  # noqa: E731
-        ranks = sorted({e["x"] for e in result["entities"]})
         lists: dict = {}
         for e in result["entities"]:
-            lists.setdefault((band(e), ranks.index(e["x"])), []).append(e)
-        return sorted((k, [e["id"] for e in sorted(v, key=lambda e: e["y"])]) for k, v in lists.items())
+            lists.setdefault(e.get("group"), []).append(e)
+        return sorted((str(k), [e["id"] for e in sorted(v, key=lambda e: (e["y"], e["x"]))]) for k, v in lists.items())
 
     base = shape(laid)
     for detail in ("all", "keys", "names"):
         d = copy.deepcopy(data)
         d["detail"] = detail
-        if shape(run_layout("erd", d)) != base:
-            problems.append(f"detail '{detail}' changes the rank or order of the tables")
+        got = shape(run_layout("erd", d))
+        if sorted((k, sorted(v)) for k, v in got) != sorted((k, sorted(v)) for k, v in base):
+            problems.append(f"detail '{detail}' changes which tables are in which group")
     return problems
 
 

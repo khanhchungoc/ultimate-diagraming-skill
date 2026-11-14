@@ -40,6 +40,7 @@ START_X = 56
 SUPPORTED_TYPES = ("flowchart", "sequence", "erd")  # add a type here when its engine and reference exist
 DEFAULT_TYPE = "flowchart"
 SCHEMA_VERSION = 1
+ERD_SCHEMA_VERSION = 2  # ERD layout v2 (disk_format.ERD_SCHEMA_VERSION)
 
 # Zero budget limits: diagrams can be as large as the user requires.
 DEFAULT_NODE_WIDTH = 144
@@ -1080,7 +1081,7 @@ def normalize_diagram_type(data: Dict[str, Any]) -> Dict[str, Any]:
             f"[ERROR] Unsupported diagramType {kind!r}. Supported: {', '.join(SUPPORTED_TYPES)}."
         )
     data["diagramType"] = kind
-    data.setdefault("schemaVersion", SCHEMA_VERSION)
+    data.setdefault("schemaVersion", ERD_SCHEMA_VERSION if kind == "erd" else SCHEMA_VERSION)
     return data
 
 
@@ -1256,31 +1257,6 @@ def choose_flowchart_direction(data: Dict[str, Any], timeout: int, browser: Opti
     return lr, ""
 
 
-def _erd_canvas(laid: Dict[str, Any]) -> Tuple[float, float]:
-    """(width, height) in px of a laid-out ER diagram."""
-    canvas = laid.get("canvas") or {}
-    return float(canvas.get("width") or 1), float(canvas.get("height") or 1)
-
-
-def choose_erd_direction(data: Dict[str, Any], timeout: int, browser: Optional[str]) -> Tuple[Dict[str, Any], str]:
-    """Lay out an ER diagram that does not set "direction", in the direction that reads best; return (laid data, why).
-
-    Left to right is kept unless top to bottom makes the zoom that fits the whole canvas into the screen the page opens
-    on at least TB_MIN_GAIN bigger. Only canvas sizes are compared (no render)."""
-    lr = run_layout("erd", {**data, "direction": "LR"}, timeout=timeout, browser=browser)
-    lr_w, lr_h = _erd_canvas(lr)
-    lr_zoom = min(1.0, VIEW_W / lr_w, VIEW_H / lr_h)
-    if lr_zoom >= 1.0:
-        return lr, ""
-    tb = run_layout("erd", {**data, "direction": "TB"}, timeout=timeout, browser=browser)
-    tb_w, tb_h = _erd_canvas(tb)
-    tb_zoom = min(1.0, VIEW_W / tb_w, VIEW_H / tb_h)
-    if tb_zoom >= lr_zoom + TB_MIN_GAIN:
-        return tb, (f"top to bottom: the whole diagram fits the screen at {tb_zoom:.0%} "
-                    f"({tb_w:.0f} x {tb_h:.0f} px) against {lr_zoom:.0%} left to right ({lr_w:.0f} x {lr_h:.0f} px)")
-    return lr, ""
-
-
 def main():
     _ensure_utf8_output()
     parser = argparse.ArgumentParser(description="Multi-Swimlane Flowchart Layout & Verification Engine")
@@ -1375,8 +1351,6 @@ def main():
         try:
             if data["diagramType"] == "flowchart" and "direction" not in data:
                 laid_out_data, direction_note = choose_flowchart_direction(data, args.timeout, args.browser)
-            elif data["diagramType"] == "erd" and "direction" not in data:
-                laid_out_data, direction_note = choose_erd_direction(data, args.timeout, args.browser)
             else:
                 laid_out_data = run_layout(data["diagramType"], data, timeout=args.timeout, browser=args.browser)
         except EngineUnavailable as exc:

@@ -14,14 +14,13 @@ HEAD_H, ROW_H, MORE_H = 36, 26, 22
 CHAR_W, TYPE_CHAR_W = 7.4, 6.6
 PAD_X, GLYPH_W, TYPE_GAP = 12, 22, 16
 MIN_W, MAX_W = 168, 360
-RANK_GAP, LABEL_PAD, STACK_GAP = 112, 32, 40
-BAND_HEAD, BAND_PAD, BAND_MIN = 48, 28, 140
+CELL_GAP_X, CELL_GAP_Y, LABEL_PAD = 96, 48, 32
+GROUP_PAD, GROUP_HEAD, GROUP_GAP = 24, 32, 72
 MARGIN, STUB, CHANNEL_STEP, OBSTACLE_PAD, GRID = 40, 20, 8, 12, 4
 
 END_KINDS = {"one", "zeroOrOne", "oneOrMany", "zeroOrMany"}
 MANY_ENDS = {"oneOrMany", "zeroOrMany"}
 DETAILS = {"all", "keys", "names"}
-DIRECTIONS = {"LR", "TB"}
 # Same lane swatches as the sequence audit and assets/shell/shell.js (SWATCHES): the hex values
 SWATCHES = ("#e0f2fe", "#fef3c7", "#dcfce7", "#fee2e2", "#f3e8ff", "#ffedd5", "#ccfbf1", "#e0e7ff")
 
@@ -32,7 +31,6 @@ MAX_TYPE = 16
 MAX_LABEL = 20
 MAX_NOTE = 120
 MAX_COLUMNS_ALL = 25     # more columns than this at detail "all": suggest "keys"
-MAX_PER_BAND_RANK = 12   # more tables than this in one band at one rank: suggest another area
 ERROR_PENALTY = 12
 
 Box = Dict[str, float]
@@ -106,8 +104,6 @@ class ErdAudit:
         for flag in ("showTypes", "showNotes"):
             if flag in self.data and not isinstance(self.data[flag], bool):
                 errors.append(f"'{flag}' must be true or false.")
-        if self.data.get("direction") is not None and self.data["direction"] not in DIRECTIONS:
-            errors.append(f"'direction' must be LR or TB, not '{self.data['direction']}'.")
         if self.data.get("detail") is not None and self.data["detail"] not in DETAILS:
             errors.append(f"'detail' must be all, keys or names, not '{self.data['detail']}'.")
 
@@ -176,13 +172,14 @@ class ErdAudit:
         # Geometry (only meaningful once laid out).
         laid_out = all(_is_box(e.get("box")) for e in es) and all(isinstance(r.get("points"), list) and len(r["points"]) >= 2 for r in rs)
         overlaps = overflows = 0
-        crossings = 0
+        crossings = length = bends = 0
         if (es or rs) and not laid_out:
             errors.append("Diagram is not laid out (entities need box, relationships need points): run --layout.")
         elif laid_out:
             canvas = self.data.get("canvas") or {}
             width, height = canvas.get("width", math.inf), canvas.get("height", math.inf)
             crossings = int(canvas.get("crossings") or 0)
+            length, bends = round(canvas.get("length") or 0), int(canvas.get("bends") or 0)
             for i, a in enumerate(es):
                 for b in es[i + 1:]:
                     if _inside(a["box"], b["box"]):
@@ -192,6 +189,18 @@ class ErdAudit:
                 if bx["x"] < 0 or bx["y"] < 0 or bx["x"] + bx["w"] > width or bx["y"] + bx["h"] > height:
                     overflows += 1
                     errors.append(f"Entity '{a.get('id')}' extends past the diagram edge.")
+            boxed = [g for g in gs if _is_box(g.get("box"))]
+            for i, a in enumerate(boxed):
+                for b in boxed[i + 1:]:
+                    if _inside(a["box"], b["box"]):
+                        overlaps += 1
+                        errors.append(f"Areas '{a.get('id')}' and '{b.get('id')}' overlap.")
+            for e in es:
+                g = gmap.get(e.get("group"))
+                if g is not None and _is_box(g.get("box")):
+                    gb, eb = g["box"], e["box"]
+                    if eb["x"] < gb["x"] or eb["y"] < gb["y"] or eb["x"] + eb["w"] > gb["x"] + gb["w"] or eb["y"] + eb["h"] > gb["y"] + gb["h"]:
+                        errors.append(f"Entity '{e.get('id')}' is outside the box of its area '{g.get('id')}'.")
             for r in rs:
                 pts = r["points"]
                 ends = {r.get("from"), r.get("to")}
@@ -261,16 +270,6 @@ class ErdAudit:
         for n in ns:
             if len(str(n.get("text") or "")) > MAX_NOTE:
                 budget.append(f"Note '{n.get('id')}' is over {MAX_NOTE} characters: shorten it.")
-        if laid_out:
-            flow = "y" if self.data.get("direction") == "TB" else "x"
-            stacks: Dict[Tuple[Any, Any], int] = {}
-            for e in es:
-                key = (e.get("group") if e.get("group") in gmap else None, round(e["box"][flow]))
-                stacks[key] = stacks.get(key, 0) + 1
-            for (gid, _), count in stacks.items():
-                if count > MAX_PER_BAND_RANK:
-                    where = f"area '{gmap[gid].get('name', gid)}'" if gid in gmap else "the diagram"
-                    budget.append(f"{count} tables stack in one rank of {where} (keep to {MAX_PER_BAND_RANK}): split it into another area.")
         if not grouped and any(e.get("color") for e in es):
             key = self.data.get("colorKey") if isinstance(self.data.get("colorKey"), dict) else {}
             for c in dict.fromkeys(e.get("color") for e in es if e.get("color") in SWATCHES):
@@ -294,7 +293,7 @@ class ErdAudit:
             "passed": score >= 90 and not errors, "score": score, "grade": grade, "issues": errors,
             "entity_count": len(es), "relationship_count": len(rs), "group_count": len(gs), "note_count": len(ns),
             "overlaps_count": overlaps, "overflows_count": overflows, "dangling_count": dangling,
-            "crossings_count": crossings, "info": info, "budget_warnings": budget,
+            "crossings_count": crossings, "length": length, "bends": bends, "info": info, "budget_warnings": budget,
         }
 
     def summary_lines(self, report: Dict[str, Any]) -> List[str]:
@@ -306,5 +305,6 @@ class ErdAudit:
             f"✓ Diagram Bounds:                {report['overflows_count']} problems",
             f"✓ Reference Integrity:           {report['dangling_count']} dangling references",
         ]
+        lines.append(f"✓ Canvas Line Length / Bends:    {report.get('length', 0)} px / {report.get('bends', 0)}")
         lines.extend(f"[INFO] {line}" for line in report.get("info", []))
         return lines
