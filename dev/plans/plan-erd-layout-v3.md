@@ -28,6 +28,7 @@ These stay: tables, columns, relationship ends (crow's foot), notes, the D8 hove
 **D3. Lines anchor on the four sides, as in the flowchart (answer to "link to the exact FK position?").** Recommendation: yes.
 - Row anchors pin each line to one exact y, so most lines need two bends and a detour around the table. With side anchors, a graph layout can keep lines short and mostly straight.
 - What is lost: seeing at a glance which column a line belongs to. Hover already restores that. D8 highlights the FK row in the child and the key row in the parent. The expand card and the peek chips name the columns too.
+- **Hover (D8, kept and required):** hovering a table highlights every related table and, in each of them, the FK rows that point at the hovered table (and, in its parents, the key rows it points at), in the in/out colours. The connecting curves are highlighted in the same colours, and everything else is dimmed. When rows are hidden (overview, `detail`, collapsed), the key peeks list the same columns. This now carries the column information that row anchors used to show, so `e2e_erd.mjs` checks it on side-anchored lines: both FK and key rows have `key-hl`, the curves are highlighted, and unrelated tables are dimmed.
 - **Choosing the side:** the side faces the other table (compare the centre-to-centre direction with the table's aspect).
 - **Several lines on one side:** they spread evenly along it, ordered by where the other end lies, so they do not cross at the table.
 - **Line shape: smooth curves (chosen 2026-11-14).**
