@@ -41,7 +41,7 @@
         BAND_HEAD: 48, BAND_PAD: 28, BAND_MIN: 140, // band header (name pill column / row), inner padding, min thickness
         MARGIN: 40, STUB: 20, CHANNEL_STEP: 8, OBSTACLE_PAD: 12, GRID: 4,
         // Router cost model and layout tuning (engine-only; the audit does not need these)
-        BEND: 40, CROSS: 400, OVERLAP: 6,   // OVERLAP: extra cost per unit of length run over an earlier line
+        BEND: 40, CROSS: 400, OVERLAP: 6, TRUNK: 0.8,   // OVERLAP: extra cost per unit of length run over an earlier line
          LABEL_H: 22, LABEL_X: 16, SWEEPS: 4, PLACE_PASSES: 6, PULL_ROOTS: true
       };
       const erGrid = (v) => Math.ceil(v / ER.GRID) * ER.GRID;
@@ -326,6 +326,61 @@
         routeDiagram(data);
       }
 
+      // Number of crossings between the routes (arrays of points). Two routes that run side by side on one track
+      // (collinear overlap) cross only if the track forces them to swap sides: they arrive on opposite sides of
+      // each other at one end of the shared run and leave on the opposite sides at the other end. A bend that
+      // merely joins a track, or two lines that leave a shared stub in the same direction, is not a crossing.
+      function erCountCrossings(routes) {
+        const steps = routes.map((pts) => {
+          const out = [];
+          for (let k = 1; k < (pts || []).length; k++) {
+            const a = pts[k - 1], b = pts[k], dx = Math.sign(b[0] - a[0]), dy = Math.sign(b[1] - a[1]);
+            if (!out.length) out.push([a[0], a[1]]);
+            let x = a[0], y = a[1];
+            while (x !== b[0] || y !== b[1]) { x += dx; y += dy; out.push([x, y]); }
+          }
+          return out;
+        });
+        const key = (p) => (p[0] + 100000) * 1000003 + (p[1] + 100000);
+        const maps = steps.map((st) => { const m = new Map(); st.forEach((p, i) => m.set(key(p), i)); return m; });
+        const dir = (p, q) => [Math.sign(q[0] - p[0]), Math.sign(q[1] - p[1])];
+        const DIRS = [[1, 0], [0, 1], [-1, 0], [0, -1]];
+        const di = (d) => DIRS.findIndex((v) => v[0] === d[0] && v[1] === d[1]);
+        const between = (i, j, k) => { const a = (k - i + 4) % 4, b = (j - i + 4) % 4; return a > 0 && a < b; };
+        let total = 0;
+        for (let a = 0; a < steps.length; a++) {
+          for (let b = a + 1; b < steps.length; b++) {
+            const A = steps[a], B = steps[b], mb = maps[b];
+            if (A.length < 2 || B.length < 2) continue;
+            const at = A.map((p) => { const j = mb.get(key(p)); return j === undefined ? -1 : j; });
+            const shareEdge = A.map((p, i) => i < A.length - 1 && at[i] >= 0 && at[i + 1] >= 0 && Math.abs(at[i] - at[i + 1]) === 1);
+            for (let i = 0; i < A.length; i++) {
+              if (at[i] < 0) continue;
+              const inRun = shareEdge[i] || (i > 0 && shareEdge[i - 1]);
+              if (inRun) {
+                if (!shareEdge[i] || (i > 0 && shareEdge[i - 1])) continue;   // handle a run once, from its start
+                let q = i;
+                while (q < A.length - 1 && shareEdge[q]) q++;
+                const t = dir(A[i], A[i + 1]);
+                const side = (ray) => (ray ? Math.sign(t[0] * ray[1] - t[1] * ray[0]) : 0);
+                const bp = at[i], bq = at[q], fwd = bp < bq;
+                const rA_P = i > 0 ? dir(A[i], A[i - 1]) : null, rA_Q = q < A.length - 1 ? dir(A[q], A[q + 1]) : null;
+                const rB_P = fwd ? (bp > 0 ? dir(B[bp], B[bp - 1]) : null) : (bp < B.length - 1 ? dir(B[bp], B[bp + 1]) : null);
+                const rB_Q = fwd ? (bq < B.length - 1 ? dir(B[bq], B[bq + 1]) : null) : (bq > 0 ? dir(B[bq], B[bq - 1]) : null);
+                const sAP = side(rA_P), sBP = side(rB_P), sAQ = side(rA_Q), sBQ = side(rB_Q);
+                if (sAP * sBP === -1 && sAQ * sBQ === -1 && sAP !== sAQ) total++;
+                i = q;
+              } else if (i > 0 && i < A.length - 1 && at[i] > 0 && at[i] < B.length - 1) {
+                const a1 = di(dir(A[i], A[i - 1])), a2 = di(dir(A[i], A[i + 1]));
+                const b1 = di(dir(B[at[i]], B[at[i] - 1])), b2 = di(dir(B[at[i]], B[at[i] + 1]));
+                if (new Set([a1, a2, b1, b2]).size === 4 && between(a1, a2, b1) !== between(a1, a2, b2)) total++;
+              }
+            }
+          }
+        }
+        return total;
+      }
+
       // Orthogonal routes between column rows, on the sparse grid of box edges, channels and stubs. See header.
       function routeDiagram(data) {
         erClearDerived(data);
@@ -405,17 +460,46 @@
         });
         const order = infos.slice().sort((p, q) => p.len - q.len || p.ri - q.ri);
         // Stub lengths: lines sharing one row anchor get staggered stubs
-        const shared = {};
+        const shared = {}, trunkOf = {};
+        let trunkCount = 0;
         order.forEach((inf) => {
           if (inf.self) return;
           const kf = inf.fi + '|' + inf.sf + '|' + inf.fy, kt = inf.ti + '|' + inf.st + '|' + inf.ty;
-          const nf = shared[kf] || 0, nt = shared[kt] || 0;
-          shared[kf] = nf + 1; shared[kt] = nt + 1;
+          const nf = shared[kf] || 0;
+          shared[kf] = nf + 1;
+          shared[kt] = (shared[kt] || 0) + 1;
+          if (trunkOf[kt] === undefined) trunkOf[kt] = trunkCount++;
+          inf.gid = trunkOf[kt] + 1;
           inf.lf = ER.STUB + (nf % 4) * ER.CHANNEL_STEP;
-          inf.lt = ER.STUB + (nt % 4) * ER.CHANNEL_STEP;
+          inf.lt = ER.STUB;   // lines into one parent row share one trunk (see TRUNK); stub ends are ordered below
           inf.sx = inf.ax + inf.sf * inf.lf;
           inf.ex = inf.bx + inf.st * inf.lt;
         });
+        // Trunk order: in one column of boxes (left to right, same left edge), a parent higher up gets its trunk further
+        // out than the stub ends of the parents below it on the same side, so its trunk never cuts their stubs.
+        if (!TB) {
+          const tgt = new Map();
+          order.forEach((inf) => { if (!inf.self) tgt.set(inf.ti + '|' + inf.st, { ti: inf.ti, st: inf.st }); });
+          const byCol = new Map();
+          tgt.forEach((t) => { const k = boxes[t.ti].x + '|' + t.st; if (!byCol.has(k)) byCol.set(k, []); byCol.get(k).push(t); });
+          const endOf = new Map();
+          byCol.forEach((list) => {
+            list.sort((p, q) => boxes[q.ti].y - boxes[p.ti].y || p.ti - q.ti);
+            let far = null;
+            list.forEach((t) => {
+              const b = boxes[t.ti], edge = t.st > 0 ? b.x + b.w : b.x;
+              let end = edge + t.st * ER.STUB;
+              if (far !== null) end = t.st > 0 ? Math.max(end, far + ER.CHANNEL_STEP) : Math.min(end, far - ER.CHANNEL_STEP);
+              far = end;
+              endOf.set(t.ti + '|' + t.st, Math.min(Math.abs(end - edge), 120));
+            });
+          });
+          order.forEach((inf) => {
+            if (inf.self) return;
+            inf.lt = endOf.get(inf.ti + '|' + inf.st);
+            inf.ex = inf.bx + inf.st * inf.lt;
+          });
+        }
         const loopCount = {};
         infos.forEach((inf) => {
           if (!inf.self) return;
@@ -475,24 +559,25 @@
             for (let iy = Math.max(0, iyA - 1); iy <= iyB; iy++) vBlock[iy * NX + ix] = 1;
           }
         });
-        const usedH = new Uint8Array(N), usedV = new Uint8Array(N);
-        const markSeg = (x1, y1, x2, y2) => {
+        const usedH = new Int16Array(N), usedV = new Int16Array(N);   // 0 free, trunk id + 1 of the first user, -1 shared by several trunks
+        const own = (cur, gid) => (cur === 0 || cur === gid ? gid : -1);
+        const markSeg = (x1, y1, x2, y2, gid) => {
           if (y1 === y2) {
             const iy = yi.get(y1);
             if (iy === undefined) return;
-            for (let ix = lower(xs, Math.min(x1, x2)); ix < NX - 1 && xs[ix + 1] <= Math.max(x1, x2); ix++) usedH[iy * NX + ix] = 1;
+            for (let ix = lower(xs, Math.min(x1, x2)); ix < NX - 1 && xs[ix + 1] <= Math.max(x1, x2); ix++) usedH[iy * NX + ix] = own(usedH[iy * NX + ix], gid);
           } else if (x1 === x2) {
             const ix = xi.get(x1);
             if (ix === undefined) return;
-            for (let iy = lower(ys, Math.min(y1, y2)); iy < NY - 1 && ys[iy + 1] <= Math.max(y1, y2); iy++) usedV[iy * NX + ix] = 1;
+            for (let iy = lower(ys, Math.min(y1, y2)); iy < NY - 1 && ys[iy + 1] <= Math.max(y1, y2); iy++) usedV[iy * NX + ix] = own(usedV[iy * NX + ix], gid);
           }
         };
-        const mark = (pts) => { for (let k = 1; k < pts.length; k++) markSeg(pts[k - 1][0], pts[k - 1][1], pts[k][0], pts[k][1]); };
+        const mark = (pts, gid) => { for (let k = 1; k < pts.length; k++) markSeg(pts[k - 1][0], pts[k - 1][1], pts[k][0], pts[k][1], gid); };
 
         // ---- routes ----
         const DX = [1, 0, -1, 0], DY = [0, 1, 0, -1];
         const dist = new Float64Array(N * 4), parent = new Int32Array(N * 4);
-        const astar = (sx, sy, sdir, gx, gy, gdir) => {
+        const astar = (sx, sy, sdir, gx, gy, gdir, gid) => {
           const s0 = yi.get(sy) * NX + xi.get(sx), goal = yi.get(gy) * NX + xi.get(gx);
           if (blocked[s0] || blocked[goal]) return null;
           dist.fill(Infinity); parent.fill(-1);
@@ -524,7 +609,7 @@
             }
             return top;
           };
-          const heur = (node) => Math.abs(xs[node % NX] - gx) + Math.abs(ys[(node / NX) | 0] - gy);
+          const heur = (node) => ER.TRUNK * (Math.abs(xs[node % NX] - gx) + Math.abs(ys[(node / NX) | 0] - gy));
           const st0 = s0 * 4 + sdir;
           dist[st0] = 0;
           push(heur(s0), 0, st0);
@@ -549,9 +634,13 @@
               if (blocked[v] || (v === goal && nd === ((gdir + 2) & 3))) continue;   // never arrive from the box's side
               const len = DX[nd] ? Math.abs(xs[v % NX] - xs[ux]) : Math.abs(ys[(v / NX) | 0] - ys[uy]);
               let c = g + len;
-              if (used) c += ER.OVERLAP * len;
+              if (used === gid) c -= (1 - ER.TRUNK) * len;   // running along a line into the same parent row: a trunk
+              else if (used) c += ER.OVERLAP * len;
               if (nd !== d) c += ER.BEND;
-              else if (DX[nd] ? (usedV[u] || (uy > 0 && usedV[u - NX])) : (usedH[u] || (ux > 0 && usedH[u - 1]))) c += ER.CROSS;
+              else {
+                const perp = DX[nd] ? [usedV[u], uy > 0 ? usedV[u - NX] : 0] : [usedH[u], ux > 0 ? usedH[u - 1] : 0];
+                if (perp.some((o) => o !== 0 && o !== gid)) c += ER.CROSS;
+              }
               if (v === goal && nd !== gdir) c += ER.BEND;
               const sv = v * 4 + nd;
               if (c < dist[sv]) { dist[sv] = c; parent[sv] = s; push(c + heur(v), c, sv); }
@@ -574,22 +663,22 @@
         // Pre-mark every stub and loop, so other lines see them as crossings
         order.forEach((inf) => {
           if (inf.self) return;
-          markSeg(inf.ax, inf.fy, inf.sx, inf.fy);
-          markSeg(inf.bx, inf.ty, inf.ex, inf.ty);
+          markSeg(inf.ax, inf.fy, inf.sx, inf.fy, inf.gid);
+          markSeg(inf.bx, inf.ty, inf.ex, inf.ty, inf.gid);
         });
         infos.forEach((inf) => {
           if (!inf.self) return;
           inf.points = [[inf.ax, inf.fy], [inf.lx, inf.fy], [inf.lx, inf.ty], [inf.ax, inf.ty]];
-          mark(inf.points);
+          mark(inf.points, 1000 + inf.ri);
         });
         order.forEach((inf) => {
           if (inf.self) return;
           const sdir = inf.sf > 0 ? 0 : 2, gdir = inf.st > 0 ? 2 : 0;
-          const path = astar(inf.sx, inf.fy, sdir, inf.ex, inf.ty, gdir);
+          const path = astar(inf.sx, inf.fy, sdir, inf.ex, inf.ty, gdir, inf.gid);
           let pts;
           if (path) {
             pts = [[inf.ax, inf.fy]].concat(path.map((u) => [xs[u % NX], ys[(u / NX) | 0]]), [[inf.bx, inf.ty]]);
-            mark(pts.slice(1, -1));
+            mark(pts.slice(1, -1), inf.gid);
           } else {
             const mx = Math.round((inf.sx + inf.ex) / 2);
             pts = [[inf.ax, inf.fy], [inf.sx, inf.fy], [mx, inf.fy], [mx, inf.ty], [inf.ex, inf.ty], [inf.bx, inf.ty]];
@@ -642,22 +731,6 @@
         } else {
           data._band = { x: 0, y: 0, w: width, h: height };
         }
-        let crossings = 0;
-        const segsOf = infos.map((inf) => {
-          const out = [];
-          const p = inf.points || [];
-          for (let k = 1; k < p.length; k++) out.push([p[k - 1][0], p[k - 1][1], p[k][0], p[k][1]]);
-          return out;
-        });
-        for (let a = 0; a < segsOf.length; a++) {
-          for (let b = a + 1; b < segsOf.length; b++) {
-            segsOf[a].forEach((s) => segsOf[b].forEach((t) => {
-              const sh = s[1] === s[3], th = t[1] === t[3];
-              if (sh === th) return;
-              const h = sh ? s : t, v = sh ? t : s;
-              if (v[0] > Math.min(h[0], h[2]) && v[0] < Math.max(h[0], h[2]) && h[1] > Math.min(v[1], v[3]) && h[1] < Math.max(v[1], v[3])) crossings++;
-            }));
-          }
-        }
+        const crossings = erCountCrossings(infos.map((inf) => inf.points || []));
         data.canvas = { width, height, crossings };
       }
