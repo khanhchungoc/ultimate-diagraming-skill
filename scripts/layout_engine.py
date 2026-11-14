@@ -26,6 +26,7 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
 
+from audit_erd import ErdAudit
 from audit_sequence import SequenceAudit
 from disk_format import (DISK_CODECS, authoring_json, format_json, from_disk, readme_text,  # noqa: F401 (DISK_CODECS: registry)
                          stamp_reading_guide, to_disk, with_readme)
@@ -36,7 +37,7 @@ DEFAULT_COL_WIDTH = 200
 START_X = 56
 
 # Complexity budget (a diagram beyond these is too dense to read at Fit zoom on a 1920px screen)
-SUPPORTED_TYPES = ("flowchart", "sequence")  # add a type here when its engine and reference exist
+SUPPORTED_TYPES = ("flowchart", "sequence", "erd")  # add a type here when its engine and reference exist
 DEFAULT_TYPE = "flowchart"
 SCHEMA_VERSION = 1
 
@@ -1099,7 +1100,7 @@ def extract_data_from_html(html_content: str) -> Dict[str, Any]:
     return from_disk(data.get("diagramType") or DEFAULT_TYPE, data)
 
 
-AUDITS = {"flowchart": FlowchartAudit, "sequence": SequenceAudit}
+AUDITS = {"flowchart": FlowchartAudit, "sequence": SequenceAudit, "erd": ErdAudit}
 # DISK_CODECS (disk_format.py): per type, (to_disk, from_disk) between the in-memory model and the page block
 
 ASSETS_DIR = Path(__file__).resolve().parent.parent / "assets"
@@ -1255,6 +1256,31 @@ def choose_flowchart_direction(data: Dict[str, Any], timeout: int, browser: Opti
     return lr, ""
 
 
+def _erd_canvas(laid: Dict[str, Any]) -> Tuple[float, float]:
+    """(width, height) in px of a laid-out ER diagram."""
+    canvas = laid.get("canvas") or {}
+    return float(canvas.get("width") or 1), float(canvas.get("height") or 1)
+
+
+def choose_erd_direction(data: Dict[str, Any], timeout: int, browser: Optional[str]) -> Tuple[Dict[str, Any], str]:
+    """Lay out an ER diagram that does not set "direction", in the direction that reads best; return (laid data, why).
+
+    Left to right is kept unless top to bottom makes the zoom that fits the whole canvas into the screen the page opens
+    on at least TB_MIN_GAIN bigger. Only canvas sizes are compared (no render)."""
+    lr = run_layout("erd", {**data, "direction": "LR"}, timeout=timeout, browser=browser)
+    lr_w, lr_h = _erd_canvas(lr)
+    lr_zoom = min(1.0, VIEW_W / lr_w, VIEW_H / lr_h)
+    if lr_zoom >= 1.0:
+        return lr, ""
+    tb = run_layout("erd", {**data, "direction": "TB"}, timeout=timeout, browser=browser)
+    tb_w, tb_h = _erd_canvas(tb)
+    tb_zoom = min(1.0, VIEW_W / tb_w, VIEW_H / tb_h)
+    if tb_zoom >= lr_zoom + TB_MIN_GAIN:
+        return tb, (f"top to bottom: the whole diagram fits the screen at {tb_zoom:.0%} "
+                    f"({tb_w:.0f} x {tb_h:.0f} px) against {lr_zoom:.0%} left to right ({lr_w:.0f} x {lr_h:.0f} px)")
+    return lr, ""
+
+
 def main():
     _ensure_utf8_output()
     parser = argparse.ArgumentParser(description="Multi-Swimlane Flowchart Layout & Verification Engine")
@@ -1299,10 +1325,10 @@ def main():
             data = json.loads(p.read_text(encoding="utf-8"))
 
         data = normalize_diagram_type(data)
-        if p.suffix == ".html" and data["diagramType"] == "sequence":
-            # A sequence page saves no positions: lay it out with the engine, as the page does on load
+        if p.suffix == ".html" and data["diagramType"] in ("sequence", "erd"):
+            # A sequence page saves no positions and an ER page no routes: run the engine, as the page does on load
             try:
-                data = run_layout("sequence", data, timeout=args.timeout, browser=args.browser)
+                data = run_layout(data["diagramType"], data, timeout=args.timeout, browser=args.browser)
             except EngineUnavailable as exc:
                 sys.exit(f"[ERROR] {exc}")
         audit = AUDITS[data["diagramType"]](data)
@@ -1349,6 +1375,8 @@ def main():
         try:
             if data["diagramType"] == "flowchart" and "direction" not in data:
                 laid_out_data, direction_note = choose_flowchart_direction(data, args.timeout, args.browser)
+            elif data["diagramType"] == "erd" and "direction" not in data:
+                laid_out_data, direction_note = choose_erd_direction(data, args.timeout, args.browser)
             else:
                 laid_out_data = run_layout(data["diagramType"], data, timeout=args.timeout, browser=args.browser)
         except EngineUnavailable as exc:
