@@ -1221,6 +1221,11 @@ def _flowchart_canvas(laid: Dict[str, Any]) -> Tuple[float, float]:
     return along, across
 
 
+def _score_without_long_arrows(report: Dict[str, Any]) -> int:
+    """The audit score with the long-arrow penalty given back (choose_flowchart_direction compares directions on it)."""
+    return report["score"] + min(LONG_ARROW_MAX_PENALTY, report["long_arrows_count"] * LONG_ARROW_PENALTY)
+
+
 def choose_flowchart_direction(data: Dict[str, Any], timeout: int, browser: Optional[str]) -> Tuple[Dict[str, Any], str]:
     """Lay out a flowchart that does not set "direction", in the direction that reads best; return (laid data, why).
 
@@ -1238,9 +1243,11 @@ def choose_flowchart_direction(data: Dict[str, Any], timeout: int, browser: Opti
     lr_zoom, tb_zoom = min(1.0, VIEW_H / across), min(1.0, VIEW_W / tb_across)
     # Rotating the same graph can add an edge crossing or two (score only, never a gate failure); that is worth much
     # bigger lanes, but a real defect (overlap, penetration, overflow) that left to right does not have is not.
+    # Long arrows are left out of the comparison: the workflow splits them into connector pairs after layout (rule
+    # 11), and a flow turned top to bottom often has a few backward ones that left to right does not flag.
     lr_report, tb_report = FlowchartAudit(lr).verify_collisions(), FlowchartAudit(tb).verify_collisions()
     tb_quality_ok = (tb_report["passed"] or not lr_report["passed"]) and \
-        tb_report["score"] >= lr_report["score"] - TB_MAX_SCORE_LOSS
+        _score_without_long_arrows(tb_report) >= _score_without_long_arrows(lr_report) - TB_MAX_SCORE_LOSS
     if tb_zoom >= lr_zoom + TB_MIN_GAIN and tb_quality_ok:
         return tb, (f"top to bottom: a long flow; lanes fill the screen at {tb_zoom:.0%} "
                     f"({tb_across:.0f} x {tb_along:.0f} px) against {lr_zoom:.0%} left to right "
