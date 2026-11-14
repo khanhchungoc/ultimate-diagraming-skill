@@ -532,6 +532,7 @@
       }
 
       function relayout() {
+        normalizeSpans();
         layoutDiagram(chartData);
         render();
         updateStatus(true);
@@ -587,6 +588,18 @@
           const h = ps.findIndex((q) => q.id === p.column);
           if (h < 0 || h >= i) delete p.column;
           else if (ps[h].column !== undefined) p.column = ps[h].column;
+        });
+      }
+      // A "start" / "end" override names a message and can only widen a lifespan (the audit refuses one that does not):
+      // after an edit that deleted the message or moved the participant's own messages past it, it goes
+      function normalizeSpans() {
+        chartData.participants.forEach((p) => {
+          const sp = seqSpan(p.id, false);
+          [['start', (k) => k >= sp[0]], ['end', (k) => k <= sp[1]]].forEach(([key, useless]) => {
+            if (p[key] === undefined) return;
+            const k = msgIndex(p[key]);
+            if (k < 0 || (sp && useless(k))) delete p[key];
+          });
         });
       }
       // Drop a participant's box on another's lifeline: they share a column (the later one takes the earlier's)

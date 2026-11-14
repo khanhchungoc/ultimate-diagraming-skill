@@ -576,6 +576,12 @@ try {
   await t.dragTo(hs.x, hs.y, hs.x, await gapAt('m15', 'm16'), { steps: 8 });
   d = await saved();
   t.check('a start handle drags a lifeline earlier: only outward, onto a message id', d.participants.find((q) => q.id === 'bus').start === 'm16', JSON.stringify(d.participants.find((q) => q.id === 'bus')));
+  // Deleting the message a start override names must not leave a dangling id behind
+  await t.clickOn('.seq-msg-label[data-edge-id="m16"]');
+  await t.press('Delete');
+  d = await saved();
+  t.check('deleting the message a start names drops the override', !d.messages.some((m) => m.id === 'm16') && d.participants.every((q) => q.start === undefined || d.messages.some((m) => m.id === q.start)), JSON.stringify(d.participants.find((q) => q.id === 'bus')));
+  await t.press('z', { modifiers: 2 });
   await t.clickOn('.seq-participant[data-node-id="bus"]');
   const hs2 = await t.at('.seq-handle[data-role="pstart"]');
   await t.dragTo(hs2.x, hs2.y, hs2.x, await gapAt('m22', 'm23'), { steps: 8 });
