@@ -101,7 +101,7 @@ On disk, a trailing `layout` map holds each entity's `x`/`y` (flow terms, as flo
 - **Lines**: orthogonal, rounded corners, the flowchart's stroke colour and hop style where lines cross. Crow's-foot markers as SVG markers in `stage.html` (one per end kind, both themes). `identifying` solid, non-identifying dashed. Label on a pill like a flowchart edge label.
 - **Notes**: the flowchart's note card and badge, unchanged.
 - **Hover** a table: its lines and the joined column rows light up, everything else dims (like the connector partner highlight). Hover a line: both rows light up.
-- **Dock** (left to right): Table, Relationship (tool), Area, Note | Columns (cycle), Types, Notes | Vertical/Horizontal, Auto-Tidy switch, Tidy (shell).
+- **Dock** (left to right): Table, Relationship (tool), Area, Note | Columns (cycle), Types, Notes | Auto-Tidy switch, Tidy (shell). No Vertical/Horizontal button (decision 7).
 - **Action bar** over the selection: table: area colour, collapse, delete; column: PK, FK, Unique, Nullable toggles, move up/down; relationship: two crow's-foot pickers (one per end, glyph buttons), Identifying, reverse, label.
 
 ## Architecture
@@ -197,6 +197,7 @@ Settled 2026-11-14, all as proposed:
 4. **No inference** of relationships from `fk` columns; the audit warns about an `fk` column no relationship uses.
 5. **No Copy as SQL** in v1.
 6. **Direct many-to-many allowed**, with an `[INFO]` suggesting a junction table.
+7. **No Vertical/Horizontal button in the ERD dock** (settled after wave 3). An ERD has no flow to read in a direction, ERD tools rarely offer the switch, and `TB` adds a sideways stub to every line because rows stay horizontal. The engine keeps `TB`, `--layout` still picks it automatically when `direction` is missing and it fits the screen clearly better, and an agent can still set `"direction": "TB"`.
 
 ## Implementation details
 

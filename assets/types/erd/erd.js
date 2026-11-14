@@ -23,7 +23,6 @@
       const erdBtnColumns = document.getElementById('btn-columns');
       const erdBtnTypes = document.getElementById('btn-types');
       const erdBtnNotes = document.getElementById('btn-notes');
-      const erdBtnDirection = document.getElementById('btn-direction');
       const erdBtnAuto = document.getElementById('btn-auto-layout');
 
       const ERD_DETAILS = ['all', 'keys', 'names'];
@@ -38,10 +37,6 @@
       const ERD_NOTE_DEL_ICON = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
       const ERD_NOTE_LINK_ICON = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>';
       const ERD_NOTE_ICON = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" aria-hidden="true"><path d="M5 7h14"/><path d="M5 12h14"/><path d="M5 17h9"/></svg>';
-      const ERD_DIR_ICONS = {
-        LR: '<path d="M3 12h18"/><path d="m16 7 5 5-5 5"/>',
-        TB: '<path d="M12 3v18"/><path d="m7 16 5 5 5-5"/>'
-      };
 
       // --- STATE ---
       let erdSel = null;              // { kind: 'entity' | 'rel' | 'band', id } | { kind: 'col', entity, col }: class `selected`
@@ -555,14 +550,6 @@
           erdBtnTypes.setAttribute('aria-pressed', String(on));
           erdBtnTypes.title = on ? 'Hide the column types' : 'Show the column types';
         }
-        if (erdBtnDirection) {
-          const next = isTB() ? 'LR' : 'TB';
-          const label = next === 'TB' ? 'Vertical' : 'Horizontal';
-          erdBtnDirection.querySelector('.btn-label').textContent = label;
-          erdBtnDirection.querySelector('svg').innerHTML = ERD_DIR_ICONS[next];
-          erdBtnDirection.title = next === 'TB' ? 'Switch to a top-to-bottom layout' : 'Switch to a left-to-right layout';
-          erdBtnDirection.setAttribute('aria-label', label);
-        }
         if (erdBtnAuto) {
           erdBtnAuto.setAttribute('aria-checked', String(autoLayout));
           erdBtnAuto.title = autoLayout
@@ -585,15 +572,6 @@
         erdLayout();
         render();
         updateStatus(true);
-      });
-      if (erdBtnDirection) erdBtnDirection.addEventListener('click', () => {
-        chartData.direction = isTB() ? 'LR' : 'TB';
-        erdSel = null;
-        notesList().forEach((n) => { delete n.pos; });   // a pinned note's offset is in screen terms, which the switch turns sideways
-        erdLayout();
-        render();
-        updateStatus(true);
-        fitView();
       });
 
       // --- AUTO-TIDY ---

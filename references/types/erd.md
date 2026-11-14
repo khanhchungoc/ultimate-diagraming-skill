@@ -52,7 +52,7 @@ Never add coordinates or sizes (`x`, `y`, `w`, `h`, `box`, `points`, `layout`); 
 
 | Object | Field | Description |
 |---|---|---|
-| Diagram | `direction` | Optional. `LR` (default) or `TB`. Parent tables (the ones other tables point to) come first along the flow: left in `LR`, top in `TB`. If you leave it out, `--layout` tries both and keeps `TB` only when it makes the whole diagram fit the screen at a clearly bigger zoom. |
+| Diagram | `direction` | Optional. `LR` (default) or `TB`. Parent tables (the ones other tables point to) come first along the flow: left in `LR`, top in `TB`. If you leave it out, `--layout` tries both and keeps `TB` only when it makes the whole diagram fit the screen at a clearly bigger zoom. The page has no button to switch it: set it here when the user asks for a vertical (or horizontal) layout. |
 | Diagram | `detail` | Optional. `all` (default: every column), `keys` (only `pk` and `fk` columns, plus a "+ N more" row), `names` (table headers only). The page's **Columns** button cycles it. |
 | Diagram | `showTypes` | Optional. `false` hides the type column. |
 | Diagram | `showNotes` | Optional. `true` draws notes on the canvas instead of as badges. |
