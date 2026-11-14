@@ -113,6 +113,67 @@ def legacy_problems(path: Path, laid: dict) -> list:
     return problems
 
 
+def rail_problems(data: dict, laid: dict) -> list:
+    """Rails (sequence, "rails": true): a rail is a participant with something in the collapsed frames and nothing
+    outside them, and drawn RAIL_W (36) wide, so the diagram is narrower than the expanded one. With every frame
+    expanded there are none, and the layout is the one without the flag."""
+    if data["diagramType"] != "sequence" or data.get("rails") is not True:
+        return []
+    problems, ms, ps = [], laid["messages"], laid["participants"]
+    drawn = {m["from"] for m in ms if not m.get("hidden")} | {m["to"] for m in ms if not m.get("hidden")}
+    drawn |= {o for n in laid.get("notes") or [] if "x" in n for o in (n["over"] if isinstance(n["over"], list) else [n["over"]])}
+    hidden = {m["from"] for m in ms if m.get("hidden")} | {m["to"] for m in ms if m.get("hidden")}
+    for p in ps:
+        if bool(p.get("rail")) != (p["id"] in hidden and p["id"] not in drawn):
+            problems.append(f"rail: {p['id']} is {'' if p.get('rail') else 'not '}a rail, but it {'has' if p['id'] in drawn else 'has no'} drawn message or note")
+    rails = [p for p in ps if p.get("rail")]
+    if not rails:
+        problems.append("rail: the fixture is meant to have rails")
+    for left, right in zip(ps, ps[1:]):
+        if left.get("rail") and right.get("rail") and right["x"] - left["x"] != 36 + 24:   # RAIL_W + the clear space beside a rail
+            problems.append(f"rail: {left['id']} and {right['id']} are {right['x'] - left['x']}px apart, not RAIL_W + 24")
+    expanded = copy.deepcopy(data)
+    for f in expanded.get("fragments") or []:
+        f.pop("collapsed", None)
+    plain = copy.deepcopy(expanded)
+    plain.pop("rails")
+    a, b = run_layout("sequence", expanded), run_layout("sequence", plain)
+    a.pop("rails", None)
+    if list(differences(b, a)):
+        problems.append("rail: with every frame expanded the layout differs from the layout without rails")
+    if laid["layout"]["width"] >= b["layout"]["width"]:
+        problems.append("rail: the focused diagram is not narrower than the expanded one")
+    return problems
+
+
+def lifespan_problems(data: dict, laid: dict) -> list:
+    """Lifespans (sequence, "lifespans": true): every box sits above its first row and its lifeline ends below its
+    last; participants that share a column have one x and lifelines that never overlap in y."""
+    if data["diagramType"] != "sequence" or data.get("lifespans") is not True:
+        return []
+    problems, ps, ms = [], laid["participants"], laid["messages"]
+    for p in ps:
+        ys = [m["y"] for m in ms if p["id"] in (m["from"], m["to"])]
+        if "top" not in p or "bottom" not in p:
+            problems.append(f"lifespans: {p['id']} has no top/bottom")
+        elif ys and not (p["top"] < min(ys) and p["bottom"] > max(ys)):
+            problems.append(f"lifespans: {p['id']} spans {p['top']}-{p['bottom']} but takes part from {min(ys)} to {max(ys)}")
+    for i, p in enumerate(ps):
+        host = next((q for q in ps[:i] if q["id"] == p.get("column")), None)
+        if host and (p["x"] != host["x"] or not (p["top"] > host["bottom"] or p["bottom"] < host["top"])):
+            problems.append(f"lifespans: {p['id']} shares {host['id']}'s column but is not alone in it")
+    plain = copy.deepcopy(data)
+    for k in ("lifespans",):
+        plain.pop(k, None)
+    for q in plain["participants"]:
+        for k in ("column", "start", "end"):
+            q.pop(k, None)
+    flat = run_layout("sequence", plain)
+    if any("top" in p or "bottom" in p for p in flat["participants"]):
+        problems.append("lifespans: a diagram without the flag has top/bottom")
+    return problems
+
+
 def main() -> int:
     for stream in (sys.stdout, sys.stderr):
         try:
@@ -142,6 +203,7 @@ def main() -> int:
         problems += twin_problems(path, data, laid)
         problems += flow_order_problems(data, laid)
         problems += legacy_problems(path, laid)
+        problems += rail_problems(data, laid) + lifespan_problems(data, laid)
         report = AUDITS[data["diagramType"]](copy.deepcopy(laid)).verify_collisions()
         if not report["passed"]:
             problems.append(f"audit failed: score {report['score']}, issues {report['issues']}")

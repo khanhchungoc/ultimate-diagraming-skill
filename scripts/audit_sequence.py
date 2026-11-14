@@ -46,6 +46,66 @@ def note_over(n: Dict[str, Any]) -> List[Any]:
 class SequenceAudit:
     title = "Sequence"
 
+    def own_span(self, pid: Any, widen: bool = False) -> Any:
+        """[first, last] message index of a participant's messages and the notes over it (a free note counts as
+        the first message); with `widen`, also its "start" / "end". None when it has none."""
+        midx = {m.get("id"): i for i, m in enumerate(self.messages)}
+        events = [i for i, m in enumerate(self.messages) if pid in (m.get("from"), m.get("to"))]
+        for n in self.notes:
+            if pid not in note_over(n):
+                continue
+            key = "after" if n.get("after") is not None else "before" if n.get("before") is not None else None
+            at = midx.get(n[key]) if key else (0 if self.messages else None)
+            if at is not None:
+                events.append(at)
+        if not events:
+            return None
+        lo, hi = min(events), max(events)
+        if widen:
+            p = next((q for q in self.participants if q.get("id") == pid), {})
+            lo = min(lo, midx.get(p.get("start"), lo))
+            hi = max(hi, midx.get(p.get("end"), hi))
+        return [lo, hi]
+
+    def column_errors(self, midx: Dict[Any, int]) -> List[str]:
+        """Lifespans, shared columns and their start / end overrides."""
+        ps, errors = self.participants, []
+        lifespans = self.data.get("lifespans") is True
+        pidx = {p.get("id"): i for i, p in enumerate(ps)}
+        for i, p in enumerate(ps):
+            own = self.own_span(p.get("id"))
+            for key in ("start", "end"):
+                if p.get(key) is None:
+                    continue
+                if p[key] not in midx:
+                    errors.append(f"Participant '{p.get('id')}' {key} unknown message '{p[key]}'.")
+                elif own and key == "start" and midx[p[key]] > own[0]:
+                    errors.append(f"Participant '{p.get('id')}' start '{p[key]}' is after its first message: start can only begin a lifeline earlier.")
+                elif own and key == "end" and midx[p[key]] < own[1]:
+                    errors.append(f"Participant '{p.get('id')}' end '{p[key]}' is before its last message: end can only end a lifeline later.")
+            host = p.get("column")
+            if host is None:
+                continue
+            if not lifespans:
+                errors.append(f"Participant '{p.get('id')}' has 'column' but the diagram has no 'lifespans': true.")
+            elif host not in pidx:
+                errors.append(f"Participant '{p.get('id')}' column is unknown participant '{host}'.")
+            elif pidx[host] >= i:
+                errors.append(f"Participant '{p.get('id')}' column '{host}' must be an earlier participant.")
+            elif ps[pidx[host]].get("column") is not None:
+                errors.append(f"Participant '{p.get('id')}' column '{host}' is itself in column '{ps[pidx[host]]['column']}': "
+                              "chains are not allowed, name that one.")
+            else:
+                a, b = self.own_span(host, True), self.own_span(p.get("id"), True)
+                for other in ps[:i]:
+                    if other.get("id") != host and other.get("column") != host:
+                        continue
+                    a = self.own_span(other.get("id"), True)
+                    if a and b and max(a[0], b[0]) <= min(a[1], b[1]):
+                        errors.append(f"Participants '{other.get('name')}' and '{p.get('name')}' share a column but are both active at "
+                                      f"step {max(a[0], b[0]) + 1}.")
+        return errors
+
     def pass_line(self, report: Dict[str, Any]) -> str:
         return f"[PASS] Quality Score: {report['score']}/100 ({report['grade']}). No spacing, label-fit or bounds problems."
 
@@ -74,6 +134,7 @@ class SequenceAudit:
                 if item.get("id") in seen:
                     errors.append(f"Duplicate {label} id '{item.get('id')}'.")
                 seen.add(item.get("id"))
+        errors.extend(self.column_errors(midx))
         for p in ps:
             if p.get("kind", "system") not in PARTICIPANT_KINDS:
                 errors.append(f"Participant '{p['id']}' has unknown kind '{p.get('kind')}'.")
@@ -151,8 +212,13 @@ class SequenceAudit:
             layout = self.data.get("layout") or {}
             width, height = layout.get("width", math.inf), layout.get("height", math.inf)
             half = lambda p: (RAIL_W if p.get("rail") else BOX_W) / 2  # noqa: E731
-            for left, right in zip(ps, ps[1:]):
-                if right["x"] - left["x"] < half(left) + half(right) + LABEL_MARGIN:
+            columns = {}  # participants that share a column have one x
+            for p in ps:
+                columns.setdefault(p["x"], p)
+            xs = sorted(columns)
+            for lx, rx in zip(xs, xs[1:]):
+                left, right = columns[lx], columns[rx]
+                if rx - lx < half(left) + half(right) + LABEL_MARGIN:
                     overlaps += 1
                     errors.append(f"Participants '{left['name']}' and '{right['name']}' overlap.")
             for earlier, later in zip(ms, ms[1:]):
@@ -172,8 +238,7 @@ class SequenceAudit:
                 label_w = max(text_width(m.get("label")) + (NUM_W if numbered else 0),
                               math.ceil(len(str(detail or "")) * DETAIL_CHAR_W))
                 if a is b:
-                    pos = ps.index(a)
-                    nxt = ps[pos + 1]["x"] if pos + 1 < len(ps) else math.inf
+                    nxt = min((q["x"] for q in ps if q["x"] > a["x"]), default=math.inf)
                     if a["x"] + SELF_LOOP + 8 + label_w + 8 > nxt:
                         overlaps += 1
                         errors.append(f"Self-message '{m.get('label')}' runs into the next lifeline.")

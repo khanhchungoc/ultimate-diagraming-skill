@@ -564,6 +564,63 @@ try {
     !/translate:\s*0px\s+[1-9]/.test(exported) && !/opacity:\s*0;/.test(exported.replace(/[^;]*seq-pin[^;]*;/g, '')) && exported.length > 1000);
   t.check('and no page errors so far', t.errors.length === 0, t.errors.join(' | '));
 
+  // --- Shared columns and start / end handles (step 4) ---
+  await t.open(long);
+  await t.clickOn('#btn-lifespans');
+  const gapAt = (a, b) => gapY(a, b);
+  // Start handle: drag the Service Bus's start box up to before step 16 (its own first message is step 19)
+  await t.clickOn('.seq-participant[data-node-id="bus"]');
+  const hs = await t.at('.seq-handle[data-role="pstart"]');
+  await t.dragTo(hs.x, hs.y, hs.x, await gapAt('m15', 'm16'), { steps: 8 });
+  d = await saved();
+  t.check('a start handle drags a lifeline earlier: only outward, onto a message id', d.participants.find((q) => q.id === 'bus').start === 'm16', JSON.stringify(d.participants.find((q) => q.id === 'bus')));
+  await t.clickOn('.seq-participant[data-node-id="bus"]');
+  const hs2 = await t.at('.seq-handle[data-role="pstart"]');
+  await t.dragTo(hs2.x, hs2.y, hs2.x, await gapAt('m22', 'm23'), { steps: 8 });
+  d = await saved();
+  t.check('dragged back inside its own span, the override goes', d.participants.find((q) => q.id === 'bus').start === undefined);
+  // End handle: the SPM lifeline (steps 7-16) ends later, at step 23
+  await t.clickOn('.seq-participant[data-node-id="spm"]');
+  const he = await t.at('.seq-handle[data-role="pend"]');
+  await t.dragTo(he.x, he.y, he.x, await gapAt('m23', 'm24'), { steps: 8 });
+  d = await saved();
+  t.check('an end handle drags the cap down onto a later message', d.participants.find((q) => q.id === 'spm').end === 'm23', JSON.stringify(d.participants.find((q) => q.id === 'spm')));
+  // Share a column: drop Background Job's box (steps 27-36) on SPM's lifeline
+  const jobBox = await t.at('.seq-participant[data-node-id="job"]');
+  const spmLine = await lifelineAt('spm', jobBox.y);
+  const widthBefore = await canvasW();
+  await t.dragTo(jobBox.x, jobBox.y, spmLine.x, jobBox.y, { steps: 10 });
+  d = await saved();
+  const sameCol = await t.ev(`(() => { const l = (id) => document.querySelector('.seq-participant[data-node-id="' + id + '"]').style.left; return l('spm') === l('job'); })()`);
+  t.check('dropping a box on another lifeline puts them in one column when their lifespans do not overlap',
+    d.participants.find((q) => q.id === 'job').column === 'spm' && sameCol && (await canvasW()) < widthBefore, `${JSON.stringify(d.participants.find((q) => q.id === 'job'))} ${widthBefore} -> ${await canvasW()}`);
+  // The end handle may not reach into the other participant's span
+  await t.clickOn('.seq-participant[data-node-id="spm"]');
+  const he2 = await t.at('.seq-handle[data-role="pend"]');
+  await t.dragTo(he2.x, he2.y, he2.x, await gapAt('m29', 'm30'), { steps: 8 });
+  d = await saved();
+  const hint1 = await t.ev(`document.querySelector('.seq-hint')?.textContent`);
+  t.check('a handle that would make the two lifespans overlap is refused, with the reason',
+    d.participants.find((q) => q.id === 'spm').end === 'm23' && /^SPM and Background Job are both active at step 27$/.test(hint1 || ''), `${hint1} ${d.participants.find((q) => q.id === 'spm').end}`);
+  // A box dropped on a lifeline it overlaps is refused with the reason
+  const dbBox = await t.at('.seq-participant[data-node-id="db"]');
+  const polLine = await lifelineAt('pol', dbBox.y);
+  await t.dragTo(dbBox.x, dbBox.y, polLine.x, dbBox.y, { steps: 10 });
+  const hint2 = await t.ev(`document.querySelector('.seq-hint')?.textContent`);
+  d = await saved();
+  t.check('dropping a box where the lifespans overlap is refused, and the reason names both and the step',
+    d.participants.find((q) => q.id === 'db').column === undefined && /^Policy Svc and Policy DB are both active at step 3$/.test(hint2 || '') && !(await t.ev(`document.querySelector('.seq-participant.dragging')`)), `${hint2}`);
+  await t.clickOn('.seq-participant[data-node-id="job"]');
+  await t.clickOn('.seq-actionbar .seq-ab-btn[data-act="own"]');
+  d = await saved();
+  t.check('"Own column" in the action bar undoes the share', d.participants.find((q) => q.id === 'job').column === undefined);
+  await t.press('z', { modifiers: 2 });
+  t.check('and it is one undo step', (await t.ev(`(() => { const l = (id) => document.querySelector('.seq-participant[data-node-id="' + id + '"]').style.left; return l('spm') === l('job'); })()`)));
+  await t.clickOn('#btn-lifespans');
+  d = await saved();
+  t.check('turning Trim lifelines off drops the shared columns (they need lifespans)', d.lifespans === undefined && d.participants.every((q) => q.column === undefined));
+  t.check('no page errors in the column steps', t.errors.length === 0, t.errors.join(' | '));
+
   // ?present: read-only, but frames still collapse and expand
   await t.open(long, '?present');
   t.check('?present makes the diagram read-only', await t.ev(`getComputedStyle(document.querySelector('.seq-participant')).pointerEvents === 'none'`));

@@ -10,7 +10,7 @@
     { "id": "pay", "name": "Payment Svc", "kind": "system" },
     { "id": "spm", "name": "SPM", "kind": "external" },
     { "id": "bus", "name": "Service Bus", "kind": "queue", "start": "m15" },
-    { "id": "job", "name": "Background Job", "kind": "system" },
+    { "id": "job", "name": "Background Job", "kind": "system", "column": "spm" },
     { "id": "db", "name": "Policy DB", "kind": "database" }
   ],
   "messages": [

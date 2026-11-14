@@ -205,6 +205,11 @@
     .seq-handle.seq-end { cursor: grab; }
     .seq-handle.seq-edge { width: 22px; height: 10px; margin: -5px 0 0 -11px; border-radius: 5px; cursor: ns-resize; }
     .seq-handle.seq-stretch { width: 10px; height: 22px; margin: -11px 0 0 -5px; border-radius: 5px; cursor: ew-resize; }
+    .seq-hint {
+      position: fixed; left: 50%; bottom: 76px; transform: translateX(-50%); z-index: 150; padding: 6px 12px; border-radius: 999px;
+      border: 1px solid var(--border-dark); background: var(--bg-panel); color: var(--text-main); font-size: 0.8125rem; font-weight: 500;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.12); max-width: calc(100vw - 32px); text-align: center;
+    }
     .seq-add-branch {
       position: absolute; height: 22px; padding: 0 9px; transform: translateY(-50%); z-index: 9; border-radius: 11px;
       border: 1.5px solid var(--primary); background: var(--bg-panel); color: var(--primary); font: inherit; font-size: 12px;

@@ -163,6 +163,10 @@ def _rename_sequence_ids(d: Dict[str, Any]) -> None:
         for k in ("from", "to"):
             if k in m:
                 m[k] = r(m[k])
+    for q in ps:
+        for k in ("column", "start", "end"):
+            if k in q:
+                q[k] = r(q[k])
     for f in fs:
         for k in ("from", "to", "elseAt"):
             if k in f:

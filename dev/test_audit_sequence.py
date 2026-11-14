@@ -24,6 +24,12 @@ BASE = {
 }
 
 
+COLS = lambda host: [{"id": "a", "name": "A"}, {"id": "b", "name": "B"}, {"id": "c", "name": "C", "column": host}]  # noqa: E731
+# a and b talk first, then b and c: a and c never overlap
+SPLIT = [{"id": "m1", "from": "a", "to": "b", "label": "x"}, {"id": "m2", "from": "a", "to": "b", "label": "y"},
+         {"id": "m3", "from": "b", "to": "c", "label": "z"}, {"id": "m4", "from": "c", "to": "b", "label": "w"}]
+
+
 def audit(**changes):
     d = copy.deepcopy(BASE)
     d.update(changes)
@@ -66,6 +72,24 @@ CASES = [
     ("rails true is valid", dict(rails=True), None),
     ("lifespans is not a boolean", dict(lifespans="yes"), "'lifespans' must be true or false"),
     ("lifespans true is valid", dict(lifespans=True), None),
+    # Shared columns, start and end
+    ("column without lifespans", dict(participants=COLS("a")), "no 'lifespans': true"),
+    ("column that is not earlier", dict(lifespans=True, participants=[{"id": "a", "name": "A", "column": "c"}, {"id": "b", "name": "B"}, {"id": "c", "name": "C"}]), "must be an earlier participant"),
+    ("column of an unknown participant", dict(lifespans=True, participants=COLS("zz")), "unknown participant"),
+    ("a host that shares a column itself (a chain)",
+     dict(lifespans=True, participants=[{"id": "a", "name": "A"}, {"id": "b", "name": "B", "column": "a"}, {"id": "c", "name": "C", "column": "b"}],
+          messages=SPLIT), "chains are not allowed"),
+    ("column over an overlap, notes included",
+     dict(lifespans=True, participants=COLS("a"), messages=SPLIT, notes=[{"id": "n", "text": "t", "over": "c", "before": "m1"}]), "are both active at step 1"),
+    ("column over an overlap of two messages",
+     dict(lifespans=True, participants=COLS("a"), messages=[{"id": "m1", "from": "a", "to": "b", "label": "x"}, {"id": "m2", "from": "c", "to": "b", "label": "y"},
+                                                          {"id": "m3", "from": "a", "to": "b", "label": "z"}]), "are both active at step 2"),
+    ("column with lifespans that never overlap is valid", dict(lifespans=True, participants=COLS("a"), messages=SPLIT), None),
+    ("start after the first message", dict(lifespans=True, participants=[{"id": "a", "name": "A", "start": "m5"}, {"id": "b", "name": "B"}]), "can only begin a lifeline earlier"),
+    ("end before the last message", dict(lifespans=True, participants=[{"id": "a", "name": "A", "end": "m1"}, {"id": "b", "name": "B"}]), "can only end a lifeline later"),
+    ("start at an unknown message", dict(lifespans=True, participants=[{"id": "a", "name": "A", "start": "m99"}, {"id": "b", "name": "B"}]), "unknown message"),
+    ("start earlier and end later are valid",
+     dict(lifespans=True, participants=[{"id": "a", "name": "A", "end": "m4"}, {"id": "b", "name": "B"}, {"id": "c", "name": "C", "start": "m1"}], messages=SPLIT), None),
 ]
 
 

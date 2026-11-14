@@ -505,6 +505,89 @@
         updateStatus(true);
       }
 
+      // --- LIFESPANS AND SHARED COLUMNS ---
+      // A lifespan is [first, last] message index of a participant's messages and the notes over it (engine.js does the
+      // same); with `widen`, also its "start" / "end". Two participants may share a column (p.column = the earlier one's
+      // id) only when their lifespans never overlap.
+      function seqSpan(pid, widen) {
+        const ms = chartData.messages, p = partById(pid);
+        let lo = Infinity, hi = -1;
+        const see = (k) => { if (k >= 0) { lo = Math.min(lo, k); hi = Math.max(hi, k); } };
+        ms.forEach((m, k) => { if (m.from === pid || m.to === pid) see(k); });
+        (chartData.notes || []).forEach((n) => {
+          if (!(Array.isArray(n.over) ? n.over : [n.over]).includes(pid)) return;
+          see(n.after !== undefined ? msgIndex(n.after) : n.before !== undefined ? msgIndex(n.before) : ms.length ? 0 : -1);
+        });
+        if (hi < 0) return null;
+        if (widen && p) { lo = Math.min(lo, msgIndex(p.start) < 0 ? lo : msgIndex(p.start)); hi = Math.max(hi, msgIndex(p.end)); }
+        return [lo, hi];
+      }
+      // The first message index where both participants are alive, or -1
+      function overlapAt(a, b) {
+        const x = seqSpan(a, true), y = seqSpan(b, true);
+        if (!x || !y) return -1;
+        const lo = Math.max(x[0], y[0]);
+        return lo <= Math.min(x[1], y[1]) ? lo : -1;
+      }
+      const columnMembers = (p) => {
+        const root = p.column ? partById(p.column) || p : p;
+        return chartData.participants.filter((q) => q === root || q.column === root.id);
+      };
+      // The refusal text: the earlier participant of the two first
+      function clashText(a, b, at) {
+        const ps = chartData.participants, [u, v] = ps.indexOf(a) < ps.indexOf(b) ? [a, b] : [b, a];
+        return `${u.name} and ${v.name} are both active at step ${at + 1}`;
+      }
+      // Why `p` may not sit in its column, or null
+      function columnClash(p) {
+        for (const q of columnMembers(p)) {
+          if (q === p) continue;
+          const at = overlapAt(p.id, q.id);
+          if (at >= 0) return clashText(p, q, at);
+        }
+        return null;
+      }
+      // A column names an earlier participant that has none of its own (no chains); anything else is dropped
+      function normalizeColumns() {
+        const ps = chartData.participants;
+        ps.forEach((p, i) => {
+          if (p.column === undefined) return;
+          const h = ps.findIndex((q) => q.id === p.column);
+          if (h < 0 || h >= i) delete p.column;
+          else if (ps[h].column !== undefined) p.column = ps[h].column;
+        });
+      }
+      // Drop a participant's box on another's lifeline: they share a column (the later one takes the earlier's)
+      function shareColumn(idA, idB) {
+        const ps = chartData.participants;
+        const ia = ps.findIndex((q) => q.id === idA), ib = ps.findIndex((q) => q.id === idB);
+        const guest = ps[Math.max(ia, ib)], first = ps[Math.min(ia, ib)];
+        const host = first.column ? partById(first.column) : first;
+        if (guest.column === host.id) { render(); return; }
+        const guests = ps.filter((q) => q === guest || q.column === guest.id), hosts = ps.filter((q) => q === host || q.column === host.id);
+        for (const g of guests) for (const h of hosts) {
+          const at = overlapAt(g.id, h.id);
+          if (at >= 0) { seqHint(clashText(h, g, at)); render(); return; }
+        }
+        guests.forEach((g) => { g.column = host.id; });
+        seqSel = { kind: 'participant', id: guest.id };
+        relayout();
+      }
+      // A short message above the dock (why a drop was refused)
+      let seqHintTimer = 0;
+      function seqHint(text) {
+        let hint = document.querySelector('.seq-hint');
+        if (!hint) {
+          hint = htmlEl('div', 'seq-hint');
+          hint.setAttribute('role', 'status');
+          hint.dataset.exportSkip = '';
+          document.body.appendChild(hint);
+        }
+        hint.textContent = text;
+        clearTimeout(seqHintTimer);
+        seqHintTimer = setTimeout(() => hint.remove(), 3200);
+      }
+
       // --- DRAGS ---
       // One drag at a time: beginDrag arms it on pointerdown; it starts after 4px of movement. While it runs the
       // action bar is hidden (body.seq-dragging). cancelInteraction (Escape) drops it.
@@ -560,6 +643,10 @@
             el.style.transform = `translateX(${d.dx}px)`;
             const ps = chartData.participants, me = partById(id), L = chartData.layout;
             const others = ps.filter((p) => p.id !== id);
+            // With lifespans, a box dropped right on another lifeline shares that column (see shareColumn)
+            d.share = chartData.lifespans ? others.find((p) => p.x !== me.x && Math.abs(p.x - (me.x + d.dx)) < 40) : null;
+            lightLifeline(d.share && d.share.id);
+            if (d.share) { seqDrop.style.display = 'none'; return; }
             d.index = others.filter((p) => p.x < me.x + d.dx).length;
             const left = others[d.index - 1], right = others[d.index];
             const x = left && right ? (left.x + right.x) / 2 : left ? left.x + SQ.BOX_W / 2 + 16 : right ? right.x - SQ.BOX_W / 2 - 16 : me.x;
@@ -567,10 +654,13 @@
             seqDrop.style.display = 'block';
           },
           drop(pt, d) {
+            if (d.share) { shareColumn(id, d.share.id); return; }
             const ps = chartData.participants, from = ps.findIndex((p) => p.id === id);
             if (d.index === undefined || d.index === from) { render(); return; }
             const [p] = ps.splice(from, 1);
+            delete p.column;   // moved away from the column it shared
             ps.splice(d.index, 0, p);
+            normalizeColumns();
             relayout();
           }
         };
@@ -737,6 +827,37 @@
               f.from = ms[a].id;
               f.to = ms[b].id;
               setBranches(f, brs);   // a branch now outside the frame goes
+              relayout();
+            }
+          };
+        }
+        if (role === 'pstart' || role === 'pend') {
+          const p = partById(h.dataset.id);
+          return {
+            move(pt, d) {
+              d.slot = nearestSlot(rowSlots(), pt.y);
+              showDropLine(d.slot.y, null);
+            },
+            drop(pt, d) {
+              const ms = chartData.messages, sp = seqSpan(p.id, false), was = { start: p.start, end: p.end };
+              if (!sp) { render(); return; }
+              // Only outward from the derived span: a drop inside it clears the override
+              if (role === 'pstart') {
+                const k = d.slot.index;
+                if (k < sp[0] && ms[k]) p.start = ms[k].id; else delete p.start;
+              } else {
+                const k = d.slot.index - 1;
+                if (k > sp[1] && ms[k]) p.end = ms[k].id; else delete p.end;
+              }
+              const clash = columnClash(p);
+              if (clash) {
+                if (was.start === undefined) delete p.start; else p.start = was.start;
+                if (was.end === undefined) delete p.end; else p.end = was.end;
+                seqHint(clash);
+                render();
+                return;
+              }
+              if (p.start === was.start && p.end === was.end) { render(); return; }
               relayout();
             }
           };
@@ -953,7 +1074,15 @@
           }
           PARTICIPANT_KINDS.forEach((k) => bar.appendChild(abButton('pkind', KIND_ICONS[k] ? iconSvg(KIND_ICONS[k]) : `<span>${k === 'actor' ? 'Actor' : 'System'}</span>`,
             `Kind: ${k}`, (p.kind || 'system') === k, k)));
-          at = { x: p.x, y: SQ.TOP + (p.rail ? SQ.RAIL_H : SQ.BOX_H) + 8 };
+          if (p.column) {
+            bar.appendChild(htmlEl('span', 'seq-ab-sep'));
+            bar.appendChild(abButton('own', '<span>Own column</span>', 'Give this participant a column of its own again'));
+          }
+          // With lifespans: drag the start box or the cap outward to make the lifeline begin earlier or end later
+          const sp = chartData.lifespans && p.top !== undefined ? seqSpan(p.id, false) : null;
+          if (sp && sp[0] > 0) addHandle('pstart', p.id, p.x, p.top, 'seq-edge');
+          if (sp) addHandle('pend', p.id, p.x, p.bottom, 'seq-edge');
+          at = { x: p.x, y: p.top === undefined ? SQ.TOP + (p.rail ? SQ.RAIL_H : SQ.BOX_H) + 8 : p.top + (p.rail ? SQ.RAIL_H : SQ.BOX_H) + 8 };
           bar.classList.add('is-below');
         } else if (sel.kind === 'fragment') {
           const f = fragById(sel.id);
@@ -1017,6 +1146,7 @@
         } else if (sel.kind === 'participant') {
           const p = partById(sel.id);
           if (p && act === 'pkind' && (p.kind || 'system') !== value) { p.kind = value; relayout(); }
+          else if (p && act === 'own') { delete p.column; relayout(); }
           else if (p && act === 'show') { expandFramesHiding([p.id]); relayout(); }
         } else if (sel.kind === 'fragment') {
           const f = fragById(sel.id);
@@ -1383,6 +1513,7 @@
         removeMessages(chartData.messages.filter((m) => m.from === id || m.to === id).map((m) => m.id));
         removeParticipantNotes(id);
         chartData.participants = chartData.participants.filter((p) => p.id !== id);
+        normalizeColumns();
         seqSel = null;
         relayout();
       }
@@ -1528,7 +1659,8 @@
         relayout();
       });
       btnLifespans.addEventListener('click', () => {
-        if (chartData.lifespans) delete chartData.lifespans; else chartData.lifespans = true;
+        if (chartData.lifespans) { delete chartData.lifespans; chartData.participants.forEach((p) => { delete p.column; }); }
+        else chartData.lifespans = true;
         relayout();
       });
       btnDetails.addEventListener('click', () => {
@@ -1632,6 +1764,7 @@
         const r = (id) => (rename.has(id) ? rename.get(id) : id);
         [...ps, ...ms, ...fs, ...ns].forEach((o) => { o.id = r(o.id); });
         ms.forEach((m) => ['from', 'to'].forEach((k) => { if (k in m) m[k] = r(m[k]); }));
+        ps.forEach((q) => ['column', 'start', 'end'].forEach((k) => { if (k in q) q[k] = r(q[k]); }));
         fs.forEach((f) => {
           ['from', 'to', 'elseAt'].forEach((k) => { if (k in f) f[k] = r(f[k]); });
           if (Array.isArray(f.branches)) f.branches.forEach((b) => { if ('at' in b) b.at = r(b.at); });

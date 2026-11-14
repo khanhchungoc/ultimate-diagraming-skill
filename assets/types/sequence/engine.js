@@ -10,7 +10,8 @@
       //         notes?[{id,text,over,after?|before?}] (over: a participant id, or two ids to span between them),
       //         rails? (true: a participant with nothing to show outside collapsed frames is a thin rail),
       //         lifespans? (true: a lifeline runs only from its participant's first message to its last; participants
-      //           may carry start?/end? message ids that widen it)
+      //           may carry start?/end? message ids that widen it, and column?: the id of an earlier participant whose
+      //           column it reuses, for participants whose lifespans never overlap)
       // Output: participants[].x (center), messages[].y (arrow line), messages[].hidden (inside a collapsed frame),
       //         participants[].rail (true on a rail), participants[].top/bottom (with lifespans: the box's top and where the
       //         lifeline ends), fragments[].{x,y,w,h,dividers[{at,y,label}]}, notes[].{x,y,w,h},
@@ -97,6 +98,7 @@
         //    drawn when it is placed (see below): before a collapsed frame's first message it is, on any other message
         //    inside the frame it is not. With every frame expanded nothing is hidden, so there are no rails. Only with
         //    "rails": true (Focus sets it): a page saved before rails existed keeps its collapsed frames as they were.
+        const lifespans = data.lifespans === true;
         const noteShown = (n) => {
           const key = n.after !== undefined ? 'after' : n.before !== undefined ? 'before' : null;
           if (!key) return true;
@@ -114,21 +116,33 @@
           if (pIdx[id] !== undefined) (noteShown(n) ? seen : folded)[pIdx[id]] = true;
         }));
         const rail = ps.map((p, i) => data.rails === true && folded[i] && !seen[i]);
-        if (rail.every(Boolean)) rail.fill(false);   // nothing at all would be left to read
+        // Columns: one per participant, except that with lifespans a participant with "column" takes the column of the
+        // earlier participant it names (a chain is followed to its first). A column is a rail only if all of them are.
+        const colOf = [], cols = [];
+        ps.forEach((p, i) => {
+          let h = i;
+          while (lifespans && ps[h].column !== undefined && pIdx[ps[h].column] !== undefined && pIdx[ps[h].column] < h) h = pIdx[ps[h].column];
+          if (h === i) { colOf[i] = cols.length; cols.push([i]); } else { colOf[i] = colOf[h]; cols[colOf[h]].push(i); }
+        });
+        const colRail = cols.map((c) => c.every((i) => rail[i]));
+        if (colRail.every(Boolean)) colRail.fill(false);   // nothing at all would be left to read
+        ps.forEach((p, i) => { rail[i] = colRail[colOf[i]]; });
         const anyRail = rail.some(Boolean);
         ps.forEach((p, i) => { if (rail[i]) p.rail = true; else delete p.rail; });
         const half = (i) => (rail[i] ? SQ.RAIL_W : SQ.BOX_W) / 2;
+        const colHalf = (c) => (colRail[c] ? SQ.RAIL_W : SQ.BOX_W) / 2;
 
         // 3. Horizontal gaps: every message label must fit between its two lifelines. Without rails, messages hidden in
         //    a collapsed frame still count, so collapsing a frame never moves a lifeline; with rails the diagram is
-        //    narrower on purpose, so they do not.
-        const gaps = ps.slice(1).map((p, i) => half(i) + half(i + 1) + (rail[i] || rail[i + 1] ? SQ.RAIL_CLEAR : SQ.GAP_CLEAR));
+        //    narrower on purpose, so they do not. A shared column adds no width of its own: only the messages of the
+        //    participants alive in it are measured.
+        const gaps = cols.slice(1).map((c, i) => colHalf(i) + colHalf(i + 1) + (colRail[i] || colRail[i + 1] ? SQ.RAIL_CLEAR : SQ.GAP_CLEAR));
         const need = [];
         ms.forEach((m, k) => {
-          const a = pIdx[m.from], b = pIdx[m.to];
+          const a = colOf[pIdx[m.from]], b = colOf[pIdx[m.to]];
           if (a === undefined || b === undefined || (anyRail && ownerOf(k))) return;
           if (a === b) {
-            if (a < gaps.length) need.push({ lo: a, hi: a + 1, w: SQ.SELF_LOOP + 12 + msgW(m) + 24 });
+            if (m.from === m.to && a < gaps.length) need.push({ lo: a, hi: a + 1, w: SQ.SELF_LOOP + 12 + msgW(m) + 24 });
           } else {
             need.push({ lo: Math.min(a, b), hi: Math.max(a, b), w: msgW(m) + SQ.LABEL_PAD });
           }
@@ -142,15 +156,16 @@
             for (let i = n.lo; i < n.hi; i++) gaps[i] += add;
           }
         });
-        let x = SQ.MARGIN + half(0) + SQ.FRAG_PAD_STEP * 2;
-        ps.forEach((p, i) => {
+        const colX = [];
+        let x = SQ.MARGIN + colHalf(0) + SQ.FRAG_PAD_STEP * 2;
+        cols.forEach((c, i) => {
           if (i) x += sqGrid(gaps[i - 1]);
-          p.x = Math.round(x);
+          colX[i] = Math.round(x);
         });
+        ps.forEach((p, i) => { p.x = colX[colOf[i]]; });
 
         // 4. Lifespans (only with "lifespans": true): the rows of a participant's first and last message or note, widened
         //    by "start" and "end". A message hidden in a collapsed frame counts as the frame's summary row.
-        const lifespans = data.lifespans === true;
         const rowOf = (k) => { const C = ownerOf(k); return C ? C.a : k; };
         const life = ps.map(() => null);   // [first row, last row] (message indices) or null: no events at all
         const live = (i, k) => {
@@ -248,7 +263,7 @@
 
         // 4. Fragment boxes: wide enough for every message and note they contain, their tag and their branch
         //    labels, padded by nesting level.
-        let maxRight = ps.length ? ps[ps.length - 1].x + half(ps.length - 1) : SQ.MARGIN;
+        let maxRight = cols.length ? colX[cols.length - 1] + colHalf(cols.length - 1) : SQ.MARGIN;
         const noteIn = (n, r) => {
           if (n.x === undefined) return false;
           const k = n.after !== undefined ? mIdx[n.after] : n.before !== undefined ? mIdx[n.before] : undefined;
