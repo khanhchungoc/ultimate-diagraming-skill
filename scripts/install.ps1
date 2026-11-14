@@ -18,6 +18,11 @@
 .PARAMETER TargetPath
     The workspace root for Project-level installation. Defaults to the current working directory.
 
+.PARAMETER ClaudeOutput
+    Claude Code only: 'ask', 'artifact' or 'file'. Whether diagrams are published as claude.ai Artifacts, written as HTML
+    files, or asked about each time (default: ask). Saved to .claude\ultimate-diagram.json (never inside the skill
+    folder); prompted when run in a terminal without this parameter.
+
 .EXAMPLE
     # Install globally for all agents
     .\scripts\install.ps1
@@ -39,7 +44,10 @@ param (
     [ValidateSet("Symlink", "Copy")]
     [string]$Mode = "Symlink",
 
-    [string]$TargetPath = (Get-Location).Path
+    [string]$TargetPath = (Get-Location).Path,
+
+    [ValidateSet("ask", "artifact", "file")]
+    [string]$ClaudeOutput
 )
 
 $ErrorActionPreference = 'Stop'
@@ -81,6 +89,30 @@ $normalizedRuntime = switch ($Runtime) {
     default          { $Runtime }
 }
 $runtimesToInstall = if ($normalizedRuntime -eq "all") { @("antigravity", "claude", "copilot", "codex", "gemini", "kiro") } else { @($normalizedRuntime) }
+
+# Claude Code only: where a diagram goes. Stored beside Claude Code's own settings, never inside the skill folder
+# (which may be a junction to this repo). SKILL.md reads it.
+$claudeSelected = $runtimesToInstall -contains "claude"
+$claudeBase = if ($Scope -eq "User") { $userHome } else { $targetDir }
+$claudeConfig = Join-Path $claudeBase ".claude\ultimate-diagram.json"
+if ($claudeSelected -and -not $ClaudeOutput -and [Environment]::UserInteractive -and -not [Console]::IsInputRedirected -and -not [Console]::IsOutputRedirected) {
+    Write-Host "In Claude Code, publish diagrams as claude.ai Artifacts, write HTML files, or ask each time?"
+    Write-Host "  1) ask each time (default)"
+    Write-Host "  2) claude.ai Artifact (private page, Save updates it in place)"
+    Write-Host "  3) HTML file (in the project folder, works offline)"
+    $answer = (Read-Host "Choose [1-3]").Trim().ToLower()
+    $ClaudeOutput = switch ($answer) { { $_ -in "2", "artifact" } { "artifact" } { $_ -in "3", "file" } { "file" } default { "ask" } }
+    Write-Host ""
+}
+if ($claudeSelected -and $ClaudeOutput) {
+    $cfg = @{}
+    if (Test-Path $claudeConfig) {
+        try { (Get-Content $claudeConfig -Raw | ConvertFrom-Json).PSObject.Properties | ForEach-Object { $cfg[$_.Name] = $_.Value } } catch { $cfg = @{} }
+    }
+    $cfg["output"] = $ClaudeOutput
+    New-Item -ItemType Directory -Path (Split-Path $claudeConfig -Parent) -Force | Out-Null
+    [System.IO.File]::WriteAllText($claudeConfig, (($cfg | ConvertTo-Json) + "`n"), (New-Object System.Text.UTF8Encoding($false)))
+}
 
 foreach ($rt in $runtimesToInstall) {
     $dest = $destinations[$rt]
@@ -132,6 +164,10 @@ foreach ($rt in $runtimesToInstall) {
 
 Write-Host ""
 Write-Host "[SUCCESS] Installed ultimate-diagram." -ForegroundColor Green
+if ($claudeSelected) {
+    $shown = if ($ClaudeOutput) { $ClaudeOutput } else { "ask (default)" }
+    Write-Host "    Claude Code output: $shown. Change it with -ClaudeOutput or `"output`" in $claudeConfig"
+}
 Write-Host ""
 
 # Check the installed copy can run: its files, Python 3.9+, a browser, Node.js.

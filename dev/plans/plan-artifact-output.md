@@ -2,7 +2,14 @@
 
 Today the skill writes one standalone `.html` file, and **Save** writes it back to disk (File System Access API, or a download). This plan adds a second output for Claude Code: the diagram is published as a **claude.ai Artifact**, and **Save** inside the artifact publishes a new version of that same artifact. Claude Code asks the user which output they want.
 
-**Status:** proposed 2026-11-14. Nothing is implemented.
+**Status:** Phases 1, 2, 3, 4 and 5 are implemented and tested against a stubbed `window.claude` (`dev/check_artifact_shape.py`, `dev/e2e_shell.mjs --artifact`, `dev/e2e_sequence.mjs --artifact`). **Phase 0 (the spike on a real published artifact) has not been done**, so these stay open and the code marks them `TODO(verify ... plan Phase 0)`:
+
+- The exact `RESET` CSS. `ARTIFACT_RESET_CSS` in `scripts/layout_engine.py` and `assets/shell/shell.js` is a placeholder (`*,*::before,*::after{box-sizing:border-box}html,body{margin:0}`). Replace both with the text from an `Artifact read` of any published page.
+- Whether the Artifact tool accepts a complete document (skeleton first) as `file_path` as is, or wants a fragment it wraps itself. The generator writes the complete document, as the plan's "required document shape" says.
+- Whether the order inside `<body>` matters. The page puts `<title>`, the reading guide and the data block first and the styles after them (so a read of lines 1-E ends before the CSS), not `<title>` and `<style>` first.
+- What the viewer injects into the document (the pristine-body filter in `capturePristineBody` is deliberately conservative), whether `fetch(location.href)` returns the source (the artifact path never uses it), and what the sandbox allows (`showSaveFilePicker`, `<a download>`, clipboard, IndexedDB, `localStorage`).
+- The `downloads.save({filename, data})` data type: the page passes a `Blob`. Check that text and PNG are accepted that way.
+- Whether Google Fonts loads from `<body>`, the size of a large page against 16 MB, and the shape of the `publish()` rejection (the page matches `conflict`, `not_granted` and `not_writer` in the error's `code`, `reason` or `message`).
 
 ## Goals
 
