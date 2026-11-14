@@ -18,10 +18,19 @@ Settled by Phase 0:
 - **Viewer-injected code.** The type definitions confirm that `outerHTML` holds viewer-session state and injected runtime scripts. The page now keeps only our own span: `<title>` through the main script, taken while that script runs, so later additions are not parsed yet. Inside the span it keeps only our two scripts (`diagram-data` and the main one), then writes `ARTIFACT_END_MARKER`. `e2e_shell.mjs` injects scripts into `<head>` and after our content and checks that neither is published.
 - **`downloads.save`** accepts `string | Blob | ArrayBuffer | ArrayBufferView` for `data`, so the page's `Blob` is fine.
 
-Still open (needs the probe artifact opened in a browser, which records its findings in the artifact's database):
+Probe results (2026-11-14, opened in the Claude Android app's webview, Chrome 157):
 
-- Whether the claude.ai sandbox allows `<a download>`, clipboard writes and IndexedDB, and loads Google Fonts from `<body>`. The page already prefers the `downloads` capability and hides Copy when there is no clipboard.
-- One real Save round trip: edit, Save, reload, then ask Claude to change the diagram and confirm it starts from the saved version.
+- **Injection is in `<head>` only.** The viewer adds a `<!-- frame-runtime -->` comment and two inline runtime scripts at the start of `<head>`, and a `<style>artifact-sync,artifact-local{display:contents}</style>` at the end. `<body>` holds exactly the published content. Keeping only our body span is therefore enough, and the head is always regenerated from the constant skeleton.
+- **`publish()` accepts any doctype-first document** without checking the head: the probe republished its own `outerHTML`, runtime scripts included, and that was stored. Nothing on the platform side protects against a page that serializes the live DOM, so the body-only rebuild is what keeps saved versions clean.
+- **`publish()` resolves `{version}`**, and the view then reloads, as documented.
+- **`fetch(location.href)` returns the stored source** (status 200, the exact published document). The page doesn't need it, but it is a fallback if the pristine copy ever fails.
+- **Allowed in the frame:** clipboard `writeText`, IndexedDB, `localStorage`, and `showSaveFilePicker` exists. The page is served from a per-artifact origin (`<id>.frame.claudeusercontent.com`) inside an iframe.
+- **Google Fonts:** the stylesheet link in `<body>` is applied (it shows in `document.styleSheets`). The font check ran before any text used the face, so whether Nunito Sans finished loading is not proven. The page falls back to the system font either way.
+
+Still open:
+
+- **The `downloads.save` test recorded no result.** The confirmation was probably still waiting, or the Android app doesn't settle it. Check Download .html once on desktop.
+- **One real Save round trip with a diagram page:** publish a diagram, edit it in the artifact, Save, reload, then ask Claude to change the diagram and confirm it starts from the saved version.
 
 Possible later improvement: the `artifact` capability also has a **files form** (`publish({"diagram.json": json})`). It is meant for editor-style artifacts whose page stays fixed while a data file changes. The view keeps running instead of reloading, and Claude can read just the data file. It is not available on publicly shared artifacts and needs a multi-file artifact, so the html form stays the default for now.
 
