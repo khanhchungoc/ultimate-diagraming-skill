@@ -65,7 +65,7 @@ Use to summarize, explain or answer questions about a diagram page.
    python "<skill-dir>/scripts/layout_engine.py" --extract <page.html>
    ```
    If that cannot run, read only the lines the page's line 2 names (the `"diagram-data"` JSON block).
-2. Answer from that JSON alone. Flowchart: `nodes` are sorted along the flow, so follow `edges` for the path; `"feedback": true` is a loop back; each note's `nodes` lists the steps it is attached to. Sequence: `messages` are in time order; a fragment covers messages `from`..`to` inclusive, and an `alt` fragment's `elseAt` is where its `else` branch starts.
+2. Answer from that JSON alone. Flowchart: `nodes` are sorted along the flow, so follow `edges` for the path; `"feedback": true` is a loop back; each note's `nodes` lists the steps it is attached to. Sequence: `messages` are in time order (a step number is a message's position there); a fragment covers messages `from`..`to` inclusive, an `alt`/`par` fragment's `branches[].at` (or `elseAt`, one unlabelled else) is where each further branch starts, and a note sits `over` a participant `after`/`before` a message.
 
 ## Procedure: Update an Existing Diagram
 

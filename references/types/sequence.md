@@ -6,54 +6,82 @@ Use for messages exchanged between participants over time: API calls, system int
 
 ## Schema
 
-Never add coordinates (`x`, `y`, `w`, `h`, `layout`); `--layout` computes them. Array order is time order, top to bottom. A saved page embeds exactly this JSON: positions are not saved, the page lays them out on load.
+Never add coordinates (`x`, `y`, `w`, `h`, `layout`); `--layout` computes them. Array order is time order, top to bottom. A saved page embeds exactly this JSON: positions are not saved, the page lays them out on load. Every field marked optional can be left out.
 
 ```json
 {
   "diagramType": "sequence",
   "title": "Checkout",
+  "numbered": true,
   "participants": [
     { "id": "p1", "name": "Customer", "kind": "actor" },
-    { "id": "p2", "name": "Shop", "kind": "system" }
+    { "id": "p2", "name": "Shop", "kind": "ui" },
+    { "id": "p3", "name": "Payment", "kind": "system" }
   ],
   "messages": [
     { "id": "m1", "from": "p1", "to": "p2", "label": "Place order", "kind": "sync" },
-    { "id": "m2", "from": "p2", "to": "p1", "label": "Order confirmed", "kind": "reply" }
+    { "id": "m2", "from": "p2", "to": "p3", "label": "Charge card", "detail": "amount, currency, card token", "kind": "sync" },
+    { "id": "m3", "from": "p3", "to": "p2", "label": "Declined", "kind": "reply" },
+    { "id": "m4", "from": "p3", "to": "p2", "label": "Approved", "kind": "reply" },
+    { "id": "m5", "from": "p2", "to": "p1", "label": "Order confirmed", "kind": "reply" }
   ],
   "fragments": [
-    { "id": "f1", "kind": "alt", "label": "payment accepted", "from": "m3", "to": "m5", "elseAt": "m5" }
+    { "id": "f1", "kind": "group", "label": "Payment", "color": "blue", "from": "m2", "to": "m4" },
+    { "id": "f2", "kind": "alt", "label": "card declined", "from": "m3", "to": "m4",
+      "branches": [ { "at": "m4", "label": "card approved" } ] }
+  ],
+  "notes": [
+    { "id": "n1", "text": "Card data never reaches the shop", "over": "p3", "after": "m2" }
   ]
 }
 ```
 
 | Object | Field | Description |
 |---|---|---|
-| Participant | `id`, `name`, `kind` | `kind` is `actor` (a person or external party, drawn as a pill) or `system` (default, a box). Left-to-right order is array order. |
+| Diagram | `numbered` | Optional. `true` shows a step number before every label: the message's position in `messages`, so it never changes when a frame is collapsed. |
+| Diagram | `showDetails` | Optional. `false` hides every `detail` line (each becomes its label's tooltip). Leave it out to show them. |
+| Participant | `id`, `name`, `kind` | `kind`: `actor` (a person or external party, a pill), `system` (default, a box), `ui` (a screen or front end), `database`, `queue` (a bus or topic), `external` (a third-party system). `ui`, `database`, `queue` and `external` have a small icon. Left-to-right order is array order. |
 | Message | `id`, `from`, `to`, `label` | Participant ids. `from` equal to `to` draws a self-message. |
 | Message | `kind` | `sync` (call: solid line, filled arrowhead, opens an activation bar), `reply` (return: dashed line, open arrowhead, closes the bar of the call it answers), `async` (solid line, open arrowhead). Default `sync`. |
-| Fragment | `id`, `kind`, `label`, `from`, `to` | `kind` is `opt`, `alt` or `loop`. `from` and `to` are message ids; the frame covers that range inclusive. |
-| Fragment | `elseAt` | Optional, `alt` only: the message id where the `else` branch starts. Must be after `from` and no later than `to`. |
+| Message | `detail` | Optional. One line of parameters or payload, drawn smaller and muted under the arrow. No line breaks. |
+| Fragment | `id`, `kind`, `label`, `from`, `to` | `kind`: `opt`, `alt`, `loop`, `par`, or `group` (a named phase: the tag shows the label only). `from` and `to` are message ids; the frame covers that range inclusive. |
+| Fragment | `branches` | Optional, `alt` and `par` only: `[{ "at": <message id>, "label": <condition> }]`, one per further branch, each starting at that message. The fragment's own `label` is the first branch's condition. Each `at` is after `from` and no later than `to`; no two share an `at`. |
+| Fragment | `elseAt` | Optional, `alt` only: the short form of one unlabelled `else` branch starting at that message. Use `branches` or `elseAt`, not both. |
+| Fragment | `color` | Optional: `blue`, `green`, `yellow`, `red`, `purple`, `gray`. Tints the frame and its tag. |
+| Fragment | `collapsed` | Optional. `true` draws the frame as one summary row ("9 messages hidden (steps 2–10)") that the reader can expand. |
+| Note | `id`, `text`, `over` | `over` is a participant id, or two ids to stretch the note from one lifeline to the other. `text` may hold `\n` line breaks. |
+| Note | `after` / `before` | Optional message id. `after: m` puts the note under message `m`, inside every frame `m` is in; `before: m` puts it above `m` and above any frame that opens at `m`. With neither, it sits above the first message. |
 
-An activation bar appears when a `sync` message is later answered by a `reply` going back the other way (`from`/`to` swapped). Give every call a reply if you want the bar to show.
+An activation bar appears when a `sync` message is later answered by a `reply` going back the other way (`from`/`to` swapped). A call answered in several places (one reply per `alt` branch) has one bar, to its last reply before the caller next sends that callee anything.
 
 ## Writing rules
 
-1. **Participants are lifelines, not steps**: name them as the party (`Payment Service`), not the action.
-2. **Label messages with the call or the data**, short (`Charge card`, `Order confirmed`); the engine widens the spacing to fit, but long labels make the diagram wide.
+1. **Participants are lifelines, not steps**: name them as the party (`Payment Service`), not the action. Give each the `kind` that says what it is: a UI, a database, a queue, an external system.
+2. **The label is the call, the `detail` is the data**: keep labels short (`Charge card`, `Order confirmed`); put parameters or payload in `detail`, one line. The engine widens the spacing to fit whichever is longer.
 3. **Pair calls with replies** so activation bars and the flow read correctly; use `async` for fire-and-forget events.
-4. **Frames wrap whole messages only** and nest at most two deep. Use `alt` for either/or, `opt` for optional, `loop` for repetition.
-5. Order participants so most messages travel to a neighbour; long jumps across the diagram are hard to follow.
-6. **Overview requests**: if the user asks for a summary or one-slide view, aim for about 6 participants and 16 messages so it fits a 1080p screen without panning. Otherwise include every message; the page pans and zooms.
+4. **Frames wrap whole messages only** and nest at most three deep. `alt` for either/or, `opt` for optional, `loop` for repetition, `par` for parallel, `group` for a named phase of the process.
+5. **Three or more outcomes are one `alt` with `branches`**, never `alt`s nested inside each other.
+6. **Every note, rule, state or SLA in the source is a `note`**, over the lifeline it concerns (or stretched over the two it is between).
+7. **Colour phases only when the source colours or names them**; one colour per `group`.
+8. Order participants so most messages travel to a neighbour; long jumps across the diagram are hard to follow.
+9. **Long diagrams** (about 20 messages or more): set `"numbered": true` so a reviewer can say "step 17", and wrap each phase in a `group` so the reader can collapse it. Never author `"collapsed": true` unless the user asks for an overview.
+10. **Overview requests**: if the user asks for a summary or one-slide view, aim for about 6 participants and 16 messages so it fits a 1080p screen without panning. Otherwise include every message, step, branch and note; the page pans, zooms, pins the participant row and collapses phases.
 
 ## Visual review checklist
 
-The audit covers spacing, label fit and frame bounds; the layout report covers label overlap. Check by eye on the screenshot:
+The audit covers spacing, label fit, frame and note bounds; the layout report covers label overlap. Check by eye on the screenshot:
 
 1. **Reading order**: messages go top to bottom in the intended sequence.
-2. **Activation bars** open at each call and close at its reply, with no bar left dangling.
+2. **Activation bars** open at each call and close at its last reply, with no bar left dangling at a branch.
 3. **Frames** enclose exactly the intended messages and their labels do not hide a message label.
-4. **Self-messages** have room beside the lifeline and do not touch the next lifeline.
+4. **Branch labels** are readable and not under a message label.
+5. **Notes** sit over the right lifeline, at the right step.
+6. **Self-messages** have room beside the lifeline and do not touch the next lifeline.
 
 ## Failure handling
 
-- **Fragment errors** (`unknown message`, `starts after it ends`): fix the message ids in `from`, `to` or `elseAt`.
+- **Fragment errors** (`unknown message`, `starts after it ends`, `branch at ... must be after its first message`): fix the message ids in `from`, `to`, `elseAt` or `branches[].at`.
+- **`only alt and par have branches`**: change the `kind`, or drop `branches` / `elseAt`.
+- **Note errors** (`unknown participant`, `after unknown message`): fix `over`, `after` or `before`.
+- **`Collapsed fragment ... partly overlaps`**: a collapsed frame must contain whole frames only; move its `from`/`to`.
+- **`Frames nest N deep`** (warning): put a rare exit in a `note`, or split the flow.
