@@ -1,11 +1,11 @@
 // Interaction test for the sequence plugin (selection, reorder by drag, add/delete, text edit, frames).
-//   node dev/e2e_sequence.mjs --browser <chrome> --page <laid-out sequence.html>
+//   node dev/e2e_sequence.mjs --browser <chrome> --page <laid-out sequence.html> [--artifact <same, --target artifact>]
 // Use dev/fixtures/sequence/checkout-with-fragments.json laid out with `layout_engine.py --layout`.
 // Exit codes: 0 all passed, 1 setup error, 2 a check failed.
 import { readFileSync } from 'node:fs';
 import { argOf, launch, sleep } from './cdp.mjs';
 
-const browser = argOf('browser'), page = argOf('page');
+const browser = argOf('browser'), page = argOf('page'), artifact = argOf('artifact');
 if (!browser || !page) { console.error('usage: --browser <chrome> --page <html>'); process.exit(1); }
 
 const t = await launch(browser).catch((e) => { console.error('[ERROR]', e.message); process.exit(1); });
@@ -79,6 +79,23 @@ try {
   // Present mode
   await t.open(page, '?present');
   t.check('?present makes the diagram read-only', await t.ev(`getComputedStyle(document.querySelector('.seq-participant')).pointerEvents === 'none'`));
+  // claude.ai Artifact (only with --artifact): Save publishes through a stubbed window.claude; the sequence page
+  // saves no positions, so the published block must still be the generated one
+  if (artifact) {
+    const gen = readFileSync(artifact, 'utf8').replace(/\r\n/g, '\n');
+    const skeleton = gen.slice(0, gen.indexOf('<body>') + 6);
+    const blockOf = (h) => (h.match(/<script id="diagram-data" type="application\/json">([\s\S]*?)<\/script>/) || [])[1];
+    const { identifier } = await t.send('Page.addScriptToEvaluateOnNewDocument', { source: `window.__pub = [];
+      window.claude = { use: async (n) => n === 'artifact' ? { publish: async (h) => { window.__pub.push(h); } } : null };` });
+    await t.open(artifact);
+    await t.ev(`document.getElementById('btn-save').click()`);
+    await sleep(400);
+    const pub = JSON.parse(await t.ev(`JSON.stringify(window.__pub)`));
+    t.check('artifact: Save publishes once, in the skeleton, with the generated data block and no positions',
+      pub.length === 1 && pub[0].startsWith(skeleton + '\n<title>') && pub[0].endsWith('</body></html>') && blockOf(pub[0]) === blockOf(gen)
+      && !/"(x|y|w|h|elseY|layout)":/.test(blockOf(pub[0])) && t.errors.length === 0, `${pub.length} ${t.errors.join(' | ')}`);
+    await t.send('Page.removeScriptToEvaluateOnNewDocument', { identifier });
+  }
 } catch (err) {
   console.error('[ERROR]', err.message);
   code = 1;
