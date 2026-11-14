@@ -2,7 +2,7 @@
 
 Today the skill writes one standalone `.html` file, and **Save** writes it back to disk (File System Access API, or a download). This plan adds a second output for Claude Code: the diagram is published as a **claude.ai Artifact**, and **Save** inside the artifact publishes a new version of that same artifact. Claude Code asks the user which output they want.
 
-**Status:** Phases 1–5 are implemented and tested against a stubbed `window.claude` (`dev/check_artifact_shape.py`, `dev/e2e_shell.mjs --artifact`, `dev/e2e_sequence.mjs --artifact`). Phase 0 has been done in part (2026-11-14, runtime contract 0.2.96): one probe artifact was published and read back, and the platform's type definitions were checked.
+**Status:** Phases 1–5 are implemented and tested against a stubbed `window.claude` (`dev/check_artifact_shape.py`, `dev/e2e_shell.mjs --artifact`, `dev/e2e_sequence.mjs --artifact`). Phase 0 is done (2026-11-14, runtime contract 0.2.96): a probe artifact was published and read back, the platform's type definitions were checked, and a full Save / Claude-edit / Download round trip was verified on a real diagram artifact.
 
 Settled by Phase 0:
 
@@ -27,10 +27,13 @@ Probe results (2026-11-14, opened in the Claude Android app's webview, Chrome 15
 - **Allowed in the frame:** clipboard `writeText`, IndexedDB, `localStorage`, and `showSaveFilePicker` exists. The page is served from a per-artifact origin (`<id>.frame.claudeusercontent.com`) inside an iframe.
 - **Google Fonts:** the stylesheet link in `<body>` is applied (it shows in `document.styleSheets`). The font check ran before any text used the face, so whether Nunito Sans finished loading is not proven. The page falls back to the system font either way.
 
-Still open:
+Verified end to end (2026-11-14, by the user on a published diagram artifact):
 
-- **The `downloads.save` test recorded no result.** The confirmation was probably still waiting, or the Android app doesn't settle it. Check Download .html once on desktop.
-- **One real Save round trip with a diagram page:** publish a diagram, edit it in the artifact, Save, reload, then ask Claude to change the diagram and confirm it starts from the saved version.
+- **Save round trip.** An edit made in the artifact (switching to a vertical layout) and saved with **Save** produced a new version with the data block updated and no viewer-injected code; the page reloaded to it.
+- **Claude edits on top of the user's save.** `Artifact read` returned the saved version; `--extract` showed the user's edit (`"direction": "TB"`); the requested change (a manager approval step) was applied to that JSON, re-laid out with `--target artifact` and republished. The vertical layout survived.
+- **Download .html** (Export > "HTML file (editable)") shows the viewer confirmation and saves a file.
+
+No open items remain for the artifact path. A second artifact had to be created after the first became unreadable (it returned "not found" after a session restart); an artifact's link can stop working for a session, so the skill reports the new link each time it republishes to a new URL.
 
 Possible later improvement: the `artifact` capability also has a **files form** (`publish({"diagram.json": json})`). It is meant for editor-style artifacts whose page stays fixed while a data file changes. The view keeps running instead of reloading, and Claude can read just the data file. It is not available on publicly shared artifacts and needs a multi-file artifact, so the html form stays the default for now.
 
