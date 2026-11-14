@@ -2,7 +2,7 @@
 
 A long sequence diagram is as wide as all of its participants, all the way down, although a reader at any point is looking at a few of them. This plan makes a sequence diagram narrower where it can be, and makes the part the reader is looking at take the space. It also removes a control the editor does not need, the three-way message type picker, and lets participants carry a colour, so a reader can tell whose systems are whose down the whole length of a diagram.
 
-**Status:** proposed 2026-11-14. Every open question is settled: 1–4 as proposed, 5 and 7 as proposed, and 6 by using the flowchart's swatches for participants. Only drawn-message kind inference is implemented. It revisits two non-goals of `archive/plan-sequence-v2.md` ("Create and destroy markers", "Participant colours"), on new evidence and on request.
+**Status:** implemented 2026-11-14 (steps 1-6). Deviation: rails need the diagram flag `"rails": true` (Focus sets it), because a page saved before with a collapsed frame hiding a participant must open and look the same; rail gaps use a 24px clearance (not a full gap), and the line colour of a participant is a dedicated `--sw-line` shade at full strength, so it reaches 3:1. Proposed 2026-11-14. Every open question is settled: 1–4 as proposed, 5 and 7 as proposed, and 6 by using the flowchart's swatches for participants. Only drawn-message kind inference is implemented. It revisits two non-goals of `archive/plan-sequence-v2.md` ("Create and destroy markers", "Participant colours"), on new evidence and on request.
 
 ## What the acceptance case says
 
