@@ -8,6 +8,8 @@ v2 ([archive/plan-erd-layout-v2.md](archive/plan-erd-layout-v2.md)) placed table
 
 These stay: tables, columns, relationship ends (crow's foot), notes, the D8 hover highlight, the D10 overview zoom and expand card, Copy as (full ERD), Mermaid, undo and touch. The D9 rounded orthogonal bends are replaced by curves (D3).
 
+**Status:** approved 2026-11-14 (D1–D6, smooth curves; dropping the layout of v2 files confirmed). Not started.
+
 ## Decisions
 
 **D1. No groups.**
