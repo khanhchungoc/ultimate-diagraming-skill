@@ -1,10 +1,26 @@
+      <li><kbd>Click</kbd> : Select a table (its header), a column (its row), a line (or its label), an area (its name pill) or a note</li>
       <li><kbd>Hover a Table</kbd> : Light up the lines that enter it (amber: tables it is the parent of) and leave it (blue: tables it points to) and the joined column rows; everything else dims</li>
       <li><kbd>Hover a Line</kbd> : Light up the two columns it joins</li>
-      <li><b>Chevron</b> in a table header : Collapse the table to its header, or expand it (also in <kbd>?present</kbd>); the layout re-tidies</li>
+      <li><b>Table</b> (dock) : Add a table after the selected one, in its area, with an <b>id</b> primary key (uuid); its name opens for editing. Or drag the button onto an area to drop it there</li>
+      <li><kbd>Double Click</kbd>, <kbd>Enter</kbd> or <kbd>F2</kbd> : Rename the selected table or column, edit a line's label or an area's name. In a column, <kbd>Tab</kbd> goes name, then type, then the next row; <kbd>Enter</kbd> on the last row adds a column; an empty name and <kbd>Enter</kbd> removes it; <kbd>Esc</kbd> keeps the old text. Renaming a column renames it in every relationship</li>
+      <li><b>+ Column</b> in a table's action bar : Add a column at the end</li>
+      <li><b>PK</b> / <b>FK</b> / <b>U</b> / <b>?</b> in a column's action bar, or <kbd>P</kbd> <kbd>F</kbd> <kbd>U</kbd> <kbd>?</kbd> on a selected row : Toggle primary key, foreign key, unique, nullable</li>
+      <li><kbd>Drag</kbd> a row, or <kbd>Alt</kbd> + <kbd>&uarr;</kbd> / <kbd>&darr;</kbd> : Move the column up or down in its table. Deleting a column removes it from the relationships that name it</li>
+      <li><kbd>Drag</kbd> from a column's port (the dot at the right edge of a hovered row, or of the header) onto another table or column : Draw a relationship from the table that holds the key (the child) to the table it points to (the parent). From a column onto a column, the start column becomes a foreign key, the line is dashed (solid when that column is part of the primary key) and the ends are zero-or-many to one (zero-or-one for a nullable column). Onto a table header, no column is named. Onto the same table's key: a self-reference</li>
+      <li><b>Relationship</b> (dock) : Arm the tool, then drag from any column to another table; <kbd>Esc</kbd> cancels</li>
+      <li><kbd>Drag</kbd> a selected line's end handle : Move that end to another table or column</li>
+      <li><b>Action bar</b> of a line : two rows of crow's-foot buttons (<b>Child</b> end, <b>Parent</b> end: exactly one, zero or one, one or many, zero or many), <b>Identifying</b> (solid or dashed), reverse (swap child and parent) and label</li>
+      <li><b>Area</b> (dock) : Add a subject area (the first one takes every table). Double-click its name pill to rename it, drag the pill to reorder areas, drag a table into another area to move it there; its action bar has colour swatches and delete (the tables move to the first remaining area; with no area left the diagram has none)</li>
+      <li><b>Note</b> (dock), <kbd>N</kbd> or the <b>+</b> chip on a hovered table : Add a note to the selected table (the dock button waits for a click on a table if none is selected, or drag it onto one). <kbd>Enter</kbd> breaks a line; <kbd>Ctrl</kbd> + <kbd>Enter</kbd>, <kbd>Esc</kbd> or a click away finishes; an empty note is dropped. A table with a note has a badge: hover it to peek, click it to edit</li>
+      <li><kbd>Drag</kbd> a note's card : Pin it where you drop it. Drag its link handle onto another table (or <kbd>Shift</kbd> + <kbd>Click</kbd> a table while the note is selected) to link it, and onto a linked table to unlink it</li>
+      <li><kbd>&uarr;</kbd> <kbd>&darr;</kbd> / <kbd>&larr;</kbd> <kbd>&rarr;</kbd> : Walk the columns of a table / the tables</li>
+      <li><kbd>Delete</kbd> : Delete the selection: a table (it asks first when it has relationships, and removes them), a column, a line, an area (it asks first) or a note</li>
+      <li><kbd>Esc</kbd> : Cancel what is under way (a drawing, a drag, an armed tool), then clear the selection</li>
+      <li><b>Chevron</b> in a table header : Collapse the table to its header, or expand it (also in <kbd>?present</kbd>); the layout re-tidies when Auto-Tidy is on</li>
       <li><b>Columns</b> : Cycle what every table shows: all columns, key columns only (with a "+ N more" row), or table names only; saved with the file</li>
       <li><b>Types</b> : Show or hide the column types</li>
-      <li><b>Notes</b> : Show every note on the canvas at once, or hide them. A table with a note has a small badge: hover the badge (or the table) to peek at the note, click the badge to keep it open</li>
+      <li><b>Notes</b> : Show every note on the canvas at once, or hide them</li>
       <li><b>Vertical / Horizontal</b> : Switch between parents on the left and parents on top; saved with the file</li>
-      <li><b>Auto-Tidy</b> : Turn automatic layout on or off (remembered in this browser); <b>Tidy</b> lays the whole diagram out once, now</li>
+      <li><b>Auto-Tidy</b> : On (remembered in this browser), the diagram re-arranges itself after every structural edit and a dropped table only chooses its area. Off, tables stay where you drop them (<kbd>Drag</kbd> a table; dashed guides snap it to another table's centre) and only <b>Tidy</b> lays the whole diagram out, once, now</li>
       <li><b>Area name</b> : Each subject area is a band with its name pill at the start; the pill stays at the visible edge when you pan past it</li>
       <li><b>Reading a line</b> : A crow's foot (three prongs) marks the "many" end, a bar "one", a circle "zero"; a solid line means the key is part of the child's primary key, a dashed one that it is not. Lines leave and enter at the column that holds the key</li>
