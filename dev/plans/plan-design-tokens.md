@@ -2,7 +2,7 @@
 
 Every diagram is drawn from one design-token set. The skill ships a default set. A user can point the skill at a website or a brand guide, get a token set in the same shape, and every diagram type (current and future) uses it without code changes. Every visual component is built once, from tokens only, and reused by all types.
 
-**Status:** not started. Review done 2026-11-15 (findings below).
+**Status:** not started. Review done 2026-11-15 (findings below). Open decisions for Phases 1 and 4 settled 2026-11-15.
 
 ## Goals
 
@@ -94,7 +94,7 @@ The Python audits load the same merged token file for `font.metrics`, which remo
 4. Add `dev/check_tokens.py`: it fails on any hex, `rgb(`, `rgba(`, `hsl(` or `font-family` literal in `assets/shell/*.css|js` and `assets/types/**/*.css|js`, and on any `--name:` declaration outside generated token CSS (runtime `style.setProperty` for geometry such as `--pill-x` is allowed).
 5. Exit check: `check_golden.py` passes and the generated pages render the same as before (screenshot diff of every fixture in both themes).
 
-Decision to make here: whether the sequence note keeps its yellow look. Recommended: one note style for all types, so the note is one component.
+Decided (2026-11-15): the sequence note drops its yellow look. All types use one note style (`--note-*`), so the note is one component.
 
 ### Phase 2: Scale tokens
 
@@ -129,7 +129,7 @@ Exit check: the e2e suites (`e2e_notes`, `e2e_erd`, `e2e_sequence`, `e2e_shell`,
 3. `disk_format.py` writes slots; `references/types/*.md` and the examples use slots.
 4. Exit check: every existing fixture and sample loads with the same colours; a fixture with old hex values round-trips through Save to slots.
 
-Decision to make here: slot ids (`"1"`..`"8"`, recommended because brand palettes have no fixed hue names) or keep the current names (`sky`, `amber`, ...).
+Decided (2026-11-15): slot ids are `"1"`..`"8"`, because brand palettes have no fixed hue names. The current names (`sky`, `amber`, ...) stay only as labels of the default palette.
 
 ### Phase 5: Font metrics from tokens
 
