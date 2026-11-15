@@ -2,7 +2,7 @@
 
 Every diagram is drawn from one design-token set. The skill ships a default set. A user can point the skill at a website or a brand guide, get a token set in the same shape, and every diagram type (current and future) uses it without code changes. Every visual component is built once, from tokens only, and reused by all types.
 
-**Status:** Phases 1, 2 and 6 done 2026-11-15 (see their "As built" notes). Phases 3 to 5, 7 and 8 not started. Review done 2026-11-15 (findings below). Open decisions for Phases 1 and 5 settled 2026-11-15. Typography and iconography added 2026-11-15.
+**Status:** Phases 1, 2, 5 and 6 done 2026-11-15 (see their "As built" notes). Phases 3 and 4 in progress; 7 and 8 not started. Review done 2026-11-15 (findings below). Open decisions for Phases 1 and 5 settled 2026-11-15. Typography and iconography added 2026-11-15.
 
 ## Goals
 
