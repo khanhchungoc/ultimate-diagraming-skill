@@ -369,30 +369,6 @@
     }
     #btn-notes[aria-pressed="true"] .btn-count { background: var(--primary); color: var(--bg-panel); }
     #btn-notes .btn-count[hidden] { display: none; }
-    /* Auto-Tidy on/off: a sliding switch (knob right and track filled while on) */
-    .btn-switch .switch-track {
-      position: relative;
-      width: 28px; height: 16px;
-      flex: none;
-      border-radius: 999px;
-      background: var(--border-dark);
-      transition: background-color 0.18s;
-    }
-    .btn-switch .switch-knob {
-      position: absolute;
-      top: 2px; left: 2px;
-      width: 12px; height: 12px;
-      border-radius: 50%;
-      background: #ffffff;
-      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
-      transition: transform 0.18s;
-    }
-    .btn-switch[aria-checked="true"] .switch-track { background: var(--primary); }
-    .btn-switch[aria-checked="true"] .switch-knob { transform: translateX(12px); }
-    @media (prefers-reduced-motion: reduce) {
-      .btn-switch .switch-track, .btn-switch .switch-knob { transition: none; }
-    }
-
     /* =====================================================================================================
        EDITING (wave 3): ports, handles, action bar, inline edits, drags, confirm. Everything here is an editing
        aid ([data-export-skip] in the DOM) and is hidden in ?present.

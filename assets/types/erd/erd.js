@@ -2,8 +2,8 @@
       // Renders chartData (diagramType "erd") from the model engine.js lays out: tables with column rows (tinted by
       // their own `color`), relationship curves (one cubic Bezier each, leaving a table side at right angles, crow's-foot
       // ends), label pills and notes, and edits it (EDITING below): add, rename, keys, reorder, colour, draw and re-point
-      // relationships, notes, delete, Auto-Tidy on and off. Every finished edit ends in one updateStatus(true) (one undo
-      // step): commit() for structural ones, which re-lays out (warm) only with Auto-Tidy on.
+      // relationships, notes, delete. Every finished edit ends in one updateStatus(true) (one undo
+      // step): commit() for structural ones, which keeps every table where it is and only re-routes the lines.
       //
       // Model (see engine.js header): entities[].x/y (absolute top-left) are the only positions that are saved (the
       // "layout" map); box, curve, points, labelBox and data.canvas are derived on every render (layoutDiagram when any
@@ -11,7 +11,7 @@
       // within #erd-canvas.
       //
       // State kept in this file (module scope): erdSel (selection: table, column or line), hoverEntityId / hoverRelId
-      // (highlight), autoLayout (the dock switch, localStorage "erd-auto-layout"), the note fitting caches, and peek/selected note.
+      // (highlight), the note fitting caches, and peek/selected note.
       // Render entry points: render() (everything), applyHighlight() (hover/selection classes, the related tables and
       // their key rows, chips and peeks only), applyNoteVisibility() (notes only).
 
@@ -24,7 +24,6 @@
       const erdBtnColumns = document.getElementById('btn-columns');
       const erdBtnTypes = document.getElementById('btn-types');
       const erdBtnNotes = document.getElementById('btn-notes');
-      const erdBtnAuto = document.getElementById('btn-auto-layout');
 
       const ERD_DETAILS = ['all', 'keys', 'names'];
       const ERD_END_KINDS = ['one', 'zeroOrOne', 'oneOrMany', 'zeroOrMany'];
@@ -44,8 +43,6 @@
       let erdMultiOwner = null;
       let hoverEntityId = null;
       let hoverRelId = null;
-      let autoLayout = true;          // Auto-Tidy switch (not saved in the file)
-      try { autoLayout = localStorage.getItem('erd-auto-layout') !== 'off'; } catch (e) {}
       let routedSig = null;           // signature of the inputs routeDiagram last ran on (skips the re-route on a re-render)
 
       const erdEntities = () => chartData.entities || [];
@@ -111,10 +108,8 @@
       }
 
       // layoutDiagram also routes, so remember that the inputs are routed (render() would otherwise route again).
-      // warm: start from the saved positions (a structural edit under Auto-Tidy); else a full layout from the seed (Tidy)
-      function erdLayout(warm) {
-        if (warm && erdEntities().some(erdIsPlaced)) layoutDiagram(chartData, { warm: true });
-        else layoutDiagram(chartData);
+      function erdLayout() {
+        layoutDiagram(chartData);
         routedSig = inputSignature();
       }
 
@@ -147,7 +142,7 @@
 
       // Posts the model to a new worker (replacing a running one); false when a worker cannot be made. after() runs once the
       // positions are in.
-      function erdStartJob(warm, after) {
+      function erdStartJob(after) {
         erdEndJob();
         let worker, url;
         try {
@@ -157,10 +152,10 @@
           if (url) URL.revokeObjectURL(url);
           return false;
         }
-        const job = erdJob = { seq: ++erdSeq, worker, url, warm, after, sig: inputSignature() };
+        const job = erdJob = { seq: ++erdSeq, worker, url, after, sig: inputSignature() };
         worker.onmessage = (ev) => erdFinishJob(job, ev.data);
         worker.onerror = (ev) => { ev.preventDefault(); erdFinishJob(job, null); };
-        worker.postMessage({ seq: job.seq, data: chartData, opts: warm && erdEntities().some(erdIsPlaced) ? { warm: true } : undefined });
+        worker.postMessage({ seq: job.seq, data: chartData });
         document.body.dataset.erdBusy = '';
         erdHint('Laying out the diagram…', true);
         return true;
@@ -169,7 +164,7 @@
       function erdFinishJob(job, result) {
         if (job !== erdJob || (result && result.seq !== erdSeq)) return;   // replaced meanwhile
         erdEndJob();
-        if (!result) { erdLayout(job.warm); job.after(); return; }          // the worker failed (CSP): lay out here
+        if (!result) { erdLayout(); job.after(); return; }          // the worker failed (CSP): lay out here
         if (inputSignature() !== job.sig) return;                          // the model changed while it ran: stale
         const byId = (list) => new Map(list.map((x) => [x.id, x]));
         const ents = byId(erdEntities()), rels = byId(erdRelsList());
@@ -180,11 +175,11 @@
         job.after();
       }
 
-      // Lays out (cold unless warm) and then runs after() (render, undo step). In the background when erdAsyncOK: the
+      // Lays out (a full layout) and then runs after() (render, undo step). In the background when erdAsyncOK: the
       // screen shows the edit on the old layout meanwhile.
-      function erdLayoutThen(warm, after) {
-        if (erdAsyncOK() && erdStartJob(warm, after)) render();
-        else { erdLayout(warm); after(); }
+      function erdLayoutThen(after) {
+        if (erdAsyncOK() && erdStartJob(after)) render();
+        else { erdLayout(); after(); }
       }
 
       // Tables without a position, while the worker lays them out: a grid, so the page can draw something. The job's
@@ -200,7 +195,7 @@
         const derivedKept = !!chartData.canvas && ents.every((e) => e.box) && erdRelsList().every((r) => r.curve);
         if (ents.some((e) => !erdIsPlaced(e))) {
           // anything unplaced (a v1/v2 page, a table made by hand): the whole diagram is laid out
-          const background = erdJob || (erdAsyncOK() && erdStartJob(false, () => {
+          const background = erdJob || (erdAsyncOK() && erdStartJob(() => {
             render();
             fitView();
             committedJson = savedJson = JSON.stringify(chartData);   // the laid-out page is the one that counts as unedited
@@ -818,13 +813,13 @@
         const e = erdEntity(id);
         if (!e) return;
         if (e.collapsed === true) delete e.collapsed; else e.collapsed = true;
-        // Auto-Tidy on: the diagram re-lays out (warm). Off: tables stay where they are, only their sizes and the lines
-        // change (render() re-routes because the model changed). In ?present it is a change of view, not an edit.
-        const done = () => { render(); if (!erdPresenting()) updateStatus(true); };
-        if (autoLayout) erdLayoutThen(true, done); else done();
+        // Tables stay where they are, only their sizes and the lines change (render() re-routes because the model
+        // changed). In ?present it is a change of view, not an edit.
+        render();
+        if (!erdPresenting()) updateStatus(true);
       }
 
-      // --- DOCK: Columns, Types, Notes, direction, Auto-Tidy ---
+      // --- DOCK: Columns, Types, Notes ---
       function updateButtons() {
         const detail = erdDetail();
         const modeLabel = { all: 'All', keys: 'Keys', names: 'Names' }[detail];
@@ -839,12 +834,6 @@
           const on = chartData.showTypes !== false;
           erdBtnTypes.setAttribute('aria-pressed', String(on));
           erdBtnTypes.title = on ? 'Hide the column types' : 'Show the column types';
-        }
-        if (erdBtnAuto) {
-          erdBtnAuto.setAttribute('aria-checked', String(autoLayout));
-          erdBtnAuto.title = autoLayout
-            ? 'Auto-Tidy is on: the diagram re-arranges itself after every structural edit (click to place tables by hand)'
-            : 'Auto-Tidy is off: tables stay where you drop them (click to re-arrange after every structural edit)';
         }
         updateNotesButton();
       }
@@ -915,11 +904,10 @@
         erdRoute();
       }
 
-      // The tables changed size (Columns, Types). Auto-Tidy on: the diagram re-lays out (warm). Off: hand-placed tables stay
-      // where they are and only the lines are re-routed; a table that now overlaps another is pushed right or down,
-      // whichever is shorter.
+      // The tables changed size (Columns, Types). Placed tables stay where they are and only the lines are re-routed; a
+      // table that now overlaps another is pushed right or down, whichever is shorter.
       function resizeLayout(after) {
-        if (autoLayout || erdEntities().some((e) => !erdIsPlaced(e))) { erdLayoutThen(true, after); return; }
+        if (erdEntities().some((e) => !erdIsPlaced(e))) { erdLayoutThen(after); return; }
         erdSettled();
         after();
       }
@@ -932,20 +920,6 @@
       if (erdBtnTypes) erdBtnTypes.addEventListener('click', () => {
         if (chartData.showTypes === false) delete chartData.showTypes; else chartData.showTypes = false;
         resizeLayout(() => { render(); updateStatus(true); });
-      });
-
-      // --- AUTO-TIDY ---
-      // On: every structural edit re-lays out, warm-started from the current positions (relayout()), as one undo step. The Tidy button (the shell) is a full layout. Off: tables stay where they are put.
-      // The choice is an editing preference of this browser, not part of the diagram.
-      // relayout() is what commit() (EDITING) calls after each structural edit while Auto-Tidy is on.
-      function relayout() {
-        erdLayoutThen(true, () => { render(); updateStatus(true); });
-      }
-      if (erdBtnAuto) erdBtnAuto.addEventListener('click', () => {
-        autoLayout = !autoLayout;
-        try { localStorage.setItem('erd-auto-layout', autoLayout ? 'on' : 'off'); } catch (e) {}
-        updateButtons();
-        if (autoLayout) relayout();
       });
 
       // --- NOTES ---
@@ -1243,8 +1217,7 @@
       // Selection kinds: a table, a column row, a line or a note (selectedNoteId). Presses are handled
       // in one place (onErdPointerDown); drags go through beginDrag (a drag starts after 4px; a press without
       // movement only selects, and never rebuilds the DOM, so a double-click lands on the element the first click did).
-      // Every finished edit calls updateStatus(true) once: commit() (structural: re-lays out only while Auto-Tidy is
-      // on) or a plain render() + updateStatus(true) for colours and notes. Text edits (beginEdit) commit on blur.
+      // Every finished edit calls updateStatus(true) once: commit() (structural: tables stay, lines re-route) or a plain render() + updateStatus(true) for colours and notes. Text edits (beginEdit) commit on blur.
       // =====================================================================================================
       const erdBtnAddTable = document.getElementById('btn-add-table');
       const erdBtnAddRel = document.getElementById('btn-add-relationship');
@@ -1265,10 +1238,10 @@
       }
       const erdFirstPk = (ent) => erdToCol({}, ent);
 
-      // A structural edit: with Auto-Tidy on the diagram re-lays out (warm); off, tables stay and only lines are re-routed
+      // A structural edit: tables stay and only lines are re-routed
       function commit() {
-        if (autoLayout) relayout();
-        else { render(); updateStatus(true); }
+        render();
+        updateStatus(true);
       }
 
       // A short message above the dock (why something was refused), or a prompt that stays while a tool waits
@@ -1737,7 +1710,7 @@
       }
 
       // --- Move a table ---
-      // A drop writes the table's x/y wherever it lands (Auto-Tidy on or off: a drag never re-lays out); overlapping
+      // A drop writes the table's x/y wherever it lands (a drag never re-lays out); overlapping
       // tables are pushed apart (erdSettle) and only the lines are re-routed (routeDiagram). Dashed guides snap a table's
       // centre to another table's centre within 6px.
       // `group`: ids of every table moving together (several selected).
@@ -2048,7 +2021,7 @@
         if (erdSel.kind === 'col') return erdSel.entity;
         return null;
       }
-      // With Auto-Tidy off a new table must be placed (a table without x/y would send the whole diagram to the layout):
+      // A new table must be placed (a table without x/y would send the whole diagram to the layout):
       // at the drop point; else beside the selected table; then moved down clear of other tables, and overlaps pushed apart
       function placeNewTable(e, pt) {
         const size = erEntitySize(e, chartData);
@@ -2075,7 +2048,7 @@
         const afterId = opts.pt ? null : erdSelectedEntityId();
         const at = afterId ? ents.findIndex((x) => x.id === afterId) : -1;
         if (at >= 0) ents.splice(at + 1, 0, e); else ents.push(e);
-        if (!autoLayout) placeNewTable(e, opts.pt);
+        placeNewTable(e, opts.pt);
         selectedNoteId = null;
         erdSel = { kind: 'entity', id: e.id };
         commit();
@@ -2706,7 +2679,7 @@
         // The Tidy button: a cold layout, one undo step
         tidy() {
           const done = () => { render(); updateStatus(true); };
-          if (!(erdAsyncOK() && erdStartJob(false, done))) { erdLayout(false); done(); }
+          if (!(erdAsyncOK() && erdStartJob(done))) { erdLayout(); done(); }
         },
         report: { node: '.erd-entity', label: '.erd-rel-label', labelText: '.erd-rel-label-text', nodeText: '.erd-name' },
         render,

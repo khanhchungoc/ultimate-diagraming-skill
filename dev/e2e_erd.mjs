@@ -2,7 +2,7 @@
 // drawing / re-pointing / reversing relationships and their inferred ends, cardinality pickers, table colours (swatch row,
 // no groups), curves anchored on the table sides, notes, delete, the hover / selection neighbourhood (related tables, key
 // rows on side-anchored lines, curves, dimming, chips, peeks), the overview below 50% zoom (and its expanded card), exports
-// and copies from the overview, multi-select of tables, free table drags (Auto-Tidy on and off, with snap guides; Columns
+// and copies from the overview, multi-select of tables, free table drags (with snap guides, no Auto-Tidy toggle, edits keep tables in place; Columns
 // and Types keep hand-placed tables), undo/redo (one step per finished edit), ?present, and the saved data block
 // (byte-identical without edits; generated ids renamed, authored ids kept; Python codec agrees; v1 and v2 pages open
 // re-laid out, a v2 page's group colours becoming table colours).
@@ -51,12 +51,6 @@ try {
   const editCell = async (id, col, field = 'name') => { await t.press('Escape'); await t.clickOn(cell(id, col, field), { count: 2 }); return editing(); };
   const unsaved = () => t.ev(`/unsaved/i.test(document.getElementById('save-status').textContent)`);
   const undoDisabled = () => t.ev(`document.getElementById('btn-undo').disabled`);
-  // The Auto-Tidy preference lives in localStorage (read when the page script starts): set it before each load
-  let autoScript = null;
-  const setAuto = async (on) => {
-    if (autoScript) await t.send('Page.removeScriptToEvaluateOnNewDocument', { identifier: autoScript });
-    ({ identifier: autoScript } = await t.send('Page.addScriptToEvaluateOnNewDocument', { source: `try { localStorage.setItem('erd-auto-layout', ${J(on ? 'on' : 'off')}); } catch (e) {}` }));
-  };
   // A point on a line that really hits it (the line's own hit path under the pointer), away from its label pill
   const onLine = (id) => t.ev(`(() => {
     const g = document.querySelector('.erd-rel[data-edge-id="${id}"]'); const p = g.querySelector('.erd-rel-hit'); const L = p.getTotalLength();
@@ -82,7 +76,7 @@ try {
     await sleep(60);
     return t.at(`.erd-entity[data-node-id="${id}"] ${col ? `.erd-row[data-col="${col}"]` : '.erd-head'} .erd-port`);
   };
-  const freshPage = async (file = page, query = '') => { await setAuto(true); await t.open(file, query); };
+  const freshPage = async (file = page, query = '') => { await t.open(file, query); };
   // The saved block, run through the Python codec (from_disk, to_disk, format_json): must come out as written
   const pythonAgrees = (blockText) => {
     const py = `import sys, json
@@ -619,49 +613,19 @@ sys.stdout.write(format_json(out))`;
   const o2 = await t.at(head('order'));
   t.check('Escape while dragging a table puts it back', Math.abs(o2.x - o.x) < 1 && Math.abs(o2.y - o.y) < 1 && (await undoDisabled()));
 
-  // --- Auto-Tidy ---
+  // --- Tables stay where they are (there is no Auto-Tidy toggle) ---
   const layoutOf = async () => (await saved()).layout || {};   // every table's absolute x/y
   await freshPage();
-  t.check('Auto-Tidy is on by default', (await t.ev(`document.getElementById('btn-auto-layout').getAttribute('aria-checked')`)) === 'true');
+  t.check('the dock has no Auto-Tidy toggle on the ERD page (only the shell Tidy button)', (await count('#btn-auto-layout')) === 0 && (await count('#btn-auto-tidy')) === 1);
   const lay0 = await layoutOf();
-  await t.clickOn(head('order'));
-  await t.clickOn('#btn-add-table');
-  await t.press('Escape');
-  const lay1 = await layoutOf();
-  const movedOthers = Object.keys(lay0).filter((k) => J(lay0[k]) !== J(lay1[k])).length;
-  // warm: the picture moves little. Take out the uniform shift (the engine re-origins the content), then most tables sit where they were
-  const resid = Object.keys(lay0).map((k) => [lay1[k].x - lay0[k].x, lay1[k].y - lay0[k].y]);
-  const med = (a) => a.slice().sort((p, q) => p - q)[Math.floor(a.length / 2)];
-  const mx = med(resid.map((r) => r[0])), my = med(resid.map((r) => r[1]));
-  const stayed = resid.filter((r) => Math.hypot(r[0] - mx, r[1] - my) <= 150).length;
-  t.check('on: a structural edit re-lays out warm, as a single undo step: the new table is placed, nothing overlaps, most tables stay about where they were',
-    Object.keys(lay1).length === 9 && (await layoutProblems()).length === 0 && stayed >= 6, `${movedOthers} ${stayed}/8 ${J(resid)}`);
-  await undo();
-  t.check('and one undo restores every position', J(await layoutOf()) === J(lay0));
-  // a drag is free with Auto-Tidy on too: only that table moves, only its lines re-route (no relayout)
-  const dragRoutes = async () => t.ev(`JSON.stringify([...document.querySelectorAll('.erd-rel-line')].map((l) => l.getAttribute('d')))`);
-  const routes0 = await dragRoutes();
-  const hd0 = await t.at(head('category'));
-  await t.dragTo(hd0.x, hd0.y, hd0.x + 40, hd0.y + 60);
-  const lay2 = await layoutOf();
-  const routes1 = JSON.parse(await dragRoutes()), routes0p = JSON.parse(routes0);
-  const changedLines = routes1.filter((r, i) => r !== routes0p[i]).length;
-  t.check('on: dragging a table moves only that table, re-routes only its lines, and is one undo step',
-    J(lay2.category) !== J(lay0.category) && Object.keys(lay0).filter((k) => k !== 'category').every((k) => J(lay0[k]) === J(lay2[k])) && changedLines >= 1 && changedLines <= 3, `${J(lay0.category)} -> ${J(lay2.category)} lines ${changedLines}`);
-  await undo();
-  t.check('and undo puts it back', J(await layoutOf()) === J(lay0) && (await undoDisabled()));
-  // off
-  await t.clickOn('#btn-auto-layout');
-  t.check('the switch turns Auto-Tidy off and the choice is remembered in this browser', (await t.ev(`document.getElementById('btn-auto-layout').getAttribute('aria-checked')`)) === 'false' && (await t.ev(`localStorage.getItem('erd-auto-layout')`)) === 'off');
-  const off0 = await layoutOf();
   const hd = await t.at(head('category'));
   await t.dragTo(hd.x, hd.y, hd.x + 120, hd.y - 150);
   const off1 = await layoutOf();
   d = await saved();
-  t.check('off: dragging a table writes its x/y (flow terms) and moves no other table',
-    J(off1.category) !== J(off0.category) && Object.keys(off0).filter((k) => k !== 'category').every((k) => J(off0[k]) === J(off1[k])) && Number.isInteger(off1.category.x) && off1.category.x % 4 === 0, `${J(off0.category)} -> ${J(off1.category)}`);
+  t.check('dragging a table writes its x/y (flow terms) and moves no other table',
+    J(off1.category) !== J(lay0.category) && Object.keys(lay0).filter((k) => k !== 'category').every((k) => J(lay0[k]) === J(off1[k])) && Number.isInteger(off1.category.x) && off1.category.x % 4 === 0, `${J(lay0.category)} -> ${J(off1.category)}`);
   await undo();
-  t.check('and that is one undo step', J(await layoutOf()) === J(off0));
+  t.check('and that is one undo step', J(await layoutOf()) === J(lay0) && (await undoDisabled()));
   // snap guides while aligned (centre to centre within 6px)
   const cb = await t.ev(`(() => { const r = (id) => { const b = document.querySelector('.erd-entity[data-node-id="' + id + '"]').getBoundingClientRect(); return { x: b.left + b.width / 2, y: b.top + b.height / 2 }; }; return { cat: r('category'), prod: r('product') }; })()`);
   const gh = await t.at(head('category'));
@@ -674,21 +638,21 @@ sys.stdout.write(format_json(out))`;
   await t.mouse('mouseReleased', gh.x + dx, gh.y + dy, { button: 'left', buttons: 0, clickCount: 1 });
   await sleep(80);
   const snapped = await t.ev(`(() => { const c = document.querySelector('.erd-entity[data-node-id="category"]').getBoundingClientRect(); const cx = c.left + c.width / 2; return Math.min(...[...document.querySelectorAll('.erd-entity')].filter((e) => e.dataset.nodeId !== 'category').map((e) => { const p = e.getBoundingClientRect(); return Math.abs(cx - (p.left + p.width / 2)); })); })()`);   // on the centre line of the nearest table (not necessarily product: the nearest one within 6px wins)
-  t.check('off: a table dragged within 6px of another’s centre line snaps to it, with a guide while dragging', guide === 'block' && snapped < 1.5 && (await t.ev(`getComputedStyle(document.querySelector('.erd-guide-v')).display`)) === 'none', `${guide} ${snapped}`);
+  t.check('a table dragged within 6px of another’s centre line snaps to it, with a guide while dragging', guide === 'block' && snapped < 1.5 && (await t.ev(`getComputedStyle(document.querySelector('.erd-guide-v')).display`)) === 'none', `${guide} ${snapped}`);
   await undo();
-  // add a table with Auto-Tidy off: placed, nothing else moves
+  // add a table: placed, nothing else moves
   const off2 = await layoutOf();
   await t.clickOn(head('order'));
   await t.clickOn('#btn-add-table');
   await t.press('Escape');
   const off3 = await layoutOf();
-  t.check('off: Table adds a placed table (x/y saved) and moves no other table', Object.keys(off3).length === 9 && Object.keys(off2).every((k) => J(off2[k]) === J(off3[k])), `${Object.keys(off3).length}`);
+  t.check('Table adds a placed table (x/y saved) and moves no other table', Object.keys(off3).length === 9 && Object.keys(off2).every((k) => J(off2[k]) === J(off3[k])), `${Object.keys(off3).length}`);
   const overlap = await t.ev(`(() => { const b = [...document.querySelectorAll('.erd-entity')].map((e) => e.getBoundingClientRect()); for (let i = 0; i < b.length; i++) for (let j = i + 1; j < b.length; j++) if (b[i].left < b[j].right && b[i].right > b[j].left && b[i].top < b[j].bottom && b[i].bottom > b[j].top) return true; return false; })()`);
-  t.check('off: the new table does not sit on another table', !overlap);
+  t.check('the new table does not sit on another table', !overlap);
   // collapse only re-routes
   await t.clickOn(`${head('order')} .erd-chevron`);
   const off4 = await layoutOf();
-  t.check('off: collapsing a table only re-routes (no table moves) and the lines still end on its header',
+  t.check('collapsing a table only re-routes (no table moves) and the lines still end on its header',
     Object.keys(off3).every((k) => J(off3[k]) === J(off4[k])) && (await count('.erd-entity.is-collapsed')) === 1 && (await t.ev(`document.querySelector('.erd-entity.is-collapsed').getBoundingClientRect().height`)) < 40);
   await t.clickOn(`${head('order')} .erd-chevron`);
   // relationship and column edits re-route without moving
@@ -696,15 +660,12 @@ sys.stdout.write(format_json(out))`;
   p = await portOf('review', 'rating');
   tgt = await t.at(row('category', 'id'));
   await t.dragTo(p.x, p.y, tgt.x, tgt.y);
-  t.check('off: drawing a relationship moves no table', J(await layoutOf()) === J(off5));
+  const nTablesBefore = Object.keys(off5).length;
+  t.check('drawing a relationship moves no table', J(await layoutOf()) === J(off5) && Object.keys(await layoutOf()).length === nTablesBefore);
   // Tidy lays everything out once, now
   await t.clickOn('#btn-auto-tidy');
   const tidy1 = await layoutOf();
-  t.check('Tidy lays the diagram out on request even with Auto-Tidy off', Object.keys(off5).some((k) => J(off5[k]) !== J(tidy1[k])));
-  // turning it back on lays out at once, as one step
-  await t.clickOn('#btn-auto-layout');
-  t.check('turning Auto-Tidy back on lays the diagram out again', (await t.ev(`localStorage.getItem('erd-auto-layout')`)) === 'on' && t.errors.length === 0, t.errors.join(' | '));
-  await setAuto(true);
+  t.check('Tidy lays the diagram out on request', Object.keys(off5).some((k) => J(off5[k]) !== J(tidy1[k])) && t.errors.length === 0, t.errors.join(' | '));
 
   // --- Every kind of edit is exactly one undo step, and redo puts it back ---
   // Each case runs on a fresh page: `setup` selects (no edit), `act` is the edit. After one undo the saved model equals
@@ -807,25 +768,8 @@ sys.stdout.write(format_json(out))`;
   await t.dragTo(bp.x, bp.y, bp.x + 30, bp.y + 30);
   t.check('multi: a plain drag on blank canvas still pans and selects nothing', (await selCount()) === 0);
 
-  // Drag several: Auto-Tidy on: a free move too, all together
+  // Drag several: each keeps its offset
   await freshPage();
-  await ctrlClick(head('customer'));
-  await ctrlClick(head('address'));
-  const lay00 = await layoutOf();
-  const hc = await t.at(head('customer'));
-  await t.dragTo(hc.x, hc.y, hc.x + 50, hc.y - 30);
-  const lay01 = await layoutOf();
-  const mv0 = (id) => ({ dx: lay01[id].x - lay00[id].x, dy: lay01[id].y - lay00[id].y });
-  t.check('multi: Auto-Tidy on: dragging one of the selected tables moves them all by the same amount, no other table moves',
-    Math.abs(mv0('customer').dx - mv0('address').dx) <= 4 && Math.abs(mv0('customer').dy - mv0('address').dy) <= 4 && mv0('customer').dx > 20
-    && Object.keys(lay00).filter((k) => k !== 'customer' && k !== 'address').every((k) => J(lay00[k]) === J(lay01[k])), J([mv0('customer'), mv0('address')]));
-  t.check('multi: and they stay selected', J(await selIds()) === J(['address', 'customer']));
-  await undo();
-  t.check('multi: one undo puts both back', J(await layoutOf()) === J(lay00) && (await undoDisabled()));
-
-  // Drag several: Auto-Tidy off: each keeps its offset
-  await setAuto(false);
-  await t.open(page);
   await ctrlClick(head('customer'));
   await ctrlClick(head('order'));
   const lay0 = await layoutOf();
@@ -834,12 +778,11 @@ sys.stdout.write(format_json(out))`;
   const lay1 = await layoutOf();
   const mv = (id) => ({ dx: lay1[id].x - lay0[id].x, dy: lay1[id].y - lay0[id].y });
   const others = Object.keys(lay0).filter((k) => k !== 'customer' && k !== 'order');
-  t.check('multi: Auto-Tidy off: the selected tables move together by the same amount (pushed back as one set when they land on another table) and no other table moves',
+  t.check('multi: the selected tables move together by the same amount (pushed back as one set when they land on another table) and no other table moves',
     Math.abs(mv('customer').dx - mv('order').dx) <= 4 && Math.abs(mv('customer').dy - mv('order').dy) <= 4 && mv('order').dx >= 40 && mv('order').dx <= 120 && others.every((k) => J(lay0[k]) === J(lay1[k])), J([mv('customer'), mv('order')]));
   t.check('multi: and they stay selected', J(await selIds()) === J(['customer', 'order']));
   await undo();
   t.check('multi: one undo restores both', J(await layoutOf()) === J(lay0) && (await undoDisabled()));
-  await setAuto(true);
 
   // Delete several: one confirm, one undo step
   await freshPage();
@@ -870,16 +813,15 @@ sys.stdout.write(format_json(out))`;
   await t.dragTo(pb.x, pb.y, pt2.x, pt2.y, { modifiers: 8 });
   t.check('?present: Ctrl+click, Ctrl+A and the Shift box select at most one table', (await selCount()) <= 1 && (await count('.marquee')) === 0, `${await selCount()}`);
 
-  // --- Columns and Types with Auto-Tidy off keep hand-placed tables where they are ---
-  await setAuto(false);
-  await t.open(page);
+  // --- Columns and Types keep hand-placed tables where they are ---
+  await freshPage();
   const cl0 = await layoutOf();
   await t.clickOn('#btn-columns');
   await t.clickOn('#btn-columns');
   const cl1 = await layoutOf();
-  t.check('off: Columns (to key columns, then names) moves no table', J(cl1) === J(cl0) && (await text('#btn-columns .erd-mode')) === 'Names');
+  t.check('Columns (to key columns, then names) moves no table', J(cl1) === J(cl0) && (await text('#btn-columns .erd-mode')) === 'Names');
   await t.clickOn('#btn-types');
-  t.check('off: Types moves no table', J(await layoutOf()) === J(cl0));
+  t.check('Types moves no table', J(await layoutOf()) === J(cl0));
   await t.clickOn('#btn-types');
   // Hand-place address just under customer while both are only headers, then grow them back to all columns
   const ca = await t.ev(`(() => { const r = (id) => { const b = document.querySelector('.erd-entity[data-node-id="' + id + '"]').getBoundingClientRect(); return { l: b.left, t: b.top, b: b.bottom }; }; return { c: r('customer'), a: r('address') }; })()`);
@@ -891,11 +833,10 @@ sys.stdout.write(format_json(out))`;
   const cl3 = await layoutOf();
   const post = await overlapping();
   const moved = Object.keys(cl2).filter((k) => J(cl2[k]) !== J(cl3[k]));
-  t.check('off: Columns back to all columns (tables grow) leaves no two tables overlapping', preOverlap.length === 0 && post.length === 0 && (await text('#btn-columns .erd-mode')) === 'All', `${J(preOverlap)} ${J(post)}`);
-  t.check('off: and moves only the tables that would otherwise overlap', moved.length >= 1 && moved.length <= 3 && cl2.customer && J(cl2.customer) === J(cl3.customer), J(moved));
+  t.check('Columns back to all columns (tables grow) leaves no two tables overlapping', preOverlap.length === 0 && post.length === 0 && (await text('#btn-columns .erd-mode')) === 'All', `${J(preOverlap)} ${J(post)}`);
+  t.check('and moves only the tables that would otherwise overlap', moved.length >= 1 && moved.length <= 3 && cl2.customer && J(cl2.customer) === J(cl3.customer), J(moved));
   await undo();
-  t.check('off: that is one undo step', J(await layoutOf()) === J(cl2) && (await text('#btn-columns .erd-mode')) === 'Names');
-  await setAuto(true);
+  t.check('that is one undo step', J(await layoutOf()) === J(cl2) && (await text('#btn-columns .erd-mode')) === 'Names');
 
   }
 
@@ -972,7 +913,7 @@ sys.stdout.write(format_json(out))`;
     }
     t.check(`the saved block is valid for the Python codec too (${what})`, pythonAgrees(await t.ev(`document.getElementById('diagram-data').textContent`)) === '', pythonAgrees(await t.ev(`document.getElementById('diagram-data').textContent`)));
   }
-  // The 30-table page: a table, a relationship with Auto-Tidy on, and undo of all of it
+  // The 30-table page: a table, a relationship, and undo of all of it
   await freshPage(large);
   const nTables = await count('.erd-entity');
   t.check('the 30-table schema renders without errors', nTables >= 28 && (await count('.erd-group')) === 0 && t.errors.length === 0, `${nTables} ${t.errors.join(' | ')}`);

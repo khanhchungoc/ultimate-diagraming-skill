@@ -155,9 +155,8 @@ t.check('dragging the selected step moves it to another lane', await laneOf() !=
 const w3 = await view();
 t.check('and does not pan', Math.abs(w3.x - w2.x) < 1 && Math.abs(w3.y - w2.y) < 1);
 
-// --- ER diagram: touch on tables, ports and lines (Auto-Tidy off, so a dragged table stays where it is dropped) ---
+// --- ER diagram: touch on tables, ports and lines (a dragged table stays where it is dropped) ---
 if (erd) {
-  await t.send('Page.addScriptToEvaluateOnNewDocument', { source: `try { localStorage.setItem('erd-auto-layout', 'off'); } catch (e) {}` });
   await t.open(erd);
   const TB = (id) => `.erd-entity[data-node-id="${id}"]`;
   const tblPos = (id) => t.ev(`(() => { const el = document.querySelector('${TB(id)}'); return el.style.left + '|' + el.style.top; })()`);
@@ -193,7 +192,7 @@ if (erd) {
   const portsShown = await t.ev(`(() => { const ps = [...document.querySelectorAll('${TB('review')} .erd-port')]; return ps.length > 1 && ps.every((p) => getComputedStyle(p).display !== 'none' && p.hasAttribute('data-touch-drag') && p.getBoundingClientRect().width >= 20); })()`);
   t.check('erd: the selected table shows its row and header ports as finger-sized touch targets', portsShown);
   t.check('erd: an unselected table shows none', await t.ev(`[...document.querySelectorAll('${TB('product')} .erd-port')].every((p) => getComputedStyle(p).display === 'none')`));
-  // The selected table drags to move (Auto-Tidy off: it stays where it is dropped)
+  // The selected table drags to move (it stays where it is dropped)
   const v5 = await view();
   rc = await t.at(`${TB('review')} .erd-head`);
   await drag(rc.x, rc.y, 30, 50);
