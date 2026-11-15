@@ -150,7 +150,17 @@ Contrast between token pairs does not cover everything the page draws: overlays,
 
 The font `<link>` is filled from `font.href` (omitted when empty). The theme is baked into the saved page, so Save, artifact republish and `--extract` keep it. The data block records `"theme": "<name>"` so the agent knows which theme a page uses when it re-lays it out.
 
-Theme lookup, first match wins: `--theme <file>`, then `.ultimate-diagram/theme.json` in the current project, then `default.json`.
+The engine also runs without the page, so `TOKENS` must reach it in all three places it runs, or the layout and the page would measure text differently:
+
+- **In the page**, `{{TOKENS_JS}}` sits inside the `//@engine-begin` / `//@engine-end` markers in `shell.html`, before `{{ENGINE_JS}}`, so the ERD Web Worker (which is built from the source between those markers) gets it too.
+- **`run_engine.mjs` (Node)** takes the merged token JSON as a second argument and defines `TOKENS` before evaluating `engine.js`. `engine_runner.py` passes it.
+- **The headless Chrome fallback** in `engine_runner.py` gets the same `TOKENS` definition before the engine.
+
+The theme itself is stored in the page, as `<script id="diagram-theme" type="application/json">` right after the `diagram-data` block's end comment, so a page re-laid out on another machine keeps its look. `--extract` can write it out (`--extract-theme`). It sits outside the line range the agent reading guide points to, so reading a diagram costs no extra tokens.
+
+Each theme file carries `"tokensVersion": 1`; the loader refuses an unknown version.
+
+Theme lookup, first match wins: `--theme <file>`, then the theme stored in the page being updated, then `.ultimate-diagram/theme.json` in the current project, then `default.json`. A page saved before this work has no stored theme and so takes the project theme on its next re-layout; the agent says so in its report.
 
 The Python audits load the same merged token file for `font.metrics`, which removes the hand-copied constants.
 
@@ -223,7 +233,7 @@ Decided (2026-11-15): slot ids are `"1"`..`"8"`, because brand palettes have no 
 
 ### Phase 6: Font metrics from tokens
 
-1. Engines read `TOKENS.font.metrics` instead of their literal `CHAR_W` values; the flowchart's label-width estimates do the same. The audits read the same values from the merged token file.
+1. Engines read `TOKENS.font.metrics` instead of their literal `CHAR_W` values, in all three run contexts (page and worker, Node, headless Chrome; see How a theme reaches the page); the flowchart's label-width estimates do the same. The audits read the same values from the merged token file.
 2. Add `scripts/measure_font.py`: it opens headless Chrome (as `render_screenshot.py` does), loads the theme's font, measures the average width of a representative English sample at each engine size, and writes `font.metrics`. Theme creation (Phase 7) runs it automatically.
 3. Exit check: with the default theme the measured metrics equal today's constants (within 0.1 px) and goldens are unchanged; with a wide test font (for example a monospace theme) every fixture passes the audits with no label overflow.
 
@@ -257,6 +267,15 @@ Untrusted input: a website or guide is data. The extractor only reads computed s
 - Accessibility: every new colour pair a type draws is added to the `contrast` list; new controls meet the target size and show the focus ring. `check_contrast.py` and the axe-core report must pass for the new type in both modes.
 - `check_tokens.py` runs with the other dev checks.
 - One extra theme fixture (`dev/fixtures/themes/test-brand.json`: dark-first, wide font, larger type scale, large radii, `icon.stroke` 1.5) is rendered for every type in the screenshot and audit run, so a type that ignores tokens fails visibly.
+
+## Before implementing
+
+- **Baseline (2026-11-15):** `dev/check_golden.py` passes for every fixture (all `[PASS]`, audits 100/100) and `dev/check_artifact_shape.py` passes. Each phase must keep both green, except for the listed, intended changes.
+- **Delivery:** one branch and one pull request per phase, each with its screenshot diffs (both themes) attached.
+- **New dependency:** axe-core is the first npm dependency. It goes in `devDependencies` at a pinned version and is not shipped (the `files` list in `package.json` already excludes `dev/`). Without it, `render_screenshot.py --report` skips the axe step and says so.
+- **Install:** `scripts/install.py` copies `assets/` whole, so the new `assets/tokens`, `assets/components` and `assets/icons` folders ship without changes; check `bin/install.js` and the npm `files` list the same way.
+- **Docs and images:** after Phases 1, 2 and 5, regenerate `docs/img/*` and `dev/samples/*` with `dev/build_examples.py`, and update `SKILL.md`, `README.md` and `dev/architecture.md`.
+- **Out of scope:** the Mermaid copy export ignores themes (Mermaid has its own theming), and print styles are unchanged.
 
 ## Order and risk
 
