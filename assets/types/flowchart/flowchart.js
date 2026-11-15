@@ -253,9 +253,11 @@
             laneEl.style.height = `${computedHeight}px`;
           }
           // stripe, icon, pill tint; a lane without its own colour takes the palette colour for its position (not saved)
-          const laneHex = lane.color || SWATCHES[index % SWATCHES.length].hex;
-          laneEl.style.setProperty('--lane-color', laneHex);
-          if (swatchSlot(laneHex)) laneEl.dataset.sw = swatchSlot(laneHex);
+          const laneColor = colorSlot(lane.color || SWATCHES[index % SWATCHES.length].slot);   // a slot, or a custom hex
+          const laneSw = paletteOf(laneColor);
+          const laneHex = laneSw ? laneSw.hex : laneColor;                                       // --lane-color mixes a hex
+          if (laneHex) laneEl.style.setProperty('--lane-color', laneHex);
+          if (laneSw) laneEl.dataset.sw = laneSw.slot;
           if (index % 2) laneEl.classList.add('lane-alt');                     // lanes alternate white / light grey
           if (lane.id === selectedLaneId) laneEl.classList.add('lane-selected');
 
@@ -4659,6 +4661,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
       function toDisk(data) {
         const d = JSON.parse(JSON.stringify(data));
         delete d.layout;
+        slotColors(d, 'lanes');
         const lanes = d.lanes || [], nodes = d.nodes || [];
         const laneIndex = new Map(lanes.map((l, i) => [l.id, i]));
         // Flow order: x runs along the flow in both directions (the engine has ranked the steps already)
@@ -4680,6 +4683,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         const layout = d.layout || {};
         delete d.layout;
         [...(d.lanes || []), ...(d.nodes || [])].forEach(o => Object.assign(o, layout[o.id] || {}));
+        slotColors(d, 'lanes');
         return d;
       }
 

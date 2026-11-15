@@ -28,8 +28,8 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 
 from audit_erd import ErdAudit
 from audit_sequence import SequenceAudit
-from disk_format import (DISK_CODECS, authoring_json, format_json, from_disk, readme_text,  # noqa: F401 (DISK_CODECS: registry)
-                         stamp_reading_guide, to_disk, with_readme)
+from disk_format import (DISK_CODECS, authoring_json, color_kind, format_json, from_disk,  # noqa: F401 (DISK_CODECS: registry)
+                         palette_slots, readme_text, stamp_reading_guide, to_disk, with_readme)
 from engine_runner import EngineUnavailable, run_layout
 from tokens import load_tokens, tokens_css, tokens_js
 
@@ -321,7 +321,7 @@ class FlowchartAudit:
 
         max_x = max((float(n.get("x", 0)) for n in self.nodes), default=float(START_X))
         column_count = int(round((max_x - START_X) / self.col_w)) + 1
-        budget_warnings: List[str] = (self._node_type_warnings() + self._connector_warnings() + self._lane_icon_warnings()
+        budget_warnings: List[str] = (self._node_type_warnings() + self._connector_warnings() + self._lane_icon_warnings() + self._lane_color_warnings()
                                       + self._outcome_label_warnings() + self._note_warnings()
                                       + self._long_arrow_warnings(long_arrows))
 
@@ -401,6 +401,19 @@ class FlowchartAudit:
                 warnings.append(f"Connector letter '{letter}' has {len(roles['out'])} out-connectors "
                                 f"({', '.join(roles['out'])}): one flow cannot continue in two places. Keep one.")
         return warnings
+
+    def _lane_color_warnings(self) -> List[str]:
+        """A lane's colour is a palette slot; a custom hex is drawn but its contrast is not checked."""
+        slots = ", ".join(palette_slots()[:-1])
+        out = []
+        for lane in self.lanes:
+            c, kind = lane.get("color"), color_kind(lane.get("color"))
+            if c is None or kind == "slot":
+                continue
+            label = lane.get("name", lane.get("id"))
+            out.append(f"Lane '{label}' colour {c} is not a palette slot, so its contrast is not checked: use a slot ({slots})."
+                       if kind == "custom" else f"Lane '{label}' has unknown color '{c}': use a palette slot ({slots}).")
+        return out
 
     def _lane_icon_warnings(self) -> List[str]:
         """Every swimlane header carries an icon: it makes the owner recognisable at a glance."""

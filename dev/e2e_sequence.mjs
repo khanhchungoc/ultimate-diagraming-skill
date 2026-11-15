@@ -307,7 +307,7 @@ try {
   await t.open(page);
   await t.clickOn('.seq-frag-label[data-frag-id="f2"] .seq-frag-kind');
   await t.clickOn('.seq-ab-btn[data-act="fkind"][data-value="alt"]');
-  await t.clickOn('.seq-ab-btn[data-act="color"][data-value="purple"]');
+  await t.clickOn('.seq-ab-btn[data-act="color"][data-value="5"]');
   await t.clickOn('.seq-add-branch');
   const brEdit = await editing();
   await t.type('stock low');
@@ -315,7 +315,7 @@ try {
   d = await saved();
   let f2c = d.fragments.find((f) => f.id === 'f2');
   t.check('the kind and colour come from the action bar; + branch adds a divider above the last message, condition in edit',
-    f2c.kind === 'alt' && f2c.color === 'purple' && brEdit === 'condition' && JSON.stringify(f2c.branches) === '[{"at":"m3","label":"stock low"}]', `${brEdit} ${JSON.stringify(f2c)}`);
+    f2c.kind === 'alt' && f2c.color === '5' && brEdit === 'condition' && JSON.stringify(f2c.branches) === '[{"at":"m3","label":"stock low"}]', `${brEdit} ${JSON.stringify(f2c)}`);
   await t.clickOn('.seq-frag-branch-label[data-frag-id="f2"]', { count: 2 });
   await t.type('stock very low');
   await t.press('Enter');
@@ -631,7 +631,7 @@ try {
 
   // --- Participant colours (step 5) ---
   await t.open(page);
-  const SKY = '#e0f2fe', AMBER = '#fef3c7';
+  const SKY = '1', AMBER = '2';   // palette slots: sky, amber
   const boxStyle = (pid) => t.ev(`(() => { const b = document.querySelector('.seq-participant[data-node-id="${pid}"]'); const c = getComputedStyle(b);
     return { top: c.borderTopWidth, topColor: c.borderTopColor, bg: c.backgroundColor, scoped: b.classList.contains('swatch-scope') }; })()`);
   const plain = await boxStyle('p2');
@@ -654,7 +654,7 @@ try {
   await t.type('Our services');
   await t.press('Enter');
   d = await saved();
-  t.check('the key label edits by double-click and is saved in colorKey, the participant colour as its hex',
+  t.check('the key label edits by double-click and is saved in colorKey, the participant colour as its slot',
     d.colorKey && d.colorKey[SKY] === 'Our services' && d.participants[1].color === SKY && Object.keys(d)[Object.keys(d).indexOf('participants') - 1] === 'colorKey', JSON.stringify([d.colorKey, d.participants[1]]));
   await t.clickOn('.seq-participant[data-node-id="p3"]');
   await t.clickOn(`.seq-actionbar .swatch-btn[data-value="${AMBER}"]`);
@@ -688,7 +688,7 @@ try {
     const over = (top, a, base) => top.map((v, i) => v * a + base[i] * (1 - a));
     const probe = document.createElement('div'); document.body.appendChild(probe);
     probe.style.color = 'var(--bg-panel)'; const panel = rgb(getComputedStyle(probe).color);
-    const tints = ['blue', 'green', 'yellow', 'red', 'purple', 'gray'].map((n) => { probe.className = 'seq-tint-' + n; return rgb(getComputedStyle(probe).getPropertyValue('--seq-tint').trim()); });
+    const tints = ['1', '3', '2', '4', '5', '9'].map((n) => { probe.dataset.sw = n; return rgb(getComputedStyle(probe).getPropertyValue('--sw-line').trim()); });
     let min = 99;
     ['#e0f2fe', '#fef3c7', '#dcfce7', '#fee2e2', '#f3e8ff', '#ffedd5', '#ccfbf1', '#e0e7ff'].forEach((hex) => {
       const el = document.createElement('div'); el.className = 'swatch-scope'; el.style.setProperty('--swatch-color', hex); document.body.appendChild(el);

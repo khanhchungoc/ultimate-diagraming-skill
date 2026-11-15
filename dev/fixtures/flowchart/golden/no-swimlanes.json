@@ -7,7 +7,7 @@
     {
       "id": "lane-main",
       "name": "Process",
-      "color": "#e0f2fe",
+      "color": "1",
       "icon": "users",
       "height": 256
     }

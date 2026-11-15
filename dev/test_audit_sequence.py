@@ -73,10 +73,18 @@ CASES = [
     ("lifespans is not a boolean", dict(lifespans="yes"), "'lifespans' must be true or false"),
     ("lifespans true is valid", dict(lifespans=True), None),
     # Participant colours: errors here, warnings in COLOUR_CASES below
-    ("a participant colour that is not a lane swatch",
-     dict(participants=[{"id": "a", "name": "A", "color": "#123456"}, {"id": "b", "name": "B"}], colorKey={"#123456": "x"}), "unknown color '#123456'"),
-    ("a flowchart swatch is a valid participant colour",
+    ("a participant colour that is neither a slot nor a hex",
+     dict(participants=[{"id": "a", "name": "A", "color": "pink"}, {"id": "b", "name": "B"}]), "unknown color 'pink'"),
+    ("a palette slot is a valid participant colour",
+     dict(participants=[{"id": "a", "name": "A", "color": "1"}, {"id": "b", "name": "B"}], colorKey={"1": "Ours"}), None),
+    ("an old palette hex is still a valid participant colour (colorKey keyed by the hex too)",
      dict(participants=[{"id": "a", "name": "A", "color": "#e0f2fe"}, {"id": "b", "name": "B"}], colorKey={"#e0f2fe": "Ours"}), None),
+    ("a custom hex is valid (it only warns, see COLOUR cases)",
+     dict(participants=[{"id": "a", "name": "A", "color": "#123456"}, {"id": "b", "name": "B"}], colorKey={"#123456": "x"}), None),
+    ("a frame slot, an old frame colour name and a custom hex are valid",
+     dict(fragments=[{"id": "f", "kind": "group", "label": "x", "from": "m1", "to": "m2", "color": "9"},
+                     {"id": "g", "kind": "group", "label": "x", "from": "m3", "to": "m4", "color": "green"},
+                     {"id": "h", "kind": "group", "label": "x", "from": "m5", "to": "m5", "color": "#123456"}]), None),
     ("colorKey is not an object", dict(colorKey=["#e0f2fe"]), "'colorKey' must be an object"),
     # Shared columns, start and end
     ("column without lifespans", dict(participants=COLS("a")), "no 'lifespans': true"),
@@ -125,6 +133,8 @@ def main() -> int:
         ("a colorKey entry nobody uses warns", audit(participants=[{"id": "a", "name": "A"}, {"id": "b", "name": "B"}], colorKey={"#e0f2fe": "Ours"})[1]["budget_warnings"], "no participant uses"),
         ("more than 4 colours warns", coloured(5, allkey)[1]["budget_warnings"], "should group participants"),
         ("every participant a different colour warns", coloured(3, allkey)[1]["budget_warnings"], "not label each one"),
+        ("a custom hex warns that its contrast is not checked",
+         audit(participants=[{"id": "a", "name": "A", "color": "#123456"}, {"id": "b", "name": "B"}], colorKey={"#123456": "x"})[1]["budget_warnings"], "contrast is not checked"),
     ]
     for name, warnings, expect in colour_cases:
         ok = any(expect in w for w in warnings)
@@ -134,14 +144,17 @@ def main() -> int:
     ok = not two
     failed += not ok
     print(f"[{'PASS' if ok else 'FAIL'}] two coloured participants with a full colorKey do not warn - {two}")
-    # The audit lists the same swatches as the page (the palette hexes in assets/tokens/default.json)
-    import re
-    from audit_sequence import SWATCHES
-    from tokens import load_tokens
-    in_shell = tuple(p["hex"] for p in load_tokens()["palette"] if "hex" in p)
-    ok = in_shell == SWATCHES
+    # Codec: old palette hex and old frame colour names in, slots out; a custom hex is written unchanged
+    from disk_format import from_disk, to_disk
+    old = {"diagramType": "sequence", "colorKey": {"#e0f2fe": "Ours", "#123456": "Mine", "#fef3c7": "unused"},
+           "participants": [{"id": "a", "name": "A", "color": "#e0f2fe"}, {"id": "b", "name": "B", "color": "#123456"}],
+           "messages": [], "fragments": [{"id": "f1", "kind": "group", "color": c} for c in ("blue", "green", "yellow", "red", "purple", "gray", "#fee2e2")]}
+    disk = to_disk("sequence", old)
+    ok = (disk["colorKey"] == {"1": "Ours", "#123456": "Mine"} and [p["color"] for p in disk["participants"]] == ["1", "#123456"]
+          and [f["color"] for f in disk["fragments"]] == ["1", "3", "2", "4", "5", "9", "4"]
+          and to_disk("sequence", from_disk("sequence", disk)) == disk and from_disk("sequence", old)["participants"][0]["color"] == "1")
     failed += not ok
-    print(f"[{'PASS' if ok else 'FAIL'}] the audit's swatches are the palette's, in order - {in_shell}")
+    print(f"[{'PASS' if ok else 'FAIL'}] codec: old hex and frame names become slots, a custom hex stays - {disk['colorKey']}")
     total = len(CASES) + 1 + len(colour_cases) + 2
     print(f"{total - failed}/{total} cases passed")
     return 2 if failed else 0

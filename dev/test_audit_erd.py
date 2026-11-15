@@ -92,9 +92,13 @@ CASES = [
     ("bad toEnd", edit({"toEnd": "exactlyOne"}), "unknown toEnd 'exactlyOne'"),
     ("all four end kinds are valid", edit({"fromEnd": "oneOrMany", "toEnd": "zeroOrOne"}), None),
     ("identifying is not a boolean", edit({"identifying": "yes"}), "'identifying' must be true or false"),
-    ("unknown table colour", dict(entities=[{**BASE["entities"][0], "color": "#123456"}, BASE["entities"][1]]), "unknown color '#123456'"),
-    ("a lane swatch is a valid table colour", dict(entities=[{**BASE["entities"][0], "color": "#e0f2fe"}, BASE["entities"][1]],
-                                                    colorKey={"#e0f2fe": "Sales"}), None),
+    ("unknown table colour", dict(entities=[{**BASE["entities"][0], "color": "pink"}, BASE["entities"][1]]), "unknown color 'pink'"),
+    ("a palette slot is a valid table colour", dict(entities=[{**BASE["entities"][0], "color": "1"}, BASE["entities"][1]],
+                                                     colorKey={"1": "Sales"}), None),
+    ("an old palette hex is still a valid table colour", dict(entities=[{**BASE["entities"][0], "color": "#e0f2fe"}, BASE["entities"][1]],
+                                                               colorKey={"#e0f2fe": "Sales"}), None),
+    ("a custom hex is valid (it only warns, see WARNINGS)", dict(entities=[{**BASE["entities"][0], "color": "#123456"}, BASE["entities"][1]],
+                                                                  colorKey={"#123456": "Sales"}), None),
     ("unknown detail", dict(detail="some"), "'detail' must be all, keys or names"),
     ("detail keys is valid", dict(detail="keys"), None),
     ("showTypes is not a boolean", dict(showTypes="no"), "'showTypes' must be true or false"),
@@ -162,6 +166,8 @@ WARNINGS = [
      dict(entities=[{**BASE["entities"][0], "color": "#fef3c7"}] + BASE["entities"][1:] + [ent(f"t{i}", [{"name": "id", "pk": True}], 20 + 180 * i, 260) for i in range(7)],
           colorKey={"#fef3c7": "Sales"}), None),
     ("a colour with no colorKey entry", dict(entities=[{**BASE["entities"][0], "color": "#fef3c7"}, BASE["entities"][1]]), "does not say what it means"),
+    ("a custom hex warns that its contrast is not checked",
+     dict(entities=[{**BASE["entities"][0], "color": "#123456"}, BASE["entities"][1]], colorKey={"#123456": "Sales"}), "contrast is not checked"),
 ]
 
 
@@ -213,14 +219,14 @@ def main() -> int:
     ok = report["score"] == 100 - 12 * len(report["issues"]) and not report["passed"]
     failed += not ok
     print(f"[{'PASS' if ok else 'FAIL'}] score is 100 minus 12 per error - {report['score']}")
-    # The audit lists the same swatches as the page (the palette hexes in assets/tokens/default.json)
-    import re
-    from audit_erd import SWATCHES
+    # Every palette hex maps to its slot, and a slot maps to itself
+    from disk_format import color_slot, palette_slots
     from tokens import load_tokens
-    in_shell = tuple(p["hex"] for p in load_tokens()["palette"] if "hex" in p)
-    ok = in_shell == SWATCHES
+    pal = load_tokens()["palette"]
+    ok = (tuple(p["slot"] for p in pal) == palette_slots() and all(color_slot(p["hex"]) == p["slot"] for p in pal if "hex" in p)
+          and all(color_slot(s) == s for s in palette_slots()) and color_slot("#123456") == "#123456")
     failed += not ok
-    print(f"[{'PASS' if ok else 'FAIL'}] the audit's swatches are the palette's, in order - {in_shell}")
+    print(f"[{'PASS' if ok else 'FAIL'}] old palette hex maps to its slot, a custom hex stays - {palette_slots()}")
     # Codec: v3 round trip, v1/v2 blocks drop their layout, v2 groups become table colours, renamed ids rename layout keys
     from disk_format import from_disk, to_disk
     laid = copy.deepcopy(BASE)
@@ -233,7 +239,8 @@ def main() -> int:
     disk = to_disk("erd", laid)
     ok = (disk["schemaVersion"] == 3 and "direction" not in disk and "_loose" not in disk and "canvas" not in disk
           and "groups" not in disk and list(disk["layout"]) == ["customer", "order"] and disk["layout"]["order"] == {"x": 320, "y": 40}
-          and all(k not in disk["entities"][0] for k in ("x", "y", "box")) and disk["entities"][0]["color"] == "#e0f2fe"
+          and all(k not in disk["entities"][0] for k in ("x", "y", "box")) and disk["entities"][0]["color"] == "1"
+          and disk["colorKey"] == {"1": "Sales"}
           and all(k not in disk["relationships"][0] for k in ("curve", "points", "labelBox"))
           and list(disk)[:2] == ["diagramType", "schemaVersion"] and list(disk)[-1] == "layout")
     back = from_disk("erd", disk)
@@ -255,8 +262,8 @@ def main() -> int:
           "layout": {"g1": {"x": 1, "y": 2}, "a": {"x": 3, "y": 4}}}
     m = from_disk("erd", v2)
     ok = ("groups" not in m and "layout" not in m and all("group" not in e and "x" not in e for e in m["entities"])
-          and [e.get("color") for e in m["entities"]] == ["#e0f2fe", "#fef3c7", "#dcfce7", None]
-          and m["colorKey"] == {"#fef3c7": "Kept", "#e0f2fe": "Sales"})
+          and [e.get("color") for e in m["entities"]] == ["1", "2", "3", None]
+          and m["colorKey"] == {"2": "Kept", "1": "Sales"})
     failed += not ok
     print(f"[{'PASS' if ok else 'FAIL'}] codec: v2 groups become table colours and colorKey, layout dropped - {m.get('colorKey')}")
     gen = copy.deepcopy(laid)

@@ -30,7 +30,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
 from engine_runner import run_layout  # noqa: E402
-from disk_format import from_disk, to_disk  # noqa: E402
+from disk_format import color_slot, from_disk, to_disk  # noqa: E402
 from layout_engine import AUDITS, normalize_diagram_type  # noqa: E402
 
 
@@ -192,6 +192,19 @@ def erd_problems(data: dict, laid: dict) -> list:
     return problems
 
 
+def color_problems(laid: dict) -> list:
+    """Fixtures keep the old colours on purpose (palette hex, frame colour names). Saving writes slots: no palette hex
+    or old name is left in a colour or colorKey, and the saved model reads back the same."""
+    disk = to_disk(laid["diagramType"], laid)
+    old = [v for o in sum((disk.get(k) or [] for k in ("lanes", "participants", "fragments", "entities")), []) for v in [o.get("color")]
+           if v is not None and color_slot(v) != v]
+    old += [k for k in (disk.get("colorKey") or {}) if color_slot(k) != k]
+    problems = [f"saved colour {v!r} should be a slot" for v in old]
+    if to_disk(laid["diagramType"], from_disk(laid["diagramType"], disk)) != disk:
+        problems.append("the saved colours change when read back and saved again")
+    return problems
+
+
 def main() -> int:
     for stream in (sys.stdout, sys.stderr):
         try:
@@ -222,7 +235,7 @@ def main() -> int:
         problems += flow_order_problems(data, laid)
         problems += legacy_problems(path, laid)
         problems += rail_problems(data, laid) + lifespan_problems(data, laid)
-        problems += erd_problems(data, laid)
+        problems += erd_problems(data, laid) + color_problems(laid)
         report = AUDITS[data["diagramType"]](copy.deepcopy(laid)).verify_collisions()
         # The ERD engine's lighter search above 10 tables (ER.LITE) may leave one line through a table on the 30-table fixture
         lite_ok = (f"{path.parent.name}/{path.name}" == "erd/saas-billing.json" and report["score"] >= 85

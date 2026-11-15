@@ -45,15 +45,19 @@
       const seqUid = (prefix) => `${prefix}_${Date.now()}_${seqCounter++}`;
       const px = (v) => `${v}px`;
 
-      // A participant's colour: one of the shell's SWATCHES (a hex), or none. Anything else is drawn as no colour (the
-      // audit reports it). The element then reads the swatch's shades from its slot (data-sw, see setSwatch in shell.js; --sw-stripe, --sw-line, ...).
-      const swatchOf = (p) => (p && SWATCHES.some((w) => w.hex === p.color) ? p.color : null);
-      function paintSwatch(el, hex) {
-        if (!hex) return el;
-        setSwatch(el, hex);
+      // A participant's colour: a palette slot or a custom hex (drawn with the run-time derivation), or none. Anything else is
+      // drawn as no colour (the audit reports it). The element then reads the swatch's shades from its slot (data-sw, see
+      // setSwatch in shell.js; --sw-stripe, --sw-line, ...).
+      const swatchOf = (p) => {
+        const c = p && p.color ? colorSlot(p.color) : null;
+        return c && (swatchSlot(c) || /^#[0-9a-f]{3,8}$/i.test(c)) ? c : null;
+      };
+      function paintSwatch(el, color) {
+        if (!color) return el;
+        setSwatch(el, color);
         return el;
       }
-      const swatchName = (hex) => (SWATCHES.find((w) => w.hex === hex) || {}).name || hex;
+      const swatchName = (color) => (paletteOf(color) || {}).name || color;
 
       function ensureModel() {
         chartData.participants = chartData.participants || [];
@@ -94,7 +98,6 @@
         external: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>'
       };
       const PARTICIPANT_KINDS = ['system', 'actor', 'ui', 'database', 'queue', 'external'];
-      const FRAG_COLORS = ['blue', 'green', 'yellow', 'red', 'purple', 'gray'];
       function kindIcon(kind, size) {
         const el = document.createElementNS(SVG_NS, 'svg');
         ['width', 'height'].forEach((k) => el.setAttribute(k, size || 14));
@@ -131,11 +134,11 @@
         // Fragments (behind everything else)
         fs.forEach((f) => {
           if (f.x === undefined) return;
-          const tint = FRAG_COLORS.includes(f.color) ? ` seq-tint-${f.color}` : '';
-          seqFragG.appendChild(svgEl('rect', { class: `seq-frag-box${tint}`, x: f.x, y: f.y, width: f.w, height: f.h, rx: 6, 'data-frag-id': f.id }));
+          const tint = swatchOf(f);   // a frame's colour is a slot or custom hex like a participant's
+          seqFragG.appendChild(paintSwatch(svgEl('rect', { class: 'seq-frag-box', x: f.x, y: f.y, width: f.w, height: f.h, rx: 6, 'data-frag-id': f.id }), tint));
           // The border selects the frame (an 8px hit stroke); the inside stays click-through
           seqFragG.appendChild(svgEl('rect', { class: 'seq-frag-hit', x: f.x, y: f.y, width: f.w, height: f.h, rx: 6, 'data-frag-id': f.id }));
-          const tag = htmlEl('div', `seq-frag-label${tint}${f.collapsed ? ' is-collapsed' : ''}`, { left: px(f.x), top: px(f.y) });
+          const tag = paintSwatch(htmlEl('div', `seq-frag-label${f.collapsed ? ' is-collapsed' : ''}`, { left: px(f.x), top: px(f.y) }), tint);
           tag.dataset.fragId = f.id;
           const chev = htmlEl('button', 'seq-frag-chev');
           chev.type = 'button';
@@ -308,13 +311,13 @@
         ps.forEach((p) => { const sw = swatchOf(p); if (sw && !used.includes(sw)) used.push(sw); });
         if (used.length) {
           const key = htmlEl('div', 'seq-key');
-          used.forEach((hex) => {
-            const label = (chartData.colorKey && chartData.colorKey[hex]) || '';
+          used.forEach((color) => {
+            const label = (chartData.colorKey && chartData.colorKey[color]) || '';
             const item = htmlEl('div', `seq-key-item${label ? '' : ' is-unnamed'}`);
-            item.appendChild(paintSwatch(htmlEl('span', 'seq-key-dot'), hex));
+            item.appendChild(paintSwatch(htmlEl('span', 'seq-key-dot'), color));
             const text = htmlEl('span', `seq-key-label${label ? '' : ' is-empty'}`);
-            text.dataset.hex = hex;
-            if (!label) text.dataset.hint = `What does ${swatchName(hex)} mean?`;
+            text.dataset.color = color;
+            if (!label) text.dataset.hint = `What does ${swatchName(color)} mean?`;
             text.textContent = label;
             item.appendChild(text);
             key.appendChild(item);
@@ -618,13 +621,13 @@
         relayout();
       }
       // Colour a participant (one undo step). The first time a swatch is used the key gains an entry with no label yet.
-      function setParticipantColor(pid, hex) {
+      function setParticipantColor(pid, slot) {
         const p = partById(pid);
-        if (!p || (p.color || '') === hex) return;
-        if (hex) {
-          p.color = hex;
+        if (!p || (p.color || '') === slot) return;
+        if (slot) {
+          p.color = slot;
           chartData.colorKey = chartData.colorKey || {};
-          if (!(hex in chartData.colorKey)) chartData.colorKey[hex] = '';
+          if (!(slot in chartData.colorKey)) chartData.colorKey[slot] = '';
         } else delete p.color;
         relayout();
       }
@@ -1131,7 +1134,7 @@
           PARTICIPANT_KINDS.forEach((k) => bar.appendChild(abButton('pkind', KIND_ICONS[k] ? iconSvg(KIND_ICONS[k]) : `<span>${k === 'actor' ? 'Actor' : 'System'}</span>`,
             `Kind: ${k}`, (p.kind || 'system') === k, k)));
           bar.appendChild(htmlEl('span', 'seq-ab-break'));
-          bar.appendChild(swatchRow(swatchOf(p) || '', (hex) => setParticipantColor(p.id, hex), { btnClass: 'seq-ab-swatch' }));
+          bar.appendChild(swatchRow(swatchOf(p) || '', (slot) => setParticipantColor(p.id, slot), { btnClass: 'seq-ab-swatch' }));
           if (p.column) {
             bar.appendChild(htmlEl('span', 'seq-ab-sep'));
             bar.appendChild(abButton('own', '<span>Own column</span>', 'Give this participant a column of its own again'));
@@ -1149,7 +1152,8 @@
           FRAG_KINDS.forEach((k) => bar.appendChild(abButton('fkind', `<span>${k}</span>`, `Kind: ${k}`, f.kind === k, k)));
           bar.appendChild(htmlEl('span', 'seq-ab-sep'));
           bar.appendChild(abButton('color', '<span class="seq-swatch is-none"></span>', 'No colour', !f.color, ''));
-          FRAG_COLORS.forEach((c) => bar.appendChild(abButton('color', `<span class="seq-swatch seq-tint-${c}"></span>`, `Colour: ${c}`, f.color === c, c)));
+          const fc = swatchOf(f);
+          PALETTE.forEach((w) => bar.appendChild(abButton('color', `<span class="seq-swatch" data-sw="${w.slot}"></span>`, `Colour: ${w.name}`, fc === w.slot, w.slot)));
           bar.appendChild(htmlEl('span', 'seq-ab-sep'));
           const foc = focusState(f.id);
           if (foc && foc.toCollapse.length) {
@@ -1373,15 +1377,15 @@
       }
       // A colour key label: double-click. An empty label is allowed (it stays a prompt)
       function editKey(el) {
-        const hex = el.dataset.hex;
+        const color = el.dataset.color;
         el.classList.remove('is-empty');
         beginEdit(el, {
-          raw: (chartData.colorKey && chartData.colorKey[hex]) || '', restore: true,
+          raw: (chartData.colorKey && chartData.colorKey[color]) || '', restore: true,
           apply: (e, value) => {
-            const was = (chartData.colorKey && chartData.colorKey[hex]) || '';
+            const was = (chartData.colorKey && chartData.colorKey[color]) || '';
             if (value === was) return false;
             chartData.colorKey = chartData.colorKey || {};
-            chartData.colorKey[hex] = value.replace(/\s*\n\s*/g, ' ');
+            chartData.colorKey[color] = value.replace(/\s*\n\s*/g, ' ');
             return true;
           }
         });
@@ -1800,7 +1804,7 @@
       // --- DISK FORMAT (the page's data block) ---
       // No positions are saved: render() lays out whatever is missing, so the block holds only the logical model,
       // in a fixed key order. scripts/disk_format.py is the Python twin: keep the two byte-identical.
-      // fromDisk is not needed (the block is the model minus positions).
+      // fromDisk only turns old colours (palette hex, frame colour names) into slots: the block is the model minus positions.
       const DISK_KEYS = ['diagramType', 'schemaVersion', 'title', 'numbered', 'showDetails', 'rails', 'lifespans', 'colorKey', 'participants', 'messages', 'fragments', 'notes'];
       // Engine output, never saved: positions, hidden (inside a collapsed frame), frame dividers, note boxes
       const DISK_LAYOUT = [['participants', ['x', 'rail', 'top', 'bottom']], ['messages', ['y', 'hidden']], ['fragments', ['x', 'y', 'w', 'h', 'elseY', 'dividers']], ['notes', ['x', 'y', 'w', 'h']]];
@@ -1852,6 +1856,7 @@
       function toDisk(data) {
         const d = JSON.parse(JSON.stringify(data));
         delete d.layout;   // canvas size, derived by the engine
+        slotColors(d, 'participants', 'fragments');
         renameGeneratedIds(d);
         DISK_LAYOUT.forEach(([list, keys]) => (d[list] || []).forEach(o => keys.forEach(k => { delete o[k]; })));
         // The colour key keeps only the swatches a participant still uses
@@ -1866,11 +1871,18 @@
         return out;
       }
 
+      function fromDisk(data) {
+        const d = JSON.parse(JSON.stringify(data));
+        slotColors(d, 'participants', 'fragments');
+        return d;
+      }
+
       // --- REGISTER WITH THE SHELL ---
       registerDiagramPlugin({
         id: 'sequence',
         defaultTitle: 'Interactive Sequence Diagram',
         toDisk,
+        fromDisk,
         contentEl: seqCanvas,
         report: { node: '.seq-participant', label: '.seq-msg-label', labelText: '.seq-msg-label-text', nodeText: '.seq-participant-name' },
         render,

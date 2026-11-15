@@ -73,6 +73,7 @@ The page's `<script id="diagram-data">` block is written for a reader (an agent 
 |---|---|---|
 | Key order | any | fixed: flowchart `diagramType, schemaVersion, title, direction, swimlanes, showNotes, lanes, nodes, edges, notes, layout`; sequence `diagramType, schemaVersion, title, numbered, showDetails, rails, lifespans, colorKey, participants, messages, fragments, notes`; unknown keys last; erd `diagramType, schemaVersion, title, detail, showTypes, showNotes, colorKey, entities, relationships, notes, layout` |
 | Flowchart positions | node `x`/`y`, lane `height`/`color` on the objects | one trailing `layout` map keyed by id |
+| Colours | a slot (`"1"`..`"9"`) or a custom hex on lane, participant, frame and table `color`; `colorKey` keyed by slot | slots; old palette hex and frame names are read as slots, a custom hex is written unchanged (`color_slot`, `colorSlot`) |
 | Flowchart node order | any | flow order: `(x, lane index, y)`. `x` runs along the flow in both directions, so no graph walk is needed. `check_golden.py` proves the order never changes a layout |
 | Editor-generated ids (`n_<timestamp>`, `c_`, `e_`, `lane_`) | kept for the session | renamed: `n_<label slug>`, `c_<letter>_in/out`, next free `e<N>`, `lane-<name slug>`; references follow. Authored ids are never touched |
 | Sequence editor ids (`p_<timestamp>_<k>`, `m_`, `f_`, `n_`) | kept for the session | renamed: `p_<name slug>`, next free `m<N>`, `f<N>`, `n<N>`; every reference (`from`/`to`, `elseAt`, `branches[].at`, note `over`/`after`/`before`) follows |

@@ -1,12 +1,12 @@
 {
   "diagramType": "erd",
   "title": "Shop",
-  "colorKey": {"#e0f2fe": "Sales", "#dcfce7": "Catalog"},
+  "colorKey": {"1": "Sales", "3": "Catalog"},
   "entities": [
     {
       "id": "customer",
       "name": "customer",
-      "color": "#e0f2fe",
+      "color": "1",
       "columns": [
         { "name": "id", "type": "uuid", "pk": true },
         { "name": "email", "type": "text", "unique": true },
@@ -17,7 +17,7 @@
     {
       "id": "address",
       "name": "address",
-      "color": "#e0f2fe",
+      "color": "1",
       "columns": [
         { "name": "id", "type": "uuid", "pk": true },
         { "name": "customer_id", "type": "uuid", "fk": true },
@@ -29,7 +29,7 @@
     {
       "id": "order",
       "name": "order",
-      "color": "#e0f2fe",
+      "color": "1",
       "columns": [
         { "name": "id", "type": "uuid", "pk": true },
         { "name": "customer_id", "type": "uuid", "fk": true },
@@ -41,7 +41,7 @@
     {
       "id": "order_item",
       "name": "order_item",
-      "color": "#e0f2fe",
+      "color": "1",
       "columns": [
         { "name": "order_id", "type": "uuid", "pk": true, "fk": true },
         { "name": "product_id", "type": "uuid", "pk": true, "fk": true },
@@ -52,7 +52,7 @@
     {
       "id": "payment",
       "name": "payment",
-      "color": "#e0f2fe",
+      "color": "1",
       "columns": [
         { "name": "id", "type": "uuid", "pk": true },
         { "name": "order_id", "type": "uuid", "fk": true, "unique": true },
@@ -63,7 +63,7 @@
     {
       "id": "product",
       "name": "product",
-      "color": "#dcfce7",
+      "color": "3",
       "columns": [
         { "name": "id", "type": "uuid", "pk": true },
         { "name": "category_id", "type": "uuid", "fk": true },
@@ -75,7 +75,7 @@
     {
       "id": "category",
       "name": "category",
-      "color": "#dcfce7",
+      "color": "3",
       "columns": [
         { "name": "id", "type": "uuid", "pk": true },
         { "name": "name", "type": "text", "unique": true }
@@ -84,7 +84,7 @@
     {
       "id": "review",
       "name": "review",
-      "color": "#dcfce7",
+      "color": "3",
       "columns": [
         { "name": "id", "type": "uuid", "pk": true },
         { "name": "product_id", "type": "uuid", "fk": true },

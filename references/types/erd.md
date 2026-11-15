@@ -12,27 +12,27 @@ Never add coordinates or sizes (`x`, `y`, `w`, `h`, `box`, `points`, `layout`); 
 {
   "diagramType": "erd",
   "title": "Shop",
-  "colorKey": { "#e0f2fe": "Sales", "#dcfce7": "Catalog" },
+  "colorKey": { "1": "Sales", "3": "Catalog" },
   "entities": [
-    { "id": "customer", "name": "customer", "color": "#e0f2fe",
+    { "id": "customer", "name": "customer", "color": "1",
       "columns": [
         { "name": "id", "type": "uuid", "pk": true },
         { "name": "email", "type": "text", "unique": true },
         { "name": "phone", "type": "text", "nullable": true }
       ] },
-    { "id": "order", "name": "order", "color": "#e0f2fe",
+    { "id": "order", "name": "order", "color": "1",
       "columns": [
         { "name": "id", "type": "uuid", "pk": true },
         { "name": "customer_id", "type": "uuid", "fk": true },
         { "name": "placed_at", "type": "timestamptz" }
       ] },
-    { "id": "order_item", "name": "order_item", "color": "#e0f2fe",
+    { "id": "order_item", "name": "order_item", "color": "1",
       "columns": [
         { "name": "order_id", "type": "uuid", "pk": true, "fk": true },
         { "name": "product_id", "type": "uuid", "pk": true, "fk": true },
         { "name": "qty", "type": "int", "note": "1 to 99" }
       ] },
-    { "id": "product", "name": "product", "color": "#dcfce7",
+    { "id": "product", "name": "product", "color": "3",
       "columns": [ { "name": "id", "type": "uuid", "pk": true }, { "name": "name", "type": "text" } ] }
   ],
   "relationships": [
@@ -51,12 +51,12 @@ Never add coordinates or sizes (`x`, `y`, `w`, `h`, `box`, `points`, `layout`); 
 | Diagram | `detail` | Optional. `all` (default: every column), `keys` (only `pk` and `fk` columns, plus a "+ N more" row), `names` (table headers only). The page's **Columns** button cycles it. |
 | Diagram | `showTypes` | Optional. `false` hides the type column. |
 | Diagram | `showNotes` | Optional. `true` draws notes on the canvas instead of as badges. |
-| Diagram | `colorKey` | Optional. `{ "#e0f2fe": "Billing" }`: the domain each table colour stands for, shown as a legend. Write it whenever you use `color`. |
+| Diagram | `colorKey` | Optional. `{ "1": "Billing" }`: the domain each table colour stands for, shown as a legend. Write it whenever you use `color`. |
 | Entity | `id`, `name` | One table. `name` is shown as written, so keep the database's casing. |
 | Entity | `columns` | Array, shown in order. Each column: `name` (unique within the table), `type` (optional, free text shown as written), `pk`, `fk`, `unique`, `nullable` (optional booleans), `note` (optional: a tooltip, and a muted suffix at detail `all`). |
 | Entity | `collapsed` | Optional. `true` draws the header only. Never author it unless the user asks for an overview. |
 | Entity | `note` | Optional text. A table with no `pk` column is warned about unless this says why (for example `"append-only log"`). |
-| Entity | `color` | Optional. One of the flowchart's lane swatches, as the hex: `#e0f2fe` sky, `#fef3c7` amber, `#dcfce7` emerald, `#fee2e2` rose, `#f3e8ff` purple, `#ffedd5` orange, `#ccfbf1` teal, `#e0e7ff` indigo. Tints the table header. Leave it out for a neutral table. Name each colour in `colorKey`. |
+| Entity | `color` | Optional. A palette slot, `"1"` to `"8"`: the theme's palette, so a slot names no fixed colour. Tints the table header. Leave it out for a neutral table. Name each colour in `colorKey`. |
 | Relationship | `id`, `from`, `to` | Entity ids. **`from` is the child: the table that holds the foreign key. `to` is the parent**, the table it points to. `from` equal to `to` is a self-reference (`columns` required). |
 | Relationship | `columns` | The FK column names in `from`. Lines attach to the side of the table that faces the other table, not to a row; hovering a table highlights its related tables and, in each, the foreign key and key rows involved, which is how the reader sees which column joins which. Give it for every relationship. |
 | Relationship | `toColumns` | Optional. The column names in `to` when the foreign key points at a unique column that is not the primary key. |
@@ -87,8 +87,8 @@ The audit's budgets: table name 28 characters, column name 28, type 16, relation
 Colour is what shows the reader which tables belong together; there are no boxes around tables. For a schema of more than about 8 tables:
 
 1. Group the tables by domain, judged from the table names and the foreign keys (accounts, catalogue, billing, audit), using the source's own words for the domains when it has them.
-2. Give each domain one swatch from the 8 above and set `color` on every table of that domain. At most 8 domains.
-3. Write a `colorKey` naming each domain: `{ "#e0f2fe": "Accounts", "#fef3c7": "Billing" }`.
+2. Give each domain one slot from `"1"` to `"8"` and set `color` on every table of that domain. At most 8 domains.
+3. Write a `colorKey` naming each domain: `{ "1": "Accounts", "2": "Billing" }`.
 4. Leave isolated utility tables (a settings table, a migrations table, a table no foreign key touches) neutral: no `color`.
 
 The layout counts same-coloured tables as slightly closer, so a domain tends to form a cluster. The audit warns when a schema has more than 8 tables and none has a colour.
@@ -113,7 +113,7 @@ The audit covers references, box overlap, curves through tables and label overla
 - **`is a self-reference without 'columns'`**: name the FK column in `columns`.
 - **`unknown fromEnd` / `unknown toEnd`**: use `one`, `zeroOrOne`, `oneOrMany` or `zeroOrMany`.
 - **`Duplicate entity id` / `Duplicate column` / `Duplicate relationship id`**: ids are unique, and column names are unique within a table.
-- **`unknown color`**: a table colour must be one of the lane swatch hex values listed above.
+- **`unknown color`**: a table colour must be a palette slot, `"1"` to `"8"`. (A custom hex still loads, drawn as is, and the audit warns that its contrast is not checked; do not write one.)
 - **`Entities ... overlap`, `passes through entity`, `Labels ... overlap`, `sits over entity`, `extends past the diagram edge`**: layout problems; re-run `--layout` (never edit positions or curves by hand). If it persists, shorten the label.
 - **One `passes through entity` on a schema of more than 10 tables**: expected now and then. The layout uses a lighter search above 10 tables to stay fast, so re-running gives the same result. Accept it, or reorder `entities`, or split the schema by domain.
 - **`N tables and none has a 'color'`** (warning): colour the tables by domain, see Colour.

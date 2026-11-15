@@ -1448,7 +1448,7 @@
           const nSel = selectedEntityIds().length;
           bar.appendChild(abButton('delete', erdIconSvg(ERD_ICON.trash), nSel > 1 ? `Delete these ${nSel} tables and their relationships` : 'Delete this table and its relationships', undefined, undefined, 'is-danger'));
           bar.appendChild(erdHtmlEl('span', 'erd-ab-break'));
-          bar.appendChild(swatchRow(e.color || '', (hex) => setEntityColor(e.id, hex), { btnClass: 'erd-ab-swatch' }));
+          bar.appendChild(swatchRow(e.color || '', (slot) => setEntityColor(e.id, slot), { btnClass: 'erd-ab-swatch' }));
           at = { x: e.box.x + e.box.w / 2, y: e.box.y - 10 };
           below = e.box.y < 110;
           if (below) at.y = e.box.y + e.box.h + 10;
@@ -1553,12 +1553,12 @@
         }
       }
 
-      // The colour of the selected table (all of them, when several are selected): one of the swatches, '' = neutral
-      function setEntityColor(id, hex) {
+      // The colour of the selected table (all of them, when several are selected): a palette slot, '' = neutral
+      function setEntityColor(id, slot) {
         const ids = selectedEntityIds().includes(id) ? selectedEntityIds() : [id];
-        const ents = ids.map(erdEntity).filter((e) => e && (e.color || '') !== hex);
+        const ents = ids.map(erdEntity).filter((e) => e && (e.color || '') !== slot);
         if (!ents.length) return;
-        ents.forEach((e) => { if (hex) e.color = hex; else delete e.color; });
+        ents.forEach((e) => { if (slot) e.color = slot; else delete e.color; });
         render();
         updateStatus(true);
       }
@@ -2594,6 +2594,7 @@
         const d = JSON.parse(JSON.stringify(data));
         ['layout', 'canvas', '_band', '_loose', 'direction'].forEach((k) => { delete d[k]; });
         d.schemaVersion = ERD_SCHEMA_VERSION;
+        slotColors(d, 'entities');
         ERD_DERIVED.forEach(([list, keys]) => (d[list] || []).forEach((o) => keys.forEach((k) => { delete o[k]; })));
         renameGeneratedIds(d);
         const layout = {};
@@ -2616,23 +2617,25 @@
         delete d.direction;
         if (d.schemaVersion === ERD_SCHEMA_VERSION) {
           (d.entities || []).forEach((o) => Object.assign(o, layout[o.id] || {}));
+          slotColors(d, 'entities');
           return d;
         }
         // v1/v2 (or none): positions dropped. A group's colour becomes its tables' `color`, its name a colorKey entry
-        // (hex -> name) unless that hex already has one
+        // (slot -> name) unless that slot already has one
         const groups = {};
         (Array.isArray(d.groups) ? d.groups : []).forEach((g) => { groups[g.id] = g; });
         delete d.groups;
-        const key = d.colorKey && typeof d.colorKey === 'object' && !Array.isArray(d.colorKey) ? d.colorKey : {};
+        const key = d.colorKey && typeof d.colorKey === 'object' && !Array.isArray(d.colorKey) ? colorKeySlots(d.colorKey) : {};
         (d.entities || []).forEach((e) => {
           const g = groups[e.group];
           delete e.group;
           if (g && g.color) {
-            e.color = g.color;
-            if (g.name && !(g.color in key)) key[g.color] = g.name;
+            e.color = colorSlot(g.color);
+            if (g.name && !(e.color in key)) key[e.color] = g.name;
           }
         });
         if (Object.keys(key).length) d.colorKey = key;
+        slotColors(d, 'entities');
         return d;
       }
 

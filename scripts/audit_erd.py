@@ -10,6 +10,8 @@ from __future__ import annotations
 import math
 from typing import Any, Dict, List, Optional, Tuple
 
+from disk_format import color_kind, color_slot, palette_slots, slot_key
+
 HEAD_H, ROW_H, MORE_H = 36, 26, 22
 CHAR_W, TYPE_CHAR_W = 7.4, 6.6
 PAD_X, GLYPH_W, TYPE_GAP = 12, 22, 16
@@ -20,8 +22,7 @@ MARGIN, GRID = 40, 4
 END_KINDS = {"one", "zeroOrOne", "oneOrMany", "zeroOrMany"}
 MANY_ENDS = {"oneOrMany", "zeroOrMany"}
 DETAILS = {"all", "keys", "names"}
-# Same lane swatches as the sequence audit and assets/shell/shell.js (SWATCHES): the hex values
-SWATCHES = ("#e0f2fe", "#fef3c7", "#dcfce7", "#fee2e2", "#f3e8ff", "#ffedd5", "#ccfbf1", "#e0e7ff")
+# A table's colour is a palette slot ("1".."9", assets/tokens/default.json) or a custom hex (see disk_format.color_slot)
 
 # Budgets (characters). Over a budget is a warning: the page truncates the text.
 MAX_TABLE_NAME = 28
@@ -122,8 +123,8 @@ class ErdAudit:
                 seen.add(item.get("id"))
         for e in es:
             eid = e.get("id")
-            if e.get("color") is not None and e["color"] not in SWATCHES:
-                errors.append(f"Entity '{eid}' has unknown color '{e['color']}' (use one of the lane swatches: {', '.join(SWATCHES)}).")
+            if e.get("color") is not None and color_kind(e["color"]) == "bad":
+                errors.append(f"Entity '{eid}' has unknown color '{e['color']}' (use a palette slot: {', '.join(palette_slots()[:-1])}).")
             if not isinstance(e.get("columns", []), list):
                 errors.append(f"Entity '{eid}' columns must be a list of column objects.")
             names = set()
@@ -251,8 +252,10 @@ class ErdAudit:
             if len(str(n.get("text") or "")) > MAX_NOTE:
                 budget.append(f"Note '{n.get('id')}' is over {MAX_NOTE} characters: shorten it.")
         if any(e.get("color") for e in es):
-            key = self.data.get("colorKey") if isinstance(self.data.get("colorKey"), dict) else {}
-            for c in dict.fromkeys(e.get("color") for e in es if e.get("color") in SWATCHES):
+            key = slot_key(self.data.get("colorKey")) if isinstance(self.data.get("colorKey"), dict) else {}
+            for c in dict.fromkeys(color_slot(e["color"]) for e in es if color_kind(e.get("color")) != "bad"):
+                if color_kind(c) == "custom":
+                    budget.append(f"Colour {c} is not a palette slot, so its contrast is not checked: use a slot ({', '.join(palette_slots()[:-1])}).")
                 if not str(key.get(c) or "").strip():
                     budget.append(f"Tables use {c} but 'colorKey' does not say what it means: add \"colorKey\": {{\"{c}\": \"Billing\"}}.")
         elif len(es) > COLOR_MIN_TABLES:

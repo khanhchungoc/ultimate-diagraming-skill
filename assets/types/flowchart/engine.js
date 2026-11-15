@@ -1094,7 +1094,7 @@
       // routing and dragging work unchanged. Creates it when missing and moves stray nodes onto it.
       function normalizeSwimlanes(data) {
         if (!Array.isArray(data.lanes) || !data.lanes.length) {
-          data.lanes = [{ id: 'lane-main', name: 'Process', color: '#e0f2fe', icon: 'users' }]; // tokens-ok: this engine also runs in Node, where TOKENS does not exist until Phase 6; it is slot 1's data hex
+          data.lanes = [{ id: 'lane-main', name: 'Process', color: '1', icon: 'users' }];
         }
         const ids = new Set(data.lanes.map(l => l.id));
         (data.nodes || []).forEach(n => { if (!ids.has(n.laneId)) n.laneId = data.lanes[0].id; });

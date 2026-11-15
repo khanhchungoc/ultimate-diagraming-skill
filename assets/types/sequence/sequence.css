@@ -24,12 +24,10 @@
     /* The frame's border selects it: an 8px invisible stroke, the inside stays click-through */
     .seq-frag-hit { fill: none; stroke: transparent; stroke-width: 8; pointer-events: stroke; cursor: pointer; }
     .seq-div-hit { stroke: transparent; stroke-width: 10; pointer-events: stroke; cursor: row-resize; }
-    /* Phase colours: one hue per frame, at low opacity in both themes */
-    .seq-tint-blue { --seq-tint: var(--sw-1-line); } .seq-tint-green { --seq-tint: var(--sw-3-line); } .seq-tint-yellow { --seq-tint: var(--sw-2-line); }
-    .seq-tint-red { --seq-tint: var(--sw-4-line); } .seq-tint-purple { --seq-tint: var(--sw-5-line); } .seq-tint-gray { --seq-tint: var(--sw-9-line); }
-    .seq-frag-box[class*="seq-tint-"] { fill: var(--seq-tint); fill-opacity: 0.07; stroke: color-mix(in srgb, var(--seq-tint) 45%, var(--border-dark)); }
-    .seq-frag-label[class*="seq-tint-"] { background: color-mix(in srgb, var(--seq-tint) 18%, var(--bg-panel)); border-color: color-mix(in srgb, var(--seq-tint) 45%, var(--border-dark)); }
-    .seq-frag-box.selected[class*="seq-tint-"] { stroke: var(--primary); }
+    /* Phase colours: a frame with a colour (slot or custom hex, see setSwatch) takes its line colour, at low opacity in both themes */
+    .seq-frag-box.swatch-scope { fill: var(--sw-line); fill-opacity: 0.07; stroke: color-mix(in srgb, var(--sw-line) 45%, var(--border-dark)); }
+    .seq-frag-label.swatch-scope { background: color-mix(in srgb, var(--sw-line) 18%, var(--bg-panel)); border-color: color-mix(in srgb, var(--sw-line) 45%, var(--border-dark)); }
+    .seq-frag-box.selected.swatch-scope { stroke: var(--primary); }
     .seq-frag-else { stroke: var(--border-dark); stroke-width: 1.5; stroke-dasharray: 6 4; }
     #seq-drop-line { stroke: var(--primary); stroke-width: 2; stroke-dasharray: 5 4; display: none; }
     .seq-participant {
@@ -217,7 +215,7 @@
     .seq-ab-btn:hover { background: var(--bg-hover); color: var(--text-main); }
     .seq-ab-btn[aria-pressed="true"] { background: var(--primary-wash); border-color: var(--primary-ring); color: var(--primary); }
     .seq-ab-sep { width: 1px; height: 18px; margin: 0 3px; background: var(--border-color); }
-    .seq-swatch { display: inline-block; width: 14px; height: 14px; border-radius: var(--radius-round); background: var(--seq-tint); border: 1px solid var(--dot-edge-soft); }
+    .seq-swatch { display: inline-block; width: 14px; height: 14px; border-radius: var(--radius-round); background: var(--sw-line); border: 1px solid var(--dot-edge-soft); }
     .seq-swatch.is-none { background: var(--bg-panel); border: 1.5px dashed var(--border-dark); }
     .seq-handle {
       position: absolute; width: 12px; height: 12px; margin: -6px 0 0 -6px; box-sizing: border-box; z-index: 9;

@@ -456,16 +456,16 @@ sys.stdout.write(format_json(out))`;
   const col0 = await saved();
   await t.clickOn(head('address'));
   t.check('a selected table’s action bar has the swatch row (none and the eight colours)', (await count('.erd-actionbar .swatch-btn')) === 9);
-  await t.clickOn('.erd-actionbar .swatch-btn[data-value="#fef3c7"]');
+  await t.clickOn('.erd-actionbar .swatch-btn[data-value="2"]');
   d = await saved();
   const tinted = await t.ev(`(() => { const e = document.querySelector('.erd-entity[data-node-id="address"]'); return e.classList.contains('swatch-scope') && e.style.getPropertyValue('--swatch-color') === '#fef3c7' && getComputedStyle(e.querySelector('.erd-head')).backgroundColor !== getComputedStyle(document.querySelector('.erd-entity[data-node-id="customer"] .erd-head')).backgroundColor; })()`);
   t.check('a swatch sets the table’s own colour (saved on the table), the table is tinted, no other table changes',
-    ent(d, 'address').color === '#fef3c7' && tinted && d.entities.every((e) => e.id === 'address' || e.color === ent(col0, e.id).color), J(ent(d, 'address')));
+    ent(d, 'address').color === '2' && tinted && d.entities.every((e) => e.id === 'address' || e.color === ent(col0, e.id).color), J(ent(d, 'address')));
   await t.clickOn('.erd-actionbar .swatch-btn[data-value=""]');
   d = await saved();
   t.check('the none swatch clears the colour', !('color' in ent(d, 'address')));
   await undo();
-  t.check('a colour change is one undo step each', ent(await saved(), 'address').color === '#fef3c7');
+  t.check('a colour change is one undo step each', ent(await saved(), 'address').color === '2');
   await undo();
   t.check('and the second undo puts the old colour back', J(await saved()) === J(col0) && (await undoDisabled()));
   // several selected tables take the colour together
@@ -473,9 +473,9 @@ sys.stdout.write(format_json(out))`;
   const ctrlClickA = async (sel) => { const q = await t.at(sel); await t.click(q.x, q.y, { modifiers: 2 }); };
   await ctrlClickA(head('product'));
   await ctrlClickA(head('category'));
-  await t.clickOn('.erd-actionbar .swatch-btn[data-value="#f3e8ff"]');
+  await t.clickOn('.erd-actionbar .swatch-btn[data-value="5"]');
   d = await saved();
-  t.check('with several tables selected a swatch colours all of them', ent(d, 'product').color === '#f3e8ff' && ent(d, 'category').color === '#f3e8ff' && ent(d, 'review').color === ent(col0, 'review').color);
+  t.check('with several tables selected a swatch colours all of them', ent(d, 'product').color === '5' && ent(d, 'category').color === '5' && ent(d, 'review').color === ent(col0, 'review').color);
 
   // --- Notes ---
   await freshPage();
@@ -687,7 +687,7 @@ sys.stdout.write(format_json(out))`;
     ['label a relationship', async () => { const q1 = await onLine('r8'); await t.click(q1.x, q1.y, { count: 2 }); await t.type('reviews'); await t.press('Enter'); }],
     ['delete a relationship', async () => { const q1 = await onLine('r8'); await t.click(q1.x, q1.y); await t.press('Delete'); }],
     ['move a table', async () => { const h1 = await t.at(head((await tableIds())[4])); await t.dragTo(h1.x, h1.y, h1.x + 70, h1.y + 50); }],
-    ['colour a table', async () => { await t.clickOn(head('address')); await t.clickOn('.erd-actionbar .swatch-btn[data-value="#fef3c7"]'); }],
+    ['colour a table', async () => { await t.clickOn(head('address')); await t.clickOn('.erd-actionbar .swatch-btn[data-value="2"]'); }],
     ['collapse a table', async () => { await t.clickOn(`${head('order')} .erd-chevron`); }],
     ['add a note', async () => { await t.clickOn(head('address')); await t.press('n'); await t.type('Hi'); await t.press('Escape'); }],
     ['link a note', async () => { await t.clickOn('.erd-entity[data-node-id="order"] .erd-note-badge'); await t.press('Escape'); const l1 = await t.at('.erd-note.selected .erd-note-link'), c1 = await t.at(head('customer')); await t.dragTo(l1.x, l1.y, c1.x, c1.y); }],
@@ -1046,8 +1046,8 @@ sys.stdout.write(format_json(out))`;
   t.check('a v2 page opens re-laid out with its groups gone: each table wears its group’s colour, nothing overlaps',
     (await count('.erd-group')) === 0 && v2Colours.every((c) => c.endsWith(sales.includes(c.split(':')[0]) ? '#e0f2fe' : '#dcfce7')) && (await layoutProblems()).length === 0 && t.errors.length === 0, J(v2Colours));
   t.check('and its save is v3: tables carry `color`, group names join `colorKey` (existing entries kept), no groups or group fields, positions in `layout`',
-    d.schemaVersion === 3 && !('groups' in d) && d.entities.every((e) => !('group' in e) && e.color === (sales.includes(e.id) ? '#e0f2fe' : '#dcfce7'))
-    && J(d.colorKey) === J({ '#fef3c7': 'Other', '#e0f2fe': 'Sales', '#dcfce7': 'Catalog' }) && Object.keys(d.layout).length === 8 && !('sales' in d.layout), J(d.colorKey));
+    d.schemaVersion === 3 && !('groups' in d) && d.entities.every((e) => !('group' in e) && e.color === (sales.includes(e.id) ? '1' : '3'))   // v2 hex colours are saved as slots
+    && J(d.colorKey) === J({ 2: 'Other', 1: 'Sales', 3: 'Catalog' }) && Object.keys(d.layout).length === 8 && !('sales' in d.layout), J(d.colorKey));
   t.check('the v3 block saved from a v2 page agrees with the Python codec', pythonAgrees(await t.ev(`document.getElementById('diagram-data').textContent`)) === '');
   }
 

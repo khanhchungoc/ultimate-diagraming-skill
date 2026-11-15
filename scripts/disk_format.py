@@ -18,7 +18,10 @@ import copy
 import json
 import re
 import unicodedata
+from functools import lru_cache
 from typing import Any, Callable, Dict, Tuple
+
+from tokens import load_tokens
 
 FLOWCHART_KEYS = ("diagramType", "schemaVersion", "title", "direction", "swimlanes", "showNotes",
                   "lanes", "nodes", "edges", "notes", "layout")
@@ -37,6 +40,64 @@ NODE_LAYOUT = ("x", "y")
 LANE_LAYOUT = ("height", "color")
 GENERATED_ID = re.compile(r"^(n|c|e|lane)_\d{12,}(_\d+)?$")  # editor ids: <prefix>_<Date.now()>[_k]
 SLUG_MAX = 30
+
+
+# --- Colours: a palette slot ("1".."9", assets/tokens/default.json) or a custom hex ---
+# Diagrams saved before the slots stored the palette's hex (or, on a sequence fragment, a colour name). Reading and
+# writing both turn those into slots; a hex that matches no slot is a custom colour and is written unchanged.
+# Mirrors colorSlot() in assets/shell/shell.js.
+OLD_FRAGMENT_COLORS = {"blue": "sky", "green": "emerald", "yellow": "amber", "red": "rose", "purple": "purple", "gray": "neutral"}
+CUSTOM_HEX = re.compile(r"^#[0-9a-fA-F]{3,8}$")
+
+
+@lru_cache(maxsize=1)
+def _palette() -> Tuple[Tuple[str, ...], Dict[str, str]]:
+    """(slot ids, {old name or lowercase hex: slot}) of the default palette."""
+    pal = load_tokens()["palette"]
+    by_name = {s["name"]: s["slot"] for s in pal}
+    old = {s["hex"].lower(): s["slot"] for s in pal if s.get("hex")}
+    old.update({n: by_name[t] for n, t in OLD_FRAGMENT_COLORS.items() if t in by_name})
+    return tuple(s["slot"] for s in pal), old
+
+
+def palette_slots() -> Tuple[str, ...]:
+    return _palette()[0]
+
+
+def color_slot(v: Any) -> Any:
+    """The slot for a slot id, a palette hex or an old fragment colour name; any other value comes back unchanged."""
+    slots, old = _palette()
+    if not isinstance(v, str):
+        return v
+    return v if v in slots else old.get(v.lower(), v)
+
+
+def color_kind(v: Any) -> str:
+    """"slot", "custom" (a hex that is no slot) or "bad" (anything else), after color_slot()."""
+    v = color_slot(v)
+    return "slot" if v in palette_slots() else "custom" if isinstance(v, str) and CUSTOM_HEX.match(v) else "bad"
+
+
+def slot_key(key: Any) -> Any:
+    """A colorKey with its keys as slots; an old hex key never overwrites a slot key that is already there."""
+    if not isinstance(key, dict):
+        return key
+    out: Dict[str, Any] = {}
+    for k, v in key.items():
+        out.setdefault(color_slot(k), v)
+    # JavaScript lists integer-like keys (the slots) first, ascending: do the same so the page and this module write the same bytes
+    slots = sorted((k for k in out if k.isdecimal() and str(int(k)) == k), key=int)
+    return {**{k: out[k] for k in slots}, **{k: v for k, v in out.items() if k not in slots}}
+
+
+def _slot_colors(d: Dict[str, Any], *lists: str) -> None:
+    """In place: `color` of every object in the named lists, and colorKey, as slots."""
+    for name in lists:
+        for o in d.get(name) or []:
+            if isinstance(o, dict) and "color" in o:
+                o["color"] = color_slot(o["color"])
+    if "colorKey" in d:
+        d["colorKey"] = slot_key(d["colorKey"])
 
 
 def _ordered(data: Dict[str, Any], keys: Tuple[str, ...]) -> Dict[str, Any]:
@@ -106,6 +167,7 @@ def _rename_generated_ids(d: Dict[str, Any]) -> None:
 def flowchart_to_disk(data: Dict[str, Any]) -> Dict[str, Any]:
     d = copy.deepcopy(data)
     d.pop("layout", None)
+    _slot_colors(d, "lanes")
     lanes, nodes = d.get("lanes") or [], d.get("nodes") or []
     lane_index = {lane.get("id"): i for i, lane in enumerate(lanes)}
     # Flow order: x runs along the flow in both directions (the engine has ranked the steps already)
@@ -127,6 +189,7 @@ def flowchart_from_disk(data: Dict[str, Any]) -> Dict[str, Any]:
     layout = d.pop("layout", None) or {}
     for o in (d.get("lanes") or []) + (d.get("nodes") or []):
         o.update(layout.get(o.get("id")) or {})
+    _slot_colors(d, "lanes")
     return d
 
 
@@ -193,6 +256,7 @@ def _rename_sequence_ids(d: Dict[str, Any]) -> None:
 def sequence_to_disk(data: Dict[str, Any]) -> Dict[str, Any]:
     d = copy.deepcopy(data)
     d.pop("layout", None)  # canvas size, derived by the engine
+    _slot_colors(d, "participants", "fragments")
     _rename_sequence_ids(d)
     for items, keys in SEQUENCE_LAYOUT:
         for o in d.get(items) or []:
@@ -207,7 +271,9 @@ def sequence_to_disk(data: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def sequence_from_disk(data: Dict[str, Any]) -> Dict[str, Any]:
-    return copy.deepcopy(data)  # positions are derived on load (sequence.js render(), or engine_runner)
+    d = copy.deepcopy(data)  # positions are derived on load (sequence.js render(), or engine_runner)
+    _slot_colors(d, "participants", "fragments")
+    return d
 
 
 ERD_GENERATED_ID = re.compile(r"^(t|r|n)_\d{12,}(_\d+)?$")  # page ids: <prefix>_<Date.now()>[_k]
@@ -262,6 +328,7 @@ def erd_to_disk(data: Dict[str, Any]) -> Dict[str, Any]:
     d.pop("_loose", None)
     d.pop("direction", None)
     d["schemaVersion"] = ERD_SCHEMA_VERSION
+    _slot_colors(d, "entities")
     for items, keys in ERD_DERIVED:
         for o in d.get(items) or []:
             for k in keys:
@@ -284,19 +351,21 @@ def erd_from_disk(data: Dict[str, Any]) -> Dict[str, Any]:
     if d.get("schemaVersion") == ERD_SCHEMA_VERSION:
         for o in d.get("entities") or []:
             o.update(layout.get(o.get("id")) or {})
+        _slot_colors(d, "entities")
         return d
     # v1/v2 (or none): the layout is dropped (the page and --layout lay it out afresh). Groups become table colours:
-    # a group's colour is set on its tables, its name goes to colorKey (hex -> name) unless that hex already has an entry.
+    # a group's colour is set on its tables, its name goes to colorKey (slot -> name) unless that hex already has an entry.
     groups = {g.get("id"): g for g in d.pop("groups", None) or []}
-    key = d.get("colorKey") if isinstance(d.get("colorKey"), dict) else {}
+    key = slot_key(d.get("colorKey")) if isinstance(d.get("colorKey"), dict) else {}
     for e in d.get("entities") or []:
         g = groups.get(e.pop("group", None))
         if g and g.get("color"):
-            e["color"] = g["color"]
-            if g.get("name") and g["color"] not in key:
-                key[g["color"]] = g["name"]
+            e["color"] = color_slot(g["color"])
+            if g.get("name") and e["color"] not in key:
+                key[e["color"]] = g["name"]
     if key:
         d["colorKey"] = key
+    _slot_colors(d, "entities")
     return d
 
 

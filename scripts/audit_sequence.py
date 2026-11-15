@@ -9,6 +9,8 @@ from __future__ import annotations
 import math
 from typing import Any, Dict, List
 
+from disk_format import color_kind, color_slot, palette_slots, slot_key
+
 BOX_W = 148
 RAIL_W = 36              # a rail: the thin column of a participant with nothing to show outside collapsed frames
 SELF_LOOP = 40
@@ -23,10 +25,8 @@ PARTICIPANT_KINDS = {"actor", "system", "ui", "database", "queue", "external"}
 MESSAGE_KINDS = {"sync", "reply", "async"}
 FRAGMENT_KINDS = {"opt", "alt", "loop", "par", "group"}
 BRANCH_KINDS = {"alt", "par"}
-FRAGMENT_COLORS = {"blue", "green", "yellow", "red", "purple", "gray"}
-# A participant's colour is one of the flowchart's lane swatches (SWATCHES in assets/shell/shell.js), as the hex:
-# sky, amber, emerald, rose, purple, orange, teal, indigo
-SWATCHES = ("#e0f2fe", "#fef3c7", "#dcfce7", "#fee2e2", "#f3e8ff", "#ffedd5", "#ccfbf1", "#e0e7ff")
+# A participant's or fragment's colour is a palette slot ("1".."9", assets/tokens/default.json) or a custom hex.
+# disk_format.color_slot() also reads the old palette hex and the old fragment colour names.
 MAX_PARTICIPANT_COLORS = 4
 ERROR_PENALTY = 12
 
@@ -73,10 +73,14 @@ class SequenceAudit:
 
     def color_warnings(self) -> List[str]:
         """Participant colour means ownership: say what each colour means, and use few of them."""
-        key = self.data.get("colorKey") if isinstance(self.data.get("colorKey"), dict) else {}
-        colours = [p.get("color") for p in self.participants if p.get("color") in SWATCHES]
+        key = slot_key(self.data.get("colorKey")) if isinstance(self.data.get("colorKey"), dict) else {}
+        colours = [color_slot(p["color"]) for p in self.participants if color_kind(p.get("color")) != "bad"]
         used = list(dict.fromkeys(colours))
         out = []
+        for c in dict.fromkeys(list(used) + [color_slot(f["color"]) for f in self.data.get("fragments") or []
+                                            if color_kind(f.get("color")) == "custom"]):
+            if color_kind(c) == "custom":
+                out.append(f"Colour {c} is not a palette slot, so its contrast is not checked: use a slot ({', '.join(palette_slots()[:-1])}).")
         for c in used:
             if not str(key.get(c) or "").strip():
                 out.append(f"Participants use {c} but 'colorKey' does not say what it means: add \"colorKey\": {{\"{c}\": \"Our services\"}}.")
@@ -159,10 +163,10 @@ class SequenceAudit:
         for p in ps:
             if p.get("kind", "system") not in PARTICIPANT_KINDS:
                 errors.append(f"Participant '{p['id']}' has unknown kind '{p.get('kind')}'.")
-            if p.get("color") is not None and p.get("color") not in SWATCHES:
-                errors.append(f"Participant '{p['id']}' has unknown color '{p.get('color')}' (use one of the lane swatches: {', '.join(SWATCHES)}).")
+            if p.get("color") is not None and color_kind(p.get("color")) == "bad":
+                errors.append(f"Participant '{p['id']}' has unknown color '{p.get('color')}' (use a palette slot: {', '.join(palette_slots()[:-1])}).")
         if "colorKey" in self.data and not isinstance(self.data["colorKey"], dict):
-            errors.append("'colorKey' must be an object of swatch hex -> what it means.")
+            errors.append("'colorKey' must be an object of colour slot -> what it means.")
         dangling = 0
         for m in ms:
             if m.get("kind", "sync") not in MESSAGE_KINDS:
@@ -182,8 +186,8 @@ class SequenceAudit:
                 errors.append(f"Fragment '{f['id']}' starts after it ends.")
             elif f.get("elseAt") is not None and not (a < midx.get(f["elseAt"], -1) <= b):
                 errors.append(f"Fragment '{f['id']}' elseAt must be a message after its first and within its range.")
-            if f.get("color") is not None and f.get("color") not in FRAGMENT_COLORS:
-                errors.append(f"Fragment '{f['id']}' has unknown color '{f.get('color')}' (use {', '.join(sorted(FRAGMENT_COLORS))}).")
+            if f.get("color") is not None and color_kind(f.get("color")) == "bad":
+                errors.append(f"Fragment '{f['id']}' has unknown color '{f.get('color')}' (use a palette slot: {', '.join(palette_slots())}).")
             if "branches" in f:
                 if f.get("elseAt") is not None:
                     errors.append(f"Fragment '{f['id']}' has both 'branches' and 'elseAt': use one.")
