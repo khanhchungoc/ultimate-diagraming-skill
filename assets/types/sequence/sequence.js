@@ -153,10 +153,18 @@
       }
 
       // A small icon per participant kind, the registry's kind-<kind> (system and actor have none: actor is the pill)
-      const hasKindIcon = (kind) => kind !== 'system' && !!ICONS[`kind-${kind}`];
+      // A person (actor) wears the registry's user icon; a system, the default kind, wears none on its pill
+      const kindIconName = (kind) => (kind === 'actor' ? 'user' : `kind-${kind || 'system'}`);
+      const hasKindIcon = (kind) => kind !== 'system' && !!ICONS[kindIconName(kind)];
       const PARTICIPANT_KINDS = ['system', 'actor', 'ui', 'database', 'queue', 'external'];
+      const KIND_TITLES = {
+        system: 'System: a service, app or back end (the default)',
+        actor: 'Actor: a person (no activation bar when they start the flow)',
+        ui: 'UI: a screen or front end', database: 'Database', queue: 'Queue: a message bus or topic',
+        external: 'External: a third-party system (dashed outline)'
+      };
       function kindIcon(kind, size) {
-        return ui.iconEl(hasKindIcon(kind) ? `kind-${kind}` : 'kind-system', { size: size || 14, class: 'seq-kind-icon' });
+        return ui.iconEl(hasKindIcon(kind) ? kindIconName(kind) : 'kind-system', { size: size || 14, class: 'seq-kind-icon' });
       }
 
       function render() {
@@ -1272,8 +1280,7 @@
             bar.appendChild(abButton('show', `${ui.icon('eye')}<span>Show</span>`, 'Expand the frames that hide this participant'));
             bar.appendChild(htmlEl('span', 'seq-ab-sep'));
           }
-          PARTICIPANT_KINDS.forEach((k) => bar.appendChild(abButton('pkind', hasKindIcon(k) ? ui.icon(`kind-${k}`) : `<span>${k === 'actor' ? 'Actor' : 'System'}</span>`,
-            `Kind: ${k}`, (p.kind || 'system') === k, k)));
+          PARTICIPANT_KINDS.forEach((k) => bar.appendChild(abButton('pkind', ui.icon(kindIconName(k)), KIND_TITLES[k], (p.kind || 'system') === k, k)));
           bar.appendChild(htmlEl('span', 'seq-ab-break'));
           bar.appendChild(swatchRow(swatchOf(p) || '', (slot) => setParticipantColor(p.id, slot), { btnClass: 'seq-ab-swatch' }));
           if (p.column) {

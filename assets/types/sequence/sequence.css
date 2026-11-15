@@ -36,6 +36,8 @@
       position: absolute; width: 148px; height: 34px; margin-top: 22px; box-sizing: border-box; justify-content: center; text-align: center;
       padding: 0 10px; cursor: grab; touch-action: none;
     }
+    /* Like an activation bar: the swatch's soft fill and strong outline, no halo */
+    .seq-participant.swatch-pill { --halo: 0 0 transparent; border: 1.5px solid var(--sw-line); }
     .seq-participant.is-external { border: 1.5px dashed var(--sw-line); }
     .seq-participant.selected { box-shadow: 0 0 0 var(--ring-md) var(--primary), var(--halo); }
     .seq-participant.dragging, .seq-msg-label.dragging { opacity: 0.75; z-index: 20; }
