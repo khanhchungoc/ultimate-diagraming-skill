@@ -132,7 +132,7 @@ function erDistances(data, adj, sizes) {
 
 // The room each related pair of tables needs between them, set by layoutDiagram: erNeed[a * erNeedN + b] is 0 for an
 // unrelated pair, else the clear space the line between them needs on the axis it runs along.
-let erNeed = null, erNeedN = 0;
+let erNeed = null, erNeedN = 0, erRel = null;   // erRel[a]: the tables related to a
 function erNeedOf(data, sizes) {
   const ents = data.entities || [], n = ents.length, idx = {};
   ents.forEach((e, i) => { idx[e.id] = i; });
@@ -217,10 +217,14 @@ const erFix = (v) => Math.round(v * 1e6) / 1e6;
 
 function erSeparate(ids, P, sizes, limit, only) {
   const n = ids.length, X = P.x, Y = P.y, lim = limit || 200, NE = erNeed, NN = erNeedN;
-  const W = ids.map((i) => sizes[i].w), H = ids.map((i) => sizes[i].h);
+  const W = Float64Array.from(ids, (i) => sizes[i].w), H = Float64Array.from(ids, (i) => sizes[i].h);
   const act = ids.map((i) => !only || only.includes(i)), list = [];   // list: positions of the active tables, ascending
   act.forEach((on, p) => { if (on) list.push(p); });
   const wake = (k) => { if (act[k]) return; act[k] = true; let t = list.length; while (t > 0 && list[t - 1] > k) t--; list.splice(t, 0, k); };
+  let big = false;
+  const mv = new Uint8Array(n);                      // moved in this pass
+  const dsp = new Float64Array(n);
+  const shift = (p, q, d) => { dsp[p] += d; dsp[q] += d; if (dsp[p] > SLACK / 2 || dsp[q] > SLACK / 2) big = true; };
   // Pushes the pair (p, q) apart when it overlaps; true when it moved
   const pair = (p, q) => {
     const a = ids[p], b = ids[q];
@@ -231,7 +235,8 @@ function erSeparate(ids, P, sizes, limit, only) {
       if (erRelShort(dx, dy, sizes[a], sizes[b], need)) {
         const sx = dx >= 0 ? 1 : -1, sy = dy >= 0 ? 1 : -1;
         X[a] -= sx * erShort[0] / 2; X[b] += sx * erShort[0] / 2; Y[a] -= sy * erShort[1] / 2; Y[b] += sy * erShort[1] / 2;
-        wake(p); wake(q);
+        shift(p, q, (erShort[0] + erShort[1]) / 2);
+        wake(p); wake(q); mv[p] = mv[q] = 1;
         return true;
       }
     }
@@ -242,27 +247,78 @@ function erSeparate(ids, P, sizes, limit, only) {
     if (ox < oy0) {
       const s = dx >= 0 ? 1 : -1;
       X[a] -= s * ox / 2; X[b] += s * ox / 2;
+      shift(p, q, ox / 2);
     } else {
       const dy = Y[b] - Y[a], s = dy >= 0 ? 1 : -1;
       Y[a] -= s * oy0 / 2; Y[b] += s * oy0 / 2;
+      shift(p, q, oy0 / 2);
     }
-    wake(p); wake(q);
+    wake(p); wake(q); mv[p] = mv[q] = 1;
     return true;
   };
+  // Candidates: a sweep over x lists, for each table, the later tables that can reach it. A table moves, so the lists are
+  // padded by SLACK; once the moves of one table since the last sweep add up to half of that (big), the sweep is done
+  // again from the current positions. So every pair that can act is looked at, as in the full scan, in the same order.
+  const SLACK = 64, wMax = W.reduce((m, w) => Math.max(m, w), 0);
+  let pos = null;                                    // position of each table id in ids, built when the first sweep needs it
+  let order = null, cand = null;
+  const sweep = () => {
+    big = false; dsp.fill(0);
+    if (!order) { order = Array.from({ length: n }, (_, p) => p); cand = Array.from({ length: n }, () => []); }
+    if (!pos) { pos = new Int32Array(NN || 1).fill(-1); ids.forEach((id, p) => { pos[id] = p; }); }
+    for (let p = 0; p < n; p++) { const c = cand[p]; c.length = 0; if (NE) for (const b of erRel[ids[p]]) if (pos[b] > p) c.push(pos[b]); }
+    for (let t = 1; t < n; t++) {                    // insertion sort by x: the order is nearly sorted already
+      const u = order[t], xu = X[ids[u]];
+      let k = t;
+      while (k > 0 && X[ids[order[k - 1]]] > xu) { order[k] = order[k - 1]; k--; }
+      order[k] = u;
+    }
+    for (let t = 0; t < n; t++) {
+      const u = order[t], reach = (W[u] + wMax) / 2 + ER.GAP_X + SLACK;
+      for (let s = t + 1; s < n && X[ids[order[s]]] - X[ids[u]] < reach; s++) {
+        const v = order[s], lo = u < v ? u : v, hi = u < v ? v : u;
+        if (Math.abs(X[ids[v]] - X[ids[u]]) < (W[u] + W[v]) / 2 + ER.GAP_X + SLACK && Math.abs(Y[ids[v]] - Y[ids[u]]) < (H[u] + H[v]) / 2 + ER.GAP_Y + SLACK) cand[lo].push(hi);
+      }
+    }
+    for (let p = 0; p < n; p++) cand[p].sort((u, v) => u - v);
+  };
+  big = true;
+  let swept = false, plain = 0;
+  const PLAIN = 12;
+  let moved = false;
+  const scan = (p, q) => {                           // pair (p, q) for every q from q on that can touch p
+    if (big && !swept && plain++ < PLAIN) { for (; q < n; q++) if (pair(p, q)) moved = true; return; }   // a few scans are cheaper than a sweep
+    swept = true;
+    for (let k = 0; ; ) {
+      if (big) { sweep(); k = 0; }
+      const cl = cand[p];
+      while (k < cl.length && cl[k] < q) k++;
+      if (k >= cl.length) return;
+      q = cl[k++];
+      if (pair(p, q)) moved = true;
+      q++;
+    }
+  };
   for (let pass = 0; pass < lim; pass++) {
-    let moved = false;
+    moved = false;
     for (let p = 0; p < n; p++) {
       let q = p + 1;
       if (!act[p]) {                                 // until p moves, only an active table after it can overlap it
+        if (!(p < list[list.length - 1])) break;     // none is active after p, and none can wake: the rest of the pass is clear
         for (let t = 0; t < list.length && !act[p]; t++) {
           const v = list[t];
           if (v > p && pair(p, v)) { moved = true; q = v + 1; }
         }
         if (!act[p]) continue;
       }
-      for (; q < n; q++) if (pair(p, q)) moved = true;
+      scan(p, q);
     }
     if (!moved) return true;
+    // next pass: only a table that moved in this one can have a new overlap, the others are clear of each other
+    const next = list.filter((p) => mv[p] === 1);
+    list.forEach((p) => { act[p] = false; mv[p] = 0; });
+    list.length = 0;
+    next.forEach((p) => { act[p] = true; list.push(p); });
   }
   return false;
 }
@@ -559,12 +615,15 @@ function erRouteAll(data, boxes, quick, base) {
   // Hits: a line that runs through a table it is not part of
   const m = ER.CLEAR / 2;
   if (old) old.hs.forEach((pr) => { if (!live[pr[0]].dirty && !moved[pr[1]]) hs.push(pr); });
+  const hx0 = Float64Array.from(boxes, (b) => b.x - m), hy0 = Float64Array.from(boxes, (b) => b.y - m);   // the boxes grown by m
+  const hx1 = Float64Array.from(boxes, (b) => b.x + b.w + m), hy1 = Float64Array.from(boxes, (b) => b.y + b.h + m);
   live.forEach((L, li) => {
-    boxes.forEach((b, j) => {
-      if (j === L.a || j === L.b || (old && !L.dirty && !moved[j])) return;
-      if (L.bb[2] <= b.x - m || L.bb[0] >= b.x + b.w + m || L.bb[3] <= b.y - m || L.bb[1] >= b.y + b.h + m) return;
-      if (erPolyHits(L.f, b.x - m, b.y - m, b.x + b.w + m, b.y + b.h + m)) hs.push([li, j]);
-    });
+    const bb = L.bb;
+    for (let j = 0; j < n; j++) {
+      if (j === L.a || j === L.b || (old && !L.dirty && !moved[j])) continue;
+      if (bb[2] <= hx0[j] || bb[0] >= hx1[j] || bb[3] <= hy0[j] || bb[1] >= hy1[j]) continue;
+      if (erPolyHits(L.f, hx0[j], hy0[j], hx1[j], hy1[j])) hs.push([li, j]);
+    }
   });
   hs.forEach(([li, j]) => { cul.add(j); cul.add(live[li].a); cul.add(live[li].b); });
   const hits = hs.length;
@@ -590,7 +649,7 @@ function erUnhit(P, sizes, score, iters) {
     const boxes = sizes.map((z, i) => ({ x: P.x[i] - z.w / 2, y: P.y[i] - z.h / 2, w: z.w, h: z.h }));
     const sc = score(boxes);
     if (!sc.hits) return;
-    const mx = new Array(n).fill(0), my = new Array(n).fill(0);
+    const mx = new Float64Array(n), my = new Float64Array(n);
     sc.curves.forEach((L) => boxes.forEach((b, j) => {
       if (j === L.a || j === L.b) return;
       if (L.bb[2] <= b.x - m || L.bb[0] >= b.x + b.w + m || L.bb[3] <= b.y - m || L.bb[1] >= b.y + b.h + m) return;
@@ -697,7 +756,8 @@ function erOffCentre(boxes, ids) {
 function erRepair(c, score, cost, floor, hubs, rounds, good) {
   const n = c.boxes.length, all = c.boxes.map((_, i) => i);
   const sizes = c.boxes.map((b) => ({ w: b.w, h: b.h }));
-  let P = { x: c.boxes.map((b) => b.x + b.w / 2), y: c.boxes.map((b) => b.y + b.h / 2) };
+  const centres = (bs) => ({ x: Float64Array.from(bs, (b) => b.x + b.w / 2), y: Float64Array.from(bs, (b) => b.y + b.h / 2) });
+  let P = centres(c.boxes), spare = { x: new Float64Array(n), y: new Float64Array(n) };   // spare: the trial positions, swapped with P when a trial is taken
   const toBoxes = (Q) => sizes.map((z, i) => ({ x: Q.x[i] - z.w / 2, y: Q.y[i] - z.h / 2, w: z.w, h: z.h }));
   const area = (bx) => { const b = erBounds(all, { x: bx.map((q) => q.x + q.w / 2), y: bx.map((q) => q.y + q.h / 2) }, sizes); return (b.x1 - b.x0) * (b.y1 - b.y0); };
   const cap = area(c.boxes) * 1.2;
@@ -724,14 +784,14 @@ function erRepair(c, score, cost, floor, hubs, rounds, good) {
       const todo = cur.key.cul.concat(all.filter((i) => !cur.key.cul.includes(i)));
       for (const i of todo) {
         for (const step of [32, 96, 224]) for (const [dx, dy] of dirs) {
-          const Q = { x: P.x.slice(), y: P.y.slice() };
+          const Q = spare; Q.x.set(P.x); Q.y.set(P.y);
           Q.x[i] += dx * step; Q.y[i] += dy * step;
           if (!erSeparate(all, Q, sizes, 40, clear ? [i] : null)) continue;
           const bx = toBoxes(Q);
           if (area(bx) > cap || floor(bx) >= cost(cur.key) + T - 1e-6) continue;
           const key = score(bx, cur.key);
           if (cost(key, cost(cur.key) + T - 1e-6) < cost(cur.key) + T - 1e-6 && cost(key) !== cost(cur.key)) {
-            cur = { key, boxes: bx }; P = Q; clear = true; improved = true;
+            cur = { key, boxes: bx }; spare = P; P = Q; clear = true; improved = true;
             if (cost(key) < cost(c.key) - 1e-6) { c.key = key; c.boxes = bx; if (good(key)) return; }
           }
         }
@@ -739,26 +799,26 @@ function erRepair(c, score, cost, floor, hubs, rounds, good) {
       // a hub that is off the centre swaps places with another table
       if (cur.key[3] > 0) for (const h of hubs) for (const j of all) {
         if (j === h || cur.key[3] === 0) continue;
-        const Q = { x: P.x.slice(), y: P.y.slice() };
+        const Q = spare; Q.x.set(P.x); Q.y.set(P.y);
         Q.x[h] = P.x[j]; Q.y[h] = P.y[j]; Q.x[j] = P.x[h]; Q.y[j] = P.y[h];
         if (!erSeparate(all, Q, sizes, 40)) continue;
         const bx = toBoxes(Q);
         if (area(bx) > cap || floor(bx) >= cost(cur.key) + T - 1e-6) continue;
         const key = score(bx, cur.key);
         if (cost(key, cost(cur.key) + T - 1e-6) < cost(cur.key) + T - 1e-6 && cost(key) !== cost(cur.key)) {
-          cur = { key, boxes: bx }; P = Q; clear = true; improved = true;
+          cur = { key, boxes: bx }; spare = P; P = Q; clear = true; improved = true;
           if (cost(key) < cost(c.key) - 1e-6) { c.key = key; c.boxes = bx; if (good(key)) return; }
         }
       }
       if (!improved) break;
     }
     // slide everything inward, then continue from the best state so far
-    const Q = { x: c.boxes.map((b) => b.x + b.w / 2), y: c.boxes.map((b) => b.y + b.h / 2) };
+    const Q = centres(c.boxes);
     erCompact(all, Q, sizes, 6);
     const bx = toBoxes(Q), key = score(bx, c.key);
     if (cost(key) < cost(c.key)) { c.key = key; c.boxes = bx; }
     cur = { key: c.key, boxes: c.boxes };
-    P = { x: c.boxes.map((b) => b.x + b.w / 2), y: c.boxes.map((b) => b.y + b.h / 2) };
+    P = centres(c.boxes);
     clear = !erOverlaps(all, P, sizes);
   });
 }
@@ -797,6 +857,7 @@ function layoutDiagram(data, opts) {
   const warm = !!(opts && opts.warm) && ents.some(placed);       // warm: tables without a position start beside their neighbours
   const sizes = ents.map((e) => erEntitySize(e, data));
   erNeed = erNeedOf(data, sizes); erNeedN = n;
+  erRel = ents.map((_, a) => { const r = []; for (let b = 0; b < n; b++) if (erNeed[a * n + b] > 0) r.push(b); return r; });
   const { adj } = erGraph(data);
   const D = erDistances(data, adj, sizes);
   const lite = n > ER.LITE;
@@ -834,7 +895,7 @@ function layoutDiagram(data, opts) {
   const small = n <= ER.SMALL;                     // a small diagram is cheap to search: more candidates, and no crossing accepted
   const good = (k) => !k[0] && k[1] <= (small ? 0 : 2) && !k[3] && !k[4] && !k[5] && !k[7] && !k[8];
   const cands = variants.map((variant) => {
-    const P = { x: new Array(n).fill(0), y: new Array(n).fill(0) };
+    const P = { x: new Float64Array(n), y: new Float64Array(n) };
     if (warm) {
       ents.forEach((e, i) => { if (placed(e)) { P.x[i] = e.x + sizes[i].w / 2; P.y[i] = e.y + sizes[i].h / 2; } });
       ents.forEach((e, i) => {
