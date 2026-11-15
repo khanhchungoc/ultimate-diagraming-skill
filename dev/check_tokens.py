@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Design-token check (plan: dev/plans/plan-design-tokens.md, Phase 1 step 6, Phase 2 step 6, Phase 4 step 8).
 
-Scans assets/shell/ and assets/types/ (*.css, *.js, *.html; never assets/tokens/ or generated output) for values
+Scans assets/shell/, assets/components/ and assets/types/ (*.css, *.js, *.html; never assets/tokens/ or generated output) for values
 that belong in assets/tokens/default.json. Rules by phase (a later phase includes the earlier ones):
   1  color-literal, font-family-literal, token-declaration
   2  type-scale-literal (font-size, font-weight, line-height, letter-spacing, border-radius, box-shadow)
@@ -157,7 +157,7 @@ def scan_text(kind: str, text: str, phase: int = 1):
 
 def asset_files():
     files = []
-    for base in ("assets/shell", "assets/types"):
+    for base in ("assets/shell", "assets/components", "assets/types"):
         for ext in ("css", "js", "html"):
             files += (ROOT / base).rglob(f"*.{ext}")
     return sorted(files)

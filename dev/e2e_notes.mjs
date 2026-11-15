@@ -19,7 +19,7 @@ try {
   const nodeId = await t.ev(`(document.querySelector('.flow-node.type-task:not(:has(.note-badge))')
     || document.querySelector('.flow-node:not(:has(.note-badge))')).dataset.nodeId`);
   const N = `.flow-node[data-node-id="${nodeId}"]`;
-  const card = `document.querySelector('.flow-note[data-nodes~="${nodeId}"]')`;
+  const card = `document.querySelector('.note[data-nodes~="${nodeId}"]')`;
   const visible = (expr) => `(() => { const el = ${expr}; return !!el && getComputedStyle(el).display !== 'none' && el.getBoundingClientRect().width > 0; })()`;
   const key = (k, mods = {}) => `document.activeElement.dispatchEvent(new KeyboardEvent('keydown', Object.assign({ key: '${k}', bubbles: true, cancelable: true }, ${JSON.stringify(mods)})))`;
   const enterKey = key('Enter', { ctrlKey: true });   // finishes a note (a plain Enter adds a line)
@@ -90,7 +90,7 @@ try {
   // 6. Drag the note: it moves freely, then follows its node when the node is dragged, and through Auto-Tidy
   const offsetOf = `(() => { const c = ${card}.getBoundingClientRect(), n = document.querySelector('${N}').getBoundingClientRect(); return [Math.round(c.left - n.left), Math.round(c.top - n.top)]; })()`;
   const before = await t.ev(offsetOf);
-  await t.ev(t.drag(`.flow-note[data-nodes~="${nodeId}"]`, 40, 60));
+  await t.ev(t.drag(`.note[data-nodes~="${nodeId}"]`, 40, 60));
   const moved = await t.ev(offsetOf);
   await t.ev(t.drag(N, 0, 24));
   const afterNodeDrag = await t.ev(offsetOf);
@@ -114,7 +114,7 @@ try {
 
   // 8. Clicking a note selects it; Delete removes only the note (not its step)
   const nodesBefore = await t.ev(`document.querySelectorAll('.flow-node').length`);
-  await t.ev(t.drag(`.flow-note[data-nodes~="${nodeId}"]`));
+  await t.ev(t.drag(`.note[data-nodes~="${nodeId}"]`));
   const sel = await t.ev(`${card}.classList.contains('selected')`);
   await t.ev(t.key('Delete'));
   const deleted = await t.ev(`!${card} && !document.querySelector('${N} .note-badge')`);
@@ -188,7 +188,7 @@ try {
   // 11. One note, several steps: with the note selected, Shift+click a step links it (a second badge and leader,
   // both steps outlined); again unlinks it; dragging the link handle onto a step links it too; the last link stays
   const noteId = await t.ev(`${card}.dataset.noteId`);
-  const C = `document.querySelector('.flow-note[data-note-id="${noteId}"]')`;
+  const C = `document.querySelector('.note[data-note-id="${noteId}"]')`;
   const reachable = `[...document.querySelectorAll('.flow-node')].filter(n => {
     if (n.dataset.nodeId === '${nodeId}' || n.querySelector('.note-badge')) return false;   // steps with no note of their own
     const r = n.getBoundingClientRect(), hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
@@ -200,7 +200,7 @@ try {
   const shiftClick = (id) => t.ev(`(() => { const n = document.querySelector('.flow-node[data-node-id="${id}"]'), r = n.getBoundingClientRect();
     const o = { bubbles: true, button: 0, shiftKey: true, clientX: r.left + r.width / 2, clientY: r.top + r.height / 2, pointerId: 1, isPrimary: true };
     n.dispatchEvent(new PointerEvent('pointerdown', o)); window.dispatchEvent(new PointerEvent('pointerup', o)); })()`);
-  await t.ev(t.drag(`.flow-note[data-note-id="${noteId}"]`));
+  await t.ev(t.drag(`.note[data-note-id="${noteId}"]`));
   await shiftClick(L1);
   const linked = await linkState(L1);
   await shiftClick(L1);

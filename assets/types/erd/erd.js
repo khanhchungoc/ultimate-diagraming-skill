@@ -361,8 +361,8 @@
           const ends = erRelEnds(rel, chartData);
           const d = erdCurvePath(rel.curve);
           const g = erdSvgEl('g', { class: 'erd-rel', 'data-edge-id': rel.id, 'data-from': rel.from, 'data-to': rel.to });
-          const hit = erdSvgEl('path', { class: 'erd-rel-hit', d });
-          const line = erdSvgEl('path', { class: `erd-rel-line${rel.identifying === true ? ' identifying' : ''}`, d });
+          const hit = erdSvgEl('path', { class: 'edge-hit', d });
+          const line = erdSvgEl('path', { class: `edge-line${rel.identifying === true ? ' identifying' : ''}`, d });
           const fromKind = ERD_END_KINDS.includes(ends.fromEnd) ? ends.fromEnd : 'zeroOrMany';
           const toKind = ERD_END_KINDS.includes(ends.toEnd) ? ends.toEnd : 'one';
           [['', ''], ['-in', '-in'], ['-out', '-out'], ['-sel', '-sel']].forEach(([suffix]) => {
@@ -388,7 +388,7 @@
           const b = rel.labelBox;
           const text = rel.label === undefined || rel.label === null ? '' : String(rel.label);
           if (!b || !text) return;
-          const el = erdHtmlEl('div', 'erd-rel-label');
+          const el = erdHtmlEl('div', 'edge-label');
           el.dataset.edgeId = rel.id;
           el.style.left = `${b.x}px`;
           el.style.top = `${b.y}px`;
@@ -431,7 +431,7 @@
       }
       const entityEl = (id) => [...erdHtml.querySelectorAll('.erd-entity')].find((el) => el.dataset.nodeId === id);
       const relEl = (id) => [...erdRels.children].find((el) => el.dataset.edgeId === id);
-      const labelEl = (id) => [...erdHtml.querySelectorAll('.erd-rel-label')].find((el) => el.dataset.edgeId === id);
+      const labelEl = (id) => [...erdHtml.querySelectorAll('.edge-label')].find((el) => el.dataset.edgeId === id);
       function markRows(rel, cls) {
         joinedRows(rel).forEach((end) => {
           const el = entityEl(end.id);
@@ -574,7 +574,7 @@
         }
         if (keep.size) {
           erdHtml.querySelectorAll('.erd-entity').forEach((el) => { if (!keep.has(el.dataset.nodeId)) el.classList.add('is-dim'); });
-          [...erdRels.children, ...erdHtml.querySelectorAll('.erd-rel-label')].forEach((el) => { if (!keepRels.has(el.dataset.edgeId)) el.classList.add('is-dim'); });
+          [...erdRels.children, ...erdHtml.querySelectorAll('.edge-label')].forEach((el) => { if (!keepRels.has(el.dataset.edgeId)) el.classList.add('is-dim'); });
         }
         // Selection
         erdCanvas.querySelectorAll('.selected').forEach((el) => el.classList.remove('selected'));
@@ -827,7 +827,7 @@
         const detail = erdDetail();
         const modeLabel = { all: 'All', keys: 'Keys', names: 'Names' }[detail];
         if (erdBtnColumns) {
-          const mode = erdBtnColumns.querySelector('.erd-mode');
+          const mode = erdBtnColumns.querySelector('.btn-count');
           if (mode) mode.textContent = modeLabel;
           const next = { all: 'key columns only', keys: 'table names only', names: 'all columns' }[detail];
           erdBtnColumns.title = `Columns: ${{ all: 'all', keys: 'key columns only', names: 'table names only' }[detail]}. Click for ${next}`;
@@ -964,7 +964,7 @@
       function renderNotes(refit) {
         if (erdNotesLayer && erdNotesLayer.isConnected) erdNotesLayer.remove();
         erdLeaders.textContent = '';
-        erdNotesLayer = erdHtmlEl('div');
+        erdNotesLayer = erdHtmlEl('div', 'note-layer');
         erdNotesLayer.id = 'erd-notes';
         erdHtml.appendChild(erdNotesLayer);
         const live = liveNotes();
@@ -972,7 +972,7 @@
           const card = buildNoteCard(note);
           erdNotesLayer.appendChild(card);
           linkedEntities(note).forEach((id) => {
-            erdLeaders.appendChild(erdSvgEl('line', { class: 'erd-note-leader', 'data-note-id': note.id, 'data-entity-id': id }));
+            erdLeaders.appendChild(erdSvgEl('line', { class: 'note-leader', 'data-note-id': note.id, 'data-entity-id': id }));
           });
         });
         // Hidden cards have no size: measure them all at once, laid out but invisible
@@ -989,29 +989,15 @@
       // The card: plain text (edited in place), a delete button and a link handle. A press selects it and drags it; in
       // ?present it is read only and a click keeps it open.
       function buildNoteCard(note) {
-        const card = erdHtmlEl('div', 'erd-note');
-        card.dataset.noteId = note.id;
-        const text = erdHtmlEl('div', 'erd-note-text');
-        text.spellcheck = false;
-        text.dataset.placeholder = 'Add a note…';
-        text.textContent = note.text || '';
-        card.appendChild(text);
-        const tool = (cls, title, icon) => {
-          const b = erdHtmlEl('button', cls);
-          b.type = 'button';
-          b.title = title;
-          b.setAttribute('aria-label', title);
-          b.dataset.exportSkip = '';
-          b.innerHTML = icon;
-          card.appendChild(b);
-          return b;
-        };
-        const del = tool('erd-note-del', 'Delete note', ERD_NOTE_DEL_ICON);
-        del.addEventListener('pointerdown', (ev) => ev.stopPropagation());
-        del.addEventListener('click', (ev) => { ev.stopPropagation(); removeNote(note.id); });
-        const link = tool('erd-note-link', 'Link to another table: drag onto it (onto a linked table to unlink; or Shift+click the table)', ERD_NOTE_LINK_ICON);
-        link.addEventListener('pointerdown', (ev) => startNoteLink(ev, note.id, card));
-        link.addEventListener('click', (ev) => ev.stopPropagation());
+        const { card, text } = ui.noteCard(note, {
+          onDelete: () => removeNote(note.id),
+          onLink: (ev) => startNoteLink(ev, note.id, card),
+          linkTitle: 'Link to another table: drag onto it (onto a linked table to unlink; or Shift+click the table)',
+          icons: { del: ERD_NOTE_DEL_ICON, link: ERD_NOTE_LINK_ICON },
+          onCommit: (el) => commitNote(note, el),
+          // the card grows as it is typed into: keep its leaders attached
+          onInput: () => { noteSizes[note.id] = { w: card.offsetWidth, h: card.offsetHeight }; positionNotes(); },
+        });
         card.addEventListener('pointerdown', (ev) => onNotePointerDown(ev, note.id, card));
         card.addEventListener('dblclick', (ev) => { ev.stopPropagation(); editNote(note.id); });
         card.addEventListener('click', (ev) => {
@@ -1020,24 +1006,6 @@
         });
         card.addEventListener('mouseenter', () => { if ((note.entities || []).includes(peekEntityId)) clearTimeout(peekTimer); });
         card.addEventListener('mouseleave', () => { if (peekEntityId) unpeekSoon(peekEntityId); });
-        // Plain text only. Enter starts a new line; Ctrl/Cmd+Enter, Esc or clicking away finishes.
-        text.addEventListener('paste', (ev) => {
-          ev.preventDefault();
-          document.execCommand('insertText', false, (ev.clipboardData || window.clipboardData).getData('text/plain'));
-        });
-        text.addEventListener('keydown', (ev) => {
-          if (ev.key === 'Enter' && !(ev.ctrlKey || ev.metaKey)) {
-            ev.preventDefault();   // a plain line break, not the <div> the browser would wrap the new line in
-            document.execCommand('insertLineBreak');
-          } else if (ev.key === 'Escape' || ev.key === 'Enter') {
-            // Commit directly too: blur() fires no blur event while the window itself is not focused
-            ev.preventDefault(); ev.stopPropagation(); text.blur(); commitNote(note, text);
-          }
-        });
-        text.addEventListener('input', () => {   // the card grows as it is typed into: keep its leaders attached
-          noteSizes[note.id] = { w: card.offsetWidth, h: card.offsetHeight };
-          positionNotes();
-        });
         text.addEventListener('blur', () => commitNote(note, text));
         return card;
       }
@@ -1149,7 +1117,7 @@
           if (!note) return;
           el.classList.toggle('show', all);
           el.classList.toggle('peek', !!notePeeked(note));
-          if (el.classList.contains('erd-note')) el.classList.toggle('selected', note.id === selectedNoteId);
+          if (el.classList.contains('note')) el.classList.toggle('selected', note.id === selectedNoteId);
         });
       }
       // Hover: a table peeks its notes after NOTE_PEEK_DELAY (its badge at once); leaving lets them go after a grace
@@ -1167,7 +1135,7 @@
         if (!notes.length) {
           // The + chip (hover or selected table): adds a note. Not in ?present.
           if (erdPresenting()) return null;
-          const add = erdHtmlEl('button', 'erd-note-add');
+          const add = erdHtmlEl('button', 'note-add');
           add.type = 'button';
           add.dataset.exportSkip = '';
           add.title = 'Add a note (N)';
@@ -1177,7 +1145,7 @@
           add.addEventListener('click', (ev) => { ev.stopPropagation(); addNoteTo(e.id); });
           return add;
         }
-        const b = erdHtmlEl('button', 'erd-note-badge');
+        const b = erdHtmlEl('button', 'note-badge');
         b.type = 'button';
         b.dataset.exportSkip = '';
         b.setAttribute('aria-label', notes.map((n) => `Note: ${noteTextOf(n)}`).join(' · '));
@@ -1250,11 +1218,11 @@
       // A short message above the dock (why something was refused), or a prompt that stays while a tool waits
       let erdHintTimer = 0;
       function erdHint(html, sticky) {
-        let hint = document.querySelector('.erd-hint');
+        let hint = document.querySelector('.hint');
         clearTimeout(erdHintTimer);
         if (html === null) { if (hint) hint.remove(); return; }
         if (!hint) {
-          hint = erdHtmlEl('div', 'erd-hint');
+          hint = erdHtmlEl('div', 'hint');
           hint.setAttribute('role', 'status');
           hint.dataset.exportSkip = '';
           document.body.appendChild(hint);
@@ -1572,13 +1540,13 @@
         if (!(t instanceof Element) || t.isContentEditable) return;
         const entEl = t.closest('.erd-entity');
         if (erdPresenting()) {   // read only: selecting a table is all a press does
-          if (entEl && !t.closest('.erd-chevron, .erd-note-badge')) selectEntity(entEl.dataset.nodeId);
+          if (entEl && !t.closest('.erd-chevron, .note-badge')) selectEntity(entEl.dataset.nodeId);
           return;
         }
-        if (t.closest('.erd-actionbar, .erd-confirm, .erd-chevron, .erd-note-badge, .erd-note-add, .erd-note-del, .erd-note-link')) return;   // handled on click
+        if (t.closest('.erd-actionbar, .confirm, .erd-chevron, .note-badge, .note-add, .note-del, .note-link')) return;   // handled on click
         const handle = t.closest('.erd-handle');
         if (handle) { e.stopPropagation(); beginDrag(e, handleDrag(handle.dataset.role, handle.dataset.id)); return; }
-        if (!entEl || t.closest('.erd-note')) return;
+        if (!entEl || t.closest('.note')) return;
         const id = entEl.dataset.nodeId;
         if (notePicking) { e.preventDefault(); giveNoteTo(id); return; }
         if (selectedNoteId && e.shiftKey) { e.preventDefault(); toggleNoteLink(selectedNoteId, id); return; }
@@ -1902,7 +1870,7 @@
         let box = labelEl(id);
         if (!box) {
           const mid = relMid(rel);
-          box = erdHtmlEl('div', 'erd-rel-label');
+          box = erdHtmlEl('div', 'edge-label');
           box.dataset.edgeId = id;
           box.dataset.exportSkip = '';
           Object.assign(box.style, { left: erdPx(mid.x - 44), top: erdPx(mid.y - 11), width: '88px', height: '22px' });
@@ -1924,9 +1892,9 @@
       erdHtml.addEventListener('dblclick', (e) => {
         if (erdPresenting()) return;
         const t = e.target;
-        if (t.closest('.erd-actionbar, .erd-chevron, .erd-note-badge, .erd-note-add, .erd-port, .erd-handle, .erd-note')) return;
+        if (t.closest('.erd-actionbar, .erd-chevron, .note-badge, .note-add, .erd-port, .erd-handle, .note')) return;
         if (t.isContentEditable) return;
-        const label = t.closest('.erd-rel-label');
+        const label = t.closest('.edge-label');
         if (label) { e.stopPropagation(); editRelLabel(label.dataset.edgeId); return; }
         const ent = t.closest('.erd-entity');
         if (!ent) return;
@@ -2083,46 +2051,7 @@
       }
 
       // Deleting a table with relationships, or an area with tables, is confirmed first, in a small bubble at the button
-      let erdConfirmEl = null;
-      function closeConfirm() {
-        if (!erdConfirmEl) return false;
-        erdConfirmEl.remove();
-        erdConfirmEl = null;
-        document.removeEventListener('pointerdown', onConfirmOutside, true);
-        return true;
-      }
-      function onConfirmOutside(e) { if (erdConfirmEl && !erdConfirmEl.contains(e.target)) closeConfirm(); }
-      function confirmDelete(message, label, onOk, anchorEl) {
-        closeConfirm();
-        const box = erdHtmlEl('div', 'erd-confirm');
-        box.dataset.exportSkip = '';
-        box.setAttribute('role', 'alertdialog');
-        box.setAttribute('aria-label', label);
-        box.appendChild(erdHtmlEl('div', 'erd-confirm-msg', message));
-        const row = erdHtmlEl('div', 'erd-confirm-actions');
-        const cancel = erdHtmlEl('button', 'btn erd-confirm-cancel', 'Cancel');
-        cancel.type = 'button';
-        cancel.addEventListener('click', () => closeConfirm());
-        const ok = erdHtmlEl('button', 'btn erd-confirm-delete', 'Delete');
-        ok.type = 'button';
-        ok.addEventListener('click', () => { closeConfirm(); onOk(); });
-        row.append(cancel, ok);
-        box.appendChild(row);
-        box.addEventListener('keydown', (e) => {
-          // Keys inside the bubble stay there (Delete/Backspace would open it again)
-          if (e.key === 'Escape') { e.preventDefault(); closeConfirm(); }
-          if (e.key !== 'Tab') e.stopPropagation();
-        });
-        document.body.appendChild(box);
-        erdConfirmEl = box;
-        const r = anchorEl ? anchorEl.getBoundingClientRect() : { left: innerWidth / 2, top: innerHeight / 3, bottom: innerHeight / 3 };
-        const bw = box.offsetWidth, bh = box.offsetHeight;
-        const top = r.bottom + 8 + bh > innerHeight - 8 ? r.top - 8 - bh : r.bottom + 8;
-        box.style.left = `${Math.max(8, Math.min(r.left, innerWidth - bw - 8))}px`;
-        box.style.top = `${Math.max(8, Math.min(top, innerHeight - bh - 8))}px`;
-        cancel.focus();
-        document.addEventListener('pointerdown', onConfirmOutside, true);
-      }
+      function confirmDelete(message, label, onOk, anchorEl) { ui.confirm(anchorEl, { message, label }, onOk); }
 
       function deleteSelection(anchorEl) {
         if (erdPresenting()) return;
@@ -2180,7 +2109,7 @@
         const card = noteCard(id);
         if (!card) return;
         applyNoteVisibility();
-        const text = card.querySelector('.erd-note-text');
+        const text = card.querySelector('.note-text');
         text.contentEditable = 'true';
         text.focus();
         const range = document.createRange();
@@ -2210,7 +2139,7 @@
         if (!editingNoteId) return;
         const card = noteCard(editingNoteId);
         if (card && card.contains(e.target)) return;
-        const text = card && card.querySelector('.erd-note-text'), note = noteById(editingNoteId);
+        const text = card && card.querySelector('.note-text'), note = noteById(editingNoteId);
         if (text) text.blur();
         if (text && note) commitNote(note, text);   // no-op if the blur already committed it
       }, true);
@@ -2247,10 +2176,10 @@
         ev.stopPropagation();
         ev.preventDefault();
         selectNote(noteId);
-        const line = erdSvgEl('line', { class: 'erd-note-leader linking', 'data-note-id': noteId });
+        const line = erdSvgEl('line', { class: 'note-leader linking', 'data-note-id': noteId });
         erdOverlay.appendChild(line);
         const cx = (parseFloat(card.style.left) || 0) + card.offsetWidth / 2, cy = (parseFloat(card.style.top) || 0) + card.offsetHeight / 2;
-        document.body.classList.add('erd-note-linking');
+        document.body.classList.add('note-linking');
         beginDrag(ev, {
           move(e, d) {
             const p = erdPoint(e);
@@ -2263,7 +2192,7 @@
           drop(e, d) { if (d.target) toggleNoteLink(noteId, d.target); else applyNoteVisibility(); },
           cleanup() {
             line.remove();
-            document.body.classList.remove('erd-note-linking');
+            document.body.classList.remove('note-linking');
             erdCanvas.querySelectorAll('.note-target').forEach((el) => el.classList.remove('note-target'));
           }
         });
@@ -2319,7 +2248,7 @@
       function setNotePicking(on) {
         if (notePicking === on) return;
         notePicking = on;
-        document.body.classList.toggle('erd-note-picking', on);
+        document.body.classList.toggle('note-picking', on);
         if (erdBtnAddNote) erdBtnAddNote.setAttribute('aria-pressed', String(on));
         if (on) erdHint('Click a table to add a note · <kbd>Esc</kbd> to cancel', true); else if (!relArmed) erdHint(null);
       }
@@ -2436,8 +2365,8 @@
         if (!d.ghost) {
           if (Math.hypot(e.clientX - d.startX, e.clientY - d.startY) < 4) return;
           setNotePicking(false);
-          d.ghost = erdHtmlEl('div', 'erd-note note-ghost');
-          d.ghost.appendChild(erdHtmlEl('div', 'erd-note-text', 'Note'));
+          d.ghost = erdHtmlEl('div', 'note note-ghost');
+          d.ghost.appendChild(erdHtmlEl('div', 'note-text', 'Note'));
           document.body.appendChild(d.ghost);
           document.body.classList.add('palette-dragging');
         }
@@ -2488,7 +2417,7 @@
         if (erdPresenting() || erdDrag || e.ctrlKey || e.metaKey) return;
         const a = document.activeElement;
         if (a && (a.isContentEditable || a.tagName === 'INPUT' || a.tagName === 'TEXTAREA' || (a.tagName === 'BUTTON' && e.key === 'Enter'))) return;
-        if (erdConfirmEl) return;
+        if (ui.isConfirmOpen()) return;
         const sel = erdSel;
         if ((e.key === 'Enter' || e.key === 'F2') && (sel || selectedNoteId)) { e.preventDefault(); editSelection(); return; }
         if (sel && sel.kind === 'col' && !e.altKey) {
@@ -2533,7 +2462,7 @@
       // Everything under way that Escape (or a tap on blank canvas) cancels; true when something was
       function cancelErdInteraction() {
         let did = false;
-        if (closeConfirm()) did = true;
+        if (ui.closeConfirm()) did = true;
         if (cancelDrag()) did = true;
         if (cancelTableToolDrag()) did = true;
         if (cancelNoteToolDrag()) did = true;
@@ -2684,7 +2613,7 @@
           const done = () => { render(); updateStatus(true); };
           if (!(erdAsyncOK() && erdStartJob(done))) { erdLayout(); done(); }
         },
-        report: { node: '.erd-entity', label: '.erd-rel-label', labelText: '.erd-rel-label-text', nodeText: '.erd-name' },
+        report: { node: '.erd-entity', label: '.edge-label', labelText: '.erd-rel-label-text', nodeText: '.erd-name' },
         render,
         isBackground: (el) => el === erdCanvas || el === erdSvg || el === erdOverlay || el === erdHtml || el.id === 'erd-notes',
         clearSelection() {

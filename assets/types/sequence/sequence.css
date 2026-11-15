@@ -28,7 +28,7 @@
     .seq-tint-blue { --seq-tint: var(--sw-1-line); } .seq-tint-green { --seq-tint: var(--sw-3-line); } .seq-tint-yellow { --seq-tint: var(--sw-2-line); }
     .seq-tint-red { --seq-tint: var(--sw-4-line); } .seq-tint-purple { --seq-tint: var(--sw-5-line); } .seq-tint-gray { --seq-tint: var(--sw-9-line); }
     .seq-frag-box[class*="seq-tint-"] { fill: var(--seq-tint); fill-opacity: 0.07; stroke: color-mix(in srgb, var(--seq-tint) 45%, var(--border-dark)); }
-    .seq-frag-label[class*="seq-tint-"] { background: color-mix(in srgb, var(--seq-tint) 18%, var(--bg-panel)); border-color: color-mix(in srgb, var(--seq-tint) 45%, var(--border-dark)); }
+    .frame-tag[class*="seq-tint-"] { background: color-mix(in srgb, var(--seq-tint) 18%, var(--bg-panel)); border-color: color-mix(in srgb, var(--seq-tint) 45%, var(--border-dark)); }
     .seq-frag-box.selected[class*="seq-tint-"] { stroke: var(--primary); }
     .seq-frag-else { stroke: var(--border-dark); stroke-width: 1.5; stroke-dasharray: 6 4; }
     #seq-drop-line { stroke: var(--primary); stroke-width: 2; stroke-dasharray: 5 4; display: none; }
@@ -51,12 +51,6 @@
     .seq-msg-label.is-self { transform: none; }
     .seq-msg-label.selected { color: var(--primary); font-weight: var(--weight-semibold); }
     .seq-msg-label-text { outline: none; }
-    .seq-frag-label {
-      position: absolute; height: 22px; line-height: var(--line-22); padding: 0 10px 0 8px; font-size: var(--t-detail-size); white-space: nowrap;
-      background: var(--bg-soft); border: 1.5px solid var(--border-dark); border-radius: var(--radius-sm) var(--radius-2xl) var(--radius-sm) var(--radius-sm);
-      color: var(--text-main); cursor: pointer; user-select: none;
-    }
-    .seq-frag-label.selected { border-color: var(--primary); color: var(--primary); }
     .seq-frag-kind { font-weight: var(--weight-bold); text-transform: lowercase; margin-right: 6px; }
     .seq-frag-text { outline: none; color: var(--text-soft); }
     .seq-frag-else-label { position: absolute; font-size: var(--t-detail-size); font-weight: var(--weight-semibold); color: var(--text-soft); user-select: none; }
@@ -68,21 +62,6 @@
     .seq-branch-text { outline: none; }
     .seq-frag-branch-label.selected { color: var(--primary); }
     .seq-frag-else.selected { stroke: var(--primary); stroke-width: 2; }
-    /* Collapse chevron in every frame tag; a collapsed frame shows one summary row instead of its messages */
-    .seq-frag-chev {
-      display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; margin: 0 4px 0 -2px;
-      padding: 0; border: none; border-radius: var(--radius-sm); background: transparent; color: var(--text-soft); cursor: pointer;
-      vertical-align: -3px;
-    }
-    .seq-frag-chev:hover { background: var(--bg-hover); color: var(--text-main); }
-    .seq-frag-chev svg { transition: transform var(--ease); }
-    .seq-frag-label.is-collapsed .seq-frag-chev svg { transform: rotate(-90deg); }
-    .seq-frag-summary {
-      position: absolute; height: 26px; padding: 0 12px; border: 1.5px dashed var(--border-dark); border-radius: var(--radius-pill);
-      background: var(--bg-panel); color: var(--text-soft); font: inherit; font-size: var(--t-detail-size); font-weight: var(--weight-semibold);
-      white-space: nowrap; cursor: pointer;
-    }
-    .seq-frag-summary:hover { border-color: var(--primary); color: var(--primary); }
     /* Focus: collapse the other phases (the participants they leave become rails) */
     .seq-frag-focus {
       display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; margin: 0 -4px 0 6px;
@@ -93,8 +72,8 @@
     .seq-frag-focus[aria-pressed="true"] { background: var(--primary-wash); color: var(--primary); }
     #btn-show-all[hidden] { display: none; }
     /* Screenshots and exports of an expanded frame look as they did before frames could collapse */
-    body.capture .seq-frag-label:not(.is-collapsed) .seq-frag-chev,
-    body.exporting .seq-frag-label:not(.is-collapsed) .seq-frag-chev,
+    body.capture .frame-tag:not(.is-collapsed) .frame-chev,
+    body.exporting .frame-tag:not(.is-collapsed) .frame-chev,
     body.capture .seq-frag-focus, body.exporting .seq-frag-focus { display: none; }
     /* Message details (payload) under the arrow, and step numbers before the label */
     .seq-msg-detail {
@@ -160,20 +139,16 @@
     .seq-participant.is-gone { opacity: 0; pointer-events: none; }
     body.exporting .seq-participant.is-gone, body.capture .seq-participant.is-gone { opacity: 1 !important; }
     .seq-lifeline.is-rail { stroke-dasharray: 2 5; opacity: 0.6; }
-    /* Notes: a folded paper card over one lifeline, or stretched over two */
-    .seq-note {
-      position: absolute; box-sizing: border-box; padding: 10px; font-size: var(--t-detail-size); line-height: var(--line-17); white-space: pre;
-      overflow: hidden; color: var(--note-ink); background: var(--note-bg); border: 1px solid var(--note-border);
-      border-radius: var(--radius-xs) var(--radius-xl) var(--radius-xs) var(--radius-xs); cursor: pointer; user-select: none; touch-action: none; text-align: left;
-      box-shadow: var(--shadow-sm);
-    }
-    .seq-note-text { outline: none; }
-    .seq-note.selected { border-color: var(--primary); box-shadow: var(--shadow-ring); }
-    body.presentation .seq-participant, body.presentation .seq-msg-label, body.presentation .seq-frag-label,
-    body.presentation .seq-msg-hit, body.presentation .seq-msg-detail, body.presentation .seq-note,
+    /* Notes: the shared card (components/note.css) over one lifeline, or stretched over two. The engine sizes it, so the text
+       keeps the engine's line breaks, and the 3px accent edge comes out of the left padding to leave the text area as measured. */
+    #seq-canvas .note { padding: 10px 10px 10px 8px; line-height: var(--line-17); overflow: hidden; cursor: pointer; touch-action: none; }
+    #seq-canvas .note-text { white-space: pre; min-height: 0; }
+    #seq-canvas .note.dragging { opacity: 0.75; z-index: 20; }
+    body.presentation .seq-participant, body.presentation .seq-msg-label, body.presentation .frame-tag,
+    body.presentation .seq-msg-hit, body.presentation .seq-msg-detail, body.presentation .note,
     body.presentation .seq-frag-hit, body.presentation .seq-div-hit, body.presentation .seq-frag-branch-label { pointer-events: none !important; cursor: default; }
     /* In ?present the chevron and the summary row stay live: they walk an audience through the flow phase by phase */
-    body.presentation .seq-frag-chev, body.presentation .seq-frag-summary, body.presentation .seq-frag-focus { pointer-events: auto; }
+    body.presentation .frame-chev, body.presentation .frame-summary, body.presentation .seq-frag-focus { pointer-events: auto; }
     /* Pinned participant row (see pinParticipants): the boxes ride over an opaque band at the viewport's top */
     .seq-pin-band {
       display: none; position: absolute; left: 0; right: 0; top: var(--pin-top, 0px); height: var(--pin-h, 72px); z-index: 5;
@@ -189,8 +164,6 @@
     /* "linked" is one of the shell's transient classes, so an export drops it */
     .seq-participant.linked { border-color: var(--primary); box-shadow: var(--shadow-ring); }
     body.exporting .is-dim { opacity: 1 !important; }
-    /* View toggles in the dock: pressed while on */
-    .seq-toggle[aria-pressed="true"] { background: var(--primary-wash); border-color: var(--primary-ring); color: var(--primary); }
     /* Editing tools on the selection: never exported ([data-export-skip]), hidden in ?present and while dragging */
     #seq-rubber { stroke: var(--primary); stroke-width: 2; stroke-dasharray: 6 4; display: none; }
     .seq-lifeline.is-target { stroke: var(--primary); stroke-width: 2.5; stroke-dasharray: none; }
@@ -226,31 +199,14 @@
     .seq-handle.seq-end { cursor: grab; }
     .seq-handle.seq-edge { width: 22px; height: 10px; margin: -5px 0 0 -11px; border-radius: var(--radius-md); cursor: ns-resize; }
     .seq-handle.seq-stretch { width: 10px; height: 22px; margin: -11px 0 0 -5px; border-radius: var(--radius-md); cursor: ew-resize; }
-    .seq-hint {
-      position: fixed; left: 50%; bottom: 76px; transform: translateX(-50%); z-index: 150; padding: 6px 12px; border-radius: var(--radius-pill);
-      border: 1px solid var(--border-dark); background: var(--bg-panel); color: var(--text-main); font-size: var(--t-control-size); font-weight: var(--t-control-weight);
-      box-shadow: var(--shadow-md); max-width: calc(100vw - 32px); text-align: center;
-    }
     .seq-add-branch {
       position: absolute; height: 22px; padding: 0 9px; transform: translateY(-50%); z-index: 9; border-radius: var(--radius-pill);
       border: 1.5px solid var(--primary); background: var(--bg-panel); color: var(--primary); font: inherit; font-size: var(--t-detail-size);
       font-weight: var(--weight-semibold); cursor: pointer; white-space: nowrap;
     }
     .seq-marquee { position: absolute; border: 1.5px dashed var(--primary); background: var(--primary-wash); pointer-events: none; z-index: 9; }
-    .seq-note.dragging { opacity: 0.75; z-index: 20; }
     .seq-msg-detail.is-editing, .seq-frag-branch-label.is-editing { min-width: 60px; background: var(--bg-panel); outline: 1.5px solid var(--primary-ring); border-radius: var(--radius-xs); }
     body.seq-dragging .seq-actionbar, body.seq-dragging .seq-add-branch, body.seq-dragging .seq-insert { display: none !important; }
     body.presentation .seq-actionbar, body.presentation .seq-handle, body.presentation .seq-plus, body.presentation .seq-insert,
     body.presentation .seq-add-branch { display: none !important; }
-    /* Delete a participant with messages: confirmed in a bubble */
-    .seq-confirm {
-      position: fixed; z-index: 2000; width: 260px; box-sizing: border-box; padding: 14px 14px 12px; border-radius: var(--radius-xl);
-      border: 1px solid var(--border-dark); background: var(--bg-panel); color: var(--text-main);
-      box-shadow: var(--shadow-xl); font-size: var(--t-control-size); line-height: var(--t-control-leading);
-    }
-    .seq-confirm-msg { font-weight: var(--weight-semibold); margin-bottom: 12px; overflow-wrap: anywhere; }
-    .seq-confirm-actions { display: flex; justify-content: flex-end; gap: 8px; }
-    .seq-confirm .btn { padding: 6px 12px; font-size: var(--t-control-size); }
-    .seq-confirm-delete { background: var(--danger); border-color: var(--danger); color: var(--on-danger); }
-    .seq-confirm-delete:hover { filter: brightness(0.92); background: var(--danger); color: var(--on-danger); }
     body.capture #seq-canvas { margin: 0; padding: 12px; border: none; border-radius: 0; box-shadow: none; }

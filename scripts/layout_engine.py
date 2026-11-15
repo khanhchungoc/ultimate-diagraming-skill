@@ -1147,6 +1147,20 @@ def artifact_template(shell_html: str) -> str:
     return ARTIFACT_HEAD + "\n" + title[0].lstrip() + m["guide"] + head + m["body"] + ARTIFACT_END_MARKER + "\n" + ARTIFACT_TAIL
 
 
+# Shared component styles (assets/components/<name>.css), in cascade order. The dock comes before the buttons because
+# its `.toolbar-center .btn` rules and `.btn:disabled` have equal weight and the disabled look must win; toggle comes
+# after both so a pressed toggle wins inside the dock.
+COMPONENTS = ("dock", "badge", "button", "toggle", "toast", "hint", "popover", "note", "swatch", "edge", "frame")
+
+
+def components_css() -> str:
+    """The component stylesheets joined in COMPONENTS order; a file missing from the list or the list naming a missing file fails loudly."""
+    found = {f.stem for f in (ASSETS_DIR / "components").glob("*.css")}
+    if found != set(COMPONENTS):
+        raise FileNotFoundError(f"assets/components must hold exactly {sorted(COMPONENTS)}; found {sorted(found)}")
+    return "\n".join(_read_asset(ASSETS_DIR / "components" / f"{n}.css").rstrip(chr(10)) for n in COMPONENTS)
+
+
 def assemble_page(kind: str, data: Optional[Dict[str, Any]] = None, target: str = "file") -> str:
     """Build one standalone HTML page: shared shell + the diagram type's plugin, with `data` embedded.
     target "file" is the page as saved on disk; "artifact" is the same page in the claude.ai Artifact shape."""
@@ -1168,6 +1182,7 @@ def assemble_page(kind: str, data: Optional[Dict[str, Any]] = None, target: str 
         "PAGE_TITLE": html.escape(str(data.get("title") or meta["title"]), quote=False),
         "TOKENS_CSS": tokens_css(tokens),
         "FONT_HREF": html.escape(tokens["font"]["href"]),
+        "COMPONENTS_CSS": components_css(),
         "SHELL_CSS": _read_asset(ASSETS_DIR / "shell" / "shell.css").rstrip(chr(10)),
         "TYPE_CSS": _read_asset(type_dir / f"{kind}.css").rstrip(chr(10)),
         "TYPE_TOOLBAR": _read_asset(type_dir / "toolbar.html").rstrip(chr(10)),

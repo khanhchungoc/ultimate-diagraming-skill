@@ -136,8 +136,8 @@
         const s = lr.width / last.offsetWidth || 1;   // current zoom
         let reach = -Infinity;
         const take = el => { const r = el.getBoundingClientRect(); if (r.width || r.height) reach = Math.max(reach, tb ? r.right : r.bottom); };
-        edgeGroup.querySelectorAll('.connector-path').forEach(take);
-        edgeLabelsGroup.querySelectorAll('.edge-label-container.has-label').forEach(take);
+        edgeGroup.querySelectorAll('.edge-line').forEach(take);
+        edgeLabelsGroup.querySelectorAll('.edge-label.has-label').forEach(take);
         if (reach === -Infinity) return 0;
         const base = (tb ? lr.right : lr.bottom) - outerExtra * s;   // outer edge without the extra
         const need = (reach - base) / s + OUTER_CLEAR;
@@ -299,7 +299,7 @@
             if (chartData.lanes.length > 1) {
               const del = document.createElement('button');
               del.type = 'button';
-              del.className = 'lane-tool lane-tool-delete';
+              del.className = 'lane-tool lane-tool-delete btn-danger-hover';
               del.draggable = false;
               del.dataset.tip = 'Delete swimlane (with its steps)';
               del.setAttribute('aria-label', 'Delete swimlane');
@@ -721,7 +721,7 @@
         let hint = document.querySelector('.flow-hint');
         if (!hint) {
           hint = document.createElement('div');
-          hint.className = 'note-pick-hint flow-hint';
+          hint.className = 'hint hint-note flow-hint';
           hint.setAttribute('role', 'status');
           hint.dataset.exportSkip = '';
           document.body.appendChild(hint);
@@ -2392,7 +2392,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
 
           const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
           path.setAttribute('d', pathD.path);
-          path.setAttribute('class', edge.id === selectedEdgeId ? 'connector-path selected' : 'connector-path');
+          path.setAttribute('class', edge.id === selectedEdgeId ? 'edge-line selected' : 'edge-line');
           path.dataset.edgeId = edge.id;
           path.dataset.from = edge.from;   // ends, so a test can find an arrow by its steps (saved ids may differ)
           path.dataset.to = edge.to;
@@ -2407,14 +2407,14 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
             e.stopPropagation();
             selectEdge(edge.id, false);
             // Reuse the label's own double-click handler (makes it editable, clears the "+" placeholder)
-            const labelBox = document.querySelector(`.edge-label-container[data-edge-id="${edge.id}"]`);
+            const labelBox = document.querySelector(`.edge-label[data-edge-id="${edge.id}"]`);
             if (labelBox) labelBox.dispatchEvent(new MouseEvent('dblclick', { bubbles: false }));
           });
 
           // Wide invisible hit area so thin arrows are easy to click and select
           const hit = document.createElementNS('http://www.w3.org/2000/svg', 'path');
           hit.setAttribute('d', pathD.path);
-          hit.setAttribute('class', 'connector-hit');
+          hit.setAttribute('class', 'edge-hit');
           hit.addEventListener('click', (e) => { e.stopPropagation(); selectEdge(edge.id); });
           hit.addEventListener('dblclick', (e) => path.dispatchEvent(new MouseEvent('dblclick', { bubbles: false })));
           edgeGroup.appendChild(hit);
@@ -2423,7 +2423,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           // Edge Label Pill
           if (pathD.midX !== undefined && pathD.midY !== undefined) {
             const labelContainer = document.createElement('div');
-            labelContainer.className = 'edge-label-container';
+            labelContainer.className = 'edge-label';
             labelContainer.dataset.edgeId = edge.id;
             labelContainer.style.pointerEvents = 'auto';
             labelContainer.style.left = `${pathD.midX}px`;
@@ -2580,16 +2580,16 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
       // Hovering a node highlights every arrow touching it (and its label): amber for those entering the
       // node, green for those leaving it (a self-loop counts as leaving)
       function applyNodeHover() {
-        document.querySelectorAll('.connector-path, .edge-label-container').forEach(el => el.classList.remove('hl-in', 'hl-out'));
-        document.querySelectorAll('.connector-path').forEach(p => {
+        document.querySelectorAll('.edge-line, .edge-label').forEach(el => el.classList.remove('hl-in', 'hl-out'));
+        document.querySelectorAll('.edge-line').forEach(p => {
           p.setAttribute('marker-end', p.dataset.edgeId === selectedEdgeId ? 'url(#arrowhead-selected)' : 'url(#arrowhead)');
         });
         if (!hoveredNodeId) return;
         chartData.edges.forEach(edge => {
           const kind = edge.from === hoveredNodeId ? 'out' : edge.to === hoveredNodeId ? 'in' : null;
           if (!kind) return;
-          const path = document.querySelector(`.connector-path[data-edge-id="${edge.id}"]`);
-          const label = document.querySelector(`.edge-label-container[data-edge-id="${edge.id}"]`);
+          const path = document.querySelector(`.edge-line[data-edge-id="${edge.id}"]`);
+          const label = document.querySelector(`.edge-label[data-edge-id="${edge.id}"]`);
           if (path) {
             path.classList.add('hl-' + kind);
             path.setAttribute('marker-end', `url(#arrowhead-${kind})`);
@@ -3080,7 +3080,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         selectEdge(newEdge.id);
 
         setTimeout(() => {
-          const labelTextEl = document.querySelector(`.edge-label-container[data-edge-id="${newEdge.id}"] .edge-label-text`);
+          const labelTextEl = document.querySelector(`.edge-label[data-edge-id="${newEdge.id}"] .edge-label-text`);
           if (labelTextEl) {
             labelTextEl.focus();
             const range = document.createRange();
@@ -3134,64 +3134,19 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
 
       // Deleting a lane also deletes its steps, so it is confirmed first: a small popover under the delete button
       // (or under the lane's pill for the Delete key). Escape, Cancel, a click elsewhere or a pan/zoom dismisses it.
-      let laneConfirmEl = null;
-      function closeLaneConfirm() {
-        if (!laneConfirmEl) return false;
-        laneConfirmEl.remove();
-        laneConfirmEl = null;
-        document.removeEventListener('pointerdown', onLaneConfirmOutside, true);
-        return true;
-      }
-      function onLaneConfirmOutside(e) {
-        if (laneConfirmEl && !laneConfirmEl.contains(e.target)) closeLaneConfirm();
-      }
       function confirmDeleteLane(laneId, anchorEl) {
-        closeLaneConfirm();
+        ui.closeConfirm();
         const lane = chartData.lanes.find(l => l.id === laneId);
         if (!lane || chartData.lanes.length <= 1) return;
         const steps = chartData.nodes.filter(n => n.laneId === laneId).length;
-        const box = document.createElement('div');
-        box.className = 'lane-confirm';
-        box.dataset.exportSkip = '';
-        box.setAttribute('role', 'alertdialog');
-        box.setAttribute('aria-label', 'Delete swimlane');
-        const title = document.createElement('div');
-        title.className = 'lane-confirm-title';
-        title.textContent = `Delete \u201c${lane.name}\u201d?`;
-        const msg = document.createElement('div');
-        msg.className = 'lane-confirm-msg';
-        msg.textContent = steps ? `Its ${steps} step${steps === 1 ? '' : 's'} and their arrows will be deleted too.` : 'This lane is empty.';
-        const row = document.createElement('div');
-        row.className = 'lane-confirm-actions';
-        const cancel = document.createElement('button');
-        cancel.type = 'button';
-        cancel.className = 'btn lane-confirm-cancel';
-        cancel.textContent = 'Cancel';
-        cancel.addEventListener('click', () => closeLaneConfirm());
-        const ok = document.createElement('button');
-        ok.type = 'button';
-        ok.className = 'btn lane-confirm-delete';
-        ok.textContent = 'Delete lane';
-        ok.addEventListener('click', () => { closeLaneConfirm(); deleteLane(laneId); });
-        row.append(cancel, ok);
-        box.append(title, msg, row);
-        box.addEventListener('keydown', (e) => {
-          // Keep keys inside the popover from reaching the shell (Delete/Backspace would re-open it)
-          if (e.key === 'Escape') { e.preventDefault(); closeLaneConfirm(); }
-          if (e.key !== 'Tab') e.stopPropagation();
-        });
-        document.body.appendChild(box);
-        laneConfirmEl = box;
         // Under the anchor (a delete button, else the lane's pill), or above it when there is no room below
         // (the dock's Delete sits at the bottom of the window); kept on screen
-        const anchor = anchorEl || lanesRoot.querySelector(`.swimlane[data-lane-id="${laneId}"] .lane-pill`);
-        const r = anchor ? anchor.getBoundingClientRect() : { left: innerWidth / 2, top: innerHeight / 3, bottom: innerHeight / 3 };
-        const bw = box.offsetWidth, bh = box.offsetHeight;
-        const top = r.bottom + 8 + bh > innerHeight - 8 ? r.top - 8 - bh : r.bottom + 8;
-        box.style.left = `${Math.max(8, Math.min(r.left, innerWidth - bw - 8))}px`;
-        box.style.top = `${Math.max(8, Math.min(top, innerHeight - bh - 8))}px`;
-        cancel.focus();
-        document.addEventListener('pointerdown', onLaneConfirmOutside, true);
+        ui.confirm(anchorEl || lanesRoot.querySelector(`.swimlane[data-lane-id="${laneId}"] .lane-pill`), {
+          title: `Delete \u201c${lane.name}\u201d?`,
+          message: steps ? `Its ${steps} step${steps === 1 ? '' : 's'} and their arrows will be deleted too.` : 'This lane is empty.',
+          label: 'Delete swimlane',
+          ok: 'Delete lane',
+        }, () => deleteLane(laneId));
       }
 
       function selectNode(nodeId) {
@@ -3201,8 +3156,8 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         selectedNoteId = null;
         if (selectedLaneId) { selectedLaneId = null; markSelectedLane(); }
         markSelectedNodes();
-        document.querySelectorAll('.connector-path').forEach(p => p.classList.remove('selected'));
-        document.querySelectorAll('.edge-label-container').forEach(c => c.classList.remove('selected'));
+        document.querySelectorAll('.edge-line').forEach(p => p.classList.remove('selected'));
+        document.querySelectorAll('.edge-label').forEach(c => c.classList.remove('selected'));
         applyNoteVisibility();   // a selected node shows its note
       }
 
@@ -3311,12 +3266,12 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         if (reRender) {
           renderEdges();
         } else {
-          document.querySelectorAll('.connector-path').forEach(p => {
+          document.querySelectorAll('.edge-line').forEach(p => {
             const isMatch = (p.dataset.edgeId === edgeId);
             p.classList.toggle('selected', isMatch);
             p.setAttribute('marker-end', isMatch ? 'url(#arrowhead-selected)' : 'url(#arrowhead)');
           });
-          document.querySelectorAll('.edge-label-container').forEach(c => {
+          document.querySelectorAll('.edge-label').forEach(c => {
             c.classList.toggle('selected', c.dataset.edgeId === edgeId);
           });
         }
@@ -3458,10 +3413,10 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
 
       function setInsertTarget(t, text = '+ Insert step') {
         insertTarget = t;
-        edgeGroup.querySelectorAll('.connector-path.insert-target').forEach(p => p.classList.remove('insert-target'));
+        edgeGroup.querySelectorAll('.edge-line.insert-target').forEach(p => p.classList.remove('insert-target'));
         const hint = document.getElementById('insert-hint');
         if (!t) { if (hint) hint.style.display = 'none'; return; }
-        const path = [...edgeGroup.querySelectorAll('.connector-path')].find(p => p.dataset.edgeId === t.edgeId);
+        const path = [...edgeGroup.querySelectorAll('.edge-line')].find(p => p.dataset.edgeId === t.edgeId);
         if (path) path.classList.add('insert-target');
         if (hint) {
           hint.textContent = text;
@@ -3966,7 +3921,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         const off = trackOffset();
         const gutter = isTB() ? { x: 0, y: 0, w: W, h: off } : { x: 0, y: 0, w: off, h: H };
         const nodeBoxes = chartData.nodes.map(n => nodeElOf(n.id)).filter(Boolean).map(containerBox);
-        const labelBoxes = [...edgeLabelsGroup.querySelectorAll('.edge-label-container.has-label')].map(containerBox);
+        const labelBoxes = [...edgeLabelsGroup.querySelectorAll('.edge-label.has-label')].map(containerBox);
         const segs = [];
         Object.values(lastRoutes).forEach(r => {
           const p = r && r.points;
@@ -4074,7 +4029,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           if (!note) return;
           el.classList.toggle('show', all);
           el.classList.toggle('peek', notePeeked(note));
-          if (el.classList.contains('flow-note')) el.classList.toggle('selected', note.id === selectedNoteId);
+          if (el.classList.contains('note')) el.classList.toggle('selected', note.id === selectedNoteId);
         });
         // The selected note's steps are outlined, so it is clear which ones it explains
         const sel = selectedNoteId && noteById(selectedNoteId);
@@ -4127,59 +4082,21 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
       }
 
       function buildNoteCard(note) {
-        const card = document.createElement('div');
-        card.className = 'flow-note';
-        card.dataset.noteId = note.id;
+        const { card, text } = ui.noteCard(note, {
+          onDelete: () => removeNote(note.id),
+          onLink: (e) => startNoteLink(e, note.id, card),
+          linkTitle: 'Link to another step: drag onto it (onto a linked step to unlink; or Shift+click the step)',
+          icons: { del: NOTE_DEL_ICON, link: NOTE_LINK_ICON },
+          onCommit: (el) => commitNote(note, el),
+          // the card grows as it is typed into: keep its leaders attached
+          onInput: () => { noteSizes[note.id] = { w: card.offsetWidth, h: card.offsetHeight }; positionNotes(); },
+        });
         card.dataset.nodes = (note.nodes || []).join(' ');
-        const text = document.createElement('div');
-        text.className = 'note-text';
-        text.spellcheck = false;
-        text.dataset.placeholder = 'Add a note…';
-        text.textContent = note.text || '';
-        card.appendChild(text);
-
-        const tool = (cls, title, icon) => {
-          const b = document.createElement('button');
-          b.type = 'button';
-          b.className = cls;
-          b.title = title;
-          b.setAttribute('aria-label', title);
-          b.setAttribute('data-export-skip', '');
-          b.innerHTML = icon;
-          card.appendChild(b);
-          return b;
-        };
-        const del = tool('note-del', 'Delete note', NOTE_DEL_ICON);
-        del.addEventListener('pointerdown', (e) => e.stopPropagation());
-        del.addEventListener('click', (e) => { e.stopPropagation(); removeNote(note.id); });
-        const link = tool('note-link', 'Link to another step: drag onto it (onto a linked step to unlink; or Shift+click the step)', NOTE_LINK_ICON);
-        link.addEventListener('pointerdown', (e) => startNoteLink(e, note.id, card));
-        link.addEventListener('click', (e) => e.stopPropagation());
-
         card.addEventListener('pointerdown', (e) => onNotePointerDown(e, note.id, card));
         card.addEventListener('dblclick', (e) => { e.stopPropagation(); editNote(note.id); });
         card.addEventListener('click', (e) => e.stopPropagation());
         card.addEventListener('mouseenter', () => { if ((note.nodes || []).includes(peekNodeId)) clearTimeout(peekTimer); });
         card.addEventListener('mouseleave', () => { if (peekNodeId) unpeekSoon(peekNodeId); });
-
-        // Plain text only. Enter starts a new line; Ctrl/Cmd+Enter, Esc or clicking away finishes.
-        text.addEventListener('paste', (e) => {
-          e.preventDefault();
-          document.execCommand('insertText', false, (e.clipboardData || window.clipboardData).getData('text/plain'));
-        });
-        text.addEventListener('keydown', (e) => {
-          if (e.key === 'Enter' && !(e.ctrlKey || e.metaKey)) {
-            e.preventDefault();   // a plain line break, not the <div> the browser would wrap the new line in
-            document.execCommand('insertLineBreak');
-          } else if (e.key === 'Escape' || e.key === 'Enter') {
-            // Commit directly too: blur() fires no blur event while the window itself is not focused
-            e.preventDefault(); e.stopPropagation(); text.blur(); commitNote(note, text);
-          }
-        });
-        text.addEventListener('input', () => {   // the card grows as it is typed into: keep its leaders attached
-          noteSizes[note.id] = { w: card.offsetWidth, h: card.offsetHeight };
-          positionNotes();
-        });
         text.addEventListener('blur', () => commitNote(note, text));
         return card;
       }
@@ -4402,7 +4319,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         let hint = document.querySelector('.note-pick-hint');
         if (on && !hint) {
           hint = document.createElement('div');
-          hint.className = 'note-pick-hint';
+          hint.className = 'hint hint-note note-pick-hint';
           hint.setAttribute('role', 'status');
           hint.innerHTML = 'Click a step to add a note · <kbd>Esc</kbd> to cancel';
           document.body.appendChild(hint);
@@ -4452,7 +4369,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           if (Math.hypot(e.clientX - d.startX, e.clientY - d.startY) < 4) return;
           setNotePicking(false);
           d.ghost = document.createElement('div');
-          d.ghost.className = 'flow-note note-ghost';
+          d.ghost.className = 'note note-ghost';
           d.ghost.innerHTML = '<div class="note-text">Note</div>';
           document.body.appendChild(d.ghost);
           document.body.classList.add('palette-dragging');
@@ -4503,7 +4420,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         let hint = document.querySelector('.connector-pick-hint');
         if (on && !hint) {
           hint = document.createElement('div');
-          hint.className = 'note-pick-hint connector-pick-hint';
+          hint.className = 'hint hint-note note-pick-hint connector-pick-hint';
           hint.setAttribute('role', 'status');
           hint.dataset.exportSkip = '';
           hint.innerHTML = 'Click an arrow to break it into a connector pair · <kbd>Esc</kbd> to cancel';
@@ -4690,7 +4607,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         toDisk,
         fromDisk,
         contentEl: swimlanesContainer,
-        report: { node: '.flow-node', label: '.edge-label-container', labelText: '.edge-label-text', nodeText: '.node-label' },
+        report: { node: '.flow-node', label: '.edge-label', labelText: '.edge-label-text', nodeText: '.node-label' },
         render,
         isBackground: (el) => el.id === 'swimlanes-container' || el.classList.contains('lane-track') || el.classList.contains('lane-gutter'),
         clearSelection() {
@@ -4720,7 +4637,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         },
         selectAll() { setNodeSelection(chartData.nodes.map(n => n.id), selectedNodeId); },
         cancelInteraction() {
-          if (closeLaneConfirm()) return true;
+          if (ui.closeConfirm()) return true;
           const wasConnecting = !!connectingFromNodeId;
           cancelConnecting();
           const wasPicking = notePicking || connectorPicking;
@@ -4728,7 +4645,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           setConnectorPicking(false);
           return cancelNoteLink() || cancelNoteToolDrag() || cancelConnectorToolDrag() || cancelNoteDrag() || cancelPaletteDrag() || wasConnecting || wasPicking;
         },
-        onViewChange() { closeLaneConfirm(); pinLaneHeaders(); },
+        onViewChange() { ui.closeConfirm(); pinLaneHeaders(); },
         // Notes on show may sit in the margin outside the lanes: Fit and screenshots take them in (peeked ones
         // are transient and do not count)
         contentOverflow() {

@@ -461,42 +461,6 @@
     .t-overline { font-family: var(--t-overline-family); font-size: var(--t-overline-size); font-weight: var(--t-overline-weight); line-height: var(--t-overline-leading); letter-spacing: var(--t-overline-tracking); }
     .t-code { font-family: var(--t-code-family); font-size: var(--t-code-size); font-weight: var(--t-code-weight); line-height: var(--t-code-leading); letter-spacing: var(--t-code-tracking); }
     .t-control { font-family: var(--t-control-family); font-size: var(--t-control-size); font-weight: var(--t-control-weight); line-height: var(--t-control-leading); letter-spacing: var(--t-control-tracking); }
-
-
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      user-select: none;
-    }
-
-    body {
-      font-family: var(--font-ui);
-      background-color: var(--bg-page);
-      color: var(--text-main);
-      overflow: hidden;
-      width: 100vw;
-      height: 100vh;
-      height: 100dvh;
-      display: flex;
-      flex-direction: column;
-    }
-    /* Form controls and kbd do not inherit the page font by default (buttons fall back to Arial, kbd to monospace) */
-    button, input, select, textarea, kbd { font-family: inherit; }
-
-    /* Top Navigation Toolbar */
-    header {
-      background: var(--bg-panel);
-      border-bottom: 1px solid var(--border-color);
-      height: 56px;
-      padding: 0 16px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      z-index: 100;
-      box-shadow: var(--shadow-sm);
-    }
-
     /* Floating docks (add controls, zoom): one pill style so they read as the same family */
     /* Shared invisible container: zoom sits left, add dock centred; on narrow screens they stack full width */
     .dock-area {
@@ -694,39 +658,22 @@
       font-variant-numeric: tabular-nums;
     }
 
-    .toolbar-left, .toolbar-right {
-      display: flex;
-      align-items: center;
-      gap: 10px;
+    /* Narrow screens (a shared link opened on a phone): icon-only docks */
+    @media (max-width: 720px) {
+      .dock-area { left: 12px; right: 12px; bottom: 12px; grid-template-columns: 1fr; }
+      .toolbar-center { grid-column: 1; grid-row: 1; justify-content: space-evenly; }
+      .toolbar-center > .btn, .toolbar-center > .dock-pop-wrap { flex: 1 1 0; justify-content: center; }
+      .dock-pop-wrap > .dock-pop-trigger { flex: 1 1 auto; justify-content: center; }
+      .toolbar-center > .dock-delete:not(.show) { flex: 0 0 0; }
+      .toolbar-zoom { grid-column: 1; grid-row: 2; }
     }
-    .toolbar-left > svg { flex: none; }
-
-    .app-title-container {
-      display: flex;
-      align-items: baseline;
-      gap: 8px;
-      min-width: 0;
+    /* Medium widths: keep one row, but centre the add dock in the space right of the zoom dock instead of on the
+       viewport, so the two never collide. If the add dock still runs out of room, its buttons wrap inside it. */
+    @media (min-width: 721px) and (max-width: 1100px) {
+      .dock-area { grid-template-columns: auto minmax(0, 1fr); }
+      .toolbar-zoom { grid-column: 1; grid-row: 1; }
+      .toolbar-center { grid-column: 2; grid-row: 1; justify-self: center; }
     }
-
-    h1#chart-title {
-      font-size: var(--text-2xl);
-      font-weight: var(--weight-bold);
-      color: var(--text-main);
-      outline: none;
-      padding: 2px 6px;
-      border-radius: var(--radius-sm);
-      border: 1px solid transparent;
-      user-select: text;
-      min-width: 0;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-    h1#chart-title:focus, h1#chart-title:hover {
-      border-color: var(--border-dark);
-      background: var(--bg-page);
-    }
-
     .badge {
       font-size: var(--text-sm);
       font-weight: var(--weight-semibold);
@@ -746,6 +693,19 @@
       color: var(--status-unsaved-text);
     }
 
+    /* A count or mode word inside a button (Notes: 3, Columns: Keys); turns solid while its button is pressed (toggle.css) */
+    .btn-count {
+      min-width: 16px;
+      padding: 0 4px;
+      box-sizing: border-box;
+      border-radius: var(--radius-pill);
+      background: var(--bg-soft);
+      color: var(--text-soft);
+      font-size: var(--text-xs);
+      line-height: var(--line-16);
+      text-align: center;
+    }
+    .btn-count[hidden] { display: none; }
     /* Buttons */
     .btn {
       display: inline-flex;
@@ -793,17 +753,458 @@
       border-color: var(--success);
     }
 
-    /* Keyboard focus: visible on every control, in both themes */
-    .btn:focus-visible,
-    .help-close:focus-visible,
-    h1#chart-title:focus-visible {
+    .btn-icon {
+      padding: 6px 10px;
+      font-size: var(--text-lg);
+    }
+
+    .btn[hidden] { display: none; }
+
+    /* Keyboard focus: visible on every button, in both themes */
+    .btn:focus-visible {
       outline: 2px solid var(--primary);
       outline-offset: 2px;
     }
 
-    .btn-icon {
-      padding: 6px 10px;
-      font-size: var(--text-lg);
+    /* Solid red: the button that confirms a deletion */
+    .btn-danger {
+      background: var(--danger);
+      border-color: var(--danger);
+      color: var(--on-danger);
+    }
+    .btn-danger:hover { filter: brightness(0.92); background: var(--danger); color: var(--on-danger); }
+    /* Neutral until pointed at, then solid red: the small round delete chips (note, lane) */
+    .btn-danger-hover:hover { background: var(--danger); border-color: var(--danger); color: var(--on-danger); }
+    /* Pressed toggle (dock buttons that switch a view on, such as Notes, Types, Numbers): tinted while aria-pressed is true */
+    .btn[aria-pressed="true"] {
+      background: var(--primary-wash);
+      border-color: var(--primary-ring);
+      color: var(--primary);
+    }
+    .btn[aria-pressed="true"] .btn-count { background: var(--primary); color: var(--bg-panel); }
+
+    /* Sliding switch (Auto-Tidy in the dock): knob right and track filled while aria-checked is true */
+    .btn-switch .switch-track {
+      position: relative;
+      width: 28px; height: 16px;
+      flex: none;
+      border-radius: var(--radius-pill);
+      background: var(--border-dark);
+      transition: background-color 0.18s;
+    }
+    .btn-switch .switch-knob {
+      position: absolute;
+      top: 2px; left: 2px;
+      width: 12px; height: 12px;
+      border-radius: var(--radius-round);
+      background: var(--toggle-knob);   /* white in both themes: reads on the grey (off) and the primary (on) track */
+      box-shadow: var(--shadow-knob);
+      transition: transform 0.18s;
+    }
+    .btn-switch[aria-checked="true"] .switch-track { background: var(--primary); }
+    .btn-switch[aria-checked="true"] .switch-knob { transform: translateX(12px); }
+    @media (prefers-reduced-motion: reduce) {
+      .btn-switch .switch-track, .btn-switch .switch-knob { transition: none; }
+    }
+    /* A short message (save conflicts, blocked downloads) inside a claude.ai artifact */
+    .toast {
+      position: fixed; left: 50%; bottom: 84px; transform: translateX(-50%); z-index: 50;
+      max-width: min(90vw, 420px); padding: 8px 14px; border-radius: var(--radius-lg);
+      background: var(--text-main); color: var(--bg-panel);
+      font-size: var(--t-control-size); box-shadow: var(--shadow-lg);
+    }
+    /* A prompt above the dock while a tool waits for a click ("Click a table", "Click a participant"); text only, never takes the pointer */
+    .hint {
+      position: fixed; left: 50%; bottom: 76px; transform: translateX(-50%); z-index: 150; padding: 6px 12px; border-radius: var(--radius-pill);
+      border: 1px solid var(--border-dark); background: var(--bg-panel); color: var(--text-main); font-size: var(--t-control-size); font-weight: var(--t-control-weight);
+      box-shadow: var(--shadow-md); max-width: calc(100vw - 32px); text-align: center; pointer-events: none;
+    }
+    .hint kbd { font: inherit; font-weight: var(--weight-semibold); }
+    /* The prompt of a note tool wears the note's colours */
+    .hint-note { border-color: var(--note-border); background: var(--note-bg); color: var(--note-ink); white-space: nowrap; }
+    /* Menu: a dropdown list under its button (Export). Markup: .menu-wrap > button + .menu[role=menu] > .menu-label, button... */
+    .menu-wrap { position: relative; }
+    .menu {
+      position: absolute; right: 0; top: calc(100% + 6px); z-index: 200; min-width: 150px;
+      background: var(--bg-panel); border: 1px solid var(--menu-border); border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-lg); padding: 4px; display: flex; flex-direction: column;
+    }
+    .menu[hidden] { display: none; }
+    .menu button {
+      background: none; border: 0; text-align: left; padding: 7px 10px; border-radius: var(--radius-md);
+      font: inherit; font-size: var(--t-control-size); color: var(--text, inherit); cursor: pointer;
+    }
+    .menu button:hover, .menu button:focus-visible { background: var(--bg-hover); outline: none; }
+    .menu button[hidden] { display: none; }
+    .menu-label {
+      padding: 6px 10px 2px; font-size: var(--text-xs); font-weight: var(--weight-semibold); letter-spacing: var(--tracking-caps); text-transform: uppercase;
+      color: var(--text-muted); user-select: none;
+    }
+    .menu-label:not(:first-child) { margin-top: 4px; border-top: 1px solid var(--menu-border); padding-top: 8px; }
+
+    /* Confirm: the bubble that asks before a delete, screen-fixed so it sits outside the zoomed canvas (ui.confirm in shell.js).
+       .confirm-title is optional; with one, the message below it is the quiet explanation. */
+    .confirm {
+      position: fixed;
+      z-index: 2000;
+      width: 260px;
+      box-sizing: border-box;
+      padding: 14px 14px 12px;
+      border-radius: var(--radius-xl);
+      border: 1px solid var(--border-dark);
+      background: var(--bg-panel);
+      color: var(--text-main);
+      box-shadow: var(--shadow-xl);
+      font-size: var(--t-control-size);
+      line-height: var(--t-control-leading);
+    }
+    .confirm-title { font-weight: var(--weight-semibold); font-size: var(--text-lg); margin-bottom: 4px; overflow-wrap: anywhere; }
+    .confirm-msg { font-weight: var(--weight-semibold); margin-bottom: 12px; overflow-wrap: anywhere; }
+    .confirm-title + .confirm-msg { font-weight: var(--weight-regular); color: var(--text-soft); }
+    .confirm-actions { display: flex; justify-content: flex-end; gap: 8px; }
+    .confirm .btn { padding: 6px 12px; font-size: var(--t-control-size); }
+    /* Note: extra detail kept off the diagram so labels stay short. A neutral slate paper card with a bracket edge (the
+       classic flowchart annotation, which has no colour of its own), joined to what it explains by a dashed leader.
+       Neutral on purpose: every hue on the canvas already means something (gold decision, green start, blue selection,
+       amber incoming arrows), and a note is secondary detail. One style for every diagram type (ui.noteCard in shell.js).
+       A type that places its own cards (the sequence diagram) adds only position and size; a type whose notes appear on
+       demand puts them in a .note-layer. */
+    .note {
+      position: absolute;
+      box-sizing: border-box;
+      border: 1px solid var(--note-border);
+      border-left: 3px solid var(--note-accent);
+      border-radius: var(--radius-xs) var(--radius-lg) var(--radius-lg) var(--radius-xs);
+      background: var(--note-bg);
+      color: var(--note-ink);
+      font-size: var(--t-detail-size);
+      font-weight: var(--t-detail-weight);
+      line-height: var(--t-detail-leading);
+      text-align: left;
+      box-shadow: var(--shadow-sm);
+      pointer-events: auto;
+      cursor: move;
+      user-select: none;
+      transition: box-shadow var(--ease), border-color var(--ease);
+    }
+    .note:hover { border-color: color-mix(in srgb, var(--note-accent) 60%, var(--note-border)); border-left-color: var(--note-accent); }
+    .note.selected {
+      border-color: var(--note-accent);
+      box-shadow: 0 0 0 var(--ring-lg) color-mix(in srgb, var(--note-accent) 28%, transparent), var(--shadow-md);
+    }
+    .note.dragging { box-shadow: var(--shadow-xl); }
+    .note-text {
+      outline: none;
+      white-space: pre-wrap;
+      overflow-wrap: break-word;
+      min-height: 1.4em;
+    }
+    .note-text[contenteditable="true"] { -webkit-user-select: text; user-select: text; cursor: text; }
+    .note-text:empty::before { content: attr(data-placeholder); color: var(--text-muted); }
+
+    /* The layer holding cards that are hidden until the Notes button shows them all (.show) or a hover or selection
+       peeks one (.peek) */
+    .note-layer {
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 100%;
+      pointer-events: none;
+      z-index: 45;   /* above nodes (20), edge labels (30) and lane pills (40); below snap guides (55) */
+    }
+    .note-layer .note {
+      display: none;
+      width: max-content;
+      min-width: 96px;
+      max-width: 200px;   /* keep in sync with the fitting in renderNotes: it measures the cards, never assumes */
+      padding: 6px 10px 7px 10px;
+    }
+    .note-layer .note.show, .note-layer .note.peek { display: block; }
+    .note-layer .note.peek:not(.show) { animation: note-in 0.14s ease-out; box-shadow: var(--shadow-lg); }
+    @keyframes note-in { from { opacity: 0; transform: translateY(3px); } }
+    .note-layer.measuring .note { display: block; visibility: hidden; animation: none; }
+
+    /* Leader: the dashed line from a card to what it explains; .linking is the one being dragged to a new target */
+    .note-leader {
+      display: none;
+      stroke: var(--note-leader);
+      stroke-width: 1.25px;
+      stroke-dasharray: 3 3;
+      fill: none;
+    }
+    .note-leader.show, .note-leader.peek { display: inline; }
+    .note-leader.linking { display: inline; stroke: var(--note-accent); stroke-dasharray: 4 3; stroke-width: 1.5px; }
+    /* Exports show what the Notes button shows: a note only peeked by hover or selection stays out */
+    body.exporting .note.peek:not(.show),
+    body.exporting .note-leader.peek:not(.show) { display: none !important; }
+    body.note-linking, body.note-linking * { cursor: crosshair !important; }
+    /* The thing the selected note explains, and the thing a dragged note would land on */
+    .note-linked { outline: 1.5px dashed var(--note-accent); outline-offset: 5px; }
+    .note-target { outline: 2px dashed var(--note-accent); outline-offset: 4px; }
+
+    /* Delete: a small round button on the card's corner, shown on hover or while the note is selected */
+    .note-del {
+      position: absolute;
+      top: -8px; right: -8px;
+      width: 18px; height: 18px;
+      padding: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      border-radius: var(--radius-round);
+      border: 1px solid var(--border-dark);
+      background: var(--bg-panel);
+      color: var(--text-soft);
+      cursor: pointer;
+      box-shadow: var(--shadow-chip);
+    }
+    /* Link handle (bottom-right): drag it onto another item to link the note to that too, or to unlink it */
+    .note-link {
+      position: absolute;
+      bottom: -9px; right: -9px;
+      width: 20px; height: 20px;
+      padding: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      border-radius: var(--radius-round);
+      border: 1px solid var(--note-border);
+      background: var(--bg-panel);
+      color: var(--note-accent);
+      cursor: crosshair;
+      touch-action: none;
+      box-shadow: var(--shadow-chip);
+    }
+    .note-link:hover { background: var(--note-accent); border-color: var(--note-accent); color: var(--bg-panel); }
+    .note:hover > .note-del, .note.selected > .note-del, .note:hover > .note-link, .note.selected > .note-link { display: inline-flex; }
+
+    /* Badge on an item with a note: a small paper chip on its top-right corner. Hover peeks the note, click edits it.
+       The "+" chip in the same place adds a note to the selected item. Both are editing hints, never exported. */
+    .note-badge, .note-add {
+      position: absolute;
+      top: -8px; right: -8px;
+      z-index: 3;   /* above the decision diamond (1) and its label (2) */
+      width: 18px; height: 18px;
+      box-sizing: border-box;
+      padding: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: var(--radius-round);
+      cursor: pointer;
+      font: inherit;
+      transition: transform var(--ease), background var(--ease), border-color var(--ease), opacity var(--ease);
+    }
+    .note-badge {
+      border: 1px solid var(--note-border);
+      background: var(--note-bg);
+      color: var(--note-accent);
+      box-shadow: var(--shadow-sm);
+    }
+    .note-badge:hover { transform: scale(1.15); border-color: var(--note-accent); }
+    .note-add {
+      display: none;
+      width: 22px; height: 22px;   /* a little larger than the badge: it is a button to aim at, not a hint */
+      top: -10px; right: -10px;
+      border: 1px dashed var(--note-accent);
+      background: var(--bg-panel);
+      color: var(--note-accent);
+    }
+    .note-add:hover { background: var(--note-bg); border-style: solid; }
+    .note-badge svg, .note-add svg { display: block; }
+    /* With every note on show the badges would only repeat them */
+    .notes-on .note-badge { display: none; }
+
+    /* A card being carried from the Note tile onto an item */
+    .note.note-ghost {
+      position: fixed;
+      display: block;
+      z-index: 1000;
+      pointer-events: none;
+      transform-origin: 0 0;
+      opacity: 0.95;
+      box-shadow: var(--shadow-xl);
+      transition: opacity 0.1s;
+    }
+    .note.note-ghost.off-target { opacity: 0.5; }
+
+    /* Presentation is read-only: no editing chips; but notes still open: hover a badge, or click it to keep the note open */
+    body.presentation .note-add,
+    body.presentation .note-del,
+    body.presentation .note-link { display: none !important; }
+    body.presentation .note-badge,
+    body.presentation .note-layer .note { pointer-events: auto !important; cursor: default; }
+    /* Swatches: the colours (TOKENS.palette) a flowchart lane, a sequence participant or an ERD table may carry. The roles
+       --sw-stripe, --sw-line, --sw-pill-bg, --sw-pill-ink, --sw-pill-solid and --sw-on-solid are fixed per palette slot: an
+       element with data-sw="<slot>" gets them from the generated tokens (scripts/tokens.py). Only a colour that matches no
+       slot (no data-sw) derives them here at run time from --swatch-color, and nothing checks that derivation's contrast.
+       (.swimlane is the flowchart's lane: its --lane-color becomes --swatch-color in flowchart.css.) */
+    /* Fallback without relative colours: the colour mixed toward slate, which stays pale with pastel colours */
+    .swatch-scope:not([data-sw]), .swimlane:not([data-sw]) {
+      --sw-stripe: color-mix(in srgb, var(--swatch-color) var(--swatch-accent-mix), var(--swatch-accent-base));
+      --sw-pill-bg: color-mix(in srgb, var(--swatch-color) var(--swatch-pill-mix), var(--bg-panel));
+      --sw-pill-ink: var(--text-soft);
+      --sw-pill-solid: color-mix(in srgb, var(--swatch-color) var(--swatch-solid-mix), var(--swatch-solid-base));
+      --sw-line: color-mix(in srgb, var(--swatch-color) 40%, var(--swatch-line-base));
+      --sw-on-solid: var(--swatch-solid-ink);
+    }
+    /* Where relative colours are supported, derive deeper, more saturated shades of the colour's own hue: same hue,
+       lightness set per role, chroma boosted (capped so strong colours do not turn garish) */
+    @supports (color: oklch(from red l c h)) {
+      .swatch-scope:not([data-sw]), .swimlane:not([data-sw]) {
+        --sw-stripe: oklch(from var(--swatch-color) 0.66 min(calc(c * 4), 0.15) h);
+        --sw-pill-bg: oklch(from var(--swatch-color) 0.9 min(calc(c * 2.4), 0.07) h);
+        --sw-pill-ink: oklch(from var(--swatch-color) 0.36 min(calc(c * 4), 0.12) h);
+        --sw-pill-solid: oklch(from var(--swatch-color) 0.45 min(calc(c * 4.5), 0.15) h);
+        --sw-line: oklch(from var(--swatch-color) 0.56 min(calc(c * 4), 0.15) h);   /* a thin line that must stay visible on the panel and on a frame's wash */
+      }
+      :root[data-theme="dark"] .swatch-scope:not([data-sw]), :root[data-theme="dark"] .swimlane:not([data-sw]) {
+        --sw-stripe: oklch(from var(--swatch-color) 0.74 min(calc(c * 4), 0.14) h);
+        --sw-pill-bg: oklch(from var(--swatch-color) 0.36 min(calc(c * 2.4), 0.07) h);
+        --sw-pill-ink: oklch(from var(--swatch-color) 0.92 min(calc(c * 2), 0.06) h);
+        --sw-pill-solid: oklch(from var(--swatch-color) 0.84 min(calc(c * 3.5), 0.12) h);
+        --sw-line: oklch(from var(--swatch-color) 0.74 min(calc(c * 4), 0.14) h);
+      }
+    }
+    /* swatchRow(): the row of colour buttons (a "none" button, then one per swatch) */
+    .swatch-row { display: inline-flex; align-items: center; gap: 2px; }
+    .swatch-btn {
+      display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; padding: 0; box-sizing: border-box;
+      border: 1px solid transparent; border-radius: var(--radius-md); background: transparent; cursor: pointer;
+    }
+    .swatch-btn:hover { background: var(--bg-hover); }
+    .swatch-btn[aria-pressed="true"] { background: var(--primary-wash); border-color: var(--primary-ring); }
+    .swatch-dot { display: block; width: 14px; height: 14px; border-radius: var(--radius-round); background: var(--sw-stripe); border: 1px solid var(--dot-edge); box-sizing: border-box; }
+    .swatch-dot.is-none { background: var(--bg-panel); border: 1.5px dashed var(--border-dark); }
+    /* Edge: what a line between two diagram items is drawn with. The line (flowchart arrow, ER relationship) and its
+       invisible fat hit area are SVG paths; the label is an HTML pill that masks the line under it. Highlight colours
+       follow the items under the pointer: --edge-in for lines entering the hovered item, --edge-out for those leaving it. */
+    .edge-line {
+      fill: none;
+      stroke: var(--connector);
+      stroke-width: 1.25px;   /* thin at rest: hover, selection and the in/out highlights (2px) stand out more */
+      stroke-linejoin: round;
+      stroke-linecap: round;
+      transition: stroke 0.15s ease, stroke-width 0.15s ease;
+    }
+    .edge-hit {
+      fill: none;
+      stroke: transparent;
+      stroke-width: 14px;
+      pointer-events: stroke;
+      cursor: pointer;
+    }
+    .edge-label {
+      position: absolute;
+      box-sizing: border-box;
+      background: var(--edge-label-bg);   /* opaque: masks the line under it */
+      border: 1.5px solid var(--border-dark);
+      border-radius: var(--radius-lg);
+      color: var(--text-main);
+      cursor: pointer;
+      z-index: 30;
+      box-shadow: var(--shadow-sm);
+      transition: border-color var(--ease), box-shadow var(--ease), color var(--ease), opacity var(--ease);
+    }
+    .edge-label.hl-in  { border-color: var(--edge-in);  box-shadow: var(--shadow-glow) var(--edge-in-glow); }
+    .edge-label.hl-out { border-color: var(--edge-out); box-shadow: var(--shadow-glow) var(--edge-out-glow); }
+    .edge-label:is(:hover, .hover, .linked, .selected) { border-color: var(--primary); box-shadow: var(--shadow-glow) var(--primary-glow); }
+    /* Frame: a titled group box drawn around part of a diagram (a sequence phase or fragment). The box and its border are
+       SVG the type draws; these are the HTML parts any type shares: the tag that names the frame at its top-left corner,
+       the collapse chevron inside the tag, and the one dashed row a collapsed frame shrinks to. */
+    .frame-tag {
+      position: absolute; height: 22px; line-height: var(--line-22); padding: 0 10px 0 8px; font-size: var(--t-detail-size); white-space: nowrap;
+      background: var(--bg-soft); border: 1.5px solid var(--border-dark); border-radius: var(--radius-sm) var(--radius-2xl) var(--radius-sm) var(--radius-sm);
+      color: var(--text-main); cursor: pointer; user-select: none;
+    }
+    .frame-tag.selected { border-color: var(--primary); color: var(--primary); }
+    /* Collapse chevron in every frame tag; a collapsed frame shows one summary row instead of its content */
+    .frame-chev {
+      display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; margin: 0 4px 0 -2px;
+      padding: 0; border: none; border-radius: var(--radius-sm); background: transparent; color: var(--text-soft); cursor: pointer;
+      vertical-align: -3px;
+    }
+    .frame-chev:hover { background: var(--bg-hover); color: var(--text-main); }
+    .frame-chev svg { transition: transform var(--ease); }
+    .frame-tag.is-collapsed .frame-chev svg { transform: rotate(-90deg); }
+    .frame-summary {
+      position: absolute; height: 26px; padding: 0 12px; border: 1.5px dashed var(--border-dark); border-radius: var(--radius-pill);
+      background: var(--bg-panel); color: var(--text-soft); font: inherit; font-size: var(--t-detail-size); font-weight: var(--weight-semibold);
+      white-space: nowrap; cursor: pointer;
+    }
+    .frame-summary:hover { border-color: var(--primary); color: var(--primary); }
+
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+
+    body {
+      font-family: var(--font-ui);
+      background-color: var(--bg-page);
+      color: var(--text-main);
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+      height: 100dvh;
+      display: flex;
+      flex-direction: column;
+    }
+    /* Form controls and kbd do not inherit the page font by default (buttons fall back to Arial, kbd to monospace) */
+    button, input, select, textarea, kbd { font-family: inherit; }
+
+    /* Top Navigation Toolbar */
+    header {
+      background: var(--bg-panel);
+      border-bottom: 1px solid var(--border-color);
+      height: 56px;
+      padding: 0 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      z-index: 100;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .toolbar-left, .toolbar-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .toolbar-left > svg { flex: none; }
+
+    .app-title-container {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    h1#chart-title {
+      font-size: var(--text-2xl);
+      font-weight: var(--weight-bold);
+      color: var(--text-main);
+      outline: none;
+      padding: 2px 6px;
+      border-radius: var(--radius-sm);
+      border: 1px solid transparent;
+      user-select: text;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    h1#chart-title:focus, h1#chart-title:hover {
+      border-color: var(--border-dark);
+      background: var(--bg-page);
+    }
+
+    /* Keyboard focus on the shell's own controls (the button component rings .btn the same way) */
+    .help-close:focus-visible,
+    h1#chart-title:focus-visible {
+      outline: 2px solid var(--primary);
+      outline-offset: 2px;
     }
 
 
@@ -926,101 +1327,14 @@
       .toolbar-right { gap: 6px; flex: none; }
       .btn-label { display: none; }
       #btn-help { display: none; }   /* keyboard shortcuts mean little on a phone; frees room for the title */
-      .dock-area { left: 12px; right: 12px; bottom: 12px; grid-template-columns: 1fr; }
-      .toolbar-center { grid-column: 1; grid-row: 1; justify-content: space-evenly; }
-      .toolbar-center > .btn, .toolbar-center > .dock-pop-wrap { flex: 1 1 0; justify-content: center; }
-      .dock-pop-wrap > .dock-pop-trigger { flex: 1 1 auto; justify-content: center; }
-      .toolbar-center > .dock-delete:not(.show) { flex: 0 0 0; }
-      .toolbar-zoom { grid-column: 1; grid-row: 2; }
       #help-drawer { right: 12px; bottom: 120px; }
     }
-    /* Medium widths: keep one row, but centre the add dock in the space right of the zoom dock instead of on the
-       viewport, so the two never collide. If the add dock still runs out of room, its buttons wrap inside it. */
-    @media (min-width: 721px) and (max-width: 1100px) {
-      .dock-area { grid-template-columns: auto minmax(0, 1fr); }
-      .toolbar-zoom { grid-column: 1; grid-row: 1; }
-      .toolbar-center { grid-column: 2; grid-row: 1; justify-self: center; }
-    }
-
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after {
         transition-duration: 0.01ms !important;
         animation-duration: 0.01ms !important;
         scroll-behavior: auto !important;
       }
-    }
-
-    /* Export menu */
-    .export-wrap { position: relative; }
-    .export-menu {
-      position: absolute; right: 0; top: calc(100% + 6px); z-index: 200; min-width: 150px;
-      background: var(--bg-panel); border: 1px solid var(--menu-border); border-radius: var(--radius-lg);
-      box-shadow: var(--shadow-lg); padding: 4px; display: flex; flex-direction: column;
-    }
-    .export-menu[hidden] { display: none; }
-    .export-menu button {
-      background: none; border: 0; text-align: left; padding: 7px 10px; border-radius: var(--radius-md);
-      font: inherit; font-size: var(--t-control-size); color: var(--text, inherit); cursor: pointer;
-    }
-    .export-menu button:hover, .export-menu button:focus-visible { background: var(--bg-hover); outline: none; }
-    .export-menu button[hidden] { display: none; }
-    .export-menu-label {
-      padding: 6px 10px 2px; font-size: var(--text-xs); font-weight: var(--weight-semibold); letter-spacing: var(--tracking-caps); text-transform: uppercase;
-      color: var(--text-muted); user-select: none;
-    }
-    .export-menu-label:not(:first-child) { margin-top: 4px; border-top: 1px solid var(--menu-border); padding-top: 8px; }
-
-    /* Swatches: the colours (TOKENS.palette) a flowchart lane, a sequence participant or an ERD table may carry. The roles
-       --sw-stripe, --sw-line, --sw-pill-bg, --sw-pill-ink, --sw-pill-solid and --sw-on-solid are fixed per palette slot: an
-       element with data-sw="<slot>" gets them from the generated tokens (scripts/tokens.py). Only a colour that matches no
-       slot (no data-sw) derives them here at run time from --swatch-color, and nothing checks that derivation's contrast.
-       (.swimlane is the flowchart's lane: its --lane-color becomes --swatch-color in flowchart.css.) */
-    /* Fallback without relative colours: the colour mixed toward slate, which stays pale with pastel colours */
-    .swatch-scope:not([data-sw]), .swimlane:not([data-sw]) {
-      --sw-stripe: color-mix(in srgb, var(--swatch-color) var(--swatch-accent-mix), var(--swatch-accent-base));
-      --sw-pill-bg: color-mix(in srgb, var(--swatch-color) var(--swatch-pill-mix), var(--bg-panel));
-      --sw-pill-ink: var(--text-soft);
-      --sw-pill-solid: color-mix(in srgb, var(--swatch-color) var(--swatch-solid-mix), var(--swatch-solid-base));
-      --sw-line: color-mix(in srgb, var(--swatch-color) 40%, var(--swatch-line-base));
-      --sw-on-solid: var(--swatch-solid-ink);
-    }
-    /* Where relative colours are supported, derive deeper, more saturated shades of the colour's own hue: same hue,
-       lightness set per role, chroma boosted (capped so strong colours do not turn garish) */
-    @supports (color: oklch(from red l c h)) {
-      .swatch-scope:not([data-sw]), .swimlane:not([data-sw]) {
-        --sw-stripe: oklch(from var(--swatch-color) 0.66 min(calc(c * 4), 0.15) h);
-        --sw-pill-bg: oklch(from var(--swatch-color) 0.9 min(calc(c * 2.4), 0.07) h);
-        --sw-pill-ink: oklch(from var(--swatch-color) 0.36 min(calc(c * 4), 0.12) h);
-        --sw-pill-solid: oklch(from var(--swatch-color) 0.45 min(calc(c * 4.5), 0.15) h);
-        --sw-line: oklch(from var(--swatch-color) 0.56 min(calc(c * 4), 0.15) h);   /* a thin line that must stay visible on the panel and on a frame's wash */
-      }
-      :root[data-theme="dark"] .swatch-scope:not([data-sw]), :root[data-theme="dark"] .swimlane:not([data-sw]) {
-        --sw-stripe: oklch(from var(--swatch-color) 0.74 min(calc(c * 4), 0.14) h);
-        --sw-pill-bg: oklch(from var(--swatch-color) 0.36 min(calc(c * 2.4), 0.07) h);
-        --sw-pill-ink: oklch(from var(--swatch-color) 0.92 min(calc(c * 2), 0.06) h);
-        --sw-pill-solid: oklch(from var(--swatch-color) 0.84 min(calc(c * 3.5), 0.12) h);
-        --sw-line: oklch(from var(--swatch-color) 0.74 min(calc(c * 4), 0.14) h);
-      }
-    }
-    /* swatchRow(): the row of colour buttons (a "none" button, then one per swatch) */
-    .swatch-row { display: inline-flex; align-items: center; gap: 2px; }
-    .swatch-btn {
-      display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; padding: 0; box-sizing: border-box;
-      border: 1px solid transparent; border-radius: var(--radius-md); background: transparent; cursor: pointer;
-    }
-    .swatch-btn:hover { background: var(--bg-hover); }
-    .swatch-btn[aria-pressed="true"] { background: var(--primary-wash); border-color: var(--primary-ring); }
-    .swatch-dot { display: block; width: 14px; height: 14px; border-radius: var(--radius-round); background: var(--sw-stripe); border: 1px solid var(--dot-edge); box-sizing: border-box; }
-    .swatch-dot.is-none { background: var(--bg-panel); border: 1.5px dashed var(--border-dark); }
-
-    .btn[hidden] { display: none; }
-
-    /* A short message (save conflicts, blocked downloads) inside a claude.ai artifact */
-    .toast {
-      position: fixed; left: 50%; bottom: 84px; transform: translateX(-50%); z-index: 50;
-      max-width: min(90vw, 420px); padding: 8px 14px; border-radius: var(--radius-lg);
-      background: var(--text-main); color: var(--bg-panel);
-      font-size: var(--t-control-size); box-shadow: var(--shadow-lg);
     }
     /* Swimlanes Container */
     #swimlanes-container {
@@ -1150,72 +1464,40 @@
       z-index: 15;
       overflow: visible;   /* a note dragged into the margin keeps its whole dashed leader (inline SVG clips by default) */
     }
-    .connector-path {
-      fill: none;
-      stroke: var(--connector);
-      stroke-width: 1.25px; /* thinner at rest: hover, selection and in/out highlights (2px) stand out more */
-      stroke-linejoin: round;
-      stroke-linecap: round;
-      pointer-events: stroke;
-      cursor: pointer;
-      transition: stroke 0.15s ease, stroke-width 0.15s ease;
-    }
-    .connector-hit {
-      fill: none;
-      stroke: transparent;
-      stroke-width: 14px;
-      pointer-events: stroke;
-      cursor: pointer;
-    }
-    body.presentation .connector-hit { pointer-events: none !important; }
-    .connector-path:hover, .connector-path.hover, .connector-path.selected {
+    .edge-line { pointer-events: stroke; cursor: pointer; }
+    body.presentation .edge-hit { pointer-events: none !important; }
+    .edge-line:hover, .edge-line.hover, .edge-line.selected {
       stroke: var(--primary);
       stroke-width: 2px;
     }
 
     /* Hovering a node: arrows entering it and arrows leaving it get their own colour */
-    .connector-path.hl-in  { stroke: var(--edge-in);  stroke-width: 2px; }
-    .connector-path.hl-out { stroke: var(--edge-out); stroke-width: 2px; }
-    .edge-label-container.hl-in  { border-color: var(--edge-in);  box-shadow: var(--shadow-glow) var(--edge-in-glow); }
-    .edge-label-container.hl-out { border-color: var(--edge-out); box-shadow: var(--shadow-glow) var(--edge-out-glow); }
+    .edge-line.hl-in  { stroke: var(--edge-in);  stroke-width: 2px; }
+    .edge-line.hl-out { stroke: var(--edge-out); stroke-width: 2px; }
 
-    .edge-label-container {
-      position: absolute;
+    .edge-label {
       transform: translate(-50%, -50%);
-      background: var(--edge-label-bg); /* Opaque mask shield over underlying connectors */
-      border: 1.5px solid var(--border-dark);
-      border-radius: var(--radius-lg);
       padding: 3px 8px;
       font-size: var(--t-label-size);
       font-weight: var(--t-label-weight); /* annotation weight: keeps node text the primary layer */
-      color: var(--text-main);
-      cursor: pointer;
-      z-index: 30;
-      box-shadow: var(--shadow-sm);
       white-space: normal; /* Allow dropping into multiple lines if exceeding gap */
       overflow-wrap: break-word; /* wrap between words; only split a word that cannot fit at all */
       text-align: center;
-      transition: border-color var(--ease), box-shadow var(--ease), color var(--ease);
       display: inline-flex;
       align-items: center;
       justify-content: center;
       gap: 6px;
       line-height: var(--t-label-leading);
-      box-sizing: border-box;
       max-width: 140px; /* keep in sync with LE.LABEL_MAX_W */
-    }
-    .edge-label-container:hover, .edge-label-container.linked, .edge-label-container.selected {
-      border-color: var(--primary);
-      box-shadow: var(--shadow-glow) var(--primary-glow);
     }
     /* Highlighted (hover, selected, linked to a hovered node): the node border weight (2px). The padding gives
        back what the border adds so the label does not jump: the 1.5px rest border is drawn 1px wide at 100%
        display scaling, so that is 1px */
-    .edge-label-container:is(:hover, .linked, .selected, .hl-in, .hl-out) {
+    .edge-label:is(:hover, .linked, .selected, .hl-in, .hl-out) {
       border-width: 2px;
       padding: 2px 7px;
     }
-    .edge-label-container.empty-placeholder:is(:hover, .linked, .selected, .hl-in, .hl-out) { padding: 0; }
+    .edge-label.empty-placeholder:is(:hover, .linked, .selected, .hl-in, .hl-out) { padding: 0; }
     .edge-label-text {
       outline: none;
       min-width: 14px;
@@ -1228,7 +1510,7 @@
     .edge-label-text:focus {
       color: var(--primary);
     }
-    .edge-label-container.empty-placeholder {
+    .edge-label.empty-placeholder {
       display: none;
       background: var(--edge-label-empty-bg);
       border: 1.5px dashed var(--edge-label-empty-border);
@@ -1236,7 +1518,7 @@
       font-size: var(--t-label-size);
       padding: 2px 8px;
     }
-    .edge-label-container.empty-placeholder {
+    .edge-label.empty-placeholder {
       width: 28px;
       height: 28px;
       box-sizing: border-box;
@@ -1247,14 +1529,14 @@
       font-size: var(--text-xl);
       line-height: var(--leading-none);
     }
-    .edge-label-container.empty-placeholder.hover-visible,
-    .edge-label-container.empty-placeholder.selected,
-    .edge-label-container.empty-placeholder:hover {
+    .edge-label.empty-placeholder.hover-visible,
+    .edge-label.empty-placeholder.selected,
+    .edge-label.empty-placeholder:hover {
       display: inline-flex !important;
       border-color: var(--primary);
       color: var(--primary);
     }
-    .edge-label-container.has-label {
+    .edge-label.has-label {
       display: inline-flex;
     }
     /* Flowchart Nodes - 4px Grid Alignment */
@@ -1573,8 +1855,8 @@
     body.presentation .flow-node,
     body.presentation .lane-pill,
     body.presentation .lane-title,
-    body.presentation .edge-label-container,
-    body.presentation .connector-path { pointer-events: none !important; }
+    body.presentation .edge-label,
+    body.presentation .edge-line { pointer-events: none !important; }
 
     /* Capture mode: the diagram container goes edge to edge */
     body.capture #swimlanes-container {
@@ -1679,29 +1961,7 @@
     .lane-tool-move { cursor: grab; }
     .lane-tool-move:hover { color: var(--text-main); border-color: var(--lane-stripe); }
     .lane-tool-delete { cursor: pointer; font: inherit; }
-    .lane-tool-delete:hover { background: var(--danger); border-color: var(--danger); color: var(--on-danger); }
     #swimlanes-container.dir-tb .lane-tools { left: 50%; transform: translateX(-50%); }
-    /* Confirmation popover for deleting a lane (screen-fixed, outside the zoomed canvas) */
-    .lane-confirm {
-      position: fixed;
-      z-index: 2000;
-      width: 260px;
-      box-sizing: border-box;
-      padding: 14px 14px 12px;
-      border-radius: var(--radius-xl);
-      border: 1px solid var(--border-dark);
-      background: var(--bg-panel);
-      color: var(--text-main);
-      box-shadow: var(--shadow-xl);
-      font-size: var(--t-control-size);
-      line-height: var(--t-control-leading);
-    }
-    .lane-confirm-title { font-weight: var(--weight-semibold); font-size: var(--text-lg); margin-bottom: 4px; overflow-wrap: anywhere; }
-    .lane-confirm-msg { color: var(--text-soft); margin-bottom: 12px; }
-    .lane-confirm-actions { display: flex; justify-content: flex-end; gap: 8px; }
-    .lane-confirm .btn { padding: 6px 12px; font-size: var(--t-control-size); }
-    .lane-confirm-delete { background: var(--danger); border-color: var(--danger); color: var(--on-danger); }
-    .lane-confirm-delete:hover { filter: brightness(0.92); background: var(--danger); color: var(--on-danger); }
     .lane-pill .lane-icon { width: auto; height: auto; border: none; background: none; border-radius: 0; color: inherit; }
     /* Exports draw each pill and stripe at the lane's own top-left, whatever the view, in the resting style */
     body.exporting .lane-pill { transform: translate(12px, 12px) !important; }
@@ -1747,8 +2007,8 @@
       opacity: 0.55;
     }
     .connector-ghost.over-arrow { opacity: 0.95; }
-    body.connector-picking .connector-hit { cursor: copy !important; }
-    body.connector-picking .connector-path:hover { stroke: var(--primary); }
+    body.connector-picking .edge-hit { cursor: copy !important; }
+    body.connector-picking .edge-line:hover { stroke: var(--primary); }
     .palette-ghost {
       position: fixed;
       z-index: 1000;
@@ -1766,7 +2026,7 @@
     body.palette-dragging, body.palette-dragging * { cursor: grabbing !important; user-select: none; }
 
     /* Insert into an arrow: the arrow under a dragged step marches, with a pill at the drop point */
-    .connector-path.insert-target {
+    .edge-line.insert-target {
       stroke: var(--primary);
       stroke-width: 3px;
       stroke-dasharray: 8 5;
@@ -1795,151 +2055,15 @@
       100% { box-shadow: 0 0 0 0 transparent; }
     }
 
-    /* Node notes (see renderNotes): extra detail for a step, kept off the node so its label stays short. A neutral
-       slate paper card with a bracket edge (the classic flowchart annotation, which has no colour of its own),
-       joined to its node by a dashed leader. Neutral on purpose: every hue on the canvas already means something
-       (gold decision, green start, blue selection, amber incoming arrows), and a note is secondary detail.
-       Hidden until the Notes button shows them all (.show) or a hover / selection peeks one (.peek). */
-    #notes-layer {
-      position: absolute;
-      top: 0; left: 0; width: 100%; height: 100%;
-      pointer-events: none;
-      z-index: 45;   /* above nodes (20), edge labels (30) and lane pills (40); below snap guides (55) */
-    }
-    .flow-note {
-      position: absolute;
-      display: none;
-      box-sizing: border-box;
-      width: max-content;
-      min-width: 96px;
-      max-width: 200px;   /* keep in sync with the fitting in renderNotes: it measures the cards, never assumes */
-      padding: 6px 10px 7px 10px;
-      border: 1px solid var(--note-border);
-      border-left: 3px solid var(--note-accent);
-      border-radius: var(--radius-xs) var(--radius-lg) var(--radius-lg) var(--radius-xs);
-      background: var(--note-bg);
-      color: var(--note-ink);
-      font-size: var(--t-detail-size);
-      font-weight: var(--t-detail-weight);
-      line-height: var(--t-detail-leading);
-      text-align: left;
-      box-shadow: var(--shadow-sm);
-      pointer-events: auto;
-      cursor: move;
-      user-select: none;
-      transition: box-shadow var(--ease), border-color var(--ease);
-    }
-    .flow-note.show, .flow-note.peek { display: block; }
-    .flow-note.peek:not(.show) { animation: note-in 0.14s ease-out; box-shadow: var(--shadow-lg); }
-    @keyframes note-in { from { opacity: 0; transform: translateY(3px); } }
-    #notes-layer.measuring .flow-note { display: block; visibility: hidden; animation: none; }
-    .flow-note:hover { border-color: color-mix(in srgb, var(--note-accent) 60%, var(--note-border)); border-left-color: var(--note-accent); }
-    .flow-note.selected {
-      border-color: var(--note-accent);
-      box-shadow: 0 0 0 var(--ring-lg) color-mix(in srgb, var(--note-accent) 28%, transparent), var(--shadow-md);
-    }
-    .flow-note.dragging { box-shadow: var(--shadow-xl); }
-    .note-text {
-      outline: none;
-      white-space: pre-wrap;
-      overflow-wrap: break-word;
-      min-height: 1.4em;
-    }
-    .note-text[contenteditable="true"] { user-select: text; cursor: text; }
-    .note-text:empty::before { content: attr(data-placeholder); color: var(--text-muted); }
-    /* Delete: a small round button on the card's corner, shown on hover or while the note is selected */
-    .note-del {
-      position: absolute;
-      top: -8px; right: -8px;
-      width: 18px; height: 18px;
-      padding: 0;
-      display: none;
-      align-items: center;
-      justify-content: center;
-      border-radius: var(--radius-round);
-      border: 1px solid var(--border-dark);
-      background: var(--bg-panel);
-      color: var(--text-soft);
-      cursor: pointer;
-      box-shadow: var(--shadow-chip);
-    }
-    .note-del:hover { background: var(--danger); border-color: var(--danger); color: var(--on-danger); }
-    .flow-note:hover .note-del, .flow-note.selected .note-del { display: inline-flex; }
-    /* Link handle (bottom-right): drag it onto a step to link the note to that step too, or to unlink it */
-    .note-link {
-      position: absolute;
-      bottom: -9px; right: -9px;
-      width: 20px; height: 20px;
-      padding: 0;
-      display: none;
-      align-items: center;
-      justify-content: center;
-      border-radius: var(--radius-round);
-      border: 1px solid var(--note-border);
-      background: var(--bg-panel);
-      color: var(--note-accent);
-      cursor: crosshair;
-      touch-action: none;
-      box-shadow: var(--shadow-chip);
-    }
-    .note-link:hover { background: var(--note-accent); border-color: var(--note-accent); color: var(--bg-panel); }
-    .flow-note:hover .note-link, .flow-note.selected .note-link { display: inline-flex; }
-    .note-leader.linking { display: inline; stroke: var(--note-accent); stroke-dasharray: 4 3; stroke-width: 1.5px; }
-    body.note-linking, body.note-linking * { cursor: crosshair !important; }
-    /* The steps the selected note explains */
-    .flow-node.note-linked { outline: 1.5px dashed var(--note-accent); outline-offset: 5px; }
-    .note-leader {
-      display: none;
-      stroke: var(--note-leader);
-      stroke-width: 1.25px;
-      stroke-dasharray: 3 3;
-      fill: none;
-    }
-    .note-leader.show, .note-leader.peek { display: inline; }
-    /* Exports show what the Notes button shows: a note only peeked by hover or selection stays out */
-    body.exporting .flow-note.peek:not(.show),
-    body.exporting .note-leader.peek:not(.show) { display: none !important; }
-
-    /* Badge on a node with a note: a small paper chip on its top-right corner. Hover peeks the note, click edits it.
-       The "+" chip in the same place adds a note to the selected node. Both are editing hints, never exported. */
-    .note-badge, .note-add {
-      position: absolute;
-      top: -8px; right: -8px;
-      z-index: 3;   /* above the decision diamond (1) and its label (2) */
-      width: 18px; height: 18px;
-      box-sizing: border-box;
-      padding: 0;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: var(--radius-round);
-      cursor: pointer;
-      font: inherit;
-      transition: transform var(--ease), background var(--ease), border-color var(--ease), opacity var(--ease);
-    }
-    .note-badge {
-      border: 1px solid var(--note-border);
-      background: var(--note-bg);
-      color: var(--note-accent);
-      box-shadow: var(--shadow-sm);
-    }
-    .note-badge:hover { transform: scale(1.15); border-color: var(--note-accent); }
-    .note-add {
-      display: none;
-      width: 22px; height: 22px;   /* a little larger than the badge: it is a button to aim at, not a hint */
-      top: -10px; right: -10px;
-      border: 1px dashed var(--note-accent);
-      background: var(--bg-panel);
-      color: var(--note-accent);
-    }
-    .note-add:hover { background: var(--note-bg); border-style: solid; }
+    /* Node notes (see renderNotes): the shared card, leader, badge and chips live in components/note.css. Here only what
+       is specific to a step: which steps show the "+" chip, where the badge sits on each shape, the step a note would land on. */
+    /* The "+" chip shows on a hovered or selected step */
     .flow-node:hover .note-add, .flow-node.selected .note-add { display: inline-flex; }
     /* Several steps selected: no connect ports (a drag always moves the selection), and the "+" chip only on hover */
     .multi-select .flow-node .port { display: none !important; }
     .multi-select .flow-node.selected:not(:hover) .note-add { display: none; }
     /* Not while something else is being dragged or connected: the chip would only be in the way */
     body:is(.palette-dragging, .connecting, .reconnecting, .note-picking) .flow-node:not(.selected) .note-add { display: none; }
-    .note-badge svg, .note-add svg { display: block; }
     /* Pills keep their corner free: the badge sits on the straight top edge, near the right end */
     .flow-node.type-start:not(.terminal-dot) :is(.note-badge, .note-add),
     .flow-node.type-end:not(.terminal-dot) :is(.note-badge, .note-add) { right: 14px; }
@@ -1951,99 +2075,17 @@
     .flow-node.type-database .note-add { top: -7px; right: 5px; }
     .flow-node.type-delay .note-badge { top: 1px; right: 2px; }
     .flow-node.type-delay .note-add { top: -1px; right: 0; }
-    /* With every note on show the badges would only repeat them */
-    #swimlanes-container.notes-on .note-badge { display: none; }
-    body.presentation .note-add,
-    body.presentation .note-del,
-    body.presentation .note-link { display: none !important; }
-    /* Presentation is read-only, but notes still open: hover a badge, or click it to keep the note open */
-    body.presentation .note-badge,
-    body.presentation .flow-note { pointer-events: auto !important; cursor: default; }
 
-    /* Note tile in the Shapes menu, drawn as the note card itself; its drag ghost; the step it would land on */
+    /* Note tile in the Shapes menu, drawn as the note card itself; the step a note would land on */
     .btn-note-tool svg .note-paper { fill: var(--note-bg); stroke: var(--note-accent); }
     .btn-note-tool svg .note-fold { fill: var(--note-border); stroke: var(--note-accent); }
     .btn-note-tool svg .note-lines { stroke: var(--note-accent); }
     .btn-note-tool:hover svg .note-paper { fill: color-mix(in srgb, var(--note-accent) 18%, var(--note-bg)); }
-    .flow-note.note-ghost {
-      position: fixed;
-      display: block;
-      z-index: 1000;
-      pointer-events: none;
-      transform-origin: 0 0;
-      opacity: 0.95;
-      box-shadow: var(--shadow-xl);
-      transition: opacity 0.1s;
-    }
-    .flow-note.note-ghost.off-target { opacity: 0.5; }
-    .flow-node.note-target,
     body.note-picking .flow-node:hover {
       outline: 2px dashed var(--note-accent);
       outline-offset: 4px;
     }
     body.note-picking .flow-node, body.note-picking .flow-node * { cursor: copy !important; }
-    /* "Click a step" prompt, above the dock while the Note tile waits for a step */
-    .note-pick-hint {
-      position: fixed;
-      left: 50%;
-      bottom: 76px;
-      transform: translateX(-50%);
-      z-index: 150;
-      padding: 6px 12px;
-      border-radius: var(--radius-pill);
-      border: 1px solid var(--note-border);
-      background: var(--note-bg);
-      color: var(--note-ink);
-      font-size: var(--t-control-size);
-      font-weight: var(--t-control-weight);
-      white-space: nowrap;
-      box-shadow: var(--shadow-md);
-      pointer-events: none;
-    }
-    .note-pick-hint kbd { font: inherit; font-weight: var(--weight-semibold); }
-
-    /* Auto-Tidy on/off in the dock: a sliding switch (knob right and track filled while on) */
-    .btn-switch .switch-track {
-      position: relative;
-      width: 28px; height: 16px;
-      flex: none;
-      border-radius: var(--radius-pill);
-      background: var(--border-dark);
-      transition: background-color 0.18s;
-    }
-    .btn-switch .switch-knob {
-      position: absolute;
-      top: 2px; left: 2px;
-      width: 12px; height: 12px;
-      border-radius: var(--radius-round);
-      background: var(--toggle-knob);   /* white in both themes: reads on the grey (off) and the primary (on) track */
-      box-shadow: var(--shadow-knob);
-      transition: transform 0.18s;
-    }
-    .btn-switch[aria-checked="true"] .switch-track { background: var(--primary); }
-    .btn-switch[aria-checked="true"] .switch-knob { transform: translateX(12px); }
-    @media (prefers-reduced-motion: reduce) {
-      .btn-switch .switch-track, .btn-switch .switch-knob { transition: none; }
-    }
-
-    /* Notes toggle in the dock: pressed while every note is on show; the count says how many there are */
-    #btn-notes[aria-pressed="true"] {
-      background: var(--primary-wash);
-      border-color: var(--primary-ring);
-      color: var(--primary);
-    }
-    #btn-notes .btn-count {
-      min-width: 16px;
-      padding: 0 4px;
-      box-sizing: border-box;
-      border-radius: var(--radius-pill);
-      background: var(--bg-soft);
-      color: var(--text-soft);
-      font-size: var(--text-xs);
-      line-height: var(--line-16);
-      text-align: center;
-    }
-    #btn-notes[aria-pressed="true"] .btn-count { background: var(--primary); color: var(--bg-panel); }
 
     /* Top-to-bottom ("direction": "TB"): lanes are side-by-side columns, the pill gutter is a band along the top
        of each column, and the lane stripe runs along the visible top edge (see pinLaneHeaders) */
@@ -2103,15 +2145,15 @@
       </button>
       <button id="btn-theme" class="btn btn-icon" title="Switch to dark mode" aria-label="Switch to dark mode"></button>
       <button id="btn-help" class="btn btn-icon" title="Keyboard shortcuts" aria-label="Keyboard shortcuts" aria-expanded="false" aria-controls="help-drawer">?</button>
-      <div class="export-wrap">
+      <div class="menu-wrap">
         <button id="btn-export" class="btn" title="Download or copy the diagram as an image" aria-label="Export" aria-haspopup="menu" aria-expanded="false">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg><span class="btn-label">Export</span>
         </button>
-        <div id="export-menu" class="export-menu" role="menu" hidden>
-          <div class="export-menu-label" role="presentation">Download</div>
+        <div id="export-menu" class="menu" role="menu" hidden>
+          <div class="menu-label" role="presentation">Download</div>
           <button type="button" role="menuitem" data-export="svg">SVG image</button>
           <button type="button" role="menuitem" data-export="png">PNG image (1.5x)</button>
-          <div class="export-menu-label" role="presentation" data-copy-label>Copy</div>
+          <div class="menu-label" role="presentation" data-copy-label>Copy</div>
           <button type="button" role="menuitem" data-copy="mermaid">Mermaid</button>
           <button type="button" role="menuitem" data-copy="svg">SVG (text)</button>
           <button type="button" role="menuitem" data-copy="png">PNG image (1.5x)</button>
@@ -2259,7 +2301,7 @@
         <!-- Swimlane Rows will be rendered here -->
         <div id="lanes-root"></div>
         <!-- Node notes: free-floating cards above the diagram, fitted into gaps near their node (see renderNotes) -->
-        <div id="notes-layer"></div>
+        <div id="notes-layer" class="note-layer"></div>
         <div id="lane-drop-line"></div>
         <div id="snap-guide-v" class="snap-guide snap-guide-v"></div>
         <div id="snap-guide-h" class="snap-guide snap-guide-h"></div>
@@ -2381,6 +2423,111 @@ const TOKENS = {"palette":[{"slot":"1","name":"sky","hex":"#e0f2fe","light":{"so
         });
         return row;
       }
+
+      // --- UI BUILDERS: markup every diagram type shares (styled by assets/components/*.css) ---
+      // A type calls these instead of building the same elements itself; it keeps only what is specific to it.
+      const ui = (() => {
+        let confirmEl = null;
+        function closeConfirm() {
+          if (!confirmEl) return false;
+          confirmEl.remove();
+          confirmEl = null;
+          document.removeEventListener('pointerdown', onConfirmOutside, true);
+          return true;
+        }
+        function onConfirmOutside(e) { if (confirmEl && !confirmEl.contains(e.target)) closeConfirm(); }
+        // Ask before a delete: a bubble under `anchor` (a DOM element; above it when there is no room below; the upper middle
+        // of the window when null), kept on screen. opts: { message, title?, label (the dialog's aria-label), ok? (button text,
+        // "Delete") }. Escape, Cancel, a click elsewhere or a pan/zoom (the type calls closeConfirm) dismisses it.
+        function confirm(anchor, opts, onYes) {
+          closeConfirm();
+          const box = document.createElement('div');
+          box.className = 'confirm';
+          box.dataset.exportSkip = '';
+          box.setAttribute('role', 'alertdialog');
+          box.setAttribute('aria-label', opts.label);
+          const add = (cls, text) => { const d = document.createElement('div'); d.className = cls; d.textContent = text; box.appendChild(d); };
+          if (opts.title) add('confirm-title', opts.title);
+          add('confirm-msg', opts.message);
+          const row = document.createElement('div');
+          row.className = 'confirm-actions';
+          const button = (cls, text) => { const b = document.createElement('button'); b.type = 'button'; b.className = cls; b.textContent = text; return b; };
+          const cancel = button('btn confirm-cancel', 'Cancel');
+          cancel.addEventListener('click', () => closeConfirm());
+          const ok = button('btn btn-danger confirm-ok', opts.ok || 'Delete');
+          ok.addEventListener('click', () => { closeConfirm(); onYes(); });
+          row.append(cancel, ok);
+          box.appendChild(row);
+          box.addEventListener('keydown', (e) => {
+            // Keys inside the bubble stay there (Delete/Backspace would open it again)
+            if (e.key === 'Escape') { e.preventDefault(); closeConfirm(); }
+            if (e.key !== 'Tab') e.stopPropagation();
+          });
+          document.body.appendChild(box);
+          confirmEl = box;
+          const r = anchor ? anchor.getBoundingClientRect() : { left: innerWidth / 2, top: innerHeight / 3, bottom: innerHeight / 3 };
+          const bw = box.offsetWidth, bh = box.offsetHeight;
+          const top = r.bottom + 8 + bh > innerHeight - 8 ? r.top - 8 - bh : r.bottom + 8;
+          box.style.left = `${Math.max(8, Math.min(r.left, innerWidth - bw - 8))}px`;
+          box.style.top = `${Math.max(8, Math.min(top, innerHeight - bh - 8))}px`;
+          cancel.focus();
+          document.addEventListener('pointerdown', onConfirmOutside, true);
+        }
+        // A note card: `.note` with its plain-text `.note-text`, and (when given) the delete and link chips. note: { id, text }.
+        // o: { onDelete?, onLink?(pointerdown event, card), linkTitle?, icons: { del, link }, onCommit?(note text element)
+        // (Enter, Ctrl+Enter, Esc finish editing), onInput? }. Returns { card, text }; the caller adds its own pointer handlers.
+        function noteCard(note, o) {
+          const card = document.createElement('div');
+          card.className = 'note';
+          card.dataset.noteId = note.id;
+          const text = document.createElement('div');
+          text.className = 'note-text';
+          text.spellcheck = false;
+          text.dataset.placeholder = 'Add a note…';
+          text.textContent = note.text || '';
+          card.appendChild(text);
+          const tool = (cls, title, icon) => {
+            const b = document.createElement('button');
+            b.type = 'button';
+            b.className = cls;
+            b.title = title;
+            b.setAttribute('aria-label', title);
+            b.setAttribute('data-export-skip', '');
+            b.innerHTML = icon;
+            card.appendChild(b);
+            return b;
+          };
+          if (o.onDelete) {
+            const del = tool('note-del btn-danger-hover', 'Delete note', o.icons.del);
+            del.addEventListener('pointerdown', (e) => e.stopPropagation());
+            del.addEventListener('click', (e) => { e.stopPropagation(); o.onDelete(); });
+          }
+          if (o.onLink) {
+            const link = tool('note-link', o.linkTitle, o.icons.link);
+            link.addEventListener('pointerdown', (e) => o.onLink(e, card));
+            link.addEventListener('click', (e) => e.stopPropagation());
+          }
+          if (o.onCommit) {
+            // Plain text only. Enter starts a new line; Ctrl/Cmd+Enter, Esc or clicking away finishes.
+            text.addEventListener('paste', (e) => {
+              e.preventDefault();
+              document.execCommand('insertText', false, (e.clipboardData || window.clipboardData).getData('text/plain'));
+            });
+            text.addEventListener('keydown', (e) => {
+              if (e.key === 'Enter' && !(e.ctrlKey || e.metaKey)) {
+                e.preventDefault();   // a plain line break, not the <div> the browser would wrap the new line in
+                document.execCommand('insertLineBreak');
+              } else if (e.key === 'Escape' || e.key === 'Enter') {
+                // Commit directly too: blur() fires no blur event while the window itself is not focused
+                e.preventDefault(); e.stopPropagation(); text.blur(); o.onCommit(text);
+              }
+            });
+          }
+          if (o.onInput) text.addEventListener('input', o.onInput);
+          return { card, text };
+        }
+        return { confirm, closeConfirm, isConfirmOpen: () => !!confirmEl, noteCard };
+      })();
 
       // --- CLAUDE.AI ARTIFACT (only active inside a published claude.ai artifact; elsewhere none of this runs) ---
       // A page that republishes itself must send a document in exactly the shape the Artifact tool publishes:
@@ -4940,8 +5087,8 @@ const TYPE_ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\
         const s = lr.width / last.offsetWidth || 1;   // current zoom
         let reach = -Infinity;
         const take = el => { const r = el.getBoundingClientRect(); if (r.width || r.height) reach = Math.max(reach, tb ? r.right : r.bottom); };
-        edgeGroup.querySelectorAll('.connector-path').forEach(take);
-        edgeLabelsGroup.querySelectorAll('.edge-label-container.has-label').forEach(take);
+        edgeGroup.querySelectorAll('.edge-line').forEach(take);
+        edgeLabelsGroup.querySelectorAll('.edge-label.has-label').forEach(take);
         if (reach === -Infinity) return 0;
         const base = (tb ? lr.right : lr.bottom) - outerExtra * s;   // outer edge without the extra
         const need = (reach - base) / s + OUTER_CLEAR;
@@ -5103,7 +5250,7 @@ const TYPE_ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\
             if (chartData.lanes.length > 1) {
               const del = document.createElement('button');
               del.type = 'button';
-              del.className = 'lane-tool lane-tool-delete';
+              del.className = 'lane-tool lane-tool-delete btn-danger-hover';
               del.draggable = false;
               del.dataset.tip = 'Delete swimlane (with its steps)';
               del.setAttribute('aria-label', 'Delete swimlane');
@@ -5525,7 +5672,7 @@ const TYPE_ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\
         let hint = document.querySelector('.flow-hint');
         if (!hint) {
           hint = document.createElement('div');
-          hint.className = 'note-pick-hint flow-hint';
+          hint.className = 'hint hint-note flow-hint';
           hint.setAttribute('role', 'status');
           hint.dataset.exportSkip = '';
           document.body.appendChild(hint);
@@ -7196,7 +7343,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
 
           const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
           path.setAttribute('d', pathD.path);
-          path.setAttribute('class', edge.id === selectedEdgeId ? 'connector-path selected' : 'connector-path');
+          path.setAttribute('class', edge.id === selectedEdgeId ? 'edge-line selected' : 'edge-line');
           path.dataset.edgeId = edge.id;
           path.dataset.from = edge.from;   // ends, so a test can find an arrow by its steps (saved ids may differ)
           path.dataset.to = edge.to;
@@ -7211,14 +7358,14 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
             e.stopPropagation();
             selectEdge(edge.id, false);
             // Reuse the label's own double-click handler (makes it editable, clears the "+" placeholder)
-            const labelBox = document.querySelector(`.edge-label-container[data-edge-id="${edge.id}"]`);
+            const labelBox = document.querySelector(`.edge-label[data-edge-id="${edge.id}"]`);
             if (labelBox) labelBox.dispatchEvent(new MouseEvent('dblclick', { bubbles: false }));
           });
 
           // Wide invisible hit area so thin arrows are easy to click and select
           const hit = document.createElementNS('http://www.w3.org/2000/svg', 'path');
           hit.setAttribute('d', pathD.path);
-          hit.setAttribute('class', 'connector-hit');
+          hit.setAttribute('class', 'edge-hit');
           hit.addEventListener('click', (e) => { e.stopPropagation(); selectEdge(edge.id); });
           hit.addEventListener('dblclick', (e) => path.dispatchEvent(new MouseEvent('dblclick', { bubbles: false })));
           edgeGroup.appendChild(hit);
@@ -7227,7 +7374,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           // Edge Label Pill
           if (pathD.midX !== undefined && pathD.midY !== undefined) {
             const labelContainer = document.createElement('div');
-            labelContainer.className = 'edge-label-container';
+            labelContainer.className = 'edge-label';
             labelContainer.dataset.edgeId = edge.id;
             labelContainer.style.pointerEvents = 'auto';
             labelContainer.style.left = `${pathD.midX}px`;
@@ -7384,16 +7531,16 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
       // Hovering a node highlights every arrow touching it (and its label): amber for those entering the
       // node, green for those leaving it (a self-loop counts as leaving)
       function applyNodeHover() {
-        document.querySelectorAll('.connector-path, .edge-label-container').forEach(el => el.classList.remove('hl-in', 'hl-out'));
-        document.querySelectorAll('.connector-path').forEach(p => {
+        document.querySelectorAll('.edge-line, .edge-label').forEach(el => el.classList.remove('hl-in', 'hl-out'));
+        document.querySelectorAll('.edge-line').forEach(p => {
           p.setAttribute('marker-end', p.dataset.edgeId === selectedEdgeId ? 'url(#arrowhead-selected)' : 'url(#arrowhead)');
         });
         if (!hoveredNodeId) return;
         chartData.edges.forEach(edge => {
           const kind = edge.from === hoveredNodeId ? 'out' : edge.to === hoveredNodeId ? 'in' : null;
           if (!kind) return;
-          const path = document.querySelector(`.connector-path[data-edge-id="${edge.id}"]`);
-          const label = document.querySelector(`.edge-label-container[data-edge-id="${edge.id}"]`);
+          const path = document.querySelector(`.edge-line[data-edge-id="${edge.id}"]`);
+          const label = document.querySelector(`.edge-label[data-edge-id="${edge.id}"]`);
           if (path) {
             path.classList.add('hl-' + kind);
             path.setAttribute('marker-end', `url(#arrowhead-${kind})`);
@@ -7884,7 +8031,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         selectEdge(newEdge.id);
 
         setTimeout(() => {
-          const labelTextEl = document.querySelector(`.edge-label-container[data-edge-id="${newEdge.id}"] .edge-label-text`);
+          const labelTextEl = document.querySelector(`.edge-label[data-edge-id="${newEdge.id}"] .edge-label-text`);
           if (labelTextEl) {
             labelTextEl.focus();
             const range = document.createRange();
@@ -7938,64 +8085,19 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
 
       // Deleting a lane also deletes its steps, so it is confirmed first: a small popover under the delete button
       // (or under the lane's pill for the Delete key). Escape, Cancel, a click elsewhere or a pan/zoom dismisses it.
-      let laneConfirmEl = null;
-      function closeLaneConfirm() {
-        if (!laneConfirmEl) return false;
-        laneConfirmEl.remove();
-        laneConfirmEl = null;
-        document.removeEventListener('pointerdown', onLaneConfirmOutside, true);
-        return true;
-      }
-      function onLaneConfirmOutside(e) {
-        if (laneConfirmEl && !laneConfirmEl.contains(e.target)) closeLaneConfirm();
-      }
       function confirmDeleteLane(laneId, anchorEl) {
-        closeLaneConfirm();
+        ui.closeConfirm();
         const lane = chartData.lanes.find(l => l.id === laneId);
         if (!lane || chartData.lanes.length <= 1) return;
         const steps = chartData.nodes.filter(n => n.laneId === laneId).length;
-        const box = document.createElement('div');
-        box.className = 'lane-confirm';
-        box.dataset.exportSkip = '';
-        box.setAttribute('role', 'alertdialog');
-        box.setAttribute('aria-label', 'Delete swimlane');
-        const title = document.createElement('div');
-        title.className = 'lane-confirm-title';
-        title.textContent = `Delete \u201c${lane.name}\u201d?`;
-        const msg = document.createElement('div');
-        msg.className = 'lane-confirm-msg';
-        msg.textContent = steps ? `Its ${steps} step${steps === 1 ? '' : 's'} and their arrows will be deleted too.` : 'This lane is empty.';
-        const row = document.createElement('div');
-        row.className = 'lane-confirm-actions';
-        const cancel = document.createElement('button');
-        cancel.type = 'button';
-        cancel.className = 'btn lane-confirm-cancel';
-        cancel.textContent = 'Cancel';
-        cancel.addEventListener('click', () => closeLaneConfirm());
-        const ok = document.createElement('button');
-        ok.type = 'button';
-        ok.className = 'btn lane-confirm-delete';
-        ok.textContent = 'Delete lane';
-        ok.addEventListener('click', () => { closeLaneConfirm(); deleteLane(laneId); });
-        row.append(cancel, ok);
-        box.append(title, msg, row);
-        box.addEventListener('keydown', (e) => {
-          // Keep keys inside the popover from reaching the shell (Delete/Backspace would re-open it)
-          if (e.key === 'Escape') { e.preventDefault(); closeLaneConfirm(); }
-          if (e.key !== 'Tab') e.stopPropagation();
-        });
-        document.body.appendChild(box);
-        laneConfirmEl = box;
         // Under the anchor (a delete button, else the lane's pill), or above it when there is no room below
         // (the dock's Delete sits at the bottom of the window); kept on screen
-        const anchor = anchorEl || lanesRoot.querySelector(`.swimlane[data-lane-id="${laneId}"] .lane-pill`);
-        const r = anchor ? anchor.getBoundingClientRect() : { left: innerWidth / 2, top: innerHeight / 3, bottom: innerHeight / 3 };
-        const bw = box.offsetWidth, bh = box.offsetHeight;
-        const top = r.bottom + 8 + bh > innerHeight - 8 ? r.top - 8 - bh : r.bottom + 8;
-        box.style.left = `${Math.max(8, Math.min(r.left, innerWidth - bw - 8))}px`;
-        box.style.top = `${Math.max(8, Math.min(top, innerHeight - bh - 8))}px`;
-        cancel.focus();
-        document.addEventListener('pointerdown', onLaneConfirmOutside, true);
+        ui.confirm(anchorEl || lanesRoot.querySelector(`.swimlane[data-lane-id="${laneId}"] .lane-pill`), {
+          title: `Delete \u201c${lane.name}\u201d?`,
+          message: steps ? `Its ${steps} step${steps === 1 ? '' : 's'} and their arrows will be deleted too.` : 'This lane is empty.',
+          label: 'Delete swimlane',
+          ok: 'Delete lane',
+        }, () => deleteLane(laneId));
       }
 
       function selectNode(nodeId) {
@@ -8005,8 +8107,8 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         selectedNoteId = null;
         if (selectedLaneId) { selectedLaneId = null; markSelectedLane(); }
         markSelectedNodes();
-        document.querySelectorAll('.connector-path').forEach(p => p.classList.remove('selected'));
-        document.querySelectorAll('.edge-label-container').forEach(c => c.classList.remove('selected'));
+        document.querySelectorAll('.edge-line').forEach(p => p.classList.remove('selected'));
+        document.querySelectorAll('.edge-label').forEach(c => c.classList.remove('selected'));
         applyNoteVisibility();   // a selected node shows its note
       }
 
@@ -8115,12 +8217,12 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         if (reRender) {
           renderEdges();
         } else {
-          document.querySelectorAll('.connector-path').forEach(p => {
+          document.querySelectorAll('.edge-line').forEach(p => {
             const isMatch = (p.dataset.edgeId === edgeId);
             p.classList.toggle('selected', isMatch);
             p.setAttribute('marker-end', isMatch ? 'url(#arrowhead-selected)' : 'url(#arrowhead)');
           });
-          document.querySelectorAll('.edge-label-container').forEach(c => {
+          document.querySelectorAll('.edge-label').forEach(c => {
             c.classList.toggle('selected', c.dataset.edgeId === edgeId);
           });
         }
@@ -8262,10 +8364,10 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
 
       function setInsertTarget(t, text = '+ Insert step') {
         insertTarget = t;
-        edgeGroup.querySelectorAll('.connector-path.insert-target').forEach(p => p.classList.remove('insert-target'));
+        edgeGroup.querySelectorAll('.edge-line.insert-target').forEach(p => p.classList.remove('insert-target'));
         const hint = document.getElementById('insert-hint');
         if (!t) { if (hint) hint.style.display = 'none'; return; }
-        const path = [...edgeGroup.querySelectorAll('.connector-path')].find(p => p.dataset.edgeId === t.edgeId);
+        const path = [...edgeGroup.querySelectorAll('.edge-line')].find(p => p.dataset.edgeId === t.edgeId);
         if (path) path.classList.add('insert-target');
         if (hint) {
           hint.textContent = text;
@@ -8770,7 +8872,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         const off = trackOffset();
         const gutter = isTB() ? { x: 0, y: 0, w: W, h: off } : { x: 0, y: 0, w: off, h: H };
         const nodeBoxes = chartData.nodes.map(n => nodeElOf(n.id)).filter(Boolean).map(containerBox);
-        const labelBoxes = [...edgeLabelsGroup.querySelectorAll('.edge-label-container.has-label')].map(containerBox);
+        const labelBoxes = [...edgeLabelsGroup.querySelectorAll('.edge-label.has-label')].map(containerBox);
         const segs = [];
         Object.values(lastRoutes).forEach(r => {
           const p = r && r.points;
@@ -8878,7 +8980,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           if (!note) return;
           el.classList.toggle('show', all);
           el.classList.toggle('peek', notePeeked(note));
-          if (el.classList.contains('flow-note')) el.classList.toggle('selected', note.id === selectedNoteId);
+          if (el.classList.contains('note')) el.classList.toggle('selected', note.id === selectedNoteId);
         });
         // The selected note's steps are outlined, so it is clear which ones it explains
         const sel = selectedNoteId && noteById(selectedNoteId);
@@ -8931,59 +9033,21 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
       }
 
       function buildNoteCard(note) {
-        const card = document.createElement('div');
-        card.className = 'flow-note';
-        card.dataset.noteId = note.id;
+        const { card, text } = ui.noteCard(note, {
+          onDelete: () => removeNote(note.id),
+          onLink: (e) => startNoteLink(e, note.id, card),
+          linkTitle: 'Link to another step: drag onto it (onto a linked step to unlink; or Shift+click the step)',
+          icons: { del: NOTE_DEL_ICON, link: NOTE_LINK_ICON },
+          onCommit: (el) => commitNote(note, el),
+          // the card grows as it is typed into: keep its leaders attached
+          onInput: () => { noteSizes[note.id] = { w: card.offsetWidth, h: card.offsetHeight }; positionNotes(); },
+        });
         card.dataset.nodes = (note.nodes || []).join(' ');
-        const text = document.createElement('div');
-        text.className = 'note-text';
-        text.spellcheck = false;
-        text.dataset.placeholder = 'Add a note…';
-        text.textContent = note.text || '';
-        card.appendChild(text);
-
-        const tool = (cls, title, icon) => {
-          const b = document.createElement('button');
-          b.type = 'button';
-          b.className = cls;
-          b.title = title;
-          b.setAttribute('aria-label', title);
-          b.setAttribute('data-export-skip', '');
-          b.innerHTML = icon;
-          card.appendChild(b);
-          return b;
-        };
-        const del = tool('note-del', 'Delete note', NOTE_DEL_ICON);
-        del.addEventListener('pointerdown', (e) => e.stopPropagation());
-        del.addEventListener('click', (e) => { e.stopPropagation(); removeNote(note.id); });
-        const link = tool('note-link', 'Link to another step: drag onto it (onto a linked step to unlink; or Shift+click the step)', NOTE_LINK_ICON);
-        link.addEventListener('pointerdown', (e) => startNoteLink(e, note.id, card));
-        link.addEventListener('click', (e) => e.stopPropagation());
-
         card.addEventListener('pointerdown', (e) => onNotePointerDown(e, note.id, card));
         card.addEventListener('dblclick', (e) => { e.stopPropagation(); editNote(note.id); });
         card.addEventListener('click', (e) => e.stopPropagation());
         card.addEventListener('mouseenter', () => { if ((note.nodes || []).includes(peekNodeId)) clearTimeout(peekTimer); });
         card.addEventListener('mouseleave', () => { if (peekNodeId) unpeekSoon(peekNodeId); });
-
-        // Plain text only. Enter starts a new line; Ctrl/Cmd+Enter, Esc or clicking away finishes.
-        text.addEventListener('paste', (e) => {
-          e.preventDefault();
-          document.execCommand('insertText', false, (e.clipboardData || window.clipboardData).getData('text/plain'));
-        });
-        text.addEventListener('keydown', (e) => {
-          if (e.key === 'Enter' && !(e.ctrlKey || e.metaKey)) {
-            e.preventDefault();   // a plain line break, not the <div> the browser would wrap the new line in
-            document.execCommand('insertLineBreak');
-          } else if (e.key === 'Escape' || e.key === 'Enter') {
-            // Commit directly too: blur() fires no blur event while the window itself is not focused
-            e.preventDefault(); e.stopPropagation(); text.blur(); commitNote(note, text);
-          }
-        });
-        text.addEventListener('input', () => {   // the card grows as it is typed into: keep its leaders attached
-          noteSizes[note.id] = { w: card.offsetWidth, h: card.offsetHeight };
-          positionNotes();
-        });
         text.addEventListener('blur', () => commitNote(note, text));
         return card;
       }
@@ -9206,7 +9270,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         let hint = document.querySelector('.note-pick-hint');
         if (on && !hint) {
           hint = document.createElement('div');
-          hint.className = 'note-pick-hint';
+          hint.className = 'hint hint-note note-pick-hint';
           hint.setAttribute('role', 'status');
           hint.innerHTML = 'Click a step to add a note · <kbd>Esc</kbd> to cancel';
           document.body.appendChild(hint);
@@ -9256,7 +9320,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           if (Math.hypot(e.clientX - d.startX, e.clientY - d.startY) < 4) return;
           setNotePicking(false);
           d.ghost = document.createElement('div');
-          d.ghost.className = 'flow-note note-ghost';
+          d.ghost.className = 'note note-ghost';
           d.ghost.innerHTML = '<div class="note-text">Note</div>';
           document.body.appendChild(d.ghost);
           document.body.classList.add('palette-dragging');
@@ -9307,7 +9371,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         let hint = document.querySelector('.connector-pick-hint');
         if (on && !hint) {
           hint = document.createElement('div');
-          hint.className = 'note-pick-hint connector-pick-hint';
+          hint.className = 'hint hint-note note-pick-hint connector-pick-hint';
           hint.setAttribute('role', 'status');
           hint.dataset.exportSkip = '';
           hint.innerHTML = 'Click an arrow to break it into a connector pair · <kbd>Esc</kbd> to cancel';
@@ -9494,7 +9558,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         toDisk,
         fromDisk,
         contentEl: swimlanesContainer,
-        report: { node: '.flow-node', label: '.edge-label-container', labelText: '.edge-label-text', nodeText: '.node-label' },
+        report: { node: '.flow-node', label: '.edge-label', labelText: '.edge-label-text', nodeText: '.node-label' },
         render,
         isBackground: (el) => el.id === 'swimlanes-container' || el.classList.contains('lane-track') || el.classList.contains('lane-gutter'),
         clearSelection() {
@@ -9524,7 +9588,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         },
         selectAll() { setNodeSelection(chartData.nodes.map(n => n.id), selectedNodeId); },
         cancelInteraction() {
-          if (closeLaneConfirm()) return true;
+          if (ui.closeConfirm()) return true;
           const wasConnecting = !!connectingFromNodeId;
           cancelConnecting();
           const wasPicking = notePicking || connectorPicking;
@@ -9532,7 +9596,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           setConnectorPicking(false);
           return cancelNoteLink() || cancelNoteToolDrag() || cancelConnectorToolDrag() || cancelNoteDrag() || cancelPaletteDrag() || wasConnecting || wasPicking;
         },
-        onViewChange() { closeLaneConfirm(); pinLaneHeaders(); },
+        onViewChange() { ui.closeConfirm(); pinLaneHeaders(); },
         // Notes on show may sit in the margin outside the lanes: Fit and screenshots take them in (peeked ones
         // are transient and do not count)
         contentOverflow() {

@@ -135,9 +135,9 @@
           seqFragG.appendChild(svgEl('rect', { class: `seq-frag-box${tint}`, x: f.x, y: f.y, width: f.w, height: f.h, rx: 6, 'data-frag-id': f.id }));
           // The border selects the frame (an 8px hit stroke); the inside stays click-through
           seqFragG.appendChild(svgEl('rect', { class: 'seq-frag-hit', x: f.x, y: f.y, width: f.w, height: f.h, rx: 6, 'data-frag-id': f.id }));
-          const tag = htmlEl('div', `seq-frag-label${tint}${f.collapsed ? ' is-collapsed' : ''}`, { left: px(f.x), top: px(f.y) });
+          const tag = htmlEl('div', `frame-tag${tint}${f.collapsed ? ' is-collapsed' : ''}`, { left: px(f.x), top: px(f.y) });
           tag.dataset.fragId = f.id;
-          const chev = htmlEl('button', 'seq-frag-chev');
+          const chev = htmlEl('button', 'frame-chev');
           chev.type = 'button';
           chev.title = f.collapsed ? 'Expand this frame' : 'Collapse this frame';
           chev.setAttribute('aria-label', chev.title);
@@ -188,7 +188,7 @@
             const inside = ms.filter((m) => m.hidden && stepOf[m.id] >= stepOf[f.from] && stepOf[m.id] <= stepOf[f.to]);
             if (inside.length) {
               const a = stepOf[inside[0].id], b = stepOf[inside[inside.length - 1].id];
-              const sum = htmlEl('button', 'seq-frag-summary', { left: px(f.x + f.w / 2), top: px(inside[0].y), transform: 'translate(-50%, -50%)' });
+              const sum = htmlEl('button', 'frame-summary', { left: px(f.x + f.w / 2), top: px(inside[0].y), transform: 'translate(-50%, -50%)' });
               sum.type = 'button';
               sum.dataset.fragId = f.id;
               sum.title = 'Expand this frame';
@@ -295,12 +295,10 @@
         // Notes: a folded card over one lifeline, or stretched over two
         ns.forEach((n) => {
           if (n.x === undefined) return;
-          const el = htmlEl('div', 'seq-note', { left: px(n.x), top: px(n.y), width: px(n.w), height: px(n.h) });
-          el.dataset.noteId = n.id;
-          const t = htmlEl('span', 'seq-note-text');
-          t.textContent = sqWrap(n.text, Math.max(4, Math.floor((n.w - 2 * SQ.NOTE_PAD) / SQ.NOTE_CHAR_W))).join('\n');
-          el.appendChild(t);
-          seqHtml.appendChild(el);
+          const { card, text } = ui.noteCard(n, {});
+          Object.assign(card.style, { left: px(n.x), top: px(n.y), width: px(n.w), height: px(n.h) });
+          text.textContent = sqWrap(n.text, Math.max(4, Math.floor((n.w - 2 * SQ.NOTE_PAD) / SQ.NOTE_CHAR_W))).join('\n');
+          seqHtml.appendChild(card);
         });
         // Colour key: the swatches in use and what each means ("colorKey"), above the card's top-left corner. An entry
         // with no label yet is a prompt in edit, and left out of ?present and exports.
@@ -459,8 +457,8 @@
         });
         document.querySelectorAll('.seq-cap').forEach((el) => el.classList.toggle('selected', sel.kind === 'participant' && el.dataset.nodeId === sel.id));
         document.querySelectorAll('.seq-msg-label, .seq-line, .seq-msg-detail').forEach((el) => el.classList.toggle('selected', ids.includes(el.dataset.edgeId)));
-        document.querySelectorAll('.seq-frag-label, .seq-frag-box').forEach((el) => el.classList.toggle('selected', sel.kind === 'fragment' && el.dataset.fragId === sel.id));
-        document.querySelectorAll('.seq-note').forEach((el) => el.classList.toggle('selected', sel.kind === 'note' && el.dataset.noteId === sel.id));
+        document.querySelectorAll('.frame-tag, .seq-frag-box').forEach((el) => el.classList.toggle('selected', sel.kind === 'fragment' && el.dataset.fragId === sel.id));
+        document.querySelectorAll('.note').forEach((el) => el.classList.toggle('selected', sel.kind === 'note' && el.dataset.noteId === sel.id));
         const isDiv = (el) => sel.kind === 'divider' && el.dataset.fragId === sel.id && el.dataset.at === sel.at;
         document.querySelectorAll('.seq-frag-else, .seq-frag-branch-label, .seq-frag-else-label').forEach((el) => el.classList.toggle('selected', isDiv(el)));
         const byMsg = {};
@@ -631,9 +629,9 @@
       // A short message above the dock (why a drop was refused)
       let seqHintTimer = 0;
       function seqHint(text) {
-        let hint = document.querySelector('.seq-hint');
+        let hint = document.querySelector('.hint');
         if (!hint) {
-          hint = htmlEl('div', 'seq-hint');
+          hint = htmlEl('div', 'hint');
           hint.setAttribute('role', 'status');
           hint.dataset.exportSkip = '';
           document.body.appendChild(hint);
@@ -1025,7 +1023,7 @@
       function onSeqPointerDown(e) {
         if (isPresent() || e.button > 0) return;
         if (e.target.isContentEditable) return;
-        if (e.target.closest('.seq-frag-chev, .seq-frag-summary, .seq-frag-focus, .seq-actionbar, .seq-insert, .seq-add-branch')) return;   // handled on click
+        if (e.target.closest('.frame-chev, .frame-summary, .seq-frag-focus, .seq-actionbar, .seq-insert, .seq-add-branch')) return;   // handled on click
         const handle = e.target.closest('.seq-handle');
         if (handle) { e.stopPropagation(); const d = handleDrag(handle); if (d) beginDrag(e, d); return; }
         if (e.target === seqPlus) { e.stopPropagation(); beginDrag(e, connectDrag()); return; }
@@ -1037,7 +1035,7 @@
           beginDrag(e, connectDrag(src.dataset.pid || src.dataset.nodeId, slot.index, slot.y, true));
           return;
         }
-        const hit = e.target.closest('.seq-participant, .seq-msg-label, .seq-msg-hit, .seq-msg-detail, .seq-frag-label, .seq-frag-hit, .seq-div-hit, .seq-frag-branch-label, .seq-frag-else-label, .seq-note');
+        const hit = e.target.closest('.seq-participant, .seq-msg-label, .seq-msg-hit, .seq-msg-detail, .frame-tag, .seq-frag-hit, .seq-div-hit, .seq-frag-branch-label, .seq-frag-else-label, .note');
         if (!hit) {
           // Shift + drag on blank canvas draws a marquee instead of panning
           if (e.shiftKey && (e.target === seqCanvas || e.target === seqSvg || e.target === seqHtml || e.target.classList.contains('seq-pin-band'))) {
@@ -1050,12 +1048,12 @@
         if (cl.contains('seq-participant')) {
           select('participant', hit.dataset.nodeId);
           beginDrag(e, participantDrag(hit.dataset.nodeId, hit));
-        } else if (cl.contains('seq-frag-label') || cl.contains('seq-frag-hit')) {
+        } else if (cl.contains('frame-tag') || cl.contains('seq-frag-hit')) {
           select('fragment', hit.dataset.fragId);
         } else if (cl.contains('seq-div-hit') || cl.contains('seq-frag-branch-label') || cl.contains('seq-frag-else-label')) {
           select('divider', hit.dataset.fragId, { at: hit.dataset.at });
           beginDrag(e, dividerDrag(hit.dataset.fragId, hit.dataset.at));
-        } else if (cl.contains('seq-note')) {
+        } else if (cl.contains('note')) {
           select('note', hit.dataset.noteId);
           beginDrag(e, noteDrag(hit.dataset.noteId, hit));
         } else {
@@ -1263,7 +1261,7 @@
       // Enter commits; Escape keeps the old text. A note takes Shift+Enter for a line break. Tab in a message's label
       // moves on to its detail; an empty detail removes it.
       const EDIT_TEXT = '.seq-participant-name, .seq-msg-label-text, .seq-frag-text';
-      const EDIT_OWNER = { participant: '.seq-participant[data-node-id="ID"]', message: '.seq-msg-label[data-edge-id="ID"]', fragment: '.seq-frag-label[data-frag-id="ID"]' };
+      const EDIT_OWNER = { participant: '.seq-participant[data-node-id="ID"]', message: '.seq-msg-label[data-edge-id="ID"]', fragment: '.frame-tag[data-frag-id="ID"]' };
       function applyText(el, value) {
         const owner = el.closest('[data-node-id], [data-edge-id], [data-frag-id]');
         if (!value || !owner) return false;
@@ -1337,7 +1335,7 @@
       }
       function editNote(id) {
         const n = noteById(id);
-        const el = seqHtml.querySelector(`.seq-note[data-note-id="${id}"] .seq-note-text`);
+        const el = seqHtml.querySelector(`.note[data-note-id="${id}"] .note-text`);
         if (!n || !el) return;
         beginEdit(el, {
           multiline: true, raw: n.text || '', restore: true,
@@ -1399,18 +1397,18 @@
       }
       function onSeqDblClick(e) {
         if (isPresent()) return;
-        if (e.target.closest('.seq-frag-chev, .seq-frag-summary, .seq-frag-focus, .seq-actionbar')) return;
+        if (e.target.closest('.frame-chev, .frame-summary, .seq-frag-focus, .seq-actionbar')) return;
         const kl = e.target.closest('.seq-key-label');
         if (kl) { e.stopPropagation(); editKey(kl); return; }
         const div = e.target.closest('.seq-div-hit, .seq-frag-branch-label, .seq-frag-else-label');
         if (div) { e.stopPropagation(); editBranch(div.dataset.fragId, div.dataset.at); return; }
-        const note = e.target.closest('.seq-note');
+        const note = e.target.closest('.note');
         if (note) { e.stopPropagation(); editNote(note.dataset.noteId); return; }
         const det = e.target.closest('.seq-msg-detail');
         if (det) { e.stopPropagation(); editDetail(det.dataset.edgeId); return; }
         const lab = e.target.closest('.seq-msg-label');
         if (lab) { e.stopPropagation(); editMessage(lab.dataset.edgeId); return; }
-        const box = e.target.closest('.seq-participant, .seq-frag-label');
+        const box = e.target.closest('.seq-participant, .frame-tag');
         if (box && box.classList.contains('is-rail')) return;   // a rail's name is written downwards: Show it to rename
         const el = e.target.closest(EDIT_TEXT) || (box && box.querySelector(EDIT_TEXT));
         if (!el) return;
@@ -1440,7 +1438,7 @@
         seqSel = { kind, id };
         relayout();
         if (kind === 'note') {
-          panIntoView(seqHtml.querySelector(`.seq-note[data-note-id="${id}"]`));
+          panIntoView(seqHtml.querySelector(`.note[data-note-id="${id}"]`));
           editNote(id);
           return;
         }
@@ -1498,7 +1496,7 @@
           chartData.rails = true;
         }
         commitView(fid);
-        panIntoView(seqHtml.querySelector(`.seq-frag-label[data-frag-id="${fid}"]`));
+        panIntoView(seqHtml.querySelector(`.frame-tag[data-frag-id="${fid}"]`));
       }
       function showAll() {
         chartData.fragments.forEach((f) => { delete f.collapsed; });
@@ -1514,7 +1512,7 @@
       }
       btnShowAll.addEventListener('click', showAll);
       seqHtml.addEventListener('click', (e) => {
-        const btn = e.target.closest('.seq-frag-chev, .seq-frag-summary, .seq-frag-focus');
+        const btn = e.target.closest('.frame-chev, .frame-summary, .seq-frag-focus');
         if (!btn) return;
         e.stopPropagation();
         const fid = btn.closest('[data-frag-id]').dataset.fragId;
@@ -1594,49 +1592,11 @@
       }
 
       // Deleting a participant with messages is confirmed first, in a small bubble at the button (or the box)
-      let seqConfirmEl = null;
-      function closeConfirm() {
-        if (!seqConfirmEl) return false;
-        seqConfirmEl.remove();
-        seqConfirmEl = null;
-        document.removeEventListener('pointerdown', onConfirmOutside, true);
-        return true;
-      }
-      function onConfirmOutside(e) { if (seqConfirmEl && !seqConfirmEl.contains(e.target)) closeConfirm(); }
       function confirmDeleteParticipant(p, count, anchorEl) {
-        closeConfirm();
-        const box = htmlEl('div', 'seq-confirm');
-        box.dataset.exportSkip = '';
-        box.setAttribute('role', 'alertdialog');
-        box.setAttribute('aria-label', 'Delete participant');
-        const msg = htmlEl('div', 'seq-confirm-msg');
-        msg.textContent = `Delete ${p.name} and its ${count} message${count === 1 ? '' : 's'}?`;
-        const row = htmlEl('div', 'seq-confirm-actions');
-        const cancel = htmlEl('button', 'btn seq-confirm-cancel');
-        cancel.type = 'button';
-        cancel.textContent = 'Cancel';
-        cancel.addEventListener('click', () => closeConfirm());
-        const ok = htmlEl('button', 'btn seq-confirm-delete');
-        ok.type = 'button';
-        ok.textContent = 'Delete';
-        ok.addEventListener('click', () => { closeConfirm(); deleteParticipant(p.id); });
-        row.append(cancel, ok);
-        box.append(msg, row);
-        box.addEventListener('keydown', (e) => {
-          // Keys inside the bubble stay there (Delete/Backspace would open it again)
-          if (e.key === 'Escape') { e.preventDefault(); closeConfirm(); }
-          if (e.key !== 'Tab') e.stopPropagation();
-        });
-        document.body.appendChild(box);
-        seqConfirmEl = box;
-        const anchor = anchorEl || seqHtml.querySelector(`.seq-participant[data-node-id="${p.id}"]`);
-        const r = anchor ? anchor.getBoundingClientRect() : { left: innerWidth / 2, top: innerHeight / 3, bottom: innerHeight / 3 };
-        const bw = box.offsetWidth, bh = box.offsetHeight;
-        const top = r.bottom + 8 + bh > innerHeight - 8 ? r.top - 8 - bh : r.bottom + 8;
-        box.style.left = `${Math.max(8, Math.min(r.left, innerWidth - bw - 8))}px`;
-        box.style.top = `${Math.max(8, Math.min(top, innerHeight - bh - 8))}px`;
-        cancel.focus();
-        document.addEventListener('pointerdown', onConfirmOutside, true);
+        ui.confirm(anchorEl || seqHtml.querySelector(`.seq-participant[data-node-id="${p.id}"]`), {
+          message: `Delete ${p.name} and its ${count} message${count === 1 ? '' : 's'}?`,
+          label: 'Delete participant',
+        }, () => deleteParticipant(p.id));
       }
 
       function deleteSelection(anchorEl) {
@@ -1749,7 +1709,7 @@
       window.addEventListener('keydown', (e) => {
         if (e.key !== 'Escape' || seqDrag || !seqSel) return;
         if (document.activeElement && document.activeElement.isContentEditable) return;
-        if (closeConfirm()) return;
+        if (ui.closeConfirm()) return;
         select(null);
       }, true);
       window.addEventListener('keydown', (e) => {
@@ -1877,14 +1837,14 @@
         isBackground: (el) => el === seqCanvas || el === seqSvg || el === seqHtml,
         clearSelection() { seqSelStash = { sel: seqSel, data: chartData }; select(null); },
         cancelInteraction() {
-          if (closeConfirm()) return true;
+          if (ui.closeConfirm()) return true;
           if (!seqDrag) return false;
           endSeqDrag();
           render();
           return true;
         },
         hasSelection: () => !!seqSel,
-        onViewChange() { closeConfirm(); pinParticipants(); },
+        onViewChange() { ui.closeConfirm(); pinParticipants(); },
         // The colour key sits above the card
         contentOverflow: () => (seqHtml.querySelector('.seq-key') ? { top: 40 } : null),
         deleteSelection

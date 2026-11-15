@@ -103,8 +103,8 @@ async function bringIntoView(sel) {
   }
   return null;
 }
-const summaries = () => t.ev(`document.querySelectorAll('.seq-frag-summary').length`);
-const focusBtn = await bringIntoView('.seq-frag-label[data-frag-id="f3"] .seq-frag-focus');
+const summaries = () => t.ev(`document.querySelectorAll('.frame-summary').length`);
+const focusBtn = await bringIntoView('.frame-tag[data-frag-id="f3"] .seq-frag-focus');
 await tap(focusBtn.x, focusBtn.y);
 const railCount = await t.ev(`document.querySelectorAll('.seq-participant.is-rail').length`);
 t.check('a tap on a phase\'s Focus button collapses the other phases and turns the participants they leave into rails', (await summaries()) === 3 && railCount === 2, `${await summaries()} ${railCount}`);
@@ -227,7 +227,7 @@ if (erd) {
   }
   t.check('erd: a drag from a selected table\'s row port to another table\'s row draws a relationship', drawn, `${JSON.stringify(port)} ${JSON.stringify(goal)}`);
   t.check('erd: the new line is selected and its end handles are touch targets', await t.ev(`document.querySelectorAll('.erd-handle[data-touch-drag]').length`) === 2);
-  t.check('erd: the drawn line is a cubic curve (M P0 C P1 P2 P3) and its end handles sit on its two ends', await t.ev(`(() => { const d = document.querySelector('.erd-rel.selected .erd-rel-line').getAttribute('d'); return /^M [-\\d. ]+ C [-\\d. ]+$/.test(d) && document.querySelectorAll('.erd-handle').length === 2; })()`));
+  t.check('erd: the drawn line is a cubic curve (M P0 C P1 P2 P3) and its end handles sit on its two ends', await t.ev(`(() => { const d = document.querySelector('.erd-rel.selected .edge-line').getAttribute('d'); return /^M [-\\d. ]+ C [-\\d. ]+$/.test(d) && document.querySelectorAll('.erd-handle').length === 2; })()`));
   // Re-point the new line's parent end by touch
   await pinch(W / 2, H / 2, 200, 110);   // zoom out: the neighbours of the two tables come on screen too
   const h = await t.at('.erd-handle[data-role="to"]');
@@ -239,7 +239,7 @@ if (erd) {
   // A tap on a line selects it
   await tap(10, 300);
   t.check('erd: a tap on blank canvas clears the selection', (await nSelected()) === 0 && (await t.ev(`document.querySelectorAll('.erd-handle').length`)) === 0);
-  const lp = await t.ev(`(() => { const p = document.querySelector('.erd-rel[data-edge-id="r8"] .erd-rel-hit'); const L = p.getTotalLength(), m = p.getScreenCTM();
+  const lp = await t.ev(`(() => { const p = document.querySelector('.erd-rel[data-edge-id="r8"] .edge-hit'); const L = p.getTotalLength(), m = p.getScreenCTM();
     for (const f of [0.5, 0.4, 0.6, 0.3, 0.7]) { const q = p.getPointAtLength(L * f), x = m.a * q.x + m.e, y = m.d * q.y + m.f;
       const el = document.elementFromPoint(x, y); if (el && el.closest('.erd-rel[data-edge-id="r8"]') && x > 0 && x < ${W} && y > 100 && y < ${H - 120}) return { x, y }; } return null; })()`);
   if (lp) await tap(lp.x, lp.y);

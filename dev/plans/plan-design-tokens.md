@@ -2,7 +2,7 @@
 
 Every diagram is drawn from one design-token set. The skill ships a default set. A user can point the skill at a website or a brand guide, get a token set in the same shape, and every diagram type (current and future) uses it without code changes. Every visual component is built once, from tokens only, and reused by all types.
 
-**Status:** Phase 1 done 2026-11-15 (see Phase 1 "As built"). Phases 2 to 8 not started. Review done 2026-11-15 (findings below). Open decisions for Phases 1 and 5 settled 2026-11-15. Typography and iconography added 2026-11-15.
+**Status:** Phases 1 and 2 done 2026-11-15, Phase 3 done 2026-11-15 (see each phase's "As built"). Phases 4 to 8 not started. Review done 2026-11-15 (findings below). Open decisions for Phases 1 and 5 settled 2026-11-15. Typography and iconography added 2026-11-15.
 
 ## Goals
 
@@ -232,6 +232,15 @@ What stays in a type folder: shapes and parts only that type draws (decision dia
 Shared markup: components that have markup (confirm popover, note card, swatch picker) get a small builder in `shell.js` (for example `ui.confirm(anchor, text, onYes)`, `ui.note(...)`), and the three type copies call it. No framework or template engine.
 
 Exit check: the e2e suites (`e2e_notes`, `e2e_erd`, `e2e_sequence`, `e2e_shell`, `e2e_connectors`, `e2e_multiselect`, `e2e_touch`, `e2e_shapes`) pass unchanged except for selector renames, and `dev/architecture.md` lists the components and the rule that a new type uses them.
+
+As built, shared components (2026-11-15):
+
+- `assets/components/` holds `dock`, `badge`, `button`, `toggle`, `toast`, `hint`, `popover`, `note`, `swatch`, `edge` and `frame`, joined by `components_css()` in `COMPONENTS` order into `{{COMPONENTS_CSS}}` (after `{{TOKENS_CSS}}`, before `{{SHELL_CSS}}`; `--target artifact` takes it from the same template). The order matters in two places: `dock` before `button` (`.toolbar-center .btn` and `.btn:disabled` weigh the same, and the disabled look wins) and `toggle` after both. `check_tokens.py` scans the folder too. `dev/architecture.md` lists the components and the rule for a new type.
+- Builders in `shell.js`, as `ui`: `ui.confirm(anchor, { message, title?, label, ok? }, onYes)` with `ui.closeConfirm()` and `ui.isConfirmOpen()`, and `ui.noteCard(note, { onDelete, onLink, linkTitle, icons, onCommit, onInput })`. The three confirm popovers (`.lane-confirm`, `.erd-confirm`, `.seq-confirm`) are one `.confirm`; the flowchart and ER note cards are built by `ui.noteCard`, and the sequence card is `ui.noteCard` without tools.
+- Renames, with the e2e selectors updated and no check weakened: `.flow-note`, `.erd-note`, `.seq-note` to `.note` (and their `-text`, `-leader`, `-del`, `-link`, `-badge`, `-add` parts, `erd-note-linking` and `erd-note-picking` to `note-linking` and `note-picking`); `*-confirm-delete` to `.confirm-ok` (a `.btn-danger`), `*-confirm-cancel`, `-msg`, `-title`, `-actions` to `.confirm-*`; `.connector-path` and `.erd-rel-line` to `.edge-line`, `.connector-hit` and `.erd-rel-hit` to `.edge-hit`, `.edge-label-container` and `.erd-rel-label` to `.edge-label`; `.seq-frag-label`, `-chev`, `-summary` to `.frame-tag`, `.frame-chev`, `.frame-summary`; `.erd-hint`, `.seq-hint` to `.hint` (the flowchart's note and connector prompts to `.hint.hint-note`, keeping `.note-pick-hint` and `.connector-pick-hint` as the tests' handles); `.export-wrap`, `.export-menu`, `.export-menu-label` to `.menu-wrap`, `.menu`, `.menu-label`; `.erd-mode` to `.btn-count`. `.erd-toggle` and `.seq-toggle` are gone: every `.btn[aria-pressed="true"]` is a pressed toggle. The notes layers carry `.note-layer` next to their ids.
+- Delete on hover: `.btn-danger-hover` (note and lane delete chips) and `.btn-danger` (the confirm button) replace the three copies of each.
+- Visible changes where unifying duplicates required it: the sequence note takes the shared card (3px accent edge on the left, the same corner shape, slate selection ring instead of the blue one); its padding keeps the text area the engine measured. The count badge in a dock button uses 4px side padding in both types (ER had 5px, so its dock is a few px narrower). Hints share one look (the sequence and ER prompts lost nothing; the sequence prompt no longer takes the pointer). Everything else is pixel-identical in the screenshot comparison (light and dark, including an open export menu, a confirm bubble in each type, notes shown and selected).
+- Not shared, on purpose: the flowchart lane pill (its colours come from the swatch roles; a frame tag is a neutral tab), the in/out/hover colours of an edge line (the ER line also swaps its markers and the flowchart colours the path itself), the action bars of ER and sequence (`.erd-ab-btn`, `.seq-ab-btn`, different sizes and weights) and the sequence fragment swatches (Phase 5 replaces them with palette slots).
 
 ### Phase 4: Iconography
 

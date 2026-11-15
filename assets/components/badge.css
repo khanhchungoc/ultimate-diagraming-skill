@@ -1,0 +1,32 @@
+    .badge {
+      font-size: var(--text-sm);
+      font-weight: var(--weight-semibold);
+      padding: 2px 10px;
+      border-radius: var(--radius-2xl);
+    }
+    .badge-status {
+      background: var(--bg-soft);
+      color: var(--text-soft);
+    }
+    .badge-status.saved {
+      background: var(--status-saved-bg);
+      color: var(--status-saved-text);
+    }
+    .badge-status.unsaved {
+      background: var(--status-unsaved-bg);
+      color: var(--status-unsaved-text);
+    }
+
+    /* A count or mode word inside a button (Notes: 3, Columns: Keys); turns solid while its button is pressed (toggle.css) */
+    .btn-count {
+      min-width: 16px;
+      padding: 0 4px;
+      box-sizing: border-box;
+      border-radius: var(--radius-pill);
+      background: var(--bg-soft);
+      color: var(--text-soft);
+      font-size: var(--text-xs);
+      line-height: var(--line-16);
+      text-align: center;
+    }
+    .btn-count[hidden] { display: none; }

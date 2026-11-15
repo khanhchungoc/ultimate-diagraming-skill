@@ -13,6 +13,7 @@ assets/
                             (Nunito Sans is linked from Google Fonts in shell.html, the page's only network request;
                             offline the page falls back to the system font stack in shell.css)
   tokens/default.json      design tokens (colours, font, type scale and text styles, palette, motion); no :root blocks in the CSS files
+  components/<name>.css     shared parts, one file each, tokens only, no type prefix (list below); assembled after the token CSS and before shell.css
   types/<type>/             one folder per diagram type (flowchart, sequence, erd)
     meta.json               {"title": ...}
     icon.html               header icon
@@ -31,6 +32,25 @@ scripts/
 dev/                        parity check, interaction test, notes (not part of authoring)
 references/types/<type>.md  schema, budget, checklist the agent reads before authoring
 ```
+
+## Shared components
+
+`assets/components/` holds the parts every type reuses, one stylesheet each. `assemble_page()` joins them in `COMPONENTS` order (`layout_engine.py`) into `{{COMPONENTS_CSS}}`, so the cascade is tokens, components, shell, type. A type's stylesheet keeps only what that type alone draws (a decision diamond, a lifeline, a table row, a crow's-foot glyph) and still uses tokens only.
+
+| Component | What it is | Builder in `shell.js` |
+|---|---|---|
+| `button` | `.btn`, `.btn-icon`, `.btn-primary`, `.btn-success`, `.btn-danger` (solid red), `.btn-danger-hover` (red only on hover: the round delete chips) | |
+| `toggle` | `.btn[aria-pressed="true"]` (a pressed view toggle) and the `.btn-switch` sliding switch | |
+| `badge` | `.badge`, `.badge-status`, `.btn-count` (a count or mode word inside a button) | |
+| `toast`, `hint` | the artifact message; the prompt above the dock (`.hint`, `.hint-note` for note tools) | |
+| `popover` | `.menu` (the Export dropdown) and `.confirm` (the delete bubble) | `ui.confirm(anchor, { message, title?, label, ok? }, onYes)`, `ui.closeConfirm()`, `ui.isConfirmOpen()` |
+| `note` | the note card, its text, leader line, delete and link chips, badge and "+" chip, ghost, the `.note-layer` for cards shown on demand | `ui.noteCard(note, { onDelete, onLink, onCommit, onInput, icons })` |
+| `swatch` | the swatch roles for a colour that matches no palette slot, the colour row and dot | `swatchRow()`, `setSwatch()` |
+| `edge` | `.edge-line`, `.edge-hit` and the `.edge-label` pill with its in/out/hover/selected states | |
+| `frame` | `.frame-tag`, `.frame-chev`, `.frame-summary`: the tag that names a framed group, its collapse chevron and the row a collapsed frame shrinks to | |
+| `dock` | the floating add and zoom docks and the dock popover | |
+
+A new type uses these before it writes any CSS or markup of its own: a delete that needs a confirmation calls `ui.confirm`, a note is a `.note` built by `ui.noteCard`, a label on a line is an `.edge-label`, a prompt is a `.hint`. When two types need the same new thing, it goes into `assets/components/` (and `COMPONENTS`), not into either type.
 
 `assemble_page()` in `layout_engine.py` fills the placeholders in one pass and writes a single standalone HTML file. JSON key `diagramType` selects the type folder; a file without it is a `flowchart`. `SUPPORTED_TYPES` lists the types that have assets and a reference.
 
