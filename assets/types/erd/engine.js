@@ -24,17 +24,19 @@ const ER = {
   CHAR_W: 7.4, TYPE_CHAR_W: 6.6, PAD_X: 12, GLYPH_W: 22, TYPE_GAP: 16,
   MIN_W: 168, MAX_W: 360, GRID: 4,
   GAP_X: 80, GAP_Y: 56,                          // clear space kept between tables (the overlap removal)
+  REL_GAP: 98, REL_LABEL_GAP: 66,                // related tables keep this much clear on the axis their line uses (98: 2 px for rounding), and label width + 66 when the line has a label
+  EVEN_K: 2.0, HOLE_OK: 0.10, HOLE_CELLS: 1200,  // a table's nearest gap may be this many times the median; an empty rectangle may cover this share of the box (the cost counts the excess); grid cells in the hole search
   SAME_COLOR: 0.8,                               // tables of one colour count as this much closer
   ASPECT_LO: 1.6, ASPECT_HI: 2.0, ASPECT_T: 1.9, // the layout is scaled toward this width / height range
   STRESS_IT: 200, FORCE_IT: 50, WARM_FORCE_IT: 20,
   HUB_PULL: [0, 1.2e-4, 3e-4],                              // pull of the three most connected tables toward the centre (stress weight)
   AREA_DIV: 20000,                                          // bounding-box area counts as area / AREA_DIV in the cost
   // shortcut: a fixed nominal view (1760x856 at 66%) instead of the real viewport, upgrade if layouts must fit other screens
-  VIEW_W: 1760, VIEW_H: 856, FIT_MIN: 0.66,
+  VIEW_W: 1760, VIEW_H: 856, FIT_MIN: 0.62,
   UNHIT_IT: 30, SQUEEZE_STEPS: 30,
   SHAPE_X: 0.25,                                 // share of the aspect change done by stretching x (the rest squashes y)
-  REFINE: 4,
-  REPAIR_PASSES: 10, REPAIR_T: [2500, 1200, 600, 300, 150, 0], WARM_T: [300, 0],
+  REFINE: 2, REFINE_SMALL: 12, SMALL: 16,        // candidates refined by the local search (a diagram of up to SMALL tables refines more)
+  REPAIR_PASSES: 10, POLISH_T: [600, 300, 150, 0], REPAIR_T: [2500, 1200, 600, 300, 150, 0], WARM_T: [300, 0],
   VARIANTS: 18,                                  // candidate layouts tried (seed angle and direction differ)
   SEG: 16,                                       // segments per sampled curve
   PORT_GAP: 22, PORT_MARGIN: 14,                 // spacing of lines on one side, and the corner margin
@@ -115,7 +117,8 @@ function erDistances(data, adj, sizes) {
   const D = Array.from({ length: n }, (_, i) => Array.from({ length: n }, (_, j) => (i === j ? 0 : Infinity)));
   for (let a = 0; a < n; a++) {
     adj[a].forEach((b) => {
-      let d = ((sizes[a].w + sizes[b].w) / 2 + ER.GAP_X + (sizes[a].h + sizes[b].h) / 2 + ER.GAP_Y) / 2;
+      const g = erNeed ? erNeed[a * n + b] : 0;     // the room the line needs counts as the gap
+      let d = ((sizes[a].w + sizes[b].w) / 2 + Math.max(ER.GAP_X, g) + (sizes[a].h + sizes[b].h) / 2 + Math.max(ER.GAP_Y, g)) / 2;
       if (ents[a].color && ents[a].color === ents[b].color) d *= ER.SAME_COLOR;
       D[a][b] = d;
     });
@@ -126,11 +129,40 @@ function erDistances(data, adj, sizes) {
   return D;
 }
 
+// The room each related pair of tables needs between them, set by layoutDiagram: erNeed[a * erNeedN + b] is 0 for an
+// unrelated pair, else the clear space the line between them needs on the axis it runs along.
+let erNeed = null, erNeedN = 0;
+function erNeedOf(data, sizes) {
+  const ents = data.entities || [], n = ents.length, idx = {};
+  ents.forEach((e, i) => { idx[e.id] = i; });
+  const need = new Float64Array(n * n);
+  (data.relationships || []).forEach((r) => {
+    const a = idx[r.from], b = idx[r.to];
+    if (a === undefined || b === undefined || a === b) return;
+    const g = Math.max(ER.REL_GAP, r.label ? erTextW(r.label, ER.LABEL_CHAR_W) + 2 * ER.LABEL_X + ER.REL_LABEL_GAP : 0);
+    need[a * n + b] = need[b * n + a] = Math.max(need[a * n + b], g);
+  });
+  return need;
+}
+
+// How much short of its need a related pair is on each axis: the line leaves on the side that faces the other table (as
+// in erRouteAll), so only the axes the two ends face along count. Sets erShort to [x, y] and returns true when the pair
+// is short on either (erShort is shared, not allocated, because the overlap removal calls this in its inner loop).
+const erShort = [0, 0];
+function erRelShort(dx, dy, sa, sb, need) {
+  const ax = Math.abs(dx), ay = Math.abs(dy);
+  const fa = ax / sa.w >= ay / sa.h, fb = ax / sb.w >= ay / sb.h;      // true: the end faces along x
+  const sx = fa || fb ? need - (ax - (sa.w + sb.w) / 2) : 0, sy = !fa || !fb ? need - (ay - (sa.h + sb.h) / 2) : 0;
+  erShort[0] = sx > 0 ? sx : 0; erShort[1] = sy > 0 ? sy : 0;
+  return sx > 0 || sy > 0;
+}
+
 // Clash test: does table i (at centre P) overlap another table in ids, with the clearance gaps
 function erClashes(i, ids, P, sizes) {
   return ids.some((j) => j !== i &&
-    Math.abs(P.x[i] - P.x[j]) < (sizes[i].w + sizes[j].w) / 2 + ER.GAP_X &&
-    Math.abs(P.y[i] - P.y[j]) < (sizes[i].h + sizes[j].h) / 2 + ER.GAP_Y);
+    ((Math.abs(P.x[i] - P.x[j]) < (sizes[i].w + sizes[j].w) / 2 + ER.GAP_X &&
+    Math.abs(P.y[i] - P.y[j]) < (sizes[i].h + sizes[j].h) / 2 + ER.GAP_Y) ||
+    (erNeed && erNeed[i * erNeedN + j] > 0 && erRelShort(P.x[j] - P.x[i], P.y[j] - P.y[i], sizes[i], sizes[j], erNeed[i * erNeedN + j]))));
 }
 
 // Stress majorization (SMACOF): pulls each table toward its shortest-path distance from every other table
@@ -176,33 +208,69 @@ function erForce(ids, edges, P, sizes, iters) {
 }
 
 // Rectangle-aware overlap removal: a pair that is closer than the gaps on both axes is pushed apart along the axis
-// where it overlaps less
-function erSeparate(ids, P, sizes, limit) {
-  const n = ids.length, X = P.x, Y = P.y, lim = limit || 200;
+// where it overlaps less. With only (table ids), the tables not in it start clear of each other, so a pair is looked at
+// only once one of its tables is in only or has been moved: the same result as the full pass, in less time.
+// Math.sin, cos and pow may differ in the last bit between JavaScript engines (Node and the browser), and the layout
+// search amplifies that, so their results are rounded to keep the layout identical everywhere.
+const erFix = (v) => Math.round(v * 1e6) / 1e6;
+
+function erSeparate(ids, P, sizes, limit, only) {
+  const n = ids.length, X = P.x, Y = P.y, lim = limit || 200, NE = erNeed, NN = erNeedN;
   const W = ids.map((i) => sizes[i].w), H = ids.map((i) => sizes[i].h);
+  const act = ids.map((i) => !only || only.includes(i)), list = [];   // list: positions of the active tables, ascending
+  act.forEach((on, p) => { if (on) list.push(p); });
+  const wake = (k) => { if (act[k]) return; act[k] = true; let t = list.length; while (t > 0 && list[t - 1] > k) t--; list.splice(t, 0, k); };
+  // Pushes the pair (p, q) apart when it overlaps; true when it moved
+  const pair = (p, q) => {
+    const a = ids[p], b = ids[q];
+    const dx = X[b] - X[a];
+    const need = NE ? NE[a * NN + b] : 0;
+    if (need > 0) {                                  // related tables: room for the line on the axis it runs along
+      const dy = Y[b] - Y[a];
+      if (erRelShort(dx, dy, sizes[a], sizes[b], need)) {
+        const sx = dx >= 0 ? 1 : -1, sy = dy >= 0 ? 1 : -1;
+        X[a] -= sx * erShort[0] / 2; X[b] += sx * erShort[0] / 2; Y[a] -= sy * erShort[1] / 2; Y[b] += sy * erShort[1] / 2;
+        wake(p); wake(q);
+        return true;
+      }
+    }
+    const oy0 = (H[p] + H[q]) / 2 + ER.GAP_Y - Math.abs(Y[b] - Y[a]);
+    if (oy0 <= 0) return false;                      // cheap reject first: the pair is clear vertically
+    const ox = (W[p] + W[q]) / 2 + ER.GAP_X - Math.abs(dx);
+    if (ox <= 0) return false;
+    if (ox < oy0) {
+      const s = dx >= 0 ? 1 : -1;
+      X[a] -= s * ox / 2; X[b] += s * ox / 2;
+    } else {
+      const dy = Y[b] - Y[a], s = dy >= 0 ? 1 : -1;
+      Y[a] -= s * oy0 / 2; Y[b] += s * oy0 / 2;
+    }
+    wake(p); wake(q);
+    return true;
+  };
   for (let pass = 0; pass < lim; pass++) {
     let moved = false;
     for (let p = 0; p < n; p++) {
-      const a = ids[p];
-      for (let q = p + 1; q < n; q++) {
-        const b = ids[q];
-        const dx = X[b] - X[a], oy0 = (H[p] + H[q]) / 2 + ER.GAP_Y - Math.abs(Y[b] - Y[a]);
-        if (oy0 <= 0) continue;                       // cheap reject first: the pair is clear vertically
-        const ox = (W[p] + W[q]) / 2 + ER.GAP_X - Math.abs(dx);
-        if (ox <= 0) continue;
-        moved = true;
-        if (ox < oy0) {
-          const s = dx >= 0 ? 1 : -1;
-          X[a] -= s * ox / 2; X[b] += s * ox / 2;
-        } else {
-          const dy = Y[b] - Y[a], s = dy >= 0 ? 1 : -1;
-          Y[a] -= s * oy0 / 2; Y[b] += s * oy0 / 2;
+      let q = p + 1;
+      if (!act[p]) {                                 // until p moves, only an active table after it can overlap it
+        for (let t = 0; t < list.length && !act[p]; t++) {
+          const v = list[t];
+          if (v > p && pair(p, v)) { moved = true; q = v + 1; }
         }
+        if (!act[p]) continue;
       }
+      for (; q < n; q++) if (pair(p, q)) moved = true;
     }
     if (!moved) return true;
   }
   return false;
+}
+
+// Does any pair of the tables in ids lie closer than the gaps on both axes?
+function erOverlaps(ids, P, sizes) {
+  return ids.some((a, p) => ids.some((b, q) => q > p &&
+    ((Math.abs(P.x[b] - P.x[a]) < (sizes[a].w + sizes[b].w) / 2 + ER.GAP_X && Math.abs(P.y[b] - P.y[a]) < (sizes[a].h + sizes[b].h) / 2 + ER.GAP_Y) ||
+    (erNeed && erNeed[a * erNeedN + b] > 0 && erRelShort(P.x[b] - P.x[a], P.y[b] - P.y[a], sizes[a], sizes[b], erNeed[a * erNeedN + b])))));
 }
 
 // Bounding box of the tables in ids: { x0, y0, x1, y1 } (centres ± half sizes)
@@ -223,7 +291,7 @@ function erShape(ids, P, sizes) {
   if (W <= 0 || H <= 0) return;
   const cx = (b.x0 + b.x1) / 2, cy = (b.y0 + b.y1) / 2;
   let sx = 1, sy = 1;
-  if (W / H < ER.ASPECT_LO || W / H > ER.ASPECT_HI) { const r = ER.ASPECT_T * H / W; sx = Math.pow(r, ER.SHAPE_X); sy = Math.pow(r, ER.SHAPE_X - 1); }
+  if (W / H < ER.ASPECT_LO || W / H > ER.ASPECT_HI) { const r = ER.ASPECT_T * H / W; sx = erFix(Math.pow(r, ER.SHAPE_X)); sy = erFix(Math.pow(r, ER.SHAPE_X - 1)); }
   ids.forEach((i) => { P.x[i] = cx + (P.x[i] - cx) * sx; P.y[i] = cy + (P.y[i] - cy) * sy; });
 }
 
@@ -268,7 +336,7 @@ function erLayoutComponent(ids, D, adj, P, sizes, variant, warm) {
       const members = ring[k].sort((a, b) => a - b);
       members.forEach((i, pos) => {
         const ang = (variant % 2 ? -1 : 1) * (2 * Math.PI * pos) / members.length + k * 0.3 + variant * 0.7;
-        P.x[i] = k * step * Math.cos(ang); P.y[i] = k * step * Math.sin(ang);
+        P.x[i] = k * step * erFix(Math.cos(ang)); P.y[i] = k * step * erFix(Math.sin(ang));
       });
     });
     erStress(ids, D, P, ER.STRESS_IT, hubs, pull);
@@ -346,8 +414,10 @@ function erPolyHits(f, x0, y0, x1, y1) {
 }
 
 // Routes every relationship from the table boxes: sets curve, points, labelBox; returns the score data (quick: score
-// only, nothing written to the relationships)
-function erRouteAll(data, boxes, quick) {
+// only, nothing written to the relationships). With quick, base is the state (.st) of an earlier quick result for the same
+// data: curves whose control points are unchanged keep their samples, and a crossing or hit is only recounted for a pair
+// where a curve or the table changed. The totals equal a full count exactly.
+function erRouteAll(data, boxes, quick, base) {
   const ents = data.entities || [], rels = data.relationships || [], n = boxes.length;
   const idx = {};
   ents.forEach((e, i) => { idx[e.id] = i; });
@@ -366,17 +436,26 @@ function erRouteAll(data, boxes, quick) {
     if (Math.abs(dx) / boxes[A].w >= Math.abs(dy) / boxes[A].h) return dx >= 0 ? 0 : 1;
     return dy >= 0 ? 2 : 3;
   };
+  const old = quick && base && base.live.length === live.length ? base : null;
+  const moved = old ? boxes.map((b, j) => { const o = old.boxes[j]; return o.x !== b.x || o.y !== b.y || o.w !== b.w || o.h !== b.h; }) : null;
   const slots = new Array(n * 4);                    // per (table, side): the line ends that sit there
   live.forEach((L, li) => {
     if (L.self) return;
-    L.sa = facing(L.a, L.b); L.sb = facing(L.b, L.a);
+    if (old && !moved[L.a] && !moved[L.b]) { L.sa = old.live[li].sa; L.sb = old.live[li].sb; }
+    else { L.sa = facing(L.a, L.b); L.sb = facing(L.b, L.a); }
     (slots[L.a * 4 + L.sa] = slots[L.a * 4 + L.sa] || []).push({ end: li * 2, other: L.b });
     (slots[L.b * 4 + L.sb] = slots[L.b * 4 + L.sb] || []).push({ end: li * 2 + 1, other: L.a });
   });
-  const port = new Array(live.length * 2);
+  const port = new Array(live.length * 2), ends = new Array(n * 4);
   slots.forEach((list, k) => {
     if (!list) return;
     const i = k >> 2, side = k & 3, b = boxes[i], horiz = side < 2;
+    ends[k] = list.map((p) => p.end);
+    const was = old && old.ends[k];                  // same lines, same table, no other end moved: the ports are as before
+    if (was && !moved[i] && was.length === list.length && list.every((p, q) => p.end === was[q] && !moved[p.other])) {
+      list.forEach((p) => { port[p.end] = old.port[p.end]; });
+      return;
+    }
     list.sort((p, q) => (horiz ? cy[p.other] - cy[q.other] : cx[p.other] - cx[q.other]) || p.end - q.end);
     const m = list.length, span = horiz ? b.h : b.w;
     const spacing = m > 1 ? Math.min(ER.PORT_GAP, (span - 2 * ER.PORT_MARGIN) / (m - 1)) : 0;
@@ -389,6 +468,10 @@ function erRouteAll(data, boxes, quick) {
   const SEG = ER.SEG, R = (v) => Math.round(v * 10) / 10;
   live.forEach((L, li) => {
     let c;
+    const B0 = old && old.live[li];
+    if (B0 && (L.self ? !moved[L.a] : port[li * 2] === old.port[li * 2] && port[li * 2 + 1] === old.port[li * 2 + 1] && L.sa === B0.sa && L.sb === B0.sb)) {
+      L.c = B0.c; L.f = B0.f; L.bb = B0.bb; L.seg = B0.seg; return;   // same ends: same curve
+    }
     if (L.self) {
       const A = boxes[L.a], p0 = [A.x + A.w, cy[L.a]], p3 = [cx[L.a], A.y];
       c = [p0, [p0[0] + ER.SELF_CTRL, p0[1]], [p3[0], p3[1] - ER.SELF_CTRL], p3];
@@ -398,17 +481,21 @@ function erRouteAll(data, boxes, quick) {
       c = [p0, [p0[0] + NX[L.sa] * k, p0[1] + NY[L.sa] * k], [p3[0] + NX[L.sb] * k, p3[1] + NY[L.sb] * k], p3];
     }
     L.c = c;
+    if (B0 && B0.c.every((pt, q) => pt[0] === c[q][0] && pt[1] === c[q][1])) { L.f = B0.f; L.bb = B0.bb; L.seg = B0.seg; return; }
+    L.dirty = true;
     const f = new Float64Array(2 * (SEG + 1));      // the curve sampled into SEG segments, flat x,y
     for (let s = 0; s <= SEG; s++) {
       const t = s / SEG, u = 1 - t, w0 = u * u * u, w1 = 3 * u * u * t, w2 = 3 * u * t * t, w3 = t * t * t;
       f[2 * s] = w0 * c[0][0] + w1 * c[1][0] + w2 * c[2][0] + w3 * c[3][0];
       f[2 * s + 1] = w0 * c[0][1] + w1 * c[1][1] + w2 * c[2][1] + w3 * c[3][1];
     }
-    if (!quick) for (let q = 0; q < f.length; q++) f[q] = R(f[q]);   // the saved samples are what gets counted
+    for (let q = 0; q < f.length; q++) f[q] = R(f[q]);   // the saved samples are what gets counted, so the search counts them too
     L.f = f;
     let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
     for (let q = 0; q < f.length; q += 2) { x0 = Math.min(x0, f[q]); x1 = Math.max(x1, f[q]); y0 = Math.min(y0, f[q + 1]); y1 = Math.max(y1, f[q + 1]); }
     L.bb = [x0, y0, x1, y1];
+    L.seg = new Float64Array(SEG);
+    for (let q = 2; q < f.length; q += 2) L.seg[q / 2 - 1] = Math.hypot(f[q] - f[q - 2], f[q + 1] - f[q - 1]);
     if (!quick) {
       L.r.curve = c.map((pt) => [R(pt[0]), R(pt[1])]);
       L.r.points = []; for (let q = 0; q < f.length; q += 2) L.r.points.push([f[q], f[q + 1]]);
@@ -438,16 +525,19 @@ function erRouteAll(data, boxes, quick) {
   boxes.forEach((b) => { grow(b.x, b.y); grow(b.x + b.w, b.y + b.h); });
   live.forEach((L) => { grow(L.bb[0], L.bb[1]); grow(L.bb[2], L.bb[3]); if (L.r.labelBox) grow(L.r.labelBox.x, L.r.labelBox.y); });
   // Crossings: pairs of segments of different lines that properly cross (sharing an end point does not count)
-  let crossings = 0, length = 0;
+  let length = 0;
   const cul = new Set();                             // tables involved in a hit or a crossing (the repair moves these)
   const orient = (ax, ay, bx, by, px, py) => (bx - ax) * (py - ay) - (by - ay) * (px - ax);
-  for (let a = 0; a < live.length; a++) {
-    const A = live[a].f;
-    for (let k = 2; k < A.length; k += 2) length += Math.hypot(A[k] - A[k - 2], A[k + 1] - A[k - 1]);
-    for (let b = a + 1; b < live.length; b++) {
+  const nl = live.length, xs = [], hs = [];          // the crossing pairs [a, b] and the line-over-table pairs [line, table]
+  if (old) old.xs.forEach((pr) => { if (!live[pr[0]].dirty && !live[pr[1]].dirty) xs.push(pr); });
+  for (let a = 0; a < nl; a++) {
+    const A = live[a].f, sa = live[a].seg;
+    for (let k = 0; k < sa.length; k++) length += sa[k];
+    for (let b = a + 1; b < nl; b++) {
+      if (old && !live[a].dirty && !live[b].dirty) continue;   // counted already, kept above
       const ba = live[a].bb, bb = live[b].bb, B = live[b].f;
-      if (ba[2] < bb[0] || bb[2] < ba[0] || ba[3] < bb[1] || bb[3] < ba[1]) continue;
       let hit = false;
+      if (!(ba[2] < bb[0] || bb[2] < ba[0] || ba[3] < bb[1] || bb[3] < ba[1]))
       for (let i = 2; i < A.length && !hit; i += 2) {
         const px = A[i - 2], py = A[i - 1], qx = A[i], qy = A[i + 1];
         if (Math.max(px, qx) < bb[0] || Math.min(px, qx) > bb[2] || Math.max(py, qy) < bb[1] || Math.min(py, qy) > bb[3]) continue;
@@ -457,25 +547,29 @@ function erRouteAll(data, boxes, quick) {
           const d1 = orient(px, py, qx, qy, rx, ry), d2 = orient(px, py, qx, qy, sx, sy);
           if (!((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0))) continue;
           const d3 = orient(rx, ry, sx, sy, px, py), d4 = orient(rx, ry, sx, sy, qx, qy);
-          if ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0)) { crossings++; hit = true; break; }
+          if ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0)) { hit = true; break; }
         }
       }
-      if (hit) { cul.add(live[a].a); cul.add(live[a].b); cul.add(live[b].a); cul.add(live[b].b); }
+      if (hit) xs.push([a, b]);
     }
   }
+  xs.forEach(([a, b]) => { cul.add(live[a].a); cul.add(live[a].b); cul.add(live[b].a); cul.add(live[b].b); });
+  const crossings = xs.length;
   // Hits: a line that runs through a table it is not part of
-  let hits = 0;
   const m = ER.CLEAR / 2;
-  live.forEach((L) => {
+  if (old) old.hs.forEach((pr) => { if (!live[pr[0]].dirty && !moved[pr[1]]) hs.push(pr); });
+  live.forEach((L, li) => {
     boxes.forEach((b, j) => {
-      if (j === L.a || j === L.b) return;
+      if (j === L.a || j === L.b || (old && !L.dirty && !moved[j])) return;
       if (L.bb[2] <= b.x - m || L.bb[0] >= b.x + b.w + m || L.bb[3] <= b.y - m || L.bb[1] >= b.y + b.h + m) return;
-      if (erPolyHits(L.f, b.x - m, b.y - m, b.x + b.w + m, b.y + b.h + m)) { hits++; cul.add(j); cul.add(L.a); cul.add(L.b); }
+      if (erPolyHits(L.f, b.x - m, b.y - m, b.x + b.w + m, b.y + b.h + m)) hs.push([li, j]);
     });
   });
+  hs.forEach(([li, j]) => { cul.add(j); cul.add(live[li].a); cul.add(live[li].b); });
+  const hits = hs.length;
   const width = isFinite(x1) ? Math.round(x1 + ER.MARGIN) : 0, height = isFinite(y1) ? Math.round(y1 + ER.MARGIN) : 0;
   if (!quick) data.canvas = { width, height, crossings, length: Math.round(length), hits };
-  return { hits, crossings, length, minX: x0, minY: y0, curves: live, cul: Array.from(cul).sort((p, q) => p - q) };
+  return { hits, crossings, length, minX: x0, minY: y0, curves: live, cul: Array.from(cul).sort((p, q) => p - q), st: { boxes, live, xs, hs, port, ends } };
 }
 
 // Routes with positions as they are (a table without a position is laid out first)
@@ -529,11 +623,59 @@ function erExtent(boxes) {
 // Penalty for a bounding box outside the target aspect range, and for not fitting a nominal view at FIT_MIN zoom (both x1000)
 function erOffAspect(boxes) {
   const e = erExtent(boxes), a = e.w / e.h;
-  return Math.round(Math.max(0, ER.ASPECT_LO - a, a - ER.ASPECT_HI + 0.15) * 1000);
+  return Math.round(Math.max(0, ER.ASPECT_LO - a, a - ER.ASPECT_HI + 0.05) * 1000);
 }
 function erOffFit(boxes) {
   const e = erExtent(boxes);
   return Math.round(Math.max(0, Math.max(e.w / ER.VIEW_W, e.h / ER.VIEW_H) - 1 / ER.FIT_MIN) * 1000);
+}
+
+// Unevenness: how far (px, summed) the tables' nearest-neighbour edge gaps exceed EVEN_K times their median, so a table
+// left far from the rest costs
+function erUneven(boxes) {
+  const n = boxes.length;
+  if (n < 3) return 0;
+  const near = boxes.map((a, i) => {
+    let best = Infinity;
+    for (let j = 0; j < n; j++) {
+      if (j === i) continue;
+      const b = boxes[j], gx = Math.max(0, a.x - (b.x + b.w), b.x - (a.x + a.w)), gy = Math.max(0, a.y - (b.y + b.h), b.y - (a.y + a.h));
+      best = Math.min(best, gx * gx + gy * gy);
+    }
+    return Math.sqrt(best);
+  });
+  const sorted = near.slice().sort((p, q) => p - q), med = sorted[n >> 1];
+  return Math.round(near.reduce((sum, g) => sum + Math.max(0, g - ER.EVEN_K * med), 0));
+}
+
+// Empty space: the largest rectangle of the bounding box that touches no table (each table counts GAP / 2 larger), on a
+// grid of about HOLE_CELLS cells (a cell is full when its centre lies in a table), as a share of the box; the cost counts what is over HOLE_OK
+// (per mille). The classic largest-rectangle-in-a-histogram scan.
+function erHoles(boxes) {
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  boxes.forEach((b) => { x0 = Math.min(x0, b.x); y0 = Math.min(y0, b.y); x1 = Math.max(x1, b.x + b.w); y1 = Math.max(y1, b.y + b.h); });
+  const C = Math.max(8, Math.sqrt((x1 - x0) * (y1 - y0) / ER.HOLE_CELLS)), cols = Math.ceil((x1 - x0) / C), rows = Math.ceil((y1 - y0) / C);
+  const full = new Uint8Array(cols * rows);
+  boxes.forEach((b) => {
+    const ca = Math.max(0, Math.ceil((b.x - ER.GAP_X / 2 - x0) / C - 0.5)), cb = Math.min(cols, Math.ceil((b.x + b.w + ER.GAP_X / 2 - x0) / C - 0.5));
+    const ra = Math.max(0, Math.ceil((b.y - ER.GAP_Y / 2 - y0) / C - 0.5)), rb = Math.min(rows, Math.ceil((b.y + b.h + ER.GAP_Y / 2 - y0) / C - 0.5));
+    for (let r = ra; r < rb; r++) for (let c = ca; c < cb; c++) full[r * cols + c] = 1;
+  });
+  const h = new Int32Array(cols), stack = new Int32Array(cols + 1);
+  let best = 0;
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) h[c] = full[r * cols + c] ? 0 : h[c] + 1;
+    let top = 0;
+    for (let c = 0; c <= cols; c++) {
+      const v = c < cols ? h[c] : 0;
+      while (top > 0 && h[stack[top - 1]] >= v) {
+        const height = h[stack[--top]], left = top ? stack[top - 1] + 1 : 0;
+        best = Math.max(best, height * (c - left));
+      }
+      stack[top++] = c;
+    }
+  }
+  return Math.round(Math.max(0, best / (cols * rows) - ER.HOLE_OK) * 1000);
 }
 
 // How far the given tables' centres lie outside the middle third of the layout (px, both axes summed)
@@ -542,7 +684,7 @@ function erOffCentre(boxes, ids) {
   boxes.forEach((b) => { x0 = Math.min(x0, b.x); y0 = Math.min(y0, b.y); x1 = Math.max(x1, b.x + b.w); y1 = Math.max(y1, b.y + b.h); });
   const mx = (x0 + x1) / 2, my = (y0 + y1) / 2;
   return Math.round(ids.reduce((sum, i, rank) => {
-    const k = rank === 0 ? 12 : 7;                  // the top table within 1/12 of the middle, the next two within the middle third
+    const k = rank === 0 ? 11 : 6.4;                // the top table within 1/11 of the middle (the metric allows 1/10), the next two within the middle third (1/6) with some margin
     return sum + Math.max(0, Math.abs(boxes[i].x + boxes[i].w / 2 - mx) - (x1 - x0) / k) + Math.max(0, Math.abs(boxes[i].y + boxes[i].h / 2 - my) - (y1 - y0) / k);
   }, 0));
 }
@@ -551,7 +693,7 @@ function erOffCentre(boxes, ids) {
 // move when the cost drops (hits, crossings, length, centre and aspect) without the bounding box growing more than 5%.
 // Threshold accepting: early rounds also accept a slightly worse cost, to leave local minima; the last round accepts only
 // improvements. The cheapest state seen is kept.
-function erRepair(c, score, cost, rounds, good) {
+function erRepair(c, score, cost, floor, hubs, rounds, good) {
   const n = c.boxes.length, all = c.boxes.map((_, i) => i);
   const sizes = c.boxes.map((b) => ({ w: b.w, h: b.h }));
   let P = { x: c.boxes.map((b) => b.x + b.w / 2), y: c.boxes.map((b) => b.y + b.h / 2) };
@@ -560,6 +702,7 @@ function erRepair(c, score, cost, rounds, good) {
   const cap = area(c.boxes) * 1.2;
   const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]];
   let cur = { key: c.key, boxes: c.boxes };
+  let clear = !erOverlaps(all, P, sizes);            // P has no overlap, so a one-table move only needs local separation
   rounds.forEach((T, round) => {
     const last = round === rounds.length - 1;
     for (let pass = 0; pass < (last ? (rounds === ER.WARM_T ? 3 : ER.REPAIR_PASSES) : 2); pass++) {
@@ -570,10 +713,10 @@ function erRepair(c, score, cost, rounds, good) {
         const Q = { x: P.x.map((v) => mx + (v - mx) * fx), y: P.y.map((v) => my + (v - my) * fy) };
         if (!erSeparate(all, Q, sizes, 60)) continue;
         const bx = toBoxes(Q);
-        if (area(bx) > cap) continue;
-        const key = score(bx);
-        if (cost(key) < cost(cur.key) + T - 1e-6 && cost(key) !== cost(cur.key)) {
-          cur = { key, boxes: bx }; P = Q; improved = true;
+        if (area(bx) > cap || floor(bx) >= cost(cur.key) + T - 1e-6) continue;
+        const key = score(bx, cur.key);
+        if (cost(key, cost(cur.key) + T - 1e-6) < cost(cur.key) + T - 1e-6 && cost(key) !== cost(cur.key)) {
+          cur = { key, boxes: bx }; P = Q; clear = true; improved = true;
           if (cost(key) < cost(c.key) - 1e-6) { c.key = key; c.boxes = bx; if (good(key)) return; }
         }
       }
@@ -582,14 +725,28 @@ function erRepair(c, score, cost, rounds, good) {
         for (const step of [32, 96, 224]) for (const [dx, dy] of dirs) {
           const Q = { x: P.x.slice(), y: P.y.slice() };
           Q.x[i] += dx * step; Q.y[i] += dy * step;
-          if (!erSeparate(all, Q, sizes, 40)) continue;
+          if (!erSeparate(all, Q, sizes, 40, clear ? [i] : null)) continue;
           const bx = toBoxes(Q);
-          if (area(bx) > cap) continue;
-          const key = score(bx);
-          if (cost(key) < cost(cur.key) + T - 1e-6 && cost(key) !== cost(cur.key)) {
-            cur = { key, boxes: bx }; P = Q; improved = true;
+          if (area(bx) > cap || floor(bx) >= cost(cur.key) + T - 1e-6) continue;
+          const key = score(bx, cur.key);
+          if (cost(key, cost(cur.key) + T - 1e-6) < cost(cur.key) + T - 1e-6 && cost(key) !== cost(cur.key)) {
+            cur = { key, boxes: bx }; P = Q; clear = true; improved = true;
             if (cost(key) < cost(c.key) - 1e-6) { c.key = key; c.boxes = bx; if (good(key)) return; }
           }
+        }
+      }
+      // a hub that is off the centre swaps places with another table
+      if (cur.key[3] > 0) for (const h of hubs) for (const j of all) {
+        if (j === h || cur.key[3] === 0) continue;
+        const Q = { x: P.x.slice(), y: P.y.slice() };
+        Q.x[h] = P.x[j]; Q.y[h] = P.y[j]; Q.x[j] = P.x[h]; Q.y[j] = P.y[h];
+        if (!erSeparate(all, Q, sizes, 40)) continue;
+        const bx = toBoxes(Q);
+        if (area(bx) > cap || floor(bx) >= cost(cur.key) + T - 1e-6) continue;
+        const key = score(bx, cur.key);
+        if (cost(key, cost(cur.key) + T - 1e-6) < cost(cur.key) + T - 1e-6 && cost(key) !== cost(cur.key)) {
+          cur = { key, boxes: bx }; P = Q; clear = true; improved = true;
+          if (cost(key) < cost(c.key) - 1e-6) { c.key = key; c.boxes = bx; if (good(key)) return; }
         }
       }
       if (!improved) break;
@@ -597,10 +754,11 @@ function erRepair(c, score, cost, rounds, good) {
     // slide everything inward, then continue from the best state so far
     const Q = { x: c.boxes.map((b) => b.x + b.w / 2), y: c.boxes.map((b) => b.y + b.h / 2) };
     erCompact(all, Q, sizes, 6);
-    const bx = toBoxes(Q), key = score(bx);
+    const bx = toBoxes(Q), key = score(bx, c.key);
     if (cost(key) < cost(c.key)) { c.key = key; c.boxes = bx; }
     cur = { key: c.key, boxes: c.boxes };
     P = { x: c.boxes.map((b) => b.x + b.w / 2), y: c.boxes.map((b) => b.y + b.h / 2) };
+    clear = !erOverlaps(all, P, sizes);
   });
 }
 
@@ -616,7 +774,7 @@ function erSqueeze(c, score) {
       const Q = { x: P.x.map((v) => cx + (v - cx) * fx), y: P.y.map((v) => cy + (v - cy) * fy) };
       if (!erSeparate(all, Q, sizes, 40)) return;
       const bx = sizes.map((z, i) => ({ x: Q.x[i] - z.w / 2, y: Q.y[i] - z.h / 2, w: z.w, h: z.h }));
-      const key = score(bx);
+      const key = score(bx, c.key);
       if (key[0] > c.key[0] || key[1] > c.key[1]) return;
       const b = erBounds(all, Q, sizes), w = b.x1 - b.x0, h = b.y1 - b.y0;
       if ((w * h) >= (b0.x1 - b0.x0) * (b0.y1 - b0.y0)) return;
@@ -637,21 +795,42 @@ function layoutDiagram(data, opts) {
   const placed = (e) => typeof e.x === 'number' && typeof e.y === 'number';
   const warm = !!(opts && opts.warm) && ents.some(placed);       // warm: tables without a position start beside their neighbours
   const sizes = ents.map((e) => erEntitySize(e, data));
+  erNeed = erNeedOf(data, sizes); erNeedN = n;
   const { adj } = erGraph(data);
   const D = erDistances(data, adj, sizes);
   const variants = warm ? [0] : Array.from({ length: ER.VARIANTS }, (_, v) => v);
   // Weights: a hit or a crossing beyond two outweighs everything; then the middle-third and fit and aspect misses; length last
-  const cost = (k) => k[0] * 6000 + k[1] * 300 + Math.max(0, k[1] - 2) * 5000 + k[2] / 40 + k[3] * 60 + k[4] * 25 + k[5] * 60 + k[6] * 4;
-  const quickScore = (boxes) => {
-    const sc = erRouteAll(data, boxes, true);
+  // The unevenness and empty-space terms (k[7], k[8]) are the slowest to compute, so they are worked out on demand: with a
+  // limit, a key whose other terms already reach it is not worth them (the two terms only add)
+  // the terms that depend on the boxes alone (centre, aspect, fit, area), a lower bound of the cost that costs no routing
+  const fixed = (centre, aspect, fit, area) => centre * 60 + aspect * 80 + fit * 150 + area * 4;
+  // scored at whole pixels, as the tables end up, so the search sees the hits and crossings of the final picture
+  const snap = (free) => free.map((b) => ({ x: Math.round(b.x), y: Math.round(b.y), w: b.w, h: b.h }));
+  const floor = (free) => { const boxes = snap(free), e = erExtent(boxes); return fixed(erOffCentre(boxes, hubs), erOffAspect(boxes), erOffFit(boxes), Math.round(e.w * e.h / ER.AREA_DIV)); };
+  const cost = (k, limit) => {
+    const base = k[0] * 6000 + k[1] * 3000 + Math.max(0, k[1] - 2) * 5000 + k[2] / 40 + fixed(k[3], k[4], k[5], k[6]);
+    if (limit !== undefined && base >= limit) return base;
+    if (k[7] === undefined) { k[7] = erUneven(k.bx); k[8] = erHoles(k.bx); }
+    return base + k[7] * 8 + k[8] * 24;
+  };
+  const quickScore = (free, prev) => {
+    const boxes = snap(free);
+    const sc = erRouteAll(data, boxes, true, prev && prev.st);
+    if (prev && globalThis.ER_CHECK) {                 // debug: the incremental totals must equal a full count
+      const full = erRouteAll(data, boxes, true);
+      if (full.hits !== sc.hits || full.crossings !== sc.crossings || full.length !== sc.length || full.cul.join() !== sc.cul.join()) throw new Error('erd: incremental score differs from a full route');
+    }
     const e = erExtent(boxes);
     const key = [sc.hits, sc.crossings, sc.length, erOffCentre(boxes, hubs), erOffAspect(boxes), erOffFit(boxes), Math.round(e.w * e.h / ER.AREA_DIV)];
-    key.cul = sc.cul;
+    key.bx = boxes; key.cul = sc.cul; key.st = sc.st;
     return key;
   };
-  const hubs = adj.map((a, i) => i).sort((a, b) => adj[b].length - adj[a].length || a - b).slice(0, 3);
+  // The most connected table (ties: the first), then the next two (ties by id), the way the layout metrics pick them
+  const byDeg = adj.map((a, i) => i).sort((a, b) => adj[b].length - adj[a].length || a - b);
+  const hubs = [byDeg[0]].concat(byDeg.slice(1).sort((a, b) => adj[b].length - adj[a].length || (ents[a].id < ents[b].id ? -1 : ents[a].id > ents[b].id ? 1 : 0)).slice(0, 2));
   // good enough to stop searching: no hit, at most two crossings, hubs central, aspect and fit inside their targets
-  const good = (k) => !k[0] && k[1] <= 2 && !k[3] && !k[4] && !k[5];
+  const small = n <= ER.SMALL;                     // a small diagram is cheap to search: more candidates, and no crossing accepted
+  const good = (k) => !k[0] && k[1] <= (small ? 0 : 2) && !k[3] && !k[4] && !k[5] && !k[7] && !k[8];
   const cands = variants.map((variant) => {
     const P = { x: new Array(n).fill(0), y: new Array(n).fill(0) };
     if (warm) {
@@ -670,12 +849,13 @@ function layoutDiagram(data, opts) {
   // the best few are refined by the local search; the winner is the cheapest after it (stable sort: ties keep variant order)
   cands.sort((p, q) => cost(p.key) - cost(q.key));
   let best = null;
-  cands.slice(0, warm ? 1 : ER.REFINE).forEach((c) => {
+  cands.slice(0, warm ? 1 : small ? ER.REFINE_SMALL : ER.REFINE).forEach((c) => {
     if (best && good(best.key)) return;
-    erRepair(c, quickScore, cost, warm ? ER.WARM_T : ER.REPAIR_T, good);
+    erRepair(c, quickScore, cost, floor, hubs, warm ? ER.WARM_T : ER.REPAIR_T, good);
     erSqueeze(c, quickScore);
     if (!best || cost(c.key) < cost(best.key)) best = c;
   });
+  if (!warm && !small) { erRepair(best, quickScore, cost, floor, hubs, ER.POLISH_T, good); erSqueeze(best, quickScore); }   // more search on the winner alone
   // Content starts at the margin: move the tables by whole pixels, then route the final positions
   const found = erRouteAll(data, best.boxes, true);
   const dx = Math.round(ER.MARGIN - found.minX), dy = Math.round(ER.MARGIN - found.minY);
