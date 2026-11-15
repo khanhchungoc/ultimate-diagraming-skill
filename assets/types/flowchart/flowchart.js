@@ -293,7 +293,7 @@
             grip.className = 'lane-tool lane-tool-move';
             grip.dataset.tip = 'Drag to reorder swimlane';
             grip.setAttribute('aria-label', 'Reorder swimlane');
-            grip.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>';
+            grip.innerHTML = ui.icon('grip');
             grip.addEventListener('click', (e) => e.stopPropagation());
             tools.appendChild(grip);
             if (chartData.lanes.length > 1) {
@@ -303,7 +303,7 @@
               del.draggable = false;
               del.dataset.tip = 'Delete swimlane (with its steps)';
               del.setAttribute('aria-label', 'Delete swimlane');
-              del.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M6 6l1 14h10l1-14"/><path d="M10 11v6M14 11v6"/></svg>';
+              del.innerHTML = ui.icon('trash');
               del.addEventListener('pointerdown', (e) => e.stopPropagation());
               del.addEventListener('dragstart', (e) => { e.preventDefault(); e.stopPropagation(); });
               del.addEventListener('click', (e) => { e.stopPropagation(); confirmDeleteLane(lane.id, del); });
@@ -388,7 +388,7 @@
         return g;
       }
 
-      // Lane icons: lane.icon names an entry of TYPE_ICONS (assets/types/flowchart/icons.json). A lane without one
+      // Lane icons: lane.icon names an entry of the icon registry (ICONS, assets/icons/default.json). A lane without one
       // (older files, hand-edited JSON) gets a guess from its name, so every lane pill still carries an icon.
       const LANE_ICON_GUESS = [
         [/risk|compliance|security|legal|audit|fraud|admin/, 'shield'],
@@ -412,7 +412,7 @@
         [/core|lead|exec|board|committee|steer|management/, 'flag']
       ];
       function laneIconName(lane) {
-        if (lane.icon && TYPE_ICONS[lane.icon]) return lane.icon;
+        if (lane.icon && ICONS[lane.icon]) return lane.icon;
         const name = String(lane.name || '').toLowerCase();
         const hit = LANE_ICON_GUESS.find(([re]) => re.test(name));
         return hit ? hit[1] : 'users';
@@ -421,7 +421,7 @@
         const chip = document.createElement('span');
         chip.className = 'lane-icon';
         chip.setAttribute('aria-hidden', 'true');   // decorative: the lane name sits right beside it
-        chip.innerHTML = `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${TYPE_ICONS[laneIconName(lane)]}</svg>`;
+        chip.innerHTML = ui.icon(laneIconName(lane), { size });
         return chip;   // tinted with the lane colour (see .lane-icon)
       }
 
@@ -766,7 +766,6 @@
 
       // The selected arrow's Split chip (beside its label). When a pair already continues at this arrow's target, it
       // opens a choice: a new pair, or join that pair (a merge: several sources continuing at one out-connector).
-      const SPLIT_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" aria-hidden="true"><path d="M2 12h4"/><circle cx="9" cy="12" r="3"/><circle cx="15" cy="12" r="3"/><path d="M18 12h4"/></svg>';
       function buildSplitChip(edge, labelContainer, route) {
         const chip = document.createElement('button');
         chip.type = 'button';
@@ -774,7 +773,7 @@
         chip.dataset.exportSkip = '';
         chip.title = 'Split into a connector pair';
         chip.setAttribute('aria-label', 'Split this arrow into a connector pair');
-        chip.innerHTML = SPLIT_ICON;
+        chip.innerHTML = ui.icon('split');
         chip.style.left = `${route.midX + labelContainer.offsetWidth / 2 + 18}px`;
         chip.style.top = `${route.midY}px`;
         chip.addEventListener('pointerdown', (e) => e.stopPropagation());
@@ -3745,16 +3744,12 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
       // --- DIRECTION TOGGLE ---
       // Switches between left-to-right and top-to-bottom ("direction": "TB" in the data, so it is saved with the
       // file and undoable). Node positions mean different things in each, so the switch always re-runs the layout.
-      const DIR_ICONS = {
-        LR: '<path d="M3 12h18"/><path d="m16 7 5 5-5 5"/>',
-        TB: '<path d="M12 3v18"/><path d="m7 16 5 5 5-5"/>'
-      };
       function updateDirectionButton() {
         if (!btnDirection) return;
         const next = isTB() ? 'LR' : 'TB';
         const label = next === 'TB' ? 'Vertical' : 'Horizontal';
         btnDirection.querySelector('.btn-label').textContent = label;
-        btnDirection.querySelector('svg').innerHTML = DIR_ICONS[next];
+        btnDirection.querySelector('svg').innerHTML = ICONS[next === 'TB' ? 'direction-tb' : 'direction-lr'];
         btnDirection.title = next === 'TB' ? 'Switch to a top-to-bottom layout' : 'Switch to a left-to-right layout';
         btnDirection.setAttribute('aria-label', label);
       }
@@ -3810,10 +3805,8 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
       const NOTE_REACH = 168;        // how far (px) from its nodes a note may be fitted
       const NOTE_STEP = 8;           // fitting grid
       const NOTE_PEEK_DELAY = 100;   // ms on a node before its notes peek: feels instant, skips quick fly-overs (the badge peeks at once)
-      const NOTE_ICON = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" aria-hidden="true"><path d="M5 7h14"/><path d="M5 12h14"/><path d="M5 17h9"/></svg>';
-      const NOTE_ADD_ICON = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg>';
-      const NOTE_DEL_ICON = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
-      const NOTE_LINK_ICON = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>';
+      const NOTE_ICON = ui.icon('note-lines', { size: 'xs', bold: true });
+      const NOTE_ADD_ICON = ui.icon('plus', { size: 'sm', bold: true });
       let noteOffsets = {};          // noteId -> {x, y}: last fitted top-left relative to its anchor (screen px)
       let noteSizes = {};            // noteId -> {w, h}: measured card size
       let peekNodeId = null;         // node whose notes are peeked by hover
@@ -4086,7 +4079,6 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           onDelete: () => removeNote(note.id),
           onLink: (e) => startNoteLink(e, note.id, card),
           linkTitle: 'Link to another step: drag onto it (onto a linked step to unlink; or Shift+click the step)',
-          icons: { del: NOTE_DEL_ICON, link: NOTE_LINK_ICON },
           onCommit: (el) => commitNote(note, el),
           // the card grows as it is typed into: keep its leaders attached
           onInput: () => { noteSizes[note.id] = { w: card.offsetWidth, h: card.offsetHeight }; positionNotes(); },

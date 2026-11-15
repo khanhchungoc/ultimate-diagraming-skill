@@ -37,7 +37,7 @@
     .toolbar-zoom > .btn { height: 32px; }
     /* Larger icons on the edit dock's own buttons (not the caret, not the bubble's tiles) */
     .toolbar-center > .btn > svg:first-child,
-    .dock-pop-trigger > svg:first-child { width: 18px; height: 18px; }
+    .dock-pop-trigger > svg:first-child { width: var(--icon-lg); height: var(--icon-lg); }
     .toolbar-center .btn:hover,
     .toolbar-zoom .btn:hover { border-color: var(--border-dark); }
     .dock-sep {
@@ -51,7 +51,7 @@
        Generic: any [data-dock-pop] wrapper with a .dock-pop-trigger and a .dock-pop holding a .dock-pop-grid.
        The grid takes up to 6 columns (set by shell.js) and wraps into more rows, scrolling if it gets tall. */
     .dock-pop-wrap { position: relative; display: inline-flex; }
-    .dock-pop-caret { opacity: 0.6; transition: transform 0.25s ease; }
+    .dock-pop-caret { display: inline-flex; opacity: 0.6; transition: transform 0.25s ease; }
     .dock-pop-wrap.open .dock-pop-caret { transform: rotate(180deg); }
     .dock-pop-wrap.open > .dock-pop-trigger { background: var(--bg-hover); border-color: var(--border-dark); }
     .dock-pop {

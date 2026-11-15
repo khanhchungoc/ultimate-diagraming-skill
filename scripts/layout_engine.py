@@ -31,7 +31,7 @@ from audit_sequence import SequenceAudit
 from disk_format import (DISK_CODECS, authoring_json, format_json, from_disk, readme_text,  # noqa: F401 (DISK_CODECS: registry)
                          stamp_reading_guide, to_disk, with_readme)
 from engine_runner import EngineUnavailable, run_layout
-from tokens import load_tokens, tokens_css, tokens_js
+from tokens import expand_icons, load_icons, load_tokens, tokens_css, tokens_js
 
 
 DEFAULT_COL_WIDTH = 200
@@ -404,9 +404,8 @@ class FlowchartAudit:
 
     def _lane_icon_warnings(self) -> List[str]:
         """Every swimlane header carries an icon: it makes the owner recognisable at a glance."""
-        icons_file = ASSETS_DIR / "types" / "flowchart" / "icons.json"
-        known = set(json.loads(icons_file.read_text(encoding="utf-8"))) if icons_file.is_file() else set()
-        names = ", ".join(sorted(known))
+        known = set(load_icons(load_tokens()))
+        names = ", ".join(lane_icon_menu() or sorted(known))
         warnings = []
         if self.data.get("swimlanes") is False:
             return warnings  # no-swimlane mode: the single lane has no visible header
@@ -1147,6 +1146,16 @@ def artifact_template(shell_html: str) -> str:
     return ARTIFACT_HEAD + "\n" + title[0].lstrip() + m["guide"] + head + m["body"] + ARTIFACT_END_MARKER + "\n" + ARTIFACT_TAIL
 
 
+def lane_icon_menu() -> List[str]:
+    """The icon names the flowchart reference offers for a lane (its "Lane icons" table), the agent's menu; empty when the reference is not there."""
+    ref = ASSETS_DIR.parent / "references" / "types" / "flowchart.md"
+    if not ref.is_file():
+        return []
+    text = ref.read_text(encoding="utf-8")
+    section = text.split("\n## Lane icons", 1)[-1].split("\n## ", 1)[0] if "\n## Lane icons" in text else ""
+    return re.findall(r"^\|\s*`([\w-]+)`\s*\|", section, re.M)
+
+
 # Shared component styles (assets/components/<name>.css), in cascade order. The dock comes before the buttons because
 # its `.toolbar-center .btn` rules and `.btn:disabled` have equal weight and the disabled look must win; toggle comes
 # after both so a pressed toggle wins inside the dock.
@@ -1174,10 +1183,12 @@ def assemble_page(kind: str, data: Optional[Dict[str, Any]] = None, target: str 
         data = json.loads(_read_asset(type_dir / "default.json"))
     # Same text as the page's Save (formatJson in shell.js), so an unedited save changes nothing
     payload = format_json(with_readme(to_disk(kind, data), readme_text(meta["dataNote"])))
-    # Optional per-type icon set (name -> SVG inner markup), embedded so the page stays self-contained
-    icons_path = type_dir / "icons.json"
-    icons_js = f"const TYPE_ICONS = {json.dumps(json.loads(_read_asset(icons_path)), separators=(',', ':'))};\n" if icons_path.is_file() else ""
     tokens = load_tokens()  # default theme only; --theme comes in a later phase
+    icons = load_icons(tokens)
+
+    def html_part(text: str) -> str:  # {{icon:name}} in a template becomes the icon's <svg> here, so the page does no work at start-up
+        return expand_icons(text, tokens, icons)
+
     parts = {
         "PAGE_TITLE": html.escape(str(data.get("title") or meta["title"]), quote=False),
         "TOKENS_CSS": tokens_css(tokens),
@@ -1185,23 +1196,23 @@ def assemble_page(kind: str, data: Optional[Dict[str, Any]] = None, target: str 
         "COMPONENTS_CSS": components_css(),
         "SHELL_CSS": _read_asset(ASSETS_DIR / "shell" / "shell.css").rstrip(chr(10)),
         "TYPE_CSS": _read_asset(type_dir / f"{kind}.css").rstrip(chr(10)),
-        "TYPE_TOOLBAR": _read_asset(type_dir / "toolbar.html").rstrip(chr(10)),
-        "TYPE_ICON": _read_asset(type_dir / "icon.html").strip(),
-        "TYPE_CHROME": _read_asset(type_dir / "chrome.html"),
-        "TYPE_STAGE": _read_asset(type_dir / "stage.html").rstrip(chr(10)),
-        "TYPE_HELP": _read_asset(type_dir / "help.html").rstrip(chr(10)),
-        "SHELL_HELP": _read_asset(ASSETS_DIR / "shell" / "help.html").rstrip(chr(10)),
+        "TYPE_TOOLBAR": html_part(_read_asset(type_dir / "toolbar.html").rstrip(chr(10))),
+        "TYPE_ICON": html_part(f"{{{{icon:type-{kind}:xl}}}}"),  # the type's header icon is the registry entry type-<type>
+        "TYPE_CHROME": html_part(_read_asset(type_dir / "chrome.html")),
+        "TYPE_STAGE": html_part(_read_asset(type_dir / "stage.html").rstrip(chr(10))),
+        "TYPE_HELP": html_part(_read_asset(type_dir / "help.html").rstrip(chr(10))),
+        "SHELL_HELP": html_part(_read_asset(ASSETS_DIR / "shell" / "help.html").rstrip(chr(10))),
         "DATA": payload,
         "SHELL_JS": _read_asset(ASSETS_DIR / "shell" / "shell.js").rstrip(chr(10)),
         "TOKENS_JS": tokens_js(tokens),
         "ENGINE_JS": _read_asset(type_dir / "engine.js").rstrip(chr(10)),
-        "TYPE_JS": icons_js + _read_asset(type_dir / f"{kind}.js").rstrip(chr(10)),
+        "TYPE_JS": _read_asset(type_dir / f"{kind}.js").rstrip(chr(10)),
     }
     # One pass: substituted text is never re-scanned, and an unknown placeholder fails loudly.
     template = _read_asset(ASSETS_DIR / "shell" / "shell.html")
     if target == "artifact":
         template = artifact_template(template)
-    page = re.sub(r"\{\{([A-Z_]+)\}\}", lambda m: parts[m.group(1)], template)
+    page = re.sub(r"\{\{([A-Z_]+)\}\}", lambda m: parts[m.group(1)], html_part(template))
     return stamp_reading_guide(page)  # the guide's line numbers, from the finished text
 
 

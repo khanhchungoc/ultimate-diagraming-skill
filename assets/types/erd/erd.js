@@ -27,13 +27,11 @@
 
       const ERD_DETAILS = ['all', 'keys', 'names'];
       const ERD_END_KINDS = ['one', 'zeroOrOne', 'oneOrMany', 'zeroOrMany'];
-      const ERD_KEY_ICON = '<svg class="g-pk" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="7.5" cy="15.5" r="5"/><path d="m21 2-9.6 9.6"/><path d="m15.5 7.5 3 3L22 7l-3-3"/></svg>';
-      const ERD_LINK_ICON = '<svg class="g-fk" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>';
-      const ERD_CHEVRON_ICON = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>';
-      const ERD_NOTE_ADD_ICON = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg>';
-      const ERD_NOTE_DEL_ICON = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
-      const ERD_NOTE_LINK_ICON = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>';
-      const ERD_NOTE_ICON = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" aria-hidden="true"><path d="M5 7h14"/><path d="M5 12h14"/><path d="M5 17h9"/></svg>';
+      const ERD_KEY_ICON = ui.icon('key', { size: 'sm', bold: true, class: 'g-pk' });
+      const ERD_LINK_ICON = ui.icon('link', { size: 'sm', bold: true, class: 'g-fk' });
+      const ERD_CHEVRON_ICON = ui.icon('chevron-down', { size: 'sm', bold: true });
+      const ERD_NOTE_ADD_ICON = ui.icon('plus', { size: 'sm', bold: true });
+      const ERD_NOTE_ICON = ui.icon('note-lines', { size: 'xs', bold: true });
 
       // --- STATE ---
       let erdSel = null;              // { kind: 'entity' | 'rel', id } | { kind: 'col', entity, col }: class `selected`
@@ -993,7 +991,6 @@
           onDelete: () => removeNote(note.id),
           onLink: (ev) => startNoteLink(ev, note.id, card),
           linkTitle: 'Link to another table: drag onto it (onto a linked table to unlink; or Shift+click the table)',
-          icons: { del: ERD_NOTE_DEL_ICON, link: ERD_NOTE_LINK_ICON },
           onCommit: (el) => commitNote(note, el),
           // the card grows as it is typed into: keep its leaders attached
           onInput: () => { noteSizes[note.id] = { w: card.offsetWidth, h: card.offsetHeight }; positionNotes(); },
@@ -1357,19 +1354,6 @@
       };
       const ERD_END_NAMES = { one: 'exactly one', zeroOrOne: 'zero or one', oneOrMany: 'one or many', zeroOrMany: 'zero or many' };
       const erdEndGlyph = (kind) => `<svg width="30" height="16" viewBox="-26 -9 30 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M-26 0H0"/>${ERD_END_PATHS[kind]}</svg>`;
-      const erdIconSvg = (body) => `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${body}</svg>`;
-      const ERD_ICON = {
-        reverse: '<path d="M4 8h16"/><path d="m16 4 4 4-4 4"/><path d="M20 16H4"/><path d="m8 12-4 4 4 4"/>',
-        trash: '<path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M6 6l1 14h10l1-14"/>',
-        plus: '<path d="M12 5v14"/><path d="M5 12h14"/>',
-        up: '<path d="m6 15 6-6 6 6"/>',
-        down: '<path d="m6 9 6 6 6-6"/>',
-        collapse: '<path d="m6 9 6 6 6-6"/>',
-        note: '<path d="M4 4h16v11l-5 5H4z"/><path d="M20 15h-5v5"/><path d="M8 9h8M8 13h5"/>',
-        label: '<path d="M4 7h16"/><path d="M4 12h10"/><path d="M4 17h6"/>',
-        dashed: '<path d="M3 12h4"/><path d="M10 12h4"/><path d="M17 12h4"/>',
-        solid: '<path d="M3 12h18"/>'
-      };
       function abButton(act, html, title, pressed, value, extra) {
         const b = erdHtmlEl('button', `erd-ab-btn${extra ? ' ' + extra : ''}`);
         b.type = 'button';
@@ -1407,14 +1391,14 @@
           if (!e || !e.box) return;
           bar.setAttribute('aria-label', 'Table');
           bar.classList.add('is-wrap');
-          bar.appendChild(abButton('addcol', `${erdIconSvg(ERD_ICON.plus)}<span>Column</span>`, 'Add a column after the last one'));
+          bar.appendChild(abButton('addcol', `${ui.icon('plus')}<span>Column</span>`, 'Add a column after the last one'));
           if ((e.columns || []).length) {
-            bar.appendChild(abButton('collapse', `${erdIconSvg(ERD_ICON.collapse)}<span>${e.collapsed ? 'Expand' : 'Collapse'}</span>`,
+            bar.appendChild(abButton('collapse', `${ui.icon('chevron-down')}<span>${e.collapsed ? 'Expand' : 'Collapse'}</span>`,
               e.collapsed ? 'Show the columns again' : 'Collapse the table to its header', e.collapsed === true));
           }
-          bar.appendChild(abButton('note', erdIconSvg(ERD_ICON.note), 'Add a note to this table (N)'));
+          bar.appendChild(abButton('note', ui.icon('note'), 'Add a note to this table (N)'));
           const nSel = selectedEntityIds().length;
-          bar.appendChild(abButton('delete', erdIconSvg(ERD_ICON.trash), nSel > 1 ? `Delete these ${nSel} tables and their relationships` : 'Delete this table and its relationships', undefined, undefined, 'is-danger'));
+          bar.appendChild(abButton('delete', ui.icon('trash'), nSel > 1 ? `Delete these ${nSel} tables and their relationships` : 'Delete this table and its relationships', undefined, undefined, 'is-danger'));
           bar.appendChild(erdHtmlEl('span', 'erd-ab-break'));
           bar.appendChild(swatchRow(e.color || '', (hex) => setEntityColor(e.id, hex), { btnClass: 'erd-ab-swatch' }));
           at = { x: e.box.x + e.box.w / 2, y: e.box.y - 10 };
@@ -1429,10 +1413,10 @@
           [['pk', 'PK', 'Primary key (P)', col.pk], ['fk', 'FK', 'Foreign key (F)', col.fk], ['unique', 'U', 'Unique (U)', col.unique], ['nullable', '?', 'Nullable (?)', col.nullable]]
             .forEach(([act, label, title, on]) => bar.appendChild(abButton(act, `<span>${label}</span>`, title, !!on)));
           bar.appendChild(abSep());
-          bar.appendChild(abButton('up', erdIconSvg(ERD_ICON.up), 'Move up (Alt+Up)'));
-          bar.appendChild(abButton('down', erdIconSvg(ERD_ICON.down), 'Move down (Alt+Down)'));
+          bar.appendChild(abButton('up', ui.icon('chevron-up'), 'Move up (Alt+Up)'));
+          bar.appendChild(abButton('down', ui.icon('chevron-down'), 'Move down (Alt+Down)'));
           bar.appendChild(abSep());
-          bar.appendChild(abButton('delcol', erdIconSvg(ERD_ICON.trash), 'Delete this column', undefined, undefined, 'is-danger'));
+          bar.appendChild(abButton('delcol', ui.icon('trash'), 'Delete this column', undefined, undefined, 'is-danger'));
           // Over the table's header, not over its rows: the bar must not hide the neighbouring rows (the row itself is marked)
           at = { x: e.box.x + e.box.w / 2, y: e.box.y - 10 };
           below = e.box.y < 70;
@@ -1448,10 +1432,10 @@
           bar.appendChild(erdHtmlEl('span', 'erd-ab-tag', 'Parent'));
           ERD_END_KINDS.forEach((k) => bar.appendChild(abButton('toEnd', erdEndGlyph(k), `Parent end (the table it points to): ${ERD_END_NAMES[k]}`, ends.toEnd === k, k, 'erd-ab-glyph')));
           bar.appendChild(abSep());
-          bar.appendChild(abButton('identifying', `${erdIconSvg(rel.identifying === true ? ERD_ICON.solid : ERD_ICON.dashed)}<span>Identifying</span>`,
+          bar.appendChild(abButton('identifying', `${ui.icon(rel.identifying === true ? 'line-solid' : 'line-dashed')}<span>Identifying</span>`,
             'Identifying: the key is part of the child’s primary key (solid line); off: dashed', rel.identifying === true));
-          bar.appendChild(abButton('reverse', erdIconSvg(ERD_ICON.reverse), 'Reverse: swap the child and the parent'));
-          bar.appendChild(abButton('label', erdIconSvg(ERD_ICON.label), 'Label the line (or double-click it)'));
+          bar.appendChild(abButton('reverse', ui.icon('reverse'), 'Reverse: swap the child and the parent'));
+          bar.appendChild(abButton('label', ui.icon('label'), 'Label the line (or double-click it)'));
           addHandle('from', rel.id, rel.curve[0][0], rel.curve[0][1]);
           addHandle('to', rel.id, rel.curve[3][0], rel.curve[3][1]);
           erdHtml.appendChild(bar);

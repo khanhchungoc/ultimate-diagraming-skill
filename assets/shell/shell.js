@@ -66,6 +66,22 @@
       // --- UI BUILDERS: markup every diagram type shares (styled by assets/components/*.css) ---
       // A type calls these instead of building the same elements itself; it keeps only what is specific to it.
       const ui = (() => {
+        // An icon by name from the registry (ICONS, assets/icons/default.json): the <svg> text, drawn with the icon tokens
+        // (TOKENS.icon). o: { size: a token name (xs sm md lg xl tile; default md) or a px number, fine: the thinner stroke for
+        // dense or large icons, bold: the heavier stroke for tiny ones, class }. Templates write the icon placeholder instead;
+        // scripts/tokens.py icon_svg() builds the same text. Colour is currentColor, so icons follow the text colour.
+        function icon(name, o) {
+          const t = TOKENS.icon, inner = ICONS[name], opts = o || {};
+          if (inner === undefined) throw new Error(`unknown icon "${name}"`);
+          const px = typeof opts.size === 'number' ? opts.size : t.size[opts.size || 'md'];
+          const stroke = opts.bold ? t.strokeBold : opts.fine ? t.strokeFine : t.stroke;
+          return `<svg${opts.class ? ` class="${opts.class}"` : ''} width="${px}" height="${px}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${stroke}" stroke-linecap="${t.cap}" stroke-linejoin="${t.join}" aria-hidden="true">${inner}</svg>`; // tokens-ok: this is the icon renderer
+        }
+        function iconEl(name, o) {
+          const tpl = document.createElement('template');
+          tpl.innerHTML = icon(name, o);
+          return tpl.content.firstChild;
+        }
         let confirmEl = null;
         function closeConfirm() {
           if (!confirmEl) return false;
@@ -113,7 +129,7 @@
           document.addEventListener('pointerdown', onConfirmOutside, true);
         }
         // A note card: `.note` with its plain-text `.note-text`, and (when given) the delete and link chips. note: { id, text }.
-        // o: { onDelete?, onLink?(pointerdown event, card), linkTitle?, icons: { del, link }, onCommit?(note text element)
+        // o: { onDelete?, onLink?(pointerdown event, card), linkTitle?, onCommit?(note text element)
         // (Enter, Ctrl+Enter, Esc finish editing), onInput? }. Returns { card, text }; the caller adds its own pointer handlers.
         function noteCard(note, o) {
           const card = document.createElement('div');
@@ -137,12 +153,12 @@
             return b;
           };
           if (o.onDelete) {
-            const del = tool('note-del btn-danger-hover', 'Delete note', o.icons.del);
+            const del = tool('note-del btn-danger-hover', 'Delete note', icon('close', { size: 'xs', bold: true }));
             del.addEventListener('pointerdown', (e) => e.stopPropagation());
             del.addEventListener('click', (e) => { e.stopPropagation(); o.onDelete(); });
           }
           if (o.onLink) {
-            const link = tool('note-link', o.linkTitle, o.icons.link);
+            const link = tool('note-link', o.linkTitle, icon('link', { size: 'sm', bold: true }));
             link.addEventListener('pointerdown', (e) => o.onLink(e, card));
             link.addEventListener('click', (e) => e.stopPropagation());
           }
@@ -165,7 +181,7 @@
           if (o.onInput) text.addEventListener('input', o.onInput);
           return { card, text };
         }
-        return { confirm, closeConfirm, isConfirmOpen: () => !!confirmEl, noteCard };
+        return { confirm, closeConfirm, isConfirmOpen: () => !!confirmEl, noteCard, icon, iconEl };
       })();
 
       // --- CLAUDE.AI ARTIFACT (only active inside a published claude.ai artifact; elsewhere none of this runs) ---
@@ -436,8 +452,7 @@
         return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
       }
       // The button shows the theme you would switch TO (stroke icons, same family as the other controls)
-      const ICON_SUN = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>';
-      const ICON_MOON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>';
+      const ICON_SUN = ui.icon('sun'), ICON_MOON = ui.icon('moon');
       function applyTheme(theme, persist) {
         document.documentElement.setAttribute('data-theme', theme);
         btnTheme.innerHTML = theme === 'dark' ? ICON_SUN : ICON_MOON;
