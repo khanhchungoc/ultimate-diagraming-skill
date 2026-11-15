@@ -2,18 +2,6 @@
        are copied from the flowchart's stylesheet on purpose (a type never imports another type's files). */
 
     /* Tokens */
-    :root {
-      --note-bg: #f8fafc;  --note-border: #cbd5e1;  --note-accent: #64748b;  --note-ink: #334155;
-      --note-leader: #94a3b8;
-      --erd-key: #a16f0b;       /* primary-key glyph: the shell's decision ochre */
-      --erd-fk: #64748b;
-    }
-    :root[data-theme="dark"] {
-      --note-bg: #1c2740;  --note-border: #3a4a69;  --note-accent: #94a3b8;  --note-ink: #cbd5e1;
-      --note-leader: #52627f;
-      --erd-key: #e6bf55;
-      --erd-fk: #94a3b8;
-    }
 
     /* The canvas is a card, like the flowchart's lane container. Its size is set by render() from the engine. */
     #erd-canvas {
@@ -194,7 +182,7 @@
       gap: 0;
     }
     .erd-glyph svg { flex: none; display: block; }
-    .erd-glyph .g-pk { color: var(--erd-key); }
+    .erd-glyph .g-pk { color: var(--decision-accent); }
     .erd-glyph .g-fk { color: var(--erd-fk); }
     /* A column that is both PK and FK: the two glyphs stack in the 22px slot (key over link) instead of running into the
        name; the slot is the engine's ER.GLYPH_W, so no width changes */
@@ -523,7 +511,7 @@
       position: absolute; top: -8px; right: -8px; width: 18px; height: 18px; padding: 0; display: none; align-items: center; justify-content: center;
       border-radius: 50%; border: 1px solid var(--border-dark); background: var(--bg-panel); color: var(--text-soft); cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.15);
     }
-    .erd-note-del:hover { background: var(--danger); border-color: var(--danger); color: #ffffff; }
+    .erd-note-del:hover { background: var(--danger); border-color: var(--danger); color: var(--on-danger); }
     .erd-note-link {
       position: absolute; bottom: -9px; right: -9px; width: 20px; height: 20px; padding: 0; display: none; align-items: center; justify-content: center;
       border-radius: 50%; border: 1px solid var(--note-border); background: var(--bg-panel); color: var(--note-accent); cursor: crosshair; touch-action: none; box-shadow: 0 1px 3px rgba(0,0,0,0.15);
@@ -555,8 +543,8 @@
     .erd-confirm-msg { font-weight: 600; margin-bottom: 12px; overflow-wrap: anywhere; }
     .erd-confirm-actions { display: flex; justify-content: flex-end; gap: 8px; }
     .erd-confirm .btn { padding: 6px 12px; font-size: 13px; }
-    .erd-confirm-delete { background: var(--danger); border-color: var(--danger); color: #ffffff; }
-    .erd-confirm-delete:hover { filter: brightness(0.92); background: var(--danger); color: #ffffff; }
+    .erd-confirm-delete { background: var(--danger); border-color: var(--danger); color: var(--on-danger); }
+    .erd-confirm-delete:hover { filter: brightness(0.92); background: var(--danger); color: var(--on-danger); }
 
     /* ?present: read only. Hover, highlight and collapse still work. */
     body.presentation .erd-port, body.presentation .erd-handle, body.presentation .erd-actionbar, body.presentation .erd-note-add,

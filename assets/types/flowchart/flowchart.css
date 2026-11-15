@@ -31,9 +31,9 @@
       align-items: center;
       justify-content: center;
       border-radius: 9px;
-      border: 1px solid color-mix(in srgb, var(--lane-color, #e2e8f0) 60%, var(--border-dark));
-      background: color-mix(in srgb, var(--lane-color, #e2e8f0) var(--swatch-chip-mix), var(--swatch-chip-base));
-      color: color-mix(in srgb, var(--lane-color, #e2e8f0) var(--swatch-ink-mix), var(--swatch-ink-base));
+      border: 1px solid color-mix(in srgb, var(--lane-color, var(--bg-soft)) 60%, var(--border-dark));
+      background: color-mix(in srgb, var(--lane-color, var(--bg-soft)) var(--swatch-chip-mix), var(--swatch-chip-base));
+      color: color-mix(in srgb, var(--lane-color, var(--bg-soft)) var(--swatch-ink-mix), var(--swatch-ink-base));
       pointer-events: none;
     }
     /* Lane name (inside the pill): double-click to rename */
@@ -561,14 +561,6 @@
     }
 
     /* Lane backgrounds: every second lane, and the hovered or active one (the swatch tokens live in shell.css) */
-    :root {
-      --lane-alt-bg: #fafbfc;  /* every second lane: a very light grey against the white ones */
-      --lane-hover-bg: #f1f4f8; /* hovered / active lane, white or grey: darker than both */
-    }
-    :root[data-theme="dark"] {
-      --lane-alt-bg: #131d33;  /* a faint step lighter than --bg-panel */
-      --lane-hover-bg: #1a2742; /* hovered / active lane: stands out from both (lighter, as highlights are on dark) */
-    }
 
     /* Lane name pill + rail (no header column; see pinLaneHeaders): the pill labels each lane at its visible
        top-left, and the rail is a lane-colour stripe at the visible left edge. The pill wears a halo in the lane's
@@ -663,7 +655,7 @@
     .lane-tool-move { cursor: grab; }
     .lane-tool-move:hover { color: var(--text-main); border-color: var(--lane-stripe); }
     .lane-tool-delete { cursor: pointer; font: inherit; }
-    .lane-tool-delete:hover { background: var(--danger); border-color: var(--danger); color: #ffffff; }
+    .lane-tool-delete:hover { background: var(--danger); border-color: var(--danger); color: var(--on-danger); }
     #swimlanes-container.dir-tb .lane-tools { left: 50%; transform: translateX(-50%); }
     /* Confirmation popover for deleting a lane (screen-fixed, outside the zoomed canvas) */
     .lane-confirm {
@@ -684,8 +676,8 @@
     .lane-confirm-msg { color: var(--text-soft); margin-bottom: 12px; }
     .lane-confirm-actions { display: flex; justify-content: flex-end; gap: 8px; }
     .lane-confirm .btn { padding: 6px 12px; font-size: 13px; }
-    .lane-confirm-delete { background: var(--danger); border-color: var(--danger); color: #ffffff; }
-    .lane-confirm-delete:hover { filter: brightness(0.92); background: var(--danger); color: #ffffff; }
+    .lane-confirm-delete { background: var(--danger); border-color: var(--danger); color: var(--on-danger); }
+    .lane-confirm-delete:hover { filter: brightness(0.92); background: var(--danger); color: var(--on-danger); }
     .lane-pill .lane-icon { width: auto; height: auto; border: none; background: none; border-radius: 0; color: inherit; }
     /* Exports draw each pill and stripe at the lane's own top-left, whatever the view, in the resting style */
     body.exporting .lane-pill { transform: translate(12px, 12px) !important; }
@@ -784,14 +776,6 @@
        joined to its node by a dashed leader. Neutral on purpose: every hue on the canvas already means something
        (gold decision, green start, blue selection, amber incoming arrows), and a note is secondary detail.
        Hidden until the Notes button shows them all (.show) or a hover / selection peeks one (.peek). */
-    :root {
-      --note-bg: #f8fafc;  --note-border: #cbd5e1;  --note-accent: #64748b;  --note-ink: #334155;
-      --note-leader: #94a3b8;
-    }
-    :root[data-theme="dark"] {
-      --note-bg: #1c2740;  --note-border: #3a4a69;  --note-accent: #94a3b8;  --note-ink: #cbd5e1;
-      --note-leader: #52627f;
-    }
     #notes-layer {
       position: absolute;
       top: 0; left: 0; width: 100%; height: 100%;
@@ -855,7 +839,7 @@
       cursor: pointer;
       box-shadow: 0 1px 3px rgba(0,0,0,0.15);
     }
-    .note-del:hover { background: var(--danger); border-color: var(--danger); color: #ffffff; }
+    .note-del:hover { background: var(--danger); border-color: var(--danger); color: var(--on-danger); }
     .flow-note:hover .note-del, .flow-note.selected .note-del { display: inline-flex; }
     /* Link handle (bottom-right): drag it onto a step to link the note to that step too, or to unlink it */
     .note-link {
@@ -1008,7 +992,7 @@
       top: 2px; left: 2px;
       width: 12px; height: 12px;
       border-radius: 50%;
-      background: #ffffff;   /* white in both themes: reads on the grey (off) and the primary (on) track */
+      background: var(--toggle-knob);   /* white in both themes: reads on the grey (off) and the primary (on) track */
       box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
       transition: transform 0.18s;
     }

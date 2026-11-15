@@ -31,6 +31,7 @@ from audit_sequence import SequenceAudit
 from disk_format import (DISK_CODECS, authoring_json, format_json, from_disk, readme_text,  # noqa: F401 (DISK_CODECS: registry)
                          stamp_reading_guide, to_disk, with_readme)
 from engine_runner import EngineUnavailable, run_layout
+from tokens import load_tokens, tokens_css, tokens_js
 
 
 DEFAULT_COL_WIDTH = 200
@@ -1162,8 +1163,11 @@ def assemble_page(kind: str, data: Optional[Dict[str, Any]] = None, target: str 
     # Optional per-type icon set (name -> SVG inner markup), embedded so the page stays self-contained
     icons_path = type_dir / "icons.json"
     icons_js = f"const TYPE_ICONS = {json.dumps(json.loads(_read_asset(icons_path)), separators=(',', ':'))};\n" if icons_path.is_file() else ""
+    tokens = load_tokens()  # default theme only; --theme comes in a later phase
     parts = {
         "PAGE_TITLE": html.escape(str(data.get("title") or meta["title"]), quote=False),
+        "TOKENS_CSS": tokens_css(tokens),
+        "FONT_HREF": html.escape(tokens["font"]["href"]),
         "SHELL_CSS": _read_asset(ASSETS_DIR / "shell" / "shell.css").rstrip(chr(10)),
         "TYPE_CSS": _read_asset(type_dir / f"{kind}.css").rstrip(chr(10)),
         "TYPE_TOOLBAR": _read_asset(type_dir / "toolbar.html").rstrip(chr(10)),
@@ -1174,6 +1178,7 @@ def assemble_page(kind: str, data: Optional[Dict[str, Any]] = None, target: str 
         "SHELL_HELP": _read_asset(ASSETS_DIR / "shell" / "help.html").rstrip(chr(10)),
         "DATA": payload,
         "SHELL_JS": _read_asset(ASSETS_DIR / "shell" / "shell.js").rstrip(chr(10)),
+        "TOKENS_JS": tokens_js(tokens),
         "ENGINE_JS": _read_asset(type_dir / "engine.js").rstrip(chr(10)),
         "TYPE_JS": icons_js + _read_asset(type_dir / f"{kind}.js").rstrip(chr(10)),
     }

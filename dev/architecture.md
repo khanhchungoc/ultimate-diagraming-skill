@@ -12,6 +12,7 @@ assets/
     help.html               shared help-drawer entries
                             (Nunito Sans is linked from Google Fonts in shell.html, the page's only network request;
                             offline the page falls back to the system font stack in shell.css)
+  tokens/default.json      design tokens (colours, font, palette, motion); no :root blocks in the CSS files
   types/<type>/             one folder per diagram type (flowchart, sequence, erd)
     meta.json               {"title": ...}
     icon.html               header icon
@@ -20,6 +21,7 @@ assets/
     toolbar.html, stage.html, chrome.html, help.html, default.json
 scripts/
   layout_engine.py          CLI: --layout (assembles the page; --screenshot also renders + prints [DONE]/[NEXT]), --verify, --extract; AUDITS registry
+  tokens.py                 loads/validates tokens, writes {{TOKENS_CSS}} and {{TOKENS_JS}}
   audit_sequence.py         sequence audit
   audit_erd.py              ER diagram audit
   disk_format.py            the page's data-block format: DISK_CODECS (to_disk/from_disk per type), format_json
