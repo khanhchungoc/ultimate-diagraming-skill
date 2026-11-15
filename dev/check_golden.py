@@ -202,7 +202,7 @@ def main() -> int:
     parser.add_argument("--update", action="store_true", help="Rewrite golden files from the current engine")
     args = parser.parse_args()
 
-    fixtures = sorted((ROOT / "dev" / "fixtures").glob("*/*.json"))
+    fixtures = sorted(p for p in (ROOT / "dev" / "fixtures").glob("*/*.json") if p.parent.name != "themes")
     if not fixtures:
         print("[ERROR] no fixtures found in dev/fixtures", file=sys.stderr)
         return 1

@@ -2083,7 +2083,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           if (e.label && e.label.trim()) {
             // Reserve the box the label is drawn in: one line is estimated generously; a wrapped label is as wide
             // as its wrap width and as tall as its lines (a 28px box let the next label sit on its second line)
-            const lw = labelPos.wrapped ? labelPos.w : Math.max(48, e.label.length * 7 + 20);
+            const lw = labelPos.wrapped ? labelPos.w : Math.max(48, e.label.length * FONT_M.edgeLabel + 20);
             const lh = Math.max(28, labelPos.h);
             placedLabels.push({ x: labelPos.x - lw / 2, y: labelPos.y - lh / 2, w: lw, h: lh });
           }
@@ -2306,7 +2306,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         }
 
         const textLen = labelText ? labelText.trim().length : 0;
-        const singleLineWidth = Math.max(40, textLen * 6.6 + 18);
+        const singleLineWidth = Math.max(40, textLen * FONT_M.edgeWrap + 18);
         let lw = singleLineWidth;
         let lh = 24;
 
@@ -2326,7 +2326,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         if (singleLineWidth > wrapAt) {
           // Never narrower than the longest word, so words are not split mid-word
           const longestWord = Math.max(0, ...String(labelText || '').trim().split(/\s+/).map(w => w.length));
-          const minWordW = Math.max(40, longestWord * 7.4 + 20);
+          const minWordW = Math.max(40, longestWord * FONT_M.label + 20);
           lw = Math.max(minWordW, Math.min(singleLineWidth, wrapAt));
           const lines = Math.ceil(singleLineWidth / lw);
           lh = Math.max(24, lines * 15 + 8);
@@ -2434,7 +2434,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
             const tRect = pathD.toRect;
             if (fRect && tRect && tRect.x > (fRect.x + fRect.w)) {
               const horizGap = tRect.x - (fRect.x + fRect.w);
-              const longestWordW = Math.max(0, ...String(edge.label || '').trim().split(/\s+/).map(w => w.length)) * 7.4 + 20;
+              const longestWordW = Math.max(0, ...String(edge.label || '').trim().split(/\s+/).map(w => w.length)) * FONT_M.label + 20;
               // Fit the gap with the arrow stubs kept clear, never past LABEL_MAX_W, never narrower than the longest word
               const maxLabelW = Math.max(40, longestWordW, Math.min(LE.LABEL_MAX_W, horizGap - 2 * LE.LABEL_STUB));
               labelContainer.style.maxWidth = `${maxLabelW}px`;

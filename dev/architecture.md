@@ -26,7 +26,8 @@ scripts/
   audit_erd.py              ER diagram audit
   disk_format.py            the page's data-block format: DISK_CODECS (to_disk/from_disk per type), format_json
   engine_runner.py          runs engine.js for --layout: Node.js via run_engine.mjs, else headless Chrome
-  run_engine.mjs            Node entry: loads engine.js, reads diagram JSON on stdin, writes laid-out JSON
+  run_engine.mjs            Node entry: reads {"tokens", "diagram"} on stdin, defines TOKENS, loads engine.js, writes laid-out JSON
+  measure_font.py           measures the theme font's average character widths in headless Chrome: font.metrics (--write, --check)
   render_screenshot.py      type-agnostic: screenshot + render report
 dev/                        parity check, interaction test, notes (not part of authoring)
 references/types/<type>.md  schema, budget, checklist the agent reads before authoring
@@ -121,6 +122,7 @@ The `sequence` type is the reference for a type that shares nothing with the flo
 | Command | Proves |
 |---|---|
 | `python dev/build_examples.py --check` | `dev/samples/example-*.html` (built from `references/examples/example-*.json`) match what the current shell, plugins and engines would build, and each has what an agent reads first: the reading guide on line 2, the data block in `<head>` with its end marker, the real title, and guide commands that print valid JSON. Run without `--check` to rebuild them after any change. |
+| `node dev/check_overflow.mjs --browser <chrome> <page.html>...` | Lists every text that sticks out of its box or is cut by overflow in generated pages (a wide theme font must leave none; the sequence rail names and a table name at the ERD overview floor are known exceptions) |
 | `python dev/check_golden.py` | (ERD: laying out the saved model again moves no table or curve) Engine output for every `dev/fixtures/*.json` equals `dev/fixtures/golden/`, and the audit scores >= 90. For flowcharts, laying out the flow-ordered disk model again moves nothing (both directions). For the sequence fixtures with `rails` or `lifespans` it also checks the rails (only where nothing is drawn, narrower, no change with every frame expanded) and the lifespans. For the sequence fixtures frozen in `dev/fixtures/sequence/golden/v1/` (before branches, notes and collapsing), every `x`, `y`, `w`, `h` is unchanged and the old `elseY` is the one divider. Use `--update` after an intentional engine change and review the diff. |
 | `python dev/erd_layout_metrics.py [--check]` | ERD layout metrics: fit zoom, aspect, line length, crossings, curves over tables; `--check` enforces the plan's acceptance targets |
 | `python dev/test_audit_erd.py` | Each ER audit rule has a failing unit case and accepts the valid forms (inputs laid out by hand, no engine); the ERD codec: v3 round trip of table positions, v1 and v2 blocks drop their layout, v2 group colours and names become table colours and `colorKey`, renamed table ids rename their layout keys |

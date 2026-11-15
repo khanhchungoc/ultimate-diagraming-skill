@@ -90,7 +90,7 @@ def _validate(t: Dict[str, Any]) -> None:
     if not _FONT_STACK.match(f["stack"]): raise _err("font.stack", f["stack"])
     if f["href"] and not _HREF.match(f["href"]): raise _err("font.href", f["href"])
     for k, v in f["metrics"].items():
-        if isinstance(v, bool) or not isinstance(v, (int, float)): raise _err(f"font.metrics.{k}", v)
+        if isinstance(v, bool) or not isinstance(v, (int, float)) or not 1 <= v <= 30: raise _err(f"font.metrics.{k}", v)
     for k, v in t["size"].items():
         if not (isinstance(v, str) and _LENGTH.match(v)): raise _err(f"size.{k}", v)
     _validate_type(t["type"])
@@ -227,10 +227,14 @@ def tokens_css(tokens: Dict[str, Any]) -> str:
             + "\n\n" + _type_classes(tokens))
 
 
-def tokens_js(tokens: Dict[str, Any]) -> str:
-    data = {"palette": tokens["palette"], "font": {"metrics": tokens["font"]["metrics"]}, "motion": tokens["motion"],
+def tokens_data(tokens: Dict[str, Any]) -> Dict[str, Any]:
+    """The part of the tokens the JS reads: the page, the ERD worker and scripts/run_engine.mjs all get exactly this as TOKENS."""
+    return {"palette": tokens["palette"], "font": {"metrics": tokens["font"]["metrics"]}, "motion": tokens["motion"],
             "type": {k: tokens["type"][k] for k in ("fitMin", "fitMinOverview")}}
-    return f"const TOKENS = {json.dumps(data, separators=(',', ':'))};"
+
+
+def tokens_js(tokens: Dict[str, Any]) -> str:
+    return f"const TOKENS = {json.dumps(tokens_data(tokens), separators=(',', ':'))};"
 
 
 if __name__ == "__main__":

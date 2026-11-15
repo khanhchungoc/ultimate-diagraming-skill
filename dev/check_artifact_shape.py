@@ -73,7 +73,7 @@ check("artifact template carries every other head line (nothing lost, nothing ad
       all(ln.strip() in template for ln in lifted_lines) and template.count("<style>") == shell_html.count("<style>") + 1)  # + the skeleton's reset
 
 tmp = Path(tempfile.mkdtemp(prefix="artifact_shape_"))
-fixtures = sorted((ROOT / "dev" / "fixtures").glob("*/*.json"))
+fixtures = sorted(p for p in (ROOT / "dev" / "fixtures").glob("*/*.json") if p.parent.name != "themes")
 for fx in fixtures:
     kind = fx.parent.name
     if kind not in le.SUPPORTED_TYPES or "golden" in fx.parts:

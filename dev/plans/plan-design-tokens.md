@@ -2,7 +2,7 @@
 
 Every diagram is drawn from one design-token set. The skill ships a default set. A user can point the skill at a website or a brand guide, get a token set in the same shape, and every diagram type (current and future) uses it without code changes. Every visual component is built once, from tokens only, and reused by all types.
 
-**Status:** Phase 1 done 2026-11-15 (see Phase 1 "As built"). Phases 2 to 8 not started. Review done 2026-11-15 (findings below). Open decisions for Phases 1 and 5 settled 2026-11-15. Typography and iconography added 2026-11-15.
+**Status:** Phases 1, 2 and 6 done 2026-11-15 (see their "As built" notes). Phases 3 to 5, 7 and 8 not started. Review done 2026-11-15 (findings below). Open decisions for Phases 1 and 5 settled 2026-11-15. Typography and iconography added 2026-11-15.
 
 ## Goals
 
@@ -69,7 +69,7 @@ Every diagram is drawn from one design-token set. The skill ships a default set.
     "family": "Nunito Sans",
     "stack": "-apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif",
     "href": "https://fonts.googleapis.com/css2?family=Nunito+Sans:opsz,wght@6..12,400..700&display=swap",
-    "metrics": { "label": 7.4, "detail": 6.4, "note": 6.2, "type": 6.6, "edgeLabel": 7 }
+    "metrics": { "label": 7.4, "title": 7.4, "detail": 6.4, "note": 6.2, "type": 6.6, "edgeLabel": 7, "edgeWrap": 6.6 }
   },
   "type": {
     "family": { "ui": "font.family", "diagram": "font.family", "mono": "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" },
@@ -261,6 +261,17 @@ Decided (2026-11-15): slot ids are `"1"`..`"8"`, because brand palettes have no 
 1. Engines read `TOKENS.font.metrics` instead of their literal `CHAR_W` values, in all three run contexts (page and worker, Node, headless Chrome; see How a theme reaches the page); the flowchart's label-width estimates do the same. The audits read the same values from the merged token file.
 2. Add `scripts/measure_font.py`: it opens headless Chrome (as `render_screenshot.py` does), loads the theme's font, measures the average width of a representative English sample at each engine size, and writes `font.metrics`. Theme creation (Phase 7) runs it automatically.
 3. Exit check: with the default theme the measured metrics equal today's constants (within 0.1 px) and goldens are unchanged; with a wide test font (for example a monospace theme) every fixture passes the audits with no label overflow.
+
+As built (2026-11-15):
+
+- `font.metrics` stays a flat map of numbers (average character width in px); the mapping from key to text style lives in `METRICS` in `scripts/measure_font.py`, with the engine constants each key feeds. Keys: `label` (13px, sequence message label `SQ.CHAR_W`, ER column names `ER.CHAR_W`, flowchart longest word), `title` (14px bold, new: ER table name in the header, `ER.TITLE_CHAR_W`), `detail` (12px, `SQ.DETAIL_CHAR_W`), `note` (12px, `SQ.NOTE_CHAR_W`), `type` (11px mono, `ER.TYPE_CHAR_W`), `edgeLabel` (12px, ER relationship label `ER.LABEL_CHAR_W` and the flowchart one-line label box), `edgeWrap` (13px, new: the flowchart `* 6.6` that decides when an edge label wraps; it had the same number as `type` by chance). `SQ.NUM_W` (26, the step-number badge) is geometry, not text width, and stays in the engine and the audit.
+- The old constants are not plain averages: today's values sit 10 to 25 percent above the measured mean (Nunito Sans at the real sizes, 111 characters of typical labels: 6.04 at 13px, 6.76 at 14px bold, 5.58 at 12px, 6.62 at 11px mono), and they differ between keys of the same size (detail 6.4, note 6.2, edgeLabel 7). No one sample text reproduces them, so each key carries a headroom factor in `METRICS` (label 1.22, title 1.1, detail 1.15, note 1.11, type 1.0, edgeLabel 1.25, edgeWrap 1.09) and the stored metric is the measured mean times it, rounded to 0.1. With the default theme this gives exactly 7.4, 7.4, 6.4, 6.2, 6.6, 7.0, 6.6, so goldens are unchanged. A wide font scales every estimate with its own width.
+- `measure_font.py` fetches `font.href` itself and hands the font files to Chrome inline (Chrome needs no network), then measures with canvas `measureText` over DevTools (a 60-line stdlib websocket client; `--dump-dom` is not used because it hangs in some sandboxes). `--theme f --write` updates `font.metrics` of `f`; `--check` exits 1 when a stored value is off by more than 0.1 px, and `--write` and `--check` exit 2 when the font did not load (a missing family or a failed fetch), so fallback widths are never stored.
+- TOKENS reaches each context as the same object (`tokens.tokens_data`): the page defines it before the shell, the ERD worker gets a copy prepended by `erd.js`, `run_engine.mjs` reads `{"tokens": ..., "diagram": ...}` on stdin and passes `TOKENS` to the engine as a function parameter, and the Chrome fallback loads a page built by `scaffold_html(..., tokens=)`, which already defines `TOKENS` before the engine. `run_layout(..., tokens=)` and `assemble_page(..., tokens=)` take the merged set. The engines have no literal fallback: without `TOKENS` they throw.
+- Audits: `audit_sequence.py` reads `font.metrics` (`SequenceAudit(data, metrics)`; the default theme when omitted) and `layout_engine.make_audit` passes the theme's. `audit_erd.py` had `CHAR_W` and `TYPE_CHAR_W` that nothing read; they are gone. `--theme <file>` on `layout_engine.py` (`--layout` and `--verify`) merges the theme for the page, the engine run and the audit; lookup beyond `--theme` is Phase 7.
+- Result with Nunito Sans: `measure_font.py --check` passes, goldens and sample pages produce the same layouts (the sample pages differ only by the engine source embedded in them).
+- Wide test: `dev/fixtures/themes/test-wide.json` is DejaVu Sans (label 8.3, title 9.1, detail 7.2, note 7.0, edgeLabel 7.8, edgeWrap 7.4, about 12 percent wider). Every fixture lays out and passes its audit with it, except `erd/saas-billing`, which scores 88 with the default theme too (a curve through a table, already so before Phase 6). `dev/check_overflow.mjs` finds no overflowing label in them, apart from three cases that are not width estimates: a table name at the ERD overview floor (`fitMinOverview`), the classic-shape node text, which is a fixed-size box that shrinks to `fitMin` and then ends in an ellipsis, and the sequence rail names, which the default theme flags the same way. A monospace theme (DejaVu Sans Mono, 28 percent wider) also lays out, but `erd/saas-billing` then has a curve through a table; that is the router, not the metrics.
+- Left: widths that are not font metrics (`PAD_X`, `GLYPH_W`, `NUM_W`, the fixed sizes of flowchart nodes and sequence boxes) do not scale with the font. ER column names are measured at the regular weight, though keys are bold.
 
 ### Phase 7: Create a theme from a website or brand guide
 
