@@ -14,6 +14,8 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT / "scripts"))
+from tokens import load_tokens, tokens_data  # noqa: E402
 ENGINE = ROOT / "assets" / "types" / "erd" / "engine.js"
 RUNNER = ROOT / "scripts" / "run_engine.mjs"
 VIEW_W, VIEW_H = 1760, 856
@@ -28,7 +30,7 @@ def load_fixtures():
 
 
 def run_engine(data):
-    res = subprocess.run(["node", str(RUNNER), str(ENGINE)], input=json.dumps(data), capture_output=True, text=True)
+    res = subprocess.run(["node", str(RUNNER), str(ENGINE)], input=json.dumps({"tokens": tokens_data(load_tokens()), "diagram": data}), capture_output=True, text=True)
     if res.returncode != 0:
         raise RuntimeError(res.stderr.strip() or "engine failed")
     return res.stdout

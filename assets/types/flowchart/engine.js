@@ -19,6 +19,7 @@
         }
       };
       const LE = Object.assign({}, LE_PROFILES.LR);
+      const FONT_M = TOKENS.font.metrics;   // average character widths (TOKENS is defined by the page or by scripts/run_engine.mjs)
 
       // Which side of its lane a same-lane loop-back runs on (a loop-back: an arrow between two nodes of one lane
       // that runs back against the flow). Normally the far side: below the nodes, right of them top-to-bottom.
@@ -166,9 +167,9 @@
           if (!t) return;
           const longest = Math.max(...t.split(/\s+/).map(w => w.length));
           // Wraps at LABEL_MAX_W, but a single long word cannot wrap, so it sets the floor
-          const w = Math.max(longest * 7.4 + 20, Math.min(t.length * 6.6 + 18, LE.LABEL_MAX_W));
+          const w = Math.max(longest * FONT_M.label + 20, Math.min(t.length * FONT_M.edgeWrap + 18, LE.LABEL_MAX_W));
           // Top-to-bottom: the label wraps at LABEL_MAX_W and sits on the vertical arrow, so it needs its height
-          const lines = Math.ceil((t.length * 6.6 + 18) / LE.LABEL_MAX_W);
+          const lines = Math.ceil((t.length * FONT_M.edgeWrap + 18) / LE.LABEL_MAX_W);
           labelGap[KEY(e.from, e.to)] = (LE.LABEL_ACROSS ? 8 + 17 * Math.min(lines, 3) : w) + 2 * LE.LABEL_STUB;
         });
 
@@ -1009,8 +1010,8 @@
         const gapFor = (s, alongFlow, compact) => {
           const t = String(s.stub.label || '').trim();
           if (!t) return alongFlow ? (compact ? CONN.GAP_TIGHT : CONN.GAP) : CONN.GAP_ACROSS;
-          const w = Math.min(Math.max(40, t.length * 6.6 + 18), LE.LABEL_MAX_W);
-          const lines = Math.ceil((t.length * 6.6 + 18) / LE.LABEL_MAX_W);
+          const w = Math.min(Math.max(40, t.length * FONT_M.edgeWrap + 18), LE.LABEL_MAX_W);
+          const lines = Math.ceil((t.length * FONT_M.edgeWrap + 18) / LE.LABEL_MAX_W);
           const vertical = alongFlow ? LE.LABEL_ACROSS : !LE.LABEL_ACROSS;
           return (vertical ? 24 + 15 * (Math.min(lines, 3) - 1) : w) + 2 * (compact ? CONN.LABEL_PAD_TIGHT : CONN.LABEL_PAD);
         };

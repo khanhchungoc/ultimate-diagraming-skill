@@ -1,21 +1,21 @@
 """Audit for sequence diagrams (diagramType "sequence"): structure, geometry and complexity budget.
 
 Checks the laid-out JSON only, so it needs no browser. Geometry constants mirror assets/types/sequence/engine.js
-(SQ.BOX_W, SQ.RAIL_W, SQ.SELF_LOOP, SQ.CHAR_W, SQ.DETAIL_CHAR_W, SQ.NUM_W); keep them in sync.
+(SQ.BOX_W, SQ.RAIL_W, SQ.SELF_LOOP, SQ.NUM_W); keep them in sync. Text widths come from font.metrics in the tokens.
 """
 
 from __future__ import annotations
 
 import math
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
+
+from tokens import load_tokens
 
 from disk_format import color_kind, color_slot, palette_slots, slot_key
 
 BOX_W = 148
 RAIL_W = 36              # a rail: the thin column of a participant with nothing to show outside collapsed frames
 SELF_LOOP = 40
-CHAR_W = 7.4
-DETAIL_CHAR_W = 6.4      # a message's detail line (smaller text)
 NUM_W = 26               # the step number before a label when "numbered"
 LABEL_MARGIN = 16        # clear space a label needs beside its arrow ends
 MAX_PARTICIPANTS = 6
@@ -29,10 +29,6 @@ BRANCH_KINDS = {"alt", "par"}
 # disk_format.color_slot() also reads the old palette hex and the old fragment colour names.
 MAX_PARTICIPANT_COLORS = 4
 ERROR_PENALTY = 12
-
-
-def text_width(text: Any) -> int:
-    return math.ceil(len("" if text is None else str(text)) * CHAR_W)
 
 
 def branches_of(f: Dict[str, Any]) -> List[Dict[str, Any]]:
@@ -134,8 +130,9 @@ class SequenceAudit:
     def pass_line(self, report: Dict[str, Any]) -> str:
         return f"[PASS] Quality Score: {report['score']}/100 ({report['grade']}). No spacing, label-fit or bounds problems."
 
-    def __init__(self, data: Dict[str, Any]):
+    def __init__(self, data: Dict[str, Any], metrics: Optional[Dict[str, float]] = None):
         self.data = data
+        self.metrics = metrics or load_tokens()["font"]["metrics"]   # the theme's average character widths
         self.participants: List[Dict[str, Any]] = data.get("participants", [])
         self.messages: List[Dict[str, Any]] = data.get("messages", [])
         self.fragments: List[Dict[str, Any]] = data.get("fragments", [])
@@ -264,8 +261,8 @@ class SequenceAudit:
                         overflows += 1
                     continue
                 detail = m.get("detail") if show_details else None
-                label_w = max(text_width(m.get("label")) + (NUM_W if numbered else 0),
-                              math.ceil(len(str(detail or "")) * DETAIL_CHAR_W))
+                label_w = max(math.ceil(len("" if m.get("label") is None else str(m["label"])) * self.metrics["label"]) + (NUM_W if numbered else 0),
+                              math.ceil(len(str(detail or "")) * self.metrics["detail"]))
                 if a is b:
                     nxt = min((q["x"] for q in ps if q["x"] > a["x"]), default=math.inf)
                     if a["x"] + SELF_LOOP + 8 + label_w + 8 > nxt:

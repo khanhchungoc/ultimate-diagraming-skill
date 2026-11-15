@@ -1116,6 +1116,12 @@ def extract_data_from_html(html_content: str) -> Dict[str, Any]:
 
 
 AUDITS = {"flowchart": FlowchartAudit, "sequence": SequenceAudit, "erd": ErdAudit}
+
+
+def make_audit(data: Dict[str, Any], tokens: Optional[Dict[str, Any]] = None):
+    """The audit for `data`'s type; the sequence audit estimates text width from the theme's font.metrics."""
+    cls = AUDITS[data["diagramType"]]
+    return cls(data, tokens["font"]["metrics"] if tokens else None) if cls is SequenceAudit else cls(data)
 # DISK_CODECS (disk_format.py): per type, (to_disk, from_disk) between the in-memory model and the page block
 
 ASSETS_DIR = Path(__file__).resolve().parent.parent / "assets"
@@ -1160,9 +1166,11 @@ def artifact_template(shell_html: str) -> str:
     return ARTIFACT_HEAD + "\n" + title[0].lstrip() + m["guide"] + head + m["body"] + ARTIFACT_END_MARKER + "\n" + ARTIFACT_TAIL
 
 
-def assemble_page(kind: str, data: Optional[Dict[str, Any]] = None, target: str = "file") -> str:
+def assemble_page(kind: str, data: Optional[Dict[str, Any]] = None, target: str = "file",
+                  tokens: Optional[Dict[str, Any]] = None) -> str:
     """Build one standalone HTML page: shared shell + the diagram type's plugin, with `data` embedded.
-    target "file" is the page as saved on disk; "artifact" is the same page in the claude.ai Artifact shape."""
+    target "file" is the page as saved on disk; "artifact" is the same page in the claude.ai Artifact shape.
+    `tokens` is the merged token set (default.json, or a theme over it)."""
     if target not in TARGETS:
         raise ValueError(f"unknown target {target!r}; expected one of {', '.join(TARGETS)}")
     type_dir = ASSETS_DIR / "types" / kind
@@ -1176,7 +1184,7 @@ def assemble_page(kind: str, data: Optional[Dict[str, Any]] = None, target: str 
     # Optional per-type icon set (name -> SVG inner markup), embedded so the page stays self-contained
     icons_path = type_dir / "icons.json"
     icons_js = f"const TYPE_ICONS = {json.dumps(json.loads(_read_asset(icons_path)), separators=(',', ':'))};\n" if icons_path.is_file() else ""
-    tokens = load_tokens()  # default theme only; --theme comes in a later phase
+    tokens = tokens or load_tokens()
     parts = {
         "PAGE_TITLE": html.escape(str(data.get("title") or meta["title"]), quote=False),
         "TOKENS_CSS": tokens_css(tokens),
@@ -1216,9 +1224,9 @@ def find_external_refs(html_text: str) -> List[str]:
     return sorted({r for r in refs if not ALLOWED_EXTERNAL.match(re.sub(r"""^(?:src|href)\s*=\s*["']""", "", r))})
 
 
-def scaffold_html(data: Dict[str, Any], output_path: Path, target: str = "file"):
+def scaffold_html(data: Dict[str, Any], output_path: Path, target: str = "file", tokens: Optional[Dict[str, Any]] = None):
     """Write the standalone HTML for `data` (its diagramType selects the plugin)."""
-    html_text = assemble_page(data.get("diagramType") or DEFAULT_TYPE, data, target)
+    html_text = assemble_page(data.get("diagramType") or DEFAULT_TYPE, data, target, tokens)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(html_text, encoding="utf-8")
     print(f"[OK] Generated interactive {data.get('diagramType') or DEFAULT_TYPE}: {output_path}")
@@ -1246,19 +1254,20 @@ def _score_without_long_arrows(report: Dict[str, Any]) -> int:
     return report["score"] + min(LONG_ARROW_MAX_PENALTY, report["long_arrows_count"] * LONG_ARROW_PENALTY)
 
 
-def choose_flowchart_direction(data: Dict[str, Any], timeout: int, browser: Optional[str]) -> Tuple[Dict[str, Any], str]:
+def choose_flowchart_direction(data: Dict[str, Any], timeout: int, browser: Optional[str],
+                               tokens: Optional[Dict[str, Any]] = None) -> Tuple[Dict[str, Any], str]:
     """Lay out a flowchart that does not set "direction", in the direction that reads best; return (laid data, why).
 
     Left to right is kept when the whole diagram fits the screen at a readable zoom. Otherwise the lanes should fill
     the screen while the reader scrolls along the flow, and the direction whose lanes fill it at the bigger zoom wins:
     a landscape screen is about twice as wide as tall, so a long flow almost always reads better top to bottom. Only
     positions are compared (no render); the second layout costs about 0.2 s with Node.js."""
-    lr = run_layout("flowchart", {**data, "direction": "LR"}, timeout=timeout, browser=browser)
+    lr = run_layout("flowchart", {**data, "direction": "LR"}, timeout=timeout, browser=browser, tokens=tokens)
     along, across = _flowchart_canvas(lr)
     fit_all = min(1.0, VIEW_W / along, VIEW_H / across)
     if fit_all >= READABLE_ZOOM:
         return lr, ""
-    tb = run_layout("flowchart", {**data, "direction": "TB"}, timeout=timeout, browser=browser)
+    tb = run_layout("flowchart", {**data, "direction": "TB"}, timeout=timeout, browser=browser, tokens=tokens)
     tb_along, tb_across = _flowchart_canvas(tb)
     lr_zoom, tb_zoom = min(1.0, VIEW_H / across), min(1.0, VIEW_W / tb_across)
     # Rotating the same graph can add an edge crossing or two (score only, never a gate failure); that is worth much
@@ -1287,11 +1296,17 @@ def main():
     parser.add_argument("--target", choices=TARGETS, default="file",
                         help="With --layout: file (default) writes the standalone HTML file; artifact writes the page "
                              "in the shape a claude.ai Artifact needs (publish it with the Artifact tool)")
+    parser.add_argument("--theme", help="Theme file (tokens in the shape of assets/tokens/default.json; omitted keys keep "
+                                        "the default): page styles, fonts and text widths for --layout and --verify")
     parser.add_argument("--screenshot", "-s",
                         help="With --layout: also render a PNG here and run the layout report (one command does both)")
     parser.epilog = "SKILL.md documents every flag an agent needs; no others are required."
 
     args = parser.parse_args()
+    try:
+        tokens = load_tokens(Path(args.theme)) if args.theme else None
+    except (OSError, ValueError) as exc:
+        sys.exit(f"[ERROR] --theme: {exc}")
 
     if args.extract:
         html_path = Path(args.extract)
@@ -1322,10 +1337,10 @@ def main():
         if p.suffix == ".html" and data["diagramType"] in ("sequence", "erd"):
             # A sequence page saves no positions and an ER page no routes: run the engine, as the page does on load
             try:
-                data = run_layout(data["diagramType"], data, timeout=args.timeout, browser=args.browser)
+                data = run_layout(data["diagramType"], data, timeout=args.timeout, browser=args.browser, tokens=tokens)
             except EngineUnavailable as exc:
                 sys.exit(f"[ERROR] {exc}")
-        audit = AUDITS[data["diagramType"]](data)
+        audit = make_audit(data, tokens)
         report = audit.verify_collisions()
 
         print(f"\n======================================================================")
@@ -1368,18 +1383,18 @@ def main():
         direction_note = ""
         try:
             if data["diagramType"] == "flowchart" and "direction" not in data:
-                laid_out_data, direction_note = choose_flowchart_direction(data, args.timeout, args.browser)
+                laid_out_data, direction_note = choose_flowchart_direction(data, args.timeout, args.browser, tokens)
             else:
-                laid_out_data = run_layout(data["diagramType"], data, timeout=args.timeout, browser=args.browser)
+                laid_out_data = run_layout(data["diagramType"], data, timeout=args.timeout, browser=args.browser, tokens=tokens)
         except EngineUnavailable as exc:
             sys.exit(f"[ERROR] {exc}")
         if direction_note:
             print(f"[INFO] Direction: {direction_note}. To force one, set \"direction\" in the JSON.")
-        audit = AUDITS[data["diagramType"]](laid_out_data)
+        audit = make_audit(laid_out_data, tokens)
         report = audit.verify_collisions()
 
         out_path = Path(args.output) if args.output else in_p.with_suffix(".html")
-        scaffold_html(laid_out_data, out_path, args.target)
+        scaffold_html(laid_out_data, out_path, args.target, tokens)
 
         # Same gates as --verify, so the agent never needs a second audit run.
         failed = False

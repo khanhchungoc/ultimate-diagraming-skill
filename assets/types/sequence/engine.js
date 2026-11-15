@@ -1,7 +1,7 @@
       // --- SEQUENCE LAYOUT ENGINE ---
       // Pure JS, no DOM access. Defines layoutDiagram(data) (see assets/shell/shell.js) and is run by the page
       // (Auto-Tidy, edits) and by scripts/run_engine.mjs (--layout). The Python audit in scripts/audit_sequence.py
-      // mirrors the text-width constants below; keep SQ.CHAR_W, SQ.DETAIL_CHAR_W and SQ.NUM_W in sync with it.
+      // mirrors SQ.NUM_W and the geometry below; the text widths (SQ.*CHAR_W) come from TOKENS.font.metrics, which scripts/run_engine.mjs and the page define.
       //
       // Input:  numbered?, showDetails?,
       //         participants[{id,name,kind}], messages[{id,from,to,label,detail?,kind}] (array order = time order),
@@ -22,10 +22,10 @@
         BOX_W: 148, BOX_H: 56, TOP: 24, MARGIN: 56, MIN_GAP: 200,
         FIRST_GAP: 56, ROW: 60, SELF_ROW: 96, ARROW_AT: 30,
         FRAG_TOP: 40, FRAG_STEP_BOTTOM: 28, ELSE_GAP: 32, ROW_BOTTOM_PAD: 8,
-        CHAR_W: 7.4, LABEL_PAD: 44, SELF_LOOP: 40, TAIL: 56, FRAG_PAD: 36, FRAG_PAD_STEP: 14, GRID: 4,
+        CHAR_W: TOKENS.font.metrics.label, LABEL_PAD: 44, SELF_LOOP: 40, TAIL: 56, FRAG_PAD: 36, FRAG_PAD_STEP: 14, GRID: 4,
         NUM_W: 26,                              // room for the step number before a label ("numbered")
-        DETAIL_CHAR_W: 6.4, DETAIL_ROW: 12,     // a message's detail line: smaller text, and the extra row height
-        NOTE_W: 184, NOTE_SPAN_PAD: 64, NOTE_CHAR_W: 6.2, NOTE_PAD: 10, NOTE_LINE: 17, NOTE_GAP: 14,
+        DETAIL_CHAR_W: TOKENS.font.metrics.detail, DETAIL_ROW: 12,     // a message's detail line: smaller text, and the extra row height
+        NOTE_W: 184, NOTE_SPAN_PAD: 64, NOTE_CHAR_W: TOKENS.font.metrics.note, NOTE_PAD: 10, NOTE_LINE: 17, NOTE_GAP: 14,
         SUMMARY_ROW: 44,                        // the one row a collapsed frame takes
         RAIL_W: 36, RAIL_H: 80,                 // a rail's width and height
         GAP_CLEAR: 52, RAIL_CLEAR: 24,          // clear space between two boxes (MIN_GAP - BOX_W), and beside a rail

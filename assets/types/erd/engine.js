@@ -21,7 +21,7 @@
 
 const ER = {
   HEAD_H: 36, ROW_H: 26, MORE_H: 22,            // header strip, one column row, the "+ N more" row
-  CHAR_W: 7.4, TYPE_CHAR_W: 6.6, PAD_X: 12, GLYPH_W: 22, TYPE_GAP: 16,
+  CHAR_W: TOKENS.font.metrics.label, TITLE_CHAR_W: TOKENS.font.metrics.title, TYPE_CHAR_W: TOKENS.font.metrics.type, PAD_X: 12, GLYPH_W: 22, TYPE_GAP: 16,
   MIN_W: 168, MAX_W: 360, GRID: 4,
   GAP_X: 80, GAP_Y: 56,                          // clear space kept between tables (the overlap removal)
   REL_GAP: 98, REL_LABEL_GAP: 66,                // related tables keep this much clear on the axis their line uses (98: 2 px for rounding), and label width + 66 when the line has a label
@@ -43,7 +43,7 @@ const ER = {
   PORT_GAP: 22, PORT_MARGIN: 14,                 // spacing of lines on one side, and the corner margin
   CTRL_MIN: 40, CTRL_MAX: 160, CTRL_DIV: 2.5,    // control distance = clamp(distance / CTRL_DIV, CTRL_MIN, CTRL_MAX)
   SELF_CTRL: 60,                                 // self-reference loop: right side out, top in
-  LABEL_H: 22, LABEL_X: 12, LABEL_CHAR_W: 7,
+  LABEL_H: 22, LABEL_X: 12, LABEL_CHAR_W: TOKENS.font.metrics.edgeLabel,
   MARGIN: 40, CLEAR: 24                          // canvas margin; clearance a curve keeps from a table it passes
 };
 
@@ -74,7 +74,7 @@ function erEntitySize(entity, data) {
   });
   const rows = vis.cols.length
     ? ER.PAD_X + ER.GLYPH_W + nameW + (showTypes ? ER.TYPE_GAP + typeW : 0) + ER.PAD_X : 0;
-  const head = erTextW(erName(entity), ER.CHAR_W) + 2 * ER.PAD_X + 24;
+  const head = erTextW(erName(entity), ER.TITLE_CHAR_W) + 2 * ER.PAD_X + 24;
   const w = erGrid(Math.min(ER.MAX_W, Math.max(ER.MIN_W, head, rows)));
   return { w, h: ER.HEAD_H + vis.cols.length * ER.ROW_H + (vis.more ? ER.MORE_H : 0) };
 }

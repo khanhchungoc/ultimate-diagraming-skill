@@ -2,7 +2,7 @@
 
 Checks the laid-out JSON only (entity boxes, relationship routes (curves sampled to points) and label boxes written by
 assets/types/erd/engine.js), so it needs no browser and never computes a layout. Constants mirror the `ER` block in
-assets/types/erd/engine.js (HEAD_H, ROW_H, MORE_H, CHAR_W, ...); keep them in sync.
+assets/types/erd/engine.js (HEAD_H, ROW_H, MORE_H, ...); keep them in sync. The audit reads no text widths.
 """
 
 from __future__ import annotations
@@ -13,7 +13,6 @@ from typing import Any, Dict, List, Optional, Tuple
 from disk_format import color_kind, color_slot, palette_slots, slot_key
 
 HEAD_H, ROW_H, MORE_H = 36, 26, 22
-CHAR_W, TYPE_CHAR_W = 7.4, 6.6
 PAD_X, GLYPH_W, TYPE_GAP = 12, 22, 16
 MIN_W, MAX_W = 168, 360
 CELL_GAP_X, CELL_GAP_Y, LABEL_PAD = 96, 48, 32
