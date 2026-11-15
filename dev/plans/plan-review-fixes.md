@@ -77,15 +77,15 @@ Fixes for problems found while using the hosted sample artifacts (2026-11-15). E
 
 ### E3. Hovering a table in the zoomed-out view is noisy
 
-**Cause.** The neighbourhood highlight (`erdNeighbourhood` and the code after `const focus = erdFocusId()`) uses two line colours (in and out), coloured rings on related tables in two more colours, tinted key rows, a chip on every joining row, and a peek card on every related table whose joining rows are hidden. Zoomed out, the peek cards stack over the tables and the lines (first screenshot).
+**Cause.** The neighbourhood highlight (`erdNeighbourhood` and the code after `const focus = erdFocusId()`) uses two line colours (in and out), coloured rings on related tables in two more colours, tinted key rows, a chip on every joining row, and a peek card on every related table whose joining rows are hidden. Zoomed out, the peek cards stack over the tables and the lines (first screenshot). The chips add little: the tinted row already shows which column joins, and the line shows where it goes.
 
 **Fix.**
 
 - One highlight colour: the primary accent for the hovered table's lines and the rings of related tables. Direction is already shown by the crow's-foot ends. Unrelated tables dim as today.
-- Zoomed out (overview), show no chips and no peek cards on hover. Show them only when zoomed in enough to read the rows, and only for the selected table (not on a passing hover).
-- Peek cards, when shown, never cover another table: place them with the existing `erdPlacePeeks` logic, or skip a peek that cannot be placed clear.
+- Remove the key chips (`span.erd-key-chip`, `erdChipText`, `erdChipEl`) and the peek cards (`div.erd-key-peek`, `erdBuildPeek`, `erdPlacePeeks`) entirely, at every zoom level (D2). Joining rows that are drawn keep their bold weight and a light tint in the accent colour.
+- Hovering a line shows its join as the line's tooltip, for example `order.customer_id → customer.id` (several columns: `order.(a, b) → parent.(x, y)`). This covers what the chips were for: two keys to the same table, key names that do not match the target, and joining rows hidden on a collapsed or key-only table.
 
-**Test.** Screenshot the sample zoomed out with `order` hovered, in both themes, and compare with the first review screenshot. `e2e_erd.mjs`: no `.erd-key-peek` exists while in overview.
+**Test.** Screenshot the sample zoomed out with `order` hovered, in both themes, and compare with the first review screenshot. `e2e_erd.mjs`: hovering a table creates no `.erd-key-chip` or `.erd-key-peek`; hovering the `order` → `customer` line shows the tooltip `order.customer_id → customer.id`. Remove the chip and peek cases from the existing tests.
 
 ### E4. Line end handles hide the crow's feet
 
@@ -97,16 +97,12 @@ Fixes for problems found while using the hosted sample artifacts (2026-11-15). E
 
 ### E5. Do not label the hovered table's own key rows
 
-**Cause.** On the focus table the joining rows get `key-hl` and a tint, and its parent key row shows a chip such as "← 2 columns". The chip on the table you are looking at describes other tables and reads as part of this table.
-
-**Fix.** On the hovered or selected table, mark joining rows by weight and a light tint only, with no chip. Chips stay on related tables, where "→ customer.id" says where the row points. Check the chip text on related tables still makes sense without the focus table's chips.
-
-**Test.** `e2e_erd.mjs`: hover `order`; no `.erd-key-chip` inside the `order` table; chips present on `customer` and `address`.
+Covered by E3: with the chips removed, no table carries labels about other tables.
 
 ## Order of work
 
-1. E1, E2, E5 (small, independent).
-2. E4, E3.
+1. E1, E2 (small, independent).
+2. E4, E3 (E3 also covers E5).
 3. S3, S2.
 4. S1 (largest change to sequence editing).
 5. S4 (shared pill component; touches the design tokens and goldens).
@@ -115,4 +111,4 @@ Fixes for problems found while using the hosted sample artifacts (2026-11-15). E
 ## Open decisions
 
 - **D1. Decided (2026-11-15): always colour.** Participants without a `color` get a palette slot by position when drawn.
-- **D2.** E3: should hover in the zoomed-in view keep the chips, or should chips appear only for the selected table everywhere?
+- **D2. Decided (2026-11-15): remove the chips and peek cards.** A line's tooltip names its join instead (E3).
