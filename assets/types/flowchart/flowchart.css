@@ -539,8 +539,6 @@
       /* Stripe and pill colours: the lane colour as a swatch (see shell.css) */
       --swatch-color: var(--lane-color);
       --lane-stripe: var(--sw-stripe);
-      --lane-pill-bg: var(--sw-pill-bg);
-      --lane-pill-ink: var(--sw-pill-ink);
       --lane-pill-solid: var(--sw-pill-solid);
     }
     .swimlane.lane-alt { --lane-bg: var(--lane-alt-bg); }
@@ -560,28 +558,12 @@
       left: 0;
       top: 0;
       z-index: 40;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      max-width: 340px;
-      padding: 4px 11px 4px 9px;
-      border-radius: var(--radius-pill);
-      background: var(--lane-pill-bg);
-      color: var(--lane-pill-ink);
-      font-size: var(--t-title-size);
-      font-weight: var(--weight-semibold);
-      line-height: var(--leading-snug);
-      white-space: nowrap;
       cursor: move;
-      user-select: none;
       transform-origin: 0 0;
       transform: translate(var(--pill-x, 12px), var(--pill-y, 12px));
-      transition: background var(--ease), color var(--ease), box-shadow var(--ease);
-      --halo: 0 0 0 5px var(--lane-bg);
-      box-shadow: var(--halo);
+      --halo-bg: var(--lane-bg);
     }
-    /* Pointer directly on the pill: a strong ring says "this is the handle you can drag" */
-    .lane-pill:hover { box-shadow: 0 0 0 var(--ring-md) var(--primary), var(--halo); }
+    /* (The pointer ring on the pill is in components/pill.css; renaming switches it off) */
     .lane-pill.editing { cursor: default; box-shadow: var(--halo); }
     /* The lane under the mouse (or holding the selection) turns its pill solid: a "you are here" marker. The halo
        picks up the same hover wash as the lane, so the ring stays invisible against it. */

@@ -57,6 +57,9 @@
         setSwatch(el, color);
         return el;
       }
+      // What is drawn for a participant: its own colour, else a palette slot by its position (render-time only: the diagram
+      // never saves it, and the colour key and the colour picker still see only a chosen colour)
+      const drawnSwatch = (p) => swatchOf(p) || SWATCHES[Math.max(0, chartData.participants.indexOf(p)) % SWATCHES.length].slot;
       const swatchName = (color) => (paletteOf(color) || {}).name || color;
 
       function ensureModel() {
@@ -195,12 +198,12 @@
         ps.forEach((p) => {
           const rail = !!p.rail, boxH = rail ? SQ.RAIL_H : SQ.BOX_H, top = p.top === undefined ? SQ.TOP : p.top;
           const y2 = p.bottom === undefined ? L.height - 24 : p.bottom;
-          const sw = swatchOf(p);
+          const sw = drawnSwatch(p);
           seqLifeG.appendChild(paintSwatch(svgEl('line', { class: `seq-lifeline${rail ? ' is-rail' : ''}`, x1: p.x, x2: p.x, y1: top + boxH, y2, 'data-node-id': p.id }), sw));
           // A wide invisible stroke over the lifeline: dragging from it draws a message (see DRAW FROM A LIFELINE)
           seqLifeG.appendChild(svgEl('line', { class: 'seq-life-hit', x1: p.x, x2: p.x, y1: top + boxH, y2, 'data-pid': p.id, 'data-export-skip': '' }));
           if (p.bottom !== undefined) seqLifeG.appendChild(paintSwatch(svgEl('line', { class: 'seq-cap', x1: p.x - 7, x2: p.x + 7, y1: p.bottom, y2: p.bottom, 'data-node-id': p.id }), sw));
-          const box = htmlEl('div', `seq-participant${p.kind === 'actor' ? ' is-actor' : ''}${hasKindIcon(p.kind) ? ` is-${p.kind}` : ''}${rail ? ' is-rail' : ''}`, { left: px(p.x - (rail ? SQ.RAIL_W : SQ.BOX_W) / 2), top: px(top) });
+          const box = htmlEl('div', `seq-participant swatch-pill${p.kind === 'actor' ? ' is-actor' : ''}${hasKindIcon(p.kind) ? ` is-${p.kind}` : ''}${rail ? ' is-rail' : ''}`, { left: px(p.x - (rail ? SQ.RAIL_W : SQ.BOX_W) / 2), top: px(top) });
           box.dataset.nodeId = p.id;
           paintSwatch(box, sw);
           if (hasKindIcon(p.kind) || rail) box.appendChild(kindIcon(p.kind));
@@ -233,7 +236,7 @@
         bars.forEach((b) => {
           const p = byId[b.pid];
           if (!p) return;
-          seqActG.appendChild(paintSwatch(svgEl('rect', { class: 'seq-activation', x: p.x - ACT_HALF + b.depth * ACT_STEP, y: b.y1, width: ACT_HALF * 2, height: b.y2 - b.y1, rx: 2, 'data-node-id': b.pid }), swatchOf(p)));
+          seqActG.appendChild(paintSwatch(svgEl('rect', { class: 'seq-activation', x: p.x - ACT_HALF + b.depth * ACT_STEP, y: b.y1, width: ACT_HALF * 2, height: b.y2 - b.y1, rx: 2, 'data-node-id': b.pid }), drawnSwatch(p)));
         });
         const activeDepth = (pid, y) => bars.reduce((mx, b) => (b.pid === pid && b.y1 <= y && y <= b.y2 ? Math.max(mx, b.depth) : mx), -1);
         const edgeX = (p, y, dir) => {
@@ -311,18 +314,13 @@
           });
           seqHtml.appendChild(key);
         }
-        // The opaque band the participant row rides on once the top of the diagram is panned off screen
-        // (#seq-html is a shrink-to-fit box with no width of its own, so left/right: 0 would give the band none)
-        const band = htmlEl('div', 'seq-pin-band');
-        band.style.width = `${chartData.layout ? chartData.layout.width : 0}px`;
-        seqHtml.appendChild(band);
         applySelection();
         pinParticipants();
       }
 
       // --- PINNED PARTICIPANT ROW ---
       // Below the first screen of a long diagram no lifeline would have a name: once the boxes are panned off the
-      // top, they ride at the top of the viewport over an opaque band (as the flowchart pins its lane pills).
+      // top, they ride at the top of the viewport as pills in their halos (as the flowchart pins its lane pills).
       // Called after every render and, via plugin.onViewChange, after every pan/zoom. Exports (body.exporting) and
       // screenshots (body.capture) reset it in CSS, so they always show the row at the diagram's top.
       const PIN_INSET = 8;
@@ -336,9 +334,7 @@
         const on = visTop + PIN_INSET > SQ.TOP && !document.body.classList.contains('capture');
         const dy = Math.min(visTop + PIN_INSET - SQ.TOP, L.height - SQ.BOX_H - SQ.TOP - 40);
         seqCanvas.classList.toggle('seq-pinned', on && dy > 0);
-        seqCanvas.style.setProperty('--pin-h', `${topRowH() + 16}px`);
         seqCanvas.style.setProperty('--pin-dy', `${on ? Math.max(0, dy) : 0}px`);
-        seqCanvas.style.setProperty('--pin-top', `${on ? Math.max(0, dy) + SQ.TOP - PIN_INSET : 0}px`);
         // With lifespans the row names only the lifelines alive at the rows under it: a box rides at the top once its
         // own place has scrolled past it, and fades out when its lifeline has ended above. Nothing moves sideways.
         const pinTop = SQ.TOP + (on ? Math.max(0, dy) : 0);
@@ -483,13 +479,13 @@
       function refreshDock() {
         const kind = seqSel && seqSel.kind;
         // View toggles: pressed while on. They are saved flags ("numbered", "showDetails"), so each is one undo step.
-        btnNumbers.setAttribute('aria-pressed', String(!!chartData.numbered));
+        btnNumbers.setAttribute('aria-checked', String(!!chartData.numbered));
         btnNumbers.title = chartData.numbered ? 'Hide the step numbers' : 'Number every message (the number stays the same when a frame is collapsed)';
         const hasDetails = chartData.messages.some((m) => m.detail);
-        btnDetails.setAttribute('aria-pressed', String(hasDetails && chartData.showDetails !== false));
+        btnDetails.setAttribute('aria-checked', String(hasDetails && chartData.showDetails !== false));
         setDockButton(btnDetails, hasDetails, !hasDetails ? 'No message has a detail yet: select a message, press Enter, then Tab'
           : chartData.showDetails !== false ? 'Hide the details under the arrows (the detail becomes the label\'s tooltip)' : 'Show each message\'s detail under its arrow');
-        btnLifespans.setAttribute('aria-pressed', String(!!chartData.lifespans));
+        btnLifespans.setAttribute('aria-checked', String(!!chartData.lifespans));
         btnLifespans.title = chartData.lifespans ? 'Draw every lifeline from the top to the bottom again' : 'Trim lifelines: each one runs only from its participant\'s first message to its last';
         const anyCollapsed = chartData.fragments.some((f) => f.collapsed);
         btnShowAll.hidden = !anyCollapsed;

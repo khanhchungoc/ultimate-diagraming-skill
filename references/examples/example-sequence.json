@@ -1,26 +1,35 @@
 {
   "diagramType": "sequence",
   "title": "Checkout",
+  "colorKey": {
+    "1": "Customer",
+    "3": "Our services",
+    "2": "Payment partner"
+  },
   "participants": [
     {
       "id": "p1",
       "name": "Customer",
-      "kind": "actor"
+      "kind": "actor",
+      "color": "1"
     },
     {
       "id": "p2",
       "name": "Shop",
-      "kind": "system"
+      "kind": "system",
+      "color": "3"
     },
     {
       "id": "p3",
       "name": "Payment",
-      "kind": "system"
+      "kind": "system",
+      "color": "2"
     },
     {
       "id": "p4",
       "name": "Warehouse",
-      "kind": "system"
+      "kind": "system",
+      "color": "3"
     }
   ],
   "messages": [

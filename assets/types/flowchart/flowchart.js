@@ -271,7 +271,7 @@
           // Drag it to reorder lanes, double-click the name to rename. Positioned by pinLaneHeaders.
           const editable = !document.body.classList.contains('presentation');
           const pill = document.createElement('div');
-          pill.className = 'lane-pill';
+          pill.className = 'lane-pill swatch-pill';
           pill.draggable = editable;
           pill.dataset.tip = 'Click to select (Delete removes the lane) \u00b7 drag to reorder \u00b7 double-click to rename';
           pill.addEventListener('click', (e) => {

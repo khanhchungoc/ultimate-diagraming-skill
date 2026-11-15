@@ -143,7 +143,7 @@ try {
   const pillLook = await t.ev(`(() => {
     const p = document.querySelector('.swimlane:nth-child(1) .lane-pill'), cs = getComputedStyle(p);
     // (skip the cross-origin Google Fonts sheet: reading its rules throws)
-    const ring = [...document.styleSheets].flatMap(s => { try { return [...s.cssRules]; } catch (_) { return []; } }).find(r => r.selectorText === '.lane-pill:hover');
+    const ring = [...document.styleSheets].flatMap(s => { try { return [...s.cssRules]; } catch (_) { return []; } }).find(r => r.selectorText === '.swatch-pill:hover');
     return [cs.cursor, ring ? ring.style.boxShadow : ''];
   })()`);
   t.check('the lane pill shows a move cursor and a 2px primary ring on hover', pillLook[0] === 'move' && pillLook[1].includes('var(--ring-md) var(--primary)'), JSON.stringify(pillLook));

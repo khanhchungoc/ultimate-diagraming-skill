@@ -1,0 +1,23 @@
+    /* Swatch pill: a name on a swatch's pale fill with the swatch's ink, in a halo of the surface behind it, so a line passing
+       behind is cut cleanly around the pill. Used by the flowchart's lane name and the sequence's participant. An element
+       with it reads its colours from the swatch roles (see swatch.css); the surface behind sets --halo-bg (default: the panel). */
+    .swatch-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      max-width: 340px;
+      padding: 4px 11px 4px 9px;
+      border-radius: var(--radius-pill);
+      background: var(--sw-pill-bg);
+      color: var(--sw-pill-ink);
+      font-size: var(--t-title-size);
+      font-weight: var(--weight-semibold);
+      line-height: var(--leading-snug);
+      white-space: nowrap;
+      user-select: none;
+      transition: background var(--ease), color var(--ease), box-shadow var(--ease);
+      --halo: 0 0 0 5px var(--halo-bg, var(--bg-panel));
+      box-shadow: var(--halo);
+    }
+    /* Pointer directly on the pill: a strong ring says "this is the handle you can drag" */
+    .swatch-pill:hover { box-shadow: 0 0 0 var(--ring-md) var(--primary), var(--halo); }

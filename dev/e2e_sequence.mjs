@@ -458,6 +458,12 @@ try {
   const pinned = await t.ev(`(() => { const c = document.getElementById('seq-canvas'); const b = document.querySelector('.seq-participant').getBoundingClientRect();
     const v = document.getElementById('viewport').getBoundingClientRect(); return c.classList.contains('seq-pinned') && b.top >= v.top - 1 && b.top < v.top + 40; })()`);
   t.check('panned down, the participant row is pinned at the top of the viewport', pinned);
+  // Every pill stays on screen, in its own column (the row only moves down), wearing a halo and a swatch fill
+  const pills = await t.ev(`(() => { const v = document.getElementById('viewport').getBoundingClientRect(), c = document.getElementById('seq-canvas');
+    return [...document.querySelectorAll('.seq-participant')].map((e) => { const r = e.getBoundingClientRect(), cs = getComputedStyle(e);
+      const life = document.querySelector('.seq-lifeline[data-node-id="' + e.dataset.nodeId + '"]').getBoundingClientRect();
+      return { vis: r.top >= v.top - 1 && r.bottom <= v.bottom, col: Math.abs((r.left + r.right) / 2 - (life.left + life.right) / 2) < 2, halo: /\\d+px/.test(cs.boxShadow) && cs.boxShadow !== 'none', round: parseFloat(cs.borderTopLeftRadius) > 10 }; }); })()`);
+  t.check('panned down, every participant pill is visible, over its lifeline, with a halo and round ends', pills.length > 0 && pills.every((q) => q.vis && q.col && q.halo && q.round), JSON.stringify(pills));
   const svgText = await t.ev(`new Promise(res => {
     const orig = URL.createObjectURL;
     URL.createObjectURL = (b) => { URL.createObjectURL = orig; b.text().then(res); return 'blob:x'; };
@@ -532,7 +538,7 @@ try {
   t.check('Trim lifelines draws each box at the top of its lifeline, which ends in a short cap',
     trimmed.cust === 24 && trimmed.spm > 400 && trimmed.job > trimmed.spm && trimmed.len < tallLife / 2 && (await count('.seq-cap')) === 8, JSON.stringify(trimmed));
   t.check('the participants that start in the top rows stay in the top row; a header slot makes the diagram taller, not wider',
-    (await t.ev(`document.getElementById('seq-canvas').offsetHeight`)) > fullH && (await t.ev(`document.getElementById('btn-lifespans').getAttribute('aria-pressed')`)) === 'true');
+    (await t.ev(`document.getElementById('seq-canvas').offsetHeight`)) > fullH && (await t.ev(`document.getElementById('btn-lifespans').getAttribute('aria-checked')`)) === 'true');
   await t.press('z', { modifiers: 2 });
   t.check('the toggle is one undo step', (await count('.seq-cap')) === 0 && (await boxTop('spm')) === 24 && (await lifeLen('spm')) === tallLife);
   await t.press('y', { modifiers: 2 });
@@ -642,13 +648,13 @@ try {
   const lifeStroke = await t.ev(`getComputedStyle(document.querySelector('.seq-lifeline[data-node-id="p2"]')).stroke`);
   const plainLife = await t.ev(`getComputedStyle(document.querySelector('.seq-lifeline[data-node-id="p3"]')).stroke`);
   const barFill = await t.ev(`(() => { const b = document.querySelector('.seq-activation[data-node-id="p2"]'); return b ? [b.classList.contains('swatch-scope'), getComputedStyle(b).stroke, getComputedStyle(b).fill] : null; })()`);
-  t.check('a swatch colours the box (4px top border, faint tint), the lifeline and the activation bars',
-    coloured.scoped && coloured.top === '4px' && coloured.topColor !== plain.topColor && coloured.bg !== plain.bg && lifeStroke !== plainLife
+  t.check('a chosen swatch recolours the pill (over the position colour every participant gets), the lifeline and the activation bars',
+    plain.scoped && coloured.scoped && coloured.bg !== plain.bg && lifeStroke !== plainLife
       && !!barFill && barFill[0] && barFill[1] !== 'rgb(100, 116, 139)', `${JSON.stringify([plain, coloured, lifeStroke, plainLife, barFill])}`);
   const keyItems = await t.ev(`[...document.querySelectorAll('.seq-key-item')].map((e) => [e.querySelector('.seq-key-label').textContent, e.querySelector('.seq-key-label').dataset.hint])`);
   t.check('the first use of a colour adds a key entry with no label, prompting "What does sky mean?"', JSON.stringify(keyItems) === JSON.stringify([['', 'What does sky mean?']]), JSON.stringify(keyItems));
   await t.press('z', { modifiers: 2 });
-  t.check('one undo takes the colour and the key entry away together', !(await boxStyle('p2')).scoped && (await count('.seq-key')) === 0 && !(await t.ev(`!!document.querySelector('.seq-activation.swatch-scope')`)));
+  t.check('one undo takes the colour and the key entry away together (the pill returns to its position colour)', (await boxStyle('p2')).bg === plain.bg && (await count('.seq-key')) === 0);
   await t.press('y', { modifiers: 2 });
   await t.clickOn('.seq-key-label', { count: 2 });
   await t.type('Our services');
@@ -667,14 +673,14 @@ try {
     document.querySelector('[data-export="svg"]').click();
   })`);
   // the lifeline of the sky participant draws its slot's fixed line colour (--sw-1-line, #2f7da8), inlined as computed rgb()
-  t.check('an SVG export carries the participant colours and the key, including its label', svgOut.includes('Our services') && svgOut.includes('border-top-width:4px') && /stroke:rgb\(47, 125, 168\)/.test(svgOut)
-    && !/What does/.test(svgOut), `${svgOut.includes('Our services')} ${svgOut.includes('border-top-width:4px')} ${/stroke:rgb\(47, 125, 168\)/.test(svgOut)} ${(svgOut.match(/.{30}What does.{30}/) || [''])[0]}`);
+  t.check('an SVG export carries the participant colours and the key, including its label', svgOut.includes('Our services') && /stroke:rgb\(47, 125, 168\)/.test(svgOut)
+    && !/What does/.test(svgOut), `${svgOut.includes('Our services')} ${/stroke:rgb\(47, 125, 168\)/.test(svgOut)} ${(svgOut.match(/.{30}What does.{30}/) || [''])[0]}`);
   // Clearing: "none" removes the colour, and an unused key entry is dropped on save
   await t.clickOn('.seq-participant[data-node-id="p2"]');
   await t.clickOn('.seq-actionbar .swatch-btn[data-value=""]');
   d = await saved();
   t.check('"none" clears the colour; a key entry no participant uses is dropped on save',
-    !(await boxStyle('p2')).scoped && d.participants[1].color === undefined && d.colorKey && !(SKY in d.colorKey) && AMBER in d.colorKey, JSON.stringify(d.colorKey));
+    (await boxStyle('p2')).bg === plain.bg && d.participants[1].color === undefined && d.colorKey && !(SKY in d.colorKey) && AMBER in d.colorKey, JSON.stringify(d.colorKey));
   await t.clickOn('.seq-participant[data-node-id="p3"]');
   await t.clickOn('.seq-actionbar .swatch-btn[data-value=""]');
   d = await saved();
