@@ -34,12 +34,43 @@ OK_RE = re.compile(r"(?:/\*|//)\s*tokens-ok:\s*(?!\*/)\S")
 SELECTOR_CALL = re.compile(r"(?:querySelector(?:All)?|closest|matches|getElementById)\(\s*['\"]$")
 JS_HEX = re.compile(r"(?:(?<=['\"`])|(?<=[:(,=])\s*)(?<![\w&])" + HEX)
 CSS_HEX = re.compile(r"(?<![\w&])" + HEX)
-SCALE_RE = re.compile(r"(?<![\w-])(font-size|font-weight|line-height|letter-spacing|border-radius|box-shadow)\s*:\s*([^;}]+)")
+SCALE_RE = re.compile(r"(?<![\w-])(font-size|font-weight|line-height|letter-spacing|border-radius|box-shadow|filter)\s*:\s*([^;}]+)")
 SCALE_OK = {"0", "none", "inherit", "normal"}
 FONT_RE = re.compile(r"(?<![\w-])font-family\s*:\s*([^;}]*)")
 CUSTOM_RE = re.compile(r"(?<![\w-])--[\w-]+\s*:")
 # a selector that ends in :root (plus attribute or pseudo-class parts); `:root[data-theme="dark"] .x` is a scoped rule, not a token block
 ROOT_SEL = re.compile(r"(^|\s)(html)?:root(\[[^\]]*\]|:[\w-]+(\([^)]*\))?)*$")
+
+
+def strip_calls(v: str, name: str) -> str:
+    """Remove every `name(...)` call, parentheses balanced."""
+    while (m := re.search(rf"(?<![\w-]){name}\(", v)):
+        depth, i = 0, m.end() - 1
+        while i < len(v):
+            depth += (v[i] == "(") - (v[i] == ")")
+            i += 1
+            if not depth:
+                break
+        v = v[:m.start()] + " " + v[i:]
+    return v
+
+
+def scale_literal(prop: str, v: str) -> bool:
+    """Is `v` a literal value for `prop`? A bare 0, var(...) and color-mix(...) (a colour: colour-literal checks its parts) are not
+    literals, so `inset 0 0 0 var(--ring-thin) color-mix(...)` and `var(--radius-md) var(--radius-md) 0 0` pass."""
+    v = re.sub(r"\s*!important", "", v).strip()
+    if prop == "filter":  # only the shadow inside drop-shadow(...) is a scale value; brightness(0.92) and friends are not
+        m = re.search(r"drop-shadow\((.*)\)", v)
+        if not m:
+            return False
+        v = m.group(1)
+    if v in SCALE_OK:
+        return False
+    rest = strip_calls(strip_calls(v, "color-mix"), "var")
+    has_digit = re.search(r"\d", re.sub(r"(?<![\w.%-])0(?![\w.%-])", "", rest))
+    if prop in ("box-shadow", "filter"):
+        return bool(has_digit)
+    return bool(has_digit) or not v.startswith(("var(", "max(", "min(", "calc(", "clamp(", "0"))
 
 
 def blank(text: str, pattern: str) -> str:
@@ -105,9 +136,8 @@ def scan_text(kind: str, text: str, phase: int = 1):
                     add("font-family-literal", m.group())
             if phase >= 2:
                 for m in SCALE_RE.finditer(line):
-                    v = re.sub(r"\s*!important", "", m.group(2)).strip()
                     # tokens only: a value with a number left once var(...) is removed is a literal (max(var(--a), calc(var(--b) * var(--c))) passes)
-                    if (v not in SCALE_OK) and (not v.startswith(("var(", "max(", "min(", "calc(", "clamp(")) or re.search(r"\d", re.sub(r"var\([^)]*\)", "", v))):
+                    if scale_literal(m.group(1), m.group(2)):
                         add("type-scale-literal", m.group())
         else:
             for m in JS_HEX.finditer(line):
@@ -182,6 +212,19 @@ def self_test():
     assert rules("css", "a{font-size:var(--t-body);line-height:normal;box-shadow:var(--s)}", 2) == []
     assert rules("css", "a{font-size:max(var(--a), calc(var(--b) * var(--inv)))}", 2) == []
     assert rules("css", "a{font-size:max(13px, var(--b))}", 2) == ["type-scale-literal"]
+    # radius and shadow: tokens, zeros and colour-mix pass; a length literal fails
+    for ok in ("border-radius:var(--radius-md) var(--radius-md) 0 0", "border-radius:0 var(--radius-lg) var(--radius-lg) 0",
+               "box-shadow:var(--shadow-ring), var(--shadow-md)", "box-shadow:inset 0 0 0 var(--ring-thin) var(--ring)",
+               "box-shadow:0 0 0 0 color-mix(in srgb, var(--primary) 65%, transparent)", "box-shadow:0 0 0 0 transparent",
+               "box-shadow:inset 0 0 0 calc(var(--ring-thin) * var(--inv)) var(--ring)", "box-shadow:var(--shadow-glow) var(--primary-glow)",
+               "filter:drop-shadow(var(--shadow-glow-tight) color-mix(in srgb, var(--a) 45%, transparent))", "filter:brightness(0.92)",
+               "filter:drop-shadow(var(--shadow-xl))"):
+        assert rules("css", f"a{{{ok}}}", 2) == [], ok
+    for bad in ("border-radius:8px 8px 0 0", "border-radius:var(--radius-md) 4px", "border-radius:50%", "box-shadow:0 0 0 3px var(--primary-ring)",
+                "box-shadow:var(--shadow-md), 0 1px 2px var(--x)", "box-shadow:0 0 0 18px color-mix(in srgb, var(--a) 0%, transparent)",
+                "filter:drop-shadow(0 0 4px color-mix(in srgb, var(--a) 45%, transparent))", "filter:drop-shadow(0 2px 4px var(--x))"):
+        assert rules("css", f"a{{{bad}}}", 2) == ["type-scale-literal"], bad
+    assert rules("css", "a{box-shadow:0 0 0 10px var(--x) /* tokens-ok: animation extent */}", 2) == []
     assert rules("html", "<p>&#169; <svg></svg></p>") == []
     assert rules("html", "<p><svg></svg></p>", 4) == ["svg-literal"]
     assert rules("html", "<style>a{color:#fff}</style><script>x='#fff'</script>") == ["color-literal"] * 2

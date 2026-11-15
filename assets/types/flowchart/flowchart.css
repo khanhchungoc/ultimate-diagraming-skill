@@ -6,7 +6,7 @@
       border: 1px solid var(--border-dark);
       background: var(--bg-panel);
       box-shadow: var(--shadow-canvas);
-      border-radius: 8px;
+      border-radius: var(--radius-lg);
       margin: 40px;
       width: fit-content;
       min-width: 1400px;
@@ -30,7 +30,7 @@
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      border-radius: 9px;
+      border-radius: var(--radius-lg);
       border: 1px solid color-mix(in srgb, var(--lane-color, var(--bg-soft)) 60%, var(--border-dark));
       background: color-mix(in srgb, var(--lane-color, var(--bg-soft)) var(--swatch-chip-mix), var(--swatch-chip-base));
       color: color-mix(in srgb, var(--lane-color, var(--bg-soft)) var(--swatch-ink-mix), var(--swatch-ink-base));
@@ -43,7 +43,7 @@
       text-overflow: ellipsis;
       outline: none;
       user-select: none;
-      border-radius: 4px;
+      border-radius: var(--radius-sm);
       padding: 0 2px;
       margin: 0 -2px;
       border: 1px solid transparent;
@@ -77,8 +77,8 @@
       width: 100%;
       height: 4px;
       background: var(--primary);
-      border-radius: 2px;
-      box-shadow: 0 0 0 3px var(--primary-ring);
+      border-radius: var(--radius-xs);
+      box-shadow: var(--shadow-ring);
       z-index: 60;
       pointer-events: none;
       display: none;
@@ -88,7 +88,7 @@
       position: absolute;
       left: -2px; top: -4px;
       width: 12px; height: 12px;
-      border-radius: 50%;
+      border-radius: var(--radius-round);
       background: var(--primary);
     }
     .swimlane.lane-dragging .lane-pill { opacity: 0.45; }
@@ -152,22 +152,22 @@
     /* Hovering a node: arrows entering it and arrows leaving it get their own colour */
     .connector-path.hl-in  { stroke: var(--edge-in);  stroke-width: 2px; }
     .connector-path.hl-out { stroke: var(--edge-out); stroke-width: 2px; }
-    .edge-label-container.hl-in  { border-color: var(--edge-in);  box-shadow: 0 2px 8px var(--edge-in-glow); }
-    .edge-label-container.hl-out { border-color: var(--edge-out); box-shadow: 0 2px 8px var(--edge-out-glow); }
+    .edge-label-container.hl-in  { border-color: var(--edge-in);  box-shadow: var(--shadow-glow) var(--edge-in-glow); }
+    .edge-label-container.hl-out { border-color: var(--edge-out); box-shadow: var(--shadow-glow) var(--edge-out-glow); }
 
     .edge-label-container {
       position: absolute;
       transform: translate(-50%, -50%);
       background: var(--edge-label-bg); /* Opaque mask shield over underlying connectors */
       border: 1.5px solid var(--border-dark);
-      border-radius: 8px;
+      border-radius: var(--radius-lg);
       padding: 3px 8px;
       font-size: var(--t-label-size);
       font-weight: var(--t-label-weight); /* annotation weight: keeps node text the primary layer */
       color: var(--text-main);
       cursor: pointer;
       z-index: 30;
-      box-shadow: var(--shadow-1-4-8);
+      box-shadow: var(--shadow-sm);
       white-space: normal; /* Allow dropping into multiple lines if exceeding gap */
       overflow-wrap: break-word; /* wrap between words; only split a word that cannot fit at all */
       text-align: center;
@@ -182,7 +182,7 @@
     }
     .edge-label-container:hover, .edge-label-container.linked, .edge-label-container.selected {
       border-color: var(--primary);
-      box-shadow: 0 2px 8px var(--primary-glow);
+      box-shadow: var(--shadow-glow) var(--primary-glow);
     }
     /* Highlighted (hover, selected, linked to a hovered node): the node border weight (2px). The padding gives
        back what the border adds so the label does not jump: the 1.5px rest border is drawn 1px wide at 100%
@@ -217,7 +217,7 @@
       height: 28px;
       box-sizing: border-box;
       padding: 0;
-      border-radius: 50%;
+      border-radius: var(--radius-round);
       align-items: center;
       justify-content: center;
       font-size: var(--text-xl);
@@ -243,13 +243,13 @@
          every shape gets the same weight. --ring is the outline colour (hover/selected/type rules change it). */
       --ring: var(--node-border);
       border: none;
-      border-radius: 8px;
+      border-radius: var(--radius-lg);
       padding: calc(6px + var(--node-stroke)) calc(8px + var(--node-stroke));
       width: 144px;
       height: 64px;
       cursor: move;
       z-index: 20;
-      box-shadow: inset 0 0 0 var(--node-stroke) var(--ring), var(--shadow-2-4-6);
+      box-shadow: inset 0 0 0 var(--node-stroke) var(--ring), var(--shadow-sm);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -266,11 +266,11 @@
     .flow-node.type-decision { --node-accent: var(--decision-accent); }
     .flow-node:hover {
       --ring: var(--node-accent);
-      box-shadow: inset 0 0 0 var(--node-stroke) var(--ring), var(--shadow-4-10-12);
+      box-shadow: inset 0 0 0 var(--node-stroke) var(--ring), var(--shadow-md);
     }
     .flow-node.selected {
       --ring: var(--node-accent);
-      box-shadow: inset 0 0 0 var(--node-stroke) var(--ring), 0 0 0 3px color-mix(in srgb, var(--node-accent) 25%, transparent);
+      box-shadow: inset 0 0 0 var(--node-stroke) var(--ring), 0 0 0 var(--ring-lg) color-mix(in srgb, var(--node-accent) 25%, transparent);
     }
     .flow-node.connect-target {
       outline: 3px dashed var(--primary);
@@ -279,13 +279,13 @@
 
     /* Node Types */
     .flow-node.type-start {
-      border-radius: 999px;
+      border-radius: var(--radius-pill);
       background: var(--start-bg);
       --ring: var(--start-border);
       color: var(--start-text);
     }
     .flow-node.type-end {
-      border-radius: 999px;
+      border-radius: var(--radius-pill);
       background: var(--end-bg);
       --ring: var(--end-border);
       color: var(--end-text);
@@ -296,7 +296,7 @@
       height: 40px;
       margin: 12px 52px;
       padding: 0;
-      border-radius: 50%;
+      border-radius: var(--radius-round);
     }
     .flow-node.terminal-dot .node-label { width: 100%; height: 100%; min-width: 0; }
     .flow-node.type-decision {
@@ -330,7 +330,7 @@
     }
     .flow-node.type-decision.selected .diamond-poly {
       stroke: var(--node-accent);
-      filter: drop-shadow(0 0 4px color-mix(in srgb, var(--node-accent) 45%, transparent));
+      filter: drop-shadow(var(--shadow-glow-tight) color-mix(in srgb, var(--node-accent) 45%, transparent));
     }
     /* Classic flowchart shapes (subprocess, io, document, database, delay): the task's 144x64 slot and colours,
        the box transparent and the outline drawn inside it (SHAPE_OUTLINES in flowchart.js); the outline carries
@@ -358,10 +358,10 @@
     .flow-node:not(.type-decision) .shape-outline .shape-path { fill: var(--node-bg); stroke: var(--node-border); }
     .flow-node .shape-outline .shape-line { fill: none; stroke: var(--node-border); }
     .flow-node:not(.type-decision):hover .shape-outline > * { stroke: var(--node-accent); }
-    .flow-node:not(.type-decision):hover .shape-outline .shape-path { filter: drop-shadow(var(--shadow-3-5-12)); }
+    .flow-node:not(.type-decision):hover .shape-outline .shape-path { filter: drop-shadow(var(--shadow-md)); }
     .flow-node:not(.type-decision).selected .shape-outline > * { stroke: var(--node-accent); }
     .flow-node:not(.type-decision).selected .shape-outline .shape-path {
-      filter: drop-shadow(0 0 4px color-mix(in srgb, var(--node-accent) 45%, transparent));
+      filter: drop-shadow(var(--shadow-glow-tight) color-mix(in srgb, var(--node-accent) 45%, transparent));
     }
     .flow-node:is(.type-subprocess, .type-io, .type-document, .type-database, .type-delay) .node-label {
       position: relative;
@@ -408,7 +408,7 @@
       position: absolute;
       width: 12px;
       height: 12px;
-      border-radius: 50%;
+      border-radius: var(--radius-round);
       background: var(--node-bg);
       border: 2px solid var(--node-accent, var(--primary));
       opacity: 0;
@@ -416,7 +416,7 @@
       transition: opacity 0.15s, transform 0.15s, background-color 0.15s;
       z-index: 35;
       transform: translate(-50%, -50%);
-      box-shadow: var(--shadow-1-3-15);
+      box-shadow: var(--shadow-chip);
     }
     .flow-node:hover .port, .flow-node.selected .port {
       opacity: 1;
@@ -433,10 +433,10 @@
       width: 14px;
       height: 14px;
       box-sizing: border-box;
-      border-radius: 50%;
+      border-radius: var(--radius-round);
       background: var(--node-bg);
       border: 2px solid var(--primary);
-      box-shadow: var(--shadow-1-3-20);
+      box-shadow: var(--shadow-chip);
       cursor: grab;
       pointer-events: auto;
       z-index: 32;
@@ -453,7 +453,7 @@
       width: 32px;
       height: 32px;
       padding: 0;
-      border-radius: 50%;
+      border-radius: var(--radius-round);
       background: var(--conn-bg);
       border: 2px solid var(--conn-border);
       --node-stroke: 0px; /* keeps its own 2px border (a whole pixel, drawn true); no inset ring */
@@ -470,7 +470,7 @@
     .flow-node.type-connector .node-label { width: 100%; min-width: 0; -webkit-line-clamp: 1; cursor: pointer; }
     .flow-node.type-connector .node-label[contenteditable="true"] { cursor: text; }
     .flow-node.type-connector:is(:hover, .selected, .pair-lit) { border-color: var(--node-accent); }
-    .flow-node.type-connector.pair-lit { box-shadow: 0 0 0 3px color-mix(in srgb, var(--conn-border) 35%, transparent); }
+    .flow-node.type-connector.pair-lit { box-shadow: 0 0 0 var(--ring-lg) color-mix(in srgb, var(--conn-border) 35%, transparent); }
     .flow-node.type-connector .port { display: none !important; }
     body.presentation .flow-node.type-connector { pointer-events: auto !important; }
     .connector-guide {
@@ -484,9 +484,9 @@
     .flow-node.connector-pulse { animation: connector-pulse 1.1s ease-out; }
     @keyframes connector-pulse {
       0%   { box-shadow: 0 0 0 0 color-mix(in srgb, var(--primary) 65%, transparent); }
-      100% { box-shadow: 0 0 0 18px color-mix(in srgb, var(--primary) 0%, transparent); }
+      100% { box-shadow: 0 0 0 18px color-mix(in srgb, var(--primary) 0%, transparent); } /* tokens-ok: pulse extent, an animation keyframe not a resting shadow */
     }
-    @media (prefers-reduced-motion: reduce) { .flow-node.connector-pulse { animation: none; box-shadow: 0 0 0 3px var(--primary); } }
+    @media (prefers-reduced-motion: reduce) { .flow-node.connector-pulse { animation: none; box-shadow: 0 0 0 var(--ring-lg) var(--primary); } }
     /* The selected arrow's Split chip, beside its label, and the choice it opens when a pair can be joined */
     .edge-split-chip {
       position: absolute;
@@ -497,11 +497,11 @@
       width: 24px;
       height: 24px;
       padding: 0;
-      border-radius: 999px;
+      border-radius: var(--radius-pill);
       border: 1.5px solid var(--primary);
       background: var(--node-bg);
       color: var(--primary);
-      box-shadow: var(--shadow-1-3-20);
+      box-shadow: var(--shadow-chip);
       cursor: pointer;
       pointer-events: auto;
       z-index: 33;
@@ -514,17 +514,17 @@
       flex-direction: column;
       min-width: 140px;
       padding: 4px;
-      border-radius: 8px;
+      border-radius: var(--radius-lg);
       border: 1px solid var(--border-dark);
       background: var(--bg-panel);
-      box-shadow: var(--shadow-6-18-16);
+      box-shadow: var(--shadow-lg);
       pointer-events: auto;
       z-index: 34;
     }
     .edge-split-menu button {
       padding: 6px 10px;
       border: none;
-      border-radius: 6px;
+      border-radius: var(--radius-md);
       background: transparent;
       color: inherit;
       font: inherit;
@@ -597,7 +597,7 @@
       gap: 6px;
       max-width: 340px;
       padding: 4px 11px 4px 9px;
-      border-radius: 999px;
+      border-radius: var(--radius-pill);
       background: var(--lane-pill-bg);
       color: var(--lane-pill-ink);
       font-size: var(--t-title-size);
@@ -613,7 +613,7 @@
       box-shadow: var(--halo);
     }
     /* Pointer directly on the pill: a strong ring says "this is the handle you can drag" */
-    .lane-pill:hover { box-shadow: 0 0 0 2px var(--primary), var(--halo); }
+    .lane-pill:hover { box-shadow: 0 0 0 var(--ring-md) var(--primary), var(--halo); }
     .lane-pill.editing { cursor: default; box-shadow: var(--halo); }
     /* The lane under the mouse (or holding the selection) turns its pill solid: a "you are here" marker. The halo
        picks up the same hover wash as the lane, so the ring stays invisible against it. */
@@ -644,11 +644,11 @@
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      border-radius: 50%;
+      border-radius: var(--radius-round);
       border: 1px solid var(--border-dark);
       background: var(--bg-panel);
       color: var(--text-soft);
-      box-shadow: var(--shadow-1-3-12);
+      box-shadow: var(--shadow-chip);
       transition: background var(--ease), color var(--ease), border-color var(--ease);
     }
     .lane-tool svg { display: block; }
@@ -664,11 +664,11 @@
       width: 260px;
       box-sizing: border-box;
       padding: 14px 14px 12px;
-      border-radius: 10px;
+      border-radius: var(--radius-xl);
       border: 1px solid var(--border-dark);
       background: var(--bg-panel);
       color: var(--text-main);
-      box-shadow: var(--shadow-10-30-18);
+      box-shadow: var(--shadow-xl);
       font-size: var(--t-control-size);
       line-height: var(--t-control-leading);
     }
@@ -731,11 +731,11 @@
       pointer-events: none;
       transform-origin: 0 0;
       opacity: 0.92;
-      box-shadow: var(--shadow-10-24-18);
+      box-shadow: var(--shadow-xl);
       transition: opacity 0.1s;
     }
     .palette-ghost:is(.type-decision, .type-subprocess, .type-io, .type-document, .type-database, .type-delay) {
-      box-shadow: none; filter: drop-shadow(var(--shadow-8-14-18));
+      box-shadow: none; filter: drop-shadow(var(--shadow-xl));
     }
     .palette-ghost.off-canvas { opacity: 0.4; }
     .palette-ghost.inserting { opacity: 0.75; }
@@ -754,20 +754,20 @@
       display: none;
       transform: translate(-50%, calc(-100% - 10px));
       padding: 3px 9px;
-      border-radius: 999px;
+      border-radius: var(--radius-pill);
       background: var(--primary);
       color: var(--on-primary);
       font-size: var(--text-sm);
       font-weight: var(--weight-semibold);
       white-space: nowrap;
       pointer-events: none;
-      box-shadow: 0 2px 8px var(--primary-glow);
+      box-shadow: var(--shadow-glow) var(--primary-glow);
       z-index: 56;
     }
     .flow-node.just-inserted { animation: just-inserted 0.9s ease-out; }
     @keyframes just-inserted {
       0% { box-shadow: 0 0 0 0 var(--primary-ring); }
-      40% { box-shadow: 0 0 0 10px var(--primary-ring); }
+      40% { box-shadow: 0 0 0 10px var(--primary-ring); } /* tokens-ok: pulse extent, an animation keyframe not a resting shadow */
       100% { box-shadow: 0 0 0 0 transparent; }
     }
 
@@ -792,29 +792,29 @@
       padding: 6px 10px 7px 10px;
       border: 1px solid var(--note-border);
       border-left: 3px solid var(--note-accent);
-      border-radius: 3px 8px 8px 3px;
+      border-radius: var(--radius-xs) var(--radius-lg) var(--radius-lg) var(--radius-xs);
       background: var(--note-bg);
       color: var(--note-ink);
       font-size: var(--t-detail-size);
       font-weight: var(--t-detail-weight);
       line-height: var(--t-detail-leading);
       text-align: left;
-      box-shadow: var(--shadow-1-3-8);
+      box-shadow: var(--shadow-sm);
       pointer-events: auto;
       cursor: move;
       user-select: none;
       transition: box-shadow var(--ease), border-color var(--ease);
     }
     .flow-note.show, .flow-note.peek { display: block; }
-    .flow-note.peek:not(.show) { animation: note-in 0.14s ease-out; box-shadow: var(--shadow-6-18-14); }
+    .flow-note.peek:not(.show) { animation: note-in 0.14s ease-out; box-shadow: var(--shadow-lg); }
     @keyframes note-in { from { opacity: 0; transform: translateY(3px); } }
     #notes-layer.measuring .flow-note { display: block; visibility: hidden; animation: none; }
     .flow-note:hover { border-color: color-mix(in srgb, var(--note-accent) 60%, var(--note-border)); border-left-color: var(--note-accent); }
     .flow-note.selected {
       border-color: var(--note-accent);
-      box-shadow: 0 0 0 3px color-mix(in srgb, var(--note-accent) 28%, transparent), var(--shadow-4-12-12);
+      box-shadow: 0 0 0 var(--ring-lg) color-mix(in srgb, var(--note-accent) 28%, transparent), var(--shadow-md);
     }
-    .flow-note.dragging { box-shadow: var(--shadow-10-24-18); }
+    .flow-note.dragging { box-shadow: var(--shadow-xl); }
     .note-text {
       outline: none;
       white-space: pre-wrap;
@@ -832,12 +832,12 @@
       display: none;
       align-items: center;
       justify-content: center;
-      border-radius: 50%;
+      border-radius: var(--radius-round);
       border: 1px solid var(--border-dark);
       background: var(--bg-panel);
       color: var(--text-soft);
       cursor: pointer;
-      box-shadow: var(--shadow-1-3-15);
+      box-shadow: var(--shadow-chip);
     }
     .note-del:hover { background: var(--danger); border-color: var(--danger); color: var(--on-danger); }
     .flow-note:hover .note-del, .flow-note.selected .note-del { display: inline-flex; }
@@ -850,13 +850,13 @@
       display: none;
       align-items: center;
       justify-content: center;
-      border-radius: 50%;
+      border-radius: var(--radius-round);
       border: 1px solid var(--note-border);
       background: var(--bg-panel);
       color: var(--note-accent);
       cursor: crosshair;
       touch-action: none;
-      box-shadow: var(--shadow-1-3-15);
+      box-shadow: var(--shadow-chip);
     }
     .note-link:hover { background: var(--note-accent); border-color: var(--note-accent); color: var(--bg-panel); }
     .flow-note:hover .note-link, .flow-note.selected .note-link { display: inline-flex; }
@@ -888,7 +888,7 @@
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      border-radius: 50%;
+      border-radius: var(--radius-round);
       cursor: pointer;
       font: inherit;
       transition: transform var(--ease), background var(--ease), border-color var(--ease), opacity var(--ease);
@@ -897,7 +897,7 @@
       border: 1px solid var(--note-border);
       background: var(--note-bg);
       color: var(--note-accent);
-      box-shadow: var(--shadow-1-2-8);
+      box-shadow: var(--shadow-sm);
     }
     .note-badge:hover { transform: scale(1.15); border-color: var(--note-accent); }
     .note-add {
@@ -948,7 +948,7 @@
       pointer-events: none;
       transform-origin: 0 0;
       opacity: 0.95;
-      box-shadow: var(--shadow-10-24-18);
+      box-shadow: var(--shadow-xl);
       transition: opacity 0.1s;
     }
     .flow-note.note-ghost.off-target { opacity: 0.5; }
@@ -966,14 +966,14 @@
       transform: translateX(-50%);
       z-index: 150;
       padding: 6px 12px;
-      border-radius: 999px;
+      border-radius: var(--radius-pill);
       border: 1px solid var(--note-border);
       background: var(--note-bg);
       color: var(--note-ink);
       font-size: var(--t-control-size);
       font-weight: var(--t-control-weight);
       white-space: nowrap;
-      box-shadow: var(--shadow-4-14-12);
+      box-shadow: var(--shadow-md);
       pointer-events: none;
     }
     .note-pick-hint kbd { font: inherit; font-weight: var(--weight-semibold); }
@@ -983,7 +983,7 @@
       position: relative;
       width: 28px; height: 16px;
       flex: none;
-      border-radius: 999px;
+      border-radius: var(--radius-pill);
       background: var(--border-dark);
       transition: background-color 0.18s;
     }
@@ -991,9 +991,9 @@
       position: absolute;
       top: 2px; left: 2px;
       width: 12px; height: 12px;
-      border-radius: 50%;
+      border-radius: var(--radius-round);
       background: var(--toggle-knob);   /* white in both themes: reads on the grey (off) and the primary (on) track */
-      box-shadow: var(--shadow-1-2-25);
+      box-shadow: var(--shadow-knob);
       transition: transform 0.18s;
     }
     .btn-switch[aria-checked="true"] .switch-track { background: var(--primary); }
@@ -1012,7 +1012,7 @@
       min-width: 16px;
       padding: 0 4px;
       box-sizing: border-box;
-      border-radius: 999px;
+      border-radius: var(--radius-pill);
       background: var(--bg-soft);
       color: var(--text-soft);
       font-size: var(--text-xs);
@@ -1049,7 +1049,7 @@
     #swimlanes-container.dir-tb.no-swimlanes .swimlane { border-right: none; }
     body.exporting #swimlanes-container.dir-tb .lane-rail { top: 0 !important; border-top-width: 3px !important; }
     /* Columns are narrow, so a long lane name wraps (up to two lines) instead of being cut off */
-    #swimlanes-container.dir-tb .lane-pill { white-space: normal; border-radius: 12px; justify-content: center; }
+    #swimlanes-container.dir-tb .lane-pill { white-space: normal; border-radius: var(--radius-2xl); justify-content: center; }
     #swimlanes-container.dir-tb .lane-pill .lane-title {
       display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere;
     }

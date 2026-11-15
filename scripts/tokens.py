@@ -18,6 +18,8 @@ _COLOR_CHARS = re.compile(r"^[A-Za-z0-9#%.,() \-]+$")
 _LENGTH = re.compile(r"^-?\d+(\.\d+)?(px|rem|em|%)?$")
 _TRACKING = re.compile(r"^(0|-?\d+(\.\d+)?(em|px))$")
 _KEY = re.compile(r"^[\w-]+$")
+_RADIUS = re.compile(r"^\d+(\.\d+)?(px|rem|em|%)?( \d+(\.\d+)?(px|rem|em|%)?){0,3}$")
+_VAR = re.compile(r"var\(--([\w-]+)\)")
 _TIME = re.compile(r"^\d+(\.\d+)?m?s( [a-z-]+)?$")
 # palette tone -> role name: soft is the fill, strong the line; the rest are named as their role
 _TONES = {"soft": "fill", "strong": "line", "ink": "ink", "solid": "solid", "on-solid": "on-solid"}
@@ -94,8 +96,12 @@ def _validate(t: Dict[str, Any]) -> None:
     _validate_type(t["type"])
     for k, v in t["motion"].items():
         if not (isinstance(v, str) and _TIME.match(v)): raise _err(f"motion.{k}", v)
+    for k, v in t["radius"].items():
+        if not _KEY.match(k) or not (isinstance(v, str) and _RADIUS.match(v)): raise _err(f"radius.{k}", v)
     for k, v in t["shadow"].items():
-        if not re.fullmatch(r"[\w-]+", k) or not _is_shadow(v): raise _err(f"shadow.{k}", v)
+        # var(--x) in a shadow must name a colour token, so a typo cannot silently drop the shadow
+        if not re.fullmatch(r"[\w-]+", k) or not _is_shadow(v) or not set(_VAR.findall(v)) <= t["color"]["light"].keys():
+            raise _err(f"shadow.{k}", v)
     for s in t["palette"]:
         if not (isinstance(s.get("slot"), str) and _NAME.match(s["slot"]) and _NAME.match(s.get("name", ""))):
             raise _err("palette", s)
@@ -207,7 +213,8 @@ def _type_classes(tokens: Dict[str, Any]) -> str:
 def tokens_css(tokens: Dict[str, Any]) -> str:
     """The :root (light) and :root[data-theme="dark"] blocks. Dark lists only what it overrides; the cascade does the rest."""
     light = {**_type_vars(tokens),
-             **tokens["size"], **tokens["motion"], **{f"shadow-{k}": v for k, v in tokens["shadow"].items()},
+             **tokens["size"], **tokens["motion"], **{f"radius-{k}": v for k, v in tokens["radius"].items()},
+             **{f"shadow-{k}": v for k, v in tokens["shadow"].items()},
              **tokens["color"]["light"], **_sw_vars(tokens, "light")}
     dark = {**tokens["color"]["dark"], **_sw_vars(tokens, "dark", True)}
     # A slot's roles feed the roles shell.css and the types read (--sw-pill-bg, ...); an element without data-sw keeps the run-time derivation.
@@ -239,7 +246,8 @@ if __name__ == "__main__":
     assert '"fitMin":"11px"' in tokens_js(t) and '"fitMinOverview":"9px"' in tokens_js(t)
     for want in ("--font-ui: \"Nunito Sans\", ", "--font-mono: ui-monospace", "--text-md: 13px;", "--weight-bold: 700;", "--leading-tight: 1.2;",
                  "--tracking-caps: 0.04em;", "--t-label-size: var(--text-md);", "--t-overline-tracking: var(--tracking-caps);",
-                 "--t-code-family: var(--font-mono);", ".t-control { font-family: var(--t-control-family);"):
+                 "--t-code-family: var(--font-mono);", "--radius-lg: 8px;", "--radius-pill: 999px;", "--radius-round: 50%;",
+                 "--shadow-ring: 0 0 0 3px var(--primary-ring);", "--shadow-md: 0 4px 12px rgba(0, 0, 0, 0.12);", ".t-control { font-family: var(--t-control-family);"):
         assert want in css, want
 
     def theme(obj: Dict[str, Any]) -> Path:
@@ -251,12 +259,15 @@ if __name__ == "__main__":
     assert m["name"] == "x" and m["color"]["light"]["primary"] == "#ff0000"
     assert m["color"]["light"]["bg-page"] == "#f8fafc", "merge keeps untouched keys"
     assert resolve_colors(m, "light")["primary-hover"] == "#ff0000", "var() resolves"
+    assert load_tokens(theme({"radius": {"md": "3px 8px 8px 3px"}}))["radius"]["md"] == "3px 8px 8px 3px", "shorthand radius"
     for bad in ({"color": {"light": {"primary": "url(javascript:alert(1))"}}},
                 {"color": {"light": {"primary": "red; } body { display:none"}}},
                 {"font": {"stack": "a; } </style><script>"}},
                 {"font": {"href": "https://evil.example/x.css"}},
                 {"type": {"weight": {"bold": 1000}}}, {"type": {"weight": {"bold": "700"}}}, {"type": {"leading": {"tight": "1.2"}}},
                 {"type": {"leading": {"tight": 0}}}, {"type": {"tracking": {"caps": "4%"}}}, {"type": {"tracking": {"caps": "1em; x"}}},
+                {"radius": {"md": "8px; } body { x"}}, {"radius": {"md": "-4px"}}, {"radius": {"md": "1px 2px 3px 4px 5px"}},
+                {"shadow": {"ring": "0 0 0 3px var(--nope)"}}, {"shadow": {"x": "0 0 1px red; } a { b"}}, {"shadow": {"x": "0 0 1px url(x)"}},
                 {"type": {"size": {"md": "big"}}}, {"type": {"fitMin": "9"}}, {"type": {"family": {"mono": "a; } x"}}},
                 {"type": {"styles": {"label": {"family": "ui", "size": "huge", "weight": "bold"}}}}):
         try:

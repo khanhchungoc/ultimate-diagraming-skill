@@ -146,7 +146,7 @@ try {
     const ring = [...document.styleSheets].flatMap(s => { try { return [...s.cssRules]; } catch (_) { return []; } }).find(r => r.selectorText === '.lane-pill:hover');
     return [cs.cursor, ring ? ring.style.boxShadow : ''];
   })()`);
-  t.check('the lane pill shows a move cursor and a 2px primary ring on hover', pillLook[0] === 'move' && pillLook[1].includes('2px var(--primary)'), JSON.stringify(pillLook));
+  t.check('the lane pill shows a move cursor and a 2px primary ring on hover', pillLook[0] === 'move' && pillLook[1].includes('var(--ring-md) var(--primary)'), JSON.stringify(pillLook));
 
   // 2e. A real (native, trusted) drag of the pill itself moves the lane: mouse press on the pill, move down past the
   // third lane, release (Chrome runs the HTML5 drag-and-drop itself)

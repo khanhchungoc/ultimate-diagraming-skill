@@ -10,7 +10,7 @@
       margin: 40px;
       background: var(--bg-panel);
       border: 1px solid var(--border-dark);
-      border-radius: 8px;
+      border-radius: var(--radius-lg);
       box-shadow: var(--shadow-canvas);
     }
     /* No stacking context on the layers below */
@@ -65,7 +65,7 @@
       padding: 0 8px;
       background: var(--edge-label-bg);
       border: 1.5px solid var(--border-dark);
-      border-radius: 8px;
+      border-radius: var(--radius-lg);
       color: var(--text-main);
       font-size: var(--t-detail-size);
       font-weight: var(--t-detail-weight);
@@ -74,13 +74,13 @@
       cursor: pointer;
       z-index: 30;
       pointer-events: auto;
-      box-shadow: var(--shadow-1-4-8);
+      box-shadow: var(--shadow-sm);
       transition: border-color var(--ease), box-shadow var(--ease), opacity var(--ease);
     }
     .erd-rel-label-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-    .erd-rel-label.hl-in  { border-color: var(--edge-in);  box-shadow: 0 2px 8px var(--edge-in-glow); }
-    .erd-rel-label.hl-out { border-color: var(--edge-out); box-shadow: 0 2px 8px var(--edge-out-glow); }
-    .erd-rel-label.hover, .erd-rel-label.selected { border-color: var(--primary); box-shadow: 0 2px 8px var(--primary-glow); }
+    .erd-rel-label.hl-in  { border-color: var(--edge-in);  box-shadow: var(--shadow-glow) var(--edge-in-glow); }
+    .erd-rel-label.hl-out { border-color: var(--edge-out); box-shadow: var(--shadow-glow) var(--edge-out-glow); }
+    .erd-rel-label.hover, .erd-rel-label.selected { border-color: var(--primary); box-shadow: var(--shadow-glow) var(--primary-glow); }
     .erd-rel-label.is-dim { opacity: 0.25; }
 
     /* --- Tables --- */
@@ -90,13 +90,13 @@
       position: absolute;
       box-sizing: border-box;
       background: var(--node-bg);
-      border-radius: 8px;
+      border-radius: var(--radius-lg);
       color: var(--text-main);
       font-size: var(--t-label-size);
       z-index: 20;
       pointer-events: auto;
       cursor: pointer;
-      box-shadow: var(--shadow-2-4-6);
+      box-shadow: var(--shadow-sm);
       transition: box-shadow 0.15s, opacity 0.15s;
     }
     /* A coloured table: the whole card takes a light wash of its colour, the header the full pill colour */
@@ -106,21 +106,21 @@
       content: '';
       position: absolute;
       inset: 0;
-      border-radius: 8px;
-      box-shadow: inset 0 0 0 1.5px var(--ring);
+      border-radius: var(--radius-lg);
+      box-shadow: inset 0 0 0 var(--ring-thin) var(--ring);
       pointer-events: none;
       transition: box-shadow 0.15s;
     }
-    .erd-entity:hover { --ring: var(--node-accent); box-shadow: var(--shadow-4-10-12); }
+    .erd-entity:hover { --ring: var(--node-accent); box-shadow: var(--shadow-md); }
     /* The neighbourhood of the hovered or selected table: children (they point at it) in the "in" colour, parents (it points
        at them) in the "out" colour; related both ways: "in" */
-    .erd-entity.rel-parent { --ring: var(--edge-out); box-shadow: 0 0 0 3px var(--edge-out-glow), var(--shadow-2-4-6); }
-    .erd-entity.rel-child, .erd-entity.rel-child.rel-parent { --ring: var(--edge-in); box-shadow: 0 0 0 3px var(--edge-in-glow), var(--shadow-2-4-6); }
-    .erd-entity.rel-parent::after, .erd-entity.rel-child::after { box-shadow: inset 0 0 0 2px var(--ring); }
-    .erd-entity.rel-parent .erd-head { box-shadow: inset 0 0 0 100px color-mix(in srgb, var(--edge-out) 16%, transparent); }
-    .erd-entity.rel-child .erd-head { box-shadow: inset 0 0 0 100px color-mix(in srgb, var(--edge-in) 18%, transparent); }
+    .erd-entity.rel-parent { --ring: var(--edge-out); box-shadow: 0 0 0 var(--ring-lg) var(--edge-out-glow), var(--shadow-sm); }
+    .erd-entity.rel-child, .erd-entity.rel-child.rel-parent { --ring: var(--edge-in); box-shadow: 0 0 0 var(--ring-lg) var(--edge-in-glow), var(--shadow-sm); }
+    .erd-entity.rel-parent::after, .erd-entity.rel-child::after { box-shadow: inset 0 0 0 var(--ring-md) var(--ring); }
+    .erd-entity.rel-parent .erd-head { box-shadow: inset 0 0 0 var(--ring-fill) color-mix(in srgb, var(--edge-out) 16%, transparent); }
+    .erd-entity.rel-child .erd-head { box-shadow: inset 0 0 0 var(--ring-fill) color-mix(in srgb, var(--edge-in) 18%, transparent); }
     .erd-entity.has-peek { z-index: 35; }
-    .erd-entity.selected { --ring: var(--primary); box-shadow: 0 0 0 3px var(--primary-ring); }
+    .erd-entity.selected { --ring: var(--primary); box-shadow: var(--shadow-ring); }
     .erd-entity.is-dim { opacity: 0.38; }
     body.exporting .is-dim { opacity: 1 !important; }
 
@@ -130,12 +130,12 @@
       gap: 4px;
       height: 36px;
       padding: 0 8px 0 12px;
-      border-radius: 8px 8px 0 0;
+      border-radius: var(--radius-lg) var(--radius-lg) 0 0;
       background: var(--sw-pill-bg, var(--bg-soft));
       color: var(--sw-pill-ink, var(--text-main));
       border-bottom: 1px solid color-mix(in srgb, var(--sw-stripe, var(--border-dark)) 45%, var(--border-color));
     }
-    .erd-entity.is-flat .erd-head { border-radius: 8px; border-bottom: none; }
+    .erd-entity.is-flat .erd-head { border-radius: var(--radius-lg); border-bottom: none; }
     .erd-name {
       flex: 1 1 auto;
       min-width: 0;
@@ -154,7 +154,7 @@
       width: 22px; height: 22px;
       padding: 0;
       border: none;
-      border-radius: 5px;
+      border-radius: var(--radius-md);
       background: transparent;
       color: inherit;
       opacity: 0.7;
@@ -194,7 +194,7 @@
       flex: none;
       margin-left: 6px;
       padding: 0 4px;
-      border-radius: 4px;
+      border-radius: var(--radius-sm);
       background: var(--bg-soft);
       color: var(--text-soft);
       font-size: var(--t-overline-size);
@@ -222,7 +222,7 @@
     /* The chip on a joining row of a related table: it takes the place of the type text */
     .erd-key-chip {
       flex: 0 1 auto; min-width: 0; margin-left: auto; padding: 0 7px;
-      border-radius: 999px; box-sizing: border-box;
+      border-radius: var(--radius-pill); box-sizing: border-box;
       font-size: var(--t-overline-size); font-weight: var(--weight-semibold); line-height: var(--line-11); padding-top: 1px; padding-bottom: 1px;
       white-space: normal; overflow-wrap: anywhere; overflow: hidden; max-height: 24px;   /* a long name wraps onto a second line, no ellipsis */
       background: color-mix(in srgb, var(--chip, var(--primary)) 20%, var(--bg-panel));
@@ -237,9 +237,9 @@
     .erd-key-peek {
       position: absolute; left: 0; top: 40px; z-index: 6;
       min-width: 100%; width: max-content; max-width: 340px; box-sizing: border-box;
-      padding: 3px 0; border-radius: 8px;
+      padding: 3px 0; border-radius: var(--radius-lg);
       background: var(--bg-panel); border: 1px solid var(--border-dark);
-      box-shadow: var(--shadow-8-20-20);
+      box-shadow: var(--shadow-lg);
       pointer-events: none; font-size: var(--t-label-size);
     }
     .erd-key-row { display: flex; align-items: center; gap: 0; min-height: 24px; padding: 0 10px 0 12px; white-space: nowrap; }
@@ -252,14 +252,14 @@
     body.exporting .erd-key-chip, body.exporting .erd-key-peek { display: none !important; }
     body.exporting .erd-row.has-chip .erd-col-type { display: block !important; }
     body.exporting .erd-row.has-chip .erd-col-note { display: block !important; }
-    body.exporting .erd-entity.rel-parent, body.exporting .erd-entity.rel-child { --ring: var(--node-border); box-shadow: var(--shadow-2-4-6); }
-    body.exporting .erd-entity.rel-parent::after, body.exporting .erd-entity.rel-child::after { box-shadow: inset 0 0 0 1.5px var(--ring); }
+    body.exporting .erd-entity.rel-parent, body.exporting .erd-entity.rel-child { --ring: var(--node-border); box-shadow: var(--shadow-sm); }
+    body.exporting .erd-entity.rel-parent::after, body.exporting .erd-entity.rel-child::after { box-shadow: inset 0 0 0 var(--ring-thin) var(--ring); }
     body.exporting .erd-entity.rel-parent .erd-head, body.exporting .erd-entity.rel-child .erd-head { box-shadow: none; }
     body.exporting .erd-row.key-hl:not(.pk) .erd-col-name { font-weight: var(--weight-medium); }
     body.exporting .erd-entity.has-peek { z-index: 20; }
-    .erd-head.hl-in  { box-shadow: inset 0 0 0 100px color-mix(in srgb, var(--edge-in) 16%, transparent); }
-    .erd-head.hl-out { box-shadow: inset 0 0 0 100px color-mix(in srgb, var(--edge-out) 14%, transparent); }
-    .erd-head.hover  { box-shadow: inset 0 0 0 100px color-mix(in srgb, var(--primary) 14%, transparent); }
+    .erd-head.hl-in  { box-shadow: inset 0 0 0 var(--ring-fill) color-mix(in srgb, var(--edge-in) 16%, transparent); }
+    .erd-head.hl-out { box-shadow: inset 0 0 0 var(--ring-fill) color-mix(in srgb, var(--edge-out) 14%, transparent); }
+    .erd-head.hover  { box-shadow: inset 0 0 0 var(--ring-fill) color-mix(in srgb, var(--primary) 14%, transparent); }
 
     /* --- Notes (the flowchart's card, badge and peek, for a table) --- */
     #erd-notes {
@@ -278,27 +278,27 @@
       padding: 6px 10px 7px 10px;
       border: 1px solid var(--note-border);
       border-left: 3px solid var(--note-accent);
-      border-radius: 3px 8px 8px 3px;
+      border-radius: var(--radius-xs) var(--radius-lg) var(--radius-lg) var(--radius-xs);
       background: var(--note-bg);
       color: var(--note-ink);
       font-size: var(--t-detail-size);
       font-weight: var(--t-detail-weight);
       line-height: var(--t-detail-leading);
       text-align: left;
-      box-shadow: var(--shadow-1-3-8);
+      box-shadow: var(--shadow-sm);
       pointer-events: auto;
       cursor: default;
       user-select: none;
       transition: box-shadow var(--ease), border-color var(--ease);
     }
     .erd-note.show, .erd-note.peek { display: block; }
-    .erd-note.peek:not(.show) { animation: erd-note-in 0.14s ease-out; box-shadow: var(--shadow-6-18-14); }
+    .erd-note.peek:not(.show) { animation: erd-note-in 0.14s ease-out; box-shadow: var(--shadow-lg); }
     @keyframes erd-note-in { from { opacity: 0; transform: translateY(3px); } }
     #erd-notes.measuring .erd-note { display: block; visibility: hidden; animation: none; }
     .erd-note:hover { border-color: color-mix(in srgb, var(--note-accent) 60%, var(--note-border)); border-left-color: var(--note-accent); }
     .erd-note.selected {
       border-color: var(--note-accent);
-      box-shadow: 0 0 0 3px color-mix(in srgb, var(--note-accent) 28%, transparent), var(--shadow-4-12-12);
+      box-shadow: 0 0 0 var(--ring-lg) color-mix(in srgb, var(--note-accent) 28%, transparent), var(--shadow-md);
     }
     .erd-note-text { white-space: pre-wrap; overflow-wrap: break-word; }
     .erd-note-leader {
@@ -323,11 +323,11 @@
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      border-radius: 50%;
+      border-radius: var(--radius-round);
       border: 1px solid var(--note-border);
       background: var(--note-bg);
       color: var(--note-accent);
-      box-shadow: var(--shadow-1-2-8);
+      box-shadow: var(--shadow-sm);
       cursor: pointer;
       font: inherit;
       transition: transform var(--ease), border-color var(--ease);
@@ -348,7 +348,7 @@
       min-width: 16px;
       padding: 0 5px;
       box-sizing: border-box;
-      border-radius: 999px;
+      border-radius: var(--radius-pill);
       background: var(--bg-soft);
       color: var(--text-soft);
       font-size: var(--text-xs);
@@ -369,7 +369,7 @@
       background: var(--bg-panel);
       color: var(--text-main);
       outline: 1.5px solid var(--primary-ring);
-      border-radius: 3px;
+      border-radius: var(--radius-xs);
       padding-left: 3px;
       padding-right: 3px;
       overflow: visible;
@@ -386,7 +386,7 @@
       width: 12px; height: 12px;
       margin-top: -6px;
       box-sizing: border-box;
-      border-radius: 50%;
+      border-radius: var(--radius-round);
       border: 2px solid var(--primary);
       background: var(--bg-panel);
       display: none;
@@ -408,18 +408,18 @@
     body.erd-armed .erd-row, body.erd-armed .erd-head { cursor: crosshair; }
     body.erd-armed .erd-chevron { display: none; }
     /* The row or header a connection would end at, and the table around it */
-    .erd-row.erd-target, .erd-head.erd-target { background: var(--primary-wash); box-shadow: inset 0 0 0 2px var(--primary); }
+    .erd-row.erd-target, .erd-head.erd-target { background: var(--primary-wash); box-shadow: inset 0 0 0 var(--ring-md) var(--primary); }
     .erd-entity.erd-target { --ring: var(--primary); }
     #erd-rubber { stroke: var(--primary); stroke-width: 2; stroke-dasharray: 6 4; display: none; fill: none; pointer-events: none; }
-    .erd-row.selected { background: color-mix(in srgb, var(--primary) 13%, transparent); box-shadow: inset 0 0 0 1.5px var(--primary); }
-    .erd-row.is-dragging, .erd-entity.is-dragging { opacity: 0.8; z-index: 50; box-shadow: var(--shadow-8-20-16); background: var(--node-bg); }
-    .erd-drop-line { position: absolute; display: none; height: 4px; background: var(--primary); border-radius: 2px; z-index: 60; pointer-events: none; }
+    .erd-row.selected { background: color-mix(in srgb, var(--primary) 13%, transparent); box-shadow: inset 0 0 0 var(--ring-thin) var(--primary); }
+    .erd-row.is-dragging, .erd-entity.is-dragging { opacity: 0.8; z-index: 50; box-shadow: var(--shadow-lg); background: var(--node-bg); }
+    .erd-drop-line { position: absolute; display: none; height: 4px; background: var(--primary); border-radius: var(--radius-xs); z-index: 60; pointer-events: none; }
     .erd-guide { position: absolute; display: none; pointer-events: none; z-index: 55; }
     .erd-guide-v { top: 0; bottom: 0; width: 0; border-left: 1.5px dashed var(--guide); }
     .erd-guide-h { left: 0; right: 0; height: 0; border-top: 1.5px dashed var(--guide); }
 
     /* The table dragged out of the dock */
-    .erd-entity.erd-ghost { position: fixed; z-index: 1000; pointer-events: none; transform-origin: 0 0; opacity: 0.95; box-shadow: var(--shadow-10-24-18); }
+    .erd-entity.erd-ghost { position: fixed; z-index: 1000; pointer-events: none; transform-origin: 0 0; opacity: 0.95; box-shadow: var(--shadow-xl); }
     .erd-entity.erd-ghost.off-target { opacity: 0.5; }
     body.palette-dragging, body.palette-dragging * { cursor: grabbing !important; user-select: none; }
 
@@ -430,7 +430,7 @@
       margin: -6px 0 0 -6px;
       box-sizing: border-box;
       z-index: 52;
-      border-radius: 50%;
+      border-radius: var(--radius-round);
       border: 2px solid var(--primary);
       background: var(--bg-panel);
       cursor: grab;
@@ -450,8 +450,8 @@
       transform: translate(-50%, -100%);
       background: var(--bg-panel);
       border: 1px solid var(--border-dark);
-      border-radius: 8px;
-      box-shadow: var(--shadow-4-12-12);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-md);
       white-space: nowrap;
       pointer-events: auto;
       cursor: default;
@@ -463,7 +463,7 @@
     .erd-ab-break { flex-basis: 100%; height: 0; }
     .erd-ab-btn {
       display: inline-flex; align-items: center; justify-content: center; gap: 4px; height: 26px; min-width: 26px; padding: 0 6px; box-sizing: border-box;
-      border: 1px solid transparent; border-radius: 6px; background: transparent; color: var(--text-soft);
+      border: 1px solid transparent; border-radius: var(--radius-md); background: transparent; color: var(--text-soft);
       font: inherit; font-size: var(--text-sm); font-weight: var(--weight-semibold); cursor: pointer;
     }
     .erd-ab-btn:hover { background: var(--bg-hover); color: var(--text-main); }
@@ -489,7 +489,7 @@
       display: none;
       align-items: center;
       justify-content: center;
-      border-radius: 50%;
+      border-radius: var(--radius-round);
       border: 1px dashed var(--note-accent);
       background: var(--bg-panel);
       color: var(--note-accent);
@@ -506,15 +506,15 @@
     .erd-note-text { outline: none; min-height: 1.4em; }
     .erd-note-text[contenteditable="true"] { -webkit-user-select: text; user-select: text; cursor: text; }
     .erd-note-text:empty::before { content: attr(data-placeholder); color: var(--text-muted); }
-    .erd-note.dragging { box-shadow: var(--shadow-10-24-18); }
+    .erd-note.dragging { box-shadow: var(--shadow-xl); }
     .erd-note-del {
       position: absolute; top: -8px; right: -8px; width: 18px; height: 18px; padding: 0; display: none; align-items: center; justify-content: center;
-      border-radius: 50%; border: 1px solid var(--border-dark); background: var(--bg-panel); color: var(--text-soft); cursor: pointer; box-shadow: var(--shadow-1-3-15);
+      border-radius: var(--radius-round); border: 1px solid var(--border-dark); background: var(--bg-panel); color: var(--text-soft); cursor: pointer; box-shadow: var(--shadow-chip);
     }
     .erd-note-del:hover { background: var(--danger); border-color: var(--danger); color: var(--on-danger); }
     .erd-note-link {
       position: absolute; bottom: -9px; right: -9px; width: 20px; height: 20px; padding: 0; display: none; align-items: center; justify-content: center;
-      border-radius: 50%; border: 1px solid var(--note-border); background: var(--bg-panel); color: var(--note-accent); cursor: crosshair; touch-action: none; box-shadow: var(--shadow-1-3-15);
+      border-radius: var(--radius-round); border: 1px solid var(--note-border); background: var(--bg-panel); color: var(--note-accent); cursor: crosshair; touch-action: none; box-shadow: var(--shadow-chip);
     }
     .erd-note-link:hover { background: var(--note-accent); border-color: var(--note-accent); color: var(--bg-panel); }
     .erd-note:hover .erd-note-del, .erd-note.selected .erd-note-del, .erd-note:hover .erd-note-link, .erd-note.selected .erd-note-link { display: inline-flex; }
@@ -522,23 +522,23 @@
     body.erd-note-linking, body.erd-note-linking * { cursor: crosshair !important; }
     .erd-entity.note-target, body.erd-note-picking .erd-entity:hover { outline: 2px dashed var(--note-accent); outline-offset: 4px; }
     body.erd-note-picking .erd-entity, body.erd-note-picking .erd-entity * { cursor: copy !important; }
-    .erd-note.note-ghost { position: fixed; display: block; z-index: 1000; pointer-events: none; transform-origin: 0 0; opacity: 0.95; box-shadow: var(--shadow-10-24-18); }
+    .erd-note.note-ghost { position: fixed; display: block; z-index: 1000; pointer-events: none; transform-origin: 0 0; opacity: 0.95; box-shadow: var(--shadow-xl); }
     .erd-note.note-ghost.off-target { opacity: 0.5; }
     .erd-entity.note-linked { outline: 1.5px dashed var(--note-accent); outline-offset: 5px; }
     /* The prompt above the dock while a tool waits for a click */
     .erd-hint {
-      position: fixed; left: 50%; bottom: 76px; transform: translateX(-50%); z-index: 150; padding: 6px 12px; border-radius: 999px;
+      position: fixed; left: 50%; bottom: 76px; transform: translateX(-50%); z-index: 150; padding: 6px 12px; border-radius: var(--radius-pill);
       border: 1px solid var(--border-dark); background: var(--bg-panel); color: var(--text-main); font-size: var(--t-control-size); font-weight: var(--t-control-weight);
-      box-shadow: var(--shadow-4-12-12); max-width: calc(100vw - 32px); text-align: center; pointer-events: none;
+      box-shadow: var(--shadow-md); max-width: calc(100vw - 32px); text-align: center; pointer-events: none;
     }
     .erd-hint kbd { font: inherit; font-weight: var(--weight-semibold); }
     #btn-add-relationship[aria-pressed="true"], #btn-add-note[aria-pressed="true"] { background: var(--primary-wash); border-color: var(--primary-ring); color: var(--primary); }
 
     /* Delete confirmation bubble (the sequence type's) */
     .erd-confirm {
-      position: fixed; z-index: 2000; width: 260px; box-sizing: border-box; padding: 14px 14px 12px; border-radius: 10px;
+      position: fixed; z-index: 2000; width: 260px; box-sizing: border-box; padding: 14px 14px 12px; border-radius: var(--radius-xl);
       border: 1px solid var(--border-dark); background: var(--bg-panel); color: var(--text-main);
-      box-shadow: var(--shadow-10-30-18); font-size: var(--t-control-size); line-height: var(--t-control-leading);
+      box-shadow: var(--shadow-xl); font-size: var(--t-control-size); line-height: var(--t-control-leading);
     }
     .erd-confirm-msg { font-weight: var(--weight-semibold); margin-bottom: 12px; overflow-wrap: anywhere; }
     .erd-confirm-actions { display: flex; justify-content: flex-end; gap: 8px; }
@@ -565,14 +565,14 @@
     body.erd-overview:not(.exporting) .erd-entity:not(.erd-card-table) .erd-note-add,
     body.erd-overview:not(.exporting) .erd-note-badge { display: none !important; }
     body.erd-overview:not(.exporting) .erd-entity:not(.erd-card-table) > .erd-head {
-      position: absolute; inset: 0; height: auto; padding: 0 8px; justify-content: center; border-radius: 8px; border-bottom: none;
+      position: absolute; inset: 0; height: auto; padding: 0 8px; justify-content: center; border-radius: var(--radius-lg); border-bottom: none;
     }
     body.erd-overview:not(.exporting) .erd-entity:not(.erd-card-table) .erd-name {
       flex: 0 1 auto; max-width: 100%; text-align: center; font-size: max(var(--text-md), calc(var(--text-lg) * var(--inv))); line-height: var(--leading-snug);
       overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
-    body.erd-overview:not(.exporting) .erd-entity:not(.erd-card-table)::after { box-shadow: inset 0 0 0 calc(1.5px * var(--inv)) var(--ring); }
-    body.erd-overview:not(.exporting) .erd-entity.rel-parent::after, body.erd-overview:not(.exporting) .erd-entity.rel-child::after { box-shadow: inset 0 0 0 calc(2.5px * var(--inv)) var(--ring); }
+    body.erd-overview:not(.exporting) .erd-entity:not(.erd-card-table)::after { box-shadow: inset 0 0 0 calc(var(--ring-thin) * var(--inv)) var(--ring); }
+    body.erd-overview:not(.exporting) .erd-entity.rel-parent::after, body.erd-overview:not(.exporting) .erd-entity.rel-child::after { box-shadow: inset 0 0 0 calc(var(--ring-md) * var(--inv)) var(--ring); }
     /* Lines: constant on-screen width, dashes and hit area too; markers scaled back up */
     body.erd-overview:not(.exporting) .erd-rel-line { stroke-width: calc(1.5px * var(--inv)); }
     body.erd-overview:not(.exporting) .erd-rel-line:not(.identifying) { stroke-dasharray: calc(6px * var(--inv)) calc(4px * var(--inv)); }
@@ -590,7 +590,7 @@
 
     /* The expanded card: the full table at 100% size, fixed over the table's box, above everything; never exported */
     .erd-expand-card { position: fixed; z-index: 900; pointer-events: auto; }
-    .erd-expand-card .erd-entity { position: relative; width: max-content; z-index: auto; cursor: default; box-shadow: var(--shadow-10-28-28); transition: none; }
+    .erd-expand-card .erd-entity { position: relative; width: max-content; z-index: auto; cursor: default; box-shadow: var(--shadow-xl); transition: none; }
     .erd-expand-card .erd-row.has-chip .erd-col-type { display: block; }
     .erd-expand-card .erd-key-chip { margin-left: 10px; }
     body.exporting .erd-expand-card { display: none !important; }

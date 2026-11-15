@@ -95,8 +95,8 @@ Every diagram is drawn from one design-token set. The skill ships a default set.
     "strokeFine": 1.75,
     "cap": "round", "join": "round"
   },
-  "radius": { "sm": "4px", "md": "8px", "lg": "12px", "pill": "999px" },
-  "shadow": { "sm": "...", "md": "...", "lg": "..." },
+  "radius": { "xs": "3px", "sm": "4px", "md": "6px", "lg": "8px", "xl": "10px", "2xl": "12px", "pill": "999px", "round": "50%" },
+  "shadow": { "sm": "...", "chip": "...", "md": "...", "lg": "...", "xl": "...", "ring": "0 0 0 3px var(--primary-ring)", "...": "see Phase 2, as built, radius and shadow" },
   "motion": { "ease": "0.15s ease" },
   "palette": [
     { "slot": "1", "name": "sky",
@@ -203,6 +203,14 @@ As built, typography (2026-11-15):
 - Diagram text sizes are unchanged, so goldens did not move. UI chrome snapped (buttons 13.6 to 14px, title 17.6 to 18px, zoom 12.8 to 13px, ERD badges 9.5/10.5/11.5 to 10/10/12px). Flowchart line heights 1.22, 1.15, 1.3 became 1.2, 1.2, 1.25.
 - ERD column types use the `code` style: 11px mono, which matches `ER.TYPE_CHAR_W` 6.6 exactly in Chrome's `monospace` (12px would overflow).
 - `type.fitMin` 11px is the flowchart shrink-to-fit floor (unchanged); `type.fitMinOverview` 9px is the ERD zoomed-out overview floor (unchanged).
+
+As built, radius and shadow (2026-11-15):
+
+- Radius scale `xs` 3, `sm` 4, `md` 6, `lg` 8 (nodes, cards, canvases), `xl` 10, `2xl` 12, `pill` 999, `round` 50%, as `--radius-*`. Multi-corner values keep their zeros (`var(--radius-lg) var(--radius-lg) 0 0`); the notes' `3px 8px 8px 3px` and the sequence frame tab `4px 12px 4px 4px` are exact. Snaps: 2 to 3 (drop lines), 5 to 6 (chevrons, sequence handles), 9 to 8 (lane icon chip), 14 to 12 (dock popover). 11, 13, 18 and 28 became `pill`: each is half the element's fixed height or width (add-branch chip 22, frame summary 26, rail 36 wide, actor 56 high), so the drawn corner is identical. The sequence note's 10px fold corner stays exact, hence `xl`.
+- Shadow scale `sm` (resting cards, nodes, labels), `chip` (small floating controls: ports, handles, note buttons, lane tools), `md` (hover, action bars, hints), `lg` (menus, popovers, drawer, drag), `xl` (dialogs, drag ghosts, expanded card), plus `canvas`, `band` (the sequence pinned header, a one-sided shadow), `knob` (switch knob) and `ring` (selection ring, `0 0 0 3px var(--primary-ring)`). `sm` to `xl` are single layer so `filter: drop-shadow(var(--shadow-md))` works. No shadow differs by mode, so there is no `shadow.dark`; `ring` follows the mode through `--primary-ring`. `tokens.py` requires every `var(--x)` in a shadow to name a colour token.
+- Rings whose colour is set by the rule (selection, relationship highlight, glow) keep the colour in the rule and take only geometry from tokens: `size.ring-thin|md|lg` (1.5, 2, 3px) and `ring-fill` (100px, the inset tint), `shadow.glow` (`0 2px 8px`) and `shadow.glow-tight` (`0 0 4px`, for `drop-shadow`), e.g. `box-shadow: var(--shadow-glow) var(--edge-in-glow)`. The ERD overview ring `2.5px * var(--inv)` became `var(--ring-md) * var(--inv)`.
+- `check_tokens.py` now reads a bare `0`, `var()` and `color-mix()` as non-literal in radius and shadow values, and checks `filter: drop-shadow(...)`. Two pulse keyframes (10px and 18px extents) carry `tokens-ok`.
+- Left: SVG `rx` on drawn shapes (sequence fragment box 6, activation bar 2, classic subprocess 2, icons) stays in the renderers; an SVG attribute cannot take `var()` and the engines and exports read those numbers.
 
 ### Phase 3: Shared components
 
