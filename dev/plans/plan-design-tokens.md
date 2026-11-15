@@ -43,7 +43,14 @@ Every diagram is drawn from one design-token set. The skill ships a default set.
 8. **Font is linked in one place only.** `shell.html` links Nunito Sans from Google Fonts and `shell.css:98` sets the stack. Neither is parameterised.
 9. **Typography has no scale.** The CSS uses about 24 distinct font sizes in mixed units: 12px (12 times), 13px (11), 0.8125rem (7, which is also 13px), 14px, 10px, 11px, plus one-offs such as 9.5px, 10.5px, 11.5px, 0.78rem, 0.85rem, 0.9rem and 1.1rem. Weights 400, 500, 600 and 700 are used without names, there are 10 different line heights (unitless and px), and 4 different letter spacings (0.02em to 0.06em). There is one family and no monospace role, so ERD column types and code-like labels use the body font. The renderers shrink text to fit in JS (`flowchart.js:554-562`, `erd.js:699-709`, minimum `9 * inv` px), so the base and minimum sizes are also hard-coded in JS.
 10. **Icons are inline markup copied around.** There are about 70 inline `<svg>` icons spread over `shell.html`, the three `toolbar.html`, `icon.html` and `stage.html` files, and `shell.js`, `erd.js`, `flowchart.js` and `sequence.js`. The same icon is often pasted several times: the trash icon appears 4 times, and close, plus, chevron, link and note icons 2 or 3 times each. Only the flowchart lane icons have a registry (`assets/types/flowchart/icons.json`, 25 names, injected as `TYPE_ICONS` by `layout_engine.py:1163`), and it belongs to one type. Stroke width varies between `2` (30 times), `1.75` (11) and `2.5` (1) without a rule, and icon sizes are literal `width`/`height` attributes. The drawings look like the Lucide set (ISC licence), but the repo carries no attribution; to be verified.
-11. **No guard.** Nothing fails when someone adds a literal colour or a new token in a type file, so the drift above will come back.
+11. **The authoring references hard-wire colours and icons.** The agent writes diagrams from `references/types/*.md`, so these docs are part of the contract:
+    - `flowchart.md:27` lets the agent set any hex as a lane `color` "to match the source's colours". A brand palette cannot control those lanes.
+    - `sequence.md:46` lists the 8 swatch hex values by hand, and `colorKey` (`sequence.md:47`, `erd.md:15`) is keyed by the hex itself, so a palette change also breaks the colour legend.
+    - Sequence fragments use a third, separate colour scheme by name (`blue`, `green`, `yellow`, `red`, `purple`, `gray`, `sequence.md:56`), drawn from the literal tints in `sequence.css:28-29`.
+    - `flowchart.md:131-161` lists the 25 lane icon names by hand. Nothing checks this table against `icons.json`, and rule 8 says `--layout` warns about a name not in the table.
+    - Start and end steps "render as rounded pills in their own colours" and classic symbols use "a task's size and colours" (`flowchart.md:28`, rule 10). That wording is right; the plan only has to keep those colours as tokens.
+    No reference mentions fonts or type sizes, so typography needs no reference change.
+12. **No guard.** Nothing fails when someone adds a literal colour or a new token in a type file, so the drift above will come back.
 
 ## Design
 
@@ -161,7 +168,7 @@ Exit check: the e2e suites (`e2e_notes`, `e2e_erd`, `e2e_sequence`, `e2e_shell`,
 1. Create `assets/icons/default.json`: one registry of every icon, keyed by a stable name (`trash`, `close`, `plus`, `chevron-down`, `link`, `note`, `undo`, `redo`, `save`, `export`, `tidy`, ...). It merges the flowchart lane icons (`assets/types/flowchart/icons.json`, whose names stay the same because `lane.icon` stores them in saved diagrams) with every inline icon found in the review, each drawn once. Each entry holds only the inner SVG elements on a 24 x 24 grid, as `icons.json` does today.
 2. One renderer, `ui.icon(name, { size, fine })` in `shell.js`, builds the `<svg>` from the registry and the `icon` tokens: `viewBox="0 0 24 24"`, `width`/`height` from `icon.size`, `stroke-width` from `icon.stroke` (or `icon.strokeFine` for the dense toolbar icons that use 1.75 today), linecap and linejoin from the tokens, `stroke="currentColor"`, `aria-hidden="true"`. Colour always comes from the text colour, so icons follow the colour tokens.
 3. HTML templates (`shell.html`, `toolbar.html`, `stage.html`, `chrome.html`) use a placeholder, `{{icon:trash}}` or `{{icon:trash:sm}}`, which `assemble_page()` expands at build time, so the page has no extra startup work. The JS files call `ui.icon(...)` instead of pasting markup.
-4. `layout_engine.py` injects the registry as `ICONS` for all types (replacing the flowchart-only `TYPE_ICONS`). The lane-icon validation at `layout_engine.py:406` reads the shared registry.
+4. `layout_engine.py` injects the registry as `ICONS` for all types (replacing the flowchart-only `TYPE_ICONS`). The lane-icon validation at `layout_engine.py:406` reads the shared registry. The lane icon table in `references/types/flowchart.md` stays the agent's menu (the "Use for" column is guidance the registry does not hold), and `check_tokens.py` fails if a name in that table is missing from the registry. A brand icon set must cover these 25 names or they fall back to the default drawings.
 5. Type header icons (`icon.html`) become registry entries too (`type-flowchart`, `type-sequence`, `type-erd`), so a future type adds one entry instead of a file.
 6. A brand theme may set `icon.set` to another registry file with the same names. A name missing from that set falls back to the default set, so nothing disappears.
 7. Licence: confirm the source of the drawings and add the attribution (for Lucide, the ISC notice) to the registry file and `README.md`.
@@ -170,9 +177,12 @@ Exit check: the e2e suites (`e2e_notes`, `e2e_erd`, `e2e_sequence`, `e2e_shell`,
 ### Phase 5: Palette slots in the data model
 
 1. Diagram JSON stores a slot (`"color": "3"`) instead of a hex. The renderer maps the slot to the theme's palette.
-2. Loading still accepts the old hex: a hex that matches a default swatch maps to its slot, any other hex is kept as a custom colour and drawn as is (today the sequence renderer drops it, which this fixes).
-3. `disk_format.py` writes slots; `references/types/*.md` and the examples use slots.
-4. Exit check: every existing fixture and sample loads with the same colours; a fixture with old hex values round-trips through Save to slots.
+2. `colorKey` is keyed by slot (`{ "1": "Our services" }`). Old hex keys are converted the same way as `color`.
+3. Sequence fragments use the same slots. Their old names map to slots (`blue` to the sky slot, `green` to emerald, `yellow` to amber, `red` to rose, `purple` to purple, `gray` to a new neutral entry), and the frame tint is derived from the slot colour in CSS. The separate fragment tint list goes away.
+4. Lane `color` in `flowchart.md:27` becomes a slot. A custom hex is still accepted on load, but the reference no longer tells the agent to copy colours from the source: with a brand theme, the palette already carries the brand colours.
+5. Loading still accepts the old hex: a hex that matches a default swatch maps to its slot, any other hex is kept as a custom colour and drawn as is (today the sequence renderer drops it, which this fixes).
+6. `disk_format.py` writes slots. `references/types/flowchart.md`, `sequence.md` and `erd.md` and the examples use slots; `sequence.md:46` stops listing hex values and says "slot `1`..`8`, the theme's palette".
+7. Exit check: every existing fixture and sample loads with the same colours and the same colour legend; a fixture with old hex values round-trips through Save to slots.
 
 Decided (2026-11-15): slot ids are `"1"`..`"8"`, because brand palettes have no fixed hue names. The current names (`sky`, `amber`, ...) stay only as labels of the default palette.
 
