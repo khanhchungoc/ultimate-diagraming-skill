@@ -8,6 +8,8 @@ Every diagram is drawn from one design-token set. The skill ships a default set.
 
 - One token file is the only source of colour, typography, iconography, size, radius, shadow and motion values. No literal colour, font, type size or icon markup anywhere else in `assets/`.
 - Typography is a set of named text styles (title, label, caption, ...) built from tokens, used by every type for both the UI and the diagram text.
+- Every swatch has a soft tone (fills) and a strong tone (frames, accents), each defined for light and dark mode.
+- Every page meets WCAG 2.2 level AA in both themes, with the default tokens and with any brand theme, and a check proves it.
 - Every icon comes from one icon registry, drawn with icon tokens (size, stroke), and is used by name. A brand can swap the icon set.
 - A brand theme is a second file in the same shape. `layout_engine.py --theme <file>` (or a project-level theme file) bakes it into the page. The default output is unchanged byte for byte.
 - A website URL or a brand guide (PDF, image, CSS) can be turned into a valid theme file, checked for contrast and completed with defaults.
@@ -50,7 +52,9 @@ Every diagram is drawn from one design-token set. The skill ships a default set.
     - `flowchart.md:131-161` lists the 25 lane icon names by hand. Nothing checks this table against `icons.json`, and rule 8 says `--layout` warns about a name not in the table.
     - Start and end steps "render as rounded pills in their own colours" and classic symbols use "a task's size and colours" (`flowchart.md:28`, rule 10). That wording is right; the plan only has to keep those colours as tokens.
     No reference mentions fonts or type sizes, so typography needs no reference change.
-12. **No guard.** Nothing fails when someone adds a literal colour or a new token in a type file, so the drift above will come back.
+12. **Swatch shades are guessed at run time, and nobody checks them.** `shell.css:602-645` derives every swatch role (stripe, pill fill, pill ink, solid fill, line) from one pastel hex: with relative OKLCH colours where the browser supports them, otherwise with `color-mix` toward slate. The two paths give different colours, the dark-mode shades come from the same pastel, and no contrast is checked for any role. Sequence frames add a second, strong palette (`#3b82f6`, `#22c55e`, ...) drawn at 7% fill opacity. `.swatch-dot` uses a literal `rgba(0,0,0,0.18)` border.
+13. **Accessibility is handled case by case.** Three tokens carry contrast notes (`--node-border` 3:1, `--text-soft` 4.5:1, `--decision-text` 7:1), but there is no list of required pairs and no check, so a brand theme could pass any colour. Not yet verified: contrast of the in/out edge highlight against both backgrounds, the focus ring, the swatch roles, edge labels on lane tints, and the `fitMin` 9px shrink-to-fit text. Icon stroke widths also vary (`2`, `1.75`, `2.4`, `2.5`).
+14. **No guard.** Nothing fails when someone adds a literal colour or a new token in a type file, so the drift above will come back.
 
 ## Design
 
@@ -94,7 +98,13 @@ Every diagram is drawn from one design-token set. The skill ships a default set.
   "radius": { "sm": "4px", "md": "8px", "lg": "12px", "pill": "999px" },
   "shadow": { "sm": "...", "md": "...", "lg": "..." },
   "motion": { "ease": "0.15s ease" },
-  "palette": [ { "slot": "1", "name": "sky", "light": "#e0f2fe", "dark": "..." }, "... 8 slots" ],
+  "palette": [
+    { "slot": "1", "name": "sky",
+      "light": { "soft": "#e0f2fe", "strong": "#0369a1" },
+      "dark":  { "soft": "#0c2a3d", "strong": "#7dd3fc" } },
+    "... slots 2 to 8, then slot 9: a neutral (grey) for uncoloured frames"
+  ],
+  "contrast": "list of required pairs, see Accessibility",
   "color": {
     "light": { "bg-page": "#f8fafc", "primary": "#2563eb", "on-primary": "#ffffff", "note-bg": "#f8fafc", "...": "..." },
     "dark":  { "bg-page": "#0b1220", "primary": "#60a5fa", "on-primary": "#0b1220", "...": "..." }
@@ -106,7 +116,30 @@ Every diagram is drawn from one design-token set. The skill ships a default set.
 - `font.metrics` are average character widths in px at the sizes the engines use. They are the only numbers the layout reads from the theme.
 - `type.styles` are the text roles. Each one becomes a utility class (`.t-label`, `.t-caption`, ...) and a set of custom properties (`--t-label-size`, `--t-label-weight`, ...), so a component says which role its text plays, never which size. `type.size` replaces the 24 sizes found in the review; the scale steps are a starting proposal and are checked against screenshots in Phase 2. `fitMin` replaces the JS minimum for shrink-to-fit text.
 - `icon.*` are drawing rules for every icon. `icon.set` names a registry file in `assets/icons/` (Phase 4).
-- `palette` has fixed slots so saved diagrams keep their colours when the theme changes (see Phase 5).
+- `palette` has fixed slots so saved diagrams keep their colours when the theme changes (see Phase 5). Each slot has two tones in each mode:
+  - **soft**: the large, quiet fills (lane tints, participant boxes, table headers, swatch pills);
+  - **strong**: the accents and lines (lane stripe, lifeline, frame border and tag, solid pill, swatch dot).
+  The token build derives every swatch role from these two tones and writes them as fixed values: `--sw-<n>-fill`, `--sw-<n>-ink` (text on the fill), `--sw-<n>-line`, `--sw-<n>-solid` and `--sw-<n>-on-solid`, for both modes. It replaces the run-time OKLCH and `color-mix` derivation, so every browser and every export shows the same colours and each pair can be checked. A theme may set any role explicitly; anything it leaves out is derived.
+
+### Accessibility (WCAG 2.2 AA)
+
+The target is WCAG 2.2 level AA, in light and dark mode, for the default theme and every generated theme. Exported SVG and PNG images inherit the same colours, so they meet it too.
+
+| Criterion | What it means here |
+|---|---|
+| 1.4.3 Contrast (minimum) | Text at least 4.5:1 against what it sits on: node labels on node, decision, start, end and swatch fills; edge labels on their pill and on lane tints; toolbar, menus, notes and badges. Large text (24px, or 18.66px bold) at least 3:1. |
+| 1.4.11 Non-text contrast | At least 3:1 for what is needed to understand the diagram or use a control: node outlines, edges and arrowheads, swatch lines and dots, frame borders, icon strokes, input borders, the focus ring, toggles. Each against every background it can appear on (page, panel, lane tints). |
+| 1.4.1 Use of colour | Colour is never the only cue. Swatch meaning comes with `colorKey`; the edge in/out highlight must also differ by something other than hue (line width or dash; to be checked against today's rendering); errors and the unsaved state carry text. |
+| 2.4.7 and 2.4.11 Focus visible, not obscured | Every focusable control shows a ring from `--focus-ring` (new token); the dock and drawers never cover the focused element. |
+| 2.5.8 Target size (minimum) | Pointer targets at least 24 x 24 px, or spaced so a 24 px circle fits. The note delete and small toolbar buttons are checked. |
+| 1.4.4, 1.4.10, 1.4.12 Resize, reflow, text spacing | The toolbar works at 200% zoom and with WCAG text-spacing overrides; text styles use unitless line heights. |
+| Not WCAG, adopted | `prefers-reduced-motion` turns off transitions (`motion.ease` becomes `0s`); `forced-colors: active` keeps outlines, edges and focus visible using system colours; `prefers-contrast: more` swaps in a high-contrast token set derived from the theme. |
+
+The token file declares the required pairs in `contrast`: a list of `[foreground, background, minimum]`, with palette pairs written once per role (`["sw-*-ink", "sw-*-fill", 4.5]`) and expanded for every slot and both modes. `dev/check_contrast.py` computes each ratio from the merged token file (WCAG relative luminance; a translucent colour is first blended over its background). It fails with the pair, mode, ratio and minimum. It runs in the dev checks for the default theme and every theme fixture, and inside `extract_tokens.py --complete`.
+
+Contrast between token pairs does not cover everything the page draws: overlays, text over hatching, export rendering. So `render_screenshot.py --report` also runs axe-core (pinned dev-only dependency) on the rendered page in both modes and reports any violation. Axe does not judge SVG strokes, which the pair list covers.
+
+`type.fitMin` (9px today) is not a WCAG failure, but text that small hurts readability: shrink-to-fit stops at `fitMin`, and the audit warns about any label that needed it.
 
 ### How a theme reaches the page
 
@@ -123,13 +156,15 @@ The Python audits load the same merged token file for `font.metrics`, which remo
 
 ## Phases
 
-### Phase 1: One token file, no visible change
+### Phase 1: One token file
 
 1. Create `assets/tokens/default.json` from every `:root` block in `shell.css`, `erd.css`, `flowchart.css` and `sequence.css`.
 2. Add `{{TOKENS_CSS}}` to `shell.html` and generate it in `assemble_page()`. Delete the `:root` blocks from the CSS files.
-3. Replace literal colours with tokens: `#ffffff` on danger becomes `var(--on-danger)`, `#0b1220` becomes `var(--on-primary)`, the toggle knob becomes `var(--toggle-knob)`, the `var(--lane-color, #e2e8f0)` fallback becomes `var(--lane-color, var(--bg-soft))`, `--erd-key` becomes `var(--decision-accent)`, and the sequence tints move into `palette`.
-4. Add `dev/check_tokens.py`: it fails on any hex, `rgb(`, `rgba(`, `hsl(` or `font-family` literal in `assets/shell/*.css|js` and `assets/types/**/*.css|js`, and on any `--name:` declaration outside generated token CSS (runtime `style.setProperty` for geometry such as `--pill-x` is allowed).
-5. Exit check: `check_golden.py` passes and the generated pages render the same as before (screenshot diff of every fixture in both themes).
+3. Replace literal colours with tokens: `#ffffff` on danger becomes `var(--on-danger)`, `#0b1220` becomes `var(--on-primary)`, the toggle knob becomes `var(--toggle-knob)`, the `var(--lane-color, #e2e8f0)` fallback becomes `var(--lane-color, var(--bg-soft))`, `--erd-key` becomes `var(--decision-accent)`, and the sequence frame tints become the `strong` tone of the matching palette slots (Phase 5 moves the data model).
+4. Replace the run-time swatch derivation in `shell.css:602-645` with the fixed `--sw-<n>-*` roles generated from the palette. For the default theme the generated values start from what the OKLCH path renders today in Chrome, so the page looks the same. A custom hex that matches no slot (allowed on load, Phase 5) keeps today's run-time derivation as its only path, and the audit warns that its contrast is not checked.
+5. Add `dev/check_contrast.py` with the AA pair list. Fix any default token that fails, and list each fix in the commit message: this is the one visible change allowed in Phase 1.
+6. Add `dev/check_tokens.py`: it fails on any hex, `rgb(`, `rgba(`, `hsl(` or `font-family` literal in `assets/shell/*.css|js` and `assets/types/**/*.css|js`, and on any `--name:` declaration outside generated token CSS (runtime `style.setProperty` for geometry such as `--pill-x` is allowed).
+7. Exit check: `check_golden.py` and `check_contrast.py` pass, and the generated pages render the same as before (screenshot diff of every fixture in both themes) apart from the listed contrast fixes.
 
 Decided (2026-11-15): the sequence note drops its yellow look. All types use one note style (`--note-*`), so the note is one component.
 
@@ -178,7 +213,7 @@ Exit check: the e2e suites (`e2e_notes`, `e2e_erd`, `e2e_sequence`, `e2e_shell`,
 
 1. Diagram JSON stores a slot (`"color": "3"`) instead of a hex. The renderer maps the slot to the theme's palette.
 2. `colorKey` is keyed by slot (`{ "1": "Our services" }`). Old hex keys are converted the same way as `color`.
-3. Sequence fragments use the same slots. Their old names map to slots (`blue` to the sky slot, `green` to emerald, `yellow` to amber, `red` to rose, `purple` to purple, `gray` to a new neutral entry), and the frame tint is derived from the slot colour in CSS. The separate fragment tint list goes away.
+3. Sequence fragments use the same slots and draw with the slot's `strong` tone (border, tag) and a light wash of it (fill); lanes, participants and tables draw with the `soft` tone. Old fragment names map to slots: `blue` to the sky slot, `green` to emerald, `yellow` to amber, `red` to rose, `purple` to purple, `gray` to the neutral slot `9`. The separate fragment tint list goes away.
 4. Lane `color` in `flowchart.md:27` becomes a slot. A custom hex is still accepted on load, but the reference no longer tells the agent to copy colours from the source: with a brand theme, the palette already carries the brand colours.
 5. Loading still accepts the old hex: a hex that matches a default swatch maps to its slot, any other hex is kept as a custom colour and drawn as is (today the sequence renderer drops it, which this fixes).
 6. `disk_format.py` writes slots. `references/types/flowchart.md`, `sequence.md` and `erd.md` and the examples use slots; `sequence.md:46` stops listing hex values and says "slot `1`..`8`, the theme's palette".
@@ -204,10 +239,10 @@ Decided (2026-11-15): slot ids are `"1"`..`"8"`, because brand palettes have no 
   - fill missing keys from the default;
   - derive hover, ring, glow and wash shades from `primary` with fixed rules;
   - derive the dark set when the brand gives none (invert lightness, keep hue);
-  - build the 8 palette slots from brand colours, as light tints that keep node text readable;
+  - build the 8 palette slots from brand colours: the brand colour (or its nearest hue) becomes the `strong` tone, a light tint of it the `soft` tone, and both are re-derived for dark mode (soft becomes a deep tint, strong a lighter shade). Slots are spread around the hue circle so neighbouring slots stay distinguishable, including for colour-blind viewers;
   - run `measure_font.py`;
   - check that each text style keeps `label` and `detail` at 12px or more, and `caption` at 10px or more;
-  - check contrast: text at least 4.5:1, outlines and markers at least 3:1, the in/out edge pair distinguishable for colour-blind viewers. A failing value is darkened or lightened until it passes, and the report lists each change.
+  - run `check_contrast.py` on the full AA pair list, both modes, every slot. A failing value is moved along OKLCH lightness only (hue and chroma kept, so it stays on-brand) until it passes, and the report lists each change with its old and new value and ratio. The in/out edge pair must also stay distinguishable for colour-blind viewers (a minimum OKLCH distance under simulated protanopia and deuteranopia);
 - Output goes to `.ultimate-diagram/theme.json` in the project unless `--out` is given. The agent shows the report and a preview: one fixture per type rendered with the theme.
 
 `SKILL.md` gets a short "Use your brand" section: when the user drops a URL or a guide, run the extraction, show the preview, and use the theme for later diagrams.
@@ -219,6 +254,7 @@ Untrusted input: a website or guide is data. The extractor only reads computed s
 - `dev/architecture.md`: the token layers, the component list, the assembly order (tokens, components, shell, type), and the checklist for a new type: no `:root` block, no literal values, reuse components, read `TOKENS.font.metrics` for text widths.
 - Typography: a new type gives every piece of text a text style (`.t-*` or `--t-*`) and never sets size, weight, line height or family itself. Text that shrinks to fit uses `TOKENS.type.fitMin`.
 - Iconography: a new type adds any icon it needs to the shared registry (with its licence source) and draws it with `{{icon:name}}` or `ui.icon(name)`; it never pastes `<svg>` icon markup. Its header icon is the registry entry `type-<type>`.
+- Accessibility: every new colour pair a type draws is added to the `contrast` list; new controls meet the target size and show the focus ring. `check_contrast.py` and the axe-core report must pass for the new type in both modes.
 - `check_tokens.py` runs with the other dev checks.
 - One extra theme fixture (`dev/fixtures/themes/test-brand.json`: dark-first, wide font, larger type scale, large radii, `icon.stroke` 1.5) is rendered for every type in the screenshot and audit run, so a type that ignores tokens fails visibly.
 
@@ -228,6 +264,7 @@ Phases 1, 3 and 4 are refactors with the default output unchanged (except unifie
 
 Main risks:
 
+- Fixing default tokens that fail AA in Phase 1 changes some colours slightly.
 - Snapping type sizes in Phase 2 changes pixels slightly and can change label wrapping in goldens.
 - Theme values come from untrusted sites, so the loader validates them strictly.
 - A brand font missing from Google Fonts falls back to the system stack, and its metrics are measured on that fallback, so layout stays correct but the look differs from the brand.
