@@ -391,6 +391,23 @@ try {
   at = fresh(d);
   t.check('a message drawn just inside the start of a frame becomes its first message', at === 1 && d.fragments.find((f) => f.id === 'f2').from === d.messages[at].id, JSON.stringify(d.fragments));
 
+  // A branch divider has a slot on each side: the end of the branch above and the start of the branch below
+  const divY = () => t.ev(`(() => document.querySelector('.seq-div-hit[data-frag-id="f1"]').getBoundingClientRect().top)()`);
+  const branchAt = (dk) => { const f = dk.fragments.find((x) => x.id === 'f1'); return f.branches ? f.branches[0].at : f.elseAt; };
+  await t.open(page);
+  d = await drawAt('p2', (await divY()) + 20, 'p3');
+  at = fresh(d);
+  t.check('a message drawn just below a branch divider starts that branch', at === 5 && branchAt(d) === d.messages[at].id, JSON.stringify(d.fragments));
+  await t.open(page);
+  d = await drawAt('p2', (await divY()) - 12, 'p3');
+  at = fresh(d);
+  t.check('a message drawn just above a branch divider ends the branch above', at === 5 && branchAt(d) === 'm6', JSON.stringify(d.fragments));
+
+  // A caller nobody called is active from its call until the reply: Customer (p1) from m1 to m7
+  await t.open(page);
+  const callerBar = await t.ev(`[...document.querySelectorAll('.seq-activation[data-node-id="p1"]')].length`);
+  t.check('a caller that is not already active gets an activation bar until its reply', callerBar === 1, String(callerBar));
+
   // Move a message across the frame's end, both ways
   await t.open(page);
   f1Bottom = await frameEdge('f1', 'bottom');

@@ -3609,8 +3609,15 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
             if (r.from === m.from && r.to === m.to) break;
             if (r.kind === 'reply' && r.from === m.to && r.to === m.from) last = r;
           }
-          if (last && !(m.hidden && last.hidden)) bars.push({ pid: m.to, y1: m.y - 6, y2: last.y + 6 });
+          if (last && !(m.hidden && last.hidden)) bars.push({ pid: m.to, y1: m.y - 6, y2: last.y + 6, call: m, reply: last });
         });
+        // A caller that is not already active (nobody called it) is active from its call until the reply comes back
+        bars.slice().sort((a, b) => a.y1 - b.y1).forEach((b) => {
+          const m = b.call;
+          const covered = bars.some((o) => o.pid === m.from && o.y1 <= m.y && m.y <= o.y2);
+          if (!covered) bars.push({ pid: m.from, y1: m.y - 6, y2: b.reply.y + 6 });
+        });
+        bars.forEach((b) => { delete b.call; delete b.reply; });
         bars.sort((a, b) => a.y1 - b.y1);
         const open = {};
         bars.forEach((b) => {
@@ -3954,10 +3961,37 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
           else if (closing.length) y = bottom(closing[closing.length - 1]) + 12;
           else if (opening.length) y = A ? (A.m.y + 22 + opening[0].f.y) / 2 : opening[0].f.y - 14;
           else y = A && B ? (A.m.y + B.m.y) / 2 : A ? A.m.y + 34 : B.m.y - 34;
+          // Notes drawn between A and the next row: after-notes of A (inside A's frames) and before-notes of B (after
+          // any branch divider, before any frame that opens at B)
+          const drawn = (n) => n.y !== undefined && !n.hidden;
+          const afterA = A ? (chartData.notes || []).filter((n) => n.after === A.m.id && drawn(n)) : [];
+          const beforeB = B ? (chartData.notes || []).filter((n) => n.before === B.m.id && drawn(n)) : [];
+          const toAfter = afterA.map((n) => ({ id: n.id, key: 'after' })), toBefore = beforeB.map((n) => ({ id: n.id, key: 'before' }));
+          // Between A and its first after-note: inside every frame A is in
+          if (afterA.length) {
+            slots.push({ index, y: (A.m.y + afterA[0].y) / 2 + 6, plain: false, frame: frameAtSlot(index, skipId) || (closing[0] && closing[0].f) || null,
+              join: closing.map((c) => ({ id: c.f.id, edge: 'to' })), renote: toAfter, note: null });
+          }
+          // A branch divider at B: the end of the branch above it, and the start of the branch below it
+          const divs = [];
+          if (B) spans.forEach((sp) => branchList(sp.f).forEach((br, bi) => {
+            const dv = (sp.f.dividers || []).find((d) => d.at === br.at);
+            if (br.at === B.m.id && dv) divs.push({ f: sp.f, bi, y: dv.y });
+          }));
+          if (divs.length) y = Math.min(y, divs[0].y - 12);
+          else if (beforeB.length) y = Math.min(y, beforeB[0].y - 8);
           const note = index < ms.length ? { before: ms[index].id } : closing.length ? null : { after: A.m.id };
-          slots.push({ index, y, plain: true, frame: frameAtSlot(index, skipId), join: [], note });
+          slots.push({ index, y, plain: true, frame: frameAtSlot(index, skipId), join: [], note: divs.length ? { after: A.m.id } : note });
+          divs.forEach((dv) => slots.push({
+            index, y: dv.y + 20, plain: false, frame: dv.f, join: [{ id: dv.f.id, edge: 'branch', branch: dv.bi }], note: null
+          }));
+          // Between the before-notes of B and B (and the frames that open at B)
+          if (beforeB.length && !opening.length) {
+            const lastN = beforeB[beforeB.length - 1];
+            slots.push({ index, y: (lastN.y + lastN.h + B.m.y) / 2 - 6, plain: false, frame: frameAtSlot(index, skipId), join: [], renote: toBefore, note: null });
+          }
           opening.forEach((s, j) => slots.push({
-            index, y: s.f.y + 28, plain: false, frame: s.f, join: opening.slice(0, j + 1).map((o) => ({ id: o.f.id, edge: 'from' })), note: null
+            index, y: s.f.y + 28, plain: false, frame: s.f, join: opening.slice(0, j + 1).map((o) => ({ id: o.f.id, edge: 'from' })), renote: toBefore, note: null
           }));
         }
         return slots;
@@ -3988,8 +4022,20 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
       // The slots that are outside every frame closing or opening at their gap: one per gap
       const plainSlots = () => rowSlots().filter((s) => s.plain);
       // Make a message dropped at `slot` the last (or first) message of the frames the slot is inside
+      // A branch-start slot also moves the branch divider onto the new message, and a slot between a message and its
+      // notes re-anchors those notes so they stay on the far side of the new message.
       function joinFrames(slot, id) {
-        slot.join.forEach((j) => { const f = fragById(j.id); if (f) f[j.edge] = id; });
+        slot.join.forEach((j) => {
+          const f = fragById(j.id);
+          if (!f) return;
+          if (j.edge === 'branch') { const list = branchList(f); if (list[j.branch]) { list[j.branch].at = id; setBranches(f, list); } } else f[j.edge] = id;
+        });
+        (slot.renote || []).forEach((r) => {
+          const n = noteById(r.id);
+          if (!n) return;
+          delete n.after; delete n.before;
+          n[r.key] = id;
+        });
       }
       function showDropLine(y, frame) {
         const L = chartData.layout;
