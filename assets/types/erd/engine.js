@@ -1,4 +1,4 @@
-// ER layout engine (v3). Pure JS, no DOM. Run by the page (Auto-Tidy, edits, and the saved-page routes) and by
+// ER layout engine (v3). Pure JS, no DOM. Run by the page (Tidy, edits, and the saved-page routes) and by
 // scripts/run_engine.mjs (--layout), so both use this one implementation. Plan: dev/plans/plan-erd-layout-v3.md.
 //
 // Input:  detail? ("all" | "keys" | "names"), showTypes?,
