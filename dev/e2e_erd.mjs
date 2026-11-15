@@ -1,15 +1,16 @@
 // Interaction test for the ER diagram plugin: selection, adding and renaming tables and columns, keys, reordering,
-// drawing / re-pointing / reversing relationships and their inferred ends, cardinality pickers, group boxes (drag by the
-// name tab, drop tables in and out, Area, rename, colour, delete), notes, delete, the hover / selection neighbourhood
-// (related tables, key rows, chips, peeks), the overview below 50% zoom (and its expanded card), exports and copies
-// from the overview, multi-select of tables, Auto-Tidy on and off with snap guides (Columns and Types keep hand-placed
-// tables), undo/redo (one step per finished edit), ?present, and the saved data block (byte-identical without edits;
-// generated ids renamed, authored ids kept; Python codec agrees; a v1 page opens re-laid out).
+// drawing / re-pointing / reversing relationships and their inferred ends, cardinality pickers, table colours (swatch row,
+// no groups), curves anchored on the table sides, notes, delete, the hover / selection neighbourhood (related tables, key
+// rows on side-anchored lines, curves, dimming, chips, peeks), the overview below 50% zoom (and its expanded card), exports
+// and copies from the overview, multi-select of tables, free table drags (Auto-Tidy on and off, with snap guides; Columns
+// and Types keep hand-placed tables), undo/redo (one step per finished edit), ?present, and the saved data block
+// (byte-identical without edits; generated ids renamed, authored ids kept; Python codec agrees; v1 and v2 pages open
+// re-laid out, a v2 page's group colours becoming table colours).
 // Driven with real mouse and keyboard input over the Chrome DevTools Protocol (see cdp.mjs): a synthetic DOM
 // event may only be used where a comment says why.
 //   node dev/e2e_erd.mjs --browser <chrome> --page <example-erd.html> --large <saas-billing.html>
-// --page: references/examples/example-erd.json laid out with `layout_engine.py --layout` (8 tables, 2 areas).
-// --large: dev/fixtures/erd/saas-billing.json laid out the same way (~30 tables, 4 areas).
+// --page: references/examples/example-erd.json laid out with `layout_engine.py --layout` (8 tables).
+// --large: dev/fixtures/erd/saas-billing.json laid out the same way (~30 tables).
 // Exit codes: 0 all passed, 1 setup error, 2 a check failed.
 import { readFileSync, writeFileSync, unlinkSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
@@ -65,17 +66,14 @@ try {
       if (hit && hit.closest('.erd-rel') === g) return { x, y };
     }
     return null; })()`);
-  const groupRect = (id) => t.ev(`(() => { const r = document.querySelector('.erd-group[data-group-id="${id}"]').getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width, h: r.height }; })()`);
-  const tab = (id) => `.erd-group[data-group-id="${id}"] .erd-group-tab`;
-  // Tables inside their group box, and boxes apart, read from the DOM
+  // Tables apart, read from the DOM
   const layoutProblems = () => t.ev(`(() => { const rc = (e) => e.getBoundingClientRect(), out = [];
-    const gs = [...document.querySelectorAll('.erd-group')].map((g) => [g.dataset.groupId, rc(g)]);
     const ov = (a, b) => a.left < b.right - 0.5 && a.right > b.left + 0.5 && a.top < b.bottom - 0.5 && a.bottom > b.top + 0.5;
-    for (let i = 0; i < gs.length; i++) for (let j = i + 1; j < gs.length; j++) if (ov(gs[i][1], gs[j][1])) out.push('groups ' + gs[i][0] + '/' + gs[j][0]);
     const ts = [...document.querySelectorAll('.erd-entity:not(.erd-card-table)')].map((e) => [e.dataset.nodeId, rc(e)]);
     for (let i = 0; i < ts.length; i++) for (let j = i + 1; j < ts.length; j++) if (ov(ts[i][1], ts[j][1])) out.push('tables ' + ts[i][0] + '/' + ts[j][0]);
     return out; })()`);
-  const entityIdsInGroup = (d, gid) => d.entities.filter((e) => e.group === gid).map((e) => e.id);
+  // A blank point of the canvas card (inside its margin, away from every table)
+  const canvasBlank = () => t.ev(`(() => { const r = document.getElementById('erd-canvas').getBoundingClientRect(); return { x: r.left + 12, y: r.top + 12 }; })()`);
   const present = (sel) => t.ev(`!!document.querySelector(${J(sel)})`);
   // Hover a row so its connect port shows, then return the port's centre
   const portOf = async (id, col) => {
@@ -101,10 +99,19 @@ sys.stdout.write(format_json(out))`;
   // ---------------------------------------------------------------------------------------------------------
   await freshPage();
   const vw = await t.ev(`innerWidth`);
-  t.check('the example renders its 8 tables, 2 areas and 9 lines without errors',
-    (await count('.erd-entity')) === 8 && (await count('.erd-group')) === 2 && (await count('.erd-rel')) === 9 && t.errors.length === 0 && vw > 1000, `${t.errors.join(' | ')} ${vw}`);
-  t.check('the dock has Table, Relationship, Area, Note, and no Delete until something is selected',
-    ['btn-add-table', 'btn-add-relationship', 'btn-add-area', 'btn-add-note'].every((id) => present(`#${id}`)) && !(await t.ev(`document.getElementById('btn-delete-selection').classList.contains('show')`)));
+  t.check('the example renders its 8 tables and 9 lines, no group boxes, without errors',
+    (await count('.erd-entity')) === 8 && (await count('.erd-group, .erd-group-tab')) === 0 && (await count('.erd-rel')) === 9 && t.errors.length === 0 && vw > 1000, `${t.errors.join(' | ')} ${vw}`);
+  t.check('the dock has Table, Relationship, Note (no Area), and no Delete until something is selected',
+    [await present('#btn-add-table'), await present('#btn-add-relationship'), await present('#btn-add-note')].every(Boolean) && !(await present('#btn-add-area')) && !(await t.ev(`document.getElementById('btn-delete-selection').classList.contains('show')`)));
+  // Curves: one cubic Bezier per line, leaving a table side at right angles, ends on the table edges
+  const curves = await t.ev(`JSON.stringify([...document.querySelectorAll('.erd-rel')].map((g) => {
+    const d = g.querySelector('.erd-rel-line').getAttribute('d'), n = (d.match(/-?[\\d.]+/g) || []).map(Number);
+    const box = (id) => { const e = document.querySelector('.erd-entity[data-node-id="' + id + '"]'); return { x: e.offsetLeft, y: e.offsetTop, w: e.offsetWidth, h: e.offsetHeight }; };
+    const edge = (p, b) => (Math.abs(p[0] - b.x) < 1 || Math.abs(p[0] - b.x - b.w) < 1 || Math.abs(p[1] - b.y) < 1 || Math.abs(p[1] - b.y - b.h) < 1);
+    const self = g.dataset.from === g.dataset.to;
+    return { id: g.dataset.edgeId, ok: /^M [-\\d. ]+ C [-\\d. ]+$/.test(d) && n.length === 8, on: edge([n[0], n[1]], box(g.dataset.from)) && edge([n[6], n[7]], box(g.dataset.to)), self }; }))`);
+  const curveList = JSON.parse(curves);
+  t.check('every line is one cubic Bezier path (M P0 C P1 P2 P3) whose two ends sit on the edges of the tables it joins', curveList.length === 9 && curveList.every((c) => c.ok && c.on), curves);
 
   // --- Selection, Escape, glyph fix ---
   await t.clickOn(head('order'));
@@ -115,8 +122,8 @@ sys.stdout.write(format_json(out))`;
   await t.clickOn(row('order', 'status'));
   t.check('clicking a column selects that row and shows the column action bar',
     (await count('.erd-row.selected')) === 1 && (await count('.erd-actionbar [data-act="pk"]')) === 1);
-  const salesBox = await groupRect('sales');
-  await t.click(salesBox.x + salesBox.w - 20, salesBox.y + 14);   // the group's empty strip: blank canvas, the shell clears the selection
+  const blank0 = await canvasBlank();
+  await t.click(blank0.x, blank0.y);   // blank canvas: the shell clears the selection
   t.check('a click on blank canvas clears the selection', (await count('.erd-row.selected')) === 0);
   const glyphScale = await t.ev(`(() => { const c = document.getElementById('erd-canvas'); return c.getBoundingClientRect().width / c.offsetWidth; })()`);
   const glyph = await t.ev(`(() => {
@@ -136,15 +143,15 @@ sys.stdout.write(format_json(out))`;
   let ids = await tableIds();
   const newId = ids.find((i) => /^t_\d+/.test(i));
   const nameEdit = await editing();
-  t.check('Table adds one after the selected table, in its area, with an id PK uuid column, and opens its name in edit',
+  t.check('Table adds one after the selected table, with an id PK uuid column, and opens its name in edit',
     ids.length === 9 && !!newId && ids.indexOf(newId) === ids.indexOf('order') + 1 && nameEdit === 'table_9' && (await colNames(newId)).join() === 'id'
       && (await text(`${row(newId, 'id')} .erd-col-type`)) === 'uuid' && (await t.ev(`!!document.querySelector('.erd-entity[data-node-id="${newId}"] .erd-row.pk')`)), `${ids} ${nameEdit}`);
   await t.type('payment_method');
   await t.press('Enter');
   t.check('typing and Enter renames the new table', (await tableName(newId)) === 'payment_method' && (await editing()) === null);
   let d = await saved();
-  t.check('the saved table is in the Sales area and the id column is a uuid primary key',
-    ent(d, 'payment_method')?.group === 'sales' && J(ent(d, 'payment_method').columns) === J([{ name: 'id', type: 'uuid', pk: true }]), J(ent(d, 'payment_method')));
+  t.check('the saved table has no group and its id column is a uuid primary key',
+    ent(d, 'payment_method') && !('group' in ent(d, 'payment_method')) && J(ent(d, 'payment_method').columns) === J([{ name: 'id', type: 'uuid', pk: true }]), J(ent(d, 'payment_method')));
   await undo();
   t.check('undo takes the rename back as one step', (await tableName(newId)) === 'table_9');
   await undo();
@@ -159,15 +166,15 @@ sys.stdout.write(format_json(out))`;
   const afterEsc = await tableIds();
   await undo();
   t.check('Escape in a new table’s name edit keeps table_9; undo removes it in one step', afterEsc.length === 9 && (await tableIds()).length === 8 && (await undoDisabled()));
-  // Drag the dock button onto an area
+  // Drag the dock button onto the canvas
   await freshPage();
-  const btn = await t.at('#btn-add-table'), cat = await groupRect('catalog');
-  await t.dragTo(btn.x, btn.y, cat.x + 70, cat.y + cat.h - 12, { steps: 8 });
+  const btn = await t.at('#btn-add-table'), dropAt = await t.at(head('product'), 0.5, 3);
+  await t.dragTo(btn.x, btn.y, dropAt.x, dropAt.y, { steps: 8 });
   ids = await tableIds();
   const dropped = ids.find((i) => /^t_\d+/.test(i));
   await t.press('Escape');
   d = await saved();
-  t.check('dragging Table onto the Catalog area drops it there and opens its name in edit', ids.length === 9 && !!dropped && ent(d, 'table_9')?.group === 'catalog', `${ids} ${J(d.entities.map((e) => [e.id, e.group]))}`);
+  t.check('dragging Table onto the canvas drops a new table there and opens its name in edit', ids.length === 9 && !!dropped && !!ent(d, 'table_9') && !d.entities.some((e) => 'group' in e), `${ids}`);
   t.check('no ghost is left behind and the page has no errors', (await count('.erd-ghost')) === 0 && t.errors.length === 0, t.errors.join(' | '));
 
   // --- Rename ---
@@ -350,7 +357,8 @@ sys.stdout.write(format_json(out))`;
   // dropped on blank canvas: nothing, and a click on a port only selects the row
   await freshPage();
   p = await portOf('review', 'rating');
-  await t.dragTo(p.x, p.y, p.x - 60, p.y + 220);
+  const blankDrop = await canvasBlank();
+  await t.dragTo(p.x, p.y, blankDrop.x, blankDrop.y);
   t.check('a drag that ends on blank canvas draws nothing', (await count('.erd-rel')) === 9 && (await undoDisabled()));
   // Relationship tool
   await freshPage();
@@ -449,133 +457,31 @@ sys.stdout.write(format_json(out))`;
   t.check('a self-reference keeps its column: dropping its child end on the table’s header is refused with a hint',
     (await saved()).relationships.find((r) => r.from === 'category' && r.to === 'category')?.columns?.join() === 'name' && /self-reference needs a column/.test(await text('.erd-hint') || ''));
 
-  // --- Groups (area boxes) ---
+  // --- Table colours (no groups) ---
   await freshPage();
-  const gBox = (id) => groupRect(id);
-  t.check('the example draws its 2 areas as boxes with a name tab, around their tables, under the lines',
-    (await count('.erd-group')) === 2 && (await count('.erd-group-tab')) === 2 && (await t.ev(`(() => { const g = document.querySelector('.erd-group[data-group-id="sales"]').getBoundingClientRect(), tabEl = document.querySelector('.erd-group[data-group-id="sales"] .erd-group-tab').getBoundingClientRect();
-      const inside = ['order', 'payment', 'customer'].every((id) => { const r = document.querySelector('.erd-entity[data-node-id="' + id + '"]').getBoundingClientRect(); return r.left >= g.left && r.right <= g.right && r.top >= g.top && r.bottom <= g.bottom; });
-      return inside && tabEl.left >= g.left && tabEl.top >= g.top && tabEl.bottom <= g.top + 34 && getComputedStyle(document.querySelector('.erd-group')).borderTopWidth === '1px'; })()`)) && (await layoutProblems()).length === 0, J(await layoutProblems()));
-  await t.clickOn('#btn-add-area');
-  const areaEdit = await editing();
-  await t.type('Audit');
-  await t.press('Enter');
-  d = await saved();
-  t.check('Area adds an empty group box, selects it and opens its name in edit', areaEdit === 'Area 3' && d.groups.length === 3 && d.groups[2].name === 'Audit' && /^audit$/.test(d.groups[2].id) && (await count('.erd-group')) === 3
-    && typeof d.layout.audit?.x === 'number' && !d.entities.some((e) => e.group === 'audit') && (await layoutProblems()).length === 0, `${areaEdit} ${J(d.groups)} ${J(await layoutProblems())}`);
-  await undo();
-  await undo();
-  t.check('creating and renaming an area are two undo steps', (await count('.erd-group')) === 2);
-  await t.clickOn(tab('catalog'), { count: 2 });
-  const pillEdit = await editing();
-  await t.type('Products');
-  await t.press('Enter');
-  d = await saved();
-  t.check('double-clicking an area’s tab renames it', pillEdit === 'Catalog' && d.groups[1].name === 'Products' && d.groups[1].id === 'catalog', `${pillEdit} ${J(d.groups)}`);
-  // drag a group by its tab: Auto-Tidy on
-  await freshPage();
-  const tabAt = await t.at(tab('catalog')), gb0 = await saved(), catBox0 = await groupRect('catalog');
-  await t.dragTo(tabAt.x, tabAt.y, tabAt.x + 60, tabAt.y + 40);
-  d = await saved();
-  const catBox1 = await groupRect('catalog');
-  t.check('Auto-Tidy on: dragging a group by its tab moves the group with its tables (same relative table positions), nothing overlaps, one undo step',
-    Math.abs(catBox1.x - catBox0.x - 60) < 6 && d.layout.catalog.x !== gb0.layout.catalog.x
-      && ['review', 'product', 'category'].every((id) => J(d.layout[id]) === J(gb0.layout[id])) && (await layoutProblems()).length === 0 && (await count('.erd-group.selected')) === 1, `${J(catBox0)} ${J(catBox1)} ${J(await layoutProblems())}`);
-  await undo();
-  t.check('and undo puts the group back', J((await saved()).layout) === J(gb0.layout) && (await undoDisabled()));
-  // dropped on the other group: it is pushed away, never overlapped
-  const sBox = await groupRect('sales'), t2 = await t.at(tab('catalog'));
-  await t.dragTo(t2.x, t2.y, sBox.x + sBox.w / 2, sBox.y + sBox.h / 2);
-  t.check('a group dropped on another pushes it aside: the boxes never overlap', (await layoutProblems()).length === 0 && !(await undoDisabled()), J(await layoutProblems()));
-  await undo();
-  // Auto-Tidy off
-  await setAuto(false);
-  await t.open(page);
-  const offTab = await t.at(tab('sales')), offBefore = await saved();
-  await t.dragTo(offTab.x, offTab.y, offTab.x - 20, offTab.y + 70);
-  d = await saved();
-  t.check('Auto-Tidy off: dragging a group by its tab moves only that group (tables keep their group-relative x/y), boxes stay apart',
-    d.layout.sales.y !== offBefore.layout.sales.y && ['order', 'payment', 'customer', 'address', 'order_item'].every((id) => J(d.layout[id]) === J(offBefore.layout[id])) && (await layoutProblems()).length === 0, J(await layoutProblems()));
-  await undo();
-  await setAuto(true);
-  // drop a table into the other group, and onto blank canvas
-  await freshPage();
-  const catHead = await t.at(head('category')), sal2 = await groupRect('sales');
-  await t.dragTo(catHead.x, catHead.y, sal2.x + sal2.w / 2, sal2.y + sal2.h - 12);
-  d = await saved();
-  t.check('dragging a table into another group changes its group (Auto-Tidy on: the layout places it inside)', ent(d, 'category').group === 'sales' && ent(d, 'product').group === 'catalog' && (await layoutProblems()).length === 0, J(d.entities.map((e) => e.group)));
-  await undo();
-  t.check('and that was one undo step', ent(await saved(), 'category').group === 'catalog');
-  const bp0 = await t.ev(`(() => { const v = document.getElementById('viewport').getBoundingClientRect(); return { x: v.left + v.width - 24, y: v.top + 24 }; })()`);
-  const catHead2 = await t.at(head('category'));
-  await t.dragTo(catHead2.x, catHead2.y, bp0.x, bp0.y);
-  d = await saved();
-  t.check('dropping a table on blank canvas takes it out of every group (Auto-Tidy on: placed by the layout as an ungrouped table)', !('group' in ent(d, 'category')) && (await layoutProblems()).length === 0, J(ent(d, 'category')));
-  t.check('and it is saved with an absolute position, the groups still list their own tables', typeof d.layout.category?.x === 'number' && entityIdsInGroup(d, 'catalog').join() === 'product,review');
-  await undo();
-  // Auto-Tidy off: group by pointer, position kept, group grows, nothing overlaps
-  await setAuto(false);
-  await t.open(page);
-  const offCat = await t.at(head('category')), sal4 = await groupRect('sales'), offB = await saved();
-  await t.dragTo(offCat.x, offCat.y, sal4.x + sal4.w - 120, sal4.y + sal4.h - 30);
-  d = await saved();
-  t.check('Auto-Tidy off: a table dropped in another group joins it where dropped (x/y written inside that group), the group grows, no overlaps',
-    ent(d, 'category').group === 'sales' && J(d.layout.category) !== J(offB.layout.category) && (await layoutProblems()).length === 0, `${J(d.layout.category)} ${J(await layoutProblems())}`);
-  await undo();
-  const offCat2 = await t.at(head('category'));
-  await t.dragTo(offCat2.x, offCat2.y, bp0.x, bp0.y);
-  d = await saved();
-  t.check('Auto-Tidy off: dropped on blank canvas it is ungrouped, with absolute x/y', !('group' in ent(d, 'category')) && (await layoutProblems()).length === 0, J(ent(d, 'category')));
-  await undo();
-  await setAuto(true);
-  // Area with Auto-Tidy off: placed at the right of the canvas, level with the selected group, nothing moves
-  await setAuto(false);
-  await t.open(page);
-  const offLay = await saved();
-  await t.clickOn(head('review'));
-  await t.clickOn('#btn-add-area');
-  await t.press('Escape');
-  d = await saved();
-  const newG = d.groups.find((g) => !offLay.groups.some((o) => o.id === g.id));
-  t.check('Auto-Tidy off: Area puts an empty group at the right of the canvas, level with the selected table’s group, and moves nothing else',
-    !!newG && d.layout[newG.id].x > offLay.layout.sales.x + 500 && d.layout[newG.id].y === offLay.layout.catalog.y && Object.keys(offLay.layout).every((k) => J(offLay.layout[k]) === J(d.layout[k])) && (await layoutProblems()).length === 0, J(newG) + J(d.layout[newG?.id]));
-  await setAuto(true);
-  // colour and delete
-  await freshPage();
-  await t.clickOn(tab('catalog'));
-  t.check('clicking a tab selects the group: swatches, rename and delete in its action bar', (await count('.erd-group.selected')) === 1 && (await count('.erd-actionbar .swatch-btn')) === 9 && (await count('.erd-actionbar [data-act="delgroup"]')) === 1 && (await count('.erd-actionbar [data-act="rename"]')) === 1);
-  await t.clickOn('.erd-actionbar [data-act="rename"]');
-  await t.type('Stock');
-  await t.press('Enter');
-  t.check('Rename in the action bar edits the tab', (await saved()).groups[1].name === 'Stock');
+  const col0 = await saved();
+  await t.clickOn(head('address'));
+  t.check('a selected table’s action bar has the swatch row (none and the eight colours)', (await count('.erd-actionbar .swatch-btn')) === 9);
   await t.clickOn('.erd-actionbar .swatch-btn[data-value="#fef3c7"]');
   d = await saved();
-  t.check('a swatch sets the area’s colour (and it is saved)', d.groups[1].color === '#fef3c7', J(d.groups[1]));
-  await t.press('Delete');
-  t.check('Delete on an area asks first, naming the tables that move', (await count('.erd-confirm')) === 1 && /3 tables/.test(await text('.erd-confirm-msg')) && (await count('.erd-group')) === 2, await text('.erd-confirm-msg'));
-  await t.press('Escape');
-  t.check('Escape closes the question and changes nothing', (await count('.erd-confirm')) === 0 && (await count('.erd-group')) === 2);
-  await t.press('Delete');
-  await t.clickOn('.erd-confirm-delete');
+  const tinted = await t.ev(`(() => { const e = document.querySelector('.erd-entity[data-node-id="address"]'); return e.classList.contains('swatch-scope') && e.style.getPropertyValue('--swatch-color') === '#fef3c7' && getComputedStyle(e.querySelector('.erd-head')).backgroundColor !== getComputedStyle(document.querySelector('.erd-entity[data-node-id="customer"] .erd-head')).backgroundColor; })()`);
+  t.check('a swatch sets the table’s own colour (saved on the table), the table is tinted, no other table changes',
+    ent(d, 'address').color === '#fef3c7' && tinted && d.entities.every((e) => e.id === 'address' || e.color === ent(col0, e.id).color), J(ent(d, 'address')));
+  await t.clickOn('.erd-actionbar .swatch-btn[data-value=""]');
   d = await saved();
-  t.check('confirming moves the area’s tables to the first remaining area', d.groups.length === 1 && d.entities.every((e) => e.group === 'sales') && (await count('.erd-group')) === 1 && (await layoutProblems()).length === 0, J(d.entities.map((e) => e.group)));
-  await t.clickOn(tab('sales'));
-  await t.clickOn('.erd-actionbar [data-act="delgroup"]');
-  await t.clickOn('.erd-confirm-delete');
-  d = await saved();
-  t.check('deleting the last area removes `groups` and every table’s `group`, and draws no box', !('groups' in d) && d.entities.every((e) => !('group' in e)) && (await count('.erd-group')) === 0, J(d.groups));
+  t.check('the none swatch clears the colour', !('color' in ent(d, 'address')));
   await undo();
-  t.check('and it is one undo step', (await saved()).groups.length === 1);
-  // Auto-Tidy off: deleting a group keeps the tables where they are on screen
-  await setAuto(false);
-  await t.open(page);
-  const posOf = () => t.ev(`JSON.stringify(Object.fromEntries([...document.querySelectorAll('.erd-entity')].map((e) => { const r = e.getBoundingClientRect(); return [e.dataset.nodeId, [Math.round(r.left), Math.round(r.top)]]; })))`);
-  const screenBefore = await posOf();
-  await t.clickOn(tab('catalog'));
-  await t.press('Delete');
-  await t.clickOn('.erd-confirm-delete');
-  t.check('Auto-Tidy off: deleting a group moves no table on screen (positions are re-written for the group they join)', (await posOf()) === screenBefore && (await layoutProblems()).length === 0);
-  await setAuto(true);
+  t.check('a colour change is one undo step each', ent(await saved(), 'address').color === '#fef3c7');
+  await undo();
+  t.check('and the second undo puts the old colour back', J(await saved()) === J(col0) && (await undoDisabled()));
+  // several selected tables take the colour together
+  await freshPage();
+  const ctrlClickA = async (sel) => { const q = await t.at(sel); await t.click(q.x, q.y, { modifiers: 2 }); };
+  await ctrlClickA(head('product'));
+  await ctrlClickA(head('category'));
+  await t.clickOn('.erd-actionbar .swatch-btn[data-value="#f3e8ff"]');
+  d = await saved();
+  t.check('with several tables selected a swatch colours all of them', ent(d, 'product').color === '#f3e8ff' && ent(d, 'category').color === '#f3e8ff' && ent(d, 'review').color === ent(col0, 'review').color);
 
   // --- Notes ---
   await freshPage();
@@ -663,7 +569,7 @@ sys.stdout.write(format_json(out))`;
   await t.dragTo(card.x, card.y, card.x + 60, card.y + 70);
   d = await saved();
   t.check('dragging a note’s card pins it: `pos` is written, relative to its table, and survives the save',
-    typeof d.notes[0].pos?.x === 'number' && typeof d.notes[0].pos?.y === 'number' && (d.notes[0].pos.x % 4 === 0), J(d.notes[0]));
+    typeof d.notes[0].pos?.x === 'number' && typeof d.notes[0].pos?.y === 'number', J(d.notes[0]));
   await t.press('Delete');
   d = await saved();
   t.check('Delete removes the selected note', !d.notes && (await count('.erd-note-badge')) === 0);
@@ -714,7 +620,7 @@ sys.stdout.write(format_json(out))`;
   t.check('Escape while dragging a table puts it back', Math.abs(o2.x - o.x) < 1 && Math.abs(o2.y - o.y) < 1 && (await undoDisabled()));
 
   // --- Auto-Tidy ---
-  const layoutOf = async () => { const dd = await saved(); const gs = new Set((dd.groups || []).map((g) => g.id)); return Object.fromEntries(Object.entries(dd.layout || {}).filter(([k]) => !gs.has(k))); };   // the tables' entries (the groups' origins are in `saved().layout` too)
+  const layoutOf = async () => (await saved()).layout || {};   // every table's absolute x/y
   await freshPage();
   t.check('Auto-Tidy is on by default', (await t.ev(`document.getElementById('btn-auto-layout').getAttribute('aria-checked')`)) === 'true');
   const lay0 = await layoutOf();
@@ -723,9 +629,27 @@ sys.stdout.write(format_json(out))`;
   await t.press('Escape');
   const lay1 = await layoutOf();
   const movedOthers = Object.keys(lay0).filter((k) => J(lay0[k]) !== J(lay1[k])).length;
-  t.check('on: a structural edit re-lays everything out (other tables move) as a single undo step', movedOthers > 0 && Object.keys(lay1).length === 9);
+  // warm: the picture moves little. Take out the uniform shift (the engine re-origins the content), then most tables sit where they were
+  const resid = Object.keys(lay0).map((k) => [lay1[k].x - lay0[k].x, lay1[k].y - lay0[k].y]);
+  const med = (a) => a.slice().sort((p, q) => p - q)[Math.floor(a.length / 2)];
+  const mx = med(resid.map((r) => r[0])), my = med(resid.map((r) => r[1]));
+  const stayed = resid.filter((r) => Math.hypot(r[0] - mx, r[1] - my) <= 150).length;
+  t.check('on: a structural edit re-lays out warm, as a single undo step: the new table is placed, nothing overlaps, most tables stay about where they were',
+    Object.keys(lay1).length === 9 && (await layoutProblems()).length === 0 && stayed >= 6, `${movedOthers} ${stayed}/8 ${J(resid)}`);
   await undo();
   t.check('and one undo restores every position', J(await layoutOf()) === J(lay0));
+  // a drag is free with Auto-Tidy on too: only that table moves, only its lines re-route (no relayout)
+  const dragRoutes = async () => t.ev(`JSON.stringify([...document.querySelectorAll('.erd-rel-line')].map((l) => l.getAttribute('d')))`);
+  const routes0 = await dragRoutes();
+  const hd0 = await t.at(head('category'));
+  await t.dragTo(hd0.x, hd0.y, hd0.x + 40, hd0.y + 60);
+  const lay2 = await layoutOf();
+  const routes1 = JSON.parse(await dragRoutes()), routes0p = JSON.parse(routes0);
+  const changedLines = routes1.filter((r, i) => r !== routes0p[i]).length;
+  t.check('on: dragging a table moves only that table, re-routes only its lines, and is one undo step',
+    J(lay2.category) !== J(lay0.category) && Object.keys(lay0).filter((k) => k !== 'category').every((k) => J(lay0[k]) === J(lay2[k])) && changedLines >= 1 && changedLines <= 3, `${J(lay0.category)} -> ${J(lay2.category)} lines ${changedLines}`);
+  await undo();
+  t.check('and undo puts it back', J(await layoutOf()) === J(lay0) && (await undoDisabled()));
   // off
   await t.clickOn('#btn-auto-layout');
   t.check('the switch turns Auto-Tidy off and the choice is remembered in this browser', (await t.ev(`document.getElementById('btn-auto-layout').getAttribute('aria-checked')`)) === 'false' && (await t.ev(`localStorage.getItem('erd-auto-layout')`)) === 'off');
@@ -751,12 +675,6 @@ sys.stdout.write(format_json(out))`;
   await sleep(80);
   const snapped = await t.ev(`(() => { const c = document.querySelector('.erd-entity[data-node-id="category"]').getBoundingClientRect(); const cx = c.left + c.width / 2; return Math.min(...[...document.querySelectorAll('.erd-entity')].filter((e) => e.dataset.nodeId !== 'category').map((e) => { const p = e.getBoundingClientRect(); return Math.abs(cx - (p.left + p.width / 2)); })); })()`);   // on the centre line of the nearest table (not necessarily product: the nearest one within 6px wins)
   t.check('off: a table dragged within 6px of another’s centre line snaps to it, with a guide while dragging', guide === 'block' && snapped < 1.5 && (await t.ev(`getComputedStyle(document.querySelector('.erd-guide-v')).display`)) === 'none', `${guide} ${snapped}`);
-  await undo();
-  // the group under the pointer
-  const hd2 = await t.at(head('category')), sal3 = await groupRect('sales');
-  await t.dragTo(hd2.x, hd2.y, sal3.x + sal3.w - 140, sal3.y + sal3.h - 30);
-  d = await saved();
-  t.check('off: dropping a table in another area changes its group, and the table stays where it was dropped', ent(d, 'category').group === 'sales' && (await layoutProblems()).length === 0, J(ent(d, 'category')));
   await undo();
   // add a table with Auto-Tidy off: placed, nothing else moves
   const off2 = await layoutOf();
@@ -807,24 +725,21 @@ sys.stdout.write(format_json(out))`;
     ['reverse a relationship', async () => { const q1 = await onLine('r2'); await t.click(q1.x, q1.y); await t.clickOn('.erd-actionbar [data-act="reverse"]'); }],
     ['label a relationship', async () => { const q1 = await onLine('r8'); await t.click(q1.x, q1.y, { count: 2 }); await t.type('reviews'); await t.press('Enter'); }],
     ['delete a relationship', async () => { const q1 = await onLine('r8'); await t.click(q1.x, q1.y); await t.press('Delete'); }],
-    ['add an area', async () => { await t.clickOn('#btn-add-area'); await t.press('Escape'); }],
-    ['rename an area', async () => { await t.clickOn(tab('catalog'), { count: 2 }); await t.type('Products'); await t.press('Enter'); }],
-    ['move an area', async () => { const pl = await t.at(tab('catalog')); await t.dragTo(pl.x, pl.y, pl.x + 60, pl.y + 40); }],
-    ['drop a table on blank canvas', async () => { const h1 = await t.at(head('category')), v = await t.ev(`(() => { const r = document.getElementById('viewport').getBoundingClientRect(); return { x: r.left + r.width - 24, y: r.top + 24 }; })()`); await t.dragTo(h1.x, h1.y, v.x, v.y); }],
-    ['colour an area', async () => { await t.clickOn(tab('catalog')); await t.clickOn('.erd-actionbar .swatch-btn[data-value="#fef3c7"]'); }],
-    ['delete an area', async () => { await t.clickOn(tab('catalog')); await t.press('Delete'); await t.clickOn('.erd-confirm-delete'); }],
-    ['move a table to another area', async () => { const h1 = await t.at(head('category')), sb = await groupRect('sales'); await t.dragTo(h1.x, h1.y, sb.x + sb.w / 2, sb.y + sb.h - 12); }],
+    ['move a table', async () => { const h1 = await t.at(head('category')); await t.dragTo(h1.x, h1.y, h1.x + 70, h1.y + 50); }],
+    ['colour a table', async () => { await t.clickOn(head('address')); await t.clickOn('.erd-actionbar .swatch-btn[data-value="#fef3c7"]'); }],
     ['collapse a table', async () => { await t.clickOn(`${head('order')} .erd-chevron`); }],
     ['add a note', async () => { await t.clickOn(head('address')); await t.press('n'); await t.type('Hi'); await t.press('Escape'); }],
     ['link a note', async () => { await t.clickOn('.erd-entity[data-node-id="order"] .erd-note-badge'); await t.press('Escape'); const l1 = await t.at('.erd-note.selected .erd-note-link'), c1 = await t.at(head('customer')); await t.dragTo(l1.x, l1.y, c1.x, c1.y); }],
     ['pin a note', async () => { await t.clickOn('.erd-entity[data-node-id="order"] .erd-note-badge'); await t.press('Escape'); const c1 = await t.at('.erd-note.selected'); await t.dragTo(c1.x, c1.y, c1.x + 50, c1.y + 60); }],
     ['delete a note', async () => { await t.clickOn('.erd-entity[data-node-id="order"] .erd-note-badge'); await t.press('Escape'); await t.press('Delete'); }],
     ['delete a table', async () => { await t.clickOn(head('order')); await t.press('Delete'); await t.clickOn('.erd-confirm-delete'); }],
-    ['Tidy', async () => { const h1 = await t.at(head('category')); await t.dragTo(h1.x, h1.y, h1.x + 90, h1.y - 120); await t.clickOn('#btn-auto-tidy'); }],
+    // a hand move first (its own undo step, done before the baseline), so that Tidy has something to change
+    ['Tidy', async () => { await t.clickOn('#btn-auto-tidy'); }, async () => { const h1 = await t.at(head('category')); await t.dragTo(h1.x, h1.y, h1.x + 90, h1.y - 120); }],
   ];
   const stepProblems = [];
-  for (const [what, act] of cases) {
+  for (const [what, act, setup] of cases) {
     await freshPage();
+    if (setup) await setup();
     const base = J(await saved());
     await act();
     const after = J(await saved());
@@ -832,9 +747,8 @@ sys.stdout.write(format_json(out))`;
     const afterUndo = J(await saved()), lastUndo = await undoDisabled();
     await redo();
     const afterRedo = J(await saved());
-    // Tidy is two edits here (a manual drag is not possible with Auto-Tidy on, so the drag was a no-op): same rule
     if (after === base) stepProblems.push(`${what}: nothing changed`);
-    else if (afterUndo !== base || !lastUndo) stepProblems.push(`${what}: not one undo step`);
+    else if (afterUndo !== base || (!lastUndo && !setup)) stepProblems.push(`${what}: not one undo step`);
     else if (afterRedo !== after) stepProblems.push(`${what}: redo differs`);
   }
   t.check(`each of ${cases.length} kinds of edit is one undo step and redo puts it back`, stepProblems.length === 0, stepProblems.join('; '));
@@ -850,7 +764,7 @@ sys.stdout.write(format_json(out))`;
   // A point on blank canvas (not on a table, note or line label), scanning the viewport from the top-left
   const blankPoint = () => t.ev(`(() => { const v = document.getElementById('viewport').getBoundingClientRect();
     for (let y = v.top + 8; y < v.bottom - 8; y += 12) for (let x = v.left + 8; x < v.right - 8; x += 12) {
-      const el = document.elementFromPoint(x, y); if (el && !el.closest('.erd-entity, .erd-note, .erd-rel-label, .erd-group-tab, .erd-rel, .toolbar-center, .toolbar, .dock-area') && (el.id === 'viewport' || el.id === 'stage' || el.closest('#erd-canvas') || el === document.getElementById('viewport'))) return { x, y }; }
+      const el = document.elementFromPoint(x, y); if (el && !el.closest('.erd-entity, .erd-note, .erd-rel-label, .erd-rel, .toolbar-center, .toolbar, .dock-area') && (el.id === 'viewport' || el.id === 'stage' || el.closest('#erd-canvas') || el === document.getElementById('viewport'))) return { x, y }; }
     return null; })()`);
 
   await freshPage();
@@ -893,26 +807,21 @@ sys.stdout.write(format_json(out))`;
   await t.dragTo(bp.x, bp.y, bp.x + 30, bp.y + 30);
   t.check('multi: a plain drag on blank canvas still pans and selects nothing', (await selCount()) === 0);
 
-  // Drag several: Auto-Tidy on, to another area (they keep their areas relative to each other)
-  await freshPage();
-  await ctrlClick(head('customer'));
-  await ctrlClick(head('address'));
-  const hc = await t.at(head('customer')), cat = await groupRect('catalog');
-  await t.dragTo(hc.x, hc.y, cat.x + cat.w - 160, cat.y + cat.h / 2);
-  d = await saved();
-  t.check('multi: Auto-Tidy on: dragging one of the selected tables to another area moves them all there (each takes the group it lands in)', ent(d, 'customer').group === 'catalog' && ent(d, 'address').group === 'catalog' && ent(d, 'order').group === 'sales', J(d.entities.map((e) => e.group)));
-  t.check('multi: and they stay selected', J(await selIds()) === J(['address', 'customer']));
-  await undo();
-  d = await saved();
-  t.check('multi: one undo puts both back', ent(d, 'customer').group === 'sales' && ent(d, 'address').group === 'sales' && (await undoDisabled()));
-  // a drag that stays in the area changes nothing
+  // Drag several: Auto-Tidy on: a free move too, all together
   await freshPage();
   await ctrlClick(head('customer'));
   await ctrlClick(head('address'));
   const lay00 = await layoutOf();
-  const hc2 = await t.at(head('customer'));
-  await t.dragTo(hc2.x, hc2.y, hc2.x + 14, hc2.y + 6);
-  t.check('multi: Auto-Tidy on: a drop inside the same area changes nothing', J(await layoutOf()) === J(lay00) && (await undoDisabled()));
+  const hc = await t.at(head('customer'));
+  await t.dragTo(hc.x, hc.y, hc.x + 50, hc.y - 30);
+  const lay01 = await layoutOf();
+  const mv0 = (id) => ({ dx: lay01[id].x - lay00[id].x, dy: lay01[id].y - lay00[id].y });
+  t.check('multi: Auto-Tidy on: dragging one of the selected tables moves them all by the same amount, no other table moves',
+    Math.abs(mv0('customer').dx - mv0('address').dx) <= 4 && Math.abs(mv0('customer').dy - mv0('address').dy) <= 4 && mv0('customer').dx > 20
+    && Object.keys(lay00).filter((k) => k !== 'customer' && k !== 'address').every((k) => J(lay00[k]) === J(lay01[k])), J([mv0('customer'), mv0('address')]));
+  t.check('multi: and they stay selected', J(await selIds()) === J(['address', 'customer']));
+  await undo();
+  t.check('multi: one undo puts both back', J(await layoutOf()) === J(lay00) && (await undoDisabled()));
 
   // Drag several: Auto-Tidy off: each keeps its offset
   await setAuto(false);
@@ -925,16 +834,11 @@ sys.stdout.write(format_json(out))`;
   const lay1 = await layoutOf();
   const mv = (id) => ({ dx: lay1[id].x - lay0[id].x, dy: lay1[id].y - lay0[id].y });
   const others = Object.keys(lay0).filter((k) => k !== 'customer' && k !== 'order');
-  t.check('multi: Auto-Tidy off: the selected tables move together by the same amount and no other table moves',
-    Math.abs(mv('customer').dx - mv('order').dx) <= 4 && Math.abs(mv('customer').dy - mv('order').dy) <= 4 && mv('order').dx >= 80 && mv('order').dx <= 120 && others.every((k) => J(lay0[k]) === J(lay1[k])), J([mv('customer'), mv('order')]));
+  t.check('multi: Auto-Tidy off: the selected tables move together by the same amount (pushed back as one set when they land on another table) and no other table moves',
+    Math.abs(mv('customer').dx - mv('order').dx) <= 4 && Math.abs(mv('customer').dy - mv('order').dy) <= 4 && mv('order').dx >= 40 && mv('order').dx <= 120 && others.every((k) => J(lay0[k]) === J(lay1[k])), J([mv('customer'), mv('order')]));
   t.check('multi: and they stay selected', J(await selIds()) === J(['customer', 'order']));
   await undo();
   t.check('multi: one undo restores both', J(await layoutOf()) === J(lay0) && (await undoDisabled()));
-  // dropped in another area: each takes the area where it lands
-  const cat2 = await groupRect('catalog'), hc4 = await t.at(head('order'));
-  await t.dragTo(hc4.x, hc4.y, hc4.x, cat2.y + cat2.h - 40);
-  d = await saved();
-  t.check('multi: Auto-Tidy off: each table takes the area it lands in', ent(d, 'order').group === 'catalog' && ent(d, 'address').group === 'sales', J(d.entities.filter((e) => ['order', 'customer'].includes(e.id)).map((e) => [e.id, e.group])));
   await setAuto(true);
 
   // Delete several: one confirm, one undo step
@@ -1035,16 +939,12 @@ sys.stdout.write(format_json(out))`;
   }
 
   // Ids made in the page are renamed on save, authored ids kept (on both pages)
-  for (const [what, file, pick] of [['the example', page, { table: 'order', group: 'sales', col: ['order', 'status'], other: ['product', 'category'] }],
-    ['the 30-table schema', large, null]]) {
+  for (const [what, file, pick] of [['the example', page, true], ['the 30-table schema', large, null]]) {
     await freshPage(file);
     if (pick) {
       await t.clickOn(head('order'));
       await t.clickOn('#btn-add-table');
       await t.type('refund');
-      await t.press('Enter');
-      await t.clickOn('#btn-add-area');
-      await t.type('Billing ops');
       await t.press('Enter');
       p = await portOf('review', 'rating');
       tgt = await t.at(row('category', 'id'));
@@ -1057,28 +957,25 @@ sys.stdout.write(format_json(out))`;
       await t.dragTo(card2.x, card2.y, card2.x + 30, card2.y + 40);
       d = await saved();
       t.check(`generated ids are renamed in the saved file, authored ids kept (${what})`,
-        !!ent(d, 'refund') && d.groups.some((g) => g.id === 'billing_ops') && d.relationships.some((r) => r.id === 'r10' && r.from === 'review')
+        !!ent(d, 'refund') && d.relationships.some((r) => r.id === 'r10' && r.from === 'review')
         && d.notes.some((n) => n.id === 'n2' && n.entities.join() === 'product' && n.pos)
-        && ent(d, 'order') && rel(d, 'r1') && d.notes.some((n) => n.id === 'n1') && d.groups.some((g) => g.id === 'sales')
-        && !/"(t|r|g|n)_\d{12,}/.test(J(d)) && d.layout.refund, J(d.groups) + J(d.relationships.slice(-2)));
+        && ent(d, 'order') && rel(d, 'r1') && d.notes.some((n) => n.id === 'n1')
+        && !/"(t|r|n)_\d{12,}/.test(J(d)) && d.layout.refund && !('groups' in d) && d.schemaVersion === 3, J(d.relationships.slice(-2)));
     } else {
       await t.clickOn('#btn-add-table');
       await t.type('refund');
       await t.press('Enter');
-      await t.clickOn('#btn-add-area');
-      await t.press('Escape');
       d = await saved();
       const authoredBefore = JSON.parse(block(readFileSync(file, 'utf8')));
       t.check(`generated ids are renamed in the saved file, authored ids kept (${what})`,
-        !!ent(d, 'refund') && d.groups.length === authoredBefore.groups.length + 1 && d.groups.some((g) => g.id === 'area_5')
-        && authoredBefore.entities.every((e) => !!ent(d, e.id)) && authoredBefore.relationships.every((r) => !!rel(d, r.id)) && !/"(t|r|g|n)_\d{12,}/.test(J(d)), J(d.groups));
+        !!ent(d, 'refund') && authoredBefore.entities.every((e) => !!ent(d, e.id)) && authoredBefore.relationships.every((r) => !!rel(d, r.id)) && !/"(t|r|n)_\d{12,}/.test(J(d)), '');
     }
     t.check(`the saved block is valid for the Python codec too (${what})`, pythonAgrees(await t.ev(`document.getElementById('diagram-data').textContent`)) === '', pythonAgrees(await t.ev(`document.getElementById('diagram-data').textContent`)));
   }
   // The 30-table page: a table, a relationship with Auto-Tidy on, and undo of all of it
   await freshPage(large);
   const nTables = await count('.erd-entity');
-  t.check('the 30-table schema renders without errors', nTables >= 28 && (await count('.erd-group')) === 4 && t.errors.length === 0, `${nTables} ${t.errors.join(' | ')}`);
+  t.check('the 30-table schema renders without errors', nTables >= 28 && (await count('.erd-group')) === 0 && t.errors.length === 0, `${nTables} ${t.errors.join(' | ')}`);
   const lg = await t.ev(`(() => { const r = document.querySelectorAll('.erd-entity')[4].querySelector('.erd-head').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`);
   await t.mouse('mouseMoved', lg.x, lg.y);
   await sleep(100);
@@ -1101,6 +998,19 @@ sys.stdout.write(format_json(out))`;
   t.check('hover order: no key peek while the rows are drawn; lines in the roles’ colours', (await count('.erd-key-peek')) === 0 && (await count('.erd-rel.hl-out')) === 2 && (await count('.erd-rel.hl-in')) === 2);
   const roleRows = await t.ev(`JSON.stringify({ child: document.querySelector('.erd-entity[data-node-id="payment"] .erd-row[data-col="order_id"]').classList.contains('hl-in'), parent: document.querySelector('.erd-entity[data-node-id="customer"] .erd-row[data-col="id"]').classList.contains('hl-out') })`);
   t.check('hover order: a child’s key row is tinted in the "in" role, a parent’s referenced row in the "out" role', roleRows === J({ child: true, parent: true }), roleRows);
+  // Side-anchored lines carry no row position: the key rows, the curves and the dimming say what joins what
+  const curveInfo = JSON.parse(await t.ev(`JSON.stringify([...document.querySelectorAll('.erd-rel')].map((g) => ({ id: g.dataset.edgeId, cls: [...g.classList].filter((c) => /^(hl-in|hl-out|is-dim)$/.test(c)).join(), stroke: getComputedStyle(g.querySelector('.erd-rel-line')).stroke, w: parseFloat(getComputedStyle(g.querySelector('.erd-rel-line')).strokeWidth), op: parseFloat(getComputedStyle(g).opacity), d: g.querySelector('.erd-rel-line').getAttribute('d'), from: g.dataset.from, to: g.dataset.to })))`));
+  const hlIn = curveInfo.filter((c) => c.cls === 'hl-in'), hlOut = curveInfo.filter((c) => c.cls === 'hl-out'), dimmed = curveInfo.filter((c) => c.cls === 'is-dim');
+  const plain = curveInfo.find((c) => c.cls === 'is-dim');
+  t.check('hover order: its curves are highlighted in the roles’ colours (children amber/in, parents blue/out, thicker), every other curve is dimmed',
+    hlIn.length === 2 && hlOut.length === 2 && dimmed.length === curveInfo.length - 4 && hlIn.every((c) => c.to === 'order' && c.w >= 1.9) && hlOut.every((c) => c.from === 'order' && c.w >= 1.9)
+      && hlIn[0].stroke !== hlOut[0].stroke && hlIn[0].stroke !== plain.stroke && dimmed.every((c) => c.op < 0.5) && curveInfo.every((c) => /^M .* C /.test(c.d)), J(curveInfo.map((c) => [c.id, c.cls])));
+  const dimTables = await idsWith('is-dim');
+  t.check('hover order: the unrelated tables are dimmed, every related table and order itself are not', dimTables.length === 3 && !['order', 'address', 'customer', 'order_item', 'payment'].some((id) => dimTables.includes(id)), J(dimTables));
+  // the joining rows: FK rows in the children and in order itself, key rows in the parents, each tinted in its role
+  const roles = JSON.parse(await t.ev(`JSON.stringify([...document.querySelectorAll('.erd-entity .erd-row.key-hl')].map((r) => r.closest('.erd-entity').dataset.nodeId + '.' + r.dataset.col + ':' + (r.classList.contains('hl-in') ? 'in' : '') + (r.classList.contains('hl-out') ? 'out' : '')).sort())`));
+  t.check('hover order: FK rows of the children point in (hl-in), referenced key rows of the parents out (hl-out), as the lines do',
+    J(roles) === J(['address.id:out', 'customer.id:out', 'order.customer_id:in', 'order.id:out', 'order.shipping_address_id:in', 'order_item.order_id:in', 'payment.order_id:in']), J(roles));
   await t.mouse('mouseMoved', 5, 600);
   await sleep(100);
   t.check('leaving the table clears the neighbourhood, its chips and peeks', (await count('.rel-child, .rel-parent, .key-hl, .erd-key-chip, .erd-key-peek, .is-dim')) === 0);
@@ -1174,11 +1084,30 @@ sys.stdout.write(format_json(out))`;
   await freshPage(v1File);
   const v1Tables = JSON.parse(await t.ev(`JSON.stringify([...document.querySelectorAll('.erd-entity')].map((e) => { const r = e.getBoundingClientRect(); return [Math.round(r.left), Math.round(r.top)]; }))`));
   const flat = new Set(v1Tables.map((p) => p[1])).size === 1;
-  t.check('a v1 page (schemaVersion 1, old layout map, direction) opens re-laid out: groups as boxes, tables not in the old row', !flat && (await count('.erd-group')) === 2 && (await layoutProblems()).length === 0 && t.errors.length === 0, `${J(v1Tables)} ${t.errors}`);
+  t.check('a v1 page (schemaVersion 1, old layout map, direction) opens re-laid out: no groups, tables not in the old row, none overlapping', !flat && (await count('.erd-group')) === 0 && (await layoutProblems()).length === 0 && t.errors.length === 0, `${J(v1Tables)} ${t.errors}`);
   d = await saved();
-  t.check('and its next save is a v2 block: schemaVersion 2, group origins in `layout`, no direction',
-    d.schemaVersion === 2 && !('direction' in d) && typeof d.layout.sales?.x === 'number' && typeof d.layout.order?.x === 'number');
-  t.check('the v2 block saved from it agrees with the Python codec', pythonAgrees(await t.ev(`document.getElementById('diagram-data').textContent`)) === '');
+  t.check('and its next save is a v3 block: schemaVersion 3, table positions in `layout`, no direction, no groups',
+    d.schemaVersion === 3 && !('direction' in d) && !('groups' in d) && typeof d.layout.order?.x === 'number');
+  t.check('the v3 block saved from it agrees with the Python codec', pythonAgrees(await t.ev(`document.getElementById('diagram-data').textContent`)) === '');
+  // v2: groups with colours and names, group-relative positions
+  const v2 = JSON.parse(block(readFileSync(page, 'utf8')));
+  const sales = ['order', 'payment', 'customer', 'address', 'order_item'];
+  v2.schemaVersion = 2;
+  v2.groups = [{ id: 'sales', name: 'Sales', color: '#e0f2fe' }, { id: 'catalog', name: 'Catalog', color: '#dcfce7' }];
+  v2.entities.forEach((e) => { e.group = sales.includes(e.id) ? 'sales' : 'catalog'; delete e.color; });
+  v2.colorKey = { '#fef3c7': 'Other' };
+  v2.layout = { sales: { x: 16, y: 16 }, catalog: { x: 900, y: 16 }, ...Object.fromEntries(v2.entities.map((e, i) => [e.id, { x: 16 + (i % 3) * 200, y: 40 + Math.floor(i / 3) * 150 }])) };
+  const v2File = join(dirname(page), 'v2-erd-test.html');
+  writeFileSync(v2File, readFileSync(page, 'utf8').replace(/(<script id="diagram-data" type="application\/json">)[\s\S]*?(<\/script>)/, (m, a, b) => a + J(v2) + b));
+  await freshPage(v2File);
+  const v2Colours = JSON.parse(await t.ev(`JSON.stringify([...document.querySelectorAll('.erd-entity')].map((e) => e.dataset.nodeId + ':' + e.style.getPropertyValue('--swatch-color')).sort())`));
+  d = await saved();
+  t.check('a v2 page opens re-laid out with its groups gone: each table wears its group’s colour, nothing overlaps',
+    (await count('.erd-group')) === 0 && v2Colours.every((c) => c.endsWith(sales.includes(c.split(':')[0]) ? '#e0f2fe' : '#dcfce7')) && (await layoutProblems()).length === 0 && t.errors.length === 0, J(v2Colours));
+  t.check('and its save is v3: tables carry `color`, group names join `colorKey` (existing entries kept), no groups or group fields, positions in `layout`',
+    d.schemaVersion === 3 && !('groups' in d) && d.entities.every((e) => !('group' in e) && e.color === (sales.includes(e.id) ? '#e0f2fe' : '#dcfce7'))
+    && J(d.colorKey) === J({ '#fef3c7': 'Other', '#e0f2fe': 'Sales', '#dcfce7': 'Catalog' }) && Object.keys(d.layout).length === 8 && !('sales' in d.layout), J(d.colorKey));
+  t.check('the v3 block saved from a v2 page agrees with the Python codec', pythonAgrees(await t.ev(`document.getElementById('diagram-data').textContent`)) === '');
   }
 
   // --- Overview (zoomed out), the expanded card, exports from the overview ---
@@ -1200,18 +1129,17 @@ sys.stdout.write(format_json(out))`;
     const names = [...document.querySelectorAll('.erd-entity .erd-name')].map((n) => parseFloat(getComputedStyle(n).fontSize) * sc);
     const lines = [...document.querySelectorAll('.erd-rel-line')].map((l) => parseFloat(getComputedStyle(l).strokeWidth) * sc);
     const lab = [...document.querySelectorAll('.erd-rel-label')].find((l) => getComputedStyle(l).display !== 'none');
-    const tabEl = document.querySelector('.erd-group-tab');
     return { ov: body.classList.contains('erd-overview'), sc, rowsShown, minName: Math.min(...names), maxName: Math.max(...names), line: lines[0], label: lab ? { id: lab.dataset.edgeId, h: lab.getBoundingClientRect().height, font: parseFloat(getComputedStyle(lab).fontSize) * sc * (lab.getBoundingClientRect().height / (lab.offsetHeight * sc)) } : null,
-      tab: tabEl.getBoundingClientRect().height, bodyBg: getComputedStyle(e).backgroundColor }; })()`); };
+      bodyBg: getComputedStyle(e).backgroundColor }; })()`); };
   const p1 = await probe();
-  t.check('zoomed out below 50%: body.erd-overview, no rows drawn, names about 14px on screen (12px at least for the unshrunk ones), line width constant 1.5px, a label and a tab at constant screen size',
+  t.check('zoomed out below 50%: body.erd-overview, no rows drawn, names about 14px on screen (12px at least for the unshrunk ones), line width constant 1.5px, a label at constant screen size',
     p1.ov && !p1.rowsShown && p1.maxName >= 12 && p1.maxName <= 15 && Math.abs(p1.line - 1.5) < 0.05 && p1.label && Math.abs(p1.label.h - 22 * 1) < 9 && t.errors.length === 0, J(p1));
   const labelId = p1.label && p1.label.id;
   await zoom('out');
   const p2 = await probe();
   const sameLabel = await t.ev(`(() => { const l = document.querySelector('.erd-rel-label[data-edge-id="${labelId}"]'); return l && getComputedStyle(l).display !== 'none' ? l.getBoundingClientRect().height : null; })()`);
-  t.check('zooming out further keeps the line width (1.5px), a label’s on-screen height and the group tab’s height constant',
-    p2.ov && Math.abs(p2.line - 1.5) < 0.05 && (sameLabel === null || Math.abs(sameLabel - p1.label.h) < 1.5) && Math.abs(p2.tab - p1.tab) < 1.5, `${p1.label?.h} ${sameLabel} ${p1.tab} ${p2.tab}`);
+  t.check('zooming out further keeps the line width (1.5px), and a label’s on-screen height constant',
+    p2.ov && Math.abs(p2.line - 1.5) < 0.05 && (sameLabel === null || Math.abs(sameLabel - p1.label.h) < 1.5), `${p1.label?.h} ${sameLabel}`);
   while ((await scaleNow()) < 0.5) await zoom('in');
   const s3 = await scaleNow();
   t.check('hysteresis: back above 50% but not above 60% it stays in the overview', s3 > 0.5 && s3 <= 0.6 ? await inOverview() : true, `${s3}`);
@@ -1232,6 +1160,10 @@ sys.stdout.write(format_json(out))`;
   t.check('overview: hovering a table shows its expanded card after the delay, with every column, chips on its key rows, in 100% size', !!c1 && c1.for === 'subscription' && J(c1.rows) === J(subCols) && c1.chips >= 3 && Math.abs(c1.font - 13) < 0.5 && c1.h > 150, J(c1));
   const peeksOv = await count('.erd-key-peek');
   t.check('overview: hovering a table shows key peeks on its related tables (their rows are hidden)', peeksOv >= 3 && (await count('.rel-parent')) >= 1 && (await count('.rel-child')) >= 1, `${peeksOv}`);
+  const overlapCard = await t.ev(`(() => { const c = document.querySelector('.erd-expand-card').getBoundingClientRect(); return [...document.querySelectorAll('.erd-key-peek')].filter((p) => { const r = p.getBoundingClientRect(); return r.left < c.right && r.right > c.left && r.top < c.bottom && r.bottom > c.top; }).length; })()`);
+  t.check('overview: no key peek sits under the expanded card (they move outside the card’s box)', overlapCard === 0, `${overlapCard} of ${peeksOv}`);
+  const clipped = await t.ev(`[...document.querySelectorAll('.erd-expand-card .erd-key-chip, .erd-key-peek .erd-key-chip')].filter((c) => c.scrollHeight > c.clientHeight + 1 || c.scrollWidth > c.clientWidth + 1).map((c) => c.textContent)`);
+  t.check('overview: key chips wrap onto two lines instead of being cut off with an ellipsis', clipped.length === 0, J(clipped));
   const cardBox = await t.at('.erd-expand-card');
   await t.mouse('mouseMoved', cardBox.x, cardBox.y + 20);
   await sleep(400);
@@ -1266,11 +1198,19 @@ sys.stdout.write(format_json(out))`;
   await sleep(200);
   t.check('overview: double-clicking the card zooms to the table at 100%', !(await inOverview()) && Math.abs((await scaleNow()) - 1) < 0.02 && (await count('.erd-expand-card')) === 0, `${await scaleNow()}`);
   await t.press('Escape');
+  await zoom('reset');
   while ((await scaleNow()) >= 0.5) await zoom('out');
-  const dc = await hoverBig('invoice');
+  // the on-screen table nearest the window centre (the layout decides which one that is)
+  const midTable = await t.ev(`(() => { const v = document.getElementById('viewport').getBoundingClientRect();
+    const top = Math.max(v.top, 0), bottom = Math.min(v.bottom, innerHeight), cx = innerWidth / 2, cy = (top + bottom) / 2;
+    const d = (x) => { const b = x.getBoundingClientRect(); return Math.hypot((b.left + b.right) / 2 - cx, (b.top + b.bottom) / 2 - cy); };
+    const seen = (x) => { const b = x.getBoundingClientRect(); return b.left > 0 && b.right < innerWidth && b.top > top && b.bottom < bottom; };
+    return [...document.querySelectorAll('#erd-canvas .erd-entity')].filter(seen).sort((a, b) => d(a) - d(b))[0].dataset.nodeId; })()`);
+  const dc = await hoverBig(midTable);
+  const dcAt = await t.ev(`(() => { const e = document.elementFromPoint(${dc.x}, ${dc.y}); return e ? e.className + '<' + (e.closest('[data-node-id]') || {}).className + ' card:' + !!e.closest('.erd-expand-card') : 'none'; })()`);
   await t.click(dc.x, dc.y, { count: 2 });
   await sleep(200);
-  t.check('overview: double-clicking a table zooms to it at 100% first (no edit starts)', !(await inOverview()) && Math.abs((await scaleNow()) - 1) < 0.02 && (await editing()) === null);
+  t.check('overview: double-clicking a table zooms to it at 100% first (no edit starts)', !(await inOverview()) && Math.abs((await scaleNow()) - 1) < 0.02 && (await editing()) === null, `${midTable} ${J(dc)} ${dcAt} ${await inOverview()} ${await scaleNow()} ${await editing()}`);
   // exports and copies from the overview: full detail, nothing transient
   await freshPage(large);
   const stubClip = `window.__clip = []; window.__png = null; window.__svg = null;

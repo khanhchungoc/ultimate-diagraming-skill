@@ -40,7 +40,7 @@ START_X = 56
 SUPPORTED_TYPES = ("flowchart", "sequence", "erd")  # add a type here when its engine and reference exist
 DEFAULT_TYPE = "flowchart"
 SCHEMA_VERSION = 1
-ERD_SCHEMA_VERSION = 2  # ERD layout v2 (disk_format.ERD_SCHEMA_VERSION)
+ERD_SCHEMA_VERSION = 3  # ERD layout v3 (disk_format.ERD_SCHEMA_VERSION)
 
 # Zero budget limits: diagrams can be as large as the user requires.
 DEFAULT_NODE_WIDTH = 144

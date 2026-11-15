@@ -3,7 +3,7 @@
 The in-memory model (what the engines, renderers and audits use) keeps positions on the objects: node x/y,
 lane height/color, sequence participant x, message y. On disk the model is written for a reader instead:
 semantic fields first, in a fixed key order, with every position moved into one trailing `layout` map
-(flowchart; erd: group origins and group-relative table x/y) or dropped altogether (sequence: the page lays it out on load).
+(flowchart; erd: absolute table x/y) or dropped altogether (sequence: the page lays it out on load).
 
 The page does the same in JavaScript (plugin.toDisk / plugin.fromDisk in assets/types/<type>/<type>.js).
 The two must stay byte-identical: dev/e2e_shell.mjs and dev/e2e_sequence.mjs save a generated page without
@@ -28,12 +28,11 @@ SEQUENCE_KEYS = ("diagramType", "schemaVersion", "title", "numbered", "showDetai
 SEQUENCE_LAYOUT = (("participants", ("x", "rail", "top", "bottom")), ("messages", ("y", "hidden")),
                    ("fragments", ("x", "y", "w", "h", "elseY", "dividers")), ("notes", ("x", "y", "w", "h")))
 ERD_KEYS = ("diagramType", "schemaVersion", "title", "detail", "showTypes", "showNotes", "colorKey",
-            "groups", "entities", "relationships", "notes", "layout")
-ERD_SCHEMA_VERSION = 2  # v2: free 2D layout; v1 positions were flow terms and are dropped on read
-ERD_ENTITY_LAYOUT = ("x", "y")  # a table's top-left inside its group (absolute when ungrouped), in the `layout` map
-ERD_GROUP_LAYOUT = ("x", "y")   # screen top-left of a group box, in the same `layout` map keyed by group id
+            "entities", "relationships", "notes", "layout")
+ERD_SCHEMA_VERSION = 3  # v3: no groups (tables carry `color`), absolute positions; v1 and v2 layouts are dropped on read
+ERD_ENTITY_LAYOUT = ("x", "y")  # a table's absolute top-left, in the `layout` map keyed by table id
 # Engine output on the ERD model, never saved (plus the top-level "canvas", "_loose" and "_band")
-ERD_DERIVED = (("entities", ("box",)), ("groups", ("box",)), ("relationships", ("points", "labelBox")))
+ERD_DERIVED = (("entities", ("box",)), ("relationships", ("curve", "points", "labelBox")))
 NODE_LAYOUT = ("x", "y")
 LANE_LAYOUT = ("height", "color")
 GENERATED_ID = re.compile(r"^(n|c|e|lane)_\d{12,}(_\d+)?$")  # editor ids: <prefix>_<Date.now()>[_k]
@@ -211,15 +210,14 @@ def sequence_from_disk(data: Dict[str, Any]) -> Dict[str, Any]:
     return copy.deepcopy(data)  # positions are derived on load (sequence.js render(), or engine_runner)
 
 
-ERD_GENERATED_ID = re.compile(r"^(t|r|g|n)_\d{12,}(_\d+)?$")  # page ids: <prefix>_<Date.now()>[_k]
+ERD_GENERATED_ID = re.compile(r"^(t|r|n)_\d{12,}(_\d+)?$")  # page ids: <prefix>_<Date.now()>[_k]
 
 
 def _rename_erd_ids(d: Dict[str, Any]) -> None:
-    """Readable names for page-generated ids (in place): table and area ids from their name, r<N>, n<N>.
+    """Readable names for page-generated ids (in place): table ids from their name, r<N>, n<N>.
     Authored ids are never touched. Mirrors erd.js."""
-    gs, es = d.get("groups") or [], d.get("entities") or []
-    rs, ns = d.get("relationships") or [], d.get("notes") or []
-    used = {o.get("id") for o in gs + es + rs + ns}
+    es, rs, ns = d.get("entities") or [], d.get("relationships") or [], d.get("notes") or []
+    used = {o.get("id") for o in es + rs + ns}
     rename: Dict[str, str] = {}
 
     def take(base: str) -> str:
@@ -232,10 +230,9 @@ def _rename_erd_ids(d: Dict[str, Any]) -> None:
     def generated(o: Dict[str, Any]) -> bool:
         return bool(ERD_GENERATED_ID.match(str(o.get("id", ""))))
 
-    for items, fallback in ((es, "table"), (gs, "area")):
-        for o in items:
-            if generated(o):
-                rename[o["id"]] = take(slug(o.get("name")) or fallback)
+    for o in es:
+        if generated(o):
+            rename[o["id"]] = take(slug(o.get("name")) or "table")
     for items, prefix in ((rs, "r"), (ns, "n")):
         count = 1
         for o in items:
@@ -246,11 +243,8 @@ def _rename_erd_ids(d: Dict[str, Any]) -> None:
     if not rename:
         return
     r = lambda i: rename.get(i, i)  # noqa: E731
-    for o in gs + es + rs + ns:
+    for o in es + rs + ns:
         o["id"] = r(o["id"])
-    for e in es:
-        if "group" in e:
-            e["group"] = r(e["group"])
     for rel in rs:
         for k in ("from", "to"):
             if k in rel:
@@ -274,11 +268,10 @@ def erd_to_disk(data: Dict[str, Any]) -> Dict[str, Any]:
                 o.pop(k, None)
     _rename_erd_ids(d)
     layout: Dict[str, Any] = {}
-    for items, keys in ((d.get("groups") or [], ERD_GROUP_LAYOUT), (d.get("entities") or [], ERD_ENTITY_LAYOUT)):
-        for o in items:
-            pos = {k: o.pop(k) for k in keys if k in o}
-            if pos:
-                layout[o["id"]] = pos
+    for o in d.get("entities") or []:
+        pos = {k: o.pop(k) for k in ERD_ENTITY_LAYOUT if k in o}
+        if pos:
+            layout[o["id"]] = pos
     if layout:
         d["layout"] = layout
     return _ordered(d, ERD_KEYS)
@@ -288,10 +281,22 @@ def erd_from_disk(data: Dict[str, Any]) -> Dict[str, Any]:
     d = copy.deepcopy(data)
     layout = d.pop("layout", None) or {}
     d.pop("direction", None)
-    if d.get("schemaVersion") != ERD_SCHEMA_VERSION:
-        return d  # a v1 block: its positions are flow terms, so the page and --layout lay it out afresh
-    for o in (d.get("groups") or []) + (d.get("entities") or []):
-        o.update(layout.get(o.get("id")) or {})
+    if d.get("schemaVersion") == ERD_SCHEMA_VERSION:
+        for o in d.get("entities") or []:
+            o.update(layout.get(o.get("id")) or {})
+        return d
+    # v1/v2 (or none): the layout is dropped (the page and --layout lay it out afresh). Groups become table colours:
+    # a group's colour is set on its tables, its name goes to colorKey (hex -> name) unless that hex already has an entry.
+    groups = {g.get("id"): g for g in d.pop("groups", None) or []}
+    key = d.get("colorKey") if isinstance(d.get("colorKey"), dict) else {}
+    for e in d.get("entities") or []:
+        g = groups.get(e.pop("group", None))
+        if g and g.get("color"):
+            e["color"] = g["color"]
+            if g.get("name") and g["color"] not in key:
+                key[g["color"]] = g["name"]
+    if key:
+        d["colorKey"] = key
     return d
 
 

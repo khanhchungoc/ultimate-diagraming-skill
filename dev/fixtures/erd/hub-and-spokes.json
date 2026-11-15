@@ -1,61 +1,59 @@
 {
   "diagramType": "erd",
   "title": "Hub and spokes",
-  "groups": [
-    { "id": "core", "name": "Core", "color": "#e0f2fe" }
-  ],
+  "colorKey": {"#e0f2fe": "Core"},
   "entities": [
-    { "id": "customer", "name": "customer", "group": "core", "columns": [
+    { "id": "customer", "name": "customer", "color": "#e0f2fe", "columns": [
       { "name": "id", "type": "uuid", "pk": true },
       { "name": "email", "type": "text" },
       { "name": "name", "type": "text" }
     ] },
-    { "id": "invoice", "name": "invoice", "group": "core", "columns": [
+    { "id": "invoice", "name": "invoice", "color": "#e0f2fe", "columns": [
       { "name": "id", "type": "uuid", "pk": true },
       { "name": "customer_id", "type": "uuid", "fk": true },
       { "name": "status", "type": "text" }
     ] },
-    { "id": "order", "name": "order", "group": "core", "columns": [
+    { "id": "order", "name": "order", "color": "#e0f2fe", "columns": [
       { "name": "id", "type": "uuid", "pk": true },
       { "name": "customer_id", "type": "uuid", "fk": true },
       { "name": "created_at", "type": "text" }
     ] },
-    { "id": "address", "name": "address", "group": "core", "columns": [
+    { "id": "address", "name": "address", "color": "#e0f2fe", "columns": [
       { "name": "id", "type": "uuid", "pk": true },
       { "name": "customer_id", "type": "uuid", "fk": true },
       { "name": "status", "type": "text" }
     ] },
-    { "id": "payment_method", "name": "payment_method", "group": "core", "columns": [
+    { "id": "payment_method", "name": "payment_method", "color": "#e0f2fe", "columns": [
       { "name": "id", "type": "uuid", "pk": true },
       { "name": "customer_id", "type": "uuid", "fk": true },
       { "name": "created_at", "type": "text" }
     ] },
-    { "id": "subscription", "name": "subscription", "group": "core", "columns": [
+    { "id": "subscription", "name": "subscription", "color": "#e0f2fe", "columns": [
       { "name": "id", "type": "uuid", "pk": true },
       { "name": "customer_id", "type": "uuid", "fk": true },
       { "name": "status", "type": "text" }
     ] },
-    { "id": "session", "name": "session", "group": "core", "columns": [
+    { "id": "session", "name": "session", "color": "#e0f2fe", "columns": [
       { "name": "id", "type": "uuid", "pk": true },
       { "name": "customer_id", "type": "uuid", "fk": true },
       { "name": "created_at", "type": "text" }
     ] },
-    { "id": "ticket", "name": "ticket", "group": "core", "columns": [
+    { "id": "ticket", "name": "ticket", "color": "#e0f2fe", "columns": [
       { "name": "id", "type": "uuid", "pk": true },
       { "name": "customer_id", "type": "uuid", "fk": true },
       { "name": "status", "type": "text" }
     ] },
-    { "id": "review", "name": "review", "group": "core", "columns": [
+    { "id": "review", "name": "review", "color": "#e0f2fe", "columns": [
       { "name": "id", "type": "uuid", "pk": true },
       { "name": "customer_id", "type": "uuid", "fk": true },
       { "name": "created_at", "type": "text" }
     ] },
-    { "id": "wishlist", "name": "wishlist", "group": "core", "columns": [
+    { "id": "wishlist", "name": "wishlist", "color": "#e0f2fe", "columns": [
       { "name": "id", "type": "uuid", "pk": true },
       { "name": "customer_id", "type": "uuid", "fk": true },
       { "name": "status", "type": "text" }
     ] },
-    { "id": "login_event", "name": "login_event", "group": "core", "columns": [
+    { "id": "login_event", "name": "login_event", "color": "#e0f2fe", "columns": [
       { "name": "id", "type": "uuid", "pk": true },
       { "name": "customer_id", "type": "uuid", "fk": true },
       { "name": "created_at", "type": "text" }

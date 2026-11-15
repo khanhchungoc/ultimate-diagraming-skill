@@ -21,11 +21,10 @@ ORDER = [{"name": "id", "type": "uuid", "pk": True}, {"name": "customer_id", "ty
          {"name": "placed_at", "type": "timestamptz"}]
 BASE = {
     "diagramType": "erd",
-    "groups": [{"id": "sales", "name": "Sales", "color": "#e0f2fe", "box": {"x": 16, "y": 8, "w": 500, "h": 200}}],
     "entities": [
-        {"id": "customer", "name": "customer", "group": "sales", "columns": CUSTOMER,
+        {"id": "customer", "name": "customer", "columns": CUSTOMER,
          "box": {"x": 40, "y": 40, "w": 168, "h": HEAD_H + 2 * ROW_H}},
-        {"id": "order", "name": "order", "group": "sales", "columns": ORDER,
+        {"id": "order", "name": "order", "columns": ORDER,
          "box": {"x": 320, "y": 40, "w": 168, "h": HEAD_H + 3 * ROW_H}},
     ],
     "relationships": [
@@ -34,7 +33,7 @@ BASE = {
          "label": "places", "points": [[320, 115], [270, 115], [270, 89], [208, 89]],
          "labelBox": {"x": 212, "y": 60, "w": 56, "h": 22}},
     ],
-    "canvas": {"width": 600, "height": 240, "crossings": 0, "length": 168, "bends": 2},
+    "canvas": {"width": 600, "height": 240, "crossings": 0, "length": 168},
 }
 
 
@@ -46,7 +45,7 @@ def audit(**changes):
 
 
 def ent(eid, columns, x, y, **extra):
-    return {"id": eid, "name": eid, "group": "sales", "columns": columns,
+    return {"id": eid, "name": eid, "columns": columns,
             "box": {"x": x, "y": y, "w": 168, "h": HEAD_H + len(columns) * ROW_H}, **extra}
 
 
@@ -71,7 +70,6 @@ CASES = [
      dict(entities=[{k: v for k, v in e.items() if k != "box"} for e in BASE["entities"]]), "not laid out"),
     # Structure
     ("duplicate entity id", dict(entities=[BASE["entities"][0], {**BASE["entities"][1], "id": "customer"}]), "Duplicate entity id 'customer'"),
-    ("duplicate group id", dict(groups=[{"id": "sales", "name": "A"}, {"id": "sales", "name": "B"}]), "Duplicate group id"),
     ("duplicate relationship id", dict(relationships=[BASE["relationships"][0], BASE["relationships"][0]]), "Duplicate relationship id"),
     ("duplicate column name",
      edit(entity=ent("customer", CUSTOMER + [{"name": "email", "type": "text"}], 40, 40)), "Duplicate column 'email'"),
@@ -79,7 +77,6 @@ CASES = [
     ("a key flag that is not a boolean", edit(entity=ent("customer", [{"name": "id", "pk": "yes"}], 40, 40)), "'pk' must be true or false"),
     ("relationship from an unknown entity", edit({"from": "ghost"}), "from unknown entity 'ghost'"),
     ("relationship to an unknown entity", edit({"to": "ghost"}), "to unknown entity 'ghost'"),
-    ("an entity in an unknown group", dict(entities=[{**BASE["entities"][0], "group": "nope"}, BASE["entities"][1]]), "unknown group 'nope'"),
     ("unknown column in columns", edit({"columns": ["cust_id"]}), "columns unknown column 'cust_id'"),
     ("unknown column in toColumns", edit({"toColumns": ["uid"]}), "toColumns unknown column 'uid'"),
     ("toColumns naming a unique column is valid", edit({"toColumns": ["email"]}), None),
@@ -95,37 +92,31 @@ CASES = [
     ("bad toEnd", edit({"toEnd": "exactlyOne"}), "unknown toEnd 'exactlyOne'"),
     ("all four end kinds are valid", edit({"fromEnd": "oneOrMany", "toEnd": "zeroOrOne"}), None),
     ("identifying is not a boolean", edit({"identifying": "yes"}), "'identifying' must be true or false"),
-    ("unknown group colour", dict(groups=[{"id": "sales", "name": "Sales", "color": "#123456"}]), "unknown color '#123456'"),
-    ("a lane swatch is a valid group colour", dict(groups=[{"id": "sales", "name": "Sales", "color": "#e0f2fe"}]), None),
+    ("unknown table colour", dict(entities=[{**BASE["entities"][0], "color": "#123456"}, BASE["entities"][1]]), "unknown color '#123456'"),
+    ("a lane swatch is a valid table colour", dict(entities=[{**BASE["entities"][0], "color": "#e0f2fe"}, BASE["entities"][1]],
+                                                    colorKey={"#e0f2fe": "Sales"}), None),
     ("unknown detail", dict(detail="some"), "'detail' must be all, keys or names"),
     ("detail keys is valid", dict(detail="keys"), None),
     ("showTypes is not a boolean", dict(showTypes="no"), "'showTypes' must be true or false"),
     ("a note without text", dict(notes=[{"id": "n1", "text": " ", "entities": ["order"]}]), "has no text"),
     ("a note on an unknown entity", dict(notes=[{"id": "n1", "text": "t", "entities": ["ghost"]}]), "unknown entity 'ghost'"),
     ("a note on a table is valid", dict(notes=[{"id": "n1", "text": "t", "entities": ["order"]}]), None),
-    ("no groups is valid", dict(groups=[], entities=[{k: v for k, v in e.items() if k != "group"} for e in BASE["entities"]]), None),
     # Geometry
     ("two entities overlap", dict(entities=[BASE["entities"][0], {**BASE["entities"][1], "box": {"x": 100, "y": 60, "w": 168, "h": 114}}]), "overlap"),
     ("entities that touch do not overlap",
      dict(entities=[BASE["entities"][0], {**BASE["entities"][1], "box": {"x": 208, "y": 40, "w": 168, "h": 114}}],
           relationships=[route([[208, 115], [188, 115], [188, 89], [208, 89]], labelBox={"x": 100, "y": 150, "w": 56, "h": 22})]),
      None),
-    ("an entity outside its group box",
-     dict(entities=[BASE["entities"][0], {**BASE["entities"][1], "box": {"x": 420, "y": 40, "w": 168, "h": 114}}],
-          relationships=[route([[420, 115], [370, 115], [370, 89], [208, 89]], labelBox={"x": 212, "y": 60, "w": 56, "h": 22})]),
-     "outside the box of its area 'sales'"),
-    ("two group boxes overlap",
-     dict(groups=[BASE["groups"][0], {"id": "ops", "name": "Ops", "box": {"x": 400, "y": 100, "w": 150, "h": 100}}]),
-     "Areas 'sales' and 'ops' overlap"),
-    ("group boxes that touch do not overlap",
-     dict(groups=[BASE["groups"][0], {"id": "ops", "name": "Ops", "box": {"x": 516, "y": 8, "w": 80, "h": 100}}]), None),
     ("an entity past the canvas edge", dict(canvas={"width": 400, "height": 240, "crossings": 0}), "past the diagram edge"),
     ("a route through another entity",
      dict(entities=BASE["entities"] + [ent("log", [{"name": "id", "pk": True}], 240, 90)],
           relationships=[route([[320, 115], [270, 115], [270, 89], [208, 89]], to="customer")]), "passes through entity 'log'"),
-    ("a route that is not orthogonal", edit({"points": [[320, 115], [270, 100], [208, 89]]}), "not orthogonal"),
-    ("a route without a stub at the end", edit({"points": [[320, 115], [214, 115], [214, 89], [208, 89]]}), "horizontal stub"),
-    ("a route that ends vertically", edit({"points": [[320, 115], [270, 115], [270, 89]]}), "horizontal stub"),
+    ("a diagonal route past a table corner is valid",
+     dict(entities=BASE["entities"] + [{**ent("log", [{"name": "id", "pk": True}], 230, 120), "box": {"x": 230, "y": 120, "w": 60, "h": 40}}],
+          relationships=[route([[320, 115], [270, 100], [208, 89]])]), None),
+    ("a diagonal route through another entity",
+     dict(entities=BASE["entities"] + [ent("log", [{"name": "id", "pk": True}], 240, 90)],
+          relationships=[route([[320, 115], [270, 100], [208, 89]])]), "passes through entity 'log'"),
     ("two labels overlap",
      dict(relationships=[BASE["relationships"][0], {**BASE["relationships"][0], "id": "r2", "label": "owns",
                                                     "labelBox": {"x": 230, "y": 66, "w": 56, "h": 22}}]), "Labels 'places' and 'owns' overlap"),
@@ -164,7 +155,13 @@ WARNINGS = [
     ("an all-pk relationship marked identifying false is fine",
      dict(entities=[BASE["entities"][0], ent("order", [{"name": "customer_id", "pk": True, "fk": True}], 320, 40)],
           relationships=[{**BASE["relationships"][0], "identifying": False}]), None),
-    ("table colours with groups", dict(entities=[{**BASE["entities"][0], "color": "#fef3c7"}, BASE["entities"][1]]), "area sets the colour"),
+    ("9 tables and no colour", dict(entities=BASE["entities"] + [ent(f"t{i}", [{"name": "id", "pk": True}], 20 + 180 * i, 260) for i in range(7)]),
+     "none has a 'color'"),
+    ("8 tables and no colour is fine", dict(entities=BASE["entities"] + [ent(f"t{i}", [{"name": "id", "pk": True}], 20 + 180 * i, 260) for i in range(6)]), None),
+    ("9 tables with one coloured is fine",
+     dict(entities=[{**BASE["entities"][0], "color": "#fef3c7"}] + BASE["entities"][1:] + [ent(f"t{i}", [{"name": "id", "pk": True}], 20 + 180 * i, 260) for i in range(7)],
+          colorKey={"#fef3c7": "Sales"}), None),
+    ("a colour with no colorKey entry", dict(entities=[{**BASE["entities"][0], "color": "#fef3c7"}, BASE["entities"][1]]), "does not say what it means"),
 ]
 
 
@@ -226,42 +223,53 @@ def main() -> int:
     ok = in_shell == SWATCHES
     failed += not ok
     print(f"[{'PASS' if ok else 'FAIL'}] the audit's swatches are the shell's, in order - {in_shell}")
-    # Codec: v2 round trip, v1 block drops layout, renamed group ids rename their layout keys
+    # Codec: v3 round trip, v1/v2 blocks drop their layout, v2 groups become table colours, renamed ids rename layout keys
     from disk_format import from_disk, to_disk
     laid = copy.deepcopy(BASE)
-    laid["groups"][0].update(x=16, y=8)
-    laid["entities"][0].update(x=24, y=40)
+    laid["entities"][0].update(x=24, y=40, color="#e0f2fe")
     laid["entities"][1].update(x=320, y=40)
+    laid["colorKey"] = {"#e0f2fe": "Sales"}
     laid["direction"] = "LR"
     laid["_loose"] = {"x": 0, "y": 0, "w": 1, "h": 1}
+    laid["relationships"][0]["curve"] = [[0, 0]] * 4
     disk = to_disk("erd", laid)
-    ok = (disk["schemaVersion"] == 2 and "direction" not in disk and "_loose" not in disk and "canvas" not in disk
-          and list(disk["layout"]) == ["sales", "customer", "order"] and disk["layout"]["sales"] == {"x": 16, "y": 8}
-          and disk["layout"]["order"] == {"x": 320, "y": 40}
-          and all(k not in disk["entities"][0] for k in ("x", "y", "box")) and "box" not in disk["groups"][0]
-          and list(disk)[:2] == ["diagramType", "schemaVersion"])
+    ok = (disk["schemaVersion"] == 3 and "direction" not in disk and "_loose" not in disk and "canvas" not in disk
+          and "groups" not in disk and list(disk["layout"]) == ["customer", "order"] and disk["layout"]["order"] == {"x": 320, "y": 40}
+          and all(k not in disk["entities"][0] for k in ("x", "y", "box")) and disk["entities"][0]["color"] == "#e0f2fe"
+          and all(k not in disk["relationships"][0] for k in ("curve", "points", "labelBox"))
+          and list(disk)[:2] == ["diagramType", "schemaVersion"] and list(disk)[-1] == "layout")
     back = from_disk("erd", disk)
-    ok = ok and back["groups"][0]["x"] == 16 and back["groups"][0]["y"] == 8 and "layout" not in back \
-        and (back["entities"][0]["x"], back["entities"][0]["y"]) == (24, 40) and (back["entities"][1]["x"], back["entities"][1]["y"]) == (320, 40)
+    ok = ok and "layout" not in back and (back["entities"][0]["x"], back["entities"][0]["y"]) == (24, 40) \
+        and (back["entities"][1]["x"], back["entities"][1]["y"]) == (320, 40) and to_disk("erd", back) == disk
     failed += not ok
-    print(f"[{'PASS' if ok else 'FAIL'}] codec: v2 round trip keeps group and table positions - {disk.get('layout')}")
+    print(f"[{'PASS' if ok else 'FAIL'}] codec: v3 round trip keeps table positions and colours - {disk.get('layout')}")
     v1 = {**disk, "schemaVersion": 1}
     ok = "layout" not in from_disk("erd", v1) and "x" not in from_disk("erd", v1)["entities"][0]
     v0 = {k: v for k, v in disk.items() if k != "schemaVersion"}
     ok = ok and "layout" not in from_disk("erd", v0) and "direction" not in from_disk("erd", {**v1, "direction": "TB"})
     failed += not ok
     print(f"[{'PASS' if ok else 'FAIL'}] codec: a v1 (or unversioned) block drops its layout")
-    gen = copy.deepcopy(laid)
-    gen["groups"][0]["id"] = "g_170000000000001"
-    gen["groups"][0]["name"] = "Sales Area"
-    for e in gen["entities"]:
-        e["group"] = "g_170000000000001"
-    gdisk = to_disk("erd", gen)
-    ok = "sales_area" in gdisk["layout"] and "g_170000000000001" not in gdisk["layout"] \
-        and gdisk["entities"][0]["group"] == "sales_area" and from_disk("erd", gdisk)["groups"][0]["x"] == 16
+    v2 = {"diagramType": "erd", "schemaVersion": 2, "colorKey": {"#fef3c7": "Kept"},
+          "groups": [{"id": "g1", "name": "Sales", "color": "#e0f2fe"}, {"id": "g2", "name": "Ops", "color": "#fef3c7"},
+                     {"id": "g3", "name": "Plain"}],
+          "entities": [{"id": "a", "name": "a", "group": "g1"}, {"id": "b", "name": "b", "group": "g2"},
+                       {"id": "c", "name": "c", "group": "g3", "color": "#dcfce7"}, {"id": "d", "name": "d"}],
+          "layout": {"g1": {"x": 1, "y": 2}, "a": {"x": 3, "y": 4}}}
+    m = from_disk("erd", v2)
+    ok = ("groups" not in m and "layout" not in m and all("group" not in e and "x" not in e for e in m["entities"])
+          and [e.get("color") for e in m["entities"]] == ["#e0f2fe", "#fef3c7", "#dcfce7", None]
+          and m["colorKey"] == {"#fef3c7": "Kept", "#e0f2fe": "Sales"})
     failed += not ok
-    print(f"[{'PASS' if ok else 'FAIL'}] codec: renamed group ids rename their layout keys - {list(gdisk['layout'])}")
-    total = len(CASES) + len(WARNINGS) + 9
+    print(f"[{'PASS' if ok else 'FAIL'}] codec: v2 groups become table colours and colorKey, layout dropped - {m.get('colorKey')}")
+    gen = copy.deepcopy(laid)
+    gen["entities"][0]["id"] = "t_170000000000001"
+    gen["entities"][0]["name"] = "Sales Area"
+    gen["relationships"][0]["to"] = "t_170000000000001"
+    gdisk = to_disk("erd", gen)
+    ok = "sales_area" in gdisk["layout"] and "t_170000000000001" not in gdisk["layout"] and gdisk["relationships"][0]["to"] == "sales_area"
+    failed += not ok
+    print(f"[{'PASS' if ok else 'FAIL'}] codec: renamed table ids rename their layout keys - {list(gdisk['layout'])}")
+    total = len(CASES) + len(WARNINGS) + 10
     print(f"{total - failed}/{total} cases passed")
     return 2 if failed else 0
 

@@ -1,1108 +1,690 @@
-      // --- ERD LAYOUT ENGINE ---
-      // Pure JS, no DOM access. Defines layoutDiagram(data) and routeDiagram(data) (see assets/shell/shell.js) and is run
-      // by the page (Auto-Tidy, edits) and by scripts/run_engine.mjs (--layout). The Python audit in scripts/audit_erd.py
-      // mirrors the constants below; keep ER in sync with it.
-      //
-      // Input:  detail? ("all" | "keys" | "names"), showTypes?,
-      //         groups?[{id,name,color?}] (array order means nothing on screen),
-      //         entities[{id,name,group?,columns?[{name,type?,pk?,fk?,unique?,nullable?,note?}],collapsed?}],
-      //         relationships[{id,from,to,columns?,toColumns?,fromEnd?,toEnd?,identifying?,label?}]
-      //           (from = the child table that holds the foreign key, to = the parent),
-      //         layoutDiagram needs nothing else (any x/y it finds is ignored and replaced); routeDiagram needs the
-      //         positions below as well. There is no "direction": a schema has no reading order (a saved one is ignored).
-      // Positions (written by layoutDiagram, SAVED by the page/codec in the "layout" map: entities by id, groups by id):
-      //         groups[].x / groups[].y   screen position of the group's ORIGIN: the top-left corner of its box (box.x/box.y
-      //                                   equal them unless a table sits at a negative group-relative position).
-      //         entities[].x / entities[].y
-      //                                   - in a group: relative to the group's CONTENT origin, which is
-      //                                     (group.x + GROUP_PAD, group.y + GROUP_HEAD + GROUP_PAD / 2) (erGroupOrigin(g));
-      //                                     the title tab lives in the GROUP_HEAD strip above the content;
-      //                                   - without a group (or an unknown group id): absolute screen coordinates.
-      //         The group box is derived: the bounding box of its tables plus GROUP_PAD and the tab, anchored at the origin,
-      //         so a group grows when a table is moved inside it. Group origins are saved too because the box cannot be
-      //         recovered from group-relative table positions alone.
-      // Output (all derived, none of it saved): entities[].box {x,y,w,h} on screen (absolute); groups[].box {x,y,w,h}
-      //         (screen rect of the container including its title tab; a group without tables gets a small empty box);
-      //         data._loose {x,y,w,h} (bounding rect of the ungrouped tables, absent when there are none; never drawn);
-      //         relationships[].points [[x,y],...] (screen, orthogonal; first/last segment horizontal and >= STUB long,
-      //         first point on the "from" box edge at its column row, last on the "to" box edge); relationships[].labelBox
-      //         {x,y,w,h} when "label" is set; data.canvas {width,height,crossings,length,bends} (length = sum of the
-      //         Manhattan segment lengths of all points, bends = points - 2 summed over relationships).
-      // layoutDiagram(data): clears stale derived fields, places every table in a grid per group (hub in the centre,
-      //         related tables next to it), packs the groups in two dimensions, writes the positions above, then
-      //         routeDiagram(data). Deterministic, and it reads structure only (never x/y): laying out its own output
-      //         changes nothing.
-      // routeDiagram(data): from the saved positions: sizes, group boxes, screen boxes, routes and labels. Never moves an
-      //         entity (a group or table without a number gets a default position).
-      //
-      // Notes on readings of the plan (dev/plans/plan-erd-layout-v2.md):
-      //  - The plan says positions are "relative to the group box" while the box is derived from them; resolved by saving
-      //    the group origin (groups[].x/y) as described above.
-      //  - Placement order inside a group is "most connected to the tables already placed" (ties: degree, authored order),
-      //    not plain degree order: it keeps a table's strongest neighbour next to it. Degree still picks the hub.
-      //  - Grid shapes: a few candidate cols x rows per group are kept and the packing (step 4) chooses among them with
-      //    the aspect/area terms, instead of fixing cols by a formula first. GROUP_ASPECT is the shape score's own target.
-      //  - TARGET_ASPECT_LARGE: a schema too big for the view aims below the MAX_ASPECT_LARGE cap, leaving room for routes.
-      //  - Empty grid columns and rows (after swaps) are dropped, so a group box always hugs its tables.
-      //  - Order and cells use structure only, so "detail" and "collapsed" change sizes (and pixel positions with them)
-      //    but not the table-to-cell assignment of a group, except through the shape choice of the packing, which sees sizes.
-      //  - A stub may be longer than STUB (up to 3 * CHANNEL_STEP more) where several lines share one row anchor, so their
-      //    first vertical runs sit in separate tracks.
-      const ER = {
-        HEAD_H: 36, ROW_H: 26, MORE_H: 22,          // header strip, one column row, the "+ N more" row (keys detail)
-        CHAR_W: 7.4, TYPE_CHAR_W: 6.6,              // name text and the muted type text
-        PAD_X: 12, GLYPH_W: 22, TYPE_GAP: 16,       // left padding, key-glyph column, gap between name and type
-        MIN_W: 168, MAX_W: 360,                     // entity box width bounds
-        LABEL_PAD: 32,                              // a column gap is widened to fit the widest label across it + LABEL_PAD
-        CELL_GAP_X: 112, CELL_GAP_Y: 64,             // between grid cells inside a group (X widened to fit labels + LABEL_PAD)
-        GROUP_PAD: 32, GROUP_HEAD: 32,              // inner padding of a group box, and its title tab strip (above the content)
-        GROUP_GAP: 88,                              // between group boxes
-        EMPTY_W: 160, EMPTY_H: 48,                  // content size of a group without tables
-        TARGET_ASPECT: 2.0, MIN_ASPECT: 1.0, MAX_ASPECT_LARGE: 1.9, TARGET_ASPECT_LARGE: 1.8,
-        VIEW_W: 1760, VIEW_H: 856,                  // the page's Fit area on a 1080p screen (decides "large")
-        GROUP_ASPECT: 1.4,                          // aspect a single group's grid aims for (the packing refines it)
-        SWAP_PASSES: 6, PERM_MAX: 5, CENTRAL_W: 0.8, EVEN_COLS_PEN: 0.3, CANDIDATES: 3, SHAPES: 4, BEND_W: 40, CROSS_W: 600, FINAL_AREA_W: 3, STARTS: 6, DETOUR: 1, PACK_PASSES: 2,
-        ASPECT_W: 5, AREA_W: 12,                 // packing: weight of the aspect and bounding-box area terms
-        MARGIN: 40, STUB: 20, CHANNEL_STEP: 8, OBSTACLE_PAD: 12, GRID: 4,
-        // Router cost model (engine-only; the audit does not need these)
-        BEND: 40, CROSS: 400, OVERLAP: 6, TRUNK: 0.8,   // OVERLAP: extra cost per unit of length run over an earlier line
-        LABEL_H: 22, LABEL_X: 16, MIN_TRACK: 6
-      };
+// ER layout engine (v3). Pure JS, no DOM. Run by the page (Auto-Tidy, edits, and the saved-page routes) and by
+// scripts/run_engine.mjs (--layout), so both use this one implementation. Plan: dev/plans/plan-erd-layout-v3.md.
+//
+// Input:  detail? ("all" | "keys" | "names"), showTypes?,
+//         entities[{id,name,color?,columns?[{name,type?,pk?,fk?,unique?,nullable?,note?}],collapsed?}],
+//         relationships[{id,from,to,columns?,toColumns?,fromEnd?,toEnd?,identifying?,label?}]
+//           (from = the child table that holds the foreign key, to = the parent).
+// Output (derived, written in place):
+//         entities[].x / entities[].y   top-left of the table, absolute screen px (saved by the page)
+//         entities[].box {x,y,w,h}      the table's rectangle
+//         relationships[].curve [P0,P1,P2,P3]  one cubic Bezier per line, leaving each port at right angles to its side
+//         relationships[].points        the curve sampled into ER.SEG segments (for crossing and hit tests)
+//         relationships[].labelBox      {x,y,w,h} at the curve's midpoint, when "label" is set
+//         data.canvas {width,height,crossings,length,hits}   hits = curves running through a table they do not join
+// layoutDiagram(data, opts): places the tables as a node graph, then routes. Deterministic (no randomness, stable order).
+//   Cold (default): stress majorization from a seeded start, 18 variants, local search on the best few.
+//   opts.warm: starts from the saved x/y (a table without one starts beside its neighbours), keeps the shape and only
+//   makes room and repairs lines (about 1 s for 30 tables, against about 7 s cold). Components may be re-packed.
+// routeDiagram(data): routes from the saved x/y alone (lays out when a table has no position yet).
+// Also used by the page: erVisibleColumns, erEntitySize, erRelEnds, and the ER constants (HEAD_H, ROW_H, MORE_H, MIN_W, MARGIN, ...).
 
-      const erGrid = (v) => Math.ceil(v / ER.GRID) * ER.GRID;
-      const erTextW = (t, cw) => Math.ceil(String(t == null ? '' : t).length * cw);
-      const erName = (e) => (e.name !== undefined && e.name !== null ? e.name : e.id);
+const ER = {
+  HEAD_H: 36, ROW_H: 26, MORE_H: 22,            // header strip, one column row, the "+ N more" row
+  CHAR_W: 7.4, TYPE_CHAR_W: 6.6, PAD_X: 12, GLYPH_W: 22, TYPE_GAP: 16,
+  MIN_W: 168, MAX_W: 360, GRID: 4,
+  GAP_X: 80, GAP_Y: 56,                          // clear space kept between tables (the overlap removal)
+  SAME_COLOR: 0.8,                               // tables of one colour count as this much closer
+  ASPECT_LO: 1.6, ASPECT_HI: 2.0, ASPECT_T: 1.9, // the layout is scaled toward this width / height range
+  STRESS_IT: 200, FORCE_IT: 50, WARM_FORCE_IT: 20,
+  HUB_PULL: [0, 1.2e-4, 3e-4],                              // pull of the three most connected tables toward the centre (stress weight)
+  AREA_DIV: 20000,                                          // bounding-box area counts as area / AREA_DIV in the cost
+  // shortcut: a fixed nominal view (1760x856 at 66%) instead of the real viewport, upgrade if layouts must fit other screens
+  VIEW_W: 1760, VIEW_H: 856, FIT_MIN: 0.66,
+  UNHIT_IT: 30, SQUEEZE_STEPS: 30,
+  SHAPE_X: 0.25,                                 // share of the aspect change done by stretching x (the rest squashes y)
+  REFINE: 4,
+  REPAIR_PASSES: 10, REPAIR_T: [2500, 1200, 600, 300, 150, 0], WARM_T: [300, 0],
+  VARIANTS: 18,                                  // candidate layouts tried (seed angle and direction differ)
+  SEG: 16,                                       // segments per sampled curve
+  PORT_GAP: 22, PORT_MARGIN: 14,                 // spacing of lines on one side, and the corner margin
+  CTRL_MIN: 40, CTRL_MAX: 160, CTRL_DIV: 2.5,    // control distance = clamp(distance / CTRL_DIV, CTRL_MIN, CTRL_MAX)
+  SELF_CTRL: 60,                                 // self-reference loop: right side out, top in
+  LABEL_H: 22, LABEL_X: 12, LABEL_CHAR_W: 7,
+  MARGIN: 40, CLEAR: 24                          // canvas margin; clearance a curve keeps from a table it passes
+};
 
-      // Which columns an entity shows at the current detail: { cols: [{col, index}], more: N }
-      function erVisibleColumns(entity, data) {
-        const all = entity.columns || [];
-        if (entity.collapsed === true || data.detail === 'names') return { cols: [], more: 0 };
-        if (data.detail === 'keys') {
-          const cols = [];
-          all.forEach((col, index) => { if (col.pk || col.fk) cols.push({ col, index }); });
-          return { cols, more: all.length - cols.length };
+const erGrid = (v) => Math.ceil(v / ER.GRID) * ER.GRID;
+const erTextW = (t, cw) => Math.ceil(String(t == null ? '' : t).length * cw);
+const erName = (e) => (e.name !== undefined && e.name !== null ? e.name : e.id);
+
+// Which columns a table shows at the current detail: { cols: [{col, index}], more: N }
+function erVisibleColumns(entity, data) {
+  const all = entity.columns || [];
+  if (entity.collapsed === true || data.detail === 'names') return { cols: [], more: 0 };
+  if (data.detail === 'keys') {
+    const cols = [];
+    all.forEach((col, index) => { if (col.pk || col.fk) cols.push({ col, index }); });
+    return { cols, more: all.length - cols.length };
+  }
+  return { cols: all.map((col, index) => ({ col, index })), more: 0 };
+}
+
+// On-screen size of a table: { w, h }
+function erEntitySize(entity, data) {
+  const vis = erVisibleColumns(entity, data);
+  const showTypes = data.showTypes !== false;
+  let nameW = 0, typeW = 0;
+  vis.cols.forEach(({ col }) => {
+    nameW = Math.max(nameW, erTextW(col.name, ER.CHAR_W));
+    typeW = Math.max(typeW, Math.ceil((String(col.type == null ? '' : col.type).length + (col.nullable ? 2 : 0)) * ER.TYPE_CHAR_W));
+  });
+  const rows = vis.cols.length
+    ? ER.PAD_X + ER.GLYPH_W + nameW + (showTypes ? ER.TYPE_GAP + typeW : 0) + ER.PAD_X : 0;
+  const head = erTextW(erName(entity), ER.CHAR_W) + 2 * ER.PAD_X + 24;
+  const w = erGrid(Math.min(ER.MAX_W, Math.max(ER.MIN_W, head, rows)));
+  return { w, h: ER.HEAD_H + vis.cols.length * ER.ROW_H + (vis.more ? ER.MORE_H : 0) };
+}
+
+// The two ends of a relationship with the defaults applied
+function erRelEnds(rel, data) {
+  let toEnd = rel.toEnd;
+  if (!toEnd) {
+    toEnd = 'one';
+    const from = (data.entities || []).find((e) => e.id === rel.from);
+    const names = Array.isArray(rel.columns) ? rel.columns : [];
+    if (from && names.length && names.every((n) => (from.columns || []).some((c) => c.name === n && c.nullable === true))) toEnd = 'zeroOrOne';
+  }
+  return { fromEnd: rel.fromEnd || 'zeroOrMany', toEnd };
+}
+
+function erClearDerived(data) {
+  (data.entities || []).forEach((e) => { delete e.box; });
+  (data.relationships || []).forEach((r) => { delete r.curve; delete r.points; delete r.labelBox; });
+  delete data.canvas;
+}
+
+// Undirected neighbour lists over the relationships (self-references and unknown ids ignored)
+function erGraph(data) {
+  const ents = data.entities || [];
+  const idx = {};
+  ents.forEach((e, i) => { idx[e.id] = i; });
+  const adj = ents.map(() => []);
+  (data.relationships || []).forEach((r) => {
+    const a = idx[r.from], b = idx[r.to];
+    if (a === undefined || b === undefined || a === b) return;
+    if (!adj[a].includes(b)) adj[a].push(b);
+    if (!adj[b].includes(a)) adj[b].push(a);
+  });
+  return { idx, adj };
+}
+
+// Shortest-path distances (Floyd-Warshall) with each edge's length from the two tables' sizes and their colours
+function erDistances(data, adj, sizes) {
+  const ents = data.entities || [], n = ents.length;
+  const D = Array.from({ length: n }, (_, i) => Array.from({ length: n }, (_, j) => (i === j ? 0 : Infinity)));
+  for (let a = 0; a < n; a++) {
+    adj[a].forEach((b) => {
+      let d = ((sizes[a].w + sizes[b].w) / 2 + ER.GAP_X + (sizes[a].h + sizes[b].h) / 2 + ER.GAP_Y) / 2;
+      if (ents[a].color && ents[a].color === ents[b].color) d *= ER.SAME_COLOR;
+      D[a][b] = d;
+    });
+  }
+  for (let k = 0; k < n; k++) for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
+    if (D[i][k] + D[k][j] < D[i][j]) D[i][j] = D[i][k] + D[k][j];
+  }
+  return D;
+}
+
+// Clash test: does table i (at centre P) overlap another table in ids, with the clearance gaps
+function erClashes(i, ids, P, sizes) {
+  return ids.some((j) => j !== i &&
+    Math.abs(P.x[i] - P.x[j]) < (sizes[i].w + sizes[j].w) / 2 + ER.GAP_X &&
+    Math.abs(P.y[i] - P.y[j]) < (sizes[i].h + sizes[j].h) / 2 + ER.GAP_Y);
+}
+
+// Stress majorization (SMACOF): pulls each table toward its shortest-path distance from every other table
+function erStress(ids, D, P, iters, hubs, pull) {
+  for (let it = 0; it < iters; it++) {
+    let cx = 0, cy = 0;
+    ids.forEach((i) => { cx += P.x[i]; cy += P.y[i]; });
+    cx /= ids.length; cy /= ids.length;
+    ids.forEach((i) => {
+      let nx = 0, ny = 0, den = 0;
+      ids.forEach((j) => {
+        const d = D[i][j];
+        if (j === i || !(d < Infinity)) return;
+        const w = 1 / (d * d);
+        const dx = P.x[i] - P.x[j], dy = P.y[i] - P.y[j];
+        const len = Math.hypot(dx, dy) || 1;
+        nx += w * (P.x[j] + d * dx / len); ny += w * (P.y[j] + d * dy / len); den += w;
+      });
+      if (hubs.includes(i)) { nx += pull * cx; ny += pull * cy; den += pull; }
+      if (den > 0) { P.x[i] = nx / den; P.y[i] = ny / den; }
+    });
+  }
+}
+
+// Edge-node repulsion: a table near the straight line of an edge it is not part of is pushed off it, so the curves pass
+// beside tables rather than through them
+function erForce(ids, edges, P, sizes, iters) {
+  for (let it = 0; it < iters; it++) {
+    ids.forEach((k) => edges.forEach(([a, b]) => {
+      if (a === k || b === k) return;
+      const vx = P.x[b] - P.x[a], vy = P.y[b] - P.y[a], L2 = vx * vx + vy * vy;
+      if (L2 === 0) return;
+      const t = ((P.x[k] - P.x[a]) * vx + (P.y[k] - P.y[a]) * vy) / L2;
+      if (t < 0.05 || t > 0.95) return;
+      const L = Math.sqrt(L2), nx = -vy / L, ny = vx / L;
+      const s = (P.x[k] - (P.x[a] + t * vx)) * nx + (P.y[k] - (P.y[a] + t * vy)) * ny;
+      const reach = sizes[k].w / 2 * Math.abs(nx) + sizes[k].h / 2 * Math.abs(ny) + ER.CLEAR;
+      if (Math.abs(s) >= reach) return;
+      const sign = s >= 0 ? 1 : -1, push = (reach - Math.abs(s)) * 0.5;
+      P.x[k] += sign * nx * push; P.y[k] += sign * ny * push;
+    }));
+  }
+}
+
+// Rectangle-aware overlap removal: a pair that is closer than the gaps on both axes is pushed apart along the axis
+// where it overlaps less
+function erSeparate(ids, P, sizes, limit) {
+  const n = ids.length, X = P.x, Y = P.y, lim = limit || 200;
+  const W = ids.map((i) => sizes[i].w), H = ids.map((i) => sizes[i].h);
+  for (let pass = 0; pass < lim; pass++) {
+    let moved = false;
+    for (let p = 0; p < n; p++) {
+      const a = ids[p];
+      for (let q = p + 1; q < n; q++) {
+        const b = ids[q];
+        const dx = X[b] - X[a], oy0 = (H[p] + H[q]) / 2 + ER.GAP_Y - Math.abs(Y[b] - Y[a]);
+        if (oy0 <= 0) continue;                       // cheap reject first: the pair is clear vertically
+        const ox = (W[p] + W[q]) / 2 + ER.GAP_X - Math.abs(dx);
+        if (ox <= 0) continue;
+        moved = true;
+        if (ox < oy0) {
+          const s = dx >= 0 ? 1 : -1;
+          X[a] -= s * ox / 2; X[b] += s * ox / 2;
+        } else {
+          const dy = Y[b] - Y[a], s = dy >= 0 ? 1 : -1;
+          Y[a] -= s * oy0 / 2; Y[b] += s * oy0 / 2;
         }
-        return { cols: all.map((col, index) => ({ col, index })), more: 0 };
       }
+    }
+    if (!moved) return true;
+  }
+  return false;
+}
 
-      // On-screen size of an entity: { w, h }
-      function erEntitySize(entity, data) {
-        const vis = erVisibleColumns(entity, data);
-        const showTypes = data.showTypes !== false;
-        let nameW = 0, typeW = 0;
-        vis.cols.forEach(({ col }) => {
-          nameW = Math.max(nameW, erTextW(col.name, ER.CHAR_W));
-          typeW = Math.max(typeW, Math.ceil((String(col.type == null ? '' : col.type).length + (col.nullable ? 2 : 0)) * ER.TYPE_CHAR_W));
-        });
-        const rows = vis.cols.length
-          ? ER.PAD_X + ER.GLYPH_W + nameW + (showTypes ? ER.TYPE_GAP + typeW : 0) + ER.PAD_X : 0;
-        const head = erTextW(erName(entity), ER.CHAR_W) + 2 * ER.PAD_X + 24;
-        const w = erGrid(Math.min(ER.MAX_W, Math.max(ER.MIN_W, head, rows)));
-        return { w, h: ER.HEAD_H + vis.cols.length * ER.ROW_H + (vis.more ? ER.MORE_H : 0) };
-      }
+// Bounding box of the tables in ids: { x0, y0, x1, y1 } (centres ± half sizes)
+function erBounds(ids, P, sizes) {
+  const b = { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity };
+  ids.forEach((i) => {
+    b.x0 = Math.min(b.x0, P.x[i] - sizes[i].w / 2); b.x1 = Math.max(b.x1, P.x[i] + sizes[i].w / 2);
+    b.y0 = Math.min(b.y0, P.y[i] - sizes[i].h / 2); b.y1 = Math.max(b.y1, P.y[i] + sizes[i].h / 2);
+  });
+  return b;
+}
 
-      // The two ends of a relationship with the defaults applied
-      function erRelEnds(rel, data) {
-        let toEnd = rel.toEnd;
-        if (!toEnd) {
-          toEnd = 'one';
-          const from = (data.entities || []).find((e) => e.id === rel.from);
-          const names = Array.isArray(rel.columns) ? rel.columns : [];
-          if (from && names.length && names.every((n) => (from.columns || []).some((c) => c.name === n && c.nullable === true))) toEnd = 'zeroOrOne';
+// Scales the axes toward the target aspect (wider than tall). Scaling about the centre only adds clearance, so it
+// creates no overlap.
+function erShape(ids, P, sizes) {
+  const b = erBounds(ids, P, sizes);
+  const W = b.x1 - b.x0, H = b.y1 - b.y0;
+  if (W <= 0 || H <= 0) return;
+  const cx = (b.x0 + b.x1) / 2, cy = (b.y0 + b.y1) / 2;
+  let sx = 1, sy = 1;
+  if (W / H < ER.ASPECT_LO || W / H > ER.ASPECT_HI) { const r = ER.ASPECT_T * H / W; sx = Math.pow(r, ER.SHAPE_X); sy = Math.pow(r, ER.SHAPE_X - 1); }
+  ids.forEach((i) => { P.x[i] = cx + (P.x[i] - cx) * sx; P.y[i] = cy + (P.y[i] - cy) * sy; });
+}
+
+// Compaction: slides each table toward the centre of the component, the outermost first, in 8 px steps along x and then y,
+// for as long as it clears every other table (the gaps stay)
+function erCompact(ids, P, sizes, passes) {
+  for (let p = 0; p < passes; p++) {
+    const bnd = erBounds(ids, P, sizes), cx = (bnd.x0 + bnd.x1) / 2, cy = (bnd.y0 + bnd.y1) / 2;
+    let moved = false;
+    ids.slice().sort((a, b) => Math.hypot(P.x[b] - cx, P.y[b] - cy) - Math.hypot(P.x[a] - cx, P.y[a] - cy) || a - b).forEach((i) => {
+      [['x', cx], ['y', cy]].forEach(([ax, c]) => {
+        for (let k = 0; k < 60; k++) {
+          const dir = c > P[ax][i] ? 1 : -1;
+          if (Math.abs(c - P[ax][i]) < 8) break;
+          const o = P[ax][i];
+          P[ax][i] += dir * 8;
+          if (erClashes(i, ids, P, sizes)) { P[ax][i] = o; break; }
+          moved = true;
         }
-        return { fromEnd: rel.fromEnd || 'zeroOrMany', toEnd };
-      }
+      });
+    });
+    if (!moved) return;
+  }
+}
 
-      // Offset of a column row's centre from the top of its entity box (the header centre when it is hidden or null)
-      function erRowOffset(entity, columnName, data) {
-        const vis = erVisibleColumns(entity, data);
-        const at = columnName == null ? -1 : vis.cols.findIndex((v) => v.col.name === columnName);
-        return at < 0 ? ER.HEAD_H / 2 : ER.HEAD_H + at * ER.ROW_H + ER.ROW_H / 2;
-      }
+// Places one connected component. variant 1 starts the rings in the opposite angular order (another candidate shape).
+function erLayoutComponent(ids, D, adj, P, sizes, variant, warm) {
+  const hubs = ids.slice().sort((a, b) => adj[b].length - adj[a].length || a - b).slice(0, 3);
+  const pull = ER.HUB_PULL[(variant >> 1) % ER.HUB_PULL.length];
+  const edges = [];
+  ids.forEach((a) => adj[a].forEach((b) => { if (a < b) edges.push([a, b]); }));
+  if (!warm) {
+    // Seed: the most connected table at the centre, the others on rings by hop count, id order within a ring
+    const hub = ids.reduce((best, i) => (adj[i].length > adj[best].length ? i : best), ids[0]);
+    const hops = { [hub]: 0 }, queue = [hub];
+    for (let q = 0; q < queue.length; q++) adj[queue[q]].forEach((j) => { if (!(j in hops)) { hops[j] = hops[queue[q]] + 1; queue.push(j); } });
+    const ring = {};
+    ids.forEach((i) => { (ring[hops[i]] = ring[hops[i]] || []).push(i); });
+    const near = ids.filter((j) => j !== hub && D[hub][j] < Infinity);
+    const step = near.length ? near.reduce((sum, j) => sum + D[hub][j], 0) / near.length : ER.GAP_X;
+    Object.keys(ring).map(Number).sort((a, b) => a - b).forEach((k) => {
+      const members = ring[k].sort((a, b) => a - b);
+      members.forEach((i, pos) => {
+        const ang = (variant % 2 ? -1 : 1) * (2 * Math.PI * pos) / members.length + k * 0.3 + variant * 0.7;
+        P.x[i] = k * step * Math.cos(ang); P.y[i] = k * step * Math.sin(ang);
+      });
+    });
+    erStress(ids, D, P, ER.STRESS_IT, hubs, pull);
+    erForce(ids, edges, P, sizes, ER.FORCE_IT);
+  } else {                                          // warm: keep the saved shape, only make room
+    erForce(ids, edges, P, sizes, ER.WARM_FORCE_IT);
+    erSeparate(ids, P, sizes);
+    return;
+  }
+  erSeparate(ids, P, sizes);
+  for (let round = 0; round < 3; round++) {         // widen toward the target aspect, clear overlaps, slide back in
+    erShape(ids, P, sizes);
+    erSeparate(ids, P, sizes);
+    erCompact(ids, P, sizes, 12);
+  }
+  erForce(ids, edges, P, sizes, ER.FORCE_IT);
+  erSeparate(ids, P, sizes);
+}
 
-      // Screen y of a column's row centre, or the header centre when the column is hidden
-      function erRowAnchorY(entity, columnName, data) {
-        return (entity.box ? entity.box.y : 0) + erRowOffset(entity, columnName, data);
-      }
+// Places every component (the largest first, shelf-packed, each normalised to the origin), then the isolated tables in
+// a row beneath. Returns the centres in P.
+function erPlaceAll(adj, D, sizes, variant, warm, P) {
+  const n = adj.length;
+  const seen = new Array(n).fill(false), comps = [];
+  for (let s = 0; s < n; s++) {
+    if (seen[s]) continue;
+    const ids = [s]; seen[s] = true;
+    for (let q = 0; q < ids.length; q++) adj[ids[q]].forEach((j) => { if (!seen[j]) { seen[j] = true; ids.push(j); } });
+    comps.push(ids.sort((a, b) => a - b));
+  }
+  const groups = comps.filter((c) => c.length > 1).sort((a, b) => b.length - a.length || a[0] - b[0]);
+  const isolated = comps.filter((c) => c.length === 1).map((c) => c[0]);
+  let total = 0;
+  groups.forEach((ids) => {
+    erLayoutComponent(ids, D, adj, P, sizes, variant, warm);
+    const b = erBounds(ids, P, sizes);
+    total += (b.x1 - b.x0) * (b.y1 - b.y0);
+  });
+  isolated.forEach((i) => { total += sizes[i].w * sizes[i].h; });
+  const rowW = Math.max(groups.reduce((m, ids) => {
+    const b = erBounds(ids, P, sizes); return Math.max(m, b.x1 - b.x0);
+  }, 0), Math.sqrt(total) * ER.ASPECT_T, sizes.reduce((m, s) => Math.max(m, s.w), 0));
+  let x = 0, y = 0, rowH = 0;
+  groups.forEach((ids) => {
+    const b = erBounds(ids, P, sizes), w = b.x1 - b.x0, h = b.y1 - b.y0;
+    if (x > 0 && x + w > rowW) { x = 0; y += rowH + ER.GAP_Y; rowH = 0; }
+    ids.forEach((i) => { P.x[i] += x - b.x0; P.y[i] += y - b.y0; });
+    x += w + ER.GAP_X; rowH = Math.max(rowH, h);
+  });
+  if (groups.length && isolated.length) { y += rowH + ER.GAP_Y * 2; x = 0; rowH = 0; }
+  isolated.forEach((i) => {
+    if (x > 0 && x + sizes[i].w > rowW) { x = 0; y += rowH + ER.GAP_Y; rowH = 0; }
+    P.x[i] = x + sizes[i].w / 2; P.y[i] = y + sizes[i].h / 2;
+    x += sizes[i].w + ER.GAP_X; rowH = Math.max(rowH, sizes[i].h);
+  });
+  // components are placed with their own overlap removal; one pass over all tables catches any touching edges
+  erSeparate(Array.from({ length: n }, (_, i) => i), P, sizes);
+}
 
-      // The column a relationship leaves its child at (first of "columns" that exists) and enters its parent at
-      // ("toColumns", else the first PK row); null = the header
-      function erFromCol(rel, from) {
-        const have = (n) => (from.columns || []).some((c) => c.name === n);
-        return (Array.isArray(rel.columns) ? rel.columns : []).find(have) || null;
-      }
-      function erToCol(rel, to) {
-        const cols = to.columns || [];
-        const named = (Array.isArray(rel.toColumns) ? rel.toColumns : []).find((n) => cols.some((c) => c.name === n));
-        if (named) return named;
-        const pk = cols.find((c) => c.pk);
-        return pk ? pk.name : null;
-      }
+// Does the sampled curve (flat x,y list) pass through the open rectangle (x0, y0, x1, y1)? Liang-Barsky clip per segment
+function erPolyHits(f, x0, y0, x1, y1) {
+  for (let k = 2; k < f.length; k += 2) {
+    const ax = f[k - 2], ay = f[k - 1], dx = f[k] - ax, dy = f[k + 1] - ay;
+    let t0 = 0, t1 = 1, ok = true;
+    for (let e = 0; e < 4 && ok; e++) {
+      const pp = e === 0 ? -dx : e === 1 ? dx : e === 2 ? -dy : dy;
+      const qq = e === 0 ? ax - x0 : e === 1 ? x1 - ax : e === 2 ? ay - y0 : y1 - ay;
+      if (pp === 0) { if (qq <= 0) ok = false; continue; }
+      const r = qq / pp;
+      if (pp < 0) { if (r > t1) ok = false; else if (r > t0) t0 = r; } else if (r < t0) ok = false; else if (r < t1) t1 = r;
+    }
+    if (ok && t1 - t0 > 1e-9) return true;
+  }
+  return false;
+}
 
-
-      function erClearDerived(data) {
-        (data.entities || []).forEach((e) => { delete e.box; });
-        (data.groups || []).forEach((g) => { delete g.box; });
-        (data.relationships || []).forEach((r) => { delete r.points; delete r.labelBox; });
-        delete data.canvas;
-        delete data._loose;
-        delete data._band;
-      }
-
-      // Group box helpers (shared by layoutDiagram and routeDiagram, so the two always agree)
-      const erTabW = (g) => erTextW(erName(g), ER.CHAR_W) + 40;
-      function erGroupSize(cw, ch, g) {
-        return { w: Math.max(cw + 2 * ER.GROUP_PAD, erTabW(g)), h: ER.GROUP_HEAD + ER.GROUP_PAD / 2 + ch + ER.GROUP_PAD };
-      }
-      // Screen position of a group's content origin (where its tables' x/y = 0,0 is)
-      function erGroupOrigin(g) {
-        return { x: (g.x || 0) + ER.GROUP_PAD, y: (g.y || 0) + ER.GROUP_HEAD + ER.GROUP_PAD / 2 };
-      }
-
-      // Distance between two grid cells (dx, dy in cells) at the group's pitch: Manhattan, plus a detour charge when the two
-      // cells share a row or column but are not neighbours (the line has to go around the tables between them)
-      function erCellDist(it, dx, dy) {
-        const ax = Math.abs(dx), ay = Math.abs(dy);
-        let d = ax * it.px + ay * it.py;
-        if ((ax >= 2 && ay === 0) || (ay >= 2 && ax === 0)) d += ER.DETOUR * (ax ? it.py : it.px);
-        return d;
-      }
-
-      function layoutDiagram(data) {
-        erClearDerived(data);
-        const ents = data.entities || [], rels = data.relationships || [], groups = data.groups || [];
-        const n = ents.length, ng = groups.length;
-        const idOf = {};
-        ents.forEach((e, i) => { idOf[e.id] = i; });
-        const gIdx = {};
-        groups.forEach((g, i) => { gIdx[g.id] = i; });
-        const gOf = ents.map((e) => (e.group !== undefined && gIdx[e.group] !== undefined ? gIdx[e.group] : ng));
-        if (!n && !ng) { routeDiagram(data); return; }
-        // Cells (shapes, arrangements, group neighbours) are decided on the tables' full-detail size, so that "detail" and
-        // "collapsed" never change which cell a table is in; the pixel layout and the final packing use the real sizes.
-        const actual = ents.map((e) => erEntitySize(e, data));
-        const logical = ents.map((e) => erEntitySize(Object.assign({}, e, { collapsed: false }), { detail: 'all', showTypes: true }));
-        let size = logical;
-
-        // 1. Weights: 1 per relationship between two different tables; degree; neighbour lists (ascending index)
-        const wm = ents.map(() => ({}));
-        rels.forEach((r) => {
-          const i = idOf[r.from], j = idOf[r.to];
-          if (i === undefined || j === undefined || i === j) return;
-          wm[i][j] = (wm[i][j] || 0) + 1;
-          wm[j][i] = (wm[j][i] || 0) + 1;
-        });
-        const adj = wm.map((o) => Object.keys(o).map(Number).sort((a, b) => a - b).map((j) => ({ j, w: o[j] })));
-        const deg = adj.map((a) => a.reduce((s, x) => s + x.w, 0));
-        const median = (a) => { const s = a.slice().sort((p, q) => p - q); return s.length ? s[(s.length - 1) >> 1] : 0; };
-
-        // Items: one per group, plus the loose (ungrouped) tables as a group of their own without a box
-        const items = [];
-        for (let k = 0; k <= ng; k++) {
-          const tabs = [];
-          for (let i = 0; i < n; i++) if (gOf[i] === k) tabs.push(i);
-          if (k === ng && !tabs.length) continue;
-          const it = { k, tabs, boxed: k < ng, g: groups[k] || null, has: {} };
-          tabs.forEach((i) => { it.has[i] = true; });
-          it.px = median(tabs.map((i) => size[i].w)) + ER.CELL_GAP_X;
-          it.py = median(tabs.map((i) => size[i].h)) + ER.CELL_GAP_Y;
-          items.push(it);
+// Routes every relationship from the table boxes: sets curve, points, labelBox; returns the score data (quick: score
+// only, nothing written to the relationships)
+function erRouteAll(data, boxes, quick) {
+  const ents = data.entities || [], rels = data.relationships || [], n = boxes.length;
+  const idx = {};
+  ents.forEach((e, i) => { idx[e.id] = i; });
+  const cx = boxes.map((b) => b.x + b.w / 2), cy = boxes.map((b) => b.y + b.h / 2);
+  const live = [];                                   // relationships with both ends present
+  rels.forEach((r, ri) => {
+    const a = idx[r.from], b = idx[r.to];
+    if (a === undefined || b === undefined) { if (!quick) { delete r.curve; delete r.points; delete r.labelBox; } return; }
+    live.push({ r, ri, a, b, self: a === b, sa: 0, sb: 0, p0: null, p3: null });
+  });
+  // Sides: 0 right, 1 left, 2 bottom, 3 top. A line leaves on the side that faces the other table (the centre-to-centre
+  // direction against the table's proportions); lines on one side spread evenly along it, ordered by where the other end
+  // lies, so they do not cross at the table.
+  const facing = (A, B) => {
+    const dx = cx[B] - cx[A], dy = cy[B] - cy[A];
+    if (Math.abs(dx) / boxes[A].w >= Math.abs(dy) / boxes[A].h) return dx >= 0 ? 0 : 1;
+    return dy >= 0 ? 2 : 3;
+  };
+  const slots = new Array(n * 4);                    // per (table, side): the line ends that sit there
+  live.forEach((L, li) => {
+    if (L.self) return;
+    L.sa = facing(L.a, L.b); L.sb = facing(L.b, L.a);
+    (slots[L.a * 4 + L.sa] = slots[L.a * 4 + L.sa] || []).push({ end: li * 2, other: L.b });
+    (slots[L.b * 4 + L.sb] = slots[L.b * 4 + L.sb] || []).push({ end: li * 2 + 1, other: L.a });
+  });
+  const port = new Array(live.length * 2);
+  slots.forEach((list, k) => {
+    if (!list) return;
+    const i = k >> 2, side = k & 3, b = boxes[i], horiz = side < 2;
+    list.sort((p, q) => (horiz ? cy[p.other] - cy[q.other] : cx[p.other] - cx[q.other]) || p.end - q.end);
+    const m = list.length, span = horiz ? b.h : b.w;
+    const spacing = m > 1 ? Math.min(ER.PORT_GAP, (span - 2 * ER.PORT_MARGIN) / (m - 1)) : 0;
+    list.forEach((p, q) => {
+      const off = (q - (m - 1) / 2) * spacing;
+      port[p.end] = side === 0 ? [b.x + b.w, cy[i] + off] : side === 1 ? [b.x, cy[i] + off] : side === 2 ? [cx[i] + off, b.y + b.h] : [cx[i] + off, b.y];
+    });
+  });
+  const NX = [1, -1, 0, 0], NY = [0, 0, 1, -1];
+  const SEG = ER.SEG, R = (v) => Math.round(v * 10) / 10;
+  live.forEach((L, li) => {
+    let c;
+    if (L.self) {
+      const A = boxes[L.a], p0 = [A.x + A.w, cy[L.a]], p3 = [cx[L.a], A.y];
+      c = [p0, [p0[0] + ER.SELF_CTRL, p0[1]], [p3[0], p3[1] - ER.SELF_CTRL], p3];
+    } else {
+      const p0 = port[li * 2], p3 = port[li * 2 + 1];
+      const k = Math.min(ER.CTRL_MAX, Math.max(ER.CTRL_MIN, Math.hypot(p3[0] - p0[0], p3[1] - p0[1]) / ER.CTRL_DIV));
+      c = [p0, [p0[0] + NX[L.sa] * k, p0[1] + NY[L.sa] * k], [p3[0] + NX[L.sb] * k, p3[1] + NY[L.sb] * k], p3];
+    }
+    L.c = c;
+    const f = new Float64Array(2 * (SEG + 1));      // the curve sampled into SEG segments, flat x,y
+    for (let s = 0; s <= SEG; s++) {
+      const t = s / SEG, u = 1 - t, w0 = u * u * u, w1 = 3 * u * u * t, w2 = 3 * u * t * t, w3 = t * t * t;
+      f[2 * s] = w0 * c[0][0] + w1 * c[1][0] + w2 * c[2][0] + w3 * c[3][0];
+      f[2 * s + 1] = w0 * c[0][1] + w1 * c[1][1] + w2 * c[2][1] + w3 * c[3][1];
+    }
+    if (!quick) for (let q = 0; q < f.length; q++) f[q] = R(f[q]);   // the saved samples are what gets counted
+    L.f = f;
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (let q = 0; q < f.length; q += 2) { x0 = Math.min(x0, f[q]); x1 = Math.max(x1, f[q]); y0 = Math.min(y0, f[q + 1]); y1 = Math.max(y1, f[q + 1]); }
+    L.bb = [x0, y0, x1, y1];
+    if (!quick) {
+      L.r.curve = c.map((pt) => [R(pt[0]), R(pt[1])]);
+      L.r.points = []; for (let q = 0; q < f.length; q += 2) L.r.points.push([f[q], f[q + 1]]);
+    }
+  });
+  // Labels: at t = 0.5, nudged along the normal of the curve until they clear the tables
+  if (!quick) live.forEach((L) => {
+    const r = L.r, c = L.c;
+    if (!r.label) return;
+    const mid = [(c[0][0] + 3 * c[1][0] + 3 * c[2][0] + c[3][0]) / 8, (c[0][1] + 3 * c[1][1] + 3 * c[2][1] + c[3][1]) / 8];
+    const t = [c[3][0] - c[0][0], c[3][1] - c[0][1]], tl = Math.hypot(t[0], t[1]) || 1;
+    const nrm = [-t[1] / tl, t[0] / tl];
+    const w = erTextW(r.label, ER.LABEL_CHAR_W) + 2 * ER.LABEL_X, h = ER.LABEL_H;
+    let best = null;
+    [0, 14, -14, 28, -28, 42, -42].some((o) => {
+      const lx = mid[0] + nrm[0] * o, ly = mid[1] + nrm[1] * o;
+      const box = { x: lx - w / 2, y: ly - h / 2, w, h };
+      const hitsTable = boxes.some((b) => box.x < b.x + b.w && box.x + box.w > b.x && box.y < b.y + b.h && box.y + box.h > b.y);
+      if (!hitsTable) { best = box; return true; }
+      return false;
+    });
+    r.labelBox = best || { x: mid[0] - w / 2, y: mid[1] - h / 2, w, h };
+  });
+  // Bounds of everything drawn (the caller moves the tables when some lie left of or above the margin)
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  const grow = (x, y) => { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); };
+  boxes.forEach((b) => { grow(b.x, b.y); grow(b.x + b.w, b.y + b.h); });
+  live.forEach((L) => { grow(L.bb[0], L.bb[1]); grow(L.bb[2], L.bb[3]); if (L.r.labelBox) grow(L.r.labelBox.x, L.r.labelBox.y); });
+  // Crossings: pairs of segments of different lines that properly cross (sharing an end point does not count)
+  let crossings = 0, length = 0;
+  const cul = new Set();                             // tables involved in a hit or a crossing (the repair moves these)
+  const orient = (ax, ay, bx, by, px, py) => (bx - ax) * (py - ay) - (by - ay) * (px - ax);
+  for (let a = 0; a < live.length; a++) {
+    const A = live[a].f;
+    for (let k = 2; k < A.length; k += 2) length += Math.hypot(A[k] - A[k - 2], A[k + 1] - A[k - 1]);
+    for (let b = a + 1; b < live.length; b++) {
+      const ba = live[a].bb, bb = live[b].bb, B = live[b].f;
+      if (ba[2] < bb[0] || bb[2] < ba[0] || ba[3] < bb[1] || bb[3] < ba[1]) continue;
+      let hit = false;
+      for (let i = 2; i < A.length && !hit; i += 2) {
+        const px = A[i - 2], py = A[i - 1], qx = A[i], qy = A[i + 1];
+        if (Math.max(px, qx) < bb[0] || Math.min(px, qx) > bb[2] || Math.max(py, qy) < bb[1] || Math.min(py, qy) > bb[3]) continue;
+        for (let j = 2; j < B.length; j += 2) {
+          const rx = B[j - 2], ry = B[j - 1], sx = B[j], sy = B[j + 1];
+          if ((px === rx && py === ry) || (px === sx && py === sy) || (qx === rx && qy === ry) || (qx === sx && qy === sy)) continue;
+          const d1 = orient(px, py, qx, qy, rx, ry), d2 = orient(px, py, qx, qy, sx, sy);
+          if (!((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0))) continue;
+          const d3 = orient(rx, ry, sx, sy, px, py), d4 = orient(rx, ry, sx, sy, qx, qy);
+          if ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0)) { crossings++; hit = true; break; }
         }
-        const itemOf = {};
-        items.forEach((it, a) => it.tabs.forEach((i) => { itemOf[i] = a; }));
-        // Group affinity: aff[a][b] = aff[b][a] = number of relationships between the two groups
-        const aff = items.map(() => items.map(() => 0));
-        adj.forEach((list, i) => list.forEach((x) => { if (itemOf[i] !== itemOf[x.j]) aff[itemOf[i]][itemOf[x.j]] += x.w; }));
-
-        // 2. Grid shapes: the few best cols x rows per group by aspect, wasted cells and an exact centre
-        const shapesOf = (it) => {
-          const m = it.tabs.length;
-          if (!m) return [{ cols: 0, rows: 0 }];
-          const all = [];
-          for (let cols = 1; cols <= m; cols++) {
-            for (let extra = 0; extra <= 1; extra++) {
-              const rows = Math.ceil(m / cols) + extra;
-              if (extra && !(cols % 2 === 1 && rows % 2 === 1)) continue;
-              const cells = cols * rows, empty = cells - m;
-              if (empty > Math.max(1, Math.floor(cells * 0.4))) continue;
-              const aspect = (cols * it.px) / (rows * it.py);
-              const score = Math.abs(Math.log(aspect / ER.GROUP_ASPECT)) + 1.2 * (empty / cells) - (cols % 2 === 1 && rows % 2 === 1 && m > 2 ? 0.08 : 0) + (m >= 4 && cols % 2 === 0 ? ER.EVEN_COLS_PEN : 0);
-              all.push({ cols, rows, score });
-            }
-          }
-          all.sort((p, q) => p.score - q.score || p.cols - q.cols || p.rows - q.rows);
-          return all.slice(0, ER.SHAPES);
-        };
-
-        // 3. Place inside a group: hub in the centre, then each table at the free cell nearest to its placed neighbours;
-        //    then deterministic swap passes. Distances are Manhattan in pixels at the group's cell pitch.
-        const greedy = (it, shape, start) => {
-          const { cols, rows } = shape, cells = cols * rows;
-          const cx = (c) => c % cols, cy = (c) => (c / cols) | 0;
-          const mid = ((rows - 1) >> 1) * cols + ((cols - 1) >> 1);
-          const dist = (a, b) => erCellDist(it, cx(a) - cx(b), cy(a) - cy(b));
-          const cell = new Array(cells).fill(-1), at = {};
-          const rest = it.tabs.slice();
-          let first = true;
-          while (rest.length) {
-            const link = (t) => adj[t].reduce((s, x) => (at[x.j] !== undefined ? s + x.w : s), 0);
-            let bi = 0;
-            for (let q = 1; q < rest.length; q++) {
-              const a = rest[q], b = rest[bi];
-              const better = first ? (start !== undefined ? (a === start) : deg[a] > deg[b]) : (link(a) > link(b) || (link(a) === link(b) && deg[a] > deg[b]));
-              if (better) bi = q;
-            }
-            const t = rest.splice(bi, 1)[0];
-            let best = -1, bc = Infinity, bd = Infinity;
-            if (first) best = mid;
-            else {
-              for (let c = 0; c < cells; c++) {
-                if (cell[c] >= 0) continue;
-                let cost = 0;
-                adj[t].forEach((x) => { if (at[x.j] !== undefined) cost += x.w * dist(c, at[x.j]); });
-                const dc = dist(c, mid);
-                if (cost < bc - 1e-9 || (Math.abs(cost - bc) <= 1e-9 && dc < bd - 1e-9)) { best = c; bc = cost; bd = dc; }
-              }
-            }
-            cell[best] = t; at[t] = best;
-            first = false;
-          }
-          return cell;
-        };
-        // pull(t, c): extra cost of table t sitting in cell c (neighbours in other groups); null in the first pass
-        const improve = (it, shape, cell, pull) => {
-          const { cols } = shape, cells = cell.length;
-          const cx = (c) => c % cols, cy = (c) => (c / cols) | 0;
-          const at = {};
-          cell.forEach((t, c) => { if (t >= 0) at[t] = c; });
-          const total = () => {
-            let s = 0;
-            for (let c = 0; c < cells; c++) {
-              const t = cell[c];
-              if (t < 0) continue;
-              adj[t].forEach((x) => { if (it.has[x.j] && x.j > t) s += x.w * erCellDist(it, cx(c) - cx(at[x.j]), cy(c) - cy(at[x.j])); });
-              s += ER.CENTRAL_W * deg[t] * (Math.abs(cx(c) - (cols - 1) / 2) * it.px + Math.abs(cy(c) - (cells / cols - 1) / 2) * it.py);
-              if (pull) s += pull(t, c);
-            }
-            return s;
-          };
-          for (let pass = 0; pass < ER.SWAP_PASSES; pass++) {
-            let changed = false;
-            for (let a = 0; a < cells; a++) {
-              for (let b = a + 1; b < cells; b++) {
-                if (cell[a] < 0 && cell[b] < 0) continue;
-                const before = total();
-                const ta = cell[a], tb = cell[b];
-                cell[a] = tb; cell[b] = ta;
-                if (tb >= 0) at[tb] = a;
-                if (ta >= 0) at[ta] = b;
-                if (total() < before - 1e-9) changed = true;
-                else {
-                  cell[a] = ta; cell[b] = tb;
-                  if (ta >= 0) at[ta] = a;
-                  if (tb >= 0) at[tb] = b;
-                }
-              }
-            }
-            if (!changed) break;
-          }
-          return cell;
-        };
-
-        const internalCost = (it, shape, cell) => {
-          const at = {};
-          cell.forEach((t, c) => { if (t >= 0) at[t] = c; });
-          let s = 0;
-          it.tabs.forEach((t) => { s += ER.CENTRAL_W * deg[t] * (Math.abs((at[t] % shape.cols) - (shape.cols - 1) / 2) * it.px + Math.abs(((at[t] / shape.cols) | 0) - (shape.rows - 1) / 2) * it.py); });
-          it.tabs.forEach((t) => adj[t].forEach((x) => { if (it.has[x.j] && x.j > t) s += x.w * erCellDist(it, (at[t] % shape.cols) - (at[x.j] % shape.cols), ((at[t] / shape.cols) | 0) - ((at[x.j] / shape.cols) | 0)); }));
-          return s;
-        };
-
-        // 5 (first half). Pixel layout of one arrangement: empty columns/rows dropped, widths and heights per column/row,
-        //    tables centred in their column and top-aligned in their row. rel[t] = {x, y} relative to the content origin.
-        const pixels = (it, shape, cell) => {
-          const { cols, rows } = shape;
-          if (!it.tabs.length) return { cw: ER.EMPTY_W, ch: ER.EMPTY_H, rel: {} };
-          const colOf = {}, rowOf = {};
-          cell.forEach((t, c) => { if (t >= 0) { colOf[t] = c % cols; rowOf[t] = (c / cols) | 0; } });
-          const usedC = [], usedR = [];
-          for (let c = 0; c < cols; c++) if (it.tabs.some((t) => colOf[t] === c)) usedC.push(c);
-          for (let r = 0; r < rows; r++) if (it.tabs.some((t) => rowOf[t] === r)) usedR.push(r);
-          const colW = {}, rowH = {}, gapAfter = {};
-          usedC.forEach((c) => { colW[c] = 0; gapAfter[c] = ER.CELL_GAP_X; });
-          usedR.forEach((r) => { rowH[r] = 0; });
-          it.tabs.forEach((t) => { colW[colOf[t]] = Math.max(colW[colOf[t]], size[t].w); rowH[rowOf[t]] = Math.max(rowH[rowOf[t]], size[t].h); });
-          rels.forEach((r) => {
-            if (r.label === undefined || r.label === null || r.label === '') return;
-            const a = idOf[r.from], b = idOf[r.to];
-            if (a === undefined || b === undefined || !it.has[a] || !it.has[b]) return;
-            const need = erTextW(r.label, ER.CHAR_W) + ER.LABEL_X + ER.LABEL_PAD;
-            const ca = Math.min(colOf[a], colOf[b]), cb = Math.max(colOf[a], colOf[b]);
-            const next = usedC[usedC.indexOf(ca) + 1];
-            if (a === b) { if (next !== undefined) gapAfter[ca] = Math.max(gapAfter[ca], need + 2 * ER.STUB + 4 * ER.CHANNEL_STEP); }   // a self-reference's label sits beside its loop
-            else if (ca === cb) { if (next !== undefined) gapAfter[ca] = Math.max(gapAfter[ca], need); }   // a C-shaped line beside a column
-            else if (next === cb) gapAfter[ca] = Math.max(gapAfter[ca], need);
-          });
-          // Vertical slack: in one row, a table is moved down so that the row anchors of a relationship between two
-          // neighbouring columns line up, and the line runs straight (no bends). The hub's row is the reference.
-          const offOf = (t, col) => (size === actual ? erRowOffset(ents[t], col, data)
-            : erRowOffset(Object.assign({}, ents[t], { collapsed: false }), col, { detail: 'all', showTypes: true }));
-          const dy = {}, touched = {};
-          it.tabs.forEach((t) => { dy[t] = 0; });
-          const pairs = [];
-          rels.forEach((r) => {
-            const a = idOf[r.from], b = idOf[r.to];
-            if (a === undefined || b === undefined || a === b || !it.has[a] || !it.has[b] || rowOf[a] !== rowOf[b]) return;
-            if (Math.abs(usedC.indexOf(colOf[a]) - usedC.indexOf(colOf[b])) !== 1) return;
-            pairs.push({ a, b, oa: offOf(a, erFromCol(r, ents[a])), ob: offOf(b, erToCol(r, ents[b])) });
-          });
-          pairs.sort((p, q) => (deg[q.a] + deg[q.b]) - (deg[p.a] + deg[p.b]));   // stable: the busiest tables fix their row first
-          pairs.forEach((p) => {
-            const need = (t, off, other, offOther) => dy[other] + offOther - off;   // dy of t so that its anchor meets the other's
-            if (!touched[p.a] && !touched[p.b]) {
-              if (p.oa < p.ob) dy[p.a] = p.ob - p.oa; else dy[p.b] = p.oa - p.ob;
-              touched[p.a] = touched[p.b] = true;
-            } else if (touched[p.a] !== touched[p.b]) {
-              const t = touched[p.a] ? p.b : p.a, o = touched[p.a] ? p.a : p.b;
-              const v = need(t, t === p.a ? p.oa : p.ob, o, o === p.a ? p.oa : p.ob);
-              if (v >= 0 && v <= 3 * ER.ROW_H) { dy[t] = v; touched[t] = true; }
-            }
-          });
-          it.tabs.forEach((t) => { if (dy[t] > 3 * ER.ROW_H) dy[t] = 0; rowH[rowOf[t]] = Math.max(rowH[rowOf[t]], dy[t] + size[t].h); });
-          const colX = {}, rowY = {};
-          let x = 0;
-          usedC.forEach((c, k) => { colX[c] = x; x += colW[c] + (k < usedC.length - 1 ? gapAfter[c] : 0); });
-          const cw = x;
-          let y = 0;
-          usedR.forEach((r, k) => { rowY[r] = y; y += rowH[r] + (k < usedR.length - 1 ? ER.CELL_GAP_Y : 0); });
-          const ch = y;
-          const rel = {};
-          it.tabs.forEach((t) => { rel[t] = { x: colX[colOf[t]] + Math.round((colW[colOf[t]] - size[t].w) / 2), y: rowY[rowOf[t]] + dy[t] }; });
-          return { cw, ch, rel };
-        };
-        const rectOf = (it, pix) => (it.boxed ? erGroupSize(pix.cw, pix.ch, it.g) : { w: pix.cw, h: pix.ch });
-
-        // Options per item: shape + arrangement + pixel layout + rect
-        items.forEach((it) => {
-          it.opts = shapesOf(it).map((shape) => {
-            let cell = [];
-            if (it.tabs.length) {
-              // Several starts (each of the most connected tables as the hub-in-the-centre), the cheapest arrangement wins
-              const starts = it.tabs.slice().sort((p, q) => deg[q] - deg[p] || p - q).slice(0, ER.STARTS);
-              let bc = Infinity;
-              starts.forEach((t0) => {
-                const c = improve(it, shape, greedy(it, shape, t0), null);
-                const cost = internalCost(it, shape, c);
-                if (cost < bc - 1e-9) { bc = cost; cell = c; }
-              });
-            }
-            const pix = pixels(it, shape, cell);
-            return { shape, cell, pix, rect: rectOf(it, pix) };
-          });
-        });
-
-        // 4. Pack the groups: seed group first, then the one with the most weight to those placed; each at the candidate
-        //    position (touching a placed rectangle on any side, or aligned to the bounding box) of least cost.
-        const totalArea = items.reduce((s, it) => s + it.opts[0].rect.w * it.opts[0].rect.h, 0);
-        const large = totalArea > ER.VIEW_W * ER.VIEW_H * 0.6;
-        const target = large ? ER.TARGET_ASPECT_LARGE : Math.min(ER.TARGET_ASPECT, Math.max(ER.MIN_ASPECT, ER.TARGET_ASPECT));
-        const S = Math.sqrt(totalArea) || 1;
-        // aspect: free inside [MIN_ASPECT, target], a penalty per unit of log aspect outside it; area: smaller is better
-        const shapeCost = (bw, bh) => {
-          const la = Math.log(bw / bh);
-          return ER.ASPECT_W * S * Math.max(0, la - Math.log(target), Math.log(ER.MIN_ASPECT * 1.2) - la) + ER.AREA_W * (bw * bh) / S;
-        };
-        const GAP = ER.GROUP_GAP;
-        const rectAt = (p) => ({ x: p.x, y: p.y, w: p.o.rect.w, h: p.o.rect.h });
-        const overlaps = (a, b) => a.x < b.x + b.w + GAP && b.x < a.x + a.w + GAP && a.y < b.y + b.h + GAP && b.y < a.y + a.h + GAP;
-        const union = (bb, r) => {
-          if (!bb) return { x: r.x, y: r.y, w: r.w, h: r.h };
-          const x = Math.min(bb.x, r.x), y = Math.min(bb.y, r.y);
-          return { x, y, w: Math.max(bb.x + bb.w, r.x + r.w) - x, h: Math.max(bb.y + bb.h, r.y + r.h) - y };
-        };
-        // optOf[a] = candidate options of item a; returns {pos: [{x,y,o}], cost}
-        const pack = (optOf, seed, order) => {
-          const pos = items.map(() => null);
-          const done = [];
-          let bb = null;
-          const left = items.map((_, a) => a);
-          while (left.length) {
-            let a = order ? order[done.length] : seed;
-            if (done.length && !order) {
-              let bw = -1, bs = -1;
-              left.forEach((q) => {
-                const w = done.reduce((s, d) => s + aff[q][d], 0), sz = items[q].tabs.length;
-                if (w > bw || (w === bw && sz > bs)) { a = q; bw = w; bs = sz; }
-              });
-            }
-            left.splice(left.indexOf(a), 1);
-            let best = null;
-            optOf[a].forEach((o) => {
-              const w = o.rect.w, h = o.rect.h;
-              const cands = [];
-              if (!done.length) cands.push([0, 0]);
-              done.forEach((q) => {
-                const P = rectAt(pos[q]);
-                [P.y, P.y + P.h - h, Math.round(P.y + (P.h - h) / 2), bb.y, bb.y + bb.h - h].forEach((y) => { cands.push([P.x + P.w + GAP, y], [P.x - GAP - w, y]); });
-                [P.x, P.x + P.w - w, Math.round(P.x + (P.w - w) / 2), bb.x, bb.x + bb.w - w].forEach((x) => { cands.push([x, P.y + P.h + GAP], [x, P.y - GAP - h]); });
-              });
-              cands.forEach((c) => {
-                const r = { x: c[0], y: c[1], w, h };
-                if (done.some((q) => overlaps(r, rectAt(pos[q])))) return;
-                const u = union(bb, r);
-                let cost = shapeCost(u.w, u.h);
-                done.forEach((q) => {
-                  if (!aff[a][q]) return;
-                  const P = rectAt(pos[q]);
-                  cost += aff[a][q] * (Math.abs(r.x + w / 2 - (P.x + P.w / 2)) + Math.abs(r.y + h / 2 - (P.y + P.h / 2)));
-                });
-                if (!best || cost < best.cost - 1e-9) best = { cost, x: r.x, y: r.y, o };
-              });
-            });
-            pos[a] = { x: best.x, y: best.y, o: best.o };
-            done.push(a);
-            bb = union(bb, rectAt(pos[a]));
-          }
-          let cost = shapeCost(bb.w, bb.h);
-          for (let a = 0; a < items.length; a++) {
-            for (let b = a + 1; b < items.length; b++) {
-              if (!aff[a][b]) continue;
-              const A = rectAt(pos[a]), B = rectAt(pos[b]);
-              cost += aff[a][b] * (Math.abs(A.x + A.w / 2 - B.x - B.w / 2) + Math.abs(A.y + A.h / 2 - B.y - B.h / 2));
-            }
-          }
-          return { pos, cost };
-        };
-        // Orders: the affinity order from each seed; with few groups (full) every order, so a hub group can end up in the middle
-        const packAll = (optOf, full) => {
-          const all = items.map((_, seed) => pack(optOf, seed));
-          if (full && items.length >= 3 && items.length <= ER.PERM_MAX) {
-            const perm = (rest, acc) => {
-              if (!rest.length) { all.push(pack(optOf, acc[0], acc)); return; }
-              rest.forEach((q, i) => perm(rest.slice(0, i).concat(rest.slice(i + 1)), acc.concat(q)));
-            };
-            perm(items.map((_, a) => a), []);
-          }
-          all.sort((p, q) => p.cost - q.cost);   // stable: ties keep seed order
-          return all;
-        };
-        const packBest = (optOf) => packAll(optOf)[0];
-        const originOf = (it, P) => ({ x: P.x + (it.boxed ? ER.GROUP_PAD : 0), y: P.y + (it.boxed ? ER.GROUP_HEAD + ER.GROUP_PAD / 2 : 0) });
-        // Centre of every table in a packing
-        const centres = (pk) => {
-          const c = {};
-          items.forEach((it, a) => {
-            const P = pk.pos[a], o = originOf(it, P);
-            it.tabs.forEach((t) => { c[t] = { x: o.x + P.o.pix.rel[t].x + size[t].w / 2, y: o.y + P.o.pix.rel[t].y + size[t].h / 2 }; });
-          });
-          return c;
-        };
-        // The estimate used to compare packings: relationship lengths between table centres plus the shape terms
-        const estimate = (pk) => {
-          const c = centres(pk);
-          let s = 0;
-          adj.forEach((list, i) => list.forEach((x) => { if (x.j > i) s += x.w * (Math.abs(c[i].x - c[x.j].x) + Math.abs(c[i].y - c[x.j].y)); }));
-          let bb = null;
-          items.forEach((_, a) => { bb = union(bb, rectAt(pk.pos[a])); });
-          return s + shapeCost(bb.w, bb.h);
-        };
-
-        // Candidate arrangements (shapes + cells per group), in order of preference; the best of them by the routed result wins
-        const pool = [];
-        const addPool = (pk) => {
-          const sig = JSON.stringify(pk.pos.map((p) => [p.o.shape.cols, p.o.cell]));
-          if (!pool.some((q) => q.sig === sig)) pool.push({ pk, sig });
-        };
-        // Coordinate descent on the shape of each group (positions re-packed each time), by the estimate
-        const descend = (pk) => {
-          let best = pk, est = estimate(pk);
-          for (let iter = 0; iter < 2; iter++) {
-            let improved = false;
-            items.forEach((it, a) => {
-              it.opts.forEach((o) => {
-                if (o === best.pos[a].o) return;
-                const r = packBest(items.map((q, b) => (b === a ? [o] : [best.pos[b].o])));
-                const e = estimate(r);
-                if (e < est - 1e-9) { est = e; best = r; improved = true; }
-              });
-            });
-            if (!improved) break;
-          }
-          return best;
-        };
-        const first = packAll(items.map((it) => it.opts), true);
-        const seeds = [descend(first[0]), first[0], first[1]].filter(Boolean);
-        seeds.forEach((f) => {
-          addPool(f);
-          let cur = f;
-          for (let round = 0; round < ER.PACK_PASSES; round++) {
-            // Second swap pass, other groups fixed: neighbours in other groups pull towards the side facing them
-            const c = centres(cur);
-            const fixed = items.map((it, a) => {
-              const o = cur.pos[a].o;
-              if (!it.tabs.length) return [o];
-              const org = originOf(it, cur.pos[a]);
-              const { cols } = o.shape;
-              const pull = (t, cc) => {
-                const X = org.x + ((cc % cols) + 0.5) * it.px - ER.CELL_GAP_X / 2, Y = org.y + (((cc / cols) | 0) + 0.5) * it.py - ER.CELL_GAP_Y / 2;
-                let s = 0;
-                adj[t].forEach((x) => { if (!it.has[x.j]) s += x.w * (Math.abs(X - c[x.j].x) + Math.abs(Y - c[x.j].y)); });
-                return s;
-              };
-              const cell = improve(it, o.shape, o.cell.slice(), pull);
-              const pix = pixels(it, o.shape, cell);
-              return [{ shape: o.shape, cell, pix, rect: rectOf(it, pix) }];
-            });
-            cur = packBest(fixed);
-            addPool(cur);
-          }
-        });
-
-        // Gravity: slide groups left, then up, into holes left by the packing, while the estimate does not get worse
-        const compact = (pk) => {
-          const pos = pk.pos.map((p) => ({ x: p.x, y: p.y, o: p.o }));
-          let est = estimate({ pos });
-          for (let iter = 0; iter < 3; iter++) {
-            let moved = false;
-            items.forEach((_, a) => {
-              [0, 1].forEach((axis) => {
-                const R = rectAt(pos[a]);
-                let lim = Infinity;
-                items.forEach((_, q) => { lim = Math.min(lim, axis ? pos[q].y : pos[q].x); });
-                items.forEach((_, q) => {
-                  if (q === a) return;
-                  const B = rectAt(pos[q]);
-                  if (axis === 0 && R.y < B.y + B.h + GAP && B.y < R.y + R.h + GAP && B.x + B.w <= R.x) lim = Math.max(lim, B.x + B.w + GAP);
-                  if (axis === 1 && R.x < B.x + B.w + GAP && B.x < R.x + R.w + GAP && B.y + B.h <= R.y) lim = Math.max(lim, B.y + B.h + GAP);
-                });
-                const cur0 = axis ? R.y : R.x;
-                if (lim >= cur0) return;
-                const old = axis ? pos[a].y : pos[a].x;
-                if (axis) pos[a].y = lim; else pos[a].x = lim;
-                const e2 = estimate({ pos });
-                if (e2 <= est + 1e-9) { est = e2; moved = true; }
-                else if (axis) pos[a].y = old; else pos[a].x = old;
-              });
-            });
-            if (!moved) break;
-          }
-          return { pos, cost: pk.cost };
-        };
-
-        // Final stage per candidate: pack with the real sizes and the arrangements fixed, gravity, write, route; keep the
-        // candidate with the best routed result (length, bends, crossings, canvas shape). Time: one route per candidate.
-        const K = n <= 40 ? ER.CANDIDATES : n <= 80 ? 2 : 1;
-        const writePk = (pk) => {
-          let mx = Infinity, my = Infinity;
-          items.forEach((_, a) => { mx = Math.min(mx, pk.pos[a].x); my = Math.min(my, pk.pos[a].y); });
-          items.forEach((it, a) => {
-            const P = pk.pos[a], x0 = Math.round(P.x - mx + ER.MARGIN), y0 = Math.round(P.y - my + ER.MARGIN);
-            if (it.boxed) { it.g.x = x0; it.g.y = y0; }
-            it.tabs.forEach((t) => {
-              const r = P.o.pix.rel[t];
-              ents[t].x = it.boxed ? r.x : x0 + r.x;
-              ents[t].y = it.boxed ? r.y : y0 + r.y;
-            });
-          });
-        };
-        // Pack with the arrangements of a candidate fixed, at the current `size`: gravity included
-        const finalPack = (cand) => {
-          const fixed = items.map((it, a) => {
-            const o = cand.pk.pos[a].o;
-            const pix = pixels(it, o.shape, o.cell);
-            return [{ shape: o.shape, cell: o.cell, pix, rect: rectOf(it, pix) }];
-          });
-          return compact(packBest(fixed));
-        };
-        // Which candidate arrangement wins is decided on the full-detail view (so "detail" and "collapsed" never change
-        // a cell): pack, write and route each of the best K by estimate with the reference sizes, score the routed result
-        const finals = pool.map((cand) => ({ cand, pk: finalPack(cand) }));
-        finals.forEach((f) => { f.est = estimate(f.pk); });
-        finals.sort((p, q) => p.est - q.est);
-        const keep = { detail: data.detail, showTypes: data.showTypes, hadDetail: 'detail' in data, hadTypes: 'showTypes' in data };
-        const collapsed = ents.map((e) => e.collapsed);
-        data.detail = 'all'; data.showTypes = true;
-        ents.forEach((e) => { if (e.collapsed !== undefined) e.collapsed = false; });
-        let best = null;
-        finals.slice(0, K).forEach((f) => {
-          writePk(f.pk);
-          routeDiagram(data);
-          const c = data.canvas;
-          const score = c.length + ER.BEND_W * c.bends + ER.CROSS_W * c.crossings + ER.FINAL_AREA_W * c.width * c.height / S;
-          if (!best || score < best.score - 1e-9) best = { score, f };
-        });
-        if (keep.hadDetail) data.detail = keep.detail; else delete data.detail;
-        if (keep.hadTypes) data.showTypes = keep.showTypes; else delete data.showTypes;
-        ents.forEach((e, i) => { if (collapsed[i] !== undefined) e.collapsed = collapsed[i]; });
-        // The winner again with the real sizes, written and routed for good
-        size = actual;
-        writePk(finalPack(best.f.cand));
-        routeDiagram(data);
       }
+      if (hit) { cul.add(live[a].a); cul.add(live[a].b); cul.add(live[b].a); cul.add(live[b].b); }
+    }
+  }
+  // Hits: a line that runs through a table it is not part of
+  let hits = 0;
+  const m = ER.CLEAR / 2;
+  live.forEach((L) => {
+    boxes.forEach((b, j) => {
+      if (j === L.a || j === L.b) return;
+      if (L.bb[2] <= b.x - m || L.bb[0] >= b.x + b.w + m || L.bb[3] <= b.y - m || L.bb[1] >= b.y + b.h + m) return;
+      if (erPolyHits(L.f, b.x - m, b.y - m, b.x + b.w + m, b.y + b.h + m)) { hits++; cul.add(j); cul.add(L.a); cul.add(L.b); }
+    });
+  });
+  const width = isFinite(x1) ? Math.round(x1 + ER.MARGIN) : 0, height = isFinite(y1) ? Math.round(y1 + ER.MARGIN) : 0;
+  if (!quick) data.canvas = { width, height, crossings, length: Math.round(length), hits };
+  return { hits, crossings, length, minX: x0, minY: y0, curves: live, cul: Array.from(cul).sort((p, q) => p - q) };
+}
 
-      // Number of crossings between the routes (arrays of points). Two routes that run side by side on one track
-      // (collinear overlap) cross only if the track forces them to swap sides: they arrive on opposite sides of
-      // each other at one end of the shared run and leave on the opposite sides at the other end. A bend that
-      // merely joins a track, or two lines that leave a shared stub in the same direction, is not a crossing.
-      function erCountCrossings(routes0) {
-        // Coordinate compression: every crossing or shared run sits on coordinates that are vertices of the routes, so
-        // the topology is the same on the grid of distinct x and y values (a unit step = the next distinct value)
-        const xv = [], yv = [];
-        routes0.forEach((pts) => (pts || []).forEach((p) => { xv.push(p[0]); yv.push(p[1]); }));
-        const uniq = (a) => a.sort((p, q) => p - q).filter((v, i, r) => !i || v !== r[i - 1]);
-        const ux = uniq(xv), uy = uniq(yv);
-        const xr = new Map(), yr = new Map();
-        ux.forEach((v, i) => xr.set(v, i)); uy.forEach((v, i) => yr.set(v, i));
-        const routes = routes0.map((pts) => (pts || []).map((p) => [xr.get(p[0]), yr.get(p[1])]));
-        const steps = routes.map((pts) => {
-          const out = [];
-          for (let k = 1; k < (pts || []).length; k++) {
-            const a = pts[k - 1], b = pts[k], dx = Math.sign(b[0] - a[0]), dy = Math.sign(b[1] - a[1]);
-            if (!out.length) out.push([a[0], a[1]]);
-            let x = a[0], y = a[1];
-            while (x !== b[0] || y !== b[1]) { x += dx; y += dy; out.push([x, y]); }
-          }
-          return out;
-        });
-        const key = (p) => (p[0] + 100000) * 1000003 + (p[1] + 100000);
-        const maps = steps.map((st) => { const m = new Map(); st.forEach((p, i) => m.set(key(p), i)); return m; });
-        const dir = (p, q) => [Math.sign(q[0] - p[0]), Math.sign(q[1] - p[1])];
-        const DIRS = [[1, 0], [0, 1], [-1, 0], [0, -1]];
-        const di = (d) => DIRS.findIndex((v) => v[0] === d[0] && v[1] === d[1]);
-        const between = (i, j, k) => { const a = (k - i + 4) % 4, b = (j - i + 4) % 4; return a > 0 && a < b; };
-        let total = 0;
-        for (let a = 0; a < steps.length; a++) {
-          for (let b = a + 1; b < steps.length; b++) {
-            const A = steps[a], B = steps[b], mb = maps[b];
-            if (A.length < 2 || B.length < 2) continue;
-            const at = A.map((p) => { const j = mb.get(key(p)); return j === undefined ? -1 : j; });
-            const shareEdge = A.map((p, i) => i < A.length - 1 && at[i] >= 0 && at[i + 1] >= 0 && Math.abs(at[i] - at[i + 1]) === 1);
-            for (let i = 0; i < A.length; i++) {
-              if (at[i] < 0) continue;
-              const inRun = shareEdge[i] || (i > 0 && shareEdge[i - 1]);
-              if (inRun) {
-                if (!shareEdge[i] || (i > 0 && shareEdge[i - 1])) continue;   // handle a run once, from its start
-                let q = i;
-                while (q < A.length - 1 && shareEdge[q]) q++;
-                const t = dir(A[i], A[i + 1]);
-                const side = (ray) => (ray ? Math.sign(t[0] * ray[1] - t[1] * ray[0]) : 0);
-                const bp = at[i], bq = at[q], fwd = bp < bq;
-                const rA_P = i > 0 ? dir(A[i], A[i - 1]) : null, rA_Q = q < A.length - 1 ? dir(A[q], A[q + 1]) : null;
-                const rB_P = fwd ? (bp > 0 ? dir(B[bp], B[bp - 1]) : null) : (bp < B.length - 1 ? dir(B[bp], B[bp + 1]) : null);
-                const rB_Q = fwd ? (bq < B.length - 1 ? dir(B[bq], B[bq + 1]) : null) : (bq > 0 ? dir(B[bq], B[bq - 1]) : null);
-                const sAP = side(rA_P), sBP = side(rB_P), sAQ = side(rA_Q), sBQ = side(rB_Q);
-                if (sAP * sBP === -1 && sAQ * sBQ === -1 && sAP !== sAQ) total++;
-                i = q;
-              } else if (i > 0 && i < A.length - 1 && at[i] > 0 && at[i] < B.length - 1) {
-                const a1 = di(dir(A[i], A[i - 1])), a2 = di(dir(A[i], A[i + 1]));
-                const b1 = di(dir(B[at[i]], B[at[i] - 1])), b2 = di(dir(B[at[i]], B[at[i] + 1]));
-                if (new Set([a1, a2, b1, b2]).size === 4 && between(a1, a2, b1) !== between(a1, a2, b2)) total++;
-              }
-            }
+// Routes with positions as they are (a table without a position is laid out first)
+function erRouteFromPositions(data) {
+  const ents = data.entities || [];
+  const sizes = ents.map((e) => erEntitySize(e, data));
+  const boxes = ents.map((e, i) => ({ x: e.x, y: e.y, w: sizes[i].w, h: sizes[i].h }));
+  erRouteAll(data, boxes);
+  ents.forEach((e, i) => { e.box = { x: boxes[i].x, y: boxes[i].y, w: sizes[i].w, h: sizes[i].h }; });
+}
+
+// Pushes every table that a line runs through off that line: each pass routes the curves, then moves a table out of the
+// way along the axis where the line is closest to leaving it, and removes the overlaps again
+function erUnhit(P, sizes, score, iters) {
+  const n = sizes.length, all = sizes.map((_, i) => i), m = ER.CLEAR / 2;
+  for (let it = 0; it < iters; it++) {
+    const boxes = sizes.map((z, i) => ({ x: P.x[i] - z.w / 2, y: P.y[i] - z.h / 2, w: z.w, h: z.h }));
+    const sc = score(boxes);
+    if (!sc.hits) return;
+    const mx = new Array(n).fill(0), my = new Array(n).fill(0);
+    sc.curves.forEach((L) => boxes.forEach((b, j) => {
+      if (j === L.a || j === L.b) return;
+      if (L.bb[2] <= b.x - m || L.bb[0] >= b.x + b.w + m || L.bb[3] <= b.y - m || L.bb[1] >= b.y + b.h + m) return;
+      const inside = [];
+      for (let q = 0; q < L.f.length; q += 2) {
+        const px = L.f[q], py = L.f[q + 1];
+        if (px > b.x - m && px < b.x + b.w + m && py > b.y - m && py < b.y + b.h + m) inside.push([px, py]);
+      }
+      if (!inside.length) return;                    // the line only clips a corner between two samples
+      if (!inside.length) return;
+      // smallest shift of the table that frees every sampled point (it moves, the line stays)
+      const cand = [
+        [Math.max(...inside.map((p) => p[0])) - (b.x - m), 0], [-(b.x + b.w + m - Math.min(...inside.map((p) => p[0]))), 0],
+        [0, Math.max(...inside.map((p) => p[1])) - (b.y - m)], [0, -(b.y + b.h + m - Math.min(...inside.map((p) => p[1])))]
+      ];
+      const pick = cand.reduce((u, v) => (Math.abs(v[0]) + Math.abs(v[1]) < Math.abs(u[0]) + Math.abs(u[1]) ? v : u));
+      mx[j] += pick[0] * 0.6; my[j] += pick[1] * 0.6;
+    }));
+    for (let i = 0; i < n; i++) { P.x[i] += mx[i]; P.y[i] += my[i]; }
+    erSeparate(all, P, sizes);
+  }
+}
+
+// Bounding box of the boxes: { w, h, area }, the content size plus the canvas margin on every side
+function erExtent(boxes) {
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  boxes.forEach((b) => { x0 = Math.min(x0, b.x); y0 = Math.min(y0, b.y); x1 = Math.max(x1, b.x + b.w); y1 = Math.max(y1, b.y + b.h); });
+  return { w: x1 - x0 + 2 * ER.MARGIN, h: y1 - y0 + 2 * ER.MARGIN };
+}
+
+// Penalty for a bounding box outside the target aspect range, and for not fitting a nominal view at FIT_MIN zoom (both x1000)
+function erOffAspect(boxes) {
+  const e = erExtent(boxes), a = e.w / e.h;
+  return Math.round(Math.max(0, ER.ASPECT_LO - a, a - ER.ASPECT_HI + 0.15) * 1000);
+}
+function erOffFit(boxes) {
+  const e = erExtent(boxes);
+  return Math.round(Math.max(0, Math.max(e.w / ER.VIEW_W, e.h / ER.VIEW_H) - 1 / ER.FIT_MIN) * 1000);
+}
+
+// How far the given tables' centres lie outside the middle third of the layout (px, both axes summed)
+function erOffCentre(boxes, ids) {
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  boxes.forEach((b) => { x0 = Math.min(x0, b.x); y0 = Math.min(y0, b.y); x1 = Math.max(x1, b.x + b.w); y1 = Math.max(y1, b.y + b.h); });
+  const mx = (x0 + x1) / 2, my = (y0 + y1) / 2;
+  return Math.round(ids.reduce((sum, i, rank) => {
+    const k = rank === 0 ? 12 : 7;                  // the top table within 1/12 of the middle, the next two within the middle third
+    return sum + Math.max(0, Math.abs(boxes[i].x + boxes[i].w / 2 - mx) - (x1 - x0) / k) + Math.max(0, Math.abs(boxes[i].y + boxes[i].h / 2 - my) - (y1 - y0) / k);
+  }, 0));
+}
+
+// Local search on a candidate: move one table to a nearby spot, push the others clear (overlap removal), and keep the
+// move when the cost drops (hits, crossings, length, centre and aspect) without the bounding box growing more than 5%.
+// Threshold accepting: early rounds also accept a slightly worse cost, to leave local minima; the last round accepts only
+// improvements. The cheapest state seen is kept.
+function erRepair(c, score, cost, rounds, good) {
+  const n = c.boxes.length, all = c.boxes.map((_, i) => i);
+  const sizes = c.boxes.map((b) => ({ w: b.w, h: b.h }));
+  let P = { x: c.boxes.map((b) => b.x + b.w / 2), y: c.boxes.map((b) => b.y + b.h / 2) };
+  const toBoxes = (Q) => sizes.map((z, i) => ({ x: Q.x[i] - z.w / 2, y: Q.y[i] - z.h / 2, w: z.w, h: z.h }));
+  const area = (bx) => { const b = erBounds(all, { x: bx.map((q) => q.x + q.w / 2), y: bx.map((q) => q.y + q.h / 2) }, sizes); return (b.x1 - b.x0) * (b.y1 - b.y0); };
+  const cap = area(c.boxes) * 1.2;
+  const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]];
+  let cur = { key: c.key, boxes: c.boxes };
+  rounds.forEach((T, round) => {
+    const last = round === rounds.length - 1;
+    for (let pass = 0; pass < (last ? (rounds === ER.WARM_T ? 3 : ER.REPAIR_PASSES) : 2); pass++) {
+      let improved = false;
+      // whole-layout moves: stretch or squeeze an axis, then push apart whatever now overlaps
+      for (const [fx, fy] of [[1.06, 0.94], [0.94, 1.06], [1, 0.92], [0.92, 1], [1.1, 1], [1, 1.1], [1.04, 1.04]]) {
+        const b0 = erBounds(all, P, sizes), mx = (b0.x0 + b0.x1) / 2, my = (b0.y0 + b0.y1) / 2;
+        const Q = { x: P.x.map((v) => mx + (v - mx) * fx), y: P.y.map((v) => my + (v - my) * fy) };
+        if (!erSeparate(all, Q, sizes, 60)) continue;
+        const bx = toBoxes(Q);
+        if (area(bx) > cap) continue;
+        const key = score(bx);
+        if (cost(key) < cost(cur.key) + T - 1e-6 && cost(key) !== cost(cur.key)) {
+          cur = { key, boxes: bx }; P = Q; improved = true;
+          if (cost(key) < cost(c.key) - 1e-6) { c.key = key; c.boxes = bx; if (good(key)) return; }
+        }
+      }
+      const todo = cur.key.cul.concat(all.filter((i) => !cur.key.cul.includes(i)));
+      for (const i of todo) {
+        for (const step of [32, 96, 224]) for (const [dx, dy] of dirs) {
+          const Q = { x: P.x.slice(), y: P.y.slice() };
+          Q.x[i] += dx * step; Q.y[i] += dy * step;
+          if (!erSeparate(all, Q, sizes, 40)) continue;
+          const bx = toBoxes(Q);
+          if (area(bx) > cap) continue;
+          const key = score(bx);
+          if (cost(key) < cost(cur.key) + T - 1e-6 && cost(key) !== cost(cur.key)) {
+            cur = { key, boxes: bx }; P = Q; improved = true;
+            if (cost(key) < cost(c.key) - 1e-6) { c.key = key; c.boxes = bx; if (good(key)) return; }
           }
         }
-        return total;
       }
+      if (!improved) break;
+    }
+    // slide everything inward, then continue from the best state so far
+    const Q = { x: c.boxes.map((b) => b.x + b.w / 2), y: c.boxes.map((b) => b.y + b.h / 2) };
+    erCompact(all, Q, sizes, 6);
+    const bx = toBoxes(Q), key = score(bx);
+    if (cost(key) < cost(c.key)) { c.key = key; c.boxes = bx; }
+    cur = { key: c.key, boxes: c.boxes };
+    P = { x: c.boxes.map((b) => b.x + b.w / 2), y: c.boxes.map((b) => b.y + b.h / 2) };
+  });
+}
 
-      // Orthogonal routes between column rows, on the sparse grid of box edges, channels and stubs. See header.
-      function routeDiagram(data) {
-        erClearDerived(data);
-        const ents = data.entities || [], rels = data.relationships || [], groups = data.groups || [];
-        const gIdx = {};
-        groups.forEach((g, i) => { gIdx[g.id] = i; });
-        const idOf = {};
-        ents.forEach((e, i) => { idOf[e.id] = i; });
-        const gOf = ents.map((e) => (e.group !== undefined && gIdx[e.group] !== undefined ? gIdx[e.group] : -1));
-        const size = ents.map((e) => erEntitySize(e, data));
-        // Defaults for a position that is missing (a table or group that was never laid out); nothing is ever moved
-        groups.forEach((g) => { if (typeof g.x !== 'number') g.x = ER.MARGIN; if (typeof g.y !== 'number') g.y = ER.MARGIN; });
-        // Whole pixels only: the router's grid search assumes integer coordinates and does not terminate on fractional
-        // ones (a hand-edited or dragged position). Rounding here guards every caller (page, --layout, --verify).
-        groups.forEach((g) => { if (Number.isFinite(g.x)) g.x = Math.round(g.x); if (Number.isFinite(g.y)) g.y = Math.round(g.y); });
-        ents.forEach((e) => { if (Number.isFinite(e.x)) e.x = Math.round(e.x); if (Number.isFinite(e.y)) e.y = Math.round(e.y); });
-        ents.forEach((e, i) => {
-          if (typeof e.x !== 'number') e.x = gOf[i] < 0 ? ER.MARGIN : 0;
-          if (typeof e.y !== 'number') e.y = gOf[i] < 0 ? ER.MARGIN : 0;
-        });
-        const boxes = ents.map((e, i) => {
-          const s = size[i];
-          if (gOf[i] < 0) return { x: e.x, y: e.y, w: s.w, h: s.h };
-          const o = erGroupOrigin(groups[gOf[i]]);
-          return { x: o.x + e.x, y: o.y + e.y, w: s.w, h: s.h };
-        });
-        ents.forEach((e, i) => { e.box = boxes[i]; });
-        // Group boxes: the bounding box of the group's tables plus padding and the tab, anchored at the group origin
-        groups.forEach((g, k) => {
-          let minX = 0, minY = 0, maxR = 0, maxB = 0, any = false;
-          ents.forEach((e, i) => {
-            if (gOf[i] !== k) return;
-            any = true;
-            minX = Math.min(minX, e.x); minY = Math.min(minY, e.y);
-            maxR = Math.max(maxR, e.x + size[i].w); maxB = Math.max(maxB, e.y + size[i].h);
-          });
-          const sz = erGroupSize(any ? maxR - minX : ER.EMPTY_W, any ? maxB - minY : ER.EMPTY_H, g);
-          g.box = { x: g.x + minX, y: g.y + minY, w: sz.w, h: sz.h };
-        });
-        let lx1 = Infinity, ly1 = Infinity, lx2 = -Infinity, ly2 = -Infinity;
-        boxes.forEach((b, i) => {
-          if (gOf[i] >= 0) return;
-          lx1 = Math.min(lx1, b.x); ly1 = Math.min(ly1, b.y); lx2 = Math.max(lx2, b.x + b.w); ly2 = Math.max(ly2, b.y + b.h);
-        });
-        if (lx1 !== Infinity) data._loose = { x: lx1, y: ly1, w: lx2 - lx1, h: ly2 - ly1 };
+// Squeeze: shrinks the layout toward its centre (each axis alone, or both) for as long as that adds no hit and no
+// crossing, preferring the step that leaves the aspect closest to the target
+function erSqueeze(c, score) {
+  const sizes = c.boxes.map((b) => ({ w: b.w, h: b.h })), all = sizes.map((_, i) => i);
+  for (let step = 0; step < ER.SQUEEZE_STEPS; step++) {
+    const P = { x: c.boxes.map((b) => b.x + b.w / 2), y: c.boxes.map((b) => b.y + b.h / 2) };
+    const b0 = erBounds(all, P, sizes), cx = (b0.x0 + b0.x1) / 2, cy = (b0.y0 + b0.y1) / 2;
+    let pick = null;
+    [[0.96, 1], [1, 0.96], [0.97, 0.97]].forEach(([fx, fy]) => {
+      const Q = { x: P.x.map((v) => cx + (v - cx) * fx), y: P.y.map((v) => cy + (v - cy) * fy) };
+      if (!erSeparate(all, Q, sizes, 40)) return;
+      const bx = sizes.map((z, i) => ({ x: Q.x[i] - z.w / 2, y: Q.y[i] - z.h / 2, w: z.w, h: z.h }));
+      const key = score(bx);
+      if (key[0] > c.key[0] || key[1] > c.key[1]) return;
+      const b = erBounds(all, Q, sizes), w = b.x1 - b.x0, h = b.y1 - b.y0;
+      if ((w * h) >= (b0.x1 - b0.x0) * (b0.y1 - b0.y0)) return;
+      const dev = Math.abs(w / h - ER.ASPECT_T);
+      if (!pick || dev < pick.dev) pick = { key, boxes: bx, dev };
+    });
+    if (!pick) return;
+    c.key = pick.key; c.boxes = pick.boxes;
+  }
+}
 
-        // ---- anchors ----
-        const P = ER.OBSTACLE_PAD;
-        let maxRight = 0, trackLeft = 0;
-        boxes.forEach((b) => { maxRight = Math.max(maxRight, b.x + b.w); });
-        const infos = [];
-        rels.forEach((r, ri) => {
-          const fi = idOf[r.from], ti = idOf[r.to];
-          if (fi === undefined || ti === undefined) return;
-          const fcol = erFromCol(r, ents[fi]);
-          const tcol = erToCol(r, ents[ti]);
-          infos.push({ r, ri, fi, ti, self: fi === ti, fy: erRowAnchorY(ents[fi], fcol, data), ty: erRowAnchorY(ents[ti], tcol, data) });
-        });
-        // Free space beside a pair of boxes on one side (the clearance to the nearest other box in their vertical span)
-        const clearance = (inf, side) => {
-          const a = boxes[inf.fi], b = boxes[inf.ti];
-          const lo = Math.min(a.y, b.y), hi = Math.max(a.y + a.h, b.y + b.h);
-          const edge = side > 0 ? Math.max(a.x + a.w, b.x + b.w) : Math.min(a.x, b.x);
-          let free = side > 0 ? maxRight + ER.MARGIN - edge : edge - trackLeft;
-          boxes.forEach((o, k) => {
-            if (k === inf.fi || k === inf.ti || o.y >= hi || o.y + o.h <= lo) return;
-            if (side > 0 && o.x >= edge) free = Math.min(free, o.x - edge);
-            if (side < 0 && o.x + o.w <= edge) free = Math.min(free, edge - o.x - o.w);
-          });
-          return free;
-        };
-        infos.forEach((inf) => {
-          if (inf.self) { inf.sf = 1; inf.st = 1; return; }
-          const a = boxes[inf.fi], b = boxes[inf.ti];
-          const ac = a.x + a.w / 2, bc = b.x + b.w / 2;
-          if (bc > a.x + a.w && ac < b.x) { inf.sf = 1; inf.st = -1; }
-          else if (bc < a.x && ac > b.x + b.w) { inf.sf = -1; inf.st = 1; }
-          else {
-            const side = clearance(inf, -1) > clearance(inf, 1) ? -1 : 1;
-            inf.sf = side; inf.st = side;
-          }
-        });
-        infos.forEach((inf) => {
-          const a = boxes[inf.fi], b = boxes[inf.ti];
-          inf.ax = inf.sf > 0 ? a.x + a.w : a.x;
-          inf.bx = inf.st > 0 ? b.x + b.w : b.x;
-          if (inf.self && inf.fy === inf.ty) { inf.fy -= 6; inf.ty += 6; }
-          inf.len = inf.self ? 0 : Math.abs(inf.ax - inf.bx) + Math.abs(inf.fy - inf.ty);
-        });
-        const order = infos.slice().sort((p, q) => p.len - q.len || p.ri - q.ri);
-        // Stub lengths: lines sharing one row anchor get staggered stubs
-        const shared = {}, trunkOf = {};
-        let trunkCount = 0;
-        order.forEach((inf) => {
-          if (inf.self) return;
-          const kf = inf.fi + '|' + inf.sf + '|' + inf.fy, kt = inf.ti + '|' + inf.st + '|' + inf.ty;
-          const nf = shared[kf] || 0;
-          shared[kf] = nf + 1;
-          shared[kt] = (shared[kt] || 0) + 1;
-          if (trunkOf[kt] === undefined) trunkOf[kt] = trunkCount++;
-          inf.gid = trunkOf[kt] + 1;
-          inf.lf = ER.STUB + (nf % 4) * ER.CHANNEL_STEP;
-          inf.lt = ER.STUB;   // lines into one parent row share one trunk (see TRUNK); stub ends are ordered below
-          inf.sx = inf.ax + inf.sf * inf.lf;
-          inf.ex = inf.bx + inf.st * inf.lt;
-        });
-        // Trunk order: in one column of boxes (left to right, same left edge), a parent higher up gets its trunk further
-        // out than the stub ends of the parents below it on the same side, so its trunk never cuts their stubs.
-        {
-          const tgt = new Map();
-          order.forEach((inf) => { if (!inf.self) tgt.set(inf.ti + '|' + inf.st, { ti: inf.ti, st: inf.st }); });
-          const byCol = new Map();
-          tgt.forEach((t) => { const k = boxes[t.ti].x + '|' + t.st; if (!byCol.has(k)) byCol.set(k, []); byCol.get(k).push(t); });
-          const endOf = new Map();
-          byCol.forEach((list) => {
-            list.sort((p, q) => boxes[q.ti].y - boxes[p.ti].y || p.ti - q.ti);
-            let far = null;
-            list.forEach((t) => {
-              const b = boxes[t.ti], edge = t.st > 0 ? b.x + b.w : b.x;
-              let end = edge + t.st * ER.STUB;
-              if (far !== null) end = t.st > 0 ? Math.max(end, far + ER.CHANNEL_STEP) : Math.min(end, far - ER.CHANNEL_STEP);
-              far = end;
-              endOf.set(t.ti + '|' + t.st, Math.min(Math.abs(end - edge), 120));
-            });
-          });
-          order.forEach((inf) => {
-            if (inf.self) return;
-            inf.lt = endOf.get(inf.ti + '|' + inf.st);
-            inf.ex = inf.bx + inf.st * inf.lt;
-          });
-        }
-        const loopCount = {};
-        infos.forEach((inf) => {
-          if (!inf.self) return;
-          const k = loopCount[inf.fi] || 0;
-          loopCount[inf.fi] = k + 1;
-          inf.lx = inf.ax + 2 * ER.STUB + k * 2 * ER.CHANNEL_STEP;
-        });
+// Full layout: node-graph placement, then the candidate with the fewest line-over-table hits, then the fewest crossings,
+// then the shortest total length. opts.warm starts from the saved positions instead of the seed.
+function layoutDiagram(data, opts) {
+  erClearDerived(data);
+  const ents = data.entities || [], n = ents.length;
+  if (!n) { data.canvas = { width: 0, height: 0, crossings: 0, length: 0 }; return; }
+  const placed = (e) => typeof e.x === 'number' && typeof e.y === 'number';
+  const warm = !!(opts && opts.warm) && ents.some(placed);       // warm: tables without a position start beside their neighbours
+  const sizes = ents.map((e) => erEntitySize(e, data));
+  const { adj } = erGraph(data);
+  const D = erDistances(data, adj, sizes);
+  const variants = warm ? [0] : Array.from({ length: ER.VARIANTS }, (_, v) => v);
+  // Weights: a hit or a crossing beyond two outweighs everything; then the middle-third and fit and aspect misses; length last
+  const cost = (k) => k[0] * 6000 + k[1] * 300 + Math.max(0, k[1] - 2) * 5000 + k[2] / 40 + k[3] * 60 + k[4] * 25 + k[5] * 60 + k[6] * 4;
+  const quickScore = (boxes) => {
+    const sc = erRouteAll(data, boxes, true);
+    const e = erExtent(boxes);
+    const key = [sc.hits, sc.crossings, sc.length, erOffCentre(boxes, hubs), erOffAspect(boxes), erOffFit(boxes), Math.round(e.w * e.h / ER.AREA_DIV)];
+    key.cul = sc.cul;
+    return key;
+  };
+  const hubs = adj.map((a, i) => i).sort((a, b) => adj[b].length - adj[a].length || a - b).slice(0, 3);
+  // good enough to stop searching: no hit, at most two crossings, hubs central, aspect and fit inside their targets
+  const good = (k) => !k[0] && k[1] <= 2 && !k[3] && !k[4] && !k[5];
+  const cands = variants.map((variant) => {
+    const P = { x: new Array(n).fill(0), y: new Array(n).fill(0) };
+    if (warm) {
+      ents.forEach((e, i) => { if (placed(e)) { P.x[i] = e.x + sizes[i].w / 2; P.y[i] = e.y + sizes[i].h / 2; } });
+      ents.forEach((e, i) => {
+        if (placed(e)) return;
+        const nb = adj[i].filter((j) => placed(ents[j])), from = nb.length ? nb : ents.map((_, j) => j).filter((j) => placed(ents[j]));
+        P.x[i] = from.reduce((m, j) => m + P.x[j], 0) / from.length + sizes[i].w; P.y[i] = from.reduce((m, j) => m + P.y[j], 0) / from.length;
+      });
+    }
+    erPlaceAll(adj, D, sizes, variant, warm, P);
+    erUnhit(P, sizes, (bx) => erRouteAll(data, bx, true), ER.UNHIT_IT);
+    const boxes = ents.map((e, i) => ({ x: P.x[i] - sizes[i].w / 2, y: P.y[i] - sizes[i].h / 2, w: sizes[i].w, h: sizes[i].h }));
+    return { key: quickScore(boxes), boxes };
+  });
+  // the best few are refined by the local search; the winner is the cheapest after it (stable sort: ties keep variant order)
+  cands.sort((p, q) => cost(p.key) - cost(q.key));
+  let best = null;
+  cands.slice(0, warm ? 1 : ER.REFINE).forEach((c) => {
+    if (best && good(best.key)) return;
+    erRepair(c, quickScore, cost, warm ? ER.WARM_T : ER.REPAIR_T, good);
+    erSqueeze(c, quickScore);
+    if (!best || cost(c.key) < cost(best.key)) best = c;
+  });
+  // Content starts at the margin: move the tables by whole pixels, then route the final positions
+  const found = erRouteAll(data, best.boxes, true);
+  const dx = Math.round(ER.MARGIN - found.minX), dy = Math.round(ER.MARGIN - found.minY);
+  ents.forEach((e, i) => { e.x = Math.round(best.boxes[i].x) + dx; e.y = Math.round(best.boxes[i].y) + dy; });
+  erRouteFromPositions(data);
+}
 
-        // ---- grid ----
-        const xset = new Set(), yset = new Set();
-        const steps = [0, 1, 2];
-        boxes.forEach((b) => {
-          steps.forEach((k) => {
-            xset.add(b.x - P - k * ER.CHANNEL_STEP); xset.add(b.x + b.w + P + k * ER.CHANNEL_STEP);
-            yset.add(b.y - P - k * ER.CHANNEL_STEP); yset.add(b.y + b.h + P + k * ER.CHANNEL_STEP);
-          });
-        });
-        // Channels: in each gap between the merged projections of the boxes, tracks around the middle
-        const channels = (set, lo, hi) => {
-          const iv = boxes.map((b) => [lo(b) - P, hi(b) + P]).sort((p, q) => p[0] - q[0]);
-          const merged = [];
-          iv.forEach((v) => {
-            if (merged.length && v[0] <= merged[merged.length - 1][1]) merged[merged.length - 1][1] = Math.max(merged[merged.length - 1][1], v[1]);
-            else merged.push([v[0], v[1]]);
-          });
-          for (let k = 1; k < merged.length; k++) {
-            const a = merged[k - 1][1], b = merged[k][0], mid = Math.round((a + b) / 2);
-            for (let t = -4; t <= 4; t++) {
-              const v = mid + t * ER.CHANNEL_STEP;
-              if (v > a + 2 && v < b - 2) set.add(v);
-            }
-          }
-        };
-        channels(xset, (b) => b.x, (b) => b.x + b.w);
-        channels(yset, (b) => b.y, (b) => b.y + b.h);
-        infos.forEach((inf) => {
-          yset.add(inf.fy); yset.add(inf.ty);
-          if (inf.self) { xset.add(inf.lx); xset.add(inf.ax + ER.STUB); } else { xset.add(inf.sx); xset.add(inf.ex); }
-        });
-        // Tracks closer than MIN_TRACK would run as one visible line with a tiny jog between them: keep the first of
-        // such a cluster, but never drop a required value (anchor rows, stub ends, loops)
-        const need = new Set();
-        infos.forEach((inf) => {
-          need.add('y' + Math.round(inf.fy)); need.add('y' + Math.round(inf.ty));
-          if (inf.self) { need.add('x' + Math.round(inf.lx)); need.add('x' + Math.round(inf.ax + ER.STUB)); } else { need.add('x' + Math.round(inf.sx)); need.add('x' + Math.round(inf.ex)); }
-        });
-        const thin = (set, tag) => {
-          const v = Array.from(set).map(Math.round).sort((p, q) => p - q).filter((x, i, a) => !i || x !== a[i - 1]);
-          const out = [];
-          v.forEach((x) => {
-            const must = need.has(tag + x);
-            if (out.length && x - out[out.length - 1] < ER.MIN_TRACK) {
-              if (!must) return;
-              if (!need.has(tag + out[out.length - 1])) out.pop();
-            }
-            out.push(x);
-          });
-          return out;
-        };
-        const xs = thin(xset, 'x');
-        const ys = thin(yset, 'y');
-        const NX = xs.length, NY = ys.length, N = NX * NY;
-        const xi = new Map(), yi = new Map();
-        xs.forEach((v, i) => xi.set(v, i));
-        ys.forEach((v, i) => yi.set(v, i));
-        const lower = (arr, v) => { let lo = 0, hi = arr.length; while (lo < hi) { const m = (lo + hi) >> 1; if (arr[m] < v) lo = m + 1; else hi = m; } return lo; };
-        const blocked = new Uint8Array(N), hBlock = new Uint8Array(N), vBlock = new Uint8Array(N);
-        boxes.forEach((b) => {
-          const L = b.x - P, Rr = b.x + b.w + P, T = b.y - P, B = b.y + b.h + P;
-          const ixA = lower(xs, L + 0.5), ixB = lower(xs, Rr - 0.5) - 1;
-          const iyA = lower(ys, T + 0.5), iyB = lower(ys, B - 0.5) - 1;
-          for (let iy = iyA; iy <= iyB; iy++) {
-            for (let ix = ixA; ix <= ixB; ix++) blocked[iy * NX + ix] = 1;
-            for (let ix = Math.max(0, ixA - 1); ix <= ixB; ix++) hBlock[iy * NX + ix] = 1;
-          }
-          for (let ix = ixA; ix <= ixB; ix++) {
-            for (let iy = Math.max(0, iyA - 1); iy <= iyB; iy++) vBlock[iy * NX + ix] = 1;
-          }
-        });
-        const usedH = new Int16Array(N), usedV = new Int16Array(N);   // 0 free, trunk id + 1 of the first user, -1 shared by several trunks
-        const own = (cur, gid) => (cur === 0 || cur === gid ? gid : -1);
-        const markSeg = (x1, y1, x2, y2, gid) => {
-          if (y1 === y2) {
-            const iy = yi.get(y1);
-            if (iy === undefined) return;
-            for (let ix = lower(xs, Math.min(x1, x2)); ix < NX - 1 && xs[ix + 1] <= Math.max(x1, x2); ix++) usedH[iy * NX + ix] = own(usedH[iy * NX + ix], gid);
-          } else if (x1 === x2) {
-            const ix = xi.get(x1);
-            if (ix === undefined) return;
-            for (let iy = lower(ys, Math.min(y1, y2)); iy < NY - 1 && ys[iy + 1] <= Math.max(y1, y2); iy++) usedV[iy * NX + ix] = own(usedV[iy * NX + ix], gid);
-          }
-        };
-        const mark = (pts, gid) => { for (let k = 1; k < pts.length; k++) markSeg(pts[k - 1][0], pts[k - 1][1], pts[k][0], pts[k][1], gid); };
-
-        // ---- routes ----
-        const DX = [1, 0, -1, 0], DY = [0, 1, 0, -1];
-        const dist = new Float64Array(N * 4), parent = new Int32Array(N * 4);
-        const astar = (sx, sy, sdir, gx, gy, gdir, gid) => {
-          const s0 = yi.get(sy) * NX + xi.get(sx), goal = yi.get(gy) * NX + xi.get(gx);
-          if (blocked[s0] || blocked[goal]) return null;
-          dist.fill(Infinity); parent.fill(-1);
-          let seq = 0;
-          const hq = [];   // heap of [f, seq, g, state]
-          const push = (f, g, s) => {
-            hq.push([f, seq++, g, s]);
-            let i = hq.length - 1;
-            while (i > 0) {
-              const p = (i - 1) >> 1;
-              if (hq[p][0] < hq[i][0] || (hq[p][0] === hq[i][0] && hq[p][1] < hq[i][1])) break;
-              const t = hq[p]; hq[p] = hq[i]; hq[i] = t; i = p;
-            }
-          };
-          const pop = () => {
-            const top = hq[0], last = hq.pop();
-            if (hq.length) {
-              hq[0] = last;
-              let i = 0;
-              for (;;) {
-                const l = 2 * i + 1, r = l + 1;
-                let m = i;
-                const less = (a, b) => hq[a][0] < hq[b][0] || (hq[a][0] === hq[b][0] && hq[a][1] < hq[b][1]);
-                if (l < hq.length && less(l, m)) m = l;
-                if (r < hq.length && less(r, m)) m = r;
-                if (m === i) break;
-                const t = hq[m]; hq[m] = hq[i]; hq[i] = t; i = m;
-              }
-            }
-            return top;
-          };
-          const heur = (node) => ER.TRUNK * (Math.abs(xs[node % NX] - gx) + Math.abs(ys[(node / NX) | 0] - gy));
-          const st0 = s0 * 4 + sdir;
-          dist[st0] = 0;
-          push(heur(s0), 0, st0);
-          while (hq.length) {
-            const [, , g, s] = pop();
-            if (g > dist[s]) continue;
-            const u = (s / 4) | 0, d = s & 3;
-            if (u === goal) {
-              const nodes = [];
-              for (let c = s; c >= 0; c = parent[c]) nodes.push((c / 4) | 0);
-              nodes.reverse();
-              return nodes;
-            }
-            const ux = u % NX, uy = (u / NX) | 0;
-            for (let nd = 0; nd < 4; nd++) {
-              if (nd === ((d + 2) & 3)) continue;
-              let v, used;
-              if (nd === 0) { if (ux >= NX - 1 || hBlock[u]) continue; v = u + 1; used = usedH[u]; }
-              else if (nd === 2) { if (ux <= 0 || hBlock[u - 1]) continue; v = u - 1; used = usedH[u - 1]; }
-              else if (nd === 1) { if (uy >= NY - 1 || vBlock[u]) continue; v = u + NX; used = usedV[u]; }
-              else { if (uy <= 0 || vBlock[u - NX]) continue; v = u - NX; used = usedV[u - NX]; }
-              if (blocked[v] || (v === goal && nd === ((gdir + 2) & 3))) continue;   // never arrive from the box's side
-              const len = DX[nd] ? Math.abs(xs[v % NX] - xs[ux]) : Math.abs(ys[(v / NX) | 0] - ys[uy]);
-              let c = g + len;
-              if (used === gid) c -= (1 - ER.TRUNK) * len;   // running along a line into the same parent row: a trunk
-              else if (used) c += ER.OVERLAP * len;
-              if (nd !== d) c += ER.BEND;
-              else {
-                const perp = DX[nd] ? [usedV[u], uy > 0 ? usedV[u - NX] : 0] : [usedH[u], ux > 0 ? usedH[u - 1] : 0];
-                if (perp.some((o) => o !== 0 && o !== gid)) c += ER.CROSS;
-              }
-              if (v === goal && nd !== gdir) c += ER.BEND;
-              const sv = v * 4 + nd;
-              if (c < dist[sv]) { dist[sv] = c; parent[sv] = s; push(c + heur(v), c, sv); }
-            }
-          }
-          return null;
-        };
-        const simplify = (pts) => {
-          const out = [];
-          pts.forEach((p) => {
-            if (out.length && out[out.length - 1][0] === p[0] && out[out.length - 1][1] === p[1]) return;
-            out.push([p[0], p[1]]);
-          });
-          for (let k = out.length - 2; k > 0; k--) {
-            const a = out[k - 1], b = out[k], c = out[k + 1];
-            if ((a[0] === b[0] && b[0] === c[0]) || (a[1] === b[1] && b[1] === c[1])) out.splice(k, 1);
-          }
-          return out;
-        };
-        // Pre-mark every stub and loop, so other lines see them as crossings
-        order.forEach((inf) => {
-          if (inf.self) return;
-          markSeg(inf.ax, inf.fy, inf.sx, inf.fy, inf.gid);
-          markSeg(inf.bx, inf.ty, inf.ex, inf.ty, inf.gid);
-        });
-        infos.forEach((inf) => {
-          if (!inf.self) return;
-          inf.points = [[inf.ax, inf.fy], [inf.lx, inf.fy], [inf.lx, inf.ty], [inf.ax, inf.ty]];
-          mark(inf.points, 1000 + inf.ri);
-        });
-        order.forEach((inf) => {
-          if (inf.self) return;
-          const sdir = inf.sf > 0 ? 0 : 2, gdir = inf.st > 0 ? 2 : 0;
-          const path = astar(inf.sx, inf.fy, sdir, inf.ex, inf.ty, gdir, inf.gid);
-          let pts;
-          if (path) {
-            pts = [[inf.ax, inf.fy]].concat(path.map((u) => [xs[u % NX], ys[(u / NX) | 0]]), [[inf.bx, inf.ty]]);
-            mark(pts.slice(1, -1), inf.gid);
-          } else {
-            const mx = Math.round((inf.sx + inf.ex) / 2);
-            pts = [[inf.ax, inf.fy], [inf.sx, inf.fy], [mx, inf.fy], [mx, inf.ty], [inf.ex, inf.ty], [inf.bx, inf.ty]];
-          }
-          inf.points = simplify(pts);
-        });
-        infos.forEach((inf) => { inf.r.points = inf.points; });
-
-        // ---- labels ----
-        const placed = [];
-        const hit = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
-        infos.forEach((inf) => {
-          const r = inf.r;
-          if (r.label === undefined || r.label === null || r.label === '' || !inf.points) return;
-          const w = erTextW(r.label, ER.CHAR_W) + ER.LABEL_X, h = ER.LABEL_H;
-          const pts = inf.points;
-          if (inf.self) {   // beside the loop, on its outer side
-            r.labelBox = { x: inf.lx + 8, y: Math.round((inf.fy + inf.ty) / 2 - h / 2), w, h };
-            placed.push(r.labelBox);
-            return;
-          }
-          const segs = [];
-          for (let k = 1; k < pts.length; k++) segs.push({ a: pts[k - 1], b: pts[k], len: Math.abs(pts[k][0] - pts[k - 1][0]) + Math.abs(pts[k][1] - pts[k - 1][1]) });
-          const longest = segs.map((s, k) => ({ s, k })).sort((p, q) => q.s.len - p.s.len || p.k - q.k);
-          const at = (s, t) => {
-            const cx = s.a[0] + (s.b[0] - s.a[0]) * t, cy = s.a[1] + (s.b[1] - s.a[1]) * t;
-            return { x: Math.round(cx - w / 2), y: Math.round(cy - h / 2), w, h };
-          };
-          // Candidates: every segment of the route, several places along it. Score: a table or label under it is
-          // (almost) forbidden, a foreign line under it is costly, then prefer long segments and the middle.
-          const foreignHits = (c) => {
-            let n = 0;
-            infos.forEach((o) => {
-              if (o === inf || !o.points) return;
-              for (let k = 1; k < o.points.length; k++) {
-                const x1 = Math.min(o.points[k][0], o.points[k - 1][0]), x2 = Math.max(o.points[k][0], o.points[k - 1][0]);
-                const y1 = Math.min(o.points[k][1], o.points[k - 1][1]), y2 = Math.max(o.points[k][1], o.points[k - 1][1]);
-                if (x1 < c.x + c.w && x2 > c.x && y1 <= c.y + c.h && y2 >= c.y) n++;
-              }
-            });
-            return n;
-          };
-          let chosen = null, bestScore = Infinity;
-          longest.forEach(({ s }, rank) => {
-            [0.5, 0.35, 0.65, 0.2, 0.8, 0.1, 0.9].forEach((t) => {
-              const c = at(s, t);
-              let score = Math.abs(t - 0.5) * 10 + rank * 5 + (s.len < w ? 50 : 0);
-              score += 1e6 * (boxes.filter((b) => hit(c, b)).length + placed.filter((q) => hit(c, q)).length);
-              if (score >= bestScore) return;
-              score += 1000 * foreignHits(c);
-              if (score < bestScore - 1e-9) { bestScore = score; chosen = c; }
-            });
-          });
-          r.labelBox = chosen;
-          placed.push(r.labelBox);
-        });
-
-        // ---- canvas, crossings, length, bends ----
-        let right = maxRight, bottom = 0;
-        boxes.forEach((b) => { right = Math.max(right, b.x + b.w); bottom = Math.max(bottom, b.y + b.h); });
-        groups.forEach((g) => { right = Math.max(right, g.box.x + g.box.w); bottom = Math.max(bottom, g.box.y + g.box.h); });
-        infos.forEach((inf) => (inf.points || []).forEach((p) => { right = Math.max(right, p[0] + P); bottom = Math.max(bottom, p[1] + P); }));
-        rels.forEach((r) => { if (r.labelBox) { right = Math.max(right, r.labelBox.x + r.labelBox.w); bottom = Math.max(bottom, r.labelBox.y + r.labelBox.h); } });
-        let length = 0, bends = 0;
-        infos.forEach((inf) => {
-          const pts = inf.points || [];
-          for (let k = 1; k < pts.length; k++) length += Math.abs(pts[k][0] - pts[k - 1][0]) + Math.abs(pts[k][1] - pts[k - 1][1]);
-          bends += Math.max(0, pts.length - 2);
-        });
-        const crossings = erCountCrossings(infos.map((inf) => inf.points || []));
-        data.canvas = { width: Math.round(right + ER.MARGIN), height: Math.round(bottom + ER.MARGIN), crossings, length, bends };
-      }
+function routeDiagram(data) {
+  const ents = data.entities || [];
+  if (ents.some((e) => typeof e.x !== 'number' || typeof e.y !== 'number')) { layoutDiagram(data); return; }
+  erRouteFromPositions(data);
+}

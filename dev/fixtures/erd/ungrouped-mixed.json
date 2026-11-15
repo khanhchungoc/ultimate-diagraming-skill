@@ -1,31 +1,28 @@
 {
   "diagramType": "erd",
   "title": "Grouped and loose tables",
-  "groups": [
-    { "id": "core", "name": "Core", "color": "#e0f2fe" },
-    { "id": "content", "name": "Content", "color": "#dcfce7" }
-  ],
+  "colorKey": {"#e0f2fe": "Core", "#dcfce7": "Content"},
   "entities": [
-    { "id": "organization", "name": "organization", "group": "core", "columns": [
+    { "id": "organization", "name": "organization", "color": "#e0f2fe", "columns": [
       { "name": "id", "type": "uuid", "pk": true },
       { "name": "label", "type": "text" }
     ] },
-    { "id": "app_user", "name": "app_user", "group": "core", "columns": [
-      { "name": "id", "type": "uuid", "pk": true },
-      { "name": "organization_id", "type": "uuid", "fk": true },
-      { "name": "label", "type": "text" }
-    ] },
-    { "id": "role", "name": "role", "group": "core", "columns": [
+    { "id": "app_user", "name": "app_user", "color": "#e0f2fe", "columns": [
       { "name": "id", "type": "uuid", "pk": true },
       { "name": "organization_id", "type": "uuid", "fk": true },
       { "name": "label", "type": "text" }
     ] },
-    { "id": "article", "name": "article", "group": "content", "columns": [
+    { "id": "role", "name": "role", "color": "#e0f2fe", "columns": [
+      { "name": "id", "type": "uuid", "pk": true },
+      { "name": "organization_id", "type": "uuid", "fk": true },
+      { "name": "label", "type": "text" }
+    ] },
+    { "id": "article", "name": "article", "color": "#dcfce7", "columns": [
       { "name": "id", "type": "uuid", "pk": true },
       { "name": "app_user_id", "type": "uuid", "fk": true },
       { "name": "label", "type": "text" }
     ] },
-    { "id": "comment", "name": "comment", "group": "content", "columns": [
+    { "id": "comment", "name": "comment", "color": "#dcfce7", "columns": [
       { "name": "id", "type": "uuid", "pk": true },
       { "name": "article_id", "type": "uuid", "fk": true },
       { "name": "app_user_id", "type": "uuid", "fk": true },

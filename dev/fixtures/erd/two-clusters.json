@@ -1,62 +1,59 @@
 {
   "diagramType": "erd",
   "title": "Two clusters",
-  "groups": [
-    { "id": "sales", "name": "Sales", "color": "#e0f2fe" },
-    { "id": "support", "name": "Support", "color": "#fef3c7" }
-  ],
+  "colorKey": {"#e0f2fe": "Sales", "#fef3c7": "Support"},
   "entities": [
-    { "id": "customer", "name": "customer", "group": "sales", "columns": [
+    { "id": "customer", "name": "customer", "color": "#e0f2fe", "columns": [
       { "name": "id", "type": "uuid", "pk": true },
       { "name": "status", "type": "text" }
     ] },
-    { "id": "order", "name": "order", "group": "sales", "columns": [
+    { "id": "order", "name": "order", "color": "#e0f2fe", "columns": [
       { "name": "id", "type": "uuid", "pk": true },
       { "name": "customer_id", "type": "uuid", "fk": true },
       { "name": "note", "type": "text" }
     ] },
-    { "id": "order_item", "name": "order_item", "group": "sales", "columns": [
+    { "id": "order_item", "name": "order_item", "color": "#e0f2fe", "columns": [
       { "name": "id", "type": "uuid", "pk": true },
       { "name": "order_id", "type": "uuid", "fk": true },
       { "name": "product_id", "type": "uuid", "fk": true },
       { "name": "note", "type": "text" }
     ] },
-    { "id": "product", "name": "product", "group": "sales", "columns": [
+    { "id": "product", "name": "product", "color": "#e0f2fe", "columns": [
       { "name": "id", "type": "uuid", "pk": true },
       { "name": "status", "type": "text" }
     ] },
-    { "id": "invoice", "name": "invoice", "group": "sales", "columns": [
+    { "id": "invoice", "name": "invoice", "color": "#e0f2fe", "columns": [
       { "name": "id", "type": "uuid", "pk": true },
       { "name": "order_id", "type": "uuid", "fk": true },
       { "name": "note", "type": "text" }
     ] },
-    { "id": "payment", "name": "payment", "group": "sales", "columns": [
+    { "id": "payment", "name": "payment", "color": "#e0f2fe", "columns": [
       { "name": "id", "type": "uuid", "pk": true },
       { "name": "invoice_id", "type": "uuid", "fk": true },
       { "name": "note", "type": "text" }
     ] },
-    { "id": "agent", "name": "agent", "group": "support", "columns": [
+    { "id": "agent", "name": "agent", "color": "#fef3c7", "columns": [
       { "name": "id", "type": "uuid", "pk": true },
       { "name": "status", "type": "text" }
     ] },
-    { "id": "team", "name": "team", "group": "support", "columns": [
+    { "id": "team", "name": "team", "color": "#fef3c7", "columns": [
       { "name": "id", "type": "uuid", "pk": true },
       { "name": "status", "type": "text" }
     ] },
-    { "id": "ticket", "name": "ticket", "group": "support", "columns": [
+    { "id": "ticket", "name": "ticket", "color": "#fef3c7", "columns": [
       { "name": "id", "type": "uuid", "pk": true },
       { "name": "agent_id", "type": "uuid", "fk": true },
       { "name": "team_id", "type": "uuid", "fk": true },
       { "name": "note", "type": "text" },
       { "name": "customer_id", "type": "uuid", "fk": true }
     ] },
-    { "id": "message", "name": "message", "group": "support", "columns": [
+    { "id": "message", "name": "message", "color": "#fef3c7", "columns": [
       { "name": "id", "type": "uuid", "pk": true },
       { "name": "ticket_id", "type": "uuid", "fk": true },
       { "name": "agent_id", "type": "uuid", "fk": true },
       { "name": "note", "type": "text" }
     ] },
-    { "id": "attachment", "name": "attachment", "group": "support", "columns": [
+    { "id": "attachment", "name": "attachment", "color": "#fef3c7", "columns": [
       { "name": "id", "type": "uuid", "pk": true },
       { "name": "message_id", "type": "uuid", "fk": true },
       { "name": "note", "type": "text" }
