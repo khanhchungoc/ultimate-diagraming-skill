@@ -13,6 +13,95 @@
       "edgeLabel": 7
     }
   },
+  "type": {
+    "family": {
+      "ui": "font.family",
+      "diagram": "font.family",
+      "mono": "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
+    },
+    "size": {
+      "2xs": "10px",
+      "xs": "11px",
+      "sm": "12px",
+      "md": "13px",
+      "lg": "14px",
+      "xl": "16px",
+      "2xl": "18px"
+    },
+    "weight": {
+      "regular": 400,
+      "medium": 500,
+      "semibold": 600,
+      "bold": 700
+    },
+    "leading": {
+      "none": 1,
+      "tight": 1.2,
+      "snug": 1.25,
+      "normal": 1.4,
+      "relaxed": 1.6
+    },
+    "lineBox": {
+      "11": "11px",
+      "14": "14px",
+      "16": "16px",
+      "17": "17px",
+      "18": "18px",
+      "20": "20px",
+      "22": "22px"
+    },
+    "tracking": {
+      "normal": "0",
+      "caps": "0.04em"
+    },
+    "fitMin": "11px",
+    "fitMinOverview": "9px",
+    "styles": {
+      "title": {
+        "family": "diagram",
+        "size": "lg",
+        "weight": "bold",
+        "leading": "tight"
+      },
+      "label": {
+        "family": "diagram",
+        "size": "md",
+        "weight": "regular",
+        "leading": "snug"
+      },
+      "detail": {
+        "family": "diagram",
+        "size": "sm",
+        "weight": "regular",
+        "leading": "normal"
+      },
+      "caption": {
+        "family": "ui",
+        "size": "xs",
+        "weight": "medium",
+        "leading": "normal"
+      },
+      "overline": {
+        "family": "ui",
+        "size": "2xs",
+        "weight": "bold",
+        "leading": "tight",
+        "tracking": "caps"
+      },
+      "code": {
+        "family": "mono",
+        "size": "xs",
+        "weight": "regular",
+        "leading": "normal"
+      },
+      "control": {
+        "family": "ui",
+        "size": "md",
+        "weight": "medium",
+        "leading": "normal"
+      }
+    }
+  },
   "size": {
     "lane-min-height": "160px"
   },

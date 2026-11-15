@@ -67,9 +67,9 @@
       border: 1.5px solid var(--border-dark);
       border-radius: 8px;
       color: var(--text-main);
-      font-size: 0.75rem;
-      font-weight: 400;
-      line-height: 1;
+      font-size: var(--t-detail-size);
+      font-weight: var(--t-detail-weight);
+      line-height: var(--leading-none);
       white-space: nowrap;
       cursor: pointer;
       z-index: 30;
@@ -92,7 +92,7 @@
       background: var(--node-bg);
       border-radius: 8px;
       color: var(--text-main);
-      font-size: 13px;
+      font-size: var(--t-label-size);
       z-index: 20;
       pointer-events: auto;
       cursor: pointer;
@@ -142,9 +142,9 @@
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
-      font-size: 14px;
-      font-weight: 700;
-      line-height: 20px;
+      font-size: var(--t-title-size);
+      font-weight: var(--t-title-weight);
+      line-height: var(--line-20);
     }
     .erd-chevron {
       flex: none;
@@ -188,8 +188,8 @@
        name; the slot is the engine's ER.GLYPH_W, so no width changes */
     .erd-glyph.both { flex-direction: column; justify-content: center; align-items: flex-start; gap: 0; }
     .erd-glyph.both svg { width: 11px; height: 11px; }
-    .erd-col-name { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-weight: 500; padding-left: 3px; }
-    .erd-row.pk .erd-col-name { font-weight: 700; }
+    .erd-col-name { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-weight: var(--weight-medium); padding-left: 3px; }
+    .erd-row.pk .erd-col-name { font-weight: var(--weight-bold); }
     .erd-uniq {
       flex: none;
       margin-left: 6px;
@@ -197,20 +197,20 @@
       border-radius: 4px;
       background: var(--bg-soft);
       color: var(--text-soft);
-      font-size: 9.5px;
-      font-weight: 700;
-      line-height: 14px;
-      letter-spacing: 0.02em;
+      font-size: var(--t-overline-size);
+      font-weight: var(--t-overline-weight);
+      line-height: var(--line-14);
+      letter-spacing: var(--tracking-normal);
     }
-    .erd-col-note { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; padding: 0 8px; color: var(--text-muted); font-size: 11px; }
-    .erd-col-type { flex: none; margin-left: auto; padding-left: 12px; color: var(--text-muted); font-size: 12px; }
+    .erd-col-note { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; padding: 0 8px; color: var(--text-muted); font-size: var(--text-xs); }
+    .erd-col-type { flex: none; margin-left: auto; padding-left: 12px; color: var(--text-muted); font-family: var(--t-code-family); font-size: var(--t-code-size); }
     .erd-col-note + .erd-col-type { margin-left: 0; padding-left: 4px; }
     .erd-more {
       height: 22px;
       padding: 0 12px 0 34px;
-      line-height: 20px;
+      line-height: var(--line-20);
       color: var(--text-muted);
-      font-size: 11.5px;
+      font-size: var(--text-sm);
       font-style: italic;
       border-top: 1px solid color-mix(in srgb, var(--border-color) 55%, transparent);
     }
@@ -218,12 +218,12 @@
     .erd-row.hl-in  { background: color-mix(in srgb, var(--edge-in) 20%, transparent); }
     .erd-row.hl-out { background: color-mix(in srgb, var(--edge-out) 18%, transparent); }
     .erd-row.hover  { background: color-mix(in srgb, var(--primary) 18%, transparent); }
-    .erd-row.key-hl .erd-col-name, .erd-key-row.key-hl .erd-col-name { font-weight: 700; }
+    .erd-row.key-hl .erd-col-name, .erd-key-row.key-hl .erd-col-name { font-weight: var(--weight-bold); }
     /* The chip on a joining row of a related table: it takes the place of the type text */
     .erd-key-chip {
       flex: 0 1 auto; min-width: 0; margin-left: auto; padding: 0 7px;
       border-radius: 999px; box-sizing: border-box;
-      font-size: 10px; font-weight: 600; line-height: 11px; padding-top: 1px; padding-bottom: 1px;
+      font-size: var(--t-overline-size); font-weight: var(--weight-semibold); line-height: var(--line-11); padding-top: 1px; padding-bottom: 1px;
       white-space: normal; overflow-wrap: anywhere; overflow: hidden; max-height: 24px;   /* a long name wraps onto a second line, no ellipsis */
       background: color-mix(in srgb, var(--chip, var(--primary)) 20%, var(--bg-panel));
       color: var(--text-main);
@@ -240,7 +240,7 @@
       padding: 3px 0; border-radius: 8px;
       background: var(--bg-panel); border: 1px solid var(--border-dark);
       box-shadow: var(--shadow-8-20-20);
-      pointer-events: none; font-size: 13px;
+      pointer-events: none; font-size: var(--t-label-size);
     }
     .erd-key-row { display: flex; align-items: center; gap: 0; min-height: 24px; padding: 0 10px 0 12px; white-space: nowrap; }
     .erd-key-row .erd-key-chip { max-width: 190px; }
@@ -255,7 +255,7 @@
     body.exporting .erd-entity.rel-parent, body.exporting .erd-entity.rel-child { --ring: var(--node-border); box-shadow: var(--shadow-2-4-6); }
     body.exporting .erd-entity.rel-parent::after, body.exporting .erd-entity.rel-child::after { box-shadow: inset 0 0 0 1.5px var(--ring); }
     body.exporting .erd-entity.rel-parent .erd-head, body.exporting .erd-entity.rel-child .erd-head { box-shadow: none; }
-    body.exporting .erd-row.key-hl:not(.pk) .erd-col-name { font-weight: 500; }
+    body.exporting .erd-row.key-hl:not(.pk) .erd-col-name { font-weight: var(--weight-medium); }
     body.exporting .erd-entity.has-peek { z-index: 20; }
     .erd-head.hl-in  { box-shadow: inset 0 0 0 100px color-mix(in srgb, var(--edge-in) 16%, transparent); }
     .erd-head.hl-out { box-shadow: inset 0 0 0 100px color-mix(in srgb, var(--edge-out) 14%, transparent); }
@@ -281,9 +281,9 @@
       border-radius: 3px 8px 8px 3px;
       background: var(--note-bg);
       color: var(--note-ink);
-      font-size: 0.75rem;
-      font-weight: 400;
-      line-height: 1.4;
+      font-size: var(--t-detail-size);
+      font-weight: var(--t-detail-weight);
+      line-height: var(--t-detail-leading);
       text-align: left;
       box-shadow: var(--shadow-1-3-8);
       pointer-events: auto;
@@ -351,8 +351,8 @@
       border-radius: 999px;
       background: var(--bg-soft);
       color: var(--text-soft);
-      font-size: 0.6875rem;
-      line-height: 16px;
+      font-size: var(--text-xs);
+      line-height: var(--line-16);
       text-align: center;
     }
     #btn-notes[aria-pressed="true"] .btn-count { background: var(--primary); color: var(--bg-panel); }
@@ -464,7 +464,7 @@
     .erd-ab-btn {
       display: inline-flex; align-items: center; justify-content: center; gap: 4px; height: 26px; min-width: 26px; padding: 0 6px; box-sizing: border-box;
       border: 1px solid transparent; border-radius: 6px; background: transparent; color: var(--text-soft);
-      font: inherit; font-size: 12px; font-weight: 600; cursor: pointer;
+      font: inherit; font-size: var(--text-sm); font-weight: var(--weight-semibold); cursor: pointer;
     }
     .erd-ab-btn:hover { background: var(--bg-hover); color: var(--text-main); }
     .erd-ab-btn[aria-pressed="true"] { background: var(--primary-wash); border-color: var(--primary-ring); color: var(--primary); }
@@ -473,7 +473,7 @@
     .erd-ab-btn circle { fill: var(--bg-panel); }
     .erd-ab-glyph { padding: 0 3px; }
     .erd-ab-sep { width: 1px; height: 18px; margin: 0 3px; background: var(--border-color); }
-    .erd-ab-tag { padding: 0 4px 0 6px; font-size: 10.5px; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; color: var(--text-muted); }
+    .erd-ab-tag { padding: 0 4px 0 6px; font-size: var(--t-overline-size); font-weight: var(--t-overline-weight); letter-spacing: var(--t-overline-tracking); text-transform: uppercase; color: var(--text-muted); }
     .erd-ab-swatch { height: 26px; width: 26px; }
     body.erd-dragging .erd-actionbar, body.erd-dragging .erd-handle, body.erd-dragging .erd-note-add { display: none !important; }
     .erd-rel-label.is-editing-label { z-index: 60; }
@@ -528,21 +528,21 @@
     /* The prompt above the dock while a tool waits for a click */
     .erd-hint {
       position: fixed; left: 50%; bottom: 76px; transform: translateX(-50%); z-index: 150; padding: 6px 12px; border-radius: 999px;
-      border: 1px solid var(--border-dark); background: var(--bg-panel); color: var(--text-main); font-size: 0.8125rem; font-weight: 500;
+      border: 1px solid var(--border-dark); background: var(--bg-panel); color: var(--text-main); font-size: var(--t-control-size); font-weight: var(--t-control-weight);
       box-shadow: var(--shadow-4-12-12); max-width: calc(100vw - 32px); text-align: center; pointer-events: none;
     }
-    .erd-hint kbd { font: inherit; font-weight: 600; }
+    .erd-hint kbd { font: inherit; font-weight: var(--weight-semibold); }
     #btn-add-relationship[aria-pressed="true"], #btn-add-note[aria-pressed="true"] { background: var(--primary-wash); border-color: var(--primary-ring); color: var(--primary); }
 
     /* Delete confirmation bubble (the sequence type's) */
     .erd-confirm {
       position: fixed; z-index: 2000; width: 260px; box-sizing: border-box; padding: 14px 14px 12px; border-radius: 10px;
       border: 1px solid var(--border-dark); background: var(--bg-panel); color: var(--text-main);
-      box-shadow: var(--shadow-10-30-18); font-size: 13px; line-height: 1.4;
+      box-shadow: var(--shadow-10-30-18); font-size: var(--t-control-size); line-height: var(--t-control-leading);
     }
-    .erd-confirm-msg { font-weight: 600; margin-bottom: 12px; overflow-wrap: anywhere; }
+    .erd-confirm-msg { font-weight: var(--weight-semibold); margin-bottom: 12px; overflow-wrap: anywhere; }
     .erd-confirm-actions { display: flex; justify-content: flex-end; gap: 8px; }
-    .erd-confirm .btn { padding: 6px 12px; font-size: 13px; }
+    .erd-confirm .btn { padding: 6px 12px; font-size: var(--t-control-size); }
     .erd-confirm-delete { background: var(--danger); border-color: var(--danger); color: var(--on-danger); }
     .erd-confirm-delete:hover { filter: brightness(0.92); background: var(--danger); color: var(--on-danger); }
 
@@ -568,7 +568,7 @@
       position: absolute; inset: 0; height: auto; padding: 0 8px; justify-content: center; border-radius: 8px; border-bottom: none;
     }
     body.erd-overview:not(.exporting) .erd-entity:not(.erd-card-table) .erd-name {
-      flex: 0 1 auto; max-width: 100%; text-align: center; font-size: max(13px, calc(14px * var(--inv))); line-height: 1.25;
+      flex: 0 1 auto; max-width: 100%; text-align: center; font-size: max(var(--text-md), calc(var(--text-lg) * var(--inv))); line-height: var(--leading-snug);
       overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
     body.erd-overview:not(.exporting) .erd-entity:not(.erd-card-table)::after { box-shadow: inset 0 0 0 calc(1.5px * var(--inv)) var(--ring); }

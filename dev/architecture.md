@@ -12,7 +12,7 @@ assets/
     help.html               shared help-drawer entries
                             (Nunito Sans is linked from Google Fonts in shell.html, the page's only network request;
                             offline the page falls back to the system font stack in shell.css)
-  tokens/default.json      design tokens (colours, font, palette, motion); no :root blocks in the CSS files
+  tokens/default.json      design tokens (colours, font, type scale and text styles, palette, motion); no :root blocks in the CSS files
   types/<type>/             one folder per diagram type (flowchart, sequence, erd)
     meta.json               {"title": ...}
     icon.html               header icon

@@ -8,7 +8,7 @@
     }
 
     body {
-      font-family: var(--font-family);
+      font-family: var(--font-ui);
       background-color: var(--bg-page);
       color: var(--text-main);
       overflow: hidden;
@@ -165,9 +165,9 @@
     .dock-pop-section + .dock-pop-section { margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--border-color); }
     .dock-pop-heading {
       padding: 0 4px 4px;
-      font-size: 10px;
-      font-weight: 600;
-      letter-spacing: 0.06em;
+      font-size: var(--t-overline-size);
+      font-weight: var(--weight-semibold);
+      letter-spacing: var(--t-overline-tracking);
       text-transform: uppercase;
       color: var(--text-soft);
     }
@@ -179,9 +179,9 @@
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
-      font-size: 10px;
-      font-weight: 500;
-      line-height: 1.2;
+      font-size: var(--t-overline-size);
+      font-weight: var(--weight-medium);
+      line-height: var(--t-overline-leading);
     }
     .dock-pop-wrap.open .dock-pop-grid > .btn {
       animation: dock-pop-tile 0.34s cubic-bezier(0.34, 1.56, 0.64, 1) both;
@@ -223,8 +223,8 @@
       pointer-events: none;
     }
     #zoom-level {
-      font-size: 0.8rem;
-      font-weight: 600;
+      font-size: var(--text-md);
+      font-weight: var(--weight-semibold);
       width: 45px;
       text-align: center;
       color: var(--text-main);
@@ -246,8 +246,8 @@
     }
 
     h1#chart-title {
-      font-size: 1.1rem;
-      font-weight: 700;
+      font-size: var(--text-2xl);
+      font-weight: var(--weight-bold);
       color: var(--text-main);
       outline: none;
       padding: 2px 6px;
@@ -265,8 +265,8 @@
     }
 
     .badge {
-      font-size: 0.78rem;
-      font-weight: 600;
+      font-size: var(--text-sm);
+      font-weight: var(--weight-semibold);
       padding: 2px 10px;
       border-radius: 12px;
     }
@@ -288,8 +288,8 @@
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      font-size: 0.85rem;
-      font-weight: 600;
+      font-size: var(--text-lg);
+      font-weight: var(--weight-semibold);
       padding: 6px 12px;
       border-radius: 6px;
       border: 1px solid var(--border-color);
@@ -340,7 +340,7 @@
 
     .btn-icon {
       padding: 6px 10px;
-      font-size: 0.9rem;
+      font-size: var(--text-lg);
     }
 
 
@@ -401,7 +401,7 @@
       padding: 12px 16px;
       border-radius: 8px;
       box-shadow: var(--shadow-4-12-10);
-      font-size: 0.8rem;
+      font-size: var(--text-md);
       color: var(--text-soft);
       z-index: 1000;
       max-width: min(340px, calc(100vw - 40px));
@@ -416,7 +416,7 @@
       justify-content: space-between;
       gap: 12px;
       margin-bottom: 6px;
-      font-weight: 700;
+      font-weight: var(--weight-bold);
       color: var(--text-main);
     }
     .help-close {
@@ -432,13 +432,13 @@
       cursor: pointer;
     }
     .help-close:hover { background: var(--bg-hover); color: var(--text-main); }
-    .help-list { list-style: none; line-height: 1.6; }
+    .help-list { list-style: none; line-height: var(--leading-relaxed); }
     #help-drawer kbd {
       background: var(--bg-hover);
       border: 1px solid var(--border-dark);
       padding: 1px 4px;
       border-radius: 4px;
-      font-weight: 600;
+      font-weight: var(--weight-semibold);
       color: var(--text-main);
     }
 
@@ -497,12 +497,12 @@
     .export-menu[hidden] { display: none; }
     .export-menu button {
       background: none; border: 0; text-align: left; padding: 7px 10px; border-radius: 6px;
-      font: inherit; font-size: 13px; color: var(--text, inherit); cursor: pointer;
+      font: inherit; font-size: var(--t-control-size); color: var(--text, inherit); cursor: pointer;
     }
     .export-menu button:hover, .export-menu button:focus-visible { background: var(--bg-hover); outline: none; }
     .export-menu button[hidden] { display: none; }
     .export-menu-label {
-      padding: 6px 10px 2px; font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase;
+      padding: 6px 10px 2px; font-size: var(--text-xs); font-weight: var(--weight-semibold); letter-spacing: var(--tracking-caps); text-transform: uppercase;
       color: var(--text-muted); user-select: none;
     }
     .export-menu-label:not(:first-child) { margin-top: 4px; border-top: 1px solid var(--menu-border); padding-top: 8px; }
@@ -557,5 +557,5 @@
       position: fixed; left: 50%; bottom: 84px; transform: translateX(-50%); z-index: 50;
       max-width: min(90vw, 420px); padding: 8px 14px; border-radius: 8px;
       background: var(--text-main); color: var(--bg-panel);
-      font-size: 13px; box-shadow: var(--shadow-4-16-25);
+      font-size: var(--t-control-size); box-shadow: var(--shadow-4-16-25);
     }

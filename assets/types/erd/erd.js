@@ -701,13 +701,15 @@
         erdHtml.querySelectorAll('.ov-hide').forEach((n) => n.classList.remove('ov-hide'));
       }
       function erdOverviewMeasure() {
-        const inv = 1 / scale, base = Math.max(13, 14 * inv);
+        const inv = 1 / scale, rootCs = getComputedStyle(document.documentElement);
+        const px = (v) => parseFloat(rootCs.getPropertyValue(v)), fitMin = parseFloat(TOKENS.type.fitMinOverview);   // the zoomed-out overview may go smaller than diagram labels
+        const base = Math.max(px('--text-md'), px('--text-lg') * inv); // the same size erd.css gives an overview table name
         erdHtml.querySelectorAll('.erd-entity .erd-name').forEach((n) => {
           const card = n.closest('.erd-entity');
           if (n.isContentEditable) return;
           n.style.fontSize = `${base}px`;
           const w = n.scrollWidth, avail = card.offsetWidth - 16;
-          if (w > avail && w > 0) n.style.fontSize = `${Math.max(base * avail / w, 9 * inv)}px`;
+          if (w > avail && w > 0) n.style.fontSize = `${Math.max(base * avail / w, fitMin * inv)}px`;
         });
         // Labels: keep the ones that fit when drawn at constant screen size, longest line first
         const rels = erdRelsList().map((r) => {

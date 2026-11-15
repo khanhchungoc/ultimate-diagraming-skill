@@ -197,6 +197,13 @@ Decided (2026-11-15): the sequence note drops its yellow look. All types use one
 5. Record each snap in the commit message.
 6. Exit check: `check_tokens.py` also fails on literal `font-size`, `font-weight`, `line-height`, `letter-spacing`, `border-radius` and `box-shadow` values. Screenshot diffs are reviewed by eye; small changes from snapping are expected and listed. Snapping diagram label sizes changes text width, so goldens are re-checked here and Phase 6 metrics must match the final sizes.
 
+As built, typography (2026-11-15):
+
+- Scale `2xs` 10, `xs` 11, `sm` 12, `md` 13, `lg` 14, `xl` 16, `2xl` 18 px (`lg` is 14 because every diagram title is 14px). Seven text styles as `--t-<style>-*`; `.t-*` classes are generated but not yet used in markup. `type.lineBox` holds px line heights that size a box (`--line-<n>`). `--font-family` became `--font-ui` / `--font-diagram` / `--font-mono`.
+- Diagram text sizes are unchanged, so goldens did not move. UI chrome snapped (buttons 13.6 to 14px, title 17.6 to 18px, zoom 12.8 to 13px, ERD badges 9.5/10.5/11.5 to 10/10/12px). Flowchart line heights 1.22, 1.15, 1.3 became 1.2, 1.2, 1.25.
+- ERD column types use the `code` style: 11px mono, which matches `ER.TYPE_CHAR_W` 6.6 exactly in Chrome's `monospace` (12px would overflow).
+- `type.fitMin` 11px is the flowchart shrink-to-fit floor (unchanged); `type.fitMinOverview` 9px is the ERD zoomed-out overview floor (unchanged).
+
 ### Phase 3: Shared components
 
 Create `assets/components/` with one CSS file per component, assembled after the token CSS and before the type CSS. Each component uses tokens only and has no type prefix.

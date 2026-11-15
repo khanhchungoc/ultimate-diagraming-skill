@@ -162,8 +162,8 @@
       border: 1.5px solid var(--border-dark);
       border-radius: 8px;
       padding: 3px 8px;
-      font-size: 0.8125rem;
-      font-weight: 400; /* annotation weight: keeps node text the primary layer */
+      font-size: var(--t-label-size);
+      font-weight: var(--t-label-weight); /* annotation weight: keeps node text the primary layer */
       color: var(--text-main);
       cursor: pointer;
       z-index: 30;
@@ -176,7 +176,7 @@
       align-items: center;
       justify-content: center;
       gap: 6px;
-      line-height: 1.25;
+      line-height: var(--t-label-leading);
       box-sizing: border-box;
       max-width: 140px; /* keep in sync with LE.LABEL_MAX_W */
     }
@@ -209,7 +209,7 @@
       background: var(--edge-label-empty-bg);
       border: 1.5px dashed var(--edge-label-empty-border);
       color: var(--text-soft);
-      font-size: 0.8125rem;
+      font-size: var(--t-label-size);
       padding: 2px 8px;
     }
     .edge-label-container.empty-placeholder {
@@ -220,8 +220,8 @@
       border-radius: 50%;
       align-items: center;
       justify-content: center;
-      font-size: 1rem;
-      line-height: 1;
+      font-size: var(--text-xl);
+      line-height: var(--leading-none);
     }
     .edge-label-container.empty-placeholder.hover-visible,
     .edge-label-container.empty-placeholder.selected,
@@ -254,9 +254,9 @@
       align-items: center;
       justify-content: center;
       text-align: center;
-      font-size: 0.875rem;
-      font-weight: 700;
-      line-height: 1.22;
+      font-size: var(--t-title-size);
+      font-weight: var(--t-title-weight);
+      line-height: var(--t-title-leading);
       user-select: none;
       transition: box-shadow 0.15s;
     }
@@ -381,10 +381,10 @@
       position: relative;
       z-index: 2;
       color: var(--decision-text);
-      font-weight: 700;
+      font-weight: var(--weight-bold);
       max-width: 92px;
-      font-size: 0.8125rem;
-      line-height: 1.15;
+      font-size: var(--t-label-size);
+      line-height: var(--leading-tight);
     }
 
     .node-label {
@@ -458,8 +458,8 @@
       border: 2px solid var(--conn-border);
       --node-stroke: 0px; /* keeps its own 2px border (a whole pixel, drawn true); no inset ring */
       color: var(--conn-text);
-      font-size: 0.875rem;
-      font-weight: 700;
+      font-size: var(--t-title-size);
+      font-weight: var(--t-title-weight);
       cursor: pointer;
     }
     /* Pairs tell apart in one hue (no extra colours): by letter, 0 pale disc + 2px ring (above), 1 solid disc,
@@ -528,7 +528,7 @@
       background: transparent;
       color: inherit;
       font: inherit;
-      font-size: 0.8125rem;
+      font-size: var(--t-control-size);
       text-align: left;
       white-space: nowrap;
       cursor: pointer;
@@ -600,9 +600,9 @@
       border-radius: 999px;
       background: var(--lane-pill-bg);
       color: var(--lane-pill-ink);
-      font-size: 14px;
-      font-weight: 600;
-      line-height: 1.3;
+      font-size: var(--t-title-size);
+      font-weight: var(--weight-semibold);
+      line-height: var(--leading-snug);
       white-space: nowrap;
       cursor: move;
       user-select: none;
@@ -669,13 +669,13 @@
       background: var(--bg-panel);
       color: var(--text-main);
       box-shadow: var(--shadow-10-30-18);
-      font-size: 13px;
-      line-height: 1.4;
+      font-size: var(--t-control-size);
+      line-height: var(--t-control-leading);
     }
-    .lane-confirm-title { font-weight: 600; font-size: 14px; margin-bottom: 4px; overflow-wrap: anywhere; }
+    .lane-confirm-title { font-weight: var(--weight-semibold); font-size: var(--text-lg); margin-bottom: 4px; overflow-wrap: anywhere; }
     .lane-confirm-msg { color: var(--text-soft); margin-bottom: 12px; }
     .lane-confirm-actions { display: flex; justify-content: flex-end; gap: 8px; }
-    .lane-confirm .btn { padding: 6px 12px; font-size: 13px; }
+    .lane-confirm .btn { padding: 6px 12px; font-size: var(--t-control-size); }
     .lane-confirm-delete { background: var(--danger); border-color: var(--danger); color: var(--on-danger); }
     .lane-confirm-delete:hover { filter: brightness(0.92); background: var(--danger); color: var(--on-danger); }
     .lane-pill .lane-icon { width: auto; height: auto; border: none; background: none; border-radius: 0; color: inherit; }
@@ -757,8 +757,8 @@
       border-radius: 999px;
       background: var(--primary);
       color: var(--on-primary);
-      font-size: 0.75rem;
-      font-weight: 600;
+      font-size: var(--text-sm);
+      font-weight: var(--weight-semibold);
       white-space: nowrap;
       pointer-events: none;
       box-shadow: 0 2px 8px var(--primary-glow);
@@ -795,9 +795,9 @@
       border-radius: 3px 8px 8px 3px;
       background: var(--note-bg);
       color: var(--note-ink);
-      font-size: 0.75rem;
-      font-weight: 400;
-      line-height: 1.4;
+      font-size: var(--t-detail-size);
+      font-weight: var(--t-detail-weight);
+      line-height: var(--t-detail-leading);
       text-align: left;
       box-shadow: var(--shadow-1-3-8);
       pointer-events: auto;
@@ -970,13 +970,13 @@
       border: 1px solid var(--note-border);
       background: var(--note-bg);
       color: var(--note-ink);
-      font-size: 0.8125rem;
-      font-weight: 500;
+      font-size: var(--t-control-size);
+      font-weight: var(--t-control-weight);
       white-space: nowrap;
       box-shadow: var(--shadow-4-14-12);
       pointer-events: none;
     }
-    .note-pick-hint kbd { font: inherit; font-weight: 600; }
+    .note-pick-hint kbd { font: inherit; font-weight: var(--weight-semibold); }
 
     /* Auto-Tidy on/off in the dock: a sliding switch (knob right and track filled while on) */
     .btn-switch .switch-track {
@@ -1015,8 +1015,8 @@
       border-radius: 999px;
       background: var(--bg-soft);
       color: var(--text-soft);
-      font-size: 0.6875rem;
-      line-height: 16px;
+      font-size: var(--text-xs);
+      line-height: var(--line-16);
       text-align: center;
     }
     #btn-notes[aria-pressed="true"] .btn-count { background: var(--primary); color: var(--bg-panel); }

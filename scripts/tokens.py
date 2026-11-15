@@ -16,6 +16,8 @@ TOKENS_VERSION = 1
 _FUNCS = {"rgb", "rgba", "hsl", "hsla", "oklch", "var", "color-mix"}
 _COLOR_CHARS = re.compile(r"^[A-Za-z0-9#%.,() \-]+$")
 _LENGTH = re.compile(r"^-?\d+(\.\d+)?(px|rem|em|%)?$")
+_TRACKING = re.compile(r"^(0|-?\d+(\.\d+)?(em|px))$")
+_KEY = re.compile(r"^[\w-]+$")
 _TIME = re.compile(r"^\d+(\.\d+)?m?s( [a-z-]+)?$")
 # palette tone -> role name: soft is the fill, strong the line; the rest are named as their role
 _TONES = {"soft": "fill", "strong": "line", "ink": "ink", "solid": "solid", "on-solid": "on-solid"}
@@ -89,6 +91,7 @@ def _validate(t: Dict[str, Any]) -> None:
         if isinstance(v, bool) or not isinstance(v, (int, float)): raise _err(f"font.metrics.{k}", v)
     for k, v in t["size"].items():
         if not (isinstance(v, str) and _LENGTH.match(v)): raise _err(f"size.{k}", v)
+    _validate_type(t["type"])
     for k, v in t["motion"].items():
         if not (isinstance(v, str) and _TIME.match(v)): raise _err(f"motion.{k}", v)
     for k, v in t["shadow"].items():
@@ -104,6 +107,29 @@ def _validate(t: Dict[str, Any]) -> None:
     for mode in ("light", "dark"):
         for k, v in t["color"][mode].items():
             if not re.fullmatch(r"[\w-]+", k) or not _is_value(v): raise _err(f"color.{mode}.{k}", v)
+
+
+def _validate_type(ty: Dict[str, Any]) -> None:
+    def num(v: Any) -> bool:
+        return isinstance(v, (int, float)) and not isinstance(v, bool)
+
+    for k, v in ty["family"].items():
+        if not _KEY.match(k) or not (v == "font.family" or (isinstance(v, str) and _FONT_STACK.match(v))): raise _err(f"type.family.{k}", v)
+    for group in ("size", "lineBox"):
+        for k, v in ty[group].items():
+            if not _KEY.match(k) or not (isinstance(v, str) and _LENGTH.match(v)): raise _err(f"type.{group}.{k}", v)
+    for k, v in ty["weight"].items():
+        if not _KEY.match(k) or not (num(v) and 100 <= v <= 900): raise _err(f"type.weight.{k}", v)
+    for k, v in ty["leading"].items():
+        if not _KEY.match(k) or not (num(v) and 0 < v <= 3): raise _err(f"type.leading.{k}", v)
+    for k, v in ty["tracking"].items():
+        if not _KEY.match(k) or not (isinstance(v, str) and _TRACKING.match(v)): raise _err(f"type.tracking.{k}", v)
+    for k in ("fitMin", "fitMinOverview"):
+        if not (isinstance(ty[k], str) and re.fullmatch(r"\d+(\.\d+)?px", ty[k])): raise _err(f"type.{k}", ty[k])
+    for name, st in ty["styles"].items():
+        if not _KEY.match(name) or not {"family", "size", "weight"} <= st.keys(): raise _err(f"type.styles.{name}", st)
+        for prop in ("family", "size", "weight", "leading", "tracking"):
+            if prop in st and st[prop] not in ty[prop]: raise _err(f"type.styles.{name}.{prop}", st[prop])
 
 
 def _merge(base: Dict[str, Any], over: Dict[str, Any]) -> Dict[str, Any]:
@@ -158,10 +184,29 @@ def _block(selector: str, decls: Dict[str, str], scheme: str) -> str:
     return f"    {selector} {{\n" + "\n".join(lines) + "\n    }"
 
 
+def _type_vars(tokens: Dict[str, Any]) -> Dict[str, str]:
+    """--font-ui|diagram|mono, the --text/--weight/--leading/--line/--tracking scales and --t-<style>-* for every text style."""
+    f, ty = tokens["font"], tokens["type"]
+    out = {f"font-{k}": f'"{f["family"]}", {f["stack"]}' if v == "font.family" else v for k, v in ty["family"].items()}
+    for var, group in (("text", "size"), ("weight", "weight"), ("leading", "leading"), ("line", "lineBox"), ("tracking", "tracking")):
+        out.update({f"{var}-{k}": str(v) for k, v in ty[group].items()})
+    for name, st in ty["styles"].items():
+        out.update({f"t-{name}-family": f"var(--font-{st['family']})", f"t-{name}-size": f"var(--text-{st['size']})",
+                    f"t-{name}-weight": f"var(--weight-{st['weight']})",
+                    f"t-{name}-leading": f"var(--leading-{st.get('leading', 'normal')})",
+                    f"t-{name}-tracking": f"var(--tracking-{st.get('tracking', 'normal')})"})
+    return out
+
+
+def _type_classes(tokens: Dict[str, Any]) -> str:
+    return "\n".join(
+        f"    .t-{n} {{ font-family: var(--t-{n}-family); font-size: var(--t-{n}-size); font-weight: var(--t-{n}-weight); "
+        f"line-height: var(--t-{n}-leading); letter-spacing: var(--t-{n}-tracking); }}" for n in tokens["type"]["styles"])
+
+
 def tokens_css(tokens: Dict[str, Any]) -> str:
     """The :root (light) and :root[data-theme="dark"] blocks. Dark lists only what it overrides; the cascade does the rest."""
-    f = tokens["font"]
-    light = {"font-family": f'"{f["family"]}", {f["stack"]}',
+    light = {**_type_vars(tokens),
              **tokens["size"], **tokens["motion"], **{f"shadow-{k}": v for k, v in tokens["shadow"].items()},
              **tokens["color"]["light"], **_sw_vars(tokens, "light")}
     dark = {**tokens["color"]["dark"], **_sw_vars(tokens, "dark", True)}
@@ -171,11 +216,13 @@ def tokens_css(tokens: Dict[str, Any]) -> str:
         f'--sw-pill-bg: var(--sw-{s["slot"]}-fill); --sw-pill-ink: var(--sw-{s["slot"]}-ink); '
         f'--sw-pill-solid: var(--sw-{s["slot"]}-solid); --sw-on-solid: var(--sw-{s["slot"]}-on-solid); }}'
         for s in tokens["palette"])
-    return _block(":root", light, "light") + "\n\n" + _block(':root[data-theme="dark"]', dark, "dark") + "\n\n" + slots
+    return (_block(":root", light, "light") + "\n\n" + _block(':root[data-theme="dark"]', dark, "dark") + "\n\n" + slots
+            + "\n\n" + _type_classes(tokens))
 
 
 def tokens_js(tokens: Dict[str, Any]) -> str:
-    data = {"palette": tokens["palette"], "font": {"metrics": tokens["font"]["metrics"]}, "motion": tokens["motion"]}
+    data = {"palette": tokens["palette"], "font": {"metrics": tokens["font"]["metrics"]}, "motion": tokens["motion"],
+            "type": {k: tokens["type"][k] for k in ("fitMin", "fitMinOverview")}}
     return f"const TOKENS = {json.dumps(data, separators=(',', ':'))};"
 
 
@@ -187,7 +234,13 @@ if __name__ == "__main__":
     assert d["bg-page"] == "#0b1220" and l["bg-page"] == "#f8fafc"
     assert d["warning"] == l["warning"], "dark falls back to light"
     assert all(not v.startswith("var(") for v in [*d.values(), *l.values()])
-    assert "--primary: #2563eb;" in tokens_css(t) and tokens_js(t).startswith("const TOKENS = {")
+    css = tokens_css(t)
+    assert "--primary: #2563eb;" in css and tokens_js(t).startswith("const TOKENS = {")
+    assert '"fitMin":"11px"' in tokens_js(t) and '"fitMinOverview":"9px"' in tokens_js(t)
+    for want in ("--font-ui: \"Nunito Sans\", ", "--font-mono: ui-monospace", "--text-md: 13px;", "--weight-bold: 700;", "--leading-tight: 1.2;",
+                 "--tracking-caps: 0.04em;", "--t-label-size: var(--text-md);", "--t-overline-tracking: var(--tracking-caps);",
+                 "--t-code-family: var(--font-mono);", ".t-control { font-family: var(--t-control-family);"):
+        assert want in css, want
 
     def theme(obj: Dict[str, Any]) -> Path:
         p = Path(tempfile.mkdtemp()) / "theme.json"
@@ -201,7 +254,11 @@ if __name__ == "__main__":
     for bad in ({"color": {"light": {"primary": "url(javascript:alert(1))"}}},
                 {"color": {"light": {"primary": "red; } body { display:none"}}},
                 {"font": {"stack": "a; } </style><script>"}},
-                {"font": {"href": "https://evil.example/x.css"}}):
+                {"font": {"href": "https://evil.example/x.css"}},
+                {"type": {"weight": {"bold": 1000}}}, {"type": {"weight": {"bold": "700"}}}, {"type": {"leading": {"tight": "1.2"}}},
+                {"type": {"leading": {"tight": 0}}}, {"type": {"tracking": {"caps": "4%"}}}, {"type": {"tracking": {"caps": "1em; x"}}},
+                {"type": {"size": {"md": "big"}}}, {"type": {"fitMin": "9"}}, {"type": {"family": {"mono": "a; } x"}}},
+                {"type": {"styles": {"label": {"family": "ui", "size": "huge", "weight": "bold"}}}}):
         try:
             load_tokens(theme(bad))
         except ValueError:

@@ -106,7 +106,8 @@ def scan_text(kind: str, text: str, phase: int = 1):
             if phase >= 2:
                 for m in SCALE_RE.finditer(line):
                     v = re.sub(r"\s*!important", "", m.group(2)).strip()
-                    if not v.startswith("var(") and v not in SCALE_OK:
+                    # tokens only: a value with a number left once var(...) is removed is a literal (max(var(--a), calc(var(--b) * var(--c))) passes)
+                    if (v not in SCALE_OK) and (not v.startswith(("var(", "max(", "min(", "calc(", "clamp(")) or re.search(r"\d", re.sub(r"var\([^)]*\)", "", v))):
                         add("type-scale-literal", m.group())
         else:
             for m in JS_HEX.finditer(line):
@@ -179,6 +180,8 @@ def self_test():
     assert sorted(rules("css", "a{font-size:12px;font-weight:600;line-height:1.2;letter-spacing:1px;"
                                "border-radius:4px;box-shadow:0 0 2px #000}", 2)).count("type-scale-literal") == 6
     assert rules("css", "a{font-size:var(--t-body);line-height:normal;box-shadow:var(--s)}", 2) == []
+    assert rules("css", "a{font-size:max(var(--a), calc(var(--b) * var(--inv)))}", 2) == []
+    assert rules("css", "a{font-size:max(13px, var(--b))}", 2) == ["type-scale-literal"]
     assert rules("html", "<p>&#169; <svg></svg></p>") == []
     assert rules("html", "<p><svg></svg></p>", 4) == ["svg-literal"]
     assert rules("html", "<style>a{color:#fff}</style><script>x='#fff'</script>") == ["color-literal"] * 2

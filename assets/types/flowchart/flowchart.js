@@ -548,10 +548,10 @@
 
       // Narrow shapes fit their text by width in pixels, not characters: "Specification?" fits a diamond
       // line, "Standard Spec?" (same length, wider letters) does not. A label that needs a third line steps its
-      // font down 1px at a time, to FIT_MIN_PX, until it fits the 2-line clamp. data-base-px keeps the
+      // font down 1px at a time, to FIT_MIN_PX (TOKENS.type.fitMin), until it fits the 2-line clamp. data-base-px keeps the
       // designed size for the legibility report (shell.js), so a fitted label does not count as small text.
       const FIT_TYPES = new Set(['decision', 'subprocess', 'io', 'database', 'delay']);
-      const FIT_MIN_PX = 11;
+      const FIT_MIN_PX = parseFloat(TOKENS.type.fitMin);
       function fitNodeLabel(label, type) {
         label.style.fontSize = '';
         delete label.dataset.basePx;
