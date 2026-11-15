@@ -36,10 +36,11 @@ try {
   check('an async message whose target does nothing gets no bar', of('q').length === 0, show('q'));
   const c = of('c');
   check('a call with no reply is a short bar that ends when the caller moves on', c.length >= 2 && c[0].from === 'm10' && c[0].to === 'm10' && c[1].from === 'm11', show('c'));
-  check('a system that starts the flow is busy from its first call until its last reply', of('j').length === 1 && of('j')[0].from === 'm13' && ['m16', 'm17', 'm18'].includes(of('j')[0].to), show('j'));
+  check('a system that starts the flow is busy from its first call until it is next called', of('j')[0] && of('j')[0].from === 'm13' && ['m18', 'm19', 'm20'].includes(of('j')[0].to), show('j'));
   check('"activate": false opens no bar', !of('b').some((b) => b.from === 'm15' || b.to === 'm15'), show('b'));
   const cu = c.find((b) => b.from === 'm17');
   check('"until" stretches a bar to that message', !!cu && cu.to === 'm18', show('c'));
+  check('a bar stretched with "until" stays one bar when that participant calls out inside it', of('k').length === 1 && of('k')[0].from === 'm19' && of('k')[0].to === 'm22', show('k'));
 } catch (e) {
   console.error('[ERROR]', e.message);
   code = 1;

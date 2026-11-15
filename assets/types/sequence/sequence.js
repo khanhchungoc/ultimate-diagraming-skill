@@ -125,8 +125,8 @@
             const k = st.findIndex((ex) => ex.caller === from && !ex.async && ex.callerDepth === depth && ex.open);
             if (k >= 0 && pid !== from) closeAt(pid, k, (st[k].lastOut !== null ? st[k].lastOut : st[k].y1 + STUB), null);
           });
-          // A system starting the flow is busy until it is next called
-          if (!depth && kindOf(from) !== 'actor' && !self) stack(from).push({ pid: from, y1: m.y - 6, caller: null, callerDepth: -1, async: false, lastOut: m.y, until: null, open: false, initiator: true, hiddenFrom: m.hidden });
+          // A system starting the flow is busy until it is next called (unless a bar stretched with "until" already covers it)
+          if (!depth && kindOf(from) !== 'actor' && !self && !bars.some((b) => b.pid === from && b.y1 <= m.y && m.y <= b.y2)) stack(from).push({ pid: from, y1: m.y - 6, caller: null, callerDepth: -1, async: false, lastOut: m.y, until: null, open: false, initiator: true, hiddenFrom: m.hidden });
           touch(from, m.y);
           if (m.activate === false) return;
           if (self) {

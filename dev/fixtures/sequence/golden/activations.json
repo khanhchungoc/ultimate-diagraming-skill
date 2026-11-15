@@ -1,0 +1,234 @@
+{
+  "diagramType": "sequence",
+  "schemaVersion": 1,
+  "title": "Activation bars",
+  "participants": [
+    {
+      "id": "u",
+      "name": "User",
+      "kind": "actor",
+      "x": 158
+    },
+    {
+      "id": "a",
+      "name": "App",
+      "kind": "system",
+      "x": 358
+    },
+    {
+      "id": "b",
+      "name": "Service",
+      "kind": "system",
+      "x": 558
+    },
+    {
+      "id": "c",
+      "name": "Store",
+      "kind": "database",
+      "x": 758
+    },
+    {
+      "id": "q",
+      "name": "Events",
+      "kind": "queue",
+      "x": 958
+    },
+    {
+      "id": "j",
+      "name": "Job",
+      "kind": "system",
+      "x": 1158
+    },
+    {
+      "id": "k",
+      "name": "Ledger",
+      "kind": "system",
+      "x": 1358
+    }
+  ],
+  "messages": [
+    {
+      "id": "m1",
+      "from": "u",
+      "to": "a",
+      "label": "Open",
+      "kind": "sync",
+      "y": 166
+    },
+    {
+      "id": "m2",
+      "from": "a",
+      "to": "b",
+      "label": "Call one",
+      "kind": "sync",
+      "y": 226
+    },
+    {
+      "id": "m3",
+      "from": "b",
+      "to": "a",
+      "label": "Result one",
+      "kind": "reply",
+      "y": 286
+    },
+    {
+      "id": "m4",
+      "from": "a",
+      "to": "b",
+      "label": "Call two",
+      "kind": "sync",
+      "y": 346
+    },
+    {
+      "id": "m5",
+      "from": "b",
+      "to": "a",
+      "label": "Callback",
+      "kind": "sync",
+      "y": 406
+    },
+    {
+      "id": "m6",
+      "from": "a",
+      "to": "b",
+      "label": "Callback done",
+      "kind": "reply",
+      "y": 466
+    },
+    {
+      "id": "m7",
+      "from": "b",
+      "to": "a",
+      "label": "Result two",
+      "kind": "reply",
+      "y": 526
+    },
+    {
+      "id": "m8",
+      "from": "a",
+      "to": "a",
+      "label": "Self check",
+      "kind": "sync",
+      "y": 586
+    },
+    {
+      "id": "m9",
+      "from": "a",
+      "to": "q",
+      "label": "Publish",
+      "kind": "async",
+      "y": 682
+    },
+    {
+      "id": "m10",
+      "from": "a",
+      "to": "c",
+      "label": "Write",
+      "kind": "sync",
+      "y": 742
+    },
+    {
+      "id": "m11",
+      "from": "a",
+      "to": "c",
+      "label": "Write again",
+      "kind": "sync",
+      "y": 802
+    },
+    {
+      "id": "m12",
+      "from": "a",
+      "to": "u",
+      "label": "Done",
+      "kind": "reply",
+      "y": 862
+    },
+    {
+      "id": "m13",
+      "from": "j",
+      "to": "b",
+      "label": "Nightly run",
+      "kind": "sync",
+      "y": 922
+    },
+    {
+      "id": "m14",
+      "from": "b",
+      "to": "j",
+      "label": "Run done",
+      "kind": "reply",
+      "y": 982
+    },
+    {
+      "id": "m15",
+      "from": "j",
+      "to": "b",
+      "label": "Ping",
+      "kind": "sync",
+      "activate": false,
+      "y": 1042
+    },
+    {
+      "id": "m16",
+      "from": "b",
+      "to": "j",
+      "label": "Pong",
+      "kind": "reply",
+      "y": 1102
+    },
+    {
+      "id": "m17",
+      "from": "j",
+      "to": "c",
+      "label": "Archive",
+      "kind": "sync",
+      "until": "m18",
+      "y": 1162
+    },
+    {
+      "id": "m18",
+      "from": "j",
+      "to": "q",
+      "label": "Archived",
+      "kind": "async",
+      "y": 1222
+    },
+    {
+      "id": "m19",
+      "from": "j",
+      "to": "k",
+      "label": "Open session",
+      "kind": "sync",
+      "until": "m22",
+      "y": 1282
+    },
+    {
+      "id": "m20",
+      "from": "k",
+      "to": "j",
+      "label": "Session open",
+      "kind": "reply",
+      "y": 1342
+    },
+    {
+      "id": "m21",
+      "from": "k",
+      "to": "j",
+      "label": "Confirm entry",
+      "kind": "sync",
+      "y": 1402
+    },
+    {
+      "id": "m22",
+      "from": "j",
+      "to": "k",
+      "label": "Entry confirmed",
+      "kind": "reply",
+      "y": 1462
+    }
+  ],
+  "layout": {
+    "width": 1488,
+    "height": 1548
+  }
+}
