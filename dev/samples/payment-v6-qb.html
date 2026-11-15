@@ -17,16 +17,16 @@
   "title": "Payment v6 Q&B",
   "numbered": true,
   "lifespans": true,
-  "colorKey": { "#e0f2fe": "Our services", "#f3e8ff": "Third parties", "#fef3c7": "Customer side" },
+  "colorKey": { "1": "Our services", "2": "Customer side", "5": "Third parties" },
   "participants": [
-    { "id": "cust", "name": "Customer", "kind": "actor", "color": "#fef3c7" },
-    { "id": "fe", "name": "Q&B UI", "kind": "ui", "color": "#fef3c7" },
-    { "id": "pol", "name": "Policy Svc", "kind": "system", "color": "#e0f2fe" },
-    { "id": "pay", "name": "Payment Svc", "kind": "system", "color": "#e0f2fe" },
-    { "id": "spm", "name": "SPM", "kind": "external", "color": "#f3e8ff" },
-    { "id": "bus", "name": "Service Bus", "kind": "queue", "color": "#e0f2fe" },
-    { "id": "job", "name": "Background Job", "kind": "system", "color": "#e0f2fe", "column": "spm" },
-    { "id": "db", "name": "Policy DB", "kind": "database", "color": "#e0f2fe" }
+    { "id": "cust", "name": "Customer", "kind": "actor", "color": "2" },
+    { "id": "fe", "name": "Q&B UI", "kind": "ui", "color": "2" },
+    { "id": "pol", "name": "Policy Svc", "kind": "system", "color": "1" },
+    { "id": "pay", "name": "Payment Svc", "kind": "system", "color": "1" },
+    { "id": "spm", "name": "SPM", "kind": "external", "color": "5" },
+    { "id": "bus", "name": "Service Bus", "kind": "queue", "color": "1" },
+    { "id": "job", "name": "Background Job", "kind": "system", "color": "1", "column": "spm" },
+    { "id": "db", "name": "Policy DB", "kind": "database", "color": "1" }
   ],
   "messages": [
     { "id": "m1", "from": "cust", "to": "fe", "label": "Confirm quote and pay", "kind": "sync" },
@@ -73,9 +73,9 @@
     { "id": "m42", "from": "bus", "to": "pay", "label": "PolicyIssued", "detail": "policy number", "kind": "async" }
   ],
   "fragments": [
-    { "id": "f1", "kind": "group", "label": "Register Payment", "color": "yellow", "from": "m2", "to": "m10" },
+    { "id": "f1", "kind": "group", "label": "Register Payment", "color": "2", "from": "m2", "to": "m10" },
     { "id": "f2", "kind": "group", "label": "pre-purchase processing", "from": "m2", "to": "m5" },
-    { "id": "f3", "kind": "group", "label": "SPM", "color": "blue", "from": "m12", "to": "m16" },
+    { "id": "f3", "kind": "group", "label": "SPM", "color": "1", "from": "m12", "to": "m16" },
     { "id": "f8", "kind": "group", "label": "Status update", "from": "m17", "to": "m19" },
     { "id": "f4", "kind": "loop", "label": "push data every second", "from": "m20", "to": "m23" },
     {
@@ -89,7 +89,7 @@
         { "at": "m28", "label": "payment-status = Success" }
       ]
     },
-    { "id": "f6", "kind": "group", "label": "Post-payment processing", "color": "green", "from": "m29", "to": "m41" },
+    { "id": "f6", "kind": "group", "label": "Post-payment processing", "color": "3", "from": "m29", "to": "m41" },
     { "id": "f7", "kind": "opt", "label": "CreateSystemTask failed", "from": "m37", "to": "m38" }
   ],
   "notes": [
@@ -109,6 +109,100 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito+Sans:opsz,wght@6..12,400..700&amp;display=swap">
   <style>
     :root {
+      --font-ui: "Nunito Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      --font-diagram: "Nunito Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      --text-2xs: 10px;
+      --text-xs: 11px;
+      --text-sm: 12px;
+      --text-md: 13px;
+      --text-lg: 14px;
+      --text-xl: 16px;
+      --text-2xl: 18px;
+      --weight-regular: 400;
+      --weight-medium: 500;
+      --weight-semibold: 600;
+      --weight-bold: 700;
+      --leading-none: 1;
+      --leading-tight: 1.2;
+      --leading-snug: 1.25;
+      --leading-normal: 1.4;
+      --leading-relaxed: 1.6;
+      --line-11: 11px;
+      --line-14: 14px;
+      --line-16: 16px;
+      --line-17: 17px;
+      --line-18: 18px;
+      --line-20: 20px;
+      --line-22: 22px;
+      --tracking-normal: 0;
+      --tracking-caps: 0.04em;
+      --t-title-family: var(--font-diagram);
+      --t-title-size: var(--text-lg);
+      --t-title-weight: var(--weight-bold);
+      --t-title-leading: var(--leading-tight);
+      --t-title-tracking: var(--tracking-normal);
+      --t-label-family: var(--font-diagram);
+      --t-label-size: var(--text-md);
+      --t-label-weight: var(--weight-regular);
+      --t-label-leading: var(--leading-snug);
+      --t-label-tracking: var(--tracking-normal);
+      --t-detail-family: var(--font-diagram);
+      --t-detail-size: var(--text-sm);
+      --t-detail-weight: var(--weight-regular);
+      --t-detail-leading: var(--leading-normal);
+      --t-detail-tracking: var(--tracking-normal);
+      --t-caption-family: var(--font-ui);
+      --t-caption-size: var(--text-xs);
+      --t-caption-weight: var(--weight-medium);
+      --t-caption-leading: var(--leading-normal);
+      --t-caption-tracking: var(--tracking-normal);
+      --t-overline-family: var(--font-ui);
+      --t-overline-size: var(--text-2xs);
+      --t-overline-weight: var(--weight-bold);
+      --t-overline-leading: var(--leading-tight);
+      --t-overline-tracking: var(--tracking-caps);
+      --t-code-family: var(--font-mono);
+      --t-code-size: var(--text-xs);
+      --t-code-weight: var(--weight-regular);
+      --t-code-leading: var(--leading-normal);
+      --t-code-tracking: var(--tracking-normal);
+      --t-control-family: var(--font-ui);
+      --t-control-size: var(--text-md);
+      --t-control-weight: var(--weight-medium);
+      --t-control-leading: var(--leading-normal);
+      --t-control-tracking: var(--tracking-normal);
+      --icon-xs: 10px;
+      --icon-sm: 12px;
+      --icon-md: 14px;
+      --icon-lg: 18px;
+      --icon-xl: 22px;
+      --icon-tile: 32px;
+      --lane-min-height: 160px;
+      --ring-thin: 1.5px;
+      --ring-md: 2px;
+      --ring-lg: 3px;
+      --ring-fill: 100px;
+      --ease: 0.15s ease;
+      --radius-xs: 3px;
+      --radius-sm: 4px;
+      --radius-md: 6px;
+      --radius-lg: 8px;
+      --radius-xl: 10px;
+      --radius-2xl: 12px;
+      --radius-pill: 999px;
+      --radius-round: 50%;
+      --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
+      --shadow-chip: 0 1px 3px rgba(0, 0, 0, 0.15);
+      --shadow-knob: 0 1px 2px rgba(0, 0, 0, 0.25);
+      --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.12);
+      --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.16);
+      --shadow-xl: 0 10px 30px rgba(0, 0, 0, 0.18);
+      --shadow-canvas: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+      --shadow-band: 0 4px 8px -4px rgba(0, 0, 0, 0.12);
+      --shadow-ring: 0 0 0 3px var(--primary-ring);
+      --shadow-glow: 0 2px 8px;
+      --shadow-glow-tight: 0 0 4px;
       --bg-page: #f8fafc;
       --bg-panel: #ffffff;
       --border-color: #e2e8f0;
@@ -120,37 +214,122 @@
       --success: #16a34a;
       --warning: #f59e0b;
       --danger: #dc2626;
-      --lane-min-height: 160px;
       --grid-dot: #cbd5e1;
       --bg-viewport: #f1f5f9;
       --bg-hover: #f1f5f9;
       --bg-soft: #e2e8f0;
       --bg-input: #ffffff;
-      --connector: #94a3b8;
+      --connector: #8493a8;
       --edge-label-bg: #ffffff;
       --edge-label-empty-bg: rgba(255, 255, 255, 0.95);
       --edge-label-empty-border: #94a3b8;
-      --edge-in: #b45309;   /* arrows entering the hovered node: amber-700 */
-      --edge-out: #2563eb;  /* arrows leaving the hovered node: blue (a colour-blind-safe pair; node fills are only faintly tinted) */
+      --edge-in: #b45309;
+      --edge-out: #2563eb;
       --edge-in-glow: rgba(180, 83, 9, 0.28);
       --edge-out-glow: rgba(37, 99, 235, 0.28);
-      --status-saved-bg: #dcfce7;  --status-saved-text: #166534;
-      --status-unsaved-bg: #fef3c7; --status-unsaved-text: #92400e;
-      --banner-bg: #eff6ff; --banner-border: #bfdbfe; --banner-text: #1e40af;
-      --start-bg: #f0f7f3; --start-border: #6aa886; --start-text: #1f4d37;   /* faint sage */
-      --end-bg: #475569;   --end-border: #334155;   --end-text: #f8fafc;
-      --conn-bg: #f5f3ff;  --conn-border: #7c3aed;  --conn-text: #5b21b6;  --conn-accent: #5b21b6;   /* on-page connector: violet ring */
-      --task-accent: #475569; --start-accent: #2f7d57; --end-accent: #1e293b; --decision-accent: #a16f0b;   /* darker, more saturated edge on hover/select */
-      --decision-fill: #fbf6e8; --decision-fill-hover: #ffffff; --decision-stroke: #c4a052;   /* faint sand, muted gold edge */
-      --decision-text: #6a4a0f;      /* dark ochre on the sand fill (>= 7:1) */
+      --status-saved-bg: #dcfce7;
+      --status-saved-text: #166534;
+      --status-unsaved-bg: #fef3c7;
+      --status-unsaved-text: #92400e;
+      --banner-bg: #eff6ff;
+      --banner-border: #bfdbfe;
+      --banner-text: #1e40af;
+      --start-bg: #f0f7f3;
+      --start-border: #6aa886;
+      --start-text: #1f4d37;
+      --end-bg: #475569;
+      --end-border: #334155;
+      --end-text: #f8fafc;
+      --conn-bg: #f5f3ff;
+      --conn-border: #7c3aed;
+      --conn-text: #5b21b6;
+      --conn-accent: #5b21b6;
+      --task-accent: #475569;
+      --start-accent: #2f7d57;
+      --end-accent: #1e293b;
+      --decision-accent: #a16f0b;
+      --decision-fill: #fbf6e8;
+      --decision-fill-hover: #ffffff;
+      --decision-stroke: #c4a052;
+      --decision-text: #6a4a0f;
       --node-bg: #ffffff;
-      --node-border: #7c8ba1;        /* step outlines: >= 3:1 on white and the lane tints */
-      --text-soft: #475569;          /* secondary text that must stay readable on --bg-soft (>= 4.5:1) */
+      --node-border: #7c8ba1;
+      --text-soft: #475569;
       --primary-ring: rgba(37, 99, 235, 0.25);
       --primary-glow: rgba(37, 99, 235, 0.22);
       --primary-wash: rgba(37, 99, 235, 0.06);
-      --guide: #e11d48;              /* alignment snap guides */
-      --ease: 0.15s ease;
+      --guide: #e11d48;
+      --swatch-chip-mix: 85%;
+      --swatch-chip-base: #ffffff;
+      --swatch-ink-mix: 30%;
+      --swatch-ink-base: #1e293b;
+      --swatch-accent-mix: 70%;
+      --swatch-accent-base: #475569;
+      --swatch-pill-mix: 45%;
+      --swatch-solid-mix: 42%;
+      --swatch-solid-base: #1e293b;
+      --swatch-solid-ink: #ffffff;
+      --note-bg: #f8fafc;
+      --note-border: #cbd5e1;
+      --note-accent: #64748b;
+      --note-ink: #334155;
+      --note-leader: #94a3b8;
+      --erd-fk: #64748b;
+      --lane-alt-bg: #fafbfc;
+      --lane-hover-bg: #f1f4f8;
+      --on-primary: #ffffff;
+      --on-danger: #ffffff;
+      --toggle-knob: #ffffff;
+      --focus-ring: var(--primary);
+      --swatch-line-base: #334155;
+      --dot-edge: rgba(0, 0, 0, 0.18);
+      --dot-edge-soft: rgba(0, 0, 0, 0.15);
+      --menu-border: #cbd5e1;
+      --sw-1-fill: #b9e5ff;
+      --sw-1-line: #2f7da8;
+      --sw-1-ink: #00436a;
+      --sw-1-solid: #005c8b;
+      --sw-1-on-solid: #ffffff;
+      --sw-2-fill: #ecdeaa;
+      --sw-2-line: #907100;
+      --sw-2-ink: #513a00;
+      --sw-2-solid: #6f5100;
+      --sw-2-on-solid: #ffffff;
+      --sw-3-fill: #b9edcb;
+      --sw-3-line: #008d4e;
+      --sw-3-ink: #004e20;
+      --sw-3-solid: #006c2f;
+      --sw-3-on-solid: #ffffff;
+      --sw-4-fill: #ffcccd;
+      --sw-4-line: #b15259;
+      --sw-4-ink: #6e1724;
+      --sw-4-solid: #932a37;
+      --sw-4-on-solid: #ffffff;
+      --sw-5-fill: #ead2ff;
+      --sw-5-line: #895db0;
+      --sw-5-ink: #4e276d;
+      --sw-5-solid: #6b3893;
+      --sw-5-on-solid: #ffffff;
+      --sw-6-fill: #fad8ab;
+      --sw-6-line: #a66400;
+      --sw-6-ink: #602f00;
+      --sw-6-solid: #834300;
+      --sw-6-on-solid: #ffffff;
+      --sw-7-fill: #aaeee0;
+      --sw-7-line: #008f79;
+      --sw-7-ink: #004f40;
+      --sw-7-solid: #006d5a;
+      --sw-7-on-solid: #ffffff;
+      --sw-8-fill: #cedcff;
+      --sw-8-line: #5b6cc2;
+      --sw-8-ink: #2a347b;
+      --sw-8-solid: #3c49a7;
+      --sw-8-on-solid: #ffffff;
+      --sw-9-fill: #e2e8f0;
+      --sw-9-line: #64748b;
+      --sw-9-ink: #334155;
+      --sw-9-solid: #475569;
+      --sw-9-on-solid: #ffffff;
       color-scheme: light;
     }
 
@@ -178,59 +357,123 @@
       --edge-out: #60a5fa;
       --edge-in-glow: rgba(251, 191, 36, 0.35);
       --edge-out-glow: rgba(96, 165, 250, 0.35);
-      --status-saved-bg: #14532d;  --status-saved-text: #bbf7d0;
-      --status-unsaved-bg: #78350f; --status-unsaved-text: #fde68a;
-      --banner-bg: #172554; --banner-border: #1e3a8a; --banner-text: #bfdbfe;
-      --start-bg: #14261f; --start-border: #4d9a79; --start-text: #b7e0cd;
-      --end-bg: #0f172a;   --end-border: #cbd5e1;   --end-text: #f8fafc;   /* darkest shape on the canvas, bright edge (as in light mode, the end is the darkest shape) */
-      --conn-bg: #231a3d;  --conn-border: #a78bfa;  --conn-text: #ddd6fe;  --conn-accent: #c4b5fd;
-      --task-accent: #cbd5e1; --start-accent: #6fcf9f; --end-accent: #ffffff; --decision-accent: #e6bf55;
-      --decision-fill: #2b2718; --decision-fill-hover: #342f1d; --decision-stroke: #b89a4e;
-      --decision-text: #ead7a0;      /* soft sand on the warm dark fill */
+      --status-saved-bg: #14532d;
+      --status-saved-text: #bbf7d0;
+      --status-unsaved-bg: #78350f;
+      --status-unsaved-text: #fde68a;
+      --banner-bg: #172554;
+      --banner-border: #1e3a8a;
+      --banner-text: #bfdbfe;
+      --start-bg: #14261f;
+      --start-border: #4d9a79;
+      --start-text: #b7e0cd;
+      --end-bg: #0f172a;
+      --end-border: #cbd5e1;
+      --end-text: #f8fafc;
+      --conn-bg: #231a3d;
+      --conn-border: #a78bfa;
+      --conn-text: #ddd6fe;
+      --conn-accent: #c4b5fd;
+      --task-accent: #cbd5e1;
+      --start-accent: #6fcf9f;
+      --end-accent: #ffffff;
+      --decision-accent: #e6bf55;
+      --decision-fill: #2b2718;
+      --decision-fill-hover: #342f1d;
+      --decision-stroke: #b89a4e;
+      --decision-text: #ead7a0;
       --node-bg: #202c48;
-      --node-border: #70849f;        /* step outlines: >= 3:1 on the dark node fill */
+      --node-border: #70849f;
       --text-soft: #cbd5e1;
       --primary-ring: rgba(96, 165, 250, 0.4);
       --primary-glow: rgba(96, 165, 250, 0.35);
       --primary-wash: rgba(96, 165, 250, 0.1);
       --guide: #fb7185;
+      --swatch-chip-mix: 30%;
+      --swatch-chip-base: #111a2e;
+      --swatch-ink-mix: 85%;
+      --swatch-ink-base: #e2e8f0;
+      --swatch-accent-mix: 80%;
+      --swatch-accent-base: #94a3b8;
+      --swatch-pill-mix: 22%;
+      --swatch-solid-mix: 80%;
+      --swatch-solid-base: #e2e8f0;
+      --swatch-solid-ink: #0f172a;
+      --note-bg: #1c2740;
+      --note-border: #3a4a69;
+      --note-accent: #94a3b8;
+      --note-ink: #cbd5e1;
+      --note-leader: #52627f;
+      --erd-fk: #94a3b8;
+      --lane-alt-bg: #131d33;
+      --lane-hover-bg: #1a2742;
+      --on-primary: #0b1220;
+      --on-danger: #1a1a1a;
+      --sw-1-fill: #194259;
+      --sw-1-line: #69b4e2;
+      --sw-1-ink: #c6eaff;
+      --sw-1-solid: #93d4fd;
+      --sw-1-on-solid: #0f172a;
+      --sw-2-fill: #483c06;
+      --sw-2-line: #c6a92a;
+      --sw-2-ink: #f0e5b8;
+      --sw-2-solid: #e2ca6a;
+      --sw-2-on-solid: #0f172a;
+      --sw-3-fill: #17482e;
+      --sw-3-line: #50c586;
+      --sw-3-ink: #c5f1d5;
+      --sw-3-solid: #84e2ab;
+      --sw-3-on-solid: #0f172a;
+      --sw-4-fill: #5c2d2f;
+      --sw-4-line: #ee898e;
+      --sw-4-ink: #ffd5d6;
+      --sw-4-solid: #ffaeb0;
+      --sw-4-on-solid: #0f172a;
+      --sw-5-fill: #47325a;
+      --sw-5-line: #c194eb;
+      --sw-5-ink: #efdbff;
+      --sw-5-solid: #deb7ff;
+      --sw-5-on-solid: #0f172a;
+      --sw-6-fill: #523709;
+      --sw-6-line: #de9c31;
+      --sw-6-ink: #fde0b9;
+      --sw-6-solid: #f8bf6c;
+      --sw-6-on-solid: #0f172a;
+      --sw-7-fill: #00493f;
+      --sw-7-line: #00c7af;
+      --sw-7-ink: #b9f2e7;
+      --sw-7-solid: #60e4cf;
+      --sw-7-on-solid: #0f172a;
+      --sw-8-fill: #313a62;
+      --sw-8-line: #8fa4ff;
+      --sw-8-ink: #d7e3ff;
+      --sw-8-solid: #b1c5ff;
+      --sw-8-on-solid: #0f172a;
+      --sw-9-fill: #243049;
+      --sw-9-line: #94a3b8;
+      --sw-9-ink: #e2e8f0;
+      --sw-9-solid: #cbd5e1;
+      --sw-9-on-solid: #0f172a;
       color-scheme: dark;
     }
 
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      user-select: none;
-    }
+    [data-sw="1"] { --sw-stripe: var(--sw-1-line); --sw-line: var(--sw-1-line); --sw-pill-bg: var(--sw-1-fill); --sw-pill-ink: var(--sw-1-ink); --sw-pill-solid: var(--sw-1-solid); --sw-on-solid: var(--sw-1-on-solid); }
+    [data-sw="2"] { --sw-stripe: var(--sw-2-line); --sw-line: var(--sw-2-line); --sw-pill-bg: var(--sw-2-fill); --sw-pill-ink: var(--sw-2-ink); --sw-pill-solid: var(--sw-2-solid); --sw-on-solid: var(--sw-2-on-solid); }
+    [data-sw="3"] { --sw-stripe: var(--sw-3-line); --sw-line: var(--sw-3-line); --sw-pill-bg: var(--sw-3-fill); --sw-pill-ink: var(--sw-3-ink); --sw-pill-solid: var(--sw-3-solid); --sw-on-solid: var(--sw-3-on-solid); }
+    [data-sw="4"] { --sw-stripe: var(--sw-4-line); --sw-line: var(--sw-4-line); --sw-pill-bg: var(--sw-4-fill); --sw-pill-ink: var(--sw-4-ink); --sw-pill-solid: var(--sw-4-solid); --sw-on-solid: var(--sw-4-on-solid); }
+    [data-sw="5"] { --sw-stripe: var(--sw-5-line); --sw-line: var(--sw-5-line); --sw-pill-bg: var(--sw-5-fill); --sw-pill-ink: var(--sw-5-ink); --sw-pill-solid: var(--sw-5-solid); --sw-on-solid: var(--sw-5-on-solid); }
+    [data-sw="6"] { --sw-stripe: var(--sw-6-line); --sw-line: var(--sw-6-line); --sw-pill-bg: var(--sw-6-fill); --sw-pill-ink: var(--sw-6-ink); --sw-pill-solid: var(--sw-6-solid); --sw-on-solid: var(--sw-6-on-solid); }
+    [data-sw="7"] { --sw-stripe: var(--sw-7-line); --sw-line: var(--sw-7-line); --sw-pill-bg: var(--sw-7-fill); --sw-pill-ink: var(--sw-7-ink); --sw-pill-solid: var(--sw-7-solid); --sw-on-solid: var(--sw-7-on-solid); }
+    [data-sw="8"] { --sw-stripe: var(--sw-8-line); --sw-line: var(--sw-8-line); --sw-pill-bg: var(--sw-8-fill); --sw-pill-ink: var(--sw-8-ink); --sw-pill-solid: var(--sw-8-solid); --sw-on-solid: var(--sw-8-on-solid); }
+    [data-sw="9"] { --sw-stripe: var(--sw-9-line); --sw-line: var(--sw-9-line); --sw-pill-bg: var(--sw-9-fill); --sw-pill-ink: var(--sw-9-ink); --sw-pill-solid: var(--sw-9-solid); --sw-on-solid: var(--sw-9-on-solid); }
 
-    body {
-      font-family: "Nunito Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      background-color: var(--bg-page);
-      color: var(--text-main);
-      overflow: hidden;
-      width: 100vw;
-      height: 100vh;
-      height: 100dvh;
-      display: flex;
-      flex-direction: column;
-    }
-    /* Form controls and kbd do not inherit the page font by default (buttons fall back to Arial, kbd to monospace) */
-    button, input, select, textarea, kbd { font-family: inherit; }
-
-    /* Top Navigation Toolbar */
-    header {
-      background: var(--bg-panel);
-      border-bottom: 1px solid var(--border-color);
-      height: 56px;
-      padding: 0 16px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      z-index: 100;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
-    }
-
+    .t-title { font-family: var(--t-title-family); font-size: var(--t-title-size); font-weight: var(--t-title-weight); line-height: var(--t-title-leading); letter-spacing: var(--t-title-tracking); }
+    .t-label { font-family: var(--t-label-family); font-size: var(--t-label-size); font-weight: var(--t-label-weight); line-height: var(--t-label-leading); letter-spacing: var(--t-label-tracking); }
+    .t-detail { font-family: var(--t-detail-family); font-size: var(--t-detail-size); font-weight: var(--t-detail-weight); line-height: var(--t-detail-leading); letter-spacing: var(--t-detail-tracking); }
+    .t-caption { font-family: var(--t-caption-family); font-size: var(--t-caption-size); font-weight: var(--t-caption-weight); line-height: var(--t-caption-leading); letter-spacing: var(--t-caption-tracking); }
+    .t-overline { font-family: var(--t-overline-family); font-size: var(--t-overline-size); font-weight: var(--t-overline-weight); line-height: var(--t-overline-leading); letter-spacing: var(--t-overline-tracking); }
+    .t-code { font-family: var(--t-code-family); font-size: var(--t-code-size); font-weight: var(--t-code-weight); line-height: var(--t-code-leading); letter-spacing: var(--t-code-tracking); }
+    .t-control { font-family: var(--t-control-family); font-size: var(--t-control-size); font-weight: var(--t-control-weight); line-height: var(--t-control-leading); letter-spacing: var(--t-control-tracking); }
     /* Floating docks (add controls, zoom): one pill style so they read as the same family */
     /* Shared invisible container: zoom sits left, add dock centred; on narrow screens they stack full width */
     .dock-area {
@@ -252,8 +495,8 @@
       padding: 4px;
       background: var(--bg-panel);
       border: 1px solid var(--border-color);
-      border-radius: 10px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      border-radius: var(--radius-xl);
+      box-shadow: var(--shadow-md);
     }
     .toolbar-center {
       grid-column: 2;
@@ -270,7 +513,7 @@
     .toolbar-zoom > .btn { height: 32px; }
     /* Larger icons on the edit dock's own buttons (not the caret, not the bubble's tiles) */
     .toolbar-center > .btn > svg:first-child,
-    .dock-pop-trigger > svg:first-child { width: 18px; height: 18px; }
+    .dock-pop-trigger > svg:first-child { width: var(--icon-lg); height: var(--icon-lg); }
     .toolbar-center .btn:hover,
     .toolbar-zoom .btn:hover { border-color: var(--border-dark); }
     .dock-sep {
@@ -284,7 +527,7 @@
        Generic: any [data-dock-pop] wrapper with a .dock-pop-trigger and a .dock-pop holding a .dock-pop-grid.
        The grid takes up to 6 columns (set by shell.js) and wraps into more rows, scrolling if it gets tall. */
     .dock-pop-wrap { position: relative; display: inline-flex; }
-    .dock-pop-caret { opacity: 0.6; transition: transform 0.25s ease; }
+    .dock-pop-caret { display: inline-flex; opacity: 0.6; transition: transform 0.25s ease; }
     .dock-pop-wrap.open .dock-pop-caret { transform: rotate(180deg); }
     .dock-pop-wrap.open > .dock-pop-trigger { background: var(--bg-hover); border-color: var(--border-dark); }
     .dock-pop {
@@ -296,8 +539,8 @@
       padding: 6px;
       background: var(--bg-panel);
       border: 1px solid var(--border-color);
-      border-radius: 14px;
-      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.16), 0 2px 6px rgba(0, 0, 0, 0.06);
+      border-radius: var(--radius-2xl);
+      box-shadow: var(--shadow-lg);
       transform-origin: calc(50% - var(--pop-shift)) calc(100% + 14px);
       transform: translateX(calc(-50% + var(--pop-shift))) translateY(8px) scale(0.3);
       opacity: 0;
@@ -362,9 +605,9 @@
     .dock-pop-section + .dock-pop-section { margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--border-color); }
     .dock-pop-heading {
       padding: 0 4px 4px;
-      font-size: 10px;
-      font-weight: 600;
-      letter-spacing: 0.06em;
+      font-size: var(--t-overline-size);
+      font-weight: var(--weight-semibold);
+      letter-spacing: var(--t-overline-tracking);
       text-transform: uppercase;
       color: var(--text-soft);
     }
@@ -376,9 +619,9 @@
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
-      font-size: 10px;
-      font-weight: 500;
-      line-height: 1.2;
+      font-size: var(--t-overline-size);
+      font-weight: var(--weight-medium);
+      line-height: var(--t-overline-leading);
     }
     .dock-pop-wrap.open .dock-pop-grid > .btn {
       animation: dock-pop-tile 0.34s cubic-bezier(0.34, 1.56, 0.64, 1) both;
@@ -420,52 +663,35 @@
       pointer-events: none;
     }
     #zoom-level {
-      font-size: 0.8rem;
-      font-weight: 600;
+      font-size: var(--text-md);
+      font-weight: var(--weight-semibold);
       width: 45px;
       text-align: center;
       color: var(--text-main);
       font-variant-numeric: tabular-nums;
     }
 
-    .toolbar-left, .toolbar-right {
-      display: flex;
-      align-items: center;
-      gap: 10px;
+    /* Narrow screens (a shared link opened on a phone): icon-only docks */
+    @media (max-width: 720px) {
+      .dock-area { left: 12px; right: 12px; bottom: 12px; grid-template-columns: 1fr; }
+      .toolbar-center { grid-column: 1; grid-row: 1; justify-content: space-evenly; }
+      .toolbar-center > .btn, .toolbar-center > .dock-pop-wrap { flex: 1 1 0; justify-content: center; }
+      .dock-pop-wrap > .dock-pop-trigger { flex: 1 1 auto; justify-content: center; }
+      .toolbar-center > .dock-delete:not(.show) { flex: 0 0 0; }
+      .toolbar-zoom { grid-column: 1; grid-row: 2; }
     }
-    .toolbar-left > svg { flex: none; }
-
-    .app-title-container {
-      display: flex;
-      align-items: baseline;
-      gap: 8px;
-      min-width: 0;
+    /* Medium widths: keep one row, but centre the add dock in the space right of the zoom dock instead of on the
+       viewport, so the two never collide. If the add dock still runs out of room, its buttons wrap inside it. */
+    @media (min-width: 721px) and (max-width: 1100px) {
+      .dock-area { grid-template-columns: auto minmax(0, 1fr); }
+      .toolbar-zoom { grid-column: 1; grid-row: 1; }
+      .toolbar-center { grid-column: 2; grid-row: 1; justify-self: center; }
     }
-
-    h1#chart-title {
-      font-size: 1.1rem;
-      font-weight: 700;
-      color: var(--text-main);
-      outline: none;
-      padding: 2px 6px;
-      border-radius: 4px;
-      border: 1px solid transparent;
-      user-select: text;
-      min-width: 0;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-    h1#chart-title:focus, h1#chart-title:hover {
-      border-color: var(--border-dark);
-      background: var(--bg-page);
-    }
-
     .badge {
-      font-size: 0.78rem;
-      font-weight: 600;
+      font-size: var(--text-sm);
+      font-weight: var(--weight-semibold);
       padding: 2px 10px;
-      border-radius: 12px;
+      border-radius: var(--radius-2xl);
     }
     .badge-status {
       background: var(--bg-soft);
@@ -480,15 +706,28 @@
       color: var(--status-unsaved-text);
     }
 
+    /* A count or mode word inside a button (Notes: 3, Columns: Keys); turns solid while its button is pressed (toggle.css) */
+    .btn-count {
+      min-width: 16px;
+      padding: 0 4px;
+      box-sizing: border-box;
+      border-radius: var(--radius-pill);
+      background: var(--bg-soft);
+      color: var(--text-soft);
+      font-size: var(--text-xs);
+      line-height: var(--line-16);
+      text-align: center;
+    }
+    .btn-count[hidden] { display: none; }
     /* Buttons */
     .btn {
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      font-size: 0.85rem;
-      font-weight: 600;
+      font-size: var(--text-lg);
+      font-weight: var(--weight-semibold);
       padding: 6px 12px;
-      border-radius: 6px;
+      border-radius: var(--radius-md);
       border: 1px solid var(--border-color);
       background: var(--bg-panel);
       color: var(--text-main);
@@ -514,32 +753,471 @@
     }
     .btn-primary {
       background: var(--primary);
-      color: #ffffff;
+      color: var(--on-primary);
       border-color: var(--primary);
     }
     .btn-primary:hover {
       background: var(--primary-hover);
       border-color: var(--primary-hover);
     }
-    :root[data-theme="dark"] .btn-primary { color: #0b1220; }
     .btn-success {
       background: var(--success);
-      color: #ffffff;
+      color: var(--on-primary);
       border-color: var(--success);
-    }
-    :root[data-theme="dark"] .btn-success { color: #0b1220; }
-
-    /* Keyboard focus: visible on every control, in both themes */
-    .btn:focus-visible,
-    .help-close:focus-visible,
-    h1#chart-title:focus-visible {
-      outline: 2px solid var(--primary);
-      outline-offset: 2px;
     }
 
     .btn-icon {
       padding: 6px 10px;
-      font-size: 0.9rem;
+      font-size: var(--text-lg);
+    }
+
+    .btn[hidden] { display: none; }
+
+    /* Keyboard focus: visible on every button, in both themes */
+    .btn:focus-visible {
+      outline: 2px solid var(--primary);
+      outline-offset: 2px;
+    }
+
+    /* Solid red: the button that confirms a deletion */
+    .btn-danger {
+      background: var(--danger);
+      border-color: var(--danger);
+      color: var(--on-danger);
+    }
+    .btn-danger:hover { filter: brightness(0.92); background: var(--danger); color: var(--on-danger); }
+    /* Neutral until pointed at, then solid red: the small round delete chips (note, lane) */
+    .btn-danger-hover:hover { background: var(--danger); border-color: var(--danger); color: var(--on-danger); }
+    /* Pressed toggle (dock buttons that switch a view on, such as Notes, Types, Numbers): tinted while aria-pressed is true */
+    .btn[aria-pressed="true"] {
+      background: var(--primary-wash);
+      border-color: var(--primary-ring);
+      color: var(--primary);
+    }
+    .btn[aria-pressed="true"] .btn-count { background: var(--primary); color: var(--bg-panel); }
+
+    /* Sliding switch (Auto-Tidy in the dock): knob right and track filled while aria-checked is true */
+    .btn-switch .switch-track {
+      position: relative;
+      width: 28px; height: 16px;
+      flex: none;
+      border-radius: var(--radius-pill);
+      background: var(--border-dark);
+      transition: background-color 0.18s;
+    }
+    .btn-switch .switch-knob {
+      position: absolute;
+      top: 2px; left: 2px;
+      width: 12px; height: 12px;
+      border-radius: var(--radius-round);
+      background: var(--toggle-knob);   /* white in both themes: reads on the grey (off) and the primary (on) track */
+      box-shadow: var(--shadow-knob);
+      transition: transform 0.18s;
+    }
+    .btn-switch[aria-checked="true"] .switch-track { background: var(--primary); }
+    .btn-switch[aria-checked="true"] .switch-knob { transform: translateX(12px); }
+    @media (prefers-reduced-motion: reduce) {
+      .btn-switch .switch-track, .btn-switch .switch-knob { transition: none; }
+    }
+    /* A short message (save conflicts, blocked downloads) inside a claude.ai artifact */
+    .toast {
+      position: fixed; left: 50%; bottom: 84px; transform: translateX(-50%); z-index: 50;
+      max-width: min(90vw, 420px); padding: 8px 14px; border-radius: var(--radius-lg);
+      background: var(--text-main); color: var(--bg-panel);
+      font-size: var(--t-control-size); box-shadow: var(--shadow-lg);
+    }
+    /* A prompt above the dock while a tool waits for a click ("Click a table", "Click a participant"); text only, never takes the pointer */
+    .hint {
+      position: fixed; left: 50%; bottom: 76px; transform: translateX(-50%); z-index: 150; padding: 6px 12px; border-radius: var(--radius-pill);
+      border: 1px solid var(--border-dark); background: var(--bg-panel); color: var(--text-main); font-size: var(--t-control-size); font-weight: var(--t-control-weight);
+      box-shadow: var(--shadow-md); max-width: calc(100vw - 32px); text-align: center; pointer-events: none;
+    }
+    .hint kbd { font: inherit; font-weight: var(--weight-semibold); }
+    /* The prompt of a note tool wears the note's colours */
+    .hint-note { border-color: var(--note-border); background: var(--note-bg); color: var(--note-ink); white-space: nowrap; }
+    /* Menu: a dropdown list under its button (Export). Markup: .menu-wrap > button + .menu[role=menu] > .menu-label, button... */
+    .menu-wrap { position: relative; }
+    .menu {
+      position: absolute; right: 0; top: calc(100% + 6px); z-index: 200; min-width: 150px;
+      background: var(--bg-panel); border: 1px solid var(--menu-border); border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-lg); padding: 4px; display: flex; flex-direction: column;
+    }
+    .menu[hidden] { display: none; }
+    .menu button {
+      background: none; border: 0; text-align: left; padding: 7px 10px; border-radius: var(--radius-md);
+      font: inherit; font-size: var(--t-control-size); color: var(--text, inherit); cursor: pointer;
+    }
+    .menu button:hover, .menu button:focus-visible { background: var(--bg-hover); outline: none; }
+    .menu button[hidden] { display: none; }
+    .menu-label {
+      padding: 6px 10px 2px; font-size: var(--text-xs); font-weight: var(--weight-semibold); letter-spacing: var(--tracking-caps); text-transform: uppercase;
+      color: var(--text-muted); user-select: none;
+    }
+    .menu-label:not(:first-child) { margin-top: 4px; border-top: 1px solid var(--menu-border); padding-top: 8px; }
+
+    /* Confirm: the bubble that asks before a delete, screen-fixed so it sits outside the zoomed canvas (ui.confirm in shell.js).
+       .confirm-title is optional; with one, the message below it is the quiet explanation. */
+    .confirm {
+      position: fixed;
+      z-index: 2000;
+      width: 260px;
+      box-sizing: border-box;
+      padding: 14px 14px 12px;
+      border-radius: var(--radius-xl);
+      border: 1px solid var(--border-dark);
+      background: var(--bg-panel);
+      color: var(--text-main);
+      box-shadow: var(--shadow-xl);
+      font-size: var(--t-control-size);
+      line-height: var(--t-control-leading);
+    }
+    .confirm-title { font-weight: var(--weight-semibold); font-size: var(--text-lg); margin-bottom: 4px; overflow-wrap: anywhere; }
+    .confirm-msg { font-weight: var(--weight-semibold); margin-bottom: 12px; overflow-wrap: anywhere; }
+    .confirm-title + .confirm-msg { font-weight: var(--weight-regular); color: var(--text-soft); }
+    .confirm-actions { display: flex; justify-content: flex-end; gap: 8px; }
+    .confirm .btn { padding: 6px 12px; font-size: var(--t-control-size); }
+    /* Note: extra detail kept off the diagram so labels stay short. A neutral slate paper card with a bracket edge (the
+       classic flowchart annotation, which has no colour of its own), joined to what it explains by a dashed leader.
+       Neutral on purpose: every hue on the canvas already means something (gold decision, green start, blue selection,
+       amber incoming arrows), and a note is secondary detail. One style for every diagram type (ui.noteCard in shell.js).
+       A type that places its own cards (the sequence diagram) adds only position and size; a type whose notes appear on
+       demand puts them in a .note-layer. */
+    .note {
+      position: absolute;
+      box-sizing: border-box;
+      border: 1px solid var(--note-border);
+      border-left: 3px solid var(--note-accent);
+      border-radius: var(--radius-xs) var(--radius-lg) var(--radius-lg) var(--radius-xs);
+      background: var(--note-bg);
+      color: var(--note-ink);
+      font-size: var(--t-detail-size);
+      font-weight: var(--t-detail-weight);
+      line-height: var(--t-detail-leading);
+      text-align: left;
+      box-shadow: var(--shadow-sm);
+      pointer-events: auto;
+      cursor: move;
+      user-select: none;
+      transition: box-shadow var(--ease), border-color var(--ease);
+    }
+    .note:hover { border-color: color-mix(in srgb, var(--note-accent) 60%, var(--note-border)); border-left-color: var(--note-accent); }
+    .note.selected {
+      border-color: var(--note-accent);
+      box-shadow: 0 0 0 var(--ring-lg) color-mix(in srgb, var(--note-accent) 28%, transparent), var(--shadow-md);
+    }
+    .note.dragging { box-shadow: var(--shadow-xl); }
+    .note-text {
+      outline: none;
+      white-space: pre-wrap;
+      overflow-wrap: break-word;
+      min-height: 1.4em;
+    }
+    .note-text[contenteditable="true"] { -webkit-user-select: text; user-select: text; cursor: text; }
+    .note-text:empty::before { content: attr(data-placeholder); color: var(--text-muted); }
+
+    /* The layer holding cards that are hidden until the Notes button shows them all (.show) or a hover or selection
+       peeks one (.peek) */
+    .note-layer {
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 100%;
+      pointer-events: none;
+      z-index: 45;   /* above nodes (20), edge labels (30) and lane pills (40); below snap guides (55) */
+    }
+    .note-layer .note {
+      display: none;
+      width: max-content;
+      min-width: 96px;
+      max-width: 200px;   /* keep in sync with the fitting in renderNotes: it measures the cards, never assumes */
+      padding: 6px 10px 7px 10px;
+    }
+    .note-layer .note.show, .note-layer .note.peek { display: block; }
+    .note-layer .note.peek:not(.show) { animation: note-in 0.14s ease-out; box-shadow: var(--shadow-lg); }
+    @keyframes note-in { from { opacity: 0; transform: translateY(3px); } }
+    .note-layer.measuring .note { display: block; visibility: hidden; animation: none; }
+
+    /* Leader: the dashed line from a card to what it explains; .linking is the one being dragged to a new target */
+    .note-leader {
+      display: none;
+      stroke: var(--note-leader);
+      stroke-width: 1.25px;
+      stroke-dasharray: 3 3;
+      fill: none;
+    }
+    .note-leader.show, .note-leader.peek { display: inline; }
+    .note-leader.linking { display: inline; stroke: var(--note-accent); stroke-dasharray: 4 3; stroke-width: 1.5px; }
+    /* Exports show what the Notes button shows: a note only peeked by hover or selection stays out */
+    body.exporting .note.peek:not(.show),
+    body.exporting .note-leader.peek:not(.show) { display: none !important; }
+    body.note-linking, body.note-linking * { cursor: crosshair !important; }
+    /* The thing the selected note explains, and the thing a dragged note would land on */
+    .note-linked { outline: 1.5px dashed var(--note-accent); outline-offset: 5px; }
+    .note-target { outline: 2px dashed var(--note-accent); outline-offset: 4px; }
+
+    /* Delete: a small round button on the card's corner, shown on hover or while the note is selected */
+    .note-del {
+      position: absolute;
+      top: -8px; right: -8px;
+      width: 18px; height: 18px;
+      padding: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      border-radius: var(--radius-round);
+      border: 1px solid var(--border-dark);
+      background: var(--bg-panel);
+      color: var(--text-soft);
+      cursor: pointer;
+      box-shadow: var(--shadow-chip);
+    }
+    /* Link handle (bottom-right): drag it onto another item to link the note to that too, or to unlink it */
+    .note-link {
+      position: absolute;
+      bottom: -9px; right: -9px;
+      width: 20px; height: 20px;
+      padding: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      border-radius: var(--radius-round);
+      border: 1px solid var(--note-border);
+      background: var(--bg-panel);
+      color: var(--note-accent);
+      cursor: crosshair;
+      touch-action: none;
+      box-shadow: var(--shadow-chip);
+    }
+    .note-link:hover { background: var(--note-accent); border-color: var(--note-accent); color: var(--bg-panel); }
+    .note:hover > .note-del, .note.selected > .note-del, .note:hover > .note-link, .note.selected > .note-link { display: inline-flex; }
+
+    /* Badge on an item with a note: a small paper chip on its top-right corner. Hover peeks the note, click edits it.
+       The "+" chip in the same place adds a note to the selected item. Both are editing hints, never exported. */
+    .note-badge, .note-add {
+      position: absolute;
+      top: -8px; right: -8px;
+      z-index: 3;   /* above the decision diamond (1) and its label (2) */
+      width: 18px; height: 18px;
+      box-sizing: border-box;
+      padding: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: var(--radius-round);
+      cursor: pointer;
+      font: inherit;
+      transition: transform var(--ease), background var(--ease), border-color var(--ease), opacity var(--ease);
+    }
+    .note-badge {
+      border: 1px solid var(--note-border);
+      background: var(--note-bg);
+      color: var(--note-accent);
+      box-shadow: var(--shadow-sm);
+    }
+    .note-badge:hover { transform: scale(1.15); border-color: var(--note-accent); }
+    .note-add {
+      display: none;
+      width: 22px; height: 22px;   /* a little larger than the badge: it is a button to aim at, not a hint */
+      top: -10px; right: -10px;
+      border: 1px dashed var(--note-accent);
+      background: var(--bg-panel);
+      color: var(--note-accent);
+    }
+    .note-add:hover { background: var(--note-bg); border-style: solid; }
+    .note-badge svg, .note-add svg { display: block; }
+    /* With every note on show the badges would only repeat them */
+    .notes-on .note-badge { display: none; }
+
+    /* A card being carried from the Note tile onto an item */
+    .note.note-ghost {
+      position: fixed;
+      display: block;
+      z-index: 1000;
+      pointer-events: none;
+      transform-origin: 0 0;
+      opacity: 0.95;
+      box-shadow: var(--shadow-xl);
+      transition: opacity 0.1s;
+    }
+    .note.note-ghost.off-target { opacity: 0.5; }
+
+    /* Presentation is read-only: no editing chips; but notes still open: hover a badge, or click it to keep the note open */
+    body.presentation .note-add,
+    body.presentation .note-del,
+    body.presentation .note-link { display: none !important; }
+    body.presentation .note-badge,
+    body.presentation .note-layer .note { pointer-events: auto !important; cursor: default; }
+    /* Swatches: the colours (TOKENS.palette) a flowchart lane, a sequence participant or an ERD table may carry. The roles
+       --sw-stripe, --sw-line, --sw-pill-bg, --sw-pill-ink, --sw-pill-solid and --sw-on-solid are fixed per palette slot: an
+       element with data-sw="<slot>" gets them from the generated tokens (scripts/tokens.py). Only a colour that matches no
+       slot (no data-sw) derives them here at run time from --swatch-color, and nothing checks that derivation's contrast.
+       (.swimlane is the flowchart's lane: its --lane-color becomes --swatch-color in flowchart.css.) */
+    /* Fallback without relative colours: the colour mixed toward slate, which stays pale with pastel colours */
+    .swatch-scope:not([data-sw]), .swimlane:not([data-sw]) {
+      --sw-stripe: color-mix(in srgb, var(--swatch-color) var(--swatch-accent-mix), var(--swatch-accent-base));
+      --sw-pill-bg: color-mix(in srgb, var(--swatch-color) var(--swatch-pill-mix), var(--bg-panel));
+      --sw-pill-ink: var(--text-soft);
+      --sw-pill-solid: color-mix(in srgb, var(--swatch-color) var(--swatch-solid-mix), var(--swatch-solid-base));
+      --sw-line: color-mix(in srgb, var(--swatch-color) 40%, var(--swatch-line-base));
+      --sw-on-solid: var(--swatch-solid-ink);
+    }
+    /* Where relative colours are supported, derive deeper, more saturated shades of the colour's own hue: same hue,
+       lightness set per role, chroma boosted (capped so strong colours do not turn garish) */
+    @supports (color: oklch(from red l c h)) {
+      .swatch-scope:not([data-sw]), .swimlane:not([data-sw]) {
+        --sw-stripe: oklch(from var(--swatch-color) 0.66 min(calc(c * 4), 0.15) h);
+        --sw-pill-bg: oklch(from var(--swatch-color) 0.9 min(calc(c * 2.4), 0.07) h);
+        --sw-pill-ink: oklch(from var(--swatch-color) 0.36 min(calc(c * 4), 0.12) h);
+        --sw-pill-solid: oklch(from var(--swatch-color) 0.45 min(calc(c * 4.5), 0.15) h);
+        --sw-line: oklch(from var(--swatch-color) 0.56 min(calc(c * 4), 0.15) h);   /* a thin line that must stay visible on the panel and on a frame's wash */
+      }
+      :root[data-theme="dark"] .swatch-scope:not([data-sw]), :root[data-theme="dark"] .swimlane:not([data-sw]) {
+        --sw-stripe: oklch(from var(--swatch-color) 0.74 min(calc(c * 4), 0.14) h);
+        --sw-pill-bg: oklch(from var(--swatch-color) 0.36 min(calc(c * 2.4), 0.07) h);
+        --sw-pill-ink: oklch(from var(--swatch-color) 0.92 min(calc(c * 2), 0.06) h);
+        --sw-pill-solid: oklch(from var(--swatch-color) 0.84 min(calc(c * 3.5), 0.12) h);
+        --sw-line: oklch(from var(--swatch-color) 0.74 min(calc(c * 4), 0.14) h);
+      }
+    }
+    /* swatchRow(): the row of colour buttons (a "none" button, then one per swatch) */
+    .swatch-row { display: inline-flex; align-items: center; gap: 2px; }
+    .swatch-btn {
+      display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; padding: 0; box-sizing: border-box;
+      border: 1px solid transparent; border-radius: var(--radius-md); background: transparent; cursor: pointer;
+    }
+    .swatch-btn:hover { background: var(--bg-hover); }
+    .swatch-btn[aria-pressed="true"] { background: var(--primary-wash); border-color: var(--primary-ring); }
+    .swatch-dot { display: block; width: 14px; height: 14px; border-radius: var(--radius-round); background: var(--sw-stripe); border: 1px solid var(--dot-edge); box-sizing: border-box; }
+    .swatch-dot.is-none { background: var(--bg-panel); border: 1.5px dashed var(--border-dark); }
+    /* Edge: what a line between two diagram items is drawn with. The line (flowchart arrow, ER relationship) and its
+       invisible fat hit area are SVG paths; the label is an HTML pill that masks the line under it. Highlight colours
+       follow the items under the pointer: --edge-in for lines entering the hovered item, --edge-out for those leaving it. */
+    .edge-line {
+      fill: none;
+      stroke: var(--connector);
+      stroke-width: 1.25px;   /* thin at rest: hover, selection and the in/out highlights (2px) stand out more */
+      stroke-linejoin: round;
+      stroke-linecap: round;
+      transition: stroke 0.15s ease, stroke-width 0.15s ease;
+    }
+    .edge-hit {
+      fill: none;
+      stroke: transparent;
+      stroke-width: 14px;
+      pointer-events: stroke;
+      cursor: pointer;
+    }
+    .edge-label {
+      position: absolute;
+      box-sizing: border-box;
+      background: var(--edge-label-bg);   /* opaque: masks the line under it */
+      border: 1.5px solid var(--border-dark);
+      border-radius: var(--radius-lg);
+      color: var(--text-main);
+      cursor: pointer;
+      z-index: 30;
+      box-shadow: var(--shadow-sm);
+      transition: border-color var(--ease), box-shadow var(--ease), color var(--ease), opacity var(--ease);
+    }
+    .edge-label.hl-in  { border-color: var(--edge-in);  box-shadow: var(--shadow-glow) var(--edge-in-glow); }
+    .edge-label.hl-out { border-color: var(--edge-out); box-shadow: var(--shadow-glow) var(--edge-out-glow); }
+    .edge-label:is(:hover, .hover, .linked, .selected) { border-color: var(--primary); box-shadow: var(--shadow-glow) var(--primary-glow); }
+    /* Frame: a titled group box drawn around part of a diagram (a sequence phase or fragment). The box and its border are
+       SVG the type draws; these are the HTML parts any type shares: the tag that names the frame at its top-left corner,
+       the collapse chevron inside the tag, and the one dashed row a collapsed frame shrinks to. */
+    .frame-tag {
+      position: absolute; height: 22px; line-height: var(--line-22); padding: 0 10px 0 8px; font-size: var(--t-detail-size); white-space: nowrap;
+      background: var(--bg-soft); border: 1.5px solid var(--border-dark); border-radius: var(--radius-sm) var(--radius-2xl) var(--radius-sm) var(--radius-sm);
+      color: var(--text-main); cursor: pointer; user-select: none;
+    }
+    .frame-tag.selected { border-color: var(--primary); color: var(--primary); }
+    /* Collapse chevron in every frame tag; a collapsed frame shows one summary row instead of its content */
+    .frame-chev {
+      display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; margin: 0 4px 0 -2px;
+      padding: 0; border: none; border-radius: var(--radius-sm); background: transparent; color: var(--text-soft); cursor: pointer;
+      vertical-align: -3px;
+    }
+    .frame-chev:hover { background: var(--bg-hover); color: var(--text-main); }
+    .frame-chev svg { transition: transform var(--ease); }
+    .frame-tag.is-collapsed .frame-chev svg { transform: rotate(-90deg); }
+    .frame-summary {
+      position: absolute; height: 26px; padding: 0 12px; border: 1.5px dashed var(--border-dark); border-radius: var(--radius-pill);
+      background: var(--bg-panel); color: var(--text-soft); font: inherit; font-size: var(--t-detail-size); font-weight: var(--weight-semibold);
+      white-space: nowrap; cursor: pointer;
+    }
+    .frame-summary:hover { border-color: var(--primary); color: var(--primary); }
+
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+
+    body {
+      font-family: var(--font-ui);
+      background-color: var(--bg-page);
+      color: var(--text-main);
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+      height: 100dvh;
+      display: flex;
+      flex-direction: column;
+    }
+    /* Form controls and kbd do not inherit the page font by default (buttons fall back to Arial, kbd to monospace) */
+    button, input, select, textarea, kbd { font-family: inherit; }
+
+    /* Top Navigation Toolbar */
+    header {
+      background: var(--bg-panel);
+      border-bottom: 1px solid var(--border-color);
+      height: 56px;
+      padding: 0 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      z-index: 100;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .toolbar-left, .toolbar-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .toolbar-left > svg { flex: none; color: var(--primary); }   /* the type's header icon */
+
+    .app-title-container {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    h1#chart-title {
+      font-size: var(--text-2xl);
+      font-weight: var(--weight-bold);
+      color: var(--text-main);
+      outline: none;
+      padding: 2px 6px;
+      border-radius: var(--radius-sm);
+      border: 1px solid transparent;
+      user-select: text;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    h1#chart-title:focus, h1#chart-title:hover {
+      border-color: var(--border-dark);
+      background: var(--bg-page);
+    }
+
+    /* Keyboard focus on the shell's own controls (the button component rings .btn the same way) */
+    .help-close:focus-visible,
+    h1#chart-title:focus-visible {
+      outline: 2px solid var(--primary);
+      outline-offset: 2px;
     }
 
 
@@ -598,9 +1276,9 @@
       background: var(--bg-panel);
       border: 1px solid var(--border-dark);
       padding: 12px 16px;
-      border-radius: 8px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-      font-size: 0.8rem;
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-lg);
+      font-size: var(--text-md);
       color: var(--text-soft);
       z-index: 1000;
       max-width: min(340px, calc(100vw - 40px));
@@ -615,7 +1293,7 @@
       justify-content: space-between;
       gap: 12px;
       margin-bottom: 6px;
-      font-weight: 700;
+      font-weight: var(--weight-bold);
       color: var(--text-main);
     }
     .help-close {
@@ -625,19 +1303,19 @@
       width: 28px;
       height: 28px;
       border: none;
-      border-radius: 6px;
+      border-radius: var(--radius-md);
       background: transparent;
       color: var(--text-muted);
       cursor: pointer;
     }
     .help-close:hover { background: var(--bg-hover); color: var(--text-main); }
-    .help-list { list-style: none; line-height: 1.6; }
+    .help-list { list-style: none; line-height: var(--leading-relaxed); }
     #help-drawer kbd {
       background: var(--bg-hover);
       border: 1px solid var(--border-dark);
       padding: 1px 4px;
-      border-radius: 4px;
-      font-weight: 600;
+      border-radius: var(--radius-sm);
+      font-weight: var(--weight-semibold);
       color: var(--text-main);
     }
 
@@ -662,22 +1340,8 @@
       .toolbar-right { gap: 6px; flex: none; }
       .btn-label { display: none; }
       #btn-help { display: none; }   /* keyboard shortcuts mean little on a phone; frees room for the title */
-      .dock-area { left: 12px; right: 12px; bottom: 12px; grid-template-columns: 1fr; }
-      .toolbar-center { grid-column: 1; grid-row: 1; justify-content: space-evenly; }
-      .toolbar-center > .btn, .toolbar-center > .dock-pop-wrap { flex: 1 1 0; justify-content: center; }
-      .dock-pop-wrap > .dock-pop-trigger { flex: 1 1 auto; justify-content: center; }
-      .toolbar-center > .dock-delete:not(.show) { flex: 0 0 0; }
-      .toolbar-zoom { grid-column: 1; grid-row: 2; }
       #help-drawer { right: 12px; bottom: 120px; }
     }
-    /* Medium widths: keep one row, but centre the add dock in the space right of the zoom dock instead of on the
-       viewport, so the two never collide. If the add dock still runs out of room, its buttons wrap inside it. */
-    @media (min-width: 721px) and (max-width: 1100px) {
-      .dock-area { grid-template-columns: auto minmax(0, 1fr); }
-      .toolbar-zoom { grid-column: 1; grid-row: 1; }
-      .toolbar-center { grid-column: 2; grid-row: 1; justify-self: center; }
-    }
-
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after {
         transition-duration: 0.01ms !important;
@@ -685,98 +1349,12 @@
         scroll-behavior: auto !important;
       }
     }
-
-    /* Export menu */
-    .export-wrap { position: relative; }
-    .export-menu {
-      position: absolute; right: 0; top: calc(100% + 6px); z-index: 200; min-width: 150px;
-      background: var(--bg-panel); border: 1px solid var(--border, #cbd5e1); border-radius: 8px;
-      box-shadow: 0 8px 24px rgba(15, 23, 42, .15); padding: 4px; display: flex; flex-direction: column;
-    }
-    .export-menu[hidden] { display: none; }
-    .export-menu button {
-      background: none; border: 0; text-align: left; padding: 7px 10px; border-radius: 6px;
-      font: inherit; font-size: 13px; color: var(--text, inherit); cursor: pointer;
-    }
-    .export-menu button:hover, .export-menu button:focus-visible { background: var(--bg-hover); outline: none; }
-    .export-menu button[hidden] { display: none; }
-    .export-menu-label {
-      padding: 6px 10px 2px; font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase;
-      color: var(--text-muted, #64748b); user-select: none;
-    }
-    .export-menu-label:not(:first-child) { margin-top: 4px; border-top: 1px solid var(--border, #cbd5e1); padding-top: 8px; }
-
-    /* Swatches: the eight colours (SWATCHES in shell.js) a flowchart lane or a sequence participant may carry. An element
-       sets --swatch-color to one of them; the roles below are derived from it, so a swatch looks the same in both diagram
-       types. The tokens say how strongly it tints an icon chip, a stripe and a pill. */
-    :root {
-      --swatch-chip-mix: 85%;    --swatch-chip-base: #ffffff;
-      --swatch-ink-mix: 30%;     --swatch-ink-base: #1e293b;    /* icon stroke: swatch hue, darkened */
-      --swatch-accent-mix: 70%;  --swatch-accent-base: #475569; /* stripe */
-      --swatch-pill-mix: 45%;
-      --swatch-solid-mix: 42%;   --swatch-solid-base: #1e293b;  --swatch-solid-ink: #ffffff; /* active pill: deep hue, white text */
-    }
-    :root[data-theme="dark"] {
-      --swatch-chip-mix: 30%;    --swatch-chip-base: #111a2e;
-      --swatch-ink-mix: 85%;     --swatch-ink-base: #e2e8f0;    /* pastel hue reads well on dark */
-      --swatch-accent-mix: 80%;  --swatch-accent-base: #94a3b8;
-      --swatch-pill-mix: 22%;
-      --swatch-solid-mix: 80%;   --swatch-solid-base: #e2e8f0;  --swatch-solid-ink: #0f172a; /* inverted on dark */
-    }
-    /* Roles: stripe (a line or border), pill (a soft fill and its ink) and solid (the deep fill). Fallback: the swatch
-       mixed toward slate, which stays pale with pastel swatches. (.swimlane is the flowchart's lane: its --lane-color
-       becomes --swatch-color in flowchart.css.) */
-    .swatch-scope, .swimlane {
-      --sw-stripe: color-mix(in srgb, var(--swatch-color) var(--swatch-accent-mix), var(--swatch-accent-base));
-      --sw-pill-bg: color-mix(in srgb, var(--swatch-color) var(--swatch-pill-mix), var(--bg-panel));
-      --sw-pill-ink: var(--text-soft);
-      --sw-pill-solid: color-mix(in srgb, var(--swatch-color) var(--swatch-solid-mix), var(--swatch-solid-base));
-      --sw-line: color-mix(in srgb, var(--swatch-color) 40%, #334155);
-    }
-    /* Where relative colours are supported, derive deeper, more saturated shades of the swatch's own hue: same hue,
-       lightness set per role, chroma boosted (capped so strong swatches do not turn garish) */
-    @supports (color: oklch(from red l c h)) {
-      .swatch-scope, .swimlane {
-        --sw-stripe: oklch(from var(--swatch-color) 0.66 min(calc(c * 4), 0.15) h);
-        --sw-pill-bg: oklch(from var(--swatch-color) 0.9 min(calc(c * 2.4), 0.07) h);
-        --sw-pill-ink: oklch(from var(--swatch-color) 0.36 min(calc(c * 4), 0.12) h);
-        --sw-pill-solid: oklch(from var(--swatch-color) 0.45 min(calc(c * 4.5), 0.15) h);
-        --sw-line: oklch(from var(--swatch-color) 0.56 min(calc(c * 4), 0.15) h);   /* a thin line that must stay visible on the panel and on a frame's wash */
-      }
-      :root[data-theme="dark"] .swatch-scope, :root[data-theme="dark"] .swimlane {
-        --sw-stripe: oklch(from var(--swatch-color) 0.74 min(calc(c * 4), 0.14) h);
-        --sw-pill-bg: oklch(from var(--swatch-color) 0.36 min(calc(c * 2.4), 0.07) h);
-        --sw-pill-ink: oklch(from var(--swatch-color) 0.92 min(calc(c * 2), 0.06) h);
-        --sw-pill-solid: oklch(from var(--swatch-color) 0.84 min(calc(c * 3.5), 0.12) h);
-        --sw-line: oklch(from var(--swatch-color) 0.74 min(calc(c * 4), 0.14) h);
-      }
-    }
-    /* swatchRow(): the row of colour buttons (a "none" button, then one per swatch) */
-    .swatch-row { display: inline-flex; align-items: center; gap: 2px; }
-    .swatch-btn {
-      display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; padding: 0; box-sizing: border-box;
-      border: 1px solid transparent; border-radius: 6px; background: transparent; cursor: pointer;
-    }
-    .swatch-btn:hover { background: var(--bg-hover); }
-    .swatch-btn[aria-pressed="true"] { background: var(--primary-wash); border-color: var(--primary-ring); }
-    .swatch-dot { display: block; width: 14px; height: 14px; border-radius: 50%; background: var(--sw-stripe); border: 1px solid rgba(0,0,0,0.18); box-sizing: border-box; }
-    .swatch-dot.is-none { background: var(--bg-panel); border: 1.5px dashed var(--border-dark); }
-
-    .btn[hidden] { display: none; }
-
-    /* A short message (save conflicts, blocked downloads) inside a claude.ai artifact */
-    .toast {
-      position: fixed; left: 50%; bottom: 84px; transform: translateX(-50%); z-index: 50;
-      max-width: min(90vw, 420px); padding: 8px 14px; border-radius: 8px;
-      background: var(--text-main, #0f172a); color: var(--bg-panel, #fff);
-      font-size: 13px; box-shadow: 0 4px 16px rgba(0,0,0,.25);
-    }
     /* Sequence diagram */
     /* The diagram sits on a card, like the flowchart's swimlane container */
     #seq-canvas {
       position: relative; margin: 24px;
-      background: var(--bg-panel); border: 1px solid var(--border-dark); border-radius: 8px;
-      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -2px rgba(0,0,0,0.05);
+      background: var(--bg-panel); border: 1px solid var(--border-dark); border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-canvas);
     }
     #seq-svg { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
     #seq-html { position: absolute; left: 0; top: 0; }
@@ -797,90 +1375,67 @@
     /* The frame's border selects it: an 8px invisible stroke, the inside stays click-through */
     .seq-frag-hit { fill: none; stroke: transparent; stroke-width: 8; pointer-events: stroke; cursor: pointer; }
     .seq-div-hit { stroke: transparent; stroke-width: 10; pointer-events: stroke; cursor: row-resize; }
-    /* Phase colours: one hue per frame, at low opacity in both themes */
-    .seq-tint-blue { --seq-tint: #3b82f6; } .seq-tint-green { --seq-tint: #22c55e; } .seq-tint-yellow { --seq-tint: #eab308; }
-    .seq-tint-red { --seq-tint: #ef4444; } .seq-tint-purple { --seq-tint: #a855f7; } .seq-tint-gray { --seq-tint: #64748b; }
-    .seq-frag-box[class*="seq-tint-"] { fill: var(--seq-tint); fill-opacity: 0.07; stroke: color-mix(in srgb, var(--seq-tint) 45%, var(--border-dark)); }
-    .seq-frag-label[class*="seq-tint-"] { background: color-mix(in srgb, var(--seq-tint) 18%, var(--bg-panel)); border-color: color-mix(in srgb, var(--seq-tint) 45%, var(--border-dark)); }
-    .seq-frag-box.selected[class*="seq-tint-"] { stroke: var(--primary); }
+    /* Phase colours: a frame with a colour (slot or custom hex, see setSwatch) takes its line colour, at low opacity in both themes */
+    .seq-frag-box.swatch-scope { fill: var(--sw-line); fill-opacity: 0.07; stroke: color-mix(in srgb, var(--sw-line) 45%, var(--border-dark)); }
+    .frame-tag.swatch-scope { background: color-mix(in srgb, var(--sw-line) 18%, var(--bg-panel)); border-color: color-mix(in srgb, var(--sw-line) 45%, var(--border-dark)); }
+    .seq-frag-box.selected.swatch-scope { stroke: var(--primary); }
     .seq-frag-else { stroke: var(--border-dark); stroke-width: 1.5; stroke-dasharray: 6 4; }
     #seq-drop-line { stroke: var(--primary); stroke-width: 2; stroke-dasharray: 5 4; display: none; }
     .seq-participant {
       position: absolute; width: 148px; height: 56px; box-sizing: border-box;
       display: flex; align-items: center; justify-content: center; text-align: center;
-      background: var(--node-bg); border: 2px solid var(--border-dark); border-radius: 8px;
-      color: var(--text-main); font-weight: 600; font-size: 14px; padding: 4px 10px; cursor: grab;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.08); user-select: none; touch-action: none;
+      background: var(--node-bg); border: 2px solid var(--border-dark); border-radius: var(--radius-lg);
+      color: var(--text-main); font-weight: var(--weight-semibold); font-size: var(--t-title-size); padding: 4px 10px; cursor: grab;
+      box-shadow: var(--shadow-sm); user-select: none; touch-action: none;
     }
-    .seq-participant.is-actor { background: var(--start-bg); border-color: var(--start-border); color: var(--start-text); border-radius: 28px; }
+    .seq-participant.is-actor { background: var(--start-bg); border-color: var(--start-border); color: var(--start-text); border-radius: var(--radius-pill); }
     .seq-participant.selected, .seq-participant:hover { border-color: var(--primary); }
     .seq-participant.dragging, .seq-msg-label.dragging { opacity: 0.75; z-index: 20; }
     .seq-participant-name { outline: none; min-width: 20px; }
     .seq-msg-label {
-      position: absolute; height: 20px; line-height: 20px; padding: 0 6px; border-radius: 4px; white-space: nowrap;
-      font-size: 13px; color: var(--text-main); cursor: pointer; user-select: none; touch-action: none;
+      position: absolute; height: 20px; line-height: var(--line-20); padding: 0 6px; border-radius: var(--radius-sm); white-space: nowrap;
+      font-size: var(--t-label-size); color: var(--text-main); cursor: pointer; user-select: none; touch-action: none;
       text-shadow: 0 0 2px var(--bg-panel), 0 0 2px var(--bg-panel), 0 0 5px var(--bg-panel), 0 0 5px var(--bg-panel);
     }
     .seq-msg-label.is-self { transform: none; }
-    .seq-msg-label.selected { color: var(--primary); font-weight: 600; }
+    .seq-msg-label.selected { color: var(--primary); font-weight: var(--weight-semibold); }
     .seq-msg-label-text { outline: none; }
-    .seq-frag-label {
-      position: absolute; height: 22px; line-height: 22px; padding: 0 10px 0 8px; font-size: 12px; white-space: nowrap;
-      background: var(--bg-soft); border: 1.5px solid var(--border-dark); border-radius: 4px 12px 4px 4px;
-      color: var(--text-main); cursor: pointer; user-select: none;
-    }
-    .seq-frag-label.selected { border-color: var(--primary); color: var(--primary); }
-    .seq-frag-kind { font-weight: 700; text-transform: lowercase; margin-right: 6px; }
+    .seq-frag-kind { font-weight: var(--weight-bold); text-transform: lowercase; margin-right: 6px; }
     .seq-frag-text { outline: none; color: var(--text-soft); }
-    .seq-frag-else-label { position: absolute; font-size: 12px; font-weight: 600; color: var(--text-soft); user-select: none; }
+    .seq-frag-else-label { position: absolute; font-size: var(--t-detail-size); font-weight: var(--weight-semibold); color: var(--text-soft); user-select: none; }
     .seq-frag-branch-label {
-      position: absolute; height: 18px; line-height: 18px; font-size: 12px; font-weight: 600; color: var(--text-soft);
+      position: absolute; height: 18px; line-height: var(--line-18); font-size: var(--t-detail-size); font-weight: var(--weight-semibold); color: var(--text-soft);
       white-space: nowrap; user-select: none; cursor: pointer; padding: 0 2px;
     }
     .seq-frag-branch-label::before { content: '['; } .seq-frag-branch-label::after { content: ']'; }
     .seq-branch-text { outline: none; }
     .seq-frag-branch-label.selected { color: var(--primary); }
     .seq-frag-else.selected { stroke: var(--primary); stroke-width: 2; }
-    /* Collapse chevron in every frame tag; a collapsed frame shows one summary row instead of its messages */
-    .seq-frag-chev {
-      display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; margin: 0 4px 0 -2px;
-      padding: 0; border: none; border-radius: 4px; background: transparent; color: var(--text-soft); cursor: pointer;
-      vertical-align: -3px;
-    }
-    .seq-frag-chev:hover { background: var(--bg-hover); color: var(--text-main); }
-    .seq-frag-chev svg { transition: transform var(--ease); }
-    .seq-frag-label.is-collapsed .seq-frag-chev svg { transform: rotate(-90deg); }
-    .seq-frag-summary {
-      position: absolute; height: 26px; padding: 0 12px; border: 1.5px dashed var(--border-dark); border-radius: 13px;
-      background: var(--bg-panel); color: var(--text-soft); font: inherit; font-size: 12px; font-weight: 600;
-      white-space: nowrap; cursor: pointer;
-    }
-    .seq-frag-summary:hover { border-color: var(--primary); color: var(--primary); }
     /* Focus: collapse the other phases (the participants they leave become rails) */
     .seq-frag-focus {
       display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; margin: 0 -4px 0 6px;
-      padding: 0; border: none; border-radius: 4px; background: transparent; color: var(--text-soft); cursor: pointer;
+      padding: 0; border: none; border-radius: var(--radius-sm); background: transparent; color: var(--text-soft); cursor: pointer;
       vertical-align: -4px;
     }
     .seq-frag-focus:hover { background: var(--bg-hover); color: var(--text-main); }
     .seq-frag-focus[aria-pressed="true"] { background: var(--primary-wash); color: var(--primary); }
     #btn-show-all[hidden] { display: none; }
     /* Screenshots and exports of an expanded frame look as they did before frames could collapse */
-    body.capture .seq-frag-label:not(.is-collapsed) .seq-frag-chev,
-    body.exporting .seq-frag-label:not(.is-collapsed) .seq-frag-chev,
+    body.capture .frame-tag:not(.is-collapsed) .frame-chev,
+    body.exporting .frame-tag:not(.is-collapsed) .frame-chev,
     body.capture .seq-frag-focus, body.exporting .seq-frag-focus { display: none; }
     /* Message details (payload) under the arrow, and step numbers before the label */
     .seq-msg-detail {
-      position: absolute; height: 16px; line-height: 16px; padding: 0 4px; white-space: nowrap; font-size: 11px;
+      position: absolute; height: 16px; line-height: var(--line-16); padding: 0 4px; white-space: nowrap; font-size: var(--text-xs);
       color: var(--text-muted); cursor: pointer; user-select: none; touch-action: none;
       text-shadow: 0 0 2px var(--bg-panel), 0 0 2px var(--bg-panel), 0 0 4px var(--bg-panel);
     }
     .seq-msg-detail.is-self { transform: none; }
     .seq-msg-detail-text { outline: none; }
     .seq-msg-num {
-      display: inline-block; min-width: 16px; height: 16px; line-height: 16px; margin-right: 5px; padding: 0 3px;
-      box-sizing: border-box; border-radius: 8px; background: var(--bg-soft); color: var(--text-soft);
-      font-size: 10px; font-weight: 700; text-align: center; vertical-align: 1px; text-shadow: none;
+      display: inline-block; min-width: 16px; height: 16px; line-height: var(--line-16); margin-right: 5px; padding: 0 3px;
+      box-sizing: border-box; border-radius: var(--radius-lg); background: var(--bg-soft); color: var(--text-soft);
+      font-size: var(--t-overline-size); font-weight: var(--t-overline-weight); text-align: center; vertical-align: 1px; text-shadow: none;
     }
     .seq-msg-label.selected .seq-msg-num { background: var(--primary); color: var(--bg-panel); }
     /* Participant kinds: a small icon before the name (system and actor have none) */
@@ -889,8 +1444,8 @@
     /* A rail: a participant with nothing to show in the expanded part of the diagram. The kind icon, and the name
        written downwards (cut short if long: hover or select the rail for the full name) */
     .seq-participant.is-rail {
-      width: 36px; height: 80px; flex-direction: column; justify-content: flex-start; padding: 9px 0 6px; border-radius: 18px;
-      font-size: 12px; font-weight: 600; box-shadow: none; background: var(--bg-soft);
+      width: 36px; height: 80px; flex-direction: column; justify-content: flex-start; padding: 9px 0 6px; border-radius: var(--radius-pill);
+      font-size: var(--t-detail-size); font-weight: var(--weight-semibold); box-shadow: none; background: var(--bg-soft);
     }
     .seq-participant.is-rail .seq-kind-icon { margin: 0 0 5px; }
     .seq-participant.is-rail .seq-participant-name {
@@ -898,8 +1453,8 @@
     }
     .seq-rail-tip {
       display: none; position: absolute; left: 100%; top: 4px; margin-left: 8px; padding: 3px 8px; z-index: 12;
-      border: 1px solid var(--border-dark); border-radius: 6px; background: var(--bg-panel); color: var(--text-main);
-      font-size: 12px; font-weight: 600; white-space: nowrap; pointer-events: none; box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+      border: 1px solid var(--border-dark); border-radius: var(--radius-md); background: var(--bg-panel); color: var(--text-main);
+      font-size: var(--t-detail-size); font-weight: var(--weight-semibold); white-space: nowrap; pointer-events: none; box-shadow: var(--shadow-md);
     }
     .seq-participant.is-rail:hover .seq-rail-tip, .seq-participant.is-rail.selected .seq-rail-tip { display: block; }
     body.exporting .seq-rail-tip, body.capture .seq-rail-tip { display: none !important; }
@@ -915,9 +1470,9 @@
     .seq-cap.swatch-scope.selected { stroke: var(--primary); }
     .seq-activation.swatch-scope { stroke: var(--sw-line); fill: color-mix(in srgb, var(--sw-stripe) 20%, var(--node-bg)); }
     /* The colour key above the card's top-left corner */
-    .seq-key { position: absolute; left: 0; top: -34px; display: flex; width: max-content; gap: 4px 18px; white-space: nowrap; font-size: 12px; color: var(--text-soft); user-select: none; }
+    .seq-key { position: absolute; left: 0; top: -34px; display: flex; width: max-content; gap: 4px 18px; white-space: nowrap; font-size: var(--t-detail-size); color: var(--text-soft); user-select: none; }
     .seq-key-item { display: inline-flex; align-items: center; gap: 6px; }
-    .seq-key-dot { width: 12px; height: 12px; border-radius: 3px; background: var(--sw-stripe); border: 1px solid rgba(0,0,0,0.15); box-sizing: border-box; }
+    .seq-key-dot { width: 12px; height: 12px; border-radius: var(--radius-xs); background: var(--sw-stripe); border: 1px solid var(--dot-edge-soft); box-sizing: border-box; }
     .seq-key-label { outline: none; min-width: 12px; cursor: text; }
     .seq-key-label.is-empty::before { content: attr(data-hint); font-style: italic; color: var(--text-muted); }
     body.presentation .seq-key-item.is-unnamed, body.exporting .seq-key-item.is-unnamed, body.capture .seq-key-item.is-unnamed { display: none; }
@@ -933,26 +1488,20 @@
     .seq-participant.is-gone { opacity: 0; pointer-events: none; }
     body.exporting .seq-participant.is-gone, body.capture .seq-participant.is-gone { opacity: 1 !important; }
     .seq-lifeline.is-rail { stroke-dasharray: 2 5; opacity: 0.6; }
-    /* Notes: a folded paper card over one lifeline, or stretched over two */
-    #seq-canvas { --seq-note-bg: #fefce8; --seq-note-border: #e5d38a; --seq-note-ink: #3f3a1d; }
-    :root[data-theme="dark"] #seq-canvas { --seq-note-bg: #2a2814; --seq-note-border: #6b6230; --seq-note-ink: #ece6c2; }
-    .seq-note {
-      position: absolute; box-sizing: border-box; padding: 10px; font-size: 12px; line-height: 17px; white-space: pre;
-      overflow: hidden; color: var(--seq-note-ink); background: var(--seq-note-bg); border: 1px solid var(--seq-note-border);
-      border-radius: 3px 10px 3px 3px; cursor: pointer; user-select: none; touch-action: none; text-align: left;
-      box-shadow: 0 1px 2px rgba(0,0,0,0.06);
-    }
-    .seq-note-text { outline: none; }
-    .seq-note.selected { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-ring); }
-    body.presentation .seq-participant, body.presentation .seq-msg-label, body.presentation .seq-frag-label,
-    body.presentation .seq-msg-hit, body.presentation .seq-msg-detail, body.presentation .seq-note,
+    /* Notes: the shared card (components/note.css) over one lifeline, or stretched over two. The engine sizes it, so the text
+       keeps the engine's line breaks, and the 3px accent edge comes out of the left padding to leave the text area as measured. */
+    #seq-canvas .note { padding: 10px 10px 10px 8px; line-height: var(--line-17); overflow: hidden; cursor: pointer; touch-action: none; }
+    #seq-canvas .note-text { white-space: pre; min-height: 0; }
+    #seq-canvas .note.dragging { opacity: 0.75; z-index: 20; }
+    body.presentation .seq-participant, body.presentation .seq-msg-label, body.presentation .frame-tag,
+    body.presentation .seq-msg-hit, body.presentation .seq-msg-detail, body.presentation .note,
     body.presentation .seq-frag-hit, body.presentation .seq-div-hit, body.presentation .seq-frag-branch-label { pointer-events: none !important; cursor: default; }
     /* In ?present the chevron and the summary row stay live: they walk an audience through the flow phase by phase */
-    body.presentation .seq-frag-chev, body.presentation .seq-frag-summary, body.presentation .seq-frag-focus { pointer-events: auto; }
+    body.presentation .frame-chev, body.presentation .frame-summary, body.presentation .seq-frag-focus { pointer-events: auto; }
     /* Pinned participant row (see pinParticipants): the boxes ride over an opaque band at the viewport's top */
     .seq-pin-band {
       display: none; position: absolute; left: 0; right: 0; top: var(--pin-top, 0px); height: var(--pin-h, 72px); z-index: 5;
-      background: var(--bg-panel); border-bottom: 1px solid var(--border-dark); box-shadow: 0 4px 8px -4px rgba(0,0,0,0.12);
+      background: var(--bg-panel); border-bottom: 1px solid var(--border-dark); box-shadow: var(--shadow-band);
       pointer-events: none;
     }
     #seq-canvas.seq-pinned .seq-pin-band { display: block; }
@@ -962,17 +1511,15 @@
     /* Focus: messages that do not touch the selected participant step back; a selected message lights its ends */
     .seq-line.is-dim, .seq-msg-label.is-dim, .seq-msg-detail.is-dim { opacity: 0.22; }
     /* "linked" is one of the shell's transient classes, so an export drops it */
-    .seq-participant.linked { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-ring); }
+    .seq-participant.linked { border-color: var(--primary); box-shadow: var(--shadow-ring); }
     body.exporting .is-dim { opacity: 1 !important; }
-    /* View toggles in the dock: pressed while on */
-    .seq-toggle[aria-pressed="true"] { background: var(--primary-wash); border-color: var(--primary-ring); color: var(--primary); }
     /* Editing tools on the selection: never exported ([data-export-skip]), hidden in ?present and while dragging */
     #seq-rubber { stroke: var(--primary); stroke-width: 2; stroke-dasharray: 6 4; display: none; }
     .seq-lifeline.is-target { stroke: var(--primary); stroke-width: 2.5; stroke-dasharray: none; }
     .seq-plus, .seq-insert {
       position: absolute; display: none; align-items: center; justify-content: center; width: 20px; height: 20px;
-      margin: -10px 0 0 -10px; padding: 0; border-radius: 50%; border: 1.5px solid var(--primary); background: var(--bg-panel);
-      color: var(--primary); font: 700 15px/1 sans-serif; cursor: crosshair; z-index: 8; touch-action: none; user-select: none;
+      margin: -10px 0 0 -10px; padding: 0; border-radius: var(--radius-round); border: 1.5px solid var(--primary); background: var(--bg-panel);
+      color: var(--primary); font-family: var(--font-ui); font-size: var(--text-xl); font-weight: var(--weight-bold); line-height: var(--leading-none); cursor: crosshair; z-index: 8; touch-action: none; user-select: none;
     }
     .seq-insert { cursor: pointer; }
     #seq-canvas.seq-row-hover .seq-insert, .seq-insert:focus-visible { display: flex; }
@@ -980,54 +1527,37 @@
     .seq-plus:hover, .seq-insert:hover { background: var(--primary); color: var(--bg-panel); }
     .seq-actionbar {
       position: absolute; display: flex; align-items: center; gap: 2px; padding: 3px; z-index: 9;
-      transform: translateX(-50%); background: var(--bg-panel); border: 1px solid var(--border-dark); border-radius: 8px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.12); white-space: nowrap;
+      transform: translateX(-50%); background: var(--bg-panel); border: 1px solid var(--border-dark); border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-md); white-space: nowrap;
     }
     #seq-canvas.seq-pinned .seq-actionbar.is-below { translate: 0 var(--pin-dy, 0px); }
     .seq-ab-btn {
       display: inline-flex; align-items: center; gap: 4px; height: 26px; min-width: 26px; padding: 0 6px; box-sizing: border-box;
-      border: 1px solid transparent; border-radius: 6px; background: transparent; color: var(--text-soft);
-      font: inherit; font-size: 12px; cursor: pointer;
+      border: 1px solid transparent; border-radius: var(--radius-md); background: transparent; color: var(--text-soft);
+      font: inherit; font-size: var(--t-detail-size); cursor: pointer;
     }
     .seq-ab-btn:hover { background: var(--bg-hover); color: var(--text-main); }
     .seq-ab-btn[aria-pressed="true"] { background: var(--primary-wash); border-color: var(--primary-ring); color: var(--primary); }
     .seq-ab-sep { width: 1px; height: 18px; margin: 0 3px; background: var(--border-color); }
-    .seq-swatch { display: inline-block; width: 14px; height: 14px; border-radius: 50%; background: var(--seq-tint); border: 1px solid rgba(0,0,0,0.15); }
+    .seq-swatch { display: inline-block; width: 14px; height: 14px; border-radius: var(--radius-round); background: var(--sw-line); border: 1px solid var(--dot-edge-soft); }
     .seq-swatch.is-none { background: var(--bg-panel); border: 1.5px dashed var(--border-dark); }
     .seq-handle {
       position: absolute; width: 12px; height: 12px; margin: -6px 0 0 -6px; box-sizing: border-box; z-index: 9;
-      border-radius: 50%; border: 2px solid var(--primary); background: var(--bg-panel); touch-action: none;
+      border-radius: var(--radius-round); border: 2px solid var(--primary); background: var(--bg-panel); touch-action: none;
     }
     .seq-handle.seq-end { cursor: grab; }
-    .seq-handle.seq-edge { width: 22px; height: 10px; margin: -5px 0 0 -11px; border-radius: 5px; cursor: ns-resize; }
-    .seq-handle.seq-stretch { width: 10px; height: 22px; margin: -11px 0 0 -5px; border-radius: 5px; cursor: ew-resize; }
-    .seq-hint {
-      position: fixed; left: 50%; bottom: 76px; transform: translateX(-50%); z-index: 150; padding: 6px 12px; border-radius: 999px;
-      border: 1px solid var(--border-dark); background: var(--bg-panel); color: var(--text-main); font-size: 0.8125rem; font-weight: 500;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.12); max-width: calc(100vw - 32px); text-align: center;
-    }
+    .seq-handle.seq-edge { width: 22px; height: 10px; margin: -5px 0 0 -11px; border-radius: var(--radius-md); cursor: ns-resize; }
+    .seq-handle.seq-stretch { width: 10px; height: 22px; margin: -11px 0 0 -5px; border-radius: var(--radius-md); cursor: ew-resize; }
     .seq-add-branch {
-      position: absolute; height: 22px; padding: 0 9px; transform: translateY(-50%); z-index: 9; border-radius: 11px;
-      border: 1.5px solid var(--primary); background: var(--bg-panel); color: var(--primary); font: inherit; font-size: 12px;
-      font-weight: 600; cursor: pointer; white-space: nowrap;
+      position: absolute; height: 22px; padding: 0 9px; transform: translateY(-50%); z-index: 9; border-radius: var(--radius-pill);
+      border: 1.5px solid var(--primary); background: var(--bg-panel); color: var(--primary); font: inherit; font-size: var(--t-detail-size);
+      font-weight: var(--weight-semibold); cursor: pointer; white-space: nowrap;
     }
     .seq-marquee { position: absolute; border: 1.5px dashed var(--primary); background: var(--primary-wash); pointer-events: none; z-index: 9; }
-    .seq-note.dragging { opacity: 0.75; z-index: 20; }
-    .seq-msg-detail.is-editing, .seq-frag-branch-label.is-editing { min-width: 60px; background: var(--bg-panel); outline: 1.5px solid var(--primary-ring); border-radius: 3px; }
+    .seq-msg-detail.is-editing, .seq-frag-branch-label.is-editing { min-width: 60px; background: var(--bg-panel); outline: 1.5px solid var(--primary-ring); border-radius: var(--radius-xs); }
     body.seq-dragging .seq-actionbar, body.seq-dragging .seq-add-branch, body.seq-dragging .seq-insert { display: none !important; }
     body.presentation .seq-actionbar, body.presentation .seq-handle, body.presentation .seq-plus, body.presentation .seq-insert,
     body.presentation .seq-add-branch { display: none !important; }
-    /* Delete a participant with messages: confirmed in a bubble */
-    .seq-confirm {
-      position: fixed; z-index: 2000; width: 260px; box-sizing: border-box; padding: 14px 14px 12px; border-radius: 10px;
-      border: 1px solid var(--border-dark); background: var(--bg-panel); color: var(--text-main);
-      box-shadow: 0 10px 30px rgba(0,0,0,0.18); font-size: 13px; line-height: 1.4;
-    }
-    .seq-confirm-msg { font-weight: 600; margin-bottom: 12px; overflow-wrap: anywhere; }
-    .seq-confirm-actions { display: flex; justify-content: flex-end; gap: 8px; }
-    .seq-confirm .btn { padding: 6px 12px; font-size: 13px; }
-    .seq-confirm-delete { background: var(--danger); border-color: var(--danger); color: #ffffff; }
-    .seq-confirm-delete:hover { filter: brightness(0.92); background: var(--danger); color: #ffffff; }
     body.capture #seq-canvas { margin: 0; padding: 12px; border: none; border-radius: 0; box-shadow: none; }
   </style>
 </head>
@@ -1036,7 +1566,7 @@
   <!-- Top Toolbar -->
   <header>
     <div class="toolbar-left">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--primary)"><rect x="3" y="3" width="6" height="4" rx="1"/><rect x="15" y="3" width="6" height="4" rx="1"/><path d="M6 7v14M18 7v14"/><path d="M6 12h12"/><path d="m15 10 3 2-3 2"/></svg>
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="6" height="4" rx="1"/><rect x="15" y="3" width="6" height="4" rx="1"/><path d="M6 7v14M18 7v14"/><path d="M6 12h12"/><path d="m15 10 3 2-3 2"/></svg>
       <div class="app-title-container">
         <h1 id="chart-title" contenteditable="false" spellcheck="false" title="Double-click to rename diagram">Payment v6 Q&amp;B</h1>
         <span id="save-status" class="badge badge-status">Ready</span>
@@ -1045,22 +1575,23 @@
 
     <div class="toolbar-right">
       <button id="btn-undo" class="btn btn-icon" title="Undo (Ctrl+Z)" aria-label="Undo" disabled>
-        <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>
       </button>
       <button id="btn-redo" class="btn btn-icon" title="Redo (Ctrl+Y / Ctrl+Shift+Z)" aria-label="Redo" disabled>
-        <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg>
       </button>
       <button id="btn-theme" class="btn btn-icon" title="Switch to dark mode" aria-label="Switch to dark mode"></button>
       <button id="btn-help" class="btn btn-icon" title="Keyboard shortcuts" aria-label="Keyboard shortcuts" aria-expanded="false" aria-controls="help-drawer">?</button>
-      <div class="export-wrap">
+      <div class="menu-wrap">
         <button id="btn-export" class="btn" title="Download or copy the diagram as an image" aria-label="Export" aria-haspopup="menu" aria-expanded="false">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg><span class="btn-label">Export</span>
         </button>
-        <div id="export-menu" class="export-menu" role="menu" hidden>
-          <div class="export-menu-label" role="presentation">Download</div>
+        <div id="export-menu" class="menu" role="menu" hidden>
+          <div class="menu-label" role="presentation">Download</div>
           <button type="button" role="menuitem" data-export="svg">SVG image</button>
           <button type="button" role="menuitem" data-export="png">PNG image (1.5x)</button>
-          <div class="export-menu-label" role="presentation" data-copy-label>Copy</div>
+          <div class="menu-label" role="presentation" data-copy-label>Copy</div>
+          <button type="button" role="menuitem" data-copy="mermaid">Mermaid</button>
           <button type="button" role="menuitem" data-copy="svg">SVG (text)</button>
           <button type="button" role="menuitem" data-copy="png">PNG image (1.5x)</button>
         </div>
@@ -1087,13 +1618,13 @@
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16v11l-5 5H4z"/><path d="M20 15h-5v5"/><path d="M8 9h8M8 13h5"/></svg><span class="btn-label">Note</span>
       </button>
       <span class="dock-sep" aria-hidden="true"></span>
-      <button id="btn-numbers" class="btn seq-toggle" title="Number every message" aria-label="Numbers" aria-pressed="false">
+      <button id="btn-numbers" class="btn" title="Number every message" aria-label="Numbers" aria-pressed="false">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 6h11M10 12h11M10 18h11"/><path d="M4 6h1v4"/><path d="M4 10h2"/><path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"/></svg><span class="btn-label">Numbers</span>
       </button>
-      <button id="btn-details" class="btn seq-toggle" title="Show each message's detail under its arrow" aria-label="Details" aria-pressed="false">
+      <button id="btn-details" class="btn" title="Show each message's detail under its arrow" aria-label="Details" aria-pressed="false">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9h16"/><path d="m16 5 4 4-4 4"/><path d="M6 17h10" stroke-dasharray="2 3"/></svg><span class="btn-label">Details</span>
       </button>
-      <button id="btn-lifespans" class="btn seq-toggle" title="Trim lifelines: each one runs only from its participant's first message to its last" aria-label="Trim lifelines" aria-pressed="false">
+      <button id="btn-lifespans" class="btn" title="Trim lifelines: each one runs only from its participant's first message to its last" aria-label="Trim lifelines" aria-pressed="false">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h12"/><path d="M12 3v14" stroke-dasharray="3 3"/><path d="M8 21h8"/></svg><span class="btn-label">Trim lifelines</span>
       </button>
       <button id="btn-show-all" class="btn" title="Expand every collapsed frame" aria-label="Show all" hidden>
@@ -1113,11 +1644,11 @@
   <!-- Zoom controls: floating in the bottom-left corner of the viewport -->
   <div class="toolbar-zoom" role="group" aria-label="Zoom">
     <button id="btn-zoom-out" class="btn btn-icon" title="Zoom out" aria-label="Zoom out">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14"/></svg>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/></svg>
     </button>
     <span id="zoom-level">100%</span>
     <button id="btn-zoom-in" class="btn btn-icon" title="Zoom in" aria-label="Zoom in">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
     </button>
     <button id="btn-zoom-reset" class="btn" title="Fit to screen">Fit</button>
   </div>
@@ -1153,7 +1684,7 @@
     <div class="help-head">
       <span id="help-title">Shortcuts &amp; Interaction</span>
       <button id="help-close" class="help-close" type="button" title="Close (Esc)" aria-label="Close shortcuts">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
       </button>
     </div>
     <ul class="help-list">
@@ -1192,6 +1723,8 @@
     (function () {
       'use strict';
 
+const TOKENS = {"palette":[{"slot":"1","name":"sky","hex":"#e0f2fe","light":{"soft":"#b9e5ff","strong":"#2f7da8","ink":"#00436a","solid":"#005c8b","on-solid":"#ffffff"},"dark":{"soft":"#194259","strong":"#69b4e2","ink":"#c6eaff","solid":"#93d4fd","on-solid":"#0f172a"}},{"slot":"2","name":"amber","hex":"#fef3c7","light":{"soft":"#ecdeaa","strong":"#907100","ink":"#513a00","solid":"#6f5100","on-solid":"#ffffff"},"dark":{"soft":"#483c06","strong":"#c6a92a","ink":"#f0e5b8","solid":"#e2ca6a","on-solid":"#0f172a"}},{"slot":"3","name":"emerald","hex":"#dcfce7","light":{"soft":"#b9edcb","strong":"#008d4e","ink":"#004e20","solid":"#006c2f","on-solid":"#ffffff"},"dark":{"soft":"#17482e","strong":"#50c586","ink":"#c5f1d5","solid":"#84e2ab","on-solid":"#0f172a"}},{"slot":"4","name":"rose","hex":"#fee2e2","light":{"soft":"#ffcccd","strong":"#b15259","ink":"#6e1724","solid":"#932a37","on-solid":"#ffffff"},"dark":{"soft":"#5c2d2f","strong":"#ee898e","ink":"#ffd5d6","solid":"#ffaeb0","on-solid":"#0f172a"}},{"slot":"5","name":"purple","hex":"#f3e8ff","light":{"soft":"#ead2ff","strong":"#895db0","ink":"#4e276d","solid":"#6b3893","on-solid":"#ffffff"},"dark":{"soft":"#47325a","strong":"#c194eb","ink":"#efdbff","solid":"#deb7ff","on-solid":"#0f172a"}},{"slot":"6","name":"orange","hex":"#ffedd5","light":{"soft":"#fad8ab","strong":"#a66400","ink":"#602f00","solid":"#834300","on-solid":"#ffffff"},"dark":{"soft":"#523709","strong":"#de9c31","ink":"#fde0b9","solid":"#f8bf6c","on-solid":"#0f172a"}},{"slot":"7","name":"teal","hex":"#ccfbf1","light":{"soft":"#aaeee0","strong":"#008f79","ink":"#004f40","solid":"#006d5a","on-solid":"#ffffff"},"dark":{"soft":"#00493f","strong":"#00c7af","ink":"#b9f2e7","solid":"#60e4cf","on-solid":"#0f172a"}},{"slot":"8","name":"indigo","hex":"#e0e7ff","light":{"soft":"#cedcff","strong":"#5b6cc2","ink":"#2a347b","solid":"#3c49a7","on-solid":"#ffffff"},"dark":{"soft":"#313a62","strong":"#8fa4ff","ink":"#d7e3ff","solid":"#b1c5ff","on-solid":"#0f172a"}},{"slot":"9","name":"neutral","light":{"soft":"#e2e8f0","strong":"#64748b","ink":"#334155","solid":"#475569","on-solid":"#ffffff"},"dark":{"soft":"#243049","strong":"#94a3b8","ink":"#e2e8f0","solid":"#cbd5e1","on-solid":"#0f172a"}}],"font":{"metrics":{"label":7.4,"title":7.4,"detail":6.4,"note":6.2,"type":6.6,"edgeLabel":7,"edgeWrap":6.6}},"motion":{"ease":"0.15s ease"},"type":{"fitMin":"11px","fitMinOverview":"9px"},"icon":{"set":"default","size":{"xs":10,"sm":12,"md":14,"lg":18,"xl":22,"tile":32},"stroke":2,"strokeFine":1.75,"strokeBold":2.5,"cap":"round","join":"round"}};
+const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><circle cx=\"12\" cy=\"7\" r=\"4\"/>","users":"<path d=\"M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2\"/><circle cx=\"9\" cy=\"7\" r=\"4\"/><path d=\"M22 21v-2a4 4 0 0 0-3-3.87\"/><path d=\"M16 3.13a4 4 0 0 1 0 7.75\"/>","briefcase":"<rect width=\"20\" height=\"14\" x=\"2\" y=\"7\" rx=\"2\"/><path d=\"M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16\"/>","building":"<rect width=\"16\" height=\"20\" x=\"4\" y=\"2\" rx=\"2\"/><path d=\"M9 22v-4h6v4\"/><path d=\"M8 6h.01M12 6h.01M16 6h.01M8 10h.01M12 10h.01M16 10h.01M8 14h.01M12 14h.01M16 14h.01\"/>","headset":"<path d=\"M3 14v-2a9 9 0 0 1 18 0v2\"/><path d=\"M21 16a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 16a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z\"/><path d=\"M21 17v1a4 4 0 0 1-4 4h-4\"/>","monitor":"<rect width=\"20\" height=\"14\" x=\"2\" y=\"3\" rx=\"2\"/><path d=\"M8 21h8M12 17v4\"/>","code":"<polyline points=\"16 18 22 12 16 6\"/><polyline points=\"8 6 2 12 8 18\"/>","server":"<rect width=\"20\" height=\"8\" x=\"2\" y=\"2\" rx=\"2\"/><rect width=\"20\" height=\"8\" x=\"2\" y=\"14\" rx=\"2\"/><path d=\"M6 6h.01M6 18h.01\"/>","database":"<ellipse cx=\"12\" cy=\"5\" rx=\"9\" ry=\"3\"/><path d=\"M3 5v14a9 3 0 0 0 18 0V5\"/><path d=\"M3 12a9 3 0 0 0 18 0\"/>","cloud":"<path d=\"M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z\"/>","cpu":"<rect width=\"16\" height=\"16\" x=\"4\" y=\"4\" rx=\"2\"/><rect width=\"6\" height=\"6\" x=\"9\" y=\"9\" rx=\"1\"/><path d=\"M15 2v2M15 20v2M9 2v2M9 20v2M2 15h2M2 9h2M20 15h2M20 9h2\"/>","cog":"<circle cx=\"12\" cy=\"12\" r=\"3\"/><path d=\"M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12\"/>","shield":"<path d=\"M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z\"/>","scale":"<path d=\"m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z\"/><path d=\"m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z\"/><path d=\"M7 21h10M12 3v18M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2\"/>","banknote":"<rect width=\"20\" height=\"12\" x=\"2\" y=\"6\" rx=\"2\"/><circle cx=\"12\" cy=\"12\" r=\"2\"/><path d=\"M6 12h.01M18 12h.01\"/>","credit-card":"<rect width=\"20\" height=\"14\" x=\"2\" y=\"5\" rx=\"2\"/><path d=\"M2 10h20\"/>","mail":"<rect width=\"20\" height=\"16\" x=\"2\" y=\"4\" rx=\"2\"/><path d=\"m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7\"/>","package":"<path d=\"m7.5 4.27 9 5.15\"/><path d=\"M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z\"/><path d=\"m3.3 7 8.7 5 8.7-5M12 22V12\"/>","truck":"<path d=\"M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2\"/><path d=\"M15 18H9\"/><path d=\"M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14\"/><circle cx=\"17\" cy=\"18\" r=\"2\"/><circle cx=\"7\" cy=\"18\" r=\"2\"/>","cart":"<circle cx=\"8\" cy=\"21\" r=\"1\"/><circle cx=\"19\" cy=\"21\" r=\"1\"/><path d=\"M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12\"/>","clipboard":"<rect width=\"8\" height=\"4\" x=\"8\" y=\"2\" rx=\"1\"/><path d=\"M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2\"/><path d=\"M9 12h6M9 16h4\"/>","check":"<path d=\"M22 11.08V12a10 10 0 1 1-5.93-9.14\"/><path d=\"m9 11 3 3L22 4\"/>","layers":"<path d=\"m12 2 10 5-10 5L2 7z\"/><path d=\"m2 17 10 5 10-5\"/><path d=\"m2 12 10 5 10-5\"/>","globe":"<circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"M2 12h20\"/><path d=\"M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z\"/>","flag":"<path d=\"M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z\"/><path d=\"M4 22v-7\"/>","undo":"<path d=\"M9 14 4 9l5-5\"/><path d=\"M4 9h10.5a5.5 5.5 0 0 1 0 11H11\"/>","redo":"<path d=\"m15 14 5-5-5-5\"/><path d=\"M20 9H9.5a5.5 5.5 0 0 0 0 11H13\"/>","export":"<path d=\"M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4\"/><polyline points=\"7 10 12 15 17 10\"/><line x1=\"12\" y1=\"15\" x2=\"12\" y2=\"3\"/>","save":"<path d=\"M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z\"/><polyline points=\"17 21 17 13 7 13 7 21\"/><polyline points=\"7 3 7 8 15 8\"/>","trash":"<path d=\"M3 6h18\"/><path d=\"M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2\"/><path d=\"M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6\"/><path d=\"M10 11v6\"/><path d=\"M14 11v6\"/>","tidy":"<path d=\"m21.64 3.64-1.28-1.28a1.21 1.21 0 0 0-1.72 0L2.36 18.64a1.21 1.21 0 0 0 0 1.72l1.28 1.28a1.2 1.2 0 0 0 1.72 0L21.64 5.36a1.2 1.2 0 0 0 0-1.72\"/><path d=\"m14 7 3 3\"/><path d=\"M5 6v4\"/><path d=\"M19 14v4\"/><path d=\"M10 2v2\"/><path d=\"M7 8H3\"/><path d=\"M21 16h-4\"/><path d=\"M11 3H9\"/>","minus":"<path d=\"M5 12h14\"/>","plus":"<path d=\"M5 12h14\"/><path d=\"M12 5v14\"/>","close":"<path d=\"M18 6 6 18\"/><path d=\"m6 6 12 12\"/>","sun":"<circle cx=\"12\" cy=\"12\" r=\"4\"/><path d=\"M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41\"/>","moon":"<path d=\"M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z\"/>","key":"<circle cx=\"7.5\" cy=\"15.5\" r=\"5\"/><path d=\"m21 2-9.6 9.6\"/><path d=\"m15.5 7.5 3 3L22 7l-3-3\"/>","link":"<path d=\"M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71\"/><path d=\"M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71\"/>","chevron-down":"<path d=\"m6 9 6 6 6-6\"/>","note-lines":"<path d=\"M5 7h14\"/><path d=\"M5 12h14\"/><path d=\"M5 17h9\"/>","type-erd":"<rect x=\"2.5\" y=\"3\" width=\"10\" height=\"8\" rx=\"1.5\"/><path d=\"M2.5 6.5h10\"/><rect x=\"11.5\" y=\"13\" width=\"10\" height=\"8\" rx=\"1.5\"/><path d=\"M11.5 16.5h10\"/><path d=\"M7.5 11v4.5h4\"/>","table-add":"<rect x=\"3\" y=\"4\" width=\"18\" height=\"16\" rx=\"2\"/><path d=\"M3 10h18\"/><path d=\"M8 15h8\"/>","relationship":"<path d=\"M3 12h9\"/><path d=\"m12 12 8-5\"/><path d=\"M12 12h8\"/><path d=\"m12 12 8 5\"/><path d=\"M6.5 8v8\"/>","note":"<path d=\"M4 4h16v11l-5 5H4z\"/><path d=\"M20 15h-5v5\"/><path d=\"M8 9h8M8 13h5\"/>","columns":"<rect x=\"3\" y=\"3\" width=\"18\" height=\"18\" rx=\"2\"/><path d=\"M3 9h18\"/><path d=\"M3 15h18\"/>","types":"<path d=\"M4 7V5h16v2\"/><path d=\"M12 5v14\"/><path d=\"M9 19h6\"/>","notes":"<path d=\"M15.5 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8.5z\"/><path d=\"M15 3v5a1 1 0 0 0 1 1h5\"/><path d=\"M7 13h7\"/><path d=\"M7 17h4\"/>","grip":"<circle cx=\"9\" cy=\"6\" r=\"1.6\" fill=\"currentColor\" stroke=\"none\"/><circle cx=\"15\" cy=\"6\" r=\"1.6\" fill=\"currentColor\" stroke=\"none\"/><circle cx=\"9\" cy=\"12\" r=\"1.6\" fill=\"currentColor\" stroke=\"none\"/><circle cx=\"15\" cy=\"12\" r=\"1.6\" fill=\"currentColor\" stroke=\"none\"/><circle cx=\"9\" cy=\"18\" r=\"1.6\" fill=\"currentColor\" stroke=\"none\"/><circle cx=\"15\" cy=\"18\" r=\"1.6\" fill=\"currentColor\" stroke=\"none\"/>","split":"<path d=\"M2 12h4\"/><circle cx=\"9\" cy=\"12\" r=\"3\"/><circle cx=\"15\" cy=\"12\" r=\"3\"/><path d=\"M18 12h4\"/>","type-flowchart":"<rect width=\"18\" height=\"18\" x=\"3\" y=\"3\" rx=\"2\"/><path d=\"M3 9h18\"/><path d=\"M3 15h18\"/><path d=\"M9 3v18\"/>","shapes":"<rect x=\"3\" y=\"13\" width=\"8\" height=\"8\" rx=\"1.5\"/><circle cx=\"17\" cy=\"17\" r=\"4\"/><path d=\"M12 3 7.5 10h9z\"/>","chevron-up":"<path d=\"m6 15 6-6 6 6\"/>","shape-terminator":"<rect x=\"2\" y=\"7\" width=\"20\" height=\"10\" rx=\"5\"/>","shape-process":"<rect x=\"3\" y=\"6\" width=\"18\" height=\"12\" rx=\"2.5\"/>","shape-decision":"<path d=\"M12 3 2 12l10 9 10-9z\"/>","shape-connector":"<path class=\"tile-line\" d=\"M0.5 12H2M22 12h1.5\"/><path class=\"tile-line tile-gap\" d=\"M10.5 12h3\" stroke-dasharray=\"1 2\"/><circle cx=\"6\" cy=\"12\" r=\"4\"/><circle cx=\"18\" cy=\"12\" r=\"4\"/>","shape-subprocess":"<rect x=\"2\" y=\"6\" width=\"20\" height=\"12\" rx=\"1\"/><path class=\"tile-line\" d=\"M5.5 6v12M18.5 6v12\"/>","shape-data":"<path d=\"M6 6h16l-4 12H2z\"/>","shape-document":"<path d=\"M3 5h18v11c-3-1.6-6-1.6-9 0s-6 1.6-9 0z\"/>","shape-database":"<path d=\"M4 6.5a8 2.5 0 0 1 16 0v11a8 2.5 0 0 1-16 0z\"/><path class=\"tile-line\" d=\"M4 6.5a8 2.5 0 0 0 16 0\"/>","shape-delay":"<path d=\"M3 6h11a6 6 0 0 1 0 12H3z\"/>","shape-note":"<path class=\"note-paper\" d=\"M4 5h16v10l-5 5H4z\"/><path class=\"note-fold\" d=\"M20 15h-5v5\"/><path class=\"note-lines\" d=\"M7.5 9.5h9M7.5 13h6\"/>","lane":"<rect x=\"3\" y=\"4\" width=\"18\" height=\"16\" rx=\"2\"/><path d=\"M3 12h18\"/>","direction-tb":"<path d=\"M12 3v18\"/><path d=\"m7 16 5 5 5-5\"/>","type-sequence":"<rect x=\"3\" y=\"3\" width=\"6\" height=\"4\" rx=\"1\"/><rect x=\"15\" y=\"3\" width=\"6\" height=\"4\" rx=\"1\"/><path d=\"M6 7v14M18 7v14\"/><path d=\"M6 12h12\"/><path d=\"m15 10 3 2-3 2\"/>","focus":"<circle cx=\"12\" cy=\"12\" r=\"8\"/><circle cx=\"12\" cy=\"12\" r=\"2.5\" fill=\"currentColor\"/>","participant":"<rect x=\"4\" y=\"3\" width=\"16\" height=\"6\" rx=\"1.5\"/><path d=\"M12 9v12\" stroke-dasharray=\"3 3\"/>","message":"<path d=\"M4 12h16\"/><path d=\"m14 6 6 6-6 6\"/>","frame":"<rect x=\"3\" y=\"4\" width=\"18\" height=\"16\" rx=\"2\"/><path d=\"M3 9h8V4\"/>","numbers":"<path d=\"M10 6h11M10 12h11M10 18h11\"/><path d=\"M4 6h1v4\"/><path d=\"M4 10h2\"/><path d=\"M6 18H4c0-1 2-2 2-3s-1-1.5-2-1\"/>","message-return":"<path d=\"M4 9h16\"/><path d=\"m16 5 4 4-4 4\"/><path d=\"M6 17h10\" stroke-dasharray=\"2 3\"/>","lifespans":"<path d=\"M6 3h12\"/><path d=\"M12 3v14\" stroke-dasharray=\"3 3\"/><path d=\"M8 21h8\"/>","eye":"<path d=\"M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z\"/><circle cx=\"12\" cy=\"12\" r=\"3\"/>","direction-lr":"<path d=\"M3 12h18\"/><path d=\"m16 7 5 5-5 5\"/>","reverse":"<path d=\"M4 8h16\"/><path d=\"m16 4 4 4-4 4\"/><path d=\"M20 16H4\"/><path d=\"m8 12-4 4 4 4\"/>","label":"<path d=\"M4 7h16\"/><path d=\"M4 12h10\"/><path d=\"M4 17h6\"/>","line-dashed":"<path d=\"M3 12h4\"/><path d=\"M10 12h4\"/><path d=\"M17 12h4\"/>","line-solid":"<path d=\"M3 12h18\"/>","message-async":"<path d=\"M3 12h16\"/><path d=\"m14 7 6 5-6 5\"/>","reply":"<path d=\"M9 14 4 9l5-5\"/><path d=\"M4 9h10a6 6 0 0 1 0 12h-3\"/>","kind-system":"<rect x=\"4\" y=\"6\" width=\"16\" height=\"12\" rx=\"2\"/>","kind-ui":"<rect x=\"3\" y=\"4\" width=\"18\" height=\"12\" rx=\"2\"/><path d=\"M8 20h8M12 16v4\"/>","kind-database":"<ellipse cx=\"12\" cy=\"5\" rx=\"8\" ry=\"3\"/><path d=\"M4 5v14c0 1.66 3.58 3 8 3s8-1.34 8-3V5\"/><path d=\"M4 12c0 1.66 3.58 3 8 3s8-1.34 8-3\"/>","kind-queue":"<path d=\"M6 6h12a3 6 0 0 1 0 12H6a3 6 0 0 1 0-12z\"/><path d=\"M18 6a3 6 0 0 0 0 12\"/>","kind-external":"<circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18\"/>"};
 // --- PLUGIN INTERFACE ---
       // A diagram type registers itself once with registerDiagramPlugin({...}). The shell never touches
       // type internals; it only calls these members:
@@ -1217,40 +1750,188 @@
       // The type's engine.js must define layoutDiagram(data): lay out `data` in place, no DOM access.
       // Shared scope for plugins: chartData, scale/panX/panY, viewport, stage, updateStatus(), fitView().
       let plugin = null;
-      function registerDiagramPlugin(p) { plugin = p; }
+      function registerDiagramPlugin(p) { plugin = p; if (typeof syncCopyMenu === 'function') syncCopyMenu(); }
 
-      // --- SWATCHES: the eight colours a flowchart lane or a sequence participant may carry ---
-      // sky, amber, emerald, rose, purple, orange, teal, indigo: light tints, written in the data as the hex. shell.css
-      // derives each one's stripe, pill and dark-theme shades from the hue (see --swatch-color), so a swatch looks the
-      // same in both diagram types. scripts/audit_sequence.py lists the same hexes.
-      const SWATCHES = [
-        { hex: '#e0f2fe', name: 'sky' }, { hex: '#fef3c7', name: 'amber' }, { hex: '#dcfce7', name: 'emerald' }, { hex: '#fee2e2', name: 'rose' },
-        { hex: '#f3e8ff', name: 'purple' }, { hex: '#ffedd5', name: 'orange' }, { hex: '#ccfbf1', name: 'teal' }, { hex: '#e0e7ff', name: 'indigo' }
-      ];
-      // A row of colour buttons: "none", then each swatch. `current` is the hex now in use (or empty); onPick(hex) gets
-      // the chosen hex, or '' for none. opts.btnClass adds a class to every button. Returns the row element.
+      // --- SWATCHES: the colours a flowchart lane, a sequence participant or frame, or an ERD table may carry ---
+      // Diagram data stores a palette slot ("1".."9", TOKENS.palette from assets/tokens/default.json) or a custom hex. A
+      // slot's shades are fixed tokens (--sw-<slot>-*, generated by scripts/tokens.py); setSwatch() points an element at
+      // its slot, and a custom hex is derived at run time (see shell.css). Older diagrams stored the slot's `hex` (and
+      // frames a colour name): colorSlot() maps those to the slot. Mirrors color_slot() in scripts/disk_format.py.
+      const PALETTE = TOKENS.palette;
+      const SWATCHES = PALETTE.filter((s) => s.hex); // the picker: slots 1-8; slot 9 is the neutral grey (frames)
+      const OLD_FRAME_COLORS = { blue: 'sky', green: 'emerald', yellow: 'amber', red: 'rose', purple: 'purple', gray: 'neutral' };
+      function colorSlot(v) {
+        const k = typeof v === 'string' ? v.toLowerCase() : v;
+        const w = PALETTE.find((q) => q.slot === k || q.hex === k || q.name === OLD_FRAME_COLORS[k]);
+        return w ? w.slot : v;
+      }
+      const paletteOf = (v) => PALETTE.find((w) => w.slot === colorSlot(v));
+      const swatchSlot = (v) => (paletteOf(v) || {}).slot;
+      // A colour key's keys as slots (an old hex key never replaces a slot key)
+      function colorKeySlots(key) {
+        const out = {};
+        Object.keys(key || {}).forEach((k) => { const s = colorSlot(k); if (!(s in out)) out[s] = key[k]; });
+        return out;
+      }
+      // In place: `color` of every object in the named lists of a diagram, and its colorKey, as slots (see slot_colors in disk_format.py)
+      function slotColors(d, ...lists) {
+        lists.forEach((n) => (d[n] || []).forEach((o) => { if (o && 'color' in o) o.color = colorSlot(o.color); }));
+        if (d.colorKey && typeof d.colorKey === 'object' && !Array.isArray(d.colorKey)) d.colorKey = colorKeySlots(d.colorKey);
+      }
+      // Colour `el` with a slot or custom hex: a swatch-scope element reading its slot's shades, or the run-time derivation for a custom hex.
+      function setSwatch(el, v) {
+        const w = paletteOf(v);
+        el.classList.add('swatch-scope');
+        const hex = w ? w.hex : v;
+        if (hex) el.style.setProperty('--swatch-color', hex); else el.style.removeProperty('--swatch-color');
+        if (w) el.dataset.sw = w.slot; else delete el.dataset.sw;
+      }
+      // A row of colour buttons: "none", then each swatch. `current` is the slot or custom hex now in use (or empty); onPick(slot)
+      // gets the chosen slot, or '' for none. opts.btnClass adds a class to every button. Returns the row element.
       function swatchRow(current, onPick, opts) {
         const row = document.createElement('span');
         row.className = 'swatch-row';
         row.setAttribute('role', 'group');
         row.setAttribute('aria-label', 'Colour');
-        [{ hex: '', name: 'none' }].concat(SWATCHES).forEach((sw) => {
+        const now = current ? colorSlot(current) : '';
+        [{ slot: '', name: 'none' }].concat(SWATCHES).forEach((sw) => {
           const b = document.createElement('button');
           b.type = 'button';
           b.className = `swatch-btn${opts && opts.btnClass ? ' ' + opts.btnClass : ''}`;
-          b.dataset.value = sw.hex;
-          b.title = sw.hex ? `Colour: ${sw.name}` : 'No colour';
+          b.dataset.value = sw.slot;
+          b.title = sw.slot ? `Colour: ${sw.name}` : 'No colour';
           b.setAttribute('aria-label', b.title);
-          b.setAttribute('aria-pressed', String((current || '') === sw.hex));
+          b.setAttribute('aria-pressed', String(now === sw.slot));
           const dot = document.createElement('span');
-          dot.className = sw.hex ? 'swatch-dot swatch-scope' : 'swatch-dot is-none';
-          if (sw.hex) dot.style.setProperty('--swatch-color', sw.hex);
+          dot.className = sw.slot ? 'swatch-dot' : 'swatch-dot is-none';
+          if (sw.slot) setSwatch(dot, sw.slot);
           b.appendChild(dot);
-          b.addEventListener('click', (e) => { e.stopPropagation(); onPick(sw.hex); });
+          b.addEventListener('click', (e) => { e.stopPropagation(); onPick(sw.slot); });
           row.appendChild(b);
         });
         return row;
       }
+
+      // --- UI BUILDERS: markup every diagram type shares (styled by assets/components/*.css) ---
+      // A type calls these instead of building the same elements itself; it keeps only what is specific to it.
+      const ui = (() => {
+        // An icon by name from the registry (ICONS, assets/icons/default.json): the <svg> text, drawn with the icon tokens
+        // (TOKENS.icon). o: { size: a token name (xs sm md lg xl tile; default md) or a px number, fine: the thinner stroke for
+        // dense or large icons, bold: the heavier stroke for tiny ones, class }. Templates write the icon placeholder instead;
+        // scripts/tokens.py icon_svg() builds the same text. Colour is currentColor, so icons follow the text colour.
+        function icon(name, o) {
+          const t = TOKENS.icon, inner = ICONS[name], opts = o || {};
+          if (inner === undefined) throw new Error(`unknown icon "${name}"`);
+          const px = typeof opts.size === 'number' ? opts.size : t.size[opts.size || 'md'];
+          const stroke = opts.bold ? t.strokeBold : opts.fine ? t.strokeFine : t.stroke;
+          return `<svg${opts.class ? ` class="${opts.class}"` : ''} width="${px}" height="${px}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${stroke}" stroke-linecap="${t.cap}" stroke-linejoin="${t.join}" aria-hidden="true">${inner}</svg>`; // tokens-ok: this is the icon renderer
+        }
+        function iconEl(name, o) {
+          const tpl = document.createElement('template');
+          tpl.innerHTML = icon(name, o);
+          return tpl.content.firstChild;
+        }
+        let confirmEl = null;
+        function closeConfirm() {
+          if (!confirmEl) return false;
+          confirmEl.remove();
+          confirmEl = null;
+          document.removeEventListener('pointerdown', onConfirmOutside, true);
+          return true;
+        }
+        function onConfirmOutside(e) { if (confirmEl && !confirmEl.contains(e.target)) closeConfirm(); }
+        // Ask before a delete: a bubble under `anchor` (a DOM element; above it when there is no room below; the upper middle
+        // of the window when null), kept on screen. opts: { message, title?, label (the dialog's aria-label), ok? (button text,
+        // "Delete") }. Escape, Cancel, a click elsewhere or a pan/zoom (the type calls closeConfirm) dismisses it.
+        function confirm(anchor, opts, onYes) {
+          closeConfirm();
+          const box = document.createElement('div');
+          box.className = 'confirm';
+          box.dataset.exportSkip = '';
+          box.setAttribute('role', 'alertdialog');
+          box.setAttribute('aria-label', opts.label);
+          const add = (cls, text) => { const d = document.createElement('div'); d.className = cls; d.textContent = text; box.appendChild(d); };
+          if (opts.title) add('confirm-title', opts.title);
+          add('confirm-msg', opts.message);
+          const row = document.createElement('div');
+          row.className = 'confirm-actions';
+          const button = (cls, text) => { const b = document.createElement('button'); b.type = 'button'; b.className = cls; b.textContent = text; return b; };
+          const cancel = button('btn confirm-cancel', 'Cancel');
+          cancel.addEventListener('click', () => closeConfirm());
+          const ok = button('btn btn-danger confirm-ok', opts.ok || 'Delete');
+          ok.addEventListener('click', () => { closeConfirm(); onYes(); });
+          row.append(cancel, ok);
+          box.appendChild(row);
+          box.addEventListener('keydown', (e) => {
+            // Keys inside the bubble stay there (Delete/Backspace would open it again)
+            if (e.key === 'Escape') { e.preventDefault(); closeConfirm(); }
+            if (e.key !== 'Tab') e.stopPropagation();
+          });
+          document.body.appendChild(box);
+          confirmEl = box;
+          const r = anchor ? anchor.getBoundingClientRect() : { left: innerWidth / 2, top: innerHeight / 3, bottom: innerHeight / 3 };
+          const bw = box.offsetWidth, bh = box.offsetHeight;
+          const top = r.bottom + 8 + bh > innerHeight - 8 ? r.top - 8 - bh : r.bottom + 8;
+          box.style.left = `${Math.max(8, Math.min(r.left, innerWidth - bw - 8))}px`;
+          box.style.top = `${Math.max(8, Math.min(top, innerHeight - bh - 8))}px`;
+          cancel.focus();
+          document.addEventListener('pointerdown', onConfirmOutside, true);
+        }
+        // A note card: `.note` with its plain-text `.note-text`, and (when given) the delete and link chips. note: { id, text }.
+        // o: { onDelete?, onLink?(pointerdown event, card), linkTitle?, onCommit?(note text element)
+        // (Enter, Ctrl+Enter, Esc finish editing), onInput? }. Returns { card, text }; the caller adds its own pointer handlers.
+        function noteCard(note, o) {
+          const card = document.createElement('div');
+          card.className = 'note';
+          card.dataset.noteId = note.id;
+          const text = document.createElement('div');
+          text.className = 'note-text';
+          text.spellcheck = false;
+          text.dataset.placeholder = 'Add a note…';
+          text.textContent = note.text || '';
+          card.appendChild(text);
+          const tool = (cls, title, icon) => {
+            const b = document.createElement('button');
+            b.type = 'button';
+            b.className = cls;
+            b.title = title;
+            b.setAttribute('aria-label', title);
+            b.setAttribute('data-export-skip', '');
+            b.innerHTML = icon;
+            card.appendChild(b);
+            return b;
+          };
+          if (o.onDelete) {
+            const del = tool('note-del btn-danger-hover', 'Delete note', icon('close', { size: 'xs', bold: true }));
+            del.addEventListener('pointerdown', (e) => e.stopPropagation());
+            del.addEventListener('click', (e) => { e.stopPropagation(); o.onDelete(); });
+          }
+          if (o.onLink) {
+            const link = tool('note-link', o.linkTitle, icon('link', { size: 'sm', bold: true }));
+            link.addEventListener('pointerdown', (e) => o.onLink(e, card));
+            link.addEventListener('click', (e) => e.stopPropagation());
+          }
+          if (o.onCommit) {
+            // Plain text only. Enter starts a new line; Ctrl/Cmd+Enter, Esc or clicking away finishes.
+            text.addEventListener('paste', (e) => {
+              e.preventDefault();
+              document.execCommand('insertText', false, (e.clipboardData || window.clipboardData).getData('text/plain'));
+            });
+            text.addEventListener('keydown', (e) => {
+              if (e.key === 'Enter' && !(e.ctrlKey || e.metaKey)) {
+                e.preventDefault();   // a plain line break, not the <div> the browser would wrap the new line in
+                document.execCommand('insertLineBreak');
+              } else if (e.key === 'Escape' || e.key === 'Enter') {
+                // Commit directly too: blur() fires no blur event while the window itself is not focused
+                e.preventDefault(); e.stopPropagation(); text.blur(); o.onCommit(text);
+              }
+            });
+          }
+          if (o.onInput) text.addEventListener('input', o.onInput);
+          return { card, text };
+        }
+        return { confirm, closeConfirm, isConfirmOpen: () => !!confirmEl, noteCard, icon, iconEl };
+      })();
 
       // --- CLAUDE.AI ARTIFACT (only active inside a published claude.ai artifact; elsewhere none of this runs) ---
       // A page that republishes itself must send a document in exactly the shape the Artifact tool publishes:
@@ -1258,7 +1939,7 @@
       // tags). ARTIFACT_RESET_CSS / ARTIFACT_HEAD mirror ARTIFACT_RESET_CSS / ARTIFACT_HEAD in scripts/layout_engine.py;
       // dev/check_artifact_shape.py fails if the two differ.
       // The RESET text is copied byte for byte from a published artifact (verified 2026-11-14, runtime contract 0.2.96).
-      const ARTIFACT_RESET_CSS = ':root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}';
+      const ARTIFACT_RESET_CSS = ':root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}'; // tokens-ok: the platform's own reset, copied byte for byte
       const ARTIFACT_HEAD = '<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>' + ARTIFACT_RESET_CSS + '</style></head><body>';
       const ARTIFACT_TAIL = '</body></html>';
       // = ARTIFACT_END_MARKER in layout_engine.py; spelled in two parts so this script's own text never matches it
@@ -1268,7 +1949,7 @@
       // model and never serializes the live DOM (which by then holds the rendered diagram and selection state).
       // It is taken while this script runs, so the browser has parsed the page only up to this script: anything the
       // claude.ai viewer appends to <body> later is not in it. Our content runs from <title> to this script; inside
-      // that span only our own two scripts are kept (the diagram-data block and this one), so a script the viewer
+      // that span only our own scripts are kept (the diagram-data and diagram-theme blocks and this one), so a script the viewer
       // inserted earlier, the generator's render report and any meta/base element are dropped too. The end marker
       // (ARTIFACT_END_MARKER) is written back after this script, as the generator writes it.
       function capturePristineBody() {
@@ -1277,7 +1958,7 @@
           const c = document.body.cloneNode(true);
           c.querySelectorAll(':scope > meta, :scope > base').forEach(n => n.remove());
           c.querySelectorAll('script').forEach(n => {
-            if (n.id === 'diagram-data' && n.type === 'application/json') return;
+            if ((n.id === 'diagram-data' || n.id === 'diagram-theme') && n.type === 'application/json') return;
             if (self && !n.id && !n.src && n.textContent === self.textContent) return;
             n.remove();
           });
@@ -1507,6 +2188,7 @@
 
       // Keep the current zoom and pan so the user stays where they were (Fit/100% is one click away).
       btnAutoTidy.addEventListener('click', () => {
+        if (plugin.tidy) { plugin.tidy(); return; }
         layoutDiagram(chartData);
         plugin.render();
         updateStatus(true);
@@ -1519,8 +2201,7 @@
         return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
       }
       // The button shows the theme you would switch TO (stroke icons, same family as the other controls)
-      const ICON_SUN = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>';
-      const ICON_MOON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>';
+      const ICON_SUN = ui.icon('sun'), ICON_MOON = ui.icon('moon');
       function applyTheme(theme, persist) {
         document.documentElement.setAttribute('data-theme', theme);
         btnTheme.innerHTML = theme === 'dark' ? ICON_SUN : ICON_MOON;
@@ -2101,6 +2782,9 @@
           if (!navigator.clipboard) throw new Error('the clipboard is not available in this browser');
           if (format === 'svg') {
             job = navigator.clipboard.writeText(svgDocument(buildExportSvg().svg));
+          } else if (format === 'mermaid') {
+            if (typeof plugin.toMermaid !== 'function') throw new Error('this diagram type has no Mermaid export');
+            job = navigator.clipboard.writeText(plugin.toMermaid());
           } else if (format === 'png') {
             if (!canCopyPng) throw new Error('this browser cannot copy images');
             job = navigator.clipboard.write([new ClipboardItem({ 'image/png': exportPngBlob() })]);
@@ -2110,13 +2794,18 @@
         } catch (err) {
           job = Promise.reject(err);
         }
-        job.then(() => flashCopied(format.toUpperCase()),
+        job.then(() => flashCopied(format === 'mermaid' ? 'Mermaid' : format.toUpperCase()),
                  err => alert('Copy failed: ' + (err && err.message || err) + '\nUse Export › Download instead.'));
       }
       document.querySelectorAll('[data-copy="png"]').forEach(el => { el.hidden = !canCopyPng; });
       document.querySelectorAll('[data-copy="svg"]').forEach(el => { el.hidden = !(navigator.clipboard && navigator.clipboard.writeText); });
-      // Drop the "Copy" heading when this browser has no copy items to offer
-      document.querySelectorAll('[data-copy-label]').forEach(el => { el.hidden = !document.querySelector('[data-copy]:not([hidden])'); });
+      // Mermaid is offered only when the diagram type can write it (the type script registers after this one runs)
+      function syncCopyMenu() {
+        document.querySelectorAll('[data-copy="mermaid"]').forEach(el => { el.hidden = !(plugin && typeof plugin.toMermaid === 'function' && navigator.clipboard && navigator.clipboard.writeText); });
+        // Drop the "Copy" heading when this browser has no copy items to offer
+        document.querySelectorAll('[data-copy-label]').forEach(el => { el.hidden = !document.querySelector('[data-copy]:not([hidden])'); });
+      }
+      syncCopyMenu();
 
       function setExportOpen(open) {
         exportMenu.hidden = !open;
@@ -2559,10 +3248,11 @@
           plugin.deleteSelection();
         }
       });
+//@engine-begin
       // --- SEQUENCE LAYOUT ENGINE ---
       // Pure JS, no DOM access. Defines layoutDiagram(data) (see assets/shell/shell.js) and is run by the page
       // (Auto-Tidy, edits) and by scripts/run_engine.mjs (--layout). The Python audit in scripts/audit_sequence.py
-      // mirrors the text-width constants below; keep SQ.CHAR_W, SQ.DETAIL_CHAR_W and SQ.NUM_W in sync with it.
+      // mirrors SQ.NUM_W and the geometry below; the text widths (SQ.*CHAR_W) come from TOKENS.font.metrics, which scripts/run_engine.mjs and the page define.
       //
       // Input:  numbered?, showDetails?,
       //         participants[{id,name,kind}], messages[{id,from,to,label,detail?,kind}] (array order = time order),
@@ -2583,10 +3273,10 @@
         BOX_W: 148, BOX_H: 56, TOP: 24, MARGIN: 56, MIN_GAP: 200,
         FIRST_GAP: 56, ROW: 60, SELF_ROW: 96, ARROW_AT: 30,
         FRAG_TOP: 40, FRAG_STEP_BOTTOM: 28, ELSE_GAP: 32, ROW_BOTTOM_PAD: 8,
-        CHAR_W: 7.4, LABEL_PAD: 44, SELF_LOOP: 40, TAIL: 56, FRAG_PAD: 36, FRAG_PAD_STEP: 14, GRID: 4,
+        CHAR_W: TOKENS.font.metrics.label, LABEL_PAD: 44, SELF_LOOP: 40, TAIL: 56, FRAG_PAD: 36, FRAG_PAD_STEP: 14, GRID: 4,
         NUM_W: 26,                              // room for the step number before a label ("numbered")
-        DETAIL_CHAR_W: 6.4, DETAIL_ROW: 12,     // a message's detail line: smaller text, and the extra row height
-        NOTE_W: 184, NOTE_SPAN_PAD: 64, NOTE_CHAR_W: 6.2, NOTE_PAD: 10, NOTE_LINE: 17, NOTE_GAP: 14,
+        DETAIL_CHAR_W: TOKENS.font.metrics.detail, DETAIL_ROW: 12,     // a message's detail line: smaller text, and the extra row height
+        NOTE_W: 184, NOTE_SPAN_PAD: 64, NOTE_CHAR_W: TOKENS.font.metrics.note, NOTE_PAD: 10, NOTE_LINE: 17, NOTE_GAP: 14,
         SUMMARY_ROW: 44,                        // the one row a collapsed frame takes
         RAIL_W: 36, RAIL_H: 80,                 // a rail's width and height
         GAP_CLEAR: 52, RAIL_CLEAR: 24,          // clear space between two boxes (MIN_GAP - BOX_W), and beside a rail
@@ -2877,6 +3567,7 @@
         }
         data.layout = { width: Math.round(maxRight + SQ.MARGIN), height: Math.round(y + SQ.TAIL) };
       }
+//@engine-end
       // ===== SEQUENCE DIAGRAM PLUGIN =====
       // Renders chartData (participants, messages, fragments) laid out by engine.js and handles editing.
       // Positions are always derived by layoutDiagram(): edits change the logical model, then re-layout.
@@ -2924,16 +3615,19 @@
       const seqUid = (prefix) => `${prefix}_${Date.now()}_${seqCounter++}`;
       const px = (v) => `${v}px`;
 
-      // A participant's colour: one of the shell's SWATCHES (a hex), or none. Anything else is drawn as no colour (the
-      // audit reports it). The element then reads the swatch's shades from shell.css (--sw-stripe, --sw-line, ...).
-      const swatchOf = (p) => (p && SWATCHES.some((w) => w.hex === p.color) ? p.color : null);
-      function paintSwatch(el, hex) {
-        if (!hex) return el;
-        el.classList.add('swatch-scope');
-        el.style.setProperty('--swatch-color', hex);
+      // A participant's colour: a palette slot or a custom hex (drawn with the run-time derivation), or none. Anything else is
+      // drawn as no colour (the audit reports it). The element then reads the swatch's shades from its slot (data-sw, see
+      // setSwatch in shell.js; --sw-stripe, --sw-line, ...).
+      const swatchOf = (p) => {
+        const c = p && p.color ? colorSlot(p.color) : null;
+        return c && (swatchSlot(c) || /^#[0-9a-f]{3,8}$/i.test(c)) ? c : null;
+      };
+      function paintSwatch(el, color) {
+        if (!color) return el;
+        setSwatch(el, color);
         return el;
       }
-      const swatchName = (hex) => (SWATCHES.find((w) => w.hex === hex) || {}).name || hex;
+      const swatchName = (color) => (paletteOf(color) || {}).name || color;
 
       function ensureModel() {
         chartData.participants = chartData.participants || [];
@@ -2966,23 +3660,11 @@
         return bars;
       }
 
-      // A small icon per participant kind (system and actor have none: actor is the pill)
-      const KIND_ICONS = {
-        ui: '<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>',
-        database: '<ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.66 3.58 3 8 3s8-1.34 8-3V5"/><path d="M4 12c0 1.66 3.58 3 8 3s8-1.34 8-3"/>',
-        queue: '<path d="M6 6h12a3 6 0 0 1 0 12H6a3 6 0 0 1 0-12z"/><path d="M18 6a3 6 0 0 0 0 12"/>',
-        external: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>'
-      };
+      // A small icon per participant kind, the registry's kind-<kind> (system and actor have none: actor is the pill)
+      const hasKindIcon = (kind) => kind !== 'system' && !!ICONS[`kind-${kind}`];
       const PARTICIPANT_KINDS = ['system', 'actor', 'ui', 'database', 'queue', 'external'];
-      const FRAG_COLORS = ['blue', 'green', 'yellow', 'red', 'purple', 'gray'];
       function kindIcon(kind, size) {
-        const el = document.createElementNS(SVG_NS, 'svg');
-        ['width', 'height'].forEach((k) => el.setAttribute(k, size || 14));
-        el.setAttribute('viewBox', '0 0 24 24');
-        el.setAttribute('aria-hidden', 'true');
-        el.setAttribute('class', 'seq-kind-icon');
-        el.innerHTML = KIND_ICONS[kind] || '<rect x="4" y="6" width="16" height="12" rx="2"/>';
-        return el;
+        return ui.iconEl(hasKindIcon(kind) ? `kind-${kind}` : 'kind-system', { size: size || 14, class: 'seq-kind-icon' });
       }
 
       function render() {
@@ -3011,18 +3693,18 @@
         // Fragments (behind everything else)
         fs.forEach((f) => {
           if (f.x === undefined) return;
-          const tint = FRAG_COLORS.includes(f.color) ? ` seq-tint-${f.color}` : '';
-          seqFragG.appendChild(svgEl('rect', { class: `seq-frag-box${tint}`, x: f.x, y: f.y, width: f.w, height: f.h, rx: 6, 'data-frag-id': f.id }));
+          const tint = swatchOf(f);   // a frame's colour is a slot or custom hex like a participant's
+          seqFragG.appendChild(paintSwatch(svgEl('rect', { class: 'seq-frag-box', x: f.x, y: f.y, width: f.w, height: f.h, rx: 6, 'data-frag-id': f.id }), tint));
           // The border selects the frame (an 8px hit stroke); the inside stays click-through
           seqFragG.appendChild(svgEl('rect', { class: 'seq-frag-hit', x: f.x, y: f.y, width: f.w, height: f.h, rx: 6, 'data-frag-id': f.id }));
-          const tag = htmlEl('div', `seq-frag-label${tint}${f.collapsed ? ' is-collapsed' : ''}`, { left: px(f.x), top: px(f.y) });
+          const tag = paintSwatch(htmlEl('div', `frame-tag${f.collapsed ? ' is-collapsed' : ''}`, { left: px(f.x), top: px(f.y) }), tint);
           tag.dataset.fragId = f.id;
-          const chev = htmlEl('button', 'seq-frag-chev');
+          const chev = htmlEl('button', 'frame-chev');
           chev.type = 'button';
           chev.title = f.collapsed ? 'Expand this frame' : 'Collapse this frame';
           chev.setAttribute('aria-label', chev.title);
           chev.setAttribute('aria-expanded', String(!f.collapsed));
-          chev.innerHTML = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>';
+          chev.innerHTML = ui.icon('chevron-down', { size: 'xs', bold: true });
           tag.appendChild(chev);
           if (f.kind !== 'group') {
             const kind = htmlEl('span', 'seq-frag-kind');
@@ -3040,7 +3722,7 @@
             fb.title = on ? 'Show every phase again' : 'Focus on this phase: collapse the others (the participants they leave become rails)';
             fb.setAttribute('aria-label', fb.title);
             fb.setAttribute('aria-pressed', String(on));
-            fb.innerHTML = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.5" fill="currentColor"/></svg>';
+            fb.innerHTML = ui.icon('focus', { size: 'sm', bold: true });
             tag.appendChild(fb);
           }
           seqHtml.appendChild(tag);
@@ -3068,7 +3750,7 @@
             const inside = ms.filter((m) => m.hidden && stepOf[m.id] >= stepOf[f.from] && stepOf[m.id] <= stepOf[f.to]);
             if (inside.length) {
               const a = stepOf[inside[0].id], b = stepOf[inside[inside.length - 1].id];
-              const sum = htmlEl('button', 'seq-frag-summary', { left: px(f.x + f.w / 2), top: px(inside[0].y), transform: 'translate(-50%, -50%)' });
+              const sum = htmlEl('button', 'frame-summary', { left: px(f.x + f.w / 2), top: px(inside[0].y), transform: 'translate(-50%, -50%)' });
               sum.type = 'button';
               sum.dataset.fragId = f.id;
               sum.title = 'Expand this frame';
@@ -3088,10 +3770,10 @@
           // A wide invisible stroke over the lifeline: dragging from it draws a message (see DRAW FROM A LIFELINE)
           seqLifeG.appendChild(svgEl('line', { class: 'seq-life-hit', x1: p.x, x2: p.x, y1: top + boxH, y2, 'data-pid': p.id, 'data-export-skip': '' }));
           if (p.bottom !== undefined) seqLifeG.appendChild(paintSwatch(svgEl('line', { class: 'seq-cap', x1: p.x - 7, x2: p.x + 7, y1: p.bottom, y2: p.bottom, 'data-node-id': p.id }), sw));
-          const box = htmlEl('div', `seq-participant${p.kind === 'actor' ? ' is-actor' : ''}${KIND_ICONS[p.kind] ? ` is-${p.kind}` : ''}${rail ? ' is-rail' : ''}`, { left: px(p.x - (rail ? SQ.RAIL_W : SQ.BOX_W) / 2), top: px(top) });
+          const box = htmlEl('div', `seq-participant${p.kind === 'actor' ? ' is-actor' : ''}${hasKindIcon(p.kind) ? ` is-${p.kind}` : ''}${rail ? ' is-rail' : ''}`, { left: px(p.x - (rail ? SQ.RAIL_W : SQ.BOX_W) / 2), top: px(top) });
           box.dataset.nodeId = p.id;
           paintSwatch(box, sw);
-          if (KIND_ICONS[p.kind] || rail) box.appendChild(kindIcon(p.kind));
+          if (hasKindIcon(p.kind) || rail) box.appendChild(kindIcon(p.kind));
           const name = htmlEl('span', 'seq-participant-name');
           name.textContent = p.name;
           box.appendChild(name);
@@ -3175,12 +3857,10 @@
         // Notes: a folded card over one lifeline, or stretched over two
         ns.forEach((n) => {
           if (n.x === undefined) return;
-          const el = htmlEl('div', 'seq-note', { left: px(n.x), top: px(n.y), width: px(n.w), height: px(n.h) });
-          el.dataset.noteId = n.id;
-          const t = htmlEl('span', 'seq-note-text');
-          t.textContent = sqWrap(n.text, Math.max(4, Math.floor((n.w - 2 * SQ.NOTE_PAD) / SQ.NOTE_CHAR_W))).join('\n');
-          el.appendChild(t);
-          seqHtml.appendChild(el);
+          const { card, text } = ui.noteCard(n, {});
+          Object.assign(card.style, { left: px(n.x), top: px(n.y), width: px(n.w), height: px(n.h) });
+          text.textContent = sqWrap(n.text, Math.max(4, Math.floor((n.w - 2 * SQ.NOTE_PAD) / SQ.NOTE_CHAR_W))).join('\n');
+          seqHtml.appendChild(card);
         });
         // Colour key: the swatches in use and what each means ("colorKey"), above the card's top-left corner. An entry
         // with no label yet is a prompt in edit, and left out of ?present and exports.
@@ -3188,13 +3868,13 @@
         ps.forEach((p) => { const sw = swatchOf(p); if (sw && !used.includes(sw)) used.push(sw); });
         if (used.length) {
           const key = htmlEl('div', 'seq-key');
-          used.forEach((hex) => {
-            const label = (chartData.colorKey && chartData.colorKey[hex]) || '';
+          used.forEach((color) => {
+            const label = (chartData.colorKey && chartData.colorKey[color]) || '';
             const item = htmlEl('div', `seq-key-item${label ? '' : ' is-unnamed'}`);
-            item.appendChild(paintSwatch(htmlEl('span', 'seq-key-dot'), hex));
+            item.appendChild(paintSwatch(htmlEl('span', 'seq-key-dot'), color));
             const text = htmlEl('span', `seq-key-label${label ? '' : ' is-empty'}`);
-            text.dataset.hex = hex;
-            if (!label) text.dataset.hint = `What does ${swatchName(hex)} mean?`;
+            text.dataset.color = color;
+            if (!label) text.dataset.hint = `What does ${swatchName(color)} mean?`;
             text.textContent = label;
             item.appendChild(text);
             key.appendChild(item);
@@ -3339,8 +4019,8 @@
         });
         document.querySelectorAll('.seq-cap').forEach((el) => el.classList.toggle('selected', sel.kind === 'participant' && el.dataset.nodeId === sel.id));
         document.querySelectorAll('.seq-msg-label, .seq-line, .seq-msg-detail').forEach((el) => el.classList.toggle('selected', ids.includes(el.dataset.edgeId)));
-        document.querySelectorAll('.seq-frag-label, .seq-frag-box').forEach((el) => el.classList.toggle('selected', sel.kind === 'fragment' && el.dataset.fragId === sel.id));
-        document.querySelectorAll('.seq-note').forEach((el) => el.classList.toggle('selected', sel.kind === 'note' && el.dataset.noteId === sel.id));
+        document.querySelectorAll('.frame-tag, .seq-frag-box').forEach((el) => el.classList.toggle('selected', sel.kind === 'fragment' && el.dataset.fragId === sel.id));
+        document.querySelectorAll('.note').forEach((el) => el.classList.toggle('selected', sel.kind === 'note' && el.dataset.noteId === sel.id));
         const isDiv = (el) => sel.kind === 'divider' && el.dataset.fragId === sel.id && el.dataset.at === sel.at;
         document.querySelectorAll('.seq-frag-else, .seq-frag-branch-label, .seq-frag-else-label').forEach((el) => el.classList.toggle('selected', isDiv(el)));
         const byMsg = {};
@@ -3498,22 +4178,22 @@
         relayout();
       }
       // Colour a participant (one undo step). The first time a swatch is used the key gains an entry with no label yet.
-      function setParticipantColor(pid, hex) {
+      function setParticipantColor(pid, slot) {
         const p = partById(pid);
-        if (!p || (p.color || '') === hex) return;
-        if (hex) {
-          p.color = hex;
+        if (!p || (p.color || '') === slot) return;
+        if (slot) {
+          p.color = slot;
           chartData.colorKey = chartData.colorKey || {};
-          if (!(hex in chartData.colorKey)) chartData.colorKey[hex] = '';
+          if (!(slot in chartData.colorKey)) chartData.colorKey[slot] = '';
         } else delete p.color;
         relayout();
       }
       // A short message above the dock (why a drop was refused)
       let seqHintTimer = 0;
       function seqHint(text) {
-        let hint = document.querySelector('.seq-hint');
+        let hint = document.querySelector('.hint');
         if (!hint) {
-          hint = htmlEl('div', 'seq-hint');
+          hint = htmlEl('div', 'hint');
           hint.setAttribute('role', 'status');
           hint.dataset.exportSkip = '';
           document.body.appendChild(hint);
@@ -3905,7 +4585,7 @@
       function onSeqPointerDown(e) {
         if (isPresent() || e.button > 0) return;
         if (e.target.isContentEditable) return;
-        if (e.target.closest('.seq-frag-chev, .seq-frag-summary, .seq-frag-focus, .seq-actionbar, .seq-insert, .seq-add-branch')) return;   // handled on click
+        if (e.target.closest('.frame-chev, .frame-summary, .seq-frag-focus, .seq-actionbar, .seq-insert, .seq-add-branch')) return;   // handled on click
         const handle = e.target.closest('.seq-handle');
         if (handle) { e.stopPropagation(); const d = handleDrag(handle); if (d) beginDrag(e, d); return; }
         if (e.target === seqPlus) { e.stopPropagation(); beginDrag(e, connectDrag()); return; }
@@ -3917,7 +4597,7 @@
           beginDrag(e, connectDrag(src.dataset.pid || src.dataset.nodeId, slot.index, slot.y, true));
           return;
         }
-        const hit = e.target.closest('.seq-participant, .seq-msg-label, .seq-msg-hit, .seq-msg-detail, .seq-frag-label, .seq-frag-hit, .seq-div-hit, .seq-frag-branch-label, .seq-frag-else-label, .seq-note');
+        const hit = e.target.closest('.seq-participant, .seq-msg-label, .seq-msg-hit, .seq-msg-detail, .frame-tag, .seq-frag-hit, .seq-div-hit, .seq-frag-branch-label, .seq-frag-else-label, .note');
         if (!hit) {
           // Shift + drag on blank canvas draws a marquee instead of panning
           if (e.shiftKey && (e.target === seqCanvas || e.target === seqSvg || e.target === seqHtml || e.target.classList.contains('seq-pin-band'))) {
@@ -3930,12 +4610,12 @@
         if (cl.contains('seq-participant')) {
           select('participant', hit.dataset.nodeId);
           beginDrag(e, participantDrag(hit.dataset.nodeId, hit));
-        } else if (cl.contains('seq-frag-label') || cl.contains('seq-frag-hit')) {
+        } else if (cl.contains('frame-tag') || cl.contains('seq-frag-hit')) {
           select('fragment', hit.dataset.fragId);
         } else if (cl.contains('seq-div-hit') || cl.contains('seq-frag-branch-label') || cl.contains('seq-frag-else-label')) {
           select('divider', hit.dataset.fragId, { at: hit.dataset.at });
           beginDrag(e, dividerDrag(hit.dataset.fragId, hit.dataset.at));
-        } else if (cl.contains('seq-note')) {
+        } else if (cl.contains('note')) {
           select('note', hit.dataset.noteId);
           beginDrag(e, noteDrag(hit.dataset.noteId, hit));
         } else {
@@ -3947,15 +4627,6 @@
       }
 
       // --- ACTION BAR AND HANDLES (drawn on the selection, never exported) ---
-      const ICON = {
-        async: '<path d="M3 12h16"/><path d="m14 7 6 5-6 5"/>',
-        reverse: '<path d="M4 8h16"/><path d="m16 4 4 4-4 4"/><path d="M20 16H4"/><path d="m8 12-4 4 4 4"/>',
-        reply2: '<path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/>',
-        show: '<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
-        focus: '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.5" fill="currentColor"/>',
-        trash: '<path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M6 6l1 14h10l1-14"/>'
-      };
-      const iconSvg = (body) => `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${body}</svg>`;
       function abButton(act, html, title, pressed, value) {
         const b = htmlEl('button', 'seq-ab-btn');
         b.type = 'button';
@@ -3989,11 +4660,11 @@
           bar.setAttribute('aria-label', 'Message');
           // Kind follows from the flow (see drawnKind), so the one choice left is a call nobody answers
           if ((m.kind || 'sync') !== 'reply') {
-            bar.appendChild(abButton('async', iconSvg(ICON.async), 'No reply expected (fire and forget: an open arrowhead, no activation bar)', m.kind === 'async'));
+            bar.appendChild(abButton('async', ui.icon('message-async'), 'No reply expected (fire and forget: an open arrowhead, no activation bar)', m.kind === 'async'));
             bar.appendChild(htmlEl('span', 'seq-ab-sep'));
           }
-          bar.appendChild(abButton('reverse', iconSvg(ICON.reverse), 'Reverse the direction'));
-          if ((m.kind || 'sync') === 'sync' && m.from !== m.to) bar.appendChild(abButton('reply', `${iconSvg(ICON.reply2)}<span>Reply</span>`, 'Add the reply under this call (or under the last message of its bar)'));
+          bar.appendChild(abButton('reverse', ui.icon('reverse'), 'Reverse the direction'));
+          if ((m.kind || 'sync') === 'sync' && m.from !== m.to) bar.appendChild(abButton('reply', `${ui.icon('reply')}<span>Reply</span>`, 'Add the reply under this call (or under the last message of its bar)'));
           const self = m.from === m.to;
           at = { x: self ? a.x + SQ.SELF_LOOP + 60 : (a.x + b.x) / 2, y: m.y - 62 };
           // End handles: drag one to another lifeline to move that end
@@ -4005,13 +4676,13 @@
           bar.setAttribute('aria-label', 'Participant');
           bar.classList.add('is-wrap');
           if (p.rail) {
-            bar.appendChild(abButton('show', `${iconSvg(ICON.show)}<span>Show</span>`, 'Expand the frames that hide this participant'));
+            bar.appendChild(abButton('show', `${ui.icon('eye')}<span>Show</span>`, 'Expand the frames that hide this participant'));
             bar.appendChild(htmlEl('span', 'seq-ab-sep'));
           }
-          PARTICIPANT_KINDS.forEach((k) => bar.appendChild(abButton('pkind', KIND_ICONS[k] ? iconSvg(KIND_ICONS[k]) : `<span>${k === 'actor' ? 'Actor' : 'System'}</span>`,
+          PARTICIPANT_KINDS.forEach((k) => bar.appendChild(abButton('pkind', hasKindIcon(k) ? ui.icon(`kind-${k}`) : `<span>${k === 'actor' ? 'Actor' : 'System'}</span>`,
             `Kind: ${k}`, (p.kind || 'system') === k, k)));
           bar.appendChild(htmlEl('span', 'seq-ab-break'));
-          bar.appendChild(swatchRow(swatchOf(p) || '', (hex) => setParticipantColor(p.id, hex), { btnClass: 'seq-ab-swatch' }));
+          bar.appendChild(swatchRow(swatchOf(p) || '', (slot) => setParticipantColor(p.id, slot), { btnClass: 'seq-ab-swatch' }));
           if (p.column) {
             bar.appendChild(htmlEl('span', 'seq-ab-sep'));
             bar.appendChild(abButton('own', '<span>Own column</span>', 'Give this participant a column of its own again'));
@@ -4029,15 +4700,16 @@
           FRAG_KINDS.forEach((k) => bar.appendChild(abButton('fkind', `<span>${k}</span>`, `Kind: ${k}`, f.kind === k, k)));
           bar.appendChild(htmlEl('span', 'seq-ab-sep'));
           bar.appendChild(abButton('color', '<span class="seq-swatch is-none"></span>', 'No colour', !f.color, ''));
-          FRAG_COLORS.forEach((c) => bar.appendChild(abButton('color', `<span class="seq-swatch seq-tint-${c}"></span>`, `Colour: ${c}`, f.color === c, c)));
+          const fc = swatchOf(f);
+          PALETTE.forEach((w) => bar.appendChild(abButton('color', `<span class="seq-swatch" data-sw="${w.slot}"></span>`, `Colour: ${w.name}`, fc === w.slot, w.slot)));
           bar.appendChild(htmlEl('span', 'seq-ab-sep'));
           const foc = focusState(f.id);
           if (foc && foc.toCollapse.length) {
             const on = isFocused(foc);
-            bar.appendChild(abButton('focus', `${iconSvg(ICON.focus)}<span>Focus</span>`, on ? 'Show every phase again' : 'Collapse the other phases and expand this one', on));
+            bar.appendChild(abButton('focus', `${ui.icon('focus')}<span>Focus</span>`, on ? 'Show every phase again' : 'Collapse the other phases and expand this one', on));
             bar.appendChild(htmlEl('span', 'seq-ab-sep'));
           }
-          bar.appendChild(abButton('delete-with', `${iconSvg(ICON.trash)}<span>With messages</span>`, 'Delete the frame and every message in it'));
+          bar.appendChild(abButton('delete-with', `${ui.icon('trash')}<span>With messages</span>`, 'Delete the frame and every message in it'));
           at = { x: f.x + 150, y: f.y - 40 };
           if (!f.collapsed) {
             addHandle('top', f.id, f.x + f.w / 2, f.y, 'seq-edge');
@@ -4143,7 +4815,7 @@
       // Enter commits; Escape keeps the old text. A note takes Shift+Enter for a line break. Tab in a message's label
       // moves on to its detail; an empty detail removes it.
       const EDIT_TEXT = '.seq-participant-name, .seq-msg-label-text, .seq-frag-text';
-      const EDIT_OWNER = { participant: '.seq-participant[data-node-id="ID"]', message: '.seq-msg-label[data-edge-id="ID"]', fragment: '.seq-frag-label[data-frag-id="ID"]' };
+      const EDIT_OWNER = { participant: '.seq-participant[data-node-id="ID"]', message: '.seq-msg-label[data-edge-id="ID"]', fragment: '.frame-tag[data-frag-id="ID"]' };
       function applyText(el, value) {
         const owner = el.closest('[data-node-id], [data-edge-id], [data-frag-id]');
         if (!value || !owner) return false;
@@ -4217,7 +4889,7 @@
       }
       function editNote(id) {
         const n = noteById(id);
-        const el = seqHtml.querySelector(`.seq-note[data-note-id="${id}"] .seq-note-text`);
+        const el = seqHtml.querySelector(`.note[data-note-id="${id}"] .note-text`);
         if (!n || !el) return;
         beginEdit(el, {
           multiline: true, raw: n.text || '', restore: true,
@@ -4253,15 +4925,15 @@
       }
       // A colour key label: double-click. An empty label is allowed (it stays a prompt)
       function editKey(el) {
-        const hex = el.dataset.hex;
+        const color = el.dataset.color;
         el.classList.remove('is-empty');
         beginEdit(el, {
-          raw: (chartData.colorKey && chartData.colorKey[hex]) || '', restore: true,
+          raw: (chartData.colorKey && chartData.colorKey[color]) || '', restore: true,
           apply: (e, value) => {
-            const was = (chartData.colorKey && chartData.colorKey[hex]) || '';
+            const was = (chartData.colorKey && chartData.colorKey[color]) || '';
             if (value === was) return false;
             chartData.colorKey = chartData.colorKey || {};
-            chartData.colorKey[hex] = value.replace(/\s*\n\s*/g, ' ');
+            chartData.colorKey[color] = value.replace(/\s*\n\s*/g, ' ');
             return true;
           }
         });
@@ -4279,18 +4951,18 @@
       }
       function onSeqDblClick(e) {
         if (isPresent()) return;
-        if (e.target.closest('.seq-frag-chev, .seq-frag-summary, .seq-frag-focus, .seq-actionbar')) return;
+        if (e.target.closest('.frame-chev, .frame-summary, .seq-frag-focus, .seq-actionbar')) return;
         const kl = e.target.closest('.seq-key-label');
         if (kl) { e.stopPropagation(); editKey(kl); return; }
         const div = e.target.closest('.seq-div-hit, .seq-frag-branch-label, .seq-frag-else-label');
         if (div) { e.stopPropagation(); editBranch(div.dataset.fragId, div.dataset.at); return; }
-        const note = e.target.closest('.seq-note');
+        const note = e.target.closest('.note');
         if (note) { e.stopPropagation(); editNote(note.dataset.noteId); return; }
         const det = e.target.closest('.seq-msg-detail');
         if (det) { e.stopPropagation(); editDetail(det.dataset.edgeId); return; }
         const lab = e.target.closest('.seq-msg-label');
         if (lab) { e.stopPropagation(); editMessage(lab.dataset.edgeId); return; }
-        const box = e.target.closest('.seq-participant, .seq-frag-label');
+        const box = e.target.closest('.seq-participant, .frame-tag');
         if (box && box.classList.contains('is-rail')) return;   // a rail's name is written downwards: Show it to rename
         const el = e.target.closest(EDIT_TEXT) || (box && box.querySelector(EDIT_TEXT));
         if (!el) return;
@@ -4320,7 +4992,7 @@
         seqSel = { kind, id };
         relayout();
         if (kind === 'note') {
-          panIntoView(seqHtml.querySelector(`.seq-note[data-note-id="${id}"]`));
+          panIntoView(seqHtml.querySelector(`.note[data-note-id="${id}"]`));
           editNote(id);
           return;
         }
@@ -4378,7 +5050,7 @@
           chartData.rails = true;
         }
         commitView(fid);
-        panIntoView(seqHtml.querySelector(`.seq-frag-label[data-frag-id="${fid}"]`));
+        panIntoView(seqHtml.querySelector(`.frame-tag[data-frag-id="${fid}"]`));
       }
       function showAll() {
         chartData.fragments.forEach((f) => { delete f.collapsed; });
@@ -4394,7 +5066,7 @@
       }
       btnShowAll.addEventListener('click', showAll);
       seqHtml.addEventListener('click', (e) => {
-        const btn = e.target.closest('.seq-frag-chev, .seq-frag-summary, .seq-frag-focus');
+        const btn = e.target.closest('.frame-chev, .frame-summary, .seq-frag-focus');
         if (!btn) return;
         e.stopPropagation();
         const fid = btn.closest('[data-frag-id]').dataset.fragId;
@@ -4474,49 +5146,11 @@
       }
 
       // Deleting a participant with messages is confirmed first, in a small bubble at the button (or the box)
-      let seqConfirmEl = null;
-      function closeConfirm() {
-        if (!seqConfirmEl) return false;
-        seqConfirmEl.remove();
-        seqConfirmEl = null;
-        document.removeEventListener('pointerdown', onConfirmOutside, true);
-        return true;
-      }
-      function onConfirmOutside(e) { if (seqConfirmEl && !seqConfirmEl.contains(e.target)) closeConfirm(); }
       function confirmDeleteParticipant(p, count, anchorEl) {
-        closeConfirm();
-        const box = htmlEl('div', 'seq-confirm');
-        box.dataset.exportSkip = '';
-        box.setAttribute('role', 'alertdialog');
-        box.setAttribute('aria-label', 'Delete participant');
-        const msg = htmlEl('div', 'seq-confirm-msg');
-        msg.textContent = `Delete ${p.name} and its ${count} message${count === 1 ? '' : 's'}?`;
-        const row = htmlEl('div', 'seq-confirm-actions');
-        const cancel = htmlEl('button', 'btn seq-confirm-cancel');
-        cancel.type = 'button';
-        cancel.textContent = 'Cancel';
-        cancel.addEventListener('click', () => closeConfirm());
-        const ok = htmlEl('button', 'btn seq-confirm-delete');
-        ok.type = 'button';
-        ok.textContent = 'Delete';
-        ok.addEventListener('click', () => { closeConfirm(); deleteParticipant(p.id); });
-        row.append(cancel, ok);
-        box.append(msg, row);
-        box.addEventListener('keydown', (e) => {
-          // Keys inside the bubble stay there (Delete/Backspace would open it again)
-          if (e.key === 'Escape') { e.preventDefault(); closeConfirm(); }
-          if (e.key !== 'Tab') e.stopPropagation();
-        });
-        document.body.appendChild(box);
-        seqConfirmEl = box;
-        const anchor = anchorEl || seqHtml.querySelector(`.seq-participant[data-node-id="${p.id}"]`);
-        const r = anchor ? anchor.getBoundingClientRect() : { left: innerWidth / 2, top: innerHeight / 3, bottom: innerHeight / 3 };
-        const bw = box.offsetWidth, bh = box.offsetHeight;
-        const top = r.bottom + 8 + bh > innerHeight - 8 ? r.top - 8 - bh : r.bottom + 8;
-        box.style.left = `${Math.max(8, Math.min(r.left, innerWidth - bw - 8))}px`;
-        box.style.top = `${Math.max(8, Math.min(top, innerHeight - bh - 8))}px`;
-        cancel.focus();
-        document.addEventListener('pointerdown', onConfirmOutside, true);
+        ui.confirm(anchorEl || seqHtml.querySelector(`.seq-participant[data-node-id="${p.id}"]`), {
+          message: `Delete ${p.name} and its ${count} message${count === 1 ? '' : 's'}?`,
+          label: 'Delete participant',
+        }, () => deleteParticipant(p.id));
       }
 
       function deleteSelection(anchorEl) {
@@ -4629,7 +5263,7 @@
       window.addEventListener('keydown', (e) => {
         if (e.key !== 'Escape' || seqDrag || !seqSel) return;
         if (document.activeElement && document.activeElement.isContentEditable) return;
-        if (closeConfirm()) return;
+        if (ui.closeConfirm()) return;
         select(null);
       }, true);
       window.addEventListener('keydown', (e) => {
@@ -4680,7 +5314,7 @@
       // --- DISK FORMAT (the page's data block) ---
       // No positions are saved: render() lays out whatever is missing, so the block holds only the logical model,
       // in a fixed key order. scripts/disk_format.py is the Python twin: keep the two byte-identical.
-      // fromDisk is not needed (the block is the model minus positions).
+      // fromDisk only turns old colours (palette hex, frame colour names) into slots: the block is the model minus positions.
       const DISK_KEYS = ['diagramType', 'schemaVersion', 'title', 'numbered', 'showDetails', 'rails', 'lifespans', 'colorKey', 'participants', 'messages', 'fragments', 'notes'];
       // Engine output, never saved: positions, hidden (inside a collapsed frame), frame dividers, note boxes
       const DISK_LAYOUT = [['participants', ['x', 'rail', 'top', 'bottom']], ['messages', ['y', 'hidden']], ['fragments', ['x', 'y', 'w', 'h', 'elseY', 'dividers']], ['notes', ['x', 'y', 'w', 'h']]];
@@ -4732,6 +5366,7 @@
       function toDisk(data) {
         const d = JSON.parse(JSON.stringify(data));
         delete d.layout;   // canvas size, derived by the engine
+        slotColors(d, 'participants', 'fragments');
         renameGeneratedIds(d);
         DISK_LAYOUT.forEach(([list, keys]) => (d[list] || []).forEach(o => keys.forEach(k => { delete o[k]; })));
         // The colour key keeps only the swatches a participant still uses
@@ -4746,25 +5381,32 @@
         return out;
       }
 
+      function fromDisk(data) {
+        const d = JSON.parse(JSON.stringify(data));
+        slotColors(d, 'participants', 'fragments');
+        return d;
+      }
+
       // --- REGISTER WITH THE SHELL ---
       registerDiagramPlugin({
         id: 'sequence',
         defaultTitle: 'Interactive Sequence Diagram',
         toDisk,
+        fromDisk,
         contentEl: seqCanvas,
         report: { node: '.seq-participant', label: '.seq-msg-label', labelText: '.seq-msg-label-text', nodeText: '.seq-participant-name' },
         render,
         isBackground: (el) => el === seqCanvas || el === seqSvg || el === seqHtml,
         clearSelection() { seqSelStash = { sel: seqSel, data: chartData }; select(null); },
         cancelInteraction() {
-          if (closeConfirm()) return true;
+          if (ui.closeConfirm()) return true;
           if (!seqDrag) return false;
           endSeqDrag();
           render();
           return true;
         },
         hasSelection: () => !!seqSel,
-        onViewChange() { closeConfirm(); pinParticipants(); },
+        onViewChange() { ui.closeConfirm(); pinParticipants(); },
         // The colour key sits above the card
         contentOverflow: () => (seqHtml.querySelector('.seq-key') ? { top: 40 } : null),
         deleteSelection
