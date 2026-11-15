@@ -160,7 +160,7 @@ The theme itself is stored in the page, as `<script id="diagram-theme" type="app
 
 Each theme file carries `"tokensVersion": 1`; the loader refuses an unknown version.
 
-Theme lookup, first match wins: `--theme <file>`, then the theme stored in the page being updated, then `.ultimate-diagram/theme.json` in the current project, then `default.json`. A page saved before this work has no stored theme and so takes the project theme on its next re-layout; the agent says so in its report.
+Theme lookup, first match wins: `--theme <file>`, then the theme stored in the page being updated, then `.ultimate-diagram/theme.json` in the current project, then `default.json`. A page saved before this work has no stored theme and so takes the project theme on its next re-layout; the agent says so in its report. Decided 2026-11-15: old pages adopt the project theme, rather than keeping the default look until asked.
 
 The Python audits load the same merged token file for `font.metrics`, which removes the hand-copied constants.
 
