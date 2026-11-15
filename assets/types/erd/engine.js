@@ -38,6 +38,7 @@ const ER = {
   REFINE: 2, REFINE_SMALL: 12, SMALL: 16,        // candidates refined by the local search (a diagram of up to SMALL tables refines more)
   REPAIR_PASSES: 10, POLISH_T: [600, 300, 150, 0], REPAIR_T: [2500, 1200, 600, 300, 150, 0], WARM_T: [300, 0],
   VARIANTS: 18,                                  // candidate layouts tried (seed angle and direction differ)
+  LITE: 10, LITE_VARIANTS: 6, LITE_REFINE: 1, LITE_T: [600, 150, 0],   // above LITE tables: fewer candidates, LITE_REFINE refined, a short schedule, no polish
   SEG: 16,                                       // segments per sampled curve
   PORT_GAP: 22, PORT_MARGIN: 14,                 // spacing of lines on one side, and the corner margin
   CTRL_MIN: 40, CTRL_MAX: 160, CTRL_DIV: 2.5,    // control distance = clamp(distance / CTRL_DIV, CTRL_MIN, CTRL_MAX)
@@ -798,7 +799,8 @@ function layoutDiagram(data, opts) {
   erNeed = erNeedOf(data, sizes); erNeedN = n;
   const { adj } = erGraph(data);
   const D = erDistances(data, adj, sizes);
-  const variants = warm ? [0] : Array.from({ length: ER.VARIANTS }, (_, v) => v);
+  const lite = n > ER.LITE;
+  const variants = warm ? [0] : Array.from({ length: lite ? ER.LITE_VARIANTS : ER.VARIANTS }, (_, v) => v);
   // Weights: a hit or a crossing beyond two outweighs everything; then the middle-third and fit and aspect misses; length last
   // The unevenness and empty-space terms (k[7], k[8]) are the slowest to compute, so they are worked out on demand: with a
   // limit, a key whose other terms already reach it is not worth them (the two terms only add)
@@ -849,13 +851,13 @@ function layoutDiagram(data, opts) {
   // the best few are refined by the local search; the winner is the cheapest after it (stable sort: ties keep variant order)
   cands.sort((p, q) => cost(p.key) - cost(q.key));
   let best = null;
-  cands.slice(0, warm ? 1 : small ? ER.REFINE_SMALL : ER.REFINE).forEach((c) => {
+  cands.slice(0, warm ? 1 : lite ? ER.LITE_REFINE : small ? ER.REFINE_SMALL : ER.REFINE).forEach((c) => {
     if (best && good(best.key)) return;
-    erRepair(c, quickScore, cost, floor, hubs, warm ? ER.WARM_T : ER.REPAIR_T, good);
+    erRepair(c, quickScore, cost, floor, hubs, warm ? ER.WARM_T : lite ? ER.LITE_T : ER.REPAIR_T, good);
     erSqueeze(c, quickScore);
     if (!best || cost(c.key) < cost(best.key)) best = c;
   });
-  if (!warm && !small) { erRepair(best, quickScore, cost, floor, hubs, ER.POLISH_T, good); erSqueeze(best, quickScore); }   // more search on the winner alone
+  if (!warm && !small && !lite) { erRepair(best, quickScore, cost, floor, hubs, ER.POLISH_T, good); erSqueeze(best, quickScore); }   // more search on the winner alone
   // Content starts at the margin: move the tables by whole pixels, then route the final positions
   const found = erRouteAll(data, best.boxes, true);
   const dx = Math.round(ER.MARGIN - found.minX), dy = Math.round(ER.MARGIN - found.minY);

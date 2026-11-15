@@ -115,6 +115,7 @@ The audit covers references, box overlap, curves through tables and label overla
 - **`Duplicate entity id` / `Duplicate column` / `Duplicate relationship id`**: ids are unique, and column names are unique within a table.
 - **`unknown color`**: a table colour must be one of the lane swatch hex values listed above.
 - **`Entities ... overlap`, `passes through entity`, `Labels ... overlap`, `sits over entity`, `extends past the diagram edge`**: layout problems; re-run `--layout` (never edit positions or curves by hand). If it persists, shorten the label.
+- **One `passes through entity` on a schema of more than 10 tables**: expected now and then. The layout uses a lighter search above 10 tables to stay fast, so re-running gives the same result. Accept it, or reorder `entities`, or split the schema by domain.
 - **`N tables and none has a 'color'`** (warning): colour the tables by domain, see Colour.
 - **`Diagram is not laid out`**: run `--layout`.
 - **`marked fk but no relationship uses it`** (warning): add the relationship, or drop `fk`.
