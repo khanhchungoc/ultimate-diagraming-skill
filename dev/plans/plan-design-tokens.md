@@ -2,11 +2,13 @@
 
 Every diagram is drawn from one design-token set. The skill ships a default set. A user can point the skill at a website or a brand guide, get a token set in the same shape, and every diagram type (current and future) uses it without code changes. Every visual component is built once, from tokens only, and reused by all types.
 
-**Status:** not started. Review done 2026-11-15 (findings below). Open decisions for Phases 1 and 4 settled 2026-11-15.
+**Status:** not started. Review done 2026-11-15 (findings below). Open decisions for Phases 1 and 5 settled 2026-11-15. Typography and iconography added 2026-11-15.
 
 ## Goals
 
-- One token file is the only source of colour, type, size, radius, shadow and motion values. No literal colour or font value anywhere else in `assets/`.
+- One token file is the only source of colour, typography, iconography, size, radius, shadow and motion values. No literal colour, font, type size or icon markup anywhere else in `assets/`.
+- Typography is a set of named text styles (title, label, caption, ...) built from tokens, used by every type for both the UI and the diagram text.
+- Every icon comes from one icon registry, drawn with icon tokens (size, stroke), and is used by name. A brand can swap the icon set.
 - A brand theme is a second file in the same shape. `layout_engine.py --theme <file>` (or a project-level theme file) bakes it into the page. The default output is unchanged byte for byte.
 - A website URL or a brand guide (PDF, image, CSS) can be turned into a valid theme file, checked for contrast and completed with defaults.
 - Shared UI and diagram parts (buttons, popovers, notes, badges, swatches, edge labels, markers, frames) live in one place and are used by every type. A new type only adds what is truly specific to it.
@@ -17,6 +19,7 @@ Every diagram is drawn from one design-token set. The skill ships a default set.
 - Embedding licensed font files. A brand font is linked from Google Fonts when it is there; otherwise the page uses the brand's fallback stack.
 - Changing layout algorithms. Only the constants they read move.
 - Per-diagram ad-hoc styling beyond what the model already allows (`color` on lanes, tables and participants).
+- Drawing a custom icon set. A brand theme can only point at an existing open-licensed set with the same grid (24 x 24, stroke-based).
 
 ## Review findings (2026-11-15)
 
@@ -38,7 +41,9 @@ Every diagram is drawn from one design-token set. The skill ships a default set.
 6. **Swatch palette is code, and its hex is data.** `SWATCHES` in `shell.js:32-34` is a hard-coded list of 8 hex tints. Diagram JSON stores the hex itself (`"color": "#e0f2fe"`), and the sequence renderer treats any hex not in `SWATCHES` as no colour. Changing the palette for a brand would silently drop colours from every saved diagram.
 7. **Layout depends on the font, and the font is hard-coded.** The engines estimate text width from per-character constants measured for Nunito Sans at fixed sizes: `SQ.CHAR_W 7.4`, `SQ.DETAIL_CHAR_W 6.4`, `SQ.NOTE_CHAR_W 6.2`, `ER.CHAR_W 7.4`, `ER.TYPE_CHAR_W 6.6`, `ER.LABEL_CHAR_W 7`, plus the flowchart's `LE_PROFILES`. `audit_sequence.py` and `audit_erd.py` copy the same numbers by hand ("keep them in sync"). A wider brand font would make labels overflow and the audits would not notice.
 8. **Font is linked in one place only.** `shell.html` links Nunito Sans from Google Fonts and `shell.css:98` sets the stack. Neither is parameterised.
-9. **No guard.** Nothing fails when someone adds a literal colour or a new token in a type file, so the drift above will come back.
+9. **Typography has no scale.** The CSS uses about 24 distinct font sizes in mixed units: 12px (12 times), 13px (11), 0.8125rem (7, which is also 13px), 14px, 10px, 11px, plus one-offs such as 9.5px, 10.5px, 11.5px, 0.78rem, 0.85rem, 0.9rem and 1.1rem. Weights 400, 500, 600 and 700 are used without names, there are 10 different line heights (unitless and px), and 4 different letter spacings (0.02em to 0.06em). There is one family and no monospace role, so ERD column types and code-like labels use the body font. The renderers shrink text to fit in JS (`flowchart.js:554-562`, `erd.js:699-709`, minimum `9 * inv` px), so the base and minimum sizes are also hard-coded in JS.
+10. **Icons are inline markup copied around.** There are about 70 inline `<svg>` icons spread over `shell.html`, the three `toolbar.html`, `icon.html` and `stage.html` files, and `shell.js`, `erd.js`, `flowchart.js` and `sequence.js`. The same icon is often pasted several times: the trash icon appears 4 times, and close, plus, chevron, link and note icons 2 or 3 times each. Only the flowchart lane icons have a registry (`assets/types/flowchart/icons.json`, 25 names, injected as `TYPE_ICONS` by `layout_engine.py:1163`), and it belongs to one type. Stroke width varies between `2` (30 times), `1.75` (11) and `2.5` (1) without a rule, and icon sizes are literal `width`/`height` attributes. The drawings look like the Lucide set (ISC licence), but the repo carries no attribution; to be verified.
+11. **No guard.** Nothing fails when someone adds a literal colour or a new token in a type file, so the drift above will come back.
 
 ## Design
 
@@ -55,7 +60,30 @@ Every diagram is drawn from one design-token set. The skill ships a default set.
     "href": "https://fonts.googleapis.com/css2?family=Nunito+Sans:opsz,wght@6..12,400..700&display=swap",
     "metrics": { "label": 7.4, "detail": 6.4, "note": 6.2, "type": 6.6, "edgeLabel": 7 }
   },
-  "size":   { "text-xs": "11px", "text-sm": "12px", "text-md": "13px", "text-lg": "15px" },
+  "type": {
+    "family": { "ui": "font.family", "diagram": "font.family", "mono": "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" },
+    "size":   { "2xs": "10px", "xs": "11px", "sm": "12px", "md": "13px", "lg": "15px", "xl": "18px" },
+    "weight": { "regular": 400, "medium": 500, "semibold": 600, "bold": 700 },
+    "leading": { "tight": 1.2, "normal": 1.4 },
+    "tracking": { "normal": "0", "caps": "0.04em" },
+    "fitMin": "9px",
+    "styles": {
+      "title":      { "family": "ui", "size": "lg", "weight": "bold", "leading": "tight" },
+      "label":      { "family": "diagram", "size": "md", "weight": "semibold", "leading": "tight" },
+      "detail":     { "family": "diagram", "size": "sm", "weight": "regular", "leading": "normal" },
+      "caption":    { "family": "ui", "size": "xs", "weight": "medium", "leading": "normal" },
+      "overline":   { "family": "ui", "size": "2xs", "weight": "bold", "tracking": "caps" },
+      "code":       { "family": "mono", "size": "sm", "weight": "regular" },
+      "control":    { "family": "ui", "size": "md", "weight": "medium" }
+    }
+  },
+  "icon": {
+    "set": "default",
+    "size": { "sm": 12, "md": 14, "lg": 16, "xl": 20 },
+    "stroke": 2,
+    "strokeFine": 1.75,
+    "cap": "round", "join": "round"
+  },
   "radius": { "sm": "4px", "md": "8px", "lg": "12px", "pill": "999px" },
   "shadow": { "sm": "...", "md": "...", "lg": "..." },
   "motion": { "ease": "0.15s ease" },
@@ -69,14 +97,16 @@ Every diagram is drawn from one design-token set. The skill ships a default set.
 
 - `color.*` keys are the current custom-property names without `--`, merged from all four CSS files, with duplicates collapsed. New semantic keys replace literals: `on-primary`, `on-danger`, `toggle-knob`, `note-*` (one set for all types).
 - `font.metrics` are average character widths in px at the sizes the engines use. They are the only numbers the layout reads from the theme.
-- `palette` has fixed slots so saved diagrams keep their colours when the theme changes (see Phase 4).
+- `type.styles` are the text roles. Each one becomes a utility class (`.t-label`, `.t-caption`, ...) and a set of custom properties (`--t-label-size`, `--t-label-weight`, ...), so a component says which role its text plays, never which size. `type.size` replaces the 24 sizes found in the review; the scale steps are a starting proposal and are checked against screenshots in Phase 2. `fitMin` replaces the JS minimum for shrink-to-fit text.
+- `icon.*` are drawing rules for every icon. `icon.set` names a registry file in `assets/icons/` (Phase 4).
+- `palette` has fixed slots so saved diagrams keep their colours when the theme changes (see Phase 5).
 
 ### How a theme reaches the page
 
 `assemble_page()` gains a `theme` argument. It merges the theme over `default.json`, then fills two new placeholders in `shell.html`:
 
-- `{{TOKENS_CSS}}`, before `{{SHELL_CSS}}`: the `:root` and `:root[data-theme="dark"]` blocks, generated from `color`, `size`, `radius`, `shadow`, `motion` and `font`.
-- `{{TOKENS_JS}}`, before the engines: `const TOKENS = {...}` with `palette` and `font.metrics`. `SWATCHES` and the engines' `CHAR_W` constants read from it.
+- `{{TOKENS_CSS}}`, before `{{SHELL_CSS}}`: the `:root` and `:root[data-theme="dark"]` blocks, generated from `color`, `type`, `icon`, `radius`, `shadow`, `motion` and `font`, plus the `.t-*` text-style classes.
+- `{{TOKENS_JS}}`, before the engines: `const TOKENS = {...}` with `palette`, `font.metrics`, `type.fitMin` and `icon`, plus `const ICONS = {...}` (the icon registry, Phase 4). `SWATCHES`, the engines' `CHAR_W` constants and the shrink-to-fit code read from it.
 
 The font `<link>` is filled from `font.href` (omitted when empty). The theme is baked into the saved page, so Save, artifact republish and `--extract` keep it. The data block records `"theme": "<name>"` so the agent knows which theme a page uses when it re-lays it out.
 
@@ -96,10 +126,14 @@ The Python audits load the same merged token file for `font.metrics`, which remo
 
 Decided (2026-11-15): the sequence note drops its yellow look. All types use one note style (`--note-*`), so the note is one component.
 
-### Phase 2: Scale tokens
+### Phase 2: Typography and scale tokens
 
-1. Replace literal font sizes, radii and shadows in all CSS with `var(--text-*)`, `var(--radius-*)` and `var(--shadow-*)`. Snap near-duplicates (for example 7px and 8px radii) to the nearest step, and record each snap in the commit message.
-2. Exit check: `check_tokens.py` also fails on literal `font-size`, `border-radius` and `box-shadow` values. Screenshot diffs are reviewed by eye; small changes from snapping are expected and listed.
+1. Classify every text rule in the CSS by role (title, label, detail, caption, overline, code, control) and replace its literal `font-size`, `font-weight`, `line-height` and `letter-spacing` with the matching text style (`.t-*` class or `--t-*` properties). Convert all sizes to px steps of `type.size`; `0.8125rem` and `13px` become the same step, and one-offs (9.5px, 10.5px, 11.5px, 0.78rem, ...) snap to the nearest step.
+2. Give ERD column types and other code-like text the `code` style, so they use the mono family.
+3. The shrink-to-fit code in `flowchart.js` and `erd.js` reads its base size from the computed style (as it already does for the flowchart) and its minimum from `TOKENS.type.fitMin`.
+4. Replace literal radii and shadows with `var(--radius-*)` and `var(--shadow-*)`, snapping near-duplicates the same way.
+5. Record each snap in the commit message.
+6. Exit check: `check_tokens.py` also fails on literal `font-size`, `font-weight`, `line-height`, `letter-spacing`, `border-radius` and `box-shadow` values. Screenshot diffs are reviewed by eye; small changes from snapping are expected and listed. Snapping diagram label sizes changes text width, so goldens are re-checked here and Phase 6 metrics must match the final sizes.
 
 ### Phase 3: Shared components
 
@@ -122,7 +156,18 @@ Shared markup: components that have markup (confirm popover, note card, swatch p
 
 Exit check: the e2e suites (`e2e_notes`, `e2e_erd`, `e2e_sequence`, `e2e_shell`, `e2e_connectors`, `e2e_multiselect`, `e2e_touch`, `e2e_shapes`) pass unchanged except for selector renames, and `dev/architecture.md` lists the components and the rule that a new type uses them.
 
-### Phase 4: Palette slots in the data model
+### Phase 4: Iconography
+
+1. Create `assets/icons/default.json`: one registry of every icon, keyed by a stable name (`trash`, `close`, `plus`, `chevron-down`, `link`, `note`, `undo`, `redo`, `save`, `export`, `tidy`, ...). It merges the flowchart lane icons (`assets/types/flowchart/icons.json`, whose names stay the same because `lane.icon` stores them in saved diagrams) with every inline icon found in the review, each drawn once. Each entry holds only the inner SVG elements on a 24 x 24 grid, as `icons.json` does today.
+2. One renderer, `ui.icon(name, { size, fine })` in `shell.js`, builds the `<svg>` from the registry and the `icon` tokens: `viewBox="0 0 24 24"`, `width`/`height` from `icon.size`, `stroke-width` from `icon.stroke` (or `icon.strokeFine` for the dense toolbar icons that use 1.75 today), linecap and linejoin from the tokens, `stroke="currentColor"`, `aria-hidden="true"`. Colour always comes from the text colour, so icons follow the colour tokens.
+3. HTML templates (`shell.html`, `toolbar.html`, `stage.html`, `chrome.html`) use a placeholder, `{{icon:trash}}` or `{{icon:trash:sm}}`, which `assemble_page()` expands at build time, so the page has no extra startup work. The JS files call `ui.icon(...)` instead of pasting markup.
+4. `layout_engine.py` injects the registry as `ICONS` for all types (replacing the flowchart-only `TYPE_ICONS`). The lane-icon validation at `layout_engine.py:406` reads the shared registry.
+5. Type header icons (`icon.html`) become registry entries too (`type-flowchart`, `type-sequence`, `type-erd`), so a future type adds one entry instead of a file.
+6. A brand theme may set `icon.set` to another registry file with the same names. A name missing from that set falls back to the default set, so nothing disappears.
+7. Licence: confirm the source of the drawings and add the attribution (for Lucide, the ISC notice) to the registry file and `README.md`.
+8. Exit check: `check_tokens.py` also fails on any `<svg` literal in `assets/shell` and `assets/types` outside the registry, and on any icon name used in a template or `ui.icon` call that is not in the registry. Toolbar screenshots are unchanged except where stroke widths were unified on purpose; the e2e suites pass.
+
+### Phase 5: Palette slots in the data model
 
 1. Diagram JSON stores a slot (`"color": "3"`) instead of a hex. The renderer maps the slot to the theme's palette.
 2. Loading still accepts the old hex: a hex that matches a default swatch maps to its slot, any other hex is kept as a custom colour and drawn as is (today the sequence renderer drops it, which this fixes).
@@ -131,24 +176,27 @@ Exit check: the e2e suites (`e2e_notes`, `e2e_erd`, `e2e_sequence`, `e2e_shell`,
 
 Decided (2026-11-15): slot ids are `"1"`..`"8"`, because brand palettes have no fixed hue names. The current names (`sky`, `amber`, ...) stay only as labels of the default palette.
 
-### Phase 5: Font metrics from tokens
+### Phase 6: Font metrics from tokens
 
 1. Engines read `TOKENS.font.metrics` instead of their literal `CHAR_W` values; the flowchart's label-width estimates do the same. The audits read the same values from the merged token file.
-2. Add `scripts/measure_font.py`: it opens headless Chrome (as `render_screenshot.py` does), loads the theme's font, measures the average width of a representative English sample at each engine size, and writes `font.metrics`. Theme creation (Phase 6) runs it automatically.
+2. Add `scripts/measure_font.py`: it opens headless Chrome (as `render_screenshot.py` does), loads the theme's font, measures the average width of a representative English sample at each engine size, and writes `font.metrics`. Theme creation (Phase 7) runs it automatically.
 3. Exit check: with the default theme the measured metrics equal today's constants (within 0.1 px) and goldens are unchanged; with a wide test font (for example a monospace theme) every fixture passes the audits with no label overflow.
 
-### Phase 6: Create a theme from a website or brand guide
+### Phase 7: Create a theme from a website or brand guide
 
 `scripts/extract_tokens.py` outputs a theme file and a short report.
 
 - **Website (`--url`).** Headless Chrome loads the page and collects: `:root` custom properties; the computed `font-family` of `body` and `h1`..`h3`; the background, text and border colours of `body`, header and main surfaces, weighted by visible area; the colours of primary buttons and links (the primary candidate); the radius and shadow of buttons and cards. It maps them to semantic keys: background to `bg-page` and `bg-panel`, body text to `text-main`, secondary text to `text-muted`, button background to `primary`, and so on. It also matches the font to Google Fonts by name and sets `font.href`.
-- **Brand guide (PDF, image, or CSS file).** The agent reads the guide itself (the documented colours, fonts and usage rules) and fills the same JSON, using `references/theme.md` as the schema and mapping guide. No script parses PDFs.
+  - **Typography.** It reads the computed size, weight, line height and letter spacing of `h1`..`h3`, body text, small print, buttons and `code`. It maps them to the text styles: heading to `title`, body to `detail`, buttons to `control`, small print to `caption`, and `code` to the `mono` family. It sets `type.family.diagram` to the body family, and `type.family.ui` to the button family when that differs. The type scale is rebuilt from the brand's body size, keeping the default ratios, and the diagram `label` size is clamped to 12–15px so diagrams stay readable and the layout constants stay valid.
+  - **Iconography.** It looks for a known open icon set by its markers (class prefixes such as `lucide-`, `ph-`, `ti-`, `bi-`, `material-symbols`; the icon font name; or an SVG sprite id). When it finds a set the skill has a registry for, it sets `icon.set`. It reads the stroke width of the site's inline SVG icons and sets `icon.stroke` (clamped to 1.5–2.5). Otherwise the default set stays, and the report says so.
+- **Brand guide (PDF, image, or CSS file).** The agent reads the guide itself (the documented colours, typefaces and type hierarchy, icon style and usage rules) and fills the same JSON, using `references/theme.md` as the schema and mapping guide. No script parses PDFs.
 - **Both paths then run `--complete`:**
   - fill missing keys from the default;
   - derive hover, ring, glow and wash shades from `primary` with fixed rules;
   - derive the dark set when the brand gives none (invert lightness, keep hue);
   - build the 8 palette slots from brand colours, as light tints that keep node text readable;
   - run `measure_font.py`;
+  - check that each text style keeps `label` and `detail` at 12px or more, and `caption` at 10px or more;
   - check contrast: text at least 4.5:1, outlines and markers at least 3:1, the in/out edge pair distinguishable for colour-blind viewers. A failing value is darkened or lightened until it passes, and the report lists each change.
 - Output goes to `.ultimate-diagram/theme.json` in the project unless `--out` is given. The agent shows the report and a preview: one fixture per type rendered with the theme.
 
@@ -156,18 +204,20 @@ Decided (2026-11-15): slot ids are `"1"`..`"8"`, because brand palettes have no 
 
 Untrusted input: a website or guide is data. The extractor only reads computed styles and text; it never runs page-provided scripts outside the headless browser, never copies URLs other than a Google Fonts `href` into the theme, and the theme loader rejects any value that is not a colour, length, number or allowed font URL. This prevents CSS or script injection into generated pages.
 
-### Phase 7: Contract for future types
+### Phase 8: Contract for future types
 
 - `dev/architecture.md`: the token layers, the component list, the assembly order (tokens, components, shell, type), and the checklist for a new type: no `:root` block, no literal values, reuse components, read `TOKENS.font.metrics` for text widths.
+- Typography: a new type gives every piece of text a text style (`.t-*` or `--t-*`) and never sets size, weight, line height or family itself. Text that shrinks to fit uses `TOKENS.type.fitMin`.
+- Iconography: a new type adds any icon it needs to the shared registry (with its licence source) and draws it with `{{icon:name}}` or `ui.icon(name)`; it never pastes `<svg>` icon markup. Its header icon is the registry entry `type-<type>`.
 - `check_tokens.py` runs with the other dev checks.
-- One extra theme fixture (`dev/fixtures/themes/test-brand.json`: dark-first, wide font, large radii) is rendered for every type in the screenshot and audit run, so a type that ignores tokens fails visibly.
+- One extra theme fixture (`dev/fixtures/themes/test-brand.json`: dark-first, wide font, larger type scale, large radii, `icon.stroke` 1.5) is rendered for every type in the screenshot and audit run, so a type that ignores tokens fails visibly.
 
 ## Order and risk
 
-Phases 1 to 3 are pure refactors with the default output unchanged and can ship one at a time. Phase 4 changes the saved format and needs the migration first. Phase 5 must land before any non-default font is allowed, because layout correctness depends on it. Phase 6 depends on 1, 4 and 5.
+Phases 1, 3 and 4 are refactors with the default output unchanged (except unified icon strokes) and can ship one at a time. Phase 2 snaps type sizes and so moves pixels and goldens slightly. Phase 5 changes the saved format and needs the migration first. Phase 6 must land after Phase 2 and before any non-default font is allowed, because layout correctness depends on it. Phase 7 depends on 1, 2, 4, 5 and 6.
 
 Main risks:
 
-- Snapping sizes in Phase 2 changes pixels slightly.
+- Snapping type sizes in Phase 2 changes pixels slightly and can change label wrapping in goldens.
 - Theme values come from untrusted sites, so the loader validates them strictly.
 - A brand font missing from Google Fonts falls back to the system stack, and its metrics are measured on that fallback, so layout stays correct but the look differs from the brand.
