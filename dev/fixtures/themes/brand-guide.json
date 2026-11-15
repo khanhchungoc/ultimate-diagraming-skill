@@ -1,0 +1,8 @@
+{
+  "tokensVersion": 1,
+  "name": "sunrise-bank",
+  "font": { "family": "Space Grotesk", "stack": "\"Segoe UI\", sans-serif", "href": "https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap" },
+  "radius": { "lg": "12px" },
+  "color": { "light": { "bg-page": "#fffdf6", "text-main": "#2b2b2b", "primary": "#ffc20e", "border-color": "#e8e2cf" } },
+  "brand": { "colors": ["#ffc20e", "#00205b", "#e4002b", "#4a4a4a"] }
+}

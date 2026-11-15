@@ -2388,7 +2388,7 @@ const TOKENS = {"palette":[{"slot":"1","name":"sky","hex":"#e0f2fe","light":{"so
       // model and never serializes the live DOM (which by then holds the rendered diagram and selection state).
       // It is taken while this script runs, so the browser has parsed the page only up to this script: anything the
       // claude.ai viewer appends to <body> later is not in it. Our content runs from <title> to this script; inside
-      // that span only our own two scripts are kept (the diagram-data block and this one), so a script the viewer
+      // that span only our own scripts are kept (the diagram-data and diagram-theme blocks and this one), so a script the viewer
       // inserted earlier, the generator's render report and any meta/base element are dropped too. The end marker
       // (ARTIFACT_END_MARKER) is written back after this script, as the generator writes it.
       function capturePristineBody() {
@@ -2397,7 +2397,7 @@ const TOKENS = {"palette":[{"slot":"1","name":"sky","hex":"#e0f2fe","light":{"so
           const c = document.body.cloneNode(true);
           c.querySelectorAll(':scope > meta, :scope > base').forEach(n => n.remove());
           c.querySelectorAll('script').forEach(n => {
-            if (n.id === 'diagram-data' && n.type === 'application/json') return;
+            if ((n.id === 'diagram-data' || n.id === 'diagram-theme') && n.type === 'application/json') return;
             if (self && !n.id && !n.src && n.textContent === self.textContent) return;
             n.remove();
           });

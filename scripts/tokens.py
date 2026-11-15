@@ -109,6 +109,11 @@ def _validate(t: Dict[str, Any]) -> None:
         for mode in ("light", "dark"):
             for tone, v in s[mode].items():
                 if tone not in _TONES or not _is_value(v): raise _err(f"palette.{s['slot']}.{mode}.{tone}", v)
+    if "icon" in t:  # shortcut: only what a theme may set today; the full icon group (size, cap, registry) comes with the icon registry
+        ic = t["icon"]
+        if not isinstance(ic.get("set", "default"), str) or not re.fullmatch(r"[a-z0-9-]+", ic.get("set", "default")): raise _err("icon.set", ic.get("set"))
+        sw = ic.get("stroke", 2)
+        if isinstance(sw, bool) or not isinstance(sw, (int, float)) or not 1.5 <= sw <= 2.5: raise _err("icon.stroke", sw)
     if not isinstance(t["contrast"], list): raise _err("contrast", t["contrast"])
     for mode in ("light", "dark"):
         for k, v in t["color"][mode].items():
@@ -147,16 +152,20 @@ def _merge(base: Dict[str, Any], over: Dict[str, Any]) -> Dict[str, Any]:
     return base
 
 
-def load_tokens(theme_path: Optional[Path] = None) -> Dict[str, Any]:
-    """default.json with an optional theme file deep-merged over it (lists, such as palette, are replaced whole)."""
+def merge_theme(theme: Optional[Dict[str, Any]], source: str = "theme") -> Dict[str, Any]:
+    """default.json with a parsed theme deep-merged over it (lists, such as palette, are replaced whole), validated."""
     tokens = json.loads(DEFAULT_PATH.read_text(encoding="utf-8"))
-    if theme_path is not None:
-        theme = json.loads(Path(theme_path).read_text(encoding="utf-8"))
-        if theme.get("tokensVersion") != TOKENS_VERSION:
-            raise ValueError(f"tokens: unsupported tokensVersion {theme.get('tokensVersion')!r} in {theme_path}")
+    if theme is not None:
+        if not isinstance(theme, dict) or theme.get("tokensVersion") != TOKENS_VERSION:
+            raise ValueError(f"tokens: unsupported tokensVersion {theme.get('tokensVersion') if isinstance(theme, dict) else theme!r} in {source}")
         _merge(tokens, theme)
     _validate(tokens)
     return tokens
+
+
+def load_tokens(theme_path: Optional[Path] = None) -> Dict[str, Any]:
+    """default.json with an optional theme file deep-merged over it."""
+    return merge_theme(None if theme_path is None else json.loads(Path(theme_path).read_text(encoding="utf-8")), str(theme_path))
 
 
 def resolve_colors(tokens: Dict[str, Any], mode: str) -> Dict[str, str]:
@@ -283,6 +292,13 @@ if __name__ == "__main__":
         load_tokens(Path(tempfile.mkdtemp()) / "none.json")
     except FileNotFoundError:
         pass
+    assert load_tokens(theme({"icon": {"set": "lucide", "stroke": 1.5}}))["icon"]["stroke"] == 1.5
+    for bad in ({"icon": {"set": "A b"}}, {"icon": {"set": "x/../y"}}, {"icon": {"stroke": 3}}, {"icon": {"stroke": "2"}}):
+        try:
+            load_tokens(theme(bad))
+        except ValueError:
+            continue
+        raise AssertionError(f"accepted {bad}")
     p = theme({}); p.write_text('{"tokensVersion": 2}')
     try:
         load_tokens(p)

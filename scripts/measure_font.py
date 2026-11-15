@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+import contextlib
 import json
 import os
 import re
@@ -118,12 +119,14 @@ class _WS:
                     return json.loads(msg)
 
 
-def _chrome_eval(expression: str, browser: Optional[str], timeout: int = 60) -> Any:
-    """Evaluate an async JS expression in a fresh headless Chrome and return its value."""
+@contextlib.contextmanager
+def chrome_session(browser: Optional[str] = None, timeout: int = 60, args: Tuple[str, ...] = ()):
+    """A fresh headless Chrome (own profile, local DevTools only). Yields call(method, params) -> result, which also
+    keeps the events it sees in call.events (a list of (method, params))."""
     chrome = Path(browser) if browser else find_browser()
     profile = tempfile.mkdtemp(prefix="measure_font_")
     cmd = [str(chrome), "--headless=new", "--disable-gpu", "--no-first-run", "--remote-debugging-port=0",
-           f"--user-data-dir={profile}", "about:blank"]
+           f"--user-data-dir={profile}", *args, "about:blank"]
     if hasattr(os, "geteuid") and os.geteuid() == 0:
         cmd.insert(1, "--no-sandbox")
     proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -137,18 +140,39 @@ def _chrome_eval(expression: str, browser: Optional[str], timeout: int = 60) -> 
         opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))  # DevTools is local: never via a proxy
         pages = json.loads(opener.open(f"http://127.0.0.1:{port}/json/list", timeout=30).read())
         ws = _WS(next(p for p in pages if p["type"] == "page")["webSocketDebuggerUrl"])
-        ws.send({"id": 1, "method": "Runtime.evaluate",
-                 "params": {"expression": expression, "awaitPromise": True, "returnByValue": True}})
-        while True:
-            msg = ws.recv()
-            if msg.get("id") == 1:
-                if "error" in msg or "exceptionDetails" in msg.get("result", {}):
-                    raise RuntimeError(f"Chrome could not measure: {msg}")
-                return msg["result"]["result"]["value"]
+        ids = iter(range(1, 10**6))
+        events: List[Tuple[str, Any]] = []
+
+        def call(method: str, params: Optional[Dict[str, Any]] = None) -> Any:
+            i = next(ids)
+            ws.send({"id": i, "method": method, "params": params or {}})
+            while True:
+                msg = ws.recv()
+                if msg.get("id") == i:
+                    if "error" in msg:
+                        raise RuntimeError(f"Chrome {method} failed: {msg['error']}")
+                    return msg.get("result", {})
+                if "method" in msg:
+                    events.append((msg["method"], msg.get("params", {})))
+                    if msg["method"] == "Page.javascriptDialogOpening":  # a page's alert() would freeze it: dismiss
+                        ws.send({"id": next(ids), "method": "Page.handleJavaScriptDialog", "params": {"accept": False}})
+
+        call.events = events  # type: ignore[attr-defined]
+        call.settimeout = ws.sock.settimeout  # type: ignore[attr-defined]
+        yield call
     finally:
         proc.kill()
         proc.wait()
         shutil.rmtree(profile, ignore_errors=True)
+
+
+def _chrome_eval(expression: str, browser: Optional[str], timeout: int = 60) -> Any:
+    """Evaluate an async JS expression in a fresh headless Chrome and return its value."""
+    with chrome_session(browser, timeout) as call:
+        res = call("Runtime.evaluate", {"expression": expression, "awaitPromise": True, "returnByValue": True})
+        if "exceptionDetails" in res:
+            raise RuntimeError(f"Chrome could not measure: {res}")
+        return res["result"]["value"]
 
 
 # --- fonts and styles -----------------------------------------------------------------------------------------------
