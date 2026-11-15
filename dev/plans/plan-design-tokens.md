@@ -2,7 +2,7 @@
 
 Every diagram is drawn from one design-token set. The skill ships a default set. A user can point the skill at a website or a brand guide, get a token set in the same shape, and every diagram type (current and future) uses it without code changes. Every visual component is built once, from tokens only, and reused by all types.
 
-**Status:** Phases 1 to 7 done 2026-11-15 (see their "As built" notes). Phase 8 not started. Review done 2026-11-15 (findings below). Open decisions for Phases 1 and 5 settled 2026-11-15. Typography and iconography added 2026-11-15.
+**Status:** All phases (1 to 8) done 2026-11-15 (see their "As built" notes). Review done 2026-11-15 (findings below). Open decisions for Phases 1 and 5 settled 2026-11-15. Typography and iconography added 2026-11-15.
 
 ## Goals
 
@@ -336,7 +336,7 @@ As built (2026-11-15):
 - Icon sets: no registry exists in this tree, so `icon.set` is written only when `assets/icons/<set>.json` exists (never yet), and the report names the detected set. `icon.stroke` is written when the site's inline SVG strokes were read. `tokens.py` validates the `icon` group minimally: `icon.set` matches `[a-z0-9-]+`, `icon.stroke` is 1.5 to 2.5. Phase 4's merge must reconcile this with the full `icon` group.
 - Untrusted page: the collector returns only numbers and short strings; Python rebuilds colours as hex, accepts font names matching `[A-Za-z0-9][A-Za-z0-9 .-]*`, copies only a `fonts.googleapis.com` href, then everything goes through `tokens.py` validation. Only `http`, `https` and `file` addresses are opened. A page's own scripts run inside the headless browser only (a hostile fixture with `alert()` and bad font names is in the check).
 - Tests: `dev/fixtures/themes/site/index.html` (known brand values), `site/hostile.html`, `brand-guide.json`, and `dev/check_extract.py` (extraction table, `--from`, hostile page, lookup order, stored script, artifact shape). `python3 scripts/extract_tokens.py --self-test` covers the maths, completion and validation.
-- Known limits: `--preview` renders through `render_screenshot.py`, which timed out in the sandbox used for this work (a default-theme page fails the same way, so it is not the theme), so preview PNGs were checked with Chrome's own `--screenshot`; a page with a stalled third-party stylesheet makes the page read take up to 60 s and then fail; the type scale only follows the brand body size (heading sizes are not mapped); letter-spacing is read for body text only; shadows are only mapped when the card has one layer.
+- Known limits: `--preview` renders through `render_screenshot.py`, which timed out in the sandbox used for this work (fixed in Phase 8: it now drives Chrome over DevTools); a page with a stalled third-party stylesheet makes the page read take up to 60 s and then fail; the type scale only follows the brand body size (heading sizes are not mapped); letter-spacing is read for body text only; shadows are only mapped when the card has one layer.
 
 ### Phase 8: Contract for future types
 
@@ -347,13 +347,22 @@ As built (2026-11-15):
 - `check_tokens.py` runs with the other dev checks.
 - One extra theme fixture (`dev/fixtures/themes/test-brand.json`: dark-first, wide font, larger type scale, large radii, `icon.stroke` 1.5) is rendered for every type in the screenshot and audit run, so a type that ignores tokens fails visibly.
 
+As built, contract for future types (2026-11-15):
+
+- `dev/architecture.md` has a "Design system" section (layers and assembly order, palette slots, text styles, icons, themes with their lookup order and the scripts) and a "New diagram type checklist" covering every bullet above; the Tests table lists the new checks and "Adding a type" points to the checklist. Statements made stale by Phases 1 to 7 (the font link, the token file description, the script list) were updated.
+- `dev/fixtures/themes/test-brand.json` is a completed theme made with `extract_tokens.py --from <partial> --complete`: dark set given (the light set derived), DejaVu Sans, a larger scale (`2xs` 11, `xs` 12, `sm` 13, `md` 14, `xl` 18, `2xl` 20 px), radii 6 to 24 px, `icon.stroke` 1.5, metrics measured. `lg` stays 14 px: it is the diagram text size the engines' fixed node and table geometry assume (at 16 px, labels in fixed-size nodes clamp and ERD table names clip), so a type can grow UI text with a theme but diagram text only as far as the engines' boxes allow.
+- `dev/check_themes.py` lays out every fixture under the default theme and every complete theme in `dev/fixtures/themes/` (a theme without `font.metrics`, like `brand-guide.json`, is a partial input and is skipped), prints the score table, runs `check_contrast.py --strict` on each theme and `check_overflow.mjs` on every page. It fails when a theme scores below the default on a fixture, fails contrast, or leaves more overflowing texts than the default on a page; the three known non-width cases (rail names, the classic-shape box, a table name at the ERD overview floor) are not counted. `erd/saas-billing` scores 88 under the default theme and 100 under the two other themes.
+- `render_screenshot.py` no longer uses one-shot `--dump-dom` and `--screenshot`: in the sandbox used for this work Chrome never exits in that mode, even for a `data:` page, while DevTools works. It reuses `measure_font.chrome_session()` (navigate, wait for load, read the `render-report` script, `Page.captureScreenshot` at the device scale). `--preview` works again. There is no `--report` flag: the report is the default (`--no-report` skips it). With `node_modules/axe-core/axe.min.js` present it also runs axe-core (WCAG A and AA rules only, not best practices) in light and dark mode and prints each violation as `[WARN]`; otherwise it prints one `[INFO]` line. axe-core 4.11.4 is a pinned `devDependency` (with `package-lock.json`, `node_modules/` ignored by git, not in `files` or the installers' copies).
+- Packaging: `package.json` `files`, `scripts/install.py`, `install.sh`, `install.ps1` and `bin/install.js` already ship `assets/` whole and `scripts/*.py`, so tokens, components, icons (with `LICENSE`), the new scripts and `references/theme.md` need no change; a dry install into a temporary folder lays out `references/examples/example-flowchart.json` from the installed copy. `scripts/check_env.py` now lists the new files.
+- Not done: `docs/img/*.png` have no generating script in the repo and the default look is unchanged apart from the listed snaps, so they were not regenerated.
+
 ## Before implementing
 
 - **Baseline (2026-11-15):** `dev/check_golden.py` passes for every fixture (all `[PASS]`, audits 100/100) and `dev/check_artifact_shape.py` passes. Each phase must keep both green, except for the listed, intended changes.
-- **Delivery:** one branch and one pull request per phase, each with its screenshot diffs (both themes) attached.
-- **New dependency:** axe-core is the first npm dependency. It goes in `devDependencies` at a pinned version and is not shipped (the `files` list in `package.json` already excludes `dev/`). Without it, `render_screenshot.py --report` skips the axe step and says so.
-- **Install:** `scripts/install.py` copies `assets/` whole, so the new `assets/tokens`, `assets/components` and `assets/icons` folders ship without changes; check `bin/install.js` and the npm `files` list the same way.
-- **Docs and images:** after Phases 1, 2 and 5, regenerate `docs/img/*` and `dev/samples/*` with `dev/build_examples.py`, and update `SKILL.md`, `README.md` and `dev/architecture.md`.
+- **Delivery (not followed: the phases were merged on one branch):** one branch and one pull request per phase, each with its screenshot diffs (both themes) attached.
+- **New dependency (done, Phase 8):** axe-core is the first npm dependency. It goes in `devDependencies` at a pinned version and is not shipped (the `files` list in `package.json` already excludes `dev/`). Without it, `render_screenshot.py --report` skips the axe step and says so.
+- **Install (checked, Phase 8):** `scripts/install.py` copies `assets/` whole, so the new `assets/tokens`, `assets/components` and `assets/icons` folders ship without changes; check `bin/install.js` and the npm `files` list the same way.
+- **Docs and images (docs done, images not regenerated: no script):** after Phases 1, 2 and 5, regenerate `docs/img/*` and `dev/samples/*` with `dev/build_examples.py`, and update `SKILL.md`, `README.md` and `dev/architecture.md`.
 - **Out of scope:** the Mermaid copy export ignores themes (Mermaid has its own theming), and print styles are unchanged.
 
 ## Order and risk

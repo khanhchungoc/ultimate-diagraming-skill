@@ -15,6 +15,7 @@ Describe a process, and your AI assistant hands back a single HTML file. Open it
 - ↔️ ↕️ **Wide or tall.** Flip between left-to-right and top-to-bottom with one button. Pick whichever fits your page or slide.
 - 🔤 **Long arrows stay readable.** An arrow that would cross half the diagram becomes a pair of lettered circles (A → A). Hover a circle, or the step it's attached to, to see where the flow continues; click it to jump there.
 - ✅ **Arrives clean.** The AI checks its own result for overlapping boxes and unreadable labels before showing you.
+- 🎨 **Your brand.** Give the AI a website address or a brand guide and every diagram uses your colours, font, corner style and icon weight. Text stays readable: the colours are checked against WCAG 2.2 AA contrast in light and dark mode, and any that fall short are nudged until they pass.
 - 📦 **Just a file.** Email it, put it in a repo, attach it to a ticket, or open it offline.
 
 ### Same diagram, tall layout

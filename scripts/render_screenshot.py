@@ -13,16 +13,14 @@ Zero external dependencies (standard library Python 3 + system Chrome/Edge).
 from __future__ import annotations
 
 import argparse
-import html
+import base64
 import json
 import math
 import os
 import re
 import shutil
 import struct
-import subprocess
 import sys
-import tempfile
 import time
 import uuid
 from pathlib import Path
@@ -44,8 +42,6 @@ BROWSER_NAMES = (
 SINGLE_SCREEN_MAX_NODES = 12
 
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
-POLL_INTERVAL = 0.2
-STABLE_SECONDS = 0.6
 
 
 def find_browser() -> Path:
@@ -99,41 +95,6 @@ def parse_viewport(value: str) -> tuple[int, int]:
     raise ValueError("Invalid viewport. Use 'desktop', 'wide', 'compact', or WIDTHxHEIGHT (e.g. 1440x900).")
 
 
-def wait_for_png(path: Path, deadline: float) -> bool:
-    """Wait until `path` exists and finishes writing (checks PNG IEND trailer or size stability)."""
-    last_size, stable_since = -1, 0.0
-    while time.monotonic() < deadline:
-        if path.is_file():
-            try:
-                size = path.stat().st_size
-                if size >= 24:
-                    with path.open("rb") as fh:
-                        fh.seek(max(0, size - 12))
-                        if fh.read().endswith(b"IEND\xaeB`\x82"):
-                            return True
-            except OSError:
-                size = 0
-            now = time.monotonic()
-            if size > 0 and size == last_size:
-                if now - stable_since >= STABLE_SECONDS:
-                    return True
-            else:
-                last_size, stable_since = size, now
-        time.sleep(POLL_INTERVAL)
-    return False
-
-
-def remove_stale_temp_files(output_path: Path) -> None:
-    """Delete `<output>.<uuid>.png` leftovers from earlier interrupted renders."""
-    pattern = re.compile(re.escape(output_path.name) + r"\.[0-9a-f]{32}\.png")
-    for candidate in output_path.parent.iterdir():
-        if pattern.fullmatch(candidate.name):
-            try:
-                candidate.unlink()
-            except OSError:
-                pass
-
-
 def _ensure_utf8_output() -> None:
     """Avoid UnicodeEncodeError on Windows consoles that default to cp1252."""
     for stream in (sys.stdout, sys.stderr):
@@ -143,69 +104,82 @@ def _ensure_utf8_output() -> None:
             pass
 
 
-def collect_layout_report(browser: Path, uri: str, width: int, height: int, timeout: int, min_px: float):
-    """Open the page in report mode and read the layout report it publishes into the DOM."""
-    profile = tempfile.mkdtemp(prefix="flowchart_report_")
-    cmd = [
-        str(browser), "--headless", "--disable-gpu", "--disable-dev-shm-usage", "--hide-scrollbars",
-        f"--user-data-dir={profile}", f"--window-size={width},{height}",
-        "--virtual-time-budget=500", "--dump-dom", f"{uri}?report&present&minpx={min_px}",
-    ]
+def open_page(call, uri: str, width: int, height: int, scale: float, timeout: int) -> None:
+    """Navigate a DevTools session (measure_font.chrome_session) to `uri` at a window size and wait for it to load.
+    A one-shot `--dump-dom` or `--screenshot` run never exits in some sandboxes, DevTools does not."""
+    call("Emulation.setDeviceMetricsOverride", {"width": width, "height": height, "deviceScaleFactor": scale, "mobile": False})
+    call("Page.enable")
+    call("Page.navigate", {"url": uri})
+    call.settimeout(timeout)
+    deadline = time.monotonic() + timeout
+    # A stalled third-party stylesheet (the Google Fonts link, offline) must not hold the report back: go on after half the time.
+    while time.monotonic() < deadline - timeout / 2 and not any(m == "Page.loadEventFired" for m, _ in call.events):
+        call("Runtime.evaluate", {"expression": "1"})
+        time.sleep(0.1)
+
+
+def page_value(call, expression: str, await_promise: bool = False):
+    res = call("Runtime.evaluate", {"expression": expression, "returnByValue": True, "awaitPromise": await_promise})
+    if "exceptionDetails" in res:
+        raise RuntimeError(res["exceptionDetails"].get("exception", {}).get("description", "script error in the page"))
+    return res["result"].get("value")
+
+
+def axe_path() -> Path | None:
+    """axe-core is a dev dependency (npm install in the repo); an installed skill has none, so the step is skipped."""
+    p = Path(__file__).resolve().parent.parent / "node_modules" / "axe-core" / "axe.min.js"
+    return p if p.is_file() else None
+
+
+def run_axe(call, axe: Path) -> dict:
+    """Violations axe-core finds on the open page, in light and then dark mode: {mode: [(id, impact, nodes, first target)]}."""
+    page_value(call, axe.read_text(encoding="utf-8"))
+    out = {}
+    for mode in ("light", "dark"):
+        page_value(call, f"document.documentElement.setAttribute('data-theme', '{mode}')")
+        found = page_value(call, "axe.run(document, {resultTypes: ['violations'], runOnly: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa']}).then(r => r.violations.map(v => "
+                                 "[v.id, v.impact, v.nodes.length, (v.nodes[0].target || []).join(' ')]))", True)
+        out[mode] = found
+    return out
+
+
+def collect_layout_report(browser: Path, uri: str, width: int, height: int, timeout: int, min_px: float, with_axe: bool = False):
+    """Open the page in report mode and read the layout report it publishes into the DOM (and, when asked, run axe).
+    Returns (report or None, axe result or None)."""
+    from measure_font import chrome_session  # not at the top: measure_font imports find_browser from here
     try:
-        res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
-                             encoding="utf-8", errors="replace", timeout=timeout, check=False)
-        match = re.search(r'<script id="render-report" type="application/json">(\{.*?\})</script>', res.stdout, re.S)
-        if not match:
-            return None
-        return json.loads(html.unescape(match.group(1)))
-    except (subprocess.TimeoutExpired, json.JSONDecodeError, OSError):
-        return None
-    finally:
-        shutil.rmtree(profile, ignore_errors=True)
+        with chrome_session(str(browser), timeout, (f"--window-size={width},{height}", "--hide-scrollbars")) as call:
+            open_page(call, f"{uri}?report&present&minpx={min_px}", width, height, 1, timeout)
+            deadline = time.monotonic() + timeout / 2
+            text = None
+            while text is None and time.monotonic() < deadline:
+                text = page_value(call, "(document.getElementById('render-report') || {}).textContent || null")
+                time.sleep(0.1)
+            axe = axe_path() if with_axe and text else None
+            try:
+                return json.loads(text) if text else None, (run_axe(call, axe) if axe else None)
+            except RuntimeError as exc:  # axe failing must not lose the layout report
+                print(f"[WARN] axe-core step failed: {exc}")
+                return json.loads(text), None
+    except (RuntimeError, ConnectionError, OSError, json.JSONDecodeError):
+        return None, None
 
 
 def take_screenshot(browser: Path, uri: str, width: int, height: int, scale: float,
                     output_path: Path, timeout: int) -> None:
-    profile = tempfile.mkdtemp(prefix="flowchart_render_")
+    from measure_font import chrome_session
+    with chrome_session(str(browser), timeout, (f"--window-size={width},{height}", "--hide-scrollbars")) as call:
+        open_page(call, uri, width, height, scale, timeout)
+        time.sleep(0.5)  # the page renders after load
+        raw = base64.b64decode(call("Page.captureScreenshot", {"format": "png"})["data"])
+    if len(raw) < 24 or raw[:8] != PNG_SIGNATURE:
+        raise RuntimeError("Rendered output is not a valid PNG file.")
     temp_out = output_path.with_name(f"{output_path.name}.{uuid.uuid4().hex}.png")
-    cmd = [
-        str(browser),
-        "--headless",
-        "--disable-gpu",
-        "--disable-dev-shm-usage",
-        "--hide-scrollbars",
-        f"--user-data-dir={profile}",
-        f"--window-size={width},{height}",
-        f"--force-device-scale-factor={scale:g}",
-        "--virtual-time-budget=500",
-        f"--screenshot={temp_out}",
-        uri,
-    ]
-    deadline = time.monotonic() + timeout
     try:
-        try:
-            res = subprocess.run(
-                cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
-                encoding="utf-8", errors="replace", timeout=timeout, check=False,
-            )
-        except subprocess.TimeoutExpired:
-            raise RuntimeError(f"Browser did not finish within {timeout}s (try --timeout).")
-        if res.returncode != 0:
-            raise RuntimeError(f"Browser exited with code {res.returncode}: {res.stderr.strip()}")
-        if not wait_for_png(temp_out, deadline):
-            raise RuntimeError(
-                f"Screenshot not written within {timeout}s by {browser.name}. "
-                f"Try --browser with another Chrome/Edge path or a larger --timeout. "
-                f"Browser stderr: {res.stderr.strip()[-300:]}"
-            )
-        raw = temp_out.read_bytes()
-        if len(raw) < 24 or raw[:8] != PNG_SIGNATURE:
-            raise RuntimeError("Rendered output is not a valid PNG file.")
+        temp_out.write_bytes(raw)
         os.replace(temp_out, output_path)
     finally:
-        if temp_out.exists():
-            temp_out.unlink()
-        shutil.rmtree(profile, ignore_errors=True)
+        temp_out.unlink(missing_ok=True)
 
 
 def png_size(path: Path) -> tuple[int, int]:
@@ -245,12 +219,11 @@ def main() -> int:
     uri = input_path.as_uri()
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    remove_stale_temp_files(output_path)
 
-    report = None
+    report, axe = None, None
     if not args.no_report:
         for _attempt in range(2):  # the first browser launch occasionally returns no DOM
-            report = collect_layout_report(browser, uri, width, height, args.timeout, args.min_text_px)
+            report, axe = collect_layout_report(browser, uri, width, height, args.timeout, args.min_text_px, True)
             if report is not None:
                 break
 
@@ -275,6 +248,13 @@ def main() -> int:
               "Review the screenshot manually.")
         return 0
 
+    if axe is None:
+        print("[INFO] axe-core step skipped: node_modules/axe-core is not installed (npm install in the skill repo).")
+    for mode, found in (axe or {}).items():
+        for rule, impact, count, target in found:
+            print(f"[WARN] axe ({mode} mode): {rule} ({impact}), {count} element{'s' if count != 1 else ''}, first {target}")
+        if not found:
+            print(f"[PASS] axe ({mode} mode): no violations.")
     print(f"[REPORT] Fit zoom {int(report['fitScale'] * 100)}% on {width}x{height}; "
           f"smallest node text {report['minNodeFontPx']}px, smallest edge label {report['minEdgeFontPx']}px "
           f"(minimum {args.min_text_px:g}px); {report['labelCount']} labels checked.")
