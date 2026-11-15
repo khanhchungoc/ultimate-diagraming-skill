@@ -2,7 +2,7 @@
 
 Fixes for problems found while using the hosted sample artifacts (2026-11-15). Each item names the cause found in the code, the fix, and how to test it.
 
-**Status:** Not started.
+**Status:** All items done 2026-11-15 (S1-S4, E1-E5). Samples rebuilt and demo artifacts republished.
 
 ## Sequence diagram
 
