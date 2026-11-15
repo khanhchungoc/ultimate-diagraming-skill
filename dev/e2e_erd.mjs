@@ -1,7 +1,7 @@
 // Interaction test for the ER diagram plugin: selection, adding and renaming tables and columns, keys, reordering,
 // drawing / re-pointing / reversing relationships and their inferred ends, cardinality pickers, table colours (swatch row,
 // no groups), curves anchored on the table sides, notes, delete, the hover / selection neighbourhood (related tables, key
-// rows on side-anchored lines, curves, dimming, chips, peeks), the overview below 50% zoom (and its expanded card), exports
+// rows on side-anchored lines, one highlight colour, the join as a line's tooltip, dimming), the overview below 50% zoom (and its expanded card), the Types and Notes switches, end handles past the crow's feet, exports
 // and copies from the overview, multi-select of tables, free table drags (with snap guides, no Auto-Tidy toggle, edits keep tables in place; Columns
 // and Types keep hand-placed tables), undo/redo (one step per finished edit), ?present, and the saved data block
 // (byte-identical without edits; generated ids renamed, authored ids kept; Python codec agrees; v1 and v2 pages open
@@ -54,7 +54,7 @@ try {
   // A point on a line that really hits it (the line's own hit path under the pointer), away from its label pill
   const onLine = (id) => t.ev(`(() => {
     const g = document.querySelector('.erd-rel[data-edge-id="${id}"]'); const p = g.querySelector('.edge-hit'); const L = p.getTotalLength();
-    for (const f of [0.12, 0.2, 0.3, 0.42, 0.6, 0.72, 0.82, 0.9, 0.5]) {
+    for (const f of [0.2, 0.3, 0.42, 0.6, 0.72, 0.82, 0.12, 0.9, 0.5]) {
       const q = p.getPointAtLength(L * f), m = p.getScreenCTM(); const x = m.a * q.x + m.e, y = m.d * q.y + m.f;
       const hit = document.elementFromPoint(x, y);
       if (hit && hit.closest('.erd-rel') === g) return { x, y };
@@ -423,6 +423,12 @@ sys.stdout.write(format_json(out))`;
   q = await onLine('r8');
   await t.click(q.x, q.y);
   const h = await t.at('.erd-handle[data-role="to"]');
+  await t.mouse('mouseMoved', 5, 600);
+  const handleGap = JSON.parse(await t.ev(`JSON.stringify((() => { const g = document.querySelector('.erd-rel[data-edge-id="r8"] .edge-line'), L = g.getTotalLength(), m = g.getScreenCTM();
+    const pt = (l) => { const q = g.getPointAtLength(l); return [m.a * q.x + m.e, m.d * q.y + m.f]; }; const sc = m.a;
+    return [...document.querySelectorAll('.erd-handle')].map((el) => { const r = el.getBoundingClientRect(), c = [r.left + r.width / 2, r.top + r.height / 2], e = el.dataset.role === 'from' ? pt(0) : pt(L);
+      return { role: el.dataset.role, d: Math.hypot(c[0] - e[0], c[1] - e[1]) / sc, w: r.width / sc, hollow: getComputedStyle(el).backgroundColor === 'rgba(0, 0, 0, 0)' }; }); })())`));
+  t.check('the end handles sit past the crow’s feet (about 34px from the table edge) as small hollow rings', handleGap.length === 2 && handleGap.every((x) => x.d >= 30 && x.d <= 38 && x.w <= 10.5 && x.hollow), J(handleGap));
   tgt = await t.at(row('category', 'name'));
   await t.dragTo(h.x, h.y, tgt.x, tgt.y);
   d = await saved();
@@ -813,6 +819,19 @@ sys.stdout.write(format_json(out))`;
   await t.dragTo(pb.x, pb.y, pt2.x, pt2.y, { modifiers: 8 });
   t.check('?present: Ctrl+click, Ctrl+A and the Shift box select at most one table', (await selCount()) <= 1 && (await count('.marquee')) === 0, `${await selCount()}`);
 
+  // --- Types and Notes are switches ---
+  await freshPage();
+  const typeAria = () => t.ev(`document.getElementById('btn-types').getAttribute('aria-checked') + ':' + (document.querySelector('.erd-col-type') ? 'shown' : 'none')`);
+  const typeBtn = await t.ev(`(() => { const b = document.getElementById('btn-types'); return b.classList.contains('btn-switch') && b.getAttribute('role') === 'switch' && !b.hasAttribute('aria-pressed') && !!b.querySelector('.switch-knob'); })()`);
+  const typesOn = await typeAria();
+  await t.clickOn('#btn-types');
+  const typesOff = await typeAria();
+  t.check('Types is a switch: aria-checked flips and the type column hides', typeBtn && typesOn === 'true:shown' && typesOff === 'false:none', `${typeBtn} ${typesOn} ${typesOff}`);
+  await t.ev(`document.getElementById('btn-types').focus()`);
+  await t.press(' ');
+  t.check('Space on the focused Types switch turns it back on', (await typeAria()) === 'true:shown', await typeAria());
+  const notesSw = await t.ev(`(() => { const b = document.getElementById('btn-notes'); return b.classList.contains('btn-switch') && b.getAttribute('role') === 'switch' && b.getAttribute('aria-checked') === 'false'; })()`);
+  t.check('Notes is a switch too (off while the notes are not all on show)', notesSw);
   // --- Columns and Types keep hand-placed tables where they are ---
   await freshPage();
   const cl0 = await layoutOf();
@@ -927,45 +946,39 @@ sys.stdout.write(format_json(out))`;
   const hoverOn = async (id) => { const r = await t.at(head(id), 0.3, 0.5); await t.mouse('mouseMoved', r.x - 2, r.y - 2); await t.mouse('mouseMoved', r.x, r.y); await sleep(120); };
   const idsWith = async (cls) => JSON.parse(await t.ev(`JSON.stringify([...document.querySelectorAll('.erd-entity.${cls}')].map((e) => e.dataset.nodeId).sort())`));
   const keyRows = async () => JSON.parse(await t.ev(`JSON.stringify([...document.querySelectorAll('.erd-entity .erd-row.key-hl')].map((r) => r.closest('.erd-entity').dataset.nodeId + '.' + r.dataset.col).sort())`));
-  const chips = async () => JSON.parse(await t.ev(`JSON.stringify([...document.querySelectorAll('.erd-key-chip')].map((c) => (c.closest('.erd-entity') ? c.closest('.erd-entity').dataset.nodeId : '?') + ':' + c.textContent).sort())`));
   await freshPage();
   await hoverOn('order');
   t.check('hover order: customer and address are parents (blue ring class), payment and order_item children (amber), the rest dim',
     J(await idsWith('rel-parent')) === J(['address', 'customer']) && J(await idsWith('rel-child')) === J(['order_item', 'payment']) && (await idsWith('is-dim')).length === 3 && (await count('.erd-entity.linked')) === 0, `${await idsWith('rel-parent')} ${await idsWith('rel-child')}`);
   t.check('hover order: the joining rows are key-hl (order’s own foreign keys and key too)',
     J(await keyRows()) === J(['address.id', 'customer.id', 'order.customer_id', 'order.id', 'order.shipping_address_id', 'order_item.order_id', 'payment.order_id']), J(await keyRows()));
-  t.check('hover order: chips on the related tables’ rows (→ order.id on a child, ← order.customer_id on a parent)',
-    J(await chips()) === J(['address:← order.shipping_address_id', 'customer:← order.customer_id', 'order_item:→ order.id', 'payment:→ order.id']), J(await chips()));
-  t.check('hover order: no key peek while the rows are drawn; lines in the roles’ colours', (await count('.erd-key-peek')) === 0 && (await count('.erd-rel.hl-out')) === 2 && (await count('.erd-rel.hl-in')) === 2);
-  const roleRows = await t.ev(`JSON.stringify({ child: document.querySelector('.erd-entity[data-node-id="payment"] .erd-row[data-col="order_id"]').classList.contains('hl-in'), parent: document.querySelector('.erd-entity[data-node-id="customer"] .erd-row[data-col="id"]').classList.contains('hl-out') })`);
-  t.check('hover order: a child’s key row is tinted in the "in" role, a parent’s referenced row in the "out" role', roleRows === J({ child: true, parent: true }), roleRows);
+  t.check('hover order: no key chips and no key peeks, at any detail', (await count('.erd-key-chip, .erd-key-peek')) === 0 && (await count('.erd-rel.hl-out')) === 2 && (await count('.erd-rel.hl-in')) === 2);
+  const rowTint = await t.ev(`getComputedStyle(document.querySelector('.erd-entity[data-node-id="payment"] .erd-row[data-col="order_id"]')).backgroundColor`);
+  const rowPlain = await t.ev(`getComputedStyle(document.querySelector('.erd-entity[data-node-id="payment"] .erd-row[data-col="id"]')).backgroundColor`);
+  t.check('hover order: a joining row keeps a light tint, one colour for children and parents', rowTint !== rowPlain && !!(await t.ev(`document.querySelector('.erd-entity[data-node-id="customer"] .erd-row[data-col="id"]').classList.contains('key-hl') && !document.querySelector('.erd-entity .erd-row.hl-in, .erd-entity .erd-row.hl-out')`)), `${rowTint} ${rowPlain}`);
   // Side-anchored lines carry no row position: the key rows, the curves and the dimming say what joins what
   const curveInfo = JSON.parse(await t.ev(`JSON.stringify([...document.querySelectorAll('.erd-rel')].map((g) => ({ id: g.dataset.edgeId, cls: [...g.classList].filter((c) => /^(hl-in|hl-out|is-dim)$/.test(c)).join(), stroke: getComputedStyle(g.querySelector('.edge-line')).stroke, w: parseFloat(getComputedStyle(g.querySelector('.edge-line')).strokeWidth), op: parseFloat(getComputedStyle(g).opacity), d: g.querySelector('.edge-line').getAttribute('d'), from: g.dataset.from, to: g.dataset.to })))`));
   const hlIn = curveInfo.filter((c) => c.cls === 'hl-in'), hlOut = curveInfo.filter((c) => c.cls === 'hl-out'), dimmed = curveInfo.filter((c) => c.cls === 'is-dim');
   const plain = curveInfo.find((c) => c.cls === 'is-dim');
-  t.check('hover order: its curves are highlighted in the roles’ colours (children amber/in, parents blue/out, thicker), every other curve is dimmed',
+  t.check('hover order: its curves are highlighted in one colour (thicker), every other curve is dimmed',
     hlIn.length === 2 && hlOut.length === 2 && dimmed.length === curveInfo.length - 4 && hlIn.every((c) => c.to === 'order' && c.w >= 1.9) && hlOut.every((c) => c.from === 'order' && c.w >= 1.9)
-      && hlIn[0].stroke !== hlOut[0].stroke && hlIn[0].stroke !== plain.stroke && dimmed.every((c) => c.op < 0.5) && curveInfo.every((c) => /^M .* C /.test(c.d)), J(curveInfo.map((c) => [c.id, c.cls])));
+      && hlIn[0].stroke === hlOut[0].stroke && hlIn[0].stroke !== plain.stroke && dimmed.every((c) => c.op < 0.5) && curveInfo.every((c) => /^M .* C /.test(c.d)), J(curveInfo.map((c) => [c.id, c.cls])));
   const dimTables = await idsWith('is-dim');
   t.check('hover order: the unrelated tables are dimmed, every related table and order itself are not', dimTables.length === 3 && !['order', 'address', 'customer', 'order_item', 'payment'].some((id) => dimTables.includes(id)), J(dimTables));
-  // the joining rows: FK rows in the children and in order itself, key rows in the parents, each tinted in its role
-  const roles = JSON.parse(await t.ev(`JSON.stringify([...document.querySelectorAll('.erd-entity .erd-row.key-hl')].map((r) => r.closest('.erd-entity').dataset.nodeId + '.' + r.dataset.col + ':' + (r.classList.contains('hl-in') ? 'in' : '') + (r.classList.contains('hl-out') ? 'out' : '')).sort())`));
-  t.check('hover order: FK rows of the children point in (hl-in), referenced key rows of the parents out (hl-out), as the lines do',
-    J(roles) === J(['address.id:out', 'customer.id:out', 'order.customer_id:in', 'order.id:out', 'order.shipping_address_id:in', 'order_item.order_id:in', 'payment.order_id:in']), J(roles));
   await t.mouse('mouseMoved', 5, 600);
   await sleep(100);
-  t.check('leaving the table clears the neighbourhood, its chips and peeks', (await count('.rel-child, .rel-parent, .key-hl, .erd-key-chip, .erd-key-peek, .is-dim')) === 0);
+  t.check('leaving the table clears the neighbourhood', (await count('.rel-child, .rel-parent, .key-hl, .is-dim')) === 0);
   // selection gives the same neighbourhood; hover wins while over another table
   await t.clickOn(head('order'));
   await t.mouse('mouseMoved', 5, 600);
   await sleep(100);
-  t.check('selecting order by a click gives the same neighbourhood (touch and keyboard get it too)', J(await idsWith('rel-parent')) === J(['address', 'customer']) && J(await idsWith('rel-child')) === J(['order_item', 'payment']) && (await chips()).length === 4);
+  t.check('selecting order by a click gives the same neighbourhood (touch and keyboard get it too)', J(await idsWith('rel-parent')) === J(['address', 'customer']) && J(await idsWith('rel-child')) === J(['order_item', 'payment']));
   await hoverOn('product');
   t.check('hover wins while the pointer is over another table: product’s neighbourhood, not order’s', (await idsWith('rel-parent')).join() === 'category' && (await idsWith('rel-child')).join() === 'order_item,review', `${await idsWith('rel-parent')} ${await idsWith('rel-child')}`);
   await t.press('Escape');
   await t.mouse('mouseMoved', 5, 600);
   await sleep(80);
-  t.check('Escape clears the selection and with it the neighbourhood', (await count('.rel-child, .rel-parent, .erd-key-chip')) === 0);
+  t.check('Escape clears the selection and with it the neighbourhood', (await count('.rel-child, .rel-parent')) === 0);
   await t.clickOn(row('order', 'status'));
   await t.mouse('mouseMoved', 5, 600);
   await sleep(100);
@@ -974,32 +987,36 @@ sys.stdout.write(format_json(out))`;
   await freshPage();
   await hoverOn('category');
   t.check('hover category (parent of product): product is a child; a table never rings itself', J(await idsWith('rel-child')) === J(['product']) && (await idsWith('rel-parent')).length === 0);
-  // hidden rows: detail names -> peeks listing the joining columns
+  // detail names and a collapsed table: still no chips or peeks; the line's tooltip names the join
   await freshPage();
   await t.clickOn('#btn-columns');
   await t.clickOn('#btn-columns');
   await t.mouse('mouseMoved', 5, 600);
   await hoverOn('order');
-  const peeks = JSON.parse(await t.ev(`JSON.stringify([...document.querySelectorAll('.erd-key-peek')].map((p) => p.closest('.erd-entity').dataset.nodeId + ':' + [...p.querySelectorAll('.erd-key-row')].map((r) => r.querySelector('.erd-col-name').textContent + '|' + (r.querySelector('.erd-key-chip') || {}).textContent).join(',')).sort())`));
-  t.check('detail names: each related table shows a key peek listing just its joining columns, with the chips',
-    J(peeks) === J(['address:id|← order.shipping_address_id', 'customer:id|← order.customer_id', 'order_item:order_id|→ order.id', 'payment:order_id|→ order.id']), J(peeks));
-  const peekBox = await t.ev(`(() => { const e = document.querySelector('.erd-entity[data-node-id="customer"]'), p = e.querySelector('.erd-key-peek'), b = e.getBoundingClientRect(), q = p.getBoundingClientRect(); return { h: b.height, top: q.top - b.top, over: getComputedStyle(p).position, pe: getComputedStyle(p).pointerEvents }; })()`);
-  t.check('the peek is an overlay under the header (the table keeps its header-only size), and ignores the pointer', peekBox.h < 40 && peekBox.top >= 30 && peekBox.over === 'absolute' && peekBox.pe === 'none', J(peekBox));
-  // collapsed table + keys detail
+  t.check('detail names: no chips or peeks on the related tables', (await count('.erd-key-chip, .erd-key-peek')) === 0 && (await count('.rel-child')) === 2);
   await freshPage();
   await t.clickOn(`${head('customer')} .erd-chevron`);
   await t.mouse('mouseMoved', 5, 600);
   await hoverOn('order');
-  t.check('a collapsed related table shows a key peek too', (await t.ev(`!!document.querySelector('.erd-entity[data-node-id="customer"].is-collapsed .erd-key-peek')`)));
+  t.check('a collapsed related table shows no peek either', (await count('.erd-key-chip, .erd-key-peek')) === 0);
+  // the join as the line's tooltip
+  await freshPage();
+  const tips = JSON.parse(await t.ev(`JSON.stringify([...document.querySelectorAll('.erd-rel')].map((g) => g.dataset.from + '>' + g.dataset.to + ':' + (g.querySelector('title') || {}).textContent))`));
+  t.check('every line carries its join as a tooltip: order.customer_id → customer.id', tips.includes('order>customer:order.customer_id → customer.id') && tips.every((x) => / → /.test(x)), J(tips));
+  const tipLine = await onLine('r1');
+  await t.mouse('mouseMoved', tipLine.x - 3, tipLine.y - 3);
+  await t.mouse('mouseMoved', tipLine.x, tipLine.y);
+  await sleep(120);
+  t.check('hovering a line lights it and its two rows (no chips)', (await count('.erd-rel.hover')) === 1 && (await count('.erd-key-chip')) === 0 && (await t.ev(`document.querySelector('.erd-rel.hover title').textContent`)).includes(' → '));
   // ?present
   await freshPage(page, '?present');
   await hoverOn('order');
-  t.check('?present: the neighbourhood works (rings, key rows, chips)', J(await idsWith('rel-child')) === J(['order_item', 'payment']) && (await chips()).length === 4);
+  t.check('?present: the neighbourhood works (rings, key rows)', J(await idsWith('rel-child')) === J(['order_item', 'payment']));
   await t.clickOn(head('order'));
   await t.mouse('mouseMoved', 5, 600);
   await sleep(80);
   t.check('?present: a click selects a table and shows the same neighbourhood', J(await idsWith('rel-parent')) === J(['address', 'customer']));
-  // exports: no chip, peek or ring
+  // exports: no ring or tooltip
   await freshPage();
   await t.clickOn('#btn-columns');
   await t.clickOn('#btn-columns');
@@ -1010,7 +1027,7 @@ sys.stdout.write(format_json(out))`;
   await t.ev(`document.querySelector('[data-export="svg"]').click()`);
   await sleep(500);
   const svgText = await t.ev(`window.__svg`);
-  t.check('SVG export of a diagram with a selected table and peeks has no chip, peek or card (names mode: just the headers)', !!svgText && !/erd-key-(chip|peek)|→ order|← order/.test(svgText) && !/erd-expand-card/.test(svgText) && svgText.includes('order_item'), (svgText || '').slice(0, 100));
+  t.check('SVG export of a diagram with a selected table has no ring, tooltip or card (names mode: just the headers)', !!svgText && !/→ order|← order/.test(svgText) && !/erd-expand-card/.test(svgText) && svgText.includes('order_item'), (svgText || '').slice(0, 100));
   }
 
   // --- A v1 page (schemaVersion 1, flow-term layout map) opens re-laid out ---
@@ -1087,10 +1104,10 @@ sys.stdout.write(format_json(out))`;
   while ((await scaleNow()) <= 0.6) await zoom('in');
   t.check('above 60% the overview is left and the rows are back', !(await inOverview()) && (await probe()).rowsShown);
   while ((await scaleNow()) >= 0.5) await zoom('out');
-  // hover in the overview: peeks, expanded card
+  // hover in the overview: expanded card
   const hoverBig = async (id) => { const r = await t.at(`.erd-entity[data-node-id="${id}"]`); await t.mouse('mouseMoved', 5, 700); await t.mouse('mouseMoved', r.x - 2, r.y - 1); await t.mouse('mouseMoved', r.x, r.y); return r; };
   const cardInfo = () => t.ev(`(() => { const c = document.querySelector('.erd-expand-card'); if (!c) return null; const r = c.getBoundingClientRect(); const e = c.querySelector('.erd-entity');
-    return { for: c.dataset.cardFor, rows: [...c.querySelectorAll('.erd-row')].map((x) => x.dataset.col), chips: c.querySelectorAll('.erd-key-chip').length, w: r.width, h: r.height, name: parseFloat(getComputedStyle(c.querySelector('.erd-name')).fontSize), font: parseFloat(getComputedStyle(c.querySelector('.erd-col-name')).fontSize) }; })()`);
+    return { for: c.dataset.cardFor, rows: [...c.querySelectorAll('.erd-row')].map((x) => x.dataset.col), keyRows: c.querySelectorAll('.erd-row.key-hl').length, w: r.width, h: r.height, name: parseFloat(getComputedStyle(c.querySelector('.erd-name')).fontSize), font: parseFloat(getComputedStyle(c.querySelector('.erd-col-name')).fontSize) }; })()`);
   const big = JSON.parse(block(readFileSync(large, 'utf8')));
   const subCols = big.entities.find((e) => e.id === 'subscription').columns.map((c) => c.name);
   const subBox = await hoverBig('subscription');
@@ -1098,13 +1115,8 @@ sys.stdout.write(format_json(out))`;
   t.check('overview: no expanded card before the 150 ms delay', (await count('.erd-expand-card')) === 0);
   await sleep(250);
   const c1 = await cardInfo();
-  t.check('overview: hovering a table shows its expanded card after the delay, with every column, chips on its key rows, in 100% size', !!c1 && c1.for === 'subscription' && J(c1.rows) === J(subCols) && c1.chips >= 3 && Math.abs(c1.font - 13) < 0.5 && c1.h > 150, J(c1));
-  const peeksOv = await count('.erd-key-peek');
-  t.check('overview: hovering a table shows key peeks on its related tables (their rows are hidden)', peeksOv >= 3 && (await count('.rel-parent')) >= 1 && (await count('.rel-child')) >= 1, `${peeksOv}`);
-  const overlapCard = await t.ev(`(() => { const c = document.querySelector('.erd-expand-card').getBoundingClientRect(); return [...document.querySelectorAll('.erd-key-peek')].filter((p) => { const r = p.getBoundingClientRect(); return r.left < c.right && r.right > c.left && r.top < c.bottom && r.bottom > c.top; }).length; })()`);
-  t.check('overview: no key peek sits under the expanded card (they move outside the card’s box)', overlapCard === 0, `${overlapCard} of ${peeksOv}`);
-  const clipped = await t.ev(`[...document.querySelectorAll('.erd-expand-card .erd-key-chip, .erd-key-peek .erd-key-chip')].filter((c) => c.scrollHeight > c.clientHeight + 1 || c.scrollWidth > c.clientWidth + 1).map((c) => c.textContent)`);
-  t.check('overview: key chips wrap onto two lines instead of being cut off with an ellipsis', clipped.length === 0, J(clipped));
+  t.check('overview: hovering a table shows its expanded card after the delay, with every column, its key rows tinted, in 100% size', !!c1 && c1.for === 'subscription' && J(c1.rows) === J(subCols) && c1.keyRows >= 1 && Math.abs(c1.font - 13) < 0.5 && c1.h > 150, J(c1));
+  t.check('overview: hovering a table rings its related tables, with no peeks or chips', (await count('.erd-key-peek, .erd-key-chip')) === 0 && (await count('.rel-parent')) >= 1 && (await count('.rel-child')) >= 1);
   const cardBox = await t.at('.erd-expand-card');
   await t.mouse('mouseMoved', cardBox.x, cardBox.y + 20);
   await sleep(400);
@@ -1114,7 +1126,7 @@ sys.stdout.write(format_json(out))`;
   await sleep(100);
   t.check('overview: still there 100 ms after leaving, gone 150 ms after the pointer left both', noDim && (await count('.erd-expand-card')) === 1);
   await sleep(300);
-  t.check('overview: the card closes once the pointer has left the table and the card', (await count('.erd-expand-card')) === 0 && (await count('.rel-child, .rel-parent, .erd-key-peek')) === 0);
+  t.check('overview: the card closes once the pointer has left the table and the card', (await count('.erd-expand-card')) === 0 && (await count('.rel-child, .rel-parent')) === 0);
   // a click keeps it until Esc
   await hoverBig('subscription');
   await t.click(subBox.x, subBox.y);
@@ -1170,7 +1182,7 @@ sys.stdout.write(format_json(out))`;
   const exportClick = async (sel) => { await t.ev(`document.getElementById('btn-export').click()`); await t.clickOn(sel); await sleep(900); };
   await exportClick('[data-export="svg"]');
   const dl = await t.ev(`window.__svg`);
-  t.check(`overview: Download SVG is the full diagram (every column of every table, ${colTotal} rows) with no card, peek or chip`, !!dl && full(dl) && noOverlays(dl), (dl || '').length + '');
+  t.check(`overview: Download SVG is the full diagram (every column of every table, ${colTotal} rows) with no card`, !!dl && full(dl) && noOverlays(dl), (dl || '').length + '');
   const dlRows = (dl.match(/>[a-z_0-9]+<\/span>/g) || []).length;
   t.check('overview: the downloaded SVG draws the rows (not the names-only cards) and keeps full-size line strokes', dlRows >= colTotal && !/stroke-width:\s*(3[0-9]|[4-9][0-9])/.test(dl) || true);
   await t.ev(`window.__clip = []`);

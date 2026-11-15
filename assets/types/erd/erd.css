@@ -3,22 +3,19 @@
 
     /* Tokens */
 
-    /* The canvas is a card, like the flowchart's lane container. Its size is set by render() from the engine. */
+    /* The canvas has no card of its own: tables sit on the shell's dotted stage. Its size is set by render() from the engine;
+       the margin leaves room around the tables for Fit. */
     #erd-canvas {
       position: relative;
       box-sizing: content-box;
       margin: 40px;
-      background: var(--bg-panel);
-      border: 1px solid var(--border-dark);
-      border-radius: var(--radius-lg);
-      box-shadow: var(--shadow-canvas);
     }
     /* No stacking context on the layers below */
     #erd-svg { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; z-index: 10; }
     #erd-html { position: absolute; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; }
 
-    /* Capture mode (screenshots): the canvas goes edge to edge */
-    body.capture #erd-canvas { margin: 0; border: none; border-radius: 0; box-shadow: none; }
+    /* Capture mode (screenshots): no margin */
+    body.capture #erd-canvas { margin: 0; }
 
     /* --- Relationship lines --- */
     .erd-rel .edge-line {
@@ -29,9 +26,9 @@
     }
     .erd-rel .edge-line:not(.identifying) { stroke-dasharray: 6 4; }
     body.presentation .edge-hit { cursor: default; }
-    .erd-rel.hl-in  .edge-line { stroke: var(--edge-in);  stroke-width: 2px; marker-start: var(--mk-s-in);  marker-end: var(--mk-e-in); }
-    .erd-rel.hl-out .edge-line { stroke: var(--edge-out); stroke-width: 2px; marker-start: var(--mk-s-out); marker-end: var(--mk-e-out); }
-    .erd-rel.hover .edge-line, .erd-rel.selected .edge-line { stroke: var(--primary); stroke-width: 2px; marker-start: var(--mk-s-sel); marker-end: var(--mk-e-sel); }
+    /* Lines of the hovered table, hovered line, selected line: one colour */
+    .erd-rel:is(.hl-in, .hl-out, .hover, .selected) .edge-line { stroke: var(--primary); stroke-width: 2px; marker-start: var(--mk-s-sel); marker-end: var(--mk-e-sel); }
+    .edge-label:is(.hl-in, .hl-out) { border-color: var(--primary); box-shadow: var(--shadow-glow) var(--primary-glow); }
     .erd-rel.is-dim { opacity: 0.16; }
     /* Marker content: the line colour of its variant (--mk is set on the -in, -out and -sel copies) */
     .erd-mk path, .erd-mk circle {
@@ -87,14 +84,10 @@
       transition: box-shadow 0.15s;
     }
     .erd-entity:hover { --ring: var(--node-accent); box-shadow: var(--shadow-md); }
-    /* The neighbourhood of the hovered or selected table: children (they point at it) in the "in" colour, parents (it points
-       at them) in the "out" colour; related both ways: "in" */
-    .erd-entity.rel-parent { --ring: var(--edge-out); box-shadow: 0 0 0 var(--ring-lg) var(--edge-out-glow), var(--shadow-sm); }
-    .erd-entity.rel-child, .erd-entity.rel-child.rel-parent { --ring: var(--edge-in); box-shadow: 0 0 0 var(--ring-lg) var(--edge-in-glow), var(--shadow-sm); }
+    /* The neighbourhood of the hovered or selected table: related tables get a ring in the primary colour */
+    .erd-entity.rel-parent, .erd-entity.rel-child { --ring: var(--primary); box-shadow: 0 0 0 var(--ring-lg) var(--primary-glow), var(--shadow-sm); }
     .erd-entity.rel-parent::after, .erd-entity.rel-child::after { box-shadow: inset 0 0 0 var(--ring-md) var(--ring); }
-    .erd-entity.rel-parent .erd-head { box-shadow: inset 0 0 0 var(--ring-fill) color-mix(in srgb, var(--edge-out) 16%, transparent); }
-    .erd-entity.rel-child .erd-head { box-shadow: inset 0 0 0 var(--ring-fill) color-mix(in srgb, var(--edge-in) 18%, transparent); }
-    .erd-entity.has-peek { z-index: 35; }
+    .erd-entity.rel-parent .erd-head, .erd-entity.rel-child .erd-head { box-shadow: inset 0 0 0 var(--ring-fill) color-mix(in srgb, var(--primary) 16%, transparent); }
     .erd-entity.selected { --ring: var(--primary); box-shadow: var(--shadow-ring); }
     .erd-entity.is-dim { opacity: 0.38; }
     body.exporting .is-dim { opacity: 1 !important; }
@@ -189,51 +182,14 @@
       font-style: italic;
       border-top: 1px solid color-mix(in srgb, var(--border-color) 55%, transparent);
     }
-    /* Columns a hovered table or line joins: the line's own colour as a wash */
-    .erd-row.hl-in  { background: color-mix(in srgb, var(--edge-in) 20%, transparent); }
-    .erd-row.hl-out { background: color-mix(in srgb, var(--edge-out) 18%, transparent); }
-    .erd-row.hover  { background: color-mix(in srgb, var(--primary) 18%, transparent); }
-    .erd-row.key-hl .erd-col-name, .erd-key-row.key-hl .erd-col-name { font-weight: var(--weight-bold); }
-    /* The chip on a joining row of a related table: it takes the place of the type text */
-    .erd-key-chip {
-      flex: 0 1 auto; min-width: 0; margin-left: auto; padding: 0 7px;
-      border-radius: var(--radius-pill); box-sizing: border-box;
-      font-size: var(--t-overline-size); font-weight: var(--weight-semibold); line-height: var(--line-11); padding-top: 1px; padding-bottom: 1px;
-      white-space: normal; overflow-wrap: anywhere; overflow: hidden; max-height: 24px;   /* a long name wraps onto a second line, no ellipsis */
-      background: color-mix(in srgb, var(--chip, var(--primary)) 20%, var(--bg-panel));
-      color: var(--text-main);
-      border: 1px solid color-mix(in srgb, var(--chip, var(--primary)) 55%, transparent);
-    }
-    .erd-row.hl-in, .erd-key-row.hl-in { --chip: var(--edge-in); }
-    .erd-row.hl-out, .erd-key-row.hl-out { --chip: var(--edge-out); }
-    .erd-row.has-chip .erd-col-type, .erd-row.has-chip .erd-col-note { display: none; }
-    .erd-row.has-chip .erd-col-name { flex-shrink: 0; }
-    /* The key peek: the joining columns of a related table whose rows are not drawn, under its header (an overlay) */
-    .erd-key-peek {
-      position: absolute; left: 0; top: 40px; z-index: 6;
-      min-width: 100%; width: max-content; max-width: 340px; box-sizing: border-box;
-      padding: 3px 0; border-radius: var(--radius-lg);
-      background: var(--bg-panel); border: 1px solid var(--border-dark);
-      box-shadow: var(--shadow-lg);
-      pointer-events: none; font-size: var(--t-label-size);
-    }
-    .erd-key-row { display: flex; align-items: center; gap: 0; min-height: 24px; padding: 0 10px 0 12px; white-space: nowrap; }
-    .erd-key-row .erd-key-chip { max-width: 190px; }
-    .erd-key-row.hl-in { background: color-mix(in srgb, var(--edge-in) 18%, transparent); }
-    .erd-key-row.hl-out { background: color-mix(in srgb, var(--edge-out) 16%, transparent); }
-    .erd-key-row .erd-col-type { padding-left: 10px; margin-left: 0; }
-    .erd-key-row .erd-key-chip { margin-left: 10px; }
-    /* Never in an export: no chips or peeks, no neighbourhood rings, the types back */
-    body.exporting .erd-key-chip, body.exporting .erd-key-peek { display: none !important; }
-    body.exporting .erd-row.has-chip .erd-col-type { display: block !important; }
-    body.exporting .erd-row.has-chip .erd-col-note { display: block !important; }
+    /* Columns a hovered table or line joins: a light wash in the primary colour */
+    .erd-row.key-hl, .erd-row.hover { background: color-mix(in srgb, var(--primary) 16%, transparent); }
+    .erd-row.key-hl .erd-col-name { font-weight: var(--weight-bold); }
+    /* Never in an export: no neighbourhood rings */
     body.exporting .erd-entity.rel-parent, body.exporting .erd-entity.rel-child { --ring: var(--node-border); box-shadow: var(--shadow-sm); }
     body.exporting .erd-entity.rel-parent::after, body.exporting .erd-entity.rel-child::after { box-shadow: inset 0 0 0 var(--ring-thin) var(--ring); }
     body.exporting .erd-entity.rel-parent .erd-head, body.exporting .erd-entity.rel-child .erd-head { box-shadow: none; }
     body.exporting .erd-row.key-hl:not(.pk) .erd-col-name { font-weight: var(--weight-medium); }
-    body.exporting .erd-entity.has-peek { z-index: 20; }
-    .erd-head.hl-in  { box-shadow: inset 0 0 0 var(--ring-fill) color-mix(in srgb, var(--edge-in) 16%, transparent); }
-    .erd-head.hl-out { box-shadow: inset 0 0 0 var(--ring-fill) color-mix(in srgb, var(--edge-out) 14%, transparent); }
     .erd-head.hover  { box-shadow: inset 0 0 0 var(--ring-fill) color-mix(in srgb, var(--primary) 14%, transparent); }
 
     /* =====================================================================================================
@@ -305,13 +261,13 @@
     /* End handles of the selected line */
     .erd-handle {
       position: absolute;
-      width: 12px; height: 12px;
-      margin: -6px 0 0 -6px;
+      width: 10px; height: 10px;
+      margin: -5px 0 0 -5px;
       box-sizing: border-box;
       z-index: 52;
       border-radius: var(--radius-round);
-      border: 2px solid var(--primary);
-      background: var(--bg-panel);
+      border: 1.5px solid var(--primary);
+      background: transparent;   /* a hollow ring, so the line shows through */
       cursor: grab;
       touch-action: none;
       pointer-events: auto;
@@ -402,12 +358,7 @@
     body.erd-overview:not(.exporting) .edge-label { transform: scale(var(--inv)); transform-origin: 50% 50%; }
     body.erd-overview:not(.exporting) .edge-label.ov-hide:not(.ov-show):not(.is-editing-label) { display: none; }
     body.erd-overview:not(.exporting) .note { transform: scale(var(--inv)); transform-origin: 50% 50%; }
-    /* The key peek stays readable too, under the card's box */
-    body.erd-overview:not(.exporting) .erd-key-peek { top: calc(100% + 4px * var(--inv)); transform: scale(var(--inv)); transform-origin: 0 0; }
-
     /* The expanded card: the full table at 100% size, fixed over the table's box, above everything; never exported */
     .erd-expand-card { position: fixed; z-index: 900; pointer-events: auto; }
     .erd-expand-card .erd-entity { position: relative; width: max-content; z-index: auto; cursor: default; box-shadow: var(--shadow-xl); transition: none; }
-    .erd-expand-card .erd-row.has-chip .erd-col-type { display: block; }
-    .erd-expand-card .erd-key-chip { margin-left: 10px; }
     body.exporting .erd-expand-card { display: none !important; }

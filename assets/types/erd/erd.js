@@ -79,18 +79,16 @@
         return el;
       }
 
-      // The state variants of the four end markers (stage.html has the base ones): the line's hover, in/out and
-      // selected colours, applied through CSS variables on each line (see .erd-rel in erd.css)
+      // The highlighted variant of the four end markers (stage.html has the base ones): the primary colour of a hovered or
+      // selected line, applied through CSS variables on each line (see .erd-rel in erd.css)
       (function makeMarkerVariants() {
         ERD_END_KINDS.forEach((kind) => {
           const base = document.getElementById(`erd-end-${kind}`);
           if (!base) return;
-          [['in', '--edge-in'], ['out', '--edge-out'], ['sel', '--primary']].forEach(([suffix, token]) => {
-            const copy = base.cloneNode(true);
-            copy.id = `${base.id}-${suffix}`;
-            copy.style.setProperty('--mk', `var(${token})`);
-            base.parentNode.appendChild(copy);
-          });
+          const copy = base.cloneNode(true);
+          copy.id = `${base.id}-sel`;
+          copy.style.setProperty('--mk', 'var(--primary)');
+          base.parentNode.appendChild(copy);
         });
       })();
 
@@ -353,6 +351,13 @@
         return { x: (c[0][0] + 3 * c[1][0] + 3 * c[2][0] + c[3][0]) / 8, y: (c[0][1] + 3 * c[1][1] + 3 * c[2][1] + c[3][1]) / 8 };
       }
 
+      // The join of a line as its tooltip: "order.customer_id → customer.id", "order.(a, b) → parent.(x, y)"
+      function erdJoinText(rel) {
+        const side = ({ id, cols }) => `${erName(erdEntity(id))}${cols.length > 1 ? `.(${cols.join(', ')})` : cols.length ? `.${cols[0]}` : ''}`;
+        const [from, to] = joinedRows(rel);
+        return from && to ? `${side(from)} → ${side(to)}` : '';
+      }
+
       function renderRelationships() {
         erdRelsList().forEach((rel) => {
           if (!rel.curve || rel.curve.length !== 4) return;
@@ -363,11 +368,13 @@
           const line = erdSvgEl('path', { class: `edge-line${rel.identifying === true ? ' identifying' : ''}`, d });
           const fromKind = ERD_END_KINDS.includes(ends.fromEnd) ? ends.fromEnd : 'zeroOrMany';
           const toKind = ERD_END_KINDS.includes(ends.toEnd) ? ends.toEnd : 'one';
-          [['', ''], ['-in', '-in'], ['-out', '-out'], ['-sel', '-sel']].forEach(([suffix]) => {
-            const key = suffix.replace('-', '');
-            line.style.setProperty(`--mk-s${key ? '-' + key : ''}`, `url(#erd-end-${fromKind}${suffix})`);
-            line.style.setProperty(`--mk-e${key ? '-' + key : ''}`, `url(#erd-end-${toKind}${suffix})`);
+          ['', '-sel'].forEach((suffix) => {
+            line.style.setProperty(`--mk-s${suffix}`, `url(#erd-end-${fromKind}${suffix})`);
+            line.style.setProperty(`--mk-e${suffix}`, `url(#erd-end-${toKind}${suffix})`);
           });
+          const tip = erdSvgEl('title', { 'data-export-skip': '' });
+          tip.textContent = erdJoinText(rel);
+          g.appendChild(tip);
           g.appendChild(hit);
           g.appendChild(line);
           g.addEventListener('pointerenter', (ev) => {
@@ -403,16 +410,13 @@
 
       // --- HOVER AND SELECTION ---
       // The neighbourhood of one table (hovered, or the only one selected; hover wins while the pointer is over another):
-      //  - lines: those entering it (hl-in, amber: its children) and leaving it (hl-out, blue: its parents), thicker;
-      //  - related tables: rel-child (points at it: ring and header in the "in" colour) / rel-parent (it points at them:
-      //    the "out" colour); both ways = the "in" ring. Everything else dims;
-      //  - key rows: the joining rows of every table in the neighbourhood get key-hl (bold, tinted by role: hl-in for a
-      //    child's foreign key rows, hl-out for the parent's referenced rows); on a related table each also gets a
-      //    span.erd-key-chip ("→ customer.id", "← order.customer_id", "← 3 columns");
-      //  - hidden rows: when a related table does not draw a joining row (detail keys/names, collapsed) a div.erd-key-peek
-      //    card under its header lists just those columns, as an overlay (no layout change, lines still end at the header).
-      // Hover a line: its two rows light up. Classes are transient (a selected one is stripped from an export, and
-      // body.exporting hides chips and peeks and the rest in erd.css), and none of it is saved.
+      //  - lines: those entering it (hl-in) and leaving it (hl-out), thicker, all in the primary colour (the crow's feet show
+      //    the direction);
+      //  - related tables: rel-child (points at it) / rel-parent (it points at them): a ring in the primary colour. Everything
+      //    else dims;
+      //  - key rows: the joining rows of every table in the neighbourhood that are drawn get key-hl (bold, light tint).
+      // Hover a line: its two rows light up, and its tooltip names the join ("order.customer_id → customer.id").
+      // Classes are transient (a selected one is stripped from an export, see body.exporting in erd.css), none of it is saved.
       function joinedRows(rel) {
         const from = erdEntity(rel.from), to = erdEntity(rel.to);
         const out = [];
@@ -477,41 +481,6 @@
         });
         return tables;
       }
-      // The chip text of a joining row: "→ customer.id" on a child's key row, "← order.customer_id" (or "← 3 columns") on a parent's
-      function erdChipText(r) {
-        const part = (refs, arrow, many) => {
-          const u = [...new Set(refs)];
-          return u.length === 1 ? `${arrow} ${u[0]}` : `${arrow} ${u.length} ${many}`;
-        };
-        return [r.in.length ? part(r.in, '→', 'tables') : '', r.out.length ? part(r.out, '←', 'columns') : ''].filter(Boolean).join(' ');
-      }
-      function erdChipEl(text) {
-        const c = erdHtmlEl('span', 'erd-key-chip', text);
-        c.dataset.exportSkip = '';
-        c.title = text;
-        return c;
-      }
-      // The card of joining columns a related table shows when it does not draw their rows
-      function erdBuildPeek(ent, rows) {
-        const showTypes = chartData.showTypes !== false;
-        const peek = erdHtmlEl('div', 'erd-key-peek');
-        peek.dataset.exportSkip = '';
-        rows.forEach(({ col, r }) => {
-          const def = (ent.columns || []).find((c) => c.name === col) || { name: col };
-          const row = erdHtmlEl('div', `erd-key-row key-hl${r.in.length ? ' hl-in' : ''}${r.out.length ? ' hl-out' : ''}`);
-          row.dataset.col = col;
-          const glyph = erdHtmlEl('span', `erd-glyph${def.pk && def.fk ? ' both' : ''}`);
-          if (def.pk) glyph.insertAdjacentHTML('beforeend', ERD_KEY_ICON);
-          if (def.fk) glyph.insertAdjacentHTML('beforeend', ERD_LINK_ICON);
-          row.appendChild(glyph);
-          row.appendChild(erdHtmlEl('span', 'erd-col-name', col));
-          if (showTypes) row.appendChild(erdHtmlEl('span', 'erd-col-type', `${def.type == null ? '' : def.type}${def.nullable ? '?' : ''}`));
-          row.appendChild(erdChipEl(erdChipText(r)));
-          peek.appendChild(row);
-        });
-        return peek;
-      }
-
       // The table whose neighbourhood is on show: the hovered one, else the only one selected (not while a line is hovered,
       // nor while a drag moves things)
       function erdFocusId() {
@@ -522,9 +491,8 @@
       }
 
       function applyHighlight() {
-        erdCanvas.querySelectorAll('.erd-key-chip, .erd-key-peek').forEach((el) => el.remove());
-        erdCanvas.querySelectorAll('.hl-in, .hl-out, .hover, .rel-child, .rel-parent, .key-hl, .has-chip, .has-peek, .is-dim')
-          .forEach((el) => el.classList.remove('hl-in', 'hl-out', 'hover', 'rel-child', 'rel-parent', 'key-hl', 'has-chip', 'has-peek', 'is-dim'));
+        erdCanvas.querySelectorAll('.hl-in, .hl-out, .hover, .rel-child, .rel-parent, .key-hl, .is-dim')
+          .forEach((el) => el.classList.remove('hl-in', 'hl-out', 'hover', 'rel-child', 'rel-parent', 'key-hl', 'is-dim'));
         erdCanvas.querySelectorAll('.ov-show').forEach((el) => el.classList.remove('ov-show'));
         const keep = new Set();
         const keepRels = new Set();
@@ -547,18 +515,12 @@
               if (info.child) el.classList.add('rel-child');
               if (info.parent) el.classList.add('rel-parent');
             }
+            if (erdOverview && !isFocus) return;
             const rowEls = [...el.querySelectorAll('.erd-row')];
-            const hidden = [];
             info.rows.forEach((r, col) => {
-              const rowEl = erdOverview && !isFocus ? null : rowEls.find((x) => x.dataset.col === col);
-              if (rowEl) {
-                rowEl.classList.add('key-hl');
-                if (r.in.length) rowEl.classList.add('hl-in');
-                if (r.out.length) rowEl.classList.add('hl-out');
-                if (!isFocus) { rowEl.classList.add('has-chip'); rowEl.appendChild(erdChipEl(erdChipText(r))); }
-              } else if (!isFocus) hidden.push({ col, r });
+              const rowEl = rowEls.find((x) => x.dataset.col === col);
+              if (rowEl) rowEl.classList.add('key-hl');
             });
-            if (hidden.length) { el.appendChild(erdBuildPeek(ent, hidden)); el.classList.add('has-peek'); }
           });
         } else if (hoverRelId) {
           const rel = erdRel(hoverRelId);
@@ -594,7 +556,6 @@
         markTouchPorts();
         applyNoteVisibility();
         erdSyncCard();
-        erdPlacePeeks();
       }
 
       // Touch: a finger reaches the plugin only inside `.selected` or `[data-touch-drag]` (the shell's rule). The ports of
@@ -761,15 +722,7 @@
         wrap.appendChild(table);
         const info = erdNeighbourhood(want).get(want);
         if (info) {
-          const rows = [...table.querySelectorAll('.erd-row')];
-          info.rows.forEach((r, col) => {
-            const row = rows.find((x) => x.dataset.col === col);
-            if (!row) return;
-            row.classList.add('has-chip');
-            if (r.in.length) row.classList.add('hl-in');
-            if (r.out.length) row.classList.add('hl-out');
-            row.appendChild(erdChipEl(erdChipText(r)));
-          });
+          [...table.querySelectorAll('.erd-row')].forEach((row) => { if (info.rows.has(row.dataset.col)) row.classList.add('key-hl'); });
         }
         document.body.appendChild(wrap);
         const r = el.getBoundingClientRect(), vp = viewport.getBoundingClientRect(), w = wrap.offsetWidth, h = wrap.offsetHeight;
@@ -781,20 +734,6 @@
         erdCardEl = wrap;
         erdCardId = want;
       }
-      // A key peek that the expanded card would cover moves out of the card's box: by the shortest shift (up, down, left or right)
-      function erdPlacePeeks() {
-        if (!erdCardEl) return;
-        const c = erdCardEl.getBoundingClientRect(), gap = 6;
-        erdCanvas.querySelectorAll('.erd-key-peek').forEach((p) => {
-          p.style.translate = '';
-          const r = p.getBoundingClientRect();
-          if (!(r.left < c.right && r.right > c.left && r.top < c.bottom && r.bottom > c.top)) return;
-          const moves = [[0, c.bottom + gap - r.top], [0, c.top - gap - r.bottom], [c.right + gap - r.left, 0], [c.left - gap - r.right, 0]];
-          const [dx, dy] = moves.sort((a, b) => Math.abs(a[0] + a[1]) - Math.abs(b[0] + b[1]))[0];
-          p.style.translate = `${dx / scale}px ${dy / scale}px`;
-        });
-      }
-
       // Zoom to a table at 100%, centred in the view
       function erdZoomToTable(id) {
         const el = entityEl(id);
@@ -833,7 +772,7 @@
         }
         if (erdBtnTypes) {
           const on = chartData.showTypes !== false;
-          erdBtnTypes.setAttribute('aria-pressed', String(on));
+          erdBtnTypes.setAttribute('aria-checked', String(on));
           erdBtnTypes.title = on ? 'Hide the column types' : 'Show the column types';
         }
         updateNotesButton();
@@ -1165,7 +1104,7 @@
         if (!erdBtnNotes) return;
         const count = notesList().filter((n) => noteTextOf(n)).length;
         const on = !!chartData.showNotes;
-        erdBtnNotes.setAttribute('aria-pressed', String(on));
+        erdBtnNotes.setAttribute('aria-checked', String(on));
         erdBtnNotes.disabled = !count && !on;
         const c = erdBtnNotes.querySelector('.btn-count');
         if (c) { c.textContent = count ? String(count) : ''; c.hidden = !count; }
@@ -1367,6 +1306,20 @@
       }
       const abSep = () => erdHtmlEl('span', 'erd-ab-sep');
 
+      // The end handles sit this far along the line from the table edge, past the crow's foot (the marker is 26px long)
+      const ERD_HANDLE_GAP = 34;
+      // The point of the curve `dist` px along it from one end (the last point when `fromEnd`), found by sampling
+      function erdPointAlong(c, dist, fromEnd) {
+        const at = (t) => [0, 1].map((k) => (1 - t) ** 3 * c[0][k] + 3 * (1 - t) ** 2 * t * c[1][k] + 3 * (1 - t) * t * t * c[2][k] + t ** 3 * c[3][k]);
+        let prev = at(fromEnd ? 1 : 0), run = 0;
+        for (let i = 1; i <= 240; i++) {
+          const p = at(fromEnd ? 1 - i / 240 : i / 240);
+          run += Math.hypot(p[0] - prev[0], p[1] - prev[1]);
+          if (run >= dist) return p;
+          prev = p;
+        }
+        return at(0.5);   // a line shorter than the gap: the middle
+      }
       function addHandle(role, id, x, y) {
         const h = erdHtmlEl('div', 'erd-handle');
         h.dataset.role = role;
@@ -1436,8 +1389,10 @@
             'Identifying: the key is part of the child’s primary key (solid line); off: dashed', rel.identifying === true));
           bar.appendChild(abButton('reverse', ui.icon('reverse'), 'Reverse: swap the child and the parent'));
           bar.appendChild(abButton('label', ui.icon('label'), 'Label the line (or double-click it)'));
-          addHandle('from', rel.id, rel.curve[0][0], rel.curve[0][1]);
-          addHandle('to', rel.id, rel.curve[3][0], rel.curve[3][1]);
+          const gap = ERD_HANDLE_GAP * (erdOverview ? 1 / scale : 1);   // the markers grow by 1 / scale in the overview
+          const hFrom = erdPointAlong(rel.curve, gap, false), hTo = erdPointAlong(rel.curve, gap, true);
+          addHandle('from', rel.id, hFrom[0], hFrom[1]);
+          addHandle('to', rel.id, hTo[0], hTo[1]);
           erdHtml.appendChild(bar);
           placeRelBar(bar, rel);
           return;
