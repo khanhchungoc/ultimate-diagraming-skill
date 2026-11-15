@@ -2,23 +2,20 @@
   "diagramType": "erd",
   "title": "Keys only",
   "detail": "keys",
-  "groups": [
-    { "id": "core", "name": "Core", "color": "#e0f2fe" },
-    { "id": "ext", "name": "Extra", "color": "#dcfce7" }
-  ],
+  "colorKey": {"#e0f2fe": "Core", "#dcfce7": "Extra"},
   "entities": [
-    { "id": "account", "name": "account", "group": "core", "columns": [
+    { "id": "account", "name": "account", "color": "#e0f2fe", "columns": [
       { "name": "id", "type": "uuid", "pk": true },
       { "name": "email", "type": "text", "unique": true },
       { "name": "created_at", "type": "timestamptz" },
       { "name": "plan_id", "type": "uuid", "fk": true }
     ] },
-    { "id": "plan", "name": "plan", "group": "core", "columns": [
+    { "id": "plan", "name": "plan", "color": "#e0f2fe", "columns": [
       { "name": "id", "type": "uuid", "pk": true },
       { "name": "name", "type": "text" },
       { "name": "price", "type": "numeric" }
     ] },
-    { "id": "invoice", "name": "invoice", "group": "core", "columns": [
+    { "id": "invoice", "name": "invoice", "color": "#e0f2fe", "columns": [
       { "name": "id", "type": "uuid", "pk": true },
       { "name": "account_id", "type": "uuid", "fk": true },
       { "name": "field_1", "type": "text" },
@@ -30,18 +27,18 @@
       { "name": "field_7", "type": "text" },
       { "name": "field_8", "type": "text" }
     ] },
-    { "id": "invoice_line", "name": "invoice_line", "group": "core", "collapsed": true, "columns": [
+    { "id": "invoice_line", "name": "invoice_line", "color": "#e0f2fe", "collapsed": true, "columns": [
       { "name": "id", "type": "uuid", "pk": true },
       { "name": "invoice_id", "type": "uuid", "fk": true },
       { "name": "qty", "type": "int" }
     ] },
-    { "id": "event", "name": "event", "group": "ext", "collapsed": true, "columns": [
+    { "id": "event", "name": "event", "color": "#dcfce7", "collapsed": true, "columns": [
       { "name": "id", "type": "uuid", "pk": true },
       { "name": "account_id", "type": "uuid", "fk": true },
       { "name": "kind", "type": "text" },
       { "name": "payload", "type": "jsonb", "nullable": true }
     ] },
-    { "id": "setting", "name": "setting", "group": "ext", "columns": [
+    { "id": "setting", "name": "setting", "color": "#dcfce7", "columns": [
       { "name": "account_id", "type": "uuid", "pk": true, "fk": true },
       { "name": "key", "type": "text", "pk": true },
       { "name": "value", "type": "text" }

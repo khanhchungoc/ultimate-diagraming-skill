@@ -26,40 +26,11 @@
       box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -2px rgba(0,0,0,0.05);
     }
     /* No stacking context on the layers below */
-    #erd-groups { position: absolute; inset: 0; }
     #erd-svg { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; z-index: 10; }
     #erd-html { position: absolute; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; }
 
     /* Capture mode (screenshots): the canvas goes edge to edge */
     body.capture #erd-canvas { margin: 0; border: none; border-radius: 0; box-shadow: none; }
-
-    /* --- Group boxes: a rounded container fitted to its tables, a low-opacity swatch fill and a 1px swatch border (the
-       sequence frame's look), with the name on a tab at the top-left. Under the lines and the tables. --- */
-    .erd-group {
-      position: absolute;
-      box-sizing: border-box;
-      border-radius: 8px;
-      background: color-mix(in srgb, var(--sw-stripe) 7%, transparent);
-      border: 1px solid color-mix(in srgb, var(--sw-stripe) 45%, var(--border-dark));
-    }
-    .erd-group-tab {
-      position: absolute;
-      left: 8px; top: 5px;
-      box-sizing: border-box;
-      max-width: calc(100% - 16px);
-      height: 22px;
-      padding: 0 11px;
-      border-radius: 999px;
-      background: var(--sw-pill-bg);
-      color: var(--sw-pill-ink);
-      font-size: 13px;
-      font-weight: 600;
-      line-height: 22px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      transform-origin: 0 0;
-    }
 
     /* --- Relationship lines --- */
     .erd-rel-line {
@@ -140,6 +111,8 @@
       box-shadow: 0 2px 4px rgba(0,0,0,0.06);
       transition: box-shadow 0.15s, opacity 0.15s;
     }
+    /* A coloured table: the whole card takes a light wash of its colour, the header the full pill colour */
+    .erd-entity.swatch-scope:not(.erd-card-table) { background: color-mix(in srgb, var(--sw-pill-bg) 35%, var(--node-bg)); }
     /* The outline is an overlay ring (it stays on top of the rows), as the flowchart's step outline is an inset shadow */
     .erd-entity::after {
       content: '';
@@ -262,7 +235,8 @@
     .erd-key-chip {
       flex: 0 1 auto; min-width: 0; margin-left: auto; padding: 0 7px;
       border-radius: 999px; box-sizing: border-box;
-      font-size: 10.5px; font-weight: 600; line-height: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      font-size: 10px; font-weight: 600; line-height: 11px; padding-top: 1px; padding-bottom: 1px;
+      white-space: normal; overflow-wrap: anywhere; overflow: hidden; max-height: 24px;   /* a long name wraps onto a second line, no ellipsis */
       background: color-mix(in srgb, var(--chip, var(--primary)) 20%, var(--bg-panel));
       color: var(--text-main);
       border: 1px solid color-mix(in srgb, var(--chip, var(--primary)) 55%, transparent);
@@ -280,7 +254,8 @@
       box-shadow: 0 8px 20px rgba(0,0,0,0.2);
       pointer-events: none; font-size: 13px;
     }
-    .erd-key-row { display: flex; align-items: center; gap: 0; height: 24px; padding: 0 10px 0 12px; white-space: nowrap; }
+    .erd-key-row { display: flex; align-items: center; gap: 0; min-height: 24px; padding: 0 10px 0 12px; white-space: nowrap; }
+    .erd-key-row .erd-key-chip { max-width: 190px; }
     .erd-key-row.hl-in { background: color-mix(in srgb, var(--edge-in) 18%, transparent); }
     .erd-key-row.hl-out { background: color-mix(in srgb, var(--edge-out) 16%, transparent); }
     .erd-key-row .erd-col-type { padding-left: 10px; margin-left: 0; }
@@ -422,10 +397,10 @@
        EDITING (wave 3): ports, handles, action bar, inline edits, drags, confirm. Everything here is an editing
        aid ([data-export-skip] in the DOM) and is hidden in ?present.
        ===================================================================================================== */
-    .erd-entity, .erd-group-tab, .erd-rel-label { -webkit-user-select: none; user-select: none; }
+    .erd-entity, .erd-rel-label { -webkit-user-select: none; user-select: none; }
     [contenteditable]:not([contenteditable="false"]) { -webkit-user-select: text; user-select: text; cursor: text; outline: none; }
     .erd-head { position: relative; }
-    .erd-name.is-editing, .erd-col-name.is-editing, .erd-col-type.is-editing, .erd-group-tab.is-editing, .erd-rel-label-text.is-editing {
+    .erd-name.is-editing, .erd-col-name.is-editing, .erd-col-type.is-editing, .erd-rel-label-text.is-editing {
       min-width: 36px;
       background: var(--bg-panel);
       color: var(--text-main);
@@ -439,7 +414,6 @@
     .erd-col-type.is-editing { text-align: right; }
     .erd-col-type:empty { min-width: 28px; }
     .erd-col-name.is-editing { flex: 1 1 auto; }
-    .erd-group-tab.is-editing { width: max-content; max-width: none; z-index: 60; overflow: visible; }
 
     /* Connect ports: on the right edge of each row and of the header, shown on hover (all of them while the Relationship tool is armed) */
     .erd-port {
@@ -475,11 +449,6 @@
     #erd-rubber { stroke: var(--primary); stroke-width: 2; stroke-dasharray: 6 4; display: none; fill: none; pointer-events: none; }
     .erd-row.selected { background: color-mix(in srgb, var(--primary) 13%, transparent); box-shadow: inset 0 0 0 1.5px var(--primary); }
     .erd-row.is-dragging, .erd-entity.is-dragging { opacity: 0.8; z-index: 50; box-shadow: 0 8px 20px rgba(0,0,0,0.16); background: var(--node-bg); }
-    .erd-group.is-dragging { opacity: 0.85; z-index: 5; box-shadow: 0 8px 20px rgba(0,0,0,0.12); }
-    .erd-group.selected { border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary-ring); }
-    .erd-group.selected .erd-group-tab { box-shadow: 0 0 0 2px var(--primary); }
-    .erd-group.drop-target { outline: 2px dashed var(--primary); outline-offset: -3px; }
-    .erd-group-tab { cursor: grab; }
     .erd-drop-line { position: absolute; display: none; height: 4px; background: var(--primary); border-radius: 2px; z-index: 60; pointer-events: none; }
     .erd-guide { position: absolute; display: none; pointer-events: none; z-index: 55; }
     .erd-guide-v { top: 0; bottom: 0; width: 0; border-left: 1.5px dashed var(--guide); }
@@ -615,7 +584,7 @@
 
     /* ?present: read only. Hover, highlight and collapse still work. */
     body.presentation .erd-port, body.presentation .erd-handle, body.presentation .erd-actionbar, body.presentation .erd-note-add,
-    body.presentation .erd-note-del, body.presentation .erd-note-link, body.presentation .erd-group-tab { cursor: default; }
+    body.presentation .erd-note-del, body.presentation .erd-note-link { cursor: default; }
     body.presentation .erd-port, body.presentation .erd-handle, body.presentation .erd-actionbar, body.presentation .erd-note-add,
     body.presentation .erd-note-del, body.presentation .erd-note-link, body.presentation .erd-drop-line, body.presentation .erd-guide { display: none !important; }
     body.presentation .erd-note { cursor: default; }
@@ -648,11 +617,9 @@
     body.erd-overview:not(.exporting) .erd-rel-hit { stroke-width: calc(14px * var(--inv)); }
     body.erd-overview:not(.exporting) .erd-mk { overflow: visible; }
     body.erd-overview:not(.exporting) .erd-mk path, body.erd-overview:not(.exporting) .erd-mk circle { transform: scale(var(--inv)); transform-origin: 0 0; }
-    /* Labels, group tabs, notes: constant on-screen size, scaled about their centre (tabs: their corner) */
+    /* Labels and notes: constant on-screen size, scaled about their centre */
     body.erd-overview:not(.exporting) .erd-rel-label { transform: scale(var(--inv)); transform-origin: 50% 50%; }
     body.erd-overview:not(.exporting) .erd-rel-label.ov-hide:not(.ov-show):not(.is-editing-label) { display: none; }
-    body.erd-overview:not(.exporting) .erd-group-tab { transform: scale(var(--inv)); max-width: calc((100% - 16px) / var(--inv)); }
-    body.erd-overview:not(.exporting) .erd-group { border-width: calc(1px * var(--inv)); }
     body.erd-overview:not(.exporting) .erd-note { transform: scale(var(--inv)); transform-origin: 50% 50%; }
     /* The key peek stays readable too, under the card's box */
     body.erd-overview:not(.exporting) .erd-key-peek { top: calc(100% + 4px * var(--inv)); transform: scale(var(--inv)); transform-origin: 0 0; }

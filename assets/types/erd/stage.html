@@ -1,10 +1,9 @@
       <div id="erd-canvas">
-        <!-- Group boxes (rounded, tinted, fitted to their tables) with a name tab at the top-left -->
-        <div id="erd-groups"></div>
         <svg id="erd-svg" xmlns="http://www.w3.org/2000/svg">
           <defs>
             <!-- Crow's-foot ends. Drawn pointing at the box: the tip (x = 0) sits on the box edge, the line comes in from
-                 the left, and orient="auto-start-reverse" turns the start marker round. erd.js adds the -in, -out and
+                 the left, and orient="auto-start-reverse" turns the start marker round. A curve leaves each table at right
+                 angles, so the marker sits square on the edge. erd.js adds the -in, -out and
                  -sel variants (line colour when a table is hovered, and selected) from these four. -->
             <marker id="erd-end-one" class="erd-mk" viewBox="-24 -9 28 18" markerWidth="28" markerHeight="18" refX="0" refY="0" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
               <path d="M-7 -6V6M-12 -6V6"/>

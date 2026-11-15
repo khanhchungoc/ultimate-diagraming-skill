@@ -1,41 +1,38 @@
 # ER Diagram (`diagramType: "erd"`)
 
-Use for a database schema: tables, their columns and keys, and the relationships between them (crow's-foot notation). Not for process flows (use `flowchart`) or messages over time (use `sequence`). Positions, box sizes, subject-area boxes and the routes of the lines are computed by the tooling; author only the logical model.
+Use for a database schema: tables, their columns and keys, and the relationships between them (crow's-foot notation). Not for process flows (use `flowchart`) or messages over time (use `sequence`). Positions, box sizes and the curves of the lines are computed by the tooling; author only the logical model, and colour the tables by domain (see Colour).
 
 **Example to copy (read it next; path is from `<skill-dir>`):** `references/examples/example-erd.json`.
 
 ## Schema
 
-Never add coordinates or sizes (`x`, `y`, `w`, `h`, `box`, `points`, `layout`); `--layout` computes them. Array order is display order: tables in `entities` order, columns in `columns` order. Order only breaks ties: the layout puts the most connected table of each area in the middle of its box. A saved page embeds this JSON plus a trailing `layout` map (area origins and table positions inside their area; display-only; leave it out when you write). Every field marked optional can be left out.
+Never add coordinates or sizes (`x`, `y`, `w`, `h`, `box`, `points`, `layout`); `--layout` computes them. Array order is display order: tables in `entities` order, columns in `columns` order. Order only breaks ties: the layout spreads the tables like a graph, with the most connected tables in the middle and their neighbours around them. A saved page embeds this JSON with `schemaVersion` 3 and a trailing `layout` map of absolute table positions (display-only; leave it and `schemaVersion` out when you write). A page saved in the older format (`schemaVersion` 2 or 1, with `groups`) still opens: each group's colour becomes the `color` of its tables, the group names become `colorKey`, and the diagram is laid out again. Every field marked optional can be left out.
 
 ```json
 {
   "diagramType": "erd",
   "title": "Shop",
-  "groups": [
-    { "id": "sales", "name": "Sales", "color": "#e0f2fe" },
-    { "id": "catalog", "name": "Catalog", "color": "#dcfce7" }
-  ],
+  "colorKey": { "#e0f2fe": "Sales", "#dcfce7": "Catalog" },
   "entities": [
-    { "id": "customer", "name": "customer", "group": "sales",
+    { "id": "customer", "name": "customer", "color": "#e0f2fe",
       "columns": [
         { "name": "id", "type": "uuid", "pk": true },
         { "name": "email", "type": "text", "unique": true },
         { "name": "phone", "type": "text", "nullable": true }
       ] },
-    { "id": "order", "name": "order", "group": "sales",
+    { "id": "order", "name": "order", "color": "#e0f2fe",
       "columns": [
         { "name": "id", "type": "uuid", "pk": true },
         { "name": "customer_id", "type": "uuid", "fk": true },
         { "name": "placed_at", "type": "timestamptz" }
       ] },
-    { "id": "order_item", "name": "order_item", "group": "sales",
+    { "id": "order_item", "name": "order_item", "color": "#e0f2fe",
       "columns": [
         { "name": "order_id", "type": "uuid", "pk": true, "fk": true },
         { "name": "product_id", "type": "uuid", "pk": true, "fk": true },
         { "name": "qty", "type": "int", "note": "1 to 99" }
       ] },
-    { "id": "product", "name": "product", "group": "catalog",
+    { "id": "product", "name": "product", "color": "#dcfce7",
       "columns": [ { "name": "id", "type": "uuid", "pk": true }, { "name": "name", "type": "text" } ] }
   ],
   "relationships": [
@@ -54,19 +51,18 @@ Never add coordinates or sizes (`x`, `y`, `w`, `h`, `box`, `points`, `layout`); 
 | Diagram | `detail` | Optional. `all` (default: every column), `keys` (only `pk` and `fk` columns, plus a "+ N more" row), `names` (table headers only). The page's **Columns** button cycles it. |
 | Diagram | `showTypes` | Optional. `false` hides the type column. |
 | Diagram | `showNotes` | Optional. `true` draws notes on the canvas instead of as badges. |
-| Diagram | `colorKey` | Optional, only when you colour tables with `color` instead of using `groups`: `{ "#e0f2fe": "Billing" }`, what each colour means. |
-| Group | `id`, `name`, `color` | A subject area, drawn as a rounded box, tinted with its colour, that fits its tables, with its name in a tab on the top edge. The boxes are packed side by side in two dimensions. `color` is one of the flowchart's lane swatches, as the hex: `#e0f2fe` sky, `#fef3c7` amber, `#dcfce7` emerald, `#fee2e2` rose, `#f3e8ff` purple, `#ffedd5` orange, `#ccfbf1` teal, `#e0e7ff` indigo. Leave `color` out to take the next swatch in order. With no `groups` there are no boxes, and the tables are laid out in one block. |
-| Entity | `id`, `name`, `group` | One table. `name` is shown as written, so keep the database's casing. `group` is a group id (a table with none goes in the first area). |
+| Diagram | `colorKey` | Optional. `{ "#e0f2fe": "Billing" }`: the domain each table colour stands for, shown as a legend. Write it whenever you use `color`. |
+| Entity | `id`, `name` | One table. `name` is shown as written, so keep the database's casing. |
 | Entity | `columns` | Array, shown in order. Each column: `name` (unique within the table), `type` (optional, free text shown as written), `pk`, `fk`, `unique`, `nullable` (optional booleans), `note` (optional: a tooltip, and a muted suffix at detail `all`). |
 | Entity | `collapsed` | Optional. `true` draws the header only. Never author it unless the user asks for an overview. |
 | Entity | `note` | Optional text. A table with no `pk` column is warned about unless this says why (for example `"append-only log"`). |
-| Entity | `color` | Optional swatch hex, only without `groups` (with `groups`, the area sets the colour). Add `colorKey` when you use it. |
+| Entity | `color` | Optional. One of the flowchart's lane swatches, as the hex: `#e0f2fe` sky, `#fef3c7` amber, `#dcfce7` emerald, `#fee2e2` rose, `#f3e8ff` purple, `#ffedd5` orange, `#ccfbf1` teal, `#e0e7ff` indigo. Tints the table header. Leave it out for a neutral table. Name each colour in `colorKey`. |
 | Relationship | `id`, `from`, `to` | Entity ids. **`from` is the child: the table that holds the foreign key. `to` is the parent**, the table it points to. `from` equal to `to` is a self-reference (`columns` required). |
-| Relationship | `columns` | The FK column names in `from`. The line leaves `from` at the first of those rows and enters `to` at its first `pk` row, so the reader sees which column joins which. Give it for every relationship. |
+| Relationship | `columns` | The FK column names in `from`. Lines attach to the side of the table that faces the other table, not to a row; hovering a table highlights its related tables and, in each, the foreign key and key rows involved, which is how the reader sees which column joins which. Give it for every relationship. |
 | Relationship | `toColumns` | Optional. The column names in `to` when the foreign key points at a unique column that is not the primary key. |
 | Relationship | `fromEnd`, `toEnd` | Crow's-foot ends, one per end: `one`, `zeroOrOne`, `oneOrMany`, `zeroOrMany`. `fromEnd` is how many `from` rows relate to one `to` row; `toEnd` how many `to` rows relate to one `from` row. Defaults: `fromEnd` `zeroOrMany`, `toEnd` `one` (`zeroOrOne` when every FK column is `nullable`). |
 | Relationship | `identifying` | Optional. `true` draws a solid line: the foreign key is part of the child's primary key. Missing or `false` draws a dashed line (non-identifying). |
-| Relationship | `label` | Optional verb phrase (`places`, `ships to`), 20 characters at most, drawn at the middle of the line. |
+| Relationship | `label` | Optional verb phrase (`places`, `ships to`), 20 characters at most, drawn at the middle of the curve. |
 | Note | `id`, `text`, `entities` | Attached to one or more table ids; drawn as a badge, or on the canvas with `showNotes`. 120 characters at most. |
 
 The audit's budgets: table name 28 characters, column name 28, type 16, relationship label 20, note 120. Over a budget is a `[WARN]`: the page truncates the text.
@@ -80,34 +76,46 @@ The audit's budgets: table name 28 characters, column name 28, type 16, relation
 5. **Mark `identifying: true` when the FK is part of the child's primary key** (a junction or line-item table: every FK column is also `pk`). Everything else stays non-identifying, which draws dashed.
 6. **Self-references** (`employee.manager_id` to `employee.id`) are one relationship with `from` equal to `to` and `columns`.
 7. **Many-to-many goes through a junction table** when the source has one: it is its own entity with two relationships. Only draw a many-to-many directly (both ends `*OrMany`) for a conceptual model; the audit then prints an `[INFO]` suggesting a junction table.
-8. **Use `groups` for subject areas** whenever the schema has more than about 8 tables: one area per bounded context (accounts, catalogue, billing, audit), named as the source names them, with each table in exactly one. At most 8 areas (one swatch each). An area may hold any number of tables: it grows into a grid, not a column.
+8. **Colour tables by domain** whenever the schema has more than about 8 tables; see Colour below.
 9. **Set `"detail": "keys"` for more than about 15 tables**, or whenever a table has more than 25 columns: the page opens with only the key columns and a "+ N more" row, and the reader widens it with the **Columns** button. Keep every column in the JSON anyway; `detail` only changes what is drawn.
 10. **Every rule, enum, default or caveat in the source is a `note`** on the table it concerns, or a column's `note` when it is about one column (`"1 to 99"`, `"new, paid, shipped"`). There are no index, view or trigger objects: put one in a note.
 11. **Keep the database's names and casing** for `name` and column names; `id` values are short and lower case (`order_item`). Use the database's type text as written (`varchar(255)`, `timestamptz`) only if it fits 16 characters; otherwise shorten it and keep the full text in the column's `note`.
 12. Never mark a table `collapsed` or leave a table out to save space; the page pans, zooms, collapses and switches detail by itself.
 
+## Colour
+
+Colour is what shows the reader which tables belong together; there are no boxes around tables. For a schema of more than about 8 tables:
+
+1. Group the tables by domain, judged from the table names and the foreign keys (accounts, catalogue, billing, audit), using the source's own words for the domains when it has them.
+2. Give each domain one swatch from the 8 above and set `color` on every table of that domain. At most 8 domains.
+3. Write a `colorKey` naming each domain: `{ "#e0f2fe": "Accounts", "#fef3c7": "Billing" }`.
+4. Leave isolated utility tables (a settings table, a migrations table, a table no foreign key touches) neutral: no `color`.
+
+The layout counts same-coloured tables as slightly closer, so a domain tends to form a cluster. The audit warns when a schema has more than 8 tables and none has a colour.
+
 ## Visual review checklist
 
-The audit covers references, box overlap, routes through tables and label overlap; the layout report covers text overflow. Check by eye on the screenshot:
+The audit covers references, box overlap, curves through tables and label overlap; the layout report covers text overflow. Check by eye on the screenshot:
 
 1. **Crow's feet** sit on the right ends: the many side (three prongs) at the child that holds the key, the single bar or the circle at the parent.
-2. **Lines end at column rows**: each line starts at its FK row and enters at the parent's PK row, never on the header or a different column.
+2. **Lines attach to the sides** of the tables, as smooth curves that leave each side at a right angle; hovering a table highlights the matching FK and key rows.
 3. **Solid and dashed lines**: solid only where the FK is part of the child's primary key.
-4. **Hub tables** (the most referenced) sit in the middle of their area, with the tables that reference them around them; areas with many relationships between them are side by side.
-5. **Area boxes** have readable names, every table is inside the box of its area, and no box is mostly empty.
+4. **Hub tables** (the most referenced) sit in the middle, with the tables that reference them around them on several sides.
+5. **Colours** match the domains, the legend names each one, and isolated tables are neutral.
 6. **Key glyphs and flags**: PK and FK icons on the right rows, `?` after a nullable type, a `U` chip on unique columns.
-7. **Labels** are readable, short and not hiding a table or another label; lines do not run through tables.
+7. **Labels** are readable, short and not hiding a table or another label; curves do not run through tables.
 8. **Text** in table names, column names and types is not cut off.
 
 ## Failure handling
 
-- **Unknown references** (`from unknown entity`, `to unknown entity`, `is in unknown group`, `is attached to unknown entity`): fix the id in `from`, `to`, `group` or the note's `entities`.
+- **Unknown references** (`from unknown entity`, `to unknown entity`, `is attached to unknown entity`): fix the id in `from`, `to` or the note's `entities`.
 - **`columns unknown column 'x' in 'table'`** (or `toColumns`): the name is not a column of that table; fix the spelling, or add the column.
 - **`is a self-reference without 'columns'`**: name the FK column in `columns`.
 - **`unknown fromEnd` / `unknown toEnd`**: use `one`, `zeroOrOne`, `oneOrMany` or `zeroOrMany`.
-- **`Duplicate entity id` / `Duplicate column` / `Duplicate group id` / `Duplicate relationship id`**: ids are unique, and column names are unique within a table.
-- **`unknown color`**: a group or table colour must be one of the lane swatch hex values listed above.
-- **`Entities ... overlap`, `passes through entity`, `Labels ... overlap`, `sits over entity`, `route is not orthogonal`, `needs a horizontal stub`, `extends past the diagram edge`, `is outside the box of its area`, `Areas ... overlap`**: layout problems; re-run `--layout` (never edit positions or routes by hand). If it persists, shorten the label or split the area.
+- **`Duplicate entity id` / `Duplicate column` / `Duplicate relationship id`**: ids are unique, and column names are unique within a table.
+- **`unknown color`**: a table colour must be one of the lane swatch hex values listed above.
+- **`Entities ... overlap`, `passes through entity`, `Labels ... overlap`, `sits over entity`, `extends past the diagram edge`**: layout problems; re-run `--layout` (never edit positions or curves by hand). If it persists, shorten the label.
+- **`N tables and none has a 'color'`** (warning): colour the tables by domain, see Colour.
 - **`Diagram is not laid out`**: run `--layout`.
 - **`marked fk but no relationship uses it`** (warning): add the relationship, or drop `fk`.
 - **`not marked fk`** (warning): add `"fk": true` to the column named in `columns`.
@@ -115,4 +123,4 @@ The audit covers references, box overlap, routes through tables and label overla
 - **`every column in 'columns' is a pk, so it is identifying`** (warning): add `"identifying": true`.
 - **`columns at detail 'all'`** (warning): set `"detail": "keys"`.
 - **`is over N characters and will be truncated`** (warning): shorten the name, type, label or note.
-- **`[INFO] N line crossings` / `many-to-many drawn directly`**: not a failure. For crossings, reorder `entities` or split areas if the picture is hard to follow; for many-to-many, add a junction table if the schema is physical.
+- **`[INFO] N line crossings` / `many-to-many drawn directly`**: not a failure. For crossings, reorder `entities` if the picture is hard to follow; for many-to-many, add a junction table if the schema is physical.

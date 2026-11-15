@@ -1,21 +1,18 @@
 {
   "diagramType": "erd",
   "title": "Orders and products",
-  "groups": [
-    { "id": "sales", "name": "Sales", "color": "#e0f2fe" },
-    { "id": "catalog", "name": "Catalog", "color": "#dcfce7" }
-  ],
+  "colorKey": {"#e0f2fe": "Sales", "#dcfce7": "Catalog"},
   "entities": [
-    { "id": "order", "name": "order", "group": "sales", "columns": [
+    { "id": "order", "name": "order", "color": "#e0f2fe", "columns": [
       { "name": "id", "type": "uuid", "pk": true },
       { "name": "placed_at", "type": "timestamptz" }
     ] },
-    { "id": "order_item", "name": "order_item", "group": "sales", "columns": [
+    { "id": "order_item", "name": "order_item", "color": "#e0f2fe", "columns": [
       { "name": "order_id", "type": "uuid", "pk": true, "fk": true },
       { "name": "product_id", "type": "uuid", "pk": true, "fk": true },
       { "name": "qty", "type": "int" }
     ] },
-    { "id": "product", "name": "product", "group": "catalog", "columns": [
+    { "id": "product", "name": "product", "color": "#dcfce7", "columns": [
       { "name": "id", "type": "uuid", "pk": true },
       { "name": "name", "type": "text" },
       { "name": "price", "type": "numeric" }

@@ -8,7 +8,15 @@ v2 ([archive/plan-erd-layout-v2.md](archive/plan-erd-layout-v2.md)) placed table
 
 These stay: tables, columns, relationship ends (crow's foot), notes, the D8 hover highlight, the D10 overview zoom and expand card, Copy as (full ERD), Mermaid, undo and touch. The D9 rounded orthogonal bends are replaced by curves (D3).
 
-**Status:** approved 2026-11-14 (D1–D6, smooth curves; dropping the layout of v2 files confirmed). Not started.
+**Status:** done 2026-11-15 (approved 2026-11-14: D1–D6, smooth curves; dropping the layout of v2 files confirmed). Deviations:
+- D4 step 7 picks among 18 seeded variants, then runs a local search (threshold accepting) on the best 4. Candidate selection alone left 3–8 curves over tables on `saas-billing`.
+- The layout cost holds the bounding box to a nominal 1760x856 view at 66% zoom (`ER.VIEW_W`, `ER.VIEW_H`, `ER.FIT_MIN`); `saas-billing` meets the 60% fit target with little margin (60.4%).
+- A cold layout of `saas-billing` (30 tables) takes about 6.5 s; a warm one about 0.6 s. Tidy and first opens of v1/v2 files on large schemas pause for that long.
+- Warm Auto-Tidy keeps the shape but can move a few tables: adding one table to `saas-billing` moved 5 of 30 by more than 200 px.
+- The page has no `colorKey` legend (it never had one); `colorKey` is kept through the codec only.
+- The connect-drag rubber band starts at the table centre.
+- `e2e_erd.mjs`: the multi-drag check accepts dx 40–120 px, and the overview double-click check picks the table nearest the view centre.
+- The audit's line-over-table test clips any segment against the rectangle; `bends` is gone from the audit report.
 
 ## Decisions
 

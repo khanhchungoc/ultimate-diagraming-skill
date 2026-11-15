@@ -1,6 +1,6 @@
 """Audit for ER diagrams (diagramType "erd"): structure, geometry and complexity budget.
 
-Checks the laid-out JSON only (entity and group boxes, relationship routes and label boxes written by
+Checks the laid-out JSON only (entity boxes, relationship routes (curves sampled to points) and label boxes written by
 assets/types/erd/engine.js), so it needs no browser and never computes a layout. Constants mirror the `ER` block in
 assets/types/erd/engine.js (HEAD_H, ROW_H, MORE_H, CHAR_W, ...); keep them in sync.
 """
@@ -15,8 +15,7 @@ CHAR_W, TYPE_CHAR_W = 7.4, 6.6
 PAD_X, GLYPH_W, TYPE_GAP = 12, 22, 16
 MIN_W, MAX_W = 168, 360
 CELL_GAP_X, CELL_GAP_Y, LABEL_PAD = 96, 48, 32
-GROUP_PAD, GROUP_HEAD, GROUP_GAP = 24, 32, 72
-MARGIN, STUB, CHANNEL_STEP, OBSTACLE_PAD, GRID = 40, 20, 8, 12, 4
+MARGIN, GRID = 40, 4
 
 END_KINDS = {"one", "zeroOrOne", "oneOrMany", "zeroOrMany"}
 MANY_ENDS = {"oneOrMany", "zeroOrMany"}
@@ -31,6 +30,7 @@ MAX_TYPE = 16
 MAX_LABEL = 20
 MAX_NOTE = 120
 MAX_COLUMNS_ALL = 25     # more columns than this at detail "all": suggest "keys"
+COLOR_MIN_TABLES = 8     # more tables than this and none coloured: suggest colour-coding by domain
 ERROR_PENALTY = 12
 
 Box = Dict[str, float]
@@ -51,10 +51,18 @@ def _inside(a: Box, b: Box, pad: float = 0) -> bool:
 
 
 def _segment_hits(p: List[float], q: List[float], box: Box) -> bool:
-    """An axis-aligned segment p-q that passes through the interior of `box`."""
-    x0, x1 = sorted((p[0], q[0]))
-    y0, y1 = sorted((p[1], q[1]))
-    return x0 < box["x"] + box["w"] and x1 > box["x"] and y0 < box["y"] + box["h"] and y1 > box["y"]
+    """A segment p-q (any direction) that passes through the interior of `box` (Liang-Barsky clip)."""
+    t0, t1 = 0.0, 1.0
+    for d, lo, hi, a in ((q[0] - p[0], box["x"], box["x"] + box["w"], p[0]), (q[1] - p[1], box["y"], box["y"] + box["h"], p[1])):
+        if d == 0:
+            if a <= lo or a >= hi:
+                return False
+            continue
+        ta, tb = sorted(((lo - a) / d, (hi - a) / d))
+        t0, t1 = max(t0, ta), min(t1, tb)
+        if t0 >= t1:
+            return False
+    return True
 
 
 def rel_columns(rel: Dict[str, Any]) -> List[Any]:
@@ -67,7 +75,6 @@ class ErdAudit:
 
     def __init__(self, data: Dict[str, Any]):
         self.data = data
-        self.groups: List[Dict[str, Any]] = data.get("groups") or []
         self.entities: List[Dict[str, Any]] = data.get("entities") or []
         self.relationships: List[Dict[str, Any]] = data.get("relationships") or []
         self.notes: List[Dict[str, Any]] = data.get("notes") or []
@@ -96,9 +103,8 @@ class ErdAudit:
         errors: List[str] = []
         budget: List[str] = []
         info: List[str] = []
-        es, rs, gs, ns = self.entities, self.relationships, self.groups, self.notes
+        es, rs, ns = self.entities, self.relationships, self.notes
         emap = {e.get("id"): e for e in es}
-        gmap = {g.get("id"): g for g in gs}
         dangling = 0
 
         for flag in ("showTypes", "showNotes"):
@@ -108,20 +114,14 @@ class ErdAudit:
             errors.append(f"'detail' must be all, keys or names, not '{self.data['detail']}'.")
 
         # Structure: unique ids, known references, kinds.
-        for label, items in (("group", gs), ("entity", es), ("relationship", rs), ("note", ns)):
+        for label, items in (("entity", es), ("relationship", rs), ("note", ns)):
             seen = set()
             for item in items:
                 if item.get("id") in seen:
                     errors.append(f"Duplicate {label} id '{item.get('id')}'.")
                 seen.add(item.get("id"))
-        for g in gs:
-            if g.get("color") is not None and g["color"] not in SWATCHES:
-                errors.append(f"Group '{g.get('id')}' has unknown color '{g['color']}' (use one of the lane swatches: {', '.join(SWATCHES)}).")
         for e in es:
             eid = e.get("id")
-            if e.get("group") is not None and e["group"] not in gmap:
-                dangling += 1
-                errors.append(f"Entity '{eid}' is in unknown group '{e['group']}'.")
             if e.get("color") is not None and e["color"] not in SWATCHES:
                 errors.append(f"Entity '{eid}' has unknown color '{e['color']}' (use one of the lane swatches: {', '.join(SWATCHES)}).")
             if not isinstance(e.get("columns", []), list):
@@ -172,14 +172,14 @@ class ErdAudit:
         # Geometry (only meaningful once laid out).
         laid_out = all(_is_box(e.get("box")) for e in es) and all(isinstance(r.get("points"), list) and len(r["points"]) >= 2 for r in rs)
         overlaps = overflows = 0
-        crossings = length = bends = 0
+        crossings = length = 0
         if (es or rs) and not laid_out:
             errors.append("Diagram is not laid out (entities need box, relationships need points): run --layout.")
         elif laid_out:
             canvas = self.data.get("canvas") or {}
             width, height = canvas.get("width", math.inf), canvas.get("height", math.inf)
             crossings = int(canvas.get("crossings") or 0)
-            length, bends = round(canvas.get("length") or 0), int(canvas.get("bends") or 0)
+            length = round(canvas.get("length") or 0)
             for i, a in enumerate(es):
                 for b in es[i + 1:]:
                     if _inside(a["box"], b["box"]):
@@ -189,31 +189,12 @@ class ErdAudit:
                 if bx["x"] < 0 or bx["y"] < 0 or bx["x"] + bx["w"] > width or bx["y"] + bx["h"] > height:
                     overflows += 1
                     errors.append(f"Entity '{a.get('id')}' extends past the diagram edge.")
-            boxed = [g for g in gs if _is_box(g.get("box"))]
-            for i, a in enumerate(boxed):
-                for b in boxed[i + 1:]:
-                    if _inside(a["box"], b["box"]):
-                        overlaps += 1
-                        errors.append(f"Areas '{a.get('id')}' and '{b.get('id')}' overlap.")
-            for e in es:
-                g = gmap.get(e.get("group"))
-                if g is not None and _is_box(g.get("box")):
-                    gb, eb = g["box"], e["box"]
-                    if eb["x"] < gb["x"] or eb["y"] < gb["y"] or eb["x"] + eb["w"] > gb["x"] + gb["w"] or eb["y"] + eb["h"] > gb["y"] + gb["h"]:
-                        errors.append(f"Entity '{e.get('id')}' is outside the box of its area '{g.get('id')}'.")
             for r in rs:
                 pts = r["points"]
                 ends = {r.get("from"), r.get("to")}
                 if any(not (isinstance(p, (list, tuple)) and len(p) == 2 and _num(p[0]) and _num(p[1])) for p in pts):
                     errors.append(f"Relationship '{r.get('id')}' has a malformed route.")
                     continue
-                if any(p[0] != q[0] and p[1] != q[1] for p, q in zip(pts, pts[1:])):
-                    errors.append(f"Relationship '{r.get('id')}' route is not orthogonal.")
-                for k in (0, -2):  # first and last segment: a horizontal stub the crow's foot is drawn on
-                    p, q = pts[k], pts[k + 1]
-                    if p[1] != q[1] or abs(p[0] - q[0]) < STUB - 0.5:
-                        errors.append(f"Relationship '{r.get('id')}' route needs a horizontal stub of at least {STUB}px at each end.")
-                        break
                 for e in es:
                     if e.get("id") in ends:
                         continue
@@ -234,7 +215,6 @@ class ErdAudit:
                         errors.append(f"Label '{a.get('label')}' sits over entity '{e.get('id')}'.")
 
         # Warnings (never change the score).
-        grouped = bool(gs)
         used_cols: Dict[Tuple[Any, Any], bool] = {}
         for r in rs:
             for n in rel_columns(r):
@@ -270,13 +250,13 @@ class ErdAudit:
         for n in ns:
             if len(str(n.get("text") or "")) > MAX_NOTE:
                 budget.append(f"Note '{n.get('id')}' is over {MAX_NOTE} characters: shorten it.")
-        if not grouped and any(e.get("color") for e in es):
+        if any(e.get("color") for e in es):
             key = self.data.get("colorKey") if isinstance(self.data.get("colorKey"), dict) else {}
             for c in dict.fromkeys(e.get("color") for e in es if e.get("color") in SWATCHES):
                 if not str(key.get(c) or "").strip():
                     budget.append(f"Tables use {c} but 'colorKey' does not say what it means: add \"colorKey\": {{\"{c}\": \"Billing\"}}.")
-        elif grouped and any(e.get("color") for e in es):
-            budget.append("Tables have 'color' but the diagram uses 'groups': the area sets the colour, drop the table colours.")
+        elif len(es) > COLOR_MIN_TABLES:
+            budget.append(f"{len(es)} tables and none has a 'color': colour-code them by domain (one swatch per domain) and name each in 'colorKey'.")
 
         # Info lines.
         if crossings:
@@ -291,20 +271,20 @@ class ErdAudit:
         grade = "A+" if score >= 98 else "A" if score >= 90 else "B" if score >= 80 else "C" if score >= 60 else "F"
         return {
             "passed": score >= 90 and not errors, "score": score, "grade": grade, "issues": errors,
-            "entity_count": len(es), "relationship_count": len(rs), "group_count": len(gs), "note_count": len(ns),
+            "entity_count": len(es), "relationship_count": len(rs), "note_count": len(ns),
             "overlaps_count": overlaps, "overflows_count": overflows, "dangling_count": dangling,
-            "crossings_count": crossings, "length": length, "bends": bends, "info": info, "budget_warnings": budget,
+            "crossings_count": crossings, "length": length, "info": info, "budget_warnings": budget,
         }
 
     def summary_lines(self, report: Dict[str, Any]) -> List[str]:
         lines = [
-            f"Structure: {report['entity_count']} Tables | {report['relationship_count']} Relationships | {report['group_count']} Areas | {report['note_count']} Notes",
+            f"Structure: {report['entity_count']} Tables | {report['relationship_count']} Relationships | {report['note_count']} Notes",
             f"Diagram Quality Score: {report['score']}/100  [GRADE: {report['grade']}]",
             "-" * 70,
             f"✓ Spacing and Label Fit:         {report['overlaps_count']} problems",
             f"✓ Diagram Bounds:                {report['overflows_count']} problems",
             f"✓ Reference Integrity:           {report['dangling_count']} dangling references",
         ]
-        lines.append(f"✓ Canvas Line Length / Bends:    {report.get('length', 0)} px / {report.get('bends', 0)}")
+        lines.append(f"✓ Canvas Line Length:           {report.get('length', 0)} px")
         lines.extend(f"[INFO] {line}" for line in report.get("info", []))
         return lines

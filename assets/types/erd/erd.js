@@ -1,23 +1,22 @@
       // --- ER DIAGRAM PLUGIN ---
-      // Renders chartData (diagramType "erd") from the model engine.js lays out: tables with column rows, subject-area
-      // group boxes (a rounded container fitted to its tables, with a name tab), crow's-foot relationship lines, label
-      // pills and notes, and edits it (EDITING below): add, rename, keys, reorder, draw and re-point relationships,
-      // areas, notes, delete, Auto-Tidy on and off. Every finished edit ends in one updateStatus(true) (one undo step):
-      // commit() for structural ones, which re-lays out only with Auto-Tidy on.
+      // Renders chartData (diagramType "erd") from the model engine.js lays out: tables with column rows (tinted by
+      // their own `color`), relationship curves (one cubic Bezier each, leaving a table side at right angles, crow's-foot
+      // ends), label pills and notes, and edits it (EDITING below): add, rename, keys, reorder, colour, draw and re-point
+      // relationships, notes, delete, Auto-Tidy on and off. Every finished edit ends in one updateStatus(true) (one undo
+      // step): commit() for structural ones, which re-lays out (warm) only with Auto-Tidy on.
       //
-      // Model (see engine.js header): groups[].x/y (screen origin of the box) and entities[].x/y (inside their group's
-      // content origin, absolute when ungrouped) are the only positions that are saved (the "layout" map); box, points,
-      // labelBox and data.canvas are derived on every render (layoutDiagram when anything lacks x/y, else
-      // routeDiagram) and never saved (toDisk drops them). Everything on screen is absolute within #erd-canvas.
+      // Model (see engine.js header): entities[].x/y (absolute top-left) are the only positions that are saved (the
+      // "layout" map); box, curve, points, labelBox and data.canvas are derived on every render (layoutDiagram when any
+      // table lacks x/y, else routeDiagram) and never saved (toDisk drops them). Everything on screen is absolute
+      // within #erd-canvas.
       //
-      // State kept in this file (module scope): erdSel (selection: table, column, line or group), hoverEntityId / hoverRelId
+      // State kept in this file (module scope): erdSel (selection: table, column or line), hoverEntityId / hoverRelId
       // (highlight), autoLayout (the dock switch, localStorage "erd-auto-layout"), the note fitting caches, and peek/selected note.
       // Render entry points: render() (everything), applyHighlight() (hover/selection classes, the related tables and
       // their key rows, chips and peeks only), applyNoteVisibility() (notes only).
 
       const ERD_SVG_NS = 'http://www.w3.org/2000/svg';
       const erdCanvas = document.getElementById('erd-canvas');
-      const erdGroupsEl = document.getElementById('erd-groups');
       const erdSvg = document.getElementById('erd-svg');
       const erdRels = document.getElementById('erd-rels');
       const erdLeaders = document.getElementById('erd-note-leaders');
@@ -29,8 +28,6 @@
 
       const ERD_DETAILS = ['all', 'keys', 'names'];
       const ERD_END_KINDS = ['one', 'zeroOrOne', 'oneOrMany', 'zeroOrMany'];
-      const ERD_RADIUS = 14;        // line bend radius (clamped to half the shorter segment it joins)
-      const ERD_HOP = 6;            // radius of the hop a line makes over an earlier one it crosses
       const ERD_KEY_ICON = '<svg class="g-pk" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="7.5" cy="15.5" r="5"/><path d="m21 2-9.6 9.6"/><path d="m15.5 7.5 3 3L22 7l-3-3"/></svg>';
       const ERD_LINK_ICON = '<svg class="g-fk" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>';
       const ERD_CHEVRON_ICON = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>';
@@ -40,7 +37,7 @@
       const ERD_NOTE_ICON = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" aria-hidden="true"><path d="M5 7h14"/><path d="M5 12h14"/><path d="M5 17h9"/></svg>';
 
       // --- STATE ---
-      let erdSel = null;              // { kind: 'entity' | 'rel' | 'group', id } | { kind: 'col', entity, col }: class `selected`
+      let erdSel = null;              // { kind: 'entity' | 'rel', id } | { kind: 'col', entity, col }: class `selected`
       // Several tables selected (see MULTI-SELECT): the ids, valid only while erdSel is still the primary's selection
       // object they were made for (a direct erdSel = ... elsewhere drops the group). Never saved.
       let erdMultiIds = [];
@@ -53,9 +50,16 @@
 
       const erdEntities = () => chartData.entities || [];
       const erdRelsList = () => chartData.relationships || [];
-      const erdGroups = () => chartData.groups || [];
       const erdEntity = (id) => erdEntities().find((e) => e.id === id);
       const erdRel = (id) => erdRelsList().find((r) => r.id === id);
+      // The column of the parent a line enters: the first toColumns name that exists, else its first primary key
+      function erdToCol(rel, to) {
+        const cols = to.columns || [];
+        const named = (Array.isArray(rel.toColumns) ? rel.toColumns : []).find((n) => cols.some((c) => c.name === n));
+        if (named) return named;
+        const pk = cols.find((c) => c.pk);
+        return pk ? pk.name : null;
+      }
       // The selected tables, primary last (one table when a single table or one of its columns is selected)
       function selectedEntityIds() {
         if (erdSel && erdSel.kind === 'entity' && erdSel === erdMultiOwner) {
@@ -97,27 +101,28 @@
 
       // --- RENDERING ---
       const erdIsPlaced = (e) => typeof e.x === 'number' && typeof e.y === 'number';
-      const erdGroupPlaced = (g) => typeof g.x === 'number' && typeof g.y === 'number';
 
       // The inputs routeDiagram reads, as text: a re-render that changes none of them (theme, fonts, undo to the same
       // state) keeps the routes it already has instead of searching them again
       function inputSignature() {
-        const derived = new Set(['box', 'points', 'labelBox', 'canvas', '_loose']);
-        return JSON.stringify([chartData.detail, chartData.showTypes, chartData.groups, chartData.entities, chartData.relationships],
+        const derived = new Set(['box', 'curve', 'points', 'labelBox', 'canvas', '_loose']);
+        return JSON.stringify([chartData.detail, chartData.showTypes, chartData.entities, chartData.relationships],
           (k, v) => (derived.has(k) ? undefined : v));
       }
 
-      // layoutDiagram also routes, so remember that the inputs are routed (render() would otherwise search every route again)
-      function erdLayout() {
-        layoutDiagram(chartData);
+      // layoutDiagram also routes, so remember that the inputs are routed (render() would otherwise route again).
+      // warm: start from the saved positions (a structural edit under Auto-Tidy); else a full layout from the seed (Tidy)
+      function erdLayout(warm) {
+        if (warm && erdEntities().some(erdIsPlaced)) layoutDiagram(chartData, { warm: true });
+        else layoutDiagram(chartData);
         routedSig = inputSignature();
       }
 
       function ensureLayout() {
         const ents = erdEntities();
-        const derivedKept = !!chartData.canvas && ents.every((e) => e.box) && erdRelsList().every((r) => r.points) && erdGroups().every((g) => g.box);
-        if (ents.some((e) => !erdIsPlaced(e)) || erdGroups().some((g) => !erdGroupPlaced(g))) {
-          layoutDiagram(chartData);   // anything unplaced (a v1 page, a table made by hand): the whole diagram is laid out
+        const derivedKept = !!chartData.canvas && ents.every((e) => e.box) && erdRelsList().every((r) => r.curve);
+        if (ents.some((e) => !erdIsPlaced(e))) {
+          layoutDiagram(chartData);   // anything unplaced (a v1/v2 page, a table made by hand): the whole diagram is laid out
         } else {
           const sig = inputSignature();
           if (!(derivedKept && sig === routedSig)) routeDiagram(chartData);
@@ -125,27 +130,16 @@
         routedSig = inputSignature();
       }
 
-      function groupColor(index) {
-        const g = erdGroups()[index];
-        return (g && g.color) || SWATCHES[index % SWATCHES.length].hex;
-      }
-      // The group a table is in: its `group`, or none (ungrouped, also for an id that names no group)
-      const erdGroupOf = (e) => erdGroups().find((g) => g.id === e.group) || null;
-      // The swatch an entity wears: its group's colour, or its own `color` when ungrouped ('' = neutral)
-      function entityColor(e) {
-        const at = erdGroups().findIndex((g) => g.id === e.group);
-        return at < 0 ? (e.color || '') : groupColor(at);
-      }
+      // The swatch a table wears ('' = neutral)
+      const entityColor = (e) => e.color || '';
 
       function render() {
         ensureLayout();
         const C = chartData.canvas || { width: 800, height: 400 };
-        const groups = erdGroups();
         erdCanvas.style.width = `${C.width}px`;
         erdCanvas.style.height = `${C.height}px`;
         erdSvg.setAttribute('width', C.width);
         erdSvg.setAttribute('height', C.height);
-        erdGroupsEl.textContent = '';
         erdRels.textContent = '';
         erdLeaders.textContent = '';
         erdHtml.textContent = '';
@@ -155,7 +149,6 @@
         if (hoverRelId && !erdRel(hoverRelId)) hoverRelId = null;
 
         erdHideCard();
-        renderGroups(groups);
         renderRelationships();
         erdEntities().forEach((e) => erdHtml.appendChild(buildEntity(e)));
         renderLabels();
@@ -168,30 +161,9 @@
       function erdSelExists(sel) {
         if (sel.kind === 'entity') return !!erdEntity(sel.id);
         if (sel.kind === 'rel') return !!erdRel(sel.id);
-        if (sel.kind === 'group') return erdGroups().some((g) => g.id === sel.id);
         if (sel.kind === 'col') { const e = erdEntity(sel.entity); return !!e && (e.columns || []).some((c) => c.name === sel.col); }
         return false;
       }
-
-      // Group boxes: a rounded container at groups[].box (under the lines and tables) with its name tab at the top-left
-      function renderGroups(groups) {
-        groups.forEach((g, i) => {
-          if (!g.box) return;
-          const box = erdHtmlEl('div', 'erd-group swatch-scope');
-          box.dataset.groupId = g.id;
-          box.style.left = `${g.box.x}px`;
-          box.style.top = `${g.box.y}px`;
-          box.style.width = `${g.box.w}px`;
-          box.style.height = `${g.box.h}px`;
-          box.style.setProperty('--swatch-color', groupColor(i));
-          const tab = erdHtmlEl('span', 'erd-group-tab', g.name || g.id);
-          tab.title = g.name || g.id;
-          tab.setAttribute('data-touch-drag', '');   // a finger may drag the group by its tab (the shell's touch rule)
-          box.appendChild(tab);
-          erdGroupsEl.appendChild(box);
-        });
-      }
-      const groupEl = (id) => [...erdGroupsEl.children].find((b) => b.dataset.groupId === id);
 
       // A table: header strip in its area's swatch, then one row per visible column
       // `asCard`: the table drawn for the overview's expanded card (every column, nothing to press, no ports)
@@ -293,77 +265,21 @@
       }
 
       // --- RELATIONSHIPS ---
-      // A line from the child's key row to the parent's key row: rounded corners, and a small hop where it crosses an
-      // earlier line's vertical run. `obstacles`: those vertical runs [{x, yMin, yMax}].
-      function relationshipPath(points, obstacles) {
-        let pts = points.filter((p, i) => i === 0 || Math.hypot(p[0] - points[i - 1][0], p[1] - points[i - 1][1]) > 0.5);
-        pts = pts.filter((p, i) => {
-          if (i === 0 || i === pts.length - 1) return true;
-          const a = pts[i - 1], b = pts[i + 1];
-          return Math.abs((p[0] - a[0]) * (b[1] - p[1]) - (p[1] - a[1]) * (b[0] - p[0])) > 0.5;
-        });
-        if (pts.length < 2) return '';
-        const last = pts.length - 1;
-        const items = [pts[0]];
-        for (let i = 0; i < last; i++) {
-          const p1 = pts[i], p2 = pts[i + 1];
-          if (Math.abs(p1[1] - p2[1]) < 1 && obstacles.length) {
-            const right = p2[0] > p1[0];
-            const lo = Math.min(p1[0], p2[0]), hi = Math.max(p1[0], p2[0]);
-            // Room a hop needs from each end: past a bend the corner and the hop; at a table, the crow's foot
-            const room = (k) => (k === 0 || k === last ? 30 : 14);
-            const roomLo = right ? room(i) : room(i + 1), roomHi = right ? room(i + 1) : room(i);
-            const hops = obstacles.filter((o) => o.x > lo + roomLo && o.x < hi - roomHi && p1[1] > o.yMin + 8 && p1[1] < o.yMax - 8)
-              .map((o) => o.x).sort((a, b) => (right ? a - b : b - a));
-            hops.forEach((x) => items.push({ hop: true, x, y: p1[1], dir: right ? 1 : -1 }));
-          }
-          items.push(p2);
-        }
-        let d = `M ${items[0][0]} ${items[0][1]}`;
-        for (let i = 1; i < items.length; i++) {
-          const it = items[i];
-          if (it.hop) {   // a semicircle over the crossing, always bulging up
-            d += ` L ${(it.x - ERD_HOP * it.dir).toFixed(1)} ${it.y} A ${ERD_HOP} ${ERD_HOP} 0 0 ${it.dir > 0 ? 1 : 0} ${(it.x + ERD_HOP * it.dir).toFixed(1)} ${it.y}`;
-            continue;
-          }
-          const prev = items[i - 1], next = i < items.length - 1 ? items[i + 1] : null;
-          if (next) {
-            const a = prev.hop ? [prev.x + ERD_HOP * prev.dir, prev.y] : prev;
-            const c = it;
-            const b = next.hop ? [next.x - ERD_HOP * next.dir, next.y] : next;
-            const vin = [c[0] - a[0], c[1] - a[1]], vout = [b[0] - c[0], b[1] - c[1]];
-            const lin = Math.hypot(vin[0], vin[1]), lout = Math.hypot(vout[0], vout[1]);
-            if (lin > 0.5 && lout > 0.5) {
-              // Half of each adjacent segment at most (a hop's side has the whole segment): short stubs stay straight,
-              // so the crow's foot sits on a straight piece
-              const roomIn = prev.hop ? lin : lin / 2;
-              const roomOut = next.hop ? lout : lout / 2;
-              const r = Math.min(ERD_RADIUS, roomIn, roomOut);
-              d += ` L ${(c[0] - vin[0] / lin * r).toFixed(1)} ${(c[1] - vin[1] / lin * r).toFixed(1)} Q ${c[0]} ${c[1]} ${(c[0] + vout[0] / lout * r).toFixed(1)} ${(c[1] + vout[1] / lout * r).toFixed(1)}`;
-              continue;
-            }
-          }
-          d += ` L ${it[0]} ${it[1]}`;
-        }
-        return d;
+      // One cubic Bezier per line (rel.curve = P0..P3 from the engine). It leaves each table at right angles to the side,
+      // so the end markers (orient="auto", drawn pointing at the table) sit square on the edge.
+      const erdCurvePath = (c) => `M ${c[0][0]} ${c[0][1]} C ${c[1][0]} ${c[1][1]} ${c[2][0]} ${c[2][1]} ${c[3][0]} ${c[3][1]}`;
+      // The point of a line at t = 0.5 (where its label sits)
+      function relMid(rel) {
+        const c = rel.curve;
+        if (!c) return { x: 0, y: 0 };
+        return { x: (c[0][0] + 3 * c[1][0] + 3 * c[2][0] + c[3][0]) / 8, y: (c[0][1] + 3 * c[1][1] + 3 * c[2][1] + c[3][1]) / 8 };
       }
 
       function renderRelationships() {
-        const rels = erdRelsList();
-        const verticals = [];   // per relationship, its vertical runs
-        rels.forEach((rel) => {
-          const v = [];
-          const p = rel.points || [];
-          for (let k = 1; k < p.length; k++) {
-            if (p[k][0] === p[k - 1][0] && p[k][1] !== p[k - 1][1]) v.push({ x: p[k][0], yMin: Math.min(p[k][1], p[k - 1][1]), yMax: Math.max(p[k][1], p[k - 1][1]) });
-          }
-          verticals.push(v);
-        });
-        rels.forEach((rel, i) => {
-          if (!rel.points || rel.points.length < 2) return;
+        erdRelsList().forEach((rel) => {
+          if (!rel.curve || rel.curve.length !== 4) return;
           const ends = erRelEnds(rel, chartData);
-          const earlier = [].concat(...verticals.slice(0, i));   // each crossing is hopped once: by the later line
-          const d = relationshipPath(rel.points, earlier);
+          const d = erdCurvePath(rel.curve);
           const g = erdSvgEl('g', { class: 'erd-rel', 'data-edge-id': rel.id, 'data-from': rel.from, 'data-to': rel.to });
           const hit = erdSvgEl('path', { class: 'erd-rel-hit', d });
           const line = erdSvgEl('path', { class: `erd-rel-line${rel.identifying === true ? ' identifying' : ''}`, d });
@@ -428,7 +344,7 @@
         }
         if (to) {
           const named = (Array.isArray(rel.toColumns) ? rel.toColumns : []).filter((n) => (to.columns || []).some((c) => c.name === n));
-          const first = erToCol(rel, to);
+          const first = erdToCol(rel, to);
           out.push({ id: to.id, cols: named.length ? named : (first ? [first] : []) });
         }
         return out;
@@ -468,7 +384,7 @@
           tab(from.id).child = true;
           tab(to.id).parent = true;
           const rawFrom = Array.isArray(rel.columns) ? rel.columns : [], rawTo = Array.isArray(rel.toColumns) ? rel.toColumns : [];
-          const first = erToCol(rel, to);
+          const first = erdToCol(rel, to);
           rawFrom.forEach((n, i) => {
             if (!has(from, n)) return;
             const target = rawTo[i] !== undefined ? rawTo[i] : (i === 0 ? first : null);
@@ -595,14 +511,12 @@
             const el = entityEl(erdSel.entity);
             const row = el && [...el.querySelectorAll('.erd-row')].find((r) => r.dataset.col === erdSel.col);
             if (row) row.classList.add('selected');
-          } else if (erdSel.kind === 'group') {
-            const box = groupEl(erdSel.id);
-            if (box) box.classList.add('selected');
           }
         }
         markTouchPorts();
         applyNoteVisibility();
         erdSyncCard();
+        erdPlacePeeks();
       }
 
       // Touch: a finger reaches the plugin only inside `.selected` or `[data-touch-drag]` (the shell's rule). The ports of
@@ -637,7 +551,6 @@
       const selectEntity = (id) => setSelection({ kind: 'entity', id });
       const selectRel = (id) => setSelection({ kind: 'rel', id });
       const selectCol = (entity, col) => setSelection({ kind: 'col', entity, col });
-      const selectGroup = (id) => setSelection({ kind: 'group', id });
 
       // --- MULTI-SELECT (tables only) ---
       // erdSel is the primary table (the one clicked last: the action bar and notes follow it) and erdMultiIds holds all
@@ -689,7 +602,7 @@
 
       // --- OVERVIEW (zoomed out) ---
       // Below 50% zoom (back above 60%) body.erd-overview: tables keep their boxes but draw only their name, centred at about
-      // 14px on screen; lines keep a constant on-screen width; labels, group tabs, markers and notes are scaled by 1/scale
+      // 14px on screen; lines keep a constant on-screen width; labels, markers and notes are scaled by 1/scale
       // (--inv on the canvas) so they stay readable; a label that would then cover another label or a table is hidden
       // until its line or either table is hovered. All of it is CSS keyed to body.erd-overview:not(.exporting), so every
       // export and copy is the full diagram. Nothing here changes the layout or the saved file.
@@ -720,7 +633,7 @@
         const rels = erdRelsList().map((r) => {
           let len = 0;
           const p = r.points || [];
-          for (let i = 1; i < p.length; i++) len += Math.abs(p[i][0] - p[i - 1][0]) + Math.abs(p[i][1] - p[i - 1][1]);
+          for (let i = 1; i < p.length; i++) len += Math.hypot(p[i][0] - p[i - 1][0], p[i][1] - p[i - 1][1]);
           return { r, len };
         }).sort((a, b) => b.len - a.len);
         const tables = erdEntities().filter((e) => e.box).map((e) => e.box);
@@ -788,6 +701,20 @@
         erdCardEl = wrap;
         erdCardId = want;
       }
+      // A key peek that the expanded card would cover moves out of the card's box: by the shortest shift (up, down, left or right)
+      function erdPlacePeeks() {
+        if (!erdCardEl) return;
+        const c = erdCardEl.getBoundingClientRect(), gap = 6;
+        erdCanvas.querySelectorAll('.erd-key-peek').forEach((p) => {
+          p.style.translate = '';
+          const r = p.getBoundingClientRect();
+          if (!(r.left < c.right && r.right > c.left && r.top < c.bottom && r.bottom > c.top)) return;
+          const moves = [[0, c.bottom + gap - r.top], [0, c.top - gap - r.bottom], [c.right + gap - r.left, 0], [c.left - gap - r.right, 0]];
+          const [dx, dy] = moves.sort((a, b) => Math.abs(a[0] + a[1]) - Math.abs(b[0] + b[1]))[0];
+          p.style.translate = `${dx / scale}px ${dy / scale}px`;
+        });
+      }
+
       // Zoom to a table at 100%, centred in the view
       function erdZoomToTable(id) {
         const el = entityEl(id);
@@ -807,9 +734,9 @@
         const e = erdEntity(id);
         if (!e) return;
         if (e.collapsed === true) delete e.collapsed; else e.collapsed = true;
-        // Auto-Tidy on: the whole diagram re-lays out. Off: tables stay where they are, only their sizes and the lines
+        // Auto-Tidy on: the diagram re-lays out (warm). Off: tables stay where they are, only their sizes and the lines
         // change (render() re-routes because the model changed). In ?present it is a change of view, not an edit.
-        if (autoLayout) erdLayout();
+        if (autoLayout) erdLayout(true);
         render();
         if (!erdPresenting()) updateStatus(true);
       }
@@ -839,41 +766,21 @@
         updateNotesButton();
       }
 
-      // --- OVERLAPS (Auto-Tidy off) ---
-      // Screen boxes of every table and group computed from the saved x/y, the way routeDiagram does (no routing), so a
-      // loop of pushes does not have to route after each one.
+      // --- OVERLAPS (after a hand move) ---
+      // Screen boxes of every table computed from the saved x/y (no routing), so a loop of pushes does not have to route
       function erdLiveBoxes() {
-        const ents = erdEntities(), groups = erdGroups();
-        const eb = new Map(), gb = new Map(), size = new Map();
-        ents.forEach((e) => {
-          const g = erdGroupOf(e), s = erEntitySize(e, chartData), o = g ? erGroupOrigin(g) : { x: 0, y: 0 };
-          size.set(e.id, s);
-          eb.set(e.id, { x: o.x + e.x, y: o.y + e.y, w: s.w, h: s.h });
-        });
-        groups.forEach((g) => {
-          let minX = 0, minY = 0, maxR = 0, maxB = 0, any = false;
-          ents.forEach((e) => {
-            if (erdGroupOf(e) !== g) return;
-            const s = size.get(e.id);
-            any = true;
-            minX = Math.min(minX, e.x); minY = Math.min(minY, e.y);
-            maxR = Math.max(maxR, e.x + s.w); maxB = Math.max(maxB, e.y + s.h);
-          });
-          const sz = erGroupSize(any ? maxR - minX : ER.EMPTY_W, any ? maxB - minY : ER.EMPTY_H, g);
-          gb.set(g.id, { x: g.x + minX, y: g.y + minY, w: sz.w, h: sz.h });
-        });
-        return { eb, gb };
+        const eb = new Map();
+        erdEntities().forEach((e) => { const s = erEntitySize(e, chartData); eb.set(e.id, { x: e.x, y: e.y, w: s.w, h: s.h }); });
+        return eb;
       }
 
-      // Resolve overlaps by pushing along the shortest axis, one push at a time until nothing overlaps: tables of one
-      // container (group, or the ungrouped ones) apart; group boxes apart; an ungrouped table out of a group box.
+      // Resolve overlaps by pushing along the shortest axis, one push at a time until nothing overlaps.
       //   opts.tables: ids of the tables just moved or made; they are the ones pushed (any direction), the others stay.
-      //   opts.group:  id of a group just moved or grown; it stays and the other groups are pushed (any direction).
-      // Without either (a resize), the later table or group (by top, then left) is pushed right or down only.
+      // Without it (a resize), the later table (by top, then left) is pushed right or down only.
       function erdSettle(opts = {}) {
-        const mine = opts.tables || new Set(), fixedGroup = opts.group || null;
-        const GAP = 24, GGAP = Math.round(ER.GROUP_GAP / 2);
-        const free = mine.size > 0 || !!fixedGroup;
+        const mine = opts.tables || new Set();
+        const GAP = 24;
+        const free = mine.size > 0;
         const hit = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
         const q4 = (v) => Math.ceil(v / 4) * 4;
         // [dx, dy] that moves P clear of F by `gap`, the shortest way (right and down only unless `any`)
@@ -882,46 +789,18 @@
           if (any) c.push([-q4(P.x + P.w + gap - F.x), 0], [0, -q4(P.y + P.h + gap - F.y)]);
           return c.sort((m, n) => Math.abs(m[0] + m[1]) - Math.abs(n[0] + n[1]))[0];
         };
-        const byPos = (m, n) => m.b.y - n.b.y || m.b.x - n.b.x;
         const step = () => {
-          const ents = erdEntities(), groups = erdGroups();
-          const { eb, gb } = erdLiveBoxes();
-          // 1. tables in one container
-          const list = ents.map((e) => ({ e, b: eb.get(e.id), key: (erdGroupOf(e) || { id: '' }).id })).sort(byPos);
+          const eb = erdLiveBoxes();
+          const list = erdEntities().map((e) => ({ e, b: eb.get(e.id) })).sort((m, n) => m.b.y - n.b.y || m.b.x - n.b.x);
           for (let i = 0; i < list.length; i++) {
             for (let j = i + 1; j < list.length; j++) {
               const A = list[i], B = list[j];
-              if (A.key !== B.key || !hit(A.b, B.b)) continue;
+              if (!hit(A.b, B.b) || (mine.size > 1 && mine.has(A.e.id) && mine.has(B.e.id))) continue;
               const pushB = !(mine.has(A.e.id) && !mine.has(B.e.id));
               const [P, F] = pushB ? [B, A] : [A, B];
               const [dx, dy] = clear(P.b, F.b, GAP, free && mine.has(P.e.id));
-              P.e.x += dx; P.e.y += dy;
-              return true;
-            }
-          }
-          // 2. group boxes
-          const gl = groups.map((g) => ({ g, b: gb.get(g.id) })).sort(byPos);
-          const holdsMine = (g) => ents.some((e) => mine.has(e.id) && erdGroupOf(e) === g);
-          for (let i = 0; i < gl.length; i++) {
-            for (let j = i + 1; j < gl.length; j++) {
-              const A = gl[i], B = gl[j];
-              if (!hit(A.b, B.b)) continue;
-              const keepA = A.g.id === fixedGroup || (B.g.id !== fixedGroup && holdsMine(A.g) && !holdsMine(B.g));
-              const keepB = B.g.id === fixedGroup || (A.g.id !== fixedGroup && holdsMine(B.g) && !holdsMine(A.g));
-              const [P, F] = keepB && !keepA ? [A, B] : [B, A];
-              const [dx, dy] = clear(P.b, F.b, GGAP, free);
-              P.g.x += dx; P.g.y += dy;
-              return true;
-            }
-          }
-          // 3. an ungrouped table out of every group box
-          for (const e of ents) {
-            if (erdGroupOf(e)) continue;
-            for (const g of groups) {
-              const T = eb.get(e.id), G = gb.get(g.id);
-              if (!hit(T, G)) continue;
-              const [dx, dy] = clear(T, G, GAP, true);
-              e.x += dx; e.y += dy;
+              // tables moved together stay together: the whole set takes the push
+              (mine.size > 1 && mine.has(P.e.id) ? erdEntities().filter((e) => mine.has(e.id)) : [P.e]).forEach((e) => { e.x += dx; e.y += dy; });
               return true;
             }
           }
@@ -929,27 +808,20 @@
         };
         for (let n = 0; n < 600 && step(); n++);
       }
-      // The diagram's canvas starts at 0,0: keep everything on it (shift all groups and ungrouped tables right/down when
-      // a move left something above or left of the edge)
+      // The canvas starts at 0,0: keep every table on it (shift all right/down when a move left something past the edge)
       function erdNormalize() {
-        const { eb, gb } = erdLiveBoxes();
         let minX = Infinity, minY = Infinity;
-        gb.forEach((b) => { minX = Math.min(minX, b.x); minY = Math.min(minY, b.y); });
-        erdEntities().forEach((e) => { if (erdGroupOf(e)) return; const b = eb.get(e.id); minX = Math.min(minX, b.x); minY = Math.min(minY, b.y); });
+        erdLiveBoxes().forEach((b) => { minX = Math.min(minX, b.x); minY = Math.min(minY, b.y); });
         const dx = minX < 8 ? erdRound4(16 - minX) : 0, dy = minY < 8 ? erdRound4(16 - minY) : 0;
         if (!dx && !dy) return;
-        erdGroups().forEach((g) => { g.x += dx; g.y += dy; });
-        erdEntities().forEach((e) => { if (!erdGroupOf(e)) { e.x += dx; e.y += dy; } });
+        erdEntities().forEach((e) => { e.x += dx; e.y += dy; });
       }
-      // Put a table's top-left at a screen point inside a group (or on the bare canvas when `g` is null)
-      function erdPlaceAt(e, g, x, y, exact) {
-        if (g) e.group = g.id; else delete e.group;
-        const o = g ? erGroupOrigin(g) : { x: 0, y: 0 };
-        // exact: whole pixels (a snapped drop keeps its alignment; a re-homed table keeps its place); else on the 4px grid
-        e.x = exact ? Math.round(x - o.x) : erdRound4(x - o.x);
-        e.y = exact ? Math.round(y - o.y) : erdRound4(y - o.y);
+      // Put a table's top-left at a screen point (exact: whole pixels, a snapped drop keeps its alignment; else the 4px grid)
+      function erdPlaceAt(e, x, y, exact) {
+        e.x = exact ? Math.round(x) : erdRound4(x);
+        e.y = exact ? Math.round(y) : erdRound4(y);
       }
-      // Re-route from the saved positions (after hand edits with Auto-Tidy off)
+      // Re-route from the saved positions (after a hand move; no relayout)
       function erdRoute() {
         routeDiagram(chartData);
         routedSig = inputSignature();
@@ -960,11 +832,11 @@
         erdRoute();
       }
 
-      // The tables changed size (Columns, Types). Auto-Tidy on: the whole diagram re-lays out. Off: hand-placed tables stay
+      // The tables changed size (Columns, Types). Auto-Tidy on: the diagram re-lays out (warm). Off: hand-placed tables stay
       // where they are and only the lines are re-routed; a table that now overlaps another is pushed right or down,
-      // whichever is shorter, and a group that grew into its neighbour pushes the neighbour on.
+      // whichever is shorter.
       function resizeLayout() {
-        if (autoLayout || erdEntities().some((e) => !erdIsPlaced(e)) || erdGroups().some((g) => !erdGroupPlaced(g))) { erdLayout(); return; }
+        if (autoLayout || erdEntities().some((e) => !erdIsPlaced(e))) { erdLayout(true); return; }
         erdSettled();
       }
 
@@ -984,11 +856,11 @@
       });
 
       // --- AUTO-TIDY ---
-      // On: every structural edit re-lays out (relayout()), as one undo step. Off: tables stay where they are put.
+      // On: every structural edit re-lays out, warm-started from the current positions (relayout()), as one undo step. The Tidy button (the shell) is a full layout. Off: tables stay where they are put.
       // The choice is an editing preference of this browser, not part of the diagram.
       // relayout() is what commit() (EDITING) calls after each structural edit while Auto-Tidy is on.
       function relayout() {
-        erdLayout();
+        erdLayout(true);
         render();
         updateStatus(true);
       }
@@ -1023,12 +895,16 @@
       const erdPresenting = () => document.body.classList.contains('presentation');
       const boxesOverlap = (a, b, pad = 0) => a.x < b.x + b.w + pad && a.x + a.w + pad > b.x && a.y < b.y + b.h + pad && a.y + a.h + pad > b.y;
       const boxGap = (a, b) => Math.hypot(Math.max(0, b.x - (a.x + a.w), a.x - (b.x + b.w)), Math.max(0, b.y - (a.y + a.h), a.y - (b.y + b.h)));
-      // Length of an axis-aligned segment that runs under box b
+      // Length of segment s that runs under box b (Liang-Barsky clip)
       function lengthUnder(s, b) {
-        const [x1, y1, x2, y2] = s;
-        if (y1 === y2) return (y1 > b.y && y1 < b.y + b.h) ? Math.max(0, Math.min(Math.max(x1, x2), b.x + b.w) - Math.max(Math.min(x1, x2), b.x)) : 0;
-        if (x1 === x2) return (x1 > b.x && x1 < b.x + b.w) ? Math.max(0, Math.min(Math.max(y1, y2), b.y + b.h) - Math.max(Math.min(y1, y2), b.y)) : 0;
-        return 0;
+        const [x1, y1, x2, y2] = s, dx = x2 - x1, dy = y2 - y1;
+        let t0 = 0, t1 = 1;
+        for (const [p, q] of [[-dx, x1 - b.x], [dx, b.x + b.w - x1], [-dy, y1 - b.y], [dy, b.y + b.h - y1]]) {
+          if (p === 0) { if (q < 0) return 0; continue; }
+          const r = q / p;
+          if (p < 0) t0 = Math.max(t0, r); else t1 = Math.min(t1, r);
+        }
+        return t1 > t0 ? (t1 - t0) * Math.hypot(dx, dy) : 0;
       }
 
       function renderNotes(refit) {
@@ -1114,13 +990,12 @@
 
       // Give every note that is neither pinned nor fitted yet the cheapest spot within NOTE_REACH of its tables:
       // about NOTE_IDEAL_GAP away, off-centre for a single table; heavy penalties for covering a table, another note, a
-      // label or a group's name tab; a lighter one for hiding a line; a small one for leaving the canvas.
+      // label; a lighter one for hiding a line; a small one for leaving the canvas.
       function fitNotes(live) {
         const todo = live.filter((n) => !n.pos && !noteOffsets[n.id]);
         if (!todo.length) return;
         const C = chartData.canvas || { width: 0, height: 0 };
         const W = C.width, H = C.height;
-        const tabs = erdGroups().filter((g) => g.box).map((g) => ({ x: g.box.x, y: g.box.y, w: Math.min(g.box.w, erTabW(g) + 10), h: ER.GROUP_HEAD }));
         const entityBoxes = erdEntities().filter((e) => e.box).map((e) => e.box);
         const labelBoxes = erdRelsList().filter((r) => r.labelBox).map((r) => r.labelBox);
         const segs = [];
@@ -1163,7 +1038,6 @@
                 cost += 160 * (aboveOrBelow ? Math.max(0, 1 - dxc / (r.w / 2)) : Math.max(0, 1 - dyc / (r.h / 2)));
               }
               if (best && cost >= best.cost) continue;
-              for (const o of tabs) if (boxesOverlap(b, o)) cost += 1e5;
               if (x < 0 || y < 0 || x + s.w > W || y + s.h > H) cost += 600;
               for (const o of nb) if (boxesOverlap(b, o, NOTE_GAP)) cost += 1e5;
               for (const o of pb) if (boxesOverlap(b, o, NOTE_GAP)) cost += 1e5;
@@ -1289,7 +1163,7 @@
 
       // =====================================================================================================
       // --- EDITING ---
-      // Selection kinds: a table, a column row, a line, a group or a note (selectedNoteId). Presses are handled
+      // Selection kinds: a table, a column row, a line or a note (selectedNoteId). Presses are handled
       // in one place (onErdPointerDown); drags go through beginDrag (a drag starts after 4px; a press without
       // movement only selects, and never rebuilds the DOM, so a double-click lands on the element the first click did).
       // Every finished edit calls updateStatus(true) once: commit() (structural: re-lays out only while Auto-Tidy is
@@ -1297,13 +1171,11 @@
       // =====================================================================================================
       const erdBtnAddTable = document.getElementById('btn-add-table');
       const erdBtnAddRel = document.getElementById('btn-add-relationship');
-      const erdBtnAddArea = document.getElementById('btn-add-area');
       const erdBtnAddNote = document.getElementById('btn-add-note');
 
       let erdDrag = null;            // the pointer drag in progress: { startX, startY, dx, dy, moved, move?, drop?, click?, cleanup? }
       let relArmed = false;          // the Relationship tool waits for a drag from a column
       let notePicking = false;       // the Note tool waits for a table
-      let groupBarEl = null;         // the selected group's action bar (kept next to its tab)
       let erdUidCounter = 0;
       const erdUid = (prefix) => `${prefix}_${Date.now()}_${erdUidCounter++}`;
       const erdPx = (v) => `${v}px`;
@@ -1314,9 +1186,9 @@
         const r = erdCanvas.getBoundingClientRect();
         return { x: (e.clientX - r.left) / scale - erdCanvas.clientLeft, y: (e.clientY - r.top) / scale - erdCanvas.clientTop };
       }
-      const erdFirstPk = (ent) => erToCol({}, ent);
+      const erdFirstPk = (ent) => erdToCol({}, ent);
 
-      // A structural edit: with Auto-Tidy on the whole diagram re-lays out; off, tables stay and only lines are re-routed
+      // A structural edit: with Auto-Tidy on the diagram re-lays out (warm); off, tables stay and only lines are re-routed
       function commit() {
         if (autoLayout) relayout();
         else { render(); updateStatus(true); }
@@ -1445,15 +1317,6 @@
         return true;
       }
 
-      // --- GROUPS UNDER A POINT ---
-      // The group whose box (tab strip included) holds a canvas point, or null on bare canvas
-      function erdGroupAt(pt) {
-        return erdGroups().find((g) => g.box && pt.x >= g.box.x && pt.x <= g.box.x + g.box.w && pt.y >= g.box.y && pt.y <= g.box.y + g.box.h) || null;
-      }
-      function markGroup(g) {
-        [...erdGroupsEl.children].forEach((b) => b.classList.toggle('drop-target', !!g && b.dataset.groupId === g.id));
-      }
-
       // =====================================================================================================
       // --- ACTION BAR, HANDLES, PORTS ---
       // =====================================================================================================
@@ -1499,17 +1362,6 @@
       }
       const abSep = () => erdHtmlEl('span', 'erd-ab-sep');
 
-      // The mid-point of a line's longest segment (where its label sits)
-      function relMid(rel) {
-        const p = rel.points || [];
-        let best = null, len = -1;
-        for (let i = 1; i < p.length; i++) {
-          const l = Math.abs(p[i][0] - p[i - 1][0]) + Math.abs(p[i][1] - p[i - 1][1]);
-          if (l > len) { len = l; best = [(p[i][0] + p[i - 1][0]) / 2, (p[i][1] + p[i - 1][1]) / 2]; }
-        }
-        return best ? { x: best[0], y: best[1] } : { x: 0, y: 0 };
-      }
-
       function addHandle(role, id, x, y) {
         const h = erdHtmlEl('div', 'erd-handle');
         h.dataset.role = role;
@@ -1524,7 +1376,6 @@
       // The tools drawn on the selection: never exported ([data-export-skip]), not in ?present, hidden while dragging
       function drawSelectionTools() {
         erdHtml.querySelectorAll('.erd-actionbar, .erd-handle').forEach((el) => el.remove());
-        groupBarEl = null;
         if (!erdSel || erdPresenting()) return;
         const bar = erdHtmlEl('div', 'erd-actionbar');
         bar.dataset.exportSkip = '';
@@ -1544,8 +1395,7 @@
           const nSel = selectedEntityIds().length;
           bar.appendChild(abButton('delete', erdIconSvg(ERD_ICON.trash), nSel > 1 ? `Delete these ${nSel} tables and their relationships` : 'Delete this table and its relationships', undefined, undefined, 'is-danger'));
           bar.appendChild(erdHtmlEl('span', 'erd-ab-break'));
-          const g = erdGroupOf(e);
-          bar.appendChild(swatchRow(g ? (g.color || '') : (e.color || ''), (hex) => setEntityColor(e.id, hex), { btnClass: 'erd-ab-swatch' }));
+          bar.appendChild(swatchRow(e.color || '', (hex) => setEntityColor(e.id, hex), { btnClass: 'erd-ab-swatch' }));
           at = { x: e.box.x + e.box.w / 2, y: e.box.y - 10 };
           below = e.box.y < 110;
           if (below) at.y = e.box.y + e.box.h + 10;
@@ -1568,7 +1418,7 @@
           if (below) at.y = e.box.y + e.box.h + 10;
         } else if (erdSel.kind === 'rel') {
           const rel = erdRel(erdSel.id);
-          if (!rel || !rel.points || rel.points.length < 2) return;
+          if (!rel || !rel.curve || !rel.points || rel.points.length < 2) return;
           bar.setAttribute('aria-label', 'Relationship');
           const ends = erRelEnds(rel, chartData);
           bar.appendChild(erdHtmlEl('span', 'erd-ab-tag', 'Child'));
@@ -1581,41 +1431,26 @@
             'Identifying: the key is part of the child’s primary key (solid line); off: dashed', rel.identifying === true));
           bar.appendChild(abButton('reverse', erdIconSvg(ERD_ICON.reverse), 'Reverse: swap the child and the parent'));
           bar.appendChild(abButton('label', erdIconSvg(ERD_ICON.label), 'Label the line (or double-click it)'));
-          addHandle('from', rel.id, rel.points[0][0], rel.points[0][1]);
-          addHandle('to', rel.id, rel.points[rel.points.length - 1][0], rel.points[rel.points.length - 1][1]);
+          addHandle('from', rel.id, rel.curve[0][0], rel.curve[0][1]);
+          addHandle('to', rel.id, rel.curve[3][0], rel.curve[3][1]);
           erdHtml.appendChild(bar);
           placeRelBar(bar, rel);
-          return;
-        } else if (erdSel.kind === 'group') {
-          const g = erdGroups().find((x) => x.id === erdSel.id);
-          if (!g || !g.box) return;
-          bar.setAttribute('aria-label', 'Area');
-          bar.classList.add('is-left');
-          bar.appendChild(swatchRow(g.color || '', (hex) => setGroupColor(g.id, hex), { btnClass: 'erd-ab-swatch' }));
-          bar.appendChild(abSep());
-          bar.appendChild(abButton('rename', erdIconSvg(ERD_ICON.label), 'Rename this area (or double-click its name)'));
-          bar.appendChild(abButton('delgroup', erdIconSvg(ERD_ICON.trash), 'Delete this area (its tables move to the first area)', undefined, undefined, 'is-danger'));
-          groupBarEl = bar;
-          erdHtml.appendChild(bar);
-          placeGroupBar();
           return;
         } else return;
         bar.classList.toggle('is-below', below);
         Object.assign(bar.style, { left: erdPx(at.x), top: erdPx(Math.max(2, at.y)) });
         erdHtml.appendChild(bar);
       }
-      // The line's bar sits above or below the middle of one of its longer runs, wherever it hides the fewest tables
+      // The line's bar sits above or below a point near the middle of its curve, wherever it hides the fewest tables
       function placeRelBar(bar, rel) {
         const p = rel.points, w = bar.offsetWidth, h = bar.offsetHeight;
-        const segs = [];
-        for (let i = 1; i < p.length; i++) segs.push({ x: (p[i][0] + p[i - 1][0]) / 2, y: (p[i][1] + p[i - 1][1]) / 2, len: Math.abs(p[i][0] - p[i - 1][0]) + Math.abs(p[i][1] - p[i - 1][1]) });
-        segs.sort((a, b) => b.len - a.len);
+        const segs = [8, 6, 10, 4, 12].filter((i) => p[i]).map((i) => ({ x: p[i][0], y: p[i][1] }));
         const boxes = erdEntities().filter((e) => e.box).map((e) => e.box);
         const C = chartData.canvas || { width: 1e9, height: 1e9 };
         let best = null;
         segs.slice(0, 3).forEach((s, k) => {
           [0, -0.5, -0.3, 0.3, 0.5].forEach((shift) => [false, true].forEach((below) => {
-            // the bar's left edge: centred on the run's middle, or slid along it, never off the canvas
+            // the bar's left edge: centred on the point, or slid along it, never off the canvas
             const x = Math.max(4, Math.min(s.x - w / 2 + shift * w, C.width - w - 4)), y = below ? s.y + 16 : s.y - 16 - h;
             let cost = k * 40 + (below ? 10 : 0) + Math.abs(x - (s.x - w / 2)) / 8;
             boxes.forEach((b) => {
@@ -1628,15 +1463,6 @@
         });
         bar.classList.toggle('is-below', best.below);
         Object.assign(bar.style, { left: erdPx(best.x), top: erdPx(Math.max(2, best.y)) });
-      }
-      function placeGroupBar() {
-        if (!groupBarEl || !erdSel || erdSel.kind !== 'group') return;
-        const g = erdGroups().find((x) => x.id === erdSel.id);
-        const box = g && groupEl(g.id);
-        const tab = box && box.querySelector('.erd-group-tab');
-        if (!g || !g.box || !tab) return;
-        groupBarEl.style.left = erdPx(g.box.x + tab.offsetLeft + tab.offsetWidth + 14);
-        groupBarEl.style.top = erdPx(Math.max(2, g.box.y + tab.offsetTop - 2));
       }
 
       erdHtml.addEventListener('click', (e) => {
@@ -1671,26 +1497,15 @@
           else if (act === 'identifying') { if (rel.identifying === true) delete rel.identifying; else rel.identifying = true; commit(); }
           else if (act === 'reverse') reverseRelationship(rel);
           else if (act === 'label') editRelLabel(rel.id);
-        } else if (sel.kind === 'group') {
-          if (act === 'rename') editGroupName(sel.id);
-          else if (act === 'delgroup') deleteSelection(erdHtml.querySelector('.erd-ab-btn[data-act="delgroup"]'));
         }
       }
 
-      function setGroupColor(gid, hex) {
-        const g = erdGroups().find((x) => x.id === gid);
-        if (!g || (g.color || '') === hex) return;
-        if (hex) g.color = hex; else delete g.color;
-        render();
-        updateStatus(true);
-      }
-      // A table's colour is its area's; with no areas it is the table's own
+      // The colour of the selected table (all of them, when several are selected): one of the swatches, '' = neutral
       function setEntityColor(id, hex) {
-        const e = erdEntity(id);
-        if (!e) return;
-        if (erdGroupOf(e)) { setGroupColor(erdGroupOf(e).id, hex); return; }
-        if ((e.color || '') === hex) return;
-        if (hex) e.color = hex; else delete e.color;
+        const ids = selectedEntityIds().includes(id) ? selectedEntityIds() : [id];
+        const ents = ids.map(erdEntity).filter((e) => e && (e.color || '') !== hex);
+        if (!ents.length) return;
+        ents.forEach((e) => { if (hex) e.color = hex; else delete e.color; });
         render();
         updateStatus(true);
       }
@@ -1743,23 +1558,13 @@
       }
       erdHtml.addEventListener('pointerdown', onErdPointerDown);
 
-      // A group's name tab: a press selects the group, a drag moves it with its tables
-      erdGroupsEl.addEventListener('pointerdown', (e) => {
-        if (e.button > 0 || erdPresenting()) return;
-        const tab = e.target.closest('.erd-group-tab');
-        if (!tab || tab.isContentEditable) return;
-        const box = tab.closest('.erd-group');
-        selectGroup(box.dataset.groupId);
-        beginDrag(e, groupDrag(box.dataset.groupId, box));
-      });
-
       // --- Draw a relationship: drag from a row's port (or the header's) onto another table or one of its rows ---
       function connectDrag(from, onClick) {
         const a = erdEntity(from.entity);
         return {
           click: onClick,
           move(e, d) {
-            const x = a.box.x + a.box.w, y = erRowAnchorY(a, from.col, chartData);
+            const x = a.box.x + a.box.w / 2, y = a.box.y + a.box.h / 2;
             const pt = erdPoint(e);
             showRubber(x, y, pt.x, pt.y);
             d.target = erdTargetAt(e);
@@ -1809,8 +1614,8 @@
         const rel = erdRel(relId);
         return {
           move(e, d) {
-            if (!rel || !rel.points) return;
-            const fixed = role === 'from' ? rel.points[rel.points.length - 1] : rel.points[0];
+            if (!rel || !rel.curve) return;
+            const fixed = role === 'from' ? rel.curve[3] : rel.curve[0];
             const pt = erdPoint(e);
             showRubber(fixed[0], fixed[1], pt.x, pt.y);
             d.target = erdTargetAt(e);
@@ -1842,7 +1647,7 @@
         const from = erdEntity(rel.from), to = erdEntity(rel.to);
         if (!from || !to) return;
         const ends = erRelEnds(rel, chartData);
-        const toCol = erToCol(rel, to);                              // where the line entered the parent
+        const toCol = erdToCol(rel, to);                              // where the line entered the parent
         const oldCols = Array.isArray(rel.columns) ? rel.columns.slice() : null;
         rel.from = to.id;
         rel.to = from.id;
@@ -1855,10 +1660,10 @@
       }
 
       // --- Move a table ---
-      // Auto-Tidy on: a drop only chooses the group (the one under the pointer; bare canvas = ungrouped) and the layout
-      // decides the place. Off: it stays where dropped (x/y written inside the group it lands in, or absolute on bare
-      // canvas); the group grows to fit, and overlapping tables and groups are pushed apart (erdSettle).
-      // `group`: ids of every table moving together (several selected); each lands on its own.
+      // A drop writes the table's x/y wherever it lands (Auto-Tidy on or off: a drag never re-lays out); overlapping
+      // tables are pushed apart (erdSettle) and only the lines are re-routed (routeDiagram). Dashed guides snap a table's
+      // centre to another table's centre within 6px.
+      // `group`: ids of every table moving together (several selected).
       function entityDrag(id, el, group) {
         const e = erdEntity(id);
         const ids = group || [id];
@@ -1867,9 +1672,7 @@
           move(ev, d) {
             els.forEach((x) => x.classList.add('is-dragging'));
             let dx = d.dx, dy = d.dy;
-            markGroup(erdGroupAt(erdPoint(ev)));
-            if (!autoLayout && e.box) {
-              // Snap centre to centre to another table within 6px, with guides
+            if (e.box) {
               const cx = e.box.x + e.box.w / 2 + dx, cy = e.box.y + e.box.h / 2 + dy;
               let sx = null, sy = null;
               erdEntities().forEach((o) => {
@@ -1885,45 +1688,15 @@
             els.forEach((x) => { x.style.translate = `${dx}px ${dy}px`; });
           },
           drop(ev, d) {
-            if (group) { dropMany(group, d); return; }
-            const g = erdGroupAt(erdPoint(ev)), cur = erdGroupOf(e);
-            if (autoLayout) {
-              if ((g ? g.id : null) !== (cur ? cur.id : null)) { if (g) e.group = g.id; else delete e.group; commit(); } else render();
-              return;
-            }
             const dx = d.sdx === undefined ? d.dx : d.sdx, dy = d.sdy === undefined ? d.dy : d.sdy;
-            erdPlaceAt(e, g, e.box.x + dx, e.box.y + dy, !!d.snapped);   // a snapped drop keeps its exact alignment
-            erdSettled({ tables: new Set([e.id]) });
+            const ents = ids.map(erdEntity).filter((x) => x && x.box);
+            if (!ents.length) { render(); return; }
+            ents.forEach((t) => erdPlaceAt(t, t.box.x + dx, t.box.y + dy, !!d.snapped));   // a snapped drop keeps its exact alignment
+            erdSettled({ tables: new Set(ids) });
             render();
             updateStatus(true);
           }
         };
-      }
-      // Several tables dropped: each takes the group its centre lands in (bare canvas = ungrouped). Auto-Tidy on: one
-      // re-layout places them. Off: each keeps its offset from the others.
-      function dropMany(ids, d) {
-        const ents = ids.map(erdEntity).filter((x) => x && x.box);
-        if (!ents.length) { render(); return; }
-        const dx = d.sdx === undefined ? d.dx : d.sdx, dy = d.sdy === undefined ? d.dy : d.sdy;
-        const moves = ents.map((e) => {
-          const b = { x: e.box.x + dx, y: e.box.y + dy, w: e.box.w, h: e.box.h };
-          return { e, b, g: erdGroupAt({ x: b.x + b.w / 2, y: b.y + b.h / 2 }) };
-        });
-        if (autoLayout) {
-          let changed = false;
-          moves.forEach(({ e, g }) => {
-            const cur = erdGroupOf(e);
-            if ((g ? g.id : null) === (cur ? cur.id : null)) return;
-            if (g) e.group = g.id; else delete e.group;
-            changed = true;
-          });
-          if (changed) commit(); else render();
-          return;
-        }
-        moves.forEach(({ e, b, g }) => erdPlaceAt(e, g, b.x, b.y));
-        erdSettled({ tables: new Set(ids) });
-        render();
-        updateStatus(true);
       }
 
       // --- Reorder a column: drag its row within the table ---
@@ -1960,28 +1733,6 @@
             if (to === from) { cols.splice(from, 0, col); render(); return; }
             cols.splice(to, 0, col);
             commit();
-          }
-        };
-      }
-
-      // --- Move a group: drag its name tab. The group and its tables follow the pointer; on drop its x/y is written and
-      // the other groups (and ungrouped tables) it now overlaps are pushed away along the shortest axis, then the lines
-      // are re-routed. With Auto-Tidy on this does not re-run the full packing: the next structural edit does. ---
-      function groupDrag(gid, box) {
-        const g = erdGroups().find((x) => x.id === gid);
-        const els = erdEntities().filter((e) => erdGroupOf(e) === g).map((e) => entityEl(e.id)).filter(Boolean);
-        return {
-          move(ev, d) {
-            box.classList.add('is-dragging');
-            [box, ...els].forEach((x) => { x.style.translate = `${d.dx}px ${d.dy}px`; });
-          },
-          drop(ev, d) {
-            if (!g) { render(); return; }
-            g.x += erdRound4(d.dx);
-            g.y += erdRound4(d.dy);
-            erdSettled({ group: gid });
-            render();
-            updateStatus(true);
           }
         };
       }
@@ -2090,22 +1841,10 @@
         });
       }
 
-      function editGroupName(gid) {
-        const g = erdGroups().find((x) => x.id === gid);
-        const box = g && groupEl(gid);
-        const tab = box && box.querySelector('.erd-group-tab');
-        if (!tab) return;
-        panIntoView(tab);
-        beginEdit(tab, {
-          raw: g.name || g.id,
-          apply: (value) => { if (!value || value === g.name) return false; g.name = value; return true; }
-        });
-      }
-
       // A line's label: made for the edit when the line has none (the engine places it after the commit)
       function editRelLabel(id) {
         const rel = erdRel(id);
-        if (!rel || !rel.points || erdPresenting()) return;
+        if (!rel || !rel.curve || erdPresenting()) return;
         if (!erdSel || erdSel.kind !== 'rel' || erdSel.id !== id) selectRel(id);
         let box = labelEl(id);
         if (!box) {
@@ -2149,12 +1888,6 @@
         const g = e.target.closest('.erd-rel');
         if (g) { e.stopPropagation(); editRelLabel(g.dataset.edgeId); }
       });
-      erdGroupsEl.addEventListener('dblclick', (e) => {
-        if (erdPresenting()) return;
-        const tab = e.target.closest('.erd-group-tab');
-        if (tab && !tab.isContentEditable) { e.stopPropagation(); editGroupName(tab.closest('.erd-group').dataset.groupId); }
-      });
-
       function editSelection() {
         const s = erdSel;
         if (selectedNoteId && !s) { editNote(selectedNoteId); return; }
@@ -2162,7 +1895,6 @@
         if (s.kind === 'entity') editEntityName(s.id);
         else if (s.kind === 'col') editColumn(s.entity, s.col, 'name');
         else if (s.kind === 'rel') editRelLabel(s.id);
-        else if (s.kind === 'group') editGroupName(s.id);
       }
 
       // =====================================================================================================
@@ -2239,29 +1971,14 @@
         if (erdSel.kind === 'col') return erdSel.entity;
         return null;
       }
-      // The group a new table goes into: the named one, the one under a drop point (bare canvas: none), the selected
-      // group, the selected table's group, else the first group
-      function erdNewTableGroup(opts) {
-        const groups = erdGroups();
-        if (opts.group) return groups.find((g) => g.id === opts.group) || null;
-        if (opts.pt) return erdGroupAt(opts.pt);
-        if (erdSel && erdSel.kind === 'group') return groups.find((g) => g.id === erdSel.id) || null;
-        const sel = erdEntity(erdSelectedEntityId());
-        return sel ? erdGroupOf(sel) : (groups[0] || null);
-      }
       // With Auto-Tidy off a new table must be placed (a table without x/y would send the whole diagram to the layout):
-      // at the drop point; else under the lowest table of its group (or beside the selected ungrouped table); then
-      // moved down clear of other tables, and overlaps pushed apart
-      function placeNewTable(e, pt, target) {
+      // at the drop point; else beside the selected table; then moved down clear of other tables, and overlaps pushed apart
+      function placeNewTable(e, pt) {
         const size = erEntitySize(e, chartData);
         const sel = erdEntity(erdSelectedEntityId());
         let x, y;
         if (pt) { x = pt.x - size.w / 2; y = pt.y - ER.HEAD_H / 2; }
-        else if (target) {
-          const mates = erdEntities().filter((o) => o !== e && o.box && erdGroupOf(o) === target);
-          x = sel && sel.box && erdGroupOf(sel) === target ? sel.box.x : (mates.length ? Math.min(...mates.map((o) => o.box.x)) : target.x + ER.GROUP_PAD);
-          y = mates.length ? Math.max(...mates.map((o) => o.box.y + o.box.h)) + 40 : erGroupOrigin(target).y;
-        } else if (sel && sel.box) { x = sel.box.x + sel.box.w + 80; y = sel.box.y; }
+        else if (sel && sel.box) { x = sel.box.x + sel.box.w + 80; y = sel.box.y; }
         else {
           const v = viewport.getBoundingClientRect();
           const c = erdPoint({ clientX: v.left + v.width / 2, clientY: v.top + v.height / 2 });
@@ -2269,7 +1986,7 @@
         }
         const boxes = erdEntities().filter((o) => o !== e && o.box).map((o) => o.box);
         for (let k = 0; k < 80 && boxes.some((b) => boxesOverlap({ x, y, w: size.w, h: size.h }, b, 16)); k++) y += 40;
-        erdPlaceAt(e, target, x, y);
+        erdPlaceAt(e, x, y);
         erdSettled({ tables: new Set([e.id]) });
       }
       function addTable(opts = {}) {
@@ -2278,73 +1995,15 @@
         const names = new Set(ents.map((x) => erName(x)));
         while (names.has(`table_${n}`)) n++;
         const e = { id: erdUid('t'), name: `table_${n}`, columns: [{ name: 'id', type: 'uuid', pk: true }] };
-        const target = erdNewTableGroup(opts);
-        if (target) e.group = target.id;
         const afterId = opts.pt ? null : erdSelectedEntityId();
         const at = afterId ? ents.findIndex((x) => x.id === afterId) : -1;
         if (at >= 0) ents.splice(at + 1, 0, e); else ents.push(e);
-        if (!autoLayout) placeNewTable(e, opts.pt, target);
+        if (!autoLayout) placeNewTable(e, opts.pt);
         selectedNoteId = null;
         erdSel = { kind: 'entity', id: e.id };
         commit();
         panIntoView(entityEl(e.id));
         editEntityName(e.id);
-      }
-
-      // --- Areas (groups) ---
-      // Area: adds an empty group box next to the selected table's group (the first area takes every table). Auto-Tidy
-      // on: the layout places it. Off: it goes at the right of the canvas, level with the selected group.
-      function addArea() {
-        const groups = erdGroups();
-        const sel = erdEntity(erdSelectedEntityId());
-        const selGroup = erdSel && erdSel.kind === 'group' ? groups.find((x) => x.id === erdSel.id) : (sel ? erdGroupOf(sel) : null);
-        let g;
-        if (!groups.length) {
-          g = { id: erdUid('g'), name: 'Area 1' };
-          const ents = erdEntities().filter((e) => e.box);
-          if (!autoLayout && ents.length) {
-            // tables keep their screen places: the group is fitted around them, their x/y become group-relative
-            g.x = Math.min(...ents.map((e) => e.box.x)) - ER.GROUP_PAD;
-            g.y = Math.min(...ents.map((e) => e.box.y)) - ER.GROUP_HEAD - ER.GROUP_PAD / 2;
-            const o = erGroupOrigin(g);
-            ents.forEach((e) => { e.x = e.box.x - o.x; e.y = e.box.y - o.y; });
-          }
-          chartData.groups = [g];
-          erdEntities().forEach((e) => { e.group = g.id; });
-        } else {
-          let n = groups.length + 1;
-          const names = new Set(groups.map((x) => x.name));
-          while (names.has(`Area ${n}`)) n++;
-          g = { id: erdUid('g'), name: `Area ${n}` };
-          const at = selGroup ? groups.indexOf(selGroup) : groups.length - 1;
-          if (!autoLayout) {
-            const { eb, gb } = erdLiveBoxes();
-            let right = 0;
-            eb.forEach((b) => { right = Math.max(right, b.x + b.w); });
-            gb.forEach((b) => { right = Math.max(right, b.x + b.w); });
-            g.x = erdRound4(right + ER.GROUP_GAP);
-            g.y = erdRound4(selGroup && selGroup.box ? selGroup.box.y : ER.MARGIN);
-          }
-          groups.splice(at + 1, 0, g);
-        }
-        selectedNoteId = null;
-        erdSel = { kind: 'group', id: g.id };
-        commit();
-        editGroupName(g.id);
-      }
-      function deleteGroup(id) {
-        const groups = erdGroups(), g = groups.find((x) => x.id === id);
-        if (!g) return;
-        const rest = groups.filter((x) => x.id !== id);
-        const target = rest[0] || null;
-        const mine = erdEntities().filter((e) => e.group === id);
-        // Auto-Tidy off: the tables keep their screen places, whichever group (or none) they land in
-        if (!autoLayout) mine.filter((e) => e.box).forEach((e) => erdPlaceAt(e, target, e.box.x, e.box.y, true));
-        if (!rest.length) delete chartData.groups; else chartData.groups = rest;
-        mine.forEach((e) => { if (target) e.group = target.id; else delete e.group; });
-        erdSel = null;
-        if (!autoLayout) erdSettled({ tables: new Set(mine.map((e) => e.id)) });
-        commit();
       }
 
       // --- Delete ---
@@ -2432,16 +2091,6 @@
           } else deleteEntity(e.id);
         } else if (s.kind === 'col') deleteColumn(s.entity, s.col);
         else if (s.kind === 'rel') deleteRel(s.id);
-        else if (s.kind === 'group') {
-          const g = erdGroups().find((x) => x.id === s.id);
-          if (!g) return;
-          const count = erdEntities().filter((e) => e.group === g.id).length;
-          const rest = erdGroups().length - 1;
-          if (count) {
-            confirmDelete(rest ? `Delete the area ${g.name || g.id}? Its ${count} table${count === 1 ? '' : 's'} move to the first remaining area.`
-              : `Delete the area ${g.name || g.id}? The diagram goes back to no areas.`, 'Delete area', () => deleteGroup(g.id), anchorEl || null);
-          } else deleteGroup(g.id);
-        }
       }
 
       // =====================================================================================================
@@ -2606,7 +2255,7 @@
         if (id) addNoteTo(id); else editNote(selectedNoteId);
       });
 
-      // --- The dock: Table, Relationship, Area, Note ---
+      // --- The dock: Table, Relationship, Note ---
       function setRelArmed(on) {
         if (relArmed === on) return;
         relArmed = on;
@@ -2635,9 +2284,8 @@
           setRelArmed(!relArmed);
         });
       }
-      if (erdBtnAddArea) erdBtnAddArea.addEventListener('click', () => { if (!erdPresenting()) addArea(); });
 
-      // Table: a click adds one after the selection (into its area); dragging the button onto an area drops it there
+      // Table: a click adds one after the selection; dragging the button onto the canvas drops it there
       let tableToolDrag = null;   // { startX, startY, ghost, pt }
       if (erdBtnAddTable) {
         erdBtnAddTable.addEventListener('click', (e) => {
@@ -2681,7 +2329,6 @@
         const over = pt.x >= 0 && pt.y >= 0 && pt.x <= C.width && pt.y <= C.height && !!document.elementFromPoint(e.clientX, e.clientY)?.closest('#erd-canvas');
         d.pt = over ? pt : null;
         d.ghost.classList.toggle('off-target', !over);
-        markGroup(over ? erdGroupAt(pt) : null);
       }
       function endTableToolDrag() {
         window.removeEventListener('pointermove', onTableToolMove);
@@ -2690,7 +2337,6 @@
         const d = tableToolDrag;
         tableToolDrag = null;
         if (d && d.ghost) { d.ghost.remove(); document.body.classList.remove('palette-dragging'); }
-        markGroup(null);
         return d;
       }
       function onTableToolUp() {
@@ -2844,17 +2490,17 @@
       }
 
       // --- DISK FORMAT (the page's data block) ---
-      // Written for a reader: fixed key order, schemaVersion 2, every group's origin (screen x/y of its box) and every
-      // table's x/y (inside its group, absolute when ungrouped) in one trailing "layout" map (groups first), derived
-      // geometry dropped, editor-generated ids renamed (tables and areas after their name, r<N>, n<N>). The in-memory
-      // model keeps x/y on the objects. scripts/disk_format.py (ERD_KEYS, erd_to_disk) is the Python twin: keep the two
-      // byte-identical (dev/e2e_erd.mjs saves a generated page without edits and compares). A page saved by v1
-      // (schemaVersion 1 or none) has flow-term positions: fromDisk ignores them and render() lays the diagram out.
+      // Written for a reader: fixed key order, schemaVersion 3, every table's absolute x/y in one trailing "layout" map
+      // {tableId: {x, y}}, derived geometry dropped, editor-generated ids renamed (tables after their name, r<N>, n<N>).
+      // The in-memory model keeps x/y on the objects. scripts/disk_format.py (ERD_KEYS, erd_to_disk) is the Python twin:
+      // keep the two byte-identical (dev/e2e_erd.mjs saves a generated page without edits and compares). A page of an
+      // older version has no usable positions (v1: flow terms; v2: group-relative): fromDisk drops them, turns each
+      // group's colour into its tables' `color` and its name into `colorKey`, and render() lays the diagram out.
       const ERD_DISK_KEYS = ['diagramType', 'schemaVersion', 'title', 'detail', 'showTypes', 'showNotes', 'colorKey',
-        'groups', 'entities', 'relationships', 'notes', 'layout'];
-      const ERD_DERIVED = [['entities', ['box']], ['groups', ['box']], ['relationships', ['points', 'labelBox']]];
-      const ERD_SCHEMA_VERSION = 2;
-      const ERD_GENERATED_ID = /^(t|r|g|n)_\d{12,}(_\d+)?$/;   // page ids: <prefix>_<Date.now()>[_k]
+        'entities', 'relationships', 'notes', 'layout'];
+      const ERD_DERIVED = [['entities', ['box']], ['relationships', ['curve', 'points', 'labelBox']]];
+      const ERD_SCHEMA_VERSION = 3;
+      const ERD_GENERATED_ID = /^(t|r|n)_\d{12,}(_\d+)?$/;   // page ids: <prefix>_<Date.now()>[_k]
       const ERD_SLUG_MAX = 30;
 
       function slug(text, sep = '_') {
@@ -2865,8 +2511,8 @@
       }
 
       function renameGeneratedIds(d) {
-        const gs = d.groups || [], es = d.entities || [], rs = d.relationships || [], ns = d.notes || [];
-        const used = new Set([...gs, ...es, ...rs, ...ns].map((o) => o.id));
+        const es = d.entities || [], rs = d.relationships || [], ns = d.notes || [];
+        const used = new Set([...es, ...rs, ...ns].map((o) => o.id));
         const rename = new Map();
         const take = (base) => {
           let id = base, k = 2;
@@ -2875,9 +2521,7 @@
           return id;
         };
         const generated = (o) => ERD_GENERATED_ID.test(String(o.id || ''));
-        [[es, 'table'], [gs, 'area']].forEach(([items, fallback]) => items.forEach((o) => {
-          if (generated(o)) rename.set(o.id, take(slug(o.name) || fallback));
-        }));
+        es.forEach((o) => { if (generated(o)) rename.set(o.id, take(slug(o.name) || 'table')); });
         [[rs, 'r'], [ns, 'n']].forEach(([items, prefix]) => {
           let count = 1;
           items.forEach((o) => {
@@ -2888,8 +2532,7 @@
         });
         if (!rename.size) return;
         const r = (id) => (rename.has(id) ? rename.get(id) : id);
-        [...gs, ...es, ...rs, ...ns].forEach((o) => { o.id = r(o.id); });
-        es.forEach((e) => { if ('group' in e) e.group = r(e.group); });
+        [...es, ...rs, ...ns].forEach((o) => { o.id = r(o.id); });
         rs.forEach((rel) => ['from', 'to'].forEach((k) => { if (k in rel) rel[k] = r(rel[k]); }));
         ns.forEach((n) => { if (Array.isArray(n.entities)) n.entities = n.entities.map(r); });
       }
@@ -2901,7 +2544,7 @@
         ERD_DERIVED.forEach(([list, keys]) => (d[list] || []).forEach((o) => keys.forEach((k) => { delete o[k]; })));
         renameGeneratedIds(d);
         const layout = {};
-        [...(d.groups || []), ...(d.entities || [])].forEach((o) => {
+        (d.entities || []).forEach((o) => {
           const pos = {};
           ['x', 'y'].forEach((k) => { if (k in o) { pos[k] = o[k]; delete o[k]; } });
           if (Object.keys(pos).length) layout[o.id] = pos;
@@ -2918,8 +2561,25 @@
         const layout = d.layout || {};
         delete d.layout;
         delete d.direction;
-        if (d.schemaVersion !== ERD_SCHEMA_VERSION) return d;   // v1: flow-term positions are dropped, the page lays out
-        [...(d.groups || []), ...(d.entities || [])].forEach((o) => Object.assign(o, layout[o.id] || {}));
+        if (d.schemaVersion === ERD_SCHEMA_VERSION) {
+          (d.entities || []).forEach((o) => Object.assign(o, layout[o.id] || {}));
+          return d;
+        }
+        // v1/v2 (or none): positions dropped. A group's colour becomes its tables' `color`, its name a colorKey entry
+        // (hex -> name) unless that hex already has one
+        const groups = {};
+        (Array.isArray(d.groups) ? d.groups : []).forEach((g) => { groups[g.id] = g; });
+        delete d.groups;
+        const key = d.colorKey && typeof d.colorKey === 'object' && !Array.isArray(d.colorKey) ? d.colorKey : {};
+        (d.entities || []).forEach((e) => {
+          const g = groups[e.group];
+          delete e.group;
+          if (g && g.color) {
+            e.color = g.color;
+            if (g.name && !(g.color in key)) key[g.color] = g.name;
+          }
+        });
+        if (Object.keys(key).length) d.colorKey = key;
         return d;
       }
 
@@ -2968,9 +2628,7 @@
         contentEl: erdCanvas,
         report: { node: '.erd-entity', label: '.erd-rel-label', labelText: '.erd-rel-label-text', nodeText: '.erd-name' },
         render,
-        // A group's box is background (marquee, pan); its name tab is not: a press selects the group, a drag moves it
-        isBackground: (el) => el === erdCanvas || el === erdSvg || el === erdOverlay || el === erdHtml || el === erdGroupsEl || el.id === 'erd-notes'
-          || el.classList.contains('erd-group'),
+        isBackground: (el) => el === erdCanvas || el === erdSvg || el === erdOverlay || el === erdHtml || el.id === 'erd-notes',
         clearSelection() {
           erdSel = null;
           erdMultiIds = [];

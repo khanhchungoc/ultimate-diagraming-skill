@@ -1,16 +1,12 @@
 {
   "diagramType": "erd",
   "title": "Shop",
-  "direction": "LR",
-  "groups": [
-    { "id": "sales", "name": "Sales", "color": "#e0f2fe" },
-    { "id": "catalog", "name": "Catalog", "color": "#dcfce7" }
-  ],
+  "colorKey": {"#e0f2fe": "Sales", "#dcfce7": "Catalog"},
   "entities": [
     {
       "id": "customer",
       "name": "customer",
-      "group": "sales",
+      "color": "#e0f2fe",
       "columns": [
         { "name": "id", "type": "uuid", "pk": true },
         { "name": "email", "type": "text", "unique": true },
@@ -21,7 +17,7 @@
     {
       "id": "address",
       "name": "address",
-      "group": "sales",
+      "color": "#e0f2fe",
       "columns": [
         { "name": "id", "type": "uuid", "pk": true },
         { "name": "customer_id", "type": "uuid", "fk": true },
@@ -33,7 +29,7 @@
     {
       "id": "order",
       "name": "order",
-      "group": "sales",
+      "color": "#e0f2fe",
       "columns": [
         { "name": "id", "type": "uuid", "pk": true },
         { "name": "customer_id", "type": "uuid", "fk": true },
@@ -45,7 +41,7 @@
     {
       "id": "order_item",
       "name": "order_item",
-      "group": "sales",
+      "color": "#e0f2fe",
       "columns": [
         { "name": "order_id", "type": "uuid", "pk": true, "fk": true },
         { "name": "product_id", "type": "uuid", "pk": true, "fk": true },
@@ -56,7 +52,7 @@
     {
       "id": "payment",
       "name": "payment",
-      "group": "sales",
+      "color": "#e0f2fe",
       "columns": [
         { "name": "id", "type": "uuid", "pk": true },
         { "name": "order_id", "type": "uuid", "fk": true, "unique": true },
@@ -67,7 +63,7 @@
     {
       "id": "product",
       "name": "product",
-      "group": "catalog",
+      "color": "#dcfce7",
       "columns": [
         { "name": "id", "type": "uuid", "pk": true },
         { "name": "category_id", "type": "uuid", "fk": true },
@@ -79,7 +75,7 @@
     {
       "id": "category",
       "name": "category",
-      "group": "catalog",
+      "color": "#dcfce7",
       "columns": [
         { "name": "id", "type": "uuid", "pk": true },
         { "name": "name", "type": "text", "unique": true }
@@ -88,7 +84,7 @@
     {
       "id": "review",
       "name": "review",
-      "group": "catalog",
+      "color": "#dcfce7",
       "columns": [
         { "name": "id", "type": "uuid", "pk": true },
         { "name": "product_id", "type": "uuid", "fk": true },
