@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- For agents: the whole diagram is the JSON (application/json) in the "diagram-data" script on lines 12-51 of this file. Read lines 1-51 only (offset 1, limit 51); everything after line 51 is editor code (CSS, JS, icons) and says nothing about the diagram.
+<!-- For agents: the whole diagram is the JSON (application/json) in the "diagram-data" script on lines 12-52 of this file. Read lines 1-52 only (offset 1, limit 52); everything after line 52 is editor code (CSS, JS, icons) and says nothing about the diagram.
      The model's first key, "_readme", says how to read it. The "end diagram-data" comment marks the true end: if it is not on the line named above (the JSON was edited by hand since the last save), trust the comment. To print just the model:
      sed -n '/<script id="diagram-data" type="application\/json">/,/<\/script>/p' FILE
      python -c "import re,sys;print(re.search(r'<script id=\"diagram-data\" type=\"application\/json\">(.*?)<\/script>',open(sys.argv[1],encoding='utf8').read(),re.S)[1])" FILE -->
@@ -15,11 +15,12 @@
   "diagramType": "sequence",
   "schemaVersion": 1,
   "title": "Checkout",
+  "colorKey": { "1": "Customer", "2": "Payment partner", "3": "Our services" },
   "participants": [
-    { "id": "p1", "name": "Customer", "kind": "actor" },
-    { "id": "p2", "name": "Shop", "kind": "system" },
-    { "id": "p3", "name": "Payment", "kind": "system" },
-    { "id": "p4", "name": "Warehouse", "kind": "system" }
+    { "id": "p1", "name": "Customer", "kind": "actor", "color": "1" },
+    { "id": "p2", "name": "Shop", "kind": "system", "color": "3" },
+    { "id": "p3", "name": "Payment", "kind": "system", "color": "2" },
+    { "id": "p4", "name": "Warehouse", "kind": "system", "color": "3" }
   ],
   "messages": [
     { "id": "m1", "from": "p1", "to": "p2", "label": "Place order", "kind": "sync" },
@@ -1035,6 +1036,29 @@
     .swatch-btn[aria-pressed="true"] { background: var(--primary-wash); border-color: var(--primary-ring); }
     .swatch-dot { display: block; width: 14px; height: 14px; border-radius: var(--radius-round); background: var(--sw-stripe); border: 1px solid var(--dot-edge); box-sizing: border-box; }
     .swatch-dot.is-none { background: var(--bg-panel); border: 1.5px dashed var(--border-dark); }
+    /* Swatch pill: a name on a swatch's pale fill with the swatch's ink, in a halo of the surface behind it, so a line passing
+       behind is cut cleanly around the pill. Used by the flowchart's lane name and the sequence's participant. An element
+       with it reads its colours from the swatch roles (see swatch.css); the surface behind sets --halo-bg (default: the panel). */
+    .swatch-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      max-width: 340px;
+      padding: 4px 11px 4px 9px;
+      border-radius: var(--radius-pill);
+      background: var(--sw-pill-bg);
+      color: var(--sw-pill-ink);
+      font-size: var(--t-title-size);
+      font-weight: var(--weight-semibold);
+      line-height: var(--leading-snug);
+      white-space: nowrap;
+      user-select: none;
+      transition: background var(--ease), color var(--ease), box-shadow var(--ease);
+      --halo: 0 0 0 5px var(--halo-bg, var(--bg-panel));
+      box-shadow: var(--halo);
+    }
+    /* Pointer directly on the pill: a strong ring says "this is the handle you can drag" */
+    .swatch-pill:hover { box-shadow: 0 0 0 var(--ring-md) var(--primary), var(--halo); }
     /* Edge: what a line between two diagram items is drawn with. The line (flowchart arrow, ER relationship) and its
        invisible fat hit area are SVG paths; the label is an HTML pill that masks the line under it. Highlight colours
        follow the items under the pointer: --edge-in for lines entering the hovered item, --edge-out for those leaving it. */
@@ -1329,17 +1353,16 @@
     .seq-frag-box.selected.swatch-scope { stroke: var(--primary); }
     .seq-frag-else { stroke: var(--border-dark); stroke-width: 1.5; stroke-dasharray: 6 4; }
     #seq-drop-line { stroke: var(--primary); stroke-width: 2; stroke-dasharray: 5 4; display: none; }
+    /* A participant is the shared swatch pill (components/pill.css), BOX_W wide and sitting on the lifeline's top end:
+       the pill is shorter than the engine's BOX_H slot, so its top margin makes up the rest */
     .seq-participant {
-      position: absolute; width: 148px; height: 56px; box-sizing: border-box;
-      display: flex; align-items: center; justify-content: center; text-align: center;
-      background: var(--node-bg); border: 2px solid var(--border-dark); border-radius: var(--radius-lg);
-      color: var(--text-main); font-weight: var(--weight-semibold); font-size: var(--t-title-size); padding: 4px 10px; cursor: grab;
-      box-shadow: var(--shadow-sm); user-select: none; touch-action: none;
+      position: absolute; width: 148px; height: 34px; margin-top: 22px; box-sizing: border-box; justify-content: center; text-align: center;
+      padding: 0 10px; cursor: grab; touch-action: none;
     }
-    .seq-participant.is-actor { background: var(--start-bg); border-color: var(--start-border); color: var(--start-text); border-radius: var(--radius-pill); }
-    .seq-participant.selected, .seq-participant:hover { border-color: var(--primary); }
+    .seq-participant.is-external { border: 1.5px dashed var(--sw-line); }
+    .seq-participant.selected { box-shadow: 0 0 0 var(--ring-md) var(--primary), var(--halo); }
     .seq-participant.dragging, .seq-msg-label.dragging { opacity: 0.75; z-index: 20; }
-    .seq-participant-name { outline: none; min-width: 20px; }
+    .seq-participant-name { outline: none; min-width: 20px; white-space: normal; line-height: var(--line-16); }
     .seq-msg-label {
       position: absolute; height: 20px; line-height: var(--line-20); padding: 0 6px; border-radius: var(--radius-sm); white-space: nowrap;
       font-size: var(--t-label-size); color: var(--text-main); cursor: pointer; user-select: none; touch-action: none;
@@ -1387,13 +1410,12 @@
     }
     .seq-msg-label.selected .seq-msg-num { background: var(--primary); color: var(--bg-panel); }
     /* Participant kinds: a small icon before the name (system and actor have none) */
-    .seq-kind-icon { flex: none; margin-right: 6px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; color: var(--text-soft); }
-    .seq-participant.is-external { border-style: dashed; }
+    .seq-kind-icon { flex: none; margin-right: 6px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; color: inherit; }
     /* A rail: a participant with nothing to show in the expanded part of the diagram. The kind icon, and the name
        written downwards (cut short if long: hover or select the rail for the full name) */
     .seq-participant.is-rail {
-      width: 36px; height: 80px; flex-direction: column; justify-content: flex-start; padding: 9px 0 6px; border-radius: var(--radius-pill);
-      font-size: var(--t-detail-size); font-weight: var(--weight-semibold); box-shadow: none; background: var(--bg-soft);
+      width: 36px; height: 80px; margin-top: 0; flex-direction: column; justify-content: flex-start; padding: 9px 0 6px;
+      font-size: var(--t-detail-size);
     }
     .seq-participant.is-rail .seq-kind-icon { margin: 0 0 5px; }
     .seq-participant.is-rail .seq-participant-name {
@@ -1406,17 +1428,12 @@
     }
     .seq-participant.is-rail:hover .seq-rail-tip, .seq-participant.is-rail.selected .seq-rail-tip { display: block; }
     body.exporting .seq-rail-tip, body.capture .seq-rail-tip { display: none !important; }
-    /* Participant colours (the flowchart's swatches; shell.css derives the shades from --swatch-color). Colour means who
-       owns a participant: a 4px top border and a faint tint on the box, the swatch's line colour on its lifeline, cap
-       and rail, a tinted bar. The name stays at full contrast, and the selected and target styles still win. */
-    .seq-participant.swatch-scope { border-top: 4px solid var(--sw-stripe); background: color-mix(in srgb, var(--sw-stripe) 10%, var(--node-bg)); }
-    .seq-participant.is-actor.swatch-scope { background: color-mix(in srgb, var(--sw-stripe) 10%, var(--start-bg)); }
-    .seq-participant.is-rail.swatch-scope { border-color: var(--sw-line); background: color-mix(in srgb, var(--sw-stripe) 14%, var(--bg-soft)); color: var(--sw-pill-ink); }
-    .seq-participant.is-rail.swatch-scope .seq-kind-icon { color: var(--sw-pill-ink); }
-    .seq-participant.swatch-scope.selected, .seq-participant.swatch-scope:hover { border-color: var(--primary); border-top-color: var(--sw-stripe); }
+    /* Participant colours (the flowchart's swatches; shell.css derives the shades from --swatch-color). Every participant has
+       one (its own, or a slot by position when it has none, see drawnSwatch): the pill wears it, and its lifeline, cap and
+       activation bars take the swatch's strong tones. The selected and target styles still win. */
     .seq-lifeline.swatch-scope, .seq-cap.swatch-scope { stroke: var(--sw-line); }
     .seq-cap.swatch-scope.selected { stroke: var(--primary); }
-    .seq-activation.swatch-scope { stroke: var(--sw-line); fill: color-mix(in srgb, var(--sw-stripe) 20%, var(--node-bg)); }
+    .seq-activation.swatch-scope { stroke: var(--sw-line); fill: color-mix(in srgb, var(--sw-stripe) 55%, var(--node-bg)); }
     /* The colour key above the card's top-left corner */
     .seq-key { position: absolute; left: 0; top: -34px; display: flex; width: max-content; gap: 4px 18px; white-space: nowrap; font-size: var(--t-detail-size); color: var(--text-soft); user-select: none; }
     .seq-key-item { display: inline-flex; align-items: center; gap: 6px; }
@@ -1432,7 +1449,7 @@
     /* Lifespans: a short cap ends a lifeline; a pinned box whose lifeline has ended above the row fades out */
     .seq-cap { stroke: var(--border-dark); stroke-width: 2; stroke-linecap: round; }
     .seq-cap.selected { stroke: var(--primary); stroke-width: 3; }
-    .seq-participant { transition: opacity var(--ease); }
+    .seq-participant { transition: opacity var(--ease), box-shadow var(--ease); }
     .seq-participant.is-gone { opacity: 0; pointer-events: none; }
     body.exporting .seq-participant.is-gone, body.capture .seq-participant.is-gone { opacity: 1 !important; }
     .seq-lifeline.is-rail { stroke-dasharray: 2 5; opacity: 0.6; }
@@ -1446,20 +1463,13 @@
     body.presentation .seq-frag-hit, body.presentation .seq-div-hit, body.presentation .seq-frag-branch-label { pointer-events: none !important; cursor: default; }
     /* In ?present the chevron and the summary row stay live: they walk an audience through the flow phase by phase */
     body.presentation .frame-chev, body.presentation .frame-summary, body.presentation .seq-frag-focus { pointer-events: auto; }
-    /* Pinned participant row (see pinParticipants): the boxes ride over an opaque band at the viewport's top */
-    .seq-pin-band {
-      display: none; position: absolute; left: 0; right: 0; top: var(--pin-top, 0px); height: var(--pin-h, 72px); z-index: 5;
-      background: var(--bg-panel); border-bottom: 1px solid var(--border-dark); box-shadow: var(--shadow-band);
-      pointer-events: none;
-    }
-    #seq-canvas.seq-pinned .seq-pin-band { display: block; }
+    /* Pinned participant row (see pinParticipants): the pills ride at the viewport's top, each in its halo, over the lifelines */
     #seq-canvas.seq-pinned .seq-participant { translate: 0 var(--pin-dy, 0px); z-index: 6; }
-    body.exporting .seq-pin-band, body.capture .seq-pin-band { display: none !important; }
     body.exporting #seq-canvas .seq-participant, body.capture #seq-canvas .seq-participant { translate: none !important; }
     /* Focus: messages that do not touch the selected participant step back; a selected message lights its ends */
     .seq-line.is-dim, .seq-msg-label.is-dim, .seq-msg-detail.is-dim { opacity: 0.22; }
     /* "linked" is one of the shell's transient classes, so an export drops it */
-    .seq-participant.linked { border-color: var(--primary); box-shadow: var(--shadow-ring); }
+    .seq-participant.linked { box-shadow: var(--shadow-ring), var(--halo); }
     body.exporting .is-dim { opacity: 1 !important; }
     /* Editing tools on the selection: never exported ([data-export-skip]), hidden in ?present and while dragging */
     #seq-rubber { stroke: var(--primary); stroke-width: 2; stroke-dasharray: 6 4; display: none; }
@@ -1566,14 +1576,14 @@
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16v11l-5 5H4z"/><path d="M20 15h-5v5"/><path d="M8 9h8M8 13h5"/></svg><span class="btn-label">Note</span>
       </button>
       <span class="dock-sep" aria-hidden="true"></span>
-      <button id="btn-numbers" class="btn" title="Number every message" aria-label="Numbers" aria-pressed="false">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 6h11M10 12h11M10 18h11"/><path d="M4 6h1v4"/><path d="M4 10h2"/><path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"/></svg><span class="btn-label">Numbers</span>
+      <button id="btn-numbers" class="btn btn-switch" role="switch" title="Number every message" aria-label="Numbers" aria-checked="false">
+        <span class="switch-track" aria-hidden="true"><span class="switch-knob"></span></span><span class="btn-label">Numbers</span>
       </button>
-      <button id="btn-details" class="btn" title="Show each message's detail under its arrow" aria-label="Details" aria-pressed="false">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9h16"/><path d="m16 5 4 4-4 4"/><path d="M6 17h10" stroke-dasharray="2 3"/></svg><span class="btn-label">Details</span>
+      <button id="btn-details" class="btn btn-switch" role="switch" title="Show each message's detail under its arrow" aria-label="Details" aria-checked="false">
+        <span class="switch-track" aria-hidden="true"><span class="switch-knob"></span></span><span class="btn-label">Details</span>
       </button>
-      <button id="btn-lifespans" class="btn" title="Trim lifelines: each one runs only from its participant's first message to its last" aria-label="Trim lifelines" aria-pressed="false">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h12"/><path d="M12 3v14" stroke-dasharray="3 3"/><path d="M8 21h8"/></svg><span class="btn-label">Trim lifelines</span>
+      <button id="btn-lifespans" class="btn btn-switch" role="switch" title="Trim lifelines: each one runs only from its participant's first message to its last" aria-label="Trim lifelines" aria-checked="false">
+        <span class="switch-track" aria-hidden="true"><span class="switch-knob"></span></span><span class="btn-label">Trim lifelines</span>
       </button>
       <button id="btn-show-all" class="btn" title="Expand every collapsed frame" aria-label="Show all" hidden>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg><span class="btn-label">Show all</span>
@@ -3575,6 +3585,9 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
         setSwatch(el, color);
         return el;
       }
+      // What is drawn for a participant: its own colour, else a palette slot by its position (render-time only: the diagram
+      // never saves it, and the colour key and the colour picker still see only a chosen colour)
+      const drawnSwatch = (p) => swatchOf(p) || SWATCHES[Math.max(0, chartData.participants.indexOf(p)) % SWATCHES.length].slot;
       const swatchName = (color) => (paletteOf(color) || {}).name || color;
 
       function ensureModel() {
@@ -3713,12 +3726,12 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
         ps.forEach((p) => {
           const rail = !!p.rail, boxH = rail ? SQ.RAIL_H : SQ.BOX_H, top = p.top === undefined ? SQ.TOP : p.top;
           const y2 = p.bottom === undefined ? L.height - 24 : p.bottom;
-          const sw = swatchOf(p);
+          const sw = drawnSwatch(p);
           seqLifeG.appendChild(paintSwatch(svgEl('line', { class: `seq-lifeline${rail ? ' is-rail' : ''}`, x1: p.x, x2: p.x, y1: top + boxH, y2, 'data-node-id': p.id }), sw));
           // A wide invisible stroke over the lifeline: dragging from it draws a message (see DRAW FROM A LIFELINE)
           seqLifeG.appendChild(svgEl('line', { class: 'seq-life-hit', x1: p.x, x2: p.x, y1: top + boxH, y2, 'data-pid': p.id, 'data-export-skip': '' }));
           if (p.bottom !== undefined) seqLifeG.appendChild(paintSwatch(svgEl('line', { class: 'seq-cap', x1: p.x - 7, x2: p.x + 7, y1: p.bottom, y2: p.bottom, 'data-node-id': p.id }), sw));
-          const box = htmlEl('div', `seq-participant${p.kind === 'actor' ? ' is-actor' : ''}${hasKindIcon(p.kind) ? ` is-${p.kind}` : ''}${rail ? ' is-rail' : ''}`, { left: px(p.x - (rail ? SQ.RAIL_W : SQ.BOX_W) / 2), top: px(top) });
+          const box = htmlEl('div', `seq-participant swatch-pill${p.kind === 'actor' ? ' is-actor' : ''}${hasKindIcon(p.kind) ? ` is-${p.kind}` : ''}${rail ? ' is-rail' : ''}`, { left: px(p.x - (rail ? SQ.RAIL_W : SQ.BOX_W) / 2), top: px(top) });
           box.dataset.nodeId = p.id;
           paintSwatch(box, sw);
           if (hasKindIcon(p.kind) || rail) box.appendChild(kindIcon(p.kind));
@@ -3751,7 +3764,7 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
         bars.forEach((b) => {
           const p = byId[b.pid];
           if (!p) return;
-          seqActG.appendChild(paintSwatch(svgEl('rect', { class: 'seq-activation', x: p.x - ACT_HALF + b.depth * ACT_STEP, y: b.y1, width: ACT_HALF * 2, height: b.y2 - b.y1, rx: 2, 'data-node-id': b.pid }), swatchOf(p)));
+          seqActG.appendChild(paintSwatch(svgEl('rect', { class: 'seq-activation', x: p.x - ACT_HALF + b.depth * ACT_STEP, y: b.y1, width: ACT_HALF * 2, height: b.y2 - b.y1, rx: 2, 'data-node-id': b.pid }), drawnSwatch(p)));
         });
         const activeDepth = (pid, y) => bars.reduce((mx, b) => (b.pid === pid && b.y1 <= y && y <= b.y2 ? Math.max(mx, b.depth) : mx), -1);
         const edgeX = (p, y, dir) => {
@@ -3829,18 +3842,13 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
           });
           seqHtml.appendChild(key);
         }
-        // The opaque band the participant row rides on once the top of the diagram is panned off screen
-        // (#seq-html is a shrink-to-fit box with no width of its own, so left/right: 0 would give the band none)
-        const band = htmlEl('div', 'seq-pin-band');
-        band.style.width = `${chartData.layout ? chartData.layout.width : 0}px`;
-        seqHtml.appendChild(band);
         applySelection();
         pinParticipants();
       }
 
       // --- PINNED PARTICIPANT ROW ---
       // Below the first screen of a long diagram no lifeline would have a name: once the boxes are panned off the
-      // top, they ride at the top of the viewport over an opaque band (as the flowchart pins its lane pills).
+      // top, they ride at the top of the viewport as pills in their halos (as the flowchart pins its lane pills).
       // Called after every render and, via plugin.onViewChange, after every pan/zoom. Exports (body.exporting) and
       // screenshots (body.capture) reset it in CSS, so they always show the row at the diagram's top.
       const PIN_INSET = 8;
@@ -3854,9 +3862,7 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
         const on = visTop + PIN_INSET > SQ.TOP && !document.body.classList.contains('capture');
         const dy = Math.min(visTop + PIN_INSET - SQ.TOP, L.height - SQ.BOX_H - SQ.TOP - 40);
         seqCanvas.classList.toggle('seq-pinned', on && dy > 0);
-        seqCanvas.style.setProperty('--pin-h', `${topRowH() + 16}px`);
         seqCanvas.style.setProperty('--pin-dy', `${on ? Math.max(0, dy) : 0}px`);
-        seqCanvas.style.setProperty('--pin-top', `${on ? Math.max(0, dy) + SQ.TOP - PIN_INSET : 0}px`);
         // With lifespans the row names only the lifelines alive at the rows under it: a box rides at the top once its
         // own place has scrolled past it, and fades out when its lifeline has ended above. Nothing moves sideways.
         const pinTop = SQ.TOP + (on ? Math.max(0, dy) : 0);
@@ -3916,37 +3922,74 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
         });
       }
 
-      // Row gaps: where a message (or a note) can go. Each gap has the index a new message would take and its y.
-      // Messages hidden in a collapsed frame have no gap of their own.
+      // Row gaps: where a message (or a note) can go. Messages hidden in a collapsed frame have no gap of their own.
+      // A gap where a frame closes or opens has one slot per depth, so a drop can land inside the frame (at its end or
+      // its start) or just outside it. A slot carries:
+      //   index  the index a new message would take, y  where the drop line is drawn,
+      //   frame  the innermost drawn frame the drop lands in (null: none),
+      //   plain  true for the one slot of a gap that is outside every frame closing or opening there (what a frame
+      //          edge, a divider or a lifespan end snaps to),
+      //   join   the frame edges a message dropped here takes over: [{id, edge: 'to' | 'from'}],
+      //   note   what a note dropped here is saved as ({after} or {before}), or null when a note cannot sit here: the
+      //          engine draws an after-note inside every frame that ends at that message and a before-note outside every
+      //          frame that starts at it, so only the innermost end slot and the outside slots can be written.
       function rowSlots(skipId) {
         const ms = chartData.messages.filter((m) => m.id !== skipId);
         const vis = [];
         ms.forEach((m, i) => { if (!m.hidden) vis.push({ m, i }); });
-        if (!vis.length) return [{ index: ms.length, y: SQ.TOP + SQ.BOX_H + SQ.FIRST_GAP + SQ.ARROW_AT }];
-        const slots = [{ index: vis[0].i, y: vis[0].m.y - 34 }];
-        for (let k = 1; k < vis.length; k++) slots.push({ index: vis[k].i, y: (vis[k - 1].m.y + vis[k].m.y) / 2 });
+        if (!vis.length) return [{ index: ms.length, y: SQ.TOP + SQ.BOX_H + SQ.FIRST_GAP + SQ.ARROW_AT, plain: true, frame: null, join: [], note: {} }];
+        const spans = drawnSpans(skipId), bottom = (s) => s.f.y + s.f.h;
         let last = vis[vis.length - 1].i + 1;
         while (last < ms.length && ms[last].hidden) last++;
-        slots.push({ index: last, y: vis[vis.length - 1].m.y + 34 });
+        const slots = [];
+        for (let k = 0; k <= vis.length; k++) {
+          const A = vis[k - 1] || null, B = vis[k] || null, index = B ? B.i : last;
+          const closing = A ? spans.filter((s) => s.b === A.i).sort((u, v) => bottom(u) - bottom(v)) : [];   // inner first
+          const opening = B ? spans.filter((s) => s.a === B.i).sort((u, v) => u.f.y - v.f.y) : [];           // outer first
+          closing.forEach((s, i) => slots.push({
+            index, y: bottom(s) - 10, plain: false, frame: s.f, join: closing.slice(i).map((c) => ({ id: c.f.id, edge: 'to' })), note: i === 0 ? { after: A.m.id } : null
+          }));
+          let y;
+          if (closing.length && opening.length) y = (bottom(closing[closing.length - 1]) + opening[0].f.y) / 2;
+          else if (closing.length) y = bottom(closing[closing.length - 1]) + 12;
+          else if (opening.length) y = A ? (A.m.y + 22 + opening[0].f.y) / 2 : opening[0].f.y - 14;
+          else y = A && B ? (A.m.y + B.m.y) / 2 : A ? A.m.y + 34 : B.m.y - 34;
+          const note = index < ms.length ? { before: ms[index].id } : closing.length ? null : { after: A.m.id };
+          slots.push({ index, y, plain: true, frame: frameAtSlot(index, skipId), join: [], note });
+          opening.forEach((s, j) => slots.push({
+            index, y: s.f.y + 28, plain: false, frame: s.f, join: opening.slice(0, j + 1).map((o) => ({ id: o.f.id, edge: 'from' })), note: null
+          }));
+        }
         return slots;
       }
       const nearestSlot = (slots, y) => slots.reduce((b, s) => (Math.abs(s.y - y) < Math.abs(b.y - y) ? s : b), slots[0]);
-      // The innermost drawn frame a message inserted at `index` (of the list without skipId) would land in
-      function frameAtSlot(index, skipId) {
+      // The drawn frames as message ranges [a, b] of the list without skipId. A frame whose first or last message is
+      // the one moving keeps its edge on the neighbour that stays.
+      function drawnSpans(skipId) {
         const order = chartData.messages.map((m) => m.id).filter((id) => id !== skipId);
         const full = chartData.messages.map((m) => m.id);
-        let best = null;
+        const out = [];
         chartData.fragments.forEach((f) => {
           if (f.x === undefined) return;
-          // A frame whose first or last message is the one moving keeps its edge on the neighbour that stays
           let fa = full.indexOf(f.from), fb = full.indexOf(f.to);
           while (fa <= fb && full[fa] === skipId) fa++;
           while (fb >= fa && full[fb] === skipId) fb--;
           if (fa > fb) return;
-          const a = order.indexOf(full[fa]), b = order.indexOf(full[fb]);
-          if (a < index && index <= b && (!best || b - a < best.span)) best = { f, span: b - a };
+          out.push({ f, a: order.indexOf(full[fa]), b: order.indexOf(full[fb]) });
         });
+        return out;
+      }
+      // The innermost drawn frame a message inserted at `index` (of the list without skipId) would land in
+      function frameAtSlot(index, skipId) {
+        let best = null;
+        drawnSpans(skipId).forEach((s) => { if (s.a < index && index <= s.b && (!best || s.b - s.a < best.span)) best = { f: s.f, span: s.b - s.a }; });
         return best && best.f;
+      }
+      // The slots that are outside every frame closing or opening at their gap: one per gap
+      const plainSlots = () => rowSlots().filter((s) => s.plain);
+      // Make a message dropped at `slot` the last (or first) message of the frames the slot is inside
+      function joinFrames(slot, id) {
+        slot.join.forEach((j) => { const f = fragById(j.id); if (f) f[j.edge] = id; });
       }
       function showDropLine(y, frame) {
         const L = chartData.layout;
@@ -4001,13 +4044,13 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
       function refreshDock() {
         const kind = seqSel && seqSel.kind;
         // View toggles: pressed while on. They are saved flags ("numbered", "showDetails"), so each is one undo step.
-        btnNumbers.setAttribute('aria-pressed', String(!!chartData.numbered));
+        btnNumbers.setAttribute('aria-checked', String(!!chartData.numbered));
         btnNumbers.title = chartData.numbered ? 'Hide the step numbers' : 'Number every message (the number stays the same when a frame is collapsed)';
         const hasDetails = chartData.messages.some((m) => m.detail);
-        btnDetails.setAttribute('aria-pressed', String(hasDetails && chartData.showDetails !== false));
+        btnDetails.setAttribute('aria-checked', String(hasDetails && chartData.showDetails !== false));
         setDockButton(btnDetails, hasDetails, !hasDetails ? 'No message has a detail yet: select a message, press Enter, then Tab'
           : chartData.showDetails !== false ? 'Hide the details under the arrows (the detail becomes the label\'s tooltip)' : 'Show each message\'s detail under its arrow');
-        btnLifespans.setAttribute('aria-pressed', String(!!chartData.lifespans));
+        btnLifespans.setAttribute('aria-checked', String(!!chartData.lifespans));
         btnLifespans.title = chartData.lifespans ? 'Draw every lifeline from the top to the bottom again' : 'Trim lifelines: each one runs only from its participant\'s first message to its last';
         const anyCollapsed = chartData.fragments.some((f) => f.collapsed);
         btnShowAll.hidden = !anyCollapsed;
@@ -4257,14 +4300,18 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
           return true;
         });
       }
-      // Move a message to `index` in the list without it
-      function moveMessage(id, index) {
+      // Move a message to a slot (see rowSlots): to its index in the list without it, and into the frames the slot is
+      // inside at their end or start. Dropped back where it was, it may still leave or join a frame: false only if
+      // nothing changed.
+      function moveMessage(id, slot) {
         const ms = chartData.messages, from = msgIndex(id);
-        if (from < 0 || index === from) return false;
+        if (from < 0) return false;
+        const was = JSON.stringify(chartData.fragments);
         detachMessage(id);
         const [m] = ms.splice(from, 1);
-        ms.splice(Math.max(0, Math.min(index, ms.length)), 0, m);
-        return true;
+        ms.splice(Math.max(0, Math.min(slot.index, ms.length)), 0, m);
+        joinFrames(slot, id);
+        return slot.index !== from || JSON.stringify(chartData.fragments) !== was;
       }
       function messageDrag(id) {
         return {
@@ -4277,10 +4324,10 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
             }
             const m = msgById(id);
             d.slot = nearestSlot(rowSlots(id), m.y + d.dy);
-            showDropLine(d.slot.y, frameAtSlot(d.slot.index, id));
+            showDropLine(d.slot.y, d.slot.frame);
           },
           drop(pt, d) {
-            if (d.slot && moveMessage(id, d.slot.index)) relayout(); else render();
+            if (d.slot && moveMessage(id, d.slot)) relayout(); else render();
           }
         };
       }
@@ -4302,41 +4349,58 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
         const free = e.target === seqCanvas || e.target === seqSvg || e.target === seqHtml || e.target.classList.contains('seq-pin-band')
           || e.target.classList.contains('seq-frag-hit') || e.target.classList.contains('seq-div-hit')
           || e.target.classList.contains('seq-life-hit') || e.target.classList.contains('seq-activation');
-        const p = free && pt.y > SQ.TOP + SQ.BOX_H + 8 && pt.y < chartData.layout.height - 30 ? nearestParticipant(pt.x) : null;
+        // Down to a little past the last slot (the room below the last message), not a fixed margin from the layout's edge
+        const slots = rowSlots();
+        const p = free && pt.y > SQ.TOP + SQ.BOX_H + 8 && pt.y < slots[slots.length - 1].y + 24 ? nearestParticipant(pt.x) : null;
         if (!p || Math.abs(p.x - pt.x) > 16) { hidePlus(); return; }
-        const slot = nearestSlot(rowSlots(), pt.y);
+        const slot = nearestSlot(slots, pt.y);
         if (!seqPlus.isConnected) seqHtml.appendChild(seqPlus);
         Object.assign(seqPlus.style, { display: 'flex', left: px(p.x), top: px(slot.y) });
         seqPlus.dataset.pid = p.id;
-        seqPlus.dataset.index = slot.index;
-        seqPlus.dataset.y = slot.y;
+        seqPlus.dataset.slot = slots.indexOf(slot);
       }
       seqCanvas.addEventListener('pointermove', onCanvasHover);
       seqCanvas.addEventListener('pointerleave', () => { hidePlus(); seqCanvas.classList.remove('seq-row-hover'); });
       // fromLine: the drag started on a lifeline or an activation bar, not on the + (a click there selects the
-      // participant). A self-message needs the pointer to have gone 30px out from the lifeline, so a wobble draws nothing.
-      function connectDrag(pid = seqPlus.dataset.pid, index = +seqPlus.dataset.index, y = +seqPlus.dataset.y, fromLine = false) {
-        const from = partById(pid);
+      // participant). A message needs the pointer near the lifeline it lands on (SNAP_MAX, or a third of the gap to the
+      // next lifeline when that is less); a self-message needs the pointer to have gone SELF_OUT out from the lifeline and
+      // come back; a drag shorter than MIN_DRAW is a click. Anything else cancels, and then no lifeline is lit.
+      const SNAP_MAX = 40, SELF_OUT = 60, MIN_DRAW = 8;
+      function snapTarget(x) {
+        const p = nearestParticipant(x);
+        if (!p) return null;
+        const gap = Math.min(...chartData.participants.filter((o) => o !== p).map((o) => Math.abs(o.x - p.x)), Infinity);
+        return Math.abs(p.x - x) <= Math.min(SNAP_MAX, gap / 3) ? p : null;
+      }
+      function connectDrag(pid = seqPlus.dataset.pid, slot = rowSlots()[+seqPlus.dataset.slot], fromLine = false) {
+        const from = partById(pid), index = slot.index, y = slot.y;
+        // The lifeline a release at pt would land on, or null: a release there cancels
+        const landing = (pt, d) => {
+          d.away = Math.max(d.away || 0, Math.abs(pt.x - from.x));
+          const to = snapTarget(pt.x);
+          return to && to.id === from.id && d.away < SELF_OUT ? null : to;
+        };
+        const click = () => { hidePlus(); if (fromLine) select('participant', from.id); };
         return {
           move(pt, d) {
             hidePlus();
-            d.away = Math.max(d.away || 0, Math.abs(pt.x - from.x));
-            let to = nearestParticipant(pt.x);
-            if (to && to.id === from.id && d.away < 30) to = null;   // a self-message: out to the side and back
-            d.to = to;
-            lightLifeline(to && to.id);
+            d.to = landing(pt, d);
+            lightLifeline(d.to && d.to.id);
             showRubber(from.x, y, pt.x, y + (pt.y - y) * 0.15);
-            showDropLine(y, frameAtSlot(index));
+            showDropLine(y, slot.frame);
           },
           drop(pt, d) {
-            if (!d.to) { render(); return; }
-            const kind = drawnKind(from.id, d.to.id, index);
-            expandFramesHiding([from.id, d.to.id]);   // never draw into a collapsed frame: open the ones that hide a rail
-            const m = { id: seqUid('m'), from: from.id, to: d.to.id, label: kind === 'reply' ? 'Reply' : 'Message', kind };
+            const to = landing(pt, d);
+            if (Math.hypot(d.dx, d.dy) < MIN_DRAW) { click(); render(); return; }
+            if (!to) { render(); return; }
+            const kind = drawnKind(from.id, to.id, index);
+            expandFramesHiding([from.id, to.id]);   // never draw into a collapsed frame: open the ones that hide a rail
+            const m = { id: seqUid('m'), from: from.id, to: to.id, label: kind === 'reply' ? 'Reply' : 'Message', kind };
             chartData.messages.splice(index, 0, m);
+            joinFrames(slot, m.id);
             editCreated('message', m.id);
           },
-          click() { hidePlus(); if (fromLine) select('participant', from.id); }
+          click
         };
       }
       // The kind of a message added from `from` to `to` at `index` (drawn, or added by the dock's Message button): the reply of the latest call from `to` to `from`
@@ -4378,7 +4442,7 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
           const f = fragById(h.dataset.id);
           return {
             move(pt, d) {
-              d.slot = nearestSlot(rowSlots(), pt.y);
+              d.slot = nearestSlot(plainSlots(), pt.y);
               showDropLine(d.slot.y, null);
             },
             drop(pt, d) {
@@ -4398,7 +4462,7 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
           const p = partById(h.dataset.id);
           return {
             move(pt, d) {
-              d.slot = nearestSlot(rowSlots(), pt.y);
+              d.slot = nearestSlot(plainSlots(), pt.y);
               showDropLine(d.slot.y, null);
             },
             drop(pt, d) {
@@ -4453,13 +4517,13 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
           move(pt, d) {
             el.classList.add('dragging');
             el.style.transform = `translate(${d.dx}px, ${d.dy}px)`;
-            d.slot = nearestSlot(rowSlots(), n.y + d.dy);
-            showDropLine(d.slot.y, null);
+            d.slot = nearestSlot(rowSlots().filter((s) => s.note), n.y + d.dy);
+            showDropLine(d.slot.y, d.slot.frame);
             const p = nearestParticipant(n.x + n.w / 2 + d.dx);
             lightLifeline(p && p.id);
           },
           drop(pt, d) {
-            const ps = chartData.participants, ms = chartData.messages;
+            const ps = chartData.participants;
             const over = Array.isArray(n.over) ? n.over : [n.over];
             const centre = nearestParticipant(n.x + n.w / 2 + d.dx);
             const was = nearestParticipant(n.x + n.w / 2);
@@ -4468,8 +4532,7 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
             n.over = idx.length > 1 && idx[0] !== idx[1] ? idx.map((i) => ps[i].id) : ps[idx[0]].id;
             delete n.after;
             delete n.before;
-            if (d.slot.index < ms.length) n.before = ms[d.slot.index].id;
-            else if (ms.length) n.after = ms[ms.length - 1].id;
+            Object.assign(n, d.slot.note);
             relayout();
           }
         };
@@ -4480,7 +4543,7 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
         const f = fragById(fid);
         return {
           move(pt, d) {
-            d.slot = nearestSlot(rowSlots(), pt.y);
+            d.slot = nearestSlot(plainSlots(), pt.y);
             showDropLine(d.slot.y, f);
           },
           drop(pt, d) {
@@ -4541,8 +4604,7 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
         const src = e.target.closest('.seq-life-hit, .seq-activation');
         if (src) {
           e.stopPropagation();
-          const slot = nearestSlot(rowSlots(), canvasPoint(e).y);
-          beginDrag(e, connectDrag(src.dataset.pid || src.dataset.nodeId, slot.index, slot.y, true));
+          beginDrag(e, connectDrag(src.dataset.pid || src.dataset.nodeId, nearestSlot(rowSlots(), canvasPoint(e).y), true));
           return;
         }
         const hit = e.target.closest('.seq-participant, .seq-msg-label, .seq-msg-hit, .seq-msg-detail, .frame-tag, .seq-frag-hit, .seq-div-hit, .seq-frag-branch-label, .seq-frag-else-label, .note');
@@ -5229,7 +5291,7 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
             if (!other) return;
             // In the list without the moving message, past the neighbour in that direction is the neighbour's own
             // index both ways (down: it moved up one; up: it is still there)
-            if (moveMessage(seqSel.id, msgIndex(other.id))) { relayout(); panIntoView(seqHtml.querySelector(`.seq-msg-label[data-edge-id="${seqSel.id}"]`)); }
+            if (moveMessage(seqSel.id, { index: msgIndex(other.id), join: [] })) { relayout(); panIntoView(seqHtml.querySelector(`.seq-msg-label[data-edge-id="${seqSel.id}"]`)); }
             return;
           }
           if (e.shiftKey && seqSel && seqSel.kind === 'message') {

@@ -1048,6 +1048,29 @@
     .swatch-btn[aria-pressed="true"] { background: var(--primary-wash); border-color: var(--primary-ring); }
     .swatch-dot { display: block; width: 14px; height: 14px; border-radius: var(--radius-round); background: var(--sw-stripe); border: 1px solid var(--dot-edge); box-sizing: border-box; }
     .swatch-dot.is-none { background: var(--bg-panel); border: 1.5px dashed var(--border-dark); }
+    /* Swatch pill: a name on a swatch's pale fill with the swatch's ink, in a halo of the surface behind it, so a line passing
+       behind is cut cleanly around the pill. Used by the flowchart's lane name and the sequence's participant. An element
+       with it reads its colours from the swatch roles (see swatch.css); the surface behind sets --halo-bg (default: the panel). */
+    .swatch-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      max-width: 340px;
+      padding: 4px 11px 4px 9px;
+      border-radius: var(--radius-pill);
+      background: var(--sw-pill-bg);
+      color: var(--sw-pill-ink);
+      font-size: var(--t-title-size);
+      font-weight: var(--weight-semibold);
+      line-height: var(--leading-snug);
+      white-space: nowrap;
+      user-select: none;
+      transition: background var(--ease), color var(--ease), box-shadow var(--ease);
+      --halo: 0 0 0 5px var(--halo-bg, var(--bg-panel));
+      box-shadow: var(--halo);
+    }
+    /* Pointer directly on the pill: a strong ring says "this is the handle you can drag" */
+    .swatch-pill:hover { box-shadow: 0 0 0 var(--ring-md) var(--primary), var(--halo); }
     /* Edge: what a line between two diagram items is drawn with. The line (flowchart arrow, ER relationship) and its
        invisible fat hit area are SVG paths; the label is an HTML pill that masks the line under it. Highlight colours
        follow the items under the pointer: --edge-in for lines entering the hovered item, --edge-out for those leaving it. */
@@ -1851,8 +1874,6 @@
       /* Stripe and pill colours: the lane colour as a swatch (see shell.css) */
       --swatch-color: var(--lane-color);
       --lane-stripe: var(--sw-stripe);
-      --lane-pill-bg: var(--sw-pill-bg);
-      --lane-pill-ink: var(--sw-pill-ink);
       --lane-pill-solid: var(--sw-pill-solid);
     }
     .swimlane.lane-alt { --lane-bg: var(--lane-alt-bg); }
@@ -1872,28 +1893,12 @@
       left: 0;
       top: 0;
       z-index: 40;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      max-width: 340px;
-      padding: 4px 11px 4px 9px;
-      border-radius: var(--radius-pill);
-      background: var(--lane-pill-bg);
-      color: var(--lane-pill-ink);
-      font-size: var(--t-title-size);
-      font-weight: var(--weight-semibold);
-      line-height: var(--leading-snug);
-      white-space: nowrap;
       cursor: move;
-      user-select: none;
       transform-origin: 0 0;
       transform: translate(var(--pill-x, 12px), var(--pill-y, 12px));
-      transition: background var(--ease), color var(--ease), box-shadow var(--ease);
-      --halo: 0 0 0 5px var(--lane-bg);
-      box-shadow: var(--halo);
+      --halo-bg: var(--lane-bg);
     }
-    /* Pointer directly on the pill: a strong ring says "this is the handle you can drag" */
-    .lane-pill:hover { box-shadow: 0 0 0 var(--ring-md) var(--primary), var(--halo); }
+    /* (The pointer ring on the pill is in components/pill.css; renaming switches it off) */
     .lane-pill.editing { cursor: default; box-shadow: var(--halo); }
     /* The lane under the mouse (or holding the selection) turns its pill solid: a "you are here" marker. The halo
        picks up the same hover wash as the lane, so the ring stays invisible against it. */
@@ -5234,7 +5239,7 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
           // Drag it to reorder lanes, double-click the name to rename. Positioned by pinLaneHeaders.
           const editable = !document.body.classList.contains('presentation');
           const pill = document.createElement('div');
-          pill.className = 'lane-pill';
+          pill.className = 'lane-pill swatch-pill';
           pill.draggable = editable;
           pill.dataset.tip = 'Click to select (Delete removes the lane) \u00b7 drag to reorder \u00b7 double-click to rename';
           pill.addEventListener('click', (e) => {
