@@ -110,7 +110,10 @@
        activation bars take the swatch's strong tones. The selected and target styles still win. */
     .seq-lifeline.swatch-scope, .seq-cap.swatch-scope { stroke: var(--sw-line); }
     .seq-cap.swatch-scope.selected { stroke: var(--primary); }
-    .seq-activation.swatch-scope { stroke: var(--sw-line); fill: color-mix(in srgb, var(--sw-stripe) 55%, var(--node-bg)); }
+    .seq-activation.swatch-scope { stroke: var(--sw-line); fill: var(--sw-pill-bg); }   /* soft fill, strong outline, like a flowchart step */
+    /* A frame tag riding below the pinned participant row (see pinParticipants) sits above the messages it passes */
+    .frame-tag.is-riding { z-index: 7; box-shadow: var(--shadow-sm); }
+    body.exporting .frame-tag.is-riding, body.capture .frame-tag.is-riding { translate: none !important; box-shadow: none; }
     /* The colour key above the card's top-left corner */
     .seq-key { position: absolute; left: 0; top: -34px; display: flex; width: max-content; gap: 4px 18px; white-space: nowrap; font-size: var(--t-detail-size); color: var(--text-soft); user-select: none; }
     .seq-key-item { display: inline-flex; align-items: center; gap: 6px; }

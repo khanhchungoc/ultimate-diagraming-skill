@@ -38,8 +38,17 @@ def audit(**changes):
     return [i for i in report["issues"] if "not laid out" not in i], report
 
 
+def msgs_with(i, **extra):
+    ms = copy.deepcopy(BASE["messages"])
+    ms[i].update(extra)
+    return ms
+
+
 CASES = [
     # (name, changes, expected substring of an issue, or None for no structural issue)
+    ("activation overrides on a call are valid", dict(messages=msgs_with(1, activate=False, until="m4")), None),
+    ("activate that is not a boolean", dict(messages=msgs_with(1, activate="no")), "activate must be true or false"),
+    ("until naming an earlier message", dict(messages=msgs_with(3, until="m1")), "until must name a later message"),
     ("alt with labelled branches is valid",
      dict(fragments=[{"id": "f", "kind": "alt", "label": "x", "from": "m1", "to": "m6",
                       "branches": [{"at": "m3", "label": "y"}, {"at": "m5", "label": "z"}]}]), None),

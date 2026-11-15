@@ -403,10 +403,10 @@ try {
   at = fresh(d);
   t.check('a message drawn just above a branch divider ends the branch above', at === 5 && branchAt(d) === 'm6', JSON.stringify(d.fragments));
 
-  // A caller nobody called is active from its call until the reply: Customer (p1) from m1 to m7
+  // A person who starts the flow gets no bar (the rest of the rules: dev/e2e_activations.mjs)
   await t.open(page);
   const callerBar = await t.ev(`[...document.querySelectorAll('.seq-activation[data-node-id="p1"]')].length`);
-  t.check('a caller that is not already active gets an activation bar until its reply', callerBar === 1, String(callerBar));
+  t.check('a person who starts the flow gets no activation bar', callerBar === 0, String(callerBar));
 
   // Move a message across the frame's end, both ways
   await t.open(page);

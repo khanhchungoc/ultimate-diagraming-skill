@@ -172,6 +172,13 @@ class SequenceAudit:
                 if m.get(end) not in pmap:
                     dangling += 1
                     errors.append(f"Message '{m['id']}' {end} unknown participant '{m.get(end)}'.")
+        # Activation overrides: "activate" is a boolean, "until" names a later message
+        order = [m.get("id") for m in ms]
+        for i, m in enumerate(ms):
+            if "activate" in m and not isinstance(m["activate"], bool):
+                errors.append(f"Message '{m['id']}' activate must be true or false.")
+            if "until" in m and m["until"] not in order[i + 1:]:
+                errors.append(f"Message '{m['id']}' until must name a later message (got '{m['until']}').")
         for f in fs:
             if f.get("kind") not in FRAGMENT_KINDS:
                 errors.append(f"Fragment '{f['id']}' has unknown kind '{f.get('kind')}'.")

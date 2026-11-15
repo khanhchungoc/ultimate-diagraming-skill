@@ -68,28 +68,80 @@
         chartData.fragments = chartData.fragments || [];
       }
 
-      // Activation bars: a call (sync) opens a bar on its target until its reply. A call answered in several
-      // places (one reply per alt branch) has one bar, to the LAST matching reply that comes before the caller next
-      // sends that callee anything. A reply hidden in a collapsed frame sits on its summary row, so the bar ends there.
+      // Activation bars: a bar shows a participant busy handling something. Each participant keeps a stack of open
+      // executions, walked in message order:
+      //  - a sync call opens an execution on its target (a bar on a bar when the target is already busy: a callback)
+      //    that its reply closes. A call answered in several places (one reply per alt branch) keeps one bar, to its
+      //    last reply before the caller next sends that callee anything;
+      //  - a call with no reply closes when the caller moves on (sends another call at the same depth), at the
+      //    callee's last own message, or as a short stub;
+      //  - an async message opens an execution only if the target then sends something while it is busy with it;
+      //  - a self-call is a short bar on a bar for its loop;
+      //  - a system that calls while nothing is open on it (a job or a webhook starting the flow) is busy from that call
+      //    until it is next called; a person (kind actor) who starts the flow gets no bar;
+      //  - per message, "activate": false opens nothing, and "until": <message id> ends the bar at that message.
+      // A message hidden in a collapsed frame sits on its summary row, so a bar ends there.
       function seqActivations() {
-        const ms = chartData.messages, bars = [];
+        const ms = chartData.messages, bars = [], STUB = 20;
+        const kindOf = (pid) => (partById(pid) || {}).kind;
+        const yOf = (id) => { const m = msgById(id); return m ? m.y : null; };
+        const stacks = {};
+        const stack = (pid) => (stacks[pid] = stacks[pid] || []);
+        const finish = (ex, y2) => {
+          if (ex.async && ex.lastOut === null) return;   // an async target that did nothing visible
+          const end = ex.until !== null ? ex.until : y2;
+          if (ex.hiddenFrom && ex.hiddenTo) return;
+          bars.push({ pid: ex.pid, y1: ex.y1, y2: Math.max(end, ex.y1 + STUB), caller: ex.caller, callerDepth: ex.callerDepth, closedBy: ex.closedBy || null });
+        };
+        // Close an execution and everything opened on top of it (left dangling)
+        const closeAt = (pid, k, y2, by) => {
+          const st = stack(pid);
+          while (st.length > k) { const ex = st.pop(); ex.closedBy = st.length === k ? by : null; ex.hiddenTo = by ? by.hidden : false; finish(ex, ex.lastOut !== null && st.length >= k ? Math.max(y2, ex.lastOut) : y2); }
+        };
+        const touch = (pid, y) => { stack(pid).forEach((ex) => { if (ex.lastOut === null || y > ex.lastOut) ex.lastOut = y; }); };
         ms.forEach((m, i) => {
-          if (m.kind !== 'sync' || m.from === m.to) return;
-          let last = null;
-          for (let j = i + 1; j < ms.length; j++) {
-            const r = ms[j];
-            if (r.from === m.from && r.to === m.to) break;
-            if (r.kind === 'reply' && r.from === m.to && r.to === m.from) last = r;
+          const from = m.from, to = m.to;
+          if (!partById(from) || !partById(to)) return;
+          const self = from === to;
+          if (m.kind === 'reply') {
+            const st = stack(from);
+            let k = -1;
+            for (let j = st.length - 1; j >= 0; j--) if (st[j].caller === to && !st[j].async) { k = j; break; }
+            if (k >= 0) { closeAt(from, k, m.y + 6, m); touch(to, m.y + 6); return; }
+            // A further reply to a call already answered in another branch: stretch that bar if the caller has not
+            // sent the callee anything since
+            const prev = bars.slice().reverse().find((b) => b.pid === from && b.caller === to && b.closedBy);
+            if (prev) {
+              const between = ms.slice(ms.indexOf(prev.closedBy) + 1, i);
+              if (!between.some((x) => x.from === to && x.to === from)) { prev.y2 = Math.max(prev.y2, m.y + 6); prev.closedBy = m; }
+            }
+            touch(from, m.y); touch(to, m.y + 6);
+            return;
           }
-          if (last && !(m.hidden && last.hidden)) bars.push({ pid: m.to, y1: m.y - 6, y2: last.y + 6, call: m, reply: last });
+          // A call or async message: the sender moves on from earlier unanswered calls it made at this depth
+          const depth = stack(from).length;
+          Object.keys(stacks).forEach((pid) => {
+            const st = stacks[pid];
+            const k = st.findIndex((ex) => ex.caller === from && !ex.async && ex.callerDepth === depth && ex.open);
+            if (k >= 0 && pid !== from) closeAt(pid, k, (st[k].lastOut !== null ? st[k].lastOut : st[k].y1 + STUB), null);
+          });
+          // A system starting the flow is busy until it is next called
+          if (!depth && kindOf(from) !== 'actor' && !self) stack(from).push({ pid: from, y1: m.y - 6, caller: null, callerDepth: -1, async: false, lastOut: m.y, until: null, open: false, initiator: true, hiddenFrom: m.hidden });
+          touch(from, m.y);
+          if (m.activate === false) return;
+          if (self) {
+            if (m.kind !== 'async') bars.push({ pid: from, y1: m.y + 22, y2: m.y + 48 });   // the loop returns onto it
+            return;
+          }
+          // The target is called: an initiator execution open on it ends here (it is no longer starting things)
+          const tst = stack(to);
+          if (tst.length === 1 && tst[0].initiator) closeAt(to, 0, tst[0].lastOut, null);
+          stack(to).push({ pid: to, y1: m.y - 6, caller: from, callerDepth: stack(from).length, async: m.kind === 'async', lastOut: m.kind === 'async' ? null : m.y + 6,
+            until: m.until !== undefined && yOf(m.until) !== null ? yOf(m.until) + 6 : null, open: m.kind !== 'async', hiddenFrom: m.hidden });
         });
-        // A caller that is not already active (nobody called it) is active from its call until the reply comes back
-        bars.slice().sort((a, b) => a.y1 - b.y1).forEach((b) => {
-          const m = b.call;
-          const covered = bars.some((o) => o.pid === m.from && o.y1 <= m.y && m.y <= o.y2);
-          if (!covered) bars.push({ pid: m.from, y1: m.y - 6, y2: b.reply.y + 6 });
-        });
-        bars.forEach((b) => { delete b.call; delete b.reply; });
+        // Whatever is still open ends at its last message
+        Object.keys(stacks).forEach((pid) => closeAt(pid, 0, 0, null));
+        bars.forEach((b) => { delete b.caller; delete b.callerDepth; delete b.closedBy; });
         bars.sort((a, b) => a.y1 - b.y1);
         const open = {};
         bars.forEach((b) => {
@@ -351,6 +403,19 @@
           const own = Math.max(0, pinTop - (p.top === undefined ? SQ.TOP : p.top));
           el.style.translate = own > 0 ? `0 ${own}px` : 'none';
           el.classList.toggle('is-gone', p.bottom !== undefined && p.bottom < pinTop);
+        });
+        // A frame cut by the pinned row keeps its tag readable: the tag rides just below the row (nested frames' tags
+        // stack, outer first) until the frame's bottom comes up to it
+        const pinned = seqCanvas.classList.contains('seq-pinned');
+        let below = pinTop + topRowH() + PIN_INSET;
+        chartData.fragments.filter((f) => f.x !== undefined).sort((u, v) => u.y - v.y).forEach((f) => {
+          const tag = seqHtml.querySelector(`.frame-tag[data-frag-id="${f.id}"]`);
+          if (!tag) return;
+          const h = tag.offsetHeight || 22;
+          const shift = pinned && f.y < below && f.y + f.h > below + h + 4 ? below - f.y : 0;   // a frame already gone keeps its tag
+          tag.style.translate = shift > 0 ? `0 ${shift}px` : '';
+          tag.classList.toggle('is-riding', shift > 0);
+          if (shift > 0) below = f.y + shift + h + 4;
         });
       }
 

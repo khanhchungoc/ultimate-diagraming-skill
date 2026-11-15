@@ -49,6 +49,7 @@ Never add coordinates (`x`, `y`, `w`, `h`, `layout`); `--layout` computes them. 
 | Participant | `column` | Optional, with `lifespans`: the id of an **earlier** participant whose column this one reuses. Only for participants whose lifespans (their messages and notes, widened by `start`/`end`) never overlap, such as two systems that each work in a different phase. The audit refuses an overlap, a `column` without `lifespans`, and a host that itself has a `column` (no chains). |
 | Message | `id`, `from`, `to`, `label` | Participant ids. `from` equal to `to` draws a self-message. |
 | Message | `kind` | `sync` (call: solid line, filled arrowhead, opens an activation bar), `reply` (return: dashed line, open arrowhead, closes the bar of the call it answers), `async` (solid line, open arrowhead). Default `sync`. Always write `kind`: the page picks it for messages people add (a reply when it answers a call that is still open, otherwise a call), and its "No reply expected" toggle sets `async`. |
+| Message | `activate`, `until` | Optional, rarely needed (the activation bars are worked out from the messages, see below). `"activate": false` draws no bar for this call. `"until": <later message id>` ends the bar this message opens at that message (async work that runs on, or a call whose reply is not drawn). |
 | Message | `detail` | Optional. One line of parameters or payload, drawn smaller and muted under the arrow. No line breaks. |
 | Fragment | `id`, `kind`, `label`, `from`, `to` | `kind`: `opt`, `alt`, `loop`, `par`, or `group` (a named phase: the tag shows the label only). `from` and `to` are message ids; the frame covers that range inclusive. |
 | Fragment | `branches` | Optional, `alt` and `par` only: `[{ "at": <message id>, "label": <condition> }]`, one per further branch, each starting at that message. The fragment's own `label` is the first branch's condition. Each `at` is after `from` and no later than `to`; no two share an `at`. |
@@ -58,7 +59,13 @@ Never add coordinates (`x`, `y`, `w`, `h`, `layout`); `--layout` computes them. 
 | Note | `id`, `text`, `over` | `over` is a participant id, or two ids to stretch the note from one lifeline to the other. `text` may hold `\n` line breaks. |
 | Note | `after` / `before` | Optional message id. `after: m` puts the note under message `m`, inside every frame `m` is in; `before: m` puts it above `m` and above any frame that opens at `m`. With neither, it sits above the first message. |
 
-An activation bar appears when a `sync` message is later answered by a `reply` going back the other way (`from`/`to` swapped). A call answered in several places (one reply per `alt` branch) has one bar, to its last reply before the caller next sends that callee anything.
+Activation bars are computed, never written. A bar shows a participant busy handling something:
+
+- A `sync` call opens a bar on its target, and the `reply` going back (`from`/`to` swapped) closes it. A call answered in several places (one reply per `alt` branch) has one bar, to its last reply.
+- A participant called again after it replied gets a separate bar. A participant called while its bar is open (a callback) gets a bar on its bar, and so does a self-call.
+- A caller keeps one continuous bar while it makes several calls as part of the same job.
+- A call with no reply gets a short bar that ends when the caller moves on. An `async` message gives its target a bar only if the target then sends something.
+- A system that starts the flow (a job, a webhook) is busy from its first call until it is next called. A person (`actor`) who starts the flow gets no bar.
 
 ## Writing rules
 
