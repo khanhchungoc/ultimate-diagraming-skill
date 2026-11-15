@@ -85,6 +85,127 @@
         return row;
       }
 
+      // --- UI BUILDERS: markup every diagram type shares (styled by assets/components/*.css) ---
+      // A type calls these instead of building the same elements itself; it keeps only what is specific to it.
+      const ui = (() => {
+        // An icon by name from the registry (ICONS, assets/icons/default.json): the <svg> text, drawn with the icon tokens
+        // (TOKENS.icon). o: { size: a token name (xs sm md lg xl tile; default md) or a px number, fine: the thinner stroke for
+        // dense or large icons, bold: the heavier stroke for tiny ones, class }. Templates write the icon placeholder instead;
+        // scripts/tokens.py icon_svg() builds the same text. Colour is currentColor, so icons follow the text colour.
+        function icon(name, o) {
+          const t = TOKENS.icon, inner = ICONS[name], opts = o || {};
+          if (inner === undefined) throw new Error(`unknown icon "${name}"`);
+          const px = typeof opts.size === 'number' ? opts.size : t.size[opts.size || 'md'];
+          const stroke = opts.bold ? t.strokeBold : opts.fine ? t.strokeFine : t.stroke;
+          return `<svg${opts.class ? ` class="${opts.class}"` : ''} width="${px}" height="${px}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${stroke}" stroke-linecap="${t.cap}" stroke-linejoin="${t.join}" aria-hidden="true">${inner}</svg>`; // tokens-ok: this is the icon renderer
+        }
+        function iconEl(name, o) {
+          const tpl = document.createElement('template');
+          tpl.innerHTML = icon(name, o);
+          return tpl.content.firstChild;
+        }
+        let confirmEl = null;
+        function closeConfirm() {
+          if (!confirmEl) return false;
+          confirmEl.remove();
+          confirmEl = null;
+          document.removeEventListener('pointerdown', onConfirmOutside, true);
+          return true;
+        }
+        function onConfirmOutside(e) { if (confirmEl && !confirmEl.contains(e.target)) closeConfirm(); }
+        // Ask before a delete: a bubble under `anchor` (a DOM element; above it when there is no room below; the upper middle
+        // of the window when null), kept on screen. opts: { message, title?, label (the dialog's aria-label), ok? (button text,
+        // "Delete") }. Escape, Cancel, a click elsewhere or a pan/zoom (the type calls closeConfirm) dismisses it.
+        function confirm(anchor, opts, onYes) {
+          closeConfirm();
+          const box = document.createElement('div');
+          box.className = 'confirm';
+          box.dataset.exportSkip = '';
+          box.setAttribute('role', 'alertdialog');
+          box.setAttribute('aria-label', opts.label);
+          const add = (cls, text) => { const d = document.createElement('div'); d.className = cls; d.textContent = text; box.appendChild(d); };
+          if (opts.title) add('confirm-title', opts.title);
+          add('confirm-msg', opts.message);
+          const row = document.createElement('div');
+          row.className = 'confirm-actions';
+          const button = (cls, text) => { const b = document.createElement('button'); b.type = 'button'; b.className = cls; b.textContent = text; return b; };
+          const cancel = button('btn confirm-cancel', 'Cancel');
+          cancel.addEventListener('click', () => closeConfirm());
+          const ok = button('btn btn-danger confirm-ok', opts.ok || 'Delete');
+          ok.addEventListener('click', () => { closeConfirm(); onYes(); });
+          row.append(cancel, ok);
+          box.appendChild(row);
+          box.addEventListener('keydown', (e) => {
+            // Keys inside the bubble stay there (Delete/Backspace would open it again)
+            if (e.key === 'Escape') { e.preventDefault(); closeConfirm(); }
+            if (e.key !== 'Tab') e.stopPropagation();
+          });
+          document.body.appendChild(box);
+          confirmEl = box;
+          const r = anchor ? anchor.getBoundingClientRect() : { left: innerWidth / 2, top: innerHeight / 3, bottom: innerHeight / 3 };
+          const bw = box.offsetWidth, bh = box.offsetHeight;
+          const top = r.bottom + 8 + bh > innerHeight - 8 ? r.top - 8 - bh : r.bottom + 8;
+          box.style.left = `${Math.max(8, Math.min(r.left, innerWidth - bw - 8))}px`;
+          box.style.top = `${Math.max(8, Math.min(top, innerHeight - bh - 8))}px`;
+          cancel.focus();
+          document.addEventListener('pointerdown', onConfirmOutside, true);
+        }
+        // A note card: `.note` with its plain-text `.note-text`, and (when given) the delete and link chips. note: { id, text }.
+        // o: { onDelete?, onLink?(pointerdown event, card), linkTitle?, onCommit?(note text element)
+        // (Enter, Ctrl+Enter, Esc finish editing), onInput? }. Returns { card, text }; the caller adds its own pointer handlers.
+        function noteCard(note, o) {
+          const card = document.createElement('div');
+          card.className = 'note';
+          card.dataset.noteId = note.id;
+          const text = document.createElement('div');
+          text.className = 'note-text';
+          text.spellcheck = false;
+          text.dataset.placeholder = 'Add a note…';
+          text.textContent = note.text || '';
+          card.appendChild(text);
+          const tool = (cls, title, icon) => {
+            const b = document.createElement('button');
+            b.type = 'button';
+            b.className = cls;
+            b.title = title;
+            b.setAttribute('aria-label', title);
+            b.setAttribute('data-export-skip', '');
+            b.innerHTML = icon;
+            card.appendChild(b);
+            return b;
+          };
+          if (o.onDelete) {
+            const del = tool('note-del btn-danger-hover', 'Delete note', icon('close', { size: 'xs', bold: true }));
+            del.addEventListener('pointerdown', (e) => e.stopPropagation());
+            del.addEventListener('click', (e) => { e.stopPropagation(); o.onDelete(); });
+          }
+          if (o.onLink) {
+            const link = tool('note-link', o.linkTitle, icon('link', { size: 'sm', bold: true }));
+            link.addEventListener('pointerdown', (e) => o.onLink(e, card));
+            link.addEventListener('click', (e) => e.stopPropagation());
+          }
+          if (o.onCommit) {
+            // Plain text only. Enter starts a new line; Ctrl/Cmd+Enter, Esc or clicking away finishes.
+            text.addEventListener('paste', (e) => {
+              e.preventDefault();
+              document.execCommand('insertText', false, (e.clipboardData || window.clipboardData).getData('text/plain'));
+            });
+            text.addEventListener('keydown', (e) => {
+              if (e.key === 'Enter' && !(e.ctrlKey || e.metaKey)) {
+                e.preventDefault();   // a plain line break, not the <div> the browser would wrap the new line in
+                document.execCommand('insertLineBreak');
+              } else if (e.key === 'Escape' || e.key === 'Enter') {
+                // Commit directly too: blur() fires no blur event while the window itself is not focused
+                e.preventDefault(); e.stopPropagation(); text.blur(); o.onCommit(text);
+              }
+            });
+          }
+          if (o.onInput) text.addEventListener('input', o.onInput);
+          return { card, text };
+        }
+        return { confirm, closeConfirm, isConfirmOpen: () => !!confirmEl, noteCard, icon, iconEl };
+      })();
+
       // --- CLAUDE.AI ARTIFACT (only active inside a published claude.ai artifact; elsewhere none of this runs) ---
       // A page that republishes itself must send a document in exactly the shape the Artifact tool publishes:
       // this skeleton, the page content, then the closing tags (nothing else in <head>, no whitespace between its
@@ -353,8 +474,7 @@
         return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
       }
       // The button shows the theme you would switch TO (stroke icons, same family as the other controls)
-      const ICON_SUN = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>';
-      const ICON_MOON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>';
+      const ICON_SUN = ui.icon('sun'), ICON_MOON = ui.icon('moon');
       function applyTheme(theme, persist) {
         document.documentElement.setAttribute('data-theme', theme);
         btnTheme.innerHTML = theme === 'dark' ? ICON_SUN : ICON_MOON;

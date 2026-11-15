@@ -36,9 +36,9 @@ const edgeOf = (d, id) => d.edges.find(e => e.id === id) || null;
 
 // Page-side selectors and actions (DOM only). A connector's role shows in its accessible name.
 const conn = (role) => `[...document.querySelectorAll('.flow-node.type-connector')].find(el => /${role === 'in' ? 'continues at' : ', from '}/.test(el.getAttribute('aria-label')))`;
-const selectEdge = (id) => t.ev(`document.querySelector('.connector-path[data-edge-id="${id}"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))`);
+const selectEdge = (id) => t.ev(`document.querySelector('.edge-line[data-edge-id="${id}"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))`);
 // The stub arrow leaving the out-connector
-const selectStub = () => t.ev(`document.querySelector('.connector-path[data-from="' + (${conn('out')}).dataset.nodeId + '"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))`);
+const selectStub = () => t.ev(`document.querySelector('.edge-line[data-from="' + (${conn('out')}).dataset.nodeId + '"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))`);
 const split = async (id) => { await selectEdge(id); await t.ev(`document.querySelector('.edge-split-chip').click()`); };
 const click = (sel) => t.ev(`(() => {
   const el = ${sel}; const r = el.getBoundingClientRect();
@@ -150,7 +150,7 @@ try {
   await sleep(100);
   const d3 = await state();
   t.check('an arrow dragged onto a connector is refused with a hint', d3.edges.length === before && /splitting an arrow/.test(hint), `edges ${before} -> ${d3.edges.length}, hint=${hint}`);
-  t.check('a connector takes no note (N does nothing)', !(d3.notes || []).length && !(await t.ev(`document.querySelector('.flow-note')`)));
+  t.check('a connector takes no note (N does nothing)', !(d3.notes || []).length && !(await t.ev(`document.querySelector('.note')`)));
 
   // 7. Deleting a stub arrow deletes the whole split arrow
   await selectStub();
@@ -283,7 +283,7 @@ try {
   const k0 = await state();
   const intoPair = (d, id) => connsOf(d).some(c => c.id === (edgeOf(d, id) || {}).to) && connsOf(d).length === 2;
   const mid = await t.ev(`(() => {
-    const p = document.querySelector('.connector-path[data-edge-id="e8"]'), L = p.getTotalLength(), m = p.getScreenCTM();
+    const p = document.querySelector('.edge-line[data-edge-id="e8"]'), L = p.getTotalLength(), m = p.getScreenCTM();
     const q = p.getPointAtLength(L * 0.5); return [q.x * m.a + m.e, q.y * m.d + m.f];
   })()`);
   const lit2 = await t.ev(`(() => {
@@ -292,7 +292,7 @@ try {
     b.dispatchEvent(new PointerEvent('pointerdown', o(r.left + 10, r.top + 10)));
     window.dispatchEvent(new PointerEvent('pointermove', o(r.left + 40, r.top - 40)));
     window.dispatchEvent(new PointerEvent('pointermove', o(${mid[0]}, ${mid[1]})));
-    const lit = [!!document.querySelector('.connector-path.insert-target[data-edge-id="e8"]'), !!document.querySelector('.connector-ghost.over-arrow')];
+    const lit = [!!document.querySelector('.edge-line.insert-target[data-edge-id="e8"]'), !!document.querySelector('.connector-ghost.over-arrow')];
     window.dispatchEvent(new PointerEvent('pointerup', o(${mid[0]}, ${mid[1]})));
     b.click();   // the click that follows a drag is swallowed
     return lit;
@@ -320,7 +320,7 @@ try {
   // 11. ?present: read-only, but a click still jumps to the other end
   await t.open(pages.split, '?present');
   // The stub's label has room: clear of both its step and the circle
-  const lbl = `document.querySelector('.edge-label-container[data-edge-id="e8"]')`;
+  const lbl = `document.querySelector('.edge-label[data-edge-id="e8"]')`;
   const roomStep = await gapBetween(lbl, `document.getElementById('node-n4')`), roomCircle = await gapBetween(lbl, conn('in'));
   t.check('the "Yes" label on the in-stub keeps at least 10px from its step and from the circle', roomStep >= 10 && roomCircle >= 10, JSON.stringify({ roomStep, roomCircle }));
   const p0 = await offCentre(conn('out'));

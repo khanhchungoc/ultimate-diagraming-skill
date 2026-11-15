@@ -1,0 +1,41 @@
+    /* Menu: a dropdown list under its button (Export). Markup: .menu-wrap > button + .menu[role=menu] > .menu-label, button... */
+    .menu-wrap { position: relative; }
+    .menu {
+      position: absolute; right: 0; top: calc(100% + 6px); z-index: 200; min-width: 150px;
+      background: var(--bg-panel); border: 1px solid var(--menu-border); border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-lg); padding: 4px; display: flex; flex-direction: column;
+    }
+    .menu[hidden] { display: none; }
+    .menu button {
+      background: none; border: 0; text-align: left; padding: 7px 10px; border-radius: var(--radius-md);
+      font: inherit; font-size: var(--t-control-size); color: var(--text, inherit); cursor: pointer;
+    }
+    .menu button:hover, .menu button:focus-visible { background: var(--bg-hover); outline: none; }
+    .menu button[hidden] { display: none; }
+    .menu-label {
+      padding: 6px 10px 2px; font-size: var(--text-xs); font-weight: var(--weight-semibold); letter-spacing: var(--tracking-caps); text-transform: uppercase;
+      color: var(--text-muted); user-select: none;
+    }
+    .menu-label:not(:first-child) { margin-top: 4px; border-top: 1px solid var(--menu-border); padding-top: 8px; }
+
+    /* Confirm: the bubble that asks before a delete, screen-fixed so it sits outside the zoomed canvas (ui.confirm in shell.js).
+       .confirm-title is optional; with one, the message below it is the quiet explanation. */
+    .confirm {
+      position: fixed;
+      z-index: 2000;
+      width: 260px;
+      box-sizing: border-box;
+      padding: 14px 14px 12px;
+      border-radius: var(--radius-xl);
+      border: 1px solid var(--border-dark);
+      background: var(--bg-panel);
+      color: var(--text-main);
+      box-shadow: var(--shadow-xl);
+      font-size: var(--t-control-size);
+      line-height: var(--t-control-leading);
+    }
+    .confirm-title { font-weight: var(--weight-semibold); font-size: var(--text-lg); margin-bottom: 4px; overflow-wrap: anywhere; }
+    .confirm-msg { font-weight: var(--weight-semibold); margin-bottom: 12px; overflow-wrap: anywhere; }
+    .confirm-title + .confirm-msg { font-weight: var(--weight-regular); color: var(--text-soft); }
+    .confirm-actions { display: flex; justify-content: flex-end; gap: 8px; }
+    .confirm .btn { padding: 6px 12px; font-size: var(--t-control-size); }

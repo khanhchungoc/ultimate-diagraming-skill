@@ -15,7 +15,7 @@ const t = await launch(browser).catch((e) => { console.error('[ERROR]', e.messag
 let code = 0;
 try {
   await t.open(page);
-  const graph = `JSON.stringify({ n: document.querySelectorAll('.flow-node').length, e: document.querySelectorAll('.connector-path').length })`;
+  const graph = `JSON.stringify({ n: document.querySelectorAll('.flow-node').length, e: document.querySelectorAll('.edge-line').length })`;
 
   // 1. Every shape renders as its outline inside a transparent box
   const drawn = await t.ev(`${JSON.stringify(SHAPES)}.map(s => {
@@ -37,7 +37,7 @@ try {
     }));
     const bad = [];
     let checked = 0;
-    for (const p of document.querySelectorAll('.connector-path')) {
+    for (const p of document.querySelectorAll('.edge-line')) {
       const L = p.getTotalLength(), m = p.getScreenCTM();
       for (const s of [0, L]) {
         const q = p.getPointAtLength(s), x = q.x * m.a + m.e, y = q.y * m.d + m.f;
@@ -72,8 +72,8 @@ try {
 
   // 4. Each shape can be dropped onto an arrow: one node and one arrow more, the new arrow unlabelled
   const midOfArrow = `(() => {
-    for (const p of document.querySelectorAll('.connector-path')) {
-      const lbl = document.querySelector('.edge-label-container[data-edge-id="' + p.dataset.edgeId + '"] .edge-label-text');
+    for (const p of document.querySelectorAll('.edge-line')) {
+      const lbl = document.querySelector('.edge-label[data-edge-id="' + p.dataset.edgeId + '"] .edge-label-text');
       if (lbl && lbl.textContent.trim() && !/^\\+/.test(lbl.textContent.trim())) continue;
       const L = p.getTotalLength(), m = p.getScreenCTM();
       for (const f of [0.5, 0.35, 0.65]) {
@@ -91,7 +91,7 @@ try {
     window.dispatchEvent(new PointerEvent('pointermove', o(r.left + 30, r.top - 30)));
     window.dispatchEvent(new PointerEvent('pointermove', o(${x}, ${y})));
     const ghost = document.querySelector('.palette-ghost .shape-outline') ? 1 : 0;
-    const hl = !!document.querySelector('.connector-path.insert-target');
+    const hl = !!document.querySelector('.edge-line.insert-target');
     window.dispatchEvent(new PointerEvent('pointerup', o(${x}, ${y})));
     b.click();
     return [hl, ghost];

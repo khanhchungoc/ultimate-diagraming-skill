@@ -72,10 +72,10 @@ try {
   // 2b3. Arrow edits never re-lay out (so the order can be rewired one arrow at a time); undo brings the arrow back
   const allPos = `JSON.stringify([...document.querySelectorAll('.flow-node')].map(n => [n.dataset.nodeId, n.style.left, n.style.top]))`;
   const posBeforeArrow = await t.ev(allPos);
-  const edgesBefore = await t.ev(`document.querySelectorAll('.connector-path').length`);
-  await t.ev(`document.querySelector('.connector-hit').dispatchEvent(new MouseEvent('click', { bubbles: true }))`);
+  const edgesBefore = await t.ev(`document.querySelectorAll('.edge-line').length`);
+  await t.ev(`document.querySelector('.edge-hit').dispatchEvent(new MouseEvent('click', { bubbles: true }))`);
   await t.ev(t.key('Delete'));
-  t.check('deleting an arrow moves no step', (await t.ev(`document.querySelectorAll('.connector-path').length`)) === edgesBefore - 1
+  t.check('deleting an arrow moves no step', (await t.ev(`document.querySelectorAll('.edge-line').length`)) === edgesBefore - 1
     && (await t.ev(allPos)) === posBeforeArrow);
   await t.ev(t.key('z', { ctrlKey: true }));
 
@@ -104,16 +104,16 @@ try {
   const laneSel = await t.ev(`!!document.querySelector('.swimlane:nth-child(2).lane-selected')`);
   await t.ev(t.key('Delete'));
   // Deleting a lane asks first: the popover names the lane; Cancel (and Escape) keep it
-  const asked = await t.ev(`document.querySelector('.lane-confirm')?.textContent || ''`);
-  await t.ev(`document.querySelector('.lane-confirm-cancel').click()`);
-  const keptOnCancel = (await t.ev(`document.querySelectorAll('.swimlane').length`)) === lanesBefore && !(await t.ev(`!!document.querySelector('.lane-confirm')`));
+  const asked = await t.ev(`document.querySelector('.confirm')?.textContent || ''`);
+  await t.ev(`document.querySelector('.confirm-cancel').click()`);
+  const keptOnCancel = (await t.ev(`document.querySelectorAll('.swimlane').length`)) === lanesBefore && !(await t.ev(`!!document.querySelector('.confirm')`));
   await t.ev(t.key('Delete'));
   await t.ev(t.key('Escape'));
-  const keptOnEscape = (await t.ev(`document.querySelectorAll('.swimlane').length`)) === lanesBefore && !(await t.ev(`!!document.querySelector('.lane-confirm')`));
+  const keptOnEscape = (await t.ev(`document.querySelectorAll('.swimlane').length`)) === lanesBefore && !(await t.ev(`!!document.querySelector('.confirm')`));
   t.check('deleting a lane asks for confirmation; Cancel and Escape keep the lane', /delete/i.test(asked) && keptOnCancel && keptOnEscape,
     `asked=${JSON.stringify(asked)} cancel=${keptOnCancel} escape=${keptOnEscape}`);
   await t.ev(t.key('Delete'));
-  await t.ev(`document.querySelector('.lane-confirm-delete').click()`);
+  await t.ev(`document.querySelector('.confirm-ok').click()`);
   const lanesAfter = await t.ev(`document.querySelectorAll('.swimlane').length`);
   const nodesAfter = await t.ev(`document.querySelectorAll('.flow-node').length`);
   t.check('clicking a lane pill selects the lane and Delete (confirmed) removes it with its steps', laneSel && lanesAfter === lanesBefore - 1
@@ -133,7 +133,7 @@ try {
       vis(document.querySelector('.swimlane:nth-child(1) .lane-tools'))];
   })()`);
   await t.ev(`document.querySelector('.swimlane:nth-child(2) .lane-tool-delete').click()`);
-  await t.ev(`document.querySelector('.lane-confirm-delete').click()`);
+  await t.ev(`document.querySelector('.confirm-ok').click()`);
   const lanesAfterTool = await t.ev(`document.querySelectorAll('.swimlane').length`);
   t.check('hovering a lane hides its tools; selecting it shows reorder + delete (only that lane), and delete (confirmed) removes the lane',
     !toolsShown[0] && toolsShown[1] && toolsShown[2] && !toolsShown[3] && lanesAfterTool === lanesBefore - 1, `${JSON.stringify(toolsShown)} lanes=${lanesAfterTool}`);
@@ -203,16 +203,16 @@ try {
 
   // 7. Drag shapes out of the dock (flowchart plugin): empty canvas adds a node, an arrow gets the node spliced in
   await t.open(laid);
-  const graph = `JSON.stringify({ n: document.querySelectorAll('.flow-node').length, e: document.querySelectorAll('.connector-path').length })`;
+  const graph = `JSON.stringify({ n: document.querySelectorAll('.flow-node').length, e: document.querySelectorAll('.edge-line').length })`;
   // Screen points sampled along every arrow, so a test point can keep clear of them
-  const pathPts = `[...document.querySelectorAll('.connector-path')].flatMap(p => { const L = p.getTotalLength(), m = p.getScreenCTM(), o = []; for (let s = 0; s <= L; s += 4) { const q = p.getPointAtLength(s); o.push([q.x * m.a + m.e, q.y * m.d + m.f]); } return o; })`;
+  const pathPts = `[...document.querySelectorAll('.edge-line')].flatMap(p => { const L = p.getTotalLength(), m = p.getScreenCTM(), o = []; for (let s = 0; s <= L; s += 4) { const q = p.getPointAtLength(s); o.push([q.x * m.a + m.e, q.y * m.d + m.f]); } return o; })`;
   const paletteDrop = (type, x, y) => `(async () => {
     const b = document.querySelector('[data-node-type="${type}"]'), r = b.getBoundingClientRect();
     const o = (cx, cy) => ({ bubbles: true, button: 0, clientX: cx, clientY: cy, pointerId: 1, isPrimary: true });
     b.dispatchEvent(new PointerEvent('pointerdown', o(r.left + 10, r.top + 10)));
     window.dispatchEvent(new PointerEvent('pointermove', o(r.left + 30, r.top - 30)));
     window.dispatchEvent(new PointerEvent('pointermove', o(${x}, ${y})));
-    const hl = !!document.querySelector('.connector-path.insert-target');
+    const hl = !!document.querySelector('.edge-line.insert-target');
     window.dispatchEvent(new PointerEvent('pointerup', o(${x}, ${y})));
     b.click();   // the click a real drop onto the button would produce must be swallowed
     return hl;
@@ -246,8 +246,8 @@ try {
 
   // Drop onto the middle of an unlabelled arrow between two nodes
   const edgeInfo = await t.ev(`(() => {
-    for (const p of document.querySelectorAll('.connector-path')) {
-      const lbl = document.querySelector('.edge-label-container[data-edge-id="' + p.dataset.edgeId + '"] .edge-label-text');
+    for (const p of document.querySelectorAll('.edge-line')) {
+      const lbl = document.querySelector('.edge-label[data-edge-id="' + p.dataset.edgeId + '"] .edge-label-text');
       if (lbl && lbl.textContent.trim() && !/^\\+/.test(lbl.textContent.trim())) continue;
       const L = p.getTotalLength(), m = p.getScreenCTM();
       for (const f of [0.5, 0.35, 0.65]) {
@@ -264,7 +264,7 @@ try {
       const res = {};
       for (const n of document.querySelectorAll('.flow-node')) {
         n.dispatchEvent(new MouseEvent('mouseenter'));
-        const p = [...document.querySelectorAll('.connector-path')].find(x => x.dataset.edgeId === ${JSON.stringify(edgeId)});
+        const p = [...document.querySelectorAll('.edge-line')].find(x => x.dataset.edgeId === ${JSON.stringify(edgeId)});
         if (p && p.classList.contains('hl-out')) res.from = n.dataset.nodeId;
         if (p && p.classList.contains('hl-in')) res.to = n.dataset.nodeId;
         n.dispatchEvent(new MouseEvent('mouseleave'));
@@ -282,7 +282,7 @@ try {
     const ends1 = await endsOf(edgeInfo[0]);
     const outOfNew = await t.ev(`(() => {
       const n = document.getElementById('node-${newId}'); n.dispatchEvent(new MouseEvent('mouseenter'));
-      const out = [...document.querySelectorAll('.connector-path.hl-out')].map(p => p.dataset.edgeId);
+      const out = [...document.querySelectorAll('.edge-line.hl-out')].map(p => p.dataset.edgeId);
       n.dispatchEvent(new MouseEvent('mouseleave')); return out;
     })()`);
     const outEnds = outOfNew.length === 1 ? await endsOf(outOfNew[0]) : {};
@@ -297,7 +297,7 @@ try {
   // 7b. Lane hover: the lane under the pointer is lit, even while the pointer is over an arrow's label
   const hoverCheck = await t.ev(`(() => {
     const c = document.getElementById('swimlanes-container');
-    const label = [...document.querySelectorAll('.edge-label-container')].find(l => l.getBoundingClientRect().width);
+    const label = [...document.querySelectorAll('.edge-label')].find(l => l.getBoundingClientRect().width);
     const r = label.getBoundingClientRect(), x = r.left + r.width / 2, y = r.top + r.height / 2;
     const lane = [...document.querySelectorAll('.swimlane')].find(l => { const b = l.getBoundingClientRect(); return y >= b.top && y < b.bottom; });
     label.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: x, clientY: y }));
@@ -414,7 +414,7 @@ try {
     const pills = [...document.querySelectorAll('.swimlane')].map(l => { const p = l.querySelector('.lane-pill').getBoundingClientRect(), r = l.getBoundingClientRect(); return { dy: Math.round(p.top - r.top), inside: p.left >= r.left && p.right <= r.right + 1, off: Math.round((p.left + p.right) / 2 - (r.left + r.right) / 2) }; });
     const firstNodeTop = Math.min(...nodes.map(n => n.r.top)), pillBottom = Math.max(...[...document.querySelectorAll('.lane-pill')].map(p => p.getBoundingClientRect().bottom));
     return { tb: document.getElementById('swimlanes-container').classList.contains('dir-tb'), sideBySide, inLane, overlaps, pills, clear: firstNodeTop > pillBottom,
-      label: document.querySelector('#btn-direction .btn-label').textContent, arrows: document.querySelectorAll('.connector-path').length, status: document.getElementById('save-status').textContent };
+      label: document.querySelector('#btn-direction .btn-label').textContent, arrows: document.querySelectorAll('.edge-line').length, status: document.getElementById('save-status').textContent };
   })()`;
   const v = await t.ev(columns);
   t.check('the Vertical toggle lays lanes out as side-by-side columns with every node inside its column, none overlapping',
@@ -529,7 +529,7 @@ try {
   await t.open(laid);
   await t.ev(`document.querySelector('.btn-shape[data-node-type="task"]').click()`);
   await sleep(200);
-  const pathBetweenSteps = `[...document.querySelectorAll('.connector-path')].find(p => !/^c/.test(p.dataset.from) && !/^c/.test(p.dataset.to) && document.getElementById('node-' + p.dataset.to)?.classList.contains('type-task'))`;
+  const pathBetweenSteps = `[...document.querySelectorAll('.edge-line')].find(p => !/^c/.test(p.dataset.from) && !/^c/.test(p.dataset.to) && document.getElementById('node-' + p.dataset.to)?.classList.contains('type-task'))`;
   await t.ev(`(${pathBetweenSteps}).dispatchEvent(new MouseEvent('click', { bubbles: true }))`);
   await t.ev(`document.querySelector('.edge-split-chip')?.click()`);
   await sleep(200);

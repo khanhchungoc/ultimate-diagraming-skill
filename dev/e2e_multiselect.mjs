@@ -61,7 +61,7 @@ const HELPERS = `(() => {
     },
     // A screen point in the middle of an arrow (from -> to)
     arrowPoint(from, to) {
-      const p = document.querySelector('.connector-path[data-from="' + from + '"][data-to="' + to + '"]');
+      const p = document.querySelector('.edge-line[data-from="' + from + '"][data-to="' + to + '"]');
       const L = p.getTotalLength(), q = p.getPointAtLength(L / 2), m = p.getScreenCTM();
       return { x: m.a * q.x + m.c * q.y + m.e, y: m.b * q.x + m.d * q.y + m.f };
     },
@@ -71,9 +71,9 @@ const HELPERS = `(() => {
     // The page's state lives inside its script, so it is read from the DOM
     lanes: (ids) => ids.map(id => node(id).closest('.lane-track').dataset.laneId),
     ids: () => [...document.querySelectorAll('.flow-node[data-node-id]')].map(n => n.dataset.nodeId).sort(),
-    arrows: () => [...document.querySelectorAll('.connector-path')].map(p => p.dataset.from + '>' + p.dataset.to).sort(),
+    arrows: () => [...document.querySelectorAll('.edge-line')].map(p => p.dataset.from + '>' + p.dataset.to).sort(),
     graph: () => JSON.stringify({ n: [...document.querySelectorAll('.flow-node[data-node-id]')].map(n => [n.dataset.nodeId, n.closest('.lane-track').dataset.laneId]).sort(),
-      e: [...document.querySelectorAll('.connector-path')].map(p => [p.dataset.edgeId, p.dataset.from, p.dataset.to]).sort() }),
+      e: [...document.querySelectorAll('.edge-line')].map(p => [p.dataset.edgeId, p.dataset.from, p.dataset.to]).sort() }),
     // graph plus every step's position: equal before and after means nothing changed
     full: () => JSON.stringify([__t.graph(), [...document.querySelectorAll('.flow-node[data-node-id]')].map(n => [n.dataset.nodeId, n.style.left, n.style.top]).sort()]),
     pan: () => document.getElementById('stage').style.transform,

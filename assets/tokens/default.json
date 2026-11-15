@@ -104,6 +104,38 @@
       }
     }
   },
+  "icon": {
+    "set": "default",
+    "size": {
+      "xs": 10,
+      "sm": 12,
+      "md": 14,
+      "lg": 18,
+      "xl": 22,
+      "tile": 32
+    },
+    "stroke": 2,
+    "strokeFine": 1.75,
+    "strokeBold": 2.5,
+    "cap": "round",
+    "join": "round"
+  },
+  "icon": {
+    "set": "default",
+    "size": {
+      "xs": 10,
+      "sm": 12,
+      "md": 14,
+      "lg": 18,
+      "xl": 22,
+      "tile": 32
+    },
+    "stroke": 2,
+    "strokeFine": 1.75,
+    "strokeBold": 2.5,
+    "cap": "round",
+    "join": "round"
+  },
   "size": {
     "lane-min-height": "160px",
     "ring-thin": "1.5px",

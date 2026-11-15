@@ -1,0 +1,9 @@
+    /* A prompt above the dock while a tool waits for a click ("Click a table", "Click a participant"); text only, never takes the pointer */
+    .hint {
+      position: fixed; left: 50%; bottom: 76px; transform: translateX(-50%); z-index: 150; padding: 6px 12px; border-radius: var(--radius-pill);
+      border: 1px solid var(--border-dark); background: var(--bg-panel); color: var(--text-main); font-size: var(--t-control-size); font-weight: var(--t-control-weight);
+      box-shadow: var(--shadow-md); max-width: calc(100vw - 32px); text-align: center; pointer-events: none;
+    }
+    .hint kbd { font: inherit; font-weight: var(--weight-semibold); }
+    /* The prompt of a note tool wears the note's colours */
+    .hint-note { border-color: var(--note-border); background: var(--note-bg); color: var(--note-ink); white-space: nowrap; }

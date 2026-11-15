@@ -1,5 +1,5 @@
-    /* ER diagram. Colours, fonts and the swatch roles (--sw-*) come from shell.css; the note tokens, switch and counter
-       are copied from the flowchart's stylesheet on purpose (a type never imports another type's files). */
+    /* ER diagram. Colours, fonts and the swatch roles (--sw-*) are tokens; buttons, notes, edge labels, confirm bubbles and
+       the rest of the shared parts are in assets/components/. Only what is specific to tables and relationships is here. */
 
     /* Tokens */
 
@@ -21,29 +21,17 @@
     body.capture #erd-canvas { margin: 0; border: none; border-radius: 0; box-shadow: none; }
 
     /* --- Relationship lines --- */
-    .erd-rel-line {
-      fill: none;
-      stroke: var(--connector);
-      stroke-width: 1.25px;
-      stroke-linejoin: round;
-      stroke-linecap: round;
+    .erd-rel .edge-line {
       pointer-events: none;
       transition: stroke 0.15s ease, stroke-width 0.15s ease, opacity 0.15s ease;
       marker-start: var(--mk-s);
       marker-end: var(--mk-e);
     }
-    .erd-rel-line:not(.identifying) { stroke-dasharray: 6 4; }
-    .erd-rel-hit {
-      fill: none;
-      stroke: transparent;
-      stroke-width: 14px;
-      pointer-events: stroke;
-      cursor: pointer;
-    }
-    body.presentation .erd-rel-hit { cursor: default; }
-    .erd-rel.hl-in  .erd-rel-line { stroke: var(--edge-in);  stroke-width: 2px; marker-start: var(--mk-s-in);  marker-end: var(--mk-e-in); }
-    .erd-rel.hl-out .erd-rel-line { stroke: var(--edge-out); stroke-width: 2px; marker-start: var(--mk-s-out); marker-end: var(--mk-e-out); }
-    .erd-rel.hover .erd-rel-line, .erd-rel.selected .erd-rel-line { stroke: var(--primary); stroke-width: 2px; marker-start: var(--mk-s-sel); marker-end: var(--mk-e-sel); }
+    .erd-rel .edge-line:not(.identifying) { stroke-dasharray: 6 4; }
+    body.presentation .edge-hit { cursor: default; }
+    .erd-rel.hl-in  .edge-line { stroke: var(--edge-in);  stroke-width: 2px; marker-start: var(--mk-s-in);  marker-end: var(--mk-e-in); }
+    .erd-rel.hl-out .edge-line { stroke: var(--edge-out); stroke-width: 2px; marker-start: var(--mk-s-out); marker-end: var(--mk-e-out); }
+    .erd-rel.hover .edge-line, .erd-rel.selected .edge-line { stroke: var(--primary); stroke-width: 2px; marker-start: var(--mk-s-sel); marker-end: var(--mk-e-sel); }
     .erd-rel.is-dim { opacity: 0.16; }
     /* Marker content: the line colour of its variant (--mk is set on the -in, -out and -sel copies) */
     .erd-mk path, .erd-mk circle {
@@ -55,33 +43,20 @@
     }
     .erd-mk circle { fill: var(--bg-panel); }
 
-    /* Label on a line: a pill like a flowchart edge label */
-    .erd-rel-label {
-      position: absolute;
-      box-sizing: border-box;
+    /* Label on a line: the shared edge label (components/edge.css), one line of detail text */
+    .edge-label {
       display: flex;
       align-items: center;
       justify-content: center;
       padding: 0 8px;
-      background: var(--edge-label-bg);
-      border: 1.5px solid var(--border-dark);
-      border-radius: var(--radius-lg);
-      color: var(--text-main);
       font-size: var(--t-detail-size);
       font-weight: var(--t-detail-weight);
       line-height: var(--leading-none);
       white-space: nowrap;
-      cursor: pointer;
-      z-index: 30;
       pointer-events: auto;
-      box-shadow: var(--shadow-sm);
-      transition: border-color var(--ease), box-shadow var(--ease), opacity var(--ease);
     }
     .erd-rel-label-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-    .erd-rel-label.hl-in  { border-color: var(--edge-in);  box-shadow: var(--shadow-glow) var(--edge-in-glow); }
-    .erd-rel-label.hl-out { border-color: var(--edge-out); box-shadow: var(--shadow-glow) var(--edge-out-glow); }
-    .erd-rel-label.hover, .erd-rel-label.selected { border-color: var(--primary); box-shadow: var(--shadow-glow) var(--primary-glow); }
-    .erd-rel-label.is-dim { opacity: 0.25; }
+    .edge-label.is-dim { opacity: 0.25; }
 
     /* --- Tables --- */
     .erd-entity {
@@ -261,107 +236,11 @@
     .erd-head.hl-out { box-shadow: inset 0 0 0 var(--ring-fill) color-mix(in srgb, var(--edge-out) 14%, transparent); }
     .erd-head.hover  { box-shadow: inset 0 0 0 var(--ring-fill) color-mix(in srgb, var(--primary) 14%, transparent); }
 
-    /* --- Notes (the flowchart's card, badge and peek, for a table) --- */
-    #erd-notes {
-      position: absolute;
-      top: 0; left: 0; width: 100%; height: 100%;
-      pointer-events: none;
-      z-index: 45;
-    }
-    .erd-note {
-      position: absolute;
-      display: none;
-      box-sizing: border-box;
-      width: max-content;
-      min-width: 96px;
-      max-width: 200px;
-      padding: 6px 10px 7px 10px;
-      border: 1px solid var(--note-border);
-      border-left: 3px solid var(--note-accent);
-      border-radius: var(--radius-xs) var(--radius-lg) var(--radius-lg) var(--radius-xs);
-      background: var(--note-bg);
-      color: var(--note-ink);
-      font-size: var(--t-detail-size);
-      font-weight: var(--t-detail-weight);
-      line-height: var(--t-detail-leading);
-      text-align: left;
-      box-shadow: var(--shadow-sm);
-      pointer-events: auto;
-      cursor: default;
-      user-select: none;
-      transition: box-shadow var(--ease), border-color var(--ease);
-    }
-    .erd-note.show, .erd-note.peek { display: block; }
-    .erd-note.peek:not(.show) { animation: erd-note-in 0.14s ease-out; box-shadow: var(--shadow-lg); }
-    @keyframes erd-note-in { from { opacity: 0; transform: translateY(3px); } }
-    #erd-notes.measuring .erd-note { display: block; visibility: hidden; animation: none; }
-    .erd-note:hover { border-color: color-mix(in srgb, var(--note-accent) 60%, var(--note-border)); border-left-color: var(--note-accent); }
-    .erd-note.selected {
-      border-color: var(--note-accent);
-      box-shadow: 0 0 0 var(--ring-lg) color-mix(in srgb, var(--note-accent) 28%, transparent), var(--shadow-md);
-    }
-    .erd-note-text { white-space: pre-wrap; overflow-wrap: break-word; }
-    .erd-note-leader {
-      display: none;
-      stroke: var(--note-leader);
-      stroke-width: 1.25px;
-      stroke-dasharray: 3 3;
-      fill: none;
-    }
-    .erd-note-leader.show, .erd-note-leader.peek { display: inline; }
-    /* Exports show what the Notes button shows: a note only peeked by hover or selection stays out */
-    body.exporting .erd-note.peek:not(.show),
-    body.exporting .erd-note-leader.peek:not(.show) { display: none !important; }
-    /* Badge on a table with a note: a small paper chip on its top-right corner. An editing hint, never exported. */
-    .erd-note-badge {
-      position: absolute;
-      top: -8px; right: -8px;
-      z-index: 3;
-      width: 18px; height: 18px;
-      box-sizing: border-box;
-      padding: 0;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: var(--radius-round);
-      border: 1px solid var(--note-border);
-      background: var(--note-bg);
-      color: var(--note-accent);
-      box-shadow: var(--shadow-sm);
-      cursor: pointer;
-      font: inherit;
-      transition: transform var(--ease), border-color var(--ease);
-    }
-    .erd-note-badge:hover { transform: scale(1.15); border-color: var(--note-accent); }
-    .erd-note-badge svg { display: block; }
-    /* With every note on show the badges would only repeat them */
-    #erd-canvas.notes-on .erd-note-badge { display: none; }
-    body.presentation .erd-note { pointer-events: auto !important; }
-
-    /* --- Dock --- */
-    .erd-toggle[aria-pressed="true"], #btn-notes[aria-pressed="true"] {
-      background: var(--primary-wash);
-      border-color: var(--primary-ring);
-      color: var(--primary);
-    }
-    #btn-columns .erd-mode, #btn-notes .btn-count {
-      min-width: 16px;
-      padding: 0 5px;
-      box-sizing: border-box;
-      border-radius: var(--radius-pill);
-      background: var(--bg-soft);
-      color: var(--text-soft);
-      font-size: var(--text-xs);
-      line-height: var(--line-16);
-      text-align: center;
-    }
-    #btn-notes[aria-pressed="true"] .btn-count { background: var(--primary); color: var(--bg-panel); }
-    #btn-notes .btn-count[hidden] { display: none; }
     /* =====================================================================================================
        EDITING (wave 3): ports, handles, action bar, inline edits, drags, confirm. Everything here is an editing
        aid ([data-export-skip] in the DOM) and is hidden in ?present.
        ===================================================================================================== */
-    .erd-entity, .erd-rel-label { -webkit-user-select: none; user-select: none; }
+    .erd-entity, .edge-label { -webkit-user-select: none; user-select: none; }
     [contenteditable]:not([contenteditable="false"]) { -webkit-user-select: text; user-select: text; cursor: text; outline: none; }
     .erd-head { position: relative; }
     .erd-name.is-editing, .erd-col-name.is-editing, .erd-col-type.is-editing, .erd-rel-label-text.is-editing {
@@ -404,7 +283,7 @@
        line's end handles grow; elsewhere a drag pans (the shell's touch rule: only .selected and [data-touch-drag] reach this file) */
     body.erd-touch .erd-entity.touch-ports .erd-port { display: block; width: 22px; height: 22px; right: -11px; margin-top: -11px; border-width: 2.5px; }
     body.erd-touch .erd-handle { width: 22px; height: 22px; margin: -11px 0 0 -11px; border-width: 2.5px; }
-    body.erd-touch .erd-rel-hit { stroke-width: 26px; }
+    body.erd-touch .edge-hit { stroke-width: 26px; }
     body.erd-armed .erd-row, body.erd-armed .erd-head { cursor: crosshair; }
     body.erd-armed .erd-chevron { display: none; }
     /* The row or header a connection would end at, and the table around it */
@@ -475,83 +354,21 @@
     .erd-ab-sep { width: 1px; height: 18px; margin: 0 3px; background: var(--border-color); }
     .erd-ab-tag { padding: 0 4px 0 6px; font-size: var(--t-overline-size); font-weight: var(--t-overline-weight); letter-spacing: var(--t-overline-tracking); text-transform: uppercase; color: var(--text-muted); }
     .erd-ab-swatch { height: 26px; width: 26px; }
-    body.erd-dragging .erd-actionbar, body.erd-dragging .erd-handle, body.erd-dragging .erd-note-add { display: none !important; }
-    .erd-rel-label.is-editing-label { z-index: 60; }
+    body.erd-dragging .erd-actionbar, body.erd-dragging .erd-handle, body.erd-dragging .note-add { display: none !important; }
+    .edge-label.is-editing-label { z-index: 60; }
 
-    /* The + chip that adds a note to a table (the badge's place) */
-    .erd-note-add {
-      position: absolute;
-      top: -10px; right: -10px;
-      z-index: 3;
-      width: 22px; height: 22px;
-      box-sizing: border-box;
-      padding: 0;
-      display: none;
-      align-items: center;
-      justify-content: center;
-      border-radius: var(--radius-round);
-      border: 1px dashed var(--note-accent);
-      background: var(--bg-panel);
-      color: var(--note-accent);
-      cursor: pointer;
-      font: inherit;
-    }
-    .erd-note-add:hover { background: var(--note-bg); border-style: solid; }
-    .erd-note-add svg { display: block; }
-    .erd-entity:hover > .erd-note-add, .erd-entity.selected > .erd-note-add { display: inline-flex; }
-    body:is(.palette-dragging, .erd-dragging, .erd-armed, .erd-note-picking) .erd-entity:not(.selected) > .erd-note-add { display: none; }
+    /* The + chip that adds a note to a table, in the badge's place (the chip itself is components/note.css) */
+    .erd-entity:hover > .note-add, .erd-entity.selected > .note-add { display: inline-flex; }
+    body:is(.palette-dragging, .erd-dragging, .erd-armed, .note-picking) .erd-entity:not(.selected) > .note-add { display: none; }
 
-    /* Note card editing: delete, link handle, plain-text edit */
-    .erd-note { cursor: move; }
-    .erd-note-text { outline: none; min-height: 1.4em; }
-    .erd-note-text[contenteditable="true"] { -webkit-user-select: text; user-select: text; cursor: text; }
-    .erd-note-text:empty::before { content: attr(data-placeholder); color: var(--text-muted); }
-    .erd-note.dragging { box-shadow: var(--shadow-xl); }
-    .erd-note-del {
-      position: absolute; top: -8px; right: -8px; width: 18px; height: 18px; padding: 0; display: none; align-items: center; justify-content: center;
-      border-radius: var(--radius-round); border: 1px solid var(--border-dark); background: var(--bg-panel); color: var(--text-soft); cursor: pointer; box-shadow: var(--shadow-chip);
-    }
-    .erd-note-del:hover { background: var(--danger); border-color: var(--danger); color: var(--on-danger); }
-    .erd-note-link {
-      position: absolute; bottom: -9px; right: -9px; width: 20px; height: 20px; padding: 0; display: none; align-items: center; justify-content: center;
-      border-radius: var(--radius-round); border: 1px solid var(--note-border); background: var(--bg-panel); color: var(--note-accent); cursor: crosshair; touch-action: none; box-shadow: var(--shadow-chip);
-    }
-    .erd-note-link:hover { background: var(--note-accent); border-color: var(--note-accent); color: var(--bg-panel); }
-    .erd-note:hover .erd-note-del, .erd-note.selected .erd-note-del, .erd-note:hover .erd-note-link, .erd-note.selected .erd-note-link { display: inline-flex; }
-    .erd-note-leader.linking { display: inline; stroke: var(--note-accent); stroke-dasharray: 4 3; stroke-width: 1.5px; }
-    body.erd-note-linking, body.erd-note-linking * { cursor: crosshair !important; }
-    .erd-entity.note-target, body.erd-note-picking .erd-entity:hover { outline: 2px dashed var(--note-accent); outline-offset: 4px; }
-    body.erd-note-picking .erd-entity, body.erd-note-picking .erd-entity * { cursor: copy !important; }
-    .erd-note.note-ghost { position: fixed; display: block; z-index: 1000; pointer-events: none; transform-origin: 0 0; opacity: 0.95; box-shadow: var(--shadow-xl); }
-    .erd-note.note-ghost.off-target { opacity: 0.5; }
-    .erd-entity.note-linked { outline: 1.5px dashed var(--note-accent); outline-offset: 5px; }
-    /* The prompt above the dock while a tool waits for a click */
-    .erd-hint {
-      position: fixed; left: 50%; bottom: 76px; transform: translateX(-50%); z-index: 150; padding: 6px 12px; border-radius: var(--radius-pill);
-      border: 1px solid var(--border-dark); background: var(--bg-panel); color: var(--text-main); font-size: var(--t-control-size); font-weight: var(--t-control-weight);
-      box-shadow: var(--shadow-md); max-width: calc(100vw - 32px); text-align: center; pointer-events: none;
-    }
-    .erd-hint kbd { font: inherit; font-weight: var(--weight-semibold); }
-    #btn-add-relationship[aria-pressed="true"], #btn-add-note[aria-pressed="true"] { background: var(--primary-wash); border-color: var(--primary-ring); color: var(--primary); }
+    body.note-picking .erd-entity:hover { outline: 2px dashed var(--note-accent); outline-offset: 4px; }
+    body.note-picking .erd-entity, body.note-picking .erd-entity * { cursor: copy !important; }
 
-    /* Delete confirmation bubble (the sequence type's) */
-    .erd-confirm {
-      position: fixed; z-index: 2000; width: 260px; box-sizing: border-box; padding: 14px 14px 12px; border-radius: var(--radius-xl);
-      border: 1px solid var(--border-dark); background: var(--bg-panel); color: var(--text-main);
-      box-shadow: var(--shadow-xl); font-size: var(--t-control-size); line-height: var(--t-control-leading);
-    }
-    .erd-confirm-msg { font-weight: var(--weight-semibold); margin-bottom: 12px; overflow-wrap: anywhere; }
-    .erd-confirm-actions { display: flex; justify-content: flex-end; gap: 8px; }
-    .erd-confirm .btn { padding: 6px 12px; font-size: var(--t-control-size); }
-    .erd-confirm-delete { background: var(--danger); border-color: var(--danger); color: var(--on-danger); }
-    .erd-confirm-delete:hover { filter: brightness(0.92); background: var(--danger); color: var(--on-danger); }
 
     /* ?present: read only. Hover, highlight and collapse still work. */
-    body.presentation .erd-port, body.presentation .erd-handle, body.presentation .erd-actionbar, body.presentation .erd-note-add,
-    body.presentation .erd-note-del, body.presentation .erd-note-link { cursor: default; }
-    body.presentation .erd-port, body.presentation .erd-handle, body.presentation .erd-actionbar, body.presentation .erd-note-add,
-    body.presentation .erd-note-del, body.presentation .erd-note-link, body.presentation .erd-drop-line, body.presentation .erd-guide { display: none !important; }
-    body.presentation .erd-note { cursor: default; }
+    body.presentation .erd-port, body.presentation .erd-handle, body.presentation .erd-actionbar { cursor: default; }
+    body.presentation .erd-port, body.presentation .erd-handle, body.presentation .erd-actionbar,
+    body.presentation .erd-drop-line, body.presentation .erd-guide { display: none !important; }
 
     /* =====================================================================================================
        OVERVIEW (zoomed out, body.erd-overview; set by erd.js below 50% zoom, off above 60%). Every rule is keyed to
@@ -562,8 +379,8 @@
     body.erd-overview:not(.exporting) .erd-entity:not(.erd-card-table) > .erd-more,
     body.erd-overview:not(.exporting) .erd-entity:not(.erd-card-table) .erd-port,
     body.erd-overview:not(.exporting) .erd-entity:not(.erd-card-table) .erd-chevron,
-    body.erd-overview:not(.exporting) .erd-entity:not(.erd-card-table) .erd-note-add,
-    body.erd-overview:not(.exporting) .erd-note-badge { display: none !important; }
+    body.erd-overview:not(.exporting) .erd-entity:not(.erd-card-table) .note-add,
+    body.erd-overview:not(.exporting) .note-badge { display: none !important; }
     body.erd-overview:not(.exporting) .erd-entity:not(.erd-card-table) > .erd-head {
       position: absolute; inset: 0; height: auto; padding: 0 8px; justify-content: center; border-radius: var(--radius-lg); border-bottom: none;
     }
@@ -574,17 +391,17 @@
     body.erd-overview:not(.exporting) .erd-entity:not(.erd-card-table)::after { box-shadow: inset 0 0 0 calc(var(--ring-thin) * var(--inv)) var(--ring); }
     body.erd-overview:not(.exporting) .erd-entity.rel-parent::after, body.erd-overview:not(.exporting) .erd-entity.rel-child::after { box-shadow: inset 0 0 0 calc(var(--ring-md) * var(--inv)) var(--ring); }
     /* Lines: constant on-screen width, dashes and hit area too; markers scaled back up */
-    body.erd-overview:not(.exporting) .erd-rel-line { stroke-width: calc(1.5px * var(--inv)); }
-    body.erd-overview:not(.exporting) .erd-rel-line:not(.identifying) { stroke-dasharray: calc(6px * var(--inv)) calc(4px * var(--inv)); }
-    body.erd-overview:not(.exporting) .erd-rel.hl-in .erd-rel-line, body.erd-overview:not(.exporting) .erd-rel.hl-out .erd-rel-line,
-    body.erd-overview:not(.exporting) .erd-rel.hover .erd-rel-line, body.erd-overview:not(.exporting) .erd-rel.selected .erd-rel-line { stroke-width: calc(2.5px * var(--inv)); }
-    body.erd-overview:not(.exporting) .erd-rel-hit { stroke-width: calc(14px * var(--inv)); }
+    body.erd-overview:not(.exporting) .edge-line { stroke-width: calc(1.5px * var(--inv)); }
+    body.erd-overview:not(.exporting) .edge-line:not(.identifying) { stroke-dasharray: calc(6px * var(--inv)) calc(4px * var(--inv)); }
+    body.erd-overview:not(.exporting) .erd-rel.hl-in .edge-line, body.erd-overview:not(.exporting) .erd-rel.hl-out .edge-line,
+    body.erd-overview:not(.exporting) .erd-rel.hover .edge-line, body.erd-overview:not(.exporting) .erd-rel.selected .edge-line { stroke-width: calc(2.5px * var(--inv)); }
+    body.erd-overview:not(.exporting) .edge-hit { stroke-width: calc(14px * var(--inv)); }
     body.erd-overview:not(.exporting) .erd-mk { overflow: visible; }
     body.erd-overview:not(.exporting) .erd-mk path, body.erd-overview:not(.exporting) .erd-mk circle { transform: scale(var(--inv)); transform-origin: 0 0; }
     /* Labels and notes: constant on-screen size, scaled about their centre */
-    body.erd-overview:not(.exporting) .erd-rel-label { transform: scale(var(--inv)); transform-origin: 50% 50%; }
-    body.erd-overview:not(.exporting) .erd-rel-label.ov-hide:not(.ov-show):not(.is-editing-label) { display: none; }
-    body.erd-overview:not(.exporting) .erd-note { transform: scale(var(--inv)); transform-origin: 50% 50%; }
+    body.erd-overview:not(.exporting) .edge-label { transform: scale(var(--inv)); transform-origin: 50% 50%; }
+    body.erd-overview:not(.exporting) .edge-label.ov-hide:not(.ov-show):not(.is-editing-label) { display: none; }
+    body.erd-overview:not(.exporting) .note { transform: scale(var(--inv)); transform-origin: 50% 50%; }
     /* The key peek stays readable too, under the card's box */
     body.erd-overview:not(.exporting) .erd-key-peek { top: calc(100% + 4px * var(--inv)); transform: scale(var(--inv)); transform-origin: 0 0; }
 

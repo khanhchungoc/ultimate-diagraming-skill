@@ -1,0 +1,69 @@
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: var(--text-lg);
+      font-weight: var(--weight-semibold);
+      padding: 6px 12px;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-color);
+      background: var(--bg-panel);
+      color: var(--text-main);
+      cursor: pointer;
+      touch-action: manipulation;
+      transition: background-color var(--ease), border-color var(--ease), color var(--ease), transform var(--ease);
+    }
+    .btn svg { flex: none; }
+    .btn:hover {
+      background: var(--bg-hover);
+      border-color: var(--border-dark);
+    }
+    .btn:active {
+      transform: translateY(1px);
+    }
+    .btn:disabled,
+    .btn:disabled:hover {
+      opacity: 0.4;
+      cursor: default;
+      background: var(--bg-panel);
+      border-color: var(--border-color);
+      transform: none;
+    }
+    .btn-primary {
+      background: var(--primary);
+      color: var(--on-primary);
+      border-color: var(--primary);
+    }
+    .btn-primary:hover {
+      background: var(--primary-hover);
+      border-color: var(--primary-hover);
+    }
+    .btn-success {
+      background: var(--success);
+      color: var(--on-primary);
+      border-color: var(--success);
+    }
+
+    .btn-icon {
+      padding: 6px 10px;
+      font-size: var(--text-lg);
+    }
+
+    .btn[hidden] { display: none; }
+
+    /* Keyboard focus: visible on every button, in both themes */
+    .btn:focus-visible {
+      outline: 2px solid var(--primary);
+      outline-offset: 2px;
+    }
+
+    /* Solid red: the button that confirms a deletion */
+    .btn-danger {
+      background: var(--danger);
+      border-color: var(--danger);
+      color: var(--on-danger);
+    }
+    .btn-danger:hover { filter: brightness(0.92); background: var(--danger); color: var(--on-danger); }
+    /* Neutral until pointed at, then solid red: the small round delete chips (note, lane) */
+    .btn-danger-hover:hover { background: var(--danger); border-color: var(--danger); color: var(--on-danger); }

@@ -42,7 +42,7 @@ try {
   await t.open(page);
   const p0 = JSON.parse(await t.ev(names)), m0 = JSON.parse(await t.ev(labels));
   t.check('renders participants, messages, frames without errors',
-    p0.length === 4 && m0.length === 7 && (await count('.seq-frag-label')) === 2 && t.errors.length === 0, `p=${p0.length} m=${m0.length} ${t.errors.join(' | ')}`);
+    p0.length === 4 && m0.length === 7 && (await count('.frame-tag')) === 2 && t.errors.length === 0, `p=${p0.length} m=${m0.length} ${t.errors.join(' | ')}`);
 
   // Every click, double-click, drag and key below is real input (Input.dispatchMouseEvent / dispatchKeyEvent):
   // the browser does the hit-testing and makes the click and dblclick events itself.
@@ -59,7 +59,7 @@ try {
   await t.press('Delete');
   const m1 = JSON.parse(await t.ev(labels));
   t.check('click selects a message and Delete removes it', selected && m1.length === 6 && !m1.includes('Release stock'), JSON.stringify(m1));
-  t.check('frame survives its last message being deleted (alt now ends earlier)', (await count('.seq-frag-label')) === 2 && t.errors.length === 0, t.errors.join(' | '));
+  t.check('frame survives its last message being deleted (alt now ends earlier)', (await count('.frame-tag')) === 2 && t.errors.length === 0, t.errors.join(' | '));
 
   await t.open(page);
   await t.clickOn(`.seq-msg-label[data-edge-id="m2"]`);
@@ -97,7 +97,7 @@ try {
   for (const [what, sel, read] of [
     ['a message', '.seq-msg-label[data-edge-id="m1"]', labels],
     ['a participant', '.seq-participant[data-node-id="p2"]', names],
-    ['a frame', '.seq-frag-label[data-frag-id="f2"] .seq-frag-text', `JSON.stringify([...document.querySelectorAll('.seq-frag-text')].map(e => e.textContent))`],
+    ['a frame', '.frame-tag[data-frag-id="f2"] .seq-frag-text', `JSON.stringify([...document.querySelectorAll('.seq-frag-text')].map(e => e.textContent))`],
   ]) {
     await t.clickOn(sel, { count: 2 });
     const inEdit = await editing();
@@ -129,7 +129,7 @@ try {
   await t.type('ledger enabled');
   await t.press('Enter');
   t.check('Frame wraps the selected message and opens its condition in edit',
-    newF === 'condition' && (await count('.seq-frag-label')) === 3 && (await t.ev(`document.querySelector('.seq-frag-label.selected .seq-frag-text').textContent`)) === 'ledger enabled' && t.errors.length === 0, `${newF} ${t.errors.join(' | ')}`);
+    newF === 'condition' && (await count('.frame-tag')) === 3 && (await t.ev(`document.querySelector('.frame-tag.selected .seq-frag-text').textContent`)) === 'ledger enabled' && t.errors.length === 0, `${newF} ${t.errors.join(' | ')}`);
 
   // The dock's Message button infers the kind like drawing does: a call, or the reply of an open call
   await t.open(page);
@@ -235,12 +235,12 @@ try {
   await t.open(page);
   await t.clickOn('.seq-participant[data-node-id="p2"]');
   await t.press('Delete');
-  const ask = await t.ev(`document.querySelector('.seq-confirm-msg')?.textContent`);
-  await t.clickOn('.seq-confirm-cancel');
+  const ask = await t.ev(`document.querySelector('.confirm-msg')?.textContent`);
+  await t.clickOn('.confirm-cancel');
   const kept = JSON.parse(await t.ev(names)).length;
   await t.clickOn('.seq-participant[data-node-id="p2"]');
   await t.clickOn('#btn-delete-selection');
-  await t.clickOn('.seq-confirm-delete');
+  await t.clickOn('.confirm-ok');
   t.check('deleting a participant with messages asks first ("Delete Shop and its N messages?")',
     /^Delete Shop and its \d+ messages\?$/.test(ask || '') && kept === 4 && JSON.parse(await t.ev(names)).length === 3, `${ask} kept=${kept}`);
 
@@ -284,18 +284,18 @@ try {
 
   // Drag a frame's bottom edge down one row
   await t.open(page);
-  await t.clickOn('.seq-frag-label[data-frag-id="f2"] .seq-frag-kind');
+  await t.clickOn('.frame-tag[data-frag-id="f2"] .seq-frag-kind');
   const bottom = await t.at('.seq-handle[data-role="bottom"]');
   await t.dragTo(bottom.x, bottom.y, bottom.x, await gapY('m4', 'm5'), { steps: 8 });
   d = await saved();
   t.check("a frame edge cannot be dragged to where the frame would cross another (f2 into f1)", d.fragments.find((f) => f.id === 'f2').to === 'm3', JSON.stringify(d.fragments));
-  await t.clickOn('.seq-frag-label[data-frag-id="f1"] .seq-frag-kind');
+  await t.clickOn('.frame-tag[data-frag-id="f1"] .seq-frag-kind');
   const bottom1 = await t.at('.seq-handle[data-role="bottom"]');
   await t.dragTo(bottom1.x, bottom1.y, bottom1.x, await gapY('m7'), { steps: 8 });
   d = await saved();
   t.check("dragging a frame's bottom handle down takes in the next message", d.fragments.find((f) => f.id === 'f1').to === 'm7', JSON.stringify(d.fragments));
   await t.open(page);
-  await t.clickOn('.seq-frag-label[data-frag-id="f1"] .seq-frag-kind');
+  await t.clickOn('.frame-tag[data-frag-id="f1"] .seq-frag-kind');
   const top = await t.at('.seq-handle[data-role="top"]');
   await t.dragTo(top.x, top.y, top.x, await gapY('m4', 'm5'), { steps: 8 });
   d = await saved();
@@ -305,7 +305,7 @@ try {
 
   // Kind, colour, + branch, rename, drag and delete a branch
   await t.open(page);
-  await t.clickOn('.seq-frag-label[data-frag-id="f2"] .seq-frag-kind');
+  await t.clickOn('.frame-tag[data-frag-id="f2"] .seq-frag-kind');
   await t.clickOn('.seq-ab-btn[data-act="fkind"][data-value="alt"]');
   await t.clickOn('.seq-ab-btn[data-act="color"][data-value="5"]');
   await t.clickOn('.seq-add-branch');
@@ -329,7 +329,7 @@ try {
   await t.press('Delete');
   d = await saved();
   t.check('a divider drags between rows, and Delete removes it (the branches merge)', f1c.elseAt === 'm5' && d.fragments.find((f) => f.id === 'f1').elseAt === undefined, JSON.stringify(f1c));
-  await t.clickOn('.seq-frag-label[data-frag-id="f2"] .seq-frag-kind');
+  await t.clickOn('.frame-tag[data-frag-id="f2"] .seq-frag-kind');
   await t.clickOn('.seq-ab-btn[data-act="fkind"][data-value="loop"]');
   d = await saved();
   f2c = d.fragments.find((f) => f.id === 'f2');
@@ -348,12 +348,12 @@ try {
   const n1 = d.notes && d.notes[0];
   t.check('Note adds a note under the selected message over its sender, text in edit (Shift+Enter breaks a line)',
     noteEdit === 'Note' && n1 && n1.over === 'p2' && n1.after === 'm2' && n1.text === 'Held for 15 min\nthen released' && n1.id === 'n1', JSON.stringify(d.notes));
-  const nb = await t.at('.seq-note');
+  const nb = await t.at('.note');
   const target = await lifelineAt('p3', 0);
   await t.dragTo(nb.x, nb.y, nb.x + (target.x - (await lifelineAt('p2', 0)).x), (await gapY('m4', 'm5')), { steps: 8 });
   d = await saved();
   t.check('dragging a note moves it to another row gap and lifeline', d.notes[0].over === 'p3' && d.notes[0].before === 'm5' && d.notes[0].after === undefined, JSON.stringify(d.notes[0]));
-  await t.clickOn('.seq-note');
+  await t.clickOn('.note');
   const st = await t.at('.seq-handle[data-role="stretch"]');
   const wh = await lifelineAt('p4', st.y);
   await t.dragTo(st.x, st.y, wh.x, st.y);
@@ -433,15 +433,15 @@ try {
   // --- Reading a long diagram (steps 2 and 3) ---
   await t.open(long);
   t.check('the long page renders every message, frame and note without errors',
-    (await count('.seq-msg-label')) === 42 && (await count('.seq-frag-label')) === 7 && (await count('.seq-note')) === 4 && t.errors.length === 0, t.errors.join(' | '));
+    (await count('.seq-msg-label')) === 42 && (await count('.frame-tag')) === 7 && (await count('.note')) === 4 && t.errors.length === 0, t.errors.join(' | '));
   // Collapse a phase: its messages hide, the numbers stay
   const num = (id) => t.ev(`document.querySelector('.seq-msg-label[data-edge-id="${id}"] .seq-msg-num')?.textContent`);
-  await t.clickOn('.seq-frag-label[data-frag-id="f1"] .seq-frag-chev');
-  const sum = await t.ev(`document.querySelector('.seq-frag-summary')?.textContent`);
+  await t.clickOn('.frame-tag[data-frag-id="f1"] .frame-chev');
+  const sum = await t.ev(`document.querySelector('.frame-summary')?.textContent`);
   t.check('collapsing a frame hides its messages behind one summary row and keeps every step number',
     sum === '9 messages hidden (steps 2–10)' && (await count('.seq-msg-label')) === 33 && (await num('m11')) === '11' && (await num('m1')) === '1', `${sum} ${await count('.seq-msg-label')}`);
-  await t.clickOn('.seq-frag-summary');
-  t.check('clicking the summary row expands the frame again', (await count('.seq-msg-label')) === 42 && (await count('.seq-frag-summary')) === 0);
+  await t.clickOn('.frame-summary');
+  t.check('clicking the summary row expands the frame again', (await count('.seq-msg-label')) === 42 && (await count('.frame-summary')) === 0);
   // Focus
   await t.clickOn('.seq-participant[data-node-id="spm"]');
   const dim = await count('.seq-msg-label.is-dim');
@@ -470,7 +470,7 @@ try {
   // every participant outside the SPM phase has something to fold. Then Focus on SPM.
   await t.open(long);
   const canvasW = () => t.ev(`document.getElementById('seq-canvas').offsetWidth`);
-  const summaries = () => count('.seq-frag-summary');
+  const summaries = () => count('.frame-summary');
   const rails = () => t.ev(`JSON.stringify([...document.querySelectorAll('.seq-participant.is-rail')].map((e) => e.dataset.nodeId))`);
   await t.clickOn('.seq-msg-label[data-edge-id="m17"]');
   await t.clickOn('.seq-msg-label[data-edge-id="m19"]', { modifiers: 8 });
@@ -481,12 +481,12 @@ try {
   const wideW = await canvasW();
   t.check('with every frame expanded there are no rails, and the Show all button is not offered',
     (await count('.seq-participant.is-rail')) === 0 && (await t.ev(`document.getElementById('btn-show-all').hidden`)), `${await rails()}`);
-  await t.clickOn('.seq-frag-label[data-frag-id="f3"] .seq-frag-focus');
+  await t.clickOn('.frame-tag[data-frag-id="f3"] .seq-frag-focus');
   const narrowW = await canvasW();
   const railList = JSON.parse(await rails());
   const railBox = await t.ev(`(() => { const e = document.querySelector('.seq-participant.is-rail'); return e ? e.getBoundingClientRect().width / (document.getElementById('seq-canvas').getBoundingClientRect().width / document.getElementById('seq-canvas').offsetWidth) : 0; })()`);
   t.check('Focus on a phase collapses every other top-level frame and expands that one',
-    (await summaries()) === 4 && (await t.ev(`!document.querySelector('.seq-frag-label[data-frag-id="f3"]').classList.contains('is-collapsed')`)), `${await summaries()}`);
+    (await summaries()) === 4 && (await t.ev(`!document.querySelector('.frame-tag[data-frag-id="f3"]').classList.contains('is-collapsed')`)), `${await summaries()}`);
   t.check('the participants the other phases leave become rails, RAIL_W wide', railList.sort().join() === 'bus,db,job,pol' && Math.round(railBox) === 36, `${railList} ${railBox}`);
   t.check('Focus on SPM makes the canvas at least 35% narrower', narrowW <= wideW * 0.65, `${wideW} -> ${narrowW} (${(100 - 100 * narrowW / wideW).toFixed(1)}%)`);
   t.check('the Show all button appears while a frame is collapsed', !(await t.ev(`document.getElementById('btn-show-all').hidden`)));
@@ -505,14 +505,14 @@ try {
   await t.clickOn('#btn-show-all');
   t.check('Show all expands every frame again (and then hides itself)', (await summaries()) === 0 && (await count('.seq-participant.is-rail')) === 0 && (await t.ev(`document.getElementById('btn-show-all').hidden`)));
   // Focus is a toggle, and a frame's action bar has it too
-  await t.clickOn('.seq-frag-label[data-frag-id="f3"] .seq-frag-kind, .seq-frag-label[data-frag-id="f3"] .seq-frag-text');
+  await t.clickOn('.frame-tag[data-frag-id="f3"] .seq-frag-kind, .frame-tag[data-frag-id="f3"] .seq-frag-text');
   await t.clickOn('.seq-actionbar .seq-ab-btn[data-act="focus"]');
   const viaBar = await summaries();
   await t.clickOn('.seq-actionbar .seq-ab-btn[data-act="focus"]');
   t.check('a frame\'s action bar has Focus, and pressing it again on the focused frame shows everything',
     viaBar === 4 && (await summaries()) === 0, `${viaBar} ${await summaries()}`);
   // Drawing a message to a rail opens the frames that hide it first
-  await t.clickOn('.seq-frag-label[data-frag-id="f3"] .seq-frag-focus');
+  await t.clickOn('.frame-tag[data-frag-id="f3"] .seq-frag-focus');
   const railX = await t.ev(`(() => { const r = document.querySelector('.seq-life-hit[data-pid="pol"]').getBoundingClientRect(); return r.left + r.width / 2; })()`);
   const fromX = await t.ev(`(() => { const r = document.querySelector('.seq-life-hit[data-pid="spm"]').getBoundingClientRect(); return r.left + r.width / 2; })()`);
   const rowY = (await t.at('.seq-msg-label[data-edge-id="m14"]')).y + 14;
@@ -607,14 +607,14 @@ try {
   const he2 = await t.at('.seq-handle[data-role="pend"]');
   await t.dragTo(he2.x, he2.y, he2.x, await gapAt('m29', 'm30'), { steps: 8 });
   d = await saved();
-  const hint1 = await t.ev(`document.querySelector('.seq-hint')?.textContent`);
+  const hint1 = await t.ev(`document.querySelector('.hint')?.textContent`);
   t.check('a handle that would make the two lifespans overlap is refused, with the reason',
     d.participants.find((q) => q.id === 'spm').end === 'm23' && /^SPM and Background Job are both active at step 27$/.test(hint1 || ''), `${hint1} ${d.participants.find((q) => q.id === 'spm').end}`);
   // A box dropped on a lifeline it overlaps is refused with the reason
   const dbBox = await t.at('.seq-participant[data-node-id="db"]');
   const polLine = await lifelineAt('pol', dbBox.y);
   await t.dragTo(dbBox.x, dbBox.y, polLine.x, dbBox.y, { steps: 10 });
-  const hint2 = await t.ev(`document.querySelector('.seq-hint')?.textContent`);
+  const hint2 = await t.ev(`document.querySelector('.hint')?.textContent`);
   d = await saved();
   t.check('dropping a box where the lifespans overlap is refused, and the reason names both and the step',
     d.participants.find((q) => q.id === 'db').column === undefined && /^Policy Svc and Policy DB are both active at step 3$/.test(hint2 || '') && !(await t.ev(`document.querySelector('.seq-participant.dragging')`)), `${hint2}`);
@@ -710,18 +710,18 @@ try {
   // ?present: read-only, but frames still collapse and expand
   await t.open(long, '?present');
   t.check('?present makes the diagram read-only', await t.ev(`getComputedStyle(document.querySelector('.seq-participant')).pointerEvents === 'none'`));
-  await t.clickOn('.seq-frag-label[data-frag-id="f5"] .seq-frag-chev');
-  const presentCollapsed = await count('.seq-frag-summary');
+  await t.clickOn('.frame-tag[data-frag-id="f5"] .frame-chev');
+  const presentCollapsed = await count('.frame-summary');
   const badge = await t.ev(`document.getElementById('save-status').textContent`);
-  await t.clickOn('.seq-frag-summary');
+  await t.clickOn('.frame-summary');
   const unsavedBefore = /unsaved/i.test(await t.ev(`document.getElementById('save-status').textContent`));
-  await t.clickOn('.seq-frag-label[data-frag-id="f3"] .seq-frag-focus');
+  await t.clickOn('.frame-tag[data-frag-id="f3"] .seq-frag-focus');
   const focusedPresent = await summaries();
   t.check('Focus works in ?present and changes the view only (no unsaved badge)',
     focusedPresent >= 3 && (await count('.seq-participant.is-rail')) >= 1 && !unsavedBefore && !/unsaved/i.test(await t.ev(`document.getElementById('save-status').textContent`)), `${focusedPresent}`);
-  await t.clickOn('.seq-frag-label[data-frag-id="f3"] .seq-frag-focus');
+  await t.clickOn('.frame-tag[data-frag-id="f3"] .seq-frag-focus');
   t.check('and pressing Focus again there shows every frame', (await summaries()) === 0);
-  t.check('collapse and expand work in ?present, and change the view only', presentCollapsed === 1 && (await count('.seq-frag-summary')) === 0 && !/unsaved/i.test(badge) && t.errors.length === 0, `${presentCollapsed} ${badge}`);
+  t.check('collapse and expand work in ?present, and change the view only', presentCollapsed === 1 && (await count('.frame-summary')) === 0 && !/unsaved/i.test(badge) && t.errors.length === 0, `${presentCollapsed} ${badge}`);
 
   // claude.ai Artifact (only with --artifact): Save publishes through a stubbed window.claude; the sequence page
   // saves no positions, so the published block must still be the generated one

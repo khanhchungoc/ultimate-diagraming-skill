@@ -1,0 +1,169 @@
+    /* Note: extra detail kept off the diagram so labels stay short. A neutral slate paper card with a bracket edge (the
+       classic flowchart annotation, which has no colour of its own), joined to what it explains by a dashed leader.
+       Neutral on purpose: every hue on the canvas already means something (gold decision, green start, blue selection,
+       amber incoming arrows), and a note is secondary detail. One style for every diagram type (ui.noteCard in shell.js).
+       A type that places its own cards (the sequence diagram) adds only position and size; a type whose notes appear on
+       demand puts them in a .note-layer. */
+    .note {
+      position: absolute;
+      box-sizing: border-box;
+      border: 1px solid var(--note-border);
+      border-left: 3px solid var(--note-accent);
+      border-radius: var(--radius-xs) var(--radius-lg) var(--radius-lg) var(--radius-xs);
+      background: var(--note-bg);
+      color: var(--note-ink);
+      font-size: var(--t-detail-size);
+      font-weight: var(--t-detail-weight);
+      line-height: var(--t-detail-leading);
+      text-align: left;
+      box-shadow: var(--shadow-sm);
+      pointer-events: auto;
+      cursor: move;
+      user-select: none;
+      transition: box-shadow var(--ease), border-color var(--ease);
+    }
+    .note:hover { border-color: color-mix(in srgb, var(--note-accent) 60%, var(--note-border)); border-left-color: var(--note-accent); }
+    .note.selected {
+      border-color: var(--note-accent);
+      box-shadow: 0 0 0 var(--ring-lg) color-mix(in srgb, var(--note-accent) 28%, transparent), var(--shadow-md);
+    }
+    .note.dragging { box-shadow: var(--shadow-xl); }
+    .note-text {
+      outline: none;
+      white-space: pre-wrap;
+      overflow-wrap: break-word;
+      min-height: 1.4em;
+    }
+    .note-text[contenteditable="true"] { -webkit-user-select: text; user-select: text; cursor: text; }
+    .note-text:empty::before { content: attr(data-placeholder); color: var(--text-muted); }
+
+    /* The layer holding cards that are hidden until the Notes button shows them all (.show) or a hover or selection
+       peeks one (.peek) */
+    .note-layer {
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 100%;
+      pointer-events: none;
+      z-index: 45;   /* above nodes (20), edge labels (30) and lane pills (40); below snap guides (55) */
+    }
+    .note-layer .note {
+      display: none;
+      width: max-content;
+      min-width: 96px;
+      max-width: 200px;   /* keep in sync with the fitting in renderNotes: it measures the cards, never assumes */
+      padding: 6px 10px 7px 10px;
+    }
+    .note-layer .note.show, .note-layer .note.peek { display: block; }
+    .note-layer .note.peek:not(.show) { animation: note-in 0.14s ease-out; box-shadow: var(--shadow-lg); }
+    @keyframes note-in { from { opacity: 0; transform: translateY(3px); } }
+    .note-layer.measuring .note { display: block; visibility: hidden; animation: none; }
+
+    /* Leader: the dashed line from a card to what it explains; .linking is the one being dragged to a new target */
+    .note-leader {
+      display: none;
+      stroke: var(--note-leader);
+      stroke-width: 1.25px;
+      stroke-dasharray: 3 3;
+      fill: none;
+    }
+    .note-leader.show, .note-leader.peek { display: inline; }
+    .note-leader.linking { display: inline; stroke: var(--note-accent); stroke-dasharray: 4 3; stroke-width: 1.5px; }
+    /* Exports show what the Notes button shows: a note only peeked by hover or selection stays out */
+    body.exporting .note.peek:not(.show),
+    body.exporting .note-leader.peek:not(.show) { display: none !important; }
+    body.note-linking, body.note-linking * { cursor: crosshair !important; }
+    /* The thing the selected note explains, and the thing a dragged note would land on */
+    .note-linked { outline: 1.5px dashed var(--note-accent); outline-offset: 5px; }
+    .note-target { outline: 2px dashed var(--note-accent); outline-offset: 4px; }
+
+    /* Delete: a small round button on the card's corner, shown on hover or while the note is selected */
+    .note-del {
+      position: absolute;
+      top: -8px; right: -8px;
+      width: 18px; height: 18px;
+      padding: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      border-radius: var(--radius-round);
+      border: 1px solid var(--border-dark);
+      background: var(--bg-panel);
+      color: var(--text-soft);
+      cursor: pointer;
+      box-shadow: var(--shadow-chip);
+    }
+    /* Link handle (bottom-right): drag it onto another item to link the note to that too, or to unlink it */
+    .note-link {
+      position: absolute;
+      bottom: -9px; right: -9px;
+      width: 20px; height: 20px;
+      padding: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      border-radius: var(--radius-round);
+      border: 1px solid var(--note-border);
+      background: var(--bg-panel);
+      color: var(--note-accent);
+      cursor: crosshair;
+      touch-action: none;
+      box-shadow: var(--shadow-chip);
+    }
+    .note-link:hover { background: var(--note-accent); border-color: var(--note-accent); color: var(--bg-panel); }
+    .note:hover > .note-del, .note.selected > .note-del, .note:hover > .note-link, .note.selected > .note-link { display: inline-flex; }
+
+    /* Badge on an item with a note: a small paper chip on its top-right corner. Hover peeks the note, click edits it.
+       The "+" chip in the same place adds a note to the selected item. Both are editing hints, never exported. */
+    .note-badge, .note-add {
+      position: absolute;
+      top: -8px; right: -8px;
+      z-index: 3;   /* above the decision diamond (1) and its label (2) */
+      width: 18px; height: 18px;
+      box-sizing: border-box;
+      padding: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: var(--radius-round);
+      cursor: pointer;
+      font: inherit;
+      transition: transform var(--ease), background var(--ease), border-color var(--ease), opacity var(--ease);
+    }
+    .note-badge {
+      border: 1px solid var(--note-border);
+      background: var(--note-bg);
+      color: var(--note-accent);
+      box-shadow: var(--shadow-sm);
+    }
+    .note-badge:hover { transform: scale(1.15); border-color: var(--note-accent); }
+    .note-add {
+      display: none;
+      width: 22px; height: 22px;   /* a little larger than the badge: it is a button to aim at, not a hint */
+      top: -10px; right: -10px;
+      border: 1px dashed var(--note-accent);
+      background: var(--bg-panel);
+      color: var(--note-accent);
+    }
+    .note-add:hover { background: var(--note-bg); border-style: solid; }
+    .note-badge svg, .note-add svg { display: block; }
+    /* With every note on show the badges would only repeat them */
+    .notes-on .note-badge { display: none; }
+
+    /* A card being carried from the Note tile onto an item */
+    .note.note-ghost {
+      position: fixed;
+      display: block;
+      z-index: 1000;
+      pointer-events: none;
+      transform-origin: 0 0;
+      opacity: 0.95;
+      box-shadow: var(--shadow-xl);
+      transition: opacity 0.1s;
+    }
+    .note.note-ghost.off-target { opacity: 0.5; }
+
+    /* Presentation is read-only: no editing chips; but notes still open: hover a badge, or click it to keep the note open */
+    body.presentation .note-add,
+    body.presentation .note-del,
+    body.presentation .note-link { display: none !important; }
+    body.presentation .note-badge,
+    body.presentation .note-layer .note { pointer-events: auto !important; cursor: default; }

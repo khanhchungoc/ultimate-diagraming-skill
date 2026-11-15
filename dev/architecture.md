@@ -13,15 +13,16 @@ assets/
                             (Nunito Sans is linked from Google Fonts in shell.html, the page's only network request;
                             offline the page falls back to the system font stack in shell.css)
   tokens/default.json      design tokens (colours, font, type scale and text styles, palette, motion); no :root blocks in the CSS files
+  icons/default.json        the icon registry: name -> inner SVG on a 24 x 24 grid (+ LICENSE); every icon in the page comes from it
+  components/<name>.css     shared parts, one file each, tokens only, no type prefix (list below); assembled after the token CSS and before shell.css
   types/<type>/             one folder per diagram type (flowchart, sequence, erd)
     meta.json               {"title": ...}
-    icon.html               header icon
     <type>.css, <type>.js   renderer, editing behaviour, plugin registration
     engine.js               layout engine: pure JS, no DOM; the ONE implementation of the type's layout
     toolbar.html, stage.html, chrome.html, help.html, default.json
 scripts/
   layout_engine.py          CLI: --layout (assembles the page; --screenshot also renders + prints [DONE]/[NEXT]), --verify, --extract; AUDITS registry
-  tokens.py                 loads/validates tokens, writes {{TOKENS_CSS}} and {{TOKENS_JS}}
+  tokens.py                 loads/validates tokens and the icon registry, writes {{TOKENS_CSS}} and {{TOKENS_JS}} (TOKENS and ICONS), expands {{icon:...}}
   audit_sequence.py         sequence audit
   audit_erd.py              ER diagram audit
   disk_format.py            the page's data-block format: DISK_CODECS (to_disk/from_disk per type), format_json
@@ -32,6 +33,35 @@ scripts/
 dev/                        parity check, interaction test, notes (not part of authoring)
 references/types/<type>.md  schema, budget, checklist the agent reads before authoring
 ```
+
+## Shared components
+
+`assets/components/` holds the parts every type reuses, one stylesheet each. `assemble_page()` joins them in `COMPONENTS` order (`layout_engine.py`) into `{{COMPONENTS_CSS}}`, so the cascade is tokens, components, shell, type. A type's stylesheet keeps only what that type alone draws (a decision diamond, a lifeline, a table row, a crow's-foot glyph) and still uses tokens only.
+
+| Component | What it is | Builder in `shell.js` |
+|---|---|---|
+| `button` | `.btn`, `.btn-icon`, `.btn-primary`, `.btn-success`, `.btn-danger` (solid red), `.btn-danger-hover` (red only on hover: the round delete chips) | |
+| `toggle` | `.btn[aria-pressed="true"]` (a pressed view toggle) and the `.btn-switch` sliding switch | |
+| `badge` | `.badge`, `.badge-status`, `.btn-count` (a count or mode word inside a button) | |
+| `toast`, `hint` | the artifact message; the prompt above the dock (`.hint`, `.hint-note` for note tools) | |
+| `popover` | `.menu` (the Export dropdown) and `.confirm` (the delete bubble) | `ui.confirm(anchor, { message, title?, label, ok? }, onYes)`, `ui.closeConfirm()`, `ui.isConfirmOpen()` |
+| `note` | the note card, its text, leader line, delete and link chips, badge and "+" chip, ghost, the `.note-layer` for cards shown on demand | `ui.noteCard(note, { onDelete, onLink, linkTitle, onCommit, onInput })` |
+| `swatch` | the swatch roles for a colour that matches no palette slot, the colour row and dot | `swatchRow()`, `setSwatch()` |
+| `edge` | `.edge-line`, `.edge-hit` and the `.edge-label` pill with its in/out/hover/selected states | |
+| `frame` | `.frame-tag`, `.frame-chev`, `.frame-summary`: the tag that names a framed group, its collapse chevron and the row a collapsed frame shrinks to | |
+| `dock` | the floating add and zoom docks and the dock popover | |
+
+A new type uses these before it writes any CSS or markup of its own: a delete that needs a confirmation calls `ui.confirm`, a note is a `.note` built by `ui.noteCard`, a label on a line is an `.edge-label`, a prompt is a `.hint`. When two types need the same new thing, it goes into `assets/components/` (and `COMPONENTS`), not into either type.
+
+## Icons
+
+Every icon is one entry in `assets/icons/default.json` (`{"_license": ..., "icons": {name: inner SVG}}`), drawn once on a 24 x 24 grid with stroke and no fill. Pages never hold icon markup of their own; the tokens say how an icon is drawn (`icon` in `assets/tokens/default.json`: the size names `xs sm md lg xl tile` as px and as `--icon-<name>`, `stroke` 2, `strokeFine` 1.75 for large or dense icons, `strokeBold` 2.5 for tiny ones, `cap` and `join` round) and colour is always `currentColor`.
+
+- **In a template** (`shell.html`, `toolbar.html`, `stage.html`, `chrome.html`, help files): `{{icon:trash}}`, `{{icon:trash:xs}}` or `{{icon:shape-process:tile:fine}}`. `assemble_page()` expands it to the `<svg>`, so the page does no work at start-up. A type's header icon is `{{icon:type-<type>:xl}}`, built from its name.
+- **In a script**: `ui.icon('trash', { size, fine, bold, class })` returns the `<svg>` text and `ui.iconEl(...)` an element. The registry is the page's `ICONS`, the icon tokens are `TOKENS.icon`. A lane's `icon` is any registry name, so the 25 names in `references/types/flowchart.md` ("Lane icons", the agent's menu) must stay in the registry; saved diagrams store them.
+- **Not icons**: the diagram's own drawing (shapes, markers, the crow's-foot glyphs, the SVG and Mermaid export strings) is drawn by the renderer in its own coordinates and stays in the type. `check_tokens.py --phase 4` flags only an inline `<svg` on the icon grid (`viewBox="0 0 24 24"`), a `{{icon:name}}` or `ui.icon('name')` whose name is missing from the registry, and a lane-icon name in the reference table that the registry lacks.
+- **Another icon set**: `icon.set` in a theme names a file in `assets/icons/` with the same shape. A name the set lacks falls back to the default drawing, and the loader accepts only self-closing shape elements with a short list of attributes.
+- **Adding an icon**: add the entry (draw it, or take it from an open-licensed set and add its notice to `assets/icons/LICENSE`), then use it by name.
 
 `assemble_page()` in `layout_engine.py` fills the placeholders in one pass and writes a single standalone HTML file. JSON key `diagramType` selects the type folder; a file without it is a `flowchart`. `SUPPORTED_TYPES` lists the types that have assets and a reference.
 
@@ -111,7 +141,7 @@ A top-to-bottom flowchart uses the same engine, router and audit as a left-to-ri
 
 ## Adding a type
 
-1. `assets/types/<type>/` with the files above and a reference in `references/types/<type>.md`.
+1. `assets/types/<type>/` with the files above and a reference in `references/types/<type>.md`, and the registry entry `type-<type>` in `assets/icons/default.json` (the header icon: there is no `icon.html`).
 2. Add the type to `SUPPORTED_TYPES` and `SKILL.md`'s type table.
 3. Write `engine.js` defining `layoutDiagram(data)` (pure, no DOM) and an audit class with `title`, `verify_collisions()`, `summary_lines()` and `pass_line()`; register it in `AUDITS` in `layout_engine.py`.
 4. Add fixtures under `dev/fixtures/<type>/`, freeze goldens with `python dev/check_golden.py --update`, and run the tests below.

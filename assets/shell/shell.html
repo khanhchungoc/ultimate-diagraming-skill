@@ -21,6 +21,7 @@
   <link rel="stylesheet" href="{{FONT_HREF}}">
   <style>
 {{TOKENS_CSS}}
+{{COMPONENTS_CSS}}
 {{SHELL_CSS}}
 {{TYPE_CSS}}
   </style>
@@ -39,29 +40,29 @@
 
     <div class="toolbar-right">
       <button id="btn-undo" class="btn btn-icon" title="Undo (Ctrl+Z)" aria-label="Undo" disabled>
-        <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>
+        {{icon:undo}}
       </button>
       <button id="btn-redo" class="btn btn-icon" title="Redo (Ctrl+Y / Ctrl+Shift+Z)" aria-label="Redo" disabled>
-        <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg>
+        {{icon:redo}}
       </button>
       <button id="btn-theme" class="btn btn-icon" title="Switch to dark mode" aria-label="Switch to dark mode"></button>
       <button id="btn-help" class="btn btn-icon" title="Keyboard shortcuts" aria-label="Keyboard shortcuts" aria-expanded="false" aria-controls="help-drawer">?</button>
-      <div class="export-wrap">
+      <div class="menu-wrap">
         <button id="btn-export" class="btn" title="Download or copy the diagram as an image" aria-label="Export" aria-haspopup="menu" aria-expanded="false">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg><span class="btn-label">Export</span>
+          {{icon:export}}<span class="btn-label">Export</span>
         </button>
-        <div id="export-menu" class="export-menu" role="menu" hidden>
-          <div class="export-menu-label" role="presentation">Download</div>
+        <div id="export-menu" class="menu" role="menu" hidden>
+          <div class="menu-label" role="presentation">Download</div>
           <button type="button" role="menuitem" data-export="svg">SVG image</button>
           <button type="button" role="menuitem" data-export="png">PNG image (1.5x)</button>
-          <div class="export-menu-label" role="presentation" data-copy-label>Copy</div>
+          <div class="menu-label" role="presentation" data-copy-label>Copy</div>
           <button type="button" role="menuitem" data-copy="mermaid">Mermaid</button>
           <button type="button" role="menuitem" data-copy="svg">SVG (text)</button>
           <button type="button" role="menuitem" data-copy="png">PNG image (1.5x)</button>
         </div>
       </div>
       <button id="btn-save" class="btn btn-primary" title="Save directly into this HTML file (Ctrl+S)" aria-label="Save">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg><span class="btn-label">Save</span>
+        {{icon:save}}<span class="btn-label">Save</span>
       </button>
     </div>
   </header>
@@ -72,23 +73,23 @@
 {{TYPE_TOOLBAR}}
       <!-- Shown only while something is selected (plugin.hasSelection) -->
       <button id="btn-delete-selection" class="btn dock-delete" title="Delete the selection (Delete key)" aria-label="Delete selection" aria-hidden="true" tabindex="-1">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg><span class="btn-label">Delete</span>
+        {{icon:trash}}<span class="btn-label">Delete</span>
       </button>
       <!-- Layout controls: type buttons marked data-dock-group="layout" are moved here, before Tidy -->
       <span class="dock-sep" aria-hidden="true"></span>
       <button id="btn-auto-tidy" class="btn" title="Tidy: re-align and lay out the whole diagram now" aria-label="Tidy">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21.64 3.64-1.28-1.28a1.21 1.21 0 0 0-1.72 0L2.36 18.64a1.21 1.21 0 0 0 0 1.72l1.28 1.28a1.2 1.2 0 0 0 1.72 0L21.64 5.36a1.2 1.2 0 0 0 0-1.72"/><path d="m14 7 3 3"/><path d="M5 6v4"/><path d="M19 14v4"/><path d="M10 2v2"/><path d="M7 8H3"/><path d="M21 16h-4"/><path d="M11 3H9"/></svg><span class="btn-label">Tidy</span>
+        {{icon:tidy}}<span class="btn-label">Tidy</span>
       </button>
   </div>
 
   <!-- Zoom controls: floating in the bottom-left corner of the viewport -->
   <div class="toolbar-zoom" role="group" aria-label="Zoom">
     <button id="btn-zoom-out" class="btn btn-icon" title="Zoom out" aria-label="Zoom out">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14"/></svg>
+      {{icon:minus}}
     </button>
     <span id="zoom-level">100%</span>
     <button id="btn-zoom-in" class="btn btn-icon" title="Zoom in" aria-label="Zoom in">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+      {{icon:plus}}
     </button>
     <button id="btn-zoom-reset" class="btn" title="Fit to screen">Fit</button>
   </div>
@@ -107,7 +108,7 @@
     <div class="help-head">
       <span id="help-title">Shortcuts &amp; Interaction</span>
       <button id="help-close" class="help-close" type="button" title="Close (Esc)" aria-label="Close shortcuts">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        {{icon:close}}
       </button>
     </div>
     <ul class="help-list">

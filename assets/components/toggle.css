@@ -1,0 +1,31 @@
+    /* Pressed toggle (dock buttons that switch a view on, such as Notes, Types, Numbers): tinted while aria-pressed is true */
+    .btn[aria-pressed="true"] {
+      background: var(--primary-wash);
+      border-color: var(--primary-ring);
+      color: var(--primary);
+    }
+    .btn[aria-pressed="true"] .btn-count { background: var(--primary); color: var(--bg-panel); }
+
+    /* Sliding switch (Auto-Tidy in the dock): knob right and track filled while aria-checked is true */
+    .btn-switch .switch-track {
+      position: relative;
+      width: 28px; height: 16px;
+      flex: none;
+      border-radius: var(--radius-pill);
+      background: var(--border-dark);
+      transition: background-color 0.18s;
+    }
+    .btn-switch .switch-knob {
+      position: absolute;
+      top: 2px; left: 2px;
+      width: 12px; height: 12px;
+      border-radius: var(--radius-round);
+      background: var(--toggle-knob);   /* white in both themes: reads on the grey (off) and the primary (on) track */
+      box-shadow: var(--shadow-knob);
+      transition: transform 0.18s;
+    }
+    .btn-switch[aria-checked="true"] .switch-track { background: var(--primary); }
+    .btn-switch[aria-checked="true"] .switch-knob { transform: translateX(12px); }
+    @media (prefers-reduced-motion: reduce) {
+      .btn-switch .switch-track, .btn-switch .switch-knob { transition: none; }
+    }

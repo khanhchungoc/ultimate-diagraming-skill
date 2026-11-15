@@ -129,3 +129,7 @@ Needs `Python 3.9+` and `Chrome`, `Chromium` or `Edge` (used to lay out and chec
 - [Loan application flowchart](dev/samples/example-flowchart.html)
 - [Checkout sequence diagram](dev/samples/example-sequence.html)
 - [Shop ER diagram](dev/samples/example-erd.html)
+
+## Credits
+
+The icons in the editor and on the swimlane headers are [Lucide](https://lucide.dev) icons (ISC licence, Copyright (c) Lucide Icons and Contributors), or are redrawn from Lucide designs; some Lucide icons derive from [Feather](https://feathericons.com) (MIT licence, Copyright (c) Cole Bemis). The diagram-type icons, the flowchart shape tiles and a few others were drawn for this skill. The icon registry is `assets/icons/default.json` and the full licence notices are in `assets/icons/LICENSE`.
