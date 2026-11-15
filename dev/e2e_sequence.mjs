@@ -176,9 +176,9 @@ try {
   await t.mouse('mouseMoved', shopB.x, yGap2);
   await sleep(80);
   const plus2 = await t.at('.seq-plus');
-  // Out to the side and back onto the same lifeline (a self-message needs the pointer to leave the lifeline)
+  // Out to the side and back onto the same lifeline (a self-message needs the pointer to go 60px out)
   await t.mouse('mousePressed', plus2.x, plus2.y, { button: 'left', buttons: 1, clickCount: 1 });
-  for (const [x, y] of [[plus2.x + 30, plus2.y + 10], [plus2.x + 60, plus2.y + 20], [shopB.x + 6, yGap2 + 30]]) {
+  for (const [x, y] of [[plus2.x + 40, plus2.y + 10], [plus2.x + 80, plus2.y + 20], [shopB.x + 6, yGap2 + 30]]) {
     await t.mouse('mouseMoved', x, y, { button: 'left', buttons: 1 });
     await sleep(15);
   }
@@ -359,6 +359,112 @@ try {
   await t.dragTo(st.x, st.y, wh.x, st.y);
   d = await saved();
   t.check("the note's stretch handle spans it over a second lifeline", JSON.stringify(d.notes[0].over) === '["p3","p4"]', JSON.stringify(d.notes[0]));
+
+  // --- Frame-aware drop slots (review fixes S1): the end (and start) of a frame, inside it or just outside it ---
+  // On the checkout page f1 (alt) spans m4..m6, m7 follows it, and f2 (opt) spans m2..m3.
+  const frameEdge = (fid, edge) => t.ev(`(() => { const r = document.querySelector('.seq-frag-box[data-frag-id="${fid}"]').getBoundingClientRect(); return ${edge === 'top' ? 'r.top' : 'r.bottom'}; })()`);
+  // Hover a lifeline at screen y, then draw from the + to another lifeline (leaving the label editor with Enter)
+  const drawAt = async (fromPid, y, toPid) => {
+    const a = await lifelineAt(fromPid, y), b = await lifelineAt(toPid, y);
+    await t.mouse('mouseMoved', a.x + 80, y);
+    await t.mouse('mouseMoved', a.x, y);
+    await sleep(80);
+    const plus = await t.at('.seq-plus');
+    await t.dragTo(plus.x, plus.y, b.x + 4, plus.y + 4);
+    await t.press('Enter');
+    return saved();
+  };
+  await t.open(page);
+  let f1Bottom = await frameEdge('f1', 'bottom');
+  // The drawn message is the one id the page did not start with
+  const fresh = (dk) => dk.messages.findIndex((m) => !/^m[1-7]$/.test(m.id));
+  d = await drawAt('p2', f1Bottom - 10, 'p1');
+  let at = fresh(d);
+  t.check('a message drawn just inside the end of a frame becomes its last message', at === 6 && d.fragments.find((f) => f.id === 'f1').to === d.messages[at].id, JSON.stringify(d.fragments));
+  await t.open(page);
+  f1Bottom = await frameEdge('f1', 'bottom');
+  d = await drawAt('p2', f1Bottom + 12, 'p1');
+  at = fresh(d);
+  t.check('a message drawn just below the same frame stays outside it', at === 6 && d.fragments.find((f) => f.id === 'f1').to === 'm6', JSON.stringify(d.fragments));
+  await t.open(page);
+  d = await drawAt('p1', (await frameEdge('f2', 'top')) + 28, 'p2');
+  at = fresh(d);
+  t.check('a message drawn just inside the start of a frame becomes its first message', at === 1 && d.fragments.find((f) => f.id === 'f2').from === d.messages[at].id, JSON.stringify(d.fragments));
+
+  // Move a message across the frame's end, both ways
+  await t.open(page);
+  f1Bottom = await frameEdge('f1', 'bottom');
+  const m7 = await t.at('.seq-msg-label[data-edge-id="m7"]');
+  const m7Line = await t.at('.seq-line[data-edge-id="m7"]');
+  await t.dragTo(m7.x, m7.y, m7.x, m7.y + (f1Bottom - 10 - m7Line.y), { steps: 8 });
+  d = await saved();
+  t.check('a message moved up to just inside the end of a frame joins it', d.messages[6].id === 'm7' && d.fragments.find((f) => f.id === 'f1').to === 'm7', JSON.stringify(d.fragments));
+  await t.open(page);
+  const m6 = await t.at('.seq-msg-label[data-edge-id="m6"]');
+  const m6Line = await t.at('.seq-line[data-edge-id="m6"]');
+  await t.dragTo(m6.x, m6.y, m6.x, m6.y + (f1Bottom + 12 - m6Line.y), { steps: 8 });
+  d = await saved();
+  t.check('the last message of a frame moved to just below it leaves the frame', d.messages[5].id === 'm6' && d.fragments.find((f) => f.id === 'f1').to === 'm5', JSON.stringify(d.fragments));
+
+  // A note at the end of a frame: inside it (after the last message) or just outside (before the next message)
+  await t.open(page);
+  await t.clickOn('.seq-msg-label[data-edge-id="m2"]');
+  await t.clickOn('#btn-add-note');
+  await t.press('Enter');
+  f1Bottom = await frameEdge('f1', 'bottom');
+  let nb2 = await t.at('.note', 0.5, 0);   // a note's drop slot follows its top edge
+  await t.dragTo(nb2.x, nb2.y, nb2.x, f1Bottom - 10, { steps: 8 });
+  d = await saved();
+  const inBox = await t.ev(`(() => { const n = document.querySelector('.note').getBoundingClientRect(), f = document.querySelector('.seq-frag-box[data-frag-id="f1"]').getBoundingClientRect(); return n.top >= f.top && n.bottom <= f.bottom; })()`);
+  t.check('a note dropped just inside the end of a frame is saved after its last message and drawn inside it', d.notes[0].after === 'm6' && d.notes[0].before === undefined && inBox, JSON.stringify(d.notes[0]));
+  nb2 = await t.at('.note', 0.5, 0);
+  await t.dragTo(nb2.x, nb2.y, nb2.x, (await frameEdge('f1', 'bottom')) + 12, { steps: 8 });
+  d = await saved();
+  t.check('a note dropped just below the same frame is saved before the next message', d.notes[0].before === 'm7' && d.notes[0].after === undefined, JSON.stringify(d.notes[0]));
+
+  // --- The + below the last message (S2) ---
+  await t.open(page);
+  const lastY = (await t.at('.seq-line[data-edge-id="m7"]')).y;
+  let plusBelow = true;
+  for (const pid of ['p1', 'p2', 'p3', 'p4']) {
+    const a = await lifelineAt(pid, lastY + 34);
+    await t.mouse('mouseMoved', a.x + 80, lastY + 34);
+    await t.mouse('mouseMoved', a.x, lastY + 34);
+    await sleep(80);
+    plusBelow = plusBelow && (await t.ev(`getComputedStyle(document.querySelector('.seq-plus')).display === 'flex'`));
+  }
+  t.check('the + shows 34px below the last message on every lifeline', plusBelow);
+  d = await drawAt('p2', lastY + 34, 'p3');
+  t.check('drawn from that + the message is appended', d.messages.length === 8 && d.messages[7].label === 'Message' && d.messages[7].from === 'p2' && d.messages[7].to === 'p3', JSON.stringify(d.messages[7]));
+
+  // --- Drawing a message needs a deliberate drag (S3) ---
+  await t.open(page);
+  const yG = await gapY('m1', 'm2'), msgCount = () => count('.seq-msg-label');
+  const near = await lifelineAt('p3', yG), other = await lifelineAt('p4', yG), mid = (near.x + other.x) / 2;
+  const tryDraw = async (path) => {
+    await t.mouse('mouseMoved', near.x + 80, yG);
+    await t.mouse('mouseMoved', near.x, yG);
+    await sleep(80);
+    const plus = await t.at('.seq-plus');
+    await t.mouse('mousePressed', plus.x, plus.y, { button: 'left', buttons: 1, clickCount: 1 });
+    for (const [x, y] of path(plus)) { await t.mouse('mouseMoved', x, y, { button: 'left', buttons: 1 }); await sleep(15); }
+    const [x, y] = path(plus).pop();
+    await t.mouse('mouseReleased', x, y, { button: 'left', buttons: 0, clickCount: 1 });
+    await sleep(80);
+  };
+  await tryDraw((p) => [[p.x + 6, p.y + 8], [p.x + 20, p.y + 10]]);
+  t.check('a 20px drag and release creates nothing', (await msgCount()) === 7, String(await msgCount()));
+  await tryDraw((p) => [[p.x + 40, p.y + 8], [mid, p.y + 8]]);
+  t.check('a release midway between two lifelines creates nothing', (await msgCount()) === 7, String(await msgCount()));
+  await tryDraw((p) => [[p.x + 30, p.y + 8], [p.x + 70, p.y + 8]]);
+  t.check('a release out to the side of its own lifeline creates nothing', (await msgCount()) === 7, String(await msgCount()));
+  await tryDraw((p) => [[p.x + 70, p.y + 8], [p.x + 90, p.y + 8], [other.x, p.y + 8]]);
+  t.check('a release on another lifeline creates a message', (await msgCount()) === 8, String(await msgCount()));
+  await t.press('Enter');
+  await t.open(page);
+  await tryDraw((p) => [[p.x + 30, p.y + 8], [p.x + 70, p.y + 8], [p.x + 8, p.y + 20]]);
+  await t.press('Enter');
+  t.check('out 70px and back onto its own lifeline creates a self-message', (await msgCount()) === 8 && (await saved()).messages.some((m) => m.from === 'p3' && m.to === 'p3'), String(await msgCount()));
 
   // Draw from a lifeline or an activation bar: a drag to another lifeline adds a message from that row gap. Drawn back
   // to a caller whose call is still open, it is the call's reply; otherwise a call. A click selects the participant.
