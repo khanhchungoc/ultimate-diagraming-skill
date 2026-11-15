@@ -52,7 +52,7 @@ Fixes for problems found while using the hosted sample artifacts (2026-11-15). E
 - Draw each participant as the flowchart's lane pill (`.lane-pill` in `assets/types/flowchart/flowchart.css`): pill radius, swatch pill background and ink, the same halo. Move the pill styles to a shared component (`assets/components/`) so both types use one definition, as the design-token plan requires.
 - Lifeline stroke and activation bars take the participant's strong swatch tone.
 - Pinned row: pills ride at the top of the viewport with their halo, as lane pills do, and the opaque band is dropped (or kept only as a faint fade). Keep the lifespan behaviour (a pill fades when its lifeline has ended above).
-- Participants without a `color` get a palette slot by position when drawn (not saved), so a new diagram is colour-coded by default. See open decision D1.
+- Participants without a `color` get a palette slot by position when drawn (not saved), so every diagram is colour-coded (D1).
 - Give the participants in `references/examples/example-sequence.json` colours, rebuild with `dev/build_examples.py`, and republish the sequence demo artifact.
 
 **Test.** `dev/check_contrast.py` and `dev/check_themes.py` for pill ink on every slot in both themes; `e2e_sequence.mjs` scrolls past the top and checks the pills stay visible and in place horizontally; update goldens.
@@ -114,5 +114,5 @@ Fixes for problems found while using the hosted sample artifacts (2026-11-15). E
 
 ## Open decisions
 
-- **D1.** Should participants without a `color` be colour-coded automatically (by position, not saved), or should the AI be told to always assign colours when it writes a sequence diagram? Automatic colour makes every diagram colourful; leaving it to the model keeps colour meaningful (for example, one colour per system).
+- **D1. Decided (2026-11-15): always colour.** Participants without a `color` get a palette slot by position when drawn.
 - **D2.** E3: should hover in the zoomed-in view keep the chips, or should chips appear only for the selected table everywhere?
