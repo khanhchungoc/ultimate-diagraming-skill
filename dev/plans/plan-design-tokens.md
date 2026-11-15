@@ -179,7 +179,7 @@ The Python audits load the same merged token file for `font.metrics`, which remo
 As built (2026-11-15):
 
 - Each palette entry holds `hex` (the hex saved in diagram data today, slots 1 to 8) and, per mode, `soft` (fill), `strong` (line), `ink`, `solid` and `on-solid`. Default values were measured in Chromium from the old OKLCH derivation. `tokens.py` emits `--sw-<n>-*` per mode and one `[data-sw="n"]` rule per slot mapping the old role names (`--sw-stripe`, `--sw-line`, `--sw-pill-*`, `--sw-on-solid`) to them. `setSwatch(el, hex)` in `shell.js` sets `data-sw` for a known hex; any other hex keeps the run-time derivation (`:not([data-sw])`).
-- `--sw-stripe` is the slot's line colour, so light-mode stripes are darker than before (slots 3 and 7 were below 3:1).
+- `--sw-stripe` is the slot's line colour, so light-mode stripes are darker than before (slots 3 and 7 were below 3:1). Decided 2026-11-15: kept for all slots, for consistency.
 - Sequence frame tints read the matching slot's line colour, and are now mode-aware.
 - Contrast fixes: light `connector` `#94a3b8` to `#8493a8`; `focus-ring` becomes `var(--primary)` in both modes; dark `on-danger` `#1a1a1a`; the flowchart insert-hint pill uses `--on-primary`.
 - Shadows became 30 `--shadow-*` tokens (identical values merged, no visual change); Phase 2 folds them into a scale.
