@@ -2,7 +2,7 @@
 
 Every diagram is drawn from one design-token set. The skill ships a default set. A user can point the skill at a website or a brand guide, get a token set in the same shape, and every diagram type (current and future) uses it without code changes. Every visual component is built once, from tokens only, and reused by all types.
 
-**Status:** not started. Review done 2026-11-15 (findings below). Open decisions for Phases 1 and 5 settled 2026-11-15. Typography and iconography added 2026-11-15.
+**Status:** Phase 1 done 2026-11-15 (see Phase 1 "As built"). Phases 2 to 8 not started. Review done 2026-11-15 (findings below). Open decisions for Phases 1 and 5 settled 2026-11-15. Typography and iconography added 2026-11-15.
 
 ## Goals
 
@@ -152,7 +152,7 @@ The font `<link>` is filled from `font.href` (omitted when empty). The theme is 
 
 The engine also runs without the page, so `TOKENS` must reach it in all three places it runs, or the layout and the page would measure text differently:
 
-- **In the page**, `{{TOKENS_JS}}` sits inside the `//@engine-begin` / `//@engine-end` markers in `shell.html`, before `{{ENGINE_JS}}`, so the ERD Web Worker (which is built from the source between those markers) gets it too.
+- **In the page**, `{{TOKENS_JS}}` sits before `{{SHELL_JS}}` in `shell.html` (the shell builds `SWATCHES` from it at start-up), outside the `//@engine-begin` / `//@engine-end` markers. The ERD Web Worker, which is built from the source between those markers, gets `const TOKENS = ...;` prepended by `erd.js`.
 - **`run_engine.mjs` (Node)** takes the merged token JSON as a second argument and defines `TOKENS` before evaluating `engine.js`. `engine_runner.py` passes it.
 - **The headless Chrome fallback** in `engine_runner.py` gets the same `TOKENS` definition before the engine.
 
@@ -175,6 +175,16 @@ The Python audits load the same merged token file for `font.metrics`, which remo
 5. Add `dev/check_contrast.py` with the AA pair list. Fix any default token that fails, and list each fix in the commit message: this is the one visible change allowed in Phase 1.
 6. Add `dev/check_tokens.py`: it fails on any hex, `rgb(`, `rgba(`, `hsl(` or `font-family` literal in `assets/shell/*.css|js` and `assets/types/**/*.css|js`, and on any `--name:` declaration outside generated token CSS (runtime `style.setProperty` for geometry such as `--pill-x` is allowed).
 7. Exit check: `check_golden.py` and `check_contrast.py` pass, and the generated pages render the same as before (screenshot diff of every fixture in both themes) apart from the listed contrast fixes.
+
+As built (2026-11-15):
+
+- Each palette entry holds `hex` (the hex saved in diagram data today, slots 1 to 8) and, per mode, `soft` (fill), `strong` (line), `ink`, `solid` and `on-solid`. Default values were measured in Chromium from the old OKLCH derivation. `tokens.py` emits `--sw-<n>-*` per mode and one `[data-sw="n"]` rule per slot mapping the old role names (`--sw-stripe`, `--sw-line`, `--sw-pill-*`, `--sw-on-solid`) to them. `setSwatch(el, hex)` in `shell.js` sets `data-sw` for a known hex; any other hex keeps the run-time derivation (`:not([data-sw])`).
+- `--sw-stripe` is the slot's line colour, so light-mode stripes are darker than before (slots 3 and 7 were below 3:1).
+- Sequence frame tints read the matching slot's line colour, and are now mode-aware.
+- Contrast fixes: light `connector` `#94a3b8` to `#8493a8`; `focus-ring` becomes `var(--primary)` in both modes; dark `on-danger` `#1a1a1a`; the flowchart insert-hint pill uses `--on-primary`.
+- Shadows became 30 `--shadow-*` tokens (identical values merged, no visual change); Phase 2 folds them into a scale.
+- Not yet converted: the flowchart lane icon chip and `.erd-head` still mix `--lane-color` / `--sw-stripe` at run time and are not covered by contrast pairs; `scripts/audit_erd.py` and `audit_sequence.py` keep their own swatch hex lists.
+- Known: 3 of 15 `e2e_notes` checks fail identically before Phase 1 (note tile drag highlight, Shift+click link, link-handle drag).
 
 Decided (2026-11-15): the sequence note drops its yellow look. All types use one note style (`--note-*`), so the note is one component.
 

@@ -46,12 +46,11 @@
       const px = (v) => `${v}px`;
 
       // A participant's colour: one of the shell's SWATCHES (a hex), or none. Anything else is drawn as no colour (the
-      // audit reports it). The element then reads the swatch's shades from shell.css (--sw-stripe, --sw-line, ...).
+      // audit reports it). The element then reads the swatch's shades from its slot (data-sw, see setSwatch in shell.js; --sw-stripe, --sw-line, ...).
       const swatchOf = (p) => (p && SWATCHES.some((w) => w.hex === p.color) ? p.color : null);
       function paintSwatch(el, hex) {
         if (!hex) return el;
-        el.classList.add('swatch-scope');
-        el.style.setProperty('--swatch-color', hex);
+        setSwatch(el, hex);
         return el;
       }
       const swatchName = (hex) => (SWATCHES.find((w) => w.hex === hex) || {}).name || hex;

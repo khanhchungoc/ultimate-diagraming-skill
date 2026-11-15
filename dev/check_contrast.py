@@ -2,7 +2,6 @@
 """WCAG 2.x contrast check for the colour token pairs, in light and dark mode.
 
 Pairs come from the token file's `contrast` list ([fg, bg, min]; a name with `*` expands for every palette slot).
-Until scripts/tokens.py exists, tokens are parsed straight from the :root blocks of assets/shell/shell.css.
 
 Usage:
   python dev/check_contrast.py [--theme FILE] [--strict] [--json]
@@ -20,18 +19,6 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
-
-# shortcut: lives here until the token file carries its own `contrast` list; then delete.
-DEFAULT_PAIRS = [
-    ("text-main", "bg-panel", 4.5), ("text-muted", "bg-panel", 4.5), ("text-soft", "bg-soft", 4.5),
-    ("decision-text", "decision-fill", 4.5), ("start-text", "start-bg", 4.5), ("end-text", "end-bg", 4.5),
-    ("conn-text", "conn-bg", 4.5), ("node-border", "node-bg", 3), ("node-border", "bg-panel", 3),
-    ("connector", "bg-panel", 3), ("edge-in", "bg-panel", 3), ("edge-out", "bg-panel", 3),
-    ("primary", "bg-panel", 3), ("banner-text", "banner-bg", 4.5),
-    ("status-saved-text", "status-saved-bg", 4.5), ("status-unsaved-text", "status-unsaved-bg", 4.5),
-    ("note-ink", "note-bg", 4.5), ("on-primary", "primary", 4.5), ("on-danger", "danger", 4.5),
-    ("focus-ring", "bg-panel", 3),
-]
 
 NUM = r"([\d.]+%?)"
 RGB_RE = re.compile(rf"rgba?\(\s*{NUM}[\s,]+{NUM}[\s,]+{NUM}(?:\s*[,/]\s*{NUM})?\s*\)$", re.I)
@@ -75,27 +62,8 @@ def ratio(a, b):
     return (la + 0.05) / (lb + 0.05)
 
 
-def css_fallback(mode):
-    """Colour tokens from shell.css; dark overlays light, as the cascade does. Resolves plain var(--x)."""
-    css = (ROOT / "assets/shell/shell.css").read_text()
-    blocks = [r":root\s*\{([^}]*)\}"] + ([r':root\[data-theme="dark"\]\s*\{([^}]*)\}'] if mode == "dark" else [])
-    out = {}
-    for pat in blocks:
-        for body in re.findall(pat, css):
-            out.update(re.findall(r"--([\w-]+)\s*:\s*([^;]+);", re.sub(r"/\*.*?\*/", "", body, flags=re.S)))
-    out = {k: v.strip() for k, v in out.items()}
-    for k, v in out.items():
-        m = re.fullmatch(r"var\(--([\w-]+)\)", v)
-        if m and m.group(1) in out:
-            out[k] = out[m.group(1)]
-    return out
-
-
 def load(theme):
-    try:
-        from tokens import load_tokens, resolve_colors
-    except ImportError:
-        return "assets/shell/shell.css (fallback)", {}, css_fallback
+    from tokens import load_tokens, resolve_colors
     tokens = load_tokens(theme)
     return "scripts/tokens.py", tokens, lambda mode: resolve_colors(tokens, mode)
 
@@ -130,10 +98,7 @@ def check(colors, fg, bg, mn):
 
 def run(theme, strict, as_json):
     source, tokens, colors_for = load(theme)
-    pairs = tokens.get("contrast") or []
-    note = None
-    if not pairs:
-        pairs, note = DEFAULT_PAIRS, "no `contrast` list in tokens; using built-in DEFAULT_PAIRS (move it into the token file)"
+    pairs = tokens["contrast"]
     results = []
     for mode in ("light", "dark"):
         colors = colors_for(mode)
@@ -144,8 +109,6 @@ def run(theme, strict, as_json):
         print(json.dumps({"source": source, "results": results}, indent=2))
     else:
         print(f"tokens: {source}")
-        if note:
-            print(f"note: {note}")
         for x in results:
             tail = x["reason"] if x["status"] == "SKIP" else f"{x['ratio']:.2f} {'<' if x['status'] == 'FAIL' else '>='} {x['min']:g}"
             print(f"[{x['status']}] {x['mode']} {x['fg']} on {x['bg']}: {tail}")

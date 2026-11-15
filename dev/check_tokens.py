@@ -38,7 +38,8 @@ SCALE_RE = re.compile(r"(?<![\w-])(font-size|font-weight|line-height|letter-spac
 SCALE_OK = {"0", "none", "inherit", "normal"}
 FONT_RE = re.compile(r"(?<![\w-])font-family\s*:\s*([^;}]*)")
 CUSTOM_RE = re.compile(r"(?<![\w-])--[\w-]+\s*:")
-ROOT_SEL = re.compile(r"(^|[\s,])(html)?:root\b")
+# a selector that ends in :root (plus attribute or pseudo-class parts); `:root[data-theme="dark"] .x` is a scoped rule, not a token block
+ROOT_SEL = re.compile(r"(^|\s)(html)?:root(\[[^\]]*\]|:[\w-]+(\([^)]*\))?)*$")
 
 
 def blank(text: str, pattern: str) -> str:
@@ -63,7 +64,7 @@ def root_declarations(css: str):
             buf = ""
         elif kind == ";":
             buf = ""
-        elif stack and ROOT_SEL.search(stack[-1]):
+        elif stack and any(ROOT_SEL.search(sel.strip()) for sel in stack[-1].split(",")):
             yield pos
 
 
@@ -172,6 +173,8 @@ def self_test():
     assert rules("css", ":root[data-theme='dark']{\n--a:1}") == ["token-declaration"]
     assert rules("css", "@media (x){:root{--a:1}}") == ["token-declaration"]
     assert rules("css", ".swatch-scope{--sw:red}") == []
+    assert rules("css", ":root[data-theme='dark'] .swatch-scope{--sw:red}") == []
+    assert rules("css", ".a, :root{--a:1}") == ["token-declaration"]
     assert rules("css", "a{font-size:12px;border-radius:0;box-shadow:none}") == []
     assert sorted(rules("css", "a{font-size:12px;font-weight:600;line-height:1.2;letter-spacing:1px;"
                                "border-radius:4px;box-shadow:0 0 2px #000}", 2)).count("type-scale-literal") == 6

@@ -5,7 +5,7 @@
       flex-direction: column;
       border: 1px solid var(--border-dark);
       background: var(--bg-panel);
-      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -2px rgba(0,0,0,0.05);
+      box-shadow: var(--shadow-canvas);
       border-radius: 8px;
       margin: 40px;
       width: fit-content;
@@ -167,7 +167,7 @@
       color: var(--text-main);
       cursor: pointer;
       z-index: 30;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+      box-shadow: var(--shadow-1-4-8);
       white-space: normal; /* Allow dropping into multiple lines if exceeding gap */
       overflow-wrap: break-word; /* wrap between words; only split a word that cannot fit at all */
       text-align: center;
@@ -249,7 +249,7 @@
       height: 64px;
       cursor: move;
       z-index: 20;
-      box-shadow: inset 0 0 0 var(--node-stroke) var(--ring), 0 2px 4px rgba(0,0,0,0.06);
+      box-shadow: inset 0 0 0 var(--node-stroke) var(--ring), var(--shadow-2-4-6);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -266,7 +266,7 @@
     .flow-node.type-decision { --node-accent: var(--decision-accent); }
     .flow-node:hover {
       --ring: var(--node-accent);
-      box-shadow: inset 0 0 0 var(--node-stroke) var(--ring), 0 4px 10px rgba(0,0,0,0.12);
+      box-shadow: inset 0 0 0 var(--node-stroke) var(--ring), var(--shadow-4-10-12);
     }
     .flow-node.selected {
       --ring: var(--node-accent);
@@ -358,7 +358,7 @@
     .flow-node:not(.type-decision) .shape-outline .shape-path { fill: var(--node-bg); stroke: var(--node-border); }
     .flow-node .shape-outline .shape-line { fill: none; stroke: var(--node-border); }
     .flow-node:not(.type-decision):hover .shape-outline > * { stroke: var(--node-accent); }
-    .flow-node:not(.type-decision):hover .shape-outline .shape-path { filter: drop-shadow(0 3px 5px rgba(0,0,0,0.12)); }
+    .flow-node:not(.type-decision):hover .shape-outline .shape-path { filter: drop-shadow(var(--shadow-3-5-12)); }
     .flow-node:not(.type-decision).selected .shape-outline > * { stroke: var(--node-accent); }
     .flow-node:not(.type-decision).selected .shape-outline .shape-path {
       filter: drop-shadow(0 0 4px color-mix(in srgb, var(--node-accent) 45%, transparent));
@@ -416,7 +416,7 @@
       transition: opacity 0.15s, transform 0.15s, background-color 0.15s;
       z-index: 35;
       transform: translate(-50%, -50%);
-      box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+      box-shadow: var(--shadow-1-3-15);
     }
     .flow-node:hover .port, .flow-node.selected .port {
       opacity: 1;
@@ -436,7 +436,7 @@
       border-radius: 50%;
       background: var(--node-bg);
       border: 2px solid var(--primary);
-      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+      box-shadow: var(--shadow-1-3-20);
       cursor: grab;
       pointer-events: auto;
       z-index: 32;
@@ -501,7 +501,7 @@
       border: 1.5px solid var(--primary);
       background: var(--node-bg);
       color: var(--primary);
-      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+      box-shadow: var(--shadow-1-3-20);
       cursor: pointer;
       pointer-events: auto;
       z-index: 33;
@@ -517,7 +517,7 @@
       border-radius: 8px;
       border: 1px solid var(--border-dark);
       background: var(--bg-panel);
-      box-shadow: 0 6px 18px rgba(0,0,0,0.16);
+      box-shadow: var(--shadow-6-18-16);
       pointer-events: auto;
       z-index: 34;
     }
@@ -621,7 +621,7 @@
     .swimlane:has(.flow-node.selected) .lane-pill,
     .swimlane.lane-selected .lane-pill {
       background: var(--lane-pill-solid);
-      color: var(--swatch-solid-ink);
+      color: var(--sw-on-solid);
     }
     /* Tools under the pill: reorder grip + delete, shown only while the lane is selected (hover would clutter) */
     .lane-tools {
@@ -648,7 +648,7 @@
       border: 1px solid var(--border-dark);
       background: var(--bg-panel);
       color: var(--text-soft);
-      box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+      box-shadow: var(--shadow-1-3-12);
       transition: background var(--ease), color var(--ease), border-color var(--ease);
     }
     .lane-tool svg { display: block; }
@@ -668,7 +668,7 @@
       border: 1px solid var(--border-dark);
       background: var(--bg-panel);
       color: var(--text-main);
-      box-shadow: 0 10px 30px rgba(0,0,0,0.18);
+      box-shadow: var(--shadow-10-30-18);
       font-size: 13px;
       line-height: 1.4;
     }
@@ -731,11 +731,11 @@
       pointer-events: none;
       transform-origin: 0 0;
       opacity: 0.92;
-      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
+      box-shadow: var(--shadow-10-24-18);
       transition: opacity 0.1s;
     }
     .palette-ghost:is(.type-decision, .type-subprocess, .type-io, .type-document, .type-database, .type-delay) {
-      box-shadow: none; filter: drop-shadow(0 8px 14px rgba(0, 0, 0, 0.18));
+      box-shadow: none; filter: drop-shadow(var(--shadow-8-14-18));
     }
     .palette-ghost.off-canvas { opacity: 0.4; }
     .palette-ghost.inserting { opacity: 0.75; }
@@ -756,7 +756,7 @@
       padding: 3px 9px;
       border-radius: 999px;
       background: var(--primary);
-      color: #ffffff;
+      color: var(--on-primary);
       font-size: 0.75rem;
       font-weight: 600;
       white-space: nowrap;
@@ -799,22 +799,22 @@
       font-weight: 400;
       line-height: 1.4;
       text-align: left;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+      box-shadow: var(--shadow-1-3-8);
       pointer-events: auto;
       cursor: move;
       user-select: none;
       transition: box-shadow var(--ease), border-color var(--ease);
     }
     .flow-note.show, .flow-note.peek { display: block; }
-    .flow-note.peek:not(.show) { animation: note-in 0.14s ease-out; box-shadow: 0 6px 18px rgba(0,0,0,0.14); }
+    .flow-note.peek:not(.show) { animation: note-in 0.14s ease-out; box-shadow: var(--shadow-6-18-14); }
     @keyframes note-in { from { opacity: 0; transform: translateY(3px); } }
     #notes-layer.measuring .flow-note { display: block; visibility: hidden; animation: none; }
     .flow-note:hover { border-color: color-mix(in srgb, var(--note-accent) 60%, var(--note-border)); border-left-color: var(--note-accent); }
     .flow-note.selected {
       border-color: var(--note-accent);
-      box-shadow: 0 0 0 3px color-mix(in srgb, var(--note-accent) 28%, transparent), 0 4px 12px rgba(0,0,0,0.12);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--note-accent) 28%, transparent), var(--shadow-4-12-12);
     }
-    .flow-note.dragging { box-shadow: 0 10px 24px rgba(0,0,0,0.18); }
+    .flow-note.dragging { box-shadow: var(--shadow-10-24-18); }
     .note-text {
       outline: none;
       white-space: pre-wrap;
@@ -837,7 +837,7 @@
       background: var(--bg-panel);
       color: var(--text-soft);
       cursor: pointer;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+      box-shadow: var(--shadow-1-3-15);
     }
     .note-del:hover { background: var(--danger); border-color: var(--danger); color: var(--on-danger); }
     .flow-note:hover .note-del, .flow-note.selected .note-del { display: inline-flex; }
@@ -856,7 +856,7 @@
       color: var(--note-accent);
       cursor: crosshair;
       touch-action: none;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+      box-shadow: var(--shadow-1-3-15);
     }
     .note-link:hover { background: var(--note-accent); border-color: var(--note-accent); color: var(--bg-panel); }
     .flow-note:hover .note-link, .flow-note.selected .note-link { display: inline-flex; }
@@ -897,7 +897,7 @@
       border: 1px solid var(--note-border);
       background: var(--note-bg);
       color: var(--note-accent);
-      box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+      box-shadow: var(--shadow-1-2-8);
     }
     .note-badge:hover { transform: scale(1.15); border-color: var(--note-accent); }
     .note-add {
@@ -948,7 +948,7 @@
       pointer-events: none;
       transform-origin: 0 0;
       opacity: 0.95;
-      box-shadow: 0 10px 24px rgba(0,0,0,0.18);
+      box-shadow: var(--shadow-10-24-18);
       transition: opacity 0.1s;
     }
     .flow-note.note-ghost.off-target { opacity: 0.5; }
@@ -973,7 +973,7 @@
       font-size: 0.8125rem;
       font-weight: 500;
       white-space: nowrap;
-      box-shadow: 0 4px 14px rgba(0,0,0,0.12);
+      box-shadow: var(--shadow-4-14-12);
       pointer-events: none;
     }
     .note-pick-hint kbd { font: inherit; font-weight: 600; }
@@ -993,7 +993,7 @@
       width: 12px; height: 12px;
       border-radius: 50%;
       background: var(--toggle-knob);   /* white in both themes: reads on the grey (off) and the primary (on) track */
-      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+      box-shadow: var(--shadow-1-2-25);
       transition: transform 0.18s;
     }
     .btn-switch[aria-checked="true"] .switch-track { background: var(--primary); }

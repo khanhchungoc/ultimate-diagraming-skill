@@ -213,16 +213,14 @@ def main() -> int:
     ok = report["score"] == 100 - 12 * len(report["issues"]) and not report["passed"]
     failed += not ok
     print(f"[{'PASS' if ok else 'FAIL'}] score is 100 minus 12 per error - {report['score']}")
-    # The audit lists the same swatches as the page (SWATCHES in assets/shell/shell.js)
+    # The audit lists the same swatches as the page (the palette hexes in assets/tokens/default.json)
     import re
     from audit_erd import SWATCHES
-    shell = (ROOT / "assets" / "shell" / "shell.js").read_text(encoding="utf-8")
-    block = shell[shell.index("const SWATCHES = ["):]
-    block = block[:block.index("];")]
-    in_shell = tuple(re.findall(r"hex: '(#[0-9a-f]{6})'", block))
+    from tokens import load_tokens
+    in_shell = tuple(p["hex"] for p in load_tokens()["palette"] if "hex" in p)
     ok = in_shell == SWATCHES
     failed += not ok
-    print(f"[{'PASS' if ok else 'FAIL'}] the audit's swatches are the shell's, in order - {in_shell}")
+    print(f"[{'PASS' if ok else 'FAIL'}] the audit's swatches are the palette's, in order - {in_shell}")
     # Codec: v3 round trip, v1/v2 blocks drop their layout, v2 groups become table colours, renamed ids rename layout keys
     from disk_format import from_disk, to_disk
     laid = copy.deepcopy(BASE)

@@ -666,8 +666,9 @@ try {
     URL.createObjectURL = (b) => { URL.createObjectURL = orig; b.text().then(res); return 'blob:x'; };
     document.querySelector('[data-export="svg"]').click();
   })`);
-  t.check('an SVG export carries the participant colours and the key, including its label', svgOut.includes('Our services') && svgOut.includes('border-top-width:4px') && /stroke:(oklch|oklab)\(/.test(svgOut)
-    && !/What does/.test(svgOut), `${svgOut.includes('Our services')} ${svgOut.includes('border-top-width:4px')} ${/stroke:(oklch|oklab)\(/.test(svgOut)} ${(svgOut.match(/.{30}What does.{30}/) || [''])[0]}`);
+  // the lifeline of the sky participant draws its slot's fixed line colour (--sw-1-line, #2f7da8), inlined as computed rgb()
+  t.check('an SVG export carries the participant colours and the key, including its label', svgOut.includes('Our services') && svgOut.includes('border-top-width:4px') && /stroke:rgb\(47, 125, 168\)/.test(svgOut)
+    && !/What does/.test(svgOut), `${svgOut.includes('Our services')} ${svgOut.includes('border-top-width:4px')} ${/stroke:rgb\(47, 125, 168\)/.test(svgOut)} ${(svgOut.match(/.{30}What does.{30}/) || [''])[0]}`);
   // Clearing: "none" removes the colour, and an unused key entry is dropped on save
   await t.clickOn('.seq-participant[data-node-id="p2"]');
   await t.clickOn('.seq-actionbar .swatch-btn[data-value=""]');

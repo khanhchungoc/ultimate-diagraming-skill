@@ -134,16 +134,14 @@ def main() -> int:
     ok = not two
     failed += not ok
     print(f"[{'PASS' if ok else 'FAIL'}] two coloured participants with a full colorKey do not warn - {two}")
-    # The audit lists the same swatches as the page (SWATCHES in assets/shell/shell.js)
+    # The audit lists the same swatches as the page (the palette hexes in assets/tokens/default.json)
     import re
     from audit_sequence import SWATCHES
-    shell = (ROOT / "assets" / "shell" / "shell.js").read_text(encoding="utf-8")
-    block = shell[shell.index("const SWATCHES = ["):]
-    block = block[:block.index("];")]
-    in_shell = tuple(re.findall(r"hex: '(#[0-9a-f]{6})'", block))
+    from tokens import load_tokens
+    in_shell = tuple(p["hex"] for p in load_tokens()["palette"] if "hex" in p)
     ok = in_shell == SWATCHES
     failed += not ok
-    print(f"[{'PASS' if ok else 'FAIL'}] the audit's swatches are the shell's, in order - {in_shell}")
+    print(f"[{'PASS' if ok else 'FAIL'}] the audit's swatches are the palette's, in order - {in_shell}")
     total = len(CASES) + 1 + len(colour_cases) + 2
     print(f"{total - failed}/{total} cases passed")
     return 2 if failed else 0

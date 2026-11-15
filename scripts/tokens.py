@@ -17,6 +17,8 @@ _FUNCS = {"rgb", "rgba", "hsl", "hsla", "oklch", "var", "color-mix"}
 _COLOR_CHARS = re.compile(r"^[A-Za-z0-9#%.,() \-]+$")
 _LENGTH = re.compile(r"^-?\d+(\.\d+)?(px|rem|em|%)?$")
 _TIME = re.compile(r"^\d+(\.\d+)?m?s( [a-z-]+)?$")
+# palette tone -> role name: soft is the fill, strong the line; the rest are named as their role
+_TONES = {"soft": "fill", "strong": "line", "ink": "ink", "solid": "solid", "on-solid": "on-solid"}
 _NAME = re.compile(r"^[\w][\w .-]*$")
 _FONT_STACK = re.compile(r"""^[\w "',.\-]+$""")
 _HREF = re.compile(r"^https://fonts\.googleapis\.com/[\w:/.?=&@,+;%-]*$")
@@ -43,6 +45,33 @@ def _is_value(v: Any) -> bool:
     return isinstance(v, str) and (_is_color(v) or _LENGTH.match(v) is not None or v == "transparent")
 
 
+def _is_shadow(v: Any) -> bool:
+    """One or more comma-separated layers; each token is `inset`, a length or a colour. Nothing else gets through."""
+    if not isinstance(v, str) or not _COLOR_CHARS.match(v):
+        return False
+    layers, depth, cur = [], 0, ""
+    for c in v:
+        depth += (c == "(") - (c == ")")
+        if c == "," and depth == 0:
+            layers.append(cur); cur = ""
+        else:
+            cur += c
+    layers.append(cur)
+    for layer in layers:
+        toks, depth, cur = [], 0, ""
+        for c in layer.strip():
+            depth += (c == "(") - (c == ")")
+            if c == " " and depth == 0:
+                toks.append(cur); cur = ""
+            else:
+                cur += c
+        toks.append(cur)
+        if not 2 <= len([t for t in toks if t not in ("", "inset")]) <= 5 or not all(
+                t in ("", "inset") or _LENGTH.match(t) or _is_color(t) for t in toks):
+            return False
+    return True
+
+
 def _err(path: str, v: Any) -> ValueError:
     return ValueError(f"tokens: invalid value at {path}: {v!r}")
 
@@ -62,12 +91,15 @@ def _validate(t: Dict[str, Any]) -> None:
         if not (isinstance(v, str) and _LENGTH.match(v)): raise _err(f"size.{k}", v)
     for k, v in t["motion"].items():
         if not (isinstance(v, str) and _TIME.match(v)): raise _err(f"motion.{k}", v)
+    for k, v in t["shadow"].items():
+        if not re.fullmatch(r"[\w-]+", k) or not _is_shadow(v): raise _err(f"shadow.{k}", v)
     for s in t["palette"]:
         if not (isinstance(s.get("slot"), str) and _NAME.match(s["slot"]) and _NAME.match(s.get("name", ""))):
             raise _err("palette", s)
+        if "hex" in s and not (isinstance(s["hex"], str) and _is_color(s["hex"])): raise _err(f"palette.{s['slot']}.hex", s["hex"])
         for mode in ("light", "dark"):
             for tone, v in s[mode].items():
-                if v is not None and not _is_value(v): raise _err(f"palette.{s['slot']}.{mode}.{tone}", v)
+                if tone not in _TONES or not _is_value(v): raise _err(f"palette.{s['slot']}.{mode}.{tone}", v)
     if not isinstance(t["contrast"], list): raise _err("contrast", t["contrast"])
     for mode in ("light", "dark"):
         for k, v in t["color"][mode].items():
@@ -100,6 +132,7 @@ def resolve_colors(tokens: Dict[str, Any], mode: str) -> Dict[str, str]:
     if mode not in ("light", "dark"):
         raise ValueError(f"mode must be 'light' or 'dark', not {mode!r}")
     merged = {**tokens["color"]["light"], **(tokens["color"]["dark"] if mode == "dark" else {})}
+    merged.update(_sw_vars(tokens, mode))
 
     def resolve(name: str, seen: tuple) -> str:
         if name in seen:
@@ -111,6 +144,15 @@ def resolve_colors(tokens: Dict[str, Any], mode: str) -> Dict[str, str]:
     return {k: resolve(k, ()) for k in merged}
 
 
+def _sw_vars(tokens: Dict[str, Any], mode: str, only_mode: bool = False) -> Dict[str, str]:
+    """sw-<slot>-<role> for every palette slot. Dark falls back to light for a role it leaves out, unless only_mode."""
+    out = {}
+    for s in tokens["palette"]:
+        tones = {**({} if only_mode else s["light"]), **s[mode]}
+        out.update({f"sw-{s['slot']}-{_TONES[t]}": v for t, v in tones.items()})
+    return out
+
+
 def _block(selector: str, decls: Dict[str, str], scheme: str) -> str:
     lines = [f"      --{k}: {v};" for k, v in decls.items()] + [f"      color-scheme: {scheme};"]
     return f"    {selector} {{\n" + "\n".join(lines) + "\n    }"
@@ -120,9 +162,16 @@ def tokens_css(tokens: Dict[str, Any]) -> str:
     """The :root (light) and :root[data-theme="dark"] blocks. Dark lists only what it overrides; the cascade does the rest."""
     f = tokens["font"]
     light = {"font-family": f'"{f["family"]}", {f["stack"]}',
-             **tokens["size"], **tokens["motion"],
-             **tokens["color"]["light"]}
-    return _block(":root", light, "light") + "\n\n" + _block(':root[data-theme="dark"]', tokens["color"]["dark"], "dark")
+             **tokens["size"], **tokens["motion"], **{f"shadow-{k}": v for k, v in tokens["shadow"].items()},
+             **tokens["color"]["light"], **_sw_vars(tokens, "light")}
+    dark = {**tokens["color"]["dark"], **_sw_vars(tokens, "dark", True)}
+    # A slot's roles feed the roles shell.css and the types read (--sw-pill-bg, ...); an element without data-sw keeps the run-time derivation.
+    slots = "\n".join(
+        f'    [data-sw="{s["slot"]}"] {{ --sw-stripe: var(--sw-{s["slot"]}-line); --sw-line: var(--sw-{s["slot"]}-line); '
+        f'--sw-pill-bg: var(--sw-{s["slot"]}-fill); --sw-pill-ink: var(--sw-{s["slot"]}-ink); '
+        f'--sw-pill-solid: var(--sw-{s["slot"]}-solid); --sw-on-solid: var(--sw-{s["slot"]}-on-solid); }}'
+        for s in tokens["palette"])
+    return _block(":root", light, "light") + "\n\n" + _block(':root[data-theme="dark"]', dark, "dark") + "\n\n" + slots
 
 
 def tokens_js(tokens: Dict[str, Any]) -> str:

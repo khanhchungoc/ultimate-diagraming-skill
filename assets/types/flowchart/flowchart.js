@@ -253,7 +253,9 @@
             laneEl.style.height = `${computedHeight}px`;
           }
           // stripe, icon, pill tint; a lane without its own colour takes the palette colour for its position (not saved)
-          laneEl.style.setProperty('--lane-color', lane.color || SWATCHES[index % SWATCHES.length].hex);
+          const laneHex = lane.color || SWATCHES[index % SWATCHES.length].hex;
+          laneEl.style.setProperty('--lane-color', laneHex);
+          if (swatchSlot(laneHex)) laneEl.dataset.sw = swatchSlot(laneHex);
           if (index % 2) laneEl.classList.add('lane-alt');                     // lanes alternate white / light grey
           if (lane.id === selectedLaneId) laneEl.classList.add('lane-selected');
 

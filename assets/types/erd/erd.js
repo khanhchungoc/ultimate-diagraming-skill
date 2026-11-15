@@ -146,7 +146,8 @@
         erdEndJob();
         let worker, url;
         try {
-          url = URL.createObjectURL(new Blob([erdEngineSrc + ERD_WORKER_TAIL], { type: 'text/javascript' }));
+          // TOKENS sits outside the engine markers (the shell reads it first), so the worker is given its own copy
+          url = URL.createObjectURL(new Blob([`const TOKENS = ${JSON.stringify(TOKENS)};\n` + erdEngineSrc + ERD_WORKER_TAIL], { type: 'text/javascript' }));
           worker = new Worker(url);
         } catch (e) {
           if (url) URL.revokeObjectURL(url);
@@ -264,7 +265,7 @@
           el.style.height = `${box.h}px`;
         }
         const color = entityColor(e);
-        if (color) { el.classList.add('swatch-scope'); el.style.setProperty('--swatch-color', color); }
+        if (color) setSwatch(el, color);
         const flat = !vis.cols.length && !vis.more;
         if (flat) el.classList.add('is-flat');
         if (e.collapsed === true) el.classList.add('is-collapsed');
