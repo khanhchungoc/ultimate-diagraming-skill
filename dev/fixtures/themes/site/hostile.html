@@ -1,0 +1,18 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Hostile test page</title>
+<!-- dev/check_extract.py: nothing from this page except plain colours and safe numbers may reach the theme. -->
+<link rel="stylesheet" href="http://127.0.0.1:9/evil-fonts.css">
+<style>
+  :root { --primary: url(javascript:alert(1)); --brand: #b3261e; }
+  body { font-family: "Evil'; } body { display:none", "Fine Sans", sans-serif; background: #ffffff; color: #111111; }
+  .btn { background: #b3261e; color: #fff; border-radius: 4px; padding: 8px 16px; display: inline-block; font-family: "x; } body { display:none", Arial; }
+</style>
+<script>alert('page script runs inside the headless browser only');</script>
+</head>
+<body>
+<p>Plain text. <a class="btn" href="javascript:alert(1)">Click</a></p>
+</body>
+</html>

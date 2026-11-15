@@ -31,7 +31,7 @@ from audit_sequence import SequenceAudit
 from disk_format import (DISK_CODECS, authoring_json, color_kind, format_json, from_disk,  # noqa: F401 (DISK_CODECS: registry)
                          palette_slots, readme_text, stamp_reading_guide, to_disk, with_readme)
 from engine_runner import EngineUnavailable, run_layout
-from tokens import expand_icons, load_icons, load_tokens, tokens_css, tokens_js
+from tokens import expand_icons, load_icons, load_tokens, merge_theme, tokens_css, tokens_js
 
 
 DEFAULT_COL_WIDTH = 200
@@ -1114,6 +1114,45 @@ def extract_data_from_html(html_content: str) -> Dict[str, Any]:
     return from_disk(data.get("diagramType") or DEFAULT_TYPE, data)
 
 
+# --- Themes: which one a run uses, and the copy a page keeps ----------------------------------------------------------
+THEME_OPEN = '<script id="diagram-theme" type="application/json">'
+PROJECT_THEME = Path(".ultimate-diagram") / "theme.json"
+
+
+def read_stored_theme(html_content: str) -> Optional[Dict[str, Any]]:
+    """The theme a page carries (the diagram-theme script after the data block), or None for a page saved before themes."""
+    m = re.search(r'<script id="diagram-theme" type="application/json">\s*([\s\S]*?)\s*</script>', html_content)
+    return json.loads(m.group(1)) if m else None
+
+
+def theme_script(theme: Optional[Dict[str, Any]]) -> str:
+    """The page text that stores `theme`, placed right after the data block's end comment (so below the reading guide's range)."""
+    if theme is None:
+        return ""
+    return f"\n  {THEME_OPEN}{json.dumps(theme, separators=(',', ':')).replace('<', chr(92) + 'u003c')}</script>"
+
+
+def resolve_theme(theme_arg: Optional[str], page_html: Optional[str] = None) -> Tuple[Dict[str, Any], Optional[Dict[str, Any]], str]:
+    """(merged tokens, theme to store in the page or None, note for the report). First match wins: --theme, the theme
+    stored in the page being updated, .ultimate-diagram/theme.json in the current directory, then the default tokens."""
+    try:
+        if theme_arg:
+            theme, source = json.loads(Path(theme_arg).read_text(encoding="utf-8")), f"--theme {theme_arg}"
+        elif page_html is not None and (stored := read_stored_theme(page_html)) is not None:
+            theme, source = stored, "stored in the page"
+        elif PROJECT_THEME.is_file():
+            theme, source = json.loads(PROJECT_THEME.read_text(encoding="utf-8")), f"project theme {PROJECT_THEME.as_posix()}"
+        else:
+            return merge_theme(None), None, ""
+        tokens = merge_theme(theme, source)
+    except (OSError, ValueError) as exc:
+        sys.exit(f"[ERROR] theme ({theme_arg or 'stored or project theme'}): {exc}")
+    note = f"[NOTE] Theme {tokens['name']!r} ({source})."
+    if source.startswith("project") and page_html is not None:
+        note += " This page was saved before themes, so it takes the project theme now; the stored copy is written on this run."
+    return tokens, theme, note
+
+
 AUDITS = {"flowchart": FlowchartAudit, "sequence": SequenceAudit, "erd": ErdAudit}
 
 
@@ -1190,10 +1229,11 @@ def components_css() -> str:
 
 
 def assemble_page(kind: str, data: Optional[Dict[str, Any]] = None, target: str = "file",
-                  tokens: Optional[Dict[str, Any]] = None) -> str:
+                  tokens: Optional[Dict[str, Any]] = None, theme: Optional[Dict[str, Any]] = None) -> str:
     """Build one standalone HTML page: shared shell + the diagram type's plugin, with `data` embedded.
     target "file" is the page as saved on disk; "artifact" is the same page in the claude.ai Artifact shape.
-    `tokens` is the merged token set (default.json, or a theme over it)."""
+    `tokens` is the merged token set (default.json, or a theme over it); `theme` is the theme itself, stored in the page
+    as <script id="diagram-theme"> (None for the default theme: the page then carries no copy)."""
     if target not in TARGETS:
         raise ValueError(f"unknown target {target!r}; expected one of {', '.join(TARGETS)}")
     type_dir = ASSETS_DIR / "types" / kind
@@ -1224,6 +1264,7 @@ def assemble_page(kind: str, data: Optional[Dict[str, Any]] = None, target: str 
         "TYPE_HELP": html_part(_read_asset(type_dir / "help.html").rstrip(chr(10))),
         "SHELL_HELP": html_part(_read_asset(ASSETS_DIR / "shell" / "help.html").rstrip(chr(10))),
         "DATA": payload,
+        "THEME": theme_script(theme),
         "SHELL_JS": _read_asset(ASSETS_DIR / "shell" / "shell.js").rstrip(chr(10)),
         "TOKENS_JS": tokens_js(tokens),
         "ENGINE_JS": _read_asset(type_dir / "engine.js").rstrip(chr(10)),
@@ -1250,9 +1291,10 @@ def find_external_refs(html_text: str) -> List[str]:
     return sorted({r for r in refs if not ALLOWED_EXTERNAL.match(re.sub(r"""^(?:src|href)\s*=\s*["']""", "", r))})
 
 
-def scaffold_html(data: Dict[str, Any], output_path: Path, target: str = "file", tokens: Optional[Dict[str, Any]] = None):
+def scaffold_html(data: Dict[str, Any], output_path: Path, target: str = "file", tokens: Optional[Dict[str, Any]] = None,
+                  theme: Optional[Dict[str, Any]] = None):
     """Write the standalone HTML for `data` (its diagramType selects the plugin)."""
-    html_text = assemble_page(data.get("diagramType") or DEFAULT_TYPE, data, target, tokens)
+    html_text = assemble_page(data.get("diagramType") or DEFAULT_TYPE, data, target, tokens, theme)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(html_text, encoding="utf-8")
     print(f"[OK] Generated interactive {data.get('diagramType') or DEFAULT_TYPE}: {output_path}")
@@ -1323,16 +1365,28 @@ def main():
                         help="With --layout: file (default) writes the standalone HTML file; artifact writes the page "
                              "in the shape a claude.ai Artifact needs (publish it with the Artifact tool)")
     parser.add_argument("--theme", help="Theme file (tokens in the shape of assets/tokens/default.json; omitted keys keep "
-                                        "the default): page styles, fonts and text widths for --layout and --verify")
+                                        "the default): page styles, fonts and text widths for --layout and --verify. Without it: "
+                                        "the theme stored in the page, then .ultimate-diagram/theme.json, then the default")
+    parser.add_argument("--extract-theme", help="Write the theme stored in this HTML page to --output (or print it)")
     parser.add_argument("--screenshot", "-s",
                         help="With --layout: also render a PNG here and run the layout report (one command does both)")
     parser.epilog = "SKILL.md documents every flag an agent needs; no others are required."
 
     args = parser.parse_args()
-    try:
-        tokens = load_tokens(Path(args.theme)) if args.theme else None
-    except (OSError, ValueError) as exc:
-        sys.exit(f"[ERROR] --theme: {exc}")
+    tokens = theme = None
+
+    if args.extract_theme:
+        stored = read_stored_theme(Path(args.extract_theme).read_text(encoding="utf-8"))
+        if stored is None:
+            sys.exit("[NOTE] This page has no stored theme (saved before themes, or built with the default theme).")
+        text = json.dumps(stored, indent=2) + chr(10)
+        if args.output:
+            Path(args.output).parent.mkdir(parents=True, exist_ok=True)
+            Path(args.output).write_text(text, encoding="utf-8")
+            print(f"[OK] Stored theme saved to: {args.output}")
+        else:
+            print(text, end="")
+        return
 
     if args.extract:
         html_path = Path(args.extract)
@@ -1357,7 +1411,12 @@ def main():
             data = extract_data_from_html(html_text)
             external_refs = find_external_refs(html_text)
         else:
+            html_text = None
             data = json.loads(p.read_text(encoding="utf-8"))
+        tokens, theme, note = resolve_theme(args.theme, html_text)
+        tokens = tokens if theme is not None else None
+        if note:
+            print(note)
 
         data = normalize_diagram_type(data)
         if p.suffix == ".html" and data["diagramType"] in ("sequence", "erd"):
@@ -1401,9 +1460,15 @@ def main():
     if args.layout:
         in_p = Path(args.layout)
         if in_p.suffix == ".html":
-            data = extract_data_from_html(in_p.read_text(encoding="utf-8"))
+            page_text = in_p.read_text(encoding="utf-8")
+            data = extract_data_from_html(page_text)
         else:
+            page_text = None
             data = json.loads(in_p.read_text(encoding="utf-8"))
+        tokens, theme, note = resolve_theme(args.theme, page_text)
+        tokens = tokens if theme is not None else None
+        if note:
+            print(note)
 
         data = normalize_diagram_type(data)
         direction_note = ""
@@ -1420,7 +1485,7 @@ def main():
         report = audit.verify_collisions()
 
         out_path = Path(args.output) if args.output else in_p.with_suffix(".html")
-        scaffold_html(laid_out_data, out_path, args.target, tokens)
+        scaffold_html(laid_out_data, out_path, args.target, tokens, theme)
 
         # Same gates as --verify, so the agent never needs a second audit run.
         failed = False

@@ -96,7 +96,6 @@ def _validate(t: Dict[str, Any]) -> None:
         if not (isinstance(v, str) and _LENGTH.match(v)): raise _err(f"size.{k}", v)
     _validate_type(t["type"])
     _validate_icon(t["icon"])
-    _validate_icon(t["icon"])
     for k, v in t["motion"].items():
         if not (isinstance(v, str) and _TIME.match(v)): raise _err(f"motion.{k}", v)
     for k, v in t["radius"].items():
@@ -127,21 +126,7 @@ def _validate_icon(ic: Dict[str, Any]) -> None:
     for k, v in ic["size"].items():
         if not _KEY.match(k) or not num(v, 4, 128): raise _err(f"icon.size.{k}", v)
     for k in ("stroke", "strokeFine", "strokeBold"):
-        if not num(ic[k], 0.5, 4): raise _err(f"icon.{k}", ic[k])
-    if ic["cap"] not in ("round", "butt", "square"): raise _err("icon.cap", ic["cap"])
-    if ic["join"] not in ("round", "miter", "bevel"): raise _err("icon.join", ic["join"])
-
-
-def _validate_icon(ic: Dict[str, Any]) -> None:
-    """icon: set (a registry file name in assets/icons), size (name -> px), stroke widths, cap and join."""
-    def num(v: Any, lo: float, hi: float) -> bool:
-        return isinstance(v, (int, float)) and not isinstance(v, bool) and lo <= v <= hi
-
-    if not (isinstance(ic["set"], str) and _KEY.match(ic["set"])): raise _err("icon.set", ic["set"])
-    for k, v in ic["size"].items():
-        if not _KEY.match(k) or not num(v, 4, 128): raise _err(f"icon.size.{k}", v)
-    for k in ("stroke", "strokeFine", "strokeBold"):
-        if not num(ic[k], 0.5, 4): raise _err(f"icon.{k}", ic[k])
+        if not num(ic[k], 1.5, 2.5): raise _err(f"icon.{k}", ic[k])
     if ic["cap"] not in ("round", "butt", "square"): raise _err("icon.cap", ic["cap"])
     if ic["join"] not in ("round", "miter", "bevel"): raise _err("icon.join", ic["join"])
 
@@ -221,16 +206,20 @@ def _merge(base: Dict[str, Any], over: Dict[str, Any]) -> Dict[str, Any]:
     return base
 
 
-def load_tokens(theme_path: Optional[Path] = None) -> Dict[str, Any]:
-    """default.json with an optional theme file deep-merged over it (lists, such as palette, are replaced whole)."""
+def merge_theme(theme: Optional[Dict[str, Any]], source: str = "theme") -> Dict[str, Any]:
+    """default.json with a parsed theme deep-merged over it (lists, such as palette, are replaced whole), validated."""
     tokens = json.loads(DEFAULT_PATH.read_text(encoding="utf-8"))
-    if theme_path is not None:
-        theme = json.loads(Path(theme_path).read_text(encoding="utf-8"))
-        if theme.get("tokensVersion") != TOKENS_VERSION:
-            raise ValueError(f"tokens: unsupported tokensVersion {theme.get('tokensVersion')!r} in {theme_path}")
+    if theme is not None:
+        if not isinstance(theme, dict) or theme.get("tokensVersion") != TOKENS_VERSION:
+            raise ValueError(f"tokens: unsupported tokensVersion {theme.get('tokensVersion') if isinstance(theme, dict) else theme!r} in {source}")
         _merge(tokens, theme)
     _validate(tokens)
     return tokens
+
+
+def load_tokens(theme_path: Optional[Path] = None) -> Dict[str, Any]:
+    """default.json with an optional theme file deep-merged over it."""
+    return merge_theme(None if theme_path is None else json.loads(Path(theme_path).read_text(encoding="utf-8")), str(theme_path))
 
 
 def resolve_colors(tokens: Dict[str, Any], mode: str) -> Dict[str, str]:
@@ -360,6 +349,13 @@ if __name__ == "__main__":
         load_tokens(Path(tempfile.mkdtemp()) / "none.json")
     except FileNotFoundError:
         pass
+    assert load_tokens(theme({"icon": {"set": "lucide", "stroke": 1.5}}))["icon"]["stroke"] == 1.5
+    for bad in ({"icon": {"set": "A b"}}, {"icon": {"set": "x/../y"}}, {"icon": {"stroke": 3}}, {"icon": {"stroke": "2"}}):
+        try:
+            load_tokens(theme(bad))
+        except ValueError:
+            continue
+        raise AssertionError(f"accepted {bad}")
     p = theme({}); p.write_text('{"tokensVersion": 2}')
     try:
         load_tokens(p)
