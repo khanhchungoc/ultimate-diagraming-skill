@@ -398,37 +398,74 @@
         });
       }
 
-      // Row gaps: where a message (or a note) can go. Each gap has the index a new message would take and its y.
-      // Messages hidden in a collapsed frame have no gap of their own.
+      // Row gaps: where a message (or a note) can go. Messages hidden in a collapsed frame have no gap of their own.
+      // A gap where a frame closes or opens has one slot per depth, so a drop can land inside the frame (at its end or
+      // its start) or just outside it. A slot carries:
+      //   index  the index a new message would take, y  where the drop line is drawn,
+      //   frame  the innermost drawn frame the drop lands in (null: none),
+      //   plain  true for the one slot of a gap that is outside every frame closing or opening there (what a frame
+      //          edge, a divider or a lifespan end snaps to),
+      //   join   the frame edges a message dropped here takes over: [{id, edge: 'to' | 'from'}],
+      //   note   what a note dropped here is saved as ({after} or {before}), or null when a note cannot sit here: the
+      //          engine draws an after-note inside every frame that ends at that message and a before-note outside every
+      //          frame that starts at it, so only the innermost end slot and the outside slots can be written.
       function rowSlots(skipId) {
         const ms = chartData.messages.filter((m) => m.id !== skipId);
         const vis = [];
         ms.forEach((m, i) => { if (!m.hidden) vis.push({ m, i }); });
-        if (!vis.length) return [{ index: ms.length, y: SQ.TOP + SQ.BOX_H + SQ.FIRST_GAP + SQ.ARROW_AT }];
-        const slots = [{ index: vis[0].i, y: vis[0].m.y - 34 }];
-        for (let k = 1; k < vis.length; k++) slots.push({ index: vis[k].i, y: (vis[k - 1].m.y + vis[k].m.y) / 2 });
+        if (!vis.length) return [{ index: ms.length, y: SQ.TOP + SQ.BOX_H + SQ.FIRST_GAP + SQ.ARROW_AT, plain: true, frame: null, join: [], note: {} }];
+        const spans = drawnSpans(skipId), bottom = (s) => s.f.y + s.f.h;
         let last = vis[vis.length - 1].i + 1;
         while (last < ms.length && ms[last].hidden) last++;
-        slots.push({ index: last, y: vis[vis.length - 1].m.y + 34 });
+        const slots = [];
+        for (let k = 0; k <= vis.length; k++) {
+          const A = vis[k - 1] || null, B = vis[k] || null, index = B ? B.i : last;
+          const closing = A ? spans.filter((s) => s.b === A.i).sort((u, v) => bottom(u) - bottom(v)) : [];   // inner first
+          const opening = B ? spans.filter((s) => s.a === B.i).sort((u, v) => u.f.y - v.f.y) : [];           // outer first
+          closing.forEach((s, i) => slots.push({
+            index, y: bottom(s) - 10, plain: false, frame: s.f, join: closing.slice(i).map((c) => ({ id: c.f.id, edge: 'to' })), note: i === 0 ? { after: A.m.id } : null
+          }));
+          let y;
+          if (closing.length && opening.length) y = (bottom(closing[closing.length - 1]) + opening[0].f.y) / 2;
+          else if (closing.length) y = bottom(closing[closing.length - 1]) + 12;
+          else if (opening.length) y = A ? (A.m.y + 22 + opening[0].f.y) / 2 : opening[0].f.y - 14;
+          else y = A && B ? (A.m.y + B.m.y) / 2 : A ? A.m.y + 34 : B.m.y - 34;
+          const note = index < ms.length ? { before: ms[index].id } : closing.length ? null : { after: A.m.id };
+          slots.push({ index, y, plain: true, frame: frameAtSlot(index, skipId), join: [], note });
+          opening.forEach((s, j) => slots.push({
+            index, y: s.f.y + 28, plain: false, frame: s.f, join: opening.slice(0, j + 1).map((o) => ({ id: o.f.id, edge: 'from' })), note: null
+          }));
+        }
         return slots;
       }
       const nearestSlot = (slots, y) => slots.reduce((b, s) => (Math.abs(s.y - y) < Math.abs(b.y - y) ? s : b), slots[0]);
-      // The innermost drawn frame a message inserted at `index` (of the list without skipId) would land in
-      function frameAtSlot(index, skipId) {
+      // The drawn frames as message ranges [a, b] of the list without skipId. A frame whose first or last message is
+      // the one moving keeps its edge on the neighbour that stays.
+      function drawnSpans(skipId) {
         const order = chartData.messages.map((m) => m.id).filter((id) => id !== skipId);
         const full = chartData.messages.map((m) => m.id);
-        let best = null;
+        const out = [];
         chartData.fragments.forEach((f) => {
           if (f.x === undefined) return;
-          // A frame whose first or last message is the one moving keeps its edge on the neighbour that stays
           let fa = full.indexOf(f.from), fb = full.indexOf(f.to);
           while (fa <= fb && full[fa] === skipId) fa++;
           while (fb >= fa && full[fb] === skipId) fb--;
           if (fa > fb) return;
-          const a = order.indexOf(full[fa]), b = order.indexOf(full[fb]);
-          if (a < index && index <= b && (!best || b - a < best.span)) best = { f, span: b - a };
+          out.push({ f, a: order.indexOf(full[fa]), b: order.indexOf(full[fb]) });
         });
+        return out;
+      }
+      // The innermost drawn frame a message inserted at `index` (of the list without skipId) would land in
+      function frameAtSlot(index, skipId) {
+        let best = null;
+        drawnSpans(skipId).forEach((s) => { if (s.a < index && index <= s.b && (!best || s.b - s.a < best.span)) best = { f: s.f, span: s.b - s.a }; });
         return best && best.f;
+      }
+      // The slots that are outside every frame closing or opening at their gap: one per gap
+      const plainSlots = () => rowSlots().filter((s) => s.plain);
+      // Make a message dropped at `slot` the last (or first) message of the frames the slot is inside
+      function joinFrames(slot, id) {
+        slot.join.forEach((j) => { const f = fragById(j.id); if (f) f[j.edge] = id; });
       }
       function showDropLine(y, frame) {
         const L = chartData.layout;
@@ -739,14 +776,18 @@
           return true;
         });
       }
-      // Move a message to `index` in the list without it
-      function moveMessage(id, index) {
+      // Move a message to a slot (see rowSlots): to its index in the list without it, and into the frames the slot is
+      // inside at their end or start. Dropped back where it was, it may still leave or join a frame: false only if
+      // nothing changed.
+      function moveMessage(id, slot) {
         const ms = chartData.messages, from = msgIndex(id);
-        if (from < 0 || index === from) return false;
+        if (from < 0) return false;
+        const was = JSON.stringify(chartData.fragments);
         detachMessage(id);
         const [m] = ms.splice(from, 1);
-        ms.splice(Math.max(0, Math.min(index, ms.length)), 0, m);
-        return true;
+        ms.splice(Math.max(0, Math.min(slot.index, ms.length)), 0, m);
+        joinFrames(slot, id);
+        return slot.index !== from || JSON.stringify(chartData.fragments) !== was;
       }
       function messageDrag(id) {
         return {
@@ -759,10 +800,10 @@
             }
             const m = msgById(id);
             d.slot = nearestSlot(rowSlots(id), m.y + d.dy);
-            showDropLine(d.slot.y, frameAtSlot(d.slot.index, id));
+            showDropLine(d.slot.y, d.slot.frame);
           },
           drop(pt, d) {
-            if (d.slot && moveMessage(id, d.slot.index)) relayout(); else render();
+            if (d.slot && moveMessage(id, d.slot)) relayout(); else render();
           }
         };
       }
@@ -784,41 +825,58 @@
         const free = e.target === seqCanvas || e.target === seqSvg || e.target === seqHtml || e.target.classList.contains('seq-pin-band')
           || e.target.classList.contains('seq-frag-hit') || e.target.classList.contains('seq-div-hit')
           || e.target.classList.contains('seq-life-hit') || e.target.classList.contains('seq-activation');
-        const p = free && pt.y > SQ.TOP + SQ.BOX_H + 8 && pt.y < chartData.layout.height - 30 ? nearestParticipant(pt.x) : null;
+        // Down to a little past the last slot (the room below the last message), not a fixed margin from the layout's edge
+        const slots = rowSlots();
+        const p = free && pt.y > SQ.TOP + SQ.BOX_H + 8 && pt.y < slots[slots.length - 1].y + 24 ? nearestParticipant(pt.x) : null;
         if (!p || Math.abs(p.x - pt.x) > 16) { hidePlus(); return; }
-        const slot = nearestSlot(rowSlots(), pt.y);
+        const slot = nearestSlot(slots, pt.y);
         if (!seqPlus.isConnected) seqHtml.appendChild(seqPlus);
         Object.assign(seqPlus.style, { display: 'flex', left: px(p.x), top: px(slot.y) });
         seqPlus.dataset.pid = p.id;
-        seqPlus.dataset.index = slot.index;
-        seqPlus.dataset.y = slot.y;
+        seqPlus.dataset.slot = slots.indexOf(slot);
       }
       seqCanvas.addEventListener('pointermove', onCanvasHover);
       seqCanvas.addEventListener('pointerleave', () => { hidePlus(); seqCanvas.classList.remove('seq-row-hover'); });
       // fromLine: the drag started on a lifeline or an activation bar, not on the + (a click there selects the
-      // participant). A self-message needs the pointer to have gone 30px out from the lifeline, so a wobble draws nothing.
-      function connectDrag(pid = seqPlus.dataset.pid, index = +seqPlus.dataset.index, y = +seqPlus.dataset.y, fromLine = false) {
-        const from = partById(pid);
+      // participant). A message needs the pointer near the lifeline it lands on (SNAP_MAX, or a third of the gap to the
+      // next lifeline when that is less); a self-message needs the pointer to have gone SELF_OUT out from the lifeline and
+      // come back; a drag shorter than MIN_DRAW is a click. Anything else cancels, and then no lifeline is lit.
+      const SNAP_MAX = 40, SELF_OUT = 60, MIN_DRAW = 8;
+      function snapTarget(x) {
+        const p = nearestParticipant(x);
+        if (!p) return null;
+        const gap = Math.min(...chartData.participants.filter((o) => o !== p).map((o) => Math.abs(o.x - p.x)), Infinity);
+        return Math.abs(p.x - x) <= Math.min(SNAP_MAX, gap / 3) ? p : null;
+      }
+      function connectDrag(pid = seqPlus.dataset.pid, slot = rowSlots()[+seqPlus.dataset.slot], fromLine = false) {
+        const from = partById(pid), index = slot.index, y = slot.y;
+        // The lifeline a release at pt would land on, or null: a release there cancels
+        const landing = (pt, d) => {
+          d.away = Math.max(d.away || 0, Math.abs(pt.x - from.x));
+          const to = snapTarget(pt.x);
+          return to && to.id === from.id && d.away < SELF_OUT ? null : to;
+        };
+        const click = () => { hidePlus(); if (fromLine) select('participant', from.id); };
         return {
           move(pt, d) {
             hidePlus();
-            d.away = Math.max(d.away || 0, Math.abs(pt.x - from.x));
-            let to = nearestParticipant(pt.x);
-            if (to && to.id === from.id && d.away < 30) to = null;   // a self-message: out to the side and back
-            d.to = to;
-            lightLifeline(to && to.id);
+            d.to = landing(pt, d);
+            lightLifeline(d.to && d.to.id);
             showRubber(from.x, y, pt.x, y + (pt.y - y) * 0.15);
-            showDropLine(y, frameAtSlot(index));
+            showDropLine(y, slot.frame);
           },
           drop(pt, d) {
-            if (!d.to) { render(); return; }
-            const kind = drawnKind(from.id, d.to.id, index);
-            expandFramesHiding([from.id, d.to.id]);   // never draw into a collapsed frame: open the ones that hide a rail
-            const m = { id: seqUid('m'), from: from.id, to: d.to.id, label: kind === 'reply' ? 'Reply' : 'Message', kind };
+            const to = landing(pt, d);
+            if (Math.hypot(d.dx, d.dy) < MIN_DRAW) { click(); render(); return; }
+            if (!to) { render(); return; }
+            const kind = drawnKind(from.id, to.id, index);
+            expandFramesHiding([from.id, to.id]);   // never draw into a collapsed frame: open the ones that hide a rail
+            const m = { id: seqUid('m'), from: from.id, to: to.id, label: kind === 'reply' ? 'Reply' : 'Message', kind };
             chartData.messages.splice(index, 0, m);
+            joinFrames(slot, m.id);
             editCreated('message', m.id);
           },
-          click() { hidePlus(); if (fromLine) select('participant', from.id); }
+          click
         };
       }
       // The kind of a message added from `from` to `to` at `index` (drawn, or added by the dock's Message button): the reply of the latest call from `to` to `from`
@@ -860,7 +918,7 @@
           const f = fragById(h.dataset.id);
           return {
             move(pt, d) {
-              d.slot = nearestSlot(rowSlots(), pt.y);
+              d.slot = nearestSlot(plainSlots(), pt.y);
               showDropLine(d.slot.y, null);
             },
             drop(pt, d) {
@@ -880,7 +938,7 @@
           const p = partById(h.dataset.id);
           return {
             move(pt, d) {
-              d.slot = nearestSlot(rowSlots(), pt.y);
+              d.slot = nearestSlot(plainSlots(), pt.y);
               showDropLine(d.slot.y, null);
             },
             drop(pt, d) {
@@ -935,13 +993,13 @@
           move(pt, d) {
             el.classList.add('dragging');
             el.style.transform = `translate(${d.dx}px, ${d.dy}px)`;
-            d.slot = nearestSlot(rowSlots(), n.y + d.dy);
-            showDropLine(d.slot.y, null);
+            d.slot = nearestSlot(rowSlots().filter((s) => s.note), n.y + d.dy);
+            showDropLine(d.slot.y, d.slot.frame);
             const p = nearestParticipant(n.x + n.w / 2 + d.dx);
             lightLifeline(p && p.id);
           },
           drop(pt, d) {
-            const ps = chartData.participants, ms = chartData.messages;
+            const ps = chartData.participants;
             const over = Array.isArray(n.over) ? n.over : [n.over];
             const centre = nearestParticipant(n.x + n.w / 2 + d.dx);
             const was = nearestParticipant(n.x + n.w / 2);
@@ -950,8 +1008,7 @@
             n.over = idx.length > 1 && idx[0] !== idx[1] ? idx.map((i) => ps[i].id) : ps[idx[0]].id;
             delete n.after;
             delete n.before;
-            if (d.slot.index < ms.length) n.before = ms[d.slot.index].id;
-            else if (ms.length) n.after = ms[ms.length - 1].id;
+            Object.assign(n, d.slot.note);
             relayout();
           }
         };
@@ -962,7 +1019,7 @@
         const f = fragById(fid);
         return {
           move(pt, d) {
-            d.slot = nearestSlot(rowSlots(), pt.y);
+            d.slot = nearestSlot(plainSlots(), pt.y);
             showDropLine(d.slot.y, f);
           },
           drop(pt, d) {
@@ -1023,8 +1080,7 @@
         const src = e.target.closest('.seq-life-hit, .seq-activation');
         if (src) {
           e.stopPropagation();
-          const slot = nearestSlot(rowSlots(), canvasPoint(e).y);
-          beginDrag(e, connectDrag(src.dataset.pid || src.dataset.nodeId, slot.index, slot.y, true));
+          beginDrag(e, connectDrag(src.dataset.pid || src.dataset.nodeId, nearestSlot(rowSlots(), canvasPoint(e).y), true));
           return;
         }
         const hit = e.target.closest('.seq-participant, .seq-msg-label, .seq-msg-hit, .seq-msg-detail, .frame-tag, .seq-frag-hit, .seq-div-hit, .seq-frag-branch-label, .seq-frag-else-label, .note');
@@ -1711,7 +1767,7 @@
             if (!other) return;
             // In the list without the moving message, past the neighbour in that direction is the neighbour's own
             // index both ways (down: it moved up one; up: it is still there)
-            if (moveMessage(seqSel.id, msgIndex(other.id))) { relayout(); panIntoView(seqHtml.querySelector(`.seq-msg-label[data-edge-id="${seqSel.id}"]`)); }
+            if (moveMessage(seqSel.id, { index: msgIndex(other.id), join: [] })) { relayout(); panIntoView(seqHtml.querySelector(`.seq-msg-label[data-edge-id="${seqSel.id}"]`)); }
             return;
           }
           if (e.shiftKey && seqSel && seqSel.kind === 'message') {
