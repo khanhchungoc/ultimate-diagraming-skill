@@ -4,8 +4,8 @@
 
 These apply to every turn in this repository, from the first message to the last.
 
-- **Ponytail, full level.** Follow the ponytail skill at its `full` level (the default): the smallest complete change, reuse before writing new code, one or two closing lines on what was skipped or not checked. Full rules: @.claude/skills/ponytail/SKILL.md
-- **Caveman, ultra level.** Write every reply in the ultracave style: fragments, one word when one word is enough, each fact once, payload verbatim. Full rules: @.claude/skills/ultracave/SKILL.md
+- **Ponytail, full level.** Follow the ponytail skill at its `full` level (the default): the smallest complete change, reuse before writing new code, one or two closing lines on what was skipped or not checked. Full rules: [.claude/skills/ponytail/SKILL.md](.claude/skills/ponytail/SKILL.md)
+- **Caveman, ultra level.** Write every reply in the ultracave style: fragments, one word when one word is enough, each fact once, payload verbatim. Full rules: [.claude/skills/ultracave/SKILL.md](.claude/skills/ultracave/SKILL.md)
 
 ## Exceptions (both modes)
 
