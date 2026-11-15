@@ -725,7 +725,7 @@ sys.stdout.write(format_json(out))`;
     ['reverse a relationship', async () => { const q1 = await onLine('r2'); await t.click(q1.x, q1.y); await t.clickOn('.erd-actionbar [data-act="reverse"]'); }],
     ['label a relationship', async () => { const q1 = await onLine('r8'); await t.click(q1.x, q1.y, { count: 2 }); await t.type('reviews'); await t.press('Enter'); }],
     ['delete a relationship', async () => { const q1 = await onLine('r8'); await t.click(q1.x, q1.y); await t.press('Delete'); }],
-    ['move a table', async () => { const h1 = await t.at(head('category')); await t.dragTo(h1.x, h1.y, h1.x + 70, h1.y + 50); }],
+    ['move a table', async () => { const h1 = await t.at(head((await tableIds())[4])); await t.dragTo(h1.x, h1.y, h1.x + 70, h1.y + 50); }],
     ['colour a table', async () => { await t.clickOn(head('address')); await t.clickOn('.erd-actionbar .swatch-btn[data-value="#fef3c7"]'); }],
     ['collapse a table', async () => { await t.clickOn(`${head('order')} .erd-chevron`); }],
     ['add a note', async () => { await t.clickOn(head('address')); await t.press('n'); await t.type('Hi'); await t.press('Escape'); }],
@@ -734,7 +734,7 @@ sys.stdout.write(format_json(out))`;
     ['delete a note', async () => { await t.clickOn('.erd-entity[data-node-id="order"] .erd-note-badge'); await t.press('Escape'); await t.press('Delete'); }],
     ['delete a table', async () => { await t.clickOn(head('order')); await t.press('Delete'); await t.clickOn('.erd-confirm-delete'); }],
     // a hand move first (its own undo step, done before the baseline), so that Tidy has something to change
-    ['Tidy', async () => { await t.clickOn('#btn-auto-tidy'); }, async () => { const h1 = await t.at(head('category')); await t.dragTo(h1.x, h1.y, h1.x + 90, h1.y - 120); }],
+    ['Tidy', async () => { await t.clickOn('#btn-auto-tidy'); }, async () => { const h1 = await t.at(head((await tableIds())[4])); await t.dragTo(h1.x, h1.y, h1.x + 90, h1.y - 120); }],
   ];
   const stepProblems = [];
   for (const [what, act, setup] of cases) {
@@ -1246,6 +1246,58 @@ sys.stdout.write(format_json(out))`;
   t.check('overview: Copy as Mermaid lists every column of every table', mm.startsWith('erDiagram') && big.entities.every((e) => e.columns.every((c) => new RegExp(`^        \\S+ ${c.name}\\b`, 'm').test(mm))) && (mm.match(/^        /gm) || []).length === colTotal, `${(mm.match(/^        /gm) || []).length} ${colTotal}`);
   t.check('overview: exporting leaves the overview on (the page is unchanged)', await inOverview() && (await count('.erd-expand-card')) <= 1);
   await t.send('Page.removeScriptToEvaluateOnNewDocument', { identifier: clipStub });
+  }
+
+  // --- A big layout runs in a worker: the page stays responsive, the result is the synchronous layout, undo restores ---
+  {
+  const layoutOfSaved = async () => J((await saved()).layout);
+  // Round trips through requestAnimationFrame while the layout runs: the longest one says whether the page froze
+  const waitIdle = () => t.ev(`(async () => {
+    let worst = 0, sawBusy = document.body.hasAttribute('data-erd-busy'), hint = !!document.querySelector('.erd-hint');
+    const end = performance.now() + 90000;
+    while (document.body.hasAttribute('data-erd-busy') && performance.now() < end) {
+      const t0 = performance.now();
+      await new Promise((r) => requestAnimationFrame(r));
+      worst = Math.max(worst, performance.now() - t0);
+      hint = hint || !!document.querySelector('.erd-hint');
+    }
+    return { worst, sawBusy, hint, left: document.body.hasAttribute('data-erd-busy') };
+  })()`);
+  // The reference: the same Tidy with no Worker, so the page lays out synchronously as it did before the worker existed
+  const noWorker = (await t.send('Page.addScriptToEvaluateOnNewDocument', { source: 'window.Worker = undefined' })).identifier;
+  await freshPage(large);
+  await t.clickOn('#btn-auto-tidy');
+  await sleep(500);
+  const cold = await layoutOfSaved();
+  t.check('large: without Worker, Tidy lays out synchronously (the fallback)', (await count('.erd-hint')) === 0 && !(await t.ev(`document.body.hasAttribute('data-erd-busy')`)) && t.errors.length === 0, t.errors.join(' | '));
+  t.check('large: Tidy in the browser gives exactly the layout the Python build (engine under Node) wrote into the page', cold === J(JSON.parse(block(readFileSync(large, 'utf8'))).layout));
+  await t.send('Page.removeScriptToEvaluateOnNewDocument', { identifier: noWorker });
+  await freshPage(large);
+  const h1 = await t.at(head((await tableIds())[4]));
+  await t.dragTo(h1.x, h1.y, h1.x + 90, h1.y - 120);
+  const moved = await layoutOfSaved();
+  t.check('large: a hand move changes the layout (setup for Tidy)', moved !== cold);
+  await t.clickOn('#btn-auto-tidy');
+  const tidy = await waitIdle();
+  t.check('large: Tidy runs in the background (busy flag and hint shown) and every animation frame still came back within 1 s', tidy.sawBusy && tidy.hint && !tidy.left && tidy.worst < 1000, J(tidy));
+  t.check('large: the busy hint is gone when the layout lands', (await count('.erd-hint')) === 0);
+  t.check('large: Tidy in the worker gives exactly the synchronous layout', (await layoutOfSaved()) === cold);
+  await undo();
+  t.check('large: undo restores the layout from before Tidy', (await layoutOfSaved()) === moved && t.errors.length === 0, t.errors.join(' | '));
+  await redo();
+
+  // a page with no positions (a v1/v2 file) opens, shows a provisional grid, then lands on the same layout; it is not an edit
+  const bare = JSON.parse(block(readFileSync(large, 'utf8')));
+  delete bare.layout;
+  const bareFile = join(dirname(large), 'bare-erd-test.html');
+  writeFileSync(bareFile, readFileSync(large, 'utf8').replace(/(<script id="diagram-data" type="application\/json">)[\s\S]*?(<\/script>)/, (m, a, b) => a + J(bare) + b));
+  await freshPage(bareFile);
+  t.check('large, no positions: the page draws every table while the layout runs', (await count('.erd-entity')) >= 28 && (await t.ev(`document.body.hasAttribute('data-erd-busy')`)));
+  const idle = await waitIdle();
+  t.check('large, no positions: the page stays responsive during the cold layout', idle.worst < 1000 && !idle.left, J(idle));
+  t.check('large, no positions: the result is the synchronous layout, not an unsaved edit, nothing to undo', (await layoutOfSaved()) === cold && !(await undoDisabled() === false), '');
+  unlinkSync(bareFile);
+  t.check('large, no positions: no errors', t.errors.length === 0, t.errors.join(' | '));
   }
 
   t.check('no errors in the whole run', t.errors.length === 0, t.errors.join(' | '));

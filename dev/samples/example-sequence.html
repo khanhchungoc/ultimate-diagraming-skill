@@ -1456,6 +1456,7 @@
 
       // Keep the current zoom and pan so the user stays where they were (Fit/100% is one click away).
       btnAutoTidy.addEventListener('click', () => {
+        if (plugin.tidy) { plugin.tidy(); return; }
         layoutDiagram(chartData);
         plugin.render();
         updateStatus(true);
@@ -2516,6 +2517,7 @@
           plugin.deleteSelection();
         }
       });
+//@engine-begin
       // --- SEQUENCE LAYOUT ENGINE ---
       // Pure JS, no DOM access. Defines layoutDiagram(data) (see assets/shell/shell.js) and is run by the page
       // (Auto-Tidy, edits) and by scripts/run_engine.mjs (--layout). The Python audit in scripts/audit_sequence.py
@@ -2834,6 +2836,7 @@
         }
         data.layout = { width: Math.round(maxRight + SQ.MARGIN), height: Math.round(y + SQ.TAIL) };
       }
+//@engine-end
       // ===== SEQUENCE DIAGRAM PLUGIN =====
       // Renders chartData (participants, messages, fragments) laid out by engine.js and handles editing.
       // Positions are always derived by layoutDiagram(): edits change the logical model, then re-layout.

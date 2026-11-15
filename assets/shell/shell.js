@@ -313,6 +313,7 @@
 
       // Keep the current zoom and pan so the user stays where they were (Fit/100% is one click away).
       btnAutoTidy.addEventListener('click', () => {
+        if (plugin.tidy) { plugin.tidy(); return; }
         layoutDiagram(chartData);
         plugin.render();
         updateStatus(true);

@@ -118,11 +118,95 @@
         routedSig = inputSignature();
       }
 
+      // --- BACKGROUND LAYOUT ---
+      // A cold layout of 30 tables takes seconds, so a diagram of ERD_ASYNC_MIN tables or more is laid out in a Web Worker
+      // built from the engine's own source (read from this page's script between the markers shell.html puts around it).
+      // The result is applied only if the model is unchanged since it was posted, else it is dropped. Without Worker, Blob or
+      // the markers, or under ?tidy / ?report (which read the finished layout at once), the layout runs synchronously.
+      // shortcut: 12 tables is the point where the worker's start-up stops costing more than the layout, upgrade if that moves.
+      const ERD_ASYNC_MIN = 12;
+      const erdEngineSrc = (() => {
+        const text = document.currentScript ? document.currentScript.textContent : '';
+        const a = text.indexOf('//@engine' + '-begin'), b = text.indexOf('//@engine' + '-end', a);
+        return a < 0 || b < 0 ? '' : text.slice(a, b);
+      })();
+      const ERD_WORKER_TAIL = '\nonmessage = (e) => { const { seq, data, opts } = e.data; layoutDiagram(data, opts); postMessage({ seq, data }); };';
+      let erdJob = null, erdSeq = 0;
+
+      const erdAsyncOK = () => !!erdEngineSrc && typeof Worker === 'function' && erdEntities().length >= ERD_ASYNC_MIN
+        && !/[?&](tidy|report)(=|&|$)/.test(window.location.search);
+
+      function erdEndJob() {
+        if (!erdJob) return;
+        erdJob.worker.terminate();
+        URL.revokeObjectURL(erdJob.url);
+        erdJob = null;
+        delete document.body.dataset.erdBusy;
+        erdHint(null);
+      }
+
+      // Posts the model to a new worker (replacing a running one); false when a worker cannot be made. after() runs once the
+      // positions are in.
+      function erdStartJob(warm, after) {
+        erdEndJob();
+        let worker, url;
+        try {
+          url = URL.createObjectURL(new Blob([erdEngineSrc + ERD_WORKER_TAIL], { type: 'text/javascript' }));
+          worker = new Worker(url);
+        } catch (e) {
+          if (url) URL.revokeObjectURL(url);
+          return false;
+        }
+        const job = erdJob = { seq: ++erdSeq, worker, url, warm, after, sig: inputSignature() };
+        worker.onmessage = (ev) => erdFinishJob(job, ev.data);
+        worker.onerror = (ev) => { ev.preventDefault(); erdFinishJob(job, null); };
+        worker.postMessage({ seq: job.seq, data: chartData, opts: warm && erdEntities().some(erdIsPlaced) ? { warm: true } : undefined });
+        document.body.dataset.erdBusy = '';
+        erdHint('Laying out the diagram…', true);
+        return true;
+      }
+
+      function erdFinishJob(job, result) {
+        if (job !== erdJob || (result && result.seq !== erdSeq)) return;   // replaced meanwhile
+        erdEndJob();
+        if (!result) { erdLayout(job.warm); job.after(); return; }          // the worker failed (CSP): lay out here
+        if (inputSignature() !== job.sig) return;                          // the model changed while it ran: stale
+        const byId = (list) => new Map(list.map((x) => [x.id, x]));
+        const ents = byId(erdEntities()), rels = byId(erdRelsList());
+        result.data.entities.forEach((e) => Object.assign(ents.get(e.id), e));
+        (result.data.relationships || []).forEach((r) => Object.assign(rels.get(r.id), r));
+        chartData.canvas = result.data.canvas;
+        routedSig = inputSignature();
+        job.after();
+      }
+
+      // Lays out (cold unless warm) and then runs after() (render, undo step). In the background when erdAsyncOK: the
+      // screen shows the edit on the old layout meanwhile.
+      function erdLayoutThen(warm, after) {
+        if (erdAsyncOK() && erdStartJob(warm, after)) render();
+        else { erdLayout(warm); after(); }
+      }
+
+      // Tables without a position, while the worker lays them out: a grid, so the page can draw something. The job's
+      // signature is taken again because the model's x/y changed.
+      function erdProvisional() {
+        const todo = erdEntities().filter((e) => !erdIsPlaced(e)), cols = Math.ceil(Math.sqrt(todo.length));
+        todo.forEach((e, i) => { e.x = ER.MARGIN + (i % cols) * (ER.MAX_W + ER.GAP_X); e.y = ER.MARGIN + Math.floor(i / cols) * 360; });
+        if (erdJob) erdJob.sig = inputSignature();
+      }
+
       function ensureLayout() {
         const ents = erdEntities();
         const derivedKept = !!chartData.canvas && ents.every((e) => e.box) && erdRelsList().every((r) => r.curve);
         if (ents.some((e) => !erdIsPlaced(e))) {
-          layoutDiagram(chartData);   // anything unplaced (a v1/v2 page, a table made by hand): the whole diagram is laid out
+          // anything unplaced (a v1/v2 page, a table made by hand): the whole diagram is laid out
+          const background = erdJob || (erdAsyncOK() && erdStartJob(false, () => {
+            render();
+            fitView();
+            committedJson = savedJson = JSON.stringify(chartData);   // the laid-out page is the one that counts as unedited
+            setStatusBadge(false);
+          }));
+          if (background) { erdProvisional(); routeDiagram(chartData); } else layoutDiagram(chartData);
         } else {
           const sig = inputSignature();
           if (!(derivedKept && sig === routedSig)) routeDiagram(chartData);
@@ -736,9 +820,8 @@
         if (e.collapsed === true) delete e.collapsed; else e.collapsed = true;
         // Auto-Tidy on: the diagram re-lays out (warm). Off: tables stay where they are, only their sizes and the lines
         // change (render() re-routes because the model changed). In ?present it is a change of view, not an edit.
-        if (autoLayout) erdLayout(true);
-        render();
-        if (!erdPresenting()) updateStatus(true);
+        const done = () => { render(); if (!erdPresenting()) updateStatus(true); };
+        if (autoLayout) erdLayoutThen(true, done); else done();
       }
 
       // --- DOCK: Columns, Types, Notes, direction, Auto-Tidy ---
@@ -835,24 +918,20 @@
       // The tables changed size (Columns, Types). Auto-Tidy on: the diagram re-lays out (warm). Off: hand-placed tables stay
       // where they are and only the lines are re-routed; a table that now overlaps another is pushed right or down,
       // whichever is shorter.
-      function resizeLayout() {
-        if (autoLayout || erdEntities().some((e) => !erdIsPlaced(e))) { erdLayout(true); return; }
+      function resizeLayout(after) {
+        if (autoLayout || erdEntities().some((e) => !erdIsPlaced(e))) { erdLayoutThen(true, after); return; }
         erdSettled();
+        after();
       }
 
       if (erdBtnColumns) erdBtnColumns.addEventListener('click', () => {
         const next = ERD_DETAILS[(ERD_DETAILS.indexOf(erdDetail()) + 1) % ERD_DETAILS.length];
         if (next === 'all') delete chartData.detail; else chartData.detail = next;
-        resizeLayout();   // sizes change; rank and order do not (check_golden.py)
-        render();
-        updateStatus(true);
-        fitView();
+        resizeLayout(() => { render(); updateStatus(true); fitView(); });   // sizes change; rank and order do not (check_golden.py)
       });
       if (erdBtnTypes) erdBtnTypes.addEventListener('click', () => {
         if (chartData.showTypes === false) delete chartData.showTypes; else chartData.showTypes = false;
-        resizeLayout();
-        render();
-        updateStatus(true);
+        resizeLayout(() => { render(); updateStatus(true); });
       });
 
       // --- AUTO-TIDY ---
@@ -860,9 +939,7 @@
       // The choice is an editing preference of this browser, not part of the diagram.
       // relayout() is what commit() (EDITING) calls after each structural edit while Auto-Tidy is on.
       function relayout() {
-        erdLayout(true);
-        render();
-        updateStatus(true);
+        erdLayoutThen(true, () => { render(); updateStatus(true); });
       }
       if (erdBtnAuto) erdBtnAuto.addEventListener('click', () => {
         autoLayout = !autoLayout;
@@ -2626,6 +2703,11 @@
         fromDisk,
         toMermaid,
         contentEl: erdCanvas,
+        // The Tidy button: a cold layout, one undo step
+        tidy() {
+          const done = () => { render(); updateStatus(true); };
+          if (!(erdAsyncOK() && erdStartJob(false, done))) { erdLayout(false); done(); }
+        },
         report: { node: '.erd-entity', label: '.erd-rel-label', labelText: '.erd-rel-label-text', nodeText: '.erd-name' },
         render,
         isBackground: (el) => el === erdCanvas || el === erdSvg || el === erdOverlay || el === erdHtml || el.id === 'erd-notes',
