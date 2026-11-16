@@ -186,6 +186,7 @@
     .seq-handle.seq-end { cursor: grab; }
     .seq-handle.seq-edge { width: 22px; height: 10px; margin: -5px 0 0 -11px; border-radius: var(--radius-md); cursor: ns-resize; }
     .seq-handle.seq-stretch { width: 10px; height: 22px; margin: -11px 0 0 -5px; border-radius: var(--radius-md); cursor: ew-resize; }
+    body.seq-dragging .seq-handle.seq-barend:not(.is-drag) { display: none; }
     .seq-add-branch {
       position: absolute; height: 22px; padding: 0 9px; transform: translateY(-50%); z-index: 9; border-radius: var(--radius-pill);
       border: 1.5px solid var(--primary); background: var(--bg-panel); color: var(--primary); font: inherit; font-size: var(--t-detail-size);
