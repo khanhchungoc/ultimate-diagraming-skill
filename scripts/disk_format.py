@@ -36,6 +36,9 @@ ERD_SCHEMA_VERSION = 3  # v3: no groups (tables carry `color`), absolute positio
 ERD_ENTITY_LAYOUT = ("x", "y")  # a table's absolute top-left, in the `layout` map keyed by table id
 # Engine output on the ERD model, never saved (plus the top-level "canvas", "_loose" and "_band")
 ERD_DERIVED = (("entities", ("box",)), ("relationships", ("curve", "points", "labelBox")))
+USECASE_KEYS = ("diagramType", "schemaVersion", "title", "showRefs", "showNotes", "colorKey",
+                "subjects", "actors", "useCases", "links", "notes", "layout")
+USECASE_SCHEMA_VERSION = 1
 NODE_LAYOUT = ("x", "y")
 LANE_LAYOUT = ("height", "color")
 GENERATED_ID = re.compile(r"^(n|c|e|lane)_\d{12,}(_\d+)?$")  # editor ids: <prefix>_<Date.now()>[_k]
@@ -368,12 +371,131 @@ def erd_from_disk(data: Dict[str, Any]) -> Dict[str, Any]:
     _slot_colors(d, "entities")
     return d
 
+# --- Use case diagrams (diagramType "usecase") -------------------------------------------------------------------------
+# Codec spec. The page's toDisk/fromDisk (assets/types/usecase/usecase.js) must produce the same bytes:
+#  to_disk(model):
+#   1. deep copy; set schemaVersion 1; drop the top-level "layout", "canvas" and every top-level key that starts with "_"
+#      except "_readme" (the shell adds that one itself, see with_readme()).
+#   2. colours: `color` of actors and useCases, and colorKey, become palette slots (_slot_colors).
+#   3. drop derived fields: on every object of subjects, actors, useCases, links and notes every key that starts with "_";
+#      on subjects "x", "y", "w", "h"; on actors and useCases "w" and "h"; on links "points" and "labelBox".
+#      (Notes carry no positions; only their "_" fields are dropped.)
+#   4. rename editor ids (below), following every reference.
+#   5. layout: {id: {"x": .., "y": ..}} for actors, then useCases, in array order, for those that have numeric x and y;
+#      their "x"/"y" are removed from the objects. The "layout" key is omitted when empty.
+#   6. key order USECASE_KEYS, then any unknown keys in their existing order.
+#  from_disk(block): deep copy; drop "layout" and "direction"; when schemaVersion is absent or 1, put each layout entry's
+#   x/y back on the actor or use case with that id (any other schemaVersion: the layout is dropped, the page lays out
+#   afresh); colours as slots. "_readme" is removed by from_disk() before the codec runs.
+#  Editor ids: <prefix>_<Date.now()>[_k] with prefix a (actor), u (use case), s (subject), l (link), n (note), 12+ digits.
+#   Actors, use cases and subjects share one id namespace (links reference actors and use cases alike) and are renamed to
+#   their name slug (slug(), "_" separator; "actor"/"use_case"/"subject" when the name is empty), suffix _2, _3 ... when
+#   the id is taken. Links become the next free l<N>, notes the next free n<N>, counting from 1 in array order.
+#   Renamed ids are followed in: link from/to, useCases[].subject, actors[].parent, useCases[].parent, notes[].useCases,
+#   notes[].actors. Authored ids (anything not matching the pattern) are never touched.
+USECASE_GENERATED_ID = re.compile(r"^(a|u|s|l|n)_\d{12,}(_\d+)?$")
+USECASE_DERIVED = (("subjects", ("x", "y", "w", "h")), ("actors", ("w", "h")), ("useCases", ("w", "h")),
+                   ("links", ("points", "labelBox")))
+USECASE_OBJECTS = ("subjects", "actors", "useCases", "links", "notes")
+
+
+def _is_num(v: Any) -> bool:
+    return isinstance(v, (int, float)) and not isinstance(v, bool)
+
+
+def _rename_usecase_ids(d: Dict[str, Any]) -> Dict[str, str]:
+    """Readable names for page-generated ids (in place); returns the old -> new map."""
+    ss, acs, ucs = d.get("subjects") or [], d.get("actors") or [], d.get("useCases") or []
+    ls, ns = d.get("links") or [], d.get("notes") or []
+    used = {o.get("id") for o in ss + acs + ucs + ls + ns}
+    rename: Dict[str, str] = {}
+
+    def take(base: str) -> str:
+        new, k = base, 2
+        while new in used:
+            new, k = f"{base}_{k}", k + 1
+        used.add(new)
+        return new
+
+    def generated(o: Dict[str, Any]) -> bool:
+        return bool(USECASE_GENERATED_ID.match(str(o.get("id", ""))))
+
+    for items, fallback in ((acs, "actor"), (ucs, "use_case"), (ss, "subject")):
+        for o in items:
+            if generated(o):
+                rename[o["id"]] = take(slug(o.get("name")) or fallback)
+    for items, prefix in ((ls, "l"), (ns, "n")):
+        count = 1
+        for o in items:
+            if generated(o):
+                while f"{prefix}{count}" in used:
+                    count += 1
+                rename[o["id"]] = take(f"{prefix}{count}")
+    if not rename:
+        return rename
+    r = lambda i: rename.get(i, i)  # noqa: E731
+    for o in ss + acs + ucs + ls + ns:
+        o["id"] = r(o["id"])
+    for lk in ls:
+        for k in ("from", "to"):
+            if k in lk:
+                lk[k] = r(lk[k])
+    for o in acs + ucs:
+        if "parent" in o:
+            o["parent"] = r(o["parent"])
+    for u in ucs:
+        if "subject" in u:
+            u["subject"] = r(u["subject"])
+    for n in ns:
+        for k in ("useCases", "actors"):
+            if isinstance(n.get(k), list):
+                n[k] = [r(i) for i in n[k]]
+    return rename
+
+
+def usecase_to_disk(data: Dict[str, Any]) -> Dict[str, Any]:
+    d = copy.deepcopy(data)
+    for k in [k for k in d if k in ("layout", "canvas") or (k.startswith("_") and k != README_KEY)]:
+        del d[k]
+    d["schemaVersion"] = USECASE_SCHEMA_VERSION
+    _slot_colors(d, "actors", "useCases")
+    for name in USECASE_OBJECTS:
+        for o in d.get(name) or []:
+            for k in [k for k in o if k.startswith("_")]:
+                del o[k]
+    for items, keys in USECASE_DERIVED:
+        for o in d.get(items) or []:
+            for k in keys:
+                o.pop(k, None)
+    _rename_usecase_ids(d)
+    layout: Dict[str, Any] = {}
+    for items in ("actors", "useCases"):
+        for o in d.get(items) or []:
+            if _is_num(o.get("x")) and _is_num(o.get("y")):
+                layout[o["id"]] = {"x": o.pop("x"), "y": o.pop("y")}
+    if layout:
+        d["layout"] = layout
+    return _ordered(d, USECASE_KEYS)
+
+
+def usecase_from_disk(data: Dict[str, Any]) -> Dict[str, Any]:
+    d = copy.deepcopy(data)
+    layout = d.pop("layout", None) or {}
+    d.pop("direction", None)
+    if d.get("schemaVersion", USECASE_SCHEMA_VERSION) == USECASE_SCHEMA_VERSION:
+        for name in ("actors", "useCases"):
+            for o in d.get(name) or []:
+                o.update(layout.get(o.get("id")) or {})
+    _slot_colors(d, "actors", "useCases")
+    return d
+
 
 Codec = Tuple[Callable[[Dict[str, Any]], Dict[str, Any]], Callable[[Dict[str, Any]], Dict[str, Any]]]
 DISK_CODECS: Dict[str, Codec] = {
     "flowchart": (flowchart_to_disk, flowchart_from_disk),
     "sequence": (sequence_to_disk, sequence_from_disk),
     "erd": (erd_to_disk, erd_from_disk),
+    "usecase": (usecase_to_disk, usecase_from_disk),
 }
 
 
