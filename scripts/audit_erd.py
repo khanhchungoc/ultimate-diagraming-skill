@@ -168,6 +168,10 @@ class ErdAudit:
                 if eid not in emap:
                     dangling += 1
                     errors.append(f"Note '{n.get('id')}' is attached to unknown entity '{eid}'.")
+            col, first = n.get("column"), (n.get("entities") or [None])[0]
+            if col is not None and first in emap and col not in {c.get("name") for c in self.columns_of(emap[first])}:
+                dangling += 1
+                errors.append(f"Note '{n.get('id')}' names unknown column '{col}' in '{first}'.")
 
         # Geometry (only meaningful once laid out).
         laid_out = all(_is_box(e.get("box")) for e in es) and all(isinstance(r.get("points"), list) and len(r["points"]) >= 2 for r in rs)

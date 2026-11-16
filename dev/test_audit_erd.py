@@ -105,6 +105,8 @@ CASES = [
     ("a note without text", dict(notes=[{"id": "n1", "text": " ", "entities": ["order"]}]), "has no text"),
     ("a note on an unknown entity", dict(notes=[{"id": "n1", "text": "t", "entities": ["ghost"]}]), "unknown entity 'ghost'"),
     ("a note on a table is valid", dict(notes=[{"id": "n1", "text": "t", "entities": ["order"]}]), None),
+    ("a column note on an unknown column", dict(notes=[{"id": "n1", "text": "t", "entities": ["order"], "column": "ghost"}]), "names unknown column 'ghost' in 'order'"),
+    ("a column note is valid", dict(notes=[{"id": "n1", "text": "t", "entities": ["order"], "column": "placed_at"}]), None),
     # Geometry
     ("two entities overlap", dict(entities=[BASE["entities"][0], {**BASE["entities"][1], "box": {"x": 100, "y": 60, "w": 168, "h": 114}}]), "overlap"),
     ("entities that touch do not overlap",
