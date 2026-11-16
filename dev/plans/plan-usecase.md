@@ -55,7 +55,7 @@ UML 2.5 defines more than tools commonly draw. v1 keeps what PlantUML, Visual Pa
 | Use case as rectangle with ellipse icon | alternate classifier notation | ❌ |
 | Business use case (slashed ellipse) | RUP extension, not UML | ❌ |
 
-Text syntaxes for reference (Copy as): Mermaid 12.0 added a native use case diagram, still marked beta (header `usecase-beta`): actors, use cases, system boundaries, association, include, extend, generalization, stereotypes, notes and classes. PlantUML has had a full use case syntax for years. Copy as uses Mermaid, so the ERD and use case diagrams copy into the same tool (see [Copy as](#copy-as)).
+Text syntaxes for reference (Copy as): Mermaid 12.0 added a native use case diagram, still marked beta (header `usecase-beta`): actors, use cases, system boundaries, association, include, extend, generalization, stereotypes, notes and classes. PlantUML has had a full use case syntax for years. Copy as is skipped in v1 (see [Copy as](#copy-as)).
 
 ## Goals
 
