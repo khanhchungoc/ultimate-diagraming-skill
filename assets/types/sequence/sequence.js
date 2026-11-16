@@ -26,6 +26,7 @@
       // Selection: { kind: 'participant' | 'fragment' | 'note', id }, { kind: 'message', id, ids?, anchor? } (ids: a
       // range of messages, in time order), or { kind: 'divider', id: <fragment id>, at: <message id> } (a branch)
       let seqSel = null;
+      let seqBars = [];        // the bars of the last render (see seqActivations)
       let seqDrag = null;      // active drag (see beginDrag)
       let seqCounter = 0;
       let seqSelStash = null;  // { sel, data }: the selection the shell cleared, and the model it belonged to
@@ -91,7 +92,7 @@
           if (ex.async && ex.lastOut === null) return;   // an async target that did nothing visible
           const end = ex.until !== null ? ex.until : y2;
           if (ex.hiddenFrom && ex.hiddenTo) return;
-          bars.push({ pid: ex.pid, y1: ex.y1, y2: Math.max(end, ex.y1 + STUB), caller: ex.caller, callerDepth: ex.callerDepth, closedBy: ex.closedBy || null });
+          bars.push({ pid: ex.pid, mid: ex.mid, y1: ex.y1, y2: Math.max(end, ex.y1 + STUB), caller: ex.caller, callerDepth: ex.callerDepth, closedBy: ex.closedBy || null });
         };
         // Close an execution and everything opened on top of it (left dangling)
         const closeAt = (pid, k, y2, by) => {
@@ -136,7 +137,7 @@
           // The target is called: an initiator execution open on it ends here (it is no longer starting things)
           const tst = stack(to);
           if (tst.length === 1 && tst[0].initiator) closeAt(to, 0, tst[0].lastOut, null);
-          stack(to).push({ pid: to, y1: m.y - 6, caller: from, callerDepth: stack(from).length, async: m.kind === 'async', lastOut: m.kind === 'async' ? null : m.y + 6,
+          stack(to).push({ pid: to, mid: m.id, y1: m.y - 6, caller: from, callerDepth: stack(from).length, async: m.kind === 'async', lastOut: m.kind === 'async' ? null : m.y + 6,
             until: m.until !== undefined && yOf(m.until) !== null ? yOf(m.until) + 6 : null, open: m.kind !== 'async', hiddenFrom: m.hidden });
         });
         // Whatever is still open ends at its last message
@@ -299,11 +300,11 @@
         });
 
         // Activation bars
-        const bars = seqActivations();
+        const bars = seqBars = seqActivations();
         bars.forEach((b) => {
           const p = byId[b.pid];
           if (!p) return;
-          seqActG.appendChild(paintSwatch(svgEl('rect', { class: 'seq-activation', x: p.x - ACT_HALF + b.depth * ACT_STEP, y: b.y1, width: ACT_HALF * 2, height: b.y2 - b.y1, rx: 2, 'data-node-id': b.pid }), drawnSwatch(p)));
+          seqActG.appendChild(paintSwatch(svgEl('rect', Object.assign({ class: 'seq-activation', x: p.x - ACT_HALF + b.depth * ACT_STEP, y: b.y1, width: ACT_HALF * 2, height: b.y2 - b.y1, rx: 2, 'data-node-id': b.pid }, b.mid ? { 'data-mid': b.mid } : {})), drawnSwatch(p)));
         });
         const activeDepth = (pid, y) => bars.reduce((mx, b) => (b.pid === pid && b.y1 <= y && y <= b.y2 ? Math.max(mx, b.depth) : mx), -1);
         const edgeX = (p, y, dir) => {
@@ -944,6 +945,7 @@
       function hidePlus() { seqPlus.style.display = 'none'; }
       function onCanvasHover(e) {
         if (seqDrag || isPresent() || !chartData.layout || document.body.classList.contains('seq-dragging')) { hidePlus(); return; }
+        hoverBarHandle(e.target);
         const pt = canvasPoint(e);
         seqCanvas.classList.toggle('seq-row-hover', pt.y < SQ.TOP + SQ.BOX_H + 22 && pt.y > 0);
         if (e.target === seqPlus) return;
@@ -1018,6 +1020,50 @@
         return 'sync';
       }
 
+      // --- STRETCH AN ACTIVATION BAR ---
+      // The handle at a bar's bottom end (shown on hover, and on the selected message that opens the bar) drags to a
+      // message row: the opening message gets "until" there. Later sync calls to the same participant inside the
+      // stretched range would open bars of their own, so they get "activate": false and it stays one bar. Nothing
+      // else is saved: dropping back at the natural end, or "Reset bar", clears "until" and "activate": false on
+      // every sync call to that participant inside the old range (one set by hand there goes too).
+      const callsTo = (m, k) => chartData.messages.slice(msgIndex(m.id) + 1, k + 1).filter((x) => x.to === m.to && x.from !== x.to && (x.kind || 'sync') === 'sync');
+      function clearBar(m) {
+        callsTo(m, m.until === undefined ? -1 : msgIndex(m.until)).forEach((x) => { delete x.activate; });
+        delete m.until;
+      }
+      // The row the pointer is nearest (a message after the opening one), or why there is none
+      function barTarget(m, y) {
+        if (y < m.y) return { why: 'A bar cannot end above the call that opens it' };
+        const later = chartData.messages.slice(msgIndex(m.id) + 1).filter((x) => !x.hidden);
+        if (!later.length) return { why: 'No later message to end the bar at' };
+        const t = later.reduce((b, x) => (Math.abs(x.y + 6 - y) < Math.abs(b.y + 6 - y) ? x : b));
+        const sp = chartData.lifespans ? seqSpan(m.to, true) : null;
+        if (sp && msgIndex(t.id) > sp[1]) return { why: 'A bar cannot run past the end of its lifeline' };
+        return { msg: t };
+      }
+      function setBar(m, t) {
+        const before = JSON.stringify(chartData.messages);
+        clearBar(m);
+        const nat = seqActivations().find((b) => b.mid === m.id);
+        if (nat && t.y + 6 > nat.y2 + 0.5) {
+          m.until = t.id;
+          callsTo(m, msgIndex(t.id)).forEach((x) => { x.activate = false; });
+        }
+        if (JSON.stringify(chartData.messages) === before) { render(); return; }
+        seqSel = { kind: 'message', id: m.id };
+        relayout();
+      }
+      function addBarHandle(mid) {
+        const b = seqBars.find((x) => x.mid === mid), m = msgById(mid), p = b && partById(b.pid);
+        if (!p || !m || m.hidden || seqHtml.querySelector(`.seq-barend[data-id="${mid}"]`)) return;
+        addHandle('barend', mid, p.x + b.depth * ACT_STEP, b.y2, 'seq-edge seq-barend');
+      }
+      function hoverBarHandle(t) {
+        const mid = t.classList.contains('seq-activation') ? t.dataset.mid : t.classList.contains('seq-barend') ? t.dataset.id : null;
+        seqHtml.querySelectorAll('.seq-barend').forEach((el) => { if (el.dataset.id !== mid && !(seqSel && seqSel.id === el.dataset.id)) el.remove(); });
+        if (mid) addBarHandle(mid);
+      }
+
       // --- HANDLES ON THE SELECTION ---
       // Retarget: drag a message end to another lifeline. Frame range: drag its top or bottom edge to a row gap.
       // Note: stretch it over a second lifeline from its right edge.
@@ -1057,6 +1103,21 @@
               f.to = ms[b].id;
               setBranches(f, brs);   // a branch now outside the frame goes
               relayout();
+            }
+          };
+        }
+        if (role === 'barend') {
+          const m = msgById(h.dataset.id), open = msgIndex(m.id);
+          h.classList.add('is-drag');
+          return {
+            move(pt, d) {
+              d.target = barTarget(m, pt.y);
+              if (d.target.msg) { showDropLine(d.target.msg.y + 6, null); seqHint(`Busy until ${msgIndex(d.target.msg.id) + 1}${d.target.msg.label ? `. ${d.target.msg.label}` : ''}`); }
+              else { seqDrop.style.display = 'none'; seqHint(d.target.why); }
+            },
+            drop(pt, d) {
+              if (!d.target.msg) { render(); return; }
+              setBar(m, d.target.msg);
             }
           };
         }
@@ -1270,6 +1331,7 @@
             bar.appendChild(htmlEl('span', 'seq-ab-sep'));
           }
           if ((m.kind || 'sync') === 'sync') bar.appendChild(abButton('activate', '<span>Bar</span>', 'Activation bar: the call is drawn as busy until its reply (off draws no bar for this call)', m.activate !== false));
+          if (m.until !== undefined) bar.appendChild(abButton('resetbar', '<span>Reset bar</span>', 'Draw this call\'s bar to its natural end again (clears "until" and the "activate": false it set on later calls)'));
           bar.appendChild(abButton('reverse', ui.icon('reverse'), 'Reverse the direction'));
           if ((m.kind || 'sync') === 'sync' && m.from !== m.to) bar.appendChild(abButton('reply', `${ui.icon('reply')}<span>Reply</span>`, 'Add the reply under this call (or under the last message of its bar)'));
           bar.appendChild(htmlEl('span', 'seq-ab-sep'));
@@ -1279,6 +1341,7 @@
           bar.appendChild(delButton('Delete this message (Delete key)'));
           const self = m.from === m.to;
           at = { x: self ? a.x + SQ.SELF_LOOP + 60 : (a.x + b.x) / 2, y: m.y - 62 };
+          if ((m.kind || 'sync') === 'sync') addBarHandle(m.id);
           // End handles: drag one to another lifeline to move that end
           if (self) { addHandle('from', m.id, a.x, m.y, 'seq-end'); addHandle('to', m.id, a.x, m.y + 28, 'seq-end'); }
           else { addHandle('from', m.id, a.x, m.y, 'seq-end'); addHandle('to', m.id, b.x, m.y, 'seq-end'); }
@@ -1387,6 +1450,7 @@
           if (!m) return;
           if (act === 'async') { if (m.kind === 'reply') return; m.kind = m.kind === 'async' ? 'sync' : 'async'; relayout(); }
           else if (act === 'activate') { if (m.activate === false) delete m.activate; else m.activate = false; relayout(); }
+          else if (act === 'resetbar') { clearBar(m); relayout(); }
           else if (act === 'reverse') { const t = m.from; m.from = m.to; m.to = t; relayout(); }
           else if (act === 'reply') addReply(m);
         } else if (sel.kind === 'participant') {
@@ -2158,7 +2222,7 @@
           notes.filter((n) => n.before === m.id).forEach(noteOut);
           frames.filter((r) => r.a === i).sort((u, v) => (v.b - v.a) - (u.b - u.a)).forEach(({ f }) => {
             const label = text(f.label);
-            if (f.kind === 'group') { out('rect rgba(128, 128, 128, 0.15)'); if (label) { depth++; out(`%% ${label}`); depth--; } }
+            if (f.kind === 'group') { out('rect rgba(128, 128, 128, 0.15)'); if (label) { depth++; out(`%% ${label}`); depth--; } }   // tokens-ok: Mermaid's own syntax for a group box, not a page style
             else out(`${f.kind} ${label}`);
             depth++;
           });

@@ -4,7 +4,7 @@
 
 **Left to the AI on purpose:** flowchart lane icons (`lane.icon`). Picking one from a grid is too cumbersome for what it adds; a lane without one keeps the icon guessed from its name.
 
-**Status:** A, B and C done 2026-11-16 (branch `claude/stoic-volta-cnd4c7`). Two follow-ups left, see the audit table in C: change an existing step's shape (`type`), and stretch an activation bar to a later message (`until`). Not done and not planned here: moving the ERD and sequence bar CSS onto the shared `.actionbar` classes (their builders are shared, their look is not, so goldens were left alone); republishing the demo artifacts.
+**Status:** A, B and C done 2026-11-16 (branch `claude/stoic-volta-cnd4c7`). One follow-up left, see the audit table in C: change an existing step's shape (`type`). Not done and not planned here: moving the ERD and sequence bar CSS onto the shared `.actionbar` classes (their builders are shared, their look is not, so goldens were left alone); republishing the demo artifacts.
 
 Order: A, then B, then C. A and B are the known gaps. C is the audit that confirms nothing else is missing.
 
@@ -102,7 +102,7 @@ Fields to check first (from a code read, not yet confirmed in the running editor
 | Sequence | participant `name`, `kind`, `color`, `start`, `end`, `column` | participant button; bar kind and swatches; lifespan handles; drag onto another column / **Own column** | same | Delete | editor (`e2e_sequence.mjs`) |
 | Sequence | message `label`, `detail`, `kind`, `from`, `to` | draw lifeline to lifeline; **Reply**; async button | double-click; reverse; end handles | Delete | editor |
 | Sequence | message `activate` | none (was missing) | **Bar** button in the message bar | same | fixed (`e2e_activations.mjs`) |
-| Sequence | message `until` | none | none | none | **follow-up** (a handle that drags the bar's end to a later message) |
+| Sequence | message `until` | none (was missing) | **handle** at the bar's bottom end, **Reset bar** button | same | editor (`e2e_activations.mjs`) |
 | Sequence | fragment `kind`, `label`, `from`, `to`, `branches`, `color`, `collapsed` | **Frame**; **+ branch** | frame bar, edge handles, chevron | Delete frame | editor |
 | Sequence | fragment `elseAt` | none | none | none | not needed: the short form of one unlabelled branch; **+ branch** writes `branches`, which the page reads back the same |
 | Sequence | note `text`, `over`, `place`, `after`, `before` | Note tool | double-click; drag between or over lifelines | Delete | editor |
@@ -115,7 +115,7 @@ Fields to check first (from a code read, not yet confirmed in the running editor
 | ERD | `detail`, `showTypes`, `showNotes` | **Columns**, **Types**, **Notes** | same | same | editor |
 | ERD | `colorKey` | **Name colour** (part B) | double-click an entry | clear the text | editor (part B) |
 
-Two gaps stay open as follow-ups, both small to describe but each a new control that needs its own design: changing an existing step's shape (`type`), and stretching an activation bar to a later message (`until`).
+One gap stays open as a follow-up, a new control that needs its own design: changing an existing step's shape (`type`).
 
 ## Done when
 
