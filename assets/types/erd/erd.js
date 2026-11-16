@@ -294,7 +294,11 @@
           glyph.title = col.pk && col.fk ? 'Primary key and foreign key' : col.pk ? 'Primary key' : col.fk ? 'Foreign key' : '';
           row.appendChild(glyph);
           row.appendChild(erdHtmlEl('span', 'erd-col-name', col.name));
-          if (!asCard) row.appendChild(buildPort(col.name));
+          if (!asCard) {
+            const cn = notesOfCol(e.id, col.name);
+            if (cn.length) row.appendChild(buildColNoteBadge(e.id, cn[0]));
+            row.appendChild(buildPort(col.name));
+          }
           if (col.unique) {
             const u = erdHtmlEl('span', 'erd-uniq', 'U');
             u.title = 'Unique';
@@ -325,14 +329,12 @@
           hoverEntityId = e.id;
           applyHighlight();
           peekSoon(e.id, NOTE_PEEK_DELAY);
-          cardEnter(e.id);
         });
         el.addEventListener('pointerleave', (ev) => {
           if (ev.pointerType === 'touch') return;
           if (hoverEntityId === e.id) hoverEntityId = null;
           applyHighlight();
           unpeekSoon(e.id);
-          cardLeave();
         });
         // Presses on a table are handled by onErdPointerDown (EDITING), which selects, drags and draws
         const badge = buildNoteBadge(e);
@@ -485,7 +487,6 @@
       // nor while a drag moves things)
       function erdFocusId() {
         if (hoverEntityId) return hoverEntityId;
-        if (cardOver && cardHoverId) return cardHoverId;   // the pointer is on the table's expanded card
         if (hoverRelId || (erdDrag && erdDrag.moved)) return null;
         return erdSel && erdSel.kind === 'entity' && !isMultiSelected() && erdEntity(erdSel.id) ? erdSel.id : null;
       }
@@ -690,26 +691,17 @@
         });
       }
 
-      // The expanded card: in the overview, hovering a table (after 150 ms) or selecting it shows the full table at 100%
-      // size over its own box (fixed to the screen, an overlay: nothing moves). Read only; double-click zooms to the table.
-      const CARD_DELAY = 150;
-      let erdCardEl = null, erdCardId = null, cardHoverId = null, cardTimer = 0, cardOver = false;
-      function cardEnter(id) {
-        if (!erdOverview) return;
-        clearTimeout(cardTimer);
-        cardTimer = setTimeout(() => { cardHoverId = id; applyHighlight(); }, CARD_DELAY);
-      }
-      function cardLeave() {
-        clearTimeout(cardTimer);
-        cardTimer = setTimeout(() => { if (!cardOver) { cardHoverId = null; applyHighlight(); } }, CARD_DELAY);
-      }
+      // The expanded card: in the overview, selecting a table (a click, not a hover) shows the full table at 100% size
+      // over its own box (fixed to the screen, an overlay: nothing moves). Read only and click-through (erd.css), so the
+      // table under it can still be dragged, and a double-click reaches the table and zooms to it.
+      let erdCardEl = null, erdCardId = null;
       function erdHideCard() {
         if (erdCardEl) erdCardEl.remove();
-        erdCardEl = null; erdCardId = null; cardOver = false;
+        erdCardEl = null; erdCardId = null;
       }
       function erdSyncCard() {
         const sel = erdSel && erdSel.kind === 'entity' && !isMultiSelected() && erdEntity(erdSel.id) ? erdSel.id : null;
-        const want = !erdOverview || (erdDrag && erdDrag.moved) ? null : (cardHoverId && erdEntity(cardHoverId) ? cardHoverId : sel);
+        const want = !erdOverview || (erdDrag && erdDrag.moved) ? null : sel;
         if (want === erdCardId && (!want || erdCardEl)) return;
         erdHideCard();
         if (!want) return;
@@ -728,9 +720,6 @@
         const r = el.getBoundingClientRect(), vp = viewport.getBoundingClientRect(), w = wrap.offsetWidth, h = wrap.offsetHeight;
         wrap.style.left = `${Math.max(vp.left + 8, Math.min(r.left, vp.right - w - 8))}px`;
         wrap.style.top = `${Math.max(vp.top + 8, Math.min(r.top, vp.bottom - h - 8))}px`;
-        wrap.addEventListener('pointerenter', () => { cardOver = true; clearTimeout(cardTimer); applyHighlight(); });
-        wrap.addEventListener('pointerleave', () => { cardOver = false; cardLeave(); applyHighlight(); });
-        wrap.addEventListener('dblclick', () => erdZoomToTable(want));
         erdCardEl = wrap;
         erdCardId = want;
       }
@@ -740,7 +729,6 @@
         if (!el) return;
         const r = el.getBoundingClientRect(), vp = viewport.getBoundingClientRect();
         const sx = (r.left + r.width / 2 - vp.left - panX) / scale, sy = (r.top + r.height / 2 - vp.top - panY) / scale;
-        cardHoverId = null;
         scale = 1;
         panX = vp.width / 2 - sx;
         panY = vp.height / 2 - sy;
@@ -882,7 +870,9 @@
       const linkedEntities = (note) => (note.entities || []).filter((id) => erdEntity(id) && erdEntity(id).box);
       let editingNoteId = null;      // the note being typed: it counts as live while still empty
       const liveNotes = () => notesList().filter((n) => (noteTextOf(n) || n.id === editingNoteId) && linkedEntities(n).length);
-      const notesOfEntity = (id) => liveNotes().filter((n) => (n.entities || []).includes(id));
+      // A note is a table's, or (with `column`) one column's of its first table
+      const notesOfEntity = (id) => liveNotes().filter((n) => !n.column && (n.entities || []).includes(id));
+      const notesOfCol = (id, col) => liveNotes().filter((n) => n.column === col && (n.entities || [])[0] === id);
       const erdPresenting = () => document.body.classList.contains('presentation');
       const boxesOverlap = (a, b, pad = 0) => a.x < b.x + b.w + pad && a.x + a.w + pad > b.x && a.y < b.y + b.h + pad && a.y + a.h + pad > b.y;
       const boxGap = (a, b) => Math.hypot(Math.max(0, b.x - (a.x + a.w), a.x - (b.x + b.w)), Math.max(0, b.y - (a.y + a.h), a.y - (b.y + b.h)));
@@ -1032,17 +1022,22 @@
           if (line.dataset.noteId !== noteId || !line.dataset.entityId) return;
           const e = erdEntity(line.dataset.entityId);
           if (!e || !e.box) return;
-          const r = e.box;
+          const r = e.box, note = noteById(noteId);
+          let cy = r.y + r.h / 2;
+          if (note && note.column && (note.entities || [])[0] === e.id) {   // a column's note points at its row
+            const row = colEls(e.id).find((x) => x.dataset.col === note.column);
+            if (row) cy = r.y + row.offsetTop + row.offsetHeight / 2;
+          }
           line.setAttribute('x1', b.x + b.w / 2);
           line.setAttribute('y1', b.y + b.h / 2);
           line.setAttribute('x2', r.x + r.w / 2);
-          line.setAttribute('y2', r.y + r.h / 2);
+          line.setAttribute('y2', cy);
         });
       }
 
       function notePeeked(note) {
         const ids = note.entities || [];
-        return note.id === selectedNoteId || ids.includes(peekEntityId) || (erdSel && erdSel.kind === 'entity' && ids.includes(erdSel.id));
+        return note.id === selectedNoteId || ids.includes(peekEntityId) || (erdSel && (erdSel.kind === 'entity' ? ids.includes(erdSel.id) : erdSel.kind === 'col' && ids[0] === erdSel.entity && note.column === erdSel.col));
       }
       function applyNoteVisibility() {
         if (!erdNotesLayer) return;
@@ -1095,6 +1090,22 @@
             selectedNoteId = selectedNoteId === notes[0].id ? null : notes[0].id;
             applyNoteVisibility();
           } else editNote(notes[0].id);
+        });
+        return b;
+      }
+
+      // The badge in a column's row (its note): hover to peek, click to edit; in ?present a click keeps it open
+      function buildColNoteBadge(entityId, note) {
+        const b = erdHtmlEl('button', 'note-badge erd-row-badge');
+        b.type = 'button';
+        b.dataset.exportSkip = '';
+        b.setAttribute('aria-label', `Note: ${noteTextOf(note)}`);
+        b.innerHTML = ERD_NOTE_ICON;
+        b.addEventListener('pointerdown', (ev) => ev.stopPropagation());
+        b.addEventListener('mouseenter', () => peekSoon(entityId, 0));
+        b.addEventListener('click', (ev) => {
+          ev.stopPropagation();
+          if (erdPresenting()) { selectedNoteId = selectedNoteId === note.id ? null : note.id; applyNoteVisibility(); } else editNote(note.id);
         });
         return b;
       }
@@ -1366,6 +1377,8 @@
           [['pk', 'PK', 'Primary key (P)', col.pk], ['fk', 'FK', 'Foreign key (F)', col.fk], ['unique', 'U', 'Unique (U)', col.unique], ['nullable', '?', 'Nullable (?)', col.nullable]]
             .forEach(([act, label, title, on]) => bar.appendChild(abButton(act, `<span>${label}</span>`, title, !!on)));
           bar.appendChild(abSep());
+          bar.appendChild(abButton('colnote', ui.icon('note'), 'Add a note to this column (N), e.g. its allowed values'));
+          bar.appendChild(abSep());
           bar.appendChild(abButton('up', ui.icon('chevron-up'), 'Move up (Alt+Up)'));
           bar.appendChild(abButton('down', ui.icon('chevron-down'), 'Move down (Alt+Down)'));
           bar.appendChild(abSep());
@@ -1378,13 +1391,14 @@
           const rel = erdRel(erdSel.id);
           if (!rel || !rel.curve || !rel.points || rel.points.length < 2) return;
           bar.setAttribute('aria-label', 'Relationship');
+          bar.classList.add('is-wrap', 'is-wide');
           const ends = erRelEnds(rel, chartData);
           bar.appendChild(erdHtmlEl('span', 'erd-ab-tag', 'Child'));
           ERD_END_KINDS.forEach((k) => bar.appendChild(abButton('fromEnd', erdEndGlyph(k), `Child end (the table with the key): ${ERD_END_NAMES[k]}`, ends.fromEnd === k, k, 'erd-ab-glyph')));
           bar.appendChild(abSep());
           bar.appendChild(erdHtmlEl('span', 'erd-ab-tag', 'Parent'));
           ERD_END_KINDS.forEach((k) => bar.appendChild(abButton('toEnd', erdEndGlyph(k), `Parent end (the table it points to): ${ERD_END_NAMES[k]}`, ends.toEnd === k, k, 'erd-ab-glyph')));
-          bar.appendChild(abSep());
+          bar.appendChild(erdHtmlEl('span', 'erd-ab-break'));
           bar.appendChild(abButton('identifying', `${ui.icon(rel.identifying === true ? 'line-solid' : 'line-dashed')}<span>Identifying</span>`,
             'Identifying: the key is part of the child’s primary key (solid line); off: dashed', rel.identifying === true));
           bar.appendChild(abButton('reverse', ui.icon('reverse'), 'Reverse: swap the child and the parent'));
@@ -1448,6 +1462,7 @@
           else if (act === 'up') moveColumnBy(e.id, sel.col, -1);
           else if (act === 'down') moveColumnBy(e.id, sel.col, 1);
           else if (act === 'delcol') deleteColumn(e.id, sel.col);
+          else if (act === 'colnote') addNoteTo(e.id, sel.col);
         } else if (sel.kind === 'rel') {
           const rel = erdRel(sel.id);
           if (!rel) return;
@@ -1487,7 +1502,7 @@
         if (handle) { e.stopPropagation(); beginDrag(e, handleDrag(handle.dataset.role, handle.dataset.id)); return; }
         if (!entEl || t.closest('.note')) return;
         const id = entEl.dataset.nodeId;
-        if (notePicking) { e.preventDefault(); giveNoteTo(id); return; }
+        if (notePicking) { e.preventDefault(); const nr = t.closest('.erd-row'); giveNoteTo(id, nr ? nr.dataset.col : null); return; }
         if (selectedNoteId && e.shiftKey) { e.preventDefault(); toggleNoteLink(selectedNoteId, id); return; }
         // MULTI-SELECT: Ctrl/Cmd+click adds the table or takes it out; it never starts a drag
         if ((e.ctrlKey || e.metaKey) && !t.closest('.erd-port')) { e.preventDefault(); toggleEntity(id); return; }
@@ -1865,6 +1880,7 @@
         const col = (e.columns || []).find((c) => c.name === from);
         if (!col) return;
         col.name = to;
+        notesList().forEach((n) => { if (n.column === from && (n.entities || [])[0] === e.id) n.column = to; });
         erdRelsList().forEach((r) => {
           if (r.from === e.id && Array.isArray(r.columns)) r.columns = r.columns.map((n) => (n === from ? to : n));
           if (r.to === e.id && Array.isArray(r.toColumns)) r.toColumns = r.toColumns.map((n) => (n === from ? to : n));
@@ -1873,6 +1889,10 @@
       }
       function removeColumn(e, name) {
         e.columns = (e.columns || []).filter((c) => c.name !== name);
+        if (notesList().some((n) => n.column === name && (n.entities || [])[0] === e.id)) {
+          chartData.notes = notesList().filter((n) => !(n.column === name && (n.entities || [])[0] === e.id));
+          if (!chartData.notes.length) delete chartData.notes;
+        }
         erdRelsList().forEach((r) => {
           if (r.from === e.id && Array.isArray(r.columns)) { r.columns = r.columns.filter((n) => n !== name); if (!r.columns.length) delete r.columns; }
           if (r.to === e.id && Array.isArray(r.toColumns)) { r.toColumns = r.toColumns.filter((n) => n !== name); if (!r.toColumns.length) delete r.toColumns; }
@@ -2016,15 +2036,16 @@
 
       // =====================================================================================================
       // --- NOTES ---
-      // N, the + chip and the Note button open the table's note, or start a new one (dropped again if left empty). A note
+      // N, the + chip and the Note button open the table's (or the selected column's) note, or start a new one (dropped again if left empty). A note
       // belongs to one or more tables (`entities`; the first is its anchor): drag its link handle onto a table to link it
       // or unlink it, or Shift+click a table. Drag a card to pin it (`pos`, relative to the anchor table).
       // =====================================================================================================
-      function addNoteTo(entityId) {
+      function addNoteTo(entityId, col) {
         if (!erdEntity(entityId) || erdPresenting()) return;
-        const existing = notesOfEntity(entityId)[0];
+        const existing = (col ? notesOfCol(entityId, col) : notesOfEntity(entityId))[0];
         if (existing) { editNote(existing.id); return; }
         const note = { id: erdUid('n'), text: '', entities: [entityId] };
+        if (col) note.column = col;
         chartData.notes = notesList();
         chartData.notes.push(note);
         editNote(note.id);
@@ -2173,7 +2194,7 @@
         const id = erdSelectedEntityId();
         if (!id && !selectedNoteId) return;
         e.preventDefault();
-        if (id) addNoteTo(id); else editNote(selectedNoteId);
+        if (id) addNoteTo(id, erdSel.kind === 'col' ? erdSel.col : null); else editNote(selectedNoteId);
       });
 
       // --- The dock: Table, Relationship, Note ---
@@ -2189,12 +2210,12 @@
         notePicking = on;
         document.body.classList.toggle('note-picking', on);
         if (erdBtnAddNote) erdBtnAddNote.setAttribute('aria-pressed', String(on));
-        if (on) erdHint('Click a table to add a note · <kbd>Esc</kbd> to cancel', true); else if (!relArmed) erdHint(null);
+        if (on) erdHint('Click a table or a column to add a note · <kbd>Esc</kbd> to cancel', true); else if (!relArmed) erdHint(null);
       }
-      function giveNoteTo(id) {
+      function giveNoteTo(id, col) {
         setNotePicking(false);
-        selectEntity(id);
-        addNoteTo(id);
+        if (col) selectCol(id, col); else selectEntity(id);
+        addNoteTo(id, col);
       }
 
       if (erdBtnAddRel) {
@@ -2280,7 +2301,7 @@
           if (erdBtnAddNote.dataset.dragged) { delete erdBtnAddNote.dataset.dragged; e.preventDefault(); return; }
           if (erdPresenting()) return;
           const id = erdSelectedEntityId(), noteId = !id && selectedNoteId;
-          if (id) { setNotePicking(false); addNoteTo(id); }
+          if (id) { setNotePicking(false); addNoteTo(id, erdSel.kind === 'col' ? erdSel.col : null); }
           else if (noteId) editNote(noteId);
           else { setRelArmed(false); setNotePicking(!notePicking); }
         });
@@ -2293,9 +2314,17 @@
           window.addEventListener('pointercancel', cancelNoteToolDrag);
         });
       }
-      function markNoteTarget(id) {
-        erdCanvas.querySelectorAll('.erd-entity.note-target').forEach((el) => el.classList.remove('note-target'));
-        const el = id && entityEl(id);
+      // What a dragged note would land on: a column (its row) or, off the rows, the table
+      function erdNoteTargetAt(x, y) {
+        const el = document.elementFromPoint(x, y);
+        const ent = el && el.closest('.erd-entity:not(.erd-ghost):not(.erd-card-table)');
+        if (!ent) return null;
+        const row = el.closest('.erd-row');
+        return { id: ent.dataset.nodeId, col: row ? row.dataset.col : null };
+      }
+      function markNoteTarget(t) {
+        erdCanvas.querySelectorAll('.erd-entity.note-target, .erd-row.note-target').forEach((el) => el.classList.remove('note-target'));
+        const el = t && (t.col ? colEls(t.id).find((r) => r.dataset.col === t.col) : entityEl(t.id));
         if (el) el.classList.add('note-target');
       }
       function onNoteToolMove(e) {
@@ -2312,7 +2341,7 @@
         d.ghost.style.transform = `scale(${scale})`;
         d.ghost.style.left = `${e.clientX + 12}px`;
         d.ghost.style.top = `${e.clientY + 12}px`;
-        d.target = erdEntityIdAt(e.clientX, e.clientY);
+        d.target = erdNoteTargetAt(e.clientX, e.clientY);
         d.ghost.classList.toggle('off-target', !d.target);
         markNoteTarget(d.target);
       }
@@ -2330,7 +2359,7 @@
         const d = endNoteToolDrag();
         if (!d || !d.ghost) return;
         erdBtnAddNote.dataset.dragged = '1';   // swallow the click that may follow on the button
-        if (d.target) giveNoteTo(d.target);
+        if (d.target) giveNoteTo(d.target.id, d.target.col);
       }
       function cancelNoteToolDrag() {
         const d = endNoteToolDrag();
@@ -2348,7 +2377,6 @@
         const a = document.activeElement;
         if (a && a.isContentEditable) return;   // the edit's own handler keeps or drops the text
         if (cancelErdInteraction()) return;
-        cardHoverId = null;
         if (erdSel || selectedNoteId || erdCardEl) { erdSel = null; erdMultiIds = []; erdMultiOwner = null; selectedNoteId = null; peekEntityId = null; applyHighlight(); drawSelectionTools(); }
       }, true);
 
@@ -2478,8 +2506,17 @@
         return out;
       }
 
+      // A column's `note` text (older pages, hand-written data) becomes a note on that column, like any other note
+      function moveColumnNotes(d) {
+        (d.entities || []).forEach((e) => (e.columns || []).forEach((c) => {
+          const text = typeof c.note === 'string' ? c.note.trim() : '';
+          delete c.note;
+          if (text) (d.notes = d.notes || []).push({ id: erdUid('n'), text, entities: [e.id], column: c.name });
+        }));
+      }
       function fromDisk(data) {
         const d = JSON.parse(JSON.stringify(data));
+        moveColumnNotes(d);
         const layout = d.layout || {};
         delete d.layout;
         delete d.direction;

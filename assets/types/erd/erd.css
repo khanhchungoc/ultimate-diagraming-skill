@@ -295,6 +295,7 @@
     .erd-actionbar.is-below { transform: translate(-50%, 0); }
     .erd-actionbar.is-left { transform: none; }
     .erd-actionbar.is-wrap { flex-wrap: wrap; justify-content: center; max-width: 292px; row-gap: 2px; }
+    .erd-actionbar.is-wide { max-width: none; }
     .erd-ab-break { flex-basis: 100%; height: 0; }
     .erd-ab-btn {
       display: inline-flex; align-items: center; justify-content: center; gap: 4px; height: 26px; min-width: 26px; padding: 0 6px; box-sizing: border-box;
@@ -359,6 +360,10 @@
     body.erd-overview:not(.exporting) .edge-label.ov-hide:not(.ov-show):not(.is-editing-label) { display: none; }
     body.erd-overview:not(.exporting) .note { transform: scale(var(--inv)); transform-origin: 50% 50%; }
     /* The expanded card: the full table at 100% size, fixed over the table's box, above everything; never exported */
-    .erd-expand-card { position: fixed; z-index: 900; pointer-events: auto; }
+    .erd-expand-card { position: fixed; z-index: 900; pointer-events: none; }
     .erd-expand-card .erd-entity { position: relative; width: max-content; z-index: auto; cursor: default; box-shadow: var(--shadow-xl); transition: none; }
     body.exporting .erd-expand-card { display: none !important; }
+
+/* A column's note: a small badge in its row, and the row a dragged note would land on */
+.erd-row .note-badge.erd-row-badge { position: static; flex: none; width: 16px; height: 16px; margin: 0 4px; }
+.erd-row.note-target { outline: 2px dashed var(--note-accent); outline-offset: -2px; }
