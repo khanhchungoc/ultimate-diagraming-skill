@@ -4,7 +4,7 @@
 
 Describe a process, and your AI assistant hands back a single HTML file. Open it in any browser, drag things around, fix a label, and save. No account, no app to install, and it works offline.
 
-**[Try a flowchart live](https://claude.ai/artifact/4GXf3ufVkqEMR9BNy7UuWE)** · **[sequence diagram](https://claude.ai/artifact/5GAHnbS8tb9bxKxAi4JDYz)** · **[ER diagram](https://claude.ai/artifact/39Vy8dhSEdN4MjqVe1qQEv)**: each opens in your browser, no install. More below under [Diagram types](#diagram-types), including the new [use case diagram](#use-case-diagram).
+**[Try a flowchart live](https://claude.ai/artifact/4GXf3ufVkqEMR9BNy7UuWE)** · **[sequence diagram](https://claude.ai/artifact/5GAHnbS8tb9bxKxAi4JDYz)** · **[ER diagram](https://claude.ai/artifact/39Vy8dhSEdN4MjqVe1qQEv)** · **[use case diagram](https://claude.ai/artifact/XHQv3cFEPjBJitmvAq8QwE)**: each opens in your browser, no install. More below under [Diagram types](#diagram-types).
 
 ## What you get
 
@@ -102,9 +102,11 @@ These are single runs per assistant (November 2026), not averages: treat the per
 
 ### Use case diagram
 
-[![Use case diagram](docs/img/example-usecase.png)](dev/samples/example-usecase.html)
+[![Use case diagram](docs/img/example-usecase.png)](https://claude.ai/artifact/XHQv3cFEPjBJitmvAq8QwE)
 
-Who wants what from which system: actors on the left and right, their goals inside each system's box, «include» and «extend» between goals. Hover an actor or a use case to grey out everything it is not directly connected to; type a requirement id such as `FR-4` to find the use case that covers it. ▶ [Open the sample](dev/samples/example-usecase.html) (download it and open it in your browser).
+Who wants what from which system: actors on the left and right, their goals inside each system's box, «include» and «extend» between goals. Hover an actor or a use case to grey out everything it is not directly connected to; type a requirement id such as `FR-4` to find the use case that covers it.
+
+▶ [Try the use case diagram](https://claude.ai/artifact/XHQv3cFEPjBJitmvAq8QwE)
 
 Each demo is a claude.ai Artifact; **Download .html** inside it saves your edits. The same samples as files you can open offline: [flowchart](dev/samples/example-flowchart.html), [sequence](dev/samples/example-sequence.html), [ERD](dev/samples/example-erd.html), [use case](dev/samples/example-usecase.html).
 
