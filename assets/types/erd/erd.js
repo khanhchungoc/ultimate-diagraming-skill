@@ -1364,13 +1364,14 @@
           const rel = erdRel(erdSel.id);
           if (!rel || !rel.curve || !rel.points || rel.points.length < 2) return;
           bar.setAttribute('aria-label', 'Relationship');
+          bar.classList.add('is-wrap', 'is-wide');
           const ends = erRelEnds(rel, chartData);
           bar.appendChild(erdHtmlEl('span', 'erd-ab-tag', 'Child'));
           ERD_END_KINDS.forEach((k) => bar.appendChild(abButton('fromEnd', erdEndGlyph(k), `Child end (the table with the key): ${ERD_END_NAMES[k]}`, ends.fromEnd === k, k, 'erd-ab-glyph')));
           bar.appendChild(abSep());
           bar.appendChild(erdHtmlEl('span', 'erd-ab-tag', 'Parent'));
           ERD_END_KINDS.forEach((k) => bar.appendChild(abButton('toEnd', erdEndGlyph(k), `Parent end (the table it points to): ${ERD_END_NAMES[k]}`, ends.toEnd === k, k, 'erd-ab-glyph')));
-          bar.appendChild(abSep());
+          bar.appendChild(erdHtmlEl('span', 'erd-ab-break'));
           bar.appendChild(abButton('identifying', `${ui.icon(rel.identifying === true ? 'line-solid' : 'line-dashed')}<span>Identifying</span>`,
             'Identifying: the key is part of the child’s primary key (solid line); off: dashed', rel.identifying === true));
           bar.appendChild(abButton('reverse', ui.icon('reverse'), 'Reverse: swap the child and the parent'));
