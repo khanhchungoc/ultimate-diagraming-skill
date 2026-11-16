@@ -89,7 +89,7 @@ These are single runs per assistant (November 2026), not averages: treat the per
 
 ### Sequence diagram
 
-[![Sequence diagram](docs/img/example-sequence.png)](https://claude.ai/artifact/5GAHnbS8tb9bxKxAi4JDYz)
+[![Sequence diagram](docs/img/example-sequence-2026-11.png)](https://claude.ai/artifact/5GAHnbS8tb9bxKxAi4JDYz)
 
 ▶ [Try the sequence diagram](https://claude.ai/artifact/5GAHnbS8tb9bxKxAi4JDYz)
 
