@@ -38,8 +38,8 @@ UML 2.5 defines more than tools commonly draw. v1 keeps what PlantUML, Visual Pa
 
 | Element | Notation | In v1 |
 |---|---|---|
-| Actor (human) | stick figure, name below | ✅ |
-| Actor (system) | box with `«system»` keyword (UML: a classifier with `«actor»`) | ✅ as an icon tile, see [Actors](#actors) |
+| Actor (human) | stick figure, name below | ✅ drawn as a round avatar with a person icon (modern look, 2026-11-16), see [Actors](#actors) |
+| Actor (system) | box with `«system»` keyword (UML: a classifier with `«actor»`) | ✅ as a round avatar with a server icon and `«system»`, see [Actors](#actors) |
 | Actor (time) | clock icon (common practice, not UML) | ✅ |
 | Use case | ellipse, name inside | ✅ |
 | Subject / system boundary | rectangle, name at top | ✅, several allowed |
@@ -122,7 +122,7 @@ Text syntaxes for reference (Copy as): Mermaid 12.0 added a native use case diag
 | Subject | `id`, `name` | One system boundary. Order is top to bottom. A diagram with one subject may omit `subjects`; use cases then sit in one unnamed boundary titled with `title`. |
 | Subject | `collapsed` | Optional. Draws the boundary as a name bar; its lines end on the bar. Never authored unless asked. |
 | Actor | `id`, `name` | A role. 24 characters. |
-| Actor | `kind` | Optional. `human` (default, stick figure), `system` (box tile with a server icon and `«system»`), `time` (clock tile). |
+| Actor | `kind` | Optional. `human` (default), `system` (an external system) or `time` (a scheduled trigger). Every actor is drawn as a round avatar (person, server or clock icon) with its name below; `system` and `time` add `«system»` / `«time»` under the name. |
 | Actor | `side` | Optional. `left` or `right`. Default: `left` for an actor that starts any association, `right` for one that is only ever the target (a supporting actor). |
 | Actor | `parent` | Optional. Actor id: an actor generalization. Drawn as a hollow-triangle line; the child sits beside or below the parent. |
 | Actor | `color` | Optional. A palette slot. Default neutral: actors are coloured only when the user asks (see [Colour](#colour)). |
@@ -143,16 +143,17 @@ Disk format: key order `diagramType, schemaVersion, title, showRefs, showNotes, 
 
 ## Actors
 
-- **Human:** stick figure from the icon registry (new icon `actor`, drawn for this skill on the 24 grid and scaled up), name below in `.t-label`.
-- **System:** a rounded tile with the `server` icon and `«system»` in `.t-caption` above the name. Easier to read than a second stick figure, and matches what UML allows (a classifier keyworded as an actor).
-- **Time:** the same tile with the `clock` icon.
+Revised 2026-11-16 for a more modern look: every actor is a 56 px round avatar (soft fill, thin ring, light shadow) with an icon inside, the name below in `.t-label`, and the keyword under the name for system and time actors. Lines end on the avatar's rim, and the connect port sits on it.
+- **Human:** the `user` icon (the stick figure was too thin to read at Fit zoom).
+- **System:** the `server` icon, `«system»` under the name. UML allows any symbol for an actor classifier keyworded as an actor.
+- **Time:** the `clock` icon, `«time»` under the name.
 - Generalization between actors: child below its parent in the same column, hollow triangle on the parent.
 
 ## Layout (engine.js)
 
 The classic picture every reader expects: primary actors in a column on the left, the subjects stacked in the middle, supporting actors on the right.
 
-1. **Columns.** Left actors, subjects, right actors. Actor columns are one tile wide; actors with a `parent` sit under it.
+1. **Columns.** Left actors, subjects, right actors. Actor columns are one actor wide; actors with a `parent` sit under it.
 2. **Inside a subject, rows of use cases.** Each use case gets a rank along the horizontal axis: rank 0 for cases an actor touches directly, then +1 for each `include` hop (included cases sit to the right of their bases) and each `extend` hop (extensions sit to the right of, or below, their base). Use case generalization children sit below their parent.
 3. **Vertical order.** Barycentre ordering (as the flowchart engine does across lanes) against the actor positions, then sweeps to reduce crossings; ties broken by colour (same feature area stays together) and then by authored order. Actors are reordered against their use cases in the same sweeps, so each actor ends up level with the middle of its goals.
 4. **Subject size** from its content; subjects share one width so the boundary edges line up.
@@ -251,7 +252,7 @@ The one interface between `engine.js`, the page (`usecase.js`) and the Python au
 
 | Field | Meaning |
 |---|---|
-| `actors[].x, y, w, h` | Top-left and size of the whole actor (figure or tile plus name below). |
+| `actors[].x, y, w, h` | Top-left and size of the whole actor (avatar plus name and keyword below). |
 | `actors[]._side` | `left` or `right`, resolved from `side` or the default rule. |
 | `useCases[].x, y, w, h` | Bounding box of the ellipse (centre is `x + w/2, y + h/2`). With `extensionPoints`, the box includes the compartment. |
 | `useCases[]._lines` | The name wrapped to at most 2 lines (strings), as the page draws it. |
@@ -303,7 +304,7 @@ Settled 2026-11-16.
 1. **Type name:** `usecase`.
 2. **Generalization** is a `parent` field on an actor or use case, not a link type, so it cannot point the wrong way.
 3. **Default colouring:** use cases by feature area; actors neutral unless the user colours them.
-4. **System and time actors:** icon tiles (`server`, `clock`), not a second stick figure.
+4. **Actors:** round avatars with an icon (`user`, `server`, `clock`); the stick figure and tiles were replaced on 2026-11-16.
 5. **Connecting two use cases** makes an `include`; the line action bar switches it to `extend` (reversing it).
 6. **Copy as:** skipped for now (no PlantUML, no Mermaid in v1).
 7. **Traceability:** `refs` and search by ref are in v1.

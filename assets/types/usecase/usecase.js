@@ -27,11 +27,11 @@
       const searchClear = document.getElementById('uc-search-clear');
 
       const LINK_TYPES = ['association', 'include', 'extend'];
-      const KIND_ICON = { human: 'actor', system: 'server', time: 'clock' };
+      const KIND_ICON = { human: 'user', system: 'server', time: 'clock' };   // drawn in a round avatar
       const KIND_CAPTION = { system: '«system»', time: '«time»' };
       const LEVELS = ['summary', 'user', 'subfunction'];
       const LEVEL_NAME = { summary: 'Summary', user: 'Goal', subfunction: 'Sub' };
-      const SIZE = { actor: [104, 96], tile: [120, 84], useCase: [150, 60], subject: [280, 180] };   // a ghost's and a new item's first size
+      const SIZE = { actor: [104, 104], tile: [104, 120], useCase: [150, 60], subject: [280, 180] };   // a ghost's and a new item's first size
 
       // --- STATE ---
       let selIds = [];            // selected actors and use cases (primary last)
@@ -188,8 +188,16 @@
         return el;
       }
 
+      // Every actor is a round avatar (person, server or clock), the name below and, for a system or time actor, its keyword
+      function avatar(kind, size) {
+        const fig = htmlEl('div', 'uc-figure');
+        fig.innerHTML = ui.icon(KIND_ICON[kind] || KIND_ICON.human, { size: Math.round((size || 56) / 2) });
+        if (size) { fig.style.width = px(size); fig.style.height = px(size); }
+        return fig;
+      }
+
       function buildActor(a) {
-        const el = htmlEl('div', `uc-actor${isTile(a) ? ' is-tile' : ''}`);
+        const el = htmlEl('div', 'uc-actor');
         el.dataset.nodeId = a.id;
         el.dataset.kind = a.kind || 'human';
         el.tabIndex = -1;
@@ -197,16 +205,9 @@
         el.setAttribute('aria-label', `Actor ${nameOf(a)}${isTile(a) ? ` (${a.kind})` : ''}`);
         Object.assign(el.style, { left: px(a.x), top: px(a.y), width: px(a.w), height: px(a.h) });
         if (a.color) setSwatch(el, a.color);
-        if (isTile(a)) {
-          el.appendChild(htmlEl('span', 'uc-tile-icon')).innerHTML = ui.icon(KIND_ICON[a.kind], { size: 'xl' });
-          el.appendChild(htmlEl('span', 'uc-kw t-caption', KIND_CAPTION[a.kind]));
-        } else {
-          const fig = htmlEl('div', 'uc-figure');
-          fig.innerHTML = ui.icon('actor', { size: 24, fine: true });
-          if (a._figW && a._figH) { fig.style.width = px(a._figW); fig.style.height = px(a._figH); }
-          el.appendChild(fig);
-        }
+        el.appendChild(avatar(a.kind, a._figW));
         el.appendChild(htmlEl('span', `uc-actor-name t-label${a.abstract ? ' is-abstract' : ''}`, nameOf(a)));
+        if (isTile(a)) el.appendChild(htmlEl('span', 'uc-kw t-caption', KIND_CAPTION[a.kind]));
         addItemChrome(el, a, a._side === 'right');
         return el;
       }
@@ -253,6 +254,11 @@
           port.dataset.exportSkip = '';
           port.dataset.touchDrag = '';
           port.title = 'Drag to another item to connect them (blank space inside a subject draws out a new use case)';
+          if (o._figW && typeof o.w === 'number') {   // an actor: the port sits on the avatar's rim, level with its centre
+            const off = px((o.w - o._figW) / 2);
+            port.style.top = px(o._figH / 2);
+            if (leftPort) port.style.left = `calc(${off} - 7px)`; else port.style.right = `calc(${off} - 7px)`;
+          }
           el.appendChild(port);
         }
         const badge = buildNoteBadge(o);
@@ -1182,8 +1188,9 @@
         const s = realSubjects().find((x) => x.id === id);
         if (!s) return;
         if (s.collapsed === true) delete s.collapsed; else s.collapsed = true;
-        render();
-        updateStatus(true);
+        // the engine keeps a collapsed subject's use cases where they sit expanded, so expanding restores them;
+        // with Auto-Tidy on the other subjects close up (collapse) or make room (expand)
+        commit(true);
       }
       function moveToSubject(subjectId) {
         const s = subjectOf(subjectId), ids = selIds.filter((id) => caseOf(id));
@@ -1563,10 +1570,10 @@
           g.appendChild(htmlEl('div', 'note-text', 'Note'));
         } else {
           const tile = kind === 'system';
-          g = htmlEl('div', `uc-actor uc-ghost${tile ? ' is-tile' : ''}`);
-          if (tile) { g.appendChild(htmlEl('span', 'uc-tile-icon')).innerHTML = ui.icon('server', { size: 'xl' }); g.appendChild(htmlEl('span', 'uc-kw t-caption', KIND_CAPTION.system)); }
-          else g.appendChild(htmlEl('div', 'uc-figure')).innerHTML = ui.icon('actor', { size: 24, fine: true });
+          g = htmlEl('div', 'uc-actor uc-ghost');
+          g.appendChild(avatar(tile ? 'system' : 'human', 56));
           g.appendChild(htmlEl('span', 'uc-actor-name t-label', tile ? 'New system' : 'New actor'));
+          if (tile) g.appendChild(htmlEl('span', 'uc-kw t-caption', KIND_CAPTION.system));
           const sz = tile ? SIZE.tile : SIZE.actor;
           g.style.width = px(sz[0]); g.style.height = px(sz[1]);
         }

@@ -5,8 +5,8 @@
 //         useCases[{id,name,subject?,color?,level?,extensionPoints?,parent?}],
 //         links[{id,type: association|include|extend, from, to, condition?}]
 // Output (derived, written in place; units are canvas px, top-left origin):
-//         actors[].x,y,w,h,_side,_figW,_figH   the whole actor (figure or tile, name below); _figW/_figH = the drawn figure
-//                                              (human: figure box at the top of the actor; tile: the whole actor)
+//         actors[].x,y,w,h,_side,_figW,_figH   the whole actor (round avatar, name and keyword below); _figW/_figH = the avatar
+//                                              (a circle at the top centre of the actor, for every kind)
 //         useCases[].x,y,w,h,_lines,_compH,_hidden   ellipse box (compartment included), name wrapped to <= 2 lines,
 //                                              extension-points compartment height, true inside a collapsed subject (w = h = 0)
 //         subjects[].x,y,w,h,_titleH           boundary box (data._subjects for an implicit `_main` subject)
@@ -26,7 +26,7 @@ const UC = {
   LEVEL_K: { summary: 1.14, user: 1, subfunction: 0.86 },
   COMP_PAD: 10,                                  // compartment: 3 * COMP_PAD + one DETAIL_H per extension point
   // actors
-  FIG_W: 36, FIG_H: 56, ACTOR_WRAP: 120, NAME_GAP: 6, TILE_MIN_W: 112, TILE_H: 84, TILE_PAD: 24, ACTOR_MIN_W: 48,
+  AVATAR: 56, ACTOR_WRAP: 120, NAME_GAP: 8, CAPTION_H: 16, ACTOR_MIN_W: 72,   // every actor: a round avatar, name (and «system» / «time») below
   ACTOR_GAP_Y: 24, ACTOR_CHILD_GAP: 44, ACTOR_GAP: 96,
   // subjects
   TITLE_H: 36, TITLE_PAD_X: 44, PAD_X: 28, PAD_Y: 20, SUBJ_GAP: 32, EMPTY_BODY: 56,
@@ -121,16 +121,10 @@ function ucSizes(m) {
     const lines = ucWrap(a.name, UC.CHAR_W, UC.ACTOR_WRAP);
     a._lines = lines;
     const tw = Math.max(...lines.map((l) => ucTextW(l, UC.CHAR_W)));
-    if (kind === 'human') {
-      a.w = ucGrid(Math.max(UC.ACTOR_MIN_W, tw + 8));
-      a.h = ucGrid(UC.FIG_H + UC.NAME_GAP + lines.length * UC.TEXT_H);
-      a._figW = UC.FIG_W; a._figH = UC.FIG_H;
-    } else {
-      a.w = ucGrid(Math.max(UC.TILE_MIN_W, tw + UC.TILE_PAD));
-      a.h = ucGrid(UC.TILE_H + (lines.length - 1) * UC.TEXT_H);
-      a._figW = a.w; a._figH = a.h;
-    }
-    m.sz[a.id] = { w: a.w, h: a.h, anchor: kind === 'human' ? UC.FIG_H / 2 : a.h / 2 };
+    a.w = ucGrid(Math.max(UC.ACTOR_MIN_W, tw + 8));
+    a.h = ucGrid(UC.AVATAR + UC.NAME_GAP + lines.length * UC.TEXT_H + (kind === 'human' ? 0 : UC.CAPTION_H));
+    a._figW = UC.AVATAR; a._figH = UC.AVATAR;
+    m.sz[a.id] = { w: a.w, h: a.h, anchor: UC.AVATAR / 2 };
   });
   m.cases.forEach((c) => {
     if (m.hidden[c.id]) {
@@ -318,6 +312,10 @@ function ucClip(it, tx, ty, whole) {                // the point where the ray f
     const t = 1 / Math.sqrt((dx / it.a) * (dx / it.a) + (dy / it.b) * (dy / it.b));
     return [it.cx + dx * t, it.cy + dy * t];
   }
+  if (it.kind === 'actor' && !whole) {               // the avatar is a circle: end the line just off its rim
+    const t = (it.box.w / 2 + 3) / Math.hypot(dx, dy);
+    return [it.cx + dx * t, it.cy + dy * t];
+  }
   const r = whole ? it.whole : it.box;
   let t = Infinity;
   if (dx > 0) t = Math.min(t, (r.x + r.w - it.cx) / dx); else if (dx < 0) t = Math.min(t, (r.x - it.cx) / dx);
@@ -461,7 +459,7 @@ function ucArrangeOnce(m, orders, actorOrderIn, fixedActors) {
   // initial: columns centred in the body, hidden cases at the bar centre
   const unitTop = {};
   m.subj.forEach((sj) => {
-    if (sj.collapsed) { sj.cases.forEach((c) => { y[c.id] = bands[sj.i].top + UC.TITLE_H / 2; }); return; }
+    if (sj.collapsed) { m.barTop[sj.i] = bands[sj.i].top; sj.cases.forEach((c) => { y[c.id] = bands[sj.i].top + UC.TITLE_H / 2; }); return; }
     sj.ranks.forEach((r) => {
       const col = orders[sj.i][r];
       const h = col.reduce((s, id) => s + m.unit[id].H, 0) + Math.max(0, col.length - 1) * UC.ROW_GAP;
@@ -608,7 +606,9 @@ function ucSubjects(m) {
     s.x = L; s.w = R - L; s._titleH = UC.TITLE_H;
     const own = sj.cases.filter((c) => !m.hidden[c.id]);
     if (sj.collapsed) {
-      s.y = ys.length ? Math.round((ys[0] - UC.TITLE_H / 2) * 10) / 10 : top0; s.h = UC.TITLE_H;
+      // layoutDiagram knows the bar's band; routeDiagram puts the bar where the expanded subject's top was (its use cases keep x/y)
+      const bt = m.barTop[sj.i];
+      s.y = typeof bt === 'number' ? bt : ys.length ? Math.round((Math.min(...ys) - UC.PAD_Y - UC.TITLE_H) * 10) / 10 : top0; s.h = UC.TITLE_H;
     } else if (own.length) {
       const t = Math.min(...own.map((c) => c.y)), b = Math.max(...own.map((c) => c.y + c.h));
       s.y = t - UC.PAD_Y - UC.TITLE_H; s.h = b - t + 2 * UC.PAD_Y + UC.TITLE_H;
@@ -616,7 +616,6 @@ function ucSubjects(m) {
     m.bars[sj.i] = { x: s.x, y: s.y, w: s.w, h: UC.TITLE_H };
     prev = s.y + s.h;
   });
-  m.cases.forEach((c) => { if (m.hidden[c.id]) { c.x = L; c.y = m.bars[m.si[c.id]].y + UC.TITLE_H / 2; } });
 }
 
 function ucOverlapRect(a, b, pad) { return a.x < b.x + b.w + pad && b.x < a.x + a.w + pad && a.y < b.y + b.h + pad && b.y < a.y + a.h + pad; }
@@ -641,17 +640,17 @@ function ucLines(m) {
     return n;
   };
   // straight, else the gentlest curve that clears every other ellipse and actor
-  const route = (A, B, parent) => {
+  const route = (A, B, parent, bWhole = false) => {   // parent / bWhole: end on the whole actor (a generalization parent sits below its name)
     const mx = (A.cx + B.cx) / 2, my = (A.cy + B.cy) / 2;
     const dx = B.cx - A.cx, dy = B.cy - A.cy, L = Math.hypot(dx, dy) || 1, nx = -dy / L, ny = dx / L;
     const ob = obstacles(A.id, B.id);
     let best = null;
     for (const off of UC.CURVE_OFFS) {
       let pts;
-      if (!off) pts = [ucClip(A, B.cx, B.cy, parent), ucClip(B, A.cx, A.cy, true)];
+      if (!off) pts = [ucClip(A, B.cx, B.cy, parent), ucClip(B, A.cx, A.cy, bWhole)];
       else {
         const c = [mx + nx * off, my + ny * off];
-        pts = [ucClip(A, c[0], c[1], parent), c, ucClip(B, c[0], c[1], true)];
+        pts = [ucClip(A, c[0], c[1], parent), c, ucClip(B, c[0], c[1], bWhole)];
       }
       const h = hitsOf(pts, ob);
       if (!best || h < best.h) best = { pts, h };
@@ -689,8 +688,8 @@ function ucLines(m) {
     };
     let best = null;
     const tries = [];
-    [0.5, 0.45, 0.55, 0.4, 0.6, 0.35, 0.65, 0.3, 0.7, 0.25, 0.75].forEach((u) => tries.push([u, 0]));
-    [0.3, 0.55, 0.8, 1.2, 1.8].forEach((k) => [1, -1].forEach((sg) => [0.5, 0.4, 0.6, 0.3, 0.7].forEach((u) => tries.push([u, sg * t.h * k]))));
+    [0.5, 0.45, 0.55, 0.4, 0.6, 0.35, 0.65, 0.3, 0.7, 0.25, 0.75, 0.2, 0.8, 0.15, 0.85].forEach((u) => tries.push([u, 0]));
+    [0.3, 0.55, 0.8, 1.2, 1.8, 2.5].forEach((k) => [1, -1].forEach((sg) => [0.5, 0.4, 0.6, 0.3, 0.7, 0.2, 0.8].forEach((u) => tries.push([u, sg * t.h * k]))));
     for (const [u, off] of tries) {
       const r = score(u, off);
       if (!best || r.s < best.s) best = r;
@@ -704,7 +703,7 @@ function ucLines(m) {
   m.actors.forEach((a) => {
     if (!a.parent || !items[a.parent] || a.parent === a.id) return;
     const c = items[a.id], p = items[a.parent];
-    const r = route(c, p, false);
+    const r = route(c, p, false, true);
     hits += r.h;
     parents.push({ from: a.id, to: a.parent, kind: 'actor', points: r.pts.map((q) => [ucR1(q[0]), ucR1(q[1])]) });
   });
@@ -712,7 +711,7 @@ function ucLines(m) {
     if (!c.parent || !items[c.parent] || c.parent === c.id) return;
     const a = items[c.id], p = items[c.parent];
     if (a.kind === 'bar' && p.kind === 'bar' && m.si[c.id] === m.si[c.parent]) return;
-    const r = route(a, p, true);
+    const r = route(a, p, true, true);
     hits += r.h;
     parents.push({ from: c.id, to: c.parent, kind: 'useCase', points: r.pts.map((q) => [ucR1(q[0]), ucR1(q[1])]) });
   });
@@ -748,16 +747,38 @@ function ucFinish(m) {
 
 function ucPrepare(data) {
   const m = ucModel(data);
+  m.barTop = {};
   ucSizes(m);
   ucRanks(m);
   return m;
 }
 
 function layoutDiagram(data) {
+  // A collapsed subject keeps its use cases where they would sit expanded (relative to the subject's top-left), so
+  // expanding it brings them back instead of stacking them on the bar: lay out a copy with every subject open first.
+  const subjects = data.subjects || [];
+  let open = null;
+  if (subjects.some((s) => s && s.collapsed === true)) {
+    const copy = JSON.parse(JSON.stringify(data));
+    copy.subjects.forEach((s) => { delete s.collapsed; });
+    layoutDiagram(copy);
+    open = { subj: {}, cases: {} };
+    copy.subjects.forEach((s) => { open.subj[s.id] = s; });
+    (copy.useCases || []).forEach((c) => { open.cases[c.id] = c; });
+  }
   const m = ucPrepare(data);
   ucColumns(m);
   ucArrange(m);
   ucFinish(m);
+  if (open) {
+    m.cases.forEach((c) => {
+      if (!m.hidden[c.id]) return;
+      const s = m.subj[m.si[c.id]].s, os = open.subj[s.id], oc = open.cases[c.id];
+      if (!os || !oc) return;
+      c.x = Math.round((s.x + oc.x - os.x) * 10) / 10;
+      c.y = Math.round((s.y + oc.y - os.y) * 10) / 10;
+    });
+  }
   return data;
 }
 
@@ -766,6 +787,21 @@ function routeDiagram(data) {
   const num = (v) => typeof v === 'number' && isFinite(v);
   if (m.actors.concat(m.cases).some((x) => !num(x.x) || !num(x.y))) return layoutDiagram(data);
   m.final = null;
-  ucFinish(m);
+  // Subjects never overlap: when one grows into the next (a subject expanded, a use case dragged down), the
+  // subjects below it move down with their use cases, keeping the gap. Nothing moves when they already clear.
+  ucSubjects(m);
+  let bottom = null, moved = false;
+  m.subj.slice().sort((a, b) => a.s.y - b.s.y || a.i - b.i).forEach((sj) => {
+    if (bottom !== null && sj.s.y < bottom + UC.SUBJ_GAP) {
+      const dy = Math.round((bottom + UC.SUBJ_GAP - sj.s.y) * 10) / 10;
+      sj.cases.forEach((c) => { c.y = Math.round((c.y + dy) * 10) / 10; });
+      sj.s.y += dy;
+      moved = true;
+    }
+    bottom = sj.s.y + sj.s.h;
+  });
+  if (moved) ucSubjects(m);
+  ucLines(m);
+  ucCanvas(m);
   return data;
 }

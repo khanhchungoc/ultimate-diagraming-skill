@@ -50,17 +50,17 @@
     { "id": "n1", "text": "A member may hold at most 5 loans (BR-2)", "useCases": ["borrow"] }
   ],
   "layout": {
-    "member": { "x": 50, "y": 167 },
-    "librarian": { "x": 40, "y": 307 },
-    "mail": { "x": 868, "y": 265 },
-    "search": { "x": 240, "y": 232 },
+    "member": { "x": 42, "y": 184 },
+    "librarian": { "x": 40, "y": 327 },
+    "mail": { "x": 868, "y": 299 },
+    "search": { "x": 240, "y": 252 },
     "borrow": { "x": 258, "y": 96 },
-    "login": { "x": 618, "y": 152 },
-    "extend_loan": { "x": 610, "y": 98 },
-    "return": { "x": 258, "y": 286 },
-    "reserve": { "x": 258, "y": 178 },
-    "fine": { "x": 258, "y": 340 },
-    "notify": { "x": 604, "y": 285 }
+    "login": { "x": 618, "y": 165 },
+    "extend_loan": { "x": 610, "y": 111 },
+    "return": { "x": 258, "y": 306 },
+    "reserve": { "x": 258, "y": 198 },
+    "fine": { "x": 258, "y": 360 },
+    "notify": { "x": 604, "y": 305 }
   }
 }
   </script>
@@ -1351,23 +1351,23 @@
     /* --- Subjects: a frame, not a category: neutral panel with the border token --- */
     .uc-subject {
       position: absolute; box-sizing: border-box; z-index: 5; pointer-events: none;
-      background: var(--lane-alt-bg); border: var(--ring-thin) solid var(--border-dark); border-radius: var(--radius-lg); color: var(--text-main);
+      background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: var(--radius-2xl); color: var(--text-main);
+      box-shadow: var(--shadow-canvas);
     }
     .uc-subject.selected { border-color: var(--primary); box-shadow: var(--shadow-ring); }
     .uc-subject.drop-target { border-color: var(--primary); background: var(--primary-wash); }
     .uc-subject-title {
       position: absolute; left: 0; top: 0; right: 0; display: flex; align-items: center; gap: 6px; padding: 0 10px; box-sizing: border-box;
-      border-bottom: 1px solid var(--border-color); pointer-events: auto; cursor: pointer; color: var(--text-main);
+      pointer-events: auto; cursor: pointer; color: var(--text-main);
     }
-    .uc-subject.is-collapsed .uc-subject-title { border-bottom: none; }
-    .uc-subject-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .uc-subject-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .uc-subject-name.is-editing { overflow: visible; text-overflow: clip; background: var(--bg-panel); outline: 1.5px solid var(--primary-ring); border-radius: var(--radius-xs); padding: 0 3px; }
     .uc-subject .frame-chev { color: var(--text-soft); flex: none; width: 24px; height: 24px; margin: 0 0 0 -4px; vertical-align: baseline; }
     .uc-subject.is-collapsed .frame-chev svg { transform: rotate(-90deg); }
 
     /* --- Lines --- */
-    .uc-link .edge-line { pointer-events: none; stroke: var(--node-border); marker-end: var(--mk-e); }
-    .uc-link.is-dashed .edge-line { stroke-dasharray: 6 4; }
+    .uc-link .edge-line { pointer-events: none; stroke: var(--node-border); stroke-width: 1.5px; stroke-linecap: round; marker-end: var(--mk-e); }
+    .uc-link.is-dashed .edge-line { stroke-dasharray: 5 5; }
     .uc-link:is(.hover, .selected, .hl) .edge-line { stroke: var(--primary); stroke-width: 2px; marker-end: var(--mk-e-sel); }
     .uc-link.is-dim { opacity: 0.16; }
     .uc-link.is-hidden, .uc-label.is-hidden { display: none; }
@@ -1379,8 +1379,9 @@
     .uc-label {
       display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 0 8px; pointer-events: auto;
       font-size: var(--t-detail-size); font-weight: var(--t-detail-weight); line-height: var(--leading-tight); white-space: nowrap; cursor: pointer;
+      color: var(--text-muted); background: var(--bg-panel); border-color: var(--border-color); border-radius: var(--radius-pill); box-shadow: var(--shadow-sm);
     }
-    .uc-label .uc-cond { color: var(--text-soft); max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+    .uc-label .uc-cond { color: var(--text-soft); max-width: 100%; white-space: normal; text-align: center; overflow-wrap: anywhere; }   /* wraps as the engine wrapped it (labelBox is sized for its lines) */
     .uc-label.is-dim { opacity: 0.25; }
     .uc-label.hl { border-color: var(--primary); box-shadow: var(--shadow-glow) var(--primary-glow); }
 
@@ -1392,11 +1393,14 @@
     }
     .uc-shape {
       position: absolute; inset: 0; box-sizing: border-box; display: flex; flex-direction: column; overflow: hidden;
-      border: var(--ring-thin) solid var(--ring); border-radius: var(--radius-round); background: var(--node-bg); transition: border-color 0.15s, box-shadow 0.15s;
+      border: 1px solid var(--ring); border-radius: var(--radius-round); background: var(--node-bg); transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+      box-shadow: var(--shadow-sm);
     }
+    .uc-case:hover .uc-shape { box-shadow: var(--shadow-md); }
+    .uc-name { font-weight: var(--weight-medium); }
     .uc-case[data-sw] { --ring: var(--sw-line); color: var(--sw-pill-ink); }
-    .uc-case[data-sw] .uc-shape { background: var(--sw-pill-bg); }
-    .uc-case[data-level="summary"] .uc-shape { border-width: var(--ring-lg); }
+    .uc-case[data-sw] .uc-shape { background: color-mix(in srgb, var(--sw-pill-bg) 60%, var(--node-bg)); }   /* a lighter tint of the slot; the ink is checked on both ends of the mix */
+    .uc-case[data-level="summary"] .uc-shape { border-width: var(--ring-thin); }
     .uc-case[data-level="summary"] .uc-name { font-size: var(--t-title-size); font-weight: var(--t-title-weight); }
     .uc-case[data-level="subfunction"] .uc-shape { border-style: dashed; }
     .uc-case:hover { --ring: var(--task-accent); }
@@ -1418,29 +1422,27 @@
     .uc-refs { position: absolute; left: 50%; top: 100%; transform: translate(-50%, 2px); display: flex; gap: 3px; white-space: nowrap; pointer-events: none; }
     .uc-ref { padding: 0 6px; border-radius: var(--radius-pill); background: var(--bg-soft); color: var(--text-soft); border: 1px solid var(--border-color); }
 
-    /* --- Actors: stick figure for a person, icon tile for a system or a clock --- */
+    /* --- Actors: a round avatar (person, server or clock), the name below, «system» / «time» under the name --- */
     .uc-actor {
-      --ring: var(--node-border);
+      --ring: var(--border-dark);
       position: absolute; box-sizing: border-box; z-index: 20; pointer-events: auto; cursor: pointer; color: var(--text-main);
-      display: flex; flex-direction: column; align-items: center; transition: box-shadow 0.15s, opacity 0.15s;
+      display: flex; flex-direction: column; align-items: center; transition: opacity 0.15s;
     }
-    .uc-figure { flex: none; display: flex; align-items: center; justify-content: center; color: var(--ring); transition: color 0.15s; }
-    .uc-figure svg { width: 100%; height: 100%; display: block; }
-    .uc-figure:not([style]) { width: calc(var(--icon-tile) * 1.5); height: calc(var(--icon-tile) * 1.5); }
-    .uc-actor-name { text-align: center; margin-top: 6px; max-width: 100%; overflow-wrap: anywhere; color: var(--text-main); }
+    .uc-figure {
+      flex: none; display: flex; align-items: center; justify-content: center; box-sizing: border-box; width: 56px; height: 56px;
+      border-radius: var(--radius-round); border: 1px solid var(--ring); background: var(--bg-soft); color: var(--text-soft);
+      box-shadow: var(--shadow-sm); transition: border-color 0.15s, box-shadow 0.15s, color 0.15s;
+    }
+    .uc-figure svg { display: block; }
+    .uc-actor-name { text-align: center; margin-top: 8px; max-width: 100%; overflow-wrap: anywhere; color: var(--text-main); font-weight: var(--weight-medium); }
     .uc-actor-name.is-abstract { font-style: italic; }
     .uc-actor-name.is-editing { background: var(--bg-panel); outline: 1.5px solid var(--primary-ring); border-radius: var(--radius-xs); padding: 0 3px; min-width: 24px; }
-    .uc-actor[data-sw] { --ring: var(--sw-line); }
-    .uc-actor:hover, .uc-actor.selected, .uc-actor.hl { --ring: var(--primary); }
-    .uc-actor.selected { border-radius: var(--radius-lg); box-shadow: var(--shadow-ring); }
-    .uc-actor.is-tile {
-      justify-content: center; padding: 6px 8px; background: var(--node-bg); border: var(--ring-thin) solid var(--ring); border-radius: var(--radius-xl);
-    }
-    .uc-actor.is-tile[data-sw] { background: var(--sw-pill-bg); }
-    .uc-actor.is-tile[data-sw] .uc-actor-name, .uc-actor.is-tile[data-sw] .uc-kw { color: var(--sw-pill-ink); }
-    .uc-tile-icon { color: var(--ring); display: flex; }
     .uc-kw { color: var(--text-muted); }
-    .uc-actor.is-tile .uc-actor-name { margin-top: 0; }
+    .uc-actor[data-sw] { --ring: var(--sw-line); }
+    .uc-actor[data-sw] .uc-figure { background: var(--sw-pill-bg); color: var(--sw-pill-ink); }
+    .uc-actor:hover .uc-figure { box-shadow: var(--shadow-md); }
+    .uc-actor:hover, .uc-actor.selected, .uc-actor.hl { --ring: var(--primary); }
+    .uc-actor:is(.selected, .hl) .uc-figure { color: var(--primary); box-shadow: var(--shadow-ring); }
 
     /* Search and focus */
     body.uc-has-match .uc-search-count { color: var(--text-main); }
@@ -1460,7 +1462,7 @@
 
     /* Legend of the colour key, under the diagram */
     .uc-legend { position: absolute; left: 0; display: flex; flex-wrap: wrap; gap: 4px 16px; pointer-events: none; color: var(--text-main); }
-    .uc-legend-item { display: inline-flex; align-items: center; gap: 6px; }
+    .uc-legend-item { display: inline-flex; align-items: center; gap: 6px; padding: 2px 10px 2px 8px; border-radius: var(--radius-pill); background: var(--bg-panel); border: 1px solid var(--border-color); box-shadow: var(--shadow-sm); }
     .uc-legend .swatch-dot { background: var(--sw-pill-bg); border: var(--ring-thin) solid var(--sw-line); }
 
     /* Keyboard focus */
@@ -1485,7 +1487,7 @@
     #uc-rubber { stroke: var(--primary); stroke-width: 2; stroke-dasharray: 6 4; display: none; fill: none; pointer-events: none; }
     .uc-target { --ring: var(--primary); }
     .uc-target > .uc-shape { background: var(--primary-wash); }
-    .uc-actor.uc-target { box-shadow: var(--shadow-ring); border-radius: var(--radius-lg); }
+    .uc-actor.uc-target .uc-figure { box-shadow: var(--shadow-ring); }
     .uc-ghost { position: fixed !important; z-index: 1000; pointer-events: none; transform-origin: 0 0; opacity: 0.95; box-shadow: var(--shadow-xl); }
     .uc-ghost.off-target { opacity: 0.5; }
     body.palette-dragging, body.palette-dragging * { cursor: grabbing !important; user-select: none; }
@@ -1590,7 +1592,7 @@
         <div id="uc-pop" class="dock-pop" role="group" aria-label="Add: click to add, or drag onto the canvas">
           <div class="dock-pop-grid" role="group" aria-label="Add">
             <button id="btn-add-actor" class="btn btn-shape" title="Actor: a role outside the system (click, or drag onto the canvas)" aria-label="Actor">
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="5" r="3"/><path d="M12 8v7"/><path d="M5 11h14"/><path d="m12 15-5 6"/><path d="m12 15 5 6"/></svg><span class="tile-caption">Actor</span>
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span class="tile-caption">Actor</span>
             </button>
             <button id="btn-add-system" class="btn btn-shape" title="System actor: an external system, such as a payment gateway (click, or drag onto the canvas)" aria-label="System actor">
               <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="20" height="8" x="2" y="2" rx="2"/><rect width="20" height="8" x="2" y="14" rx="2"/><path d="M6 6h.01M6 18h.01"/></svg><span class="tile-caption">System</span>
@@ -3283,9 +3285,9 @@ const UC = {
   // ellipse
   WRAP: 156, MIN_W: 128, MIN_H: 44, PAD_TXT: 14, ONE_LINE_K: 1.12, TWO_LINE_K: 1.22, GRID: 4,
   LEVEL_K: { summary: 1.14, user: 1, subfunction: 0.86 },
-  COMP_PAD: 10,                                  // compartment: COMP_PAD + one DETAIL_H per extension point
+  COMP_PAD: 10,                                  // compartment: 3 * COMP_PAD + one DETAIL_H per extension point
   // actors
-  FIG_W: 36, FIG_H: 56, ACTOR_WRAP: 120, NAME_GAP: 6, TILE_MIN_W: 112, TILE_H: 84, TILE_PAD: 24, ACTOR_MIN_W: 48,
+  AVATAR: 56, ACTOR_WRAP: 120, NAME_GAP: 8, CAPTION_H: 16, ACTOR_MIN_W: 72,   // every actor: a round avatar, name (and «system» / «time») below
   ACTOR_GAP_Y: 24, ACTOR_CHILD_GAP: 44, ACTOR_GAP: 96,
   // subjects
   TITLE_H: 36, TITLE_PAD_X: 44, PAD_X: 28, PAD_Y: 20, SUBJ_GAP: 32, EMPTY_BODY: 56,
@@ -3380,16 +3382,10 @@ function ucSizes(m) {
     const lines = ucWrap(a.name, UC.CHAR_W, UC.ACTOR_WRAP);
     a._lines = lines;
     const tw = Math.max(...lines.map((l) => ucTextW(l, UC.CHAR_W)));
-    if (kind === 'human') {
-      a.w = ucGrid(Math.max(UC.ACTOR_MIN_W, tw + 8));
-      a.h = ucGrid(UC.FIG_H + UC.NAME_GAP + lines.length * UC.TEXT_H);
-      a._figW = UC.FIG_W; a._figH = UC.FIG_H;
-    } else {
-      a.w = ucGrid(Math.max(UC.TILE_MIN_W, tw + UC.TILE_PAD));
-      a.h = ucGrid(UC.TILE_H + (lines.length - 1) * UC.TEXT_H);
-      a._figW = a.w; a._figH = a.h;
-    }
-    m.sz[a.id] = { w: a.w, h: a.h, anchor: kind === 'human' ? UC.FIG_H / 2 : a.h / 2 };
+    a.w = ucGrid(Math.max(UC.ACTOR_MIN_W, tw + 8));
+    a.h = ucGrid(UC.AVATAR + UC.NAME_GAP + lines.length * UC.TEXT_H + (kind === 'human' ? 0 : UC.CAPTION_H));
+    a._figW = UC.AVATAR; a._figH = UC.AVATAR;
+    m.sz[a.id] = { w: a.w, h: a.h, anchor: UC.AVATAR / 2 };
   });
   m.cases.forEach((c) => {
     if (m.hidden[c.id]) {
@@ -3405,7 +3401,7 @@ function ucSizes(m) {
     let h = (lines.length > 1 ? lines.length * UC.TEXT_H + 24 : UC.MIN_H) * k;
     w = Math.max(UC.MIN_W * k, w);
     const pts = (c.extensionPoints || []).map(String);
-    const compH = pts.length ? UC.COMP_PAD + pts.length * UC.DETAIL_H : 0;
+    const compH = pts.length ? 3 * UC.COMP_PAD + pts.length * UC.DETAIL_H : 0;   // CSS pads 10 top and bottom, plus 10 so the last line clears the curve
     if (pts.length) w = Math.max(w, Math.max(...pts.map((p) => ucTextW(p, UC.DETAIL_W))) * 1.4 + 2 * UC.PAD_TXT);
     c._lines = lines; c._compH = compH;
     c.w = ucGrid(w); c.h = ucGrid(h + compH);
@@ -3577,6 +3573,10 @@ function ucClip(it, tx, ty, whole) {                // the point where the ray f
     const t = 1 / Math.sqrt((dx / it.a) * (dx / it.a) + (dy / it.b) * (dy / it.b));
     return [it.cx + dx * t, it.cy + dy * t];
   }
+  if (it.kind === 'actor' && !whole) {               // the avatar is a circle: end the line just off its rim
+    const t = (it.box.w / 2 + 3) / Math.hypot(dx, dy);
+    return [it.cx + dx * t, it.cy + dy * t];
+  }
   const r = whole ? it.whole : it.box;
   let t = Infinity;
   if (dx > 0) t = Math.min(t, (r.x + r.w - it.cx) / dx); else if (dx < 0) t = Math.min(t, (r.x - it.cx) / dx);
@@ -3720,7 +3720,7 @@ function ucArrangeOnce(m, orders, actorOrderIn, fixedActors) {
   // initial: columns centred in the body, hidden cases at the bar centre
   const unitTop = {};
   m.subj.forEach((sj) => {
-    if (sj.collapsed) { sj.cases.forEach((c) => { y[c.id] = bands[sj.i].top + UC.TITLE_H / 2; }); return; }
+    if (sj.collapsed) { m.barTop[sj.i] = bands[sj.i].top; sj.cases.forEach((c) => { y[c.id] = bands[sj.i].top + UC.TITLE_H / 2; }); return; }
     sj.ranks.forEach((r) => {
       const col = orders[sj.i][r];
       const h = col.reduce((s, id) => s + m.unit[id].H, 0) + Math.max(0, col.length - 1) * UC.ROW_GAP;
@@ -3867,7 +3867,9 @@ function ucSubjects(m) {
     s.x = L; s.w = R - L; s._titleH = UC.TITLE_H;
     const own = sj.cases.filter((c) => !m.hidden[c.id]);
     if (sj.collapsed) {
-      s.y = ys.length ? Math.round((ys[0] - UC.TITLE_H / 2) * 10) / 10 : top0; s.h = UC.TITLE_H;
+      // layoutDiagram knows the bar's band; routeDiagram puts the bar where the expanded subject's top was (its use cases keep x/y)
+      const bt = m.barTop[sj.i];
+      s.y = typeof bt === 'number' ? bt : ys.length ? Math.round((Math.min(...ys) - UC.PAD_Y - UC.TITLE_H) * 10) / 10 : top0; s.h = UC.TITLE_H;
     } else if (own.length) {
       const t = Math.min(...own.map((c) => c.y)), b = Math.max(...own.map((c) => c.y + c.h));
       s.y = t - UC.PAD_Y - UC.TITLE_H; s.h = b - t + 2 * UC.PAD_Y + UC.TITLE_H;
@@ -3875,7 +3877,6 @@ function ucSubjects(m) {
     m.bars[sj.i] = { x: s.x, y: s.y, w: s.w, h: UC.TITLE_H };
     prev = s.y + s.h;
   });
-  m.cases.forEach((c) => { if (m.hidden[c.id]) { c.x = L; c.y = m.bars[m.si[c.id]].y + UC.TITLE_H / 2; } });
 }
 
 function ucOverlapRect(a, b, pad) { return a.x < b.x + b.w + pad && b.x < a.x + a.w + pad && a.y < b.y + b.h + pad && b.y < a.y + a.h + pad; }
@@ -3900,17 +3901,17 @@ function ucLines(m) {
     return n;
   };
   // straight, else the gentlest curve that clears every other ellipse and actor
-  const route = (A, B, parent) => {
+  const route = (A, B, parent, bWhole = false) => {   // parent / bWhole: end on the whole actor (a generalization parent sits below its name)
     const mx = (A.cx + B.cx) / 2, my = (A.cy + B.cy) / 2;
     const dx = B.cx - A.cx, dy = B.cy - A.cy, L = Math.hypot(dx, dy) || 1, nx = -dy / L, ny = dx / L;
     const ob = obstacles(A.id, B.id);
     let best = null;
     for (const off of UC.CURVE_OFFS) {
       let pts;
-      if (!off) pts = [ucClip(A, B.cx, B.cy, parent), ucClip(B, A.cx, A.cy, true)];
+      if (!off) pts = [ucClip(A, B.cx, B.cy, parent), ucClip(B, A.cx, A.cy, bWhole)];
       else {
         const c = [mx + nx * off, my + ny * off];
-        pts = [ucClip(A, c[0], c[1], parent), c, ucClip(B, c[0], c[1], true)];
+        pts = [ucClip(A, c[0], c[1], parent), c, ucClip(B, c[0], c[1], bWhole)];
       }
       const h = hitsOf(pts, ob);
       if (!best || h < best.h) best = { pts, h };
@@ -3948,8 +3949,8 @@ function ucLines(m) {
     };
     let best = null;
     const tries = [];
-    [0.5, 0.45, 0.55, 0.4, 0.6, 0.35, 0.65, 0.3, 0.7, 0.25, 0.75].forEach((u) => tries.push([u, 0]));
-    [0.3, 0.55, 0.8, 1.2, 1.8].forEach((k) => [1, -1].forEach((sg) => [0.5, 0.4, 0.6, 0.3, 0.7].forEach((u) => tries.push([u, sg * t.h * k]))));
+    [0.5, 0.45, 0.55, 0.4, 0.6, 0.35, 0.65, 0.3, 0.7, 0.25, 0.75, 0.2, 0.8, 0.15, 0.85].forEach((u) => tries.push([u, 0]));
+    [0.3, 0.55, 0.8, 1.2, 1.8, 2.5].forEach((k) => [1, -1].forEach((sg) => [0.5, 0.4, 0.6, 0.3, 0.7, 0.2, 0.8].forEach((u) => tries.push([u, sg * t.h * k]))));
     for (const [u, off] of tries) {
       const r = score(u, off);
       if (!best || r.s < best.s) best = r;
@@ -3963,7 +3964,7 @@ function ucLines(m) {
   m.actors.forEach((a) => {
     if (!a.parent || !items[a.parent] || a.parent === a.id) return;
     const c = items[a.id], p = items[a.parent];
-    const r = route(c, p, false);
+    const r = route(c, p, false, true);
     hits += r.h;
     parents.push({ from: a.id, to: a.parent, kind: 'actor', points: r.pts.map((q) => [ucR1(q[0]), ucR1(q[1])]) });
   });
@@ -3971,7 +3972,7 @@ function ucLines(m) {
     if (!c.parent || !items[c.parent] || c.parent === c.id) return;
     const a = items[c.id], p = items[c.parent];
     if (a.kind === 'bar' && p.kind === 'bar' && m.si[c.id] === m.si[c.parent]) return;
-    const r = route(a, p, true);
+    const r = route(a, p, true, true);
     hits += r.h;
     parents.push({ from: c.id, to: c.parent, kind: 'useCase', points: r.pts.map((q) => [ucR1(q[0]), ucR1(q[1])]) });
   });
@@ -4007,16 +4008,38 @@ function ucFinish(m) {
 
 function ucPrepare(data) {
   const m = ucModel(data);
+  m.barTop = {};
   ucSizes(m);
   ucRanks(m);
   return m;
 }
 
 function layoutDiagram(data) {
+  // A collapsed subject keeps its use cases where they would sit expanded (relative to the subject's top-left), so
+  // expanding it brings them back instead of stacking them on the bar: lay out a copy with every subject open first.
+  const subjects = data.subjects || [];
+  let open = null;
+  if (subjects.some((s) => s && s.collapsed === true)) {
+    const copy = JSON.parse(JSON.stringify(data));
+    copy.subjects.forEach((s) => { delete s.collapsed; });
+    layoutDiagram(copy);
+    open = { subj: {}, cases: {} };
+    copy.subjects.forEach((s) => { open.subj[s.id] = s; });
+    (copy.useCases || []).forEach((c) => { open.cases[c.id] = c; });
+  }
   const m = ucPrepare(data);
   ucColumns(m);
   ucArrange(m);
   ucFinish(m);
+  if (open) {
+    m.cases.forEach((c) => {
+      if (!m.hidden[c.id]) return;
+      const s = m.subj[m.si[c.id]].s, os = open.subj[s.id], oc = open.cases[c.id];
+      if (!os || !oc) return;
+      c.x = Math.round((s.x + oc.x - os.x) * 10) / 10;
+      c.y = Math.round((s.y + oc.y - os.y) * 10) / 10;
+    });
+  }
   return data;
 }
 
@@ -4025,7 +4048,22 @@ function routeDiagram(data) {
   const num = (v) => typeof v === 'number' && isFinite(v);
   if (m.actors.concat(m.cases).some((x) => !num(x.x) || !num(x.y))) return layoutDiagram(data);
   m.final = null;
-  ucFinish(m);
+  // Subjects never overlap: when one grows into the next (a subject expanded, a use case dragged down), the
+  // subjects below it move down with their use cases, keeping the gap. Nothing moves when they already clear.
+  ucSubjects(m);
+  let bottom = null, moved = false;
+  m.subj.slice().sort((a, b) => a.s.y - b.s.y || a.i - b.i).forEach((sj) => {
+    if (bottom !== null && sj.s.y < bottom + UC.SUBJ_GAP) {
+      const dy = Math.round((bottom + UC.SUBJ_GAP - sj.s.y) * 10) / 10;
+      sj.cases.forEach((c) => { c.y = Math.round((c.y + dy) * 10) / 10; });
+      sj.s.y += dy;
+      moved = true;
+    }
+    bottom = sj.s.y + sj.s.h;
+  });
+  if (moved) ucSubjects(m);
+  ucLines(m);
+  ucCanvas(m);
   return data;
 }
 //@engine-end
@@ -4058,11 +4096,11 @@ function routeDiagram(data) {
       const searchClear = document.getElementById('uc-search-clear');
 
       const LINK_TYPES = ['association', 'include', 'extend'];
-      const KIND_ICON = { human: 'actor', system: 'server', time: 'clock' };
+      const KIND_ICON = { human: 'user', system: 'server', time: 'clock' };   // drawn in a round avatar
       const KIND_CAPTION = { system: '«system»', time: '«time»' };
       const LEVELS = ['summary', 'user', 'subfunction'];
       const LEVEL_NAME = { summary: 'Summary', user: 'Goal', subfunction: 'Sub' };
-      const SIZE = { actor: [104, 96], tile: [120, 84], useCase: [150, 60], subject: [280, 180] };   // a ghost's and a new item's first size
+      const SIZE = { actor: [104, 104], tile: [104, 120], useCase: [150, 60], subject: [280, 180] };   // a ghost's and a new item's first size
 
       // --- STATE ---
       let selIds = [];            // selected actors and use cases (primary last)
@@ -4219,8 +4257,16 @@ function routeDiagram(data) {
         return el;
       }
 
+      // Every actor is a round avatar (person, server or clock), the name below and, for a system or time actor, its keyword
+      function avatar(kind, size) {
+        const fig = htmlEl('div', 'uc-figure');
+        fig.innerHTML = ui.icon(KIND_ICON[kind] || KIND_ICON.human, { size: Math.round((size || 56) / 2) });
+        if (size) { fig.style.width = px(size); fig.style.height = px(size); }
+        return fig;
+      }
+
       function buildActor(a) {
-        const el = htmlEl('div', `uc-actor${isTile(a) ? ' is-tile' : ''}`);
+        const el = htmlEl('div', 'uc-actor');
         el.dataset.nodeId = a.id;
         el.dataset.kind = a.kind || 'human';
         el.tabIndex = -1;
@@ -4228,16 +4274,9 @@ function routeDiagram(data) {
         el.setAttribute('aria-label', `Actor ${nameOf(a)}${isTile(a) ? ` (${a.kind})` : ''}`);
         Object.assign(el.style, { left: px(a.x), top: px(a.y), width: px(a.w), height: px(a.h) });
         if (a.color) setSwatch(el, a.color);
-        if (isTile(a)) {
-          el.appendChild(htmlEl('span', 'uc-tile-icon')).innerHTML = ui.icon(KIND_ICON[a.kind], { size: 'xl' });
-          el.appendChild(htmlEl('span', 'uc-kw t-caption', KIND_CAPTION[a.kind]));
-        } else {
-          const fig = htmlEl('div', 'uc-figure');
-          fig.innerHTML = ui.icon('actor', { size: 24, fine: true });
-          if (a._figW && a._figH) { fig.style.width = px(a._figW); fig.style.height = px(a._figH); }
-          el.appendChild(fig);
-        }
+        el.appendChild(avatar(a.kind, a._figW));
         el.appendChild(htmlEl('span', `uc-actor-name t-label${a.abstract ? ' is-abstract' : ''}`, nameOf(a)));
+        if (isTile(a)) el.appendChild(htmlEl('span', 'uc-kw t-caption', KIND_CAPTION[a.kind]));
         addItemChrome(el, a, a._side === 'right');
         return el;
       }
@@ -4284,6 +4323,11 @@ function routeDiagram(data) {
           port.dataset.exportSkip = '';
           port.dataset.touchDrag = '';
           port.title = 'Drag to another item to connect them (blank space inside a subject draws out a new use case)';
+          if (o._figW && typeof o.w === 'number') {   // an actor: the port sits on the avatar's rim, level with its centre
+            const off = px((o.w - o._figW) / 2);
+            port.style.top = px(o._figH / 2);
+            if (leftPort) port.style.left = `calc(${off} - 7px)`; else port.style.right = `calc(${off} - 7px)`;
+          }
           el.appendChild(port);
         }
         const badge = buildNoteBadge(o);
@@ -5213,8 +5257,9 @@ function routeDiagram(data) {
         const s = realSubjects().find((x) => x.id === id);
         if (!s) return;
         if (s.collapsed === true) delete s.collapsed; else s.collapsed = true;
-        render();
-        updateStatus(true);
+        // the engine keeps a collapsed subject's use cases where they sit expanded, so expanding restores them;
+        // with Auto-Tidy on the other subjects close up (collapse) or make room (expand)
+        commit(true);
       }
       function moveToSubject(subjectId) {
         const s = subjectOf(subjectId), ids = selIds.filter((id) => caseOf(id));
@@ -5594,10 +5639,10 @@ function routeDiagram(data) {
           g.appendChild(htmlEl('div', 'note-text', 'Note'));
         } else {
           const tile = kind === 'system';
-          g = htmlEl('div', `uc-actor uc-ghost${tile ? ' is-tile' : ''}`);
-          if (tile) { g.appendChild(htmlEl('span', 'uc-tile-icon')).innerHTML = ui.icon('server', { size: 'xl' }); g.appendChild(htmlEl('span', 'uc-kw t-caption', KIND_CAPTION.system)); }
-          else g.appendChild(htmlEl('div', 'uc-figure')).innerHTML = ui.icon('actor', { size: 24, fine: true });
+          g = htmlEl('div', 'uc-actor uc-ghost');
+          g.appendChild(avatar(tile ? 'system' : 'human', 56));
           g.appendChild(htmlEl('span', 'uc-actor-name t-label', tile ? 'New system' : 'New actor'));
+          if (tile) g.appendChild(htmlEl('span', 'uc-kw t-caption', KIND_CAPTION.system));
           const sz = tile ? SIZE.tile : SIZE.actor;
           g.style.width = px(sz[0]); g.style.height = px(sz[1]);
         }

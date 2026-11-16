@@ -44,7 +44,7 @@ Never add coordinates or sizes (`x`, `y`, `w`, `h`, `points`, `layout`); `--layo
 | Subject | `id`, `name` | One system boundary. Order is top to bottom. A diagram with one subject may leave out `subjects`; the use cases then sit in one unnamed boundary titled with `title`. With two or more subjects every use case names its `subject`. |
 | Subject | `collapsed` | Optional. Draws the boundary as a name bar. Never author it unless asked. |
 | Actor | `id`, `name` | A role, 24 characters at most. Never a person's name. |
-| Actor | `kind` | Optional. `human` (default, stick figure), `system` (box tile with a server icon and `«system»`), `time` (clock tile). |
+| Actor | `kind` | Optional. `human` (default), `system` (an external system) or `time` (a scheduled trigger). Every actor is drawn as a round avatar (person, server or clock icon) with its name below; `system` and `time` add `«system»` / `«time»` under the name. |
 | Actor | `side` | Optional. `left` or `right`. Default: `left` for an actor that starts any association, `right` for one that is only ever the target (a supporting actor). |
 | Actor | `parent` | Optional. Actor id: a generalization (the child can do everything the parent can). Drawn as a hollow-triangle line. |
 | Actor | `abstract` | Optional. `true` draws the name in italics and exempts the actor from the "no association" warning. |

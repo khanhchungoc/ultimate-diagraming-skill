@@ -116,6 +116,8 @@ try {
     return t.at(`${item(id)} .uc-port`);
   };
   const connect = async (from, to) => {
+    await t.clickOn('#btn-zoom-reset');   // Fit, so both ends are on screen whatever the earlier steps added
+    await sleep(120);
     const p = await portOf(from), q = await t.at(item(to), 0.5, 0.5);
     await t.dragTo(p.x, p.y, q.x, q.y, { steps: 8 });
     await sleep(120);
@@ -128,8 +130,8 @@ try {
   t.check('the page renders 5 actors, 7 use cases, 2 subjects and 8 lines (+ 1 generalization), no errors',
     (await count('.uc-actor')) === 5 && (await count('.uc-case')) === 7 && (await count('.uc-subject')) === 2 && (await count('.uc-link:not(.uc-parent)')) === 8 && (await count('.uc-parent')) === 1 && t.errors.length === 0,
     `${await count('.uc-actor')} ${await count('.uc-case')} ${await count('.uc-link')} ${t.errors.join(' | ')}`);
-  t.check('a stick figure for a person, icon tiles for a system and a clock with their keyword, an ellipse per use case',
-    (await text(`${item('psp')} .uc-kw`)) === '«system»' && (await present(`${item('nightly')}.is-tile .uc-tile-icon svg`)) && (await present(`${item('customer')} .uc-figure svg`))
+  t.check('a round avatar for every actor (person, server, clock), «system» / «time» under the name, an ellipse per use case',
+    (await text(`${item('psp')} .uc-kw`)) === '«system»' && (await text(`${item('nightly')} .uc-kw`)) === '«time»' && (await present(`${item('nightly')} .uc-figure svg`)) && (await present(`${item('customer')} .uc-figure svg`))
     && (await t.ev(`getComputedStyle(document.querySelector('.uc-case .uc-shape')).borderRadius`)) !== '0px');
   t.check('level shows in outline and size: a subfunction is dashed, the use case with extension points has its compartment',
     (await t.ev(`getComputedStyle(document.querySelector('.uc-case[data-level="subfunction"] .uc-shape')).borderStyle`)) === 'dashed' && (await present(`${item('checkout')} .uc-eps .uc-ep`)));
@@ -154,7 +156,7 @@ try {
   await tile('#btn-add-system');
   await t.type('Mail service');
   await t.press('Enter');
-  t.check('Add > System actor: an icon tile with «system»', (await count('.uc-actor.is-tile[data-kind="system"]')) === 2 && (await t.ev(`[...document.querySelectorAll('.uc-actor-name')].some((e) => e.textContent === 'Mail service')`)));
+  t.check('Add > System actor: an avatar with «system»', (await count('.uc-actor[data-kind="system"] .uc-figure')) === 2 && (await t.ev(`[...document.querySelectorAll('.uc-actor-name')].some((e) => e.textContent === 'Mail service')`)));
   await tile('#btn-add-usecase');
   t.check('Add > Use case: a new ellipse with its name open', (await count('.uc-case')) === 8 && (await editing()) === 'New use case', `${await editing()}`);
   await t.type('Audit orders');
@@ -386,7 +388,18 @@ try {
   await t.clickOn('#btn-levels');
   t.check('Levels off hides the subfunction use cases and their lines', !(await present(item('pay'))) && !(await present('.uc-link[data-edge-id="l3"]')));
   await t.clickOn('#btn-levels');
-  // collapse a subject
+  // collapse a subject; expanding it again puts every use case back where it was, with nothing on top of another
+  const boxes = () => t.ev(`JSON.stringify([...document.querySelectorAll('.uc-case')].map((e) => [e.dataset.nodeId, e.style.left, e.style.top, e.style.width, e.style.height]).sort())`);
+  const caseOverlaps = () => t.ev(`(() => { const r = [...document.querySelectorAll('.uc-case')].map((e) => e.getBoundingClientRect()); let n = 0;
+    for (let i = 0; i < r.length; i++) for (let j = i + 1; j < r.length; j++) if (r[i].left < r[j].right && r[j].left < r[i].right && r[i].top < r[j].bottom && r[j].top < r[i].bottom) n++; return n; })()`);
+  for (const tidy of [true, false]) {
+    if (!tidy) await t.clickOn('#btn-auto-layout');
+    const before = await boxes();
+    await t.clickOn('.uc-subject[data-subject-id="office"] .frame-chev');
+    await t.clickOn('.uc-subject[data-subject-id="office"] .frame-chev');
+    t.check(`collapse then expand (Auto-Tidy ${tidy ? 'on' : 'off'}) puts every use case back, none on top of another`, (await boxes()) === before && (await caseOverlaps()) === 0);
+    if (!tidy) await t.clickOn('#btn-auto-layout');
+  }
   await t.clickOn('.uc-subject[data-subject-id="office"] .frame-chev');
   d = await saved();
   t.check('the chevron collapses a subject to its name bar, saved as collapsed', byId(d.subjects, 'office').collapsed === true && !(await present(item('pick'))) && (await count('.uc-subject')) === 2);
