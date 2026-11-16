@@ -35,6 +35,7 @@
     .uc-link.is-hidden, .uc-label.is-hidden { display: none; }
     .uc-mk path { stroke: var(--mk, var(--node-border)); stroke-width: var(--ring-thin); fill: none; stroke-linecap: round; stroke-linejoin: round; }
     .uc-mk-solid path { fill: var(--mk, var(--node-border)); }
+    .uc-mk-hollow path { fill: var(--bg-panel); stroke: var(--mk, var(--text-soft)); stroke-width: var(--ring-md); }   /* a generalization: hollow, bolder outline */
         body.exporting .is-dim { opacity: 1 !important; }
 
     /* The «include» / «extend» pill on a line: the shared edge label, one or two lines of detail text */
@@ -199,4 +200,4 @@
     .uc-help-line svg { flex: none; fill: none; stroke: var(--node-border); stroke-width: var(--ring-thin); stroke-linecap: round; stroke-linejoin: round; }
     .uc-help-line svg .d { stroke-dasharray: var(--dash); }
     .uc-help-line svg .f { fill: var(--node-border); }
-    .uc-help-line svg .h { fill: var(--bg-soft); }
+    .uc-help-line svg .h { fill: var(--bg-panel); stroke: var(--text-soft); stroke-width: var(--ring-md); }

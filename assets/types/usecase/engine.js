@@ -84,6 +84,8 @@ function ucModel(data) {
     const fa = !!m.actorBy[l.from], ta = !!m.actorBy[l.to];
     if (l.type === 'association' ? fa !== ta : (!fa && !ta)) add(l.from, l.to);
   });
+  // a specialised use case is ordered next to its parent (it sits one column to the right of it)
+  cases.forEach((c) => { if (c.parent && c.parent !== c.id && cases.some((x) => x.id === c.parent)) add(c.id, c.parent); });
   ucSides(m);
   return m;
 }
@@ -162,7 +164,9 @@ function ucRanks(m) {
     if (l.type === 'include') cons.push([l.from, l.to, 1]);
     else if (l.type === 'extend') cons.push([l.to, l.from, 1]);
   });
-  m.cases.forEach((c) => { if (c.parent && m.caseBy[c.parent] && same(c.id, c.parent)) { cons.push([c.parent, c.id, 0]); cons.push([c.id, c.parent, 0]); } });
+  // a use case's specialisations sit one column to the right of it, like what it includes, so their lines are short
+  // curves into its side rather than hooks around each other
+  m.cases.forEach((c) => { if (c.parent && m.caseBy[c.parent] && same(c.id, c.parent)) cons.push([c.parent, c.id, 1]); });
   const n = m.cases.length;
   for (let pass = 0, ch = true; ch && pass < n + 2; pass++) {
     ch = false;
@@ -737,53 +741,22 @@ function ucLines(m) {
     l.labelBox = best.box;
     placed.push(best.box);
   });
-  // generalization lines: a tree under each parent. One triangle sits under the parent (every child's line ends there,
-  // pointing up); a child straight below runs up a stem, the others join through a spine beside the children with
-  // rounded corners (ortho: true, five points, the page rounds the corners). A child that is not below its parent, or a
-  // tree that would cross an item, gets an ordinary curve.
+  // generalization lines: the same soft curve as every other line, ending in the generalization triangle at the parent
   const parents = [];
-  const tree = (kind, list, parentOf, whole) => {
-    const by = new Map();
-    list.forEach((x) => {
-      const pid = parentOf(x);
-      if (!pid || pid === x.id || !items[pid] || !items[x.id]) return;
-      const a = items[x.id], p = items[pid];
-      if (a.kind === 'bar' || p.kind === 'bar') { if (!(a.kind === 'bar' && p.kind === 'bar' && m.si[x.id] === m.si[pid])) by.set(pid, (by.get(pid) || []).concat([x.id])); return; }
-      by.set(pid, (by.get(pid) || []).concat([x.id]));
-    });
-    by.forEach((kids, pid) => {
-      const P = items[pid], pb = P.kind === 'case' ? { x: P.cx - P.a, y: P.cy - P.b, w: 2 * P.a, h: 2 * P.b } : P.whole;
-      const tip = [P.cx, pb.y + pb.h];
-      const boxOf = (id) => { const k = items[id]; return k.kind === 'case' ? { x: k.cx - k.a, y: k.cy - k.b, w: 2 * k.a, h: 2 * k.b } : k.kind === 'actor' ? k.box : k.box; };
-      const below = kids.filter((id) => boxOf(id).y > tip[1] + 4);
-      const top = below.length ? Math.min(...below.map((id) => boxOf(id).y)) : tip[1] + 36;
-      const baseY = tip[1] + Math.min(18, (top - tip[1]) / 2);
-      const spineX = below.length ? Math.max(...below.map((id) => boxOf(id).x + boxOf(id).w)) + 18 : 0;
-      const ob = obstacles(pid, null);
-      kids.forEach((id) => {
-        const bx = boxOf(id), K = items[id];
-        let pts = null, ortho = false;
-        if (bx.y > tip[1] + 4) {
-          const straight = Math.abs(K.cx - tip[0]) < Math.min(bx.w / 2, 20) && bx.y === top;
-          if (straight) pts = [[tip[0], bx.y], tip];
-          else { pts = [[bx.x + bx.w, K.cy], [spineX, K.cy], [spineX, baseY], [tip[0], baseY], tip]; ortho = true; }
-          const own = { ell: ob.ell.filter((e) => e.id !== id), rects: ob.rects.filter((q) => q.id !== id) };
-          let n = 0;
-          for (let i = 0; i + 1 < pts.length; i++) {
-            own.ell.forEach((e) => { if (ucSegEllipse(pts[i], pts[i + 1], e, UC.CLEAR)) n++; });
-            own.rects.forEach((q) => { if (ucSegRect(pts[i], pts[i + 1], q)) n++; });
-          }
-          if (n) pts = null;
-        }
-        if (!pts) { const r = route(K, P, kind === 'useCase', true); hits += r.h; pts = r.pts; ortho = false; }
-        const e = { from: id, to: pid, kind, points: pts.map((q) => [ucR1(q[0]), ucR1(q[1])]) };
-        if (ortho) e.ortho = true;
-        parents.push(e);
-      });
-    });
-  };
-  tree('actor', m.actors, (a) => a.parent, true);
-  tree('useCase', m.cases, (c) => c.parent, true);
+  m.actors.forEach((a) => {
+    if (!a.parent || !items[a.parent] || a.parent === a.id) return;
+    const r = route(items[a.id], items[a.parent], false, true);
+    hits += r.h;
+    parents.push({ from: a.id, to: a.parent, kind: 'actor', points: r.pts.map((q) => [ucR1(q[0]), ucR1(q[1])]) });
+  });
+  m.cases.forEach((c) => {
+    if (!c.parent || !items[c.parent] || c.parent === c.id) return;
+    const a = items[c.id], p = items[c.parent];
+    if (a.kind === 'bar' && p.kind === 'bar' && m.si[c.id] === m.si[c.parent]) return;
+    const r = route(a, p, true, true);
+    hits += r.h;
+    parents.push({ from: c.id, to: c.parent, kind: 'useCase', points: r.pts.map((q) => [ucR1(q[0]), ucR1(q[1])]) });
+  });
   m.data._parents = parents;
   m.hits = hits;
 }
