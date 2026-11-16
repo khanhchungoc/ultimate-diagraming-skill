@@ -50,7 +50,7 @@ function geometryProblems(d) {
     if (c.x < s.x || c.y < s.y + s._titleH || c.x + c.w > s.x + s.w || c.y + c.h > s.y + s.h) bad.push(`use case ${c.id} outside subject ${s.id}`);
   });
   for (let i = 0; i < subjects.length; i++) for (let j = i + 1; j < subjects.length; j++) if (boxOverlap(subjects[i], subjects[j])) bad.push(`subjects overlap: ${subjects[i].id} ${subjects[j].id}`);
-  if (new Set(subjects.map((s) => s.x + ':' + s.w)).size > 1) bad.push('subjects do not share one x and width');
+  if (new Set(subjects.map((s) => s.x)).size > 1) bad.push('subjects do not share one left edge');   // widths are their own
   d.links.forEach((l) => {
     if (!l.points || !l.points.length) return;
     const pts = sample(l.points);

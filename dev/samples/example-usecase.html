@@ -3404,7 +3404,7 @@ const UC = {
   AVATAR: 56, ACTOR_WRAP: 120, NAME_GAP: 8, CAPTION_H: 16, ACTOR_MIN_W: 72,   // every actor: a round avatar, name (and «system» / «time») below
   ACTOR_GAP_Y: 24, ACTOR_CHILD_GAP: 44, ACTOR_GAP: 96,
   // subjects
-  TITLE_H: 36, TITLE_PAD_X: 44, PAD_X: 28, PAD_Y: 20, SUBJ_GAP: 32, EMPTY_BODY: 56,
+  TITLE_H: 36, TITLE_PAD_X: 44, EMPTY_W: 240, PAD_X: 28, PAD_Y: 20, SUBJ_GAP: 32, EMPTY_BODY: 56,
   // placement
   ROW_GAP: 10, CHILD_GAP: 22, GAP_MIN: 84, GAP_MAX: 200, GAP_MEET_MAX: 400, GAP_PER_LABEL: 28, MARGIN: 40, BUCKET: 24, SWEEPS: 12, PASSES: 4, SWAP_PASSES: 3,
   // lines and labels
@@ -3635,16 +3635,11 @@ function ucColumns(m) {
   m.L = left;
   m.subj.forEach((sj) => {
     const out = [];
-    const room = m.W - 2 * UC.PAD_X;
+    // each subject keeps its own width: its columns are not stretched to the widest subject (left edges stay aligned)
     let x = m.L + UC.PAD_X;
-    if (sj.ranks.length === 1) x = m.L + Math.floor((m.W - sj.colW[0]) / 2);
-    else if (sj.ranks.length > 1 && room > sj.content) { /* stretched below */ }
-    const extra = sj.ranks.length > 1 ? (room - sj.content) / (sj.ranks.length - 1) : 0;
-    let acc = 0;
     sj.ranks.forEach((r, k) => {
       out[r] = { x, w: sj.colW[k] };
-      acc += extra;
-      x += sj.colW[k] + sj.gap[k] + (Math.round(acc) - Math.round(acc - extra));
+      x += sj.colW[k] + sj.gap[k];
     });
     m.colX[sj.i] = out;
   });
@@ -4021,8 +4016,11 @@ function ucSubjects(m) {
   m.bars = [];
   m.subj.forEach((sj) => {
     const s = sj.s, ys = sj.cases.map((c) => c.y), top0 = prev === null ? UC.MARGIN : prev + UC.SUBJ_GAP;
-    s.x = L; s.w = R - L; s._titleH = UC.TITLE_H;
     const own = sj.cases.filter((c) => !m.hidden[c.id]);
+    // one left edge for every subject; each ends where its own use cases (or its title) end
+    const ownTitle = ucTextW(s.name, UC.TITLE_W) + UC.TITLE_PAD_X;
+    const ownR = own.length ? Math.max(...own.map((c) => c.x + c.w)) + UC.PAD_X : L + Math.max(ownTitle, UC.EMPTY_W);
+    s.x = L; s.w = Math.round(Math.max(ownR - L, ownTitle) * 10) / 10; s._titleH = UC.TITLE_H;
     if (sj.collapsed) {
       // layoutDiagram knows the bar's band; routeDiagram puts the bar where the expanded subject's top was (its use cases keep x/y)
       const bt = m.barTop[sj.i];
