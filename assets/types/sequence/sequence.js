@@ -1831,6 +1831,8 @@
             else if (other) n[key === 'after' ? 'before' : 'after'] = other;
           });
         });
+        // A bar stretched to a deleted message goes back to its natural end, and the calls it silenced get their bars back
+        chartData.messages.forEach((m) => { if (!gone.has(m.id) && m.until !== undefined && gone.has(m.until)) clearBar(m); });
         chartData.messages = chartData.messages.filter((m) => !gone.has(m.id));
       }
 

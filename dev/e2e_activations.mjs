@@ -105,6 +105,15 @@ try {
   check('a drop above the opening message changes nothing', JSON.stringify(await msgs()) === was);
   await stretch('m4', 'm9', true);
   check('Escape cancels the drag', JSON.stringify(await msgs()) === was);
+  // Deleting the message a bar was stretched to puts the bar back to its natural end and gives the swallowed calls their bars back
+  await stretch('m2', 'm7');
+  await t.clickOn('.seq-msg-label[data-edge-id="m7"]');
+  await t.press('Delete');
+  await sleep(200);
+  if (await t.at('.confirm')) { await t.press('Enter'); await sleep(200); }
+  ms = await msgs();
+  check('deleting the message a bar ends at clears "until" and the "activate": false it set', !ms.m7 && ms.m2.until === undefined && ms.m4.activate === undefined, JSON.stringify([ms.m2, ms.m4]));
+  await t.press('z', { modifiers: 2 });
   // With lifespans a bar cannot run past the end of its lifeline
   const ls = join(mkdtempSync(join(tmpdir(), 'act_')), 'lifespans.html');
   writeFileSync(ls, readFileSync(page, 'utf8').replace(/(<script id="diagram-data" type="application\/json">)([\s\S]*?)(<\/script>)/, (_, a, d, b) => a + JSON.stringify(Object.assign(JSON.parse(d), { lifespans: true })) + b));
