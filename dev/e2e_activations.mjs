@@ -105,6 +105,31 @@ try {
   check('a drop above the opening message changes nothing', JSON.stringify(await msgs()) === was);
   await stretch('m4', 'm9', true);
   check('Escape cancels the drag', JSON.stringify(await msgs()) === was);
+  // A page variant from the same data: edit it, load it, and say which message ids it needs
+  const variant = (edit) => { const f = join(mkdtempSync(join(tmpdir(), 'act_')), 'v.html'); writeFileSync(f, readFileSync(page, 'utf8').replace(/(<script id="diagram-data" type="application\/json">)([\s\S]*?)(<\/script>)/, (_, x, d, y) => x + JSON.stringify(edit(JSON.parse(d))) + y)); return f; };
+  // An async message whose target then sends something has a bar: selecting it shows the handle, as hovering the bar does
+  await t.open(variant((d) => { d.messages.splice(d.messages.findIndex((m) => m.id === 'm9') + 1, 0, { id: 'mx', from: 'q', to: 'a', label: 'Done', kind: 'async' }); return d; }));
+  await t.clickOn('.seq-msg-label[data-edge-id="m9"]');
+  check('selecting an async message that opens a bar shows its stretch handle', (await t.at(handle('m9'))) !== null);
+  // A note whose id is a message's id does not keep that message's hover handle
+  await t.open(variant((d) => { d.notes = (d.notes || []).concat({ id: 'm2', text: 'Same id', over: 'a' }); return d; }));
+  await t.clickOn('.note');
+  const bar = await t.at('.seq-activation[data-mid="m2"]');
+  await t.mouse('mouseMoved', bar.x, bar.y); await sleep(150);
+  check('hovering a bar shows its handle', (await t.at(handle('m2'))) !== null);
+  const cv = await t.at('#seq-canvas', 0.02, 0.5);
+  await t.mouse('mouseMoved', cv.x, cv.y); await sleep(150);
+  check('a selected note with the same id as a message does not keep that handle', (await t.at(handle('m2'))) === null);
+  await t.open(page);
+  // Deleting the message a bar was stretched to puts the bar back to its natural end and gives the swallowed calls their bars back
+  await stretch('m2', 'm7');
+  await t.clickOn('.seq-msg-label[data-edge-id="m7"]');
+  await t.press('Delete');
+  await sleep(200);
+  if (await t.at('.confirm')) { await t.press('Enter'); await sleep(200); }
+  ms = await msgs();
+  check('deleting the message a bar ends at clears "until" and the "activate": false it set', !ms.m7 && ms.m2.until === undefined && ms.m4.activate === undefined, JSON.stringify([ms.m2, ms.m4]));
+  await t.press('z', { modifiers: 2 });
   // With lifespans a bar cannot run past the end of its lifeline
   const ls = join(mkdtempSync(join(tmpdir(), 'act_')), 'lifespans.html');
   writeFileSync(ls, readFileSync(page, 'utf8').replace(/(<script id="diagram-data" type="application\/json">)([\s\S]*?)(<\/script>)/, (_, a, d, b) => a + JSON.stringify(Object.assign(JSON.parse(d), { lifespans: true })) + b));
