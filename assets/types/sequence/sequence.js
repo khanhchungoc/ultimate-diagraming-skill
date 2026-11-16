@@ -1932,13 +1932,16 @@
           if (!ghost) {
             if (Math.hypot(e.clientX - start.x, e.clientY - start.y) < 6) return;
             dragged = true;
-            ghost = htmlEl('div', 'seq-dock-ghost');
-            ghost.innerHTML = `${ui.icon(kind === 'frame' ? 'frame' : 'note')}<span>${kind === 'frame' ? 'Frame' : 'Note'}</span>`;
+            // The ghost looks like what is dragged: an empty frame with its tag, or a note card
+            ghost = htmlEl('div', `seq-dock-ghost is-${kind}`);
+            ghost.innerHTML = kind === 'frame' ? '<span>opt</span>' : '<span>Note</span>';
             document.body.appendChild(ghost);
             document.body.classList.add('seq-dragging');
             hidePlus();
           }
-          Object.assign(ghost.style, { left: `${e.clientX + 12}px`, top: `${e.clientY + 12}px` });
+          // The cursor holds the frame by its tag, the note by its middle
+          Object.assign(ghost.style, kind === 'frame' ? { left: `${e.clientX - 12}px`, top: `${e.clientY - 10}px` } : { left: `${e.clientX}px`, top: `${e.clientY}px` });
+          ghost.style.visibility = '';
           spot = null;
           seqDrop.style.display = 'none';
           lightLifeline(null);
@@ -1951,6 +1954,7 @@
             const box = frameBoxFor(m);
             if (!outline) { outline = htmlEl('div', 'seq-frame-ghost'); outline.dataset.exportSkip = ''; outline.innerHTML = '<span>opt</span>'; seqHtml.appendChild(outline); }
             Object.assign(outline.style, { display: 'block', left: px(box.x), top: px(box.y), width: px(box.w), height: px(box.h) });
+            ghost.style.visibility = 'hidden';   // the outline around the arrow is the frame now
             spot = { pt, msg: m };
             return;
           }
