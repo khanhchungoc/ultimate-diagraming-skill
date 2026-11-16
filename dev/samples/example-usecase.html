@@ -52,15 +52,15 @@
   "layout": {
     "member": { "x": 42, "y": 174 },
     "librarian": { "x": 40, "y": 315 },
-    "mail": { "x": 884, "y": 287 },
+    "mail": { "x": 930, "y": 287 },
     "search": { "x": 240, "y": 240 },
     "borrow": { "x": 260, "y": 96 },
-    "login": { "x": 626, "y": 157 },
-    "extend_loan": { "x": 620, "y": 103 },
+    "login": { "x": 672, "y": 157 },
+    "extend_loan": { "x": 666, "y": 103 },
     "return": { "x": 260, "y": 294 },
     "reserve": { "x": 256, "y": 186 },
     "fine": { "x": 256, "y": 348 },
-    "notify": { "x": 612, "y": 293 }
+    "notify": { "x": 658, "y": 293 }
   }
 }
   </script>
@@ -3406,9 +3406,9 @@ const UC = {
   // subjects
   TITLE_H: 36, TITLE_PAD_X: 44, PAD_X: 28, PAD_Y: 20, SUBJ_GAP: 32, EMPTY_BODY: 56,
   // placement
-  ROW_GAP: 10, CHILD_GAP: 22, GAP_MIN: 84, GAP_MAX: 200, GAP_PER_LABEL: 28, MARGIN: 40, BUCKET: 24, SWEEPS: 12, PASSES: 4, SWAP_PASSES: 3,
+  ROW_GAP: 10, CHILD_GAP: 22, GAP_MIN: 84, GAP_MAX: 200, GAP_MEET_MAX: 400, GAP_PER_LABEL: 28, MARGIN: 40, BUCKET: 24, SWEEPS: 12, PASSES: 4, SWAP_PASSES: 3,
   // lines and labels
-  CLEAR: 4, LABEL_H: 22, LABEL_X: 12, CURVE_OFFS: [0, 28, -28, 56, -56, 90, -90, 130, -130, 180, -180, 240, -240],
+  CLEAR: 4, LABEL_GAP: 12, LABEL_H: 22, LABEL_X: 12, CURVE_OFFS: [0, 28, -28, 56, -56, 90, -90, 130, -130, 180, -180, 240, -240],
   W_CROSS: 100, W_HIT: 250, W_LEN: 0.01
 };
 
@@ -3612,13 +3612,18 @@ function ucColumns(m) {
     sj.gap = sj.ranks.map((r, k) => {
       if (k === sj.ranks.length - 1) return 0;
       let lw = 0, nl = 0;
+      const meet = {};   // labels whose lines meet at one use case on either side of the gap need room one after another
       m.links.forEach((l) => {
         if ((l.type !== 'include' && l.type !== 'extend') || !m.caseBy[l.from] || !m.caseBy[l.to]) return;
         const rf = m.rank[l.from], rt = m.rank[l.to];
         if (m.si[l.from] !== sj.i || m.si[l.to] !== sj.i) return;
-        if (Math.min(rf, rt) === r && Math.max(rf, rt) === sj.ranks[k + 1]) { lw = Math.max(lw, lab(l)); nl++; }
+        if (Math.min(rf, rt) === r && Math.max(rf, rt) === sj.ranks[k + 1]) {
+          lw = Math.max(lw, lab(l)); nl++;
+          [l.from, l.to].forEach((id) => { (meet[id] = meet[id] || []).push(lab(l)); });
+        }
       });
-      return Math.min(UC.GAP_MAX, Math.max(UC.GAP_MIN, lw ? lw + 16 + UC.GAP_PER_LABEL * (nl - 1) : 0));
+      const along = Math.max(0, ...Object.values(meet).filter((ws) => ws.length > 1).map((ws) => ws.reduce((a, b) => a + b, 0) + UC.LABEL_GAP * (ws.length + 1)));
+      return Math.max(Math.min(UC.GAP_MAX, Math.max(UC.GAP_MIN, lw ? lw + 16 + UC.GAP_PER_LABEL * (nl - 1) : 0)), Math.min(UC.GAP_MEET_MAX, along));
     });
     sj.content = sj.colW.reduce((s, w) => s + w, 0) + sj.gap.reduce((s, w) => s + w, 0);
     maxContent = Math.max(maxContent, sj.content);
@@ -4087,10 +4092,17 @@ function ucLines(m) {
     hits += r.h;
     l.points = r.pts.map((p) => [ucR1(p[0]), ucR1(p[1])]);
   });
-  // labels: on the line at the middle, slid along it and then off it until nothing is covered
+  // labels: on the line at the middle, slid along it and then off it until nothing is covered. Labels keep LABEL_GAP
+  // between each other, and a label sitting on another line costs a little, so labels of converging lines spread out.
   const fixed = m.actors.map((a) => ({ x: a.x, y: a.y, w: a.w, h: a.h }));
-  m.links.forEach((l) => {
-    if ((l.type !== 'include' && l.type !== 'extend') || !l.points.length) return;
+  const lines = m.links.filter((l) => l.points && l.points.length >= 2).map((l) => ({ id: l.id, poly: ucPolyline(l.points) }));
+  const onLines = (box, own) => lines.reduce((n, ln) => {
+    if (ln.id === own) return n;
+    for (let i = 0; i + 1 < ln.poly.length; i++) if (ucSegRect(ln.poly[i], ln.poly[i + 1], box)) return n + 1;
+    return n;
+  }, 0);
+  const labelled = m.links.filter((l) => (l.type === 'include' || l.type === 'extend') && l.points.length);
+  const candidates = (l, placed) => {
     const t = ucLabelLines(l), pts = l.points;
     const at = (u) => ucAt(pts, u);
     const score = (u, off) => {
@@ -4100,21 +4112,41 @@ function ucLines(m) {
       const box = { x: Math.round(p[0] - t.w / 2 - (ty / tl) * off), y: Math.round(p[1] - t.h / 2 + (tx / tl) * off), w: t.w, h: t.h };
       let s = 0;
       ellipses.forEach((el) => { if (ucRectEllipse(box, el, 2)) s += 4; });
-      placed.forEach((o) => { if (ucOverlapRect(box, o, 2)) s += 6; });
+      placed.forEach((o) => { if (ucOverlapRect(box, o, 2)) s += 40; else if (ucOverlapRect(box, o, UC.LABEL_GAP)) s += 3; });   // overlapping is never worth it
       fixed.forEach((o) => { if (ucOverlapRect(box, o, 0)) s += 4; });
-      return { box, s: s + Math.abs(off) * 0.02 + Math.abs(u - 0.5) * 0.5 };
+      s += onLines(box, l.id) * 1;
+      // stay on (or just beside) the own line, nearer its start: lines that meet at one use case are far apart there
+      return { box, s: s + Math.abs(off) * 0.06 + Math.abs(u - 0.38) * 0.8 };
     };
-    let best = null;
     const tries = [];
-    [0.5, 0.45, 0.55, 0.4, 0.6, 0.35, 0.65, 0.3, 0.7, 0.25, 0.75, 0.2, 0.8, 0.15, 0.85].forEach((u) => tries.push([u, 0]));
-    [0.3, 0.55, 0.8, 1.2, 1.8, 2.5].forEach((k) => [1, -1].forEach((sg) => [0.5, 0.4, 0.6, 0.3, 0.7, 0.2, 0.8].forEach((u) => tries.push([u, sg * t.h * k]))));
-    for (const [u, off] of tries) {
-      const r = score(u, off);
-      if (!best || r.s < best.s) best = r;
-      if (r.s < 0.6 && !off) break;
-    }
-    l.labelBox = best.box;
-    placed.push(best.box);
+    [0.38, 0.33, 0.43, 0.28, 0.48, 0.23, 0.53, 0.18, 0.58, 0.63, 0.13, 0.68, 0.73, 0.78, 0.83].forEach((u) => tries.push([u, 0]));
+    [0.3, 0.55, 0.8, 1.2, 1.8, 2.5].forEach((k) => [1, -1].forEach((sg) => [0.38, 0.28, 0.48, 0.2, 0.58, 0.68].forEach((u) => tries.push([u, sg * t.h * k]))));
+    return tries.map(([u, off]) => score(u, off)).sort((a, b) => a.s - b.s);   // stable: ties keep the try order
+  };
+  const placeLabel = (l, placed) => { const b = candidates(l, placed)[0]; l.labelBox = b.box; return b.s; };
+  const othersOf = (l, skip) => labelled.filter((x) => x !== l && x !== skip).map((x) => x.labelBox);
+  // first pass in link order; then twice more, each label placed again against where all the others ended up, so an
+  // early label can move along its own line to make room for a later one (deterministic: fixed order, no randomness)
+  labelled.forEach((l, i) => { placeLabel(l, labelled.slice(0, i).map((x) => x.labelBox)); });
+  for (let pass = 0; pass < 2; pass++) labelled.forEach((l) => { placeLabel(l, othersOf(l)); });
+  // a label still stuck (on another label, or pushed off its line): move one neighbour to another of its good places if
+  // that lowers the two labels' total cost
+  labelled.forEach((l) => {
+    const now = candidates(l, othersOf(l))[0];
+    if (now.s < 3) return;
+    let best = null;
+    labelled.forEach((o) => {
+      if (o === l) return;
+      const keep = o.labelBox, base = candidates(o, othersOf(o))[0].s + now.s;
+      candidates(o, othersOf(o, l)).slice(0, 12).forEach((co) => {
+        o.labelBox = co.box;
+        const cl = candidates(l, othersOf(l))[0];
+        const total = co.s + cl.s + (ucOverlapRect(co.box, cl.box, 2) ? 40 : 0);
+        if (total < base - 1 && (!best || total < best.total)) best = { total, o, ob: co.box, lb: cl.box };
+      });
+      o.labelBox = keep;
+    });
+    if (best) { best.o.labelBox = best.ob; l.labelBox = best.lb; }
   });
   // generalization lines: the same soft curve as every other line, ending in the generalization triangle at the parent
   const parents = [];
