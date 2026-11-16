@@ -1350,7 +1350,7 @@
           [['pk', 'PK', 'Primary key (P)', col.pk], ['fk', 'FK', 'Foreign key (F)', col.fk], ['unique', 'U', 'Unique (U)', col.unique], ['nullable', '?', 'Nullable (?)', col.nullable]]
             .forEach(([act, label, title, on]) => bar.appendChild(abButton(act, `<span>${label}</span>`, title, !!on)));
           bar.appendChild(abSep());
-          bar.appendChild(abButton('colnote', ui.icon('note'), col.note ? 'Edit the note (or double-click it)' : 'Add a note, e.g. the allowed values: trial | active | canceled'));
+          bar.appendChild(abButton('colnote', `${ui.icon('label')}<span>Values</span>`, col.note ? 'Edit the values shown beside this column (or double-click them)' : 'Add values shown beside this column, e.g. trial | active | canceled'));
           bar.appendChild(abSep());
           bar.appendChild(abButton('up', ui.icon('chevron-up'), 'Move up (Alt+Up)'));
           bar.appendChild(abButton('down', ui.icon('chevron-down'), 'Move down (Alt+Down)'));
@@ -1742,7 +1742,7 @@
         });
       }
 
-      // A column's name, type or note (free text, e.g. the allowed values of a status: "trial | active | canceled").
+      // A column's name, type or values (col.note: free text beside the column, e.g. the allowed values of a status: "trial | active | canceled").
       // Tab: name -> type -> the next row's name; Enter on the last row adds a column; an empty name on Enter removes the
       // column; an empty note removes the note.
       function editColumn(entityId, colName, field) {
