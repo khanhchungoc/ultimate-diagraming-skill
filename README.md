@@ -4,7 +4,9 @@
 
 Describe a process, and your AI assistant hands back a single HTML file. Open it in any browser, drag things around, fix a label, and save. No account, no app to install, no internet needed.
 
-![Swimlane flowchart, horizontal](docs/img/example-flowchart.png)
+[![Swimlane flowchart, horizontal](docs/img/example-flowchart.png)](https://claude.ai/artifact/4GXf3ufVkqEMR9BNy7UuWE)
+
+▶ [Try the flowchart](https://claude.ai/artifact/4GXf3ufVkqEMR9BNy7UuWE): click, drag and edit it in your browser
 
 ## What you get
 
@@ -20,7 +22,9 @@ Describe a process, and your AI assistant hands back a single HTML file. Open it
 
 ### Same diagram, tall layout
 
-![Same flowchart, vertical](docs/img/example-flowchart-vertical.png)
+[![Same flowchart, vertical](docs/img/example-flowchart-vertical.png)](https://claude.ai/artifact/4GXf3ufVkqEMR9BNy7UuWE)
+
+▶ [Try it and switch to the tall layout](https://claude.ai/artifact/4GXf3ufVkqEMR9BNy7UuWE): click, drag and edit it in your browser
 
 ## How it compares
 
@@ -66,9 +70,13 @@ We asked an AI (Claude Haiku) to summarize 4 saved diagrams, from 9 to 41 steps 
 | File size | ⚠️ about 450 KB (editor built in) | ✅ 10 to 26 KB | ✅ 39 to 56 KB |
 | Huge shape and icon library | ❌ | ❌ | ✅ |
 
-**Pick Mermaid** for small diagrams that live inside Markdown docs
+**Pick Mermaid** for small diagrams that live inside Markdown docs.
+
 **Pick draw.io** for free-form drawing with lots of shapes.
-**Pick this** for clear, editable process diagrams from your AI, made fast and cheaply. Numbers come from one run per assistant (November 2026) and will vary with the diagram and the AI.
+
+**Pick this** for clear, editable process diagrams from your AI, made fast and cheaply.
+
+Numbers come from one run per assistant (November 2026) and will vary with the diagram and the AI.
 
 ## Diagram types
 
@@ -78,9 +86,13 @@ We asked an AI (Claude Haiku) to summarize 4 saved diagrams, from 9 to 41 steps 
 | **Sequence**: who talks to whom over time, with optional, alternative and loop sections | ✅ Available |
 | **ERD**: database tables, columns, keys and crow's-foot relationships, tables colour-coded by domain, laid out as a graph with smooth curves; collapse tables, add notes, copy as Mermaid | ✅ Available |
 
-![Sequence diagram](docs/img/example-sequence.png)
+[![Sequence diagram](docs/img/example-sequence.png)](https://claude.ai/artifact/5GAHnbS8tb9bxKxAi4JDYz)
 
-![ER diagram](docs/img/example-erd.png)
+▶ [Try the sequence diagram](https://claude.ai/artifact/5GAHnbS8tb9bxKxAi4JDYz): click, drag and edit it in your browser
+
+[![ER diagram](docs/img/example-erd.png)](https://claude.ai/artifact/39Vy8dhSEdN4MjqVe1qQEv)
+
+▶ [Try the ER diagram](https://claude.ai/artifact/39Vy8dhSEdN4MjqVe1qQEv): click, drag and edit it in your browser
 
 ## Coming next
 
