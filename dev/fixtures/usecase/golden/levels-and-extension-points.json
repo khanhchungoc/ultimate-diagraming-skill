@@ -1,0 +1,355 @@
+{
+  "diagramType": "usecase",
+  "title": "Bank ATM",
+  "colorKey": {
+    "1": "Cash",
+    "2": "Account"
+  },
+  "subjects": [
+    {
+      "id": "atm",
+      "name": "ATM",
+      "x": 264,
+      "w": 764,
+      "_titleH": 36,
+      "y": 40,
+      "h": 370
+    }
+  ],
+  "actors": [
+    {
+      "id": "holder",
+      "name": "Account holder",
+      "_side": "left",
+      "_lines": [
+        "Account holder"
+      ],
+      "w": 112,
+      "h": 80,
+      "_figW": 36,
+      "_figH": 56,
+      "x": 48,
+      "y": 177
+    },
+    {
+      "id": "engineer",
+      "name": "Service engineer",
+      "_side": "left",
+      "_lines": [
+        "Service engineer"
+      ],
+      "w": 128,
+      "h": 80,
+      "_figW": 36,
+      "_figH": 56,
+      "x": 40,
+      "y": 340
+    },
+    {
+      "id": "bank",
+      "name": "Core banking system",
+      "kind": "system",
+      "_side": "right",
+      "_lines": [
+        "Core banking",
+        "system"
+      ],
+      "w": 116,
+      "h": 104,
+      "_figW": 116,
+      "_figH": 104,
+      "x": 1124,
+      "y": 166
+    }
+  ],
+  "useCases": [
+    {
+      "id": "manage",
+      "name": "Manage account at the ATM",
+      "subject": "atm",
+      "level": "summary",
+      "color": "2",
+      "_lines": [
+        "Manage account",
+        "at the ATM"
+      ],
+      "_compH": 0,
+      "w": 180,
+      "h": 72,
+      "x": 320,
+      "y": 96
+    },
+    {
+      "id": "withdraw",
+      "name": "Withdraw cash",
+      "subject": "atm",
+      "color": "1",
+      "extensionPoints": [
+        "Choose amount",
+        "Print receipt",
+        "Offer currency exchange"
+      ],
+      "_lines": [
+        "Withdraw cash"
+      ],
+      "_compH": 58,
+      "w": 236,
+      "h": 104,
+      "x": 292,
+      "y": 232
+    },
+    {
+      "id": "balance",
+      "name": "Check balance",
+      "subject": "atm",
+      "color": "2",
+      "_lines": [
+        "Check balance"
+      ],
+      "_compH": 0,
+      "w": 140,
+      "h": 44,
+      "x": 340,
+      "y": 178
+    },
+    {
+      "id": "pin",
+      "name": "Verify PIN",
+      "subject": "atm",
+      "level": "subfunction",
+      "color": "2",
+      "_lines": [
+        "Verify PIN"
+      ],
+      "_compH": 0,
+      "w": 112,
+      "h": 40,
+      "x": 808,
+      "y": 198
+    },
+    {
+      "id": "limit",
+      "name": "Increase daily withdrawal limit for travelling abroad",
+      "subject": "atm",
+      "color": "1",
+      "abstract": true,
+      "_lines": [
+        "Increase daily withdrawal",
+        "limit for travelling abroad"
+      ],
+      "_compH": 0,
+      "w": 272,
+      "h": 60,
+      "x": 728,
+      "y": 248
+    },
+    {
+      "id": "receipt",
+      "name": "Print receipt",
+      "subject": "atm",
+      "level": "subfunction",
+      "color": "1",
+      "_lines": [
+        "Print receipt"
+      ],
+      "_compH": 0,
+      "w": 120,
+      "h": 40,
+      "x": 804,
+      "y": 318
+    },
+    {
+      "id": "service",
+      "name": "Service machine",
+      "subject": "atm",
+      "_lines": [
+        "Service machine"
+      ],
+      "_compH": 0,
+      "w": 156,
+      "h": 44,
+      "x": 332,
+      "y": 346
+    }
+  ],
+  "links": [
+    {
+      "id": "l1",
+      "type": "association",
+      "from": "holder",
+      "to": "withdraw",
+      "points": [
+        [
+          122,
+          209.6
+        ],
+        [
+          308.2,
+          257.7
+        ]
+      ]
+    },
+    {
+      "id": "l2",
+      "type": "association",
+      "from": "holder",
+      "to": "balance",
+      "points": [
+        [
+          122,
+          204.7
+        ],
+        [
+          340.1,
+          201.1
+        ]
+      ]
+    },
+    {
+      "id": "l3",
+      "type": "include",
+      "from": "withdraw",
+      "to": "pin",
+      "points": [
+        [
+          522.1,
+          267.7
+        ],
+        [
+          812.1,
+          225.5
+        ]
+      ],
+      "labelBox": {
+        "x": 624,
+        "y": 236,
+        "w": 87,
+        "h": 22
+      }
+    },
+    {
+      "id": "l4",
+      "type": "include",
+      "from": "balance",
+      "to": "pin",
+      "points": [
+        [
+          479.4,
+          202.8
+        ],
+        [
+          808.3,
+          215.8
+        ]
+      ],
+      "labelBox": {
+        "x": 600,
+        "y": 198,
+        "w": 87,
+        "h": 22
+      }
+    },
+    {
+      "id": "l5",
+      "type": "extend",
+      "from": "receipt",
+      "to": "withdraw",
+      "condition": "customer wants a receipt",
+      "extensionPoint": "Print receipt",
+      "points": [
+        [
+          807.5,
+          331.3
+        ],
+        [
+          523.9,
+          297.6
+        ]
+      ],
+      "labelBox": {
+        "x": 604,
+        "y": 287,
+        "w": 123,
+        "h": 54
+      }
+    },
+    {
+      "id": "l6",
+      "type": "extend",
+      "from": "limit",
+      "to": "withdraw",
+      "extensionPoint": "Choose amount",
+      "points": [
+        [
+          728.2,
+          279.8
+        ],
+        [
+          527.9,
+          282.4
+        ]
+      ],
+      "labelBox": {
+        "x": 608,
+        "y": 263,
+        "w": 80,
+        "h": 22
+      }
+    },
+    {
+      "id": "l7",
+      "type": "association",
+      "from": "pin",
+      "to": "bank",
+      "points": [
+        [
+          920,
+          218
+        ],
+        [
+          1124,
+          218
+        ]
+      ]
+    },
+    {
+      "id": "l8",
+      "type": "association",
+      "from": "engineer",
+      "to": "service",
+      "points": [
+        [
+          122,
+          368
+        ],
+        [
+          332,
+          368
+        ]
+      ]
+    },
+    {
+      "id": "l9",
+      "type": "association",
+      "from": "holder",
+      "to": "manage",
+      "points": [
+        [
+          122,
+          200.7
+        ],
+        [
+          332.7,
+          150.4
+        ]
+      ]
+    }
+  ],
+  "_parents": [],
+  "canvas": {
+    "width": 1280,
+    "height": 460,
+    "crossings": 0,
+    "hits": 0
+  }
+}

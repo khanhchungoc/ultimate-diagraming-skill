@@ -1,0 +1,291 @@
+{
+  "diagramType": "usecase",
+  "title": "Online shop (Back office collapsed)",
+  "subjects": [
+    {
+      "id": "shop",
+      "name": "Storefront",
+      "x": 256,
+      "w": 427,
+      "_titleH": 36,
+      "y": 40,
+      "h": 120
+    },
+    {
+      "id": "office",
+      "name": "Back office",
+      "collapsed": true,
+      "x": 256,
+      "w": 427,
+      "_titleH": 36,
+      "y": 192,
+      "h": 36
+    },
+    {
+      "id": "legacy",
+      "name": "Legacy import",
+      "collapsed": true,
+      "x": 256,
+      "w": 427,
+      "_titleH": 36,
+      "y": 260,
+      "h": 36
+    }
+  ],
+  "actors": [
+    {
+      "id": "customer",
+      "name": "Customer",
+      "_side": "left",
+      "_lines": [
+        "Customer"
+      ],
+      "w": 68,
+      "h": 80,
+      "_figW": 36,
+      "_figH": 56,
+      "x": 66,
+      "y": 90
+    },
+    {
+      "id": "clerk",
+      "name": "Warehouse clerk",
+      "_side": "left",
+      "_lines": [
+        "Warehouse clerk"
+      ],
+      "w": 120,
+      "h": 80,
+      "_figW": 36,
+      "_figH": 56,
+      "x": 40,
+      "y": 205
+    },
+    {
+      "id": "carrier",
+      "name": "Carrier API",
+      "kind": "system",
+      "_side": "right",
+      "_lines": [
+        "Carrier API"
+      ],
+      "w": 112,
+      "h": 84,
+      "_figW": 112,
+      "_figH": 84,
+      "x": 779,
+      "y": 168
+    }
+  ],
+  "useCases": [
+    {
+      "id": "order",
+      "name": "Place order",
+      "subject": "shop",
+      "_lines": [
+        "Place order"
+      ],
+      "_compH": 0,
+      "w": 128,
+      "h": 44,
+      "x": 284,
+      "y": 96
+    },
+    {
+      "id": "pay",
+      "name": "Pay for order",
+      "subject": "shop",
+      "_lines": [
+        "Pay for order"
+      ],
+      "_compH": 0,
+      "w": 140,
+      "h": 44,
+      "x": 515,
+      "y": 96
+    },
+    {
+      "id": "pick",
+      "name": "Pick order",
+      "subject": "office",
+      "_lines": [
+        "Pick order"
+      ],
+      "_compH": 0,
+      "_hidden": true,
+      "w": 0,
+      "h": 0,
+      "x": 256,
+      "y": 210
+    },
+    {
+      "id": "ship",
+      "name": "Dispatch shipment",
+      "subject": "office",
+      "_lines": [
+        "Dispatch shipment"
+      ],
+      "_compH": 0,
+      "_hidden": true,
+      "w": 0,
+      "h": 0,
+      "x": 256,
+      "y": 210
+    },
+    {
+      "id": "import",
+      "name": "Import old orders",
+      "subject": "legacy",
+      "_lines": [
+        "Import old orders"
+      ],
+      "_compH": 0,
+      "_hidden": true,
+      "w": 0,
+      "h": 0,
+      "x": 256,
+      "y": 278
+    }
+  ],
+  "links": [
+    {
+      "id": "l1",
+      "type": "association",
+      "from": "customer",
+      "to": "order",
+      "points": [
+        [
+          118,
+          118
+        ],
+        [
+          284,
+          118
+        ]
+      ]
+    },
+    {
+      "id": "l2",
+      "type": "include",
+      "from": "order",
+      "to": "pay",
+      "points": [
+        [
+          412,
+          118
+        ],
+        [
+          515,
+          118
+        ]
+      ],
+      "labelBox": {
+        "x": 420,
+        "y": 107,
+        "w": 87,
+        "h": 22
+      }
+    },
+    {
+      "id": "l3",
+      "type": "association",
+      "from": "clerk",
+      "to": "pick",
+      "points": [
+        [
+          118,
+          231.9
+        ],
+        [
+          256,
+          223.3
+        ]
+      ]
+    },
+    {
+      "id": "l4",
+      "type": "association",
+      "from": "clerk",
+      "to": "ship",
+      "points": [
+        [
+          118,
+          231.9
+        ],
+        [
+          256,
+          223.3
+        ]
+      ]
+    },
+    {
+      "id": "l5",
+      "type": "include",
+      "from": "ship",
+      "to": "pick",
+      "points": [],
+      "_hidden": true
+    },
+    {
+      "id": "l6",
+      "type": "association",
+      "from": "ship",
+      "to": "carrier",
+      "points": [
+        [
+          683,
+          210
+        ],
+        [
+          779,
+          210
+        ]
+      ]
+    },
+    {
+      "id": "l7",
+      "type": "include",
+      "from": "order",
+      "to": "pick",
+      "points": [
+        [
+          374.5,
+          138
+        ],
+        [
+          445.7,
+          192
+        ]
+      ],
+      "labelBox": {
+        "x": 367,
+        "y": 154,
+        "w": 87,
+        "h": 22
+      }
+    },
+    {
+      "id": "l8",
+      "type": "association",
+      "from": "clerk",
+      "to": "import",
+      "points": [
+        [
+          118,
+          235.2
+        ],
+        [
+          321.7,
+          260
+        ]
+      ]
+    }
+  ],
+  "_parents": [],
+  "canvas": {
+    "width": 931,
+    "height": 336,
+    "crossings": 0,
+    "hits": 0
+  }
+}
