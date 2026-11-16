@@ -294,6 +294,16 @@
       // --- LINES ---
       const pathOf = (p) => (p.length === 4 ? `M ${p[0][0]} ${p[0][1]} C ${p[1][0]} ${p[1][1]} ${p[2][0]} ${p[2][1]} ${p[3][0]} ${p[3][1]}`
         : p.length === 3 ? `M ${p[0][0]} ${p[0][1]} Q ${p[1][0]} ${p[1][1]} ${p[2][0]} ${p[2][1]}` : `M ${p[0][0]} ${p[0][1]} L ${p[p.length - 1][0]} ${p[p.length - 1][1]}`);
+      // An orthogonal path (a generalization tree's spine) with its corners rounded to radius r
+      function roundedPath(p, r) {
+        let d = `M ${p[0][0]} ${p[0][1]}`;
+        for (let i = 1; i < p.length - 1; i++) {
+          const [ax, ay] = p[i - 1], [bx, by] = p[i], [cx, cy] = p[i + 1];
+          const l1 = Math.hypot(bx - ax, by - ay) || 1, l2 = Math.hypot(cx - bx, cy - by) || 1, k = Math.min(r, l1 / 2, l2 / 2);
+          d += ` L ${bx - ((bx - ax) / l1) * k} ${by - ((by - ay) / l1) * k} Q ${bx} ${by} ${bx + ((cx - bx) / l2) * k} ${by + ((cy - by) / l2) * k}`;
+        }
+        return d + ` L ${p[p.length - 1][0]} ${p[p.length - 1][1]}`;
+      }
       function midOf(p) {
         if (p.length === 4) return { x: (p[0][0] + 3 * p[1][0] + 3 * p[2][0] + p[3][0]) / 8, y: (p[0][1] + 3 * p[1][1] + 3 * p[2][1] + p[3][1]) / 8 };
         if (p.length === 3) return { x: (p[0][0] + 2 * p[1][0] + p[2][0]) / 4, y: (p[0][1] + 2 * p[1][1] + p[2][1]) / 4 };
@@ -334,7 +344,7 @@
           const g = svgEl('g', { class: 'uc-link uc-parent', 'data-from': p.from, 'data-to': p.to, 'data-parent': '1' });
           const tip = svgEl('title', { 'data-export-skip': '' });
           tip.textContent = `${nameOf(itemOf(p.from))} is a kind of ${nameOf(itemOf(p.to))}`;
-          const line = svgEl('path', { class: 'edge-line', d: pathOf(p.points) });
+          const line = svgEl('path', { class: 'edge-line', d: p.ortho ? roundedPath(p.points, 10) : pathOf(p.points) });
           setMarkers(line, 'tri');
           g.append(tip, line);
           linksG.appendChild(g);

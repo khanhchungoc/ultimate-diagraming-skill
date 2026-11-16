@@ -379,7 +379,7 @@ function ucAt(pts, t) {
   return [pts[0][0] + (pts[1][0] - pts[0][0]) * t, pts[0][1] + (pts[1][1] - pts[0][1]) * t];
 }
 function ucPolyline(pts) {
-  if (pts.length >= 3) { const out = []; for (let i = 0; i <= 20; i++) out.push(ucAt(pts, i / 20)); return out; }
+  if (pts.length === 3 || pts.length === 4) { const out = []; for (let i = 0; i <= 20; i++) out.push(ucAt(pts, i / 20)); return out; }   // 5+: an orthogonal path
   return pts;
 }
 
@@ -663,7 +663,7 @@ function ucLines(m) {
   const items = {};
   m.actors.concat(m.cases).forEach((x) => { items[x.id] = ucItem(m, x.id); });
   const ellipses = m.cases.filter((c) => !m.hidden[c.id]).map((c) => items[c.id]);
-  const obstacles = (a, b) => ({ ell: ellipses.filter((e) => e.id !== a && e.id !== b), rects: m.actors.filter((x) => x.id !== a && x.id !== b).map((x) => ({ x: x.x, y: x.y, w: x.w, h: x.h })) });
+  const obstacles = (a, b) => ({ ell: ellipses.filter((e) => e.id !== a && e.id !== b), rects: m.actors.filter((x) => x.id !== a && x.id !== b).map((x) => ({ id: x.id, x: x.x, y: x.y, w: x.w, h: x.h })) });
   const hitsOf = (pts, ob) => {
     const poly = ucPolyline(pts);
     let n = 0;
@@ -675,21 +675,22 @@ function ucLines(m) {
   };
   // straight, else the gentlest curve that clears every other ellipse and actor
   const route = (A, B, parent, bWhole = false) => {   // parent / bWhole: end on the whole actor (a generalization parent sits below its name)
-    // A smooth S-curve (cubic): it leaves A and enters B along the main axis (sideways, or up and down when B is mostly
-    // above or below A); both control points move sideways by `off` when the plain curve would cross an item.
+    // A soft curve (cubic): it leaves A heading for B, so lines from one item fan out, and bends gently to enter B
+    // along the main axis (sideways, or from above or below when B is mostly above or below A). When the plain curve
+    // would cross an item, its bend moves sideways by `off`.
     const dx = B.cx - A.cx, dy = B.cy - A.cy, L = Math.hypot(dx, dy) || 1, nx = -dy / L, ny = dx / L;
     const flat = Math.abs(dx) >= Math.abs(dy) * 0.6, sx = Math.sign(dx) || 1, sy = Math.sign(dy) || 1;
-    const k = Math.max(24, (flat ? Math.abs(dx) : Math.abs(dy)) * 0.45);
-    const t1 = flat ? [A.cx + sx * k, A.cy] : [A.cx, A.cy + sy * k], t2 = flat ? [B.cx - sx * k, B.cy] : [B.cx, B.cy - sy * k];
+    const kIn = Math.max(24, (flat ? Math.abs(dx) : Math.abs(dy)) * 0.5);
+    const t2 = flat ? [B.cx - sx * kIn, B.cy] : [B.cx, B.cy - sy * kIn];
     const ob = obstacles(A.id, B.id);
     let best = null;
     for (const off of UC.CURVE_OFFS) {
-      const c1 = [t1[0] + nx * off, t1[1] + ny * off], c2 = [t2[0] + nx * off, t2[1] + ny * off];
-      const p0 = ucClip(A, c1[0], c1[1], parent), p1 = ucClip(B, c2[0], c2[1], bWhole);
-      // control points measured from the clipped ends, so the curve leaves each outline along the axis
-      const kk = Math.max(18, (flat ? Math.abs(p1[0] - p0[0]) : Math.abs(p1[1] - p0[1])) * 0.45);
-      const q1 = flat ? [p0[0] + sx * kk + nx * off, p0[1] + ny * off] : [p0[0] + nx * off, p0[1] + sy * kk + ny * off];
-      const q2 = flat ? [p1[0] - sx * kk + nx * off, p1[1] + ny * off] : [p1[0] + nx * off, p1[1] - sy * kk + ny * off];
+      const p1 = ucClip(B, t2[0] + nx * off, t2[1] + ny * off, bWhole);
+      const aim = [(A.cx + p1[0]) / 2 + nx * off, (A.cy + p1[1]) / 2 + ny * off];
+      const p0 = ucClip(A, aim[0], aim[1], parent);
+      const q1 = [p0[0] + (aim[0] - p0[0]) * 0.6, p0[1] + (aim[1] - p0[1]) * 0.6];
+      const kk = Math.max(16, (flat ? Math.abs(p1[0] - p0[0]) : Math.abs(p1[1] - p0[1])) * 0.5);
+      const q2 = flat ? [p1[0] - sx * kk, p1[1]] : [p1[0], p1[1] - sy * kk];
       const pts = [p0, q1, q2, p1];
       const h = hitsOf(pts, ob);
       if (!best || h < best.h) best = { pts, h };
@@ -736,23 +737,53 @@ function ucLines(m) {
     l.labelBox = best.box;
     placed.push(best.box);
   });
-  // generalization lines
+  // generalization lines: a tree under each parent. One triangle sits under the parent (every child's line ends there,
+  // pointing up); a child straight below runs up a stem, the others join through a spine beside the children with
+  // rounded corners (ortho: true, five points, the page rounds the corners). A child that is not below its parent, or a
+  // tree that would cross an item, gets an ordinary curve.
   const parents = [];
-  m.actors.forEach((a) => {
-    if (!a.parent || !items[a.parent] || a.parent === a.id) return;
-    const c = items[a.id], p = items[a.parent];
-    const r = route(c, p, false, true);
-    hits += r.h;
-    parents.push({ from: a.id, to: a.parent, kind: 'actor', points: r.pts.map((q) => [ucR1(q[0]), ucR1(q[1])]) });
-  });
-  m.cases.forEach((c) => {
-    if (!c.parent || !items[c.parent] || c.parent === c.id) return;
-    const a = items[c.id], p = items[c.parent];
-    if (a.kind === 'bar' && p.kind === 'bar' && m.si[c.id] === m.si[c.parent]) return;
-    const r = route(a, p, true, true);
-    hits += r.h;
-    parents.push({ from: c.id, to: c.parent, kind: 'useCase', points: r.pts.map((q) => [ucR1(q[0]), ucR1(q[1])]) });
-  });
+  const tree = (kind, list, parentOf, whole) => {
+    const by = new Map();
+    list.forEach((x) => {
+      const pid = parentOf(x);
+      if (!pid || pid === x.id || !items[pid] || !items[x.id]) return;
+      const a = items[x.id], p = items[pid];
+      if (a.kind === 'bar' || p.kind === 'bar') { if (!(a.kind === 'bar' && p.kind === 'bar' && m.si[x.id] === m.si[pid])) by.set(pid, (by.get(pid) || []).concat([x.id])); return; }
+      by.set(pid, (by.get(pid) || []).concat([x.id]));
+    });
+    by.forEach((kids, pid) => {
+      const P = items[pid], pb = P.kind === 'case' ? { x: P.cx - P.a, y: P.cy - P.b, w: 2 * P.a, h: 2 * P.b } : P.whole;
+      const tip = [P.cx, pb.y + pb.h];
+      const boxOf = (id) => { const k = items[id]; return k.kind === 'case' ? { x: k.cx - k.a, y: k.cy - k.b, w: 2 * k.a, h: 2 * k.b } : k.kind === 'actor' ? k.box : k.box; };
+      const below = kids.filter((id) => boxOf(id).y > tip[1] + 4);
+      const top = below.length ? Math.min(...below.map((id) => boxOf(id).y)) : tip[1] + 36;
+      const baseY = tip[1] + Math.min(18, (top - tip[1]) / 2);
+      const spineX = below.length ? Math.max(...below.map((id) => boxOf(id).x + boxOf(id).w)) + 18 : 0;
+      const ob = obstacles(pid, null);
+      kids.forEach((id) => {
+        const bx = boxOf(id), K = items[id];
+        let pts = null, ortho = false;
+        if (bx.y > tip[1] + 4) {
+          const straight = Math.abs(K.cx - tip[0]) < Math.min(bx.w / 2, 20) && bx.y === top;
+          if (straight) pts = [[tip[0], bx.y], tip];
+          else { pts = [[bx.x + bx.w, K.cy], [spineX, K.cy], [spineX, baseY], [tip[0], baseY], tip]; ortho = true; }
+          const own = { ell: ob.ell.filter((e) => e.id !== id), rects: ob.rects.filter((q) => q.id !== id) };
+          let n = 0;
+          for (let i = 0; i + 1 < pts.length; i++) {
+            own.ell.forEach((e) => { if (ucSegEllipse(pts[i], pts[i + 1], e, UC.CLEAR)) n++; });
+            own.rects.forEach((q) => { if (ucSegRect(pts[i], pts[i + 1], q)) n++; });
+          }
+          if (n) pts = null;
+        }
+        if (!pts) { const r = route(K, P, kind === 'useCase', true); hits += r.h; pts = r.pts; ortho = false; }
+        const e = { from: id, to: pid, kind, points: pts.map((q) => [ucR1(q[0]), ucR1(q[1])]) };
+        if (ortho) e.ortho = true;
+        parents.push(e);
+      });
+    });
+  };
+  tree('actor', m.actors, (a) => a.parent, true);
+  tree('useCase', m.cases, (c) => c.parent, true);
   m.data._parents = parents;
   m.hits = hits;
 }

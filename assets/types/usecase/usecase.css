@@ -35,8 +35,7 @@
     .uc-link.is-hidden, .uc-label.is-hidden { display: none; }
     .uc-mk path { stroke: var(--mk, var(--node-border)); stroke-width: var(--ring-thin); fill: none; stroke-linecap: round; stroke-linejoin: round; }
     .uc-mk-solid path { fill: var(--mk, var(--node-border)); }
-    .uc-mk-hollow path { fill: var(--bg-soft); }   /* a generalization: a soft neutral, not a white, triangle */
-    body.exporting .is-dim { opacity: 1 !important; }
+        body.exporting .is-dim { opacity: 1 !important; }
 
     /* The «include» / «extend» pill on a line: the shared edge label, one or two lines of detail text */
     .uc-label {

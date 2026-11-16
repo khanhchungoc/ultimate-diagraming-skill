@@ -259,7 +259,7 @@ The one interface between `engine.js`, the page (`usecase.js`) and the Python au
 | `subjects[].x, y, w, h` | The boundary rectangle, title bar included; `subjects[]._titleH` is the title bar height. A diagram without `subjects` gets one implicit subject with id `_main`, named after `title`, in `data._subjects` (the engine never writes `subjects` itself). |
 | `links[].points` | `[[x, y], ...]`, from the `from` item's outline to the `to` item's outline. Two points: straight line. Three points: a quadratic curve whose middle point is the control point. Four points: a cubic curve (start, two control points, end); the engine draws every line this way since 2026-11-16, an S-curve that leaves and enters along the main axis. |
 | `links[].labelBox` | `{x, y, w, h}` of the `«include»` / `«extend» [condition]` label, or absent for an association. |
-| `data._parents` | `[{from, to, kind: "actor" or "useCase", points}]`: one line per `parent` field, `to` is the parent; the hollow triangle sits at the last point. |
+| `data._parents` | `[{from, to, kind: "actor" or "useCase", points, ortho?}]`: one line per `parent` field, `to` is the parent; the triangle sits at the last point. Since 2026-11-16 a parent's children form a tree: every line ends at one point under the parent, a child straight below runs up a stem (2 points) and the others join through a spine beside the children (`ortho: true`, 5 points, corners rounded by the page). |
 | `data.canvas` | `{width, height}`. |
 
 Collapsed subject: its use cases get no box (`x`/`y` kept, `w`/`h` 0, `_hidden: true`) and lines to them end on the subject's title bar.
