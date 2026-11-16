@@ -2,9 +2,9 @@
 
 **Ask your AI for a diagram. Get one you can actually edit.**
 
-Describe a process, and your AI assistant hands back a single HTML file. Open it in any browser, drag things around, fix a label, and save. No account, no app to install, no internet needed.
+Describe a process, and your AI assistant hands back a single HTML file. Open it in any browser, drag things around, fix a label, and save. No account, no app to install, and it works offline.
 
-![Swimlane flowchart, horizontal](docs/img/example-flowchart.png)
+**[Try a flowchart live](https://claude.ai/artifact/4GXf3ufVkqEMR9BNy7UuWE)** · **[sequence diagram](https://claude.ai/artifact/5GAHnbS8tb9bxKxAi4JDYz)** · **[ER diagram](https://claude.ai/artifact/39Vy8dhSEdN4MjqVe1qQEv)**: each opens in your browser, no install. More below under [Diagram types](#diagram-types).
 
 ## What you get
 
@@ -17,10 +17,6 @@ Describe a process, and your AI assistant hands back a single HTML file. Open it
 - ✅ **Arrives clean.** The AI checks its own result for overlapping boxes and unreadable labels before showing you.
 - 🎨 **Your brand.** Give the AI a website address or a brand guide and every diagram uses your colours, font, corner style and icon weight. Text stays readable: the colours are checked against WCAG 2.2 AA contrast in light and dark mode, and any that fall short are nudged until they pass.
 - 📦 **Just a file.** Email it, put it in a repo, attach it to a ticket, or open it offline.
-
-### Same diagram, tall layout
-
-![Same flowchart, vertical](docs/img/example-flowchart-vertical.png)
 
 ## How it compares
 
@@ -64,12 +60,16 @@ We asked an AI (Claude Haiku) to summarize 4 saved diagrams, from 9 to 41 steps 
 | Switch wide / tall in one click | ✅ | ⚠️ edit the code | ❌ |
 | Re-tidies itself after edits | ✅ | ✅ always automatic, but no dragging | ⚠️ limited |
 | Shows inside Markdown docs | ❌ | ✅ | ❌ |
-| File size | ⚠️ about 450 KB (editor built in) | ✅ 10 to 26 KB | ✅ 39 to 56 KB |
+| File size | ⚠️ about 330 to 530 KB (editor built in) | ✅ 10 to 26 KB | ✅ 39 to 56 KB |
 | Huge shape and icon library | ❌ | ❌ | ✅ |
 
-**Pick Mermaid** for small diagrams that live inside Markdown docs
+**Pick Mermaid** for small diagrams that live inside Markdown docs.
+
 **Pick draw.io** for free-form drawing with lots of shapes.
-**Pick this** for clear, editable process diagrams from your AI, made fast and cheaply. Numbers come from one run per assistant (November 2026) and will vary with the diagram and the AI.
+
+**Pick this** for clear, editable process diagrams from your AI, made fast and cheaply.
+
+These are single runs per assistant (November 2026), not averages: treat the percentages as a rough guide, and expect different numbers with a different diagram or AI.
 
 ## Diagram types
 
@@ -79,9 +79,27 @@ We asked an AI (Claude Haiku) to summarize 4 saved diagrams, from 9 to 41 steps 
 | **Sequence**: who talks to whom over time, with optional, alternative and loop sections; copy as Mermaid | ✅ Available |
 | **ERD**: database tables, columns, keys and crow's-foot relationships, tables colour-coded by domain, laid out as a graph with smooth curves; collapse tables, add notes, copy as Mermaid | ✅ Available |
 
-![Sequence diagram](docs/img/example-sequence.png)
+### Flowchart
 
-![ER diagram](docs/img/example-erd.png)
+[![Swimlane flowchart, horizontal](docs/img/example-flowchart.png)](https://claude.ai/artifact/4GXf3ufVkqEMR9BNy7UuWE)
+
+▶ [Try the flowchart](https://claude.ai/artifact/4GXf3ufVkqEMR9BNy7UuWE): click, drag and edit it in your browser. The same diagram flips to a tall layout with one button:
+
+[![Same flowchart, tall layout](docs/img/example-flowchart-vertical.png)](https://claude.ai/artifact/4GXf3ufVkqEMR9BNy7UuWE)
+
+### Sequence diagram
+
+[![Sequence diagram](docs/img/example-sequence-2026-11.png)](https://claude.ai/artifact/5GAHnbS8tb9bxKxAi4JDYz)
+
+▶ [Try the sequence diagram](https://claude.ai/artifact/5GAHnbS8tb9bxKxAi4JDYz)
+
+### ER diagram
+
+[![ER diagram](docs/img/example-erd.png)](https://claude.ai/artifact/39Vy8dhSEdN4MjqVe1qQEv)
+
+▶ [Try the ER diagram](https://claude.ai/artifact/39Vy8dhSEdN4MjqVe1qQEv)
+
+Each demo is a claude.ai Artifact; **Download .html** inside it saves your edits. The same samples as files you can open offline: [flowchart](dev/samples/example-flowchart.html), [sequence](dev/samples/example-sequence.html), [ERD](dev/samples/example-erd.html).
 
 ## Coming next
 
@@ -102,13 +120,13 @@ We asked an AI (Claude Haiku) to summarize 4 saved diagrams, from 9 to 41 steps 
    ```shell
    npx khanhchungoc/ultimate-diagraming-skill
    ```
-   Works with Claude Code, GitHub Copilot, OpenAI Codex, Gemini CLI, Antigravity and Kiro.
+   Works with Claude Code, GitHub Copilot, OpenAI Codex, Gemini CLI, Antigravity and Kiro. By default it installs into each one's skills folder under your home directory (a copy when run through `npx`). Add `--runtime claude` to pick one assistant, or `--project` to install into the current project only.
 2. Ask: *"Draw a swimlane flowchart of our loan approval process."*
 3. Open the HTML file it creates and edit.
 
 ## Diagrams as claude.ai Artifacts
 
-In Claude Code the diagram can be published as a private claude.ai Artifact instead of an HTML file. Claude asks once which you want (a saved default skips the question). Inside the artifact you edit as usual and press **Save**: that publishes a new version of the same artifact, so the next change you ask Claude for starts from your saved edits. Share the link from claude.ai; people without edit access see the diagram and can **Download .html** instead of saving.
+In Claude Code the diagram can be published as a private claude.ai Artifact instead of an HTML file. Claude asks once which you want (a saved default skips the question). Inside the artifact you edit as usual and press **Save**: that publishes a new version of the same artifact, so the next change you ask Claude for starts from your saved edits. Share the link from claude.ai; people without edit access see the diagram and can **Download .html** instead of saving. To make the link public, use the artifact's Share menu; claude.ai reviews the page first, and `python dev/check_artifact_shape.py` catches known causes of a rejection (for example `data:` inside a tooltip) before you publish.
 
 Set the default when installing, or any time later:
 
@@ -125,16 +143,6 @@ Hand any diagram file to an AI assistant and ask "summarize this flow" or "who a
 ## Requirements
 
 Needs `Python 3.9+` and `Chrome`, `Chromium` or `Edge` (used to lay out and check every diagram). `Node 18+` is optional and makes layout faster. The installer checks all of these and tells you what is missing.
-
-## Try it first
-
-Live demos, hosted as claude.ai Artifacts (drag, edit and switch layouts in the browser; **Download .html** saves your edits):
-
-- [Loan application flowchart](https://claude.ai/artifact/4GXf3ufVkqEMR9BNy7UuWE)
-- [Checkout sequence diagram](https://claude.ai/artifact/5GAHnbS8tb9bxKxAi4JDYz)
-- [Shop ER diagram](https://claude.ai/artifact/39Vy8dhSEdN4MjqVe1qQEv)
-
-The same samples as files you can open offline: [flowchart](dev/samples/example-flowchart.html), [sequence](dev/samples/example-sequence.html), [ERD](dev/samples/example-erd.html).
 
 ## Credits
 
