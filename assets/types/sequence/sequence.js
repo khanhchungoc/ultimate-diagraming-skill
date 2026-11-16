@@ -366,21 +366,8 @@
         // with no label yet is a prompt in edit, and left out of ?present and exports.
         const used = [];
         ps.forEach((p) => { const sw = swatchOf(p); if (sw && !used.includes(sw)) used.push(sw); });
-        if (used.length) {
-          const key = htmlEl('div', 'seq-key');
-          used.forEach((color) => {
-            const label = (chartData.colorKey && chartData.colorKey[color]) || '';
-            const item = htmlEl('div', `seq-key-item${label ? '' : ' is-unnamed'}`);
-            item.appendChild(paintSwatch(htmlEl('span', 'seq-key-dot'), color));
-            const text = htmlEl('span', `seq-key-label${label ? '' : ' is-empty'}`);
-            text.dataset.color = color;
-            if (!label) text.dataset.hint = `What does ${swatchName(color)} mean?`;
-            text.textContent = label;
-            item.appendChild(text);
-            key.appendChild(item);
-          });
-          seqHtml.appendChild(key);
-        }
+        const key = ui.colorKey(used, chartData.colorKey, { prompts: true, cls: 'seq-key' });
+        if (key) seqHtml.appendChild(key);
         applySelection();
         pinParticipants();
       }
@@ -1255,17 +1242,7 @@
       }
 
       // --- ACTION BAR AND HANDLES (drawn on the selection, never exported) ---
-      function abButton(act, html, title, pressed, value) {
-        const b = htmlEl('button', 'seq-ab-btn');
-        b.type = 'button';
-        b.dataset.act = act;
-        if (value !== undefined) b.dataset.value = value;
-        b.title = title;
-        b.setAttribute('aria-label', title);
-        if (pressed !== undefined) b.setAttribute('aria-pressed', String(!!pressed));
-        b.innerHTML = html;
-        return b;
-      }
+      const abButton = (act, html, title, pressed, value) => ui.abButton('seq-ab-btn', act, html, title, pressed, value);
       function addHandle(role, id, x, y, extraClass) {
         const h = htmlEl('div', `seq-handle ${extraClass || ''}`.trim(), { left: px(x), top: px(y) });
         h.dataset.role = role;
@@ -1275,13 +1252,11 @@
       }
       // The selection's delete button: an icon only, its tooltip says what goes
       const delButton = (title, icon = 'trash') => abButton('delete', ui.icon(icon), title);
-      const delSep = () => htmlEl('span', 'seq-ab-sep');
+      const delSep = () => ui.abSep('seq-ab-sep');
       function drawSelectionTools(sel) {
         seqHtml.querySelectorAll('.seq-actionbar, .seq-handle, .seq-add-branch').forEach((el) => el.remove());
         if (!sel.kind || isPresent()) return;
-        const bar = htmlEl('div', 'seq-actionbar');
-        bar.dataset.exportSkip = '';
-        bar.setAttribute('role', 'toolbar');
+        const bar = ui.actionBar('seq-actionbar');
         let at = null;
         const byId = {};
         chartData.participants.forEach((p) => { byId[p.id] = p; });
@@ -1294,6 +1269,7 @@
             bar.appendChild(abButton('async', ui.icon('message-async'), 'No reply expected (fire and forget: an open arrowhead, no activation bar)', m.kind === 'async'));
             bar.appendChild(htmlEl('span', 'seq-ab-sep'));
           }
+          if ((m.kind || 'sync') === 'sync') bar.appendChild(abButton('activate', '<span>Bar</span>', 'Activation bar: the call is drawn as busy until its reply (off draws no bar for this call)', m.activate !== false));
           bar.appendChild(abButton('reverse', ui.icon('reverse'), 'Reverse the direction'));
           if ((m.kind || 'sync') === 'sync' && m.from !== m.to) bar.appendChild(abButton('reply', `${ui.icon('reply')}<span>Reply</span>`, 'Add the reply under this call (or under the last message of its bar)'));
           bar.appendChild(htmlEl('span', 'seq-ab-sep'));
@@ -1410,6 +1386,7 @@
           const m = msgById(sel.id);
           if (!m) return;
           if (act === 'async') { if (m.kind === 'reply') return; m.kind = m.kind === 'async' ? 'sync' : 'async'; relayout(); }
+          else if (act === 'activate') { if (m.activate === false) delete m.activate; else m.activate = false; relayout(); }
           else if (act === 'reverse') { const t = m.from; m.from = m.to; m.to = t; relayout(); }
           else if (act === 'reply') addReply(m);
         } else if (sel.kind === 'participant') {
@@ -1620,7 +1597,7 @@
       function onSeqDblClick(e) {
         if (isPresent()) return;
         if (e.target.closest('.frame-chev, .frame-summary, .seq-frag-focus, .seq-actionbar')) return;
-        const kl = e.target.closest('.seq-key-label');
+        const kl = e.target.closest('.color-key-label');
         if (kl) { e.stopPropagation(); editKey(kl); return; }
         const div = e.target.closest('.seq-div-hit, .seq-frag-branch-label, .seq-frag-else-label');
         if (div) { e.stopPropagation(); editBranch(div.dataset.fragId, div.dataset.at); return; }
@@ -2153,12 +2130,57 @@
         return d;
       }
 
+      // --- MERMAID (sequenceDiagram) ---
+      // Participants (actor or plain), messages (sync, reply, async), frames with their branches, notes over a
+      // lifeline and step numbers. Not representable: activation bars, participant kinds other than actor, colours,
+      // message details, collapsed frames, free-floating notes. A group frame becomes a shaded rect.
+      function toMermaid() {
+        const text = (s) => String(s == null ? '' : s).replace(/#/g, '#35;').replace(/;/g, '#59;').replace(/\r?\n/g, '<br/>');
+        const used = new Set();
+        const ids = {};
+        chartData.participants.forEach((p) => {
+          let id = String(p.id).replace(/[^A-Za-z0-9_]+/g, '_') || 'p';
+          while (used.has(id.toLowerCase())) id += '_';
+          used.add(id.toLowerCase());
+          ids[p.id] = id;
+        });
+        const arrow = { sync: '->>', reply: '-->>', async: '-)' };
+        const msgs = chartData.messages, at = (id) => msgs.findIndex((m) => m.id === id);
+        const frames = chartData.fragments.map((f) => ({ f, a: at(f.from), b: at(f.to) })).filter((r) => r.a >= 0 && r.b >= r.a);
+        const notes = (chartData.notes || []).filter((n) => ids[n.over] && n.text);
+        const lines = ['sequenceDiagram'];
+        if (chartData.numbered) lines.push('    autonumber');
+        chartData.participants.forEach((p) => lines.push(`    ${p.kind === 'actor' ? 'actor' : 'participant'} ${ids[p.id]} as ${text(p.name) || ids[p.id]}`));
+        let depth = 1;
+        const out = (s) => lines.push('    '.repeat(depth) + s);
+        const noteOut = (n) => out(`Note over ${ids[n.over]}: ${text(n.text)}`);
+        msgs.forEach((m, i) => {
+          notes.filter((n) => n.before === m.id).forEach(noteOut);
+          frames.filter((r) => r.a === i).sort((u, v) => (v.b - v.a) - (u.b - u.a)).forEach(({ f }) => {
+            const label = text(f.label);
+            if (f.kind === 'group') { out('rect rgba(128, 128, 128, 0.15)'); if (label) { depth++; out(`%% ${label}`); depth--; } }
+            else out(`${f.kind} ${label}`);
+            depth++;
+          });
+          frames.forEach(({ f, a, b }) => {
+            if (i <= a || i > b) return;
+            const br = branchList(f).find((x) => x.at === m.id);
+            if (br) { depth--; out(`${f.kind === 'par' ? 'and' : 'else'} ${text(br.label)}`.trimEnd()); depth++; }
+          });
+          if (ids[m.from] && ids[m.to]) out(`${ids[m.from]}${arrow[m.kind] || arrow.sync}${ids[m.to]}: ${text(m.label)}`);
+          notes.filter((n) => n.after === m.id).forEach(noteOut);
+          frames.filter((r) => r.b === i).sort((u, v) => (u.b - u.a) - (v.b - v.a)).forEach(() => { depth--; out('end'); });
+        });
+        return lines.join('\n') + '\n';
+      }
+
       // --- REGISTER WITH THE SHELL ---
       registerDiagramPlugin({
         id: 'sequence',
         defaultTitle: 'Interactive Sequence Diagram',
         toDisk,
         fromDisk,
+        toMermaid,
         contentEl: seqCanvas,
         report: { node: '.seq-participant', label: '.seq-msg-label', labelText: '.seq-msg-label-text', nodeText: '.seq-participant-name' },
         render,

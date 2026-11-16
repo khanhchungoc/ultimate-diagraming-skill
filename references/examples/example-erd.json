@@ -34,7 +34,7 @@
         { "name": "id", "type": "uuid", "pk": true },
         { "name": "customer_id", "type": "uuid", "fk": true },
         { "name": "shipping_address_id", "type": "uuid", "fk": true, "nullable": true },
-        { "name": "status", "type": "text", "note": "new, paid, shipped, cancelled" },
+        { "name": "status", "type": "text" },
         { "name": "placed_at", "type": "timestamptz" }
       ]
     },
@@ -45,7 +45,7 @@
       "columns": [
         { "name": "order_id", "type": "uuid", "pk": true, "fk": true },
         { "name": "product_id", "type": "uuid", "pk": true, "fk": true },
-        { "name": "qty", "type": "int", "note": "1 to 99" },
+        { "name": "qty", "type": "int" },
         { "name": "unit_price", "type": "numeric" }
       ]
     },
@@ -106,6 +106,8 @@
     { "id": "r9", "from": "review", "to": "customer", "columns": ["customer_id"], "fromEnd": "zeroOrMany", "toEnd": "one" }
   ],
   "notes": [
-    { "id": "n1", "text": "Orders are never deleted; cancelled orders keep their items", "entities": ["order"] }
+    { "id": "n1", "text": "Orders are never deleted; cancelled orders keep their items", "entities": ["order"] },
+    { "id": "n2", "text": "new, paid, shipped, cancelled", "entities": ["order"], "column": "status" },
+    { "id": "n3", "text": "1 to 99", "entities": ["order_item"], "column": "qty" }
   ]
 }

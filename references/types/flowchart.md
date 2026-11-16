@@ -24,7 +24,7 @@ Never add pixel coordinates (`x`, `y`); `--layout` computes them. A saved page e
 | Object | Field | Description |
 |---|---|---|
 | Lane | `id`, `name`, `icon` | Unique id (`lane-<slug>`), the actor's name (or the phase's, see rule 7), and an `icon` (see rule 8). |
-| Lane | `color` | Optional. Omit it: lanes get palette colours in order. Set a palette slot (`"1"` to `"8"`) only to give related lanes the same colour on purpose; never copy colours from the source, the theme's palette supplies them. |
+| Lane | `color` | Optional. Omit it: lanes get palette colours in order. Set a palette slot (`"1"` to `"8"`) only to give related lanes the same colour on purpose; never copy colours from the source, the theme's palette supplies them. A person can change a lane's colour in the editor (lane bar), so keep what you find there. |
 | Node | `id`, `laneId`, `type`, `label` | `id` is a short slug of the label (`n_validate_policy`, not `n5`), so every edge reads on its own; a connector is `c_<letter>_in` / `c_<letter>_out`. `type` is `start`, `task`, `decision`, `end`, a classic symbol (rule 10), or `connector` (rule 11). `start` and `end` render as rounded pills in their own colours (a plain circle if the label is empty); `task` is a box, `decision` a diamond. |
 | Edge | `id`, `from`, `to`, `label` | `label` is `"Yes"`, `"No"`, `"Resubmit"`, etc.; `""` for unconditional steps. |
 | Note | `id`, `text`, `nodes` | Optional list `notes`: plain text that explains one or more steps (what goes in it: rule 9). `nodes` lists the ids of the steps it explains; the first is where it sits. Each linked step shows a small badge the reader hovers to see the note. |

@@ -1140,6 +1140,38 @@
       white-space: nowrap; cursor: pointer;
     }
     .frame-summary:hover { border-color: var(--primary); color: var(--primary); }
+    /* Action bar over a selection (ui.actionBar, ui.abButton, ui.abSep): a floating toolbar of icon and text buttons. The flowchart's
+       lane bar uses these classes; the ERD and the sequence keep their own prefixed twins. Hidden in ?present and in exports. */
+    .actionbar {
+      position: absolute; display: flex; align-items: center; gap: 2px; padding: 3px; z-index: 53;
+      background: var(--bg-panel); border: 1px solid var(--border-dark); border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-md); white-space: nowrap; cursor: default; font-weight: var(--weight-regular); text-align: left;
+      -webkit-user-select: none; user-select: none;
+    }
+    .ab-btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 4px; height: 26px; min-width: 26px; padding: 0 6px; box-sizing: border-box;
+      border: 1px solid transparent; border-radius: var(--radius-md); background: transparent; color: var(--text-soft);
+      font: inherit; font-size: var(--t-detail-size); cursor: pointer;
+    }
+    .ab-btn:hover { background: var(--bg-hover); color: var(--text-main); }
+    .ab-btn[aria-pressed="true"] { background: var(--primary-wash); border-color: var(--primary-ring); color: var(--primary); }
+    .ab-btn.is-danger:hover { background: color-mix(in srgb, var(--danger) 10%, var(--bg-panel)); color: var(--danger); }
+    .ab-btn svg { display: block; }
+    .ab-swatch { height: 26px; width: 26px; }
+    .ab-sep { width: 1px; height: 18px; margin: 0 3px; background: var(--border-color); }
+    body.presentation .actionbar, body.exporting .actionbar { display: none !important; }
+    /* Colour key: a legend of the swatches a diagram uses and what each means (`colorKey`), built by ui.colorKey. The type
+       positions it (sequence: above the card's top-left corner; ERD: above the tables). An entry with no label is a prompt in
+       edit and is left out of ?present and exports. */
+    .color-key { display: flex; width: max-content; gap: 4px 18px; white-space: nowrap; font-size: var(--t-detail-size); color: var(--text-soft); user-select: none; }
+    .color-key-item { display: inline-flex; align-items: center; gap: 6px; }
+    .color-key-dot { width: 12px; height: 12px; border-radius: var(--radius-xs); background: var(--sw-stripe); border: 1px solid var(--dot-edge-soft); box-sizing: border-box; }
+    .color-key-label { outline: none; min-width: 12px; cursor: text; }
+    .color-key-label.is-empty::before { content: attr(data-hint); font-style: italic; color: var(--text-muted); }
+    .color-key-label.is-editing { background: var(--bg-panel); outline: 1.5px solid var(--primary-ring); border-radius: var(--radius-xs); }
+    .color-key-label.is-selected { outline: 1.5px solid var(--primary-ring); border-radius: var(--radius-xs); }
+    body.presentation .color-key-item.is-unnamed, body.exporting .color-key-item.is-unnamed, body.capture .color-key-item.is-unnamed { display: none; }
+    body.presentation .color-key-label { pointer-events: none; }
 
 
     * {
@@ -1466,13 +1498,7 @@
     .frame-tag.is-riding { z-index: 7; box-shadow: var(--shadow-sm); }
     body.exporting .frame-tag.is-riding, body.capture .frame-tag.is-riding { translate: none !important; box-shadow: none; }
     /* The colour key above the card's top-left corner */
-    .seq-key { position: absolute; left: 0; top: -34px; display: flex; width: max-content; gap: 4px 18px; white-space: nowrap; font-size: var(--t-detail-size); color: var(--text-soft); user-select: none; }
-    .seq-key-item { display: inline-flex; align-items: center; gap: 6px; }
-    .seq-key-dot { width: 12px; height: 12px; border-radius: var(--radius-xs); background: var(--sw-stripe); border: 1px solid var(--dot-edge-soft); box-sizing: border-box; }
-    .seq-key-label { outline: none; min-width: 12px; cursor: text; }
-    .seq-key-label.is-empty::before { content: attr(data-hint); font-style: italic; color: var(--text-muted); }
-    body.presentation .seq-key-item.is-unnamed, body.exporting .seq-key-item.is-unnamed, body.capture .seq-key-item.is-unnamed { display: none; }
-    body.presentation .seq-key-label { pointer-events: none; }
+    .seq-key { position: absolute; left: 0; top: -34px; }
     /* The participant action bar has a second row for the swatches */
     .seq-actionbar.is-wrap { flex-wrap: wrap; justify-content: center; width: max-content; max-width: 292px; row-gap: 2px; }
     .seq-actionbar.is-rows { flex-direction: column; row-gap: 2px; }
@@ -1557,7 +1583,7 @@
       width: 200px; height: 72px; border: 1.5px dashed var(--primary); border-radius: var(--radius-sm); background: var(--primary-wash);
     }
     .seq-dock-ghost.is-frame span {
-      position: absolute; left: -1.5px; top: -1.5px; padding: 0 8px; height: 20px; line-height: 20px; font-weight: var(--weight-bold);
+      position: absolute; left: -1.5px; top: -1.5px; padding: 0 8px; height: 20px; display: flex; align-items: center; line-height: var(--leading-none); font-weight: var(--weight-bold);
       color: var(--bg-panel); background: var(--primary); border-radius: var(--radius-sm) 0 var(--radius-sm) 0;
     }
     .seq-dock-ghost.is-note {
@@ -1573,7 +1599,7 @@
       border: 1.5px dashed var(--primary); border-radius: var(--radius-sm); background: var(--primary-wash);
     }
     .seq-frame-ghost span {
-      position: absolute; left: -1.5px; top: -1.5px; padding: 0 8px; height: 20px; line-height: 20px; font-size: var(--t-detail-size);
+      position: absolute; left: -1.5px; top: -1.5px; padding: 0 8px; height: 20px; display: flex; align-items: center; line-height: var(--leading-none); font-size: var(--t-detail-size);
       font-weight: var(--weight-bold); color: var(--bg-panel); background: var(--primary); border-radius: var(--radius-sm) 0 var(--radius-sm) 0;
     }
   </style>
@@ -1956,7 +1982,60 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
           if (o.onInput) text.addEventListener('input', o.onInput);
           return { card, text };
         }
-        return { confirm, closeConfirm, isConfirmOpen: () => !!confirmEl, noteCard, icon, iconEl, toast: (m) => showToast(m) };
+        // The action bar over a selection (never exported, never in ?present: the type hides it there). `cls` is the bar's own
+        // class and the button class `ab-btn` / `ab-sep` follow the type's naming when it passes them (the ERD and the sequence
+        // keep their `erd-` and `seq-` classes); the flowchart uses the shared `actionbar`, `ab-btn` and `ab-sep`
+        // (components/actionbar.css). abButton: act and value go in data-act / data-value; pressed (when not undefined) in aria-pressed.
+        function actionBar(cls, label) {
+          const bar = document.createElement('div');
+          bar.className = cls;
+          bar.dataset.exportSkip = '';
+          bar.setAttribute('role', 'toolbar');
+          if (label) bar.setAttribute('aria-label', label);
+          return bar;
+        }
+        function abButton(cls, act, html, title, pressed, value, extra) {
+          const b = document.createElement('button');
+          b.className = extra ? `${cls} ${extra}` : cls;
+          b.type = 'button';
+          b.dataset.act = act;
+          if (value !== undefined) b.dataset.value = value;
+          b.title = title;
+          b.setAttribute('aria-label', title);
+          if (pressed !== undefined) b.setAttribute('aria-pressed', String(!!pressed));
+          b.innerHTML = html;
+          return b;
+        }
+        const abSep = (cls) => { const s = document.createElement('span'); s.className = cls || 'ab-sep'; return s; };
+        // The colour legend: one entry per colour in `used` (slots), a dot and its label from `key` ({slot: text}). An entry
+        // with no label is drawn only with opts.prompts (a prompt "What does Blue mean?" for the edit, left out of ?present and
+        // exports). opts.cls adds a class to the legend (the type positions it). The label span carries data-color for the
+        // type's own edit. Returns the element, or null when no entry is drawn.
+        function colorKey(used, key, opts) {
+          const o = opts || {};
+          const items = used.filter((c) => o.prompts || (key && key[c]));
+          if (!items.length) return null;
+          const box = document.createElement('div');
+          box.className = `color-key${o.cls ? ' ' + o.cls : ''}`;
+          items.forEach((color) => {
+            const label = (key && key[color]) || '';
+            const item = document.createElement('div');
+            item.className = `color-key-item${label ? '' : ' is-unnamed'}`;
+            const dot = document.createElement('span');
+            dot.className = 'color-key-dot';
+            setSwatch(dot, color);
+            item.appendChild(dot);
+            const text = document.createElement('span');
+            text.className = `color-key-label${label ? '' : ' is-empty'}`;
+            text.dataset.color = color;
+            if (!label) text.dataset.hint = `What does ${(paletteOf(color) || {}).name || color} mean?`;
+            text.textContent = label;
+            item.appendChild(text);
+            box.appendChild(item);
+          });
+          return box;
+        }
+        return { confirm, closeConfirm, isConfirmOpen: () => !!confirmEl, noteCard, actionBar, abButton, abSep, colorKey, icon, iconEl, toast: (m) => showToast(m) };
       })();
 
       // --- CLAUDE.AI ARTIFACT (only active inside a published claude.ai artifact; elsewhere none of this runs) ---
@@ -3973,21 +4052,8 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
         // with no label yet is a prompt in edit, and left out of ?present and exports.
         const used = [];
         ps.forEach((p) => { const sw = swatchOf(p); if (sw && !used.includes(sw)) used.push(sw); });
-        if (used.length) {
-          const key = htmlEl('div', 'seq-key');
-          used.forEach((color) => {
-            const label = (chartData.colorKey && chartData.colorKey[color]) || '';
-            const item = htmlEl('div', `seq-key-item${label ? '' : ' is-unnamed'}`);
-            item.appendChild(paintSwatch(htmlEl('span', 'seq-key-dot'), color));
-            const text = htmlEl('span', `seq-key-label${label ? '' : ' is-empty'}`);
-            text.dataset.color = color;
-            if (!label) text.dataset.hint = `What does ${swatchName(color)} mean?`;
-            text.textContent = label;
-            item.appendChild(text);
-            key.appendChild(item);
-          });
-          seqHtml.appendChild(key);
-        }
+        const key = ui.colorKey(used, chartData.colorKey, { prompts: true, cls: 'seq-key' });
+        if (key) seqHtml.appendChild(key);
         applySelection();
         pinParticipants();
       }
@@ -4862,17 +4928,7 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
       }
 
       // --- ACTION BAR AND HANDLES (drawn on the selection, never exported) ---
-      function abButton(act, html, title, pressed, value) {
-        const b = htmlEl('button', 'seq-ab-btn');
-        b.type = 'button';
-        b.dataset.act = act;
-        if (value !== undefined) b.dataset.value = value;
-        b.title = title;
-        b.setAttribute('aria-label', title);
-        if (pressed !== undefined) b.setAttribute('aria-pressed', String(!!pressed));
-        b.innerHTML = html;
-        return b;
-      }
+      const abButton = (act, html, title, pressed, value) => ui.abButton('seq-ab-btn', act, html, title, pressed, value);
       function addHandle(role, id, x, y, extraClass) {
         const h = htmlEl('div', `seq-handle ${extraClass || ''}`.trim(), { left: px(x), top: px(y) });
         h.dataset.role = role;
@@ -4882,13 +4938,11 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
       }
       // The selection's delete button: an icon only, its tooltip says what goes
       const delButton = (title, icon = 'trash') => abButton('delete', ui.icon(icon), title);
-      const delSep = () => htmlEl('span', 'seq-ab-sep');
+      const delSep = () => ui.abSep('seq-ab-sep');
       function drawSelectionTools(sel) {
         seqHtml.querySelectorAll('.seq-actionbar, .seq-handle, .seq-add-branch').forEach((el) => el.remove());
         if (!sel.kind || isPresent()) return;
-        const bar = htmlEl('div', 'seq-actionbar');
-        bar.dataset.exportSkip = '';
-        bar.setAttribute('role', 'toolbar');
+        const bar = ui.actionBar('seq-actionbar');
         let at = null;
         const byId = {};
         chartData.participants.forEach((p) => { byId[p.id] = p; });
@@ -4901,6 +4955,7 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
             bar.appendChild(abButton('async', ui.icon('message-async'), 'No reply expected (fire and forget: an open arrowhead, no activation bar)', m.kind === 'async'));
             bar.appendChild(htmlEl('span', 'seq-ab-sep'));
           }
+          if ((m.kind || 'sync') === 'sync') bar.appendChild(abButton('activate', '<span>Bar</span>', 'Activation bar: the call is drawn as busy until its reply (off draws no bar for this call)', m.activate !== false));
           bar.appendChild(abButton('reverse', ui.icon('reverse'), 'Reverse the direction'));
           if ((m.kind || 'sync') === 'sync' && m.from !== m.to) bar.appendChild(abButton('reply', `${ui.icon('reply')}<span>Reply</span>`, 'Add the reply under this call (or under the last message of its bar)'));
           bar.appendChild(htmlEl('span', 'seq-ab-sep'));
@@ -5017,6 +5072,7 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
           const m = msgById(sel.id);
           if (!m) return;
           if (act === 'async') { if (m.kind === 'reply') return; m.kind = m.kind === 'async' ? 'sync' : 'async'; relayout(); }
+          else if (act === 'activate') { if (m.activate === false) delete m.activate; else m.activate = false; relayout(); }
           else if (act === 'reverse') { const t = m.from; m.from = m.to; m.to = t; relayout(); }
           else if (act === 'reply') addReply(m);
         } else if (sel.kind === 'participant') {
@@ -5227,7 +5283,7 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
       function onSeqDblClick(e) {
         if (isPresent()) return;
         if (e.target.closest('.frame-chev, .frame-summary, .seq-frag-focus, .seq-actionbar')) return;
-        const kl = e.target.closest('.seq-key-label');
+        const kl = e.target.closest('.color-key-label');
         if (kl) { e.stopPropagation(); editKey(kl); return; }
         const div = e.target.closest('.seq-div-hit, .seq-frag-branch-label, .seq-frag-else-label');
         if (div) { e.stopPropagation(); editBranch(div.dataset.fragId, div.dataset.at); return; }
@@ -5760,12 +5816,57 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
         return d;
       }
 
+      // --- MERMAID (sequenceDiagram) ---
+      // Participants (actor or plain), messages (sync, reply, async), frames with their branches, notes over a
+      // lifeline and step numbers. Not representable: activation bars, participant kinds other than actor, colours,
+      // message details, collapsed frames, free-floating notes. A group frame becomes a shaded rect.
+      function toMermaid() {
+        const text = (s) => String(s == null ? '' : s).replace(/#/g, '#35;').replace(/;/g, '#59;').replace(/\r?\n/g, '<br/>');
+        const used = new Set();
+        const ids = {};
+        chartData.participants.forEach((p) => {
+          let id = String(p.id).replace(/[^A-Za-z0-9_]+/g, '_') || 'p';
+          while (used.has(id.toLowerCase())) id += '_';
+          used.add(id.toLowerCase());
+          ids[p.id] = id;
+        });
+        const arrow = { sync: '->>', reply: '-->>', async: '-)' };
+        const msgs = chartData.messages, at = (id) => msgs.findIndex((m) => m.id === id);
+        const frames = chartData.fragments.map((f) => ({ f, a: at(f.from), b: at(f.to) })).filter((r) => r.a >= 0 && r.b >= r.a);
+        const notes = (chartData.notes || []).filter((n) => ids[n.over] && n.text);
+        const lines = ['sequenceDiagram'];
+        if (chartData.numbered) lines.push('    autonumber');
+        chartData.participants.forEach((p) => lines.push(`    ${p.kind === 'actor' ? 'actor' : 'participant'} ${ids[p.id]} as ${text(p.name) || ids[p.id]}`));
+        let depth = 1;
+        const out = (s) => lines.push('    '.repeat(depth) + s);
+        const noteOut = (n) => out(`Note over ${ids[n.over]}: ${text(n.text)}`);
+        msgs.forEach((m, i) => {
+          notes.filter((n) => n.before === m.id).forEach(noteOut);
+          frames.filter((r) => r.a === i).sort((u, v) => (v.b - v.a) - (u.b - u.a)).forEach(({ f }) => {
+            const label = text(f.label);
+            if (f.kind === 'group') { out('rect rgba(128, 128, 128, 0.15)'); if (label) { depth++; out(`%% ${label}`); depth--; } }
+            else out(`${f.kind} ${label}`);
+            depth++;
+          });
+          frames.forEach(({ f, a, b }) => {
+            if (i <= a || i > b) return;
+            const br = branchList(f).find((x) => x.at === m.id);
+            if (br) { depth--; out(`${f.kind === 'par' ? 'and' : 'else'} ${text(br.label)}`.trimEnd()); depth++; }
+          });
+          if (ids[m.from] && ids[m.to]) out(`${ids[m.from]}${arrow[m.kind] || arrow.sync}${ids[m.to]}: ${text(m.label)}`);
+          notes.filter((n) => n.after === m.id).forEach(noteOut);
+          frames.filter((r) => r.b === i).sort((u, v) => (u.b - u.a) - (v.b - v.a)).forEach(() => { depth--; out('end'); });
+        });
+        return lines.join('\n') + '\n';
+      }
+
       // --- REGISTER WITH THE SHELL ---
       registerDiagramPlugin({
         id: 'sequence',
         defaultTitle: 'Interactive Sequence Diagram',
         toDisk,
         fromDisk,
+        toMermaid,
         contentEl: seqCanvas,
         report: { node: '.seq-participant', label: '.seq-msg-label', labelText: '.seq-msg-label-text', nodeText: '.seq-participant-name' },
         render,

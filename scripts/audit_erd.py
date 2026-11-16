@@ -168,6 +168,10 @@ class ErdAudit:
                 if eid not in emap:
                     dangling += 1
                     errors.append(f"Note '{n.get('id')}' is attached to unknown entity '{eid}'.")
+            col, first = n.get("column"), (n.get("entities") or [None])[0]
+            if col is not None and first in emap and col not in {c.get("name") for c in self.columns_of(emap[first])}:
+                dangling += 1
+                errors.append(f"Note '{n.get('id')}' names unknown column '{col}' in '{first}'.")
 
         # Geometry (only meaningful once laid out).
         laid_out = all(_is_box(e.get("box")) for e in es) and all(isinstance(r.get("points"), list) and len(r["points"]) >= 2 for r in rs)
@@ -224,8 +228,9 @@ class ErdAudit:
             for c in cols:
                 if c.get("fk") is True and (eid, c.get("name")) not in used_cols:
                     budget.append(f"Column '{eid}.{c.get('name')}' is marked fk but no relationship uses it: add the relationship, or drop 'fk'.")
-            if cols and not any(c.get("pk") is True for c in cols) and not str(e.get("note") or "").strip():
-                budget.append(f"Table '{eid}' has no primary key: mark one 'pk', or say why in the table's 'note'.")
+            says_why = str(e.get("note") or "").strip() or any(eid in (n.get("entities") or []) and not n.get("column") for n in ns)
+            if cols and not any(c.get("pk") is True for c in cols) and not says_why:
+                budget.append(f"Table '{eid}' has no primary key: mark one 'pk', or say why in the table's 'note' (or a note on the table).")
             if len(cols) > MAX_COLUMNS_ALL and self.data.get("detail", "all") == "all" and not e.get("collapsed"):
                 budget.append(f"Table '{eid}' has {len(cols)} columns at detail 'all' (keep to {MAX_COLUMNS_ALL}): set \"detail\": \"keys\".")
             if len(str(e.get("name") or "")) > MAX_TABLE_NAME:

@@ -1155,6 +1155,38 @@
       white-space: nowrap; cursor: pointer;
     }
     .frame-summary:hover { border-color: var(--primary); color: var(--primary); }
+    /* Action bar over a selection (ui.actionBar, ui.abButton, ui.abSep): a floating toolbar of icon and text buttons. The flowchart's
+       lane bar uses these classes; the ERD and the sequence keep their own prefixed twins. Hidden in ?present and in exports. */
+    .actionbar {
+      position: absolute; display: flex; align-items: center; gap: 2px; padding: 3px; z-index: 53;
+      background: var(--bg-panel); border: 1px solid var(--border-dark); border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-md); white-space: nowrap; cursor: default; font-weight: var(--weight-regular); text-align: left;
+      -webkit-user-select: none; user-select: none;
+    }
+    .ab-btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 4px; height: 26px; min-width: 26px; padding: 0 6px; box-sizing: border-box;
+      border: 1px solid transparent; border-radius: var(--radius-md); background: transparent; color: var(--text-soft);
+      font: inherit; font-size: var(--t-detail-size); cursor: pointer;
+    }
+    .ab-btn:hover { background: var(--bg-hover); color: var(--text-main); }
+    .ab-btn[aria-pressed="true"] { background: var(--primary-wash); border-color: var(--primary-ring); color: var(--primary); }
+    .ab-btn.is-danger:hover { background: color-mix(in srgb, var(--danger) 10%, var(--bg-panel)); color: var(--danger); }
+    .ab-btn svg { display: block; }
+    .ab-swatch { height: 26px; width: 26px; }
+    .ab-sep { width: 1px; height: 18px; margin: 0 3px; background: var(--border-color); }
+    body.presentation .actionbar, body.exporting .actionbar { display: none !important; }
+    /* Colour key: a legend of the swatches a diagram uses and what each means (`colorKey`), built by ui.colorKey. The type
+       positions it (sequence: above the card's top-left corner; ERD: above the tables). An entry with no label is a prompt in
+       edit and is left out of ?present and exports. */
+    .color-key { display: flex; width: max-content; gap: 4px 18px; white-space: nowrap; font-size: var(--t-detail-size); color: var(--text-soft); user-select: none; }
+    .color-key-item { display: inline-flex; align-items: center; gap: 6px; }
+    .color-key-dot { width: 12px; height: 12px; border-radius: var(--radius-xs); background: var(--sw-stripe); border: 1px solid var(--dot-edge-soft); box-sizing: border-box; }
+    .color-key-label { outline: none; min-width: 12px; cursor: text; }
+    .color-key-label.is-empty::before { content: attr(data-hint); font-style: italic; color: var(--text-muted); }
+    .color-key-label.is-editing { background: var(--bg-panel); outline: 1.5px solid var(--primary-ring); border-radius: var(--radius-xs); }
+    .color-key-label.is-selected { outline: 1.5px solid var(--primary-ring); border-radius: var(--radius-xs); }
+    body.presentation .color-key-item.is-unnamed, body.exporting .color-key-item.is-unnamed, body.capture .color-key-item.is-unnamed { display: none; }
+    body.presentation .color-key-label { pointer-events: none; }
 
 
     * {
@@ -1969,7 +2001,60 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
           if (o.onInput) text.addEventListener('input', o.onInput);
           return { card, text };
         }
-        return { confirm, closeConfirm, isConfirmOpen: () => !!confirmEl, noteCard, icon, iconEl, toast: (m) => showToast(m) };
+        // The action bar over a selection (never exported, never in ?present: the type hides it there). `cls` is the bar's own
+        // class and the button class `ab-btn` / `ab-sep` follow the type's naming when it passes them (the ERD and the sequence
+        // keep their `erd-` and `seq-` classes); the flowchart uses the shared `actionbar`, `ab-btn` and `ab-sep`
+        // (components/actionbar.css). abButton: act and value go in data-act / data-value; pressed (when not undefined) in aria-pressed.
+        function actionBar(cls, label) {
+          const bar = document.createElement('div');
+          bar.className = cls;
+          bar.dataset.exportSkip = '';
+          bar.setAttribute('role', 'toolbar');
+          if (label) bar.setAttribute('aria-label', label);
+          return bar;
+        }
+        function abButton(cls, act, html, title, pressed, value, extra) {
+          const b = document.createElement('button');
+          b.className = extra ? `${cls} ${extra}` : cls;
+          b.type = 'button';
+          b.dataset.act = act;
+          if (value !== undefined) b.dataset.value = value;
+          b.title = title;
+          b.setAttribute('aria-label', title);
+          if (pressed !== undefined) b.setAttribute('aria-pressed', String(!!pressed));
+          b.innerHTML = html;
+          return b;
+        }
+        const abSep = (cls) => { const s = document.createElement('span'); s.className = cls || 'ab-sep'; return s; };
+        // The colour legend: one entry per colour in `used` (slots), a dot and its label from `key` ({slot: text}). An entry
+        // with no label is drawn only with opts.prompts (a prompt "What does Blue mean?" for the edit, left out of ?present and
+        // exports). opts.cls adds a class to the legend (the type positions it). The label span carries data-color for the
+        // type's own edit. Returns the element, or null when no entry is drawn.
+        function colorKey(used, key, opts) {
+          const o = opts || {};
+          const items = used.filter((c) => o.prompts || (key && key[c]));
+          if (!items.length) return null;
+          const box = document.createElement('div');
+          box.className = `color-key${o.cls ? ' ' + o.cls : ''}`;
+          items.forEach((color) => {
+            const label = (key && key[color]) || '';
+            const item = document.createElement('div');
+            item.className = `color-key-item${label ? '' : ' is-unnamed'}`;
+            const dot = document.createElement('span');
+            dot.className = 'color-key-dot';
+            setSwatch(dot, color);
+            item.appendChild(dot);
+            const text = document.createElement('span');
+            text.className = `color-key-label${label ? '' : ' is-empty'}`;
+            text.dataset.color = color;
+            if (!label) text.dataset.hint = `What does ${(paletteOf(color) || {}).name || color} mean?`;
+            text.textContent = label;
+            item.appendChild(text);
+            box.appendChild(item);
+          });
+          return box;
+        }
+        return { confirm, closeConfirm, isConfirmOpen: () => !!confirmEl, noteCard, actionBar, abButton, abSep, colorKey, icon, iconEl, toast: (m) => showToast(m) };
       })();
 
       // --- CLAUDE.AI ARTIFACT (only active inside a published claude.ai artifact; elsewhere none of this runs) ---

@@ -122,21 +122,21 @@ try {
   t.check('Ctrl+Z restores the deleted lane', (await t.ev(`document.querySelectorAll('.swimlane').length`)) === lanesBefore
     && (await t.ev(`document.querySelectorAll('.flow-node').length`)) === nodesBefore);
 
-  // 2d. Hovering a lane shows no tools; selecting it (pill click) shows reorder + delete, and delete removes the lane
+  // 2d. Hovering a lane shows no action bar; selecting it (pill click) shows it (colour, rename, move, delete: only that lane), and delete removes the lane
   const toolsShown = await t.ev(`(() => {
     const L = document.querySelector('.swimlane:nth-child(2)'), r = L.getBoundingClientRect();
     L.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: r.left + 400, clientY: r.top + 40 }));
     const vis = el => !!el && el.getBoundingClientRect().width > 0;
-    const onHover = vis(L.querySelector('.lane-tools'));
+    const onHover = vis(L.querySelector('.lane-bar'));
     L.querySelector('.lane-pill').click();
-    return [onHover, vis(L.querySelector('.lane-tool-move')), vis(L.querySelector('.lane-tool-delete')),
-      vis(document.querySelector('.swimlane:nth-child(1) .lane-tools'))];
+    return [onHover, vis(L.querySelector('.lane-bar [data-act="earlier"]')), vis(L.querySelector('.lane-bar [data-act="delete"]')),
+      vis(document.querySelector('.swimlane:nth-child(1) .lane-bar')), !!L.querySelector('.lane-tools')];
   })()`);
-  await t.ev(`document.querySelector('.swimlane:nth-child(2) .lane-tool-delete').click()`);
+  await t.ev(`document.querySelector('.swimlane:nth-child(2) .lane-bar [data-act="delete"]').click()`);
   await t.ev(`document.querySelector('.confirm-ok').click()`);
   const lanesAfterTool = await t.ev(`document.querySelectorAll('.swimlane').length`);
-  t.check('hovering a lane hides its tools; selecting it shows reorder + delete (only that lane), and delete (confirmed) removes the lane',
-    !toolsShown[0] && toolsShown[1] && toolsShown[2] && !toolsShown[3] && lanesAfterTool === lanesBefore - 1, `${JSON.stringify(toolsShown)} lanes=${lanesAfterTool}`);
+  t.check('hovering a lane hides its bar; selecting it shows move + delete (only that lane), and delete (confirmed) removes the lane',
+    !toolsShown[0] && toolsShown[1] && toolsShown[2] && !toolsShown[3] && !toolsShown[4] && lanesAfterTool === lanesBefore - 1, `${JSON.stringify(toolsShown)} lanes=${lanesAfterTool}`);
   await t.ev(t.key('z', { ctrlKey: true }));
 
   // 2d2. The pill reads as a drag handle: move cursor, and a primary ring when the pointer is on it
@@ -475,9 +475,9 @@ try {
     && copied.w > 200 && copied.h > 100 && /copied as png/i.test(badgeCopied) && badgeAfter === badgeBefore && t.errors.length === 0,
     `visible=${copyVisible} clip=${JSON.stringify(copied)} badge=${badgeBefore}->${badgeCopied}->${badgeAfter} errors=${t.errors.join(' | ')}`);
 
-  // 9c. The flowchart has no toMermaid: the Mermaid item stays hidden and the other Copy items stay
-  t.check('flowchart: the Copy group hides Mermaid but keeps SVG and the heading',
-    await t.ev(`document.querySelector('[data-copy="mermaid"]').hidden && !document.querySelector('[data-copy="svg"]').hidden && !document.querySelector('[data-copy-label]').hidden`));
+  // 9c. The flowchart has toMermaid: the Mermaid item shows (when the browser can write the clipboard) beside the other Copy items
+  t.check('flowchart: the Copy group shows Mermaid, SVG and the heading',
+    await t.ev(`!document.querySelector('[data-copy="mermaid"]').hidden && !document.querySelector('[data-copy="svg"]').hidden && !document.querySelector('[data-copy-label]').hidden`));
 
   // 10. ?present hides editing chrome
   await t.open(laid, '?present');

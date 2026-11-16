@@ -211,7 +211,60 @@
           if (o.onInput) text.addEventListener('input', o.onInput);
           return { card, text };
         }
-        return { confirm, closeConfirm, isConfirmOpen: () => !!confirmEl, noteCard, icon, iconEl, toast: (m) => showToast(m) };
+        // The action bar over a selection (never exported, never in ?present: the type hides it there). `cls` is the bar's own
+        // class and the button class `ab-btn` / `ab-sep` follow the type's naming when it passes them (the ERD and the sequence
+        // keep their `erd-` and `seq-` classes); the flowchart uses the shared `actionbar`, `ab-btn` and `ab-sep`
+        // (components/actionbar.css). abButton: act and value go in data-act / data-value; pressed (when not undefined) in aria-pressed.
+        function actionBar(cls, label) {
+          const bar = document.createElement('div');
+          bar.className = cls;
+          bar.dataset.exportSkip = '';
+          bar.setAttribute('role', 'toolbar');
+          if (label) bar.setAttribute('aria-label', label);
+          return bar;
+        }
+        function abButton(cls, act, html, title, pressed, value, extra) {
+          const b = document.createElement('button');
+          b.className = extra ? `${cls} ${extra}` : cls;
+          b.type = 'button';
+          b.dataset.act = act;
+          if (value !== undefined) b.dataset.value = value;
+          b.title = title;
+          b.setAttribute('aria-label', title);
+          if (pressed !== undefined) b.setAttribute('aria-pressed', String(!!pressed));
+          b.innerHTML = html;
+          return b;
+        }
+        const abSep = (cls) => { const s = document.createElement('span'); s.className = cls || 'ab-sep'; return s; };
+        // The colour legend: one entry per colour in `used` (slots), a dot and its label from `key` ({slot: text}). An entry
+        // with no label is drawn only with opts.prompts (a prompt "What does Blue mean?" for the edit, left out of ?present and
+        // exports). opts.cls adds a class to the legend (the type positions it). The label span carries data-color for the
+        // type's own edit. Returns the element, or null when no entry is drawn.
+        function colorKey(used, key, opts) {
+          const o = opts || {};
+          const items = used.filter((c) => o.prompts || (key && key[c]));
+          if (!items.length) return null;
+          const box = document.createElement('div');
+          box.className = `color-key${o.cls ? ' ' + o.cls : ''}`;
+          items.forEach((color) => {
+            const label = (key && key[color]) || '';
+            const item = document.createElement('div');
+            item.className = `color-key-item${label ? '' : ' is-unnamed'}`;
+            const dot = document.createElement('span');
+            dot.className = 'color-key-dot';
+            setSwatch(dot, color);
+            item.appendChild(dot);
+            const text = document.createElement('span');
+            text.className = `color-key-label${label ? '' : ' is-empty'}`;
+            text.dataset.color = color;
+            if (!label) text.dataset.hint = `What does ${(paletteOf(color) || {}).name || color} mean?`;
+            text.textContent = label;
+            item.appendChild(text);
+            box.appendChild(item);
+          });
+          return box;
+        }
+        return { confirm, closeConfirm, isConfirmOpen: () => !!confirmEl, noteCard, actionBar, abButton, abSep, colorKey, icon, iconEl, toast: (m) => showToast(m) };
       })();
 
       // --- CLAUDE.AI ARTIFACT (only active inside a published claude.ai artifact; elsewhere none of this runs) ---
