@@ -74,8 +74,8 @@ We asked an AI (Claude Haiku) to summarize 4 saved diagrams, from 9 to 41 steps 
 
 | Type | Status |
 |---|---|
-| **Flowchart**: swimlanes, decisions, loops, wide or tall; classic shapes (document, database, input/output, subprocess, delay) and lettered connectors for long arrows | ✅ Available |
-| **Sequence**: who talks to whom over time, with optional, alternative and loop sections | ✅ Available |
+| **Flowchart**: swimlanes, decisions, loops, wide or tall; classic shapes (document, database, input/output, subprocess, delay) and lettered connectors for long arrows; copy as Mermaid | ✅ Available |
+| **Sequence**: who talks to whom over time, with optional, alternative and loop sections; copy as Mermaid | ✅ Available |
 | **ERD**: database tables, columns, keys and crow's-foot relationships, tables colour-coded by domain, laid out as a graph with smooth curves; collapse tables, add notes, copy as Mermaid | ✅ Available |
 
 ![Sequence diagram](docs/img/example-sequence.png)
