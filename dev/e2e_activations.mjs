@@ -41,6 +41,16 @@ try {
   const cu = c.find((b) => b.from === 'm17');
   check('"until" stretches a bar to that message', !!cu && cu.to === 'm18', show('c'));
   check('a bar stretched with "until" stays one bar when that participant calls out inside it', of('k').length === 1 && of('k')[0].from === 'm19' && of('k')[0].to === 'm22', show('k'));
+  // The message bar's Bar button writes "activate": a sync call's bar can be switched off and on by hand
+  const barsOf = (pid) => t.ev(`document.querySelectorAll('.seq-activation[data-node-id="${pid}"]').length`);
+  await t.clickOn('.seq-msg-hit[data-edge-id="m15"]');
+  const before = await barsOf('b');
+  await t.clickOn('.seq-actionbar [data-act="activate"]');
+  const on = await barsOf('b');
+  check('the message bar has a Bar button, pressed when the call opens a bar; "activate": false was off, one click turns it on', before + 1 === on && on > before, `${before} -> ${on}`);
+  await t.clickOn('.seq-msg-hit[data-edge-id="m15"]');
+  await t.clickOn('.seq-actionbar [data-act="activate"]');
+  check('and a second click turns it off again', (await barsOf('b')) === before, `${await barsOf('b')} vs ${before}`);
 } catch (e) {
   console.error('[ERROR]', e.message);
   code = 1;

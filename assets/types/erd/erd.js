@@ -34,7 +34,8 @@
       const ERD_NOTE_ICON = ui.icon('note-lines', { size: 'xs', bold: true });
 
       // --- STATE ---
-      let erdSel = null;              // { kind: 'entity' | 'rel', id } | { kind: 'col', entity, col }: class `selected`
+      let erdSel = null;              // { kind: 'entity' | 'rel', id } | { kind: 'col', entity, col } | { kind: 'key', color }: class `selected`
+      let erdKeyDraft = null;         // a colour whose legend entry is being named for the first time (shown only while it is edited)
       // Several tables selected (see MULTI-SELECT): the ids, valid only while erdSel is still the primary's selection
       // object they were made for (a direct erdSel = ... elsewhere drops the group). Never saved.
       let erdMultiIds = [];
@@ -208,6 +209,7 @@
 
       // The swatch a table wears ('' = neutral)
       const entityColor = (e) => e.color || '';
+      const ERD_KEY_GAP = 34;   // the legend sits this far above the top-left corner of the tables
 
       function render() {
         ensureLayout();
@@ -227,6 +229,7 @@
         erdHideCard();
         renderRelationships();
         erdEntities().forEach((e) => erdHtml.appendChild(buildEntity(e)));
+        drawKey();
         renderLabels();
         renderNotes(true);
         updateButtons();
@@ -238,6 +241,7 @@
         if (sel.kind === 'entity') return !!erdEntity(sel.id);
         if (sel.kind === 'rel') return !!erdRel(sel.id);
         if (sel.kind === 'col') { const e = erdEntity(sel.entity); return !!e && (e.columns || []).some((c) => c.name === sel.col); }
+        if (sel.kind === 'key') return !!(chartData.colorKey && chartData.colorKey[sel.color]) && erdKeyColors().includes(sel.color);
         return false;
       }
 
@@ -492,6 +496,7 @@
       }
 
       function applyHighlight() {
+        erdHtml.querySelectorAll('.color-key-label').forEach((l) => l.classList.toggle('is-selected', !!erdSel && erdSel.kind === 'key' && erdSel.color === l.dataset.color));
         erdCanvas.querySelectorAll('.hl-in, .hl-out, .hover, .rel-child, .rel-parent, .key-hl, .is-dim')
           .forEach((el) => el.classList.remove('hl-in', 'hl-out', 'hover', 'rel-child', 'rel-parent', 'key-hl', 'is-dim'));
         erdCanvas.querySelectorAll('.ov-show').forEach((el) => el.classList.remove('ov-show'));
@@ -1304,18 +1309,8 @@
       };
       const ERD_END_NAMES = { one: 'exactly one', zeroOrOne: 'zero or one', oneOrMany: 'one or many', zeroOrMany: 'zero or many' };
       const erdEndGlyph = (kind) => `<svg width="30" height="16" viewBox="-26 -9 30 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M-26 0H0"/>${ERD_END_PATHS[kind]}</svg>`;
-      function abButton(act, html, title, pressed, value, extra) {
-        const b = erdHtmlEl('button', `erd-ab-btn${extra ? ' ' + extra : ''}`);
-        b.type = 'button';
-        b.dataset.act = act;
-        if (value !== undefined) b.dataset.value = value;
-        b.title = title;
-        b.setAttribute('aria-label', title);
-        if (pressed !== undefined) b.setAttribute('aria-pressed', String(!!pressed));
-        b.innerHTML = html;
-        return b;
-      }
-      const abSep = () => erdHtmlEl('span', 'erd-ab-sep');
+      const abButton = (act, html, title, pressed, value, extra) => ui.abButton('erd-ab-btn', act, html, title, pressed, value, extra);
+      const abSep = () => ui.abSep('erd-ab-sep');
 
       // The end handles sit this far along the line from the table edge, past the crow's foot (the marker is 26px long)
       const ERD_HANDLE_GAP = 34;
@@ -1346,9 +1341,7 @@
       function drawSelectionTools() {
         erdHtml.querySelectorAll('.erd-actionbar, .erd-handle').forEach((el) => el.remove());
         if (!erdSel || erdPresenting()) return;
-        const bar = erdHtmlEl('div', 'erd-actionbar');
-        bar.dataset.exportSkip = '';
-        bar.setAttribute('role', 'toolbar');
+        const bar = ui.actionBar('erd-actionbar');
         let at = null, below = false;
         if (erdSel.kind === 'entity') {
           const e = erdEntity(erdSel.id);
@@ -1365,6 +1358,7 @@
           bar.appendChild(abButton('delete', ui.icon('trash'), nSel > 1 ? `Delete these ${nSel} tables and their relationships` : 'Delete this table and its relationships', undefined, undefined, 'is-danger'));
           bar.appendChild(erdHtmlEl('span', 'erd-ab-break'));
           bar.appendChild(swatchRow(e.color || '', (slot) => setEntityColor(e.id, slot), { btnClass: 'erd-ab-swatch' }));
+          if (e.color) bar.appendChild(abButton('namecolor', '<span>Name colour</span>', 'Say what this colour means: it is then shown in a legend above the tables'));
           at = { x: e.box.x + e.box.w / 2, y: e.box.y - 10 };
           below = e.box.y < 110;
           if (below) at.y = e.box.y + e.box.h + 10;
@@ -1455,6 +1449,7 @@
           else if (act === 'collapse') toggleCollapsed(e.id);
           else if (act === 'note') addNoteTo(e.id);
           else if (act === 'delete') deleteSelection(erdHtml.querySelector('.erd-ab-btn[data-act="delete"]'));
+          else if (act === 'namecolor') nameColor(e.color);
         } else if (sel.kind === 'col') {
           const e = erdEntity(sel.entity);
           if (!e) return;
@@ -1484,6 +1479,52 @@
         render();
         updateStatus(true);
       }
+
+      // --- COLOUR LEGEND (optional) ---
+      // `colorKey` says what a table colour means. Tinting never asks for it: the legend is drawn only when some colour a table
+      // uses has a label, lists only those, and sits above the top-left corner of the tables. "Name colour" in a tinted table's
+      // bar (or Enter / F2 / a double-click on an entry) edits a label; clearing one removes it, clearing the last removes `colorKey`.
+      function erdKeyColors() {
+        const used = [];
+        erdEntities().forEach((e) => { if (e.color && !used.includes(e.color)) used.push(e.color); });
+        return used;
+      }
+      function drawKey() {
+        erdHtml.querySelectorAll('.color-key').forEach((el) => el.remove());
+        const key = chartData.colorKey || {}, boxes = erdEntities().filter((e) => e.box).map((e) => e.box);
+        const shown = erdKeyColors().filter((c) => key[c] || c === erdKeyDraft);
+        const el = boxes.length && ui.colorKey(shown, key, { prompts: erdKeyDraft !== null, cls: 'erd-key' });
+        if (!el) return;
+        Object.assign(el.style, { left: erdPx(Math.min(...boxes.map((b) => b.x))), top: erdPx(Math.min(...boxes.map((b) => b.y)) - ERD_KEY_GAP) });
+        erdHtml.appendChild(el);
+      }
+      // Sets or clears (value '') one label; true when it changed
+      function setKeyLabel(color, value) {
+        const was = (chartData.colorKey && chartData.colorKey[color]) || '';
+        if (value === was) return false;
+        if (value) (chartData.colorKey = chartData.colorKey || {})[color] = value;
+        else { delete chartData.colorKey[color]; if (!Object.keys(chartData.colorKey).length) delete chartData.colorKey; }
+        return true;
+      }
+      function editKey(el) {
+        if (!el || erdPresenting()) return;
+        const color = el.dataset.color, was = (chartData.colorKey && chartData.colorKey[color]) || '';
+        el.classList.remove('is-empty');
+        beginEdit(el, { raw: was, restore: was, apply: (value) => { erdKeyDraft = null; return setKeyLabel(color, value); } });
+        el.addEventListener('blur', () => { if (erdKeyDraft) { erdKeyDraft = null; drawKey(); } });
+      }
+      function nameColor(color) {
+        if (!color) return;
+        erdKeyDraft = color;
+        drawKey();
+        editKey(erdHtml.querySelector(`.color-key-label[data-color="${color}"]`));
+      }
+      erdHtml.addEventListener('click', (e) => {
+        const kl = e.target.closest('.color-key-label');
+        if (!kl || kl.isContentEditable || erdPresenting()) return;
+        e.stopPropagation();
+        setSelection({ kind: 'key', color: kl.dataset.color });
+      });
 
       // =====================================================================================================
       // --- PRESSES ---
@@ -1850,6 +1891,8 @@
         if (t.isContentEditable) return;
         const label = t.closest('.edge-label');
         if (label) { e.stopPropagation(); editRelLabel(label.dataset.edgeId); return; }
+        const kl = t.closest('.color-key-label');
+        if (kl) { e.stopPropagation(); editKey(kl); return; }
         const ent = t.closest('.erd-entity');
         if (!ent) return;
         const id = ent.dataset.nodeId, row = t.closest('.erd-row');
@@ -1870,6 +1913,7 @@
         if (s.kind === 'entity') editEntityName(s.id);
         else if (s.kind === 'col') editColumn(s.entity, s.col, 'name');
         else if (s.kind === 'rel') editRelLabel(s.id);
+        else if (s.kind === 'key') editKey(erdHtml.querySelector(`.color-key-label[data-color="${s.color}"]`));
       }
 
       // =====================================================================================================
@@ -2032,6 +2076,7 @@
           } else deleteEntity(e.id);
         } else if (s.kind === 'col') deleteColumn(s.entity, s.col);
         else if (s.kind === 'rel') deleteRel(s.id);
+        else if (s.kind === 'key') { setKeyLabel(s.color, ''); erdSel = null; commit(); }
       }
 
       // =====================================================================================================
@@ -2493,6 +2538,12 @@
         slotColors(d, 'entities');
         ERD_DERIVED.forEach(([list, keys]) => (d[list] || []).forEach((o) => keys.forEach((k) => { delete o[k]; })));
         renameGeneratedIds(d);
+        // The legend keeps only the colours a table still uses
+        if (d.colorKey) {
+          const inUse = new Set((d.entities || []).map((q) => q.color));
+          Object.keys(d.colorKey).forEach((k) => { if (!inUse.has(k)) delete d.colorKey[k]; });
+          if (!Object.keys(d.colorKey).length) delete d.colorKey;
+        }
         const layout = {};
         (d.entities || []).forEach((o) => {
           const pos = {};
@@ -2613,9 +2664,11 @@
         // Notes on show may sit in the margin outside the canvas: Fit and screenshots take them in (peeked ones are
         // transient and do not count)
         contentOverflow() {
-          if (!erdNotesLayer || !chartData.showNotes) return null;
           const W = erdCanvas.offsetWidth, H = erdCanvas.offsetHeight, PAD = 12;
           const o = { left: 0, top: 0, right: 0, bottom: 0 };
+          const key = erdHtml.querySelector('.color-key');   // above the tables: past the canvas edge when a table sits near it
+          if (key) o.top = Math.max(0, PAD - (parseFloat(key.style.top) || 0));
+          if (!erdNotesLayer || !chartData.showNotes) return key ? o : null;
           [...erdNotesLayer.children].forEach((card) => {
             const x = parseFloat(card.style.left) || 0, y = parseFloat(card.style.top) || 0, w = card.offsetWidth, h = card.offsetHeight;
             if (!w) return;

@@ -1,0 +1,20 @@
+    /* Action bar over a selection (ui.actionBar, ui.abButton, ui.abSep): a floating toolbar of icon and text buttons. The flowchart's
+       lane bar uses these classes; the ERD and the sequence keep their own prefixed twins. Hidden in ?present and in exports. */
+    .actionbar {
+      position: absolute; display: flex; align-items: center; gap: 2px; padding: 3px; z-index: 53;
+      background: var(--bg-panel); border: 1px solid var(--border-dark); border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-md); white-space: nowrap; cursor: default; font-weight: var(--weight-regular); text-align: left;
+      -webkit-user-select: none; user-select: none;
+    }
+    .ab-btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 4px; height: 26px; min-width: 26px; padding: 0 6px; box-sizing: border-box;
+      border: 1px solid transparent; border-radius: var(--radius-md); background: transparent; color: var(--text-soft);
+      font: inherit; font-size: var(--t-detail-size); cursor: pointer;
+    }
+    .ab-btn:hover { background: var(--bg-hover); color: var(--text-main); }
+    .ab-btn[aria-pressed="true"] { background: var(--primary-wash); border-color: var(--primary-ring); color: var(--primary); }
+    .ab-btn.is-danger:hover { background: color-mix(in srgb, var(--danger) 10%, var(--bg-panel)); color: var(--danger); }
+    .ab-btn svg { display: block; }
+    .ab-swatch { height: 26px; width: 26px; }
+    .ab-sep { width: 1px; height: 18px; margin: 0 3px; background: var(--border-color); }
+    body.presentation .actionbar, body.exporting .actionbar { display: none !important; }

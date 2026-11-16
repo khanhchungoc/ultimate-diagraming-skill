@@ -1,7 +1,7 @@
 // Touch test for the shell's pan and zoom on a phone: one finger pans 1:1, two fingers pinch-zoom (the page itself
 // never zooms), a drag that starts on an unselected item pans instead of moving it, a tap selects (even when the
 // browser's touch adjustment would have hit a step's connect port), a selected item drags, a tap on blank canvas
-// clears the selection; the sequence participant row pins, over an opaque band, once panned off by touch; and a
+// clears the selection; the sequence participant row pins (each pill in its halo) once panned off by touch; and a
 // sequence message is drawn by touch from the lifeline of a selected participant (an unselected one pans).
 // Real touch input over the Chrome DevTools Protocol (Input.dispatchTouchEvent), phone-sized and mobile-emulated.
 //
@@ -62,15 +62,12 @@ t.check('a one-finger drag of 400px pans 400px', Math.abs(v2.y - v1.y + 400) < 2
 await drag(30, 750, 0, -500);
 await drag(30, 750, 0, -500);
 const pin = await t.ev(`(() => {
-  const canvas = document.getElementById('seq-canvas'), band = canvas.querySelector('.seq-pin-band');
+  const canvas = document.getElementById('seq-canvas');
   const box = canvas.querySelector('.seq-participant').getBoundingClientRect(), vp = document.getElementById('viewport').getBoundingClientRect();
-  const b = band.getBoundingClientRect(), c = canvas.getBoundingClientRect();
-  return { pinned: canvas.classList.contains('seq-pinned'), boxTop: box.top, vpTop: vp.top, bandW: b.width, canvasW: c.width,
-    bandCovers: b.top <= box.top && b.bottom >= box.bottom };
+  return { pinned: canvas.classList.contains('seq-pinned'), boxTop: box.top, vpTop: vp.top };
 })()`);
 t.check('the participant row pins once panned off by touch', pin.pinned);
 t.check('the pinned row sits at the top of the viewport', pin.boxTop >= pin.vpTop - 1 && pin.boxTop < pin.vpTop + 60, `${pin.boxTop} vs ${pin.vpTop}`);
-t.check('the band behind the pinned row spans the diagram and covers the boxes', Math.abs(pin.bandW - pin.canvasW) < 4 && pin.bandCovers, JSON.stringify(pin));
 
 // --- Sequence: drawing a message by touch: tap a lifeline (selects its participant), then drag from it ---
 const ids = await t.ev(`[...document.querySelectorAll('.seq-participant')].map((e) => e.dataset.nodeId)`);

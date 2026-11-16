@@ -8,9 +8,10 @@
 // re-laid out, a v2 page's group colours becoming table colours).
 // Driven with real mouse and keyboard input over the Chrome DevTools Protocol (see cdp.mjs): a synthetic DOM
 // event may only be used where a comment says why.
-//   node dev/e2e_erd.mjs --browser <chrome> --page <example-erd.html> --large <saas-billing.html>
+//   node dev/e2e_erd.mjs --browser <chrome> --page <example-erd.html> --large <saas-billing.html> [--blank <default-erd.html>]
 // --page: references/examples/example-erd.json laid out with `layout_engine.py --layout` (8 tables).
 // --large: dev/fixtures/erd/saas-billing.json laid out the same way (~30 tables).
+// --blank (optional): assets/types/erd/default.json laid out (two tables, no colours): the optional colour legend (named in the editor, never prompted).
 // Exit codes: 0 all passed, 1 setup error, 2 a check failed.
 import { readFileSync, writeFileSync, unlinkSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
@@ -18,8 +19,8 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { argOf, launch, sleep } from './cdp.mjs';
 
-const browser = argOf('browser'), page = argOf('page'), large = argOf('large');
-if (!browser || !page || !large) { console.error('usage: --browser <chrome> --page <example-erd.html> --large <saas-billing.html>'); process.exit(1); }
+const browser = argOf('browser'), page = argOf('page'), large = argOf('large'), blank = argOf('blank');
+if (!browser || !page || !large) { console.error('usage: --browser <chrome> --page <example-erd.html> --large <saas-billing.html> [--blank <default-erd.html>]'); process.exit(1); }
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 const t = await launch(browser).catch((e) => { console.error('[ERROR]', e.message); process.exit(1); });
@@ -35,6 +36,7 @@ try {
     await sleep(250);
     return JSON.parse(await t.ev(`document.getElementById('diagram-data').textContent`));
   };
+  const notes0 = (JSON.parse(block(readFileSync(page, 'utf8'))).notes || []).length;   // the example's notes: one on a table, two on columns
   const ent = (d, id) => d.entities.find((e) => e.id === id);
   const rel = (d, id) => d.relationships.find((r) => r.id === id);
   const editing = () => t.ev(`(document.activeElement && document.activeElement.isContentEditable) ? document.activeElement.textContent : null`);
@@ -495,14 +497,14 @@ sys.stdout.write(format_json(out))`;
   d = await saved();
   const nn = d.notes.find((n) => n.entities.includes('customer'));
   t.check('N on a selected table opens a new note in edit; Enter adds a line, Ctrl+Enter finishes',
-    noteEdit === '' && nn?.text === 'Soft-deleted rows stay\nfor 30 days' && /^n\d+$/.test(nn.id) && d.notes.length === 2 && (await editing()) === null, `${noteEdit} ${J(nn)}`);
+    noteEdit === '' && nn?.text === 'Soft-deleted rows stay\nfor 30 days' && /^n\d+$/.test(nn.id) && d.notes.length === notes0 + 1 && (await editing()) === null, `${noteEdit} ${J(nn)}`);
   await undo();
-  t.check('a note is one undo step', (await saved()).notes.length === 1);
+  t.check('a note is one undo step', (await saved()).notes.length === notes0);
   await t.clickOn(head('address'));
   await t.press('n');
   await t.press('Escape');
   d = await saved();
-  t.check('Escape finishes an empty note, and an empty note is not kept', d.notes.length === 1 && (await count('.note-badge')) === 1);
+  t.check('Escape finishes an empty note, and an empty note is not kept', d.notes.length === notes0 && (await count('.note-badge')) === notes0);
   // + chip
   const addr = await t.at(head('address'), 0.5, 0.5);
   await t.mouse('mouseMoved', addr.x, addr.y);
@@ -545,7 +547,7 @@ sys.stdout.write(format_json(out))`;
   t.check('dragging the Note button onto a table gives it a note', dragEdit === '' && (await saved()).notes.some((n) => n.text === 'Moderated' && n.entities.join() === 'review'));
   // edit an existing note by its badge; link; unlink; pin; delete
   await freshPage();
-  await t.clickOn('.erd-entity[data-node-id="order"] .note-badge');
+  await t.clickOn('.erd-entity[data-node-id="order"] > .note-badge');
   const badgeEdit = await editing();
   await t.type(' (kept for good)');   // the caret starts at the end of the text
   await t.press('Escape');
@@ -572,12 +574,12 @@ sys.stdout.write(format_json(out))`;
     typeof d.notes[0].pos?.x === 'number' && typeof d.notes[0].pos?.y === 'number', J(d.notes[0]));
   await t.press('Delete');
   d = await saved();
-  t.check('Delete removes the selected note', !d.notes && (await count('.note-badge')) === 0);
+  t.check('Delete removes the selected note', !d.notes.some((n) => n.id === 'n1') && (await count('.note-badge')) === notes0 - 1);
   await undo();
   t.check('and undo brings it back with its place', (await saved()).notes?.[0]?.pos !== undefined);
   // deleting a table unlinks its notes
   await freshPage();
-  await t.clickOn('.erd-entity[data-node-id="order"] .note-badge');
+  await t.clickOn('.erd-entity[data-node-id="order"] > .note-badge');
   await t.press('Escape');
   const link3 = await t.at('.note.selected .note-link'), cust3 = await t.at(head('customer'));
   await t.dragTo(link3.x, link3.y, cust3.x, cust3.y);
@@ -696,9 +698,9 @@ sys.stdout.write(format_json(out))`;
     ['colour a table', async () => { await t.clickOn(head('address')); await t.clickOn('.erd-actionbar .swatch-btn[data-value="2"]'); }],
     ['collapse a table', async () => { await t.clickOn(`${head('order')} .erd-chevron`); }],
     ['add a note', async () => { await t.clickOn(head('address')); await t.press('n'); await t.type('Hi'); await t.press('Escape'); }],
-    ['link a note', async () => { await t.clickOn('.erd-entity[data-node-id="order"] .note-badge'); await t.press('Escape'); const l1 = await t.at('.note.selected .note-link'), c1 = await t.at(head('customer')); await t.dragTo(l1.x, l1.y, c1.x, c1.y); }],
-    ['pin a note', async () => { await t.clickOn('.erd-entity[data-node-id="order"] .note-badge'); await t.press('Escape'); const c1 = await t.at('.note.selected'); await t.dragTo(c1.x, c1.y, c1.x + 50, c1.y + 60); }],
-    ['delete a note', async () => { await t.clickOn('.erd-entity[data-node-id="order"] .note-badge'); await t.press('Escape'); await t.press('Delete'); }],
+    ['link a note', async () => { await t.clickOn('.erd-entity[data-node-id="order"] > .note-badge'); await t.press('Escape'); const l1 = await t.at('.note.selected .note-link'), c1 = await t.at(head('customer')); await t.dragTo(l1.x, l1.y, c1.x, c1.y); }],
+    ['pin a note', async () => { await t.clickOn('.erd-entity[data-node-id="order"] > .note-badge'); await t.press('Escape'); const c1 = await t.at('.note.selected'); await t.dragTo(c1.x, c1.y, c1.x + 50, c1.y + 60); }],
+    ['delete a note', async () => { await t.clickOn('.erd-entity[data-node-id="order"] > .note-badge'); await t.press('Escape'); await t.press('Delete'); }],
     ['delete a table', async () => { await t.clickOn(head('order')); await t.press('Delete'); await t.clickOn('.confirm-ok'); }],
     // a hand move first (its own undo step, done before the baseline), so that Tidy has something to change
     ['Tidy', async () => { await t.clickOn('#btn-auto-tidy'); }, async () => { const h1 = await t.at(head((await tableIds())[4])); await t.dragTo(h1.x, h1.y, h1.x + 90, h1.y - 120); }],
@@ -873,7 +875,7 @@ sys.stdout.write(format_json(out))`;
   t.check('?present: a double-click edits nothing', (await editing()) === null && (await count('.erd-actionbar')) === 0 && (await count('.erd-handle')) === 0);
   await t.press('Delete');
   await t.press('n');
-  t.check('?present: Delete and N do nothing', (await count('.erd-entity')) === 8 && (await count('.note')) === 1 && (await count('.confirm')) === 0);
+  t.check('?present: Delete and N do nothing', (await count('.erd-entity')) === 8 && (await count('.note')) === notes0 && (await count('.confirm')) === 0);
   const hov = await t.at(head('customer'));
   await t.mouse('mouseMoved', hov.x, hov.y);
   await sleep(80);
@@ -918,7 +920,7 @@ sys.stdout.write(format_json(out))`;
       d = await saved();
       t.check(`generated ids are renamed in the saved file, authored ids kept (${what})`,
         !!ent(d, 'refund') && d.relationships.some((r) => r.id === 'r10' && r.from === 'review')
-        && d.notes.some((n) => n.id === 'n2' && n.entities.join() === 'product' && n.pos)
+        && d.notes.some((n) => n.id === `n${notes0 + 1}` && n.entities.join() === 'product' && n.pos)
         && ent(d, 'order') && rel(d, 'r1') && d.notes.some((n) => n.id === 'n1')
         && !/"(t|r|n)_\d{12,}/.test(J(d)) && d.layout.refund && !('groups' in d) && d.schemaVersion === 3, J(d.relationships.slice(-2)));
     } else {
@@ -1062,9 +1064,9 @@ sys.stdout.write(format_json(out))`;
   d = await saved();
   t.check('a v2 page opens re-laid out with its groups gone: each table wears its group’s colour, nothing overlaps',
     (await count('.erd-group')) === 0 && v2Colours.every((c) => c.endsWith(sales.includes(c.split(':')[0]) ? '#e0f2fe' : '#dcfce7')) && (await layoutProblems()).length === 0 && t.errors.length === 0, J(v2Colours));
-  t.check('and its save is v3: tables carry `color`, group names join `colorKey` (existing entries kept), no groups or group fields, positions in `layout`',
+  t.check('and its save is v3: tables carry `color`, group names join `colorKey` (entries for colours no table uses are dropped on save), no groups or group fields, positions in `layout`',
     d.schemaVersion === 3 && !('groups' in d) && d.entities.every((e) => !('group' in e) && e.color === (sales.includes(e.id) ? '1' : '3'))   // v2 hex colours are saved as slots
-    && J(d.colorKey) === J({ 2: 'Other', 1: 'Sales', 3: 'Catalog' }) && Object.keys(d.layout).length === 8 && !('sales' in d.layout), J(d.colorKey));
+    && J(d.colorKey) === J({ 1: 'Sales', 3: 'Catalog' }) && Object.keys(d.layout).length === 8 && !('sales' in d.layout), J(d.colorKey));
   t.check('the v3 block saved from a v2 page agrees with the Python codec', pythonAgrees(await t.ev(`document.getElementById('diagram-data').textContent`)) === '');
   }
 
@@ -1129,16 +1131,18 @@ sys.stdout.write(format_json(out))`;
   t.check('overview: Esc closes it', (await count('.erd-expand-card')) === 0);
   await zoom('out');
   await t.mouse('mouseMoved', 5, 900);
-  await hoverBig('subscription');
-  await sleep(450);
+  const subBox2 = await hoverBig('subscription');
+  await t.click(subBox2.x, subBox2.y);   // a click opens the card (a hover only rings the neighbourhood)
+  await t.mouse('mouseMoved', 5, 900);
+  await sleep(600);
   const cB = await cardInfo();
   t.check('overview: the card’s on-screen font size is the same at two zoom levels', (await scaleNow()) < sTwo && !!cB && Math.abs(cB.font - cA.font) < 0.1 && Math.abs(cB.name - cA.name) < 0.1 && Math.abs(cB.w - cA.w) < 2, `${J(cA)} ${J(cB)}`);
   t.check('overview: the card is an overlay (fixed in the page, outside the canvas) and layout is unchanged', await t.ev(`(() => { const c = document.querySelector('.erd-expand-card'); return !!c && c.parentElement === document.body && getComputedStyle(c).position === 'fixed' && !document.getElementById('erd-canvas').contains(c); })()`));
   // double-click on the card zooms to the table at 100%
-  const cardAt = await t.at('.erd-expand-card .erd-head');
+  const cardAt = await t.at('.erd-entity[data-node-id="subscription"]');   // the card is click-through: the double-click lands on the table under it
   await t.click(cardAt.x, cardAt.y, { count: 2 });
   await sleep(200);
-  t.check('overview: double-clicking the card zooms to the table at 100%', !(await inOverview()) && Math.abs((await scaleNow()) - 1) < 0.02 && (await count('.erd-expand-card')) === 0, `${await scaleNow()}`);
+  t.check('overview: double-clicking a table with its card open zooms to it at 100%', !(await inOverview()) && Math.abs((await scaleNow()) - 1) < 0.02 && (await count('.erd-expand-card')) === 0, `${await scaleNow()}`);
   await t.press('Escape');
   await zoom('reset');
   while ((await scaleNow()) >= 0.5) await zoom('out');
@@ -1240,6 +1244,89 @@ sys.stdout.write(format_json(out))`;
   t.check('large, no positions: the result is the synchronous layout, not an unsaved edit, nothing to undo', (await layoutOfSaved()) === cold && !(await undoDisabled() === false), '');
   unlinkSync(bareFile);
   t.check('large, no positions: no errors', t.errors.length === 0, t.errors.join(' | '));
+  }
+
+  // --- The colour legend: optional, shown only when a colour a table uses has a name ---
+  if (blank) {
+    const svgOf = async () => {
+      await t.ev(`window.__svg = null; const o = URL.createObjectURL; URL.createObjectURL = (b) => { b.text().then((x) => { window.__svg = x; }); return o.call(URL, b); }`);
+      await t.ev(`document.getElementById('btn-export').click()`);
+      await t.ev(`document.querySelector('[data-export="svg"]').click()`);
+      await sleep(600);
+      return t.ev(`window.__svg`);
+    };
+    const key = '.color-key';
+    const nameIt = async (name) => {
+      await t.clickOn(head('order'));
+      await t.clickOn('.erd-actionbar [data-act="namecolor"]');
+      await t.type(name);
+      await t.press('Enter');
+    };
+    await freshPage(blank);
+    t.check('legend: a blank diagram shows no legend', (await count(key)) === 0);
+    await t.clickOn(head('customer'));
+    t.check('legend: an untinted table has no Name colour button', (await count('.erd-actionbar [data-act="namecolor"]')) === 0);
+    await t.clickOn(head('order'));
+    await t.clickOn('.erd-actionbar .swatch-btn[data-value="1"]');
+    d = await saved();
+    t.check('legend: tinting a table shows no legend, asks nothing and saves no colorKey', (await count(key)) === 0 && (await editing()) === null && d.colorKey === undefined && ent(d, 'order').color === '1');
+    await t.clickOn('.erd-actionbar [data-act="namecolor"]');
+    t.check('legend: Name colour opens the legend with that colour in edit', (await editing()) === '' && (await count(`${key} .color-key-label.is-editing`)) === 1 && (await count(`${key} .color-key-item`)) === 1);
+    await t.press('Escape');
+    t.check('legend: Esc with no text leaves no legend and no colorKey', (await count(key)) === 0 && (await saved()).colorKey === undefined);
+    await nameIt('Billing');
+    d = await saved();
+    const placed = await t.ev(`(() => { const k = document.querySelector('.color-key').getBoundingClientRect(); const ts = [...document.querySelectorAll('.erd-entity')].map((e) => e.getBoundingClientRect());
+      return k.bottom <= Math.min(...ts.map((r) => r.top)) && Math.abs(k.left - Math.min(...ts.map((r) => r.left))) < 2 && k.top >= document.getElementById('erd-canvas').getBoundingClientRect().top; })()`);
+    t.check('legend: naming the colour shows one entry and saves colorKey', (await count(`${key} .color-key-item`)) === 1 && (await text(`${key} .color-key-label`)) === 'Billing' && J(d.colorKey) === J({ 1: 'Billing' }), J(d.colorKey));
+    t.check('legend: it sits above the top-left corner of the tables, inside the canvas', placed);
+    await undo();
+    t.check('legend: Ctrl+Z removes the entry and hides the legend', (await count(key)) === 0 && (await saved()).colorKey === undefined);
+    await redo();
+    t.check('legend: Ctrl+Shift+Z brings it back', (await text(`${key} .color-key-label`)) === 'Billing');
+    // select an entry and press Enter: edit, Esc keeps the text
+    await t.clickOn(`${key} .color-key-label`);
+    await t.press('Enter');
+    t.check('legend: a selected entry edits on Enter', (await editing()) === 'Billing');
+    await t.type('Nope');
+    await t.press('Escape');
+    t.check('legend: Esc keeps the old text', (await text(`${key} .color-key-label`)) === 'Billing' && J((await saved()).colorKey) === J({ 1: 'Billing' }));
+    await t.clickOn(`${key} .color-key-label`, { count: 2 });
+    await t.type('Payments');
+    await t.press('Enter');
+    t.check('legend: a double-click renames, in one undo step', J((await saved()).colorKey) === J({ 1: 'Payments' }));
+    await undo();
+    t.check('legend: and undo gives the old name back', J((await saved()).colorKey) === J({ 1: 'Billing' }));
+    // clearing the label removes the entry and, when it is the last, colorKey
+    await t.clickOn(`${key} .color-key-label`, { count: 2 });
+    await t.press('Backspace');
+    await t.press('Enter');
+    t.check('legend: clearing the label removes the entry, the legend and colorKey', (await count(key)) === 0 && (await saved()).colorKey === undefined);
+    // a named colour no table uses is not listed and is not saved
+    await freshPage(blank);
+    await t.clickOn(head('order'));
+    await t.clickOn('.erd-actionbar .swatch-btn[data-value="1"]');
+    await nameIt('Billing');
+    await t.clickOn(head('order'));
+    await t.clickOn('.erd-actionbar .swatch-btn[data-value=""]');
+    d = await saved();
+    t.check('legend: with the colour taken off every table the legend is gone and Save drops colorKey', (await count(key)) === 0 && d.colorKey === undefined && !('color' in ent(d, 'order')), J(d.colorKey));
+    await t.clickOn(head('order'));
+    await t.clickOn('.erd-actionbar .swatch-btn[data-value="1"]');
+    t.check('legend: tinting again brings the name back while the page is open', (await text(`${key} .color-key-label`)) === 'Billing');
+    // ?present and exports: a named legend shows, no names shows nothing (the example names two colours)
+    await freshPage(page, '?present');
+    t.check('legend: ?present shows a named legend (the example: Sales and Catalog), without prompts', (await count(`${key} .color-key-item`)) === 2 && (await count(`${key} .is-unnamed`)) === 0);
+    await freshPage(page);
+    const withNames = await svgOf();
+    t.check('legend: an SVG export carries the named legend', !!withNames && withNames.includes('Sales') && withNames.includes('Catalog'));
+    await freshPage(blank);
+    await t.clickOn(head('order'));
+    await t.clickOn('.erd-actionbar .swatch-btn[data-value="1"]');
+    const noNames = await svgOf();
+    t.check('legend: an SVG export with no names has no legend or prompt', !!noNames && !/What does|Billing/.test(noNames) && !/color-key/.test(noNames));
+    await freshPage(blank, '?present');
+    t.check('legend: ?present with no names shows nothing', (await count(key)) === 0);
   }
 
   t.check('no errors in the whole run', t.errors.length === 0, t.errors.join(' | '));

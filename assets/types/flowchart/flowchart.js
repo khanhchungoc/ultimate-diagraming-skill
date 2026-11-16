@@ -201,6 +201,7 @@
             laneEl.style.setProperty('--pill-x', `${x}px`);
             laneEl.style.setProperty('--pill-cx', `${Math.max(inset, (w - pw) / 2)}px`);   // centred at rest (exports)
           });
+          placeLaneBar();
           return;
         }
         const x0 = Math.max(0, visLeft);       // visible left edge of the lanes
@@ -213,11 +214,38 @@
         lanesRoot.querySelectorAll('.swimlane').forEach(laneEl => {
           const pill = laneEl.querySelector('.lane-pill');
           if (!pill) return;
-          const pillH = pill.offsetHeight + (pill.querySelector('.lane-tools') ? 36 : 0);   // + hover tools below it
+          const pillH = pill.offsetHeight;
           const maxY = Math.max(inset, laneEl.offsetHeight - pillH - inset);
           const y = Math.min(Math.max(visTop - laneEl.offsetTop + inset, inset), maxY);
           laneEl.style.setProperty('--pill-y', `${y}px`);
         });
+        placeLaneBar();
+      }
+
+      // The selected lane's bar sits over its pill, or under it when the pill is near the top of the window
+      function placeLaneBar() {
+        const bar = lanesRoot.querySelector('.lane-selected .lane-bar');
+        if (!bar) return;
+        const pill = bar.parentElement;
+        bar.classList.remove('is-below');
+        const need = bar.offsetHeight * scale + 16;
+        if (pill.getBoundingClientRect().top - viewport.getBoundingClientRect().top < need) bar.classList.add('is-below');
+      }
+      // A lane's colour: a palette slot, or '' for none (the colour for its position). One undo step.
+      function setLaneColor(laneId, slot) {
+        const lane = chartData.lanes.find(l => l.id === laneId);
+        if (!lane || (lane.color || '') === slot) return;
+        if (slot) lane.color = slot; else delete lane.color;
+        render();
+        updateStatus(true);
+      }
+      // Moves a lane one place (-1 earlier, +1 later), like dragging its pill there
+      function moveLane(index, dir) {
+        const to = index + dir;
+        if (to < 0 || to >= chartData.lanes.length) return;
+        const [moved] = chartData.lanes.splice(index, 1);
+        chartData.lanes.splice(to, 0, moved);
+        relayout();   // lane order changes how steps are ordered and where loop-backs run
       }
 
       function renderLanes(trackWidth) {
@@ -285,39 +313,43 @@
           title.spellcheck = false;
           title.textContent = lane.name;
           pill.appendChild(title);
-          // Tools under the pill (shown while the lane is selected): a reorder grip, which drags the pill it
-          // belongs to, and a delete button (hidden when this is the only lane)
+          // The lane's action bar (shown while the lane is selected, over the pill; below it near the viewport's top edge):
+          // colour (none = the colour for its position), rename, move earlier / later, delete (not on the only lane)
           if (editable) {
-            const tools = document.createElement('div');
-            tools.className = 'lane-tools';
-            tools.dataset.exportSkip = '';
-            const grip = document.createElement('span');
-            grip.className = 'lane-tool lane-tool-move';
-            grip.dataset.tip = 'Drag to reorder swimlane';
-            grip.setAttribute('aria-label', 'Reorder swimlane');
-            grip.innerHTML = ui.icon('grip');
-            grip.addEventListener('click', (e) => e.stopPropagation());
-            tools.appendChild(grip);
+            const bar = ui.actionBar('actionbar lane-bar', 'Swimlane');
+            const btn = (act, html, title, extra) => ui.abButton('ab-btn', act, html, title, undefined, undefined, extra);
+            bar.appendChild(swatchRow(lane.color || '', (slot) => setLaneColor(lane.id, slot), { btnClass: 'ab-swatch' }));
+            bar.appendChild(ui.abSep());
+            bar.appendChild(btn('rename', `${ui.icon('label')}<span>Rename</span>`, 'Rename the lane (or double-click its name)'));
             if (chartData.lanes.length > 1) {
-              const del = document.createElement('button');
-              del.type = 'button';
-              del.className = 'lane-tool lane-tool-delete btn-danger-hover';
-              del.draggable = false;
-              del.dataset.tip = 'Delete swimlane (with its steps)';
-              del.setAttribute('aria-label', 'Delete swimlane');
-              del.innerHTML = ui.icon('trash');
-              del.addEventListener('pointerdown', (e) => e.stopPropagation());
-              del.addEventListener('dragstart', (e) => { e.preventDefault(); e.stopPropagation(); });
-              del.addEventListener('click', (e) => { e.stopPropagation(); confirmDeleteLane(lane.id, del); });
-              tools.appendChild(del);
+              bar.appendChild(ui.abSep());
+              if (index > 0) bar.appendChild(btn('earlier', ui.icon('chevron-up'), tb ? 'Move one place left' : 'Move one place up', 'lane-move'));
+              if (index < chartData.lanes.length - 1) bar.appendChild(btn('later', ui.icon('chevron-down'), tb ? 'Move one place right' : 'Move one place down', 'lane-move'));
+              bar.appendChild(ui.abSep());
+              bar.appendChild(btn('delete', ui.icon('trash'), 'Delete swimlane (with its steps)', 'is-danger'));
+            } else {
+              // One lane is a one-actor diagram: the lane names and borders can go ("swimlanes": false; Show lanes brings them back)
+              bar.appendChild(ui.abSep());
+              bar.appendChild(btn('hide', `${ui.icon('eye')}<span>Hide lanes</span>`, 'Hide the lane name and borders (the Lane button then reads Show lanes)'));
             }
-            pill.appendChild(tools);
+            // Buttons are not drag handles for the pill they sit in, and a press on the bar neither pans nor selects
+            bar.addEventListener('pointerdown', (e) => e.stopPropagation());
+            bar.addEventListener('dragstart', (e) => { e.preventDefault(); e.stopPropagation(); });
+            bar.addEventListener('dblclick', (e) => e.stopPropagation());
+            bar.addEventListener('click', (e) => {
+              e.stopPropagation();
+              const b = e.target.closest('.ab-btn');
+              if (!b || b.dataset.act === undefined) return;
+              if (b.dataset.act === 'rename') startRename();
+              else if (b.dataset.act === 'delete') confirmDeleteLane(lane.id, b);
+              else if (b.dataset.act === 'hide') { chartData.swimlanes = false; selectedLaneId = null; render(); updateStatus(true); }
+              else moveLane(index, b.dataset.act === 'earlier' ? -1 : 1);
+            });
+            pill.appendChild(bar);
           }
           if (tb) pill.style.maxWidth = `${Math.max(80, computedHeight - 2 * PILL_INSET)}px`;   // stays inside its column
 
-          title.addEventListener('dblclick', (e) => {
-            if (!editable) return;
-            e.stopPropagation();
+          function startRename() {
             pill.draggable = false;   // a draggable ancestor would swallow text selection
             pill.classList.add('editing');
             title.contentEditable = 'true';
@@ -327,6 +359,11 @@
             const sel = window.getSelection();
             sel.removeAllRanges();
             sel.addRange(range);
+          }
+          title.addEventListener('dblclick', (e) => {
+            if (!editable) return;
+            e.stopPropagation();
+            startRename();
           });
           title.addEventListener('blur', () => {
             title.contentEditable = 'false';
@@ -480,11 +517,7 @@
         const insertIdx = laneInsertIndexAt(e.clientX, e.clientY);
         const to = insertIdx > from ? insertIdx - 1 : insertIdx;
         endLaneDrag();
-        if (to !== from) {
-          const [moved] = chartData.lanes.splice(from, 1);
-          chartData.lanes.splice(to, 0, moved);
-          relayout();   // lane order changes how steps are ordered and where loop-backs run
-        }
+        if (to !== from) moveLane(from, to - from);
       });
 
       // A start/end node with no label collapses to a circle, centred in its normal 144x64 slot
@@ -4596,12 +4629,68 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         return d;
       }
 
+      // --- MERMAID (flowchart) ---
+      // Nodes with their shapes, labelled edges, lanes as subgraphs and the direction. A connector pair becomes the
+      // direct edge it stands for. Not representable: notes, lane icons and colours, feedback routing, positions.
+      // document and delay have no classic Mermaid shape and stay plain boxes.
+      function toMermaid() {
+        const SHAPE = {
+          start: ['([', '])'], end: ['([', '])'], decision: ['{', '}'], subprocess: ['[[', ']]'], database: ['[(', ')]'],
+          io: ['[/', '/]'], task: ['[', ']'], document: ['[', ']'], delay: ['[', ']'],
+        };
+        const text = (s) => String(s == null ? '' : s).replace(/"/g, '#quot;').replace(/\r?\n/g, '<br/>');
+        const used = new Set(['end', 'graph', 'subgraph', 'flowchart', 'style', 'class', 'click', 'default']);
+        const idOf = {};
+        const mint = (raw) => {
+          let id = String(raw).replace(/[^A-Za-z0-9_]+/g, '_') || 'n';
+          while (used.has(id.toLowerCase())) id += '_';
+          used.add(id.toLowerCase());
+          return id;
+        };
+        const nodes = chartData.nodes, edges = chartData.edges;
+        const conn = new Set(nodes.filter((n) => n.type === 'connector').map((n) => n.id));
+        const real = nodes.filter((n) => !conn.has(n.id));
+        real.forEach((n) => { idOf[n.id] = mint(n.id); });
+        // A connector letter joins the edge into its "in" half to the edge out of its "out" half
+        const into = {}, outOf = {};
+        edges.forEach((e) => {
+          if (conn.has(e.to)) into[nodeById(e.to).label] = e;
+          if (conn.has(e.from)) outOf[nodeById(e.from).label] = e;
+        });
+        const joined = [];
+        edges.forEach((e) => {
+          if (conn.has(e.from) || conn.has(e.to)) return;
+          joined.push(e);
+        });
+        Object.keys(into).forEach((k) => {
+          if (outOf[k] && !conn.has(into[k].from) && !conn.has(outOf[k].to)) joined.push({ from: into[k].from, to: outOf[k].to, label: into[k].label || outOf[k].label });
+        });
+        const decl = (n) => { const s = SHAPE[n.type] || SHAPE.task; return `${idOf[n.id]}${s[0]}"${text(n.label)}"${s[1]}`; };
+        const lines = [`flowchart ${chartData.direction === 'TB' ? 'TB' : 'LR'}`];
+        const lanes = chartData.swimlanes === false ? [] : chartData.lanes;
+        const laned = new Set();
+        lanes.forEach((l) => {
+          const mine = real.filter((n) => n.laneId === l.id);
+          if (!mine.length) return;
+          lines.push(`    subgraph ${mint(l.id)}["${text(l.name)}"]`);
+          mine.forEach((n) => { lines.push('        ' + decl(n)); laned.add(n.id); });
+          lines.push('    end');
+        });
+        real.filter((n) => !laned.has(n.id)).forEach((n) => lines.push('    ' + decl(n)));
+        joined.forEach((e) => {
+          if (!idOf[e.from] || !idOf[e.to]) return;
+          lines.push(`    ${idOf[e.from]} -->${e.label ? `|"${text(e.label)}"|` : ''} ${idOf[e.to]}`);
+        });
+        return lines.join('\n') + '\n';
+      }
+
       // --- REGISTER WITH THE SHELL ---
       registerDiagramPlugin({
         id: 'flowchart',
         defaultTitle: 'Interactive Swimlane Flowchart',
         toDisk,
         fromDisk,
+        toMermaid,
         contentEl: swimlanesContainer,
         report: { node: '.flow-node', label: '.edge-label', labelText: '.edge-label-text', nodeText: '.node-label' },
         render,
