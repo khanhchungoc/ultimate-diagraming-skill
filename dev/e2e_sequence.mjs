@@ -861,12 +861,12 @@ try {
   t.check('a chosen swatch recolours the pill (over the position colour every participant gets), the lifeline and the activation bars',
     plain.scoped && coloured.scoped && coloured.bg !== plain.bg && lifeStroke !== plainLife
       && !!barFill && barFill[0] && barFill[1] !== 'rgb(100, 116, 139)', `${JSON.stringify([plain, coloured, lifeStroke, plainLife, barFill])}`);
-  const keyItems = await t.ev(`[...document.querySelectorAll('.seq-key-item')].map((e) => [e.querySelector('.seq-key-label').textContent, e.querySelector('.seq-key-label').dataset.hint])`);
+  const keyItems = await t.ev(`[...document.querySelectorAll('.color-key-item')].map((e) => [e.querySelector('.color-key-label').textContent, e.querySelector('.color-key-label').dataset.hint])`);
   t.check('the first use of a colour adds a key entry with no label, prompting "What does sky mean?"', JSON.stringify(keyItems) === JSON.stringify([['', 'What does sky mean?']]), JSON.stringify(keyItems));
   await t.press('z', { modifiers: 2 });
   t.check('one undo takes the colour and the key entry away together (the pill returns to its position colour)', (await boxStyle('p2')).bg === plain.bg && (await count('.seq-key')) === 0);
   await t.press('y', { modifiers: 2 });
-  await t.clickOn('.seq-key-label', { count: 2 });
+  await t.clickOn('.color-key-label', { count: 2 });
   await t.type('Our services');
   await t.press('Enter');
   d = await saved();
@@ -874,7 +874,7 @@ try {
     d.colorKey && d.colorKey[SKY] === 'Our services' && d.participants[1].color === SKY && Object.keys(d)[Object.keys(d).indexOf('participants') - 1] === 'colorKey', JSON.stringify([d.colorKey, d.participants[1]]));
   await t.clickOn('.seq-participant[data-node-id="p3"]');
   await t.clickOn(`.seq-actionbar .swatch-btn[data-value="${AMBER}"]`);
-  t.check('a second colour adds a second key entry', (await count('.seq-key-item')) === 2);
+  t.check('a second colour adds a second key entry', (await count('.color-key-item')) === 2);
   // Export: the SVG carries the colours and the key
   const topColor = (await boxStyle('p2')).topColor;
   const svgOut = await t.ev(`new Promise(res => {

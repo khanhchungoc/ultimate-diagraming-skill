@@ -236,7 +236,35 @@
           return b;
         }
         const abSep = (cls) => { const s = document.createElement('span'); s.className = cls || 'ab-sep'; return s; };
-        return { confirm, closeConfirm, isConfirmOpen: () => !!confirmEl, noteCard, actionBar, abButton, abSep, icon, iconEl, toast: (m) => showToast(m) };
+        // The colour legend: one entry per colour in `used` (slots), a dot and its label from `key` ({slot: text}). An entry
+        // with no label is drawn only with opts.prompts (a prompt "What does Blue mean?" for the edit, left out of ?present and
+        // exports). opts.cls adds a class to the legend (the type positions it). The label span carries data-color for the
+        // type's own edit. Returns the element, or null when no entry is drawn.
+        function colorKey(used, key, opts) {
+          const o = opts || {};
+          const items = used.filter((c) => o.prompts || (key && key[c]));
+          if (!items.length) return null;
+          const box = document.createElement('div');
+          box.className = `color-key${o.cls ? ' ' + o.cls : ''}`;
+          items.forEach((color) => {
+            const label = (key && key[color]) || '';
+            const item = document.createElement('div');
+            item.className = `color-key-item${label ? '' : ' is-unnamed'}`;
+            const dot = document.createElement('span');
+            dot.className = 'color-key-dot';
+            setSwatch(dot, color);
+            item.appendChild(dot);
+            const text = document.createElement('span');
+            text.className = `color-key-label${label ? '' : ' is-empty'}`;
+            text.dataset.color = color;
+            if (!label) text.dataset.hint = `What does ${(paletteOf(color) || {}).name || color} mean?`;
+            text.textContent = label;
+            item.appendChild(text);
+            box.appendChild(item);
+          });
+          return box;
+        }
+        return { confirm, closeConfirm, isConfirmOpen: () => !!confirmEl, noteCard, actionBar, abButton, abSep, colorKey, icon, iconEl, toast: (m) => showToast(m) };
       })();
 
       // --- CLAUDE.AI ARTIFACT (only active inside a published claude.ai artifact; elsewhere none of this runs) ---

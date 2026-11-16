@@ -334,6 +334,11 @@ def erd_to_disk(data: Dict[str, Any]) -> Dict[str, Any]:
             for k in keys:
                 o.pop(k, None)
     _rename_erd_ids(d)
+    if isinstance(d.get("colorKey"), dict):  # the legend keeps only the colours a table still uses
+        used = {e.get("color") for e in d.get("entities") or []}
+        d["colorKey"] = {k: v for k, v in d["colorKey"].items() if k in used}
+        if not d["colorKey"]:
+            del d["colorKey"]
     layout: Dict[str, Any] = {}
     for o in d.get("entities") or []:
         pos = {k: o.pop(k) for k in ERD_ENTITY_LAYOUT if k in o}

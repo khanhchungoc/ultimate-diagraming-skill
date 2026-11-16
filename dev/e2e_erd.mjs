@@ -8,9 +8,10 @@
 // re-laid out, a v2 page's group colours becoming table colours).
 // Driven with real mouse and keyboard input over the Chrome DevTools Protocol (see cdp.mjs): a synthetic DOM
 // event may only be used where a comment says why.
-//   node dev/e2e_erd.mjs --browser <chrome> --page <example-erd.html> --large <saas-billing.html>
+//   node dev/e2e_erd.mjs --browser <chrome> --page <example-erd.html> --large <saas-billing.html> [--blank <default-erd.html>]
 // --page: references/examples/example-erd.json laid out with `layout_engine.py --layout` (8 tables).
 // --large: dev/fixtures/erd/saas-billing.json laid out the same way (~30 tables).
+// --blank (optional): assets/types/erd/default.json laid out (two tables, no colours): the optional colour legend (named in the editor, never prompted).
 // Exit codes: 0 all passed, 1 setup error, 2 a check failed.
 import { readFileSync, writeFileSync, unlinkSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
@@ -18,8 +19,8 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { argOf, launch, sleep } from './cdp.mjs';
 
-const browser = argOf('browser'), page = argOf('page'), large = argOf('large');
-if (!browser || !page || !large) { console.error('usage: --browser <chrome> --page <example-erd.html> --large <saas-billing.html>'); process.exit(1); }
+const browser = argOf('browser'), page = argOf('page'), large = argOf('large'), blank = argOf('blank');
+if (!browser || !page || !large) { console.error('usage: --browser <chrome> --page <example-erd.html> --large <saas-billing.html> [--blank <default-erd.html>]'); process.exit(1); }
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 const t = await launch(browser).catch((e) => { console.error('[ERROR]', e.message); process.exit(1); });
@@ -1063,9 +1064,9 @@ sys.stdout.write(format_json(out))`;
   d = await saved();
   t.check('a v2 page opens re-laid out with its groups gone: each table wears its group’s colour, nothing overlaps',
     (await count('.erd-group')) === 0 && v2Colours.every((c) => c.endsWith(sales.includes(c.split(':')[0]) ? '#e0f2fe' : '#dcfce7')) && (await layoutProblems()).length === 0 && t.errors.length === 0, J(v2Colours));
-  t.check('and its save is v3: tables carry `color`, group names join `colorKey` (existing entries kept), no groups or group fields, positions in `layout`',
+  t.check('and its save is v3: tables carry `color`, group names join `colorKey` (entries for colours no table uses are dropped on save), no groups or group fields, positions in `layout`',
     d.schemaVersion === 3 && !('groups' in d) && d.entities.every((e) => !('group' in e) && e.color === (sales.includes(e.id) ? '1' : '3'))   // v2 hex colours are saved as slots
-    && J(d.colorKey) === J({ 2: 'Other', 1: 'Sales', 3: 'Catalog' }) && Object.keys(d.layout).length === 8 && !('sales' in d.layout), J(d.colorKey));
+    && J(d.colorKey) === J({ 1: 'Sales', 3: 'Catalog' }) && Object.keys(d.layout).length === 8 && !('sales' in d.layout), J(d.colorKey));
   t.check('the v3 block saved from a v2 page agrees with the Python codec', pythonAgrees(await t.ev(`document.getElementById('diagram-data').textContent`)) === '');
   }
 
@@ -1243,6 +1244,89 @@ sys.stdout.write(format_json(out))`;
   t.check('large, no positions: the result is the synchronous layout, not an unsaved edit, nothing to undo', (await layoutOfSaved()) === cold && !(await undoDisabled() === false), '');
   unlinkSync(bareFile);
   t.check('large, no positions: no errors', t.errors.length === 0, t.errors.join(' | '));
+  }
+
+  // --- The colour legend: optional, shown only when a colour a table uses has a name ---
+  if (blank) {
+    const svgOf = async () => {
+      await t.ev(`window.__svg = null; const o = URL.createObjectURL; URL.createObjectURL = (b) => { b.text().then((x) => { window.__svg = x; }); return o.call(URL, b); }`);
+      await t.ev(`document.getElementById('btn-export').click()`);
+      await t.ev(`document.querySelector('[data-export="svg"]').click()`);
+      await sleep(600);
+      return t.ev(`window.__svg`);
+    };
+    const key = '.color-key';
+    const nameIt = async (name) => {
+      await t.clickOn(head('order'));
+      await t.clickOn('.erd-actionbar [data-act="namecolor"]');
+      await t.type(name);
+      await t.press('Enter');
+    };
+    await freshPage(blank);
+    t.check('legend: a blank diagram shows no legend', (await count(key)) === 0);
+    await t.clickOn(head('customer'));
+    t.check('legend: an untinted table has no Name colour button', (await count('.erd-actionbar [data-act="namecolor"]')) === 0);
+    await t.clickOn(head('order'));
+    await t.clickOn('.erd-actionbar .swatch-btn[data-value="1"]');
+    d = await saved();
+    t.check('legend: tinting a table shows no legend, asks nothing and saves no colorKey', (await count(key)) === 0 && (await editing()) === null && d.colorKey === undefined && ent(d, 'order').color === '1');
+    await t.clickOn('.erd-actionbar [data-act="namecolor"]');
+    t.check('legend: Name colour opens the legend with that colour in edit', (await editing()) === '' && (await count(`${key} .color-key-label.is-editing`)) === 1 && (await count(`${key} .color-key-item`)) === 1);
+    await t.press('Escape');
+    t.check('legend: Esc with no text leaves no legend and no colorKey', (await count(key)) === 0 && (await saved()).colorKey === undefined);
+    await nameIt('Billing');
+    d = await saved();
+    const placed = await t.ev(`(() => { const k = document.querySelector('.color-key').getBoundingClientRect(); const ts = [...document.querySelectorAll('.erd-entity')].map((e) => e.getBoundingClientRect());
+      return k.bottom <= Math.min(...ts.map((r) => r.top)) && Math.abs(k.left - Math.min(...ts.map((r) => r.left))) < 2 && k.top >= document.getElementById('erd-canvas').getBoundingClientRect().top; })()`);
+    t.check('legend: naming the colour shows one entry and saves colorKey', (await count(`${key} .color-key-item`)) === 1 && (await text(`${key} .color-key-label`)) === 'Billing' && J(d.colorKey) === J({ 1: 'Billing' }), J(d.colorKey));
+    t.check('legend: it sits above the top-left corner of the tables, inside the canvas', placed);
+    await undo();
+    t.check('legend: Ctrl+Z removes the entry and hides the legend', (await count(key)) === 0 && (await saved()).colorKey === undefined);
+    await redo();
+    t.check('legend: Ctrl+Shift+Z brings it back', (await text(`${key} .color-key-label`)) === 'Billing');
+    // select an entry and press Enter: edit, Esc keeps the text
+    await t.clickOn(`${key} .color-key-label`);
+    await t.press('Enter');
+    t.check('legend: a selected entry edits on Enter', (await editing()) === 'Billing');
+    await t.type('Nope');
+    await t.press('Escape');
+    t.check('legend: Esc keeps the old text', (await text(`${key} .color-key-label`)) === 'Billing' && J((await saved()).colorKey) === J({ 1: 'Billing' }));
+    await t.clickOn(`${key} .color-key-label`, { count: 2 });
+    await t.type('Payments');
+    await t.press('Enter');
+    t.check('legend: a double-click renames, in one undo step', J((await saved()).colorKey) === J({ 1: 'Payments' }));
+    await undo();
+    t.check('legend: and undo gives the old name back', J((await saved()).colorKey) === J({ 1: 'Billing' }));
+    // clearing the label removes the entry and, when it is the last, colorKey
+    await t.clickOn(`${key} .color-key-label`, { count: 2 });
+    await t.press('Backspace');
+    await t.press('Enter');
+    t.check('legend: clearing the label removes the entry, the legend and colorKey', (await count(key)) === 0 && (await saved()).colorKey === undefined);
+    // a named colour no table uses is not listed and is not saved
+    await freshPage(blank);
+    await t.clickOn(head('order'));
+    await t.clickOn('.erd-actionbar .swatch-btn[data-value="1"]');
+    await nameIt('Billing');
+    await t.clickOn(head('order'));
+    await t.clickOn('.erd-actionbar .swatch-btn[data-value=""]');
+    d = await saved();
+    t.check('legend: with the colour taken off every table the legend is gone and Save drops colorKey', (await count(key)) === 0 && d.colorKey === undefined && !('color' in ent(d, 'order')), J(d.colorKey));
+    await t.clickOn(head('order'));
+    await t.clickOn('.erd-actionbar .swatch-btn[data-value="1"]');
+    t.check('legend: tinting again brings the name back while the page is open', (await text(`${key} .color-key-label`)) === 'Billing');
+    // ?present and exports: a named legend shows, no names shows nothing (the example names two colours)
+    await freshPage(page, '?present');
+    t.check('legend: ?present shows a named legend (the example: Sales and Catalog), without prompts', (await count(`${key} .color-key-item`)) === 2 && (await count(`${key} .is-unnamed`)) === 0);
+    await freshPage(page);
+    const withNames = await svgOf();
+    t.check('legend: an SVG export carries the named legend', !!withNames && withNames.includes('Sales') && withNames.includes('Catalog'));
+    await freshPage(blank);
+    await t.clickOn(head('order'));
+    await t.clickOn('.erd-actionbar .swatch-btn[data-value="1"]');
+    const noNames = await svgOf();
+    t.check('legend: an SVG export with no names has no legend or prompt', !!noNames && !/What does|Billing/.test(noNames) && !/color-key/.test(noNames));
+    await freshPage(blank, '?present');
+    t.check('legend: ?present with no names shows nothing', (await count(key)) === 0);
   }
 
   t.check('no errors in the whole run', t.errors.length === 0, t.errors.join(' | '));

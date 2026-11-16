@@ -366,21 +366,8 @@
         // with no label yet is a prompt in edit, and left out of ?present and exports.
         const used = [];
         ps.forEach((p) => { const sw = swatchOf(p); if (sw && !used.includes(sw)) used.push(sw); });
-        if (used.length) {
-          const key = htmlEl('div', 'seq-key');
-          used.forEach((color) => {
-            const label = (chartData.colorKey && chartData.colorKey[color]) || '';
-            const item = htmlEl('div', `seq-key-item${label ? '' : ' is-unnamed'}`);
-            item.appendChild(paintSwatch(htmlEl('span', 'seq-key-dot'), color));
-            const text = htmlEl('span', `seq-key-label${label ? '' : ' is-empty'}`);
-            text.dataset.color = color;
-            if (!label) text.dataset.hint = `What does ${swatchName(color)} mean?`;
-            text.textContent = label;
-            item.appendChild(text);
-            key.appendChild(item);
-          });
-          seqHtml.appendChild(key);
-        }
+        const key = ui.colorKey(used, chartData.colorKey, { prompts: true, cls: 'seq-key' });
+        if (key) seqHtml.appendChild(key);
         applySelection();
         pinParticipants();
       }
@@ -1608,7 +1595,7 @@
       function onSeqDblClick(e) {
         if (isPresent()) return;
         if (e.target.closest('.frame-chev, .frame-summary, .seq-frag-focus, .seq-actionbar')) return;
-        const kl = e.target.closest('.seq-key-label');
+        const kl = e.target.closest('.color-key-label');
         if (kl) { e.stopPropagation(); editKey(kl); return; }
         const div = e.target.closest('.seq-div-hit, .seq-frag-branch-label, .seq-frag-else-label');
         if (div) { e.stopPropagation(); editBranch(div.dataset.fragId, div.dataset.at); return; }
