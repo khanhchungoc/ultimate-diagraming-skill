@@ -1,0 +1,24 @@
+{
+  "diagramType": "usecase",
+  "title": "Library",
+  "subjects": [{ "id": "lib", "name": "Library system" }],
+  "actors": [
+    { "id": "member", "name": "Member" },
+    { "id": "librarian", "name": "Librarian" },
+    { "id": "mail", "name": "Mail service", "kind": "system", "side": "right" }
+  ],
+  "useCases": [
+    { "id": "search", "name": "Search catalogue", "subject": "lib", "refs": ["FR-1"] },
+    { "id": "borrow", "name": "Borrow book", "subject": "lib", "refs": ["FR-2"] },
+    { "id": "login", "name": "Authenticate", "subject": "lib", "level": "subfunction" },
+    { "id": "notify", "name": "Send reminder", "subject": "lib", "refs": ["FR-3"] }
+  ],
+  "links": [
+    { "id": "l1", "type": "association", "from": "member", "to": "search" },
+    { "id": "l2", "type": "association", "from": "member", "to": "borrow" },
+    { "id": "l3", "type": "association", "from": "librarian", "to": "borrow" },
+    { "id": "l4", "type": "include", "from": "borrow", "to": "login" },
+    { "id": "l5", "type": "extend", "from": "notify", "to": "borrow", "condition": "book is overdue" },
+    { "id": "l6", "type": "association", "from": "notify", "to": "mail" }
+  ]
+}
