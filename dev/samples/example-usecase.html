@@ -147,6 +147,11 @@
       --ring-md: 2px;
       --ring-lg: 3px;
       --ring-fill: 100px;
+      --stroke-thin: 1.25px;
+      --dim: 0.28;
+      --dim-line: 0.12;
+      --dim-filter: grayscale(0.85);
+      --dash: 3 5;
       --ease: 0.15s ease;
       --radius-xs: 3px;
       --radius-sm: 4px;
@@ -254,46 +259,55 @@
       --sw-1-ink: #00436a;
       --sw-1-solid: #005c8b;
       --sw-1-on-solid: #ffffff;
+      --sw-1-tint: #d5efff;
       --sw-2-fill: #ecdeaa;
       --sw-2-line: #907100;
       --sw-2-ink: #513a00;
       --sw-2-solid: #6f5100;
       --sw-2-on-solid: #ffffff;
+      --sw-2-tint: #f4ebcc;
       --sw-3-fill: #b9edcb;
       --sw-3-line: #008d4e;
       --sw-3-ink: #004e20;
       --sw-3-solid: #006c2f;
       --sw-3-on-solid: #ffffff;
+      --sw-3-tint: #d5f4e0;
       --sw-4-fill: #ffcccd;
       --sw-4-line: #b15259;
       --sw-4-ink: #6e1724;
       --sw-4-solid: #932a37;
       --sw-4-on-solid: #ffffff;
+      --sw-4-tint: #ffe0e1;
       --sw-5-fill: #ead2ff;
       --sw-5-line: #895db0;
       --sw-5-ink: #4e276d;
       --sw-5-solid: #6b3893;
       --sw-5-on-solid: #ffffff;
+      --sw-5-tint: #f2e4ff;
       --sw-6-fill: #fad8ab;
       --sw-6-line: #a66400;
       --sw-6-ink: #602f00;
       --sw-6-solid: #834300;
       --sw-6-on-solid: #ffffff;
+      --sw-6-tint: #fce8cd;
       --sw-7-fill: #aaeee0;
       --sw-7-line: #008f79;
       --sw-7-ink: #004f40;
       --sw-7-solid: #006d5a;
       --sw-7-on-solid: #ffffff;
+      --sw-7-tint: #ccf5ec;
       --sw-8-fill: #cedcff;
       --sw-8-line: #5b6cc2;
       --sw-8-ink: #2a347b;
       --sw-8-solid: #3c49a7;
       --sw-8-on-solid: #ffffff;
+      --sw-8-tint: #e2eaff;
       --sw-9-fill: #e2e8f0;
       --sw-9-line: #64748b;
       --sw-9-ink: #334155;
       --sw-9-solid: #475569;
       --sw-9-on-solid: #ffffff;
+      --sw-9-tint: #eef1f6;
       color-scheme: light;
     }
 
@@ -378,58 +392,67 @@
       --sw-1-ink: #c6eaff;
       --sw-1-solid: #93d4fd;
       --sw-1-on-solid: #0f172a;
+      --sw-1-tint: #1c3952;
       --sw-2-fill: #483c06;
       --sw-2-line: #c6a92a;
       --sw-2-ink: #f0e5b8;
       --sw-2-solid: #e2ca6a;
       --sw-2-on-solid: #0f172a;
+      --sw-2-tint: #383620;
       --sw-3-fill: #17482e;
       --sw-3-line: #50c586;
       --sw-3-ink: #c5f1d5;
       --sw-3-solid: #84e2ab;
       --sw-3-on-solid: #0f172a;
+      --sw-3-tint: #1b3d38;
       --sw-4-fill: #5c2d2f;
       --sw-4-line: #ee898e;
       --sw-4-ink: #ffd5d6;
       --sw-4-solid: #ffaeb0;
       --sw-4-on-solid: #0f172a;
+      --sw-4-tint: #442d39;
       --sw-5-fill: #47325a;
       --sw-5-line: #c194eb;
       --sw-5-ink: #efdbff;
       --sw-5-solid: #deb7ff;
       --sw-5-on-solid: #0f172a;
+      --sw-5-tint: #373053;
       --sw-6-fill: #523709;
       --sw-6-line: #de9c31;
       --sw-6-ink: #fde0b9;
       --sw-6-solid: #f8bf6c;
       --sw-6-on-solid: #0f172a;
+      --sw-6-tint: #3e3322;
       --sw-7-fill: #00493f;
       --sw-7-line: #00c7af;
       --sw-7-ink: #b9f2e7;
       --sw-7-solid: #60e4cf;
       --sw-7-on-solid: #0f172a;
+      --sw-7-tint: #0d3d43;
       --sw-8-fill: #313a62;
       --sw-8-line: #8fa4ff;
       --sw-8-ink: #d7e3ff;
       --sw-8-solid: #b1c5ff;
       --sw-8-on-solid: #0f172a;
+      --sw-8-tint: #2a3458;
       --sw-9-fill: #243049;
       --sw-9-line: #94a3b8;
       --sw-9-ink: #e2e8f0;
       --sw-9-solid: #cbd5e1;
       --sw-9-on-solid: #0f172a;
+      --sw-9-tint: #222e49;
       color-scheme: dark;
     }
 
-    [data-sw="1"] { --sw-stripe: var(--sw-1-line); --sw-line: var(--sw-1-line); --sw-pill-bg: var(--sw-1-fill); --sw-pill-ink: var(--sw-1-ink); --sw-pill-solid: var(--sw-1-solid); --sw-on-solid: var(--sw-1-on-solid); }
-    [data-sw="2"] { --sw-stripe: var(--sw-2-line); --sw-line: var(--sw-2-line); --sw-pill-bg: var(--sw-2-fill); --sw-pill-ink: var(--sw-2-ink); --sw-pill-solid: var(--sw-2-solid); --sw-on-solid: var(--sw-2-on-solid); }
-    [data-sw="3"] { --sw-stripe: var(--sw-3-line); --sw-line: var(--sw-3-line); --sw-pill-bg: var(--sw-3-fill); --sw-pill-ink: var(--sw-3-ink); --sw-pill-solid: var(--sw-3-solid); --sw-on-solid: var(--sw-3-on-solid); }
-    [data-sw="4"] { --sw-stripe: var(--sw-4-line); --sw-line: var(--sw-4-line); --sw-pill-bg: var(--sw-4-fill); --sw-pill-ink: var(--sw-4-ink); --sw-pill-solid: var(--sw-4-solid); --sw-on-solid: var(--sw-4-on-solid); }
-    [data-sw="5"] { --sw-stripe: var(--sw-5-line); --sw-line: var(--sw-5-line); --sw-pill-bg: var(--sw-5-fill); --sw-pill-ink: var(--sw-5-ink); --sw-pill-solid: var(--sw-5-solid); --sw-on-solid: var(--sw-5-on-solid); }
-    [data-sw="6"] { --sw-stripe: var(--sw-6-line); --sw-line: var(--sw-6-line); --sw-pill-bg: var(--sw-6-fill); --sw-pill-ink: var(--sw-6-ink); --sw-pill-solid: var(--sw-6-solid); --sw-on-solid: var(--sw-6-on-solid); }
-    [data-sw="7"] { --sw-stripe: var(--sw-7-line); --sw-line: var(--sw-7-line); --sw-pill-bg: var(--sw-7-fill); --sw-pill-ink: var(--sw-7-ink); --sw-pill-solid: var(--sw-7-solid); --sw-on-solid: var(--sw-7-on-solid); }
-    [data-sw="8"] { --sw-stripe: var(--sw-8-line); --sw-line: var(--sw-8-line); --sw-pill-bg: var(--sw-8-fill); --sw-pill-ink: var(--sw-8-ink); --sw-pill-solid: var(--sw-8-solid); --sw-on-solid: var(--sw-8-on-solid); }
-    [data-sw="9"] { --sw-stripe: var(--sw-9-line); --sw-line: var(--sw-9-line); --sw-pill-bg: var(--sw-9-fill); --sw-pill-ink: var(--sw-9-ink); --sw-pill-solid: var(--sw-9-solid); --sw-on-solid: var(--sw-9-on-solid); }
+    [data-sw="1"] { --sw-stripe: var(--sw-1-line); --sw-line: var(--sw-1-line); --sw-pill-bg: var(--sw-1-fill); --sw-pill-ink: var(--sw-1-ink); --sw-pill-solid: var(--sw-1-solid); --sw-on-solid: var(--sw-1-on-solid); --sw-tint: var(--sw-1-tint); }
+    [data-sw="2"] { --sw-stripe: var(--sw-2-line); --sw-line: var(--sw-2-line); --sw-pill-bg: var(--sw-2-fill); --sw-pill-ink: var(--sw-2-ink); --sw-pill-solid: var(--sw-2-solid); --sw-on-solid: var(--sw-2-on-solid); --sw-tint: var(--sw-2-tint); }
+    [data-sw="3"] { --sw-stripe: var(--sw-3-line); --sw-line: var(--sw-3-line); --sw-pill-bg: var(--sw-3-fill); --sw-pill-ink: var(--sw-3-ink); --sw-pill-solid: var(--sw-3-solid); --sw-on-solid: var(--sw-3-on-solid); --sw-tint: var(--sw-3-tint); }
+    [data-sw="4"] { --sw-stripe: var(--sw-4-line); --sw-line: var(--sw-4-line); --sw-pill-bg: var(--sw-4-fill); --sw-pill-ink: var(--sw-4-ink); --sw-pill-solid: var(--sw-4-solid); --sw-on-solid: var(--sw-4-on-solid); --sw-tint: var(--sw-4-tint); }
+    [data-sw="5"] { --sw-stripe: var(--sw-5-line); --sw-line: var(--sw-5-line); --sw-pill-bg: var(--sw-5-fill); --sw-pill-ink: var(--sw-5-ink); --sw-pill-solid: var(--sw-5-solid); --sw-on-solid: var(--sw-5-on-solid); --sw-tint: var(--sw-5-tint); }
+    [data-sw="6"] { --sw-stripe: var(--sw-6-line); --sw-line: var(--sw-6-line); --sw-pill-bg: var(--sw-6-fill); --sw-pill-ink: var(--sw-6-ink); --sw-pill-solid: var(--sw-6-solid); --sw-on-solid: var(--sw-6-on-solid); --sw-tint: var(--sw-6-tint); }
+    [data-sw="7"] { --sw-stripe: var(--sw-7-line); --sw-line: var(--sw-7-line); --sw-pill-bg: var(--sw-7-fill); --sw-pill-ink: var(--sw-7-ink); --sw-pill-solid: var(--sw-7-solid); --sw-on-solid: var(--sw-7-on-solid); --sw-tint: var(--sw-7-tint); }
+    [data-sw="8"] { --sw-stripe: var(--sw-8-line); --sw-line: var(--sw-8-line); --sw-pill-bg: var(--sw-8-fill); --sw-pill-ink: var(--sw-8-ink); --sw-pill-solid: var(--sw-8-solid); --sw-on-solid: var(--sw-8-on-solid); --sw-tint: var(--sw-8-tint); }
+    [data-sw="9"] { --sw-stripe: var(--sw-9-line); --sw-line: var(--sw-9-line); --sw-pill-bg: var(--sw-9-fill); --sw-pill-ink: var(--sw-9-ink); --sw-pill-solid: var(--sw-9-solid); --sw-on-solid: var(--sw-9-on-solid); --sw-tint: var(--sw-9-tint); }
 
     .t-title { font-family: var(--t-title-family); font-size: var(--t-title-size); font-weight: var(--t-title-weight); line-height: var(--t-title-leading); letter-spacing: var(--t-title-tracking); }
     .t-label { font-family: var(--t-label-family); font-size: var(--t-label-size); font-weight: var(--t-label-weight); line-height: var(--t-label-leading); letter-spacing: var(--t-label-tracking); }
@@ -1366,17 +1389,15 @@
     .uc-subject.is-collapsed .frame-chev svg { transform: rotate(-90deg); }
 
     /* --- Lines --- */
-    .uc-link .edge-line { pointer-events: none; stroke: var(--node-border); stroke-width: 1.5px; stroke-linecap: round; marker-end: var(--mk-e); }
-    .uc-link.is-dashed .edge-line { stroke-dasharray: 3 5; }
-    .uc-link[data-sw] .edge-line { stroke: var(--sw-line); }   /* an association takes its actor's colour */
-    .uc-link:is(.hover, .selected) .edge-line { stroke: var(--primary); stroke-width: 2px; marker-end: var(--mk-e-sel); }
-    .uc-link.hl:not(.hover, .selected) .edge-line { stroke-width: 2.25px; }   /* lit by a hover or a focus: same colour, bolder */
-    .uc-link.hl:not([data-sw], .hover, .selected) .edge-line { stroke: var(--text-soft); }
-    .uc-link.is-dim { opacity: 0.12; }
+    .uc-link .edge-line { pointer-events: none; stroke: var(--node-border); stroke-width: var(--stroke-thin); stroke-linecap: round; marker-end: var(--mk-e); }   /* every line neutral */
+    .uc-link.is-dashed .edge-line { stroke-dasharray: var(--dash); }
+    .uc-link:is(.hover, .selected) .edge-line { stroke: var(--primary); stroke-width: var(--ring-md); marker-end: var(--mk-e-sel); }
+    .uc-link.hl:not(.hover, .selected) .edge-line { stroke-width: var(--ring-md); }   /* lit by a hover or a focus: same neutral, bolder */
+    .uc-link.is-dim { opacity: var(--dim-line); }
     .uc-link.is-hidden, .uc-label.is-hidden { display: none; }
-    .uc-mk path { stroke: var(--mk, var(--node-border)); stroke-width: 1.5px; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+    .uc-mk path { stroke: var(--mk, var(--node-border)); stroke-width: var(--ring-thin); fill: none; stroke-linecap: round; stroke-linejoin: round; }
     .uc-mk-solid path { fill: var(--mk, var(--node-border)); }
-    .uc-mk-hollow path { fill: color-mix(in srgb, var(--mk, var(--node-border)) 28%, var(--bg-panel)); }   /* a generalization: a tinted, not a white, triangle */
+    .uc-mk-hollow path { fill: var(--bg-soft); }   /* a generalization: a soft neutral, not a white, triangle */
     body.exporting .is-dim { opacity: 1 !important; }
 
     /* The «include» / «extend» pill on a line: the shared edge label, one or two lines of detail text */
@@ -1386,7 +1407,7 @@
       color: var(--text-muted); background: var(--bg-panel); border-color: var(--border-color); border-radius: var(--radius-pill); box-shadow: var(--shadow-sm);
     }
     .uc-label .uc-cond { color: var(--text-soft); max-width: 100%; white-space: normal; text-align: center; overflow-wrap: anywhere; }   /* wraps as the engine wrapped it (labelBox is sized for its lines) */
-    .uc-label.is-dim { opacity: 0.25; }
+    .uc-label.is-dim { opacity: var(--dim); }
     .uc-label.hl { border-color: var(--primary); box-shadow: var(--shadow-glow) var(--primary-glow); }
 
     /* --- Use cases: an ellipse; level shows in its size and outline --- */
@@ -1403,7 +1424,7 @@
     .uc-case:hover .uc-shape { box-shadow: var(--shadow-md); }
     .uc-name { font-weight: var(--weight-medium); }
     .uc-case[data-sw] { --ring: var(--sw-line); color: var(--sw-pill-ink); }
-    .uc-case[data-sw] .uc-shape { background: color-mix(in srgb, var(--sw-pill-bg) 60%, var(--node-bg)); }   /* a lighter tint of the slot; the ink is checked on both ends of the mix */
+    .uc-case[data-sw] .uc-shape { background: var(--sw-tint, var(--sw-pill-bg)); }   /* the slot's tint (tokens.py derives it; sw-*-ink on sw-*-tint is a contrast pair) */
     .uc-case[data-level="summary"] .uc-shape { border-width: var(--ring-thin); }
     .uc-case[data-level="summary"] .uc-name { font-size: var(--t-title-size); font-weight: var(--t-title-weight); }
     .uc-case[data-level="subfunction"] .uc-shape { border-style: dashed; }
@@ -1412,7 +1433,7 @@
     .uc-case.is-match .uc-shape { box-shadow: 0 0 0 var(--ring-lg) var(--primary-glow); }
     .uc-case.selected, .uc-case.hl { --ring: var(--primary); }
     .uc-case.selected .uc-shape { box-shadow: var(--shadow-ring); }
-    .uc-case.is-dim, .uc-actor.is-dim { opacity: 0.28; filter: grayscale(0.85); transition: opacity 0.15s, filter 0.15s; }   /* greyed out, not just faded */
+    .uc-case.is-dim, .uc-actor.is-dim { opacity: var(--dim); filter: var(--dim-filter); transition: opacity var(--ease), filter var(--ease); }   /* greyed out, not just faded */
     .uc-case.is-dragging, .uc-actor.is-dragging { opacity: 0.8; z-index: 50; }
     .uc-name-wrap { flex: 1 1 auto; min-height: 0; display: flex; align-items: center; justify-content: center; padding: 0 14px; }
     .uc-name { text-align: center; white-space: pre; }
@@ -1433,7 +1454,7 @@
       display: flex; flex-direction: column; align-items: center; transition: opacity 0.15s;
     }
     .uc-figure {
-      flex: none; display: flex; align-items: center; justify-content: center; box-sizing: border-box; width: 56px; height: 56px;
+      flex: none; display: flex; align-items: center; justify-content: center; box-sizing: border-box;   /* size: the engine's avatar (_figW), set inline */
       border-radius: var(--radius-round); border: 1px solid var(--ring); background: var(--bg-soft); color: var(--text-soft);
       box-shadow: var(--shadow-sm); transition: border-color 0.15s, box-shadow 0.15s, color 0.15s;
     }
@@ -1443,7 +1464,7 @@
     .uc-actor-name.is-editing { background: var(--bg-panel); outline: 1.5px solid var(--primary-ring); border-radius: var(--radius-xs); padding: 0 3px; min-width: 24px; }
     .uc-kw { color: var(--text-muted); }
     .uc-actor[data-sw] { --ring: var(--sw-line); }
-    .uc-actor[data-sw] .uc-figure { background: color-mix(in srgb, var(--sw-pill-bg) 60%, var(--node-bg)); color: var(--sw-pill-ink); }   /* the same tint and 1px coloured ring as a use case */
+    .uc-actor[data-sw] .uc-figure { background: var(--sw-tint, var(--sw-pill-bg)); color: var(--sw-pill-ink); }   /* the same tint and 1px coloured ring as a use case */
     .uc-actor:hover .uc-figure { box-shadow: var(--shadow-md); }
     .uc-actor:hover, .uc-actor.selected, .uc-actor.hl { --ring: var(--primary); }
     .uc-actor:is(.selected, .hl) .uc-figure { color: var(--primary); box-shadow: var(--shadow-ring); }
@@ -1488,7 +1509,7 @@
     body.uc-touch .uc-port { width: 22px; height: 22px; margin-top: -11px; right: -11px; border-width: 2.5px; }
     body.uc-touch .uc-port.is-left { right: auto; left: -11px; }
     body.uc-touch .edge-hit { stroke-width: 26px; }
-    #uc-rubber { stroke: var(--primary); stroke-width: 2; stroke-dasharray: 6 4; display: none; fill: none; pointer-events: none; }
+    #uc-rubber { stroke: var(--primary); stroke-width: var(--ring-md); stroke-dasharray: var(--dash); display: none; fill: none; pointer-events: none; }
     .uc-target { --ring: var(--primary); }
     .uc-target > .uc-shape { background: var(--primary-wash); }
     .uc-actor.uc-target .uc-figure { box-shadow: var(--shadow-ring); }
@@ -1538,10 +1559,10 @@
 
     /* The tiny drawings in the help drawer */
     .uc-help-line { display: flex; align-items: center; gap: 8px; margin: 4px 0; }
-    .uc-help-line svg { flex: none; fill: none; stroke: var(--text-soft); stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
-    .uc-help-line svg .d { stroke-dasharray: 3 4; }
-    .uc-help-line svg .f { fill: var(--text-soft); }
-    .uc-help-line svg .h { fill: var(--bg-panel); }
+    .uc-help-line svg { flex: none; fill: none; stroke: var(--node-border); stroke-width: var(--ring-thin); stroke-linecap: round; stroke-linejoin: round; }
+    .uc-help-line svg .d { stroke-dasharray: var(--dash); }
+    .uc-help-line svg .f { fill: var(--node-border); }
+    .uc-help-line svg .h { fill: var(--bg-soft); }
   </style>
 </head>
 <body>
@@ -4306,7 +4327,7 @@ function routeDiagram(data) {
         return el;
       }
 
-      // Actors are colour coded so each can be told apart, and their lines take the same colour. An actor's own `color`
+      // Actors are colour coded so each can be told apart (lines stay neutral). An actor's own `color`
       // wins; the others take, in turn, the slots no feature area uses (colorKey), so an actor never wears a feature
       // area's colour (with more actors than free slots, actors far apart in the list share one). Picked colours are not saved.
       function actorSlots() {
@@ -4436,7 +4457,6 @@ function routeDiagram(data) {
           tip.textContent = linkTitle(l);
           const line = svgEl('path', { class: 'edge-line', d });
           setMarkers(line, l.type === 'association' ? (l.navigable === true ? 'open' : null) : 'open');
-          if (l.type === 'association') { const who = actorSw.has(l.from) ? l.from : l.to; if (actorSw.has(who)) setSwatch(g, actorSw.get(who)); }
           g.append(tip, svgEl('path', { class: 'edge-hit', d }), line);
           g.addEventListener('pointerenter', (ev) => { if (ev.pointerType === 'touch' || drag) return; hoverLinkId = l.id; applyLinkState(); });
           g.addEventListener('pointerleave', () => { if (hoverLinkId === l.id) hoverLinkId = null; applyLinkState(); });

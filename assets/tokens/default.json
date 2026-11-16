@@ -141,7 +141,14 @@
     "ring-thin": "1.5px",
     "ring-md": "2px",
     "ring-lg": "3px",
-    "ring-fill": "100px"
+    "ring-fill": "100px",
+    "stroke-thin": "1.25px"
+  },
+  "effect": {
+    "dim": "0.28",
+    "dim-line": "0.12",
+    "dim-filter": "grayscale(0.85)",
+    "dash": "3 5"
   },
   "motion": {
     "ease": "0.15s ease"
@@ -445,6 +452,11 @@
     [
       "sw-*-ink",
       "sw-*-fill",
+      4.5
+    ],
+    [
+      "sw-*-ink",
+      "sw-*-tint",
       4.5
     ],
     [

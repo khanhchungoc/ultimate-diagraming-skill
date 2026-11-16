@@ -144,6 +144,11 @@
       --ring-md: 2px;
       --ring-lg: 3px;
       --ring-fill: 100px;
+      --stroke-thin: 1.25px;
+      --dim: 0.28;
+      --dim-line: 0.12;
+      --dim-filter: grayscale(0.85);
+      --dash: 3 5;
       --ease: 0.15s ease;
       --radius-xs: 3px;
       --radius-sm: 4px;
@@ -251,46 +256,55 @@
       --sw-1-ink: #00436a;
       --sw-1-solid: #005c8b;
       --sw-1-on-solid: #ffffff;
+      --sw-1-tint: #d5efff;
       --sw-2-fill: #ecdeaa;
       --sw-2-line: #907100;
       --sw-2-ink: #513a00;
       --sw-2-solid: #6f5100;
       --sw-2-on-solid: #ffffff;
+      --sw-2-tint: #f4ebcc;
       --sw-3-fill: #b9edcb;
       --sw-3-line: #008d4e;
       --sw-3-ink: #004e20;
       --sw-3-solid: #006c2f;
       --sw-3-on-solid: #ffffff;
+      --sw-3-tint: #d5f4e0;
       --sw-4-fill: #ffcccd;
       --sw-4-line: #b15259;
       --sw-4-ink: #6e1724;
       --sw-4-solid: #932a37;
       --sw-4-on-solid: #ffffff;
+      --sw-4-tint: #ffe0e1;
       --sw-5-fill: #ead2ff;
       --sw-5-line: #895db0;
       --sw-5-ink: #4e276d;
       --sw-5-solid: #6b3893;
       --sw-5-on-solid: #ffffff;
+      --sw-5-tint: #f2e4ff;
       --sw-6-fill: #fad8ab;
       --sw-6-line: #a66400;
       --sw-6-ink: #602f00;
       --sw-6-solid: #834300;
       --sw-6-on-solid: #ffffff;
+      --sw-6-tint: #fce8cd;
       --sw-7-fill: #aaeee0;
       --sw-7-line: #008f79;
       --sw-7-ink: #004f40;
       --sw-7-solid: #006d5a;
       --sw-7-on-solid: #ffffff;
+      --sw-7-tint: #ccf5ec;
       --sw-8-fill: #cedcff;
       --sw-8-line: #5b6cc2;
       --sw-8-ink: #2a347b;
       --sw-8-solid: #3c49a7;
       --sw-8-on-solid: #ffffff;
+      --sw-8-tint: #e2eaff;
       --sw-9-fill: #e2e8f0;
       --sw-9-line: #64748b;
       --sw-9-ink: #334155;
       --sw-9-solid: #475569;
       --sw-9-on-solid: #ffffff;
+      --sw-9-tint: #eef1f6;
       color-scheme: light;
     }
 
@@ -375,58 +389,67 @@
       --sw-1-ink: #c6eaff;
       --sw-1-solid: #93d4fd;
       --sw-1-on-solid: #0f172a;
+      --sw-1-tint: #1c3952;
       --sw-2-fill: #483c06;
       --sw-2-line: #c6a92a;
       --sw-2-ink: #f0e5b8;
       --sw-2-solid: #e2ca6a;
       --sw-2-on-solid: #0f172a;
+      --sw-2-tint: #383620;
       --sw-3-fill: #17482e;
       --sw-3-line: #50c586;
       --sw-3-ink: #c5f1d5;
       --sw-3-solid: #84e2ab;
       --sw-3-on-solid: #0f172a;
+      --sw-3-tint: #1b3d38;
       --sw-4-fill: #5c2d2f;
       --sw-4-line: #ee898e;
       --sw-4-ink: #ffd5d6;
       --sw-4-solid: #ffaeb0;
       --sw-4-on-solid: #0f172a;
+      --sw-4-tint: #442d39;
       --sw-5-fill: #47325a;
       --sw-5-line: #c194eb;
       --sw-5-ink: #efdbff;
       --sw-5-solid: #deb7ff;
       --sw-5-on-solid: #0f172a;
+      --sw-5-tint: #373053;
       --sw-6-fill: #523709;
       --sw-6-line: #de9c31;
       --sw-6-ink: #fde0b9;
       --sw-6-solid: #f8bf6c;
       --sw-6-on-solid: #0f172a;
+      --sw-6-tint: #3e3322;
       --sw-7-fill: #00493f;
       --sw-7-line: #00c7af;
       --sw-7-ink: #b9f2e7;
       --sw-7-solid: #60e4cf;
       --sw-7-on-solid: #0f172a;
+      --sw-7-tint: #0d3d43;
       --sw-8-fill: #313a62;
       --sw-8-line: #8fa4ff;
       --sw-8-ink: #d7e3ff;
       --sw-8-solid: #b1c5ff;
       --sw-8-on-solid: #0f172a;
+      --sw-8-tint: #2a3458;
       --sw-9-fill: #243049;
       --sw-9-line: #94a3b8;
       --sw-9-ink: #e2e8f0;
       --sw-9-solid: #cbd5e1;
       --sw-9-on-solid: #0f172a;
+      --sw-9-tint: #222e49;
       color-scheme: dark;
     }
 
-    [data-sw="1"] { --sw-stripe: var(--sw-1-line); --sw-line: var(--sw-1-line); --sw-pill-bg: var(--sw-1-fill); --sw-pill-ink: var(--sw-1-ink); --sw-pill-solid: var(--sw-1-solid); --sw-on-solid: var(--sw-1-on-solid); }
-    [data-sw="2"] { --sw-stripe: var(--sw-2-line); --sw-line: var(--sw-2-line); --sw-pill-bg: var(--sw-2-fill); --sw-pill-ink: var(--sw-2-ink); --sw-pill-solid: var(--sw-2-solid); --sw-on-solid: var(--sw-2-on-solid); }
-    [data-sw="3"] { --sw-stripe: var(--sw-3-line); --sw-line: var(--sw-3-line); --sw-pill-bg: var(--sw-3-fill); --sw-pill-ink: var(--sw-3-ink); --sw-pill-solid: var(--sw-3-solid); --sw-on-solid: var(--sw-3-on-solid); }
-    [data-sw="4"] { --sw-stripe: var(--sw-4-line); --sw-line: var(--sw-4-line); --sw-pill-bg: var(--sw-4-fill); --sw-pill-ink: var(--sw-4-ink); --sw-pill-solid: var(--sw-4-solid); --sw-on-solid: var(--sw-4-on-solid); }
-    [data-sw="5"] { --sw-stripe: var(--sw-5-line); --sw-line: var(--sw-5-line); --sw-pill-bg: var(--sw-5-fill); --sw-pill-ink: var(--sw-5-ink); --sw-pill-solid: var(--sw-5-solid); --sw-on-solid: var(--sw-5-on-solid); }
-    [data-sw="6"] { --sw-stripe: var(--sw-6-line); --sw-line: var(--sw-6-line); --sw-pill-bg: var(--sw-6-fill); --sw-pill-ink: var(--sw-6-ink); --sw-pill-solid: var(--sw-6-solid); --sw-on-solid: var(--sw-6-on-solid); }
-    [data-sw="7"] { --sw-stripe: var(--sw-7-line); --sw-line: var(--sw-7-line); --sw-pill-bg: var(--sw-7-fill); --sw-pill-ink: var(--sw-7-ink); --sw-pill-solid: var(--sw-7-solid); --sw-on-solid: var(--sw-7-on-solid); }
-    [data-sw="8"] { --sw-stripe: var(--sw-8-line); --sw-line: var(--sw-8-line); --sw-pill-bg: var(--sw-8-fill); --sw-pill-ink: var(--sw-8-ink); --sw-pill-solid: var(--sw-8-solid); --sw-on-solid: var(--sw-8-on-solid); }
-    [data-sw="9"] { --sw-stripe: var(--sw-9-line); --sw-line: var(--sw-9-line); --sw-pill-bg: var(--sw-9-fill); --sw-pill-ink: var(--sw-9-ink); --sw-pill-solid: var(--sw-9-solid); --sw-on-solid: var(--sw-9-on-solid); }
+    [data-sw="1"] { --sw-stripe: var(--sw-1-line); --sw-line: var(--sw-1-line); --sw-pill-bg: var(--sw-1-fill); --sw-pill-ink: var(--sw-1-ink); --sw-pill-solid: var(--sw-1-solid); --sw-on-solid: var(--sw-1-on-solid); --sw-tint: var(--sw-1-tint); }
+    [data-sw="2"] { --sw-stripe: var(--sw-2-line); --sw-line: var(--sw-2-line); --sw-pill-bg: var(--sw-2-fill); --sw-pill-ink: var(--sw-2-ink); --sw-pill-solid: var(--sw-2-solid); --sw-on-solid: var(--sw-2-on-solid); --sw-tint: var(--sw-2-tint); }
+    [data-sw="3"] { --sw-stripe: var(--sw-3-line); --sw-line: var(--sw-3-line); --sw-pill-bg: var(--sw-3-fill); --sw-pill-ink: var(--sw-3-ink); --sw-pill-solid: var(--sw-3-solid); --sw-on-solid: var(--sw-3-on-solid); --sw-tint: var(--sw-3-tint); }
+    [data-sw="4"] { --sw-stripe: var(--sw-4-line); --sw-line: var(--sw-4-line); --sw-pill-bg: var(--sw-4-fill); --sw-pill-ink: var(--sw-4-ink); --sw-pill-solid: var(--sw-4-solid); --sw-on-solid: var(--sw-4-on-solid); --sw-tint: var(--sw-4-tint); }
+    [data-sw="5"] { --sw-stripe: var(--sw-5-line); --sw-line: var(--sw-5-line); --sw-pill-bg: var(--sw-5-fill); --sw-pill-ink: var(--sw-5-ink); --sw-pill-solid: var(--sw-5-solid); --sw-on-solid: var(--sw-5-on-solid); --sw-tint: var(--sw-5-tint); }
+    [data-sw="6"] { --sw-stripe: var(--sw-6-line); --sw-line: var(--sw-6-line); --sw-pill-bg: var(--sw-6-fill); --sw-pill-ink: var(--sw-6-ink); --sw-pill-solid: var(--sw-6-solid); --sw-on-solid: var(--sw-6-on-solid); --sw-tint: var(--sw-6-tint); }
+    [data-sw="7"] { --sw-stripe: var(--sw-7-line); --sw-line: var(--sw-7-line); --sw-pill-bg: var(--sw-7-fill); --sw-pill-ink: var(--sw-7-ink); --sw-pill-solid: var(--sw-7-solid); --sw-on-solid: var(--sw-7-on-solid); --sw-tint: var(--sw-7-tint); }
+    [data-sw="8"] { --sw-stripe: var(--sw-8-line); --sw-line: var(--sw-8-line); --sw-pill-bg: var(--sw-8-fill); --sw-pill-ink: var(--sw-8-ink); --sw-pill-solid: var(--sw-8-solid); --sw-on-solid: var(--sw-8-on-solid); --sw-tint: var(--sw-8-tint); }
+    [data-sw="9"] { --sw-stripe: var(--sw-9-line); --sw-line: var(--sw-9-line); --sw-pill-bg: var(--sw-9-fill); --sw-pill-ink: var(--sw-9-ink); --sw-pill-solid: var(--sw-9-solid); --sw-on-solid: var(--sw-9-on-solid); --sw-tint: var(--sw-9-tint); }
 
     .t-title { font-family: var(--t-title-family); font-size: var(--t-title-size); font-weight: var(--t-title-weight); line-height: var(--t-title-leading); letter-spacing: var(--t-title-tracking); }
     .t-label { font-family: var(--t-label-family); font-size: var(--t-label-size); font-weight: var(--t-label-weight); line-height: var(--t-label-leading); letter-spacing: var(--t-label-tracking); }

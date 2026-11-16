@@ -191,7 +191,7 @@
         return el;
       }
 
-      // Actors are colour coded so each can be told apart, and their lines take the same colour. An actor's own `color`
+      // Actors are colour coded so each can be told apart (lines stay neutral). An actor's own `color`
       // wins; the others take, in turn, the slots no feature area uses (colorKey), so an actor never wears a feature
       // area's colour (with more actors than free slots, actors far apart in the list share one). Picked colours are not saved.
       function actorSlots() {
@@ -321,7 +321,6 @@
           tip.textContent = linkTitle(l);
           const line = svgEl('path', { class: 'edge-line', d });
           setMarkers(line, l.type === 'association' ? (l.navigable === true ? 'open' : null) : 'open');
-          if (l.type === 'association') { const who = actorSw.has(l.from) ? l.from : l.to; if (actorSw.has(who)) setSwatch(g, actorSw.get(who)); }
           g.append(tip, svgEl('path', { class: 'edge-hit', d }), line);
           g.addEventListener('pointerenter', (ev) => { if (ev.pointerType === 'touch' || drag) return; hoverLinkId = l.id; applyLinkState(); });
           g.addEventListener('pointerleave', () => { if (hoverLinkId === l.id) hoverLinkId = null; applyLinkState(); });
