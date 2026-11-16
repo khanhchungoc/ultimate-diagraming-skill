@@ -199,7 +199,7 @@
     .erd-entity, .edge-label { -webkit-user-select: none; user-select: none; }
     [contenteditable]:not([contenteditable="false"]) { -webkit-user-select: text; user-select: text; cursor: text; outline: none; }
     .erd-head { position: relative; }
-    .erd-name.is-editing, .erd-col-name.is-editing, .erd-col-type.is-editing, .erd-col-note.is-editing, .erd-rel-label-text.is-editing {
+    .erd-name.is-editing, .erd-col-name.is-editing, .erd-col-type.is-editing, .erd-rel-label-text.is-editing {
       min-width: 36px;
       background: var(--bg-panel);
       color: var(--text-main);
@@ -212,7 +212,7 @@
     }
     .erd-col-type.is-editing { text-align: right; }
     .erd-col-type:empty { min-width: 28px; }
-    .erd-col-name.is-editing, .erd-col-note.is-editing { flex: 1 1 auto; }
+    .erd-col-name.is-editing { flex: 1 1 auto; }
 
     /* Connect ports: on the right edge of each row and of the header, shown on hover (all of them while the Relationship tool is armed) */
     .erd-port {
@@ -363,3 +363,7 @@
     .erd-expand-card { position: fixed; z-index: 900; pointer-events: none; }
     .erd-expand-card .erd-entity { position: relative; width: max-content; z-index: auto; cursor: default; box-shadow: var(--shadow-xl); transition: none; }
     body.exporting .erd-expand-card { display: none !important; }
+
+/* A column's note: a small badge in its row, and the row a dragged note would land on */
+.erd-row .note-badge.erd-row-badge { position: static; flex: none; width: 16px; height: 16px; margin: 0 4px; }
+.erd-row.note-target { outline: 2px dashed var(--note-accent); outline-offset: -2px; }
