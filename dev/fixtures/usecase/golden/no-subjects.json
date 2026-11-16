@@ -1,0 +1,252 @@
+{
+  "diagramType": "usecase",
+  "title": "Library",
+  "actors": [
+    {
+      "id": "reader",
+      "name": "Reader",
+      "_side": "left",
+      "_lines": [
+        "Reader"
+      ],
+      "w": 56,
+      "h": 80,
+      "_figW": 36,
+      "_figH": 56,
+      "x": 50,
+      "y": 135
+    },
+    {
+      "id": "librarian",
+      "name": "Librarian",
+      "_side": "left",
+      "_lines": [
+        "Librarian"
+      ],
+      "w": 76,
+      "h": 80,
+      "_figW": 36,
+      "_figH": 56,
+      "x": 40,
+      "y": 239
+    },
+    {
+      "id": "catalog",
+      "name": "Catalogue service",
+      "kind": "system",
+      "side": "right",
+      "_side": "right",
+      "_lines": [
+        "Catalogue",
+        "service"
+      ],
+      "w": 112,
+      "h": 104,
+      "_figW": 112,
+      "_figH": 104,
+      "x": 831,
+      "y": 120
+    }
+  ],
+  "useCases": [
+    {
+      "id": "borrow",
+      "name": "Borrow book",
+      "_lines": [
+        "Borrow book"
+      ],
+      "_compH": 0,
+      "w": 128,
+      "h": 44,
+      "x": 258,
+      "y": 96
+    },
+    {
+      "id": "return",
+      "name": "Return book",
+      "_lines": [
+        "Return book"
+      ],
+      "_compH": 0,
+      "w": 128,
+      "h": 44,
+      "x": 258,
+      "y": 204
+    },
+    {
+      "id": "search",
+      "name": "Search catalogue",
+      "_lines": [
+        "Search catalogue"
+      ],
+      "_compH": 0,
+      "w": 164,
+      "h": 44,
+      "x": 240,
+      "y": 150
+    },
+    {
+      "id": "fine",
+      "name": "Charge late fine",
+      "_lines": [
+        "Charge late fine"
+      ],
+      "_compH": 0,
+      "w": 164,
+      "h": 44,
+      "x": 543,
+      "y": 204
+    },
+    {
+      "id": "register",
+      "name": "Register reader",
+      "_lines": [
+        "Register reader"
+      ],
+      "_compH": 0,
+      "w": 156,
+      "h": 44,
+      "x": 244,
+      "y": 258
+    }
+  ],
+  "links": [
+    {
+      "id": "l1",
+      "type": "association",
+      "from": "reader",
+      "to": "borrow",
+      "points": [
+        [
+          96,
+          159.7
+        ],
+        [
+          265.6,
+          128.4
+        ]
+      ]
+    },
+    {
+      "id": "l2",
+      "type": "association",
+      "from": "reader",
+      "to": "return",
+      "points": [
+        [
+          96,
+          167.6
+        ],
+        [
+          270.8,
+          212.8
+        ]
+      ]
+    },
+    {
+      "id": "l3",
+      "type": "association",
+      "from": "reader",
+      "to": "search",
+      "points": [
+        [
+          96,
+          163.7
+        ],
+        [
+          240.8,
+          169
+        ]
+      ]
+    },
+    {
+      "id": "l4",
+      "type": "association",
+      "from": "librarian",
+      "to": "register",
+      "points": [
+        [
+          96,
+          268
+        ],
+        [
+          245.4,
+          275.9
+        ]
+      ]
+    },
+    {
+      "id": "l5",
+      "type": "association",
+      "from": "librarian",
+      "to": "return",
+      "points": [
+        [
+          96,
+          264
+        ],
+        [
+          264.5,
+          235.7
+        ]
+      ]
+    },
+    {
+      "id": "l6",
+      "type": "association",
+      "from": "search",
+      "to": "catalog",
+      "points": [
+        [
+          404,
+          172
+        ],
+        [
+          831,
+          172
+        ]
+      ]
+    },
+    {
+      "id": "l7",
+      "type": "extend",
+      "from": "fine",
+      "to": "return",
+      "condition": "returned after the due date",
+      "points": [
+        [
+          543,
+          226
+        ],
+        [
+          386,
+          226
+        ]
+      ],
+      "labelBox": {
+        "x": 403,
+        "y": 199,
+        "w": 123,
+        "h": 54
+      }
+    }
+  ],
+  "_subjects": [
+    {
+      "id": "_main",
+      "name": "Library",
+      "x": 212,
+      "w": 523,
+      "_titleH": 36,
+      "y": 40,
+      "h": 282
+    }
+  ],
+  "_parents": [],
+  "canvas": {
+    "width": 983,
+    "height": 362,
+    "crossings": 0,
+    "hits": 0
+  }
+}

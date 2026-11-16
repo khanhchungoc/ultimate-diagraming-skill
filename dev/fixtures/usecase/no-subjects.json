@@ -1,0 +1,25 @@
+{
+  "diagramType": "usecase",
+  "title": "Library",
+  "actors": [
+    { "id": "reader", "name": "Reader" },
+    { "id": "librarian", "name": "Librarian" },
+    { "id": "catalog", "name": "Catalogue service", "kind": "system", "side": "right" }
+  ],
+  "useCases": [
+    { "id": "borrow", "name": "Borrow book" },
+    { "id": "return", "name": "Return book" },
+    { "id": "search", "name": "Search catalogue" },
+    { "id": "fine", "name": "Charge late fine" },
+    { "id": "register", "name": "Register reader" }
+  ],
+  "links": [
+    { "id": "l1", "type": "association", "from": "reader", "to": "borrow" },
+    { "id": "l2", "type": "association", "from": "reader", "to": "return" },
+    { "id": "l3", "type": "association", "from": "reader", "to": "search" },
+    { "id": "l4", "type": "association", "from": "librarian", "to": "register" },
+    { "id": "l5", "type": "association", "from": "librarian", "to": "return" },
+    { "id": "l6", "type": "association", "from": "search", "to": "catalog" },
+    { "id": "l7", "type": "extend", "from": "fine", "to": "return", "condition": "returned after the due date" }
+  ]
+}

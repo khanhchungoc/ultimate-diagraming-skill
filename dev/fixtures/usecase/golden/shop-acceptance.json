@@ -1,0 +1,1197 @@
+{
+  "diagramType": "usecase",
+  "schemaVersion": 1,
+  "title": "Online shop",
+  "colorKey": {
+    "1": "Browse and order",
+    "2": "Payments",
+    "3": "Account",
+    "4": "Fulfilment"
+  },
+  "subjects": [
+    {
+      "id": "shop",
+      "name": "Storefront",
+      "x": 256,
+      "w": 600,
+      "_titleH": 36,
+      "y": 40,
+      "h": 580
+    },
+    {
+      "id": "office",
+      "name": "Back office",
+      "x": 256,
+      "w": 600,
+      "_titleH": 36,
+      "y": 652,
+      "h": 606
+    }
+  ],
+  "actors": [
+    {
+      "id": "customer",
+      "name": "Customer",
+      "_side": "left",
+      "_lines": [
+        "Customer"
+      ],
+      "w": 68,
+      "h": 80,
+      "_figW": 36,
+      "_figH": 56,
+      "x": 66,
+      "y": 251
+    },
+    {
+      "id": "member",
+      "name": "Registered customer",
+      "parent": "customer",
+      "_side": "left",
+      "_lines": [
+        "Registered",
+        "customer"
+      ],
+      "w": 84,
+      "h": 100,
+      "_figW": 36,
+      "_figH": 56,
+      "x": 58,
+      "y": 375
+    },
+    {
+      "id": "clerk",
+      "name": "Warehouse clerk",
+      "_side": "left",
+      "_lines": [
+        "Warehouse clerk"
+      ],
+      "w": 120,
+      "h": 80,
+      "_figW": 36,
+      "_figH": 56,
+      "x": 40,
+      "y": 783
+    },
+    {
+      "id": "manager",
+      "name": "Shop manager",
+      "_side": "left",
+      "_lines": [
+        "Shop manager"
+      ],
+      "w": 100,
+      "h": 80,
+      "_figW": 36,
+      "_figH": 56,
+      "x": 50,
+      "y": 1107
+    },
+    {
+      "id": "nightly",
+      "name": "Nightly",
+      "kind": "time",
+      "_side": "left",
+      "_lines": [
+        "Nightly"
+      ],
+      "w": 112,
+      "h": 84,
+      "_figW": 112,
+      "_figH": 84,
+      "x": 44,
+      "y": 931
+    },
+    {
+      "id": "psp",
+      "name": "Payment gateway",
+      "kind": "system",
+      "_side": "right",
+      "_lines": [
+        "Payment gateway"
+      ],
+      "w": 136,
+      "h": 84,
+      "_figW": 136,
+      "_figH": 84,
+      "x": 952,
+      "y": 740
+    },
+    {
+      "id": "carrier",
+      "name": "Carrier API",
+      "kind": "system",
+      "_side": "right",
+      "_lines": [
+        "Carrier API"
+      ],
+      "w": 112,
+      "h": 84,
+      "_figW": 112,
+      "_figH": 84,
+      "x": 964,
+      "y": 848
+    }
+  ],
+  "useCases": [
+    {
+      "id": "browse",
+      "name": "Browse catalogue",
+      "subject": "shop",
+      "color": "1",
+      "refs": [
+        "FR-1"
+      ],
+      "_lines": [
+        "Browse catalogue"
+      ],
+      "_compH": 0,
+      "w": 164,
+      "h": 44,
+      "x": 292,
+      "y": 204
+    },
+    {
+      "id": "search",
+      "name": "Search products",
+      "subject": "shop",
+      "color": "1",
+      "refs": [
+        "FR-2"
+      ],
+      "_lines": [
+        "Search products"
+      ],
+      "_compH": 0,
+      "w": 156,
+      "h": 44,
+      "x": 296,
+      "y": 96
+    },
+    {
+      "id": "cart",
+      "name": "Manage cart",
+      "subject": "shop",
+      "color": "1",
+      "refs": [
+        "FR-3"
+      ],
+      "_lines": [
+        "Manage cart"
+      ],
+      "_compH": 0,
+      "w": 128,
+      "h": 44,
+      "x": 310,
+      "y": 150
+    },
+    {
+      "id": "checkout",
+      "name": "Check out",
+      "subject": "shop",
+      "color": "1",
+      "refs": [
+        "FR-4",
+        "FR-5"
+      ],
+      "extensionPoints": [
+        "Payment"
+      ],
+      "_lines": [
+        "Check out"
+      ],
+      "_compH": 26,
+      "w": 128,
+      "h": 72,
+      "x": 310,
+      "y": 312
+    },
+    {
+      "id": "voucher",
+      "name": "Apply voucher",
+      "subject": "shop",
+      "color": "1",
+      "refs": [
+        "FR-6"
+      ],
+      "_lines": [
+        "Apply voucher"
+      ],
+      "_compH": 0,
+      "w": 140,
+      "h": 44,
+      "x": 676,
+      "y": 266
+    },
+    {
+      "id": "pay",
+      "name": "Take payment",
+      "subject": "shop",
+      "color": "2",
+      "refs": [
+        "FR-7"
+      ],
+      "abstract": true,
+      "_lines": [
+        "Take payment"
+      ],
+      "_compH": 0,
+      "w": 128,
+      "h": 44,
+      "x": 682,
+      "y": 374
+    },
+    {
+      "id": "paycard",
+      "name": "Pay by card",
+      "subject": "shop",
+      "color": "2",
+      "refs": [
+        "FR-7"
+      ],
+      "parent": "pay",
+      "_lines": [
+        "Pay by card"
+      ],
+      "_compH": 0,
+      "w": 128,
+      "h": 44,
+      "x": 682,
+      "y": 440
+    },
+    {
+      "id": "paywallet",
+      "name": "Pay by wallet",
+      "subject": "shop",
+      "color": "2",
+      "refs": [
+        "FR-7"
+      ],
+      "parent": "pay",
+      "_lines": [
+        "Pay by wallet"
+      ],
+      "_compH": 0,
+      "w": 140,
+      "h": 44,
+      "x": 676,
+      "y": 506
+    },
+    {
+      "id": "auth",
+      "name": "Authenticate",
+      "subject": "shop",
+      "color": "3",
+      "refs": [
+        "FR-8"
+      ],
+      "level": "subfunction",
+      "_lines": [
+        "Authenticate"
+      ],
+      "_compH": 0,
+      "w": 112,
+      "h": 40,
+      "x": 690,
+      "y": 560
+    },
+    {
+      "id": "register",
+      "name": "Register account",
+      "subject": "shop",
+      "color": "3",
+      "refs": [
+        "FR-8"
+      ],
+      "_lines": [
+        "Register account"
+      ],
+      "_compH": 0,
+      "w": 164,
+      "h": 44,
+      "x": 292,
+      "y": 258
+    },
+    {
+      "id": "track",
+      "name": "Track order",
+      "subject": "shop",
+      "color": "1",
+      "refs": [
+        "FR-10"
+      ],
+      "_lines": [
+        "Track order"
+      ],
+      "_compH": 0,
+      "w": 128,
+      "h": 44,
+      "x": 310,
+      "y": 502
+    },
+    {
+      "id": "history",
+      "name": "View order history",
+      "subject": "shop",
+      "color": "3",
+      "refs": [
+        "FR-11"
+      ],
+      "_lines": [
+        "View order history"
+      ],
+      "_compH": 0,
+      "w": 180,
+      "h": 44,
+      "x": 284,
+      "y": 448
+    },
+    {
+      "id": "return",
+      "name": "Request return",
+      "subject": "shop",
+      "color": "4",
+      "refs": [
+        "FR-14"
+      ],
+      "_lines": [
+        "Request return"
+      ],
+      "_compH": 0,
+      "w": 148,
+      "h": 44,
+      "x": 300,
+      "y": 556
+    },
+    {
+      "id": "review",
+      "name": "Write review",
+      "subject": "shop",
+      "color": "1",
+      "refs": [
+        "FR-15"
+      ],
+      "_lines": [
+        "Write review"
+      ],
+      "_compH": 0,
+      "w": 128,
+      "h": 44,
+      "x": 310,
+      "y": 394
+    },
+    {
+      "id": "gift",
+      "name": "Add gift message",
+      "subject": "shop",
+      "color": "1",
+      "refs": [
+        "FR-20"
+      ],
+      "_lines": [
+        "Add gift message"
+      ],
+      "_compH": 0,
+      "w": 164,
+      "h": 44,
+      "x": 664,
+      "y": 320
+    },
+    {
+      "id": "pick",
+      "name": "Pick order",
+      "subject": "office",
+      "color": "4",
+      "refs": [
+        "FR-9"
+      ],
+      "_lines": [
+        "Pick order"
+      ],
+      "_compH": 0,
+      "w": 128,
+      "h": 44,
+      "x": 310,
+      "y": 762
+    },
+    {
+      "id": "pack",
+      "name": "Pack parcel",
+      "subject": "office",
+      "color": "4",
+      "refs": [
+        "FR-9"
+      ],
+      "_lines": [
+        "Pack parcel"
+      ],
+      "_compH": 0,
+      "w": 128,
+      "h": 44,
+      "x": 310,
+      "y": 708
+    },
+    {
+      "id": "label",
+      "name": "Print shipping label",
+      "subject": "office",
+      "color": "4",
+      "refs": [
+        "FR-13"
+      ],
+      "level": "subfunction",
+      "_lines": [
+        "Print shipping label"
+      ],
+      "_compH": 0,
+      "w": 168,
+      "h": 40,
+      "x": 660,
+      "y": 710
+    },
+    {
+      "id": "ship",
+      "name": "Dispatch shipment",
+      "subject": "office",
+      "color": "4",
+      "refs": [
+        "FR-13"
+      ],
+      "_lines": [
+        "Dispatch shipment"
+      ],
+      "_compH": 0,
+      "w": 172,
+      "h": 44,
+      "x": 288,
+      "y": 816
+    },
+    {
+      "id": "stock",
+      "name": "Adjust stock",
+      "subject": "office",
+      "color": "4",
+      "refs": [
+        "FR-16"
+      ],
+      "_lines": [
+        "Adjust stock"
+      ],
+      "_compH": 0,
+      "w": 128,
+      "h": 44,
+      "x": 310,
+      "y": 870
+    },
+    {
+      "id": "reorder",
+      "name": "Reorder low stock",
+      "subject": "office",
+      "color": "4",
+      "refs": [
+        "FR-17"
+      ],
+      "_lines": [
+        "Reorder low stock"
+      ],
+      "_compH": 0,
+      "w": 172,
+      "h": 44,
+      "x": 288,
+      "y": 978
+    },
+    {
+      "id": "refund",
+      "name": "Refund payment",
+      "subject": "office",
+      "color": "2",
+      "refs": [
+        "FR-12"
+      ],
+      "_lines": [
+        "Refund payment"
+      ],
+      "_compH": 0,
+      "w": 148,
+      "h": 44,
+      "x": 300,
+      "y": 1032
+    },
+    {
+      "id": "reconcile",
+      "name": "Reconcile payments",
+      "subject": "office",
+      "color": "2",
+      "refs": [
+        "FR-12"
+      ],
+      "_lines": [
+        "Reconcile payments"
+      ],
+      "_compH": 0,
+      "w": 180,
+      "h": 44,
+      "x": 284,
+      "y": 924
+    },
+    {
+      "id": "report",
+      "name": "Run sales report",
+      "subject": "office",
+      "color": "1",
+      "refs": [
+        "FR-18"
+      ],
+      "_lines": [
+        "Run sales report"
+      ],
+      "_compH": 0,
+      "w": 164,
+      "h": 44,
+      "x": 292,
+      "y": 1086
+    },
+    {
+      "id": "catalogue",
+      "name": "Manage catalogue",
+      "subject": "office",
+      "color": "1",
+      "refs": [
+        "FR-19"
+      ],
+      "_lines": [
+        "Manage catalogue"
+      ],
+      "_compH": 0,
+      "w": 164,
+      "h": 44,
+      "x": 292,
+      "y": 1140
+    },
+    {
+      "id": "approve",
+      "name": "Approve return",
+      "subject": "office",
+      "color": "4",
+      "refs": [
+        "FR-14"
+      ],
+      "_lines": [
+        "Approve return"
+      ],
+      "_compH": 0,
+      "w": 148,
+      "h": 44,
+      "x": 300,
+      "y": 1194
+    }
+  ],
+  "links": [
+    {
+      "id": "l1",
+      "type": "association",
+      "from": "customer",
+      "to": "browse",
+      "points": [
+        [
+          118,
+          275.5
+        ],
+        [
+          307.5,
+          238.9
+        ]
+      ]
+    },
+    {
+      "id": "l2",
+      "type": "association",
+      "from": "customer",
+      "to": "search",
+      "points": [
+        [
+          118,
+          268.4
+        ],
+        [
+          340.2,
+          137.8
+        ]
+      ]
+    },
+    {
+      "id": "l3",
+      "type": "association",
+      "from": "customer",
+      "to": "cart",
+      "points": [
+        [
+          118,
+          272
+        ],
+        [
+          331.7,
+          188.5
+        ]
+      ]
+    },
+    {
+      "id": "l4",
+      "type": "association",
+      "from": "customer",
+      "to": "register",
+      "points": [
+        [
+          118,
+          279.1
+        ],
+        [
+          292,
+          279.7
+        ]
+      ]
+    },
+    {
+      "id": "l5",
+      "type": "association",
+      "from": "member",
+      "to": "checkout",
+      "points": [
+        [
+          118,
+          399.4
+        ],
+        [
+          313.7,
+          360.1
+        ]
+      ]
+    },
+    {
+      "id": "l6",
+      "type": "association",
+      "from": "member",
+      "to": "track",
+      "points": [
+        [
+          118,
+          410.9
+        ],
+        [
+          334.7,
+          506.6
+        ]
+      ]
+    },
+    {
+      "id": "l7",
+      "type": "association",
+      "from": "member",
+      "to": "history",
+      "points": [
+        [
+          118,
+          407.4
+        ],
+        [
+          310.4,
+          454.4
+        ]
+      ]
+    },
+    {
+      "id": "l8",
+      "type": "association",
+      "from": "member",
+      "to": "return",
+      "points": [
+        [
+          118,
+          414.5
+        ],
+        [
+          342.8,
+          558.1
+        ]
+      ]
+    },
+    {
+      "id": "l9",
+      "type": "association",
+      "from": "member",
+      "to": "review",
+      "points": [
+        [
+          118,
+          403.9
+        ],
+        [
+          310.6,
+          413
+        ]
+      ]
+    },
+    {
+      "id": "l10",
+      "type": "include",
+      "from": "checkout",
+      "to": "pay",
+      "points": [
+        [
+          436.4,
+          356
+        ],
+        [
+          686.1,
+          388.3
+        ]
+      ],
+      "labelBox": {
+        "x": 518,
+        "y": 361,
+        "w": 87,
+        "h": 22
+      }
+    },
+    {
+      "id": "l11",
+      "type": "association",
+      "from": "pay",
+      "to": "psp",
+      "points": [
+        [
+          775.2,
+          415.6
+        ],
+        [
+          956.4,
+          536.9
+        ],
+        [
+          1009.1,
+          740
+        ]
+      ]
+    },
+    {
+      "id": "l12",
+      "type": "include",
+      "from": "track",
+      "to": "auth",
+      "points": [
+        [
+          432.6,
+          532.8
+        ],
+        [
+          694.4,
+          572.2
+        ]
+      ],
+      "labelBox": {
+        "x": 520,
+        "y": 542,
+        "w": 87,
+        "h": 22
+      }
+    },
+    {
+      "id": "l13",
+      "type": "include",
+      "from": "history",
+      "to": "auth",
+      "points": [
+        [
+          431.3,
+          487
+        ],
+        [
+          702.9,
+          567.2
+        ]
+      ],
+      "labelBox": {
+        "x": 524,
+        "y": 516,
+        "w": 87,
+        "h": 22
+      }
+    },
+    {
+      "id": "l14",
+      "type": "include",
+      "from": "return",
+      "to": "auth",
+      "points": [
+        [
+          448,
+          578.4
+        ],
+        [
+          690,
+          579.7
+        ]
+      ],
+      "labelBox": {
+        "x": 526,
+        "y": 568,
+        "w": 87,
+        "h": 22
+      }
+    },
+    {
+      "id": "l15",
+      "type": "extend",
+      "from": "voucher",
+      "to": "checkout",
+      "condition": "customer has a code",
+      "extensionPoint": "Payment",
+      "points": [
+        [
+          683.7,
+          298
+        ],
+        [
+          435.5,
+          338.1
+        ]
+      ],
+      "labelBox": {
+        "x": 478,
+        "y": 299,
+        "w": 163,
+        "h": 38
+      }
+    },
+    {
+      "id": "l16",
+      "type": "extend",
+      "from": "gift",
+      "to": "checkout",
+      "condition": "order is a gift",
+      "extensionPoint": "Payment",
+      "points": [
+        [
+          664.1,
+          343.3
+        ],
+        [
+          438,
+          347
+        ]
+      ],
+      "labelBox": {
+        "x": 481,
+        "y": 258,
+        "w": 137,
+        "h": 38
+      }
+    },
+    {
+      "id": "l17",
+      "type": "association",
+      "from": "clerk",
+      "to": "pick",
+      "points": [
+        [
+          118,
+          809.2
+        ],
+        [
+          312.5,
+          790.1
+        ]
+      ]
+    },
+    {
+      "id": "l18",
+      "type": "association",
+      "from": "clerk",
+      "to": "pack",
+      "points": [
+        [
+          118,
+          805.7
+        ],
+        [
+          325.5,
+          744.3
+        ]
+      ]
+    },
+    {
+      "id": "l19",
+      "type": "association",
+      "from": "clerk",
+      "to": "stock",
+      "points": [
+        [
+          118,
+          816.3
+        ],
+        [
+          325.5,
+          877.7
+        ]
+      ]
+    },
+    {
+      "id": "l20",
+      "type": "include",
+      "from": "pack",
+      "to": "label",
+      "points": [
+        [
+          438,
+          730
+        ],
+        [
+          660,
+          730
+        ]
+      ],
+      "labelBox": {
+        "x": 506,
+        "y": 719,
+        "w": 87,
+        "h": 22
+      }
+    },
+    {
+      "id": "l21",
+      "type": "association",
+      "from": "clerk",
+      "to": "ship",
+      "points": [
+        [
+          118,
+          812.8
+        ],
+        [
+          293.7,
+          830.1
+        ]
+      ]
+    },
+    {
+      "id": "l22",
+      "type": "association",
+      "from": "ship",
+      "to": "carrier",
+      "points": [
+        [
+          456,
+          844.6
+        ],
+        [
+          964,
+          885.5
+        ]
+      ]
+    },
+    {
+      "id": "l23",
+      "type": "association",
+      "from": "manager",
+      "to": "report",
+      "points": [
+        [
+          118,
+          1133.2
+        ],
+        [
+          297,
+          1115.6
+        ]
+      ]
+    },
+    {
+      "id": "l24",
+      "type": "association",
+      "from": "manager",
+      "to": "catalogue",
+      "points": [
+        [
+          118,
+          1136.8
+        ],
+        [
+          297,
+          1154.4
+        ]
+      ]
+    },
+    {
+      "id": "l25",
+      "type": "association",
+      "from": "manager",
+      "to": "approve",
+      "points": [
+        [
+          118,
+          1140.3
+        ],
+        [
+          321.5,
+          1200.5
+        ]
+      ]
+    },
+    {
+      "id": "l26",
+      "type": "association",
+      "from": "manager",
+      "to": "refund",
+      "points": [
+        [
+          118,
+          1129.7
+        ],
+        [
+          321.5,
+          1069.5
+        ]
+      ]
+    },
+    {
+      "id": "l27",
+      "type": "association",
+      "from": "refund",
+      "to": "psp",
+      "points": [
+        [
+          416.7,
+          1036
+        ],
+        [
+          952,
+          810.6
+        ]
+      ]
+    },
+    {
+      "id": "l28",
+      "type": "association",
+      "from": "nightly",
+      "to": "reconcile",
+      "points": [
+        [
+          156,
+          967.5
+        ],
+        [
+          290.5,
+          954.2
+        ]
+      ]
+    },
+    {
+      "id": "l29",
+      "type": "association",
+      "from": "nightly",
+      "to": "reorder",
+      "points": [
+        [
+          156,
+          978.5
+        ],
+        [
+          293.7,
+          992.1
+        ]
+      ]
+    },
+    {
+      "id": "l30",
+      "type": "association",
+      "from": "reconcile",
+      "to": "psp",
+      "points": [
+        [
+          436.4,
+          930.2
+        ],
+        [
+          952,
+          799.3
+        ]
+      ]
+    }
+  ],
+  "notes": [
+    {
+      "id": "n1",
+      "text": "Guest checkout allowed up to 200 EUR (BR-3)",
+      "useCases": [
+        "checkout"
+      ]
+    },
+    {
+      "id": "n2",
+      "text": "Refunds above 500 EUR need manager approval (BR-9)",
+      "useCases": [
+        "refund"
+      ]
+    },
+    {
+      "id": "n3",
+      "text": "Carrier is called once per parcel",
+      "actors": [
+        "carrier"
+      ]
+    }
+  ],
+  "_parents": [
+    {
+      "from": "member",
+      "to": "customer",
+      "kind": "actor",
+      "points": [
+        [
+          100,
+          375
+        ],
+        [
+          100,
+          331
+        ]
+      ]
+    },
+    {
+      "from": "paycard",
+      "to": "pay",
+      "kind": "useCase",
+      "points": [
+        [
+          746,
+          440
+        ],
+        [
+          746,
+          418
+        ]
+      ]
+    },
+    {
+      "from": "paywallet",
+      "to": "pay",
+      "kind": "useCase",
+      "points": [
+        [
+          746,
+          506
+        ],
+        [
+          746,
+          418
+        ]
+      ]
+    }
+  ],
+  "canvas": {
+    "width": 1128,
+    "height": 1298,
+    "crossings": 2,
+    "hits": 0
+  }
+}

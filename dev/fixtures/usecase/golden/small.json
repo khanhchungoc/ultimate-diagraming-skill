@@ -1,0 +1,372 @@
+{
+  "diagramType": "usecase",
+  "title": "Online shop",
+  "colorKey": {
+    "1": "Ordering",
+    "2": "Payments",
+    "4": "Fulfilment"
+  },
+  "subjects": [
+    {
+      "id": "shop",
+      "name": "Storefront",
+      "x": 256,
+      "w": 560,
+      "_titleH": 36,
+      "y": 40,
+      "h": 202
+    },
+    {
+      "id": "office",
+      "name": "Back office",
+      "x": 256,
+      "w": 560,
+      "_titleH": 36,
+      "y": 274,
+      "h": 174
+    }
+  ],
+  "actors": [
+    {
+      "id": "customer",
+      "name": "Customer",
+      "_side": "left",
+      "_lines": [
+        "Customer"
+      ],
+      "w": 68,
+      "h": 80,
+      "_figW": 36,
+      "_figH": 56,
+      "x": 66,
+      "y": 53
+    },
+    {
+      "id": "member",
+      "name": "Registered customer",
+      "parent": "customer",
+      "_side": "left",
+      "_lines": [
+        "Registered",
+        "customer"
+      ],
+      "w": 84,
+      "h": 100,
+      "_figW": 36,
+      "_figH": 56,
+      "x": 58,
+      "y": 177
+    },
+    {
+      "id": "clerk",
+      "name": "Warehouse clerk",
+      "_side": "left",
+      "_lines": [
+        "Warehouse clerk"
+      ],
+      "w": 120,
+      "h": 80,
+      "_figW": 36,
+      "_figH": 56,
+      "x": 40,
+      "y": 301
+    },
+    {
+      "id": "psp",
+      "name": "Payment gateway",
+      "kind": "system",
+      "side": "right",
+      "_side": "right",
+      "_lines": [
+        "Payment gateway"
+      ],
+      "w": 136,
+      "h": 84,
+      "_figW": 136,
+      "_figH": 84,
+      "x": 912,
+      "y": 106
+    },
+    {
+      "id": "nightly",
+      "name": "Nightly",
+      "kind": "time",
+      "_side": "left",
+      "_lines": [
+        "Nightly"
+      ],
+      "w": 112,
+      "h": 84,
+      "_figW": 112,
+      "_figH": 84,
+      "x": 44,
+      "y": 405
+    }
+  ],
+  "useCases": [
+    {
+      "id": "browse",
+      "name": "Browse catalogue",
+      "subject": "shop",
+      "color": "1",
+      "refs": [
+        "FR-1"
+      ],
+      "_lines": [
+        "Browse catalogue"
+      ],
+      "_compH": 0,
+      "w": 164,
+      "h": 44,
+      "x": 284,
+      "y": 96
+    },
+    {
+      "id": "checkout",
+      "name": "Check out",
+      "subject": "shop",
+      "color": "1",
+      "refs": [
+        "FR-4",
+        "FR-5"
+      ],
+      "extensionPoints": [
+        "Payment"
+      ],
+      "_lines": [
+        "Check out"
+      ],
+      "_compH": 26,
+      "w": 128,
+      "h": 72,
+      "x": 302,
+      "y": 150
+    },
+    {
+      "id": "voucher",
+      "name": "Apply voucher",
+      "subject": "shop",
+      "color": "1",
+      "refs": [
+        "FR-6"
+      ],
+      "_lines": [
+        "Apply voucher"
+      ],
+      "_compH": 0,
+      "w": 140,
+      "h": 44,
+      "x": 648,
+      "y": 178
+    },
+    {
+      "id": "pay",
+      "name": "Take payment",
+      "subject": "shop",
+      "color": "2",
+      "level": "subfunction",
+      "_lines": [
+        "Take payment"
+      ],
+      "_compH": 0,
+      "w": 112,
+      "h": 40,
+      "x": 662,
+      "y": 128
+    },
+    {
+      "id": "pick",
+      "name": "Pick order",
+      "subject": "office",
+      "color": "4",
+      "refs": [
+        "FR-9"
+      ],
+      "_lines": [
+        "Pick order"
+      ],
+      "_compH": 0,
+      "w": 128,
+      "h": 44,
+      "x": 472,
+      "y": 330
+    },
+    {
+      "id": "reconcile",
+      "name": "Reconcile payments",
+      "subject": "office",
+      "color": "2",
+      "refs": [
+        "FR-12"
+      ],
+      "_lines": [
+        "Reconcile payments"
+      ],
+      "_compH": 0,
+      "w": 180,
+      "h": 44,
+      "x": 446,
+      "y": 384
+    }
+  ],
+  "links": [
+    {
+      "id": "l1",
+      "type": "association",
+      "from": "customer",
+      "to": "browse",
+      "points": [
+        [
+          118,
+          83.5
+        ],
+        [
+          293.2,
+          107.9
+        ]
+      ]
+    },
+    {
+      "id": "l2",
+      "type": "association",
+      "from": "member",
+      "to": "checkout",
+      "points": [
+        [
+          118,
+          203.7
+        ],
+        [
+          302.5,
+          190.5
+        ]
+      ]
+    },
+    {
+      "id": "l3",
+      "type": "include",
+      "from": "checkout",
+      "to": "pay",
+      "points": [
+        [
+          428.9,
+          179.2
+        ],
+        [
+          664.4,
+          153.8
+        ]
+      ],
+      "labelBox": {
+        "x": 503,
+        "y": 156,
+        "w": 87,
+        "h": 22
+      }
+    },
+    {
+      "id": "l4",
+      "type": "extend",
+      "from": "voucher",
+      "to": "checkout",
+      "condition": "customer has a code",
+      "extensionPoint": "Payment",
+      "points": [
+        [
+          648.6,
+          197.2
+        ],
+        [
+          429.8,
+          188.5
+        ]
+      ],
+      "labelBox": {
+        "x": 457,
+        "y": 185,
+        "w": 163,
+        "h": 38
+      }
+    },
+    {
+      "id": "l5",
+      "type": "association",
+      "from": "pay",
+      "to": "psp",
+      "points": [
+        [
+          774,
+          148
+        ],
+        [
+          912,
+          148
+        ]
+      ]
+    },
+    {
+      "id": "l6",
+      "type": "association",
+      "from": "clerk",
+      "to": "pick",
+      "points": [
+        [
+          118,
+          329.9
+        ],
+        [
+          472.7,
+          348.7
+        ]
+      ]
+    },
+    {
+      "id": "l7",
+      "type": "association",
+      "from": "nightly",
+      "to": "reconcile",
+      "points": [
+        [
+          156,
+          441.7
+        ],
+        [
+          452,
+          413.9
+        ]
+      ]
+    }
+  ],
+  "notes": [
+    {
+      "id": "n1",
+      "text": "Guest checkout allowed up to 200 EUR (BR-3)",
+      "useCases": [
+        "checkout"
+      ]
+    }
+  ],
+  "_parents": [
+    {
+      "from": "member",
+      "to": "customer",
+      "kind": "actor",
+      "points": [
+        [
+          100,
+          177
+        ],
+        [
+          100,
+          133
+        ]
+      ]
+    }
+  ],
+  "canvas": {
+    "width": 1088,
+    "height": 529,
+    "crossings": 0,
+    "hits": 0
+  }
+}

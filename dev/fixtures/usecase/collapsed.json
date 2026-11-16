@@ -1,0 +1,31 @@
+{
+  "diagramType": "usecase",
+  "title": "Online shop (Back office collapsed)",
+  "subjects": [
+    { "id": "shop", "name": "Storefront" },
+    { "id": "office", "name": "Back office", "collapsed": true },
+    { "id": "legacy", "name": "Legacy import", "collapsed": true }
+  ],
+  "actors": [
+    { "id": "customer", "name": "Customer" },
+    { "id": "clerk", "name": "Warehouse clerk" },
+    { "id": "carrier", "name": "Carrier API", "kind": "system" }
+  ],
+  "useCases": [
+    { "id": "order", "name": "Place order", "subject": "shop" },
+    { "id": "pay", "name": "Pay for order", "subject": "shop" },
+    { "id": "pick", "name": "Pick order", "subject": "office" },
+    { "id": "ship", "name": "Dispatch shipment", "subject": "office" },
+    { "id": "import", "name": "Import old orders", "subject": "legacy" }
+  ],
+  "links": [
+    { "id": "l1", "type": "association", "from": "customer", "to": "order" },
+    { "id": "l2", "type": "include", "from": "order", "to": "pay" },
+    { "id": "l3", "type": "association", "from": "clerk", "to": "pick" },
+    { "id": "l4", "type": "association", "from": "clerk", "to": "ship" },
+    { "id": "l5", "type": "include", "from": "ship", "to": "pick" },
+    { "id": "l6", "type": "association", "from": "ship", "to": "carrier" },
+    { "id": "l7", "type": "include", "from": "order", "to": "pick" },
+    { "id": "l8", "type": "association", "from": "clerk", "to": "import" }
+  ]
+}
