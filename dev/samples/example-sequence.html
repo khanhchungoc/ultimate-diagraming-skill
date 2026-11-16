@@ -1659,7 +1659,7 @@
       <li><kbd>Drag Message</kbd> : Move up or down to change the order in time (dropped inside a frame, it joins it)</li>
       <li><kbd>Shift</kbd> + <kbd>Click</kbd> a second message, or <kbd>Shift</kbd> + drag on blank canvas : Select a range, then <b>Frame</b> wraps it</li>
       <li><kbd>Drag</kbd> a selected frame's top or bottom handle : Change the messages it covers</li>
-      <li><b>Action bar</b> over the selection : <b>No reply expected</b> (async), reverse, reply; participant kind; frame kind, colour, <b>+ branch</b></li>
+      <li><b>Action bar</b> over the selection : <b>No reply expected</b> (async), reverse, reply, <b>Note</b>, <b>Frame</b>; participant kind, <b>Note</b>; frame kind, colour, <b>+ branch</b></li>
       <li><kbd>Double Click</kbd>, <kbd>Enter</kbd> or <kbd>F2</kbd> : Edit the text (<kbd>Tab</kbd> from a message label to its detail; <kbd>Shift</kbd> + <kbd>Enter</kbd> breaks a note's line)</li>
       <li><kbd>&uarr;</kbd> <kbd>&darr;</kbd> / <kbd>&larr;</kbd> <kbd>&rarr;</kbd> : Walk the messages / the participants (<kbd>Shift</kbd> grows a range, <kbd>Alt</kbd> moves the message)</li>
       <li><b>Chevron</b> in a frame tag : Collapse the frame to one row, or expand it (also in <kbd>?present</kbd>)</li>
@@ -1893,7 +1893,7 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
           if (o.onInput) text.addEventListener('input', o.onInput);
           return { card, text };
         }
-        return { confirm, closeConfirm, isConfirmOpen: () => !!confirmEl, noteCard, icon, iconEl };
+        return { confirm, closeConfirm, isConfirmOpen: () => !!confirmEl, noteCard, icon, iconEl, toast: (m) => showToast(m) };
       })();
 
       // --- CLAUDE.AI ARTIFACT (only active inside a published claude.ai artifact; elsewhere none of this runs) ---
@@ -3691,7 +3691,7 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
       const hasKindIcon = (kind) => kind !== 'system' && !!ICONS[kindIconName(kind)];
       const PARTICIPANT_KINDS = ['system', 'actor', 'ui', 'database', 'queue', 'external'];
       const KIND_TITLES = {
-        system: 'System: a service, app or back end (the default)',
+        system: 'Service: a back-end service or app that is none of the kinds below (the default)',
         actor: 'Actor: a person (no activation bar when they start the flow)',
         ui: 'UI: a screen or front end', database: 'Database', queue: 'Queue: a message bus or topic',
         external: 'External: a third-party system (dashed outline)'
@@ -4156,6 +4156,9 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
         btn.disabled = !enabled;
         btn.title = title;
       }
+      const NOTE_HINT = 'To add a note, first click a message (the note goes under it) or a participant, then press Note';
+      const frameHint = (fc) => (fc ? 'A frame edge cuts through the selection: select whole frames only'
+        : 'To add a frame, first click a message, Shift+click another to select a range, then press Frame');
       // The frame the Frame button would make: the selected message range, if no frame's edge cuts through it
       function frameCandidate() {
         const ids = selIds(seqSel);
@@ -4183,12 +4186,12 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
         const msgOk = kind === 'participant' || kind === 'message';
         setDockButton(btnAddMessage, msgOk, msgOk ? 'Add a message after the selected one (or at the first row from the selected participant). Or drag from a lifeline\'s + to another lifeline'
           : chartData.participants.length ? 'Select a participant or a message first (or drag from a lifeline\'s + to another lifeline)' : 'Add a participant first');
+        // Frame and Note stay clickable: without a selection they say what to select (frameHint, NOTE_HINT)
         const fc = frameCandidate();
-        setDockButton(btnFrame, !!(fc && fc.ok), !fc ? 'Select a message, or a range (Shift+click a second message), to wrap it in a frame'
-          : fc.ok ? `Wrap the selected message${fc.a === fc.b ? '' : 's'} in a frame` : 'A frame edge cuts through the selection: select whole frames only');
+        setDockButton(btnFrame, true, fc && fc.ok ? `Wrap the selected message${fc.a === fc.b ? '' : 's'} in a frame` : frameHint(fc));
         const noteOk = kind === 'participant' || kind === 'message';
-        setDockButton(btnAddNote, noteOk, noteOk ? (kind === 'message' ? 'Add a note under the selected message, over its sender' : 'Add a note over the selected participant, above the first message')
-          : 'Select a message or a participant to add a note');
+        setDockButton(btnAddNote, true, noteOk ? (kind === 'message' ? 'Add a note under the selected message, over its sender' : 'Add a note over the selected participant, above the first message')
+          : NOTE_HINT);
       }
 
       function select(kind, id, extra) {
@@ -4799,6 +4802,9 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
           }
           bar.appendChild(abButton('reverse', ui.icon('reverse'), 'Reverse the direction'));
           if ((m.kind || 'sync') === 'sync' && m.from !== m.to) bar.appendChild(abButton('reply', `${ui.icon('reply')}<span>Reply</span>`, 'Add the reply under this call (or under the last message of its bar)'));
+          bar.appendChild(htmlEl('span', 'seq-ab-sep'));
+          bar.appendChild(abButton('note', `${ui.icon('note')}<span>Note</span>`, 'Add a note under this message, over its sender'));
+          bar.appendChild(abButton('frame', `${ui.icon('frame')}<span>Frame</span>`, 'Wrap the selected message (or Shift+click range) in a frame'));
           const self = m.from === m.to;
           at = { x: self ? a.x + SQ.SELF_LOOP + 60 : (a.x + b.x) / 2, y: m.y - 62 };
           // End handles: drag one to another lifeline to move that end
@@ -4814,6 +4820,8 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
             bar.appendChild(htmlEl('span', 'seq-ab-sep'));
           }
           PARTICIPANT_KINDS.forEach((k) => bar.appendChild(abButton('pkind', ui.icon(kindIconName(k)), KIND_TITLES[k], (p.kind || 'system') === k, k)));
+          bar.appendChild(htmlEl('span', 'seq-ab-sep'));
+          bar.appendChild(abButton('note', `${ui.icon('note')}<span>Note</span>`, 'Add a note over this participant, above the first message'));
           bar.appendChild(htmlEl('span', 'seq-ab-break'));
           bar.appendChild(swatchRow(swatchOf(p) || '', (slot) => setParticipantColor(p.id, slot), { btnClass: 'seq-ab-swatch' }));
           if (p.column) {
@@ -4880,6 +4888,8 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
       });
       function runAction(act, value) {
         const sel = seqSel;
+        if (act === 'note') { btnAddNote.click(); return; }
+        if (act === 'frame') { btnFrame.click(); return; }
         if (sel.kind === 'message') {
           const m = msgById(sel.id);
           if (!m) return;
@@ -5352,7 +5362,7 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
       btnFrame.addEventListener('click', () => {
         ensureModel();
         const fc = frameCandidate();
-        if (!fc || !fc.ok) return;
+        if (!fc || !fc.ok) { ui.toast(frameHint(fc)); return; }
         const ms = chartData.messages;
         const f = { id: seqUid('f'), kind: 'opt', label: 'condition', from: ms[fc.a].id, to: ms[fc.b].id };
         chartData.fragments.push(f);
@@ -5360,7 +5370,7 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
       });
 
       btnAddNote.addEventListener('click', () => {
-        if (!seqSel || (seqSel.kind !== 'message' && seqSel.kind !== 'participant')) return;
+        if (!seqSel || (seqSel.kind !== 'message' && seqSel.kind !== 'participant')) { ui.toast(NOTE_HINT); return; }
         const n = { id: seqUid('n'), text: 'Note' };
         if (seqSel.kind === 'message') {
           const ids = selIds(seqSel), m = msgById(ids[ids.length - 1]);

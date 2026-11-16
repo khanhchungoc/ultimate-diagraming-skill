@@ -203,7 +203,7 @@
           if (o.onInput) text.addEventListener('input', o.onInput);
           return { card, text };
         }
-        return { confirm, closeConfirm, isConfirmOpen: () => !!confirmEl, noteCard, icon, iconEl };
+        return { confirm, closeConfirm, isConfirmOpen: () => !!confirmEl, noteCard, icon, iconEl, toast: (m) => showToast(m) };
       })();
 
       // --- CLAUDE.AI ARTIFACT (only active inside a published claude.ai artifact; elsewhere none of this runs) ---

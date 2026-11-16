@@ -48,9 +48,12 @@ try {
   // the browser does the hit-testing and makes the click and dblclick events itself.
 
   // --- Repair (step 0) ---
-  t.check('Message, Frame and Note are disabled with nothing selected, and say what to select',
-    (await disabled('btn-add-message')) && (await disabled('btn-frame')) && (await disabled('btn-add-note'))
-      && /Select a message/.test(await t.ev(`document.getElementById('btn-frame').title`)) && !(await t.ev(`!!document.getElementById('btn-toggle-kind')`)));
+  t.check('with nothing selected Message is disabled, and Frame and Note stay clickable and say what to select',
+    (await disabled('btn-add-message')) && !(await disabled('btn-frame')) && !(await disabled('btn-add-note'))
+      && /first click a message/.test(await t.ev(`document.getElementById('btn-frame').title`)) && !(await t.ev(`!!document.getElementById('btn-toggle-kind')`)));
+  await t.clickOn('#btn-add-note');
+  t.check('Note with nothing selected shows a toast that says what to select, and adds nothing',
+    /first click a message/.test(await t.ev(`(document.querySelector('.toast') || {}).textContent || ''`)) && (await count('.note')) === 0);
   await t.clickOn(`.seq-msg-label[data-edge-id="m6"]`);
   const selected = await t.ev(`!!document.querySelector('.seq-msg-label.selected')`);
   t.check('selecting a message enables Message, Frame and Note, and shows its action bar',
@@ -279,8 +282,11 @@ try {
   // A range that cuts a frame cannot be framed
   await t.clickOn('.seq-msg-label[data-edge-id="m3"]');
   await t.clickOn('.seq-msg-label[data-edge-id="m5"]', { modifiers: 8 });
-  t.check('Frame is disabled, and says why, when a frame edge cuts through the range',
-    (await disabled('btn-frame')) && /cuts through/.test(await t.ev(`document.getElementById('btn-frame').title`)));
+  const framesBefore = await count('.frame-tag');
+  await t.clickOn('#btn-frame');
+  t.check('Frame says why, and adds nothing, when a frame edge cuts through the range',
+    /cuts through/.test(await t.ev(`document.getElementById('btn-frame').title`)) && (await count('.frame-tag')) === framesBefore
+      && /cuts through/.test(await t.ev(`[...document.querySelectorAll('.toast')].map((e) => e.textContent).join(' ')`)));
 
   // Drag a frame's bottom edge down one row
   await t.open(page);
