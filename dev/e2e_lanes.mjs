@@ -101,6 +101,14 @@ try {
   await selectLane(1);
   t.check('the only lane left has no delete button (nor move buttons)', (await count('.swimlane')) === 1 && (await count(bar())) === 1
     && (await count(bar(' [data-act="delete"], .lane-bar [data-act="later"], .lane-bar [data-act="earlier"]'))) === 0);
+  // One lane left: its bar can hide the lanes ("swimlanes": false); the Lane button then reads Show lanes and brings them back
+  await t.clickOn(bar(' [data-act="hide"]'));
+  t.check('Hide lanes turns the lane names off and saves "swimlanes": false', (await count('#swimlanes-container.no-swimlanes')) === 1 && (await saved()).swimlanes === false);
+  t.check('and the Lane button reads Show lanes', (await text('#btn-add-lane .btn-label')) === 'Show lanes');
+  await t.clickOn('#btn-add-lane');
+  t.check('Show lanes brings them back', (await count('#swimlanes-container.no-swimlanes')) === 0 && (await saved()).swimlanes === undefined);
+  await undo();
+  await undo();
   for (let i = 0; i < 2; i++) await undo();
 
   // 6. Never in an export, never in ?present

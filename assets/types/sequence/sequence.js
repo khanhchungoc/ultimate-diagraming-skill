@@ -1269,6 +1269,7 @@
             bar.appendChild(abButton('async', ui.icon('message-async'), 'No reply expected (fire and forget: an open arrowhead, no activation bar)', m.kind === 'async'));
             bar.appendChild(htmlEl('span', 'seq-ab-sep'));
           }
+          if ((m.kind || 'sync') === 'sync') bar.appendChild(abButton('activate', '<span>Bar</span>', 'Activation bar: the call is drawn as busy until its reply (off draws no bar for this call)', m.activate !== false));
           bar.appendChild(abButton('reverse', ui.icon('reverse'), 'Reverse the direction'));
           if ((m.kind || 'sync') === 'sync' && m.from !== m.to) bar.appendChild(abButton('reply', `${ui.icon('reply')}<span>Reply</span>`, 'Add the reply under this call (or under the last message of its bar)'));
           bar.appendChild(htmlEl('span', 'seq-ab-sep'));
@@ -1385,6 +1386,7 @@
           const m = msgById(sel.id);
           if (!m) return;
           if (act === 'async') { if (m.kind === 'reply') return; m.kind = m.kind === 'async' ? 'sync' : 'async'; relayout(); }
+          else if (act === 'activate') { if (m.activate === false) delete m.activate; else m.activate = false; relayout(); }
           else if (act === 'reverse') { const t = m.from; m.from = m.to; m.to = t; relayout(); }
           else if (act === 'reply') addReply(m);
         } else if (sel.kind === 'participant') {

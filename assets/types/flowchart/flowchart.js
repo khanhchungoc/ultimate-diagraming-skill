@@ -327,6 +327,10 @@
               if (index < chartData.lanes.length - 1) bar.appendChild(btn('later', ui.icon('chevron-down'), tb ? 'Move one place right' : 'Move one place down', 'lane-move'));
               bar.appendChild(ui.abSep());
               bar.appendChild(btn('delete', ui.icon('trash'), 'Delete swimlane (with its steps)', 'is-danger'));
+            } else {
+              // One lane is a one-actor diagram: the lane names and borders can go ("swimlanes": false; Show lanes brings them back)
+              bar.appendChild(ui.abSep());
+              bar.appendChild(btn('hide', `${ui.icon('eye')}<span>Hide lanes</span>`, 'Hide the lane name and borders (the Lane button then reads Show lanes)'));
             }
             // Buttons are not drag handles for the pill they sit in, and a press on the bar neither pans nor selects
             bar.addEventListener('pointerdown', (e) => e.stopPropagation());
@@ -338,6 +342,7 @@
               if (!b || b.dataset.act === undefined) return;
               if (b.dataset.act === 'rename') startRename();
               else if (b.dataset.act === 'delete') confirmDeleteLane(lane.id, b);
+              else if (b.dataset.act === 'hide') { chartData.swimlanes = false; selectedLaneId = null; render(); updateStatus(true); }
               else moveLane(index, b.dataset.act === 'earlier' ? -1 : 1);
             });
             pill.appendChild(bar);

@@ -1161,6 +1161,38 @@
       white-space: nowrap; cursor: pointer;
     }
     .frame-summary:hover { border-color: var(--primary); color: var(--primary); }
+    /* Action bar over a selection (ui.actionBar, ui.abButton, ui.abSep): a floating toolbar of icon and text buttons. The flowchart's
+       lane bar uses these classes; the ERD and the sequence keep their own prefixed twins. Hidden in ?present and in exports. */
+    .actionbar {
+      position: absolute; display: flex; align-items: center; gap: 2px; padding: 3px; z-index: 53;
+      background: var(--bg-panel); border: 1px solid var(--border-dark); border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-md); white-space: nowrap; cursor: default; font-weight: var(--weight-regular); text-align: left;
+      -webkit-user-select: none; user-select: none;
+    }
+    .ab-btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 4px; height: 26px; min-width: 26px; padding: 0 6px; box-sizing: border-box;
+      border: 1px solid transparent; border-radius: var(--radius-md); background: transparent; color: var(--text-soft);
+      font: inherit; font-size: var(--t-detail-size); cursor: pointer;
+    }
+    .ab-btn:hover { background: var(--bg-hover); color: var(--text-main); }
+    .ab-btn[aria-pressed="true"] { background: var(--primary-wash); border-color: var(--primary-ring); color: var(--primary); }
+    .ab-btn.is-danger:hover { background: color-mix(in srgb, var(--danger) 10%, var(--bg-panel)); color: var(--danger); }
+    .ab-btn svg { display: block; }
+    .ab-swatch { height: 26px; width: 26px; }
+    .ab-sep { width: 1px; height: 18px; margin: 0 3px; background: var(--border-color); }
+    body.presentation .actionbar, body.exporting .actionbar { display: none !important; }
+    /* Colour key: a legend of the swatches a diagram uses and what each means (`colorKey`), built by ui.colorKey. The type
+       positions it (sequence: above the card's top-left corner; ERD: above the tables). An entry with no label is a prompt in
+       edit and is left out of ?present and exports. */
+    .color-key { display: flex; width: max-content; gap: 4px 18px; white-space: nowrap; font-size: var(--t-detail-size); color: var(--text-soft); user-select: none; }
+    .color-key-item { display: inline-flex; align-items: center; gap: 6px; }
+    .color-key-dot { width: 12px; height: 12px; border-radius: var(--radius-xs); background: var(--sw-stripe); border: 1px solid var(--dot-edge-soft); box-sizing: border-box; }
+    .color-key-label { outline: none; min-width: 12px; cursor: text; }
+    .color-key-label.is-empty::before { content: attr(data-hint); font-style: italic; color: var(--text-muted); }
+    .color-key-label.is-editing { background: var(--bg-panel); outline: 1.5px solid var(--primary-ring); border-radius: var(--radius-xs); }
+    .color-key-label.is-selected { outline: 1.5px solid var(--primary-ring); border-radius: var(--radius-xs); }
+    body.presentation .color-key-item.is-unnamed, body.exporting .color-key-item.is-unnamed, body.capture .color-key-item.is-unnamed { display: none; }
+    body.presentation .color-key-label { pointer-events: none; }
 
 
     * {
@@ -1941,39 +1973,15 @@
       background: var(--lane-pill-solid);
       color: var(--sw-on-solid);
     }
-    /* Tools under the pill: reorder grip + delete, shown only while the lane is selected (hover would clutter) */
-    .lane-tools {
-      position: absolute;
-      top: calc(100% + 8px);
-      left: 0;
-      display: none;
-      gap: 6px;
-      cursor: default;
-    }
-    .swimlane.lane-selected .lane-tools { display: flex; }
-    /* (not hidden while the lane is dragged: removing the drag source from layout makes Chrome cancel the drag) */
-    .lane-pill.editing .lane-tools,
-    body.exporting .lane-tools { display: none !important; }
-    .lane-tool {
-      width: 28px;
-      height: 28px;
-      box-sizing: border-box;
-      padding: 0;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: var(--radius-round);
-      border: 1px solid var(--border-dark);
-      background: var(--bg-panel);
-      color: var(--text-soft);
-      box-shadow: var(--shadow-chip);
-      transition: background var(--ease), color var(--ease), border-color var(--ease);
-    }
-    .lane-tool svg { display: block; }
-    .lane-tool-move { cursor: grab; }
-    .lane-tool-move:hover { color: var(--text-main); border-color: var(--lane-stripe); }
-    .lane-tool-delete { cursor: pointer; font: inherit; }
-    #swimlanes-container.dir-tb .lane-tools { left: 50%; transform: translateX(-50%); }
+    /* The lane's action bar (components/actionbar.css) over its pill, shown only while the lane is selected; placeLaneBar flips
+       it under the pill near the top of the window. Not hidden while the lane is dragged (removing the drag source from
+       layout makes Chrome cancel the drag). */
+    .lane-bar { display: none; left: 0; bottom: calc(100% + 8px); }
+    .lane-bar.is-below { bottom: auto; top: calc(100% + 8px); }
+    .swimlane.lane-selected .lane-bar { display: flex; }
+    .lane-pill.editing .lane-bar { display: none !important; }
+    #swimlanes-container.dir-tb .lane-bar { left: 50%; transform: translateX(-50%); }
+    #swimlanes-container.dir-tb .lane-move svg { rotate: -90deg; }
     .lane-pill .lane-icon { width: auto; height: auto; border: none; background: none; border-radius: 0; color: inherit; }
     /* Exports draw each pill and stripe at the lane's own top-left, whatever the view, in the resting style */
     body.exporting .lane-pill { transform: translate(12px, 12px) !important; }
@@ -2217,7 +2225,7 @@
               <button id="btn-add-subprocess" class="btn btn-shape" data-node-type="subprocess" title="Subprocess: a process documented elsewhere (click, or drag onto the canvas or onto an arrow)" aria-label="Subprocess">
                 <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="1"/><path class="tile-line" d="M5.5 6v12M18.5 6v12"/></svg><span class="tile-caption">Subprocess</span>
               </button>
-              <button id="btn-add-io" class="btn btn-shape" data-node-type="io" title="Data: input or output (click, or drag onto the canvas or onto an arrow)" aria-label="Data">
+              <button id="btn-add-io" class="btn btn-shape" data-node-type="io" title="Data (input or output; click, or drag onto the canvas or onto an arrow)" aria-label="Data">
                 <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6h16l-4 12H2z"/></svg><span class="tile-caption">Data</span>
               </button>
               <button id="btn-add-document" class="btn btn-shape" data-node-type="document" title="Document (click, or drag onto the canvas or onto an arrow)" aria-label="Document">
@@ -2340,7 +2348,7 @@
       <li><kbd>Connector</kbd> : Hover a lettered circle (or a step wired to one) to light its partner; click it to jump there (also when presenting). <b>Drag a circle onto a step</b> to move that end of the pair: the flow then continues at that step (or comes from it). Double-click to change the letter of the whole pair; <kbd>Delete</kbd> joins the arrow back together</li>
       <li><kbd>Select Several Steps</kbd> : <kbd>Ctrl</kbd>/<kbd>Cmd</kbd>+click adds a step to the selection or takes it out; <kbd>Shift</kbd>+click selects the steps along the arrows from the step clicked last; <kbd>Shift</kbd>+drag on blank canvas draws a box (with <kbd>Ctrl</kbd>/<kbd>Cmd</kbd> too, each step it touches is added or taken out); <kbd>Ctrl</kbd>/<kbd>Cmd</kbd>+<kbd>A</kbd> selects every step; <kbd>Esc</kbd> or a click on blank canvas clears it</li>
       <li><kbd>Delete</kbd> : Delete the selected step, steps, arrow or lane (or the bar's Delete button, shown while something is selected, with the count when several steps are). One <kbd>Ctrl+Z</kbd> brings them all back</li>
-      <li><kbd>Click Lane Name</kbd> : Select the lane (a reorder grip and a delete button appear under its name); <kbd>Delete</kbd> then asks to confirm and removes it with its steps and their arrows (undo brings them back; the last lane stays)</li>
+      <li><kbd>Click Lane Name</kbd> : Select the lane: a bar appears over its name with the lane's <b>colour</b> (the dots; the first, empty one gives it back the colour for its position), <b>Rename</b>, move earlier or later (up and down, left and right in a top-to-bottom diagram) and delete. The lane's icon comes from the AI or is guessed from its name. <kbd>Delete</kbd> asks to confirm and removes it with its steps and their arrows (undo brings them back; the last lane stays)</li>
       <li><kbd>Drag Node</kbd> : Drop a step into another lane (or onto an arrow). With <b>Auto-Tidy</b> on, the layout tidies itself after every step you add, move or delete (<kbd>Ctrl+Z</kbd> undoes both at once), except a shape dragged onto blank canvas, which stays where you drop it until you connect it; with it off, steps stay where you drop them and snap to other steps' and lane centers. With several steps selected, drag any of them to move them all (each keeps its lane offset); <kbd>Alt</kbd>+<kbd>↑</kbd>/<kbd>↓</kbd> moves the selection one lane up or down (<kbd>←</kbd>/<kbd>→</kbd> in a top-to-bottom diagram)</li>
       <li><kbd>Move Steps in the Flow</kbd> : Select a step, or a run of steps with one way in and one way out (<kbd>Shift</kbd>+click its first and last step), and drag it onto another arrow while holding <kbd>Alt</kbd>: the run moves there and the gap it leaves closes up. <kbd>Alt</kbd>+<kbd>←</kbd>/<kbd>→</kbd> (<kbd>↑</kbd>/<kbd>↓</kbd> top to bottom) moves it one step earlier or later along a straight part of the flow. Without <kbd>Alt</kbd>, dragging a connected step never rewires it</li>
       <li><kbd>Reorder Steps</kbd> : Rewire the arrows (drag an arrow's end to another step, or delete and redraw it). Arrow edits never re-arrange the diagram, so it holds still while you rewire; press <b>Tidy</b> (or edit a step) to lay out the new order</li>
@@ -2352,7 +2360,7 @@
       <li><kbd>Notes</kbd> : Show or hide every note at once; they are fitted into the gaps between steps (saved with the file). Drag a note to place it yourself: it then follows its step. Double-click to edit, <kbd>Delete</kbd> removes the selected note</li>
       <li><kbd>Vertical / Horizontal</kbd> : Switch between a left-to-right and a top-to-bottom layout (lanes become columns); saved with the file</li>
       <li><kbd>Show lanes</kbd> : In a diagram drawn without swimlanes, the Lane button reads Show lanes and turns them back on (name the actor, then add more lanes)</li>
-      <li><kbd>Drag Lane Name</kbd> : Drag a lane's name pill to reorder swimlanes (a blue line shows where it will land); double-click the name to rename</li>
+      <li><kbd>Drag Lane Name</kbd> : Drag a lane's name pill to reorder swimlanes (a blue line shows where it will land), or use the move buttons in its bar; double-click the name to rename</li>
       <li><kbd>Double Click</kbd> : Edit step text, lane names, or edge conditions</li>
       <li><kbd>Ctrl</kbd> + <kbd>S</kbd> : Save changes directly into HTML</li>
       <li><b>Export</b> (top right): download the whole diagram as an SVG or a 1.5x PNG, or copy it to the clipboard as a 1.5x PNG</li>
@@ -2585,7 +2593,60 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
           if (o.onInput) text.addEventListener('input', o.onInput);
           return { card, text };
         }
-        return { confirm, closeConfirm, isConfirmOpen: () => !!confirmEl, noteCard, icon, iconEl, toast: (m) => showToast(m) };
+        // The action bar over a selection (never exported, never in ?present: the type hides it there). `cls` is the bar's own
+        // class and the button class `ab-btn` / `ab-sep` follow the type's naming when it passes them (the ERD and the sequence
+        // keep their `erd-` and `seq-` classes); the flowchart uses the shared `actionbar`, `ab-btn` and `ab-sep`
+        // (components/actionbar.css). abButton: act and value go in data-act / data-value; pressed (when not undefined) in aria-pressed.
+        function actionBar(cls, label) {
+          const bar = document.createElement('div');
+          bar.className = cls;
+          bar.dataset.exportSkip = '';
+          bar.setAttribute('role', 'toolbar');
+          if (label) bar.setAttribute('aria-label', label);
+          return bar;
+        }
+        function abButton(cls, act, html, title, pressed, value, extra) {
+          const b = document.createElement('button');
+          b.className = extra ? `${cls} ${extra}` : cls;
+          b.type = 'button';
+          b.dataset.act = act;
+          if (value !== undefined) b.dataset.value = value;
+          b.title = title;
+          b.setAttribute('aria-label', title);
+          if (pressed !== undefined) b.setAttribute('aria-pressed', String(!!pressed));
+          b.innerHTML = html;
+          return b;
+        }
+        const abSep = (cls) => { const s = document.createElement('span'); s.className = cls || 'ab-sep'; return s; };
+        // The colour legend: one entry per colour in `used` (slots), a dot and its label from `key` ({slot: text}). An entry
+        // with no label is drawn only with opts.prompts (a prompt "What does Blue mean?" for the edit, left out of ?present and
+        // exports). opts.cls adds a class to the legend (the type positions it). The label span carries data-color for the
+        // type's own edit. Returns the element, or null when no entry is drawn.
+        function colorKey(used, key, opts) {
+          const o = opts || {};
+          const items = used.filter((c) => o.prompts || (key && key[c]));
+          if (!items.length) return null;
+          const box = document.createElement('div');
+          box.className = `color-key${o.cls ? ' ' + o.cls : ''}`;
+          items.forEach((color) => {
+            const label = (key && key[color]) || '';
+            const item = document.createElement('div');
+            item.className = `color-key-item${label ? '' : ' is-unnamed'}`;
+            const dot = document.createElement('span');
+            dot.className = 'color-key-dot';
+            setSwatch(dot, color);
+            item.appendChild(dot);
+            const text = document.createElement('span');
+            text.className = `color-key-label${label ? '' : ' is-empty'}`;
+            text.dataset.color = color;
+            if (!label) text.dataset.hint = `What does ${(paletteOf(color) || {}).name || color} mean?`;
+            text.textContent = label;
+            item.appendChild(text);
+            box.appendChild(item);
+          });
+          return box;
+        }
+        return { confirm, closeConfirm, isConfirmOpen: () => !!confirmEl, noteCard, actionBar, abButton, abSep, colorKey, icon, iconEl, toast: (m) => showToast(m) };
       })();
 
       // --- CLAUDE.AI ARTIFACT (only active inside a published claude.ai artifact; elsewhere none of this runs) ---
@@ -4040,7 +4101,7 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
         {
           const ranks0 = ranksWithZero(new Set());
           const backOut = {};
-          back.forEach(k => { const [a, b] = k.split(''); (backOut[a] = backOut[a] || []).push(b); });
+          back.forEach(k => { const [a, b] = k.split('\x01'); (backOut[a] = backOut[a] || []).push(b); });
           const reaches = (from, to, fwd) => {
             const adj = {};
             fwd.forEach(x => { (adj[x.from] = adj[x.from] || []).push(x.to); });
@@ -4574,7 +4635,7 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
         // Stacking v straight under (or over) u leaves a loop-back that arrives from u's side no way into v's
         // near side (u is in the way), so it would have to wrap around u. Such an arrow keeps its own column.
         const loopBlocked = (c) => [...back].some(k => {
-          const [a, b] = k.split('');
+          const [a, b] = k.split('\x01');
           if (b !== c.to || !nodeMap[a]) return false;
           const la = laneIdx[nodeMap[a].laneId], lu = laneIdx[nodeMap[c.from].laneId];
           return c.side === 'down' ? la <= lu : la >= lu;
@@ -5210,6 +5271,7 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
             laneEl.style.setProperty('--pill-x', `${x}px`);
             laneEl.style.setProperty('--pill-cx', `${Math.max(inset, (w - pw) / 2)}px`);   // centred at rest (exports)
           });
+          placeLaneBar();
           return;
         }
         const x0 = Math.max(0, visLeft);       // visible left edge of the lanes
@@ -5222,11 +5284,38 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
         lanesRoot.querySelectorAll('.swimlane').forEach(laneEl => {
           const pill = laneEl.querySelector('.lane-pill');
           if (!pill) return;
-          const pillH = pill.offsetHeight + (pill.querySelector('.lane-tools') ? 36 : 0);   // + hover tools below it
+          const pillH = pill.offsetHeight;
           const maxY = Math.max(inset, laneEl.offsetHeight - pillH - inset);
           const y = Math.min(Math.max(visTop - laneEl.offsetTop + inset, inset), maxY);
           laneEl.style.setProperty('--pill-y', `${y}px`);
         });
+        placeLaneBar();
+      }
+
+      // The selected lane's bar sits over its pill, or under it when the pill is near the top of the window
+      function placeLaneBar() {
+        const bar = lanesRoot.querySelector('.lane-selected .lane-bar');
+        if (!bar) return;
+        const pill = bar.parentElement;
+        bar.classList.remove('is-below');
+        const need = bar.offsetHeight * scale + 16;
+        if (pill.getBoundingClientRect().top - viewport.getBoundingClientRect().top < need) bar.classList.add('is-below');
+      }
+      // A lane's colour: a palette slot, or '' for none (the colour for its position). One undo step.
+      function setLaneColor(laneId, slot) {
+        const lane = chartData.lanes.find(l => l.id === laneId);
+        if (!lane || (lane.color || '') === slot) return;
+        if (slot) lane.color = slot; else delete lane.color;
+        render();
+        updateStatus(true);
+      }
+      // Moves a lane one place (-1 earlier, +1 later), like dragging its pill there
+      function moveLane(index, dir) {
+        const to = index + dir;
+        if (to < 0 || to >= chartData.lanes.length) return;
+        const [moved] = chartData.lanes.splice(index, 1);
+        chartData.lanes.splice(to, 0, moved);
+        relayout();   // lane order changes how steps are ordered and where loop-backs run
       }
 
       function renderLanes(trackWidth) {
@@ -5294,39 +5383,43 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
           title.spellcheck = false;
           title.textContent = lane.name;
           pill.appendChild(title);
-          // Tools under the pill (shown while the lane is selected): a reorder grip, which drags the pill it
-          // belongs to, and a delete button (hidden when this is the only lane)
+          // The lane's action bar (shown while the lane is selected, over the pill; below it near the viewport's top edge):
+          // colour (none = the colour for its position), rename, move earlier / later, delete (not on the only lane)
           if (editable) {
-            const tools = document.createElement('div');
-            tools.className = 'lane-tools';
-            tools.dataset.exportSkip = '';
-            const grip = document.createElement('span');
-            grip.className = 'lane-tool lane-tool-move';
-            grip.dataset.tip = 'Drag to reorder swimlane';
-            grip.setAttribute('aria-label', 'Reorder swimlane');
-            grip.innerHTML = ui.icon('grip');
-            grip.addEventListener('click', (e) => e.stopPropagation());
-            tools.appendChild(grip);
+            const bar = ui.actionBar('actionbar lane-bar', 'Swimlane');
+            const btn = (act, html, title, extra) => ui.abButton('ab-btn', act, html, title, undefined, undefined, extra);
+            bar.appendChild(swatchRow(lane.color || '', (slot) => setLaneColor(lane.id, slot), { btnClass: 'ab-swatch' }));
+            bar.appendChild(ui.abSep());
+            bar.appendChild(btn('rename', `${ui.icon('label')}<span>Rename</span>`, 'Rename the lane (or double-click its name)'));
             if (chartData.lanes.length > 1) {
-              const del = document.createElement('button');
-              del.type = 'button';
-              del.className = 'lane-tool lane-tool-delete btn-danger-hover';
-              del.draggable = false;
-              del.dataset.tip = 'Delete swimlane (with its steps)';
-              del.setAttribute('aria-label', 'Delete swimlane');
-              del.innerHTML = ui.icon('trash');
-              del.addEventListener('pointerdown', (e) => e.stopPropagation());
-              del.addEventListener('dragstart', (e) => { e.preventDefault(); e.stopPropagation(); });
-              del.addEventListener('click', (e) => { e.stopPropagation(); confirmDeleteLane(lane.id, del); });
-              tools.appendChild(del);
+              bar.appendChild(ui.abSep());
+              if (index > 0) bar.appendChild(btn('earlier', ui.icon('chevron-up'), tb ? 'Move one place left' : 'Move one place up', 'lane-move'));
+              if (index < chartData.lanes.length - 1) bar.appendChild(btn('later', ui.icon('chevron-down'), tb ? 'Move one place right' : 'Move one place down', 'lane-move'));
+              bar.appendChild(ui.abSep());
+              bar.appendChild(btn('delete', ui.icon('trash'), 'Delete swimlane (with its steps)', 'is-danger'));
+            } else {
+              // One lane is a one-actor diagram: the lane names and borders can go ("swimlanes": false; Show lanes brings them back)
+              bar.appendChild(ui.abSep());
+              bar.appendChild(btn('hide', `${ui.icon('eye')}<span>Hide lanes</span>`, 'Hide the lane name and borders (the Lane button then reads Show lanes)'));
             }
-            pill.appendChild(tools);
+            // Buttons are not drag handles for the pill they sit in, and a press on the bar neither pans nor selects
+            bar.addEventListener('pointerdown', (e) => e.stopPropagation());
+            bar.addEventListener('dragstart', (e) => { e.preventDefault(); e.stopPropagation(); });
+            bar.addEventListener('dblclick', (e) => e.stopPropagation());
+            bar.addEventListener('click', (e) => {
+              e.stopPropagation();
+              const b = e.target.closest('.ab-btn');
+              if (!b || b.dataset.act === undefined) return;
+              if (b.dataset.act === 'rename') startRename();
+              else if (b.dataset.act === 'delete') confirmDeleteLane(lane.id, b);
+              else if (b.dataset.act === 'hide') { chartData.swimlanes = false; selectedLaneId = null; render(); updateStatus(true); }
+              else moveLane(index, b.dataset.act === 'earlier' ? -1 : 1);
+            });
+            pill.appendChild(bar);
           }
           if (tb) pill.style.maxWidth = `${Math.max(80, computedHeight - 2 * PILL_INSET)}px`;   // stays inside its column
 
-          title.addEventListener('dblclick', (e) => {
-            if (!editable) return;
-            e.stopPropagation();
+          function startRename() {
             pill.draggable = false;   // a draggable ancestor would swallow text selection
             pill.classList.add('editing');
             title.contentEditable = 'true';
@@ -5336,6 +5429,11 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
             const sel = window.getSelection();
             sel.removeAllRanges();
             sel.addRange(range);
+          }
+          title.addEventListener('dblclick', (e) => {
+            if (!editable) return;
+            e.stopPropagation();
+            startRename();
           });
           title.addEventListener('blur', () => {
             title.contentEditable = 'false';
@@ -5489,11 +5587,7 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
         const insertIdx = laneInsertIndexAt(e.clientX, e.clientY);
         const to = insertIdx > from ? insertIdx - 1 : insertIdx;
         endLaneDrag();
-        if (to !== from) {
-          const [moved] = chartData.lanes.splice(from, 1);
-          chartData.lanes.splice(to, 0, moved);
-          relayout();   // lane order changes how steps are ordered and where loop-backs run
-        }
+        if (to !== from) moveLane(from, to - from);
       });
 
       // A start/end node with no label collapses to a circle, centred in its normal 144x64 slot
@@ -9149,7 +9243,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         text.contentEditable = 'false';
         if (editingNoteId !== note.id) return;
         editingNoteId = null;
-        const value = text.innerText.replace(/ /g, ' ').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+        const value = text.innerText.replace(/\u00a0/g, ' ').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
         if (value) note.text = value;
         else {
           chartData.notes = notesList().filter(n => n !== note);

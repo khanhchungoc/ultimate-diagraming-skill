@@ -58,6 +58,7 @@ We asked an AI (Claude Haiku) to summarize 4 saved diagrams, from 9 to 41 steps 
 | | **Ultimate Diagram** | **Mermaid** | **draw.io** |
 |---|:---:|:---:|:---:|
 | Edit by dragging and typing | ✅ | ❌ edit the code or ask the AI | ✅ |
+| Everything the AI wrote can be changed by hand | ✅ lane colours, legends, activation bars and more (a step's shape is still set by the AI) | ❌ edit the code | ✅ |
 | Opens with nothing to install | ✅ any browser | ✅ shown by GitHub, GitLab, VS Code | ⚠️ needs the draw.io app or website |
 | Real swimlanes | ✅ | ❌ coloured groups only | ✅ |
 | Switch wide / tall in one click | ✅ | ⚠️ edit the code | ❌ |
