@@ -704,15 +704,17 @@ function ucLines(m) {
   m.actors.forEach((a) => {
     if (!a.parent || !items[a.parent] || a.parent === a.id) return;
     const c = items[a.id], p = items[a.parent];
-    const pts = [ucClip(c, p.cx, p.cy, false), ucClip(p, c.cx, c.cy, true)];
-    parents.push({ from: a.id, to: a.parent, kind: 'actor', points: pts.map((q) => [ucR1(q[0]), ucR1(q[1])]) });
+    const r = route(c, p, false);
+    hits += r.h;
+    parents.push({ from: a.id, to: a.parent, kind: 'actor', points: r.pts.map((q) => [ucR1(q[0]), ucR1(q[1])]) });
   });
   m.cases.forEach((c) => {
     if (!c.parent || !items[c.parent] || c.parent === c.id) return;
     const a = items[c.id], p = items[c.parent];
     if (a.kind === 'bar' && p.kind === 'bar' && m.si[c.id] === m.si[c.parent]) return;
-    const pts = [ucClip(a, p.cx, p.cy, true), ucClip(p, a.cx, a.cy, true)];
-    parents.push({ from: c.id, to: c.parent, kind: 'useCase', points: pts.map((q) => [ucR1(q[0]), ucR1(q[1])]) });
+    const r = route(a, p, true);
+    hits += r.h;
+    parents.push({ from: c.id, to: c.parent, kind: 'useCase', points: r.pts.map((q) => [ucR1(q[0]), ucR1(q[1])]) });
   });
   m.data._parents = parents;
   m.hits = hits;

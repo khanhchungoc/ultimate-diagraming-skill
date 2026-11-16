@@ -31,7 +31,7 @@ CURVE_STEPS = 16
 INSIDE = 0.98              # a point is inside an ellipse when its normalised distance is under this (tolerates rounding)
 
 # Simple English check for "verb + object" names (info only). A name whose first word is not here gets an [INFO].
-VERBS = frozenset("""accept activate add allow answer apply approve archive ask assign assess authenticate authorise authorize
+VERBS = frozenset("""accept activate add allow raise answer apply approve archive ask assign assess authenticate authorise authorize
 back block book borrow browse bill buy calculate cancel capture change charge check choose claim clear close collect compare
 complete configure confirm contact convert count create deactivate delete deliver deposit dispatch download edit enable enter
 escalate evaluate export extend attach file find fulfil fulfill generate handle import invite invoice issue join leave link list load lock
@@ -40,7 +40,16 @@ prepare print process publish purchase query quote rate receive reconcile record
 renew rent replace report request reserve reset resolve restore resume retire retrieve return review revoke route run save scan
 schedule search select sell send set settle share ship show sign sort split start stop store submit subscribe suspend sync take
 tag terminate test top track transfer trigger unlock unsubscribe update upload use validate verify view vote watch withdraw
-write""".split())
+write adjust analyse analyze audit call comment coordinate decline define design display draft enrol enroll estimate filter fix
+follow forecast give grant help hire identify inform inspect install launch measure modify negotiate obtain onboard override
+perform play predict preview promote provide rank read recommend recover refresh repair replenish reply restock retry revise
+serve service shortlist simulate specify submit summarise summarize supply support swap translate upgrade visit void""".split())
+
+
+def _is_verb(word: str) -> bool:
+    """A known verb, or re- + a known verb (reorder, reassign)."""
+    w = word.lower()
+    return w in VERBS or (w.startswith("re") and w[2:] in VERBS)
 
 Box = Dict[str, float]
 
@@ -289,7 +298,7 @@ class UsecaseAudit:
         drawn_ucs = [u for u in ucs if not u.get("_hidden")]
         subj_boxes = ss if ss else (self.data.get("_subjects") or [])
         laid_out = (all(_has_box(a) for a in acs) and all(_has_box(u) for u in drawn_ucs)
-                    and all(isinstance(lk.get("points"), list) and len(lk["points"]) >= 2 for lk in ls)
+                    and all(isinstance(lk.get("points"), list) and len(lk["points"]) >= 2 for lk in ls if not lk.get("_hidden"))
                     and all(_is_box(s) for s in subj_boxes))
         overlaps = overflows = 0
         if (acs or ucs) and not laid_out:
@@ -456,7 +465,7 @@ class UsecaseAudit:
                             "unless another use case will share it.")
         for u in ucs:
             words = str(u.get("name") or "").split()
-            if words and words[0].lower().strip(".,:;") not in VERBS:
+            if words and not _is_verb(words[0].strip(".,:;")):
                 info.append(f"Use case '{u.get('id')}' name '{u.get('name')}' does not start with a verb: name goals verb + object.")
 
         score = max(0, 100 - ERROR_PENALTY * len(errors))

@@ -10,7 +10,7 @@
       "id": "atm",
       "name": "ATM",
       "x": 264,
-      "w": 764,
+      "w": 676,
       "_titleH": 36,
       "y": 40,
       "h": 370
@@ -58,8 +58,8 @@
       "h": 104,
       "_figW": 116,
       "_figH": 104,
-      "x": 1124,
-      "y": 166
+      "x": 1036,
+      "y": 171
     }
   ],
   "useCases": [
@@ -124,24 +124,24 @@
       "_compH": 0,
       "w": 112,
       "h": 40,
-      "x": 808,
-      "y": 198
+      "x": 764,
+      "y": 203
     },
     {
       "id": "limit",
-      "name": "Increase daily withdrawal limit for travelling abroad",
+      "name": "Raise daily limit for travel abroad",
       "subject": "atm",
       "color": "1",
       "abstract": true,
       "_lines": [
-        "Increase daily withdrawal",
-        "limit for travelling abroad"
+        "Raise daily limit",
+        "for travel abroad"
       ],
       "_compH": 0,
-      "w": 272,
+      "w": 184,
       "h": 60,
       "x": 728,
-      "y": 248
+      "y": 303
     },
     {
       "id": "receipt",
@@ -155,8 +155,8 @@
       "_compH": 0,
       "w": 120,
       "h": 40,
-      "x": 804,
-      "y": 318
+      "x": 760,
+      "y": 253
     },
     {
       "id": "service",
@@ -212,17 +212,17 @@
       "to": "pin",
       "points": [
         [
-          522.1,
-          267.7
+          521.8,
+          267.4
         ],
         [
-          812.1,
-          225.5
+          768.3,
+          230.7
         ]
       ],
       "labelBox": {
-        "x": 624,
-        "y": 236,
+        "x": 602,
+        "y": 238,
         "w": 87,
         "h": 22
       }
@@ -234,17 +234,17 @@
       "to": "pin",
       "points": [
         [
-          479.4,
-          202.8
+          478.9,
+          203.9
         ],
         [
-          808.3,
-          215.8
+          764.7,
+          219.9
         ]
       ],
       "labelBox": {
-        "x": 600,
-        "y": 198,
+        "x": 578,
+        "y": 201,
         "w": 87,
         "h": 22
       }
@@ -258,17 +258,17 @@
       "extensionPoint": "Print receipt",
       "points": [
         [
-          807.5,
-          331.3
+          760.2,
+          274.6
         ],
         [
-          523.9,
-          297.6
+          527.8,
+          280.8
         ]
       ],
       "labelBox": {
-        "x": 604,
-        "y": 287,
+        "x": 583,
+        "y": 267,
         "w": 123,
         "h": 54
       }
@@ -281,17 +281,17 @@
       "extensionPoint": "Choose amount",
       "points": [
         [
-          728.2,
-          279.8
+          733.6,
+          322.7
         ],
         [
-          527.9,
-          282.4
+          523.9,
+          297.6
         ]
       ],
       "labelBox": {
-        "x": 608,
-        "y": 263,
+        "x": 586,
+        "y": 325,
         "w": 80,
         "h": 22
       }
@@ -303,12 +303,12 @@
       "to": "bank",
       "points": [
         [
-          920,
-          218
+          876,
+          223
         ],
         [
-          1124,
-          218
+          1036,
+          223
         ]
       ]
     },
@@ -347,7 +347,7 @@
   ],
   "_parents": [],
   "canvas": {
-    "width": 1280,
+    "width": 1192,
     "height": 460,
     "crossings": 0,
     "hits": 0

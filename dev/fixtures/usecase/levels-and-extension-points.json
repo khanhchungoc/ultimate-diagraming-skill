@@ -13,7 +13,7 @@
     { "id": "withdraw", "name": "Withdraw cash", "subject": "atm", "color": "1", "extensionPoints": ["Choose amount", "Print receipt", "Offer currency exchange"] },
     { "id": "balance", "name": "Check balance", "subject": "atm", "color": "2" },
     { "id": "pin", "name": "Verify PIN", "subject": "atm", "level": "subfunction", "color": "2" },
-    { "id": "limit", "name": "Increase daily withdrawal limit for travelling abroad", "subject": "atm", "color": "1", "abstract": true },
+    { "id": "limit", "name": "Raise daily limit for travel abroad", "subject": "atm", "color": "1", "abstract": true },
     { "id": "receipt", "name": "Print receipt", "subject": "atm", "level": "subfunction", "color": "1" },
     { "id": "service", "name": "Service machine", "subject": "atm" }
   ],
