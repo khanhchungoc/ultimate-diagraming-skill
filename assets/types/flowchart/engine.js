@@ -134,7 +134,7 @@
         {
           const ranks0 = ranksWithZero(new Set());
           const backOut = {};
-          back.forEach(k => { const [a, b] = k.split(''); (backOut[a] = backOut[a] || []).push(b); });
+          back.forEach(k => { const [a, b] = k.split('\x01'); (backOut[a] = backOut[a] || []).push(b); });
           const reaches = (from, to, fwd) => {
             const adj = {};
             fwd.forEach(x => { (adj[x.from] = adj[x.from] || []).push(x.to); });
@@ -668,7 +668,7 @@
         // Stacking v straight under (or over) u leaves a loop-back that arrives from u's side no way into v's
         // near side (u is in the way), so it would have to wrap around u. Such an arrow keeps its own column.
         const loopBlocked = (c) => [...back].some(k => {
-          const [a, b] = k.split('');
+          const [a, b] = k.split('\x01');
           if (b !== c.to || !nodeMap[a]) return false;
           const la = laneIdx[nodeMap[a].laneId], lu = laneIdx[nodeMap[c.from].laneId];
           return c.side === 'down' ? la <= lu : la >= lu;
