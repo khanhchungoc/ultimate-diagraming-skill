@@ -1,0 +1,314 @@
+{
+  "diagramType": "usecase",
+  "title": "Library",
+  "actors": [
+    {
+      "id": "reader",
+      "name": "Reader",
+      "_side": "left",
+      "_lines": [
+        "Reader"
+      ],
+      "w": 72,
+      "h": 84,
+      "_figW": 56,
+      "_figH": 56,
+      "x": 42,
+      "y": 133
+    },
+    {
+      "id": "librarian",
+      "name": "Librarian",
+      "_side": "left",
+      "_lines": [
+        "Librarian"
+      ],
+      "w": 76,
+      "h": 84,
+      "_figW": 56,
+      "_figH": 56,
+      "x": 40,
+      "y": 241
+    },
+    {
+      "id": "catalog",
+      "name": "Catalogue service",
+      "kind": "system",
+      "side": "right",
+      "_side": "right",
+      "_lines": [
+        "Catalogue",
+        "service"
+      ],
+      "w": 76,
+      "h": 116,
+      "_figW": 56,
+      "_figH": 56,
+      "x": 847,
+      "y": 144
+    }
+  ],
+  "useCases": [
+    {
+      "id": "borrow",
+      "name": "Borrow book",
+      "_lines": [
+        "Borrow book"
+      ],
+      "_compH": 0,
+      "w": 132,
+      "h": 44,
+      "_r": 22,
+      "x": 260,
+      "y": 96
+    },
+    {
+      "id": "return",
+      "name": "Return book",
+      "_lines": [
+        "Return book"
+      ],
+      "_compH": 0,
+      "w": 132,
+      "h": 44,
+      "_r": 22,
+      "x": 260,
+      "y": 204
+    },
+    {
+      "id": "search",
+      "name": "Search catalogue",
+      "_lines": [
+        "Search catalogue"
+      ],
+      "_compH": 0,
+      "w": 172,
+      "h": 44,
+      "_r": 22,
+      "x": 240,
+      "y": 150
+    },
+    {
+      "id": "fine",
+      "name": "Charge late fine",
+      "_lines": [
+        "Charge late fine"
+      ],
+      "_compH": 0,
+      "w": 172,
+      "h": 44,
+      "_r": 22,
+      "x": 551,
+      "y": 204
+    },
+    {
+      "id": "register",
+      "name": "Register reader",
+      "_lines": [
+        "Register reader"
+      ],
+      "_compH": 0,
+      "w": 164,
+      "h": 44,
+      "_r": 22,
+      "x": 244,
+      "y": 258
+    }
+  ],
+  "links": [
+    {
+      "id": "l1",
+      "type": "association",
+      "from": "reader",
+      "to": "borrow",
+      "points": [
+        [
+          108.2,
+          153.9
+        ],
+        [
+          144.7,
+          145.2
+        ],
+        [
+          184.1,
+          118
+        ],
+        [
+          260,
+          118
+        ]
+      ]
+    },
+    {
+      "id": "l2",
+      "type": "association",
+      "from": "reader",
+      "to": "return",
+      "points": [
+        [
+          107.2,
+          171.4
+        ],
+        [
+          144.3,
+          184.7
+        ],
+        [
+          183.6,
+          226
+        ],
+        [
+          260,
+          226
+        ]
+      ]
+    },
+    {
+      "id": "l3",
+      "type": "association",
+      "from": "reader",
+      "to": "search",
+      "points": [
+        [
+          108.9,
+          163.1
+        ],
+        [
+          139,
+          165.1
+        ],
+        [
+          174.5,
+          172
+        ],
+        [
+          240,
+          172
+        ]
+      ]
+    },
+    {
+      "id": "l4",
+      "type": "association",
+      "from": "librarian",
+      "to": "register",
+      "points": [
+        [
+          108.9,
+          271
+        ],
+        [
+          140.2,
+          273.1
+        ],
+        [
+          176.5,
+          280
+        ],
+        [
+          244,
+          280
+        ]
+      ]
+    },
+    {
+      "id": "l5",
+      "type": "association",
+      "from": "librarian",
+      "to": "return",
+      "points": [
+        [
+          108.2,
+          261.9
+        ],
+        [
+          144.7,
+          253.2
+        ],
+        [
+          184.1,
+          226
+        ],
+        [
+          260,
+          226
+        ]
+      ]
+    },
+    {
+      "id": "l6",
+      "type": "association",
+      "from": "search",
+      "to": "catalog",
+      "points": [
+        [
+          412,
+          172
+        ],
+        [
+          518.8,
+          172
+        ],
+        [
+          633,
+          172
+        ],
+        [
+          854,
+          172
+        ]
+      ]
+    },
+    {
+      "id": "l7",
+      "type": "extend",
+      "from": "fine",
+      "to": "return",
+      "condition": "returned after the due date",
+      "points": [
+        [
+          551,
+          226
+        ],
+        [
+          529.1,
+          226
+        ],
+        [
+          471.5,
+          226
+        ],
+        [
+          392,
+          226
+        ]
+      ],
+      "labelBox": {
+        "x": 418,
+        "y": 199,
+        "w": 123,
+        "h": 54
+      }
+    }
+  ],
+  "schemaVersion": 1,
+  "_subjects": [
+    {
+      "id": "_main",
+      "name": "Library",
+      "x": 212,
+      "w": 539,
+      "_titleH": 36,
+      "y": 40,
+      "h": 282
+    }
+  ],
+  "_parents": [],
+  "canvas": {
+    "width": 963,
+    "height": 365,
+    "crossings": 0,
+    "hits": 0
+  }
+}

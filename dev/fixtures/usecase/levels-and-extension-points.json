@@ -1,0 +1,31 @@
+{
+  "diagramType": "usecase",
+  "title": "Bank ATM",
+  "colorKey": { "1": "Cash", "2": "Account" },
+  "subjects": [{ "id": "atm", "name": "ATM" }],
+  "actors": [
+    { "id": "holder", "name": "Account holder" },
+    { "id": "engineer", "name": "Service engineer" },
+    { "id": "bank", "name": "Core banking system", "kind": "system" }
+  ],
+  "useCases": [
+    { "id": "manage", "name": "Manage account at the ATM", "subject": "atm", "level": "summary", "color": "2" },
+    { "id": "withdraw", "name": "Withdraw cash", "subject": "atm", "color": "1", "extensionPoints": ["Choose amount", "Print receipt", "Offer currency exchange"] },
+    { "id": "balance", "name": "Check balance", "subject": "atm", "color": "2" },
+    { "id": "pin", "name": "Verify PIN", "subject": "atm", "level": "subfunction", "color": "2" },
+    { "id": "limit", "name": "Raise daily limit for travel abroad", "subject": "atm", "color": "1", "abstract": true },
+    { "id": "receipt", "name": "Print receipt", "subject": "atm", "level": "subfunction", "color": "1" },
+    { "id": "service", "name": "Service machine", "subject": "atm" }
+  ],
+  "links": [
+    { "id": "l1", "type": "association", "from": "holder", "to": "withdraw" },
+    { "id": "l2", "type": "association", "from": "holder", "to": "balance" },
+    { "id": "l3", "type": "include", "from": "withdraw", "to": "pin" },
+    { "id": "l4", "type": "include", "from": "balance", "to": "pin" },
+    { "id": "l5", "type": "extend", "from": "receipt", "to": "withdraw", "condition": "customer wants a receipt", "extensionPoint": "Print receipt" },
+    { "id": "l6", "type": "extend", "from": "limit", "to": "withdraw", "extensionPoint": "Choose amount" },
+    { "id": "l7", "type": "association", "from": "pin", "to": "bank" },
+    { "id": "l8", "type": "association", "from": "engineer", "to": "service" },
+    { "id": "l9", "type": "association", "from": "holder", "to": "manage" }
+  ]
+}

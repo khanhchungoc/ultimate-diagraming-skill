@@ -1,0 +1,203 @@
+    /* Use case diagram. Colours, fonts and the swatch roles (--sw-*) are tokens; buttons, notes, edge labels, confirm bubbles and
+       the rest of the shared parts are in assets/components/. Only what is specific to actors, use cases, subjects and their lines is here. */
+
+    #uc-canvas { position: relative; box-sizing: content-box; margin: 40px; }
+    /* No stacking context on the layers below: subjects (5) under lines (10) under actors and use cases (20) */
+    #uc-svg { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; z-index: 10; }
+    #uc-html { position: absolute; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; }
+    body.capture #uc-canvas { margin: 0; }
+    .uc-actor, .uc-case, .uc-subject-title, .edge-label { -webkit-user-select: none; user-select: none; }
+    [contenteditable]:not([contenteditable="false"]) { -webkit-user-select: text; user-select: text; cursor: text; outline: none; }
+
+    /* --- Subjects: a frame, not a category: neutral panel with the border token --- */
+    .uc-subject {
+      position: absolute; box-sizing: border-box; z-index: 5; pointer-events: none;
+      background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: var(--radius-2xl); color: var(--text-main);
+      box-shadow: var(--shadow-canvas);
+    }
+    .uc-subject.selected { border-color: var(--primary); box-shadow: var(--shadow-ring); }
+    .uc-subject.drop-target { border-color: var(--primary); background: var(--primary-wash); }
+    .uc-subject-title {
+      position: absolute; left: 0; top: 0; right: 0; display: flex; align-items: center; gap: 6px; padding: 0 10px; box-sizing: border-box;
+      pointer-events: auto; cursor: pointer; color: var(--text-main);
+    }
+        .uc-subject-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .uc-subject-name.is-editing { overflow: visible; text-overflow: clip; background: var(--bg-panel); outline: 1.5px solid var(--primary-ring); border-radius: var(--radius-xs); padding: 0 3px; }
+    .uc-subject .frame-chev { color: var(--text-soft); flex: none; width: 24px; height: 24px; margin: 0 0 0 -4px; vertical-align: baseline; }
+    .uc-subject.is-collapsed .frame-chev svg { transform: rotate(-90deg); }
+
+    /* --- Lines --- */
+    .uc-link .edge-line { pointer-events: none; stroke: var(--node-border); stroke-width: var(--stroke-thin); stroke-linecap: round; marker-end: var(--mk-e); }   /* every line neutral */
+    .uc-link.is-dashed .edge-line { stroke-dasharray: var(--dash); }
+    .uc-link:is(.hover, .selected) .edge-line { stroke: var(--primary); stroke-width: var(--ring-md); marker-end: var(--mk-e-sel); }
+    .uc-link.hl:not(.hover, .selected) .edge-line { stroke-width: var(--ring-md); }   /* lit by a hover or a focus: same neutral, bolder */
+    .uc-link.is-dim { opacity: var(--dim-line); }
+    .uc-link.is-hidden, .uc-label.is-hidden { display: none; }
+    .uc-mk path { stroke: var(--mk, var(--node-border)); stroke-width: var(--ring-thin); fill: none; stroke-linecap: round; stroke-linejoin: round; }
+    .uc-mk-solid path { fill: var(--mk, var(--node-border)); }
+    .uc-mk-hollow path { fill: var(--bg-panel); stroke: var(--mk, var(--text-soft)); stroke-width: var(--ring-md); }   /* a generalization: hollow, bolder outline */
+        body.exporting .is-dim { opacity: 1 !important; }
+
+    /* The «include» / «extend» pill on a line: the shared edge label, one or two lines of detail text */
+    .uc-label {
+      display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 0 8px; pointer-events: auto;
+      font-size: var(--t-detail-size); font-weight: var(--t-detail-weight); line-height: var(--leading-tight); white-space: nowrap; cursor: pointer;
+      color: var(--text-muted); background: var(--bg-panel); border-color: var(--border-color); border-radius: var(--radius-pill); box-shadow: var(--shadow-sm);
+    }
+    .uc-label .uc-cond { color: var(--text-soft); max-width: 100%; white-space: normal; text-align: center; overflow-wrap: anywhere; }   /* wraps as the engine wrapped it (labelBox is sized for its lines) */
+    .uc-label.is-dim { opacity: var(--dim); }
+    .uc-label.hl { border-color: var(--primary); box-shadow: var(--shadow-glow) var(--primary-glow); }
+
+    /* --- Use cases: an ellipse; level shows in its size and outline --- */
+    .uc-case {
+      --ring: var(--node-border);
+      position: absolute; box-sizing: border-box; z-index: 20; pointer-events: auto; cursor: pointer; color: var(--text-main);
+      transition: box-shadow 0.15s, opacity 0.15s;
+    }
+    .uc-shape {
+      position: absolute; inset: 0; box-sizing: border-box; display: flex; flex-direction: column; overflow: hidden;
+      border: 1px solid var(--ring); border-radius: var(--radius-pill); background: var(--node-bg); transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+      box-shadow: var(--shadow-sm);
+    }
+    .uc-case:hover .uc-shape { box-shadow: var(--shadow-md); }
+    .uc-name { font-weight: var(--weight-medium); }
+    .uc-case[data-sw] { --ring: var(--sw-line); color: var(--sw-pill-ink); }
+    .uc-case[data-sw] .uc-shape { background: var(--sw-tint, var(--sw-pill-bg)); }   /* the slot's tint (tokens.py derives it; sw-*-ink on sw-*-tint is a contrast pair) */
+    .uc-case[data-level="summary"] .uc-shape { border-width: var(--ring-thin); }
+    .uc-case[data-level="summary"] .uc-name { font-size: var(--t-title-size); font-weight: var(--t-title-weight); }
+    .uc-case[data-level="subfunction"] .uc-shape { border-style: dashed; }
+    .uc-case:hover { --ring: var(--task-accent); }
+    .uc-case.is-match, .uc-actor.is-match { --ring: var(--primary); }
+    .uc-case.is-match .uc-shape { box-shadow: 0 0 0 var(--ring-lg) var(--primary-glow); }
+    .uc-case.selected, .uc-case.hl { --ring: var(--primary); }
+    .uc-case.selected .uc-shape { box-shadow: var(--shadow-ring); }
+    .uc-case.is-dim, .uc-actor.is-dim { opacity: var(--dim); filter: var(--dim-filter); transition: opacity var(--ease), filter var(--ease); }   /* greyed out, not just faded */
+    .uc-case.is-dragging, .uc-actor.is-dragging { opacity: 0.8; z-index: 50; }
+    .uc-name-wrap { flex: 1 1 auto; min-height: 0; display: flex; align-items: center; justify-content: center; padding: 0 14px; }
+    .uc-name { text-align: center; white-space: pre; }
+    .uc-name.is-abstract { font-style: italic; }
+    .uc-name.is-editing { background: var(--bg-panel); color: var(--text-main); outline: 1.5px solid var(--primary-ring); border-radius: var(--radius-xs); padding: 0 3px; min-width: 24px; }
+    /* Extension points: a compartment under a line across the ellipse */
+    .uc-eps { flex: none; border-top: var(--ring-thin) solid var(--ring); padding: 10px 14px; text-align: center; }
+    .uc-ep { display: block; white-space: nowrap; line-height: var(--line-16); }
+    .uc-ep.is-editing { background: var(--bg-panel); color: var(--text-main); outline: 1.5px solid var(--primary-ring); border-radius: var(--radius-xs); }
+    /* Requirement ids under the ellipse (the Refs switch) */
+    .uc-refs { position: absolute; left: 50%; top: 100%; transform: translate(-50%, 2px); display: flex; gap: 3px; white-space: nowrap; pointer-events: none; }
+    .uc-ref { padding: 0 6px; border-radius: var(--radius-pill); background: var(--bg-soft); color: var(--text-soft); border: 1px solid var(--border-color); }
+
+    /* --- Actors: a round avatar (person, server or clock), the name below, «system» / «time» under the name --- */
+    .uc-actor {
+      --ring: var(--border-dark);
+      position: absolute; box-sizing: border-box; z-index: 20; pointer-events: auto; cursor: pointer; color: var(--text-main);
+      display: flex; flex-direction: column; align-items: center; transition: opacity 0.15s;
+    }
+    .uc-figure {
+      flex: none; display: flex; align-items: center; justify-content: center; box-sizing: border-box;   /* size: the engine's avatar (_figW), set inline */
+      border-radius: var(--radius-round); border: 1px solid var(--ring); background: var(--bg-soft); color: var(--text-soft);
+      box-shadow: var(--shadow-sm); transition: border-color 0.15s, box-shadow 0.15s, color 0.15s;
+    }
+    .uc-figure svg { display: block; }
+    .uc-actor-name { text-align: center; margin-top: 8px; max-width: 100%; overflow-wrap: anywhere; color: var(--text-main); font-weight: var(--weight-medium); }
+    .uc-actor-name.is-abstract { font-style: italic; }
+    .uc-actor-name.is-editing { background: var(--bg-panel); outline: 1.5px solid var(--primary-ring); border-radius: var(--radius-xs); padding: 0 3px; min-width: 24px; }
+    .uc-kw { color: var(--text-muted); }
+    .uc-actor[data-sw] { --ring: var(--sw-line); }
+    .uc-actor[data-sw] .uc-figure { background: var(--sw-tint, var(--sw-pill-bg)); color: var(--sw-pill-ink); }   /* the same tint and 1px coloured ring as a use case */
+    .uc-actor:hover .uc-figure { box-shadow: var(--shadow-md); }
+    .uc-actor:hover, .uc-actor.selected, .uc-actor.hl { --ring: var(--primary); }
+    .uc-actor:is(.selected, .hl) .uc-figure { color: var(--primary); box-shadow: var(--shadow-ring); }
+
+    /* Search and focus */
+    body.uc-has-match .uc-search-count { color: var(--text-main); }
+    .uc-search {
+      position: fixed; left: 20px; top: 68px; z-index: 90; display: flex; align-items: center; gap: 6px; padding: 4px 6px 4px 10px;
+      background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: var(--radius-xl); box-shadow: var(--shadow-md); color: var(--text-soft);
+    }
+    .uc-search input {
+      width: 230px; min-height: 24px; padding: 2px 4px; border: none; background: transparent; color: var(--text-main); outline: none;
+      font-size: var(--t-control-size); font-weight: var(--t-control-weight);
+    }
+    .uc-search:focus-within { border-color: var(--primary); box-shadow: var(--shadow-ring); }
+    .uc-search .btn { min-height: 24px; padding: 2px 8px; font-size: var(--t-control-size); border-color: transparent; }
+    #uc-search-count { min-width: 8px; }
+    body.exporting .uc-search, body.capture .uc-search { display: none; }
+    @media (max-width: 720px) { .uc-search { left: 12px; right: 12px; } .uc-search input { width: auto; flex: 1 1 auto; min-width: 0; } }
+
+    /* Legend of the colour key, under the diagram */
+    .uc-legend { position: absolute; left: 0; display: flex; flex-wrap: wrap; gap: 4px 16px; pointer-events: none; color: var(--text-main); }
+    .uc-legend-item { display: inline-flex; align-items: center; gap: 6px; padding: 2px 10px 2px 8px; border-radius: var(--radius-pill); background: var(--bg-panel); border: 1px solid var(--border-color); box-shadow: var(--shadow-sm); }
+    .uc-legend .swatch-dot { background: var(--sw-pill-bg); border: var(--ring-thin) solid var(--sw-line); }
+
+    /* Keyboard focus */
+    .uc-actor:focus-visible, .uc-case:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 3px; }
+    .uc-subject-title:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+    .uc-label:focus-visible, .uc-link:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+
+    /* =====================================================================================================
+       EDITING: ports, action bar, drags. Everything here is an editing aid ([data-export-skip]) and is hidden in ?present.
+       ===================================================================================================== */
+    .uc-port {
+      position: absolute; right: -7px; top: 50%; width: 12px; height: 12px; margin-top: -6px; box-sizing: border-box; padding: 0;
+      border-radius: var(--radius-round); border: 2px solid var(--primary); background: var(--bg-panel); display: none; cursor: crosshair; z-index: 4; touch-action: none;
+    }
+    .uc-port.is-left { right: auto; left: -7px; }
+    .uc-port:hover { background: var(--primary); }
+    .uc-case:hover > .uc-port, .uc-actor:hover > .uc-port, .uc-case.selected > .uc-port, .uc-actor.selected > .uc-port { display: block; }
+    body.uc-dragging .uc-port, .uc-multi .uc-port { display: none !important; }
+    body.uc-touch .uc-port { width: 22px; height: 22px; margin-top: -11px; right: -11px; border-width: 2.5px; }
+    body.uc-touch .uc-port.is-left { right: auto; left: -11px; }
+    body.uc-touch .edge-hit { stroke-width: 26px; }
+    #uc-rubber { stroke: var(--primary); stroke-width: var(--ring-md); stroke-dasharray: var(--dash); display: none; fill: none; pointer-events: none; }
+    .uc-target { --ring: var(--primary); }
+    .uc-target > .uc-shape { background: var(--primary-wash); }
+    .uc-actor.uc-target .uc-figure { box-shadow: var(--shadow-ring); }
+    .uc-ghost { position: fixed !important; z-index: 1000; pointer-events: none; transform-origin: 0 0; opacity: 0.95; box-shadow: var(--shadow-xl); }
+    .uc-ghost.off-target { opacity: 0.5; }
+    body.palette-dragging, body.palette-dragging * { cursor: grabbing !important; user-select: none; }
+
+    .uc-actionbar {
+      position: absolute; display: flex; align-items: center; gap: 2px; padding: 3px; z-index: 53; transform: translate(-50%, -100%);
+      background: var(--bg-panel); border: 1px solid var(--border-dark); border-radius: var(--radius-lg); box-shadow: var(--shadow-md);
+      white-space: nowrap; pointer-events: auto; cursor: default; -webkit-user-select: none; user-select: none;
+    }
+    .uc-actionbar.is-below { transform: translate(-50%, 0); }
+    .uc-actionbar.is-wrap { flex-wrap: wrap; justify-content: center; max-width: 340px; row-gap: 2px; }
+    .uc-ab-break { flex-basis: 100%; height: 0; }
+    .uc-ab-btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 4px; height: 26px; min-width: 26px; padding: 0 6px; box-sizing: border-box;
+      border: 1px solid transparent; border-radius: var(--radius-md); background: transparent; color: var(--text-soft);
+      font: inherit; font-size: var(--text-sm); font-weight: var(--weight-semibold); cursor: pointer;
+    }
+    .uc-ab-btn:hover { background: var(--bg-hover); color: var(--text-main); }
+    .uc-ab-btn[aria-pressed="true"] { background: var(--primary-wash); border-color: var(--primary-ring); color: var(--primary); }
+    .uc-ab-btn[aria-disabled="true"] { opacity: 0.4; cursor: default; }
+    .uc-ab-btn.is-danger:hover { background: color-mix(in srgb, var(--danger) 10%, var(--bg-panel)); color: var(--danger); }
+    .uc-ab-btn svg { display: block; }
+    .uc-ab-btn:focus-visible, .uc-ab-input:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+    .uc-ab-sep { width: 1px; height: 18px; margin: 0 3px; background: var(--border-color); }
+    .uc-ab-tag { padding: 0 4px 0 6px; font-size: var(--t-overline-size); font-weight: var(--t-overline-weight); letter-spacing: var(--t-overline-tracking); text-transform: uppercase; color: var(--text-muted); }
+    .uc-ab-swatch { height: 26px; width: 26px; }
+    .uc-ab-input {
+      height: 26px; width: 170px; box-sizing: border-box; padding: 0 8px; border: 1px solid var(--border-dark); border-radius: var(--radius-md);
+      background: var(--bg-input); color: var(--text-main); font-size: var(--t-detail-size); font-weight: var(--t-detail-weight);
+    }
+    .uc-ab-glyph svg path { stroke: currentColor; fill: none; }
+    body.uc-dragging .uc-actionbar, body.uc-dragging .note-add { display: none !important; }
+    .uc-menu { position: fixed; right: auto; top: auto; z-index: 2100; }
+
+    /* The + chip that adds a note to an item (the chip itself is components/note.css) */
+    .uc-case:hover > .note-add, .uc-case.selected > .note-add, .uc-actor:hover > .note-add, .uc-actor.selected > .note-add { display: inline-flex; }
+    body:is(.palette-dragging, .uc-dragging, .note-picking) .uc-case:not(.selected) > .note-add { display: none; }
+    body.note-picking .uc-case:hover, body.note-picking .uc-actor:hover { outline: 2px dashed var(--note-accent); outline-offset: 4px; }
+    body.note-picking .uc-case, body.note-picking .uc-actor, body.note-picking .uc-case *, body.note-picking .uc-actor * { cursor: copy !important; }
+    .uc-case.note-target, .uc-actor.note-target { outline: 2px dashed var(--note-accent); outline-offset: 4px; }
+
+    /* ?present: read only. Selecting (and so the actor focus) and collapsing still work. */
+    body.presentation .uc-port, body.presentation .uc-actionbar, body.presentation .note-add { display: none !important; }
+
+    /* The tiny drawings in the help drawer */
+    .uc-help-line { display: flex; align-items: center; gap: 8px; margin: 4px 0; }
+    .uc-help-line svg { flex: none; fill: none; stroke: var(--node-border); stroke-width: var(--ring-thin); stroke-linecap: round; stroke-linejoin: round; }
+    .uc-help-line svg .d { stroke-dasharray: var(--dash); }
+    .uc-help-line svg .f { fill: var(--node-border); }
+    .uc-help-line svg .h { fill: var(--bg-panel); stroke: var(--text-soft); stroke-width: var(--ring-md); }

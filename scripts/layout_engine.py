@@ -28,6 +28,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 
 from audit_erd import ErdAudit
 from audit_sequence import SequenceAudit
+from audit_usecase import UsecaseAudit
 from disk_format import (DISK_CODECS, authoring_json, color_kind, format_json, from_disk,  # noqa: F401 (DISK_CODECS: registry)
                          palette_slots, readme_text, stamp_reading_guide, to_disk, with_readme)
 from engine_runner import EngineUnavailable, run_layout
@@ -38,7 +39,7 @@ DEFAULT_COL_WIDTH = 200
 START_X = 56
 
 # Complexity budget (a diagram beyond these is too dense to read at Fit zoom on a 1920px screen)
-SUPPORTED_TYPES = ("flowchart", "sequence", "erd")  # add a type here when its engine and reference exist
+SUPPORTED_TYPES = ("flowchart", "sequence", "erd", "usecase")  # add a type here when its engine and reference exist
 DEFAULT_TYPE = "flowchart"
 SCHEMA_VERSION = 1
 ERD_SCHEMA_VERSION = 3  # ERD layout v3 (disk_format.ERD_SCHEMA_VERSION)
@@ -1153,7 +1154,7 @@ def resolve_theme(theme_arg: Optional[str], page_html: Optional[str] = None) -> 
     return tokens, theme, note
 
 
-AUDITS = {"flowchart": FlowchartAudit, "sequence": SequenceAudit, "erd": ErdAudit}
+AUDITS = {"flowchart": FlowchartAudit, "sequence": SequenceAudit, "erd": ErdAudit, "usecase": UsecaseAudit}
 
 
 def make_audit(data: Dict[str, Any], tokens: Optional[Dict[str, Any]] = None):
@@ -1419,8 +1420,8 @@ def main():
             print(note)
 
         data = normalize_diagram_type(data)
-        if p.suffix == ".html" and data["diagramType"] in ("sequence", "erd"):
-            # A sequence page saves no positions and an ER page no routes: run the engine, as the page does on load
+        if p.suffix == ".html" and data["diagramType"] in ("sequence", "erd", "usecase"):
+            # A sequence page saves no positions and an ER or use case page no routes: run the engine, as the page does on load
             try:
                 data = run_layout(data["diagramType"], data, timeout=args.timeout, browser=args.browser, tokens=tokens)
             except EngineUnavailable as exc:

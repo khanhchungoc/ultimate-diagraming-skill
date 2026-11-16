@@ -1,0 +1,40 @@
+      <!-- Add popover: click a tile to add at the centre of the view, or drag it onto the canvas (a use case dropped inside a subject joins it) -->
+      <div class="dock-pop-wrap" data-dock-pop>
+        <button id="btn-add" class="btn dock-pop-trigger" aria-label="Add" aria-haspopup="true" aria-expanded="false" aria-controls="uc-pop">
+          {{icon:plus}}<span class="btn-label">Add</span>
+          <span class="dock-pop-caret" aria-hidden="true">{{icon:chevron-up:xs:bold}}</span>
+        </button>
+        <div id="uc-pop" class="dock-pop" role="group" aria-label="Add: click to add, or drag onto the canvas">
+          <div class="dock-pop-grid" role="group" aria-label="Add">
+            <button id="btn-add-actor" class="btn btn-shape" title="Actor: a role outside the system (click, or drag onto the canvas)" aria-label="Actor">
+              {{icon:user:tile:fine}}<span class="tile-caption">Actor</span>
+            </button>
+            <button id="btn-add-system" class="btn btn-shape" title="System actor: an external system, such as a payment gateway (click, or drag onto the canvas)" aria-label="System actor">
+              {{icon:server:tile:fine}}<span class="tile-caption">System</span>
+            </button>
+            <button id="btn-add-usecase" class="btn btn-shape" title="Use case: a goal an actor has (click, or drag onto the canvas or into a subject)" aria-label="Use case">
+              {{icon:usecase:tile:fine}}<span class="tile-caption">Use case</span>
+            </button>
+            <button id="btn-add-subject" class="btn btn-shape" title="Subject: the system boundary (click, or drag onto the canvas)" aria-label="Subject">
+              {{icon:subject:tile:fine}}<span class="tile-caption">Subject</span>
+            </button>
+            <button id="btn-add-note" class="btn btn-shape" title="Note: drag onto an actor or use case, or click to add one to the selection" aria-label="Note">
+              {{icon:shape-note:tile:fine}}<span class="tile-caption">Note</span>
+            </button>
+          </div>
+        </div>
+      </div>
+      <span class="dock-sep" aria-hidden="true"></span>
+      <button id="btn-refs" class="btn btn-switch" role="switch" title="Show the requirement ids under each use case" aria-label="Refs" aria-checked="false">
+        <span class="switch-track" aria-hidden="true"><span class="switch-knob"></span></span><span class="btn-label">Refs</span>
+      </button>
+      <button id="btn-levels" class="btn btn-switch" role="switch" title="Levels: on shows every use case; off hides the subfunctions for a goal-level overview" aria-label="Levels" aria-checked="true">
+        <span class="switch-track" aria-hidden="true"><span class="switch-knob"></span></span><span class="btn-label">Levels</span>
+      </button>
+      <button id="btn-notes" class="btn btn-switch" role="switch" title="Show all notes" aria-label="Notes" aria-checked="false">
+        <span class="switch-track" aria-hidden="true"><span class="switch-knob"></span></span><span class="btn-label">Notes</span><span class="btn-count" hidden></span>
+      </button>
+      <!-- Auto-Tidy on/off (see AUTO-TIDY in usecase.js); the shell places it just before Tidy -->
+      <button id="btn-auto-layout" class="btn btn-switch" role="switch" data-dock-group="layout" title="Auto-Tidy is on: the diagram re-arranges itself after adding, deleting or connecting (click to place things by hand)" aria-label="Auto-Tidy" aria-checked="true">
+        <span class="switch-track" aria-hidden="true"><span class="switch-knob"></span></span><span class="btn-label">Auto-Tidy</span>
+      </button>

@@ -122,7 +122,7 @@
       "hex": "#fbedd1",
       "light": {
         "soft": "#f1dcb1",
-        "strong": "#ba8d15",
+        "strong": "#b38703",
         "ink": "#503b04",
         "solid": "#6d5004",
         "on-solid": "#ffffff"
@@ -141,7 +141,7 @@
       "hex": "#fee7f1",
       "light": {
         "soft": "#fecee4",
-        "strong": "#e767ab",
+        "strong": "#e060a4",
         "ink": "#602845",
         "solid": "#873060",
         "on-solid": "#ffffff"
@@ -160,7 +160,7 @@
       "hex": "#d2f8f0",
       "light": {
         "soft": "#b2ece1",
-        "strong": "#10a695",
+        "strong": "#1f9e8f",
         "ink": "#064941",
         "solid": "#096358",
         "on-solid": "#ffffff"

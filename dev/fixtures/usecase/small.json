@@ -1,0 +1,36 @@
+{
+  "diagramType": "usecase",
+  "title": "Online shop",
+  "colorKey": { "1": "Ordering", "2": "Payments", "4": "Fulfilment" },
+  "subjects": [
+    { "id": "shop", "name": "Storefront" },
+    { "id": "office", "name": "Back office" }
+  ],
+  "actors": [
+    { "id": "customer", "name": "Customer" },
+    { "id": "member", "name": "Registered customer", "parent": "customer" },
+    { "id": "clerk", "name": "Warehouse clerk" },
+    { "id": "psp", "name": "Payment gateway", "kind": "system", "side": "right" },
+    { "id": "nightly", "name": "Nightly", "kind": "time" }
+  ],
+  "useCases": [
+    { "id": "browse", "name": "Browse catalogue", "subject": "shop", "color": "1", "refs": ["FR-1"] },
+    { "id": "checkout", "name": "Check out", "subject": "shop", "color": "1", "refs": ["FR-4", "FR-5"], "extensionPoints": ["Payment"] },
+    { "id": "voucher", "name": "Apply voucher", "subject": "shop", "color": "1", "refs": ["FR-6"] },
+    { "id": "pay", "name": "Take payment", "subject": "shop", "color": "2", "level": "subfunction" },
+    { "id": "pick", "name": "Pick order", "subject": "office", "color": "4", "refs": ["FR-9"] },
+    { "id": "reconcile", "name": "Reconcile payments", "subject": "office", "color": "2", "refs": ["FR-12"] }
+  ],
+  "links": [
+    { "id": "l1", "type": "association", "from": "customer", "to": "browse" },
+    { "id": "l2", "type": "association", "from": "member", "to": "checkout" },
+    { "id": "l3", "type": "include", "from": "checkout", "to": "pay" },
+    { "id": "l4", "type": "extend", "from": "voucher", "to": "checkout", "condition": "customer has a code", "extensionPoint": "Payment" },
+    { "id": "l5", "type": "association", "from": "pay", "to": "psp" },
+    { "id": "l6", "type": "association", "from": "clerk", "to": "pick" },
+    { "id": "l7", "type": "association", "from": "nightly", "to": "reconcile" }
+  ],
+  "notes": [
+    { "id": "n1", "text": "Guest checkout allowed up to 200 EUR (BR-3)", "useCases": ["checkout"] }
+  ]
+}

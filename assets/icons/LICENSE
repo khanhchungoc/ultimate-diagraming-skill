@@ -1,7 +1,8 @@
 The icon drawings in default.json come from Lucide (https://lucide.dev), or are redrawn from Lucide designs,
 and are used under its ISC licence. Some Lucide icons derive from Feather and carry the MIT licence below it.
-The diagram-type icons, the flowchart shape tiles, the participant-kind glyphs and a few toolbar icons were drawn for this
-skill and are released with it.
+The diagram-type icons (including type-usecase), the flowchart shape tiles, the participant-kind glyphs, the use case diagram glyphs
+(actor, usecase, subject, hash) and a few toolbar icons were drawn for this skill and are released with it. The clock and search icons
+are redrawn from the Lucide designs of the same name.
 
 ISC License
 

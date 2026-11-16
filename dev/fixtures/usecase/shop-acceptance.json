@@ -1,0 +1,509 @@
+{
+  "diagramType": "usecase",
+  "schemaVersion": 1,
+  "title": "Online shop",
+  "colorKey": {
+    "1": "Browse and order",
+    "2": "Payments",
+    "3": "Account",
+    "4": "Fulfilment"
+  },
+  "subjects": [
+    {
+      "id": "shop",
+      "name": "Storefront"
+    },
+    {
+      "id": "office",
+      "name": "Back office"
+    }
+  ],
+  "actors": [
+    {
+      "id": "customer",
+      "name": "Customer"
+    },
+    {
+      "id": "member",
+      "name": "Registered customer",
+      "parent": "customer"
+    },
+    {
+      "id": "clerk",
+      "name": "Warehouse clerk"
+    },
+    {
+      "id": "manager",
+      "name": "Shop manager"
+    },
+    {
+      "id": "nightly",
+      "name": "Nightly",
+      "kind": "time"
+    },
+    {
+      "id": "psp",
+      "name": "Payment gateway",
+      "kind": "system"
+    },
+    {
+      "id": "carrier",
+      "name": "Carrier API",
+      "kind": "system"
+    }
+  ],
+  "useCases": [
+    {
+      "id": "browse",
+      "name": "Browse catalogue",
+      "subject": "shop",
+      "color": "1",
+      "refs": [
+        "FR-1"
+      ]
+    },
+    {
+      "id": "search",
+      "name": "Search products",
+      "subject": "shop",
+      "color": "1",
+      "refs": [
+        "FR-2"
+      ]
+    },
+    {
+      "id": "cart",
+      "name": "Manage cart",
+      "subject": "shop",
+      "color": "1",
+      "refs": [
+        "FR-3"
+      ]
+    },
+    {
+      "id": "checkout",
+      "name": "Check out",
+      "subject": "shop",
+      "color": "1",
+      "refs": [
+        "FR-4",
+        "FR-5"
+      ],
+      "extensionPoints": [
+        "Payment"
+      ]
+    },
+    {
+      "id": "voucher",
+      "name": "Apply voucher",
+      "subject": "shop",
+      "color": "1",
+      "refs": [
+        "FR-6"
+      ]
+    },
+    {
+      "id": "pay",
+      "name": "Take payment",
+      "subject": "shop",
+      "color": "2",
+      "refs": [
+        "FR-7"
+      ],
+      "abstract": true
+    },
+    {
+      "id": "paycard",
+      "name": "Pay by card",
+      "subject": "shop",
+      "color": "2",
+      "refs": [
+        "FR-7"
+      ],
+      "parent": "pay"
+    },
+    {
+      "id": "paywallet",
+      "name": "Pay by wallet",
+      "subject": "shop",
+      "color": "2",
+      "refs": [
+        "FR-7"
+      ],
+      "parent": "pay"
+    },
+    {
+      "id": "auth",
+      "name": "Authenticate",
+      "subject": "shop",
+      "color": "3",
+      "refs": [
+        "FR-8"
+      ],
+      "level": "subfunction"
+    },
+    {
+      "id": "register",
+      "name": "Register account",
+      "subject": "shop",
+      "color": "3",
+      "refs": [
+        "FR-8"
+      ]
+    },
+    {
+      "id": "track",
+      "name": "Track order",
+      "subject": "shop",
+      "color": "1",
+      "refs": [
+        "FR-10"
+      ]
+    },
+    {
+      "id": "history",
+      "name": "View order history",
+      "subject": "shop",
+      "color": "3",
+      "refs": [
+        "FR-11"
+      ]
+    },
+    {
+      "id": "return",
+      "name": "Request return",
+      "subject": "shop",
+      "color": "4",
+      "refs": [
+        "FR-14"
+      ]
+    },
+    {
+      "id": "review",
+      "name": "Write review",
+      "subject": "shop",
+      "color": "1",
+      "refs": [
+        "FR-15"
+      ]
+    },
+    {
+      "id": "gift",
+      "name": "Add gift message",
+      "subject": "shop",
+      "color": "1",
+      "refs": [
+        "FR-20"
+      ]
+    },
+    {
+      "id": "pick",
+      "name": "Pick order",
+      "subject": "office",
+      "color": "4",
+      "refs": [
+        "FR-9"
+      ]
+    },
+    {
+      "id": "pack",
+      "name": "Pack parcel",
+      "subject": "office",
+      "color": "4",
+      "refs": [
+        "FR-9"
+      ]
+    },
+    {
+      "id": "label",
+      "name": "Print shipping label",
+      "subject": "office",
+      "color": "4",
+      "refs": [
+        "FR-13"
+      ],
+      "level": "subfunction"
+    },
+    {
+      "id": "ship",
+      "name": "Dispatch shipment",
+      "subject": "office",
+      "color": "4",
+      "refs": [
+        "FR-13"
+      ]
+    },
+    {
+      "id": "stock",
+      "name": "Adjust stock",
+      "subject": "office",
+      "color": "4",
+      "refs": [
+        "FR-16"
+      ]
+    },
+    {
+      "id": "reorder",
+      "name": "Reorder low stock",
+      "subject": "office",
+      "color": "4",
+      "refs": [
+        "FR-17"
+      ]
+    },
+    {
+      "id": "refund",
+      "name": "Refund payment",
+      "subject": "office",
+      "color": "2",
+      "refs": [
+        "FR-12"
+      ]
+    },
+    {
+      "id": "reconcile",
+      "name": "Reconcile payments",
+      "subject": "office",
+      "color": "2",
+      "refs": [
+        "FR-12"
+      ]
+    },
+    {
+      "id": "report",
+      "name": "Run sales report",
+      "subject": "office",
+      "color": "1",
+      "refs": [
+        "FR-18"
+      ]
+    },
+    {
+      "id": "catalogue",
+      "name": "Manage catalogue",
+      "subject": "office",
+      "color": "1",
+      "refs": [
+        "FR-19"
+      ]
+    },
+    {
+      "id": "approve",
+      "name": "Approve return",
+      "subject": "office",
+      "color": "4",
+      "refs": [
+        "FR-14"
+      ]
+    }
+  ],
+  "links": [
+    {
+      "id": "l1",
+      "type": "association",
+      "from": "customer",
+      "to": "browse"
+    },
+    {
+      "id": "l2",
+      "type": "association",
+      "from": "customer",
+      "to": "search"
+    },
+    {
+      "id": "l3",
+      "type": "association",
+      "from": "customer",
+      "to": "cart"
+    },
+    {
+      "id": "l4",
+      "type": "association",
+      "from": "customer",
+      "to": "register"
+    },
+    {
+      "id": "l5",
+      "type": "association",
+      "from": "member",
+      "to": "checkout"
+    },
+    {
+      "id": "l6",
+      "type": "association",
+      "from": "member",
+      "to": "track"
+    },
+    {
+      "id": "l7",
+      "type": "association",
+      "from": "member",
+      "to": "history"
+    },
+    {
+      "id": "l8",
+      "type": "association",
+      "from": "member",
+      "to": "return"
+    },
+    {
+      "id": "l9",
+      "type": "association",
+      "from": "member",
+      "to": "review"
+    },
+    {
+      "id": "l10",
+      "type": "include",
+      "from": "checkout",
+      "to": "pay"
+    },
+    {
+      "id": "l11",
+      "type": "association",
+      "from": "pay",
+      "to": "psp"
+    },
+    {
+      "id": "l12",
+      "type": "include",
+      "from": "track",
+      "to": "auth"
+    },
+    {
+      "id": "l13",
+      "type": "include",
+      "from": "history",
+      "to": "auth"
+    },
+    {
+      "id": "l14",
+      "type": "include",
+      "from": "return",
+      "to": "auth"
+    },
+    {
+      "id": "l15",
+      "type": "extend",
+      "from": "voucher",
+      "to": "checkout",
+      "condition": "customer has a code",
+      "extensionPoint": "Payment"
+    },
+    {
+      "id": "l16",
+      "type": "extend",
+      "from": "gift",
+      "to": "checkout",
+      "condition": "order is a gift",
+      "extensionPoint": "Payment"
+    },
+    {
+      "id": "l17",
+      "type": "association",
+      "from": "clerk",
+      "to": "pick"
+    },
+    {
+      "id": "l18",
+      "type": "association",
+      "from": "clerk",
+      "to": "pack"
+    },
+    {
+      "id": "l19",
+      "type": "association",
+      "from": "clerk",
+      "to": "stock"
+    },
+    {
+      "id": "l20",
+      "type": "include",
+      "from": "pack",
+      "to": "label"
+    },
+    {
+      "id": "l21",
+      "type": "association",
+      "from": "clerk",
+      "to": "ship"
+    },
+    {
+      "id": "l22",
+      "type": "association",
+      "from": "ship",
+      "to": "carrier"
+    },
+    {
+      "id": "l23",
+      "type": "association",
+      "from": "manager",
+      "to": "report"
+    },
+    {
+      "id": "l24",
+      "type": "association",
+      "from": "manager",
+      "to": "catalogue"
+    },
+    {
+      "id": "l25",
+      "type": "association",
+      "from": "manager",
+      "to": "approve"
+    },
+    {
+      "id": "l26",
+      "type": "association",
+      "from": "manager",
+      "to": "refund"
+    },
+    {
+      "id": "l27",
+      "type": "association",
+      "from": "refund",
+      "to": "psp"
+    },
+    {
+      "id": "l28",
+      "type": "association",
+      "from": "nightly",
+      "to": "reconcile"
+    },
+    {
+      "id": "l29",
+      "type": "association",
+      "from": "nightly",
+      "to": "reorder"
+    },
+    {
+      "id": "l30",
+      "type": "association",
+      "from": "reconcile",
+      "to": "psp"
+    }
+  ],
+  "notes": [
+    {
+      "id": "n1",
+      "text": "Guest checkout allowed up to 200 EUR (BR-3)",
+      "useCases": [
+        "checkout"
+      ]
+    },
+    {
+      "id": "n2",
+      "text": "Refunds above 500 EUR need manager approval (BR-9)",
+      "useCases": [
+        "refund"
+      ]
+    },
+    {
+      "id": "n3",
+      "text": "Carrier is called once per parcel",
+      "actors": [
+        "carrier"
+      ]
+    }
+  ]
+}

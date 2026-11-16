@@ -1,0 +1,19 @@
+      <div id="uc-canvas">
+        <svg id="uc-svg" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <!-- Line ends, drawn pointing at the item: the tip (x = 0) sits on its outline and orient="auto" turns the marker
+                 along the line. usecase.js adds the -sel variants (primary colour: hovered, selected, lit lines). -->
+            <!-- uc-mk-open: a small filled arrowhead with a notched back (include, extend, a directed association);
+                 uc-mk-tri: the generalization triangle, the classic hollow UML shape with a bolder outline -->
+            <marker id="uc-mk-open" class="uc-mk uc-mk-solid" viewBox="-12 -7 14 14" markerWidth="14" markerHeight="14" refX="0" refY="0" orient="auto" markerUnits="userSpaceOnUse">
+              <path d="M-9 -4.5 0 0 -9 4.5 -6.5 0z"/>
+            </marker>
+            <marker id="uc-mk-tri" class="uc-mk uc-mk-hollow" viewBox="-15 -9 17 18" markerWidth="17" markerHeight="18" refX="-1" refY="0" orient="auto" markerUnits="userSpaceOnUse">
+              <path d="M-12 -7 0 0 -12 7z"/>
+            </marker>
+          </defs>
+          <g id="uc-note-leaders"></g>
+          <g id="uc-links"></g>
+        </svg>
+        <div id="uc-html"></div>
+      </div>

@@ -81,6 +81,19 @@ def _err(path: str, v: Any) -> ValueError:
     return ValueError(f"tokens: invalid value at {path}: {v!r}")
 
 
+_OPACITY = re.compile(r"(0?\.\d+|0|1)")                          # effect.dim, effect.dim-line
+_FILTER = re.compile(r"grayscale\((0?\.\d+|0|1)\)")              # effect.dim-filter
+_DASH = re.compile(r"\d+(\.\d+)?( \d+(\.\d+)?)*")                  # effect.dash: a stroke-dasharray in px
+
+
+def _mix(a: str, b: str, p: float) -> Optional[str]:
+    """CSS color-mix(in srgb, a p, b) of two #rrggbb colours; None if either is not plain hex."""
+    if not (re.fullmatch(r"#[0-9a-fA-F]{6}", a or "") and re.fullmatch(r"#[0-9a-fA-F]{6}", b or "")):
+        return None
+    ch = [round(int(a[i:i + 2], 16) * p + int(b[i:i + 2], 16) * (1 - p)) for i in (1, 3, 5)]
+    return "#" + "".join(f"{c:02x}" for c in ch)
+
+
 def _validate(t: Dict[str, Any]) -> None:
     if t.get("tokensVersion") != TOKENS_VERSION:
         raise ValueError(f"tokens: unsupported tokensVersion {t.get('tokensVersion')!r}; expected {TOKENS_VERSION}")
@@ -96,6 +109,9 @@ def _validate(t: Dict[str, Any]) -> None:
         if not (isinstance(v, str) and _LENGTH.match(v)): raise _err(f"size.{k}", v)
     _validate_type(t["type"])
     _validate_icon(t["icon"])
+    for k, v in t.get("effect", {}).items():
+        ok = {"dim": _OPACITY, "dim-line": _OPACITY, "dim-filter": _FILTER, "dash": _DASH}.get(k)
+        if not ok or not (isinstance(v, str) and ok.match(v)): raise _err(f"effect.{k}", v)
     for k, v in t["motion"].items():
         if not (isinstance(v, str) and _TIME.match(v)): raise _err(f"motion.{k}", v)
     for k, v in t["radius"].items():
@@ -242,9 +258,20 @@ def resolve_colors(tokens: Dict[str, Any], mode: str) -> Dict[str, str]:
 def _sw_vars(tokens: Dict[str, Any], mode: str, only_mode: bool = False) -> Dict[str, str]:
     """sw-<slot>-<role> for every palette slot. Dark falls back to light for a role it leaves out, unless only_mode."""
     out = {}
+    colors = {**tokens["color"]["light"], **(tokens["color"]["dark"] if mode == "dark" else {})}
+    bg = colors.get("node-bg", "")
+    for _ in range(4):   # node-bg may be var(--x)
+        m = re.fullmatch(r"var\(--([\w-]+)\)", bg)
+        if not m: break
+        bg = colors.get(m[1], "")
     for s in tokens["palette"]:
         tones = {**({} if only_mode else s["light"]), **s[mode]}
         out.update({f"sw-{s['slot']}-{_TONES[t]}": v for t, v in tones.items()})
+        # tint: the fill lightened toward node-bg (60 % fill), a quieter surface for a filled shape; derived, so every
+        # theme has it and the contrast pairs can name it (sw-*-ink on sw-*-tint)
+        fill = {**s["light"], **s[mode]}.get("soft", "")
+        tint = _mix(fill, bg, 0.6)
+        if tint: out[f"sw-{s['slot']}-tint"] = tint
     return out
 
 
@@ -277,7 +304,7 @@ def tokens_css(tokens: Dict[str, Any]) -> str:
     """The :root (light) and :root[data-theme="dark"] blocks. Dark lists only what it overrides; the cascade does the rest."""
     light = {**_type_vars(tokens),
              **{f"icon-{k}": f"{v}px" for k, v in tokens["icon"]["size"].items()},
-             **tokens["size"], **tokens["motion"], **{f"radius-{k}": v for k, v in tokens["radius"].items()},
+             **tokens["size"], **tokens.get("effect", {}), **tokens["motion"], **{f"radius-{k}": v for k, v in tokens["radius"].items()},
              **{f"shadow-{k}": v for k, v in tokens["shadow"].items()},
              **tokens["color"]["light"], **_sw_vars(tokens, "light")}
     dark = {**tokens["color"]["dark"], **_sw_vars(tokens, "dark", True)}
@@ -285,7 +312,8 @@ def tokens_css(tokens: Dict[str, Any]) -> str:
     slots = "\n".join(
         f'    [data-sw="{s["slot"]}"] {{ --sw-stripe: var(--sw-{s["slot"]}-line); --sw-line: var(--sw-{s["slot"]}-line); '
         f'--sw-pill-bg: var(--sw-{s["slot"]}-fill); --sw-pill-ink: var(--sw-{s["slot"]}-ink); '
-        f'--sw-pill-solid: var(--sw-{s["slot"]}-solid); --sw-on-solid: var(--sw-{s["slot"]}-on-solid); }}'
+        f'--sw-pill-solid: var(--sw-{s["slot"]}-solid); --sw-on-solid: var(--sw-{s["slot"]}-on-solid); '
+        f'--sw-tint: var(--sw-{s["slot"]}-tint); }}'
         for s in tokens["palette"])
     return (_block(":root", light, "light") + "\n\n" + _block(':root[data-theme="dark"]', dark, "dark") + "\n\n" + slots
             + "\n\n" + _type_classes(tokens))

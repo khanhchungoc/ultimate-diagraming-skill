@@ -1,0 +1,39 @@
+{
+  "diagramType": "usecase",
+  "title": "Library lending",
+  "colorKey": {"1": "Borrowing", "2": "Accounts"},
+  "subjects": [
+    { "id": "library", "name": "Library system" }
+  ],
+  "actors": [
+    { "id": "member", "name": "Member" },
+    { "id": "librarian", "name": "Librarian" },
+    { "id": "mail", "name": "Mail service", "kind": "system", "side": "right" }
+  ],
+  "useCases": [
+    { "id": "search", "name": "Search catalogue", "subject": "library", "color": "1", "refs": ["FR-1"] },
+    { "id": "borrow", "name": "Borrow book", "subject": "library", "color": "1", "refs": ["FR-2", "FR-3"],
+      "extensionPoints": ["Loan"] },
+    { "id": "login", "name": "Authenticate", "subject": "library", "color": "2", "level": "subfunction", "refs": ["FR-7"] },
+    { "id": "extend_loan", "name": "Extend loan", "subject": "library", "color": "1", "refs": ["FR-4"] },
+    { "id": "return", "name": "Return book", "subject": "library", "color": "1", "refs": ["FR-5"] },
+    { "id": "reserve", "name": "Reserve book", "subject": "library", "color": "1", "refs": ["FR-6"] },
+    { "id": "fine", "name": "Collect fine", "subject": "library", "color": "2", "refs": ["FR-8"] },
+    { "id": "notify", "name": "Send reminder", "subject": "library", "color": "2", "refs": ["FR-9"] }
+  ],
+  "links": [
+    { "id": "l1", "type": "association", "from": "member", "to": "search" },
+    { "id": "l2", "type": "association", "from": "member", "to": "borrow" },
+    { "id": "l3", "type": "association", "from": "member", "to": "reserve" },
+    { "id": "l4", "type": "association", "from": "librarian", "to": "return" },
+    { "id": "l5", "type": "association", "from": "librarian", "to": "fine" },
+    { "id": "l6", "type": "association", "from": "notify", "to": "mail" },
+    { "id": "l7", "type": "include", "from": "borrow", "to": "login" },
+    { "id": "l8", "type": "include", "from": "reserve", "to": "login" },
+    { "id": "l9", "type": "extend", "from": "extend_loan", "to": "borrow", "condition": "no reservation by others", "extensionPoint": "Loan" },
+    { "id": "l10", "type": "extend", "from": "notify", "to": "return", "condition": "book is overdue" }
+  ],
+  "notes": [
+    { "id": "n1", "text": "A member may hold at most 5 loans (BR-2)", "useCases": ["borrow"] }
+  ]
+}

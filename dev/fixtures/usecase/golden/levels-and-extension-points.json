@@ -1,0 +1,435 @@
+{
+  "diagramType": "usecase",
+  "title": "Bank ATM",
+  "colorKey": {
+    "1": "Cash",
+    "2": "Account"
+  },
+  "subjects": [
+    {
+      "id": "atm",
+      "name": "ATM",
+      "x": 264,
+      "w": 770,
+      "_titleH": 36,
+      "y": 40,
+      "h": 378
+    }
+  ],
+  "actors": [
+    {
+      "id": "holder",
+      "name": "Account holder",
+      "_side": "left",
+      "_lines": [
+        "Account holder"
+      ],
+      "w": 112,
+      "h": 84,
+      "_figW": 56,
+      "_figH": 56,
+      "x": 48,
+      "y": 179
+    },
+    {
+      "id": "engineer",
+      "name": "Service engineer",
+      "_side": "left",
+      "_lines": [
+        "Service engineer"
+      ],
+      "w": 128,
+      "h": 84,
+      "_figW": 56,
+      "_figH": 56,
+      "x": 40,
+      "y": 348
+    },
+    {
+      "id": "bank",
+      "name": "Core banking system",
+      "kind": "system",
+      "_side": "right",
+      "_lines": [
+        "Core banking",
+        "system"
+      ],
+      "w": 100,
+      "h": 116,
+      "_figW": 56,
+      "_figH": 56,
+      "x": 1130,
+      "y": 198
+    }
+  ],
+  "useCases": [
+    {
+      "id": "manage",
+      "name": "Manage account at the ATM",
+      "subject": "atm",
+      "level": "summary",
+      "color": "2",
+      "_lines": [
+        "Manage account",
+        "at the ATM"
+      ],
+      "_compH": 0,
+      "w": 176,
+      "h": 72,
+      "_r": 25.08,
+      "x": 304,
+      "y": 96
+    },
+    {
+      "id": "withdraw",
+      "name": "Withdraw cash",
+      "subject": "atm",
+      "color": "1",
+      "extensionPoints": [
+        "Choose amount",
+        "Print receipt",
+        "Offer currency exchange"
+      ],
+      "_lines": [
+        "Withdraw cash"
+      ],
+      "_compH": 68,
+      "w": 200,
+      "h": 112,
+      "_r": 22,
+      "x": 292,
+      "y": 232
+    },
+    {
+      "id": "balance",
+      "name": "Check balance",
+      "subject": "atm",
+      "color": "2",
+      "_lines": [
+        "Check balance"
+      ],
+      "_compH": 0,
+      "w": 148,
+      "h": 44,
+      "_r": 22,
+      "x": 318,
+      "y": 178
+    },
+    {
+      "id": "pin",
+      "name": "Verify PIN",
+      "subject": "atm",
+      "level": "subfunction",
+      "color": "2",
+      "_lines": [
+        "Verify PIN"
+      ],
+      "_compH": 0,
+      "w": 112,
+      "h": 40,
+      "_r": 18.919999999999998,
+      "x": 862,
+      "y": 206
+    },
+    {
+      "id": "limit",
+      "name": "Raise daily limit for travel abroad",
+      "subject": "atm",
+      "color": "1",
+      "abstract": true,
+      "_lines": [
+        "Raise daily limit",
+        "for travel abroad"
+      ],
+      "_compH": 0,
+      "w": 176,
+      "h": 60,
+      "_r": 22,
+      "x": 830,
+      "y": 306
+    },
+    {
+      "id": "receipt",
+      "name": "Print receipt",
+      "subject": "atm",
+      "level": "subfunction",
+      "color": "1",
+      "_lines": [
+        "Print receipt"
+      ],
+      "_compH": 0,
+      "w": 128,
+      "h": 40,
+      "_r": 18.919999999999998,
+      "x": 854,
+      "y": 256
+    },
+    {
+      "id": "service",
+      "name": "Service machine",
+      "subject": "atm",
+      "_lines": [
+        "Service machine"
+      ],
+      "_compH": 0,
+      "w": 164,
+      "h": 44,
+      "_r": 22,
+      "x": 310,
+      "y": 354
+    }
+  ],
+  "links": [
+    {
+      "id": "l1",
+      "type": "association",
+      "from": "holder",
+      "to": "withdraw",
+      "points": [
+        [
+          132.5,
+          219.3
+        ],
+        [
+          171.8,
+          236.2
+        ],
+        [
+          212.2,
+          288
+        ],
+        [
+          292,
+          288
+        ]
+      ]
+    },
+    {
+      "id": "l2",
+      "type": "association",
+      "from": "holder",
+      "to": "balance",
+      "points": [
+        [
+          135,
+          206
+        ],
+        [
+          180.6,
+          204.5
+        ],
+        [
+          226.5,
+          200
+        ],
+        [
+          318,
+          200
+        ]
+      ]
+    },
+    {
+      "id": "l3",
+      "type": "include",
+      "from": "withdraw",
+      "to": "pin",
+      "points": [
+        [
+          492,
+          274.8
+        ],
+        [
+          573,
+          264.1
+        ],
+        [
+          677,
+          226
+        ],
+        [
+          862,
+          226
+        ]
+      ],
+      "labelBox": {
+        "x": 554,
+        "y": 243,
+        "w": 87,
+        "h": 22
+      }
+    },
+    {
+      "id": "l4",
+      "type": "include",
+      "from": "balance",
+      "to": "pin",
+      "points": [
+        [
+          465.6,
+          204.1
+        ],
+        [
+          562.4,
+          209.4
+        ],
+        [
+          663.8,
+          226
+        ],
+        [
+          862,
+          226
+        ]
+      ],
+      "labelBox": {
+        "x": 540,
+        "y": 203,
+        "w": 87,
+        "h": 22
+      }
+    },
+    {
+      "id": "l5",
+      "type": "extend",
+      "from": "receipt",
+      "to": "withdraw",
+      "condition": "customer wants a receipt",
+      "extensionPoint": "Print receipt",
+      "points": [
+        [
+          854,
+          277.8
+        ],
+        [
+          764.6,
+          280.3
+        ],
+        [
+          673,
+          288
+        ],
+        [
+          492,
+          288
+        ]
+      ],
+      "labelBox": {
+        "x": 684,
+        "y": 239,
+        "w": 123,
+        "h": 54
+      }
+    },
+    {
+      "id": "l6",
+      "type": "extend",
+      "from": "limit",
+      "to": "withdraw",
+      "extensionPoint": "Choose amount",
+      "points": [
+        [
+          830.1,
+          326.1
+        ],
+        [
+          755,
+          317.6
+        ],
+        [
+          661,
+          288
+        ],
+        [
+          492,
+          288
+        ]
+      ],
+      "labelBox": {
+        "x": 735,
+        "y": 307,
+        "w": 80,
+        "h": 22
+      }
+    },
+    {
+      "id": "l7",
+      "type": "association",
+      "from": "pin",
+      "to": "bank",
+      "points": [
+        [
+          974,
+          226
+        ],
+        [
+          1009.7,
+          226
+        ],
+        [
+          1061.5,
+          226
+        ],
+        [
+          1149,
+          226
+        ]
+      ]
+    },
+    {
+      "id": "l8",
+      "type": "association",
+      "from": "engineer",
+      "to": "service",
+      "points": [
+        [
+          135,
+          376
+        ],
+        [
+          178.2,
+          376
+        ],
+        [
+          222.5,
+          376
+        ],
+        [
+          310,
+          376
+        ]
+      ]
+    },
+    {
+      "id": "l9",
+      "type": "association",
+      "from": "holder",
+      "to": "manage",
+      "points": [
+        [
+          133,
+          196.1
+        ],
+        [
+          175.6,
+          180.1
+        ],
+        [
+          218.5,
+          132
+        ],
+        [
+          304,
+          132
+        ]
+      ]
+    }
+  ],
+  "schemaVersion": 1,
+  "_parents": [],
+  "canvas": {
+    "width": 1270,
+    "height": 472,
+    "crossings": 0,
+    "hits": 0
+  }
+}

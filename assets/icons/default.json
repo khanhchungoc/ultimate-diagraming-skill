@@ -1,5 +1,5 @@
 {
-  "_license": "Most icons are Lucide icons (https://lucide.dev, ISC licence, Copyright (c) Lucide Icons and Contributors) or are redrawn from Lucide designs; some Lucide icons derive from Feather (MIT licence, Copyright (c) Cole Bemis). The notices are in LICENSE next to this file. The diagram-type icons, the flowchart shape tiles, the participant-kind glyphs and a few toolbar icons are drawn for this skill on the same grid and stroke rules (24 x 24, rounded) and are released with it.",
+  "_license": "Most icons are Lucide icons (https://lucide.dev, ISC licence, Copyright (c) Lucide Icons and Contributors) or are redrawn from Lucide designs; some Lucide icons derive from Feather (MIT licence, Copyright (c) Cole Bemis). The notices are in LICENSE next to this file. The diagram-type icons, the flowchart shape tiles, the participant-kind glyphs and a few toolbar icons and the use case diagram glyphs are drawn for this skill on the same grid and stroke rules (24 x 24, rounded) and are released with it.",
   "icons": {
     "user": "<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><circle cx=\"12\" cy=\"7\" r=\"4\"/>",
     "users": "<path d=\"M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2\"/><circle cx=\"9\" cy=\"7\" r=\"4\"/><path d=\"M22 21v-2a4 4 0 0 0-3-3.87\"/><path d=\"M16 3.13a4 4 0 0 1 0 7.75\"/>",
@@ -85,6 +85,13 @@
     "kind-ui": "<rect x=\"3\" y=\"4\" width=\"18\" height=\"12\" rx=\"2\"/><path d=\"M8 20h8M12 16v4\"/>",
     "kind-database": "<ellipse cx=\"12\" cy=\"5\" rx=\"8\" ry=\"3\"/><path d=\"M4 5v14c0 1.66 3.58 3 8 3s8-1.34 8-3V5\"/><path d=\"M4 12c0 1.66 3.58 3 8 3s8-1.34 8-3\"/>",
     "kind-queue": "<path d=\"M6 6h12a3 6 0 0 1 0 12H6a3 6 0 0 1 0-12z\"/><path d=\"M18 6a3 6 0 0 0 0 12\"/>",
-    "kind-external": "<circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18\"/>"
+    "kind-external": "<circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18\"/>",
+    "actor": "<circle cx=\"12\" cy=\"5\" r=\"3\"/><path d=\"M12 8v7\"/><path d=\"M5 11h14\"/><path d=\"m12 15-5 6\"/><path d=\"m12 15 5 6\"/>",
+    "type-usecase": "<circle cx=\"4.5\" cy=\"6.5\" r=\"1.8\"/><path d=\"M4.5 8.3v4.7M2 10.5h5M4.5 13l-2 4.5M4.5 13l2 4.5\"/><ellipse cx=\"15.5\" cy=\"12\" rx=\"6.5\" ry=\"4.5\"/><path d=\"M7.4 10.6 9 11\"/>",
+    "usecase": "<ellipse cx=\"12\" cy=\"12\" rx=\"10\" ry=\"6.5\"/>",
+    "subject": "<rect x=\"2.5\" y=\"3\" width=\"19\" height=\"18\" rx=\"2\"/><path d=\"M2.5 8h19\"/><ellipse cx=\"12\" cy=\"14.5\" rx=\"5.5\" ry=\"3\"/>",
+    "clock": "<circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"M12 6v6l4 2\"/>",
+    "search": "<circle cx=\"11\" cy=\"11\" r=\"8\"/><path d=\"m21 21-4.3-4.3\"/>",
+    "hash": "<path d=\"M4 9h16M4 15h16M10 3 8 21M16 3l-2 18\"/>"
   }
 }

@@ -1,6 +1,6 @@
 ---
 name: ultimate-diagram
-description: "Create, verify, edit and read diagrams as one standalone, editable HTML file or claude.ai Artifact (drag-and-drop, Auto-Tidy, Save). Supports swimlane flowcharts, sequence diagrams and ER diagrams (database tables, columns, keys, relationships). Use for interactive, shareable diagram pages, and to read, summarize or explain an existing diagram page (an .html with a \"diagram-data\" block): run its --extract command, never open the .html whole."
+description: "Create, verify, edit and read diagrams as one standalone, editable HTML file or claude.ai Artifact (drag-and-drop, Auto-Tidy, Save). Supports swimlane flowcharts, sequence diagrams, ER diagrams (database tables, columns, keys, relationships) and UML use case diagrams (actors, use cases, system boundaries, include/extend). Use for interactive, shareable diagram pages, and to read, summarize or explain an existing diagram page (an .html with a \"diagram-data\" block): run its --extract command, never open the .html whole."
 ---
 
 # Ultimate Diagram Skill
@@ -34,6 +34,7 @@ Every diagram JSON has a top-level `"diagramType"` (missing means `flowchart`).
 | `flowchart` | Swimlane / cross-functional process flows with decisions and loops | [references/types/flowchart.md](references/types/flowchart.md) |
 | `sequence` | Messages between participants over time (API calls, system interactions) | [references/types/sequence.md](references/types/sequence.md) |
 | `erd` | Database schema: tables, columns, keys and relationships (crow's-foot), tables colour-coded by domain | [references/types/erd.md](references/types/erd.md) |
+| `usecase` | UML use case diagram: who (actors) wants what (use cases) from which system (subject boundary), with include, extend and generalization; use cases coloured by feature area | [references/types/usecase.md](references/types/usecase.md) |
 
 `state` is planned, not supported: say so; do not force it into a flowchart. The type reference owns the schema, writing rules and visual checklist, and names the one example to copy.
 
@@ -77,7 +78,7 @@ Use to summarize, explain or answer questions about a diagram page.
    python "<skill-dir>/scripts/layout_engine.py" --extract <page.html>
    ```
    If that cannot run, read only the lines the page's line 2 names (the `"diagram-data"` JSON block).
-2. Answer from that JSON alone. Flowchart: `nodes` are sorted along the flow, so follow `edges` for the path; `"feedback": true` is a loop back; each note's `nodes` lists the steps it is attached to. Sequence: `messages` are in time order (a step number is a message's position there); a fragment covers messages `from`..`to` inclusive, an `alt`/`par` fragment's `branches[].at` (or `elseAt`, one unlabelled else) is where each further branch starts, and a note sits `over` a participant `after`/`before` a message. ERD: `entities` hold `columns` (`pk`, `fk`, `unique`, `nullable`); each `relationships` entry runs from the child (the table holding the foreign key) to the parent, its two ends (`fromEnd`, `toEnd`: `one`, `zeroOrOne`, `oneOrMany`, `zeroOrMany`) say how many rows sit on each side, and a table's `color` (named in `colorKey`) marks the domain it belongs to.
+2. Answer from that JSON alone. Flowchart: `nodes` are sorted along the flow, so follow `edges` for the path; `"feedback": true` is a loop back; each note's `nodes` lists the steps it is attached to. Sequence: `messages` are in time order (a step number is a message's position there); a fragment covers messages `from`..`to` inclusive, an `alt`/`par` fragment's `branches[].at` (or `elseAt`, one unlabelled else) is where each further branch starts, and a note sits `over` a participant `after`/`before` a message. ERD: `entities` hold `columns` (`pk`, `fk`, `unique`, `nullable`); each `relationships` entry runs from the child (the table holding the foreign key) to the parent, its two ends (`fromEnd`, `toEnd`: `one`, `zeroOrOne`, `oneOrMany`, `zeroOrMany`) say how many rows sit on each side, and a table's `color` (named in `colorKey`) marks the domain it belongs to. Use case: `actors` are roles outside the system and `useCases` are goals inside a `subjects` boundary; each `links` entry is an `association` (actor and use case), an `include` (from the base to the use case it always needs) or an `extend` (from the optional extension to its base, with a `condition`); `parent` is a generalization (child to parent); `refs` are the requirement ids a use case implements, and a `colorKey` names the feature area of each colour.
 
 ## Procedure: Update an Existing Diagram
 

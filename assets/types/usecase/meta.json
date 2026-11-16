@@ -1,0 +1,4 @@
+{
+  "title": "Interactive Use Case Diagram",
+  "dataNote": "`actors` are roles outside the system; `useCases` are goals inside a `subject` boundary; `links` connect them: association (actor-use case), include (base → always-included), extend (extension → base, optional, with `condition`); `parent` is a generalization; `refs` are requirement ids; `layout` is display-only."
+}
