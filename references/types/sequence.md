@@ -57,6 +57,7 @@ Never add coordinates (`x`, `y`, `w`, `h`, `layout`); `--layout` computes them. 
 | Fragment | `color` | Optional: a palette slot, `"1"` to `"8"`, or `"9"` for the neutral grey. Tints the frame and its tag. |
 | Fragment | `collapsed` | Optional. `true` draws the frame as one summary row ("9 messages hidden (steps 2–10)") that the reader can expand. |
 | Note | `id`, `text`, `over` | `over` is a participant id, or two ids to stretch the note from one lifeline to the other. `text` may hold `\n` line breaks. |
+| Note | `place` | Optional, instead of `over`: a note that sits between lifelines, at a position along them (`0` is the first lifeline, `1.5` halfway between the second and the third). It still takes its own row, so it never covers an arrow. |
 | Note | `after` / `before` | Optional message id. `after: m` puts the note under message `m`, inside every frame `m` is in; `before: m` puts it above `m` and above any frame that opens at `m`. With neither, it sits above the first message. |
 
 Activation bars are computed, never written. A bar shows a participant busy handling something:

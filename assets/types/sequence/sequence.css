@@ -199,3 +199,11 @@
     body.presentation .seq-actionbar, body.presentation .seq-handle, body.presentation .seq-plus, body.presentation .seq-insert,
     body.presentation .seq-add-branch { display: none !important; }
     body.capture #seq-canvas { margin: 0; padding: 12px; border: none; border-radius: 0; box-shadow: none; }
+
+    /* The Frame or Note button being dragged from the dock (see dockDrag) */
+    .seq-dock-ghost {
+      position: fixed; z-index: 1000; display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; pointer-events: none;
+      background: var(--bg-panel); color: var(--primary); border: 1.5px solid var(--primary); border-radius: var(--radius-sm);
+      font-size: var(--t-detail-size); box-shadow: var(--shadow-sm);
+    }
+    #btn-frame, #btn-add-note { touch-action: none; cursor: grab; }

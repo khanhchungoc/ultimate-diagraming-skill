@@ -214,7 +214,13 @@ class SequenceAudit:
             over = note_over(n)
             if not str(n.get("text") or "").strip():
                 errors.append(f"Note '{n.get('id')}' has no text.")
-            if not 1 <= len(over) <= 2:
+            place = n.get("place")
+            free = isinstance(place, (int, float)) and not isinstance(place, bool)
+            if over and "place" in n:
+                errors.append(f"Note '{n.get('id')}' has both 'over' and 'place': use one.")
+            elif "place" in n and not free:
+                errors.append(f"Note '{n.get('id')}' place must be a number (0 is the first lifeline).")
+            elif not free and not 1 <= len(over) <= 2:
                 errors.append(f"Note '{n.get('id')}' over must be one participant id, or two to span between.")
             for pid in over:
                 if pid not in pmap:

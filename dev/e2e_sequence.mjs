@@ -50,10 +50,10 @@ try {
   // --- Repair (step 0) ---
   t.check('with nothing selected Message is disabled, and Frame and Note stay clickable and say what to select',
     (await disabled('btn-add-message')) && !(await disabled('btn-frame')) && !(await disabled('btn-add-note'))
-      && /first click a message/.test(await t.ev(`document.getElementById('btn-frame').title`)) && !(await t.ev(`!!document.getElementById('btn-toggle-kind')`)));
+      && /click a message/.test(await t.ev(`document.getElementById('btn-frame').title`)) && !(await t.ev(`!!document.getElementById('btn-toggle-kind')`)));
   await t.clickOn('#btn-add-note');
   t.check('Note with nothing selected shows a toast that says what to select, and adds nothing',
-    /first click a message/.test(await t.ev(`(document.querySelector('.toast') || {}).textContent || ''`)) && (await count('.note')) === 0);
+    /click a message/.test(await t.ev(`(document.querySelector('.toast') || {}).textContent || ''`)) && (await count('.note')) === 0);
   await t.clickOn(`.seq-msg-label[data-edge-id="m6"]`);
   const selected = await t.ev(`!!document.querySelector('.seq-msg-label.selected')`);
   t.check('selecting a message enables Message, Frame and Note, and shows its action bar',
@@ -408,6 +408,48 @@ try {
   d = await drawAt('p2', (await divY()) - 12, 'p3');
   at = fresh(d);
   t.check('a message drawn just above a branch divider ends the branch above', at === 5 && branchAt(d) === 'm6', JSON.stringify(d.fragments));
+
+  // --- Drag Frame and Note from the dock ---
+  // On the checkout page p2 and p3 are neighbours; halfway between their lifelines is away from both
+  const m2Line = () => t.at('.seq-line[data-edge-id="m2"]');
+  // A new note is the one whose id was not there before the drag
+  const noteIds = async () => new Set(((await saved()).notes || []).map((n) => n.id));
+  await t.open(page);
+  let had = await noteIds();
+  let dockBtn = await t.at('#btn-add-note'), dockRow = await m2Line();
+  let a2 = await lifelineAt('p2', dockRow.y - 20), a3 = await lifelineAt('p3', dockRow.y - 20);
+  await t.dragTo(dockBtn.x, dockBtn.y, (a2.x + a3.x) / 2, dockRow.y - 20, { steps: 10 });
+  await t.press('Enter');
+  d = await saved();
+  let nn = (d.notes || []).find((n) => !had.has(n.id));
+  t.check('a Note dragged from the dock to a spot away from the lifelines stays there (place, no over)',
+    !!nn && nn.over === undefined && nn.place > 1 && nn.place < 2 && (nn.before || nn.after), JSON.stringify(d.notes));
+  await t.open(page);
+  had = await noteIds();
+  dockBtn = await t.at('#btn-add-note'); dockRow = await m2Line();
+  a3 = await lifelineAt('p3', dockRow.y - 20);
+  await t.dragTo(dockBtn.x, dockBtn.y, a3.x + 10, dockRow.y - 20, { steps: 10 });
+  await t.press('Enter');
+  d = await saved();
+  nn = (d.notes || []).find((n) => !had.has(n.id));
+  t.check('a Note dragged from the dock onto a lifeline sits over it', !!nn && nn.over === 'p3' && nn.place === undefined, JSON.stringify(d.notes));
+  // Drag that note away from every lifeline: it becomes a free note
+  // The checkout page has no notes of its own, so the new one is the only card (its live id is not the saved n1)
+  const noteEl = await t.at('.note');
+  a2 = await lifelineAt('p2', noteEl.y);
+  a3 = await lifelineAt('p3', noteEl.y);
+  await t.dragTo(noteEl.x, noteEl.y, noteEl.x - (a3.x - a2.x) / 2, noteEl.y, { steps: 10 });
+  d = await saved();
+  const moved = d.notes.find((n) => n.id === nn.id);
+  t.check('a note dragged away from every lifeline becomes a free note', moved.over === undefined && moved.place > 1 && moved.place < 2, JSON.stringify(moved));
+  await t.open(page);
+  dockBtn = await t.at('#btn-frame');
+  const m7r = await t.at('.seq-line[data-edge-id="m7"]');
+  await t.dragTo(dockBtn.x, dockBtn.y, m7r.x, m7r.y - 25, { steps: 10 });
+  await t.press('Enter');
+  d = await saved();
+  const nf2 = d.fragments.find((f) => !['f1', 'f2'].includes(f.id));
+  t.check('a Frame dragged from the dock wraps the message just below the drop line', !!nf2 && nf2.from === 'm7' && nf2.to === 'm7', JSON.stringify(d.fragments));
 
   // A person who starts the flow gets no bar (the rest of the rules: dev/e2e_activations.mjs)
   await t.open(page);

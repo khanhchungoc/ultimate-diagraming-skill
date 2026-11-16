@@ -7,7 +7,8 @@
       //         participants[{id,name,kind}], messages[{id,from,to,label,detail?,kind}] (array order = time order),
       //         fragments[{id,kind,label,from,to,elseAt?|branches?[{at,label}],color?,collapsed?}]
       //           (from/to/elseAt/at are message ids),
-      //         notes?[{id,text,over,after?|before?}] (over: a participant id, or two ids to span between them),
+      //         notes?[{id,text,over|place,after?|before?}] (over: a participant id, or two ids to span between them; place: a
+      //         free note's position along the lifelines, 0 = the first, 1.5 = halfway between the second and third),
       //         rails? (true: a participant with nothing to show outside collapsed frames is a thin rail),
       //         lifespans? (true: a lifeline runs only from its participant's first message to its last; participants
       //           may carry start?/end? message ids that widen it, and column?: the id of an earlier participant whose
@@ -197,7 +198,17 @@
 
         // Notes: where each one hangs, and its box (width from what it sits over, height from the wrapped text)
         const floating = [], beforeOf = {}, afterOf = {};
+        // A note with a "place" instead of "over" sits at that position along the lifelines: 0 is the first
+        // lifeline, 1.5 halfway between the second and the third
+        const placeX = (place) => {
+          const k = Math.max(0, Math.min(ps.length - 1, place)), i = Math.min(ps.length - 2, Math.floor(k));
+          return ps.length < 2 ? ps[0].x : ps[i].x + (k - i) * (ps[i + 1].x - ps[i].x);
+        };
         const noteBox = (n) => {
+          if (n.over === undefined && typeof n.place === 'number' && ps.length) {
+            const lines = sqWrap(n.text, Math.max(4, Math.floor((SQ.NOTE_W - 2 * SQ.NOTE_PAD) / SQ.NOTE_CHAR_W)));
+            return { x: Math.max(SQ.GRID, Math.round(placeX(n.place) - SQ.NOTE_W / 2)), w: SQ.NOTE_W, h: lines.length * SQ.NOTE_LINE + 2 * SQ.NOTE_PAD };
+          }
           const over = sqNoteOver(n).map((id) => ps[pIdx[id]]);
           if (!over.length || over.some((p) => !p)) return null;
           const xs = over.map((p) => p.x);

@@ -46,6 +46,9 @@ def msgs_with(i, **extra):
 
 CASES = [
     # (name, changes, expected substring of an issue, or None for no structural issue)
+    ("a note placed between lifelines is valid", dict(notes=[{"id": "n", "text": "x", "place": 0.5, "after": "m1"}]), None),
+    ("a note with both over and place", dict(notes=[{"id": "n", "text": "x", "over": "a", "place": 0.5}]), "both 'over' and 'place'"),
+    ("a note place that is not a number", dict(notes=[{"id": "n", "text": "x", "place": "middle"}]), "place must be a number"),
     ("activation overrides on a call are valid", dict(messages=msgs_with(1, activate=False, until="m4")), None),
     ("activate that is not a boolean", dict(messages=msgs_with(1, activate="no")), "activate must be true or false"),
     ("until naming an earlier message", dict(messages=msgs_with(3, until="m1")), "until must name a later message"),

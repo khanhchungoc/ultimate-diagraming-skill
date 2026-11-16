@@ -440,6 +440,27 @@
         const r = seqHtml.getBoundingClientRect();
         return { x: (e.clientX - r.left) / scale, y: (e.clientY - r.top) / scale };
       }
+      // A note dropped further than this from every lifeline stays where it is dropped (a "place" note)
+      const NOTE_SNAP = 40;
+      // The lifeline a note centred at x snaps to, or null when x is away from every lifeline
+      function snapLifeline(x) {
+        const p = nearestParticipant(x);
+        return p && Math.abs(p.x - x) <= NOTE_SNAP ? p : null;
+      }
+      // x as a position along the lifelines: 0 at the first, 1.5 halfway between the second and the third
+      function placeOf(x) {
+        const ps = chartData.participants;
+        if (ps.length < 2 || x <= ps[0].x) return 0;
+        for (let i = 0; i < ps.length - 1; i++) {
+          if (x <= ps[i + 1].x) return Math.round((i + (x - ps[i].x) / (ps[i + 1].x - ps[i].x)) * 100) / 100;
+        }
+        return ps.length - 1;
+      }
+      // Put a note over the lifeline at x, or, away from every lifeline, at x itself
+      function setNoteSpot(n, x) {
+        const p = snapLifeline(x);
+        if (p) { n.over = p.id; delete n.place; } else { delete n.over; n.place = placeOf(x); }
+      }
       // The participant whose lifeline is nearest to x
       function nearestParticipant(x) {
         let best = null;
@@ -623,9 +644,9 @@
         btn.disabled = !enabled;
         btn.title = title;
       }
-      const NOTE_HINT = 'To add a note, first click a message (the note goes under it) or a participant, then press Note';
+      const NOTE_HINT = 'Drag Note onto the diagram: near a lifeline it sits over it, elsewhere it stays where you drop it. Or click a message or a participant, then press Note';
       const frameHint = (fc) => (fc ? 'A frame edge cuts through the selection: select whole frames only'
-        : 'To add a frame, first click a message, Shift+click another to select a range, then press Frame');
+        : 'Drag Frame onto the diagram to wrap the message there, then drag its edges to cover more. Or click a message, Shift+click another, then press Frame');
       // The frame the Frame button would make: the selected message range, if no frame's edge cuts through it
       function frameCandidate() {
         const ids = selIds(seqSel);
@@ -1094,6 +1115,7 @@
             drop(pt, d) {
               const first = Array.isArray(n.over) ? n.over[0] : n.over;
               if (!d.target) { render(); return; }
+              if (first === undefined) { delete n.place; n.over = d.target.id; relayout(); return; }   // a free note snaps to it
               const over = d.target.id === first ? first : [first, d.target.id];
               if (JSON.stringify(over) === JSON.stringify(n.over)) { render(); return; }
               n.over = over;
@@ -1113,20 +1135,22 @@
             el.style.transform = `translate(${d.dx}px, ${d.dy}px)`;
             d.slot = nearestSlot(rowSlots().filter((s) => s.note), n.y + d.dy);
             showDropLine(d.slot.y, d.slot.frame);
-            const p = nearestParticipant(n.x + n.w / 2 + d.dx);
+            const p = snapLifeline(n.x + n.w / 2 + d.dx);
             lightLifeline(p && p.id);
           },
           drop(pt, d) {
             const ps = chartData.participants;
-            const over = Array.isArray(n.over) ? n.over : [n.over];
+            delete n.after;
+            delete n.before;
+            Object.assign(n, d.slot.note);
+            // A single-lifeline or free note goes where it is dropped: over a lifeline it is near, or free between them
+            if (!Array.isArray(n.over)) { setNoteSpot(n, n.x + n.w / 2 + d.dx); relayout(); return; }
+            const over = n.over;
             const centre = nearestParticipant(n.x + n.w / 2 + d.dx);
             const was = nearestParticipant(n.x + n.w / 2);
             const shift = ps.indexOf(centre) - ps.indexOf(was);
             const idx = over.map((pid) => Math.max(0, Math.min(ps.length - 1, ps.findIndex((p) => p.id === pid) + shift)));
             n.over = idx.length > 1 && idx[0] !== idx[1] ? idx.map((i) => ps[i].id) : ps[idx[0]].id;
-            delete n.after;
-            delete n.before;
-            Object.assign(n, d.slot.note);
             relayout();
           }
         };
@@ -1739,6 +1763,7 @@
       function removeParticipantNotes(pid) {
         if (!chartData.notes) return;
         chartData.notes = chartData.notes.filter((n) => {
+          if (n.over === undefined) return true;   // a free note belongs to no participant
           const over = Array.isArray(n.over) ? n.over.filter((id) => id !== pid) : n.over === pid ? [] : [n.over];
           if (!over.length) return false;
           n.over = over.length === 1 ? over[0] : over;
@@ -1852,6 +1877,79 @@
         chartData.notes.push(n);
         editCreated('note', n.id);
       });
+
+      // --- DRAG A FRAME OR A NOTE FROM THE DOCK ---
+      // Drag the dock's Frame or Note button onto the diagram. A frame wraps the message just below the drop line (then
+      // drag its edges or add branches); a note lands in that row, over the lifeline it is dropped near, or free where
+      // it is dropped. A press without a drag is still a click.
+      function dockDrag(btn, kind) {
+        let start = null, ghost = null, spot = null, dragged = false;
+        const overCanvas = (e) => { const r = seqCanvas.getBoundingClientRect(); return e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom; };
+        const clear = () => {
+          if (ghost) ghost.remove();
+          ghost = null; spot = null;
+          seqDrop.style.display = 'none';
+          lightLifeline(null);
+          document.body.classList.remove('seq-dragging');
+        };
+        function onMove(e) {
+          if (!start) return;
+          if (!ghost) {
+            if (Math.hypot(e.clientX - start.x, e.clientY - start.y) < 6) return;
+            dragged = true;
+            ghost = htmlEl('div', 'seq-dock-ghost');
+            ghost.innerHTML = `${ui.icon(kind === 'frame' ? 'frame' : 'note')}<span>${kind === 'frame' ? 'Frame' : 'Note'}</span>`;
+            document.body.appendChild(ghost);
+            document.body.classList.add('seq-dragging');
+          }
+          Object.assign(ghost.style, { left: `${e.clientX + 12}px`, top: `${e.clientY + 12}px` });
+          spot = null;
+          seqDrop.style.display = 'none';
+          lightLifeline(null);
+          if (!overCanvas(e) || !chartData.layout) return;
+          const pt = canvasPoint(e);
+          const slots = kind === 'note' ? rowSlots().filter((sl) => sl.note) : rowSlots();
+          if (!slots.length) return;
+          spot = { pt, slot: nearestSlot(slots, pt.y) };
+          showDropLine(spot.slot.y, spot.slot.frame);
+          if (kind === 'note') { const p = snapLifeline(pt.x); lightLifeline(p && p.id); }
+        }
+        function onUp() {
+          window.removeEventListener('pointermove', onMove);
+          window.removeEventListener('pointerup', onUp);
+          const at = spot;
+          clear();
+          start = null;
+          if (!dragged || !at) return;
+          ensureModel();
+          if (kind === 'note') {
+            const n = Object.assign({ id: seqUid('n'), text: 'Note' }, at.slot.note);
+            setNoteSpot(n, at.pt.x);
+            chartData.notes = chartData.notes || [];
+            chartData.notes.push(n);
+            editCreated('note', n.id);
+            return;
+          }
+          const ms = chartData.messages;
+          let k = Math.min(at.slot.index, ms.length - 1);
+          while (k >= 0 && ms[k].hidden) k--;
+          if (k < 0) { ui.toast('Add a message first: a frame wraps messages'); return; }
+          const f = { id: seqUid('f'), kind: 'opt', label: 'condition', from: ms[k].id, to: ms[k].id };
+          chartData.fragments.push(f);
+          editCreated('fragment', f.id);
+        }
+        btn.addEventListener('pointerdown', (e) => {
+          if (e.button !== 0 || isPresent()) return;
+          start = { x: e.clientX, y: e.clientY };
+          dragged = false;
+          window.addEventListener('pointermove', onMove);
+          window.addEventListener('pointerup', onUp);
+        });
+        // The click that ends a drag is not a click on the button
+        btn.addEventListener('click', (e) => { if (dragged) { dragged = false; e.stopImmediatePropagation(); } }, true);
+      }
+      dockDrag(btnFrame, 'frame');
+      dockDrag(btnAddNote, 'note');
 
       btnNumbers.addEventListener('click', () => {
         if (chartData.numbered) delete chartData.numbered; else chartData.numbered = true;
