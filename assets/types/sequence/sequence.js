@@ -2222,7 +2222,7 @@
           notes.filter((n) => n.before === m.id).forEach(noteOut);
           frames.filter((r) => r.a === i).sort((u, v) => (v.b - v.a) - (u.b - u.a)).forEach(({ f }) => {
             const label = text(f.label);
-            if (f.kind === 'group') { out('rect rgba(128, 128, 128, 0.15)'); if (label) { depth++; out(`%% ${label}`); depth--; } }
+            if (f.kind === 'group') { out('rect rgba(128, 128, 128, 0.15)'); if (label) { depth++; out(`%% ${label}`); depth--; } }   // tokens-ok: Mermaid's own syntax for a group box, not a page style
             else out(`${f.kind} ${label}`);
             depth++;
           });
