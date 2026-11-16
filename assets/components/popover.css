@@ -38,4 +38,5 @@
     .confirm-msg { font-weight: var(--weight-semibold); margin-bottom: 12px; overflow-wrap: anywhere; }
     .confirm-title + .confirm-msg { font-weight: var(--weight-regular); color: var(--text-soft); }
     .confirm-actions { display: flex; justify-content: flex-end; gap: 8px; }
-    .confirm .btn { padding: 6px 12px; font-size: var(--t-control-size); }
+    .confirm .btn { padding: 6px 12px; font-size: var(--t-control-size); white-space: nowrap; }
+    .confirm.has-alt { width: 380px; max-width: calc(100vw - 16px); }

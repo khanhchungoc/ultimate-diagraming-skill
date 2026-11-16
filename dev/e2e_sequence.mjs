@@ -472,6 +472,20 @@ try {
   await t.clickOn('.seq-actionbar .seq-ab-btn[data-act="delete"]');
   d = await saved();
   t.check('that delete removes the message', !d.messages.some((m) => m.id === 'm2'), JSON.stringify(d.messages.map((m) => m.id)));
+  // A frame's bin asks: frame only (messages stay) or frame with its messages
+  await t.open(page);
+  await t.clickOn('.frame-tag[data-frag-id="f2"] .seq-frag-text');
+  await t.clickOn('.seq-actionbar .seq-ab-btn[data-act="delete-frame"]');
+  const choices = await t.ev(`JSON.stringify([...document.querySelectorAll('.confirm-actions button')].map((b) => b.textContent))`);
+  await t.clickOn('.confirm-alt');
+  d = await saved();
+  t.check('a frame\'s bin offers Frame only, which removes the frame and keeps its messages',
+    choices === JSON.stringify(['Cancel', 'Frame only', 'Frame and 2 messages']) && !d.fragments.some((f) => f.id === 'f2') && d.messages.some((m) => m.id === 'm2'), choices);
+  await t.clickOn('.frame-tag[data-frag-id="f1"] .seq-frag-text');
+  await t.clickOn('.seq-actionbar .seq-ab-btn[data-act="delete-frame"]');
+  await t.clickOn('.confirm-ok');
+  d = await saved();
+  t.check('and Frame and its messages removes both', !d.fragments.some((f) => f.id === 'f1') && !d.messages.some((m) => ['m4', 'm5', 'm6'].includes(m.id)), JSON.stringify(d.messages.map((m) => m.id)));
 
   // A person who starts the flow gets no bar (the rest of the rules: dev/e2e_activations.mjs)
   await t.open(page);
@@ -703,11 +717,12 @@ try {
     !JSON.parse(await rails()).includes('bus') && (await summaries()) < 4 && (await count('.seq-participant.is-rail')) < 4, `${await rails()} ${await summaries()}`);
   await t.clickOn('#btn-show-all');
   t.check('Show all expands every frame again (and then hides itself)', (await summaries()) === 0 && (await count('.seq-participant.is-rail')) === 0 && (await t.ev(`document.getElementById('btn-show-all').hidden`)));
-  // Focus is a toggle in the frame's tag; the frame's action bar has no Focus, and two icon-only deletes
+  // Focus is a toggle in the frame's tag; the frame's action bar has no Focus, two rows, and one bin
   await t.clickOn('.frame-tag[data-frag-id="f3"] .seq-frag-kind, .frame-tag[data-frag-id="f3"] .seq-frag-text');
   const fbar = await t.ev(`JSON.stringify([...document.querySelectorAll('.seq-actionbar .seq-ab-btn')].filter((b) => /delete/.test(b.dataset.act)).map((b) => [b.dataset.act, b.textContent.trim(), !!b.title]))`);
-  t.check('a frame\'s action bar has no Focus, and its two deletes are icons with tooltips',
-    (await count('.seq-actionbar .seq-ab-btn[data-act="focus"]')) === 0 && fbar === JSON.stringify([['delete', '', true], ['delete-with', '', true]]), fbar);
+  const rows = await t.ev(`(() => { const r = [...document.querySelectorAll('.seq-actionbar .seq-ab-row')]; return r.length === 2 && r[1].getBoundingClientRect().top > r[0].getBoundingClientRect().bottom - 1 ? 2 : r.length; })()`);
+  t.check('a frame\'s action bar has no Focus, two rows, and one bin icon with a tooltip',
+    (await count('.seq-actionbar .seq-ab-btn[data-act="focus"]')) === 0 && fbar === JSON.stringify([['delete-frame', '', true]]) && rows === 2, `${fbar} rows=${rows}`);
   await t.clickOn('.frame-tag[data-frag-id="f3"] .seq-frag-focus');
   const viaBar = await summaries();
   await t.clickOn('.frame-tag[data-frag-id="f3"] .seq-frag-focus');

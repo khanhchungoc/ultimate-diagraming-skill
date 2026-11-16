@@ -133,7 +133,15 @@
           cancel.addEventListener('click', () => closeConfirm());
           const ok = button('btn btn-danger confirm-ok', opts.ok || 'Delete');
           ok.addEventListener('click', () => { closeConfirm(); onYes(); });
-          row.append(cancel, ok);
+          row.append(cancel);
+          // An optional milder second choice (opts.alt: { text, onClick }) between Cancel and the main action
+          if (opts.alt) {
+            box.classList.add('has-alt');   // three buttons: a wider bubble
+            const alt = button('btn confirm-alt', opts.alt.text);
+            alt.addEventListener('click', () => { closeConfirm(); opts.alt.onClick(); });
+            row.append(alt);
+          }
+          row.append(ok);
           box.appendChild(row);
           box.addEventListener('keydown', (e) => {
             // Keys inside the bubble stay there (Delete/Backspace would open it again)

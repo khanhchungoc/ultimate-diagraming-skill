@@ -127,7 +127,9 @@
     body.presentation .seq-key-item.is-unnamed, body.exporting .seq-key-item.is-unnamed, body.capture .seq-key-item.is-unnamed { display: none; }
     body.presentation .seq-key-label { pointer-events: none; }
     /* The participant action bar has a second row for the swatches */
-    .seq-actionbar.is-wrap { flex-wrap: wrap; justify-content: center; max-width: 292px; row-gap: 2px; }
+    .seq-actionbar.is-wrap { flex-wrap: wrap; justify-content: center; width: max-content; max-width: 292px; row-gap: 2px; }
+    .seq-actionbar.is-rows { flex-direction: column; row-gap: 2px; }
+    .seq-ab-row { display: flex; align-items: center; gap: 2px; }
     .seq-ab-break { flex-basis: 100%; height: 0; }
     .seq-ab-swatch { height: 26px; width: 26px; }
     /* Lifespans: a short cap ends a lifeline; a pinned box whose lifeline has ended above the row fades out */

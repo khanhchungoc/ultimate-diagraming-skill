@@ -1336,16 +1336,18 @@
           const f = fragById(sel.id);
           if (!f || f.x === undefined) return;
           bar.setAttribute('aria-label', 'Frame');
-          FRAG_KINDS.forEach((k) => bar.appendChild(abButton('fkind', `<span>${k}</span>`, `Kind: ${k}`, f.kind === k, k)));
-          bar.appendChild(htmlEl('span', 'seq-ab-sep'));
-          bar.appendChild(abButton('color', '<span class="seq-swatch is-none"></span>', 'No colour', !f.color, ''));
+          bar.classList.add('is-rows');
+          // Two rows: the kind and delete, then the colours
+          const row1 = htmlEl('div', 'seq-ab-row'), row2 = htmlEl('div', 'seq-ab-row');
+          FRAG_KINDS.forEach((k) => row1.appendChild(abButton('fkind', `<span>${k}</span>`, `Kind: ${k}`, f.kind === k, k)));
+          row1.appendChild(delSep());
+          row1.appendChild(abButton('delete-frame', ui.icon('trash'), 'Delete the frame (asks whether to keep its messages)'));
+          row2.appendChild(abButton('color', '<span class="seq-swatch is-none"></span>', 'No colour', !f.color, ''));
           const fc = swatchOf(f);
-          PALETTE.forEach((w) => bar.appendChild(abButton('color', `<span class="seq-swatch" data-sw="${w.slot}"></span>`, `Colour: ${w.name}`, fc === w.slot, w.slot)));
-          // Focus lives in the frame's tag only. Two deletes: the frame alone (its messages stay), or everything in it
-          bar.appendChild(delSep());
-          bar.appendChild(delButton('Remove the frame, keep its messages (Delete key)', 'frame-unwrap'));
-          bar.appendChild(abButton('delete-with', ui.icon('trash'), 'Delete the frame and every message in it'));
-          at = { x: f.x + 150, y: f.y - 40 };
+          PALETTE.forEach((w) => row2.appendChild(abButton('color', `<span class="seq-swatch" data-sw="${w.slot}"></span>`, `Colour: ${w.name}`, fc === w.slot, w.slot)));
+          bar.append(row1, row2);
+          // Focus lives in the frame's tag only. Two rows tall: clear of the tag and the top handle
+          at = { x: f.x + 150, y: f.y - 76 };
           if (!f.collapsed) {
             addHandle('top', f.id, f.x + f.w / 2, f.y, 'seq-edge');
             addHandle('bottom', f.id, f.x + f.w / 2, f.y + f.h, 'seq-edge');
@@ -1428,12 +1430,21 @@
             relayout();
           } else if (act === 'focus') {
             focusFrame(f.id);
-          } else if (act === 'delete-with') {
-            const [a, b] = fragRange(f);
-            chartData.fragments = chartData.fragments.filter((x) => x.id !== f.id);
-            removeMessages(chartData.messages.slice(a, b + 1).map((x) => x.id));
-            seqSel = null;
-            relayout();
+          } else if (act === 'delete-frame') {
+            // One bin, two outcomes: the frame alone (its messages stay), or the frame with its messages
+            const [a, b] = fragRange(f), n = b - a + 1;
+            ui.confirm(el, {
+              title: 'Delete this frame?',
+              message: `"${f.label || f.kind}" covers ${n} message${n === 1 ? '' : 's'}.`,
+              label: 'Delete frame',
+              alt: { text: 'Frame only', onClick: () => deleteSelection(el) },
+              ok: `Frame and ${n} message${n === 1 ? '' : 's'}`
+            }, () => {
+              chartData.fragments = chartData.fragments.filter((x) => x.id !== f.id);
+              removeMessages(chartData.messages.slice(a, b + 1).map((x) => x.id));
+              seqSel = null;
+              relayout();
+            });
           }
         }
       }
