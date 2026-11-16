@@ -210,7 +210,7 @@
       width: 200px; height: 72px; border: 1.5px dashed var(--primary); border-radius: var(--radius-sm); background: var(--primary-wash);
     }
     .seq-dock-ghost.is-frame span {
-      position: absolute; left: -1.5px; top: -1.5px; padding: 0 8px; height: 20px; line-height: 20px; font-weight: var(--weight-bold);
+      position: absolute; left: -1.5px; top: -1.5px; padding: 0 8px; height: 20px; display: flex; align-items: center; line-height: var(--leading-none); font-weight: var(--weight-bold);
       color: var(--bg-panel); background: var(--primary); border-radius: var(--radius-sm) 0 var(--radius-sm) 0;
     }
     .seq-dock-ghost.is-note {
@@ -226,6 +226,6 @@
       border: 1.5px dashed var(--primary); border-radius: var(--radius-sm); background: var(--primary-wash);
     }
     .seq-frame-ghost span {
-      position: absolute; left: -1.5px; top: -1.5px; padding: 0 8px; height: 20px; line-height: 20px; font-size: var(--t-detail-size);
+      position: absolute; left: -1.5px; top: -1.5px; padding: 0 8px; height: 20px; display: flex; align-items: center; line-height: var(--leading-none); font-size: var(--t-detail-size);
       font-weight: var(--weight-bold); color: var(--bg-panel); background: var(--primary); border-radius: var(--radius-sm) 0 var(--radius-sm) 0;
     }

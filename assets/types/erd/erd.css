@@ -360,7 +360,8 @@
     body.erd-overview:not(.exporting) .edge-label.ov-hide:not(.ov-show):not(.is-editing-label) { display: none; }
     body.erd-overview:not(.exporting) .note { transform: scale(var(--inv)); transform-origin: 50% 50%; }
     /* The expanded card: the full table at 100% size, fixed over the table's box, above everything; never exported */
-    .erd-expand-card { position: fixed; z-index: 900; pointer-events: none; }
+    .erd-expand-card { position: fixed; z-index: 900; }
+    .erd-expand-card, .erd-expand-card * { pointer-events: none; }   /* click-through: the table's own rules set pointer-events: auto, which a parent's none does not stop */
     .erd-expand-card .erd-entity { position: relative; width: max-content; z-index: auto; cursor: default; box-shadow: var(--shadow-xl); transition: none; }
     body.exporting .erd-expand-card { display: none !important; }
 
