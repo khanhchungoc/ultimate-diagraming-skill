@@ -4140,7 +4140,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         text.contentEditable = 'false';
         if (editingNoteId !== note.id) return;
         editingNoteId = null;
-        const value = text.innerText.replace(/ /g, ' ').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+        const value = text.innerText.replace(/\u00a0/g, ' ').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
         if (value) note.text = value;
         else {
           chartData.notes = notesList().filter(n => n !== note);
