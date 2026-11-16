@@ -2,7 +2,7 @@
 
 Add UML use case diagrams as the fourth type, next to `flowchart`, `sequence` and `erd`. Same promise as the others: the agent writes a short logical JSON, the tooling lays it out, audits it and assembles one standalone, editable HTML page (or claude.ai Artifact) with the shared shell: pan/zoom/fit, theme, Save, undo/redo, Export and Copy, `?present`, help drawer, touch, Artifact Save.
 
-**Status:** brainstorm, not approved. See [Open decisions](#open-decisions).
+**Status:** approved 2026-11-16 with every open decision as proposed, except Copy as: **Mermaid** (`usecase-beta`) instead of PlantUML. See [Decisions](#decisions).
 
 **Acceptance case:** an online shop with about **25 use cases, 7 actors (2 of them external systems) and 2 subjects** (Storefront, Back office), with at least 3 `include`, 2 `extend` (one with a condition), one actor generalization (Registered customer → Customer) and one use case generalization (Pay → Pay by card / Pay by wallet). Authored in one pass from a written requirements list, audit 90 or more with no `[WARN]`, fits a 1080p screen with Fit, and a reader can answer "what can the Warehouse clerk do?" in under 10 seconds (click the actor). A small example (8 use cases, 3 actors, 1 subject) is the reference example.
 
@@ -55,7 +55,7 @@ UML 2.5 defines more than tools commonly draw. v1 keeps what PlantUML, Visual Pa
 | Use case as rectangle with ellipse icon | alternate classifier notation | ❌ |
 | Business use case (slashed ellipse) | RUP extension, not UML | ❌ |
 
-Text syntaxes for reference (Copy as): PlantUML has a full use case syntax (`actor`, `(Use case)`, `rectangle "System" { }`, `.> : include`, `<|--`). Mermaid has no use case diagram type at the time of writing (people fake it with `flowchart`), so Copy as Mermaid would be a lossy flowchart; Copy as PlantUML is the useful one (see [Copy as](#copy-as)).
+Text syntaxes for reference (Copy as): Mermaid 12.0 added a native use case diagram, still marked beta (header `usecase-beta`): actors, use cases, system boundaries, association, include, extend, generalization, stereotypes, notes and classes. PlantUML has had a full use case syntax for years. Copy as uses Mermaid, so the ERD and use case diagrams copy into the same tool (see [Copy as](#copy-as)).
 
 ## Goals
 
@@ -70,7 +70,7 @@ Text syntaxes for reference (Copy as): PlantUML has a full use case syntax (`act
 
 - Use case **specifications** (main success scenario, extensions, pre/post conditions). The diagram can link to them (`refs`), and a scenario is a sequence or flowchart diagram.
 - Multiplicity, packages, the classifier notation, business use cases, SysML.
-- Importing PlantUML in the page.
+- Importing Mermaid or PlantUML in the page.
 
 ## Data
 
@@ -241,8 +241,47 @@ Lines differ by dash and arrowhead, not colour. Use case level differs by size a
 
 ## Copy as
 
-- **PlantUML** (new optional plugin hook `toPlantUML()`, shown in Export › Copy like `toMermaid`): lossless for everything in v1. Example output: `left to right direction`, `actor "Customer" as customer`, `rectangle "Storefront" { usecase "Check out" as checkout }`, `checkout .> pay : <<include>>`, `voucher .> checkout : <<extend>>`, `member --|> customer`.
-- **Mermaid**: none in v1 (no native type). Revisit if Mermaid adds one.
+**Copy as Mermaid** through the existing `toMermaid()` plugin hook (Export › Copy › Mermaid, as the ERD). No shell change.
+
+Target: Mermaid's use case diagram, added in Mermaid 12.0 and still **beta** (`usecase-beta`; the Mermaid docs say the syntax may still change). It renders only where the viewer runs Mermaid 12 or later; older renderers show a parse error. The help drawer and the copy badge say "Mermaid 12+ (beta)". The syntax below was read from the Mermaid 12.3.0 parser source (`src/diagrams/usecase/parser/usecase.parser.ts`, `usecaseModelBuilder.ts`); it was not run.
+
+```
+usecase-beta
+direction LR
+actor customer("Customer")
+actor member("Registered customer")
+actor psp("Payment gateway") <<system>>
+actor nightly("Nightly") <<time>>
+systemBoundary shop["Storefront"]
+  checkout("Check out")
+  pay("Take payment"):::subfunction
+  voucher("Apply voucher"):::area1
+end
+member --|> customer
+member -- checkout
+checkout ..> : include pay
+voucher ..> : extend checkout
+pay -- psp
+note for voucher "extends Check out when: customer has a code"
+classDef area1 fill:#dbeafe,stroke:#2563eb
+classDef subfunction stroke-dasharray:4 3
+```
+
+| Our model | Mermaid | Loss |
+|---|---|---|
+| Subject | `systemBoundary id["Name"]` … `end` with its use cases inside | none |
+| Actor `human` / `system` / `time` | `actor id("Name")`, plus `<<system>>` / `<<time>>` stereotype | the icon tile (Mermaid draws a stick figure; `@{ icon: ... }` needs an icon pack the viewer may not have) |
+| Use case | `id("Name")` (round brackets draw the ellipse) | none |
+| Association | `a -- b`; `navigable: true` writes `a --> b` | none |
+| `include` | `base ..> : include part` | none |
+| `extend` | `ext ..> : extend base` | `condition` and `extensionPoint`: Mermaid has no edge label on include/extend and notes attach only to actors and use cases, so they become `note for <extension> "extends <base> when: <condition>"` |
+| Actor or use case `parent` | `child --|> parent` | none |
+| `color` (feature area) | `classDef area<n>` with the theme's slot fill and line hex at copy time, `:::area<n>` on each use case | the legend (`colorKey`) becomes a `%% area1 = Ordering` comment line |
+| `level` | `classDef subfunction` (dashed) / `classDef summary` (thick stroke) | none visible beyond the stroke |
+| `extensionPoints`, `abstract`, `refs` | `%%` comment lines under the use case | not drawn |
+| Note on several items | one `note for` per target | duplicated text |
+
+Ids: our ids are slugs; any id that is not `\w+` (a hyphen) is written with `_` instead, and labels are quoted with `"` escaped as `#quot;`, as the ERD export does.
 
 ## Files
 
@@ -257,7 +296,7 @@ dev/fixtures/usecase/*.json        + golden
 dev/test_audit_usecase.py, dev/e2e_usecase.mjs
 ```
 
-Changed: `SKILL.md` (type table, read-back line for use cases), `scripts/layout_engine.py` (type registry), `scripts/disk_format.py` (codec), `assets/icons/default.json` (`type-usecase`, `actor`), `assets/tokens/default.json` (contrast pairs for the ellipse fill and text, a `usecase` metric key if the ellipse text needs one), `shell.js` (the `toPlantUML` copy item), `dev/architecture.md`, README type table.
+Changed: `SKILL.md` (type table, read-back line for use cases), `scripts/layout_engine.py` (type registry), `scripts/disk_format.py` (codec), `assets/icons/default.json` (`type-usecase`, `actor`), `assets/tokens/default.json` (contrast pairs for the ellipse fill and text, a `usecase` metric key if the ellipse text needs one), `dev/architecture.md`, README type table.
 
 ## Phases
 
@@ -266,7 +305,7 @@ Changed: `SKILL.md` (type table, read-back line for use cases), `scripts/layout_
 3. **Edit.** Dock, ports, line action bar, label editing, Auto-Tidy, Save, undo.
 4. **Multi-select.** `selectInRect`, `selectAll`, group move between subjects, multi-select action bar (colour, subject, connect, delete).
 5. **Explore.** Click-to-focus, search with refs, Refs and Levels toggles, subject collapse.
-6. **Copy as PlantUML**, help drawer, reference doc, example, README, `check_themes.py` and `check_contrast.py --strict` clean.
+6. **Copy as Mermaid**, help drawer, reference doc, example, README, `check_themes.py` and `check_contrast.py --strict` clean.
 
 ## Tests
 
@@ -274,17 +313,19 @@ Changed: `SKILL.md` (type table, read-back line for use cases), `scripts/layout_
 - `check_golden.py`: engine output for each fixture, and laying out the saved model again moves nothing.
 - `dev/e2e_usecase.mjs`: add each item from the dock; connect actor → case (association) and case → case (include); switch include → extend reverses the arrow; set a condition; multi-select 3 cases by box, recolour them in one step, move them to another subject, one undo restores all; Connect to… creates N associations; Delete N; click an actor dims the rest; search by ref; Save round trip keeps ids and positions; `?present` disables editing.
 - `check_themes.py` on all fixtures under every theme; `check_overflow.mjs` on the acceptance page; `build_examples.py --check`.
-- The PlantUML copy of the example and the acceptance case renders in PlantUML without errors (checked once, by hand, like the ERD's Mermaid check).
+- The Mermaid copy of the example and the acceptance case parses and renders in Mermaid 12.3 (or the newest 12.x) without errors, checked once by hand like the ERD's Mermaid check; this also confirms the syntax read from the parser source.
 
-## Open decisions
+## Decisions
 
-1. **Type name:** `usecase` (proposed) or `use-case`.
-2. **Generalization as a `parent` field** (proposed: it cannot point the wrong way and an agent cannot forget the direction) or as a fourth link `type`.
-3. **Default colouring:** use cases by feature area with neutral actors (proposed), or colour by actor (each use case takes its primary actor's colour). By-actor breaks when a goal has two actors, which is common.
-4. **System actor shape:** icon tile (proposed, more readable) or a second stick figure with `«system»`, which some textbooks use.
-5. **Connect gesture between two use cases:** default to `include` and switch in the action bar (proposed, one drag), or show a small chooser on drop (one more click every time, but explicit).
-6. **Copy as PlantUML:** in v1 (proposed: it is the main text format for this diagram type) or later.
-7. **Requirement traceability:** `refs` plus search in v1 (proposed), or later. It is what ties the diagram back to the requirements document, which is the point of the authoring procedure.
+Settled 2026-11-16.
+
+1. **Type name:** `usecase`.
+2. **Generalization** is a `parent` field on an actor or use case, not a link type, so it cannot point the wrong way.
+3. **Default colouring:** use cases by feature area; actors neutral unless the user colours them.
+4. **System and time actors:** icon tiles (`server`, `clock`), not a second stick figure.
+5. **Connecting two use cases** makes an `include`; the line action bar switches it to `extend` (reversing it).
+6. **Copy as:** Mermaid `usecase-beta` through the existing `toMermaid` hook, instead of the proposed PlantUML.
+7. **Traceability:** `refs` and search by ref are in v1.
 
 ## Sources
 
@@ -295,3 +336,4 @@ Changed: `SKILL.md` (type table, read-back line for use cases), `scripts/layout_
 - Visual Paradigm, UML 2 use case guide. https://s.visual-paradigm.com/guide/mastering-uml-2-0-use-case-diagrams-a-comprehensive-guide-to-capturing-functional-requirements/
 - Sparx, use case diagram. https://www.sparxsystems.eu/resources/reading-sample-project-development-with-uml-and-enterprise-architect/use-case-diagram
 - PlantUML use case syntax. https://plantuml.com/use-case-diagram
+- Mermaid use case diagram (beta, Mermaid 12). https://mermaid.js.org/syntax/usecase.html (syntax checked against the `mermaid@12.3.0` npm package source)
