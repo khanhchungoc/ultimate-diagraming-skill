@@ -956,7 +956,7 @@
       seqPlus.textContent = '+';
       function hidePlus() { seqPlus.style.display = 'none'; }
       function onCanvasHover(e) {
-        if (seqDrag || isPresent() || !chartData.layout) { hidePlus(); return; }
+        if (seqDrag || isPresent() || !chartData.layout || document.body.classList.contains('seq-dragging')) { hidePlus(); return; }
         const pt = canvasPoint(e);
         seqCanvas.classList.toggle('seq-row-hover', pt.y < SQ.TOP + SQ.BOX_H + 22 && pt.y > 0);
         if (e.target === seqPlus) return;
@@ -1273,6 +1273,9 @@
         h.dataset.exportSkip = '';
         seqHtml.appendChild(h);
       }
+      // The selection's delete button: an icon only, its tooltip says what goes
+      const delButton = (title, icon = 'trash') => abButton('delete', ui.icon(icon), title);
+      const delSep = () => htmlEl('span', 'seq-ab-sep');
       function drawSelectionTools(sel) {
         seqHtml.querySelectorAll('.seq-actionbar, .seq-handle, .seq-add-branch').forEach((el) => el.remove());
         if (!sel.kind || isPresent()) return;
@@ -1296,6 +1299,8 @@
           bar.appendChild(htmlEl('span', 'seq-ab-sep'));
           bar.appendChild(abButton('note', `${ui.icon('note')}<span>Note</span>`, 'Add a note under this message, over its sender'));
           bar.appendChild(abButton('frame', `${ui.icon('frame')}<span>Frame</span>`, 'Wrap the selected message (or Shift+click range) in a frame'));
+          bar.appendChild(delSep());
+          bar.appendChild(delButton('Delete this message (Delete key)'));
           const self = m.from === m.to;
           at = { x: self ? a.x + SQ.SELF_LOOP + 60 : (a.x + b.x) / 2, y: m.y - 62 };
           // End handles: drag one to another lifeline to move that end
@@ -1313,6 +1318,8 @@
           PARTICIPANT_KINDS.forEach((k) => bar.appendChild(abButton('pkind', ui.icon(kindIconName(k)), KIND_TITLES[k], (p.kind || 'system') === k, k)));
           bar.appendChild(htmlEl('span', 'seq-ab-sep'));
           bar.appendChild(abButton('note', `${ui.icon('note')}<span>Note</span>`, 'Add a note over this participant, above the first message'));
+          bar.appendChild(delSep());
+          bar.appendChild(delButton('Delete this participant and its messages (Delete key)'));
           bar.appendChild(htmlEl('span', 'seq-ab-break'));
           bar.appendChild(swatchRow(swatchOf(p) || '', (slot) => setParticipantColor(p.id, slot), { btnClass: 'seq-ab-swatch' }));
           if (p.column) {
@@ -1334,14 +1341,10 @@
           bar.appendChild(abButton('color', '<span class="seq-swatch is-none"></span>', 'No colour', !f.color, ''));
           const fc = swatchOf(f);
           PALETTE.forEach((w) => bar.appendChild(abButton('color', `<span class="seq-swatch" data-sw="${w.slot}"></span>`, `Colour: ${w.name}`, fc === w.slot, w.slot)));
-          bar.appendChild(htmlEl('span', 'seq-ab-sep'));
-          const foc = focusState(f.id);
-          if (foc && foc.toCollapse.length) {
-            const on = isFocused(foc);
-            bar.appendChild(abButton('focus', `${ui.icon('focus')}<span>Focus</span>`, on ? 'Show every phase again' : 'Collapse the other phases and expand this one', on));
-            bar.appendChild(htmlEl('span', 'seq-ab-sep'));
-          }
-          bar.appendChild(abButton('delete-with', `${ui.icon('trash')}<span>With messages</span>`, 'Delete the frame and every message in it'));
+          // Focus lives in the frame's tag only. Two deletes: the frame alone (its messages stay), or everything in it
+          bar.appendChild(delSep());
+          bar.appendChild(delButton('Remove the frame, keep its messages (Delete key)', 'frame-unwrap'));
+          bar.appendChild(abButton('delete-with', ui.icon('trash'), 'Delete the frame and every message in it'));
           at = { x: f.x + 150, y: f.y - 40 };
           if (!f.collapsed) {
             addHandle('top', f.id, f.x + f.w / 2, f.y, 'seq-edge');
@@ -1358,8 +1361,27 @@
           }
         } else if (sel.kind === 'note') {
           const n = noteById(sel.id);
-          if (n && n.x !== undefined) addHandle('stretch', n.id, n.x + n.w, n.y + n.h / 2, 'seq-stretch');
-          return;
+          if (!n || n.x === undefined) return;
+          addHandle('stretch', n.id, n.x + n.w, n.y + n.h / 2, 'seq-stretch');
+          bar.setAttribute('aria-label', 'Note');
+          bar.appendChild(delButton('Delete this note (Delete key)'));
+          at = { x: n.x + n.w / 2, y: n.y - 40 };
+        } else if (sel.kind === 'message' && sel.ids) {
+          // A range of messages: frame it, or delete it
+          const ms = sel.ids.map(msgById).filter((m) => m && !m.hidden);
+          if (!ms.length) return;
+          bar.setAttribute('aria-label', 'Messages');
+          bar.appendChild(abButton('frame', `${ui.icon('frame')}<span>Frame</span>`, 'Wrap the selected messages in a frame'));
+          bar.appendChild(delSep());
+          bar.appendChild(delButton('Delete the selected messages (Delete key)'));
+          const top = ms.reduce((u, v) => (v.y < u.y ? v : u)), a = byId[top.from], b = byId[top.to];
+          at = { x: a && b ? (a.x + b.x) / 2 : top.y, y: top.y - 62 };
+        } else if (sel.kind === 'divider') {
+          const f = fragById(sel.id), dv = f && (f.dividers || []).find((d) => d.at === sel.at);
+          if (!dv) return;
+          bar.setAttribute('aria-label', 'Branch');
+          bar.appendChild(delButton('Remove this branch divider (Delete key)'));
+          at = { x: f.x + f.w / 2, y: dv.y - 44 };
         } else {
           return;
         }
@@ -1375,10 +1397,11 @@
         const b = e.target.closest('.seq-ab-btn');
         if (!b || !seqSel) return;
         e.stopPropagation();
-        runAction(b.dataset.act, b.dataset.value);
+        runAction(b.dataset.act, b.dataset.value, b);
       });
-      function runAction(act, value) {
+      function runAction(act, value, el) {
         const sel = seqSel;
+        if (act === 'delete') { deleteSelection(el); return; }
         if (act === 'note') { btnAddNote.click(); return; }
         if (act === 'frame') { btnFrame.click(); return; }
         if (sel.kind === 'message') {
@@ -1879,15 +1902,27 @@
       });
 
       // --- DRAG A FRAME OR A NOTE FROM THE DOCK ---
-      // Drag the dock's Frame or Note button onto the diagram. A frame wraps the message just below the drop line (then
-      // drag its edges or add branches); a note lands in that row, over the lifeline it is dropped near, or free where
-      // it is dropped. A press without a drag is still a click.
+      // Drag the dock's Frame or Note button onto the diagram. A frame previews as an outline around the arrow nearest
+      // the pointer and wraps that arrow on drop (then drag its edges or add branches); a note lands in the row under
+      // the pointer, over the lifeline it is dropped near, or free where it is dropped. A press without a drag is a click.
+      // The box a one-message frame around message m would take (canvas px), for the drag preview
+      function frameBoxFor(m) {
+        const a = partById(m.from), b = partById(m.to);
+        let x1 = Math.min(a.x, b.x) - SQ.FRAG_PAD, x2 = Math.max(a.x, b.x) + SQ.FRAG_PAD;
+        const label = seqHtml.querySelector(`.seq-msg-label[data-edge-id="${m.id}"]`);
+        if (label) x2 = Math.max(x2, label.offsetLeft + label.offsetWidth + 12);
+        const below = (m.from === m.to ? 44 : 16) + (m.detail && chartData.showDetails !== false ? 16 : 0);
+        return { x: x1, y: m.y - 46, w: x2 - x1, h: 46 + below };
+      }
+      const nearestMessage = (y) => chartData.messages.filter((m) => !m.hidden && m.y !== undefined)
+        .reduce((best, m) => (!best || Math.abs(m.y - y) < Math.abs(best.y - y) ? m : best), null);
       function dockDrag(btn, kind) {
-        let start = null, ghost = null, spot = null, dragged = false;
+        let start = null, ghost = null, spot = null, dragged = false, outline = null;
         const overCanvas = (e) => { const r = seqCanvas.getBoundingClientRect(); return e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom; };
         const clear = () => {
           if (ghost) ghost.remove();
-          ghost = null; spot = null;
+          if (outline) outline.remove();
+          ghost = null; spot = null; outline = null;
           seqDrop.style.display = 'none';
           lightLifeline(null);
           document.body.classList.remove('seq-dragging');
@@ -1901,13 +1936,24 @@
             ghost.innerHTML = `${ui.icon(kind === 'frame' ? 'frame' : 'note')}<span>${kind === 'frame' ? 'Frame' : 'Note'}</span>`;
             document.body.appendChild(ghost);
             document.body.classList.add('seq-dragging');
+            hidePlus();
           }
           Object.assign(ghost.style, { left: `${e.clientX + 12}px`, top: `${e.clientY + 12}px` });
           spot = null;
           seqDrop.style.display = 'none';
           lightLifeline(null);
+          if (outline) outline.style.display = 'none';
           if (!overCanvas(e) || !chartData.layout) return;
           const pt = canvasPoint(e);
+          if (kind === 'frame') {
+            const m = nearestMessage(pt.y);
+            if (!m) return;
+            const box = frameBoxFor(m);
+            if (!outline) { outline = htmlEl('div', 'seq-frame-ghost'); outline.dataset.exportSkip = ''; outline.innerHTML = '<span>opt</span>'; seqHtml.appendChild(outline); }
+            Object.assign(outline.style, { display: 'block', left: px(box.x), top: px(box.y), width: px(box.w), height: px(box.h) });
+            spot = { pt, msg: m };
+            return;
+          }
           const slots = kind === 'note' ? rowSlots().filter((sl) => sl.note) : rowSlots();
           if (!slots.length) return;
           spot = { pt, slot: nearestSlot(slots, pt.y) };
@@ -1920,6 +1966,7 @@
           const at = spot;
           clear();
           start = null;
+          if (dragged && !at && kind === 'frame' && !chartData.messages.length) { ui.toast('Add a message first: a frame wraps messages'); return; }
           if (!dragged || !at) return;
           ensureModel();
           if (kind === 'note') {
@@ -1930,11 +1977,7 @@
             editCreated('note', n.id);
             return;
           }
-          const ms = chartData.messages;
-          let k = Math.min(at.slot.index, ms.length - 1);
-          while (k >= 0 && ms[k].hidden) k--;
-          if (k < 0) { ui.toast('Add a message first: a frame wraps messages'); return; }
-          const f = { id: seqUid('f'), kind: 'opt', label: 'condition', from: ms[k].id, to: ms[k].id };
+          const f = { id: seqUid('f'), kind: 'opt', label: 'condition', from: at.msg.id, to: at.msg.id };
           chartData.fragments.push(f);
           editCreated('fragment', f.id);
         }

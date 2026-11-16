@@ -65,8 +65,10 @@
     .seq-frag-focus {
       display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; margin: 0 -4px 0 6px;
       padding: 0; border: none; border-radius: var(--radius-sm); background: transparent; color: var(--text-soft); cursor: pointer;
-      vertical-align: -4px;
     }
+    /* The tag lays its chevron, kind, label and focus button out on one centred row */
+    #seq-html .frame-tag { display: inline-flex; align-items: center; }
+    #seq-html .frame-tag .frame-chev { vertical-align: baseline; }
     .seq-frag-focus:hover { background: var(--bg-hover); color: var(--text-main); }
     .seq-frag-focus[aria-pressed="true"] { background: var(--primary-wash); color: var(--primary); }
     #btn-show-all[hidden] { display: none; }
@@ -207,3 +209,14 @@
       font-size: var(--t-detail-size); box-shadow: var(--shadow-sm);
     }
     #btn-frame, #btn-add-note { touch-action: none; cursor: grab; }
+    /* Delete lives in the selection's action bar (an icon per kind of delete), so the dock's Delete is not shown */
+    #btn-delete-selection { display: none !important; }
+    /* The frame a drag from the dock would make (see dockDrag): an outline around one arrow */
+    .seq-frame-ghost {
+      position: absolute; display: none; box-sizing: border-box; pointer-events: none; z-index: 8;
+      border: 1.5px dashed var(--primary); border-radius: var(--radius-sm); background: var(--primary-wash);
+    }
+    .seq-frame-ghost span {
+      position: absolute; left: -1.5px; top: -1.5px; padding: 0 8px; height: 20px; line-height: 20px; font-size: var(--t-detail-size);
+      font-weight: var(--weight-bold); color: var(--bg-panel); background: var(--primary); border-radius: var(--radius-sm) 0 var(--radius-sm) 0;
+    }

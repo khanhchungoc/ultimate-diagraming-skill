@@ -242,7 +242,7 @@ try {
   await t.clickOn('.confirm-cancel');
   const kept = JSON.parse(await t.ev(names)).length;
   await t.clickOn('.seq-participant[data-node-id="p2"]');
-  await t.clickOn('#btn-delete-selection');
+  await t.clickOn('.seq-actionbar .seq-ab-btn[data-act="delete"]');
   await t.clickOn('.confirm-ok');
   t.check('deleting a participant with messages asks first ("Delete Shop and its N messages?")',
     /^Delete Shop and its \d+ messages\?$/.test(ask || '') && kept === 4 && JSON.parse(await t.ev(names)).length === 3, `${ask} kept=${kept}`);
@@ -449,7 +449,29 @@ try {
   await t.press('Enter');
   d = await saved();
   const nf2 = d.fragments.find((f) => !['f1', 'f2'].includes(f.id));
-  t.check('a Frame dragged from the dock wraps the message just below the drop line', !!nf2 && nf2.from === 'm7' && nf2.to === 'm7', JSON.stringify(d.fragments));
+  t.check('a Frame dragged from the dock onto an arrow wraps that arrow', !!nf2 && nf2.from === 'm7' && nf2.to === 'm7', JSON.stringify(d.fragments));
+  // Onto the bottom part of another frame: the arrow there (m6, f1's last), not the next one
+  await t.open(page);
+  dockBtn = await t.at('#btn-frame');
+  const m6r = await t.at('.seq-line[data-edge-id="m6"]');
+  await t.mouse('mouseMoved', dockBtn.x, dockBtn.y);
+  await t.mouse('mousePressed', dockBtn.x, dockBtn.y, { button: 'left', buttons: 1, clickCount: 1 });
+  for (let i = 1; i <= 8; i++) await t.mouse('mouseMoved', dockBtn.x + (m6r.x - dockBtn.x) * i / 8, dockBtn.y + (m6r.y + 12 - dockBtn.y) * i / 8, { buttons: 1 });
+  const ghostShown = await t.ev(`(() => { const g = document.querySelector('.seq-frame-ghost'); return !!g && getComputedStyle(g).display === 'block'; })()`);
+  await t.mouse('mouseReleased', m6r.x, m6r.y + 12, { button: 'left', buttons: 0, clickCount: 1 });
+  await t.press('Enter');
+  d = await saved();
+  const nf3 = d.fragments.find((f) => !['f1', 'f2'].includes(f.id));
+  t.check('dragging Frame shows the frame outline, and dropping it low in another frame wraps the arrow there',
+    ghostShown && !!nf3 && nf3.from === 'm6' && nf3.to === 'm6', `${ghostShown} ${JSON.stringify(d.fragments)}`);
+  // Every selection's action bar has an icon-only delete; the dock has none
+  await t.clickOn('.seq-msg-label[data-edge-id="m2"]');
+  const delMsg = await t.ev(`(() => { const b = document.querySelector('.seq-actionbar .seq-ab-btn[data-act="delete"]'); return b ? [b.textContent.trim(), b.title] : null; })()`);
+  const dockDel = await t.ev(`getComputedStyle(document.getElementById('btn-delete-selection')).display`);
+  t.check('a message\'s action bar has an icon-only delete with a tooltip, and the dock shows no Delete', !!delMsg && delMsg[0] === '' && /Delete/.test(delMsg[1]) && dockDel === 'none', JSON.stringify([delMsg, dockDel]));
+  await t.clickOn('.seq-actionbar .seq-ab-btn[data-act="delete"]');
+  d = await saved();
+  t.check('that delete removes the message', !d.messages.some((m) => m.id === 'm2'), JSON.stringify(d.messages.map((m) => m.id)));
 
   // A person who starts the flow gets no bar (the rest of the rules: dev/e2e_activations.mjs)
   await t.open(page);
@@ -681,13 +703,15 @@ try {
     !JSON.parse(await rails()).includes('bus') && (await summaries()) < 4 && (await count('.seq-participant.is-rail')) < 4, `${await rails()} ${await summaries()}`);
   await t.clickOn('#btn-show-all');
   t.check('Show all expands every frame again (and then hides itself)', (await summaries()) === 0 && (await count('.seq-participant.is-rail')) === 0 && (await t.ev(`document.getElementById('btn-show-all').hidden`)));
-  // Focus is a toggle, and a frame's action bar has it too
+  // Focus is a toggle in the frame's tag; the frame's action bar has no Focus, and two icon-only deletes
   await t.clickOn('.frame-tag[data-frag-id="f3"] .seq-frag-kind, .frame-tag[data-frag-id="f3"] .seq-frag-text');
-  await t.clickOn('.seq-actionbar .seq-ab-btn[data-act="focus"]');
+  const fbar = await t.ev(`JSON.stringify([...document.querySelectorAll('.seq-actionbar .seq-ab-btn')].filter((b) => /delete/.test(b.dataset.act)).map((b) => [b.dataset.act, b.textContent.trim(), !!b.title]))`);
+  t.check('a frame\'s action bar has no Focus, and its two deletes are icons with tooltips',
+    (await count('.seq-actionbar .seq-ab-btn[data-act="focus"]')) === 0 && fbar === JSON.stringify([['delete', '', true], ['delete-with', '', true]]), fbar);
+  await t.clickOn('.frame-tag[data-frag-id="f3"] .seq-frag-focus');
   const viaBar = await summaries();
-  await t.clickOn('.seq-actionbar .seq-ab-btn[data-act="focus"]');
-  t.check('a frame\'s action bar has Focus, and pressing it again on the focused frame shows everything',
-    viaBar === 4 && (await summaries()) === 0, `${viaBar} ${await summaries()}`);
+  await t.clickOn('.frame-tag[data-frag-id="f3"] .seq-frag-focus');
+  t.check('pressing Focus again on the focused frame shows everything', viaBar === 4 && (await summaries()) === 0, `${viaBar} ${await summaries()}`);
   // Drawing a message to a rail opens the frames that hide it first
   await t.clickOn('.frame-tag[data-frag-id="f3"] .seq-frag-focus');
   const railX = await t.ev(`(() => { const r = document.querySelector('.seq-life-hit[data-pid="pol"]').getBoundingClientRect(); return r.left + r.width / 2; })()`);
