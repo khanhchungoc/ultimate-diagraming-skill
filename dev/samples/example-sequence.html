@@ -4725,7 +4725,7 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
       }
       function hoverBarHandle(t) {
         const mid = t.classList.contains('seq-activation') ? t.dataset.mid : t.classList.contains('seq-barend') ? t.dataset.id : null;
-        seqHtml.querySelectorAll('.seq-barend').forEach((el) => { if (el.dataset.id !== mid && !(seqSel && seqSel.id === el.dataset.id)) el.remove(); });
+        seqHtml.querySelectorAll('.seq-barend').forEach((el) => { if (el.dataset.id !== mid && !(seqSel && seqSel.kind === 'message' && seqSel.id === el.dataset.id)) el.remove(); });
         if (mid) addBarHandle(mid);
       }
 
@@ -5006,7 +5006,7 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
           bar.appendChild(delButton('Delete this message (Delete key)'));
           const self = m.from === m.to;
           at = { x: self ? a.x + SQ.SELF_LOOP + 60 : (a.x + b.x) / 2, y: m.y - 62 };
-          if ((m.kind || 'sync') === 'sync') addBarHandle(m.id);
+          addBarHandle(m.id);
           // End handles: drag one to another lifeline to move that end
           if (self) { addHandle('from', m.id, a.x, m.y, 'seq-end'); addHandle('to', m.id, a.x, m.y + 28, 'seq-end'); }
           else { addHandle('from', m.id, a.x, m.y, 'seq-end'); addHandle('to', m.id, b.x, m.y, 'seq-end'); }
