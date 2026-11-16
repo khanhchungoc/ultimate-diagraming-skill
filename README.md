@@ -77,6 +77,7 @@ We asked an AI (Claude Haiku) to summarize 4 saved diagrams, from 9 to 41 steps 
 | **Flowchart**: swimlanes, decisions, loops, wide or tall; classic shapes (document, database, input/output, subprocess, delay) and lettered connectors for long arrows | ✅ Available |
 | **Sequence**: who talks to whom over time, with optional, alternative and loop sections | ✅ Available |
 | **ERD**: database tables, columns, keys and crow's-foot relationships, tables colour-coded by domain, laid out as a graph with smooth curves; collapse tables, add notes, copy as Mermaid | ✅ Available |
+| **Use case**: UML actors, use cases and system boundaries with include, extend and generalization; use cases coloured by feature area, requirement refs and search | ✅ Available |
 
 ![Sequence diagram](docs/img/example-sequence.png)
 
