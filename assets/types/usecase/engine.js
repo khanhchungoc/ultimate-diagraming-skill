@@ -24,7 +24,7 @@ const UC = {
   // ellipse
   WRAP: 156, MIN_W: 128, MIN_H: 44, PAD_TXT: 14, ONE_LINE_K: 1.12, TWO_LINE_K: 1.22, GRID: 4,
   LEVEL_K: { summary: 1.14, user: 1, subfunction: 0.86 },
-  COMP_PAD: 10,                                  // compartment: COMP_PAD + one DETAIL_H per extension point
+  COMP_PAD: 10,                                  // compartment: 3 * COMP_PAD + one DETAIL_H per extension point
   // actors
   FIG_W: 36, FIG_H: 56, ACTOR_WRAP: 120, NAME_GAP: 6, TILE_MIN_W: 112, TILE_H: 84, TILE_PAD: 24, ACTOR_MIN_W: 48,
   ACTOR_GAP_Y: 24, ACTOR_CHILD_GAP: 44, ACTOR_GAP: 96,
@@ -146,7 +146,7 @@ function ucSizes(m) {
     let h = (lines.length > 1 ? lines.length * UC.TEXT_H + 24 : UC.MIN_H) * k;
     w = Math.max(UC.MIN_W * k, w);
     const pts = (c.extensionPoints || []).map(String);
-    const compH = pts.length ? UC.COMP_PAD + pts.length * UC.DETAIL_H : 0;
+    const compH = pts.length ? 3 * UC.COMP_PAD + pts.length * UC.DETAIL_H : 0;   // CSS pads 10 top and bottom, plus 10 so the last line clears the curve
     if (pts.length) w = Math.max(w, Math.max(...pts.map((p) => ucTextW(p, UC.DETAIL_W))) * 1.4 + 2 * UC.PAD_TXT);
     c._lines = lines; c._compH = compH;
     c.w = ucGrid(w); c.h = ucGrid(h + compH);

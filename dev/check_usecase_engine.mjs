@@ -77,6 +77,7 @@ if (!existsSync(GOLD)) mkdirSync(GOLD, { recursive: true });
 for (const file of readdirSync(DIR).filter((f) => f.endsWith('.json')).sort()) {
   const name = file.replace(/\.json$/, '');
   const input = JSON.parse(readFileSync(join(DIR, file), 'utf8'));
+  input.schemaVersion ??= 1;   // as layout_engine.py --layout sets it, so dev/check_golden.py reads the same goldens
   const out = clone(input);
   engine.layoutDiagram(out);
   const again = clone(input);

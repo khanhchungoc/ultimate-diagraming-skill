@@ -231,6 +231,7 @@
       }
     }
   ],
+  "schemaVersion": 1,
   "_subjects": [
     {
       "id": "_main",

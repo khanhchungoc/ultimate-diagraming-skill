@@ -134,7 +134,7 @@ Live demos, hosted as claude.ai Artifacts (drag, edit and switch layouts in the 
 - [Checkout sequence diagram](https://claude.ai/artifact/5GAHnbS8tb9bxKxAi4JDYz)
 - [Shop ER diagram](https://claude.ai/artifact/39Vy8dhSEdN4MjqVe1qQEv)
 
-The same samples as files you can open offline: [flowchart](dev/samples/example-flowchart.html), [sequence](dev/samples/example-sequence.html), [ERD](dev/samples/example-erd.html).
+The same samples as files you can open offline: [flowchart](dev/samples/example-flowchart.html), [sequence](dev/samples/example-sequence.html), [ERD](dev/samples/example-erd.html), [use case](dev/samples/example-usecase.html).
 
 ## Credits
 
