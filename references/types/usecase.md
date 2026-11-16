@@ -48,7 +48,7 @@ Never add coordinates or sizes (`x`, `y`, `w`, `h`, `points`, `layout`); `--layo
 | Actor | `side` | Optional. `left` or `right`. Default: `left` for an actor that starts any association, `right` for one that is only ever the target (a supporting actor). |
 | Actor | `parent` | Optional. Actor id: a generalization (the child can do everything the parent can). Drawn as a hollow-triangle line. |
 | Actor | `abstract` | Optional. `true` draws the name in italics and exempts the actor from the "no association" warning. |
-| Actor | `color` | Optional. A palette slot, `"1"` to `"8"`. Leave actors neutral unless the user asks. |
+| Actor | `color` | Optional. A palette slot, `"1"` to `"8"`. Usually leave it out: the page gives every actor its own colour from the slots `colorKey` does not use (not saved), and its lines take that colour. Set it only when the user asks for a particular colour. |
 | Use case | `id`, `name`, `subject` | `name` is verb + object, 40 characters at most, wraps to two lines in its pill. `subject` is a subject id. |
 | Use case | `color` | Optional. A palette slot `"1"` to `"8"`: the feature area. Name each in `colorKey`. |
 | Use case | `level` | Optional. `summary` (drawn larger, bold outline), `user` (default), `subfunction` (drawn smaller, dashed outline). |

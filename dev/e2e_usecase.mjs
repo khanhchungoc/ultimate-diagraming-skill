@@ -360,7 +360,20 @@ try {
   const dim2 = await dimmed();
   t.check('click a use case: it lights its actors and its include / extend neighbours', !dim2.includes('checkout') && !dim2.includes('member') && !dim2.includes('pay') && !dim2.includes('voucher') && dim2.includes('browse'), dim2);
   await t.press('Escape');
+  await t.mouse('mouseMoved', 6, 300);   // off every item: a hover dims too
+  await sleep(80);
   t.check('Esc clears the dimming', (await dimmed()) === '');
+  // hover: only what the item connects to directly stays lit
+  const hoverOn = async (id) => { const r = await t.at(item(id), 0.5, 0.3); await t.mouse('mouseMoved', r.x, r.y); await sleep(120); return dimmed(); };
+  const hd = await hoverOn('clerk');
+  t.check('hover an actor: the use cases it connects to directly stay lit, the rest greys out',
+    ['pick', 'pack', 'clerk'].every((id) => !hd.includes(id)) && ['browse', 'checkout', 'customer', 'psp'].every((id) => hd.includes(id)), hd);
+  const hc = await hoverOn('checkout');
+  t.check('hover a use case: its actors and include / extend neighbours stay lit, not what they reach further',
+    ['checkout', 'member', 'pay', 'voucher'].every((id) => !hc.includes(id)) && ['browse', 'psp', 'clerk'].every((id) => hc.includes(id)), hc);
+  await t.mouse('mouseMoved', 6, 300);
+  await sleep(80);
+  t.check('moving off clears the hover dimming', (await dimmed()) === '');
   await t.clickOn(item('member'));
   t.check('a specialised actor reaches what its parent can do too', !(await dimmed()).includes('browse') && !(await dimmed()).includes('customer'), await dimmed());
   await blank();

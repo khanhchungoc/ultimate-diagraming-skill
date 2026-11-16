@@ -1368,12 +1368,15 @@
     /* --- Lines --- */
     .uc-link .edge-line { pointer-events: none; stroke: var(--node-border); stroke-width: 1.5px; stroke-linecap: round; marker-end: var(--mk-e); }
     .uc-link.is-dashed .edge-line { stroke-dasharray: 3 5; }
-    .uc-link:is(.hover, .selected, .hl) .edge-line { stroke: var(--primary); stroke-width: 2px; marker-end: var(--mk-e-sel); }
-    .uc-link.is-dim { opacity: 0.16; }
+    .uc-link[data-sw] .edge-line { stroke: var(--sw-line); }   /* an association takes its actor's colour */
+    .uc-link:is(.hover, .selected) .edge-line { stroke: var(--primary); stroke-width: 2px; marker-end: var(--mk-e-sel); }
+    .uc-link.hl:not(.hover, .selected) .edge-line { stroke-width: 2.25px; }   /* lit by a hover or a focus: same colour, bolder */
+    .uc-link.hl:not([data-sw], .hover, .selected) .edge-line { stroke: var(--text-soft); }
+    .uc-link.is-dim { opacity: 0.12; }
     .uc-link.is-hidden, .uc-label.is-hidden { display: none; }
     .uc-mk path { stroke: var(--mk, var(--node-border)); stroke-width: 1.5px; fill: none; stroke-linecap: round; stroke-linejoin: round; }
     .uc-mk-solid path { fill: var(--mk, var(--node-border)); }
-    .uc-mk-hollow path { fill: var(--bg-panel); }
+    .uc-mk-hollow path { fill: color-mix(in srgb, var(--mk, var(--node-border)) 28%, var(--bg-panel)); }   /* a generalization: a tinted, not a white, triangle */
     body.exporting .is-dim { opacity: 1 !important; }
 
     /* The «include» / «extend» pill on a line: the shared edge label, one or two lines of detail text */
@@ -1409,7 +1412,7 @@
     .uc-case.is-match .uc-shape { box-shadow: 0 0 0 var(--ring-lg) var(--primary-glow); }
     .uc-case.selected, .uc-case.hl { --ring: var(--primary); }
     .uc-case.selected .uc-shape { box-shadow: var(--shadow-ring); }
-    .uc-case.is-dim, .uc-actor.is-dim { opacity: 0.3; }
+    .uc-case.is-dim, .uc-actor.is-dim { opacity: 0.28; filter: grayscale(0.85); transition: opacity 0.15s, filter 0.15s; }   /* greyed out, not just faded */
     .uc-case.is-dragging, .uc-actor.is-dragging { opacity: 0.8; z-index: 50; }
     .uc-name-wrap { flex: 1 1 auto; min-height: 0; display: flex; align-items: center; justify-content: center; padding: 0 14px; }
     .uc-name { text-align: center; white-space: pre; }
@@ -1440,7 +1443,7 @@
     .uc-actor-name.is-editing { background: var(--bg-panel); outline: 1.5px solid var(--primary-ring); border-radius: var(--radius-xs); padding: 0 3px; min-width: 24px; }
     .uc-kw { color: var(--text-muted); }
     .uc-actor[data-sw] { --ring: var(--sw-line); }
-    .uc-actor[data-sw] .uc-figure { background: var(--sw-pill-bg); color: var(--sw-pill-ink); }
+    .uc-actor[data-sw] .uc-figure { background: color-mix(in srgb, var(--sw-pill-bg) 60%, var(--node-bg)); color: var(--sw-pill-ink); }   /* the same tint and 1px coloured ring as a use case */
     .uc-actor:hover .uc-figure { box-shadow: var(--shadow-md); }
     .uc-actor:hover, .uc-actor.selected, .uc-actor.hl { --ring: var(--primary); }
     .uc-actor:is(.selected, .hl) .uc-figure { color: var(--primary); box-shadow: var(--shadow-ring); }
@@ -1699,6 +1702,7 @@
         <span class="uc-help-line"><svg width="46" height="12" viewBox="0 0 46 12" aria-hidden="true"><path d="M1 6H32"/><path class="h" d="M32 1.5 45 6 32 10.5z"/></svg> <b>Generalization</b>: a specialised actor or use case points to the general one</span>
         <i>Always happens: include. Only sometimes: extend.</i> Include points from the base to the part; extend points from the extension to the base</li>
       <li><kbd>Click</kbd> : Select an actor, use case, subject, line (or its label) or note</li>
+      <li><kbd>Hover</kbd> an actor or use case : what it connects to directly stays lit and the rest greys out</li>
       <li><kbd>Click an Actor</kbd> : Everything that actor can reach stays at full strength and the rest dims: its use cases and what they include or extend. Click it again or press <kbd>Esc</kbd> to clear. <kbd>Click a Use Case</kbd> lights its actors and its include, extend and generalization neighbours</li>
       <li><kbd>/</kbd> or the <b>Find</b> field : Match names and requirement ids (type <code>FR-4</code> to find the use case that implements it); matches light up, <b>Fit to matches</b> zooms to them</li>
       <li><b>Add</b> (dock) : Click a tile to add it at the centre of the view, or drag it onto the canvas. A use case dropped inside a subject joins it. Its name opens for editing</li>
@@ -1707,7 +1711,7 @@
       <li><kbd>Double Click</kbd>, <kbd>Enter</kbd> or <kbd>F2</kbd> : Rename the selected item or subject; <kbd>Enter</kbd> commits, <kbd>Esc</kbd> keeps the old text</li>
       <li><kbd>Select Several</kbd> : <kbd>Ctrl</kbd>/<kbd>Cmd</kbd>+click adds an actor or use case or takes it out; <kbd>Shift</kbd>+drag on blank canvas draws a box (touching counts); <kbd>Ctrl</kbd>/<kbd>Cmd</kbd>+<kbd>A</kbd> selects all; <kbd>Esc</kbd> or a click on blank canvas clears. Drag one to move them all; dropped on another subject, the use cases move there. <kbd>Delete</kbd> removes them all (one <kbd>Ctrl+Z</kbd> brings them back)</li>
       <li><b>Action bar</b> of several : <b>Colour</b> recolours them all, <b>Subject</b> moves the use cases to another subject, <b>Connect</b> (one actor and N use cases selected) associates the actor with all of them, <b>Delete N</b></li>
-      <li><b>Colour</b> : Use cases take a colour per feature area (the legend says which); actors stay neutral unless you colour them. A use case's level is its size and outline (summary: large, bold; subfunction: small, dashed)</li>
+      <li><b>Colour</b> : Use cases take a colour per feature area (the legend says which); each actor has a colour of its own, and its lines take that colour (pick another in its action bar). A use case's level is its size and outline (summary: large, bold; subfunction: small, dashed)</li>
       <li><b>Chevron</b> in a subject's title : Collapse the boundary to its name bar, or expand it (also in <kbd>?present</kbd>)</li>
       <li><b>Refs</b> / <b>Levels</b> / <b>Notes</b> : Show requirement ids under each use case / show or hide the subfunction use cases / show every note on the canvas</li>
       <li><b>Auto-Tidy</b> : On: adding, deleting or connecting re-arranges the diagram. Off: things stay where you drop them (<b>Tidy</b> re-arranges once)</li>
@@ -3633,8 +3637,18 @@ function ucSegRect(p, q, r) {                      // segment against a rectangl
 
 const ucQuad = (p0, c, p1, t) => [(1 - t) * (1 - t) * p0[0] + 2 * (1 - t) * t * c[0] + t * t * p1[0], (1 - t) * (1 - t) * p0[1] + 2 * (1 - t) * t * c[1] + t * t * p1[1]];
 
+const ucCubic = (p0, c1, c2, p1, t) => {
+  const u = 1 - t, a = u * u * u, b = 3 * u * u * t, c = 3 * u * t * t, d = t * t * t;
+  return [a * p0[0] + b * c1[0] + c * c2[0] + d * p1[0], a * p0[1] + b * c1[1] + c * c2[1] + d * p1[1]];
+};
+// A point at t (0..1) along a line: 2 points straight, 3 a quadratic curve, 4 a cubic curve (two control points)
+function ucAt(pts, t) {
+  if (pts.length === 4) return ucCubic(pts[0], pts[1], pts[2], pts[3], t);
+  if (pts.length === 3) return ucQuad(pts[0], pts[1], pts[2], t);
+  return [pts[0][0] + (pts[1][0] - pts[0][0]) * t, pts[0][1] + (pts[1][1] - pts[0][1]) * t];
+}
 function ucPolyline(pts) {
-  if (pts.length === 3) { const out = []; for (let i = 0; i <= 16; i++) out.push(ucQuad(pts[0], pts[1], pts[2], i / 16)); return out; }
+  if (pts.length >= 3) { const out = []; for (let i = 0; i <= 20; i++) out.push(ucAt(pts, i / 20)); return out; }
   return pts;
 }
 
@@ -3930,17 +3944,22 @@ function ucLines(m) {
   };
   // straight, else the gentlest curve that clears every other ellipse and actor
   const route = (A, B, parent, bWhole = false) => {   // parent / bWhole: end on the whole actor (a generalization parent sits below its name)
-    const mx = (A.cx + B.cx) / 2, my = (A.cy + B.cy) / 2;
+    // A smooth S-curve (cubic): it leaves A and enters B along the main axis (sideways, or up and down when B is mostly
+    // above or below A); both control points move sideways by `off` when the plain curve would cross an item.
     const dx = B.cx - A.cx, dy = B.cy - A.cy, L = Math.hypot(dx, dy) || 1, nx = -dy / L, ny = dx / L;
+    const flat = Math.abs(dx) >= Math.abs(dy) * 0.6, sx = Math.sign(dx) || 1, sy = Math.sign(dy) || 1;
+    const k = Math.max(24, (flat ? Math.abs(dx) : Math.abs(dy)) * 0.45);
+    const t1 = flat ? [A.cx + sx * k, A.cy] : [A.cx, A.cy + sy * k], t2 = flat ? [B.cx - sx * k, B.cy] : [B.cx, B.cy - sy * k];
     const ob = obstacles(A.id, B.id);
     let best = null;
     for (const off of UC.CURVE_OFFS) {
-      let pts;
-      if (!off) pts = [ucClip(A, B.cx, B.cy, parent), ucClip(B, A.cx, A.cy, bWhole)];
-      else {
-        const c = [mx + nx * off, my + ny * off];
-        pts = [ucClip(A, c[0], c[1], parent), c, ucClip(B, c[0], c[1], bWhole)];
-      }
+      const c1 = [t1[0] + nx * off, t1[1] + ny * off], c2 = [t2[0] + nx * off, t2[1] + ny * off];
+      const p0 = ucClip(A, c1[0], c1[1], parent), p1 = ucClip(B, c2[0], c2[1], bWhole);
+      // control points measured from the clipped ends, so the curve leaves each outline along the axis
+      const kk = Math.max(18, (flat ? Math.abs(p1[0] - p0[0]) : Math.abs(p1[1] - p0[1])) * 0.45);
+      const q1 = flat ? [p0[0] + sx * kk + nx * off, p0[1] + ny * off] : [p0[0] + nx * off, p0[1] + sy * kk + ny * off];
+      const q2 = flat ? [p1[0] - sx * kk + nx * off, p1[1] + ny * off] : [p1[0] + nx * off, p1[1] - sy * kk + ny * off];
+      const pts = [p0, q1, q2, p1];
       const h = hitsOf(pts, ob);
       if (!best || h < best.h) best = { pts, h };
       if (!h) break;
@@ -3962,11 +3981,10 @@ function ucLines(m) {
   m.links.forEach((l) => {
     if ((l.type !== 'include' && l.type !== 'extend') || !l.points.length) return;
     const t = ucLabelLines(l), pts = l.points;
-    const at = (u) => (pts.length === 3 ? ucQuad(pts[0], pts[1], pts[2], u) : [pts[0][0] + (pts[1][0] - pts[0][0]) * u, pts[0][1] + (pts[1][1] - pts[0][1]) * u]);
+    const at = (u) => ucAt(pts, u);
     const score = (u, off) => {
       const p = at(u);
-      const d = pts.length === 3 ? ucQuad(pts[0], pts[1], pts[2], Math.min(1, u + 0.02)) : pts[1];
-      const e = pts.length === 3 ? ucQuad(pts[0], pts[1], pts[2], Math.max(0, u - 0.02)) : pts[0];
+      const d = at(Math.min(1, u + 0.02)), e = at(Math.max(0, u - 0.02));
       const tx = d[0] - e[0], ty = d[1] - e[1], tl = Math.hypot(tx, ty) || 1;
       const box = { x: Math.round(p[0] - t.w / 2 - (ty / tl) * off), y: Math.round(p[1] - t.h / 2 + (tx / tl) * off), w: t.w, h: t.h };
       let s = 0;
@@ -4134,6 +4152,8 @@ function routeDiagram(data) {
       let selIds = [];            // selected actors and use cases (primary last)
       let selOther = null;        // { kind: 'link' | 'subject' | 'note', id }
       let hoverLinkId = null;
+      let hoverItemId = null;     // the actor or use case under the pointer: what it connects to directly stays lit, the rest dims
+      let actorSw = new Map();    // actor id -> its colour slot (its own colour, else one picked for it; see actorSlots)
       let searchQ = '';
       let searchIds = [];
       let levelsOn = true;        // view only: off hides the subfunction use cases
@@ -4234,6 +4254,7 @@ function routeDiagram(data) {
         leadersG.textContent = '';
         html.textContent = '';
         els.items = new Map(); els.links = new Map(); els.subjects = new Map(); els.parents = [];
+        actorSw = actorSlots();
         selIds = selIds.filter((id) => itemOf(id));
         if (selOther && !otherExists(selOther)) selOther = null;
         if (hoverLinkId && !linkOf(hoverLinkId)) hoverLinkId = null;
@@ -4285,6 +4306,19 @@ function routeDiagram(data) {
         return el;
       }
 
+      // Actors are colour coded so each can be told apart, and their lines take the same colour. An actor's own `color`
+      // wins; the others take, in turn, the slots no feature area uses (colorKey), so an actor never wears a feature
+      // area's colour (with more actors than free slots, actors far apart in the list share one). Picked colours are not saved.
+      function actorSlots() {
+        const all = ['1', '2', '3', '4', '5', '6', '7', '8'];
+        const used = new Set(Object.keys(chartData.colorKey || {}));
+        const free = all.filter((x) => !used.has(x)), seq = free.length ? free : all;
+        const out = new Map();
+        let i = 0;
+        actors().forEach((a) => { out.set(a.id, a.color || seq[i++ % seq.length]); });
+        return out;
+      }
+
       // Every actor is a round avatar (person, server or clock), the name below and, for a system or time actor, its keyword
       function avatar(kind, size) {
         const fig = htmlEl('div', 'uc-figure');
@@ -4301,7 +4335,7 @@ function routeDiagram(data) {
         el.setAttribute('role', 'group');
         el.setAttribute('aria-label', `Actor ${nameOf(a)}${isTile(a) ? ` (${a.kind})` : ''}`);
         Object.assign(el.style, { left: px(a.x), top: px(a.y), width: px(a.w), height: px(a.h) });
-        if (a.color) setSwatch(el, a.color);
+        setSwatch(el, actorSw.get(a.id));
         el.appendChild(avatar(a.kind, a._figW));
         el.appendChild(htmlEl('span', `uc-actor-name t-label${a.abstract ? ' is-abstract' : ''}`, nameOf(a)));
         if (isTile(a)) el.appendChild(htmlEl('span', 'uc-kw t-caption', KIND_CAPTION[a.kind]));
@@ -4364,13 +4398,19 @@ function routeDiagram(data) {
         el.addEventListener('pointerenter', (ev) => {
           if (ev.pointerType === 'touch' || drag) return;
           if (notesOfItem(o.id).length) peekSoon(o.id, 100);
+          hoverItemId = o.id; applyFocus();
         });
-        el.addEventListener('pointerleave', () => { if (peekId === o.id) unpeekSoon(o.id); });
+        el.addEventListener('pointerleave', () => {
+          if (peekId === o.id) unpeekSoon(o.id);
+          if (hoverItemId === o.id) { hoverItemId = null; applyFocus(); }
+        });
       }
 
       // --- LINES ---
-      const pathOf = (p) => (p.length === 3 ? `M ${p[0][0]} ${p[0][1]} Q ${p[1][0]} ${p[1][1]} ${p[2][0]} ${p[2][1]}` : `M ${p[0][0]} ${p[0][1]} L ${p[p.length - 1][0]} ${p[p.length - 1][1]}`);
+      const pathOf = (p) => (p.length === 4 ? `M ${p[0][0]} ${p[0][1]} C ${p[1][0]} ${p[1][1]} ${p[2][0]} ${p[2][1]} ${p[3][0]} ${p[3][1]}`
+        : p.length === 3 ? `M ${p[0][0]} ${p[0][1]} Q ${p[1][0]} ${p[1][1]} ${p[2][0]} ${p[2][1]}` : `M ${p[0][0]} ${p[0][1]} L ${p[p.length - 1][0]} ${p[p.length - 1][1]}`);
       function midOf(p) {
+        if (p.length === 4) return { x: (p[0][0] + 3 * p[1][0] + 3 * p[2][0] + p[3][0]) / 8, y: (p[0][1] + 3 * p[1][1] + 3 * p[2][1] + p[3][1]) / 8 };
         if (p.length === 3) return { x: (p[0][0] + 2 * p[1][0] + p[2][0]) / 4, y: (p[0][1] + 2 * p[1][1] + p[2][1]) / 4 };
         return { x: (p[0][0] + p[p.length - 1][0]) / 2, y: (p[0][1] + p[p.length - 1][1]) / 2 };
       }
@@ -4396,6 +4436,7 @@ function routeDiagram(data) {
           tip.textContent = linkTitle(l);
           const line = svgEl('path', { class: 'edge-line', d });
           setMarkers(line, l.type === 'association' ? (l.navigable === true ? 'open' : null) : 'open');
+          if (l.type === 'association') { const who = actorSw.has(l.from) ? l.from : l.to; if (actorSw.has(who)) setSwatch(g, actorSw.get(who)); }
           g.append(tip, svgEl('path', { class: 'edge-hit', d }), line);
           g.addEventListener('pointerenter', (ev) => { if (ev.pointerType === 'touch' || drag) return; hoverLinkId = l.id; applyLinkState(); });
           g.addEventListener('pointerleave', () => { if (hoverLinkId === l.id) hoverLinkId = null; applyLinkState(); });
@@ -4536,16 +4577,28 @@ function routeDiagram(data) {
         }
         return lit;
       }
+      // What an item connects to directly: the other end of each of its lines, its parent and its children
+      function direct(id) {
+        const lit = new Set([id]);
+        linksOf().forEach((l) => { if (l.from === id) lit.add(l.to); if (l.to === id) lit.add(l.from); });
+        const o = itemOf(id);
+        if (o && o.parent) lit.add(o.parent);
+        actors().concat(cases()).forEach((x) => { if (x.parent === id) lit.add(x.id); });
+        return lit;
+      }
       function applyFocus() {
-        let lit = null, fromSearch = false;
+        let lit = null, fromSearch = false, hover = null;
+        if (hoverItemId && !itemOf(hoverItemId)) hoverItemId = null;
         if (searchQ) { lit = new Set(searchIds); fromSearch = true; }
+        else if (hoverItemId && !drag && !(selIds.length === 1 && !selOther && selIds[0] === hoverItemId)) { hover = hoverItemId; lit = direct(hover); }   // the clicked item keeps its wider focus
         else if (selIds.length === 1 && !selOther) lit = reach(selIds[0]);
         els.items.forEach((el, id) => {
           el.classList.toggle('is-dim', !!lit && !lit.has(id));
           el.classList.toggle('is-match', fromSearch && lit.has(id));
           el.classList.toggle('hl', !fromSearch && !!lit && lit.has(id) && selIds.length === 1 && id !== selIds[0] && false);
         });
-        const lineLit = (from, to) => !!lit && lit.has(from) && lit.has(to);
+        // hovering lights only the item's own lines; a selection lights every line inside what it reaches
+        const lineLit = (from, to) => !!lit && (hover ? from === hover || to === hover : lit.has(from) && lit.has(to));
         els.links.forEach((rec, id) => {
           const l = linkOf(id);
           if (!l) return;

@@ -368,8 +368,18 @@ function ucSegRect(p, q, r) {                      // segment against a rectangl
 
 const ucQuad = (p0, c, p1, t) => [(1 - t) * (1 - t) * p0[0] + 2 * (1 - t) * t * c[0] + t * t * p1[0], (1 - t) * (1 - t) * p0[1] + 2 * (1 - t) * t * c[1] + t * t * p1[1]];
 
+const ucCubic = (p0, c1, c2, p1, t) => {
+  const u = 1 - t, a = u * u * u, b = 3 * u * u * t, c = 3 * u * t * t, d = t * t * t;
+  return [a * p0[0] + b * c1[0] + c * c2[0] + d * p1[0], a * p0[1] + b * c1[1] + c * c2[1] + d * p1[1]];
+};
+// A point at t (0..1) along a line: 2 points straight, 3 a quadratic curve, 4 a cubic curve (two control points)
+function ucAt(pts, t) {
+  if (pts.length === 4) return ucCubic(pts[0], pts[1], pts[2], pts[3], t);
+  if (pts.length === 3) return ucQuad(pts[0], pts[1], pts[2], t);
+  return [pts[0][0] + (pts[1][0] - pts[0][0]) * t, pts[0][1] + (pts[1][1] - pts[0][1]) * t];
+}
 function ucPolyline(pts) {
-  if (pts.length === 3) { const out = []; for (let i = 0; i <= 16; i++) out.push(ucQuad(pts[0], pts[1], pts[2], i / 16)); return out; }
+  if (pts.length >= 3) { const out = []; for (let i = 0; i <= 20; i++) out.push(ucAt(pts, i / 20)); return out; }
   return pts;
 }
 
@@ -665,17 +675,22 @@ function ucLines(m) {
   };
   // straight, else the gentlest curve that clears every other ellipse and actor
   const route = (A, B, parent, bWhole = false) => {   // parent / bWhole: end on the whole actor (a generalization parent sits below its name)
-    const mx = (A.cx + B.cx) / 2, my = (A.cy + B.cy) / 2;
+    // A smooth S-curve (cubic): it leaves A and enters B along the main axis (sideways, or up and down when B is mostly
+    // above or below A); both control points move sideways by `off` when the plain curve would cross an item.
     const dx = B.cx - A.cx, dy = B.cy - A.cy, L = Math.hypot(dx, dy) || 1, nx = -dy / L, ny = dx / L;
+    const flat = Math.abs(dx) >= Math.abs(dy) * 0.6, sx = Math.sign(dx) || 1, sy = Math.sign(dy) || 1;
+    const k = Math.max(24, (flat ? Math.abs(dx) : Math.abs(dy)) * 0.45);
+    const t1 = flat ? [A.cx + sx * k, A.cy] : [A.cx, A.cy + sy * k], t2 = flat ? [B.cx - sx * k, B.cy] : [B.cx, B.cy - sy * k];
     const ob = obstacles(A.id, B.id);
     let best = null;
     for (const off of UC.CURVE_OFFS) {
-      let pts;
-      if (!off) pts = [ucClip(A, B.cx, B.cy, parent), ucClip(B, A.cx, A.cy, bWhole)];
-      else {
-        const c = [mx + nx * off, my + ny * off];
-        pts = [ucClip(A, c[0], c[1], parent), c, ucClip(B, c[0], c[1], bWhole)];
-      }
+      const c1 = [t1[0] + nx * off, t1[1] + ny * off], c2 = [t2[0] + nx * off, t2[1] + ny * off];
+      const p0 = ucClip(A, c1[0], c1[1], parent), p1 = ucClip(B, c2[0], c2[1], bWhole);
+      // control points measured from the clipped ends, so the curve leaves each outline along the axis
+      const kk = Math.max(18, (flat ? Math.abs(p1[0] - p0[0]) : Math.abs(p1[1] - p0[1])) * 0.45);
+      const q1 = flat ? [p0[0] + sx * kk + nx * off, p0[1] + ny * off] : [p0[0] + nx * off, p0[1] + sy * kk + ny * off];
+      const q2 = flat ? [p1[0] - sx * kk + nx * off, p1[1] + ny * off] : [p1[0] + nx * off, p1[1] - sy * kk + ny * off];
+      const pts = [p0, q1, q2, p1];
       const h = hitsOf(pts, ob);
       if (!best || h < best.h) best = { pts, h };
       if (!h) break;
@@ -697,11 +712,10 @@ function ucLines(m) {
   m.links.forEach((l) => {
     if ((l.type !== 'include' && l.type !== 'extend') || !l.points.length) return;
     const t = ucLabelLines(l), pts = l.points;
-    const at = (u) => (pts.length === 3 ? ucQuad(pts[0], pts[1], pts[2], u) : [pts[0][0] + (pts[1][0] - pts[0][0]) * u, pts[0][1] + (pts[1][1] - pts[0][1]) * u]);
+    const at = (u) => ucAt(pts, u);
     const score = (u, off) => {
       const p = at(u);
-      const d = pts.length === 3 ? ucQuad(pts[0], pts[1], pts[2], Math.min(1, u + 0.02)) : pts[1];
-      const e = pts.length === 3 ? ucQuad(pts[0], pts[1], pts[2], Math.max(0, u - 0.02)) : pts[0];
+      const d = at(Math.min(1, u + 0.02)), e = at(Math.max(0, u - 0.02));
       const tx = d[0] - e[0], ty = d[1] - e[1], tl = Math.hypot(tx, ty) || 1;
       const box = { x: Math.round(p[0] - t.w / 2 - (ty / tl) * off), y: Math.round(p[1] - t.h / 2 + (tx / tl) * off), w: t.w, h: t.h };
       let s = 0;

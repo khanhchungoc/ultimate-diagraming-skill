@@ -125,7 +125,7 @@ Text syntaxes for reference (Copy as): Mermaid 12.0 added a native use case diag
 | Actor | `kind` | Optional. `human` (default), `system` (an external system) or `time` (a scheduled trigger). Every actor is drawn as a round avatar (person, server or clock icon) with its name below; `system` and `time` add `«system»` / `«time»` under the name. |
 | Actor | `side` | Optional. `left` or `right`. Default: `left` for an actor that starts any association, `right` for one that is only ever the target (a supporting actor). |
 | Actor | `parent` | Optional. Actor id: an actor generalization. Drawn as a hollow-triangle line; the child sits beside or below the parent. |
-| Actor | `color` | Optional. A palette slot. Default neutral: actors are coloured only when the user asks (see [Colour](#colour)). |
+| Actor | `color` | Optional. A palette slot. Without it the page gives each actor a colour of its own, from the slots `colorKey` does not use, and the actor's association lines take it (revised 2026-11-16; picked colours are not saved). |
 | Use case | `id`, `name`, `subject` | `name` is verb + object, 40 characters, wraps to two lines inside the ellipse. |
 | Use case | `color` | Optional slot `"1"`–`"8"`: the feature area. Tints the ellipse fill. |
 | Use case | `level` | Optional. `summary`, `user` (default), `subfunction`. A subfunction is drawn smaller with a dashed outline; a summary is drawn larger with a bold outline. Colour is never the only cue. |
@@ -257,7 +257,7 @@ The one interface between `engine.js`, the page (`usecase.js`) and the Python au
 | `useCases[].x, y, w, h` | Bounding box of the ellipse (centre is `x + w/2, y + h/2`). With `extensionPoints`, the box includes the compartment. |
 | `useCases[]._lines` | The name wrapped to at most 2 lines (strings), as the page draws it. |
 | `subjects[].x, y, w, h` | The boundary rectangle, title bar included; `subjects[]._titleH` is the title bar height. A diagram without `subjects` gets one implicit subject with id `_main`, named after `title`, in `data._subjects` (the engine never writes `subjects` itself). |
-| `links[].points` | `[[x, y], ...]`, from the `from` item's outline to the `to` item's outline. Two points: straight line. Three points: a quadratic curve whose middle point is the control point. |
+| `links[].points` | `[[x, y], ...]`, from the `from` item's outline to the `to` item's outline. Two points: straight line. Three points: a quadratic curve whose middle point is the control point. Four points: a cubic curve (start, two control points, end); the engine draws every line this way since 2026-11-16, an S-curve that leaves and enters along the main axis. |
 | `links[].labelBox` | `{x, y, w, h}` of the `«include»` / `«extend» [condition]` label, or absent for an association. |
 | `data._parents` | `[{from, to, kind: "actor" or "useCase", points}]`: one line per `parent` field, `to` is the parent; the hollow triangle sits at the last point. |
 | `data.canvas` | `{width, height}`. |

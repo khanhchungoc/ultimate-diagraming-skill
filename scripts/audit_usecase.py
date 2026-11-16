@@ -3,7 +3,8 @@
 Checks the laid-out JSON only (actor and use case boxes, subject boxes, line routes and label boxes written by
 assets/types/usecase/engine.js; see the Engine contract in dev/plans/plan-usecase.md), so it needs no browser and never
 computes a layout. A use case is the pill (stadium) filling its box `x, y, w, h`; a link route `points` has two points
-(a straight line) or three (a quadratic curve whose middle point is the control point). The audit reads no text widths.
+(a straight line), three (a quadratic curve whose middle point is the control point) or four (a cubic curve: start,
+two control points, end). The audit reads no text widths.
 """
 
 from __future__ import annotations
@@ -27,7 +28,7 @@ MAX_NOTE = 120
 COLOR_MIN_USE_CASES = 12   # more use cases than this and none coloured: suggest colouring by feature area
 CHAIN_WARN_HOPS = 3        # a chain of this many include hops or more reads as a flow
 ERROR_PENALTY = 12
-CURVE_STEPS = 16
+CURVE_STEPS = 20
 INSIDE = 0.98              # a point is inside an ellipse when its normalised distance is under this (tolerates rounding)
 
 # Simple English check for "verb + object" names (info only). A name whose first word is not here gets an [INFO].
@@ -154,15 +155,20 @@ def _segment_hits_rect(p: List[float], q: List[float], box: Box) -> bool:
 
 
 def _polyline(points: List[List[float]]) -> List[List[float]]:
-    """The route as straight pieces: two points as is, three points sampled as a quadratic curve."""
-    if len(points) != 3:
+    """The route as straight pieces: two points as is, three sampled as a quadratic curve, four as a cubic one."""
+    if len(points) not in (3, 4):
         return points
-    (x0, y0), (cx, cy), (x1, y1) = points
     out = []
     for k in range(CURVE_STEPS + 1):
         t = k / CURVE_STEPS
         s = 1 - t
-        out.append([s * s * x0 + 2 * s * t * cx + t * t * x1, s * s * y0 + 2 * s * t * cy + t * t * y1])
+        if len(points) == 3:
+            (x0, y0), (cx, cy), (x1, y1) = points
+            out.append([s * s * x0 + 2 * s * t * cx + t * t * x1, s * s * y0 + 2 * s * t * cy + t * t * y1])
+        else:
+            (x0, y0), (ax, ay), (bx, by), (x1, y1) = points
+            a, b, c, d = s * s * s, 3 * s * s * t, 3 * s * t * t, t * t * t
+            out.append([a * x0 + b * ax + c * bx + d * x1, a * y0 + b * ay + c * by + d * y1])
     return out
 
 

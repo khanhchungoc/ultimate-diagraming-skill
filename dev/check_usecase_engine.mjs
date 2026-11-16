@@ -27,7 +27,8 @@ const boxOverlap = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b
 const quad = (p0, c, p1, t) => [0, 1].map((i) => (1 - t) * (1 - t) * p0[i] + 2 * (1 - t) * t * c[i] + t * t * p1[i]);
 const sample = (pts) => {
   const out = [];
-  for (let i = 0; i <= 40; i++) out.push(pts.length === 3 ? quad(pts[0], pts[1], pts[2], i / 40) : [pts[0][0] + (pts[1][0] - pts[0][0]) * i / 40, pts[0][1] + (pts[1][1] - pts[0][1]) * i / 40]);
+  const cubic = (t) => [0, 1].map((i) => (1 - t) ** 3 * pts[0][i] + 3 * (1 - t) ** 2 * t * pts[1][i] + 3 * (1 - t) * t * t * pts[2][i] + t ** 3 * pts[3][i]);
+  for (let i = 0; i <= 40; i++) out.push(pts.length === 4 ? cubic(i / 40) : pts.length === 3 ? quad(pts[0], pts[1], pts[2], i / 40) : [pts[0][0] + (pts[1][0] - pts[0][0]) * i / 40, pts[0][1] + (pts[1][1] - pts[0][1]) * i / 40]);
   return out;
 };
 

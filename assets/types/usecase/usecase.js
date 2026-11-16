@@ -37,6 +37,8 @@
       let selIds = [];            // selected actors and use cases (primary last)
       let selOther = null;        // { kind: 'link' | 'subject' | 'note', id }
       let hoverLinkId = null;
+      let hoverItemId = null;     // the actor or use case under the pointer: what it connects to directly stays lit, the rest dims
+      let actorSw = new Map();    // actor id -> its colour slot (its own colour, else one picked for it; see actorSlots)
       let searchQ = '';
       let searchIds = [];
       let levelsOn = true;        // view only: off hides the subfunction use cases
@@ -137,6 +139,7 @@
         leadersG.textContent = '';
         html.textContent = '';
         els.items = new Map(); els.links = new Map(); els.subjects = new Map(); els.parents = [];
+        actorSw = actorSlots();
         selIds = selIds.filter((id) => itemOf(id));
         if (selOther && !otherExists(selOther)) selOther = null;
         if (hoverLinkId && !linkOf(hoverLinkId)) hoverLinkId = null;
@@ -188,6 +191,19 @@
         return el;
       }
 
+      // Actors are colour coded so each can be told apart, and their lines take the same colour. An actor's own `color`
+      // wins; the others take, in turn, the slots no feature area uses (colorKey), so an actor never wears a feature
+      // area's colour (with more actors than free slots, actors far apart in the list share one). Picked colours are not saved.
+      function actorSlots() {
+        const all = ['1', '2', '3', '4', '5', '6', '7', '8'];
+        const used = new Set(Object.keys(chartData.colorKey || {}));
+        const free = all.filter((x) => !used.has(x)), seq = free.length ? free : all;
+        const out = new Map();
+        let i = 0;
+        actors().forEach((a) => { out.set(a.id, a.color || seq[i++ % seq.length]); });
+        return out;
+      }
+
       // Every actor is a round avatar (person, server or clock), the name below and, for a system or time actor, its keyword
       function avatar(kind, size) {
         const fig = htmlEl('div', 'uc-figure');
@@ -204,7 +220,7 @@
         el.setAttribute('role', 'group');
         el.setAttribute('aria-label', `Actor ${nameOf(a)}${isTile(a) ? ` (${a.kind})` : ''}`);
         Object.assign(el.style, { left: px(a.x), top: px(a.y), width: px(a.w), height: px(a.h) });
-        if (a.color) setSwatch(el, a.color);
+        setSwatch(el, actorSw.get(a.id));
         el.appendChild(avatar(a.kind, a._figW));
         el.appendChild(htmlEl('span', `uc-actor-name t-label${a.abstract ? ' is-abstract' : ''}`, nameOf(a)));
         if (isTile(a)) el.appendChild(htmlEl('span', 'uc-kw t-caption', KIND_CAPTION[a.kind]));
@@ -267,13 +283,19 @@
         el.addEventListener('pointerenter', (ev) => {
           if (ev.pointerType === 'touch' || drag) return;
           if (notesOfItem(o.id).length) peekSoon(o.id, 100);
+          hoverItemId = o.id; applyFocus();
         });
-        el.addEventListener('pointerleave', () => { if (peekId === o.id) unpeekSoon(o.id); });
+        el.addEventListener('pointerleave', () => {
+          if (peekId === o.id) unpeekSoon(o.id);
+          if (hoverItemId === o.id) { hoverItemId = null; applyFocus(); }
+        });
       }
 
       // --- LINES ---
-      const pathOf = (p) => (p.length === 3 ? `M ${p[0][0]} ${p[0][1]} Q ${p[1][0]} ${p[1][1]} ${p[2][0]} ${p[2][1]}` : `M ${p[0][0]} ${p[0][1]} L ${p[p.length - 1][0]} ${p[p.length - 1][1]}`);
+      const pathOf = (p) => (p.length === 4 ? `M ${p[0][0]} ${p[0][1]} C ${p[1][0]} ${p[1][1]} ${p[2][0]} ${p[2][1]} ${p[3][0]} ${p[3][1]}`
+        : p.length === 3 ? `M ${p[0][0]} ${p[0][1]} Q ${p[1][0]} ${p[1][1]} ${p[2][0]} ${p[2][1]}` : `M ${p[0][0]} ${p[0][1]} L ${p[p.length - 1][0]} ${p[p.length - 1][1]}`);
       function midOf(p) {
+        if (p.length === 4) return { x: (p[0][0] + 3 * p[1][0] + 3 * p[2][0] + p[3][0]) / 8, y: (p[0][1] + 3 * p[1][1] + 3 * p[2][1] + p[3][1]) / 8 };
         if (p.length === 3) return { x: (p[0][0] + 2 * p[1][0] + p[2][0]) / 4, y: (p[0][1] + 2 * p[1][1] + p[2][1]) / 4 };
         return { x: (p[0][0] + p[p.length - 1][0]) / 2, y: (p[0][1] + p[p.length - 1][1]) / 2 };
       }
@@ -299,6 +321,7 @@
           tip.textContent = linkTitle(l);
           const line = svgEl('path', { class: 'edge-line', d });
           setMarkers(line, l.type === 'association' ? (l.navigable === true ? 'open' : null) : 'open');
+          if (l.type === 'association') { const who = actorSw.has(l.from) ? l.from : l.to; if (actorSw.has(who)) setSwatch(g, actorSw.get(who)); }
           g.append(tip, svgEl('path', { class: 'edge-hit', d }), line);
           g.addEventListener('pointerenter', (ev) => { if (ev.pointerType === 'touch' || drag) return; hoverLinkId = l.id; applyLinkState(); });
           g.addEventListener('pointerleave', () => { if (hoverLinkId === l.id) hoverLinkId = null; applyLinkState(); });
@@ -439,16 +462,28 @@
         }
         return lit;
       }
+      // What an item connects to directly: the other end of each of its lines, its parent and its children
+      function direct(id) {
+        const lit = new Set([id]);
+        linksOf().forEach((l) => { if (l.from === id) lit.add(l.to); if (l.to === id) lit.add(l.from); });
+        const o = itemOf(id);
+        if (o && o.parent) lit.add(o.parent);
+        actors().concat(cases()).forEach((x) => { if (x.parent === id) lit.add(x.id); });
+        return lit;
+      }
       function applyFocus() {
-        let lit = null, fromSearch = false;
+        let lit = null, fromSearch = false, hover = null;
+        if (hoverItemId && !itemOf(hoverItemId)) hoverItemId = null;
         if (searchQ) { lit = new Set(searchIds); fromSearch = true; }
+        else if (hoverItemId && !drag && !(selIds.length === 1 && !selOther && selIds[0] === hoverItemId)) { hover = hoverItemId; lit = direct(hover); }   // the clicked item keeps its wider focus
         else if (selIds.length === 1 && !selOther) lit = reach(selIds[0]);
         els.items.forEach((el, id) => {
           el.classList.toggle('is-dim', !!lit && !lit.has(id));
           el.classList.toggle('is-match', fromSearch && lit.has(id));
           el.classList.toggle('hl', !fromSearch && !!lit && lit.has(id) && selIds.length === 1 && id !== selIds[0] && false);
         });
-        const lineLit = (from, to) => !!lit && lit.has(from) && lit.has(to);
+        // hovering lights only the item's own lines; a selection lights every line inside what it reaches
+        const lineLit = (from, to) => !!lit && (hover ? from === hover || to === hover : lit.has(from) && lit.has(to));
         els.links.forEach((rec, id) => {
           const l = linkOf(id);
           if (!l) return;
