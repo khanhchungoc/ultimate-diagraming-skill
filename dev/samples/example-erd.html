@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- For agents: the whole diagram is the JSON (application/json) in the "diagram-data" script on lines 12-137 of this file. Read lines 1-137 only (offset 1, limit 137); everything after line 137 is editor code (CSS, JS, icons) and says nothing about the diagram.
+<!-- For agents: the whole diagram is the JSON (application/json) in the "diagram-data" script on lines 12-139 of this file. Read lines 1-139 only (offset 1, limit 139); everything after line 139 is editor code (CSS, JS, icons) and says nothing about the diagram.
      The model's first key, "_readme", says how to read it. The "end diagram-data" comment marks the true end: if it is not on the line named above (the JSON was edited by hand since the last save), trust the comment. To print just the model:
      sed -n '/<script id="diagram-data" type="application\/json">/,/<\/script>/p' FILE
      python -c "import re,sys;print(re.search(r'<script id=\"diagram-data\" type=\"application\/json\">(.*?)<\/script>',open(sys.argv[1],encoding='utf8').read(),re.S)[1])" FILE -->
@@ -48,7 +48,7 @@
         { "name": "id", "type": "uuid", "pk": true },
         { "name": "customer_id", "type": "uuid", "fk": true },
         { "name": "shipping_address_id", "type": "uuid", "fk": true, "nullable": true },
-        { "name": "status", "type": "text", "note": "new, paid, shipped, cancelled" },
+        { "name": "status", "type": "text" },
         { "name": "placed_at", "type": "timestamptz" }
       ]
     },
@@ -59,7 +59,7 @@
       "columns": [
         { "name": "order_id", "type": "uuid", "pk": true, "fk": true },
         { "name": "product_id", "type": "uuid", "pk": true, "fk": true },
-        { "name": "qty", "type": "int", "note": "1 to 99" },
+        { "name": "qty", "type": "int" },
         { "name": "unit_price", "type": "numeric" }
       ]
     },
@@ -120,7 +120,9 @@
     { "id": "r9", "from": "review", "to": "customer", "columns": ["customer_id"], "fromEnd": "zeroOrMany", "toEnd": "one" }
   ],
   "notes": [
-    { "id": "n1", "text": "Orders are never deleted; cancelled orders keep their items", "entities": ["order"] }
+    { "id": "n1", "text": "Orders are never deleted; cancelled orders keep their items", "entities": ["order"] },
+    { "id": "n2", "text": "new, paid, shipped, cancelled", "entities": ["order"], "column": "status" },
+    { "id": "n3", "text": "1 to 99", "entities": ["order_item"], "column": "qty" }
   ],
   "layout": {
     "customer": { "x": 334, "y": 432 },
@@ -1770,7 +1772,7 @@
     body.erd-overview:not(.exporting) .note { transform: scale(var(--inv)); transform-origin: 50% 50%; }
     /* The expanded card: the full table at 100% size, fixed over the table's box, above everything; never exported */
     .erd-expand-card { position: fixed; z-index: 900; pointer-events: none; }
-    .erd-expand-card .erd-entity { position: relative; width: max-content; z-index: auto; cursor: default; box-shadow: var(--shadow-xl); transition: none; }
+    .erd-expand-card .erd-entity { position: relative; width: max-content; z-index: auto; pointer-events: none; cursor: default; box-shadow: var(--shadow-xl); transition: none; }
     body.exporting .erd-expand-card { display: none !important; }
 
 /* A column's note: a small badge in its row, and the row a dragged note would land on */

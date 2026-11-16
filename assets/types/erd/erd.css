@@ -361,7 +361,7 @@
     body.erd-overview:not(.exporting) .note { transform: scale(var(--inv)); transform-origin: 50% 50%; }
     /* The expanded card: the full table at 100% size, fixed over the table's box, above everything; never exported */
     .erd-expand-card { position: fixed; z-index: 900; pointer-events: none; }
-    .erd-expand-card .erd-entity { position: relative; width: max-content; z-index: auto; cursor: default; box-shadow: var(--shadow-xl); transition: none; }
+    .erd-expand-card .erd-entity { position: relative; width: max-content; z-index: auto; pointer-events: none; cursor: default; box-shadow: var(--shadow-xl); transition: none; }
     body.exporting .erd-expand-card { display: none !important; }
 
 /* A column's note: a small badge in its row, and the row a dragged note would land on */

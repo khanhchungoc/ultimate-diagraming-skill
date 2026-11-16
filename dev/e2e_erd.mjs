@@ -495,14 +495,14 @@ sys.stdout.write(format_json(out))`;
   d = await saved();
   const nn = d.notes.find((n) => n.entities.includes('customer'));
   t.check('N on a selected table opens a new note in edit; Enter adds a line, Ctrl+Enter finishes',
-    noteEdit === '' && nn?.text === 'Soft-deleted rows stay\nfor 30 days' && /^n\d+$/.test(nn.id) && d.notes.length === 2 && (await editing()) === null, `${noteEdit} ${J(nn)}`);
+    noteEdit === '' && nn?.text === 'Soft-deleted rows stay\nfor 30 days' && /^n\d+$/.test(nn.id) && d.notes.length === 4 && (await editing()) === null, `${noteEdit} ${J(nn)}`);
   await undo();
-  t.check('a note is one undo step', (await saved()).notes.length === 1);
+  t.check('a note is one undo step', (await saved()).notes.length === 3);
   await t.clickOn(head('address'));
   await t.press('n');
   await t.press('Escape');
   d = await saved();
-  t.check('Escape finishes an empty note, and an empty note is not kept', d.notes.length === 1 && (await count('.note-badge')) === 1);
+  t.check('Escape finishes an empty note, and an empty note is not kept', d.notes.length === 3 && (await count('.note-badge:not(.erd-row-badge)')) === 1);
   // + chip
   const addr = await t.at(head('address'), 0.5, 0.5);
   await t.mouse('mouseMoved', addr.x, addr.y);
@@ -545,7 +545,7 @@ sys.stdout.write(format_json(out))`;
   t.check('dragging the Note button onto a table gives it a note', dragEdit === '' && (await saved()).notes.some((n) => n.text === 'Moderated' && n.entities.join() === 'review'));
   // edit an existing note by its badge; link; unlink; pin; delete
   await freshPage();
-  await t.clickOn('.erd-entity[data-node-id="order"] .note-badge');
+  await t.clickOn('.erd-entity[data-node-id="order"] .note-badge:not(.erd-row-badge)');
   const badgeEdit = await editing();
   await t.type(' (kept for good)');   // the caret starts at the end of the text
   await t.press('Escape');
@@ -572,12 +572,12 @@ sys.stdout.write(format_json(out))`;
     typeof d.notes[0].pos?.x === 'number' && typeof d.notes[0].pos?.y === 'number', J(d.notes[0]));
   await t.press('Delete');
   d = await saved();
-  t.check('Delete removes the selected note', !d.notes && (await count('.note-badge')) === 0);
+  t.check('Delete removes the selected note', d.notes.length === 2 && !d.notes.some((n) => n.id === 'n1') && (await count('.note-badge:not(.erd-row-badge)')) === 0);
   await undo();
-  t.check('and undo brings it back with its place', (await saved()).notes?.[0]?.pos !== undefined);
+  t.check('and undo brings it back with its place', (await saved()).notes.find((n) => n.id === 'n1')?.pos !== undefined);
   // deleting a table unlinks its notes
   await freshPage();
-  await t.clickOn('.erd-entity[data-node-id="order"] .note-badge');
+  await t.clickOn('.erd-entity[data-node-id="order"] .note-badge:not(.erd-row-badge)');
   await t.press('Escape');
   const link3 = await t.at('.note.selected .note-link'), cust3 = await t.at(head('customer'));
   await t.dragTo(link3.x, link3.y, cust3.x, cust3.y);
@@ -696,9 +696,9 @@ sys.stdout.write(format_json(out))`;
     ['colour a table', async () => { await t.clickOn(head('address')); await t.clickOn('.erd-actionbar .swatch-btn[data-value="2"]'); }],
     ['collapse a table', async () => { await t.clickOn(`${head('order')} .erd-chevron`); }],
     ['add a note', async () => { await t.clickOn(head('address')); await t.press('n'); await t.type('Hi'); await t.press('Escape'); }],
-    ['link a note', async () => { await t.clickOn('.erd-entity[data-node-id="order"] .note-badge'); await t.press('Escape'); const l1 = await t.at('.note.selected .note-link'), c1 = await t.at(head('customer')); await t.dragTo(l1.x, l1.y, c1.x, c1.y); }],
-    ['pin a note', async () => { await t.clickOn('.erd-entity[data-node-id="order"] .note-badge'); await t.press('Escape'); const c1 = await t.at('.note.selected'); await t.dragTo(c1.x, c1.y, c1.x + 50, c1.y + 60); }],
-    ['delete a note', async () => { await t.clickOn('.erd-entity[data-node-id="order"] .note-badge'); await t.press('Escape'); await t.press('Delete'); }],
+    ['link a note', async () => { await t.clickOn('.erd-entity[data-node-id="order"] .note-badge:not(.erd-row-badge)'); await t.press('Escape'); const l1 = await t.at('.note.selected .note-link'), c1 = await t.at(head('customer')); await t.dragTo(l1.x, l1.y, c1.x, c1.y); }],
+    ['pin a note', async () => { await t.clickOn('.erd-entity[data-node-id="order"] .note-badge:not(.erd-row-badge)'); await t.press('Escape'); const c1 = await t.at('.note.selected'); await t.dragTo(c1.x, c1.y, c1.x + 50, c1.y + 60); }],
+    ['delete a note', async () => { await t.clickOn('.erd-entity[data-node-id="order"] .note-badge:not(.erd-row-badge)'); await t.press('Escape'); await t.press('Delete'); }],
     ['delete a table', async () => { await t.clickOn(head('order')); await t.press('Delete'); await t.clickOn('.confirm-ok'); }],
     // a hand move first (its own undo step, done before the baseline), so that Tidy has something to change
     ['Tidy', async () => { await t.clickOn('#btn-auto-tidy'); }, async () => { const h1 = await t.at(head((await tableIds())[4])); await t.dragTo(h1.x, h1.y, h1.x + 90, h1.y - 120); }],
@@ -873,7 +873,7 @@ sys.stdout.write(format_json(out))`;
   t.check('?present: a double-click edits nothing', (await editing()) === null && (await count('.erd-actionbar')) === 0 && (await count('.erd-handle')) === 0);
   await t.press('Delete');
   await t.press('n');
-  t.check('?present: Delete and N do nothing', (await count('.erd-entity')) === 8 && (await count('.note')) === 1 && (await count('.confirm')) === 0);
+  t.check('?present: Delete and N do nothing', (await count('.erd-entity')) === 8 && (await count('.note')) === 3 && (await count('.confirm')) === 0);
   const hov = await t.at(head('customer'));
   await t.mouse('mouseMoved', hov.x, hov.y);
   await sleep(80);
@@ -918,7 +918,7 @@ sys.stdout.write(format_json(out))`;
       d = await saved();
       t.check(`generated ids are renamed in the saved file, authored ids kept (${what})`,
         !!ent(d, 'refund') && d.relationships.some((r) => r.id === 'r10' && r.from === 'review')
-        && d.notes.some((n) => n.id === 'n2' && n.entities.join() === 'product' && n.pos)
+        && d.notes.some((n) => n.id === 'n4' && n.entities.join() === 'product' && n.pos)
         && ent(d, 'order') && rel(d, 'r1') && d.notes.some((n) => n.id === 'n1')
         && !/"(t|r|n)_\d{12,}/.test(J(d)) && d.layout.refund && !('groups' in d) && d.schemaVersion === 3, J(d.relationships.slice(-2)));
     } else {
@@ -1135,11 +1135,11 @@ sys.stdout.write(format_json(out))`;
   const cB = await cardInfo();
   t.check('overview: the card’s on-screen font size is the same at two zoom levels', (await scaleNow()) < sTwo && !!cB && Math.abs(cB.font - cA.font) < 0.1 && Math.abs(cB.name - cA.name) < 0.1 && Math.abs(cB.w - cA.w) < 2, `${J(cA)} ${J(cB)}`);
   t.check('overview: the card is an overlay (fixed in the page, outside the canvas) and layout is unchanged', await t.ev(`(() => { const c = document.querySelector('.erd-expand-card'); return !!c && c.parentElement === document.body && getComputedStyle(c).position === 'fixed' && !document.getElementById('erd-canvas').contains(c); })()`));
-  // double-click on the card zooms to the table at 100%
-  const cardAt = await t.at('.erd-expand-card .erd-head');
+  // double-click on the card, over the table's own header, zooms to the table at 100% (the card is click-through)
+  const cardAt = await t.at('#erd-canvas .erd-entity[data-node-id="subscription"] .erd-head');
   await t.click(cardAt.x, cardAt.y, { count: 2 });
   await sleep(200);
-  t.check('overview: double-clicking the card zooms to the table at 100%', !(await inOverview()) && Math.abs((await scaleNow()) - 1) < 0.02 && (await count('.erd-expand-card')) === 0, `${await scaleNow()}`);
+  t.check('overview: double-clicking the card over its table zooms to the table at 100%', !(await inOverview()) && Math.abs((await scaleNow()) - 1) < 0.02 && (await count('.erd-expand-card')) === 0, `${await scaleNow()}`);
   await t.press('Escape');
   await zoom('reset');
   while ((await scaleNow()) >= 0.5) await zoom('out');
