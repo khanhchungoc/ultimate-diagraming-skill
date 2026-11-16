@@ -325,14 +325,12 @@
           hoverEntityId = e.id;
           applyHighlight();
           peekSoon(e.id, NOTE_PEEK_DELAY);
-          cardEnter(e.id);
         });
         el.addEventListener('pointerleave', (ev) => {
           if (ev.pointerType === 'touch') return;
           if (hoverEntityId === e.id) hoverEntityId = null;
           applyHighlight();
           unpeekSoon(e.id);
-          cardLeave();
         });
         // Presses on a table are handled by onErdPointerDown (EDITING), which selects, drags and draws
         const badge = buildNoteBadge(e);
@@ -485,7 +483,6 @@
       // nor while a drag moves things)
       function erdFocusId() {
         if (hoverEntityId) return hoverEntityId;
-        if (cardOver && cardHoverId) return cardHoverId;   // the pointer is on the table's expanded card
         if (hoverRelId || (erdDrag && erdDrag.moved)) return null;
         return erdSel && erdSel.kind === 'entity' && !isMultiSelected() && erdEntity(erdSel.id) ? erdSel.id : null;
       }
@@ -690,26 +687,17 @@
         });
       }
 
-      // The expanded card: in the overview, hovering a table (after 150 ms) or selecting it shows the full table at 100%
-      // size over its own box (fixed to the screen, an overlay: nothing moves). Read only; double-click zooms to the table.
-      const CARD_DELAY = 150;
-      let erdCardEl = null, erdCardId = null, cardHoverId = null, cardTimer = 0, cardOver = false;
-      function cardEnter(id) {
-        if (!erdOverview) return;
-        clearTimeout(cardTimer);
-        cardTimer = setTimeout(() => { cardHoverId = id; applyHighlight(); }, CARD_DELAY);
-      }
-      function cardLeave() {
-        clearTimeout(cardTimer);
-        cardTimer = setTimeout(() => { if (!cardOver) { cardHoverId = null; applyHighlight(); } }, CARD_DELAY);
-      }
+      // The expanded card: in the overview, selecting a table (a click, not a hover) shows the full table at 100% size
+      // over its own box (fixed to the screen, an overlay: nothing moves). Read only and click-through (erd.css), so the
+      // table under it can still be dragged, and a double-click reaches the table and zooms to it.
+      let erdCardEl = null, erdCardId = null;
       function erdHideCard() {
         if (erdCardEl) erdCardEl.remove();
-        erdCardEl = null; erdCardId = null; cardOver = false;
+        erdCardEl = null; erdCardId = null;
       }
       function erdSyncCard() {
         const sel = erdSel && erdSel.kind === 'entity' && !isMultiSelected() && erdEntity(erdSel.id) ? erdSel.id : null;
-        const want = !erdOverview || (erdDrag && erdDrag.moved) ? null : (cardHoverId && erdEntity(cardHoverId) ? cardHoverId : sel);
+        const want = !erdOverview || (erdDrag && erdDrag.moved) ? null : sel;
         if (want === erdCardId && (!want || erdCardEl)) return;
         erdHideCard();
         if (!want) return;
@@ -728,9 +716,6 @@
         const r = el.getBoundingClientRect(), vp = viewport.getBoundingClientRect(), w = wrap.offsetWidth, h = wrap.offsetHeight;
         wrap.style.left = `${Math.max(vp.left + 8, Math.min(r.left, vp.right - w - 8))}px`;
         wrap.style.top = `${Math.max(vp.top + 8, Math.min(r.top, vp.bottom - h - 8))}px`;
-        wrap.addEventListener('pointerenter', () => { cardOver = true; clearTimeout(cardTimer); applyHighlight(); });
-        wrap.addEventListener('pointerleave', () => { cardOver = false; cardLeave(); applyHighlight(); });
-        wrap.addEventListener('dblclick', () => erdZoomToTable(want));
         erdCardEl = wrap;
         erdCardId = want;
       }
@@ -740,7 +725,6 @@
         if (!el) return;
         const r = el.getBoundingClientRect(), vp = viewport.getBoundingClientRect();
         const sx = (r.left + r.width / 2 - vp.left - panX) / scale, sy = (r.top + r.height / 2 - vp.top - panY) / scale;
-        cardHoverId = null;
         scale = 1;
         panX = vp.width / 2 - sx;
         panY = vp.height / 2 - sy;
@@ -1366,6 +1350,8 @@
           [['pk', 'PK', 'Primary key (P)', col.pk], ['fk', 'FK', 'Foreign key (F)', col.fk], ['unique', 'U', 'Unique (U)', col.unique], ['nullable', '?', 'Nullable (?)', col.nullable]]
             .forEach(([act, label, title, on]) => bar.appendChild(abButton(act, `<span>${label}</span>`, title, !!on)));
           bar.appendChild(abSep());
+          bar.appendChild(abButton('colnote', ui.icon('note'), col.note ? 'Edit the note (or double-click it)' : 'Add a note, e.g. the allowed values: trial | active | canceled'));
+          bar.appendChild(abSep());
           bar.appendChild(abButton('up', ui.icon('chevron-up'), 'Move up (Alt+Up)'));
           bar.appendChild(abButton('down', ui.icon('chevron-down'), 'Move down (Alt+Down)'));
           bar.appendChild(abSep());
@@ -1448,6 +1434,7 @@
           else if (act === 'up') moveColumnBy(e.id, sel.col, -1);
           else if (act === 'down') moveColumnBy(e.id, sel.col, 1);
           else if (act === 'delcol') deleteColumn(e.id, sel.col);
+          else if (act === 'colnote') editColumn(e.id, sel.col, 'note');
         } else if (sel.kind === 'rel') {
           const rel = erdRel(sel.id);
           if (!rel) return;
@@ -1754,8 +1741,9 @@
         });
       }
 
-      // A column's name or type. Tab: name -> type -> the next row's name; Enter on the last row adds a column; an empty
-      // name on Enter removes the column.
+      // A column's name, type or note (free text, e.g. the allowed values of a status: "trial | active | canceled").
+      // Tab: name -> type -> the next row's name; Enter on the last row adds a column; an empty name on Enter removes the
+      // column; an empty note removes the note.
       function editColumn(entityId, colName, field) {
         const e = erdEntity(entityId);
         const col = e && (e.columns || []).find((c) => c.name === colName);
@@ -1767,6 +1755,24 @@
         const isLast = vis[vis.length - 1] === colName;
         const nextName = vis[vis.indexOf(colName) + 1];
         let removed = false;
+        if (field === 'note') {
+          let el = row.querySelector('.erd-col-note');
+          if (!el) {   // no note yet: an empty one where buildEntity draws it (before the type)
+            el = erdHtmlEl('span', 'erd-col-note');
+            row.insertBefore(el, row.querySelector('.erd-col-type'));
+          }
+          beginEdit(el, {
+            raw: col.note == null ? '' : String(col.note),
+            apply: (value) => {
+              if ((col.note || '') === value) return false;
+              if (value) col.note = value; else delete col.note;
+              return true;
+            },
+            restore: col.note == null ? '' : String(col.note),
+            onTab: nextName ? () => editColumn(entityId, nextName, 'name') : undefined
+          });
+          return;
+        }
         if (field === 'type' && showTypes) {
           const el = row.querySelector('.erd-col-type');
           beginEdit(el, {
@@ -1840,7 +1846,7 @@
         const id = ent.dataset.nodeId, row = t.closest('.erd-row');
         e.stopPropagation();
         if (erdOverview) { erdZoomToTable(id); return; }   // editing needs the rows: zoom in first
-        if (row) editColumn(id, row.dataset.col, t.closest('.erd-col-type') ? 'type' : 'name');
+        if (row) editColumn(id, row.dataset.col, t.closest('.erd-col-type') ? 'type' : t.closest('.erd-col-note') ? 'note' : 'name');
         else if (t.closest('.erd-head')) editEntityName(id);
       });
       erdRels.addEventListener('dblclick', (e) => {
@@ -2348,7 +2354,6 @@
         const a = document.activeElement;
         if (a && a.isContentEditable) return;   // the edit's own handler keeps or drops the text
         if (cancelErdInteraction()) return;
-        cardHoverId = null;
         if (erdSel || selectedNoteId || erdCardEl) { erdSel = null; erdMultiIds = []; erdMultiOwner = null; selectedNoteId = null; peekEntityId = null; applyHighlight(); drawSelectionTools(); }
       }, true);
 
