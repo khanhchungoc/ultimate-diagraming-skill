@@ -84,6 +84,7 @@ for fx in fixtures:
     file_page = le.assemble_page(data["diagramType"], data)
     check(f"{label}: starts with the exact skeleton", art.startswith(expected_head + "\n"))
     check(f"{label}: no raw control bytes (publishing rejects the page)", re.search(r"[\x00-\x08\x0b\x0c\x0e-\x1f]", art) is None)
+    check(f"{label}: no \"data:\" in a tooltip or label (read as a data URI, blocks public sharing)", re.search(r'(?:title|aria-label|placeholder|alt)="[^"]*\bdata:', art, re.I) is None)
     check(f"{label}: ends with </body></html>", art.endswith("</body></html>"))
     head = art[: art.index("<body>") + 6]
     check(f"{label}: <head> holds only the skeleton's tags",
