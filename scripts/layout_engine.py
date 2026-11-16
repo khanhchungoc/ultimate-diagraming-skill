@@ -1217,7 +1217,7 @@ def lane_icon_menu() -> List[str]:
 # Shared component styles (assets/components/<name>.css), in cascade order. The dock comes before the buttons because
 # its `.toolbar-center .btn` rules and `.btn:disabled` have equal weight and the disabled look must win; toggle comes
 # after both so a pressed toggle wins inside the dock.
-COMPONENTS = ("dock", "badge", "button", "toggle", "toast", "hint", "popover", "note", "swatch", "pill", "edge", "frame")
+COMPONENTS = ("dock", "badge", "button", "toggle", "toast", "hint", "popover", "note", "swatch", "pill", "edge", "frame", "actionbar")
 
 
 def components_css() -> str:

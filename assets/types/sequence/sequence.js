@@ -1255,17 +1255,7 @@
       }
 
       // --- ACTION BAR AND HANDLES (drawn on the selection, never exported) ---
-      function abButton(act, html, title, pressed, value) {
-        const b = htmlEl('button', 'seq-ab-btn');
-        b.type = 'button';
-        b.dataset.act = act;
-        if (value !== undefined) b.dataset.value = value;
-        b.title = title;
-        b.setAttribute('aria-label', title);
-        if (pressed !== undefined) b.setAttribute('aria-pressed', String(!!pressed));
-        b.innerHTML = html;
-        return b;
-      }
+      const abButton = (act, html, title, pressed, value) => ui.abButton('seq-ab-btn', act, html, title, pressed, value);
       function addHandle(role, id, x, y, extraClass) {
         const h = htmlEl('div', `seq-handle ${extraClass || ''}`.trim(), { left: px(x), top: px(y) });
         h.dataset.role = role;
@@ -1275,13 +1265,11 @@
       }
       // The selection's delete button: an icon only, its tooltip says what goes
       const delButton = (title, icon = 'trash') => abButton('delete', ui.icon(icon), title);
-      const delSep = () => htmlEl('span', 'seq-ab-sep');
+      const delSep = () => ui.abSep('seq-ab-sep');
       function drawSelectionTools(sel) {
         seqHtml.querySelectorAll('.seq-actionbar, .seq-handle, .seq-add-branch').forEach((el) => el.remove());
         if (!sel.kind || isPresent()) return;
-        const bar = htmlEl('div', 'seq-actionbar');
-        bar.dataset.exportSkip = '';
-        bar.setAttribute('role', 'toolbar');
+        const bar = ui.actionBar('seq-actionbar');
         let at = null;
         const byId = {};
         chartData.participants.forEach((p) => { byId[p.id] = p; });

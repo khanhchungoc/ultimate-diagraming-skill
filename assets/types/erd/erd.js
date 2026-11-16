@@ -1304,18 +1304,8 @@
       };
       const ERD_END_NAMES = { one: 'exactly one', zeroOrOne: 'zero or one', oneOrMany: 'one or many', zeroOrMany: 'zero or many' };
       const erdEndGlyph = (kind) => `<svg width="30" height="16" viewBox="-26 -9 30 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M-26 0H0"/>${ERD_END_PATHS[kind]}</svg>`;
-      function abButton(act, html, title, pressed, value, extra) {
-        const b = erdHtmlEl('button', `erd-ab-btn${extra ? ' ' + extra : ''}`);
-        b.type = 'button';
-        b.dataset.act = act;
-        if (value !== undefined) b.dataset.value = value;
-        b.title = title;
-        b.setAttribute('aria-label', title);
-        if (pressed !== undefined) b.setAttribute('aria-pressed', String(!!pressed));
-        b.innerHTML = html;
-        return b;
-      }
-      const abSep = () => erdHtmlEl('span', 'erd-ab-sep');
+      const abButton = (act, html, title, pressed, value, extra) => ui.abButton('erd-ab-btn', act, html, title, pressed, value, extra);
+      const abSep = () => ui.abSep('erd-ab-sep');
 
       // The end handles sit this far along the line from the table edge, past the crow's foot (the marker is 26px long)
       const ERD_HANDLE_GAP = 34;
@@ -1346,9 +1336,7 @@
       function drawSelectionTools() {
         erdHtml.querySelectorAll('.erd-actionbar, .erd-handle').forEach((el) => el.remove());
         if (!erdSel || erdPresenting()) return;
-        const bar = erdHtmlEl('div', 'erd-actionbar');
-        bar.dataset.exportSkip = '';
-        bar.setAttribute('role', 'toolbar');
+        const bar = ui.actionBar('erd-actionbar');
         let at = null, below = false;
         if (erdSel.kind === 'entity') {
           const e = erdEntity(erdSel.id);
