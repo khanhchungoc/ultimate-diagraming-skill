@@ -2,7 +2,7 @@
 
 Checks the laid-out JSON only (actor and use case boxes, subject boxes, line routes and label boxes written by
 assets/types/usecase/engine.js; see the Engine contract in dev/plans/plan-usecase.md), so it needs no browser and never
-computes a layout. A use case is the ellipse inscribed in its box `x, y, w, h`; a link route `points` has two points
+computes a layout. A use case is the pill (stadium) filling its box `x, y, w, h`; a link route `points` has two points
 (a straight line) or three (a quadratic curve whose middle point is the control point). The audit reads no text widths.
 """
 
@@ -78,39 +78,64 @@ def _contains(outer: Box, inner: Box, tol: float = 0.5) -> bool:
             and inner["y"] + inner["h"] <= outer["y"] + outer["h"] + tol)
 
 
-def _unit(e: Box, p: Tuple[float, float]) -> Tuple[float, float]:
-    """`p` in the ellipse's own space, where the ellipse is the unit circle."""
-    a, b = max(e["w"] / 2, 1e-9), max(e["h"] / 2, 1e-9)
-    return (p[0] - (e["x"] + e["w"] / 2)) / a, (p[1] - (e["y"] + e["h"] / 2)) / b
+# A use case is a rounded rectangle filling its box, with the engine's corner radius `_r` (a pill when it is half the
+# height; without `_r`, a pill): every point within r of its core, the box inset by r. All the shape tests below are
+# distances to that core.
+def _core_rect(e: Box) -> Tuple[float, float, float, float, float]:
+    half = max(min(e["w"], e["h"]) / 2, 1e-9)
+    r = min(float(e["_r"]), half) if _num(e.get("_r")) else half
+    return e["x"] + r, e["y"] + r, e["x"] + e["w"] - r, e["y"] + e["h"] - r, r
+
+
+def _rect_gap(a: Tuple[float, ...], b: Tuple[float, ...]) -> float:
+    """Distance between two axis-aligned rectangles (x0, y0, x1, y1); 0 when they touch or overlap."""
+    return math.hypot(max(a[0] - b[2], 0.0, b[0] - a[2]), max(a[1] - b[3], 0.0, b[1] - a[3]))
+
+
+def _seg_core(p, q, c) -> float:
+    """Distance from segment p-q to the core rectangle c = (x0, y0, x1, y1)."""
+    def inside(v):
+        return c[0] <= v[0] <= c[2] and c[1] <= v[1] <= c[3]
+    if inside(p) or inside(q):
+        return 0.0
+    k = ((c[0], c[1]), (c[2], c[1]), (c[2], c[3]), (c[0], c[3]))
+    return min(_seg_seg(p, q, k[i], k[(i + 1) % 4]) for i in range(4))
+
+
+def _pt_seg(p: Tuple[float, float], a: Tuple[float, float], b: Tuple[float, float]) -> float:
+    dx, dy = b[0] - a[0], b[1] - a[1]
+    d2 = dx * dx + dy * dy
+    t = 0.0 if d2 == 0 else min(1.0, max(0.0, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / d2))
+    return math.hypot(p[0] - a[0] - t * dx, p[1] - a[1] - t * dy)
+
+
+def _seg_seg(p, q, a, b) -> float:
+    """Distance between segments p-q and a-b (0 when they cross)."""
+    def side(o, u, v):
+        return (u[0] - o[0]) * (v[1] - o[1]) - (u[1] - o[1]) * (v[0] - o[0])
+    d1, d2, d3, d4 = side(a, b, p), side(a, b, q), side(p, q, a), side(p, q, b)
+    if ((d1 > 0) != (d2 > 0)) and ((d3 > 0) != (d4 > 0)) and d1 and d2 and d3 and d4:
+        return 0.0
+    return min(_pt_seg(p, a, b), _pt_seg(q, a, b), _pt_seg(a, p, q), _pt_seg(b, p, q))
 
 
 def _ellipses_overlap(a: Box, b: Box) -> bool:
-    """Boundary points of one ellipse inside the other (two overlapping or nested ellipses always have some)."""
-    for e, f in ((a, b), (b, a)):
-        cx, cy, rx, ry = e["x"] + e["w"] / 2, e["y"] + e["h"] / 2, e["w"] / 2, e["h"] / 2
-        for k in range(72):
-            t = 2 * math.pi * k / 72
-            u, v = _unit(f, (cx + rx * math.cos(t), cy + ry * math.sin(t)))
-            if u * u + v * v < INSIDE * INSIDE:
-                return True
-    return False
+    """Two use cases that overlap (names kept from the ellipse version; the shape is now a rounded rectangle)."""
+    *ca, ra = _core_rect(a)
+    *cb, rb = _core_rect(b)
+    return _rect_gap(tuple(ca), tuple(cb)) < (ra + rb) * INSIDE
 
 
 def _rect_hits_ellipse(r: Box, e: Box) -> bool:
-    """A rectangle that covers part of the ellipse's interior (clamp the centre into the rectangle in ellipse space)."""
-    lo = _unit(e, (r["x"], r["y"]))
-    hi = _unit(e, (r["x"] + r["w"], r["y"] + r["h"]))
-    u, v = min(max(0.0, lo[0]), hi[0]), min(max(0.0, lo[1]), hi[1])
-    return u * u + v * v < INSIDE * INSIDE
+    """A rectangle that covers part of the use case's interior."""
+    *c, rad = _core_rect(e)
+    return _rect_gap(tuple(c), (r["x"], r["y"], r["x"] + r["w"], r["y"] + r["h"])) < rad * INSIDE
 
 
 def _segment_hits_ellipse(p: List[float], q: List[float], e: Box) -> bool:
-    """A segment that passes through the interior of the ellipse (distance from the unit circle's centre)."""
-    (u0, v0), (u1, v1) = _unit(e, (p[0], p[1])), _unit(e, (q[0], q[1]))
-    du, dv = u1 - u0, v1 - v0
-    d2 = du * du + dv * dv
-    t = 0.0 if d2 == 0 else min(1.0, max(0.0, -(u0 * du + v0 * dv) / d2))
-    return math.hypot(u0 + t * du, v0 + t * dv) < INSIDE
+    """A segment that passes through the interior of the use case."""
+    *c, r = _core_rect(e)
+    return _seg_core((p[0], p[1]), (q[0], q[1]), tuple(c)) < r * INSIDE
 
 
 def _segment_hits_rect(p: List[float], q: List[float], box: Box) -> bool:

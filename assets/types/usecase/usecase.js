@@ -222,6 +222,7 @@
         Object.assign(el.style, { left: px(u.x), top: px(u.y), width: px(u.w), height: px(u.h) });
         if (u.color) setSwatch(el, u.color);
         const shape = htmlEl('div', 'uc-shape');
+        if (typeof u._r === 'number') shape.style.borderRadius = px(u._r);   // the engine's corner radius: a pill on one line
         const wrap = htmlEl('div', 'uc-name-wrap');
         const lines = Array.isArray(u._lines) && u._lines.length ? u._lines : [nameOf(u)];
         const name = htmlEl('span', `uc-name t-label${u.abstract ? ' is-abstract' : ''}`, lines.join('\n'));

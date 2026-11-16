@@ -3,11 +3,13 @@
           <defs>
             <!-- Line ends, drawn pointing at the item: the tip (x = 0) sits on its outline and orient="auto" turns the marker
                  along the line. usecase.js adds the -sel variants (primary colour: hovered, selected, lit lines). -->
-            <marker id="uc-mk-open" class="uc-mk" viewBox="-14 -8 16 16" markerWidth="16" markerHeight="16" refX="0" refY="0" orient="auto" markerUnits="userSpaceOnUse">
-              <path d="M-10 -5.5 0 0 -10 5.5"/>
+            <!-- uc-mk-open: a small filled arrowhead with a notched back (include, extend, a directed association);
+                 uc-mk-tri: the hollow triangle of a generalization, with rounded corners -->
+            <marker id="uc-mk-open" class="uc-mk uc-mk-solid" viewBox="-12 -7 14 14" markerWidth="14" markerHeight="14" refX="0" refY="0" orient="auto" markerUnits="userSpaceOnUse">
+              <path d="M-9 -4.5 0 0 -9 4.5 -6.5 0z"/>
             </marker>
-            <marker id="uc-mk-tri" class="uc-mk uc-mk-hollow" viewBox="-16 -9 18 18" markerWidth="18" markerHeight="18" refX="0" refY="0" orient="auto" markerUnits="userSpaceOnUse">
-              <path d="M-14 -7.5 0 0 -14 7.5z"/>
+            <marker id="uc-mk-tri" class="uc-mk uc-mk-hollow" viewBox="-15 -8 17 16" markerWidth="17" markerHeight="16" refX="0" refY="0" orient="auto" markerUnits="userSpaceOnUse">
+              <path d="M-12 -6.5 0 0 -12 6.5z"/>
             </marker>
           </defs>
           <g id="uc-note-leaders"></g>

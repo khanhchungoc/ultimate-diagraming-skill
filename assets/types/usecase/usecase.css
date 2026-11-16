@@ -28,11 +28,12 @@
 
     /* --- Lines --- */
     .uc-link .edge-line { pointer-events: none; stroke: var(--node-border); stroke-width: 1.5px; stroke-linecap: round; marker-end: var(--mk-e); }
-    .uc-link.is-dashed .edge-line { stroke-dasharray: 5 5; }
+    .uc-link.is-dashed .edge-line { stroke-dasharray: 3 5; }
     .uc-link:is(.hover, .selected, .hl) .edge-line { stroke: var(--primary); stroke-width: 2px; marker-end: var(--mk-e-sel); }
     .uc-link.is-dim { opacity: 0.16; }
     .uc-link.is-hidden, .uc-label.is-hidden { display: none; }
-    .uc-mk path { stroke: var(--mk, var(--node-border)); stroke-width: 1.25px; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+    .uc-mk path { stroke: var(--mk, var(--node-border)); stroke-width: 1.5px; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+    .uc-mk-solid path { fill: var(--mk, var(--node-border)); }
     .uc-mk-hollow path { fill: var(--bg-panel); }
     body.exporting .is-dim { opacity: 1 !important; }
 
@@ -54,7 +55,7 @@
     }
     .uc-shape {
       position: absolute; inset: 0; box-sizing: border-box; display: flex; flex-direction: column; overflow: hidden;
-      border: 1px solid var(--ring); border-radius: var(--radius-round); background: var(--node-bg); transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+      border: 1px solid var(--ring); border-radius: var(--radius-pill); background: var(--node-bg); transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
       box-shadow: var(--shadow-sm);
     }
     .uc-case:hover .uc-shape { box-shadow: var(--shadow-md); }
@@ -196,5 +197,6 @@
     /* The tiny drawings in the help drawer */
     .uc-help-line { display: flex; align-items: center; gap: 8px; margin: 4px 0; }
     .uc-help-line svg { flex: none; fill: none; stroke: var(--text-soft); stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
-    .uc-help-line svg .d { stroke-dasharray: 5 3; }
+    .uc-help-line svg .d { stroke-dasharray: 3 4; }
+    .uc-help-line svg .f { fill: var(--text-soft); }
     .uc-help-line svg .h { fill: var(--bg-panel); }

@@ -41,7 +41,7 @@ UML 2.5 defines more than tools commonly draw. v1 keeps what PlantUML, Visual Pa
 | Actor (human) | stick figure, name below | ✅ drawn as a round avatar with a person icon (modern look, 2026-11-16), see [Actors](#actors) |
 | Actor (system) | box with `«system»` keyword (UML: a classifier with `«actor»`) | ✅ as a round avatar with a server icon and `«system»`, see [Actors](#actors) |
 | Actor (time) | clock icon (common practice, not UML) | ✅ |
-| Use case | ellipse, name inside | ✅ |
+| Use case | ellipse, name inside | ✅ drawn as a pill (a rounded rectangle when taller) for a modern look, 2026-11-16; the reference and help say so |
 | Subject / system boundary | rectangle, name at top | ✅, several allowed |
 | Association | solid line, no arrowhead (optional open arrow from the initiator) | ✅, arrowhead off by default |
 | Include | dashed line, open arrow to the included case, `«include»` | ✅ |

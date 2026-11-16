@@ -49,7 +49,7 @@ Never add coordinates or sizes (`x`, `y`, `w`, `h`, `points`, `layout`); `--layo
 | Actor | `parent` | Optional. Actor id: a generalization (the child can do everything the parent can). Drawn as a hollow-triangle line. |
 | Actor | `abstract` | Optional. `true` draws the name in italics and exempts the actor from the "no association" warning. |
 | Actor | `color` | Optional. A palette slot, `"1"` to `"8"`. Leave actors neutral unless the user asks. |
-| Use case | `id`, `name`, `subject` | `name` is verb + object, 40 characters at most, wraps to two lines in the ellipse. `subject` is a subject id. |
+| Use case | `id`, `name`, `subject` | `name` is verb + object, 40 characters at most, wraps to two lines in its pill. `subject` is a subject id. |
 | Use case | `color` | Optional. A palette slot `"1"` to `"8"`: the feature area. Name each in `colorKey`. |
 | Use case | `level` | Optional. `summary` (drawn larger, bold outline), `user` (default), `subfunction` (drawn smaller, dashed outline). |
 | Use case | `refs` | Optional list of requirement ids (`"FR-4"`), 12 characters each. Searchable in the page, shown with `showRefs`. |
@@ -98,13 +98,13 @@ A diagram of 8 or fewer use cases may stay neutral. The audit warns when a diagr
 
 ## Visual review checklist
 
-The audit covers references, overlaps, lines through ellipses and label overlap; the layout report covers text overflow. Check by eye on the screenshot:
+The audit covers references, overlaps, lines through use cases and label overlap; the layout report covers text overflow. Check by eye on the screenshot:
 
 1. **Four line styles are unmistakable**: association solid with no arrowhead, `include` and `extend` dashed with an open arrow and their `«include»` / `«extend»` label, generalization solid with a hollow triangle at the parent.
 2. **Arrow directions are right**: `include` points at the included use case, `extend` points at the base, the triangle sits on the parent.
 3. **Primary actors on the left, supporting actors on the right**, every actor outside the boundary.
-4. **Each actor sits level with its goals**; a hub actor's lines fan out without running through other ellipses.
-5. **Names** are verb + object, readable and not cut off; `[condition]` labels are not hiding an ellipse or each other.
+4. **Each actor sits level with its goals**; a hub actor's lines fan out without running through other use cases.
+5. **Names** are verb + object, readable and not cut off; `[condition]` labels are not hiding a use case or each other.
 6. **Colours** match the feature areas, the legend names each one, actors are neutral.
 7. **Subfunction and summary levels** differ by size and outline, not by colour alone.
 8. **Notes** sit by the use case they concern.

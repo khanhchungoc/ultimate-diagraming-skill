@@ -22,7 +22,7 @@ const UC = {
   LABEL_W: TOKENS.font.metrics.edgeLabel, WRAP_W: TOKENS.font.metrics.edgeWrap,
   TEXT_H: 18, DETAIL_H: 16, LABEL_LINE_H: 16,
   // ellipse
-  WRAP: 156, MIN_W: 128, MIN_H: 44, PAD_TXT: 14, ONE_LINE_K: 1.12, TWO_LINE_K: 1.22, GRID: 4,
+  WRAP: 156, MIN_W: 128, MIN_H: 44, PAD_TXT: 14, GRID: 4,
   LEVEL_K: { summary: 1.14, user: 1, subfunction: 0.86 },
   COMP_PAD: 10,                                  // compartment: 3 * COMP_PAD + one DETAIL_H per extension point
   // actors
@@ -136,15 +136,17 @@ function ucSizes(m) {
     const lines = ucWrap(c.name, UC.CHAR_W, UC.WRAP);
     const tw = Math.max(...lines.map((l) => ucTextW(l, UC.CHAR_W)));
     const k = UC.LEVEL_K[c.level] || 1;
-    let w = (tw * (lines.length > 1 ? UC.TWO_LINE_K : UC.ONE_LINE_K) + 2 * UC.PAD_TXT) * k;
-    let h = (lines.length > 1 ? lines.length * UC.TEXT_H + 24 : UC.MIN_H) * k;
-    w = Math.max(UC.MIN_W * k, w);
+    // Every use case has the same corner radius _r, half a one-line height: a one-line use case is a pill, a taller one
+    // (two lines, extension points) a rounded rectangle. The text needs the straight part plus a little of each end.
+    const R = (UC.MIN_H * k) / 2;
+    const h = (lines.length > 1 ? lines.length * UC.TEXT_H + 24 : UC.MIN_H) * k;
+    let w = Math.max(UC.MIN_W * k, (tw + 2 * UC.PAD_TXT) * k + R);
     const pts = (c.extensionPoints || []).map(String);
-    const compH = pts.length ? 3 * UC.COMP_PAD + pts.length * UC.DETAIL_H : 0;   // CSS pads 10 top and bottom, plus 10 so the last line clears the curve
-    if (pts.length) w = Math.max(w, Math.max(...pts.map((p) => ucTextW(p, UC.DETAIL_W))) * 1.4 + 2 * UC.PAD_TXT);
+    const compH = pts.length ? 2 * UC.COMP_PAD + pts.length * UC.DETAIL_H : 0;   // CSS pads the compartment COMP_PAD top and bottom
+    if (pts.length) w = Math.max(w, Math.max(...pts.map((p) => ucTextW(p, UC.DETAIL_W))) + 2 * UC.PAD_TXT + R);
     c._lines = lines; c._compH = compH;
-    c.w = ucGrid(w); c.h = ucGrid(h + compH);
-    m.sz[c.id] = { w: c.w, h: c.h, anchor: c.h / 2 };
+    c.w = ucGrid(w); c.h = ucGrid(h + compH); c._r = Math.min(R, c.h / 2, c.w / 2);
+    m.sz[c.id] = { w: c.w, h: c.h, anchor: c.h / 2, r: c._r };
   });
 }
 
@@ -302,15 +304,17 @@ function ucItem(m, id) {
     const b = m.bars[m.si[id]];
     return { kind: 'bar', id, cx: b.x + b.w / 2, cy: b.y + b.h / 2, box: b, whole: b };
   }
-  return { kind: 'case', id, cx: c.x + c.w / 2, cy: c.y + c.h / 2, a: c.w / 2, b: c.h / 2 };
+  return { kind: 'case', id, cx: c.x + c.w / 2, cy: c.y + c.h / 2, a: c.w / 2, b: c.h / 2, r: c._r };
 }
 
 function ucClip(it, tx, ty, whole) {                // the point where the ray from the item's anchor toward (tx, ty) leaves it
   const dx = tx - it.cx, dy = ty - it.cy;
   if (!dx && !dy) return [it.cx, it.cy];
-  if (it.kind === 'case') {
-    const t = 1 / Math.sqrt((dx / it.a) * (dx / it.a) + (dy / it.b) * (dy / it.b));
-    return [it.cx + dx * t, it.cy + dy * t];
+  if (it.kind === 'case') {                        // where the ray leaves the use case: bisect on the distance to its core
+    const c = ucCore(it), L = Math.hypot(dx, dy), ux = dx / L, uy = dy / L;
+    let lo = 0, hi = it.a + it.b;
+    for (let k = 0; k < 30; k++) { const mid = (lo + hi) / 2; if (ucPtCore([it.cx + ux * mid, it.cy + uy * mid], c) < c.r) lo = mid; else hi = mid; }
+    return [it.cx + ux * lo, it.cy + uy * lo];
   }
   if (it.kind === 'actor' && !whole) {               // the avatar is a circle: end the line just off its rim
     const t = (it.box.w / 2 + 3) / Math.hypot(dx, dy);
@@ -324,14 +328,34 @@ function ucClip(it, tx, ty, whole) {                // the point where the ray f
   return [it.cx + dx * t, it.cy + dy * t];
 }
 
-function ucSegEllipse(p, q, e, inflate) {          // does segment p-q enter the ellipse (inflated)?
-  const a = e.a + inflate, b = e.b + inflate;
-  const x1 = (p[0] - e.cx) / a, y1 = (p[1] - e.cy) / b, x2 = (q[0] - e.cx) / a, y2 = (q[1] - e.cy) / b;
-  const dx = x2 - x1, dy = y2 - y1, L = dx * dx + dy * dy;
-  let t = L ? -(x1 * dx + y1 * dy) / L : 0;
-  t = Math.max(0, Math.min(1, t));
-  const px = x1 + dx * t, py = y1 + dy * t;
-  return px * px + py * py < 1;
+// A use case is a rounded rectangle with corner radius r (a pill when r is half its height): every point within r of
+// its core, the rectangle inset by r. e = {cx, cy, a, b, r} (half width, half height, radius). The ...Ellipse names
+// are kept from the first version, when use cases were ellipses.
+function ucCore(e) {
+  const r = Math.min(e.r || Math.min(e.a, e.b), e.a, e.b), hx = e.a - r, hy = e.b - r;
+  return { r, x0: e.cx - hx, y0: e.cy - hy, x1: e.cx + hx, y1: e.cy + hy };
+}
+function ucPtSeg(p, a, b) {
+  const dx = b[0] - a[0], dy = b[1] - a[1], d2 = dx * dx + dy * dy;
+  const t = d2 ? Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / d2)) : 0;
+  return Math.hypot(p[0] - a[0] - t * dx, p[1] - a[1] - t * dy);
+}
+function ucSegSeg(p, q, a, b) {                    // distance between two segments (0 when they cross)
+  if (ucSegCross(p, q, a, b)) return 0;
+  return Math.min(ucPtSeg(p, a, b), ucPtSeg(q, a, b), ucPtSeg(a, p, q), ucPtSeg(b, p, q));
+}
+function ucPtCore(p, c) {                          // distance from a point to the core rectangle
+  const dx = Math.max(c.x0 - p[0], 0, p[0] - c.x1), dy = Math.max(c.y0 - p[1], 0, p[1] - c.y1);
+  return Math.hypot(dx, dy);
+}
+function ucSegCore(p, q, c) {                      // distance from a segment to the core rectangle
+  if (ucPtCore(p, c) === 0 || ucPtCore(q, c) === 0) return 0;
+  const k = [[c.x0, c.y0], [c.x1, c.y0], [c.x1, c.y1], [c.x0, c.y1]];
+  return Math.min(...k.map((v, i) => ucSegSeg(p, q, v, k[(i + 1) % 4])));
+}
+function ucSegEllipse(p, q, e, inflate) {          // does segment p-q enter the use case (inflated)?
+  const c = ucCore(e);
+  return ucSegCore(p, q, c) < c.r + inflate;
 }
 
 function ucSegRect(p, q, r) {                      // segment against a rectangle (sampled)
@@ -363,7 +387,7 @@ function ucCost(m, pos) {
   m.cases.forEach((c) => {
     const z = m.sz[c.id];
     if (m.hidden[c.id]) { nodes[c.id] = { kind: 'bar', cx: pos.barX, cy: pos.y[c.id] }; return; }
-    nodes[c.id] = { kind: 'case', cx: pos.x[c.id] + z.w / 2, cy: pos.y[c.id] + z.h / 2, a: z.w / 2, b: z.h / 2 };
+    nodes[c.id] = { kind: 'case', cx: pos.x[c.id] + z.w / 2, cy: pos.y[c.id] + z.h / 2, a: z.w / 2, b: z.h / 2, r: z.r };
     ell[c.id] = nodes[c.id];
   });
   m.actors.forEach((a) => { nodes[a.id] = { kind: 'actor', cx: a.x + a.w / 2, cy: pos.y[a.id] + m.sz[a.id].anchor }; });
@@ -619,10 +643,10 @@ function ucSubjects(m) {
 }
 
 function ucOverlapRect(a, b, pad) { return a.x < b.x + b.w + pad && b.x < a.x + a.w + pad && a.y < b.y + b.h + pad && b.y < a.y + a.h + pad; }
-function ucRectEllipse(r, e, pad) {
-  const nx = Math.max(r.x, Math.min(e.cx, r.x + r.w)), ny = Math.max(r.y, Math.min(e.cy, r.y + r.h));
-  const dx = (nx - e.cx) / (e.a + pad), dy = (ny - e.cy) / (e.b + pad);
-  return dx * dx + dy * dy < 1;
+function ucRectEllipse(r, e, pad) {               // does the rectangle cover part of the use case (inflated)?
+  const c = ucCore(e);
+  const gx = Math.max(c.x0 - (r.x + r.w), 0, r.x - c.x1), gy = Math.max(c.y0 - (r.y + r.h), 0, r.y - c.y1);
+  return Math.hypot(gx, gy) < c.r + pad;
 }
 
 function ucLines(m) {
