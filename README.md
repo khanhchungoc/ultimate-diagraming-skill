@@ -129,7 +129,7 @@ Needs `Python 3.9+` and `Chrome`, `Chromium` or `Edge` (used to lay out and chec
 
 Live demos, hosted as claude.ai Artifacts (drag, edit and switch layouts in the browser; **Download .html** saves your edits):
 
-- [Loan application flowchart](https://claude.ai/artifact/EEHTLNENjr7k5QbKToMYzP)
+- [Loan application flowchart](https://claude.ai/artifact/4GXf3ufVkqEMR9BNy7UuWE)
 - [Checkout sequence diagram](https://claude.ai/artifact/5GAHnbS8tb9bxKxAi4JDYz)
 - [Shop ER diagram](https://claude.ai/artifact/39Vy8dhSEdN4MjqVe1qQEv)
 
