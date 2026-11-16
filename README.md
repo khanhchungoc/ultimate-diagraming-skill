@@ -78,7 +78,7 @@ These are single runs per assistant (November 2026), not averages: treat the per
 | **Sequence**: who talks to whom over time, with optional, alternative and loop sections | ✅ Available |
 | **ERD**: database tables, columns, keys and crow's-foot relationships, tables colour-coded by domain, laid out as a graph with smooth curves; collapse tables, add notes, copy as Mermaid | ✅ Available |
 
-[### Flowchart
+### Flowchart
 
 [![Swimlane flowchart, horizontal](docs/img/example-flowchart.png)](https://claude.ai/artifact/4GXf3ufVkqEMR9BNy7UuWE)
 
