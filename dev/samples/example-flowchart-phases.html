@@ -2185,7 +2185,7 @@
               <button id="btn-add-subprocess" class="btn btn-shape" data-node-type="subprocess" title="Subprocess: a process documented elsewhere (click, or drag onto the canvas or onto an arrow)" aria-label="Subprocess">
                 <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="1"/><path class="tile-line" d="M5.5 6v12M18.5 6v12"/></svg><span class="tile-caption">Subprocess</span>
               </button>
-              <button id="btn-add-io" class="btn btn-shape" data-node-type="io" title="Data: input or output (click, or drag onto the canvas or onto an arrow)" aria-label="Data">
+              <button id="btn-add-io" class="btn btn-shape" data-node-type="io" title="Data (input or output; click, or drag onto the canvas or onto an arrow)" aria-label="Data">
                 <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6h16l-4 12H2z"/></svg><span class="tile-caption">Data</span>
               </button>
               <button id="btn-add-document" class="btn btn-shape" data-node-type="document" title="Document (click, or drag onto the canvas or onto an arrow)" aria-label="Document">
@@ -4008,7 +4008,7 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
         {
           const ranks0 = ranksWithZero(new Set());
           const backOut = {};
-          back.forEach(k => { const [a, b] = k.split(''); (backOut[a] = backOut[a] || []).push(b); });
+          back.forEach(k => { const [a, b] = k.split('\x01'); (backOut[a] = backOut[a] || []).push(b); });
           const reaches = (from, to, fwd) => {
             const adj = {};
             fwd.forEach(x => { (adj[x.from] = adj[x.from] || []).push(x.to); });
@@ -4542,7 +4542,7 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
         // Stacking v straight under (or over) u leaves a loop-back that arrives from u's side no way into v's
         // near side (u is in the way), so it would have to wrap around u. Such an arrow keeps its own column.
         const loopBlocked = (c) => [...back].some(k => {
-          const [a, b] = k.split('');
+          const [a, b] = k.split('\x01');
           if (b !== c.to || !nodeMap[a]) return false;
           const la = laneIdx[nodeMap[a].laneId], lu = laneIdx[nodeMap[c.from].laneId];
           return c.side === 'down' ? la <= lu : la >= lu;
@@ -9117,7 +9117,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         text.contentEditable = 'false';
         if (editingNoteId !== note.id) return;
         editingNoteId = null;
-        const value = text.innerText.replace(/ /g, ' ').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+        const value = text.innerText.replace(/\u00a0/g, ' ').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
         if (value) note.text = value;
         else {
           chartData.notes = notesList().filter(n => n !== note);
@@ -9573,12 +9573,68 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         return d;
       }
 
+      // --- MERMAID (flowchart) ---
+      // Nodes with their shapes, labelled edges, lanes as subgraphs and the direction. A connector pair becomes the
+      // direct edge it stands for. Not representable: notes, lane icons and colours, feedback routing, positions.
+      // document and delay have no classic Mermaid shape and stay plain boxes.
+      function toMermaid() {
+        const SHAPE = {
+          start: ['([', '])'], end: ['([', '])'], decision: ['{', '}'], subprocess: ['[[', ']]'], database: ['[(', ')]'],
+          io: ['[/', '/]'], task: ['[', ']'], document: ['[', ']'], delay: ['[', ']'],
+        };
+        const text = (s) => String(s == null ? '' : s).replace(/"/g, '#quot;').replace(/\r?\n/g, '<br/>');
+        const used = new Set(['end', 'graph', 'subgraph', 'flowchart', 'style', 'class', 'click', 'default']);
+        const idOf = {};
+        const mint = (raw) => {
+          let id = String(raw).replace(/[^A-Za-z0-9_]+/g, '_') || 'n';
+          while (used.has(id.toLowerCase())) id += '_';
+          used.add(id.toLowerCase());
+          return id;
+        };
+        const nodes = chartData.nodes, edges = chartData.edges;
+        const conn = new Set(nodes.filter((n) => n.type === 'connector').map((n) => n.id));
+        const real = nodes.filter((n) => !conn.has(n.id));
+        real.forEach((n) => { idOf[n.id] = mint(n.id); });
+        // A connector letter joins the edge into its "in" half to the edge out of its "out" half
+        const into = {}, outOf = {};
+        edges.forEach((e) => {
+          if (conn.has(e.to)) into[nodeById(e.to).label] = e;
+          if (conn.has(e.from)) outOf[nodeById(e.from).label] = e;
+        });
+        const joined = [];
+        edges.forEach((e) => {
+          if (conn.has(e.from) || conn.has(e.to)) return;
+          joined.push(e);
+        });
+        Object.keys(into).forEach((k) => {
+          if (outOf[k] && !conn.has(into[k].from) && !conn.has(outOf[k].to)) joined.push({ from: into[k].from, to: outOf[k].to, label: into[k].label || outOf[k].label });
+        });
+        const decl = (n) => { const s = SHAPE[n.type] || SHAPE.task; return `${idOf[n.id]}${s[0]}"${text(n.label)}"${s[1]}`; };
+        const lines = [`flowchart ${chartData.direction === 'TB' ? 'TB' : 'LR'}`];
+        const lanes = chartData.swimlanes === false ? [] : chartData.lanes;
+        const laned = new Set();
+        lanes.forEach((l) => {
+          const mine = real.filter((n) => n.laneId === l.id);
+          if (!mine.length) return;
+          lines.push(`    subgraph ${mint(l.id)}["${text(l.name)}"]`);
+          mine.forEach((n) => { lines.push('        ' + decl(n)); laned.add(n.id); });
+          lines.push('    end');
+        });
+        real.filter((n) => !laned.has(n.id)).forEach((n) => lines.push('    ' + decl(n)));
+        joined.forEach((e) => {
+          if (!idOf[e.from] || !idOf[e.to]) return;
+          lines.push(`    ${idOf[e.from]} -->${e.label ? `|"${text(e.label)}"|` : ''} ${idOf[e.to]}`);
+        });
+        return lines.join('\n') + '\n';
+      }
+
       // --- REGISTER WITH THE SHELL ---
       registerDiagramPlugin({
         id: 'flowchart',
         defaultTitle: 'Interactive Swimlane Flowchart',
         toDisk,
         fromDisk,
+        toMermaid,
         contentEl: swimlanesContainer,
         report: { node: '.flow-node', label: '.edge-label', labelText: '.edge-label-text', nodeText: '.node-label' },
         render,

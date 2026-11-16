@@ -1129,7 +1129,8 @@ sys.stdout.write(format_json(out))`;
   t.check('overview: Esc closes it', (await count('.erd-expand-card')) === 0);
   await zoom('out');
   await t.mouse('mouseMoved', 5, 900);
-  await hoverBig('subscription');
+  const subB = await hoverBig('subscription');
+  await t.click(subB.x, subB.y);   // a click, not a hover, opens the card
   await sleep(450);
   const cB = await cardInfo();
   t.check('overview: the card’s on-screen font size is the same at two zoom levels', (await scaleNow()) < sTwo && !!cB && Math.abs(cB.font - cA.font) < 0.1 && Math.abs(cB.name - cA.name) < 0.1 && Math.abs(cB.w - cA.w) < 2, `${J(cA)} ${J(cB)}`);
@@ -1163,7 +1164,8 @@ sys.stdout.write(format_json(out))`;
   const { identifier: clipStub } = await t.send('Page.addScriptToEvaluateOnNewDocument', { source: stubClip });
   await t.open(large);
   while ((await scaleNow()) >= 0.5) await zoom('out');
-  await hoverBig('subscription');
+  const subE = await hoverBig('subscription');
+  await t.click(subE.x, subE.y);   // open the card so the exports are checked with it on screen
   await sleep(450);
   const colTotal = big.entities.reduce((n, e) => n + e.columns.length, 0);
   const full = (svgStr) => (svgStr.match(/<span[^>]*>[^<]*<\/span>/g) || []).length > 0 && big.entities.every((e) => svgStr.includes(`>${e.name || e.id}<`) && e.columns.every((c) => svgStr.includes(`>${c.name}<`)));
