@@ -84,6 +84,7 @@ Every colour, size, font, radius, shadow, icon and text style on a page comes fr
 | `dock` | the floating add and zoom docks and the dock popover | |
 | `actionbar` | `.actionbar`, `.ab-btn`, `.ab-sep`, `.ab-swatch`: the floating bar over a selection (the flowchart's lane bar; the ERD and sequence bars keep their own `erd-` and `seq-` classes, built by the same functions) | `ui.actionBar(cls, label)`, `ui.abButton(cls, act, html, title, pressed?, value?, extra?)`, `ui.abSep(cls?)` |
 | `colorkey` | `.color-key`: the legend of the swatches a diagram uses and what each means (`colorKey`); an unnamed entry is a prompt in edit only. Sequence draws prompts, the ERD draws only named colours | `ui.colorKey(used, key, { prompts, cls })` |
+| `search` | `#search-bar` and its input, counter and Previous / Next / Close buttons; `.search-dim` on items that do not match, `.search-current` (the focus ring) on the current match. The shell owns matching and navigation; a type only defines `searchItems()` (contract in `dev/plans/search.md`) | |
 
 A new type uses these before it writes any CSS or markup of its own: a delete that needs a confirmation calls `ui.confirm`, a note is a `.note` built by `ui.noteCard`, a label on a line is an `.edge-label`, a prompt is a `.hint`. When two types need the same new thing, it goes into `assets/components/` (and `COMPONENTS`), not into either type.
 

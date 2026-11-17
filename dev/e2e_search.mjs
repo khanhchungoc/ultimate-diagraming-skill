@@ -132,17 +132,15 @@ try {
     await press('search-input', 'Enter'); await settle();
     t.check('Next wraps from the last match to the first', (await T('counter().k')) === 1);
 
-    // 6. a render keeps the highlight and the index (title rename, then undo -> plugin.render())
+    // 6. a render keeps the highlight and the index (the theme toggle calls plugin.render(); toggled back after)
     if (n > 1) { await press('search-input', 'Enter'); await settle(); }
     const before = await T(`state(${J(q)})`);
-    await t.ev(`(() => { const h = document.getElementById('chart-title'); h.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
-      h.textContent = h.textContent + ' x'; h.blur(); })()`);
-    const canUndo = await t.ev(`!document.getElementById('btn-undo').disabled`);
-    await t.ev(`document.getElementById('btn-undo').click()`); await settle();
+    await t.ev(`document.getElementById('btn-theme').click()`); await settle();
     s = await T(`state(${J(q)})`);
-    t.check('undo (a re-render) keeps the highlight and the current index',
-      canUndo && s.dimOk && s.curOk && s.c.k === before.c.k && s.c.n === before.c.n,
-      J({ canUndo, before: before.c, after: s.c, dimOk: s.dimOk, curOk: s.curOk }));
+    await t.ev(`document.getElementById('btn-theme').click()`); await settle();
+    t.check('a re-render keeps the highlight and the current index',
+      s.dimOk && s.curOk && s.c.k === before.c.k && s.c.n === before.c.n,
+      J({ before: before.c, after: s.c, dimOk: s.dimOk, curOk: s.curOk }));
 
     // 8. export and Save carry no search classes (state is still active, so the check is not vacuous)
     const active = await T(`state(${J(q)})`);
@@ -153,13 +151,15 @@ try {
     t.check('SVG export contains no search-dim / search-current class',
       active.dimCount + active.curCount > 0 && !!svg && svg.text.length > 200 && !classLeak.test(svg.text),
       svg ? `leak=${classLeak.test(svg.text)} len=${svg.text.length}` : 'no SVG blob captured');
+    const original = await t.ev(`document.getElementById('diagram-data').textContent`);
+    const sameData = (txt) => { try { return JSON.stringify(JSON.parse(txt)) === JSON.stringify(JSON.parse(original)); } catch { return false; } };
     await t.ev(`delete window.showSaveFilePicker; window.dispatchEvent(new KeyboardEvent('keydown', { key: 's', ctrlKey: true, bubbles: true, cancelable: true }))`);
     await sleep(1000);
     const saved = (await t.ev(`window.__blobs.splice(0)`)).find((b) => /html/.test(b.type));
-    const data = saved ? (/<script id="diagram-data"[^>]*>([\s\S]*?)<\/script>/.exec(saved.text) || [])[1] || '' : '';
+    const data = saved ? (/<script id="diagram-data" type="application\/json">([\s\S]*?)<\/script>/.exec(saved.text) || [])[1] || '' : '';
     t.check('Save writes HTML with no search-dim / search-current class and no search state in the data',
-      !!saved && saved.text.includes('id="diagram-data"') && !classLeak.test(saved.text) && !/"search/i.test(data),
-      saved ? `classLeak=${classLeak.test(saved.text)}` : 'no HTML blob captured (save path not reachable)');
+      !!saved && saved.text.includes('id="diagram-data"') && !classLeak.test(saved.text) && sameData(data),
+      saved ? `classLeak=${classLeak.test(saved.text)} sameData=${sameData(data)}` : 'no HTML blob captured (save path not reachable)');
 
     // 7. Esc closes and clears
     await t.ev(`document.getElementById('btn-search').click()`);
