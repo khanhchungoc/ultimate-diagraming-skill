@@ -8,8 +8,8 @@ Format: `MAJOR.MINOR.PATCH`.
 
 ## Rules
 
-- **PATCH** is bumped automatically on every push to `main` by `.github/workflows/release.yml`. Do not bump it by hand.
-- **MINOR / MAJOR** are bumped by hand: set `package.json`, `package-lock.json` and `SKILL.md` to `X.Y.0` in the PR. The push to `main` then publishes `X.Y.1`, so a new minor or major starts at patch 1.
+- On every push to `main`, `.github/workflows/release.yml` releases the committed version if it has no `vX.Y.Z` tag yet (so the first release is `1.0.0`); otherwise it bumps **PATCH** first. Do not bump patch by hand.
+- **MINOR / MAJOR** are bumped by hand: set `package.json`, `package-lock.json` and `SKILL.md` to `X.Y.0` in the PR. The next push to `main` publishes `X.Y.0` itself, since that tag doesn't exist yet.
 - The workflow commits the bump as `Release vX.Y.Z [skip ci]`, tags `vX.Y.Z`, then publishes a GitHub release with `ultimate-diagram-vX.Y.Z.zip` attached. The `[skip ci]` message and an `if:` guard stop the bump commit from re-triggering the workflow.
 - Changes to `main` that are pushed concurrently queue (workflow `concurrency`), so versions never collide.
 
