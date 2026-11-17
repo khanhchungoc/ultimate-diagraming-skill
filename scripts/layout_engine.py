@@ -59,12 +59,11 @@ READABLE_ZOOM = 0.84
 TB_MIN_GAIN = 0.05  # top to bottom must make lanes-fill-the-screen zoom this much bigger to be worth the switch
 TB_MAX_SCORE_LOSS = 5  # ... and may score at most this much lower in the audit (an extra crossing or two)
 
-# Long arrows (flowchart rule 11): a routed arrow at least LONG_ARROW_COLS column widths long that crosses another
-# arrow, an outer detour at least LONG_ARROW_DETOUR_COLS long (even with 0 crossings), or the long return leg of a
-# flagged round-trip is hard to follow and should become a connector pair. Calibrated on dev/fixtures (longest 4.6
-# columns in LR; 7.10 with 0 crossings in TB, none flagged).
+# Long arrows (flowchart rule 11): a routed arrow at least LONG_ARROW_COLS column widths long that crosses at least
+# LONG_ARROW_MIN_CROSSINGS other arrows is hard to follow and becomes a connector pair. A long arrow that crosses
+# nothing (or one arrow, drawn with a line jump) still reads fine, so it stays an arrow.
 LONG_ARROW_COLS = 6
-LONG_ARROW_DETOUR_COLS = 10
+LONG_ARROW_MIN_CROSSINGS = 2
 LONG_ARROW_PENALTY, LONG_ARROW_MAX_PENALTY = 5, 15
 LONG_ARROW_MAX_PAIRS = 4   # letters in all: more pairs make the reader look letters up instead of following lines
 LONG_ARROW_MAX_ROUNDS = 4  # split, re-layout, re-audit; stops earlier when a round does not improve
@@ -482,10 +481,9 @@ class FlowchartAudit:
         return warnings
 
     def _long_arrows(self, polylines: Dict[str, List[Tuple[float, float]]]) -> List[Tuple[Dict[str, Any], float, int]]:
-        """Arrows hard to follow (rule 11): routed at least LONG_ARROW_COLS column widths long that cross another
-        arrow, an outer detour at least LONG_ARROW_DETOUR_COLS long (even with 0 crossings), or the long return
-        leg of a flagged round-trip. Longest first, as (edge, length in columns, crossings). Arrows into or out of
-        a connector are already split."""
+        """Arrows hard to follow (rule 11): routed at least LONG_ARROW_COLS column widths long and crossing at least
+        LONG_ARROW_MIN_CROSSINGS other arrows. Most crossings first, then longest, as (edge, length in columns,
+        crossings). Arrows into or out of a connector are already split."""
         candidates = []
         for e in self.edges:
             pts = polylines.get(e["id"])
@@ -501,12 +499,8 @@ class FlowchartAudit:
                 if o is not e and o["id"] in polylines and self._polylines_intersect(
                     pts, polylines[o["id"]], incident=bool({e["from"], e["to"]} & {o["from"], o["to"]})))
             candidates.append((e, cols, crossings))
-        flagged_pairs = {(e["from"], e["to"]) for e, cols, cr in candidates if cr or cols >= LONG_ARROW_DETOUR_COLS}
-        found = [
-            item for item in candidates
-            if item[2] or item[1] >= LONG_ARROW_DETOUR_COLS or (item[0]["to"], item[0]["from"]) in flagged_pairs
-        ]
-        found.sort(key=lambda f: -f[1])
+        found = [item for item in candidates if item[2] >= LONG_ARROW_MIN_CROSSINGS]
+        found.sort(key=lambda f: (-f[2], -f[1]))
         return found
 
     def _long_arrow_warnings(self, long_arrows: List[Tuple[Dict[str, Any], float, int]]) -> List[str]:
