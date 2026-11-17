@@ -6,7 +6,7 @@ Describe a process, and your AI agent hands back a single HTML file. Open it in 
 
 [![Swimlane flowchart, horizontal](docs/img/example-flowchart.png)](https://claude.ai/artifact/4GXf3ufVkqEMR9BNy7UuWE)
 
-**Try it live, no install:** [flowchart](https://claude.ai/artifact/4GXf3ufVkqEMR9BNy7UuWE) · [sequence](https://claude.ai/artifact/5GAHnbS8tb9bxKxAi4JDYz) · [ER diagram](https://claude.ai/artifact/39Vy8dhSEdN4MjqVe1qQEv) · [use case](https://claude.ai/artifact/XHQv3cFEPjBJitmvAq8QwE)
+**Try it live, no install:** [flowchart](https://claude.ai/artifact/4GXf3ufVkqEMR9BNy7UuWE) · [sequence](https://claude.ai/artifact/5GAHnbS8tb9bxKxAi4JDYz) · [entity relationship](https://claude.ai/artifact/39Vy8dhSEdN4MjqVe1qQEv) · [use case](https://claude.ai/artifact/DyGtj4nxA7nvkmjdfcFddG)
 
 ## Contents
 
@@ -71,11 +71,11 @@ Describe a process, and your AI agent hands back a single HTML file. Open it in 
 
 *"Draw a use case diagram for our booking system, with requirement ids."*
 
-[![Use case diagram](docs/img/example-usecase.png)](https://claude.ai/artifact/XHQv3cFEPjBJitmvAq8QwE)
+[![Use case diagram](docs/img/example-usecase.png)](https://claude.ai/artifact/DyGtj4nxA7nvkmjdfcFddG)
 
 Search by requirement id (such as `FR-4`) to find the use case that covers it.
 
-▶ [Try the use case diagram](https://claude.ai/artifact/XHQv3cFEPjBJitmvAq8QwE)
+▶ [Try the use case diagram](https://claude.ai/artifact/DyGtj4nxA7nvkmjdfcFddG)
 
 ## Offline samples
 
