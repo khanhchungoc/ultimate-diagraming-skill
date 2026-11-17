@@ -95,6 +95,12 @@ Colour is what shows the reader which tables belong together; there are no boxes
 
 The layout counts same-coloured tables as slightly closer, so a domain tends to form a cluster. The audit warns when a schema has more than 8 tables and none has a colour.
 
+## Reading the JSON
+
+Used when explaining an existing diagram (output of `--extract`).
+
+`entities` hold `columns` (`pk`, `fk`, `unique`, `nullable`); each `relationships` entry runs from the child (the table holding the foreign key) to the parent, its two ends (`fromEnd`, `toEnd`: `one`, `zeroOrOne`, `oneOrMany`, `zeroOrMany`) say how many rows sit on each side, and a table's `color` (named in `colorKey`) marks the domain it belongs to.
+
 ## Visual review checklist
 
 The audit covers references, box overlap, curves through tables and label overlap; the layout report covers text overflow. Check by eye on the screenshot:

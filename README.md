@@ -2,106 +2,53 @@
 
 **Ask your AI for a diagram. Get one you can actually edit.**
 
-Describe a process, and your AI assistant hands back a single HTML file. Open it in any browser, drag things around, fix a label, and save. No account, no app to install, and it works offline.
+Describe a process, and your AI agent hands back a single HTML file. Open it in any browser, drag things around, fix a label, and save. No account, no app to install, and it works offline.
 
-**[Try a flowchart live](https://claude.ai/artifact/4GXf3ufVkqEMR9BNy7UuWE)** · **[sequence diagram](https://claude.ai/artifact/5GAHnbS8tb9bxKxAi4JDYz)** · **[ER diagram](https://claude.ai/artifact/39Vy8dhSEdN4MjqVe1qQEv)** · **[use case diagram](https://claude.ai/artifact/XHQv3cFEPjBJitmvAq8QwE)**: each opens in your browser, no install. More below under [Diagram types](#diagram-types).
+[![Swimlane flowchart, horizontal](docs/img/example-flowchart.png)](https://claude.ai/artifact/4GXf3ufVkqEMR9BNy7UuWE)
+
+**Try it live, no install:** [flowchart](https://claude.ai/artifact/4GXf3ufVkqEMR9BNy7UuWE) · [sequence](https://claude.ai/artifact/5GAHnbS8tb9bxKxAi4JDYz) · [ER diagram](https://claude.ai/artifact/39Vy8dhSEdN4MjqVe1qQEv) · [use case](https://claude.ai/artifact/XHQv3cFEPjBJitmvAq8QwE)
 
 ## Contents
 
 - [What you get](#what-you-get)
-- [How it compares](#how-it-compares)
 - [Diagram types](#diagram-types)
-- [Coming next](#coming-next)
 - [Get started](#get-started)
-- [Use your brand](#use-your-brand)
-- [Diagrams as claude.ai Artifacts](#diagrams-as-claudeai-artifacts)
-- [Ask your AI about a diagram](#ask-your-ai-about-a-diagram)
-- [Requirements](#requirements)
-- [Credits](#credits)
+- [Who it's for](#whos-it-for)
+- [How it compares](#how-it-compares)
+- [More](#more)
+- [Coming next](#coming-next)
+- [Credits and licence](#credits-and-licence)
 
 ## What you get
 
-- ⚡ **Faster and cheaper.** The AI writes a short description of your diagram (about 5.6 KB for the example above), not thousands of lines of drawing code. You wait less, spend fewer tokens, and long diagrams don't eat your usage limit.
-- ✏️ **Fix it yourself, no re-prompting.** Wrong label? Step in the wrong lane? Drag it, retype it, delete it. Undo and redo work. Press **Save** and the changes are stored in the same file. Press **Ctrl+F** to search the diagram's text and step through the matches.
-- 🧹 **Always tidy.** Add, move or delete a step and the diagram re-arranges itself and re-routes the arrows (switch **Auto-Tidy** off to place steps by hand). **Tidy** does the same on demand.
-- 💬 **Your edits and the AI's edits combine.** Tweak the diagram by hand, then tell the AI "add an approval step after review". It picks up from your edited version instead of starting over and undoing your work.
-- ↔️ ↕️ **Wide or tall.** Flip between left-to-right and top-to-bottom with one button. Pick whichever fits your page or slide.
-- 🔤 **Long arrows stay readable.** An arrow that would cross half the diagram becomes a pair of lettered circles (A → A). Hover a circle, or the step it's attached to, to see where the flow continues; click it to jump there.
-- ✅ **Arrives clean.** The AI checks its own result for overlapping boxes and unreadable labels before showing you.
-- 🎨 **Your brand.** Give the AI a website address or a brand guide and every diagram uses your colours, font, corner style and icon weight. Text stays readable: the colours are checked against WCAG 2.2 AA contrast in light and dark mode, and any that fall short are nudged until they pass.
-- 📦 **Just a file.** Email it, put it in a repo, attach it to a ticket, or open it offline.
-
-## How it compares
-
-We gave AI assistants the same jobs in three formats: this skill, Mermaid, and draw.io.
-
-### Making a diagram
-
-Same prompt for a large process (7 lanes, about 50 to 60 steps, 5 possible outcomes), run in two AI assistants: Antigravity and GitHub Copilot.
-
-| | **Ultimate Diagram** | **Mermaid** | **draw.io** |
-|---|:---:|:---:|:---:|
-| Time to finish | **3.4 to 4 min** | 4.9 to 5.5 min | 6.9 to 7.6 min |
-| Actions the AI took | **8 to 11** | 12 to 32 | 26 to 30 |
-| Tokens used (Copilot) | **0.69 million** | 2.32 million | 2.54 million |
-| Cost (Copilot, estimated) | **$0.09** | $0.29 | $0.34 |
-| Every step and outcome included | ✅ | ✅ | ✅ |
-| Layout checked for overlaps | ✅ every time, with a screenshot | ⚠️ only if the AI decides to | ⚠️ boxes only, arrows unchecked |
-
-**In plain English:** this skill finished 19% to 38% sooner than Mermaid and in about half the time of draw.io. In Copilot it used 70% fewer tokens than Mermaid and 73% fewer than draw.io, so it cost about a third as much as Mermaid and a quarter as much as draw.io. The reason: the AI only writes the steps and arrows, and a script draws the picture. With draw.io the AI has to work out the position of every box and arrow itself.
-
-### Reading a diagram back
-
-We asked an AI (Claude Haiku) to summarize 4 saved diagrams, from 9 to 41 steps each.
-
-| | **Ultimate Diagram** | **Mermaid** | **draw.io** |
-|---|:---:|:---:|:---:|
-| Time to answer | **16 s** | 30 s | 40 s |
-| Tokens used | **42,800** | 44,300 | 53,300 |
-| Correct answers | 4 / 4 | 4 / 4 | 4 / 4 |
-
-**In plain English:** every format gave correct answers. With this skill installed, the AI answered in about half the time it took for Mermaid and in 60% less time than for draw.io. It used about as many tokens as Mermaid (3% fewer) and 20% fewer than draw.io. Without the skill, the AI still answers correctly but takes about 38 s and 54,000 tokens, because it reads part of the built-in editor first.
-
-### Features
-
-| | **Ultimate Diagram** | **Mermaid** | **draw.io** |
-|---|:---:|:---:|:---:|
-| Edit by dragging and typing | ✅ | ❌ edit the code or ask the AI | ✅ |
-| Everything the AI wrote can be changed by hand | ✅ lane colours, legends, activation bars and more (a step's shape is still set by the AI) | ❌ edit the code | ✅ |
-| Opens with nothing to install | ✅ any browser | ✅ shown by GitHub, GitLab, VS Code | ⚠️ needs the draw.io app or website |
-| Real swimlanes | ✅ | ❌ coloured groups only | ✅ |
-| Switch wide / tall in one click | ✅ | ⚠️ edit the code | ❌ |
-| Re-tidies itself after edits | ✅ | ✅ always automatic, but no dragging | ⚠️ limited |
-| Shows inside Markdown docs | ❌ | ✅ | ❌ |
-| File size | ⚠️ about 330 to 530 KB (editor built in) | ✅ 10 to 26 KB | ✅ 39 to 56 KB |
-| Huge shape and icon library | ❌ | ❌ | ✅ |
-
-**Pick Mermaid** for small diagrams that live inside Markdown docs.
-
-**Pick draw.io** for free-form drawing with lots of shapes.
-
-**Pick this** for clear, editable process diagrams from your AI, made fast and cheaply.
-
-These are single runs per assistant (November 2026), not averages: treat the percentages as a rough guide, and expect different numbers with a different diagram or AI.
+- ✏️ **Fix it yourself, no re-prompting.** Wrong label? Step in the wrong lane? Drag it, retype it, delete it. Undo and redo work. **Ctrl+F** searches the diagram's text.
+- 💬 **Your edits and the AI's edits combine.** Tweak the diagram by hand, then tell the AI "add an approval step after review". It picks up from your edited version instead of starting over. This works best as a [claude.ai Artifact](docs/artifacts.md), where **Save** stores your edits straight into the artifact. With a plain HTML file, **Save** works like Save As (see [Save vs Download](#save-vs-download-html)), so you point the AI at the saved file.
+- 🧹 **Always tidy.** The AI checks its own result for overlapping boxes and unreadable labels before showing you. After that, add, move or delete a step and the diagram re-arranges itself and re-routes the arrows. Flip between wide and tall with one button. Long arrows become lettered circles (A → A): hover to see where the flow continues, click to jump there.
+- ⚡ **Fast and cheap.** The AI writes a short description instead of thousands of lines of drawing code, so you wait less and spend fewer tokens ([numbers](docs/comparison.md)).
+- 📦 **Just a file.** Email it, put it in a repo, attach it to a ticket, or open it offline. Optionally [use your brand](docs/brand.md): colours, font and corners, contrast-checked.
 
 ## Diagram types
 
-| Type | Status |
+| Type | Shows |
 |---|---|
-| **Flowchart**: swimlanes, decisions, loops, wide or tall; classic shapes (document, database, input/output, subprocess, delay) and lettered connectors for long arrows; copy as Mermaid | ✅ Available |
-| **Sequence**: who talks to whom over time, with optional, alternative and loop sections; copy as Mermaid | ✅ Available |
-| **ERD**: database tables, columns, keys and crow's-foot relationships, tables colour-coded by domain, laid out as a graph with smooth curves; collapse tables, add notes, copy as Mermaid | ✅ Available |
-| **Use case**: UML actors, use cases and system boundaries with include, extend and generalization; use cases coloured by feature area, actors colour-coded, soft curved lines; hover to see what connects to what, search by requirement id, collapse a system | ✅ Available |
+| **Flowchart** | Process steps and decisions in swimlanes |
+| **Sequence** | Who talks to whom, over time |
+| **ERD** | Database tables, keys and relationships |
+| **Use case** | Actors, goals and system boundaries |
+
+Flowchart, sequence and ER diagrams can also be copied as Mermaid.
 
 ### Flowchart
 
+*"Draw a swimlane flowchart of our loan approval process."*
+
 [![Swimlane flowchart, horizontal](docs/img/example-flowchart.png)](https://claude.ai/artifact/4GXf3ufVkqEMR9BNy7UuWE)
 
-▶ [Try the flowchart](https://claude.ai/artifact/4GXf3ufVkqEMR9BNy7UuWE): click, drag and edit it in your browser. The same diagram flips to a tall layout with one button:
-
-[![Same flowchart, tall layout](docs/img/example-flowchart-vertical.png)](https://claude.ai/artifact/4GXf3ufVkqEMR9BNy7UuWE)
+▶ [Try the flowchart](https://claude.ai/artifact/4GXf3ufVkqEMR9BNy7UuWE)
 
 ### Sequence diagram
+
+*"Draw a sequence diagram of the login flow between the app, API gateway and auth service."*
 
 [![Sequence diagram](docs/img/example-sequence-2026-11.png)](https://claude.ai/artifact/5GAHnbS8tb9bxKxAi4JDYz)
 
@@ -109,19 +56,93 @@ These are single runs per assistant (November 2026), not averages: treat the per
 
 ### ER diagram
 
+*"Draw an ER diagram for an online shop: customers, orders, products and payments."*
+
 [![ER diagram](docs/img/example-erd.png)](https://claude.ai/artifact/39Vy8dhSEdN4MjqVe1qQEv)
 
 ▶ [Try the ER diagram](https://claude.ai/artifact/39Vy8dhSEdN4MjqVe1qQEv)
 
 ### Use case diagram
 
+*"Draw a use case diagram for our booking system, with requirement ids."*
+
 [![Use case diagram](docs/img/example-usecase.png)](https://claude.ai/artifact/XHQv3cFEPjBJitmvAq8QwE)
 
-Who wants what from which system: actors on the left and right, their goals inside each system's box, «include» and «extend» between goals. Hover an actor or a use case to grey out everything it is not directly connected to; type a requirement id such as `FR-4` to find the use case that covers it.
+Search by requirement id (such as `FR-4`) to find the use case that covers it.
 
 ▶ [Try the use case diagram](https://claude.ai/artifact/XHQv3cFEPjBJitmvAq8QwE)
 
-Each demo is a claude.ai Artifact; **Download .html** inside it saves your edits. The same samples as files you can open offline: [flowchart](dev/samples/example-flowchart.html), [sequence](dev/samples/example-sequence.html), [ERD](dev/samples/example-erd.html), [use case](dev/samples/example-usecase.html).
+The same samples as files you can open offline: [flowchart](dev/samples/example-flowchart.html), [sequence](dev/samples/example-sequence.html), [ERD](dev/samples/example-erd.html), [use case](dev/samples/example-usecase.html).
+
+## Get started
+
+### Before you start
+
+You need Python 3.9+ and Chrome, Chromium or Edge (used to lay out and check every diagram). Node 18+ is optional and makes layout faster. The installer checks all of these and tells you what is missing. If something is, ask your agent to install it for you.
+
+### Option A: download (no terminal needed)
+
+1. Open the [latest release](https://github.com/khanhchungoc/ultimate-diagraming-skill/releases/latest) and download `ultimate-diagram-vX.Y.Z.zip` (under **Assets**).
+2. Unzip it. You get one folder named `ultimate-diagram`.
+3. Move that folder into your agent's `skills` folder (create it if it is missing):
+
+   | Agent | Skills folder (for all your projects) |
+   |---|---|
+   | Claude Code | `.claude/skills` in your home folder |
+   | GitHub Copilot | `.copilot/skills` in your home folder |
+   | OpenAI Codex | `.agents/skills` in your home folder |
+   | Gemini CLI | `.gemini/skills` in your home folder |
+   | Kiro | `.kiro/skills` in your home folder |
+
+   Folders starting with a dot are hidden. Mac: in Finder press `Cmd` + `Shift` + `.` to show them. Windows: your home folder is `C:\Users\<your name>`; turn on **View > Show > Hidden items**. For one project only, use the same folder inside that project instead.
+4. Restart your agent.
+
+### Option B: one command
+
+If you have Node.js, run one of these in a terminal. It shows the version it installs.
+
+For all your projects:
+
+```shell
+npx khanhchungoc/ultimate-diagraming-skill
+```
+
+For the current project only, run it inside the project folder:
+
+```shell
+npx khanhchungoc/ultimate-diagraming-skill --project
+```
+
+Both install into every supported agent. Add `--runtime claude` to pick one.
+
+### Then
+
+1. Ask your agent: *"Draw a swimlane flowchart of our loan approval process."*
+2. It saves an HTML file in your project folder and tells you the path. Open it in your browser and edit.
+3. Press **Save** in the diagram to keep your edits.
+
+### Save vs Download .html
+
+- **Opened as a claude.ai Artifact** (Claude Code with Artifact output): **Save** stores your edits directly in the artifact as a new version, so your agent's next change starts from them. If you only have view access (for example the live demos), use **Download .html** to get your own editable copy as a file. See [Artifacts](docs/artifacts.md).
+- **Opened as a regular HTML file:** the browser cannot write into the file you opened, so the first **Save** works like Save As: you choose where the edited copy goes. To have your agent continue from your edits, tell it which saved file to use.
+
+## Who it's for
+
+- **Business analysts:** process flows, system boundaries and use cases, with requirement-id search (`FR-4`) to find the use case that covers a requirement.
+- **Testers:** every path and decision laid out for deriving test cases, and sequence diagrams of the calls between systems.
+- **Developers:** a diagram is plain data in a single file, so it lives in git and can be reviewed and diffed. Copy any diagram as Mermaid. See [how it is stored](docs/reading-diagrams.md).
+
+## How it compares
+
+Against Mermaid and draw.io, for the same large process: about 3.4 to 4 minutes vs 4.9 to 5.5 (Mermaid) and 6.9 to 7.6 (draw.io), and about a third to a quarter of the cost. Single runs, so a rough guide. Tables and caveats: [docs/comparison.md](docs/comparison.md).
+
+**Pick Mermaid** for small diagrams that live inside Markdown docs. **Pick draw.io** for free-form drawing with lots of shapes. **Pick this** for clear, editable process diagrams from your AI, made fast and cheaply.
+
+## More
+
+- [Use your brand](docs/brand.md): diagrams in your colours, font and corner style, contrast-checked.
+- [Diagrams as claude.ai Artifacts](docs/artifacts.md): publish privately, share a link, keep editing.
+- [Ask your AI about a diagram](docs/reading-diagrams.md): summarize or query a saved diagram without reading the editor code.
 
 ## Coming next
 
@@ -136,81 +157,8 @@ Each demo is a claude.ai Artifact; **Download .html** inside it saves your edits
 
 🔜 next, 💡 later. Order may change.
 
-## Get started
+## Credits and licence
 
-### Option A: download (no terminal needed)
-
-1. Open the [latest release](https://github.com/khanhchungoc/ultimate-diagraming-skill/releases/latest) and download `ultimate-diagram-vX.Y.Z.zip` (under **Assets**).
-2. Unzip it. You get one folder named `ultimate-diagram`.
-3. Move that folder into your AI assistant's `skills` folder (create it if it is missing):
-
-   | Assistant | Skills folder (for all your projects) |
-   |---|---|
-   | Claude Code | `.claude/skills` in your home folder |
-   | GitHub Copilot | `.copilot/skills` in your home folder |
-   | OpenAI Codex | `.agents/skills` in your home folder |
-   | Gemini CLI | `.gemini/skills` in your home folder |
-   | Kiro | `.kiro/skills` in your home folder |
-
-   Folders starting with a dot are hidden. Mac: in Finder press `Cmd` + `Shift` + `.` to show them. Windows: your home folder is `C:\Users\<your name>`; turn on **View > Show > Hidden items**. For one project only, use the same folder inside that project instead.
-4. Restart your assistant.
-
-### Option B: one command
-
-If you have Node.js, run one of these in a terminal. It shows the version it installs.
-
-For all your projects (user scope):
-
-```shell
-npx khanhchungoc/ultimate-diagraming-skill
-```
-
-For the current project only (project scope), run it inside the project folder:
-
-```shell
-npx khanhchungoc/ultimate-diagraming-skill --project
-```
-
-Both install into every supported assistant. Add `--runtime claude` to pick one.
-
-### Then
-
-1. Ask: *"Draw a swimlane flowchart of our loan approval process."*
-2. Open the HTML file it creates and edit.
-
-Needs Python and a browser; see [Requirements](#requirements).
-
-## Use your brand
-
-Give the AI a website address or a brand guide (PDF, image or CSS file) and ask for diagrams in that look. It extracts colours, font, corner style and icon weight, checks contrast in light and dark mode, and shows you the report and three preview images. Nothing is kept until you accept it.
-
-Example prompts:
-
-- *"Use the brand from https://example.com and draw a swimlane flowchart of our loan approval process."*
-- *"Here is our brand guide (brand.pdf). Make diagrams in this style, then draw a sequence diagram of the login flow."*
-
-Once accepted, the theme is saved as `.ultimate-diagram/theme.json` in your project and every later diagram there uses it; diagrams you already saved pick it up the next time they are re-laid out. To switch back, delete that file. Details for contributors: [references/theme.md](references/theme.md).
-
-## Diagrams as claude.ai Artifacts
-
-In Claude Code the diagram can be published as a private claude.ai Artifact instead of an HTML file. Claude asks once which you want (a saved default skips the question). Inside the artifact you edit as usual and press **Save**: that publishes a new version of the same artifact, so the next change you ask Claude for starts from your saved edits. Share the link from claude.ai; people without edit access see the diagram and can **Download .html** instead of saving. To make the link public, use the artifact's Share menu; claude.ai reviews the page first, and `python dev/check_artifact_shape.py` catches known causes of a rejection (for example `data:` inside a tooltip) before you publish.
-
-Set the default when installing, or any time later:
-
-```shell
-npx khanhchungoc/ultimate-diagraming-skill --runtime claude --claude-output artifact   # or: file, ask
-```
-
-It is stored in `~/.claude/ultimate-diagram.json` (or `<project>/.claude/ultimate-diagram.json` with `--project`). Other assistants always write the HTML file. Details: [plan](dev/plans/plan-artifact-output.md).
-
-## Ask your AI about a diagram
-
-Hand any diagram file to an AI assistant and ask "summarize this flow" or "who approves the refund?". The diagram is stored as a short block of data at the top of the file, and the file's second line tells the assistant exactly which lines to read, so it skips the editor code below. With this skill installed, the assistant pulls out just that data in one step.
-
-## Requirements
-
-Needs `Python 3.9+` and `Chrome`, `Chromium` or `Edge` (used to lay out and check every diagram). `Node 18+` is optional and makes layout faster. The installer checks all of these and tells you what is missing.
-
-## Credits
+Released under the [MIT licence](LICENSE).
 
 The icons in the editor and on the swimlane headers are [Lucide](https://lucide.dev) icons (ISC licence, Copyright (c) Lucide Icons and Contributors), or are redrawn from Lucide designs; some Lucide icons derive from [Feather](https://feathericons.com) (MIT licence, Copyright (c) Cole Bemis). The diagram-type icons, the flowchart shape tiles and a few others were drawn for this skill. The icon registry is `assets/icons/default.json` and the full licence notices are in `assets/icons/LICENSE`.

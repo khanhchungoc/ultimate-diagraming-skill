@@ -11,7 +11,7 @@ Turn a process description into one self-contained, editable HTML diagram. You w
 **Paths and files:**
 - `<skill-dir>` is the folder containing this `SKILL.md`. Run scripts by full path (`python "<skill-dir>/scripts/layout_engine.py" ...`; use `python3` where `python` is not on PATH).
 - **Workspace**: write only the final HTML there: the user's path, else `<title-slug>.html` in the workspace root. The HTML embeds its JSON; leave no `.json` in the workspace unless the user asked for one.
-- **Scratch**: the authoring JSON and the screenshot PNG go to the host's scratch directory (else the system temp directory). Delete them in one command at the end; do not check the deletion or probe the workspace afterwards.
+- **Scratch**: the authoring JSON and the screenshot PNG go to the host's scratch directory (else the system temp directory). Delete them at the end with the shell's native remove command, in one call; do not check the deletion or probe the workspace afterwards.
 
 ---
 
@@ -20,7 +20,7 @@ Turn a process description into one self-contained, editable HTML diagram. You w
 Applies only if your tools include `Artifact` (it publishes claude.ai Artifacts). Without it, write the HTML file as below and do not ask. Otherwise decide once, before writing anything:
 1. The user already said ("as an artifact", "save to docs/flow.html"): follow it.
 2. Else a saved default: `output` in `<project>/.claude/ultimate-diagram.json`, else in `~/.claude/ultimate-diagram.json`. `artifact` or `file`: follow it. `ask` or no file: go to 3.
-3. Else ask once with `AskUserQuestion`: **Artifact** (private claude.ai page, editable, Save updates it in place, shareable by link) or **HTML file** (`<title-slug>.html` in the project folder, works offline). Keep the answer for the rest of the conversation. If the user says "always", write `{"output": "artifact"}` (or `file`) to `<project>/.claude/ultimate-diagram.json`.
+3. Else ask once with `AskUserQuestion`: **Artifact** (private claude.ai page, editable, Save updates it in place, shareable by link) or **HTML file** (`<title-slug>.html` in the project folder, works offline). If you cannot ask, stop and put the question in your reply; write nothing until the user answers. Keep the answer for the rest of the conversation. If the user says "always", write `{"output": "artifact"}` (or `file`) to `<project>/.claude/ultimate-diagram.json`.
 
 *Artifact output* changes the procedures below only as stated in [Artifact output](#artifact-output).
 
@@ -68,7 +68,7 @@ Make exactly these calls. The type reference, the example it names and the comma
    | Render failed | Retry once with `--browser <chrome path>`. If no browser works, report that the visual review could not run. |
 
 5. **View the PNG once** and go through the type's visual checklist. Re-run step 3 only for a failed checklist item.
-6. **Stop.** A clean run is final: do not re-word labels, re-run or re-render. Delete the scratch JSON and PNG in one command, then report.
+6. **Stop.** A clean run is final: do not re-word labels, re-run or re-render. Delete the scratch JSON and PNG (keep the scratch HTML when publishing an artifact, see Artifact output), then report.
 
 ## Procedure: Read an Existing Diagram
 
@@ -81,7 +81,7 @@ Use to summarize, explain or answer questions about a diagram page: an `.html` f
    python "<skill-dir>/scripts/layout_engine.py" --extract <page.html>
    ```
    If that cannot run, read only the lines the page's line 2 names (the `"diagram-data"` JSON block).
-2. Answer from that JSON alone. Flowchart: `nodes` are sorted along the flow, so follow `edges` for the path; `"feedback": true` is a loop back; each note's `nodes` lists the steps it is attached to. Sequence: `messages` are in time order (a step number is a message's position there); a fragment covers messages `from`..`to` inclusive, an `alt`/`par` fragment's `branches[].at` (or `elseAt`, one unlabelled else) is where each further branch starts, and a note sits `over` a participant `after`/`before` a message. ERD: `entities` hold `columns` (`pk`, `fk`, `unique`, `nullable`); each `relationships` entry runs from the child (the table holding the foreign key) to the parent, its two ends (`fromEnd`, `toEnd`: `one`, `zeroOrOne`, `oneOrMany`, `zeroOrMany`) say how many rows sit on each side, and a table's `color` (named in `colorKey`) marks the domain it belongs to. Use case: `actors` are roles outside the system and `useCases` are goals inside a `subjects` boundary; each `links` entry is an `association` (actor and use case), an `include` (from the base to the use case it always needs) or an `extend` (from the optional extension to its base, with a `condition`); `parent` is a generalization (child to parent); `refs` are the requirement ids a use case implements, and a `colorKey` names the feature area of each colour.
+2. Answer from that JSON alone. Read the "Reading the JSON" section of the type reference named by `diagramType` (missing means `flowchart`).
 
 ## Procedure: Update an Existing Diagram
 
@@ -115,6 +115,6 @@ Only when the user gives a website URL or brand guide and wants diagrams in that
 
 About 5 lines: the file, and anything that needs the user's action. Not a log of your checks.
 
-- the output path (for an artifact: its link, that Save inside it updates it, that only people with edit access can save, and that it is private until the user shares it from claude.ai) and a concise description (type, and participant list);
+- the output path (for an artifact: its link, and that it is private until the user shares it from claude.ai) and a concise description (type, and participant list);
 - assumptions: anything you added or reordered that the source did not state, and each conflict between sources with the version you followed;
 - problems only: score if below 100, any `[WARN]` left, labels shortened from the user's wording, a split diagram and why, what a re-layout reset (updates), an overlap check done by eye.

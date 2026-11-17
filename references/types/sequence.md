@@ -81,6 +81,12 @@ Activation bars are computed, never written. A bar shows a participant busy hand
 9. **Long diagrams** (about 20 messages or more): set `"numbered": true` so a reviewer can say "step 17", and wrap each phase in a `group` so the reader can collapse it, or focus on one phase (the **Focus** button: the other phases fold and the participants they leave become rails). Cover every message with a phase, or the participants of the loose ones stay full columns. Never author `"collapsed": true` unless the user asks for an overview; if you do, add `"rails": true`.
 10. **Overview requests**: if the user asks for a summary or one-slide view, aim for about 6 participants and 16 messages so it fits a 1080p screen without panning. Otherwise include every message, step, branch and note; the page pans, zooms, pins the participant row and collapses phases.
 
+## Reading the JSON
+
+Used when explaining an existing diagram (output of `--extract`).
+
+`messages` are in time order (a step number is a message's position there); a fragment covers messages `from`..`to` inclusive, an `alt`/`par` fragment's `branches[].at` (or `elseAt`, one unlabelled else) is where each further branch starts, and a note sits `over` a participant `after`/`before` a message.
+
 ## Visual review checklist
 
 The audit covers spacing, label fit, frame and note bounds; the layout report covers label overlap. Check by eye on the screenshot:

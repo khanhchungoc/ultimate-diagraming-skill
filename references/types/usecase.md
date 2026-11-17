@@ -96,6 +96,12 @@ Colour is the reader's first grouping cue. For more than 8 use cases:
 
 A diagram of 8 or fewer use cases may stay neutral. The audit warns when a diagram has more than 12 use cases and none has a colour.
 
+## Reading the JSON
+
+Used when explaining an existing diagram (output of `--extract`).
+
+`actors` are roles outside the system and `useCases` are goals inside a `subjects` boundary; each `links` entry is an `association` (actor and use case), an `include` (from the base to the use case it always needs) or an `extend` (from the optional extension to its base, with a `condition`); `parent` is a generalization (child to parent); `refs` are the requirement ids a use case implements, and a `colorKey` names the feature area of each colour.
+
 ## Visual review checklist
 
 The audit covers references, overlaps, lines through use cases and label overlap; the layout report covers text overflow. Check by eye on the screenshot:

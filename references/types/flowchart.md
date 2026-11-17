@@ -118,6 +118,12 @@ Decide from the source, once, top row first. Do not trial the alternatives.
 
 **Updating an existing flowchart**: a re-layout also resets lane heights and keeps lane order, lane membership and `feedback` flags; a note the user dragged keeps its place beside its step. With Auto layout on (the default) the page already re-lays out after every step edit, so hand-placed positions exist only where the user switched Auto off.
 
+## Reading the JSON
+
+Used when explaining an existing diagram (output of `--extract`).
+
+`nodes` are sorted along the flow, so follow `edges` for the path; `"feedback": true` is a loop back; each note's `nodes` lists the steps it is attached to.
+
 ## Visual review checklist
 
 Routing, ports, arrow ends and lane containment are the engine's job; it does not need checking. Check these by eye on the screenshot, and apply the fix if one fails:
