@@ -6,6 +6,19 @@ Describe a process, and your AI assistant hands back a single HTML file. Open it
 
 **[Try a flowchart live](https://claude.ai/artifact/4GXf3ufVkqEMR9BNy7UuWE)** · **[sequence diagram](https://claude.ai/artifact/5GAHnbS8tb9bxKxAi4JDYz)** · **[ER diagram](https://claude.ai/artifact/39Vy8dhSEdN4MjqVe1qQEv)** · **[use case diagram](https://claude.ai/artifact/XHQv3cFEPjBJitmvAq8QwE)**: each opens in your browser, no install. More below under [Diagram types](#diagram-types).
 
+## Contents
+
+- [What you get](#what-you-get)
+- [How it compares](#how-it-compares)
+- [Diagram types](#diagram-types)
+- [Coming next](#coming-next)
+- [Get started](#get-started)
+- [Use your brand](#use-your-brand)
+- [Diagrams as claude.ai Artifacts](#diagrams-as-claudeai-artifacts)
+- [Ask your AI about a diagram](#ask-your-ai-about-a-diagram)
+- [Requirements](#requirements)
+- [Credits](#credits)
+
 ## What you get
 
 - ⚡ **Faster and cheaper.** The AI writes a short description of your diagram (about 5.6 KB for the example above), not thousands of lines of drawing code. You wait less, spend fewer tokens, and long diagrams don't eat your usage limit.
@@ -125,14 +138,39 @@ Each demo is a claude.ai Artifact; **Download .html** inside it saves your edits
 
 ## Get started
 
-1. Install the skill into your AI assistant:
-   ```shell
-   npx khanhchungoc/ultimate-diagraming-skill
-   ```
-   Works with Claude Code, GitHub Copilot, OpenAI Codex, Gemini CLI, Antigravity and Kiro. By default it installs into each one's skills folder under your home directory (a copy when run through `npx`). Add `--runtime claude` to pick one assistant, or `--project` to install into the current project only.
-   **No Node.js?** Open the [latest release](https://github.com/khanhchungoc/ultimate-diagraming-skill/releases/latest) and download `ultimate-diagram-vX.Y.Z.zip`. Extract it into your assistant's skills folder, so that `SKILL.md` ends up at `<skills-folder>/ultimate-diagram/SKILL.md`: for example `~/.claude/skills/` for Claude Code, or `<your-project>/.claude/skills/` for one project. The zip holds a folder named `ultimate-diagram-vX.Y.Z`; rename it to `ultimate-diagram`. Other assistants use their own skills folder; `scripts/install.py` lists them all.
-2. Ask: *"Draw a swimlane flowchart of our loan approval process."*
-3. Open the HTML file it creates and edit.
+### Option A: download (no terminal needed)
+
+1. Open the [latest release](https://github.com/khanhchungoc/ultimate-diagraming-skill/releases/latest) and download `ultimate-diagram-vX.Y.Z.zip` (under **Assets**).
+2. Unzip it. You get one folder; rename it to `ultimate-diagram`.
+3. Move that folder into your AI assistant's `skills` folder (create it if it is missing):
+
+   | Assistant | Skills folder (for all your projects) |
+   |---|---|
+   | Claude Code | `.claude/skills` in your home folder |
+   | GitHub Copilot | `.copilot/skills` in your home folder |
+   | OpenAI Codex | `.agents/skills` in your home folder |
+   | Gemini CLI | `.gemini/skills` in your home folder |
+   | Kiro | `.kiro/skills` in your home folder |
+
+   Folders starting with a dot are hidden. Mac: in Finder press `Cmd` + `Shift` + `.` to show them. Windows: your home folder is `C:\Users\<your name>`; turn on **View > Show > Hidden items**. For one project only, use the same folder inside that project instead.
+4. Restart your assistant.
+
+### Option B: one command
+
+If you have Node.js, run this in a terminal:
+
+```shell
+npx khanhchungoc/ultimate-diagraming-skill
+```
+
+It installs into every supported assistant and shows the version. Add `--runtime claude` to pick one assistant, or `--project` to install into the current project only.
+
+### Then
+
+1. Ask: *"Draw a swimlane flowchart of our loan approval process."*
+2. Open the HTML file it creates and edit.
+
+Needs Python and a browser; see [Requirements](#requirements).
 
 ## Use your brand
 
