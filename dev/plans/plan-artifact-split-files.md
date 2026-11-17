@@ -40,7 +40,7 @@ Checked from the tool side (done):
 | `Artifact list` scope `files` | Lists all four files with types and sizes. |
 | `Artifact read` with `path: "diagram.json"` | Returns just that file (35 bytes) and its sha256. |
 | Data-only update | `files` alone is refused: the tool always wants the page's `file_path`. Passing `index.html` with `files: {diagram.json}` works and made version 2. With the split, `index.html` is about 150 lines, so having it in the call is cheap. |
-| Overwrite gate | Not testable from the session that created the artifact (it published every file itself). Test it from a fresh conversation: publish a data-only change to this artifact by URL after reading only `diagram.json`. |
+| Overwrite gate | Tested with a fresh subagent (it did not create the artifact). It listed the files and read `diagram.json` and `index.html` **by path**, then published `index.html` plus `files: {diagram.json}`: **refused**, "You hadn't viewed the live version". Reading single files by path does not count as viewing the live version (the read said so: read the url *without* `path`). The refusal returned the live page (the 806-byte `index.html`) and said that version "now counts as viewed". In the split layout the page is tiny, so the gate costs one small read of the url. Not yet confirmed: that the retry then succeeds (the subagent's retry was denied by the permission classifier; needs the owner's approval or a fresh session). Consequence for the procedures below: read the url without `path` first (small), then publish. |
 
 Checked in the browser (done, by the owner, signed in, artifact private at the time):
 
