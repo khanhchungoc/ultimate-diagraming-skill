@@ -36,7 +36,8 @@ jobs:
           git add package.json package-lock.json SKILL.md
           git diff --cached --quiet || git commit -m "Release v${{ steps.v.outputs.version }} [skip ci]"
           git tag "v${{ steps.v.outputs.version }}"
-          git push origin HEAD:main --follow-tags
+          # Lightweight tag: name it explicitly (--follow-tags only pushes annotated tags).
+          git push origin HEAD:main "v${{ steps.v.outputs.version }}"
       - name: Build zip
         run: python3 dev/release.py zip
       - name: Publish release
