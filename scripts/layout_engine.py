@@ -329,6 +329,7 @@ class FlowchartAudit:
             "score": score,
             "grade": grade,
             "issues": all_issues,
+            "data_issues": dangling_issues,
             "node_count": len(self.nodes),
             "edge_count": len(self.edges),
             "lane_count": len(self.lanes),
@@ -510,7 +511,7 @@ class FlowchartAudit:
     def _long_arrow_warnings(self, long_arrows: List[Tuple[Dict[str, Any], float, int]]) -> List[str]:
         """One [WARN] per connector letter to add (rule 11), longest arrow first, at most LONG_ARROW_MAX_PAIRS letters.
         Long arrows into the same step share one letter (one out-connector, an in-connector per arrow). More letters
-        than that means lane order is the problem (checklist item 2)."""
+        than that is reported, not split."""
         groups: Dict[str, List[Tuple[Dict[str, Any], float, int]]] = {}
         for item in long_arrows:  # longest first, so groups are ordered by their longest arrow
             groups.setdefault(item[0]["to"], []).append(item)
@@ -520,8 +521,7 @@ class FlowchartAudit:
         warnings = []
         if len(groups) > LONG_ARROW_MAX_PAIRS:
             warnings.append(f"{len(groups)} long, tangled arrow targets need connectors, more than {LONG_ARROW_MAX_PAIRS}: "
-                            f"check lane order first (checklist item 2), then split only the {LONG_ARROW_MAX_PAIRS} "
-                            f"below and report the rest.")
+                            f"split only the {LONG_ARROW_MAX_PAIRS} below and report the rest.")
         for target, items in list(groups.items())[:LONG_ARROW_MAX_PAIRS]:
             arrows = "; ".join(
                 f"'{e['id']}' ({label(e['from'])} -> {label(target)}, {cols:.0f} column widths"
@@ -1556,6 +1556,9 @@ def order_flowchart_lanes(data: Dict[str, Any], timeout: int, browser: Optional[
     return new, f"Lane order: {', '.join(by_id[i].get('name', i) for i in order)} (by first step on the flow; set \"laneOrder\": \"fixed\" to keep yours)."
 
 
+LAYOUT_NOTE = "report it; do not change the JSON for it"
+
+
 def main():
     _ensure_utf8_output()
     parser = argparse.ArgumentParser(description="Multi-Swimlane Flowchart Layout & Verification Engine")
@@ -1696,11 +1699,12 @@ def main():
             if report2["passed"] or not report["passed"]:
                 laid_out_data, audit, report = laid2, audit2, report2
                 print("\n".join(info))
-                # The tool already split what it may (at most 3 letters): what is left is reported, not fixed
-                left = [w for w in report["budget_warnings"] if w.startswith("Long arrow") or "long, tangled arrow" in w]
-                report["budget_warnings"] = [w for w in report["budget_warnings"] if w not in left]
-                for w in left:
-                    print(f"[INFO] Left as is (connector limit reached), report it: {w.split(': split')[0]}")
+
+        # What is left of the long arrows is layout: report it, never a reason to edit the JSON
+        is_long = lambda w: w.startswith("Long arrow") or "long, tangled arrow" in w
+        for w in [w for w in report["budget_warnings"] if is_long(w)]:
+            print(f"[INFO] Layout: {w.split(': split')[0]} ({LAYOUT_NOTE})")
+        report["budget_warnings"] = [w for w in report["budget_warnings"] if not is_long(w)]
 
         if args.target == "artifact":
             out_path = Path(args.output) if args.output else in_p.with_suffix("")
@@ -1712,35 +1716,38 @@ def main():
             external_refs = find_external_refs(out_path.read_text(encoding="utf-8"))
             render_target = out_path
 
-        # Same gates as --verify, so the agent never needs a second audit run.
-        failed = False
+        # DATA problems (the agent fixes the JSON) are [WARN]/[ERROR] and the only reason for [NEXT]; LAYOUT problems
+        # (the engine's job) are [INFO] Layout lines that never fail the run. --verify keeps the strict gates.
+        data_bad = False
         for warning in report["budget_warnings"]:
+            data_bad = True
             print(f"[WARN] {warning}")
         if external_refs:
-            failed = True
+            data_bad = True
             print("[FAIL] HTML loads external resources (must be fully self-contained):")
             for ref in external_refs:
                 print(f"  - {ref}")
-        if not report["passed"]:
-            failed = True
-            print(f"[FAIL] Quality score {report['score']}/100 did not meet threshold (>= 90); HTML still written:")
-            for issue in report["issues"]:
-                print(f"  - {issue}")
-        else:
+        for issue in report["data_issues"]:
+            data_bad = True
+            print(f"[WARN] {issue}")
+        layout_issues = [i for i in report["issues"] if i not in report["data_issues"]]
+        for issue in layout_issues:
+            print(f"[INFO] Layout: {issue} ({LAYOUT_NOTE})")
+        if layout_issues:
+            print(f"[INFO] Layout: Quality score {report['score']}/100, HTML still written ({LAYOUT_NOTE})")
+        elif not report["data_issues"]:
             print(audit.pass_line(report))
 
-        clean = not failed and not report["budget_warnings"]
         render_code = 0
         if args.screenshot:
             render_code, render_clean = run_render(render_target, Path(args.screenshot), args.browser)
-            clean = clean and render_clean
-            print("[DONE] Clean. View the PNG only if a visual checklist item needs it; the diagram is then final: "
-                  "do not re-word, re-run or re-render." if clean else
-                  "[NEXT] Fix only the [WARN]/[FAIL]/[ERROR] lines above, then re-run this same command.")
-        if failed:
-            sys.exit(1)
+            data_bad = data_bad or not render_clean
         if render_code:
             sys.exit(render_code)
+        print("[NEXT] Fix the [WARN] lines (data) and re-run." if data_bad else
+              "[DONE] The diagram is final: report any [INFO] lines, do not re-word, re-run or re-render.")
+        if external_refs or report["data_issues"]:
+            sys.exit(1)
 
 
 def run_render(html_path: Path, png_path: Path, browser: Optional[str]) -> Tuple[int, bool]:

@@ -80,18 +80,8 @@ Activation bars are computed, never written. A bar shows a participant busy hand
 7. **Colour phases only when the source colours or names them**; one colour per `group`.
 8. Order participants so most messages travel to a neighbour; long jumps across the diagram are hard to follow.
 9. **Long diagrams** (about 20 messages or more): set `"numbered": true` so a reviewer can say "step 17", and wrap each phase in a `group` so the reader can collapse it, or focus on one phase (the **Focus** button: the other phases fold and the participants they leave become rails). Cover every message with a phase, or the participants of the loose ones stay full columns. Never author `"collapsed": true` unless the user asks for an overview; if you do, add `"rails": true`.
-10. **Overview requests**: if the user asks for a summary or one-slide view, aim for about 6 participants and 16 messages so it fits a 1080p screen without panning. Otherwise include every message, step, branch and note; the page pans, zooms, pins the participant row and collapses phases.
-
-## Visual review checklist
-
-The audit covers spacing, label fit, frame and note bounds; the layout report covers label overlap. Check by eye on the screenshot:
-
-1. **Reading order**: messages go top to bottom in the intended sequence.
-2. **Activation bars** open at each call and close at its last reply, with no bar left dangling at a branch.
-3. **Frames** enclose exactly the intended messages and their labels do not hide a message label.
-4. **Branch labels** are readable and not under a message label.
-5. **Notes** sit over the right lifeline, at the right step.
-6. **Self-messages** have room beside the lifeline and do not touch the next lifeline.
+10. **Write messages in time order**, and give each `note` the `over` lifeline and the `after`/`before` message it belongs to.
+11. **Overview requests**: if the user asks for a summary or one-slide view, aim for about 6 participants and 16 messages so it fits a 1080p screen without panning. Otherwise include every message, step, branch and note; the page pans, zooms, pins the participant row and collapses phases.
 
 ## Failure handling
 

@@ -327,6 +327,7 @@ class UsecaseAudit:
 
         # Geometry (only meaningful once laid out). A use case in a collapsed subject has no box (_hidden).
         drawn_ucs = [u for u in ucs if not u.get("_hidden")]
+        data_issues = list(errors)  # what the author wrote wrong; the rest is geometry (the engine's job)
         subj_boxes = ss if ss else (self.data.get("_subjects") or [])
         laid_out = (all(_has_box(a) for a in acs) and all(_has_box(u) for u in drawn_ucs)
                     and all(isinstance(lk.get("points"), list) and len(lk["points"]) >= 2 for lk in ls if not lk.get("_hidden"))
@@ -502,7 +503,7 @@ class UsecaseAudit:
         score = max(0, 100 - ERROR_PENALTY * len(errors))
         grade = "A+" if score >= 98 else "A" if score >= 90 else "B" if score >= 80 else "C" if score >= 60 else "F"
         return {
-            "passed": score >= 90 and not errors, "score": score, "grade": grade, "issues": errors,
+            "passed": score >= 90 and not errors, "score": score, "grade": grade, "issues": errors, "data_issues": data_issues,
             "actor_count": len(acs), "use_case_count": len(ucs), "link_count": len(ls), "note_count": len(ns),
             "subject_count": len(ss), "overlaps_count": overlaps, "overflows_count": overflows, "dangling_count": dangling,
             "info": info, "budget_warnings": budget,

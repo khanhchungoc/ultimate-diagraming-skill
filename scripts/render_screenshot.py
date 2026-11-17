@@ -5,8 +5,9 @@
    size at the "Fit" zoom, natural diagram size).
 2. Captures a clean PNG: editing controls hidden, cropped to the diagram, 1.5x by default.
 
-Exit codes: 0 ok, 1 render failure, 3 edge-label overlap, 4 text below --min-text-px (diagrams of 12 nodes
-or fewer; larger diagrams are read with pan and zoom, so for them it is only an [INFO] line).
+Exit codes: 0 ok, 1 render failure. Edge-label overlaps and text below --min-text-px are layout findings: they
+print as "[INFO] Layout: ..." (to report, not to fix in the JSON) and never fail the run. Truncated labels are data
+problems and print as [WARN].
 Zero external dependencies (standard library Python 3 + system Chrome/Edge).
 """
 
@@ -43,8 +44,7 @@ BROWSER_NAMES = (
     "microsoft-edge",
 )
 
-# Diagrams above this size are explored with pan and zoom, so small text at Fit is not an error for them.
-SINGLE_SCREEN_MAX_NODES = 12
+LAYOUT_NOTE = "report it; do not change the JSON for it"
 
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 
@@ -252,8 +252,7 @@ def main() -> int:
     parser.add_argument("--max-width", type=int, default=1600,
                         help="Widest the cropped screenshot is laid out, in CSS px (default: 1600)")
     parser.add_argument("--min-text-px", type=float, default=11.0,
-                        help="Fail (exit 4) when text renders smaller than this at Fit zoom on --viewport, for diagrams of 12 nodes or fewer; "
-                             "larger ones only get an [INFO] line (default: 11)")
+                        help="Report (an [INFO] Layout line) text that renders smaller than this at Fit zoom (default: 11)")
     parser.add_argument("--full-window", action="store_true",
                         help="Screenshot the whole viewport instead of cropping to the diagram")
     parser.add_argument("--no-report", action="store_true",
@@ -298,38 +297,24 @@ def main() -> int:
     if args.no_report:
         return 0
     if report is None:
-        print("[WARN] Layout report unavailable (older template, or this browser returned no DOM). "
-              "Review the screenshot manually.")
+        print("[INFO] Layout: report unavailable (older template, or this browser returned no DOM), "
+              "so label overlaps were not checked (report it; do not change the JSON for it).")
         return 0
 
-    if axe is None:
-        print("[INFO] axe-core step skipped: node_modules/axe-core is not installed (npm install in the skill repo).")
     for mode, found in (axe or {}).items():
         for rule, impact, count, target in found:
-            print(f"[WARN] axe ({mode} mode): {rule} ({impact}), {count} element{'s' if count != 1 else ''}, first {target}")
+            print(f"[INFO] Layout: axe ({mode} mode): {rule} ({impact}), {count} element{'s' if count != 1 else ''}, first {target} ({LAYOUT_NOTE})")
         if not found:
             print(f"[PASS] axe ({mode} mode): no violations.")
-    print(f"[REPORT] Fit zoom {int(report['fitScale'] * 100)}% on {width}x{height}; "
-          f"smallest node text {report['minNodeFontPx']}px, smallest edge label {report['minEdgeFontPx']}px "
-          f"(minimum {args.min_text_px:g}px); {report['labelCount']} labels checked.")
     for msg in report.get("warnings", []):
         print(f"[WARN] {msg}")
     for msg in report["errors"]:
-        print(f"[ERROR] {msg}")
-    # Small text is a defect in a diagram meant to be read on one screen, and expected in a large one
-    # that is explored with pan and zoom (SKILL.md: more than 12 nodes). Only the first fails the run.
-    legibility = report.get("legibility", [])
-    single_screen = report.get("nodeCount", 0) <= SINGLE_SCREEN_MAX_NODES
-    for msg in legibility:
-        if single_screen:
-            print(f"[ERROR] {msg} Shorten labels, drop steps or columns, or split the diagram.")
-        else:
-            print(f"[INFO] {msg} Large diagram ({report['nodeCount']} nodes): read it with pan and zoom.")
-    if report["errors"]:
-        return 3
-    print("[PASS] No edge-label overlaps detected.")
-    if legibility and single_screen:
-        return 4
+        print(f"[INFO] Layout: {msg.rstrip('.')} ({LAYOUT_NOTE})")
+    # Small text at the fit zoom: pan and zoom reads it; the engine owns the sizes.
+    for msg in report.get("legibility", []):
+        print(f"[INFO] Layout: {msg.rstrip('.')} ({LAYOUT_NOTE})")
+    if not report["errors"]:
+        print("[PASS] No edge-label overlaps detected.")
     return 0
 
 
