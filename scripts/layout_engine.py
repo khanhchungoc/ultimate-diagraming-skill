@@ -66,7 +66,8 @@ TB_MAX_SCORE_LOSS = 5  # ... and may score at most this much lower in the audit 
 LONG_ARROW_COLS = 6
 LONG_ARROW_DETOUR_COLS = 10
 LONG_ARROW_PENALTY, LONG_ARROW_MAX_PENALTY = 5, 15
-LONG_ARROW_MAX_PAIRS = 3
+LONG_ARROW_MAX_PAIRS = 8   # letters in all: past ~8 pairs the reader looks letters up instead of following lines
+LONG_ARROW_MAX_ROUNDS = 4  # split, re-layout, re-audit; stops earlier when a round does not improve
 
 
 class FlowchartAudit:
@@ -509,9 +510,8 @@ class FlowchartAudit:
         return found
 
     def _long_arrow_warnings(self, long_arrows: List[Tuple[Dict[str, Any], float, int]]) -> List[str]:
-        """One [WARN] per connector letter to add (rule 11), longest arrow first, at most LONG_ARROW_MAX_PAIRS letters.
-        Long arrows into the same step share one letter (one out-connector, an in-connector per arrow). More letters
-        than that is reported, not split."""
+        """One [WARN] per connector letter to add (rule 11), longest arrow first.
+        Long arrows into the same step share one letter (one out-connector, an in-connector per arrow)."""
         groups: Dict[str, List[Tuple[Dict[str, Any], float, int]]] = {}
         for item in long_arrows:  # longest first, so groups are ordered by their longest arrow
             groups.setdefault(item[0]["to"], []).append(item)
@@ -519,10 +519,7 @@ class FlowchartAudit:
             return []
         label = lambda nid: self.node_map[nid].get("label") or nid
         warnings = []
-        if len(groups) > LONG_ARROW_MAX_PAIRS:
-            warnings.append(f"{len(groups)} long, tangled arrow targets need connectors, more than {LONG_ARROW_MAX_PAIRS}: "
-                            f"split only the {LONG_ARROW_MAX_PAIRS} below and report the rest.")
-        for target, items in list(groups.items())[:LONG_ARROW_MAX_PAIRS]:
+        for target, items in groups.items():
             arrows = "; ".join(
                 f"'{e['id']}' ({label(e['from'])} -> {label(target)}, {cols:.0f} column widths"
                 + (f", crosses {n}" if n else "") + ")"
@@ -1478,12 +1475,12 @@ def choose_flowchart_direction(data: Dict[str, Any], timeout: int, browser: Opti
     return lr, ""
 
 
-def add_connector_pairs(data: Dict[str, Any], laid: Dict[str, Any], long_arrows: List[Tuple[Dict[str, Any], float, int]]
-                        ) -> Tuple[Dict[str, Any], List[str]]:
+def add_connector_pairs(data: Dict[str, Any], laid: Dict[str, Any], long_arrows: List[Tuple[Dict[str, Any], float, int]],
+                        max_letters: int = LONG_ARROW_MAX_PAIRS) -> Tuple[Dict[str, Any], List[str]]:
     """Rule 11: split the long arrows the audit found into connector pairs; return (new authoring data, [INFO] lines).
 
     Works on the authoring data, not the laid-out copy, and keeps the laid direction so the second layout matches the
-    first. One letter per target (at most LONG_ARROW_MAX_PAIRS, longest first); letters already on a connector are skipped."""
+    first. One letter per target (at most max_letters, longest first); letters already on a connector are skipped."""
     groups: Dict[str, List[str]] = {}
     for e, _, _ in long_arrows:
         groups.setdefault(e["to"], []).append(e["id"])
@@ -1494,7 +1491,7 @@ def add_connector_pairs(data: Dict[str, Any], laid: Dict[str, Any], long_arrows:
     by_id = {e["id"]: e for e in edges}
     node_map = {n["id"]: n for n in nodes}
     info = []
-    for target, eids in list(groups.items())[:LONG_ARROW_MAX_PAIRS]:
+    for target, eids in list(groups.items())[:max_letters]:
         letter = next(letters)
         low = letter.lower()
         nodes.append({"id": f"c_{low}_out", "laneId": node_map[target]["laneId"], "type": "connector", "label": letter})
@@ -1688,15 +1685,22 @@ def main():
         audit = make_audit(laid_out_data, tokens)
         report = audit.verify_collisions()
         if data["diagramType"] == "flowchart" and not args.keep_layout and report["long_arrows"]:
-            # Rule 11: the tool splits the long arrows itself; keep the second layout unless it is worse
-            split, info = add_connector_pairs(data, laid_out_data, report["long_arrows"])
-            try:
-                laid2 = run_layout("flowchart", split, timeout=args.timeout, browser=args.browser, tokens=tokens)
-            except EngineUnavailable as exc:
-                sys.exit(f"[ERROR] {exc}")
-            audit2 = make_audit(laid2, tokens)
-            report2 = audit2.verify_collisions()
-            if report2["passed"] or not report["passed"]:
+            # Rule 11: the tool splits the long arrows itself, round after round, and keeps the best layout seen
+            quality = lambda r: (not r["passed"], len(r["issues"]), r["long_arrows_count"], r["edge_crossings"])
+            base, letters = data, 0
+            for _ in range(LONG_ARROW_MAX_ROUNDS):
+                if not report["long_arrows"] or letters >= LONG_ARROW_MAX_PAIRS:
+                    break
+                split, info = add_connector_pairs(base, laid_out_data, report["long_arrows"], LONG_ARROW_MAX_PAIRS - letters)
+                try:
+                    laid2 = run_layout("flowchart", split, timeout=args.timeout, browser=args.browser, tokens=tokens)
+                except EngineUnavailable as exc:
+                    sys.exit(f"[ERROR] {exc}")
+                audit2 = make_audit(laid2, tokens)
+                report2 = audit2.verify_collisions()
+                if quality(report2) >= quality(report):
+                    break
+                base, letters = split, letters + len(info)
                 laid_out_data, audit, report = laid2, audit2, report2
                 print("\n".join(info))
 
