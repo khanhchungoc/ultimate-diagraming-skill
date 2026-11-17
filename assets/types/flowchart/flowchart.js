@@ -1769,7 +1769,13 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
                 if (!movable.length) continue;
                 const base0 = cluster.reduce((s2, c) => s2 + c.x, 0) / cluster.length;
                 const shiftEnd = (c, nx) => { edgePolylines[c.e.id][c.a][0] = nx; edgePolylines[c.e.id][c.b][0] = nx; };
-                if (fixed.length) {
+                if (role === 'in') {
+                  // Fan-in: arrows entering one side of one step share a single trunk (and one arrowhead) and
+                  // join where their runs meet it, like a merge on a hand-drawn flowchart. Spreading them 24px
+                  // apart drew a doubled line. A straight arrow keeps its line; the others join it.
+                  const jx = fixed.length ? fixed[0].x : base0;
+                  cluster.forEach(c => shiftEnd(c, jx));
+                } else if (fixed.length) {
                   const fx = fixed[0].x;
                   // Each moved end slides toward the side its other end lies on, so it never has to cross
                   // the straight arrow (movable is sorted by `far`, so the nearest-to-centre ends sit closest)
@@ -1832,7 +1838,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
               if (!pts) return;
               const n = pts.length;
               const add = (role, a, b, peer, far) => {
-                const mergeIn = role === 'in' && nodeMap[nid] && nodeMap[nid].type === 'decision';
+                const mergeIn = role === 'in';   // fan-in: one trunk per side (5a1)
                 const key = role + '|' + (mergeIn ? '*' : peer) + '|' + Math.round(pts[a][0]);
                 if (!units.has(key)) units.set(key, { x: pts[a][0], fixed: false, far, ends: [] });
                 const u = units.get(key);
@@ -1878,6 +1884,70 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
             }
           });
         });
+
+        // 5a4. Arrows into one side of one step that run side by side a few px apart (e.g. a Z-shaped channel
+        // beside another arrow's straight leg) are one fan-in: snap the movable run onto the other so they share
+        // a single trunk and join, instead of reading as a doubled line. Port-attached first/last legs stay put.
+        {
+          const NEAR = 18;
+          const runs = [];
+          validEdges.forEach(e => {
+            const pts = edgePolylines[e.id], p = edgePorts[e.id];
+            if (!pts || pts.length < 3 || !p) return;
+            for (let i = 0; i < pts.length - 2; i++) {          // the last leg (into the target) is shared already
+              const a = pts[i], b = pts[i + 1];
+              const k = Math.abs(a[0] - b[0]) < 1 ? 0 : Math.abs(a[1] - b[1]) < 1 ? 1 : -1;
+              if (k < 0) continue;
+              runs.push({ e, i, k, pos: a[k], lo: Math.min(a[1 - k], b[1 - k]), hi: Math.max(a[1 - k], b[1 - k]), first: i === 0, to: p.toPort });
+            }
+          });
+          runs.forEach(m => {
+            if (m.first) return;                                  // attached to its source: it is the one others join
+            const pts = edgePolylines[m.e.id];
+            const t = runs.find(o => o.e.to === m.e.to && o.e.id !== m.e.id && o.to === m.to && o.k === m.k &&
+              Math.abs(o.pos - m.pos) >= 1 && Math.abs(o.pos - m.pos) < NEAR && Math.min(o.hi, m.hi) - Math.max(o.lo, m.lo) > 24 &&
+              (o.first || o.e.id < m.e.id));
+            if (!t) return;
+            const k = m.k, old = m.pos, ids = [m.e.from, m.e.to];
+            pts[m.i][k] = pts[m.i + 1][k] = t.pos;
+            // the legs either side must stay clear of other steps and keep their direction
+            const legOk = (j) => segmentClear(pts[j][0], pts[j][1], pts[j + 1][0], pts[j + 1][1], ids);
+            const ok = legOk(m.i - 1) && legOk(m.i) && legOk(m.i + 1) &&
+              Math.sign(t.pos - pts[m.i - 1][k]) === Math.sign(old - pts[m.i - 1][k]) &&
+              Math.sign(pts[m.i + 2][k] - t.pos) === Math.sign(pts[m.i + 2][k] - old);
+            if (!ok) pts[m.i][k] = pts[m.i + 1][k] = old;
+          });
+        }
+
+        // 5a5. Two arrows into one step that leave facing each other along one line (a bottom exit and a top
+        // exit of steps stacked in a column, both turning into the same run) read as one straight line between
+        // the two sources. Slide the later exit sideways, toward the run it joins, so it meets the other
+        // arrow's run at a clear T.
+        {
+          const SLIDE = 24;
+          const ends = [];
+          validEdges.forEach(e => {
+            const pts = edgePolylines[e.id];
+            if (!pts || pts.length < 3) return;
+            [0, 1].forEach(k => {
+              if (Math.abs(pts[0][k] - pts[1][k]) < 1 && Math.abs(pts[1][1 - k] - pts[0][1 - k]) > 1) ends.push({ e, pts, k });
+            });
+          });
+          ends.forEach((b, bi) => ends.slice(0, bi).forEach(a => {
+            if (a.k !== b.k || a.e.to !== b.e.to || a.e.from === b.e.from) return;
+            const k = a.k, m = 1 - k;
+            if (Math.abs(a.pts[0][k] - b.pts[0][k]) >= 1) return;
+            const da = Math.sign(a.pts[1][m] - a.pts[0][m]), db = Math.sign(b.pts[1][m] - b.pts[0][m]);
+            if (da * db >= 0) return;                              // not facing
+            const gap = da > 0 ? b.pts[1][m] - a.pts[1][m] : a.pts[1][m] - b.pts[1][m];
+            if (gap < 0 || gap > 40) return;                       // far apart, or overlapping (not this case)
+            const dir = Math.sign(b.pts[2][k] - b.pts[1][k]);
+            const src = rects[b.e.from], nx = b.pts[0][k] + dir * SLIDE;
+            const lo = (k === 0 ? src.x : src.y) + 14, hi = (k === 0 ? src.x + src.w : src.y + src.h) - 14;
+            if (!dir || Math.abs(b.pts[2][k] - b.pts[1][k]) < SLIDE + 12 || nx < lo || nx > hi) return;
+            b.pts[0][k] = b.pts[1][k] = nx;
+          }));
+        }
 
         // 5b. De-overlap: unrelated edges must not share a collinear stretch. Spread interior
         // segments (never the port-attached first/last ones) onto parallel tracks.
