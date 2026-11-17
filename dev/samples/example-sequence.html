@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- For agents: the whole diagram is the JSON (application/json) in the "diagram-data" script on lines 12-54 of this file. Read lines 1-54 only (offset 1, limit 54); everything after line 54 is editor code (CSS, JS, icons) and says nothing about the diagram.
+<!-- For agents: the whole diagram is the JSON (application/json) in the "diagram-data" script on lines 12-53 of this file. Read lines 1-53 only (offset 1, limit 53); everything after line 53 is editor code (CSS, JS, icons) and says nothing about the diagram.
      The model's first key, "_readme", says how to read it. The "end diagram-data" comment marks the true end: if it is not on the line named above (the JSON was edited by hand since the last save), trust the comment. To print just the model:
      sed -n '/<script id="diagram-data" type="application\/json">/,/<\/script>/p' FILE
      python -c "import re,sys;print(re.search(r'<script id=\"diagram-data\" type=\"application\/json\">(.*?)<\/script>',open(sys.argv[1],encoding='utf8').read(),re.S)[1])" FILE -->
@@ -15,21 +15,20 @@
   "diagramType": "sequence",
   "schemaVersion": 1,
   "title": "Checkout",
-  "colorKey": { "1": "Customer", "2": "Payment partner", "3": "Our services" },
   "participants": [
-    { "id": "p1", "name": "Customer", "kind": "actor", "color": "1" },
-    { "id": "p2", "name": "Shop", "kind": "system", "color": "3" },
-    { "id": "p3", "name": "Payment", "kind": "system", "color": "2" },
-    { "id": "p4", "name": "Warehouse", "kind": "system", "color": "3" }
+    { "id": "p1", "name": "Customer", "kind": "actor" },
+    { "id": "p2", "name": "Shop", "kind": "system" },
+    { "id": "p3", "name": "Payment", "kind": "system" },
+    { "id": "p4", "name": "Warehouse", "kind": "system" }
   ],
   "messages": [
-    { "id": "m1", "from": "p1", "to": "p2", "label": "Place order", "kind": "sync" },
-    { "id": "m2", "from": "p2", "to": "p4", "label": "Reserve stock", "kind": "sync" },
+    { "id": "m1", "from": "p1", "to": "p2", "label": "Place order" },
+    { "id": "m2", "from": "p2", "to": "p4", "label": "Reserve stock" },
     { "id": "m3", "from": "p4", "to": "p2", "label": "Stock reserved", "kind": "reply" },
-    { "id": "m4", "from": "p2", "to": "p3", "label": "Charge card", "kind": "sync", "detail": "amount, currency, card token" },
+    { "id": "m4", "from": "p2", "to": "p3", "label": "Charge card", "detail": "amount, currency, card token" },
     { "id": "m5", "from": "p3", "to": "p2", "label": "Payment result", "kind": "reply" },
     { "id": "m6", "from": "p2", "to": "p1", "label": "Order confirmed", "kind": "reply" },
-    { "id": "m7", "from": "p2", "to": "p4", "label": "Release stock", "kind": "sync" },
+    { "id": "m7", "from": "p2", "to": "p4", "label": "Release stock" },
     { "id": "m8", "from": "p4", "to": "p2", "label": "Stock released", "kind": "reply" },
     { "id": "m9", "from": "p2", "to": "p1", "label": "Payment declined", "kind": "reply" }
   ],
@@ -1452,6 +1451,10 @@
     .seq-participant.selected { box-shadow: 0 0 0 var(--ring-md) var(--primary), var(--halo); }
     .seq-participant.dragging, .seq-msg-label.dragging { opacity: 0.75; z-index: 20; }
     .seq-participant-name { outline: none; min-width: 20px; white-space: normal; line-height: var(--line-16); }
+    .seq-participant:not(.is-rail) .seq-participant-name {
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+      max-height: calc(2 * var(--line-16)); word-break: break-word;
+    }
     .seq-msg-label {
       position: absolute; height: 20px; line-height: var(--line-20); padding: 0 6px; border-radius: var(--radius-sm); white-space: nowrap;
       font-size: var(--t-label-size); color: var(--text-main); cursor: pointer; user-select: none; touch-action: none;
@@ -1751,11 +1754,11 @@
       <div id="seq-canvas">
         <svg id="seq-svg" xmlns="http://www.w3.org/2000/svg">
           <defs>
-            <marker id="seq-arrow-solid" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse">
-              <polygon points="0 1, 9 5, 0 9" class="seq-arrow-fill"/>
+            <marker id="seq-arrow-solid" markerWidth="14" markerHeight="14" refX="13" refY="7" orient="auto" markerUnits="userSpaceOnUse">
+              <polygon points="0 1.5, 13 7, 0 12.5" class="seq-arrow-fill"/>
             </marker>
-            <marker id="seq-arrow-open" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse">
-              <polyline points="1 1, 9 5, 1 9" class="seq-arrow-open"/>
+            <marker id="seq-arrow-open" markerWidth="14" markerHeight="14" refX="13" refY="7" orient="auto" markerUnits="userSpaceOnUse">
+              <polyline points="1.5 1.5, 13 7, 1.5 12.5" class="seq-arrow-open"/>
             </marker>
           </defs>
           <g id="seq-fragments"></g>
@@ -2298,19 +2301,31 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
         initTheme();
         initSearch();
 
+        const interactive = !urlParams.has('report') && !urlParams.has('capture');
+        const applyInitialView = () => {
+          fitView();
+          if (!interactive || !plugin || plugin.id !== 'sequence' || scale >= 0.85) return;
+          const { vpRect, frame, scaleX, minPan } = fitMetrics();
+          if (vpRect.width < 600) return;
+          scale = Math.min(1.0, Math.max(scaleX, 0.85));
+          panX = (frame.w * scale <= vpRect.width ? (vpRect.width - frame.w * scale) / 2 : minPan) - frame.x * scale;
+          panY = minPan - frame.y * scale;
+          updateTransform();
+        };
+
         plugin.render();
-        fitView();
+        applyInitialView();
         updateStatus(false);
         committedJson = savedJson = JSON.stringify(chartData);
         updateHistoryButtons();
         document.documentElement.dataset.diagramReady = '1';
 
         requestAnimationFrame(() => {
-          fitView();
+          applyInitialView();
           // The web font (Google Fonts link in shell.html) loads asynchronously: render again once it is in, so label
           // fitting and edge-label widths are measured with the real glyphs, and only then report or tidy.
           const fontsIn = document.fonts && document.fonts.status !== 'loaded'
-            ? document.fonts.ready.then(() => { plugin.render(); fitView(); })
+            ? document.fonts.ready.then(() => { plugin.render(); applyInitialView(); })
             : Promise.resolve();
           fontsIn.then(() => {
             if (/[?&]report(=|&|$)/.test(window.location.search)) setTimeout(publishRenderReport, 200);
@@ -2505,7 +2520,10 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
           document.querySelectorAll(plugin.report.nodeText).forEach(el => {
             if (el.scrollHeight > el.clientHeight + 2 || el.scrollWidth > el.clientWidth + 2) {
               const nid = el.closest(plugin.report.node)?.dataset.nodeId || 'node';
-              warnings.push(`Node label truncated ("..."): "${el.textContent.trim()}" (${nid}) — shorten to fit 2 lines`);
+              // A label with a hover tip still shows its full text, so it is a layout note, not a data problem
+              warnings.push(el.dataset.tip
+                ? `Node label truncated ("..."): "${el.textContent.trim()}" (${nid}); the full text shows on hover`
+                : `Node label truncated ("..."): "${el.textContent.trim()}" (${nid}) — shorten to fit 2 lines`);
             }
           });
         }
@@ -2551,18 +2569,30 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
         };
       }
 
-      function fitView() {
+      function fitMetrics() {
         const vpRect = viewport.getBoundingClientRect();
         const frame = contentFrame();
-        const currentWidth = frame.w;
-        const currentHeight = frame.h;
+        const capture = document.body.classList.contains('capture');
+        const pad = capture ? 0 : 80;
+        // The floating dock covers the bottom of the viewport: fit the diagram into the band above it
+        // (this matters for tall diagrams, e.g. a top-to-bottom flowchart, whose fit is limited by height)
+        const dock = document.querySelector('.dock-area');
+        const dockRect = dock && getComputedStyle(dock).display !== 'none' ? dock.getBoundingClientRect() : null;
+        const dockBand = dockRect && dockRect.height ? Math.max(0, vpRect.bottom - dockRect.top) : 0;
+        const scaleX = (vpRect.width - pad) / frame.w;
+        const scaleY = (vpRect.height - dockBand - pad) / frame.h;
+        return { vpRect, frame, capture, dockBand, scaleX, scaleY, minPan: capture ? 0 : 20 };
+      }
+
+      function fitView() {
+        const { vpRect, frame, capture, dockBand, scaleX, scaleY, minPan } = fitMetrics();
 
         // Capture mode: scale to the exact width requested (?capture&w=1600) and pin to the top-left,
         // so the screenshot is the diagram only and does not depend on browser viewport quirks.
-        if (document.body.classList.contains('capture')) {
+        if (capture) {
           const reqW = parseFloat(new URLSearchParams(window.location.search).get('w'));
           if (reqW > 0) {
-            scale = Math.min(1, reqW / currentWidth);
+            scale = Math.min(1, reqW / frame.w);
             panX = -frame.x * scale;
             panY = -frame.y * scale;
             updateTransform();
@@ -2570,22 +2600,9 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
           }
         }
 
-        const pad = document.body.classList.contains('capture') ? 0 : 80;
-        // The floating dock covers the bottom of the viewport: fit the diagram into the band above it
-        // (this matters for tall diagrams, e.g. a top-to-bottom flowchart, whose fit is limited by height)
-        const dock = document.querySelector('.dock-area');
-        const dockRect = dock && getComputedStyle(dock).display !== 'none' ? dock.getBoundingClientRect() : null;
-        const dockBand = dockRect && dockRect.height ? Math.max(0, vpRect.bottom - dockRect.top) : 0;
-        const availableWidth = vpRect.width - pad;
-        const availableHeight = vpRect.height - dockBand - pad;
-
-        const scaleX = availableWidth / currentWidth;
-        const scaleY = availableHeight / currentHeight;
-
         scale = Math.min(Math.max(Math.min(scaleX, scaleY), 0.25), 1.0);
-        const minPan = document.body.classList.contains('capture') ? 0 : 20;
-        panX = Math.max(minPan, (vpRect.width - currentWidth * scale) / 2) - frame.x * scale;
-        panY = Math.max(minPan, (vpRect.height - dockBand - currentHeight * scale) / 2) - frame.y * scale;
+        panX = Math.max(minPan, (vpRect.width - frame.w * scale) / 2) - frame.x * scale;
+        panY = Math.max(minPan, (vpRect.height - dockBand - frame.h * scale) / 2) - frame.y * scale;
 
         updateTransform();
       }
@@ -4294,6 +4311,12 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
             box.appendChild(tip);
           }
           seqHtml.appendChild(box);
+          if (rail) {
+            name.dataset.tip = p.name;
+          } else if (name.scrollHeight > name.clientHeight + 2 || name.scrollWidth > name.clientWidth + 2) {
+            name.dataset.tip = p.name;
+            box.title = p.name;
+          }
         });
         // Insert a participant between two boxes, or at the right end (shown while the pointer is on the row)
         ps.forEach((p, i) => {
@@ -4339,7 +4362,7 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
             labelStyle = { left: px((x1 + x2) / 2), top: px(m.y - 26), transform: 'translateX(-50%)' };
             detailStyle = { left: px((x1 + x2) / 2), top: px(m.y + 3), transform: 'translateX(-50%)' };
           }
-          const marker = m.kind === 'sync' ? 'url(#seq-arrow-solid)' : 'url(#seq-arrow-open)';
+          const marker = !m.kind || m.kind === 'sync' ? 'url(#seq-arrow-solid)' : 'url(#seq-arrow-open)';
           seqMsgG.appendChild(svgEl('path', { class: `seq-line${m.kind === 'reply' ? ' is-reply' : ''}`, d, 'marker-end': marker, 'data-edge-id': m.id }));
           seqMsgG.appendChild(svgEl('path', { class: 'seq-msg-hit', d, 'data-edge-id': m.id }));
           const label = htmlEl('div', `seq-msg-label${self ? ' is-self' : ''}`, labelStyle);
@@ -6133,7 +6156,7 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
       // No positions are saved: render() lays out whatever is missing, so the block holds only the logical model,
       // in a fixed key order. scripts/disk_format.py is the Python twin: keep the two byte-identical.
       // fromDisk only turns old colours (palette hex, frame colour names) into slots: the block is the model minus positions.
-      const DISK_KEYS = ['diagramType', 'schemaVersion', 'title', 'numbered', 'showDetails', 'rails', 'lifespans', 'colorKey', 'participants', 'messages', 'fragments', 'notes'];
+      const DISK_KEYS = ['diagramType', 'schemaVersion', 'title', 'numbered', 'showDetails', 'rails', 'lifespans', 'participantOrder', 'colorKey', 'participants', 'messages', 'fragments', 'notes'];
       // Engine output, never saved: positions, hidden (inside a collapsed frame), frame dividers, note boxes
       const DISK_LAYOUT = [['participants', ['x', 'rail', 'top', 'bottom']], ['messages', ['y', 'hidden']], ['fragments', ['x', 'y', 'w', 'h', 'elseY', 'dividers']], ['notes', ['x', 'y', 'w', 'h']]];
       // Ids made in the page are renamed on save so the file stays readable to an agent: m<next free number>,

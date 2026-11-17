@@ -41,6 +41,7 @@ try {
   void model;
 
   await t.open(page);
+  const order = JSON.parse(await t.ev(`JSON.stringify([...document.querySelectorAll('.seq-participant')].map(e => ({ id: e.dataset.nodeId, name: e.querySelector('.seq-participant-name').textContent })))`));
   const p0 = JSON.parse(await t.ev(names)), m0 = JSON.parse(await t.ev(labels));
   t.check('renders participants, messages, frames without errors',
     p0.length === 4 && m0.length === 7 && (await count('.frame-tag')) === 2 && t.errors.length === 0, `p=${p0.length} m=${m0.length} ${t.errors.join(' | ')}`);
@@ -85,10 +86,10 @@ try {
   t.check('undo and redo keep the selection', afterUndo === 'm2' && afterRedo === 'm2', `${afterUndo} ${afterRedo}`);
 
   await t.open(page);
-  const b1 = await t.at('.seq-participant[data-node-id="p2"]'), b2 = await t.at('.seq-participant[data-node-id="p3"]');
+  const b1 = await t.at(`.seq-participant[data-node-id="${order[1].id}"]`), b2 = await t.at(`.seq-participant[data-node-id="${order[2].id}"]`);
   await t.dragTo(b1.x, b1.y, b2.x + 30, b1.y);
   const reordered = JSON.parse(await t.ev(names));
-  t.check('dragging a participant sideways reorders the lifelines', reordered.join() === 'Customer,Payment,Shop,Warehouse', reordered.join());
+  t.check('dragging a participant sideways reorders the lifelines', reordered.join() === [order[0].name, order[2].name, order[1].name, order[3].name].join(), reordered.join());
 
   await t.open(page);
   const before = JSON.parse(await t.ev(labels));
@@ -223,13 +224,14 @@ try {
 
   // Insert a participant between two boxes
   await t.open(page);
-  const row = await t.at('.seq-participant[data-node-id="p2"]');
-  await t.mouse('mouseMoved', row.x + 100, row.y);
+  const r1 = await t.at(`.seq-participant[data-node-id="${order[1].id}"]`), r2 = await t.at(`.seq-participant[data-node-id="${order[2].id}"]`);
+  await t.mouse('mouseMoved', (r1.x + r2.x) / 2, r1.y);
   await sleep(80);
   await t.clickOn('.seq-insert[data-index="2"]');
   await t.type('Fraud');
   await t.press('Enter');
-  t.check('the + between two participant boxes inserts one there, name in edit', JSON.parse(await t.ev(names)).join() === 'Customer,Shop,Fraud,Payment,Warehouse', await t.ev(names));
+  t.check('the + between two participant boxes inserts one there, name in edit',
+    JSON.parse(await t.ev(names)).join() === [order[0].name, order[1].name, 'Fraud', order[2].name, order[3].name].join(), await t.ev(names));
   // The participant kind from the action bar
   await t.clickOn('.seq-participant[data-node-id="p3"]');
   await t.clickOn('.seq-ab-btn[data-value="database"]');
@@ -411,14 +413,14 @@ try {
   t.check('a message drawn just above a branch divider ends the branch above', at === 5 && branchAt(d) === 'm6', JSON.stringify(d.fragments));
 
   // --- Drag Frame and Note from the dock ---
-  // On the checkout page p2 and p3 are neighbours; halfway between their lifelines is away from both
+  // On the checkout page order[1] and order[2] are neighbours; halfway between their lifelines is away from both
   const m2Line = () => t.at('.seq-line[data-edge-id="m2"]');
   // A new note is the one whose id was not there before the drag
   const noteIds = async () => new Set(((await saved()).notes || []).map((n) => n.id));
   await t.open(page);
   let had = await noteIds();
   let dockBtn = await t.at('#btn-add-note'), dockRow = await m2Line();
-  let a2 = await lifelineAt('p2', dockRow.y - 20), a3 = await lifelineAt('p3', dockRow.y - 20);
+  let a2 = await lifelineAt(order[1].id, dockRow.y - 20), a3 = await lifelineAt(order[2].id, dockRow.y - 20);
   await t.dragTo(dockBtn.x, dockBtn.y, (a2.x + a3.x) / 2, dockRow.y - 20, { steps: 10 });
   await t.press('Enter');
   d = await saved();
@@ -428,17 +430,17 @@ try {
   await t.open(page);
   had = await noteIds();
   dockBtn = await t.at('#btn-add-note'); dockRow = await m2Line();
-  a3 = await lifelineAt('p3', dockRow.y - 20);
+  a3 = await lifelineAt(order[2].id, dockRow.y - 20);
   await t.dragTo(dockBtn.x, dockBtn.y, a3.x + 10, dockRow.y - 20, { steps: 10 });
   await t.press('Enter');
   d = await saved();
   nn = (d.notes || []).find((n) => !had.has(n.id));
-  t.check('a Note dragged from the dock onto a lifeline sits over it', !!nn && nn.over === 'p3' && nn.place === undefined, JSON.stringify(d.notes));
+  t.check('a Note dragged from the dock onto a lifeline sits over it', !!nn && nn.over === order[2].id && nn.place === undefined, JSON.stringify(d.notes));
   // Drag that note away from every lifeline: it becomes a free note
   // The checkout page has no notes of its own, so the new one is the only card (its live id is not the saved n1)
   const noteEl = await t.at('.note');
-  a2 = await lifelineAt('p2', noteEl.y);
-  a3 = await lifelineAt('p3', noteEl.y);
+  a2 = await lifelineAt(order[1].id, noteEl.y);
+  a3 = await lifelineAt(order[2].id, noteEl.y);
   await t.dragTo(noteEl.x, noteEl.y, noteEl.x - (a3.x - a2.x) / 2, noteEl.y, { steps: 10 });
   d = await saved();
   const moved = d.notes.find((n) => n.id === nn.id);
@@ -639,7 +641,20 @@ try {
   }
 
   // --- Reading a long diagram (steps 2 and 3) ---
+  const openFit = async (url, query = '') => { await t.open(url, query); await t.clickOn('#btn-zoom-reset'); };
+  const stageScale = () => t.ev(`+(document.getElementById('stage').style.transform.match(/scale\\(([\\d.]+)\\)/) || [0, 0])[1]`);
   await t.open(long);
+  const initView = await t.ev(`(() => {
+    const c = document.getElementById('seq-canvas').getBoundingClientRect();
+    const v = document.getElementById('viewport').getBoundingClientRect();
+    return { cTop: c.top, vTop: v.top, vBottom: v.bottom };
+  })()`);
+  const initScale = await stageScale();
+  t.check('long sequence opens at readable zoom (>= 0.85) with top of canvas visible at top of viewport',
+    initScale >= 0.85 && initView.cTop >= initView.vTop && initView.cTop < initView.vTop + 80, `${initScale} ${JSON.stringify(initView)}`);
+  await t.clickOn('#btn-zoom-reset');
+  const fitScale = await stageScale();
+  t.check('Fit (#btn-zoom-reset) zooms a long diagram out to show the whole diagram (< 0.5)', fitScale > 0 && fitScale < 0.5, String(fitScale));
   t.check('the long page renders every message, frame and note without errors',
     (await count('.seq-msg-label')) === 42 && (await count('.frame-tag')) === 7 && (await count('.note')) === 4 && t.errors.length === 0, t.errors.join(' | '));
   // Collapse a phase: its messages hide, the numbers stay
@@ -682,7 +697,7 @@ try {
   // --- Rails and Focus (step 2) ---
   // The long diagram has phases for most of its messages: wrap the three loose ones (steps 17-19) in a frame too, so that
   // every participant outside the SPM phase has something to fold. Then Focus on SPM.
-  await t.open(long);
+  await openFit(long);
   const canvasW = () => t.ev(`document.getElementById('seq-canvas').offsetWidth`);
   const summaries = () => count('.frame-summary');
   const rails = () => t.ev(`JSON.stringify([...document.querySelectorAll('.seq-participant.is-rail')].map((e) => e.dataset.nodeId))`);
@@ -739,7 +754,7 @@ try {
     (await count('.seq-participant.is-rail[data-node-id="pol"]')) === 0 && t.errors.length === 0, `${await rails()} ${t.errors.join(' | ')}`);
 
   // --- Lifespans (step 3) ---
-  await t.open(long);
+  await openFit(long);
   const boxTop = (pid) => t.ev(`parseFloat(document.querySelector('.seq-participant[data-node-id="${pid}"]').style.top)`);
   const lifeLen = (pid) => t.ev(`(() => { const l = document.querySelector('.seq-lifeline[data-node-id="${pid}"]'); return +l.getAttribute('y2') - +l.getAttribute('y1'); })()`);
   const fullH = await t.ev(`document.getElementById('seq-canvas').offsetHeight`);
@@ -784,7 +799,7 @@ try {
   t.check('and no page errors so far', t.errors.length === 0, t.errors.join(' | '));
 
   // --- Shared columns and start / end handles (step 4) ---
-  await t.open(long);
+  await openFit(long);
   await t.clickOn('#btn-lifespans');
   const gapAt = (a, b) => gapY(a, b);
   // Start handle: drag the Service Bus's start box up to before step 16 (its own first message is step 19)
@@ -926,7 +941,7 @@ try {
 
   // ?present: read-only, but frames still collapse and expand
   // The Present button toggles in place: the search is closed and cleared, folds are view only
-  await t.open(long);
+  await openFit(long);
   await t.press('/'); await t.type('a');
   const dimmed = await count('.search-dim');
   await t.clickOn('#btn-present');
@@ -937,7 +952,7 @@ try {
     !(await t.ev(`document.body.classList.contains('presentation')`)) && !(await t.ev(`/unsaved/i.test(document.getElementById('save-status').textContent)`))
     && (await t.ev(`document.getElementById('btn-undo').disabled`)) && (await count('.frame-summary')) === 0 && t.errors.length === 0, t.errors.join(' | '));
 
-  await t.open(long, '?present');
+  await openFit(long, '?present');
 
   { // present mode: a drag, a double-click, Delete and Ctrl+Z change nothing, and no editor opens
     const sel = '.seq-participant', n0 = await t.ev(`document.querySelectorAll(${JSON.stringify(sel)}).length`), p = await t.at(sel);

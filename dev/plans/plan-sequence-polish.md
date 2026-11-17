@@ -1,6 +1,6 @@
 # Plan: sequence diagrams, data only for the agent
 
-Status: proposed. Not started.
+Status: implemented.
 
 ## Why
 

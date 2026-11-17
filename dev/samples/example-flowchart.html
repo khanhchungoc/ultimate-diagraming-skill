@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- For agents: the whole diagram is the JSON (application/json) in the "diagram-data" script on lines 12-96 of this file. Read lines 1-96 only (offset 1, limit 96); everything after line 96 is editor code (CSS, JS, icons) and says nothing about the diagram.
+<!-- For agents: the whole diagram is the JSON (application/json) in the "diagram-data" script on lines 12-91 of this file. Read lines 1-91 only (offset 1, limit 91); everything after line 91 is editor code (CSS, JS, icons) and says nothing about the diagram.
      The model's first key, "_readme", says how to read it. The "end diagram-data" comment marks the true end: if it is not on the line named above (the JSON was edited by hand since the last save), trust the comment. To print just the model:
      sed -n '/<script id="diagram-data" type="application\/json">/,/<\/script>/p' FILE
      python -c "import re,sys;print(re.search(r'<script id=\"diagram-data\" type=\"application\/json\">(.*?)<\/script>',open(sys.argv[1],encoding='utf8').read(),re.S)[1])" FILE -->
@@ -31,15 +31,13 @@
     { "id": "n_run_credit_fraud_check", "laneId": "lane-engine", "type": "subprocess", "label": "Run Credit & Fraud Check" },
     { "id": "n_credit_score_700", "laneId": "lane-engine", "type": "decision", "label": "Credit Score >= 700?" },
     { "id": "n_risk_acceptable", "laneId": "lane-risk", "type": "decision", "label": "Risk Acceptable?" },
-    { "id": "n_wait_cooling_off_period", "laneId": "lane-customer", "type": "delay", "label": "Wait Cooling-Off Period" },
     { "id": "n_issue_loan_offer", "laneId": "lane-officer", "type": "document", "label": "Issue Loan Offer" },
     { "id": "n_issue_decline_letter", "laneId": "lane-risk", "type": "document", "label": "Issue Decline Letter" },
-    { "id": "c_a_in", "laneId": "lane-risk", "type": "connector", "label": "A" },
+    { "id": "n_wait_cooling_off_period", "laneId": "lane-customer", "type": "delay", "label": "Wait Cooling-Off Period" },
+    { "id": "n_application_rejected", "laneId": "lane-customer", "type": "end", "label": "Application Rejected" },
     { "id": "n_sign_loan_agreement", "laneId": "lane-customer", "type": "task", "label": "Sign Loan Agreement" },
     { "id": "n_disburse_loan_funds", "laneId": "lane-officer", "type": "task", "label": "Disburse Loan Funds" },
-    { "id": "n_loan_funded", "laneId": "lane-officer", "type": "end", "label": "Loan Funded" },
-    { "id": "c_a_out", "laneId": "lane-customer", "type": "connector", "label": "A" },
-    { "id": "n_application_rejected", "laneId": "lane-customer", "type": "end", "label": "Application Rejected" }
+    { "id": "n_loan_funded", "laneId": "lane-officer", "type": "end", "label": "Loan Funded" }
   ],
   "edges": [
     { "id": "e1", "from": "n_submit_application", "to": "n_docs_complete", "label": "" },
@@ -57,8 +55,7 @@
     { "id": "e18", "from": "n_sign_loan_agreement", "to": "n_disburse_loan_funds", "label": "" },
     { "id": "e19", "from": "n_disburse_loan_funds", "to": "n_loan_funded", "label": "" },
     { "id": "e10", "from": "n_risk_acceptable", "to": "n_issue_decline_letter", "label": "No" },
-    { "id": "e14", "from": "n_issue_decline_letter", "to": "c_a_in", "label": "" },
-    { "id": "e15", "from": "c_a_out", "to": "n_application_rejected", "label": "" }
+    { "id": "e14", "from": "n_issue_decline_letter", "to": "n_application_rejected", "label": "" }
   ],
   "notes": [
     { "id": "note-1", "text": "Online portal or branch\nID, payslips and 3 months of bank statements", "nodes": ["n_submit_application"] },
@@ -69,27 +66,25 @@
     { "id": "note-6", "text": "Payslips checked against the employer; self-employed applicants need 2 years of accounts", "nodes": ["n_verify_income_employment"] }
   ],
   "layout": {
-    "lane-customer": { "height": 176 },
-    "lane-officer": { "height": 176 },
-    "lane-engine": { "height": 176 },
-    "lane-risk": { "height": 176 },
+    "lane-customer": { "height": 276 },
+    "lane-officer": { "height": 192 },
+    "lane-engine": { "height": 192 },
+    "lane-risk": { "height": 192 },
     "n_submit_application": { "x": 56, "y": 56 },
     "n_docs_complete": { "x": 200, "y": 48 },
     "n_upload_missing_docs": { "x": 418.2, "y": 56 },
-    "n_verify_income_employment": { "x": 418.2, "y": 56 },
-    "n_store_application_record": { "x": 418.2, "y": 56 },
-    "n_run_credit_fraud_check": { "x": 618.2, "y": 56 },
+    "n_verify_income_employment": { "x": 418.2, "y": 64 },
+    "n_store_application_record": { "x": 418.2, "y": 64 },
+    "n_run_credit_fraud_check": { "x": 618.2, "y": 64 },
     "n_credit_score_700": { "x": 818.2, "y": 48 },
     "n_risk_acceptable": { "x": 1029, "y": 48 },
-    "n_wait_cooling_off_period": { "x": 1247.2, "y": 56 },
-    "n_issue_loan_offer": { "x": 1247.2, "y": 56 },
-    "n_issue_decline_letter": { "x": 1247.2, "y": 56 },
-    "c_a_in": { "x": 1423, "y": 72 },
-    "n_sign_loan_agreement": { "x": 1447.2, "y": 56 },
-    "n_disburse_loan_funds": { "x": 1447.2, "y": 56 },
-    "n_loan_funded": { "x": 1647.2, "y": 56 },
-    "c_a_out": { "x": 1727, "y": 72 },
-    "n_application_rejected": { "x": 1791.2, "y": 56 }
+    "n_issue_loan_offer": { "x": 1247.2, "y": 64 },
+    "n_issue_decline_letter": { "x": 1247.2, "y": 64 },
+    "n_wait_cooling_off_period": { "x": 1447.2, "y": 56 },
+    "n_application_rejected": { "x": 1447.2, "y": 176 },
+    "n_sign_loan_agreement": { "x": 1647.2, "y": 56 },
+    "n_disburse_loan_funds": { "x": 1647.2, "y": 64 },
+    "n_loan_funded": { "x": 1847.2, "y": 64 }
   }
 }
   </script>
@@ -1721,7 +1716,7 @@
     .flow-node.terminal-dot .node-label { width: 100%; height: 100%; min-width: 0; }
     .flow-node.type-decision {
       width: 144px;
-      height: 80px;
+      height: 96px;
       background: transparent !important;
       border: none !important;
       box-shadow: none !important;
@@ -1803,6 +1798,7 @@
       color: var(--decision-text);
       font-weight: var(--weight-bold);
       max-width: 92px;
+      -webkit-line-clamp: 3;   /* a diamond is taller than a step: room for a third line */
       font-size: var(--t-label-size);
       line-height: var(--leading-tight);
     }
@@ -2364,17 +2360,17 @@
         <!-- SVG Connections Overlay -->
         <svg id="connector-svg">
           <defs>
-            <marker id="arrowhead" markerWidth="8" markerHeight="8" refX="7.2" refY="4" orient="auto">
-              <polygon points="0 1, 7.5 4, 0 7" style="fill:var(--connector)"/>
+            <marker id="arrowhead" markerWidth="12" markerHeight="12" refX="10.6" refY="6" orient="auto">
+              <polygon points="0 1.5, 11 6, 0 10.5" style="fill:var(--connector)"/>
             </marker>
-            <marker id="arrowhead-selected" markerWidth="6" markerHeight="6" refX="5.4" refY="3" orient="auto">
-              <polygon points="0 0.75, 5.6 3, 0 5.25" style="fill:var(--primary)"/>
+            <marker id="arrowhead-selected" markerWidth="8" markerHeight="8" refX="6.8" refY="4" orient="auto">
+              <polygon points="0 1, 7 4, 0 7" style="fill:var(--primary)"/>
             </marker>
-            <marker id="arrowhead-in" markerWidth="6" markerHeight="6" refX="5.4" refY="3" orient="auto">
-              <polygon points="0 0.75, 5.6 3, 0 5.25" style="fill:var(--edge-in)"/>
+            <marker id="arrowhead-in" markerWidth="8" markerHeight="8" refX="6.8" refY="4" orient="auto">
+              <polygon points="0 1, 7 4, 0 7" style="fill:var(--edge-in)"/>
             </marker>
-            <marker id="arrowhead-out" markerWidth="6" markerHeight="6" refX="5.4" refY="3" orient="auto">
-              <polygon points="0 0.75, 5.6 3, 0 5.25" style="fill:var(--edge-out)"/>
+            <marker id="arrowhead-out" markerWidth="8" markerHeight="8" refX="6.8" refY="4" orient="auto">
+              <polygon points="0 1, 7 4, 0 7" style="fill:var(--edge-out)"/>
             </marker>
           </defs>
           <!-- Dashed leaders from each visible note to its node (under the nodes, so they stop at the node's edge) -->
@@ -2929,19 +2925,31 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
         initTheme();
         initSearch();
 
+        const interactive = !urlParams.has('report') && !urlParams.has('capture');
+        const applyInitialView = () => {
+          fitView();
+          if (!interactive || !plugin || plugin.id !== 'sequence' || scale >= 0.85) return;
+          const { vpRect, frame, scaleX, minPan } = fitMetrics();
+          if (vpRect.width < 600) return;
+          scale = Math.min(1.0, Math.max(scaleX, 0.85));
+          panX = (frame.w * scale <= vpRect.width ? (vpRect.width - frame.w * scale) / 2 : minPan) - frame.x * scale;
+          panY = minPan - frame.y * scale;
+          updateTransform();
+        };
+
         plugin.render();
-        fitView();
+        applyInitialView();
         updateStatus(false);
         committedJson = savedJson = JSON.stringify(chartData);
         updateHistoryButtons();
         document.documentElement.dataset.diagramReady = '1';
 
         requestAnimationFrame(() => {
-          fitView();
+          applyInitialView();
           // The web font (Google Fonts link in shell.html) loads asynchronously: render again once it is in, so label
           // fitting and edge-label widths are measured with the real glyphs, and only then report or tidy.
           const fontsIn = document.fonts && document.fonts.status !== 'loaded'
-            ? document.fonts.ready.then(() => { plugin.render(); fitView(); })
+            ? document.fonts.ready.then(() => { plugin.render(); applyInitialView(); })
             : Promise.resolve();
           fontsIn.then(() => {
             if (/[?&]report(=|&|$)/.test(window.location.search)) setTimeout(publishRenderReport, 200);
@@ -3136,7 +3144,10 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
           document.querySelectorAll(plugin.report.nodeText).forEach(el => {
             if (el.scrollHeight > el.clientHeight + 2 || el.scrollWidth > el.clientWidth + 2) {
               const nid = el.closest(plugin.report.node)?.dataset.nodeId || 'node';
-              warnings.push(`Node label truncated ("..."): "${el.textContent.trim()}" (${nid}) — shorten to fit 2 lines`);
+              // A label with a hover tip still shows its full text, so it is a layout note, not a data problem
+              warnings.push(el.dataset.tip
+                ? `Node label truncated ("..."): "${el.textContent.trim()}" (${nid}); the full text shows on hover`
+                : `Node label truncated ("..."): "${el.textContent.trim()}" (${nid}) — shorten to fit 2 lines`);
             }
           });
         }
@@ -3182,18 +3193,30 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
         };
       }
 
-      function fitView() {
+      function fitMetrics() {
         const vpRect = viewport.getBoundingClientRect();
         const frame = contentFrame();
-        const currentWidth = frame.w;
-        const currentHeight = frame.h;
+        const capture = document.body.classList.contains('capture');
+        const pad = capture ? 0 : 80;
+        // The floating dock covers the bottom of the viewport: fit the diagram into the band above it
+        // (this matters for tall diagrams, e.g. a top-to-bottom flowchart, whose fit is limited by height)
+        const dock = document.querySelector('.dock-area');
+        const dockRect = dock && getComputedStyle(dock).display !== 'none' ? dock.getBoundingClientRect() : null;
+        const dockBand = dockRect && dockRect.height ? Math.max(0, vpRect.bottom - dockRect.top) : 0;
+        const scaleX = (vpRect.width - pad) / frame.w;
+        const scaleY = (vpRect.height - dockBand - pad) / frame.h;
+        return { vpRect, frame, capture, dockBand, scaleX, scaleY, minPan: capture ? 0 : 20 };
+      }
+
+      function fitView() {
+        const { vpRect, frame, capture, dockBand, scaleX, scaleY, minPan } = fitMetrics();
 
         // Capture mode: scale to the exact width requested (?capture&w=1600) and pin to the top-left,
         // so the screenshot is the diagram only and does not depend on browser viewport quirks.
-        if (document.body.classList.contains('capture')) {
+        if (capture) {
           const reqW = parseFloat(new URLSearchParams(window.location.search).get('w'));
           if (reqW > 0) {
-            scale = Math.min(1, reqW / currentWidth);
+            scale = Math.min(1, reqW / frame.w);
             panX = -frame.x * scale;
             panY = -frame.y * scale;
             updateTransform();
@@ -3201,22 +3224,9 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
           }
         }
 
-        const pad = document.body.classList.contains('capture') ? 0 : 80;
-        // The floating dock covers the bottom of the viewport: fit the diagram into the band above it
-        // (this matters for tall diagrams, e.g. a top-to-bottom flowchart, whose fit is limited by height)
-        const dock = document.querySelector('.dock-area');
-        const dockRect = dock && getComputedStyle(dock).display !== 'none' ? dock.getBoundingClientRect() : null;
-        const dockBand = dockRect && dockRect.height ? Math.max(0, vpRect.bottom - dockRect.top) : 0;
-        const availableWidth = vpRect.width - pad;
-        const availableHeight = vpRect.height - dockBand - pad;
-
-        const scaleX = availableWidth / currentWidth;
-        const scaleY = availableHeight / currentHeight;
-
         scale = Math.min(Math.max(Math.min(scaleX, scaleY), 0.25), 1.0);
-        const minPan = document.body.classList.contains('capture') ? 0 : 20;
-        panX = Math.max(minPan, (vpRect.width - currentWidth * scale) / 2) - frame.x * scale;
-        panY = Math.max(minPan, (vpRect.height - dockBand - currentHeight * scale) / 2) - frame.y * scale;
+        panX = Math.max(minPan, (vpRect.width - frame.w * scale) / 2) - frame.x * scale;
+        panY = Math.max(minPan, (vpRect.height - dockBand - frame.h * scale) / 2) - frame.y * scale;
 
         updateTransform();
       }
@@ -4318,13 +4328,13 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
       // the lane its screen width. NODE_W/NODE_H/DEC_H are a node's extent along/across the flow.
       const LE_PROFILES = {
         LR: {
-          COL_WIDTH: 200, TIGHT_STEP: 144, START_X: 56, ROW_HEIGHT: 104,
-          NODE_W: 144, MIN_GAP: 32, LABEL_MAX_W: 140, LABEL_STUB: 16, NODE_H: 64, DEC_H: 80, LANE_MIN: 176, TOP_PAD: 36, BOTTOM_PAD: 36, NEAR_MIN: 24, LOOP_ROOM: 72, LOOP_STEP: 16,
+          COL_WIDTH: 200, TIGHT_STEP: 144, START_X: 56, ROW_HEIGHT: 120,
+          NODE_W: 144, MIN_GAP: 32, LABEL_MAX_W: 140, LABEL_STUB: 16, NODE_H: 64, DEC_H: 96, LANE_MIN: 192, TOP_PAD: 36, BOTTOM_PAD: 36, NEAR_MIN: 24, LOOP_ROOM: 72, LOOP_STEP: 16,
           LABEL_ACROSS: false
         },
         TB: {
-          COL_WIDTH: 136, TIGHT_STEP: 80, START_X: 56, ROW_HEIGHT: 184,
-          NODE_W: 80, MIN_GAP: 32, LABEL_MAX_W: 140, LABEL_STUB: 16, NODE_H: 144, DEC_H: 144, LANE_MIN: 240, TOP_PAD: 32, BOTTOM_PAD: 32, NEAR_MIN: 24, LOOP_ROOM: 72, LOOP_STEP: 16,
+          COL_WIDTH: 136, TIGHT_STEP: 96, START_X: 56, ROW_HEIGHT: 184,
+          NODE_W: 96, MIN_GAP: 32, LABEL_MAX_W: 140, LABEL_STUB: 16, NODE_H: 144, DEC_H: 144, LANE_MIN: 240, TOP_PAD: 32, BOTTOM_PAD: 32, NEAR_MIN: 24, LOOP_ROOM: 72, LOOP_STEP: 16,
           LABEL_ACROSS: true   // an arrow label sits across a vertical arrow, so it needs its height, not its width, of room
         }
       };
@@ -4564,7 +4574,7 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
           // One row per lane unless the lane holds a branch. Nodes sharing a column are stacked only when they are
           // branches of the same parent (a fork reads as one); any other node moves right into a free row-0 slot,
           // within its slack only (before its successors' required x), so nothing downstream moves. It may move at
-          // most 1.5 columns (an end node, with nothing downstream, may go further) and never onto a straight same-lane arrow or a vertical arrow crossing the lane.
+          // most 1.5 columns (an end node, with nothing downstream, never slides: it stacks beside its predecessor's column instead, so its arrow does not wrap past the nodes in between) and never onto a straight same-lane arrow or a vertical arrow crossing the lane.
           const fwdOut = {}, fwdIn = {};
           forwardEdges.forEach(e => {
             (fwdOut[e.from] = fwdOut[e.from] || []).push(e.to);
@@ -4597,7 +4607,7 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
                   return Math.abs(X[u.id] - X[v.id]) < 1 && Math.min(lu, lv) < li && li < Math.max(lu, lv)
                     && x - 12 < cx && cx < x + LE.NODE_W + 12;                         // sits on a vertical pass-through
                 });
-                const slot = slots.find(x => (!succ.length || x - X[n.id] <= 1.5 * LE.COL_WIDTH)
+                const slot = slots.find(x => (!succ.length ? x === X[n.id] : x - X[n.id] <= 1.5 * LE.COL_WIDTH)
                   && row0.every(m => clear(x, X[m.id])) && !blocked(x));
                 if (slot !== undefined) { X[n.id] = slot; sub[n.id] = 0; return; }
               }
@@ -5292,6 +5302,9 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
           const across = lm > ln ? 'far' : 'near';
           if (ln === lm) return (m.x > n.x + 1) === out ? (out ? 'after' : 'before') : 'far';
           if (Math.abs(m.x - n.x) < 30) return across;
+          // An arrow arriving from a step in another lane whose end is well past that step's edge runs along the
+          // source row and enters across, facing the source's lane (the router's one-bend entry)
+          if (!out && n.x > m.x + LE.NODE_W + 24) return across;
           return out ? (m.x > n.x ? 'after' : across) : (m.x < n.x ? 'before' : across);
         };
         const used = {};
@@ -5324,6 +5337,14 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
           const lines = Math.ceil((t.length * FONT_M.edgeWrap + 18) / LE.LABEL_MAX_W);
           const vertical = alongFlow ? LE.LABEL_ACROSS : !LE.LABEL_ACROSS;
           return (vertical ? 24 + 15 * (Math.min(lines, 3) - 1) : w) + 2 * (compact ? CONN.LABEL_PAD_TIGHT : CONN.LABEL_PAD);
+        };
+        // Across-the-flow distance between a step's edge and a corner circle: the label sits centred on the stub's
+        // leg, so its half extent across the flow (its width in TB, its height in LR) must clear the step
+        const cornerGap = (s) => {
+          const t = String(s.stub.label || '').trim();
+          if (!t || !LE.LABEL_ACROSS) return CONN.CORNER_GAP;
+          const w = Math.min(Math.max(40, t.length * FONT_M.edgeWrap + 18), LE.LABEL_MAX_W);
+          return Math.max(CONN.CORNER_GAP, Math.ceil(w / 2 - S / 2) + 4);
         };
         // Top-left of the circle on `side` of box a, `gap` away. `off` ('far' / 'near') moves an along-the-flow spot just
         // off the step's centre line, so it clears an arrow leaving that side straight.
@@ -5365,14 +5386,15 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
               // Long enough for the stub's label on that leg with CLEAR-ish room on both sides (the router puts it mid-leg)
               const leg = Math.max(k.compact ? CONN.CORNER_LEG_TIGHT : CONN.CORNER_LEG, String(s.stub.label || '').trim() ? gapFor(s, true, k.compact) : 0);
               const x = k.corner === 'after' ? a.x + a.w / 2 + leg : a.x + a.w / 2 - leg - S;
-              const y = k.side === 'far' ? a.y + a.h + CONN.CORNER_GAP : a.y - CONN.CORNER_GAP - S;
+              const cg = cornerGap(s);
+              const y = k.side === 'far' ? a.y + a.h + cg : a.y - cg - S;
               return { x: Math.round(x), y: Math.round(y) };
             }
             const along = k.side === 'after' || k.side === 'before';
             const p = spot(a, k.side, gapFor(s, along, k.compact), k.off);
             return { x: Math.round(p.x), y: Math.round(p.y) };
           };
-          const ok = (k) => fits(s, at(k), k.corner ? CONN.CORNER_GAP - 2 : CONN.CLEAR);
+          const ok = (k) => fits(s, at(k), k.corner ? cornerGap(s) - 2 : CONN.CLEAR);
           const free = (k) => !(used[id] && used[id].has(k.side));
           // Comfortable spacing first (a free side, then any side), then the same spots with tight spacing
           const tight = cands.map(k => ({ ...k, compact: true }));
@@ -5414,7 +5436,7 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
       const NODE_WIDTH = 144;
       const NODE_HEIGHT = 64;
       const DECISION_WIDTH = 144;
-      const DECISION_HEIGHT = 80;
+      const DECISION_HEIGHT = 96;
       // Lane sizes come from the engine's LE (LANE_MIN, BOTTOM_PAD), which follows the diagram's direction
       // Lane colours by position for lanes without their own "color": the shell's SWATCHES (shell.js), in order
 
@@ -5422,7 +5444,7 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
       // "direction": "TB" draws the diagram top-to-bottom: lanes become columns and steps run downwards. Node data
       // is always kept in flow terms (see engine.js LE_PROFILES): n.x runs along the flow from the start of the lane
       // track and n.y across the lane from its edge. In a left-to-right diagram those are the screen's x and y; in a
-      // top-to-bottom one, n.x is the screen y and n.y the screen x. Every node takes an 80px slot along the flow
+      // top-to-bottom one, n.x is the screen y and n.y the screen x. Every node takes a 96px slot along the flow
       // (a decision's height), and a 64px step is centred in it so steps and decisions line up on one axis.
       const isTB = () => chartData.direction === 'TB';
       // An on-page connector (engine.js CONN) is a CONN.SIZE circle at its own x/y, not a slot with an offset
@@ -5939,14 +5961,23 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
       function dotOffset(n) { return isDot(n) ? { x: (NODE_WIDTH - DOT_SIZE) / 2, y: (NODE_HEIGHT - DOT_SIZE) / 2 } : { x: 0, y: 0 }; }
 
       // --- SHAPED NODES ---
-      // A shaped node keeps its slot's box (144x64; a decision 144x80), made transparent by flowchart.css, and draws
+      // A shaped node keeps its slot's box (144x64; a decision 144x96), made transparent by flowchart.css, and draws
       // its outline inside it as an SVG stretched to the box (preserveAspectRatio="none", non-scaling stroke). The
       // outline stays 1px inside the box so the 2px stroke ends on the box edge, like a task's border. `.shape-path`
       // is the filled outline, `.shape-line` an inner stroke (the subprocess bars, the cylinder's front rim).
       // Shapes keep their screen orientation in a top-to-bottom diagram: the document's wave is always at the
       // bottom, the delay's arc always on the right. Keep outlineInset() in step with any change here.
+      // The diamond has its four corners rounded by DIAMOND_ROUND px along each edge: a quadratic curve through
+      // each vertex, so the tip sits a little inside the vertex. outlineInset() measures that curve.
+      const DIAMOND_ROUND = 10;
+      function diamondPath(w, h) {
+        const a = w / 2 - 1, b = h / 2 - 1, L = Math.hypot(a, b), cx = w / 2, cy = h / 2;
+        const f = (n) => +n.toFixed(2), kx = DIAMOND_ROUND * a / L, ky = DIAMOND_ROUND * b / L;
+        return `M${f(cx - kx)},${f(1 + ky)}Q${cx},1 ${f(cx + kx)},${f(1 + ky)}L${f(w - 1 - kx)},${f(cy - ky)}Q${w - 1},${cy} ${f(w - 1 - kx)},${f(cy + ky)}`
+          + `L${f(cx + kx)},${f(h - 1 - ky)}Q${cx},${h - 1} ${f(cx - kx)},${f(h - 1 - ky)}L${f(1 + kx)},${f(cy + ky)}Q1,${cy} ${f(1 + kx)},${f(cy - ky)}Z`;
+      }
       const SHAPE_OUTLINES = {
-        decision:   { h: 80, svg: '<polygon class="shape-path diamond-poly" points="72,1 143,40 72,79 1,40"/>' },
+        decision:   { h: DECISION_HEIGHT, svg: `<path class="shape-path diamond-poly" d="${diamondPath(144, DECISION_HEIGHT)}"/>` },
         subprocess: { h: 64, svg: '<rect class="shape-path" x="1" y="1" width="142" height="62" rx="2"/><path class="shape-line" d="M13 1V63M131 1V63"/>' },
         document:   { h: 64, svg: '<path class="shape-path" d="M1 1H143V57C119 49 96 49 72 57C48 65 25 65 1 57Z"/>' },
         io:         { h: 64, svg: '<polygon class="shape-path" points="13,1 143,1 131,63 1,63"/>' },
@@ -5974,8 +6005,11 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
         const vx = c * 144;                                              // viewBox x (top/bottom sides)
         const arc = (t) => 1 - Math.sqrt(Math.max(0, 1 - t * t));        // depth of a unit ellipse at offset t from its axis
         switch (type) {
-          case 'decision':   // four vertices at the side midpoints
-            return (horiz ? r.h : r.w) / 2 * Math.min(1, Math.abs(c - 0.5) * 2);
+          case 'decision': { // four rounded vertices at the side midpoints: a parabola over the rounded part, then the slanted edge
+            const a = (horiz ? r.w : r.h) / 2, b = (horiz ? r.h : r.w) / 2, d = Math.abs(c - 0.5) * 2 * a;
+            const ka = DIAMOND_ROUND * a / Math.hypot(a, b), kb = ka * b / a;
+            return Math.min(b, d < ka ? kb / 2 * (1 + (d / ka) ** 2) : kb + (d - ka) * b / a);
+          }
           case 'io':         // slanted sides: 12 units in at the top-left and the bottom-right
             return side === 'left' ? 12 * sx * (1 - c) : side === 'right' ? 12 * sx * c : 0;
           case 'database':   // elliptical top and bottom, 8 units deep, spanning the width
@@ -5994,16 +6028,16 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
         }
       }
 
-      // Narrow shapes fit their text by width in pixels, not characters: "Specification?" fits a diamond
+      // Every node fits its text by width in pixels, not characters ("Dispatch Replacement Laptop" is too wide for a task's
+      // two lines at full size, "Dispatch Replacement" + "Laptop" fits once stepped down; narrow shapes need it most): "Specification?" fits a diamond
       // line, "Standard Spec?" (same length, wider letters) does not. A label that needs a third line steps its
       // font down 1px at a time, to FIT_MIN_PX (TOKENS.type.fitMin), until it fits the 2-line clamp. data-base-px keeps the
       // designed size for the legibility report (shell.js), so a fitted label does not count as small text.
-      const FIT_TYPES = new Set(['decision', 'subprocess', 'io', 'database', 'delay']);
       const FIT_MIN_PX = parseFloat(TOKENS.type.fitMin);
       function fitNodeLabel(label, type) {
         label.style.fontSize = '';
         delete label.dataset.basePx;
-        if (!FIT_TYPES.has(type) || !label.isConnected) return;
+        if (type === 'connector' || !label.isConnected) return;   // a connector is one letter
         const over = () => label.scrollHeight > label.clientHeight + 2 || label.scrollWidth > label.clientWidth + 2;
         if (!over()) return;
         const base = parseFloat(getComputedStyle(label).fontSize);
@@ -7170,7 +7204,13 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
                 if (!movable.length) continue;
                 const base0 = cluster.reduce((s2, c) => s2 + c.x, 0) / cluster.length;
                 const shiftEnd = (c, nx) => { edgePolylines[c.e.id][c.a][0] = nx; edgePolylines[c.e.id][c.b][0] = nx; };
-                if (fixed.length) {
+                if (role === 'in') {
+                  // Fan-in: arrows entering one side of one step share a single trunk (and one arrowhead) and
+                  // join where their runs meet it, like a merge on a hand-drawn flowchart. Spreading them 24px
+                  // apart drew a doubled line. A straight arrow keeps its line; the others join it.
+                  const jx = fixed.length ? fixed[0].x : base0;
+                  cluster.forEach(c => shiftEnd(c, jx));
+                } else if (fixed.length) {
                   const fx = fixed[0].x;
                   // Each moved end slides toward the side its other end lies on, so it never has to cross
                   // the straight arrow (movable is sorted by `far`, so the nearest-to-centre ends sit closest)
@@ -7233,7 +7273,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
               if (!pts) return;
               const n = pts.length;
               const add = (role, a, b, peer, far) => {
-                const mergeIn = role === 'in' && nodeMap[nid] && nodeMap[nid].type === 'decision';
+                const mergeIn = role === 'in';   // fan-in: one trunk per side (5a1)
                 const key = role + '|' + (mergeIn ? '*' : peer) + '|' + Math.round(pts[a][0]);
                 if (!units.has(key)) units.set(key, { x: pts[a][0], fixed: false, far, ends: [] });
                 const u = units.get(key);
@@ -7279,6 +7319,70 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
             }
           });
         });
+
+        // 5a4. Arrows into one side of one step that run side by side a few px apart (e.g. a Z-shaped channel
+        // beside another arrow's straight leg) are one fan-in: snap the movable run onto the other so they share
+        // a single trunk and join, instead of reading as a doubled line. Port-attached first/last legs stay put.
+        {
+          const NEAR = 18;
+          const runs = [];
+          validEdges.forEach(e => {
+            const pts = edgePolylines[e.id], p = edgePorts[e.id];
+            if (!pts || pts.length < 3 || !p) return;
+            for (let i = 0; i < pts.length - 2; i++) {          // the last leg (into the target) is shared already
+              const a = pts[i], b = pts[i + 1];
+              const k = Math.abs(a[0] - b[0]) < 1 ? 0 : Math.abs(a[1] - b[1]) < 1 ? 1 : -1;
+              if (k < 0) continue;
+              runs.push({ e, i, k, pos: a[k], lo: Math.min(a[1 - k], b[1 - k]), hi: Math.max(a[1 - k], b[1 - k]), first: i === 0, to: p.toPort });
+            }
+          });
+          runs.forEach(m => {
+            if (m.first) return;                                  // attached to its source: it is the one others join
+            const pts = edgePolylines[m.e.id];
+            const t = runs.find(o => o.e.to === m.e.to && o.e.id !== m.e.id && o.to === m.to && o.k === m.k &&
+              Math.abs(o.pos - m.pos) >= 1 && Math.abs(o.pos - m.pos) < NEAR && Math.min(o.hi, m.hi) - Math.max(o.lo, m.lo) > 24 &&
+              (o.first || o.e.id < m.e.id));
+            if (!t) return;
+            const k = m.k, old = m.pos, ids = [m.e.from, m.e.to];
+            pts[m.i][k] = pts[m.i + 1][k] = t.pos;
+            // the legs either side must stay clear of other steps and keep their direction
+            const legOk = (j) => segmentClear(pts[j][0], pts[j][1], pts[j + 1][0], pts[j + 1][1], ids);
+            const ok = legOk(m.i - 1) && legOk(m.i) && legOk(m.i + 1) &&
+              Math.sign(t.pos - pts[m.i - 1][k]) === Math.sign(old - pts[m.i - 1][k]) &&
+              Math.sign(pts[m.i + 2][k] - t.pos) === Math.sign(pts[m.i + 2][k] - old);
+            if (!ok) pts[m.i][k] = pts[m.i + 1][k] = old;
+          });
+        }
+
+        // 5a5. Two arrows into one step that leave facing each other along one line (a bottom exit and a top
+        // exit of steps stacked in a column, both turning into the same run) read as one straight line between
+        // the two sources. Slide the later exit sideways, toward the run it joins, so it meets the other
+        // arrow's run at a clear T.
+        {
+          const SLIDE = 24;
+          const ends = [];
+          validEdges.forEach(e => {
+            const pts = edgePolylines[e.id];
+            if (!pts || pts.length < 3) return;
+            [0, 1].forEach(k => {
+              if (Math.abs(pts[0][k] - pts[1][k]) < 1 && Math.abs(pts[1][1 - k] - pts[0][1 - k]) > 1) ends.push({ e, pts, k });
+            });
+          });
+          ends.forEach((b, bi) => ends.slice(0, bi).forEach(a => {
+            if (a.k !== b.k || a.e.to !== b.e.to || a.e.from === b.e.from) return;
+            const k = a.k, m = 1 - k;
+            if (Math.abs(a.pts[0][k] - b.pts[0][k]) >= 1) return;
+            const da = Math.sign(a.pts[1][m] - a.pts[0][m]), db = Math.sign(b.pts[1][m] - b.pts[0][m]);
+            if (da * db >= 0) return;                              // not facing
+            const gap = da > 0 ? b.pts[1][m] - a.pts[1][m] : a.pts[1][m] - b.pts[1][m];
+            if (gap < 0 || gap > 40) return;                       // far apart, or overlapping (not this case)
+            const dir = Math.sign(b.pts[2][k] - b.pts[1][k]);
+            const src = rects[b.e.from], nx = b.pts[0][k] + dir * SLIDE;
+            const lo = (k === 0 ? src.x : src.y) + 14, hi = (k === 0 ? src.x + src.w : src.y + src.h) - 14;
+            if (!dir || Math.abs(b.pts[2][k] - b.pts[1][k]) < SLIDE + 12 || nx < lo || nx > hi) return;
+            b.pts[0][k] = b.pts[1][k] = nx;
+          }));
+        }
 
         // 5b. De-overlap: unrelated edges must not share a collinear stretch. Spread interior
         // segments (never the port-attached first/last ones) onto parallel tracks.
@@ -7574,9 +7678,9 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
             const maxX = Math.max(p1[0], p2[0]);
             const goingRight = p2[0] > p1[0];
             // Room a hop needs from each end of the segment: past a bend, the corner's radius plus the hop's
-            // (8 + 6); at the arrow's source, just the hop plus a little; at its target, room for the arrowhead.
+            // (8 + 6); at the arrow's source, just the hop plus a little; at its target, room for the arrowhead (about 14px).
             // (A flat 18px dropped crossings next to a source, e.g. an arrow rising just right of a decision vertex.)
-            const endRoom = (k) => (k === 0 ? 8 : k === points.length - 1 ? 18 : 14);
+            const endRoom = (k) => (k === 0 ? 8 : k === points.length - 1 ? 22 : 14);
             const lo1 = endRoom(i), lo2 = endRoom(i + 1);
             const minRoom = goingRight ? lo1 : lo2, maxRoom = goingRight ? lo2 : lo1;
 
@@ -10177,17 +10281,20 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         // Notes on show may sit in the margin outside the lanes: Fit and screenshots take them in (peeked ones
         // are transient and do not count)
         contentOverflow() {
-          if (!notesLayer || !chartData.showNotes) return null;
+          // Notes and edge labels/arrows that reach past the container (e.g. a loop-back's label on the outer
+          // corridor at the first lane's edge) stay OUTER_CLEAR inside the frame Fit and screenshots use.
           const W = swimlanesContainer.offsetWidth, H = swimlanesContainer.offsetHeight, PAD = 12;
           const o = { left: 0, top: 0, right: 0, bottom: 0 };
-          [...notesLayer.children].forEach(card => {
-            const b = containerBox(card);
-            if (!b.w) return;
-            o.left = Math.max(o.left, PAD - b.x);
-            o.top = Math.max(o.top, PAD - b.y);
-            o.right = Math.max(o.right, b.x + b.w + PAD - W);
-            o.bottom = Math.max(o.bottom, b.y + b.h + PAD - H);
-          });
+          const take = (el, pad) => {
+            const b = containerBox(el);
+            if (!b.w && !b.h) return;
+            o.left = Math.max(o.left, pad - b.x);
+            o.top = Math.max(o.top, pad - b.y);
+            o.right = Math.max(o.right, b.x + b.w + pad - W);
+            o.bottom = Math.max(o.bottom, b.y + b.h + pad - H);
+          };
+          if (notesLayer && chartData.showNotes) [...notesLayer.children].forEach(c => take(c, PAD));
+          edgeLabelsGroup.querySelectorAll('.edge-label.has-label').forEach(l => take(l, OUTER_CLEAR));
           return o;
         },
         hasSelection() {

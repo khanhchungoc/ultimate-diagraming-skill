@@ -10,9 +10,10 @@ import { argOf, launch, sleep } from './cdp.mjs';
 const browser = argOf('browser'), page = argOf('page');
 if (!browser || !page) { console.error('usage: --browser <chrome> --page <html>'); process.exit(1); }
 const t = await launch(browser).catch((e) => { console.error('[ERROR]', e.message); process.exit(1); });
+const openFit = async (url, query = '') => { await t.open(url, query); await t.clickOn('#btn-zoom-reset'); };
 let code = 0;
 try {
-  await t.open(page);
+  await openFit(page);
   // Each bar as [participant, first message it covers, last message it covers, depth (x offset)]
   const bars = JSON.parse(await t.ev(`(() => {
     const ys = {};
@@ -88,7 +89,7 @@ try {
   check('Save writes them to the data block', JSON.parse(savedText).messages.find((m) => m.id === 'm2').until === 'm7');
   const out = join(mkdtempSync(join(tmpdir(), 'act_')), 'saved.html');
   writeFileSync(out, readFileSync(page, 'utf8').replace(/(<script id="diagram-data" type="application\/json">)[\s\S]*?(<\/script>)/, (_, a, b) => a + savedText + b));
-  await t.open(out);
+  await openFit(out);
   check('after a reload the bar is still one, stretched to that row', (await t.ev(`!document.querySelector('.seq-activation[data-mid="m4"]') && !!document.querySelector('.seq-activation[data-mid="m2"]')`)));
   await t.clickOn('.seq-msg-label[data-edge-id="m2"]');
   check('the opening message shows Reset bar (only when "until" is set)', (await t.at('.seq-actionbar [data-act="resetbar"]')) !== null);
@@ -108,11 +109,11 @@ try {
   // A page variant from the same data: edit it, load it, and say which message ids it needs
   const variant = (edit) => { const f = join(mkdtempSync(join(tmpdir(), 'act_')), 'v.html'); writeFileSync(f, readFileSync(page, 'utf8').replace(/(<script id="diagram-data" type="application\/json">)([\s\S]*?)(<\/script>)/, (_, x, d, y) => x + JSON.stringify(edit(JSON.parse(d))) + y)); return f; };
   // An async message whose target then sends something has a bar: selecting it shows the handle, as hovering the bar does
-  await t.open(variant((d) => { d.messages.splice(d.messages.findIndex((m) => m.id === 'm9') + 1, 0, { id: 'mx', from: 'q', to: 'a', label: 'Done', kind: 'async' }); return d; }));
+  await openFit(variant((d) => { d.messages.splice(d.messages.findIndex((m) => m.id === 'm9') + 1, 0, { id: 'mx', from: 'q', to: 'a', label: 'Done', kind: 'async' }); return d; }));
   await t.clickOn('.seq-msg-label[data-edge-id="m9"]');
   check('selecting an async message that opens a bar shows its stretch handle', (await t.at(handle('m9'))) !== null);
   // A note whose id is a message's id does not keep that message's hover handle
-  await t.open(variant((d) => { d.notes = (d.notes || []).concat({ id: 'm2', text: 'Same id', over: 'a' }); return d; }));
+  await openFit(variant((d) => { d.notes = (d.notes || []).concat({ id: 'm2', text: 'Same id', over: 'a' }); return d; }));
   await t.clickOn('.note');
   const bar = await t.at('.seq-activation[data-mid="m2"]');
   await t.mouse('mouseMoved', bar.x, bar.y); await sleep(150);
@@ -120,7 +121,7 @@ try {
   const cv = await t.at('#seq-canvas', 0.02, 0.5);
   await t.mouse('mouseMoved', cv.x, cv.y); await sleep(150);
   check('a selected note with the same id as a message does not keep that handle', (await t.at(handle('m2'))) === null);
-  await t.open(page);
+  await openFit(page);
   // Deleting the message a bar was stretched to puts the bar back to its natural end and gives the swallowed calls their bars back
   await stretch('m2', 'm7');
   await t.clickOn('.seq-msg-label[data-edge-id="m7"]');
@@ -133,13 +134,13 @@ try {
   // With lifespans a bar cannot run past the end of its lifeline
   const ls = join(mkdtempSync(join(tmpdir(), 'act_')), 'lifespans.html');
   writeFileSync(ls, readFileSync(page, 'utf8').replace(/(<script id="diagram-data" type="application\/json">)([\s\S]*?)(<\/script>)/, (_, a, d, b) => a + JSON.stringify(Object.assign(JSON.parse(d), { lifespans: true })) + b));
-  await t.open(ls);
+  await openFit(ls);
   const lsWas = JSON.stringify(await msgs());
   await stretch('m13', 'm22');
   check('with lifespans, a drop past the end of the participant\'s lifeline changes nothing', JSON.stringify(await msgs()) === lsWas);
-  await t.open(page, '?present');
+  await openFit(page, '?present');
   check('?present shows no handle, even hovering a bar', await (async () => { await t.clickOn('.seq-activation'); return (await t.ev(`document.querySelectorAll('.seq-barend').length`)) === 0; })());
-  await t.open(page);
+  await openFit(page);
   await t.clickOn('.seq-msg-label[data-edge-id="m4"]');
   const svg = await t.ev(`new Promise(res => {
     const orig = URL.createObjectURL;
