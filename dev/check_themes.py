@@ -44,8 +44,11 @@ def layout(theme, fixture, out):
     if theme:
         cmd += ["--theme", str(theme)]
     r = run(cmd)
-    m = re.search(r"Quality score:? (\d+)/100", r.stdout, re.I)  # a score under 90 exits non-zero but still lays the page out
-    return int(m.group(1)) if m and out.is_file() else None
+    # The pass line shows the score only below 100 ("audit score N"); a layout failure prints "Quality score N/100"
+    m = re.search(r"(?:Quality|audit) score:? (\d+)", r.stdout, re.I)
+    if not out.is_file():
+        return None
+    return int(m.group(1)) if m else (100 if "[PASS] Layout clean." in r.stdout else None)
 
 
 def overflow(browser, pages):
