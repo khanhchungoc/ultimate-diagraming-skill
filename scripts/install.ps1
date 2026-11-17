@@ -56,7 +56,9 @@ $lastDest = $repoRoot
 $copyExcluded = @(".git", "node_modules", ".github", "agent", ".agents", ".claude", "dev", "bin", "docs", "skills-lock.json", ".gitignore")
 $userHome = [System.Environment]::GetFolderPath([System.Environment+SpecialFolder]::UserProfile)
 
-Write-Host "==> Installing ultimate-diagram" -ForegroundColor Cyan
+$version = "unknown"
+try { $version = (Get-Content (Join-Path $repoRoot "package.json") -Raw | ConvertFrom-Json).version } catch {}
+Write-Host "==> Installing ultimate-diagram v$version" -ForegroundColor Cyan
 Write-Host "    Source:  $repoRoot"
 Write-Host "    Scope:   $Scope"
 Write-Host "    Mode:    $Mode"

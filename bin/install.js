@@ -11,6 +11,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const REPO_ROOT = path.resolve(__dirname, '..');
 const USER_HOME = os.homedir();
+const VERSION = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'package.json'), 'utf8')).version;
 
 // High-contrast ANSI colors
 const c = {
@@ -157,7 +158,7 @@ for (const rt of runtimesToInstall) {
 console.log('');
 console.log(`${c.cyan}${c.bold}  █░█ █░░ ▀█▀ █ █▀▄▀█ ▄▀█ ▀█▀ █▀▀   █▀▄ █ ▄▀█ █▀▀ █▀█ ▄▀█ █▀▄▀█${c.reset}`);
 console.log(`${c.cyan}${c.bold}  █▄█ █▄▄ ░█░ █ █░▀░█ █▀█ ░█░ ██▄   █▄▀ █ █▀█ █░█ █▀▄ █▀█ █░▀░█${c.reset}`);
-console.log(`${c.dim}     Interactive Diagram Skill for AI Coding Assistants • v1.0.0${c.reset}\n`);
+console.log(`${c.dim}     Interactive Diagram Skill for AI Coding Assistants • v${VERSION}${c.reset}\n`);
 
 // Configuration Section
 console.log(`${c.cyan} ⚙  CONFIGURATION${c.reset}`);

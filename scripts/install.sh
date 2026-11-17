@@ -41,7 +41,8 @@ done
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-echo "==> Installing ultimate-diagram"
+VERSION="$(sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' "$REPO_ROOT/package.json" 2>/dev/null | head -1)"
+echo "==> Installing ultimate-diagram v${VERSION:-unknown}"
 echo "    Source:  $REPO_ROOT"
 echo "    Scope:   $SCOPE"
 echo "    Mode:    $MODE"

@@ -131,7 +131,11 @@ def main() -> int:
     target_path = Path(args.target_path).resolve()
     selected_runtime = normalize_runtime(args.runtime)
 
-    print(f"==> Installing ultimate-diagram")
+    try:
+        version = json.loads((repo_root / "package.json").read_text(encoding="utf-8"))["version"]
+    except (OSError, ValueError, KeyError):
+        version = "unknown"
+    print(f"==> Installing ultimate-diagram v{version}")
     print(f"    Source:  {repo_root}")
     print(f"    Scope:   {args.scope}")
     print(f"    Mode:    {args.mode}")
