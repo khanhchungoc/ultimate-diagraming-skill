@@ -157,7 +157,7 @@ For contributors: [references/theme.md](references/theme.md).
 
 ## How it compares to Mermaid and draw.io
 
-- ⚡ **This**: clear, editable process diagrams from your AI, fast and cheap.
+- ⚡ **This**: clear, editable process diagrams from your AI.
 - 🧩 **Mermaid**: small diagrams inside Markdown docs.
 - 🎨 **draw.io**: free-form drawing, huge shape library.
 
