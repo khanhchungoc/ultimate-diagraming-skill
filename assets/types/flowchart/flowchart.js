@@ -4732,7 +4732,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         },
         // Text search (shell contract): live DOM, in reading order along the flow. Steps and connector letters first
         // (by flow position, then lane, then across), then arrow labels, notes, lane titles. Notes are always in the DOM
-        // but display:none until shown or peeked, so a note match may have no box to ring.
+        // but display:none until shown or peeked; then the item's el is its first linked step.
         searchItems() {
           const items = [];
           const add = (id, el, text) => { text = (text || '').trim(); if (el && text) items.push({ id, text, el }); };
@@ -4750,7 +4750,12 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
             .forEach(el => add('edge:' + el.dataset.edgeId, el, el.querySelector('.edge-label-text')?.textContent));
           const noteAt = (c) => Math.min(1e9, ...((noteById(c.dataset.noteId) || {}).nodes || []).map(id => order[id] ?? 1e9));
           [...(notesLayer ? notesLayer.children : [])].sort((a, b) => noteAt(a) - noteAt(b))
-            .forEach(el => add('note:' + el.dataset.noteId, el, el.querySelector('.note-text')?.textContent));
+            .forEach(el => {
+              // a hidden card has no box: ring and centre its first linked step instead
+              const shown = getComputedStyle(el).display !== 'none';
+              const first = ((noteById(el.dataset.noteId) || {}).nodes || [])[0];
+              add('note:' + el.dataset.noteId, shown ? el : nodeElOf(first), el.querySelector('.note-text')?.textContent);
+            });
           document.querySelectorAll('.swimlane').forEach(el => add('lane:' + el.dataset.laneId, el.querySelector('.lane-pill'), el.querySelector('.lane-title')?.textContent));
           return items;
         },
