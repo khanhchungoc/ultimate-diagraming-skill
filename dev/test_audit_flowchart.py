@@ -12,7 +12,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
-from layout_engine import FlowchartAudit, LONG_ARROW_COLS, LONG_ARROW_DETOUR_COLS  # noqa: E402
+from layout_engine import FlowchartAudit, LONG_ARROW_COLS  # noqa: E402
 
 
 def _audit(nodes, edges, lanes=None, direction="LR"):
@@ -33,7 +33,7 @@ def main() -> int:
         failed += not cond
         print(f"[{'PASS' if cond else 'FAIL'}] {name}" + (f" - {detail}" if detail and not cond else ""))
 
-    # 1. Clean 7-column arrow (below LONG_ARROW_DETOUR_COLS) with 0 crossings is not flagged
+    # 1. Clean 7-column arrow with 0 crossings is not flagged
     a1 = _audit(
         [{"id": "n1", "laneId": "l1", "type": "start", "label": "A", "x": 56, "y": 48},
          {"id": "n2", "laneId": "l1", "type": "end", "label": "B", "x": 1600, "y": 48}],
@@ -43,19 +43,17 @@ def main() -> int:
     check("clean 7-col arrow without crossings is not flagged",
           r1["long_arrows_count"] == 0 and not r1["budget_warnings"], str(r1))
 
-    # 2. Extreme outer detour (>= LONG_ARROW_DETOUR_COLS) with 0 crossings IS flagged, with no "crosses 0"
+    # 2. A very long arrow that crosses nothing is not flagged: it still reads fine
     a2 = _audit(
         [{"id": "n1", "laneId": "l1", "type": "start", "label": "A", "x": 56, "y": 48},
-         {"id": "n2", "laneId": "l1", "type": "end", "label": "B", "x": 56 + LONG_ARROW_DETOUR_COLS * 200 + 200, "y": 48}],
+         {"id": "n2", "laneId": "l1", "type": "end", "label": "B", "x": 56 + 12 * 200, "y": 48}],
         [{"id": "e1", "from": "n1", "to": "n2", "label": ""}],
     )
     r2 = a2.verify_collisions()
-    check("detour >= 10 cols with 0 crossings is flagged without 'crosses 0'",
-          r2["long_arrows_count"] == 1
-          and any("Long arrow 'e1'" in w and "crosses 0" not in w for w in r2["budget_warnings"]),
-          str(r2["budget_warnings"]))
+    check("12-col arrow with 0 crossings is not flagged",
+          r2["long_arrows_count"] == 0 and not r2["budget_warnings"], str(r2["budget_warnings"]))
 
-    # 3. Round-trip: opposite >= 6-col clean leg is also flagged when partner crosses another arrow
+    # 3. A long arrow is flagged only once it crosses 2 others; its clean return leg is not
     a3 = _audit(
         [{"id": "n1", "laneId": "l1", "type": "task", "label": "Step 1", "x": 56, "y": 48},
          {"id": "n2", "laneId": "l1", "type": "task", "label": "Step 2", "x": 56 + LONG_ARROW_COLS * 200 + 200, "y": 48}],
@@ -65,13 +63,21 @@ def main() -> int:
     polys3 = {
         "e_fwd": [(200.0, 80.0), (1456.0, 80.0)],
         "e_back": [(1456.0, 120.0), (1456.0, 160.0), (128.0, 160.0), (128.0, 112.0)],
-        "e_cross": [(600.0, 20.0), (600.0, 140.0)],
+        "e_cross": [(600.0, 20.0), (600.0, 100.0)],
     }
     a3.edges.append({"id": "e_cross", "from": "n1", "to": "n2", "label": ""})
-    long3 = a3._long_arrows(polys3)
-    ids3 = {e["id"] for e, _, _ in long3}
-    check("round-trip clean return leg >= 6 cols is flagged when partner crosses",
-          ids3 == {"e_fwd", "e_back"}, str(ids3))
+    one = {e["id"] for e, _, _ in a3._long_arrows(polys3)}
+    polys3["e_cross2"] = [(900.0, 20.0), (900.0, 100.0)]
+    a3.edges.append({"id": "e_cross2", "from": "n1", "to": "n2", "label": ""})
+    two = {e["id"] for e, _, _ in a3._long_arrows(polys3)}
+    check("long arrow flagged at 2 crossings, not at 1; clean return leg never",
+          one == set() and two == {"e_fwd"}, f"one={one} two={two}")
+    # ... and with 1 crossing once it turns 3 times
+    polys3["e_fwd"] = [(200.0, 80.0), (400.0, 80.0), (400.0, 60.0), (1300.0, 60.0), (1300.0, 80.0), (1456.0, 80.0)]
+    del polys3["e_cross2"]
+    a3.edges.pop()
+    bent = {e["id"] for e, _, _ in a3._long_arrows(polys3)}
+    check("long arrow with 1 crossing and 3+ bends is flagged", bent == {"e_fwd"}, f"bent={bent}")
 
     # 4. pass_line shows no grade; a score below 100 only as a report note
     p_100 = a1.pass_line({"score": 100, "grade": "A+"})
@@ -80,7 +86,7 @@ def main() -> int:
           p_100 == "[PASS] Layout clean." and "audit score 85" in p_85 and "B" not in p_85.replace("PASS", ""),
           f"p_100={p_100!r} p_85={p_85!r}")
 
-    print(f"{4 - failed}/4 cases passed")
+    print(f"{5 - failed}/5 cases passed")
     return 2 if failed else 0
 
 
