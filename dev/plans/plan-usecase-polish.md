@@ -1,6 +1,6 @@
 # Plan: use case diagrams, data only for the agent
 
-Status: proposed. Not started.
+Status: Phase 1 done (word limits, cut text shows on hover, `side` left to the tool). Phase 0 benchmark and Phase 2 open.
 
 ## Why
 

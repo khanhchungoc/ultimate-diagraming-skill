@@ -47,7 +47,7 @@ Make exactly these calls. The type reference, the example it names and the comma
 
 1. **Read** the type reference, then the one example it names (at the path it gives). Decide the structure once from the type reference.
    - **Trace the requirements** before writing, following the type reference's structure (for processes: *clause → actor → step, decision, outcome or detail*, splitting clauses joined by "and" such as `3 quotes AND budget approval` into two steps). Map every business rule, threshold, SLA or approval authority to a note. When sources disagree on an actor, order or figure, follow the more detailed source (step text over a summary table) and record the conflict for the report.
-2. **Write the JSON once** to scratch with your file-write tool. Keep every label within the type reference's length limit before the first run. No pixel coordinates, no `python -c`, no helper `.py` scripts. Include every step the user's scope asks for.
+2. **Write the JSON once** to scratch with your file-write tool. Keep every label within the type reference's word limit (longer text is cut with `...` and shows on hover). No pixel coordinates, no `python -c`, no helper `.py` scripts. Include every step the user's scope asks for.
 3. **Run one command**, writing the HTML straight to the target path (needs Chrome, Chromium or Edge; Node.js makes layout faster; `--browser <path>` selects a browser):
    ```shell
    python "<skill-dir>/scripts/layout_engine.py" --layout <scratch.json> -o <target.html> --screenshot <scratch.png>
