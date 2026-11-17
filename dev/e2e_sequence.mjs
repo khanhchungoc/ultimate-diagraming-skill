@@ -924,6 +924,18 @@ try {
   t.check('no page errors in the colour steps', t.errors.length === 0, t.errors.join(' | '));
 
   // ?present: read-only, but frames still collapse and expand
+  // The Present button toggles in place: the search is closed and cleared, folds are view only
+  await t.open(long);
+  await t.press('/'); await t.type('a');
+  const dimmed = await count('.search-dim');
+  await t.clickOn('#btn-present');
+  t.check('sequence: entering Present closes and clears the search', dimmed > 0 && (await count('.search-dim')) === 0 && (await t.ev(`document.getElementById('search-bar').hidden`)));
+  await t.clickOn('.frame-tag[data-frag-id="f5"] .frame-chev');
+  await t.press('Escape');
+  t.check('sequence: Esc exits in one press, a fold made while presenting leaves no unsaved badge, undo step or collapsed item',
+    !(await t.ev(`document.body.classList.contains('presentation')`)) && !(await t.ev(`/unsaved/i.test(document.getElementById('save-status').textContent)`))
+    && (await t.ev(`document.getElementById('btn-undo').disabled`)) && (await count('.frame-summary')) === 0 && t.errors.length === 0, t.errors.join(' | '));
+
   await t.open(long, '?present');
 
   { // present mode: a drag, a double-click, Delete and Ctrl+Z change nothing, and no editor opens

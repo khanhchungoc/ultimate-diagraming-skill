@@ -514,6 +514,7 @@
 
     /* Presentation mode (?present): hide flowchart editing chrome, make elements inert */
     body.presentation .port { display: none !important; }
+    body.presentation .flow-node { cursor: default; }
     /* Steps stay hoverable (a press pans, flowchart.js); everything else is inert */
     body.presentation .lane-pill,
     body.presentation .lane-title,

@@ -432,13 +432,23 @@
 
       // Present mode (body.presentation): read-only view, toggled in place by the Present button and Esc, or on at load by ?present
       const btnPresent = document.getElementById('btn-present');
+      let presentEntry = null;
       const presentOn = () => document.body.classList.contains('presentation');
       function setPresent(on) {
         if (on === presentOn()) return;
-        if (on) { plugin.cancelInteraction(); plugin.clearSelection(); }
+        if (on) {
+          plugin.cancelInteraction(); plugin.clearSelection();
+          setSearchOpen(false); if (plugin.clearSearch) plugin.clearSearch();
+          presentEntry = { json: JSON.stringify(chartData), committed: committedJson, undo: undoStack.slice(), redo: redoStack.slice() };
+        }
         document.body.classList.toggle('presentation', on);
         btnPresent.setAttribute('aria-pressed', String(on));
-        if (plugin.render && chartData) plugin.render();   // a plugin draws its editing handles at render
+        if (!on && presentEntry) {   // folds made while presenting are view only: put the model and history back as they were
+          const e = presentEntry;
+          undoStack = e.undo; redoStack = e.redo;
+          restoreSnapshot(e.json);
+          committedJson = e.committed; presentEntry = null;
+        } else if (plugin.render && chartData) plugin.render();   // a plugin draws its editing handles at render
         if (on) showToast('Esc or the Present button to exit');
       }
       btnPresent.addEventListener('click', () => setPresent(!presentOn()));
@@ -1059,7 +1069,7 @@
         window.addEventListener('keydown', (e) => {
           const mod = (e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === 'f';
           const slash = e.key === '/' && !e.ctrlKey && !e.metaKey && !e.altKey;
-          if ((mod || slash) && !typingInField()) { e.preventDefault(); setSearchOpen(true); }
+          if ((mod || slash) && !typingInField() && !presentOn()) { e.preventDefault(); setSearchOpen(true); }
           else if (e.key === 'Escape' && searchOpen() && !helpDrawer.classList.contains('open')) setSearchOpen(false);
         });
       }

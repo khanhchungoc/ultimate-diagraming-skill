@@ -492,6 +492,20 @@ sys.stdout.write(f.format_json(out))`;
   t.check('the Python codec (disk_format.py) reads and writes that block unchanged', pr.status === 0 && (pr.stdout.trim() === 'SKIP' || pr.stdout.trim() === blockText.trim()), pr.stderr || pr.stdout.slice(0, 200));
 
   // --- present ----------------------------------------------------------------------------------------------------------------------------
+  // The Present button toggles in place: the search is hidden and cleared, folds are view only
+  await freshPage(page);
+  await t.press('/'); await t.type('pick');
+  const matched = await count('.uc-case.is-match');
+  await t.clickOn('#btn-present');
+  await t.press('/');
+  t.check('usecase: entering Present hides and clears the search, and / does not open it', matched > 0 && (await count('.uc-case.is-match')) === 0
+    && (await t.ev(`getComputedStyle(document.querySelector('.uc-search')).display === 'none' && document.activeElement.id !== 'uc-search'`)));
+  await t.clickOn('.uc-subject[data-subject-id="office"] .frame-chev');
+  await t.press('Escape');
+  t.check('usecase: Esc exits in one press, a fold made while presenting leaves no unsaved badge, undo step or collapsed item',
+    !(await t.ev(`document.body.classList.contains('presentation')`)) && !(await t.ev(`/unsaved/i.test(document.getElementById('save-status').textContent)`))
+    && (await t.ev(`document.getElementById('btn-undo').disabled`)) && !byId((await saved()).subjects, 'office').collapsed && t.errors.length === 0, t.errors.join(' | '));
+
   await freshPage(page, '?present');
   { // present mode: a drag, a double-click, Delete and Ctrl+Z change nothing, and no editor opens
     const sel = '.uc-actor', n0 = await t.ev(`document.querySelectorAll(${JSON.stringify(sel)}).length`), p = await t.at(sel);

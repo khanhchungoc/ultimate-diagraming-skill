@@ -1543,7 +1543,7 @@
     .uc-search:focus-within { border-color: var(--primary); box-shadow: var(--shadow-ring); }
     .uc-search .btn { min-height: 24px; padding: 2px 8px; font-size: var(--t-control-size); border-color: transparent; }
     #uc-search-count { min-width: 8px; }
-    body.exporting .uc-search, body.capture .uc-search { display: none; }
+    body.exporting .uc-search, body.capture .uc-search, body.presentation .uc-search { display: none; }
     @media (max-width: 720px) { .uc-search { left: 12px; right: 12px; } .uc-search input { width: auto; flex: 1 1 auto; min-width: 0; } }
 
     /* Legend of the colour key, under the diagram */
@@ -2267,13 +2267,23 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
 
       // Present mode (body.presentation): read-only view, toggled in place by the Present button and Esc, or on at load by ?present
       const btnPresent = document.getElementById('btn-present');
+      let presentEntry = null;
       const presentOn = () => document.body.classList.contains('presentation');
       function setPresent(on) {
         if (on === presentOn()) return;
-        if (on) { plugin.cancelInteraction(); plugin.clearSelection(); }
+        if (on) {
+          plugin.cancelInteraction(); plugin.clearSelection();
+          setSearchOpen(false); if (plugin.clearSearch) plugin.clearSearch();
+          presentEntry = { json: JSON.stringify(chartData), committed: committedJson, undo: undoStack.slice(), redo: redoStack.slice() };
+        }
         document.body.classList.toggle('presentation', on);
         btnPresent.setAttribute('aria-pressed', String(on));
-        if (plugin.render && chartData) plugin.render();   // a plugin draws its editing handles at render
+        if (!on && presentEntry) {   // folds made while presenting are view only: put the model and history back as they were
+          const e = presentEntry;
+          undoStack = e.undo; redoStack = e.redo;
+          restoreSnapshot(e.json);
+          committedJson = e.committed; presentEntry = null;
+        } else if (plugin.render && chartData) plugin.render();   // a plugin draws its editing handles at render
         if (on) showToast('Esc or the Present button to exit');
       }
       btnPresent.addEventListener('click', () => setPresent(!presentOn()));
@@ -2894,7 +2904,7 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
         window.addEventListener('keydown', (e) => {
           const mod = (e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === 'f';
           const slash = e.key === '/' && !e.ctrlKey && !e.metaKey && !e.altKey;
-          if ((mod || slash) && !typingInField()) { e.preventDefault(); setSearchOpen(true); }
+          if ((mod || slash) && !typingInField() && !presentOn()) { e.preventDefault(); setSearchOpen(true); }
           else if (e.key === 'Escape' && searchOpen() && !helpDrawer.classList.contains('open')) setSearchOpen(false);
         });
       }
@@ -6157,7 +6167,7 @@ function routeDiagram(data) {
         if (searchQ) clearSearch();
       }, true);
       window.addEventListener('keydown', (e) => {
-        if (e.key === '/' && !e.ctrlKey && !e.metaKey && !e.altKey && !typingInField()) { e.preventDefault(); searchEl.focus(); searchEl.select(); return; }
+        if (e.key === '/' && !presenting() && !e.ctrlKey && !e.metaKey && !e.altKey && !typingInField()) { e.preventDefault(); searchEl.focus(); searchEl.select(); return; }
         if (presenting() ? !(e.key.startsWith('Arrow')) : false) return;
         if (drag || e.ctrlKey || e.metaKey) return;
         const a = document.activeElement;
@@ -6291,6 +6301,7 @@ function routeDiagram(data) {
           if (next.length === selIds.length && next.every((id) => selIds.includes(id)) && !selOther) return;
           setSel(next, null);
         },
+        clearSearch,
         selectAll() { if (!presenting()) setSel([...actors(), ...cases()].filter((o) => drawn(o.id)).map((o) => o.id), null); },
         deleteSelection,
         // Search: read the live DOM; ordered top to bottom, then left to right. A hidden note card (Notes off) has no box,
