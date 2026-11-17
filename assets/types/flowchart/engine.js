@@ -1015,6 +1015,14 @@
           const vertical = alongFlow ? LE.LABEL_ACROSS : !LE.LABEL_ACROSS;
           return (vertical ? 24 + 15 * (Math.min(lines, 3) - 1) : w) + 2 * (compact ? CONN.LABEL_PAD_TIGHT : CONN.LABEL_PAD);
         };
+        // Across-the-flow distance between a step's edge and a corner circle: the label sits centred on the stub's
+        // leg, so its half extent across the flow (its width in TB, its height in LR) must clear the step
+        const cornerGap = (s) => {
+          const t = String(s.stub.label || '').trim();
+          if (!t || !LE.LABEL_ACROSS) return CONN.CORNER_GAP;
+          const w = Math.min(Math.max(40, t.length * FONT_M.edgeWrap + 18), LE.LABEL_MAX_W);
+          return Math.max(CONN.CORNER_GAP, Math.ceil(w / 2 - S / 2) + 4);
+        };
         // Top-left of the circle on `side` of box a, `gap` away. `off` ('far' / 'near') moves an along-the-flow spot just
         // off the step's centre line, so it clears an arrow leaving that side straight.
         const spot = (a, side, gap, off) => {
@@ -1055,14 +1063,15 @@
               // Long enough for the stub's label on that leg with CLEAR-ish room on both sides (the router puts it mid-leg)
               const leg = Math.max(k.compact ? CONN.CORNER_LEG_TIGHT : CONN.CORNER_LEG, String(s.stub.label || '').trim() ? gapFor(s, true, k.compact) : 0);
               const x = k.corner === 'after' ? a.x + a.w / 2 + leg : a.x + a.w / 2 - leg - S;
-              const y = k.side === 'far' ? a.y + a.h + CONN.CORNER_GAP : a.y - CONN.CORNER_GAP - S;
+              const cg = cornerGap(s);
+              const y = k.side === 'far' ? a.y + a.h + cg : a.y - cg - S;
               return { x: Math.round(x), y: Math.round(y) };
             }
             const along = k.side === 'after' || k.side === 'before';
             const p = spot(a, k.side, gapFor(s, along, k.compact), k.off);
             return { x: Math.round(p.x), y: Math.round(p.y) };
           };
-          const ok = (k) => fits(s, at(k), k.corner ? CONN.CORNER_GAP - 2 : CONN.CLEAR);
+          const ok = (k) => fits(s, at(k), k.corner ? cornerGap(s) - 2 : CONN.CLEAR);
           const free = (k) => !(used[id] && used[id].has(k.side));
           // Comfortable spacing first (a free side, then any side), then the same spots with tight spacing
           const tight = cands.map(k => ({ ...k, compact: true }));
