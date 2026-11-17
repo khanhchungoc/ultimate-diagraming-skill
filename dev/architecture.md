@@ -21,7 +21,7 @@ assets/
     engine.js               layout engine: pure JS, no DOM; the ONE implementation of the type's layout
     toolbar.html, stage.html, chrome.html, help.html, default.json
 scripts/
-  layout_engine.py          CLI: --layout (assembles the HTML page or split artifact folder; --screenshot also renders + prints [DONE]/[NEXT]), --verify, --extract; AUDITS registry
+  layout_engine.py          CLI: --layout (assembles the HTML page or split artifact folder, prints [DONE]/[NEXT]; --screenshot also renders, dev and theme preview only), --verify, --extract; AUDITS registry
   tokens.py                 loads/validates tokens and the icon registry, writes {{TOKENS_CSS}} and {{TOKENS_JS}} (TOKENS and ICONS), expands {{icon:...}}
   audit_sequence.py         sequence audit
   audit_erd.py              ER diagram audit

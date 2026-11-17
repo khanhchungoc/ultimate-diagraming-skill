@@ -2,7 +2,7 @@
 
 Use for what a system does for the people and systems around it: who (actors) wants what (use cases, as goals) from which system (the subject, drawn as the boundary). Not for the order of steps (use `flowchart` or `sequence`) and not for data (use `erd`): a use case diagram has no sequence, no data and no internal steps. Positions, box sizes and the lines are computed by the tooling; author only the logical model, and colour the use cases by feature area (see Colour).
 
-**Example to copy (read it next; path is from `<skill-dir>`):** `references/examples/example-usecase.json`.
+**Example to copy:** the Schema JSON below is a complete diagram; no other file to read.
 
 ## Schema
 

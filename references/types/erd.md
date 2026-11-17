@@ -2,7 +2,7 @@
 
 Use for a database schema: tables, their columns and keys, and the relationships between them (crow's-foot notation). Not for process flows (use `flowchart`) or messages over time (use `sequence`). Positions, box sizes and the curves of the lines are computed by the tooling; author only the logical model, and colour the tables by domain (see Colour).
 
-**Example to copy (read it next; path is from `<skill-dir>`):** `references/examples/example-erd.json`.
+**Example to copy:** the Schema JSON below is a complete diagram; no other file to read.
 
 ## Schema
 
@@ -76,9 +76,9 @@ Trace prose requirements in two passes before writing JSON (for SQL DDL or a com
 
 1. **Trace every table, every column the source lists and every foreign key.** Nothing is dropped: if the source is SQL DDL, each `CREATE TABLE` is an entity, each column a column (name and type as written), each `PRIMARY KEY` / `REFERENCES` / `FOREIGN KEY` a flag plus a relationship. Do not invent columns, tables or relationships the source does not have.
 2. **`from` is the child.** The relationship goes from the table that holds the foreign key to the table it references: `order.customer_id` points at `customer`, so `"from": "order", "to": "customer"`. Reversed, the crow's feet land on the wrong table.
-3. **Give `columns` for every relationship**, the FK column names in `from`, and mark each of them `"fk": true`. Without `columns` the line ends on the box edge and the reader cannot see which column joins. Composite keys list every column. Set `toColumns` when a foreign key references a `unique` column in `to` that is not its primary key. Add a short verb `label` whenever two tables share more than one relationship (`billing_address_id` vs `shipping_address_id`) or when the role is not obvious from the FK name.
+3. **Give `columns` for every relationship**, the FK column names in `from` (`--layout` marks each of them `"fk": true`). Without `columns` the line ends on the box edge and the reader cannot see which column joins. Composite keys list every column. Set `toColumns` when a foreign key references a `unique` column in `to` that is not its primary key. Add a short verb `label` whenever two tables share more than one relationship (`billing_address_id` vs `shipping_address_id`) or when the role is not obvious from the FK name.
 4. **Map business-rule phrasing to crow's-foot ends.** Leave the defaults (`zeroOrMany` at the child, `one` at the parent, `zeroOrOne` when the FK is `nullable`) and override `fromEnd` / `toEnd` when the rules state otherwise: *"must have at least one"* → `oneOrMany`, *"may have zero or more"* → `zeroOrMany`, *"must have exactly one"* → `one` (non-null FK), *"may have at most one"* → `zeroOrOne` (nullable FK or unique FK, i.e. 1:1).
-5. **Mark `identifying: true` when the FK is part of the child's primary key** (a junction, weak-entity or subtype table: every FK column is also `pk`). Represent subtype/supertype inheritance either as separate child tables whose primary key is also the FK to the supertype (`identifying: true`, `fromEnd: "zeroOrOne"`), or as a single table with nullable subtype columns and a `note` explaining the discriminator. Everything else stays non-identifying, which draws dashed.
+5. **Identifying when the FK is part of the child's primary key** (a junction, weak-entity or subtype table): `--layout` sets `identifying: true` when every FK column is also `pk`; set it yourself only to override. Represent subtype/supertype inheritance either as separate child tables whose primary key is also the FK to the supertype (`identifying: true`, `fromEnd: "zeroOrOne"`), or as a single table with nullable subtype columns and a `note` explaining the discriminator. Everything else stays non-identifying, which draws dashed.
 6. **Self-references** (`employee.manager_id` to `employee.id`) are one relationship with `from` equal to `to` and `columns`.
 7. **Resolve many-to-many relationships through a junction table** whenever designing a logical or physical schema (especially when the relationship carries attributes such as `qty`, `role` or a timestamp): it is its own entity with two relationships. Only draw a many-to-many directly (both ends `*OrMany`) for a conceptual model; the audit then prints an `[INFO]` suggesting a junction table.
 8. **Colour tables by domain** whenever the schema has more than about 8 tables; see Colour below.
@@ -109,8 +109,6 @@ The layout counts same-coloured tables as slightly closer, so a domain tends to 
 - **`N tables and none has a 'color'`** (warning): colour the tables by domain, see Colour.
 - **`Diagram is not laid out`**: run `--layout`.
 - **`marked fk but no relationship uses it`** (warning): add the relationship, or drop `fk`.
-- **`not marked fk`** (warning): add `"fk": true` to the column named in `columns`.
 - **`has no primary key`** (warning): mark the `pk` column, or say why in the table's `note`.
-- **`every column in 'columns' is a pk, so it is identifying`** (warning): add `"identifying": true`.
 - **`is over N characters`** (warning, notes only): shorten the note.
 - **`[INFO] N line crossings` / `many-to-many drawn directly`**: not a failure. Report crossings and layout lines; do not change the JSON for them. For many-to-many, add a junction table if the schema is physical.

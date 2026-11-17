@@ -11,7 +11,7 @@ Turn a process description into one self-contained, editable HTML diagram. You w
 **Paths and files:**
 - `<skill-dir>` is the folder containing this `SKILL.md`. Run scripts by full path (`python "<skill-dir>/scripts/layout_engine.py" ...`; use `python3` where `python` is not on PATH).
 - **Workspace**: write only the final HTML there: the user's path, else `<title-slug>.html` in the workspace root. The HTML embeds its JSON; leave no `.json` in the workspace unless the user asked for one.
-- **Scratch**: the authoring JSON and the screenshot PNG go to the host's scratch directory (else the system temp directory). Delete them at the end with the shell's native remove command, in one call; do not check the deletion or probe the workspace afterwards.
+- **Scratch**: the authoring JSON goes to the host's scratch directory (else the system temp directory). Delete it at the end with the shell's native remove command, in one call; do not check the deletion or probe the workspace afterwards.
 
 ---
 
@@ -45,20 +45,20 @@ Every diagram JSON has a top-level `"diagramType"` (missing means `flowchart`).
 
 Make exactly these calls. The type reference, the example it names and the command below are the complete interface: no `--help`, no reading scripts or `dev/`, no test runs on the example, no listing directories, no trying alternative structures.
 
-1. **Read** the type reference, then the one example it names (at the path it gives). Decide the structure once from the type reference.
+1. **Read** the type reference (and the example file it names, flowcharts only). Decide the structure once from the type reference.
    - **Trace the requirements** before writing, following the type reference's structure (for processes: *clause → actor → step, decision, outcome or detail*, splitting clauses joined by "and" such as `3 quotes AND budget approval` into two steps). Map every business rule, threshold, SLA or approval authority to a note. When sources disagree on an actor, order or figure, follow the more detailed source (step text over a summary table) and record the conflict for the report.
 2. **Write the JSON once** to scratch with your file-write tool. Keep every label within the type reference's word limit (longer text is cut with `...` and shows on hover). No pixel coordinates, no `python -c`, no helper `.py` scripts. Include every step the user's scope asks for.
-3. **Run one command**, writing the HTML straight to the target path (needs Chrome, Chromium or Edge; Node.js makes layout faster; `--browser <path>` selects a browser):
+3. **Run one command**, writing the HTML straight to the target path (needs Node.js, else Chrome, Chromium or Edge; `--browser <path>` selects a browser):
    ```shell
-   python "<skill-dir>/scripts/layout_engine.py" --layout <scratch.json> -o <target.html> --screenshot <scratch.png>
+   python "<skill-dir>/scripts/layout_engine.py" --layout <scratch.json> -o <target.html>
    ```
-4. **Read the last line of the output.** You fix data only: layout is the engine's job. Do not view the PNG (it only feeds the label checks).
+4. **Read the last line of the output.** You fix data only: layout and rendering are the engine's job. Do not open or screenshot the HTML to check it.
 
    | Last line | Action |
    |---|---|
    | `[NEXT]` | Fix each `[WARN]` line with a targeted edit to the item it names (the type reference has the rule), re-run step 3. Never rewrite or redesign the JSON. |
-   | `[DONE]` | Final, even with `[INFO]` lines: report them, never re-word, re-run or re-render for them. Delete the scratch JSON and PNG (keep the scratch artifact folder when publishing an artifact, see Artifact output), then report. |
-   | `[ERROR] Layout needs Node.js ... or Chrome`, or render failed | Retry once with `--browser <chrome path>`. Otherwise stop and report it; never hand-place coordinates. |
+   | `[DONE]` | Final, even with `[INFO]` lines: report them, never re-word, re-run or re-render for them. Delete the scratch JSON (keep the scratch artifact folder when publishing an artifact, see Artifact output), then report. |
+   | `[ERROR] Layout needs Node.js ... or Chrome` | Retry once with `--browser <chrome path>`. Otherwise stop and report it; never hand-place coordinates. |
 
 ## Local HTML file: create, read, update, delete
 

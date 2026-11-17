@@ -6,7 +6,7 @@ Applies only when your tools include `Artifact`. `--target artifact` builds a fo
 
 1. Build with `--target artifact` into a scratch directory:
    ```shell
-   python "<skill-dir>/scripts/layout_engine.py" --layout <scratch.json> --target artifact -o <scratch>/<title-slug> --screenshot <scratch.png>
+   python "<skill-dir>/scripts/layout_engine.py" --layout <scratch.json> --target artifact -o <scratch>/<title-slug>
    ```
    Never write this directory into the workspace.
 2. After a clean run, publish with `Artifact`:
@@ -15,7 +15,7 @@ Applies only when your tools include `Artifact`. `--target artifact` builds a fo
    - `icon`: `"chart"`
    - `capabilities`: `{artifact: {}, downloads: true}`
    - `description`: one sentence describing the diagram
-3. Keep `<scratch>/<title-slug>/` until the conversation ends (updates in this conversation reuse its `index.html`). Delete the scratch authoring JSON and PNG.
+3. Keep `<scratch>/<title-slug>/` until the conversation ends (updates in this conversation reuse its `index.html`). Delete the scratch authoring JSON.
 4. Tell the user the link and that it is private until they share it from claude.ai.
 
 ## Read
@@ -32,7 +32,7 @@ Applies only when your tools include `Artifact`. `--target artifact` builds a fo
 3. **Text, label, color, or attribute edits (no positions changed):** edit `diagram.json` directly while keeping its `layout` map intact (do not run `--layout`). Publish to the same `url` (no `capabilities`) with `file_path: <scratch>/<title-slug>/index.html` (or the `index.html` saved in step 1) and `files: {"diagram.json": "<edited diagram.json>"}` — never reading or uploading `app.css` or `app.js`.
 4. **Structural edits (adding or removing nodes, tables, actors, or edges):** edit `diagram.json`, run:
    ```shell
-   python "<skill-dir>/scripts/layout_engine.py" --layout <diagram.json> --target artifact -o <scratch>/<title-slug> --screenshot <scratch.png>
+   python "<skill-dir>/scripts/layout_engine.py" --layout <diagram.json> --target artifact -o <scratch>/<title-slug>
    ```
    Then publish to the same `url` (no `capabilities`) with `file_path: <scratch>/<title-slug>/index.html` and `files: {"diagram.json": "<scratch>/<title-slug>/diagram.json"}` (never reading or uploading `app.css` or `app.js`). A re-layout resets positions the user dragged by hand; tell them.
 
