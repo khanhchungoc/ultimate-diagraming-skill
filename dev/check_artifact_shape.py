@@ -48,6 +48,13 @@ expected_head = ('<!doctype html><html><head><meta charset=utf8><meta name=viewp
 check("ARTIFACT_HEAD is the documented skeleton", le.ARTIFACT_HEAD == expected_head, le.ARTIFACT_HEAD)
 check("ARTIFACT_TAIL is </body></html>", le.ARTIFACT_TAIL == "</body></html>", le.ARTIFACT_TAIL)
 
+js = (ROOT / "assets" / "shell" / "shell.js").read_text(encoding="utf-8")
+m = re.search(r"const ARTIFACT_RESET_CSS = '([^']*)';", js)
+check("shell.js ARTIFACT_RESET_CSS equals layout_engine.py's", bool(m) and m[1] == le.ARTIFACT_RESET_CSS)
+m = re.search(r"const ARTIFACT_HEAD = '(.*?)' \+ ARTIFACT_RESET_CSS \+ '(.*?)';", js)
+check("shell.js ARTIFACT_HEAD equals layout_engine.py's", bool(m) and m[1] + le.ARTIFACT_RESET_CSS + m[2] == le.ARTIFACT_HEAD)
+check("shell.js ARTIFACT_TAIL equals layout_engine.py's", f"const ARTIFACT_TAIL = '{le.ARTIFACT_TAIL}';" in js)
+
 template = le.artifact_index_template(shell_html)
 shell_ui = shell_html[shell_html.index("<header>"): shell_html.index("</aside>") + len("</aside>")]
 check("artifact index template starts with ARTIFACT_HEAD and ends with end marker + ARTIFACT_TAIL",

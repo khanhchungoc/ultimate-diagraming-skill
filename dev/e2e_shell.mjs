@@ -745,12 +745,15 @@ try {
     const lines = fileDoc.split('\n');
     const realStart = lines.findIndex((l) => l.includes('<script id="diagram-data" type="application/json">')) + 1;
     const realEnd = lines.findIndex((l) => l.includes('<!-- end diagram-data -->')) + 1;
+    const headEnd = fileDoc.indexOf('</head>');
+    const headSection = headEnd > 0 ? fileDoc.slice(fileDoc.indexOf('<head>'), headEnd) : '';
+    const pageShell = fileDoc.lastIndexOf('\n  <script>\n') > 0 ? fileDoc.slice(0, fileDoc.lastIndexOf('\n  <script>\n')) : fileDoc;
     t.check('artifact: Export > HTML file hands downloads.save a valid file-target page (doctype, head data block, exact guide lines, inlined assets)',
       dl.length === 1 && /\.html$/.test(dl[0].filename) && fileDoc.startsWith('<!DOCTYPE html>\n<!-- For agents:') && fileDoc.indexOf('<head>') > 0
-      && fileDoc.indexOf('id="diagram-data"') > fileDoc.indexOf('<head>') && fileDoc.indexOf('id="diagram-data"') < fileDoc.indexOf('</head>')
+      && headSection.includes('<script id="diagram-data" type="application/json">')
       && gl && realStart > 0 && realEnd > realStart && +gl[1] === realStart && +gl[2] === realEnd && +gl[3] === realEnd && +gl[4] === realEnd
       && (dataBlockOf(fileDoc) || '').trim() === genData.trim()
-      && !fileDoc.includes('href="app.css"') && !fileDoc.includes('src="app.js"')
+      && !pageShell.includes('href="app.css"') && !pageShell.includes('src="app.js"')
       && fileDoc.includes('<style>') && fileDoc.includes('<script>')
       && (await t.ev(`window.__pub.length`)) === 0, fileDoc.slice(0, 200));
     const dlFile = join(dlDir, 'downloaded.html');

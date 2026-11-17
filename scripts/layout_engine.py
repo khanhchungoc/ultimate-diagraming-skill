@@ -1401,7 +1401,8 @@ def scaffold_html(data: Dict[str, Any], output_path: Path, target: str = "file",
         return scaffold_artifact(data, output_path, tokens, theme)
     html_text = assemble_page(data.get("diagramType") or DEFAULT_TYPE, data, target, tokens, theme)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(html_text, encoding="utf-8")
+    with output_path.open("w", encoding="utf-8", newline="\n") as fh:
+        fh.write(html_text)
     print(f"[OK] Generated interactive {data.get('diagramType') or DEFAULT_TYPE}: {output_path}")
 
 
