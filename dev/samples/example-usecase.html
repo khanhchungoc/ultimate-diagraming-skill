@@ -50,17 +50,17 @@
     { "id": "n1", "text": "A member may hold at most 5 loans (BR-2)", "useCases": ["borrow"] }
   ],
   "layout": {
-    "member": { "x": 42, "y": 174 },
-    "librarian": { "x": 40, "y": 315 },
-    "mail": { "x": 930, "y": 287 },
-    "search": { "x": 240, "y": 240 },
+    "member": { "x": 42, "y": 224 },
+    "librarian": { "x": 40, "y": 469 },
+    "mail": { "x": 930, "y": 419 },
+    "search": { "x": 240, "y": 328 },
     "borrow": { "x": 260, "y": 96 },
-    "login": { "x": 672, "y": 157 },
-    "extend_loan": { "x": 666, "y": 103 },
-    "return": { "x": 260, "y": 294 },
-    "reserve": { "x": 256, "y": 186 },
-    "fine": { "x": 256, "y": 348 },
-    "notify": { "x": 658, "y": 293 }
+    "login": { "x": 672, "y": 194 },
+    "extend_loan": { "x": 666, "y": 96 },
+    "return": { "x": 260, "y": 426 },
+    "reserve": { "x": 256, "y": 230 },
+    "fine": { "x": 256, "y": 524 },
+    "notify": { "x": 658, "y": 425 }
   }
 }
   </script>
@@ -1439,6 +1439,8 @@
       box-shadow: var(--shadow-canvas);
     }
     .uc-subject.selected { border-color: var(--primary); box-shadow: var(--shadow-ring); }
+    .uc-subject-resize { position: absolute; right: 0; bottom: 0; width: 18px; height: 18px; cursor: nwse-resize; pointer-events: auto; touch-action: none; border-radius: 0 0 var(--radius-2xl) 0; opacity: 0; }
+    .uc-subject:hover .uc-subject-resize, .uc-subject.selected .uc-subject-resize { opacity: 1; background: linear-gradient(135deg, transparent 55%, var(--text-soft) 55%, var(--text-soft) 62%, transparent 62%, transparent 75%, var(--text-soft) 75%, var(--text-soft) 82%, transparent 82%); }
     .uc-subject.drop-target { border-color: var(--primary); background: var(--primary-wash); }
     .uc-subject-title {
       position: absolute; left: 0; top: 0; right: 0; display: flex; align-items: center; gap: 6px; padding: 0 10px; box-sizing: border-box;
@@ -1808,7 +1810,7 @@
       <li><kbd>Double Click</kbd>, <kbd>Enter</kbd> or <kbd>F2</kbd> : Rename the selected item or subject; <kbd>Enter</kbd> commits, <kbd>Esc</kbd> keeps the old text</li>
       <li><kbd>Select Several</kbd> : <kbd>Ctrl</kbd>/<kbd>Cmd</kbd>+click adds an actor or use case or takes it out; <kbd>Shift</kbd>+drag on blank canvas draws a box (touching counts); <kbd>Ctrl</kbd>/<kbd>Cmd</kbd>+<kbd>A</kbd> selects all; <kbd>Esc</kbd> or a click on blank canvas clears. Drag one to move them all; dropped on another subject, the use cases move there. <kbd>Delete</kbd> removes them all (one <kbd>Ctrl+Z</kbd> brings them back)</li>
       <li><b>Action bar</b> of several : <b>Colour</b> recolours them all, <b>Subject</b> moves the use cases to another subject, <b>Connect</b> (one actor and N use cases selected) associates the actor with all of them, <b>Delete N</b></li>
-      <li><b>Colour</b> : Use cases take a colour per feature area (the legend says which); each actor has a colour of its own, and its lines take that colour (pick another in its action bar). A use case's level is its size and outline (summary: large, bold; subfunction: small, dashed)</li>
+      <li><b>Colour</b> : Use cases take a colour per feature area (the legend says which); each actor has a colour of its own, and its lines take that colour (pick another in its action bar). A use case's level is its size and outline (subfunction: small, dashed)</li>
       <li><b>Chevron</b> in a subject's title : Collapse the boundary to its name bar, or expand it (also in <kbd>?present</kbd>)</li>
       <li><b>Refs</b> / <b>Levels</b> / <b>Notes</b> : Show requirement ids under each use case / show or hide the subfunction use cases / show every note on the canvas</li>
       <li><b>Auto-Tidy</b> : On: adding, deleting or connecting re-arranges the diagram. Off: things stay where you drop them (<b>Tidy</b> re-arranges once)</li>
@@ -3571,7 +3573,8 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
 //                                              (a circle at the top centre of the actor, for every kind)
 //         useCases[].x,y,w,h,_lines,_compH,_hidden   ellipse box (compartment included), name wrapped to <= 2 lines,
 //                                              extension-points compartment height, true inside a collapsed subject (w = h = 0)
-//         subjects[].x,y,w,h,_titleH           boundary box (data._subjects for an implicit `_main` subject)
+//         subjects[].x,y,w,h,_titleH           boundary box (data._subjects for an implicit `_main` subject); subjects[].fw,fh (saved,
+//                                              set by dragging the frame's corner) are a minimum width and height
 //         links[].points,labelBox,_hidden      2 points straight, 3 points a quadratic curve (middle = control); [] when hidden
 //         data._parents[{from,to,kind,points}] one line per `parent` (to = the parent, the triangle sits at the last point)
 //         data.canvas {width,height,crossings,hits}
@@ -3812,6 +3815,14 @@ function ucColumns(m) {
       const along = Math.max(0, ...Object.values(meet).filter((ws) => ws.length > 1).map((ws) => ws.reduce((a, b) => a + b, 0) + UC.LABEL_GAP * (ws.length + 1)));
       return Math.max(Math.min(UC.GAP_MAX, Math.max(UC.GAP_MIN, lw ? lw + 16 + UC.GAP_PER_LABEL * (nl - 1) : 0)), Math.min(UC.GAP_MEET_MAX, along));
     });
+    // long or two-line labels of lines between use cases of one column pair need vertical room: a wider row gap
+    let labH = 0;
+    m.links.forEach((l) => {
+      if ((l.type !== 'include' && l.type !== 'extend') || !m.caseBy[l.from] || !m.caseBy[l.to] || m.si[l.from] !== sj.i || m.si[l.to] !== sj.i) return;
+      const t = ucLabelLines(l);
+      if (t.h > UC.LABEL_H || t.w > UC.WRAP) labH = Math.max(labH, t.h);
+    });
+    sj.rowGap = labH ? UC.ROW_GAP + labH - UC.LABEL_H + UC.LABEL_GAP : UC.ROW_GAP;
     sj.content = sj.colW.reduce((s, w) => s + w, 0) + sj.gap.reduce((s, w) => s + w, 0);
     maxContent = Math.max(maxContent, sj.content);
   });
@@ -4021,16 +4032,27 @@ function ucPlace1(items, gap, lo, hi) {
 // ---------- arrangement ----------
 
 // where the unit wants to be: desired top and weight from its neighbours' current centres
+// An actor sits in the middle (median) of the use cases it reaches, ignoring outliers: those in another subject than most.
 function ucWant(m, u, cy) {
   let sw = 0, sd = 0;
+  const ds = [], subj = [];
   u.members.forEach((mem) => {
     (m.nbr[mem.id] || []).forEach((nid) => {
       const y = cy(nid);
       if (y === undefined) return;
-      sd += y - mem.off - mem.anch; sw++;
+      const d = y - mem.off - mem.anch;
+      sd += d; sw++;
+      ds.push(d); subj.push(m.si[nid]);
     });
   });
-  return sw ? { d: sd / sw, w: sw } : null;
+  if (!sw) return null;
+  if (!u.actor) return { d: sd / sw, w: sw };
+  const cnt = {};
+  subj.forEach((k) => { if (k !== undefined) cnt[k] = (cnt[k] || 0) + 1; });
+  const top = Object.keys(cnt).sort((a, b) => cnt[b] - cnt[a] || a - b)[0];
+  const keep = (top === undefined ? ds : ds.filter((_, i) => String(subj[i]) === top)).sort((a, b) => a - b);
+  const h = keep.length >> 1;
+  return { d: keep.length % 2 ? keep[h] : (keep[h - 1] + keep[h]) / 2, w: keep.length };
 }
 
 // Place everything for the given case column orders. Returns positions and the cost.
@@ -4046,10 +4068,11 @@ function ucArrangeOnce(m, orders, actorOrderIn, fixedActors) {
       let bodyH = 0;
       sj.ranks.forEach((r) => {
         const col = orders[sj.i][r];
-        const h = col.reduce((s, id) => s + m.unit[id].H, 0) + Math.max(0, col.length - 1) * UC.ROW_GAP;
+        const h = col.reduce((s, id) => s + m.unit[id].H, 0) + Math.max(0, col.length - 1) * sj.rowGap;
         bodyH = Math.max(bodyH, h);
       });
       if (!sj.ranks.length) bodyH = UC.EMPTY_BODY;
+      if (sj.s.fh) bodyH = Math.max(bodyH, sj.s.fh - UC.TITLE_H - 2 * UC.PAD_Y);
       band.bodyTop = top + UC.TITLE_H + UC.PAD_Y; band.bodyH = bodyH;
       top = band.bodyTop + bodyH + UC.PAD_Y + UC.SUBJ_GAP;
     }
@@ -4062,9 +4085,9 @@ function ucArrangeOnce(m, orders, actorOrderIn, fixedActors) {
     if (sj.collapsed) { m.barTop[sj.i] = bands[sj.i].top; sj.cases.forEach((c) => { y[c.id] = bands[sj.i].top + UC.TITLE_H / 2; }); return; }
     sj.ranks.forEach((r) => {
       const col = orders[sj.i][r];
-      const h = col.reduce((s, id) => s + m.unit[id].H, 0) + Math.max(0, col.length - 1) * UC.ROW_GAP;
+      const h = col.reduce((s, id) => s + m.unit[id].H, 0) + Math.max(0, col.length - 1) * sj.rowGap;
       let t = bands[sj.i].bodyTop + Math.round((bands[sj.i].bodyH - h) / 2);
-      col.forEach((id) => { unitTop[id] = t; t += m.unit[id].H + UC.ROW_GAP; });
+      col.forEach((id) => { unitTop[id] = t; t += m.unit[id].H + sj.rowGap; });
     });
   });
   const setUnit = (id, t) => { unitTop[id] = t; m.unit[id].members.forEach((mem) => { y[mem.id] = t + mem.off; }); };
@@ -4110,7 +4133,7 @@ function ucArrangeOnce(m, orders, actorOrderIn, fixedActors) {
           return { H: u.H, d: wnt ? wnt.d : unitTop[id], w: wnt ? wnt.w : 0.01 };
         });
         const lo = bands[sj.i].bodyTop, hi = lo + bands[sj.i].bodyH;
-        const tops = ucPlace1(items, UC.ROW_GAP, lo, hi);
+        const tops = ucPlace1(items, sj.rowGap, lo, hi);
         col.forEach((id, i) => setUnit(id, tops[i]));
       });
     });
@@ -4207,15 +4230,15 @@ function ucSubjects(m) {
     // one left edge for every subject; each ends where its own use cases (or its title) end
     const ownTitle = ucTextW(s.name, UC.TITLE_W) + UC.TITLE_PAD_X;
     const ownR = own.length ? Math.max(...own.map((c) => c.x + c.w)) + UC.PAD_X : L + Math.max(ownTitle, UC.EMPTY_W);
-    s.x = L; s.w = Math.round(Math.max(ownR - L, ownTitle) * 10) / 10; s._titleH = UC.TITLE_H;
+    s.x = L; s.w = Math.round(Math.max(ownR - L, ownTitle, sj.collapsed ? 0 : s.fw || 0) * 10) / 10; s._titleH = UC.TITLE_H;
     if (sj.collapsed) {
       // layoutDiagram knows the bar's band; routeDiagram puts the bar where the expanded subject's top was (its use cases keep x/y)
       const bt = m.barTop[sj.i];
       s.y = typeof bt === 'number' ? bt : ys.length ? Math.round((Math.min(...ys) - UC.PAD_Y - UC.TITLE_H) * 10) / 10 : top0; s.h = UC.TITLE_H;
     } else if (own.length) {
       const t = Math.min(...own.map((c) => c.y)), b = Math.max(...own.map((c) => c.y + c.h));
-      s.y = t - UC.PAD_Y - UC.TITLE_H; s.h = b - t + 2 * UC.PAD_Y + UC.TITLE_H;
-    } else { s.y = top0; s.h = UC.TITLE_H + 2 * UC.PAD_Y + UC.EMPTY_BODY; }
+      s.y = t - UC.PAD_Y - UC.TITLE_H; s.h = Math.max(b - t + 2 * UC.PAD_Y + UC.TITLE_H, s.fh || 0);
+    } else { s.y = top0; s.h = Math.max(UC.TITLE_H + 2 * UC.PAD_Y + UC.EMPTY_BODY, s.fh || 0); }
     m.bars[sj.i] = { x: s.x, y: s.y, w: s.w, h: UC.TITLE_H };
     prev = s.y + s.h;
   });
@@ -4471,7 +4494,7 @@ function routeDiagram(data) {
       const LINK_TYPES = ['association', 'include', 'extend'];
       const KIND_ICON = { human: 'user', system: 'server', time: 'clock' };   // drawn in a round avatar
       const KIND_CAPTION = { system: '«system»', time: '«time»' };
-      const LEVELS = ['summary', 'user', 'subfunction'];
+      const LEVELS = ['user', 'subfunction'];   // a file may still carry level: summary (drawn large, bold); the bar no longer offers it
       const LEVEL_NAME = { summary: 'Summary', user: 'Goal', subfunction: 'Sub' };
       const SIZE = { actor: [104, 104], tile: [104, 120], useCase: [150, 60], subject: [280, 180] };   // a ghost's and a new item's first size
 
@@ -4629,6 +4652,12 @@ function routeDiagram(data) {
         }
         title.appendChild(htmlEl('span', 'uc-subject-name t-title', nameOf(s) || (real ? '' : 'System')));
         el.appendChild(title);
+        if (real && s.collapsed !== true) {
+          const grip = htmlEl('div', 'uc-subject-resize');
+          grip.dataset.exportSkip = '';
+          grip.title = 'Drag to resize the frame';
+          el.appendChild(grip);
+        }
         els.subjects.set(s.id, el);
         return el;
       }
@@ -4666,7 +4695,7 @@ function routeDiagram(data) {
         el.appendChild(avatar(a.kind, a._figW));
         el.appendChild(htmlEl('span', `uc-actor-name t-label${a.abstract ? ' is-abstract' : ''}`, nameOf(a)));
         if (isTile(a)) el.appendChild(htmlEl('span', 'uc-kw t-caption', KIND_CAPTION[a.kind]));
-        addItemChrome(el, a, a._side === 'right');
+        addItemChrome(el, a);
         return el;
       }
 
@@ -4702,30 +4731,31 @@ function routeDiagram(data) {
           u.refs.forEach((r) => refs.appendChild(htmlEl('span', 'uc-ref t-caption', String(r))));
           el.appendChild(refs);
         }
-        addItemChrome(el, u, false);
+        addItemChrome(el, u);
         return el;
       }
 
       // Connect port, note badge or + chip
-      function addItemChrome(el, o, leftPort) {
+      function addItemChrome(el, o) {
         if (!presenting()) {
-          const port = htmlEl('span', `uc-port${leftPort ? ' is-left' : ''}`);
-          port.dataset.exportSkip = '';
-          port.dataset.touchDrag = '';
-          port.title = 'Drag to another item to connect them (blank space inside a subject draws out a new use case)';
-          if (o._figW && typeof o.w === 'number') {   // an actor: the port sits on the avatar's rim, level with its centre
-            const off = px((o.w - o._figW) / 2);
-            port.style.top = px(o._figH / 2);
-            if (leftPort) port.style.left = `calc(${off} - 7px)`; else port.style.right = `calc(${off} - 7px)`;
-          }
-          el.appendChild(port);
+          [false, true].forEach((leftPort) => {   // an anchor on each side
+            const port = htmlEl('span', `uc-port${leftPort ? ' is-left' : ''}`);
+            port.dataset.exportSkip = '';
+            port.dataset.touchDrag = '';
+            port.title = 'Drag to another item to connect them (blank space inside a subject draws out a new use case)';
+            if (o._figW && typeof o.w === 'number') {   // an actor: the port sits on the avatar's rim, level with its centre
+              const off = px((o.w - o._figW) / 2);
+              port.style.top = px(o._figH / 2);
+              if (leftPort) port.style.left = `calc(${off} - 7px)`; else port.style.right = `calc(${off} - 7px)`;
+            }
+            el.appendChild(port);
+          });
         }
         const badge = buildNoteBadge(o);
         if (badge) el.appendChild(badge);
         el.addEventListener('pointerenter', (ev) => {
           if (ev.pointerType === 'touch' || drag) return;
           if (notesOfItem(o.id).length) peekSoon(o.id, 100);
-          hoverItemId = o.id; applyFocus();
         });
         el.addEventListener('pointerleave', () => {
           if (peekId === o.id) unpeekSoon(o.id);
@@ -4774,8 +4804,7 @@ function routeDiagram(data) {
           const line = svgEl('path', { class: 'edge-line', d });
           setMarkers(line, l.type === 'association' ? (l.navigable === true ? 'open' : null) : 'open');
           g.append(tip, svgEl('path', { class: 'edge-hit', d }), line);
-          g.addEventListener('pointerenter', (ev) => { if (ev.pointerType === 'touch' || drag) return; hoverLinkId = l.id; applyLinkState(); });
-          g.addEventListener('pointerleave', () => { if (hoverLinkId === l.id) hoverLinkId = null; applyLinkState(); });
+                    g.addEventListener('pointerleave', () => { if (hoverLinkId === l.id) hoverLinkId = null; applyLinkState(); });
           g.addEventListener('pointerdown', (ev) => { if (ev.button === 0 && !presenting()) { ev.stopPropagation(); selectOther('link', l.id); } });
           g.addEventListener('dblclick', (ev) => { ev.stopPropagation(); editLinkCondition(l.id); });
           linksG.appendChild(g);
@@ -4803,7 +4832,6 @@ function routeDiagram(data) {
           el.title = linkTitle(l) + (l.extensionPoint ? ` at ${l.extensionPoint}` : '');
           el.appendChild(htmlEl('span', 'uc-label-text', `«${l.type}»`));
           if (l.type === 'extend' && l.condition) el.appendChild(htmlEl('span', 'uc-cond', `[${l.condition}]`));
-          el.addEventListener('pointerenter', (ev) => { if (ev.pointerType !== 'touch' && !drag) { hoverLinkId = l.id; applyLinkState(); } });
           el.addEventListener('pointerleave', () => { if (hoverLinkId === l.id) hoverLinkId = null; applyLinkState(); });
           el.addEventListener('pointerdown', (ev) => { if (ev.button === 0 && !presenting()) { ev.stopPropagation(); selectOther('link', l.id); } });
           el.addEventListener('dblclick', (ev) => { ev.stopPropagation(); editLinkCondition(l.id); });
@@ -5400,6 +5428,8 @@ function routeDiagram(data) {
         }
         if (t.closest('.uc-actionbar, .confirm, .frame-chev, .note-badge, .note-add, .note-del, .note-link, .note')) return;
         closeMenu();
+        const grip = t.closest('.uc-subject-resize');
+        if (grip) { e.preventDefault(); beginDrag(e, resizeDrag(grip.parentNode.dataset.subjectId)); return; }
         const title = t.closest('.uc-subject-title');
         if (title) {
           const id = title.parentNode.dataset.subjectId;
@@ -5424,11 +5454,54 @@ function routeDiagram(data) {
       }
       html.addEventListener('pointerdown', onPointerDown);
 
+      // Live routing while dragging: lines, labels and frames follow the pointer. The positions are put back when the
+      // drag ends (cleanup), so drop() starts from the untouched ones.
+      function liveDrag(d, apply) {
+        if (!d.snap) d.snap = [chartData.actors || [], chartData.useCases || [], realSubjects()].map((l) => l.map((o) => Object.assign({}, o)));
+        if (d.raf) return;
+        d.raf = requestAnimationFrame(() => {
+          d.raf = 0;
+          apply();
+          routeDiagram(chartData);
+          linksG.textContent = '';
+          html.querySelectorAll('.uc-label').forEach((el) => el.remove());
+          els.links = new Map(); els.parents = [];
+          renderLinks(); renderLabels();
+          allSubjects().forEach((s) => { const el = els.subjects.get(s.id); if (el && typeof s.x === 'number') Object.assign(el.style, { left: px(s.x), top: px(s.y), width: px(s.w), height: px(s.h) }); });
+          const C = chartData.canvas;
+          if (C) { canvas.style.width = px(C.width); canvas.style.height = px(C.height); svg.setAttribute('width', C.width); svg.setAttribute('height', C.height); }
+          applySelection();
+        });
+      }
+      function liveEnd(d) {
+        if (d.raf) cancelAnimationFrame(d.raf);
+        if (!d.snap) return;
+        [chartData.actors || [], chartData.useCases || [], realSubjects()].forEach((l, i) => l.forEach((o, k) => { if (d.snap[i][k]) { for (const key of ['x', 'y', 'fw', 'fh']) { if (key in d.snap[i][k]) o[key] = d.snap[i][k][key]; else delete o[key]; } } }));
+      }
+
+      // --- Resize a subject frame from its bottom-right corner (saved as fw / fh, a minimum size) ---
+      function resizeDrag(id) {
+        const s = subjectOf(id), w0 = s.w, h0 = s.h;
+        return {
+          click: () => selectOther('subject', id),
+          move(e, d) { liveDrag(d, () => { s.fw = Math.max(1, Math.round(w0 + d.dx)); s.fh = Math.max(1, Math.round(h0 + d.dy)); }); },
+          drop(e, d) {
+            s.fw = Math.max(1, Math.round(w0 + d.dx)); s.fh = Math.max(1, Math.round(h0 + d.dy));
+            routeDiagram(chartData);
+            actors().forEach(keepOutside);
+            commit(false);
+          },
+          cleanup() { liveEnd(this); }
+        };
+      }
+
       // --- Move actors and use cases (one or the whole selection) ---
       function itemDrag(ids) {
         const targetSubjects = allSubjects();
         return {
+          cleanup() { liveEnd(this); },
           move(e, d) {
+            liveDrag(d, () => ids.forEach((id) => { const o = itemOf(id), i = (d.snap[0].concat(d.snap[1])).find((x) => x.id === id); if (o && i && placed(o)) { o.x = i.x + d.dx; o.y = i.y + d.dy; } }));
             ids.forEach((id) => { const el = els.items.get(id); if (el) { el.classList.add('is-dragging'); el.style.translate = `${d.dx}px ${d.dy}px`; } });
             canvas.querySelectorAll('.drop-target').forEach((el) => el.classList.remove('drop-target'));
             if (ids.some((id) => kindOf(id) === 'case') && realSubjects().length) {
@@ -5446,6 +5519,20 @@ function routeDiagram(data) {
               o.x += dx; o.y += dy;
               if (s && kindOf(id) === 'case' && caseSubjectId(o) !== s.id) { o.subject = s.id; moved = true; }
             });
+            // an actor dropped across the middle of the boundaries changes side (its root's `side`, which the layout follows)
+            const boxes = allSubjects().filter((x) => typeof x.x === 'number');
+            if (boxes.length) {
+              const mid = boxes.reduce((n, x) => n + x.x + x.w / 2, 0) / boxes.length;
+              ids.forEach((id) => {
+                const a = actorOf(id);
+                if (!a) return;
+                const side = a.x + a.w / 2 < mid ? 'left' : 'right';
+                if (side === a._side) return;
+                let r = a;
+                for (let n = 0; r.parent && actorOf(r.parent) && n < 50; n++) r = actorOf(r.parent);
+                r.side = side; a._side = side; moved = true;
+              });
+            }
             ids.forEach((id) => { const a = actorOf(id); if (a) keepOutside(a); });
             void targetSubjects;
             commit(moved);
@@ -5700,13 +5787,6 @@ function routeDiagram(data) {
         hint(made ? `${esc(nameOf(actorOf(actor)))} connected to ${made} use case${made === 1 ? '' : 's'}` : 'Already connected to all of them');
         if (made) commit(true);
       }
-      function setParent(id, parentId) {
-        const o = itemOf(id);
-        if (!o) return;
-        if (parentId) { if (wouldCycle(id, parentId)) { hint('That would make it a kind of itself'); return; } o.parent = parentId; } else delete o.parent;
-        commit(true);
-      }
-
       // --- Line edits ---
       const isCaseCase = (l) => !!caseOf(l.from) && !!caseOf(l.to);
       function setLinkType(l, type) {
@@ -5791,6 +5871,9 @@ function routeDiagram(data) {
         else if (selIds.length === 1) at = itemBar(bar, itemOf(selIds[0]));
         if (!at) return;
         html.appendChild(bar);
+        // wrapped rows: the bar is as wide as its widest row, not the 340px wrap limit (no empty side padding)
+        const kids = [...bar.children].filter((k) => !k.classList.contains('uc-ab-break'));
+        if (kids.length) bar.style.maxWidth = `${Math.ceil(Math.max(...kids.map((k) => k.offsetLeft + k.offsetWidth)) - Math.min(...kids.map((k) => k.offsetLeft)) + 8)}px`;
         const C = chartData.canvas || { width: 1e9, height: 1e9 }, w = bar.offsetWidth;
         const below = at.y < 110;
         bar.classList.toggle('is-below', below);
@@ -5810,11 +5893,7 @@ function routeDiagram(data) {
           LEVELS.forEach((lv) => bar.appendChild(abButton('level', `<span>${LEVEL_NAME[lv]}</span>`, `Level: ${lv === 'user' ? 'user goal' : lv}`, (o.level || 'user') === lv, lv)));
         }
         bar.appendChild(abSep());
-        bar.appendChild(abButton('abstract', '<span><i>A</i></span>', 'Abstract: the name is shown in italics', o.abstract === true));
         if (!isActor) bar.appendChild(abButton('point', `${ui.icon('plus', { size: 'sm' })}<span>Point</span>`, 'Add an extension point'));
-        const b = abButton('parent', `<span>Kind of</span>${ui.icon('chevron-down', { size: 'xs', bold: true })}`, 'Make this a specialisation of another (generalization)');
-        b.dataset.menu = '';
-        bar.appendChild(b);
         bar.appendChild(abButton('note', ui.icon('note'), 'Add a note (N)'));
         bar.appendChild(abButton('delete', ui.icon('trash'), 'Delete (and its lines)', undefined, undefined, 'is-danger'));
         bar.appendChild(abBreak());
@@ -5941,15 +6020,9 @@ function routeDiagram(data) {
         if (!o) return;
         if (act === 'kind') { if (value === 'human') delete o.kind; else o.kind = value; commit(false); }
         else if (act === 'level') { if (value === 'user') delete o.level; else o.level = value; commit(false); }
-        else if (act === 'abstract') { if (o.abstract === true) delete o.abstract; else o.abstract = true; commit(false); }
         else if (act === 'point') { addPoint(o); commit(false); const eps = els.items.get(o.id).querySelectorAll('.uc-ep'); editPoint(o.id, eps.length - 1); }
         else if (act === 'note') addNoteTo(o.id);
         else if (act === 'delete') deleteSelection(btn);
-        else if (act === 'parent') {
-          const list = actorOf(o.id) ? actors() : cases();
-          const pick = list.filter((x) => x.id !== o.id && !wouldCycle(x.id, o.id)).map((x) => ({ label: nameOf(x), value: x.id, selected: o.parent === x.id }));
-          openMenu(btn, 'Is a kind of', [{ label: '(none)', value: '' }, ...pick], (v) => setParent(o.id, v));
-        }
       }
 
       // --- INLINE TEXT EDITING (double-click, Enter / F2, or straight after creating something) ---
