@@ -4776,17 +4776,20 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         // Notes on show may sit in the margin outside the lanes: Fit and screenshots take them in (peeked ones
         // are transient and do not count)
         contentOverflow() {
-          if (!notesLayer || !chartData.showNotes) return null;
+          // Notes and edge labels/arrows that reach past the container (e.g. a loop-back's label on the outer
+          // corridor at the first lane's edge) stay OUTER_CLEAR inside the frame Fit and screenshots use.
           const W = swimlanesContainer.offsetWidth, H = swimlanesContainer.offsetHeight, PAD = 12;
           const o = { left: 0, top: 0, right: 0, bottom: 0 };
-          [...notesLayer.children].forEach(card => {
-            const b = containerBox(card);
-            if (!b.w) return;
-            o.left = Math.max(o.left, PAD - b.x);
-            o.top = Math.max(o.top, PAD - b.y);
-            o.right = Math.max(o.right, b.x + b.w + PAD - W);
-            o.bottom = Math.max(o.bottom, b.y + b.h + PAD - H);
-          });
+          const take = (el, pad) => {
+            const b = containerBox(el);
+            if (!b.w && !b.h) return;
+            o.left = Math.max(o.left, pad - b.x);
+            o.top = Math.max(o.top, pad - b.y);
+            o.right = Math.max(o.right, b.x + b.w + pad - W);
+            o.bottom = Math.max(o.bottom, b.y + b.h + pad - H);
+          };
+          if (notesLayer && chartData.showNotes) [...notesLayer.children].forEach(c => take(c, PAD));
+          edgeLabelsGroup.querySelectorAll('.edge-label.has-label').forEach(l => take(l, OUTER_CLEAR));
           return o;
         },
         hasSelection() {
