@@ -11,6 +11,16 @@ Two ways to get one, then the same finishing step:
 
 `--complete` always runs: it fills missing keys, derives shades, builds the palette, measures the font, checks contrast in light and dark, and fixes failures. The result goes to `.ultimate-diagram/theme.json` in the current project (change it with `--out`). Show the user the printed report and the preview images, and keep the theme only if they accept it.
 
+## Workflow
+
+When the user gives a website URL or a brand guide (PDF, image, CSS) and wants diagrams in that look:
+
+1. Website: `python "<skill-dir>/scripts/extract_tokens.py" --url <site> --complete --preview <scratch>/theme-preview`. Brand guide: read it yourself, write the partial theme JSON described below, then `... --from <scratch>/partial.json --complete --preview <scratch>/theme-preview`.
+2. Show the user the printed report (every `[FIX]` and `[WARN]`) and the three preview PNGs. Keep the theme only if they accept it; it is saved as `.ultimate-diagram/theme.json` in the project.
+3. From then on every `--layout` in that project uses it; pages already saved take it on their next re-layout (the run prints a `[NOTE]`: say so in the report). `--theme <file>` overrides it for one run. Exit 1 from the extractor means a contrast check could not be met: do not use that theme.
+
+---
+
 ## Writing `partial.json` from a brand guide
 
 Read the guide yourself. Write only what the guide states; leave everything else out and `--complete` derives it. Colours are `#rrggbb` (or `rgb(r g b)`); never `hsl()`, `oklch()`, `var()` or a colour with transparency in the keys listed under "Needed as opaque colours". A guide's CMYK or Pantone value: convert it to the nearest sRGB hex and say so in your report.

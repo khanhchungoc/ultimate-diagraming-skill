@@ -105,11 +105,7 @@ Use when the user saved edits in the browser, or asks to change a diagram that a
 
 ## Use your brand
 
-When the user gives a website URL or a brand guide (PDF, image, CSS) and wants diagrams in that look:
-
-1. Website: `python "<skill-dir>/scripts/extract_tokens.py" --url <site> --complete --preview <scratch>/theme-preview`. Brand guide: read it yourself, write the partial theme JSON described in [references/theme.md](references/theme.md), then `... --from <scratch>/partial.json --complete --preview <scratch>/theme-preview`.
-2. Show the user the printed report (every `[FIX]` and `[WARN]`) and the three preview PNGs. Keep the theme only if they accept it; it is saved as `.ultimate-diagram/theme.json` in the project.
-3. From then on every `--layout` in that project uses it; pages already saved take it on their next re-layout (the run prints a `[NOTE]`: say so in the report). `--theme <file>` overrides it for one run. Exit 1 from the extractor means a contrast check could not be met: do not use that theme.
+Only when the user gives a website URL or brand guide and wants diagrams in that look: read [references/theme.md](references/theme.md) and follow its workflow.
 
 ---
 

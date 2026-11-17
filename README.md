@@ -134,6 +134,17 @@ Each demo is a claude.ai Artifact; **Download .html** inside it saves your edits
 2. Ask: *"Draw a swimlane flowchart of our loan approval process."*
 3. Open the HTML file it creates and edit.
 
+## Use your brand
+
+Give the AI a website address or a brand guide (PDF, image or CSS file) and ask for diagrams in that look. It extracts colours, font, corner style and icon weight, checks contrast in light and dark mode, and shows you the report and three preview images. Nothing is kept until you accept it.
+
+Example prompts:
+
+- *"Use the brand from https://example.com and draw a swimlane flowchart of our loan approval process."*
+- *"Here is our brand guide (brand.pdf). Make diagrams in this style, then draw a sequence diagram of the login flow."*
+
+Once accepted, the theme is saved as `.ultimate-diagram/theme.json` in your project and every later diagram there uses it; diagrams you already saved pick it up the next time they are re-laid out. To switch back, delete that file. Details for contributors: [references/theme.md](references/theme.md).
+
 ## Diagrams as claude.ai Artifacts
 
 In Claude Code the diagram can be published as a private claude.ai Artifact instead of an HTML file. Claude asks once which you want (a saved default skips the question). Inside the artifact you edit as usual and press **Save**: that publishes a new version of the same artifact, so the next change you ask Claude for starts from your saved edits. Share the link from claude.ai; people without edit access see the diagram and can **Download .html** instead of saving. To make the link public, use the artifact's Share menu; claude.ai reviews the page first, and `python dev/check_artifact_shape.py` catches known causes of a rejection (for example `data:` inside a tooltip) before you publish.
