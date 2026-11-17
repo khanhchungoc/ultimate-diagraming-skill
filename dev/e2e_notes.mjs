@@ -17,7 +17,7 @@ try {
   await t.open(page);
   // A step without a note: a task if there is one, else any node
   const nodeId = await t.ev(`(document.querySelector('.flow-node.type-task:not(:has(.note-badge))')
-    || document.querySelector('.flow-node:not(:has(.note-badge))')).dataset.nodeId`);
+    || document.querySelector('.flow-node:not(.type-connector):not(:has(.note-badge))')).dataset.nodeId`);
   const N = `.flow-node[data-node-id="${nodeId}"]`;
   const card = `document.querySelector('.note[data-nodes~="${nodeId}"]')`;
   const visible = (expr) => `(() => { const el = ${expr}; return !!el && getComputedStyle(el).display !== 'none' && el.getBoundingClientRect().width > 0; })()`;
@@ -160,7 +160,7 @@ try {
   // Target: a step without a note that the pointer can actually reach (on screen, not under a note or the
   // dock), chosen in the same instant as the drag
   const [third, dropped] = await t.ev(`(async () => {
-    const n = [...document.querySelectorAll('.flow-node')].find(n => {
+    const n = [...document.querySelectorAll('.flow-node:not(.type-connector)')].find(n => {   // a connector takes no notes
       if (n.querySelector('.note-badge')) return false;
       const r = n.getBoundingClientRect(), hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
       return hit && hit.closest('.flow-node') === n;
@@ -189,7 +189,7 @@ try {
   // both steps outlined); again unlinks it; dragging the link handle onto a step links it too; the last link stays
   const noteId = await t.ev(`${card}.dataset.noteId`);
   const C = `document.querySelector('.note[data-note-id="${noteId}"]')`;
-  const reachable = `[...document.querySelectorAll('.flow-node')].filter(n => {
+  const reachable = `[...document.querySelectorAll('.flow-node:not(.type-connector)')].filter(n => {
     if (n.dataset.nodeId === '${nodeId}' || n.querySelector('.note-badge')) return false;   // steps with no note of their own
     const r = n.getBoundingClientRect(), hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
     return hit && hit.closest('.flow-node') === n;
