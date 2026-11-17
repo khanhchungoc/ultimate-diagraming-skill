@@ -11,22 +11,24 @@ An artifact built with `--target artifact` is one 350 KB HTML page. Almost all o
 
 ## Goals
 
+Scope: applies **only** when the skill generates claude.ai Artifacts (`--target artifact`) that are editable in the browser, directly savable in place via the `artifact` capability's files form, and updatable by Claude Code on the same artifact URL without creating a new artifact.
+
 - A data-only change (an agent edit, or the user's Save) never needs the editor code to be read or republished.
 - An engine or UI upgrade rebuilds an existing artifact **without changing the user's data or positions**.
 - Old single-file artifacts keep working, and can be rebuilt.
-- The local HTML file target stays exactly as it is: one self-contained file.
+- The local HTML file target (`--target file`) and all diagram layout engines (`assets/types/<type>/engine.js`, `<type>.js`) stay completely decoupled and untouched: plugins and engines never know artifacts exist.
 
 ## Non-goals
 
-- Keeping hand-dragged positions when an agent adds nodes by editing the JSON: a separate fix (see Open questions).
-- Changing diagram types, schemas or the engines.
+- Keeping hand-dragged positions when an agent adds nodes by editing JSON: a separate engine feature for both targets, not part of artifact splitting.
+- Changing diagram types, schemas, or layout engines.
 
 ## What the platform gives us (read from the runtime contract 0.2.96 and the Artifact tool)
 
 - A multi-file artifact: the page plus `files` (stylesheets, scripts, data, images), referenced by relative URL. An update sends only the files that changed; the rest are kept.
-- The `artifact` capability's **files form**: `artifact.publish({"diagram.json": text})` saves only the named files. The saving view keeps running (no reload); only other open views reload. It is rejected with `capability_disabled` where the form is not enabled, including on **publicly shared** artifacts. Per-file `ifMatch` (sha256) lets two writers save different files without overwriting each other.
-- The overwrite gate accepts a path that the conversation has read by its path, seen in a file listing, or published itself. So a data-only publish needs `diagram.json` read (a few KB), and the editor files only need to appear in a listing.
-- `Artifact read` with `path` fetches one published file; `Artifact list` with `scope: "files"` lists them.
+- The `artifact` capability's **files form**: `artifact.publish({"diagram.json": text})` saves only the named files. The saving view keeps running (no reload); only other open views reload. It is rejected with `capability_disabled` where the form is not enabled. Per-file `ifMatch` (sha256) is documented to let two writers save different files without overwriting each other; verify during implementation whether runtime contract 0.2.96 exposes/accepts `ifMatch` on `artifact.publish` (otherwise pass `{"diagram.json": text}` as verified in Spike check 5).
+- The overwrite gate does **not** accept single-file `path` reads or file listings (`scope: "files"`). The conversation must read the live version via `Artifact read` on `url` **without** `path` (which returns the tiny `index.html`), and every `Artifact` publish requires `file_path` (`index.html`) plus `files`.
+- `Artifact read` with `path` fetches one published file (and reports its `sha256`); `Artifact list` with `scope: "files"` lists all published files.
 
 ## Spike
 
@@ -56,33 +58,45 @@ Decision rule: if 1 to 4 pass, go ahead. If 5 fails for the owner, fall back to 
 
 ## Design
 
-Artifact target output, instead of one page:
+Artifact target output (`--target artifact`), instead of one page:
 
 | File | Holds | Changes when |
 |---|---|---|
-| `index.html` | skeleton, title, reading guide for agents, mount point | rarely |
-| `diagram.json` | the diagram data, in the disk format (`schemaVersion`, `layout` map) | the user saves, or an agent edits the data |
-| `app.css`, `app.js` | shell, type plugin, engine, tokens, icons | an engine or UI release |
-| fonts | as today | rarely |
+| `index.html` | `ARTIFACT_HEAD`, `<title>`, agent note pointing to `diagram.json`, optional `<script id="diagram-theme">`, font links, `<link rel="stylesheet" href="app.css">`, body mount/chrome markup, `<script src="app.js"></script>`, `ARTIFACT_END_MARKER`, `ARTIFACT_TAIL` | rarely |
+| `diagram.json` | the diagram data, in the disk format (`_readme`, `schemaVersion`, `layout` map) | the user saves, or an agent edits the data |
+| `app.css`, `app.js` | tokens, components, shell, type plugin, engine, icons | an engine or UI release |
+| fonts | Google Fonts stylesheet links in `index.html` (as today) | rarely |
 
-- **Boot:** the shell loads `diagram.json` first, then runs exactly as today. Everything the shell already does with the `diagram-data` block (reading, `_readme`, `fromDisk`) is unchanged.
-- **Save in the page:** `publish({"diagram.json": text})` replaces the current rebuild of the whole document from `pristineBody`. Pass `ifMatch` with the sha256 the host last reported.
-- **Export > HTML file (editable):** rebuild a single self-contained file by fetching `app.css` and `app.js` and inlining them with the current data. The menu item already exists in the Export menu.
+- **Output paths (`-o`) and generator (`scripts/layout_engine.py`, `scripts/run_engine.mjs`):** `layout_engine.py --layout <in.json> --target artifact -o <dir-or-index.html>` writes `index.html`, `diagram.json`, `app.css`, and `app.js` into the target directory (`out_path.parent` when `-o` ends with `.html`, else `out_path` as a directory). Replace `artifact_template` directly with the split `index.html` builder (keep `ARTIFACT_HEAD` and `ARTIFACT_TAIL`). Check `find_external_refs()` across `index.html`, `app.css`, and `app.js`. Fix `--keep-layout` in `run_engine.mjs` and `layout_engine.py` so engines without `routeDiagram` (such as flowchart, which routes in the renderer) keep saved `x`/`y` unchanged instead of running `layoutDiagram` or `choose_flowchart_direction`.
+- **Boot (`assets/shell/shell.js`):**
+  - Detect `artifactShaped` from `document.querySelector('body > title') !== null` instead of `capturePristineBody()` (which strips `<script src="app.js">` and returns `null`). Still capture the unrendered body markup before `plugin.render()` for `Export > HTML file (editable)`.
+  - `loadInitialData()` supports both targets: if `#diagram-data` is in the DOM (`--target file` or an exported `.html` file), parse it synchronously; otherwise `await fetch('diagram.json')`. Everything the shell already does with `_readme` and `plugin.fromDisk()` is unchanged. Set both `chartTitleEl.textContent` and `document.title` from `chartData.title || plugin.defaultTitle`.
+  - Expose a shell helper `loadEngineSource()` that slices `//@engine-begin..//@engine-end` from `document.currentScript.textContent` or fetches `document.currentScript.src` when external, so `assets/types/erd/erd.js`'s background layout Web Worker works in both inline and split builds without any artifact-specific code in `erd.js`.
+- **Save in the page (`assets/shell/shell.js`):** `artifactApi.publish({"diagram.json": updatedJson})` replaces the whole-document rebuild. Pass `ifMatch` only if runtime contract 0.2.96 exposes/accepts it on `artifact.publish`. Do not set `reloadExpected` on a files-form save (the saving view keeps running; selection and undo history survive in memory).
+- **Export > HTML file (editable) (`assets/shell/shell.js`):** fetch `app.css` and `app.js` and inline them together with the captured pristine body markup, `<script id="diagram-data">`, and optional `#diagram-theme` into `shell.html`'s `<head>`/`<body>` layout, then run `stampReadingGuide()` so the downloaded `.html` is a self-contained `--target file` page. The menu item already exists in the Export menu.
 - **View-only viewers (decided):** a viewer who cannot save (signed out, or no edit access) sees no Save button, which is expected. Do **not** add a separate "Download .html" button next to it: the normal **Export** button stays, and its menu keeps "HTML file (editable)". This also removes the extra `btn-download-html` button that `applyArtifactUi` adds today, the toasts that say "Use Download .html" (say "Use Export > HTML file"), and the two `e2e_shell.mjs` checks that look for that button. Not done yet: this plan records the decision only.
-- **Agent update (data only):** `Artifact read` with `path: "diagram.json"`, edit, publish `index.html` plus `files: {"diagram.json": ...}`. No full read, no rebuild.
-- **Agent upgrade (engine or UI):** build the new `app.js` and `app.css`, list the artifact's files (satisfies the gate), publish them. `diagram.json` is not in the call, so user edits and positions cannot change.
-- **Old single-file artifacts:** unchanged behaviour. To move one to the split layout, rebuild with `layout_engine.py --layout <saved page.html> --keep-layout --target artifact` and publish as a new artifact (the data and positions carry over), or overwrite after a full read if a person insists on the same URL.
+- **Agent update (data only, same artifact URL):**
+  1. `Artifact read` on `url` **without** `path` (returns the tiny `index.html` and satisfies the overwrite gate).
+  2. `Artifact read` on `url` with `path: "diagram.json"` (reads the latest user-saved data).
+  3. For label, text, color, or attribute edits: edit `diagram.json` in place (keeping its `layout` map) and publish to the same `url` with `file_path: <scratch-dir>/index.html` and `files: {"diagram.json": ...}`.
+  4. For structural edits (added or removed nodes, tables, actors, edges): edit `diagram.json`, run `layout_engine.py --layout <diagram.json> --target artifact -o <scratch-dir> --screenshot <scratch.png>` (computes positions and runs the audit), and publish to the same `url` with `file_path: <scratch-dir>/index.html` and `files: {"diagram.json": ...}` (never reading or re-uploading `app.css` or `app.js`).
+- **Agent upgrade (engine or UI, same artifact URL):**
+  1. `Artifact read` on `url` **without** `path` (satisfies the gate and carries any `#diagram-theme`) and `Artifact read` with `path: "diagram.json"` (for `diagramType`, `title`, and saved positions).
+  2. Run `layout_engine.py --layout <diagram.json> --keep-layout --target artifact -o <scratch-dir>` (keeping saved `x`/`y` for every diagram type, including flowcharts).
+  3. Publish to the same `url` with `file_path: <scratch-dir>/index.html` and `files: {"app.js": ..., "app.css": ...}` (omitting `diagram.json` so user data and positions cannot change).
+- **Local headless Chrome (`scripts/render_screenshot.py`, `dev/cdp.mjs`):** serve split artifact directories over a local loopback HTTP server when opening in headless Chrome, because Chromium `fetch()` rejects `file://` URLs.
+- **Old single-file artifacts:** unchanged behaviour. To move one to the split layout, rebuild with `layout_engine.py --layout <saved page.html> --keep-layout --target artifact -o <scratch-dir>` and publish as a new artifact (data and positions carry over), or overwrite after a full read if a person insists on the same URL.
 - **Backward compatibility of the data:** every release must read all earlier `schemaVersion` values and migrate on load in memory; it never rewrites what is stored until the user saves. `disk_format.py` already does this (for example ERD v1 and v2 layouts).
 
 ## Work
 
-1. Run the spike's browser checks; record the results in this file. Delete the test artifact.
-2. `scripts/layout_engine.py`: a split artifact target that writes the files above (the file target is untouched). `artifact_template` and `ARTIFACT_HEAD` stay for the legacy single-file shape until it is removed.
-3. `assets/shell/shell.js`: load `diagram.json` at boot; files-form save with `ifMatch`; `capability_disabled` shows "Saving is not available here. Use Export > HTML file"; Export > HTML file inlines the code; remove the separate Download .html button (see Design).
-4. `dev/check_artifact_shape.py` and the artifact e2e harnesses (`e2e_shell.mjs`, `e2e_sequence.mjs`, `e2e_erd_copy.mjs`): update the expected shape and the stubbed `window.claude` (files-form publish).
-5. [SKILL.md](../../SKILL.md) and [references/artifacts.md](../../references/artifacts.md): data update and upgrade procedures as above; keep the legacy fallback paragraph for old artifacts.
-6. `routeDiagram` in the use case and ERD engines: place an item that has no position on its own and keep every other position (see Resolved, Positions on agent edits), with a fixture per type.
-7. Release note: old artifacts keep working; to get the new editor, rebuild with `--keep-layout`.
+1. Run the spike's browser checks; record the results in this file (done). Delete the throwaway test artifact when implementation finishes.
+2. `scripts/layout_engine.py` and `scripts/run_engine.mjs`: add the split `--target artifact -o <dir-or-index.html>` builder that writes `index.html`, `diagram.json`, `app.css`, and `app.js` (leaving `--target file` untouched); replace `artifact_template` with the split `index.html` builder (keeping `ARTIFACT_HEAD` and `ARTIFACT_TAIL`); run `find_external_refs()` across `index.html`, `app.css`, and `app.js`; fix `--keep-layout` so flowcharts also preserve saved `x`/`y` without calling `choose_flowchart_direction` or `layoutDiagram`.
+3. `assets/shell/shell.js` (and `assets/types/erd/erd.js` calling the shell helper): detect `artifactShaped` via `document.querySelector('body > title') !== null` while capturing unrendered body markup for Export; dual-mode `loadInitialData()` (`#diagram-data` if present, else `fetch('diagram.json')`) setting both `chartTitleEl.textContent` and `document.title`; expose `loadEngineSource()` for `erd.js`'s Web Worker; files-form save (`publish({"diagram.json": updatedJson})` with `ifMatch` if supported by runtime contract 0.2.96) without setting `reloadExpected`; `capability_disabled` shows "Saving is not available here. Use Export > HTML file"; `Export > HTML file` inlines `app.css` and `app.js` with current data and `#diagram-theme` into the `--target file` shape using `stampReadingGuide()`; remove `btn-download-html`.
+4. `scripts/render_screenshot.py` and `dev/cdp.mjs`: serve split artifact directories over a local loopback HTTP server for headless Chrome.
+5. `dev/check_artifact_shape.py`, `dev/check_extract.py`, `dev/e2e_theme.mjs`, and the artifact e2e harnesses (`dev/e2e_shell.mjs`, `dev/e2e_sequence.mjs`, `dev/e2e_erd_copy.mjs`): update the expected split-file shape, theme plumbing checks, and stubbed `window.claude` (files-form publish, plus selection/undo survival across Save); remove `btn-download-html` checks.
+6. [SKILL.md](../../SKILL.md), [references/artifacts.md](../../references/artifacts.md), [docs/artifacts.md](../../docs/artifacts.md), and [dev/architecture.md](../architecture.md): document the split artifact workflow (data-only edits vs structural re-layout vs engine/UI upgrades, updating in place on the same artifact URL), keep the legacy fallback paragraph for old single-file artifacts, and update viewer/architecture docs (removing `Download .html` references).
+7. Release note: old artifacts keep working; to get the new split editor, rebuild with `--keep-layout`.
 
 ## Open questions
 
@@ -91,11 +105,6 @@ Artifact target output, instead of one page:
 ## Resolved
 
 - **Public sharing.** Tested by the owner, signed in, after setting the link to "Anyone with the link": the files-form save succeeded (618 ms, page kept running, version `1794891643-d3c4`). The platform note that the form is disabled on public artifacts did not hold for the owner. A signed-out viewer has no Save by design. So no whole-page fallback is needed for the owner; keep the `capability_disabled` message for any case where it is rejected.
-- **One more file in the gate.** The tool wants `index.html` as `file_path` on every publish. A fresh session succeeded after reading the url (page) and `diagram.json` only.
-- **Positions on agent edits.** In the split layout the agent edits `diagram.json` itself, which already holds the `layout` map, so `--extract` (which drops positions) is not part of that path and no `--with-layout` extract is needed. What matters is what the page does when it loads a diagram in which a new item has no position: today `routeDiagram` in the use case engine (`assets/types/usecase/engine.js`, the `some(!num(x.x)...)` line) and in the ERD engine (`assets/types/erd/engine.js`) call the full `layoutDiagram` as soon as one item lacks a position, which moves everything the user placed. Decision: change `routeDiagram` so that an item without a position is placed on its own and every other item stays where it is.
-  - Use case: put a new use case in its subject, next to the item it is linked to (to the right of its actor or base use case, in the column that engine already assigns), then step down to the first free row; a new actor goes on its side next to what it links to. Then route as usual.
-  - ERD: place a new table beside the table it has a foreign key to, in the first free spot (the ERD engine already has `layoutDiagram(data, { warm: true })`, which starts from current positions: use it as the starting point, or a simpler nearest-free-spot placement).
-  - Flowchart: position there depends on lanes and ranks; check whether a partial layout is needed at all before adding one. Sequence has no saved positions.
-  - Add a fixture per type: a diagram with saved positions plus one new item, asserting that every old position is unchanged and the new one does not overlap anything.
-  - The legacy single-file path (`--layout <page.html> --keep-layout`) already keeps every saved position; a new node still lays everything out until the same engine change lands, so `references/artifacts.md` should say that until then.
-- **Reload on Save.** The spike showed that the files-form save does not reload the saving view (the page kept running). Today's whole-page save does reload it, which is why the shell sets `reloadExpected`. With the files form nothing is rebuilt: a Save only calls `updateStatus` and records the new `savedJson`, so the selection and the undo history survive by construction, and the page keeps rendering from the data it holds. What to check in the build, not now: do not set `reloadExpected` on a files-form save (otherwise the "someone else saved" handling is wrong), pass `ifMatch` with the sha256 the host last reported, and add an e2e check with the stubbed `window.claude` that selects an item, makes an edit, Saves, then asserts the selection, the undo stack and the unsaved badge. A save that lands over someone else's version does reload the view (the platform's rule), which the existing `conflict` handling covers.
+- **One more file in the gate.** The tool wants `index.html` as `file_path` on every publish, and reading files by `path` or listing them does not satisfy the gate. A fresh session succeeded after reading `url` without `path` (the tiny `index.html`) and `diagram.json` by `path`.
+- **Positions on agent edits.** Keep `assets/types/<type>/engine.js` and `<type>.js` completely independent of artifact packaging: `diagram.json` already holds the `layout` map, so text, label, color, and attribute edits edit `diagram.json` directly while preserving `layout`. Structural edits (adding/removing nodes or edges) re-run `layout_engine.py --layout` and publish `index.html` plus the updated `diagram.json` without reading or re-uploading `app.css` or `app.js`. Keeping hand-dragged positions when an agent adds nodes (partial layout in `routeDiagram`) stays a separate, engine-level feature outside this plan.
+- **Reload on Save.** The spike showed that the files-form save does not reload the saving view (the page kept running). Today's whole-page save does reload it, which is why the shell sets `reloadExpected`. With the files form nothing is rebuilt: a Save only calls `updateStatus` and records the new `savedJson`, so the selection and the undo history survive by construction, and the page keeps rendering from the data it holds. What to check in the build, not now: do not set `reloadExpected` on a files-form save (otherwise the "someone else saved" handling is wrong), pass `ifMatch` if runtime contract 0.2.96 exposes/accepts it on `artifact.publish`, and add an e2e check with the stubbed `window.claude` that selects an item, makes an edit, Saves, then asserts the selection, the undo stack and the unsaved badge. A save that lands over someone else's version does reload the view (the platform's rule), which the existing `conflict` handling covers.
