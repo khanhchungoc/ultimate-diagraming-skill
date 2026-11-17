@@ -363,17 +363,10 @@ try {
   await t.mouse('mouseMoved', 6, 300);   // off every item: a hover dims too
   await sleep(80);
   t.check('Esc clears the dimming', (await dimmed()) === '');
-  // hover: only what the item connects to directly stays lit
+  // hover highlights nothing: only a click does
   const hoverOn = async (id) => { const r = await t.at(item(id), 0.5, 0.3); await t.mouse('mouseMoved', r.x, r.y); await sleep(120); return dimmed(); };
-  const hd = await hoverOn('clerk');
-  t.check('hover an actor: the use cases it connects to directly stay lit, the rest greys out',
-    ['pick', 'pack', 'clerk'].every((id) => !hd.includes(id)) && ['browse', 'checkout', 'customer', 'psp'].every((id) => hd.includes(id)), hd);
-  const hc = await hoverOn('checkout');
-  t.check('hover a use case: its actors and include / extend neighbours stay lit, not what they reach further',
-    ['checkout', 'member', 'pay', 'voucher'].every((id) => !hc.includes(id)) && ['browse', 'psp', 'clerk'].every((id) => hc.includes(id)), hc);
+  t.check('hovering an actor or a use case dims nothing', (await hoverOn('clerk')) === '' && (await hoverOn('checkout')) === '');
   await t.mouse('mouseMoved', 6, 300);
-  await sleep(80);
-  t.check('moving off clears the hover dimming', (await dimmed()) === '');
   await t.clickOn(item('member'));
   t.check('a specialised actor reaches what its parent can do too', !(await dimmed()).includes('browse') && !(await dimmed()).includes('customer'), await dimmed());
   await blank();

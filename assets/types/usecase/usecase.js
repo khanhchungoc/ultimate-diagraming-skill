@@ -29,7 +29,7 @@
       const LINK_TYPES = ['association', 'include', 'extend'];
       const KIND_ICON = { human: 'user', system: 'server', time: 'clock' };   // drawn in a round avatar
       const KIND_CAPTION = { system: '«system»', time: '«time»' };
-      const LEVELS = ['summary', 'user', 'subfunction'];
+      const LEVELS = ['user', 'subfunction'];   // a file may still carry level: summary (drawn large, bold); the bar no longer offers it
       const LEVEL_NAME = { summary: 'Summary', user: 'Goal', subfunction: 'Sub' };
       const SIZE = { actor: [104, 104], tile: [104, 120], useCase: [150, 60], subject: [280, 180] };   // a ghost's and a new item's first size
 
@@ -187,6 +187,12 @@
         }
         title.appendChild(htmlEl('span', 'uc-subject-name t-title', nameOf(s) || (real ? '' : 'System')));
         el.appendChild(title);
+        if (real && s.collapsed !== true) {
+          const grip = htmlEl('div', 'uc-subject-resize');
+          grip.dataset.exportSkip = '';
+          grip.title = 'Drag to resize the frame';
+          el.appendChild(grip);
+        }
         els.subjects.set(s.id, el);
         return el;
       }
@@ -224,7 +230,7 @@
         el.appendChild(avatar(a.kind, a._figW));
         el.appendChild(htmlEl('span', `uc-actor-name t-label${a.abstract ? ' is-abstract' : ''}`, nameOf(a)));
         if (isTile(a)) el.appendChild(htmlEl('span', 'uc-kw t-caption', KIND_CAPTION[a.kind]));
-        addItemChrome(el, a, a._side === 'right');
+        addItemChrome(el, a);
         return el;
       }
 
@@ -260,30 +266,31 @@
           u.refs.forEach((r) => refs.appendChild(htmlEl('span', 'uc-ref t-caption', String(r))));
           el.appendChild(refs);
         }
-        addItemChrome(el, u, false);
+        addItemChrome(el, u);
         return el;
       }
 
       // Connect port, note badge or + chip
-      function addItemChrome(el, o, leftPort) {
+      function addItemChrome(el, o) {
         if (!presenting()) {
-          const port = htmlEl('span', `uc-port${leftPort ? ' is-left' : ''}`);
-          port.dataset.exportSkip = '';
-          port.dataset.touchDrag = '';
-          port.title = 'Drag to another item to connect them (blank space inside a subject draws out a new use case)';
-          if (o._figW && typeof o.w === 'number') {   // an actor: the port sits on the avatar's rim, level with its centre
-            const off = px((o.w - o._figW) / 2);
-            port.style.top = px(o._figH / 2);
-            if (leftPort) port.style.left = `calc(${off} - 7px)`; else port.style.right = `calc(${off} - 7px)`;
-          }
-          el.appendChild(port);
+          [false, true].forEach((leftPort) => {   // an anchor on each side
+            const port = htmlEl('span', `uc-port${leftPort ? ' is-left' : ''}`);
+            port.dataset.exportSkip = '';
+            port.dataset.touchDrag = '';
+            port.title = 'Drag to another item to connect them (blank space inside a subject draws out a new use case)';
+            if (o._figW && typeof o.w === 'number') {   // an actor: the port sits on the avatar's rim, level with its centre
+              const off = px((o.w - o._figW) / 2);
+              port.style.top = px(o._figH / 2);
+              if (leftPort) port.style.left = `calc(${off} - 7px)`; else port.style.right = `calc(${off} - 7px)`;
+            }
+            el.appendChild(port);
+          });
         }
         const badge = buildNoteBadge(o);
         if (badge) el.appendChild(badge);
         el.addEventListener('pointerenter', (ev) => {
           if (ev.pointerType === 'touch' || drag) return;
           if (notesOfItem(o.id).length) peekSoon(o.id, 100);
-          hoverItemId = o.id; applyFocus();
         });
         el.addEventListener('pointerleave', () => {
           if (peekId === o.id) unpeekSoon(o.id);
@@ -332,8 +339,7 @@
           const line = svgEl('path', { class: 'edge-line', d });
           setMarkers(line, l.type === 'association' ? (l.navigable === true ? 'open' : null) : 'open');
           g.append(tip, svgEl('path', { class: 'edge-hit', d }), line);
-          g.addEventListener('pointerenter', (ev) => { if (ev.pointerType === 'touch' || drag) return; hoverLinkId = l.id; applyLinkState(); });
-          g.addEventListener('pointerleave', () => { if (hoverLinkId === l.id) hoverLinkId = null; applyLinkState(); });
+                    g.addEventListener('pointerleave', () => { if (hoverLinkId === l.id) hoverLinkId = null; applyLinkState(); });
           g.addEventListener('pointerdown', (ev) => { if (ev.button === 0 && !presenting()) { ev.stopPropagation(); selectOther('link', l.id); } });
           g.addEventListener('dblclick', (ev) => { ev.stopPropagation(); editLinkCondition(l.id); });
           linksG.appendChild(g);
@@ -361,7 +367,6 @@
           el.title = linkTitle(l) + (l.extensionPoint ? ` at ${l.extensionPoint}` : '');
           el.appendChild(htmlEl('span', 'uc-label-text', `«${l.type}»`));
           if (l.type === 'extend' && l.condition) el.appendChild(htmlEl('span', 'uc-cond', `[${l.condition}]`));
-          el.addEventListener('pointerenter', (ev) => { if (ev.pointerType !== 'touch' && !drag) { hoverLinkId = l.id; applyLinkState(); } });
           el.addEventListener('pointerleave', () => { if (hoverLinkId === l.id) hoverLinkId = null; applyLinkState(); });
           el.addEventListener('pointerdown', (ev) => { if (ev.button === 0 && !presenting()) { ev.stopPropagation(); selectOther('link', l.id); } });
           el.addEventListener('dblclick', (ev) => { ev.stopPropagation(); editLinkCondition(l.id); });
@@ -958,6 +963,8 @@
         }
         if (t.closest('.uc-actionbar, .confirm, .frame-chev, .note-badge, .note-add, .note-del, .note-link, .note')) return;
         closeMenu();
+        const grip = t.closest('.uc-subject-resize');
+        if (grip) { e.preventDefault(); beginDrag(e, resizeDrag(grip.parentNode.dataset.subjectId)); return; }
         const title = t.closest('.uc-subject-title');
         if (title) {
           const id = title.parentNode.dataset.subjectId;
@@ -982,11 +989,54 @@
       }
       html.addEventListener('pointerdown', onPointerDown);
 
+      // Live routing while dragging: lines, labels and frames follow the pointer. The positions are put back when the
+      // drag ends (cleanup), so drop() starts from the untouched ones.
+      function liveDrag(d, apply) {
+        if (!d.snap) d.snap = [chartData.actors || [], chartData.useCases || [], realSubjects()].map((l) => l.map((o) => Object.assign({}, o)));
+        if (d.raf) return;
+        d.raf = requestAnimationFrame(() => {
+          d.raf = 0;
+          apply();
+          routeDiagram(chartData);
+          linksG.textContent = '';
+          html.querySelectorAll('.uc-label').forEach((el) => el.remove());
+          els.links = new Map(); els.parents = [];
+          renderLinks(); renderLabels();
+          allSubjects().forEach((s) => { const el = els.subjects.get(s.id); if (el && typeof s.x === 'number') Object.assign(el.style, { left: px(s.x), top: px(s.y), width: px(s.w), height: px(s.h) }); });
+          const C = chartData.canvas;
+          if (C) { canvas.style.width = px(C.width); canvas.style.height = px(C.height); svg.setAttribute('width', C.width); svg.setAttribute('height', C.height); }
+          applySelection();
+        });
+      }
+      function liveEnd(d) {
+        if (d.raf) cancelAnimationFrame(d.raf);
+        if (!d.snap) return;
+        [chartData.actors || [], chartData.useCases || [], realSubjects()].forEach((l, i) => l.forEach((o, k) => { if (d.snap[i][k]) { for (const key of ['x', 'y', 'fw', 'fh']) { if (key in d.snap[i][k]) o[key] = d.snap[i][k][key]; else delete o[key]; } } }));
+      }
+
+      // --- Resize a subject frame from its bottom-right corner (saved as fw / fh, a minimum size) ---
+      function resizeDrag(id) {
+        const s = subjectOf(id), w0 = s.w, h0 = s.h;
+        return {
+          click: () => selectOther('subject', id),
+          move(e, d) { liveDrag(d, () => { s.fw = Math.max(1, Math.round(w0 + d.dx)); s.fh = Math.max(1, Math.round(h0 + d.dy)); }); },
+          drop(e, d) {
+            s.fw = Math.max(1, Math.round(w0 + d.dx)); s.fh = Math.max(1, Math.round(h0 + d.dy));
+            routeDiagram(chartData);
+            actors().forEach(keepOutside);
+            commit(false);
+          },
+          cleanup() { liveEnd(this); }
+        };
+      }
+
       // --- Move actors and use cases (one or the whole selection) ---
       function itemDrag(ids) {
         const targetSubjects = allSubjects();
         return {
+          cleanup() { liveEnd(this); },
           move(e, d) {
+            liveDrag(d, () => ids.forEach((id) => { const o = itemOf(id), i = (d.snap[0].concat(d.snap[1])).find((x) => x.id === id); if (o && i && placed(o)) { o.x = i.x + d.dx; o.y = i.y + d.dy; } }));
             ids.forEach((id) => { const el = els.items.get(id); if (el) { el.classList.add('is-dragging'); el.style.translate = `${d.dx}px ${d.dy}px`; } });
             canvas.querySelectorAll('.drop-target').forEach((el) => el.classList.remove('drop-target'));
             if (ids.some((id) => kindOf(id) === 'case') && realSubjects().length) {
@@ -1004,6 +1054,20 @@
               o.x += dx; o.y += dy;
               if (s && kindOf(id) === 'case' && caseSubjectId(o) !== s.id) { o.subject = s.id; moved = true; }
             });
+            // an actor dropped across the middle of the boundaries changes side (its root's `side`, which the layout follows)
+            const boxes = allSubjects().filter((x) => typeof x.x === 'number');
+            if (boxes.length) {
+              const mid = boxes.reduce((n, x) => n + x.x + x.w / 2, 0) / boxes.length;
+              ids.forEach((id) => {
+                const a = actorOf(id);
+                if (!a) return;
+                const side = a.x + a.w / 2 < mid ? 'left' : 'right';
+                if (side === a._side) return;
+                let r = a;
+                for (let n = 0; r.parent && actorOf(r.parent) && n < 50; n++) r = actorOf(r.parent);
+                r.side = side; a._side = side; moved = true;
+              });
+            }
             ids.forEach((id) => { const a = actorOf(id); if (a) keepOutside(a); });
             void targetSubjects;
             commit(moved);
@@ -1258,13 +1322,6 @@
         hint(made ? `${esc(nameOf(actorOf(actor)))} connected to ${made} use case${made === 1 ? '' : 's'}` : 'Already connected to all of them');
         if (made) commit(true);
       }
-      function setParent(id, parentId) {
-        const o = itemOf(id);
-        if (!o) return;
-        if (parentId) { if (wouldCycle(id, parentId)) { hint('That would make it a kind of itself'); return; } o.parent = parentId; } else delete o.parent;
-        commit(true);
-      }
-
       // --- Line edits ---
       const isCaseCase = (l) => !!caseOf(l.from) && !!caseOf(l.to);
       function setLinkType(l, type) {
@@ -1349,6 +1406,9 @@
         else if (selIds.length === 1) at = itemBar(bar, itemOf(selIds[0]));
         if (!at) return;
         html.appendChild(bar);
+        // wrapped rows: the bar is as wide as its widest row, not the 340px wrap limit (no empty side padding)
+        const kids = [...bar.children].filter((k) => !k.classList.contains('uc-ab-break'));
+        if (kids.length) bar.style.maxWidth = `${Math.ceil(Math.max(...kids.map((k) => k.offsetLeft + k.offsetWidth)) - Math.min(...kids.map((k) => k.offsetLeft)) + 8)}px`;
         const C = chartData.canvas || { width: 1e9, height: 1e9 }, w = bar.offsetWidth;
         const below = at.y < 110;
         bar.classList.toggle('is-below', below);
@@ -1368,11 +1428,7 @@
           LEVELS.forEach((lv) => bar.appendChild(abButton('level', `<span>${LEVEL_NAME[lv]}</span>`, `Level: ${lv === 'user' ? 'user goal' : lv}`, (o.level || 'user') === lv, lv)));
         }
         bar.appendChild(abSep());
-        bar.appendChild(abButton('abstract', '<span><i>A</i></span>', 'Abstract: the name is shown in italics', o.abstract === true));
         if (!isActor) bar.appendChild(abButton('point', `${ui.icon('plus', { size: 'sm' })}<span>Point</span>`, 'Add an extension point'));
-        const b = abButton('parent', `<span>Kind of</span>${ui.icon('chevron-down', { size: 'xs', bold: true })}`, 'Make this a specialisation of another (generalization)');
-        b.dataset.menu = '';
-        bar.appendChild(b);
         bar.appendChild(abButton('note', ui.icon('note'), 'Add a note (N)'));
         bar.appendChild(abButton('delete', ui.icon('trash'), 'Delete (and its lines)', undefined, undefined, 'is-danger'));
         bar.appendChild(abBreak());
@@ -1499,15 +1555,9 @@
         if (!o) return;
         if (act === 'kind') { if (value === 'human') delete o.kind; else o.kind = value; commit(false); }
         else if (act === 'level') { if (value === 'user') delete o.level; else o.level = value; commit(false); }
-        else if (act === 'abstract') { if (o.abstract === true) delete o.abstract; else o.abstract = true; commit(false); }
         else if (act === 'point') { addPoint(o); commit(false); const eps = els.items.get(o.id).querySelectorAll('.uc-ep'); editPoint(o.id, eps.length - 1); }
         else if (act === 'note') addNoteTo(o.id);
         else if (act === 'delete') deleteSelection(btn);
-        else if (act === 'parent') {
-          const list = actorOf(o.id) ? actors() : cases();
-          const pick = list.filter((x) => x.id !== o.id && !wouldCycle(x.id, o.id)).map((x) => ({ label: nameOf(x), value: x.id, selected: o.parent === x.id }));
-          openMenu(btn, 'Is a kind of', [{ label: '(none)', value: '' }, ...pick], (v) => setParent(o.id, v));
-        }
       }
 
       // --- INLINE TEXT EDITING (double-click, Enter / F2, or straight after creating something) ---
