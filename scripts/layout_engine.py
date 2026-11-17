@@ -1517,6 +1517,50 @@ def add_connector_pairs(data: Dict[str, Any], laid: Dict[str, Any], long_arrows:
     return out, info
 
 
+def order_flowchart_lanes(data: Dict[str, Any], timeout: int, browser: Optional[str],
+                          tokens: Optional[Dict[str, Any]] = None) -> Tuple[Dict[str, Any], str]:
+    """Order swimlanes by each lane's first step on the flow (flowchart rule: lane order follows the flow); return
+    (data, INFO note, empty when nothing changed). Lanes the walk never reaches keep their relative order after the
+    others. Kept as the user wrote it: "laneOrder": "fixed", no swimlanes, two lanes or fewer, phase lanes (every
+    non-feedback edge goes to the same or a later lane, or the names read Step/Phase/Stage). The reordered layout is
+    only used when its audit shows no more long arrows plus crossings than the user's order (two layouts, ~0.4 s)."""
+    lanes, nodes = data.get("lanes") or [], data.get("nodes") or []
+    if data.get("laneOrder") == "fixed" or data.get("swimlanes") is False or len(lanes) <= 2:
+        return data, ""
+    rank = {lane["id"]: i for i, lane in enumerate(lanes)}
+    lane_of = {n["id"]: n.get("laneId") for n in nodes}
+    edges = [e for e in data.get("edges") or [] if not e.get("feedback") and e.get("from") in lane_of and e.get("to") in lane_of]
+    if all(rank.get(lane_of[e["from"]], 0) <= rank.get(lane_of[e["to"]], 0) for e in edges) or \
+            all(re.match(r"(step|phase|stage)\b", str(lane.get("name", "")), re.I) for lane in lanes):
+        return data, ""
+    out: Dict[str, List[str]] = {}
+    for e in edges:
+        out.setdefault(e["from"], []).append(e["to"])
+    seen: List[str] = []
+    queue = [n["id"] for n in nodes if n.get("type") == "start"] or [nodes[0]["id"]]
+    for nid in queue:  # breadth first: the queue grows as nodes are visited
+        if nid not in seen:
+            seen.append(nid)
+            queue.extend(out.get(nid, []))
+    first: List[str] = []
+    for nid in seen:
+        if lane_of[nid] in rank and lane_of[nid] not in first:
+            first.append(lane_of[nid])
+    order = first + [lane["id"] for lane in lanes if lane["id"] not in first]
+    if order == [lane["id"] for lane in lanes]:
+        return data, ""
+    by_id = {lane["id"]: lane for lane in lanes}
+    new = {**data, "lanes": [by_id[i] for i in order]}
+
+    def cost(d: Dict[str, Any]) -> int:
+        report = make_audit(run_layout("flowchart", {"direction": "LR", **d}, timeout=timeout, browser=browser, tokens=tokens), tokens).verify_collisions()
+        return report["long_arrows_count"] + report["edge_crossings"]
+
+    if cost(new) > cost(data):
+        return data, ""
+    return new, f"Lane order: {', '.join(by_id[i].get('name', i) for i in order)} (by first step on the flow; set \"laneOrder\": \"fixed\" to keep yours)."
+
+
 def main():
     _ensure_utf8_output()
     parser = argparse.ArgumentParser(description="Multi-Swimlane Flowchart Layout & Verification Engine")
@@ -1631,6 +1675,10 @@ def main():
         data = normalize_diagram_type(data)
         direction_note = ""
         try:
+            if not args.keep_layout and data["diagramType"] == "flowchart":
+                data, lane_note = order_flowchart_lanes(data, args.timeout, args.browser, tokens)
+                if lane_note:
+                    print(f"[INFO] {lane_note}")
             if not args.keep_layout and data["diagramType"] == "flowchart" and "direction" not in data:
                 laid_out_data, direction_note = choose_flowchart_direction(data, args.timeout, args.browser, tokens)
             else:
