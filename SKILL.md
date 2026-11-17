@@ -37,7 +37,7 @@ Every diagram JSON has a top-level `"diagramType"` (missing means `flowchart`).
 | `erd` | Database schema: tables, columns, keys and relationships (crow's-foot), tables colour-coded by domain | [references/types/erd.md](references/types/erd.md) |
 | `usecase` | UML use case diagram: who (actors) wants what (use cases) from which system (subject boundary), with include, extend and generalization; use cases coloured by feature area | [references/types/usecase.md](references/types/usecase.md) |
 
-`state` is planned, not supported: say so; do not force it into a flowchart. The type reference owns the schema, writing rules and visual checklist, and names the one example to copy.
+`state` is planned, not supported: say so; do not force it into a flowchart. The type reference owns the schema and writing rules, and names the one example to copy.
 
 ---
 
@@ -47,28 +47,23 @@ Make exactly these calls. The type reference, the example it names and the comma
 
 1. **Read** the type reference, then the one example it names (at the path it gives). Decide the structure once from the type reference.
    - **Trace the requirements** before writing, following the type reference's structure (for processes: *clause → actor → step, decision, outcome or detail*, splitting clauses joined by "and" such as `3 quotes AND budget approval` into two steps). Map every business rule, threshold, SLA or approval authority to a note. When sources disagree on an actor, order or figure, follow the more detailed source (step text over a summary table) and record the conflict for the report.
-2. **Write the JSON once** to scratch with your file-write tool. Fit every label to the character budget before the first run. No pixel coordinates, no `python -c`, no helper `.py` scripts. Include every step the user's scope asks for.
+2. **Write the JSON once** to scratch with your file-write tool. Keep every label within the type reference's length limit before the first run. No pixel coordinates, no `python -c`, no helper `.py` scripts. Include every step the user's scope asks for.
 3. **Run one command**, writing the HTML straight to the target path (needs Chrome, Chromium or Edge; Node.js makes layout faster; `--browser <path>` selects a browser):
    ```shell
    python "<skill-dir>/scripts/layout_engine.py" --layout <scratch.json> -o <target.html> --screenshot <scratch.png>
    ```
-4. **Read the output**, last line first. Fix each line it names with a targeted edit to that node, edge or label; never rewrite or redesign the JSON.
+4. **Read the output**, last line first. You fix data only: layout is the engine's job.
 
    | Output | Action |
    |---|---|
-   | `[DONE]` | Go to step 5. |
-   | `[INFO]` | None. Small text in a diagram over 12 nodes or participants is expected (pan and zoom). |
-   | `[WARN]` truncated text (`...`) | Shorten that label to the budget, re-run step 3. |
-   | Any other `[WARN]` | Fix what it names (the type reference has the rule), re-run step 3. |
-   | `[FAIL]` score below 90 | Fix the listed issues. Never merge, drop or reroute steps, branches or end states to raise the score: if the complete diagram cannot pass, keep it complete and report the score. |
-   | `[ERROR]` overlap (exit 3) | Fix the overlapping edge or message label, re-run step 3. |
-   | `[ERROR]` text size (exit 4, 12 nodes, participants, tables, or actors+use-cases or fewer) | Shorten labels or split the diagram (the type reference may name other fixes), re-run step 3. |
-   | `[ERROR] Layout needs Node.js ... or Chrome` | Stop. Report it; never hand-place coordinates. |
-   | `[WARN] Layout report unavailable` | Do the overlap check by eye and say so in the report. |
-   | Render failed | Retry once with `--browser <chrome path>`. If no browser works, report that the visual review could not run. |
+   | `[DONE]` | Final. Go to step 5. |
+   | `[NEXT]` | Fix each `[WARN]` line with a targeted edit to the node, edge, lane or label it names (the type reference has the rule), re-run step 3. Never rewrite or redesign the JSON; never merge, drop or reroute steps to quiet a line. |
+   | `[INFO]` | Nothing to fix. Report the `Layout:` lines (overlaps, small text, long arrows, score), `Lane order` and `Added connector pair`. Do not change the JSON for them. |
+   | `[PASS]` | Nothing to fix. A trailing `(audit score N ...)` is for the report only. |
+   | `[ERROR] Layout needs Node.js ... or Chrome`, or render failed | Render failed: retry once with `--browser <chrome path>`. Otherwise stop and report it; never hand-place coordinates. |
 
-5. **View the PNG once** and go through the type's visual checklist. Re-run step 3 only for a failed checklist item.
-6. **Stop.** A clean run is final: do not re-word labels, re-run or re-render. Delete the scratch JSON and PNG (keep the scratch artifact folder when publishing an artifact, see Artifact output), then report.
+5. **Do not view the PNG** (it only feeds the label checks) and do not re-word labels, re-run or re-render for an `[INFO]` line.
+6. **Stop.** `[DONE]` is final. Delete the scratch JSON and PNG (keep the scratch artifact folder when publishing an artifact, see Artifact output), then report.
 
 ## Local HTML file: create, read, update, delete
 
@@ -126,4 +121,5 @@ About 5 lines: the file, and anything that needs the user's action. Not a log of
 
 - the output path (for an artifact: its link, and that it is private until the user shares it from claude.ai) and a concise description (type, and main actors, participants or tables);
 - assumptions: anything you added or reordered that the source did not state, and each conflict between sources with the version you followed;
-- problems only: score if below 100, any `[WARN]` left, labels shortened from the user's wording, a split diagram and why, what a re-layout reset (updates), an overlap check done by eye.
+- problems only: any `[WARN]` left, labels shortened from the user's wording, a split diagram and why, what a re-layout reset (updates);
+- the `[INFO]` lines, as given: `Layout:` findings, `Lane order`, each `Added connector pair`.

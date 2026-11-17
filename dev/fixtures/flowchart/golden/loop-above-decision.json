@@ -6,25 +6,25 @@
       "id": "lane-step1",
       "name": "Step 1: Request",
       "icon": "clipboard",
-      "height": 176
+      "height": 192
     },
     {
       "id": "lane-step2",
       "name": "Step 2: Document Review",
       "icon": "check",
-      "height": 176
+      "height": 192
     },
     {
       "id": "lane-step3",
       "name": "Step 3: Risk Assessment",
       "icon": "shield",
-      "height": 176
+      "height": 192
     },
     {
       "id": "lane-step4",
       "name": "Step 4: Activation",
       "icon": "flag",
-      "height": 176
+      "height": 192
     }
   ],
   "nodes": [
@@ -34,7 +34,7 @@
       "type": "start",
       "label": "Request New Supplier",
       "x": 56,
-      "y": 80
+      "y": 88
     },
     {
       "id": "n2",
@@ -42,7 +42,7 @@
       "type": "task",
       "label": "Complete Supplier Form",
       "x": 256,
-      "y": 80
+      "y": 88
     },
     {
       "id": "n3",
@@ -50,7 +50,7 @@
       "type": "task",
       "label": "Check Documents",
       "x": 456,
-      "y": 80
+      "y": 88
     },
     {
       "id": "n4",
@@ -66,7 +66,7 @@
       "type": "task",
       "label": "Run Risk Assessment",
       "x": 656,
-      "y": 56
+      "y": 64
     },
     {
       "id": "n6",
@@ -82,7 +82,7 @@
       "type": "end",
       "label": "Supplier Rejected",
       "x": 1066.8,
-      "y": 56
+      "y": 64
     },
     {
       "id": "n8",
@@ -90,7 +90,7 @@
       "type": "task",
       "label": "Create Supplier Record",
       "x": 856,
-      "y": 56
+      "y": 64
     },
     {
       "id": "n9",
@@ -98,7 +98,7 @@
       "type": "end",
       "label": "Supplier Active",
       "x": 1066.8,
-      "y": 56
+      "y": 64
     }
   ],
   "edges": [

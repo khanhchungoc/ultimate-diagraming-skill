@@ -80,7 +80,7 @@ class ErdAudit:
         self.notes: List[Dict[str, Any]] = data.get("notes") or []
 
     def pass_line(self, report: Dict[str, Any]) -> str:
-        return f"[PASS] Quality Score: {report['score']}/100 ({report['grade']}). No overlap, route or label-fit problems."
+        return "[PASS] Layout clean." + (f" (audit score {report['score']}, for the report only; do not try to raise it)" if report["score"] < 100 else "")
 
     # --- helpers -------------------------------------------------------------------------------------------------
 
@@ -173,6 +173,7 @@ class ErdAudit:
                 dangling += 1
                 errors.append(f"Note '{n.get('id')}' names unknown column '{col}' in '{first}'.")
 
+        data_issues = list(errors)  # what the author wrote wrong; the rest is geometry (the engine's job)
         # Geometry (only meaningful once laid out).
         laid_out = all(_is_box(e.get("box")) for e in es) and all(isinstance(r.get("points"), list) and len(r["points"]) >= 2 for r in rs)
         overlaps = overflows = 0
@@ -277,7 +278,7 @@ class ErdAudit:
         score = max(0, 100 - ERROR_PENALTY * len(errors))
         grade = "A+" if score >= 98 else "A" if score >= 90 else "B" if score >= 80 else "C" if score >= 60 else "F"
         return {
-            "passed": score >= 90 and not errors, "score": score, "grade": grade, "issues": errors,
+            "passed": score >= 90 and not errors, "score": score, "grade": grade, "issues": errors, "data_issues": data_issues,
             "entity_count": len(es), "relationship_count": len(rs), "note_count": len(ns),
             "overlaps_count": overlaps, "overflows_count": overflows, "dangling_count": dangling,
             "crossings_count": crossings, "length": length, "info": info, "budget_warnings": budget,

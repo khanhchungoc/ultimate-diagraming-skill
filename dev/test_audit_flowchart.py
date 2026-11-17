@@ -73,16 +73,12 @@ def main() -> int:
     check("round-trip clean return leg >= 6 cols is flagged when partner crosses",
           ids3 == {"e_fwd", "e_back"}, str(ids3))
 
-    # 4. pass_line separates crossings (score only) from long arrows (fix [WARN] above)
-    p_cross = a1.pass_line({"score": 96, "grade": "A+", "collinear_pct": 100.0,
-                            "edge_crossings": 2, "long_arrows_count": 0})
-    p_long = a1.pass_line({"score": 85, "grade": "B", "collinear_pct": 100.0,
-                           "edge_crossings": 2, "long_arrows_count": 1})
-    check("pass_line marks crossings as score only and long arrows as fix [WARN] above",
-          "(score only, not a defect)" in p_cross
-          and "long arrows" not in p_cross
-          and "1 long arrows (fix [WARN] above)" in p_long,
-          f"p_cross={p_cross!r} p_long={p_long!r}")
+    # 4. pass_line shows no grade; a score below 100 only as a report note
+    p_100 = a1.pass_line({"score": 100, "grade": "A+"})
+    p_85 = a1.pass_line({"score": 85, "grade": "B"})
+    check("pass_line has no grade and notes a score below 100 for the report only",
+          p_100 == "[PASS] Layout clean." and "audit score 85" in p_85 and "B" not in p_85.replace("PASS", ""),
+          f"p_100={p_100!r} p_85={p_85!r}")
 
     print(f"{4 - failed}/4 cases passed")
     return 2 if failed else 0

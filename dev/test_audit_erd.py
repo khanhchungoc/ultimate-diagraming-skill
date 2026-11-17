@@ -216,7 +216,7 @@ def main() -> int:
     report = audit_obj.verify_collisions()
     keys = {"passed", "score", "grade", "issues", "budget_warnings"}
     ok = keys <= set(report) and report["passed"] and report["score"] == 100 and report["grade"] == "A+" \
-        and audit_obj.pass_line(report).startswith("[PASS] Quality Score: 100/100") and ErdAudit.title == "ER Diagram" \
+        and audit_obj.pass_line(report).startswith("[PASS] Layout clean.") and ErdAudit.title == "ER Diagram" \
         and audit_obj.summary_lines(report)[0].startswith("Structure: 2 Tables | 1 Relationships")
     failed += not ok
     print(f"[{'PASS' if ok else 'FAIL'}] report shape, pass line and summary - {report}")

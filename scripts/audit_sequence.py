@@ -128,7 +128,7 @@ class SequenceAudit:
         return errors
 
     def pass_line(self, report: Dict[str, Any]) -> str:
-        return f"[PASS] Quality Score: {report['score']}/100 ({report['grade']}). No spacing, label-fit or bounds problems."
+        return "[PASS] Layout clean." + (f" (audit score {report['score']}, for the report only; do not try to raise it)" if report["score"] < 100 else "")
 
     def __init__(self, data: Dict[str, Any], metrics: Optional[Dict[str, float]] = None):
         self.data = data
@@ -242,6 +242,7 @@ class SequenceAudit:
                 if o is not f and (oa < a <= ob < b or a < oa <= b < ob):
                     errors.append(f"Collapsed fragment '{f['id']}' partly overlaps fragment '{o['id']}': half a frame cannot be hidden.")
 
+        data_issues = list(errors)  # what the author wrote wrong; the rest is geometry (the engine's job)
         # Geometry (only meaningful once laid out).
         laid_out = all(isinstance(p.get("x"), (int, float)) for p in ps) and all(isinstance(m.get("y"), (int, float)) for m in ms)
         overlaps = overflows = 0
@@ -326,7 +327,7 @@ class SequenceAudit:
         score = max(0, 100 - ERROR_PENALTY * len(errors))
         grade = "A+" if score >= 98 else "A" if score >= 90 else "B" if score >= 80 else "C" if score >= 60 else "F"
         return {
-            "passed": score >= 90 and not errors, "score": score, "grade": grade, "issues": errors,
+            "passed": score >= 90 and not errors, "score": score, "grade": grade, "issues": errors, "data_issues": data_issues,
             "participant_count": len(ps), "message_count": len(ms), "fragment_count": len(fs), "note_count": len(ns),
             "overlaps_count": overlaps, "overflows_count": overflows, "dangling_count": dangling,
             "budget_warnings": budget,

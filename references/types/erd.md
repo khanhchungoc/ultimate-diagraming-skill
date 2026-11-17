@@ -100,19 +100,6 @@ Colour is what shows the reader which tables belong together; there are no boxes
 
 The layout counts same-coloured tables as slightly closer, so a domain tends to form a cluster. The audit warns when a schema has more than 8 tables and none has a colour.
 
-## Visual review checklist
-
-The audit covers references, box overlap, curves through tables and label overlap; the layout report covers text overflow. Check by eye on the screenshot:
-
-1. **Crow's feet** sit on the right ends: the many side (three prongs) at the child that holds the key, the single bar or the circle at the parent.
-2. **Lines attach to the sides** of the tables, as smooth curves that leave each side at a right angle; hovering a table highlights the matching FK and key rows.
-3. **Solid and dashed lines**: solid only where the FK is part of the child's primary key.
-4. **Hub tables** (the most referenced) sit in the middle, with the tables that reference them around them on several sides.
-5. **Colours** match the domains, the legend names each one, and isolated tables are neutral.
-6. **Key glyphs and flags**: PK and FK icons on the right rows, `?` after a nullable type, a `U` chip on unique columns.
-7. **Labels** are readable, short and not hiding a table or another label; curves do not run through tables.
-8. **Text** in table names, column names and types is not cut off.
-
 ## Failure handling
 
 - **Unknown references** (`from unknown entity`, `to unknown entity`, `is attached to unknown entity`, `names unknown column`): fix the id in `from`, `to` or the note's `entities`, or the note's `column`.
@@ -121,8 +108,6 @@ The audit covers references, box overlap, curves through tables and label overla
 - **`unknown fromEnd` / `unknown toEnd`**: use `one`, `zeroOrOne`, `oneOrMany` or `zeroOrMany`.
 - **`Duplicate entity id` / `Duplicate column` / `Duplicate relationship id`**: ids are unique, and column names are unique within a table.
 - **`unknown color`**: a table colour must be a palette slot, `"1"` to `"8"`. (A custom hex still loads, drawn as is, and the audit warns that its contrast is not checked; do not write one.)
-- **`Entities ... overlap`, `passes through entity`, `Labels ... overlap`, `sits over entity`, `extends past the diagram edge`**: layout problems; re-run `--layout` (never edit positions or curves by hand). If it persists, shorten the label.
-- **One `passes through entity` on a schema of more than 10 tables**: expected now and then. The layout uses a lighter search above 10 tables to stay fast, so re-running gives the same result. Accept it, or reorder `entities`, or split the schema by domain.
 - **`N tables and none has a 'color'`** (warning): colour the tables by domain, see Colour.
 - **`Diagram is not laid out`**: run `--layout`.
 - **`marked fk but no relationship uses it`** (warning): add the relationship, or drop `fk`.

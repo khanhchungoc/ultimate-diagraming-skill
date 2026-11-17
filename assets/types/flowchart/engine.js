@@ -8,13 +8,13 @@
       // the lane its screen width. NODE_W/NODE_H/DEC_H are a node's extent along/across the flow.
       const LE_PROFILES = {
         LR: {
-          COL_WIDTH: 200, TIGHT_STEP: 144, START_X: 56, ROW_HEIGHT: 104,
-          NODE_W: 144, MIN_GAP: 32, LABEL_MAX_W: 140, LABEL_STUB: 16, NODE_H: 64, DEC_H: 80, LANE_MIN: 176, TOP_PAD: 36, BOTTOM_PAD: 36, NEAR_MIN: 24, LOOP_ROOM: 72, LOOP_STEP: 16,
+          COL_WIDTH: 200, TIGHT_STEP: 144, START_X: 56, ROW_HEIGHT: 120,
+          NODE_W: 144, MIN_GAP: 32, LABEL_MAX_W: 140, LABEL_STUB: 16, NODE_H: 64, DEC_H: 96, LANE_MIN: 192, TOP_PAD: 36, BOTTOM_PAD: 36, NEAR_MIN: 24, LOOP_ROOM: 72, LOOP_STEP: 16,
           LABEL_ACROSS: false
         },
         TB: {
-          COL_WIDTH: 136, TIGHT_STEP: 80, START_X: 56, ROW_HEIGHT: 184,
-          NODE_W: 80, MIN_GAP: 32, LABEL_MAX_W: 140, LABEL_STUB: 16, NODE_H: 144, DEC_H: 144, LANE_MIN: 240, TOP_PAD: 32, BOTTOM_PAD: 32, NEAR_MIN: 24, LOOP_ROOM: 72, LOOP_STEP: 16,
+          COL_WIDTH: 136, TIGHT_STEP: 96, START_X: 56, ROW_HEIGHT: 184,
+          NODE_W: 96, MIN_GAP: 32, LABEL_MAX_W: 140, LABEL_STUB: 16, NODE_H: 144, DEC_H: 144, LANE_MIN: 240, TOP_PAD: 32, BOTTOM_PAD: 32, NEAR_MIN: 24, LOOP_ROOM: 72, LOOP_STEP: 16,
           LABEL_ACROSS: true   // an arrow label sits across a vertical arrow, so it needs its height, not its width, of room
         }
       };
@@ -982,6 +982,9 @@
           const across = lm > ln ? 'far' : 'near';
           if (ln === lm) return (m.x > n.x + 1) === out ? (out ? 'after' : 'before') : 'far';
           if (Math.abs(m.x - n.x) < 30) return across;
+          // An arrow arriving from a step in another lane whose end is well past that step's edge runs along the
+          // source row and enters across, facing the source's lane (the router's one-bend entry)
+          if (!out && n.x > m.x + LE.NODE_W + 24) return across;
           return out ? (m.x > n.x ? 'after' : across) : (m.x < n.x ? 'before' : across);
         };
         const used = {};
@@ -1014,6 +1017,14 @@
           const lines = Math.ceil((t.length * FONT_M.edgeWrap + 18) / LE.LABEL_MAX_W);
           const vertical = alongFlow ? LE.LABEL_ACROSS : !LE.LABEL_ACROSS;
           return (vertical ? 24 + 15 * (Math.min(lines, 3) - 1) : w) + 2 * (compact ? CONN.LABEL_PAD_TIGHT : CONN.LABEL_PAD);
+        };
+        // Across-the-flow distance between a step's edge and a corner circle: the label sits centred on the stub's
+        // leg, so its half extent across the flow (its width in TB, its height in LR) must clear the step
+        const cornerGap = (s) => {
+          const t = String(s.stub.label || '').trim();
+          if (!t || !LE.LABEL_ACROSS) return CONN.CORNER_GAP;
+          const w = Math.min(Math.max(40, t.length * FONT_M.edgeWrap + 18), LE.LABEL_MAX_W);
+          return Math.max(CONN.CORNER_GAP, Math.ceil(w / 2 - S / 2) + 4);
         };
         // Top-left of the circle on `side` of box a, `gap` away. `off` ('far' / 'near') moves an along-the-flow spot just
         // off the step's centre line, so it clears an arrow leaving that side straight.
@@ -1055,14 +1066,15 @@
               // Long enough for the stub's label on that leg with CLEAR-ish room on both sides (the router puts it mid-leg)
               const leg = Math.max(k.compact ? CONN.CORNER_LEG_TIGHT : CONN.CORNER_LEG, String(s.stub.label || '').trim() ? gapFor(s, true, k.compact) : 0);
               const x = k.corner === 'after' ? a.x + a.w / 2 + leg : a.x + a.w / 2 - leg - S;
-              const y = k.side === 'far' ? a.y + a.h + CONN.CORNER_GAP : a.y - CONN.CORNER_GAP - S;
+              const cg = cornerGap(s);
+              const y = k.side === 'far' ? a.y + a.h + cg : a.y - cg - S;
               return { x: Math.round(x), y: Math.round(y) };
             }
             const along = k.side === 'after' || k.side === 'before';
             const p = spot(a, k.side, gapFor(s, along, k.compact), k.off);
             return { x: Math.round(p.x), y: Math.round(p.y) };
           };
-          const ok = (k) => fits(s, at(k), k.corner ? CONN.CORNER_GAP - 2 : CONN.CLEAR);
+          const ok = (k) => fits(s, at(k), k.corner ? cornerGap(s) - 2 : CONN.CLEAR);
           const free = (k) => !(used[id] && used[id].has(k.side));
           // Comfortable spacing first (a free side, then any side), then the same spots with tight spacing
           const tight = cands.map(k => ({ ...k, compact: true }));

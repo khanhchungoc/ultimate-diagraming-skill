@@ -6,25 +6,25 @@
       "id": "lane-customer",
       "name": "Customer",
       "icon": "user",
-      "height": 176
+      "height": 192
     },
     {
       "id": "lane-agent",
       "name": "Claims Agent",
       "icon": "headset",
-      "height": 176
+      "height": 192
     },
     {
       "id": "lane-assessor",
       "name": "Assessor",
       "icon": "clipboard",
-      "height": 176
+      "height": 192
     },
     {
       "id": "lane-finance",
       "name": "Finance",
       "icon": "banknote",
-      "height": 176
+      "height": 192
     }
   ],
   "nodes": [
@@ -34,7 +34,7 @@
       "type": "start",
       "label": "Claim Filed",
       "x": 56,
-      "y": 56
+      "y": 64
     },
     {
       "id": "n2",
@@ -42,7 +42,7 @@
       "type": "task",
       "label": "Submit Claim Form",
       "x": 256,
-      "y": 56
+      "y": 64
     },
     {
       "id": "n3",
@@ -50,7 +50,7 @@
       "type": "task",
       "label": "Register Claim",
       "x": 256,
-      "y": 56
+      "y": 64
     },
     {
       "id": "n4",
@@ -66,7 +66,7 @@
       "type": "connector",
       "label": "A",
       "x": 672,
-      "y": 72
+      "y": 80
     },
     {
       "id": "n5",
@@ -74,7 +74,7 @@
       "type": "task",
       "label": "Inspect Vehicle",
       "x": 456,
-      "y": 56
+      "y": 64
     },
     {
       "id": "n6",
@@ -82,7 +82,7 @@
       "type": "task",
       "label": "Estimate Repair Cost",
       "x": 656,
-      "y": 56
+      "y": 64
     },
     {
       "id": "n7",
@@ -90,7 +90,7 @@
       "type": "task",
       "label": "Approve Estimate",
       "x": 856,
-      "y": 56
+      "y": 64
     },
     {
       "id": "c2",
@@ -98,7 +98,7 @@
       "type": "connector",
       "label": "A",
       "x": 1056,
-      "y": 4
+      "y": 12
     },
     {
       "id": "n8",
@@ -106,7 +106,7 @@
       "type": "task",
       "label": "Pay Claim",
       "x": 1000,
-      "y": 56
+      "y": 64
     },
     {
       "id": "n9",
@@ -114,7 +114,7 @@
       "type": "end",
       "label": "Claim Settled",
       "x": 1200,
-      "y": 56
+      "y": 64
     }
   ],
   "edges": [

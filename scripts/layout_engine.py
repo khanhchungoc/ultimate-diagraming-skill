@@ -47,8 +47,8 @@ ERD_SCHEMA_VERSION = 3  # ERD layout v3 (disk_format.ERD_SCHEMA_VERSION)
 # Zero budget limits: diagrams can be as large as the user requires.
 DEFAULT_NODE_WIDTH = 144
 DEFAULT_NODE_HEIGHT = 64
-DECISION_NODE_HEIGHT = 80
-LANE_MIN_HEIGHT = 176
+DECISION_NODE_HEIGHT = 96
+LANE_MIN_HEIGHT = 192
 LANE_BOTTOM_PADDING = 36
 
 # Direction choice for a flowchart whose JSON leaves "direction" out (choose_flowchart_direction). The screen the page
@@ -66,7 +66,8 @@ TB_MAX_SCORE_LOSS = 5  # ... and may score at most this much lower in the audit 
 LONG_ARROW_COLS = 6
 LONG_ARROW_DETOUR_COLS = 10
 LONG_ARROW_PENALTY, LONG_ARROW_MAX_PENALTY = 5, 15
-LONG_ARROW_MAX_PAIRS = 3
+LONG_ARROW_MAX_PAIRS = 8   # letters in all: past ~8 pairs the reader looks letters up instead of following lines
+LONG_ARROW_MAX_ROUNDS = 4  # split, re-layout, re-audit; stops earlier when a round does not improve
 
 
 class FlowchartAudit:
@@ -80,7 +81,7 @@ class FlowchartAudit:
         # Node x/y are in flow terms (x along the flow, y across the lane) in both directions; a top-to-bottom
         # diagram ("direction": "TB") has its own sizes in those terms (engine.js LE_PROFILES.TB)
         if data.get("direction") == "TB":
-            self.node_w, self.base_h, self.dec_h = 80, 144, 144
+            self.node_w, self.base_h, self.dec_h = 96, 144, 144
             self.lane_min, self.bottom_pad, self.col_w = 240, 32, 136
         else:
             self.node_w, self.base_h, self.dec_h = DEFAULT_NODE_WIDTH, DEFAULT_NODE_HEIGHT, DECISION_NODE_HEIGHT
@@ -108,13 +109,8 @@ class FlowchartAudit:
     title = "Flowchart"
 
     def pass_line(self, report: Dict[str, Any]) -> str:
-        return (
-            f"[PASS] Quality Score: {report['score']}/100 ({report['grade']}). "
-            f"0 overlaps, 0 penetrations, {report['collinear_pct']}% collinear straightness"
-            + (f", {report['edge_crossings']} edge crossings (score only, not a defect)" if report["edge_crossings"] else "")
-            + (f", {report['long_arrows_count']} long arrows (fix [WARN] above)" if report["long_arrows_count"] else "")
-            + "."
-        )
+        # No grade on a pass: crossings and the score are not defects, so nothing here invites more tweaking
+        return "[PASS] Layout clean." + (f" (audit score {report['score']}, for the report only; do not try to raise it)" if report["score"] < 100 else "")
 
     def summary_lines(self, report: Dict[str, Any]) -> List[str]:
         return [
@@ -334,11 +330,13 @@ class FlowchartAudit:
             "score": score,
             "grade": grade,
             "issues": all_issues,
+            "data_issues": dangling_issues,
             "node_count": len(self.nodes),
             "edge_count": len(self.edges),
             "lane_count": len(self.lanes),
             "edge_crossings": edge_crossings,
             "long_arrows_count": len(long_arrows),
+            "long_arrows": long_arrows,
             "bend_count": bend_count,
             "total_edge_length": total_edge_length,
             "collinear_pct": round(collinear_pct, 1),
@@ -512,9 +510,8 @@ class FlowchartAudit:
         return found
 
     def _long_arrow_warnings(self, long_arrows: List[Tuple[Dict[str, Any], float, int]]) -> List[str]:
-        """One [WARN] per connector letter to add (rule 11), longest arrow first, at most LONG_ARROW_MAX_PAIRS letters.
-        Long arrows into the same step share one letter (one out-connector, an in-connector per arrow). More letters
-        than that means lane order is the problem (checklist item 2)."""
+        """One [WARN] per connector letter to add (rule 11), longest arrow first.
+        Long arrows into the same step share one letter (one out-connector, an in-connector per arrow)."""
         groups: Dict[str, List[Tuple[Dict[str, Any], float, int]]] = {}
         for item in long_arrows:  # longest first, so groups are ordered by their longest arrow
             groups.setdefault(item[0]["to"], []).append(item)
@@ -522,11 +519,7 @@ class FlowchartAudit:
             return []
         label = lambda nid: self.node_map[nid].get("label") or nid
         warnings = []
-        if len(groups) > LONG_ARROW_MAX_PAIRS:
-            warnings.append(f"{len(groups)} long, tangled arrow targets need connectors, more than {LONG_ARROW_MAX_PAIRS}: "
-                            f"check lane order first (checklist item 2), then split only the {LONG_ARROW_MAX_PAIRS} "
-                            f"below and report the rest.")
-        for target, items in list(groups.items())[:LONG_ARROW_MAX_PAIRS]:
+        for target, items in groups.items():
             arrows = "; ".join(
                 f"'{e['id']}' ({label(e['from'])} -> {label(target)}, {cols:.0f} column widths"
                 + (f", crosses {n}" if n else "") + ")"
@@ -1482,6 +1475,87 @@ def choose_flowchart_direction(data: Dict[str, Any], timeout: int, browser: Opti
     return lr, ""
 
 
+def add_connector_pairs(data: Dict[str, Any], laid: Dict[str, Any], long_arrows: List[Tuple[Dict[str, Any], float, int]],
+                        max_letters: int = LONG_ARROW_MAX_PAIRS) -> Tuple[Dict[str, Any], List[str]]:
+    """Rule 11: split the long arrows the audit found into connector pairs; return (new authoring data, [INFO] lines).
+
+    Works on the authoring data, not the laid-out copy, and keeps the laid direction so the second layout matches the
+    first. One letter per target (at most max_letters, longest first); letters already on a connector are skipped."""
+    groups: Dict[str, List[str]] = {}
+    for e, _, _ in long_arrows:
+        groups.setdefault(e["to"], []).append(e["id"])
+    used = {str(n.get("label")) for n in data["nodes"] if n.get("type") == "connector"}
+    letters = (l for l in [chr(c) for c in range(65, 91) if chr(c) not in "IO"]
+               + [a + b for a in "AB" for b in "ABCDEFGHJKLMNPQRSTUVWXYZ"] if l not in used)
+    nodes, edges = list(data["nodes"]), [dict(e) for e in data["edges"]]
+    by_id = {e["id"]: e for e in edges}
+    node_map = {n["id"]: n for n in nodes}
+    info = []
+    for target, eids in list(groups.items())[:max_letters]:
+        letter = next(letters)
+        low = letter.lower()
+        nodes.append({"id": f"c_{low}_out", "laneId": node_map[target]["laneId"], "type": "connector", "label": letter})
+        edges.append({"id": f"c_{low}_out_e", "from": f"c_{low}_out", "to": target, "label": ""})
+        for i, eid in enumerate(eids, 1):
+            e = by_id[eid]
+            cid = f"c_{low}_in" + (f"_{i}" if len(eids) > 1 else "")
+            nodes.append({"id": cid, "laneId": node_map[e["from"]]["laneId"], "type": "connector", "label": letter})
+            e["to"] = cid
+        names = ", ".join(str(node_map[by_id[i]["from"]].get("label") or by_id[i]["from"]) for i in eids)
+        info.append(f"[INFO] Added connector pair {letter}: {names} -> {node_map[target].get('label') or target}")
+    out = {**data, "nodes": nodes, "edges": edges}
+    if "direction" in laid:
+        out["direction"] = laid["direction"]
+    return out, info
+
+
+def order_flowchart_lanes(data: Dict[str, Any], timeout: int, browser: Optional[str],
+                          tokens: Optional[Dict[str, Any]] = None) -> Tuple[Dict[str, Any], str]:
+    """Order swimlanes by each lane's first step on the flow (flowchart rule: lane order follows the flow); return
+    (data, INFO note, empty when nothing changed). Lanes the walk never reaches keep their relative order after the
+    others. Kept as the user wrote it: "laneOrder": "fixed", no swimlanes, two lanes or fewer, phase lanes (every
+    non-feedback edge goes to the same or a later lane, or the names read Step/Phase/Stage). The reordered layout is
+    only used when its audit shows no more long arrows plus crossings than the user's order (two layouts, ~0.4 s)."""
+    lanes, nodes = data.get("lanes") or [], data.get("nodes") or []
+    if data.get("laneOrder") == "fixed" or data.get("swimlanes") is False or len(lanes) <= 2:
+        return data, ""
+    rank = {lane["id"]: i for i, lane in enumerate(lanes)}
+    lane_of = {n["id"]: n.get("laneId") for n in nodes}
+    edges = [e for e in data.get("edges") or [] if not e.get("feedback") and e.get("from") in lane_of and e.get("to") in lane_of]
+    if all(rank.get(lane_of[e["from"]], 0) <= rank.get(lane_of[e["to"]], 0) for e in edges) or \
+            all(re.match(r"(step|phase|stage)\b", str(lane.get("name", "")), re.I) for lane in lanes):
+        return data, ""
+    out: Dict[str, List[str]] = {}
+    for e in edges:
+        out.setdefault(e["from"], []).append(e["to"])
+    seen: List[str] = []
+    queue = [n["id"] for n in nodes if n.get("type") == "start"] or [nodes[0]["id"]]
+    for nid in queue:  # breadth first: the queue grows as nodes are visited
+        if nid not in seen:
+            seen.append(nid)
+            queue.extend(out.get(nid, []))
+    first: List[str] = []
+    for nid in seen:
+        if lane_of[nid] in rank and lane_of[nid] not in first:
+            first.append(lane_of[nid])
+    order = first + [lane["id"] for lane in lanes if lane["id"] not in first]
+    if order == [lane["id"] for lane in lanes]:
+        return data, ""
+    by_id = {lane["id"]: lane for lane in lanes}
+    new = {**data, "lanes": [by_id[i] for i in order]}
+
+    def cost(d: Dict[str, Any]) -> int:
+        report = make_audit(run_layout("flowchart", {"direction": "LR", **d}, timeout=timeout, browser=browser, tokens=tokens), tokens).verify_collisions()
+        return report["long_arrows_count"] + report["edge_crossings"]
+
+    if cost(new) > cost(data):
+        return data, ""
+    return new, f"Lane order: {', '.join(by_id[i].get('name', i) for i in order)} (by first step on the flow; set \"laneOrder\": \"fixed\" to keep yours)."
+
+
+LAYOUT_NOTE = "report it; do not change the JSON for it"
+
+
 def main():
     _ensure_utf8_output()
     parser = argparse.ArgumentParser(description="Multi-Swimlane Flowchart Layout & Verification Engine")
@@ -1596,6 +1670,10 @@ def main():
         data = normalize_diagram_type(data)
         direction_note = ""
         try:
+            if not args.keep_layout and data["diagramType"] == "flowchart":
+                data, lane_note = order_flowchart_lanes(data, args.timeout, args.browser, tokens)
+                if lane_note:
+                    print(f"[INFO] {lane_note}")
             if not args.keep_layout and data["diagramType"] == "flowchart" and "direction" not in data:
                 laid_out_data, direction_note = choose_flowchart_direction(data, args.timeout, args.browser, tokens)
             else:
@@ -1606,6 +1684,31 @@ def main():
             print(f"[INFO] Direction: {direction_note}. To force one, set \"direction\" in the JSON.")
         audit = make_audit(laid_out_data, tokens)
         report = audit.verify_collisions()
+        if data["diagramType"] == "flowchart" and not args.keep_layout and report["long_arrows"]:
+            # Rule 11: the tool splits the long arrows itself, round after round, and keeps the best layout seen
+            quality = lambda r: (not r["passed"], len(r["issues"]), r["long_arrows_count"], r["edge_crossings"])
+            base, letters = data, 0
+            for _ in range(LONG_ARROW_MAX_ROUNDS):
+                if not report["long_arrows"] or letters >= LONG_ARROW_MAX_PAIRS:
+                    break
+                split, info = add_connector_pairs(base, laid_out_data, report["long_arrows"], LONG_ARROW_MAX_PAIRS - letters)
+                try:
+                    laid2 = run_layout("flowchart", split, timeout=args.timeout, browser=args.browser, tokens=tokens)
+                except EngineUnavailable as exc:
+                    sys.exit(f"[ERROR] {exc}")
+                audit2 = make_audit(laid2, tokens)
+                report2 = audit2.verify_collisions()
+                if quality(report2) >= quality(report):
+                    break
+                base, letters = split, letters + len(info)
+                laid_out_data, audit, report = laid2, audit2, report2
+                print("\n".join(info))
+
+        # What is left of the long arrows is layout: report it, never a reason to edit the JSON
+        is_long = lambda w: w.startswith("Long arrow") or "long, tangled arrow" in w
+        for w in [w for w in report["budget_warnings"] if is_long(w)]:
+            print(f"[INFO] Layout: {w.split(': split')[0]} ({LAYOUT_NOTE})")
+        report["budget_warnings"] = [w for w in report["budget_warnings"] if not is_long(w)]
 
         if args.target == "artifact":
             out_path = Path(args.output) if args.output else in_p.with_suffix("")
@@ -1617,35 +1720,38 @@ def main():
             external_refs = find_external_refs(out_path.read_text(encoding="utf-8"))
             render_target = out_path
 
-        # Same gates as --verify, so the agent never needs a second audit run.
-        failed = False
+        # DATA problems (the agent fixes the JSON) are [WARN]/[ERROR] and the only reason for [NEXT]; LAYOUT problems
+        # (the engine's job) are [INFO] Layout lines that never fail the run. --verify keeps the strict gates.
+        data_bad = False
         for warning in report["budget_warnings"]:
+            data_bad = True
             print(f"[WARN] {warning}")
         if external_refs:
-            failed = True
+            data_bad = True
             print("[FAIL] HTML loads external resources (must be fully self-contained):")
             for ref in external_refs:
                 print(f"  - {ref}")
-        if not report["passed"]:
-            failed = True
-            print(f"[FAIL] Quality score {report['score']}/100 did not meet threshold (>= 90); HTML still written:")
-            for issue in report["issues"]:
-                print(f"  - {issue}")
-        else:
+        for issue in report["data_issues"]:
+            data_bad = True
+            print(f"[WARN] {issue}")
+        layout_issues = [i for i in report["issues"] if i not in report["data_issues"]]
+        for issue in layout_issues:
+            print(f"[INFO] Layout: {issue} ({LAYOUT_NOTE})")
+        if layout_issues:
+            print(f"[INFO] Layout: Quality score {report['score']}/100, HTML still written ({LAYOUT_NOTE})")
+        elif not report["data_issues"]:
             print(audit.pass_line(report))
 
-        clean = not failed and not report["budget_warnings"]
         render_code = 0
         if args.screenshot:
             render_code, render_clean = run_render(render_target, Path(args.screenshot), args.browser)
-            clean = clean and render_clean
-            print("[DONE] Clean. View the PNG once against the visual checklist; if it passes, the diagram is final: "
-                  "do not re-word, re-run or re-render." if clean else
-                  "[NEXT] Fix only the [WARN]/[FAIL]/[ERROR] lines above, then re-run this same command.")
-        if failed:
-            sys.exit(1)
+            data_bad = data_bad or not render_clean
         if render_code:
             sys.exit(render_code)
+        print("[NEXT] Fix the [WARN] lines (data) and re-run." if data_bad else
+              "[DONE] The diagram is final: report any [INFO] lines, do not re-word, re-run or re-render.")
+        if external_refs or report["data_issues"]:
+            sys.exit(1)
 
 
 def run_render(html_path: Path, png_path: Path, browser: Optional[str]) -> Tuple[int, bool]:

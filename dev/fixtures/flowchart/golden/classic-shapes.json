@@ -6,13 +6,13 @@
       "id": "lane-employee",
       "name": "Employee",
       "icon": "user",
-      "height": 176
+      "height": 192
     },
     {
       "id": "lane-finance",
       "name": "Finance",
       "icon": "banknote",
-      "height": 176
+      "height": 192
     }
   ],
   "nodes": [
@@ -38,7 +38,7 @@
       "type": "subprocess",
       "label": "Run Policy Check",
       "x": 256,
-      "y": 56
+      "y": 64
     },
     {
       "id": "n4",
@@ -62,7 +62,7 @@
       "type": "database",
       "label": "Record Expense",
       "x": 674.2,
-      "y": 56
+      "y": 64
     },
     {
       "id": "n7",
@@ -70,7 +70,7 @@
       "type": "delay",
       "label": "Wait for Payment Run",
       "x": 874.2,
-      "y": 56
+      "y": 64
     },
     {
       "id": "n8",
@@ -78,7 +78,7 @@
       "type": "document",
       "label": "Issue Remittance Advice",
       "x": 1074.2,
-      "y": 56
+      "y": 64
     },
     {
       "id": "n9",
