@@ -267,6 +267,26 @@
         return { confirm, closeConfirm, isConfirmOpen: () => !!confirmEl, noteCard, actionBar, abButton, abSep, colorKey, icon, iconEl, toast: (m) => showToast(m) };
       })();
 
+      // --- ENGINE SOURCE (for plugins that run a background Web Worker, e.g. ERD) ---
+      // Captured synchronously while this script runs so both inline <script> and external <script src="app.js">
+      // work without plugins knowing how scripts or artifacts are packaged.
+      const currentScriptEl = document.currentScript;
+      function sliceEngineSource(text) {
+        const a = text.indexOf('//@engine' + '-begin');
+        if (a < 0) return '';
+        const b = text.indexOf('//@engine' + '-end', a);
+        return b < 0 ? '' : text.slice(a, b);
+      }
+      let cachedEngineSrc = currentScriptEl && currentScriptEl.textContent
+        ? sliceEngineSource(currentScriptEl.textContent)
+        : '';
+      const engineSrcPromise = !cachedEngineSrc && currentScriptEl && currentScriptEl.src
+        ? fetch(currentScriptEl.src)
+            .then((r) => (r.ok ? r.text() : ''))
+            .then((text) => { cachedEngineSrc = sliceEngineSource(text); }, () => '')
+        : null;
+      function loadEngineSource() { return cachedEngineSrc; }
+
       // --- CLAUDE.AI ARTIFACT (only active inside a published claude.ai artifact; elsewhere none of this runs) ---
       // A page that republishes itself must send a document in exactly the shape the Artifact tool publishes:
       // this skeleton, the page content, then the closing tags (nothing else in <head>, no whitespace between its
@@ -279,16 +299,18 @@
       // = ARTIFACT_END_MARKER in layout_engine.py; spelled in two parts so this script's own text never matches it
       const ARTIFACT_END_MARKER = '<!-- end ultimate-diagram ' + 'page -->';
 
-      // A pristine copy of the page, taken before the first render: Save regenerates the document from this plus the
-      // model and never serializes the live DOM (which by then holds the rendered diagram and selection state).
-      // It is taken while this script runs, so the browser has parsed the page only up to this script: anything the
-      // claude.ai viewer appends to <body> later is not in it. Our content runs from <title> to this script; inside
-      // that span only our own scripts are kept (the diagram-data and diagram-theme blocks and this one), so a script the viewer
-      // inserted earlier, the generator's render report and any meta/base element are dropped too. The end marker
-      // (ARTIFACT_END_MARKER) is written back after this script, as the generator writes it.
+      // An artifact page has <title> as a direct child of <body>; a plain file keeps it in <head>.
+      const artifactShaped = !!(document.body && document.body.querySelector(':scope > title'));
+      const hasInlineData = !!document.getElementById('diagram-data');
+      let capturedThemeJson = null;
+      let capturedFontLinks = '';
+      let pristineScaffoldHtml = null;
+      let pristineBody = null;
+
+      // Legacy fallback: pristine copy of an inline single-file artifact page, captured before first render.
       function capturePristineBody() {
         try {
-          const self = document.currentScript;
+          const self = currentScriptEl;
           const c = document.body.cloneNode(true);
           c.querySelectorAll(':scope > meta, :scope > base').forEach(n => n.remove());
           c.querySelectorAll('script').forEach(n => {
@@ -306,13 +328,42 @@
           return '\n' + html.slice(0, end + '<\/script>'.length) + '\n' + ARTIFACT_END_MARKER + '\n';
         } catch (_) { return null; }
       }
-      const pristineBody = capturePristineBody();
-      // Only a page generated with --target artifact (title first in <body>) may republish itself
-      const artifactShaped = typeof pristineBody === 'string';
+
+      // Capture unrendered body markup, stored theme JSON, and Google Fonts links before plugin.render() mutates the DOM.
+      function captureArtifactScaffold() {
+        if (!artifactShaped) return;
+        if (hasInlineData) pristineBody = capturePristineBody();
+        try {
+          const c = document.body.cloneNode(true);
+          c.querySelectorAll(':scope > meta, :scope > base').forEach(n => n.remove());
+          const title = c.querySelector(':scope > title');
+          while (title && c.firstChild !== title) c.removeChild(c.firstChild);
+          const themeEl = c.querySelector('script#diagram-theme[type="application/json"]');
+          if (themeEl && themeEl.textContent.trim()) capturedThemeJson = themeEl.textContent;
+          c.querySelectorAll('script').forEach(n => n.remove());
+          const fontLinks = [];
+          c.querySelectorAll('link').forEach(n => {
+            const href = n.getAttribute('href') || '';
+            const rel = (n.getAttribute('rel') || '').toLowerCase();
+            if ((rel === 'preconnect' || rel === 'stylesheet') && /^https:\/\/fonts\.(googleapis|gstatic)\.com(\/|$)/.test(href)) {
+              fontLinks.push('  ' + n.outerHTML);
+            }
+            n.remove();
+          });
+          capturedFontLinks = fontLinks.join('\n');
+          if (title) title.remove();
+          const header = c.querySelector(':scope > header');
+          while (header && c.firstChild !== header) c.removeChild(c.firstChild);
+          const help = c.querySelector(':scope > #help-drawer');
+          while (help && help.nextSibling) help.nextSibling.remove();
+          pristineScaffoldHtml = (header ? '\n\n  ' : '') + c.innerHTML.trimEnd() + '\n';
+        } catch (_) {}
+      }
+      captureArtifactScaffold();
       // window.claude carries only use(); resolve namespaces through it, never read window.claude.<name>
       const claudeHost = artifactShaped && window.claude && typeof window.claude.use === 'function' ? window.claude : null;
-      // null: a plain file; 'pending': use() has not answered yet; 'publish': Save publishes a new artifact
-      // version; 'view-only': the viewer cannot save (Save hidden, Download .html offered)
+      // null: a plain file; 'pending': use() has not answered yet; 'publish': Save publishes diagram.json;
+      // 'view-only': the viewer cannot save (Save hidden, Export > HTML file offered)
       let artifactMode = claudeHost ? 'pending' : null;
       let artifactApi = null;
       let downloadsApi = null;
@@ -360,9 +411,23 @@
 
       let dataReadme = null;   // the data block's "_readme" line (written by scripts/layout_engine.py assemble_page)
 
-      function loadInitialData() {
+      async function loadInitialData() {
         try {
-          const raw = document.getElementById('diagram-data').textContent.trim();
+          const dataEl = document.getElementById('diagram-data');
+          let raw = '';
+          if (dataEl) {
+            // Read inline JSON synchronously before any await so --target file boots synchronously.
+            raw = dataEl.textContent.trim();
+          } else {
+            const [text] = await Promise.all([
+              fetch('diagram.json').then((r) => {
+                if (!r.ok) throw new Error(`HTTP ${r.status} loading diagram.json`);
+                return r.text();
+              }),
+              engineSrcPromise || Promise.resolve()
+            ]);
+            raw = text.trim();
+          }
           if (raw) {
             const disk = JSON.parse(raw);
             // "_readme" is for readers of the file, not the model: keep it aside and write it back first on Save
@@ -374,6 +439,7 @@
           console.error("Failed to parse diagram-data JSON:", err);
         }
         chartTitleEl.textContent = chartData.title || plugin.defaultTitle;
+        document.title = chartTitleEl.textContent;
 
         chartTitleEl.addEventListener('dblclick', (e) => {
           e.stopPropagation();
@@ -415,6 +481,7 @@
         updateStatus(false);
         committedJson = savedJson = JSON.stringify(chartData);
         updateHistoryButtons();
+        document.documentElement.dataset.diagramReady = '1';
 
         requestAnimationFrame(() => {
           fitView();
@@ -470,7 +537,7 @@
         if (artifactMode === 'view-only') {
           saveStatus.textContent = "View only";
           saveStatus.className = "badge badge-status";
-          saveStatus.title = unsaved ? 'Your edits are not kept. Use Download .html to keep them.' : 'You cannot save this artifact.';
+          saveStatus.title = unsaved ? 'Your edits are not kept. Use Export > HTML file to keep them.' : 'You cannot save this artifact.';
           return;
         }
         if (artifactMode === 'publish' && !unsaved) {
@@ -1483,13 +1550,17 @@
         return fullHtml;
       }
 
-      // The document to store: `sourceText` (this page's text) with the model, title and reading guide updated.
-      // Shared by the file and artifact writers; only the source text differs.
-      function buildSavedHtml(sourceText) {
+      function serializeDiagramJson() {
         chartData.title = chartTitleEl.textContent.trim();
         const disk = plugin.toDisk ? plugin.toDisk(chartData) : { ...chartData };
         delete disk._readme;
-        const updatedJson = formatJson(dataReadme === null ? disk : { _readme: dataReadme, ...disk });
+        return formatJson(dataReadme === null ? disk : { _readme: dataReadme, ...disk });
+      }
+
+      // The document to store: `sourceText` (this page's text) with the model, title and reading guide updated.
+      // Shared by the file and artifact writers; only the source text differs.
+      function buildSavedHtml(sourceText) {
+        const updatedJson = serializeDiagramJson();
 
         // Both patterns spell the full tag with type="application\/json": this file's own source contains
         // these regexes, and with the escaped slash they cannot match their own text. A shorter pattern such
@@ -1509,7 +1580,8 @@
           .replace(/(<title>)[\s\S]*?(<\/title>)/, (_, open, close) => `${open}${pageTitle}${close}`)
           .replace(/(<h1 id="chart-title"[^>]*>)[\s\S]*?(<\/h1>)/, (_, open, close) => `${open}${pageTitle}${close}`));
 
-        document.getElementById('diagram-data').textContent = `\n${updatedJson}\n  `;
+        const dataEl = document.getElementById('diagram-data');
+        if (dataEl) dataEl.textContent = `\n${updatedJson}\n  `;
         return replacedHtml;
       }
 
@@ -1518,8 +1590,8 @@
         return buildSavedHtml(ARTIFACT_HEAD + pristineBody + ARTIFACT_TAIL);
       }
 
-      // File shape of an artifact document (for Download .html): the title, reading guide, data block and styles go
-      // back into <head> in the order shell.html has them. Falls back to the document as is if the layout is unknown.
+      // File shape of an artifact document (for Export > HTML file fallback on legacy inline artifacts): the title,
+      // reading guide, data block and styles go back into <head> in the order shell.html has them.
       function artifactToFileHtml(doc) {
         const body = doc.slice(ARTIFACT_HEAD.length, doc.length - ARTIFACT_TAIL.length);
         const m = /^\s*(<title>[\s\S]*?<\/title>)\n(<!--[\s\S]*?-->)\n([\s\S]*?<\/style>)([\s\S]*)$/.exec(body);
@@ -1529,10 +1601,56 @@
           '\n</head>\n<body>' + m[4].replace(ARTIFACT_END_MARKER + '\n', '') + '</body>\n</html>\n');
       }
 
+      // Assemble a self-contained --target file HTML document from split artifact assets and live diagram data.
+      async function buildExportHtmlFile() {
+        const [cssText, jsText] = await Promise.all([
+          fetch('app.css').then((r) => {
+            if (!r.ok) throw new Error(`HTTP ${r.status} fetching app.css`);
+            return r.text();
+          }),
+          fetch('app.js').then((r) => {
+            if (!r.ok) throw new Error(`HTTP ${r.status} fetching app.js`);
+            return r.text();
+          })
+        ]);
+        const jsonText = serializeDiagramJson();
+        const pageTitle = escapeHtml(chartData.title || plugin.defaultTitle);
+        const guide =
+          '<!-- For agents' + ': the whole diagram is the JSON (application/json) in the "diagram-data" script on lines 0-0 of this file. Read lines 1-0 only (offset 1, limit 0); everything after line 0 is editor code (CSS, JS, icons) and says nothing about the diagram.\n' +
+          '     The model\'s first key, "_readme", says how to read it. The "end diagram-data" comment marks the true end: if it is not on the line named above (the JSON was edited by hand since the last save), trust the comment. To print just the model:\n' +
+          '     sed -n \'/<script id="diagram-data" type="application\\/json">/,/<\\/script>/p\' FILE\n' +
+          '     python -c "import re,sys;print(re.search(r\'<script id=\\"diagram-data\\" type=\\"application\\/json\\">(.*?)<\\/script>\',open(sys.argv[1],encoding=\'utf8\').read(),re.S)[1])" FILE -->';
+        const closeScript = '<' + '/script>';
+        const dataOpen = '<script id="diagram-data" type="application/' + 'json">';
+        const dataEnd = '<!-- end diagram-' + 'data -->';
+        const themeBlock = capturedThemeJson
+          ? `\n  <script id="diagram-theme" type="application/${'json'}">${capturedThemeJson.replace(/</g, '\\u003c')}${closeScript}`
+          : '';
+        const fontBlock = capturedFontLinks ? `\n${capturedFontLinks}` : '';
+        const bodyMarkup = (pristineScaffoldHtml || '\n')
+          .replace(/(<h1 id="chart-title"[^>]*>)[\s\S]*?(<\/h1>)/, (_, open, close) => `${open}${pageTitle}${close}`);
+        const html = '<!DOCTYPE html>\n' + guide + '\n<html lang="en">\n' +
+          '<head>\n' +
+          '  <meta charset="UTF-8">\n' +
+          '  <meta name="viewport" content="width=device-width, initial-scale=1.0">\n' +
+          `  <title>${pageTitle}</title>\n` +
+          '  <!-- Diagram model: the source of truth for this page. Everything after this block is the editor. -->\n' +
+          `  ${dataOpen}\n${jsonText}\n  ${closeScript}\n` +
+          `  ${dataEnd}${themeBlock}${fontBlock}\n` +
+          '  <style>\n' + cssText.trimEnd() + '\n  </style>\n' +
+          '</head>\n' +
+          '<body>' + bodyMarkup +
+          '\n  <script>\n' + jsText.trimEnd() + `\n  ${closeScript}\n` +
+          '</body>\n</html>\n';
+        return stampReadingGuide(html);
+      }
+
       async function downloadHtmlFile() {
         if (!artifactMode) return;
         try {
-          const html = artifactToFileHtml(buildArtifactHtml());
+          const html = document.getElementById('diagram-data')
+            ? artifactToFileHtml(buildArtifactHtml())
+            : await buildExportHtmlFile();
           await deliverFile(exportFileName('html'), new Blob([html], { type: 'text/html' }));
         } catch (err) {
           showToast('Download failed: ' + (err && err.message || err));
@@ -1545,14 +1663,15 @@
         btnSave.disabled = true;
         try {
           for (let attempt = 0; ; attempt++) {
-            let html, snapshot;
+            let diagramJson, snapshot;
             try {
-              html = buildArtifactHtml();
+              diagramJson = serializeDiagramJson() + '\n';
               snapshot = JSON.stringify(chartData);   // what this publish carries; an edit made while it runs is not in it
-              await artifactApi.publish(html);
+              // shortcut: single-arg files form omits per-file ifMatch (verified in spike), add ifMatch once runtime contract 0.2.96 signature is confirmed.
+              await artifactApi.publish({ 'diagram.json': diagramJson });
+              document.title = chartData.title || plugin.defaultTitle;
               savedJson = snapshot;
               everSaved = true;
-              reloadExpected = true;   // the platform reloads every open view to the new version
               updateStatus(false);
               if (JSON.stringify(chartData) !== snapshot) updateStatus(true);   // edited mid-publish: still unsaved
               return;
@@ -1567,14 +1686,14 @@
                 showToast('Someone else saved first. Showing their version.');
               } else if (['not_writer', 'not_granted', 'not_declared', 'consent_required', 'capability_disabled',
                           'capability_removed', 'read_only_path'].includes(code)) {
-                // Read-only for this view, permanently: hide Save, offer Download .html
+                // Read-only for this view, permanently: hide Save, point to Export > HTML file
                 artifactMode = 'view-only';
                 applyArtifactUi();
-                showToast('This view is read-only. Use Download .html to keep your edits.');
+                showToast('Saving is not available here. Use Export > HTML file.');
               } else if (code === 'rate_limited') {
                 showToast('Saving too often. Wait a moment, then save again.');
               } else if (code === 'too_large') {
-                showToast('This diagram is too large to save to the artifact. Use Download .html instead.');
+                showToast('This diagram is too large to save to the artifact. Use Export > HTML file instead.');
               } else if (code === 'upstream_error' && attempt === 0) {
                 // The one retryable failure: once more, after a short random delay
                 await new Promise(r => setTimeout(r, 500 + Math.random() * 1000));
@@ -1652,28 +1771,19 @@
         if (artifactMode === 'publish') return publishToArtifact();
         if (artifactMode === 'view-only') return downloadHtmlFile();
         if (artifactMode === 'pending') return;   // use() has not answered yet; Save is disabled until it does
-        await writeFile(buildSavedHtml(await loadSourceText()));
+        const html = document.getElementById('diagram-data')
+          ? buildSavedHtml(await loadSourceText())
+          : await buildExportHtmlFile();
+        await writeFile(html);
       }
 
       // --- CLAUDE.AI ARTIFACT: which Save this page has ---
       // use() resolves later (never during this first run) and gives null when this is not claude.ai, the capability
       // was not granted, or the viewer cannot write. The page renders without it and switches over when it answers.
       function applyArtifactUi() {
-        const old = document.getElementById('btn-download-html');
-        if (old) old.remove();
         btnSave.hidden = artifactMode === 'view-only';
         btnSave.disabled = artifactMode === 'pending' || publishing;
         btnSave.title = artifactMode === 'pending' ? 'Connecting to claude.ai...' : 'Save a new version of this artifact (Ctrl+S)';
-        if (artifactMode === 'view-only') {
-          const b = btnSave.cloneNode(true);
-          b.id = 'btn-download-html';
-          b.hidden = false; b.disabled = false;
-          b.title = 'Download this diagram as an HTML file you can edit offline';
-          b.setAttribute('aria-label', 'Download HTML file');
-          b.querySelector('.btn-label').textContent = 'Download .html';
-          b.addEventListener('click', downloadHtmlFile);
-          btnSave.after(b);
-        }
         if (!exportMenu.querySelector('[data-export="html"]')) {
           const item = document.createElement('button');
           item.type = 'button'; item.setAttribute('role', 'menuitem'); item.dataset.export = 'html';

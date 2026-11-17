@@ -1,21 +1,21 @@
 // Copy as Mermaid for the ER diagram, and (with --artifact) Save inside a claude.ai artifact.
-//   node dev/e2e_erd_copy.mjs --browser <chrome> --page <example-erd.html> --large <saas-billing.html> [--artifact <html>] [--dump <prefix>]
+//   node dev/e2e_erd_copy.mjs --browser <chrome> --page <example-erd.html> --large <saas-billing.html> [--artifact <dir/index.html>] [--dump <prefix>]
 // --page: references/examples/example-erd.json laid out with `layout_engine.py --layout`.
 // --large: dev/fixtures/erd/saas-billing.json laid out the same way.
-// --artifact: the --page fixture laid out with `--target artifact`.
+// --artifact: the --page fixture laid out with `--target artifact` (the split directory's index.html).
 // --dump: also write each copied Mermaid text to <prefix>-<name>.mmd (used to parse it with the real Mermaid library).
 // Exit codes: 0 all passed, 1 setup error, 2 a check failed.
 import { readFileSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import { argOf, launch, sleep } from './cdp.mjs';
 
 const browser = argOf('browser'), page = argOf('page'), large = argOf('large'), artifact = argOf('artifact'), dump = argOf('dump');
-if (!browser || !page || !large) { console.error('usage: --browser <chrome> --page <html> --large <html> [--artifact <html>] [--dump <prefix>]'); process.exit(1); }
+if (!browser || !page || !large) { console.error('usage: --browser <chrome> --page <html> --large <html> [--artifact <dir/index.html>] [--dump <prefix>]'); process.exit(1); }
 
 const t = await launch(browser).catch((e) => { console.error('[ERROR]', e.message); process.exit(1); });
 let code = 0;
 try {
   const J = JSON.stringify;
-  const block = (html) => (html.replace(/\r\n/g, '\n').match(/<script id="diagram-data" type="application\/json">([\s\S]*?)<\/script>/) || [])[1];
   // A synthetic clipboard: headless Chrome from file:// has no clipboard permission, so writeText is replaced by a
   // recorder (the page code under test is the caller of writeText, not the browser's clipboard).
   const stub = `window.__clip = []; window.__fail = false;
@@ -68,20 +68,20 @@ try {
     }
   }
 
-  // claude.ai Artifact (only with --artifact): Save publishes through a stubbed window.claude (same approach as
-  // dev/e2e_sequence.mjs); edits reach the published data block; use() -> null leaves a View-only page.
+  // claude.ai Artifact (only with --artifact): Save publishes diagram.json through a stubbed window.claude;
+  // edits reach the published JSON; use() -> null leaves a View-only page.
   if (artifact) {
     await t.send('Page.removeScriptToEvaluateOnNewDocument', { identifier });
-    const gen = readFileSync(artifact, 'utf8').replace(/\r\n/g, '\n');
-    const skeleton = gen.slice(0, gen.indexOf('<body>') + 6);
+    const genData = readFileSync(join(dirname(artifact), 'diagram.json'), 'utf8').replace(/\r\n/g, '\n');
     const ids = await t.send('Page.addScriptToEvaluateOnNewDocument', { source: `window.__pub = [];
-      window.claude = { use: async (n) => n === 'artifact' ? { publish: async (h) => { window.__pub.push(h); } } : null };` });
+      window.claude = { use: async (n) => n === 'artifact' ? { publish: async (files) => { window.__pub.push(files); } } : null };` });
     await t.open(artifact);
     await t.ev(`document.getElementById('btn-save').click()`);
     await sleep(400);
     let pub = JSON.parse(await t.ev(`JSON.stringify(window.__pub)`));
-    t.check('artifact: Save publishes once, in the skeleton, with the generated data block',
-      pub.length === 1 && pub[0].startsWith(skeleton + '\n<title>') && pub[0].endsWith('</body></html>') && block(pub[0]) === block(gen) && t.errors.length === 0, `${pub.length} ${t.errors.join(' | ')}`);
+    const json1 = (pub[0] && pub[0]['diagram.json']) || '';
+    t.check('artifact: Save publishes once with diagram.json byte-identical to generated',
+      pub.length === 1 && Object.keys(pub[0]).length === 1 && json1 === genData && t.errors.length === 0, `${pub.length} ${t.errors.join(' | ')}`);
     // An edit: rename the first table with a real double-click, then save again
     const first = await t.ev(`document.querySelector('.erd-entity:not(.erd-ghost)').dataset.nodeId`);
     await t.clickOn(`.erd-entity[data-node-id="${first}"] .erd-name`, { count: 2 });
@@ -92,15 +92,19 @@ try {
     await t.ev(`document.getElementById('btn-save').click()`);
     await sleep(400);
     pub = JSON.parse(await t.ev(`JSON.stringify(window.__pub)`));
-    const d2 = pub[1] ? JSON.parse(block(pub[1])) : null;
-    t.check('artifact: an edit reaches the published data block (still in skeleton shape)',
-      pub.length === 2 && pub[1].startsWith(skeleton + '\n<title>') && d2 && d2.entities.some((e) => e.name === 'renamed_table') && t.errors.length === 0,
+    const json2 = (pub[1] && pub[1]['diagram.json']) || '';
+    const d2 = json2 ? JSON.parse(json2) : null;
+    t.check('artifact: an edit reaches the published diagram.json',
+      pub.length === 2 && Object.keys(pub[1]).length === 1 && json2.endsWith('\n')
+      && d2 && d2.entities.some((e) => e.name === 'renamed_table') && t.errors.length === 0,
       `${pub.length} ${t.errors.join(' | ')}`);
     await t.send('Page.removeScriptToEvaluateOnNewDocument', { identifier: ids.identifier });
     const view = await t.send('Page.addScriptToEvaluateOnNewDocument', { source: `window.claude = { use: async () => null };` });
     await t.open(artifact);
-    t.check('artifact: use() -> null shows "View only" and hides Save',
-      (await t.ev(`document.getElementById('save-status').textContent`)) === 'View only' && (await t.ev(`document.getElementById('btn-save').hidden`)), '');
+    t.check('artifact: use() -> null shows "View only", hides Save, and adds no Download button',
+      (await t.ev(`document.getElementById('save-status').textContent`)) === 'View only'
+      && (await t.ev(`document.getElementById('btn-save').hidden`))
+      && (await t.ev(`!document.getElementById('btn-download-html')`)), '');
     await t.send('Page.removeScriptToEvaluateOnNewDocument', { identifier: view.identifier });
   }
 } catch (err) {
