@@ -651,8 +651,12 @@ try {
     const pub2 = JSON.parse(await t.ev(`JSON.stringify(window.__pub)`));
     const json2 = (pub2[1] && pub2[1]['diagram.json']) || '';
     const d2 = json2 ? JSON.parse(json2) : null;
+    const idx2 = (pub2[1] && pub2[1]['index.html']) || '';
+    t.check('artifact: a rename also publishes index.html with the new <title> (the artifact keeps its name), nothing else changes in it',
+      Object.keys(pub2[1] || {}).sort().join() === 'diagram.json,index.html' && idx2.includes('<title>Edited &lt;title&gt;</title>')
+      && idx2.replace(/<title>[\s\S]*?<\/title>/, '') === readFileSync(artifact, 'utf8').replace(/<title>[\s\S]*?<\/title>/, ''), idx2.slice(0, 120));
     t.check('artifact: the second publish carries the title and diagram edit in diagram.json',
-      pub2.length === 2 && Object.keys(pub2[1]).length === 1 && json2.endsWith('\n')
+      pub2.length === 2 && json2.endsWith('\n')
       && d2 && d2.title === 'Edited <title>' && d2.nodes.length === origNodes + 1
       && (await t.ev(`document.title`)) === 'Edited <title>' && (await t.ev(`document.getElementById('chart-title').textContent`)) === 'Edited <title>',
       `${pub2.length} title=${d2 && d2.title}`);

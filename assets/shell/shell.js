@@ -368,6 +368,7 @@
       let artifactApi = null;
       let downloadsApi = null;
       let publishing = false;
+      let publishedTitle = null;   // the name the artifact's own <title> (index.html) carries: set at load and after each Save
       let reloadExpected = false;   // a publish (or a conflict) makes the platform reload this view
 
       // --- STATE ---
@@ -440,6 +441,7 @@
         }
         chartTitleEl.textContent = chartData.title || plugin.defaultTitle;
         document.title = chartTitleEl.textContent;
+        publishedTitle = document.title;
 
         chartTitleEl.addEventListener('dblclick', (e) => {
           e.stopPropagation();
@@ -1660,16 +1662,35 @@
       async function publishToArtifact() {
         if (publishing || !artifactApi) return;
         publishing = true;   // held until the whole attempt, including the one retry and its delay, is over
+        let skipIndex = false;
         btnSave.disabled = true;
         try {
           for (let attempt = 0; ; attempt++) {
             let diagramJson, snapshot;
+            const files = {};
             try {
               diagramJson = serializeDiagramJson() + '\n';
               snapshot = JSON.stringify(chartData);   // what this publish carries; an edit made while it runs is not in it
-              // shortcut: single-arg files form omits per-file ifMatch (verified in spike), add ifMatch once runtime contract 0.2.96 signature is confirmed.
-              await artifactApi.publish({ 'diagram.json': diagramJson });
-              document.title = chartData.title || plugin.defaultTitle;
+              files['diagram.json'] = diagramJson;
+              // The artifact's own title (listing, tab) is the <title> of index.html: when the diagram was renamed, carry the
+              // new name there too. The copy this view loaded is what it fetches, so only the title can differ from the live page.
+              const title = chartData.title || plugin.defaultTitle;
+              if (title !== publishedTitle && !skipIndex) {
+                try {
+                  const r = await fetch('index.html');
+                  if (r.ok) {
+                    const page = await r.text();
+                    const next = page.replace(/(<title>)[\s\S]*?(<\/title>)/, (_, open, close) => open + escapeHtml(title) + close);
+                    if (next !== page) files['index.html'] = next;
+                  }
+                } catch (_) { /* the data still saves; the artifact keeps its old title */ }
+              }
+              // No per-file ifMatch on purpose: a files publish without it keeps the whole-version check, so a save over
+              // someone else's newer version is a `conflict` (nothing published, the view reloads) and never a silent overwrite.
+              // ifMatch needs a sha256 the host reported, and the host only reports one on a call that already sent an ifMatch.
+              await artifactApi.publish(files);
+              document.title = title;
+              publishedTitle = title;
               savedJson = snapshot;
               everSaved = true;
               updateStatus(false);
@@ -1680,6 +1701,7 @@
               const KNOWN = ['conflict', 'not_writer', 'not_declared', 'too_large', 'invalid_content', 'read_only_path', 'rate_limited',
                              'consent_required', 'upstream_error', 'not_granted', 'capability_disabled', 'capability_removed', 'transform_error'];
               const code = err && KNOWN.includes(err.code) ? err.code : 'upstream_error';
+              if (files['index.html'] && (code === 'invalid_content' || code === 'read_only_path')) { skipIndex = true; continue; }   // keep the data save; leave the title
               if (code === 'conflict') {
                 // Someone else saved first. This view is already reloading to their version: no retry, no "unsaved" prompt
                 reloadExpected = true;
