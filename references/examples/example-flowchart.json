@@ -12,7 +12,6 @@
     { "id": "n_upload_missing_docs", "laneId": "lane-customer", "type": "io", "label": "Upload Missing Docs" },
     { "id": "n_wait_cooling_off_period", "laneId": "lane-customer", "type": "delay", "label": "Wait Cooling-Off Period" },
     { "id": "n_sign_loan_agreement", "laneId": "lane-customer", "type": "task", "label": "Sign Loan Agreement" },
-    { "id": "c_a_out", "laneId": "lane-customer", "type": "connector", "label": "A" },
     { "id": "n_application_rejected", "laneId": "lane-customer", "type": "end", "label": "Application Rejected" },
     { "id": "n_docs_complete", "laneId": "lane-officer", "type": "decision", "label": "Docs Complete?" },
     { "id": "n_verify_income_employment", "laneId": "lane-officer", "type": "task", "label": "Verify Income & Employment" },
@@ -23,8 +22,7 @@
     { "id": "n_run_credit_fraud_check", "laneId": "lane-engine", "type": "subprocess", "label": "Run Credit & Fraud Check" },
     { "id": "n_credit_score_700", "laneId": "lane-engine", "type": "decision", "label": "Credit Score >= 700?" },
     { "id": "n_risk_acceptable", "laneId": "lane-risk", "type": "decision", "label": "Risk Acceptable?" },
-    { "id": "n_issue_decline_letter", "laneId": "lane-risk", "type": "document", "label": "Issue Decline Letter" },
-    { "id": "c_a_in", "laneId": "lane-risk", "type": "connector", "label": "A" }
+    { "id": "n_issue_decline_letter", "laneId": "lane-risk", "type": "document", "label": "Issue Decline Letter" }
   ],
   "edges": [
     { "id": "e1", "from": "n_submit_application", "to": "n_docs_complete", "label": "" },
@@ -42,8 +40,7 @@
     { "id": "e18", "from": "n_sign_loan_agreement", "to": "n_disburse_loan_funds", "label": "" },
     { "id": "e19", "from": "n_disburse_loan_funds", "to": "n_loan_funded", "label": "" },
     { "id": "e10", "from": "n_risk_acceptable", "to": "n_issue_decline_letter", "label": "No" },
-    { "id": "e14", "from": "n_issue_decline_letter", "to": "c_a_in", "label": "" },
-    { "id": "e15", "from": "c_a_out", "to": "n_application_rejected", "label": "" }
+    { "id": "e14", "from": "n_issue_decline_letter", "to": "n_application_rejected", "label": "" }
   ],
   "notes": [
     { "id": "note-1", "text": "Online portal or branch\nID, payslips and 3 months of bank statements", "nodes": ["n_submit_application"] },

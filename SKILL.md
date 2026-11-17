@@ -52,18 +52,13 @@ Make exactly these calls. The type reference, the example it names and the comma
    ```shell
    python "<skill-dir>/scripts/layout_engine.py" --layout <scratch.json> -o <target.html> --screenshot <scratch.png>
    ```
-4. **Read the output**, last line first. You fix data only: layout is the engine's job.
+4. **Read the last line of the output.** You fix data only: layout is the engine's job. Do not view the PNG (it only feeds the label checks).
 
-   | Output | Action |
+   | Last line | Action |
    |---|---|
-   | `[DONE]` | Final. Go to step 5. |
-   | `[NEXT]` | Fix each `[WARN]` line with a targeted edit to the node, edge, lane or label it names (the type reference has the rule), re-run step 3. Never rewrite or redesign the JSON; never merge, drop or reroute steps to quiet a line. |
-   | `[INFO]` | Nothing to fix. Report the `Layout:` lines (overlaps, small text, long arrows, score), `Lane order` and `Added connector pair`. Do not change the JSON for them. |
-   | `[PASS]` | Nothing to fix. A trailing `(audit score N ...)` is for the report only. |
-   | `[ERROR] Layout needs Node.js ... or Chrome`, or render failed | Render failed: retry once with `--browser <chrome path>`. Otherwise stop and report it; never hand-place coordinates. |
-
-5. **Do not view the PNG** (it only feeds the label checks) and do not re-word labels, re-run or re-render for an `[INFO]` line.
-6. **Stop.** `[DONE]` is final. Delete the scratch JSON and PNG (keep the scratch artifact folder when publishing an artifact, see Artifact output), then report.
+   | `[NEXT]` | Fix each `[WARN]` line with a targeted edit to the item it names (the type reference has the rule), re-run step 3. Never rewrite or redesign the JSON. |
+   | `[DONE]` | Final, even with `[INFO]` lines: report them, never re-word, re-run or re-render for them. Delete the scratch JSON and PNG (keep the scratch artifact folder when publishing an artifact, see Artifact output), then report. |
+   | `[ERROR] Layout needs Node.js ... or Chrome`, or render failed | Retry once with `--browser <chrome path>`. Otherwise stop and report it; never hand-place coordinates. |
 
 ## Local HTML file: create, read, update, delete
 
@@ -99,7 +94,7 @@ Use when the user saved edits in the browser, or asks to change a diagram that a
    ```
    The output is the authoring JSON, without positions. If the task is only to read the diagram, use *Procedure: Read an Existing Diagram* instead; do not re-layout.
 2. **Know what a re-layout resets.** `--layout` recomputes every node's position and the container sizes, so positions the user dragged by hand are lost. Structure the user cares about (order, membership, labels, notes, flags) is kept; the type reference says what else survives. Tell the user before overwriting, and write to a new file name if they might want the old arrangement.
-3. **Edit the JSON** and run steps 3–6 of *Procedure: New Diagram*, writing to the same `<target.html>` (or the new name).
+3. **Edit the JSON** and run steps 3–4 of *Procedure: New Diagram*, writing to the same `<target.html>` (or the new name).
 
 ---
 
@@ -122,4 +117,4 @@ About 5 lines: the file, and anything that needs the user's action. Not a log of
 - the output path (for an artifact: its link, and that it is private until the user shares it from claude.ai) and a concise description (type, and main actors, participants or tables);
 - assumptions: anything you added or reordered that the source did not state, and each conflict between sources with the version you followed;
 - problems only: any `[WARN]` left, labels shortened from the user's wording, a split diagram and why, what a re-layout reset (updates);
-- the `[INFO]` lines, as given: `Layout:` findings, `Lane order`, each `Added connector pair`.
+- every `[INFO]` line, as given.

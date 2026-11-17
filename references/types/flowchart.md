@@ -25,13 +25,13 @@ Never add pixel coordinates (`x`, `y`); `--layout` computes them. A saved page e
 |---|---|---|
 | Lane | `id`, `name`, `icon` | Unique id (`lane-<slug>`), the actor's name (or the phase's, see rule 7), and an `icon` (see rule 8). |
 | Lane | `color` | Optional. Omit it: lanes get palette colours in order. Set a palette slot (`"1"` to `"8"`) only to give related lanes the same colour on purpose; never copy colours from the source, the theme's palette supplies them. A person can change a lane's colour in the editor (lane bar), so keep what you find there. |
-| Node | `id`, `laneId`, `type`, `label` | `id` is a short slug of the label (`n_validate_policy`, not `n5`), so every edge reads on its own; a connector is `c_<letter>_in` (or `c_<letter>_in_1`, `c_<letter>_in_2` when merging) / `c_<letter>_out`. `type` is `start`, `task`, `decision`, `end`, a classic symbol (rule 10), or `connector` (rule 11). `start` and `end` render as rounded pills in their own colours (a plain circle if the label is empty); `task` is a box, `decision` a diamond. |
+| Node | `id`, `laneId`, `type`, `label` | `id` is a short slug of the label (`n_validate_policy`, not `n5`), so every edge reads on its own. `type` is `start`, `task`, `decision`, `end` or a classic symbol (rule 10); never `connector` (rule 11). `start` and `end` render as rounded pills in their own colours (a plain circle if the label is empty); `task` is a box, `decision` a diamond. |
 | Edge | `id`, `from`, `to`, `label` | `label` is `"Yes"`, `"No"`, `"Resubmit"`, etc.; `""` for unconditional steps. |
 | Note | `id`, `text`, `nodes` | Optional list `notes`: plain text that explains one or more steps (what goes in it: rule 9). `nodes` lists the ids of the steps it explains; the first is where it sits. Each linked step shows a small badge the reader hovers to see the note. |
 | Diagram | `showNotes` | Optional `true` shows every note on the page (fitted into the gaps near its node) instead of on hover; when to set it: rule 9. |
 | Diagram | `swimlanes` | Optional `false` hides the lane header column, tint and borders (when: rule 7 and "Choosing the structure"). Keep exactly one lane in `lanes` and put every node in it (the tooling creates `lane-main` if `lanes` is empty). The lane icon rule does not apply. |
-| Diagram | `laneOrder` | Optional `"fixed"` keeps `lanes` in the written order; otherwise `--layout` orders swimlanes by the flow ("Lane order follows the flow"). |
-| Diagram | `direction` | Usually leave it out: `--layout` then picks the direction that reads best (left to right if the whole diagram fits the screen, else usually top to bottom) and says so in an `[INFO]` line. Set `"LR"` or `"TB"` only when the user asks or "Choosing the structure" says to. `"TB"` lays the diagram out **top to bottom**: lanes become columns and steps run downwards. |
+| Diagram | `laneOrder` | Optional `"fixed"` keeps `lanes` in the written order. Leave it out: `--layout` orders lanes by the flow. |
+| Diagram | `direction` | Optional `"LR"` or `"TB"` (top to bottom). Leave it out unless "Choosing the structure" says to: `--layout` picks it. |
 | Edge | `feedback` | Optional `true` marks a loop-back edge so it always routes through the outer corridor. Without it the engine picks the loop edge by traversal order, which may choose the wrong edge of a cycle. |
 
 ## Writing rules
@@ -46,7 +46,7 @@ Never add pixel coordinates (`x`, `y`); `--layout` computes them. A saved page e
 2. **Decisions end in `?`** (`"Docs Complete?"`) and every outgoing branch is labeled. A two-way decision is a yes/no question with `Yes`/`No` branches (`"Justification Approved?"`, not Approve/Reject), whatever words the sources use for the outcomes. Use named outcomes only for three or more branches, one edge per outcome (`"Purchase Value Band?"` → `"<= $1,500"`, `"$1,501–$5,000"`, `"> $5,000"`). Never mix the two styles on one decision, and never chain Yes/No diamonds to split one question. Keep sequential guard checks separate only when each failure routes to a different owner or `end` state; when several criteria combine into one outcome (such as a scoring matrix or tiered policy), evaluate them in one `task` and put the decision table in its `note`. Numeric branches keep the sources' exact boundaries and never overlap. Only decision branches get `Yes`/`No` labels: an edge leaving a step is `""` (`--layout` warns about a `Yes`/`No` on a step). Mark the one edge that loops back to an earlier step `"feedback": true`, so the engine routes that edge as the loop.
    - **Parallel work (`AND`) vs decisions (`XOR`)**: a `decision` tests a condition and takes one outgoing branch. When two or more steps run concurrently, draw multiple unlabelled (`""`) edges out of the preceding `task` (never a `decision` or an invented `"fork"`/`"join"` type) and merge them into one downstream join `task`, with a `note` stating that all parallel branches must complete before continuing.
 3. **One owner per node**: place each node in the lane of the actor who performs it.
-4. **Keep labels short, counted in words**: at most **5 words** for any step or decision (tasks are usually 2–4, rule 1). The page shrinks text to fit two lines; a longer label ends in `...` on the page and shows in full on hover, and `--layout` reports it as an `[INFO] Layout` line, not a reason to re-run. Keep within 5 words anyway: an exported or printed diagram has no hover.
+4. **Keep labels short, counted in words**: at most **5 words** for any step or decision (tasks are usually 2–4, rule 1). A longer label is cut with `...` and shows on hover, but an exported or printed diagram has no hover.
    - **Lane names**: at most 4 words (about 32 characters), so the floating pill never truncates.
    - **Fidelity**: keep the user's wording when it fits 5 words and rule 1. Otherwise cut the label to its verb + object; if the cut removed real detail (rule 9's list), put only that detail in a note, never the whole original sentence. Never abbreviate words (`"Auth"`) to save space.
 5. **Overview requests**: if the user asks for a summary, high-level overview or one-slide flow, aim for about 7 columns and 12 nodes so it fits a 1080p screen without panning. Otherwise include every step the source has; the page pans and zooms.
@@ -58,7 +58,7 @@ Never add pixel coordinates (`x`, `y`); `--layout` computes them. A saved page e
    - **One name per actor**: when sources name one actor differently (`"IT Support"`, `"IT Department"`), use the name the sources use most often (on a tie, the shortest) and report the choice as an assumption.
    - A system is an actor only when it acts (`"Core Banking"` validating something). Don't add a lane for a system that is only mentioned.
    - If the source doesn't name actors, infer them from who performs each verb. If you can't, or the whole process has one actor, set `"swimlanes": false`. Never use a generic lane such as `"Process"`, `"Steps"` or `"Other"`.
-   - **Exception, phase lanes**: if the source groups steps into sequential containers (step, phase, stage, milestone, sprint, gate, quarter) and every step in one group happens after every step in the previous one, use one lane per container, in order (`lane-step1`, ...), as in the phases example; otherwise use actor lanes. If the source shows both, follow whichever it groups by visually. The result is a **diagonal staircase** with empty space beside it: correct, so never change direction, lanes or labels to fill it. Phase lanes drop ownership, so only here keep the actor in a label where it matters (`"Officer Reviews Docs"`). A jump back to an earlier phase is a loop-back edge.
+   - **Exception, phase lanes**: if the source groups steps into sequential containers (step, phase, stage, milestone, sprint, gate, quarter) and every step in one group happens after every step in the previous one, use one lane per container, in order (`lane-step1`, ...), as in the phases example; otherwise use actor lanes. If the source shows both, follow whichever it groups by visually. Phase lanes drop ownership, so only here keep the actor in a label where it matters (`"Officer Reviews Docs"`). A jump back to an earlier phase is a loop-back edge.
 8. **Every lane gets an `icon`**, chosen from [Lane icons](#lane-icons) to match the actor or system. Use a different icon for each lane in one diagram, and never leave one out (`--layout` prints a `[WARN]` for a lane without one, or with a name that is not in the table). For phase lanes pick icons that suit each stage (`clipboard`, `check`, `shield`, `flag`, ...).
 
 9. **Notes hold what the label leaves out.** Add a note only where the source gives a detail from the list below that the label lacks; most steps need none. A longer sentence saying the same thing as the label is not a note: drop it.
@@ -67,7 +67,6 @@ Never add pixel coordinates (`x`, `y`); `--layout` computes them. A saved page e
    - **Form**: a fragment or one or two short sentences, facts over prose, `<= 140` chars; `\n` separates distinct facts.
    - **`showNotes`**: leave it out by default (notes open on hover). Set `true` when the reader needs the notes without interacting: the diagram is meant for export, print or a presentation, or the user asks for the detail to be visible.
    - **One note, several steps**: when the same fact explains several steps (one policy behind two decisions, one system doing three steps), write one note and list every step in `nodes`, never copies of it.
-   - **Never write `pos`**: the page fits each note into a free gap; a note the user drags keeps its own place.
    - `--layout` prints a `[WARN]` for a note over the budget, one that repeats its step's label, or one linked to no existing step.
 
    ```json
@@ -87,40 +86,17 @@ Never add pixel coordinates (`x`, `y`); `--layout` computes them. A saved page e
 | `database` | cylinder | reads or writes a named system of record (ERP, CRM, asset register) | `"Store Claim Record"` |
 | `delay` | D-shape | is a wait (cooling-off, SLA timer, batch window) | `"Wait for Payment Run"` |
 
-11. **On-page connectors where the source shows them, or where `--layout` adds them for a long arrow**; otherwise draw the arrow and let the router route it. A connector is a small lettered circle standing for one end of a long arrow: the flow runs into circle `A` beside its source and continues out of circle `A` beside its target. The layout places the circles; never set their `x`/`y`, and they move no step. `--layout` warns about every rule below that is broken.
-   - **Source shows them**: keep its pairs and its letters.
-   - **Long arrow**: write plain arrows. `--layout` finds each arrow whose route is long (`>= 6` column widths) and crosses 2 or more other arrows, or crosses one and turns 3 or more times (a long arrow that crosses nothing stays an arrow), splits it into a connector pair itself (one letter per target, re-checking after each round while it improves, at most 4 letters, letters your own connectors use are skipped) and prints `[INFO] Added connector pair A: <from> -> <to>`. Report each pair; do not edit the JSON for it. When it stops early or hits the cap it prints `[INFO] Layout: Long arrow ...` for the rest: report them, do not split them by hand.
-   - `"type": "connector"`, `"label"`: the letter (`A`–`Z` without `I` and `O`, then `AA`, `AB`, ...). Two connectors with one letter are a pair; put each in the lane of the step it sits beside.
-   - An **in-connector** has arrows in and none out; an **out-connector** has arrows out and none in. A letter has exactly **one out-connector** and one or more in-connectors (several flows merging at one continuation share the same `label` and `c_<letter>_out`, using `c_<letter>_in_1`, `c_<letter>_in_2`, ...).
-   - The branch's `label` and `feedback` stay on the arrow **into** the in-connector; the arrow out of the out-connector is `""`.
-
-   ```json
-   "nodes": [{ "id": "c_a_in", "laneId": "lane-officer", "type": "connector", "label": "A" },
-             { "id": "c_a_out", "laneId": "lane-intake", "type": "connector", "label": "A" },
-             { "id": "c_b_in_1", "laneId": "lane-manager", "type": "connector", "label": "B" },
-             { "id": "c_b_in_2", "laneId": "lane-dept", "type": "connector", "label": "B" },
-             { "id": "c_b_out", "laneId": "lane-system", "type": "connector", "label": "B" }, ...],
-   "edges": [{ "id": "e7", "from": "n_docs_complete", "to": "c_a_in", "label": "No", "feedback": true },
-             { "id": "e12", "from": "c_a_out", "to": "n_review_docs", "label": "" },
-             { "id": "e5", "from": "n_lm_approved", "to": "c_b_in_1", "label": "No" },
-             { "id": "e9", "from": "n_dh_approved", "to": "c_b_in_2", "label": "No" },
-             { "id": "e13", "from": "c_b_out", "to": "n_record_rejection", "label": "" }, ...]
-   ```
+11. **Plain arrows only; never write a `connector` node.** `--layout` splits a long, tangled arrow into a lettered connector pair itself and prints `[INFO] Added connector pair A: <from> -> <to>`, or `[INFO] Layout: Long arrow ...` for one it leaves. Report those lines; do not edit the JSON for them. If the source draws connectors, write the arrow they stand for.
 
 ## Choosing the structure
 
-Decide from the source, once, top row first. Do not trial the alternatives.
+Decide from the source, once, first match first. Do not trial the alternatives.
 
-| Source looks like | Lanes | `direction` |
-|---|---|---|
-| Sequential boxes titled `Step N` / `Phase N` / `Stage N` | one lane per container, in order (rule 7) | `TB` if they stack downwards, else omit |
-| Several actors or systems handing work over | one lane per actor | omit (the tool picks) |
-| One actor, one sequence | `"swimlanes": false` | omit (the tool picks) |
-| The user names a direction ("vertical", "left to right") | as above | `TB` or `LR` as asked |
-
-**Why the tool picks.** It lays the diagram out left to right; if the whole diagram fits the screen at a readable zoom, that stays. Otherwise it also lays it out top to bottom and keeps the direction in which the lanes fill the screen at the bigger zoom, so the reader scrolls one way only, along the flow. A long flow (41 steps in 7 lanes: about 5,000 × 1,300 px left to right, 1,800 × 3,000 px top to bottom) almost always goes top to bottom. Do not set a direction to override this choice unless the user asked.
-
-**Lane order follows the flow, not the user's list.** Write lanes in any order: `--layout` reorders them by each actor's first step on the main (happy) path, initiator first (`Employee` submits, `IT` checks, `Line Manager` approves), keeps the new layout only if it has no more long arrows plus crossings, and prints `[INFO] Lane order: ...`. Report that line to the user. It leaves phase lanes (rule 7), `swimlanes: false` and two lanes or fewer alone, and `"laneOrder": "fixed"` keeps your order.
+- Sequential boxes titled `Step N` / `Phase N` / `Stage N`: one lane per container, in order (rule 7); `"direction": "TB"` if they stack downwards.
+- Several actors or systems handing work over: one lane per actor.
+- One actor, one sequence: `"swimlanes": false`.
+- Set `direction` only for phase lanes as above, or when the user names one ("vertical" is `TB`, "left to right" is `LR`); otherwise `--layout` picks it.
+- Write lanes in any order: `--layout` orders them by the flow (not phase lanes) and prints `[INFO] Lane order: ...`; report it.
 
 **Updating an existing flowchart**: a re-layout also resets lane heights and keeps lane order, lane membership and `feedback` flags; a note the user dragged keeps its place beside its step. With Auto layout on (the default) the page already re-lays out after every step edit, so hand-placed positions exist only where the user switched Auto off.
 
