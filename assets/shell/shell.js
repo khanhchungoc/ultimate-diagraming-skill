@@ -941,6 +941,13 @@
       btnHelp.addEventListener('click', () => setHelpOpen(!helpDrawer.classList.contains('open')));
       document.getElementById('help-close').addEventListener('click', () => setHelpOpen(false));
 
+      // --- SEARCH (spec: dev/plans/search.md) ---
+      // Contract: a plugin may define searchItems() -> [{ id, text, el }] in reading order; id is stable across
+      // renders, text is what the reader sees, el is what gets dimmed, ringed and centred. Without it, no search button.
+      // The shell calls it on every query and after every render, so it reads the live DOM and stays cheap.
+      // Search is view-only: never in chartData, undo, Save, exports or Mermaid.
+      window.__searchItems = () => (plugin && plugin.searchItems ? plugin.searchItems() : []);
+
       // --- EXPORT (SVG / PNG) ---
       // The stage is HTML plus SVG, so the export inlines every computed style into a clone and wraps it in a
       // foreignObject. The result is a self-contained SVG, and the PNG is that SVG rasterised.
