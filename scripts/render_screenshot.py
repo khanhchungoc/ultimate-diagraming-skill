@@ -310,9 +310,11 @@ def main() -> int:
         print(f"[WARN] {msg}")
     for msg in report["errors"]:
         print(f"[INFO] Layout: {msg.rstrip('.')} ({LAYOUT_NOTE})")
-    # Small text at the fit zoom: pan and zoom reads it; the engine owns the sizes.
-    for msg in report.get("legibility", []):
-        print(f"[INFO] Layout: {msg.rstrip('.')} ({LAYOUT_NOTE})")
+    # Small text at the fit zoom: only worth reporting on a diagram meant for one screen (12 nodes or fewer);
+    # a larger one is read with pan and zoom
+    if report.get("nodeCount", 0) <= 12:
+        for msg in report.get("legibility", []):
+            print(f"[INFO] Layout: {msg.rstrip('.')} ({LAYOUT_NOTE})")
     if not report["errors"]:
         print("[PASS] No edge-label overlaps detected.")
     return 0
