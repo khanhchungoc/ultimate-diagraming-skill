@@ -1400,6 +1400,9 @@
         else if (selIds.length === 1) at = itemBar(bar, itemOf(selIds[0]));
         if (!at) return;
         html.appendChild(bar);
+        // wrapped rows: the bar is as wide as its widest row, not the 340px wrap limit (no empty side padding)
+        const kids = [...bar.children].filter((k) => !k.classList.contains('uc-ab-break'));
+        if (kids.length) bar.style.maxWidth = `${Math.ceil(Math.max(...kids.map((k) => k.offsetLeft + k.offsetWidth)) - Math.min(...kids.map((k) => k.offsetLeft)) + 8)}px`;
         const C = chartData.canvas || { width: 1e9, height: 1e9 }, w = bar.offsetWidth;
         const below = at.y < 110;
         bar.classList.toggle('is-below', below);
