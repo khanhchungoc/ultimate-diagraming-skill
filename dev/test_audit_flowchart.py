@@ -72,6 +72,12 @@ def main() -> int:
     two = {e["id"] for e, _, _ in a3._long_arrows(polys3)}
     check("long arrow flagged at 2 crossings, not at 1; clean return leg never",
           one == set() and two == {"e_fwd"}, f"one={one} two={two}")
+    # ... and with 1 crossing once it turns 3 times
+    polys3["e_fwd"] = [(200.0, 80.0), (400.0, 80.0), (400.0, 60.0), (1300.0, 60.0), (1300.0, 80.0), (1456.0, 80.0)]
+    del polys3["e_cross2"]
+    a3.edges.pop()
+    bent = {e["id"] for e, _, _ in a3._long_arrows(polys3)}
+    check("long arrow with 1 crossing and 3+ bends is flagged", bent == {"e_fwd"}, f"bent={bent}")
 
     # 4. pass_line shows no grade; a score below 100 only as a report note
     p_100 = a1.pass_line({"score": 100, "grade": "A+"})
@@ -80,7 +86,7 @@ def main() -> int:
           p_100 == "[PASS] Layout clean." and "audit score 85" in p_85 and "B" not in p_85.replace("PASS", ""),
           f"p_100={p_100!r} p_85={p_85!r}")
 
-    print(f"{4 - failed}/4 cases passed")
+    print(f"{5 - failed}/5 cases passed")
     return 2 if failed else 0
 
 
