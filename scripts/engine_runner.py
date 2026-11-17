@@ -25,13 +25,13 @@ class EngineUnavailable(RuntimeError):
     """Neither Node.js nor Chrome/Chromium could run the layout engine."""
 
 
-def _via_node(kind: str, data: Dict[str, Any], timeout: int, tokens: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+def _via_node(kind: str, data: Dict[str, Any], timeout: int, tokens: Dict[str, Any], keep: bool = False) -> Optional[Dict[str, Any]]:
     node = shutil.which("node")
     if not node:
         return None
     engine = ASSETS_DIR / "types" / kind / "engine.js"
     proc = subprocess.run(
-        [node, str(SCRIPTS_DIR / "run_engine.mjs"), str(engine)],
+        [node, str(SCRIPTS_DIR / "run_engine.mjs"), str(engine)] + (["--keep"] if keep else []),
         input=json.dumps({"tokens": tokens_data(tokens), "diagram": data}), capture_output=True, text=True, encoding="utf-8", timeout=timeout,
     )
     if proc.returncode != 0:
@@ -67,11 +67,14 @@ def _via_browser(data: Dict[str, Any], timeout: int, browser: Optional[str], tok
 
 
 def run_layout(kind: str, data: Dict[str, Any], timeout: int = 30, browser: Optional[str] = None,
-               tokens: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+               tokens: Optional[Dict[str, Any]] = None, keep: bool = False) -> Dict[str, Any]:
     """Return `data` with positions computed by the type's JS engine (Node first, then headless Chrome).
-    `tokens` is the merged token set (the theme); the default set when omitted."""
+    `tokens` is the merged token set (the theme); the default set when omitted.
+    `keep`: keep the positions `data` already has (Node only; the engine only redraws lines and labels)."""
     tokens = tokens or load_tokens()
-    laid = _via_node(kind, data, timeout, tokens)
+    laid = _via_node(kind, data, timeout, tokens, keep)
+    if laid is None and keep:
+        raise EngineUnavailable("--keep-layout needs Node.js: the browser fallback would lay everything out again.")
     if laid is None:
         # The page prints scaffold progress; the browser path only needs the positions it publishes.
         laid = _via_browser(json.loads(json.dumps(data)), timeout, browser, tokens)

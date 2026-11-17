@@ -15,6 +15,10 @@ Applies only when your tools include `Artifact`. A diagram artifact is the same 
 2. `python "<skill-dir>/scripts/layout_engine.py" --extract <that file>` prints the diagram JSON. Answer from that; see [reading.md](reading.md).
 3. If the artifact belongs to someone else, the read returns only a summary and no file: say so, answer from the summary, and offer a new artifact.
 
+## Rebuild with a newer engine and UI (data and positions unchanged)
+
+When only the tool changed, not the diagram: `python "<skill-dir>/scripts/layout_engine.py" --layout <saved page.html> --keep-layout --target artifact -o <scratch>/<title-slug>.html`. Every item keeps the position saved in the page, and the data is carried over as it is; only lines, labels and the editor code are new. Without `--keep-layout`, `--layout` lays everything out again and the user's hand placement is lost. Then publish as in *Update*.
+
 ## Update
 
 1. `Artifact read` first: it returns the user's latest in-browser Save.

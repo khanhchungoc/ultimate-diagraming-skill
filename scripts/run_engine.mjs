@@ -14,6 +14,9 @@ if (!tokens || !diagram) {
   console.error('run_engine.mjs: stdin must be {"tokens": ..., "diagram": ...}');
   process.exit(2);
 }
-const layoutDiagram = new Function('TOKENS', `${readFileSync(enginePath, 'utf8')}\nreturn layoutDiagram;`)(tokens);
-layoutDiagram(diagram);
+// --keep: redraw lines and labels from the positions already in the diagram instead of laying it out again
+// (routeDiagram lays out by itself when an item has no position)
+const keep = process.argv.includes('--keep');
+const engine = new Function('TOKENS', `${readFileSync(enginePath, 'utf8')}\nreturn { layoutDiagram, routeDiagram: typeof routeDiagram === 'function' ? routeDiagram : null };`)(tokens);
+(keep && engine.routeDiagram ? engine.routeDiagram : engine.layoutDiagram)(diagram);
 process.stdout.write(JSON.stringify(diagram));
