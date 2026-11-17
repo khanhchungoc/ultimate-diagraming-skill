@@ -15,4 +15,4 @@ Format: `MAJOR.MINOR.PATCH`.
 
 ## Release zip (install without Node.js)
 
-`python dev/release.py zip` builds `ultimate-diagram-vX.Y.Z.zip`: tracked skill files only (no `dev/`, `bin/`, `docs/`, `.github/`, `.claude/`). Users unzip it and run `python scripts/install.py --mode copy` (or `scripts/install.sh`, `scripts/install.ps1`), or just copy the folder into their assistant's skills directory as `ultimate-diagram`.
+`python dev/release.py zip` builds `ultimate-diagram-vX.Y.Z.zip`: tracked skill files only (no `dev/`, `bin/`, `docs/`, `.github/`, `.claude/`). Users unzip it and run `python scripts/install.py --mode copy` (or `scripts/install.sh`, `scripts/install.ps1`), or just copy the `ultimate-diagram` folder inside the zip into their assistant's skills directory.

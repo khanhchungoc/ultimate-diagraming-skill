@@ -141,7 +141,7 @@ Each demo is a claude.ai Artifact; **Download .html** inside it saves your edits
 ### Option A: download (no terminal needed)
 
 1. Open the [latest release](https://github.com/khanhchungoc/ultimate-diagraming-skill/releases/latest) and download `ultimate-diagram-vX.Y.Z.zip` (under **Assets**).
-2. Unzip it. You get one folder; rename it to `ultimate-diagram`.
+2. Unzip it. You get one folder named `ultimate-diagram`.
 3. Move that folder into your AI assistant's `skills` folder (create it if it is missing):
 
    | Assistant | Skills folder (for all your projects) |
