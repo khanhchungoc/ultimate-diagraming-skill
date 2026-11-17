@@ -2634,6 +2634,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
 
       // --- NODE DRAG INTERACTION ---
       function handleNodePointerDown(e, node) {
+        if (isPresenting()) return;   // read-only: a press on a step pans (isBackground), never selects or drags
         if (e.target.classList.contains('port') || e.target.isContentEditable) {
           return;
         }
@@ -4694,7 +4695,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         contentEl: swimlanesContainer,
         report: { node: '.flow-node', label: '.edge-label', labelText: '.edge-label-text', nodeText: '.node-label' },
         render,
-        isBackground: (el) => el.id === 'swimlanes-container' || el.classList.contains('lane-track') || el.classList.contains('lane-gutter'),
+        isBackground: (el) => (isPresenting() && !!el.closest('.flow-node:not(.type-connector)')) || el.id === 'swimlanes-container' || el.classList.contains('lane-track') || el.classList.contains('lane-gutter'),
         clearSelection() {
           clearNodeSelection();
           selectedEdgeId = null;

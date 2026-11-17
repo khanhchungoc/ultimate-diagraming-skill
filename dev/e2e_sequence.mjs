@@ -925,6 +925,15 @@ try {
 
   // ?present: read-only, but frames still collapse and expand
   await t.open(long, '?present');
+
+  { // present mode: a drag, a double-click, Delete and Ctrl+Z change nothing, and no editor opens
+    const sel = '.seq-participant', n0 = await t.ev(`document.querySelectorAll(${JSON.stringify(sel)}).length`), p = await t.at(sel);
+    await t.click(p.x, p.y, { count: 2 }); await t.dragTo(p.x, p.y, p.x + 40, p.y + 30);
+    await t.ev(t.key('Delete')); await t.ev(t.key('z', { ctrlKey: true }));
+    t.check('sequence ?present: double-click, drag, Delete and Ctrl+Z change nothing',
+      (await t.ev(`document.querySelectorAll(${JSON.stringify(sel)}).length`)) === n0 && !(await t.ev(`!!document.querySelector('[contenteditable="true"]')`))
+      && !/unsaved/i.test(await t.ev(`document.getElementById('save-status').textContent`)) && t.errors.length === 0, t.errors.join(' | '));
+  }
   t.check('?present makes the diagram read-only', await t.ev(`getComputedStyle(document.querySelector('.seq-participant')).pointerEvents === 'none'`));
   await t.clickOn('.frame-tag[data-frag-id="f5"] .frame-chev');
   const presentCollapsed = await count('.frame-summary');

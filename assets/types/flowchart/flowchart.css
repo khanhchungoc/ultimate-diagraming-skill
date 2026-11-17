@@ -514,7 +514,7 @@
 
     /* Presentation mode (?present): hide flowchart editing chrome, make elements inert */
     body.presentation .port { display: none !important; }
-    body.presentation .flow-node,
+    /* Steps stay hoverable (a press pans, flowchart.js); everything else is inert */
     body.presentation .lane-pill,
     body.presentation .lane-title,
     body.presentation .edge-label,

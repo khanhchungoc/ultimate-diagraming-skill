@@ -402,7 +402,10 @@
         });
 
         const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.has('present') || urlParams.has('capture')) document.body.classList.add('presentation');
+        if (urlParams.has('present') || urlParams.has('capture')) {
+          document.body.classList.add('presentation');
+          document.getElementById('btn-present').setAttribute('aria-pressed', 'true');
+        }
         if (urlParams.has('capture')) document.body.classList.add('capture');
         initTheme();
         initSearch();
@@ -425,6 +428,23 @@
             if (/[?&]tidy(=|&|$)/.test(window.location.search)) publishTidyResult();
           });
         });
+      }
+
+      // Present mode (body.presentation): read-only view, toggled in place by the Present button and Esc, or on at load by ?present
+      const btnPresent = document.getElementById('btn-present');
+      const presentOn = () => document.body.classList.contains('presentation');
+      function setPresent(on) {
+        if (on === presentOn()) return;
+        if (on) { plugin.cancelInteraction(); plugin.clearSelection(); }
+        document.body.classList.toggle('presentation', on);
+        btnPresent.setAttribute('aria-pressed', String(on));
+        if (plugin.render && chartData) plugin.render();   // a plugin draws its editing handles at render
+        if (on) showToast('Esc or the Present button to exit');
+      }
+      btnPresent.addEventListener('click', () => setPresent(!presentOn()));
+      // No edit gets through in present mode: double-click (rename), context menu, file drop
+      for (const type of ['dblclick', 'contextmenu', 'dragover', 'drop']) {
+        window.addEventListener(type, (e) => { if (presentOn()) { e.preventDefault(); e.stopImmediatePropagation(); } }, true);
       }
 
       function updateStatus(unsaved) {
@@ -1675,7 +1695,7 @@
       window.addEventListener('keydown', (e) => {
         if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
           e.preventDefault();
-          saveToFile();
+          if (!presentOn()) saveToFile();
         } else if ((e.ctrlKey || e.metaKey) && (e.key.toLowerCase() === 'z' || e.key.toLowerCase() === 'y')) {
           // Leave text editing (title, labels) to the browser's own undo
           if (document.activeElement && (document.activeElement.isContentEditable || document.activeElement.tagName === 'INPUT')) return;
@@ -1683,6 +1703,7 @@
           e.preventDefault();
           if (e.key.toLowerCase() === 'y' || e.shiftKey) redo(); else undo();
         } else if (e.key === 'Escape') {
+          if (presentOn() && !document.body.classList.contains('capture')) { setPresent(false); return; }
           if (helpDrawer.classList.contains('open')) { setHelpOpen(false); return; }
           plugin.cancelInteraction();
         } else if (e.key === 'Delete' || e.key === 'Backspace') {
