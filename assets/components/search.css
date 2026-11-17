@@ -2,7 +2,7 @@
        elements (search-dim on non-matches, search-current on the match being shown). View-only: exports and Save never see them.
        Markup: #search-bar > input#search-input, #search-count, button#search-prev, button#search-next, button#search-close. */
     #search-bar {
-      position: fixed; top: 64px; right: 16px; z-index: 150;
+      position: absolute; top: calc(100% + 8px); right: 16px; z-index: 150;   /* below the header, aligned with its padding */
       display: flex; align-items: center; gap: 6px; padding: 6px;
       background: var(--bg-panel); border: 1px solid var(--border-dark); border-radius: var(--radius-lg);
       box-shadow: var(--shadow-lg);
