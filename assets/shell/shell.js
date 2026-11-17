@@ -685,7 +685,10 @@
           document.querySelectorAll(plugin.report.nodeText).forEach(el => {
             if (el.scrollHeight > el.clientHeight + 2 || el.scrollWidth > el.clientWidth + 2) {
               const nid = el.closest(plugin.report.node)?.dataset.nodeId || 'node';
-              warnings.push(`Node label truncated ("..."): "${el.textContent.trim()}" (${nid}) — shorten to fit 2 lines`);
+              // A label with a hover tip still shows its full text, so it is a layout note, not a data problem
+              warnings.push(el.dataset.tip
+                ? `Node label truncated ("..."): "${el.textContent.trim()}" (${nid}); the full text shows on hover`
+                : `Node label truncated ("..."): "${el.textContent.trim()}" (${nid}) — shorten to fit 2 lines`);
             }
           });
         }

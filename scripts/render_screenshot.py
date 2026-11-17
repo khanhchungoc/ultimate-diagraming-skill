@@ -307,7 +307,8 @@ def main() -> int:
         if not found:
             print(f"[PASS] axe ({mode} mode): no violations.")
     for msg in report.get("warnings", []):
-        print(f"[WARN] {msg}")
+        # Truncated text the reader can still hover to read is layout; anything else is data to shorten
+        print(f"[INFO] Layout: {msg} ({LAYOUT_NOTE})" if "shows on hover" in msg else f"[WARN] {msg}")
     for msg in report["errors"]:
         print(f"[INFO] Layout: {msg.rstrip('.')} ({LAYOUT_NOTE})")
     # Small text at the fit zoom: only worth reporting on a diagram meant for one screen (12 nodes or fewer);
