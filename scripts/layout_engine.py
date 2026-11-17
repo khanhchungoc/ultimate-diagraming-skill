@@ -108,13 +108,8 @@ class FlowchartAudit:
     title = "Flowchart"
 
     def pass_line(self, report: Dict[str, Any]) -> str:
-        return (
-            f"[PASS] Quality Score: {report['score']}/100 ({report['grade']}). "
-            f"0 overlaps, 0 penetrations, {report['collinear_pct']}% collinear straightness"
-            + (f", {report['edge_crossings']} edge crossings (score only, not a defect)" if report["edge_crossings"] else "")
-            + (f", {report['long_arrows_count']} long arrows (fix [WARN] above)" if report["long_arrows_count"] else "")
-            + "."
-        )
+        # No grade on a pass: crossings and the score are not defects, so nothing here invites more tweaking
+        return "[PASS] Layout clean." + (f" (audit score {report['score']}, for the report only; do not try to raise it)" if report["score"] < 100 else "")
 
     def summary_lines(self, report: Dict[str, Any]) -> List[str]:
         return [
@@ -1703,6 +1698,11 @@ def main():
             if report2["passed"] or not report["passed"]:
                 laid_out_data, audit, report = laid2, audit2, report2
                 print("\n".join(info))
+                # The tool already split what it may (at most 3 letters): what is left is reported, not fixed
+                left = [w for w in report["budget_warnings"] if w.startswith("Long arrow") or "long, tangled arrow" in w]
+                report["budget_warnings"] = [w for w in report["budget_warnings"] if w not in left]
+                for w in left:
+                    print(f"[INFO] Left as is (connector limit reached), report it: {w.split(': split')[0]}")
 
         if args.target == "artifact":
             out_path = Path(args.output) if args.output else in_p.with_suffix("")
@@ -1736,7 +1736,7 @@ def main():
         if args.screenshot:
             render_code, render_clean = run_render(render_target, Path(args.screenshot), args.browser)
             clean = clean and render_clean
-            print("[DONE] Clean. View the PNG once against the visual checklist; if it passes, the diagram is final: "
+            print("[DONE] Clean. View the PNG only if a visual checklist item needs it; the diagram is then final: "
                   "do not re-word, re-run or re-render." if clean else
                   "[NEXT] Fix only the [WARN]/[FAIL]/[ERROR] lines above, then re-run this same command.")
         if failed:

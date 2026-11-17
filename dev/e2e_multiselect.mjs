@@ -89,8 +89,9 @@ function auditScore(json) {
   const f = join(tmp, `d${Math.random().toString(36).slice(2)}.json`);
   writeFileSync(f, json);
   const r = spawnSync('python3', [join(root, 'scripts', 'layout_engine.py'), '--layout', f, '-o', f.replace(/\.json$/, '.html')], { encoding: 'utf8' });
-  const m = /Quality Score: (\d+)/.exec((r.stdout || '') + (r.stderr || ''));
-  return m ? Number(m[1]) : -1;
+  const out = (r.stdout || '') + (r.stderr || '');
+  const m = /audit score (\d+)|Quality score (\d+)/.exec(out);
+  return m ? Number(m[1] || m[2]) : out.includes('[PASS] Layout clean.') ? 100 : -1;
 }
 
 // The diagram as saved (Ctrl+S writes the page's data block), for the audit

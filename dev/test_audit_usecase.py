@@ -255,7 +255,7 @@ def main() -> int:
     audit_obj = UsecaseAudit(copy.deepcopy(BASE))
     report = audit_obj.verify_collisions()
     ok = ({"passed", "score", "grade", "issues", "budget_warnings", "info"} <= set(report) and report["passed"] and report["score"] == 100
-          and report["grade"] == "A+" and audit_obj.pass_line(report).startswith("[PASS] Quality Score: 100/100")
+          and report["grade"] == "A+" and audit_obj.pass_line(report).startswith("[PASS] Layout clean.")
           and UsecaseAudit.title == "Use Case Diagram"
           and audit_obj.summary_lines(report)[0].startswith("Structure: 2 Actors | 4 Use cases | 5 Links"))
     failed += not ok

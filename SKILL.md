@@ -56,8 +56,9 @@ Make exactly these calls. The type reference, the example it names and the comma
 
    | Output | Action |
    |---|---|
+   | `[PASS] Layout clean.` | Nothing to fix. A trailing `(audit score N ...)` is for the report only: do not try to raise it. |
    | `[DONE]` | Go to step 5. |
-   | `[INFO]` | None. Small text in a diagram over 12 nodes or participants is expected (pan and zoom). |
+   | `[INFO]` | None (report `Lane order` and `Added connector pair` lines). Small text in a diagram over 12 nodes or participants is expected (pan and zoom). |
    | `[WARN]` truncated text (`...`) | Shorten that label to the budget, re-run step 3. |
    | Any other `[WARN]` | Fix what it names (the type reference has the rule), re-run step 3. |
    | `[FAIL]` score below 90 | Fix the listed issues. Never merge, drop or reroute steps, branches or end states to raise the score: if the complete diagram cannot pass, keep it complete and report the score. |
@@ -67,7 +68,7 @@ Make exactly these calls. The type reference, the example it names and the comma
    | `[WARN] Layout report unavailable` | Do the overlap check by eye and say so in the report. |
    | Render failed | Retry once with `--browser <chrome path>`. If no browser works, report that the visual review could not run. |
 
-5. **View the PNG once** and go through the type's visual checklist. Re-run step 3 only for a failed checklist item.
+5. **View the PNG only if needed**: once, when the type's visual checklist has an item the JSON and the output cannot settle (a flowchart loop edge, a sequence or ERD visual item), or the run printed a `[WARN]` to look at. Otherwise skip it. Re-run step 3 only for a failed checklist item.
 6. **Stop.** A clean run is final: do not re-word labels, re-run or re-render. Delete the scratch JSON and PNG (keep the scratch artifact folder when publishing an artifact, see Artifact output), then report.
 
 ## Local HTML file: create, read, update, delete
@@ -126,4 +127,4 @@ About 5 lines: the file, and anything that needs the user's action. Not a log of
 
 - the output path (for an artifact: its link, and that it is private until the user shares it from claude.ai) and a concise description (type, and main actors, participants or tables);
 - assumptions: anything you added or reordered that the source did not state, and each conflict between sources with the version you followed;
-- problems only: score if below 100, any `[WARN]` left, labels shortened from the user's wording, a split diagram and why, what a re-layout reset (updates), an overlap check done by eye.
+- problems only: the audit score if the pass line showed one, any `[WARN]` left, labels shortened from the user's wording, a split diagram and why, what a re-layout reset (updates), an overlap check done by eye.

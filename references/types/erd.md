@@ -121,7 +121,7 @@ The audit covers references, box overlap, curves through tables and label overla
 - **`unknown fromEnd` / `unknown toEnd`**: use `one`, `zeroOrOne`, `oneOrMany` or `zeroOrMany`.
 - **`Duplicate entity id` / `Duplicate column` / `Duplicate relationship id`**: ids are unique, and column names are unique within a table.
 - **`unknown color`**: a table colour must be a palette slot, `"1"` to `"8"`. (A custom hex still loads, drawn as is, and the audit warns that its contrast is not checked; do not write one.)
-- **`Entities ... overlap`, `passes through entity`, `Labels ... overlap`, `sits over entity`, `extends past the diagram edge`**: layout problems; re-run `--layout` (never edit positions or curves by hand). If it persists, shorten the label.
+- **`Entities ... overlap`, `passes through entity`, `Labels ... overlap`, `sits over entity`, `extends past the diagram edge`**: layout problems. The layout is deterministic, so re-running unchanged JSON gives the same result: shorten the label named, or reorder `entities`, then re-run. Never edit positions or curves by hand.
 - **One `passes through entity` on a schema of more than 10 tables**: expected now and then. The layout uses a lighter search above 10 tables to stay fast, so re-running gives the same result. Accept it, or reorder `entities`, or split the schema by domain.
 - **`N tables and none has a 'color'`** (warning): colour the tables by domain, see Colour.
 - **`Diagram is not laid out`**: run `--layout`.

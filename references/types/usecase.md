@@ -122,7 +122,7 @@ The audit covers references, overlaps, lines through use cases and label overlap
 - **`Duplicate actor id` / `Duplicate use case id` / `Duplicate subject id` / `Duplicate link id` / `Duplicate note id`**: ids are unique (actors, use cases and subjects share one set).
 - **`has no 'subject'`**: with two or more subjects every use case names its `subject`.
 - **`has no name` / `has no text`**: give it one.
-- **`Use cases ... overlap`, `Actors ... overlap`, `overlaps use case`, `sits inside subject`, `is not inside its subject`, `passes through use case`, `passes through actor`, `Labels of links ... overlap`, `sits over use case`, `sits over actor`, `extends past the diagram edge`, `Subjects ... overlap`**: layout problems; re-run `--layout` (never edit positions by hand). If it persists, shorten the name or condition.
+- **`Use cases ... overlap`, `Actors ... overlap`, `overlaps use case`, `sits inside subject`, `is not inside its subject`, `passes through use case`, `passes through actor`, `Labels of links ... overlap`, `sits over use case`, `sits over actor`, `extends past the diagram edge`, `Subjects ... overlap`**: layout problems. The layout is deterministic, so re-running unchanged JSON gives the same result: shorten the name or condition named, then re-run. Never edit positions by hand.
 - **`Diagram is not laid out`**: run `--layout`.
 - **`Actor '...' has no association`** (warning): connect it to a use case it takes part in, or drop it.
 - **`is not reached by any actor`** (warning): associate an actor, or `include`, `extend` or generalize it from a use case an actor reaches.

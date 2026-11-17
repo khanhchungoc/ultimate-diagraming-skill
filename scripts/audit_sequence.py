@@ -128,7 +128,7 @@ class SequenceAudit:
         return errors
 
     def pass_line(self, report: Dict[str, Any]) -> str:
-        return f"[PASS] Quality Score: {report['score']}/100 ({report['grade']}). No spacing, label-fit or bounds problems."
+        return "[PASS] Layout clean." + (f" (audit score {report['score']}, for the report only; do not try to raise it)" if report["score"] < 100 else "")
 
     def __init__(self, data: Dict[str, Any], metrics: Optional[Dict[str, float]] = None):
         self.data = data

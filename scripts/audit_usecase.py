@@ -211,7 +211,7 @@ class UsecaseAudit:
         self.subjects: List[Dict[str, Any]] = data.get("subjects") or []
 
     def pass_line(self, report: Dict[str, Any]) -> str:
-        return f"[PASS] Quality Score: {report['score']}/100 ({report['grade']}). No overlap, line or label-fit problems."
+        return "[PASS] Layout clean." + (f" (audit score {report['score']}, for the report only; do not try to raise it)" if report["score"] < 100 else "")
 
     # --- audit ---------------------------------------------------------------------------------------------------
 
