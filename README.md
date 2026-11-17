@@ -15,6 +15,7 @@ Describe a process, and your AI agent hands back a single HTML file. Open it in 
 - [Offline samples](#offline-samples)
 - [Get started](#get-started)
 - [More](#more)
+- [How it compares to Mermaid and draw.io](#how-it-compares-to-mermaid-and-drawio)
 - [Build your own skills](#build-your-own-skills)
 - [Credits and licence](#credits-and-licence)
 
@@ -23,7 +24,7 @@ Describe a process, and your AI agent hands back a single HTML file. Open it in 
 - ✏️ **Fix it yourself, no re-prompting.** Wrong label? Step in the wrong lane? Drag it, retype it, delete it. Undo and redo work. **Ctrl+F** searches the diagram's text.
 - 💬 **Your edits and the AI's edits combine.** Tweak the diagram by hand, then tell the AI "add an approval step after review". It picks up from your edited version instead of starting over. This works best as a [claude.ai Artifact](docs/artifacts.md), where **Save** stores your edits straight into the artifact. With a plain HTML file, **Save** works like Save As (see [Save vs Download](#save-vs-download-html)), so you point the AI at the saved file.
 - 🧹 **Always tidy.** The AI checks its own result for overlapping boxes and unreadable labels before showing you. After that, add, move or delete a step and the diagram re-arranges itself and re-routes the arrows. Flip between wide and tall with one button. Long arrows become lettered circles (A → A): hover to see where the flow continues, click to jump there.
-- ⚡ **Fast and cheap.** The AI writes a short description instead of thousands of lines of drawing code, so you wait less and spend fewer tokens ([numbers](#how-it-compares)).
+- ⚡ **Fast and cheap.** The AI writes a short description instead of thousands of lines of drawing code, so you wait less and spend fewer tokens ([numbers](#how-it-compares-to-mermaid-and-drawio)).
 - 📦 **Just a file.** Email it, put it in a repo, attach it to a ticket, or open it offline. Optionally [use your brand](docs/brand.md): colours, font and corners, contrast-checked.
 
 ## Diagram types
@@ -140,70 +141,56 @@ Or ask your AI agent to install it for you: *"Install the ultimate-diagram skill
 - [Diagrams as claude.ai Artifacts](docs/artifacts.md): publish privately, share a link, keep editing.
 - [Ask your AI about a diagram](docs/reading-diagrams.md): summarize or query a saved diagram without reading the editor code.
 
-<a id="how-it-compares"></a>
+## How it compares to Mermaid and draw.io
+
+- ⚡ **This**: clear, editable process diagrams from your AI, fast and cheap.
+- 🧩 **Mermaid**: small diagrams inside Markdown docs.
+- 🎨 **draw.io**: free-form drawing, huge shape library.
+
 <details>
-<summary><b>How it compares</b> to Mermaid and draw.io</summary>
-
-We gave AI assistants the same jobs in three formats: this skill, Mermaid, and draw.io.
-
-These are single runs per assistant (November 2026), not averages. Treat the percentages as a rough guide, and expect different numbers with a different diagram or AI.
-
-### Making a diagram
-
-Same prompt for a large process (7 lanes, about 50 to 60 steps, 5 possible outcomes), run in two AI assistants: Antigravity and GitHub Copilot.
-
-| | **Ultimate Diagram** | **Mermaid** | **draw.io** |
-|---|:---:|:---:|:---:|
-| Time to finish | **3.4 to 4 min** | 4.9 to 5.5 min | 6.9 to 7.6 min |
-| Actions the AI took | **8 to 11** | 12 to 32 | 26 to 30 |
-| Tokens used (Copilot) | **0.69 million** | 2.32 million | 2.54 million |
-| Cost (Copilot, estimated) | **$0.09** | $0.29 | $0.34 |
-| Every step and outcome included | ✅ | ✅ | ✅ |
-| Layout checked for overlaps | ✅ every time, with a screenshot | ⚠️ only if the AI decides to | ⚠️ boxes only, arrows unchecked |
-
-**In plain English:** this skill finished 19% to 38% sooner than Mermaid and in about half the time of draw.io. In Copilot it used 70% fewer tokens than Mermaid and 73% fewer than draw.io, so it cost about a third as much as Mermaid and a quarter as much as draw.io. The reason: the AI only writes the steps and arrows, and a script draws the picture. With draw.io the AI has to work out the position of every box and arrow itself.
-
-### Reading a diagram back
-
-We asked an AI (Claude Haiku) to summarize 4 saved diagrams, from 9 to 41 steps each.
-
-| | **Ultimate Diagram** | **Mermaid** | **draw.io** |
-|---|:---:|:---:|:---:|
-| Time to answer | **16 s** | 30 s | 40 s |
-| Tokens used | **42,800** | 44,300 | 53,300 |
-| Correct answers | 4 / 4 | 4 / 4 | 4 / 4 |
-
-**In plain English:** every format gave correct answers. With this skill installed, the AI answered in about half the time it took for Mermaid and in 60% less time than for draw.io. It used about as many tokens as Mermaid (3% fewer) and 20% fewer than draw.io. Without the skill, the AI still answers correctly but takes about 38 s and 54,000 tokens, because it reads part of the built-in editor first.
+<summary>Show the comparison</summary>
 
 ### Features
 
-| | **Ultimate Diagram** | **Mermaid** | **draw.io** |
+| | **This** | **Mermaid** | **draw.io** |
 |---|:---:|:---:|:---:|
-| Edit by dragging and typing | ✅ | ❌ edit the code or ask the AI | ✅ |
-| Everything the AI wrote can be changed by hand | ✅ lane colours, legends, activation bars and more (a step's shape is still set by the AI) | ❌ edit the code | ✅ |
-| Opens with nothing to install | ✅ any browser | ✅ shown by GitHub, GitLab, VS Code | ⚠️ needs the draw.io app or website |
-| Real swimlanes | ✅ | ❌ coloured groups only | ✅ |
-| Switch wide / tall in one click | ✅ | ⚠️ edit the code | ❌ |
-| Re-tidies itself after edits | ✅ | ✅ always automatic, but no dragging | ⚠️ limited |
-| Shows inside Markdown docs | ❌ | ✅ | ❌ |
-| File size | ⚠️ about 330 to 530 KB (editor built in) | ✅ 10 to 26 KB | ✅ 39 to 56 KB |
-| Huge shape and icon library | ❌ | ❌ | ✅ |
+| Edit by drag and type | ✅ | ❌ code | ✅ |
+| Hand-edit everything the AI wrote | ✅ | ❌ | ✅ |
+| Nothing to install | ✅ | ✅ | ⚠️ app or site |
+| Real swimlanes | ✅ | ❌ | ✅ |
+| Wide ↔ tall, 1 click | ✅ | ⚠️ code | ❌ |
+| Re-tidies after edits | ✅ | ⚠️ no drag | ⚠️ limited |
+| In Markdown docs | ❌ | ✅ | ❌ |
+| Diagram types | 4 | many | many |
+| Export PNG / SVG / PDF | ❌ planned | ✅ | ✅ |
+| File size | ⚠️ 330-530 KB | ✅ 10-26 KB | ✅ 39-56 KB |
+| Shape / icon library | ❌ | ❌ | ✅ |
 
-### Which one to pick
+### Speed and cost
 
-**Pick Mermaid** for small diagrams that live inside Markdown docs.
+One large process: 7 lanes, 50-60 steps, 5 outcomes. All three included every step.
 
-**Pick draw.io** for free-form drawing with lots of shapes.
+| | **This** | **Mermaid** | **draw.io** |
+|---|:---:|:---:|:---:|
+| ⏱️ Time | **3.4-4 min** | 4.9-5.5 min | 6.9-7.6 min |
+| 💲 Cost | **$0.09** | $0.29 | $0.34 |
+| 🔢 Tokens | **0.69 M** | 2.32 M | 2.54 M |
+| 🧭 Auto layout | ✅ checked | ⚠️ unchecked | ❌ AI places boxes |
 
-**Pick this** for clear, editable process diagrams from your AI, made fast and cheaply.
+**≈1.4× faster than Mermaid, ≈2× faster than draw.io, ≈3-4× cheaper.** Why: the AI writes steps and arrows, a script draws them.
+
+### Reading a diagram back
+
+4 saved diagrams, 9-41 steps. All answers correct (4/4) in all three.
+
+| | **This** | **Mermaid** | **draw.io** |
+|---|:---:|:---:|:---:|
+| ⏱️ Time | **16 s** | 30 s | 40 s |
+| 🔢 Tokens | **42.8 k** | 44.3 k | 53.3 k |
+
+**≈2× faster.** Tokens: ≈ Mermaid, 20% fewer than draw.io. Without the skill: 38 s, 54 k.
 
 </details>
-
-## Credits and licence
-
-Released under the [MIT licence](LICENSE).
-
-The icons in the editor and on the swimlane headers are [Lucide](https://lucide.dev) icons (ISC licence, Copyright (c) Lucide Icons and Contributors), or are redrawn from Lucide designs; some Lucide icons derive from [Feather](https://feathericons.com) (MIT licence, Copyright (c) Cole Bemis). The diagram-type icons, the flowchart shape tiles and a few others were drawn for this skill. The icon registry is `assets/icons/default.json` and the full licence notices are in `assets/icons/LICENSE`.
 
 ## Build your own skills
 
