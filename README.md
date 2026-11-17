@@ -130,7 +130,7 @@ Each demo is a claude.ai Artifact; **Download .html** inside it saves your edits
    npx khanhchungoc/ultimate-diagraming-skill
    ```
    Works with Claude Code, GitHub Copilot, OpenAI Codex, Gemini CLI, Antigravity and Kiro. By default it installs into each one's skills folder under your home directory (a copy when run through `npx`). Add `--runtime claude` to pick one assistant, or `--project` to install into the current project only.
-   **No Node.js?** Download `ultimate-diagram-vX.Y.Z.zip` from the [latest release](https://github.com/khanhchungoc/ultimate-diagraming-skill/releases/latest), unzip it, and run `python scripts/install.py --mode copy` (or `scripts/install.sh` on macOS/Linux, `scripts/install.ps1` on Windows). A new release is published on every push to `main`; see `dev/versioning.md`.
+   **No Node.js?** Open the [latest release](https://github.com/khanhchungoc/ultimate-diagraming-skill/releases/latest) and download `ultimate-diagram-vX.Y.Z.zip`. Extract it into your assistant's skills folder, so that `SKILL.md` ends up at `<skills-folder>/ultimate-diagram/SKILL.md`: for example `~/.claude/skills/` for Claude Code, or `<your-project>/.claude/skills/` for one project. The zip holds a folder named `ultimate-diagram-vX.Y.Z`; rename it to `ultimate-diagram`. Other assistants use their own skills folder; `scripts/install.py` lists them all.
 2. Ask: *"Draw a swimlane flowchart of our loan approval process."*
 3. Open the HTML file it creates and edit.
 
