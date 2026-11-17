@@ -177,13 +177,19 @@
 
     /* Presentation mode (?present): read-only, no editing chrome */
     body.presentation .toolbar-center,
+    body.presentation .toolbar-left,
+    body.presentation .menu-wrap,
     body.presentation #btn-save,
     body.presentation #btn-help,
     body.presentation #btn-undo,
     body.presentation #btn-redo,
-    body.presentation #save-status,
+    body.presentation #btn-theme,
+    body.presentation #btn-search,
+    body.presentation #search-bar,
     body.presentation #help-drawer { display: none !important; }
-    body.presentation #chart-title { pointer-events: none !important; }
+    /* The header collapses to nothing; only the Present button stays, pinned to a corner. The zoom dock is not in the header. */
+    body.presentation header { height: 0; padding: 0; border: 0; box-shadow: none; background: none; }
+    body.presentation #btn-present { position: fixed; top: 12px; right: 16px; z-index: 101; }
     /* Capture mode (?capture, used for screenshots): diagram only, edge to edge */
     body.capture header,
     body.capture .toolbar-zoom { display: none; }

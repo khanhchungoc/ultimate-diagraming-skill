@@ -492,7 +492,29 @@ sys.stdout.write(f.format_json(out))`;
   t.check('the Python codec (disk_format.py) reads and writes that block unchanged', pr.status === 0 && (pr.stdout.trim() === 'SKIP' || pr.stdout.trim() === blockText.trim()), pr.stderr || pr.stdout.slice(0, 200));
 
   // --- present ----------------------------------------------------------------------------------------------------------------------------
+  // The Present button toggles in place: the search is hidden and cleared, folds are view only
+  await freshPage(page);
+  await t.press('/'); await t.type('pick');
+  const matched = await count('.uc-case.is-match');
+  await t.clickOn('#btn-present');
+  await t.press('/');
+  t.check('usecase: entering Present hides and clears the search, and / does not open it', matched > 0 && (await count('.uc-case.is-match')) === 0
+    && (await t.ev(`getComputedStyle(document.querySelector('.uc-search')).display === 'none' && document.activeElement.id !== 'uc-search'`)));
+  await t.clickOn('.uc-subject[data-subject-id="office"] .frame-chev');
+  await t.press('Escape');
+  t.check('usecase: Esc exits in one press, a fold made while presenting leaves no unsaved badge, undo step or collapsed item',
+    !(await t.ev(`document.body.classList.contains('presentation')`)) && !(await t.ev(`/unsaved/i.test(document.getElementById('save-status').textContent)`))
+    && (await t.ev(`document.getElementById('btn-undo').disabled`)) && !byId((await saved()).subjects, 'office').collapsed && t.errors.length === 0, t.errors.join(' | '));
+
   await freshPage(page, '?present');
+  { // present mode: a drag, a double-click, Delete and Ctrl+Z change nothing, and no editor opens
+    const sel = '.uc-actor', n0 = await t.ev(`document.querySelectorAll(${JSON.stringify(sel)}).length`), p = await t.at(sel);
+    await t.click(p.x, p.y, { count: 2 }); await t.dragTo(p.x, p.y, p.x + 40, p.y + 30);
+    await t.ev(t.key('Delete')); await t.ev(t.key('z', { ctrlKey: true }));
+    t.check('usecase ?present: double-click, drag, Delete and Ctrl+Z change nothing',
+      (await t.ev(`document.querySelectorAll(${JSON.stringify(sel)}).length`)) === n0 && !(await t.ev(`!!document.querySelector('[contenteditable="true"]')`))
+      && !/unsaved/i.test(await t.ev(`document.getElementById('save-status').textContent`)) && t.errors.length === 0, t.errors.join(' | '));
+  }
   t.check('?present: no ports, no dock, no search of editing', (await count('.uc-port')) === 0 && !(await t.ev(`getComputedStyle(document.querySelector('.toolbar-center')).display !== 'none'`)) && (await count('.note-add')) === 0);
   await t.clickOn(item('clerk'));
   t.check('?present: a click on an actor still lights what it can reach, with no action bar', (await dimmed()).includes('browse') && !(await dimmed()).includes('pick') && !(await present('.uc-actionbar')));

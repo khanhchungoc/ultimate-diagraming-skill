@@ -1010,8 +1010,28 @@ sys.stdout.write(format_json(out))`;
   await t.mouse('mouseMoved', tipLine.x, tipLine.y);
   await sleep(120);
   t.check('hovering a line lights it and its two rows (no chips)', (await count('.erd-rel.hover')) === 1 && (await count('.erd-key-chip')) === 0 && (await t.ev(`document.querySelector('.erd-rel.hover title').textContent`)).includes(' → '));
+  // The Present button toggles in place: the search is closed and cleared, folds are view only
+  await freshPage(page);
+  await t.press('/'); await t.type('order');
+  const dimmedE = await count('.search-dim');
+  await t.clickOn('#btn-present');
+  t.check('erd: entering Present closes and clears the search', dimmedE > 0 && (await count('.search-dim')) === 0 && (await t.ev(`document.getElementById('search-bar').hidden`)));
+  await t.clickOn(`${head('order')} .erd-chevron`);
+  await t.press('Escape');
+  t.check('erd: Esc exits in one press, a fold made while presenting leaves no unsaved badge, undo step or collapsed item',
+    !(await t.ev(`document.body.classList.contains('presentation')`)) && !(await t.ev(`/unsaved/i.test(document.getElementById('save-status').textContent)`))
+    && (await t.ev(`document.getElementById('btn-undo').disabled`)) && (await count('.erd-entity.is-collapsed')) === 0 && t.errors.length === 0, t.errors.join(' | '));
+
   // ?present
   await freshPage(page, '?present');
+  { // present mode: a drag, a double-click, Delete and Ctrl+Z change nothing, and no editor opens
+    const sel = '.erd-entity', n0 = await t.ev(`document.querySelectorAll(${JSON.stringify(sel)}).length`), p = await t.at(sel);
+    await t.click(p.x, p.y, { count: 2 }); await t.dragTo(p.x, p.y, p.x + 40, p.y + 30);
+    await t.ev(t.key('Delete')); await t.ev(t.key('z', { ctrlKey: true }));
+    t.check('erd ?present: double-click, drag, Delete and Ctrl+Z change nothing',
+      (await t.ev(`document.querySelectorAll(${JSON.stringify(sel)}).length`)) === n0 && !(await t.ev(`!!document.querySelector('[contenteditable="true"]')`))
+      && !/unsaved/i.test(await t.ev(`document.getElementById('save-status').textContent`)) && t.errors.length === 0, t.errors.join(' | '));
+  }
   await hoverOn('order');
   t.check('?present: the neighbourhood works (rings, key rows)', J(await idsWith('rel-child')) === J(['order_item', 'payment']));
   await t.clickOn(head('order'));

@@ -1725,7 +1725,7 @@
         if (searchQ) clearSearch();
       }, true);
       window.addEventListener('keydown', (e) => {
-        if (e.key === '/' && !e.ctrlKey && !e.metaKey && !e.altKey && !typingInField()) { e.preventDefault(); searchEl.focus(); searchEl.select(); return; }
+        if (e.key === '/' && !presenting() && !e.ctrlKey && !e.metaKey && !e.altKey && !typingInField()) { e.preventDefault(); searchEl.focus(); searchEl.select(); return; }
         if (presenting() ? !(e.key.startsWith('Arrow')) : false) return;
         if (drag || e.ctrlKey || e.metaKey) return;
         const a = document.activeElement;
@@ -1859,6 +1859,7 @@
           if (next.length === selIds.length && next.every((id) => selIds.includes(id)) && !selOther) return;
           setSel(next, null);
         },
+        clearSearch,
         selectAll() { if (!presenting()) setSel([...actors(), ...cases()].filter((o) => drawn(o.id)).map((o) => o.id), null); },
         deleteSelection,
         // Search: read the live DOM; ordered top to bottom, then left to right. A hidden note card (Notes off) has no box,

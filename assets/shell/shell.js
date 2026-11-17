@@ -402,7 +402,10 @@
         });
 
         const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.has('present') || urlParams.has('capture')) document.body.classList.add('presentation');
+        if (urlParams.has('present') || urlParams.has('capture')) {
+          document.body.classList.add('presentation');
+          document.getElementById('btn-present').setAttribute('aria-pressed', 'true');
+        }
         if (urlParams.has('capture')) document.body.classList.add('capture');
         initTheme();
         initSearch();
@@ -425,6 +428,33 @@
             if (/[?&]tidy(=|&|$)/.test(window.location.search)) publishTidyResult();
           });
         });
+      }
+
+      // Present mode (body.presentation): read-only view, toggled in place by the Present button and Esc, or on at load by ?present
+      const btnPresent = document.getElementById('btn-present');
+      let presentEntry = null;
+      const presentOn = () => document.body.classList.contains('presentation');
+      function setPresent(on) {
+        if (on === presentOn()) return;
+        if (on) {
+          plugin.cancelInteraction(); plugin.clearSelection();
+          setSearchOpen(false); if (plugin.clearSearch) plugin.clearSearch();
+          presentEntry = { json: JSON.stringify(chartData), committed: committedJson, undo: undoStack.slice(), redo: redoStack.slice() };
+        }
+        document.body.classList.toggle('presentation', on);
+        btnPresent.setAttribute('aria-pressed', String(on));
+        if (!on && presentEntry) {   // folds made while presenting are view only: put the model and history back as they were
+          const e = presentEntry;
+          undoStack = e.undo; redoStack = e.redo;
+          restoreSnapshot(e.json);
+          committedJson = e.committed; presentEntry = null;
+        } else if (plugin.render && chartData) plugin.render();   // a plugin draws its editing handles at render
+        if (on) showToast('Esc or the Present button to exit');
+      }
+      btnPresent.addEventListener('click', () => setPresent(!presentOn()));
+      // No edit gets through in present mode: double-click (rename), context menu, file drop
+      for (const type of ['dblclick', 'contextmenu', 'dragover', 'drop']) {
+        window.addEventListener(type, (e) => { if (presentOn()) { e.preventDefault(); e.stopImmediatePropagation(); } }, true);
       }
 
       function updateStatus(unsaved) {
@@ -1039,7 +1069,7 @@
         window.addEventListener('keydown', (e) => {
           const mod = (e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === 'f';
           const slash = e.key === '/' && !e.ctrlKey && !e.metaKey && !e.altKey;
-          if ((mod || slash) && !typingInField()) { e.preventDefault(); setSearchOpen(true); }
+          if ((mod || slash) && !typingInField() && !presentOn()) { e.preventDefault(); setSearchOpen(true); }
           else if (e.key === 'Escape' && searchOpen() && !helpDrawer.classList.contains('open')) setSearchOpen(false);
         });
       }
@@ -1675,7 +1705,7 @@
       window.addEventListener('keydown', (e) => {
         if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
           e.preventDefault();
-          saveToFile();
+          if (!presentOn()) saveToFile();
         } else if ((e.ctrlKey || e.metaKey) && (e.key.toLowerCase() === 'z' || e.key.toLowerCase() === 'y')) {
           // Leave text editing (title, labels) to the browser's own undo
           if (document.activeElement && (document.activeElement.isContentEditable || document.activeElement.tagName === 'INPUT')) return;
@@ -1683,6 +1713,7 @@
           e.preventDefault();
           if (e.key.toLowerCase() === 'y' || e.shiftKey) redo(); else undo();
         } else if (e.key === 'Escape') {
+          if (presentOn() && !document.body.classList.contains('capture')) { setPresent(false); return; }
           if (helpDrawer.classList.contains('open')) { setHelpOpen(false); return; }
           plugin.cancelInteraction();
         } else if (e.key === 'Delete' || e.key === 'Backspace') {

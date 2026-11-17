@@ -482,6 +482,38 @@ try {
   // 10. ?present hides editing chrome
   await t.open(laid, '?present');
   t.check('?present hides Save and toolbar', await t.ev(`document.body.classList.contains('presentation') && getComputedStyle(document.getElementById('btn-save')).display === 'none' && getComputedStyle(document.querySelector('.toolbar-center')).display === 'none'`));
+  t.check('?present starts with the Present button pressed', await t.ev(`document.getElementById('btn-present').getAttribute('aria-pressed') === 'true'`));
+
+  // 10b. The Present button toggles in place; only the zoom dock and the button stay; pan and zoom work; no edit gets through
+  await t.open(laid);
+  const isPres = `document.body.classList.contains('presentation')`, prsd = `document.getElementById('btn-present').getAttribute('aria-pressed')`;
+  const visChrome = `[...document.querySelectorAll('header button, header .menu-wrap, .toolbar-left, .toolbar-center, .toolbar-zoom, .toolbar-zoom button, #search-bar, #help-drawer')].filter(e => e.getClientRects().length).map(e => e.id || e.className)`;
+  const chromeBefore = await t.ev(`(${visChrome}).length`);
+  await t.clickOn('#btn-present');
+  const gotToast = await t.ev(`/Esc or the Present button/.test((document.querySelector('.toast') || {}).textContent || '')`);
+  t.check('Present button turns presentation on in place, aria-pressed follows, a hint toast shows',
+    await t.ev(isPres) && await t.ev(prsd) === 'true' && gotToast && chromeBefore > 4, `chromeBefore=${chromeBefore}`);
+  t.check('in presentation only Present and the zoom dock (3 buttons) are visible',
+    await t.ev(`JSON.stringify(${visChrome}.filter(c => c !== 'toolbar-zoom'))`) === JSON.stringify(['btn-present', 'btn-zoom-out', 'btn-zoom-in', 'btn-zoom-reset']) && await t.ev(`getComputedStyle(document.getElementById('btn-present')).display !== 'none' && document.getElementById('btn-present').getBoundingClientRect().top < 56`));
+  const nodeX = `Math.round(document.querySelector('.flow-node').getBoundingClientRect().left)`;
+  const nodeCount2 = await t.ev(`document.querySelectorAll('.flow-node').length`);
+  const posBefore = await t.ev(positions), x0 = await t.ev(nodeX);
+  const np = await t.at('.flow-node');
+  await t.dragTo(np.x, np.y, np.x + 60, np.y + 40);
+  const x1 = await t.ev(nodeX);
+  await t.click(np.x, np.y, { count: 2 });
+  await t.ev(t.key('Delete')); await t.ev(t.key('z', { ctrlKey: true })); await t.ev(t.key('s', { ctrlKey: true }));
+  t.check('presentation: dragging a step pans the view, double-click, Delete, Ctrl+Z and Ctrl+S change nothing',
+    x1 !== x0 && await t.ev(positions) === posBefore && await t.ev(`document.querySelectorAll('.flow-node').length`) === nodeCount2
+    && await t.ev(`!document.querySelector('[contenteditable="true"]') && document.getElementById('save-status').textContent`) !== 'Unsaved changes' && t.errors.length === 0, `x ${x0}->${x1} errors=${t.errors.join(' | ')}`);
+  const z0 = await t.ev(`document.getElementById('zoom-level').textContent`);
+  await t.clickOn('#btn-zoom-in');
+  t.check('presentation: zoom still works', await t.ev(`document.getElementById('zoom-level').textContent`) !== z0);
+  await t.ev(t.key('Escape'));
+  t.check('Esc leaves presentation and the Present button follows', !(await t.ev(isPres)) && await t.ev(prsd) === 'false');
+  await t.ev(t.key('Escape'));
+  await t.clickOn('#btn-present'); await t.clickOn('#btn-present');
+  t.check('the Present button toggles back off', !(await t.ev(isPres)) && await t.ev(prsd) === 'false' && (await t.ev(`(${visChrome}).length`)) === chromeBefore);
 
   // 11. The saved file (dev/plans/plan-agent-readable-data.md). Without a user gesture the file picker refuses, so
   //     Save takes its download path: capture the download and read what an agent would read
