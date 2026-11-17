@@ -1691,8 +1691,6 @@ def main():
                 laid2 = run_layout("flowchart", split, timeout=args.timeout, browser=args.browser, tokens=tokens)
             except EngineUnavailable as exc:
                 sys.exit(f"[ERROR] {exc}")
-            if "direction" not in data:  # an auto-picked direction stays auto in the saved page
-                laid2.pop("direction", None)
             audit2 = make_audit(laid2, tokens)
             report2 = audit2.verify_collisions()
             if report2["passed"] or not report["passed"]:
