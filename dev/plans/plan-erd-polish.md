@@ -1,72 +1,57 @@
-# Plan: ERD, the same treatment as the flowchart
+# Plan: ERD, data only for the agent
 
 Status: proposed. Not started.
 
-The flowchart work (PRs #18 to #22) settled four ideas: the agent writes data only and the tool owns layout; label limits the agent can count (words), with the full text on hover instead of a `[WARN]`; long tangled lines get fixed by the tool, not by the agent; and line ends must be easy to see. This plan applies the same ideas to the ERD.
+## Why
 
-## Problem
+The flowchart work (PRs #18 to #22) cut an agent's session on the motor sample from 109 s, 2 runs, 1 JSON edit and 2 PNG views to 54 s, 1 run and none of the rest; writing the JSON is about 35 to 45 s of it. The rule:
 
-Measured with `--layout --screenshot` on `dev/fixtures/erd/*.json` (12 fixtures):
+> The agent writes what the schema is: tables, columns, keys, relationships, notes, domains. The engine decides where everything goes and how it is drawn, and never asks the agent to change the data for a layout reason.
 
-| Finding | Where | Notes |
+The ERD already follows most of this: the tool output separates data errors (`[WARN]`) from layout findings (`[INFO] Layout`), and the engine places every table. What is left is below.
+
+## What still costs the agent time
+
+From `references/types/erd.md` and the fixtures:
+
+| Item | Cost | Change |
 |---|---|---|
-| A line runs through a table | `saas-billing` (30 tables, 39 relationships): `r8` passes through `app_user`; audit score 88 | Printed as `[INFO] Layout`, so the agent leaves it, but the reader still sees it. |
-| Long lines across the whole canvas | `saas-billing`: `currency` to `customer`, `plan_feature` to `plan`, `organization` to `data_export` | Long dashed curves cross several others. Same shape of problem as the flowchart's long arrows. |
-| Colour domains split up | `saas-billing`: the Audit tables (`webhook_delivery`, `audit_event`, `data_export`, `login_attempt`) sit in three places | `SAME_COLOR` (0.8) only pulls same-coloured tables slightly closer. |
-| Character budgets | `references/types/erd.md`: table name 28 characters, column 28, type 16, label 20, note 120; over budget is a `[WARN]` | The flowchart showed that agents cannot count characters reliably; a `[WARN]` costs a full extra run. |
-| Agent picks a layout setting | Rule 9: set `"detail": "keys"` above about 15 tables or 25 columns | This is a layout choice. The tool can make it from the counts. |
-
-Every other fixture passes clean. Layout takes 0.4 to 1.8 s (saas-billing is the slowest), plus about 3 to 5 s for the screenshot.
-
-## How the engine decides today
-
-`assets/types/erd/engine.js`, `layoutDiagram`: stress majorization from 18 seeded variants, local search on the best few, overlap removal (`erSeparate`), then routing (`erRouteAll`, one cubic curve per relationship). `erUnhit` and `erRepair` try to move tables off lines that run through them; `canvas.hits` counts what is left. The Python audit (`scripts/audit_erd.py`) scores and reports. Previous plans: `dev/plans/archive/plan-erd-layout-v3.md`.
-
-## Goals
-
-- No line through a table on any fixture, and no `[INFO] Layout` on `saas-billing`.
-- Fewer long crossing lines on large schemas, without making the diagram larger than its fit-zoom budget (`FIT_MIN` 0.62).
-- Tables of one colour form one area where the foreign keys allow it.
-- No over-budget `[WARN]` for text the page can truncate and show on hover; `detail` chosen by the tool.
-- No change to what an agent writes beyond the rules that get simpler.
-
-## Non-goals
-
-- A new placement algorithm. Sequence, use case and flowchart layouts.
+| Character budgets: table name 28, column 28, type 16, relationship label 20; over budget is a `[WARN]` | The agent counts characters and, when it misses, edits and runs again (the flowchart's extra run on the laptop sample was exactly this) | Names and types come from the schema and are never reworded: truncate with "..." and hover, `[INFO]`. Relationship `label`: at most 3 words. |
+| Rule 9: set `"detail": "keys"` above about 15 tables or 25 columns | The agent counts tables and columns | Engine picks it when `detail` is missing. |
+| Rule 11: shorten a type over 16 characters and move the full text into a note | An extra note per long type | Truncate with hover instead; drop the rule. |
+| `showTypes`, `showNotes`, `collapsed` | Already "never author unless asked" | Keep. |
+| Colour by domain (rule 8, Colour section) | The agent groups tables into domains | Keep: domains are meaning, not layout. |
 
 ## Phases
 
-### Phase 0: measure (no behaviour change)
+### Phase 0: measure the agent
 
-- Add an ERD mode to a measuring script (or extend the flowchart one from `plan-flow-compaction.md`): per fixture, report tables, relationships, `hits`, crossings, total line length, the longest lines and what they cross, colour contiguity (number of separate areas per colour), canvas size and fit zoom.
-- Add two or three larger real schemas (40 to 60 tables) under `dev/fixtures/erd/large/`; `saas-billing` is the only large one now.
+- Benchmark like the flowchart one: 2 prompts (a 12-table shop schema from prose, a 35-table SQL DDL), a fresh agent each; record total time, JSON writing time, `--layout` runs, JSON edits, PNG views and fields authored. Run before and after each phase.
+- Layout numbers per fixture: hits (lines through tables), crossings, total line length, canvas size, fit zoom, and how many separate areas each colour forms.
 
-### Phase 1: data contract, one PR
+### Phase 1: the contract (one PR, the speed gain)
 
-1. **Labels the agent can count.** Change the budgets in `references/types/erd.md` to words where they are prose (relationship `label`: 3 words; note: keep characters, it wraps) and keep names and types verbatim (they come from the schema and must not be reworded). Over budget, the page truncates with "..." and sets `data-tip` with the full text (as `flowchart.js` does), and the audit prints `[INFO]` instead of `[WARN]`.
-2. **`detail` chosen by the tool.** When `detail` is missing, pick `"keys"` above 15 tables or when a table has more than 25 columns (rule 9's numbers); an authored `detail` still wins. Rule 9 becomes one line about the override.
+1. Truncation with hover and `[INFO]` for every name, column, type and label; the reference keeps soft limits but no `[WARN]`.
+2. `detail` chosen by the engine when missing (rule 9's thresholds); rule 9 becomes "leave `detail` out".
+3. Drop rule 11's "shorten the type and add a note".
 
-### Phase 2: lines through tables and long lines
+### Phase 2: layout quality the agent no longer sees
 
-1. **Lines through tables.** Find why `erUnhit` leaves `r8` through `app_user` on `saas-billing` (too few iterations, or the move costs too much elsewhere). Fix it there first; only if that fails, add a routing fallback that bends the curve around the table.
-2. **Long crossing lines.** Same rule as the flowchart connectors, adapted: a relationship that is long (more than about 3 table widths) and crosses 2 or more other lines, or crosses 1 and passes close to tables, is a candidate. Try in this order: move the smaller end table toward the other (a local move in `erRepair`), then, if still long, consider a "reference" marker (the column shows `→ currency` and the line is not drawn). Decide on the marker only after Phase 0 shows how many lines it would affect; it changes how the diagram reads.
+These are already `[INFO]` only, so they do not slow the agent; they matter to the reader.
 
-### Phase 3: colour areas
-
-- Raise the pull of same-coloured tables (`SAME_COLOR`) or add a cost for a colour split into several areas, and check it against crossings and size on every fixture. Accept only if crossings stay within +1 per fixture.
-
-### Phase 4: line ends
-
-- Check the crow's-foot ends at fit zoom on `saas-billing` (28 x 18 markers). If they read poorly at 62%, scale them up as was done for the flowchart arrowheads, and check the port spacing still fits.
+1. **Line through a table**: `saas-billing` (30 tables) has `r8` through `app_user` (audit score 88). Find why `erUnhit` leaves it; fix there first.
+2. **Long crossing lines**: on `saas-billing`, `currency` to `customer` and `organization` to `data_export` cross the canvas. Same rule as flowchart connectors: a long line that crosses 2 or more others is a candidate for a local move of its smaller end table in `erRepair`.
+3. **Colour areas**: the Audit tables sit in three places. Raise `SAME_COLOR` or add a cost for a split colour; accept only with crossings within +1 per fixture.
+4. **Line ends**: check the crow's feet (28 x 18) at 62% fit zoom; enlarge if they read poorly.
 
 ## Acceptance
 
-- The Phase 0 measurement shows: no hits on any fixture, no new crossings beyond +1 per fixture, canvas within the fit-zoom budget, colour areas no more split than before.
-- `python3 dev/test_audit_erd.py`, `python3 dev/check_themes.py`, `python3 dev/check_golden.py` (goldens regenerated after the diffs are inspected) and the ERD browser suites pass.
-- Before and after PNGs of `saas-billing` and the new large fixtures, looked at by a person.
+- Benchmark: 1 run, no edits, no PNG views, total time close to the JSON writing time.
+- Fixtures: no `[WARN]` except real data errors; no hits; crossings within +1 per fixture.
+- `python3 dev/test_audit_erd.py`, `python3 dev/check_themes.py`, `python3 dev/check_golden.py` (regenerated after inspection), `e2e_erd`, `e2e_erd_copy` pass.
+- Before and after PNGs of `saas-billing`, looked at by a person.
 
 ## Risks
 
-- Saved diagrams re-tidy differently (positions not pinned will move).
-- Layout time: `saas-billing` already takes about 1.8 s; extra repair passes need a time budget.
-- A "reference" marker instead of a line is a change in notation; keep it optional until a person has looked at it.
+- Saved diagrams re-tidy differently.
+- `saas-billing` layout already takes about 1.8 s; extra repair needs a time budget.
