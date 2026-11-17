@@ -6,19 +6,19 @@
       "id": "lane-customer",
       "name": "Customer",
       "icon": "user",
-      "height": 176
+      "height": 192
     },
     {
       "id": "lane-support",
       "name": "Support",
       "icon": "headset",
-      "height": 176
+      "height": 192
     },
     {
       "id": "lane-eng",
       "name": "Engineering",
       "icon": "cog",
-      "height": 176
+      "height": 192
     }
   ],
   "nodes": [
@@ -28,7 +28,7 @@
       "type": "start",
       "label": "Ticket Raised",
       "x": 56,
-      "y": 56
+      "y": 64
     },
     {
       "id": "n2",
@@ -36,7 +36,7 @@
       "type": "task",
       "label": "Triage Ticket",
       "x": 56,
-      "y": 56
+      "y": 64
     },
     {
       "id": "n3",
@@ -52,7 +52,7 @@
       "type": "connector",
       "label": "A",
       "x": 472,
-      "y": 72
+      "y": 80
     },
     {
       "id": "n4",
@@ -60,7 +60,7 @@
       "type": "task",
       "label": "Reproduce Bug",
       "x": 256,
-      "y": 56
+      "y": 64
     },
     {
       "id": "n5",
@@ -84,7 +84,7 @@
       "type": "task",
       "label": "Fix Bug",
       "x": 674.2,
-      "y": 56
+      "y": 64
     },
     {
       "id": "n7",
@@ -92,7 +92,7 @@
       "type": "task",
       "label": "Deploy Fix",
       "x": 874.2,
-      "y": 56
+      "y": 64
     },
     {
       "id": "n8",
@@ -100,7 +100,7 @@
       "type": "task",
       "label": "Confirm Fix",
       "x": 874.2,
-      "y": 56
+      "y": 64
     },
     {
       "id": "c3",
@@ -108,7 +108,7 @@
       "type": "connector",
       "label": "A",
       "x": 1074,
-      "y": 140
+      "y": 148
     },
     {
       "id": "n9",
@@ -116,7 +116,7 @@
       "type": "task",
       "label": "Close Ticket",
       "x": 1018.2,
-      "y": 56
+      "y": 64
     },
     {
       "id": "n10",
@@ -124,7 +124,7 @@
       "type": "end",
       "label": "Ticket Closed",
       "x": 1218.2,
-      "y": 56
+      "y": 64
     }
   ],
   "edges": [

@@ -47,8 +47,8 @@ ERD_SCHEMA_VERSION = 3  # ERD layout v3 (disk_format.ERD_SCHEMA_VERSION)
 # Zero budget limits: diagrams can be as large as the user requires.
 DEFAULT_NODE_WIDTH = 144
 DEFAULT_NODE_HEIGHT = 64
-DECISION_NODE_HEIGHT = 80
-LANE_MIN_HEIGHT = 176
+DECISION_NODE_HEIGHT = 96
+LANE_MIN_HEIGHT = 192
 LANE_BOTTOM_PADDING = 36
 
 # Direction choice for a flowchart whose JSON leaves "direction" out (choose_flowchart_direction). The screen the page
@@ -81,7 +81,7 @@ class FlowchartAudit:
         # Node x/y are in flow terms (x along the flow, y across the lane) in both directions; a top-to-bottom
         # diagram ("direction": "TB") has its own sizes in those terms (engine.js LE_PROFILES.TB)
         if data.get("direction") == "TB":
-            self.node_w, self.base_h, self.dec_h = 80, 144, 144
+            self.node_w, self.base_h, self.dec_h = 96, 144, 144
             self.lane_min, self.bottom_pad, self.col_w = 240, 32, 136
         else:
             self.node_w, self.base_h, self.dec_h = DEFAULT_NODE_WIDTH, DEFAULT_NODE_HEIGHT, DECISION_NODE_HEIGHT

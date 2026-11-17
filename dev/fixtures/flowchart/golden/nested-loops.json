@@ -7,19 +7,19 @@
       "id": "lane-a",
       "name": "Requester",
       "color": "#e0f2fe",
-      "height": 176
+      "height": 192
     },
     {
       "id": "lane-b",
       "name": "Reviewer",
       "color": "#fef3c7",
-      "height": 176
+      "height": 192
     },
     {
       "id": "lane-c",
       "name": "Approver",
       "color": "#dcfce7",
-      "height": 176
+      "height": 192
     }
   ],
   "nodes": [
@@ -29,7 +29,7 @@
       "type": "start",
       "label": "Draft Request",
       "x": 56,
-      "y": 56
+      "y": 64
     },
     {
       "id": "n2",
@@ -37,7 +37,7 @@
       "type": "task",
       "label": "Review Draft",
       "x": 200,
-      "y": 56
+      "y": 64
     },
     {
       "id": "n3",
@@ -53,7 +53,7 @@
       "type": "task",
       "label": "Fix Draft",
       "x": 400,
-      "y": 56
+      "y": 64
     },
     {
       "id": "n5",
@@ -61,7 +61,7 @@
       "type": "task",
       "label": "Assess Request",
       "x": 618.2,
-      "y": 56
+      "y": 64
     },
     {
       "id": "n6",
@@ -77,7 +77,7 @@
       "type": "task",
       "label": "Request Changes",
       "x": 818.2,
-      "y": 56
+      "y": 64
     },
     {
       "id": "n8",
@@ -86,7 +86,7 @@
       "label": "Granted",
       "outcome": "success",
       "x": 1036.4,
-      "y": 56
+      "y": 64
     }
   ],
   "edges": [

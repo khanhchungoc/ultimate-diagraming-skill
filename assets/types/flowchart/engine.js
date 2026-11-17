@@ -8,13 +8,13 @@
       // the lane its screen width. NODE_W/NODE_H/DEC_H are a node's extent along/across the flow.
       const LE_PROFILES = {
         LR: {
-          COL_WIDTH: 200, TIGHT_STEP: 144, START_X: 56, ROW_HEIGHT: 104,
-          NODE_W: 144, MIN_GAP: 32, LABEL_MAX_W: 140, LABEL_STUB: 16, NODE_H: 64, DEC_H: 80, LANE_MIN: 176, TOP_PAD: 36, BOTTOM_PAD: 36, NEAR_MIN: 24, LOOP_ROOM: 72, LOOP_STEP: 16,
+          COL_WIDTH: 200, TIGHT_STEP: 144, START_X: 56, ROW_HEIGHT: 120,
+          NODE_W: 144, MIN_GAP: 32, LABEL_MAX_W: 140, LABEL_STUB: 16, NODE_H: 64, DEC_H: 96, LANE_MIN: 192, TOP_PAD: 36, BOTTOM_PAD: 36, NEAR_MIN: 24, LOOP_ROOM: 72, LOOP_STEP: 16,
           LABEL_ACROSS: false
         },
         TB: {
-          COL_WIDTH: 136, TIGHT_STEP: 80, START_X: 56, ROW_HEIGHT: 184,
-          NODE_W: 80, MIN_GAP: 32, LABEL_MAX_W: 140, LABEL_STUB: 16, NODE_H: 144, DEC_H: 144, LANE_MIN: 240, TOP_PAD: 32, BOTTOM_PAD: 32, NEAR_MIN: 24, LOOP_ROOM: 72, LOOP_STEP: 16,
+          COL_WIDTH: 136, TIGHT_STEP: 96, START_X: 56, ROW_HEIGHT: 184,
+          NODE_W: 96, MIN_GAP: 32, LABEL_MAX_W: 140, LABEL_STUB: 16, NODE_H: 144, DEC_H: 144, LANE_MIN: 240, TOP_PAD: 32, BOTTOM_PAD: 32, NEAR_MIN: 24, LOOP_ROOM: 72, LOOP_STEP: 16,
           LABEL_ACROSS: true   // an arrow label sits across a vertical arrow, so it needs its height, not its width, of room
         }
       };

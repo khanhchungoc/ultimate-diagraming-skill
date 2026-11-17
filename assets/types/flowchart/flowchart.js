@@ -1,7 +1,7 @@
       const NODE_WIDTH = 144;
       const NODE_HEIGHT = 64;
       const DECISION_WIDTH = 144;
-      const DECISION_HEIGHT = 80;
+      const DECISION_HEIGHT = 96;
       // Lane sizes come from the engine's LE (LANE_MIN, BOTTOM_PAD), which follows the diagram's direction
       // Lane colours by position for lanes without their own "color": the shell's SWATCHES (shell.js), in order
 
@@ -9,7 +9,7 @@
       // "direction": "TB" draws the diagram top-to-bottom: lanes become columns and steps run downwards. Node data
       // is always kept in flow terms (see engine.js LE_PROFILES): n.x runs along the flow from the start of the lane
       // track and n.y across the lane from its edge. In a left-to-right diagram those are the screen's x and y; in a
-      // top-to-bottom one, n.x is the screen y and n.y the screen x. Every node takes an 80px slot along the flow
+      // top-to-bottom one, n.x is the screen y and n.y the screen x. Every node takes a 96px slot along the flow
       // (a decision's height), and a 64px step is centred in it so steps and decisions line up on one axis.
       const isTB = () => chartData.direction === 'TB';
       // An on-page connector (engine.js CONN) is a CONN.SIZE circle at its own x/y, not a slot with an offset
@@ -526,14 +526,23 @@
       function dotOffset(n) { return isDot(n) ? { x: (NODE_WIDTH - DOT_SIZE) / 2, y: (NODE_HEIGHT - DOT_SIZE) / 2 } : { x: 0, y: 0 }; }
 
       // --- SHAPED NODES ---
-      // A shaped node keeps its slot's box (144x64; a decision 144x80), made transparent by flowchart.css, and draws
+      // A shaped node keeps its slot's box (144x64; a decision 144x96), made transparent by flowchart.css, and draws
       // its outline inside it as an SVG stretched to the box (preserveAspectRatio="none", non-scaling stroke). The
       // outline stays 1px inside the box so the 2px stroke ends on the box edge, like a task's border. `.shape-path`
       // is the filled outline, `.shape-line` an inner stroke (the subprocess bars, the cylinder's front rim).
       // Shapes keep their screen orientation in a top-to-bottom diagram: the document's wave is always at the
       // bottom, the delay's arc always on the right. Keep outlineInset() in step with any change here.
+      // The diamond has its four corners rounded by DIAMOND_ROUND px along each edge: a quadratic curve through
+      // each vertex, so the tip sits a little inside the vertex. outlineInset() measures that curve.
+      const DIAMOND_ROUND = 10;
+      function diamondPath(w, h) {
+        const a = w / 2 - 1, b = h / 2 - 1, L = Math.hypot(a, b), cx = w / 2, cy = h / 2;
+        const f = (n) => +n.toFixed(2), kx = DIAMOND_ROUND * a / L, ky = DIAMOND_ROUND * b / L;
+        return `M${f(cx - kx)},${f(1 + ky)}Q${cx},1 ${f(cx + kx)},${f(1 + ky)}L${f(w - 1 - kx)},${f(cy - ky)}Q${w - 1},${cy} ${f(w - 1 - kx)},${f(cy + ky)}`
+          + `L${f(cx + kx)},${f(h - 1 - ky)}Q${cx},${h - 1} ${f(cx - kx)},${f(h - 1 - ky)}L${f(1 + kx)},${f(cy + ky)}Q1,${cy} ${f(1 + kx)},${f(cy - ky)}Z`;
+      }
       const SHAPE_OUTLINES = {
-        decision:   { h: 80, svg: '<polygon class="shape-path diamond-poly" points="72,1 143,40 72,79 1,40"/>' },
+        decision:   { h: DECISION_HEIGHT, svg: `<path class="shape-path diamond-poly" d="${diamondPath(144, DECISION_HEIGHT)}"/>` },
         subprocess: { h: 64, svg: '<rect class="shape-path" x="1" y="1" width="142" height="62" rx="2"/><path class="shape-line" d="M13 1V63M131 1V63"/>' },
         document:   { h: 64, svg: '<path class="shape-path" d="M1 1H143V57C119 49 96 49 72 57C48 65 25 65 1 57Z"/>' },
         io:         { h: 64, svg: '<polygon class="shape-path" points="13,1 143,1 131,63 1,63"/>' },
@@ -561,8 +570,11 @@
         const vx = c * 144;                                              // viewBox x (top/bottom sides)
         const arc = (t) => 1 - Math.sqrt(Math.max(0, 1 - t * t));        // depth of a unit ellipse at offset t from its axis
         switch (type) {
-          case 'decision':   // four vertices at the side midpoints
-            return (horiz ? r.h : r.w) / 2 * Math.min(1, Math.abs(c - 0.5) * 2);
+          case 'decision': { // four rounded vertices at the side midpoints: a parabola over the rounded part, then the slanted edge
+            const a = (horiz ? r.w : r.h) / 2, b = (horiz ? r.h : r.w) / 2, d = Math.abs(c - 0.5) * 2 * a;
+            const ka = DIAMOND_ROUND * a / Math.hypot(a, b), kb = ka * b / a;
+            return Math.min(b, d < ka ? kb / 2 * (1 + (d / ka) ** 2) : kb + (d - ka) * b / a);
+          }
           case 'io':         // slanted sides: 12 units in at the top-left and the bottom-right
             return side === 'left' ? 12 * sx * (1 - c) : side === 'right' ? 12 * sx * c : 0;
           case 'database':   // elliptical top and bottom, 8 units deep, spanning the width
