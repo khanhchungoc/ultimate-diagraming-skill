@@ -59,9 +59,12 @@ READABLE_ZOOM = 0.84
 TB_MIN_GAIN = 0.05  # top to bottom must make lanes-fill-the-screen zoom this much bigger to be worth the switch
 TB_MAX_SCORE_LOSS = 5  # ... and may score at most this much lower in the audit (an extra crossing or two)
 
-# Long arrows (flowchart rule 11): a routed arrow at least this many column widths long that crosses another arrow is
-# hard to follow and should become a connector pair. Calibrated on dev/fixtures (longest 4.6 columns, none flagged).
+# Long arrows (flowchart rule 11): a routed arrow at least LONG_ARROW_COLS column widths long that crosses another
+# arrow, an outer detour at least LONG_ARROW_DETOUR_COLS long (even with 0 crossings), or the long return leg of a
+# flagged round-trip is hard to follow and should become a connector pair. Calibrated on dev/fixtures (longest 4.6
+# columns in LR; 7.10 with 0 crossings in TB, none flagged).
 LONG_ARROW_COLS = 6
+LONG_ARROW_DETOUR_COLS = 10
 LONG_ARROW_PENALTY, LONG_ARROW_MAX_PENALTY = 5, 15
 LONG_ARROW_MAX_PAIRS = 3
 
@@ -108,9 +111,9 @@ class FlowchartAudit:
         return (
             f"[PASS] Quality Score: {report['score']}/100 ({report['grade']}). "
             f"0 overlaps, 0 penetrations, {report['collinear_pct']}% collinear straightness"
-            + (f", {report['edge_crossings']} edge crossings" if report["edge_crossings"] else "")
-            + (f", {report['long_arrows_count']} long arrows" if report["long_arrows_count"] else "")
-            + (" (score only, not a defect)." if report["edge_crossings"] or report["long_arrows_count"] else ".")
+            + (f", {report['edge_crossings']} edge crossings (score only, not a defect)" if report["edge_crossings"] else "")
+            + (f", {report['long_arrows_count']} long arrows (fix [WARN] above)" if report["long_arrows_count"] else "")
+            + "."
         )
 
     def summary_lines(self, report: Dict[str, Any]) -> List[str]:
@@ -481,10 +484,11 @@ class FlowchartAudit:
         return warnings
 
     def _long_arrows(self, polylines: Dict[str, List[Tuple[float, float]]]) -> List[Tuple[Dict[str, Any], float, int]]:
-        """Arrows hard to follow (rule 11): routed at least LONG_ARROW_COLS column widths long, whether across lanes,
-        round a detour or back along a loop, and crossing at least one other arrow. Longest first, as
-        (edge, length in columns, crossings). Arrows into or out of a connector are already split."""
-        found = []
+        """Arrows hard to follow (rule 11): routed at least LONG_ARROW_COLS column widths long that cross another
+        arrow, an outer detour at least LONG_ARROW_DETOUR_COLS long (even with 0 crossings), or the long return
+        leg of a flagged round-trip. Longest first, as (edge, length in columns, crossings). Arrows into or out of
+        a connector are already split."""
+        candidates = []
         for e in self.edges:
             pts = polylines.get(e["id"])
             ends = (self.node_map.get(e["from"]), self.node_map.get(e["to"]))
@@ -498,8 +502,12 @@ class FlowchartAudit:
                 1 for o in self.edges
                 if o is not e and o["id"] in polylines and self._polylines_intersect(
                     pts, polylines[o["id"]], incident=bool({e["from"], e["to"]} & {o["from"], o["to"]})))
-            if crossings:
-                found.append((e, cols, crossings))
+            candidates.append((e, cols, crossings))
+        flagged_pairs = {(e["from"], e["to"]) for e, cols, cr in candidates if cr or cols >= LONG_ARROW_DETOUR_COLS}
+        found = [
+            item for item in candidates
+            if item[2] or item[1] >= LONG_ARROW_DETOUR_COLS or (item[0]["to"], item[0]["from"]) in flagged_pairs
+        ]
         found.sort(key=lambda f: -f[1])
         return found
 
@@ -519,8 +527,11 @@ class FlowchartAudit:
                             f"check lane order first (checklist item 2), then split only the {LONG_ARROW_MAX_PAIRS} "
                             f"below and report the rest.")
         for target, items in list(groups.items())[:LONG_ARROW_MAX_PAIRS]:
-            arrows = "; ".join(f"'{e['id']}' ({label(e['from'])} -> {label(target)}, {cols:.0f} column widths, "
-                               f"crosses {n})" for e, cols, n in items)
+            arrows = "; ".join(
+                f"'{e['id']}' ({label(e['from'])} -> {label(target)}, {cols:.0f} column widths"
+                + (f", crosses {n}" if n else "") + ")"
+                for e, cols, n in items
+            )
             warnings.append(f"Long arrow{'s' if len(items) > 1 else ''} {arrows}: split into a connector pair (rule 11)"
                             + (", one letter for all of them." if len(items) > 1 else "."))
         return warnings
