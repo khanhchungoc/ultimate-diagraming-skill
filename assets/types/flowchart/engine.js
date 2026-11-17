@@ -254,7 +254,7 @@
           // One row per lane unless the lane holds a branch. Nodes sharing a column are stacked only when they are
           // branches of the same parent (a fork reads as one); any other node moves right into a free row-0 slot,
           // within its slack only (before its successors' required x), so nothing downstream moves. It may move at
-          // most 1.5 columns (an end node, with nothing downstream, may go further) and never onto a straight same-lane arrow or a vertical arrow crossing the lane.
+          // most 1.5 columns (an end node, with nothing downstream, never slides: it stacks beside its predecessor's column instead, so its arrow does not wrap past the nodes in between) and never onto a straight same-lane arrow or a vertical arrow crossing the lane.
           const fwdOut = {}, fwdIn = {};
           forwardEdges.forEach(e => {
             (fwdOut[e.from] = fwdOut[e.from] || []).push(e.to);
@@ -287,7 +287,7 @@
                   return Math.abs(X[u.id] - X[v.id]) < 1 && Math.min(lu, lv) < li && li < Math.max(lu, lv)
                     && x - 12 < cx && cx < x + LE.NODE_W + 12;                         // sits on a vertical pass-through
                 });
-                const slot = slots.find(x => (!succ.length || x - X[n.id] <= 1.5 * LE.COL_WIDTH)
+                const slot = slots.find(x => (!succ.length ? x === X[n.id] : x - X[n.id] <= 1.5 * LE.COL_WIDTH)
                   && row0.every(m => clear(x, X[m.id])) && !blocked(x));
                 if (slot !== undefined) { X[n.id] = slot; sub[n.id] = 0; return; }
               }
