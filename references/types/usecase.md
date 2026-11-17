@@ -52,7 +52,7 @@ Never add coordinates or sizes (`x`, `y`, `w`, `h`, `points`, `layout`); `--layo
 | Actor | `color` | Optional. A palette slot, `"1"` to `"8"`. Usually leave it out: the page gives every actor its own colour from the slots `colorKey` does not use (not saved), and its lines take that colour. Set it only when the user asks for a particular colour. |
 | Use case | `id`, `name`, `subject` | `name` is verb + object, 40 characters at most, wraps to two lines in its pill. `subject` is a subject id. |
 | Use case | `color` | Optional. A palette slot `"1"` to `"8"`: the feature area. Name each in `colorKey`. |
-| Use case | `level` | Optional. `summary` (drawn larger, bold outline), `user` (default), `subfunction` (drawn smaller, dashed outline). |
+| Use case | `level` | Optional. `user` (default) or `subfunction` (drawn smaller, dashed outline). `summary` (larger, bold outline) is still drawn but the page no longer offers it: do not author it. |
 | Use case | `refs` | Optional list of requirement ids (`"FR-4"`), 12 characters each. Searchable in the page, shown with `showRefs`. |
 | Use case | `extensionPoints` | Optional list of names. Draws the extension-points compartment; an `extend` link can name one. |
 | Use case | `abstract`, `parent` | Optional. Italic name; `parent` is a use case id: a generalization (variants of one goal). |

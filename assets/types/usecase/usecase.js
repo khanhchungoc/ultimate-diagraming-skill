@@ -29,7 +29,7 @@
       const LINK_TYPES = ['association', 'include', 'extend'];
       const KIND_ICON = { human: 'user', system: 'server', time: 'clock' };   // drawn in a round avatar
       const KIND_CAPTION = { system: '«system»', time: '«time»' };
-      const LEVELS = ['summary', 'user', 'subfunction'];
+      const LEVELS = ['user', 'subfunction'];   // a file may still carry level: summary (drawn large, bold); the bar no longer offers it
       const LEVEL_NAME = { summary: 'Summary', user: 'Goal', subfunction: 'Sub' };
       const SIZE = { actor: [104, 104], tile: [104, 120], useCase: [150, 60], subject: [280, 180] };   // a ghost's and a new item's first size
 
@@ -1054,6 +1054,20 @@
               o.x += dx; o.y += dy;
               if (s && kindOf(id) === 'case' && caseSubjectId(o) !== s.id) { o.subject = s.id; moved = true; }
             });
+            // an actor dropped across the middle of the boundaries changes side (its root's `side`, which the layout follows)
+            const boxes = allSubjects().filter((x) => typeof x.x === 'number');
+            if (boxes.length) {
+              const mid = boxes.reduce((n, x) => n + x.x + x.w / 2, 0) / boxes.length;
+              ids.forEach((id) => {
+                const a = actorOf(id);
+                if (!a) return;
+                const side = a.x + a.w / 2 < mid ? 'left' : 'right';
+                if (side === a._side) return;
+                let r = a;
+                for (let n = 0; r.parent && actorOf(r.parent) && n < 50; n++) r = actorOf(r.parent);
+                r.side = side; a._side = side; moved = true;
+              });
+            }
             ids.forEach((id) => { const a = actorOf(id); if (a) keepOutside(a); });
             void targetSubjects;
             commit(moved);
