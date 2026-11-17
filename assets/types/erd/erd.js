@@ -2644,7 +2644,7 @@
           if (!(erdAsyncOK() && erdStartJob(done))) { erdLayout(); done(); }
         },
         // Text search (spec: dev/plans/search.md): areas, tables by position each followed by its columns, then relation labels.
-        // A collapsed table is one item (id colsof:<table>) whose text joins its hidden column names; el is its header.
+        // Columns with no rendered row (collapsed, Columns detail, "+N more") are one item per table (id colsof:<table>), text joins their names; el is its header.
         searchItems() {
           const items = [], add = (id, text, el) => { text = String(text == null ? '' : text).trim(); if (text && el) items.push({ id, text, el }); };
           erdHtml.querySelectorAll('.color-key-label').forEach((l) => add('area:' + l.dataset.color, l.textContent, l));
@@ -2653,8 +2653,9 @@
           tables.forEach(({ el, e }) => {
             const head = el.querySelector('.erd-head') || el;
             add('table:' + e.id, el.querySelector('.erd-name') && el.querySelector('.erd-name').textContent, head);
-            if (e.collapsed === true) add('colsof:' + e.id, (e.columns || []).map((c) => c.name).join(' '), head);
-            else el.querySelectorAll('.erd-row').forEach((row) => add('col:' + e.id + '.' + row.dataset.col, row.querySelector('.erd-col-name').textContent, row));
+            const shown = new Set();
+            el.querySelectorAll('.erd-row').forEach((row) => { shown.add(row.dataset.col); add('col:' + e.id + '.' + row.dataset.col, row.querySelector('.erd-col-name').textContent, row); });
+            add('colsof:' + e.id, (e.columns || []).filter((c) => !shown.has(c.name)).map((c) => c.name).join(' '), head);   // hidden: collapsed, Columns detail, "+N more"
           });
           erdHtml.querySelectorAll('.edge-label').forEach((l) => add('rel:' + l.dataset.edgeId, l.textContent, l));
           return items;
