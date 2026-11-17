@@ -65,7 +65,8 @@ Artifact target output, instead of one page:
 
 - **Boot:** the shell loads `diagram.json` first, then runs exactly as today. Everything the shell already does with the `diagram-data` block (reading, `_readme`, `fromDisk`) is unchanged.
 - **Save in the page:** `publish({"diagram.json": text})` replaces the current rebuild of the whole document from `pristineBody`. Pass `ifMatch` with the sha256 the host last reported.
-- **Download .html:** rebuild a single self-contained file by fetching `app.css` and `app.js` and inlining them with the current data.
+- **Export > HTML file (editable):** rebuild a single self-contained file by fetching `app.css` and `app.js` and inlining them with the current data. The menu item already exists in the Export menu.
+- **View-only viewers (decided):** a viewer who cannot save (signed out, or no edit access) sees no Save button, which is expected. Do **not** add a separate "Download .html" button next to it: the normal **Export** button stays, and its menu keeps "HTML file (editable)". This also removes the extra `btn-download-html` button that `applyArtifactUi` adds today, the toasts that say "Use Download .html" (say "Use Export > HTML file"), and the two `e2e_shell.mjs` checks that look for that button. Not done yet: this plan records the decision only.
 - **Agent update (data only):** `Artifact read` with `path: "diagram.json"`, edit, publish `index.html` plus `files: {"diagram.json": ...}`. No full read, no rebuild.
 - **Agent upgrade (engine or UI):** build the new `app.js` and `app.css`, list the artifact's files (satisfies the gate), publish them. `diagram.json` is not in the call, so user edits and positions cannot change.
 - **Old single-file artifacts:** unchanged behaviour. To move one to the split layout, rebuild with `layout_engine.py --layout <saved page.html> --keep-layout --target artifact` and publish as a new artifact (the data and positions carry over), or overwrite after a full read if a person insists on the same URL.
@@ -75,14 +76,14 @@ Artifact target output, instead of one page:
 
 1. Run the spike's browser checks; record the results in this file. Delete the test artifact.
 2. `scripts/layout_engine.py`: a split artifact target that writes the files above (the file target is untouched). `artifact_template` and `ARTIFACT_HEAD` stay for the legacy single-file shape until it is removed.
-3. `assets/shell/shell.js`: load `diagram.json` at boot; files-form save with `ifMatch`; `capability_disabled` shows "Saving is not available here. Use Download .html"; Download .html inlines the code.
+3. `assets/shell/shell.js`: load `diagram.json` at boot; files-form save with `ifMatch`; `capability_disabled` shows "Saving is not available here. Use Export > HTML file"; Export > HTML file inlines the code; remove the separate Download .html button (see Design).
 4. `dev/check_artifact_shape.py` and the artifact e2e harnesses (`e2e_shell.mjs`, `e2e_sequence.mjs`, `e2e_erd_copy.mjs`): update the expected shape and the stubbed `window.claude` (files-form publish).
 5. [SKILL.md](../../SKILL.md) and [references/artifacts.md](../../references/artifacts.md): data update and upgrade procedures as above; keep the legacy fallback paragraph for old artifacts.
 6. Release note: old artifacts keep working; to get the new editor, rebuild with `--keep-layout`.
 
 ## Open questions
 
-- **Public sharing.** A publicly shared artifact cannot use the files-form save, so viewers there can only Download .html (as today, since they cannot write). Does the owner ever need Save on a public link?
+- **Public sharing.** The platform says the files-form save is disabled once an artifact is shared publicly. Whether that also blocks the owner or an invited editor is not known. Already confirmed by the user: today's whole-page save works on an artifact shared by link (they edited and saved one). So the fallback is viable: when the files form is rejected with `capability_disabled`, save `index.html` with the data inside it and keep the editor code in its own files. Test after the spike: set the spike artifact to "Anyone with the link" and click Save again.
 - **Positions on agent edits.** `--extract` drops positions, and a hand-edited JSON with a new node triggers a full re-layout in `routeDiagram`. A `--with-layout` extract and a "place only the new items" mode would make data edits keep the user's arrangement.
 - **Reload on Save.** The files form keeps the saving view running, but the page renders from the data it holds; check that undo history and selection survive a Save.
 - **One more file in the gate.** The tool wants `index.html` as `file_path` on every publish. Confirm from a fresh conversation that reading only `index.html` and `diagram.json` is enough.
