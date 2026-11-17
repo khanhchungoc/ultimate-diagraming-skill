@@ -1,6 +1,6 @@
 # Plan: claude.ai Artifacts as split files (data apart from code)
 
-Status: spike run, all five browser checks passed (see Spike). Nothing in the product changed yet. Next: the two untested points (overwrite gate from a fresh conversation, files-form save on a publicly shared link), then the work list.
+Status: spike run, all five browser checks passed (see Spike). Nothing in the product changed yet. Public-link save also passed. Next: the one untested point (the overwrite gate from a fresh conversation), then the work list.
 
 ## Problem
 
@@ -50,7 +50,7 @@ Checked in the browser (done, by the owner, signed in, artifact private at the t
 4. `claude.use('artifact')` resolves.
 5. The Save button's files-form save succeeds, the page keeps running, and the result is not `capability_disabled`.
 
-Results: all five passed. `app.js` ran from a relative `<script src>`; `app.css` applied; `fetch('diagram.json')` returned 200 with the agent's data-only edit (`"saves":1`); the `artifact` capability resolved; the files-form save succeeded twice (about 600 ms each) and the page kept running (the next lines printed, no reload). The server's copy of `diagram.json` afterwards read `"saves":4`, so the saves reached the artifact. Not yet known: whether any of those saves were made after setting the link to public (the owner reported only the first two lines); ask, or repeat.
+Results: all five passed. `app.js` ran from a relative `<script src>`; `app.css` applied; `fetch('diagram.json')` returned 200 with the agent's data-only edit (`"saves":1`); the `artifact` capability resolved; the files-form save succeeded twice (about 600 ms each) and the page kept running (the next lines printed, no reload). The server's copy of `diagram.json` afterwards read `"saves":4`, so the saves reached the artifact. The same save was repeated after the link was made public and also succeeded (see Open questions).
 
 Decision rule: if 1 to 4 pass, go ahead. If 5 fails for the owner, fall back to inline data plus the new-artifact workflow (no change to the product beyond the docs already written). If `fetch` fails but the script and stylesheet load, the page can carry the data inline in `index.html` and still get the split for the code.
 
@@ -85,7 +85,7 @@ Artifact target output, instead of one page:
 
 ## Open questions
 
-- **Public sharing.** The platform says the files-form save is disabled once an artifact is shared publicly. Whether that also blocks the owner or an invited editor is not known. Already confirmed by the user: today's whole-page save works on an artifact shared by link (they edited and saved one). So the fallback is viable: when the files form is rejected with `capability_disabled`, save `index.html` with the data inside it and keep the editor code in its own files. Test after the spike: set the spike artifact to "Anyone with the link" and click Save again.
+- **Public sharing (resolved).** Tested by the owner, signed in, after setting the link to "Anyone with the link": the files-form save succeeded (618 ms, page kept running, version `1794891643-d3c4`). The platform note that the form is disabled on public artifacts did not hold for the owner. Not tested: an invited editor, and a signed-out viewer (who has no Save by design). So no whole-page fallback is needed for the owner; keep the `capability_disabled` message for any case where it is rejected.
 - **Positions on agent edits.** `--extract` drops positions, and a hand-edited JSON with a new node triggers a full re-layout in `routeDiagram`. A `--with-layout` extract and a "place only the new items" mode would make data edits keep the user's arrangement.
 - **Reload on Save.** The files form keeps the saving view running, but the page renders from the data it holds; check that undo history and selection survive a Save.
 - **One more file in the gate.** The tool wants `index.html` as `file_path` on every publish. Confirm from a fresh conversation that reading only `index.html` and `diagram.json` is enough.
