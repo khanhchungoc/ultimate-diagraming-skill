@@ -112,20 +112,16 @@
 
       // --- BACKGROUND LAYOUT ---
       // A cold layout of 30 tables takes seconds, so a diagram of ERD_ASYNC_MIN tables or more is laid out in a Web Worker
-      // built from the engine's own source (read from this page's script between the markers shell.html puts around it).
+      // built from the engine's own source (provided by the shell's loadEngineSource() helper).
       // The result is applied only if the model is unchanged since it was posted, else it is dropped. Without Worker, Blob or
       // the markers, or under ?tidy / ?report (which read the finished layout at once), the layout runs synchronously.
       // shortcut: 12 tables is the point where the worker's start-up stops costing more than the layout, upgrade if that moves.
       const ERD_ASYNC_MIN = 12;
-      const erdEngineSrc = (() => {
-        const text = document.currentScript ? document.currentScript.textContent : '';
-        const a = text.indexOf('//@engine' + '-begin'), b = text.indexOf('//@engine' + '-end', a);
-        return a < 0 || b < 0 ? '' : text.slice(a, b);
-      })();
+      const erdEngineSrc = () => (typeof loadEngineSource === 'function' ? loadEngineSource() : '');
       const ERD_WORKER_TAIL = '\nonmessage = (e) => { const { seq, data, opts } = e.data; layoutDiagram(data, opts); postMessage({ seq, data }); };';
       let erdJob = null, erdSeq = 0;
 
-      const erdAsyncOK = () => !!erdEngineSrc && typeof Worker === 'function' && erdEntities().length >= ERD_ASYNC_MIN
+      const erdAsyncOK = () => !!erdEngineSrc() && typeof Worker === 'function' && erdEntities().length >= ERD_ASYNC_MIN
         && !/[?&](tidy|report)(=|&|$)/.test(window.location.search);
 
       function erdEndJob() {
@@ -144,7 +140,7 @@
         let worker, url;
         try {
           // TOKENS sits outside the engine markers (the shell reads it first), so the worker is given its own copy
-          url = URL.createObjectURL(new Blob([`const TOKENS = ${JSON.stringify(TOKENS)};\n` + erdEngineSrc + ERD_WORKER_TAIL], { type: 'text/javascript' }));
+          url = URL.createObjectURL(new Blob([`const TOKENS = ${JSON.stringify(TOKENS)};\n` + erdEngineSrc() + ERD_WORKER_TAIL], { type: 'text/javascript' }));
           worker = new Worker(url);
         } catch (e) {
           if (url) URL.revokeObjectURL(url);
