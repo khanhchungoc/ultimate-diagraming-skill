@@ -1,6 +1,6 @@
 # Plan: use case diagrams, data only for the agent
 
-Status: Phase 1 done (word limits, cut text shows on hover, `side` left to the tool). Phase 0 benchmark and Phase 2 open.
+Status: Phase 1 done (word limits, cut text shows on hover, `side` left to the tool; PR #25 added hover text and tool-set ERD detail). Phase 2 reviewed against main 996404c: every item is obsolete or not worth it, no engine change (see below). Phase 0 benchmark is out of scope for now: it needs fresh agent runs.
 
 ## Why
 
@@ -34,18 +34,19 @@ From `references/types/usecase.md`:
 2. `side` out of the agent's schema.
 3. Naming hints moved before writing; the tool's `[DONE]` line stays the last word.
 
-### Phase 2: layout quality the agent no longer sees
+### Phase 2: layout quality the agent no longer sees (reviewed, nothing to build)
 
-Found on `shop-acceptance` (2 subjects, 7 actors, 26 use cases); none is reported, all are visible.
+Numbers from the engine on `dev/fixtures/usecase/*.json` (crossings, hits, line length, labels within 8 px, canvas):
+collapsed 0 / 0 / 1012 / 0 / 923x336; levels-and-extension-points 0 / 0 / 2432 / 0 / 1270x604; no-subjects 0 / 0 / 1394 / 0 / 963x494; shop-acceptance 1 / 0 / 10281 / 0 / 1556x1530; small 0 / 0 / 1471 / 0 / 1174x581. `python3 dev/test_audit_usecase.py` passes.
 
-1. **Supporting actors far from their use cases**: "Payment gateway" sits bottom right and its lines cross the Back office. Place each supporting actor at the height of what it serves, in `ucArrange`, scored by `ucCost`.
-2. **Fan-in labels pile up**: four `«include»` lines into "Authenticate" put three labels on top of each other. Merge them near the target with one label, as the flowchart router merges fan-in arrows.
-3. **Space**: Storefront is wide with an empty right half. Only if Phase 0 shows a large gain, place a narrow subject beside a wide one.
-4. **Line ends**: enlarge `uc-mk-open` (14 px, thin) as for the flowchart arrowheads.
+1. **Supporting actors far from their use cases**: obsolete. "Payment gateway" now sits at y 1204 on the right, level with Back office (it serves Take payment at 745, Issue refund at 1299 and Reconcile at 1190; the median of the biggest group wins) and no line crosses a subject. Trying it at the height of each use case it reaches (slide in `ucArrange`, scored by `ucCost`) found no cheaper place: the score is already at its best, so no change. The one crossing left is Take payment to the gateway against Ship order to the carrier.
+2. **Fan-in labels pile up**: obsolete. The three `«include»` lines into "Authenticate" (the fourth include goes to "Take payment") have labels 40 px apart (y 718, 760, 800), none within 8 px of another, and the lines already fan out and join only in the last 200 px.
+3. **Space beside a narrow subject**: skipped. Office (515 wide) beside Storefront (1044 wide, 812 high) would make a canvas of about 2100x850, worse than 1556x1530 in aspect, and the shared actor columns would lengthen lines. No large gain.
+4. **Line ends**: obsolete. `uc-mk-open` is already a filled notched head, 9 px long and 9 px wide in a 14 px box, as big as the flowchart `arrowhead` (12 px box); only the outline is thin, which is fine for a filled shape.
 
 ## Acceptance
 
-- Benchmark: 1 run, no edits, no PNG views, total time close to the JSON writing time.
+- Benchmark (Phase 0, not run): 1 run, no edits, no PNG views, total time close to the JSON writing time.
 - Fixtures: no `[WARN]` except real data errors; crossings, hits and line length the same or lower.
 - `python3 dev/test_audit_usecase.py`, `python3 dev/check_themes.py`, `python3 dev/check_golden.py` (regenerated after inspection), `e2e_usecase` pass.
 - Before and after PNGs of `shop-acceptance`, looked at by a person.
