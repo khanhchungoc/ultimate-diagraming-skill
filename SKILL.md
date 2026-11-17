@@ -81,7 +81,7 @@ Use to summarize, explain or answer questions about a diagram page: an `.html` f
    python "<skill-dir>/scripts/layout_engine.py" --extract <page.html>
    ```
    If that cannot run, read only the lines the page's line 2 names (the `"diagram-data"` JSON block).
-2. Answer from that JSON alone. Read the "Reading the JSON" section of the type reference named by `diagramType` (missing means `flowchart`).
+2. Answer from that JSON alone. Read [references/reading.md](references/reading.md) for how to interpret the fields of its `diagramType`.
 
 ## Procedure: Update an Existing Diagram
 

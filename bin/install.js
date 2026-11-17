@@ -190,7 +190,9 @@ async function promptClaudeOutput() {
 }
 
 let claudeOutputWritten = false;
-if (claudeSelected && claudeOutput === null && process.stdin.isTTY && process.stdout.isTTY) {
+// Ask only if Claude Code looks installed (~/.claude exists); otherwise the default ("ask each time") applies.
+const claudeInstalled = fs.existsSync(path.join(USER_HOME, '.claude'));
+if (claudeSelected && claudeInstalled && claudeOutput === null && process.stdin.isTTY && process.stdout.isTTY) {
   claudeOutput = await promptClaudeOutput();
 }
 if (claudeSelected && claudeOutput !== null) {
@@ -336,8 +338,8 @@ console.log(`${c.border}${boxLine(ready ? `${c.green}✨ Installation Successful
   : `${c.yellow}⚠ Installed, but install what is marked [MISSING] above${c.reset}`)}${c.reset}`);
 console.log(`${c.border}${emptyLine}${c.reset}`);
 console.log(`${c.border}${boxLine(`${c.bold}${c.white}How to use:${c.reset}`)}${c.reset}`);
-console.log(`${c.border}${boxLine(`  Ask your AI assistant: "create a flowchart for..."${c.reset}`)}${c.reset}`);
-console.log(`${c.border}${boxLine(`  or reference ${c.cyan}/ultimate-diagram${c.reset} in chat${c.reset}`)}${c.reset}`);
+console.log(`${c.border}${boxLine(`  Ask your AI agent:${c.reset}`)}${c.reset}`);
+console.log(`${c.border}${boxLine(`  ${c.cyan}/ultimate-diagram${c.reset} create a flowchart for ...${c.reset}`)}${c.reset}`);
 if (claudeSelected) {
   const shown = claudeOutputWritten ? claudeOutput : 'ask';
   console.log(`${c.border}${boxLine(`  Claude Code output: ${c.cyan}${shown}${c.reset}${claudeOutputWritten ? '' : c.dim + ' (default)' + c.reset}`)}${c.reset}`);

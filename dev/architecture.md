@@ -35,6 +35,7 @@ scripts/
   render_screenshot.py      type-agnostic: screenshot + render report (+ axe-core when node_modules/axe-core exists)
 dev/                        parity check, interaction test, notes (not part of authoring)
 references/types/<type>.md  schema, budget, checklist the agent reads before authoring
+references/reading.md       how the agent interprets each type's extracted JSON (read flow)
 references/theme.md         schema and mapping guide for brand themes
 ```
 
@@ -177,10 +178,14 @@ A top-to-bottom flowchart uses the same engine, router and audit as a left-to-ri
 - The renderer turns flow terms into the screen: n.x becomes the screen y and n.y the screen x (`placeNodeEl`, `flowPoint`, `flowToContainer`).
 - `computeAllEdgeRoutes` transposes the node boxes before the route search and the polylines back afterwards (step 5e), so every routing rule is written once, for left to right.
 
+## Keeping `references/reading.md` current
+
+`references/reading.md` is the only description the agent has of a type's JSON when it explains an existing diagram, and nothing tests it. Whenever a change breaks a field's name, meaning or values in a type's saved JSON (a rename, a removed or reinterpreted field, a new `schemaVersion`), update that type's section in `reading.md` in the same change, next to the schema in `references/types/<type>.md` and the codec in `scripts/disk_format.py`.
+
 ## Adding a type
 
 1. `assets/types/<type>/` with the files above and a reference in `references/types/<type>.md`, and the registry entry `type-<type>` in `assets/icons/default.json` (the header icon: there is no `icon.html`).
-2. Add the type to `SUPPORTED_TYPES` and `SKILL.md`'s type table.
+2. Add the type to `SUPPORTED_TYPES` and `SKILL.md`'s type table, and a section to `references/reading.md`.
 3. Write `engine.js` defining `layoutDiagram(data)` (pure, no DOM) and an audit class with `title`, `verify_collisions()`, `summary_lines()` and `pass_line()`; register it in `AUDITS` in `layout_engine.py`.
 4. Follow the [new diagram type checklist](#new-diagram-type-checklist) for everything visual.
 5. Add fixtures under `dev/fixtures/<type>/`, freeze goldens with `python dev/check_golden.py --update`, and run the tests below.
