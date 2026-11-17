@@ -982,6 +982,9 @@
           const across = lm > ln ? 'far' : 'near';
           if (ln === lm) return (m.x > n.x + 1) === out ? (out ? 'after' : 'before') : 'far';
           if (Math.abs(m.x - n.x) < 30) return across;
+          // An arrow arriving from a step in another lane whose end is well past that step's edge runs along the
+          // source row and enters across, facing the source's lane (the router's one-bend entry)
+          if (!out && n.x > m.x + LE.NODE_W + 24) return across;
           return out ? (m.x > n.x ? 'after' : across) : (m.x < n.x ? 'before' : across);
         };
         const used = {};
