@@ -2243,9 +2243,9 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
             const maxX = Math.max(p1[0], p2[0]);
             const goingRight = p2[0] > p1[0];
             // Room a hop needs from each end of the segment: past a bend, the corner's radius plus the hop's
-            // (8 + 6); at the arrow's source, just the hop plus a little; at its target, room for the arrowhead.
+            // (8 + 6); at the arrow's source, just the hop plus a little; at its target, room for the arrowhead (about 14px).
             // (A flat 18px dropped crossings next to a source, e.g. an arrow rising just right of a decision vertex.)
-            const endRoom = (k) => (k === 0 ? 8 : k === points.length - 1 ? 18 : 14);
+            const endRoom = (k) => (k === 0 ? 8 : k === points.length - 1 ? 22 : 14);
             const lo1 = endRoom(i), lo2 = endRoom(i + 1);
             const minRoom = goingRight ? lo1 : lo2, maxRoom = goingRight ? lo2 : lo1;
 
