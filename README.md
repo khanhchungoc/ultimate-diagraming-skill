@@ -157,13 +157,21 @@ Each demo is a claude.ai Artifact; **Download .html** inside it saves your edits
 
 ### Option B: one command
 
-If you have Node.js, run this in a terminal:
+If you have Node.js, run one of these in a terminal. It shows the version it installs.
+
+For all your projects (user scope):
 
 ```shell
 npx khanhchungoc/ultimate-diagraming-skill
 ```
 
-It installs into every supported assistant and shows the version. Add `--runtime claude` to pick one assistant, or `--project` to install into the current project only.
+For the current project only (project scope), run it inside the project folder:
+
+```shell
+npx khanhchungoc/ultimate-diagraming-skill --project
+```
+
+Both install into every supported assistant. Add `--runtime claude` to pick one.
 
 ### Then
 
