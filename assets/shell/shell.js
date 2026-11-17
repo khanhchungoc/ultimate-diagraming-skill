@@ -405,6 +405,7 @@
         if (urlParams.has('present') || urlParams.has('capture')) document.body.classList.add('presentation');
         if (urlParams.has('capture')) document.body.classList.add('capture');
         initTheme();
+        initSearch();
 
         plugin.render();
         fitView();
@@ -941,12 +942,114 @@
       btnHelp.addEventListener('click', () => setHelpOpen(!helpDrawer.classList.contains('open')));
       document.getElementById('help-close').addEventListener('click', () => setHelpOpen(false));
 
+      // --- SEARCH (spec: dev/plans/search.md) ---
+      // Contract: a plugin may define searchItems() -> [{ id, text, el }] in reading order; id is stable across
+      // renders, text is what the reader sees, el is what gets dimmed, ringed and centred. Without it, no search button.
+      // The shell calls it on every query and after every render, so it reads the live DOM and stays cheap.
+      // Search is view-only: never in chartData, undo, Save, exports or Mermaid.
+      window.__searchItems = () => (plugin && plugin.searchItems ? plugin.searchItems() : []);
+
+      const btnSearch = document.getElementById('btn-search');
+      const searchBar = document.getElementById('search-bar');
+      const searchInput = document.getElementById('search-input');
+      const searchCount = document.getElementById('search-count');
+      const searchPrev = document.getElementById('search-prev');
+      const searchNext = document.getElementById('search-next');
+      const SEARCH_MIN_SCALE = 0.6;   // below this zoom a centred match is too small to read, so zoom in on it
+      let searchMatches = [];         // [{ id, text, el }] matching the query, one per element, in plugin order
+      let searchIndex = 0;
+      let searchTimer = 0;
+
+      const searchFold = (s) => String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+      const searchOpen = () => !searchBar.hidden;
+
+      // Marks the stage for the current query and keeps the current match when its id still matches.
+      function applySearch() {
+        stage.querySelectorAll('.search-dim, .search-current').forEach(el => el.classList.remove('search-dim', 'search-current'));
+        const q = searchFold(searchInput.value.trim());
+        const keep = searchMatches[searchIndex] && searchMatches[searchIndex].id;
+        searchMatches = [];
+        if (q && searchOpen()) {
+          const items = window.__searchItems();
+          const seen = new Set();
+          items.forEach(it => { if (searchFold(it.text).includes(q) && !seen.has(it.el)) { seen.add(it.el); searchMatches.push(it); } });
+          items.forEach(it => { if (!seen.has(it.el)) it.el.classList.add('search-dim'); });
+          const kept = searchMatches.findIndex(m => m.id === keep);
+          searchIndex = kept >= 0 ? kept : Math.min(searchIndex, Math.max(searchMatches.length - 1, 0));
+          if (searchMatches[searchIndex]) searchMatches[searchIndex].el.classList.add('search-current');
+        } else searchIndex = 0;
+        searchCount.textContent = !q ? '' : searchMatches.length ? `${searchIndex + 1} / ${searchMatches.length}` : 'No matches';
+        searchPrev.disabled = searchNext.disabled = !searchMatches.length;
+      }
+
+      // Centres the current match using the same scale/pan transform as fitView, zooming in only when it would be too small.
+      function centreSearchMatch() {
+        const m = searchMatches[searchIndex];
+        if (!m) return;
+        // Positions are read relative to the stage as it is drawn now (a glide may still be running), not from scale/pan.
+        const vp = viewport.getBoundingClientRect(), r = m.el.getBoundingClientRect(), st = stage.getBoundingClientRect();
+        const k = (stage.offsetWidth ? st.width / stage.offsetWidth : 0) || scale;
+        let s = scale;
+        if (s < SEARCH_MIN_SCALE && r.width && r.height) {
+          const fit = Math.min((vp.width - 160) / (r.width / k), (vp.height - 160) / (r.height / k), 1);
+          s = Math.max(s, Math.min(Math.max(fit, 0.25), 1));
+        }
+        const cx = (r.left + r.width / 2 - st.left) / k, cy = (r.top + r.height / 2 - st.top) / k;
+        const reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        viewport.classList.toggle('search-glide', !reduced);
+        scale = s;
+        panX = vp.width / 2 - cx * s;
+        panY = vp.height / 2 - cy * s;
+        updateTransform();
+        if (!reduced) { clearTimeout(searchTimer); searchTimer = setTimeout(() => viewport.classList.remove('search-glide'), 400); }
+      }
+
+      function stepSearch(dir) {
+        if (!searchMatches.length) return;
+        searchIndex = (searchIndex + dir + searchMatches.length) % searchMatches.length;
+        applySearch();
+        centreSearchMatch();
+      }
+
+      function setSearchOpen(on) {
+        searchBar.hidden = !on;
+        btnSearch.setAttribute('aria-expanded', String(on));
+        if (on) { searchInput.focus(); searchInput.select(); } else {
+          searchInput.value = '';
+          searchInput.blur();
+        }
+        applySearch();
+      }
+
+      // Plugins that re-render on their own (edit, undo, theme) replace stage children; the query is applied again then.
+      new MutationObserver(() => { if (searchOpen() && searchInput.value) applySearch(); }).observe(stage, { childList: true, subtree: true });
+
+      function initSearch() {
+        btnSearch.hidden = !(plugin && plugin.searchItems);
+        if (btnSearch.hidden) return;
+        btnSearch.addEventListener('click', () => setSearchOpen(!searchOpen()));
+        searchPrev.addEventListener('click', () => stepSearch(-1));
+        searchNext.addEventListener('click', () => stepSearch(1));
+        document.getElementById('search-close').addEventListener('click', () => setSearchOpen(false));
+        searchInput.addEventListener('input', () => { searchIndex = 0; applySearch(); centreSearchMatch(); });
+        searchInput.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') { e.preventDefault(); stepSearch(e.shiftKey ? -1 : 1); }
+          else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); setSearchOpen(false); }
+        });
+        window.addEventListener('keydown', (e) => {
+          const mod = (e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === 'f';
+          const slash = e.key === '/' && !e.ctrlKey && !e.metaKey && !e.altKey;
+          if ((mod || slash) && !typingInField()) { e.preventDefault(); setSearchOpen(true); }
+          else if (e.key === 'Escape' && searchOpen() && !helpDrawer.classList.contains('open')) setSearchOpen(false);
+        });
+      }
+
       // --- EXPORT (SVG / PNG) ---
       // The stage is HTML plus SVG, so the export inlines every computed style into a clone and wraps it in a
       // foreignObject. The result is a self-contained SVG, and the PNG is that SVG rasterised.
       const btnExport = document.getElementById('btn-export');
       const exportMenu = document.getElementById('export-menu');
-      const TRANSIENT_CLASSES = ['selected', 'hover', 'linked', 'hl-in', 'hl-out', 'multi-selected', 'dragging', 'lane-hover'];
+      const TRANSIENT_CLASSES = ['selected', 'hover', 'linked', 'hl-in', 'hl-out', 'multi-selected', 'dragging', 'lane-hover', 'search-dim', 'search-current'];
       const SKIP_SELECTOR = '#drag-edge, .snap-guide, #lane-drop-line, #seq-drop-line, [data-export-skip]';
       const EXPORT_SVG_NS = 'http://www.w3.org/2000/svg';
       let defaultStyleCache = null;
@@ -1325,6 +1428,14 @@
       }
 
       // The text of this page as it was loaded: the file itself where the browser lets us fetch it, else the live document
+      // The live document as text, without the view-only search classes.
+      function withoutSearchMarks(n) {
+        if (!n.outerHTML) return '';
+        const c = n.cloneNode(true);
+        c.querySelectorAll('.search-dim, .search-current').forEach(el => el.classList.remove('search-dim', 'search-current'));
+        return c.outerHTML;
+      }
+
       async function loadSourceText() {
         let fullHtml = "";
         try {
@@ -1337,7 +1448,7 @@
         if (!fullHtml || !fullHtml.includes('id="diagram-data"')) {
           // Rebuild from the live document, keeping the top-level comments (the reading guide on line 2)
           fullHtml = [...document.childNodes].map(n => n.nodeType === Node.DOCUMENT_TYPE_NODE ? '<!DOCTYPE html>'
-            : n.nodeType === Node.COMMENT_NODE ? `<!--${n.data}-->` : (n.outerHTML || '')).join('\n');
+            : n.nodeType === Node.COMMENT_NODE ? `<!--${n.data}-->` : withoutSearchMarks(n)).join('\n');
         }
         return fullHtml;
       }

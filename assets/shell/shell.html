@@ -39,6 +39,9 @@
     </div>
 
     <div class="toolbar-right">
+      <button id="btn-search" class="btn btn-icon" title="Search (Ctrl+F or /)" aria-label="Search" aria-expanded="false" aria-controls="search-bar" hidden>
+        {{icon:search}}
+      </button>
       <button id="btn-undo" class="btn btn-icon" title="Undo (Ctrl+Z)" aria-label="Undo" disabled>
         {{icon:undo}}
       </button>
@@ -64,6 +67,14 @@
       <button id="btn-save" class="btn btn-primary" title="Save directly into this HTML file (Ctrl+S)" aria-label="Save">
         {{icon:save}}<span class="btn-label">Save</span>
       </button>
+    </div>
+    <!-- Text search: opened by #btn-search, Ctrl/Cmd+F or "/" (shell.js, SEARCH); inside the header so it hangs just below it -->
+    <div id="search-bar" role="search" hidden>
+      <input id="search-input" type="search" placeholder="Search" aria-label="Search the diagram" autocomplete="off" spellcheck="false">
+      <span id="search-count" role="status" aria-live="polite"></span>
+      <button id="search-prev" class="btn btn-icon" type="button" title="Previous match (Shift+Enter)" aria-label="Previous match" disabled>{{icon:chevron-up}}</button>
+      <button id="search-next" class="btn btn-icon" type="button" title="Next match (Enter)" aria-label="Next match" disabled>{{icon:chevron-down}}</button>
+      <button id="search-close" class="btn btn-icon" type="button" title="Close (Esc)" aria-label="Close search">{{icon:close}}</button>
     </div>
   </header>
 
@@ -96,6 +107,7 @@
   </div>
 
 {{TYPE_CHROME}}
+
   <!-- Viewport for Pan and Zoom -->
   <div id="viewport">
     <div id="stage">

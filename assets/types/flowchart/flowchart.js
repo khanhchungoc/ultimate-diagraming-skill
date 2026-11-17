@@ -4730,6 +4730,35 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           setConnectorPicking(false);
           return cancelNoteLink() || cancelNoteToolDrag() || cancelConnectorToolDrag() || cancelNoteDrag() || cancelPaletteDrag() || wasConnecting || wasPicking;
         },
+        // Text search (shell contract): live DOM, in reading order along the flow. Steps and connector letters first
+        // (by flow position, then lane, then across), then arrow labels, notes, lane titles. Notes are always in the DOM
+        // but display:none until shown or peeked; then the item's el is its first linked step.
+        searchItems() {
+          const items = [];
+          const add = (id, el, text) => { text = (text || '').trim(); if (el && text) items.push({ id, text, el }); };
+          const tb = isTB();
+          const laneAt = {};
+          chartData.lanes.forEach((l, i) => { laneAt[l.id] = i; });
+          const order = {};
+          [...chartData.nodes].sort((a, b) => ((a.x || 0) - (b.x || 0)) || ((laneAt[a.laneId] || 0) - (laneAt[b.laneId] || 0)) || ((a.y || 0) - (b.y || 0)))
+            .forEach((n, i) => { order[n.id] = i; });
+          [...document.querySelectorAll('.flow-node')]
+            .sort((a, b) => (order[a.dataset.nodeId] ?? 1e9) - (order[b.dataset.nodeId] ?? 1e9))
+            .forEach(el => add('node:' + el.dataset.nodeId, el, el.querySelector('.node-label')?.textContent));
+          const pos = (el) => parseFloat(tb ? el.style.top : el.style.left) || 0;
+          [...document.querySelectorAll('.edge-label.has-label')].sort((a, b) => pos(a) - pos(b))
+            .forEach(el => add('edge:' + el.dataset.edgeId, el, el.querySelector('.edge-label-text')?.textContent));
+          const noteAt = (c) => Math.min(1e9, ...((noteById(c.dataset.noteId) || {}).nodes || []).map(id => order[id] ?? 1e9));
+          [...(notesLayer ? notesLayer.children : [])].sort((a, b) => noteAt(a) - noteAt(b))
+            .forEach(el => {
+              // a hidden card has no box: ring and centre its first linked step instead
+              const shown = getComputedStyle(el).display !== 'none';
+              const first = ((noteById(el.dataset.noteId) || {}).nodes || [])[0];
+              add('note:' + el.dataset.noteId, shown ? el : nodeElOf(first), el.querySelector('.note-text')?.textContent);
+            });
+          document.querySelectorAll('.swimlane').forEach(el => add('lane:' + el.dataset.laneId, el.querySelector('.lane-pill'), el.querySelector('.lane-title')?.textContent));
+          return items;
+        },
         onViewChange() { ui.closeConfirm(); pinLaneHeaders(); },
         // Notes on show may sit in the margin outside the lanes: Fit and screenshots take them in (peeked ones
         // are transient and do not count)

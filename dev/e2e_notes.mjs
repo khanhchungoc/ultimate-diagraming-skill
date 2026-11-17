@@ -161,7 +161,7 @@ try {
   // dock), chosen in the same instant as the drag
   const [third, dropped] = await t.ev(`(async () => {
     const n = [...document.querySelectorAll('.flow-node')].find(n => {
-      if (n.querySelector('.note-badge')) return false;
+      if (n.querySelector('.note-badge') || n.classList.contains('type-connector')) return false;   // a connector takes no notes
       const r = n.getBoundingClientRect(), hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
       return hit && hit.closest('.flow-node') === n;
     });
@@ -190,7 +190,7 @@ try {
   const noteId = await t.ev(`${card}.dataset.noteId`);
   const C = `document.querySelector('.note[data-note-id="${noteId}"]')`;
   const reachable = `[...document.querySelectorAll('.flow-node')].filter(n => {
-    if (n.dataset.nodeId === '${nodeId}' || n.querySelector('.note-badge')) return false;   // steps with no note of their own
+    if (n.dataset.nodeId === '${nodeId}' || n.querySelector('.note-badge') || n.classList.contains('type-connector')) return false;   // steps with no note of their own (a connector takes none)
     const r = n.getBoundingClientRect(), hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
     return hit && hit.closest('.flow-node') === n;
   })`;

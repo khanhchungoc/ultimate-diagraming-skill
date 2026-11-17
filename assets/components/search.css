@@ -1,0 +1,22 @@
+    /* Search: the bar under the header (input, counter, previous, next, close) and the two classes the shell puts on diagram
+       elements (search-dim on non-matches, search-current on the match being shown). View-only: exports and Save never see them.
+       Markup: #search-bar > input#search-input, #search-count, button#search-prev, button#search-next, button#search-close. */
+    #search-bar {
+      position: absolute; top: calc(100% + 8px); right: 16px; z-index: 150;   /* below the header, aligned with its padding */
+      display: flex; align-items: center; gap: 6px; padding: 6px;
+      background: var(--bg-panel); border: 1px solid var(--border-dark); border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-lg);
+    }
+    #search-bar[hidden] { display: none; }
+    #search-input {
+      width: 200px; min-height: 24px; padding: 4px 8px; box-sizing: border-box;
+      font-size: var(--t-control-size); color: var(--text-main); background: var(--bg-page);
+      border: 1px solid var(--border-color); border-radius: var(--radius-md);
+    }
+    #search-input:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+    #search-count { min-width: 64px; font-size: var(--t-control-size); color: var(--text-soft); text-align: center; white-space: nowrap; }
+    #btn-search[hidden] { display: none; }
+    .search-dim { opacity: var(--dim); filter: var(--dim-filter); }
+    .search-current { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+    .search-glide #stage { transition: transform var(--ease); }
+    @media (max-width: 720px) { #search-bar { left: 12px; right: 12px; } #search-input { flex: 1 1 auto; min-width: 0; width: auto; } }

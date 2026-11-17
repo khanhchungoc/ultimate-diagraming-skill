@@ -18,7 +18,9 @@ export async function launch(browser) {
   const port = 9300 + Math.floor(Math.random() * 400);
   const profile = mkdtempSync(join(tmpdir(), 'e2e_'));
   const chrome = spawn(browser, ['--headless=new', `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`,
-    '--no-first-run', '--window-size=1920,1080', 'about:blank'], { stdio: 'ignore' });
+    '--no-first-run', '--window-size=1920,1080',
+    // Chrome refuses to start as root (containers, CI) without this
+    ...(process.getuid && process.getuid() === 0 ? ['--no-sandbox'] : []), 'about:blank'], { stdio: 'ignore' });
 
   let wsUrl;
   for (let i = 0; i < 60 && !wsUrl; i++) {

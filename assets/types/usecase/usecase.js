@@ -1861,6 +1861,30 @@
         },
         selectAll() { if (!presenting()) setSel([...actors(), ...cases()].filter((o) => drawn(o.id)).map((o) => o.id), null); },
         deleteSelection,
+        // Search: read the live DOM; ordered top to bottom, then left to right. A hidden note card (Notes off) has no box,
+        // so its match rings the first linked item instead.
+        searchItems() {
+          const out = [], clean = (t) => (t || '').replace(/\s+/g, ' ').trim();
+          const add = (id, el, text, at) => {
+            text = clean(text);
+            if (!text || !el) return;
+            const b = at || el;
+            out.push({ id, text, el, y: parseFloat(b.style.top) || 0, x: parseFloat(b.style.left) || 0 });
+          };
+          els.items.forEach((el, id) => {
+            const n = el.querySelector('.uc-actor-name, .uc-name');
+            add((el.classList.contains('uc-actor') ? 'actor:' : 'uc:') + id, el, n && n.textContent);
+          });
+          els.subjects.forEach((el, id) => { const n = el.querySelector('.uc-subject-name'); add('system:' + id, el, n && n.textContent); });
+          html.querySelectorAll('.uc-label[data-edge-id]').forEach((el) => add('rel:' + el.dataset.edgeId, el, el.textContent));
+          if (notesLayer) [...notesLayer.children].forEach((card) => {
+            const t = card.querySelector('.note-text'), id = card.dataset.noteId;
+            const shown = card.classList.contains('show') || card.classList.contains('peek');
+            const host = shown ? card : els.items.get(linkedItems(noteOf(id) || {})[0]);
+            add('note:' + id, host, t && t.textContent, host);
+          });
+          return out.sort((a, b) => a.y - b.y || a.x - b.x).map(({ id, text, el }) => ({ id, text, el }));
+        },
         contentOverflow() {
           const o = { left: 0, top: 0, right: 0, bottom: 0 };
           const H = canvas.offsetHeight, W = canvas.offsetWidth;
