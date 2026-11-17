@@ -230,7 +230,7 @@
         el.appendChild(avatar(a.kind, a._figW));
         el.appendChild(htmlEl('span', `uc-actor-name t-label${a.abstract ? ' is-abstract' : ''}`, nameOf(a)));
         if (isTile(a)) el.appendChild(htmlEl('span', 'uc-kw t-caption', KIND_CAPTION[a.kind]));
-        addItemChrome(el, a, a._side === 'right');
+        addItemChrome(el, a);
         return el;
       }
 
@@ -266,30 +266,31 @@
           u.refs.forEach((r) => refs.appendChild(htmlEl('span', 'uc-ref t-caption', String(r))));
           el.appendChild(refs);
         }
-        addItemChrome(el, u, false);
+        addItemChrome(el, u);
         return el;
       }
 
       // Connect port, note badge or + chip
-      function addItemChrome(el, o, leftPort) {
+      function addItemChrome(el, o) {
         if (!presenting()) {
-          const port = htmlEl('span', `uc-port${leftPort ? ' is-left' : ''}`);
-          port.dataset.exportSkip = '';
-          port.dataset.touchDrag = '';
-          port.title = 'Drag to another item to connect them (blank space inside a subject draws out a new use case)';
-          if (o._figW && typeof o.w === 'number') {   // an actor: the port sits on the avatar's rim, level with its centre
-            const off = px((o.w - o._figW) / 2);
-            port.style.top = px(o._figH / 2);
-            if (leftPort) port.style.left = `calc(${off} - 7px)`; else port.style.right = `calc(${off} - 7px)`;
-          }
-          el.appendChild(port);
+          [false, true].forEach((leftPort) => {   // an anchor on each side
+            const port = htmlEl('span', `uc-port${leftPort ? ' is-left' : ''}`);
+            port.dataset.exportSkip = '';
+            port.dataset.touchDrag = '';
+            port.title = 'Drag to another item to connect them (blank space inside a subject draws out a new use case)';
+            if (o._figW && typeof o.w === 'number') {   // an actor: the port sits on the avatar's rim, level with its centre
+              const off = px((o.w - o._figW) / 2);
+              port.style.top = px(o._figH / 2);
+              if (leftPort) port.style.left = `calc(${off} - 7px)`; else port.style.right = `calc(${off} - 7px)`;
+            }
+            el.appendChild(port);
+          });
         }
         const badge = buildNoteBadge(o);
         if (badge) el.appendChild(badge);
         el.addEventListener('pointerenter', (ev) => {
           if (ev.pointerType === 'touch' || drag) return;
           if (notesOfItem(o.id).length) peekSoon(o.id, 100);
-          hoverItemId = o.id; applyFocus();
         });
         el.addEventListener('pointerleave', () => {
           if (peekId === o.id) unpeekSoon(o.id);
@@ -338,8 +339,7 @@
           const line = svgEl('path', { class: 'edge-line', d });
           setMarkers(line, l.type === 'association' ? (l.navigable === true ? 'open' : null) : 'open');
           g.append(tip, svgEl('path', { class: 'edge-hit', d }), line);
-          g.addEventListener('pointerenter', (ev) => { if (ev.pointerType === 'touch' || drag) return; hoverLinkId = l.id; applyLinkState(); });
-          g.addEventListener('pointerleave', () => { if (hoverLinkId === l.id) hoverLinkId = null; applyLinkState(); });
+                    g.addEventListener('pointerleave', () => { if (hoverLinkId === l.id) hoverLinkId = null; applyLinkState(); });
           g.addEventListener('pointerdown', (ev) => { if (ev.button === 0 && !presenting()) { ev.stopPropagation(); selectOther('link', l.id); } });
           g.addEventListener('dblclick', (ev) => { ev.stopPropagation(); editLinkCondition(l.id); });
           linksG.appendChild(g);
@@ -367,7 +367,6 @@
           el.title = linkTitle(l) + (l.extensionPoint ? ` at ${l.extensionPoint}` : '');
           el.appendChild(htmlEl('span', 'uc-label-text', `«${l.type}»`));
           if (l.type === 'extend' && l.condition) el.appendChild(htmlEl('span', 'uc-cond', `[${l.condition}]`));
-          el.addEventListener('pointerenter', (ev) => { if (ev.pointerType !== 'touch' && !drag) { hoverLinkId = l.id; applyLinkState(); } });
           el.addEventListener('pointerleave', () => { if (hoverLinkId === l.id) hoverLinkId = null; applyLinkState(); });
           el.addEventListener('pointerdown', (ev) => { if (ev.button === 0 && !presenting()) { ev.stopPropagation(); selectOther('link', l.id); } });
           el.addEventListener('dblclick', (ev) => { ev.stopPropagation(); editLinkCondition(l.id); });
@@ -1309,13 +1308,6 @@
         hint(made ? `${esc(nameOf(actorOf(actor)))} connected to ${made} use case${made === 1 ? '' : 's'}` : 'Already connected to all of them');
         if (made) commit(true);
       }
-      function setParent(id, parentId) {
-        const o = itemOf(id);
-        if (!o) return;
-        if (parentId) { if (wouldCycle(id, parentId)) { hint('That would make it a kind of itself'); return; } o.parent = parentId; } else delete o.parent;
-        commit(true);
-      }
-
       // --- Line edits ---
       const isCaseCase = (l) => !!caseOf(l.from) && !!caseOf(l.to);
       function setLinkType(l, type) {
@@ -1423,11 +1415,6 @@
         }
         bar.appendChild(abSep());
         if (!isActor) bar.appendChild(abButton('point', `${ui.icon('plus', { size: 'sm' })}<span>Point</span>`, 'Add an extension point'));
-        if (!isActor) {   // an actor is made a kind of another by dragging its port onto it; on a use case that drag means include
-          const b = abButton('parent', `<span>Kind of</span>${ui.icon('chevron-down', { size: 'xs', bold: true })}`, 'Make this a specialisation of another (generalization)');
-          b.dataset.menu = '';
-          bar.appendChild(b);
-        }
         bar.appendChild(abButton('note', ui.icon('note'), 'Add a note (N)'));
         bar.appendChild(abButton('delete', ui.icon('trash'), 'Delete (and its lines)', undefined, undefined, 'is-danger'));
         bar.appendChild(abBreak());
@@ -1554,15 +1541,9 @@
         if (!o) return;
         if (act === 'kind') { if (value === 'human') delete o.kind; else o.kind = value; commit(false); }
         else if (act === 'level') { if (value === 'user') delete o.level; else o.level = value; commit(false); }
-        else if (act === 'abstract') { if (o.abstract === true) delete o.abstract; else o.abstract = true; commit(false); }
         else if (act === 'point') { addPoint(o); commit(false); const eps = els.items.get(o.id).querySelectorAll('.uc-ep'); editPoint(o.id, eps.length - 1); }
         else if (act === 'note') addNoteTo(o.id);
         else if (act === 'delete') deleteSelection(btn);
-        else if (act === 'parent') {
-          const list = actorOf(o.id) ? actors() : cases();
-          const pick = list.filter((x) => x.id !== o.id && !wouldCycle(x.id, o.id)).map((x) => ({ label: nameOf(x), value: x.id, selected: o.parent === x.id }));
-          openMenu(btn, 'Is a kind of', [{ label: '(none)', value: '' }, ...pick], (v) => setParent(o.id, v));
-        }
       }
 
       // --- INLINE TEXT EDITING (double-click, Enter / F2, or straight after creating something) ---
