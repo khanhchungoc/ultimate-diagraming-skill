@@ -36,7 +36,7 @@ try {
     await sleep(250);
     return JSON.parse(await t.ev(`document.getElementById('diagram-data').textContent`));
   };
-  const notes0 = (JSON.parse(block(readFileSync(page, 'utf8'))).notes || []).length;   // the example's notes: one on a table, two on columns
+  const notes0 = (JSON.parse(block(readFileSync(page, 'utf8'))).notes || []).length;   // the example's table note
   const ent = (d, id) => d.entities.find((e) => e.id === id);
   const rel = (d, id) => d.relationships.find((r) => r.id === id);
   const editing = () => t.ev(`(document.activeElement && document.activeElement.isContentEditable) ? document.activeElement.textContent : null`);
@@ -545,6 +545,45 @@ sys.stdout.write(format_json(out))`;
   await t.type('Moderated');
   await t.press('Escape');
   t.check('dragging the Note button onto a table gives it a note', dragEdit === '' && (await saved()).notes.some((n) => n.text === 'Moderated' && n.entities.join() === 'review'));
+  // column notes: inline next to the column name (not callouts)
+  await freshPage();
+  t.check('existing column notes render inline inside their column row, not as callout notes',
+    (await text(`${row('order', 'status')} .erd-col-note`)) === 'new, paid, shipped, cancelled'
+    && (await text(`${row('order_item', 'qty')} .erd-col-note`)) === '1 to 99'
+    && (await count('.note')) === notes0);
+  await pickRow('customer', 'email');
+  await t.press('n');
+  const colNoteEdit = await editing();
+  const inlineEditing = await t.ev(`document.activeElement.classList.contains('erd-col-note')`);
+  await t.type('lowercase');
+  await t.press('Enter');
+  d = await saved();
+  t.check('N on a selected column edits an inline note next to the column name (no callout created)',
+    colNoteEdit === '' && inlineEditing && ent(d, 'customer').columns[1].note === 'lowercase'
+    && (await text(`${row('customer', 'email')} .erd-col-note`)) === 'lowercase' && d.notes.length === notes0);
+  await undo();
+  t.check('undo removes the column note in one step', (await count(`${row('customer', 'email')} .erd-col-note`)) === 0 && !ent(await saved(), 'customer').columns[1].note);
+  await pickRow('customer', 'phone');
+  await t.clickOn('.erd-actionbar [data-act="colnote"]');
+  await t.type('E.164 format');
+  await t.press('Enter');
+  t.check('column action bar note button adds an inline note to the column', (await text(`${row('customer', 'phone')} .erd-col-note`)) === 'E.164 format');
+  const nb2 = await t.at('#btn-add-note'), rowName = await t.at(row('category', 'name'));
+  await t.dragTo(nb2.x, nb2.y, rowName.x, rowName.y, { steps: 8 });
+  const dragColEdit = await editing();
+  const dragColInline = await t.ev(`document.activeElement.classList.contains('erd-col-note')`);
+  await t.type('unique slug');
+  await t.press('Enter');
+  d = await saved();
+  t.check('dragging the Note button onto a column row adds an inline column note (no callout)',
+    dragColEdit === '' && dragColInline && ent(d, 'category').columns[1].note === 'unique slug' && d.notes.length === notes0);
+  await t.clickOn(`${row('category', 'name')} .erd-col-note`, { count: 2 });
+  const dblColEdit = await editing();
+  await t.press('Backspace');
+  await t.press('Enter');
+  d = await saved();
+  t.check('double-click edits an inline column note and clearing it removes it',
+    dblColEdit === 'unique slug' && (await count(`${row('category', 'name')} .erd-col-note`)) === 0 && !('note' in ent(d, 'category').columns[1]));
   // edit an existing note by its badge; link; unlink; pin; delete
   await freshPage();
   await t.clickOn('.erd-entity[data-node-id="order"] > .note-badge');
@@ -574,7 +613,7 @@ sys.stdout.write(format_json(out))`;
     typeof d.notes[0].pos?.x === 'number' && typeof d.notes[0].pos?.y === 'number', J(d.notes[0]));
   await t.press('Delete');
   d = await saved();
-  t.check('Delete removes the selected note', !d.notes.some((n) => n.id === 'n1') && (await count('.note-badge')) === notes0 - 1);
+  t.check('Delete removes the selected note', !(d.notes || []).some((n) => n.id === 'n1') && (await count('.note-badge')) === notes0 - 1);
   await undo();
   t.check('and undo brings it back with its place', (await saved()).notes?.[0]?.pos !== undefined);
   // deleting a table unlinks its notes

@@ -67,13 +67,16 @@ function erVisibleColumns(entity, data) {
 function erEntitySize(entity, data) {
   const vis = erVisibleColumns(entity, data);
   const showTypes = data.showTypes !== false;
-  let nameW = 0, typeW = 0;
+  let nameW = 0, typeW = 0, noteRowW = 0;
   vis.cols.forEach(({ col }) => {
-    nameW = Math.max(nameW, erTextW(col.name, ER.CHAR_W));
-    typeW = Math.max(typeW, Math.ceil((String(col.type == null ? '' : col.type).length + (col.nullable ? 2 : 0)) * ER.TYPE_CHAR_W));
+    const nw = erTextW(col.name, ER.CHAR_W);
+    const tw = Math.ceil((String(col.type == null ? '' : col.type).length + (col.nullable ? 2 : 0)) * ER.TYPE_CHAR_W);
+    nameW = Math.max(nameW, nw);
+    typeW = Math.max(typeW, tw);
+    if (col.note) noteRowW = Math.max(noteRowW, ER.PAD_X + ER.GLYPH_W + nw + erTextW(col.note, ER.TYPE_CHAR_W) + 16 + (showTypes ? ER.TYPE_GAP + tw : 0) + ER.PAD_X);
   });
   const rows = vis.cols.length
-    ? ER.PAD_X + ER.GLYPH_W + nameW + (showTypes ? ER.TYPE_GAP + typeW : 0) + ER.PAD_X : 0;
+    ? Math.max(noteRowW, ER.PAD_X + ER.GLYPH_W + nameW + (showTypes ? ER.TYPE_GAP + typeW : 0) + ER.PAD_X) : 0;
   const head = erTextW(erName(entity), ER.TITLE_CHAR_W) + 2 * ER.PAD_X + 24;
   const w = erGrid(Math.min(ER.MAX_W, Math.max(ER.MIN_W, head, rows)));
   return { w, h: ER.HEAD_H + vis.cols.length * ER.ROW_H + (vis.more ? ER.MORE_H : 0) };

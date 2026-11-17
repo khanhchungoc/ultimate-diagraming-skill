@@ -500,11 +500,12 @@
         requestAnimationFrame(() => {
           applyInitialView();
           // The web font (Google Fonts link in shell.html) loads asynchronously: render again once it is in, so label
-          // fitting and edge-label widths are measured with the real glyphs, and only then report or tidy.
+          // fitting and edge-label widths are measured with the real glyphs, and only then report, tidy, or settle.
           const fontsIn = document.fonts && document.fonts.status !== 'loaded'
-            ? document.fonts.ready.then(() => { plugin.render(); applyInitialView(); })
+            ? document.fonts.ready.then(() => { plugin.render(); applyInitialView(); }).catch(() => {})
             : Promise.resolve();
           fontsIn.then(() => {
+            document.documentElement.dataset.diagramSettled = '1';
             if (/[?&]report(=|&|$)/.test(window.location.search)) setTimeout(publishRenderReport, 200);
             if (/[?&]tidy(=|&|$)/.test(window.location.search)) publishTidyResult();
           });

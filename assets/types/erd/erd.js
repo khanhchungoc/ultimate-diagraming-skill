@@ -294,23 +294,17 @@
           glyph.title = col.pk && col.fk ? 'Primary key and foreign key' : col.pk ? 'Primary key' : col.fk ? 'Foreign key' : '';
           row.appendChild(glyph);
           row.appendChild(erdHtmlEl('span', 'erd-col-name', col.name));
-          if (!asCard) {
-            const cn = notesOfCol(e.id, col.name);
-            if (cn.length) row.appendChild(buildColNoteBadge(e.id, cn[0]));
-            row.appendChild(buildPort(col.name));
-          }
+          if (!asCard) row.appendChild(buildPort(col.name));
           if (col.unique) {
             const u = erdHtmlEl('span', 'erd-uniq', 'U');
             u.title = 'Unique';
             row.appendChild(u);
           }
-          if (showTypes && col.note) row.appendChild(erdHtmlEl('span', 'erd-col-note', col.note));
+          if (col.note) row.appendChild(erdHtmlEl('span', 'erd-col-note', col.note));
           if (showTypes) {
             const t = erdHtmlEl('span', 'erd-col-type', `${col.type == null ? '' : col.type}${col.nullable ? '?' : ''}`);
             if (col.nullable) t.title = 'Nullable';
             row.appendChild(t);
-          } else if (col.note) {
-            row.appendChild(erdHtmlEl('span', 'erd-col-note', col.note));
           }
           const tip = [col.pk && col.fk ? 'Primary key, foreign key' : col.pk ? 'Primary key' : col.fk ? 'Foreign key' : '',
             col.unique ? 'unique' : '', col.nullable ? 'nullable' : '', col.note || ''].filter(Boolean).join(' · ');
@@ -871,9 +865,8 @@
       const linkedEntities = (note) => (note.entities || []).filter((id) => erdEntity(id) && erdEntity(id).box);
       let editingNoteId = null;      // the note being typed: it counts as live while still empty
       const liveNotes = () => notesList().filter((n) => (noteTextOf(n) || n.id === editingNoteId) && linkedEntities(n).length);
-      // A note is a table's, or (with `column`) one column's of its first table
+      // A table note has no `column`
       const notesOfEntity = (id) => liveNotes().filter((n) => !n.column && (n.entities || []).includes(id));
-      const notesOfCol = (id, col) => liveNotes().filter((n) => n.column === col && (n.entities || [])[0] === id);
       const erdPresenting = () => document.body.classList.contains('presentation');
       const boxesOverlap = (a, b, pad = 0) => a.x < b.x + b.w + pad && a.x + a.w + pad > b.x && a.y < b.y + b.h + pad && a.y + a.h + pad > b.y;
       const boxGap = (a, b) => Math.hypot(Math.max(0, b.x - (a.x + a.w), a.x - (b.x + b.w)), Math.max(0, b.y - (a.y + a.h), a.y - (b.y + b.h)));
@@ -1023,22 +1016,17 @@
           if (line.dataset.noteId !== noteId || !line.dataset.entityId) return;
           const e = erdEntity(line.dataset.entityId);
           if (!e || !e.box) return;
-          const r = e.box, note = noteById(noteId);
-          let cy = r.y + r.h / 2;
-          if (note && note.column && (note.entities || [])[0] === e.id) {   // a column's note points at its row
-            const row = colEls(e.id).find((x) => x.dataset.col === note.column);
-            if (row) cy = r.y + row.offsetTop + row.offsetHeight / 2;
-          }
+          const r = e.box;
           line.setAttribute('x1', b.x + b.w / 2);
           line.setAttribute('y1', b.y + b.h / 2);
           line.setAttribute('x2', r.x + r.w / 2);
-          line.setAttribute('y2', cy);
+          line.setAttribute('y2', r.y + r.h / 2);
         });
       }
 
       function notePeeked(note) {
         const ids = note.entities || [];
-        return note.id === selectedNoteId || ids.includes(peekEntityId) || (erdSel && (erdSel.kind === 'entity' ? ids.includes(erdSel.id) : erdSel.kind === 'col' && ids[0] === erdSel.entity && note.column === erdSel.col));
+        return note.id === selectedNoteId || ids.includes(peekEntityId) || (erdSel && erdSel.kind === 'entity' && ids.includes(erdSel.id));
       }
       function applyNoteVisibility() {
         if (!erdNotesLayer) return;
@@ -1091,22 +1079,6 @@
             selectedNoteId = selectedNoteId === notes[0].id ? null : notes[0].id;
             applyNoteVisibility();
           } else editNote(notes[0].id);
-        });
-        return b;
-      }
-
-      // The badge in a column's row (its note): hover to peek, click to edit; in ?present a click keeps it open
-      function buildColNoteBadge(entityId, note) {
-        const b = erdHtmlEl('button', 'note-badge erd-row-badge');
-        b.type = 'button';
-        b.dataset.exportSkip = '';
-        b.setAttribute('aria-label', `Note: ${noteTextOf(note)}`);
-        b.innerHTML = ERD_NOTE_ICON;
-        b.addEventListener('pointerdown', (ev) => ev.stopPropagation());
-        b.addEventListener('mouseenter', () => peekSoon(entityId, 0));
-        b.addEventListener('click', (ev) => {
-          ev.stopPropagation();
-          if (erdPresenting()) { selectedNoteId = selectedNoteId === note.id ? null : note.id; applyNoteVisibility(); } else editNote(note.id);
         });
         return b;
       }
@@ -1367,7 +1339,7 @@
           [['pk', 'PK', 'Primary key (P)', col.pk], ['fk', 'FK', 'Foreign key (F)', col.fk], ['unique', 'U', 'Unique (U)', col.unique], ['nullable', '?', 'Nullable (?)', col.nullable]]
             .forEach(([act, label, title, on]) => bar.appendChild(abButton(act, `<span>${label}</span>`, title, !!on)));
           bar.appendChild(abSep());
-          bar.appendChild(abButton('colnote', ui.icon('note'), 'Add a note to this column (N), e.g. its allowed values'));
+          bar.appendChild(abButton('colnote', ui.icon('note'), col.note ? 'Edit note on this column (or double-click it)' : 'Add a note to this column (N), e.g. its allowed values'));
           bar.appendChild(abSep());
           bar.appendChild(abButton('up', ui.icon('chevron-up'), 'Move up (Alt+Up)'));
           bar.appendChild(abButton('down', ui.icon('chevron-down'), 'Move down (Alt+Down)'));
@@ -1453,7 +1425,7 @@
           else if (act === 'up') moveColumnBy(e.id, sel.col, -1);
           else if (act === 'down') moveColumnBy(e.id, sel.col, 1);
           else if (act === 'delcol') deleteColumn(e.id, sel.col);
-          else if (act === 'colnote') addNoteTo(e.id, sel.col);
+          else if (act === 'colnote') editColumn(e.id, sel.col, 'note');
         } else if (sel.kind === 'rel') {
           const rel = erdRel(sel.id);
           if (!rel) return;
@@ -1778,8 +1750,11 @@
           const value = el.textContent.replace(/\s*\n\s*/g, ' ').trim();
           const changed = value !== original || (how === 'enter' && value === '') ? !!opts.apply(value, how) : false;
           if (changed) commit();
-          else if (opts.restore !== undefined) el.textContent = opts.restore;
-          else el.textContent = original;
+          else {
+            if (opts.restore !== undefined) el.textContent = opts.restore;
+            else el.textContent = original;
+            if (opts.onCancel) opts.onCancel();
+          }
           if (how === 'tab' && opts.onTab) opts.onTab(changed);
           else if (how === 'enter' && opts.onEnter) opts.onEnter(changed);
         };
@@ -1806,8 +1781,9 @@
         });
       }
 
-      // A column's name or type. Tab: name -> type -> the next row's name; Enter on the last row adds a column; an empty
-      // name on Enter removes the column.
+      // A column's name, type or note (inline text next to the column name, e.g. allowed values: "new, paid, shipped").
+      // Tab: name -> type -> the next row's name; Enter on the last row adds a column; an empty name on Enter removes the
+      // column; an empty note removes the note.
       function editColumn(entityId, colName, field) {
         const e = erdEntity(entityId);
         const col = e && (e.columns || []).find((c) => c.name === colName);
@@ -1819,6 +1795,25 @@
         const isLast = vis[vis.length - 1] === colName;
         const nextName = vis[vis.indexOf(colName) + 1];
         let removed = false;
+        if (field === 'note') {
+          let el = row.querySelector('.erd-col-note');
+          if (!el) {   // no note yet: place it right before the type (or at the end when types are hidden)
+            el = erdHtmlEl('span', 'erd-col-note');
+            row.insertBefore(el, row.querySelector('.erd-col-type'));
+          }
+          beginEdit(el, {
+            raw: col.note == null ? '' : String(col.note),
+            apply: (value) => {
+              if ((col.note || '') === value) return false;
+              if (value) col.note = value; else delete col.note;
+              return true;
+            },
+            restore: col.note == null ? '' : String(col.note),
+            onCancel: () => { if (!col.note && el.parentNode) el.remove(); },
+            onTab: nextName ? () => editColumn(entityId, nextName, 'name') : undefined
+          });
+          return;
+        }
         if (field === 'type' && showTypes) {
           const el = row.querySelector('.erd-col-type');
           beginEdit(el, {
@@ -1894,7 +1889,7 @@
         const id = ent.dataset.nodeId, row = t.closest('.erd-row');
         e.stopPropagation();
         if (erdOverview) { erdZoomToTable(id); return; }   // editing needs the rows: zoom in first
-        if (row) editColumn(id, row.dataset.col, t.closest('.erd-col-type') ? 'type' : 'name');
+        if (row) editColumn(id, row.dataset.col, t.closest('.erd-col-type') ? 'type' : t.closest('.erd-col-note') ? 'note' : 'name');
         else if (t.closest('.erd-head')) editEntityName(id);
       });
       erdRels.addEventListener('dblclick', (e) => {
@@ -2082,11 +2077,11 @@
       // or unlink it, or Shift+click a table. Drag a card to pin it (`pos`, relative to the anchor table).
       // =====================================================================================================
       function addNoteTo(entityId, col) {
+        if (col) { editColumn(entityId, col, 'note'); return; }
         if (!erdEntity(entityId) || erdPresenting()) return;
-        const existing = (col ? notesOfCol(entityId, col) : notesOfEntity(entityId))[0];
+        const existing = notesOfEntity(entityId)[0];
         if (existing) { editNote(existing.id); return; }
         const note = { id: erdUid('n'), text: '', entities: [entityId] };
-        if (col) note.column = col;
         chartData.notes = notesList();
         chartData.notes.push(note);
         editNote(note.id);
@@ -2553,17 +2548,23 @@
         return out;
       }
 
-      // A column's `note` text (older pages, hand-written data) becomes a note on that column, like any other note
-      function moveColumnNotes(d) {
-        (d.entities || []).forEach((e) => (e.columns || []).forEach((c) => {
-          const text = typeof c.note === 'string' ? c.note.trim() : '';
-          delete c.note;
-          if (text) (d.notes = d.notes || []).push({ id: erdUid('n'), text, entities: [e.id], column: c.name });
-        }));
+      // A note naming a column (from older pages) becomes that column's inline `note`
+      function inlineColumnNotes(d) {
+        if (!Array.isArray(d.notes)) return;
+        const byId = new Map((d.entities || []).map((e) => [e.id, e]));
+        d.notes = d.notes.filter((n) => {
+          if (!n || !n.column) return true;
+          const e = byId.get((n.entities || [])[0]);
+          const col = e && (e.columns || []).find((c) => c.name === n.column);
+          const text = typeof n.text === 'string' ? n.text.trim() : '';
+          if (col && text && !col.note) col.note = text;
+          return false;
+        });
+        if (!d.notes.length) delete d.notes;
       }
       function fromDisk(data) {
         const d = JSON.parse(JSON.stringify(data));
-        moveColumnNotes(d);
+        inlineColumnNotes(d);
         const layout = d.layout || {};
         delete d.layout;
         delete d.direction;

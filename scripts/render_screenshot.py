@@ -149,7 +149,8 @@ def run_axe(call, axe: Path) -> dict:
     return out
 
 
-def _collect_layout_report(call, uri: str, width: int, height: int, timeout: int, min_px: float, with_axe: bool = False):
+def _collect_layout_report(call, uri: str, width: int, height: int, timeout: int, min_px: float,
+                           with_axe: bool = False, emit=print):
     try:
         open_page(call, f"{uri}?report&present&minpx={min_px}", width, height, 1, timeout)
         deadline = time.monotonic() + timeout / 2
@@ -161,7 +162,7 @@ def _collect_layout_report(call, uri: str, width: int, height: int, timeout: int
         try:
             return json.loads(text) if text else None, (run_axe(call, axe) if axe else None)
         except RuntimeError as exc:  # axe failing must not lose the layout report
-            print(f"[WARN] axe-core step failed: {exc}")
+            emit(f"[WARN] axe-core step failed: {exc}")
             return json.loads(text), None
     except (RuntimeError, ConnectionError, OSError, json.JSONDecodeError):
         return None, None
@@ -224,17 +225,24 @@ def _serve_dir(directory: Path):
 def _take_screenshot(call, uri: str, width: int, height: int, scale: float,
                      output_path: Path, timeout: int, wait_ready: bool = False) -> None:
     open_page(call, uri, width, height, scale, timeout)
-    if wait_ready:
-        # Split artifacts fetch('diagram.json') after load; wait briefly for diagramReady before capturing.
-        deadline = time.monotonic() + 3.0
-        while time.monotonic() < deadline:
-            if page_value(call, "document.documentElement && document.documentElement.dataset.diagramReady === '1'"):
-                break
-            time.sleep(0.05)
-        else:
-            time.sleep(0.5)
-    else:
-        time.sleep(0.5)  # the page renders after load
+    # Wait for shell.js's post-rAF / font-ready pass (diagramSettled === '1'); older templates only set
+    # diagramReady === '1' (or neither), so cap waiting at 0.5s total or 0.5s after diagramReady appears.
+    now = time.monotonic()
+    deadline = now + (3.0 if wait_ready else 0.5)
+    settled_cap: float | None = None
+    while now < deadline:
+        state = page_value(
+            call,
+            "(d => d ? (d.dataset.diagramSettled === '1' ? 2 : d.dataset.diagramReady === '1' ? 1 : 0) : 0)(document.documentElement)",
+        )
+        if state == 2:
+            break
+        if state == 1 and settled_cap is None:
+            settled_cap = now + 0.5
+            if settled_cap < deadline:
+                deadline = settled_cap
+        time.sleep(0.02)
+        now = time.monotonic()
     raw = base64.b64decode(call("Page.captureScreenshot", {"format": "png"})["data"])
     if len(raw) < 24 or raw[:8] != PNG_SIGNATURE:
         raise RuntimeError("Rendered output is not a valid PNG file.")
@@ -269,6 +277,96 @@ def png_size(path: Path) -> tuple[int, int]:
     return struct.unpack(">II", head[16:24])
 
 
+def render_and_report(
+    input_path: Path | str,
+    output_path: Path | str | None = None,
+    browser: Path | str | None = None,
+    *,
+    viewport: str = "wide",
+    timeout: int = 20,
+    scale: float = 1.5,
+    max_width: int = 1600,
+    min_text_px: float = 11.0,
+    full_window: bool = False,
+    no_report: bool = False,
+) -> tuple[int, bool]:
+    """Render `input_path` to PNG at `output_path`, print layout/axe findings, and return (exit_code, clean)."""
+    clean = True
+
+    def emit(line: str) -> None:
+        nonlocal clean
+        if "[WARN]" in line or "[ERROR]" in line:
+            clean = False
+        print(line)
+
+    try:
+        resolved_in = Path(input_path).resolve()
+        if not resolved_in.is_file():
+            raise FileNotFoundError(f"Input HTML file does not exist: {resolved_in}")
+
+        resolved_out = Path(output_path).resolve() if output_path else resolved_in.with_suffix(".png")
+        width, height = parse_viewport(viewport)
+        browser_path = Path(browser).resolve() if browser else find_browser()
+        is_split = _is_split_artifact(resolved_in)
+
+        resolved_out.parent.mkdir(parents=True, exist_ok=True)
+
+        from measure_font import chrome_session
+
+        ctx = _serve_dir(resolved_in.parent) if is_split else contextlib.nullcontext()
+        with ctx as base_url:
+            uri = f"{base_url}/{urllib.parse.quote(resolved_in.name)}" if is_split else resolved_in.as_uri()
+            report, axe = None, None
+            if no_report:
+                shot_w, shot_h, query, cropped = _shot_params(None, width, height, max_width, full_window)
+                take_screenshot(browser_path, uri + query, shot_w, shot_h, scale, resolved_out, timeout, wait_ready=is_split)
+            else:
+                for attempt in range(2):  # the first browser launch occasionally returns no DOM
+                    try:
+                        with chrome_session(str(browser_path), timeout, (f"--window-size={width},{height}", "--hide-scrollbars")) as call:
+                            report, axe = _collect_layout_report(call, uri, width, height, timeout, min_text_px, True, emit=emit)
+                            if report is None and attempt == 0:
+                                continue
+                            shot_w, shot_h, query, cropped = _shot_params(report, width, height, max_width, full_window)
+                            _take_screenshot(call, uri + query, shot_w, shot_h, scale, resolved_out, timeout, wait_ready=is_split)
+                            break
+                    except (RuntimeError, ConnectionError, OSError):
+                        if attempt == 1:
+                            raise
+        px_w, px_h = png_size(resolved_out)
+        mode = "cropped to diagram" if cropped else "full window"
+        emit(f"[OK] Rendered screenshot ({px_w}x{px_h}px, {scale:g}x, {mode}): {resolved_out}")
+
+        if no_report:
+            return 0, clean
+        if report is None:
+            emit("[INFO] Layout: report unavailable (older template, or this browser returned no DOM), "
+                 "so label overlaps were not checked (report it; do not change the JSON for it).")
+            return 0, clean
+
+        for mode, found in (axe or {}).items():
+            for rule, impact, count, target in found:
+                emit(f"[INFO] Layout: axe ({mode} mode): {rule} ({impact}), {count} element{'s' if count != 1 else ''}, first {target} ({LAYOUT_NOTE})")
+            if not found:
+                emit(f"[PASS] axe ({mode} mode): no violations.")
+        for msg in report.get("warnings", []):
+            # Truncated text the reader can still hover to read is layout; anything else is data to shorten
+            emit(f"[INFO] Layout: {msg} ({LAYOUT_NOTE})" if "shows on hover" in msg else f"[WARN] {msg}")
+        for msg in report["errors"]:
+            emit(f"[INFO] Layout: {msg.rstrip('.')} ({LAYOUT_NOTE})")
+        # Small text at the fit zoom: only worth reporting on a diagram meant for one screen (12 nodes or fewer);
+        # a larger one is read with pan and zoom
+        if report.get("nodeCount", 0) <= 12:
+            for msg in report.get("legibility", []):
+                emit(f"[INFO] Layout: {msg.rstrip('.')} ({LAYOUT_NOTE})")
+        if not report["errors"]:
+            emit("[PASS] No edge-label overlaps detected.")
+        return 0, clean
+    except Exception as exc:
+        print(f"[ERROR] {exc}", file=sys.stderr)
+        return 1, False
+
+
 def main() -> int:
     _ensure_utf8_output()
     parser = argparse.ArgumentParser(description="Render an HTML flowchart to PNG and check its layout.")
@@ -288,69 +386,19 @@ def main() -> int:
     parser.add_argument("--no-report", action="store_true",
                         help="Skip the layout report (label overlaps, text size); screenshot only")
     args = parser.parse_args()
-
-    input_path = Path(args.input).resolve()
-    if not input_path.is_file():
-        raise FileNotFoundError(f"Input HTML file does not exist: {input_path}")
-
-    output_path = Path(args.output).resolve() if args.output else input_path.with_suffix(".png")
-    width, height = parse_viewport(args.viewport)
-    browser = Path(args.browser).resolve() if args.browser else find_browser()
-    is_split = _is_split_artifact(input_path)
-
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-
-    from measure_font import chrome_session
-
-    ctx = _serve_dir(input_path.parent) if is_split else contextlib.nullcontext()
-    with ctx as base_url:
-        uri = f"{base_url}/{urllib.parse.quote(input_path.name)}" if is_split else input_path.as_uri()
-        report, axe = None, None
-        if args.no_report:
-            shot_w, shot_h, query, cropped = _shot_params(None, width, height, args.max_width, args.full_window)
-            take_screenshot(browser, uri + query, shot_w, shot_h, args.scale, output_path, args.timeout, wait_ready=is_split)
-        else:
-            for attempt in range(2):  # the first browser launch occasionally returns no DOM
-                try:
-                    with chrome_session(str(browser), args.timeout, (f"--window-size={width},{height}", "--hide-scrollbars")) as call:
-                        report, axe = _collect_layout_report(call, uri, width, height, args.timeout, args.min_text_px, True)
-                        if report is None and attempt == 0:
-                            continue
-                        shot_w, shot_h, query, cropped = _shot_params(report, width, height, args.max_width, args.full_window)
-                        _take_screenshot(call, uri + query, shot_w, shot_h, args.scale, output_path, args.timeout, wait_ready=is_split)
-                        break
-                except (RuntimeError, ConnectionError, OSError):
-                    if attempt == 1:
-                        raise
-    px_w, px_h = png_size(output_path)
-    mode = "cropped to diagram" if cropped else "full window"
-    print(f"[OK] Rendered screenshot ({px_w}x{px_h}px, {args.scale:g}x, {mode}): {output_path}")
-
-    if args.no_report:
-        return 0
-    if report is None:
-        print("[INFO] Layout: report unavailable (older template, or this browser returned no DOM), "
-              "so label overlaps were not checked (report it; do not change the JSON for it).")
-        return 0
-
-    for mode, found in (axe or {}).items():
-        for rule, impact, count, target in found:
-            print(f"[INFO] Layout: axe ({mode} mode): {rule} ({impact}), {count} element{'s' if count != 1 else ''}, first {target} ({LAYOUT_NOTE})")
-        if not found:
-            print(f"[PASS] axe ({mode} mode): no violations.")
-    for msg in report.get("warnings", []):
-        # Truncated text the reader can still hover to read is layout; anything else is data to shorten
-        print(f"[INFO] Layout: {msg} ({LAYOUT_NOTE})" if "shows on hover" in msg else f"[WARN] {msg}")
-    for msg in report["errors"]:
-        print(f"[INFO] Layout: {msg.rstrip('.')} ({LAYOUT_NOTE})")
-    # Small text at the fit zoom: only worth reporting on a diagram meant for one screen (12 nodes or fewer);
-    # a larger one is read with pan and zoom
-    if report.get("nodeCount", 0) <= 12:
-        for msg in report.get("legibility", []):
-            print(f"[INFO] Layout: {msg.rstrip('.')} ({LAYOUT_NOTE})")
-    if not report["errors"]:
-        print("[PASS] No edge-label overlaps detected.")
-    return 0
+    code, _ = render_and_report(
+        args.input,
+        args.output,
+        args.browser,
+        viewport=args.viewport,
+        timeout=args.timeout,
+        scale=args.scale,
+        max_width=args.max_width,
+        min_text_px=args.min_text_px,
+        full_window=args.full_window,
+        no_report=args.no_report,
+    )
+    return code
 
 
 if __name__ == "__main__":

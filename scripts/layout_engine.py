@@ -20,7 +20,6 @@ import argparse
 import html
 import json
 import re
-import subprocess
 import sys
 from collections import defaultdict
 from pathlib import Path
@@ -31,7 +30,7 @@ from audit_sequence import SequenceAudit
 from audit_usecase import UsecaseAudit
 from disk_format import (DISK_CODECS, authoring_json, color_kind, format_json, from_disk,  # noqa: F401 (DISK_CODECS: registry)
                          palette_slots, readme_text, stamp_reading_guide, to_disk, with_readme)
-from engine_runner import EngineUnavailable, run_layout
+from engine_runner import EngineUnavailable, layout_session, run_layout
 from tokens import expand_icons, load_icons, load_tokens, merge_theme, tokens_css, tokens_js
 
 
@@ -575,14 +574,19 @@ class FlowchartAudit:
                 out_edges[e["from"]].append(e)
                 in_edges[e["to"]].append(e)
 
+        rect_list = sorted(
+            ((oid, ox, oy, ox + ow, oy + oh) for oid, (ox, oy, ow, oh) in rects.items()),
+            key=lambda r: r[1],
+        )
+
         def segment_clear(x1: float, y1: float, x2: float, y2: float, ignore: Tuple[str, ...]) -> bool:
             """True when an axis-aligned segment keeps 6px clear of every node except `ignore`."""
-            min_x, max_x = min(x1, x2) - 6, max(x1, x2) + 6
-            min_y, max_y = min(y1, y2) - 6, max(y1, y2) + 6
-            for oid, (ox, oy, ow, oh) in rects.items():
-                if oid in ignore:
-                    continue
-                if ox < max_x and ox + ow > min_x and oy < max_y and oy + oh > min_y:
+            min_x, max_x = (x1 if x1 < x2 else x2) - 6, (x2 if x1 < x2 else x1) + 6
+            min_y, max_y = (y1 if y1 < y2 else y2) - 6, (y2 if y1 < y2 else y1) + 6
+            for oid, ox, oy, ox2, oy2 in rect_list:
+                if ox >= max_x:
+                    break
+                if ox2 > min_x and oy < max_y and oy2 > min_y and oid not in ignore:
                     return False
             return True
 
@@ -823,7 +827,7 @@ class FlowchartAudit:
                     mid_x = sx + (ex - sx) / 2
                     result[eid] = [(sx, sy), (mid_x, sy), (mid_x, ey), (ex, ey)]
 
-        self._reroute_by_cost(result, rects, ports, segment_clear)
+        self._reroute_by_cost(result, rects, ports, segment_clear, rect_list)
         return result
 
     def _lane_dividers(self) -> List[float]:
@@ -837,7 +841,7 @@ class FlowchartAudit:
             dividers.append(curr_y)
         return dividers
 
-    def _reroute_by_cost(self, result, rects, ports, segment_clear) -> None:
+    def _reroute_by_cost(self, result, rects, ports, segment_clear, rect_list=None) -> None:
         """Mirror of the browser's step 5a. Cost: overlap >> near-parallel > crossing (~1.75 bends)
         > bend > length, plus lane-divider hugging, crowding a node and left/right port clashes.
         Longest arrows go first; arrows already clean keep their standard route; switching needs a
@@ -846,25 +850,48 @@ class FlowchartAudit:
             20000, 2500, 1750, 1000, 1500, 600, 2500, 1200
         )
         dividers = self._lane_dividers()
+        if rect_list is None:
+            rect_list = sorted(
+                ((oid, ox, oy, ox + ow, oy + oh) for oid, (ox, oy, ow, oh) in rects.items()),
+                key=lambda r: r[1],
+            )
 
         def poly_clear(pts, ids) -> bool:
             return all(segment_clear(pts[i][0], pts[i][1], pts[i + 1][0], pts[i + 1][1], ids)
                        for i in range(len(pts) - 1))
 
-        def relate(pts, other, skip_first: bool = False, skip_last: bool = False):
-            overlap = near = cross = 0.0
+        def parse_poly(pts):
+            segs = []
+            min_x = min_y = float("inf")
+            max_x = max_y = float("-inf")
             for i in range(len(pts) - 1):
-                (ax, ay), (bx, by) = pts[i], pts[i + 1]
-                a_v, a_h = abs(ax - bx) < 1, abs(ay - by) < 1
-                for j in range(len(other) - 1):
+                ax, ay = pts[i]
+                bx, by = pts[i + 1]
+                smin_x, smax_x = (ax, bx) if ax <= bx else (bx, ax)
+                smin_y, smax_y = (ay, by) if ay <= by else (by, ay)
+                if smin_x < min_x:
+                    min_x = smin_x
+                if smax_x > max_x:
+                    max_x = smax_x
+                if smin_y < min_y:
+                    min_y = smin_y
+                if smax_y > max_y:
+                    max_y = smax_y
+                segs.append((ax, ay, bx, by, abs(ax - bx) < 1, abs(ay - by) < 1, smin_x, smax_x, smin_y, smax_y))
+            return (min_x, max_x, min_y, max_y), segs
+
+        def relate_segs(c_segs, o_segs, skip_first: bool = False, skip_last: bool = False):
+            overlap = near = cross = 0.0
+            last_i = len(c_segs) - 1
+            last_j = len(o_segs) - 1
+            for i, (ax, ay, bx, by, a_v, a_h, amin_x, amax_x, amin_y, amax_y) in enumerate(c_segs):
+                for j, (cx, cy, dx, dy, c_v, c_h, cmin_x, cmax_x, cmin_y, cmax_y) in enumerate(o_segs):
                     if skip_first and i == 0 and j == 0:
                         continue
-                    if skip_last and i == len(pts) - 2 and j == len(other) - 2:
+                    if skip_last and i == last_i and j == last_j:
                         continue
-                    (cx, cy), (dx, dy) = other[j], other[j + 1]
-                    c_v, c_h = abs(cx - dx) < 1, abs(cy - dy) < 1
                     if a_v and c_v:
-                        run = min(max(ay, by), max(cy, dy)) - max(min(ay, by), min(cy, dy))
+                        run = (amax_y if amax_y < cmax_y else cmax_y) - (amin_y if amin_y > cmin_y else cmin_y)
                         if run > 1:
                             gap = abs(ax - cx)
                             if gap < 2:
@@ -872,7 +899,7 @@ class FlowchartAudit:
                             elif gap < 18:
                                 near += 1
                     elif a_h and c_h:
-                        run = min(max(ax, bx), max(cx, dx)) - max(min(ax, bx), min(cx, dx))
+                        run = (amax_x if amax_x < cmax_x else cmax_x) - (amin_x if amin_x > cmin_x else cmin_x)
                         if run > 1:
                             gap = abs(ay - cy)
                             if gap < 2:
@@ -881,24 +908,26 @@ class FlowchartAudit:
                                 near += 1
                     elif (a_v and c_h) or (a_h and c_v):
                         if a_v:
-                            vx, vy1, vy2, hy, hx1, hx2 = ax, min(ay, by), max(ay, by), cy, min(cx, dx), max(cx, dx)
+                            vx, vy1, vy2, hy, hx1, hx2 = ax, amin_y, amax_y, cy, cmin_x, cmax_x
                         else:
-                            vx, vy1, vy2, hy, hx1, hx2 = cx, min(cy, dy), max(cy, dy), ay, min(ax, bx), max(ax, bx)
+                            vx, vy1, vy2, hy, hx1, hx2 = cx, cmin_y, cmax_y, ay, amin_x, amax_x
                         if hx1 + 1 < vx < hx2 - 1 and vy1 + 1 < hy < vy2 - 1:
                             cross += 1
             return overlap, near, cross
 
-        def defects(pts, ids) -> float:
+        def defects(segs, ids) -> float:
             d = 0.0
-            for i in range(len(pts) - 1):
-                (ax, ay), (bx, by) = pts[i], pts[i + 1]
-                if abs(ay - by) < 1 and abs(ax - bx) > 30 and any(abs(ay - y) < 8 for y in dividers):
+            for ax, ay, bx, by, _, is_h, smin_x, smax_x, smin_y, smax_y in segs:
+                if dividers and is_h and abs(ax - bx) > 30 and any(abs(ay - y) < 8 for y in dividers):
                     d += C_DIVIDER
-                x1, x2 = min(ax, bx) - 14, max(ax, bx) + 14
-                y1, y2 = min(ay, by) - 14, max(ay, by) + 14
-                if any(oid not in ids and ox < x2 and ox + ow > x1 and oy < y2 and oy + oh > y1
-                       for oid, (ox, oy, ow, oh) in rects.items()):
-                    d += C_NEAR_NODE
+                x1, x2 = smin_x - 14, smax_x + 14
+                y1, y2 = smin_y - 14, smax_y + 14
+                for oid, ox, oy, ox2, oy2 in rect_list:
+                    if ox >= x2:
+                        break
+                    if ox2 > x1 and oy < y2 and oy2 > y1 and oid not in ids:
+                        d += C_NEAR_NODE
+                        break
             return d
 
         def port_clashes(e, fp, tp) -> int:
@@ -924,26 +953,42 @@ class FlowchartAudit:
                         n += 1
             return n
 
-        def route_cost(pts, e, others, fp, tp, limit=float("inf")):
-            ids = (e["from"], e["to"])
+        geom_cache = {eid: parse_poly(pts) for eid, pts in result.items()}
+
+        def route_cost(pts, e, other_entries, fp, tp, limit=float("inf"), port_cache=None):
+            e_from, e_to = e["from"], e["to"]
+            ids = (e_from, e_to)
             length = sum(abs(pts[i + 1][0] - pts[i][0]) + abs(pts[i + 1][1] - pts[i][1]) for i in range(len(pts) - 1))
-            if (len(pts) - 2) * C_BEND + length >= limit:
+            bend_len = (len(pts) - 2) * C_BEND + length
+            if bend_len >= limit:
                 return None  # cannot beat the best so far
             if not poly_clear(pts, ids):
                 return None
-            defect = (
-                defects(pts, ids)
-                + port_clashes(e, fp, tp) * C_PORT
-                + shared_branch_vertex(e, fp) * C_SHARED_BRANCH
-            )
-            for o in others:
-                op = ports.get(o["id"])
-                skip_first = bool(op and o["from"] == e["from"] and op[0] == fp)
-                skip_last = bool(op and o["to"] == e["to"] and op[1] == tp)
-                ov, ne, cr = relate(pts, result[o["id"]], skip_first, skip_last)
-                incident = bool({o["from"], o["to"]} & {e["from"], e["to"]})
-                defect += (C_OVERLAP + ov if ov > 0 else 0) + (0 if incident else ne * C_NEAR) + cr * C_CROSS
-            return (len(pts) - 2) * C_BEND + length + defect, defect
+            if port_cache is not None:
+                key = (fp, tp)
+                port_pen = port_cache.get(key)
+                if port_pen is None:
+                    port_pen = port_clashes(e, fp, tp) * C_PORT + shared_branch_vertex(e, fp) * C_SHARED_BRANCH
+                    port_cache[key] = port_pen
+            else:
+                port_pen = port_clashes(e, fp, tp) * C_PORT + shared_branch_vertex(e, fp) * C_SHARED_BRANCH
+            (cmin_x, cmax_x, cmin_y, cmax_y), c_segs = parse_poly(pts)
+            defect = defects(c_segs, ids) + port_pen
+            if bend_len + defect >= limit:
+                return None
+            cx1, cx2, cy1, cy2 = cmin_x - 18, cmax_x + 18, cmin_y - 18, cmax_y + 18
+            for o_from, o_to, op, omin_x, omax_x, omin_y, omax_y, o_segs, incident in other_entries:
+                if cx2 <= omin_x or cx1 >= omax_x or cy2 <= omin_y or cy1 >= omax_y:
+                    continue
+                skip_first = bool(op and o_from == e_from and op[0] == fp)
+                skip_last = bool(op and o_to == e_to and op[1] == tp)
+                ov, ne, cr = relate_segs(c_segs, o_segs, skip_first, skip_last)
+                delta = (C_OVERLAP + ov if ov > 0 else 0) + (0 if incident else ne * C_NEAR) + cr * C_CROSS
+                if delta:
+                    defect += delta
+                    if bend_len + defect >= limit:
+                        return None
+            return bend_len + defect, defect
 
         def anchor(r, side):
             x, y, w, h = r
@@ -1026,15 +1071,36 @@ class FlowchartAudit:
                         key=manhattan, reverse=True):
             eid = e["id"]
             cur_fp, cur_tp = ports[eid]
-            others = [o for o in self.edges if o is not e and o["id"] in result]
-            base = route_cost(result[eid], e, others, cur_fp, cur_tp)
+            e_from, e_to = e["from"], e["to"]
+            other_entries = []
+            for o in self.edges:
+                if o is e:
+                    continue
+                oid = o["id"]
+                if oid not in result:
+                    continue
+                (omin_x, omax_x, omin_y, omax_y), o_segs = geom_cache[oid]
+                o_from, o_to = o["from"], o["to"]
+                other_entries.append((
+                    o_from,
+                    o_to,
+                    ports.get(oid),
+                    omin_x,
+                    omax_x,
+                    omin_y,
+                    omax_y,
+                    o_segs,
+                    o_from == e_from or o_from == e_to or o_to == e_from or o_to == e_to,
+                ))
+            port_cache: Dict[Tuple[str, str], float] = {}
+            base = route_cost(result[eid], e, other_entries, cur_fp, cur_tp, port_cache=port_cache)
             if base is not None and base[1] == 0:
                 continue
             base_cost = float("inf") if base is None else base[0]
             best = None
             deep = base is None or base[1] >= C_CROSS
-            for fp, tp, pts, dev in alt_routes(rects[e["from"]], rects[e["to"]], deep):
-                r = route_cost(pts, e, others, fp, tp, best[0] if best else base_cost - 250)
+            for fp, tp, pts, dev in alt_routes(rects[e_from], rects[e_to], deep):
+                r = route_cost(pts, e, other_entries, fp, tp, best[0] if best else base_cost - 250, port_cache)
                 if r is None:
                     continue
                 cost = r[0] + dev * 0.3 + (600 if (fp, tp) != (cur_fp, cur_tp) else 0)
@@ -1043,6 +1109,7 @@ class FlowchartAudit:
             if best and best[0] < base_cost - 250:
                 result[eid] = best[1]
                 ports[eid] = (best[2], best[3])
+                geom_cache[eid] = parse_poly(best[1])
 
     @staticmethod
     def _polylines_intersect(
@@ -1442,6 +1509,36 @@ def _score_without_long_arrows(report: Dict[str, Any]) -> int:
     return report["score"] + min(LONG_ARROW_MAX_PENALTY, report["long_arrows_count"] * LONG_ARROW_PENALTY)
 
 
+def _choose_flowchart_direction(data: Dict[str, Any], timeout: int, browser: Optional[str],
+                                tokens: Optional[Dict[str, Any]] = None) -> Tuple[Dict[str, Any], Optional[Any], Optional[Dict[str, Any]], str]:
+    """Lay out a flowchart without "direction" in the direction that reads best; return (laid data, audit, report, why)."""
+    lr = run_layout("flowchart", {**data, "direction": "LR"}, timeout=timeout, browser=browser, tokens=tokens)
+    along, across = _flowchart_canvas(lr)
+    fit_all = min(1.0, VIEW_W / along, VIEW_H / across)
+    if fit_all >= READABLE_ZOOM:
+        return lr, None, None, ""
+    tb = run_layout("flowchart", {**data, "direction": "TB"}, timeout=timeout, browser=browser, tokens=tokens)
+    tb_along, tb_across = _flowchart_canvas(tb)
+    lr_zoom, tb_zoom = min(1.0, VIEW_H / across), min(1.0, VIEW_W / tb_across)
+    if tb_zoom < lr_zoom + TB_MIN_GAIN:
+        return lr, None, None, ""
+    # Rotating the same graph can add an edge crossing or two (score only, never a gate failure); that is worth much
+    # bigger lanes, but a real defect (overlap, penetration, overflow) that left to right does not have is not.
+    # Long arrows are left out of the comparison: the workflow splits them into connector pairs after layout (rule
+    # 11), and a flow turned top to bottom often has a few backward ones that left to right does not flag.
+    lr_audit, tb_audit = make_audit(lr, tokens), make_audit(tb, tokens)
+    lr_report, tb_report = lr_audit.verify_collisions(), tb_audit.verify_collisions()
+    tb_quality_ok = (tb_report["passed"] or not lr_report["passed"]) and \
+        _score_without_long_arrows(tb_report) >= _score_without_long_arrows(lr_report) - TB_MAX_SCORE_LOSS
+    if tb_quality_ok:
+        return tb, tb_audit, tb_report, (
+            f"top to bottom: a long flow; lanes fill the screen at {tb_zoom:.0%} "
+            f"({tb_across:.0f} x {tb_along:.0f} px) against {lr_zoom:.0%} left to right "
+            f"({along:.0f} x {across:.0f} px)"
+        )
+    return lr, lr_audit, lr_report, ""
+
+
 def choose_flowchart_direction(data: Dict[str, Any], timeout: int, browser: Optional[str],
                                tokens: Optional[Dict[str, Any]] = None) -> Tuple[Dict[str, Any], str]:
     """Lay out a flowchart that does not set "direction", in the direction that reads best; return (laid data, why).
@@ -1450,26 +1547,8 @@ def choose_flowchart_direction(data: Dict[str, Any], timeout: int, browser: Opti
     the screen while the reader scrolls along the flow, and the direction whose lanes fill it at the bigger zoom wins:
     a landscape screen is about twice as wide as tall, so a long flow almost always reads better top to bottom. Only
     positions are compared (no render); the second layout costs about 0.2 s with Node.js."""
-    lr = run_layout("flowchart", {**data, "direction": "LR"}, timeout=timeout, browser=browser, tokens=tokens)
-    along, across = _flowchart_canvas(lr)
-    fit_all = min(1.0, VIEW_W / along, VIEW_H / across)
-    if fit_all >= READABLE_ZOOM:
-        return lr, ""
-    tb = run_layout("flowchart", {**data, "direction": "TB"}, timeout=timeout, browser=browser, tokens=tokens)
-    tb_along, tb_across = _flowchart_canvas(tb)
-    lr_zoom, tb_zoom = min(1.0, VIEW_H / across), min(1.0, VIEW_W / tb_across)
-    # Rotating the same graph can add an edge crossing or two (score only, never a gate failure); that is worth much
-    # bigger lanes, but a real defect (overlap, penetration, overflow) that left to right does not have is not.
-    # Long arrows are left out of the comparison: the workflow splits them into connector pairs after layout (rule
-    # 11), and a flow turned top to bottom often has a few backward ones that left to right does not flag.
-    lr_report, tb_report = FlowchartAudit(lr).verify_collisions(), FlowchartAudit(tb).verify_collisions()
-    tb_quality_ok = (tb_report["passed"] or not lr_report["passed"]) and \
-        _score_without_long_arrows(tb_report) >= _score_without_long_arrows(lr_report) - TB_MAX_SCORE_LOSS
-    if tb_zoom >= lr_zoom + TB_MIN_GAIN and tb_quality_ok:
-        return tb, (f"top to bottom: a long flow; lanes fill the screen at {tb_zoom:.0%} "
-                    f"({tb_across:.0f} x {tb_along:.0f} px) against {lr_zoom:.0%} left to right "
-                    f"({along:.0f} x {across:.0f} px)")
-    return lr, ""
+    laid, _, _, note = _choose_flowchart_direction(data, timeout, browser, tokens)
+    return laid, note
 
 
 def add_connector_pairs(data: Dict[str, Any], laid: Dict[str, Any], long_arrows: List[Tuple[Dict[str, Any], float, int]],
@@ -1779,44 +1858,46 @@ def main():
 
         data = normalize_diagram_type(data)
         direction_note = ""
+        audit = report = None
         try:
-            if not args.keep_layout and data["diagramType"] == "flowchart":
-                data, lane_note = order_flowchart_lanes(data, args.timeout, args.browser, tokens)
-                if lane_note:
-                    print(f"[INFO] {lane_note}")
-            elif not args.keep_layout and data["diagramType"] == "sequence":
-                data, seq_notes = apply_sequence_defaults(data)
-                for seq_note in seq_notes:
-                    print(f"[INFO] {seq_note}")
-            if not args.keep_layout and data["diagramType"] == "flowchart" and "direction" not in data:
-                laid_out_data, direction_note = choose_flowchart_direction(data, args.timeout, args.browser, tokens)
-            else:
-                laid_out_data = run_layout(data["diagramType"], data, timeout=args.timeout, browser=args.browser, tokens=tokens, keep=args.keep_layout)
+            with layout_session():
+                if not args.keep_layout and data["diagramType"] == "flowchart":
+                    data, lane_note = order_flowchart_lanes(data, args.timeout, args.browser, tokens)
+                    if lane_note:
+                        print(f"[INFO] {lane_note}")
+                elif not args.keep_layout and data["diagramType"] == "sequence":
+                    data, seq_notes = apply_sequence_defaults(data)
+                    for seq_note in seq_notes:
+                        print(f"[INFO] {seq_note}")
+                if not args.keep_layout and data["diagramType"] == "flowchart" and "direction" not in data:
+                    laid_out_data, audit, report, direction_note = _choose_flowchart_direction(
+                        data, args.timeout, args.browser, tokens
+                    )
+                else:
+                    laid_out_data = run_layout(data["diagramType"], data, timeout=args.timeout, browser=args.browser, tokens=tokens, keep=args.keep_layout)
+                if direction_note:
+                    print(f"[INFO] Direction: {direction_note}. To force one, set \"direction\" in the JSON.")
+                if audit is None or report is None:
+                    audit = make_audit(laid_out_data, tokens)
+                    report = audit.verify_collisions()
+                if data["diagramType"] == "flowchart" and not args.keep_layout and report["long_arrows"]:
+                    # Rule 11: the tool splits the long arrows itself, round after round, and keeps the best layout seen
+                    quality = lambda r: (not r["passed"], len(r["issues"]), r["long_arrows_count"], r["edge_crossings"])
+                    base, letters = data, 0
+                    for _ in range(LONG_ARROW_MAX_ROUNDS):
+                        if not report["long_arrows"] or letters >= LONG_ARROW_MAX_PAIRS:
+                            break
+                        split, info = add_connector_pairs(base, laid_out_data, report["long_arrows"], LONG_ARROW_MAX_PAIRS - letters)
+                        laid2 = run_layout("flowchart", split, timeout=args.timeout, browser=args.browser, tokens=tokens)
+                        audit2 = make_audit(laid2, tokens)
+                        report2 = audit2.verify_collisions()
+                        if quality(report2) >= quality(report):
+                            break
+                        base, letters = split, letters + len(info)
+                        laid_out_data, audit, report = laid2, audit2, report2
+                        print("\n".join(info))
         except EngineUnavailable as exc:
             sys.exit(f"[ERROR] {exc}")
-        if direction_note:
-            print(f"[INFO] Direction: {direction_note}. To force one, set \"direction\" in the JSON.")
-        audit = make_audit(laid_out_data, tokens)
-        report = audit.verify_collisions()
-        if data["diagramType"] == "flowchart" and not args.keep_layout and report["long_arrows"]:
-            # Rule 11: the tool splits the long arrows itself, round after round, and keeps the best layout seen
-            quality = lambda r: (not r["passed"], len(r["issues"]), r["long_arrows_count"], r["edge_crossings"])
-            base, letters = data, 0
-            for _ in range(LONG_ARROW_MAX_ROUNDS):
-                if not report["long_arrows"] or letters >= LONG_ARROW_MAX_PAIRS:
-                    break
-                split, info = add_connector_pairs(base, laid_out_data, report["long_arrows"], LONG_ARROW_MAX_PAIRS - letters)
-                try:
-                    laid2 = run_layout("flowchart", split, timeout=args.timeout, browser=args.browser, tokens=tokens)
-                except EngineUnavailable as exc:
-                    sys.exit(f"[ERROR] {exc}")
-                audit2 = make_audit(laid2, tokens)
-                report2 = audit2.verify_collisions()
-                if quality(report2) >= quality(report):
-                    break
-                base, letters = split, letters + len(info)
-                laid_out_data, audit, report = laid2, audit2, report2
-                print("\n".join(info))
 
         # What is left of the long arrows is layout: report it, never a reason to edit the JSON
         is_long = lambda w: w.startswith("Long arrow") or "long, tangled arrow" in w
@@ -1869,16 +1950,9 @@ def main():
 
 
 def run_render(html_path: Path, png_path: Path, browser: Optional[str]) -> Tuple[int, bool]:
-    """Run render_screenshot.py on the written HTML; return (exit code, clean = no WARN/ERROR lines)."""
-    cmd = [sys.executable, str(Path(__file__).with_name("render_screenshot.py")),
-           "--input", str(html_path), "--output", str(png_path)]
-    if browser:
-        cmd += ["--browser", browser]
-    proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace")
-    out = proc.stdout + proc.stderr
-    print(out, end="" if out.endswith("\n") or not out else "\n")
-    clean = proc.returncode == 0 and "[WARN]" not in out and "[ERROR]" not in out
-    return proc.returncode, clean
+    """Run render_screenshot on the written HTML; return (exit code, clean = no WARN/ERROR lines)."""
+    from render_screenshot import render_and_report
+    return render_and_report(html_path, png_path, browser=browser)
 
 
 if __name__ == "__main__":

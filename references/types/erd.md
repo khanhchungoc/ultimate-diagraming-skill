@@ -30,7 +30,7 @@ Never add coordinates or sizes (`x`, `y`, `w`, `h`, `box`, `points`, `layout`); 
       "columns": [
         { "name": "order_id", "type": "uuid", "pk": true, "fk": true },
         { "name": "product_id", "type": "uuid", "pk": true, "fk": true },
-        { "name": "qty", "type": "int" }
+        { "name": "qty", "type": "int", "note": "1 to 99" }
       ] },
     { "id": "product", "name": "product", "color": "3",
       "columns": [ { "name": "id", "type": "uuid", "pk": true }, { "name": "name", "type": "text" } ] }
@@ -41,8 +41,7 @@ Never add coordinates or sizes (`x`, `y`, `w`, `h`, `box`, `points`, `layout`); 
     { "id": "r3", "from": "order_item", "to": "product", "columns": ["product_id"], "fromEnd": "zeroOrMany", "toEnd": "one", "identifying": true }
   ],
   "notes": [
-    { "id": "n1", "text": "Orders are never deleted; cancelled orders keep their items", "entities": ["order"] },
-    { "id": "n2", "text": "1 to 99", "entities": ["order_item"], "column": "qty" }
+    { "id": "n1", "text": "Orders are never deleted; cancelled orders keep their items", "entities": ["order"] }
   ]
 }
 ```
@@ -54,7 +53,7 @@ Never add coordinates or sizes (`x`, `y`, `w`, `h`, `box`, `points`, `layout`); 
 | Diagram | `showNotes` | Optional. `true` draws notes on the canvas instead of as badges. |
 | Diagram | `colorKey` | Optional. `{ "1": "Billing" }`: the domain each table colour stands for, shown as a legend. Write it whenever you use `color`. |
 | Entity | `id`, `name` | One table. `name` is shown as written, so keep the database's casing. |
-| Entity | `columns` | Array, shown in order. Each column: `name` (unique within the table), `type` (optional, free text shown as written), `pk`, `fk`, `unique`, `nullable` (optional booleans). A column's note is a Note with `column`, not a field here: an inline column `note` from older pages still opens, and the page turns it into such a note on load. |
+| Entity | `columns` | Array, shown in order. Each column: `name` (unique within the table), `type` (optional, free text shown as written), `pk`, `fk`, `unique`, `nullable` (optional booleans), `note` (optional inline note shown next to the column name, e.g. allowed values or range). |
 | Entity | `collapsed` | Optional. `true` draws the header only. Never author it unless the user asks for an overview. |
 | Entity | `note` | Optional shorthand text for a PK-less table (`"append-only log"`); prefer top-level `notes[]` for all other table and column rules. |
 | Entity | `color` | Optional. A palette slot, `"1"` to `"8"`: the theme's palette, so a slot names no fixed colour. Tints the table header. Leave it out for a neutral table. Name each colour in `colorKey`. |
@@ -64,8 +63,7 @@ Never add coordinates or sizes (`x`, `y`, `w`, `h`, `box`, `points`, `layout`); 
 | Relationship | `fromEnd`, `toEnd` | Crow's-foot ends, one per end: `one`, `zeroOrOne`, `oneOrMany`, `zeroOrMany`. `fromEnd` is how many `from` rows relate to one `to` row; `toEnd` how many `to` rows relate to one `from` row. Defaults: `fromEnd` `zeroOrMany`, `toEnd` `one` (`zeroOrOne` when every FK column is `nullable`). |
 | Relationship | `identifying` | Optional. `true` draws a solid line: the foreign key is part of the child's primary key. Missing or `false` draws a dashed line (non-identifying). |
 | Relationship | `label` | Optional verb phrase (`places`, `ships to`), 20 characters at most, drawn at the middle of the curve. |
-| Note | `id`, `text`, `entities` | Attached to one or more table ids; drawn as a badge, or on the canvas with `showNotes`. 120 characters at most. |
-| Note | `column` | Optional. A column name of the note's first table: the note is that column's (its badge sits in the column's row), for example the allowed values of a status. |
+| Note | `id`, `text`, `entities` | Callout note attached to one or more table ids; drawn as a badge, or on the canvas with `showNotes`. 120 characters at most. |
 
 The audit's budgets: table name 28 characters, column name 28, type 16, relationship label 20, note 120. Over a budget is a `[WARN]`: the page truncates the text.
 
@@ -85,8 +83,8 @@ Trace prose requirements in two passes before writing JSON (for SQL DDL or a com
 7. **Resolve many-to-many relationships through a junction table** whenever designing a logical or physical schema (especially when the relationship carries attributes such as `qty`, `role` or a timestamp): it is its own entity with two relationships. Only draw a many-to-many directly (both ends `*OrMany`) for a conceptual model; the audit then prints an `[INFO]` suggesting a junction table.
 8. **Colour tables by domain** whenever the schema has more than about 8 tables; see Colour below.
 9. **Set `"detail": "keys"` for more than about 15 tables**, or whenever a table has more than 25 columns: the page opens with only the key columns and a "+ N more" row, and the reader widens it with the **Columns** button. Keep every column in the JSON anyway; `detail` only changes what is drawn.
-10. **Every rule, enum, default, index, view, trigger or caveat in the source is a top-level `note`** in `notes[]` on the table it concerns, or a note with `column` when it is about one column (`"1 to 99"`, `"new, paid, shipped"`). Reserve `Entity.note` only as a shorthand explaining why a table has no primary key.
-11. **Keep the database's names and casing** for `name` and column names (use singular snake_case such as `customer`, `order_item` when deriving from prose); `id` values are short and lower case (`order_item`). Use the database's type text as written (`varchar(255)`, `timestamptz`) only if it fits 16 characters; otherwise shorten it and keep the full text in a note with `column`.
+10. **Every table-level rule, index, view, trigger or caveat in the source is a top-level `note`** in `notes[]` on the table it concerns (callout), and every column-level rule, enum or range is an inline `note` on the column itself (`"1 to 99"`, `"new, paid, shipped"`). Reserve `Entity.note` only as a shorthand explaining why a table has no primary key.
+11. **Keep the database's names and casing** for `name` and column names (use singular snake_case such as `customer`, `order_item` when deriving from prose); `id` values are short and lower case (`order_item`). Use the database's type text as written (`varchar(255)`, `timestamptz`) only if it fits 16 characters; otherwise shorten it and keep the full text in the column's `note`.
 12. Never mark a table `collapsed` or leave a table out to save space; the page pans, zooms, collapses and switches detail by itself.
 
 ## Colour
