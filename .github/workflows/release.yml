@@ -4,6 +4,14 @@ name: release
 on:
   push:
     branches: [main]
+    # Only changes to what users install. README, dev/, docs/, .github/ and agent notes do not release.
+    paths:
+      - SKILL.md
+      - package.json
+      - assets/**
+      - references/**
+      - scripts/**
+      - bin/**
 
 permissions:
   contents: write
