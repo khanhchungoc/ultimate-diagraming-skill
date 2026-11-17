@@ -187,6 +187,12 @@
         }
         title.appendChild(htmlEl('span', 'uc-subject-name t-title', nameOf(s) || (real ? '' : 'System')));
         el.appendChild(title);
+        if (real && s.collapsed !== true) {
+          const grip = htmlEl('div', 'uc-subject-resize');
+          grip.dataset.exportSkip = '';
+          grip.title = 'Drag to resize the frame';
+          el.appendChild(grip);
+        }
         els.subjects.set(s.id, el);
         return el;
       }
@@ -958,6 +964,8 @@
         }
         if (t.closest('.uc-actionbar, .confirm, .frame-chev, .note-badge, .note-add, .note-del, .note-link, .note')) return;
         closeMenu();
+        const grip = t.closest('.uc-subject-resize');
+        if (grip) { e.preventDefault(); beginDrag(e, resizeDrag(grip.parentNode.dataset.subjectId)); return; }
         const title = t.closest('.uc-subject-title');
         if (title) {
           const id = title.parentNode.dataset.subjectId;
@@ -982,11 +990,54 @@
       }
       html.addEventListener('pointerdown', onPointerDown);
 
+      // Live routing while dragging: lines, labels and frames follow the pointer. The positions are put back when the
+      // drag ends (cleanup), so drop() starts from the untouched ones.
+      function liveDrag(d, apply) {
+        if (!d.snap) d.snap = [chartData.actors || [], chartData.useCases || [], realSubjects()].map((l) => l.map((o) => Object.assign({}, o)));
+        if (d.raf) return;
+        d.raf = requestAnimationFrame(() => {
+          d.raf = 0;
+          apply();
+          routeDiagram(chartData);
+          linksG.textContent = '';
+          html.querySelectorAll('.uc-label').forEach((el) => el.remove());
+          els.links = new Map(); els.parents = [];
+          renderLinks(); renderLabels();
+          allSubjects().forEach((s) => { const el = els.subjects.get(s.id); if (el && typeof s.x === 'number') Object.assign(el.style, { left: px(s.x), top: px(s.y), width: px(s.w), height: px(s.h) }); });
+          const C = chartData.canvas;
+          if (C) { canvas.style.width = px(C.width); canvas.style.height = px(C.height); svg.setAttribute('width', C.width); svg.setAttribute('height', C.height); }
+          applySelection();
+        });
+      }
+      function liveEnd(d) {
+        if (d.raf) cancelAnimationFrame(d.raf);
+        if (!d.snap) return;
+        [chartData.actors || [], chartData.useCases || [], realSubjects()].forEach((l, i) => l.forEach((o, k) => { if (d.snap[i][k]) { for (const key of ['x', 'y', 'fw', 'fh']) { if (key in d.snap[i][k]) o[key] = d.snap[i][k][key]; else delete o[key]; } } }));
+      }
+
+      // --- Resize a subject frame from its bottom-right corner (saved as fw / fh, a minimum size) ---
+      function resizeDrag(id) {
+        const s = subjectOf(id), w0 = s.w, h0 = s.h;
+        return {
+          click: () => selectOther('subject', id),
+          move(e, d) { liveDrag(d, () => { s.fw = Math.max(1, Math.round(w0 + d.dx)); s.fh = Math.max(1, Math.round(h0 + d.dy)); }); },
+          drop(e, d) {
+            s.fw = Math.max(1, Math.round(w0 + d.dx)); s.fh = Math.max(1, Math.round(h0 + d.dy));
+            routeDiagram(chartData);
+            actors().forEach(keepOutside);
+            commit(false);
+          },
+          cleanup() { liveEnd(this); }
+        };
+      }
+
       // --- Move actors and use cases (one or the whole selection) ---
       function itemDrag(ids) {
         const targetSubjects = allSubjects();
         return {
+          cleanup() { liveEnd(this); },
           move(e, d) {
+            liveDrag(d, () => ids.forEach((id) => { const o = itemOf(id), i = (d.snap[0].concat(d.snap[1])).find((x) => x.id === id); if (o && i && placed(o)) { o.x = i.x + d.dx; o.y = i.y + d.dy; } }));
             ids.forEach((id) => { const el = els.items.get(id); if (el) { el.classList.add('is-dragging'); el.style.translate = `${d.dx}px ${d.dy}px`; } });
             canvas.querySelectorAll('.drop-target').forEach((el) => el.classList.remove('drop-target'));
             if (ids.some((id) => kindOf(id) === 'case') && realSubjects().length) {

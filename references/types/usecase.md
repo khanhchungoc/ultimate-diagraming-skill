@@ -43,6 +43,7 @@ Never add coordinates or sizes (`x`, `y`, `w`, `h`, `points`, `layout`); `--layo
 | Diagram | `showNotes` | Optional. `true` draws notes on the canvas instead of as badges. |
 | Subject | `id`, `name` | One system boundary. Order is top to bottom. A diagram with one subject may leave out `subjects`; the use cases then sit in one unnamed boundary titled with `title`. With two or more subjects every use case names its `subject`. |
 | Subject | `collapsed` | Optional. Draws the boundary as a name bar. Never author it unless asked. |
+| Subject | `fw`, `fh` | Set by dragging the frame corner in the page: a minimum width and height. Never author them. |
 | Actor | `id`, `name` | A role, 24 characters at most. Never a person's name. |
 | Actor | `kind` | Optional. `human` (default), `system` (an external system) or `time` (a scheduled trigger). Every actor is drawn as a round avatar (person, server or clock icon) with its name below; `system` and `time` add `«system»` / `«time»` under the name. |
 | Actor | `side` | Optional. `left` or `right`. Default: `left` for an actor that starts any association, `right` for one that is only ever the target (a supporting actor). |

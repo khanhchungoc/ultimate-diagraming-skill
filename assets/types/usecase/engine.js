@@ -9,7 +9,8 @@
 //                                              (a circle at the top centre of the actor, for every kind)
 //         useCases[].x,y,w,h,_lines,_compH,_hidden   ellipse box (compartment included), name wrapped to <= 2 lines,
 //                                              extension-points compartment height, true inside a collapsed subject (w = h = 0)
-//         subjects[].x,y,w,h,_titleH           boundary box (data._subjects for an implicit `_main` subject)
+//         subjects[].x,y,w,h,_titleH           boundary box (data._subjects for an implicit `_main` subject); subjects[].fw,fh (saved,
+//                                              set by dragging the frame's corner) are a minimum width and height
 //         links[].points,labelBox,_hidden      2 points straight, 3 points a quadratic curve (middle = control); [] when hidden
 //         data._parents[{from,to,kind,points}] one line per `parent` (to = the parent, the triangle sits at the last point)
 //         data.canvas {width,height,crossings,hits}
@@ -250,6 +251,14 @@ function ucColumns(m) {
       const along = Math.max(0, ...Object.values(meet).filter((ws) => ws.length > 1).map((ws) => ws.reduce((a, b) => a + b, 0) + UC.LABEL_GAP * (ws.length + 1)));
       return Math.max(Math.min(UC.GAP_MAX, Math.max(UC.GAP_MIN, lw ? lw + 16 + UC.GAP_PER_LABEL * (nl - 1) : 0)), Math.min(UC.GAP_MEET_MAX, along));
     });
+    // long or two-line labels of lines between use cases of one column pair need vertical room: a wider row gap
+    let labH = 0;
+    m.links.forEach((l) => {
+      if ((l.type !== 'include' && l.type !== 'extend') || !m.caseBy[l.from] || !m.caseBy[l.to] || m.si[l.from] !== sj.i || m.si[l.to] !== sj.i) return;
+      const t = ucLabelLines(l);
+      if (t.h > UC.LABEL_H || t.w > UC.WRAP) labH = Math.max(labH, t.h);
+    });
+    sj.rowGap = labH ? UC.ROW_GAP + labH - UC.LABEL_H + UC.LABEL_GAP : UC.ROW_GAP;
     sj.content = sj.colW.reduce((s, w) => s + w, 0) + sj.gap.reduce((s, w) => s + w, 0);
     maxContent = Math.max(maxContent, sj.content);
   });
@@ -459,16 +468,27 @@ function ucPlace1(items, gap, lo, hi) {
 // ---------- arrangement ----------
 
 // where the unit wants to be: desired top and weight from its neighbours' current centres
+// An actor sits in the middle (median) of the use cases it reaches, ignoring outliers: those in another subject than most.
 function ucWant(m, u, cy) {
   let sw = 0, sd = 0;
+  const ds = [], subj = [];
   u.members.forEach((mem) => {
     (m.nbr[mem.id] || []).forEach((nid) => {
       const y = cy(nid);
       if (y === undefined) return;
-      sd += y - mem.off - mem.anch; sw++;
+      const d = y - mem.off - mem.anch;
+      sd += d; sw++;
+      ds.push(d); subj.push(m.si[nid]);
     });
   });
-  return sw ? { d: sd / sw, w: sw } : null;
+  if (!sw) return null;
+  if (!u.actor) return { d: sd / sw, w: sw };
+  const cnt = {};
+  subj.forEach((k) => { if (k !== undefined) cnt[k] = (cnt[k] || 0) + 1; });
+  const top = Object.keys(cnt).sort((a, b) => cnt[b] - cnt[a] || a - b)[0];
+  const keep = (top === undefined ? ds : ds.filter((_, i) => String(subj[i]) === top)).sort((a, b) => a - b);
+  const h = keep.length >> 1;
+  return { d: keep.length % 2 ? keep[h] : (keep[h - 1] + keep[h]) / 2, w: keep.length };
 }
 
 // Place everything for the given case column orders. Returns positions and the cost.
@@ -484,10 +504,11 @@ function ucArrangeOnce(m, orders, actorOrderIn, fixedActors) {
       let bodyH = 0;
       sj.ranks.forEach((r) => {
         const col = orders[sj.i][r];
-        const h = col.reduce((s, id) => s + m.unit[id].H, 0) + Math.max(0, col.length - 1) * UC.ROW_GAP;
+        const h = col.reduce((s, id) => s + m.unit[id].H, 0) + Math.max(0, col.length - 1) * sj.rowGap;
         bodyH = Math.max(bodyH, h);
       });
       if (!sj.ranks.length) bodyH = UC.EMPTY_BODY;
+      if (sj.s.fh) bodyH = Math.max(bodyH, sj.s.fh - UC.TITLE_H - 2 * UC.PAD_Y);
       band.bodyTop = top + UC.TITLE_H + UC.PAD_Y; band.bodyH = bodyH;
       top = band.bodyTop + bodyH + UC.PAD_Y + UC.SUBJ_GAP;
     }
@@ -500,9 +521,9 @@ function ucArrangeOnce(m, orders, actorOrderIn, fixedActors) {
     if (sj.collapsed) { m.barTop[sj.i] = bands[sj.i].top; sj.cases.forEach((c) => { y[c.id] = bands[sj.i].top + UC.TITLE_H / 2; }); return; }
     sj.ranks.forEach((r) => {
       const col = orders[sj.i][r];
-      const h = col.reduce((s, id) => s + m.unit[id].H, 0) + Math.max(0, col.length - 1) * UC.ROW_GAP;
+      const h = col.reduce((s, id) => s + m.unit[id].H, 0) + Math.max(0, col.length - 1) * sj.rowGap;
       let t = bands[sj.i].bodyTop + Math.round((bands[sj.i].bodyH - h) / 2);
-      col.forEach((id) => { unitTop[id] = t; t += m.unit[id].H + UC.ROW_GAP; });
+      col.forEach((id) => { unitTop[id] = t; t += m.unit[id].H + sj.rowGap; });
     });
   });
   const setUnit = (id, t) => { unitTop[id] = t; m.unit[id].members.forEach((mem) => { y[mem.id] = t + mem.off; }); };
@@ -548,7 +569,7 @@ function ucArrangeOnce(m, orders, actorOrderIn, fixedActors) {
           return { H: u.H, d: wnt ? wnt.d : unitTop[id], w: wnt ? wnt.w : 0.01 };
         });
         const lo = bands[sj.i].bodyTop, hi = lo + bands[sj.i].bodyH;
-        const tops = ucPlace1(items, UC.ROW_GAP, lo, hi);
+        const tops = ucPlace1(items, sj.rowGap, lo, hi);
         col.forEach((id, i) => setUnit(id, tops[i]));
       });
     });
@@ -645,15 +666,15 @@ function ucSubjects(m) {
     // one left edge for every subject; each ends where its own use cases (or its title) end
     const ownTitle = ucTextW(s.name, UC.TITLE_W) + UC.TITLE_PAD_X;
     const ownR = own.length ? Math.max(...own.map((c) => c.x + c.w)) + UC.PAD_X : L + Math.max(ownTitle, UC.EMPTY_W);
-    s.x = L; s.w = Math.round(Math.max(ownR - L, ownTitle) * 10) / 10; s._titleH = UC.TITLE_H;
+    s.x = L; s.w = Math.round(Math.max(ownR - L, ownTitle, sj.collapsed ? 0 : s.fw || 0) * 10) / 10; s._titleH = UC.TITLE_H;
     if (sj.collapsed) {
       // layoutDiagram knows the bar's band; routeDiagram puts the bar where the expanded subject's top was (its use cases keep x/y)
       const bt = m.barTop[sj.i];
       s.y = typeof bt === 'number' ? bt : ys.length ? Math.round((Math.min(...ys) - UC.PAD_Y - UC.TITLE_H) * 10) / 10 : top0; s.h = UC.TITLE_H;
     } else if (own.length) {
       const t = Math.min(...own.map((c) => c.y)), b = Math.max(...own.map((c) => c.y + c.h));
-      s.y = t - UC.PAD_Y - UC.TITLE_H; s.h = b - t + 2 * UC.PAD_Y + UC.TITLE_H;
-    } else { s.y = top0; s.h = UC.TITLE_H + 2 * UC.PAD_Y + UC.EMPTY_BODY; }
+      s.y = t - UC.PAD_Y - UC.TITLE_H; s.h = Math.max(b - t + 2 * UC.PAD_Y + UC.TITLE_H, s.fh || 0);
+    } else { s.y = top0; s.h = Math.max(UC.TITLE_H + 2 * UC.PAD_Y + UC.EMPTY_BODY, s.fh || 0); }
     m.bars[sj.i] = { x: s.x, y: s.y, w: s.w, h: UC.TITLE_H };
     prev = s.y + s.h;
   });
