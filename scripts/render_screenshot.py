@@ -14,6 +14,9 @@ from __future__ import annotations
 
 import argparse
 import base64
+import contextlib
+import functools
+import http.server
 import json
 import math
 import os
@@ -21,7 +24,9 @@ import re
 import shutil
 import struct
 import sys
+import threading
 import time
+import urllib.parse
 import uuid
 from pathlib import Path
 
@@ -165,12 +170,58 @@ def collect_layout_report(browser: Path, uri: str, width: int, height: int, time
         return None, None
 
 
+def _is_split_artifact(input_path: Path) -> bool:
+    """Return True when the input HTML loads an external app.js or relies on a sibling diagram.json."""
+    text = input_path.read_text(encoding="utf-8", errors="replace")
+    return '<script src="app.js">' in text or (
+        '<script id="diagram-data"' not in text and input_path.with_name("diagram.json").is_file()
+    )
+
+
+class _QuietHandler(http.server.SimpleHTTPRequestHandler):
+    """Serve split artifact assets quietly with reliable MIME types on Windows."""
+    extensions_map = {
+        **http.server.SimpleHTTPRequestHandler.extensions_map,
+        ".html": "text/html",
+        ".js": "text/javascript",
+        ".css": "text/css",
+        ".json": "application/json",
+    }
+
+    def log_message(self, format: str, *args) -> None:
+        pass
+
+
+@contextlib.contextmanager
+def _serve_dir(directory: Path):
+    """Serve `directory` over a loopback HTTP server in a daemon thread until the context exits."""
+    handler = functools.partial(_QuietHandler, directory=str(directory))
+    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        yield f"http://127.0.0.1:{server.server_address[1]}"
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
 def take_screenshot(browser: Path, uri: str, width: int, height: int, scale: float,
-                    output_path: Path, timeout: int) -> None:
+                    output_path: Path, timeout: int, wait_ready: bool = False) -> None:
     from measure_font import chrome_session
     with chrome_session(str(browser), timeout, (f"--window-size={width},{height}", "--hide-scrollbars")) as call:
         open_page(call, uri, width, height, scale, timeout)
-        time.sleep(0.5)  # the page renders after load
+        if wait_ready:
+            # Split artifacts fetch('diagram.json') after load; wait briefly for diagramReady before capturing.
+            deadline = time.monotonic() + 3.0
+            while time.monotonic() < deadline:
+                if page_value(call, "document.documentElement && document.documentElement.dataset.diagramReady === '1'"):
+                    break
+                time.sleep(0.05)
+            else:
+                time.sleep(0.5)
+        else:
+            time.sleep(0.5)  # the page renders after load
         raw = base64.b64decode(call("Page.captureScreenshot", {"format": "png"})["data"])
     if len(raw) < 24 or raw[:8] != PNG_SIGNATURE:
         raise RuntimeError("Rendered output is not a valid PNG file.")
@@ -216,27 +267,30 @@ def main() -> int:
     output_path = Path(args.output).resolve() if args.output else input_path.with_suffix(".png")
     width, height = parse_viewport(args.viewport)
     browser = Path(args.browser).resolve() if args.browser else find_browser()
-    uri = input_path.as_uri()
+    is_split = _is_split_artifact(input_path)
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    report, axe = None, None
-    if not args.no_report:
-        for _attempt in range(2):  # the first browser launch occasionally returns no DOM
-            report, axe = collect_layout_report(browser, uri, width, height, args.timeout, args.min_text_px, True)
-            if report is not None:
-                break
+    ctx = _serve_dir(input_path.parent) if is_split else contextlib.nullcontext()
+    with ctx as base_url:
+        uri = f"{base_url}/{urllib.parse.quote(input_path.name)}" if is_split else input_path.as_uri()
+        report, axe = None, None
+        if not args.no_report:
+            for _attempt in range(2):  # the first browser launch occasionally returns no DOM
+                report, axe = collect_layout_report(browser, uri, width, height, args.timeout, args.min_text_px, True)
+                if report is not None:
+                    break
 
-    shot_w, shot_h, query = width, height, "?present"
-    cropped = False
-    if report and report.get("natural") and report["natural"].get("w") and not args.full_window:
-        nat = report["natural"]
-        crop_w = min(int(nat["w"]), args.max_width)
-        crop_h = math.ceil(nat["h"] * crop_w / nat["w"])
-        # In screenshot mode the page viewport equals the window, so no offset is needed.
-        shot_w, shot_h, query, cropped = crop_w, crop_h, f"?capture&w={crop_w}", True
+        shot_w, shot_h, query = width, height, "?present"
+        cropped = False
+        if report and report.get("natural") and report["natural"].get("w") and not args.full_window:
+            nat = report["natural"]
+            crop_w = min(int(nat["w"]), args.max_width)
+            crop_h = math.ceil(nat["h"] * crop_w / nat["w"])
+            # In screenshot mode the page viewport equals the window, so no offset is needed.
+            shot_w, shot_h, query, cropped = crop_w, crop_h, f"?capture&w={crop_w}", True
 
-    take_screenshot(browser, uri + query, shot_w, shot_h, args.scale, output_path, args.timeout)
+        take_screenshot(browser, uri + query, shot_w, shot_h, args.scale, output_path, args.timeout, wait_ready=is_split)
     px_w, px_h = png_size(output_path)
     mode = "cropped to diagram" if cropped else "full window"
     print(f"[OK] Rendered screenshot ({px_w}x{px_h}px, {args.scale:g}x, {mode}): {output_path}")

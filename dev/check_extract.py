@@ -128,13 +128,18 @@ data = le.normalize_diagram_type(json.loads(fx.read_text(encoding="utf-8")))
 theme = json.loads((ROOT / "dev/fixtures/themes/test-wide.json").read_text(encoding="utf-8"))
 default_page = le.assemble_page("flowchart", data)
 check("plumbing: a default page carries no theme script (byte for byte as before)", le.THEME_OPEN not in default_page and le.read_stored_theme(default_page) is None)
+default_art = le.assemble_artifact("flowchart", data)["index.html"]
+check("plumbing: a default artifact index.html carries no theme script", le.THEME_OPEN not in default_art and le.read_stored_theme(default_art) is None)
 page = le.assemble_page("flowchart", data, "file", merge_theme(theme), theme)
-art = le.assemble_page("flowchart", data, "artifact", merge_theme(theme), theme)
-for label, pg in (("file", page), ("artifact", art)):
-    check(f"plumbing: {label} page stores the theme", le.read_stored_theme(pg) == theme)
-    check(f"plumbing: {label} page: the theme script sits after the end comment, below the reading guide's range",
-          pg.index(le.THEME_OPEN) > pg.index("<!-- end diagram-data -->") and
-          re.search(r"Read lines 1-(\d+)", pg) and pg.count("\n", 0, pg.index(le.THEME_OPEN)) + 1 == int(re.search(r"Read lines 1-(\d+)", pg)[1]) + 1)
+check("plumbing: file page stores the theme", le.read_stored_theme(page) == theme)
+check("plumbing: file page: the theme script sits after the end comment, below the reading guide's range",
+      page.index(le.THEME_OPEN) > page.index("<!-- end diagram-data -->") and
+      re.search(r"Read lines 1-(\d+)", page) and page.count("\n", 0, page.index(le.THEME_OPEN)) + 1 == int(re.search(r"Read lines 1-(\d+)", page)[1]) + 1)
+art_index = le.assemble_artifact("flowchart", data, merge_theme(theme), theme)["index.html"]
+check("plumbing: artifact index.html stores the theme", le.read_stored_theme(art_index) == theme)
+check("plumbing: artifact index.html: the theme script sits before app.css",
+      le.THEME_OPEN in art_index and '<link rel="stylesheet" href="app.css">' in art_index
+      and art_index.index(le.THEME_OPEN) < art_index.index('<link rel="stylesheet" href="app.css">'))
 check("plumbing: stored theme escapes '<'", "<" not in le.theme_script({"name": "a<b"}).split(">", 1)[1].rsplit("<", 1)[0])
 shape = subprocess.run([sys.executable, str(ROOT / "dev/check_artifact_shape.py")], capture_output=True, text=True)
 check("plumbing: dev/check_artifact_shape.py still passes", shape.returncode == 0, shape.stdout[-300:])

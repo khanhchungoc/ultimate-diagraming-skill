@@ -1,6 +1,6 @@
 ---
 name: ultimate-diagram
-version: 1.0.5
+version: 1.0.7
 description: "Create, verify, edit and read diagrams as one standalone, editable HTML file or claude.ai Artifact (drag-and-drop, Auto-Tidy, Save). Supports swimlane flowcharts, sequence diagrams, ER diagrams (database tables, columns, keys, relationships) and UML use case diagrams (actors, use cases, system boundaries, include/extend). Use for interactive, shareable diagram pages, and to read, summarize or explain an existing diagram page (an .html with a \"diagram-data\" block): run its --extract command, never open the .html whole."
 ---
 
@@ -68,7 +68,7 @@ Make exactly these calls. The type reference, the example it names and the comma
    | Render failed | Retry once with `--browser <chrome path>`. If no browser works, report that the visual review could not run. |
 
 5. **View the PNG once** and go through the type's visual checklist. Re-run step 3 only for a failed checklist item.
-6. **Stop.** A clean run is final: do not re-word labels, re-run or re-render. Delete the scratch JSON and PNG (keep the scratch HTML when publishing an artifact, see Artifact output), then report.
+6. **Stop.** A clean run is final: do not re-word labels, re-run or re-render. Delete the scratch JSON and PNG (keep the scratch artifact folder when publishing an artifact, see Artifact output), then report.
 
 ## Local HTML file: create, read, update, delete
 
@@ -85,20 +85,20 @@ Make exactly these calls. The type reference, the example it names and the comma
 
 Use to summarize, explain or answer questions about a diagram page: an `.html` file, or a claude.ai artifact link.
 
-0. **Artifact link**: follow *Read* in [references/artifacts.md](references/artifacts.md), then use the file it saves as `<page.html>` below.
+0. **Artifact link**: follow *Read* in [references/artifacts.md](references/artifacts.md) (`Artifact` read with `path: "diagram.json"` for split artifacts, or without `path` for legacy single-file pages), then pass the saved `<diagram.json>` or `<page.html>` below.
 
-1. **Do not open the `.html` with a file-read tool**: almost all of it is editor code. Your first call prints the diagram's meaning (no positions, no editor code):
+1. **Do not open the `.html` with a file-read tool**: almost all of it is editor code. Your first call prints the diagram's meaning (no positions, no editor code; works on `.html` or `diagram.json`):
    ```shell
-   python "<skill-dir>/scripts/layout_engine.py" --extract <page.html>
+   python "<skill-dir>/scripts/layout_engine.py" --extract <page.html or diagram.json>
    ```
-   If that cannot run, read only the lines the page's line 2 names (the `"diagram-data"` JSON block).
+   If that cannot run on an `.html` file, read only the lines the page's line 2 names (the `"diagram-data"` JSON block).
 2. Answer from that JSON alone. Read [references/reading.md](references/reading.md) for how to interpret the fields of its `diagramType`.
 
 ## Procedure: Update an Existing Diagram
 
-Use when the user saved edits in the browser, or asks to change a diagram that already exists.
+Use when the user saved edits in the browser, or asks to change a diagram that already exists. For a claude.ai Artifact, follow *Update in place* in [references/artifacts.md](references/artifacts.md) to update the same artifact URL without touching editor code. For a local HTML file:
 
-1. **Extract** the current state to scratch (no manual HTML parsing):
+1. **Extract** the current state to scratch (no manual HTML parsing; `--extract` accepts `<target.html>` or `<diagram.json>`):
    ```shell
    python "<skill-dir>/scripts/layout_engine.py" --extract <target.html> -o <scratch.json>
    ```
@@ -110,7 +110,7 @@ Use when the user saved edits in the browser, or asks to change a diagram that a
 
 ## Artifact output
 
-Create, read, update and delete of a published artifact: [references/artifacts.md](references/artifacts.md). Read it before touching an artifact. Updating over a live artifact can be refused by the `Artifact` tool; that file says what to do.
+`--target artifact` builds a folder of split files (`index.html`, `diagram.json`, `app.css`, `app.js`) in scratch so diagram data stays separate from editor code. Updating a split artifact updates **in place** on the same artifact URL without reading or re-uploading `app.css` or `app.js`. Read [references/artifacts.md](references/artifacts.md) before creating, reading, updating, upgrading, or deleting an artifact (including the fallback for legacy single-file artifacts).
 
 ---
 
