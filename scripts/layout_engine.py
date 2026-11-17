@@ -339,6 +339,7 @@ class FlowchartAudit:
             "lane_count": len(self.lanes),
             "edge_crossings": edge_crossings,
             "long_arrows_count": len(long_arrows),
+            "long_arrows": long_arrows,
             "bend_count": bend_count,
             "total_edge_length": total_edge_length,
             "collinear_pct": round(collinear_pct, 1),
@@ -1482,6 +1483,40 @@ def choose_flowchart_direction(data: Dict[str, Any], timeout: int, browser: Opti
     return lr, ""
 
 
+def add_connector_pairs(data: Dict[str, Any], laid: Dict[str, Any], long_arrows: List[Tuple[Dict[str, Any], float, int]]
+                        ) -> Tuple[Dict[str, Any], List[str]]:
+    """Rule 11: split the long arrows the audit found into connector pairs; return (new authoring data, [INFO] lines).
+
+    Works on the authoring data, not the laid-out copy, and keeps the laid direction so the second layout matches the
+    first. One letter per target (at most LONG_ARROW_MAX_PAIRS, longest first); letters already on a connector are skipped."""
+    groups: Dict[str, List[str]] = {}
+    for e, _, _ in long_arrows:
+        groups.setdefault(e["to"], []).append(e["id"])
+    used = {str(n.get("label")) for n in data["nodes"] if n.get("type") == "connector"}
+    letters = (l for l in [chr(c) for c in range(65, 91) if chr(c) not in "IO"]
+               + [a + b for a in "AB" for b in "ABCDEFGHJKLMNPQRSTUVWXYZ"] if l not in used)
+    nodes, edges = list(data["nodes"]), [dict(e) for e in data["edges"]]
+    by_id = {e["id"]: e for e in edges}
+    node_map = {n["id"]: n for n in nodes}
+    info = []
+    for target, eids in list(groups.items())[:LONG_ARROW_MAX_PAIRS]:
+        letter = next(letters)
+        low = letter.lower()
+        nodes.append({"id": f"c_{low}_out", "laneId": node_map[target]["laneId"], "type": "connector", "label": letter})
+        edges.append({"id": f"c_{low}_out_e", "from": f"c_{low}_out", "to": target, "label": ""})
+        for i, eid in enumerate(eids, 1):
+            e = by_id[eid]
+            cid = f"c_{low}_in" + (f"_{i}" if len(eids) > 1 else "")
+            nodes.append({"id": cid, "laneId": node_map[e["from"]]["laneId"], "type": "connector", "label": letter})
+            e["to"] = cid
+        names = ", ".join(str(node_map[by_id[i]["from"]].get("label") or by_id[i]["from"]) for i in eids)
+        info.append(f"[INFO] Added connector pair {letter}: {names} -> {node_map[target].get('label') or target}")
+    out = {**data, "nodes": nodes, "edges": edges}
+    if "direction" in laid:
+        out["direction"] = laid["direction"]
+    return out, info
+
+
 def main():
     _ensure_utf8_output()
     parser = argparse.ArgumentParser(description="Multi-Swimlane Flowchart Layout & Verification Engine")
@@ -1606,6 +1641,20 @@ def main():
             print(f"[INFO] Direction: {direction_note}. To force one, set \"direction\" in the JSON.")
         audit = make_audit(laid_out_data, tokens)
         report = audit.verify_collisions()
+        if data["diagramType"] == "flowchart" and not args.keep_layout and report["long_arrows"]:
+            # Rule 11: the tool splits the long arrows itself; keep the second layout unless it is worse
+            split, info = add_connector_pairs(data, laid_out_data, report["long_arrows"])
+            try:
+                laid2 = run_layout("flowchart", split, timeout=args.timeout, browser=args.browser, tokens=tokens)
+            except EngineUnavailable as exc:
+                sys.exit(f"[ERROR] {exc}")
+            if "direction" not in data:  # an auto-picked direction stays auto in the saved page
+                laid2.pop("direction", None)
+            audit2 = make_audit(laid2, tokens)
+            report2 = audit2.verify_collisions()
+            if report2["passed"] or not report["passed"]:
+                laid_out_data, audit, report = laid2, audit2, report2
+                print("\n".join(info))
 
         if args.target == "artifact":
             out_path = Path(args.output) if args.output else in_p.with_suffix("")
