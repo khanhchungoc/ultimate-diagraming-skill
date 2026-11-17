@@ -1,6 +1,6 @@
 # Plan: ERD, data only for the agent
 
-Status: proposed. Not started.
+Status: Phase 1 done (no character budgets for names, types and labels; `detail` picked by `--layout`; hover text works). Phase 0 benchmark and Phase 2 open.
 
 ## Why
 
@@ -39,7 +39,7 @@ From `references/types/erd.md` and the fixtures:
 
 These are already `[INFO]` only, so they do not slow the agent; they matter to the reader.
 
-1. **Line through a table**: `saas-billing` (30 tables) has `r8` through `app_user` (audit score 88). Find why `erUnhit` leaves it; fix there first.
+1. **Line through a table**: `saas-billing` (30 tables) has `r8` through `app_user` (audit score 88). With the automatic `detail: keys` (smaller tables) it gets worse: `r6` also passes through `membership` (score 76). Find why `erUnhit` leaves them; fix there first.
 2. **Long crossing lines**: on `saas-billing`, `currency` to `customer` and `organization` to `data_export` cross the canvas. Same rule as flowchart connectors: a long line that crosses 2 or more others is a candidate for a local move of its smaller end table in `erRepair`.
 3. **Colour areas**: the Audit tables sit in three places. Raise `SAME_COLOR` or add a cost for a split colour; accept only with crossings within +1 per fixture.
 4. **Line ends**: check the crow's feet (28 x 18) at 62% fit zoom; enlarge if they read poorly.

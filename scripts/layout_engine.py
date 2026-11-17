@@ -1746,6 +1746,15 @@ def apply_sequence_defaults(data: Dict[str, Any]) -> Tuple[Dict[str, Any], List[
     return data, notes
 
 
+def apply_erd_defaults(data: Dict[str, Any]) -> Tuple[Dict[str, Any], List[str]]:
+    """Apply ERD CLI defaults (--layout without --keep-layout): detail "keys" for more than 15 tables, or a table
+    with more than 25 columns, when the author left "detail" out."""
+    ents = data.get("entities") or []
+    if "detail" in data or not (len(ents) > 15 or any(len(e.get("columns") or []) > 25 for e in ents)):
+        return data, []
+    return {**data, "detail": "keys"}, ["Detail: keys (only key columns shown; the Columns button shows the rest)"]
+
+
 LAYOUT_NOTE = "report it; do not change the JSON for it"
 
 
@@ -1873,6 +1882,10 @@ def main():
                     data, seq_notes = apply_sequence_defaults(data)
                     for seq_note in seq_notes:
                         print(f"[INFO] {seq_note}")
+                elif not args.keep_layout and data["diagramType"] == "erd":
+                    data, erd_notes = apply_erd_defaults(data)
+                    for erd_note in erd_notes:
+                        print(f"[INFO] {erd_note}")
                 if not args.keep_layout and data["diagramType"] == "flowchart" and "direction" not in data:
                     laid_out_data, audit, report, direction_note = _choose_flowchart_direction(
                         data, args.timeout, args.browser, tokens

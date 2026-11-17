@@ -1,6 +1,7 @@
 {
   "diagramType": "erd",
   "title": "SaaS billing",
+  "detail": "all",
   "colorKey": {
     "#e0f2fe": "Accounts",
     "#dcfce7": "Catalogue",

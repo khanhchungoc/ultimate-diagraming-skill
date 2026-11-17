@@ -1,6 +1,7 @@
 {
   "diagramType": "erd",
   "title": "SaaS billing",
+  "detail": "all",
   "colorKey": {"#e0f2fe": "Accounts", "#dcfce7": "Catalogue", "#fef3c7": "Billing", "#ccfbf1": "Audit"},
   "entities": [
     { "id": "organization", "name": "organization", "color": "#e0f2fe", "columns": [
