@@ -16,4 +16,4 @@ npx khanhchungoc/ultimate-diagraming-skill --runtime claude --claude-output arti
 
 It is stored in `~/.claude/ultimate-diagram.json` (or `<project>/.claude/ultimate-diagram.json` with `--project`). Other assistants always write the HTML file.
 
-Details: [plan](../dev/plans/plan-artifact-output.md).
+Details: [plan](../dev/plans/archive/plan-artifact-output.md).
