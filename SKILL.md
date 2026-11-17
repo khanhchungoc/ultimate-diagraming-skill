@@ -81,6 +81,14 @@ Use to summarize, explain or answer questions about a diagram page.
    If that cannot run, read only the lines the page's line 2 names (the `"diagram-data"` JSON block).
 2. Answer from that JSON alone. Flowchart: `nodes` are sorted along the flow, so follow `edges` for the path; `"feedback": true` is a loop back; each note's `nodes` lists the steps it is attached to. Sequence: `messages` are in time order (a step number is a message's position there); a fragment covers messages `from`..`to` inclusive, an `alt`/`par` fragment's `branches[].at` (or `elseAt`, one unlabelled else) is where each further branch starts, and a note sits `over` a participant `after`/`before` a message. ERD: `entities` hold `columns` (`pk`, `fk`, `unique`, `nullable`); each `relationships` entry runs from the child (the table holding the foreign key) to the parent, its two ends (`fromEnd`, `toEnd`: `one`, `zeroOrOne`, `oneOrMany`, `zeroOrMany`) say how many rows sit on each side, and a table's `color` (named in `colorKey`) marks the domain it belongs to. Use case: `actors` are roles outside the system and `useCases` are goals inside a `subjects` boundary; each `links` entry is an `association` (actor and use case), an `include` (from the base to the use case it always needs) or an `extend` (from the optional extension to its base, with a `condition`); `parent` is a generalization (child to parent); `refs` are the requirement ids a use case implements, and a `colorKey` names the feature area of each colour.
 
+## Procedure: Read an Artifact
+
+Use when the user gives a claude.ai artifact link (`claude.ai/artifact/...`) and wants it summarized, explained or queried. Never fetch it with WebFetch or curl, and never read the saved page whole.
+
+1. `Artifact` with `action: "read"` and the `url`. It saves the page to a local file and names it.
+2. Run `--extract` on that file and answer from the JSON: steps 1-2 of *Procedure: Read an Existing Diagram*.
+3. If the artifact belongs to someone else, the read returns a summary only (no page file): say so, answer from the summary, and offer a new artifact.
+
 ## Procedure: Update an Existing Diagram
 
 Use when the user saved edits in the browser, or asks to change a diagram that already exists.
@@ -98,7 +106,7 @@ Use when the user saved edits in the browser, or asks to change a diagram that a
 ## Artifact output
 
 - **New**: step 3 uses `--target artifact` and writes to scratch (`-o <scratch>/<title-slug>.html`), never the workspace. After a clean run (step 6), publish with the `Artifact` tool: `file_path` = that HTML, `icon: "chart"`, `capabilities: {artifact: {}, downloads: true}`, and a one-sentence `description`. Delete the scratch JSON and PNG, but keep the scratch HTML until the conversation ends: an update republishes from it.
-- **Read**: `Artifact read` with the URL saves the page to a local file and names it; run `--extract` on that file. Never read it whole. For an artifact the user does not own, the read returns a summary only: say so and offer a new artifact.
+- **Read**: see *Procedure: Read an Artifact*.
 - **Update**: `Artifact read` (returns the user's latest in-browser saves) → `--extract <saved file> -o <scratch.json>` → edit → `--layout <scratch.json> --target artifact -o <saved file>` → publish again with `url` = the artifact's URL and no `capabilities`. The re-layout warning applies.
 
 ---
