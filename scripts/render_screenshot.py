@@ -114,11 +114,12 @@ def open_page(call, uri: str, width: int, height: int, scale: float, timeout: in
     A one-shot `--dump-dom` or `--screenshot` run never exits in some sandboxes, DevTools does not."""
     call("Emulation.setDeviceMetricsOverride", {"width": width, "height": height, "deviceScaleFactor": scale, "mobile": False})
     call("Page.enable")
+    start = len(call.events)  # reuse on the same session must ignore prior Page.loadEventFired events
     call("Page.navigate", {"url": uri})
     call.settimeout(timeout)
     deadline = time.monotonic() + timeout
     # A stalled third-party stylesheet (the Google Fonts link, offline) must not hold the report back: go on after half the time.
-    while time.monotonic() < deadline - timeout / 2 and not any(m == "Page.loadEventFired" for m, _ in call.events):
+    while time.monotonic() < deadline - timeout / 2 and not any(m == "Page.loadEventFired" for m, _ in call.events[start:]):
         call("Runtime.evaluate", {"expression": "1"})
         time.sleep(0.1)
 
@@ -148,33 +149,40 @@ def run_axe(call, axe: Path) -> dict:
     return out
 
 
+def _collect_layout_report(call, uri: str, width: int, height: int, timeout: int, min_px: float, with_axe: bool = False):
+    try:
+        open_page(call, f"{uri}?report&present&minpx={min_px}", width, height, 1, timeout)
+        deadline = time.monotonic() + timeout / 2
+        text = None
+        while text is None and time.monotonic() < deadline:
+            text = page_value(call, "(document.getElementById('render-report') || {}).textContent || null")
+            time.sleep(0.1)
+        axe = axe_path() if with_axe and text else None
+        try:
+            return json.loads(text) if text else None, (run_axe(call, axe) if axe else None)
+        except RuntimeError as exc:  # axe failing must not lose the layout report
+            print(f"[WARN] axe-core step failed: {exc}")
+            return json.loads(text), None
+    except (RuntimeError, ConnectionError, OSError, json.JSONDecodeError):
+        return None, None
+
+
 def collect_layout_report(browser: Path, uri: str, width: int, height: int, timeout: int, min_px: float, with_axe: bool = False):
     """Open the page in report mode and read the layout report it publishes into the DOM (and, when asked, run axe).
     Returns (report or None, axe result or None)."""
     from measure_font import chrome_session  # not at the top: measure_font imports find_browser from here
     try:
         with chrome_session(str(browser), timeout, (f"--window-size={width},{height}", "--hide-scrollbars")) as call:
-            open_page(call, f"{uri}?report&present&minpx={min_px}", width, height, 1, timeout)
-            deadline = time.monotonic() + timeout / 2
-            text = None
-            while text is None and time.monotonic() < deadline:
-                text = page_value(call, "(document.getElementById('render-report') || {}).textContent || null")
-                time.sleep(0.1)
-            axe = axe_path() if with_axe and text else None
-            try:
-                return json.loads(text) if text else None, (run_axe(call, axe) if axe else None)
-            except RuntimeError as exc:  # axe failing must not lose the layout report
-                print(f"[WARN] axe-core step failed: {exc}")
-                return json.loads(text), None
-    except (RuntimeError, ConnectionError, OSError, json.JSONDecodeError):
+            return _collect_layout_report(call, uri, width, height, timeout, min_px, with_axe)
+    except (RuntimeError, ConnectionError, OSError):
         return None, None
 
 
 def _is_split_artifact(input_path: Path) -> bool:
-    """Return True when the input HTML loads an external app.js or relies on a sibling diagram.json."""
+    """Return True when the input HTML has no inline diagram-data and loads app.js or a sibling diagram.json."""
     text = input_path.read_text(encoding="utf-8", errors="replace")
-    return '<script src="app.js">' in text or (
-        '<script id="diagram-data"' not in text and input_path.with_name("diagram.json").is_file()
+    return '<script id="diagram-data"' not in text and (
+        '<script src="app.js">' in text or input_path.with_name("diagram.json").is_file()
     )
 
 
@@ -192,11 +200,18 @@ class _QuietHandler(http.server.SimpleHTTPRequestHandler):
         pass
 
 
+class _QuietHTTPServer(http.server.ThreadingHTTPServer):
+    def handle_error(self, request, client_address) -> None:
+        if isinstance(sys.exc_info()[1], (ConnectionResetError, BrokenPipeError)):
+            return
+        super().handle_error(request, client_address)
+
+
 @contextlib.contextmanager
 def _serve_dir(directory: Path):
     """Serve `directory` over a loopback HTTP server in a daemon thread until the context exits."""
     handler = functools.partial(_QuietHandler, directory=str(directory))
-    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler)
+    server = _QuietHTTPServer(("127.0.0.1", 0), handler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     try:
@@ -206,23 +221,21 @@ def _serve_dir(directory: Path):
         server.server_close()
 
 
-def take_screenshot(browser: Path, uri: str, width: int, height: int, scale: float,
-                    output_path: Path, timeout: int, wait_ready: bool = False) -> None:
-    from measure_font import chrome_session
-    with chrome_session(str(browser), timeout, (f"--window-size={width},{height}", "--hide-scrollbars")) as call:
-        open_page(call, uri, width, height, scale, timeout)
-        if wait_ready:
-            # Split artifacts fetch('diagram.json') after load; wait briefly for diagramReady before capturing.
-            deadline = time.monotonic() + 3.0
-            while time.monotonic() < deadline:
-                if page_value(call, "document.documentElement && document.documentElement.dataset.diagramReady === '1'"):
-                    break
-                time.sleep(0.05)
-            else:
-                time.sleep(0.5)
+def _take_screenshot(call, uri: str, width: int, height: int, scale: float,
+                     output_path: Path, timeout: int, wait_ready: bool = False) -> None:
+    open_page(call, uri, width, height, scale, timeout)
+    if wait_ready:
+        # Split artifacts fetch('diagram.json') after load; wait briefly for diagramReady before capturing.
+        deadline = time.monotonic() + 3.0
+        while time.monotonic() < deadline:
+            if page_value(call, "document.documentElement && document.documentElement.dataset.diagramReady === '1'"):
+                break
+            time.sleep(0.05)
         else:
-            time.sleep(0.5)  # the page renders after load
-        raw = base64.b64decode(call("Page.captureScreenshot", {"format": "png"})["data"])
+            time.sleep(0.5)
+    else:
+        time.sleep(0.5)  # the page renders after load
+    raw = base64.b64decode(call("Page.captureScreenshot", {"format": "png"})["data"])
     if len(raw) < 24 or raw[:8] != PNG_SIGNATURE:
         raise RuntimeError("Rendered output is not a valid PNG file.")
     temp_out = output_path.with_name(f"{output_path.name}.{uuid.uuid4().hex}.png")
@@ -231,6 +244,23 @@ def take_screenshot(browser: Path, uri: str, width: int, height: int, scale: flo
         os.replace(temp_out, output_path)
     finally:
         temp_out.unlink(missing_ok=True)
+
+
+def take_screenshot(browser: Path, uri: str, width: int, height: int, scale: float,
+                    output_path: Path, timeout: int, wait_ready: bool = False) -> None:
+    from measure_font import chrome_session
+    with chrome_session(str(browser), timeout, (f"--window-size={width},{height}", "--hide-scrollbars")) as call:
+        _take_screenshot(call, uri, width, height, scale, output_path, timeout, wait_ready)
+
+
+def _shot_params(report, width: int, height: int, max_width: int, full_window: bool) -> tuple[int, int, str, bool]:
+    if report and report.get("natural") and report["natural"].get("w") and not full_window:
+        nat = report["natural"]
+        crop_w = min(int(nat["w"]), max_width)
+        crop_h = math.ceil(nat["h"] * crop_w / nat["w"])
+        # In screenshot mode the page viewport equals the window, so no offset is needed.
+        return crop_w, crop_h, f"?capture&w={crop_w}", True
+    return width, height, "?present", False
 
 
 def png_size(path: Path) -> tuple[int, int]:
@@ -270,26 +300,28 @@ def main() -> int:
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
+    from measure_font import chrome_session
+
     ctx = _serve_dir(input_path.parent) if is_split else contextlib.nullcontext()
     with ctx as base_url:
         uri = f"{base_url}/{urllib.parse.quote(input_path.name)}" if is_split else input_path.as_uri()
         report, axe = None, None
-        if not args.no_report:
-            for _attempt in range(2):  # the first browser launch occasionally returns no DOM
-                report, axe = collect_layout_report(browser, uri, width, height, args.timeout, args.min_text_px, True)
-                if report is not None:
-                    break
-
-        shot_w, shot_h, query = width, height, "?present"
-        cropped = False
-        if report and report.get("natural") and report["natural"].get("w") and not args.full_window:
-            nat = report["natural"]
-            crop_w = min(int(nat["w"]), args.max_width)
-            crop_h = math.ceil(nat["h"] * crop_w / nat["w"])
-            # In screenshot mode the page viewport equals the window, so no offset is needed.
-            shot_w, shot_h, query, cropped = crop_w, crop_h, f"?capture&w={crop_w}", True
-
-        take_screenshot(browser, uri + query, shot_w, shot_h, args.scale, output_path, args.timeout, wait_ready=is_split)
+        if args.no_report:
+            shot_w, shot_h, query, cropped = _shot_params(None, width, height, args.max_width, args.full_window)
+            take_screenshot(browser, uri + query, shot_w, shot_h, args.scale, output_path, args.timeout, wait_ready=is_split)
+        else:
+            for attempt in range(2):  # the first browser launch occasionally returns no DOM
+                try:
+                    with chrome_session(str(browser), args.timeout, (f"--window-size={width},{height}", "--hide-scrollbars")) as call:
+                        report, axe = _collect_layout_report(call, uri, width, height, args.timeout, args.min_text_px, True)
+                        if report is None and attempt == 0:
+                            continue
+                        shot_w, shot_h, query, cropped = _shot_params(report, width, height, args.max_width, args.full_window)
+                        _take_screenshot(call, uri + query, shot_w, shot_h, args.scale, output_path, args.timeout, wait_ready=is_split)
+                        break
+                except (RuntimeError, ConnectionError, OSError):
+                    if attempt == 1:
+                        raise
     px_w, px_h = png_size(output_path)
     mode = "cropped to diagram" if cropped else "full window"
     print(f"[OK] Rendered screenshot ({px_w}x{px_h}px, {args.scale:g}x, {mode}): {output_path}")

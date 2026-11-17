@@ -26,7 +26,7 @@ from tokens import load_tokens
 FLOWCHART_KEYS = ("diagramType", "schemaVersion", "title", "direction", "swimlanes", "showNotes",
                   "lanes", "nodes", "edges", "notes", "layout")
 SEQUENCE_KEYS = ("diagramType", "schemaVersion", "title", "numbered", "showDetails", "rails",
-                 "lifespans", "colorKey", "participants", "messages", "fragments", "notes")
+                 "lifespans", "participantOrder", "colorKey", "participants", "messages", "fragments", "notes")
 # Engine output on the sequence model, never saved: positions, hidden (inside a collapsed frame), frame dividers
 SEQUENCE_LAYOUT = (("participants", ("x", "rail", "top", "bottom")), ("messages", ("y", "hidden")),
                    ("fragments", ("x", "y", "w", "h", "elseY", "dividers")), ("notes", ("x", "y", "w", "h")))

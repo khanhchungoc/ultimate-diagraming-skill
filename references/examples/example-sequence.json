@@ -1,35 +1,26 @@
 {
   "diagramType": "sequence",
   "title": "Checkout",
-  "colorKey": {
-    "1": "Customer",
-    "3": "Our services",
-    "2": "Payment partner"
-  },
   "participants": [
     {
       "id": "p1",
       "name": "Customer",
-      "kind": "actor",
-      "color": "1"
+      "kind": "actor"
     },
     {
       "id": "p2",
       "name": "Shop",
-      "kind": "system",
-      "color": "3"
+      "kind": "system"
     },
     {
       "id": "p3",
       "name": "Payment",
-      "kind": "system",
-      "color": "2"
+      "kind": "system"
     },
     {
       "id": "p4",
       "name": "Warehouse",
-      "kind": "system",
-      "color": "3"
+      "kind": "system"
     }
   ],
   "messages": [
@@ -37,15 +28,13 @@
       "id": "m1",
       "from": "p1",
       "to": "p2",
-      "label": "Place order",
-      "kind": "sync"
+      "label": "Place order"
     },
     {
       "id": "m2",
       "from": "p2",
       "to": "p4",
-      "label": "Reserve stock",
-      "kind": "sync"
+      "label": "Reserve stock"
     },
     {
       "id": "m3",
@@ -59,7 +48,6 @@
       "from": "p2",
       "to": "p3",
       "label": "Charge card",
-      "kind": "sync",
       "detail": "amount, currency, card token"
     },
     {
@@ -80,8 +68,7 @@
       "id": "m7",
       "from": "p2",
       "to": "p4",
-      "label": "Release stock",
-      "kind": "sync"
+      "label": "Release stock"
     },
     {
       "id": "m8",

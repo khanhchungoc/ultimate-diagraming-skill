@@ -478,19 +478,31 @@
         initTheme();
         initSearch();
 
+        const interactive = !urlParams.has('report') && !urlParams.has('capture');
+        const applyInitialView = () => {
+          fitView();
+          if (!interactive || !plugin || plugin.id !== 'sequence' || scale >= 0.85) return;
+          const { vpRect, frame, scaleX, minPan } = fitMetrics();
+          if (vpRect.width < 600) return;
+          scale = Math.min(1.0, Math.max(scaleX, 0.85));
+          panX = (frame.w * scale <= vpRect.width ? (vpRect.width - frame.w * scale) / 2 : minPan) - frame.x * scale;
+          panY = minPan - frame.y * scale;
+          updateTransform();
+        };
+
         plugin.render();
-        fitView();
+        applyInitialView();
         updateStatus(false);
         committedJson = savedJson = JSON.stringify(chartData);
         updateHistoryButtons();
         document.documentElement.dataset.diagramReady = '1';
 
         requestAnimationFrame(() => {
-          fitView();
+          applyInitialView();
           // The web font (Google Fonts link in shell.html) loads asynchronously: render again once it is in, so label
           // fitting and edge-label widths are measured with the real glyphs, and only then report or tidy.
           const fontsIn = document.fonts && document.fonts.status !== 'loaded'
-            ? document.fonts.ready.then(() => { plugin.render(); fitView(); })
+            ? document.fonts.ready.then(() => { plugin.render(); applyInitialView(); })
             : Promise.resolve();
           fontsIn.then(() => {
             if (/[?&]report(=|&|$)/.test(window.location.search)) setTimeout(publishRenderReport, 200);
@@ -734,18 +746,30 @@
         };
       }
 
-      function fitView() {
+      function fitMetrics() {
         const vpRect = viewport.getBoundingClientRect();
         const frame = contentFrame();
-        const currentWidth = frame.w;
-        const currentHeight = frame.h;
+        const capture = document.body.classList.contains('capture');
+        const pad = capture ? 0 : 80;
+        // The floating dock covers the bottom of the viewport: fit the diagram into the band above it
+        // (this matters for tall diagrams, e.g. a top-to-bottom flowchart, whose fit is limited by height)
+        const dock = document.querySelector('.dock-area');
+        const dockRect = dock && getComputedStyle(dock).display !== 'none' ? dock.getBoundingClientRect() : null;
+        const dockBand = dockRect && dockRect.height ? Math.max(0, vpRect.bottom - dockRect.top) : 0;
+        const scaleX = (vpRect.width - pad) / frame.w;
+        const scaleY = (vpRect.height - dockBand - pad) / frame.h;
+        return { vpRect, frame, capture, dockBand, scaleX, scaleY, minPan: capture ? 0 : 20 };
+      }
+
+      function fitView() {
+        const { vpRect, frame, capture, dockBand, scaleX, scaleY, minPan } = fitMetrics();
 
         // Capture mode: scale to the exact width requested (?capture&w=1600) and pin to the top-left,
         // so the screenshot is the diagram only and does not depend on browser viewport quirks.
-        if (document.body.classList.contains('capture')) {
+        if (capture) {
           const reqW = parseFloat(new URLSearchParams(window.location.search).get('w'));
           if (reqW > 0) {
-            scale = Math.min(1, reqW / currentWidth);
+            scale = Math.min(1, reqW / frame.w);
             panX = -frame.x * scale;
             panY = -frame.y * scale;
             updateTransform();
@@ -753,22 +777,9 @@
           }
         }
 
-        const pad = document.body.classList.contains('capture') ? 0 : 80;
-        // The floating dock covers the bottom of the viewport: fit the diagram into the band above it
-        // (this matters for tall diagrams, e.g. a top-to-bottom flowchart, whose fit is limited by height)
-        const dock = document.querySelector('.dock-area');
-        const dockRect = dock && getComputedStyle(dock).display !== 'none' ? dock.getBoundingClientRect() : null;
-        const dockBand = dockRect && dockRect.height ? Math.max(0, vpRect.bottom - dockRect.top) : 0;
-        const availableWidth = vpRect.width - pad;
-        const availableHeight = vpRect.height - dockBand - pad;
-
-        const scaleX = availableWidth / currentWidth;
-        const scaleY = availableHeight / currentHeight;
-
         scale = Math.min(Math.max(Math.min(scaleX, scaleY), 0.25), 1.0);
-        const minPan = document.body.classList.contains('capture') ? 0 : 20;
-        panX = Math.max(minPan, (vpRect.width - currentWidth * scale) / 2) - frame.x * scale;
-        panY = Math.max(minPan, (vpRect.height - dockBand - currentHeight * scale) / 2) - frame.y * scale;
+        panX = Math.max(minPan, (vpRect.width - frame.w * scale) / 2) - frame.x * scale;
+        panY = Math.max(minPan, (vpRect.height - dockBand - frame.h * scale) / 2) - frame.y * scale;
 
         updateTransform();
       }

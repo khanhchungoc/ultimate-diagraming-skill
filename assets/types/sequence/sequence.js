@@ -285,6 +285,12 @@
             box.appendChild(tip);
           }
           seqHtml.appendChild(box);
+          if (rail) {
+            name.dataset.tip = p.name;
+          } else if (name.scrollHeight > name.clientHeight + 2 || name.scrollWidth > name.clientWidth + 2) {
+            name.dataset.tip = p.name;
+            box.title = p.name;
+          }
         });
         // Insert a participant between two boxes, or at the right end (shown while the pointer is on the row)
         ps.forEach((p, i) => {
@@ -330,7 +336,7 @@
             labelStyle = { left: px((x1 + x2) / 2), top: px(m.y - 26), transform: 'translateX(-50%)' };
             detailStyle = { left: px((x1 + x2) / 2), top: px(m.y + 3), transform: 'translateX(-50%)' };
           }
-          const marker = m.kind === 'sync' ? 'url(#seq-arrow-solid)' : 'url(#seq-arrow-open)';
+          const marker = !m.kind || m.kind === 'sync' ? 'url(#seq-arrow-solid)' : 'url(#seq-arrow-open)';
           seqMsgG.appendChild(svgEl('path', { class: `seq-line${m.kind === 'reply' ? ' is-reply' : ''}`, d, 'marker-end': marker, 'data-edge-id': m.id }));
           seqMsgG.appendChild(svgEl('path', { class: 'seq-msg-hit', d, 'data-edge-id': m.id }));
           const label = htmlEl('div', `seq-msg-label${self ? ' is-self' : ''}`, labelStyle);
@@ -2124,7 +2130,7 @@
       // No positions are saved: render() lays out whatever is missing, so the block holds only the logical model,
       // in a fixed key order. scripts/disk_format.py is the Python twin: keep the two byte-identical.
       // fromDisk only turns old colours (palette hex, frame colour names) into slots: the block is the model minus positions.
-      const DISK_KEYS = ['diagramType', 'schemaVersion', 'title', 'numbered', 'showDetails', 'rails', 'lifespans', 'colorKey', 'participants', 'messages', 'fragments', 'notes'];
+      const DISK_KEYS = ['diagramType', 'schemaVersion', 'title', 'numbered', 'showDetails', 'rails', 'lifespans', 'participantOrder', 'colorKey', 'participants', 'messages', 'fragments', 'notes'];
       // Engine output, never saved: positions, hidden (inside a collapsed frame), frame dividers, note boxes
       const DISK_LAYOUT = [['participants', ['x', 'rail', 'top', 'bottom']], ['messages', ['y', 'hidden']], ['fragments', ['x', 'y', 'w', 'h', 'elseY', 'dividers']], ['notes', ['x', 'y', 'w', 'h']]];
       // Ids made in the page are renamed on save so the file stays readable to an agent: m<next free number>,

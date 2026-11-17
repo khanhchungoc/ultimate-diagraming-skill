@@ -8,7 +8,7 @@ Used when explaining an existing diagram (output of `--extract`, keyed by `diagr
 
 ## Sequence
 
-`messages` are in time order (a step number is a message's position there); a fragment covers messages `from`..`to` inclusive, an `alt`/`par` fragment's `branches[].at` (or `elseAt`, one unlabelled else) is where each further branch starts, and a note sits `over` a participant `after`/`before` a message.
+`messages` are in time order (a step number is a message's position there; omitted `kind` means `sync`); a fragment covers messages `from`..`to` inclusive, an `alt`/`par` fragment's `branches[].at` (or `elseAt`, one unlabelled else) is where each further branch starts, and a note sits `over` a participant (or at `place` in legacy pages) `after`/`before` a message.
 
 ## ERD
 

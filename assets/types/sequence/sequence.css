@@ -42,6 +42,10 @@
     .seq-participant.selected { box-shadow: 0 0 0 var(--ring-md) var(--primary), var(--halo); }
     .seq-participant.dragging, .seq-msg-label.dragging { opacity: 0.75; z-index: 20; }
     .seq-participant-name { outline: none; min-width: 20px; white-space: normal; line-height: var(--line-16); }
+    .seq-participant:not(.is-rail) .seq-participant-name {
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+      max-height: calc(2 * var(--line-16)); word-break: break-word;
+    }
     .seq-msg-label {
       position: absolute; height: 20px; line-height: var(--line-20); padding: 0 6px; border-radius: var(--radius-sm); white-space: nowrap;
       font-size: var(--t-label-size); color: var(--text-main); cursor: pointer; user-select: none; touch-action: none;

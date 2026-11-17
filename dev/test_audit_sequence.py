@@ -167,7 +167,138 @@ def main() -> int:
           and to_disk("sequence", from_disk("sequence", disk)) == disk and from_disk("sequence", old)["participants"][0]["color"] == "1")
     failed += not ok
     print(f"[{'PASS' if ok else 'FAIL'}] codec: old hex and frame names become slots, a custom hex stays - {disk['colorKey']}")
-    total = len(CASES) + 1 + len(colour_cases) + 2
+
+    import json
+    from layout_engine import apply_sequence_defaults, order_sequence_participants, pack_sequence_columns
+
+    extra_total = 0
+
+    def check(name: str, cond: bool, detail: str = "") -> None:
+        nonlocal failed, extra_total
+        extra_total += 1
+        failed += not cond
+        print(f"[{'PASS' if cond else 'FAIL'}] {name}" + (f" - {detail}" if detail and not cond else ""))
+
+    # participantOrder disk_format round-trip and key placement (before colorKey, keeping colorKey right before participants)
+    po_data = {
+        "diagramType": "sequence", "lifespans": True, "participantOrder": "fixed",
+        "colorKey": {"1": "Ours"}, "participants": [{"id": "a", "name": "A", "color": "1"}], "messages": [],
+    }
+    po_disk = to_disk("sequence", po_data)
+    po_keys = list(po_disk.keys())
+    check("disk_format keeps participantOrder between lifespans and colorKey, and colorKey before participants",
+          po_disk.get("participantOrder") == "fixed"
+          and po_keys.index("lifespans") < po_keys.index("participantOrder") < po_keys.index("colorKey")
+          and po_keys.index("colorKey") == po_keys.index("participants") - 1
+          and to_disk("sequence", from_disk("sequence", po_disk)) == po_disk,
+          str(po_keys))
+
+    # order_sequence_participants: reduces span, keeps actor/ui leftmost, preserves ties and opt-outs
+    reorder_in = {
+        "diagramType": "sequence",
+        "participants": [
+            {"id": "u", "name": "User", "kind": "actor"},
+            {"id": "c", "name": "Unused", "kind": "system"},
+            {"id": "b", "name": "Service", "kind": "system"},
+            {"id": "a", "name": "Gateway", "kind": "system"},
+            {"id": "ui", "name": "Portal", "kind": "ui"},
+        ],
+        "messages": [
+            {"id": "m1", "from": "u", "to": "a", "label": "1"},
+            {"id": "m2", "from": "a", "to": "b", "label": "2"},
+            {"id": "m3", "from": "ui", "to": "b", "label": "3"},
+        ],
+    }
+    reordered, r_note = order_sequence_participants(reorder_in)
+    r_ids = [p["id"] for p in reordered["participants"]]
+    check("order_sequence_participants keeps actor/ui leftmost and reduces span",
+          set(r_ids[:2]) == {"u", "ui"} and r_ids[-1] == "c" and "Participant order:" in r_note,
+          f"{r_ids} {r_note!r}")
+    tied = {
+        "diagramType": "sequence",
+        "participants": [{"id": "a", "name": "A"}, {"id": "b", "name": "B"}, {"id": "c", "name": "C"}],
+        "messages": [{"id": "m1", "from": "a", "to": "c", "label": "1"}],
+    }
+    # [a, b, c] span=2; [a, c, b] span=1 -> reorders; when already optimal [a, c, b], keeps authored on tie
+    opt_tied, _ = order_sequence_participants(tied)
+    tied2 = {**tied, "participants": [{"id": "a", "name": "A"}, {"id": "b", "name": "B"}, {"id": "c", "name": "C"}],
+             "messages": [{"id": "m1", "from": "a", "to": "b", "label": "1"}, {"id": "m2", "from": "b", "to": "c", "label": "2"}]}
+    kept_tied, t_note = order_sequence_participants(tied2)
+    check("order_sequence_participants keeps authored order on ties",
+          [p["id"] for p in opt_tied["participants"]] == ["a", "c", "b"]
+          and [p["id"] for p in kept_tied["participants"]] == ["a", "b", "c"] and t_note == "",
+          f"{[p['id'] for p in kept_tied['participants']]} {t_note!r}")
+    fixed_out, fixed_note = order_sequence_participants({**reorder_in, "participantOrder": "fixed"})
+    col_out, col_note = order_sequence_participants({
+        **reorder_in,
+        "participants": [reorder_in["participants"][0], {**reorder_in["participants"][1], "column": "u"}, *reorder_in["participants"][2:]],
+    })
+    two_out, two_note = order_sequence_participants({
+        "diagramType": "sequence", "participants": [{"id": "b", "name": "B"}, {"id": "a", "name": "A", "kind": "actor"}],
+        "messages": [{"id": "m1", "from": "a", "to": "b", "label": "1"}],
+    })
+    check("order_sequence_participants skips fixed, <= 2 participants, and authored column",
+          fixed_out is not None and [p["id"] for p in fixed_out["participants"]] == [p["id"] for p in reorder_in["participants"]]
+          and fixed_note == "" and col_note == "" and two_note == ""
+          and [p["id"] for p in two_out["participants"]] == ["b", "a"])
+
+    pay_fixture = json.loads((ROOT / "dev" / "fixtures" / "sequence" / "payment-phases.json").read_text(encoding="utf-8"))
+    pay_ordered, pay_note = order_sequence_participants(pay_fixture)
+    pay_ids = [p["id"] for p in pay_ordered["participants"]]
+    check("order_sequence_participants on payment-phases keeps spm before job and pol before db",
+          bool(pay_note) and pay_ids.index("spm") < pay_ids.index("job") and pay_ids.index("pol") < pay_ids.index("db"),
+          str(pay_ids))
+
+    # auto-numbered at >= 20 messages when omitted, respecting explicit False
+    mk_msgs = lambda n: [{"id": f"m{i}", "from": "a", "to": "b", "label": str(i)} for i in range(1, n + 1)]  # noqa: E731
+    d19, _ = apply_sequence_defaults({"diagramType": "sequence", "participants": BASE["participants"], "messages": mk_msgs(19)})
+    d20, _ = apply_sequence_defaults({"diagramType": "sequence", "participants": BASE["participants"], "messages": mk_msgs(20)})
+    d20_off, _ = apply_sequence_defaults({"diagramType": "sequence", "numbered": False, "participants": BASE["participants"], "messages": mk_msgs(20)})
+    check("auto-numbered sets true at >= 20 messages when omitted and respects explicit false",
+          "numbered" not in d19 and d20.get("numbered") is True and d20_off.get("numbered") is False,
+          f"19={d19.get('numbered')} 20={d20.get('numbered')} off={d20_off.get('numbered')}")
+
+    # auto-lifespans & column packing
+    pack_in = {
+        "diagramType": "sequence",
+        "participants": [
+            {"id": "a", "name": "A"}, {"id": "b", "name": "B"},
+            {"id": "c", "name": "C"}, {"id": "d", "name": "D"},
+            {"id": "idle", "name": "Idle"},
+        ],
+        "messages": [
+            {"id": "m1", "from": "a", "to": "b", "label": "1"},
+            {"id": "m2", "from": "c", "to": "d", "label": "2"},
+        ],
+    }
+    packed, p_note = pack_sequence_columns(pack_in)
+    p_cols = {p["id"]: p.get("column") for p in packed["participants"]}
+    p_errs = SequenceAudit(packed).column_errors({m["id"]: i for i, m in enumerate(packed["messages"])})
+    check("pack_sequence_columns packs >= 2 non-overlapping spans, skips None spans, and passes column_errors",
+          packed.get("lifespans") is True and p_cols == {"a": None, "b": None, "c": "a", "d": "b", "idle": None}
+          and not p_errs and bool(p_note),
+          f"{p_cols} errs={p_errs} note={p_note!r}")
+
+    one_save_in = {
+        "diagramType": "sequence",
+        "participants": [{"id": "a", "name": "A"}, {"id": "b", "name": "B"}, {"id": "c", "name": "C"}, {"id": "idle", "name": "Idle"}],
+        "messages": [
+            {"id": "m1", "from": "a", "to": "b", "label": "1"},
+            {"id": "m2", "from": "b", "to": "c", "label": "2"},
+        ],
+    }
+    one_save, one_note = pack_sequence_columns(one_save_in)
+    ls_false, ls_false_note = pack_sequence_columns({**pack_in, "lifespans": False})
+    has_start, start_note = pack_sequence_columns({
+        **pack_in, "participants": [{**pack_in["participants"][0], "start": "m1"}, *pack_in["participants"][1:]],
+    })
+    check("pack_sequence_columns skips saving < 2 columns, explicit lifespans, and start/end/column overrides",
+          "lifespans" not in one_save and one_note == ""
+          and ls_false.get("lifespans") is False and ls_false_note == ""
+          and "lifespans" not in has_start and start_note == "",
+          f"one={one_note!r} ls={ls_false_note!r} start={start_note!r}")
+
+    total = len(CASES) + 1 + len(colour_cases) + 2 + extra_total
     print(f"{total - failed}/{total} cases passed")
     return 2 if failed else 0
 

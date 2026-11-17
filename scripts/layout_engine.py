@@ -1550,6 +1550,119 @@ def order_flowchart_lanes(data: Dict[str, Any], timeout: int, browser: Optional[
     return new, f"Lane order: {', '.join(by_id[i].get('name', i) for i in order)} (by first step on the flow; set \"laneOrder\": \"fixed\" to keep yours)."
 
 
+def order_sequence_participants(data: Dict[str, Any]) -> Tuple[Dict[str, Any], str]:
+    """Order sequence participants to reduce total message span while keeping actor and ui leftmost.
+
+    Compares authored order against BFS from the first message sender and greedy adjacent swaps (never crossing the
+    actor/ui boundary), keeping authored order on ties. Returns (data, note)."""
+    ps = data.get("participants") or []
+    by_id = {p["id"]: p for p in ps if "id" in p}
+    if (data.get("participantOrder") == "fixed" or len(ps) <= 2 or len(by_id) != len(ps)
+            or any(p.get("column") is not None for p in ps)):
+        return data, ""
+    ms = [m for m in data.get("messages") or [] if m.get("from") in by_id and m.get("to") in by_id]
+    if not ms:
+        return data, ""
+    authored = [p["id"] for p in ps]
+    is_left = lambda pid: by_id[pid].get("kind") in ("actor", "ui")  # noqa: E731
+    partition = lambda ids: [i for i in ids if is_left(i)] + [i for i in ids if not is_left(i)]  # noqa: E731
+
+    def span(ids: List[str]) -> int:
+        idx = {pid: i for i, pid in enumerate(ids)}
+        return sum(abs(idx[m["from"]] - idx[m["to"]]) for m in ms)
+
+    adj: Dict[str, List[str]] = {}
+    for m in ms:
+        u, v = m["from"], m["to"]
+        if u != v:
+            if v not in adj.setdefault(u, []):
+                adj[u].append(v)
+            if u not in adj.setdefault(v, []):
+                adj[v].append(u)
+    seen: List[str] = []
+    for seed in [ms[0]["from"]] + authored:
+        if seed in seen:
+            continue
+        queue = [seed]
+        for u in queue:
+            if u not in seen:
+                seen.append(u)
+                queue.extend(adj.get(u, []))
+
+    def tighten(ids: List[str]) -> Tuple[int, List[str]]:
+        cur = partition(ids)
+        cur_span = span(cur)
+        improved = True
+        while improved:
+            improved = False
+            for i in range(len(cur) - 1):
+                if is_left(cur[i]) != is_left(cur[i + 1]):
+                    continue
+                cand = cur[:]
+                cand[i], cand[i + 1] = cand[i + 1], cand[i]
+                cand_span = span(cand)
+                if cand_span < cur_span:
+                    cur, cur_span, improved = cand, cand_span, True
+        return cur_span, cur
+
+    bfs = partition(seen)
+    auth_left = partition(authored)
+    starts = (bfs, auth_left) if span(bfs) < span(auth_left) else (auth_left, bfs)
+    best_span, best = min((tighten(s) for s in starts), key=lambda r: r[0])
+    if best_span >= span(authored) or best == authored:
+        return data, ""
+    ordered = [by_id[pid] for pid in best]
+    names = ", ".join(str(p.get("name") or p["id"]) for p in ordered)
+    return {**data, "participants": ordered}, f"Participant order: {names} (set \"participantOrder\": \"fixed\" to keep yours)."
+
+
+def pack_sequence_columns(data: Dict[str, Any]) -> Tuple[Dict[str, Any], str]:
+    """Enable lifespans and pack non-overlapping participants into shared columns when it saves >= 2 columns."""
+    ps = data.get("participants") or []
+    if ("lifespans" in data or len(ps) <= 2
+            or any("id" not in p for p in ps) or len({p["id"] for p in ps}) != len(ps)
+            or any(p.get(k) is not None for p in ps for k in ("column", "start", "end"))):
+        return data, ""
+    audit = SequenceAudit(data)
+    spans = {p["id"]: audit.own_span(p["id"]) for p in ps}
+    columns: List[List[Tuple[str, List[int]]]] = []
+    solo = 0
+    assigned: Dict[str, str] = {}
+    for p in ps:
+        pid = p["id"]
+        sp = spans[pid]
+        if sp is None:
+            solo += 1
+            continue
+        for col in columns:
+            if all(max(sp[0], osp[0]) > min(sp[1], osp[1]) for _, osp in col):
+                col.append((pid, sp))
+                assigned[pid] = col[0][0]
+                break
+        else:
+            columns.append([(pid, sp)])
+    if len(ps) - (len(columns) + solo) < 2:
+        return data, ""
+    new_ps = [{**p, "column": assigned[p["id"]]} if p["id"] in assigned else dict(p) for p in ps]
+    names = {p["id"]: str(p.get("name") or p["id"]) for p in ps}
+    pairs = ", ".join(f"{names[s]} with {names[h]}" for s, h in assigned.items())
+    return {**data, "lifespans": True, "participants": new_ps}, (
+        f"Lifespans: shared {len(assigned)} columns ({pairs}; set \"lifespans\": false to keep separate)."
+    )
+
+
+def apply_sequence_defaults(data: Dict[str, Any]) -> Tuple[Dict[str, Any], List[str]]:
+    """Apply sequence CLI defaults (--layout without --keep-layout): auto-numbered, participant order, column packing."""
+    notes: List[str] = []
+    if "numbered" not in data and len(data.get("messages") or []) >= 20:
+        data = {**data, "numbered": True}
+    for step in (order_sequence_participants, pack_sequence_columns):
+        data, note = step(data)
+        if note:
+            notes.append(note)
+    return data, notes
+
+
 LAYOUT_NOTE = "report it; do not change the JSON for it"
 
 
@@ -1671,6 +1784,10 @@ def main():
                 data, lane_note = order_flowchart_lanes(data, args.timeout, args.browser, tokens)
                 if lane_note:
                     print(f"[INFO] {lane_note}")
+            elif not args.keep_layout and data["diagramType"] == "sequence":
+                data, seq_notes = apply_sequence_defaults(data)
+                for seq_note in seq_notes:
+                    print(f"[INFO] {seq_note}")
             if not args.keep_layout and data["diagramType"] == "flowchart" and "direction" not in data:
                 laid_out_data, direction_note = choose_flowchart_direction(data, args.timeout, args.browser, tokens)
             else:

@@ -1,12 +1,12 @@
 # Sequence Diagram (`diagramType: "sequence"`)
 
-Use for messages exchanged between participants over time: API calls, system integrations, user-to-system interactions. Not for process flows with decisions and ownership (use `flowchart`). Positions, spacing, activation bars and frame boxes are computed by the tooling; author only the logical model.
+Use for messages exchanged between participants over time: API calls, system integrations, user-to-system interactions. Not for process flows with decisions and ownership (use `flowchart`). Positions, participant order, spacing, activation bars and frame boxes are computed by the tooling; author only the logical model.
 
 **Example to copy (read it next; path is from `<skill-dir>`):** `references/examples/example-sequence.json`.
 
 ## Schema
 
-Never add coordinates (`x`, `y`, `w`, `h`, `layout`); `--layout` computes them. Array order is time order, top to bottom. A saved page embeds exactly this JSON: positions are not saved, the page lays them out on load. Every field marked optional can be left out.
+Never add coordinates (`x`, `y`, `w`, `h`, `layout`); `--layout` computes them. Message array order is time order, top to bottom. A saved page embeds this JSON without positions: the page lays them out on load. Every field marked optional can be left out.
 
 ```json
 {
@@ -19,8 +19,8 @@ Never add coordinates (`x`, `y`, `w`, `h`, `layout`); `--layout` computes them. 
     { "id": "p3", "name": "Payment", "kind": "system" }
   ],
   "messages": [
-    { "id": "m1", "from": "p1", "to": "p2", "label": "Place order", "kind": "sync" },
-    { "id": "m2", "from": "p2", "to": "p3", "label": "Charge card", "detail": "amount, currency, card token", "kind": "sync" },
+    { "id": "m1", "from": "p1", "to": "p2", "label": "Place order" },
+    { "id": "m2", "from": "p2", "to": "p3", "label": "Charge card", "detail": "amount, currency, card token" },
     { "id": "m3", "from": "p3", "to": "p2", "label": "Approved", "kind": "reply" },
     { "id": "m4", "from": "p2", "to": "p1", "label": "Order confirmed", "kind": "reply" },
     { "id": "m5", "from": "p3", "to": "p2", "label": "Declined", "kind": "reply" },
@@ -39,54 +39,41 @@ Never add coordinates (`x`, `y`, `w`, `h`, `layout`); `--layout` computes them. 
 
 | Object | Field | Description |
 |---|---|---|
-| Diagram | `numbered` | Optional. `true` shows a step number before every label: the message's position in `messages`, so it never changes when a frame is collapsed. |
-| Diagram | `showDetails` | Optional. `false` hides every `detail` line (each becomes its label's tooltip). Leave it out to show them. |
-| Diagram | `rails` | Optional. `true` draws a participant that takes part only in collapsed frames as a thin rail (its kind icon and its name written downwards) instead of a full column, so a page that opens with most phases collapsed is much narrower. The page's **Focus** button sets it. Leave it out for the plain look. |
-| Diagram | `lifespans` | Optional. `true` draws each lifeline only from its participant's first message (or note) to its last, with the box at the top of its lifeline and a short cap at the bottom. Default `false`: every lifeline runs the full height. Use it for flows of more than about 6 participants where some take part in one phase only, and add `column` only for participants in phases that never overlap. |
-| Participant | `id`, `name`, `kind` | `kind`: `actor` (a person, a person icon), `system` (default, shown as Service: a back-end service or app that is none of the other kinds), `ui` (a screen or front end), `database`, `queue` (a bus or topic), `external` (a third-party system). `ui`, `database`, `queue` and `external` have a small icon. Left-to-right order is array order. |
-| Participant | `color` | Optional: a palette slot, `"1"` to `"8"`, the theme's palette (a slot names no fixed colour). Colours the box, lifeline, activation bars and rail. Use it for ownership or domain (our services, a partner's, a third party's, the customer's side): at most 4 colours, never one per participant. |
-| Diagram | `colorKey` | Optional, give it whenever `color` is used: `{ "1": "Our services", "5": "Third parties" }`, keyed by slot: what each colour in use means. The page shows it above the diagram. |
-| Participant | `start`, `end` | Optional, with `lifespans`: a message id that makes the lifeline begin earlier, or end later, than the participant's own messages (a queue that exists before it is first called). It can only widen the lifespan, never cut a message off. |
-| Participant | `column` | Optional, with `lifespans`: the id of an **earlier** participant whose column this one reuses. Only for participants whose lifespans (their messages and notes, widened by `start`/`end`) never overlap, such as two systems that each work in a different phase. The audit refuses an overlap, a `column` without `lifespans`, and a host that itself has a `column` (no chains). |
+| Diagram | `numbered` | Optional. `true` shows step numbers (message position in `messages`). Leave out by default: `--layout` enables it automatically at 20+ messages. |
+| Diagram | `showDetails` | Optional. `false` hides `detail` lines (shown on hover instead). Leave out to show them. |
+| Diagram | `participantOrder` | Optional. `"fixed"` keeps `participants` in written order. Leave out: `--layout` orders participants automatically. |
+| Diagram | `colorKey` | Optional; omit unless participant `color` is used. Maps each used slot (`{ "1": "Our services", "5": "Third parties" }`) to its ownership/domain label. |
+| Participant | `id`, `name`, `kind` | `kind`: `actor` (person), `system` (default, shown as Service: back-end service or app), `ui` (screen or front end), `database`, `queue` (bus or topic), `external` (third-party system). `actor`, `ui`, `database`, `queue` and `external` show an icon. |
+| Participant | `color` | Optional; omit unless the source groups participants by ownership or domain. Palette slot `"1"`–`"8"` (at most 4 colours total, never one per participant); name every slot in `colorKey`. |
+| Participant | `start`, `end` | Optional message ids; omit unless the source explicitly states a participant starts earlier or ends later than its own messages. |
 | Message | `id`, `from`, `to`, `label` | Participant ids. `from` equal to `to` draws a self-message. |
-| Message | `kind` | `sync` (call: solid line, filled arrowhead, opens an activation bar), `reply` (return: dashed line, open arrowhead, closes the bar of the call it answers), `async` (solid line, open arrowhead). Default `sync`. Always write `kind`: the page picks it for messages people add (a reply when it answers a call that is still open, otherwise a call), and its "No reply expected" toggle sets `async`. |
-| Message | `activate`, `until` | Optional, rarely needed (the activation bars are worked out from the messages, see below). `"activate": false` draws no bar for this call. `"until": <later message id>` ends the bar this message opens at that message (async work that runs on, or a call whose reply is not drawn). To draw one continuous bar where the rules give separate ones, put `until` on the first call and `"activate": false` on the later calls to the same participant. In the editor, drag the handle at the bottom end of a bar to a later message row: it sets `until` and the `"activate": false` flags for you (**Reset bar** in the message's action bar, or dropping back at the natural end, removes them). |
-| Message | `detail` | Optional. One line of parameters or payload, drawn smaller and muted under the arrow. No line breaks. |
-| Fragment | `id`, `kind`, `label`, `from`, `to` | `kind`: `opt`, `alt`, `loop`, `par`, or `group` (a named phase: the tag shows the label only). `from` and `to` are message ids; the frame covers that range inclusive. |
-| Fragment | `branches` | Optional, `alt` and `par` only: `[{ "at": <message id>, "label": <condition> }]`, one per further branch, each starting at that message. The fragment's own `label` is the first branch's condition. Each `at` is after `from` and no later than `to`; no two share an `at`. |
-| Fragment | `elseAt` | Optional, `alt` only: the short form of one unlabelled `else` branch starting at that message. Use `branches` or `elseAt`, not both. |
-| Fragment | `color` | Optional: a palette slot, `"1"` to `"8"`, or `"9"` for the neutral grey. Tints the frame and its tag. |
-| Fragment | `collapsed` | Optional. `true` draws the frame as one summary row ("9 messages hidden (steps 2–10)") that the reader can expand. |
-| Note | `id`, `text`, `over` | `over` is a participant id, or two ids to stretch the note from one lifeline to the other. `text` may hold `\n` line breaks. |
-| Note | `place` | Optional, instead of `over`: a note that sits between lifelines, at a position along them (`0` is the first lifeline, `1.5` halfway between the second and the third). It still takes its own row, so it never covers an arrow. |
-| Note | `after` / `before` | Optional message id. `after: m` puts the note under message `m`, inside every frame `m` is in; `before: m` puts it above `m` and above any frame that opens at `m`. With neither, it sits above the first message. |
+| Message | `kind` | Optional; `sync` (solid line, filled arrowhead) is the default and can be omitted. Write `reply` (dashed return, open arrowhead) or `async` (solid line, open arrowhead). |
+| Message | `detail` | Optional. One line of parameters or payload, muted under the arrow. No line breaks. |
+| Fragment | `id`, `kind`, `label`, `from`, `to` | `kind`: `opt`, `alt`, `loop`, `par`, or `group` (named phase: tag shows label only). `from` and `to` are message ids (inclusive). |
+| Fragment | `branches` | Optional, `alt` and `par` only: `[{ "at": <message id>, "label": <condition> }]` for each further branch (`label` on the fragment is the first branch). Each `at` is after `from` and `<= to`; no duplicates. |
+| Fragment | `color` | Optional. Palette slot `"1"`–`"8"`, or `"9"` for neutral grey. Tints the frame and its tag. |
+| Note | `id`, `text`, `over` | `over` is one participant id, or two ids to stretch between lifelines. `text` may hold `\n` line breaks. |
+| Note | `after` / `before` | Optional message id. `after` places the note below that message (inside its frames); `before` places it above (outside frames opening there). With neither, it sits above the first message. |
 
-Activation bars are computed, never written. A bar shows a participant busy handling something:
-
-- A `sync` call opens a bar on its target, and the `reply` going back (`from`/`to` swapped) closes it. A call answered in several places (one reply per `alt` branch) has one bar, to its last reply.
-- A participant called again after it replied gets a separate bar. A participant called while its bar is open (a callback) gets a bar on its bar, and so does a self-call.
-- A caller keeps one continuous bar while it makes several calls as part of the same job.
-- A call with no reply gets a short bar that ends when the caller moves on. An `async` message gives its target a bar only if the target then sends something.
-- A system that starts the flow (a job, a webhook) is busy from its first call until it is next called. A person (`actor`) who starts the flow gets no bar.
+**Activation bars** are computed automatically: a `sync` call opens a bar on its target until its matching `reply` (callers stay active across calls; `actor` starters get no bar).
+Override on a message only when needed: `"activate": false` skips the bar; `"until": "<later-message-id>"` holds it open until that message.
 
 ## Writing rules
 
-1. **Participants are lifelines, not steps**: name them as the party (`Payment Service`), not the action. Give each the `kind` that says what it is: a UI, a database, a queue, an external system. Keep `database` interactions at domain-operation level (`Reserve stock`, `Record order`), never raw SQL queries (`SELECT * FROM ...`).
-2. **The label is the call, the `detail` is the data**: keep `label` short (`Charge card`, `Order confirmed`; aim for `<= 35` chars) and `detail` concise (`<= 45` chars, one line) so adjacent lifelines stay compact and Fit zoom stays legible. The engine widens the spacing to fit whichever is longer.
-3. **Pair calls with replies** so activation bars and the flow read correctly; use `async` for fire-and-forget events (routing event-driven notifications through a `queue` participant where applicable). Use self-messages (`from` equal to `to`) only for nontrivial internal logic (idempotency check, signature verification, state validation); omit trivial internal steps.
-4. **Frames wrap whole messages only** and nest at most three deep. `alt` for either/or, `opt` for optional, `loop` for repetition, `par` for parallel, `group` for a named phase of the process. Always write explicit guard conditions in `label` for `opt`, `loop` (including iteration or retry bounds, such as `for each item` or `up to 3 retries until 2xx`), `alt`, and `par`.
-5. **Put the happy path first in `alt`** and keep each branch's terminal outcome or error reply inside the `alt` range (never leave a success reply outside an `alt` that also has a failure branch). Three or more outcomes or parallel tracks use one `alt` or `par` with `branches`, never `alt`s nested inside each other.
-6. **Every note, rule, state or SLA in the source is a `note`**, over the lifeline it concerns (or stretched over the two it is between).
-7. **Colour phases only when the source colours or names them**; one colour per `group`.
-8. Order participants so most messages travel to a neighbour; long jumps across the diagram are hard to follow.
-9. **Long diagrams** (about 20 messages or more): set `"numbered": true` so a reviewer can say "step 17", and wrap each phase in a `group` so the reader can collapse it, or focus on one phase (the **Focus** button: the other phases fold and the participants they leave become rails). Cover every message with a phase, or the participants of the loose ones stay full columns. Never author `"collapsed": true` unless the user asks for an overview; if you do, add `"rails": true`.
-10. **Write messages in time order**, and give each `note` the `over` lifeline and the `after`/`before` message it belongs to.
-11. **Overview requests**: if the user asks for a summary or one-slide view, aim for about 6 participants and 16 messages so it fits a 1080p screen without panning. Otherwise include every message, step, branch and note; the page pans, zooms, pins the participant row and collapses phases.
+1. **Participants are lifelines, not steps**: name them as the party (`Payment Service`), not the action. Give each the `kind` that matches its role. Keep `database` interactions at domain-operation level (`Reserve stock`, `Record order`), never raw SQL (`SELECT * FROM ...`).
+2. **Keep text concise (soft word limits)**: aim for at most **3–4 words** on participant `name`, at most **6 words** on message `label` (`Charge card`, `Order confirmed`), and at most **8 words** on `detail` (one line). Short text keeps columns compact and Fit zoom legible.
+3. **Pair calls with replies**: omit `kind` on `sync` calls and pair them with `reply` messages so activation bars and flow read cleanly; use `async` for fire-and-forget events (routing through a `queue` participant where applicable). Use self-messages (`from` equal to `to`) only for nontrivial internal logic (idempotency check, signature verification, state validation); omit trivial internal steps.
+4. **Frames wrap whole messages only** and nest at most three deep. `alt` for either/or, `opt` for optional, `loop` for repetition, `par` for parallel, `group` for a named phase. Always write explicit guard conditions in `label` for `opt`, `loop` (including iteration or retry bounds, such as `for each item` or `up to 3 retries until 2xx`), `alt`, and `par`.
+5. **Put the happy path first in `alt`** and keep each branch's terminal outcome or error reply inside the `alt` range (never leave a success reply outside an `alt` that also has a failure branch). Multiple outcomes or parallel tracks use one `alt` or `par` with `branches`, never nested `alt`s.
+6. **Every note, rule, state or SLA in the source is a `note`**, placed `over` the participant it concerns (or stretched between two) with `after`/`before`.
+7. **Colour only to match source grouping**: leave `color` out by default. Colour `group` phases only when the source colours or names them (one colour per `group`); colour participants (with `colorKey`) only when the source groups them by ownership or domain.
+8. **Wrap natural phases in `group` fragments**: when a flow has distinct phases, wrap each phase in a `group` covering all its messages (leaving no loose messages outside a phase) so Focus/collapse works interactively in the page.
+9. **Write messages in time order**, and give each `note` its `over` participant(s) and `after`/`before` anchor.
+10. **Overview requests**: if the user asks for a summary or one-slide view, keep it concise to the key phases and handoffs. Otherwise include every message, branch and note from the source; the page pans, zooms, pins participant headers and collapses phases.
 
 ## Failure handling
 
-- **Fragment errors** (`unknown message`, `starts after it ends`, `branch at ... must be after its first message`): fix the message ids in `from`, `to`, `elseAt` or `branches[].at`.
-- **`only alt and par have branches`**: change the `kind`, or drop `branches` / `elseAt`.
-- **Note errors** (`unknown participant`, `after unknown message`): fix `over`, `after` or `before`.
-- **`Collapsed fragment ... partly overlaps`**: a collapsed frame must contain whole frames only; move its `from`/`to`.
+- **Fragment errors** (`unknown message`, `starts after it ends`, `branch at ... must be after its first message`): fix the message ids in `from`, `to`, or `branches[].at`.
+- **`only alt and par have branches`**: change the `kind`, or drop `branches`.
+- **Note errors** (`unknown participant`, `after unknown message`): fix `over`, `after`, or `before`.
 - **`Frames nest N deep`** (warning): put a rare exit in a `note`, or split the flow.
