@@ -180,30 +180,6 @@ For contributors: [references/theme.md](references/theme.md).
 | File size | ⚠️ 330-530 KB | ✅ 10-26 KB | ✅ 39-56 KB |
 | Shape / icon library | ❌ | ❌ | ✅ |
 
-### Speed and cost
-
-One large process: 7 lanes, 50-60 steps, 5 outcomes. All three included every step.
-
-| | **This** | **Mermaid** | **draw.io** |
-|---|:---:|:---:|:---:|
-| ⏱️ Time | **3.4-4 min** | 4.9-5.5 min | 6.9-7.6 min |
-| 💲 Cost | **$0.09** | $0.29 | $0.34 |
-| 🔢 Tokens | **0.69 M** | 2.32 M | 2.54 M |
-| 🧭 Auto layout | ✅ checked | ⚠️ unchecked | ❌ AI places boxes |
-
-**≈1.4× faster than Mermaid, ≈2× faster than draw.io, ≈3-4× cheaper.** Why: the AI writes steps and arrows, a script draws them.
-
-### Reading a diagram back
-
-4 saved diagrams, 9-41 steps. All answers correct (4/4) in all three.
-
-| | **This** | **Mermaid** | **draw.io** |
-|---|:---:|:---:|:---:|
-| ⏱️ Time | **16 s** | 30 s | 40 s |
-| 🔢 Tokens | **42.8 k** | 44.3 k | 53.3 k |
-
-**≈2× faster.** Tokens: ≈ Mermaid, 20% fewer than draw.io. Without the skill: 38 s, 54 k.
-
 </details>
 
 ## Build your own skills
