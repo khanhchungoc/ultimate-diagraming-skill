@@ -25,7 +25,7 @@ Never add pixel coordinates (`x`, `y`); `--layout` computes them. A saved page e
 |---|---|---|
 | Lane | `id`, `name`, `icon` | Unique id (`lane-<slug>`), the actor's name (or the phase's, see rule 7), and an `icon` (see rule 8). |
 | Lane | `color` | Optional. Omit it: lanes get palette colours in order. Set a palette slot (`"1"` to `"8"`) only to give related lanes the same colour on purpose; never copy colours from the source, the theme's palette supplies them. A person can change a lane's colour in the editor (lane bar), so keep what you find there. |
-| Node | `id`, `laneId`, `type`, `label` | `id` is a short slug of the label (`n_validate_policy`, not `n5`), so every edge reads on its own; a connector is `c_<letter>_in` / `c_<letter>_out`. `type` is `start`, `task`, `decision`, `end`, a classic symbol (rule 10), or `connector` (rule 11). `start` and `end` render as rounded pills in their own colours (a plain circle if the label is empty); `task` is a box, `decision` a diamond. |
+| Node | `id`, `laneId`, `type`, `label` | `id` is a short slug of the label (`n_validate_policy`, not `n5`), so every edge reads on its own; a connector is `c_<letter>_in` (or `c_<letter>_in_1`, `c_<letter>_in_2` when merging) / `c_<letter>_out`. `type` is `start`, `task`, `decision`, `end`, a classic symbol (rule 10), or `connector` (rule 11). `start` and `end` render as rounded pills in their own colours (a plain circle if the label is empty); `task` is a box, `decision` a diamond. |
 | Edge | `id`, `from`, `to`, `label` | `label` is `"Yes"`, `"No"`, `"Resubmit"`, etc.; `""` for unconditional steps. |
 | Note | `id`, `text`, `nodes` | Optional list `notes`: plain text that explains one or more steps (what goes in it: rule 9). `nodes` lists the ids of the steps it explains; the first is where it sits. Each linked step shows a small badge the reader hovers to see the note. |
 | Diagram | `showNotes` | Optional `true` shows every note on the page (fitted into the gaps near its node) instead of on hover; when to set it: rule 9. |
@@ -89,16 +89,22 @@ Never add pixel coordinates (`x`, `y`); `--layout` computes them. A saved page e
 
 11. **On-page connectors where the source shows them, or where `--layout` warns `Long arrow`**; otherwise draw the arrow and let the router route it. A connector is a small lettered circle standing for one end of a long arrow: the flow runs into circle `A` beside its source and continues out of circle `A` beside its target. The layout places the circles; never set their `x`/`y`, and they move no step. `--layout` warns about every rule below that is broken.
    - **Source shows them**: keep its pairs and its letters.
-   - **Long arrow**: first lay out with plain arrows. `--layout` warns about each arrow whose drawn route is long (across lanes, round a detour, or back along a loop, in either direction) and crosses another arrow, and takes points off the score for it. Split exactly the arrows each warning names, one letter per warning: arrows it names together continue at the same step, so they get one out-connector and an in-connector each. Never split an arrow it does not name. At most 3 letters per diagram; when the warnings say more are needed, check lane order first (checklist item 2), re-run, then split the 3 it lists. Any `Long arrow` warning left after that is reported, not fixed. Report each pair you added.
+   - **Long arrow**: first lay out with plain arrows. `--layout` warns when a routed arrow is long (`>= 6` column widths) and crosses another arrow, takes an extreme outer detour (`>= 10` column widths), or is the long return leg of a flagged round-trip (`u -> v` and `v -> u`), and takes points off the score for it. A `[PASS]` line does not excuse these warnings: split **every** arrow each warning names, one letter per warning (arrows listed together in one warning share a single `out`-connector and get one `in`-connector each). Only split arrows `--layout` names, plus the return leg of a multi-lane round-trip (spanning `>= 3` intermediate lanes) if its partner was split; never split short or adjacent-lane arrows. At most 3 letters per diagram; when warnings say more are needed, check lane order first (checklist item 2), re-run, then split the 3 it lists. Any `Long arrow` warning left after that is reported, not fixed. Report each pair you added.
    - `"type": "connector"`, `"label"`: the letter (`A`–`Z` without `I` and `O`, then `AA`, `AB`, ...). Two connectors with one letter are a pair; put each in the lane of the step it sits beside.
-   - An **in-connector** has arrows in and none out; an **out-connector** has arrows out and none in. A letter has exactly **one out-connector** and one or more in-connectors (several flows may merge at one continuation).
+   - An **in-connector** has arrows in and none out; an **out-connector** has arrows out and none in. A letter has exactly **one out-connector** and one or more in-connectors (several flows merging at one continuation share the same `label` and `c_<letter>_out`, using `c_<letter>_in_1`, `c_<letter>_in_2`, ...).
    - The branch's `label` and `feedback` stay on the arrow **into** the in-connector; the arrow out of the out-connector is `""`.
 
    ```json
    "nodes": [{ "id": "c_a_in", "laneId": "lane-officer", "type": "connector", "label": "A" },
-             { "id": "c_a_out", "laneId": "lane-intake", "type": "connector", "label": "A" }, ...],
+             { "id": "c_a_out", "laneId": "lane-intake", "type": "connector", "label": "A" },
+             { "id": "c_b_in_1", "laneId": "lane-manager", "type": "connector", "label": "B" },
+             { "id": "c_b_in_2", "laneId": "lane-dept", "type": "connector", "label": "B" },
+             { "id": "c_b_out", "laneId": "lane-system", "type": "connector", "label": "B" }, ...],
    "edges": [{ "id": "e7", "from": "n_docs_complete", "to": "c_a_in", "label": "No", "feedback": true },
-             { "id": "e12", "from": "c_a_out", "to": "n_review_docs", "label": "" }, ...]
+             { "id": "e12", "from": "c_a_out", "to": "n_review_docs", "label": "" },
+             { "id": "e5", "from": "n_lm_approved", "to": "c_b_in_1", "label": "No" },
+             { "id": "e9", "from": "n_dh_approved", "to": "c_b_in_2", "label": "No" },
+             { "id": "e13", "from": "c_b_out", "to": "n_record_rejection", "label": "" }, ...]
    ```
 
 ## Choosing the structure
@@ -126,7 +132,7 @@ Routing, ports, arrow ends and lane containment are the engine's job; it does no
 2. **Lane order keeps handoffs short**: no knot of long arrows bridging an uninvolved lane, and fan-in joins nest without one arrow cutting across another. If a knot remains with lanes in flow order ("Lane order follows the flow"), move the actor in the knot next to the lane it hands off to most often. Keep the initiator first, never move phase lanes (rule 7), re-run, and say in the report that you reordered.
 3. **Every node is in the right lane**: the lane of the actor who performs it (rule 3).
 4. **Every lane header names who does the work**: an actor, team or system, not an activity or category, or one sequential stage, for phase lanes (rule 7).
-5. **No arrow too long to follow**: once lane order is settled (item 2), split each arrow a `Long arrow` warning names (rule 11). Replace the arrow with an in-connector in the source's lane and an out-connector in the target's lane, keeping its `label` and `feedback` on the arrow into the in-connector, then re-run `--layout`. No step moves, so this is the last fix.
+5. **No arrow too long to follow**: once lane order is settled (item 2), resolve every `Long arrow` warning (and check by eye that no multi-lane round-trip still wraps around the outer perimeter) per rule 11, then re-run `--layout`. No step moves, so this is the last fix.
 
 ## Lane icons
 
