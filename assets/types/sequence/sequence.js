@@ -2263,5 +2263,20 @@
         onViewChange() { ui.closeConfirm(); pinParticipants(); },
         // The colour key sits above the card
         contentOverflow: () => (seqHtml.querySelector('.seq-key') ? { top: 40 } : null),
-        deleteSelection
+        deleteSelection,
+        // Search: participants left to right, then messages and fragment titles top to bottom. Notes (always in the DOM) sit at their own top.
+        searchItems() {
+          const out = [];
+          const add = (prefix, id, el, textEl) => {
+            const text = (textEl.textContent || '').replace(/\s+/g, ' ').trim();
+            if (text) out.push({ id: `${prefix}:${id}`, text, el });
+          };
+          seqHtml.querySelectorAll('.seq-participant').forEach((el) => add('participant', el.dataset.nodeId, el, el));
+          const rows = [];
+          seqHtml.querySelectorAll('.seq-msg-label').forEach((el) => rows.push([parseFloat(el.style.top) + 26, 'msg', el.dataset.edgeId, el, el]));
+          seqHtml.querySelectorAll('.seq-frag-label').forEach((el) => rows.push([parseFloat(el.style.top), 'frag', el.dataset.fragId, el, el.querySelector('.seq-frag-text')]));
+          seqHtml.querySelectorAll('.note').forEach((el) => rows.push([parseFloat(el.style.top), 'note', el.dataset.noteId, el, el.querySelector('.note-text')]));
+          rows.sort((a, b) => a[0] - b[0]).forEach((r) => add(r[1], r[2], r[3], r[4]));
+          return out;
+        }
       });
