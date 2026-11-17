@@ -70,11 +70,22 @@ Make exactly these calls. The type reference, the example it names and the comma
 5. **View the PNG once** and go through the type's visual checklist. Re-run step 3 only for a failed checklist item.
 6. **Stop.** A clean run is final: do not re-word labels, re-run or re-render. Delete the scratch JSON and PNG (keep the scratch HTML when publishing an artifact, see Artifact output), then report.
 
+## Local HTML file: create, read, update, delete
+
+| Action | How |
+|---|---|
+| **Create** | *Procedure: New Diagram*. Writes `<title-slug>.html` in the project folder. |
+| **Read** | *Procedure: Read an Existing Diagram*. `--extract`, never open the `.html` whole. |
+| **Update** | *Procedure: Update an Existing Diagram*. `--extract`, edit the JSON, `--layout ... -o <same file>`. Never change the diagram with `Edit` or `Write` on the HTML: it is generated output, and almost all of it is editor code. |
+| **Delete** | Delete the file only when the user asks; confirm first. Also delete any scratch files you made. |
+
+---
+
 ## Procedure: Read an Existing Diagram
 
 Use to summarize, explain or answer questions about a diagram page: an `.html` file, or a claude.ai artifact link.
 
-0. **Artifact link**: never use WebFetch or curl. Call `Artifact` with `action: "read"` and the `url`; it saves the page to a local file and names it. Use that file as `<page.html>` below. If the artifact belongs to someone else the read returns only a summary and no file: say so, answer from the summary, and offer a new artifact.
+0. **Artifact link**: follow *Read* in [references/artifacts.md](references/artifacts.md), then use the file it saves as `<page.html>` below.
 
 1. **Do not open the `.html` with a file-read tool**: almost all of it is editor code. Your first call prints the diagram's meaning (no positions, no editor code):
    ```shell
@@ -99,9 +110,7 @@ Use when the user saved edits in the browser, or asks to change a diagram that a
 
 ## Artifact output
 
-- **New**: step 3 uses `--target artifact` and writes to scratch (`-o <scratch>/<title-slug>.html`), never the workspace. After a clean run (step 6), publish with the `Artifact` tool: `file_path` = that HTML, `icon: "chart"`, `capabilities: {artifact: {}, downloads: true}`, and a one-sentence `description`. Delete the scratch JSON and PNG, but keep the scratch HTML until the conversation ends: an update republishes from it.
-- **Read**: see *Procedure: Read an Existing Diagram*, step 0.
-- **Update**: `Artifact read` (returns the user's latest in-browser saves) → `--extract <saved file> -o <scratch.json>` → edit → `--layout <scratch.json> --target artifact -o <saved file>` → publish again with `url` = the artifact's URL and no `capabilities`. The re-layout warning applies.
+Create, read, update and delete of a published artifact: [references/artifacts.md](references/artifacts.md). Read it before touching an artifact. Updating over a live artifact can be refused by the `Artifact` tool; that file says what to do.
 
 ---
 

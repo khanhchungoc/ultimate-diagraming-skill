@@ -1362,6 +1362,9 @@ def main():
     parser.add_argument("--timeout", type=int, default=30, help="Seconds allowed for the layout engine (default: 30)")
     parser.add_argument("--verify", "-v", help="Verify collisions and layout constraints for an HTML or JSON file")
     parser.add_argument("--extract", "-e", help="Extract canonical JSON data from an existing HTML file")
+    parser.add_argument("--keep-layout", action="store_true",
+                        help="With --layout: keep the positions saved in the input's `layout` map and only redraw lines and labels "
+                             "(rebuild a page with a newer engine and UI without moving anything the user placed).")
     parser.add_argument("--target", choices=TARGETS, default="file",
                         help="With --layout: file (default) writes the standalone HTML file; artifact writes the page "
                              "in the shape a claude.ai Artifact needs (publish it with the Artifact tool)")
@@ -1472,12 +1475,14 @@ def main():
             print(note)
 
         data = normalize_diagram_type(data)
+        if args.keep_layout:   # positions saved in the `layout` map become x / y; the engine only redraws
+            data = from_disk(data["diagramType"], data)
         direction_note = ""
         try:
             if data["diagramType"] == "flowchart" and "direction" not in data:
                 laid_out_data, direction_note = choose_flowchart_direction(data, args.timeout, args.browser, tokens)
             else:
-                laid_out_data = run_layout(data["diagramType"], data, timeout=args.timeout, browser=args.browser, tokens=tokens)
+                laid_out_data = run_layout(data["diagramType"], data, timeout=args.timeout, browser=args.browser, tokens=tokens, keep=args.keep_layout)
         except EngineUnavailable as exc:
             sys.exit(f"[ERROR] {exc}")
         if direction_note:
