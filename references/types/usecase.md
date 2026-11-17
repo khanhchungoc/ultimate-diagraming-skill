@@ -71,14 +71,14 @@ Trace the requirements in this order before writing the JSON.
 
 1. **Fix the subject (scope).** Name the system under design: one boundary per system. A requirement set that covers two systems (a storefront and a back office) gets two `subjects`. Anything outside every boundary is an actor.
 2. **Find the actors.** For each requirement ask who starts it and who else takes part. Actors are roles ("Customer", not "Alice"). Primary actors start a use case (drawn left). Supporting actors are roles or external systems the subject calls, such as a payment gateway or a mail service (`kind: "system"`, drawn right). A scheduled trigger ("Nightly", "End of month") is a `kind: "time"` actor. The database, the UI and the subject's own modules are never actors.
-3. **List the goals.** For each primary actor list every goal the requirements give it at **user-goal level**: one actor, one sitting, a result worth walking away with ("Place order", "Refund payment"). Name each **verb + object** in the actor's words. Lower-level steps ("Log in", "Validate card") are not use cases unless several use cases share them (rule 5); a higher-level summary ("Manage store") is only kept when asked.
+3. **List the goals.** For each primary actor list every goal the requirements give it at **user-goal level**: one actor, one sitting, a result worth walking away with ("Place order", "Refund payment"). Name each **verb + object** in the actor's words. UI mechanics ("Enter password", "Click submit") are never use cases. Lower-level utility goals ("Log in", "Validate card") are not use cases unless several use cases share them (rule 5), in which case mark them `level: "subfunction"`; higher-level overview goals ("Manage store") are kept at `user` level only when asked (never author `level: "summary"`).
 4. **Connect.** One `association` per actor and use case it takes part in. A primary actor's link is `from` the actor; a supporting actor's link goes `from` the use case `to` the actor.
 5. **Factor, only where the requirements show it.** Ask: *does it always happen?* `include`. *Only sometimes?* `extend`.
    - `include`: behaviour two or more use cases **always** need ("Authenticate", "Calculate tax"). `from` the base, `to` the included case. Never use `include` to chain steps in order.
-   - `extend`: optional or conditional behaviour added to a base ("Apply voucher" extends "Check out" when the customer has a code). `from` the extension, `to` the base. Always write the `condition`; name the base's `extensionPoints` entry when the requirements give one.
+   - `extend`: optional or conditional behaviour added to a base ("Apply voucher" extends "Check out" when the customer has a code). `from` the extension, `to` the base. Keep the base use case complete without its extensions; do not explode routine validation errors ("Invalid password") into `extend` ovals—put error handling and minor variations in a `note` (or model them in a `flowchart`/`sequence`). Always write the `condition`; add `extensionPoint` (and matching `extensionPoints` on the base) when the base has multiple insertion points or the source names one, and omit it on a single self-evident extension to keep the oval compact.
    - Generalization (`parent`): a specialised actor (Registered customer → Customer), or variants of one goal (Pay by card → Pay). Use sparingly.
 6. **Trace.** Every functional requirement maps to at least one use case: put its id in `refs`. Every business rule, threshold, SLA or non-functional requirement that concerns a use case becomes a `note` on it. Nothing is dropped; nothing is invented.
-7. **Check.** Each actor has an association; each use case is reached by an actor (directly, or through `include`, `extend` or `parent`); no CRUD explosion (four use cases "Create/Read/Update/Delete X" become "Manage X" unless different actors do them); no `include` cycles; no actor inside a boundary.
+7. **Check.** Each actor has an association; each use case is reached by an actor (directly, or through `include`, `extend` or `parent`); no CRUD explosion (four use cases "Create/Read/Update/Delete X" become "Manage X" unless different actors, permissions, or distinct workflows/SLAs apply, such as keeping "Place order" and "Cancel order" separate when their rules differ); no `include` cycles; no actor inside a boundary.
 
 Also:
 
@@ -101,13 +101,13 @@ A diagram of 8 or fewer use cases may stay neutral. The audit warns when a diagr
 
 The audit covers references, overlaps, lines through use cases and label overlap; the layout report covers text overflow. Check by eye on the screenshot:
 
-1. **Four line styles are unmistakable**: association solid with no arrowhead, `include` and `extend` dashed with an open arrow and their `«include»` / `«extend»` label, generalization solid with a hollow triangle at the parent.
+1. **Four line styles are unmistakable**: association solid (no arrowhead unless `navigable: true` is set), `include` and `extend` dashed with an open arrow and their `«include»` / `«extend»` label, generalization solid with a hollow triangle at the parent.
 2. **Arrow directions are right**: `include` points at the included use case, `extend` points at the base, the triangle sits on the parent.
 3. **Primary actors on the left, supporting actors on the right**, every actor outside the boundary.
 4. **Each actor sits level with its goals**; a hub actor's lines fan out without running through other use cases.
 5. **Names** are verb + object, readable and not cut off; `[condition]` labels are not hiding a use case or each other.
 6. **Colours** match the feature areas, the legend names each one, actors are neutral.
-7. **Subfunction and summary levels** differ by size and outline, not by colour alone.
+7. **Subfunction level** differs by size and dashed outline, not by colour alone.
 8. **Notes** sit by the use case they concern.
 
 ## Failure handling

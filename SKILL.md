@@ -46,7 +46,7 @@ Every diagram JSON has a top-level `"diagramType"` (missing means `flowchart`).
 Make exactly these calls. The type reference, the example it names and the command below are the complete interface: no `--help`, no reading scripts or `dev/`, no test runs on the example, no listing directories, no trying alternative structures.
 
 1. **Read** the type reference, then the one example it names (at the path it gives). Decide the structure once from the type reference.
-   - **Trace the requirements** before writing: list each clause from every source as *clause → actor → step, decision, outcome or detail*. A clause joined by "and" (`3 quotes AND budget approval`) is two steps. Every step, decision and outcome maps to a node, edge or message owned by its actor; every business rule, threshold, SLA or approval authority maps to a note, where the type has notes. When sources disagree on an actor, order or figure, follow the more detailed source (step text over a summary table) and record the conflict for the report.
+   - **Trace the requirements** before writing, following the type reference's structure (for processes: *clause → actor → step, decision, outcome or detail*, splitting clauses joined by "and" such as `3 quotes AND budget approval` into two steps). Map every business rule, threshold, SLA or approval authority to a note. When sources disagree on an actor, order or figure, follow the more detailed source (step text over a summary table) and record the conflict for the report.
 2. **Write the JSON once** to scratch with your file-write tool. Fit every label to the character budget before the first run. No pixel coordinates, no `python -c`, no helper `.py` scripts. Include every step the user's scope asks for.
 3. **Run one command**, writing the HTML straight to the target path (needs Chrome, Chromium or Edge; Node.js makes layout faster; `--browser <path>` selects a browser):
    ```shell
@@ -62,7 +62,7 @@ Make exactly these calls. The type reference, the example it names and the comma
    | Any other `[WARN]` | Fix what it names (the type reference has the rule), re-run step 3. |
    | `[FAIL]` score below 90 | Fix the listed issues. Never merge, drop or reroute steps, branches or end states to raise the score: if the complete diagram cannot pass, keep it complete and report the score. |
    | `[ERROR]` overlap (exit 3) | Fix the overlapping edge or message label, re-run step 3. |
-   | `[ERROR]` text size (exit 4, 12 nodes or participants or fewer) | Shorten labels or split the diagram (the type reference may name other fixes), re-run step 3. |
+   | `[ERROR]` text size (exit 4, 12 nodes, participants, tables, or actors+use-cases or fewer) | Shorten labels or split the diagram (the type reference may name other fixes), re-run step 3. |
    | `[ERROR] Layout needs Node.js ... or Chrome` | Stop. Report it; never hand-place coordinates. |
    | `[WARN] Layout report unavailable` | Do the overlap check by eye and say so in the report. |
    | Render failed | Retry once with `--browser <chrome path>`. If no browser works, report that the visual review could not run. |
@@ -124,6 +124,6 @@ Only when the user gives a website URL or brand guide and wants diagrams in that
 
 About 5 lines: the file, and anything that needs the user's action. Not a log of your checks.
 
-- the output path (for an artifact: its link, and that it is private until the user shares it from claude.ai) and a concise description (type, and participant list);
+- the output path (for an artifact: its link, and that it is private until the user shares it from claude.ai) and a concise description (type, and main actors, participants or tables);
 - assumptions: anything you added or reordered that the source did not state, and each conflict between sources with the version you followed;
 - problems only: score if below 100, any `[WARN]` left, labels shortened from the user's wording, a split diagram and why, what a re-layout reset (updates), an overlap check done by eye.

@@ -72,15 +72,29 @@
     {
       "id": "m6",
       "from": "p2",
+      "to": "p1",
+      "label": "Order confirmed",
+      "kind": "reply"
+    },
+    {
+      "id": "m7",
+      "from": "p2",
       "to": "p4",
       "label": "Release stock",
       "kind": "sync"
     },
     {
-      "id": "m7",
+      "id": "m8",
+      "from": "p4",
+      "to": "p2",
+      "label": "Stock released",
+      "kind": "reply"
+    },
+    {
+      "id": "m9",
       "from": "p2",
       "to": "p1",
-      "label": "Order confirmed",
+      "label": "Payment declined",
       "kind": "reply"
     }
   ],
@@ -89,11 +103,11 @@
       "id": "f1",
       "kind": "alt",
       "label": "payment accepted",
-      "from": "m4",
-      "to": "m6",
+      "from": "m6",
+      "to": "m9",
       "branches": [
         {
-          "at": "m6",
+          "at": "m7",
           "label": "payment declined"
         }
       ]

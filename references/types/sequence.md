@@ -21,14 +21,15 @@ Never add coordinates (`x`, `y`, `w`, `h`, `layout`); `--layout` computes them. 
   "messages": [
     { "id": "m1", "from": "p1", "to": "p2", "label": "Place order", "kind": "sync" },
     { "id": "m2", "from": "p2", "to": "p3", "label": "Charge card", "detail": "amount, currency, card token", "kind": "sync" },
-    { "id": "m3", "from": "p3", "to": "p2", "label": "Declined", "kind": "reply" },
-    { "id": "m4", "from": "p3", "to": "p2", "label": "Approved", "kind": "reply" },
-    { "id": "m5", "from": "p2", "to": "p1", "label": "Order confirmed", "kind": "reply" }
+    { "id": "m3", "from": "p3", "to": "p2", "label": "Approved", "kind": "reply" },
+    { "id": "m4", "from": "p2", "to": "p1", "label": "Order confirmed", "kind": "reply" },
+    { "id": "m5", "from": "p3", "to": "p2", "label": "Declined", "kind": "reply" },
+    { "id": "m6", "from": "p2", "to": "p1", "label": "Order failed", "kind": "reply" }
   ],
   "fragments": [
-    { "id": "f1", "kind": "group", "label": "Payment", "color": "1", "from": "m2", "to": "m4" },
-    { "id": "f2", "kind": "alt", "label": "card declined", "from": "m3", "to": "m4",
-      "branches": [ { "at": "m4", "label": "card approved" } ] }
+    { "id": "f1", "kind": "group", "label": "Payment", "color": "1", "from": "m2", "to": "m6" },
+    { "id": "f2", "kind": "alt", "label": "card approved", "from": "m3", "to": "m6",
+      "branches": [ { "at": "m5", "label": "card declined" } ] }
   ],
   "notes": [
     { "id": "n1", "text": "Card data never reaches the shop", "over": "p3", "after": "m2" }
@@ -70,11 +71,11 @@ Activation bars are computed, never written. A bar shows a participant busy hand
 
 ## Writing rules
 
-1. **Participants are lifelines, not steps**: name them as the party (`Payment Service`), not the action. Give each the `kind` that says what it is: a UI, a database, a queue, an external system.
-2. **The label is the call, the `detail` is the data**: keep labels short (`Charge card`, `Order confirmed`); put parameters or payload in `detail`, one line. The engine widens the spacing to fit whichever is longer.
-3. **Pair calls with replies** so activation bars and the flow read correctly; use `async` for fire-and-forget events.
-4. **Frames wrap whole messages only** and nest at most three deep. `alt` for either/or, `opt` for optional, `loop` for repetition, `par` for parallel, `group` for a named phase of the process.
-5. **Three or more outcomes are one `alt` with `branches`**, never `alt`s nested inside each other.
+1. **Participants are lifelines, not steps**: name them as the party (`Payment Service`), not the action. Give each the `kind` that says what it is: a UI, a database, a queue, an external system. Keep `database` interactions at domain-operation level (`Reserve stock`, `Record order`), never raw SQL queries (`SELECT * FROM ...`).
+2. **The label is the call, the `detail` is the data**: keep `label` short (`Charge card`, `Order confirmed`; aim for `<= 35` chars) and `detail` concise (`<= 45` chars, one line) so adjacent lifelines stay compact and Fit zoom stays legible. The engine widens the spacing to fit whichever is longer.
+3. **Pair calls with replies** so activation bars and the flow read correctly; use `async` for fire-and-forget events (routing event-driven notifications through a `queue` participant where applicable). Use self-messages (`from` equal to `to`) only for nontrivial internal logic (idempotency check, signature verification, state validation); omit trivial internal steps.
+4. **Frames wrap whole messages only** and nest at most three deep. `alt` for either/or, `opt` for optional, `loop` for repetition, `par` for parallel, `group` for a named phase of the process. Always write explicit guard conditions in `label` for `opt`, `loop` (including iteration or retry bounds, such as `for each item` or `up to 3 retries until 2xx`), `alt`, and `par`.
+5. **Put the happy path first in `alt`** and keep each branch's terminal outcome or error reply inside the `alt` range (never leave a success reply outside an `alt` that also has a failure branch). Three or more outcomes or parallel tracks use one `alt` or `par` with `branches`, never `alt`s nested inside each other.
 6. **Every note, rule, state or SLA in the source is a `note`**, over the lifeline it concerns (or stretched over the two it is between).
 7. **Colour phases only when the source colours or names them**; one colour per `group`.
 8. Order participants so most messages travel to a neighbour; long jumps across the diagram are hard to follow.

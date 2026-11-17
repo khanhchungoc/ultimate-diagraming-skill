@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- For agents: the whole diagram is the JSON (application/json) in the "diagram-data" script on lines 12-52 of this file. Read lines 1-52 only (offset 1, limit 52); everything after line 52 is editor code (CSS, JS, icons) and says nothing about the diagram.
+<!-- For agents: the whole diagram is the JSON (application/json) in the "diagram-data" script on lines 12-54 of this file. Read lines 1-54 only (offset 1, limit 54); everything after line 54 is editor code (CSS, JS, icons) and says nothing about the diagram.
      The model's first key, "_readme", says how to read it. The "end diagram-data" comment marks the true end: if it is not on the line named above (the JSON was edited by hand since the last save), trust the comment. To print just the model:
      sed -n '/<script id="diagram-data" type="application\/json">/,/<\/script>/p' FILE
      python -c "import re,sys;print(re.search(r'<script id=\"diagram-data\" type=\"application\/json\">(.*?)<\/script>',open(sys.argv[1],encoding='utf8').read(),re.S)[1])" FILE -->
@@ -28,18 +28,20 @@
     { "id": "m3", "from": "p4", "to": "p2", "label": "Stock reserved", "kind": "reply" },
     { "id": "m4", "from": "p2", "to": "p3", "label": "Charge card", "kind": "sync", "detail": "amount, currency, card token" },
     { "id": "m5", "from": "p3", "to": "p2", "label": "Payment result", "kind": "reply" },
-    { "id": "m6", "from": "p2", "to": "p4", "label": "Release stock", "kind": "sync" },
-    { "id": "m7", "from": "p2", "to": "p1", "label": "Order confirmed", "kind": "reply" }
+    { "id": "m6", "from": "p2", "to": "p1", "label": "Order confirmed", "kind": "reply" },
+    { "id": "m7", "from": "p2", "to": "p4", "label": "Release stock", "kind": "sync" },
+    { "id": "m8", "from": "p4", "to": "p2", "label": "Stock released", "kind": "reply" },
+    { "id": "m9", "from": "p2", "to": "p1", "label": "Payment declined", "kind": "reply" }
   ],
   "fragments": [
     {
       "id": "f1",
       "kind": "alt",
       "label": "payment accepted",
-      "from": "m4",
-      "to": "m6",
+      "from": "m6",
+      "to": "m9",
       "branches": [
-        { "at": "m6", "label": "payment declined" }
+        { "at": "m7", "label": "payment declined" }
       ]
     },
     { "id": "f2", "kind": "opt", "label": "stock available", "from": "m2", "to": "m3" }
