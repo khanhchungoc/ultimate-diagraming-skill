@@ -66,7 +66,7 @@ TB_MAX_SCORE_LOSS = 5  # ... and may score at most this much lower in the audit 
 LONG_ARROW_COLS = 6
 LONG_ARROW_DETOUR_COLS = 10
 LONG_ARROW_PENALTY, LONG_ARROW_MAX_PENALTY = 5, 15
-LONG_ARROW_MAX_PAIRS = 8   # letters in all: past ~8 pairs the reader looks letters up instead of following lines
+LONG_ARROW_MAX_PAIRS = 4   # letters in all: more pairs make the reader look letters up instead of following lines
 LONG_ARROW_MAX_ROUNDS = 4  # split, re-layout, re-audit; stops earlier when a round does not improve
 
 
