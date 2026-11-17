@@ -1,6 +1,6 @@
 # Plan: Faster Layout Engine and Verification Pipeline
 
-Status: proposed (Phase 4 single-session Chromium landed in commit `3f45821`).
+Status: implemented (Phases 0–4 landed in `3f45821` and `2db9b73`; measured `13.594 s` CLI / `12.556 s` staged on the unsplit 88-node flight disruption flowchart vs `42.68–67 s` baseline, missing the `< 10 s` target by ~`3.6 s` when `order_flowchart_lanes` runs).
 
 ## Problem
 
