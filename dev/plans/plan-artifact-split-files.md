@@ -1,6 +1,6 @@
 # Plan: claude.ai Artifacts as split files (data apart from code)
 
-Status: spike run (tool side done, browser side waiting on a person to open the test artifact). Nothing in the product changed yet.
+Status: spike run, all five browser checks passed (see Spike). Nothing in the product changed yet. Next: the two untested points (overwrite gate from a fresh conversation, files-form save on a publicly shared link), then the work list.
 
 ## Problem
 
@@ -42,13 +42,15 @@ Checked from the tool side (done):
 | Data-only update | `files` alone is refused: the tool always wants the page's `file_path`. Passing `index.html` with `files: {diagram.json}` works and made version 2. With the split, `index.html` is about 150 lines, so having it in the call is cheap. |
 | Overwrite gate | Not testable from the session that created the artifact (it published every file itself). Test it from a fresh conversation: publish a data-only change to this artifact by URL after reading only `diagram.json`. |
 
-Checked in the browser (pending; open the link and report what the page prints):
+Checked in the browser (done, by the owner, signed in, artifact private at the time):
 
 1. `app.js` runs from a relative `<script src>`.
 2. `app.css` applies (the probe line is green).
 3. `fetch('diagram.json')` returns 200 and the data. After the agent's data-only publish the page should show `"saves": 1`.
 4. `claude.use('artifact')` resolves.
 5. The Save button's files-form save succeeds, the page keeps running, and the result is not `capability_disabled`.
+
+Results: all five passed. `app.js` ran from a relative `<script src>`; `app.css` applied; `fetch('diagram.json')` returned 200 with the agent's data-only edit (`"saves":1`); the `artifact` capability resolved; the files-form save succeeded twice (about 600 ms each) and the page kept running (the next lines printed, no reload). The server's copy of `diagram.json` afterwards read `"saves":4`, so the saves reached the artifact. Not yet known: whether any of those saves were made after setting the link to public (the owner reported only the first two lines); ask, or repeat.
 
 Decision rule: if 1 to 4 pass, go ahead. If 5 fails for the owner, fall back to inline data plus the new-artifact workflow (no change to the product beyond the docs already written). If `fetch` fails but the script and stylesheet load, the page can carry the data inline in `index.html` and still get the split for the code.
 
