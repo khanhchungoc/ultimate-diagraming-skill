@@ -1099,13 +1099,28 @@ def normalize_diagram_type(data: Dict[str, Any]) -> Dict[str, Any]:
     return data
 
 
+_DATA_BLOCK_RE = re.compile(r'<script id="diagram-data" type="application/json">\s*([\s\S]*?)\s*</script>')
+
+
 def read_data_block(html_content: str) -> Dict[str, Any]:
     """The diagram JSON block of a standalone page, exactly as stored (disk format)."""
     # The full opening tag, so the page's reading-guide comment (which never spells it) cannot match
-    match = re.search(r'<script id="diagram-data" type="application/json">\s*([\s\S]*?)\s*</script>', html_content)
+    match = _DATA_BLOCK_RE.search(html_content)
     if not match:
         raise ValueError('Could not find the diagram data block (<script id="diagram-data">) in the specified HTML file.')
     return json.loads(match.group(1))
+
+
+def read_data_block_from_path(path: Path) -> Dict[str, Any]:
+    """Read the disk-format diagram JSON from a standalone HTML page, a split artifact index.html, or a .json file."""
+    if path.suffix.lower() == ".json":
+        return json.loads(path.read_text(encoding="utf-8"))
+    html_text = path.read_text(encoding="utf-8")
+    if not _DATA_BLOCK_RE.search(html_text):
+        sibling = path.with_name("diagram.json")
+        if sibling.is_file():
+            return json.loads(sibling.read_text(encoding="utf-8"))
+    return read_data_block(html_text)
 
 
 def extract_data_from_html(html_content: str) -> Dict[str, Any]:
@@ -1113,6 +1128,23 @@ def extract_data_from_html(html_content: str) -> Dict[str, Any]:
     A sequence page saves no positions; run its engine (engine_runner.run_layout) before auditing it."""
     data = read_data_block(html_content)
     return from_disk(data.get("diagramType") or DEFAULT_TYPE, data)
+
+
+def _load_input(path: Path, force_from_disk: bool = False) -> Tuple[Dict[str, Any], Optional[str], bool, bool]:
+    """Load (in_memory_data, html_text_for_theme, is_split_html, needs_engine_for_verify) from an HTML or JSON file."""
+    if path.suffix.lower() == ".html":
+        html_text = path.read_text(encoding="utf-8")
+        is_split = not _DATA_BLOCK_RE.search(html_text) and path.with_name("diagram.json").is_file()
+        raw = read_data_block_from_path(path)
+        return from_disk(raw.get("diagramType") or DEFAULT_TYPE, raw), html_text, is_split, True
+    raw = read_data_block_from_path(path)
+    sibling_index = path.with_name("index.html")
+    html_text = sibling_index.read_text(encoding="utf-8") if path.name == "diagram.json" and sibling_index.is_file() else None
+    kind = raw.get("diagramType") or DEFAULT_TYPE
+    is_disk = force_from_disk or "_readme" in raw or ("layout" in raw and kind != "sequence") or (kind == "erd" and "groups" in raw)
+    data = from_disk(kind, raw) if is_disk else raw
+    needs_engine = "_readme" in raw or ("layout" in raw and kind in ("erd", "usecase"))
+    return data, html_text, False, needs_engine
 
 
 # --- Themes: which one a run uses, and the copy a page keeps ----------------------------------------------------------
@@ -1188,21 +1220,60 @@ ARTIFACT_TAIL = "</body></html>"
 ARTIFACT_END_MARKER = "<!-- end ultimate-diagram page -->"
 
 
-def artifact_template(shell_html: str) -> str:
-    """The artifact page template, derived from shell.html so the two cannot drift: the skeleton, then the page's
-    title, reading guide, data block, fonts and styles (everything shell.html keeps in <head>) moved into <body>,
-    then the unchanged body. The doctype and the head's own charset/viewport metas are dropped (the skeleton has
-    them). The data block stays above the styles, so an agent's read of lines 1-E still ends before the CSS."""
-    m = re.match(r"(?P<pre>\s*<!DOCTYPE html>\n)(?P<guide><!--[\s\S]*?-->\n)<html[^>]*>\n<head>\n"
-                 r"(?P<head>[\s\S]*?)</head>\n<body>(?P<body>[\s\S]*)</body>\n</html>\s*$", shell_html)
+ARTIFACT_AGENT_COMMENT = (
+    '<!-- For agents: the diagram model (JSON, disk format) is in diagram.json in this artifact '
+    '(Artifact read with path: "diagram.json"). Do not read app.css or app.js to understand the diagram. -->'
+)
+
+
+def _split_shell_html(shell_html: str) -> Tuple[str, str, str]:
+    """Split shell.html into (head_links, body_markup, inline_script_template) so split artifacts stay in sync."""
+    m = re.match(
+        r"\s*<!DOCTYPE html>\n<!--[\s\S]*?-->\n<html[^>]*>\n<head>\n"
+        r"(?P<head>[\s\S]*?)</head>\n<body>(?P<body>[\s\S]*)</body>\n</html>\s*$",
+        shell_html,
+    )
     if not m:
         raise ValueError("shell.html no longer has the expected doctype / guide / head / body layout")
-    head = re.sub(r"^[ \t]*<meta [^>]*>\n", "", m["head"], flags=re.M)
-    title = re.search(r"[ \t]*<title>[^\n]*</title>\n", head)
-    if not title or head.count("<title>") != 1:
+    head = m["head"]
+    if head.count("<title>") != 1 or not re.search(r"^[ \t]*<title>[^\n]*</title>\n", head, flags=re.M):
         raise ValueError("shell.html head must hold exactly one <title> line")
-    head = head.replace(title[0], "", 1)
-    return ARTIFACT_HEAD + "\n" + title[0].lstrip() + m["guide"] + head + m["body"] + ARTIFACT_END_MARKER + "\n" + ARTIFACT_TAIL
+    head = re.sub(r"^[ \t]*<meta [^>]*>\n", "", head, flags=re.M)
+    head = re.sub(r"^[ \t]*<title>[^\n]*</title>\n", "", head, count=1, flags=re.M)
+    head, n_data = re.subn(
+        r'(?:[ \t]*<!-- Diagram model:[^\n]*\n)?[ \t]*<script id="diagram-data"[\s\S]*?<!-- end diagram-data -->(?:\{\{THEME\}\})?\n',
+        "",
+        head,
+        count=1,
+    )
+    if n_data != 1:
+        raise ValueError("shell.html head must hold the diagram-data block")
+    head, n_style = re.subn(r"[ \t]*<style>[\s\S]*?</style>\n", "", head, count=1)
+    if n_style != 1:
+        raise ValueError("shell.html head must hold exactly one <style> block")
+
+    body_match = re.match(
+        r"(?P<markup>[\s\S]*?)(?:[ \t]*<!-- Interactive Diagram Script:[^\n]*\n)?[ \t]*<script>\n(?P<script>[\s\S]*?)[ \t]*</script>\n\s*$",
+        m["body"],
+    )
+    if not body_match:
+        raise ValueError("shell.html body must end with the inline <script> block")
+    return head, body_match["markup"], body_match["script"]
+
+
+def artifact_index_template(shell_html: str) -> str:
+    """Derive the split artifact index.html template from shell.html so font links and body markup never drift."""
+    head_links, body_markup, _ = _split_shell_html(shell_html)
+    return (
+        ARTIFACT_HEAD + "\n"
+        + "<title>{{PAGE_TITLE}}</title>\n"
+        + ARTIFACT_AGENT_COMMENT + "{{THEME}}\n"
+        + head_links
+        + '  <link rel="stylesheet" href="app.css">\n'
+        + body_markup
+        + '  <script src="app.js"></script>\n'
+        + ARTIFACT_END_MARKER + "\n" + ARTIFACT_TAIL
+    )
 
 
 def lane_icon_menu() -> List[str]:
@@ -1229,14 +1300,9 @@ def components_css() -> str:
     return "\n".join(_read_asset(ASSETS_DIR / "components" / f"{n}.css").rstrip(chr(10)) for n in COMPONENTS)
 
 
-def assemble_page(kind: str, data: Optional[Dict[str, Any]] = None, target: str = "file",
-                  tokens: Optional[Dict[str, Any]] = None, theme: Optional[Dict[str, Any]] = None) -> str:
-    """Build one standalone HTML page: shared shell + the diagram type's plugin, with `data` embedded.
-    target "file" is the page as saved on disk; "artifact" is the same page in the claude.ai Artifact shape.
-    `tokens` is the merged token set (default.json, or a theme over it); `theme` is the theme itself, stored in the page
-    as <script id="diagram-theme"> (None for the default theme: the page then carries no copy)."""
-    if target not in TARGETS:
-        raise ValueError(f"unknown target {target!r}; expected one of {', '.join(TARGETS)}")
+def _build_parts(kind: str, data: Optional[Dict[str, Any]] = None,
+                 tokens: Optional[Dict[str, Any]] = None, theme: Optional[Dict[str, Any]] = None) -> Tuple[Dict[str, str], Dict[str, Any], Dict[str, str]]:
+    """Collect template substitution parts, tokens and icons for a diagram type."""
     type_dir = ASSETS_DIR / "types" / kind
     if not type_dir.is_dir():
         raise FileNotFoundError(f"No assets for diagram type {kind!r} at: {type_dir}")
@@ -1271,12 +1337,38 @@ def assemble_page(kind: str, data: Optional[Dict[str, Any]] = None, target: str 
         "ENGINE_JS": _read_asset(type_dir / "engine.js").rstrip(chr(10)),
         "TYPE_JS": _read_asset(type_dir / f"{kind}.js").rstrip(chr(10)),
     }
+    return parts, tokens, icons
+
+
+def assemble_page(kind: str, data: Optional[Dict[str, Any]] = None, target: str = "file",
+                  tokens: Optional[Dict[str, Any]] = None, theme: Optional[Dict[str, Any]] = None) -> str:
+    """Build one standalone HTML page for the local file target (`target="file"`).
+    For split claude.ai Artifacts (`target="artifact"`), call `assemble_artifact()` instead."""
+    if target != "file":
+        raise ValueError(f"assemble_page() supports only target='file' (got {target!r}); use assemble_artifact() for split artifacts")
+    parts, tokens, icons = _build_parts(kind, data, tokens, theme)
     # One pass: substituted text is never re-scanned, and an unknown placeholder fails loudly.
     template = _read_asset(ASSETS_DIR / "shell" / "shell.html")
-    if target == "artifact":
-        template = artifact_template(template)
-    page = re.sub(r"\{\{([A-Z_]+)\}\}", lambda m: parts[m.group(1)], html_part(template))
+    page = re.sub(r"\{\{([A-Z_]+)\}\}", lambda m: parts[m.group(1)], expand_icons(template, tokens, icons))
     return stamp_reading_guide(page)  # the guide's line numbers, from the finished text
+
+
+def assemble_artifact(kind: str, data: Optional[Dict[str, Any]] = None,
+                      tokens: Optional[Dict[str, Any]] = None, theme: Optional[Dict[str, Any]] = None) -> Dict[str, str]:
+    """Build the split claude.ai Artifact files: index.html, diagram.json, app.css and app.js."""
+    parts, tokens, icons = _build_parts(kind, data, tokens, theme)
+    shell_html = _read_asset(ASSETS_DIR / "shell" / "shell.html")
+    _, _, script_template = _split_shell_html(shell_html)
+    index_template = artifact_index_template(shell_html)
+    index_html = re.sub(r"\{\{([A-Z_]+)\}\}", lambda m: parts[m.group(1)], expand_icons(index_template, tokens, icons))
+    app_css = "\n".join((parts["TOKENS_CSS"], parts["COMPONENTS_CSS"], parts["SHELL_CSS"], parts["TYPE_CSS"])) + "\n"
+    app_js = re.sub(r"\{\{([A-Z_]+)\}\}", lambda m: parts[m.group(1)], script_template.rstrip(chr(10)) + "\n")
+    return {
+        "index.html": index_html,
+        "diagram.json": parts["DATA"] + "\n",
+        "app.css": app_css,
+        "app.js": app_js,
+    }
 
 
 # The web font (shell.html) is the one allowed network request: without it the page still works, in a system font
@@ -1292,13 +1384,39 @@ def find_external_refs(html_text: str) -> List[str]:
     return sorted({r for r in refs if not ALLOWED_EXTERNAL.match(re.sub(r"""^(?:src|href)\s*=\s*["']""", "", r))})
 
 
+def _artifact_external_refs(index_path: Path) -> List[str]:
+    """Return any disallowed external references across a split artifact's index.html, app.css and app.js."""
+    refs: Set[str] = set()
+    for name in (index_path.name, "app.css", "app.js"):
+        asset = index_path.with_name(name)
+        if asset.is_file():
+            refs.update(find_external_refs(asset.read_text(encoding="utf-8")))
+    return sorted(refs)
+
+
 def scaffold_html(data: Dict[str, Any], output_path: Path, target: str = "file", tokens: Optional[Dict[str, Any]] = None,
                   theme: Optional[Dict[str, Any]] = None):
     """Write the standalone HTML for `data` (its diagramType selects the plugin)."""
+    if target == "artifact":
+        return scaffold_artifact(data, output_path, tokens, theme)
     html_text = assemble_page(data.get("diagramType") or DEFAULT_TYPE, data, target, tokens, theme)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(html_text, encoding="utf-8")
+    with output_path.open("w", encoding="utf-8", newline="\n") as fh:
+        fh.write(html_text)
     print(f"[OK] Generated interactive {data.get('diagramType') or DEFAULT_TYPE}: {output_path}")
+
+
+def scaffold_artifact(data: Dict[str, Any], output_path: Path, tokens: Optional[Dict[str, Any]] = None,
+                      theme: Optional[Dict[str, Any]] = None) -> Path:
+    """Write the split claude.ai Artifact files (index.html, diagram.json, app.css, app.js) and return index.html."""
+    kind = data.get("diagramType") or DEFAULT_TYPE
+    out_dir = output_path.parent if output_path.suffix.lower() == ".html" else output_path
+    out_dir.mkdir(parents=True, exist_ok=True)
+    for name, content in assemble_artifact(kind, data, tokens, theme).items():
+        with (out_dir / name).open("w", encoding="utf-8", newline="\n") as fh:
+            fh.write(content)
+    print(f"[OK] Generated interactive {kind} artifact: {out_dir}")
+    return out_dir / "index.html"
 
 
 def _ensure_utf8_output() -> None:
@@ -1393,10 +1511,10 @@ def main():
         return
 
     if args.extract:
-        html_path = Path(args.extract)
-        raw = read_data_block(html_path.read_text(encoding="utf-8"))
+        raw = read_data_block_from_path(Path(args.extract))
+        kind = raw.get("diagramType") or DEFAULT_TYPE
         # Authoring JSON: the block without its `layout` map (--layout recomputes positions anyway)
-        data = authoring_json(raw.get("diagramType") or DEFAULT_TYPE, from_disk(raw.get("diagramType") or DEFAULT_TYPE, raw))
+        data = authoring_json(kind, from_disk(kind, raw))
         text = format_json(data)
         if args.output:
             out_p = Path(args.output)
@@ -1409,21 +1527,16 @@ def main():
 
     if args.verify:
         p = Path(args.verify)
-        external_refs: List[str] = []
-        if p.suffix == ".html":
-            html_text = p.read_text(encoding="utf-8")
-            data = extract_data_from_html(html_text)
-            external_refs = find_external_refs(html_text)
-        else:
-            html_text = None
-            data = json.loads(p.read_text(encoding="utf-8"))
+        is_html = p.suffix.lower() == ".html"
+        data, html_text, is_split, needs_engine = _load_input(p)
+        external_refs = (_artifact_external_refs(p) if is_split else find_external_refs(html_text)) if is_html else []
         tokens, theme, note = resolve_theme(args.theme, html_text)
         tokens = tokens if theme is not None else None
         if note:
             print(note)
 
         data = normalize_diagram_type(data)
-        if p.suffix == ".html" and data["diagramType"] in ("sequence", "erd", "usecase"):
+        if (is_html or needs_engine) and data["diagramType"] in ("sequence", "erd", "usecase"):
             # A sequence page saves no positions and an ER or use case page no routes: run the engine, as the page does on load
             try:
                 data = run_layout(data["diagramType"], data, timeout=args.timeout, browser=args.browser, tokens=tokens)
@@ -1437,13 +1550,13 @@ def main():
         print(f"======================================================================")
         for line in audit.summary_lines(report):
             print(line)
-        if p.suffix == ".html":
+        if is_html:
             print(f"{'✓' if not external_refs else '✗'} Self-Containment:              {len(external_refs)} external references")
         print(f"======================================================================")
 
         for warning in report["budget_warnings"]:
             print(f"[WARN] {warning}")
-        if p.suffix == ".html" and stamp_reading_guide(html_text) != html_text:
+        if is_html and not is_split and stamp_reading_guide(html_text) != html_text:
             # The JSON was edited by hand: line 2 names the wrong range (Save or --layout rewrites it)
             print("[WARN] The reading guide's line numbers (line 2) no longer match the data block. "
                   "Save the page or re-run --layout to update them.")
@@ -1463,23 +1576,16 @@ def main():
 
     if args.layout:
         in_p = Path(args.layout)
-        if in_p.suffix == ".html":
-            page_text = in_p.read_text(encoding="utf-8")
-            data = extract_data_from_html(page_text)
-        else:
-            page_text = None
-            data = json.loads(in_p.read_text(encoding="utf-8"))
+        data, page_text, _, _ = _load_input(in_p, force_from_disk=args.keep_layout)
         tokens, theme, note = resolve_theme(args.theme, page_text)
         tokens = tokens if theme is not None else None
         if note:
             print(note)
 
         data = normalize_diagram_type(data)
-        if args.keep_layout:   # positions saved in the `layout` map become x / y; the engine only redraws
-            data = from_disk(data["diagramType"], data)
         direction_note = ""
         try:
-            if data["diagramType"] == "flowchart" and "direction" not in data:
+            if not args.keep_layout and data["diagramType"] == "flowchart" and "direction" not in data:
                 laid_out_data, direction_note = choose_flowchart_direction(data, args.timeout, args.browser, tokens)
             else:
                 laid_out_data = run_layout(data["diagramType"], data, timeout=args.timeout, browser=args.browser, tokens=tokens, keep=args.keep_layout)
@@ -1490,14 +1596,20 @@ def main():
         audit = make_audit(laid_out_data, tokens)
         report = audit.verify_collisions()
 
-        out_path = Path(args.output) if args.output else in_p.with_suffix(".html")
-        scaffold_html(laid_out_data, out_path, args.target, tokens, theme)
+        if args.target == "artifact":
+            out_path = Path(args.output) if args.output else in_p.with_suffix("")
+            render_target = scaffold_artifact(laid_out_data, out_path, tokens, theme)
+            external_refs = _artifact_external_refs(render_target)
+        else:
+            out_path = Path(args.output) if args.output else in_p.with_suffix(".html")
+            scaffold_html(laid_out_data, out_path, "file", tokens, theme)
+            external_refs = find_external_refs(out_path.read_text(encoding="utf-8"))
+            render_target = out_path
 
         # Same gates as --verify, so the agent never needs a second audit run.
         failed = False
         for warning in report["budget_warnings"]:
             print(f"[WARN] {warning}")
-        external_refs = find_external_refs(out_path.read_text(encoding="utf-8"))
         if external_refs:
             failed = True
             print("[FAIL] HTML loads external resources (must be fully self-contained):")
@@ -1514,7 +1626,7 @@ def main():
         clean = not failed and not report["budget_warnings"]
         render_code = 0
         if args.screenshot:
-            render_code, render_clean = run_render(out_path, Path(args.screenshot), args.browser)
+            render_code, render_clean = run_render(render_target, Path(args.screenshot), args.browser)
             clean = clean and render_clean
             print("[DONE] Clean. View the PNG once against the visual checklist; if it passes, the diagram is final: "
                   "do not re-word, re-run or re-render." if clean else

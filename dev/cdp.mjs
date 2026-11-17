@@ -1,9 +1,10 @@
 // Minimal Chrome DevTools Protocol driver shared by the dev/e2e_*.mjs tests.
 // Zero dependencies: needs Node >= 22 (built-in WebSocket/fetch) and Chrome/Chromium (Edge cannot be driven the same way).
 import { spawn } from 'node:child_process';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs';
+import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { basename, dirname, extname, join, resolve, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -57,6 +58,43 @@ export async function launch(browser) {
   await send('Page.enable');
   await send('Runtime.enable');
 
+  const MIME = {
+    '.html': 'text/html; charset=utf-8',
+    '.js': 'application/javascript; charset=utf-8',
+    '.mjs': 'application/javascript; charset=utf-8',
+    '.css': 'text/css; charset=utf-8',
+    '.json': 'application/json; charset=utf-8',
+    '.svg': 'image/svg+xml',
+    '.png': 'image/png',
+  };
+  const servers = new Map();
+  async function serveDir(dir) {
+    let entry = servers.get(dir);
+    if (!entry) {
+      const prefix = dir.endsWith(sep) ? dir : dir + sep;
+      const server = createServer((req, res) => {
+        let rel;
+        try { rel = decodeURIComponent((req.url || '/').split('?')[0]).replace(/^\/+/, '') || 'index.html'; }
+        catch { res.writeHead(400); res.end('Bad request'); return; }
+        const target = resolve(dir, rel);
+        if (target !== dir && !target.startsWith(prefix)) { res.writeHead(403); res.end('Forbidden'); return; }
+        if (!existsSync(target) || !statSync(target).isFile()) { res.writeHead(404); res.end('Not found'); return; }
+        res.writeHead(200, {
+          'Content-Type': MIME[extname(target).toLowerCase()] || 'application/octet-stream',
+          'Cache-Control': 'no-store',
+        });
+        res.end(readFileSync(target));
+      });
+      await new Promise((res, rej) => {
+        server.once('error', rej);
+        server.listen(0, '127.0.0.1', res);
+      });
+      entry = { server, port: server.address().port };
+      servers.set(dir, entry);
+    }
+    return entry.port;
+  }
+
   const results = [];
   const api = {
     get errors() { return state.errors; },
@@ -66,14 +104,24 @@ export async function launch(browser) {
     async open(file, query = '') {
       state.errors = [];
       const loaded = new Promise((r) => { state.onLoad = r; });
-      const url = pathToFileURL(file).href + query;
+      const abs = resolve(file);
+      const dir = dirname(abs);
+      const html = readFileSync(abs, 'utf8');
+      const isSplit = /<script\b[^>]*\bsrc="app\.js"/.test(html)
+        || (!html.includes('id="diagram-data"') && existsSync(join(dir, 'diagram.json')));
+      const url = isSplit
+        ? `http://127.0.0.1:${await serveDir(dir)}/${encodeURIComponent(basename(abs))}${query}`
+        : pathToFileURL(file).href + query;
       await send('Page.navigate', { url });
       await loaded;
       // The first load event can belong to the previous page (about:blank): wait for the real one.
-      for (let i = 0; i < 50; i++) {
-        const r = await send('Runtime.evaluate', { expression: `location.href + '|' + document.readyState`, returnByValue: true });
-        const [href, ready] = String(r.result.value).split('|');
-        if (href === url && ready === 'complete') break;
+      for (let i = 0; i < 100; i++) {
+        const r = await send('Runtime.evaluate', {
+          expression: `JSON.stringify([location.href, document.readyState, document.documentElement.dataset.diagramReady || ''])`,
+          returnByValue: true,
+        });
+        const [href, ready, diagramReady] = JSON.parse(r.result.value);
+        if (href === url && ready === 'complete' && (!isSplit || diagramReady === '1')) break;
         await sleep(100);
       }
       await sleep(700);
@@ -150,6 +198,10 @@ export async function launch(browser) {
     async close() {
       try { ws.close(); } catch { /* ignore */ }
       chrome.kill();
+      for (const { server } of servers.values()) {
+        try { server.closeAllConnections?.(); server.close(); } catch { /* ignore */ }
+      }
+      servers.clear();
       await sleep(300);
       try { rmSync(profile, { recursive: true, force: true }); } catch { /* profile may still be locked */ }
     },
