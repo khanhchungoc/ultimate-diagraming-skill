@@ -1,42 +1,60 @@
 # Published claude.ai Artifacts: create, read, update, delete
 
-Applies only when your tools include `Artifact`. A diagram artifact is the same page as the local HTML file, built with `--target artifact`. Never use WebFetch or curl on an artifact link, and never open the saved page whole with a file-read tool: almost all of it is editor code.
+Applies only when your tools include `Artifact`. `--target artifact` builds a folder of split files (`index.html`, `diagram.json`, `app.css`, `app.js`) in scratch so diagram data stays separate from editor code. Never use WebFetch or curl on an artifact link, and never open `app.css`, `app.js`, or a legacy single-file `.html` page whole with a file-read tool.
 
 ## Create
 
-1. Build with `--target artifact` into scratch: `python "<skill-dir>/scripts/layout_engine.py" --layout <scratch.json> --target artifact -o <scratch>/<title-slug>.html`. Never write it into the workspace.
-2. After a clean run, publish with `Artifact`: `file_path` = that HTML, `icon: "chart"`, `capabilities: {artifact: {}, downloads: true}`, and a one-sentence `description`.
-3. Keep the scratch HTML until the conversation ends (an update in this conversation republishes from it). Delete the scratch JSON and PNG.
+1. Build with `--target artifact` into a scratch directory:
+   ```shell
+   python "<skill-dir>/scripts/layout_engine.py" --layout <scratch.json> --target artifact -o <scratch>/<title-slug> --screenshot <scratch.png>
+   ```
+   Never write this directory into the workspace.
+2. After a clean run, publish with `Artifact`:
+   - `file_path`: `<scratch>/<title-slug>/index.html`
+   - `files`: `{"diagram.json": "<scratch>/<title-slug>/diagram.json", "app.css": "<scratch>/<title-slug>/app.css", "app.js": "<scratch>/<title-slug>/app.js"}`
+   - `icon`: `"chart"`
+   - `capabilities`: `{artifact: {}, downloads: true}`
+   - `description`: one sentence describing the diagram
+3. Keep `<scratch>/<title-slug>/` until the conversation ends (updates in this conversation reuse its `index.html`). Delete the scratch authoring JSON and PNG.
 4. Tell the user the link and that it is private until they share it from claude.ai.
 
 ## Read
 
-1. `Artifact` with `action: "read"` and the `url`. It saves the page to a local file and names it.
-2. `python "<skill-dir>/scripts/layout_engine.py" --extract <that file>` prints the diagram JSON. Answer from that; see [reading.md](reading.md).
+1. For split artifacts, call `Artifact` with `action: "read"`, `url`, and `path: "diagram.json"` (just a few KB; never read `app.css` or `app.js`). Answer from that JSON directly, or run `python "<skill-dir>/scripts/layout_engine.py" --extract <diagram.json>` for canonical authoring JSON; see [reading.md](reading.md).
+2. Or call `Artifact` with `action: "read"` and `url` **without** `path`, then run `python "<skill-dir>/scripts/layout_engine.py" --extract <that file>` (required for legacy single-file artifacts; never open a single-file `.html` whole).
 3. If the artifact belongs to someone else, the read returns only a summary and no file: say so, answer from the summary, and offer a new artifact.
 
-## Rebuild with a newer engine and UI (data and positions unchanged)
+## Update in place (same artifact URL)
 
-When only the tool changed, not the diagram: `python "<skill-dir>/scripts/layout_engine.py" --layout <saved page.html> --keep-layout --target artifact -o <scratch>/<title-slug>.html`. Every item keeps the position saved in the page, and the data is carried over as it is; only lines, labels and the editor code are new. Without `--keep-layout`, `--layout` lays everything out again and the user's hand placement is lost. Then publish as in *Update*.
+1. Call `Artifact` with `action: "read"` on `url` **without** `path`. This reads the tiny `index.html` and satisfies the overwrite gate. Reading single files by `path` or listing files (`Artifact` with `action: "list"` and `scope: "files"`) does **not** satisfy the overwrite gate.
+2. Call `Artifact` with `action: "read"` on `url` with `path: "diagram.json"` right before editing so you have the user's latest saved JSON and `layout` map.
+3. **Text, label, color, or attribute edits (no positions changed):** edit `diagram.json` directly while keeping its `layout` map intact (do not run `--layout`). Publish to the same `url` (no `capabilities`) with `file_path: <scratch>/<title-slug>/index.html` (or the `index.html` saved in step 1) and `files: {"diagram.json": "<edited diagram.json>"}` — never reading or uploading `app.css` or `app.js`.
+4. **Structural edits (adding or removing nodes, tables, actors, or edges):** edit `diagram.json`, run:
+   ```shell
+   python "<skill-dir>/scripts/layout_engine.py" --layout <diagram.json> --target artifact -o <scratch>/<title-slug> --screenshot <scratch.png>
+   ```
+   Then publish to the same `url` (no `capabilities`) with `file_path: <scratch>/<title-slug>/index.html` and `files: {"diagram.json": "<scratch>/<title-slug>/diagram.json"}` (never reading or uploading `app.css` or `app.js`). A re-layout resets positions the user dragged by hand; tell them.
 
-## Update
+## Upgrade with a newer engine or UI (data and positions unchanged)
 
-1. `Artifact read` first: it returns the user's latest in-browser Save.
-2. `--extract <saved file> -o <scratch.json>`, edit the JSON, then `--layout <scratch.json> --target artifact -o <scratch>/<title-slug>.html`. A re-layout resets positions the user dragged; tell them.
-3. Publish with `url` = the artifact's URL and no `capabilities`.
+When only the tool changed and you want to update the same artifact `url`:
 
-**Known limit: the overwrite gate.** The `Artifact` tool refuses to publish over a live artifact unless this conversation has published or fully read that version. The gate looks at where the version came from, not at what changed, so even a one-line data edit is refused when:
+1. Call `Artifact` with `action: "read"` on `url` **without** `path` (satisfies the overwrite gate and carries any `#diagram-theme`) and `Artifact` with `action: "read"` on `url` with `path: "diagram.json"`.
+2. Run:
+   ```shell
+   python "<skill-dir>/scripts/layout_engine.py" --layout <diagram.json> --keep-layout --target artifact -o <scratch>/<title-slug>
+   ```
+   Every item keeps its saved positions for every diagram type (including flowcharts), and only the lines, labels, and editor code are rebuilt.
+3. Publish to the same `url` (no `capabilities`) with `file_path: <scratch>/<title-slug>/index.html` and `files: {"app.js": "<scratch>/<title-slug>/app.js", "app.css": "<scratch>/<title-slug>/app.css"}`, omitting `diagram.json` so user edits and positions cannot change.
 
-- the artifact was created in an earlier conversation, or
-- the user pressed Save in the page since this conversation last published it.
+## Legacy single-file artifacts
 
-The refusal names the saved file and asks for every line of it to be read (about 150k tokens for a 350 KB page). Do not do that by default: it usually overflows the context. Instead:
+Old single-file artifacts keep all CSS, JS, and `<script id="diagram-data">` in one ~350 KB HTML page with no separate `diagram.json`. The `Artifact` overwrite gate requires reading every line of that saved file (~150k tokens, which usually overflows context) unless this conversation created it with no in-browser Save since.
 
-1. Say plainly that the update was refused and why.
-2. Publish the rebuilt file as a **new** artifact (no `url`), give the new link, and say the old link still shows the old version.
-3. Offer to delete the old artifact (see Delete).
+Do not read a whole single-file page by default. Instead:
 
-An update made in the same conversation that created the artifact, with no Save in the page in between, is not refused.
+- **Upgrade to split files:** run `python "<skill-dir>/scripts/layout_engine.py" --layout <saved page.html> --keep-layout --target artifact -o <scratch>/<title-slug>` and publish as a **new** artifact (no `url`, following *Create*). Data and saved positions carry over.
+- **Edit content:** run `--extract <saved page.html> -o <scratch.json>`, edit the JSON, build with `--target artifact -o <scratch>/<title-slug>`, and publish as a **new** artifact (no `url`). Explain why the old link could not be updated in place, share the new link, note that the old link still shows the old version, and offer to delete the old artifact.
 
 ## Delete
 
