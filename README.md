@@ -14,7 +14,7 @@ Describe a process, and your AI agent hands back a single HTML file. Open it in 
 - [Diagram types](#diagram-types)
 - [Offline samples](#offline-samples)
 - [Get started](#get-started)
-- [More](#more)
+- [Use your brand](#use-your-brand)
 - [How it compares to Mermaid and draw.io](#how-it-compares-to-mermaid-and-drawio)
 - [Build your own skills](#build-your-own-skills)
 - [Credits and licence](#credits-and-licence)
@@ -25,23 +25,23 @@ Describe a process, and your AI agent hands back a single HTML file. Open it in 
 - 💬 **Your edits and the AI's edits combine.** Tweak the diagram by hand, then tell the AI "add an approval step after review". It picks up from your edited version instead of starting over. This works best as a [claude.ai Artifact](docs/artifacts.md), where **Save** stores your edits straight into the artifact. With a plain HTML file, **Save** works like Save As (see [Save vs Download](#save-vs-download-html)), so you point the AI at the saved file.
 - 🧹 **Always tidy.** The AI checks its own result for overlapping boxes and unreadable labels before showing you. After that, add, move or delete a step and the diagram re-arranges itself and re-routes the arrows. Flip between wide and tall with one button. Long arrows become lettered circles (A → A): hover to see where the flow continues, click to jump there.
 - ⚡ **Fast and cheap.** The AI writes a short description instead of thousands of lines of drawing code, so you wait less and spend fewer tokens ([numbers](#how-it-compares-to-mermaid-and-drawio)).
-- 📦 **Just a file.** Email it, put it in a repo, attach it to a ticket, or open it offline. Optionally [use your brand](docs/brand.md): colours, font and corners, contrast-checked.
+- 📦 **Just a file.** Email it, put it in a repo, attach it to a ticket, or open it offline. Optionally [use your brand](#use-your-brand): colours, font and corners, contrast-checked.
 
 ## Diagram types
 
 | Type | Shows | Status |
 |---|---|---|
-| **Flowchart** | Process steps and decisions in swimlanes | ✅ Available |
-| **Sequence** | Who talks to whom, over time | ✅ Available |
-| **ERD** | Database tables, keys and relationships | ✅ Available |
-| **Use case** | Actors, goals and system boundaries | ✅ Available |
-| **BPMN** | Pools, lanes, events and gateways | 🔜 Next |
-| **State machine** | States and transitions | 🔜 Next |
-| **C4** | System context, containers and components | 💡 Later |
-| **Mind map** | Ideas branching from a central topic | 💡 Later |
-| **Gantt chart** | Tasks on a timeline | 💡 Later |
+| **Flowchart** | Process steps and decisions in swimlanes | ✅ |
+| **Sequence** | Who talks to whom, over time | ✅ |
+| **ERD** | Database tables, keys and relationships | ✅ |
+| **Use case** | Actors, goals and system boundaries | ✅ |
+| **BPMN** | Pools, lanes, events and gateways | 🔜 |
+| **State machine** | States and transitions | 🔜 |
+| **C4** | System context, containers and components | 🕐 |
+| **Mind map** | Ideas branching from a central topic | 🕐  |
+| **Gantt chart** | Tasks on a timeline | 🕐 |
 
-✅ available, 🔜 next, 💡 later. Order may change. Also on the list: class, component and org chart diagrams; export to SVG, PNG, PDF; import from Mermaid; export to draw.io and BPMN. Flowchart, sequence and ER diagrams can also be copied as Mermaid.
+*Order may change.*
 
 ### Flowchart
 
@@ -135,11 +135,25 @@ Or ask your AI agent to install it for you: *"Install the ultimate-diagram skill
 - **Opened as a claude.ai Artifact** (Claude Code with Artifact output): **Save** stores your edits directly in the artifact as a new version, so your agent's next change starts from them. If you only have view access (for example the live demos), use **Download .html** to get your own editable copy as a file. See [Artifacts](docs/artifacts.md).
 - **Opened as a regular HTML file:** the browser cannot write into the file you opened, so the first **Save** works like Save As: you choose where the edited copy goes. To have your agent continue from your edits, tell it which saved file to use.
 
-## More
+## Use your brand
 
-- [Use your brand](docs/brand.md): diagrams in your colours, font and corner style, contrast-checked.
-- [Diagrams as claude.ai Artifacts](docs/artifacts.md): publish privately, share a link, keep editing.
-- [Ask your AI about a diagram](docs/reading-diagrams.md): summarize or query a saved diagram without reading the editor code.
+<details>
+<summary>Show how</summary>
+
+Give the AI a website address or a brand guide (PDF, image or CSS file) and ask for diagrams in that look. It extracts colours, font, corner style and icon weight, checks contrast in light and dark mode, and shows you the report and three preview images. Nothing is kept until you accept it.
+
+Text stays readable: the colours are checked against WCAG 2.2 AA contrast in light and dark mode, and any that fall short are nudged until they pass.
+
+Example prompts:
+
+- *"Use the brand from https://example.com and draw a swimlane flowchart of our loan approval process."*
+- *"Here is our brand guide (brand.pdf). Make diagrams in this style, then draw a sequence diagram of the login flow."*
+
+Once accepted, the theme is saved as `.ultimate-diagram/theme.json` in your project and every later diagram there uses it; diagrams you already saved pick it up the next time they are re-laid out. To switch back, delete that file.
+
+For contributors: [references/theme.md](references/theme.md).
+
+</details>
 
 ## How it compares to Mermaid and draw.io
 
