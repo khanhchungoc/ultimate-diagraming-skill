@@ -17,7 +17,7 @@ try {
   await t.open(page);
   // A step without a note: a task if there is one, else any node
   const nodeId = await t.ev(`(document.querySelector('.flow-node.type-task:not(:has(.note-badge))')
-    || document.querySelector('.flow-node:not(:has(.note-badge))')).dataset.nodeId`);
+    || document.querySelector('.flow-node:not(.type-connector):not(:has(.note-badge))')).dataset.nodeId`);
   const N = `.flow-node[data-node-id="${nodeId}"]`;
   const card = `document.querySelector('.note[data-nodes~="${nodeId}"]')`;
   const visible = (expr) => `(() => { const el = ${expr}; return !!el && getComputedStyle(el).display !== 'none' && el.getBoundingClientRect().width > 0; })()`;
