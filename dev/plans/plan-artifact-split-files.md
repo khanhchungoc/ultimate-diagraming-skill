@@ -85,7 +85,11 @@ Artifact target output, instead of one page:
 
 ## Open questions
 
-- **Public sharing (resolved).** Tested by the owner, signed in, after setting the link to "Anyone with the link": the files-form save succeeded (618 ms, page kept running, version `1794891643-d3c4`). The platform note that the form is disabled on public artifacts did not hold for the owner. Not tested: an invited editor, and a signed-out viewer (who has no Save by design). So no whole-page fallback is needed for the owner; keep the `capability_disabled` message for any case where it is rejected.
 - **Positions on agent edits.** `--extract` drops positions, and a hand-edited JSON with a new node triggers a full re-layout in `routeDiagram`. A `--with-layout` extract and a "place only the new items" mode would make data edits keep the user's arrangement.
-- **Reload on Save.** The files form keeps the saving view running, but the page renders from the data it holds; check that undo history and selection survive a Save.
-- **One more file in the gate (resolved).** The tool wants `index.html` as `file_path` on every publish. A fresh session succeeded after reading the url (page) and `diagram.json` only.
+- **Reload on Save.** The files form keeps the saving view running, but the page renders from the data it holds; check that undo history and selection survive a Save (in the real editor, during the build).
+- **Invited editor.** The files-form save is untested for an invited editor who is not the owner. Test once the split build exists.
+
+## Resolved
+
+- **Public sharing.** Tested by the owner, signed in, after setting the link to "Anyone with the link": the files-form save succeeded (618 ms, page kept running, version `1794891643-d3c4`). The platform note that the form is disabled on public artifacts did not hold for the owner. A signed-out viewer has no Save by design. So no whole-page fallback is needed for the owner; keep the `capability_disabled` message for any case where it is rejected.
+- **One more file in the gate.** The tool wants `index.html` as `file_path` on every publish. A fresh session succeeded after reading the url (page) and `diagram.json` only.
