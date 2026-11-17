@@ -86,7 +86,24 @@ def main() -> int:
           p_100 == "[PASS] Layout clean." and "audit score 85" in p_85 and "B" not in p_85.replace("PASS", ""),
           f"p_100={p_100!r} p_85={p_85!r}")
 
-    print(f"{5 - failed}/5 cases passed")
+    # 5. A 0-crossing multi-lane perimeter wrap (>= 2 * LONG_ARROW_COLS and >= 3 bends) is flagged;
+    #    a straight 12-col 0-bend arrow (even across lanes) is not
+    a5 = _audit(
+        [{"id": "n1", "laneId": "l1", "type": "task", "label": "Start", "x": 56, "y": 48},
+         {"id": "n2", "laneId": "l2", "type": "task", "label": "End", "x": 56 + 12 * 200, "y": 240}],
+        [{"id": "e_wrap", "from": "n1", "to": "n2", "label": ""},
+         {"id": "e_straight", "from": "n1", "to": "n2", "label": ""}],
+        lanes=[{"id": "l1", "name": "A", "icon": "user"}, {"id": "l2", "name": "B", "icon": "cpu"}],
+    )
+    polys5 = {
+        "e_wrap": [(128.0, 48.0), (128.0, 16.0), (2600.0, 16.0), (2600.0, 320.0), (2550.0, 320.0), (2550.0, 272.0)],
+        "e_straight": [(200.0, 80.0), (2456.0, 272.0)],
+    }
+    flagged5 = {e["id"] for e, _, _ in a5._long_arrows(polys5)}
+    check("0-crossing multi-lane perimeter wrap (12+ cols, 4 bends) is flagged while 0-bend is not",
+          flagged5 == {"e_wrap"}, f"flagged5={flagged5}")
+
+    print(f"{6 - failed}/6 cases passed")
     return 2 if failed else 0
 
 

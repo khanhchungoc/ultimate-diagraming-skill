@@ -482,8 +482,9 @@ class FlowchartAudit:
 
     def _long_arrows(self, polylines: Dict[str, List[Tuple[float, float]]]) -> List[Tuple[Dict[str, Any], float, int]]:
         """Arrows hard to follow (rule 11): routed at least LONG_ARROW_COLS column widths long and crossing at least
-        LONG_ARROW_MIN_CROSSINGS other arrows, or crossing one with LONG_ARROW_MIN_BENDS bends or more. Most crossings first, then longest, as (edge, length in columns,
-        crossings). Arrows into or out of a connector are already split."""
+        LONG_ARROW_MIN_CROSSINGS other arrows, crossing one with LONG_ARROW_MIN_BENDS bends or more, or wrapping
+        across lanes for at least twice LONG_ARROW_COLS column widths with LONG_ARROW_MIN_BENDS bends or more.
+        Most crossings first, then longest, as (edge, length in columns, crossings). Arrows into or out of a connector are already split."""
         candidates = []
         for e in self.edges:
             pts = polylines.get(e["id"])
@@ -501,7 +502,10 @@ class FlowchartAudit:
             candidates.append((e, cols, crossings))
         found = [item for item in candidates
                  if item[2] >= LONG_ARROW_MIN_CROSSINGS
-                 or (item[2] and len(polylines[item[0]["id"]]) - 2 >= LONG_ARROW_MIN_BENDS)]
+                 or (item[2] and len(polylines[item[0]["id"]]) - 2 >= LONG_ARROW_MIN_BENDS)
+                 or (item[1] >= LONG_ARROW_COLS * 2
+                     and len(polylines[item[0]["id"]]) - 2 >= LONG_ARROW_MIN_BENDS
+                     and self.node_map[item[0]["from"]].get("laneId") != self.node_map[item[0]["to"]].get("laneId"))]
         found.sort(key=lambda f: (-f[2], -f[1]))
         return found
 

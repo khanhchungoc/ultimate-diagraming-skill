@@ -204,13 +204,13 @@
           return xs;
         };
 
-        const barycenter = (id, ranks) => {
+        const barycenter = (id, ranks, sub) => {
           const preds = revAdj[id] || [];
           if (!preds.length) return 0;
           let sum = 0, cnt = 0;
           preds.forEach(p => {
             if (!nodeMap[p]) return;
-            sum += (laneIdx[nodeMap[p].laneId] || 0) * 100 + (ranks[p] || 0);
+            sum += (laneIdx[nodeMap[p].laneId] || 0) * 100 + (ranks[p] || 0) + ((sub && sub[p]) || 0) * 0.01;
             cnt += 1;
           });
           return sum / preds.length;
@@ -235,9 +235,10 @@
             if (!groups.has(k)) groups.set(k, { laneId: n.laneId, r, list: [] });
             groups.get(k).list.push(n);
           });
-          groups.forEach(g => {
+          const sub = {};
+          [...groups.values()].sort((a, b) => a.r - b.r).forEach(g => {
             if (g.list.length > 1) {
-              const bc = new Map(g.list.map(n => [n.id, barycenter(n.id, ranks)]));
+              const bc = new Map(g.list.map(n => [n.id, barycenter(n.id, ranks, sub)]));
               // Ties (typically branches of one decision) go by where each node's arrows lead: a node whose
               // successors sit in lanes above (or that has none) takes the upper row, one heading to a lane below
               // the lower row, so its arrow leaves toward its target instead of wrapping around its sibling
@@ -245,11 +246,10 @@
               g.list.sort((a, b) => (Math.abs(bc.get(a.id) - bc.get(b.id)) > 1e-9
                 ? bc.get(a.id) - bc.get(b.id) : pl.get(a.id) - pl.get(b.id)));
             }
+            g.list.forEach((n, i) => { sub[n.id] = i; });
           });
           const X = {};
           nodes.forEach(n => { X[n.id] = LE.START_X + (xs ? xs[n.id] : (ranks[n.id] || 0) * LE.COL_WIDTH); });
-          const sub = {};
-          groups.forEach(g => g.list.forEach((n, i) => { sub[n.id] = i; }));
 
           // One row per lane unless the lane holds a branch. Nodes sharing a column are stacked only when they are
           // branches of the same parent (a fork reads as one); any other node moves right into a free row-0 slot,
