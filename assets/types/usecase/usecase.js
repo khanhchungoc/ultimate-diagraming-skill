@@ -1419,11 +1419,12 @@
           LEVELS.forEach((lv) => bar.appendChild(abButton('level', `<span>${LEVEL_NAME[lv]}</span>`, `Level: ${lv === 'user' ? 'user goal' : lv}`, (o.level || 'user') === lv, lv)));
         }
         bar.appendChild(abSep());
-        bar.appendChild(abButton('abstract', '<span><i>A</i></span>', 'Abstract: the name is shown in italics', o.abstract === true));
         if (!isActor) bar.appendChild(abButton('point', `${ui.icon('plus', { size: 'sm' })}<span>Point</span>`, 'Add an extension point'));
-        const b = abButton('parent', `<span>Kind of</span>${ui.icon('chevron-down', { size: 'xs', bold: true })}`, 'Make this a specialisation of another (generalization)');
-        b.dataset.menu = '';
-        bar.appendChild(b);
+        if (!isActor) {   // an actor is made a kind of another by dragging its port onto it; on a use case that drag means include
+          const b = abButton('parent', `<span>Kind of</span>${ui.icon('chevron-down', { size: 'xs', bold: true })}`, 'Make this a specialisation of another (generalization)');
+          b.dataset.menu = '';
+          bar.appendChild(b);
+        }
         bar.appendChild(abButton('note', ui.icon('note'), 'Add a note (N)'));
         bar.appendChild(abButton('delete', ui.icon('trash'), 'Delete (and its lines)', undefined, undefined, 'is-danger'));
         bar.appendChild(abBreak());
