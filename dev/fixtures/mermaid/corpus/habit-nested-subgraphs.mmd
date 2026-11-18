@@ -1,0 +1,10 @@
+flowchart LR
+  subgraph outer["Operations"]
+    direction TB
+    subgraph inner["Warehouse"]
+      P[Pick] --> Q[Pack]
+    end
+    R[Dispatch]
+  end
+  Q --> R
+  S[Customer] --> P

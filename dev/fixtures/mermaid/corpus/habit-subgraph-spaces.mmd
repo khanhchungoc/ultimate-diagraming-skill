@@ -1,0 +1,9 @@
+flowchart TB
+  subgraph Hiring Manager
+    A[Raise request] --> B[Approve ad]
+  end
+  subgraph Human Resources
+    C[Publish ad]
+    D[Screen CVs]
+  end
+  B --> C --> D

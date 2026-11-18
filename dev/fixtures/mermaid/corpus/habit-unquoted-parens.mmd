@@ -1,0 +1,4 @@
+flowchart TD
+  A[Check stock (fast path)] --> B{In stock (yes or no)?}
+  B -->|Yes| C[Pick items (warehouse)]
+  B -->|No| D[Backorder (supplier)]

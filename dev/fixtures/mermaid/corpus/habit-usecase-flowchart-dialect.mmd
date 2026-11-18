@@ -1,0 +1,28 @@
+%% @type usecase
+%% @colorKey 1 Ordering
+%% @refs checkout FR-4, FR-5
+%% @points checkout Payment, Shipping
+flowchart LR
+  customer["Customer"]
+  admin["Admin"]
+  psp["Payment gateway"]:::system
+  nightly["Nightly batch"]:::time
+  subgraph shop["Storefront"]
+    browse(["Browse catalogue"]):::c1
+    checkout(["Check out"]):::c1
+    pay(["Take payment"]):::subfunction
+    login(["Authenticate"])
+    voucher(["Apply voucher"])
+    manage(["Manage orders"])
+  end
+  admin -->|is a| customer
+  customer --- browse
+  customer --> checkout
+  admin --- manage
+  checkout -.->|include| pay
+  checkout -.->|include| login
+  voucher -.->|"extend (Payment): customer has a code"| checkout
+  pay --- psp
+  nightly --> manage
+  class manage abstract
+  note1>"Guest checkout up to 200 EUR<br>(BR-3)"] -.- checkout

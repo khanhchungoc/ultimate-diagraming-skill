@@ -1,0 +1,5 @@
+%% Order flow written in a hurry
+graph LR;
+  A[Order] --> B[Pay]; B --> C[Ship];
+  %% a comment between statements
+  C --> D[Deliver]; D --> E[Close]

@@ -1,0 +1,12 @@
+flowchart TD
+  A[Receive claim] --> B{Complete?}
+  B -->|Yes| C[Assess]
+  B -->|No| D[Ask for documents]
+  D --> B
+  C --> E([Done])
+  style A fill:#f9f,stroke:#333,stroke-width:2px
+  style C fill:#bbf
+  linkStyle 0 stroke:#f00,stroke-width:3px
+  linkStyle 1,2 stroke:#0a0
+  click A "https://example.com/claims" "Open claims"
+  click C href "https://example.com/assess"
