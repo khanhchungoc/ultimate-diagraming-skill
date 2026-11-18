@@ -278,3 +278,41 @@ Fixed up front so the harness, the flowchart mapping and the use case mapping ca
 2. **Validity**: every written `.mmd` passes `mermaid.parse` (Mermaid 11.17.2, a devDependency, loaded from `node_modules` into headless Chrome through `dev/cdp.mjs`).
 3. **Leniency**: every `dev/fixtures/mermaid/corpus/*.mmd` of a flowchart-family type imports without throwing. Use case files are the ones with `%% @type usecase`. Then a `--layout` dry run produces no `[ERROR]`; that last step only once Phase 4 exists, so it is skipped with a notice until then.
 4. Prints `[PASS]`/`[FAIL]` per case and exits 1 on any failure, like the other `dev/check_*.py`.
+
+## Status and remaining work (2026-11-18)
+
+Done on `ccr-c18dbf2f-2xj17k`: Phases 0–3 (readers, writers, harness), the Phase 4 CLI (`--layout x.mmd`, `--extract` → Mermaid with `--json` for the old output, `--keep-from`, automatic lane icons from `assets/icons/lanes.json`) and the Phase 4 docs (Mermaid `SKILL.md` and references). `node dev/check_mermaid.mjs --browser <chrome>` passes 222 checks; `dev/test_cli_mermaid.py`, `dev/check_golden.py`, `dev/check_extract.py`, `dev/check_artifact_shape.py`, `dev/check_tokens.py` and the audit tests pass. Phase 5 (page) status: see the last item below.
+
+### Decisions still owed by the user
+
+**Docs (Phase 4):**
+- D1. Reading targets are missed by about 4 KB per type (after: flowchart 24.5 KB, sequence 15.3, ERD 17.5, use case 17.5; targets 20, 11, 14, 14). The gap is `SKILL.md` (9.4 KB). Option: move Output choice, Artifact output, brand and Final Report into on-demand reference files.
+- D2. Every local update and artifact update now uses `--layout x.mmd --keep-from …`, so a structural edit keeps positions when ids are unchanged (before: it always re-laid out).
+- D3. The artifact update steps merge the text-only and structural paths into one (extract, edit `.mmd`, `--layout --keep-from`, publish `index.html` and `diagram.json`). Check that the stored theme is found next to the `--keep-from` `diagram.json` (the CLI keeps the old page's stored theme).
+- D4. Legacy single-file "Edit content" now uses `--keep-from <saved page.html>` (before: a fresh layout).
+- D5. "Upgrade with a newer engine" still uses `--layout <diagram.json> --keep-layout` (JSON input, old-files case). Confirm.
+- D6. Sequence lifespans are documented as `create`/`destroy`, only where the source says a participant starts later or ends earlier.
+- D7. New author-facing conventions: `rect transparent` for an uncoloured phase; `box <colour> <label>` with `%% @color <slot>`; always quote labels, `;` as `#59;`, `#` as `#35;`.
+- D8. The separate phase-lanes flowchart example is gone; rule 7 describes phase lanes in one parenthetical.
+- D10. `README.md` and `dev/architecture.md` still describe JSON authoring; update them.
+- The writing-rules review removed or merged 27 rules (flowchart 1–10, sequence 11–15, ERD 16–23, use case 24–27): see the docs commit `39e7e5e` message and the diff of `references/types/*.md`; the user may reject any.
+
+**CLI (Phase 4):**
+- C1. Mermaid conversion without Node uses a Chrome DevTools session. The existing layout fallback without Node (`engine_runner._via_browser`, one-shot `--dump-dom`) hangs in sandboxes, so a Chrome-only machine converts but cannot lay out. Proposed: switch `_via_browser` to the same DevTools session.
+- C2. `--no-sandbox` is added to `_via_browser` when running as root (as `measure_font.py` does).
+- C3. A flowchart lane's colour lives in the page's layout map, so `--extract --json` drops it; the Mermaid output merges it back from the model so extract → edit → layout keeps lane colours. Alternative: make `authoring_json` keep it (changes `--json`).
+- C4. Sequence `--keep-from` compares participant ids plus the message count (message ids are positional).
+- C5. Lane icon picking goes word by word through the lane name, then the table in order ("Warehouse Team" → `truck`); stop words and a plural `s` are ignored; a used icon falls to the next match, else the next unused icon.
+- C6. Automatic icons are skipped under `--keep-layout` but applied under `--keep-from`.
+- C7. `--keep-layout` with Mermaid input, and `--keep-from` with JSON input, stop with an `[ERROR]` and a hint.
+- C8. `--extract` takes the palette from `--theme`, else the page's stored theme, else the project theme, else the default.
+- C9. Follow-ups in Phase 1 files: the use case writer emits `classDef` lines that its own reader then reports as ignored (`[INFO]` on every re-read); the flowchart writer emits `%% @schemaVersion 1` in extracts; the use case reader's lines lack the `[INFO]`/`[WARN]` prefix (the CLI adds it).
+
+### Work still to do
+
+1. Phase 5 page work (lossless Copy as Mermaid on all types, Paste/Import Mermaid, flowchart lays out unplaced steps on load): in progress at the time of writing on branch `worktree-agent-a67c610f81937e1c9` (worktree `.claude/worktrees/agent-a67c610f81937e1c9`); merge it, run the e2e tests, and list its differences for the user.
+2. Settle the decisions above, then apply them.
+3. C9 follow-ups (small).
+4. `scripts/check_env.py` still lists `references/examples/*.json` as required files; the docs no longer read them (dev scripts still do). Decide whether the examples stay as test data under `dev/` or as shipped files.
+5. Re-run the skill-vs-Mermaid benchmark (`dev/bench/`, Sonnet sub-agents per arm, same four briefs) and record the result in `plan-speed-cost.md`; target: authored source ≤ 1.5× plain Mermaid, agent time within 10% of the Mermaid arm.
+6. Merge to `main` once the user approves (version bump: this changes the agent-facing format, so MINOR at least, by hand per `dev/versioning.md`).
