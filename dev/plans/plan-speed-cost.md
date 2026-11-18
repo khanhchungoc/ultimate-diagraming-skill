@@ -86,3 +86,32 @@ The skill wins on notation, but large diagrams open at Fit (~25%) where nothing 
 ## Re-running the benchmark
 
 Give each brief to a fresh sub-agent per arm (same prompt shape as above, outputs to one folder as `skill-<type>.html` / `mermaid-<type>.html`), then `NODE_PATH=<playwright node_modules> node dev/bench/measure.js <out-dir> <shots-dir> <mermaid.min.js>`. Record the sub-agent token counts, tool calls and duration from the task notifications.
+
+## Re-run after Mermaid authoring (2026-11-18, `ccr-c18dbf2f-2xj17k`)
+
+Run with fresh `inherit`-model subagents (this environment) and rendered at 1600×1000 in headless Chrome via `dev/cdp.mjs` (same checks and local `mermaid.min.js` route as `dev/bench/measure.js`; `playwright` is not installed).
+
+| Type | Arm | Agent tokens (in / out) | Tool calls | Agent time | Engine runs | Authored source | Last line / Render |
+|---|---|---|---|---|---|---|---|
+| flowchart | skill | 40.7k (32.1k / 8.6k) | 7 | 57 s | 1 | 6,246 B `.mmd` | `[DONE]`, rendered (1,368 ms) |
+| flowchart | mermaid | 26.2k (20.9k / 5.3k) | 4 | 43 s | – | 5,135 B | rendered (1,120 ms) |
+| sequence | skill | 37.0k (29.4k / 7.7k) | 7 | 71 s | 1 | 5,421 B `.mmd` | `[DONE]`, rendered (859 ms) |
+| sequence | mermaid | 27.2k (22.6k / 4.6k) | 5 | 35 s | – | 5,729 B | parse error (`rendered: false`) |
+| erd | skill | 41.4k (32.9k / 8.5k) | 8 | 58 s | 2 | 8,019 B `.mmd` | `[DONE]`, score 0/100, rendered (1,321 ms) |
+| erd | mermaid | 32.3k (24.2k / 8.2k) | 4 | 41 s | – | 9,465 B | rendered (1,659 ms) |
+| usecase | skill | 35.2k (27.8k / 7.4k) | 7 | 51 s | 1 | 5,799 B `.mmd` | `[DONE]`, score 4/100, rendered (1,332 ms) |
+| usecase | mermaid | 26.9k (21.3k / 5.6k) | 4 | 36 s | – | 4,984 B | rendered (1,222 ms) |
+| **mean** | **skill** | **38.6k** | **7.3** | **59 s** | | **6.4 KB (6,371 B)** | |
+| **mean** | **mermaid** | **28.2k** | **4.3** | **39 s** | | **6.3 KB (6,328 B)** | |
+
+- **Authored source**: **1.01×** plain Mermaid (6,371 B vs 6,328 B, down from 3.3× / 14.3 KB JSON; meets the ≤ 1.5× target).
+- **Agent time**: 59 s vs 39 s (down from 70 s; includes reading `SKILL.md` + type reference and running `layout_engine.py`, so it remains above the 10% gap target against the unverified Mermaid arm).
+
+### Quality (blind judge, readability / coverage / notation, out of 10)
+
+| Type | Skill | Mermaid | Winner |
+|---|---|---|---|
+| flowchart | 8 / 9 / 9 | 3 / 4 / 6 | skill (full 10-lane swimlane layout vs clipped 3-node fragment) |
+| sequence | 8 / 7 / 9 | 0 / 0 / 0 | skill (clean UML sequence vs Mermaid syntax error) |
+| erd | 8 / 9 / 9 | 4 / 3 / 8 | skill (full 49-table domain-colored overview vs 2-table clipped viewport) |
+| usecase | 7 / 9 / 9 | 1 / 1 / 3 | skill (all 3 systems, actors and include/extend vs nearly blank clipped canvas) |
