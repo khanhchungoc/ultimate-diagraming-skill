@@ -1248,7 +1248,7 @@ sys.stdout.write(format_json(out))`;
   await t.ev(`window.__clip = []`);
   await exportClick('[data-copy="mermaid"]');
   const mm = JSON.parse(await t.ev(`JSON.stringify(window.__clip)`))[0] || '';
-  t.check('overview: Copy as Mermaid lists every column of every table', mm.startsWith('erDiagram') && big.entities.every((e) => e.columns.every((c) => new RegExp(`^        \\S+ ${c.name}\\b`, 'm').test(mm))) && (mm.match(/^        /gm) || []).length === colTotal, `${(mm.match(/^        /gm) || []).length} ${colTotal}`);
+  t.check('overview: Copy as Mermaid lists every column of every table', /^erDiagram$/m.test(mm) && big.entities.every((e) => e.columns.every((c) => new RegExp(`^    \\S+ ${c.name}\\b`, 'm').test(mm))) && (mm.match(/^    \S/gm) || []).length === colTotal, `${(mm.match(/^    \S/gm) || []).length} ${colTotal}`);
   t.check('overview: exporting leaves the overview on (the page is unchanged)', await inOverview() && (await count('.erd-expand-card')) <= 1);
   await t.send('Page.removeScriptToEvaluateOnNewDocument', { identifier: clipStub });
   }

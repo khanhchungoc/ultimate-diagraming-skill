@@ -1890,6 +1890,8 @@
         defaultTitle: 'Interactive Use Case Diagram',
         toDisk,
         fromDisk,
+        toMermaid,   // the writer and reader in mermaid.js; the shell hands them the saved form of the data
+        fromMermaid,
         contentEl: canvas,
         report: { node: '.uc-actor, .uc-case', label: '.uc-label', labelText: '.uc-label-text', nodeText: '.uc-name, .uc-actor-name' },
         render,

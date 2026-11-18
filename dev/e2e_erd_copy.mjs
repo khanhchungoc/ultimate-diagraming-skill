@@ -27,8 +27,9 @@ try {
     await t.clickOn('[data-copy="mermaid"]');
   };
   const NAME = String.raw`(?:[A-Za-z_][A-Za-z0-9_-]*|"[^"]+")`;
-  const relRe = new RegExp(String.raw`^    (${NAME}) (\|\||\|o|\}\||\}o)(--|\.\.)(\|\||o\||\|\{|o\{) (${NAME}) : ("[^"]*"|[A-Za-z0-9_-]+)$`);
-  const attrRe = /^        [A-Za-z_][A-Za-z0-9_\-\[\]()]* [A-Za-z_][A-Za-z0-9_\-\[\]()]*( (PK|FK|UK)(, (PK|FK|UK))*)?( "[^"]*")?$/;
+  const relRe = new RegExp(String.raw`^  (${NAME}) (\|\||\|o|\}\||\}o)(--|\.\.)(\|\||o\||\|\{|o\{) (${NAME}) : ("[^"]*"|[A-Za-z0-9_-]+)$`);
+  // The writer's attribute line: type (spaces as -, ? for nullable, _ for none) then name, keys, comment
+  const attrRe = /^    \S+ \S+( (PK|FK|UK)(, (PK|FK|UK))*)?( "[^"]*")?$/;
 
   for (const [name, file] of [['example', page], ['saas-billing', large]]) {
     await t.open(file);
@@ -43,18 +44,18 @@ try {
     const status = await t.ev(`document.getElementById('save-status').textContent`);
     const text = clip[0] || '';
     const lines = text.split('\n');
-    t.check(`${name}: one write of text starting with erDiagram, and the "Copied as Mermaid" badge`, clip.length === 1 && lines[0] === 'erDiagram' && status === 'Copied as Mermaid', `${clip.length} ${status}`);
+    t.check(`${name}: one write of text with the erDiagram header, and the "Copied as Mermaid" badge`, clip.length === 1 && lines.includes('erDiagram') && status === 'Copied as Mermaid', `${clip.length} ${status}`);
     t.check(`${name}: the menu closed`, await t.ev(`document.getElementById('export-menu').hidden`));
-    const rels = lines.filter((l) => /^    \S.* : /.test(l));
+    const rels = lines.filter((l) => /^  \S.* : /.test(l));
     const badRel = rels.find((l) => !relRe.test(l));
     t.check(`${name}: ${model.relationships.length} relationship lines, all in Mermaid syntax`, rels.length === model.relationships.length && !badRel, badRel);
     t.check(`${name}: identifying relationships use --, others ..`,
       rels.filter((l) => l.includes('--')).length === model.relationships.filter((r) => r.identifying === true).length);
-    const opens = lines.filter((l) => /^    \S.* \{$/.test(l)).length;
-    const cols = lines.filter((l) => l.startsWith('        ')).length;
-    const badAttr = lines.find((l) => l.startsWith('        ') && !attrRe.test(l));
+    const opens = lines.filter((l) => /^  \S.* \{$/.test(l)).length;
+    const cols = lines.filter((l) => /^    \S/.test(l)).length;
+    const badAttr = lines.find((l) => /^    \S/.test(l) && !attrRe.test(l));
     t.check(`${name}: ${model.entities.length} entity blocks, ${model.entities.reduce((n, e) => n + e.columns.length, 0)} attribute lines, all well formed`,
-      opens === model.entities.length && lines.filter((l) => l === '    }').length === opens
+      opens === model.entities.length && lines.filter((l) => l === '  }').length === opens
       && cols === model.entities.reduce((n, e) => n + e.columns.length, 0) && !badAttr, badAttr);
     t.check(`${name}: copying changed nothing in the document`, !(await t.ev(`/unsaved/i.test(document.getElementById('save-status').textContent)`)) && t.errors.length === 0, t.errors.join(' | '));
     if (dump) writeFileSync(`${dump}-${name}.mmd`, text);

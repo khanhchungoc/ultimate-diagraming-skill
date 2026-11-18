@@ -65,6 +65,8 @@
           <button type="button" role="menuitem" data-copy="mermaid">Mermaid</button>
           <button type="button" role="menuitem" data-copy="svg">SVG (text)</button>
           <button type="button" role="menuitem" data-copy="png">PNG image (1.5x)</button>
+          <div class="menu-label" role="presentation" data-import-label>Import</div>
+          <button type="button" role="menuitem" data-import="mermaid">Mermaid text&hellip;</button>
         </div>
       </div>
       <button id="btn-save" class="btn btn-primary" title="Save directly into this HTML file (Ctrl+S)" aria-label="Save">
@@ -142,6 +144,7 @@
 //@engine-begin
 {{ENGINE_JS}}
 //@engine-end
+{{MERMAID_JS}}
 {{TYPE_JS}}
       loadInitialData();
     })();

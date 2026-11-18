@@ -4709,62 +4709,10 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         delete d.layout;
         [...(d.lanes || []), ...(d.nodes || [])].forEach(o => Object.assign(o, layout[o.id] || {}));
         slotColors(d, 'lanes');
+        // A step without a position (added by hand to the JSON, or pasted from Mermaid) would sit on top of another:
+        // when any is missing the whole diagram is laid out, as ERD and use case pages do. Placed pages load as saved.
+        if ((d.nodes || []).some(n => !Number.isFinite(n.x) || !Number.isFinite(n.y))) layoutDiagram(d);
         return d;
-      }
-
-      // --- MERMAID (flowchart) ---
-      // Nodes with their shapes, labelled edges, lanes as subgraphs and the direction. A connector pair becomes the
-      // direct edge it stands for. Not representable: notes, lane icons and colours, feedback routing, positions.
-      // document and delay have no classic Mermaid shape and stay plain boxes.
-      function toMermaid() {
-        const SHAPE = {
-          start: ['([', '])'], end: ['([', '])'], decision: ['{', '}'], subprocess: ['[[', ']]'], database: ['[(', ')]'],
-          io: ['[/', '/]'], task: ['[', ']'], document: ['[', ']'], delay: ['[', ']'],
-        };
-        const text = (s) => String(s == null ? '' : s).replace(/"/g, '#quot;').replace(/\r?\n/g, '<br/>');
-        const used = new Set(['end', 'graph', 'subgraph', 'flowchart', 'style', 'class', 'click', 'default']);
-        const idOf = {};
-        const mint = (raw) => {
-          let id = String(raw).replace(/[^A-Za-z0-9_]+/g, '_') || 'n';
-          while (used.has(id.toLowerCase())) id += '_';
-          used.add(id.toLowerCase());
-          return id;
-        };
-        const nodes = chartData.nodes, edges = chartData.edges;
-        const conn = new Set(nodes.filter((n) => n.type === 'connector').map((n) => n.id));
-        const real = nodes.filter((n) => !conn.has(n.id));
-        real.forEach((n) => { idOf[n.id] = mint(n.id); });
-        // A connector letter joins the edge into its "in" half to the edge out of its "out" half
-        const into = {}, outOf = {};
-        edges.forEach((e) => {
-          if (conn.has(e.to)) into[nodeById(e.to).label] = e;
-          if (conn.has(e.from)) outOf[nodeById(e.from).label] = e;
-        });
-        const joined = [];
-        edges.forEach((e) => {
-          if (conn.has(e.from) || conn.has(e.to)) return;
-          joined.push(e);
-        });
-        Object.keys(into).forEach((k) => {
-          if (outOf[k] && !conn.has(into[k].from) && !conn.has(outOf[k].to)) joined.push({ from: into[k].from, to: outOf[k].to, label: into[k].label || outOf[k].label });
-        });
-        const decl = (n) => { const s = SHAPE[n.type] || SHAPE.task; return `${idOf[n.id]}${s[0]}"${text(n.label)}"${s[1]}`; };
-        const lines = [`flowchart ${chartData.direction === 'TB' ? 'TB' : 'LR'}`];
-        const lanes = chartData.swimlanes === false ? [] : chartData.lanes;
-        const laned = new Set();
-        lanes.forEach((l) => {
-          const mine = real.filter((n) => n.laneId === l.id);
-          if (!mine.length) return;
-          lines.push(`    subgraph ${mint(l.id)}["${text(l.name)}"]`);
-          mine.forEach((n) => { lines.push('        ' + decl(n)); laned.add(n.id); });
-          lines.push('    end');
-        });
-        real.filter((n) => !laned.has(n.id)).forEach((n) => lines.push('    ' + decl(n)));
-        joined.forEach((e) => {
-          if (!idOf[e.from] || !idOf[e.to]) return;
-          lines.push(`    ${idOf[e.from]} -->${e.label ? `|"${text(e.label)}"|` : ''} ${idOf[e.to]}`);
-        });
-        return lines.join('\n') + '\n';
       }
 
       // --- REGISTER WITH THE SHELL ---
@@ -4773,7 +4721,8 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         defaultTitle: 'Interactive Swimlane Flowchart',
         toDisk,
         fromDisk,
-        toMermaid,
+        toMermaid,   // the writer and reader in mermaid.js; the shell hands them the saved form of the data
+        fromMermaid,
         contentEl: swimlanesContainer,
         report: { node: '.flow-node', label: '.edge-label', labelText: '.edge-label-text', nodeText: '.node-label' },
         render,

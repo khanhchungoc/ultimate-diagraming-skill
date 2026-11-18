@@ -2202,57 +2202,14 @@
         return d;
       }
 
-      // --- MERMAID (sequenceDiagram) ---
-      // Participants (actor or plain), messages (sync, reply, async), frames with their branches, notes over a
-      // lifeline and step numbers. Not representable: activation bars, participant kinds other than actor, colours,
-      // message details, collapsed frames, free-floating notes. A group frame becomes a shaded rect.
-      function toMermaid() {
-        const text = (s) => String(s == null ? '' : s).replace(/#/g, '#35;').replace(/;/g, '#59;').replace(/\r?\n/g, '<br/>');
-        const used = new Set();
-        const ids = {};
-        chartData.participants.forEach((p) => {
-          let id = String(p.id).replace(/[^A-Za-z0-9_]+/g, '_') || 'p';
-          while (used.has(id.toLowerCase())) id += '_';
-          used.add(id.toLowerCase());
-          ids[p.id] = id;
-        });
-        const arrow = { sync: '->>', reply: '-->>', async: '-)' };
-        const msgs = chartData.messages, at = (id) => msgs.findIndex((m) => m.id === id);
-        const frames = chartData.fragments.map((f) => ({ f, a: at(f.from), b: at(f.to) })).filter((r) => r.a >= 0 && r.b >= r.a);
-        const notes = (chartData.notes || []).filter((n) => ids[n.over] && n.text);
-        const lines = ['sequenceDiagram'];
-        if (chartData.numbered) lines.push('    autonumber');
-        chartData.participants.forEach((p) => lines.push(`    ${p.kind === 'actor' ? 'actor' : 'participant'} ${ids[p.id]} as ${text(p.name) || ids[p.id]}`));
-        let depth = 1;
-        const out = (s) => lines.push('    '.repeat(depth) + s);
-        const noteOut = (n) => out(`Note over ${ids[n.over]}: ${text(n.text)}`);
-        msgs.forEach((m, i) => {
-          notes.filter((n) => n.before === m.id).forEach(noteOut);
-          frames.filter((r) => r.a === i).sort((u, v) => (v.b - v.a) - (u.b - u.a)).forEach(({ f }) => {
-            const label = text(f.label);
-            if (f.kind === 'group') { out('rect rgba(128, 128, 128, 0.15)'); if (label) { depth++; out(`%% ${label}`); depth--; } }   // tokens-ok: Mermaid's own syntax for a group box, not a page style
-            else out(`${f.kind} ${label}`);
-            depth++;
-          });
-          frames.forEach(({ f, a, b }) => {
-            if (i <= a || i > b) return;
-            const br = branchList(f).find((x) => x.at === m.id);
-            if (br) { depth--; out(`${f.kind === 'par' ? 'and' : 'else'} ${text(br.label)}`.trimEnd()); depth++; }
-          });
-          if (ids[m.from] && ids[m.to]) out(`${ids[m.from]}${arrow[m.kind] || arrow.sync}${ids[m.to]}: ${text(m.label)}`);
-          notes.filter((n) => n.after === m.id).forEach(noteOut);
-          frames.filter((r) => r.b === i).sort((u, v) => (u.b - u.a) - (v.b - v.a)).forEach(() => { depth--; out('end'); });
-        });
-        return lines.join('\n') + '\n';
-      }
-
       // --- REGISTER WITH THE SHELL ---
       registerDiagramPlugin({
         id: 'sequence',
         defaultTitle: 'Interactive Sequence Diagram',
         toDisk,
         fromDisk,
-        toMermaid,
+        toMermaid,   // the writer and reader in mermaid.js; the shell hands them the saved form of the data
+        fromMermaid,
         contentEl: seqCanvas,
         report: { node: '.seq-participant', label: '.seq-msg-label', labelText: '.seq-msg-label-text', nodeText: '.seq-participant-name' },
         render,
