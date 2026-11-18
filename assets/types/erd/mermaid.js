@@ -6,10 +6,9 @@
 //
 // Every ERD field survives JSON -> Mermaid -> JSON. Where Mermaid has no place for a fact the writer adds a `%% @...`
 // directive, and only when the fact is not already implied (so ordinary files stay short):
-//   @fromEndUnset 3,5 / @toEndUnset 2   relationship n (1-based, in written order) has no fromEnd / toEnd in the JSON
-//   @identifying 4                      identifying is true although the foreign key is not all primary key
-//   @identifyingUnset 6                 identifying is absent although the foreign key is all primary key
 //   @childRight 7                       the right-hand table is the child although the cardinalities and keys say otherwise
+// The line style is strict: `--` is identifying: true and `..` is identifying: false. The writer writes the effective values
+// (the defaults the engine applies when a field is absent) and the reader always sets fromEnd, toEnd and identifying.
 // Relationship ids (r1..) and note ids (n1..) are generated on import.
 
 const MMD_ER_LEFT = { one: '||', zeroOrOne: '|o', oneOrMany: '}|', zeroOrMany: '}o' };
@@ -229,7 +228,7 @@ function fromMermaid(text) {
   }));
 
   // Directives that change relationships are collected first, then applied by ordinal
-  const sets = { fromEndUnset: new Set(), toEndUnset: new Set(), identifying: new Set(), identifyingUnset: new Set(), childRight: new Set() };
+  const sets = { childRight: new Set() };
   const colorKey = {}, notes = [];
   directives.forEach((d) => {
     const a = d.args;
@@ -282,13 +281,13 @@ function fromMermaid(text) {
       bracket = bm ? bm[2] : null;
     }
     label = mmdText(label);
-    // Bracket: `[cols]`, `[cols -> toCols]`; no names = columns absent, `-` = an empty list
-    let listL = null, listR = null, absentL = false, emptyL = false, emptyR = false;
+    // Bracket: `[cols]`, `[cols -> toCols]`; no names = columns absent, `-` after `->` = an empty toColumns list
+    let listL = null, listR = null, absentL = false, emptyR = false;
     if (bracket !== null) {
       const am = /^\s*([\s\S]*?)\s*->\s*([\s\S]*?)\s*$/.exec(bracket);
       const ls = am ? am[1] : bracket.trim();
       const parse = (x) => x.split(/\s*,\s*/).filter(Boolean).map(mmdErDec);
-      if (ls === '') absentL = true; else if (ls === '-') emptyL = true; else listL = parse(ls);
+      if (ls === '') absentL = true; else listL = parse(ls);
       if (am) { if (am[2] === '-' || am[2] === '') emptyR = true; else listR = parse(am[2]); }
     }
     let side = sets.childRight.has(n) ? 'right' : mmdErPick(r.kl, r.kr, el, er, listL, label);
@@ -298,17 +297,14 @@ function fromMermaid(text) {
     const child = side === 'right' ? er : el, parent = side === 'right' ? el : er;
     const fromEnd = side === 'right' ? r.kr : r.kl, toEnd = side === 'right' ? r.kl : r.kr;
     const rel = { id: 'r' + n, from: child.id, to: parent.id };
-    if (listL) rel.columns = listL; else if (emptyL) rel.columns = []; else if (!absentL) { const d = mmdErDerive(child, parent, label); if (d.length) rel.columns = d; }
+    if (listL) rel.columns = listL; else if (!absentL) { const d = mmdErDerive(child, parent, label); if (d.length) rel.columns = d; }
     if (listR) rel.toColumns = listR; else if (emptyR) rel.toColumns = [];
     rel.fromEnd = fromEnd; rel.toEnd = toEnd;
-    if (sets.fromEndUnset.has(n)) { if (fromEnd === 'zeroOrMany') delete rel.fromEnd; else infoOnce('fe' + n, 'line ' + r.line + ': @fromEndUnset kept the written end, it is not the default'); }
-    if (sets.toEndUnset.has(n)) { if (toEnd === mmdErDefaultToEnd(rel, child)) delete rel.toEnd; else infoOnce('te' + n, 'line ' + r.line + ': @toEndUnset kept the written end, it is not the default'); }
-    if (!r.solid) rel.identifying = false;
-    else if (sets.identifying.has(n) || (mmdErAllPk(rel, child) && !sets.identifyingUnset.has(n))) rel.identifying = true;
+    rel.identifying = r.solid;
     if (label) rel.label = label;
     return rel;
   });
-  ['fromEndUnset', 'toEndUnset', 'identifying', 'identifyingUnset', 'childRight'].forEach((k) => {
+  ['childRight'].forEach((k) => {
     sets[k].forEach((n) => { if (n < 1 || n > rels.length) warnings.push('[WARN] @' + k + ' names relationship ' + n + ', but there are ' + rels.length); });
   });
 
@@ -354,7 +350,7 @@ function toMermaid(data, opts) {
     out.push('  }');
   });
 
-  const sets = { fromEndUnset: [], toEndUnset: [], identifying: [], identifyingUnset: [], childRight: [] };
+  const sets = { childRight: [] };
   const kinds = MMD_ER_LEFT;
   let n = 0;
   (data.relationships || []).forEach((r) => {
@@ -363,24 +359,22 @@ function toMermaid(data, opts) {
     n++;
     const fromEnd = kinds[r.fromEnd] ? r.fromEnd : 'zeroOrMany';
     const toEnd = kinds[r.toEnd] ? r.toEnd : mmdErDefaultToEnd(r, from);
-    if (!r.fromEnd) sets.fromEndUnset.push(n);
-    if (!r.toEnd) sets.toEndUnset.push(n);
     const text = r.label == null ? '' : String(r.label);
-    const J = Array.isArray(r.columns) ? r.columns.map(String) : null;
+    const J = Array.isArray(r.columns) && r.columns.length ? r.columns.map(String) : null;
     const T = Array.isArray(r.toColumns) ? r.toColumns.map(String) : null;
     const D = mmdErDerive(from, to, text);
     const listOf = (a) => (a.length ? a.map((x) => mmdErEnc(x, true)).join(', ') : '-');
     const same = J && J.length === D.length && J.every((x, i) => x === D[i]);
-    const need = J === null ? D.length > 0 : (J.length === 0 || !same);
+    const need = J === null ? D.length > 0 : !same;
     let label = quote(text);
     if (need || T || /\]$/.test(text)) {
       label += (label ? ' ' : '') + '[' + (J === null ? '' : listOf(J)) + (T ? ' -> ' + listOf(T) : '') + ']';
     }
     // The reader sees the listed columns only when a bracket names some
-    const listed = J && J.length && (need || T || /\]$/.test(text)) ? J : null;
+    const listed = J && (need || T || /\]$/.test(text)) ? J : null;
     if (mmdErPick(toEnd, fromEnd, to, from, listed, text) !== 'right') sets.childRight.push(n);
-    if (r.identifying === true) { if (!mmdErAllPk(r, from)) sets.identifying.push(n); } else if (r.identifying !== false && mmdErAllPk(r, from)) sets.identifyingUnset.push(n);
-    out.push('  ' + ref(r.to) + ' ' + MMD_ER_LEFT[toEnd] + (r.identifying === false ? '..' : '--') + MMD_ER_RIGHT[fromEnd] + ' ' + ref(r.from) + ' : "' + label + '"');
+    const identifying = r.identifying === true || (r.identifying == null && mmdErAllPk(r, from));
+    out.push('  ' + ref(r.to) + ' ' + MMD_ER_LEFT[toEnd] + (identifying ? '--' : '..') + MMD_ER_RIGHT[fromEnd] + ' ' + ref(r.from) + ' : "' + label + '"');
   });
 
   // `class` lines, one per class: the palette slots, then collapsed
