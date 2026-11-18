@@ -107,8 +107,8 @@ export async function launch(browser) {
       const abs = resolve(file);
       const dir = dirname(abs);
       const html = readFileSync(abs, 'utf8');
-      const isSplit = /<script\b[^>]*\bsrc="app\.js"/.test(html)
-        || (!html.includes('id="diagram-data"') && existsSync(join(dir, 'diagram.json')));
+      const isSplit = !html.includes('id="diagram-data"')
+        && (/<script\b[^>]*\bsrc="app\.js"/.test(html) || existsSync(join(dir, 'diagram.json')));
       const url = isSplit
         ? `http://127.0.0.1:${await serveDir(dir)}/${encodeURIComponent(basename(abs))}${query}`
         : pathToFileURL(file).href + query;
