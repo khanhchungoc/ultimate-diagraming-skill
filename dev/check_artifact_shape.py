@@ -38,7 +38,7 @@ def check(name: str, ok: bool, detail: str = "") -> None:
 
 
 def extract(path: Path) -> str:
-    return subprocess.run([sys.executable, str(ROOT / "scripts" / "layout_engine.py"), "--extract", str(path)],
+    return subprocess.run([sys.executable, str(ROOT / "scripts" / "layout_engine.py"), "--extract", str(path), "--json"],
                           capture_output=True, text=True, encoding="utf-8", check=True).stdout
 
 

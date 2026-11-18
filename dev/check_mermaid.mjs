@@ -2,9 +2,9 @@
 //   1. Round trip: fixture JSON -> toMermaid -> fromMermaid must give back the same authoring JSON.
 //   2. Validity: every written .mmd passes mermaid.parse (the pinned devDependency, run in headless Chrome).
 //   3. Leniency: every dev/fixtures/mermaid/corpus/*.mmd imports without throwing or [ERROR] (the type comes from its header).
+// 4. Dry run: every corpus .mmd goes through `layout_engine.py --layout` and ends without [ERROR], with [DONE] or [NEXT].
 // A type may add its own normalising in dev/check_mermaid_norm.<kind>.mjs: `export function normalise(data, safeId, base)`,
 // where `base` is the generic normaliser below; without that file the generic one is used.
-//      The --layout dry run that follows comes with Phase 4 and is skipped until then.
 //
 //   node dev/check_mermaid.mjs --browser <chrome> [--kind flowchart|usecase|sequence|erd]
 // Exit codes: 0 all pass, 1 setup error or a failed check.
@@ -37,7 +37,7 @@ function fixturesOf(kind) {
   return [...walk(join(ROOT, 'dev/fixtures', kind)), ...examples].sort();
 }
 
-const extract = (file) => JSON.parse(execFileSync('python3', [join(ROOT, 'scripts/layout_engine.py'), '--extract', file], { encoding: 'utf8', maxBuffer: 1 << 26 }));
+const extract = (file) => JSON.parse(execFileSync('python3', [join(ROOT, 'scripts/layout_engine.py'), '--extract', file, '--json'], { encoding: 'utf8', maxBuffer: 1 << 26 }));
 
 // ---- normaliser: drops only what the plan says to ignore, makes defaults explicit, compares the rest strictly ----
 
@@ -139,7 +139,24 @@ for (const kind of kinds) {
     } catch (e) { fail(name, [String(e.message || e)]); }
   }
 }
-console.log('[SKIP] leniency --layout dry run: comes with Phase 4');
+// ---- dry run: the CLI reads every corpus file and finishes ----
+
+if (!onlyKind) {
+  const corpus = join(ROOT, 'dev/fixtures/mermaid/corpus');
+  const dir = mkdtempSync(join(tmpdir(), 'mmd_run_'));
+  try {
+    for (const f of readdirSync(corpus).filter((n) => n.endsWith('.mmd')).sort()) {
+      const name = `--layout ${f}`;
+      let out = '';
+      try {
+        out = execFileSync('python3', [join(ROOT, 'scripts/layout_engine.py'), '--layout', join(corpus, f), '-o', join(dir, f.replace(/\.mmd$/, '.html'))],
+          { encoding: 'utf8', maxBuffer: 1 << 26, timeout: 120000 });
+      } catch (e) { out = `${e.stdout || ''}${e.stderr || ''}`; }
+      const errors = out.split('\n').filter((l) => l.includes('[ERROR]'));
+      errors.length || !/\[(DONE|NEXT)\]/.test(out) ? fail(name, errors.length ? errors : ['no [DONE] or [NEXT] line']) : pass(name);
+    }
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+}
 
 // ---- validity: mermaid.parse in headless Chrome ----
 

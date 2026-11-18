@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import contextvars
 import json
+import os
 import queue
 import re
 import shutil
@@ -26,6 +27,10 @@ ASSETS_DIR = SCRIPTS_DIR.parent / "assets"
 _active_session: contextvars.ContextVar[Optional["_NodeSession"]] = contextvars.ContextVar(
     "_active_layout_session", default=None
 )
+
+
+# Chrome refuses to start as root without this (containers, CI)
+_ROOT_FLAGS = ["--no-sandbox"] if hasattr(os, "geteuid") and os.geteuid() == 0 else []
 
 
 class EngineUnavailable(RuntimeError):
@@ -163,7 +168,7 @@ def _via_browser(data: Dict[str, Any], timeout: int, browser: Optional[str], tok
         page = work / "page.html"
         scaffold_html(data, page, tokens=tokens)  # the page defines TOKENS (TOKENS_JS) before the engine, as Node does
         res = subprocess.run(
-            [str(chrome), "--headless=new", "--disable-gpu", f"--user-data-dir={work / 'profile'}",
+            [str(chrome), "--headless=new", "--disable-gpu", *_ROOT_FLAGS, f"--user-data-dir={work / 'profile'}",
              "--virtual-time-budget=4000", "--dump-dom", page.as_uri() + "?tidy"],
             capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=timeout,
         )
@@ -197,3 +202,68 @@ def run_layout(kind: str, data: Dict[str, Any], timeout: int = 30, browser: Opti
             "Install one, or pass --browser <path-to-chrome>."
         )
     return laid
+
+
+# --- Mermaid reader and writer ------------------------------------------------------------------------------------------
+# The same JavaScript the page uses (assets/shell/mermaid-flow.js + assets/types/<kind>/mermaid.js). With Node.js it runs
+# through scripts/mermaid_io.mjs (one process per call); without it, in headless Chrome like the layout engines.
+MERMAID_KINDS = ("flowchart", "usecase", "sequence", "erd")
+
+# Runs in Chrome after the sources; the same three operations as mermaid_io.mjs (`from`, `to`, `ids`).
+_MERMAID_RUN_JS = """
+const req = %s;
+if (req.op === 'from') return JSON.stringify(fromMermaid(req.payload));
+if (req.op === 'to') return JSON.stringify(toMermaid(req.payload, { palette: req.palette }));
+const used = new Set(), map = {};
+['lanes', 'nodes', 'subjects', 'actors', 'useCases', 'entities', 'participants'].forEach((k) => (req.payload[k] || []).forEach((it) => {
+  if (it && typeof it.id === 'string' && !(it.id in map)) map[it.id] = mmdSafeId(it.id, used);
+}));
+return JSON.stringify(map);
+"""
+
+
+def _mermaid_via_node(op: str, kind: str, payload: Any, palette: Optional[list], timeout: int) -> Any:
+    node = shutil.which("node")
+    if not node:
+        return None
+    cmd = [node, str(SCRIPTS_DIR / "mermaid_io.mjs"), op, kind] + (["--palette", ",".join(palette)] if palette else [])
+    proc = subprocess.run(cmd, input=payload if op == "from" else json.dumps(payload), capture_output=True, text=True,
+                          encoding="utf-8", timeout=timeout)
+    if proc.returncode != 0:
+        raise RuntimeError(proc.stderr.strip() or "Mermaid conversion failed under Node.js.")
+    return proc.stdout if op == "to" else json.loads(proc.stdout)
+
+
+def _mermaid_via_browser(op: str, kind: str, payload: Any, palette: Optional[list], timeout: int, browser: Optional[str]) -> Any:
+    # A DevTools session, not a one-shot --dump-dom: that never exits in some sandboxes (see render_screenshot.open_page).
+    from measure_font import chrome_session
+    from render_screenshot import find_browser, page_value
+
+    try:
+        chrome = Path(browser) if browser else find_browser()
+    except Exception:
+        return None
+    sources = "\n".join((ASSETS_DIR / f).read_text(encoding="utf-8") for f in ("shell/mermaid-flow.js", f"types/{kind}/mermaid.js"))
+    req = json.dumps({"op": op, "payload": payload, "palette": palette})
+    try:
+        with chrome_session(str(chrome), timeout, ()) as call:
+            text = page_value(call, "(() => {\n" + sources + _MERMAID_RUN_JS % req + "})()")
+    except (RuntimeError, ConnectionError, OSError) as exc:
+        raise RuntimeError(f"Mermaid conversion failed in the browser: {exc}")
+    out = json.loads(text)
+    return out
+
+
+def run_mermaid(op: str, kind: str, payload: Any, timeout: int = 30, browser: Optional[str] = None,
+                palette: Optional[list] = None) -> Any:
+    """`from`: Mermaid text -> {data, infos, warnings}. `to`: diagram JSON -> Mermaid text (`palette`: hex colours of the
+    slots, for the classDef lines). `ids`: diagram JSON -> {id: id as the writer spells it}. Node first, then Chrome."""
+    out = _mermaid_via_node(op, kind, payload, palette, timeout)
+    if out is None:
+        out = _mermaid_via_browser(op, kind, payload, palette, timeout, browser)
+    if out is None:
+        raise EngineUnavailable(
+            "Mermaid conversion needs Node.js (https://nodejs.org) or Chrome/Chromium. "
+            "Install one, or pass --browser <path-to-chrome>."
+        )
+    return out.rstrip("\n") + "\n" if op == "to" else out

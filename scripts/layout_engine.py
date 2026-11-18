@@ -30,7 +30,7 @@ from audit_sequence import SequenceAudit
 from audit_usecase import UsecaseAudit
 from disk_format import (DISK_CODECS, authoring_json, color_kind, format_json, from_disk,  # noqa: F401 (DISK_CODECS: registry)
                          palette_slots, readme_text, stamp_reading_guide, to_disk, with_readme)
-from engine_runner import EngineUnavailable, layout_session, run_layout
+from engine_runner import EngineUnavailable, layout_session, run_layout, run_mermaid
 from tokens import expand_icons, load_icons, load_tokens, merge_theme, tokens_css, tokens_js
 
 
@@ -417,7 +417,7 @@ class FlowchartAudit:
         return out
 
     def _lane_icon_warnings(self) -> List[str]:
-        """Every swimlane header carries an icon: it makes the owner recognisable at a glance."""
+        """An icon the page does not know. A lane without one gets one from its name (auto_lane_icons) before layout."""
         known = set(load_icons(load_tokens()))
         names = ", ".join(lane_icon_menu() or sorted(known))
         warnings = []
@@ -426,9 +426,7 @@ class FlowchartAudit:
         for lane in self.lanes:
             label = lane.get("name", lane.get("id"))
             icon = lane.get("icon")
-            if not icon:
-                warnings.append(f"Lane '{label}' has no \"icon\". Give every lane one (names: {names}).")
-            elif known and icon not in known:
+            if icon and known and icon not in known:
                 warnings.append(f"Lane '{label}' uses unknown icon '{icon}'. Use one of: {names}.")
         return warnings
 
@@ -1219,6 +1217,65 @@ def _load_input(path: Path, force_from_disk: bool = False) -> Tuple[Dict[str, An
     return data, html_text, False, needs_engine
 
 
+# --- Mermaid input and output ---------------------------------------------------------------------------------------------
+def is_mermaid_input(path: Path) -> bool:
+    """A `.mmd` file, or any file whose text does not start with `{` (JSON) or `<` (an HTML page)."""
+    if path.suffix.lower() == ".mmd":
+        return True
+    return not path.read_text(encoding="utf-8-sig").lstrip().startswith(("{", "<"))
+
+
+def mermaid_kind(text: str) -> str:
+    """The diagram type of Mermaid text, from its header (`flowchart`/`graph`, or use case with `%% @type usecase`)."""
+    body = re.sub(r"\A\s*---\n.*?\n---\n", "", text.lstrip("\ufeff"), flags=re.S)
+    header = next((ln.split()[0] for ln in body.splitlines() if ln.strip() and not ln.strip().startswith("%%")), "")
+    if header in ("flowchart", "graph"):
+        return "usecase" if re.search(r"^\s*%%\s*@type\s+usecase\b", text, re.M) else "flowchart"
+    if header == "sequenceDiagram":
+        return "sequence"
+    if header == "erDiagram":
+        return "erd"
+    sys.exit(f"[ERROR] Not a Mermaid diagram this tool reads: the first line is {header!r}. "
+             "Supported: flowchart / graph (use case: add `%% @type usecase`), sequenceDiagram, erDiagram.")
+
+
+def theme_palette(tokens: Dict[str, Any]) -> List[str]:
+    """The colours of palette slots 1 to 8 (the slot's `hex`, else its light fill) for the Mermaid writer's classDef lines."""
+    return [slot.get("hex") or slot["light"]["soft"] for slot in tokens["palette"][:8]]
+
+
+def item_ids(kind: str, data: Dict[str, Any]) -> Set[Tuple[str, Any]]:
+    """The ids --keep-from compares: lanes and steps, subjects / actors / use cases, tables, participants. A sequence's
+    messages have positional ids in Mermaid, so only their count counts."""
+    keys = {"flowchart": ("lanes", "nodes"), "usecase": ("subjects", "actors", "useCases"), "erd": ("entities",),
+            "sequence": ("participants",)}[kind]
+    ids = {(k, it["id"]) for k in keys for it in data.get(k) or []}
+    if kind == "sequence":
+        ids |= {("message", i) for i in range(len(data.get("messages") or []))}
+    return ids
+
+
+def keep_positions_from(kind: str, new: Dict[str, Any], old: Dict[str, Any], timeout: int, browser: Optional[str]
+                        ) -> Tuple[Optional[Dict[str, Any]], str]:
+    """(new diagram carrying the old page's positions, "") when both have the same item ids, else (None, why not).
+    `old` is the in-memory model of the old page; its ids are spelled as the Mermaid writer spells them first."""
+    if (old.get("diagramType") or DEFAULT_TYPE) != kind:
+        return None, f"the old file is a {old.get('diagramType') or DEFAULT_TYPE}, the new one a {kind}"
+    old_disk = to_disk(kind, old)
+    spelled = run_mermaid("ids", kind, old_disk, timeout, browser)
+    same = lambda ids: {(k, spelled.get(v, v) if k != "message" else v) for k, v in ids}
+    before, after = same(item_ids(kind, old)), item_ids(kind, new)
+    if before != after:
+        show = lambda ids: ", ".join(str(v) for _, v in sorted(ids, key=str)[:6]) + (", ..." if len(ids) > 6 else "")
+        parts = [f"{what} {show(ids)}" for what, ids in (("added", after - before), ("removed", before - after)) if ids]
+        return None, "; ".join(parts)
+    layout = {spelled.get(k, k): v for k, v in (old_disk.get("layout") or {}).items()}
+    disk = {**new, "schemaVersion": old_disk.get("schemaVersion", new.get("schemaVersion"))}
+    if layout:
+        disk["layout"] = layout
+    return from_disk(kind, {k: v for k, v in disk.items() if v is not None}), ""
+
+
 # --- Themes: which one a run uses, and the copy a page keeps ----------------------------------------------------------
 THEME_OPEN = '<script id="diagram-theme" type="application/json">'
 PROJECT_THEME = Path(".ultimate-diagram") / "theme.json"
@@ -1348,14 +1405,51 @@ def artifact_index_template(shell_html: str) -> str:
     )
 
 
-def lane_icon_menu() -> List[str]:
-    """The icon names the flowchart reference offers for a lane (its "Lane icons" table), the agent's menu; empty when the reference is not there."""
+def lane_icon_table() -> List[Tuple[str, str]]:
+    """(icon, "Use for" text) for each row of the flowchart reference's "Lane icons" table; empty when the reference is not there."""
     ref = ASSETS_DIR.parent / "references" / "types" / "flowchart.md"
     if not ref.is_file():
         return []
     text = ref.read_text(encoding="utf-8")
     section = text.split("\n## Lane icons", 1)[-1].split("\n## ", 1)[0] if "\n## Lane icons" in text else ""
-    return re.findall(r"^\|\s*`([\w-]+)`\s*\|", section, re.M)
+    return re.findall(r"^\|\s*`([\w-]+)`\s*\|\s*([^|]*?)\s*\|", section, re.M)
+
+
+def lane_icon_menu() -> List[str]:
+    """The icon names the flowchart reference offers for a lane (its "Lane icons" table), the agent's menu."""
+    return [icon for icon, _ in lane_icon_table()]
+
+
+_ICON_STOP_WORDS = {"a", "an", "and", "or", "the", "of", "for", "to"}
+
+
+def _icon_words(text: str) -> List[str]:
+    """Lower-case words of `text` without filler words; a trailing plural s is dropped so "customers" matches "customer"."""
+    return [w[:-1] if len(w) > 3 and w.endswith("s") else w for w in re.findall(r"[a-z0-9]+", text.lower()) if w not in _ICON_STOP_WORDS]
+
+
+def auto_lane_icons(data: Dict[str, Any]) -> Tuple[Dict[str, Any], str]:
+    """Give every lane without an `icon` one from its name: for the name's words in order, the first icon in the table
+    order whose "Use for" words contain the word; else the next unused icon in table order. Each icon is used once per diagram.
+    Returns (data, the [INFO] line, or "" when nothing changed)."""
+    lanes = data.get("lanes") or []
+    known = set(load_icons(load_tokens()))
+    table = [(icon, set(_icon_words(use))) for icon, use in lane_icon_table() if icon in known]
+    if data.get("swimlanes") is False or not table or all(l.get("icon") for l in lanes):
+        return data, ""
+    used = {l["icon"] for l in lanes if l.get("icon")}
+    picked = []
+    for lane in lanes:
+        if lane.get("icon"):
+            continue
+        words = _icon_words(str(lane.get("name", lane.get("id", ""))))
+        icon = next((i for w in words for i, kw in table if i not in used and w in kw), None) or next((i for i, _ in table if i not in used), None)
+        if icon is None:
+            continue
+        lane["icon"] = icon
+        used.add(icon)
+        picked.append(f"{lane.get('name', lane.get('id'))}={icon}")
+    return data, f"Lane icons: {', '.join(picked)}" if picked else ""
 
 
 # Shared component styles (assets/components/<name>.css), in cascade order. The dock comes before the buttons because
@@ -1779,12 +1873,16 @@ LAYOUT_NOTE = "report it; do not change the JSON for it"
 def main():
     _ensure_utf8_output()
     parser = argparse.ArgumentParser(description="Multi-Swimlane Flowchart Layout & Verification Engine")
-    parser.add_argument("--layout", "-l", help="Input JSON file or HTML file to compute layout for")
-    parser.add_argument("--output", "-o", help="Output HTML file path (or JSON path if extracting)")
+    parser.add_argument("--layout", "-l", help="Input Mermaid file (.mmd), or a JSON or HTML file, to compute layout for")
+    parser.add_argument("--output", "-o", help="Output HTML file path (or the Mermaid / JSON path if extracting)")
     parser.add_argument("--browser", help="Chrome/Chromium path for --layout when Node.js is not installed")
     parser.add_argument("--timeout", type=int, default=30, help="Seconds allowed for the layout engine (default: 30)")
     parser.add_argument("--verify", "-v", help="Verify collisions and layout constraints for an HTML or JSON file")
-    parser.add_argument("--extract", "-e", help="Extract canonical JSON data from an existing HTML file")
+    parser.add_argument("--extract", "-e", help="Print the diagram of an HTML page (or a diagram.json / JSON file) as Mermaid, "
+                                                 "written with the page's stored theme palette")
+    parser.add_argument("--json", action="store_true", help="With --extract: print the canonical JSON instead of Mermaid")
+    parser.add_argument("--keep-from", help="With --layout <file.mmd>: an older HTML page or diagram.json; when both have exactly "
+                                            "the same item ids, take its positions and only redraw lines and labels")
     parser.add_argument("--keep-layout", action="store_true",
                         help="With --layout: keep the positions saved in the input's `layout` map and only redraw lines and labels "
                              "(rebuild a page with a newer engine and UI without moving anything the user placed).")
@@ -1816,16 +1914,31 @@ def main():
         return
 
     if args.extract:
-        raw = read_data_block_from_path(Path(args.extract))
+        ext_p = Path(args.extract)
+        raw = read_data_block_from_path(ext_p)
         kind = raw.get("diagramType") or DEFAULT_TYPE
         # Authoring JSON: the block without its `layout` map (--layout recomputes positions anyway)
-        data = authoring_json(kind, from_disk(kind, raw))
-        text = format_json(data)
+        model = from_disk(kind, raw)
+        data = authoring_json(kind, model)
+        if args.json:
+            text, what = format_json(data), "Extracted data"
+        else:
+            # The palette of --theme, else of the theme the page stores, else the default
+            page = ext_p if ext_p.suffix.lower() == ".html" else ext_p.with_name("index.html")
+            page_text = page.read_text(encoding="utf-8") if page.is_file() and (ext_p.suffix.lower() == ".html" or ext_p.name == "diagram.json") else None
+            # A lane's colour sits in the page's layout map, not in the authoring JSON, but Mermaid can say it (`class lane c3`)
+            colors = {l["id"]: l["color"] for l in model.get("lanes") or [] if l.get("color")}
+            data = {**data, "lanes": [{**l, "color": colors[l["id"]]} if l["id"] in colors else l for l in data.get("lanes") or []]} if colors else data
+            try:
+                text = run_mermaid("to", kind, data, args.timeout, args.browser, theme_palette(resolve_theme(args.theme, page_text)[0])).rstrip("\n")
+            except (EngineUnavailable, RuntimeError) as exc:
+                sys.exit(f"[ERROR] {exc}")
+            what = "Mermaid"
         if args.output:
             out_p = Path(args.output)
             out_p.parent.mkdir(parents=True, exist_ok=True)
             out_p.write_text(text + chr(10), encoding="utf-8")
-            print(f"[OK] Extracted data saved to: {out_p}")
+            print(f"[OK] {what} saved to: {out_p}")
         else:
             print(text)
         return
@@ -1881,41 +1994,75 @@ def main():
 
     if args.layout:
         in_p = Path(args.layout)
-        data, page_text, _, _ = _load_input(in_p, force_from_disk=args.keep_layout)
+        keep = args.keep_layout  # keep the saved positions: --keep-layout, or --keep-from with the same item ids
+        mermaid_bad = False
+        if is_mermaid_input(in_p):
+            if args.keep_layout:
+                sys.exit("[ERROR] --keep-layout needs a page or JSON that carries positions. For Mermaid input use --keep-from <old page>.")
+            text = in_p.read_text(encoding="utf-8-sig")
+            kind = mermaid_kind(text)
+            try:
+                read = run_mermaid("from", kind, text, args.timeout, args.browser)
+            except (EngineUnavailable, RuntimeError) as exc:
+                sys.exit(f"[ERROR] {in_p.name}: {exc}")
+            data, page_text = read["data"], None
+            # The use case reader leaves its lines without the tag the others carry
+            for tag, lines in (("[INFO]", read["infos"]), ("[WARN]", read["warnings"])):
+                for line in lines:
+                    print(line if line.startswith("[") else f"{tag} {line}")
+            mermaid_bad = bool(read["warnings"])
+            if args.keep_from:
+                old, page_text, _, _ = _load_input(Path(args.keep_from), force_from_disk=True)
+                try:
+                    kept, why = keep_positions_from(kind, normalize_diagram_type(data), old, args.timeout, args.browser)
+                except (EngineUnavailable, RuntimeError) as exc:
+                    sys.exit(f"[ERROR] {exc}")
+                if kept is None:
+                    print(f"[INFO] Positions reset: {why}")
+                else:
+                    data, keep = kept, True
+        else:
+            if args.keep_from:
+                sys.exit("[ERROR] --keep-from needs Mermaid input to --layout (a .mmd file). For JSON or a page use --keep-layout.")
+            data, page_text, _, _ = _load_input(in_p, force_from_disk=args.keep_layout)
         tokens, theme, note = resolve_theme(args.theme, page_text)
         tokens = tokens if theme is not None else None
         if note:
             print(note)
 
         data = normalize_diagram_type(data)
+        if data["diagramType"] == "flowchart" and not args.keep_layout:
+            data, icon_note = auto_lane_icons(data)
+            if icon_note:
+                print(f"[INFO] {icon_note}")
         direction_note = ""
         audit = report = None
         try:
             with layout_session():
-                if not args.keep_layout and data["diagramType"] == "flowchart":
+                if not keep and data["diagramType"] == "flowchart":
                     data, lane_note = order_flowchart_lanes(data, args.timeout, args.browser, tokens)
                     if lane_note:
                         print(f"[INFO] {lane_note}")
-                elif not args.keep_layout and data["diagramType"] == "sequence":
+                elif not keep and data["diagramType"] == "sequence":
                     data, seq_notes = apply_sequence_defaults(data)
                     for seq_note in seq_notes:
                         print(f"[INFO] {seq_note}")
-                elif not args.keep_layout and data["diagramType"] == "erd":
+                elif not keep and data["diagramType"] == "erd":
                     data, erd_notes = apply_erd_defaults(data)
                     for erd_note in erd_notes:
                         print(f"[INFO] {erd_note}")
-                if not args.keep_layout and data["diagramType"] == "flowchart" and "direction" not in data:
+                if not keep and data["diagramType"] == "flowchart" and "direction" not in data:
                     laid_out_data, audit, report, direction_note = _choose_flowchart_direction(
                         data, args.timeout, args.browser, tokens
                     )
                 else:
-                    laid_out_data = run_layout(data["diagramType"], data, timeout=args.timeout, browser=args.browser, tokens=tokens, keep=args.keep_layout)
+                    laid_out_data = run_layout(data["diagramType"], data, timeout=args.timeout, browser=args.browser, tokens=tokens, keep=keep)
                 if direction_note:
                     print(f"[INFO] Direction: {direction_note}. To force one, set \"direction\" in the JSON.")
                 if audit is None or report is None:
                     audit = make_audit(laid_out_data, tokens)
                     report = audit.verify_collisions()
-                if data["diagramType"] == "flowchart" and not args.keep_layout and report["long_arrows"]:
+                if data["diagramType"] == "flowchart" and not keep and report["long_arrows"]:
                     # Rule 11: the tool splits the long arrows itself, round after round, and keeps the best layout seen
                     quality = lambda r: (not r["passed"], len(r["issues"]), r["long_arrows_count"], r["edge_crossings"])
                     base, letters = data, 0
@@ -1952,7 +2099,7 @@ def main():
 
         # DATA problems (the agent fixes the JSON) are [WARN]/[ERROR] and the only reason for [NEXT]; LAYOUT problems
         # (the engine's job) are [INFO] Layout lines that never fail the run. --verify keeps the strict gates.
-        data_bad = False
+        data_bad = mermaid_bad
         for warning in report["budget_warnings"]:
             data_bad = True
             print(f"[WARN] {warning}")

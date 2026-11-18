@@ -1,6 +1,7 @@
 // Mermaid reader and writer for a diagram type (the same assets/shell/mermaid-flow.js + assets/types/<kind>/mermaid.js the page uses).
 //   node mermaid_io.mjs from <kind> < x.mmd    prints {data, infos, warnings}
-//   node mermaid_io.mjs to <kind> < x.json     prints Mermaid (palette slots from assets/tokens/default.json)
+//   node mermaid_io.mjs to <kind> < x.json     prints Mermaid (palette slots from assets/tokens/default.json, or --palette hex,hex,...)
+//   node mermaid_io.mjs ids <kind> < x.json    prints {id: id as the writer spells it} for the items that have ids
 // `loadMermaidIO(kind)` is exported for other scripts. Zero dependencies; needs Node >= 18.
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -27,10 +28,19 @@ export function defaultPalette() {
   return t.palette.map((s) => s.hex);
 }
 
+/** The writer's id for each item id, in the order the writers assign them (shared uniqueness set). */
+export function safeIdMap(io, data) {
+  const used = new Set(), map = {};
+  for (const k of ['lanes', 'nodes', 'subjects', 'actors', 'useCases', 'entities', 'participants']) {
+    for (const it of data[k] || []) if (it && typeof it.id === 'string' && !(it.id in map)) map[it.id] = io.mmdSafeId(it.id, used);
+  }
+  return map;
+}
+
 async function main() {
-  const [mode, kind] = process.argv.slice(2);
-  if (!['from', 'to'].includes(mode) || !kind) {
-    console.error('usage: mermaid_io.mjs from|to <flowchart|usecase|sequence|erd> < input');
+  const [mode, kind, ...rest] = process.argv.slice(2);
+  if (!['from', 'to', 'ids'].includes(mode) || !kind) {
+    console.error('usage: mermaid_io.mjs from|to|ids <flowchart|usecase|sequence|erd> [--palette hex,hex,...] < input');
     process.exit(1);
   }
   let io;
@@ -39,7 +49,11 @@ async function main() {
   for await (const chunk of process.stdin) text += chunk;
   try {
     if (mode === 'from') console.log(JSON.stringify(io.fromMermaid(text), null, 2));
-    else console.log(io.toMermaid(JSON.parse(text), { palette: defaultPalette() }));
+    else if (mode === 'ids') console.log(JSON.stringify(safeIdMap(io, JSON.parse(text))));
+    else {
+      const i = rest.indexOf('--palette');
+      console.log(io.toMermaid(JSON.parse(text), { palette: i >= 0 ? rest[i + 1].split(',') : defaultPalette() }));
+    }
   } catch (e) { console.error(`[ERROR] ${e.message}`); process.exit(1); }
 }
 
