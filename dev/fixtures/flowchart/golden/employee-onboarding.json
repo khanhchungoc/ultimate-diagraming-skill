@@ -245,7 +245,7 @@
       "id": "process_termination",
       "laneId": "lane_hr_ops",
       "type": "task",
-      "label": "Execute Termination Process",
+      "label": "Terminate Employment",
       "x": 4725,
       "y": 32
     },

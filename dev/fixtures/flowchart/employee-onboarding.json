@@ -191,7 +191,7 @@
       "id": "process_termination",
       "laneId": "lane_hr_ops",
       "type": "task",
-      "label": "Execute Termination Process"
+      "label": "Terminate Employment"
     },
     {
       "id": "emp_terminated",

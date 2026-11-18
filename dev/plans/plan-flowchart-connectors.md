@@ -22,7 +22,7 @@ Inspecting the laid-out positions and polylines around `clear_candidate` (`Clear
 In the post-search unstacking block of `runLayoutEngine` (alongside `loopBlocked` and `exitBlocked`), add two checks:
 
 1. `forkBlocked(c)`: when `bestCfg.get(c.k) === 'zero'`, `u = nodeMap[c.from]`, `v = nodeMap[c.to]`, `u.type !== 'decision'`, `v` has at least one forward outgoing edge, and `u` has another forward edge `u -> w` whose lane lies beyond `v` on the same side (`c.side === 'down' ? laneIdx[w.laneId] > lv && lv > lu : laneIdx[w.laneId] < lv && lv < lu`), unstack `c` to `'tight'` or `null` when it preserves clean overlaps and crossings.
-2. `joinBlocked(c)`: when `bestCfg.get(c.k)` is `'zero'` or `'tight'`, `u = nodeMap[c.from]`, `v = nodeMap[c.to]`, and `v` has another incoming forward edge `w -> v` from a lane beyond `u` on the same side (`c.side === 'down' ? laneIdx[w.laneId] > lu && lu > lv : laneIdx[w.laneId] < lu && lu < lv`), un-tighten `c` to `null` (full column gap) when `res.key[0] <= best.key[0] && res.key[1] <= best.key[1]`.
+2. `joinBlocked(c)`: when `bestCfg.get(c.k)` is `'zero'` or `'tight'`, `u = nodeMap[c.from]`, `v = nodeMap[c.to]`, and `v` has another incoming forward edge `w -> v` from a lane beyond `u` on the same side (`c.side === 'up' ? laneIdx[w.laneId] > lu && lu > lv : laneIdx[w.laneId] < lu && lu < lv`), un-tighten `c` to `null` (full column gap) when `res.key[0] <= best.key[0] && res.key[1] <= best.key[1]`.
 
 ### C2. Allow shared fan-in and unlabelled fan-out trunks in the router (`scripts/layout_engine.py`, `assets/types/flowchart/flowchart.js`)
 
