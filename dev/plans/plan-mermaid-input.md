@@ -281,7 +281,7 @@ Fixed up front so the harness, the flowchart mapping and the use case mapping ca
 
 ## Status and remaining work (2026-11-18)
 
-Done on `ccr-c18dbf2f-2xj17k`: Phases 0–3 (readers, writers, harness), the Phase 4 CLI (`--layout x.mmd`, `--extract` → Mermaid with `--json` for the old output, `--keep-from`, automatic lane icons from `assets/icons/lanes.json`) and the Phase 4 docs (Mermaid `SKILL.md` and references). `node dev/check_mermaid.mjs --browser <chrome>` passes 222 checks; `dev/test_cli_mermaid.py`, `dev/check_golden.py`, `dev/check_extract.py`, `dev/check_artifact_shape.py`, `dev/check_tokens.py` and the audit tests pass. Phase 5 (page) status: see the last item below.
+Done on `ccr-c18dbf2f-2xj17k`: Phases 0–3 (readers, writers, harness), the Phase 4 CLI (`--layout x.mmd`, `--extract` → Mermaid with `--json` for the old output, `--keep-from`, automatic lane icons from `assets/icons/lanes.json`) and the Phase 4 docs (Mermaid `SKILL.md` and references). `node dev/check_mermaid.mjs --browser <chrome>` passes 222 checks; `dev/test_cli_mermaid.py`, `dev/check_golden.py`, `dev/check_extract.py`, `dev/check_artifact_shape.py`, `dev/check_tokens.py` and the audit tests pass. Phase 5 (page) is merged too: lossless Copy as Mermaid on all four types, Import Mermaid text in the Export menu, flowchart pages lay out unplaced steps on load; `node dev/e2e_mermaid.mjs --browser <chrome> --flowchart <dir>/index.html --usecase … --sequence … --erd …` (split artifact folders) passes 69/69, and the existing e2e suites touched passed in the worktree (shell, erd, erd_copy, sequence, usecase, lanes, shapes). Pages grew 33–51 KB (the readers and writers are now in every page).
 
 ### Decisions still owed by the user
 
@@ -308,9 +308,21 @@ Done on `ccr-c18dbf2f-2xj17k`: Phases 0–3 (readers, writers, harness), the Pha
 - C8. `--extract` takes the palette from `--theme`, else the page's stored theme, else the project theme, else the default.
 - C9. Follow-ups in Phase 1 files: the use case writer emits `classDef` lines that its own reader then reports as ignored (`[INFO]` on every re-read); the flowchart writer emits `%% @schemaVersion 1` in extracts; the use case reader's lines lack the `[INFO]`/`[WARN]` prefix (the CLI adds it).
 
+**Page (Phase 5):**
+- P1. Menu: Export menu, new "Import" section, item "Mermaid text…" (a bubble with a text box; Ctrl+Enter imports). Alternatives: a toolbar button, or the name "Paste Mermaid…".
+- P2. No paste of Mermaid onto the canvas (the shell only handles paste in text fields); add later if wanted.
+- P3. Import applies at once; reader warnings and notes then show as an "Imported, with notes" list; errors stay in the bubble and change nothing. Alternatives: a toast, or confirm before applying.
+- P4. Import replaces the whole diagram, including what Mermaid cannot carry (a moved flowchart note's offset; lane height is kept for an unchanged lane id); a text without a title keeps the current title; undo restores everything.
+- P5. Positions on import: ERD keeps unchanged tables and places new ones by a warm layout; flowchart and use case keep positions only when nothing was added, otherwise the whole diagram is laid out (both engines lay out everything); sequence positions are always derived.
+- P6. Flowchart load: if any step has no position, the whole diagram is laid out (Auto-Tidy on or off); fully placed pages load as before.
+- P7. Copy then Import is exact for positions and text, but the saved JSON can differ in ids made Mermaid-safe, generated edge ids, key order, a sequence `kind: "system"` written out, an ERD `identifying` written out, and `branches` versus `elseAt`.
+- P8. Copy as Mermaid output changed format (front matter, 2-space indent, classes, `%% @` lines); the old export is gone, as planned.
+- P9. Lane colours: the page puts them back from the `layout` map for Copy as Mermaid; the CLI does the same for `--extract` (C3).
+- Not rerun after the merge: the e2e suites for touch, connectors and multiselect.
+
 ### Work still to do
 
-1. Phase 5 page work (lossless Copy as Mermaid on all types, Paste/Import Mermaid, flowchart lays out unplaced steps on load): in progress at the time of writing on branch `worktree-agent-a67c610f81937e1c9` (worktree `.claude/worktrees/agent-a67c610f81937e1c9`); merge it, run the e2e tests, and list its differences for the user.
+1. Rerun the e2e suites not yet run after the merge (`dev/e2e_touch.mjs`, `dev/e2e_connectors.mjs`, `dev/e2e_multiselect.mjs`, and the rest of `dev/e2e_*.mjs`) on the merged branch.
 2. Settle the decisions above, then apply them.
 3. C9 follow-ups (small).
 4. `scripts/check_env.py` still lists `references/examples/*.json` as required files; the docs no longer read them (dev scripts still do). Decide whether the examples stay as test data under `dev/` or as shipped files.
