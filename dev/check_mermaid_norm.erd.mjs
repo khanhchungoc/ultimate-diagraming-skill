@@ -1,5 +1,6 @@
-// ERD normaliser for dev/check_mermaid.mjs. Compares everything the Mermaid round trip must keep: absent stays absent (fromEnd,
-// toEnd, identifying, columns, ...) and a written value stays as written. Ignored, as the plan allows: positions, the layout map
+// ERD normaliser for dev/check_mermaid.mjs. Compares everything the Mermaid round trip must keep. fromEnd, toEnd and identifying
+// are made explicit first (an absent value equals the effective value the engine uses), and an empty relationship `columns`
+// list equals an absent one; every other field compares as written. Ignored, as the plan allows: positions, the layout map
 // and other engine output, `direction`, relationship and note ids (generated on import, compared as ordered lists), and the
 // ids of tables, which go through the writer's id sanitiser (`safeId`, given for the original side only). Empty lists are made
 // explicit: no tables, relationships, notes or columns.
@@ -20,7 +21,18 @@ export function normalise(data, safeId) {
     if (o.columns === undefined) o.columns = [];
     return o;
   });
-  out.relationships = (data.relationships || []).map((r) => pick(r, REL_DROP, (k, v) => (k === 'from' || k === 'to' ? m(v) : v)));
+  const byId = new Map((data.entities || []).map((e) => [e && e.id, e]));
+  out.relationships = (data.relationships || []).map((r) => {
+    const names = Array.isArray(r.columns) ? r.columns : [];
+    const cols = ((byId.get(r.from) || {}).columns || []);
+    const col = (n) => cols.find((c) => c && c.name === n) || {};
+    const o = pick(r, REL_DROP, (k, v) => (k === 'from' || k === 'to' ? m(v) : v));
+    if (!names.length) delete o.columns;
+    o.fromEnd = r.fromEnd || 'zeroOrMany';
+    o.toEnd = r.toEnd || (names.length && names.every((n) => col(n).nullable === true) ? 'zeroOrOne' : 'one');
+    o.identifying = r.identifying == null ? names.length > 0 && names.every((n) => col(n).pk === true) : r.identifying;
+    return o;
+  });
   out.notes = (data.notes || []).map((n) => pick(n, new Set(['id']), (k, v) => (k === 'entities' && Array.isArray(v) ? v.map(m) : v)));
   return out;
 }
