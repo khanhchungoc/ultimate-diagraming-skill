@@ -15,6 +15,7 @@ Status: proposed (2026-11-18). Follows `plan-speed-cost.md` P1: in the benchmark
 3. **Round trip.** JSON → Mermaid → JSON keeps every authored field. Positions are not in Mermaid; see "Updates and positions".
 4. **One implementation.** Parser and writer live in JS next to each type's plugin. The page uses them (Copy as Mermaid, later Paste/Import Mermaid) and so does the CLI (through `run_engine.mjs`, or Chrome without Node, like the engines). The current `toMermaid()` functions export only and drop information; they are replaced, not kept beside the new code.
 5. **The engine derives what it can**, so the agent writes less: start vs end, feedback edges, lane icons, ERD join columns, fk and identifying flags, actor vs use case.
+6. **Same functionality, the user decides every difference.** Switching the authoring format changes no behaviour of the skill, the page or the engines. Wherever a field cannot survive the round trip exactly, or a mapping needs an interpretation this plan does not fix, the work implements the plan's default (if any) and lists the case for the user to decide; it is never settled silently.
 
 ## Shared conventions (all types)
 
