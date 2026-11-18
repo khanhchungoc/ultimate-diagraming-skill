@@ -1,6 +1,6 @@
 # Plan: Mermaid as the authoring format
 
-Status: proposed (2026-11-18). Follows `plan-speed-cost.md` P1: in the benchmark, the agent's JSON was 3.3× the size of the same diagram in Mermaid, and two thirds of the JSON was syntax and ids, not content.
+Status: Phases 0 and 1 done (2026-11-18): `dev/check_mermaid.mjs` passes 93 checks (round trip, Mermaid validity, leniency corpus); the `--layout` dry run waits for Phase 4. Follows `plan-speed-cost.md` P1: in the benchmark, the agent's JSON was 3.3× the size of the same diagram in Mermaid, and two thirds of the JSON was syntax and ids, not content.
 
 ## Decision
 
@@ -189,6 +189,18 @@ Text in messages: `;` and `#` must be escaped (`a; b` fails to parse); the write
 
 1. A written direction (`flowchart LR`, `TD`) is honoured. The type reference tells agents to write a bare `flowchart` so `--layout` picks.
 2. JSON input stays accepted for old files only; agent-facing docs describe Mermaid alone.
+
+## Decisions after Phases 0 and 1 (2026-11-18)
+
+These override the tables above where they differ.
+
+- **Flowchart step order**: the writer lists steps grouped by lane, so the step order in the JSON changes after a round trip (same steps and edges; the engine drew identical layouts on the 4 fixtures tested). The harness compares flowchart steps by id.
+- **No swimlanes is exact**: no subgraph imports as `"swimlanes": false` with `"lanes": []` and no `laneId` (the engine makes its own lane). Hidden but named lanes are written as subgraphs plus `%% @swimlanes false`, so their name, icon and colour survive.
+- **Use case arrowheads**: associations are plain whatever arrow is written; `navigable` comes only from `%% @navigable <from> <to>`.
+- **Notes** are flag nodes joined by dotted lines only (`-.-`, `-.->`); a flag node on a solid line is a step or a use case.
+- **Custom colours** (a hex instead of a slot) survive as `%% @color <id> <value>`, for lanes, actors and use cases.
+- **Accepted as built**: an unlabelled line between two use cases or two actors is a `[WARN]` and is skipped; a use case file with no subgraph and no actor gets an `[INFO]`; one subject makes `subject` explicit on every use case; ids are sanitised (`lane-x` → `lane_x`) and `layout` keys must follow; unknown non-text fields are dropped until one exists; import-only leniency (invisible links dropped, unknown shapes read as tasks, `classDef`/`style` ignored) stays.
+- **Extra syntax the writer emits for exactness**: `%% @schemaVersion`, `%% @<key> <id> <value>` for unknown text fields (such as a node's `outcome`), and the classes `isStart`/`isEnd` when start or end cannot be derived from the edges.
 
 ## Phase 0 and 1 interfaces
 

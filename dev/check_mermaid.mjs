@@ -53,8 +53,11 @@ function normalise(data, safeId) {
   const out = {};
   for (const [key, val] of Object.entries(data)) {
     if (POSITION_KEYS.has(key)) continue;
-    if (ID_ARRAYS.includes(key) || LIST_ID_KEYS.includes(key)) out[key] = (val || []).map((it) => item(key, it, m));
-    else out[key] = val;
+    if (ID_ARRAYS.includes(key) || LIST_ID_KEYS.includes(key)) {
+      out[key] = (val || []).map((it) => item(key, it, m));
+      // Flowchart steps are written grouped by lane, so their order changes (decided: compare them by id)
+      if (key === 'nodes' && data.diagramType !== 'usecase') out[key].sort((p, q) => (p.id < q.id ? -1 : p.id > q.id ? 1 : 0));
+    } else out[key] = val;
   }
   return out;
 }

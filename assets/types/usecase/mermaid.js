@@ -55,12 +55,15 @@ function fromMermaidAst(ast) {
   const edgesOf = new Map();
   ast.edges.forEach(e => [e.from, e.to].forEach(id => { if (!edgesOf.has(id)) edgesOf.set(id, []); edgesOf.get(id).push(e); }));
 
-  // Notes: a flag-shaped node whose edges are all unlabelled and dotted or headless.
-  const isNote = n => n.shape === 'odd' && (edgesOf.get(n.id) || []).every(e => !e.label && (e.stroke === 'dotted' || e.stroke === 'invisible' || (e.head === 'none' && !e.both)));
+  // Notes: a flag-shaped node whose edges are all unlabelled and dotted.
+  const isNote = n => n.shape === 'odd' && (edgesOf.get(n.id) || []).every(e => !e.label && e.stroke === 'dotted');
   const kind = new Map();   // Mermaid id -> 'note' | 'uc' | 'actor'
   ast.nodes.forEach(n => {
     kind.set(n.id, isNote(n) ? 'note' : (hasSub ? nodeSub.has(n.id) : ['stadium', 'circle', 'ellipse'].includes(n.shape)) ? 'uc' : 'actor');
   });
+  if (!hasSub && ast.nodes.length && ![...kind.values()].includes('actor')) {
+    infos.push('no subgraph and no actor: every node reads as a use case (stadium or circle); draw actors with another shape, or put the use cases in a subgraph');
+  }
 
   const data = { diagramType: 'usecase' };
   if (ast.title) {
@@ -122,9 +125,7 @@ function fromMermaidAst(ast) {
     } else if (kf === kt) {
       warnings.push(where + ' joins two ' + (kf === 'uc' ? 'use cases' : 'actors') + ' without "include", "extend" or "is a"; label it or remove it');
     } else {
-      const l = { id: 'l' + (links.length + 1), type: 'association', from, to };
-      if (e.head === 'arrow' && !e.both) l.navigable = true;   // `-->` draws the open arrowhead toward `to`
-      links.push(l);
+      links.push({ id: 'l' + (links.length + 1), type: 'association', from, to });   // an arrowhead comes only from `%% @navigable`
     }
   });
 
@@ -159,6 +160,15 @@ function fromMermaidAst(ast) {
       case 'showRefs': data.showRefs = true; break;
       case 'showNotes': data.showNotes = true; break;
       case 'schemaVersion': if (!isNaN(Number(a))) data.schemaVersion = Number(a); break;
+      case 'navigable':
+        if ((m = /^(\S+)\s+(\S+)$/.exec(a))) {
+          const l = links.find(x => x.type === 'association' && x.from === sid(m[1]) && x.to === sid(m[2]));
+          if (l) l.navigable = true; else warnings.push('line ' + d.line + ': @navigable names no association from "' + m[1] + '" to "' + m[2] + '"');
+        } else warnings.push('line ' + d.line + ': @navigable needs the two ends of an association');
+        break;
+      case 'color':   // a colour that is not a palette slot (slots are classes c1..c8)
+        if ((m = /^(\S+)\s+(\S+)$/.exec(a))) { const o = target(m[1], 'color', d.line); if (o) o.color = m[2]; }
+        break;
       case 'refs': case 'points':
         ucmItems(a).forEach(([ids, rest]) => ids.forEach(id => {
           const o = target(id, d.key, d.line);
@@ -239,13 +249,16 @@ function toMermaid(data, opts) {
 
   [actors, useCases].forEach(list => list.forEach(x => { if (x.parent && [...actors, ...useCases].some(y => y.id === x.parent)) out.push('  ' + sid(x.id) + ' -->|is a| ' + sid(x.parent)); }));
   const known = new Set([...actors, ...useCases].map(x => x.id));
+  const navigable = [];
   (data.links || []).forEach(l => {
     if (!known.has(l.from) || !known.has(l.to)) return;
     const a = sid(l.from), b = sid(l.to);
     if (l.type === 'include') out.push('  ' + a + ' -.->|include| ' + b);
     else if (l.type === 'extend') out.push('  ' + a + ' -.->|' + q('extend' + (l.extensionPoint ? ' (' + l.extensionPoint + ')' : '') + (l.condition ? ': ' + l.condition : '')) + '| ' + b);
-    else out.push('  ' + a + (l.navigable ? ' --> ' : ' --- ') + b);
+    else { out.push('  ' + a + ' --- ' + b); if (l.navigable) navigable.push('  %% @navigable ' + a + ' ' + b); }
   });
+  out.push(...navigable);
+  [...actors, ...useCases].forEach(x => { if (x.color != null && !slotOf(x)) out.push('  %% @color ' + sid(x.id) + ' ' + x.color); });
   (data.notes || []).forEach(n => {
     const ends = [...(n.useCases || []), ...(n.actors || [])].filter(id => known.has(id)).map(sid);
     out.push('  ' + sid(allIds.has(n.id) ? 'note_' + n.id : n.id) + '>' + q(n.text) + ']' + (ends.length ? ' -.- ' + ends.join(' & ') : ''));

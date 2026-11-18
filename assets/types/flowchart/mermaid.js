@@ -3,7 +3,7 @@
 //   fromMermaid(text)      -> { data, infos, warnings }   authoring JSON, no positions
 //   toMermaid(data, opts)  -> string                      opts.palette: 8 hex colours for the slots c1..c8 (adds classDef lines)
 
-const MMD_FLOW_KNOWN_DIRECTIVES = ['type', 'icon', 'showNotes', 'laneOrder', 'schemaVersion'];
+const MMD_FLOW_KNOWN_DIRECTIVES = ['type', 'icon', 'color', 'showNotes', 'laneOrder', 'schemaVersion', 'swimlanes'];
 const MMD_FLOW_FLAGS = ['isStart', 'isEnd'];
 const MMD_FLOW_LAYOUT_KEYS = ['x', 'y', 'height', 'width', 'w', 'h', 'fw', 'fh'];
 
@@ -17,7 +17,7 @@ function fromMermaidAst(ast) {
   const infoOnce = (kind, msg) => { if (!seen.has(kind)) { seen.add(kind); infos.push(msg); } };
 
   // Directives: known keys first, then item extras (`%% @key id[,id] value` where an id is a node or lane)
-  const dir = { showNotes: false, laneOrder: null, schemaVersion: null, icons: {}, extras: [] };
+  const dir = { showNotes: false, laneOrder: null, schemaVersion: null, swimlanes: null, icons: {}, colors: {}, extras: [] };
   const sgById = new Map(ast.subgraphs.map((s) => [s.id, s]));
   const nodeIds = new Set(ast.nodes.filter((n) => !sgById.has(n.id)).map((n) => n.id));
   ast.directives.forEach((d) => {
@@ -26,6 +26,8 @@ function fromMermaidAst(ast) {
     if (d.key === 'showNotes') dir.showNotes = d.args !== 'false';
     else if (d.key === 'laneOrder') dir.laneOrder = d.args;
     else if (d.key === 'schemaVersion') dir.schemaVersion = Number(d.args);
+    else if (d.key === 'swimlanes') dir.swimlanes = d.args !== 'false';
+    else if (d.key === 'color') first.split(',').forEach((id) => { dir.colors[id] = rest; });   // a lane colour that is not a palette slot
     else if (d.key === 'type') { /* the use case switch; nothing to do here */ } else if (d.key === 'icon') first.split(',').forEach((id) => { dir.icons[id] = rest; });
     else if (first && first.split(',').every((id) => nodeIds.has(id) || sgById.has(id))) dir.extras.push({ key: d.key, ids: first.split(','), value: rest });
     else infoOnce('dir:' + d.key, `[INFO] line ${d.line}: directive @${d.key} is not used by flowcharts, ignored`);
@@ -44,22 +46,24 @@ function fromMermaidAst(ast) {
   if (nested.length) infos.push(`[INFO] nested subgraphs flattened into their top-level lane: ${nested.map((s) => s.id).join(', ')}`);
   const laneIdOf = (id) => (/^[\w-]+$/.test(id) ? id : mmdSafeId(id));
   const tops = ast.subgraphs.filter((s) => !s.parent);
-  const swimlanes = tops.length > 0;
-  const lanes = swimlanes ? tops.map((s) => {
+  // No subgraph: no lanes at all (the engine creates its own lane-main). `%% @swimlanes false` keeps written lanes hidden.
+  const swimlanes = tops.length > 0 && dir.swimlanes !== false;
+  const lanes = tops.map((s) => {
     const l = { id: laneIdOf(s.id), name: s.title };
     if (dir.icons[s.id]) l.icon = dir.icons[s.id];
     const c = s.classes.map((x) => /^c([1-8])$/.exec(x)).find(Boolean);
     if (c) l.color = c[1];
+    else if (dir.colors[s.id]) l.color = dir.colors[s.id];
     return l;
-  }) : [{ id: 'lane_main', name: 'Process' }];
+  });
   const laneOfNode = new Map();
   ast.subgraphs.forEach((s) => s.nodes.forEach((id) => laneOfNode.set(id, laneIdOf(topOf(s).id))));
 
-  // Notes: flag-shaped nodes whose every edge is dotted or headless
+  // Notes: flag-shaped nodes whose every edge is dotted
   const flowNodes = ast.nodes.filter((n) => !sgById.has(n.id));
   const incident = (id) => ast.edges.filter((e) => e.from === id || e.to === id);
   const noteSet = new Set(flowNodes.filter((n) => (n.shape === 'odd' || n.shape === 'flag')
-    && incident(n.id).every((e) => e.stroke === 'dotted' || e.head === 'none')).map((n) => n.id));
+    && incident(n.id).every((e) => e.stroke === 'dotted')).map((n) => n.id));
   const real = flowNodes.filter((n) => !noteSet.has(n.id));
   const realIds = new Set(real.map((n) => n.id));
 
@@ -97,11 +101,11 @@ function fromMermaidAst(ast) {
     else if (!type) { type = 'task'; (lenient[n.shape] = lenient[n.shape] || []).push(n.id); }
     if (n.classes.some((c) => !MMD_FLOW_FLAGS.includes(c))) classIgnored = true;
     let laneId = laneOfNode.get(n.id);
-    if (!laneId) {
+    if (!laneId && lanes.length) {
       laneId = lanes[0].id;
-      if (swimlanes) { warnings.push(`[WARN] line ${n.line}: step ${n.id} is outside every lane; put into lane ${laneId}`); }
+      warnings.push(`[WARN] line ${n.line}: step ${n.id} is outside every lane; put into lane ${laneId}`);
     }
-    return { id: n.id, laneId, type, label: n.label };
+    return laneId ? { id: n.id, laneId, type, label: n.label } : { id: n.id, type, label: n.label };
   });
   Object.keys(lenient).forEach((s) => infos.push(`[INFO] shape ${s} has no flowchart equivalent: ${lenient[s].join(', ')} read as task`));
   if (classIgnored) infos.push('[INFO] classes on steps are ignored (flowchart steps have no colour)');
@@ -135,8 +139,7 @@ function toMermaid(data, opts) {
   opts = opts || {};
   const used = new Set(), ids = new Map();
   const sid = (kind, raw) => { const k = kind + '\0' + raw; if (!ids.has(k)) ids.set(k, mmdSafeId(raw, used)); return ids.get(k); };
-  const swimlanes = data.swimlanes !== false;
-  const lanes = swimlanes ? (data.lanes || []) : [];
+  const lanes = data.lanes || [];
   const nodes = data.nodes || [];
   lanes.forEach((l) => sid('l', l.id));
   nodes.forEach((n) => sid('n', n.id));
@@ -154,6 +157,8 @@ function toMermaid(data, opts) {
   if (data.schemaVersion != null) dirs.push('%% @schemaVersion ' + data.schemaVersion);
   if (data.showNotes) dirs.push('%% @showNotes');
   if (data.laneOrder) dirs.push('%% @laneOrder ' + data.laneOrder);
+  if (data.swimlanes === false && lanes.length) dirs.push('%% @swimlanes false');
+  lanes.forEach((l) => { if (l.color != null && !/^[1-8]$/.test(String(l.color))) dirs.push(`%% @color ${sid('l', l.id)} ${l.color}`); });
   lanes.forEach((l) => { if (l.icon) dirs.push(`%% @icon ${sid('l', l.id)} ${l.icon}`); });
   const extras = (o, id) => Object.keys(o).forEach((k) => {
     if (['id', 'laneId', 'type', 'label', 'name', 'icon', 'color', 'colorKey'].includes(k) || MMD_FLOW_KNOWN_DIRECTIVES.includes(k)
