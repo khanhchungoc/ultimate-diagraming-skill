@@ -9,7 +9,7 @@
 //
 // --sequence:  dev/fixtures/sequence/payment-phases.json laid out by `layout_engine.py --layout` (a long diagram)
 // --flowchart: dev/fixtures/flowchart/loan-application.json laid out
-// --erd (optional): references/examples/example-erd.json laid out: pan, pinch, a drag that starts on an unselected table
+// --erd (optional): dev/examples/example-erd.json laid out: pan, pinch, a drag that starts on an unselected table
 //   pans, a tap selects, a selected table drags, a relationship is drawn by touch from a selected table's row port, a
 //   tapped line's end handle re-points it, a tap on blank canvas clears
 // Exit codes: 0 all passed, 1 setup error, 2 a check failed.

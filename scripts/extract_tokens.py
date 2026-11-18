@@ -853,8 +853,11 @@ def complete_theme(partial: Dict[str, Any], notes: List[str], browser: Optional[
 def preview(theme_path: Path, out_dir: Path, browser: Optional[str]) -> None:
     """One example per diagram type, laid out with the theme (scripts/layout_engine.py) and rendered to PNG."""
     out_dir.mkdir(parents=True, exist_ok=True)
-    for kind, ex in (("flowchart", "example-flowchart"), ("sequence", "example-sequence"), ("erd", "example-erd")):
-        cmd = [sys.executable, str(Path(__file__).with_name("layout_engine.py")), "--layout", str(ROOT / "references" / "examples" / f"{ex}.json"),
+    for kind in ("flowchart", "sequence", "erd"):
+        src = ROOT / "dev" / "examples" / f"example-{kind}.json"
+        if not src.is_file():
+            src = ROOT / "assets" / "types" / kind / "default.json"
+        cmd = [sys.executable, str(Path(__file__).with_name("layout_engine.py")), "--layout", str(src),
                "--theme", str(theme_path), "-o", str(out_dir / f"{kind}.html"), "--screenshot", str(out_dir / f"{kind}.png")]
         if browser:
             cmd += ["--browser", browser]

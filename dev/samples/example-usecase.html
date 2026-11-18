@@ -22,7 +22,7 @@
   "actors": [
     { "id": "member", "name": "Member" },
     { "id": "librarian", "name": "Librarian" },
-    { "id": "mail", "name": "Mail service", "kind": "system", "side": "right" }
+    { "id": "mail", "name": "Mail service", "kind": "system" }
   ],
   "useCases": [
     { "id": "search", "name": "Search catalogue", "subject": "library", "color": "1", "refs": ["FR-1"] },
@@ -864,6 +864,18 @@
     .confirm-actions { display: flex; justify-content: flex-end; gap: 8px; }
     .confirm .btn { padding: 6px 12px; font-size: var(--t-control-size); white-space: nowrap; }
     .confirm.has-alt { width: 380px; max-width: calc(100vw - 16px); }
+
+    /* Import bubble: the confirm bubble with a text box and a list of notes (Export > Import > Mermaid text, shell.js IMPORT MERMAID). */
+    .confirm.confirm-wide { width: 420px; max-width: calc(100vw - 16px); }
+    .confirm-field {
+      display: block; width: 100%; min-height: 160px; margin-bottom: 12px; padding: 6px 8px; box-sizing: border-box; resize: vertical;
+      font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-main); background: var(--bg-page);
+      border: 1px solid var(--border-color); border-radius: var(--radius-md);
+    }
+    .confirm-field:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+    .confirm-error { color: var(--danger); font-weight: var(--weight-regular); }
+    .confirm-list { margin: 0 0 12px; padding-left: 18px; max-height: 200px; overflow: auto; color: var(--text-soft); }
+    .confirm-list li { margin-bottom: 4px; overflow-wrap: anywhere; }
     /* Note: extra detail kept off the diagram so labels stay short. A neutral slate paper card with a bracket edge (the
        classic flowchart annotation, which has no colour of its own), joined to what it explains by a dashed leader.
        Neutral on purpose: every hue on the canvas already means something (gold decision, green start, blue selection,
@@ -1390,6 +1402,7 @@
     body.presentation .toolbar-center,
     body.presentation .toolbar-left,
     body.presentation .menu-wrap,
+    body.presentation #btn-import-mermaid,
     body.presentation #btn-save,
     body.presentation #btn-help,
     body.presentation #btn-undo,
@@ -1654,6 +1667,9 @@
       <button id="btn-help" class="btn btn-icon" title="Keyboard shortcuts" aria-label="Keyboard shortcuts" aria-expanded="false" aria-controls="help-drawer">?</button>
       <button id="btn-present" class="btn" title="Present: a read-only view (Esc exits)" aria-label="Present" aria-pressed="false">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="20" height="14" x="2" y="3" rx="2"/><path d="M10 8l5 3-5 3z"/><path d="M8 21h8M12 17v4"/></svg><span class="btn-label">Present</span>
+      </button>
+      <button id="btn-import-mermaid" class="btn" title="Paste Mermaid text to replace the diagram" aria-label="Paste Mermaid" hidden>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg><span class="btn-label">Paste Mermaid</span>
       </button>
       <div class="menu-wrap">
         <button id="btn-export" class="btn" title="Download or copy the diagram as an image" aria-label="Export" aria-haspopup="menu" aria-expanded="false">
@@ -2337,11 +2353,12 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
         requestAnimationFrame(() => {
           applyInitialView();
           // The web font (Google Fonts link in shell.html) loads asynchronously: render again once it is in, so label
-          // fitting and edge-label widths are measured with the real glyphs, and only then report or tidy.
+          // fitting and edge-label widths are measured with the real glyphs, and only then report, tidy, or settle.
           const fontsIn = document.fonts && document.fonts.status !== 'loaded'
-            ? document.fonts.ready.then(() => { plugin.render(); applyInitialView(); })
+            ? document.fonts.ready.then(() => { plugin.render(); applyInitialView(); }).catch(() => {})
             : Promise.resolve();
           fontsIn.then(() => {
+            document.documentElement.dataset.diagramSettled = '1';
             if (/[?&]report(=|&|$)/.test(window.location.search)) setTimeout(publishRenderReport, 200);
             if (/[?&]tidy(=|&|$)/.test(window.location.search)) publishTidyResult();
           });
@@ -2513,6 +2530,17 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
         if (plugin && plugin.onViewChange) plugin.onViewChange();   // e.g. keep frozen headers pinned
       }
 
+      // --- HOVER TEXT: an element's data-tip, or the full text of a label cut off with "...", as the native tooltip ---
+      const isCut = (el) => el.scrollHeight > el.clientHeight + 2 || el.scrollWidth > el.clientWidth + 2;
+      const isClamped = (el) => { const s = getComputedStyle(el); return s.textOverflow === 'ellipsis' || (s.webkitLineClamp && s.webkitLineClamp !== 'none'); };
+      document.addEventListener('pointerover', (e) => {
+        for (let el = e.target; el && el.nodeType === 1; el = el.parentElement) {
+          if (el.title && !el.dataset.autoTitle) return;   // a title the type set itself wins
+          const tip = el.dataset.tip || (isClamped(el) && isCut(el) ? el.textContent.trim() : '');
+          if (tip) { el.title = tip; el.dataset.autoTitle = '1'; return; }
+        }
+      });
+
       // --- RENDER REPORT (only when opened with ?report; used by scripts/render_screenshot.py) ---
       function publishRenderReport() {
         const box = (el) => { const r = el.getBoundingClientRect(); return { l: r.left, t: r.top, r: r.right, b: r.bottom }; };
@@ -2532,18 +2560,20 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
         }
         if (plugin.report.nodeText) {
           document.querySelectorAll(plugin.report.nodeText).forEach(el => {
-            if (el.scrollHeight > el.clientHeight + 2 || el.scrollWidth > el.clientWidth + 2) {
+            if (isCut(el)) {
               const nid = el.closest(plugin.report.node)?.dataset.nodeId || 'node';
-              // A label with a hover tip still shows its full text, so it is a layout note, not a data problem
-              warnings.push(el.dataset.tip
+              // A label that shows its full text on hover (see HOVER TEXT) is a layout note, not a data problem
+              warnings.push(el.dataset.tip || el.title || isClamped(el)
                 ? `Node label truncated ("..."): "${el.textContent.trim()}" (${nid}); the full text shows on hover`
                 : `Node label truncated ("..."): "${el.textContent.trim()}" (${nid}) — shorten to fit 2 lines`);
             }
           });
         }
         document.querySelectorAll('.lane-title').forEach(el => {
-          if (el.scrollHeight > el.clientHeight + 2 || el.scrollWidth > el.clientWidth + 2) {
-            warnings.push(`Lane title truncated ("..."): "${el.textContent.trim()}" — shorten lane name`);
+          if (isCut(el)) {
+            warnings.push(isClamped(el)
+              ? `Lane title truncated ("..."): "${el.textContent.trim()}"; the full text shows on hover`
+              : `Lane title truncated ("..."): "${el.textContent.trim()}" — shorten lane name`);
           }
         });
         const effPx = (sel) => {
@@ -3154,11 +3184,22 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
       const canCopyPng = !!(navigator.clipboard && navigator.clipboard.write) && typeof ClipboardItem !== 'undefined';
       let copyFlashTimer = null;
 
-      function flashCopied(what) {
-        saveStatus.textContent = 'Copied as ' + what;
+      function flashCopied(what) { flashStatus('Copied as ' + what); }
+      function flashStatus(text) {
+        saveStatus.textContent = text;
         saveStatus.className = 'badge badge-status saved';
         clearTimeout(copyFlashTimer);
         copyFlashTimer = setTimeout(() => setStatusBadge(hasUnsavedChanges), 1500);
+      }
+
+      // What the Mermaid writer reads: the saved form of the diagram (what Save writes) without the `layout` map. A lane's
+      // colour travels in that map, so it is put back on its lane.
+      function mermaidData() {
+        const d = plugin.toDisk ? plugin.toDisk(chartData) : JSON.parse(JSON.stringify(chartData));
+        const layout = d.layout || {};
+        delete d.layout;
+        (d.lanes || []).forEach((l) => { if (layout[l.id] && layout[l.id].color) l.color = layout[l.id].color; });
+        return d;
       }
 
       // Must be called straight from the click: the clipboard write has to start inside the user gesture,
@@ -3171,7 +3212,7 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
             job = navigator.clipboard.writeText(svgDocument(buildExportSvg().svg));
           } else if (format === 'mermaid') {
             if (typeof plugin.toMermaid !== 'function') throw new Error('this diagram type has no Mermaid export');
-            job = navigator.clipboard.writeText(plugin.toMermaid());
+            job = navigator.clipboard.writeText(plugin.toMermaid(mermaidData(), { palette: SWATCHES.map((w) => w.hex) }));
           } else if (format === 'png') {
             if (!canCopyPng) throw new Error('this browser cannot copy images');
             job = navigator.clipboard.write([new ClipboardItem({ 'image/png': exportPngBlob() })]);
@@ -3186,9 +3227,12 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
       }
       document.querySelectorAll('[data-copy="png"]').forEach(el => { el.hidden = !canCopyPng; });
       document.querySelectorAll('[data-copy="svg"]').forEach(el => { el.hidden = !(navigator.clipboard && navigator.clipboard.writeText); });
-      // Mermaid is offered only when the diagram type can write it (the type script registers after this one runs)
+      // Mermaid is offered only when the diagram type can read/write it (the type script registers after this one runs)
+      const btnImportMermaid = document.getElementById('btn-import-mermaid');
+      if (btnImportMermaid) btnImportMermaid.addEventListener('click', (e) => { e.stopPropagation(); setExportOpen(false); openMermaidImport(); });
       function syncCopyMenu() {
         document.querySelectorAll('[data-copy="mermaid"]').forEach(el => { el.hidden = !(plugin && typeof plugin.toMermaid === 'function' && navigator.clipboard && navigator.clipboard.writeText); });
+        if (btnImportMermaid) btnImportMermaid.hidden = !(plugin && typeof plugin.fromMermaid === 'function');
         // Drop the "Copy" heading when this browser has no copy items to offer
         document.querySelectorAll('[data-copy-label]').forEach(el => { el.hidden = !document.querySelector('[data-copy]:not([hidden])'); });
       }
@@ -3208,6 +3252,139 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
       });
       document.addEventListener('click', () => setExportOpen(false));
       window.addEventListener('keydown', (e) => { if (e.key === 'Escape') setExportOpen(false); });
+
+      // --- IMPORT MERMAID ---
+      // Toolbar Paste Mermaid button (#btn-import-mermaid) and canvas paste (Ctrl+V outside text fields): the text is read
+      // by the type's fromMermaid (mermaid.js) and replaces the diagram as one undo step, laid out fresh. What the reader
+      // could not map exactly is listed afterwards, and text of another diagram type is refused.
+      const MERMAID_TYPE_NAME = { flowchart: 'flowchart', usecase: 'use case diagram', sequence: 'sequence diagram', erd: 'ER diagram' };
+      function mermaidTypeOf(text) {
+        const body = String(text).replace(/^\s*---[\s\S]*?\n---[ \t]*(?:\n|$)/, '');
+        const head = (body.split(/\r?\n/).map((l) => l.trim()).find((l) => l && !l.startsWith('%%')) || '').toLowerCase();
+        if (/^(flowchart|graph)\b/.test(head)) return /^\s*%%\s*@type\s+usecase\b/m.test(body) ? 'usecase' : 'flowchart';
+        if (head.startsWith('sequencediagram')) return 'sequence';
+        if (head.startsWith('erdiagram')) return 'erd';
+        return '';
+      }
+
+      // Replaces the diagram with the Mermaid text; returns the reader's notes. Throws an Error with a plain message.
+      function importMermaid(text) {
+        if (!String(text).trim()) throw new Error('Paste some Mermaid text first.');
+        const kind = mermaidTypeOf(text);
+        if (kind && kind !== plugin.id) {
+          throw new Error(`This is a ${MERMAID_TYPE_NAME[kind]}, and this page is a ${MERMAID_TYPE_NAME[plugin.id]}. Open a ${MERMAID_TYPE_NAME[kind]} page to import it.`);
+        }
+        let res;
+        try { res = plugin.fromMermaid(text); } catch (err) { throw new Error(`This is not Mermaid text this page can read (${err.message}).`); }
+        const next = res.data;
+        if (!next.title && chartData.title) next.title = chartData.title;
+        plugin.cancelInteraction();
+        plugin.clearSelection();
+        chartData = plugin.fromDisk ? plugin.fromDisk(next) : next;
+        if (plugin.placeImported) plugin.placeImported();
+        chartTitleEl.textContent = chartData.title || plugin.defaultTitle;
+        document.title = chartTitleEl.textContent;
+        plugin.render();
+        updateStatus(true);
+        fitView();
+        const note = (list, label) => (list || []).map((m) => `${label}: ${String(m).replace(/^\[(?:INFO|WARN)\]\s*/, '')}`);
+        return note(res.warnings, 'Warning').concat(note(res.infos, 'Note'));
+      }
+
+      let importEl = null;
+      function closeMermaidImport() {
+        if (!importEl) return false;
+        importEl.remove();
+        importEl = null;
+        return true;
+      }
+      function positionImportBox(box) {
+        const anchor = (btnImportMermaid && !btnImportMermaid.hidden ? btnImportMermaid : btnExport).getBoundingClientRect();
+        const bw = box.offsetWidth;
+        box.style.left = `${Math.max(8, Math.min(anchor.right - bw, innerWidth - bw - 8))}px`;
+        box.style.top = `${anchor.bottom + 8}px`;
+      }
+      function showImportNotesBox(box, notes) {
+        box.textContent = '';
+        const add = (tag, cls, text) => { const d = document.createElement(tag); d.className = cls; if (text) d.textContent = text; box.appendChild(d); return d; };
+        add('div', 'confirm-title', 'Imported, with notes');
+        const list = add('ul', 'confirm-list');
+        notes.forEach((n) => { const li = document.createElement('li'); li.textContent = n; list.appendChild(li); });
+        const done = add('div', 'confirm-actions');
+        const close = document.createElement('button');
+        close.type = 'button';
+        close.className = 'btn btn-primary confirm-ok';
+        close.textContent = 'Close';
+        close.addEventListener('click', closeMermaidImport);
+        done.append(close);
+        close.focus();
+      }
+      function openMermaidImport() {
+        ui.closeConfirm();
+        closeMermaidImport();
+        const box = document.createElement('div');
+        box.className = 'confirm confirm-wide';
+        box.dataset.exportSkip = '';
+        box.setAttribute('role', 'dialog');
+        box.setAttribute('aria-label', 'Paste Mermaid');
+        const add = (tag, cls, text) => { const d = document.createElement(tag); d.className = cls; if (text) d.textContent = text; box.appendChild(d); return d; };
+        const button = (cls, text) => { const b = document.createElement('button'); b.type = 'button'; b.className = cls; b.textContent = text; return b; };
+        add('div', 'confirm-title', 'Paste Mermaid');
+        add('div', 'confirm-msg', `Paste Mermaid text for this ${MERMAID_TYPE_NAME[plugin.id]}. It replaces the diagram and lays it out fresh. Undo brings the old diagram back.`);
+        const field = add('textarea', 'confirm-field');
+        field.spellcheck = false;
+        field.setAttribute('aria-label', 'Mermaid text');
+        const error = add('div', 'confirm-msg confirm-error');
+        error.setAttribute('role', 'alert');
+        error.hidden = true;
+        const row = add('div', 'confirm-actions');
+        const cancel = button('btn confirm-cancel', 'Cancel');
+        cancel.addEventListener('click', closeMermaidImport);
+        const ok = button('btn btn-primary confirm-ok', 'Import');
+        row.append(cancel, ok);
+        const run = () => {
+          let notes;
+          try { notes = importMermaid(field.value); } catch (err) { error.textContent = err.message; error.hidden = false; field.focus(); return; }
+          if (!notes.length) { closeMermaidImport(); flashStatus('Imported Mermaid'); return; }
+          showImportNotesBox(box, notes);
+        };
+        ok.addEventListener('click', run);
+        box.addEventListener('keydown', (e) => {
+          if (e.key === 'Escape') { e.preventDefault(); closeMermaidImport(); }
+          else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); run(); }
+          if (e.key !== 'Tab') e.stopPropagation();   // keys typed here must not reach the diagram's shortcuts
+        });
+        document.body.appendChild(box);
+        importEl = box;
+        positionImportBox(box);
+        field.focus();
+      }
+      window.addEventListener('paste', (e) => {
+        if (document.body.classList.contains('presentation') || !(plugin && typeof plugin.fromMermaid === 'function')) return;
+        const t = e.target;
+        if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+        const text = (e.clipboardData && e.clipboardData.getData('text/plain')) || '';
+        if (!text.trim() || !mermaidTypeOf(text)) return;
+        e.preventDefault();
+        let notes;
+        try { notes = importMermaid(text); } catch (err) { showToast(err.message); return; }
+        if (!notes.length) { flashStatus('Imported Mermaid'); return; }
+        ui.closeConfirm();
+        closeMermaidImport();
+        const box = document.createElement('div');
+        box.className = 'confirm confirm-wide';
+        box.dataset.exportSkip = '';
+        box.setAttribute('role', 'dialog');
+        box.setAttribute('aria-label', 'Imported, with notes');
+        box.addEventListener('keydown', (ev) => {
+          if (ev.key === 'Escape') { ev.preventDefault(); closeMermaidImport(); }
+          if (ev.key !== 'Tab') ev.stopPropagation();
+        });
+        document.body.appendChild(box);
+        importEl = box;
+        showImportNotesBox(box, notes);
+        positionImportBox(box);
+      });
 
       // --- DOCK: layout group, popovers, delete ---
       // Two groups split by a separator: editing controls (type buttons, Delete) | layout controls
@@ -4609,6 +4786,609 @@ function routeDiagram(data) {
   return data;
 }
 //@engine-end
+// Mermaid flowchart-family tokenizer, shared by the flowchart and use case importers (plan: dev/plans/plan-mermaid-input.md).
+// Plain script: globals only, no DOM, no imports (it is concatenated with the type's mermaid.js).
+//
+// mmdParseFlow(text) returns the AST described in the plan ("mmdParseFlow(text) result"), with one additive field:
+//   dirRaw: the direction word as written in the header ('TD', 'RL', ...) or null, so a caller can say that RL/BT were mapped.
+// `ignored` entries are { line, text } with text starting with the statement keyword (style, classDef, click, ...).
+// `shape` names: the bracket forms give rect, round, stadium, subroutine, cylinder, circle, dbl-circ, odd, diamond, hex,
+// lean-r, lean-l, trap-b, trap-t. `@{ shape: x }` gives the canonical v11 name, with these exceptions where the plan
+// gives no name: rectangle aliases -> rect, rounded -> round, pill/terminal -> stadium, hexagon/prepare -> hex,
+// decision/question -> diamond, db/database/cylinder -> cyl, framed-rectangle/subprocess/fr-rect -> subproc; any other name
+// is passed through lower-cased.
+// A node that is only referenced gets shape 'rect' with label = id. The circ shapes (sm-circ, fr-circ, f-circ, dbl-circ)
+// get an empty label when none is written.
+
+const MMD_RESERVED = ['end', 'graph', 'subgraph', 'flowchart', 'style', 'class', 'classdef', 'linkstyle', 'click', 'default',
+  'direction', 'call', 'href', 'interpolate', 'acctitle', 'accdescr',
+  // sequenceDiagram keywords: Mermaid cannot parse them as participant ids, and every type shares one id rule
+  'alt', 'else', 'opt', 'loop', 'par', 'and', 'rect', 'box', 'note', 'participant', 'actor', 'create', 'destroy', 'activate',
+  'deactivate', 'autonumber', 'title', 'link', 'links', 'properties', 'details', 'critical', 'option', 'break', 'as', 'over', 'left',
+  'right', 'of', 'off', 'sequencediagram'];
+
+// Unescape label text: <br> to newline, then entities (#quot; #35; #59; #NNN;). One pass for the entities, so #35;quot; stays text.
+function mmdText(s) {
+  let t = String(s == null ? '' : s).trim();
+  if (/^`[\s\S]*`$/.test(t)) t = t.slice(1, -1);
+  t = t.replace(/<br\s*\/?>/gi, '\n');
+  const named = { quot: '"', amp: '&', lt: '<', gt: '>', nbsp: ' ' };
+  t = t.replace(/#(quot|amp|lt|gt|nbsp|\d+);/g, (m, k) => (k in named ? named[k] : String.fromCodePoint(+k)));
+  return t.trim();
+}
+
+// Escape and quote a label for Mermaid. An empty label becomes a space, because Mermaid rejects "".
+function mmdQuote(s) {
+  const map = { '#': '#35;', '"': '#quot;', ';': '#59;', '`': '#96;' };
+  const t = String(s == null ? '' : s).replace(/\r\n?/g, '\n').replace(/[#";`]/g, (c) => map[c]).replace(/\n/g, '<br>');
+  return '"' + (t === '' ? ' ' : t) + '"';
+}
+
+// A Mermaid-safe id. `used` (a Set, optional) makes the result unique and records it.
+function mmdSafeId(id, used) {
+  let s = String(id == null ? '' : id).replace(/[^A-Za-z0-9_]+/g, '_') || 'n';
+  if (/^[0-9]/.test(s)) s = 'n_' + s;
+  while (MMD_RESERVED.includes(s.toLowerCase())) s += '_';
+  if (used) {
+    let u = s, k = 2;
+    while (used.has(u)) u = s + '_' + k++;
+    used.add(u);
+    s = u;
+  }
+  return s;
+}
+
+const MMD_SHAPE_ALIASES = {
+  rect: 'rect', rectangle: 'rect', proc: 'rect', process: 'rect', task: 'rect',
+  rounded: 'round', event: 'round', stadium: 'stadium', pill: 'stadium', terminal: 'stadium',
+  diamond: 'diamond', decision: 'diamond', question: 'diamond',
+  doc: 'doc', document: 'doc', delay: 'delay',
+  'sm-circ': 'sm-circ', 'small-circle': 'sm-circ', start: 'sm-circ',
+  'fr-circ': 'fr-circ', 'framed-circle': 'fr-circ', stop: 'fr-circ',
+  'f-circ': 'f-circ', 'filled-circle': 'f-circ', 'dbl-circ': 'dbl-circ', 'double-circle': 'dbl-circ',
+  subproc: 'subproc', subprocess: 'subproc', 'fr-rect': 'subproc', 'framed-rectangle': 'subproc',
+  cyl: 'cyl', cylinder: 'cyl', db: 'cyl', database: 'cyl', circle: 'circle', circ: 'circle',
+  hex: 'hex', hexagon: 'hex', prepare: 'hex', 'lean-r': 'lean-r', 'lean-right': 'lean-r', 'in-out': 'lean-r',
+  'lean-l': 'lean-l', 'lean-left': 'lean-l', 'out-in': 'lean-l', 'trap-b': 'trap-b', 'trapezoid-bottom': 'trap-b',
+  priority: 'trap-b', 'trap-t': 'trap-t', 'trapezoid-top': 'trap-t', manual: 'trap-t',
+};
+
+// Bracket openers, longest first: [opener, family, closers [[closer, shape], ...]]. family = the bracket counted for nesting.
+const MMD_OPENERS = [
+  ['(((', '(', [[')))', 'dbl-circ']]],
+  ['((', '(', [['))', 'circle']]],
+  ['([', '(', [['])', 'stadium']]],
+  ['(', '(', [[')', 'round']]],
+  ['[[', '[', [[']]', 'subroutine']]],
+  ['[(', '(', [[')]', 'cylinder']]],
+  ['[/', '[', [['/]', 'lean-r'], ['\\]', 'trap-b']]],
+  ['[\\', '[', [['\\]', 'lean-l'], ['/]', 'trap-t']]],
+  ['[', '[', [[']', 'rect']]],
+  ['{{', '{', [['}}', 'hex']]],
+  ['{', '{', [['}', 'diamond']]],
+  ['>', '[', [[']', 'odd']]],
+];
+const MMD_CLOSE_OF = { '(': ')', '[': ']', '{': '}' };
+const MMD_ID = /[A-Za-z0-9_\u0080-￿]+(?:-(?=[A-Za-z0-9_\u0080-￿])[A-Za-z0-9_\u0080-￿]*)*/y;
+
+// Split a line into statements at `;`, outside quotes and not when the `;` ends an entity such as #59;
+function mmdSplitStatements(line) {
+  const out = [];
+  let cur = '', q = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c === '"') q = !q;
+    if (c === ';' && !q && !/#\w+$/.test(cur)) { out.push(cur); cur = ''; } else cur += c;
+  }
+  out.push(cur);
+  return out.map((s) => s.trim()).filter(Boolean);
+}
+
+function mmdParseFlow(text) {
+  const ast = { title: null, dir: null, dirRaw: null, directives: [], nodes: [], edges: [], subgraphs: [], ignored: [] };
+  const nodeById = new Map(), sgById = new Map(), sgOf = new Map(), classOps = [];
+  const stack = [];
+  const lines = String(text == null ? '' : text).replace(/\r\n?/g, '\n').split('\n');
+  let li = 0, headerSeen = false, ln = 0;
+  const fail = (msg) => { throw new Error(`line ${ln}: ${msg}`); };
+
+  // Front-matter
+  while (li < lines.length && !lines[li].trim()) li++;
+  if (li < lines.length && lines[li].trim() === '---') {
+    li++;
+    while (li < lines.length && lines[li].trim() !== '---') {
+      const m = /^title\s*:\s*(.*)$/.exec(lines[li]);
+      if (m) {
+        let v = m[1].trim();
+        if (v[0] === '"') { try { v = JSON.parse(v); } catch (e) { v = v.replace(/^"|"$/g, ''); } } else if (v[0] === "'") v = v.replace(/^'|'$/g, '');
+        ast.title = mmdText(v);
+      }
+      li++;
+    }
+    li++;
+  }
+
+  function addNode(id, decl, classes) {
+    let n = nodeById.get(id);
+    if (!n) {
+      n = { id, label: id, shape: 'rect', classes: [], line: ln, declared: false };
+      nodeById.set(id, n);
+      ast.nodes.push(n);
+    }
+    if (decl && !n.declared) { n.label = decl.label; n.shape = decl.shape; n.declared = true; }
+    (classes || []).forEach((c) => { if (!n.classes.includes(c)) n.classes.push(c); });
+    if (stack.length && !sgOf.has(id)) {
+      const sg = stack[stack.length - 1];
+      sgOf.set(id, sg.id);
+      sg.nodes.push(id);
+    }
+    return id;
+  }
+
+  // Parse one node (id, then a shape or @{ } block, then :::classes) from s at i. Returns [id, next index].
+  function parseNode(s, i) {
+    while (s[i] === ' ') i++;
+    MMD_ID.lastIndex = i;
+    const m = MMD_ID.exec(s);
+    if (!m) fail(`cannot read a node id near "${s.slice(i, i + 20)}"`);
+    const id = m[0];
+    i += id.length;
+    let decl = null;
+    if (s.startsWith('@{', i)) {
+      let j = i + 2, q = false;
+      while (j < s.length && (q || s[j] !== '}')) { if (s[j] === '"') q = !q; j++; }
+      if (j >= s.length) fail('unterminated @{ }');
+      const body = s.slice(i + 2, j);
+      i = j + 1;
+      const props = {};
+      let part = '', pq = false;
+      const flush = () => {
+        const k = part.indexOf(':');
+        if (k > 0) {
+          let v = part.slice(k + 1).trim();
+          if (/^(".*"|'.*')$/.test(v)) v = v.slice(1, -1);
+          props[part.slice(0, k).trim().replace(/^"|"$/g, '')] = v;
+        }
+        part = '';
+      };
+      for (const c of body) { if (c === '"') pq = !pq; if (c === ',' && !pq) flush(); else part += c; }
+      flush();
+      const sname = String(props.shape || 'rect').toLowerCase();
+      const shape = MMD_SHAPE_ALIASES[sname] || sname;
+      const circ = ['sm-circ', 'fr-circ', 'f-circ', 'dbl-circ'].includes(shape);
+      decl = { shape, label: 'label' in props ? mmdText(props.label) : (circ ? '' : id) };
+    } else {
+      for (const [open, fam, closers] of MMD_OPENERS) {
+        if (!s.startsWith(open, i)) continue;
+        let j = i + open.length;
+        while (s[j] === ' ') j++;
+        const tryClose = (k) => closers.find(([c]) => s.startsWith(c, k));
+        let label = null, hit = null, end = 0;
+        if (s[j] === '"') {
+          const e = s.indexOf('"', j + 1);
+          if (e > 0) {
+            let k = e + 1;
+            while (s[k] === ' ') k++;
+            hit = tryClose(k);
+            if (hit) { label = s.slice(j + 1, e); end = k + hit[0].length; }
+          }
+        }
+        if (!hit) {
+          const closeCh = MMD_CLOSE_OF[fam];
+          let depth = 0, k = j;
+          for (; k < s.length; k++) {
+            if (depth === 0 && (hit = tryClose(k))) break;
+            if (s[k] === fam) depth++; else if (s[k] === closeCh && depth > 0) depth--;
+          }
+          if (!hit) fail(`missing "${closers[0][0]}" for node ${id}`);
+          label = s.slice(j, k);
+          end = k + hit[0].length;
+        }
+        decl = { shape: hit[1], label: mmdText(label) };
+        i = end;
+        break;
+      }
+    }
+    const classes = [];
+    while (s.startsWith(':::', i)) {
+      const m2 = /^[\w-]+/.exec(s.slice(i + 3));
+      if (!m2) fail('empty class after :::');
+      classes.push(m2[0]);
+      i += 3 + m2[0].length;
+    }
+    return [addNode(id, decl, classes), i];
+  }
+
+  function parseLink(s, i) {
+    let r = s.slice(i), m, id = null;
+    if ((m = /^[A-Za-z0-9_]+@(?=[-=.~<ox])/.exec(r))) { id = m[0].slice(0, -1); r = r.slice(m[0].length); }
+    let start = '';
+    if ((m = /^([<ox])(?=[-=])/.exec(r))) { start = m[1]; r = r.slice(1); }
+    let stroke, head = '', label = null;
+    const take = (n) => { r = r.slice(n); };
+    const textForm = (open, endRe, str) => {
+      take(open);
+      const e = endRe.exec(r);
+      if (!e) fail('unterminated edge text');
+      label = r.slice(0, e.index).trim().replace(/^"([\s\S]*)"$/, '$1');
+      head = e[0].slice(-1);
+      if (!'>ox'.includes(head)) head = '';
+      take(e.index + e[0].length);
+      stroke = str;
+    };
+    if ((m = /^~{3,}/.exec(r))) { stroke = 'invisible'; take(m[0].length); } else if (/^==\s/.test(r)) textForm(2, /={2,}[>ox]?/, 'thick');
+    else if (/^-\.\s/.test(r)) textForm(2, /\.+-[>ox]?/, 'dotted');
+    else if (/^--\s/.test(r)) textForm(2, /-{2,}[>ox]?/, 'normal');
+    else if ((m = /^={2,}([>ox]?)/.exec(r))) { stroke = 'thick'; head = m[1]; take(m[0].length); } else if ((m = /^-\.+-([>ox]?)/.exec(r))) { stroke = 'dotted'; head = m[1]; take(m[0].length); } else if ((m = /^-{2,}([>ox]?)/.exec(r))) { stroke = 'normal'; head = m[1]; take(m[0].length); } else return null;
+    if ((m = /^\s*\|/.exec(r))) {
+      take(m[0].length);
+      let e;
+      if (/^\s*"/.test(r)) { const q = r.indexOf('"'); const q2 = r.indexOf('"', q + 1); e = r.indexOf('|', q2 + 1); label = r.slice(q + 1, q2); } else { e = r.indexOf('|'); label = r.slice(0, e); }
+      if (e < 0) fail('unterminated |edge text|');
+      take(e + 1);
+    }
+    const heads = { '>': 'arrow', o: 'circle', x: 'cross', '': 'none' };
+    return { link: { label: label == null ? '' : mmdText(label), stroke, head: heads[head], both: start !== '', id }, next: s.length - r.length };
+  }
+
+  function parseChain(s) {
+    let i = 0, prev = null;
+    for (;;) {
+      const group = [];
+      for (;;) {
+        const [id, j] = parseNode(s, i);
+        group.push(id);
+        i = j;
+        while (s[i] === ' ') i++;
+        if (s[i] === '&') { i++; continue; }
+        break;
+      }
+      if (prev) prev.links.forEach((lk) => prev.group.forEach((a) => group.forEach((b) => ast.edges.push({ from: a, to: b, label: lk.label, stroke: lk.stroke, head: lk.head, both: lk.both, line: ln }))));
+      if (i >= s.length) return;
+      const res = parseLink(s, i);
+      if (!res) fail(`cannot read "${s.slice(i, i + 20)}"`);
+      i = res.next;
+      prev = { group, links: [res.link] };
+    }
+  }
+
+  function parseSubgraph(rest) {
+    let id, title, m;
+    if ((m = /^([^\s\[\]"]+)\s*\[([\s\S]*)\]$/.exec(rest))) { id = m[1]; title = m[2].trim().replace(/^"([\s\S]*)"$/, '$1'); } else if ((m = /^"([\s\S]*)"$/.exec(rest))) { id = title = m[1]; } else { id = title = rest; }
+    title = mmdText(title);
+    if (!sgById.has(id)) {
+      const sg = { id, title, parent: stack.length ? stack[stack.length - 1].id : null, nodes: [], classes: [], line: ln };
+      sgById.set(id, sg);
+      ast.subgraphs.push(sg);
+      stack.push(sg);
+    } else stack.push(sgById.get(id));
+  }
+
+  function statement(s) {
+    let m;
+    if ((m = /^subgraph(?:\s+([\s\S]*))?$/.exec(s))) return parseSubgraph((m[1] || '').trim());
+    if (s === 'end') { stack.pop(); return; }
+    if (/^direction\s+\w+$/.test(s)) return;
+    if ((m = /^class\s+(\S+)\s+(\S+)$/.exec(s))) { classOps.push([m[1].split(','), m[2].split(',')]); return; }
+    if ((m = /^(classDef|style|linkStyle|click|accTitle|accDescr|href|call)\b/.exec(s))) { ast.ignored.push({ line: ln, text: s }); return; }
+    parseChain(s);
+  }
+
+  let inAcc = false;
+  for (; li < lines.length; li++) {
+    ln = li + 1;
+    const raw = lines[li].trim();
+    if (inAcc) { if (raw.includes('}')) inAcc = false; continue; }
+    if (!raw) continue;
+    if (raw.startsWith('%%')) {
+      const m = /^%%\s*@(\w+)\s*(.*)$/.exec(raw);
+      if (m) ast.directives.push({ key: m[1], args: m[2].trim(), line: ln });
+      continue;
+    }
+    if (/^accDescr\s*\{/.test(raw) && !raw.includes('}')) { inAcc = true; ast.ignored.push({ line: ln, text: raw }); continue; }
+    let stmts = mmdSplitStatements(raw);
+    if (!headerSeen) {
+      const m = /^(?:flowchart|graph)(?:-elk)?(?:\s+(LR|RL|TB|TD|BT))?\s*(.*)$/.exec(stmts[0]);
+      if (!m) fail('expected "flowchart" or "graph"');
+      headerSeen = true;
+      if (m[1]) { ast.dirRaw = m[1]; ast.dir = { LR: 'LR', RL: 'LR', TB: 'TB', TD: 'TB', BT: 'TB' }[m[1]]; }
+      stmts = (m[2] ? [m[2]] : []).concat(stmts.slice(1));
+    }
+    stmts.forEach(statement);
+  }
+  if (!headerSeen) { ln = 1; fail('expected "flowchart" or "graph"'); }
+
+  classOps.forEach(([ids, cls]) => ids.forEach((id) => {
+    const target = nodeById.get(id) || sgById.get(id);
+    if (target) cls.forEach((c) => { if (!target.classes.includes(c)) target.classes.push(c); });
+  }));
+  ast.nodes.forEach((n) => delete n.declared);
+  return ast;
+}
+// Use case <-> Mermaid. Plain script, no DOM, no imports; concatenated after assets/shell/mermaid-flow.js
+// (needs mmdParseFlow, mmdQuote, mmdSafeId). Mapping: dev/plans/plan-mermaid-input.md, "Use case".
+// Mermaid has no use case type, so the diagram is a flowchart marked `%% @type usecase`: inside a subgraph is a
+// use case, outside is an actor (with no subgraph at all: stadium, circle and ellipse nodes are use cases).
+
+// Returns a function raw id -> unique JSON/Mermaid id. Uniqueness is also enforced here, whatever mmdSafeId does with `used`.
+function ucmIdMaker() {
+  const used = new Set(), taken = new Set(), map = new Map();
+  return raw => {
+    raw = String(raw);
+    if (!map.has(raw)) {
+      let s = mmdSafeId(raw, used);
+      const base = s;
+      for (let i = 2; taken.has(s); i++) s = base + '_' + i;
+      taken.add(s);
+      map.set(raw, s);
+    }
+    return map.get(raw);
+  };
+}
+
+// "a; b rest" style directive arguments -> [[id, rest], ...]; the first word may be several ids joined by commas.
+function ucmItems(args) {
+  return String(args || '').split(';').map(s => s.trim()).filter(Boolean).map(s => {
+    const m = /^(\S+)\s*([\s\S]*)$/.exec(s);
+    return [m[1].split(',').filter(Boolean), m[2].trim()];
+  });
+}
+
+function ucmList(s) { return s.split(',').map(x => x.trim()).filter(Boolean); }
+
+function fromMermaid(text) { return fromMermaidAst(mmdParseFlow(text)); }
+
+function fromMermaidAst(ast) {
+  const infos = [], warnings = [];
+  const sid = ucmIdMaker();
+
+  const seen = new Set();
+  (ast.ignored || []).forEach(g => {
+    if (/^classDef\s+c[1-8]\s/.test(g.text)) return;
+    const kind = String(g.text || '').trim().split(/\s+/)[0];
+    if (!seen.has(kind)) { seen.add(kind); infos.push('[INFO] line ' + g.line + ': "' + kind + '" is not used by use case diagrams, ignored'); }
+  });
+  if (ast.dir === 'TB') infos.push('[INFO] direction TB ignored: use case diagrams are laid out by --layout');
+
+  // Subjects: top-level subgraphs. A node belongs to its innermost subgraph; a nested one flattens into the top-level subject.
+  const subs = ast.subgraphs || [];
+  const subById = new Map(subs.map(g => [g.id, g]));
+  const topOf = g => { while (g.parent != null && subById.has(g.parent)) g = subById.get(g.parent); return g; };
+  const nodeSub = new Map();
+  subs.forEach(g => g.nodes.forEach(n => { if (!nodeSub.has(n)) nodeSub.set(n, topOf(g)); }));
+  const hasSub = subs.length > 0;
+  if (subs.some(g => g.parent != null)) infos.push('[INFO] nested subgraphs flattened into their top-level subject');
+
+  const nodeById = new Map(ast.nodes.map(n => [n.id, n]));
+  const edgesOf = new Map();
+  ast.edges.forEach(e => [e.from, e.to].forEach(id => { if (!edgesOf.has(id)) edgesOf.set(id, []); edgesOf.get(id).push(e); }));
+
+  // Notes: a flag-shaped node whose edges are all unlabelled and dotted.
+  const isNote = n => n.shape === 'odd' && (edgesOf.get(n.id) || []).every(e => !e.label && e.stroke === 'dotted');
+  const kind = new Map();   // Mermaid id -> 'note' | 'uc' | 'actor'
+  ast.nodes.forEach(n => {
+    kind.set(n.id, isNote(n) ? 'note' : (hasSub ? nodeSub.has(n.id) : ['stadium', 'circle', 'ellipse'].includes(n.shape)) ? 'uc' : 'actor');
+  });
+  if (!hasSub && ast.nodes.length && ![...kind.values()].includes('actor')) {
+    infos.push('[INFO] no subgraph and no actor: every node reads as a use case (stadium or circle); draw actors with another shape, or put the use cases in a subgraph');
+  }
+
+  const data = { diagramType: 'usecase' };
+  if (ast.title) {
+    let t = String(ast.title);
+    if (/^".*"$/.test(t)) { try { t = JSON.parse(t); } catch (e) { /* keep as written */ } }
+    data.title = t;
+  }
+
+  const subjects = subs.filter(g => g.parent == null).map(g => {
+    const o = { id: sid(g.id), name: g.title || g.id };
+    if (g.classes.includes('collapsed')) o.collapsed = true;
+    return o;
+  });
+  const subjectOf = new Map(subjects.map((s, i) => [subs.filter(g => g.parent == null)[i].id, s]));
+  const byId = new Map();   // JSON id -> actor or use case object
+  const actors = [], useCases = [];
+  const slot = n => { const c = n.classes.find(x => /^c[1-8]$/.test(x)); return c ? c.slice(1) : null; };
+  ast.nodes.forEach(n => {
+    const k = kind.get(n.id);
+    if (k === 'note') return;
+    const o = { id: sid(n.id), name: n.label };
+    if (k === 'actor') {
+      if (n.classes.includes('system')) o.kind = 'system'; else if (n.classes.includes('time')) o.kind = 'time';
+    } else {
+      if (hasSub) o.subject = subjectOf.get(nodeSub.get(n.id).id).id;
+      if (n.classes.includes('subfunction')) o.level = 'subfunction'; else if (n.classes.includes('summary')) o.level = 'summary';
+    }
+    if (slot(n)) o.color = slot(n);
+    if (n.classes.includes('abstract')) o.abstract = true;
+    (k === 'actor' ? actors : useCases).push(o);
+    byId.set(o.id, o);
+  });
+  const isUc = id => kind.get(id) === 'uc';
+  const isActor = id => kind.get(id) === 'actor';
+
+  // Edges.
+  const links = [];
+  const EXT = /^(?:<<|«)?\s*extend\s*(?:\(([^)]*)\))?\s*(?:>>|»)?\s*(?::\s*([\s\S]*))?$/i;
+  const INC = /^(?:<<|«)?\s*include\s*(?:>>|»)?$/i;
+  ast.edges.forEach(e => {
+    const kf = kind.get(e.from), kt = kind.get(e.to);
+    if (!kf || !kt) { warnings.push('[WARN] line ' + e.line + ': edge ends at a subgraph or unknown node, ignored'); return; }
+    if (kf === 'note' || kt === 'note' || e.stroke === 'invisible') return;
+    const label = String(e.label || '').trim();
+    const from = sid(e.from), to = sid(e.to);
+    const where = 'line ' + e.line + ': ' + e.from + ' -> ' + e.to;
+    let m;
+    if (/^is\s+an?$/i.test(label)) {
+      if (kf !== kt) warnings.push('[WARN] ' + where + ' "is a" joins an actor and a use case; use two actors or two use cases');
+      else if (byId.get(from).parent) warnings.push('[WARN] ' + where + ' "is a": ' + e.from + ' already has a parent');
+      else byId.get(from).parent = to;
+    } else if (INC.test(label) || (m = EXT.exec(label))) {
+      const type = m ? 'extend' : 'include';
+      if (kf !== 'uc' || kt !== 'uc') { warnings.push('[WARN] ' + where + ' ' + type + ' joins two use cases'); return; }
+      const l = { id: 'l' + (links.length + 1), type, from, to };
+      if (m && m[2] && m[2].trim()) l.condition = m[2].trim();
+      if (m && m[1] && m[1].trim()) l.extensionPoint = m[1].trim();
+      links.push(l);
+    } else if (kf === kt) {
+      warnings.push('[WARN] ' + where + ' joins two ' + (kf === 'uc' ? 'use cases' : 'actors') + ' without "include", "extend" or "is a"; label it or remove it');
+    } else {
+      links.push({ id: 'l' + (links.length + 1), type: 'association', from, to });   // an arrowhead comes only from `%% @navigable`
+    }
+  });
+
+  // Notes.
+  const notes = [];
+  ast.nodes.forEach(n => {
+    if (kind.get(n.id) !== 'note') return;
+    const note = { id: sid(n.id), text: n.label, useCases: [], actors: [] };
+    (edgesOf.get(n.id) || []).forEach(e => {
+      const other = e.from === n.id ? e.to : e.from;
+      if (isUc(other)) note.useCases.push(sid(other)); else if (isActor(other)) note.actors.push(sid(other));
+    });
+    if (!note.useCases.length && !note.actors.length) warnings.push('[WARN] line ' + n.line + ': note "' + n.id + '" is linked to nothing');
+    if (!note.useCases.length) delete note.useCases;
+    if (!note.actors.length) delete note.actors;
+    notes.push(note);
+  });
+
+  // Directives.
+  const target = (raw, key, line) => {
+    const o = byId.get(sid(raw));
+    if (!o || !kind.has(raw)) warnings.push('[WARN] line ' + line + ': @' + key + ' names unknown id "' + raw + '"');
+    return o;
+  };
+  const colorKey = {};
+  ast.directives.forEach(d => {
+    const a = String(d.args || '').trim();
+    let m;
+    switch (d.key) {
+      case 'type': if (a && a !== 'usecase') infos.push('[INFO] line ' + d.line + ': @type ' + a + ' ignored'); break;
+      case 'colorKey': if ((m = /^(\S+)\s+(.+)$/.exec(a))) colorKey[m[1]] = m[2].trim(); break;
+      case 'showRefs': data.showRefs = true; break;
+      case 'showNotes': data.showNotes = true; break;
+      case 'schemaVersion': if (!isNaN(Number(a))) data.schemaVersion = Number(a); break;
+      case 'navigable':
+        if ((m = /^(\S+)\s+(\S+)$/.exec(a))) {
+          const l = links.find(x => x.type === 'association' && x.from === sid(m[1]) && x.to === sid(m[2]));
+          if (l) l.navigable = true; else warnings.push('[WARN] line ' + d.line + ': @navigable names no association from "' + m[1] + '" to "' + m[2] + '"');
+        } else warnings.push('[WARN] line ' + d.line + ': @navigable needs the two ends of an association');
+        break;
+      case 'color':   // a colour that is not a palette slot (slots are classes c1..c8)
+        if ((m = /^(\S+)\s+(\S+)$/.exec(a))) { const o = target(m[1], 'color', d.line); if (o) o.color = m[2]; }
+        break;
+      case 'refs': case 'points':
+        ucmItems(a).forEach(([ids, rest]) => ids.forEach(id => {
+          const o = target(id, d.key, d.line);
+          if (o && rest) o[d.key === 'refs' ? 'refs' : 'extensionPoints'] = ucmList(rest);
+        }));
+        break;
+      case 'side':
+        if ((m = /^(\S+)\s+(left|right)$/i.exec(a))) { const o = target(m[1], 'side', d.line); if (o && kind.get(m[1]) === 'actor') o.side = m[2].toLowerCase(); }
+        else warnings.push('[WARN] line ' + d.line + ': @side needs an id and left or right');
+        break;
+      case 'size':
+        if ((m = /^(\S+)\s+(\d+(?:\.\d+)?)\s+(\d+(?:\.\d+)?)$/.exec(a))) {
+          const s = subjectOf.get(m[1]);
+          if (s) { if (+m[2] > 0) s.fw = +m[2]; if (+m[3] > 0) s.fh = +m[3]; } else warnings.push('[WARN] line ' + d.line + ': @size names unknown subject "' + m[1] + '"');
+        } else warnings.push('[WARN] line ' + d.line + ': @size needs a subject, a width and a height');
+        break;
+      case 'level':
+        if ((m = /^(\S+)\s+(user|subfunction|summary)$/i.exec(a))) { const o = target(m[1], 'level', d.line); if (o && kind.get(m[1]) === 'uc') o.level = m[2].toLowerCase(); }
+        break;
+      case 'note':
+        if ((m = /^(\S+?):\s*([\s\S]+)$/.exec(a))) {
+          const o = target(m[1], 'note', d.line);
+          if (o) notes.push(kind.get(m[1]) === 'uc' ? { id: 'n' + (notes.length + 1), text: m[2].trim(), useCases: [o.id] } : { id: 'n' + (notes.length + 1), text: m[2].trim(), actors: [o.id] });
+        }
+        break;
+      default: infos.push('[INFO] line ' + d.line + ': unknown directive @' + d.key + ' ignored');
+    }
+  });
+
+  if (Object.keys(colorKey).length) data.colorKey = colorKey;
+  if (subjects.length) data.subjects = subjects;
+  data.actors = actors;
+  data.useCases = useCases;
+  data.links = links;
+  if (notes.length) data.notes = notes;
+  return { data, infos, warnings };
+}
+
+function toMermaid(data, opts) {
+  opts = opts || {};
+  const sid = ucmIdMaker();
+  const subjects = data.subjects || [], actors = data.actors || [], useCases = data.useCases || [];
+  subjects.forEach(s => sid(s.id));
+  actors.forEach(a => sid(a.id));
+  useCases.forEach(u => sid(u.id));
+  const allIds = new Set([...subjects, ...actors, ...useCases].map(x => x.id));
+  const q = s => mmdQuote(String(s == null ? '' : s));
+  const slotOf = x => (/^[1-8]$/.test(String(x.color)) ? 'c' + x.color : null);
+  const classesOf = (x, isUc) => [slotOf(x),
+    isUc ? (x.level === 'subfunction' || x.level === 'summary' ? x.level : null) : (x.kind === 'system' || x.kind === 'time' ? x.kind : null),
+    x.abstract ? 'abstract' : null].filter(Boolean);
+
+  const out = [];
+  if (data.title) out.push('---', 'title: ' + (/[:#"'\[\]{}&*!|>%@`,]|^[\s?-]|\s$/.test(data.title) ? JSON.stringify(String(data.title)) : data.title), '---');
+  out.push('%% @type usecase');
+  if (data.schemaVersion != null) out.push('%% @schemaVersion ' + data.schemaVersion);
+  Object.keys(data.colorKey || {}).sort((a, b) => a - b).forEach(k => out.push('%% @colorKey ' + k + ' ' + data.colorKey[k]));
+  if (data.showRefs) out.push('%% @showRefs');
+  if (data.showNotes) out.push('%% @showNotes');
+  out.push('flowchart LR');
+
+  const multi = []; // [id, classes] of nodes that need `class` lines
+  const node = (x, isUc, ind) => {
+    const id = sid(x.id), cl = classesOf(x, isUc);
+    if (cl.length > 1) multi.push([id, cl]);
+    return ind + id + (isUc ? '([' : '[') + q(x.name) + (isUc ? '])' : ']') + (cl.length === 1 ? ':::' + cl[0] : '');
+  };
+  actors.forEach(a => out.push(node(a, false, '  ')));
+  if (subjects.length) {
+    subjects.forEach((s, i) => {
+      out.push('  subgraph ' + sid(s.id) + '[' + q(s.name) + ']');
+      // With one subject, a use case that names none sits in it; with several, one that names none goes to the first.
+      useCases.filter(u => (u.subject && subjects.some(x => x.id === u.subject) ? u.subject : subjects[0].id) === s.id).forEach(u => out.push(node(u, true, '    ')));
+      out.push('  end');
+      if (s.collapsed) multi.push([sid(s.id), ['collapsed']]);
+    });
+  } else useCases.forEach(u => out.push(node(u, true, '  ')));
+
+  [actors, useCases].forEach(list => list.forEach(x => { if (x.parent && [...actors, ...useCases].some(y => y.id === x.parent)) out.push('  ' + sid(x.id) + ' -->|is a| ' + sid(x.parent)); }));
+  const known = new Set([...actors, ...useCases].map(x => x.id));
+  const navigable = [];
+  (data.links || []).forEach(l => {
+    if (!known.has(l.from) || !known.has(l.to)) return;
+    const a = sid(l.from), b = sid(l.to);
+    if (l.type === 'include') out.push('  ' + a + ' -.->|include| ' + b);
+    else if (l.type === 'extend') out.push('  ' + a + ' -.->|' + q('extend' + (l.extensionPoint ? ' (' + l.extensionPoint + ')' : '') + (l.condition ? ': ' + l.condition : '')) + '| ' + b);
+    else { out.push('  ' + a + ' --- ' + b); if (l.navigable) navigable.push('  %% @navigable ' + a + ' ' + b); }
+  });
+  out.push(...navigable);
+  [...actors, ...useCases].forEach(x => { if (x.color != null && !slotOf(x)) out.push('  %% @color ' + sid(x.id) + ' ' + x.color); });
+  (data.notes || []).forEach(n => {
+    const ends = [...(n.useCases || []), ...(n.actors || [])].filter(id => known.has(id)).map(sid);
+    out.push('  ' + sid(allIds.has(n.id) ? 'note_' + n.id : n.id) + '>' + q(n.text) + ']' + (ends.length ? ' -.- ' + ends.join(' & ') : ''));
+  });
+
+  // `:::` takes one class and is not allowed on a subgraph, so the rest go through `class` lines, one per class.
+  const byClass = new Map();
+  multi.forEach(([id, cl]) => cl.forEach(c => { if (!byClass.has(c)) byClass.set(c, []); byClass.get(c).push(id); }));
+  byClass.forEach((ids, c) => out.push('  class ' + ids.join(',') + ' ' + c));
+
+  const list = (key, id, arr) => { if (arr && arr.length) out.push('%% @' + key + ' ' + sid(id) + ' ' + arr.join(', ')); };
+  useCases.forEach(u => { list('refs', u.id, u.refs); list('points', u.id, u.extensionPoints); });
+  actors.forEach(a => { if (a.side === 'left' || a.side === 'right') out.push('%% @side ' + sid(a.id) + ' ' + a.side); });
+  subjects.forEach(s => { if (s.fw || s.fh) out.push('%% @size ' + sid(s.id) + ' ' + (s.fw || 0) + ' ' + (s.fh || 0)); });
+
+  if (opts.palette) {
+    const slots = new Set();
+    [...actors, ...useCases].forEach(x => { if (slotOf(x)) slots.add(+x.color); });
+    [...slots].sort((a, b) => a - b).forEach(n => { if (opts.palette[n - 1]) out.push('  classDef c' + n + ' fill:' + opts.palette[n - 1]); });
+  }
+  return out.join('\n') + '\n';
+}
       // --- USE CASE DIAGRAM PLUGIN ---
       // Renders chartData (diagramType "usecase") from the model engine.js lays out: actors (a stick figure, or an icon tile
       // for a system or a clock), use cases (ellipses; level = size and outline), subjects (the boundaries), the four line
@@ -6501,6 +7281,8 @@ function routeDiagram(data) {
         defaultTitle: 'Interactive Use Case Diagram',
         toDisk,
         fromDisk,
+        toMermaid,   // the writer and reader in mermaid.js; the shell hands them the saved form of the data
+        fromMermaid,
         contentEl: canvas,
         report: { node: '.uc-actor, .uc-case', label: '.uc-label', labelText: '.uc-label-text', nodeText: '.uc-name, .uc-actor-name' },
         render,

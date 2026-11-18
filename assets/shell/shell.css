@@ -179,6 +179,7 @@
     body.presentation .toolbar-center,
     body.presentation .toolbar-left,
     body.presentation .menu-wrap,
+    body.presentation #btn-import-mermaid,
     body.presentation #btn-save,
     body.presentation #btn-help,
     body.presentation #btn-undo,

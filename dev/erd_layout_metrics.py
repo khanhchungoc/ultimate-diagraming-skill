@@ -25,7 +25,7 @@ def load_fixtures():
     out = {}
     for path in sorted((ROOT / "dev" / "fixtures" / "erd").glob("*.json")):
         out[path.stem] = json.loads(path.read_text(encoding="utf8"))
-    out["example-erd"] = json.loads((ROOT / "references" / "examples" / "example-erd.json").read_text(encoding="utf8"))
+    out["example-erd"] = json.loads((ROOT / "dev" / "examples" / "example-erd.json").read_text(encoding="utf8"))
     return out
 
 

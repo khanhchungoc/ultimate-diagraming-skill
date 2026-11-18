@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Tests the CLI's Mermaid side (plan: dev/plans/plan-mermaid-input.md, Phase 4).
 
-  1. `--layout x.mmd` for every type, from references/examples/*.json written as Mermaid by `--extract`.
+  1. `--layout x.mmd` for every type, from dev/examples/*.json written as Mermaid by `--extract`.
   2. `--extract` prints Mermaid by default, `--json` keeps the old JSON, `-o` writes the file, `--theme` sets the palette.
   3. `--keep-from`: same ids keep every position, a text edit redraws only labels, an added item resets with an [INFO] line,
      the old page's stored theme is kept.
@@ -44,7 +44,7 @@ KINDS = ("flowchart", "usecase", "sequence", "erd")
 
 # 1 and 2. each example: JSON -> Mermaid (--extract) -> page (--layout) -> same ids again (--keep-from) ---------------------------
 for kind in KINDS:
-    example = ROOT / "references" / "examples" / f"example-{kind}.json"
+    example = ROOT / "dev" / "examples" / f"example-{kind}.json"
     mmd, page, page2 = tmp / f"{kind}.mmd", tmp / f"{kind}.html", tmp / f"{kind}-2.html"
     r = cli("--extract", example, "-o", mmd)
     text = mmd.read_text(encoding="utf-8") if mmd.is_file() else ""
@@ -63,11 +63,11 @@ for kind in KINDS:
     check(f"{kind}: --extract --json prints the old JSON", as_json.get("diagramType") == kind and "layout" not in as_json)
 
 # JSON input still works as before
-r = cli("--layout", ROOT / "references/examples/example-flowchart.json", "-o", tmp / "old.html")
+r = cli("--layout", ROOT / "dev/examples/example-flowchart.json", "-o", tmp / "old.html")
 check("JSON input still works", r.returncode == 0 and "[DONE]" in r.stdout and "Lane icons" not in r.stdout, r.stdout[-300:] + r.stderr[-300:])
 r = cli("--layout", tmp / "flowchart.mmd", "--keep-layout")
 check("--keep-layout with Mermaid input is refused, pointing at --keep-from", r.returncode != 0 and "--keep-from" in r.stdout + r.stderr)
-r = cli("--layout", ROOT / "references/examples/example-flowchart.json", "--keep-from", tmp / "flowchart.html")
+r = cli("--layout", ROOT / "dev/examples/example-flowchart.json", "--keep-from", tmp / "flowchart.html")
 check("--keep-from with JSON input is refused", r.returncode != 0 and "--keep-from" in r.stdout + r.stderr)
 
 # text detection: no .mmd extension, no leading { or <

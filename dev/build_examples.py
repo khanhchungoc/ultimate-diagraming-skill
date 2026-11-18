@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Build the viewable example pages dev/samples/example-<name>.html from references/examples/example-<name>.json.
+"""Build the viewable example pages dev/samples/example-<name>.html from dev/examples/example-<name>.json.
 
-The JSON lives in references/ because the installed skill links to it; the built pages stay in dev/ (not installed).
+The JSON lives in dev/examples/ (not shipped with the skill); the built pages stay in dev/samples/.
 
 The pages are generated output (shell + type plugin + laid-out data), so they go stale whenever the shell, a
 plugin or an engine changes. Rebuild them after such a change:
@@ -106,7 +106,7 @@ def main() -> int:
     args = parser.parse_args()
 
     stale = False
-    for source in sorted((ROOT / "references" / "examples").glob("example-*.json")):
+    for source in sorted((ROOT / "dev" / "examples").glob("example-*.json")):
         target = ROOT / "dev" / "samples" / source.with_suffix(".html").name
         page = build(source)
         # Compare as text so a CRLF checkout does not look stale.

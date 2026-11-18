@@ -1,8 +1,8 @@
 // Copy as Mermaid, then Export > Import > Mermaid text, on all four diagram types (split artifact pages, so Save shows the saved JSON).
 //   node dev/e2e_mermaid.mjs --browser <chrome> --flowchart <dir/index.html> --usecase <dir/index.html> --sequence <dir/index.html> --erd <dir/index.html>
-// Each page is `layout_engine.py --layout references/examples/example-<type>.json --target artifact` (flowchart: the loan example).
-// Per type: Copy then Import of the same text leaves the saved JSON identical (same positions); an edited text
-// (one label changed, one item added) imports as one undo step; another type's text is refused with a message; the reader's notes are listed.
+// Each page is `layout_engine.py --layout dev/examples/example-<type>.json --target artifact` (flowchart: the loan example).
+// Per type: Copy then Import of the same text re-lays out cleanly and copies back identical; an edited text
+// (one label changed, one item added) imports as one undo step (and canvas paste imports too); another type's text is refused with a message; the reader's notes are listed.
 // Also: a flowchart page whose JSON has a step with no position loads with no step on another.
 // Exit codes: 0 all passed, 1 setup error, 2 a check failed.
 import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -61,8 +61,7 @@ try {
     return t.ev(`window.__clip[0]`);
   };
   const openImport = async () => {
-    await t.ev(`document.getElementById('btn-export').click()`);
-    await t.clickOn('[data-import="mermaid"]');
+    await t.clickOn('#btn-import-mermaid');
     await sleep(100);
   };
   // Opens the bubble, types the text into its box and presses Import; returns the error text ('' when none)
@@ -79,18 +78,16 @@ try {
   for (const [kind, file] of Object.entries(pages)) {
     const E = EDIT[kind];
     await t.open(file);
-    t.check(`${kind}: the Export menu offers Import > Mermaid text`, await t.ev(`!document.querySelector('[data-import="mermaid"]').hidden && !document.querySelector('[data-import-label]').hidden`));
+    t.check(`${kind}: the toolbar offers Paste Mermaid`, await t.ev(`!document.getElementById('btn-import-mermaid').hidden`));
     const base = await save();
     const text = await copyText();
     t.check(`${kind}: Copy as Mermaid wrote the diagram's own type`, new RegExp(kind === 'erd' ? 'erDiagram' : kind === 'sequence' ? 'sequenceDiagram' : 'flowchart').test(text), text.slice(0, 40));
 
-    // 1. The same text back: nothing changes
+    // 1. The same text back: lays out fresh and copies back identical
     const err1 = await importText(text);
     const after1 = await save();
     const again = await copyText();
-    const safe = (id) => String(id).replace(/[^A-Za-z0-9_]+/g, '_');
-    const lay = (d) => JSON.stringify(Object.keys(d.layout || {}).map((k) => [safe(k), d.layout[k]]).sort());
-    t.check(`${kind}: importing the copied text keeps every position`, !err1 && lay(after1) === lay(base), err1 || lay(base).slice(0, 200) + ' vs ' + lay(after1).slice(0, 200));
+    t.check(`${kind}: importing the copied text lays out cleanly`, !err1 && Object.keys(after1.layout || {}).length === Object.keys(base.layout || {}).length, err1);
     t.check(`${kind}: and copying again gives the same Mermaid text`, again === text, firstDiff(text.split('\n'), again.split('\n')));
     t.check(`${kind}: no page errors`, t.errors.length === 0, t.errors.join(' | '));
 
@@ -104,15 +101,15 @@ try {
     t.check(`${kind}: the edited text imports without an error`, !err2, err2);
     t.check(`${kind}: the label change reached the diagram`, JSON.stringify(after2).includes(E.found));
     t.check(`${kind}: one item was added (${E.list} ${base[E.list].length} -> ${after2[E.list].length})`, after2[E.list].length === base[E.list].length + 1);
-    if (kind === 'erd') {
-      const kept = base.entities.every((e) => JSON.stringify(after2.layout[e.id]) === JSON.stringify(base.layout[e.id]));
-      t.check('erd: the tables of the old diagram keep their positions when one is added', kept, JSON.stringify([base.layout, after2.layout]).slice(0, 300));
-    }
     t.check(`${kind}: no page errors`, t.errors.length === 0, t.errors.join(' | '));
     t.check(`${kind}: the edited import left an undo step`, !(await undoSteps()));
     await t.ev(`document.getElementById('btn-undo').click()`);
     await sleep(150);
     t.check(`${kind}: one Undo takes the edited import back`, JSON.stringify(await save()) === JSON.stringify(after1));
+    await t.ev(`(() => { const dt = new DataTransfer(); dt.setData('text/plain', ${JSON.stringify(edited)});
+      document.body.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true })); })()`);
+    await sleep(400);
+    t.check(`${kind}: pasting Mermaid onto the canvas imports it`, (await save())[E.list].length === base[E.list].length + 1);
 
     // 3. Text of another diagram type is refused with a message, and the diagram stays
     await t.open(file);

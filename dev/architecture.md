@@ -21,7 +21,7 @@ assets/
     engine.js               layout engine: pure JS, no DOM; the ONE implementation of the type's layout
     toolbar.html, stage.html, chrome.html, help.html, default.json
 scripts/
-  layout_engine.py          CLI: --layout (assembles the HTML page or split artifact folder, prints [DONE]/[NEXT]; --screenshot also renders, dev and theme preview only), --verify, --extract; AUDITS registry
+  layout_engine.py          CLI: --layout (Mermaid .mmd or legacy JSON; assembles the HTML page or split artifact folder, prints [DONE]/[NEXT]; --keep-from keeps positions when ids match; --screenshot also renders, dev and theme preview only), --verify, --extract (prints Mermaid; --json for JSON); AUDITS registry
   tokens.py                 loads/validates tokens and the icon registry, writes {{TOKENS_CSS}} and {{TOKENS_JS}} (TOKENS and ICONS), expands {{icon:...}}
   audit_sequence.py         sequence audit
   audit_erd.py              ER diagram audit
@@ -34,8 +34,8 @@ scripts/
   extract_tokens.py         theme from a website (--url) or a partial theme (--from): completes, repairs contrast, measures the font
   render_screenshot.py      type-agnostic: screenshot + render report (+ axe-core when node_modules/axe-core exists); serves split artifact directories over loopback HTTP
 dev/                        parity check, interaction test, notes (not part of authoring)
-references/types/<type>.md  schema, budget, checklist the agent reads before authoring
-references/reading.md       how the agent interprets each type's extracted JSON (read flow)
+references/types/<type>.md  Mermaid cheat sheet, writing rules and inline example the agent reads before authoring
+references/reading.md       how the agent interprets non-plain-Mermaid conventions on --extract
 references/theme.md         schema and mapping guide for brand themes
 ```
 
@@ -120,8 +120,8 @@ A type's `<type>.js` ends by calling `registerDiagramPlugin({...})`. The shell c
 | `selectAll()` (optional) | Ctrl/Cmd + A outside a text field. Missing means the browser's own. Off in present mode. |
 | `toDisk(data)` (optional) | Returns a new object to write into the page's data block (the [disk format](#disk-format)); must not mutate `chartData`. Missing means the block holds the in-memory model as is. |
 | `fromDisk(data)` (optional) | Inverse of `toDisk`: the in-memory model from the data block. Missing means identity (the sequence plugin needs none). |
-| `toMermaid(data, opts)` and `fromMermaid(text)` (optional, both or none) | The Mermaid writer and reader of the type (`assets/types/<type>/mermaid.js`, with the shared `assets/shell/mermaid-flow.js`; plain scripts joined into the page through `{{MERMAID_JS}}`, before the type script, so their globals must not clash with the plugin's: all use the `mmd`, `MMD_` or `ucm` prefix, plus `fromMermaid`, `toMermaid`). The plugin just registers the two functions. The shell shows Export › Copy › Mermaid when `toMermaid` exists (`syncCopyMenu()`, called again from `registerDiagramPlugin`) and passes it the saved form of the data (`toDisk(chartData)` without `layout`, lane colours put back) and `{ palette }`, the page theme's eight slot colours. Export › Import › Mermaid text (`IMPORT MERMAID` in `shell.js`) reads text with `fromMermaid`, refuses another diagram type, keeps the position of every item whose id is unchanged (the `layout` map of `toDisk`), runs `fromDisk`, then the optional `placeImported()`, renders and records one undo step; the reader's warnings and notes are listed in the bubble afterwards. |
-| `placeImported()` (optional) | Called after an import, before `render()`, to give a position to items the imported text added. The flowchart needs none (its `fromDisk` lays out the whole diagram when a step has no position, also on load); the use case lays out in `render()` when anything is unplaced; the sequence always derives positions; the ERD places the new tables from a warm layout of a copy and pushes them clear of the tables that stay. |
+| `toMermaid(data, opts)` and `fromMermaid(text)` (optional, both or none) | The Mermaid writer and reader of the type (`assets/types/<type>/mermaid.js`, with the shared `assets/shell/mermaid-flow.js`; plain scripts joined into the page through `{{MERMAID_JS}}`, before the type script, so their globals must not clash with the plugin's: all use the `mmd`, `MMD_` or `ucm` prefix, plus `fromMermaid`, `toMermaid`). The plugin just registers the two functions. The shell shows Export › Copy › Mermaid when `toMermaid` exists (`syncCopyMenu()`, called again from `registerDiagramPlugin`) and passes it the saved form of the data (`toDisk(chartData)` without `layout`, lane colours put back) and `{ palette }`, the page theme's eight slot colours. The toolbar Paste Mermaid button (`#btn-import-mermaid`) and canvas paste (`Ctrl+V` outside text fields) read text with `fromMermaid`, refuse another diagram type, run `fromDisk`, lay the diagram out fresh (`placeImported()` / `render()`), and record one undo step; the reader's warnings and notes are listed in the bubble afterwards. |
+| `placeImported()` (optional) | Called after an import, before `render()`, to lay out imported items (for example, ERD runs `layoutDiagram` on unplaced tables). |
 | `contentOverflow()` (optional) | `{left, top, right, bottom}`: unscaled px that content reaches past `contentEl`'s edges, so Fit and the screenshot crop include it. The flowchart reports notes on show that sit in the margin. |
 | `onViewChange()` (optional) | Called after every pan/zoom. The flowchart uses it to float a lane name pill at the visible top-left of each lane once the header column is panned out of view. While an export reads computed styles the shell sets `body.exporting`, so view-dependent styles can reset there. |
 
@@ -157,7 +157,7 @@ The page's `<script id="diagram-data">` block is written for a reader (an agent 
 
 **Reading guide line numbers.** Line 2 names the block's real line range ("on lines S-E of this file. Read lines 1-E only (offset 1, limit E)"), because an agent's file tools work in line ranges and a whole-file read of a ~500 KB page fails before the agent sees any text. The numbers are stamped from the finished text by `stamp_reading_guide()` (in `assemble_page()`) and `stampReadingGuide()` (on Save); only the guide line is rewritten. A hand edit of the JSON leaves them stale: the guide tells the reader to trust the end marker over them, and `--verify` warns. No huge lines may sit just past the block (the fonts used to be inlined there), so a read that overshoots the end marker lands on ordinary CSS. `build_examples.py --check` checks all of this.
 
-Two implementations exist: `scripts/disk_format.py` (`DISK_CODECS`, used by `assemble_page()`, `extract_data_from_html()` and `--extract`) and the plugins' `toDisk`/`fromDisk` plus the shell's `formatJson`. They must agree byte for byte: `e2e_shell.mjs`, `e2e_sequence.mjs` and `e2e_erd.mjs` save a generated page without edits and compare the block. `--extract` prints the authoring JSON: the disk model without `layout`. On Save the shell also writes the diagram title into `<title>` and the header `<h1>`.
+Two implementations exist: `scripts/disk_format.py` (`DISK_CODECS`, used by `assemble_page()`, `extract_data_from_html()` and `--extract`) and the plugins' `toDisk`/`fromDisk` plus the shell's `formatJson`. They must agree byte for byte: `e2e_shell.mjs`, `e2e_sequence.mjs` and `e2e_erd.mjs` save a generated page without edits and compare the block. `--extract` prints Mermaid by default, or `--json` for the authoring JSON (the disk model without `layout`). On Save the shell also writes the diagram title into `<title>` and the header `<h1>`.
 
 ## claude.ai Artifact target
 
@@ -205,7 +205,7 @@ The `sequence` type is the reference for a type that shares nothing with the flo
 
 | Command | Proves |
 |---|---|
-| `python dev/build_examples.py --check` | `dev/samples/example-*.html` (built from `references/examples/example-*.json`) match what the current shell, plugins and engines would build, and each has what an agent reads first: the reading guide on line 2, the data block in `<head>` with its end marker, the real title, and guide commands that print valid JSON. Run without `--check` to rebuild them after any change. |
+| `python dev/build_examples.py --check` | `dev/samples/example-*.html` (built from `dev/examples/example-*.json`) match what the current shell, plugins and engines would build, and each has what an agent reads first: the reading guide on line 2, the data block in `<head>` with its end marker, the real title, and guide commands that print valid JSON. Run without `--check` to rebuild them after any change. |
 | `node dev/check_overflow.mjs --browser <chrome> <page.html>...` | Lists every text that sticks out of its box or is cut by overflow in generated pages (a wide theme font must leave none; the sequence rail names and a table name at the ERD overview floor are known exceptions) |
 | `python dev/check_tokens.py [--phase 4]` | No literal colour, font, size, radius, shadow, `:root` block or icon-grid `<svg` in `assets/` outside the token file and the icon registry; every icon name used exists; `--self-test` covers the rules |
 | `python dev/check_contrast.py [--theme FILE] [--strict]` | Every `contrast` pair of the merged tokens, light and dark, every palette slot; `--strict` also fails a pair it cannot compute |

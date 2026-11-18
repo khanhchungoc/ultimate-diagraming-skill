@@ -53,6 +53,9 @@
       <button id="btn-present" class="btn" title="Present: a read-only view (Esc exits)" aria-label="Present" aria-pressed="false">
         {{icon:present}}<span class="btn-label">Present</span>
       </button>
+      <button id="btn-import-mermaid" class="btn" title="Paste Mermaid text to replace the diagram" aria-label="Paste Mermaid" hidden>
+        {{icon:code}}<span class="btn-label">Paste Mermaid</span>
+      </button>
       <div class="menu-wrap">
         <button id="btn-export" class="btn" title="Download or copy the diagram as an image" aria-label="Export" aria-haspopup="menu" aria-expanded="false">
           {{icon:export}}<span class="btn-label">Export</span>
@@ -65,8 +68,6 @@
           <button type="button" role="menuitem" data-copy="mermaid">Mermaid</button>
           <button type="button" role="menuitem" data-copy="svg">SVG (text)</button>
           <button type="button" role="menuitem" data-copy="png">PNG image (1.5x)</button>
-          <div class="menu-label" role="presentation" data-import-label>Import</div>
-          <button type="button" role="menuitem" data-import="mermaid">Mermaid text&hellip;</button>
         </div>
       </div>
       <button id="btn-save" class="btn btn-primary" title="Save directly into this HTML file (Ctrl+S)" aria-label="Save">

@@ -32,7 +32,7 @@ def with_extra_lanes(data: dict, k: int) -> dict:
 
 
 def main() -> int:
-    loan = json.loads((ROOT / "references" / "examples" / "example-flowchart.json").read_text(encoding="utf-8"))
+    loan = json.loads((ROOT / "dev" / "examples" / "example-flowchart.json").read_text(encoding="utf-8"))
     page = (ROOT / "dev" / "samples" / "corporate-laptop-purchase-request.html").read_text(encoding="utf-8")
     laptop = authoring_json("flowchart", read_data_block(page))
     laptop.pop("direction", None)

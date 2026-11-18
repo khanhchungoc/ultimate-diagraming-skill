@@ -9,7 +9,7 @@
 // Driven with real mouse and keyboard input over the Chrome DevTools Protocol (see cdp.mjs): a synthetic DOM
 // event may only be used where a comment says why.
 //   node dev/e2e_erd.mjs --browser <chrome> --page <example-erd.html> --large <saas-billing.html> [--blank <default-erd.html>]
-// --page: references/examples/example-erd.json laid out with `layout_engine.py --layout` (8 tables).
+// --page: dev/examples/example-erd.json laid out with `layout_engine.py --layout` (8 tables).
 // --large: dev/fixtures/erd/saas-billing.json laid out the same way (~30 tables).
 // --blank (optional): assets/types/erd/default.json laid out (two tables, no colours): the optional colour legend (named in the editor, never prompted).
 // Exit codes: 0 all passed, 1 setup error, 2 a check failed.

@@ -37,10 +37,11 @@ function fromMermaidAst(ast) {
 
   const seen = new Set();
   (ast.ignored || []).forEach(g => {
+    if (/^classDef\s+c[1-8]\s/.test(g.text)) return;
     const kind = String(g.text || '').trim().split(/\s+/)[0];
-    if (!seen.has(kind)) { seen.add(kind); infos.push('line ' + g.line + ': "' + kind + '" is not used by use case diagrams, ignored'); }
+    if (!seen.has(kind)) { seen.add(kind); infos.push('[INFO] line ' + g.line + ': "' + kind + '" is not used by use case diagrams, ignored'); }
   });
-  if (ast.dir === 'TB') infos.push('direction TB ignored: use case diagrams are laid out by --layout');
+  if (ast.dir === 'TB') infos.push('[INFO] direction TB ignored: use case diagrams are laid out by --layout');
 
   // Subjects: top-level subgraphs. A node belongs to its innermost subgraph; a nested one flattens into the top-level subject.
   const subs = ast.subgraphs || [];
@@ -49,7 +50,7 @@ function fromMermaidAst(ast) {
   const nodeSub = new Map();
   subs.forEach(g => g.nodes.forEach(n => { if (!nodeSub.has(n)) nodeSub.set(n, topOf(g)); }));
   const hasSub = subs.length > 0;
-  if (subs.some(g => g.parent != null)) infos.push('nested subgraphs flattened into their top-level subject');
+  if (subs.some(g => g.parent != null)) infos.push('[INFO] nested subgraphs flattened into their top-level subject');
 
   const nodeById = new Map(ast.nodes.map(n => [n.id, n]));
   const edgesOf = new Map();
@@ -62,7 +63,7 @@ function fromMermaidAst(ast) {
     kind.set(n.id, isNote(n) ? 'note' : (hasSub ? nodeSub.has(n.id) : ['stadium', 'circle', 'ellipse'].includes(n.shape)) ? 'uc' : 'actor');
   });
   if (!hasSub && ast.nodes.length && ![...kind.values()].includes('actor')) {
-    infos.push('no subgraph and no actor: every node reads as a use case (stadium or circle); draw actors with another shape, or put the use cases in a subgraph');
+    infos.push('[INFO] no subgraph and no actor: every node reads as a use case (stadium or circle); draw actors with another shape, or put the use cases in a subgraph');
   }
 
   const data = { diagramType: 'usecase' };
@@ -105,25 +106,25 @@ function fromMermaidAst(ast) {
   const INC = /^(?:<<|«)?\s*include\s*(?:>>|»)?$/i;
   ast.edges.forEach(e => {
     const kf = kind.get(e.from), kt = kind.get(e.to);
-    if (!kf || !kt) { warnings.push('line ' + e.line + ': edge ends at a subgraph or unknown node, ignored'); return; }
+    if (!kf || !kt) { warnings.push('[WARN] line ' + e.line + ': edge ends at a subgraph or unknown node, ignored'); return; }
     if (kf === 'note' || kt === 'note' || e.stroke === 'invisible') return;
     const label = String(e.label || '').trim();
     const from = sid(e.from), to = sid(e.to);
     const where = 'line ' + e.line + ': ' + e.from + ' -> ' + e.to;
     let m;
     if (/^is\s+an?$/i.test(label)) {
-      if (kf !== kt) warnings.push(where + ' "is a" joins an actor and a use case; use two actors or two use cases');
-      else if (byId.get(from).parent) warnings.push(where + ' "is a": ' + e.from + ' already has a parent');
+      if (kf !== kt) warnings.push('[WARN] ' + where + ' "is a" joins an actor and a use case; use two actors or two use cases');
+      else if (byId.get(from).parent) warnings.push('[WARN] ' + where + ' "is a": ' + e.from + ' already has a parent');
       else byId.get(from).parent = to;
     } else if (INC.test(label) || (m = EXT.exec(label))) {
       const type = m ? 'extend' : 'include';
-      if (kf !== 'uc' || kt !== 'uc') { warnings.push(where + ' ' + type + ' joins two use cases'); return; }
+      if (kf !== 'uc' || kt !== 'uc') { warnings.push('[WARN] ' + where + ' ' + type + ' joins two use cases'); return; }
       const l = { id: 'l' + (links.length + 1), type, from, to };
       if (m && m[2] && m[2].trim()) l.condition = m[2].trim();
       if (m && m[1] && m[1].trim()) l.extensionPoint = m[1].trim();
       links.push(l);
     } else if (kf === kt) {
-      warnings.push(where + ' joins two ' + (kf === 'uc' ? 'use cases' : 'actors') + ' without "include", "extend" or "is a"; label it or remove it');
+      warnings.push('[WARN] ' + where + ' joins two ' + (kf === 'uc' ? 'use cases' : 'actors') + ' without "include", "extend" or "is a"; label it or remove it');
     } else {
       links.push({ id: 'l' + (links.length + 1), type: 'association', from, to });   // an arrowhead comes only from `%% @navigable`
     }
@@ -138,7 +139,7 @@ function fromMermaidAst(ast) {
       const other = e.from === n.id ? e.to : e.from;
       if (isUc(other)) note.useCases.push(sid(other)); else if (isActor(other)) note.actors.push(sid(other));
     });
-    if (!note.useCases.length && !note.actors.length) warnings.push('line ' + n.line + ': note "' + n.id + '" is linked to nothing');
+    if (!note.useCases.length && !note.actors.length) warnings.push('[WARN] line ' + n.line + ': note "' + n.id + '" is linked to nothing');
     if (!note.useCases.length) delete note.useCases;
     if (!note.actors.length) delete note.actors;
     notes.push(note);
@@ -147,7 +148,7 @@ function fromMermaidAst(ast) {
   // Directives.
   const target = (raw, key, line) => {
     const o = byId.get(sid(raw));
-    if (!o || !kind.has(raw)) warnings.push('line ' + line + ': @' + key + ' names unknown id "' + raw + '"');
+    if (!o || !kind.has(raw)) warnings.push('[WARN] line ' + line + ': @' + key + ' names unknown id "' + raw + '"');
     return o;
   };
   const colorKey = {};
@@ -155,7 +156,7 @@ function fromMermaidAst(ast) {
     const a = String(d.args || '').trim();
     let m;
     switch (d.key) {
-      case 'type': if (a && a !== 'usecase') infos.push('line ' + d.line + ': @type ' + a + ' ignored'); break;
+      case 'type': if (a && a !== 'usecase') infos.push('[INFO] line ' + d.line + ': @type ' + a + ' ignored'); break;
       case 'colorKey': if ((m = /^(\S+)\s+(.+)$/.exec(a))) colorKey[m[1]] = m[2].trim(); break;
       case 'showRefs': data.showRefs = true; break;
       case 'showNotes': data.showNotes = true; break;
@@ -163,8 +164,8 @@ function fromMermaidAst(ast) {
       case 'navigable':
         if ((m = /^(\S+)\s+(\S+)$/.exec(a))) {
           const l = links.find(x => x.type === 'association' && x.from === sid(m[1]) && x.to === sid(m[2]));
-          if (l) l.navigable = true; else warnings.push('line ' + d.line + ': @navigable names no association from "' + m[1] + '" to "' + m[2] + '"');
-        } else warnings.push('line ' + d.line + ': @navigable needs the two ends of an association');
+          if (l) l.navigable = true; else warnings.push('[WARN] line ' + d.line + ': @navigable names no association from "' + m[1] + '" to "' + m[2] + '"');
+        } else warnings.push('[WARN] line ' + d.line + ': @navigable needs the two ends of an association');
         break;
       case 'color':   // a colour that is not a palette slot (slots are classes c1..c8)
         if ((m = /^(\S+)\s+(\S+)$/.exec(a))) { const o = target(m[1], 'color', d.line); if (o) o.color = m[2]; }
@@ -177,13 +178,13 @@ function fromMermaidAst(ast) {
         break;
       case 'side':
         if ((m = /^(\S+)\s+(left|right)$/i.exec(a))) { const o = target(m[1], 'side', d.line); if (o && kind.get(m[1]) === 'actor') o.side = m[2].toLowerCase(); }
-        else warnings.push('line ' + d.line + ': @side needs an id and left or right');
+        else warnings.push('[WARN] line ' + d.line + ': @side needs an id and left or right');
         break;
       case 'size':
         if ((m = /^(\S+)\s+(\d+(?:\.\d+)?)\s+(\d+(?:\.\d+)?)$/.exec(a))) {
           const s = subjectOf.get(m[1]);
-          if (s) { if (+m[2] > 0) s.fw = +m[2]; if (+m[3] > 0) s.fh = +m[3]; } else warnings.push('line ' + d.line + ': @size names unknown subject "' + m[1] + '"');
-        } else warnings.push('line ' + d.line + ': @size needs a subject, a width and a height');
+          if (s) { if (+m[2] > 0) s.fw = +m[2]; if (+m[3] > 0) s.fh = +m[3]; } else warnings.push('[WARN] line ' + d.line + ': @size names unknown subject "' + m[1] + '"');
+        } else warnings.push('[WARN] line ' + d.line + ': @size needs a subject, a width and a height');
         break;
       case 'level':
         if ((m = /^(\S+)\s+(user|subfunction|summary)$/i.exec(a))) { const o = target(m[1], 'level', d.line); if (o && kind.get(m[1]) === 'uc') o.level = m[2].toLowerCase(); }
@@ -194,7 +195,7 @@ function fromMermaidAst(ast) {
           if (o) notes.push(kind.get(m[1]) === 'uc' ? { id: 'n' + (notes.length + 1), text: m[2].trim(), useCases: [o.id] } : { id: 'n' + (notes.length + 1), text: m[2].trim(), actors: [o.id] });
         }
         break;
-      default: infos.push('line ' + d.line + ': unknown directive @' + d.key + ' ignored');
+      default: infos.push('[INFO] line ' + d.line + ': unknown directive @' + d.key + ' ignored');
     }
   });
 

@@ -1,6 +1,6 @@
 // Copy as Mermaid for the ER diagram, and (with --artifact) Save inside a claude.ai artifact.
 //   node dev/e2e_erd_copy.mjs --browser <chrome> --page <example-erd.html> --large <saas-billing.html> [--artifact <dir/index.html>] [--dump <prefix>]
-// --page: references/examples/example-erd.json laid out with `layout_engine.py --layout`.
+// --page: dev/examples/example-erd.json laid out with `layout_engine.py --layout`.
 // --large: dev/fixtures/erd/saas-billing.json laid out the same way.
 // --artifact: the --page fixture laid out with `--target artifact` (the split directory's index.html).
 // --dump: also write each copied Mermaid text to <prefix>-<name>.mmd (used to parse it with the real Mermaid library).

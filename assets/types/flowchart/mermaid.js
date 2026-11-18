@@ -154,7 +154,6 @@ function toMermaid(data, opts) {
   out.push('flowchart' + (data.direction === 'LR' || data.direction === 'TB' ? ' ' + data.direction : ''));
 
   const dirs = [];
-  if (data.schemaVersion != null) dirs.push('%% @schemaVersion ' + data.schemaVersion);
   if (data.showNotes) dirs.push('%% @showNotes');
   if (data.laneOrder) dirs.push('%% @laneOrder ' + data.laneOrder);
   if (data.swimlanes === false && lanes.length) dirs.push('%% @swimlanes false');

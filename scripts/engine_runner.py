@@ -11,10 +11,8 @@ import contextvars
 import json
 import os
 import queue
-import re
 import shutil
 import subprocess
-import tempfile
 import threading
 from contextlib import contextmanager
 from pathlib import Path
@@ -27,10 +25,6 @@ ASSETS_DIR = SCRIPTS_DIR.parent / "assets"
 _active_session: contextvars.ContextVar[Optional["_NodeSession"]] = contextvars.ContextVar(
     "_active_layout_session", default=None
 )
-
-
-# Chrome refuses to start as root without this (containers, CI)
-_ROOT_FLAGS = ["--no-sandbox"] if hasattr(os, "geteuid") and os.geteuid() == 0 else []
 
 
 class EngineUnavailable(RuntimeError):
@@ -155,30 +149,27 @@ def _via_node(kind: str, data: Dict[str, Any], timeout: int, tokens: Dict[str, A
 
 
 def _via_browser(data: Dict[str, Any], timeout: int, browser: Optional[str], tokens: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-    # Imported lazily: only the fallback needs the browser lookup and page assembly.
-    from layout_engine import scaffold_html
-    from render_screenshot import find_browser
+    # Use a DevTools session rather than one-shot --dump-dom, which hangs in some sandboxes.
+    from measure_font import chrome_session
+    from render_screenshot import find_browser, page_value
 
     try:
         chrome = Path(browser) if browser else find_browser()
     except Exception:
         return None
-    work = Path(tempfile.mkdtemp(prefix="engine_run_"))
+    kind = data.get("diagramType") or "flowchart"
+    engine_src = _engine_path(kind).read_text(encoding="utf-8")
+    payload = json.dumps({"tokens": tokens_data(tokens), "diagram": data})
+    js = (
+        f"(() => {{\nconst __req = {payload};\nconst TOKENS = __req.tokens;\n"
+        f"{engine_src}\nlayoutDiagram(__req.diagram);\nreturn JSON.stringify(__req.diagram);\n}})()"
+    )
     try:
-        page = work / "page.html"
-        scaffold_html(data, page, tokens=tokens)  # the page defines TOKENS (TOKENS_JS) before the engine, as Node does
-        res = subprocess.run(
-            [str(chrome), "--headless=new", "--disable-gpu", *_ROOT_FLAGS, f"--user-data-dir={work / 'profile'}",
-             "--virtual-time-budget=4000", "--dump-dom", page.as_uri() + "?tidy"],
-            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=timeout,
-        )
-        match = re.search(r'<script id="tidy-result" type="application/json">(.*?)</script>', res.stdout, re.S)
-        if not match:
-            return None
-        # Script text is not entity-escaped by the DOM serializer, so it parses as-is.
-        return json.loads(match.group(1))
-    finally:
-        shutil.rmtree(work, ignore_errors=True)
+        with chrome_session(str(chrome), timeout, ()) as call:
+            text = page_value(call, js)
+    except (RuntimeError, ConnectionError, OSError):
+        return None
+    return json.loads(text)
 
 
 def run_layout(kind: str, data: Dict[str, Any], timeout: int = 30, browser: Optional[str] = None,

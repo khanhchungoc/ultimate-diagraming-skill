@@ -139,7 +139,7 @@ for fx in fixtures:
 # Every type with fixtures is covered above; say so for the ER diagram, whose diagram.json also carries the `layout` map
 erd_fixtures = [f for f in fixtures if f.parent.name == "erd" and "golden" not in f.parts]
 check("the ERD fixtures are covered by the split checks above", len(erd_fixtures) >= 5 and "erd" in le.SUPPORTED_TYPES)
-example = le.normalize_diagram_type(json.loads((ROOT / "references" / "examples" / "example-erd.json").read_text(encoding="utf-8")))
+example = le.normalize_diagram_type(json.loads((ROOT / "dev" / "examples" / "example-erd.json").read_text(encoding="utf-8")))
 erd_laid = le.run_layout("erd", example, timeout=30, browser=None)
 check_split_bundle("example-erd", "erd", erd_laid, le.assemble_artifact("erd", erd_laid), tmp)
 

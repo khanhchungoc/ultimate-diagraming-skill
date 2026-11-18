@@ -33,7 +33,7 @@ function walk(dir) {
 }
 
 function fixturesOf(kind) {
-  const examples = readdirSync(join(ROOT, 'references/examples')).filter((f) => f.startsWith(`example-${kind}`) && f.endsWith('.json')).map((f) => join(ROOT, 'references/examples', f));
+  const examples = readdirSync(join(ROOT, 'dev/examples')).filter((f) => f.startsWith(`example-${kind}`) && f.endsWith('.json')).map((f) => join(ROOT, 'dev/examples', f));
   return [...walk(join(ROOT, 'dev/fixtures', kind)), ...examples].sort();
 }
 
@@ -41,7 +41,7 @@ const extract = (file) => JSON.parse(execFileSync('python3', [join(ROOT, 'script
 
 // ---- normaliser: drops only what the plan says to ignore, makes defaults explicit, compares the rest strictly ----
 
-const POSITION_KEYS = new Set(['x', 'y', 'w', 'h', 'layout', 'height']); // positions, the layout map, lane height
+const POSITION_KEYS = new Set(['x', 'y', 'w', 'h', 'layout', 'height', 'schemaVersion']); // positions, the layout map, lane height, internal schemaVersion
 const ID_ARRAYS = ['lanes', 'nodes', 'subjects', 'actors', 'useCases']; // arrays whose items define ids
 const REF_KEYS = new Set(['laneId', 'from', 'to', 'subject', 'parent']); // string values that refer to an id
 const REF_ARRAY_KEYS = new Set(['nodes', 'useCases', 'actors']); // inside a note: arrays of ids

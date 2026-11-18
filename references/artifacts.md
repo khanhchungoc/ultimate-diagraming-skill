@@ -59,7 +59,7 @@ Old single-file artifacts keep all CSS, JS, and `<script id="diagram-data">` in 
 Do not read a whole single-file page by default. Instead:
 
 - **Upgrade to split files:** run `python "<skill-dir>/scripts/layout_engine.py" --layout <saved page.html> --keep-layout --target artifact -o <scratch>/<title-slug>` and publish as a **new** artifact (no `url`, following *Create*). Data and saved positions carry over.
-- **Edit content:** run `--extract <saved page.html> -o <scratch.mmd>`, edit the Mermaid, build with `--layout <scratch.mmd> --keep-from <saved page.html> --target artifact -o <scratch>/<title-slug>`, and publish as a **new** artifact (no `url`). Explain why the old link could not be updated in place, share the new link, note that the old link still shows the old version, and offer to delete the old artifact.
+- **Edit content:** run `--extract <saved page.html> -o <scratch.mmd>`, edit the Mermaid, build a fresh split artifact with `python "<skill-dir>/scripts/layout_engine.py" --layout <scratch.mmd> --target artifact -o <scratch>/<title-slug>`, and publish as a **new** artifact (no `url`). Explain why the old link could not be updated in place, share the new link, note that the old link still shows the old version, and offer to delete the old artifact.
 
 ## Delete
 
