@@ -1,6 +1,6 @@
 # Plan: Beat Mermaid-MD and draw.io across all four diagram types (Benchmark 2 follow-up)
 
-Status: proposed. Measured against Benchmark 2 (`bench2`, 2026-11-18) on `main` at `786bbcd`.
+Status: P1–P5 implemented (2026-11-18; verification suites pass; live Benchmark 2 agent re-run pending). Baseline measured against Benchmark 2 (`bench2`, 2026-11-18) on `main` at `786bbcd`.
 
 ## Benchmark 2 verification and findings
 

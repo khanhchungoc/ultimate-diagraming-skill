@@ -1,0 +1,2381 @@
+{
+  "diagramType": "usecase",
+  "schemaVersion": 1,
+  "title": "Public library platform",
+  "colorKey": {
+    "1": "Catalogue & Discovery",
+    "2": "Loans & Holds",
+    "3": "Membership & Fines",
+    "4": "Study & Events",
+    "5": "Cataloguing & Admin",
+    "6": "Automated Jobs"
+  },
+  "subjects": [
+    {
+      "id": "portal",
+      "name": "Library Web Portal",
+      "x": 248,
+      "w": 656,
+      "_titleH": 36,
+      "y": 40,
+      "h": 1536
+    },
+    {
+      "id": "branch",
+      "name": "Branch Circulation System",
+      "x": 248,
+      "w": 630,
+      "_titleH": 36,
+      "y": 1608,
+      "h": 1152
+    },
+    {
+      "id": "back_office",
+      "name": "Back-office Admin",
+      "x": 248,
+      "w": 586,
+      "_titleH": 36,
+      "y": 2792,
+      "h": 600
+    }
+  ],
+  "actors": [
+    {
+      "id": "visitor",
+      "name": "Visitor",
+      "_side": "left",
+      "_lines": [
+        "Visitor"
+      ],
+      "w": 72,
+      "h": 84,
+      "_figW": 56,
+      "_figH": 56,
+      "x": 60,
+      "y": 706
+    },
+    {
+      "id": "member",
+      "name": "Member",
+      "parent": "visitor",
+      "_side": "left",
+      "_lines": [
+        "Member"
+      ],
+      "w": 72,
+      "h": 84,
+      "_figW": 56,
+      "_figH": 56,
+      "x": 60,
+      "y": 834
+    },
+    {
+      "id": "student_member",
+      "name": "Student Member",
+      "parent": "member",
+      "_side": "left",
+      "_lines": [
+        "Student Member"
+      ],
+      "w": 112,
+      "h": 84,
+      "_figW": 56,
+      "_figH": 56,
+      "x": 40,
+      "y": 962
+    },
+    {
+      "id": "librarian",
+      "name": "Librarian",
+      "_side": "left",
+      "_lines": [
+        "Librarian"
+      ],
+      "w": 76,
+      "h": 84,
+      "_figW": 56,
+      "_figH": 56,
+      "x": 58,
+      "y": 1968
+    },
+    {
+      "id": "branch_manager",
+      "name": "Branch Manager",
+      "_side": "left",
+      "_lines": [
+        "Branch Manager"
+      ],
+      "w": 112,
+      "h": 84,
+      "_figW": 56,
+      "_figH": 56,
+      "x": 40,
+      "y": 2543
+    },
+    {
+      "id": "cataloguer",
+      "name": "Cataloguer",
+      "_side": "left",
+      "_lines": [
+        "Cataloguer"
+      ],
+      "w": 84,
+      "h": 84,
+      "_figW": 56,
+      "_figH": 56,
+      "x": 54,
+      "y": 2950
+    },
+    {
+      "id": "nightly_scheduler",
+      "name": "Nightly Scheduler",
+      "kind": "time",
+      "_side": "left",
+      "_lines": [
+        "Nightly",
+        "Scheduler"
+      ],
+      "w": 76,
+      "h": 116,
+      "_figW": 56,
+      "_figH": 56,
+      "x": 58,
+      "y": 3225
+    },
+    {
+      "id": "id_verification",
+      "name": "ID Verification Service",
+      "kind": "system",
+      "_side": "right",
+      "_lines": [
+        "ID Verification",
+        "Service"
+      ],
+      "w": 120,
+      "h": 116,
+      "_figW": 56,
+      "_figH": 56,
+      "x": 1000,
+      "y": 314
+    },
+    {
+      "id": "payment_gateway",
+      "name": "Payment Gateway",
+      "kind": "system",
+      "_side": "right",
+      "_lines": [
+        "Payment Gateway"
+      ],
+      "w": 120,
+      "h": 100,
+      "_figW": 56,
+      "_figH": 56,
+      "x": 1000,
+      "y": 1224
+    },
+    {
+      "id": "email_service",
+      "name": "Email Service",
+      "kind": "system",
+      "_side": "right",
+      "_lines": [
+        "Email Service"
+      ],
+      "w": 108,
+      "h": 100,
+      "_figW": 56,
+      "_figH": 56,
+      "x": 1006,
+      "y": 3166
+    }
+  ],
+  "useCases": [
+    {
+      "id": "search_catalogue",
+      "name": "Search catalogue",
+      "subject": "portal",
+      "color": "1",
+      "refs": [
+        "FR-01"
+      ],
+      "_lines": [
+        "Search catalogue"
+      ],
+      "_compH": 0,
+      "w": 172,
+      "h": 44,
+      "_r": 22,
+      "x": 290,
+      "y": 96
+    },
+    {
+      "id": "view_item",
+      "name": "View item details",
+      "subject": "portal",
+      "color": "1",
+      "refs": [
+        "FR-02"
+      ],
+      "_lines": [
+        "View item details"
+      ],
+      "_compH": 0,
+      "w": 176,
+      "h": 44,
+      "_r": 22,
+      "x": 288,
+      "y": 594
+    },
+    {
+      "id": "browse_arrivals",
+      "name": "Browse new arrivals",
+      "subject": "portal",
+      "color": "1",
+      "refs": [
+        "FR-03"
+      ],
+      "_lines": [
+        "Browse new arrivals"
+      ],
+      "_compH": 0,
+      "w": 192,
+      "h": 44,
+      "_r": 22,
+      "x": 280,
+      "y": 512
+    },
+    {
+      "id": "register_membership",
+      "name": "Register for membership",
+      "subject": "portal",
+      "color": "3",
+      "refs": [
+        "FR-04"
+      ],
+      "_lines": [
+        "Register for",
+        "membership"
+      ],
+      "_compH": 0,
+      "w": 140,
+      "h": 60,
+      "_r": 22,
+      "x": 306,
+      "y": 296
+    },
+    {
+      "id": "verify_identity_portal",
+      "name": "Verify identity",
+      "subject": "portal",
+      "color": "3",
+      "refs": [
+        "FR-05"
+      ],
+      "level": "subfunction",
+      "_lines": [
+        "Verify identity"
+      ],
+      "_compH": 0,
+      "w": 140,
+      "h": 40,
+      "_r": 18.919999999999998,
+      "x": 706,
+      "y": 322
+    },
+    {
+      "id": "log_in",
+      "name": "Log in",
+      "subject": "portal",
+      "color": "3",
+      "refs": [
+        "FR-06"
+      ],
+      "_lines": [
+        "Log in"
+      ],
+      "_compH": 0,
+      "w": 128,
+      "h": 44,
+      "_r": 22,
+      "x": 312,
+      "y": 676
+    },
+    {
+      "id": "place_hold",
+      "name": "Place hold",
+      "subject": "portal",
+      "color": "2",
+      "refs": [
+        "FR-07"
+      ],
+      "extensionPoints": [
+        "No copies"
+      ],
+      "_lines": [
+        "Place hold"
+      ],
+      "_compH": 36,
+      "w": 128,
+      "h": 80,
+      "_r": 22,
+      "x": 312,
+      "y": 178
+    },
+    {
+      "id": "join_waitlist",
+      "name": "Join waitlist",
+      "subject": "portal",
+      "color": "2",
+      "_lines": [
+        "Join waitlist"
+      ],
+      "_compH": 0,
+      "w": 148,
+      "h": 44,
+      "_r": 22,
+      "x": 702,
+      "y": 196
+    },
+    {
+      "id": "cancel_hold",
+      "name": "Cancel hold",
+      "subject": "portal",
+      "color": "2",
+      "refs": [
+        "FR-08"
+      ],
+      "_lines": [
+        "Cancel hold"
+      ],
+      "_compH": 0,
+      "w": 132,
+      "h": 44,
+      "_r": 22,
+      "x": 310,
+      "y": 1004
+    },
+    {
+      "id": "renew_loan",
+      "name": "Renew loan",
+      "subject": "portal",
+      "color": "2",
+      "refs": [
+        "FR-09"
+      ],
+      "extensionPoints": [
+        "Unpaid fine"
+      ],
+      "_lines": [
+        "Renew loan"
+      ],
+      "_compH": 36,
+      "w": 128,
+      "h": 80,
+      "_r": 22,
+      "x": 312,
+      "y": 394
+    },
+    {
+      "id": "pay_outstanding_fine",
+      "name": "Pay outstanding fine",
+      "subject": "portal",
+      "color": "3",
+      "_lines": [
+        "Pay outstanding fine"
+      ],
+      "_compH": 0,
+      "w": 200,
+      "h": 44,
+      "_r": 22,
+      "x": 676,
+      "y": 412
+    },
+    {
+      "id": "view_loan_history",
+      "name": "View loan history",
+      "subject": "portal",
+      "color": "2",
+      "refs": [
+        "FR-10"
+      ],
+      "_lines": [
+        "View loan history"
+      ],
+      "_compH": 0,
+      "w": 176,
+      "h": 44,
+      "_r": 22,
+      "x": 288,
+      "y": 1086
+    },
+    {
+      "id": "pay_fines_online",
+      "name": "Pay fines online",
+      "subject": "portal",
+      "color": "3",
+      "refs": [
+        "FR-11"
+      ],
+      "_lines": [
+        "Pay fines online"
+      ],
+      "_compH": 0,
+      "w": 172,
+      "h": 44,
+      "_r": 22,
+      "x": 290,
+      "y": 1250
+    },
+    {
+      "id": "take_payment",
+      "name": "Take payment",
+      "subject": "portal",
+      "color": "3",
+      "level": "subfunction",
+      "_lines": [
+        "Take payment"
+      ],
+      "_compH": 0,
+      "w": 120,
+      "h": 40,
+      "_r": 18.919999999999998,
+      "x": 716,
+      "y": 1232
+    },
+    {
+      "id": "update_profile",
+      "name": "Update profile",
+      "subject": "portal",
+      "color": "3",
+      "refs": [
+        "FR-12"
+      ],
+      "_lines": [
+        "Update profile"
+      ],
+      "_compH": 0,
+      "w": 156,
+      "h": 44,
+      "_r": 22,
+      "x": 298,
+      "y": 922
+    },
+    {
+      "id": "manage_reading_lists",
+      "name": "Manage reading lists",
+      "subject": "portal",
+      "color": "1",
+      "refs": [
+        "FR-13"
+      ],
+      "_lines": [
+        "Manage reading lists"
+      ],
+      "_compH": 0,
+      "w": 200,
+      "h": 44,
+      "_r": 22,
+      "x": 276,
+      "y": 840
+    },
+    {
+      "id": "write_review",
+      "name": "Write review",
+      "subject": "portal",
+      "color": "1",
+      "refs": [
+        "FR-14"
+      ],
+      "_lines": [
+        "Write review"
+      ],
+      "_compH": 0,
+      "w": 140,
+      "h": 44,
+      "_r": 22,
+      "x": 306,
+      "y": 758
+    },
+    {
+      "id": "book_study_room",
+      "name": "Book study room",
+      "subject": "portal",
+      "color": "4",
+      "refs": [
+        "FR-15"
+      ],
+      "_lines": [
+        "Book study room"
+      ],
+      "_compH": 0,
+      "w": 164,
+      "h": 44,
+      "_r": 22,
+      "x": 294,
+      "y": 1168
+    },
+    {
+      "id": "register_event",
+      "name": "Register for event",
+      "subject": "portal",
+      "color": "4",
+      "refs": [
+        "FR-16"
+      ],
+      "_lines": [
+        "Register for event"
+      ],
+      "_compH": 0,
+      "w": 184,
+      "h": 44,
+      "_r": 22,
+      "x": 284,
+      "y": 1332
+    },
+    {
+      "id": "request_ill",
+      "name": "Request inter-library loan",
+      "subject": "portal",
+      "color": "2",
+      "refs": [
+        "FR-17"
+      ],
+      "_lines": [
+        "Request",
+        "inter-library loan"
+      ],
+      "_compH": 0,
+      "w": 184,
+      "h": 60,
+      "_r": 22,
+      "x": 284,
+      "y": 1496
+    },
+    {
+      "id": "access_ejournals",
+      "name": "Access e-journals",
+      "subject": "portal",
+      "color": "1",
+      "refs": [
+        "FR-18"
+      ],
+      "_lines": [
+        "Access e-journals"
+      ],
+      "_compH": 0,
+      "w": 176,
+      "h": 44,
+      "_r": 22,
+      "x": 288,
+      "y": 1414
+    },
+    {
+      "id": "check_out_item",
+      "name": "Check out item",
+      "subject": "branch",
+      "color": "2",
+      "refs": [
+        "FR-20"
+      ],
+      "_lines": [
+        "Check out item"
+      ],
+      "_compH": 0,
+      "w": 156,
+      "h": 44,
+      "_r": 22,
+      "x": 298,
+      "y": 1876
+    },
+    {
+      "id": "check_in_item",
+      "name": "Check in item",
+      "subject": "branch",
+      "color": "2",
+      "refs": [
+        "FR-21"
+      ],
+      "_lines": [
+        "Check in item"
+      ],
+      "_compH": 0,
+      "w": 148,
+      "h": 44,
+      "_r": 22,
+      "x": 302,
+      "y": 1778
+    },
+    {
+      "id": "scan_barcode",
+      "name": "Scan item barcode",
+      "subject": "branch",
+      "color": "2",
+      "level": "subfunction",
+      "_lines": [
+        "Scan item barcode"
+      ],
+      "_compH": 0,
+      "w": 152,
+      "h": 40,
+      "_r": 18.919999999999998,
+      "x": 692,
+      "y": 1829
+    },
+    {
+      "id": "issue_library_card",
+      "name": "Issue library card",
+      "subject": "branch",
+      "color": "3",
+      "refs": [
+        "FR-22"
+      ],
+      "_lines": [
+        "Issue library card"
+      ],
+      "_compH": 0,
+      "w": 184,
+      "h": 44,
+      "_r": 22,
+      "x": 284,
+      "y": 1974
+    },
+    {
+      "id": "waive_fine",
+      "name": "Waive fine",
+      "subject": "branch",
+      "color": "3",
+      "refs": [
+        "FR-23"
+      ],
+      "_lines": [
+        "Waive fine"
+      ],
+      "_compH": 0,
+      "w": 128,
+      "h": 44,
+      "_r": 22,
+      "x": 312,
+      "y": 2206
+    },
+    {
+      "id": "handle_lost_item",
+      "name": "Handle lost item",
+      "subject": "branch",
+      "color": "2",
+      "refs": [
+        "FR-24"
+      ],
+      "extensionPoints": [
+        "Unresolved"
+      ],
+      "_lines": [
+        "Handle lost item"
+      ],
+      "_compH": 36,
+      "w": 172,
+      "h": 80,
+      "_r": 22,
+      "x": 290,
+      "y": 2072
+    },
+    {
+      "id": "charge_replacement",
+      "name": "Charge replacement fee",
+      "subject": "branch",
+      "color": "3",
+      "_lines": [
+        "Charge",
+        "replacement fee"
+      ],
+      "_compH": 0,
+      "w": 164,
+      "h": 60,
+      "_r": 22,
+      "x": 686,
+      "y": 2082
+    },
+    {
+      "id": "process_holds_pickup",
+      "name": "Process holds pickup",
+      "subject": "branch",
+      "color": "2",
+      "refs": [
+        "FR-25"
+      ],
+      "_lines": [
+        "Process holds pickup"
+      ],
+      "_compH": 0,
+      "w": 200,
+      "h": 44,
+      "_r": 22,
+      "x": 276,
+      "y": 2304
+    },
+    {
+      "id": "register_walkin",
+      "name": "Register walk-in member",
+      "subject": "branch",
+      "color": "3",
+      "refs": [
+        "FR-26"
+      ],
+      "_lines": [
+        "Register",
+        "walk-in member"
+      ],
+      "_compH": 0,
+      "w": 156,
+      "h": 60,
+      "_r": 22,
+      "x": 298,
+      "y": 1664
+    },
+    {
+      "id": "verify_identity_branch",
+      "name": "Verify identity",
+      "subject": "branch",
+      "color": "3",
+      "level": "subfunction",
+      "_lines": [
+        "Verify identity"
+      ],
+      "_compH": 0,
+      "w": 140,
+      "h": 40,
+      "_r": 18.919999999999998,
+      "x": 698,
+      "y": 1664
+    },
+    {
+      "id": "approve_waiver",
+      "name": "Approve fine waiver",
+      "subject": "branch",
+      "color": "3",
+      "refs": [
+        "FR-27"
+      ],
+      "_lines": [
+        "Approve fine waiver"
+      ],
+      "_compH": 0,
+      "w": 192,
+      "h": 44,
+      "_r": 22,
+      "x": 280,
+      "y": 2500
+    },
+    {
+      "id": "view_branch_reports",
+      "name": "View branch reports",
+      "subject": "branch",
+      "color": "5",
+      "refs": [
+        "FR-28"
+      ],
+      "_lines": [
+        "View branch reports"
+      ],
+      "_compH": 0,
+      "w": 192,
+      "h": 44,
+      "_r": 22,
+      "x": 280,
+      "y": 2598
+    },
+    {
+      "id": "manage_staff_rotas",
+      "name": "Manage staff rotas",
+      "subject": "branch",
+      "color": "5",
+      "refs": [
+        "FR-29"
+      ],
+      "_lines": [
+        "Manage staff rotas"
+      ],
+      "_compH": 0,
+      "w": 184,
+      "h": 44,
+      "_r": 22,
+      "x": 284,
+      "y": 2696
+    },
+    {
+      "id": "manage_events",
+      "name": "Manage events",
+      "subject": "branch",
+      "color": "4",
+      "refs": [
+        "FR-30"
+      ],
+      "_lines": [
+        "Manage events"
+      ],
+      "_compH": 0,
+      "w": 148,
+      "h": 44,
+      "_r": 22,
+      "x": 302,
+      "y": 2402
+    },
+    {
+      "id": "add_record",
+      "name": "Add catalogue record",
+      "subject": "back_office",
+      "color": "5",
+      "refs": [
+        "FR-40"
+      ],
+      "_lines": [
+        "Add catalogue record"
+      ],
+      "_compH": 0,
+      "w": 200,
+      "h": 44,
+      "_r": 22,
+      "x": 280,
+      "y": 2902
+    },
+    {
+      "id": "edit_record",
+      "name": "Edit catalogue record",
+      "subject": "back_office",
+      "color": "5",
+      "refs": [
+        "FR-41"
+      ],
+      "_lines": [
+        "Edit catalogue record"
+      ],
+      "_compH": 0,
+      "w": 208,
+      "h": 44,
+      "_r": 22,
+      "x": 276,
+      "y": 2956
+    },
+    {
+      "id": "import_marc",
+      "name": "Import MARC records",
+      "subject": "back_office",
+      "color": "5",
+      "refs": [
+        "FR-42"
+      ],
+      "_lines": [
+        "Import MARC records"
+      ],
+      "_compH": 0,
+      "w": 192,
+      "h": 44,
+      "_r": 22,
+      "x": 284,
+      "y": 2848
+    },
+    {
+      "id": "merge_duplicates",
+      "name": "Merge duplicate records",
+      "subject": "back_office",
+      "color": "5",
+      "refs": [
+        "FR-43"
+      ],
+      "_lines": [
+        "Merge duplicate",
+        "records"
+      ],
+      "_compH": 0,
+      "w": 164,
+      "h": 60,
+      "_r": 22,
+      "x": 298,
+      "y": 3064
+    },
+    {
+      "id": "withdraw_item",
+      "name": "Withdraw item",
+      "subject": "back_office",
+      "color": "5",
+      "refs": [
+        "FR-44"
+      ],
+      "_lines": [
+        "Withdraw item"
+      ],
+      "_compH": 0,
+      "w": 148,
+      "h": 44,
+      "_r": 22,
+      "x": 306,
+      "y": 3010
+    },
+    {
+      "id": "send_due_reminders",
+      "name": "Send due-date reminders",
+      "subject": "back_office",
+      "color": "6",
+      "refs": [
+        "FR-50"
+      ],
+      "_lines": [
+        "Send due-date",
+        "reminders"
+      ],
+      "_compH": 0,
+      "w": 148,
+      "h": 60,
+      "_r": 22,
+      "x": 306,
+      "y": 3134
+    },
+    {
+      "id": "send_overdue_notices",
+      "name": "Send overdue notices",
+      "subject": "back_office",
+      "color": "6",
+      "refs": [
+        "FR-51"
+      ],
+      "_lines": [
+        "Send overdue notices"
+      ],
+      "_compH": 0,
+      "w": 200,
+      "h": 44,
+      "_r": 22,
+      "x": 280,
+      "y": 3204
+    },
+    {
+      "id": "send_email",
+      "name": "Send email",
+      "subject": "back_office",
+      "color": "6",
+      "level": "subfunction",
+      "_lines": [
+        "Send email"
+      ],
+      "_compH": 0,
+      "w": 112,
+      "h": 40,
+      "_r": 18.919999999999998,
+      "x": 694,
+      "y": 3174
+    },
+    {
+      "id": "expire_holds",
+      "name": "Expire uncollected holds",
+      "subject": "back_office",
+      "color": "6",
+      "refs": [
+        "FR-52"
+      ],
+      "_lines": [
+        "Expire",
+        "uncollected holds"
+      ],
+      "_compH": 0,
+      "w": 176,
+      "h": 60,
+      "_r": 22,
+      "x": 292,
+      "y": 3312
+    },
+    {
+      "id": "recalculate_fines",
+      "name": "Recalculate fines",
+      "subject": "back_office",
+      "color": "6",
+      "refs": [
+        "FR-53"
+      ],
+      "_lines": [
+        "Recalculate fines"
+      ],
+      "_compH": 0,
+      "w": 176,
+      "h": 44,
+      "_r": 22,
+      "x": 292,
+      "y": 3258
+    }
+  ],
+  "links": [
+    {
+      "id": "l1",
+      "type": "association",
+      "from": "visitor",
+      "to": "search_catalogue",
+      "points": [
+        [
+          108.1,
+          705.4
+        ],
+        [
+          174.8,
+          547.3
+        ],
+        [
+          199.9,
+          126.5
+        ],
+        [
+          291.7,
+          126.5
+        ]
+      ]
+    },
+    {
+      "id": "l2",
+      "type": "association",
+      "from": "visitor",
+      "to": "view_item",
+      "points": [
+        [
+          122.4,
+          717.8
+        ],
+        [
+          164.2,
+          692.1
+        ],
+        [
+          205.2,
+          616
+        ],
+        [
+          288,
+          616
+        ]
+      ]
+    },
+    {
+      "id": "l3",
+      "type": "association",
+      "from": "visitor",
+      "to": "browse_arrivals",
+      "points": [
+        [
+          117,
+          711.2
+        ],
+        [
+          159.6,
+          664.9
+        ],
+        [
+          198.5,
+          534
+        ],
+        [
+          280,
+          534
+        ]
+      ]
+    },
+    {
+      "id": "l4",
+      "type": "association",
+      "from": "visitor",
+      "to": "register_membership",
+      "points": [
+        [
+          110.2,
+          706.4
+        ],
+        [
+          164.7,
+          600.6
+        ],
+        [
+          208.1,
+          326
+        ],
+        [
+          306,
+          326
+        ]
+      ]
+    },
+    {
+      "id": "l5",
+      "type": "association",
+      "from": "member",
+      "to": "log_in",
+      "points": [
+        [
+          120.7,
+          843.3
+        ],
+        [
+          170.7,
+          805.3
+        ],
+        [
+          216.3,
+          698
+        ],
+        [
+          312,
+          698
+        ]
+      ]
+    },
+    {
+      "id": "l6",
+      "type": "association",
+      "from": "member",
+      "to": "place_hold",
+      "points": [
+        [
+          114.2,
+          836.9
+        ],
+        [
+          220,
+          690.8
+        ],
+        [
+          217.1,
+          253
+        ],
+        [
+          320,
+          253
+        ]
+      ]
+    },
+    {
+      "id": "l7",
+      "type": "association",
+      "from": "member",
+      "to": "cancel_hold",
+      "points": [
+        [
+          120.6,
+          880.9
+        ],
+        [
+          170,
+          918.7
+        ],
+        [
+          215.3,
+          1026
+        ],
+        [
+          310,
+          1026
+        ]
+      ]
+    },
+    {
+      "id": "l8",
+      "type": "association",
+      "from": "member",
+      "to": "renew_loan",
+      "points": [
+        [
+          113.4,
+          836.3
+        ],
+        [
+          181.8,
+          735
+        ],
+        [
+          212.7,
+          442.4
+        ],
+        [
+          312,
+          442.4
+        ]
+      ]
+    },
+    {
+      "id": "l9",
+      "type": "association",
+      "from": "member",
+      "to": "view_loan_history",
+      "points": [
+        [
+          115.1,
+          886.4
+        ],
+        [
+          161.2,
+          945.6
+        ],
+        [
+          201.5,
+          1108
+        ],
+        [
+          288,
+          1108
+        ]
+      ]
+    },
+    {
+      "id": "l10",
+      "type": "association",
+      "from": "member",
+      "to": "pay_fines_online",
+      "points": [
+        [
+          117.3,
+          884.5
+        ],
+        [
+          196.7,
+          968.5
+        ],
+        [
+          214,
+          1250
+        ],
+        [
+          310.8,
+          1250
+        ]
+      ]
+    },
+    {
+      "id": "l11",
+      "type": "association",
+      "from": "member",
+      "to": "update_profile",
+      "points": [
+        [
+          124.7,
+          873.7
+        ],
+        [
+          168.1,
+          891.3
+        ],
+        [
+          211.4,
+          944
+        ],
+        [
+          298,
+          944
+        ]
+      ]
+    },
+    {
+      "id": "l12",
+      "type": "association",
+      "from": "member",
+      "to": "manage_reading_lists",
+      "points": [
+        [
+          127,
+          862
+        ],
+        [
+          162.4,
+          862
+        ],
+        [
+          201.5,
+          862
+        ],
+        [
+          276,
+          862
+        ]
+      ]
+    },
+    {
+      "id": "l13",
+      "type": "association",
+      "from": "member",
+      "to": "write_review",
+      "points": [
+        [
+          124.9,
+          850.7
+        ],
+        [
+          170.6,
+          832.9
+        ],
+        [
+          215.4,
+          780
+        ],
+        [
+          306,
+          780
+        ]
+      ]
+    },
+    {
+      "id": "l14",
+      "type": "association",
+      "from": "member",
+      "to": "book_study_room",
+      "points": [
+        [
+          116.4,
+          885.4
+        ],
+        [
+          177.4,
+          955.2
+        ],
+        [
+          207,
+          1178
+        ],
+        [
+          297.6,
+          1178
+        ]
+      ]
+    },
+    {
+      "id": "l15",
+      "type": "association",
+      "from": "member",
+      "to": "register_event",
+      "points": [
+        [
+          118.6,
+          883.2
+        ],
+        [
+          226.8,
+          984.8
+        ],
+        [
+          232,
+          1332
+        ],
+        [
+          345.5,
+          1332
+        ]
+      ]
+    },
+    {
+      "id": "l16",
+      "type": "association",
+      "from": "student_member",
+      "to": "request_ill",
+      "points": [
+        [
+          112.7,
+          1016.1
+        ],
+        [
+          191,
+          1138.4
+        ],
+        [
+          202,
+          1501.7
+        ],
+        [
+          291.2,
+          1501.7
+        ]
+      ]
+    },
+    {
+      "id": "l17",
+      "type": "association",
+      "from": "student_member",
+      "to": "access_ejournals",
+      "points": [
+        [
+          108.3,
+          1018.5
+        ],
+        [
+          158.5,
+          1135.2
+        ],
+        [
+          198.1,
+          1436
+        ],
+        [
+          288,
+          1436
+        ]
+      ]
+    },
+    {
+      "id": "l18",
+      "type": "association",
+      "from": "librarian",
+      "to": "check_out_item",
+      "points": [
+        [
+          123.9,
+          1982.5
+        ],
+        [
+          167.8,
+          1961.2
+        ],
+        [
+          210.9,
+          1898
+        ],
+        [
+          298,
+          1898
+        ]
+      ]
+    },
+    {
+      "id": "l19",
+      "type": "association",
+      "from": "librarian",
+      "to": "check_in_item",
+      "points": [
+        [
+          118.5,
+          1974.6
+        ],
+        [
+          166.8,
+          1928.7
+        ],
+        [
+          210.2,
+          1800
+        ],
+        [
+          302,
+          1800
+        ]
+      ]
+    },
+    {
+      "id": "l20",
+      "type": "association",
+      "from": "librarian",
+      "to": "issue_library_card",
+      "points": [
+        [
+          127,
+          1996
+        ],
+        [
+          164.8,
+          1996
+        ],
+        [
+          205.5,
+          1996
+        ],
+        [
+          284,
+          1996
+        ]
+      ]
+    },
+    {
+      "id": "l21",
+      "type": "association",
+      "from": "librarian",
+      "to": "waive_fine",
+      "points": [
+        [
+          117.1,
+          2018.7
+        ],
+        [
+          169.2,
+          2074.7
+        ],
+        [
+          214.6,
+          2228
+        ],
+        [
+          312,
+          2228
+        ]
+      ]
+    },
+    {
+      "id": "l22",
+      "type": "association",
+      "from": "librarian",
+      "to": "handle_lost_item",
+      "points": [
+        [
+          122.6,
+          2011.9
+        ],
+        [
+          164.8,
+          2037.2
+        ],
+        [
+          206.3,
+          2112
+        ],
+        [
+          290,
+          2112
+        ]
+      ]
+    },
+    {
+      "id": "l23",
+      "type": "association",
+      "from": "librarian",
+      "to": "process_holds_pickup",
+      "points": [
+        [
+          110.8,
+          2023.2
+        ],
+        [
+          155.9,
+          2105.9
+        ],
+        [
+          193.4,
+          2326
+        ],
+        [
+          276,
+          2326
+        ]
+      ]
+    },
+    {
+      "id": "l24",
+      "type": "association",
+      "from": "librarian",
+      "to": "register_walkin",
+      "points": [
+        [
+          113.2,
+          1970.2
+        ],
+        [
+          163.5,
+          1895.1
+        ],
+        [
+          205.6,
+          1694
+        ],
+        [
+          298,
+          1694
+        ]
+      ]
+    },
+    {
+      "id": "l25",
+      "type": "association",
+      "from": "branch_manager",
+      "to": "approve_waiver",
+      "points": [
+        [
+          126,
+          2563
+        ],
+        [
+          163.2,
+          2553.1
+        ],
+        [
+          203,
+          2522
+        ],
+        [
+          280,
+          2522
+        ]
+      ]
+    },
+    {
+      "id": "l26",
+      "type": "association",
+      "from": "branch_manager",
+      "to": "view_branch_reports",
+      "points": [
+        [
+          126,
+          2579
+        ],
+        [
+          163.2,
+          2588.9
+        ],
+        [
+          203,
+          2620
+        ],
+        [
+          280,
+          2620
+        ]
+      ]
+    },
+    {
+      "id": "l27",
+      "type": "association",
+      "from": "branch_manager",
+      "to": "manage_staff_rotas",
+      "points": [
+        [
+          120.4,
+          2590.1
+        ],
+        [
+          162.2,
+          2622.7
+        ],
+        [
+          202.2,
+          2718
+        ],
+        [
+          284,
+          2718
+        ]
+      ]
+    },
+    {
+      "id": "l28",
+      "type": "association",
+      "from": "branch_manager",
+      "to": "manage_events",
+      "points": [
+        [
+          121.2,
+          2553
+        ],
+        [
+          167.9,
+          2519.7
+        ],
+        [
+          211.6,
+          2424
+        ],
+        [
+          302,
+          2424
+        ]
+      ]
+    },
+    {
+      "id": "l29",
+      "type": "association",
+      "from": "cataloguer",
+      "to": "add_record",
+      "points": [
+        [
+          125.7,
+          2969.3
+        ],
+        [
+          163.1,
+          2958.3
+        ],
+        [
+          202.9,
+          2924
+        ],
+        [
+          280,
+          2924
+        ]
+      ]
+    },
+    {
+      "id": "l30",
+      "type": "association",
+      "from": "cataloguer",
+      "to": "edit_record",
+      "points": [
+        [
+          127,
+          2978
+        ],
+        [
+          162.4,
+          2978
+        ],
+        [
+          201.5,
+          2978
+        ],
+        [
+          276,
+          2978
+        ]
+      ]
+    },
+    {
+      "id": "l31",
+      "type": "association",
+      "from": "cataloguer",
+      "to": "import_marc",
+      "points": [
+        [
+          122.9,
+          2962.6
+        ],
+        [
+          163.2,
+          2939.4
+        ],
+        [
+          203.4,
+          2870
+        ],
+        [
+          284,
+          2870
+        ]
+      ]
+    },
+    {
+      "id": "l32",
+      "type": "association",
+      "from": "cataloguer",
+      "to": "merge_duplicates",
+      "points": [
+        [
+          122.9,
+          2993.4
+        ],
+        [
+          167.4,
+          3019
+        ],
+        [
+          210.4,
+          3094
+        ],
+        [
+          298,
+          3094
+        ]
+      ]
+    },
+    {
+      "id": "l33",
+      "type": "association",
+      "from": "cataloguer",
+      "to": "withdraw_item",
+      "points": [
+        [
+          126,
+          2985.7
+        ],
+        [
+          171,
+          2997.3
+        ],
+        [
+          216,
+          3032
+        ],
+        [
+          306,
+          3032
+        ]
+      ]
+    },
+    {
+      "id": "l34",
+      "type": "association",
+      "from": "nightly_scheduler",
+      "to": "send_due_reminders",
+      "points": [
+        [
+          124.5,
+          3240.9
+        ],
+        [
+          170.4,
+          3221.5
+        ],
+        [
+          215.3,
+          3164
+        ],
+        [
+          306,
+          3164
+        ]
+      ]
+    },
+    {
+      "id": "l35",
+      "type": "association",
+      "from": "nightly_scheduler",
+      "to": "send_overdue_notices",
+      "points": [
+        [
+          126.7,
+          3248.5
+        ],
+        [
+          163.5,
+          3243.1
+        ],
+        [
+          203.3,
+          3226
+        ],
+        [
+          280,
+          3226
+        ]
+      ]
+    },
+    {
+      "id": "l36",
+      "type": "association",
+      "from": "nightly_scheduler",
+      "to": "expire_holds",
+      "points": [
+        [
+          124.2,
+          3265.8
+        ],
+        [
+          166.1,
+          3284.8
+        ],
+        [
+          208.1,
+          3342
+        ],
+        [
+          292,
+          3342
+        ]
+      ]
+    },
+    {
+      "id": "l37",
+      "type": "association",
+      "from": "nightly_scheduler",
+      "to": "recalculate_fines",
+      "points": [
+        [
+          126.7,
+          3257.2
+        ],
+        [
+          167.1,
+          3262.8
+        ],
+        [
+          209.4,
+          3280
+        ],
+        [
+          292,
+          3280
+        ]
+      ]
+    },
+    {
+      "id": "l38",
+      "type": "include",
+      "from": "register_membership",
+      "to": "verify_identity_portal",
+      "points": [
+        [
+          446,
+          329.4
+        ],
+        [
+          503,
+          332.2
+        ],
+        [
+          576,
+          342
+        ],
+        [
+          706,
+          342
+        ]
+      ],
+      "labelBox": {
+        "x": 477,
+        "y": 324,
+        "w": 87,
+        "h": 22
+      }
+    },
+    {
+      "id": "l39",
+      "type": "include",
+      "from": "pay_fines_online",
+      "to": "take_payment",
+      "points": [
+        [
+          461.4,
+          1267
+        ],
+        [
+          512.2,
+          1264
+        ],
+        [
+          588.7,
+          1252
+        ],
+        [
+          716,
+          1252
+        ]
+      ],
+      "labelBox": {
+        "x": 488,
+        "y": 1250,
+        "w": 87,
+        "h": 22
+      }
+    },
+    {
+      "id": "l40",
+      "type": "include",
+      "from": "check_out_item",
+      "to": "scan_barcode",
+      "points": [
+        [
+          450.7,
+          1886.4
+        ],
+        [
+          500.7,
+          1878.7
+        ],
+        [
+          571.4,
+          1849
+        ],
+        [
+          692,
+          1849
+        ]
+      ],
+      "labelBox": {
+        "x": 475,
+        "y": 1860,
+        "w": 87,
+        "h": 22
+      }
+    },
+    {
+      "id": "l41",
+      "type": "include",
+      "from": "check_in_item",
+      "to": "scan_barcode",
+      "points": [
+        [
+          447,
+          1811
+        ],
+        [
+          499.2,
+          1819.1
+        ],
+        [
+          569.5,
+          1849
+        ],
+        [
+          692,
+          1849
+        ]
+      ],
+      "labelBox": {
+        "x": 473,
+        "y": 1816,
+        "w": 87,
+        "h": 22
+      }
+    },
+    {
+      "id": "l42",
+      "type": "include",
+      "from": "register_walkin",
+      "to": "verify_identity_branch",
+      "points": [
+        [
+          454,
+          1691.6
+        ],
+        [
+          503.8,
+          1690
+        ],
+        [
+          576,
+          1684
+        ],
+        [
+          698,
+          1684
+        ]
+      ],
+      "labelBox": {
+        "x": 478,
+        "y": 1677,
+        "w": 87,
+        "h": 22
+      }
+    },
+    {
+      "id": "l43",
+      "type": "include",
+      "from": "send_due_reminders",
+      "to": "send_email",
+      "points": [
+        [
+          454,
+          3171.1
+        ],
+        [
+          503.8,
+          3175.8
+        ],
+        [
+          574,
+          3194
+        ],
+        [
+          694,
+          3194
+        ]
+      ],
+      "labelBox": {
+        "x": 478,
+        "y": 3170,
+        "w": 87,
+        "h": 22
+      }
+    },
+    {
+      "id": "l44",
+      "type": "include",
+      "from": "send_overdue_notices",
+      "to": "send_email",
+      "points": [
+        [
+          477.6,
+          3216.1
+        ],
+        [
+          513.2,
+          3212.4
+        ],
+        [
+          585.8,
+          3194
+        ],
+        [
+          694,
+          3194
+        ]
+      ],
+      "labelBox": {
+        "x": 493,
+        "y": 3208,
+        "w": 87,
+        "h": 22
+      }
+    },
+    {
+      "id": "l45",
+      "type": "extend",
+      "from": "pay_outstanding_fine",
+      "to": "renew_loan",
+      "condition": "owes over 5 EUR",
+      "extensionPoint": "Unpaid fine",
+      "points": [
+        [
+          676,
+          434
+        ],
+        [
+          635.2,
+          434
+        ],
+        [
+          558,
+          434
+        ],
+        [
+          440,
+          434
+        ]
+      ],
+      "labelBox": {
+        "x": 534,
+        "y": 415,
+        "w": 137,
+        "h": 38
+      }
+    },
+    {
+      "id": "l46",
+      "type": "extend",
+      "from": "join_waitlist",
+      "to": "place_hold",
+      "condition": "all copies on hold",
+      "extensionPoint": "No copies",
+      "points": [
+        [
+          702,
+          218
+        ],
+        [
+          645.6,
+          218
+        ],
+        [
+          571,
+          218
+        ],
+        [
+          440,
+          218
+        ]
+      ],
+      "labelBox": {
+        "x": 538,
+        "y": 199,
+        "w": 156,
+        "h": 38
+      }
+    },
+    {
+      "id": "l47",
+      "type": "extend",
+      "from": "charge_replacement",
+      "to": "handle_lost_item",
+      "condition": "not found within 30 days",
+      "extensionPoint": "Unresolved",
+      "points": [
+        [
+          686,
+          2112
+        ],
+        [
+          643.4,
+          2112
+        ],
+        [
+          574,
+          2112
+        ],
+        [
+          462,
+          2112
+        ]
+      ],
+      "labelBox": {
+        "x": 553,
+        "y": 2085,
+        "w": 123,
+        "h": 54
+      }
+    },
+    {
+      "id": "l48",
+      "type": "association",
+      "from": "verify_identity_portal",
+      "to": "id_verification",
+      "points": [
+        [
+          846,
+          342
+        ],
+        [
+          879.9,
+          342
+        ],
+        [
+          937.5,
+          342
+        ],
+        [
+          1029,
+          342
+        ]
+      ]
+    },
+    {
+      "id": "l49",
+      "type": "association",
+      "from": "verify_identity_branch",
+      "to": "id_verification",
+      "points": [
+        [
+          772.5,
+          1664
+        ],
+        [
+          857.4,
+          1282.7
+        ],
+        [
+          1060,
+          1018.5
+        ],
+        [
+          1060,
+          373
+        ]
+      ]
+    },
+    {
+      "id": "l50",
+      "type": "association",
+      "from": "take_payment",
+      "to": "payment_gateway",
+      "points": [
+        [
+          836,
+          1252
+        ],
+        [
+          875.9,
+          1252
+        ],
+        [
+          932.5,
+          1252
+        ],
+        [
+          1029,
+          1252
+        ]
+      ]
+    },
+    {
+      "id": "l51",
+      "type": "association",
+      "from": "send_email",
+      "to": "email_service",
+      "points": [
+        [
+          806,
+          3194
+        ],
+        [
+          856.1,
+          3194
+        ],
+        [
+          917.5,
+          3194
+        ],
+        [
+          1029,
+          3194
+        ]
+      ]
+    }
+  ],
+  "notes": [
+    {
+      "id": "n1",
+      "text": "Members suspended at 20 EUR unpaid fines (BR-1)",
+      "actors": [
+        "member"
+      ]
+    },
+    {
+      "id": "n2",
+      "text": "Borrow limit 15 for students, 10 for others (BR-2)",
+      "useCases": [
+        "check_out_item"
+      ]
+    },
+    {
+      "id": "n3",
+      "text": "Bookable 14 days ahead, max 3 hours per day (BR-3)",
+      "useCases": [
+        "book_study_room"
+      ]
+    },
+    {
+      "id": "n4",
+      "text": "Waivers above 50 EUR require Branch Manager approval",
+      "useCases": [
+        "waive_fine",
+        "approve_waiver"
+      ]
+    }
+  ],
+  "_parents": [
+    {
+      "from": "member",
+      "to": "visitor",
+      "kind": "actor",
+      "points": [
+        [
+          96,
+          831
+        ],
+        [
+          96,
+          828
+        ],
+        [
+          96,
+          810.5
+        ],
+        [
+          96,
+          790
+        ]
+      ]
+    },
+    {
+      "from": "student_member",
+      "to": "member",
+      "kind": "actor",
+      "points": [
+        [
+          96,
+          959
+        ],
+        [
+          96,
+          956
+        ],
+        [
+          96,
+          938.5
+        ],
+        [
+          96,
+          918
+        ]
+      ]
+    }
+  ],
+  "canvas": {
+    "width": 1160,
+    "height": 3432,
+    "crossings": 6,
+    "hits": 0
+  }
+}

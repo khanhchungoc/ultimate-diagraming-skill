@@ -37,7 +37,14 @@ function fixturesOf(kind) {
   return [...walk(join(ROOT, 'dev/fixtures', kind)), ...examples].sort();
 }
 
-const extract = (file) => JSON.parse(execFileSync('python3', [join(ROOT, 'scripts/layout_engine.py'), '--extract', file, '--json'], { encoding: 'utf8', maxBuffer: 1 << 26 }));
+const PY = (() => {
+  for (const cmd of process.platform === 'win32' ? ['python', 'python3'] : ['python3', 'python']) {
+    try { execFileSync(cmd, ['-c', 'import sys; sys.exit(0 if sys.version_info[0] >= 3 else 1)'], { stdio: 'ignore' }); return cmd; } catch {}
+  }
+  return 'python3';
+})();
+
+const extract = (file) => JSON.parse(execFileSync(PY, [join(ROOT, 'scripts/layout_engine.py'), '--extract', file, '--json'], { encoding: 'utf8', maxBuffer: 1 << 26 }));
 
 // ---- normaliser: drops only what the plan says to ignore, makes defaults explicit, compares the rest strictly ----
 
@@ -139,6 +146,101 @@ for (const kind of kinds) {
     } catch (e) { fail(name, [String(e.message || e)]); }
   }
 }
+// ---- targeted P1/P2 checks: break, sequence column stripping, flowchart connector collapse, ERD comment semicolons ----
+
+if (!onlyKind || onlyKind === 'sequence') {
+  const io = loadMermaidIO('sequence');
+  const seqSrc = [
+    'sequenceDiagram',
+    '  actor c as Customer',
+    '  participant pay as Payment',
+    '  rect rgba(224, 242, 254, 0.25)',
+    '    Note over c,pay: Authorize',
+    '    c->>pay: Pay',
+    '    alt ok',
+    '      pay-->>c: Approved',
+    '    else declined',
+    '      break Payment declined',
+    '        pay-->>c: Declined',
+    '      end',
+    '    end',
+    '  end',
+  ].join('\n');
+  const parsed = io.fromMermaid(seqSrc);
+  const brk = (parsed.data.fragments || []).find((f) => f.kind === 'break');
+  const emitted = io.toMermaid(parsed.data, { palette });
+  const back = io.fromMermaid(emitted);
+  written.push({ name: 'p1 sequence break', text: emitted });
+  brk && brk.label === 'Payment declined' && emitted.includes('break Payment declined') && !parsed.infos.some((x) => /read as an opt/.test(x))
+    && JSON.stringify(parsed.data) === JSON.stringify(back.data)
+    ? pass('P1 sequence break preserves kind and round-trips')
+    : fail('P1 sequence break preserves kind and round-trips', [emitted]);
+
+  const packed = {
+    diagramType: 'sequence', lifespans: true,
+    participants: [
+      { id: 'a', name: 'A' }, { id: 'b', name: 'B' },
+      { id: 'c', name: 'C', column: 'a' }, { id: 'd', name: 'D', column: 'b' },
+    ],
+    messages: [{ id: 'm1', from: 'a', to: 'b', label: '1' }, { id: 'm2', from: 'c', to: 'd', label: '2' }],
+  };
+  const packedMmd = io.toMermaid(packed, { palette });
+  const explicitMmd = io.toMermaid({ ...packed, participants: [{ ...packed.participants[0], start: 'm1' }, ...packed.participants.slice(1)] }, { palette });
+  !packedMmd.includes('@lifespans') && !packedMmd.includes('@column')
+    && explicitMmd.includes('@lifespans') && explicitMmd.includes('@column c a')
+    ? pass('P2 sequence toMermaid strips engine-assigned lifespans/column and keeps explicit')
+    : fail('P2 sequence toMermaid strips engine-assigned lifespans/column and keeps explicit', [packedMmd, explicitMmd]);
+}
+
+if (!onlyKind || onlyKind === 'flowchart') {
+  const io = loadMermaidIO('flowchart');
+  const fcData = {
+    diagramType: 'flowchart', direction: 'LR',
+    lanes: [{ id: 'lane_a', name: 'A' }],
+    nodes: [
+      { id: 'a', laneId: 'lane_a', type: 'task', label: 'A' },
+      { id: 'b', laneId: 'lane_a', type: 'task', label: 'B' },
+      { id: 'c', laneId: 'lane_a', type: 'task', label: 'C' },
+      { id: 'target', laneId: 'lane_a', type: 'end', label: 'Done' },
+      { id: 'c_a_in_1', laneId: 'lane_a', type: 'connector', label: 'A' },
+      { id: 'c_a_in_2', laneId: 'lane_a', type: 'connector', label: 'A' },
+      { id: 'c_a_out', laneId: 'lane_a', type: 'connector', label: 'A' },
+    ],
+    edges: [
+      { id: 'e1', from: 'a', to: 'c_a_in_1', label: '' },
+      { id: 'e2', from: 'b', to: 'c_a_in_2', label: '' },
+      { id: 'e3', from: 'c', to: 'target', label: '' },
+      { id: 'c_a_out_e', from: 'c_a_out', to: 'target', label: '' },
+    ],
+  };
+  const fcMmd = io.toMermaid(fcData, { palette });
+  const fcBack = io.fromMermaid(fcMmd);
+  written.push({ name: 'p2 flowchart collapsed join', text: fcMmd });
+  !fcMmd.includes('c_a_in') && !fcMmd.includes('c_a_out') && fcMmd.includes('a & b & c --> target')
+    && fcBack.data.nodes.length === 4 && fcBack.data.edges.length === 3
+    ? pass('P2 flowchart collapses c_<letter>_in*/out into a & b & c --> target')
+    : fail('P2 flowchart collapses c_<letter>_in*/out into a & b & c --> target', [fcMmd]);
+}
+
+if (!onlyKind || onlyKind === 'erd') {
+  const io = loadMermaidIO('erd');
+  const erdData = {
+    diagramType: 'erd',
+    entities: [{ id: 'orders', name: 'orders', note: 'append-only; immutable', columns: [{ name: 'id', type: 'uuid', pk: true }] }],
+    relationships: [],
+    notes: [{ id: 'n1', text: 'unique per tenant_id; soft deleted', entities: ['orders'] }],
+  };
+  const erdMmd = io.toMermaid(erdData, { palette });
+  const erdBack = io.fromMermaid(erdMmd);
+  written.push({ name: 'p2 erd comment semicolons', text: erdMmd });
+  !erdMmd.includes('#59;') && erdMmd.includes('%% @note orders: unique per tenant_id; soft deleted')
+    && erdMmd.includes('%% @entityNote orders: append-only; immutable')
+    && erdBack.data.notes[0].text === 'unique per tenant_id; soft deleted'
+    && erdBack.data.entities[0].note === 'append-only; immutable'
+    ? pass('P2 ERD note/entityNote leaves ; unescaped and round-trips')
+    : fail('P2 ERD note/entityNote leaves ; unescaped and round-trips', [erdMmd]);
+}
+
 // ---- dry run: the CLI reads every corpus file and finishes ----
 
 if (!onlyKind) {
@@ -149,7 +251,7 @@ if (!onlyKind) {
       const name = `--layout ${f}`;
       let out = '';
       try {
-        out = execFileSync('python3', [join(ROOT, 'scripts/layout_engine.py'), '--layout', join(corpus, f), '-o', join(dir, f.replace(/\.mmd$/, '.html'))],
+        out = execFileSync(PY, [join(ROOT, 'scripts/layout_engine.py'), '--layout', join(corpus, f), '-o', join(dir, f.replace(/\.mmd$/, '.html'))],
           { encoding: 'utf8', maxBuffer: 1 << 26, timeout: 120000 });
       } catch (e) { out = `${e.stdout || ''}${e.stderr || ''}`; }
       const errors = out.split('\n').filter((l) => l.includes('[ERROR]'));

@@ -63,6 +63,9 @@ CASES = [
                                                   "branches": [{"at": "m3", "label": "y"}, {"at": "m3", "label": "z"}]}]), "two branches"),
     ("branches on a loop", dict(fragments=[{"id": "f", "kind": "loop", "label": "x", "from": "m1", "to": "m4",
                                             "branches": [{"at": "m3", "label": "y"}]}]), "only alt and par"),
+    ("break fragment is valid", dict(fragments=[{"id": "f", "kind": "break", "label": "card declined", "from": "m2", "to": "m3"}]), None),
+    ("branches on a break", dict(fragments=[{"id": "f", "kind": "break", "label": "x", "from": "m1", "to": "m4",
+                                             "branches": [{"at": "m3", "label": "y"}]}]), "only alt and par"),
     ("elseAt on a group", dict(fragments=[{"id": "f", "kind": "group", "label": "x", "from": "m1", "to": "m4", "elseAt": "m3"}]), "only alt and par"),
     ("both branches and elseAt", dict(fragments=[{"id": "f", "kind": "alt", "label": "x", "from": "m1", "to": "m4", "elseAt": "m2",
                                                   "branches": [{"at": "m3", "label": "y"}]}]), "both 'branches' and 'elseAt'"),
@@ -126,13 +129,17 @@ def main() -> int:
         ok = not issues if expect is None else any(expect in i for i in issues)
         failed += not ok
         print(f"[{'PASS' if ok else 'FAIL'}] {name}" + ("" if ok else f" - issues: {issues}"))
-    # Nesting deeper than 3 is a warning, not an error
+    # Nesting deeper than 3 is a warning, not an error; phase group blocks (rect) do not count toward depth
     nest = [{"id": f"f{k}", "kind": "opt", "label": "x", "from": f"m{k}", "to": f"m{7 - k}"} for k in range(1, 4)]
     _, three = audit(fragments=nest)
     _, four = audit(fragments=nest + [{"id": "f4", "kind": "opt", "label": "x", "from": "m3", "to": "m3"}])
-    ok = not three["budget_warnings"] and any("nest 4 deep" in w for w in four["budget_warnings"])
+    _, grouped_three = audit(fragments=[{"id": "g1", "kind": "group", "label": "Phase", "from": "m1", "to": "m6"}] + nest)
+    _, grouped_four = audit(fragments=[{"id": "g1", "kind": "group", "label": "Phase", "from": "m1", "to": "m6"}] + nest +
+                            [{"id": "f4", "kind": "break", "label": "abort", "from": "m3", "to": "m3"}])
+    ok = (not three["budget_warnings"] and any("nest 4 deep" in w for w in four["budget_warnings"])
+          and not grouped_three["budget_warnings"] and any("nest 4 deep" in w for w in grouped_four["budget_warnings"]))
     failed += not ok
-    print(f"[{'PASS' if ok else 'FAIL'}] nesting depth warns above 3 - {three['budget_warnings']} {four['budget_warnings']}")
+    print(f"[{'PASS' if ok else 'FAIL'}] nesting depth warns above 3 (excluding group) - {three['budget_warnings']} {four['budget_warnings']} {grouped_three['budget_warnings']}")
     # Colour warnings (not errors): a colour without a key, a key nobody uses, a rainbow
     def coloured(n, key, **kw):
         cols = ["#e0f2fe", "#fef3c7", "#dcfce7", "#fee2e2", "#f3e8ff", "#ffedd5"][:n]
@@ -157,7 +164,7 @@ def main() -> int:
     failed += not ok
     print(f"[{'PASS' if ok else 'FAIL'}] two coloured participants with a full colorKey do not warn - {two}")
     # Codec: old palette hex and old frame colour names in, slots out; a custom hex is written unchanged
-    from disk_format import from_disk, to_disk
+    from disk_format import authoring_json, from_disk, to_disk
     old = {"diagramType": "sequence", "colorKey": {"#e0f2fe": "Ours", "#123456": "Mine", "#fef3c7": "unused"},
            "participants": [{"id": "a", "name": "A", "color": "#e0f2fe"}, {"id": "b", "name": "B", "color": "#123456"}],
            "messages": [], "fragments": [{"id": "f1", "kind": "group", "color": c} for c in ("blue", "green", "yellow", "red", "purple", "gray", "#fee2e2")]}
@@ -297,6 +304,29 @@ def main() -> int:
           and ls_false.get("lifespans") is False and ls_false_note == ""
           and "lifespans" not in has_start and start_note == "",
           f"one={one_note!r} ls={ls_false_note!r} start={start_note!r}")
+
+    # P1/P2: break survives disk_format, and authoring_json strips only engine-packed lifespans/column
+    brk_disk = to_disk("sequence", {**BASE, "fragments": [{"id": "f1", "kind": "break", "label": "declined", "from": "m1", "to": "m2"}]})
+    check("disk_format round-trips break fragment",
+          brk_disk["fragments"][0]["kind"] == "break" and from_disk("sequence", brk_disk)["fragments"][0]["kind"] == "break",
+          str(brk_disk["fragments"]))
+
+    stripped = authoring_json("sequence", packed)
+    explicit_start = authoring_json("sequence", {
+        **packed, "participants": [{**packed["participants"][0], "start": "m1"}, *packed["participants"][1:]],
+    })
+    explicit_custom = authoring_json("sequence", {
+        **pack_in, "lifespans": True,
+        "participants": [pack_in["participants"][0], pack_in["participants"][1],
+                         {**pack_in["participants"][2], "column": "b"}, {**pack_in["participants"][3], "column": "a"}, pack_in["participants"][4]],
+    })
+    explicit_only_ls = authoring_json("sequence", {**pack_in, "lifespans": True})
+    check("authoring_json strips engine-assigned lifespans/column and keeps explicit author settings",
+          "lifespans" not in stripped and all("column" not in p for p in stripped["participants"])
+          and explicit_start.get("lifespans") is True and explicit_start["participants"][2].get("column") == "a"
+          and explicit_custom.get("lifespans") is True and explicit_custom["participants"][2].get("column") == "b"
+          and explicit_only_ls.get("lifespans") is True,
+          f"stripped={stripped.get('lifespans')} custom={explicit_custom.get('lifespans')}")
 
     total = len(CASES) + 1 + len(colour_cases) + 2 + extra_total
     print(f"{total - failed}/{total} cases passed")

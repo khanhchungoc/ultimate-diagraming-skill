@@ -1,0 +1,2156 @@
+{
+  "diagramType": "erd",
+  "schemaVersion": 3,
+  "detail": "keys",
+  "entities": [
+    {
+      "id": "tenant",
+      "name": "tenant",
+      "columns": [
+        {
+          "name": "id",
+          "type": "int",
+          "pk": true
+        },
+        {
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "name": "plan",
+          "type": "string"
+        },
+        {
+          "name": "created_at",
+          "type": "datetime"
+        }
+      ],
+      "color": "1"
+    },
+    {
+      "id": "user_account",
+      "name": "user_account",
+      "columns": [
+        {
+          "name": "id",
+          "type": "int",
+          "pk": true
+        },
+        {
+          "name": "tenant_id",
+          "type": "int",
+          "fk": true
+        },
+        {
+          "name": "email",
+          "type": "string",
+          "unique": true
+        },
+        {
+          "name": "password_hash",
+          "type": "string"
+        },
+        {
+          "name": "status",
+          "type": "string"
+        },
+        {
+          "name": "last_login_at",
+          "type": "datetime"
+        }
+      ],
+      "color": "1"
+    },
+    {
+      "id": "role",
+      "name": "role",
+      "columns": [
+        {
+          "name": "id",
+          "type": "int",
+          "pk": true
+        },
+        {
+          "name": "tenant_id",
+          "type": "int",
+          "fk": true
+        },
+        {
+          "name": "name",
+          "type": "string"
+        }
+      ],
+      "color": "1"
+    },
+    {
+      "id": "audit_log",
+      "name": "audit_log",
+      "columns": [
+        {
+          "name": "id",
+          "type": "int",
+          "pk": true
+        },
+        {
+          "name": "tenant_id",
+          "type": "int",
+          "fk": true
+        },
+        {
+          "name": "user_id",
+          "type": "int",
+          "fk": true,
+          "note": "nullable"
+        },
+        {
+          "name": "action",
+          "type": "string"
+        },
+        {
+          "name": "entity",
+          "type": "string"
+        },
+        {
+          "name": "entity_id",
+          "type": "int"
+        },
+        {
+          "name": "at",
+          "type": "datetime"
+        }
+      ],
+      "color": "1"
+    },
+    {
+      "id": "clinic",
+      "name": "clinic",
+      "columns": [
+        {
+          "name": "id",
+          "type": "int",
+          "pk": true
+        },
+        {
+          "name": "tenant_id",
+          "type": "int",
+          "fk": true
+        },
+        {
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "name": "timezone",
+          "type": "string"
+        },
+        {
+          "name": "address_id",
+          "type": "int",
+          "fk": true
+        }
+      ],
+      "color": "2"
+    },
+    {
+      "id": "patient",
+      "name": "patient",
+      "columns": [
+        {
+          "name": "id",
+          "type": "int",
+          "pk": true
+        },
+        {
+          "name": "tenant_id",
+          "type": "int",
+          "fk": true
+        },
+        {
+          "name": "mrn",
+          "type": "string",
+          "unique": true,
+          "note": "unique per tenant"
+        },
+        {
+          "name": "first_name",
+          "type": "string"
+        },
+        {
+          "name": "last_name",
+          "type": "string"
+        },
+        {
+          "name": "dob",
+          "type": "date"
+        },
+        {
+          "name": "sex",
+          "type": "string"
+        },
+        {
+          "name": "address_id",
+          "type": "int",
+          "fk": true,
+          "note": "nullable"
+        }
+      ],
+      "color": "3"
+    },
+    {
+      "id": "invoice",
+      "name": "invoice",
+      "columns": [
+        {
+          "name": "id",
+          "type": "int",
+          "pk": true
+        },
+        {
+          "name": "tenant_id",
+          "type": "int",
+          "fk": true
+        },
+        {
+          "name": "patient_id",
+          "type": "int",
+          "fk": true
+        },
+        {
+          "name": "encounter_id",
+          "type": "int",
+          "fk": true,
+          "note": "nullable"
+        },
+        {
+          "name": "number",
+          "type": "string",
+          "unique": true
+        },
+        {
+          "name": "status",
+          "type": "string"
+        },
+        {
+          "name": "issued_at",
+          "type": "datetime"
+        },
+        {
+          "name": "due_at",
+          "type": "datetime"
+        }
+      ],
+      "color": "6"
+    },
+    {
+      "id": "webhook_endpoint",
+      "name": "webhook_endpoint",
+      "columns": [
+        {
+          "name": "id",
+          "type": "int",
+          "pk": true
+        },
+        {
+          "name": "tenant_id",
+          "type": "int",
+          "fk": true
+        },
+        {
+          "name": "url",
+          "type": "string"
+        },
+        {
+          "name": "secret",
+          "type": "string"
+        }
+      ],
+      "color": "7"
+    },
+    {
+      "id": "user_role",
+      "name": "user_role",
+      "columns": [
+        {
+          "name": "user_id",
+          "type": "int",
+          "pk": true,
+          "fk": true
+        },
+        {
+          "name": "role_id",
+          "type": "int",
+          "pk": true,
+          "fk": true
+        }
+      ],
+      "color": "1"
+    },
+    {
+      "id": "role_permission",
+      "name": "role_permission",
+      "columns": [
+        {
+          "name": "role_id",
+          "type": "int",
+          "pk": true,
+          "fk": true
+        },
+        {
+          "name": "permission_id",
+          "type": "int",
+          "pk": true,
+          "fk": true
+        }
+      ],
+      "color": "1"
+    },
+    {
+      "id": "permission",
+      "name": "permission",
+      "columns": [
+        {
+          "name": "id",
+          "type": "int",
+          "pk": true
+        },
+        {
+          "name": "code",
+          "type": "string",
+          "unique": true
+        }
+      ],
+      "color": "1"
+    },
+    {
+      "id": "staff",
+      "name": "staff",
+      "columns": [
+        {
+          "name": "id",
+          "type": "int",
+          "pk": true
+        },
+        {
+          "name": "clinic_id",
+          "type": "int",
+          "fk": true
+        },
+        {
+          "name": "user_id",
+          "type": "int",
+          "fk": true,
+          "unique": true,
+          "note": "nullable"
+        },
+        {
+          "name": "first_name",
+          "type": "string"
+        },
+        {
+          "name": "last_name",
+          "type": "string"
+        },
+        {
+          "name": "title",
+          "type": "string"
+        }
+      ],
+      "color": "2"
+    },
+    {
+      "id": "message",
+      "name": "message",
+      "columns": [
+        {
+          "name": "id",
+          "type": "int",
+          "pk": true
+        },
+        {
+          "name": "thread_id",
+          "type": "int",
+          "fk": true
+        },
+        {
+          "name": "sender_user_id",
+          "type": "int",
+          "fk": true,
+          "note": "nullable"
+        },
+        {
+          "name": "body",
+          "type": "text"
+        },
+        {
+          "name": "sent_at",
+          "type": "datetime"
+        }
+      ],
+      "color": "7"
+    },
+    {
+      "id": "address",
+      "name": "address",
+      "columns": [
+        {
+          "name": "id",
+          "type": "int",
+          "pk": true
+        },
+        {
+          "name": "line1",
+          "type": "string"
+        },
+        {
+          "name": "line2",
+          "type": "string",
+          "note": "nullable"
+        },
+        {
+          "name": "city",
+          "type": "string"
+        },
+        {
+          "name": "postcode",
+          "type": "string"
+        },
+        {
+          "name": "country",
+          "type": "string"
+        }
+      ],
+      "color": "2"
+    },
+    {
+      "id": "room",
+      "name": "room",
+      "columns": [
+        {
+          "name": "id",
+          "type": "int",
+          "pk": true
+        },
+        {
+          "name": "clinic_id",
+          "type": "int",
+          "fk": true
+        },
+        {
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "name": "kind",
+          "type": "string"
+        }
+      ],
+      "color": "2"
+    },
+    {
+      "id": "appointment_type",
+      "name": "appointment_type",
+      "columns": [
+        {
+          "name": "id",
+          "type": "int",
+          "pk": true
+        },
+        {
+          "name": "clinic_id",
+          "type": "int",
+          "fk": true
+        },
+        {
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "name": "duration_min",
+          "type": "int"
+        },
+        {
+          "name": "price",
+          "type": "decimal"
+        }
+      ],
+      "color": "4"
+    },
+    {
+      "id": "price_list",
+      "name": "price_list",
+      "columns": [
+        {
+          "name": "id",
+          "type": "int",
+          "pk": true
+        },
+        {
+          "name": "clinic_id",
+          "type": "int",
+          "fk": true
+        },
+        {
+          "name": "valid_from",
+          "type": "date"
+        }
+      ],
+      "color": "6"
+    },
+    {
+      "id": "staff_specialty",
+      "name": "staff_specialty",
+      "columns": [
+        {
+          "name": "staff_id",
+          "type": "int",
+          "pk": true,
+          "fk": true
+        },
+        {
+          "name": "specialty_id",
+          "type": "int",
+          "pk": true,
+          "fk": true
+        }
+      ],
+      "color": "2"
+    },
+    {
+      "id": "specialty",
+      "name": "specialty",
+      "columns": [
+        {
+          "name": "id",
+          "type": "int",
+          "pk": true
+        },
+        {
+          "name": "name",
+          "type": "string"
+        }
+      ],
+      "color": "2"
+    },
+    {
+      "id": "shift",
+      "name": "shift",
+      "columns": [
+        {
+          "name": "id",
+          "type": "int",
+          "pk": true
+        },
+        {
+          "name": "staff_id",
+          "type": "int",
+          "fk": true
+        },
+        {
+          "name": "room_id",
+          "type": "int",
+          "fk": true,
+          "note": "nullable"
+        },
+        {
+          "name": "starts_at",
+          "type": "datetime"
+        },
+        {
+          "name": "ends_at",
+          "type": "datetime"
+        }
+      ],
+      "color": "2"
+    },
+    {
+      "id": "patient_contact",
+      "name": "patient_contact",
+      "columns": [
+        {
+          "name": "id",
+          "type": "int",
+          "pk": true
+        },
+        {
+          "name": "patient_id",
+          "type": "int",
+          "fk": true
+        },
+        {
+          "name": "kind",
+          "type": "string"
+        },
+        {
+          "name": "value",
+          "type": "string"
+        },
+        {
+          "name": "is_primary",
+          "type": "boolean"
+        }
+      ],
+      "color": "3"
+    },
+    {
+      "id": "emergency_contact",
+      "name": "emergency_contact",
+      "columns": [
+        {
+          "name": "id",
+          "type": "int",
+          "pk": true
+        },
+        {
+          "name": "patient_id",
+          "type": "int",
+          "fk": true
+        },
+        {
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "name": "relation",
+          "type": "string"
+        },
+        {
+          "name": "phone",
+          "type": "string"
+        }
+      ],
+      "color": "3"
+    },
+    {
+      "id": "patient_insurance",
+      "name": "patient_insurance",
+      "columns": [
+        {
+          "name": "id",
+          "type": "int",
+          "pk": true
+        },
+        {
+          "name": "patient_id",
+          "type": "int",
+          "fk": true
+        },
+        {
+          "name": "provider_id",
+          "type": "int",
+          "fk": true
+        },
+        {
+          "name": "policy_number",
+          "type": "string"
+        },
+        {
+          "name": "valid_from",
+          "type": "date"
+        },
+        {
+          "name": "valid_to",
+          "type": "date",
+          "note": "nullable"
+        }
+      ],
+      "color": "3"
+    },
+    {
+      "id": "insurance_provider",
+      "name": "insurance_provider",
+      "columns": [
+        {
+          "name": "id",
+          "type": "int",
+          "pk": true
+        },
+        {
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "name": "payer_code",
+          "type": "string"
+        }
+      ],
+      "color": "3"
+    },
+    {
+      "id": "consent",
+      "name": "consent",
+      "columns": [
+        {
+          "name": "id",
+          "type": "int",
+          "pk": true
+        },
+        {
+          "name": "patient_id",
+          "type": "int",
+          "fk": true
+        },
+        {
+          "name": "kind",
+          "type": "string"
+        },
+        {
+          "name": "granted_at",
+          "type": "datetime"
+        },
+        {
+          "name": "revoked_at",
+          "type": "datetime",
+          "note": "nullable"
+        }
+      ],
+      "color": "3"
+    },
+    {
+      "id": "appointment",
+      "name": "appointment",
+      "columns": [
+        {
+          "name": "id",
+          "type": "int",
+          "pk": true
+        },
+        {
+          "name": "patient_id",
+          "type": "int",
+          "fk": true
+        },
+        {
+          "name": "staff_id",
+          "type": "int",
+          "fk": true
+        },
+        {
+          "name": "room_id",
+          "type": "int",
+          "fk": true,
+          "note": "nullable"
+        },
+        {
+          "name": "type_id",
+          "type": "int",
+          "fk": true
+        },
+        {
+          "name": "starts_at",
+          "type": "datetime"
+        },
+        {
+          "name": "status",
+          "type": "string",
+          "note": "booked/arrived/done/no_show/cancelled"
+        }
+      ],
+      "color": "4"
+    },
+    {
+      "id": "waitlist_entry",
+      "name": "waitlist_entry",
+      "columns": [
+        {
+          "name": "id",
+          "type": "int",
+          "pk": true
+        },
+        {
+          "name": "patient_id",
+          "type": "int",
+          "fk": true
+        },
+        {
+          "name": "type_id",
+          "type": "int",
+          "fk": true
+        },
+        {
+          "name": "requested_at",
+          "type": "datetime"
+        }
+      ],
+      "color": "4"
+    },
+    {
+      "id": "reminder",
+      "name": "reminder",
+      "columns": [
+        {
+          "name": "id",
+          "type": "int",
+          "pk": true
+        },
+        {
+          "name": "appointment_id",
+          "type": "int",
+          "fk": true
+        },
+        {
+          "name": "channel",
+          "type": "string"
+        },
+        {
+          "name": "send_at",
+          "type": "datetime"
+        },
+        {
+          "name": "sent_at",
+          "type": "datetime",
+          "note": "nullable"
+        }
+      ],
+      "color": "4"
+    },
+    {
+      "id": "encounter",
+      "name": "encounter",
+      "columns": [
+        {
+          "name": "id",
+          "type": "int",
+          "pk": true
+        },
+        {
+          "name": "appointment_id",
+          "type": "int",
+          "fk": true,
+          "unique": true
+        },
+        {
+          "name": "started_at",
+          "type": "datetime"
+        },
+        {
+          "name": "ended_at",
+          "type": "datetime",
+          "note": "nullable"
+        }
+      ],
+      "color": "5"
+    },
+    {
+      "id": "encounter_diagnosis",
+      "name": "encounter_diagnosis",
+      "columns": [
+        {
+          "name": "encounter_id",
+          "type": "int",
+          "pk": true,
+          "fk": true
+        },
+        {
+          "name": "code",
+          "type": "string",
+          "pk": true,
+          "fk": true
+        }
+      ],
+      "color": "5"
+    },
+    {
+      "id": "diagnosis_code",
+      "name": "diagnosis_code",
+      "columns": [
+        {
+          "name": "code",
+          "type": "string",
+          "pk": true
+        },
+        {
+          "name": "description",
+          "type": "string"
+        }
+      ],
+      "color": "5"
+    },
+    {
+      "id": "encounter_procedure",
+      "name": "encounter_procedure",
+      "columns": [
+        {
+          "name": "encounter_id",
+          "type": "int",
+          "pk": true,
+          "fk": true
+        },
+        {
+          "name": "code",
+          "type": "string",
+          "pk": true,
+          "fk": true
+        },
+        {
+          "name": "qty",
+          "type": "int"
+        }
+      ],
+      "color": "5"
+    },
+    {
+      "id": "procedure_code",
+      "name": "procedure_code",
+      "columns": [
+        {
+          "name": "code",
+          "type": "string",
+          "pk": true
+        },
+        {
+          "name": "description",
+          "type": "string"
+        },
+        {
+          "name": "base_price",
+          "type": "decimal"
+        }
+      ],
+      "color": "5"
+    },
+    {
+      "id": "prescription",
+      "name": "prescription",
+      "columns": [
+        {
+          "name": "id",
+          "type": "int",
+          "pk": true
+        },
+        {
+          "name": "encounter_id",
+          "type": "int",
+          "fk": true
+        },
+        {
+          "name": "drug_id",
+          "type": "int",
+          "fk": true
+        },
+        {
+          "name": "dose",
+          "type": "string"
+        },
+        {
+          "name": "frequency",
+          "type": "string"
+        },
+        {
+          "name": "days",
+          "type": "int"
+        }
+      ],
+      "color": "5"
+    },
+    {
+      "id": "drug",
+      "name": "drug",
+      "columns": [
+        {
+          "name": "id",
+          "type": "int",
+          "pk": true
+        },
+        {
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "name": "atc_code",
+          "type": "string"
+        }
+      ],
+      "color": "5"
+    },
+    {
+      "id": "allergy",
+      "name": "allergy",
+      "columns": [
+        {
+          "name": "id",
+          "type": "int",
+          "pk": true
+        },
+        {
+          "name": "patient_id",
+          "type": "int",
+          "fk": true
+        },
+        {
+          "name": "substance",
+          "type": "string"
+        },
+        {
+          "name": "severity",
+          "type": "string"
+        }
+      ],
+      "color": "3"
+    },
+    {
+      "id": "clinical_note",
+      "name": "clinical_note",
+      "columns": [
+        {
+          "name": "id",
+          "type": "int",
+          "pk": true
+        },
+        {
+          "name": "encounter_id",
+          "type": "int",
+          "fk": true
+        },
+        {
+          "name": "author_staff_id",
+          "type": "int",
+          "fk": true
+        },
+        {
+          "name": "body",
+          "type": "text"
+        },
+        {
+          "name": "signed_at",
+          "type": "datetime",
+          "note": "nullable, immutable once signed"
+        }
+      ],
+      "color": "5"
+    },
+    {
+      "id": "lab_order",
+      "name": "lab_order",
+      "columns": [
+        {
+          "name": "id",
+          "type": "int",
+          "pk": true
+        },
+        {
+          "name": "encounter_id",
+          "type": "int",
+          "fk": true
+        },
+        {
+          "name": "test_code",
+          "type": "string"
+        },
+        {
+          "name": "status",
+          "type": "string"
+        }
+      ],
+      "color": "5"
+    },
+    {
+      "id": "lab_result",
+      "name": "lab_result",
+      "columns": [
+        {
+          "name": "id",
+          "type": "int",
+          "pk": true
+        },
+        {
+          "name": "lab_order_id",
+          "type": "int",
+          "fk": true
+        },
+        {
+          "name": "value",
+          "type": "string"
+        },
+        {
+          "name": "unit",
+          "type": "string"
+        },
+        {
+          "name": "flag",
+          "type": "string"
+        },
+        {
+          "name": "resulted_at",
+          "type": "datetime"
+        }
+      ],
+      "color": "5"
+    },
+    {
+      "id": "attachment",
+      "name": "attachment",
+      "columns": [
+        {
+          "name": "id",
+          "type": "int",
+          "pk": true
+        },
+        {
+          "name": "encounter_id",
+          "type": "int",
+          "fk": true
+        },
+        {
+          "name": "file_key",
+          "type": "string"
+        },
+        {
+          "name": "mime",
+          "type": "string"
+        },
+        {
+          "name": "uploaded_by",
+          "type": "int"
+        }
+      ],
+      "color": "5"
+    },
+    {
+      "id": "invoice_line",
+      "name": "invoice_line",
+      "columns": [
+        {
+          "name": "id",
+          "type": "int",
+          "pk": true
+        },
+        {
+          "name": "invoice_id",
+          "type": "int",
+          "fk": true
+        },
+        {
+          "name": "procedure_code",
+          "type": "string",
+          "fk": true,
+          "note": "nullable"
+        },
+        {
+          "name": "description",
+          "type": "string"
+        },
+        {
+          "name": "qty",
+          "type": "int"
+        },
+        {
+          "name": "unit_price",
+          "type": "decimal"
+        }
+      ],
+      "color": "6"
+    },
+    {
+      "id": "payment",
+      "name": "payment",
+      "columns": [
+        {
+          "name": "id",
+          "type": "int",
+          "pk": true
+        },
+        {
+          "name": "invoice_id",
+          "type": "int",
+          "fk": true
+        },
+        {
+          "name": "amount",
+          "type": "decimal"
+        },
+        {
+          "name": "method",
+          "type": "string"
+        },
+        {
+          "name": "paid_at",
+          "type": "datetime"
+        }
+      ],
+      "color": "6"
+    },
+    {
+      "id": "claim",
+      "name": "claim",
+      "columns": [
+        {
+          "name": "id",
+          "type": "int",
+          "pk": true
+        },
+        {
+          "name": "invoice_id",
+          "type": "int",
+          "fk": true
+        },
+        {
+          "name": "patient_insurance_id",
+          "type": "int",
+          "fk": true
+        },
+        {
+          "name": "status",
+          "type": "string"
+        },
+        {
+          "name": "submitted_at",
+          "type": "datetime"
+        }
+      ],
+      "color": "6"
+    },
+    {
+      "id": "claim_response",
+      "name": "claim_response",
+      "columns": [
+        {
+          "name": "id",
+          "type": "int",
+          "pk": true
+        },
+        {
+          "name": "claim_id",
+          "type": "int",
+          "fk": true
+        },
+        {
+          "name": "status",
+          "type": "string"
+        },
+        {
+          "name": "paid_amount",
+          "type": "decimal"
+        },
+        {
+          "name": "received_at",
+          "type": "datetime"
+        }
+      ],
+      "color": "6"
+    },
+    {
+      "id": "refund",
+      "name": "refund",
+      "columns": [
+        {
+          "name": "id",
+          "type": "int",
+          "pk": true
+        },
+        {
+          "name": "payment_id",
+          "type": "int",
+          "fk": true
+        },
+        {
+          "name": "amount",
+          "type": "decimal"
+        },
+        {
+          "name": "reason",
+          "type": "string"
+        }
+      ],
+      "color": "6"
+    },
+    {
+      "id": "price_list_item",
+      "name": "price_list_item",
+      "columns": [
+        {
+          "name": "price_list_id",
+          "type": "int",
+          "pk": true,
+          "fk": true
+        },
+        {
+          "name": "procedure_code",
+          "type": "string",
+          "pk": true,
+          "fk": true
+        },
+        {
+          "name": "price",
+          "type": "decimal"
+        }
+      ],
+      "color": "6"
+    },
+    {
+      "id": "message_thread",
+      "name": "message_thread",
+      "columns": [
+        {
+          "name": "id",
+          "type": "int",
+          "pk": true
+        },
+        {
+          "name": "patient_id",
+          "type": "int",
+          "fk": true
+        },
+        {
+          "name": "subject",
+          "type": "string"
+        }
+      ],
+      "color": "7"
+    },
+    {
+      "id": "webhook_delivery",
+      "name": "webhook_delivery",
+      "columns": [
+        {
+          "name": "id",
+          "type": "int",
+          "pk": true
+        },
+        {
+          "name": "endpoint_id",
+          "type": "int",
+          "fk": true
+        },
+        {
+          "name": "event",
+          "type": "string"
+        },
+        {
+          "name": "status",
+          "type": "string"
+        },
+        {
+          "name": "attempts",
+          "type": "int"
+        }
+      ],
+      "color": "7"
+    },
+    {
+      "id": "schema_migration",
+      "name": "schema_migration",
+      "columns": [
+        {
+          "name": "version",
+          "type": "string",
+          "pk": true
+        },
+        {
+          "name": "applied_at",
+          "type": "datetime"
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "id": "r1",
+      "from": "user_account",
+      "to": "tenant",
+      "columns": [
+        "tenant_id"
+      ],
+      "fromEnd": "zeroOrMany",
+      "toEnd": "one",
+      "identifying": true,
+      "label": "has"
+    },
+    {
+      "id": "r2",
+      "from": "role",
+      "to": "tenant",
+      "columns": [
+        "tenant_id"
+      ],
+      "fromEnd": "zeroOrMany",
+      "toEnd": "one",
+      "identifying": true,
+      "label": "defines"
+    },
+    {
+      "id": "r3",
+      "from": "audit_log",
+      "to": "tenant",
+      "columns": [
+        "tenant_id"
+      ],
+      "fromEnd": "zeroOrMany",
+      "toEnd": "one",
+      "identifying": true,
+      "label": "scopes"
+    },
+    {
+      "id": "r4",
+      "from": "clinic",
+      "to": "tenant",
+      "columns": [
+        "tenant_id"
+      ],
+      "fromEnd": "zeroOrMany",
+      "toEnd": "one",
+      "identifying": true,
+      "label": "owns"
+    },
+    {
+      "id": "r5",
+      "from": "patient",
+      "to": "tenant",
+      "columns": [
+        "tenant_id"
+      ],
+      "fromEnd": "zeroOrMany",
+      "toEnd": "one",
+      "identifying": true,
+      "label": "owns"
+    },
+    {
+      "id": "r6",
+      "from": "invoice",
+      "to": "tenant",
+      "columns": [
+        "tenant_id"
+      ],
+      "fromEnd": "zeroOrMany",
+      "toEnd": "one",
+      "identifying": true,
+      "label": "bills"
+    },
+    {
+      "id": "r7",
+      "from": "webhook_endpoint",
+      "to": "tenant",
+      "columns": [
+        "tenant_id"
+      ],
+      "fromEnd": "zeroOrMany",
+      "toEnd": "one",
+      "identifying": true,
+      "label": "registers"
+    },
+    {
+      "id": "r8",
+      "from": "user_role",
+      "to": "user_account",
+      "fromEnd": "zeroOrMany",
+      "toEnd": "one",
+      "identifying": true,
+      "label": "has",
+      "columns": [
+        "user_id"
+      ]
+    },
+    {
+      "id": "r9",
+      "from": "user_role",
+      "to": "role",
+      "columns": [
+        "role_id"
+      ],
+      "fromEnd": "zeroOrMany",
+      "toEnd": "one",
+      "identifying": true,
+      "label": "grants"
+    },
+    {
+      "id": "r10",
+      "from": "role_permission",
+      "to": "role",
+      "columns": [
+        "role_id"
+      ],
+      "fromEnd": "zeroOrMany",
+      "toEnd": "one",
+      "identifying": true,
+      "label": "has"
+    },
+    {
+      "id": "r11",
+      "from": "role_permission",
+      "to": "permission",
+      "columns": [
+        "permission_id"
+      ],
+      "fromEnd": "zeroOrMany",
+      "toEnd": "one",
+      "identifying": true,
+      "label": "in"
+    },
+    {
+      "id": "r12",
+      "from": "audit_log",
+      "to": "user_account",
+      "fromEnd": "zeroOrMany",
+      "toEnd": "zeroOrOne",
+      "identifying": true,
+      "label": "acts",
+      "columns": [
+        "user_id"
+      ]
+    },
+    {
+      "id": "r13",
+      "from": "staff",
+      "to": "user_account",
+      "fromEnd": "zeroOrOne",
+      "toEnd": "zeroOrOne",
+      "identifying": true,
+      "label": "is",
+      "columns": [
+        "user_id"
+      ]
+    },
+    {
+      "id": "r14",
+      "from": "message",
+      "to": "user_account",
+      "fromEnd": "zeroOrMany",
+      "toEnd": "zeroOrOne",
+      "identifying": true,
+      "label": "sends",
+      "columns": [
+        "sender_user_id"
+      ]
+    },
+    {
+      "id": "r15",
+      "from": "clinic",
+      "to": "address",
+      "columns": [
+        "address_id"
+      ],
+      "fromEnd": "zeroOrMany",
+      "toEnd": "one",
+      "identifying": true,
+      "label": "at"
+    },
+    {
+      "id": "r16",
+      "from": "staff",
+      "to": "clinic",
+      "columns": [
+        "clinic_id"
+      ],
+      "fromEnd": "zeroOrMany",
+      "toEnd": "one",
+      "identifying": true,
+      "label": "employs"
+    },
+    {
+      "id": "r17",
+      "from": "room",
+      "to": "clinic",
+      "columns": [
+        "clinic_id"
+      ],
+      "fromEnd": "zeroOrMany",
+      "toEnd": "one",
+      "identifying": true,
+      "label": "has"
+    },
+    {
+      "id": "r18",
+      "from": "appointment_type",
+      "to": "clinic",
+      "columns": [
+        "clinic_id"
+      ],
+      "fromEnd": "zeroOrMany",
+      "toEnd": "one",
+      "identifying": true,
+      "label": "offers"
+    },
+    {
+      "id": "r19",
+      "from": "price_list",
+      "to": "clinic",
+      "columns": [
+        "clinic_id"
+      ],
+      "fromEnd": "zeroOrMany",
+      "toEnd": "one",
+      "identifying": true,
+      "label": "sets"
+    },
+    {
+      "id": "r20",
+      "from": "staff_specialty",
+      "to": "staff",
+      "columns": [
+        "staff_id"
+      ],
+      "fromEnd": "zeroOrMany",
+      "toEnd": "one",
+      "identifying": true,
+      "label": "has"
+    },
+    {
+      "id": "r21",
+      "from": "staff_specialty",
+      "to": "specialty",
+      "columns": [
+        "specialty_id"
+      ],
+      "fromEnd": "zeroOrMany",
+      "toEnd": "one",
+      "identifying": true,
+      "label": "in"
+    },
+    {
+      "id": "r22",
+      "from": "shift",
+      "to": "staff",
+      "columns": [
+        "staff_id"
+      ],
+      "fromEnd": "zeroOrMany",
+      "toEnd": "one",
+      "identifying": true,
+      "label": "works"
+    },
+    {
+      "id": "r23",
+      "from": "shift",
+      "to": "room",
+      "columns": [
+        "room_id"
+      ],
+      "fromEnd": "zeroOrMany",
+      "toEnd": "zeroOrOne",
+      "identifying": true,
+      "label": "used_in"
+    },
+    {
+      "id": "r24",
+      "from": "patient",
+      "to": "address",
+      "columns": [
+        "address_id"
+      ],
+      "fromEnd": "zeroOrMany",
+      "toEnd": "zeroOrOne",
+      "identifying": true,
+      "label": "lives_at"
+    },
+    {
+      "id": "r25",
+      "from": "patient_contact",
+      "to": "patient",
+      "columns": [
+        "patient_id"
+      ],
+      "fromEnd": "zeroOrMany",
+      "toEnd": "one",
+      "identifying": true,
+      "label": "has"
+    },
+    {
+      "id": "r26",
+      "from": "emergency_contact",
+      "to": "patient",
+      "columns": [
+        "patient_id"
+      ],
+      "fromEnd": "zeroOrMany",
+      "toEnd": "one",
+      "identifying": true,
+      "label": "has"
+    },
+    {
+      "id": "r27",
+      "from": "patient_insurance",
+      "to": "patient",
+      "columns": [
+        "patient_id"
+      ],
+      "fromEnd": "zeroOrMany",
+      "toEnd": "one",
+      "identifying": true,
+      "label": "holds"
+    },
+    {
+      "id": "r28",
+      "from": "patient_insurance",
+      "to": "insurance_provider",
+      "fromEnd": "zeroOrMany",
+      "toEnd": "one",
+      "identifying": true,
+      "label": "issues",
+      "columns": [
+        "provider_id"
+      ]
+    },
+    {
+      "id": "r29",
+      "from": "consent",
+      "to": "patient",
+      "columns": [
+        "patient_id"
+      ],
+      "fromEnd": "zeroOrMany",
+      "toEnd": "one",
+      "identifying": true,
+      "label": "gives"
+    },
+    {
+      "id": "r30",
+      "from": "appointment",
+      "to": "patient",
+      "columns": [
+        "patient_id"
+      ],
+      "fromEnd": "zeroOrMany",
+      "toEnd": "one",
+      "identifying": true,
+      "label": "books"
+    },
+    {
+      "id": "r31",
+      "from": "appointment",
+      "to": "staff",
+      "columns": [
+        "staff_id"
+      ],
+      "fromEnd": "zeroOrMany",
+      "toEnd": "one",
+      "identifying": true,
+      "label": "attends"
+    },
+    {
+      "id": "r32",
+      "from": "appointment",
+      "to": "room",
+      "columns": [
+        "room_id"
+      ],
+      "fromEnd": "zeroOrMany",
+      "toEnd": "zeroOrOne",
+      "identifying": true,
+      "label": "hosts"
+    },
+    {
+      "id": "r33",
+      "from": "appointment",
+      "to": "appointment_type",
+      "fromEnd": "zeroOrMany",
+      "toEnd": "one",
+      "identifying": true,
+      "label": "typed",
+      "columns": [
+        "type_id"
+      ]
+    },
+    {
+      "id": "r34",
+      "from": "waitlist_entry",
+      "to": "patient",
+      "columns": [
+        "patient_id"
+      ],
+      "fromEnd": "zeroOrMany",
+      "toEnd": "one",
+      "identifying": true,
+      "label": "joins"
+    },
+    {
+      "id": "r35",
+      "from": "waitlist_entry",
+      "to": "appointment_type",
+      "fromEnd": "zeroOrMany",
+      "toEnd": "one",
+      "identifying": true,
+      "label": "for",
+      "columns": [
+        "type_id"
+      ]
+    },
+    {
+      "id": "r36",
+      "from": "reminder",
+      "to": "appointment",
+      "columns": [
+        "appointment_id"
+      ],
+      "fromEnd": "zeroOrMany",
+      "toEnd": "one",
+      "identifying": true,
+      "label": "triggers"
+    },
+    {
+      "id": "r37",
+      "from": "encounter",
+      "to": "appointment",
+      "columns": [
+        "appointment_id"
+      ],
+      "fromEnd": "zeroOrOne",
+      "toEnd": "one",
+      "identifying": true,
+      "label": "yields"
+    },
+    {
+      "id": "r38",
+      "from": "encounter_diagnosis",
+      "to": "encounter",
+      "columns": [
+        "encounter_id"
+      ],
+      "fromEnd": "zeroOrMany",
+      "toEnd": "one",
+      "identifying": true,
+      "label": "has"
+    },
+    {
+      "id": "r39",
+      "from": "encounter_diagnosis",
+      "to": "diagnosis_code",
+      "fromEnd": "zeroOrMany",
+      "toEnd": "one",
+      "identifying": true,
+      "label": "coded",
+      "columns": [
+        "code"
+      ],
+      "toColumns": [
+        "code"
+      ]
+    },
+    {
+      "id": "r40",
+      "from": "encounter_procedure",
+      "to": "encounter",
+      "columns": [
+        "encounter_id"
+      ],
+      "fromEnd": "zeroOrMany",
+      "toEnd": "one",
+      "identifying": true,
+      "label": "has"
+    },
+    {
+      "id": "r41",
+      "from": "encounter_procedure",
+      "to": "procedure_code",
+      "fromEnd": "zeroOrMany",
+      "toEnd": "one",
+      "identifying": true,
+      "label": "coded",
+      "columns": [
+        "code"
+      ],
+      "toColumns": [
+        "code"
+      ]
+    },
+    {
+      "id": "r42",
+      "from": "prescription",
+      "to": "encounter",
+      "columns": [
+        "encounter_id"
+      ],
+      "fromEnd": "zeroOrMany",
+      "toEnd": "one",
+      "identifying": true,
+      "label": "has"
+    },
+    {
+      "id": "r43",
+      "from": "prescription",
+      "to": "drug",
+      "columns": [
+        "drug_id"
+      ],
+      "fromEnd": "zeroOrMany",
+      "toEnd": "one",
+      "identifying": true,
+      "label": "of"
+    },
+    {
+      "id": "r44",
+      "from": "allergy",
+      "to": "patient",
+      "columns": [
+        "patient_id"
+      ],
+      "fromEnd": "zeroOrMany",
+      "toEnd": "one",
+      "identifying": true,
+      "label": "has"
+    },
+    {
+      "id": "r45",
+      "from": "clinical_note",
+      "to": "encounter",
+      "columns": [
+        "encounter_id"
+      ],
+      "fromEnd": "zeroOrMany",
+      "toEnd": "one",
+      "identifying": true,
+      "label": "has"
+    },
+    {
+      "id": "r46",
+      "from": "clinical_note",
+      "to": "staff",
+      "fromEnd": "zeroOrMany",
+      "toEnd": "one",
+      "identifying": true,
+      "label": "authors",
+      "columns": [
+        "author_staff_id"
+      ]
+    },
+    {
+      "id": "r47",
+      "from": "lab_order",
+      "to": "encounter",
+      "columns": [
+        "encounter_id"
+      ],
+      "fromEnd": "zeroOrMany",
+      "toEnd": "one",
+      "identifying": true,
+      "label": "has"
+    },
+    {
+      "id": "r48",
+      "from": "lab_result",
+      "to": "lab_order",
+      "columns": [
+        "lab_order_id"
+      ],
+      "fromEnd": "zeroOrMany",
+      "toEnd": "one",
+      "identifying": true,
+      "label": "yields"
+    },
+    {
+      "id": "r49",
+      "from": "attachment",
+      "to": "encounter",
+      "columns": [
+        "encounter_id"
+      ],
+      "fromEnd": "zeroOrMany",
+      "toEnd": "one",
+      "identifying": true,
+      "label": "has"
+    },
+    {
+      "id": "r50",
+      "from": "invoice",
+      "to": "patient",
+      "columns": [
+        "patient_id"
+      ],
+      "fromEnd": "zeroOrMany",
+      "toEnd": "one",
+      "identifying": true,
+      "label": "billed"
+    },
+    {
+      "id": "r51",
+      "from": "invoice",
+      "to": "encounter",
+      "columns": [
+        "encounter_id"
+      ],
+      "fromEnd": "zeroOrMany",
+      "toEnd": "zeroOrOne",
+      "identifying": true,
+      "label": "for"
+    },
+    {
+      "id": "r52",
+      "from": "invoice_line",
+      "to": "invoice",
+      "columns": [
+        "invoice_id"
+      ],
+      "fromEnd": "zeroOrMany",
+      "toEnd": "one",
+      "identifying": true,
+      "label": "has"
+    },
+    {
+      "id": "r53",
+      "from": "invoice_line",
+      "to": "procedure_code",
+      "fromEnd": "zeroOrMany",
+      "toEnd": "zeroOrOne",
+      "identifying": true,
+      "label": "charged",
+      "columns": [
+        "procedure_code"
+      ],
+      "toColumns": [
+        "code"
+      ]
+    },
+    {
+      "id": "r54",
+      "from": "payment",
+      "to": "invoice",
+      "columns": [
+        "invoice_id"
+      ],
+      "fromEnd": "zeroOrMany",
+      "toEnd": "one",
+      "identifying": true,
+      "label": "paid_by"
+    },
+    {
+      "id": "r55",
+      "from": "claim",
+      "to": "invoice",
+      "columns": [
+        "invoice_id"
+      ],
+      "fromEnd": "zeroOrMany",
+      "toEnd": "one",
+      "identifying": true,
+      "label": "claimed"
+    },
+    {
+      "id": "r56",
+      "from": "claim",
+      "to": "patient_insurance",
+      "columns": [
+        "patient_insurance_id"
+      ],
+      "fromEnd": "zeroOrMany",
+      "toEnd": "one",
+      "identifying": true,
+      "label": "under"
+    },
+    {
+      "id": "r57",
+      "from": "claim_response",
+      "to": "claim",
+      "columns": [
+        "claim_id"
+      ],
+      "fromEnd": "zeroOrMany",
+      "toEnd": "one",
+      "identifying": true,
+      "label": "gets"
+    },
+    {
+      "id": "r58",
+      "from": "refund",
+      "to": "payment",
+      "columns": [
+        "payment_id"
+      ],
+      "fromEnd": "zeroOrMany",
+      "toEnd": "one",
+      "identifying": true,
+      "label": "refunded_by"
+    },
+    {
+      "id": "r59",
+      "from": "price_list_item",
+      "to": "price_list",
+      "columns": [
+        "price_list_id"
+      ],
+      "fromEnd": "zeroOrMany",
+      "toEnd": "one",
+      "identifying": true,
+      "label": "has"
+    },
+    {
+      "id": "r60",
+      "from": "price_list_item",
+      "to": "procedure_code",
+      "fromEnd": "zeroOrMany",
+      "toEnd": "one",
+      "identifying": true,
+      "label": "priced",
+      "columns": [
+        "procedure_code"
+      ],
+      "toColumns": [
+        "code"
+      ]
+    },
+    {
+      "id": "r61",
+      "from": "message_thread",
+      "to": "patient",
+      "columns": [
+        "patient_id"
+      ],
+      "fromEnd": "zeroOrMany",
+      "toEnd": "one",
+      "identifying": true,
+      "label": "has"
+    },
+    {
+      "id": "r62",
+      "from": "message",
+      "to": "message_thread",
+      "fromEnd": "zeroOrMany",
+      "toEnd": "one",
+      "identifying": true,
+      "label": "contains",
+      "columns": [
+        "thread_id"
+      ]
+    },
+    {
+      "id": "r63",
+      "from": "webhook_delivery",
+      "to": "webhook_endpoint",
+      "fromEnd": "zeroOrMany",
+      "toEnd": "one",
+      "identifying": true,
+      "label": "delivers",
+      "columns": [
+        "endpoint_id"
+      ]
+    }
+  ],
+  "title": "Multi-tenant clinic SaaS",
+  "colorKey": {
+    "1": "Tenancy & Users",
+    "2": "Clinics & Staff",
+    "3": "Patients",
+    "4": "Scheduling",
+    "5": "Clinical",
+    "6": "Billing",
+    "7": "Messaging & Integrations"
+  },
+  "notes": [
+    {
+      "id": "n1",
+      "text": "Every tenant-scoped table is filtered by tenant_id",
+      "entities": [
+        "tenant"
+      ]
+    },
+    {
+      "id": "n2",
+      "text": "Invoices are immutable after issue; corrections use credit note lines",
+      "entities": [
+        "invoice",
+        "invoice_line"
+      ]
+    },
+    {
+      "id": "n3",
+      "text": "Clinical notes cannot be edited after signing",
+      "entities": [
+        "clinical_note"
+      ]
+    },
+    {
+      "id": "n4",
+      "text": "Append-only audit trail",
+      "entities": [
+        "audit_log"
+      ]
+    }
+  ]
+}

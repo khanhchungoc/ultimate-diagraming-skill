@@ -19,7 +19,7 @@ import json
 import re
 import unicodedata
 from functools import lru_cache
-from typing import Any, Callable, Dict, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from tokens import load_tokens
 
@@ -542,11 +542,62 @@ def from_disk(kind: str, data: Dict[str, Any]) -> Dict[str, Any]:
     return DISK_CODECS[kind][1](data) if kind in DISK_CODECS else data
 
 
+def _auto_sequence_columns(d: Dict[str, Any]) -> Optional[Dict[str, str]]:
+    """The column assignment `pack_sequence_columns` produces from messages and notes alone, or None."""
+    ps = d.get("participants") or []
+    if len(ps) <= 2 or any("id" not in p for p in ps) or len({p["id"] for p in ps}) != len(ps):
+        return None
+    ms = d.get("messages") or []
+    ns = d.get("notes") or []
+    midx = {m.get("id"): i for i, m in enumerate(ms)}
+    columns: List[List[Tuple[int, int]]] = []
+    hosts: List[str] = []
+    assigned: Dict[str, str] = {}
+    for p in ps:
+        pid = p["id"]
+        events = [i for i, m in enumerate(ms) if pid in (m.get("from"), m.get("to"))]
+        for n in ns:
+            over = n.get("over")
+            over_list = over if isinstance(over, list) else [] if over is None else [over]
+            if pid not in over_list:
+                continue
+            key = "after" if n.get("after") is not None else "before" if n.get("before") is not None else None
+            at = midx.get(n[key]) if key else (0 if ms else None)
+            if at is not None:
+                events.append(at)
+        if not events:
+            continue
+        lo, hi = min(events), max(events)
+        for idx, col in enumerate(columns):
+            if all(max(lo, olo) > min(hi, ohi) for olo, ohi in col):
+                col.append((lo, hi))
+                assigned[pid] = hosts[idx]
+                break
+        else:
+            columns.append([(lo, hi)])
+            hosts.append(pid)
+    return assigned if len(assigned) >= 2 else None
+
+
+def _strip_auto_sequence_columns(d: Dict[str, Any]) -> None:
+    """Drop `lifespans` and participant `column` when they match `pack_sequence_columns`'s automatic defaults."""
+    ps = d.get("participants") or []
+    if d.get("lifespans") is not True or any("id" not in p for p in ps) or any(p.get(k) is not None for p in ps for k in ("start", "end")):
+        return
+    cols = {p["id"]: p.get("column") for p in ps if p.get("column") is not None}
+    if len(cols) >= 2 and cols == _auto_sequence_columns(d):
+        d.pop("lifespans", None)
+        for p in ps:
+            p.pop("column", None)
+
+
 def authoring_json(kind: str, data: Dict[str, Any]) -> Dict[str, Any]:
     """The disk model without `layout`: what an agent writes, and what `--extract` prints."""
     d = to_disk(kind, data)
     d.pop("layout", None)
     d.pop(README_KEY, None)
+    if kind == "sequence":
+        _strip_auto_sequence_columns(d)
     return d
 
 

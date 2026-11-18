@@ -6,6 +6,60 @@
 const MMD_FLOW_KNOWN_DIRECTIVES = ['type', 'icon', 'color', 'showNotes', 'laneOrder', 'schemaVersion', 'swimlanes'];
 const MMD_FLOW_FLAGS = ['isStart', 'isEnd'];
 const MMD_FLOW_LAYOUT_KEYS = ['x', 'y', 'height', 'width', 'w', 'h', 'fw', 'fh'];
+const MMD_FLOW_ENGINE_CONN = /^c_[a-z]+_(?:in|out)(?:_\d+)?$/;
+
+function mmdFlowCollapseConnectors(nodes, edges) {
+  const byId = new Map(nodes.map((n) => [n.id, n]));
+  const isEngineConn = (n) => !!n && n.type === 'connector' && MMD_FLOW_ENGINE_CONN.test(String(n.id || ''));
+  const letterOf = (n) => String((n && n.label) || '').trim().toUpperCase();
+  const ins = new Map(), outs = new Map();
+  edges.forEach((e) => {
+    if (isEngineConn(byId.get(e.to))) {
+      if (!ins.has(e.to)) ins.set(e.to, []);
+      ins.get(e.to).push(e);
+    }
+    if (isEngineConn(byId.get(e.from))) {
+      if (!outs.has(e.from)) outs.set(e.from, []);
+      outs.get(e.from).push(e);
+    }
+  });
+  const satOf = new Map();
+  nodes.forEach((n) => {
+    if (!isEngineConn(n)) return;
+    const i = ins.get(n.id) || [], o = outs.get(n.id) || [];
+    const role = i.length && !o.length ? 'in' : (o.length && !i.length ? 'out' : null);
+    const stub = role === 'in' ? i[0] : role === 'out' ? o[0] : null;
+    const anchor = stub && byId.get(role === 'in' ? stub.from : stub.to);
+    if (!anchor || anchor.type === 'connector') return;
+    satOf.set(n.id, { node: n, role, letter: letterOf(n) });
+  });
+  const inLetters = new Set(), outOf = new Map();
+  satOf.forEach((s) => {
+    if (s.role === 'in') inLetters.add(s.letter);
+    else if (s.role === 'out' && !outOf.has(s.letter)) outOf.set(s.letter, s);
+  });
+  const active = new Set([...satOf.values()]
+    .filter((s) => inLetters.has(s.letter) && outOf.has(s.letter) && (s.role === 'in' || outOf.get(s.letter).node.id === s.node.id))
+    .map((s) => s.node.id));
+  if (!active.size) return { nodes, edges };
+  const flat = [];
+  edges.forEach((e) => {
+    if (active.has(e.to)) {
+      const so = outOf.get(satOf.get(e.to).letter);
+      (outs.get(so.node.id) || []).forEach((o, k) => {
+        const tgt = byId.get(o.to);
+        if (!tgt || tgt.type === 'connector') return;
+        const v = { id: k ? `${e.id}~${o.id}` : e.id, from: e.from, to: o.to, label: e.label || o.label || '' };
+        if (e.feedback) v.feedback = true;
+        flat.push(v);
+      });
+      return;
+    }
+    if (active.has(e.from)) return;
+    flat.push(e);
+  });
+  return { nodes: nodes.filter((n) => !active.has(n.id)), edges: flat };
+}
 
 function fromMermaid(text) {
   return fromMermaidAst(mmdParseFlow(text));
@@ -140,11 +194,12 @@ function toMermaid(data, opts) {
   const used = new Set(), ids = new Map();
   const sid = (kind, raw) => { const k = kind + '\0' + raw; if (!ids.has(k)) ids.set(k, mmdSafeId(raw, used)); return ids.get(k); };
   const lanes = data.lanes || [];
-  const nodes = data.nodes || [];
+  const collapsed = mmdFlowCollapseConnectors(data.nodes || [], data.edges || []);
+  const nodes = collapsed.nodes;
   lanes.forEach((l) => sid('l', l.id));
   nodes.forEach((n) => sid('n', n.id));
   const nodeIds = new Set(nodes.map((n) => n.id));
-  const edges = (data.edges || []).filter((e) => nodeIds.has(e.from) && nodeIds.has(e.to));
+  const edges = collapsed.edges.filter((e) => nodeIds.has(e.from) && nodeIds.has(e.to));
   const hasOut = new Set(edges.map((e) => e.from));
   const q = mmdQuote;
   const out = [];
@@ -195,11 +250,29 @@ function toMermaid(data, opts) {
   });
   nodes.filter((n) => !placed.has(n.id)).forEach((n) => out.push('  ' + decl(n)));
 
-  // Edges, consecutive ones that continue from the previous target are chained
+  // Edges: consecutive edges sharing target and link group as `a & b --> target`; otherwise consecutive hops chain
   const link = (e) => (e.feedback ? '==>' : '-->') + (e.label ? `|${q(e.label)}|` : '');
+  const isJoinAt = (idx) => {
+    if (idx + 1 >= edges.length) return false;
+    const e0 = edges[idx], e1 = edges[idx + 1];
+    return e0.from !== e0.to && e1.from !== e1.to && e1.from !== e0.from && e1.to === e0.to && link(e1) === link(e0);
+  };
   for (let i = 0; i < edges.length;) {
+    if (isJoinAt(i)) {
+      const tgt = edges[i].to, lk = link(edges[i]), srcs = [edges[i].from], seenSrc = new Set(srcs);
+      let k = 1;
+      while (i + k < edges.length && edges[i + k].to === tgt && link(edges[i + k]) === lk
+             && edges[i + k].from !== tgt && !seenSrc.has(edges[i + k].from)) {
+        srcs.push(edges[i + k].from);
+        seenSrc.add(edges[i + k].from);
+        k++;
+      }
+      out.push(`  ${srcs.map((s) => sid('n', s)).join(' & ')} ${lk} ${sid('n', tgt)}`);
+      i += k;
+      continue;
+    }
     let line = `  ${sid('n', edges[i].from)} ${link(edges[i])} ${sid('n', edges[i].to)}`, k = 1;
-    while (i + k < edges.length && k < 6 && edges[i + k].from === edges[i + k - 1].to) {
+    while (i + k < edges.length && k < 6 && edges[i + k].from === edges[i + k - 1].to && !isJoinAt(i + k)) {
       line += ` ${link(edges[i + k])} ${sid('n', edges[i + k].to)}`;
       k++;
     }

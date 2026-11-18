@@ -11,7 +11,7 @@ Turn a process description into one self-contained, editable HTML diagram. You w
 **Paths and files:**
 - `<skill-dir>` is the folder containing this `SKILL.md`. Run scripts by full path (`python "<skill-dir>/scripts/layout_engine.py" ...`; use `python3` where `python` is not on PATH).
 - **Workspace**: write only the final HTML there: the user's path, else `<title-slug>.html` in the workspace root. The HTML embeds its data; leave no `.mmd` or `.json` in the workspace unless the user asked for one.
-- **Scratch**: the authoring `.mmd` goes to the host's scratch directory (else the system temp directory). Delete it at the end with the shell's native remove command, in one call; do not check the deletion or probe the workspace afterwards.
+- **Scratch**: the authoring `.mmd` goes to the host's scratch directory (else the system temp directory). Pass `--rm-input` to `--layout` so it deletes the scratch `.mmd` automatically on `[DONE]`; do not run a separate remove command, check the deletion or probe the workspace afterwards.
 
 ---
 
@@ -47,17 +47,17 @@ Make exactly these calls. The type reference and the command below are the compl
 
 1. **Read** the type reference. Decide the structure once from it.
    - **Trace the requirements** before writing, following the type reference's structure (for processes: *clause → actor → step, decision, outcome or detail*, splitting clauses joined by "and" such as `3 quotes AND budget approval` into two steps). Map every business rule, threshold, SLA or approval authority to a note. When sources disagree on an actor, order or figure, follow the more detailed source (step text over a summary table) and record the conflict for the report.
-2. **Write the Mermaid once** to `<scratch>.mmd` with your file-write tool. Keep every label within the type reference's word limit (longer text is cut with `...` and shows on hover). No pixel coordinates, no `python -c`, no helper `.py` scripts. Include every step the user's scope asks for.
-3. **Run one command**, writing the HTML straight to the target path (needs Node.js, else Chrome, Chromium or Edge; `--browser <path>` selects a browser):
+2. **Write the Mermaid once** to `<scratch>.mmd` with your file-write tool. Keep every label within the type reference's word limit (longer text is cut with `...` and shows on hover). No pixel coordinates, no `PYTHONIOENCODING`, no `python -c`, no helper `.py` scripts. Include every step the user's scope asks for.
+3. **Run one command** (3 tool calls total: Read type reference, Write `<scratch.mmd>`, Run this command), writing the HTML straight to the target path (needs Node.js, else Chrome, Chromium or Edge; `--browser <path>` selects a browser):
    ```shell
-   python "<skill-dir>/scripts/layout_engine.py" --layout <scratch.mmd> -o <target.html>
+   python "<skill-dir>/scripts/layout_engine.py" --layout <scratch.mmd> -o <target.html> --rm-input
    ```
 4. **Read the last line of the output.** You fix data only: layout and rendering are the engine's job. Do not open or screenshot the HTML to check it.
 
    | Last line | Action |
    |---|---|
    | `[NEXT]` | Fix each `[WARN]` line with a targeted edit to the item it names (it says how), re-run step 3. Never rewrite or redesign the Mermaid. |
-   | `[DONE]` | Final, even with `[INFO]` lines: report them, never re-word, re-run or re-render for them. Delete the scratch `.mmd` (keep the scratch artifact folder when publishing an artifact, see Artifact output), then report. |
+   | `[DONE]` | Final, even with `[INFO]` lines: report them, never re-word, re-run or re-render for them. `--rm-input` already deleted `<scratch.mmd>` (keep the scratch artifact folder when publishing an artifact, see Artifact output), then report. |
    | `[ERROR] Layout needs Node.js ... or Chrome` | Retry once with `--browser <chrome path>`. Otherwise stop and report it; never hand-place coordinates. |
 
 **Local HTML file**: create, read and update follow the three procedures here. Never change the diagram with `Edit` or `Write` on the HTML: it is generated output, and almost all of it is editor code. Delete the file only when the user asks; confirm first, and delete any scratch files you made.
@@ -88,7 +88,7 @@ Use when the user saved edits in the browser, or asks to change a diagram that a
    If the task is only to read the diagram, use *Procedure: Read an Existing Diagram* instead; do not re-layout.
 2. **Edit the Mermaid**, then run:
    ```shell
-   python "<skill-dir>/scripts/layout_engine.py" --layout <scratch.mmd> -o <target.html> --keep-from <target.html>
+   python "<skill-dir>/scripts/layout_engine.py" --layout <scratch.mmd> -o <target.html> --keep-from <target.html> --rm-input
    ```
    Positions the user dragged by hand are kept while the item ids are unchanged. When ids were added, removed or renamed, everything is laid out again and the output says `[INFO] Positions reset: ...`: tell the user, and write to a new file name instead if they might want the old arrangement. Then read the last line as in step 4 of *Procedure: New Diagram*.
 

@@ -159,7 +159,6 @@ function fromMermaid(text, opts) {
       label = sp.label;
     }
     if (kw === 'critical') { b.kind = 'group'; b.critical = true; infoOnce('critical', '"critical" is read as a group, or as an alt when it has "option" branches'); }
-    if (kw === 'break') { b.kind = 'opt'; infoOnce('break', '"break" is read as an opt'); }
     if (kw === 'rect') { b.kind = 'group'; b.rect = true; }
     b.label = mmdText(label);
     if (dir.color) b.color = String(dir.color.args).trim();
@@ -378,6 +377,30 @@ function fromMermaid(text, opts) {
   return { data: sorted, infos, warnings };
 }
 
+function mmdSeqAutoColumns(ps, ms, ns) {
+  if (ps.length <= 2 || ps.some((p) => p.id === undefined) || new Set(ps.map((p) => p.id)).size !== ps.length) return null;
+  const mIdx = new Map();
+  ms.forEach((m, i) => mIdx.set(m.id, i));
+  const columns = [], hosts = [], assigned = {};
+  ps.forEach((p) => {
+    const pid = p.id, events = [];
+    ms.forEach((m, i) => { if (m.from === pid || m.to === pid) events.push(i); });
+    ns.forEach((n) => {
+      const over = Array.isArray(n.over) ? n.over : n.over == null ? [] : [n.over];
+      if (!over.includes(pid)) return;
+      const key = n.after !== undefined && n.after !== null ? 'after' : n.before !== undefined && n.before !== null ? 'before' : null;
+      const at = key ? mIdx.get(n[key]) : (ms.length ? 0 : undefined);
+      if (at !== undefined) events.push(at);
+    });
+    if (!events.length) return;
+    const lo = Math.min(...events), hi = Math.max(...events);
+    const idx = columns.findIndex((col) => col.every(([olo, ohi]) => Math.max(lo, olo) > Math.min(hi, ohi)));
+    if (idx >= 0) { columns[idx].push([lo, hi]); assigned[pid] = hosts[idx]; }
+    else { columns.push([[lo, hi]]); hosts.push(pid); }
+  });
+  return Object.keys(assigned).length >= 2 ? assigned : null;
+}
+
 function toMermaid(data, opts) {
   opts = opts || {};
   const palette = Array.isArray(opts.palette) ? opts.palette : null;
@@ -448,8 +471,14 @@ function toMermaid(data, opts) {
   if (data.schemaVersion != null) top('%% @schemaVersion ' + data.schemaVersion);
   const ck = data.colorKey || {};
   Object.keys(ck).sort((a, b) => a - b).forEach((k) => top('%% @colorKey ' + k + ' ' + text(ck[k])));
+  const stripAutoCols = data.lifespans === true && !ps.some((p) => p.start != null || p.end != null) && (() => {
+    const cols = ps.filter((p) => same(p.column));
+    if (cols.length < 2) return false;
+    const auto = mmdSeqAutoColumns(ps, ms, ns);
+    return !!auto && cols.length === Object.keys(auto).length && cols.every((p) => auto[p.id] === p.column);
+  })();
   [flag('showDetails', data.showDetails), data.participantOrder ? '%% @participantOrder ' + data.participantOrder : null,
-    flag('rails', data.rails), flag('lifespans', data.lifespans)].forEach((s) => { if (s) top(s); });
+    flag('rails', data.rails), stripAutoCols ? null : flag('lifespans', data.lifespans)].forEach((s) => { if (s) top(s); });
   if (data.numbered === true) top('autonumber'); else if (data.numbered === false) top('autonumber off');
 
   // Participants. A run of neighbours with one colour slot that the colour key names becomes a box; any other colour is a directive.
@@ -479,7 +508,7 @@ function toMermaid(data, opts) {
     const k = p.kind;
     if (k && !['system', 'actor', 'ui', 'database', 'queue'].includes(k)) extra.push('%% @kind ' + pid(p.id) + ' ' + k);
     if (p.color != null && p.color !== '' && !boxed(p)) extra.push('%% @color ' + pid(p.id) + ' ' + p.color);
-    if (same(p.column) && sid.has(p.column)) extra.push('%% @column ' + pid(p.id) + ' ' + pid(p.column));
+    if (!stripAutoCols && same(p.column) && sid.has(p.column)) extra.push('%% @column ' + pid(p.id) + ' ' + pid(p.column));
     if (same(p.start) && !createIdx.has(p.id) && step(p.start)) extra.push('%% @start ' + pid(p.id) + ' ' + step(p.start));
     if (same(p.end) && !destroyIdx.has(p.id) && step(p.end)) extra.push('%% @end ' + pid(p.id) + ' ' + step(p.end));
   });
@@ -529,7 +558,7 @@ function toMermaid(data, opts) {
         line('rect' + (css ? ' ' + css : ''));
         // The name is the first line inside the rect: a note over every lifeline (first to last participant), read back as the name
         if (label && ps.length) out.push(ind(depth + 2) + 'Note over ' + pid(ps[0].id) + (ps.length > 1 ? ',' + pid(ps[ps.length - 1].id) : '') + ': ' + label);
-      } else line((['alt', 'opt', 'loop', 'par'].includes(f.kind) ? f.kind : 'opt') + (label ? ' ' + label : ''));
+      } else line((['alt', 'opt', 'loop', 'par', 'break'].includes(f.kind) ? f.kind : 'opt') + (label ? ' ' + label : ''));
       stack.push(r);
       depth++;
       prev = 'open';

@@ -1,0 +1,820 @@
+{
+  "diagramType": "usecase",
+  "schemaVersion": 1,
+  "title": "Public library platform",
+  "colorKey": {
+    "1": "Catalogue & Discovery",
+    "2": "Loans & Holds",
+    "3": "Membership & Fines",
+    "4": "Study & Events",
+    "5": "Cataloguing & Admin",
+    "6": "Automated Jobs"
+  },
+  "subjects": [
+    {
+      "id": "portal",
+      "name": "Library Web Portal"
+    },
+    {
+      "id": "branch",
+      "name": "Branch Circulation System"
+    },
+    {
+      "id": "back_office",
+      "name": "Back-office Admin"
+    }
+  ],
+  "actors": [
+    {
+      "id": "visitor",
+      "name": "Visitor"
+    },
+    {
+      "id": "member",
+      "name": "Member",
+      "parent": "visitor"
+    },
+    {
+      "id": "student_member",
+      "name": "Student Member",
+      "parent": "member"
+    },
+    {
+      "id": "librarian",
+      "name": "Librarian"
+    },
+    {
+      "id": "branch_manager",
+      "name": "Branch Manager"
+    },
+    {
+      "id": "cataloguer",
+      "name": "Cataloguer"
+    },
+    {
+      "id": "nightly_scheduler",
+      "name": "Nightly Scheduler",
+      "kind": "time"
+    },
+    {
+      "id": "id_verification",
+      "name": "ID Verification Service",
+      "kind": "system"
+    },
+    {
+      "id": "payment_gateway",
+      "name": "Payment Gateway",
+      "kind": "system"
+    },
+    {
+      "id": "email_service",
+      "name": "Email Service",
+      "kind": "system"
+    }
+  ],
+  "useCases": [
+    {
+      "id": "search_catalogue",
+      "name": "Search catalogue",
+      "subject": "portal",
+      "color": "1",
+      "refs": [
+        "FR-01"
+      ]
+    },
+    {
+      "id": "view_item",
+      "name": "View item details",
+      "subject": "portal",
+      "color": "1",
+      "refs": [
+        "FR-02"
+      ]
+    },
+    {
+      "id": "browse_arrivals",
+      "name": "Browse new arrivals",
+      "subject": "portal",
+      "color": "1",
+      "refs": [
+        "FR-03"
+      ]
+    },
+    {
+      "id": "register_membership",
+      "name": "Register for membership",
+      "subject": "portal",
+      "color": "3",
+      "refs": [
+        "FR-04"
+      ]
+    },
+    {
+      "id": "verify_identity_portal",
+      "name": "Verify identity",
+      "subject": "portal",
+      "color": "3",
+      "refs": [
+        "FR-05"
+      ],
+      "level": "subfunction"
+    },
+    {
+      "id": "log_in",
+      "name": "Log in",
+      "subject": "portal",
+      "color": "3",
+      "refs": [
+        "FR-06"
+      ]
+    },
+    {
+      "id": "place_hold",
+      "name": "Place hold",
+      "subject": "portal",
+      "color": "2",
+      "refs": [
+        "FR-07"
+      ],
+      "extensionPoints": [
+        "No copies"
+      ]
+    },
+    {
+      "id": "join_waitlist",
+      "name": "Join waitlist",
+      "subject": "portal",
+      "color": "2"
+    },
+    {
+      "id": "cancel_hold",
+      "name": "Cancel hold",
+      "subject": "portal",
+      "color": "2",
+      "refs": [
+        "FR-08"
+      ]
+    },
+    {
+      "id": "renew_loan",
+      "name": "Renew loan",
+      "subject": "portal",
+      "color": "2",
+      "refs": [
+        "FR-09"
+      ],
+      "extensionPoints": [
+        "Unpaid fine"
+      ]
+    },
+    {
+      "id": "pay_outstanding_fine",
+      "name": "Pay outstanding fine",
+      "subject": "portal",
+      "color": "3"
+    },
+    {
+      "id": "view_loan_history",
+      "name": "View loan history",
+      "subject": "portal",
+      "color": "2",
+      "refs": [
+        "FR-10"
+      ]
+    },
+    {
+      "id": "pay_fines_online",
+      "name": "Pay fines online",
+      "subject": "portal",
+      "color": "3",
+      "refs": [
+        "FR-11"
+      ]
+    },
+    {
+      "id": "take_payment",
+      "name": "Take payment",
+      "subject": "portal",
+      "color": "3",
+      "level": "subfunction"
+    },
+    {
+      "id": "update_profile",
+      "name": "Update profile",
+      "subject": "portal",
+      "color": "3",
+      "refs": [
+        "FR-12"
+      ]
+    },
+    {
+      "id": "manage_reading_lists",
+      "name": "Manage reading lists",
+      "subject": "portal",
+      "color": "1",
+      "refs": [
+        "FR-13"
+      ]
+    },
+    {
+      "id": "write_review",
+      "name": "Write review",
+      "subject": "portal",
+      "color": "1",
+      "refs": [
+        "FR-14"
+      ]
+    },
+    {
+      "id": "book_study_room",
+      "name": "Book study room",
+      "subject": "portal",
+      "color": "4",
+      "refs": [
+        "FR-15"
+      ]
+    },
+    {
+      "id": "register_event",
+      "name": "Register for event",
+      "subject": "portal",
+      "color": "4",
+      "refs": [
+        "FR-16"
+      ]
+    },
+    {
+      "id": "request_ill",
+      "name": "Request inter-library loan",
+      "subject": "portal",
+      "color": "2",
+      "refs": [
+        "FR-17"
+      ]
+    },
+    {
+      "id": "access_ejournals",
+      "name": "Access e-journals",
+      "subject": "portal",
+      "color": "1",
+      "refs": [
+        "FR-18"
+      ]
+    },
+    {
+      "id": "check_out_item",
+      "name": "Check out item",
+      "subject": "branch",
+      "color": "2",
+      "refs": [
+        "FR-20"
+      ]
+    },
+    {
+      "id": "check_in_item",
+      "name": "Check in item",
+      "subject": "branch",
+      "color": "2",
+      "refs": [
+        "FR-21"
+      ]
+    },
+    {
+      "id": "scan_barcode",
+      "name": "Scan item barcode",
+      "subject": "branch",
+      "color": "2",
+      "level": "subfunction"
+    },
+    {
+      "id": "issue_library_card",
+      "name": "Issue library card",
+      "subject": "branch",
+      "color": "3",
+      "refs": [
+        "FR-22"
+      ]
+    },
+    {
+      "id": "waive_fine",
+      "name": "Waive fine",
+      "subject": "branch",
+      "color": "3",
+      "refs": [
+        "FR-23"
+      ]
+    },
+    {
+      "id": "handle_lost_item",
+      "name": "Handle lost item",
+      "subject": "branch",
+      "color": "2",
+      "refs": [
+        "FR-24"
+      ],
+      "extensionPoints": [
+        "Unresolved"
+      ]
+    },
+    {
+      "id": "charge_replacement",
+      "name": "Charge replacement fee",
+      "subject": "branch",
+      "color": "3"
+    },
+    {
+      "id": "process_holds_pickup",
+      "name": "Process holds pickup",
+      "subject": "branch",
+      "color": "2",
+      "refs": [
+        "FR-25"
+      ]
+    },
+    {
+      "id": "register_walkin",
+      "name": "Register walk-in member",
+      "subject": "branch",
+      "color": "3",
+      "refs": [
+        "FR-26"
+      ]
+    },
+    {
+      "id": "verify_identity_branch",
+      "name": "Verify identity",
+      "subject": "branch",
+      "color": "3",
+      "level": "subfunction"
+    },
+    {
+      "id": "approve_waiver",
+      "name": "Approve fine waiver",
+      "subject": "branch",
+      "color": "3",
+      "refs": [
+        "FR-27"
+      ]
+    },
+    {
+      "id": "view_branch_reports",
+      "name": "View branch reports",
+      "subject": "branch",
+      "color": "5",
+      "refs": [
+        "FR-28"
+      ]
+    },
+    {
+      "id": "manage_staff_rotas",
+      "name": "Manage staff rotas",
+      "subject": "branch",
+      "color": "5",
+      "refs": [
+        "FR-29"
+      ]
+    },
+    {
+      "id": "manage_events",
+      "name": "Manage events",
+      "subject": "branch",
+      "color": "4",
+      "refs": [
+        "FR-30"
+      ]
+    },
+    {
+      "id": "add_record",
+      "name": "Add catalogue record",
+      "subject": "back_office",
+      "color": "5",
+      "refs": [
+        "FR-40"
+      ]
+    },
+    {
+      "id": "edit_record",
+      "name": "Edit catalogue record",
+      "subject": "back_office",
+      "color": "5",
+      "refs": [
+        "FR-41"
+      ]
+    },
+    {
+      "id": "import_marc",
+      "name": "Import MARC records",
+      "subject": "back_office",
+      "color": "5",
+      "refs": [
+        "FR-42"
+      ]
+    },
+    {
+      "id": "merge_duplicates",
+      "name": "Merge duplicate records",
+      "subject": "back_office",
+      "color": "5",
+      "refs": [
+        "FR-43"
+      ]
+    },
+    {
+      "id": "withdraw_item",
+      "name": "Withdraw item",
+      "subject": "back_office",
+      "color": "5",
+      "refs": [
+        "FR-44"
+      ]
+    },
+    {
+      "id": "send_due_reminders",
+      "name": "Send due-date reminders",
+      "subject": "back_office",
+      "color": "6",
+      "refs": [
+        "FR-50"
+      ]
+    },
+    {
+      "id": "send_overdue_notices",
+      "name": "Send overdue notices",
+      "subject": "back_office",
+      "color": "6",
+      "refs": [
+        "FR-51"
+      ]
+    },
+    {
+      "id": "send_email",
+      "name": "Send email",
+      "subject": "back_office",
+      "color": "6",
+      "level": "subfunction"
+    },
+    {
+      "id": "expire_holds",
+      "name": "Expire uncollected holds",
+      "subject": "back_office",
+      "color": "6",
+      "refs": [
+        "FR-52"
+      ]
+    },
+    {
+      "id": "recalculate_fines",
+      "name": "Recalculate fines",
+      "subject": "back_office",
+      "color": "6",
+      "refs": [
+        "FR-53"
+      ]
+    }
+  ],
+  "links": [
+    {
+      "id": "l1",
+      "type": "association",
+      "from": "visitor",
+      "to": "search_catalogue"
+    },
+    {
+      "id": "l2",
+      "type": "association",
+      "from": "visitor",
+      "to": "view_item"
+    },
+    {
+      "id": "l3",
+      "type": "association",
+      "from": "visitor",
+      "to": "browse_arrivals"
+    },
+    {
+      "id": "l4",
+      "type": "association",
+      "from": "visitor",
+      "to": "register_membership"
+    },
+    {
+      "id": "l5",
+      "type": "association",
+      "from": "member",
+      "to": "log_in"
+    },
+    {
+      "id": "l6",
+      "type": "association",
+      "from": "member",
+      "to": "place_hold"
+    },
+    {
+      "id": "l7",
+      "type": "association",
+      "from": "member",
+      "to": "cancel_hold"
+    },
+    {
+      "id": "l8",
+      "type": "association",
+      "from": "member",
+      "to": "renew_loan"
+    },
+    {
+      "id": "l9",
+      "type": "association",
+      "from": "member",
+      "to": "view_loan_history"
+    },
+    {
+      "id": "l10",
+      "type": "association",
+      "from": "member",
+      "to": "pay_fines_online"
+    },
+    {
+      "id": "l11",
+      "type": "association",
+      "from": "member",
+      "to": "update_profile"
+    },
+    {
+      "id": "l12",
+      "type": "association",
+      "from": "member",
+      "to": "manage_reading_lists"
+    },
+    {
+      "id": "l13",
+      "type": "association",
+      "from": "member",
+      "to": "write_review"
+    },
+    {
+      "id": "l14",
+      "type": "association",
+      "from": "member",
+      "to": "book_study_room"
+    },
+    {
+      "id": "l15",
+      "type": "association",
+      "from": "member",
+      "to": "register_event"
+    },
+    {
+      "id": "l16",
+      "type": "association",
+      "from": "student_member",
+      "to": "request_ill"
+    },
+    {
+      "id": "l17",
+      "type": "association",
+      "from": "student_member",
+      "to": "access_ejournals"
+    },
+    {
+      "id": "l18",
+      "type": "association",
+      "from": "librarian",
+      "to": "check_out_item"
+    },
+    {
+      "id": "l19",
+      "type": "association",
+      "from": "librarian",
+      "to": "check_in_item"
+    },
+    {
+      "id": "l20",
+      "type": "association",
+      "from": "librarian",
+      "to": "issue_library_card"
+    },
+    {
+      "id": "l21",
+      "type": "association",
+      "from": "librarian",
+      "to": "waive_fine"
+    },
+    {
+      "id": "l22",
+      "type": "association",
+      "from": "librarian",
+      "to": "handle_lost_item"
+    },
+    {
+      "id": "l23",
+      "type": "association",
+      "from": "librarian",
+      "to": "process_holds_pickup"
+    },
+    {
+      "id": "l24",
+      "type": "association",
+      "from": "librarian",
+      "to": "register_walkin"
+    },
+    {
+      "id": "l25",
+      "type": "association",
+      "from": "branch_manager",
+      "to": "approve_waiver"
+    },
+    {
+      "id": "l26",
+      "type": "association",
+      "from": "branch_manager",
+      "to": "view_branch_reports"
+    },
+    {
+      "id": "l27",
+      "type": "association",
+      "from": "branch_manager",
+      "to": "manage_staff_rotas"
+    },
+    {
+      "id": "l28",
+      "type": "association",
+      "from": "branch_manager",
+      "to": "manage_events"
+    },
+    {
+      "id": "l29",
+      "type": "association",
+      "from": "cataloguer",
+      "to": "add_record"
+    },
+    {
+      "id": "l30",
+      "type": "association",
+      "from": "cataloguer",
+      "to": "edit_record"
+    },
+    {
+      "id": "l31",
+      "type": "association",
+      "from": "cataloguer",
+      "to": "import_marc"
+    },
+    {
+      "id": "l32",
+      "type": "association",
+      "from": "cataloguer",
+      "to": "merge_duplicates"
+    },
+    {
+      "id": "l33",
+      "type": "association",
+      "from": "cataloguer",
+      "to": "withdraw_item"
+    },
+    {
+      "id": "l34",
+      "type": "association",
+      "from": "nightly_scheduler",
+      "to": "send_due_reminders"
+    },
+    {
+      "id": "l35",
+      "type": "association",
+      "from": "nightly_scheduler",
+      "to": "send_overdue_notices"
+    },
+    {
+      "id": "l36",
+      "type": "association",
+      "from": "nightly_scheduler",
+      "to": "expire_holds"
+    },
+    {
+      "id": "l37",
+      "type": "association",
+      "from": "nightly_scheduler",
+      "to": "recalculate_fines"
+    },
+    {
+      "id": "l38",
+      "type": "include",
+      "from": "register_membership",
+      "to": "verify_identity_portal"
+    },
+    {
+      "id": "l39",
+      "type": "include",
+      "from": "pay_fines_online",
+      "to": "take_payment"
+    },
+    {
+      "id": "l40",
+      "type": "include",
+      "from": "check_out_item",
+      "to": "scan_barcode"
+    },
+    {
+      "id": "l41",
+      "type": "include",
+      "from": "check_in_item",
+      "to": "scan_barcode"
+    },
+    {
+      "id": "l42",
+      "type": "include",
+      "from": "register_walkin",
+      "to": "verify_identity_branch"
+    },
+    {
+      "id": "l43",
+      "type": "include",
+      "from": "send_due_reminders",
+      "to": "send_email"
+    },
+    {
+      "id": "l44",
+      "type": "include",
+      "from": "send_overdue_notices",
+      "to": "send_email"
+    },
+    {
+      "id": "l45",
+      "type": "extend",
+      "from": "pay_outstanding_fine",
+      "to": "renew_loan",
+      "condition": "owes over 5 EUR",
+      "extensionPoint": "Unpaid fine"
+    },
+    {
+      "id": "l46",
+      "type": "extend",
+      "from": "join_waitlist",
+      "to": "place_hold",
+      "condition": "all copies on hold",
+      "extensionPoint": "No copies"
+    },
+    {
+      "id": "l47",
+      "type": "extend",
+      "from": "charge_replacement",
+      "to": "handle_lost_item",
+      "condition": "not found within 30 days",
+      "extensionPoint": "Unresolved"
+    },
+    {
+      "id": "l48",
+      "type": "association",
+      "from": "verify_identity_portal",
+      "to": "id_verification"
+    },
+    {
+      "id": "l49",
+      "type": "association",
+      "from": "verify_identity_branch",
+      "to": "id_verification"
+    },
+    {
+      "id": "l50",
+      "type": "association",
+      "from": "take_payment",
+      "to": "payment_gateway"
+    },
+    {
+      "id": "l51",
+      "type": "association",
+      "from": "send_email",
+      "to": "email_service"
+    }
+  ],
+  "notes": [
+    {
+      "id": "n1",
+      "text": "Members suspended at 20 EUR unpaid fines (BR-1)",
+      "actors": [
+        "member"
+      ]
+    },
+    {
+      "id": "n2",
+      "text": "Borrow limit 15 for students, 10 for others (BR-2)",
+      "useCases": [
+        "check_out_item"
+      ]
+    },
+    {
+      "id": "n3",
+      "text": "Bookable 14 days ahead, max 3 hours per day (BR-3)",
+      "useCases": [
+        "book_study_room"
+      ]
+    },
+    {
+      "id": "n4",
+      "text": "Waivers above 50 EUR require Branch Manager approval",
+      "useCases": [
+        "waive_fine",
+        "approve_waiver"
+      ]
+    }
+  ]
+}

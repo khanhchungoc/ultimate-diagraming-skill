@@ -35,6 +35,11 @@ def _engine_path(kind: str) -> Path:
     return ASSETS_DIR / "types" / kind / "engine.js"
 
 
+def _utf8_env() -> Dict[str, str]:
+    """Ensure child processes inherit UTF-8 stdio settings on Windows."""
+    return {**os.environ, "PYTHONIOENCODING": "utf-8"}
+
+
 class _NodeSession:
     """Persistent `node run_engine.mjs --server` worker scoped to one layout_session()."""
 
@@ -52,6 +57,8 @@ class _NodeSession:
             stderr=subprocess.DEVNULL,
             text=True,
             encoding="utf-8",
+            errors="replace",
+            env=_utf8_env(),
             bufsize=1,
         )
         lines: queue.Queue[Optional[str]] = queue.Queue()
@@ -141,7 +148,8 @@ def _via_node(kind: str, data: Dict[str, Any], timeout: int, tokens: Dict[str, A
         return None
     proc = subprocess.run(
         [node, str(SCRIPTS_DIR / "run_engine.mjs"), str(_engine_path(kind))] + (["--keep"] if keep else []),
-        input=json.dumps({"tokens": tokens_data(tokens), "diagram": data}), capture_output=True, text=True, encoding="utf-8", timeout=timeout,
+        input=json.dumps({"tokens": tokens_data(tokens), "diagram": data}), capture_output=True, text=True,
+        encoding="utf-8", errors="replace", env=_utf8_env(), timeout=timeout,
     )
     if proc.returncode != 0:
         raise RuntimeError(f"Layout engine failed under Node.js:\n{proc.stderr.strip()}")
@@ -219,7 +227,7 @@ def _mermaid_via_node(op: str, kind: str, payload: Any, palette: Optional[list],
         return None
     cmd = [node, str(SCRIPTS_DIR / "mermaid_io.mjs"), op, kind] + (["--palette", ",".join(palette)] if palette else [])
     proc = subprocess.run(cmd, input=payload if op == "from" else json.dumps(payload), capture_output=True, text=True,
-                          encoding="utf-8", timeout=timeout)
+                          encoding="utf-8", errors="replace", env=_utf8_env(), timeout=timeout)
     if proc.returncode != 0:
         raise RuntimeError(proc.stderr.strip() or "Mermaid conversion failed under Node.js.")
     return proc.stdout if op == "to" else json.loads(proc.stdout)

@@ -38,6 +38,9 @@ export function safeIdMap(io, data) {
 }
 
 async function main() {
+  process.stdin.setEncoding('utf8');
+  if (process.stdout.setDefaultEncoding) process.stdout.setDefaultEncoding('utf8');
+  if (process.stderr.setDefaultEncoding) process.stderr.setDefaultEncoding('utf8');
   const [mode, kind, ...rest] = process.argv.slice(2);
   if (!['from', 'to', 'ids'].includes(mode) || !kind) {
     console.error('usage: mermaid_io.mjs from|to|ids <flowchart|usecase|sequence|erd> [--palette hex,hex,...] < input');
@@ -47,6 +50,7 @@ async function main() {
   try { io = loadMermaidIO(kind); } catch (e) { console.error(`[ERROR] ${e.message}`); process.exit(1); }
   let text = '';
   for await (const chunk of process.stdin) text += chunk;
+  if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
   try {
     if (mode === 'from') console.log(JSON.stringify(io.fromMermaid(text), null, 2));
     else if (mode === 'ids') console.log(JSON.stringify(safeIdMap(io, JSON.parse(text))));

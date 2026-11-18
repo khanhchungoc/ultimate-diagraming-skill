@@ -477,7 +477,8 @@ function erPolyHits(f, x0, y0, x1, y1) {
 // only, nothing written to the relationships). With quick, base is the state (.st) of an earlier quick result for the same
 // data: curves whose control points are unchanged keep their samples, and a crossing or hit is only recounted for a pair
 // where a curve or the table changed. The totals equal a full count exactly.
-function erRouteAll(data, boxes, quick, base) {
+function erRouteAll(data, boxes, quick, base, useAlt) {
+  const alt = useAlt !== undefined ? useAlt : !quick;
   const ents = data.entities || [], rels = data.relationships || [], n = boxes.length;
   const idx = {};
   ents.forEach((e, i) => { idx[e.id] = i; });
@@ -486,7 +487,7 @@ function erRouteAll(data, boxes, quick, base) {
   rels.forEach((r, ri) => {
     const a = idx[r.from], b = idx[r.to];
     if (a === undefined || b === undefined) { if (!quick) { delete r.curve; delete r.points; delete r.labelBox; } return; }
-    live.push({ r, ri, a, b, self: a === b, sa: 0, sb: 0, p0: null, p3: null });
+    live.push({ r, ri, a, b, self: a === b, sa: 0, sb: 0, alt: false, k1: 0, k2: 0, p0: null, p3: null });
   });
   // Sides: 0 right, 1 left, 2 bottom, 3 top. A line leaves on the side that faces the other table (the centre-to-centre
   // direction against the table's proportions); lines on one side spread evenly along it, ordered by where the other end
@@ -498,87 +499,282 @@ function erRouteAll(data, boxes, quick, base) {
   };
   const old = quick && base && base.live.length === live.length ? base : null;
   const moved = old ? boxes.map((b, j) => { const o = old.boxes[j]; return o.x !== b.x || o.y !== b.y || o.w !== b.w || o.h !== b.h; }) : null;
-  const slots = new Array(n * 4);                    // per (table, side): the line ends that sit there
-  live.forEach((L, li) => {
-    if (L.self) return;
-    if (old && !moved[L.a] && !moved[L.b]) { L.sa = old.live[li].sa; L.sb = old.live[li].sb; }
-    else { L.sa = facing(L.a, L.b); L.sb = facing(L.b, L.a); }
-    (slots[L.a * 4 + L.sa] = slots[L.a * 4 + L.sa] || []).push({ end: li * 2, other: L.b });
-    (slots[L.b * 4 + L.sb] = slots[L.b * 4 + L.sb] || []).push({ end: li * 2 + 1, other: L.a });
-  });
-  const port = new Array(live.length * 2), ends = new Array(n * 4);
-  slots.forEach((list, k) => {
-    if (!list) return;
-    const i = k >> 2, side = k & 3, b = boxes[i], horiz = side < 2;
-    ends[k] = list.map((p) => p.end);
-    const was = old && old.ends[k];                  // same lines, same table, no other end moved: the ports are as before
-    if (was && !moved[i] && was.length === list.length && list.every((p, q) => p.end === was[q] && !moved[p.other])) {
-      list.forEach((p) => { port[p.end] = old.port[p.end]; });
-      return;
+  const m = ER.CLEAR / 2;
+  const hx0 = Float64Array.from(boxes, (b) => b.x - m), hy0 = Float64Array.from(boxes, (b) => b.y - m);   // the boxes grown by m
+  const hx1 = Float64Array.from(boxes, (b) => b.x + b.w + m), hy1 = Float64Array.from(boxes, (b) => b.y + b.h + m);
+  const movedIds = moved ? moved.reduce((acc, v, j) => { if (v) acc.push(j); return acc; }, []) : [];
+  const oldHitLines = old ? new Set(old.hs.map((pr) => pr[0])) : null;
+  // A cached curve stays valid only if neither endpoint moved, it had no hits or alt route, and no moved table entered its bbox
+  const reuse = (L, li) => {
+    if (!old) return false;
+    const B0 = old.live[li];
+    if (B0.alt || oldHitLines.has(li) || moved[L.a] || moved[L.b]) return false;
+    const bb = B0.bb;
+    for (let u = 0; u < movedIds.length; u++) {
+      const j = movedIds[u];
+      if (j === L.a || j === L.b) continue;
+      if (!(bb[2] <= hx0[j] || bb[0] >= hx1[j] || bb[3] <= hy0[j] || bb[1] >= hy1[j])) return false;
     }
-    list.sort((p, q) => (horiz ? cy[p.other] - cy[q.other] : cx[p.other] - cx[q.other]) || p.end - q.end);
-    const m = list.length, span = horiz ? b.h : b.w;
-    const spacing = m > 1 ? Math.min(ER.PORT_GAP, (span - 2 * ER.PORT_MARGIN) / (m - 1)) : 0;
-    list.forEach((p, q) => {
-      const off = (q - (m - 1) / 2) * spacing;
-      port[p.end] = side === 0 ? [b.x + b.w, cy[i] + off] : side === 1 ? [b.x, cy[i] + off] : side === 2 ? [cx[i] + off, b.y + b.h] : [cx[i] + off, b.y];
-    });
-  });
+    return true;
+  };
   const NX = [1, -1, 0, 0], NY = [0, 0, 1, -1];
   const SEG = ER.SEG, R = (v) => Math.round(v * 10) / 10;
-  live.forEach((L, li) => {
-    let c;
-    const B0 = old && old.live[li];
-    if (B0 && (L.self ? !moved[L.a] : port[li * 2] === old.port[li * 2] && port[li * 2 + 1] === old.port[li * 2 + 1] && L.sa === B0.sa && L.sb === B0.sb)) {
-      L.c = B0.c; L.f = B0.f; L.bb = B0.bb; L.seg = B0.seg; return;   // same ends: same curve
-    }
-    if (L.self) {
-      const A = boxes[L.a], p0 = [A.x + A.w, cy[L.a]], p3 = [cx[L.a], A.y];
-      c = [p0, [p0[0] + ER.SELF_CTRL, p0[1]], [p3[0], p3[1] - ER.SELF_CTRL], p3];
-    } else {
-      const p0 = port[li * 2], p3 = port[li * 2 + 1];
-      const k = Math.min(ER.CTRL_MAX, Math.max(ER.CTRL_MIN, Math.hypot(p3[0] - p0[0], p3[1] - p0[1]) / ER.CTRL_DIV));
-      c = [p0, [p0[0] + NX[L.sa] * k, p0[1] + NY[L.sa] * k], [p3[0] + NX[L.sb] * k, p3[1] + NY[L.sb] * k], p3];
-    }
-    L.c = c;
-    if (B0 && B0.c.every((pt, q) => pt[0] === c[q][0] && pt[1] === c[q][1])) { L.f = B0.f; L.bb = B0.bb; L.seg = B0.seg; return; }
-    L.dirty = true;
-    const f = new Float64Array(2 * (SEG + 1));      // the curve sampled into SEG segments, flat x,y
+  const sampleC = (c) => {
+    const f = new Float64Array(2 * (SEG + 1));
     for (let s = 0; s <= SEG; s++) {
       const t = s / SEG, u = 1 - t, w0 = u * u * u, w1 = 3 * u * u * t, w2 = 3 * u * t * t, w3 = t * t * t;
       f[2 * s] = w0 * c[0][0] + w1 * c[1][0] + w2 * c[2][0] + w3 * c[3][0];
       f[2 * s + 1] = w0 * c[0][1] + w1 * c[1][1] + w2 * c[2][1] + w3 * c[3][1];
     }
-    for (let q = 0; q < f.length; q++) f[q] = R(f[q]);   // the saved samples are what gets counted, so the search counts them too
-    L.f = f;
+    for (let q = 0; q < f.length; q++) f[q] = R(f[q]);
     let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
     for (let q = 0; q < f.length; q += 2) { x0 = Math.min(x0, f[q]); x1 = Math.max(x1, f[q]); y0 = Math.min(y0, f[q + 1]); y1 = Math.max(y1, f[q + 1]); }
-    L.bb = [x0, y0, x1, y1];
+    return { f, bb: [x0, y0, x1, y1] };
+  };
+  const hitsOf = (f, bb, a, b) => {
+    let cnt = 0;
+    for (let j = 0; j < n; j++) {
+      if (j === a || j === b) continue;
+      if (bb[2] <= hx0[j] || bb[0] >= hx1[j] || bb[3] <= hy0[j] || bb[1] >= hy1[j]) continue;
+      if (erPolyHits(f, hx0[j], hy0[j], hx1[j], hy1[j])) cnt++;
+    }
+    return cnt;
+  };
+  const sidePt = (i, side, off = 0) => {
+    const b = boxes[i];
+    if (side === 0) return [b.x + b.w, cy[i] + off];
+    if (side === 1) return [b.x, cy[i] + off];
+    if (side === 2) return [cx[i] + off, b.y + b.h];
+    return [cx[i] + off, b.y];
+  };
+  const setFromSlots = (list, keepOld) => {
+    const slots = new Array(n * 4);
+    list.forEach((L, li) => {
+      if (L.self) return;
+      (slots[L.a * 4 + L.sa] = slots[L.a * 4 + L.sa] || []).push({ end: li * 2, other: L.b });
+      (slots[L.b * 4 + L.sb] = slots[L.b * 4 + L.sb] || []).push({ end: li * 2 + 1, other: L.a });
+    });
+    const port = new Array(list.length * 2), ends = new Array(n * 4);
+    slots.forEach((slot, k) => {
+      if (!slot) return;
+      const i = k >> 2, side = k & 3, b = boxes[i], horiz = side < 2;
+      ends[k] = slot.map((p) => p.end);
+      const was = keepOld && old && old.ends[k];
+      if (was && !moved[i] && was.length === slot.length && slot.every((p, q) => p.end === was[q] && !moved[p.other])) {
+        slot.forEach((p) => { port[p.end] = old.port[p.end]; });
+        return;
+      }
+      slot.sort((p, q) => (horiz ? cy[p.other] - cy[q.other] : cx[p.other] - cx[q.other]) || p.end - q.end);
+      const sz = slot.length, span = horiz ? b.h : b.w;
+      const spacing = sz > 1 ? Math.min(ER.PORT_GAP, (span - 2 * ER.PORT_MARGIN) / (sz - 1)) : 0;
+      slot.forEach((p, q) => { port[p.end] = sidePt(i, side, (q - (sz - 1) / 2) * spacing); });
+    });
+    return { port, ends };
+  };
+  const buildCurve = (L, port) => {
+    if (L.self) {
+      const A = boxes[L.a], p0 = [A.x + A.w, cy[L.a]], p3 = [cx[L.a], A.y];
+      return [p0, [p0[0] + ER.SELF_CTRL, p0[1]], [p3[0], p3[1] - ER.SELF_CTRL], p3];
+    }
+    const p0 = port[L.li * 2], p3 = port[L.li * 2 + 1];
+    const kDef = Math.min(ER.CTRL_MAX, Math.max(ER.CTRL_MIN, Math.hypot(p3[0] - p0[0], p3[1] - p0[1]) / ER.CTRL_DIV));
+    const k1 = L.alt ? L.k1 : kDef, k2 = L.alt ? L.k2 : kDef;
+    return [p0, [p0[0] + NX[L.sa] * k1, p0[1] + NY[L.sa] * k1], [p3[0] + NX[L.sb] * k2, p3[1] + NY[L.sb] * k2], p3];
+  };
+  live.forEach((L, li) => {
+    L.li = li;
+    if (L.self) return;
+    if (reuse(L, li)) { L.sa = old.live[li].sa; L.sb = old.live[li].sb; }
+    else { L.sa = facing(L.a, L.b); L.sb = facing(L.b, L.a); }
+  });
+  let { port, ends } = setFromSlots(live, true);
+  // Precompute default curves first so alternate routing can also avoid crossings against other lines
+  const crossOf = (f, bb, selfIdx, list) => {
+    const orient = (ax, ay, bx, by, px, py) => (bx - ax) * (py - ay) - (by - ay) * (px - ax);
+    let cnt = 0;
+    for (let b = 0; b < list.length; b++) {
+      if (b === selfIdx || !list[b].f) continue;
+      const B = list[b].f, ob = list[b].bb;
+      if (bb[2] < ob[0] || ob[2] < bb[0] || bb[3] < ob[1] || ob[3] < bb[1]) continue;
+      let hit = false;
+      for (let i = 2; i < f.length && !hit; i += 2) {
+        const px = f[i - 2], py = f[i - 1], qx = f[i], qy = f[i + 1];
+        if (Math.max(px, qx) < ob[0] || Math.min(px, qx) > ob[2] || Math.max(py, qy) < ob[1] || Math.min(py, qy) > ob[3]) continue;
+        for (let j = 2; j < B.length; j += 2) {
+          const rx = B[j - 2], ry = B[j - 1], sx = B[j], sy = B[j + 1];
+          if ((px === rx && py === ry) || (px === sx && py === sy) || (qx === rx && qy === ry) || (qx === sx && qy === sy)) continue;
+          const d1 = orient(px, py, qx, qy, rx, ry), d2 = orient(px, py, qx, qy, sx, sy);
+          if (!((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0))) continue;
+          const d3 = orient(rx, ry, sx, sy, px, py), d4 = orient(rx, ry, sx, sy, qx, qy);
+          if ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0)) { hit = true; break; }
+        }
+      }
+      if (hit) cnt++;
+    }
+    return cnt;
+  };
+  // Find clean (sa, sb, k1, k2) for a curve that hits an unrelated table, minimizing hits, short rel-gaps, crossings, side detour, and length
+  const findClearRoute = (L, curP0, curP3, useExactPorts, tryEdgeOffsets) => {
+    const sa0 = facing(L.a, L.b), sb0 = facing(L.b, L.a);
+    const dx = cx[L.b] - cx[L.a], dy = cy[L.b] - cy[L.a];
+    const sxA = dx >= 0 ? 0 : 1, syA = dy >= 0 ? 2 : 3, sxB = dx >= 0 ? 1 : 0, syB = dy >= 0 ? 3 : 2;
+    const A = boxes[L.a], B = boxes[L.b];
+    const gapX = B.x >= A.x ? B.x - (A.x + A.w) : A.x - (B.x + B.w);
+    const gapY = B.y >= A.y ? B.y - (A.y + A.h) : A.y - (B.y + B.h);
+    const need = erNeed && erNeedN === n ? erNeed[L.a * n + L.b] : 0;
+    const pairs = [];
+    for (let sa = 0; sa < 4; sa++) for (let sb = 0; sb < 4; sb++) {
+      const pen = (sa === sa0 ? 0 : sa === sxA || sa === syA ? 1 : 2.5) + (sb === sb0 ? 0 : sb === sxB || sb === syB ? 1 : 2.5);
+      const shortGap = need > 0 && ((sa < 2 ? gapX : gapY) < need) ? 1 : 0;
+      pairs.push({ sa, sb, pen, shortGap });
+    }
+    pairs.sort((u, v) => u.shortGap - v.shortGap || u.pen - v.pen || u.sa - v.sa || u.sb - v.sb);
+    let best = null;
+    const offsets = tryEdgeOffsets ? [0, -0.35, 0.35] : [0];
+    for (const { sa, sb, pen, shortGap } of pairs) {
+      if (best && best.hits === 0 && best.shortGap === 0 && (shortGap > best.shortGap || (best.cross === 0 && pen > best.pen + 1.5))) continue;
+      for (const fa of offsets) for (const fb of offsets) {
+        if (fa !== 0 && fb !== 0) continue;
+        const p0 = (useExactPorts && sa === L.sa && fa === 0) ? curP0 : sidePt(L.a, sa, fa * Math.max(0, (sa < 2 ? A.h : A.w) / 2 - ER.PORT_MARGIN));
+        const p3 = (useExactPorts && sb === L.sb && fb === 0) ? curP3 : sidePt(L.b, sb, fb * Math.max(0, (sb < 2 ? B.h : B.w) / 2 - ER.PORT_MARGIN));
+        const dist = Math.hypot(p3[0] - p0[0], p3[1] - p0[1]);
+        const kDef = Math.min(ER.CTRL_MAX, Math.max(ER.CTRL_MIN, dist / ER.CTRL_DIV));
+        const ks = [];
+        if (sa === sb) {
+          const horiz = sa < 2, base = horiz ? (sa === 0 ? Math.max(p0[0], p3[0]) : Math.min(p0[0], p3[0])) : (sa === 2 ? Math.max(p0[1], p3[1]) : Math.min(p0[1], p3[1]));
+          const dir = sa === 0 || sa === 2 ? 1 : -1;
+          [60, 110, 170, 240, 330, 460, 640].forEach((d) => {
+            const out = base + dir * d;
+            ks.push([Math.abs(out - (horiz ? p0[0] : p0[1])), Math.abs(out - (horiz ? p3[0] : p3[1]))]);
+          });
+        } else if ((sa < 2) !== (sb < 2)) {
+          const hx = Math.abs(p3[0] - p0[0]), vy = Math.abs(p3[1] - p0[1]);
+          const b1 = sa < 2 ? hx : vy, b2 = sb < 2 ? hx : vy;
+          const cap1 = Math.max(520, b1 * 1.15), cap2 = Math.max(520, b2 * 1.15);
+          [[0.6, 0.6], [0.85, 0.45], [0.45, 0.85], [1.05, 0.25], [0.25, 1.05], [1.2, 1.2], [0.25, 0.25]].forEach(([f1, f2]) => {
+            ks.push([Math.min(cap1, Math.max(40, b1 * f1)), Math.min(cap2, Math.max(40, b2 * f2))]);
+          });
+        } else {
+          const span = sa < 2 ? Math.abs(p3[0] - p0[0]) : Math.abs(p3[1] - p0[1]);
+          const big = Math.min(1200, Math.max(340, span * 0.9));
+          [[kDef, kDef], [40, kDef], [kDef, 40], [40, big], [big, 40], [220, 220], [360, 360], [540, 540]].forEach((pair) => ks.push(pair));
+        }
+        for (const [k1, k2] of ks) {
+          const c = [p0, [p0[0] + NX[sa] * k1, p0[1] + NY[sa] * k1], [p3[0] + NX[sb] * k2, p3[1] + NY[sb] * k2], p3];
+          const s = sampleC(c);
+          const h = hitsOf(s.f, s.bb, L.a, L.b);
+          if (best && h > best.hits) continue;
+          const cross = crossOf(s.f, s.bb, L.li, live);
+          const edgeShift = (fa !== 0 || fb !== 0) ? 0.5 : 0;
+          const len = Math.hypot(c[1][0] - c[0][0], c[1][1] - c[0][1]) + Math.hypot(c[2][0] - c[1][0], c[2][1] - c[1][1]) + Math.hypot(c[3][0] - c[2][0], c[3][1] - c[2][1]);
+          const better = !best || h < best.hits || (h === best.hits && (
+            shortGap < best.shortGap || (shortGap === best.shortGap && (
+            cross < best.cross || (cross === best.cross && (
+            (pen + edgeShift) < (best.pen + best.edgeShift) - 0.1 || (Math.abs((pen + edgeShift) - (best.pen + best.edgeShift)) <= 0.1 && len < best.len)))))));
+          if (better) {
+            best = { sa, sb, k1, k2, hits: h, shortGap, cross, pen, edgeShift, len, p0, p3, fa, fb };
+            if (h === 0 && shortGap === 0 && cross === 0 && pen === 0 && edgeShift === 0) break;
+          }
+        }
+        if (best && best.hits === 0 && best.shortGap === 0 && best.cross === 0 && pen === 0) break;
+      }
+      if (best && best.hits === 0 && best.shortGap === 0 && best.cross === 0 && pen === 0) break;
+    }
+    return best;
+  };
+  let sidesChanged = false;
+  if (alt) {
+    live.forEach((L) => { const s = sampleC(buildCurve(L, port)); L.f = s.f; L.bb = s.bb; });
+    live.forEach((L, li) => {
+      if (L.self) return;
+      if (reuse(L, li)) return;
+      const h0 = hitsOf(L.f, L.bb, L.a, L.b);
+      if (!h0) return;
+      let pick = findClearRoute(L, port[li * 2], port[li * 2 + 1], false, false);
+      if (pick && (pick.hits > 0 || (!quick && pick.cross > 0))) pick = findClearRoute(L, port[li * 2], port[li * 2 + 1], false, true);
+      if (pick && (pick.hits < h0 || pick.hits === 0)) {
+        if (pick.sa !== L.sa || pick.sb !== L.sb) sidesChanged = true;
+        L.sa = pick.sa; L.sb = pick.sb; L.alt = true; L.k1 = pick.k1; L.k2 = pick.k2;
+        if (pick.fa || pick.fb) { L.fa = pick.fa; L.fb = pick.fb; }
+        const s = sampleC([pick.p0, [pick.p0[0] + NX[pick.sa] * pick.k1, pick.p0[1] + NY[pick.sa] * pick.k1], [pick.p3[0] + NX[pick.sb] * pick.k2, pick.p3[1] + NY[pick.sb] * pick.k2], pick.p3]);
+        L.f = s.f; L.bb = s.bb;
+      }
+    });
+  }
+  if (sidesChanged) ({ port, ends } = setFromSlots(live, false));
+  live.forEach((L, li) => {
+    const B0 = old && old.live[li];
+    if (B0 && !sidesChanged && reuse(L, li) && (L.self ? !moved[L.a] : port[li * 2] === old.port[li * 2] && port[li * 2 + 1] === old.port[li * 2 + 1] && L.sa === B0.sa && L.sb === B0.sb)) {
+      L.c = B0.c; L.f = B0.f; L.bb = B0.bb; L.seg = B0.seg; return;
+    }
+    if (L.fa) port[li * 2] = sidePt(L.a, L.sa, L.fa * Math.max(0, (L.sa < 2 ? boxes[L.a].h : boxes[L.a].w) / 2 - ER.PORT_MARGIN));
+    if (L.fb) port[li * 2 + 1] = sidePt(L.b, L.sb, L.fb * Math.max(0, (L.sb < 2 ? boxes[L.b].h : boxes[L.b].w) / 2 - ER.PORT_MARGIN));
+    let c = buildCurve(L, port), s = sampleC(c);
+    // If slot spreading nudged an alt route (or newly created a grazing hit), refine (sa, sb, k1, k2) on its actual port
+    if (alt && !L.self && (sidesChanged || L.alt) && hitsOf(s.f, s.bb, L.a, L.b) > 0) {
+      let pick = findClearRoute(L, port[li * 2], port[li * 2 + 1], true, false);
+      if (pick && (pick.hits > 0 || (!quick && pick.cross > 0))) pick = findClearRoute(L, port[li * 2], port[li * 2 + 1], true, true);
+      if (pick && pick.hits < hitsOf(s.f, s.bb, L.a, L.b)) {
+        L.alt = true; L.k1 = pick.k1; L.k2 = pick.k2;
+        if (pick.sa === L.sa && pick.sb === L.sb) {
+          if (pick.fa) port[li * 2] = pick.p0;
+          if (pick.fb) port[li * 2 + 1] = pick.p3;
+          c = buildCurve(L, port); s = sampleC(c);
+        }
+      }
+    }
+    L.c = c;
+    if (B0 && B0.c.every((pt, q) => pt[0] === c[q][0] && pt[1] === c[q][1])) { L.f = B0.f; L.bb = B0.bb; L.seg = B0.seg; return; }
+    L.dirty = true;
+    L.f = s.f; L.bb = s.bb;
     L.seg = new Float64Array(SEG);
-    for (let q = 2; q < f.length; q += 2) L.seg[q / 2 - 1] = Math.hypot(f[q] - f[q - 2], f[q + 1] - f[q - 1]);
+    for (let q = 2; q < s.f.length; q += 2) L.seg[q / 2 - 1] = Math.hypot(s.f[q] - s.f[q - 2], s.f[q + 1] - s.f[q - 1]);
     if (!quick) {
       L.r.curve = c.map((pt) => [R(pt[0]), R(pt[1])]);
-      L.r.points = []; for (let q = 0; q < f.length; q += 2) L.r.points.push([f[q], f[q + 1]]);
+      L.r.points = []; for (let q = 0; q < s.f.length; q += 2) L.r.points.push([s.f[q], s.f[q + 1]]);
     }
   });
-  // Labels: at t = 0.5, nudged along the normal of the curve until they clear the tables
-  if (!quick) live.forEach((L) => {
-    const r = L.r, c = L.c;
-    if (!r.label) return;
-    const mid = [(c[0][0] + 3 * c[1][0] + 3 * c[2][0] + c[3][0]) / 8, (c[0][1] + 3 * c[1][1] + 3 * c[2][1] + c[3][1]) / 8];
-    const t = [c[3][0] - c[0][0], c[3][1] - c[0][1]], tl = Math.hypot(t[0], t[1]) || 1;
-    const nrm = [-t[1] / tl, t[0] / tl];
-    const w = erTextW(r.label, ER.LABEL_CHAR_W) + 2 * ER.LABEL_X, h = ER.LABEL_H;
-    let best = null;
-    [0, 14, -14, 28, -28, 42, -42].some((o) => {
-      const lx = mid[0] + nrm[0] * o, ly = mid[1] + nrm[1] * o;
-      const box = { x: lx - w / 2, y: ly - h / 2, w, h };
-      const hitsTable = boxes.some((b) => box.x < b.x + b.w && box.x + box.w > b.x && box.y < b.y + b.h && box.y + box.h > b.y);
-      if (!hitsTable) { best = box; return true; }
-      return false;
+  // Labels: slide along t and normal until clear of every table and placed label
+  if (!quick) {
+    const evalC = (c, t) => {
+      const u = 1 - t, w0 = u * u * u, w1 = 3 * u * u * t, w2 = 3 * u * t * t, w3 = t * t * t;
+      return [w0 * c[0][0] + w1 * c[1][0] + w2 * c[2][0] + w3 * c[3][0], w0 * c[0][1] + w1 * c[1][1] + w2 * c[2][1] + w3 * c[3][1]];
+    };
+    const placedLabels = [];
+    const overlapsBox = (a, b, pad = 0) => a.x < b.x + b.w + pad && a.x + a.w + pad > b.x && a.y < b.y + b.h + pad && a.y + a.h + pad > b.y;
+    const placeLabel = (L, skip) => {
+      const r = L.r, c = L.c;
+      const w = erTextW(r.label, ER.LABEL_CHAR_W) + 2 * ER.LABEL_X, h = ER.LABEL_H;
+      let best = null;
+      for (const u of [0.5, 0.42, 0.58, 0.34, 0.66, 0.25, 0.75]) {
+        const mid = evalC(c, u), p1 = evalC(c, Math.min(1, u + 0.02)), p0 = evalC(c, Math.max(0, u - 0.02));
+        const tx = p1[0] - p0[0], ty = p1[1] - p0[1], tl = Math.hypot(tx, ty) || 1;
+        const nrm = [-ty / tl, tx / tl];
+        for (const o of [0, 14, -14, 28, -28, 42, -42, 60, -60]) {
+          const box = { x: mid[0] + nrm[0] * o - w / 2, y: mid[1] + nrm[1] * o - h / 2, w, h };
+          let s = Math.abs(o) * 0.05 + Math.abs(u - 0.5) * 15;
+          if (boxes.some((b) => overlapsBox(box, b, 0))) s += 1000;
+          if (placedLabels.some((p) => p !== skip && overlapsBox(box, p.box, 2))) s += 500;
+          if (!best || s < best.s) best = { box, s };
+          if (s === 0) { r.labelBox = box; return 0; }
+        }
+      }
+      r.labelBox = best.box;
+      return best.s;
+    };
+    live.forEach((L) => {
+      if (!L.r.label) return;
+      const s = placeLabel(L, null);
+      placedLabels.push({ L, box: L.r.labelBox, s });
     });
-    r.labelBox = best || { x: mid[0] - w / 2, y: mid[1] - h / 2, w, h };
-  });
+    // One follow-up pass for any label that collided so earlier/later labels can make room
+    placedLabels.forEach((entry) => {
+      if (entry.s >= 500) {
+        entry.s = placeLabel(entry.L, entry);
+        entry.box = entry.L.r.labelBox;
+      }
+    });
+  }
   // Bounds of everything drawn (the caller moves the tables when some lie left of or above the margin)
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
   const grow = (x, y) => { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); };
@@ -616,10 +812,7 @@ function erRouteAll(data, boxes, quick, base) {
   xs.forEach(([a, b]) => { cul.add(live[a].a); cul.add(live[a].b); cul.add(live[b].a); cul.add(live[b].b); });
   const crossings = xs.length;
   // Hits: a line that runs through a table it is not part of
-  const m = ER.CLEAR / 2;
   if (old) old.hs.forEach((pr) => { if (!live[pr[0]].dirty && !moved[pr[1]]) hs.push(pr); });
-  const hx0 = Float64Array.from(boxes, (b) => b.x - m), hy0 = Float64Array.from(boxes, (b) => b.y - m);   // the boxes grown by m
-  const hx1 = Float64Array.from(boxes, (b) => b.x + b.w + m), hy1 = Float64Array.from(boxes, (b) => b.y + b.h + m);
   live.forEach((L, li) => {
     const bb = L.bb;
     for (let j = 0; j < n; j++) {
@@ -628,11 +821,12 @@ function erRouteAll(data, boxes, quick, base) {
       if (erPolyHits(L.f, hx0[j], hy0[j], hx1[j], hy1[j])) hs.push([li, j]);
     }
   });
-  hs.forEach(([li, j]) => { cul.add(j); cul.add(live[li].a); cul.add(live[li].b); });
+  const hitCul = new Set();
+  hs.forEach(([li, j]) => { cul.add(j); cul.add(live[li].a); cul.add(live[li].b); hitCul.add(j); hitCul.add(live[li].a); hitCul.add(live[li].b); });
   const hits = hs.length;
   const width = isFinite(x1) ? Math.round(x1 + ER.MARGIN) : 0, height = isFinite(y1) ? Math.round(y1 + ER.MARGIN) : 0;
   if (!quick) data.canvas = { width, height, crossings, length: Math.round(length), hits };
-  return { hits, crossings, length, minX: x0, minY: y0, curves: live, cul: Array.from(cul).sort((p, q) => p - q), st: { boxes, live, xs, hs, port, ends } };
+  return { hits, crossings, length, minX: x0, minY: y0, curves: live, cul: Array.from(cul).sort((p, q) => p - q), hitCul: Array.from(hitCul).sort((p, q) => p - q), st: { boxes, live, xs, hs, port, ends } };
 }
 
 // Routes with positions as they are (a table without a position is laid out first)
@@ -833,24 +1027,29 @@ function erClearHits(c, score) {
   for (let round = 0; round < 4 && c.key[0]; round++) {
     let done = false;
     const P = { x: Float64Array.from(c.boxes, (b) => b.x + b.w / 2), y: Float64Array.from(c.boxes, (b) => b.y + b.h / 2) };
-    for (const i of c.key.cul) {
+    const todo = c.key.hitCul && c.key.hitCul.length ? c.key.hitCul : c.key.cul;
+    for (const i of todo) {
       let pick = null;
-      for (const step of [64, 128, 192, 288, 400]) for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]]) {
-        const Q = { x: Float64Array.from(P.x), y: Float64Array.from(P.y) };
-        Q.x[i] += dx * step; Q.y[i] += dy * step;
-        if (!erSeparate(all, Q, sizes, 40, [i])) continue;
-        const bx = sizes.map((z, j) => ({ x: Q.x[j] - z.w / 2, y: Q.y[j] - z.h / 2, w: z.w, h: z.h }));
-        const key = score(bx, c.key);
-        if (key[0] < c.key[0] && key[1] <= maxX && (!pick || key[0] < pick.key[0] || (key[0] === pick.key[0] && key[2] < pick.key[2]))) pick = { key, boxes: bx };
+      for (const step of [64, 128, 192, 288, 400]) {
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]]) {
+          const Q = { x: Float64Array.from(P.x), y: Float64Array.from(P.y) };
+          Q.x[i] += dx * step; Q.y[i] += dy * step;
+          if (!erSeparate(all, Q, sizes, 40, [i])) continue;
+          const bx = sizes.map((z, j) => ({ x: Q.x[j] - z.w / 2, y: Q.y[j] - z.h / 2, w: z.w, h: z.h }));
+          const key = score(bx, c.key);
+          if (key[0] < c.key[0] && key[1] <= maxX && (!pick || key[0] < pick.key[0] || (key[0] === pick.key[0] && (key[1] < pick.key[1] || (key[1] === pick.key[1] && key[2] < pick.key[2]))))) pick = { key, boxes: bx };
+        }
+        if (pick && pick.key[0] === 0 && pick.key[1] <= c.key[1]) break;
       }
-      for (const j of all) {                         // or swap places with another table
+      if (!pick || pick.key[0] > 0) for (const j of all) {                         // or swap places with another table
         if (j === i) continue;
         const Q = { x: Float64Array.from(P.x), y: Float64Array.from(P.y) };
         Q.x[i] = P.x[j]; Q.y[i] = P.y[j]; Q.x[j] = P.x[i]; Q.y[j] = P.y[i];
         if (!erSeparate(all, Q, sizes, 40)) continue;
         const bx = sizes.map((z, k) => ({ x: Q.x[k] - z.w / 2, y: Q.y[k] - z.h / 2, w: z.w, h: z.h }));
         const key = score(bx, c.key);
-        if (key[0] < c.key[0] && key[1] <= maxX && (!pick || key[0] < pick.key[0] || (key[0] === pick.key[0] && key[2] < pick.key[2]))) pick = { key, boxes: bx };
+        if (key[0] < c.key[0] && key[1] <= maxX && (!pick || key[0] < pick.key[0] || (key[0] === pick.key[0] && (key[1] < pick.key[1] || (key[1] === pick.key[1] && key[2] < pick.key[2]))))) pick = { key, boxes: bx };
+        if (pick && pick.key[0] === 0 && pick.key[1] <= c.key[1]) break;
       }
       if (pick) { c.key = pick.key; c.boxes = pick.boxes; done = true; break; }
     }
@@ -920,7 +1119,7 @@ function layoutDiagram(data, opts) {
     }
     const e = erExtent(boxes);
     const key = [sc.hits, sc.crossings, sc.length, erOffCentre(boxes, hubs), erOffAspect(boxes), erOffFit(boxes), Math.round(e.w * e.h / ER.AREA_DIV)];
-    key.bx = boxes; key.cul = sc.cul; key.st = sc.st;
+    key.bx = boxes; key.cul = sc.cul; key.hitCul = sc.hitCul; key.st = sc.st;
     return key;
   };
   // The most connected table (ties: the first), then the next two (ties by id), the way the layout metrics pick them
@@ -954,9 +1153,65 @@ function layoutDiagram(data, opts) {
     if (!best || cost(c.key) < cost(best.key)) best = c;
   });
   if (!warm && !small && !lite) { erRepair(best, quickScore, cost, floor, hubs, ER.POLISH_T, good); erSqueeze(best, quickScore); }   // more search on the winner alone
-  // Content starts at the margin: move the tables by whole pixels, then route the final positions
+  // Move blocking tables along natural paths first, then route any remaining obstacle hits cleanly
   if (best.key[0] && !warm) { erClearHits(best, quickScore); erSqueeze(best, quickScore); }
-  const found = erRouteAll(data, best.boxes, true);
+  const preHitCul = best.key.hitCul || [], preCross = best.key[1];
+  const altScore = (free, prev) => {
+    const boxes = snap(free);
+    const sc = erRouteAll(data, boxes, true, prev && prev.st, true);
+    const e = erExtent(boxes);
+    const key = [sc.hits, sc.crossings, sc.length, erOffCentre(boxes, hubs), erOffAspect(boxes), erOffFit(boxes), Math.round(e.w * e.h / ER.AREA_DIV)];
+    key.bx = boxes; key.cul = sc.cul; key.hitCul = sc.hitCul; key.st = sc.st;
+    return key;
+  };
+  best.key = altScore(best.boxes);
+  if (best.key[0] && !warm) { erClearHits(best, altScore); erSqueeze(best, altScore); }
+  // If obstacle routing added crossings above the target (e.g. boxed-in hub/leaf), try moving or swapping a nearby blocked/alt/neighbor table
+  if (!warm && !best.key[0] && best.key[1] > Math.max(2, preCross)) {
+    const targetX = Math.max(2, preCross), all = best.boxes.map((_, i) => i);
+    for (let pass = 0; pass < 2 && best.key[1] > targetX; pass++) {
+      const altIds = new Set(pass ? [] : preHitCul);
+      best.key.st.live.forEach((L) => {
+        if (!L.alt) return;
+        if (altIds.size < 8) { altIds.add(L.a); altIds.add(L.b); }
+        if (pass && altIds.size < 12) { adj[L.a].forEach((nb) => { if (altIds.size < 12) altIds.add(nb); }); adj[L.b].forEach((nb) => { if (altIds.size < 12) altIds.add(nb); }); }
+      });
+      if (!pass && altIds.size < 6) best.key.st.live.forEach((L) => { if (L.alt && altIds.size < 8) { altIds.add(L.a); altIds.add(L.b); } });
+      if (pass && altIds.size < 12) best.key.cul.forEach((i) => { if (altIds.size < 12) altIds.add(i); });
+      let improved = false;
+      for (const i of altIds) {
+        let pick = null;
+        const maxArea = erExtent(best.boxes), areaCap = maxArea.w * maxArea.h * 1.15;
+        const P = { x: Float64Array.from(best.boxes, (b) => b.x + b.w / 2), y: Float64Array.from(best.boxes, (b) => b.y + b.h / 2) };
+        const tryQ = (Q, only) => {
+          if (!erSeparate(all, Q, sizes, 40, only)) return;
+          const bx = sizes.map((z, j) => ({ x: Q.x[j] - z.w / 2, y: Q.y[j] - z.h / 2, w: z.w, h: z.h }));
+          const ex = erExtent(bx);
+          if (ex.w * ex.h > areaCap || erOffCentre(bx, hubs.slice(0, 1)) > erOffCentre(best.boxes, hubs.slice(0, 1)) || erOffAspect(bx) > best.key[4] || erOffFit(bx) > best.key[5] + 25) return;
+          const key = altScore(bx, best.key);
+          if (key[0] === 0 && key[1] < best.key[1] && (!pick || key[1] < pick.key[1] || (key[1] === pick.key[1] && key[2] < pick.key[2]))) pick = { key, boxes: bx };
+        };
+        for (const step of [64, 128, 192, 288, 400]) {
+          for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]]) {
+            const Q = { x: Float64Array.from(P.x), y: Float64Array.from(P.y) };
+            Q.x[i] += dx * step; Q.y[i] += dy * step;
+            tryQ(Q, [i]);
+          }
+          if (pick && pick.key[1] <= targetX) break;
+        }
+        if (!pick || pick.key[1] > targetX) for (const j of all) {
+          if (j === i || Math.hypot(P.x[j] - P.x[i], P.y[j] - P.y[i]) > 600) continue;
+          const Q = { x: Float64Array.from(P.x), y: Float64Array.from(P.y) };
+          Q.x[i] = P.x[j]; Q.y[i] = P.y[j]; Q.x[j] = P.x[i]; Q.y[j] = P.y[i];
+          tryQ(Q, null);
+          if (pick && pick.key[1] <= targetX) break;
+        }
+        if (pick) { best.key = pick.key; best.boxes = pick.boxes; erSqueeze(best, altScore); improved = true; if (best.key[1] <= targetX) break; }
+      }
+      if (!improved) break;
+    }
+  }
+  const found = erRouteAll(data, best.boxes, true, null, true);
   const dx = Math.round(ER.MARGIN - found.minX), dy = Math.round(ER.MARGIN - found.minY);
   ents.forEach((e, i) => { e.x = Math.round(best.boxes[i].x) + dx; e.y = Math.round(best.boxes[i].y) + dy; });
   erRouteFromPositions(data);

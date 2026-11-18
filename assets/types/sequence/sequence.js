@@ -21,7 +21,7 @@
       const SVG_NS = 'http://www.w3.org/2000/svg';
       const ACT_HALF = 6;      // half width of an activation bar
       const ACT_STEP = 5;      // sideways offset per nested activation
-      const FRAG_KINDS = ['opt', 'alt', 'loop', 'par', 'group'];
+      const FRAG_KINDS = ['opt', 'alt', 'loop', 'par', 'break', 'group'];
 
       // Selection: { kind: 'participant' | 'fragment' | 'note', id }, { kind: 'message', id, ids?, anchor? } (ids: a
       // range of messages, in time order), or { kind: 'divider', id: <fragment id>, at: <message id> } (a branch)

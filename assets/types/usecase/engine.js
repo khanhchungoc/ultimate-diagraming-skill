@@ -692,14 +692,59 @@ function ucLines(m) {
   m.actors.concat(m.cases).forEach((x) => { items[x.id] = ucItem(m, x.id); });
   const ellipses = m.cases.filter((c) => !m.hidden[c.id]).map((c) => items[c.id]);
   const obstacles = (a, b) => ({ ell: ellipses.filter((e) => e.id !== a && e.id !== b), rects: m.actors.filter((x) => x.id !== a && x.id !== b).map((x) => ({ id: x.id, x: x.x, y: x.y, w: x.w, h: x.h })) });
-  const hitsOf = (pts, ob) => {
+  const hitsOf = (pts, ob, actorPad = 0) => {
     const poly = ucPolyline(pts);
     let n = 0;
     for (let i = 0; i + 1 < poly.length; i++) {
       ob.ell.forEach((e) => { if (ucSegEllipse(poly[i], poly[i + 1], e, UC.CLEAR)) n++; });
-      ob.rects.forEach((r) => { if (ucSegRect(poly[i], poly[i + 1], r)) n++; });
+      ob.rects.forEach((r) => {
+        const rr = actorPad ? { x: r.x - actorPad, y: r.y - actorPad, w: r.w + 2 * actorPad, h: r.h + 2 * actorPad } : r;
+        if (ucSegRect(poly[i], poly[i + 1], rr)) n++;
+      });
     }
     return n;
+  };
+  // Precompute clear vertical and horizontal corridor coordinates from actual item boxes (works in both layoutDiagram and routeDiagram)
+  const leftActors = m.actors.filter((a) => m.side[a.id] === 'left');
+  const rightActors = m.actors.filter((a) => m.side[a.id] === 'right');
+  const subjL = m.subj.length ? Math.min(...m.subj.map((sj) => sj.s.x)) : UC.MARGIN;
+  const subjR = m.subj.length ? Math.max(...m.subj.map((sj) => sj.s.x + sj.s.w)) : UC.MARGIN + UC.EMPTY_W;
+  const corridorX = [];
+  if (leftActors.length) {
+    const maxLA = Math.max(...leftActors.map((a) => a.x + a.w));
+    if (subjL - maxLA > 16) corridorX.push((maxLA + subjL) / 2);
+    corridorX.push(Math.max(12, Math.min(...leftActors.map((a) => a.x)) - 24));
+  } else corridorX.push(Math.max(12, subjL - 24));
+  if (rightActors.length) {
+    const minRA = Math.min(...rightActors.map((a) => a.x));
+    if (minRA - subjR > 16) corridorX.push((subjR + minRA) / 2);
+    corridorX.push(Math.max(...rightActors.map((a) => a.x + a.w)) + 24);
+  } else corridorX.push(subjR + 24);
+  m.subj.forEach((sj) => {
+    if (sj.collapsed) return;
+    const ivs = sj.cases.filter((c) => !m.hidden[c.id]).map((c) => [c.x, c.x + c.w]).sort((a, b) => a[0] - b[0]);
+    let cur = null;
+    ivs.forEach(([x0, x1]) => {
+      if (!cur) { cur = [x0, x1]; return; }
+      if (x0 - cur[1] >= 24) {
+        const gx = (cur[1] + x0) / 2;
+        if (!corridorX.some((v) => Math.abs(v - gx) < 8)) corridorX.push(gx);
+        cur = [x0, x1];
+      } else cur[1] = Math.max(cur[1], x1);
+    });
+  });
+  const corridorY = [UC.MARGIN / 2];
+  for (let k = 0; k + 1 < m.subj.length; k++) {
+    corridorY.push((m.subj[k].s.y + m.subj[k].s.h + m.subj[k + 1].s.y) / 2);
+  }
+  if (m.subj.length) {
+    const last = m.subj[m.subj.length - 1].s;
+    corridorY.push(last.y + last.h + 24);
+  }
+  const polyLen = (pts) => {
+    let s = 0;
+    for (let i = 0; i + 1 < pts.length; i++) s += Math.hypot(pts[i + 1][0] - pts[i][0], pts[i + 1][1] - pts[i][1]);
+    return s;
   };
   // straight, else the gentlest curve that clears every other ellipse and actor
   const route = (A, B, parent, bWhole = false) => {   // parent / bWhole: end on the whole actor (a generalization parent sits below its name)
@@ -724,7 +769,70 @@ function ucLines(m) {
       if (!best || h < best.h) best = { pts, h };
       if (!h) break;
     }
-    return best;
+    if (!best.h) return best;
+    // Fallback for dense/tall columns: try opposite approach orientation, corridor S-curves, U-loops, and L-curves
+    const cands = [];
+    const altFlat = !flat, ak = Math.max(24, (altFlat ? Math.abs(dx) : Math.abs(dy)) * 0.5);
+    const at2 = altFlat ? [B.cx - sx * ak, B.cy] : [B.cx, B.cy - sy * ak];
+    for (const off of [...UC.CURVE_OFFS, 320, -320, 440, -440]) {
+      const p1 = ucClip(B, at2[0] + nx * off, at2[1] + ny * off, bWhole);
+      const aim = [(A.cx + p1[0]) / 2 + nx * off, (A.cy + p1[1]) / 2 + ny * off];
+      const p0 = ucClip(A, aim[0], aim[1], parent);
+      const q1 = [p0[0] + (aim[0] - p0[0]) * 0.6, p0[1] + (aim[1] - p0[1]) * 0.6];
+      const kk = Math.max(16, (altFlat ? Math.abs(p1[0] - p0[0]) : Math.abs(p1[1] - p0[1])) * 0.5);
+      const q2 = altFlat ? [p1[0] - sx * kk, p1[1]] : [p1[0], p1[1] - sy * kk];
+      cands.push([p0, q1, q2, p1]);
+    }
+    if (Math.abs(dx) > 16) {
+      const p0 = ucClip(A, A.cx + sx * 1e4, A.cy, parent);
+      const p1 = ucClip(B, B.cx - sx * 1e4, B.cy, bWhole);
+      const lo = Math.min(p0[0], p1[0]), hi = Math.max(p0[0], p1[0]);
+      const xs = [0.5, 0.35, 0.65, 0.22, 0.78].map((f) => p0[0] + (p1[0] - p0[0]) * f)
+        .concat(corridorX.filter((x) => x > lo + 8 && x < hi - 8));
+      xs.forEach((xm) => cands.push([p0, [xm, p0[1]], [xm, p1[1]], p1]));
+    }
+    if (Math.abs(dy) > 16) {
+      const p0 = ucClip(A, A.cx, A.cy + sy * 1e4, parent);
+      const p1 = ucClip(B, B.cx, B.cy - sy * 1e4, bWhole);
+      const lo = Math.min(p0[1], p1[1]), hi = Math.max(p0[1], p1[1]);
+      const ys = [0.5, 0.35, 0.65, 0.22, 0.78].map((f) => p0[1] + (p1[1] - p0[1]) * f)
+        .concat(corridorY.filter((y) => y > lo + 8 && y < hi - 8));
+      ys.forEach((ym) => cands.push([p0, [p0[0], ym], [p1[0], ym], p1]));
+    }
+    [-1, 1].forEach((side) => {
+      const p0 = ucClip(A, A.cx + side * 1e4, A.cy, parent);
+      const p1 = ucClip(B, B.cx + side * 1e4, B.cy, bWhole);
+      const base = side < 0 ? Math.min(p0[0], p1[0]) : Math.max(p0[0], p1[0]);
+      const xs = [60, 100, 150, 220, 320, 450, 620].map((d) => base + side * d)
+        .concat(corridorX.filter((x) => (side < 0 ? x < base - 12 : x > base + 12)));
+      xs.forEach((xo) => cands.push([p0, [xo, p0[1]], [xo, p1[1]], p1]));
+    });
+    [-1, 1].forEach((side) => {
+      const p0 = ucClip(A, A.cx, A.cy + side * 1e4, parent);
+      const p1 = ucClip(B, B.cx, B.cy + side * 1e4, bWhole);
+      const base = side < 0 ? Math.min(p0[1], p1[1]) : Math.max(p0[1], p1[1]);
+      const ys = [60, 110, 180, 280, 420, 600, 850, 1150].map((d) => base + side * d)
+        .concat(corridorY.filter((y) => (side < 0 ? y < base - 12 : y > base + 12)));
+      ys.forEach((yo) => cands.push([p0, [p0[0], yo], [p1[0], yo], p1]));
+    });
+    for (const xm of corridorX) {
+      for (const ym of corridorY) {
+        const sxA = xm >= A.cx ? 1 : -1, syB = ym >= B.cy ? 1 : -1;
+        cands.push([ucClip(A, A.cx + sxA * 1e4, A.cy, parent), [xm, ym], [B.cx, ym], ucClip(B, B.cx, B.cy + syB * 1e4, bWhole)]);
+        const syA = ym >= A.cy ? 1 : -1, sxB = xm >= B.cx ? 1 : -1;
+        cands.push([ucClip(A, A.cx, A.cy + syA * 1e4, parent), [A.cx, ym], [xm, ym], ucClip(B, B.cx + sxB * 1e4, B.cy, bWhole)]);
+      }
+    }
+    let pick = { pts: best.pts, h: best.h, padH: hitsOf(best.pts, ob, 3), len: polyLen(best.pts) };
+    for (const pts of cands) {
+      const h = hitsOf(pts, ob);
+      if (h > pick.h) continue;
+      const padH = hitsOf(pts, ob, 3), len = polyLen(pts);
+      if (h < pick.h || (h === pick.h && (padH < pick.padH || (padH === pick.padH && len < pick.len)))) {
+        pick = { pts, h, padH, len };
+      }
+    }
+    return { pts: pick.pts, h: pick.h };
   };
   let hits = 0;
   const placed = [];

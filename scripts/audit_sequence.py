@@ -23,7 +23,7 @@ MAX_MESSAGES = 16
 MAX_FRAGMENT_DEPTH = 3   # deeper nesting is a warning, not an error
 PARTICIPANT_KINDS = {"actor", "system", "ui", "database", "queue", "external"}
 MESSAGE_KINDS = {"sync", "reply", "async"}
-FRAGMENT_KINDS = {"opt", "alt", "loop", "par", "group"}
+FRAGMENT_KINDS = {"opt", "alt", "loop", "par", "break", "group"}
 BRANCH_KINDS = {"alt", "par"}
 # A participant's or fragment's colour is a palette slot ("1".."9", assets/tokens/default.json) or a custom hex.
 # disk_format.color_slot() also reads the old palette hex and the old fragment colour names.
@@ -308,8 +308,9 @@ class SequenceAudit:
                     overflows += 1
                     errors.append(f"Note '{n.get('id')}' extends past the diagram edge.")
 
-        # Nesting depth and budget.
-        spans = {f["id"]: (midx[f["from"]], midx[f["to"]]) for f in fs if f.get("from") in midx and f.get("to") in midx}
+        # Nesting depth and budget (phase group blocks do not count as control-frame nesting).
+        spans = {f["id"]: (midx[f["from"]], midx[f["to"]]) for f in fs
+                 if f.get("kind") != "group" and f.get("from") in midx and f.get("to") in midx}
 
         def depth(fid: str) -> int:
             a, b = spans[fid]

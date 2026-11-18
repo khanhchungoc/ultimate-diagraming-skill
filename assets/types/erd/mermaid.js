@@ -326,6 +326,8 @@ function toMermaid(data, opts) {
   const ref = (id) => (MMD_ER_QUOTED_IDS.test(ids.get(id)) ? '"' + ids.get(id) + '"' : ids.get(id));
   const byId = new Map(ents.map((e) => [e.id, e]));
   const quote = (s) => { const t = String(s == null ? '' : s); return t === '' ? '' : mmdQuote(t).slice(1, -1); };
+  const comment = (s) => String(s == null ? '' : s).replace(/\r\n?/g, '\n')
+    .replace(/[#"`]/g, (c) => ({ '#': '#35;', '"': '#quot;', '`': '#96;' }[c])).replace(/\n/g, '<br>');
   const slotOf = (e) => (/^[1-8]$/.test(String(e.color)) ? 'c' + e.color : null);
 
   const out = [];
@@ -400,8 +402,8 @@ function toMermaid(data, opts) {
     const eids = (nt.entities || []).filter((id) => ids.has(id));
     if (!eids.length) return;
     const refs = eids.map((id, i) => ids.get(id) + (i === 0 && nt.column != null ? '.' + mmdErEnc(nt.column, true) : ''));
-    out.push('%% @note ' + refs.join(',') + ': ' + quote(nt.text));
+    out.push('%% @note ' + refs.join(',') + ': ' + comment(nt.text));
   });
-  ents.forEach((e) => { if (e.note != null && e.note !== '') out.push('%% @entityNote ' + ids.get(e.id) + ': ' + quote(e.note)); });
+  ents.forEach((e) => { if (e.note != null && e.note !== '') out.push('%% @entityNote ' + ids.get(e.id) + ': ' + comment(e.note)); });
   return out.join('\n') + '\n';
 }

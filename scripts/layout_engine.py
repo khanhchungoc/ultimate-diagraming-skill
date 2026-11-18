@@ -19,6 +19,7 @@ from __future__ import annotations
 import argparse
 import html
 import json
+import os
 import re
 import sys
 from collections import defaultdict
@@ -1569,7 +1570,7 @@ def scaffold_html(data: Dict[str, Any], output_path: Path, target: str = "file",
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with output_path.open("w", encoding="utf-8", newline="\n") as fh:
         fh.write(html_text)
-    print(f"[OK] Generated interactive {data.get('diagramType') or DEFAULT_TYPE}: {output_path}")
+    print(f"[OK] Generated interactive {data.get('diagramType') or DEFAULT_TYPE}: {output_path} ({output_path.stat().st_size} B)")
 
 
 def scaffold_artifact(data: Dict[str, Any], output_path: Path, tokens: Optional[Dict[str, Any]] = None,
@@ -1578,18 +1579,23 @@ def scaffold_artifact(data: Dict[str, Any], output_path: Path, tokens: Optional[
     kind = data.get("diagramType") or DEFAULT_TYPE
     out_dir = output_path.parent if output_path.suffix.lower() == ".html" else output_path
     out_dir.mkdir(parents=True, exist_ok=True)
+    total_bytes = 0
     for name, content in assemble_artifact(kind, data, tokens, theme).items():
-        with (out_dir / name).open("w", encoding="utf-8", newline="\n") as fh:
+        p = out_dir / name
+        with p.open("w", encoding="utf-8", newline="\n") as fh:
             fh.write(content)
-    print(f"[OK] Generated interactive {kind} artifact: {out_dir}")
+        total_bytes += p.stat().st_size
+    print(f"[OK] Generated interactive {kind} artifact: {out_dir} ({total_bytes} B)")
     return out_dir / "index.html"
 
 
 def _ensure_utf8_output() -> None:
-    """Avoid UnicodeEncodeError on Windows consoles that default to cp1252."""
-    for stream in (sys.stdout, sys.stderr):
+    """Avoid UnicodeEncodeError / decode errors on Windows consoles that default to cp1252."""
+    os.environ.setdefault("PYTHONIOENCODING", "utf-8")
+    for stream in (sys.stdin, sys.stdout, sys.stderr):
         try:
-            stream.reconfigure(encoding="utf-8", errors="replace")
+            if stream is not None:
+                stream.reconfigure(encoding="utf-8", errors="replace")
         except (AttributeError, ValueError):
             pass
 
@@ -1895,6 +1901,8 @@ def main():
     parser.add_argument("--extract-theme", help="Write the theme stored in this HTML page to --output (or print it)")
     parser.add_argument("--screenshot", "-s",
                         help="With --layout: also render a PNG here and run the layout report (one command does both)")
+    parser.add_argument("--rm-input", action="store_true",
+                        help="With --layout: delete the Mermaid input file once layout finishes with [DONE]")
     parser.epilog = "SKILL.md documents every flag an agent needs; no others are required."
 
     args = parser.parse_args()
@@ -1996,7 +2004,8 @@ def main():
         in_p = Path(args.layout)
         keep = args.keep_layout  # keep the saved positions: --keep-layout, or --keep-from with the same item ids
         mermaid_bad = False
-        if is_mermaid_input(in_p):
+        is_mmd = is_mermaid_input(in_p)
+        if is_mmd:
             if args.keep_layout:
                 sys.exit("[ERROR] --keep-layout needs a page or JSON that carries positions. For Mermaid input use --keep-from <old page>.")
             text = in_p.read_text(encoding="utf-8-sig")
@@ -2125,6 +2134,8 @@ def main():
             data_bad = data_bad or not render_clean
         if render_code:
             sys.exit(render_code)
+        if not data_bad and args.rm_input and is_mmd and in_p.resolve() != render_target.resolve():
+            in_p.unlink(missing_ok=True)
         print("[NEXT] Fix the [WARN] lines (data) and re-run." if data_bad else
               "[DONE] The diagram is final: report any [INFO] lines, do not re-word, re-run or re-render.")
         if external_refs or report["data_issues"]:

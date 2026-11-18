@@ -102,7 +102,7 @@ function fromMermaidAst(ast) {
 
   // Edges.
   const links = [];
-  const EXT = /^(?:<<|«)?\s*extend\s*(?:\(([^)]*)\))?\s*(?:>>|»)?\s*(?::\s*([\s\S]*))?$/i;
+  const EXT = /^(?:(?:<<|«)\s*extend\s*(?:>>|»)\s*(?:\(([^)]*)\))?|(?:<<|«)?\s*extend\s*(?:\(([^)]*)\))?\s*(?:>>|»)?)\s*(?::\s*([\s\S]*))?$/i;
   const INC = /^(?:<<|«)?\s*include\s*(?:>>|»)?$/i;
   ast.edges.forEach(e => {
     const kf = kind.get(e.from), kt = kind.get(e.to);
@@ -120,8 +120,10 @@ function fromMermaidAst(ast) {
       const type = m ? 'extend' : 'include';
       if (kf !== 'uc' || kt !== 'uc') { warnings.push('[WARN] ' + where + ' ' + type + ' joins two use cases'); return; }
       const l = { id: 'l' + (links.length + 1), type, from, to };
-      if (m && m[2] && m[2].trim()) l.condition = m[2].trim();
-      if (m && m[1] && m[1].trim()) l.extensionPoint = m[1].trim();
+      const cond = m && m[3] ? m[3].trim() : '';
+      const ep = m && (m[1] || m[2]) ? (m[1] || m[2]).trim() : '';
+      if (cond) l.condition = cond;
+      if (ep) l.extensionPoint = ep;
       links.push(l);
     } else if (kf === kt) {
       warnings.push('[WARN] ' + where + ' joins two ' + (kf === 'uc' ? 'use cases' : 'actors') + ' without "include", "extend" or "is a"; label it or remove it');
@@ -254,8 +256,8 @@ function toMermaid(data, opts) {
   (data.links || []).forEach(l => {
     if (!known.has(l.from) || !known.has(l.to)) return;
     const a = sid(l.from), b = sid(l.to);
-    if (l.type === 'include') out.push('  ' + a + ' -.->|include| ' + b);
-    else if (l.type === 'extend') out.push('  ' + a + ' -.->|' + q('extend' + (l.extensionPoint ? ' (' + l.extensionPoint + ')' : '') + (l.condition ? ': ' + l.condition : '')) + '| ' + b);
+    if (l.type === 'include') out.push('  ' + a + ' -.->|«include»| ' + b);
+    else if (l.type === 'extend') out.push('  ' + a + ' -.->|' + q('«extend»' + (l.extensionPoint ? ' (' + l.extensionPoint + ')' : '') + (l.condition ? ': ' + l.condition : '')) + '| ' + b);
     else { out.push('  ' + a + ' --- ' + b); if (l.navigable) navigable.push('  %% @navigable ' + a + ' ' + b); }
   });
   out.push(...navigable);
