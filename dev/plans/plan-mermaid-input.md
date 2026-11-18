@@ -175,6 +175,8 @@ Text in messages: `;` and `#` must be escaped (`a; b` fails to parse); the write
 4. **CLI and skill**:
    - `--layout x.mmd` (detected by extension, or by no leading `{`); `--extract` → Mermaid; `--keep-from`. JSON input accepted for old files only (decision 2).
    - Rewrite the type references as Mermaid cheat sheets: the mapping rows above that an author needs, plus today's writing rules. Examples become `.mmd`.
+   - Trim the reading path (measured before the rewrite: flowchart 30.8 KB, ERD 22.8 KB, use case 23.2 KB, sequence 17.9 KB read before the first write; target about 20, 14, 14 and 11 KB): Schema sections become short Mermaid-extras sections; Failure handling sections go (every `[WARN]` names its fix); examples are inline `.mmd`, not a separate read; `reading.md` goes or shrinks to a line; the artifact update steps use `--keep-from`.
+   - Review the writing rules (now the largest part, flowchart 10.5 KB): remove repetition, wording that restates another rule, and rules the engine now enforces or derives; keep every rule that changes what the agent draws. Report each removed rule with its reason, so the user can reject any.
    - `SKILL.md` step 2 writes `<scratch>.mmd`. Then re-run `dev/bench` (target: authored source ≤ 1.5× pure Mermaid, agent time within 10% of the Mermaid arm).
 5. **Page** (optional): Paste/Import Mermaid in the editor, from the same parser.
 
