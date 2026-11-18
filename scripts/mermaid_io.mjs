@@ -7,7 +7,8 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const SHARED = { flowchart: 'assets/shell/mermaid-flow.js', usecase: 'assets/shell/mermaid-flow.js' };
+// mermaid-flow.js holds the flowchart-family tokenizer and the text helpers (mmdText, mmdQuote, mmdSafeId) every type uses
+const SHARED = Object.fromEntries(['flowchart', 'usecase', 'sequence', 'erd'].map((k) => [k, 'assets/shell/mermaid-flow.js']));
 
 /** Returns { fromMermaid, toMermaid, mmdParseFlow, mmdSafeId }. Throws a clear Error for a kind without Mermaid support. */
 export function loadMermaidIO(kind) {
@@ -29,7 +30,7 @@ export function defaultPalette() {
 async function main() {
   const [mode, kind] = process.argv.slice(2);
   if (!['from', 'to'].includes(mode) || !kind) {
-    console.error('usage: mermaid_io.mjs from|to <flowchart|usecase> < input');
+    console.error('usage: mermaid_io.mjs from|to <flowchart|usecase|sequence|erd> < input');
     process.exit(1);
   }
   let io;

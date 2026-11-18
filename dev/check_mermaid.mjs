@@ -1,10 +1,12 @@
 // Harness for the Mermaid reader and writer (flowchart and use case), see dev/plans/plan-mermaid-input.md "Harness".
 //   1. Round trip: fixture JSON -> toMermaid -> fromMermaid must give back the same authoring JSON.
 //   2. Validity: every written .mmd passes mermaid.parse (the pinned devDependency, run in headless Chrome).
-//   3. Leniency: every dev/fixtures/mermaid/corpus/*.mmd of the flowchart family imports without throwing or [ERROR].
+//   3. Leniency: every dev/fixtures/mermaid/corpus/*.mmd imports without throwing or [ERROR] (the type comes from its header).
+// A type may add its own normalising in dev/check_mermaid_norm.<kind>.mjs: `export function normalise(data, safeId, base)`,
+// where `base` is the generic normaliser below; without that file the generic one is used.
 //      The --layout dry run that follows comes with Phase 4 and is skipped until then.
 //
-//   node dev/check_mermaid.mjs --browser <chrome> [--kind flowchart|usecase]
+//   node dev/check_mermaid.mjs --browser <chrome> [--kind flowchart|usecase|sequence|erd]
 // Exit codes: 0 all pass, 1 setup error or a failed check.
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -17,7 +19,7 @@ import { defaultPalette, loadMermaidIO } from '../scripts/mermaid_io.mjs';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const browser = argOf('browser');
 const onlyKind = argOf('kind');
-const KINDS = ['flowchart', 'usecase'];
+const KINDS = ['flowchart', 'usecase', 'sequence', 'erd'];
 if (onlyKind && !KINDS.includes(onlyKind)) { console.error(`--kind must be one of ${KINDS.join(', ')}`); process.exit(1); }
 const kinds = onlyKind ? [onlyKind] : KINDS;
 
@@ -103,6 +105,9 @@ for (const kind of kinds) {
     continue;
   }
   const io = loadMermaidIO(kind);
+  const normFile = join(ROOT, `dev/check_mermaid_norm.${kind}.mjs`);
+  const norm = existsSync(normFile) ? (await import(pathToFileURL(normFile).href)).normalise : null;
+  const normaliseKind = (data, safeId) => (norm ? norm(data, safeId, normalise) : normalise(data, safeId));
   for (const file of fixturesOf(kind)) {
     const name = `round trip ${relative(ROOT, file)}`;
     try {
@@ -111,8 +116,8 @@ for (const kind of kinds) {
       const text = io.toMermaid(data, { palette });
       written.push({ name: relative(ROOT, file), text });
       const back = io.fromMermaid(text);
-      const a = normalise(data, io.mmdSafeId);
-      const b = normalise(back.data, null);
+      const a = normaliseKind(data, io.mmdSafeId);
+      const b = normaliseKind(back.data, null);
       const d = diff(a, b);
       d.length ? fail(name, d) : pass(name);
     } catch (e) { fail(name, [String(e.message || e)]); }
@@ -122,9 +127,10 @@ for (const kind of kinds) {
   for (const f of readdirSync(corpus).filter((n) => n.endsWith('.mmd')).sort()) {
     const text = readFileSync(join(corpus, f), 'utf8');
     const body = text.replace(/^---\n[\s\S]*?\n---\n/, '').split('\n').filter((l) => l.trim() && !l.trim().startsWith('%%'))[0] || '';
-    if (!/^\s*(flowchart|graph)\b/.test(body)) continue; // sequence and ERD come with their own phases
     const isUse = /^\s*%%\s*@type\s+usecase\b/m.test(text);
-    if ((isUse ? 'usecase' : 'flowchart') !== kind) continue;
+    const fileKind = /^\s*sequenceDiagram\b/.test(body) ? 'sequence' : /^\s*erDiagram\b/.test(body) ? 'erd'
+      : /^\s*(flowchart|graph)\b/.test(body) ? (isUse ? 'usecase' : 'flowchart') : null;
+    if (fileKind !== kind) continue;
     const name = `leniency ${f}`;
     try {
       const r = io.fromMermaid(text);
