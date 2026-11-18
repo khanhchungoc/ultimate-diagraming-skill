@@ -2592,49 +2592,26 @@
         return d;
       }
 
-      // --- MERMAID (erDiagram) ---
-      // Tables with attributes (PK, FK, UK) and the four end kinds; areas, notes and positions are not representable.
-      // The parent is written first: its marker is the relationship's toEnd, the child's marker is its fromEnd.
-      function toMermaid() {
-        const left = { one: '||', zeroOrOne: '|o', oneOrMany: '}|', zeroOrMany: '}o' };
-        const right = { one: '||', zeroOrOne: 'o|', oneOrMany: '|{', zeroOrMany: 'o{' };
-        // Mermaid attribute words start with a letter or underscore and hold letters, digits, - _ [ ] ( ) only
-        const word = (s, fallback) => {
-          const w = String(s == null ? '' : s).replace(/[^A-Za-z0-9_\-\[\]()]+/g, '_').replace(/^_+|_+$/g, '') || fallback;
-          return /^[A-Za-z_]/.test(w) ? w : '_' + w;
-        };
-        const nameOf = (e) => {
-          const n = String(erName(e));
-          return /^[A-Za-z_][A-Za-z0-9_-]*$/.test(n) ? n : `"${n.replace(/"/g, "'")}"`;
-        };
-        const lines = ['erDiagram'];
-        erdRelsList().forEach((rel) => {
-          const from = erdEntity(rel.from), to = erdEntity(rel.to);
-          if (!from || !to) return;
-          const ends = erRelEnds(rel, chartData);
-          const label = rel.label ? `"${String(rel.label).replace(/"/g, "'")}"` : '""';
-          lines.push(`    ${nameOf(to)} ${left[ends.toEnd] || left.one}${rel.identifying === true ? '--' : '..'}${right[ends.fromEnd] || right.zeroOrMany} ${nameOf(from)} : ${label}`);
-        });
-        erdEntities().forEach((e) => {
-          lines.push(`    ${nameOf(e)} {`);
-          (e.columns || []).forEach((c) => {
-            const keys = [c.pk ? 'PK' : '', c.fk ? 'FK' : '', c.unique ? 'UK' : ''].filter(Boolean).join(', ');
-            const comment = c.note ? ` "${String(c.note).replace(/"/g, "'")}"` : '';
-            lines.push(`        ${word(c.type, 'string')} ${word(c.name, 'column')}${keys ? ' ' + keys : ''}${comment}`);
-          });
-          lines.push('    }');
-        });
-        return lines.join('\n') + '\n';
-      }
-
       // --- REGISTER WITH THE SHELL ---
       registerDiagramPlugin({
         id: 'erd',
         defaultTitle: 'Interactive ER Diagram',
         toDisk,
         fromDisk,
-        toMermaid,
+        toMermaid,   // the writer and reader in mermaid.js; the shell hands them the saved form of the data
+        fromMermaid,
         contentEl: erdCanvas,
+        // After Import Mermaid: tables the text added have no position. They take the place a warm layout of a copy gives them,
+        // then are pushed clear of the tables that stay where they were (a cold layout of everything when none was placed)
+        placeImported() {
+          const fresh = erdEntities().filter((e) => !erdIsPlaced(e));
+          if (!fresh.length) return;
+          const copy = JSON.parse(JSON.stringify(chartData));
+          layoutDiagram(copy, { warm: true });
+          const at = new Map(copy.entities.map((e) => [e.id, e]));
+          fresh.forEach((e) => { e.x = at.get(e.id).x; e.y = at.get(e.id).y; });
+          if (fresh.length < erdEntities().length) erdSettle({ tables: new Set(fresh.map((e) => e.id)) });
+        },
         // The Tidy button: a cold layout, one undo step
         tidy() {
           const done = () => { render(); updateStatus(true); };

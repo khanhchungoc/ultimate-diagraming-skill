@@ -1331,11 +1331,22 @@
       const canCopyPng = !!(navigator.clipboard && navigator.clipboard.write) && typeof ClipboardItem !== 'undefined';
       let copyFlashTimer = null;
 
-      function flashCopied(what) {
-        saveStatus.textContent = 'Copied as ' + what;
+      function flashCopied(what) { flashStatus('Copied as ' + what); }
+      function flashStatus(text) {
+        saveStatus.textContent = text;
         saveStatus.className = 'badge badge-status saved';
         clearTimeout(copyFlashTimer);
         copyFlashTimer = setTimeout(() => setStatusBadge(hasUnsavedChanges), 1500);
+      }
+
+      // What the Mermaid writer reads: the saved form of the diagram (what Save writes) without the `layout` map. A lane's
+      // colour travels in that map, so it is put back on its lane.
+      function mermaidData() {
+        const d = plugin.toDisk ? plugin.toDisk(chartData) : JSON.parse(JSON.stringify(chartData));
+        const layout = d.layout || {};
+        delete d.layout;
+        (d.lanes || []).forEach((l) => { if (layout[l.id] && layout[l.id].color) l.color = layout[l.id].color; });
+        return d;
       }
 
       // Must be called straight from the click: the clipboard write has to start inside the user gesture,
@@ -1348,7 +1359,7 @@
             job = navigator.clipboard.writeText(svgDocument(buildExportSvg().svg));
           } else if (format === 'mermaid') {
             if (typeof plugin.toMermaid !== 'function') throw new Error('this diagram type has no Mermaid export');
-            job = navigator.clipboard.writeText(plugin.toMermaid());
+            job = navigator.clipboard.writeText(plugin.toMermaid(mermaidData(), { palette: SWATCHES.map((w) => w.hex) }));
           } else if (format === 'png') {
             if (!canCopyPng) throw new Error('this browser cannot copy images');
             job = navigator.clipboard.write([new ClipboardItem({ 'image/png': exportPngBlob() })]);
@@ -1366,6 +1377,8 @@
       // Mermaid is offered only when the diagram type can write it (the type script registers after this one runs)
       function syncCopyMenu() {
         document.querySelectorAll('[data-copy="mermaid"]').forEach(el => { el.hidden = !(plugin && typeof plugin.toMermaid === 'function' && navigator.clipboard && navigator.clipboard.writeText); });
+        document.querySelectorAll('[data-import="mermaid"]').forEach(el => { el.hidden = !(plugin && typeof plugin.fromMermaid === 'function'); });
+        document.querySelectorAll('[data-import-label]').forEach(el => { el.hidden = !document.querySelector('[data-import]:not([hidden])'); });
         // Drop the "Copy" heading when this browser has no copy items to offer
         document.querySelectorAll('[data-copy-label]').forEach(el => { el.hidden = !document.querySelector('[data-copy]:not([hidden])'); });
       }
@@ -1377,14 +1390,124 @@
       }
       btnExport.addEventListener('click', (e) => { e.stopPropagation(); setExportOpen(exportMenu.hidden); });
       exportMenu.addEventListener('click', (e) => {
-        const b = e.target.closest('[data-export], [data-copy]');
+        const b = e.target.closest('[data-export], [data-copy], [data-import]');
         if (!b) return;
         setExportOpen(false);
         if (b.dataset.copy) copyDiagram(b.dataset.copy);
+        else if (b.dataset.import) openMermaidImport();
         else exportDiagram(b.dataset.export);
       });
       document.addEventListener('click', () => setExportOpen(false));
       window.addEventListener('keydown', (e) => { if (e.key === 'Escape') setExportOpen(false); });
+
+      // --- IMPORT MERMAID ---
+      // Export > Import > Mermaid text: a bubble with a text box. The text is read by the type's fromMermaid (mermaid.js) and
+      // replaces the diagram as one undo step. An item keeps its position when its id is the same as before (the writer keeps
+      // ids, so Copy as Mermaid then Import changes nothing); the rest is laid out by the type (fromDisk, placeImported).
+      // What the reader could not map exactly is listed afterwards, and text of another diagram type is refused.
+      const MERMAID_TYPE_NAME = { flowchart: 'flowchart', usecase: 'use case diagram', sequence: 'sequence diagram', erd: 'ER diagram' };
+      function mermaidTypeOf(text) {
+        const body = String(text).replace(/^\s*---[\s\S]*?\n---[ \t]*(?:\n|$)/, '');
+        const head = (body.split(/\r?\n/).map((l) => l.trim()).find((l) => l && !l.startsWith('%%')) || '').toLowerCase();
+        if (/^(flowchart|graph)\b/.test(head)) return /^\s*%%\s*@type\s+usecase\b/m.test(body) ? 'usecase' : 'flowchart';
+        if (head.startsWith('sequencediagram')) return 'sequence';
+        if (head.startsWith('erdiagram')) return 'erd';
+        return '';
+      }
+
+      // Replaces the diagram with the Mermaid text; returns the reader's notes. Throws an Error with a plain message.
+      function importMermaid(text) {
+        if (!String(text).trim()) throw new Error('Paste some Mermaid text first.');
+        const kind = mermaidTypeOf(text);
+        if (kind && kind !== plugin.id) {
+          throw new Error(`This is a ${MERMAID_TYPE_NAME[kind]}, and this page is a ${MERMAID_TYPE_NAME[plugin.id]}. Open a ${MERMAID_TYPE_NAME[kind]} page to import it.`);
+        }
+        let res;
+        try { res = plugin.fromMermaid(text); } catch (err) { throw new Error(`This is not Mermaid text this page can read (${err.message}).`); }
+        const next = res.data;
+        // The positions of the current diagram, by id (the writer makes an id Mermaid-safe, so that form is tried too)
+        const old = plugin.toDisk ? plugin.toDisk(chartData) : {};
+        const ids = new Set();
+        Object.values(next).forEach((v) => { if (Array.isArray(v)) v.forEach((o) => { if (o && o.id != null) ids.add(o.id); }); });
+        const layout = {};
+        Object.entries(old.layout || {}).forEach(([id, pos]) => {
+          const key = ids.has(id) ? id : mmdSafeId(id);
+          const { color, ...keep } = pos;   // a lane's colour comes from the text
+          if (ids.has(key) && Object.keys(keep).length) layout[key] = keep;
+        });
+        if (Object.keys(layout).length) next.layout = layout;
+        if (!next.title && chartData.title) next.title = chartData.title;
+        plugin.cancelInteraction();
+        plugin.clearSelection();
+        chartData = plugin.fromDisk ? plugin.fromDisk(next) : next;
+        if (plugin.placeImported) plugin.placeImported();
+        chartTitleEl.textContent = chartData.title || plugin.defaultTitle;
+        document.title = chartTitleEl.textContent;
+        plugin.render();
+        updateStatus(true);
+        fitView();
+        const note = (list, label) => (list || []).map((m) => `${label}: ${String(m).replace(/^\[(?:INFO|WARN)\]\s*/, '')}`);
+        return note(res.warnings, 'Warning').concat(note(res.infos, 'Note'));
+      }
+
+      let importEl = null;
+      function closeMermaidImport() {
+        if (!importEl) return false;
+        importEl.remove();
+        importEl = null;
+        return true;
+      }
+      function openMermaidImport() {
+        ui.closeConfirm();
+        closeMermaidImport();
+        const box = document.createElement('div');
+        box.className = 'confirm confirm-wide';
+        box.dataset.exportSkip = '';
+        box.setAttribute('role', 'dialog');
+        box.setAttribute('aria-label', 'Import Mermaid text');
+        const add = (tag, cls, text) => { const d = document.createElement(tag); d.className = cls; if (text) d.textContent = text; box.appendChild(d); return d; };
+        const button = (cls, text) => { const b = document.createElement('button'); b.type = 'button'; b.className = cls; b.textContent = text; return b; };
+        add('div', 'confirm-title', 'Import Mermaid text');
+        add('div', 'confirm-msg', `Paste Mermaid text for this ${MERMAID_TYPE_NAME[plugin.id]}. It replaces the diagram; items with the same ids keep their positions. Undo brings the old diagram back.`);
+        const field = add('textarea', 'confirm-field');
+        field.spellcheck = false;
+        field.setAttribute('aria-label', 'Mermaid text');
+        const error = add('div', 'confirm-msg confirm-error');
+        error.setAttribute('role', 'alert');
+        error.hidden = true;
+        const row = add('div', 'confirm-actions');
+        const cancel = button('btn confirm-cancel', 'Cancel');
+        cancel.addEventListener('click', closeMermaidImport);
+        const ok = button('btn btn-primary confirm-ok', 'Import');
+        row.append(cancel, ok);
+        const run = () => {
+          let notes;
+          try { notes = importMermaid(field.value); } catch (err) { error.textContent = err.message; error.hidden = false; field.focus(); return; }
+          if (!notes.length) { closeMermaidImport(); flashStatus('Imported Mermaid'); return; }
+          // Imported, with things the reader could not map exactly: list them until the person closes the bubble
+          box.textContent = '';
+          add('div', 'confirm-title', 'Imported, with notes');
+          const list = add('ul', 'confirm-list');
+          notes.forEach((n) => { const li = document.createElement('li'); li.textContent = n; list.appendChild(li); });
+          const done = add('div', 'confirm-actions');
+          const close = button('btn btn-primary confirm-ok', 'Close');
+          close.addEventListener('click', closeMermaidImport);
+          done.append(close);
+          close.focus();
+        };
+        ok.addEventListener('click', run);
+        box.addEventListener('keydown', (e) => {
+          if (e.key === 'Escape') { e.preventDefault(); closeMermaidImport(); }
+          else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); run(); }
+          if (e.key !== 'Tab') e.stopPropagation();   // keys typed here must not reach the diagram's shortcuts
+        });
+        document.body.appendChild(box);
+        importEl = box;
+        const r = btnExport.getBoundingClientRect(), bw = box.offsetWidth;
+        box.style.left = `${Math.max(8, Math.min(r.right - bw, innerWidth - bw - 8))}px`;
+        box.style.top = `${r.bottom + 8}px`;
+        field.focus();
+      }
 
       // --- DOCK: layout group, popovers, delete ---
       // Two groups split by a separator: editing controls (type buttons, Delete) | layout controls
