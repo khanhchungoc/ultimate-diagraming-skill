@@ -217,6 +217,22 @@ These override the Sequence and ERD tables above where they differ.
 - **ERD join columns** are derived from names only (no pairing fallback); a missing match stays a `[WARN]` the agent fixes with `[col]` in the label.
 - **Accepted as built**: sequence frame and note order follows the text, invalid data is normalised, unknown sequence fields are dropped, activation bars are not written into the Mermaid; ERD `*hex*` escape for names Mermaid rejects, `%% @childRight`, and the edge values (no name → id, explicit false and empty strings → absent, trimmed notes).
 
+## Decisions before Phase 4 (2026-11-18)
+
+- **Box colours**: the sequence writer keeps `%% @color <slot>` before each `box` it writes, so its own files round-trip without a palette; hand-written boxes take the nearest palette slot.
+- **Lane icons are automatic**: a lane without `icon` gets one picked by `--layout` from its name (the keyword table in the flowchart reference), different for each lane, reported as one `[INFO]` line; a missing icon is no longer a `[WARN]` (an unknown icon name still is).
+- **Copy as Mermaid** in the page uses the lossless writers (the old export-only `toMermaid()` functions go); use case pages get it too.
+- **Phase 5 is required**: Paste/Import Mermaid in the page, from the same readers, keeping positions where ids are unchanged.
+- **Flowchart pages lay out steps that have no position on load** (as ERD and use case pages already do), so a step added by hand to the JSON no longer sits on top of another step.
+
+## Phase 4 and 5 split (parallel, disjoint files)
+
+| Part | Files | Delivers |
+|---|---|---|
+| CLI | `scripts/layout_engine.py` (except `_build_parts`/page assembly), `scripts/engine_runner.py`, `scripts/mermaid_io.mjs`, `dev/check_mermaid.mjs` (dry-run step), `dev/check_extract.py` and other CLI tests | `--layout x.mmd`, `--extract` prints Mermaid (`--json` for the old output), `--keep-from`, Mermaid import infos/warnings as `[INFO]`/`[WARN]`, automatic lane icons, Chrome fallback without Node |
+| Docs | `SKILL.md`, `references/**` (examples become `.mmd`) | Mermaid authoring, trimmed reading path, writing-rules review with every removed rule listed |
+| Page | `assets/**` (plugins, shell), page assembly in `scripts/layout_engine.py` (`_build_parts`), `dev/e2e_*.mjs` | lossless Copy as Mermaid, Paste/Import Mermaid, flowchart lays out unplaced steps on load |
+
 ## Phase 0 and 1 interfaces
 
 Fixed up front so the harness, the flowchart mapping and the use case mapping can be built in parallel.
