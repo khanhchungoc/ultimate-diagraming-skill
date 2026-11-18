@@ -527,12 +527,8 @@ function toMermaid(data, opts) {
       if (f.kind === 'group') {
         const css = same(f.color) ? mmdSeqCss(f.color, palette) : '';
         line('rect' + (css ? ' ' + css : ''));
-        // The name is the first line inside the rect: a note over the leftmost and rightmost participants of its messages
-        const used = ms.slice(r.a, r.b + 1).flatMap((x) => [x.from, x.to]).map((id) => ps.findIndex((p) => p.id === id)).filter((i) => i >= 0);
-        if (label && used.length) {
-          const lo = Math.min(...used), hi = Math.max(...used);
-          out.push(ind(depth + 2) + 'Note over ' + pid(ps[lo].id) + (hi > lo ? ',' + pid(ps[hi].id) : '') + ': ' + label);
-        }
+        // The name is the first line inside the rect: a note over every lifeline (first to last participant), read back as the name
+        if (label && ps.length) out.push(ind(depth + 2) + 'Note over ' + pid(ps[0].id) + (ps.length > 1 ? ',' + pid(ps[ps.length - 1].id) : '') + ': ' + label);
       } else line((['alt', 'opt', 'loop', 'par'].includes(f.kind) ? f.kind : 'opt') + (label ? ' ' + label : ''));
       stack.push(r);
       depth++;

@@ -208,7 +208,7 @@ These override the tables above where they differ.
 
 These override the Sequence and ERD tables above where they differ.
 
-- **Phase names** (a sequence `group`): Mermaid's `rect` colours a band of messages but cannot name it. The name is the first line inside the rect, `Note over <leftmost>,<rightmost>: Payment`; on import, a note before the rect's first message is its name. No `%% @label`.
+- **Phase names** (a sequence `group`): Mermaid's `rect` colours a band of messages but cannot name it. The name is the first line inside the rect, a note over every lifeline, `Note over <first participant>,<last participant>: Payment`; on import, a note before the rect's first message is its name. No `%% @label`.
 - **Empty frames and branches** (allowed in Mermaid, not in our model): dropped on import with an `[INFO]`; their notes stay in place, anchored to the neighbouring message.
 - **A note before the first message** reads as a note with no anchor (both sit above the first message).
 - **Participant box colours**: the nearest palette slot to the written colour; no colour (or no palette) takes the next free slot.
