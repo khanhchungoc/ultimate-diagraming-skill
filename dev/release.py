@@ -39,7 +39,8 @@ def zip_release() -> Path:
     ver = version()
     top = "ultimate-diagram"  # folder inside the zip: users extract it as-is
     # Same exclusions as the installers' copy mode.
-    skip = {".git", ".github", ".claude", ".agents", "agent", "dev", "bin", "docs",
+    skip = {".git", ".github", ".claude", ".agents", ".codegraph", ".codex", ".gemini", ".kiro", ".vscode",
+            ".mcp.json", "AGENTS.md", "agent", "dev", "bin", "docs",
             "node_modules", "skills-lock.json", "__pycache__", ".gitignore",
             "package-lock.json", "CLAUDE.md"}
     files = subprocess.run(["git", "ls-files"], cwd=ROOT, capture_output=True, text=True,
