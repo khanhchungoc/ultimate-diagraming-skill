@@ -1,6 +1,6 @@
 # Plan: ERD, data only for the agent
 
-Status: proposed. Not started.
+Status: Phase 1 done (PR #25: no character budgets for names, types and labels; `detail` picked by `--layout`; hover text works). Phase 0 (agent benchmark) is not run here: it needs fresh agents and is out of scope for the layout pass. Phase 2: item 1 partly done, items 2 and 3 tried or open, item 4 partly obsolete (see below).
 
 ## Why
 
@@ -37,12 +37,12 @@ From `references/types/erd.md` and the fixtures:
 
 ### Phase 2: layout quality the agent no longer sees
 
-These are already `[INFO]` only, so they do not slow the agent; they matter to the reader.
+These are already `[INFO]` only, so they do not slow the agent; they matter to the reader. Numbers from `dev/erd_layout_metrics.py` on main (996404c): `saas-billing` 2691x1381, fit 62%, 2 crossings, 1 hit, about 1.5 to 2 s; every other fixture 0 hits, 0 crossings.
 
-1. **Line through a table**: `saas-billing` (30 tables) has `r8` through `app_user` (audit score 88). Find why `erUnhit` leaves it; fix there first.
-2. **Long crossing lines**: on `saas-billing`, `currency` to `customer` and `organization` to `data_export` cross the canvas. Same rule as flowchart connectors: a long line that crosses 2 or more others is a candidate for a local move of its smaller end table in `erRepair`.
-3. **Colour areas**: the Audit tables sit in three places. Raise `SAME_COLOR` or add a cost for a split colour; accept only with crossings within +1 per fixture.
-4. **Line ends**: check the crow's feet (28 x 18) at 62% fit zoom; enlarge if they read poorly.
+1. **Line through a table**: still real. `saas-billing` (30 tables, `detail: all`) has `r8` (`api_key` to `organization`) through `app_user` (score 88). Opened at `detail: keys` (what `--layout` picks when `detail` is left out) it had `r6` through `membership` as well (score 76). Cause: `erUnhit` stalls: after its 30 passes the six lite candidates (above `ER.LITE` tables) still have 8 to 14 hits each, because `erSeparate` pushes a moved table back; the lite repair (one refined candidate) then keeps 1 to 2. Done: `erClearHits`, a last pass on the winner (larger steps, a swap, no box cap, at most +1 crossing); `keys` went from 2 hits to 1. Open: the last hit on `saas-billing` needs two tables to move together; single moves and swaps do not clear it. Making `erUnhit` try the next-cheapest shift, a bigger refine count or a longer lite schedule were tried and gave other hits or 2.7 s and more.
+2. **Long crossing lines**: the 2 crossings are at the audit's "good enough" line (at most 2 above 16 tables), so there is no hit-type cost to pay. Not done: no local-move rule for the smaller end table was tried; the remaining time budget is small.
+3. **Colour areas**: lowering `SAME_COLOR` (0.7, 0.6, 0.5) does not help: the layout reshuffles, areas do not fall steadily (`saas-billing` 8 areas at 0.8, 10 to 11 below), lines get longer and hits or crossings rise (0.7: 3 crossings, 0.5: 4 hits). Not done; a split-colour cost would need the same crossing check per fixture.
+4. **Line ends**: partly obsolete. Below 50% zoom the markers grow by 1 / scale (overview, `erd.js`). Between 50% and the 62% fit zoom they stay 28 x 18; not changed (not an engine change).
 
 ## Acceptance
 
@@ -54,4 +54,4 @@ These are already `[INFO]` only, so they do not slow the agent; they matter to t
 ## Risks
 
 - Saved diagrams re-tidy differently.
-- `saas-billing` layout already takes about 1.8 s; extra repair needs a time budget.
+- `saas-billing` layout takes about 1.5 to 2 s; extra repair needs a time budget.

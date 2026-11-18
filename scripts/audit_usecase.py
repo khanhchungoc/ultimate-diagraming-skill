@@ -19,10 +19,8 @@ ACTOR_KINDS = ("human", "system", "time")
 SIDES = ("left", "right")
 LEVELS = ("summary", "user", "subfunction")
 
-# Budgets (characters). Over a budget is a warning: the page truncates the text.
-MAX_ACTOR = 24
-MAX_USE_CASE = 40
-MAX_CONDITION = 40
+# Names and conditions have no budget: the page cuts long text with "..." and shows it on hover.
+# Budgets (characters) for ids and notes; over one is a warning.
 MAX_REF = 12
 MAX_NOTE = 120
 COLOR_MIN_USE_CASES = 12   # more use cases than this and none coloured: suggest colouring by feature area
@@ -459,18 +457,10 @@ class UsecaseAudit:
             if len(best) - 1 >= CHAIN_WARN_HOPS:
                 budget.append(f"include chain {' -> '.join(map(str, best))} is {len(best) - 1} hops: this is a flow, use a flowchart "
                               "(or fold the steps into one use case).")
-        for a in acs:
-            if len(str(a.get("name") or "")) > MAX_ACTOR:
-                budget.append(f"Actor name '{a.get('name')}' is over {MAX_ACTOR} characters and will be truncated.")
         for u in ucs:
-            if len(str(u.get("name") or "")) > MAX_USE_CASE:
-                budget.append(f"Use case name '{u.get('name')}' is over {MAX_USE_CASE} characters and will be truncated.")
             for ref in u.get("refs") or []:
                 if len(str(ref)) > MAX_REF:
                     budget.append(f"Ref '{ref}' of use case '{u.get('id')}' is over {MAX_REF} characters and will be truncated.")
-        for lk in ls:
-            if len(str(lk.get("condition") or "")) > MAX_CONDITION:
-                budget.append(f"Condition of link '{lk.get('id')}' is over {MAX_CONDITION} characters and will be truncated.")
         for n in ns:
             if len(str(n.get("text") or "")) > MAX_NOTE:
                 budget.append(f"Note '{n.get('id')}' is over {MAX_NOTE} characters: shorten it.")

@@ -677,6 +677,17 @@
         if (plugin && plugin.onViewChange) plugin.onViewChange();   // e.g. keep frozen headers pinned
       }
 
+      // --- HOVER TEXT: an element's data-tip, or the full text of a label cut off with "...", as the native tooltip ---
+      const isCut = (el) => el.scrollHeight > el.clientHeight + 2 || el.scrollWidth > el.clientWidth + 2;
+      const isClamped = (el) => { const s = getComputedStyle(el); return s.textOverflow === 'ellipsis' || (s.webkitLineClamp && s.webkitLineClamp !== 'none'); };
+      document.addEventListener('pointerover', (e) => {
+        for (let el = e.target; el && el.nodeType === 1; el = el.parentElement) {
+          if (el.title && !el.dataset.autoTitle) return;   // a title the type set itself wins
+          const tip = el.dataset.tip || (isClamped(el) && isCut(el) ? el.textContent.trim() : '');
+          if (tip) { el.title = tip; el.dataset.autoTitle = '1'; return; }
+        }
+      });
+
       // --- RENDER REPORT (only when opened with ?report; used by scripts/render_screenshot.py) ---
       function publishRenderReport() {
         const box = (el) => { const r = el.getBoundingClientRect(); return { l: r.left, t: r.top, r: r.right, b: r.bottom }; };
@@ -696,18 +707,20 @@
         }
         if (plugin.report.nodeText) {
           document.querySelectorAll(plugin.report.nodeText).forEach(el => {
-            if (el.scrollHeight > el.clientHeight + 2 || el.scrollWidth > el.clientWidth + 2) {
+            if (isCut(el)) {
               const nid = el.closest(plugin.report.node)?.dataset.nodeId || 'node';
-              // A label with a hover tip still shows its full text, so it is a layout note, not a data problem
-              warnings.push(el.dataset.tip
+              // A label that shows its full text on hover (see HOVER TEXT) is a layout note, not a data problem
+              warnings.push(el.dataset.tip || el.title || isClamped(el)
                 ? `Node label truncated ("..."): "${el.textContent.trim()}" (${nid}); the full text shows on hover`
                 : `Node label truncated ("..."): "${el.textContent.trim()}" (${nid}) — shorten to fit 2 lines`);
             }
           });
         }
         document.querySelectorAll('.lane-title').forEach(el => {
-          if (el.scrollHeight > el.clientHeight + 2 || el.scrollWidth > el.clientWidth + 2) {
-            warnings.push(`Lane title truncated ("..."): "${el.textContent.trim()}" — shorten lane name`);
+          if (isCut(el)) {
+            warnings.push(isClamped(el)
+              ? `Lane title truncated ("..."): "${el.textContent.trim()}"; the full text shows on hover`
+              : `Lane title truncated ("..."): "${el.textContent.trim()}" — shorten lane name`);
           }
         });
         const effPx = (sel) => {

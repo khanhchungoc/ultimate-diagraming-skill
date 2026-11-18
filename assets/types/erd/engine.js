@@ -826,6 +826,38 @@ function erRepair(c, score, cost, floor, hubs, rounds, good) {
   });
 }
 
+// Last resort for hits the local search left: moves a table of the hit line (either end, or the table it runs through)
+// by larger steps, with no cap on the bounding box, and keeps a move that removes a hit and leaves at most one crossing more than the layout had
+function erClearHits(c, score) {
+  const sizes = c.boxes.map((b) => ({ w: b.w, h: b.h })), all = sizes.map((_, i) => i), maxX = c.key[1] + 1;
+  for (let round = 0; round < 4 && c.key[0]; round++) {
+    let done = false;
+    const P = { x: Float64Array.from(c.boxes, (b) => b.x + b.w / 2), y: Float64Array.from(c.boxes, (b) => b.y + b.h / 2) };
+    for (const i of c.key.cul) {
+      let pick = null;
+      for (const step of [64, 128, 192, 288, 400]) for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]]) {
+        const Q = { x: Float64Array.from(P.x), y: Float64Array.from(P.y) };
+        Q.x[i] += dx * step; Q.y[i] += dy * step;
+        if (!erSeparate(all, Q, sizes, 40, [i])) continue;
+        const bx = sizes.map((z, j) => ({ x: Q.x[j] - z.w / 2, y: Q.y[j] - z.h / 2, w: z.w, h: z.h }));
+        const key = score(bx, c.key);
+        if (key[0] < c.key[0] && key[1] <= maxX && (!pick || key[0] < pick.key[0] || (key[0] === pick.key[0] && key[2] < pick.key[2]))) pick = { key, boxes: bx };
+      }
+      for (const j of all) {                         // or swap places with another table
+        if (j === i) continue;
+        const Q = { x: Float64Array.from(P.x), y: Float64Array.from(P.y) };
+        Q.x[i] = P.x[j]; Q.y[i] = P.y[j]; Q.x[j] = P.x[i]; Q.y[j] = P.y[i];
+        if (!erSeparate(all, Q, sizes, 40)) continue;
+        const bx = sizes.map((z, k) => ({ x: Q.x[k] - z.w / 2, y: Q.y[k] - z.h / 2, w: z.w, h: z.h }));
+        const key = score(bx, c.key);
+        if (key[0] < c.key[0] && key[1] <= maxX && (!pick || key[0] < pick.key[0] || (key[0] === pick.key[0] && key[2] < pick.key[2]))) pick = { key, boxes: bx };
+      }
+      if (pick) { c.key = pick.key; c.boxes = pick.boxes; done = true; break; }
+    }
+    if (!done) return;
+  }
+}
+
 // Squeeze: shrinks the layout toward its centre (each axis alone, or both) for as long as that adds no hit and no
 // crossing, preferring the step that leaves the aspect closest to the target
 function erSqueeze(c, score) {
@@ -923,6 +955,7 @@ function layoutDiagram(data, opts) {
   });
   if (!warm && !small && !lite) { erRepair(best, quickScore, cost, floor, hubs, ER.POLISH_T, good); erSqueeze(best, quickScore); }   // more search on the winner alone
   // Content starts at the margin: move the tables by whole pixels, then route the final positions
+  if (best.key[0] && !warm) { erClearHits(best, quickScore); erSqueeze(best, quickScore); }
   const found = erRouteAll(data, best.boxes, true);
   const dx = Math.round(ER.MARGIN - found.minX), dy = Math.round(ER.MARGIN - found.minY);
   ents.forEach((e, i) => { e.x = Math.round(best.boxes[i].x) + dx; e.y = Math.round(best.boxes[i].y) + dy; });

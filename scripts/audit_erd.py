@@ -23,13 +23,8 @@ MANY_ENDS = {"oneOrMany", "zeroOrMany"}
 DETAILS = {"all", "keys", "names"}
 # A table's colour is a palette slot ("1".."9", assets/tokens/default.json) or a custom hex (see disk_format.color_slot)
 
-# Budgets (characters). Over a budget is a warning: the page truncates the text.
-MAX_TABLE_NAME = 28
-MAX_COLUMN_NAME = 28
-MAX_TYPE = 16
-MAX_LABEL = 20
-MAX_NOTE = 120
-MAX_COLUMNS_ALL = 25     # more columns than this at detail "all": suggest "keys"
+# Names, types and labels have no budget: the page cuts long text with "..." and shows it on hover.
+MAX_NOTE = 120           # characters; over it is a warning
 COLOR_MIN_TABLES = 8     # more tables than this and none coloured: suggest colour-coding by domain
 ERROR_PENALTY = 12
 
@@ -232,15 +227,7 @@ class ErdAudit:
             says_why = str(e.get("note") or "").strip() or any(eid in (n.get("entities") or []) and not n.get("column") for n in ns)
             if cols and not any(c.get("pk") is True for c in cols) and not says_why:
                 budget.append(f"Table '{eid}' has no primary key: mark one 'pk', or say why in the table's 'note' (or a note on the table).")
-            if len(cols) > MAX_COLUMNS_ALL and self.data.get("detail", "all") == "all" and not e.get("collapsed"):
-                budget.append(f"Table '{eid}' has {len(cols)} columns at detail 'all' (keep to {MAX_COLUMNS_ALL}): set \"detail\": \"keys\".")
-            if len(str(e.get("name") or "")) > MAX_TABLE_NAME:
-                budget.append(f"Table name '{e.get('name')}' is over {MAX_TABLE_NAME} characters and will be truncated.")
             for c in cols:
-                if len(str(c.get("name") or "")) > MAX_COLUMN_NAME:
-                    budget.append(f"Column name '{eid}.{c.get('name')}' is over {MAX_COLUMN_NAME} characters and will be truncated.")
-                if len(str(c.get("type") or "")) > MAX_TYPE:
-                    budget.append(f"Type '{c.get('type')}' of '{eid}.{c.get('name')}' is over {MAX_TYPE} characters and will be truncated.")
                 if len(str(c.get("note") or "")) > MAX_NOTE:
                     budget.append(f"Note of column '{eid}.{c.get('name')}' is over {MAX_NOTE} characters and will be truncated.")
         for r in rs:
@@ -251,8 +238,6 @@ class ErdAudit:
             cols = rel_columns(r)
             if cols and "identifying" not in r and all(by_name.get(n, {}).get("pk") is True for n in cols):
                 budget.append(f"Relationship '{r.get('id')}': every column in 'columns' is a pk, so it is identifying: set \"identifying\": true.")
-            if len(str(r.get("label") or "")) > MAX_LABEL:
-                budget.append(f"Label '{r.get('label')}' is over {MAX_LABEL} characters and will be truncated.")
         for n in ns:
             if len(str(n.get("text") or "")) > MAX_NOTE:
                 budget.append(f"Note '{n.get('id')}' is over {MAX_NOTE} characters: shorten it.")

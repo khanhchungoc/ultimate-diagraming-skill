@@ -2,7 +2,7 @@
 
 Use for what a system does for the people and systems around it: who (actors) wants what (use cases, as goals) from which system (the subject, drawn as the boundary). Not for the order of steps (use `flowchart` or `sequence`) and not for data (use `erd`): a use case diagram has no sequence, no data and no internal steps. Positions, box sizes and the lines are computed by the tooling; author only the logical model, and colour the use cases by feature area (see Colour).
 
-**Example to copy (read it next; path is from `<skill-dir>`):** `references/examples/example-usecase.json`.
+**Example to copy:** the Schema JSON below is a complete diagram; no other file to read.
 
 ## Schema
 
@@ -17,7 +17,7 @@ Never add coordinates or sizes (`x`, `y`, `w`, `h`, `points`, `layout`); `--layo
   "actors": [
     { "id": "customer", "name": "Customer" },
     { "id": "member", "name": "Registered customer", "parent": "customer" },
-    { "id": "psp", "name": "Payment gateway", "kind": "system", "side": "right" }
+    { "id": "psp", "name": "Payment gateway", "kind": "system" }
   ],
   "useCases": [
     { "id": "browse", "name": "Browse catalogue", "subject": "shop", "color": "1", "refs": ["FR-1"] },
@@ -44,13 +44,13 @@ Never add coordinates or sizes (`x`, `y`, `w`, `h`, `points`, `layout`); `--layo
 | Subject | `id`, `name` | One system boundary. Order is top to bottom. A diagram with one subject may leave out `subjects`; the use cases then sit in one unnamed boundary titled with `title`. With two or more subjects every use case names its `subject`. |
 | Subject | `collapsed` | Optional. Draws the boundary as a name bar. Never author it unless asked. |
 | Subject | `fw`, `fh` | Set by dragging the frame corner in the page: a minimum width and height. Never author them. |
-| Actor | `id`, `name` | A role, 24 characters at most. Never a person's name. |
+| Actor | `id`, `name` | A role, 3 words at most. Never a person's name. |
 | Actor | `kind` | Optional. `human` (default), `system` (an external system) or `time` (a scheduled trigger). Every actor is drawn as a round avatar (person, server or clock icon) with its name below; `system` and `time` add `«system»` / `«time»` under the name. |
-| Actor | `side` | Optional. `left` or `right`. Default: `left` for an actor that starts any association, `right` for one that is only ever the target (a supporting actor). |
+| Actor | `side` | Leave it out: the tool puts an actor that starts any association on the left, one that is only ever the target (a supporting actor) on the right. |
 | Actor | `parent` | Optional. Actor id: a generalization (the child can do everything the parent can). Drawn as a hollow-triangle line. |
 | Actor | `abstract` | Optional. `true` draws the name in italics and exempts the actor from the "no association" warning. |
 | Actor | `color` | Optional. A palette slot, `"1"` to `"8"`. Usually leave it out: the page gives every actor its own colour from the slots `colorKey` does not use (not saved), and its lines take that colour. Set it only when the user asks for a particular colour. |
-| Use case | `id`, `name`, `subject` | `name` is verb + object, 40 characters at most, wraps to two lines in its pill. `subject` is a subject id. |
+| Use case | `id`, `name`, `subject` | `name` is verb + object, 5 words at most, wraps to two lines in its pill. `subject` is a subject id. |
 | Use case | `color` | Optional. A palette slot `"1"` to `"8"`: the feature area. Name each in `colorKey`. |
 | Use case | `level` | Optional. `user` (default) or `subfunction` (drawn smaller, dashed outline). `summary` (larger, bold outline) is still drawn but the page no longer offers it: do not author it. |
 | Use case | `refs` | Optional list of requirement ids (`"FR-4"`), 12 characters each. Searchable in the page, shown with `showRefs`. |
@@ -58,12 +58,12 @@ Never add coordinates or sizes (`x`, `y`, `w`, `h`, `points`, `layout`); `--layo
 | Use case | `abstract`, `parent` | Optional. Italic name; `parent` is a use case id: a generalization (variants of one goal). |
 | Link | `id`, `type`, `from`, `to` | `type` is `association`, `include` or `extend`. Generalizations are `parent` fields, never links. |
 | Link | direction | `association`: actor and use case, either order (put the actor that starts it in `from`; a supporting actor goes in `to`). `include`: **from the base to the included use case**. `extend`: **from the extension to the base it extends**. |
-| Link | `condition` | Optional, `extend` only, 40 characters at most: drawn as `[condition]` under `«extend»`. |
+| Link | `condition` | Optional, `extend` only, 6 words at most: drawn as `[condition]` under `«extend»`. |
 | Link | `extensionPoint` | Optional, `extend` only: one of the base's `extensionPoints`. |
 | Link | `navigable` | Optional, association only. `true` draws an open arrowhead toward `to`. |
 | Note | `id`, `text`, `useCases`, `actors` | Attached to one or more ids; drawn as a badge, or on the canvas with `showNotes`. 120 characters at most. |
 
-The audit's budgets: actor name 24 characters, use case name 40, extend condition 40, ref 12, note 120. Over a budget is a `[WARN]`: the page truncates the text.
+Longer names and conditions are cut with `...` and show in full on hover. Over a budget is a `[WARN]` only for a ref (12 characters) or a note (120).
 
 ## Writing rules
 
@@ -113,8 +113,7 @@ A diagram of 8 or fewer use cases may stay neutral. The audit warns when a diagr
 - **`Actor '...' has no association`** (warning): connect it to a use case it takes part in, or drop it.
 - **`is not reached by any actor`** (warning): associate an actor, or `include`, `extend` or generalize it from a use case an actor reaches.
 - **`include chain ... this is a flow`** (warning): three or more `include` hops in a row are steps in order; fold them into one use case, or draw a `flowchart`.
-- **`is over N characters and will be truncated`** (warning): shorten the name, ref, condition or note.
+- **`is over N characters`** (warning): shorten the ref or note.
 - **`N use cases and none has a 'color'`** (warning): colour them by feature area, see Colour.
 - **`does not say what it means`** (warning): add the slot to `colorKey`. **`contrast is not checked`**: use a palette slot, not a hex.
-- **`[INFO] ... is included only by ...`**: not a failure. An included use case with one base is just a step: fold it into the base unless another use case will share it.
-- **`[INFO] ... does not start with a verb`**: not a failure. Rename goals verb + object ("View order history", not "Order history").
+- **`[INFO] ... is included only by ...`** / **`does not start with a verb`**: report it; do not re-run (rules 3 and 5 cover them before writing).

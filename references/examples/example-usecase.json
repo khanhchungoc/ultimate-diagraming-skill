@@ -8,7 +8,7 @@
   "actors": [
     { "id": "member", "name": "Member" },
     { "id": "librarian", "name": "Librarian" },
-    { "id": "mail", "name": "Mail service", "kind": "system", "side": "right" }
+    { "id": "mail", "name": "Mail service", "kind": "system" }
   ],
   "useCases": [
     { "id": "search", "name": "Search catalogue", "subject": "library", "color": "1", "refs": ["FR-1"] },

@@ -1,0 +1,25 @@
+---
+title: Online shop
+---
+%% @type usecase
+%% @colorKey 1 Ordering
+%% @colorKey 2 Payments
+flowchart LR
+  customer(["Customer"])
+  member(["Registered customer"])
+  psp(["Payment gateway"]):::system
+  subgraph shop["Storefront"]
+    browse(["Browse catalogue"]):::c1
+    checkout(["Check out"]):::c1
+    voucher(["Apply voucher"]):::c1
+    pay(["Take payment"]):::c2
+  end
+  member -->|is a| customer
+  customer --- browse
+  member --- checkout
+  checkout -.->|include| pay
+  voucher -.->|"extend: customer has a code"| checkout
+  pay --- psp
+  %% @note checkout: Guest checkout allowed up to 200 EUR (BR-3)
+  %% @refs browse FR-1; checkout FR-4; voucher FR-6
+  %% @level pay subfunction

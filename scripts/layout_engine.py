@@ -1746,6 +1746,33 @@ def apply_sequence_defaults(data: Dict[str, Any]) -> Tuple[Dict[str, Any], List[
     return data, notes
 
 
+def apply_erd_defaults(data: Dict[str, Any]) -> Tuple[Dict[str, Any], List[str]]:
+    """Apply ERD CLI defaults (--layout without --keep-layout): mark every column a relationship names as "fk", make a
+    relationship whose columns are all "pk" identifying (unless the author set "identifying"), and open at detail "keys"
+    for more than 15 tables, or a table with more than 25 columns, when the author left "detail" out."""
+    ents = [dict(e, columns=[dict(c) for c in e.get("columns") or [] if isinstance(c, dict)]) if isinstance(e, dict) else e
+            for e in data.get("entities") or []]
+    by_id = {e.get("id"): e for e in ents if isinstance(e, dict)}
+    rels = []
+    for r in data.get("relationships") or []:
+        if not isinstance(r, dict):
+            rels.append(r)
+            continue
+        names = r.get("columns") if isinstance(r.get("columns"), list) else []
+        cols = {c.get("name"): c for c in (by_id.get(r.get("from")) or {}).get("columns", [])}
+        for n in names:
+            if n in cols:
+                cols[n]["fk"] = True
+        if names and "identifying" not in r and all(cols.get(n, {}).get("pk") is True for n in names):
+            r = {**r, "identifying": True}
+        rels.append(r)
+    if "entities" in data and "relationships" in data:
+        data = {**data, "entities": ents, "relationships": rels}
+    if "detail" in data or not (len(ents) > 15 or any(len(e.get("columns") or []) > 25 for e in ents if isinstance(e, dict))):
+        return data, []
+    return {**data, "detail": "keys"}, ["Detail: keys (only key columns shown; the Columns button shows the rest)"]
+
+
 LAYOUT_NOTE = "report it; do not change the JSON for it"
 
 
@@ -1873,6 +1900,10 @@ def main():
                     data, seq_notes = apply_sequence_defaults(data)
                     for seq_note in seq_notes:
                         print(f"[INFO] {seq_note}")
+                elif not args.keep_layout and data["diagramType"] == "erd":
+                    data, erd_notes = apply_erd_defaults(data)
+                    for erd_note in erd_notes:
+                        print(f"[INFO] {erd_note}")
                 if not args.keep_layout and data["diagramType"] == "flowchart" and "direction" not in data:
                     laid_out_data, audit, report, direction_note = _choose_flowchart_direction(
                         data, args.timeout, args.browser, tokens
