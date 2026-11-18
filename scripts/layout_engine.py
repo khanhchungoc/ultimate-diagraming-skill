@@ -883,15 +883,24 @@ class FlowchartAudit:
                 segs.append((ax, ay, bx, by, abs(ax - bx) < 1, abs(ay - by) < 1, smin_x, smax_x, smin_y, smax_y))
             return (min_x, max_x, min_y, max_y), segs
 
-        def relate_segs(c_segs, o_segs, skip_first: bool = False, skip_last: bool = False):
+        def relate_segs(
+            c_segs, o_segs, skip_first: bool = False, skip_last: bool = False, skip_first_trunk: bool = False
+        ):
             overlap = near = cross = 0.0
             last_i = len(c_segs) - 1
             last_j = len(o_segs) - 1
+            both_trunks = last_i >= 2 and last_j >= 2
             for i, (ax, ay, bx, by, a_v, a_h, amin_x, amax_x, amin_y, amax_y) in enumerate(c_segs):
                 for j, (cx, cy, dx, dy, c_v, c_h, cmin_x, cmax_x, cmin_y, cmax_y) in enumerate(o_segs):
-                    if skip_first and i == 0 and j == 0:
+                    if skip_first and (
+                        (i == 0 and j == 0)
+                        or (skip_first_trunk and both_trunks and i == 1 and j == 1)
+                    ):
                         continue
-                    if skip_last and i == last_i and j == last_j:
+                    if skip_last and (
+                        (i == last_i and j == last_j)
+                        or (both_trunks and i == last_i - 1 and j == last_j - 1)
+                    ):
                         continue
                     if a_v and c_v:
                         run = (amax_y if amax_y < cmax_y else cmax_y) - (amin_y if amin_y > cmin_y else cmin_y)
@@ -980,12 +989,12 @@ class FlowchartAudit:
             if bend_len + defect >= limit:
                 return None
             cx1, cx2, cy1, cy2 = cmin_x - 18, cmax_x + 18, cmin_y - 18, cmax_y + 18
-            for o_from, o_to, op, omin_x, omax_x, omin_y, omax_y, o_segs, incident in other_entries:
+            for o_from, o_to, op, omin_x, omax_x, omin_y, omax_y, o_segs, incident, unlabelled_pair in other_entries:
                 if cx2 <= omin_x or cx1 >= omax_x or cy2 <= omin_y or cy1 >= omax_y:
                     continue
                 skip_first = bool(op and o_from == e_from and op[0] == fp)
                 skip_last = bool(op and o_to == e_to and op[1] == tp)
-                ov, ne, cr = relate_segs(c_segs, o_segs, skip_first, skip_last)
+                ov, ne, cr = relate_segs(c_segs, o_segs, skip_first, skip_last, skip_first and unlabelled_pair)
                 delta = (C_OVERLAP + ov if ov > 0 else 0) + (0 if incident else ne * C_NEAR) + cr * C_CROSS
                 if delta:
                     defect += delta
@@ -1075,6 +1084,7 @@ class FlowchartAudit:
             eid = e["id"]
             cur_fp, cur_tp = ports[eid]
             e_from, e_to = e["from"], e["to"]
+            e_unlabelled = not (e.get("label") or "").strip()
             other_entries = []
             for o in self.edges:
                 if o is e:
@@ -1094,6 +1104,7 @@ class FlowchartAudit:
                     omax_y,
                     o_segs,
                     o_from == e_from or o_from == e_to or o_to == e_from or o_to == e_to,
+                    e_unlabelled and not (o.get("label") or "").strip(),
                 ))
             port_cache: Dict[Tuple[str, str], float] = {}
             base = route_cost(result[eid], e, other_entries, cur_fp, cur_tp, port_cache=port_cache)
@@ -1660,7 +1671,8 @@ def add_connector_pairs(data: Dict[str, Any], laid: Dict[str, Any], long_arrows:
     """Rule 11: split the long arrows the audit found into connector pairs; return (new authoring data, [INFO] lines).
 
     Works on the authoring data, not the laid-out copy, and keeps the laid direction so the second layout matches the
-    first. One letter per target (at most max_letters, longest first); letters already on a connector are skipped."""
+    first. One letter per target (at most max_letters, severest/longest first, lettered in reading order); letters
+    already on a connector are skipped."""
     groups: Dict[str, List[str]] = {}
     for e, _, _ in long_arrows:
         groups.setdefault(e["to"], []).append(e["id"])
@@ -1670,8 +1682,18 @@ def add_connector_pairs(data: Dict[str, Any], laid: Dict[str, Any], long_arrows:
     nodes, edges = list(data["nodes"]), [dict(e) for e in data["edges"]]
     by_id = {e["id"]: e for e in edges}
     node_map = {n["id"]: n for n in nodes}
+    laid_map = {n["id"]: n for n in laid.get("nodes") or []}
+    lane_rank = {l["id"]: i for i, l in enumerate(laid.get("lanes") or data.get("lanes") or [])}
+    selected = sorted(
+        list(groups.items())[:max(0, max_letters)],
+        key=lambda item: (
+            min(laid_map.get(by_id[eid]["from"], {}).get("x", 0) for eid in item[1]),
+            laid_map.get(item[0], {}).get("x", 0),
+            lane_rank.get(laid_map.get(item[0], {}).get("laneId"), 0),
+        ),
+    )
     info = []
-    for target, eids in list(groups.items())[:max_letters]:
+    for target, eids in selected:
         letter = next(letters)
         low = letter.lower()
         nodes.append({"id": f"c_{low}_out", "laneId": node_map[target]["laneId"], "type": "connector", "label": letter})

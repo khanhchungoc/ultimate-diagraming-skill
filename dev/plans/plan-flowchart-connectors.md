@@ -1,6 +1,6 @@
 # Plan: Improve flowchart parallel fork/join routing and connector placement
 
-Status: proposed. Diagnosed on the Benchmark 2 onboarding flowchart (`skill-flowchart.html`, authored from `onboarding.mmd`) on `main` at `aa1236d`.
+Status: C1–C3 implemented (2026-11-18). Diagnosed on the Benchmark 2 onboarding flowchart (`skill-flowchart.html`, authored from `onboarding.mmd`) on `main` at `aa1236d`.
 
 ## Findings from `skill-flowchart.html`
 

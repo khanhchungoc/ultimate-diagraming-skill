@@ -1,0 +1,921 @@
+{
+  "diagramType": "flowchart",
+  "title": "Employee Onboarding Process (End-to-End)",
+  "direction": "TB",
+  "lanes": [
+    {
+      "id": "lane_hiring_mgr",
+      "name": "Hiring Manager",
+      "icon": "briefcase"
+    },
+    {
+      "id": "lane_hr_ops",
+      "name": "HR Operations",
+      "icon": "cog"
+    },
+    {
+      "id": "lane_recruiter",
+      "name": "Recruiter",
+      "icon": "user"
+    },
+    {
+      "id": "lane_candidate",
+      "name": "Candidate",
+      "icon": "users"
+    },
+    {
+      "id": "lane_bg_vendor",
+      "name": "Background Check Vendor",
+      "icon": "globe"
+    },
+    {
+      "id": "lane_it",
+      "name": "IT Service Desk",
+      "icon": "cpu"
+    },
+    {
+      "id": "lane_facilities",
+      "name": "Facilities",
+      "icon": "building"
+    },
+    {
+      "id": "lane_payroll",
+      "name": "Payroll",
+      "icon": "headset"
+    },
+    {
+      "id": "lane_security",
+      "name": "Security Office",
+      "icon": "shield"
+    },
+    {
+      "id": "lane_training",
+      "name": "Training Team",
+      "icon": "database"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "raise_request",
+      "laneId": "lane_hiring_mgr",
+      "type": "start",
+      "label": "Raise Hiring Request"
+    },
+    {
+      "id": "ad_approved",
+      "laneId": "lane_hiring_mgr",
+      "type": "decision",
+      "label": "Job Ad Approved?"
+    },
+    {
+      "id": "round1_interview",
+      "laneId": "lane_hiring_mgr",
+      "type": "task",
+      "label": "Conduct Round 1 Interview"
+    },
+    {
+      "id": "round1_pass",
+      "laneId": "lane_hiring_mgr",
+      "type": "decision",
+      "label": "Advance to Round 2?"
+    },
+    {
+      "id": "round2_interview",
+      "laneId": "lane_hiring_mgr",
+      "type": "task",
+      "label": "Conduct Round 2 Interview"
+    },
+    {
+      "id": "round2_pass",
+      "laneId": "lane_hiring_mgr",
+      "type": "decision",
+      "label": "Select Candidate?"
+    },
+    {
+      "id": "probation_review",
+      "laneId": "lane_hiring_mgr",
+      "type": "task",
+      "label": "Run 90-Day Probation Review"
+    },
+    {
+      "id": "probation_outcome",
+      "laneId": "lane_hiring_mgr",
+      "type": "decision",
+      "label": "Probation Review Outcome?"
+    },
+    {
+      "id": "extend_probation",
+      "laneId": "lane_hiring_mgr",
+      "type": "delay",
+      "label": "Extend Probation 30 Days"
+    },
+    {
+      "id": "probation_passed",
+      "laneId": "lane_hiring_mgr",
+      "type": "end",
+      "label": "Probation Passed"
+    },
+    {
+      "id": "headcount_approved",
+      "laneId": "lane_hr_ops",
+      "type": "decision",
+      "label": "Approved Headcount Exists?"
+    },
+    {
+      "id": "finance_approved",
+      "laneId": "lane_hr_ops",
+      "type": "decision",
+      "label": "Finance Approves Request?"
+    },
+    {
+      "id": "req_rejected",
+      "laneId": "lane_hr_ops",
+      "type": "end",
+      "label": "Hiring Request Rejected"
+    },
+    {
+      "id": "hr_dir_approved",
+      "laneId": "lane_hr_ops",
+      "type": "decision",
+      "label": "HR Director Approves Offer?"
+    },
+    {
+      "id": "order_bg_check",
+      "laneId": "lane_hr_ops",
+      "type": "task",
+      "label": "Order Background Check"
+    },
+    {
+      "id": "adverse_finding",
+      "laneId": "lane_hr_ops",
+      "type": "decision",
+      "label": "Adverse Finding Found?"
+    },
+    {
+      "id": "review_adverse",
+      "laneId": "lane_hr_ops",
+      "type": "task",
+      "label": "Review Finding with Legal"
+    },
+    {
+      "id": "finding_disqualifying",
+      "laneId": "lane_hr_ops",
+      "type": "decision",
+      "label": "Finding Disqualifying?"
+    },
+    {
+      "id": "offer_withdrawn",
+      "laneId": "lane_hr_ops",
+      "type": "end",
+      "label": "Offer Withdrawn"
+    },
+    {
+      "id": "record_exception",
+      "laneId": "lane_hr_ops",
+      "type": "task",
+      "label": "Record Exception"
+    },
+    {
+      "id": "clear_candidate",
+      "laneId": "lane_hr_ops",
+      "type": "task",
+      "label": "Clear Candidate for Onboarding"
+    },
+    {
+      "id": "send_welcome",
+      "laneId": "lane_hr_ops",
+      "type": "io",
+      "label": "Send Welcome Email"
+    },
+    {
+      "id": "process_termination",
+      "laneId": "lane_hr_ops",
+      "type": "task",
+      "label": "Execute Termination Process"
+    },
+    {
+      "id": "emp_terminated",
+      "laneId": "lane_hr_ops",
+      "type": "end",
+      "label": "Employment Terminated"
+    },
+    {
+      "id": "draft_ad",
+      "laneId": "lane_recruiter",
+      "type": "task",
+      "label": "Draft Job Ad"
+    },
+    {
+      "id": "revise_ad",
+      "laneId": "lane_recruiter",
+      "type": "task",
+      "label": "Revise Job Ad"
+    },
+    {
+      "id": "publish_ad",
+      "laneId": "lane_recruiter",
+      "type": "task",
+      "label": "Publish Job Ad"
+    },
+    {
+      "id": "screen_apps",
+      "laneId": "lane_recruiter",
+      "type": "task",
+      "label": "Screen & Shortlist Candidates"
+    },
+    {
+      "id": "schedule_interviews",
+      "laneId": "lane_recruiter",
+      "type": "task",
+      "label": "Schedule Interviews"
+    },
+    {
+      "id": "send_rejection",
+      "laneId": "lane_recruiter",
+      "type": "io",
+      "label": "Send Rejection Email"
+    },
+    {
+      "id": "cand_rejected",
+      "laneId": "lane_recruiter",
+      "type": "end",
+      "label": "Candidate Rejected"
+    },
+    {
+      "id": "within_band",
+      "laneId": "lane_recruiter",
+      "type": "decision",
+      "label": "Salary Within Band?"
+    },
+    {
+      "id": "renegotiate_salary",
+      "laneId": "lane_recruiter",
+      "type": "task",
+      "label": "Renegotiate Salary"
+    },
+    {
+      "id": "issue_offer",
+      "laneId": "lane_recruiter",
+      "type": "document",
+      "label": "Issue Offer Letter"
+    },
+    {
+      "id": "offer_response",
+      "laneId": "lane_candidate",
+      "type": "decision",
+      "label": "Candidate Offer Response?"
+    },
+    {
+      "id": "offer_declined",
+      "laneId": "lane_candidate",
+      "type": "end",
+      "label": "Offer Declined"
+    },
+    {
+      "id": "sign_contract",
+      "laneId": "lane_candidate",
+      "type": "task",
+      "label": "Sign Contract Electronically"
+    },
+    {
+      "id": "collect_card",
+      "laneId": "lane_candidate",
+      "type": "task",
+      "label": "Collect Building Access Card"
+    },
+    {
+      "id": "receive_laptop",
+      "laneId": "lane_candidate",
+      "type": "task",
+      "label": "Receive Assigned Laptop"
+    },
+    {
+      "id": "sign_aup",
+      "laneId": "lane_candidate",
+      "type": "task",
+      "label": "Sign IT Acceptable-Use Policy"
+    },
+    {
+      "id": "complete_training",
+      "laneId": "lane_candidate",
+      "type": "task",
+      "label": "Complete Overdue Training"
+    },
+    {
+      "id": "verify_bg",
+      "laneId": "lane_bg_vendor",
+      "type": "document",
+      "label": "Verify & Return Report"
+    },
+    {
+      "id": "create_account",
+      "laneId": "lane_it",
+      "type": "task",
+      "label": "Create User Account"
+    },
+    {
+      "id": "laptop_in_stock",
+      "laneId": "lane_it",
+      "type": "decision",
+      "label": "Laptop in Stock?"
+    },
+    {
+      "id": "assign_laptop",
+      "laneId": "lane_it",
+      "type": "task",
+      "label": "Assign Stock Laptop"
+    },
+    {
+      "id": "order_laptop",
+      "laneId": "lane_it",
+      "type": "task",
+      "label": "Order New Laptop"
+    },
+    {
+      "id": "enrol_mdm",
+      "laneId": "lane_it",
+      "type": "task",
+      "label": "Enrol Device in MDM"
+    },
+    {
+      "id": "suspend_access",
+      "laneId": "lane_it",
+      "type": "task",
+      "label": "Suspend User Access"
+    },
+    {
+      "id": "assign_desk",
+      "laneId": "lane_facilities",
+      "type": "task",
+      "label": "Assign Desk"
+    },
+    {
+      "id": "order_card",
+      "laneId": "lane_facilities",
+      "type": "task",
+      "label": "Order Building Access Card"
+    },
+    {
+      "id": "setup_payroll",
+      "laneId": "lane_payroll",
+      "type": "database",
+      "label": "Set Up Payroll Record"
+    },
+    {
+      "id": "issue_briefing",
+      "laneId": "lane_security",
+      "type": "document",
+      "label": "Issue Security Briefing Pack"
+    },
+    {
+      "id": "enrol_training",
+      "laneId": "lane_training",
+      "type": "task",
+      "label": "Enrol in Mandatory Training"
+    },
+    {
+      "id": "training_done_30",
+      "laneId": "lane_training",
+      "type": "decision",
+      "label": "Completed by Day 30?"
+    },
+    {
+      "id": "send_reminder",
+      "laneId": "lane_training",
+      "type": "io",
+      "label": "Send Training Reminder"
+    },
+    {
+      "id": "training_done_45",
+      "laneId": "lane_training",
+      "type": "decision",
+      "label": "Completed by Day 45?"
+    },
+    {
+      "id": "notify_manager",
+      "laneId": "lane_training",
+      "type": "io",
+      "label": "Notify Hiring Manager"
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "from": "raise_request",
+      "to": "headcount_approved",
+      "label": ""
+    },
+    {
+      "id": "e2",
+      "from": "headcount_approved",
+      "to": "draft_ad",
+      "label": "Yes"
+    },
+    {
+      "id": "e3",
+      "from": "headcount_approved",
+      "to": "finance_approved",
+      "label": "No"
+    },
+    {
+      "id": "e4",
+      "from": "finance_approved",
+      "to": "draft_ad",
+      "label": "Yes"
+    },
+    {
+      "id": "e5",
+      "from": "finance_approved",
+      "to": "req_rejected",
+      "label": "No"
+    },
+    {
+      "id": "e6",
+      "from": "draft_ad",
+      "to": "ad_approved",
+      "label": ""
+    },
+    {
+      "id": "e7",
+      "from": "ad_approved",
+      "to": "revise_ad",
+      "label": "No"
+    },
+    {
+      "id": "e8",
+      "from": "revise_ad",
+      "to": "ad_approved",
+      "label": "Resubmit",
+      "feedback": true
+    },
+    {
+      "id": "e9",
+      "from": "ad_approved",
+      "to": "publish_ad",
+      "label": "Yes"
+    },
+    {
+      "id": "e10",
+      "from": "publish_ad",
+      "to": "screen_apps",
+      "label": ""
+    },
+    {
+      "id": "e11",
+      "from": "screen_apps",
+      "to": "schedule_interviews",
+      "label": ""
+    },
+    {
+      "id": "e12",
+      "from": "schedule_interviews",
+      "to": "round1_interview",
+      "label": ""
+    },
+    {
+      "id": "e13",
+      "from": "round1_interview",
+      "to": "round1_pass",
+      "label": ""
+    },
+    {
+      "id": "e14",
+      "from": "round1_pass",
+      "to": "send_rejection",
+      "label": "No"
+    },
+    {
+      "id": "e15",
+      "from": "send_rejection",
+      "to": "cand_rejected",
+      "label": ""
+    },
+    {
+      "id": "e16",
+      "from": "round1_pass",
+      "to": "round2_interview",
+      "label": "Yes"
+    },
+    {
+      "id": "e17",
+      "from": "round2_interview",
+      "to": "round2_pass",
+      "label": ""
+    },
+    {
+      "id": "e18",
+      "from": "round2_pass",
+      "to": "send_rejection",
+      "label": "No"
+    },
+    {
+      "id": "e19",
+      "from": "round2_pass",
+      "to": "within_band",
+      "label": "Yes"
+    },
+    {
+      "id": "e20",
+      "from": "within_band",
+      "to": "issue_offer",
+      "label": "Yes"
+    },
+    {
+      "id": "e21",
+      "from": "within_band",
+      "to": "hr_dir_approved",
+      "label": "No"
+    },
+    {
+      "id": "e22",
+      "from": "hr_dir_approved",
+      "to": "issue_offer",
+      "label": "Yes"
+    },
+    {
+      "id": "e23",
+      "from": "hr_dir_approved",
+      "to": "renegotiate_salary",
+      "label": "No"
+    },
+    {
+      "id": "e24",
+      "from": "renegotiate_salary",
+      "to": "within_band",
+      "label": "",
+      "feedback": true
+    },
+    {
+      "id": "e25",
+      "from": "issue_offer",
+      "to": "offer_response",
+      "label": ""
+    },
+    {
+      "id": "e26",
+      "from": "offer_response",
+      "to": "offer_declined",
+      "label": "Decline"
+    },
+    {
+      "id": "e27",
+      "from": "offer_response",
+      "to": "within_band",
+      "label": "Counter",
+      "feedback": true
+    },
+    {
+      "id": "e28",
+      "from": "offer_response",
+      "to": "sign_contract",
+      "label": "Accept"
+    },
+    {
+      "id": "e29",
+      "from": "sign_contract",
+      "to": "order_bg_check",
+      "label": ""
+    },
+    {
+      "id": "e30",
+      "from": "order_bg_check",
+      "to": "verify_bg",
+      "label": ""
+    },
+    {
+      "id": "e31",
+      "from": "verify_bg",
+      "to": "adverse_finding",
+      "label": ""
+    },
+    {
+      "id": "e32",
+      "from": "adverse_finding",
+      "to": "clear_candidate",
+      "label": "No"
+    },
+    {
+      "id": "e33",
+      "from": "adverse_finding",
+      "to": "review_adverse",
+      "label": "Yes"
+    },
+    {
+      "id": "e34",
+      "from": "review_adverse",
+      "to": "finding_disqualifying",
+      "label": ""
+    },
+    {
+      "id": "e35",
+      "from": "finding_disqualifying",
+      "to": "offer_withdrawn",
+      "label": "Yes"
+    },
+    {
+      "id": "e36",
+      "from": "finding_disqualifying",
+      "to": "record_exception",
+      "label": "No"
+    },
+    {
+      "id": "e37",
+      "from": "record_exception",
+      "to": "clear_candidate",
+      "label": ""
+    },
+    {
+      "id": "e38",
+      "from": "clear_candidate",
+      "to": "create_account",
+      "label": ""
+    },
+    {
+      "id": "e39",
+      "from": "create_account",
+      "to": "laptop_in_stock",
+      "label": ""
+    },
+    {
+      "id": "e40",
+      "from": "laptop_in_stock",
+      "to": "assign_laptop",
+      "label": "Yes"
+    },
+    {
+      "id": "e41",
+      "from": "assign_laptop",
+      "to": "enrol_mdm",
+      "label": ""
+    },
+    {
+      "id": "e42",
+      "from": "laptop_in_stock",
+      "to": "order_laptop",
+      "label": "No"
+    },
+    {
+      "id": "e43",
+      "from": "order_laptop",
+      "to": "enrol_mdm",
+      "label": ""
+    },
+    {
+      "id": "e44",
+      "from": "clear_candidate",
+      "to": "assign_desk",
+      "label": ""
+    },
+    {
+      "id": "e45",
+      "from": "assign_desk",
+      "to": "order_card",
+      "label": ""
+    },
+    {
+      "id": "e46",
+      "from": "clear_candidate",
+      "to": "setup_payroll",
+      "label": ""
+    },
+    {
+      "id": "e47",
+      "from": "clear_candidate",
+      "to": "issue_briefing",
+      "label": ""
+    },
+    {
+      "id": "e48",
+      "from": "enrol_mdm",
+      "to": "send_welcome",
+      "label": ""
+    },
+    {
+      "id": "e49",
+      "from": "order_card",
+      "to": "send_welcome",
+      "label": ""
+    },
+    {
+      "id": "e50",
+      "from": "setup_payroll",
+      "to": "send_welcome",
+      "label": ""
+    },
+    {
+      "id": "e51",
+      "from": "issue_briefing",
+      "to": "send_welcome",
+      "label": ""
+    },
+    {
+      "id": "e52",
+      "from": "send_welcome",
+      "to": "collect_card",
+      "label": ""
+    },
+    {
+      "id": "e53",
+      "from": "collect_card",
+      "to": "receive_laptop",
+      "label": ""
+    },
+    {
+      "id": "e54",
+      "from": "receive_laptop",
+      "to": "sign_aup",
+      "label": ""
+    },
+    {
+      "id": "e55",
+      "from": "sign_aup",
+      "to": "enrol_training",
+      "label": ""
+    },
+    {
+      "id": "e56",
+      "from": "enrol_training",
+      "to": "training_done_30",
+      "label": ""
+    },
+    {
+      "id": "e57",
+      "from": "training_done_30",
+      "to": "probation_review",
+      "label": "Yes"
+    },
+    {
+      "id": "e58",
+      "from": "training_done_30",
+      "to": "send_reminder",
+      "label": "No"
+    },
+    {
+      "id": "e59",
+      "from": "send_reminder",
+      "to": "training_done_45",
+      "label": ""
+    },
+    {
+      "id": "e60",
+      "from": "training_done_45",
+      "to": "probation_review",
+      "label": "Yes"
+    },
+    {
+      "id": "e61",
+      "from": "training_done_45",
+      "to": "notify_manager",
+      "label": "No"
+    },
+    {
+      "id": "e62",
+      "from": "notify_manager",
+      "to": "suspend_access",
+      "label": ""
+    },
+    {
+      "id": "e63",
+      "from": "suspend_access",
+      "to": "complete_training",
+      "label": ""
+    },
+    {
+      "id": "e64",
+      "from": "complete_training",
+      "to": "probation_review",
+      "label": ""
+    },
+    {
+      "id": "e65",
+      "from": "probation_review",
+      "to": "probation_outcome",
+      "label": ""
+    },
+    {
+      "id": "e66",
+      "from": "probation_outcome",
+      "to": "probation_passed",
+      "label": "Pass"
+    },
+    {
+      "id": "e67",
+      "from": "probation_outcome",
+      "to": "extend_probation",
+      "label": "Extend"
+    },
+    {
+      "id": "e68",
+      "from": "extend_probation",
+      "to": "probation_review",
+      "label": "",
+      "feedback": true
+    },
+    {
+      "id": "e69",
+      "from": "probation_outcome",
+      "to": "process_termination",
+      "label": "Fail"
+    },
+    {
+      "id": "e70",
+      "from": "process_termination",
+      "to": "emp_terminated",
+      "label": ""
+    }
+  ],
+  "notes": [
+    {
+      "id": "n1",
+      "text": "Includes role, grade and budget code",
+      "nodes": [
+        "raise_request"
+      ]
+    },
+    {
+      "id": "n2",
+      "text": "Budget holder sign-off required above grade 7",
+      "nodes": [
+        "finance_approved"
+      ]
+    },
+    {
+      "id": "n3",
+      "text": "Published on careers site and two job boards",
+      "nodes": [
+        "publish_ad"
+      ]
+    },
+    {
+      "id": "n4",
+      "text": "Screened within 5 working days",
+      "nodes": [
+        "screen_apps"
+      ]
+    },
+    {
+      "id": "n5",
+      "text": "Recruiter renegotiates salary with candidate",
+      "nodes": [
+        "renegotiate_salary"
+      ]
+    },
+    {
+      "id": "n6",
+      "text": "Verifies ID, right to work, 5-year employment history and criminal record\nReport returned within 10 working days",
+      "nodes": [
+        "verify_bg"
+      ]
+    },
+    {
+      "id": "n7",
+      "text": "3-day SLA for out-of-stock laptop order",
+      "nodes": [
+        "order_laptop"
+      ]
+    },
+    {
+      "id": "n8",
+      "text": "Includes employee record, bank details and tax code",
+      "nodes": [
+        "setup_payroll"
+      ]
+    },
+    {
+      "id": "n9",
+      "text": "All four parallel tracks must complete before Day 1\nIncludes Day 1 agenda",
+      "nodes": [
+        "send_welcome"
+      ]
+    },
+    {
+      "id": "n10",
+      "text": "Day 1: card collected from Facilities, laptop received from IT",
+      "nodes": [
+        "collect_card",
+        "receive_laptop"
+      ]
+    },
+    {
+      "id": "n11",
+      "text": "Code of conduct, data protection and security awareness\nDue within 30 days",
+      "nodes": [
+        "enrol_training"
+      ]
+    },
+    {
+      "id": "n12",
+      "text": "Access suspended at day 45 until mandatory training is completed",
+      "nodes": [
+        "suspend_access"
+      ]
+    },
+    {
+      "id": "n13",
+      "text": "Adds 30 days and repeats probation review once",
+      "nodes": [
+        "extend_probation"
+      ]
+    }
+  ]
+}

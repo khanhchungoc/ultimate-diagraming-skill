@@ -687,6 +687,33 @@
             && (c.side === 'down' ? laneIdx[nodeMap[e.to].laneId] < lv : laneIdx[nodeMap[e.to].laneId] > lv));
           return sameLane && towardU;
         };
+        // Stacking a non-decision fork branch v straight under (or over) u blocks parallel branches from u to
+        // farther lanes when v also continues forward; unstack v so the fork fans out cleanly.
+        const forkBlocked = (c) => {
+          const u = nodeMap[c.from], v = nodeMap[c.to];
+          if (!u || !v || u.type === 'decision') return false;
+          if (!forwardEdges.some(e => e.from === c.to && nodeMap[e.to])) return false;
+          const lu = laneIdx[u.laneId], lv = laneIdx[v.laneId];
+          return forwardEdges.some(e => {
+            if (e.from !== c.from) return false;
+            const w = nodeMap[e.to];
+            const lw = w && laneIdx[w.laneId];
+            return c.side === 'down' ? lw > lv && lv > lu : lw < lv && lv < lu;
+          });
+        };
+        // A tight or stacked join branch u -> v leaves no vertical corridor for parallel branches from lanes
+        // beyond u on u's side of v to turn into v; give u -> v a full column gap.
+        const joinBlocked = (c) => {
+          const u = nodeMap[c.from], v = nodeMap[c.to];
+          if (!u || !v) return false;
+          const lu = laneIdx[u.laneId], lv = laneIdx[v.laneId];
+          return forwardEdges.some(e => {
+            if (e.to !== c.to) return false;
+            const w = nodeMap[e.from];
+            const lw = w && laneIdx[w.laneId];
+            return c.side === 'up' ? lw > lu && lu > lv : lw < lu && lu < lv;
+          });
+        };
         const valid = (cfg) => {
           const used = new Set();
           for (const c of cands) {
@@ -759,7 +786,7 @@
         // greedy search to a different layout elsewhere). Kept only when it adds no overlap or crossing.
         {
           // The unstacked node goes edge to edge with its source (tight); a full column only if tight is not clean.
-          const blocked = cands.filter(c => bestCfg.get(c.k) === 'zero' && (loopBlocked(c) || exitBlocked(c)));
+          const blocked = cands.filter(c => bestCfg.get(c.k) === 'zero' && (loopBlocked(c) || exitBlocked(c) || forkBlocked(c)));
           if (blocked.length) {
             for (const mode of ['tight', null]) {
               const trial = new Map(bestCfg);
@@ -767,6 +794,14 @@
               const res = evaluate(trial);
               if (res.key[0] <= best.key[0] && res.key[1] <= best.key[1]) { best = res; bestCfg = trial; break; }
             }
+          }
+          // Un-tighten / unstack join branches that share a side with farther incoming branches so they have a turn corridor.
+          const joinTight = cands.filter(c => (bestCfg.get(c.k) === 'zero' || bestCfg.get(c.k) === 'tight') && joinBlocked(c));
+          if (joinTight.length) {
+            const trial = new Map(bestCfg);
+            joinTight.forEach(c => trial.delete(c.k));
+            const res = evaluate(trial);
+            if (res.key[0] <= best.key[0] && res.key[1] <= best.key[1]) { best = res; bestCfg = trial; }
           }
         }
         // Column alignment: nodes in different lanes that land less than half a node apart (labels of different

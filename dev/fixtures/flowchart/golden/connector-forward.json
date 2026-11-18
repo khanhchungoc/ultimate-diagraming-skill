@@ -97,15 +97,15 @@
       "laneId": "lane-finance",
       "type": "connector",
       "label": "A",
-      "x": 1056,
-      "y": 12
+      "x": 992,
+      "y": 80
     },
     {
       "id": "n8",
       "laneId": "lane-finance",
       "type": "task",
       "label": "Pay Claim",
-      "x": 1000,
+      "x": 1056,
       "y": 64
     },
     {
@@ -113,7 +113,7 @@
       "laneId": "lane-finance",
       "type": "end",
       "label": "Claim Settled",
-      "x": 1200,
+      "x": 1256,
       "y": 64
     }
   ],

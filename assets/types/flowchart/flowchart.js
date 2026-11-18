@@ -1504,7 +1504,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           return b;
         };
         const NONE = { overlap: 0, near: 0, cross: 0 };
-        const relate = (pts, otherPts, skipFirst = false, skipLast = false) => {
+        const relate = (pts, otherPts, skipFirst = false, skipLast = false, skipFirstTrunk = false) => {
           // Every relation needs the two routes within 18px of each other: skip pairs whose boxes are further apart.
           // Only stable (unmutated) polylines are cached; the candidate route is measured fresh.
           const a = bboxOf(otherPts);
@@ -1517,7 +1517,9 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
             const [ax, ay] = pts[i], [bx, by] = pts[i + 1];
             const aV = Math.abs(ax - bx) < 1, aH = Math.abs(ay - by) < 1;
             for (let j = 0; j < otherPts.length - 1; j++) {
-              if ((skipFirst && i === 0 && j === 0) || (skipLast && i === lastI && j === lastJ)) continue;
+              if ((skipFirst && i === 0 && j === 0)
+                || (skipFirstTrunk && lastI >= 2 && lastJ >= 2 && i === 1 && j === 1)
+                || (skipLast && ((i === lastI && j === lastJ) || (lastI >= 2 && lastJ >= 2 && i === lastI - 1 && j === lastJ - 1)))) continue;
               const [cx, cy] = otherPts[j], [dx, dy] = otherPts[j + 1];
               const cV = Math.abs(cx - dx) < 1, cH = Math.abs(cy - dy) < 1;
               if (aV && cV) {
@@ -1601,7 +1603,8 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
             const incident = o.from === edge.from || o.to === edge.to || o.from === edge.to || o.to === edge.from;
             const skipFirst = o.from === edge.from && op && op.fromPort === fp;
             const skipLast = o.to === edge.to && op && op.toPort === tp;
-            const r = relate(pts, edgePolylines[o.id], skipFirst, skipLast);
+            const skipFirstTrunk = skipFirst && !(edge.label || '').trim() && !(o.label || '').trim();
+            const r = relate(pts, edgePolylines[o.id], skipFirst, skipLast, skipFirstTrunk);
             defect += (r.overlap > 0 ? COST.overlap + r.overlap : 0) + (incident ? 0 : r.near * COST.near) + r.cross * COST.cross;
             if (fixed + defect >= limit) return Infinity;
           }

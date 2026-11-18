@@ -5184,6 +5184,33 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
             && (c.side === 'down' ? laneIdx[nodeMap[e.to].laneId] < lv : laneIdx[nodeMap[e.to].laneId] > lv));
           return sameLane && towardU;
         };
+        // Stacking a non-decision fork branch v straight under (or over) u blocks parallel branches from u to
+        // farther lanes when v also continues forward; unstack v so the fork fans out cleanly.
+        const forkBlocked = (c) => {
+          const u = nodeMap[c.from], v = nodeMap[c.to];
+          if (!u || !v || u.type === 'decision') return false;
+          if (!forwardEdges.some(e => e.from === c.to && nodeMap[e.to])) return false;
+          const lu = laneIdx[u.laneId], lv = laneIdx[v.laneId];
+          return forwardEdges.some(e => {
+            if (e.from !== c.from) return false;
+            const w = nodeMap[e.to];
+            const lw = w && laneIdx[w.laneId];
+            return c.side === 'down' ? lw > lv && lv > lu : lw < lv && lv < lu;
+          });
+        };
+        // A tight or stacked join branch u -> v leaves no vertical corridor for parallel branches from lanes
+        // beyond u on u's side of v to turn into v; give u -> v a full column gap.
+        const joinBlocked = (c) => {
+          const u = nodeMap[c.from], v = nodeMap[c.to];
+          if (!u || !v) return false;
+          const lu = laneIdx[u.laneId], lv = laneIdx[v.laneId];
+          return forwardEdges.some(e => {
+            if (e.to !== c.to) return false;
+            const w = nodeMap[e.from];
+            const lw = w && laneIdx[w.laneId];
+            return c.side === 'up' ? lw > lu && lu > lv : lw < lu && lu < lv;
+          });
+        };
         const valid = (cfg) => {
           const used = new Set();
           for (const c of cands) {
@@ -5256,7 +5283,7 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
         // greedy search to a different layout elsewhere). Kept only when it adds no overlap or crossing.
         {
           // The unstacked node goes edge to edge with its source (tight); a full column only if tight is not clean.
-          const blocked = cands.filter(c => bestCfg.get(c.k) === 'zero' && (loopBlocked(c) || exitBlocked(c)));
+          const blocked = cands.filter(c => bestCfg.get(c.k) === 'zero' && (loopBlocked(c) || exitBlocked(c) || forkBlocked(c)));
           if (blocked.length) {
             for (const mode of ['tight', null]) {
               const trial = new Map(bestCfg);
@@ -5264,6 +5291,14 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
               const res = evaluate(trial);
               if (res.key[0] <= best.key[0] && res.key[1] <= best.key[1]) { best = res; bestCfg = trial; break; }
             }
+          }
+          // Un-tighten / unstack join branches that share a side with farther incoming branches so they have a turn corridor.
+          const joinTight = cands.filter(c => (bestCfg.get(c.k) === 'zero' || bestCfg.get(c.k) === 'tight') && joinBlocked(c));
+          if (joinTight.length) {
+            const trial = new Map(bestCfg);
+            joinTight.forEach(c => trial.delete(c.k));
+            const res = evaluate(trial);
+            if (res.key[0] <= best.key[0] && res.key[1] <= best.key[1]) { best = res; bestCfg = trial; }
           }
         }
         // Column alignment: nodes in different lanes that land less than half a node apart (labels of different
@@ -7728,7 +7763,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           return b;
         };
         const NONE = { overlap: 0, near: 0, cross: 0 };
-        const relate = (pts, otherPts, skipFirst = false, skipLast = false) => {
+        const relate = (pts, otherPts, skipFirst = false, skipLast = false, skipFirstTrunk = false) => {
           // Every relation needs the two routes within 18px of each other: skip pairs whose boxes are further apart.
           // Only stable (unmutated) polylines are cached; the candidate route is measured fresh.
           const a = bboxOf(otherPts);
@@ -7741,7 +7776,9 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
             const [ax, ay] = pts[i], [bx, by] = pts[i + 1];
             const aV = Math.abs(ax - bx) < 1, aH = Math.abs(ay - by) < 1;
             for (let j = 0; j < otherPts.length - 1; j++) {
-              if ((skipFirst && i === 0 && j === 0) || (skipLast && i === lastI && j === lastJ)) continue;
+              if ((skipFirst && i === 0 && j === 0)
+                || (skipFirstTrunk && lastI >= 2 && lastJ >= 2 && i === 1 && j === 1)
+                || (skipLast && ((i === lastI && j === lastJ) || (lastI >= 2 && lastJ >= 2 && i === lastI - 1 && j === lastJ - 1)))) continue;
               const [cx, cy] = otherPts[j], [dx, dy] = otherPts[j + 1];
               const cV = Math.abs(cx - dx) < 1, cH = Math.abs(cy - dy) < 1;
               if (aV && cV) {
@@ -7825,7 +7862,8 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
             const incident = o.from === edge.from || o.to === edge.to || o.from === edge.to || o.to === edge.from;
             const skipFirst = o.from === edge.from && op && op.fromPort === fp;
             const skipLast = o.to === edge.to && op && op.toPort === tp;
-            const r = relate(pts, edgePolylines[o.id], skipFirst, skipLast);
+            const skipFirstTrunk = skipFirst && !(edge.label || '').trim() && !(o.label || '').trim();
+            const r = relate(pts, edgePolylines[o.id], skipFirst, skipLast, skipFirstTrunk);
             defect += (r.overlap > 0 ? COST.overlap + r.overlap : 0) + (incident ? 0 : r.near * COST.near) + r.cross * COST.cross;
             if (fixed + defect >= limit) return Infinity;
           }
