@@ -1,0 +1,105 @@
+{
+ "_readme": "Lane icons --layout picks from a lane name when the lane has no icon: in this order, the first icon whose \"use\" words match a word of the name. Each name must exist in assets/icons/default.json.",
+ "lanes": [
+  {
+   "icon": "user",
+   "use": "a person, customer, applicant, requester"
+  },
+  {
+   "icon": "users",
+   "use": "a team, group, generic role"
+  },
+  {
+   "icon": "briefcase",
+   "use": "sales, account or relationship manager, officer, broker"
+  },
+  {
+   "icon": "building",
+   "use": "organisation, branch, department, agency"
+  },
+  {
+   "icon": "headset",
+   "use": "support, help desk, call centre"
+  },
+  {
+   "icon": "monitor",
+   "use": "frontend, UI, web or mobile app, portal"
+  },
+  {
+   "icon": "code",
+   "use": "developer, engineer, backend, API"
+  },
+  {
+   "icon": "server",
+   "use": "server, infrastructure host"
+  },
+  {
+   "icon": "database",
+   "use": "data store, data team, reporting"
+  },
+  {
+   "icon": "cloud",
+   "use": "cloud platform, SaaS"
+  },
+  {
+   "icon": "cpu",
+   "use": "automated system, engine, bot, workflow service"
+  },
+  {
+   "icon": "cog",
+   "use": "DevOps, operations, platform, release"
+  },
+  {
+   "icon": "shield",
+   "use": "risk, compliance, security, fraud, legal, audit"
+  },
+  {
+   "icon": "scale",
+   "use": "legal, governance, regulator"
+  },
+  {
+   "icon": "banknote",
+   "use": "finance, billing, treasury"
+  },
+  {
+   "icon": "credit-card",
+   "use": "payments, card processor"
+  },
+  {
+   "icon": "mail",
+   "use": "notifications, email, messaging"
+  },
+  {
+   "icon": "package",
+   "use": "inventory, product, parcel"
+  },
+  {
+   "icon": "truck",
+   "use": "warehouse, logistics, shipping, delivery"
+  },
+  {
+   "icon": "cart",
+   "use": "shop, checkout, order channel"
+  },
+  {
+   "icon": "clipboard",
+   "use": "business analyst, product owner, requirements"
+  },
+  {
+   "icon": "check",
+   "use": "QA, tester, verification"
+  },
+  {
+   "icon": "layers",
+   "use": "architecture, a layered or composite system"
+  },
+  {
+   "icon": "globe",
+   "use": "external party, third party, partner, vendor"
+  },
+  {
+   "icon": "flag",
+   "use": "core team, lead, steering group, management"
+  }
+ ]
+}

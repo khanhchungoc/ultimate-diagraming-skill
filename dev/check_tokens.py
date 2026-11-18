@@ -187,20 +187,22 @@ def icon_name_findings(kind, text, known):
 
 
 def lane_icon_findings():
-    md = ROOT / "references/types/flowchart.md"
-    reg = ROOT / "assets/icons/default.json"
-    if not reg.is_file():
+    """Every lane icon (assets/icons/lanes.json, the picking table, and the names listed in the flowchart reference's
+    "## Lane icons" section) must exist in the registry, and the reference must list exactly the table's icons."""
+    md, table = ROOT / "references/types/flowchart.md", ROOT / "assets/icons/lanes.json"
+    if not (ROOT / "assets/icons/default.json").is_file():
         print("note: assets/icons/default.json does not exist yet, lane-icon check skipped")
         return []
-    data = json.loads(reg.read_text(encoding="utf-8"))
     known = registry_names()
-    out, inside = [], False
-    for n, line in enumerate(md.read_text(encoding="utf-8").split("\n"), 1):
-        if line.startswith("## "):
-            inside = line.strip() == "## Lane icons"
-        m = inside and re.match(r"\|\s*`([\w-]+)`\s*\|", line)
-        if m and m.group(1) not in known:
-            out.append((str(md.relative_to(ROOT)), n, "lane-icon", m.group(1)))
+    rows = [r["icon"] for r in json.loads(table.read_text(encoding="utf-8"))["lanes"]]
+    out = [(str(table.relative_to(ROOT)), 1, "lane-icon", i) for i in rows if i not in known]
+    text = md.read_text(encoding="utf-8")
+    section = text.split("\n## Lane icons", 1)[-1].split("\n## ", 1)[0] if "\n## Lane icons" in text else ""
+    listed = re.findall(r"`([\w-]+)`", section)
+    line = text[: text.find("\n## Lane icons")].count("\n") + 2
+    out += [(str(md.relative_to(ROOT)), line, "lane-icon", i) for i in listed if i not in known]
+    if listed and listed != rows:
+        out.append((str(md.relative_to(ROOT)), line, "lane-icon", "names differ from assets/icons/lanes.json"))
     return out
 
 

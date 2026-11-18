@@ -1406,17 +1406,15 @@ def artifact_index_template(shell_html: str) -> str:
 
 
 def lane_icon_table() -> List[Tuple[str, str]]:
-    """(icon, "Use for" text) for each row of the flowchart reference's "Lane icons" table; empty when the reference is not there."""
-    ref = ASSETS_DIR.parent / "references" / "types" / "flowchart.md"
-    if not ref.is_file():
+    """(icon, "use" words) for each lane icon, in order (assets/icons/lanes.json); empty when the file is not there."""
+    path = ASSETS_DIR / "icons" / "lanes.json"
+    if not path.is_file():
         return []
-    text = ref.read_text(encoding="utf-8")
-    section = text.split("\n## Lane icons", 1)[-1].split("\n## ", 1)[0] if "\n## Lane icons" in text else ""
-    return re.findall(r"^\|\s*`([\w-]+)`\s*\|\s*([^|]*?)\s*\|", section, re.M)
+    return [(row["icon"], row["use"]) for row in json.loads(path.read_text(encoding="utf-8"))["lanes"]]
 
 
 def lane_icon_menu() -> List[str]:
-    """The icon names the flowchart reference offers for a lane (its "Lane icons" table), the agent's menu."""
+    """The icon names a lane can use (assets/icons/lanes.json), the agent's menu."""
     return [icon for icon, _ in lane_icon_table()]
 
 
