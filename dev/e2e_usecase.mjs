@@ -482,7 +482,7 @@ if readme is not None: out = f.with_readme(out, readme)
 sys.stdout.write(f.format_json(out))`;
   const pr = spawnSync('python3', ['-I', '-c', py], { input: await t.ev(`document.getElementById('diagram-data').textContent`), encoding: 'utf8' });
   const blockText = await t.ev(`document.getElementById('diagram-data').textContent`);
-  t.check('the Python codec (disk_format.py) reads and writes that block unchanged', pr.status === 0 && (pr.stdout.trim() === 'SKIP' || pr.stdout.trim() === blockText.trim()), pr.stderr || pr.stdout.slice(0, 200));
+  t.check('the Python codec (disk_format.py) reads and writes that block unchanged', pr.status === 0 && (pr.stdout.trim() === 'SKIP' || pr.stdout.replace(/\r\n/g, '\n').trim() === blockText.trim()), pr.stderr || pr.stdout.slice(0, 200));
 
   // --- present ----------------------------------------------------------------------------------------------------------------------------
   // The Present button toggles in place: the search is hidden and cleared, folds are view only

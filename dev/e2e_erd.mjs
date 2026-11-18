@@ -89,7 +89,7 @@ out = to_disk('erd', from_disk('erd', d))
 if readme is not None: out = with_readme(out, readme)
 sys.stdout.write(format_json(out))`;
     const r = spawnSync('python3', ['-I', '-c', py], { input: blockText, encoding: 'utf8' });
-    return r.status === 0 && r.stdout.trim() === blockText.trim() ? '' : `python: ${r.stderr || 'differs'}`;
+    return r.status === 0 && r.stdout.replace(/\r\n/g, '\n').trim() === blockText.trim() ? '' : `python: ${r.stderr || 'differs'}`;
   };
 
   // ---------------------------------------------------------------------------------------------------------

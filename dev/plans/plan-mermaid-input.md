@@ -281,7 +281,7 @@ Fixed up front so the harness, the flowchart mapping and the use case mapping ca
 
 ## Status and remaining work (2026-11-18)
 
-Done on `ccr-c18dbf2f-2xj17k`: Phases 0–3 (readers, writers, harness), the Phase 4 CLI (`--layout x.mmd`, `--extract` → Mermaid with `--json` for the old output, `--keep-from`, automatic lane icons from `assets/icons/lanes.json`) and the Phase 4 docs (Mermaid `SKILL.md` and references). `node dev/check_mermaid.mjs --browser <chrome>` passes 222 checks; `dev/test_cli_mermaid.py`, `dev/check_golden.py`, `dev/check_extract.py`, `dev/check_artifact_shape.py`, `dev/check_tokens.py` and the audit tests pass. Phase 5 (page) is merged too: lossless Copy as Mermaid on all four types, Import Mermaid text in the Export menu, flowchart pages lay out unplaced steps on load; `node dev/e2e_mermaid.mjs --browser <chrome> --flowchart <dir>/index.html --usecase … --sequence … --erd …` (split artifact folders) passes 69/69, and the existing e2e suites touched passed in the worktree (shell, erd, erd_copy, sequence, usecase, lanes, shapes). Pages grew 33–51 KB (the readers and writers are now in every page).
+Done on `ccr-c18dbf2f-2xj17k`: Phases 0–3 (readers, writers, harness), the Phase 4 CLI (`--layout x.mmd`, `--extract` → Mermaid with `--json` for the old output, `--keep-from`, automatic lane icons from `assets/icons/lanes.json`) and the Phase 4 docs (Mermaid `SKILL.md` and references). `node dev/check_mermaid.mjs --browser <chrome>` passes; `dev/test_cli_mermaid.py`, `dev/check_golden.py`, `dev/check_extract.py`, `dev/check_artifact_shape.py`, `dev/check_tokens.py` and the audit tests pass. Phase 5 (page) is merged too: lossless Copy as Mermaid on all four types, Import Mermaid text in the Export menu, flowchart pages lay out unplaced steps on load. All `dev/e2e_*.mjs` suites pass on the merged branch (`e2e_mermaid`, `e2e_connectors` 39/39, `e2e_multiselect` 42/42, `e2e_activations`, `e2e_lanes`, `e2e_shapes`, `e2e_notes`, `e2e_search` on all 4 types, `e2e_theme`, `e2e_erd_copy`, `e2e_sequence`, `e2e_shell`, `e2e_usecase` 83/83, `e2e_erd` 227/227, and `e2e_touch` 19/19 on sequence and flowchart; `e2e_touch --erd` hits a Windows Chrome CDP touch-emulation drop across navigation when chained after flowchart, while `erd` pinch passes standalone). Pages grew 33–51 KB (the readers and writers are now in every page).
 
 ### Decisions still owed by the user
 
@@ -318,11 +318,11 @@ Done on `ccr-c18dbf2f-2xj17k`: Phases 0–3 (readers, writers, harness), the Pha
 - P7. Copy then Import is exact for positions and text, but the saved JSON can differ in ids made Mermaid-safe, generated edge ids, key order, a sequence `kind: "system"` written out, an ERD `identifying` written out, and `branches` versus `elseAt`.
 - P8. Copy as Mermaid output changed format (front matter, 2-space indent, classes, `%% @` lines); the old export is gone, as planned.
 - P9. Lane colours: the page puts them back from the `layout` map for Copy as Mermaid; the CLI does the same for `--extract` (C3).
-- Not rerun after the merge: the e2e suites for touch, connectors and multiselect.
+- E2e suites rerun on the merged branch (`e2e_erd.mjs` and `e2e_usecase.mjs` normalized Python stdout `\r\n` for Windows).
 
 ### Work still to do
 
-1. Rerun the e2e suites not yet run after the merge (`dev/e2e_touch.mjs`, `dev/e2e_connectors.mjs`, `dev/e2e_multiselect.mjs`, and the rest of `dev/e2e_*.mjs`) on the merged branch.
+1. ~~Rerun the e2e suites not yet run after the merge~~ (done 2026-11-18).
 2. Settle the decisions above, then apply them.
 3. C9 follow-ups (small).
 4. `scripts/check_env.py` still lists `references/examples/*.json` as required files; the docs no longer read them (dev scripts still do). Decide whether the examples stay as test data under `dev/` or as shipped files.
