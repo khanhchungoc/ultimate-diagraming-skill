@@ -6,7 +6,7 @@ Applies only when your tools include `Artifact`. `--target artifact` builds a fo
 
 1. Build with `--target artifact` into a scratch directory:
    ```shell
-   python "<skill-dir>/scripts/layout_engine.py" --layout <scratch.json> --target artifact -o <scratch>/<title-slug>
+   python "<skill-dir>/scripts/layout_engine.py" --layout <scratch.mmd> --target artifact -o <scratch>/<title-slug>
    ```
    Never write this directory into the workspace.
 2. After a clean run, publish with `Artifact`:
@@ -15,26 +15,30 @@ Applies only when your tools include `Artifact`. `--target artifact` builds a fo
    - `icon`: `"chart"`
    - `capabilities`: `{artifact: {}, downloads: true}`
    - `description`: one sentence describing the diagram
-3. Keep `<scratch>/<title-slug>/` until the conversation ends (updates in this conversation reuse its `index.html`). Delete the scratch authoring JSON.
+3. Keep `<scratch>/<title-slug>/` until the conversation ends (updates in this conversation reuse its `index.html`). Delete the scratch authoring `.mmd`.
 4. Tell the user the link and that it is private until they share it from claude.ai.
 
 ## Read
 
-1. For split artifacts, call `Artifact` with `action: "read"`, `url`, and `path: "diagram.json"` (just a few KB; never read `app.css` or `app.js`). Answer from that JSON directly, or run `python "<skill-dir>/scripts/layout_engine.py" --extract <diagram.json>` for canonical authoring JSON; see [reading.md](reading.md).
+1. For split artifacts, call `Artifact` with `action: "read"`, `url`, and `path: "diagram.json"` (just a few KB; never read `app.css` or `app.js`), then run `python "<skill-dir>/scripts/layout_engine.py" --extract <diagram.json>`, which prints the diagram as Mermaid; see [reading.md](reading.md).
 2. Or call `Artifact` with `action: "read"` and `url` **without** `path`, then run `python "<skill-dir>/scripts/layout_engine.py" --extract <that file>` (required for legacy single-file artifacts; never open a single-file `.html` whole).
 3. If the artifact belongs to someone else, the read returns only a summary and no file: say so, answer from the summary, and offer a new artifact.
 
 ## Update in place (same artifact URL)
 
 1. Call `Artifact` with `action: "read"` on `url` **without** `path`. This reads the tiny `index.html` and satisfies the overwrite gate. Reading single files by `path` or listing files (`Artifact` with `action: "list"` and `scope: "files"`) does **not** satisfy the overwrite gate.
-2. Call `Artifact` with `action: "read"` on `url` with `path: "diagram.json"` right before editing so you have the user's latest saved JSON and `layout` map.
-   The read of step 1 returns the page inline and saves no file. Write that page text to `<scratch>/<title-slug>/index.html` and keep your edited `diagram.json` in the same folder: `--layout` reads a stored theme (`<script id="diagram-theme">`) from the `index.html` next to `diagram.json`, and without it the rebuilt page silently loses the theme.
-3. **Text, label, color, or attribute edits (no positions changed):** edit `diagram.json` directly while keeping its `layout` map intact (do not run `--layout`). Publish to the same `url` (no `capabilities`) with `file_path: <scratch>/<title-slug>/index.html` (or the `index.html` saved in step 1) and `files: {"diagram.json": "<edited diagram.json>"}` — never reading or uploading `app.css` or `app.js`.
-4. **Structural edits (adding or removing nodes, tables, actors, or edges):** edit `diagram.json`, run:
+2. Call `Artifact` with `action: "read"` on `url` with `path: "diagram.json"` right before editing so you have the user's latest saved data and its `layout` map.
+   The read of step 1 returns the page inline and saves no file. Write that page text to `<scratch>/<title-slug>/index.html` and keep `diagram.json` in the same folder: `--layout` reads a stored theme (`<script id="diagram-theme">`) from the `index.html` next to `diagram.json`, and without it the rebuilt page silently loses the theme.
+3. Extract the Mermaid and edit it (text, label, colour, attribute or structural edits alike; never edit `diagram.json` by hand):
    ```shell
-   python "<skill-dir>/scripts/layout_engine.py" --layout <diagram.json> --target artifact -o <scratch>/<title-slug>
+   python "<skill-dir>/scripts/layout_engine.py" --extract <scratch>/<title-slug>/diagram.json -o <scratch>/edit.mmd
    ```
-   Then publish to the same `url` (no `capabilities`) with `file_path: <scratch>/<title-slug>/index.html` and `files: {"diagram.json": "<scratch>/<title-slug>/diagram.json"}` (never reading or uploading `app.css` or `app.js`). A re-layout resets positions the user dragged by hand; tell them.
+4. Run:
+   ```shell
+   python "<skill-dir>/scripts/layout_engine.py" --layout <scratch>/edit.mmd --keep-from <scratch>/<title-slug>/diagram.json --target artifact -o <scratch>/<title-slug>
+   ```
+   Positions the user dragged by hand are kept while the item ids are unchanged; otherwise everything is laid out again and the output says `[INFO] Positions reset: ...`: tell the user.
+5. Publish to the same `url` (no `capabilities`) with `file_path: <scratch>/<title-slug>/index.html` and `files: {"diagram.json": "<scratch>/<title-slug>/diagram.json"}` (never reading or uploading `app.css` or `app.js`).
 
 ## Upgrade with a newer engine or UI (data and positions unchanged)
 
@@ -55,7 +59,7 @@ Old single-file artifacts keep all CSS, JS, and `<script id="diagram-data">` in 
 Do not read a whole single-file page by default. Instead:
 
 - **Upgrade to split files:** run `python "<skill-dir>/scripts/layout_engine.py" --layout <saved page.html> --keep-layout --target artifact -o <scratch>/<title-slug>` and publish as a **new** artifact (no `url`, following *Create*). Data and saved positions carry over.
-- **Edit content:** run `--extract <saved page.html> -o <scratch.json>`, edit the JSON, build with `--target artifact -o <scratch>/<title-slug>`, and publish as a **new** artifact (no `url`). Explain why the old link could not be updated in place, share the new link, note that the old link still shows the old version, and offer to delete the old artifact.
+- **Edit content:** run `--extract <saved page.html> -o <scratch.mmd>`, edit the Mermaid, build with `--layout <scratch.mmd> --keep-from <saved page.html> --target artifact -o <scratch>/<title-slug>`, and publish as a **new** artifact (no `url`). Explain why the old link could not be updated in place, share the new link, note that the old link still shows the old version, and offer to delete the old artifact.
 
 ## Delete
 
