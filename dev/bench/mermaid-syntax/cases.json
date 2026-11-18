@@ -1,0 +1,594 @@
+[
+[
+"FC shape doc",
+"flowchart LR\na@{ shape: doc, label: \"X\" }"
+],
+[
+"FC shape docs",
+"flowchart LR\na@{ shape: docs, label: \"X\" }"
+],
+[
+"FC shape delay",
+"flowchart LR\na@{ shape: delay, label: \"X\" }"
+],
+[
+"FC shape text",
+"flowchart LR\na@{ shape: text, label: \"X\" }"
+],
+[
+"FC shape braces",
+"flowchart LR\na@{ shape: braces, label: \"X\" }"
+],
+[
+"FC shape brace",
+"flowchart LR\na@{ shape: brace, label: \"X\" }"
+],
+[
+"FC shape brace-r",
+"flowchart LR\na@{ shape: brace-r, label: \"X\" }"
+],
+[
+"FC shape flag",
+"flowchart LR\na@{ shape: flag, label: \"X\" }"
+],
+[
+"FC shape fork",
+"flowchart LR\na@{ shape: fork, label: \"X\" }"
+],
+[
+"FC shape hourglass",
+"flowchart LR\na@{ shape: hourglass, label: \"X\" }"
+],
+[
+"FC shape bolt",
+"flowchart LR\na@{ shape: bolt, label: \"X\" }"
+],
+[
+"FC shape notch-rect",
+"flowchart LR\na@{ shape: notch-rect, label: \"X\" }"
+],
+[
+"FC shape lin-rect",
+"flowchart LR\na@{ shape: lin-rect, label: \"X\" }"
+],
+[
+"FC shape subproc",
+"flowchart LR\na@{ shape: subproc, label: \"X\" }"
+],
+[
+"FC shape cyl",
+"flowchart LR\na@{ shape: cyl, label: \"X\" }"
+],
+[
+"FC shape lin-cyl",
+"flowchart LR\na@{ shape: lin-cyl, label: \"X\" }"
+],
+[
+"FC shape curv-trap",
+"flowchart LR\na@{ shape: curv-trap, label: \"X\" }"
+],
+[
+"FC shape sm-circ",
+"flowchart LR\na@{ shape: sm-circ, label: \"X\" }"
+],
+[
+"FC shape fr-circ",
+"flowchart LR\na@{ shape: fr-circ, label: \"X\" }"
+],
+[
+"FC shape dbl-circ",
+"flowchart LR\na@{ shape: dbl-circ, label: \"X\" }"
+],
+[
+"FC shape f-circ",
+"flowchart LR\na@{ shape: f-circ, label: \"X\" }"
+],
+[
+"FC shape stadium",
+"flowchart LR\na@{ shape: stadium, label: \"X\" }"
+],
+[
+"FC shape diam",
+"flowchart LR\na@{ shape: diam, label: \"X\" }"
+],
+[
+"FC shape hex",
+"flowchart LR\na@{ shape: hex, label: \"X\" }"
+],
+[
+"FC shape lean-r",
+"flowchart LR\na@{ shape: lean-r, label: \"X\" }"
+],
+[
+"FC shape tri",
+"flowchart LR\na@{ shape: tri, label: \"X\" }"
+],
+[
+"FC shape st-rect",
+"flowchart LR\na@{ shape: st-rect, label: \"X\" }"
+],
+[
+"FC shape tag-doc",
+"flowchart LR\na@{ shape: tag-doc, label: \"X\" }"
+],
+[
+"FC shape win-pane",
+"flowchart LR\na@{ shape: win-pane, label: \"X\" }"
+],
+[
+"FC shape odd",
+"flowchart LR\na@{ shape: odd, label: \"X\" }"
+],
+[
+"FC shape comment",
+"flowchart LR\na@{ shape: comment, label: \"X\" }"
+],
+[
+"FC shape manual-input",
+"flowchart LR\na@{ shape: manual-input, label: \"X\" }"
+],
+[
+"FC classic shapes",
+"flowchart LR\na[T] --> b{D?} --> c([S]) --> d[[P]] --> e[(DB)] --> g[/IO/] --> h((C)) --> i>F] --> j{{H}}"
+],
+[
+"FC icon node",
+"flowchart LR\na@{ icon: \"fa:user\", form: \"circle\", label: \"Customer\", pos: \"b\" }"
+],
+[
+"FC img node",
+"flowchart LR\na@{ img: \"https://x/y.png\", label: \"X\", w: 60, h: 60 }"
+],
+[
+"FC subgraph title+dir",
+"flowchart LR\nsubgraph lane1[\"Hiring Manager\"]\n direction TB\n a\n end"
+],
+[
+"FC nested subgraph",
+"flowchart LR\nsubgraph s1[\"Sys\"]\n subgraph s2[\"Inner\"]\n a\n end\n end"
+],
+[
+"FC edge kinds",
+"flowchart LR\na --> b\na --- c\na -.-> d\na -.- e\na ==> f\na === g\na --o h\na --x i\na <--> j\na ~~~ k\na ---> l"
+],
+[
+"FC edge labels",
+"flowchart LR\na -->|Yes| b\na -- No --> c\na -.->|\"extend: x has a code\"| d\na ==>|retry| e"
+],
+[
+"FC chain & fan",
+"flowchart LR\na --> b --> c\na & b --> c & d"
+],
+[
+"FC edge id",
+"flowchart LR\na e1@--> b\ne1@{ animate: true }"
+],
+[
+"FC edge id curve",
+"flowchart LR\na e1@--> b\ne1@{ curve: linear }"
+],
+[
+"FC classDef/class/:::",
+"flowchart LR\nclassDef c1 fill:#f9f\na:::c1 --> b\nclass b c1\nstyle a stroke:#333"
+],
+[
+"FC linkStyle",
+"flowchart LR\na --> b\nlinkStyle 0 stroke:red"
+],
+[
+"FC comments",
+"flowchart LR\n%% @note a: hello\n%% @showNotes\na --> b"
+],
+[
+"FC br + quotes + unicode",
+"flowchart LR\na[\"Claims over 5,000 EUR<br>need a second assessor \u2014 \u20ac\"] --> b[\"Credit Score >= 700?\"]"
+],
+[
+"FC markdown string",
+"flowchart LR\na[\"`**Bold** text`\"]"
+],
+[
+"FC label with ? and : and #",
+"flowchart LR\na{\"Purchase Value Band?\"} -->|\"<= $1,500\"| b\na -->|\"$1,501\u2013$5,000\"| c\na -->|\"> $5,000\"| d"
+],
+[
+"FC reserved id end",
+"flowchart LR\nstart --> end1\nend1 --> x"
+],
+[
+"FC id named end",
+"flowchart LR\na --> end"
+],
+[
+"FC click/tooltip",
+"flowchart LR\na --> b\nclick a \"https://x\" \"tip\""
+],
+[
+"FC accTitle",
+"flowchart LR\naccTitle: T\naccDescr: D\na-->b"
+],
+[
+"FC front-matter title+custom key",
+"---\ntitle: Onboarding\ndiagramType: usecase\n---\nflowchart LR\na-->b"
+],
+[
+"FC front-matter config",
+"---\nconfig:\n  look: handDrawn\n---\nflowchart LR\na-->b"
+],
+[
+"FC graph keyword",
+"graph TD\na-->b"
+],
+[
+"FC TB",
+"flowchart TB\na-->b"
+],
+[
+"SEQ participants alias",
+"sequenceDiagram\nparticipant p1 as Customer\nactor u as User\np1->>u: hi"
+],
+[
+"SEQ type boundary",
+"sequenceDiagram\nparticipant A@{ \"type\" : \"boundary\" }\nA->>A: x"
+],
+[
+"SEQ type control",
+"sequenceDiagram\nparticipant A@{ \"type\" : \"control\" }\nA->>A: x"
+],
+[
+"SEQ type entity",
+"sequenceDiagram\nparticipant A@{ \"type\" : \"entity\" }\nA->>A: x"
+],
+[
+"SEQ type database",
+"sequenceDiagram\nparticipant A@{ \"type\" : \"database\" }\nA->>A: x"
+],
+[
+"SEQ type collections",
+"sequenceDiagram\nparticipant A@{ \"type\" : \"collections\" }\nA->>A: x"
+],
+[
+"SEQ type queue",
+"sequenceDiagram\nparticipant A@{ \"type\" : \"queue\" }\nA->>A: x"
+],
+[
+"SEQ type actor",
+"sequenceDiagram\nparticipant A@{ \"type\" : \"actor\" }\nA->>A: x"
+],
+[
+"SEQ type participant",
+"sequenceDiagram\nparticipant A@{ \"type\" : \"participant\" }\nA->>A: x"
+],
+[
+"SEQ arrows",
+"sequenceDiagram\nA->B: a\nA-->B: b\nA->>B: c\nA-->>B: d\nA-xB: e\nA--xB: f\nA-)B: g\nA--)B: h"
+],
+[
+"SEQ bidir arrows",
+"sequenceDiagram\nA<<->>B: a\nA<<-->>B: b"
+],
+[
+"SEQ half arrows",
+"sequenceDiagram\nA-|\\B: a\nA-/|B: b"
+],
+[
+"SEQ activate",
+"sequenceDiagram\nA->>+B: call\nB-->>-A: ret\nactivate A\ndeactivate A"
+],
+[
+"SEQ notes",
+"sequenceDiagram\nNote right of A: x\nNote left of A: y\nNote over A,B: z<br>two lines"
+],
+[
+"SEQ fragments",
+"sequenceDiagram\nloop up to 3 retries\nA->>B: a\nend\nalt ok\nA->>B: b\nelse declined\nA->>B: c\nelse timeout\nA->>B: d\nend\nopt voucher\nA->>B: e\nend\npar one\nA->>B: f\nand two\nA->>C: g\nend\ncritical lock\nA->>B: h\noption fail\nA->>B: i\nend\nbreak out\nA->>B: j\nend"
+],
+[
+"SEQ rect color",
+"sequenceDiagram\nrect rgb(200,220,255)\nA->>B: a\nend\nrect rgba(0,0,255,.1)\nA->>B: b\nend"
+],
+[
+"SEQ rect with label?",
+"sequenceDiagram\nrect rgb(200,220,255) Payment\nA->>B: a\nend"
+],
+[
+"SEQ box",
+"sequenceDiagram\nbox Aqua Our services\nparticipant A\nparticipant B\nend\nbox rgb(33,66,99) Third parties\nparticipant C\nend\nA->>C: x"
+],
+[
+"SEQ box transparent",
+"sequenceDiagram\nbox transparent Our services\nparticipant A\nend\nA->>A: x"
+],
+[
+"SEQ create/destroy",
+"sequenceDiagram\nA->>B: a\ncreate participant C\nB->>C: make\ndestroy C\nB-xC: kill"
+],
+[
+"SEQ autonumber",
+"sequenceDiagram\nautonumber\nA->>B: a\nautonumber 10 5\nA->>B: b"
+],
+[
+"SEQ msg detail via br",
+"sequenceDiagram\nA->>B: Charge card<br>amount, currency, token"
+],
+[
+"SEQ comments",
+"sequenceDiagram\n%% @detail m2 amount\nA->>B: a"
+],
+[
+"SEQ links menu",
+"sequenceDiagram\nparticipant A\nlink A: Dashboard @ https://x"
+],
+[
+"SEQ message ids?",
+"sequenceDiagram\nA->>B: m1: Place order"
+],
+[
+"SEQ central connection",
+"sequenceDiagram\nA->>()B: a"
+],
+[
+"ER basic",
+"erDiagram\nCUSTOMER ||--o{ ORDER : places"
+],
+[
+"ER lowercase snake",
+"erDiagram\ncustomer ||--o{ order_item : has"
+],
+[
+"ER all cardinalities",
+"erDiagram\na |o--o| b : x\nc ||--|| d : x\ne }o--o{ f : x\ng }|--|{ h : x\ni |o..o{ j : x"
+],
+[
+"ER word cardinalities",
+"erDiagram\na one or zero to zero or more b : x\nc only one to one or more d : x\ne 1 to many f : x"
+],
+[
+"ER empty label",
+"erDiagram\na ||--o{ b : \"\""
+],
+[
+"ER no label",
+"erDiagram\na ||--o{ b"
+],
+[
+"ER attributes",
+"erDiagram\norder {\n uuid id PK\n uuid customer_id FK\n text email UK \"unique per tenant\"\n int qty \"1 to 99\"\n}"
+],
+[
+"ER multi keys",
+"erDiagram\norder_item {\n uuid order_id PK, FK\n}"
+],
+[
+"ER type with parens",
+"erDiagram\norder {\n varchar(255) email\n}"
+],
+[
+"ER type with comma",
+"erDiagram\norder {\n numeric(10,2) amount\n}"
+],
+[
+"ER type with space",
+"erDiagram\norder {\n double precision amount\n}"
+],
+[
+"ER type timestamptz[]",
+"erDiagram\norder {\n text[] tags\n}"
+],
+[
+"ER attr no type",
+"erDiagram\norder {\n id PK\n}"
+],
+[
+"ER alias",
+"erDiagram\norder[\"Order table\"] {\n uuid id PK\n}"
+],
+[
+"ER direction",
+"erDiagram\ndirection LR\na ||--o{ b : x"
+],
+[
+"ER classDef :::",
+"erDiagram\na:::c1 ||--o{ b : x\nclassDef c1 fill:#f9f"
+],
+[
+"ER style",
+"erDiagram\na ||--o{ b : x\nstyle a fill:#f9f"
+],
+[
+"ER class stmt",
+"erDiagram\na ||--o{ b : x\nclass a,b c1\nclassDef c1 fill:#f9f"
+],
+[
+"ER self ref",
+"erDiagram\nemployee ||--o{ employee : manages"
+],
+[
+"ER comments",
+"erDiagram\n%% @note order: never deleted\na ||--o{ b : x"
+],
+[
+"ER entity no attrs",
+"erDiagram\norder {\n}"
+],
+[
+"ER attr name keyword",
+"erDiagram\norder {\n text status\n text order\n}"
+],
+[
+"STATE basic",
+"stateDiagram-v2\n[*] --> A\nA --> B: go\nstate B {\n [*] --> C\n}\nB --> [*]\nnote right of A: n"
+],
+[
+"FC no direction",
+"flowchart\na-->b"
+],
+[
+"FC class on subgraph",
+"flowchart LR\nsubgraph l1[\"HR\"]\na\nend\nclass l1 c3"
+],
+[
+"FC ::: on subgraph",
+"flowchart LR\nsubgraph l1[\"HR\"]:::c3\na\nend"
+],
+[
+"FC class no classDef",
+"flowchart LR\na:::c1 --> b:::system"
+],
+[
+"FC multiple classes",
+"flowchart LR\na:::c1:::abstract"
+],
+[
+"FC reserved ids",
+"flowchart LR\ngraph1 --> style1\nclass1 --> default1\nsubgraph1 --> x"
+],
+[
+"FC id 'default'",
+"flowchart LR\ndefault --> b"
+],
+[
+"FC id 'class'",
+"flowchart LR\nclass --> b"
+],
+[
+"FC id 'style'",
+"flowchart LR\nstyle --> b"
+],
+[
+"FC empty stadium",
+"flowchart LR\na([\" \"]) --> b"
+],
+[
+"FC feedback thick",
+"flowchart LR\na --> b\nb ==>|Resubmit| a"
+],
+[
+"FC node in 2 subgraphs",
+"flowchart LR\nsubgraph l1\na\nend\nsubgraph l2\na\nend"
+],
+[
+"FC edge before node decl in subgraph",
+"flowchart LR\na-->b\nsubgraph l1[\"X\"]\na\nb\nend"
+],
+[
+"FC label w/ parens unquoted",
+"flowchart LR\na[Check (fast)]"
+],
+[
+"FC label w/ parens quoted",
+"flowchart LR\na[\"Check (fast)\"]"
+],
+[
+"ER quoted type",
+"erDiagram\norder {\n \"double precision\" amount\n}"
+],
+[
+"ER type with ?",
+"erDiagram\norder {\n text? phone\n}"
+],
+[
+"ER type dash",
+"erDiagram\norder {\n - phone\n}"
+],
+[
+"ER type star",
+"erDiagram\norder {\n * phone\n}"
+],
+[
+"ER nullable via comment",
+"erDiagram\norder {\n text phone \"nullable\"\n}"
+],
+[
+"ER name with dash/digit",
+"erDiagram\norder-v2 ||--o{ x1 : y"
+],
+[
+"ER attr name with dot",
+"erDiagram\norder {\n text a.b\n}"
+],
+[
+"ER label with brackets",
+"erDiagram\norder }o--|| customer : \"places [customer_id]\""
+],
+[
+"ER label unquoted multi",
+"erDiagram\norder }o--|| customer : places order"
+],
+[
+"ER md string alias",
+"erDiagram\np[\"`**Patient**`\"] {\n uuid id PK\n}"
+],
+[
+"SEQ note left of",
+"sequenceDiagram\nA->>B: x\nNote left of A: y"
+],
+[
+"SEQ note over 3",
+"sequenceDiagram\nNote over A,B,C: y"
+],
+[
+"SEQ semicolon",
+"sequenceDiagram\nA->>B: a; b"
+],
+[
+"SEQ hash",
+"sequenceDiagram\nA->>B: #35; tag"
+],
+[
+"SEQ box no color",
+"sequenceDiagram\nbox Our services\nparticipant A\nend"
+],
+[
+"SEQ alt nested 3",
+"sequenceDiagram\nalt a\nloop b\nopt c\nA->>B: x\nend\nend\nend"
+],
+[
+"SEQ create actor",
+"sequenceDiagram\nA->>B: a\ncreate actor C\nB->>C: hi"
+],
+[
+"SEQ participant type + alias",
+"sequenceDiagram\nparticipant db@{ \"type\": \"database\", \"alias\": \"Orders DB\" }\ndb->>db: x"
+],
+[
+"SEQ type+as",
+"sequenceDiagram\nparticipant db@{ \"type\": \"database\" } as Orders DB\ndb->>db: x"
+],
+[
+"ER dashed type",
+"erDiagram\norder {\n double-precision amount\n timestamp-with-time-zone at\n character-varying(255)? email UK \"x\"\n _ untyped\n}"
+],
+[
+"SEQ rect label render",
+"sequenceDiagram\nrect rgb(200,220,255) Payment\nA->>B: a\nend"
+],
+[
+"FC class multi",
+"flowchart LR\na --> b\nclass a c1\nclass a abstract"
+],
+[
+"FC neg: unknown shape",
+"flowchart LR\na@{ shape: nonsense, label: \"X\" }"
+],
+[
+"FC shapes types",
+"flowchart LR\na[T]\nb{D?}\nc([S])\nd[[P]]\ne[(DB)]\ng[/IO/]\nh((C))\ni>F]\nj@{ shape: doc, label: \"Doc\" }\nk@{ shape: delay, label: \"W\" }\nl@{ icon: \"fa:user\", label: \"Cust\" }"
+],
+[
+"FC edges",
+"flowchart LR\na --> b\na --- c\na -.-> d\na -.- e\na ==> f\na -->|is a| g\nr1>\"Rule<br>two\"] -.- a & b\na e1@--> h"
+],
+[
+"FC subgraph",
+"flowchart LR\nsubgraph lane1[\"Hiring Manager\"]\n a\nend\nsubgraph s2[\"X\"]\n b\nend\nc"
+],
+[
+"SEQ semantics",
+"sequenceDiagram\nparticipant A@{ \"type\" : \"database\" }\nbox Aqua Our services\nparticipant B as Shop\nend\nrect rgb(200,220,255) Payment\nA->>+B: Charge card<br>amount, token\nB-->>-A: ok\nend\nA-)B: async\nA-xB: lost\nNote over A,B: n\nalt ok\nA->>B: x\nelse no\nA->>B: y\nend"
+],
+[
+"ER semantics",
+"erDiagram\norder[\"Order\"]:::c1 {\n uuid id PK\n uuid customer_id FK \"who\"\n text email UK\n}\norder }o..|| customer : places\norder_item }|--|| order : \"\"\nclassDef c1 fill:#f9f"
+]
+]
