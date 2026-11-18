@@ -158,6 +158,7 @@ function fromMermaidAst(ast) {
       case 'colorKey': if ((m = /^(\S+)\s+(.+)$/.exec(a))) colorKey[m[1]] = m[2].trim(); break;
       case 'showRefs': data.showRefs = true; break;
       case 'showNotes': data.showNotes = true; break;
+      case 'schemaVersion': if (!isNaN(Number(a))) data.schemaVersion = Number(a); break;
       case 'refs': case 'points':
         ucmItems(a).forEach(([ids, rest]) => ids.forEach(id => {
           const o = target(id, d.key, d.line);
@@ -213,6 +214,7 @@ function toMermaid(data, opts) {
   const out = [];
   if (data.title) out.push('---', 'title: ' + (/[:#"'\[\]{}&*!|>%@`,]|^[\s?-]|\s$/.test(data.title) ? JSON.stringify(String(data.title)) : data.title), '---');
   out.push('%% @type usecase');
+  if (data.schemaVersion != null) out.push('%% @schemaVersion ' + data.schemaVersion);
   Object.keys(data.colorKey || {}).sort((a, b) => a - b).forEach(k => out.push('%% @colorKey ' + k + ' ' + data.colorKey[k]));
   if (data.showRefs) out.push('%% @showRefs');
   if (data.showNotes) out.push('%% @showNotes');
