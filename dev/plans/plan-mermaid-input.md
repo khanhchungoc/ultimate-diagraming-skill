@@ -163,7 +163,7 @@ Text in messages: `;` and `#` must be escaped (`a; b` fails to parse); the write
 ## Phases
 
 0. **Harness** (dev only).
-   - `dev/check_mermaid.mjs` (start from `dev/bench/mermaid-syntax/`: the 150 syntax cases above, `parse.js` for pass/fail, `ast.js` for what Mermaid parsed):
+   - `dev/check_mermaid.mjs` (start from `dev/bench/mermaid-syntax/`: the 148 syntax cases above, `parse.js` for pass/fail, `ast.js` for what Mermaid parsed):
      - every golden fixture and example goes JSON → Mermaid → JSON and must come back equal (minus positions and derived fields);
      - every written `.mmd` must pass `mermaid.parse`;
      - a leniency corpus must import with no `[ERROR]`: the four Mermaid files the Sonnet agents wrote in the benchmark, plus habit cases (`graph TD`, `style` lines, `click`, `classDef` colours, unquoted labels).
