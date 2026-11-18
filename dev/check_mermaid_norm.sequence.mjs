@@ -4,6 +4,7 @@
 //   - fragment and note ids are dropped, and the two lists are compared in text order (a frame by where it opens, a note by the slot
 //     it sits in; ties keep the authored order), because Mermaid has no other order;
 //   - a fragment's branches are one list: the short form elseAt is one unlabelled branch;
+//   - a note placed before the first message equals a note with no anchor;
 //   - defaults are explicit (message kind sync, participant kind system, branch label "", no fragments or notes).
 // Positions and the engine's computed fields are dropped. Everything else is compared as it is.
 const COMPUTED = new Set(['x', 'y', 'w', 'h', 'layout', 'rail', 'top', 'bottom', 'hidden', 'elseY', 'dividers']);
@@ -58,7 +59,10 @@ export function normalise(data, safeId, base) { // eslint-disable-line no-unused
     if (Array.isArray(o.over)) o.over = o.over.length === 1 ? P(o.over[0]) : o.over.map(P); else if (o.over !== undefined) o.over = P(o.over);
     // The slot a note sits in: above the first message (no anchor), before a message, after a message
     let key = [-1, 0];
-    if (n.after != null) { key = [at(n.after), 1]; o.after = M(n.after); delete o.before; } else if (n.before != null) { key = [at(n.before), 0]; o.before = M(n.before); }
+    if (n.after != null) { key = [at(n.after), 1]; o.after = M(n.after); delete o.before; } else if (n.before != null) {
+      // A note before the first message reads back with no anchor
+      if (M(n.before) === 'm1') delete o.before; else { key = [at(n.before), 0]; o.before = M(n.before); }
+    }
     return { o, i, key };
   }).sort((p, q) => p.key[0] - q.key[0] || p.key[1] - q.key[1] || p.i - q.i).map((r) => r.o);
   return out;
