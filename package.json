@@ -27,7 +27,8 @@
   "author": "Khanh Chu Ngoc",
   "license": "MIT",
   "devDependencies": {
-    "axe-core": "4.11.4"
+    "axe-core": "4.11.4",
+    "mermaid": "11.17.2"
   },
   "files": [
     "bin",

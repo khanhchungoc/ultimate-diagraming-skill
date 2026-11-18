@@ -1,0 +1,6 @@
+graph TD
+  A[Start] --> B{Valid?}
+  B -- Yes --> C[Process order]
+  B -- No --> D[Reject order]
+  C --> E[Ship]
+  D --> E

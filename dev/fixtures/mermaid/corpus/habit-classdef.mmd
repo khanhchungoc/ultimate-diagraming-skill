@@ -1,0 +1,7 @@
+flowchart LR
+  classDef good fill:#d4f8d4,stroke:#2a2,color:#030
+  classDef bad fill:#fdd,stroke:#c00
+  A[Submit]:::good --> B{Check}
+  B -->|ok| C[Approve]:::good
+  B -->|fail| D[Decline]:::bad
+  class C,D done
