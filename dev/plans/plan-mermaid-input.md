@@ -314,4 +314,4 @@ Done on `ccr-c18dbf2f-2xj17k`: Phases 0–3 (readers, writers, harness), the Pha
 3. ~~C9 follow-ups~~ (done 2026-11-18).
 4. ~~`scripts/check_env.py` still lists `references/examples/*.json`~~ (moved to `dev/examples/*.json` and removed from `scripts/check_env.py`, 2026-11-18).
 5. ~~Re-run the skill-vs-Mermaid benchmark~~ (done 2026-11-18: authored source 1.01× plain Mermaid, skill won 4/4 blind quality comparisons; see `dev/plans/plan-speed-cost.md`).
-6. Merge to `main` once the user approves (version bump: this changes the agent-facing format, so MINOR at least — proposed `1.0.20` → `1.1.0` by hand per `dev/versioning.md`).
+6. ~~Merge to `main` once the user approves~~ (done 2026-11-18; version bumped `1.0.20` → `1.1.0` per `dev/versioning.md`).
