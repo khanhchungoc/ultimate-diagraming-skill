@@ -5,7 +5,8 @@
 // Positional model: messages are m1.. in text order, and frames and notes hold their message ids by position.
 // A note right after a message is `after` it; a note after a frame opening, `else`, `and` or `end` is `before` the next
 // message; a note before the first message has no anchor. The writer adds `%% @before` where the plain reading would
-// differ, so JSON -> Mermaid -> JSON is exact.
+// differ (a note before a message that directly follows another message), so JSON -> Mermaid -> JSON is exact.
+// A group's label is the first `Note over` inside its `rect`, since Mermaid's rect has no name of its own.
 
 const MMD_SEQ_RESERVED = ['alt', 'else', 'opt', 'loop', 'par', 'and', 'end', 'rect', 'box', 'note', 'participant', 'actor', 'create',
   'destroy', 'activate', 'deactivate', 'autonumber', 'title', 'link', 'links', 'properties', 'details', 'critical', 'option', 'break',
@@ -129,6 +130,7 @@ function fromMermaid(text, opts) {
     if (ids.length > 2) infoOnce('note3', 'a note over more than two participants keeps the first two');
     ids.slice(0, 2).forEach((id) => part(id));
     const dir = take(['before', 'place']);
+    const top = stack[stack.length - 1];
     const n = { text: mmdText(body), over: ids.length > 1 ? ids.slice(0, 2) : ids[0] };
     if (dir.place) {
       const v = Number(String(dir.place.args).trim());
@@ -136,14 +138,19 @@ function fromMermaid(text, opts) {
     }
     let mode;
     if (lastKind === 'msg') mode = dir.before ? 'before' : 'after';
-    else if (lastKind === 'none') mode = dir.before ? 'before' : 'free';
-    else { mode = 'before'; if (lastKind === 'open') notesInFrame++; }
-    notes.push({ n, mode, at: msgs.length });
+    else if (lastKind === 'none') mode = 'free';
+    else mode = 'before';
+    const entry = { n, mode, at: msgs.length };
+    notes.push(entry);
+    if (lastKind === 'open' && top) {
+      // The first note right after a `rect` opens is the group's label; it is kept as an ordinary note if the rect ends up empty
+      if (top.rect && !top.labelEntry) top.labelEntry = entry; else top.early = (top.early || 0) + 1;
+    }
     return n;
   }
 
   function openBlock(kw, rest) {
-    const dir = take(['color', 'collapsed', 'label']);
+    const dir = take(['color', 'collapsed']);
     const b = { kind: kw, a: msgs.length, branches: [], line: ln, order: opened++ };
     let label = rest;
     if (kw === 'rect') {
@@ -153,8 +160,8 @@ function fromMermaid(text, opts) {
     }
     if (kw === 'critical') { b.kind = 'group'; b.critical = true; infoOnce('critical', '"critical" is read as a group, or as an alt when it has "option" branches'); }
     if (kw === 'break') { b.kind = 'opt'; infoOnce('break', '"break" is read as an opt'); }
-    if (kw === 'rect') b.kind = 'group';
-    b.label = dir.label ? mmdText(dir.label.args) : mmdText(label);
+    if (kw === 'rect') { b.kind = 'group'; b.rect = true; }
+    b.label = mmdText(label);
     if (dir.color) b.color = String(dir.color.args).trim();
     if (dir.collapsed) b.collapsed = flag(dir.collapsed);
     stack.push(b);
@@ -176,7 +183,9 @@ function fromMermaid(text, opts) {
     if (top.box) { boxes.push(top.box); return; }
     lastKind = 'end';
     const b = msgs.length - 1;
-    if (b < top.a) { droppedFrames++; return; }   // no message inside: a frame is a range of messages
+    if (b < top.a) { droppedFrames++; return; }   // no message inside: a frame is a range of messages; its notes stay
+    notesInFrame += top.early || 0;
+    if (top.labelEntry) { top.label = top.labelEntry.n.text; notes.splice(notes.indexOf(top.labelEntry), 1); }
     const seen = new Set();
     const br = [];
     top.branches.forEach((x) => {
@@ -218,7 +227,7 @@ function fromMermaid(text, opts) {
       const d = /^%%\s*@(\w+)(?:\s+([\s\S]*))?$/.exec(line);
       if (!d) continue;
       const dir = { key: d[1], args: (d[2] || '').trim(), line: ln };
-      if (['activate', 'until', 'collapsed', 'label', 'before', 'place'].includes(dir.key) || (dir.key === 'color' && !/\s/.test(dir.args))) pending[dir.key] = dir;
+      if (['activate', 'until', 'collapsed', 'before', 'place'].includes(dir.key) || (dir.key === 'color' && !/\s/.test(dir.args))) pending[dir.key] = dir;
       else globals.push(dir);
       continue;
     }
@@ -243,7 +252,8 @@ function fromMermaid(text, opts) {
       else if ((m = /^destroy\s+(\S+)/i.exec(s))) destroyedNext = part(m[1]);
       else if ((m = /^box(?:\s+([\s\S]*))?$/i.exec(s))) {
         const sp = mmdSeqSplitColour(m[1] || '');
-        stack.push({ line: ln, box: { css: sp.colour, label: mmdText(sp.label), members: [] } });
+        const dir = take(['color']);
+        stack.push({ line: ln, box: { css: sp.colour, label: mmdText(sp.label), members: [], slot: dir.color && /^[1-9]$/.test(dir.color.args.trim()) ? dir.color.args.trim() : '' } });
       } else if (/^end$/i.test(s)) closeBlock();
       else if ((m = /^(alt|opt|loop|par|rect|critical|break)(?:\s+([\s\S]*))?$/i.exec(s))) openBlock(m[1].toLowerCase(), m[2] || '');
       else if ((m = /^(else|and|option)(?:\s+([\s\S]*))?$/i.exec(s))) branch(m[1].toLowerCase(), m[2] || '');
@@ -264,8 +274,8 @@ function fromMermaid(text, opts) {
 
   if (bars) infoOnce('bars', 'activation bars ("+", "-", activate, deactivate) are ignored: bars are computed from the calls and replies; use %% @activate false or %% @until <step> to change one');
   if (notesInFrame) info(notesInFrame + ' note(s) sit inside a frame before its first message; a note is anchored to a message, so they are placed before the frame');
-  if (droppedFrames) info(droppedFrames + ' frame(s) with no message inside were dropped: a frame covers a range of messages');
-  if (droppedBranches) info(droppedBranches + ' else/and branch(es) with no message of their own in the frame were dropped');
+  if (droppedFrames) info(droppedFrames + ' frame(s) with no message inside were dropped: a frame covers a range of messages (their notes are kept)');
+  if (droppedBranches) info(droppedBranches + ' else/and branch(es) with no message of their own in the frame were dropped (their notes are kept)');
 
   // Diagram directives
   const colorKey = {};
@@ -297,7 +307,7 @@ function fromMermaid(text, opts) {
     }
   });
 
-  // Colours of boxes and rects: the colour key by label, else the nearest palette slot, else the next free slot
+  // Colours of boxes and rects: a `%% @color` slot before the box, else the palette slot nearest the colour, else the next free slot
   const cssSlot = new Map();
   const taken = new Set(Object.keys(colorKey));
   explicitColor.forEach((v) => { if (/^[1-9]$/.test(v)) taken.add(v); });
@@ -320,7 +330,7 @@ function fromMermaid(text, opts) {
     return slot;
   };
   boxes.forEach((bx) => {
-    let slot = bx.label ? Object.keys(colorKey).find((k) => colorKey[k] === bx.label) : undefined;
+    let slot = bx.slot;
     if (!slot && (bx.css || bx.label)) slot = bx.css && bx.css.toLowerCase() !== 'transparent' ? slotOf(bx.css) : slotOf('box:' + bx.label);
     if (!slot) return;
     if (bx.label && !colorKey[slot]) colorKey[slot] = bx.label;
@@ -332,7 +342,7 @@ function fromMermaid(text, opts) {
   const total = msgs.length;
   const noteOut = notes.map(({ n, mode, at }) => {
     if (mode === 'after' && at > 0) n.after = 'm' + at;
-    else if (mode === 'before' || mode === 'after') {
+    else if (at > 0 && (mode === 'before' || mode === 'after')) {   // before the first message = no anchor
       if (at < total) n.before = 'm' + (at + 1); else if (total) n.after = 'm' + total;
     }
     return n;
@@ -458,6 +468,7 @@ function toMermaid(data, opts) {
       let j = i;
       while (j < tops.length && slotOf(tops[j]) === s) j++;
       const css = mmdSeqCss(s, palette);
+      top('%% @color ' + s);
       top('box ' + (css ? css + ' ' : '') + text(ck[s]));
       for (let k = i; k < j; k++) top(ind(1) + decl(tops[k]));
       top('end');
@@ -494,14 +505,13 @@ function toMermaid(data, opts) {
     if (!map.has(r.k)) map.set(r.k, []);
     map.get(r.k).push(r);
   });
-  noteSlots.before.forEach((list, k) => { if (k === 0) list.sort((p, q) => (p.kind === 'free' ? 0 : 1) - (q.kind === 'free' ? 0 : 1)); });
 
   // The body, message by message
   let depth = 0, prev = 'none';
   const line = (s) => out.push(ind(depth + 1) + s);
   const emitNote = (r) => {
     if (r.place !== null) line('%% @place ' + r.place);
-    if (r.kind === 'before' && (prev === 'msg' || prev === 'none')) line('%% @before');
+    if (r.kind === 'before' && prev === 'msg') line('%% @before');
     line(r.text);
   };
   const stack = [];
@@ -515,9 +525,14 @@ function toMermaid(data, opts) {
       if (same(f.color) && String(f.color) !== '') line('%% @color ' + f.color);
       if (f.collapsed !== undefined) line(flag('collapsed', f.collapsed));
       if (f.kind === 'group') {
-        if (label) line('%% @label ' + label);
         const css = same(f.color) ? mmdSeqCss(f.color, palette) : '';
         line('rect' + (css ? ' ' + css : ''));
+        // The name is the first line inside the rect: a note over the leftmost and rightmost participants of its messages
+        const used = ms.slice(r.a, r.b + 1).flatMap((x) => [x.from, x.to]).map((id) => ps.findIndex((p) => p.id === id)).filter((i) => i >= 0);
+        if (label && used.length) {
+          const lo = Math.min(...used), hi = Math.max(...used);
+          out.push(ind(depth + 2) + 'Note over ' + pid(ps[lo].id) + (hi > lo ? ',' + pid(ps[hi].id) : '') + ': ' + label);
+        }
       } else line((['alt', 'opt', 'loop', 'par'].includes(f.kind) ? f.kind : 'opt') + (label ? ' ' + label : ''));
       stack.push(r);
       depth++;
