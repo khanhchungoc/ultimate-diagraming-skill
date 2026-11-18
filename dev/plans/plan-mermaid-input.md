@@ -1,6 +1,6 @@
 # Plan: Mermaid as the authoring format
 
-Status: Phases 0 and 1 done (2026-11-18): `dev/check_mermaid.mjs` passes 93 checks (round trip, Mermaid validity, leniency corpus); the `--layout` dry run waits for Phase 4. Follows `plan-speed-cost.md` P1: in the benchmark, the agent's JSON was 3.3× the size of the same diagram in Mermaid, and two thirds of the JSON was syntax and ids, not content.
+Status: Phases 0–3 done (2026-11-18): `dev/check_mermaid.mjs` passes 93 checks (round trip, Mermaid validity, leniency corpus); the `--layout` dry run waits for Phase 4. Follows `plan-speed-cost.md` P1: in the benchmark, the agent's JSON was 3.3× the size of the same diagram in Mermaid, and two thirds of the JSON was syntax and ids, not content.
 
 ## Decision
 
@@ -203,6 +203,19 @@ These override the tables above where they differ.
 - **Custom colours** (a hex instead of a slot) survive as `%% @color <id> <value>`, for lanes, actors and use cases.
 - **Accepted as built**: an unlabelled line between two use cases or two actors is a `[WARN]` and is skipped; a use case file with no subgraph and no actor gets an `[INFO]`; one subject makes `subject` explicit on every use case; ids are sanitised (`lane-x` → `lane_x`) and `layout` keys must follow; unknown non-text fields are dropped until one exists; import-only leniency (invisible links dropped, unknown shapes read as tasks, `classDef`/`style` ignored) stays.
 - **Extra syntax the writer emits for exactness**: `%% @schemaVersion`, `%% @<key> <id> <value>` for unknown text fields (such as a node's `outcome`), and the classes `isStart`/`isEnd` when start or end cannot be derived from the edges.
+
+## Decisions after Phases 2 and 3 (2026-11-18)
+
+These override the Sequence and ERD tables above where they differ.
+
+- **Phase names** (a sequence `group`): Mermaid's `rect` colours a band of messages but cannot name it. The name is the first line inside the rect, `Note over <leftmost>,<rightmost>: Payment`; on import, a note before the rect's first message is its name. No `%% @label`.
+- **Empty frames and branches** (allowed in Mermaid, not in our model): dropped on import with an `[INFO]`; their notes stay in place, anchored to the neighbouring message.
+- **A note before the first message** reads as a note with no anchor (both sit above the first message).
+- **Participant box colours**: the nearest palette slot to the written colour; no colour (or no palette) takes the next free slot.
+- **ERD line style is strict Mermaid**: `--` is identifying, `..` is not; no derivation from keys on import. The writer emits `--` exactly when the relationship is identifying in effect. The ERD reference tells agents to use `..` for an ordinary foreign key.
+- **ERD ends are written explicitly**: unset ends come back as their effective values (same drawing). No unset markers.
+- **ERD join columns** are derived from names only (no pairing fallback); a missing match stays a `[WARN]` the agent fixes with `[col]` in the label.
+- **Accepted as built**: sequence frame and note order follows the text, invalid data is normalised, unknown sequence fields are dropped, activation bars are not written into the Mermaid; ERD `*hex*` escape for names Mermaid rejects, `%% @childRight`, and the edge values (no name → id, explicit false and empty strings → absent, trimmed notes).
 
 ## Phase 0 and 1 interfaces
 
