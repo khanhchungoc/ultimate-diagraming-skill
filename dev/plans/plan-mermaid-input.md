@@ -172,7 +172,7 @@ Text in messages: `;` and `#` must be escaped (`a; b` fails to parse); the write
 2. **Sequence**: parser and writer, a positional model for frames and notes, `box` colours, `<br>` detail.
 3. **ERD**: parser and writer, child side, `columns` derivation, `-`/`?`/`_` type conventions.
 4. **CLI and skill**:
-   - `--layout x.mmd` (detected by extension, or by no leading `{`); `--extract` → Mermaid; `--keep-from`. JSON input still accepted, but undocumented.
+   - `--layout x.mmd` (detected by extension, or by no leading `{`); `--extract` → Mermaid; `--keep-from`. JSON input accepted for old files only (decision 2).
    - Rewrite the type references as Mermaid cheat sheets: the mapping rows above that an author needs, plus today's writing rules. Examples become `.mmd`.
    - `SKILL.md` step 2 writes `<scratch>.mmd`. Then re-run `dev/bench` (target: authored source ≤ 1.5× pure Mermaid, agent time within 10% of the Mermaid arm).
 5. **Page** (optional): Paste/Import Mermaid in the editor, from the same parser.
@@ -184,7 +184,53 @@ Text in messages: `;` and `#` must be escaped (`a; b` fails to parse); the write
 - **Mermaid drift.** Only v11 syntax is targeted. The harness pins the Mermaid version, and a newer one is checked by bumping it in `dev/`.
 - **Three formats in one codebase** (JSON stored, Mermaid authored, the page's model). Mitigation: the parser and writer are the only bridge, and one round-trip test covers them.
 
-## Open questions
+## Decisions (2026-11-18)
 
-1. A written direction (`flowchart LR`) is honoured, and the reference tells agents to omit it. Alternative: always treat it as a hint and still auto-pick. Recommended: honour it.
-2. Should JSON input stay supported for agents (documented) or only for back-compatibility? Recommended: back-compatibility only.
+1. A written direction (`flowchart LR`, `TD`) is honoured. The type reference tells agents to write a bare `flowchart` so `--layout` picks.
+2. JSON input stays accepted for old files only; agent-facing docs describe Mermaid alone.
+
+## Phase 0 and 1 interfaces
+
+Fixed up front so the harness, the flowchart mapping and the use case mapping can be built in parallel.
+
+### Files
+
+| File | Owner phase | Defines (plain script, no DOM, no imports, globals only, like `engine.js`) |
+|---|---|---|
+| `assets/shell/mermaid-flow.js` | 1 | `mmdParseFlow(text)`, `mmdText(s)` (unescape), `mmdQuote(s)` (escape + quote for a label), `mmdSafeId(id, used)` |
+| `assets/types/flowchart/mermaid.js` | 1 | `fromMermaid(text) -> { data, infos, warnings }`, `toMermaid(data, opts) -> string` |
+| `assets/types/usecase/mermaid.js` | 1 | same two functions, for use case |
+| `scripts/mermaid_io.mjs` | 0 | Node loader: `loadMermaidIO(kind)` concatenates `assets/shell/mermaid-flow.js` (flowchart and use case; later the other types' own shared file) and `assets/types/<kind>/mermaid.js` into `new Function(...)` and returns `{ fromMermaid, toMermaid }`. CLI: `node scripts/mermaid_io.mjs from <kind> < x.mmd` prints `{data, infos, warnings}`; `node scripts/mermaid_io.mjs to <kind> < x.json` prints Mermaid. Phase 4 wires it into `layout_engine.py`. |
+| `dev/check_mermaid.mjs` | 0 | the harness (below) |
+| `dev/fixtures/mermaid/corpus/*.mmd` | 0 | leniency corpus: the benchmark agents' Mermaid (`bench-*.mmd`), the two convention samples, and habit cases |
+
+`toMermaid(data, opts)`: `data` is authoring JSON (as `--extract` prints it). `opts.palette` (optional) is an array of 8 hex colours for slots 1–8; when given, the writer adds `classDef c<n> fill:<hex>` for the slots it uses, and otherwise no `classDef` lines.
+
+`fromMermaid(text)` never throws on valid Mermaid. `infos` are `[INFO]` lines (lenient mappings, ignored statements). `warnings` are `[WARN]` lines (a data problem the author must fix, such as a note linked to nothing). It throws `Error("line N: …")` only for text it cannot tokenize at all.
+
+### `mmdParseFlow(text)` result (the flowchart-family AST)
+
+```js
+{
+  title: 'Online shop' | null,            // front-matter `title:`
+  dir: 'LR' | 'TB' | null,                // header direction; TD -> TB, RL -> LR, BT -> TB (+ info); bare `flowchart`/`graph` -> null
+  directives: [{ key: 'icon', args: 'lane_hm user', line: 7 }],   // every `%% @key args` line, in order; plain `%%` comments dropped
+  nodes: [{ id, label, shape, classes: ['c1', 'system'], line }],  // first declaration wins for label/shape; classes merge from :::, `class` lines
+  edges: [{ from, to, label, stroke: 'normal'|'dotted'|'thick'|'invisible', head: 'arrow'|'none'|'circle'|'cross', both: false, line }],
+  subgraphs: [{ id, title, parent: null | id, nodes: [ids in order], classes: [], line }],
+  ignored: [{ line, text }]               // style/linkStyle/click/classDef/accTitle/... (one info per kind is enough)
+}
+```
+
+- `shape` is Mermaid's name for it: `rect` `[ ]`, `round` `( )`, `stadium` `([ ])`, `subroutine` `[[ ]]`, `cylinder` `[( )]`, `circle` `(( ))`, `dbl-circ` `((( )))`, `odd` `> ]`, `diamond` `{ }`, `hex` `{{ }}`, `lean-r` `[/ /]`, `lean-l` `[\ \]`, `trap-b` `[/ \]`, `trap-t` `[\ /]`. For `@{ shape: x }` it is the canonical v11 name (aliases resolved: `doc`/`document`, `delay`, `sm-circ`/`start`, `fr-circ`/`stop`, `f-circ`, `subproc`/`subprocess`, `cyl`, …). A node only ever referenced in edges gets `rect` with label = id.
+- Labels: quotes stripped, entities (`#quot;`, `#35;`, `#59;`, numeric `#NNN;`) and `<br>`/`<br/>` turned into `"` `#` `;` and `\n`. Markdown-string backticks are stripped. Unquoted labels with parentheses are accepted (Mermaid rejects them; agents write them).
+- Edges: `a --> b`, `a -->|x| b`, `a -- x --> b`, `a -. x .-> b`, `a == x ==> b`, chains `a --> b --> c`, fans `a & b --> c & d` (expanded in order), `~~~` (invisible), extra dashes (`--->`), edge ids `e1@-->` (id ignored), inline declarations (`a["A"] --> b{"B"}`).
+- Subgraphs: `subgraph id["Title"]`, `subgraph id[Title]`, `subgraph Title words` (id = title), `direction X` inside is ignored. `nodes` lists the nodes declared or first referenced inside it (Mermaid's own rule); a node in nested subgraphs belongs to the innermost one.
+- `;` ends a statement as Mermaid allows; `end` closes a subgraph.
+
+### Harness (`dev/check_mermaid.mjs`, run as `node dev/check_mermaid.mjs --browser <chrome>`)
+
+1. **Round trip**, for each flowchart and use case JSON in `dev/fixtures/<kind>/**/*.json` and `references/examples/`: `extract` (authoring JSON, as `layout_engine.py --extract` prints it) → `toMermaid` → `fromMermaid` → compare with a normaliser: ids passed through `mmdSafeId`; edge, link and note ids ignored (edges, links and notes compared as ordered lists of content); positions, `layout` and derived fields dropped; defaults made explicit (node `type` task, use case `level` user, actor `kind` human). Each difference is printed as a path plus both values.
+2. **Validity**: every written `.mmd` passes `mermaid.parse` (Mermaid 11.17.2, a devDependency, loaded from `node_modules` into headless Chrome through `dev/cdp.mjs`).
+3. **Leniency**: every `dev/fixtures/mermaid/corpus/*.mmd` of a flowchart-family type imports without throwing. Use case files are the ones with `%% @type usecase`. Then a `--layout` dry run produces no `[ERROR]`; that last step only once Phase 4 exists, so it is skipped with a notice until then.
+4. Prints `[PASS]`/`[FAIL]` per case and exits 1 on any failure, like the other `dev/check_*.py`.

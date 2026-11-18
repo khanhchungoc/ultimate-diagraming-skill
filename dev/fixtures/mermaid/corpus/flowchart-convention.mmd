@@ -1,0 +1,20 @@
+flowchart LR
+  subgraph cust["Customer"]
+    submit(["Submit Claim"])
+    upload[/"Upload Missing Docs"/]
+  end
+  subgraph ops["Claims Team"]
+    complete{"Docs Complete?"}
+    assess["Assess Claim"]
+    onboard[["Run Fraud Review"]]
+    store[("Store Claim Record")]
+    letter@{ shape: doc, label: "Issue Decline Letter" }
+    wait@{ shape: delay, label: "Wait for Payment Run" }
+    settled(["Claim Settled"])
+  end
+  submit --> complete
+  complete -->|No| upload
+  upload --> complete
+  complete -->|Yes| assess --> onboard --> store --> wait --> settled
+  onboard --> letter
+  r1>"Claims over 5,000 EUR<br>need a second assessor"] -.- assess & onboard

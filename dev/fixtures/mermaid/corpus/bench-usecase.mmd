@@ -1,0 +1,105 @@
+flowchart LR
+  Visitor([Visitor])
+  Member([Member])
+  Student([Student Member])
+  Lib([Librarian])
+  Mgr([Branch Manager])
+  Cat([Cataloguer])
+  Sched([Nightly Scheduler])
+  Pay([Payment Gateway])
+  Mail([Email Service])
+  IDV([ID Verification Service])
+
+  Member -- "is a" --> Visitor
+  Student -- "is a" --> Member
+
+  subgraph Portal["Library Web Portal"]
+    U01([FR-01 Search catalogue])
+    U02([FR-02 View item details])
+    U03([FR-03 Browse new arrivals])
+    U04([FR-04 Register for membership])
+    U05([FR-05 Verify identity])
+    U06([FR-06 Log in])
+    U07([FR-07 Place hold])
+    U08([FR-08 Cancel hold])
+    U09([FR-09 Renew loan])
+    U10([FR-10 View loan history])
+    U11([FR-11 Pay fines online])
+    U11b([Take payment])
+    U12([FR-12 Update profile])
+    U13([FR-13 Manage reading lists])
+    U14([FR-14 Write review])
+    U15([FR-15 Book study room])
+    U16([FR-16 Register for event])
+    U17([FR-17 Request inter-library loan])
+    U18([FR-18 Access e-journals])
+    UPF([Pay outstanding fine])
+    UWL([Join waitlist])
+  end
+
+  subgraph Branch["Branch Circulation System"]
+    U20([FR-20 Check out item])
+    U21([FR-21 Check in item])
+    U22([FR-22 Issue library card])
+    U23([FR-23 Waive fine])
+    U24([FR-24 Handle lost item])
+    U25([FR-25 Process holds pickup])
+    U26([FR-26 Register walk-in member])
+    U27([FR-27 Approve waiver above 50 EUR])
+    U28([FR-28 View branch reports])
+    U29([FR-29 Manage staff rotas])
+    U30([FR-30 Manage events])
+    USC([Scan item barcode])
+    URF([Charge replacement fee])
+    UID2([Verify identity])
+  end
+
+  subgraph Back["Back-office Admin"]
+    U40([FR-40 Add catalogue record])
+    U41([FR-41 Edit record])
+    U42([FR-42 Import MARC records])
+    U43([FR-43 Merge duplicate records])
+    U44([FR-44 Withdraw item])
+    U50([FR-50 Send due-date reminders])
+    U51([FR-51 Send overdue notices])
+    U52([FR-52 Expire uncollected holds])
+    U53([FR-53 Recalculate fines])
+    UML([Send email])
+  end
+
+  Visitor --- U01 & U02 & U03 & U04
+  Member --- U06 & U07 & U08 & U09 & U10 & U11 & U12 & U13 & U14 & U15 & U16
+  Student --- U17 & U18
+  Lib --- U20 & U21 & U22 & U23 & U24 & U25 & U26
+  Mgr --- U27 & U28 & U29 & U30
+  Cat --- U40 & U41 & U42 & U43 & U44
+  Sched --- U50 & U51 & U52 & U53
+
+  U04 -. "include" .-> U05
+  U11 -. "include" .-> U11b
+  U20 -. "include" .-> USC
+  U21 -. "include" .-> USC
+  U26 -. "include" .-> UID2
+  U50 -. "include" .-> UML
+  U51 -. "include" .-> UML
+
+  UPF -. "extend: owes more than 5 EUR" .-> U09
+  UWL -. "extend: all copies on hold" .-> U07
+  URF -. "extend: not found within 30 days" .-> U24
+
+  U05 --- IDV
+  UID2 --- IDV
+  U11b --- Pay
+  UML --- Mail
+
+  U23 -. "above 50 EUR needs" .-> U27
+
+  BR1>"BR-1: suspended at 20 EUR unpaid fines"]
+  BR2>"BR-2: borrow limit 15 students, 10 others"]
+  BR3>"BR-3: rooms bookable 14 days ahead, max 3 h/day"]
+  BR1 -.- Member
+  BR2 -.- U20
+  BR3 -.- U15
+
+  classDef rule fill:#fff4c2,stroke:#b08900,color:#222
+  class BR1,BR2,BR3 rule

@@ -1,0 +1,129 @@
+sequenceDiagram
+autonumber
+actor S as Shopper
+participant W as Web App
+participant G as API Gateway
+participant A as Auth Service
+participant C as Cart Service
+participant P as Pricing Service
+participant I as Inventory Service
+participant ID as Inventory DB
+participant O as Order Service
+participant OD as Orders DB
+participant F as Fraud Service
+participant Pay as Payment Service
+participant CN as Card Network (ext)
+participant ACS as Issuer ACS (ext)
+participant B as Event Bus
+participant E as Email Service
+participant WH as Warehouse System (ext)
+Note over S,WH: Rules: every call carries a correlation id. Card data never touches Web App (tokenised by Payment Service). Reservations expire after 15 min.
+
+rect rgb(235,243,255)
+Note over S,A: Login phase
+S->>W: Open checkout
+W->>G: Session token
+G->>A: Validate token
+alt valid
+A-->>G: user id
+else 401
+A-->>G: 401
+G-->>W: 401
+W-->>S: Show login page
+loop up to 3 attempts
+S->>W: Submit credentials
+W->>A: Check credentials
+A-->>W: New token
+end
+Note over A: After 3 failures account locks 15 min
+end
+end
+
+rect rgb(235,255,240)
+Note over W,ID: Cart phase
+W->>C: Get cart
+loop each line item
+C->>P: Current price and promotions
+P-->>C: Price
+end
+opt voucher present
+C->>C: Apply voucher
+end
+C->>C: Recalculate totals
+C-->>W: Cart
+C->>I: Reserve stock
+I->>ID: Write reservation (TTL 15 min)
+alt all in stock
+I-->>C: Reserved
+else out of stock
+I-->>C: Shortage
+C-->>W: Shortage
+W-->>S: Remove or back-order item?
+end
+end
+
+rect rgb(255,248,230)
+Note over W,F: Order phase
+W->>G: Post order (idempotency key)
+G->>O: Create order
+O->>O: Check idempotency key
+O->>OD: Write order PENDING
+O->>F: Risk score (amount, device, IP, history)
+F-->>O: Score
+alt score < 300
+Note over O: Proceed
+else 300 to 700
+Note over O: Require 3-D Secure
+else score > 700
+O->>OD: Order rejected
+O->>I: Release reservation
+I->>ID: Delete reservation
+O-->>W: Rejected
+end
+end
+
+rect rgb(255,238,238)
+Note over O,ACS: Payment phase
+O->>Pay: Authorise amount
+loop retry timeouts, max 2, exponential backoff
+Pay->>CN: Authorisation (tokenised card)
+end
+opt 3-D Secure required
+CN-->>Pay: Challenge URL
+Pay-->>O: Challenge URL
+O-->>W: Challenge URL
+W-->>S: Redirect to Issuer ACS
+S->>ACS: Complete challenge
+ACS-->>CN: Result
+end
+CN-->>Pay: Authorisation result
+alt approved
+Pay-->>O: Auth code
+else declined
+Pay-->>O: Decline reason
+O->>OD: Order FAILED
+O->>I: Release reservation
+I->>ID: Delete reservation
+O-->>W: Error
+W-->>S: Show error
+end
+end
+
+rect rgb(243,238,255)
+Note over O,WH: Confirmation phase (on approval)
+O->>OD: Order CONFIRMED
+O->>I: Commit reservation
+I->>ID: Decrement stock
+O-)B: Publish OrderConfirmed
+B-)E: OrderConfirmed
+E->>S: Confirmation email
+B-)WH: OrderConfirmed
+WH->>WH: Create pick list
+WH-)B: Shipped (tracking number)
+B-)O: Shipped
+O->>OD: Update order
+B-)E: Shipped
+E->>S: Shipping notice
+O-->>W: Order number
+W-->>S: Confirmation page
+end

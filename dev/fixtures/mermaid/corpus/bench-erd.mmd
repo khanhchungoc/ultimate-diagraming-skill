@@ -1,0 +1,279 @@
+erDiagram
+  tenant ||--o{ user_account : has
+  tenant ||--o{ role : defines
+  tenant ||--o{ audit_log : scopes
+  tenant ||--o{ clinic : owns
+  tenant ||--o{ patient : owns
+  tenant ||--o{ invoice : bills
+  tenant ||--o{ webhook_endpoint : registers
+  user_account ||--o{ user_role : has
+  role ||--o{ user_role : grants
+  role ||--o{ role_permission : has
+  permission ||--o{ role_permission : in
+  user_account |o--o{ audit_log : acts
+  user_account |o--o| staff : "is"
+  user_account |o--o{ message : sends
+  clinic }o--|| address : at
+  clinic ||--o{ staff : employs
+  clinic ||--o{ room : has
+  clinic ||--o{ appointment_type : offers
+  clinic ||--o{ price_list : sets
+  staff ||--o{ staff_specialty : has
+  specialty ||--o{ staff_specialty : in
+  staff ||--o{ shift : works
+  room |o--o{ shift : used_in
+  patient }o--o| address : lives_at
+  patient ||--o{ patient_contact : has
+  patient ||--o{ emergency_contact : has
+  patient ||--o{ patient_insurance : holds
+  insurance_provider ||--o{ patient_insurance : issues
+  patient ||--o{ consent : gives
+  patient ||--o{ appointment : books
+  staff ||--o{ appointment : attends
+  room |o--o{ appointment : hosts
+  appointment_type ||--o{ appointment : typed
+  patient ||--o{ waitlist_entry : joins
+  appointment_type ||--o{ waitlist_entry : for
+  appointment ||--o{ reminder : triggers
+  appointment ||--o| encounter : yields
+  encounter ||--o{ encounter_diagnosis : has
+  diagnosis_code ||--o{ encounter_diagnosis : coded
+  encounter ||--o{ encounter_procedure : has
+  procedure_code ||--o{ encounter_procedure : coded
+  encounter ||--o{ prescription : has
+  drug ||--o{ prescription : of
+  patient ||--o{ allergy : has
+  encounter ||--o{ clinical_note : has
+  staff ||--o{ clinical_note : authors
+  encounter ||--o{ lab_order : has
+  lab_order ||--o{ lab_result : yields
+  encounter ||--o{ attachment : has
+  patient ||--o{ invoice : billed
+  encounter |o--o{ invoice : for
+  invoice ||--o{ invoice_line : has
+  procedure_code |o--o{ invoice_line : charged
+  invoice ||--o{ payment : paid_by
+  invoice ||--o{ claim : claimed
+  patient_insurance ||--o{ claim : under
+  claim ||--o{ claim_response : gets
+  payment ||--o{ refund : refunded_by
+  price_list ||--o{ price_list_item : has
+  procedure_code ||--o{ price_list_item : priced
+  patient ||--o{ message_thread : has
+  message_thread ||--o{ message : contains
+  webhook_endpoint ||--o{ webhook_delivery : delivers
+
+  tenant { int id PK
+    string name
+    string plan
+    datetime created_at }
+  user_account { int id PK
+    int tenant_id FK
+    string email UK
+    string password_hash
+    string status
+    datetime last_login_at }
+  role { int id PK
+    int tenant_id FK
+    string name }
+  user_role { int user_id PK,FK
+    int role_id PK,FK }
+  permission { int id PK
+    string code UK }
+  role_permission { int role_id PK,FK
+    int permission_id PK,FK }
+  audit_log { int id PK
+    int tenant_id FK
+    int user_id FK "nullable"
+    string action
+    string entity
+    int entity_id
+    datetime at }
+  clinic { int id PK
+    int tenant_id FK
+    string name
+    string timezone
+    int address_id FK }
+  address { int id PK
+    string line1
+    string line2 "nullable"
+    string city
+    string postcode
+    string country }
+  staff { int id PK
+    int clinic_id FK
+    int user_id FK,UK "nullable"
+    string first_name
+    string last_name
+    string title }
+  specialty { int id PK
+    string name }
+  staff_specialty { int staff_id PK,FK
+    int specialty_id PK,FK }
+  room { int id PK
+    int clinic_id FK
+    string name
+    string kind }
+  shift { int id PK
+    int staff_id FK
+    int room_id FK "nullable"
+    datetime starts_at
+    datetime ends_at }
+  patient { int id PK
+    int tenant_id FK
+    string mrn UK "unique per tenant"
+    string first_name
+    string last_name
+    date dob
+    string sex
+    int address_id FK "nullable" }
+  patient_contact { int id PK
+    int patient_id FK
+    string kind
+    string value
+    boolean is_primary }
+  emergency_contact { int id PK
+    int patient_id FK
+    string name
+    string relation
+    string phone }
+  insurance_provider { int id PK
+    string name
+    string payer_code }
+  patient_insurance { int id PK
+    int patient_id FK
+    int provider_id FK
+    string policy_number
+    date valid_from
+    date valid_to "nullable" }
+  consent { int id PK
+    int patient_id FK
+    string kind
+    datetime granted_at
+    datetime revoked_at "nullable" }
+  appointment_type { int id PK
+    int clinic_id FK
+    string name
+    int duration_min
+    decimal price }
+  appointment { int id PK
+    int patient_id FK
+    int staff_id FK
+    int room_id FK "nullable"
+    int type_id FK
+    datetime starts_at
+    string status "booked/arrived/done/no_show/cancelled" }
+  waitlist_entry { int id PK
+    int patient_id FK
+    int type_id FK
+    datetime requested_at }
+  reminder { int id PK
+    int appointment_id FK
+    string channel
+    datetime send_at
+    datetime sent_at "nullable" }
+  encounter { int id PK
+    int appointment_id FK,UK
+    datetime started_at
+    datetime ended_at "nullable" }
+  diagnosis_code { string code PK
+    string description }
+  encounter_diagnosis { int encounter_id PK,FK
+    string code PK,FK }
+  procedure_code { string code PK
+    string description
+    decimal base_price }
+  encounter_procedure { int encounter_id PK,FK
+    string code PK,FK
+    int qty }
+  prescription { int id PK
+    int encounter_id FK
+    int drug_id FK
+    string dose
+    string frequency
+    int days }
+  drug { int id PK
+    string name
+    string atc_code }
+  allergy { int id PK
+    int patient_id FK
+    string substance
+    string severity }
+  clinical_note { int id PK
+    int encounter_id FK
+    int author_staff_id FK
+    text body
+    datetime signed_at "nullable, immutable once signed" }
+  lab_order { int id PK
+    int encounter_id FK
+    string test_code
+    string status }
+  lab_result { int id PK
+    int lab_order_id FK
+    string value
+    string unit
+    string flag
+    datetime resulted_at }
+  attachment { int id PK
+    int encounter_id FK
+    string file_key
+    string mime
+    int uploaded_by }
+  invoice { int id PK
+    int tenant_id FK
+    int patient_id FK
+    int encounter_id FK "nullable"
+    string number UK
+    string status
+    datetime issued_at
+    datetime due_at }
+  invoice_line { int id PK
+    int invoice_id FK
+    string procedure_code FK "nullable"
+    string description
+    int qty
+    decimal unit_price }
+  payment { int id PK
+    int invoice_id FK
+    decimal amount
+    string method
+    datetime paid_at }
+  claim { int id PK
+    int invoice_id FK
+    int patient_insurance_id FK
+    string status
+    datetime submitted_at }
+  claim_response { int id PK
+    int claim_id FK
+    string status
+    decimal paid_amount
+    datetime received_at }
+  refund { int id PK
+    int payment_id FK
+    decimal amount
+    string reason }
+  price_list { int id PK
+    int clinic_id FK
+    date valid_from }
+  price_list_item { int price_list_id PK,FK
+    string procedure_code PK,FK
+    decimal price }
+  message_thread { int id PK
+    int patient_id FK
+    string subject }
+  message { int id PK
+    int thread_id FK
+    int sender_user_id FK "nullable"
+    text body
+    datetime sent_at }
+  webhook_endpoint { int id PK
+    int tenant_id FK
+    string url
+    string secret }
+  webhook_delivery { int id PK
+    int endpoint_id FK
+    string event
+    string status
+    int attempts }
+  schema_migration { string version PK
+    datetime applied_at }
