@@ -13,7 +13,11 @@
 // get an empty label when none is written.
 
 const MMD_RESERVED = ['end', 'graph', 'subgraph', 'flowchart', 'style', 'class', 'classdef', 'linkstyle', 'click', 'default',
-  'direction', 'call', 'href', 'interpolate', 'acctitle', 'accdescr'];
+  'direction', 'call', 'href', 'interpolate', 'acctitle', 'accdescr',
+  // sequenceDiagram keywords: Mermaid cannot parse them as participant ids, and every type shares one id rule
+  'alt', 'else', 'opt', 'loop', 'par', 'and', 'rect', 'box', 'note', 'participant', 'actor', 'create', 'destroy', 'activate',
+  'deactivate', 'autonumber', 'title', 'link', 'links', 'properties', 'details', 'critical', 'option', 'break', 'as', 'over', 'left',
+  'right', 'of', 'off', 'sequencediagram'];
 
 // Unescape label text: <br> to newline, then entities (#quot; #35; #59; #NNN;). One pass for the entities, so #35;quot; stays text.
 function mmdText(s) {
