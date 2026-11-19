@@ -31,6 +31,8 @@ usecase/index.html    diagram.json  app.css  app.js
 5. **Builder.** `layout_engine.py --playground -o <scratch-dir>`: writes the folder above (four `assemble_artifact` runs on `blank.json` with the playground flag, plus the root). Publish with the Artifact tool, `files` mapping each path.
 6. **Skill and README.** `SKILL.md`: short *Playground* procedure ("blank diagram", "let me draw it myself"): run `--playground`, publish, give the link. Or skip the agent entirely: README gets a "Playground" link to one published copy anyone can open.
 
+7. **Keep it current.** `.claude/CLAUDE.md` tells every agent to rebuild and republish the playground to the same URL after any change to page code (`assets/`, the page-building scripts). The first publish records the URL there and in `README.md`.
+
 ## First check (before building)
 
 Spike with two dummy pages in one artifact: confirm that (a) a link from one page to `../erd/index.html` navigates inside the artifact, (b) relative `fetch('diagram.json')` resolves against the sub-folder, (c) a download (`a[download]` with a Blob) works from the artifact frame. If (a) fails, fall back to a single root page with `?type=erd` that boot reads to pick which folder's `app.js`/`app.css`/HTML template to load.
