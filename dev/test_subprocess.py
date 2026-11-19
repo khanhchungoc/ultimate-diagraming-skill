@@ -167,7 +167,7 @@ cand = sub.rpst_candidates(big)
 check("candidates: a 34-step chain lists regions of at most 30 steps, largest first", cand and "30 steps" in cand[0], cand)
 check("candidates: none for a region that is one or two steps", not sub.rpst_candidates(flow(3)) or "3 steps" in sub.rpst_candidates(flow(3))[0])
 
-# 5. Nesting up to 4 levels (plan: dev/plans/plan-subprocess-depth.md, sections 1 and 3)
+# 5. Nesting up to 4 levels (plan: dev/plans/archive/plan-subprocess-depth.md, sections 1 and 3)
 def nested_text(levels: int) -> str:
     """Like chain() but each block is closed right after its own lane, then the blocks close from the inside out."""
     out = ["flowchart", '  subgraph lane_a["Alpha"]', '    m0(["Start"])', '    s1[["Step 1"]]', '    m9(["End"])', "  end"]

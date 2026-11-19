@@ -14,7 +14,7 @@ from typing import Any, Dict, List, Optional, Tuple
 STEP_LIMIT = 30  # steps per tab (starts, ends, connectors and notes excluded)
 LANE_LIMIT = 6   # lanes per tab
 RPST_LIMIT = 5   # candidates listed
-MAX_FLOW_DEPTH = 4  # levels, 1 is the main flow (plan: dev/plans/plan-subprocess-depth.md); mirrors MMD_FLOW_MAX_DEPTH in mermaid.js
+MAX_FLOW_DEPTH = 4  # levels, 1 is the main flow (plan: dev/plans/archive/plan-subprocess-depth.md); mirrors MMD_FLOW_MAX_DEPTH in mermaid.js
 
 _NO_WORDS = re.compile(r"\b(not|no|fail|failed|reject|rejected|declin\w*|cancel\w*|denied|invalid|incomplete|unable|refused)\b", re.I)
 

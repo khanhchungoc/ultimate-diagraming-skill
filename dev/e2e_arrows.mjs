@@ -1,4 +1,4 @@
-// Interaction test for flowchart arrows and anchor points (dev/plans/plan-subprocess-depth.md, sections 9 and 10),
+// Interaction test for flowchart arrows and anchor points (dev/plans/archive/plan-subprocess-depth.md, sections 9 and 10),
 // with real mouse and keyboard input. Driven over the Chrome DevTools Protocol, see cdp.mjs.
 //
 //   node dev/e2e_arrows.mjs --browser <chrome> --page <default.html> --split <connector-forward.html>
