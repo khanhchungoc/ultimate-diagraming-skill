@@ -549,7 +549,7 @@
       }
       const SHAPE_OUTLINES = {
         decision:   { h: DECISION_HEIGHT, svg: `<path class="shape-path diamond-poly" d="${diamondPath(144, DECISION_HEIGHT)}"/>` },
-        subprocess: { h: 64, svg: '<rect class="shape-path" x="1" y="1" width="142" height="62" rx="8"/><rect class="shape-line sub-mark" x="7" y="7" width="12" height="12" rx="2"/><path class="shape-line sub-mark" d="M13 10V16M10 13H16"/>' },
+        subprocess: { h: 64, svg: '<rect class="shape-path" x="1" y="1" width="142" height="62" rx="8"/><rect class="shape-line sub-mark" x="7" y="7" width="12" height="12" rx="4"/><path class="shape-line sub-mark" d="M13 10V16M10 13H16"/>' },
         document:   { h: 64, svg: '<path class="shape-path" d="M1 1H143V57C119 49 96 49 72 57C48 65 25 65 1 57Z"/>' },
         io:         { h: 64, svg: '<polygon class="shape-path" points="13,1 143,1 131,63 1,63"/>' },
         database:   { h: 64, svg: '<path class="shape-path" d="M1 9A71 8 0 0 1 143 9V55A71 8 0 0 1 1 55Z"/><path class="shape-line" d="M1 9A71 8 0 0 0 143 9"/>' },

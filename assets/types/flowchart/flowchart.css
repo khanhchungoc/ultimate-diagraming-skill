@@ -773,7 +773,7 @@
       width: 18px; height: 18px;
       padding: 0;
       border: none;
-      border-radius: 4px;
+      border-radius: 6px;
       background: transparent;
       cursor: pointer;
       transition: background var(--ease);
