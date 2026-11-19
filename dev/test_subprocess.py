@@ -167,6 +167,60 @@ cand = sub.rpst_candidates(big)
 check("candidates: a 34-step chain lists regions of at most 30 steps, largest first", cand and "30 steps" in cand[0], cand)
 check("candidates: none for a region that is one or two steps", not sub.rpst_candidates(flow(3)) or "3 steps" in sub.rpst_candidates(flow(3))[0])
 
+# 5. Nesting up to 4 levels (plan: dev/plans/plan-subprocess-depth.md, sections 1 and 3)
+def nested_text(levels: int) -> str:
+    """Like chain() but each block is closed right after its own lane, then the blocks close from the inside out."""
+    out = ["flowchart", '  subgraph lane_a["Alpha"]', '    m0(["Start"])', '    s1[["Step 1"]]', '    m9(["End"])', "  end"]
+    for lv in range(2, levels + 1):
+        pad = "  " * (lv - 1)
+        out += [f'{pad}subgraph sub_s{lv - 1}["Step {lv - 1}"]', f'{pad}  subgraph lane_a["Alpha"]', f'{pad}    b{lv}(["Begin {lv}"])']
+        out += [f'{pad}    s{lv}[["Step {lv}"]]'] if lv < levels else [f'{pad}    w{lv}["Work {lv}"]']
+        out += [f'{pad}    e{lv}(["Done {lv}"])', f"{pad}  end"]
+    for lv in range(levels, 1, -1):
+        out.append("  " * (lv - 1) + "end")
+    out.append("  m0 --> s1 --> m9")
+    for lv in range(2, levels + 1):
+        out += [f"  b{lv} --> " + (f"s{lv}" if lv < levels else f"w{lv}") + f" --> e{lv}"]
+    return "\n".join(out) + "\n"
+
+
+t4 = read(nested_text(4))
+d4 = t4["data"]
+check("nesting: a 4-level file reads with no warning or info", not t4["warnings"] and not t4["infos"], (t4["warnings"], t4["infos"]))
+check("nesting: children are one flat map keyed by slug, parent before child", list(d4.get("children", {})) == ["s1", "s2", "s3"], list(d4.get("children", {})))
+check("nesting: each flow holds only its own steps", [n["id"] for n in d4["children"]["s2"]["nodes"]] == ["b3", "s3", "e3"]
+      and [n["id"] for n in d4["children"]["s3"]["nodes"]] == ["b4", "w4", "e4"], d4["children"])
+check("nesting: parentOf and depthOf follow the step", sub.parent_of(d4, "s3") == "s2" and sub.parent_of(d4, "s1") == "" and
+      [sub.depth_of(d4, k) for k in ("", "s1", "s2", "s3")] == [1, 2, 3, 4] and sub.can_nest(d4, "s2") and not sub.can_nest(d4, "s3"))
+check("nesting: child order is depth first", sub.child_order(d4) == ["s1", "s2", "s3"])
+check("nesting: no [WARN] from the contract check", not [w for w in sub.checks(d4) if "end pills" not in w], sub.checks(d4))
+back = le.run_mermaid("to", "flowchart", d4, palette=None)
+check("nesting: the writer nests each block in its parent's block", back.index("subgraph sub_s2") > back.index("subgraph sub_s1")
+      and back.index("subgraph sub_s2") < back.index("\n    end\n  end") and "    subgraph sub_s2[" in back and "      subgraph sub_s3[" in back, back)
+check("nesting: memory -> Mermaid -> memory is the same data", read(back)["data"] == d4)
+disk4 = df.to_disk("flowchart", d4)
+check("nesting: disk keeps the flat children map, no new field", list(disk4["children"]) == ["s1", "s2", "s3"]
+      and all(set(c) <= set(df.CHILD_KEYS) for c in disk4["children"].values()), list(disk4))
+mem4 = df.from_disk("flowchart", disk4)
+check("nesting: disk -> memory -> disk is byte-identical", json.dumps(df.to_disk("flowchart", mem4)) == json.dumps(disk4))
+check("nesting: disk -> memory -> Mermaid -> memory -> disk is the same", json.dumps(df.to_disk("flowchart", read(le.run_mermaid("to", "flowchart", mem4, palette=None))["data"])) == json.dumps(disk4))
+flat4 = sub.flatten(d4)
+check("nesting: --flat expands every level into one flow", "children" not in flat4 and sorted(n["id"] for n in flat4["nodes"]) == ["m0", "m9", "w4"],
+      sorted(n["id"] for n in flat4["nodes"]))
+check("nesting: the outline indents one step per level", [ln.index("s") for ln in sub.outline(d4)[1:]] == [3, 5, 7], sub.outline(d4))
+
+t5 = read(nested_text(5))
+d5 = t5["data"]
+check("nesting: level 5 stays a plain label with an [INFO]", list(d5["children"]) == ["s1", "s2", "s3"] and any("nested subgraphs flattened" in i and "sub_s4" in i for i in t5["infos"])
+      and next(n for n in d5["children"]["s3"]["nodes"] if n["id"] == "s4")["type"] == "subprocess", (t5["infos"], list(d5["children"])))
+missing = copy.deepcopy(d4)
+missing["children"]["s2"]["nodes"] = [n for n in missing["children"]["s2"]["nodes"] if n["id"] != "s3"]
+check("nesting: a sub_ whose parent step is missing at a deep level warns", any("sub_s3" in w and "no matching" in w for w in sub.checks(missing)), sub.checks(missing))
+deep = copy.deepcopy(d4)
+deep["children"]["s3"]["nodes"].append({"id": "s5", "laneId": "lane_a", "type": "subprocess", "label": "Step 5"})
+deep["children"]["s5"] = {"name": "Step 5", "laneOrder": ["lane_a"], "nodes": [{"id": "b6", "laneId": "lane_a", "type": "start", "label": "Begin"}], "edges": []}
+check("nesting: a flow deeper than 4 warns", any("level 5" in w for w in sub.checks(deep)), sub.checks(deep))
+
 # 4. CLI
 page = tmp / "lp.html"
 out = cli("--layout", FIXTURE, "-o", page)

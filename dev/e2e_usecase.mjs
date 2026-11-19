@@ -523,6 +523,78 @@ sys.stdout.write(f.format_json(out))`;
   await t.clickOn('.uc-subject[data-subject-id="office"] .frame-chev');
   t.check('?present: the chevron still collapses a boundary', !(await present(item('pick'))));
 
+  // --- free notes: no links, an absolute saved pos ---------------------------------------------------------------------------------------
+  await freshPage(page);
+  const freeOf = (dd, txt) => (dd.notes || []).find((n) => n.text === txt);
+  const noteCard = (txt) => `[...document.querySelectorAll('.note')].find((x) => x.textContent === ${J(txt)})`;
+  const cardAt = (txt) => t.ev(`(() => { const c = ${noteCard(txt)}; if (!c) return null; const r = c.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, left: Math.round(r.left), top: Math.round(r.top), shown: getComputedStyle(c).display !== 'none' }; })()`);
+  const badges0 = await count('.note-badge');
+  await tile('#btn-add-note');   // nothing selected: a free note at the view centre
+  const freeEdit = await editing();
+  await t.type('Loose remark');
+  await t.press('Escape');
+  await sleep(100);
+  d = await saved();
+  const loose = freeOf(d, 'Loose remark'), looseAt = await cardAt('Loose remark');
+  t.check('the Note tile with nothing selected adds a free note: no links, a saved numeric pos, shown at rest, no badge and no leader',
+    freeEdit === '' && loose && !(loose.useCases || []).length && !(loose.actors || []).length && Number.isFinite(loose.pos?.x) && Number.isFinite(loose.pos?.y) && looseAt?.shown
+      && (await count('.note-badge')) === badges0 && (await count(`.note-leader[data-note-id="${loose.id}"]`)) === 0, `${freeEdit} ${J(loose)} ${J(looseAt)}`);
+  await blank();
+  await t.press('n');
+  await t.type('From N');
+  await t.press('Escape');
+  t.check('N with nothing selected adds a free note too', !!freeOf(await saved(), 'From N')?.pos);
+  await blank();
+  // drop: on empty canvas it is free at the drop point, on a use case it links
+  const freeSpot = await t.ev(`(() => { const v = document.getElementById('viewport').getBoundingClientRect();
+    for (let y = v.top + 100; y < v.bottom - 180; y += 20) for (let x = v.left + 40; x < v.right - 260; x += 20) {
+      const h = document.elementFromPoint(x, y);
+      if (h && h.closest('#uc-canvas') && !h.closest('.uc-actor, .uc-case, .note, .uc-label, .dock-area, .toolbar') && !['path', 'line', 'polyline'].includes(h.tagName)) return { x, y };
+    } return null; })()`);
+  await dragTile('#btn-add-note', freeSpot.x, freeSpot.y);
+  const dropEdit = await editing();
+  await t.type('Dropped free');
+  await t.press('Escape');
+  const dropAt = await cardAt('Dropped free');
+  t.check('dropping the Note tile on empty canvas makes a free note at the drop point', dropEdit === '' && Math.abs(dropAt.left - freeSpot.x) < 16 && Math.abs(dropAt.top - freeSpot.y) < 16 && !freeOf(await saved(), 'Dropped free').useCases.length, `${dropEdit} ${J(dropAt)} ${J(freeSpot)}`);
+  const vc = await t.at(item('voucher'));
+  await dragTile('#btn-add-note', vc.x, vc.y);
+  await t.type('On the voucher');
+  await t.press('Escape');
+  t.check('dropping the Note tile on a use case links it to that use case', freeOf(await saved(), 'On the voucher')?.useCases.join() === 'voucher');
+  await blank();
+  // disk, memory, disk; the Python codec reads and writes the block as written
+  const rawFree = await t.ev(`document.getElementById('diagram-data').textContent`);
+  const reloadFree = join(work, 'free.html');
+  writeFileSync(reloadFree, readFileSync(page, 'utf8').replace(/(<script id="diagram-data" type="application\/json">)[\s\S]*?(<\/script>)/, (mm, a, b) => a + rawFree + b));
+  await freshPage(reloadFree);
+  await t.press('s', { modifiers: 2 });
+  await sleep(250);
+  const rawBack = await t.ev(`document.getElementById('diagram-data').textContent`);
+  const pf = spawnSync('python3', ['-I', '-c', py], { input: rawFree, encoding: 'utf8' });
+  t.check('a free note round trips: disk, memory, disk is the same text (and the Python codec writes it unchanged); free notes are on show at rest',
+    rawBack === rawFree && pf.stdout.replace(/\r\n/g, '\n').trim() === rawFree.trim() && (await cardAt('Dropped free'))?.shown && (await cardAt('Loose remark'))?.shown, pf.stderr || `${rawBack === rawFree}`);
+  // Auto-Tidy never moves a free note
+  const posBefore = freeOf(await saved(), 'Dropped free').pos, at0 = await cardAt('Dropped free');
+  await t.ev(`document.getElementById('btn-auto-tidy').click()`);
+  await sleep(200);
+  const at1 = await cardAt('Dropped free');
+  t.check('Tidy leaves a free note in place', J(freeOf(await saved(), 'Dropped free').pos) === J(posBefore) && Math.abs(at0.left - at1.left) <= 2 && Math.abs(at0.top - at1.top) <= 2, `${J(posBefore)} ${J(at0)} ${J(at1)}`);
+  // the link handle: a free note dragged onto an actor links it, staying put (the relative offset is not saved); the last link stays
+  await t.click(at1.x, at1.y);
+  const handle = await t.ev(`(() => { const h = ${noteCard('Dropped free')}.querySelector('.note-link').getBoundingClientRect(); return { x: h.left + h.width / 2, y: h.top + h.height / 2 }; })()`);
+  const cu = await t.at(item('customer'));
+  await t.dragTo(handle.x, handle.y, cu.x, cu.y, { steps: 8 });
+  const at2 = await cardAt('Dropped free');
+  const freeLinked = freeOf(await saved(), 'Dropped free');
+  t.check('dragging a free note onto an actor links it: it stays where it is, the saved note has the link and no pos, and a leader and badge appear',
+    freeLinked?.actors?.join() === 'customer' && !('pos' in freeLinked) && !('_pos' in freeLinked) && Math.abs(at2.left - at1.left) <= 2 && Math.abs(at2.top - at1.top) <= 2
+      && (await count(`.note-leader[data-note-id="${freeLinked.id}"]`)) === 1 && (await count('.uc-actor[data-node-id="customer"] .note-badge')) === 1, `${J(freeLinked)} ${J(at1)} ${J(at2)}`);
+  const h2 = await t.ev(`(() => { const h = ${noteCard('Dropped free')}.querySelector('.note-link').getBoundingClientRect(); return { x: h.left + h.width / 2, y: h.top + h.height / 2 }; })()`);
+  const cu2 = await t.at(item('customer'));
+  await t.dragTo(h2.x, h2.y, cu2.x, cu2.y, { steps: 8 });
+  t.check('the last link of a note stays (it never becomes free by unlinking)', freeOf(await saved(), 'Dropped free')?.actors?.join() === 'customer');
+
   t.check('no errors in the whole run', t.errors.length === 0, t.errors.join(' | '));
 } catch (err) {
   console.error('[ERROR]', err.stack || err.message);

@@ -159,7 +159,6 @@
       border-width: 2px;
       padding: 2px 7px;
     }
-    .edge-label.empty-placeholder:is(:hover, .linked, .selected, .hl-in, .hl-out) { padding: 0; }
     .edge-label-text {
       outline: none;
       min-width: 14px;
@@ -172,32 +171,15 @@
     .edge-label-text:focus {
       color: var(--primary);
     }
-    .edge-label.empty-placeholder {
-      display: none;
+    /* An arrow with no label draws nothing at its midpoint; the box shows only while the label is typed */
+    .edge-label.empty-placeholder { display: none; }
+    .edge-label.empty-placeholder.editing {
+      display: inline-flex;
+      min-width: 28px;
       background: var(--edge-label-empty-bg);
       border: 1.5px dashed var(--edge-label-empty-border);
-      color: var(--text-soft);
-      font-size: var(--t-label-size);
-      padding: 2px 8px;
     }
-    .edge-label.empty-placeholder {
-      width: 28px;
-      height: 28px;
-      box-sizing: border-box;
-      padding: 0;
-      border-radius: var(--radius-round);
-      align-items: center;
-      justify-content: center;
-      font-size: var(--text-xl);
-      line-height: var(--leading-none);
-    }
-    .edge-label.empty-placeholder.hover-visible,
-    .edge-label.empty-placeholder.selected,
-    .edge-label.empty-placeholder:hover {
-      display: inline-flex !important;
-      border-color: var(--primary);
-      color: var(--primary);
-    }
+    .edge-label.editing + .edge-bar { display: none; }
     .edge-label.has-label {
       display: inline-flex;
     }
@@ -373,7 +355,7 @@
       cursor: text;
     }
 
-    /* Connection Ports (Hidden until hover/selected/connecting for clean publication look) */
+    /* Connection Ports (the anchor points: shown on hover only, and on a selected step where there is no hover) */
     .port {
       position: absolute;
       width: 12px;
@@ -388,9 +370,10 @@
       transform: translate(-50%, -50%);
       box-shadow: var(--shadow-chip);
     }
-    .flow-node:hover .port, .flow-node.selected .port {
+    .flow-node:hover .port {
       opacity: 1;
     }
+    @media (hover: none) { .flow-node.selected .port { opacity: 1; } }
     /* While dragging an arrow, targets auto-anchor: no anchor points shown anywhere */
     body.connecting .port, body.reconnecting .port {
       opacity: 0 !important;
@@ -457,29 +440,14 @@
       100% { box-shadow: 0 0 0 18px color-mix(in srgb, var(--primary) 0%, transparent); } /* tokens-ok: pulse extent, an animation keyframe not a resting shadow */
     }
     @media (prefers-reduced-motion: reduce) { .flow-node.connector-pulse { animation: none; box-shadow: 0 0 0 var(--ring-lg) var(--primary); } }
-    /* The selected arrow's Split chip, beside its label, and the choice it opens when a pair can be joined */
-    .edge-split-chip {
-      position: absolute;
-      transform: translate(-50%, -50%);
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 24px;
-      height: 24px;
-      padding: 0;
-      border-radius: var(--radius-pill);
-      border: 1.5px solid var(--primary);
-      background: var(--node-bg);
-      color: var(--primary);
-      box-shadow: var(--shadow-chip);
-      cursor: pointer;
-      pointer-events: auto;
-      z-index: 33;
-    }
-    .edge-split-chip:hover, .edge-split-chip:focus-visible { background: var(--primary); color: var(--node-bg); }
+    /* The selected arrow's toolbar (an .actionbar): just right of the midpoint (past the label); hidden while an end is
+       dragged, while the label is typed, in presentation and in capture. Its Connector button opens the menu below. */
+    .edge-bar { transform: translateY(-50%); z-index: 33; pointer-events: auto; }
+    body:is(.presentation, .capture, .reconnecting) .edge-bar { display: none !important; }
     .edge-split-menu {
       position: absolute;
-      transform: translateX(-50%);
+      left: 0;
+      top: calc(100% + 4px);
       display: flex;
       flex-direction: column;
       min-width: 140px;
@@ -504,7 +472,6 @@
       cursor: pointer;
     }
     .edge-split-menu button:is(:hover, :focus-visible) { background: color-mix(in srgb, var(--primary) 14%, transparent); outline: none; }
-    body.presentation :is(.edge-split-chip, .edge-split-menu) { display: none !important; }
     .port:hover {
       transform: translate(-50%, -50%) scale(1.35);
       background: var(--node-accent, var(--primary));
@@ -746,11 +713,12 @@
     #swimlanes-container.dir-tb .lane-pill { text-align: center; }
     body.exporting #swimlanes-container.dir-tb .lane-pill { transform: translate(var(--pill-cx, 12px), 12px) !important; }
 
-    /* Subprocess flows: folder tabs hanging from the header (renderTabs). The outer box is the main flow: its own tab, then an
-       inner box holding one tab per subprocess. The top edge is open, so each box reads as hanging from the header. It floats
-       over the canvas (fitView leaves room for it through [data-overlay-top]). Active flow: bold and a 2px primary mark. */
+    /* Subprocess flows: nested folder boxes hanging from the header (renderTabs). One box per level on the path to the current
+       flow, each inside the one before it; the innermost holds the current flow's direct children. The top edge is open, so a
+       box reads as hanging from the header. The outermost floats over the canvas (fitView leaves room for it through
+       [data-overlay-top]) and carries the one shadow. Active flow: a filled chip, no underline. */
     .flow-tabs, .flow-subtabs {
-      display: flex; align-items: flex-start; gap: 4px; padding: 0 6px 6px;
+      display: flex; align-items: flex-start; gap: 4px; padding: 0 4px 4px;
       background: var(--bg-panel); border: 1.5px solid var(--border-dark); border-top: 0;
       border-radius: 0 0 var(--radius-lg) var(--radius-lg);
     }
@@ -762,13 +730,13 @@
     .flow-subtabs { min-width: 0; }
     .flow-tab {
       flex: none; display: inline-flex; align-items: center; height: 28px; max-width: 180px; padding: 0 10px; box-sizing: border-box;
-      background: none; border: 0; border-bottom: 2px solid transparent; border-radius: 0 0 var(--radius-md) var(--radius-md);
+      background: none; border: 0; border-radius: 0 0 var(--radius-md) var(--radius-md);
       font: inherit; font-size: var(--text-md); color: var(--text-soft); cursor: pointer;
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
     .flow-tab:hover { background: var(--bg-hover); color: var(--text-main); }
     .flow-tab:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
-    .flow-tab[aria-selected="true"] { font-weight: var(--weight-bold); color: var(--text-main); border-bottom-color: var(--primary); }
+    .flow-tab[aria-selected="true"] { font-weight: var(--weight-bold); color: var(--primary); background: var(--primary-wash); }
     body.presentation .flow-tabs { top: 12px; }
     body.capture .flow-tabs { display: none; }
     /* Over the + marker drawn in the outline (SHAPE_OUTLINES): a transparent hit area that tints on hover */

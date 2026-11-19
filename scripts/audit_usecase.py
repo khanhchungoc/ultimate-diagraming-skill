@@ -303,6 +303,8 @@ class UsecaseAudit:
         for n in ns:
             if not str(n.get("text") or "").strip():
                 errors.append(f"Note '{n.get('id')}' has no text.")
+            if not n.get("useCases") and not n.get("actors") and not isinstance(n.get("pos"), dict):  # free note: no links, an absolute pos
+                errors.append(f"Note '{n.get('id')}' links to no actor or use case and has no 'pos': list what it explains, or give it a position.")
             for key, known in (("useCases", umap), ("actors", amap)):
                 for i in n.get(key) or []:
                     if i not in known:

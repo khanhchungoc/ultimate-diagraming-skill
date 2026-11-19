@@ -663,7 +663,7 @@ try {
   await sleep(200);
   const pathBetweenSteps = `[...document.querySelectorAll('.edge-line')].find(p => !/^c/.test(p.dataset.from) && !/^c/.test(p.dataset.to) && document.getElementById('node-' + p.dataset.to)?.classList.contains('type-task'))`;
   await t.ev(`(${pathBetweenSteps}).dispatchEvent(new MouseEvent('click', { bubbles: true }))`);
-  await t.ev(`document.querySelector('.edge-split-chip')?.click()`);
+  await t.ev(`document.querySelector('.edge-bar [data-act="split"]')?.click()`);
   await sleep(200);
   const saved2 = JSON.parse(blockOf(await saveAndRead()));
   const ids = new Set(saved2.nodes.map(n => n.id));

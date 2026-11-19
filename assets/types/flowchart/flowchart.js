@@ -817,21 +817,29 @@
         selectNode(cIn.id);
       }
 
-      // The selected arrow's Split chip (beside its label). When a pair already continues at this arrow's target, it
-      // opens a choice: a new pair, or join that pair (a merge: several sources continuing at one out-connector).
-      function buildSplitChip(edge, labelContainer, route) {
-        const chip = document.createElement('button');
-        chip.type = 'button';
-        chip.className = 'edge-split-chip';
-        chip.dataset.exportSkip = '';
-        chip.title = 'Split into a connector pair';
-        chip.setAttribute('aria-label', 'Split this arrow into a connector pair');
-        chip.innerHTML = ui.icon('split');
-        chip.style.left = `${route.midX + labelContainer.offsetWidth / 2 + 18}px`;
-        chip.style.top = `${route.midY}px`;
-        chip.addEventListener('pointerdown', (e) => e.stopPropagation());
-        chip.addEventListener('click', (e) => {
+      // The selected arrow's toolbar (components/actionbar.css): Connector, Label, Delete. It sits just right
+      // of the midpoint (past the label when there is one), so it never covers the text or the spot to double-click.
+      // Connector opens a choice when a pair already continues at this arrow's target: a new pair, or join that pair
+      // (a merge: several sources continuing at one out-connector).
+      function buildEdgeBar(edge, labelContainer, route, hasLabel) {
+        const bar = ui.actionBar('actionbar edge-bar', 'Arrow');
+        const btn = (act, icon, title, extra) => ui.abButton('ab-btn', act, ui.icon(icon), title, undefined, undefined, extra);
+        if (!isConnector(nodeById(edge.from)) && !isConnector(nodeById(edge.to)) && edge.from !== edge.to) {
+          bar.appendChild(btn('split', 'split', 'Connector: split this arrow into a lettered pair'));
+        }
+        bar.appendChild(btn('label', 'label', 'Label (or double-click the arrow)'));
+        bar.appendChild(btn('delete', 'trash', 'Delete the arrow', 'is-danger'));
+        bar.style.left = `${route.midX + (hasLabel ? labelContainer.offsetWidth / 2 : 0) + 8}px`;
+        bar.style.top = `${route.midY}px`;
+        bar.addEventListener('pointerdown', (e) => e.stopPropagation());
+        bar.addEventListener('dblclick', (e) => e.stopPropagation());
+        bar.addEventListener('click', (e) => {
           e.stopPropagation();
+          const b = e.target.closest('.ab-btn');
+          if (!b) return;
+          if (b.dataset.act === 'delete') { deleteEdge(edge.id); return; }
+          if (b.dataset.act === 'label') { labelContainer.dispatchEvent(new MouseEvent('dblclick', { bubbles: false })); return; }
+          bar.querySelector('.edge-split-menu')?.remove();
           const joins = joinableLetters(edge.to);
           if (!joins.length) { splitEdge(edge.id); return; }
           const menu = document.createElement('div');
@@ -839,24 +847,22 @@
           menu.dataset.exportSkip = '';
           menu.setAttribute('role', 'menu');
           const item = (text, fn) => {
-            const b = document.createElement('button');
-            b.type = 'button';
-            b.setAttribute('role', 'menuitem');
-            b.textContent = text;
-            b.addEventListener('pointerdown', (ev) => ev.stopPropagation());
-            b.addEventListener('click', (ev) => { ev.stopPropagation(); fn(); });
-            menu.appendChild(b);
-            return b;
+            const m = document.createElement('button');
+            m.type = 'button';
+            m.setAttribute('role', 'menuitem');
+            m.textContent = text;
+            m.addEventListener('pointerdown', (ev) => ev.stopPropagation());
+            m.addEventListener('click', (ev) => { ev.stopPropagation(); fn(); });
+            menu.appendChild(m);
+            return m;
           };
           const first = item(`Split into new ${nextConnectorLetter(chartData.nodes)}`, () => splitEdge(edge.id));
           joins.forEach(l => item(`Join ${l} (continues at ${stepLabel(edge.to)})`, () => splitEdge(edge.id, l)));
-          menu.style.left = chip.style.left;
-          menu.style.top = `${route.midY + 16}px`;
-          chip.after(menu);
+          bar.appendChild(menu);
           first.focus();
-          menu.addEventListener('keydown', (ev) => { if (ev.key === 'Escape') { ev.stopPropagation(); menu.remove(); chip.focus(); } });
+          menu.addEventListener('keydown', (ev) => { if (ev.key === 'Escape') { ev.stopPropagation(); menu.remove(); b.focus(); } });
         });
-        return chip;
+        return bar;
       }
 
       // Pairs whose out-connector continues at step `toId`: an arrow into that step may join them
@@ -2626,8 +2632,8 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
             labelText.className = 'edge-label-text';
             labelText.contentEditable = 'false';
             labelText.spellcheck = false;
-            labelText.dataset.tip = 'Double-click to edit condition';
-            labelText.textContent = hasLabel ? edge.label : '+';
+            labelText.dataset.tip = 'Double-click to edit the label';
+            labelText.textContent = hasLabel ? edge.label : '';
 
             labelText.addEventListener('pointerdown', (e) => {
               e.stopPropagation();
@@ -2635,12 +2641,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
 
             labelText.addEventListener('blur', () => {
               labelText.contentEditable = 'false';
-              const text = labelText.textContent.trim();
-              if (text === '' || text === '+') {
-                edge.label = '';
-              } else {
-                edge.label = text;
-              }
+              edge.label = labelText.textContent.trim();
               updateStatus(true);
               render();
             });
@@ -2659,11 +2660,9 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
             labelContainer.addEventListener('dblclick', (e) => {
               e.stopPropagation();
               labelText.contentEditable = 'true';
+              labelContainer.classList.add('editing');   // shows an empty label's box, hides the toolbar
               labelText.focus();
-              if (labelText.textContent.trim() === '+') {
-                labelText.textContent = '';
-                labelContainer.classList.remove('empty-placeholder');
-              } else {
+              if (hasLabel) {
                 const range = document.createRange();
                 range.selectNodeContents(labelText);
                 const sel = window.getSelection();
@@ -2706,19 +2705,12 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
                 edgeLabelsGroup.appendChild(h);
               });
 
-              // Split chip beside the label: replace this arrow with a connector pair
-              if (!isConnector(nodeById(edge.from)) && !isConnector(nodeById(edge.to)) && edge.from !== edge.to) {
-                labelContainer.after(buildSplitChip(edge, labelContainer, pathD));
-              }
+              labelContainer.after(buildEdgeBar(edge, labelContainer, pathD, hasLabel));
             }
 
             labelContainer.addEventListener('click', (e) => {
               e.stopPropagation();
-              selectEdge(edge.id, false);
-              // The "+" placeholder starts typing on a single click
-              if (labelContainer.classList.contains('empty-placeholder') && labelText.contentEditable !== 'true') {
-                labelContainer.dispatchEvent(new MouseEvent('dblclick', { bubbles: false }));
-              }
+              selectEdge(edge.id, edge.id !== selectedEdgeId);   // a first click draws the toolbar
             });
 
             // Hovering the arrow or its label lights up both, so it is clear which label belongs to which arrow
@@ -2728,16 +2720,8 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
               if (edge.id !== selectedEdgeId) path.setAttribute('marker-end', on ? 'url(#arrowhead-selected)' : 'url(#arrowhead)');
             };
             [path, hit].forEach(el => {
-              el.addEventListener('mouseenter', () => {
-                labelContainer.classList.add('hover-visible');
-                setLinked(true);
-              });
-              el.addEventListener('mouseleave', () => {
-                setLinked(false);
-                if (edge.id !== selectedEdgeId && !labelText.matches(':focus')) {
-                  labelContainer.classList.remove('hover-visible');
-                }
-              });
+              el.addEventListener('mouseenter', () => setLinked(true));
+              el.addEventListener('mouseleave', () => setLinked(false));
             });
             labelContainer.addEventListener('mouseenter', () => setLinked(true));
             labelContainer.addEventListener('mouseleave', () => setLinked(false));
@@ -3298,6 +3282,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         chartData.lanes = chartData.lanes.filter(l => l.id !== laneId);
         chartData.nodes = chartData.nodes.filter(n => !gone.has(n.id));
         chartData.edges = chartData.edges.filter(e => !gone.has(e.from) && !gone.has(e.to));
+        dropChildOf([...gone]);
         pruneConnectors();   // a pair with one end in the lane goes with it
         pruneNotes();
         selectedLaneId = null;
@@ -3451,9 +3436,10 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         }
       }
 
-      function deleteNode(nodeId) {
+      function deleteNode(nodeId, confirmed) {
         const node = nodeById(nodeId);
         if (isConnector(node)) { joinConnector(node); return; }   // deleting a connector puts the whole arrow back
+        if (!confirmed && askSubDelete([nodeId])) return;   // a subprocess with content: Merge / Delete everything / Cancel
         chartData.nodes = chartData.nodes.filter(n => n.id !== nodeId);
         chartData.edges = chartData.edges.filter(e => e.from !== nodeId && e.to !== nodeId);
         dropChildOf([nodeId]);
@@ -3465,7 +3451,8 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
 
       // Delete several steps as one edit, so one undo brings them all back. Like a single delete, the arrows around
       // the hole go with it (no bridging).
-      function deleteNodes(ids) {
+      function deleteNodes(ids, confirmed) {
+        if (!confirmed && askSubDelete(ids)) return;
         const gone = new Set(ids.filter(id => nodeById(id) && !isConnector(nodeById(id))));
         chartData.nodes = chartData.nodes.filter(n => !gone.has(n.id));
         chartData.edges = chartData.edges.filter(e => !gone.has(e.from) && !gone.has(e.to));
@@ -3533,7 +3520,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
       function makeNode(type, p) {
         const node = { id: uid('n'), laneId: p.laneId, type, label: NODE_DEFAULTS[type] || 'New Step', x: p.x, y: p.y };
         chartData.nodes.push(node);
-        if (type === 'subprocess' && !chartData.tab) addEmptyChild(node);   // a new subprocess gets its own tab (one level)
+        if (type === 'subprocess' && canNest(curTab())) addEmptyChild(node);   // a new subprocess gets its own tab (up to MAX_FLOW_DEPTH)
         return node;
       }
 
@@ -3549,6 +3536,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
       document.querySelectorAll('[data-node-type]').forEach(btn => {
         btn.addEventListener('click', (e) => {
           if (btn.dataset.dragged) { delete btn.dataset.dragged; e.preventDefault(); return; }
+          if (btn.disabled) return;
           const type = btn.dataset.nodeType;
           addNodeAt(type, viewportCenterPlacement(typeFlowSize(type), typeCrossSize(type)));
         });
@@ -3798,7 +3786,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
       }
 
       function startPaletteDrag(e, btn) {
-        if (e.button !== 0 || document.body.classList.contains('presentation')) return;
+        if (e.button !== 0 || btn.disabled || document.body.classList.contains('presentation')) return;
         paletteDrag = { type: btn.dataset.nodeType, btn, ghost: null, startX: e.clientX, startY: e.clientY, placement: null, onCanvas: false };
         window.addEventListener('pointermove', onPaletteMove);
         window.addEventListener('pointerup', onPaletteUp);
@@ -3935,8 +3923,9 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         if (isTB()) delete chartData.direction;
         else chartData.direction = 'TB';
         selectedEdgeId = null;
-        // A moved note's offset is in screen terms, which the switch turns sideways: let every note be re-fitted
-        notesList().forEach(n => { delete n.pos; });
+        // A moved note's offset is in screen terms, which the switch turns sideways: let every anchored note be re-fitted
+        // (a free note's position is in flow terms and turns with the diagram)
+        notesList().forEach(n => { if (!isFree(n)) delete n.pos; });
         layoutDiagram(chartData);
         layoutOtherFlows();
         render();
@@ -3974,6 +3963,10 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
       // Dragging a note pins it: "pos" keeps its top-left relative to its anchor's top-left (screen px), so it
       // follows its anchor and is never re-fitted. Linking: drag a selected note's link handle onto a step, or
       // Shift+click a step while the note is selected; the same on a linked step unlinks it (never the last one).
+      // A free note has no links ("nodes": []): its "pos" is absolute, in flow terms like a step's x/y (x along the flow
+      // from the start of the lane track, y across), so it stays where it was dropped through Auto-Tidy. It has no
+      // leader and no badge, is always on show, and the other notes are fitted around it. Dropping the Note tile (or a
+      // free note's link handle) on a step links it; N or the tile with nothing selected adds one at the view's centre.
       const SVG_NS = 'http://www.w3.org/2000/svg';
       const notesLayer = document.getElementById('notes-layer');
       const noteLeaderGroup = document.getElementById('note-leader-group');
@@ -4000,6 +3993,11 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
       const notesList = () => (Array.isArray(chartData.notes) ? chartData.notes : []);
       const noteById = (id) => notesList().find(n => n.id === id);
       const noteTextOf = (note) => (note && typeof note.text === 'string' ? note.text.trim() : '');
+      const isFree = (note) => !(note.nodes || []).length;
+      const validPos = (p) => !!p && Number.isFinite(p.x) && Number.isFinite(p.y);
+      // Container px <-> a free note's flow-term position (see placeNodeEl)
+      const toFlowPos = (x, y) => { const off = trackOffset(); return isTB() ? { x: Math.round(y - off), y: Math.round(x) } : { x: Math.round(x - off), y: Math.round(y) }; };
+      const freeAt = (note) => flowToContainer(note.pos.x, note.pos.y);
       const isLive = (note) => !!noteTextOf(note) || note.id === editingNoteId;
       const linkedIds = (note) => (note.nodes || []).filter(id => nodeElOf(id));
       // Notes with text that explain a node (the one being typed counts too, so its card exists)
@@ -4028,12 +4026,14 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           delete n.notePos;
         });
         if (!Array.isArray(chartData.notes)) return;
+        const orphans = new Set();   // a linked note whose every step is gone goes too; a free one (never linked) stays
         chartData.notes.forEach(note => {
           const kept = (note.nodes || []).filter(id => ids.has(id));
           if (kept[0] !== (note.nodes || [])[0]) delete note.pos;   // the anchor changed: let it be re-fitted
+          if ((note.nodes || []).length && !kept.length) orphans.add(note.id);
           note.nodes = kept;
         });
-        chartData.notes = chartData.notes.filter(n => n.nodes.length && (noteTextOf(n) || n.id === editingNoteId));
+        chartData.notes = chartData.notes.filter(n => !orphans.has(n.id) && (n.nodes.length || validPos(n.pos)) && (noteTextOf(n) || n.id === editingNoteId));
         if (!chartData.notes.length) delete chartData.notes;
       }
 
@@ -4058,7 +4058,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         if (!notesLayer) return;
         notesLayer.textContent = '';
         noteLeaderGroup.textContent = '';
-        const live = notesList().filter(n => isLive(n) && linkedIds(n).length);
+        const live = notesList().filter(n => isLive(n) && (isFree(n) || linkedIds(n).length));
         live.forEach(note => {
           notesLayer.appendChild(buildNoteCard(note));
           linkedIds(note).forEach(nodeId => {
@@ -4102,9 +4102,9 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         const segBox = ([x1, y1, x2, y2]) => ({ x: Math.min(x1, x2), y: Math.min(y1, y2), w: Math.abs(x2 - x1), h: Math.abs(y2 - y1) });
         const boxesOf = {};
         live.forEach(n => { boxesOf[n.id] = linkedIds(n).map(id => containerBox(nodeElOf(id))); });
-        const placed = live.filter(n => n.pos || noteOffsets[n.id]).map(n => {
-          const o = n.pos || noteOffsets[n.id], a = boxesOf[n.id][0];
-          return { x: a.x + o.x, y: a.y + o.y, w: noteSizes[n.id].w, h: noteSizes[n.id].h };
+        const placed = live.filter(n => n.pos || noteOffsets[n.id]).map(n => {   // free notes are obstacles like any placed note
+          const o = n.pos || noteOffsets[n.id], a = isFree(n) ? freeAt(n) : boxesOf[n.id][0];
+          return isFree(n) ? { ...a, w: noteSizes[n.id].w, h: noteSizes[n.id].h } : { x: a.x + o.x, y: a.y + o.y, w: noteSizes[n.id].w, h: noteSizes[n.id].h };
         });
         // Reading order (along the flow, then across), so earlier steps get the nearer gaps
         const along = (b) => (isTB() ? [b.y, b.x] : [b.x, b.y]);
@@ -4164,8 +4164,8 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           const note = noteById(card.dataset.noteId);
           if (!note || (noteDrag && noteDrag.id === note.id)) return;
           const anchor = linkedIds(note)[0], o = note.pos || noteOffsets[note.id];
-          if (!anchor || !o) return;
-          const a = containerBox(nodeElOf(anchor)), x = a.x + o.x, y = a.y + o.y;
+          if ((!anchor && !isFree(note)) || !o) return;
+          const a = anchor && containerBox(nodeElOf(anchor)), { x, y } = a ? { x: a.x + o.x, y: a.y + o.y } : freeAt(note);
           card.style.left = `${x}px`;
           card.style.top = `${y}px`;
           drawLeaders(note.id, { x, y, ...(noteSizes[note.id] || { w: 0, h: 0 }) });
@@ -4199,7 +4199,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         [...notesLayer.children, ...noteLeaderGroup.children].forEach(el => {
           const note = noteById(el.dataset.noteId);
           if (!note) return;
-          el.classList.toggle('show', all);
+          el.classList.toggle('show', all || isFree(note));   // a free note has nothing to hover: it is always on show
           el.classList.toggle('peek', notePeeked(note));
           if (el.classList.contains('note')) el.classList.toggle('selected', note.id === selectedNoteId);
         });
@@ -4257,7 +4257,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         const { card, text } = ui.noteCard(note, {
           onDelete: () => removeNote(note.id),
           onLink: (e) => startNoteLink(e, note.id, card),
-          linkTitle: 'Link to another step: drag onto it (onto a linked step to unlink; or Shift+click the step)',
+          linkTitle: isFree(note) ? 'Link to a step: drag onto it' : 'Link to another step: drag onto it (onto a linked step to unlink; or Shift+click the step)',
           onCommit: (el) => commitNote(note, el),
           // the card grows as it is typed into: keep its leaders attached
           onInput: () => { noteSizes[note.id] = { w: card.offsetWidth, h: card.offsetHeight }; positionNotes(); },
@@ -4287,6 +4287,17 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         const existing = notesOf(nodeId)[0];
         if (existing) { editNote(existing.id); return; }
         const note = { id: noteUid(), text: '', nodes: [nodeId] };
+        chartData.notes = notesList();
+        chartData.notes.push(note);
+        editNote(note.id);
+      }
+
+      // A free note with its top-left at a client point (default: the middle of the view); dropped again if left empty
+      function addFreeNote(clientX, clientY) {
+        if (isPresenting()) return;
+        const vp = viewport.getBoundingClientRect();
+        const c = clientX === undefined ? toContainer(vp.left + vp.width / 2 - 80 * scale, vp.top + vp.height / 2 - 20 * scale) : toContainer(clientX, clientY);
+        const note = { id: noteUid(), text: '', nodes: [], pos: toFlowPos(Math.round(c.x / 4) * 4, Math.round(c.y / 4) * 4) };
         chartData.notes = notesList();
         chartData.notes.push(note);
         editNote(note.id);
@@ -4355,7 +4366,11 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         const note = noteById(noteId);
         if (!note || !nodeById(nodeId) || isConnector(nodeById(nodeId))) return;
         const ids = note.nodes || [];
-        if (!ids.includes(nodeId)) note.nodes = ids.concat(nodeId);
+        if (!ids.length) {   // a free note becomes anchored: its absolute pos turns relative to the step
+          const card = noteCard(noteId), a = containerBox(nodeElOf(nodeId));
+          if (card) { const c = containerBox(card); note.pos = { x: Math.round(c.x - a.x), y: Math.round(c.y - a.y) }; } else delete note.pos;
+          note.nodes = [nodeId];
+        } else if (!ids.includes(nodeId)) note.nodes = ids.concat(nodeId);
         else if (ids.length > 1) {
           if (ids[0] === nodeId && note.pos) {
             const card = noteCard(noteId), next = nodeElOf(ids[1]);
@@ -4453,6 +4468,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         const d = endNoteDrag();
         if (!d || !d.moved) return;
         const note = noteById(d.id), anchor = note && linkedIds(note)[0];
+        if (note && isFree(note)) { note.pos = toFlowPos(d.nx, d.ny); updateStatus(true); return; }
         if (!anchor) return;
         const a = containerBox(nodeElOf(anchor));
         note.pos = { x: Math.round(d.nx - a.x), y: Math.round(d.ny - a.y) };
@@ -4465,15 +4481,14 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         return d.moved;
       }
 
-      // N adds a note to the selected step (or opens the one it has), or opens the selected note
+      // N adds a note to the selected step (or opens the one it has), opens the selected note, or with neither adds a free note
       window.addEventListener('keydown', (e) => {
         if (e.key !== 'n' && e.key !== 'N') return;
         if (e.ctrlKey || e.metaKey || e.altKey || isPresenting()) return;
         const a = document.activeElement;
         if (a && (a.isContentEditable || a.tagName === 'INPUT' || a.tagName === 'TEXTAREA')) return;
-        if (!selectedNodeId && !selectedNoteId) return;
         e.preventDefault();
-        if (selectedNodeId) addNoteTo(selectedNodeId); else editNote(selectedNoteId);
+        if (selectedNodeId) addNoteTo(selectedNodeId); else if (selectedNoteId) editNote(selectedNoteId); else addFreeNote();
       });
 
       // --- NOTE TOOL (last tile in the Shapes menu) ---
@@ -4517,7 +4532,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           // which would otherwise take it straight out of the note just opened
           if (nodeId) setTimeout(() => giveNoteTo(nodeId));
           else if (noteId) setTimeout(() => editNote(noteId));
-          else setNotePicking(!notePicking);
+          else setTimeout(() => addFreeNote());
         });
         btnAddNote.addEventListener('pointerdown', (e) => {
           delete btnAddNote.dataset.dragged;
@@ -4550,7 +4565,9 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         d.ghost.style.left = `${e.clientX + 12}px`;
         d.ghost.style.top = `${e.clientY + 12}px`;
         d.target = nodeIdAt(e.clientX, e.clientY);
-        d.ghost.classList.toggle('off-target', !d.target);
+        d.x = e.clientX; d.y = e.clientY;
+        d.over = viewport.contains(document.elementFromPoint(e.clientX, e.clientY));
+        d.ghost.classList.toggle('off-target', !d.target && !d.over);
         markNoteTarget(d.target);
       }
       function endNoteToolDrag() {
@@ -4567,7 +4584,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         const d = endNoteToolDrag();
         if (!d || !d.ghost) return;
         btnAddNote.dataset.dragged = '1';   // swallow the click that may follow on the tile
-        if (d.target) giveNoteTo(d.target);
+        if (d.target) giveNoteTo(d.target); else if (d.over) { setNotePicking(false); addFreeNote(d.x, d.y); }   // anywhere else on the diagram: a free note
       }
       function cancelNoteToolDrag() {
         const d = endNoteToolDrag();
@@ -4853,8 +4870,13 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         if (Object.keys(layout).length) d.layout = layout;
         if (d.children) {
           // children in the order the parent flow reaches them, each with its keys in a fixed order
-          const ids = nodes.map(n => n.id).filter(id => d.children[id]);
-          const order = ids.concat(Object.keys(d.children).filter(k => !ids.includes(k)));
+          // depth first, mirroring child_order in scripts/subprocess_flow.py; a child whose step is missing goes last
+          const order = [];
+          const walk = (flowNodes) => (flowNodes || []).forEach(n => {
+            if (d.children[n.id] && !order.includes(n.id)) { order.push(n.id); walk(d.children[n.id].nodes); }
+          });
+          walk(nodes);
+          Object.keys(d.children).forEach(k => { if (!order.includes(k)) order.push(k); });
           d.children = Object.fromEntries(order.map(k => [k, orderedKeys(d.children[k], CHILD_KEYS)]));
         }
         return orderedKeys(d, DISK_KEYS);
@@ -4888,30 +4910,48 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
       const tabViews = {};        // key -> { scale, panX, panY }: each flow keeps its own pan and zoom
       const PARENT_LABEL = 'Main flow';
 
-      // Tab keys in reading order: the parent, then each child in the order the parent's steps reach it
+      // Flow tree. The model stays flat (flows / tabNames by slug); a flow's parent is the flow holding the step with that id,
+      // so no field is stored. MAX_FLOW_DEPTH: level 1 is the main flow (plan: dev/plans/plan-subprocess-depth.md).
+      const MAX_FLOW_DEPTH = 4;
+      const flowOf = (key) => (key === curTab() ? chartData : (chartData.flows || {})[key]);
+      const parentOf = (slug) => [PARENT, ...Object.keys(chartData.tabNames || {})].find(k => { const f = flowOf(k); return f && f.nodes.some(n => n.id === slug); }) || PARENT;
+      const depthOf = (key) => { let d = 1; for (let k = key; k !== PARENT && d <= MAX_FLOW_DEPTH + 8; k = parentOf(k)) d++; return d; };
+      const canNest = (key) => depthOf(key) < MAX_FLOW_DEPTH;
+      // The flows directly under `key`, in the order its steps come
+      function childrenOf(key) {
+        const f = flowOf(key), kids = Object.keys(chartData.tabNames || {}).filter(k => parentOf(k) === key);
+        if (!f) return kids;
+        const sorted = [...f.nodes];
+        flowSort(sorted, f.lanes.map(l => l.id));
+        const order = sorted.map(n => n.id);
+        return kids.sort((a, b) => order.indexOf(a) - order.indexOf(b));
+      }
+      const subtreeOf = (key) => childrenOf(key).flatMap(k => [k, ...subtreeOf(k)]);
+
+      // Tab keys in tree order: the parent, then each child with its own children after it (depth first)
       function tabKeys() {
         if (!chartData.flows) return [];
-        const pf = chartData.flows[PARENT] || chartData;
-        const lanes = (chartData.tab ? pf.lanes : chartData.lanes).map(l => l.id);
-        const sorted = [...pf.nodes];
-        flowSort(sorted, lanes);
-        const kids = Object.keys(chartData.tabNames);
-        const first = sorted.map(n => n.id).filter(id => kids.includes(id));
-        return [PARENT, ...first, ...kids.filter(k => !first.includes(k))];
+        const keys = [PARENT, ...subtreeOf(PARENT)];
+        return keys.concat(Object.keys(chartData.tabNames).filter(k => !keys.includes(k)));
       }
       const tabLabel = (key) => (key === PARENT ? PARENT_LABEL : chartData.tabNames[key]);
-      const hasChild = (nodeId) => !!chartData.flows && !chartData.tab && nodeId in chartData.tabNames;
+      const hasChild = (nodeId) => !!chartData.flows && nodeId in chartData.tabNames;
 
+      // The tab bar: nested folder boxes along the path Main -> ... -> current flow, then the current flow's direct children
+      // in the innermost box. Siblings of the path are not drawn: go up a level to reach them.
       function renderTabs() {
         flowTabs.hidden = !chartData.flows;
         document.querySelectorAll('[data-export="svg-all"]').forEach(el => { el.hidden = !chartData.flows; });
+        const tile = document.getElementById('btn-add-subprocess');
+        if (tile) {
+          const full = !canNest(curTab());
+          tile.disabled = full;
+          tile.title = full ? `Subprocess: the deepest level is ${MAX_FLOW_DEPTH}` : tile.dataset.title || (tile.dataset.title = tile.title);
+        }
         flowTabs.replaceChildren();
         if (!chartData.flows) return;
         const cur = curTab();
-        // The main flow's tab, then the inner box of subprocess tabs (one level: a child flow has no children)
-        const inner = document.createElement('div');
-        inner.className = 'flow-subtabs';
-        tabKeys().forEach(key => {
+        const tab = (key) => {
           const b = document.createElement('button');
           b.type = 'button';
           b.className = 'flow-tab';
@@ -4920,18 +4960,43 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           b.tabIndex = key === cur ? 0 : -1;
           b.dataset.tab = key;
           b.textContent = tabLabel(key);
-          // From a subprocess, the main flow's tab goes back up with that subprocess step selected
-          const back = key === PARENT && cur !== PARENT;
-          b.title = key === PARENT ? (back ? `Back to the main flow, at the step "${tabLabel(cur)}"` : 'The main flow') : `Subprocess: ${tabLabel(key)}`;
-          b.addEventListener('click', () => (back ? switchTab(PARENT, cur) : switchTab(key)));
+          b.title = key === PARENT ? 'The main flow' : `Subprocess: ${tabLabel(key)}`;
+          // A tab above the current flow goes back up, with the step that led down selected
+          let step = null;
+          for (let k = cur; k !== PARENT && k !== key; k = parentOf(k)) if (parentOf(k) === key) step = k;
+          if (step) b.title = `Back to ${key === PARENT ? 'the main flow' : `"${tabLabel(key)}"`}, at the step "${tabLabel(step)}"`;
+          b.addEventListener('click', () => switchTab(key, step));
+          if (key !== PARENT) {
+            b.addEventListener('contextmenu', (e) => { e.preventDefault(); openTabMenu(key, b, e.clientX, e.clientY); });
+            b.addEventListener('keydown', (e) => { if (e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10')) { e.preventDefault(); const r = b.getBoundingClientRect(); openTabMenu(key, b, r.left, r.bottom); } });
+          }
           b.addEventListener('keydown', (e) => {
-            const all = [...flowTabs.querySelectorAll('.flow-tab')], i = all.indexOf(b);
-            const to = e.key === 'ArrowRight' ? all[(i + 1) % all.length] : e.key === 'ArrowLeft' ? all[(i + all.length - 1) % all.length] : null;
-            if (to) { e.preventDefault(); switchTab(to.dataset.tab); const again = flowTabs.querySelector(`.flow-tab[data-tab="${CSS.escape(to.dataset.tab)}"]`); if (again) again.focus(); }
+            if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+              const all = [...b.parentElement.children].filter(c => c.classList.contains('flow-tab')), i = all.indexOf(b);
+              e.preventDefault();
+              all[(i + (e.key === 'ArrowRight' ? 1 : all.length - 1)) % all.length].focus();   // moves focus; Enter opens it
+            } else if (e.altKey && e.key === 'ArrowUp' && cur !== PARENT) {
+              e.preventDefault();
+              switchTab(parentOf(cur), cur);
+              const again = flowTabs.querySelector(`.flow-tab[aria-selected="true"]`);
+              if (again) again.focus();
+            }
           });
-          (key === PARENT ? flowTabs : inner).appendChild(b);
+          return b;
+        };
+        const box = (parent) => { const d = document.createElement('div'); d.className = 'flow-subtabs'; d.setAttribute('role', 'none'); parent.appendChild(d); return d; };
+        const path = [cur];
+        while (path[0] !== PARENT) path.unshift(parentOf(path[0]));
+        let at = flowTabs;
+        path.forEach((key, i) => {
+          if (i) at = box(at);
+          at.appendChild(tab(key));
         });
-        if (inner.childElementCount) flowTabs.appendChild(inner);
+        const kids = childrenOf(cur);
+        if (kids.length) { const inner = box(at); kids.forEach(k => inner.appendChild(tab(k))); }
+        // hanging boxes: each is one flex row
+        const act = flowTabs.querySelector('.flow-tab[aria-selected="true"]');
+        if (act && act.scrollIntoView) act.scrollIntoView({ block: 'nearest', inline: 'nearest' });
       }
 
       // Each flow keeps its own pan and zoom: called at the end of render(), so an undo that lands on another flow follows too
@@ -4970,10 +5035,14 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
       }
 
       // A child flow's own lanes, steps and arrows go when its parent step does
-      function dropChildOf(ids) {
-        if (!chartData.flows || chartData.tab) return;
-        ids.filter(id => id in chartData.tabNames).forEach(id => { delete chartData.flows[id]; delete chartData.tabNames[id]; });
+      function dropFlows(keys) {
+        keys.forEach(k => { delete chartData.flows[k]; delete chartData.tabNames[k]; });
         if (!Object.keys(chartData.tabNames).length) ['flows', 'actors', 'tabNames'].forEach(k => delete chartData[k]);
+      }
+      // A child flow, and every flow below it, go when its parent step does
+      function dropChildOf(ids) {
+        if (!chartData.flows) return;
+        dropFlows(ids.filter(id => id in chartData.tabNames).flatMap(id => [id, ...subtreeOf(id)]));
       }
       const laneUsedElsewhere = (laneId, inLanes) => !!chartData.flows && Object.values(chartData.flows).some(f => (inLanes ? f.lanes.some(l => l.id === laneId) : f.nodes.some(n => n.laneId === laneId)));
 
@@ -4985,7 +5054,8 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
       // Visit every flow in turn (the export of all of them), then come back to the one the person was on
       function eachTab(fn) {
         const home = curTab();
-        tabKeys().forEach(key => { switchTab(key); fn(tabLabel(key)); });
+        const seen = {};   // two flows may share a name: the file names must differ
+        tabKeys().forEach(key => { switchTab(key); const n = tabLabel(key); seen[n] = (seen[n] || 0) + 1; fn(seen[n] > 1 ? `${n} ${seen[n]}` : n); });
         switchTab(home);
       }
 
@@ -5007,21 +5077,21 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
       // Collapse: a run of two or more steps (runOf: one way in, one way out, no loop-back across the boundary) moves into a
       // new child flow and leaves one subprocess step in its place; the child gets a start pill, the run and one end pill.
       // Expand does the reverse (the same wiring as `--extract --flat`, scripts/subprocess_flow.py flatten). Each is one edit.
-      // Only from the parent flow: a child cannot hold another (one level). Neither is offered while a connector is involved.
+      // Collapse is offered while the flow is above MAX_FLOW_DEPTH. Neither is offered while a connector is involved.
       const btnCollapseSub = document.getElementById('btn-collapse-sub');
       const btnExpandSub = document.getElementById('btn-expand-sub');
       let subSeq = 0;
       const subId = (prefix) => `${prefix}_${Date.now()}_${subSeq++}`;
 
       function collapsibleRun() {
-        if (chartData.tab || selectedNodeIds.size < 2) return null;
+        if (!canNest(curTab()) || selectedNodeIds.size < 2) return null;
         const ids = [...selectedNodeIds];
         if (ids.some(id => hasChild(id))) return null;
         const run = runOf(ids);
         return run && [...run.set].every(id => !isConnector(nodeById(id))) ? run : null;
       }
       const expandableId = () => {
-        const id = !chartData.tab && selectedNodeIds.size === 1 ? [...selectedNodeIds][0] : null;
+        const id = selectedNodeIds.size === 1 ? [...selectedNodeIds][0] : null;
         return id && hasChild(id) ? id : null;
       };
       function updateSubButtons() {
@@ -5083,16 +5153,22 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         layoutFlow(flow, chartData.direction);
       }
 
-      function expandSubprocess() {
-        const id = expandableId();
+      // Why Expand cannot run on subprocess step `id` ('' when it can)
+      function expandBlocker(id) {
+        const kid = chartData.flows[id];
+        if (kid.nodes.filter(n => n.type === 'start').length !== 1) return 'Expand needs the subprocess to have exactly one start pill.';
+        const letters = (nodes) => new Set(nodes.filter(isConnector).map(n => String(n.label || '').trim().toUpperCase()));
+        const clash = [...letters(kid.nodes)].find(l => letters(chartData.nodes).has(l));
+        return clash ? `Both flows use the connector ${clash}: rename one before expanding.` : '';
+      }
+
+      function expandSubprocess(id = expandableId()) {
         if (!id) return;
+        const why = expandBlocker(id);
+        if (why) { flashHint(why); return; }
         syncActors();
         const kid = chartData.flows[id];
         const starts = kid.nodes.filter(n => n.type === 'start'), ends = kid.nodes.filter(n => n.type === 'end');
-        if (starts.length !== 1) { flashHint('Expand needs the subprocess to have exactly one start pill.'); return; }
-        const letters = (nodes) => new Set(nodes.filter(isConnector).map(n => String(n.label || '').trim().toUpperCase()));
-        const clash = [...letters(kid.nodes)].find(l => letters(chartData.nodes).has(l));
-        if (clash) { flashHint(`Both flows use the connector ${clash}: rename one before expanding.`); return; }
         const start = starts[0];
         const edges = chartData.edges;
         const outs = edges.filter(e => e.from === id);
@@ -5135,7 +5211,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         chartData.nodes = chartData.nodes.filter(n => !drop.has(n.id)).concat(kid.nodes.filter(n => !drop.has(n.id)));
         chartData.edges = edges.filter(e => !drop.has(e.from) && !drop.has(e.to) && !dropEdges.has(e.id)).concat(kidEdges, fresh);
         if (kid.notes && kid.notes.length) chartData.notes = notesList().concat(kid.notes);
-        dropChildOf([id]);
+        dropFlows([id]);   // only this flow: the ones below it stay, one level up
         pruneConnectors();
         pruneNotes();
         clearNodeSelection();
@@ -5165,6 +5241,88 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         return out;
       }
 
+      // --- DELETING A SUBPROCESS: Merge into parent / Delete everything / Cancel ---
+      // A subprocess that has content asks first (a freshly added one, still blank, goes at once). Merge is Expand; Delete
+      // everything is the plain delete, which takes the flows below along (dropChildOf).
+      const isBlankChild = (id) => {
+        const f = chartData.flows[id], tasks = f.nodes.filter(n => n.type !== 'start' && n.type !== 'end');
+        return !childrenOf(id).length && tasks.length <= 1 && tasks.every(n => n.type === 'task' && n.label === 'New Step');
+      };
+      const stepCount = (nodes) => nodes.filter(n => n.type !== 'start' && n.type !== 'end').length;
+
+      function confirmDeleteSub(id, anchorEl) {
+        ui.closeConfirm();
+        const node = nodeById(id);
+        if (!node || !hasChild(id)) return;
+        const why = expandBlocker(id);
+        const after = stepCount(chartData.nodes) - 1 + stepCount(chartData.flows[id].nodes);
+        const note = after > 30 ? ` The parent will have ${after} steps.` : '';
+        ui.confirm(anchorEl || document.getElementById(`node-${id}`), {
+          title: `Delete the subprocess \u201c${chartData.tabNames[id]}\u201d?`,
+          message: `Merge puts its steps into this flow; Delete everything removes them.${note}`,
+          label: 'Delete subprocess',
+          ok: 'Delete everything',
+          alt: { text: 'Merge into parent', onClick: () => expandSubprocess(id) },
+        }, () => deleteNode(id, true));
+        const alt = document.querySelector('.confirm .confirm-alt');
+        if (alt && why) { alt.disabled = true; alt.title = why; }
+      }
+
+      // True when a question was asked (the delete waits for the answer). Several steps at once: one plain question.
+      function askSubDelete(ids) {
+        const full = ids.filter(id => nodeById(id) && hasChild(id) && !isBlankChild(id));
+        if (!full.length) return false;
+        const anchor = document.getElementById(`node-${full[0]}`);
+        if (ids.length === 1) { confirmDeleteSub(full[0], anchor); return true; }
+        ui.closeConfirm();
+        ui.confirm(anchor, {
+          title: `Delete ${ids.length} steps?`,
+          message: `${full.length === 1 ? 'A subprocess' : `${full.length} subprocesses`} among them will be deleted with everything inside.`,
+          label: 'Delete steps',
+        }, () => deleteNodes(ids, true));
+        return true;
+      }
+
+      // The tab's Delete: on the parent flow, with the step selected, so Merge always runs on the parent's own data
+      function deleteSubprocessTab(key) {
+        switchTab(parentOf(key), key);
+        if (!hasChild(key)) return;
+        if (isBlankChild(key)) { deleteNode(key, true); return; }
+        confirmDeleteSub(key, flowTabs.querySelector(`.flow-tab[data-tab="${CSS.escape(key)}"]`));
+      }
+
+      // Right-click (or the Menu key, Shift+F10) on a subprocess tab: a one-item menu at the pointer
+      let tabMenu = null;
+      function closeTabMenu(focusKey) {
+        if (!tabMenu) return;
+        tabMenu.remove();
+        tabMenu = null;
+        document.removeEventListener('pointerdown', onTabMenuOutside, true);
+        const back = focusKey != null && flowTabs.querySelector(`.flow-tab[data-tab="${CSS.escape(focusKey)}"]`);
+        if (back) back.focus();
+      }
+      function onTabMenuOutside(e) { if (tabMenu && !tabMenu.contains(e.target)) closeTabMenu(); }
+      function openTabMenu(key, btn, x, y) {
+        closeTabMenu();
+        ui.closeConfirm();
+        const m = document.createElement('div');
+        m.className = 'menu tab-menu';
+        m.setAttribute('role', 'menu');
+        m.dataset.exportSkip = '';
+        const item = document.createElement('button');
+        item.type = 'button';
+        item.setAttribute('role', 'menuitem');
+        item.textContent = 'Delete';
+        item.addEventListener('click', () => { closeTabMenu(); deleteSubprocessTab(key); });
+        m.appendChild(item);
+        m.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeTabMenu(key); } });
+        document.body.appendChild(m);
+        m.style.cssText = `position: fixed; right: auto; left: ${Math.max(8, Math.min(x, innerWidth - m.offsetWidth - 8))}px; top: ${Math.max(8, Math.min(y, innerHeight - m.offsetHeight - 8))}px`;
+        tabMenu = m;
+        item.focus();
+        document.addEventListener('pointerdown', onTabMenuOutside, true);
+      }
+
       // The tab of a subprocess step is named like the step, and so is its start pill (the contract of the parent and the child)
       function syncChildName(node) {
         if (!hasChild(node.id) || !node.label) return;
@@ -5174,7 +5332,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         renderTabs();
       }
       if (btnCollapseSub) btnCollapseSub.addEventListener('click', collapseToSubprocess);
-      if (btnExpandSub) btnExpandSub.addEventListener('click', expandSubprocess);
+      if (btnExpandSub) btnExpandSub.addEventListener('click', () => expandSubprocess());
 
 
       // --- REGISTER WITH THE SHELL ---
@@ -5270,7 +5428,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
             o.right = Math.max(o.right, b.x + b.w + pad - W);
             o.bottom = Math.max(o.bottom, b.y + b.h + pad - H);
           };
-          if (notesLayer && chartData.showNotes) [...notesLayer.children].forEach(c => take(c, PAD));
+          if (notesLayer) [...notesLayer.children].forEach(c => { if (c.classList.contains('show')) take(c, PAD); });   // on show: all, or a free note
           edgeLabelsGroup.querySelectorAll('.edge-label.has-label').forEach(l => take(l, OUTER_CLEAR));
           return o;
         },

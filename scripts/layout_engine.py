@@ -29,7 +29,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 from audit_erd import ErdAudit
 from audit_sequence import SequenceAudit
 from audit_usecase import UsecaseAudit
-from disk_format import (DISK_CODECS, authoring_json, color_kind, format_json, from_disk,  # noqa: F401 (DISK_CODECS: registry)
+from disk_format import (DISK_CODECS, authoring_json, color_kind, format_json, free_notes, from_disk,  # noqa: F401 (DISK_CODECS: registry)
                          palette_slots, readme_text, stamp_reading_guide, to_disk, with_readme)
 import subprocess_flow as sub
 from engine_runner import EngineUnavailable, layout_session, run_layout, run_mermaid
@@ -456,7 +456,7 @@ class FlowchartAudit:
 
     def _note_warnings(self) -> List[str]:
         """Notes ("notes": [{id, text, nodes}]) add what labels cannot say. One linked to no existing step is never
-        drawn; one that repeats its step's label adds nothing; one past the budget turns into a tall card that
+        drawn (unless it is free: no links and a "pos"); one that repeats its step's label adds nothing; one past the budget turns into a tall card that
         covers the gaps the other notes are fitted into."""
         warnings = []
         notes = self.data.get("notes") or []
@@ -470,9 +470,11 @@ class FlowchartAudit:
                 continue
             ids = note.get("nodes") or []
             unknown = [i for i in ids if i not in self.node_map]
-            if not ids or unknown:
-                warnings.append(f"Note '{nid}' links to {'no step' if not ids else 'unknown node ids ' + ', '.join(map(str, unknown))}; "
-                                f"\"nodes\" lists the ids of the steps it explains.")
+            free = not ids and isinstance(note.get("pos"), dict)  # a free note: no links, an absolute "pos"
+            if (not ids and not free) or unknown:
+                what = "no step and has no \"pos\"" if not ids else "unknown node ids " + ", ".join(map(str, unknown))
+                warnings.append(f"Note '{nid}' links to {what}; \"nodes\" lists the ids of the steps it explains "
+                                f"(an empty list needs a \"pos\": a free note).")
             if len(text) > self.NOTE_BUDGET:
                 warnings.append(f"Note '{nid}' is {len(text)} chars (budget {self.NOTE_BUDGET}). Keep the facts a reader needs; cut the rest.")
             labels = [str(self.node_map[i].get("label", "")).strip() for i in ids if i in self.node_map]
@@ -1215,6 +1217,30 @@ def read_data_block_from_path(path: Path) -> Dict[str, Any]:
         if sibling.is_file():
             return json.loads(sibling.read_text(encoding="utf-8"))
     return read_data_block(html_text)
+
+
+def strip_free_notes(kind: str, data: Dict[str, Any]) -> Tuple[Dict[str, Any], List[str]]:
+    """(data without its free notes, one `%% <id>: <text>` line per free note, `(in sub_<slug>)` for a subprocess flow's).
+    Mermaid has no line for a note that explains nothing, so --extract lists them in a Notes section after the diagram."""
+    lines: List[str] = []
+    out = dict(data)
+    flows = [(None, data)] + (list((data.get("children") or {}).items()) if kind == "flowchart" else [])
+    for slug, flow in flows:
+        free = free_notes(kind, {"notes": flow.get("notes")})
+        if not free:
+            continue
+        where = f" (in sub_{slug})" if slug else ""
+        lines += [f"%% {n.get('id')}{where}: " + " ".join(str(n.get("text") or "").split()) for n in free]
+        keep = [n for n in flow.get("notes") or [] if not any(n is f for f in free)]
+        target = out
+        if slug is not None:
+            out["children"] = dict(out["children"])
+            target = out["children"][slug] = dict(flow)
+        if keep:
+            target["notes"] = keep
+        else:
+            target.pop("notes", None)
+    return out, lines
 
 
 def extract_data_from_html(html_content: str) -> Dict[str, Any]:
@@ -2032,6 +2058,7 @@ def main():
             # A lane's colour sits in the page's layout map, not in the authoring JSON, but Mermaid can say it (`class lane c3`)
             colors = {l["id"]: l["color"] for l in model.get("lanes") or [] if l.get("color")}
             data = {**data, "lanes": [{**l, "color": colors[l["id"]]} if l["id"] in colors else l for l in data.get("lanes") or []]} if colors else data
+            data, free = strip_free_notes(kind, data)
             try:
                 text = run_mermaid("to", kind, data, args.timeout, args.browser, theme_palette(resolve_theme(args.theme, page_text)[0])).rstrip("\n")
             except (EngineUnavailable, RuntimeError) as exc:
@@ -2039,6 +2066,8 @@ def main():
             what = "Mermaid"
             if head:
                 text = re.sub(r"(?m)^flowchart", "\n".join(head) + "\nflowchart", text, count=1)
+            if free:
+                text += "\n%% Notes (free: they explain nothing in particular)\n" + "\n".join(free)
         if args.output:
             out_p = Path(args.output)
             out_p.parent.mkdir(parents=True, exist_ok=True)
@@ -2067,6 +2096,8 @@ def main():
                 sys.exit(f"[ERROR] {exc}")
         audit = make_audit(data, tokens)
         report = audit.verify_collisions()
+        if data["diagramType"] == "flowchart" and data.get("children"):
+            report["budget_warnings"] = list(report["budget_warnings"]) + sub.checks(data)
 
         print(f"\n======================================================================")
         print(f"--- {audit.title} Verification & Quality Audit: {p.name} ---")

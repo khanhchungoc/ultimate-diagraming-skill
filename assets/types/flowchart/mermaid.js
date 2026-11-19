@@ -7,6 +7,7 @@
 const MMD_FLOW_KNOWN_DIRECTIVES = ['type', 'icon', 'color', 'showNotes', 'laneOrder', 'schemaVersion', 'swimlanes'];
 const MMD_FLOW_FLAGS = ['isStart', 'isEnd'];
 const MMD_FLOW_LAYOUT_KEYS = ['x', 'y', 'height', 'width', 'w', 'h', 'fw', 'fh'];
+const MMD_FLOW_MAX_DEPTH = 4;   // flow levels, 1 is the main flow (mirrors MAX_FLOW_DEPTH in scripts/subprocess_flow.py)
 const MMD_FLOW_ENGINE_CONN = /^c_[a-z]+_(?:in|out)(?:_\d+)?$/;
 
 function mmdFlowCollapseConnectors(nodes, edges) {
@@ -95,16 +96,26 @@ function fromMermaidAst(ast) {
     if (!onlySlots) infos.push(`[INFO] line ${kinds[k][0].line}: ${k} statements are ignored (${kinds[k].length})`);
   });
 
-  // Lanes: top-level subgraphs, and the lanes written inside a top-level `sub_<slug>` block (a child flow, one level only);
-  // the same lane id in several places is one lane (the first occurrence names it). Deeper subgraphs flatten into their lane.
-  const isSub = (s) => s.sub === s.id && !s.parent;
-  const isLane = (s) => !isSub(s) && (s.sub ? s.parent === s.sub : !s.parent);
-  const laneOf = (sg) => { while (!isLane(sg) && sg.parent) sg = sgById.get(sg.parent); return sg; };
+  // Lanes: top-level subgraphs, and the lanes written inside a `sub_<slug>` block (a child flow; a block may hold another one, up to
+  // level MMD_FLOW_MAX_DEPTH); the same lane id in several places is one lane (the first occurrence names it). Deeper subgraphs
+  // flatten into their lane.
+  const upOf = (s) => (s.parent ? sgById.get(s.parent) : null);
+  const levelOf = (s) => {   // the flow level a `sub_` block opens, 0 when it is none (not in a flow block, or deeper than the limit)
+    if (!/^sub_/.test(s.id)) return 0;
+    const p = upOf(s);
+    if (!p) return 2;
+    const pl = levelOf(p);
+    return pl && pl < MMD_FLOW_MAX_DEPTH ? pl + 1 : 0;
+  };
+  const isSub = (s) => levelOf(s) > 0;
+  const flowOf = (s) => { while (s && !isSub(s)) s = upOf(s); return s ? s.id : null; };   // the nearest flow block, itself included
+  const isLane = (s) => !isSub(s) && !/^sub_/.test(s.id) && (s.parent || null) === flowOf(s);
+  const laneOf = (sg) => { while (sg && !isLane(sg) && !isSub(sg)) sg = upOf(sg); return sg && isLane(sg) ? sg : null; };
   const nested = ast.subgraphs.filter((s) => !isSub(s) && !isLane(s));
   if (nested.length) infos.push(`[INFO] nested subgraphs flattened into their top-level lane: ${nested.map((s) => s.id).join(', ')}`);
   const laneIdOf = (id) => (/^[\w-]+$/.test(id) ? id : mmdSafeId(id));
   // Stock Mermaid merges a lane id repeated in another block, so "Copy as Mermaid" writes it as `lane_x__<slug>` inside a `sub_<slug>`
-  const baseId = (s) => (s.sub && s.id.endsWith('__' + s.sub.slice(4)) ? s.id.slice(0, -(s.sub.length - 2)) : s.id);
+  const baseId = (s) => { const f = flowOf(s); return f && s.id.endsWith('__' + f.slice(4)) ? s.id.slice(0, -(f.length - 2)) : s.id; };
   const laneSgs = ast.subgraphs.filter(isLane);
   // No subgraph: no lanes at all (the engine creates its own lane-main). `%% @swimlanes false` keeps written lanes hidden.
   const swimlanes = laneSgs.length > 0 && dir.swimlanes !== false;
@@ -125,10 +136,11 @@ function fromMermaidAst(ast) {
     lanes.push(l);
   });
   const laneOfNode = new Map(), tabOfNode = new Map(), firstLane = new Map();
-  laneSgs.forEach((s) => { if (!firstLane.has(s.sub)) firstLane.set(s.sub, laneIdOf(baseId(s))); });
+  laneSgs.forEach((s) => { if (!firstLane.has(flowOf(s))) firstLane.set(flowOf(s), laneIdOf(baseId(s))); });
   ast.subgraphs.forEach((s) => s.nodes.forEach((id) => {
-    tabOfNode.set(id, s.sub);
-    if (!isSub(s)) laneOfNode.set(id, laneIdOf(baseId(laneOf(s))));
+    tabOfNode.set(id, flowOf(s));
+    const lane = isSub(s) ? null : laneOf(s);
+    if (lane) laneOfNode.set(id, laneIdOf(baseId(lane)));
   }));
   const tabOf = (id) => tabOfNode.get(id) || null;
 
@@ -197,7 +209,7 @@ function fromMermaidAst(ast) {
   // Child flows: each `sub_<slug>` block holds its own steps, arrows and notes; nothing crosses its boundary
   const children = {};
   ast.subgraphs.filter(isSub).forEach((s) => {
-    children[s.id.slice(4)] = { name: s.title, laneOrder: [...new Set(laneSgs.filter((l) => l.sub === s.id).map((l) => laneIdOf(baseId(l))))], nodes: [], edges: [], notes: [] };
+    children[s.id.slice(4)] = { name: s.title, laneOrder: [...new Set(laneSgs.filter((l) => flowOf(l) === s.id).map((l) => laneIdOf(baseId(l))))], nodes: [], edges: [], notes: [] };
   });
   const parentTab = { nodes: [], edges: [], notes: [] };
   const into = (t) => (t ? children[t.slice(4)] : parentTab);
@@ -246,15 +258,23 @@ function toMermaid(data, opts) {
   const sid = (kind, raw) => { const k = kind + '\0' + raw; if (!ids.has(k)) ids.set(k, mmdSafeId(raw, used)); return ids.get(k); };
   const lanes = data.lanes || [];
   const kids = data.children || {};
-  // The parent flow, then each child flow in the order the parent reaches its subprocess step
-  const tabs = [{ slug: null, nodes: data.nodes || [], edges: data.edges || [], notes: data.notes || [], lanes: mmdFlowParentLanes(data) }];
-  const slugs = (data.nodes || []).map((n) => n.id).filter((id) => kids[id]);
-  Object.keys(kids).forEach((k) => { if (!slugs.includes(k)) slugs.push(k); });
-  slugs.forEach((k) => {
-    const c = kids[k], byId = new Map(lanes.map((l) => [l.id, l]));
-    const order = (c.laneOrder || []).concat((c.nodes || []).map((n) => n.laneId)).filter((id, i, a) => byId.has(id) && a.indexOf(id) === i);
-    tabs.push({ slug: k, name: c.name, nodes: c.nodes || [], edges: c.edges || [], notes: c.notes || [], lanes: order.map((id) => byId.get(id)) });
+  // The parent flow, then each child flow depth first, in the order its parent reaches the subprocess step; a flow whose step is
+  // missing goes under the main flow. `depth` is 0 for the main flow; a child's block is written inside its parent's block.
+  const main = { slug: null, depth: 0, kids: [], nodes: data.nodes || [], edges: data.edges || [], notes: data.notes || [], lanes: mmdFlowParentLanes(data) };
+  const tabs = [main];
+  const seen = new Set();
+  const addKids = (up, nodes) => (nodes || []).forEach((n) => {
+    if (!kids[n.id] || seen.has(n.id)) return;
+    seen.add(n.id);
+    const c = kids[n.id], byId = new Map(lanes.map((l) => [l.id, l]));
+    const order = (c.laneOrder || []).concat((c.nodes || []).map((x) => x.laneId)).filter((id, i, a) => byId.has(id) && a.indexOf(id) === i);
+    const t = { slug: n.id, depth: up.depth + 1, kids: [], name: c.name, nodes: c.nodes || [], edges: c.edges || [], notes: c.notes || [], lanes: order.map((id) => byId.get(id)) };
+    up.kids.push(t);
+    tabs.push(t);
+    if (t.depth < MMD_FLOW_MAX_DEPTH - 1) addKids(t, c.nodes);
   });
+  addKids(main, data.nodes);
+  Object.keys(kids).forEach((k) => { if (!seen.has(k)) addKids(main, [{ id: k }]); });
   tabs.forEach((t) => {
     const collapsed = mmdFlowCollapseConnectors(t.nodes, t.edges);
     t.nodes = collapsed.nodes;
@@ -341,10 +361,12 @@ function toMermaid(data, opts) {
   };
 
   const stockIds = {};
-  tabs.forEach((t) => {
-    const pad = t.slug === null ? '' : '  ';
+  // A flow's block holds its lanes and loose steps, then the blocks of its own children; its arrows and notes follow the
+  // top-level block, depth first. The main flow has no block of its own, its children's blocks follow its arrows and notes.
+  const block = (t) => {
+    const pad = '  '.repeat(t.depth);
     const placed = new Set();
-    if (t.slug !== null) out.push('', `  subgraph sub_${sid('n', t.slug)}[${q(t.name || t.slug)}]`);
+    if (t.slug !== null) out.push('', `${pad}subgraph sub_${sid('n', t.slug)}[${q(t.name || t.slug)}]`);
     t.lanes.forEach((l) => {
       const lid = sid('l', l.id) + (opts.stock && t.slug !== null ? '__' + sid('n', t.slug) : '');
       if (lid !== sid('l', l.id)) (stockIds[l.id] = stockIds[l.id] || []).push(lid);
@@ -353,13 +375,22 @@ function toMermaid(data, opts) {
       out.push(`${pad}  end`);
     });
     t.nodes.filter((n) => !placed.has(n.id)).forEach((n) => out.push(`${pad}  ` + decl(n)));
-    if (t.slug !== null) out.push('  end');
+    if (t.slug !== null) {
+      t.kids.forEach(block);
+      out.push(`${pad}end`);
+    }
+  };
+  const tail = (t) => {
     emitEdges(t.edges);
     t.notes.forEach((n) => {
       const nid = sid('note', n.id), links = (n.nodes || []).filter((x) => nodeIds.has(x)).map((x) => sid('n', x));
       out.push(`  ${nid}>${q(n.text)}]` + (links.length ? ` -.- ${links.join(' & ')}` : ''));
     });
-  });
+    if (t.slug !== null) t.kids.forEach(tail);
+  };
+  block(main);
+  tail(main);
+  main.kids.forEach((k) => { block(k); tail(k); });
 
   const slots = new Set();
   lanes.forEach((l) => {

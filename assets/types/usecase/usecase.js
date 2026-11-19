@@ -599,12 +599,16 @@
       // chartData.notes: { id, text, useCases: [ids], actors: [ids], _pos?: {x, y} }. The first linked item is the anchor. An
       // item with a note carries a badge; hovering it peeks the card, the Notes switch shows them all ("showNotes"). A card is
       // fitted into a clear gap near its item on every render unless it was dragged (_pos, relative to the anchor, which is
-      // never saved: notes carry no positions on disk).
+      // never saved: an anchored note carries no position on disk).
+      // A free note has no links (`useCases` and `actors` empty or absent) and an absolute `pos` in canvas coordinates, which
+      // is saved: no leader, no badge, always on show, never moved by Tidy; the other notes are fitted around it.
       const NOTE_GAP = 8, NOTE_MIN_GAP = 10, NOTE_IDEAL_GAP = 20, NOTE_REACH = 160, NOTE_STEP = 8;
       let noteOffsets = {}, noteSizes = {}, peekId = null, peekTimer = 0, notesLayer = null, editingNoteId = null;
       const noteText = (n) => (n && typeof n.text === 'string' ? n.text.trim() : '');
       const linkedItems = (n) => (n.useCases || []).concat(n.actors || []).filter((id) => itemOf(id) && drawn(id));
-      const liveNotes = () => notesList().filter((n) => (noteText(n) || n.id === editingNoteId) && linkedItems(n).length);
+      const linkCount = (n) => (n.useCases || []).length + (n.actors || []).length;
+      const isFreeNote = (n) => !linkCount(n);
+      const liveNotes = () => notesList().filter((n) => (noteText(n) || n.id === editingNoteId) && (isFreeNote(n) || linkedItems(n).length));
       const notesOfItem = (id) => liveNotes().filter((n) => linkedItems(n).includes(id));
       const noteCard = (id) => notesLayer && [...notesLayer.children].find((el) => el.dataset.noteId === id);
       const selectedNoteId = () => (selOther && selOther.kind === 'note' ? selOther.id : null);
@@ -646,14 +650,14 @@
         return card;
       }
       function fitNotes(live) {
-        const todo = live.filter((n) => !n._pos && !noteOffsets[n.id]);
+        const todo = live.filter((n) => !n._pos && !n.pos && !noteOffsets[n.id]);
         if (!todo.length) return;
         const C = chartData.canvas || { width: 0, height: 0 };
         const itemBoxes = [...actors(), ...cases()].filter((o) => placed(o) && o.w).map(boxOf);
         const labelBoxes = linksOf().filter((l) => l.labelBox).map((l) => l.labelBox);
         const anchorBox = (n) => boxOf(itemOf(linkedItems(n)[0]));
-        const placedBoxes = live.filter((n) => n._pos || noteOffsets[n.id]).map((n) => {
-          const o = n._pos || noteOffsets[n.id], a = anchorBox(n);
+        const placedBoxes = live.filter((n) => n._pos || n.pos || noteOffsets[n.id]).map((n) => {   // free notes are obstacles like any placed note
+          const o = n._pos || n.pos || noteOffsets[n.id], a = isFreeNote(n) ? { x: 0, y: 0 } : anchorBox(n);
           return { x: a.x + o.x, y: a.y + o.y, w: noteSizes[n.id].w, h: noteSizes[n.id].h };
         });
         todo.forEach((n) => {
@@ -683,9 +687,9 @@
         [...notesLayer.children].forEach((card) => {
           const note = noteOf(card.dataset.noteId);
           if (!note) return;
-          const ids = linkedItems(note), o = note._pos || noteOffsets[note.id];
-          if (!ids.length || !o) return;
-          const a = boxOf(itemOf(ids[0])), x = a.x + o.x, y = a.y + o.y, s = noteSizes[note.id] || { w: 0, h: 0 };
+          const ids = linkedItems(note), o = note._pos || note.pos || noteOffsets[note.id];
+          if ((!ids.length && !isFreeNote(note)) || !o) return;
+          const a = ids.length ? boxOf(itemOf(ids[0])) : { x: 0, y: 0 }, x = a.x + o.x, y = a.y + o.y, s = noteSizes[note.id] || { w: 0, h: 0 };
           card.style.left = px(x);
           card.style.top = px(y);
           drawLeaders(note.id, { x, y, w: s.w, h: s.h });
@@ -713,7 +717,7 @@
         [...notesLayer.children, ...leadersG.children].forEach((el) => {
           const note = noteOf(el.dataset.noteId);
           if (!note) return;
-          el.classList.toggle('show', all);
+          el.classList.toggle('show', all || isFreeNote(note));   // a free note has nothing to hover: it is always on show
           el.classList.toggle('peek', !!notePeeked(note));
         });
         applyNoteSelection();
@@ -757,6 +761,15 @@
         if (existing) { editNote(existing.id); return; }
         const note = { id: uid('n'), text: '' };
         note[kindOf(id) === 'actor' ? 'actors' : 'useCases'] = [id];
+        chartData.notes = notesList();
+        chartData.notes.push(note);
+        editNote(note.id);
+      }
+      // A free note with its top-left at a canvas point (default: the middle of the view); dropped again if left empty
+      function addFreeNote(pt) {
+        if (presenting()) return;
+        const c = pt || (() => { const v = viewCentre(); return { x: v.x - 80, y: v.y - 20 }; })();
+        const note = { id: uid('n'), text: '', useCases: [], pos: { x: Math.round(c.x / 4) * 4, y: Math.round(c.y / 4) * 4 } };
         chartData.notes = notesList();
         chartData.notes.push(note);
         editNote(note.id);
@@ -818,7 +831,12 @@
         if (!note || !kind) return;
         const key = kind === 'actor' ? 'actors' : 'useCases', all = linkedItems(note);
         const list = note[key] || [];
-        if (!all.includes(itemId)) note[key] = list.concat(itemId);
+        if (isFreeNote(note)) {   // a free note becomes anchored: its absolute pos turns into a relative _pos, which is not saved
+          const a = itemOf(itemId);
+          if (note.pos && a) note._pos = { x: Math.round(note.pos.x - a.x), y: Math.round(note.pos.y - a.y) };
+          delete note.pos;
+          note[key] = [itemId];
+        } else if (!all.includes(itemId)) note[key] = list.concat(itemId);
         else if (all.length > 1) { note[key] = list.filter((x) => x !== itemId); if (!note[key].length) delete note[key]; delete note._pos; }
         else { hint('A note keeps at least one item: delete the note instead'); return; }
         updateStatus(true);
@@ -862,6 +880,7 @@
           drop(e, d) {
             card.classList.remove('dragging');
             const note = noteOf(id), anchor = note && linkedItems(note)[0];
+            if (note && isFreeNote(note)) { note.pos = { x: Math.round(d.nx), y: Math.round(d.ny) }; updateStatus(true); return; }
             if (!anchor) { render(); return; }
             const a = itemOf(anchor);
             note._pos = { x: Math.round(d.nx - a.x), y: Math.round(d.ny - a.y) };
@@ -1234,8 +1253,12 @@
         const gone = new Set(ids);
         chartData.links = linksOf().filter((l) => !gone.has(l.from) && !gone.has(l.to));
         [...actors(), ...cases()].forEach((o) => { if (o.parent && gone.has(o.parent)) delete o.parent; });
-        notesList().forEach((n) => { ['useCases', 'actors'].forEach((k) => { if (n[k]) { n[k] = n[k].filter((x) => !gone.has(x)); if (!n[k].length) delete n[k]; } }); });
-        chartData.notes = notesList().filter((n) => (n.useCases || []).length || (n.actors || []).length);
+        // A note loses the items; one left with none goes (a free note never had any and stays)
+        chartData.notes = notesList().filter((n) => {
+          const had = linkCount(n);
+          ['useCases', 'actors'].forEach((k) => { if (n[k]) { n[k] = n[k].filter((x) => !gone.has(x)); if (!n[k].length) delete n[k]; } });
+          return !had || linkCount(n);
+        });
         if (!chartData.notes.length) delete chartData.notes;
       }
       function deleteItems(ids) {
@@ -1704,7 +1727,7 @@
           const over = !!document.elementFromPoint(e.clientX, e.clientY)?.closest('#uc-canvas') && pt.x >= -40 && pt.y >= -40 && pt.x <= C.width + 40 && pt.y <= C.height + 40;
           d.pt = over ? pt : null;
           d.id = kind === 'note' ? itemIdAt(e.clientX, e.clientY) : null;
-          d.ghost.classList.toggle('off-target', kind === 'note' ? !d.id : !over);
+          d.ghost.classList.toggle('off-target', kind === 'note' ? !d.id && !over : !over);
           canvas.querySelectorAll('.drop-target, .note-target').forEach((el) => el.classList.remove('drop-target', 'note-target'));
           if (kind === 'note' && d.id) els.items.get(d.id).classList.add('note-target');
           if (kind === 'case' && over) { const s = subjectAt(pt), el = s && els.subjects.get(s.id); if (el) el.classList.add('drop-target'); }
@@ -1713,7 +1736,7 @@
           const d = end();
           if (!d || !d.ghost) return;
           btn.dataset.dragged = '1';
-          if (kind === 'note' ? d.id : d.pt) onDrop(kind === 'note' ? d.id : d.pt);
+          if (kind === 'note' ? d.id || d.pt : d.pt) onDrop(kind === 'note' ? d.id : d.pt, d.pt);   // a note: on an item links it, anywhere else on the canvas it is free
         };
         const cancel = () => { end(); };
         btn.addEventListener('click', (e) => {
@@ -1736,11 +1759,11 @@
       wireTool(document.getElementById('btn-add-system'), 'system', () => addActor('system'), (pt) => addActor('system', pt));
       wireTool(document.getElementById('btn-add-usecase'), 'case', () => addCase(), (pt) => addCase(pt));
       wireTool(document.getElementById('btn-add-subject'), 'subject', () => addSubject(), (pt) => addSubject(pt));
-      // Note: a click adds one to the selected item; with nothing selected it waits for a click on an item; a drag gives the item under the drop a note
+      // Note: a click adds one to the selected item, or a free one at the view's centre with nothing selected; a drag gives the item under the drop a note, or drops a free one
       wireTool(document.getElementById('btn-add-note'), 'note', () => {
         const p = primaryId();
-        if (p) addNoteTo(p); else if (selectedNoteId()) editNote(selectedNoteId()); else setNotePicking(!notePicking);
-      }, (id) => giveNoteTo(id));
+        if (p) addNoteTo(p); else if (selectedNoteId()) editNote(selectedNoteId()); else addFreeNote();
+      }, (id, pt) => (id ? giveNoteTo(id) : addFreeNote(pt)));
       function setNotePicking(on) {
         if (notePicking === on) return;
         notePicking = on;
@@ -1784,7 +1807,8 @@
         if ((e.key === 'Enter' || e.key === 'F2') && !presenting() && (selIds.length === 1 || selOther)) { e.preventDefault(); editSelection(); return; }
         if ((e.key === 'n' || e.key === 'N') && !e.altKey && !presenting()) {
           const p = primaryId();
-          if (p && selIds.length === 1) { e.preventDefault(); addNoteTo(p); } else if (selectedNoteId()) { e.preventDefault(); editNote(selectedNoteId()); }
+          e.preventDefault();
+          if (p && selIds.length === 1) addNoteTo(p); else if (selectedNoteId()) editNote(selectedNoteId()); else addFreeNote();
           return;
         }
         if (e.key.startsWith('Arrow') && !e.altKey) { e.preventDefault(); walk(e.key); }
@@ -1818,7 +1842,7 @@
       // Written for a reader: fixed key order, schemaVersion 1, every actor's and use case's x/y in one trailing "layout" map
       // {id: {x, y}} (actors first, then use cases), derived geometry dropped, editor-generated ids renamed (actors, use
       // cases and subjects after their name; links l<N>; notes n<N>). scripts/disk_format.py (usecase_to_disk) is the
-      // Python twin: keep the two byte-identical. Notes carry no positions on disk (a dragged note's _pos is dropped).
+      // Python twin: keep the two byte-identical. An anchored note carries no position on disk (a dragged note's _pos is dropped); a free note keeps its absolute `pos`.
       const DISK_KEYS = ['diagramType', 'schemaVersion', 'title', 'showRefs', 'showNotes', 'colorKey', 'subjects', 'actors', 'useCases', 'links', 'notes', 'layout'];
       const DISK_DERIVED = [['subjects', ['x', 'y', 'w', 'h']], ['actors', ['w', 'h']], ['useCases', ['w', 'h']], ['links', ['points', 'labelBox']]];
       const DISK_OBJECTS = ['subjects', 'actors', 'useCases', 'links', 'notes'];
@@ -1942,8 +1966,9 @@
           const o = { left: 0, top: 0, right: 0, bottom: 0 };
           const H = canvas.offsetHeight, W = canvas.offsetWidth;
           if (legendEl) o.bottom = Math.max(o.bottom, 12 + legendEl.offsetHeight + 12);
-          if (notesLayer && chartData.showNotes) {
+          if (notesLayer) {
             [...notesLayer.children].forEach((card) => {
+              if (!card.classList.contains('show')) return;   // on show: all, or a free note
               const x = parseFloat(card.style.left) || 0, y = parseFloat(card.style.top) || 0, w = card.offsetWidth, h = card.offsetHeight;
               if (!w) return;
               o.left = Math.max(o.left, 12 - x); o.top = Math.max(o.top, 12 - y);
