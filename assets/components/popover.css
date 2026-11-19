@@ -53,15 +53,10 @@
     .confirm-list { margin: 0 0 12px; padding-left: 18px; max-height: 200px; overflow: auto; color: var(--text-soft); }
     .confirm-list li { margin-bottom: 4px; overflow-wrap: anywhere; }
 
-    /* Save location: the first Save of a file opened from disk shows where that file lives, with a copy button, so the
-       path can be pasted into the browser's Save dialog (shell.js askSaveLocation). */
-    .confirm:has(.save-where) { width: 380px; max-width: calc(100vw - 16px); }
-    .save-where { margin-bottom: 12px; }
-    .save-where-row { display: flex; align-items: center; gap: 6px; }
-    .save-where-path {
-      flex: 1 1 auto; min-width: 0; padding: 6px 8px; box-sizing: border-box; cursor: copy; overflow-wrap: anywhere;
+    /* Save location: the first Save of a file opened from disk copies and shows where that file lives, to paste into the
+       browser's Save dialog (shell.js askSaveLocation). */
+    .save-where {
+      display: block; margin-bottom: 12px; padding: 6px 8px; overflow-wrap: anywhere; user-select: all;
       font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-main); background: var(--bg-page);
-      border: 1px solid var(--border-color); border-radius: var(--radius-md); user-select: all;
+      border: 1px solid var(--border-color); border-radius: var(--radius-md);
     }
-    .save-where-copy { flex: none; }
-    .save-where-tip { margin-top: 6px; color: var(--text-soft); }

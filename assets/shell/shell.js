@@ -1941,49 +1941,27 @@
         return Promise.resolve(ok);
       }
 
-      // Before the first Save dialog of a file opened from disk: say where the file lives and copy that path, so the user can
-      // paste it into the dialog and save over the original instead of making a copy somewhere else. The dialog opens from
-      // the bubble's own button, which supplies the click the browser requires. Resolves when the bubble is done with.
-      function askSaveLocation(loc, choose) {
+      // Before the first Save dialog of a file opened from disk: copy the file's path right away (the Save click allows it)
+      // and show it, so the user can paste it into the dialog and save over the original instead of making a copy elsewhere.
+      // The dialog opens from the bubble's own button, which supplies the click the browser requires.
+      async function askSaveLocation(loc, choose) {
         const plat = ((navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || '').toLowerCase();
         const mac = !loc.win && /mac/.test(plat);
         // macOS "Go to folder" takes a folder (the name is already filled in); Windows and GTK file boxes take the whole path
-        const copied = mac ? loc.folder : loc.file;
-        const tip = loc.win ? 'In the next window, paste it into the File name box, then press Save.'
-          : mac ? 'In the next window, press \u2318\u21e7G, paste, press Return, then Save.'
-          : 'In the next window, press Ctrl+L, paste, then press Enter.';
-        const extra = document.createElement('div');
-        extra.className = 'save-where';
+        const text = mac ? loc.folder : loc.file;
+        const copied = await copyText(text);
+        const where = loc.win ? 'paste it into the File name box.' : mac ? 'press \u2318\u21e7G and paste it.' : 'press Ctrl+L and paste it.';
         const path = document.createElement('code');
-        path.className = 'save-where-path';
-        path.textContent = copied;
-        path.title = 'Click to copy';
-        const copyBtn = document.createElement('button');
-        copyBtn.type = 'button';
-        copyBtn.className = 'btn btn-icon save-where-copy';
-        copyBtn.title = 'Copy path';
-        copyBtn.setAttribute('aria-label', 'Copy path');
-        copyBtn.innerHTML = ui.icon('clipboard', { size: 'sm' });
-        const tipEl = document.createElement('div');
-        tipEl.className = 'save-where-tip';
-        tipEl.textContent = tip;
-        const doCopy = () => copyText(copied).then((ok) => {
-          tipEl.textContent = ok ? 'Path copied. ' + tip : 'Copy did not work: select the path above and copy it yourself.';
-        });
-        copyBtn.addEventListener('click', doCopy);
-        path.addEventListener('click', doCopy);
-        const row = document.createElement('div');
-        row.className = 'save-where-row';
-        row.append(path, copyBtn);
-        extra.append(row, tipEl);
+        path.className = 'save-where';
+        path.textContent = text;
         ui.confirm(btnSave, {
           label: 'Save over the file you opened',
-          title: 'Save over the file you opened',
-          message: `Your browser cannot write to this file by itself. Choose ${loc.name} in its folder once; after that Save writes straight to it.`,
-          extra,
-          ok: 'Copy path and choose\u2026',
+          title: copied ? 'Path copied' : 'Save over the file you opened',
+          message: (copied ? 'In the next window, ' : 'Copy this path. In the next window, ') + where,
+          extra: path,
+          ok: 'Choose\u2026',
           okClass: 'btn-primary'
-        }, () => { copyText(copied); choose(); });
+        }, choose);
       }
 
       async function pickSaveFile() {
