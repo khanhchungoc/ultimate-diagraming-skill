@@ -2067,6 +2067,8 @@ def main():
                 sys.exit(f"[ERROR] {exc}")
         audit = make_audit(data, tokens)
         report = audit.verify_collisions()
+        if data["diagramType"] == "flowchart" and data.get("children"):
+            report["budget_warnings"] = list(report["budget_warnings"]) + sub.checks(data)
 
         print(f"\n======================================================================")
         print(f"--- {audit.title} Verification & Quality Audit: {p.name} ---")
