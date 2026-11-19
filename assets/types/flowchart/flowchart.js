@@ -4908,33 +4908,30 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         flowTabs.replaceChildren();
         if (!chartData.flows) return;
         const cur = curTab();
+        // The main flow's tab, then the inner box of subprocess tabs (one level: a child flow has no children)
+        const inner = document.createElement('div');
+        inner.className = 'flow-subtabs';
         tabKeys().forEach(key => {
           const b = document.createElement('button');
           b.type = 'button';
-          b.className = 'btn flow-tab';
+          b.className = 'flow-tab';
           b.setAttribute('role', 'tab');
           b.setAttribute('aria-selected', String(key === cur));
           b.tabIndex = key === cur ? 0 : -1;
           b.dataset.tab = key;
           b.textContent = tabLabel(key);
-          b.title = key === PARENT ? 'The main flow' : `Subprocess: ${tabLabel(key)}`;
-          b.addEventListener('click', () => switchTab(key));
+          // From a subprocess, the main flow's tab goes back up with that subprocess step selected
+          const back = key === PARENT && cur !== PARENT;
+          b.title = key === PARENT ? (back ? `Back to the main flow, at the step "${tabLabel(cur)}"` : 'The main flow') : `Subprocess: ${tabLabel(key)}`;
+          b.addEventListener('click', () => (back ? switchTab(PARENT, cur) : switchTab(key)));
           b.addEventListener('keydown', (e) => {
             const all = [...flowTabs.querySelectorAll('.flow-tab')], i = all.indexOf(b);
             const to = e.key === 'ArrowRight' ? all[(i + 1) % all.length] : e.key === 'ArrowLeft' ? all[(i + all.length - 1) % all.length] : null;
             if (to) { e.preventDefault(); switchTab(to.dataset.tab); const again = flowTabs.querySelector(`.flow-tab[data-tab="${CSS.escape(to.dataset.tab)}"]`); if (again) again.focus(); }
           });
-          flowTabs.appendChild(b);
+          (key === PARENT ? flowTabs : inner).appendChild(b);
         });
-        if (cur !== PARENT) {
-          const up = document.createElement('button');
-          up.type = 'button';
-          up.className = 'btn flow-up';
-          up.textContent = '\u2191 Parent';
-          up.title = `Back to the main flow, at the step "${tabLabel(cur)}"`;
-          up.addEventListener('click', () => switchTab(PARENT, cur));
-          flowTabs.appendChild(up);
-        }
+        if (inner.childElementCount) flowTabs.appendChild(inner);
       }
 
       // Each flow keeps its own pan and zoom: called at the end of render(), so an undo that lands on another flow follows too

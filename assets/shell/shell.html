@@ -42,23 +42,23 @@
       <button id="btn-search" class="btn btn-icon" title="Search (Ctrl+F or /)" aria-label="Search" aria-expanded="false" aria-controls="search-bar" hidden>
         {{icon:search}}
       </button>
-      <button id="btn-undo" class="btn btn-icon" title="Undo (Ctrl+Z)" aria-label="Undo" disabled>
-        {{icon:undo}}
-      </button>
-      <button id="btn-redo" class="btn btn-icon" title="Redo (Ctrl+Y / Ctrl+Shift+Z)" aria-label="Redo" disabled>
-        {{icon:redo}}
-      </button>
-      <button id="btn-theme" class="btn btn-icon" title="Switch to dark mode" aria-label="Switch to dark mode"></button>
-      <button id="btn-help" class="btn btn-icon" title="Keyboard shortcuts" aria-label="Keyboard shortcuts" aria-expanded="false" aria-controls="help-drawer">?</button>
-      <button id="btn-present" class="btn" title="Present: a read-only view (Esc exits)" aria-label="Present" aria-pressed="false">
-        {{icon:present}}<span class="btn-label">Present</span>
-      </button>
-      <button id="btn-import-mermaid" class="btn" title="Paste Mermaid text to replace the diagram" aria-label="Paste Mermaid" hidden>
-        {{icon:code}}<span class="btn-label">Paste Mermaid</span>
+      <div class="menu-wrap">
+        <button id="btn-more" class="btn btn-icon" title="More" aria-label="More" aria-haspopup="menu" aria-expanded="false">
+          {{icon:more}}
+        </button>
+        <div id="more-menu" class="menu" role="menu" hidden>
+          <button type="button" id="menu-import-mermaid" role="menuitem" hidden>Paste Mermaid…</button>
+          <button type="button" id="menu-theme" role="menuitemcheckbox" aria-checked="false">Dark mode</button>
+          <button type="button" id="menu-help" role="menuitem">Keyboard shortcuts<kbd>?</kbd></button>
+        </div>
+      </div>
+      <span class="toolbar-sep" aria-hidden="true"></span>
+      <button id="btn-present" class="btn btn-icon" title="Present: a read-only view (Esc exits)" aria-label="Present" aria-pressed="false">
+        {{icon:present}}
       </button>
       <div class="menu-wrap">
-        <button id="btn-export" class="btn" title="Download or copy the diagram as an image" aria-label="Export" aria-haspopup="menu" aria-expanded="false">
-          {{icon:export}}<span class="btn-label">Export</span>
+        <button id="btn-export" class="btn btn-icon" title="Export: download or copy the diagram as an image" aria-label="Export" aria-haspopup="menu" aria-expanded="false">
+          {{icon:export}}
         </button>
         <div id="export-menu" class="menu" role="menu" hidden>
           <div class="menu-label" role="presentation">Download</div>
@@ -101,7 +101,14 @@
   </div>
 
   <!-- Zoom controls: floating in the bottom-left corner of the viewport -->
-  <div class="toolbar-zoom" role="group" aria-label="Zoom">
+  <div class="toolbar-zoom" role="group" aria-label="View">
+    <button id="btn-undo" class="btn btn-icon" title="Undo (Ctrl+Z)" aria-label="Undo" disabled>
+      {{icon:undo}}
+    </button>
+    <button id="btn-redo" class="btn btn-icon" title="Redo (Ctrl+Y / Ctrl+Shift+Z)" aria-label="Redo" disabled>
+      {{icon:redo}}
+    </button>
+    <span class="dock-sep" aria-hidden="true"></span>
     <button id="btn-zoom-out" class="btn btn-icon" title="Zoom out" aria-label="Zoom out">
       {{icon:minus}}
     </button>
@@ -109,7 +116,9 @@
     <button id="btn-zoom-in" class="btn btn-icon" title="Zoom in" aria-label="Zoom in">
       {{icon:plus}}
     </button>
-    <button id="btn-zoom-reset" class="btn" title="Fit to screen">Fit</button>
+    <button id="btn-zoom-reset" class="btn btn-icon" title="Fit to screen" aria-label="Fit to screen">
+      {{icon:fit}}
+    </button>
   </div>
   </div>
 

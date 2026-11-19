@@ -41,6 +41,21 @@
       gap: 10px;
     }
     .toolbar-left > svg, .type-switch svg { flex: none; color: var(--primary); }   /* the type's header icon */
+    /* Header buttons: icon-only 36px squares, borderless until hovered or focused; Save keeps its label */
+    header .btn-icon {
+      width: 36px; height: 36px; padding: 0;
+      justify-content: center;
+      border-color: transparent;
+      background: transparent;
+    }
+    header .btn-icon:hover, header .btn-icon:focus-visible, header .btn-icon[aria-expanded="true"] {
+      background: var(--bg-hover);
+      border-color: var(--border-dark);
+    }
+    header .btn-icon:disabled, header .btn-icon:disabled:hover { background: transparent; border-color: transparent; }
+    header .btn-icon svg, #btn-save svg { width: var(--icon-lg); height: var(--icon-lg); }
+    #btn-save { height: 36px; }
+    .toolbar-sep { width: 1px; height: 20px; background: var(--border-color); flex: none; }
 
     .app-title-container {
       display: flex;
@@ -179,12 +194,12 @@
     body.presentation .toolbar-center,
     body.presentation .toolbar-left,
     body.presentation .menu-wrap,
-    body.presentation #btn-import-mermaid,
+    body.presentation #btn-more,
     body.presentation #btn-save,
-    body.presentation #btn-help,
+    body.presentation .toolbar-sep,
     body.presentation #btn-undo,
     body.presentation #btn-redo,
-    body.presentation #btn-theme,
+    body.presentation .toolbar-zoom .dock-sep,
     body.presentation #btn-search,
     body.presentation #search-bar,
     body.presentation #help-drawer { display: none !important; }
@@ -201,7 +216,6 @@
       .toolbar-left { min-width: 0; flex: 1 1 auto; }
       .toolbar-right { gap: 6px; flex: none; }
       .btn-label { display: none; }
-      #btn-help { display: none; }   /* keyboard shortcuts mean little on a phone; frees room for the title */
       #help-drawer { right: 12px; bottom: 120px; }
     }
     @media (prefers-reduced-motion: reduce) {

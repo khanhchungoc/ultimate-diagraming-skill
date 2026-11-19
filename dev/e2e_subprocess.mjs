@@ -63,9 +63,9 @@ try {
   const childLanes = await laneNames();
   t.check('the button opens the child: its tab is selected and it shows only its own three lanes', J(await tabs()) === J(['Main flow', 'Approve Specification', 'Procure Laptop*', 'Source from Supplier'])
     && J(childLanes) === J(['Procurement', 'Finance', 'Line Manager']), J(await tabs()) + J(childLanes));
-  t.check('a child tab has the Parent link and no open buttons', (await t.ev(`!!document.querySelector('.flow-up')`)) && (await t.ev(`document.querySelectorAll('.sub-open').length`)) === 0);
+  t.check('a child tab: subprocess tabs sit inside the main flow box, no open buttons', (await t.ev(`!!document.querySelector('#flow-tabs > .flow-subtabs .flow-tab[aria-selected="true"]') && !document.querySelector('.flow-up')`)) && (await t.ev(`document.querySelectorAll('.sub-open').length`)) === 0);
   t.check('the child holds its own steps', (await nodeIds()).includes('obtain_price') && !(await nodeIds()).includes('submit_request'));
-  await t.clickOn('.flow-up');
+  await t.clickOn(`#flow-tabs > .flow-tab[data-tab=""]`);
   await sleep(300);
   t.check('Parent returns to the main flow and selects the subprocess step', J(await tabs()) === J(first)
     && await t.ev(`[...document.querySelectorAll('.flow-node.selected')].map((e) => e.dataset.nodeId).join()`) === 'procure_laptop');
@@ -192,7 +192,7 @@ try {
   await sleep(300);
   const mmd = await t.ev(`window.__copied`);
   t.check('Copy as Mermaid holds the parent, the three sub_ blocks and per-block lane ids', !!mmd && (mmd.match(/subgraph sub_/g) || []).length === 3 && /subgraph lane_manager__procure_laptop\[/.test(mmd) && /subgraph lane_manager\[/.test(mmd), (mmd || '').slice(0, 200));
-  await t.ev(`document.getElementById('btn-import-mermaid').click()`);
+  await t.ev(`document.getElementById('menu-import-mermaid').click()`);
   await sleep(200);
   t.check('the Paste Mermaid box opens', await t.ev(`!!document.querySelector('.confirm-field')`));
   await t.ev(`(() => { const f = document.querySelector('.confirm-field'); f.value = window.__copied; document.querySelector('.confirm-ok').click(); })()`);

@@ -11,6 +11,9 @@
       background: none; border: 0; text-align: left; padding: 7px 10px; border-radius: var(--radius-md);
       font: inherit; font-size: var(--t-control-size); color: var(--text, inherit); cursor: pointer;
     }
+    .menu button kbd { float: right; margin-left: 24px; font: inherit; font-size: var(--text-xs); color: var(--text-muted); }
+    .menu button[role="menuitemcheckbox"]::after { content: "¹3"; float: right; margin-left: 24px; visibility: hidden; }
+    .menu button[role="menuitemcheckbox"][aria-checked="true"]::after { visibility: visible; }
     .menu button:hover, .menu button:focus-visible { background: var(--bg-hover); outline: none; }
     .menu button[hidden] { display: none; }
     .menu-label {

@@ -28,6 +28,7 @@
       flex-wrap: wrap;
       justify-content: center;
     }
+    .toolbar-zoom { gap: 2px; }
     .toolbar-zoom { grid-column: 1; grid-row: 1; justify-self: start; }
     .toolbar-center .btn,
     .toolbar-zoom .btn { border-color: transparent; }
@@ -38,6 +39,9 @@
     /* Larger icons on the edit dock's own buttons (not the caret, not the bubble's tiles) */
     .toolbar-center > .btn > svg:first-child,
     .dock-pop-trigger > svg:first-child { width: var(--icon-lg); height: var(--icon-lg); }
+    /* The zoom dock is narrower: square 28px buttons */
+    .toolbar-zoom > .btn { width: 28px; height: 28px; padding: 0; justify-content: center; }
+    .toolbar-zoom > .btn:disabled, .toolbar-zoom > .btn:disabled:hover { background: transparent; }
     .toolbar-center .btn:hover,
     .toolbar-zoom .btn:hover { border-color: var(--border-dark); }
     .dock-sep {
@@ -46,6 +50,7 @@
       margin: 4px 2px;
       background: var(--border-color);
     }
+    .toolbar-zoom .dock-sep { margin: 4px 3px; }
 
     /* Dock popover (e.g. the flowchart's Shapes): a bubble that blows up from the trigger, above it.
        Generic: any [data-dock-pop] wrapper with a .dock-pop-trigger and a .dock-pop holding a .dock-pop-grid.
@@ -187,9 +192,9 @@
       pointer-events: none;
     }
     #zoom-level {
-      font-size: var(--text-md);
+      font-size: var(--text-sm);
       font-weight: var(--weight-semibold);
-      width: 45px;
+      width: 38px;
       text-align: center;
       color: var(--text-main);
       font-variant-numeric: tabular-nums;

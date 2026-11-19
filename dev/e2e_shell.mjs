@@ -176,7 +176,7 @@ try {
 
   // 4. Theme toggle (shell) re-renders through the plugin
   const before = await t.ev(`document.documentElement.getAttribute('data-theme')`);
-  await t.ev(`document.getElementById('btn-theme').click()`);
+  await t.ev(`document.getElementById('menu-theme').click()`);
   const afterTheme = await t.ev(`document.documentElement.getAttribute('data-theme')`);
   t.check('theme toggle flips data-theme and keeps the diagram', before !== afterTheme && (await t.ev(`document.querySelectorAll('.flow-node').length`)) === nodeCount - 1 && t.errors.length === 0, t.errors.join(' | '));
 
@@ -549,6 +549,40 @@ try {
   await t.open(laid, '?present');
   t.check('?present hides Save and toolbar', await t.ev(`document.body.classList.contains('presentation') && getComputedStyle(document.getElementById('btn-save')).display === 'none' && getComputedStyle(document.querySelector('.toolbar-center')).display === 'none'`));
   t.check('?present starts with the Present button pressed', await t.ev(`document.getElementById('btn-present').getAttribute('aria-pressed') === 'true'`));
+
+  // 10a. Header: icon-only buttons, Undo/Redo in the zoom dock, the More menu
+  await t.open(laid);
+  t.check('header buttons show no text except Save',
+    await t.ev(`[...document.querySelectorAll('header .toolbar-right > .btn, header .menu-wrap > .btn')].filter(b => b.getClientRects().length && b.textContent.trim() && b.id !== 'btn-save').length === 0`));
+  t.check('every header button has an aria-label and a title',
+    await t.ev(`[...document.querySelectorAll('header .toolbar-right > .btn, header .menu-wrap > .btn')].every(b => b.getAttribute('aria-label') && b.title)`));
+  t.check('Undo and Redo sit in the zoom dock, not the header',
+    await t.ev(`!!document.querySelector('.toolbar-zoom #btn-undo') && !!document.querySelector('.toolbar-zoom #btn-redo') && !document.querySelector('header #btn-undo, header #btn-redo')`));
+  const moreHidden = `document.getElementById('more-menu').hidden`;
+  await t.clickOn('#btn-more');
+  t.check('More menu opens on click and aria-expanded follows', !(await t.ev(moreHidden)) && await t.ev(`document.getElementById('btn-more').getAttribute('aria-expanded') === 'true'`));
+  await t.ev(t.key('Escape'));
+  t.check('Escape closes the More menu', await t.ev(moreHidden));
+  await t.clickOn('#btn-more');
+  await t.clickOn('#btn-export');
+  t.check('opening Export closes the More menu', await t.ev(moreHidden) && !(await t.ev(`document.getElementById('export-menu').hidden`)));
+  await t.clickOn('#btn-more');
+  t.check('opening More closes Export', !(await t.ev(moreHidden)) && await t.ev(`document.getElementById('export-menu').hidden`));
+  await t.ev(`document.getElementById('btn-more').focus()`);
+  await t.press('ArrowDown');
+  t.check('ArrowDown moves focus into the More menu items', await t.ev(`document.activeElement.getAttribute('role') && document.activeElement.closest('#more-menu') !== null`));
+  await t.ev(`document.body.click()`);
+  t.check('a click elsewhere closes the More menu', await t.ev(moreHidden));
+  const themeNow = await t.ev(`document.documentElement.getAttribute('data-theme')`);
+  t.check('#menu-theme aria-checked follows the theme', await t.ev(`document.getElementById('menu-theme').getAttribute('aria-checked')`) === String(themeNow === 'dark'));
+  await t.ev(`document.getElementById('menu-theme').click()`);
+  t.check('#menu-theme aria-checked flips with the toggle', await t.ev(`document.getElementById('menu-theme').getAttribute('aria-checked')`) === String(themeNow !== 'dark'));
+  await t.ev(`document.getElementById('menu-theme').click()`);
+  await t.ev(`document.getElementById('menu-help').click()`);
+  t.check('Keyboard shortcuts item opens the help drawer', await t.ev(`document.getElementById('help-drawer').classList.contains('open')`));
+  await t.ev(`document.getElementById('help-close').click()`);
+  t.check('closing help returns focus to #btn-more', await t.ev(`document.activeElement.id === 'btn-more'`));
+  t.check('no page errors in the header checks', t.errors.length === 0, t.errors.join(' | '));
 
   // 10b. The Present button toggles in place; only the zoom dock and the button stay; pan and zoom work; no edit gets through
   await t.open(laid);
