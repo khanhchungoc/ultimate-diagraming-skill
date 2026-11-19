@@ -67,14 +67,16 @@ Other changes:
 
 ### Showing 4 levels
 
-The bar shows a **path and siblings**, not every flow:
+Decided: opening a flow shows only its **direct children**, never grandchildren. The bar is the path down to the current flow, then that flow's direct children:
 
-- A breadcrumb of the ancestors on the left, for example `Main flow › Verify Income › Check Employer`, each ancestor clickable (clicking goes up to it and selects the step that led down).
-- Then the current flow's sibling chips (the subprocesses of the same parent), the active one filled.
-- Deep paths collapse the middle to `…` with a tooltip listing the hidden names; the bar scrolls horizontally if it still overflows, as it does today.
-- Keyboard: Left and Right move between sibling chips (unchanged); Alt+Up goes to the parent flow.
+- Ancestors on the left as a breadcrumb, for example `Main flow › Verify Income`, each clickable (clicking goes up to it and selects the step that led down).
+- The current flow is the active (filled) chip at the end of the path.
+- Right after it, one chip per direct child of the current flow, in the order the flow reaches them. Clicking one opens it, and the bar then shows that flow's own children. A flow with no children shows no chips.
+- Siblings are not shown. To reach one, go up to the parent and pick it from its children. This keeps the bar short at any depth.
+- A long path collapses its middle ancestors to `…` with a tooltip listing the hidden names; the bar scrolls horizontally if it still overflows, as it does today.
+- Keyboard: Left and Right move across the child chips (unchanged); Alt+Up goes to the parent flow.
 
-Rejected: one row of tabs per level. Four stacked rows cover the canvas, and `fitView` has to reserve all of them through `[data-overlay-top]`.
+Rejected: one row of tabs per level (four stacked rows cover the canvas, and `fitView` would reserve all of them through `[data-overlay-top]`), and showing siblings next to the current flow (the bar grows with every flow at that level).
 
 ## 5. Phases
 
@@ -86,7 +88,7 @@ Rejected: one row of tabs per level. Four stacked rows cover the canvas, and `fi
 ## 6. Tests
 
 - `dev/test_subprocess.py`: depth helpers; a 4-level file round-trips (disk, memory, disk) unchanged; a level-5 `sub_` becomes a plain label with an `[INFO]`; deleting a mid-level step removes its whole subtree.
-- `e2e_subprocess`: create levels 2, 3 and 4 from Shapes; the Subprocess tile is disabled on level 4 and cannot be added by drag or paste; breadcrumb clicks go up and select the right step; export of all tabs includes every level.
+- `e2e_subprocess`: create levels 2, 3 and 4 from Shapes; the Subprocess tile is disabled on level 4 and cannot be added by drag or paste; breadcrumb clicks go up and select the right step; only direct children show as chips; export of all tabs includes every level.
 - Contrast check for the active chip in light and dark (`dev/check_contrast.py`).
 - A screenshot of the tab bar at 1, 2 and 4 levels, light and dark, for the review.
 
@@ -94,7 +96,7 @@ Rejected: one row of tabs per level. Four stacked rows cover the canvas, and `fi
 
 Touching `assets/` means the playground artifact is republished at the end of each phase that changes what a page runs or looks like (see `AGENTS.md`).
 
-## Open questions
+## Decisions
 
-- Should the level-4 Subprocess tile be disabled (recommended, the layout stays put) or hidden?
-- Is the breadcrumb plus sibling chips acceptable, or do you want every level's tabs visible at once despite the height?
+- The level-4 Subprocess tile is disabled, not hidden, so the layout does not jump.
+- The tab bar shows the path to the current flow plus its direct children only, never grandchildren.
