@@ -124,11 +124,12 @@ export async function launch(browser) {
       // The first load event can belong to the previous page (about:blank): wait for the real one.
       for (let i = 0; i < 100; i++) {
         const r = await send('Runtime.evaluate', {
-          expression: `JSON.stringify([location.href, document.readyState, document.documentElement.dataset.diagramReady || ''])`,
+          expression: `JSON.stringify([location.href, document.readyState, document.documentElement.dataset.diagramReady || '', document.documentElement.dataset.diagramSettled || ''])`,
           returnByValue: true,
         });
-        const [href, ready, diagramReady] = JSON.parse(r.result.value);
-        if (href === url && ready === 'complete' && (!isSplit || diagramReady === '1')) break;
+        const [href, ready, diagramReady, settled] = JSON.parse(r.result.value);
+        // settled: the web font is in and the shell animates (until then motion is off, so the font-swap render does not FLIP)
+        if (href === url && ready === 'complete' && (!isSplit || diagramReady === '1') && (!diagramReady || settled === '1')) break;
         await sleep(100);
       }
       await sleep(700);

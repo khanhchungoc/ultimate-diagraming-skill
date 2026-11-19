@@ -446,7 +446,7 @@
         };
         const curve = (k, fb = 'cubic-bezier(0.22, 1, 0.36, 1)') => (TOKENS.motion && TOKENS.motion[k]) || fb;
         const enabled = () => !noAnimParam && !(reducedMq && reducedMq.matches)
-          && document.documentElement.dataset.diagramReady === '1'
+          && document.documentElement.dataset.diagramSettled === '1'   // not while loading: the render after the web font arrives would FLIP from the fallback-font layout, and Fit would measure it mid-flight
           && !document.body.classList.contains('capture') && !document.body.classList.contains('exporting');
 
         let lastPlayAt = -1000, cachedScale = 1, lastStampFrame = -1;

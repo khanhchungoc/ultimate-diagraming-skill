@@ -221,7 +221,7 @@
     }
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after {
-        transition-duration: 0.01ms !important;
+        transition: none !important;   /* not a tiny duration: that gives every element an 'all' transition, so a measure reads pre-change values */
         animation-duration: 0.01ms !important;
         scroll-behavior: auto !important;
       }
@@ -229,7 +229,7 @@
     body.capture *, body.capture *::before, body.capture *::after,
     body.exporting *, body.exporting *::before, body.exporting *::after,
     html[data-noanim] *, html[data-noanim] *::before, html[data-noanim] *::after {
-      transition-duration: 0.01ms !important;
+      transition: none !important;
       animation-duration: 0.01ms !important;
     }
     /* Inert ghost layer for non-blocking exit/morph clones (stripped of test-queried classes, skipped in exports) */
