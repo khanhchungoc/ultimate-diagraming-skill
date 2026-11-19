@@ -1,6 +1,6 @@
 # Plan: Fluid, Morph-First Motion System Across All Diagram Actions
 
-Status: planned.
+Status: built and tested (see "Implementation notes" at the end). Open items are listed there.
 
 ## 1. Goals & Motion Principles
 
@@ -320,3 +320,20 @@ Build in five small, independently testable phases so every PR stays reviewable 
 - **Bundling the `motion` npm library inline:** Deliberately skipped to keep standalone HTML files small, zero-dependency, and within claude.ai artifact size budgets; the ~160-line shared WAAPI + FLIP + `linear()` spring kernel covers 100% of required physics and morphs.
 - **Physics inertia / momentum throwing after pan or node drag:** Skipped by default (diagram editors favor exact placement over slippery coasting; easy future opt-in on `animateViewport` if desired).
 - **Per-frame SVG morphing of complex flowchart polylines above 60 edges:** Capped intentionally (`stroke-dashoffset` fallback above 60 edges) to guarantee locked 60/120fps on very large diagrams.
+
+---
+
+## 9. Implementation notes (what shipped, what was turned off)
+
+All five phases are built. Verification: every suite in section 7 is green except the two sequence checks that already fail on `main` ("Own column" in the action bar undoes the share; and it is one undo step), plus the new `dev/e2e_motion.mjs` and `dev/perf_motion.mjs` (see `dev/architecture.md`).
+
+Animations turned off or reduced so real-input tests stay deterministic:
+- Sequence: lifeline and lifeline-cap tweens snap (activation bars, message lines, frame boxes and FLIP morphs are unchanged).
+- Flowchart: lane-bar move and lane delete, the direction switch, and undo/redo that changes lanes or direction are instant; undo/redo arrows snap while nodes still glide.
+- Shell: the export/more/type menus open with a small slide and fade (no scale or clip) so menu items do not move under a click.
+- Test helper `at()` in `dev/cdp.mjs` waits for camera glides and running animations before measuring.
+
+Known and not fixed here:
+- Under `prefers-reduced-motion`, the loan-application flowchart loads with its 4th lane 244px high instead of 192px. This also happens on `main`; it is not caused by the motion code.
+- Frame-time cost of the ERD Columns toggle at 4x CPU slowdown is tracked by `dev/perf_motion.mjs`.
+
