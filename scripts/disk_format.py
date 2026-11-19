@@ -404,7 +404,7 @@ def erd_from_disk(data: Dict[str, Any]) -> Dict[str, Any]:
 #   2. colours: `color` of actors and useCases, and colorKey, become palette slots (_slot_colors).
 #   3. drop derived fields: on every object of subjects, actors, useCases, links and notes every key that starts with "_";
 #      on subjects "x", "y", "w", "h"; on actors and useCases "w" and "h"; on links "points" and "labelBox".
-#      (Notes carry no positions; only their "_" fields are dropped.)
+#      (An anchored note carries no position, only its "_" fields are dropped; a free note keeps its absolute `pos`.)
 #   4. rename editor ids (below), following every reference.
 #   5. layout: {id: {"x": .., "y": ..}} for actors, then useCases, in array order, for those that have numeric x and y;
 #      their "x"/"y" are removed from the objects. The "layout" key is omitted when empty.
@@ -553,12 +553,37 @@ def format_json(v: Any, indent: str = "") -> str:
     return opening + "\n" + body + "\n" + indent + closing
 
 
+# --- Free notes (flowchart, ERD, use case) ---
+# A note explains steps, tables or use cases through a link list. An empty list makes it free: no new key, its `pos` is
+# absolute (the coordinates a step, table or use case has), so a free note without a numeric pos is not a note. The codecs
+# above pass notes through untouched (a use case note loses its "_" fields only); `pos` stays where the page put it.
+NOTE_LINKS = {"flowchart": ("nodes",), "erd": ("entities",), "usecase": ("useCases", "actors")}
+
+
+def free_notes(kind: str, data: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """The notes of `data` (a flowchart's subprocess flows included) that link to nothing."""
+    keys = NOTE_LINKS.get(kind, ())
+    flows = [data] + list((data.get("children") or {}).values()) if kind == "flowchart" else [data]
+    return [n for f in flows for n in f.get("notes") or [] if isinstance(n, dict) and keys and not any(n.get(k) for k in keys)]
+
+
+def check_notes(kind: str, data: Dict[str, Any]) -> None:
+    """Raise ValueError for a free note with no numeric `pos` {x, y}."""
+    for n in free_notes(kind, data):
+        pos = n.get("pos")
+        if not (isinstance(pos, dict) and _is_num(pos.get("x")) and _is_num(pos.get("y"))):
+            raise ValueError(f"Note {n.get('id')!r} links to nothing and has no \"pos\" {{x, y}}: "
+                             f"list the {'/'.join(NOTE_LINKS[kind])} it explains, or give it a position.")
+
+
 def to_disk(kind: str, data: Dict[str, Any]) -> Dict[str, Any]:
+    check_notes(kind, data)
     return DISK_CODECS[kind][0](data) if kind in DISK_CODECS else data
 
 
 def from_disk(kind: str, data: Dict[str, Any]) -> Dict[str, Any]:
     data = {k: v for k, v in data.items() if k != README_KEY}
+    check_notes(kind, data)
     return DISK_CODECS[kind][1](data) if kind in DISK_CODECS else data
 
 

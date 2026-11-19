@@ -60,6 +60,7 @@ Conventions beyond standard Mermaid:
 - **Edges**: `a --> b`, `a -->|"Yes"| b`; chains and `a & b --> c` are fine. Rule 2 says when a label is needed.
 - **Loop back**: draw the one edge that returns to an earlier step as `==>` (thick). Without it the engine picks the loop edge by traversal order, which may be the wrong edge of a cycle.
 - **Notes**: a flag-shaped node joined to its steps by a dotted line: `n1>"Text<br>second fact"] -.- step_a & step_b`. Never a step, never on a solid line. Rule 9 says what goes in one. `<br>` separates distinct facts. `%% @showNotes` shows every note on the page instead of on hover.
+- **Free notes** (page and JSON only): a note whose `nodes` list is empty and that has an absolute `pos` is free: it explains no step and the page never moves it. Mermaid has no line for one, so `--extract` prints it as `%% <id>: text` under a `%% Notes` heading after the flow; never write one yourself, and do not call it a missing link.
 - **Text**: write `;` as `#59;` and `#` as `#35;` inside labels and notes.
 - Never write positions; `style`, `classDef` and `click` lines are ignored.
 

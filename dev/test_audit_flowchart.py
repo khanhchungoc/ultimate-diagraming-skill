@@ -255,8 +255,70 @@ def main() -> int:
               r9["passed"] and r9["edge_crossings"] == 0 and r9["long_arrows_count"] == 0 and len(bus_xs) == 1,
               f"d={d9} r9={r9} bus_xs={bus_xs} p9={p9}")
 
+    # 10. Free notes (flowchart, ERD, use case): an empty link list plus an absolute pos. Disk round trip, audit, --extract
+    import copy
+    import json
+    import subprocess
+    import tempfile
+    from audit_erd import ErdAudit
+    from audit_usecase import UsecaseAudit
+    from disk_format import check_notes, from_disk, to_disk
+
+    steps = [{"id": "a", "laneId": "l1", "type": "task", "label": "A", "x": 56, "y": 48}]
+    lane = [{"id": "l1", "name": "Actor", "icon": "user"}]
+    models = {
+        "flowchart": {"diagramType": "flowchart", "lanes": lane, "nodes": steps, "edges": [],
+                      "notes": [{"id": "n1", "text": "Loose remark", "nodes": [], "pos": {"x": 300, "y": 120}},
+                                {"id": "n2", "text": "On A", "nodes": ["a"]}]},
+        "erd": {"diagramType": "erd", "entities": [{"id": "t", "name": "t", "columns": [{"name": "id", "pk": True}], "x": 20, "y": 20}], "relationships": [],
+                "notes": [{"id": "n1", "text": "Loose remark", "entities": [], "pos": {"x": 300, "y": 120}},
+                          {"id": "n2", "text": "On t", "entities": ["t"]}]},
+        "usecase": {"diagramType": "usecase", "actors": [{"id": "u", "name": "User", "x": 20, "y": 20}], "useCases": [], "links": [],
+                    "notes": [{"id": "n1", "text": "Loose remark", "useCases": [], "pos": {"x": 300, "y": 120}},
+                              {"id": "n2", "text": "On u", "actors": ["u"], "_pos": {"x": 5, "y": 5}}]},
+    }
+    for kind, model in models.items():
+        disk = to_disk(kind, model)
+        back = from_disk(kind, disk)
+        free = disk["notes"][0]
+        check(f"free note ({kind}): kept with its empty list and absolute pos, no new key", free["pos"] == {"x": 300, "y": 120} and set(free) <= {"id", "text", "nodes", "entities", "useCases", "pos"}, str(free))
+        check(f"free note ({kind}): disk, memory, disk is unchanged", to_disk(kind, back) == disk and back["notes"][0]["pos"] == {"x": 300, "y": 120})
+        bare = copy.deepcopy(model)
+        del bare["notes"][0]["pos"]
+        try:
+            check_notes(kind, bare)
+            rejected = False
+        except ValueError:
+            rejected = True
+        check(f"free note ({kind}): no pos is rejected by to_disk and from_disk", rejected and all(_raises(f, kind, bare) for f in (to_disk, from_disk)))
+    check("free note (usecase): an anchored note's _pos is still not saved", "_pos" not in to_disk("usecase", models["usecase"])["notes"][1])
+    fa = _audit(steps, [])
+    fa.data["notes"] = models["flowchart"]["notes"]
+    check("free note (flowchart): the audit does not warn on an empty link list", not any("Loose" in w or "n1" in w for w in fa._note_warnings()), str(fa._note_warnings()))
+    fa.data["notes"] = [{"id": "n3", "text": "No home", "nodes": []}]
+    check("free note (flowchart): an empty list with no pos still warns", any("n3" in w for w in fa._note_warnings()))
+    ea = ErdAudit({**models["erd"], "canvas": {"width": 400, "height": 300}}).verify_collisions()
+    ua = UsecaseAudit({**models["usecase"], "canvas": {"width": 400, "height": 300}}).verify_collisions()
+    check("free note (erd, usecase): the audit reports nothing about a free note", not any("n1" in str(i) for i in ea["issues"] + ua["issues"]), str(ea["issues"] + ua["issues"]))
+    with tempfile.TemporaryDirectory() as tmp:
+        for kind, model in models.items():
+            f = Path(tmp) / f"{kind}.json"
+            f.write_text(json.dumps(to_disk(kind, model)), encoding="utf-8")
+            run = subprocess.run([sys.executable, str(ROOT / "scripts" / "layout_engine.py"), "--extract", str(f)], capture_output=True, text=True, encoding="utf-8")
+            out = run.stdout
+            check(f"free note ({kind}): --extract prints it in a Notes section after the diagram", run.returncode == 0 and "%% Notes" in out and out.index("%% Notes") > out.index("\n") and "%% n1: Loose remark" in out and out.count("Loose remark") == 1, (out + run.stderr)[-400:])
+            check(f"free note ({kind}): --extract still prints the anchored note with its target", "On " in out and out.count("%% Notes") == 1, out[-300:])
+
     print(f"{total - failed}/{total} cases passed")
     return 2 if failed else 0
+
+
+def _raises(fn, kind, data) -> bool:
+    try:
+        fn(kind, data)
+    except ValueError:
+        return True
+    return False
 
 
 if __name__ == "__main__":
