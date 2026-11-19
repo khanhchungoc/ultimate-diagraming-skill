@@ -1344,10 +1344,13 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           const el = document.getElementById(`node-${n.id}`);
           if (!el) return;
           const r = el.getBoundingClientRect();
-          const x = (r.left - stageRect.left) / scale;
-          const y = (r.top - stageRect.top) / scale;
-          const w = r.width / scale;
-          const h = r.height / scale;
+          // Rounded to 0.01px: dividing a screen rect by the zoom leaves ~1e-4 of noise that depends on the camera (mid-glide
+          // or not), and the route search breaks ties on exact comparisons: the same chart must route the same at any zoom
+          const q = (v) => Math.round(v * 100) / 100;
+          const x = q((r.left - stageRect.left) / scale);
+          const y = q((r.top - stageRect.top) / scale);
+          const w = q(r.width / scale);
+          const h = q(r.height / scale);
           rects[n.id] = tb ? { x: y, y: x, w: h, h: w, cx: y + h / 2, cy: x + w / 2 } : { x, y, w, h, cx: x + w / 2, cy: y + h / 2 };
         });
 

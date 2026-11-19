@@ -1576,7 +1576,7 @@
     }
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after {
-        transition-duration: 0.01ms !important;
+        transition: none !important;   /* not a tiny duration: that gives every element an 'all' transition, so a measure reads pre-change values */
         animation-duration: 0.01ms !important;
         scroll-behavior: auto !important;
       }
@@ -1584,7 +1584,7 @@
     body.capture *, body.capture *::before, body.capture *::after,
     body.exporting *, body.exporting *::before, body.exporting *::after,
     html[data-noanim] *, html[data-noanim] *::before, html[data-noanim] *::after {
-      transition-duration: 0.01ms !important;
+      transition: none !important;
       animation-duration: 0.01ms !important;
     }
     /* Inert ghost layer for non-blocking exit/morph clones (stripped of test-queried classes, skipped in exports) */
@@ -2649,7 +2649,7 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
         };
         const curve = (k, fb = 'cubic-bezier(0.22, 1, 0.36, 1)') => (TOKENS.motion && TOKENS.motion[k]) || fb;
         const enabled = () => !noAnimParam && !(reducedMq && reducedMq.matches)
-          && document.documentElement.dataset.diagramReady === '1'
+          && document.documentElement.dataset.diagramSettled === '1'   // not while loading: the render after the web font arrives would FLIP from the fallback-font layout, and Fit would measure it mid-flight
           && !document.body.classList.contains('capture') && !document.body.classList.contains('exporting');
 
         let lastPlayAt = -1000, cachedScale = 1, lastStampFrame = -1;
