@@ -3298,6 +3298,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         chartData.lanes = chartData.lanes.filter(l => l.id !== laneId);
         chartData.nodes = chartData.nodes.filter(n => !gone.has(n.id));
         chartData.edges = chartData.edges.filter(e => !gone.has(e.from) && !gone.has(e.to));
+        dropChildOf([...gone]);
         pruneConnectors();   // a pair with one end in the lane goes with it
         pruneNotes();
         selectedLaneId = null;
@@ -3451,9 +3452,10 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         }
       }
 
-      function deleteNode(nodeId) {
+      function deleteNode(nodeId, confirmed) {
         const node = nodeById(nodeId);
         if (isConnector(node)) { joinConnector(node); return; }   // deleting a connector puts the whole arrow back
+        if (!confirmed && askSubDelete([nodeId])) return;   // a subprocess with content: Merge / Delete everything / Cancel
         chartData.nodes = chartData.nodes.filter(n => n.id !== nodeId);
         chartData.edges = chartData.edges.filter(e => e.from !== nodeId && e.to !== nodeId);
         dropChildOf([nodeId]);
@@ -3465,7 +3467,8 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
 
       // Delete several steps as one edit, so one undo brings them all back. Like a single delete, the arrows around
       // the hole go with it (no bridging).
-      function deleteNodes(ids) {
+      function deleteNodes(ids, confirmed) {
+        if (!confirmed && askSubDelete(ids)) return;
         const gone = new Set(ids.filter(id => nodeById(id) && !isConnector(nodeById(id))));
         chartData.nodes = chartData.nodes.filter(n => !gone.has(n.id));
         chartData.edges = chartData.edges.filter(e => !gone.has(e.from) && !gone.has(e.to));
@@ -3533,7 +3536,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
       function makeNode(type, p) {
         const node = { id: uid('n'), laneId: p.laneId, type, label: NODE_DEFAULTS[type] || 'New Step', x: p.x, y: p.y };
         chartData.nodes.push(node);
-        if (type === 'subprocess' && !chartData.tab) addEmptyChild(node);   // a new subprocess gets its own tab (one level)
+        if (type === 'subprocess' && canNest(curTab())) addEmptyChild(node);   // a new subprocess gets its own tab (up to MAX_FLOW_DEPTH)
         return node;
       }
 
@@ -3549,6 +3552,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
       document.querySelectorAll('[data-node-type]').forEach(btn => {
         btn.addEventListener('click', (e) => {
           if (btn.dataset.dragged) { delete btn.dataset.dragged; e.preventDefault(); return; }
+          if (btn.disabled) return;
           const type = btn.dataset.nodeType;
           addNodeAt(type, viewportCenterPlacement(typeFlowSize(type), typeCrossSize(type)));
         });
@@ -3798,7 +3802,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
       }
 
       function startPaletteDrag(e, btn) {
-        if (e.button !== 0 || document.body.classList.contains('presentation')) return;
+        if (e.button !== 0 || btn.disabled || document.body.classList.contains('presentation')) return;
         paletteDrag = { type: btn.dataset.nodeType, btn, ghost: null, startX: e.clientX, startY: e.clientY, placement: null, onCanvas: false };
         window.addEventListener('pointermove', onPaletteMove);
         window.addEventListener('pointerup', onPaletteUp);
@@ -4888,30 +4892,48 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
       const tabViews = {};        // key -> { scale, panX, panY }: each flow keeps its own pan and zoom
       const PARENT_LABEL = 'Main flow';
 
-      // Tab keys in reading order: the parent, then each child in the order the parent's steps reach it
+      // Flow tree. The model stays flat (flows / tabNames by slug); a flow's parent is the flow holding the step with that id,
+      // so no field is stored. MAX_FLOW_DEPTH: level 1 is the main flow (plan: dev/plans/plan-subprocess-depth.md).
+      const MAX_FLOW_DEPTH = 4;
+      const flowOf = (key) => (key === curTab() ? chartData : (chartData.flows || {})[key]);
+      const parentOf = (slug) => [PARENT, ...Object.keys(chartData.tabNames || {})].find(k => { const f = flowOf(k); return f && f.nodes.some(n => n.id === slug); }) || PARENT;
+      const depthOf = (key) => { let d = 1; for (let k = key; k !== PARENT && d <= MAX_FLOW_DEPTH + 8; k = parentOf(k)) d++; return d; };
+      const canNest = (key) => depthOf(key) < MAX_FLOW_DEPTH;
+      // The flows directly under `key`, in the order its steps come
+      function childrenOf(key) {
+        const f = flowOf(key), kids = Object.keys(chartData.tabNames || {}).filter(k => parentOf(k) === key);
+        if (!f) return kids;
+        const sorted = [...f.nodes];
+        flowSort(sorted, f.lanes.map(l => l.id));
+        const order = sorted.map(n => n.id);
+        return kids.sort((a, b) => order.indexOf(a) - order.indexOf(b));
+      }
+      const subtreeOf = (key) => childrenOf(key).flatMap(k => [k, ...subtreeOf(k)]);
+
+      // Tab keys in tree order: the parent, then each child with its own children after it (depth first)
       function tabKeys() {
         if (!chartData.flows) return [];
-        const pf = chartData.flows[PARENT] || chartData;
-        const lanes = (chartData.tab ? pf.lanes : chartData.lanes).map(l => l.id);
-        const sorted = [...pf.nodes];
-        flowSort(sorted, lanes);
-        const kids = Object.keys(chartData.tabNames);
-        const first = sorted.map(n => n.id).filter(id => kids.includes(id));
-        return [PARENT, ...first, ...kids.filter(k => !first.includes(k))];
+        const keys = [PARENT, ...subtreeOf(PARENT)];
+        return keys.concat(Object.keys(chartData.tabNames).filter(k => !keys.includes(k)));
       }
       const tabLabel = (key) => (key === PARENT ? PARENT_LABEL : chartData.tabNames[key]);
-      const hasChild = (nodeId) => !!chartData.flows && !chartData.tab && nodeId in chartData.tabNames;
+      const hasChild = (nodeId) => !!chartData.flows && nodeId in chartData.tabNames;
 
+      // The tab bar: nested folder boxes along the path Main -> ... -> current flow, then the current flow's direct children
+      // in the innermost box. Siblings of the path are not drawn: go up a level to reach them.
       function renderTabs() {
         flowTabs.hidden = !chartData.flows;
         document.querySelectorAll('[data-export="svg-all"]').forEach(el => { el.hidden = !chartData.flows; });
+        const tile = document.getElementById('btn-add-subprocess');
+        if (tile) {
+          const full = !canNest(curTab());
+          tile.disabled = full;
+          tile.title = full ? `Subprocess: the deepest level is ${MAX_FLOW_DEPTH}` : tile.dataset.title || (tile.dataset.title = tile.title);
+        }
         flowTabs.replaceChildren();
         if (!chartData.flows) return;
         const cur = curTab();
-        // The main flow's tab, then the inner box of subprocess tabs (one level: a child flow has no children)
-        const inner = document.createElement('div');
-        inner.className = 'flow-subtabs';
-        tabKeys().forEach(key => {
+        const tab = (key) => {
           const b = document.createElement('button');
           b.type = 'button';
           b.className = 'flow-tab';
@@ -4920,18 +4942,43 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           b.tabIndex = key === cur ? 0 : -1;
           b.dataset.tab = key;
           b.textContent = tabLabel(key);
-          // From a subprocess, the main flow's tab goes back up with that subprocess step selected
-          const back = key === PARENT && cur !== PARENT;
-          b.title = key === PARENT ? (back ? `Back to the main flow, at the step "${tabLabel(cur)}"` : 'The main flow') : `Subprocess: ${tabLabel(key)}`;
-          b.addEventListener('click', () => (back ? switchTab(PARENT, cur) : switchTab(key)));
+          b.title = key === PARENT ? 'The main flow' : `Subprocess: ${tabLabel(key)}`;
+          // A tab above the current flow goes back up, with the step that led down selected
+          let step = null;
+          for (let k = cur; k !== PARENT && k !== key; k = parentOf(k)) if (parentOf(k) === key) step = k;
+          if (step) b.title = `Back to ${key === PARENT ? 'the main flow' : `"${tabLabel(key)}"`}, at the step "${tabLabel(step)}"`;
+          b.addEventListener('click', () => switchTab(key, step));
+          if (key !== PARENT) {
+            b.addEventListener('contextmenu', (e) => { e.preventDefault(); openTabMenu(key, b, e.clientX, e.clientY); });
+            b.addEventListener('keydown', (e) => { if (e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10')) { e.preventDefault(); const r = b.getBoundingClientRect(); openTabMenu(key, b, r.left, r.bottom); } });
+          }
           b.addEventListener('keydown', (e) => {
-            const all = [...flowTabs.querySelectorAll('.flow-tab')], i = all.indexOf(b);
-            const to = e.key === 'ArrowRight' ? all[(i + 1) % all.length] : e.key === 'ArrowLeft' ? all[(i + all.length - 1) % all.length] : null;
-            if (to) { e.preventDefault(); switchTab(to.dataset.tab); const again = flowTabs.querySelector(`.flow-tab[data-tab="${CSS.escape(to.dataset.tab)}"]`); if (again) again.focus(); }
+            if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+              const all = [...b.parentElement.children].filter(c => c.classList.contains('flow-tab')), i = all.indexOf(b);
+              e.preventDefault();
+              all[(i + (e.key === 'ArrowRight' ? 1 : all.length - 1)) % all.length].focus();   // moves focus; Enter opens it
+            } else if (e.altKey && e.key === 'ArrowUp' && cur !== PARENT) {
+              e.preventDefault();
+              switchTab(parentOf(cur), cur);
+              const again = flowTabs.querySelector(`.flow-tab[aria-selected="true"]`);
+              if (again) again.focus();
+            }
           });
-          (key === PARENT ? flowTabs : inner).appendChild(b);
+          return b;
+        };
+        const box = (parent) => { const d = document.createElement('div'); d.className = 'flow-subtabs'; d.setAttribute('role', 'none'); parent.appendChild(d); return d; };
+        const path = [cur];
+        while (path[0] !== PARENT) path.unshift(parentOf(path[0]));
+        let at = flowTabs;
+        path.forEach((key, i) => {
+          if (i) at = box(at);
+          at.appendChild(tab(key));
         });
-        if (inner.childElementCount) flowTabs.appendChild(inner);
+        const kids = childrenOf(cur);
+        if (kids.length) { const inner = box(at); kids.forEach(k => inner.appendChild(tab(k))); }
+        // hanging boxes: each is one flex row
+        const act = flowTabs.querySelector('.flow-tab[aria-selected="true"]');
+        if (act && act.scrollIntoView) act.scrollIntoView({ block: 'nearest', inline: 'nearest' });
       }
 
       // Each flow keeps its own pan and zoom: called at the end of render(), so an undo that lands on another flow follows too
@@ -4970,10 +5017,14 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
       }
 
       // A child flow's own lanes, steps and arrows go when its parent step does
-      function dropChildOf(ids) {
-        if (!chartData.flows || chartData.tab) return;
-        ids.filter(id => id in chartData.tabNames).forEach(id => { delete chartData.flows[id]; delete chartData.tabNames[id]; });
+      function dropFlows(keys) {
+        keys.forEach(k => { delete chartData.flows[k]; delete chartData.tabNames[k]; });
         if (!Object.keys(chartData.tabNames).length) ['flows', 'actors', 'tabNames'].forEach(k => delete chartData[k]);
+      }
+      // A child flow, and every flow below it, go when its parent step does
+      function dropChildOf(ids) {
+        if (!chartData.flows) return;
+        dropFlows(ids.filter(id => id in chartData.tabNames).flatMap(id => [id, ...subtreeOf(id)]));
       }
       const laneUsedElsewhere = (laneId, inLanes) => !!chartData.flows && Object.values(chartData.flows).some(f => (inLanes ? f.lanes.some(l => l.id === laneId) : f.nodes.some(n => n.laneId === laneId)));
 
@@ -4985,7 +5036,8 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
       // Visit every flow in turn (the export of all of them), then come back to the one the person was on
       function eachTab(fn) {
         const home = curTab();
-        tabKeys().forEach(key => { switchTab(key); fn(tabLabel(key)); });
+        const seen = {};   // two flows may share a name: the file names must differ
+        tabKeys().forEach(key => { switchTab(key); const n = tabLabel(key); seen[n] = (seen[n] || 0) + 1; fn(seen[n] > 1 ? `${n} ${seen[n]}` : n); });
         switchTab(home);
       }
 
@@ -5007,21 +5059,21 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
       // Collapse: a run of two or more steps (runOf: one way in, one way out, no loop-back across the boundary) moves into a
       // new child flow and leaves one subprocess step in its place; the child gets a start pill, the run and one end pill.
       // Expand does the reverse (the same wiring as `--extract --flat`, scripts/subprocess_flow.py flatten). Each is one edit.
-      // Only from the parent flow: a child cannot hold another (one level). Neither is offered while a connector is involved.
+      // Collapse is offered while the flow is above MAX_FLOW_DEPTH. Neither is offered while a connector is involved.
       const btnCollapseSub = document.getElementById('btn-collapse-sub');
       const btnExpandSub = document.getElementById('btn-expand-sub');
       let subSeq = 0;
       const subId = (prefix) => `${prefix}_${Date.now()}_${subSeq++}`;
 
       function collapsibleRun() {
-        if (chartData.tab || selectedNodeIds.size < 2) return null;
+        if (!canNest(curTab()) || selectedNodeIds.size < 2) return null;
         const ids = [...selectedNodeIds];
         if (ids.some(id => hasChild(id))) return null;
         const run = runOf(ids);
         return run && [...run.set].every(id => !isConnector(nodeById(id))) ? run : null;
       }
       const expandableId = () => {
-        const id = !chartData.tab && selectedNodeIds.size === 1 ? [...selectedNodeIds][0] : null;
+        const id = selectedNodeIds.size === 1 ? [...selectedNodeIds][0] : null;
         return id && hasChild(id) ? id : null;
       };
       function updateSubButtons() {
@@ -5083,16 +5135,22 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         layoutFlow(flow, chartData.direction);
       }
 
-      function expandSubprocess() {
-        const id = expandableId();
+      // Why Expand cannot run on subprocess step `id` ('' when it can)
+      function expandBlocker(id) {
+        const kid = chartData.flows[id];
+        if (kid.nodes.filter(n => n.type === 'start').length !== 1) return 'Expand needs the subprocess to have exactly one start pill.';
+        const letters = (nodes) => new Set(nodes.filter(isConnector).map(n => String(n.label || '').trim().toUpperCase()));
+        const clash = [...letters(kid.nodes)].find(l => letters(chartData.nodes).has(l));
+        return clash ? `Both flows use the connector ${clash}: rename one before expanding.` : '';
+      }
+
+      function expandSubprocess(id = expandableId()) {
         if (!id) return;
+        const why = expandBlocker(id);
+        if (why) { flashHint(why); return; }
         syncActors();
         const kid = chartData.flows[id];
         const starts = kid.nodes.filter(n => n.type === 'start'), ends = kid.nodes.filter(n => n.type === 'end');
-        if (starts.length !== 1) { flashHint('Expand needs the subprocess to have exactly one start pill.'); return; }
-        const letters = (nodes) => new Set(nodes.filter(isConnector).map(n => String(n.label || '').trim().toUpperCase()));
-        const clash = [...letters(kid.nodes)].find(l => letters(chartData.nodes).has(l));
-        if (clash) { flashHint(`Both flows use the connector ${clash}: rename one before expanding.`); return; }
         const start = starts[0];
         const edges = chartData.edges;
         const outs = edges.filter(e => e.from === id);
@@ -5135,7 +5193,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         chartData.nodes = chartData.nodes.filter(n => !drop.has(n.id)).concat(kid.nodes.filter(n => !drop.has(n.id)));
         chartData.edges = edges.filter(e => !drop.has(e.from) && !drop.has(e.to) && !dropEdges.has(e.id)).concat(kidEdges, fresh);
         if (kid.notes && kid.notes.length) chartData.notes = notesList().concat(kid.notes);
-        dropChildOf([id]);
+        dropFlows([id]);   // only this flow: the ones below it stay, one level up
         pruneConnectors();
         pruneNotes();
         clearNodeSelection();
@@ -5165,6 +5223,88 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         return out;
       }
 
+      // --- DELETING A SUBPROCESS: Merge into parent / Delete everything / Cancel ---
+      // A subprocess that has content asks first (a freshly added one, still blank, goes at once). Merge is Expand; Delete
+      // everything is the plain delete, which takes the flows below along (dropChildOf).
+      const isBlankChild = (id) => {
+        const f = chartData.flows[id], tasks = f.nodes.filter(n => n.type !== 'start' && n.type !== 'end');
+        return !childrenOf(id).length && tasks.length <= 1 && tasks.every(n => n.type === 'task' && n.label === 'New Step');
+      };
+      const stepCount = (nodes) => nodes.filter(n => n.type !== 'start' && n.type !== 'end').length;
+
+      function confirmDeleteSub(id, anchorEl) {
+        ui.closeConfirm();
+        const node = nodeById(id);
+        if (!node || !hasChild(id)) return;
+        const why = expandBlocker(id);
+        const after = stepCount(chartData.nodes) - 1 + stepCount(chartData.flows[id].nodes);
+        const note = after > 30 ? ` The parent will have ${after} steps.` : '';
+        ui.confirm(anchorEl || document.getElementById(`node-${id}`), {
+          title: `Delete the subprocess \u201c${chartData.tabNames[id]}\u201d?`,
+          message: `Merge puts its steps into this flow; Delete everything removes them.${note}`,
+          label: 'Delete subprocess',
+          ok: 'Delete everything',
+          alt: { text: 'Merge into parent', onClick: () => expandSubprocess(id) },
+        }, () => deleteNode(id, true));
+        const alt = document.querySelector('.confirm .confirm-alt');
+        if (alt && why) { alt.disabled = true; alt.title = why; }
+      }
+
+      // True when a question was asked (the delete waits for the answer). Several steps at once: one plain question.
+      function askSubDelete(ids) {
+        const full = ids.filter(id => nodeById(id) && hasChild(id) && !isBlankChild(id));
+        if (!full.length) return false;
+        const anchor = document.getElementById(`node-${full[0]}`);
+        if (ids.length === 1) { confirmDeleteSub(full[0], anchor); return true; }
+        ui.closeConfirm();
+        ui.confirm(anchor, {
+          title: `Delete ${ids.length} steps?`,
+          message: `${full.length === 1 ? 'A subprocess' : `${full.length} subprocesses`} among them will be deleted with everything inside.`,
+          label: 'Delete steps',
+        }, () => deleteNodes(ids, true));
+        return true;
+      }
+
+      // The tab's Delete: on the parent flow, with the step selected, so Merge always runs on the parent's own data
+      function deleteSubprocessTab(key) {
+        switchTab(parentOf(key), key);
+        if (!hasChild(key)) return;
+        if (isBlankChild(key)) { deleteNode(key, true); return; }
+        confirmDeleteSub(key, flowTabs.querySelector(`.flow-tab[data-tab="${CSS.escape(key)}"]`));
+      }
+
+      // Right-click (or the Menu key, Shift+F10) on a subprocess tab: a one-item menu at the pointer
+      let tabMenu = null;
+      function closeTabMenu(focusKey) {
+        if (!tabMenu) return;
+        tabMenu.remove();
+        tabMenu = null;
+        document.removeEventListener('pointerdown', onTabMenuOutside, true);
+        const back = focusKey != null && flowTabs.querySelector(`.flow-tab[data-tab="${CSS.escape(focusKey)}"]`);
+        if (back) back.focus();
+      }
+      function onTabMenuOutside(e) { if (tabMenu && !tabMenu.contains(e.target)) closeTabMenu(); }
+      function openTabMenu(key, btn, x, y) {
+        closeTabMenu();
+        ui.closeConfirm();
+        const m = document.createElement('div');
+        m.className = 'menu tab-menu';
+        m.setAttribute('role', 'menu');
+        m.dataset.exportSkip = '';
+        const item = document.createElement('button');
+        item.type = 'button';
+        item.setAttribute('role', 'menuitem');
+        item.textContent = 'Delete';
+        item.addEventListener('click', () => { closeTabMenu(); deleteSubprocessTab(key); });
+        m.appendChild(item);
+        m.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeTabMenu(key); } });
+        document.body.appendChild(m);
+        m.style.cssText = `position: fixed; right: auto; left: ${Math.max(8, Math.min(x, innerWidth - m.offsetWidth - 8))}px; top: ${Math.max(8, Math.min(y, innerHeight - m.offsetHeight - 8))}px`;
+        tabMenu = m;
+        item.focus();
+        document.addEventListener('pointerdown', onTabMenuOutside, true);
+      }
+
       // The tab of a subprocess step is named like the step, and so is its start pill (the contract of the parent and the child)
       function syncChildName(node) {
         if (!hasChild(node.id) || !node.label) return;
@@ -5174,7 +5314,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         renderTabs();
       }
       if (btnCollapseSub) btnCollapseSub.addEventListener('click', collapseToSubprocess);
-      if (btnExpandSub) btnExpandSub.addEventListener('click', expandSubprocess);
+      if (btnExpandSub) btnExpandSub.addEventListener('click', () => expandSubprocess());
 
 
       // --- REGISTER WITH THE SHELL ---

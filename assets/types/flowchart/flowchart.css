@@ -746,11 +746,12 @@
     #swimlanes-container.dir-tb .lane-pill { text-align: center; }
     body.exporting #swimlanes-container.dir-tb .lane-pill { transform: translate(var(--pill-cx, 12px), 12px) !important; }
 
-    /* Subprocess flows: folder tabs hanging from the header (renderTabs). The outer box is the main flow: its own tab, then an
-       inner box holding one tab per subprocess. The top edge is open, so each box reads as hanging from the header. It floats
-       over the canvas (fitView leaves room for it through [data-overlay-top]). Active flow: bold and a 2px primary mark. */
+    /* Subprocess flows: nested folder boxes hanging from the header (renderTabs). One box per level on the path to the current
+       flow, each inside the one before it; the innermost holds the current flow's direct children. The top edge is open, so a
+       box reads as hanging from the header. The outermost floats over the canvas (fitView leaves room for it through
+       [data-overlay-top]) and carries the one shadow. Active flow: a filled chip, no underline. */
     .flow-tabs, .flow-subtabs {
-      display: flex; align-items: flex-start; gap: 4px; padding: 0 6px 6px;
+      display: flex; align-items: flex-start; gap: 4px; padding: 0 4px 4px;
       background: var(--bg-panel); border: 1.5px solid var(--border-dark); border-top: 0;
       border-radius: 0 0 var(--radius-lg) var(--radius-lg);
     }
@@ -762,13 +763,13 @@
     .flow-subtabs { min-width: 0; }
     .flow-tab {
       flex: none; display: inline-flex; align-items: center; height: 28px; max-width: 180px; padding: 0 10px; box-sizing: border-box;
-      background: none; border: 0; border-bottom: 2px solid transparent; border-radius: 0 0 var(--radius-md) var(--radius-md);
+      background: none; border: 0; border-radius: 0 0 var(--radius-md) var(--radius-md);
       font: inherit; font-size: var(--text-md); color: var(--text-soft); cursor: pointer;
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
     .flow-tab:hover { background: var(--bg-hover); color: var(--text-main); }
     .flow-tab:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
-    .flow-tab[aria-selected="true"] { font-weight: var(--weight-bold); color: var(--text-main); border-bottom-color: var(--primary); }
+    .flow-tab[aria-selected="true"] { font-weight: var(--weight-bold); color: var(--primary); background: var(--primary-wash); }
     body.presentation .flow-tabs { top: 12px; }
     body.capture .flow-tabs { display: none; }
     /* Over the + marker drawn in the outline (SHAPE_OUTLINES): a transparent hit area that tints on hover */
