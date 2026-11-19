@@ -174,7 +174,7 @@
               if (prevT) { prevT.x -= ldx; prevT.y -= ldy; }
             });
           });
-          motion.play(tabSnap, flowTabs, TAB_SPECS, { duration: 190, easing: 'curve-spring-settle', ghostExit: true });
+          motion.play(tabSnap, flowTabs, TAB_SPECS, { duration: motion.dur('dur-tab', 300), easing: 'curve-inout', ghostExit: true });
         }
         if (nextRect && nextRect.width > 0 && nextRect.height > 0) {
           const nr = nextRect;
@@ -189,7 +189,7 @@
           const a = motion.anim(chip, [
             { transform: `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})`, opacity: 0.9 },
             { transform: 'none', opacity: 0 }
-          ], { duration: Math.max(40, Math.round(160 * motion.speedScale())), easing: motion.curve('curve-inout') });
+          ], { duration: Math.max(40, Math.round(motion.dur('dur-tab', 300) * 0.9 * motion.speedScale())), easing: motion.curve('curve-inout') });
           const drop = () => chip.remove();
           if (a) { a.addEventListener('finish', drop, { once: true }); a.addEventListener('cancel', drop, { once: true }); } else chip.remove();
         }
@@ -263,7 +263,7 @@
               });
             }
           }
-          if (!o.noSvg) playSvg(svgSnap, o);   // noSvg (undo / redo): arrows snap, so a probe of them right after sees their final place
+          playSvg(svgSnap, o);
         } finally {
           motionDepth--;
         }
@@ -464,12 +464,10 @@
         updateStatus(true);
       }
       // Moves a lane one place (-1 earlier, +1 later), like dragging its pill there
-      // `animate` false (the bar's arrow buttons): the bar sits inside the lane that would slide away, so a second
-      // click on it (Move earlier right after Move later) would miss a moving target
-      function moveLane(index, dir, animate = true) {
+      function moveLane(index, dir) {
         const to = index + dir;
         if (to < 0 || to >= chartData.lanes.length) return;
-        (animate ? withMotion : withoutMotion)(() => {
+        withMotion(() => {
           const [moved] = chartData.lanes.splice(index, 1);
           chartData.lanes.splice(to, 0, moved);
           relayout();   // lane order changes how steps are ordered and where loop-backs run
@@ -574,7 +572,7 @@
               if (b.dataset.act === 'rename') startRename();
               else if (b.dataset.act === 'delete') confirmDeleteLane(lane.id, b);
               else if (b.dataset.act === 'hide') { chartData.swimlanes = false; selectedLaneId = null; render(); updateStatus(true); }
-              else moveLane(index, b.dataset.act === 'earlier' ? -1 : 1, false);
+              else moveLane(index, b.dataset.act === 'earlier' ? -1 : 1);
             });
             pill.appendChild(bar);
           }
@@ -3601,8 +3599,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
       // The last remaining lane cannot be deleted: every step needs a lane.
       function deleteLane(laneId) {
         if (chartData.lanes.length <= 1 || !chartData.lanes.some(l => l.id === laneId) || laneUsedElsewhere(laneId)) return;
-        // No slide: the lanes below would be moving under the pointer when the next lane is clicked
-        withoutMotion(() => {
+        withMotion(() => {
           if (chartData.flows) chartData.actors = chartData.actors.filter(a => a.id !== laneId || laneUsedElsewhere(laneId, true));
           const gone = new Set(chartData.nodes.filter(n => n.laneId === laneId).map(n => n.id));
           chartData.lanes = chartData.lanes.filter(l => l.id !== laneId);
@@ -3613,7 +3610,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           pruneNotes();
           selectedLaneId = null;
           relayout();
-        });
+        }, { ghostExit: true, duration: 210, skipFreeNotes: true });
       }
 
       // Deleting a lane also deletes its steps, so it is confirmed first: a small popover under the delete button
@@ -4278,9 +4275,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         btnDirection.setAttribute('aria-label', label);
       }
       if (btnDirection) btnDirection.addEventListener('click', () => {
-        // A turn of the whole diagram is not animated (nor is its undo, see plugin.render): edges and steps would sweep
-        // across each other, and the next click would land on a diagram still on the move
-        withoutMotion(() => {
+        withMotion(() => {
           if (isTB()) delete chartData.direction;
           else chartData.direction = 'TB';
           selectedEdgeId = null;
@@ -4291,8 +4286,8 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           layoutOtherFlows();
           render();
           updateStatus(true);
-        });
-        fitView(false);
+        }, { duration: 260, forceDrawEdges: true });
+        fitView(true);
       });
 
       // --- AUTO LAYOUT TOGGLE ---
@@ -5439,17 +5434,23 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         if (renderedTab === null) { renderedTab = t; return; }
         if (renderedTab === t) return;
         tabGlide = true;   // the view following a tab switch is not the reader panning: it keeps an open confirm (a tab's delete asks from the parent)
-        setTimeout(() => { tabGlide = false; }, 320);
+        setTimeout(() => { tabGlide = false; }, 420);
         tabViews[renderedTab] = viewTarget();   // where a glide in flight lands, not where it passes
         renderedTab = t;
         const v = tabViews[t];
         if (v) {
-          if (motion.enabled()) animateViewport(v.panX, v.panY, v.scale, { duration: 200, easing: 'curve-out' });
+          if (motion.enabled()) animateViewport(v.panX, v.panY, v.scale, { duration: motion.dur('dur-tab', 300), easing: 'curve-inout' });
           else { cancelViewportAnim(); scale = v.scale; panX = v.panX; panY = v.panY; updateTransform(); }
         } else fitView(true);
       }
 
       // Make `key` the active flow (not an edit: nothing to undo or save). `selectId` selects that step in it.
+      // A tab switch is calm: the old flow dims out in place, the new one settles in with a short slide (no node flies in from afar)
+      const TAB_SWITCH_MOTION = () => ({
+        duration: motion.dur('dur-tab', 300), easing: 'curve-inout', ghosts: true, ghostExit: true,
+        exitDuration: 160, exitTransform: 'scale(0.99)', exitEasing: 'curve-inout',
+        enterScale: 0.98, enterShift: 14, enterEasing: 'curve-out', forceDrawEdges: true, drawDuration: 220
+      });
       function switchTab(key, selectId, originRect) {
         if (!chartData.flows || (key !== PARENT && !(key in chartData.tabNames))) return;
         if (key !== curTab()) {
@@ -5470,7 +5471,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
             if (next.notes) chartData.notes = next.notes; else delete chartData.notes;
             if (key === PARENT) delete chartData.tab; else chartData.tab = key;
             render();
-          }, { originRect, duration: 210, forceDrawEdges: true });
+          }, TAB_SWITCH_MOTION());
         }
         if (selectId && nodeById(selectId)) selectNode(selectId);
       }
@@ -5806,12 +5807,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         fromMermaid,
         contentEl: swimlanesContainer,
         report: { node: '.flow-node', label: '.edge-label', labelText: '.edge-label-text', nodeText: '.node-label' },
-        // undo / redo: no animation when it turns the diagram or adds, removes or reorders lanes (see btnDirection, deleteLane, moveLane)
-        render: () => {
-          const lanesNow = [...lanesRoot.querySelectorAll('.swimlane[data-lane-id]')].map(l => l.dataset.laneId).join();
-          const shape = swimlanesContainer.classList.contains('dir-tb') !== isTB() || lanesNow !== chartData.lanes.map(l => l.id).join();
-          if (shape) withoutMotion(render); else withMotion(render, { ghostExit: true, ghosts: true, noSvg: true });
-        },
+        render: () => withMotion(render, { ghostExit: true, ghosts: true }),
         tidy: () => withMotion(() => { layoutDiagram(chartData); render(); updateStatus(true); }, { duration: 220, skipFreeNotes: true }),
         eachTab,
         isBackground: (el) => (isPresenting() && !!el.closest('.flow-node:not(.type-connector)')) || el.id === 'swimlanes-container' || el.classList.contains('lane-track') || el.classList.contains('lane-gutter'),

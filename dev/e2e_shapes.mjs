@@ -54,9 +54,11 @@ try {
   const lr = await t.ev(endsOff);
   t.check('left to right: every arrow end on a shaped node touches its outline', lr.checked >= 10 && lr.bad.length === 0, JSON.stringify(lr));
   await t.ev(`document.getElementById('btn-direction').click()`);
+  await t.settle();
   const tb = await t.ev(endsOff);
   t.check('top to bottom: every arrow end on a shaped node touches its outline', tb.checked >= 10 && tb.bad.length === 0, JSON.stringify(tb));
   await t.ev(t.key('z', { ctrlKey: true }));
+  await t.settle();
 
   // 3. Each palette tile adds its own shape, with the outline and its default label
   const g0 = JSON.parse(await t.ev(graph));
@@ -97,6 +99,7 @@ try {
     return [hl, ghost];
   })()`;
   for (const s of SHAPES) {
+    await t.settle();
     const at = await t.ev(midOfArrow);
     if (!at) { t.check(`found an arrow to drop ${s} onto`, false); continue; }
     const [hl, ghost] = await t.ev(drop(s, at[0], at[1]));

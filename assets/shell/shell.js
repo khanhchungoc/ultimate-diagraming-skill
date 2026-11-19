@@ -501,15 +501,25 @@
           return fn;
         };
 
+        let svgJob = null;
         const activeAnims = new Set();
         const elemAnims = new WeakMap();
+        // Busy hook: <html data-motion-busy="1"> while any WAAPI animation, SVG tween or camera glide is in flight (tests wait on it).
+        let vpBusy = false;
+        const syncBusy = () => {
+          const busy = activeAnims.size > 0 || !!svgJob || vpBusy;
+          const ds = document.documentElement.dataset;
+          if (busy) { if (ds.motionBusy !== '1') ds.motionBusy = '1'; } else if ('motionBusy' in ds) delete ds.motionBusy;
+        };
+        const setViewportBusy = (b) => { vpBusy = b; syncBusy(); };
         const trackAnim = (el, anim) => {
           if (!anim) return anim;
           activeAnims.add(anim);
+          syncBusy();
           let list = elemAnims.get(el);
           if (!list) { list = new Set(); elemAnims.set(el, list); }
           list.add(anim);
-          const drop = () => { activeAnims.delete(anim); list.delete(anim); };
+          const drop = () => { activeAnims.delete(anim); list.delete(anim); syncBusy(); };
           anim.addEventListener('finish', drop, { once: true });
           anim.addEventListener('cancel', drop, { once: true });
           return anim;
@@ -745,6 +755,14 @@
                 trackAnim(it.el, it.el.animate([{ transform: `translate(${dx}px, ${dy}px) scale(${rw}, ${rh})` }, { transform: 'none' }], { duration: baseDur, easing }));
               } else {
                 const sc = o.enterScale ?? 0.88;
+                if (o.enterShift != null) {
+                  // calm entrance (tab switch): a short slide and a fade, no clip, no overshoot
+                  trackAnim(it.el, it.el.animate([
+                    { opacity: 0, transform: `translateY(${o.enterShift}px) scale(${sc})` },
+                    { opacity: 1, transform: 'none' }
+                  ], { duration: baseDur, easing: curve(o.enterEasing || 'curve-out') }));
+                  continue;
+                }
                 trackAnim(it.el, it.el.animate([
                   { transform: `scale(${sc})`, clipPath: 'inset(6% 6% 6% 6%)' },
                   { transform: 'none', clipPath: 'inset(0 0 0 0)' }
@@ -758,7 +776,7 @@
               const tk = lookup(o.toKey, prev.id);
               const target = tk ? newRaw.get(tk) : null;
               if (target && prev.preCloned) ghostExit(prev.el, { preCloned: prev.preCloned, fromRect: prev.vr, toRect: target.vr, baseW: prev.baseW, baseH: prev.baseH, duration: baseDur, easing });
-              else if (o.ghostExit && prev.preCloned) ghostExit(prev.el, { preCloned: prev.preCloned, fromRect: prev.vr, baseW: prev.baseW, baseH: prev.baseH, duration: 110 });
+              else if (o.ghostExit && prev.preCloned) ghostExit(prev.el, { preCloned: prev.preCloned, fromRect: prev.vr, baseW: prev.baseW, baseH: prev.baseH, duration: o.exitDuration ?? 110, transform: o.exitTransform, easing: o.exitEasing });
             }
           }
           return baseDur;
@@ -813,7 +831,6 @@
           return out;
         };
 
-        let svgJob = null;
         const applySvgJob = (job, p) => {
           const { n, els, kinds, offs, cnts, fromBuf, toBuf } = job;
           for (let i = 0; i < n; i++) {
@@ -851,7 +868,7 @@
         };
 
         const tweenSvg = (tracks, opts) => {
-          if (svgJob) { cancelAnimationFrame(svgJob.raf); svgJob = null; }
+          if (svgJob) { cancelAnimationFrame(svgJob.raf); svgJob = null; syncBusy(); }
           if (!enabled() || !tracks || !tracks.length) return;
           const o = opts || {};
           const polyCap = tracks.length > 60;
@@ -893,12 +910,13 @@
           const start = performance.now();
           const job = { n, els, kinds, offs, cnts, fromBuf, toBuf, raf: 0 };
           svgJob = job;
+          syncBusy();
           const tick = (now) => {
             if (svgJob !== job) return;
             const u = Math.min(1, (now - start) / d);
             applySvgJob(job, u >= 1 ? 1 : ease(u));
             if (u < 1) job.raf = requestAnimationFrame(tick);
-            else { svgJob = null; if (o.onComplete) o.onComplete(); }
+            else { svgJob = null; syncBusy(); if (o.onComplete) o.onComplete(); }
           };
           applySvgJob(job, 0);
           job.raf = requestAnimationFrame(tick);
@@ -1011,6 +1029,7 @@
           hiddenWhile.clear();
           if (svgJob) { cancelAnimationFrame(svgJob.raf); applySvgJob(svgJob, 1); svgJob = null; }
           if (ghostLayer) ghostLayer.textContent = '';
+          syncBusy();
         };
         const pulseEl = (el, transform = 'scale(1.15)', duration = 180) => {
           if (el && enabled()) trackAnim(el, el.animate([{ transform: 'none' }, { transform }, { transform: 'none' }], {
@@ -1063,7 +1082,7 @@
 
         return {
           enabled, dur, curve, speedScale, easeFn, anim, ghostMorph, capture, play, morphRect,
-          ghostExit, tweenSvg, drawPath, showBar, hideBar, unfoldNote, foldNote, hideHint, cancelAll, pulseEl, morphRing, flipDock
+          ghostExit, setViewportBusy, tweenSvg, drawPath, showBar, hideBar, unfoldNote, foldNote, hideHint, cancelAll, pulseEl, morphRing, flipDock
         };
       })();
 
@@ -1072,6 +1091,7 @@
         if (!vpAnim) return;
         cancelAnimationFrame(vpAnim.raf);
         vpAnim = null;
+        motion.setViewportBusy(false);
         viewport.classList.remove('gesturing');
       }
       const viewTarget = () => (vpAnim ? { scale: vpAnim.targetScale, panX: vpAnim.targetPanX, panY: vpAnim.targetPanY } : { scale, panX, panY });
@@ -1099,6 +1119,7 @@
         viewport.classList.add('gesturing');
         const job = { targetPanX, targetPanY, targetScale, raf: 0 };
         vpAnim = job;
+        motion.setViewportBusy(true);
         showZoom();
         const tick = (now) => {
           if (vpAnim !== job) return;
@@ -1109,7 +1130,7 @@
           scale = sk + (targetScale - sk) * p;
           updateTransform();
           if (u < 1) { job.raf = requestAnimationFrame(tick); }
-          else { vpAnim = null; viewport.classList.remove('gesturing'); if (o.onComplete) o.onComplete(); }
+          else { vpAnim = null; motion.setViewportBusy(false); viewport.classList.remove('gesturing'); if (o.onComplete) o.onComplete(); }
         };
         job.raf = requestAnimationFrame(tick);
       }
@@ -2224,10 +2245,9 @@
         if (wasHidden && motion.enabled()) {
           menu.style.transformOrigin = origin;
           motion.anim(menu, [
-            // opacity + a small slide only: a scale would move the items under a pointer that aims at their final place
-            { opacity: 0, transform: 'translateY(-4px)' },
-            { opacity: 1, transform: 'none' }
-          ], { duration: 160, easing: motion.curve('curve-spring-tactile') });
+            { transform: 'scale(0.92, 0.86) translateY(-4px)', clipPath: 'inset(0 0 25% 0 round 8px)' },
+            { transform: 'none', clipPath: 'inset(0 0 0 0 round 8px)' }
+          ], { duration: 120, easing: motion.curve('curve-out') });   // short and without overshoot: items settle before a click lands
         }
       }
       function setExportOpen(open) {

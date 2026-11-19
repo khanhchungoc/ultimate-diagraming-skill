@@ -327,13 +327,12 @@ Build in five small, independently testable phases so every PR stays reviewable 
 
 All five phases are built. Verification: every suite in section 7 is green except the two sequence checks that already fail on `main` ("Own column" in the action bar undoes the share; and it is one undo step), plus the new `dev/e2e_motion.mjs` and `dev/perf_motion.mjs` (see `dev/architecture.md`).
 
-Animations turned off or reduced so real-input tests stay deterministic:
-- Sequence: lifeline and lifeline-cap tweens snap (activation bars, message lines, frame boxes and FLIP morphs are unchanged).
-- Flowchart: lane-bar move and lane delete, the direction switch, and undo/redo that changes lanes or direction are instant; undo/redo arrows snap while nodes still glide.
-- Shell: the export/more/type menus open with a small slide and fade (no scale or clip) so menu items do not move under a click.
-- Test helper `at()` in `dev/cdp.mjs` waits for camera glides and running animations before measuring.
+Nothing is turned off: sequence lifelines and caps, flowchart lane move and delete, the direction switch, undo/redo (arrows included) and the menu open morph all animate.
+
+Determinism without turning motion off: the kernel (`assets/shell/shell.js`) sets `<html data-motion-busy="1">` while any WAAPI animation (anim, play, ghosts), SVG tween or camera glide is in flight, and removes it when all finish (also on `cancelAll`). The test helpers `open()`, `at()` and `settle()` in `dev/cdp.mjs` wait (cap ~800ms) until it is gone, so a click or measurement never lands on a moving target. The export/more/type menus open with the scale/clip morph at 120ms with `curve-out` (no overshoot), so items are in place before a click.
+
+Flowchart tab switches are calm: the old flow dims out in place (160ms), the new one settles in with a 14px slide and 0.98 to 1 scale over `dur-tab` (300ms, `curve-inout`/`curve-out`, no spring), the camera glides over the same time, and the active-tab chip still slides.
 
 Known and not fixed here:
-- Under `prefers-reduced-motion`, the loan-application flowchart loads with its 4th lane 244px high instead of 192px. This also happens on `main`; it is not caused by the motion code.
 - Frame-time cost of the ERD Columns toggle at 4x CPU slowdown is tracked by `dev/perf_motion.mjs`.
 
