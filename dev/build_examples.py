@@ -6,8 +6,8 @@ The JSON lives in dev/examples/ (not shipped with the skill); the built pages st
 The pages are generated output (shell + type plugin + laid-out data), so they go stale whenever the shell, a
 plugin or an engine changes. Rebuild them after such a change:
 
-  python dev/build_examples.py           rebuild every example page
-  python dev/build_examples.py --check   exit 2 if any page is missing or out of date (does not write)
+  python dev/build_examples.py                   rebuild every example page
+  python dev/build_examples.py --check [-v]      exit 2 if any page is missing or out of date (does not write)
 
 --check also checks what an agent reading a page relies on: the reading guide on line 2 with the data block's
 real line numbers, the data block in <head> with the end marker straight after it and "_readme" as its first
@@ -103,24 +103,33 @@ def main() -> int:
             pass
     parser = argparse.ArgumentParser(description="Build dev/samples/example-*.html from the example JSON files.")
     parser.add_argument("--check", action="store_true", help="Report pages that are missing or stale; write nothing")
+    parser.add_argument("-v", "--verbose", action="store_true", help="Print passing pages in --check mode")
     args = parser.parse_args()
 
     stale = False
+    total = 0
+    ok_count = 0
     for source in sorted((ROOT / "dev" / "examples").glob("example-*.json")):
         target = ROOT / "dev" / "samples" / source.with_suffix(".html").name
         page = build(source)
         # Compare as text so a CRLF checkout does not look stale.
         current = target.read_text(encoding="utf-8") if target.exists() else None
         if args.check:
+            total += 1
             ok = current == page
             problems = reader_problems(page, json.loads(source.read_text(encoding="utf-8")).get("title") or "")
-            stale |= not ok or bool(problems)
-            print(f"[{'PASS' if ok and not problems else 'STALE' if not ok else 'FAIL'}] {target.relative_to(ROOT)}")
-            for problem in problems:
-                print(f"  - {problem}")
+            clean = ok and not problems
+            ok_count += clean
+            stale |= not clean
+            if not clean or args.verbose:
+                print(f"[{'PASS' if clean else 'STALE' if not ok else 'FAIL'}] {target.relative_to(ROOT)}")
+                for problem in problems:
+                    print(f"  - {problem}")
         else:
             target.write_text(page, encoding="utf-8", newline="\n")
             print(f"[OK] {target.relative_to(ROOT)} ({len(page) // 1024} KB)")
+    if args.check:
+        print(f"{ok_count}/{total} example pages up to date" + (f" ({total - ok_count} failed)" if stale else ""))
     return 2 if stale else 0
 
 

@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """Unit cases for the flowchart long-arrow audit rules and pass_line output (scripts/layout_engine.py).
 
-Usage: python dev/test_audit_flowchart.py
+Usage: python dev/test_audit_flowchart.py [-v|--verbose]
 Exit codes: 0 all passed, 2 a case failed.
 """
 
 from __future__ import annotations
 
+import argparse
 import sys
 from pathlib import Path
 
@@ -44,6 +45,9 @@ def _rects(audit: FlowchartAudit):
 
 
 def main() -> int:
+    parser = argparse.ArgumentParser(description="Unit cases for the flowchart audit rules.")
+    parser.add_argument("-v", "--verbose", action="store_true", help="Print passing cases")
+    args = parser.parse_args()
     failed = 0
     total = 0
 
@@ -51,7 +55,8 @@ def main() -> int:
         nonlocal failed, total
         total += 1
         failed += not cond
-        print(f"[{'PASS' if cond else 'FAIL'}] {name}" + (f" - {detail}" if detail and not cond else ""))
+        if not cond or args.verbose:
+            print(f"[{'PASS' if cond else 'FAIL'}] {name}" + (f" - {detail}" if detail and not cond else ""))
 
     # 1. Clean 7-column arrow with 0 crossings is not flagged
     a1 = _audit(

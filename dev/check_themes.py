@@ -9,7 +9,7 @@ It prints a score table and fails when a theme makes a fixture score lower than 
 theme fails contrast, or when a theme leaves more overflowing texts on a page than the default does. A fixture that
 scores below 90 under the default theme (erd/saas-billing: 88, a curve through a table) is reported like the others.
 
-Usage: python dev/check_themes.py [--browser CHROME] [--no-overflow] [--keep DIR]
+Usage: python dev/check_themes.py [--browser CHROME] [--no-overflow] [--keep DIR] [-v|--verbose]
 Exit codes: 0 all good, 1 setup error, 2 a check failed.
 """
 
@@ -71,6 +71,7 @@ def main() -> int:
     ap.add_argument("--browser", default=shutil.which("google-chrome") or shutil.which("chromium") or "")
     ap.add_argument("--no-overflow", action="store_true")
     ap.add_argument("--keep", help="keep the generated pages in this folder")
+    ap.add_argument("-v", "--verbose", action="store_true", help="print per-fixture score table")
     args = ap.parse_args()
     check_overflow = not args.no_overflow
     if check_overflow and not (args.browser and shutil.which("node")):
@@ -86,10 +87,12 @@ def main() -> int:
     score = {(n, key(f)): s for (t, f), s in zip(jobs, out) for n in [t.stem if t else "default"]}
 
     failed = []
-    print(f"{'fixture':38}" + "".join(f"{n:>12}" for n in names))
+    if args.verbose:
+        print(f"{'fixture':38}" + "".join(f"{n:>12}" for n in names))
     for f in FIXTURES:
         row = [score[(n, key(f))] for n in names]
-        print(f"{key(f):38}" + "".join(f"{'ERROR' if s is None else s:>12}" for s in row))
+        if args.verbose:
+            print(f"{key(f):38}" + "".join(f"{'ERROR' if s is None else s:>12}" for s in row))
         if row[0] is None:
             failed.append(f"{key(f)}: does not lay out under the default theme")
         for n, s in zip(names[1:], row[1:]):
@@ -112,7 +115,7 @@ def main() -> int:
         shutil.rmtree(tmp, ignore_errors=True)
     for line in failed:
         print(f"[FAIL] {line}")
-    print("[PASS] every fixture, every theme" if not failed else f"{len(failed)} problem(s)")
+    print(f"[PASS] every fixture, every theme ({len(FIXTURES)} fixtures x {len(THEMES)} themes)" if not failed else f"{len(failed)} problem(s)")
     return 2 if failed else 0
 
 

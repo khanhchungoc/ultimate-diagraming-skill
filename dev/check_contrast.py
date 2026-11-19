@@ -4,7 +4,7 @@
 Pairs come from the token file's `contrast` list ([fg, bg, min]; a name with `*` expands for every palette slot).
 
 Usage:
-  python dev/check_contrast.py [--theme FILE] [--strict] [--json]
+  python dev/check_contrast.py [--theme FILE] [--strict] [--json] [-v|--verbose]
   python dev/check_contrast.py --self-test
 Exit codes: 0 all pass, 1 any FAIL (or, with --strict, any SKIP).
 """
@@ -29,7 +29,7 @@ def load(theme):
     return "scripts/tokens.py", tokens, lambda mode: resolve_colors(tokens, mode)
 
 
-def run(theme, strict, as_json):
+def run(theme, strict, as_json, verbose=False):
     source, tokens, colors_for = load(theme)
     pairs = tokens["contrast"]
     results = []
@@ -41,8 +41,10 @@ def run(theme, strict, as_json):
     if as_json:
         print(json.dumps({"source": source, "results": results}, indent=2))
     else:
-        print(f"tokens: {source}")
-        for x in results:
+        shown = [x for x in results if verbose or x["status"] != "PASS"]
+        if verbose or shown:
+            print(f"tokens: {source}")
+        for x in shown:
             tail = x["reason"] if x["status"] == "SKIP" else f"{x['ratio']:.2f} {'<' if x['status'] == 'FAIL' else '>='} {x['min']:g}"
             print(f"[{x['status']}] {x['mode']} {x['fg']} on {x['bg']}: {tail}")
         c = {s: sum(x["status"] == s for x in results) for s in ("PASS", "FAIL", "SKIP")}
@@ -77,11 +79,12 @@ def main():
     ap.add_argument("--theme", help="theme file passed to load_tokens")
     ap.add_argument("--strict", action="store_true", help="a missing or unresolvable token fails")
     ap.add_argument("--json", action="store_true", help="machine-readable results")
+    ap.add_argument("-v", "--verbose", action="store_true", help="print passing pairs")
     ap.add_argument("--self-test", action="store_true")
     a = ap.parse_args()
     if a.self_test:
         return self_test()
-    return run(a.theme, a.strict, a.json)
+    return run(a.theme, a.strict, a.json, a.verbose)
 
 
 if __name__ == "__main__":

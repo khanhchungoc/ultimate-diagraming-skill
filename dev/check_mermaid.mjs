@@ -6,14 +6,14 @@
 // A type may add its own normalising in dev/check_mermaid_norm.<kind>.mjs: `export function normalise(data, safeId, base)`,
 // where `base` is the generic normaliser below; without that file the generic one is used.
 //
-//   node dev/check_mermaid.mjs --browser <chrome> [--kind flowchart|usecase|sequence|erd]
+//   node dev/check_mermaid.mjs --browser <chrome> [--kind flowchart|usecase|sequence|erd] [-v|--verbose]
 // Exit codes: 0 all pass, 1 setup error or a failed check.
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { argOf, launch } from './cdp.mjs';
+import { argOf, isVerbose, launch } from './cdp.mjs';
 import { defaultPalette, loadMermaidIO } from '../scripts/mermaid_io.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -23,8 +23,9 @@ const KINDS = ['flowchart', 'usecase', 'sequence', 'erd'];
 if (onlyKind && !KINDS.includes(onlyKind)) { console.error(`--kind must be one of ${KINDS.join(', ')}`); process.exit(1); }
 const kinds = onlyKind ? [onlyKind] : KINDS;
 
-let failed = 0;
-const pass = (name) => console.log(`[PASS] ${name}`);
+const verbose = isVerbose();
+let passed = 0, failed = 0;
+const pass = (name) => { passed++; if (verbose) console.log(`[PASS] ${name}`); };
 const fail = (name, lines = []) => { failed++; console.log(`[FAIL] ${name}`); lines.forEach((l) => console.log(`       ${l}`)); };
 
 function walk(dir) {
@@ -286,5 +287,5 @@ if (written.length) {
   }
 }
 
-console.log(failed ? `${failed} check(s) failed` : 'all checks passed');
+console.log(failed ? `${passed}/${passed + failed} checks passed (${failed} failed)` : `${passed}/${passed + failed} checks passed`);
 process.exit(failed ? 1 : 0);

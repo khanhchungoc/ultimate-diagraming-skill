@@ -12,10 +12,11 @@ For every dev/fixtures/<type>/*.json, the ER diagram's included (assembled witho
   - `--target artifact -o <dir-or-index.html>` writes all four files into the target folder
   - `--target file` is unchanged by the artifact code (shell.html's own text is used as is)
 
-Usage: python dev/check_artifact_shape.py        Exit codes: 0 all passed, 2 a check failed.
+Usage: python dev/check_artifact_shape.py [-v|--verbose]   Exit codes: 0 all passed, 2 a check failed.
 """
 from __future__ import annotations
 
+import argparse
 import json
 import re
 import subprocess
@@ -28,12 +29,18 @@ sys.path.insert(0, str(ROOT / "scripts"))
 import layout_engine as le  # noqa: E402
 import disk_format as df  # noqa: E402
 
+_ap = argparse.ArgumentParser(description="Check split --target artifact bundle shape.")
+_ap.add_argument("-v", "--verbose", action="store_true", help="Print passing checks")
+VERBOSE = _ap.parse_args().verbose
+total = 0
 failures = 0
 
 
 def check(name: str, ok: bool, detail: str = "") -> None:
-    global failures
-    print(f"[{'PASS' if ok else 'FAIL'}] {name}{'' if ok else ' - ' + detail}")
+    global total, failures
+    total += 1
+    if not ok or VERBOSE:
+        print(f"[{'PASS' if ok else 'FAIL'}] {name}{'' if ok else ' - ' + detail}")
     failures += 0 if ok else 1
 
 
@@ -153,5 +160,5 @@ for out_name, out_arg in (("dir", tmp / "cli-dir"), ("index.html", tmp / "cli-id
           proc.returncode == 0 and all((out_dir / n).is_file() for n in ("index.html", "diagram.json", "app.css", "app.js")),
           (proc.stdout + proc.stderr)[-300:])
 
-print(f"{'all passed' if not failures else str(failures) + ' check(s) failed'}")
+print(f"{total - failures}/{total} checks passed" + (f" ({failures} failed)" if failures else ""))
 sys.exit(2 if failures else 0)

@@ -1,5 +1,5 @@
 // Activation bars (sequence): one check per rule in seqActivations (assets/types/sequence/sequence.js).
-//   node dev/e2e_activations.mjs --browser <chrome> --page <activations.html>
+//   node dev/e2e_activations.mjs --browser <chrome> --page <activations.html> [-v|--verbose]
 // --page: dev/fixtures/sequence/activations.json laid out with `layout_engine.py --layout`.
 // Exit codes: 0 all passed, 1 setup error, 2 a check failed.
 import { readFileSync, writeFileSync, mkdtempSync } from 'node:fs';
@@ -8,7 +8,7 @@ import { join } from 'node:path';
 import { argOf, launch, sleep } from './cdp.mjs';
 
 const browser = argOf('browser'), page = argOf('page');
-if (!browser || !page) { console.error('usage: --browser <chrome> --page <html>'); process.exit(1); }
+if (!browser || !page) { console.error('usage: --browser <chrome> --page <html> [-v|--verbose]'); process.exit(1); }
 const t = await launch(browser).catch((e) => { console.error('[ERROR]', e.message); process.exit(1); });
 const openFit = async (url, query = '') => { await t.open(url, query); await t.clickOn('#btn-zoom-reset'); };
 let code = 0;
@@ -29,7 +29,7 @@ try {
   })()`));
   const of = (pid) => bars.filter((b) => b.pid === pid);
   const show = (pid) => JSON.stringify(of(pid).map((b) => [b.from, b.to, b.depth]));
-  const check = (name, ok, info) => { console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}${ok ? '' : ' - ' + info}`); if (!ok) code = 2; };
+  const check = (name, ok, info = '') => t.check(name, ok, info);
   check('a person who starts the flow gets no bar', of('u').length === 0, show('u'));
   const a0 = of('a').filter((b) => b.depth === 0);
   check('the participant handling the first call has one continuous bar until its reply', a0.length === 1 && a0[0].from === 'm1' && a0[0].to === 'm12', show('a'));
@@ -148,6 +148,7 @@ try {
     document.querySelector('[data-export="svg"]').click();
   })`);
   check('an SVG export has no stretch handle', svg.length > 1000 && !/seq-barend|seq-handle/.test(svg));
+  code = t.finish();
 } catch (e) {
   console.error('[ERROR]', e.message);
   code = 1;

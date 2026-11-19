@@ -3,7 +3,7 @@
 // For every fixture: runs layoutDiagram, compares with dev/fixtures/usecase/golden/<name>.json, and checks the geometry:
 //   no two ellipses or actors overlap, no actor inside a subject box, every use case inside its subject, no line through an
 //   unrelated ellipse or actor, no two labelBoxes overlap, and routeDiagram on the output moves nothing.
-// Usage: node dev/check_usecase_engine.mjs [--update]      (--update rewrites the goldens: review the diff)
+// Usage: node dev/check_usecase_engine.mjs [--update] [-v|--verbose]      (--update rewrites the goldens: review the diff)
 // Exit codes: 0 ok, 1 error, 2 mismatch or failed check.
 import { readFileSync, writeFileSync, readdirSync, mkdirSync, existsSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
@@ -14,6 +14,7 @@ import { isDeepStrictEqual } from 'node:util';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const DIR = join(ROOT, 'dev', 'fixtures', 'usecase'), GOLD = join(DIR, 'golden');
 const update = process.argv.includes('--update');
+const verbose = process.argv.includes('-v') || process.argv.includes('--verbose');
 
 const py = spawnSync('python3', ['-I', '-c',
   'import sys, json; sys.path.insert(0, "scripts"); import tokens; print(json.dumps(tokens.tokens_data(tokens.load_tokens())))'],
@@ -74,9 +75,10 @@ function geometryProblems(d) {
   return bad;
 }
 
-let failed = 0, mismatched = 0;
+let total = 0, okCount = 0, failed = 0, mismatched = 0;
 if (!existsSync(GOLD)) mkdirSync(GOLD, { recursive: true });
 for (const file of readdirSync(DIR).filter((f) => f.endsWith('.json')).sort()) {
+  total++;
   const name = file.replace(/\.json$/, '');
   const input = JSON.parse(readFileSync(join(DIR, file), 'utf8'));
   input.schemaVersion ??= 1;   // as layout_engine.py --layout sets it, so dev/check_golden.py reads the same goldens
@@ -95,7 +97,14 @@ for (const file of readdirSync(DIR).filter((f) => f.endsWith('.json')).sort()) {
   else if (!existsSync(goldPath)) { status = 'NO GOLDEN'; mismatched++; }
   else if (!isDeepStrictEqual(JSON.parse(readFileSync(goldPath, 'utf8')), out)) { status = 'GOLDEN DIFFERS'; mismatched++; }
   if (problems.length) failed++;
-  console.log(`${problems.length ? 'FAIL' : 'ok  '} ${name}: ${out.canvas.width}x${out.canvas.height}, ${out.canvas.crossings} crossings, ${out.canvas.hits} hits${update ? ' (golden written)' : status === 'ok' ? '' : ' [' + status + ']'}`);
-  problems.forEach((p) => console.log('     ' + p));
+  const clean = !problems.length && status === 'ok';
+  if (clean) okCount++;
+  if (!clean || verbose) {
+    console.log(`${problems.length ? 'FAIL' : 'ok  '} ${name}: ${out.canvas.width}x${out.canvas.height}, ${out.canvas.crossings} crossings, ${out.canvas.hits} hits${update ? ' (golden written)' : status === 'ok' ? '' : ' [' + status + ']'}`);
+    problems.forEach((p) => console.log('     ' + p));
+  }
 }
+console.log(update
+  ? `${total} usecase fixture(s) updated${failed ? ` (${failed} failed)` : ''}`
+  : `${okCount}/${total} usecase fixtures passed${failed || mismatched ? ` (${failed} failed, ${mismatched} mismatched)` : ''}`);
 process.exit(failed || mismatched ? 2 : 0);

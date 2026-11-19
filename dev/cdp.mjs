@@ -14,6 +14,8 @@ export function argOf(name) {
   return i > 0 ? process.argv[i + 1] : undefined;
 }
 
+export const isVerbose = () => process.argv.includes('-v') || process.argv.includes('--verbose');
+
 /** Start headless Chrome and return { open, ev, errors, check, finish, close }. */
 export async function launch(browser) {
   const port = 9300 + Math.floor(Math.random() * 400);
@@ -96,6 +98,7 @@ export async function launch(browser) {
   }
 
   const results = [];
+  const verbose = isVerbose();
   const api = {
     get errors() { return state.errors; },
     /** Raw CDP command (e.g. Input.dispatchMouseEvent) and event subscription, for real input such as native drags. */
@@ -133,7 +136,7 @@ export async function launch(browser) {
     },
     check(name, ok, detail = '') {
       results.push({ name, ok });
-      console.log(`${ok ? '[PASS]' : '[FAIL]'} ${name}${ok ? '' : ' - ' + detail}`);
+      if (!ok || verbose) console.log(`${ok ? '[PASS]' : '[FAIL]'} ${name}${ok ? '' : ' - ' + detail}`);
     },
     key: (k, extra = {}) => `window.dispatchEvent(new KeyboardEvent('keydown', Object.assign({ key: ${JSON.stringify(k)}, bubbles: true }, ${JSON.stringify(extra)})))`,
     /** pointer sequence on the first element matching `selector`; moves by (dx, dy) screen px between down and up. */

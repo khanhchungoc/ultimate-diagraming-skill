@@ -14,8 +14,8 @@ its steps in flow order (disk_format.py) and laying that out again moves nothing
 For an ERD it also checks that laying out the saved model again moves nothing (tables and curves).
 
 Usage:
-  python dev/check_golden.py            check all fixtures
-  python dev/check_golden.py --update   rewrite the goldens after an intentional engine change (review the diff)
+  python dev/check_golden.py [-v|--verbose]            check all fixtures
+  python dev/check_golden.py --update [-v|--verbose]   rewrite the goldens after an intentional engine change (review the diff)
 Exit codes: 0 all match, 1 error, 2 mismatch or audit failure.
 """
 
@@ -213,13 +213,16 @@ def main() -> int:
             pass
     parser = argparse.ArgumentParser(description="Check layout engine output against golden files.")
     parser.add_argument("--update", action="store_true", help="Rewrite golden files from the current engine")
+    parser.add_argument("-v", "--verbose", action="store_true", help="Print passing fixtures")
     args = parser.parse_args()
 
     fixtures = sorted(p for p in (ROOT / "dev" / "fixtures").glob("*/*.json") if p.parent.name != "themes")
     if not fixtures:
         print("[ERROR] no fixtures found in dev/fixtures", file=sys.stderr)
         return 1
-    failed = False
+    total = len(fixtures)
+    passed = 0
+    failed = 0
     for path in fixtures:
         data = normalize_diagram_type(json.loads(path.read_text(encoding="utf-8")))
         laid = run_layout(data["diagramType"], copy.deepcopy(data))
@@ -228,7 +231,8 @@ def main() -> int:
         golden_path = golden_dir / path.name
         if args.update:
             golden_path.write_text(json.dumps(laid, indent=2) + "\n", encoding="utf-8")
-            print(f"[UPDATED] {path.parent.name}/{path.name}")
+            if args.verbose:
+                print(f"[UPDATED] {path.parent.name}/{path.name}")
             continue
         problems = list(differences(json.loads(golden_path.read_text(encoding="utf-8")), laid))
         problems += twin_problems(path, data, laid)
@@ -243,12 +247,18 @@ def main() -> int:
         if not report["passed"] and not lite_ok:
             problems.append(f"audit failed: score {report['score']}, issues {report['issues']}")
         if problems:
-            failed = True
+            failed += 1
             print(f"[MISMATCH] {path.parent.name}/{path.name}")
             for line in problems[:8]:
                 print(f"  - {line}")
         else:
-            print(f"[PASS] {path.parent.name}/{path.name}: matches golden; audit {report['score']}/100")
+            passed += 1
+            if args.verbose:
+                print(f"[PASS] {path.parent.name}/{path.name}: matches golden; audit {report['score']}/100")
+    if args.update:
+        print(f"Updated {total} golden fixtures")
+        return 0
+    print(f"{passed}/{total} golden fixtures passed" + (f" ({failed} failed)" if failed else ""))
     return 2 if failed else 0
 
 

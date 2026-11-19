@@ -3,12 +3,13 @@
 valid forms it must accept. Inputs are laid out by hand (x, y, w, h, points, labelBox, canvas), so no engine is needed.
 Also the codec: round trip, derived fields, layout map and editor-id renaming (scripts/disk_format.py).
 
-Usage: python dev/test_audit_usecase.py
+Usage: python dev/test_audit_usecase.py [-v|--verbose]
 Exit codes: 0 all passed, 2 a case failed.
 """
 
 from __future__ import annotations
 
+import argparse
 import copy
 import sys
 from pathlib import Path
@@ -228,26 +229,36 @@ INFO = [
 
 
 def main() -> int:
+    parser = argparse.ArgumentParser(description="Unit cases for the use case diagram audit rules.")
+    parser.add_argument("-v", "--verbose", action="store_true", help="Print passing cases")
+    args = parser.parse_args()
     failed = 0
+    total = 0
+
+    def check(name: str, ok: bool, detail: object = "") -> None:
+        nonlocal failed, total
+        total += 1
+        failed += not ok
+        if not ok or args.verbose:
+            tail = "" if ok or detail == "" else f" - {detail}"
+            print(f"[{'PASS' if ok else 'FAIL'}] {name}{tail}")
+
     for name, changes, expect in CASES:
         issues, report = audit(**changes)
         ok = not issues if expect is None else any(expect in i for i in issues)
-        failed += not ok
-        print(f"[{'PASS' if ok else 'FAIL'}] {name}" + ("" if ok else f" - issues: {issues}"))
+        check(name, ok, f"issues: {issues}")
     for name, changes, expect in WARNINGS:
         issues, report = audit(**changes)
         warnings = report["budget_warnings"]
         ok = (not warnings) if expect is None else any(expect in w for w in warnings)
         ok = ok and report["score"] == 100 - 12 * len(issues)  # warnings never change the score
-        failed += not ok
-        print(f"[{'PASS' if ok else 'FAIL'}] warning: {name}" + ("" if ok else f" - warnings: {warnings} issues: {issues}"))
+        check(f"warning: {name}", ok, f"warnings: {warnings} issues: {issues}")
     for name, changes, expect in INFO:
         issues, report = audit(**changes)
         info = report["info"]
         ok = (not info) if expect is None else any(expect in i for i in info)
         ok = ok and not report["budget_warnings"] and not issues  # info lines are never a warning or an error
-        failed += not ok
-        print(f"[{'PASS' if ok else 'FAIL'}] info: {name}" + ("" if ok else f" - info: {info} warnings: {report['budget_warnings']} issues: {issues}"))
+        check(f"info: {name}", ok, f"info: {info} warnings: {report['budget_warnings']} issues: {issues}")
     # Report shape, summary and the clean pass line
     audit_obj = UsecaseAudit(copy.deepcopy(BASE))
     report = audit_obj.verify_collisions()
@@ -255,13 +266,11 @@ def main() -> int:
           and report["grade"] == "A+" and audit_obj.pass_line(report).startswith("[PASS] Layout clean.")
           and UsecaseAudit.title == "Use Case Diagram"
           and audit_obj.summary_lines(report)[0].startswith("Structure: 2 Actors | 4 Use cases | 5 Links"))
-    failed += not ok
-    print(f"[{'PASS' if ok else 'FAIL'}] report shape, pass line and summary - {report}")
+    check("report shape, pass line and summary", ok, str(report))
     # An error costs 12 points, and a score under 90 does not pass
     _, report = audit(links=edit_link("l1", **{"from": "ghost"}) + [link("l9", "association", "customer", "ghost")])
     ok = report["score"] == 100 - 12 * len(report["issues"]) and not report["passed"]
-    failed += not ok
-    print(f"[{'PASS' if ok else 'FAIL'}] score is 100 minus 12 per error - {report['score']}")
+    check("score is 100 minus 12 per error", ok, str(report["score"]))
     # An implicit subject (no `subjects`, boxes in _subjects) is checked like a named one
     implicit = copy.deepcopy(BASE)
     implicit.pop("subjects")
@@ -272,22 +281,15 @@ def main() -> int:
     implicit["actors"][1].update(x=560, y=300)
     report2 = UsecaseAudit(implicit).verify_collisions()
     ok = not report["issues"] and any("sits inside subject '_main'" in i for i in report2["issues"])
-    failed += not ok
-    print(f"[{'PASS' if ok else 'FAIL'}] implicit subject _main - {report['issues']} {report2['issues']}")
+    check("implicit subject _main", ok, f"{report['issues']} {report2['issues']}")
 
-    failed += codec_tests()
-    print(f"{'all cases passed' if not failed else str(failed) + ' case(s) failed'}")
+    codec_tests(check)
+    print(f"{total - failed}/{total} cases passed")
     return 2 if failed else 0
 
 
-def codec_tests() -> int:
+def codec_tests(check) -> None:
     from disk_format import format_json, from_disk, to_disk, authoring_json
-    failed = 0
-
-    def check(name, ok, detail=""):
-        nonlocal failed
-        failed += not ok
-        print(f"[{'PASS' if ok else 'FAIL'}] codec: {name}" + ("" if ok else f" - {detail}"))
 
     laid = copy.deepcopy(BASE)
     laid.update(showNotes=True, showRefs=False, colorKey={"#e0f2fe": "Ordering"}, notes=[{"id": "n1", "text": "t", "useCases": ["checkout"], "_x": 1}])
@@ -299,28 +301,28 @@ def codec_tests() -> int:
     laid["links"][0]["curve"] = None
     laid["schemaVersion"] = 1
     disk = to_disk("usecase", laid)
-    check("key order and schemaVersion",
+    check("codec: key order and schemaVersion",
           list(disk) == ["diagramType", "schemaVersion", "title", "showRefs", "showNotes", "colorKey", "subjects", "actors",
                          "useCases", "links", "notes", "layout"] and disk["schemaVersion"] == 1, list(disk))
-    check("derived fields are dropped",
+    check("codec: derived fields are dropped",
           "canvas" not in disk and "_subjects" not in disk and "_parents" not in disk
           and all(k not in o for o in disk["subjects"] for k in ("x", "y", "w", "h"))
           and all(k not in o for o in disk["actors"] + disk["useCases"] for k in ("x", "y", "w", "h", "_lines", "_side"))
           and all(k not in lk for lk in disk["links"] for k in ("points", "labelBox")) and "_x" not in disk["notes"][0], disk)
-    check("layout holds actors then use cases, positions only",
+    check("codec: layout holds actors then use cases, positions only",
           list(disk["layout"]) == ["customer", "psp", "browse", "checkout", "pay", "voucher"]
           and disk["layout"]["checkout"] == {"x": 200, "y": 200}, disk["layout"])
-    check("colours become slots", disk["colorKey"] == {"1": "Ordering"} and disk["useCases"][1]["color"] == "1")
+    check("codec: colours become slots", disk["colorKey"] == {"1": "Ordering"} and disk["useCases"][1]["color"] == "1")
     back = from_disk("usecase", disk)
-    check("round trip puts the positions back and is stable",
+    check("codec: round trip puts the positions back and is stable",
           "layout" not in back and (back["actors"][1]["x"], back["useCases"][1]["y"]) == (700, 200)
           and to_disk("usecase", back) == disk and format_json(to_disk("usecase", back)) == format_json(disk))
-    check("a block with another schemaVersion drops its layout",
+    check("codec: a block with another schemaVersion drops its layout",
           "x" not in from_disk("usecase", {**disk, "schemaVersion": 2})["actors"][0])
-    check("a block with no schemaVersion keeps its layout",
+    check("codec: a block with no schemaVersion keeps its layout",
           from_disk("usecase", {k: v for k, v in disk.items() if k != "schemaVersion"})["actors"][0]["x"] == 20)
-    check("--extract JSON has no layout", "layout" not in authoring_json("usecase", laid) and "x" not in authoring_json("usecase", laid)["actors"][0])
-    check("_readme survives to_disk", to_disk("usecase", {**laid, "_readme": "r"}).get("_readme") == "r")
+    check("codec: --extract JSON has no layout", "layout" not in authoring_json("usecase", laid) and "x" not in authoring_json("usecase", laid)["actors"][0])
+    check("codec: _readme survives to_disk", to_disk("usecase", {**laid, "_readme": "r"}).get("_readme") == "r")
 
     gen = {
         "diagramType": "usecase",
@@ -337,18 +339,17 @@ def codec_tests() -> int:
     }
     g = to_disk("usecase", gen)
     ids = [o["id"] for k in ("subjects", "actors", "useCases", "links", "notes") for o in g[k]]
-    check("editor ids become name slugs, l<N> and n<N>; a taken name gets a suffix; authored ids stay",
+    check("codec: editor ids become name slugs, l<N> and n<N>; a taken name gets a suffix; authored ids stay",
           ids == ["back_office", "warehouse_clerk", "warehouse_clerk_2", "keep", "pick_order", "pack_order", "l2", "l1", "l3", "n1"], ids)
-    check("every reference follows a rename",
+    check("codec: every reference follows a rename",
           g["actors"][1]["parent"] == "warehouse_clerk" and g["useCases"][0]["subject"] == "back_office"
           and g["useCases"][1]["parent"] == "pick_order"
           and (g["links"][0]["from"], g["links"][0]["to"]) == ("warehouse_clerk", "pick_order")
           and (g["links"][1]["from"], g["links"][1]["to"]) == ("pick_order", "pack_order")
           and g["notes"][0]["useCases"] == ["pick_order"] and g["notes"][0]["actors"] == ["warehouse_clerk"], g)
-    check("layout keys are the renamed ids", list(g["layout"]) == ["warehouse_clerk", "warehouse_clerk_2", "keep", "pick_order", "pack_order"]
+    check("codec: layout keys are the renamed ids", list(g["layout"]) == ["warehouse_clerk", "warehouse_clerk_2", "keep", "pick_order", "pack_order"]
           and g["layout"]["pack_order"] == {"x": 9, "y": 10}, g["layout"])
-    check("saving twice changes nothing", to_disk("usecase", from_disk("usecase", g)) == g)
-    return failed
+    check("codec: saving twice changes nothing", to_disk("usecase", from_disk("usecase", g)) == g)
 
 
 if __name__ == "__main__":

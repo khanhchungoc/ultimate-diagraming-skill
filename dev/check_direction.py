@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Check the direction --layout picks for a flowchart that leaves "direction" out (choose_flowchart_direction).
 
-  python dev/check_direction.py     exit 1 if any pick differs from the expected one
+  python dev/check_direction.py [-v|--verbose]     exit 1 if any pick differs from the expected one
 
 Cases: the short loan example stays left to right (it fits the screen whole); the 55-step laptop sample goes top
 to bottom; so do copies of it with 1, 2, 3 and 5 extra lanes (8 to 12 lanes), because a landscape screen is about
@@ -10,6 +10,7 @@ twice as wide as tall. Each extra lane takes a few of the sample's own task step
 
 from __future__ import annotations
 
+import argparse
 import copy
 import json
 import sys
@@ -32,6 +33,9 @@ def with_extra_lanes(data: dict, k: int) -> dict:
 
 
 def main() -> int:
+    parser = argparse.ArgumentParser(description="Check automatic flowchart direction picks.")
+    parser.add_argument("-v", "--verbose", action="store_true", help="Print passing cases")
+    args = parser.parse_args()
     loan = json.loads((ROOT / "dev" / "examples" / "example-flowchart.json").read_text(encoding="utf-8"))
     page = (ROOT / "dev" / "samples" / "corporate-laptop-purchase-request.html").read_text(encoding="utf-8")
     laptop = authoring_json("flowchart", read_data_block(page))
@@ -45,7 +49,9 @@ def main() -> int:
         got = laid.get("direction", "LR")
         ok = got == expected
         failed += not ok
-        print(f"[{'PASS' if ok else 'FAIL'}] {name}: {got} (expected {expected}){' - ' + why if why else ''}")
+        if not ok or args.verbose:
+            print(f"[{'PASS' if ok else 'FAIL'}] {name}: {got} (expected {expected}){' - ' + why if why else ''}")
+    print(f"{len(cases) - failed}/{len(cases)} direction cases passed" + (f" ({failed} failed)" if failed else ""))
     return 1 if failed else 0
 
 

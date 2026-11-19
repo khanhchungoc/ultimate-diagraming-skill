@@ -1,7 +1,7 @@
 // Interaction test for text search (plan: dev/plans/search.md). Written against the spec and the plugin contract
 // (searchItems() -> [{id,text,el}], debug hook window.__searchItems()), so it works on any diagram type.
 //
-//   node dev/e2e_search.mjs --browser <chrome> --page <laid-out.html> --type <flowchart|sequence|erd|usecase>
+//   node dev/e2e_search.mjs --browser <chrome> --page <laid-out.html> --type <flowchart|sequence|erd|usecase> [-v|--verbose]
 //
 // --page: page produced by `layout_engine.py --layout` for a fixture of that type.
 // The query is picked from the page itself: the first word (3+ letters) found in two or more items, else the first item's.
@@ -10,7 +10,9 @@
 // download fallback; that blob is the HTML the save path writes.
 // Exit codes: 0 all passed, 1 setup error, 2 a check failed.
 import { existsSync } from 'node:fs';
-import { argOf, launch, sleep } from './cdp.mjs';
+import { argOf, isVerbose, launch, sleep } from './cdp.mjs';
+
+const verbose = isVerbose();
 
 const browser = argOf('browser'), page = argOf('page'), type = argOf('type');
 if (!browser || !page || !['flowchart', 'sequence', 'erd', 'usecase'].includes(type)) {
@@ -74,7 +76,7 @@ try {
     console.error('[ERROR] cannot continue: ' + (missing.length ? 'search UI missing (is this a page built with the search feature?)' : 'no search items on this page (does the plugin implement searchItems()?)'));
     code = 2;
   } else {
-    console.log(`query: ${J(q)} (${await T(`matches(${J(q)}).length`)} matches of ${nItems} items)`);
+    if (verbose) console.log(`query: ${J(q)} (${await T(`matches(${J(q)}).length`)} matches of ${nItems} items)`);
 
     // 1. Ctrl+F opens and focuses; inside a text field it does not
     t.check('bar starts closed', !(await visible('search-bar')));

@@ -2,12 +2,13 @@
 """Unit cases for the sequence audit rules (scripts/audit_sequence.py): each rule has one failing case, and the
 valid forms it must accept.
 
-Usage: python dev/test_audit_sequence.py
+Usage: python dev/test_audit_sequence.py [-v|--verbose]
 Exit codes: 0 all passed, 2 a case failed.
 """
 
 from __future__ import annotations
 
+import argparse
 import copy
 import sys
 from pathlib import Path
@@ -123,12 +124,23 @@ CASES = [
 
 
 def main() -> int:
+    parser = argparse.ArgumentParser(description="Unit cases for the sequence audit rules.")
+    parser.add_argument("-v", "--verbose", action="store_true", help="Print passing cases")
+    args = parser.parse_args()
     failed = 0
+    total = 0
+
+    def check(name: str, cond: bool, detail: str = "") -> None:
+        nonlocal failed, total
+        total += 1
+        failed += not cond
+        if not cond or args.verbose:
+            print(f"[{'PASS' if cond else 'FAIL'}] {name}" + (f" - {detail}" if detail and not cond else ""))
+
     for name, changes, expect in CASES:
         issues, _ = audit(**changes)
         ok = not issues if expect is None else any(expect in i for i in issues)
-        failed += not ok
-        print(f"[{'PASS' if ok else 'FAIL'}] {name}" + ("" if ok else f" - issues: {issues}"))
+        check(name, ok, f"issues: {issues}")
     # Nesting deeper than 3 is a warning, not an error; phase group blocks (rect) do not count toward depth
     nest = [{"id": f"f{k}", "kind": "opt", "label": "x", "from": f"m{k}", "to": f"m{7 - k}"} for k in range(1, 4)]
     _, three = audit(fragments=nest)
@@ -138,8 +150,8 @@ def main() -> int:
                             [{"id": "f4", "kind": "break", "label": "abort", "from": "m3", "to": "m3"}])
     ok = (not three["budget_warnings"] and any("nest 4 deep" in w for w in four["budget_warnings"])
           and not grouped_three["budget_warnings"] and any("nest 4 deep" in w for w in grouped_four["budget_warnings"]))
-    failed += not ok
-    print(f"[{'PASS' if ok else 'FAIL'}] nesting depth warns above 3 (excluding group) - {three['budget_warnings']} {four['budget_warnings']} {grouped_three['budget_warnings']}")
+    check("nesting depth warns above 3 (excluding group)", ok,
+          f"{three['budget_warnings']} {four['budget_warnings']} {grouped_three['budget_warnings']}")
     # Colour warnings (not errors): a colour without a key, a key nobody uses, a rainbow
     def coloured(n, key, **kw):
         cols = ["#e0f2fe", "#fef3c7", "#dcfce7", "#fee2e2", "#f3e8ff", "#ffedd5"][:n]
@@ -156,13 +168,9 @@ def main() -> int:
          audit(participants=[{"id": "a", "name": "A", "color": "#123456"}, {"id": "b", "name": "B"}], colorKey={"#123456": "x"})[1]["budget_warnings"], "contrast is not checked"),
     ]
     for name, warnings, expect in colour_cases:
-        ok = any(expect in w for w in warnings)
-        failed += not ok
-        print(f"[{'PASS' if ok else 'FAIL'}] {name} - {warnings}")
+        check(name, any(expect in w for w in warnings), str(warnings))
     two = coloured(2, {"#e0f2fe": "Ours", "#fef3c7": "Customer"})[1]["budget_warnings"]
-    ok = not two
-    failed += not ok
-    print(f"[{'PASS' if ok else 'FAIL'}] two coloured participants with a full colorKey do not warn - {two}")
+    check("two coloured participants with a full colorKey do not warn", not two, str(two))
     # Codec: old palette hex and old frame colour names in, slots out; a custom hex is written unchanged
     from disk_format import authoring_json, from_disk, to_disk
     old = {"diagramType": "sequence", "colorKey": {"#e0f2fe": "Ours", "#123456": "Mine", "#fef3c7": "unused"},
@@ -172,19 +180,10 @@ def main() -> int:
     ok = (disk["colorKey"] == {"1": "Ours", "#123456": "Mine"} and [p["color"] for p in disk["participants"]] == ["1", "#123456"]
           and [f["color"] for f in disk["fragments"]] == ["1", "3", "2", "4", "5", "9", "4"]
           and to_disk("sequence", from_disk("sequence", disk)) == disk and from_disk("sequence", old)["participants"][0]["color"] == "1")
-    failed += not ok
-    print(f"[{'PASS' if ok else 'FAIL'}] codec: old hex and frame names become slots, a custom hex stays - {disk['colorKey']}")
+    check("codec: old hex and frame names become slots, a custom hex stays", ok, str(disk["colorKey"]))
 
     import json
     from layout_engine import apply_sequence_defaults, order_sequence_participants, pack_sequence_columns
-
-    extra_total = 0
-
-    def check(name: str, cond: bool, detail: str = "") -> None:
-        nonlocal failed, extra_total
-        extra_total += 1
-        failed += not cond
-        print(f"[{'PASS' if cond else 'FAIL'}] {name}" + (f" - {detail}" if detail and not cond else ""))
 
     # participantOrder disk_format round-trip and key placement (before colorKey, keeping colorKey right before participants)
     po_data = {
@@ -328,7 +327,6 @@ def main() -> int:
           and explicit_only_ls.get("lifespans") is True,
           f"stripped={stripped.get('lifespans')} custom={explicit_custom.get('lifespans')}")
 
-    total = len(CASES) + 1 + len(colour_cases) + 2 + extra_total
     print(f"{total - failed}/{total} cases passed")
     return 2 if failed else 0
 

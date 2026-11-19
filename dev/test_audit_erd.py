@@ -2,12 +2,13 @@
 """Unit cases for the ER diagram audit rules (scripts/audit_erd.py): each rule has one failing case, and the valid
 forms it must accept. Inputs are laid out by hand (box, points, labelBox, canvas), so no engine is needed.
 
-Usage: python dev/test_audit_erd.py
+Usage: python dev/test_audit_erd.py [-v|--verbose]
 Exit codes: 0 all passed, 2 a case failed.
 """
 
 from __future__ import annotations
 
+import argparse
 import copy
 import sys
 from pathlib import Path
@@ -178,39 +179,44 @@ WARNINGS = [
 
 
 def main() -> int:
+    parser = argparse.ArgumentParser(description="Unit cases for the ER diagram audit rules.")
+    parser.add_argument("-v", "--verbose", action="store_true", help="Print passing cases")
+    args = parser.parse_args()
     failed = 0
+    total = 0
+
+    def check(name: str, ok: bool, detail: str = "") -> None:
+        nonlocal failed, total
+        total += 1
+        failed += not ok
+        if not ok or args.verbose:
+            print(f"[{'PASS' if ok else 'FAIL'}] {name}" + (f" - {detail}" if detail and not ok else ""))
+
     for name, changes, expect in CASES:
         issues, report = audit(**changes)
         ok = not issues if expect is None else any(expect in i for i in issues)
-        failed += not ok
-        print(f"[{'PASS' if ok else 'FAIL'}] {name}" + ("" if ok else f" - issues: {issues}"))
+        check(name, ok, f"issues: {issues}")
     for name, changes, expect in WARNINGS:
         issues, report = audit(**changes)
         warnings = report["budget_warnings"]
         ok = (not warnings) if expect is None else any(expect in w for w in warnings)
         ok = ok and report["score"] == 100 - 12 * len(issues)  # warnings never change the score
-        failed += not ok
-        print(f"[{'PASS' if ok else 'FAIL'}] warning: {name}" + ("" if ok else f" - warnings: {warnings} issues: {issues}"))
+        check(f"warning: {name}", ok, f"warnings: {warnings} issues: {issues}")
     # A table with no columns at all is not a missing primary key
     _, report = audit(entities=[BASE["entities"][0], {**ent("order", [], 320, 40)}], relationships=[])
-    ok = not report["budget_warnings"]
-    failed += not ok
-    print(f"[{'PASS' if ok else 'FAIL'}] warning: a table with no columns yet does not warn - {report['budget_warnings']}")
+    check("warning: a table with no columns yet does not warn", not report["budget_warnings"], str(report["budget_warnings"]))
     # Info lines: crossings and a direct many-to-many, in the summary and never a warning or an error
     issues, report = audit(canvas={"width": 600, "height": 240, "crossings": 3},
                            relationships=[{**BASE["relationships"][0], "fromEnd": "zeroOrMany", "toEnd": "oneOrMany"}])
     lines = ErdAudit(BASE).summary_lines(report)
     ok = (not issues and not report["budget_warnings"] and any("3 line crossings" in l for l in lines)
           and any("many-to-many" in l for l in lines) and report["passed"])
-    failed += not ok
-    print(f"[{'PASS' if ok else 'FAIL'}] info: crossings and many-to-many are summary lines only - {lines}")
+    check("info: crossings and many-to-many are summary lines only", ok, str(lines))
     # A nullable FK defaults toEnd to zeroOrOne, so it is not many-to-many either way
     nullable = ent("order", [{"name": "id", "pk": True}, {"name": "customer_id", "fk": True, "nullable": True}], 320, 40)
     _, report = audit(entities=[BASE["entities"][0], nullable],
                       relationships=[{k: v for k, v in BASE["relationships"][0].items() if k not in ("fromEnd", "toEnd")}])
-    ok = not report["info"]
-    failed += not ok
-    print(f"[{'PASS' if ok else 'FAIL'}] info: default ends of a nullable FK are not many-to-many - {report['info']}")
+    check("info: default ends of a nullable FK are not many-to-many", not report["info"], str(report["info"]))
     # Report shape and the clean pass line
     audit_obj = ErdAudit(copy.deepcopy(BASE))
     report = audit_obj.verify_collisions()
@@ -218,21 +224,18 @@ def main() -> int:
     ok = keys <= set(report) and report["passed"] and report["score"] == 100 and report["grade"] == "A+" \
         and audit_obj.pass_line(report).startswith("[PASS] Layout clean.") and ErdAudit.title == "ER Diagram" \
         and audit_obj.summary_lines(report)[0].startswith("Structure: 2 Tables | 1 Relationships")
-    failed += not ok
-    print(f"[{'PASS' if ok else 'FAIL'}] report shape, pass line and summary - {report}")
+    check("report shape, pass line and summary", ok, str(report))
     # An error costs 12 points, and a score under 90 does not pass
     _, report = audit(relationships=[{**BASE["relationships"][0], "from": "ghost"}, {**BASE["relationships"][0], "id": "r2", "to": "ghost"}])
     ok = report["score"] == 100 - 12 * len(report["issues"]) and not report["passed"]
-    failed += not ok
-    print(f"[{'PASS' if ok else 'FAIL'}] score is 100 minus 12 per error - {report['score']}")
+    check("score is 100 minus 12 per error", ok, str(report["score"]))
     # Every palette hex maps to its slot, and a slot maps to itself
     from disk_format import color_slot, palette_slots
     from tokens import load_tokens
     pal = load_tokens()["palette"]
     ok = (tuple(p["slot"] for p in pal) == palette_slots() and all(color_slot(p["hex"]) == p["slot"] for p in pal if "hex" in p)
           and all(color_slot(s) == s for s in palette_slots()) and color_slot("#123456") == "#123456")
-    failed += not ok
-    print(f"[{'PASS' if ok else 'FAIL'}] old palette hex maps to its slot, a custom hex stays - {palette_slots()}")
+    check("old palette hex maps to its slot, a custom hex stays", ok, str(palette_slots()))
     # Codec: v3 round trip, v1/v2 blocks drop their layout, v2 groups become table colours, renamed ids rename layout keys
     from disk_format import from_disk, to_disk
     laid = copy.deepcopy(BASE)
@@ -252,14 +255,12 @@ def main() -> int:
     back = from_disk("erd", disk)
     ok = ok and "layout" not in back and (back["entities"][0]["x"], back["entities"][0]["y"]) == (24, 40) \
         and (back["entities"][1]["x"], back["entities"][1]["y"]) == (320, 40) and to_disk("erd", back) == disk
-    failed += not ok
-    print(f"[{'PASS' if ok else 'FAIL'}] codec: v3 round trip keeps table positions and colours - {disk.get('layout')}")
+    check("codec: v3 round trip keeps table positions and colours", ok, str(disk.get("layout")))
     v1 = {**disk, "schemaVersion": 1}
     ok = "layout" not in from_disk("erd", v1) and "x" not in from_disk("erd", v1)["entities"][0]
     v0 = {k: v for k, v in disk.items() if k != "schemaVersion"}
     ok = ok and "layout" not in from_disk("erd", v0) and "direction" not in from_disk("erd", {**v1, "direction": "TB"})
-    failed += not ok
-    print(f"[{'PASS' if ok else 'FAIL'}] codec: a v1 (or unversioned) block drops its layout")
+    check("codec: a v1 (or unversioned) block drops its layout", ok)
     v2 = {"diagramType": "erd", "schemaVersion": 2, "colorKey": {"#fef3c7": "Kept"},
           "groups": [{"id": "g1", "name": "Sales", "color": "#e0f2fe"}, {"id": "g2", "name": "Ops", "color": "#fef3c7"},
                      {"id": "g3", "name": "Plain"}],
@@ -270,17 +271,14 @@ def main() -> int:
     ok = ("groups" not in m and "layout" not in m and all("group" not in e and "x" not in e for e in m["entities"])
           and [e.get("color") for e in m["entities"]] == ["1", "2", "3", None]
           and m["colorKey"] == {"2": "Kept", "1": "Sales"})
-    failed += not ok
-    print(f"[{'PASS' if ok else 'FAIL'}] codec: v2 groups become table colours and colorKey, layout dropped - {m.get('colorKey')}")
+    check("codec: v2 groups become table colours and colorKey, layout dropped", ok, str(m.get("colorKey")))
     gen = copy.deepcopy(laid)
     gen["entities"][0]["id"] = "t_170000000000001"
     gen["entities"][0]["name"] = "Sales Area"
     gen["relationships"][0]["to"] = "t_170000000000001"
     gdisk = to_disk("erd", gen)
     ok = "sales_area" in gdisk["layout"] and "t_170000000000001" not in gdisk["layout"] and gdisk["relationships"][0]["to"] == "sales_area"
-    failed += not ok
-    print(f"[{'PASS' if ok else 'FAIL'}] codec: renamed table ids rename their layout keys - {list(gdisk['layout'])}")
-    total = len(CASES) + len(WARNINGS) + 10
+    check("codec: renamed table ids rename their layout keys", ok, str(list(gdisk["layout"])))
     print(f"{total - failed}/{total} cases passed")
     return 2 if failed else 0
 

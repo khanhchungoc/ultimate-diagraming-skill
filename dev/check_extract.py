@@ -9,11 +9,12 @@
      <script id="diagram-theme"> (outside the reading guide's lines, in file and artifact pages), --extract-theme, and
      that a default page carries no theme script.
 
-Usage: python dev/check_extract.py [--offline]     (--offline skips the font lookup and measuring)
+Usage: python dev/check_extract.py [--offline] [-v|--verbose]   (--offline skips font lookup and measuring)
 Exit codes: 0 all passed, 2 a check failed.
 """
 from __future__ import annotations
 
+import argparse
 import json
 import re
 import subprocess
@@ -28,14 +29,22 @@ from contrast import parse_color, ratio  # noqa: E402
 import layout_engine as le  # noqa: E402
 from tokens import merge_theme, resolve_colors  # noqa: E402
 
-OFFLINE = "--offline" in sys.argv
+_ap = argparse.ArgumentParser(description="Check extract_tokens and theme plumbing.")
+_ap.add_argument("--offline", action="store_true", help="Skip font lookup and measuring")
+_ap.add_argument("-v", "--verbose", action="store_true", help="Print passing checks")
+_args = _ap.parse_args()
+OFFLINE = _args.offline
+VERBOSE = _args.verbose
+total = 0
 failures = 0
 tmp = Path(tempfile.mkdtemp(prefix="check_extract_"))
 
 
 def check(name: str, ok: bool, detail: str = "") -> None:
-    global failures
-    print(f"[{'PASS' if ok else 'FAIL'}] {name}{'' if ok else ' - ' + str(detail)[:300]}")
+    global total, failures
+    total += 1
+    if not ok or VERBOSE:
+        print(f"[{'PASS' if ok else 'FAIL'}] {name}{'' if ok else ' - ' + str(detail)[:300]}")
     failures += 0 if ok else 1
 
 
@@ -175,5 +184,5 @@ check("--extract-theme on a page without one says so", "no stored theme" in ext2
 r6 = run(*LAY, "a.json", "-o", "bad.html", cwd=work)
 check("lookup: an invalid project theme is an error, not a silent default", r6.returncode != 0 and "[ERROR] theme" in r6.stderr + r6.stdout)
 
-print("all passed" if not failures else f"{failures} check(s) failed")
+print(f"{total - failures}/{total} checks passed" + (f" ({failures} failed)" if failures else ""))
 sys.exit(2 if failures else 0)

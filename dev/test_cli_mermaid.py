@@ -7,10 +7,11 @@
      the old page's stored theme is kept.
   4. Automatic lane icons for a flowchart.
 
-Usage: python dev/test_cli_mermaid.py        Exit codes: 0 all passed, 2 a check failed.
+Usage: python dev/test_cli_mermaid.py [-v|--verbose]        Exit codes: 0 all passed, 2 a check failed.
 """
 from __future__ import annotations
 
+import argparse
 import json
 import subprocess
 import sys
@@ -21,13 +22,19 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
 import layout_engine as le  # noqa: E402
 
+_ap = argparse.ArgumentParser(description="Test the CLI Mermaid reader/writer.")
+_ap.add_argument("-v", "--verbose", action="store_true", help="Print passing checks")
+VERBOSE = _ap.parse_args().verbose
+total = 0
 failures = 0
 tmp = Path(tempfile.mkdtemp(prefix="test_cli_mermaid_"))
 
 
 def check(name: str, ok: bool, detail: str = "") -> None:
-    global failures
-    print(f"[{'PASS' if ok else 'FAIL'}] {name}{'' if ok else ' - ' + str(detail)[:400]}")
+    global total, failures
+    total += 1
+    if not ok or VERBOSE:
+        print(f"[{'PASS' if ok else 'FAIL'}] {name}{'' if ok else ' - ' + str(detail)[:400]}")
     failures += 0 if ok else 1
 
 
@@ -140,5 +147,5 @@ check("lane icons: --layout prints the [INFO] line and no 'has no icon' [WARN]",
 unknown = {"diagramType": "flowchart", "lanes": [{"id": "a", "name": "A", "icon": "nope"}], "nodes": [], "edges": []}
 check("lane icons: an unknown icon is still a [WARN]", any("unknown icon 'nope'" in w for w in le.FlowchartAudit(unknown)._lane_icon_warnings()))
 
-print("all passed" if not failures else f"{failures} check(s) failed")
+print(f"{total - failures}/{total} checks passed" + (f" ({failures} failed)" if failures else ""))
 sys.exit(2 if failures else 0)

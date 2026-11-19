@@ -15,7 +15,7 @@ that belong in assets/tokens/default.json. Rules by phase (a later phase include
      lane-icon: a name in references/types/flowchart.md "## Lane icons" missing from the registry
 A justified exception goes on the same line: `/* tokens-ok: <reason> */` or `// tokens-ok: <reason>`.
 
-Usage: python dev/check_tokens.py [--phase N]   (default 1)   |   --list-rules   |   --self-test
+Usage: python dev/check_tokens.py [--phase N] [-v|--verbose]   (default phase 1)   |   --list-rules   |   --self-test
 Exit codes: 0 clean, 1 findings or self-test failure.
 """
 from __future__ import annotations
@@ -273,6 +273,7 @@ def main():
     ap.add_argument("--phase", type=int, default=1)
     ap.add_argument("--list-rules", action="store_true")
     ap.add_argument("--self-test", action="store_true")
+    ap.add_argument("-v", "--verbose", action="store_true", help="print passing rules")
     args = ap.parse_args()
     if args.list_rules:
         for name, (ph, desc) in RULES.items():
@@ -296,7 +297,10 @@ def main():
         print(f"{rel}:{ln}: {rule}: {snip}")
     counts = {r: sum(1 for f in findings if f[2] == r) for r, (ph, _) in RULES.items() if ph <= args.phase}
     for rule, n in counts.items():
-        print(f"[{'FAIL' if n else 'PASS'}] {rule}: {n}")
+        if n or args.verbose:
+            print(f"[{'FAIL' if n else 'PASS'}] {rule}: {n}")
+    ok_rules = sum(1 for n in counts.values() if not n)
+    print(f"{ok_rules}/{len(counts)} token rules passed" + (f" ({len(findings)} finding(s))" if findings else ""))
     return 1 if findings else 0
 
 
