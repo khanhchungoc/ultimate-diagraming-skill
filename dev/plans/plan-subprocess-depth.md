@@ -91,7 +91,7 @@ Rejected: a breadcrumb with child chips (loses the folder look you drew), and on
 
 1. Model and rules: `MAX_FLOW_DEPTH`, `parentOf` / `depthOf` / `canNest`, the guards in section 2, subtree delete, Shapes tile disabled at level 4. Unit-style checks in `dev/test_subprocess.py`.
 2. Mermaid and disk: nested `sub_` parse and write, `subprocess_flow.py` tree outline and recursive `--flat`, `[WARN]` for depth over 4. Update `references/types/flowchart.md` and `references/reading.md`.
-3. Tab bar: the new look and the breadcrumb, then `dev/architecture.md`, `help.html` and the header plan.
+3. Tab bar: the nested boxes and the filled active chip, then `dev/architecture.md`, `help.html` and the header plan.
 4. Examples: rebuild examples, add one 4-level sample.
 
 ## 6. Tests
