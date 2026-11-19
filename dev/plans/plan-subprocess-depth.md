@@ -42,7 +42,7 @@ On a level-4 flow:
 
 Other changes:
 
-- `dropChildOf` (near line 4973) deletes the whole subtree, not one flow: deleting a step removes its child, that child's children, and so on, and clears `flows` / `actors` / `tabNames` only when none are left. Undo already restores the whole model, so no extra undo work.
+- `dropChildOf` (near line 4973) deletes the whole subtree, not one flow, once the user has chosen "Delete everything" in section 4b: deleting a step removes its child, that child's children, and so on, and clears `flows` / `actors` / `tabNames` only when none are left. Undo already restores the whole model, so no extra undo work.
 - `tabKeys` and the "Main flow" tab: see section 4.
 - `switchTab(PARENT, cur)` ("back") becomes "back to my parent flow, at the step that opened me", using `parentOf`.
 - `layoutOtherFlows`, `laneUsedElsewhere`, the id-renaming pass (near line 4707) and the save/load conversion (near lines 4785 to 4835) already loop over every flow, so they need a test, not new code.
@@ -90,11 +90,31 @@ Decided: opening a flow shows only its **direct children**, never grandchildren.
 
 Rejected: a breadcrumb with child chips (loses the folder look you drew), and one row of tabs per level (four stacked rows cover the canvas, and `fitView` would reserve all of them through `[data-overlay-top]`).
 
+## 4b. Deleting a subprocess: ask to merge it into the parent
+
+Today deleting a subprocess step silently deletes its child flow with it (`dropChildOf`, `flowchart.js` near line 4973), and a flow can only be folded back into its parent through the separate Expand button (`expandSubprocess`, near line 5086).
+
+Change:
+
+- **Two ways in, one result.** Deleting a subprocess step that has a child flow (Delete key, the step's delete action, or a lane delete that removes it), and a new **Delete** item in the right-click menu of a subprocess tab, both open the same question.
+- **The question** is a small popover (the one `ui.confirm` uses for lane deletes, extended to three buttons) anchored to the step or the tab: "Delete the subprocess "Name"?" with **Merge into parent**, **Delete everything**, and **Cancel**. Escape and a click outside cancel. Nothing is changed until a button is pressed, and each button is one undo step.
+- **Merge into parent** runs `expandSubprocess` on the step: the child's steps and arrows take the step's place, its lanes the parent lacks come in, its notes move over, and the step is removed. The child's own children are not touched: they are found by their step id, so they move up one level with their steps (a level-3 flow becomes level 2).
+- **Delete everything** removes the step and the whole subtree below it (section 2).
+- **When Merge cannot run** (Expand's own checks: the child needs exactly one start pill, and no connector letter may be used in both flows), the Merge button is disabled with that reason as its tooltip, so Delete everything and Cancel remain.
+- **When the merged flow would break a limit** (30 steps or 6 lanes in the parent), Merge still works, and the popover says so ("The parent will have 34 steps") so the user chooses with that in view; the audit warns afterwards, as for any oversized flow.
+- **No question for an empty child.** A subprocess that was only just added (its child is still the blank start and end pills, no other steps) deletes straight away, as a plain step does.
+
+Right-click menu on a subprocess tab:
+
+- Right-clicking a tab (not the Main flow tab) opens a small menu at the pointer, built from the header's More menu component (`popover.css`), with one item for now: **Delete**. It opens the question above. The Main flow tab has no menu.
+- The menu is keyboard reachable: the Menu key or Shift+F10 on a focused tab opens it, Escape closes it, and focus returns to the tab.
+- A tab of a flow that is not the current one: the editor first switches to that flow's parent and selects the step, then asks the question, so Merge always runs on the parent flow's own data. If the user cancels, they stay on the parent flow.
+
 ## 5. Phases
 
 1. Model and rules: `MAX_FLOW_DEPTH`, `parentOf` / `depthOf` / `canNest`, the guards in section 2, subtree delete, Shapes tile disabled at level 4. Unit-style checks in `dev/test_subprocess.py`.
 2. Mermaid and disk: nested `sub_` parse and write, `subprocess_flow.py` tree outline and recursive `--flat`, `[WARN]` for depth over 4. Update `references/types/flowchart.md` and `references/reading.md`.
-3. Tab bar: the nested boxes and the filled active chip, then `dev/architecture.md`, `help.html` and the header plan.
+3. Tab bar: the nested boxes and the filled active chip, the tab right-click menu, and the delete question of section 4b (Merge reuses `expandSubprocess`), then `dev/architecture.md`, `help.html` and the header plan.
 4. Examples: rebuild examples, add one 4-level sample.
 5. Part B, step 1: anchor points on hover only (CSS plus the touch rule), then the arrow label and toolbar. Both are flowchart-only and need no format change.
 6. Part B, step 2: free notes. The disk format (`disk_format.py`, `--extract`, audit) first, then the flowchart, ERD and use case editors one at a time.
@@ -106,6 +126,7 @@ Rejected: a breadcrumb with child chips (loses the folder look you drew), and on
 - Free notes: a free note round-trips (disk, memory, disk) in all three types; Auto Tidy leaves it in place while anchored notes still move; dropping over a step links it, dropping on empty canvas makes it free; dragging a free note onto a step links it; `disk_format.py` rejects a free note with no `pos`. Sequence is not changed (`e2e_sequence` unchanged).
 - Arrows: no "+" on hover or at rest; double-click adds and edits a label; click shows the three-button toolbar; Label and Delete work and Delete undoes in one step; the Connector button is absent for connector-adjacent and self-loop arrows.
 - Anchor points: hidden on a selected step, shown on hover, shown on a selected step under `hover: none`; still hidden while connecting.
+- Deleting a subprocess step with a child asks; Merge gives the same result as Expand (steps, lanes, notes, grandchildren moved up one level); Delete everything removes the subtree; Cancel changes nothing; each is one undo step; an untouched new subprocess deletes without a question; Merge is disabled with a reason when Expand would refuse. Right-click on a subprocess tab shows Delete, the Main flow tab shows no menu, and the menu works from the keyboard.
 - Contrast check for the active chip in light and dark (`dev/check_contrast.py`).
 - A screenshot of the tab bar at 1, 2 and 4 levels, light and dark, for the review.
 
@@ -159,3 +180,5 @@ Touch devices have no hover, so without the selected rule they could not start a
 - Auto Tidy never moves a free note.
 - The arrow toolbar has three buttons: Connector, Label, Delete.
 - Anchor points show on hover only, except on touch devices.
+- Deleting a subprocess that has content asks: Merge into parent, Delete everything, or Cancel.
+- A subprocess tab has a right-click menu with Delete; the Main flow tab has none.
