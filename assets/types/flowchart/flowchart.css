@@ -335,7 +335,8 @@
       position: relative;
       z-index: 2;
     }
-    .flow-node.type-subprocess { padding: 4px 16px; }            /* clear of the two bars */
+    .flow-node.type-subprocess { padding: 4px 20px; }            /* clear of the + marker */
+    .flow-node.type-subprocess.has-child .shape-outline .sub-mark { stroke: var(--primary); }
     .flow-node.type-io         { padding: 4px 16px; }            /* clear of the slanted sides */
     .flow-node.type-document   { padding: 3px 8px 11px; }        /* centred above the wave */
     .flow-node.type-database   { padding: 15px 10px 5px; }       /* below the top rim */
@@ -744,3 +745,44 @@
     /* Top-to-bottom: the pill is centred on its column (see pinLaneHeaders), wrapped names too, and so in exports */
     #swimlanes-container.dir-tb .lane-pill { text-align: center; }
     body.exporting #swimlanes-container.dir-tb .lane-pill { transform: translate(var(--pill-cx, 12px), 12px) !important; }
+
+    /* Subprocess flows: folder tabs hanging from the header (renderTabs). The outer box is the main flow: its own tab, then an
+       inner box holding one tab per subprocess. The top edge is open, so each box reads as hanging from the header. It floats
+       over the canvas (fitView leaves room for it through [data-overlay-top]). Active flow: bold and a 2px primary mark. */
+    .flow-tabs, .flow-subtabs {
+      display: flex; align-items: flex-start; gap: 4px; padding: 0 6px 6px;
+      background: var(--bg-panel); border: 1.5px solid var(--border-dark); border-top: 0;
+      border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+    }
+    .flow-tabs {
+      position: fixed; top: 56px; left: 16px; z-index: 120; max-width: calc(100vw - 32px); overflow-x: auto;
+      box-shadow: var(--shadow-md);
+    }
+    .flow-tabs[hidden] { display: none; }
+    .flow-subtabs { min-width: 0; }
+    .flow-tab {
+      flex: none; display: inline-flex; align-items: center; height: 28px; max-width: 180px; padding: 0 10px; box-sizing: border-box;
+      background: none; border: 0; border-bottom: 2px solid transparent; border-radius: 0 0 var(--radius-md) var(--radius-md);
+      font: inherit; font-size: var(--text-md); color: var(--text-soft); cursor: pointer;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .flow-tab:hover { background: var(--bg-hover); color: var(--text-main); }
+    .flow-tab:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+    .flow-tab[aria-selected="true"] { font-weight: var(--weight-bold); color: var(--text-main); border-bottom-color: var(--primary); }
+    body.presentation .flow-tabs { top: 12px; }
+    body.capture .flow-tabs { display: none; }
+    /* Over the + marker drawn in the outline (SHAPE_OUTLINES): a transparent hit area that tints on hover */
+    .sub-open {
+      position: absolute;
+      top: 4px; left: 4px;
+      z-index: 3;
+      width: 18px; height: 18px;
+      padding: 0;
+      border: none;
+      border-radius: 6px;
+      background: transparent;
+      cursor: pointer;
+      transition: background var(--ease);
+    }
+    .sub-open:hover { background: var(--primary-wash); }
+    .btn-sub[hidden] { display: none; }

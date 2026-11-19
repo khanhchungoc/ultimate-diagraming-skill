@@ -477,6 +477,7 @@
       flex-wrap: wrap;
       justify-content: center;
     }
+    .toolbar-zoom { gap: 2px; }
     .toolbar-zoom { grid-column: 1; grid-row: 1; justify-self: start; }
     .toolbar-center .btn,
     .toolbar-zoom .btn { border-color: transparent; }
@@ -487,6 +488,9 @@
     /* Larger icons on the edit dock's own buttons (not the caret, not the bubble's tiles) */
     .toolbar-center > .btn > svg:first-child,
     .dock-pop-trigger > svg:first-child { width: var(--icon-lg); height: var(--icon-lg); }
+    /* The zoom dock is narrower: square 28px buttons */
+    .toolbar-zoom > .btn { width: 28px; height: 28px; padding: 0; justify-content: center; }
+    .toolbar-zoom > .btn:disabled, .toolbar-zoom > .btn:disabled:hover { background: transparent; }
     .toolbar-center .btn:hover,
     .toolbar-zoom .btn:hover { border-color: var(--border-dark); }
     .dock-sep {
@@ -495,6 +499,7 @@
       margin: 4px 2px;
       background: var(--border-color);
     }
+    .toolbar-zoom .dock-sep { margin: 4px 3px; }
 
     /* Dock popover (e.g. the flowchart's Shapes): a bubble that blows up from the trigger, above it.
        Generic: any [data-dock-pop] wrapper with a .dock-pop-trigger and a .dock-pop holding a .dock-pop-grid.
@@ -636,9 +641,9 @@
       pointer-events: none;
     }
     #zoom-level {
-      font-size: var(--text-md);
+      font-size: var(--text-sm);
       font-weight: var(--weight-semibold);
-      width: 45px;
+      width: 38px;
       text-align: center;
       color: var(--text-main);
       font-variant-numeric: tabular-nums;
@@ -667,6 +672,7 @@
       border-radius: var(--radius-2xl);
     }
     .badge-status {
+      display: inline-block; max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;   /* "Saved to <long file name>" */
       background: var(--bg-soft);
       color: var(--text-soft);
     }
@@ -815,11 +821,15 @@
       background: var(--bg-panel); border: 1px solid var(--menu-border); border-radius: var(--radius-lg);
       box-shadow: var(--shadow-lg); padding: 4px; display: flex; flex-direction: column;
     }
+    .menu-left { left: 0; right: auto; }   /* opens to the right of a button at the left edge (the playground type menu) */
     .menu[hidden] { display: none; }
     .menu button {
       background: none; border: 0; text-align: left; padding: 7px 10px; border-radius: var(--radius-md);
       font: inherit; font-size: var(--t-control-size); color: var(--text, inherit); cursor: pointer;
     }
+    .menu button kbd { float: right; margin-left: 24px; font: inherit; font-size: var(--text-xs); color: var(--text-muted); }
+    .menu button[role="menuitemcheckbox"]::after { content: "¹3"; float: right; margin-left: 24px; visibility: hidden; }
+    .menu button[role="menuitemcheckbox"][aria-checked="true"]::after { visibility: visible; }
     .menu button:hover, .menu button:focus-visible { background: var(--bg-hover); outline: none; }
     .menu button[hidden] { display: none; }
     .menu-label {
@@ -862,6 +872,14 @@
     .confirm-error { color: var(--danger); font-weight: var(--weight-regular); }
     .confirm-list { margin: 0 0 12px; padding-left: 18px; max-height: 200px; overflow: auto; color: var(--text-soft); }
     .confirm-list li { margin-bottom: 4px; overflow-wrap: anywhere; }
+
+    /* Save location: the first Save of a file opened from disk copies and shows where that file lives, to paste into the
+       browser's Save dialog (shell.js askSaveLocation). */
+    .save-where {
+      display: block; margin-bottom: 12px; padding: 6px 8px; overflow-wrap: anywhere; user-select: all;
+      font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-main); background: var(--bg-page);
+      border: 1px solid var(--border-color); border-radius: var(--radius-md);
+    }
     /* Note: extra detail kept off the diagram so labels stay short. A neutral slate paper card with a bracket edge (the
        classic flowchart annotation, which has no colour of its own), joined to what it explains by a dashed leader.
        Neutral on purpose: every hue on the canvas already means something (gold decision, green start, blue selection,
@@ -1249,7 +1267,22 @@
       align-items: center;
       gap: 10px;
     }
-    .toolbar-left > svg { flex: none; color: var(--primary); }   /* the type's header icon */
+    .toolbar-left > svg, .type-switch svg { flex: none; color: var(--primary); }   /* the type's header icon */
+    /* Header buttons: icon-only 36px squares, borderless until hovered or focused; Save keeps its label */
+    header .btn-icon {
+      width: 36px; height: 36px; padding: 0;
+      justify-content: center;
+      border-color: transparent;
+      background: transparent;
+    }
+    header .btn-icon:hover, header .btn-icon:focus-visible, header .btn-icon[aria-expanded="true"] {
+      background: var(--bg-hover);
+      border-color: var(--border-dark);
+    }
+    header .btn-icon:disabled, header .btn-icon:disabled:hover { background: transparent; border-color: transparent; }
+    header .btn-icon svg, #btn-save svg { width: var(--icon-lg); height: var(--icon-lg); }
+    #btn-save { height: 36px; }
+    .toolbar-sep { width: 1px; height: 20px; background: var(--border-color); flex: none; }
 
     .app-title-container {
       display: flex;
@@ -1388,12 +1421,12 @@
     body.presentation .toolbar-center,
     body.presentation .toolbar-left,
     body.presentation .menu-wrap,
-    body.presentation #btn-import-mermaid,
+    body.presentation #btn-more,
     body.presentation #btn-save,
-    body.presentation #btn-help,
+    body.presentation .toolbar-sep,
     body.presentation #btn-undo,
     body.presentation #btn-redo,
-    body.presentation #btn-theme,
+    body.presentation .toolbar-zoom .dock-sep,
     body.presentation #btn-search,
     body.presentation #search-bar,
     body.presentation #help-drawer { display: none !important; }
@@ -1410,7 +1443,6 @@
       .toolbar-left { min-width: 0; flex: 1 1 auto; }
       .toolbar-right { gap: 6px; flex: none; }
       .btn-label { display: none; }
-      #btn-help { display: none; }   /* keyboard shortcuts mean little on a phone; frees room for the title */
       #help-drawer { right: 12px; bottom: 120px; }
     }
     @media (prefers-reduced-motion: reduce) {
@@ -1668,28 +1700,29 @@
       <button id="btn-search" class="btn btn-icon" title="Search (Ctrl+F or /)" aria-label="Search" aria-expanded="false" aria-controls="search-bar" hidden>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
       </button>
-      <button id="btn-undo" class="btn btn-icon" title="Undo (Ctrl+Z)" aria-label="Undo" disabled>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>
-      </button>
-      <button id="btn-redo" class="btn btn-icon" title="Redo (Ctrl+Y / Ctrl+Shift+Z)" aria-label="Redo" disabled>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg>
-      </button>
-      <button id="btn-theme" class="btn btn-icon" title="Switch to dark mode" aria-label="Switch to dark mode"></button>
-      <button id="btn-help" class="btn btn-icon" title="Keyboard shortcuts" aria-label="Keyboard shortcuts" aria-expanded="false" aria-controls="help-drawer">?</button>
-      <button id="btn-present" class="btn" title="Present: a read-only view (Esc exits)" aria-label="Present" aria-pressed="false">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="20" height="14" x="2" y="3" rx="2"/><path d="M10 8l5 3-5 3z"/><path d="M8 21h8M12 17v4"/></svg><span class="btn-label">Present</span>
-      </button>
-      <button id="btn-import-mermaid" class="btn" title="Paste Mermaid text to replace the diagram" aria-label="Paste Mermaid" hidden>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg><span class="btn-label">Paste Mermaid</span>
+      <div class="menu-wrap">
+        <button id="btn-more" class="btn btn-icon" title="More" aria-label="More" aria-haspopup="menu" aria-expanded="false">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+        </button>
+        <div id="more-menu" class="menu" role="menu" hidden>
+          <button type="button" id="menu-import-mermaid" role="menuitem" hidden>Paste Mermaid…</button>
+          <button type="button" id="menu-theme" role="menuitemcheckbox" aria-checked="false">Dark mode</button>
+          <button type="button" id="menu-help" role="menuitem">Keyboard shortcuts<kbd>?</kbd></button>
+        </div>
+      </div>
+      <span class="toolbar-sep" aria-hidden="true"></span>
+      <button id="btn-present" class="btn btn-icon" title="Present: a read-only view (Esc exits)" aria-label="Present" aria-pressed="false">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="20" height="14" x="2" y="3" rx="2"/><path d="M10 8l5 3-5 3z"/><path d="M8 21h8M12 17v4"/></svg>
       </button>
       <div class="menu-wrap">
-        <button id="btn-export" class="btn" title="Download or copy the diagram as an image" aria-label="Export" aria-haspopup="menu" aria-expanded="false">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg><span class="btn-label">Export</span>
+        <button id="btn-export" class="btn btn-icon" title="Export: download or copy the diagram as an image" aria-label="Export" aria-haspopup="menu" aria-expanded="false">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         </button>
         <div id="export-menu" class="menu" role="menu" hidden>
           <div class="menu-label" role="presentation">Download</div>
           <button type="button" role="menuitem" data-export="svg">SVG image</button>
           <button type="button" role="menuitem" data-export="png">PNG image (1.5x)</button>
+          <button type="button" role="menuitem" data-export="svg-all" hidden>SVG images, every tab</button>
           <div class="menu-label" role="presentation" data-copy-label>Copy</div>
           <button type="button" role="menuitem" data-copy="mermaid">Mermaid</button>
           <button type="button" role="menuitem" data-copy="svg">SVG (text)</button>
@@ -1750,7 +1783,14 @@
   </div>
 
   <!-- Zoom controls: floating in the bottom-left corner of the viewport -->
-  <div class="toolbar-zoom" role="group" aria-label="Zoom">
+  <div class="toolbar-zoom" role="group" aria-label="View">
+    <button id="btn-undo" class="btn btn-icon" title="Undo (Ctrl+Z)" aria-label="Undo" disabled>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>
+    </button>
+    <button id="btn-redo" class="btn btn-icon" title="Redo (Ctrl+Y / Ctrl+Shift+Z)" aria-label="Redo" disabled>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg>
+    </button>
+    <span class="dock-sep" aria-hidden="true"></span>
     <button id="btn-zoom-out" class="btn btn-icon" title="Zoom out" aria-label="Zoom out">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/></svg>
     </button>
@@ -1758,7 +1798,9 @@
     <button id="btn-zoom-in" class="btn btn-icon" title="Zoom in" aria-label="Zoom in">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
     </button>
-    <button id="btn-zoom-reset" class="btn" title="Fit to screen">Fit</button>
+    <button id="btn-zoom-reset" class="btn btn-icon" title="Fit to screen" aria-label="Fit to screen">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/></svg>
+    </button>
   </div>
   </div>
 
@@ -1821,7 +1863,8 @@
       <li><kbd>Ctrl</kbd> + <kbd>S</kbd> : Save changes directly into HTML</li>
       <li><kbd>Ctrl</kbd> + <kbd>F</kbd> or <kbd>/</kbd> : Search the diagram's text. <kbd>Enter</kbd> / <kbd>Shift</kbd> + <kbd>Enter</kbd> (or the arrow buttons) go to the next / previous match, <kbd>Esc</kbd> closes the search</li>
       <li><b>Export</b> (top right): download the whole diagram as an SVG or a 1.5x PNG, or copy it to the clipboard as a 1.5x PNG</li>
-      <li><kbd>Ctrl</kbd> + <kbd>Z</kbd> / <kbd>Ctrl</kbd> + <kbd>Y</kbd> : Undo / redo the last edit (also <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Z</kbd>)</li>
+      <li><kbd>Ctrl</kbd> + <kbd>Z</kbd> / <kbd>Ctrl</kbd> + <kbd>Y</kbd> : Undo / redo the last edit (also <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Z</kbd>), or the buttons at the bottom left</li>
+      <li><b>More</b> (<b>&#8943;</b>, top right) : <b>Paste Mermaid</b> (replace the diagram from Mermaid text; <kbd>Ctrl</kbd> + <kbd>V</kbd> on the canvas does the same), <b>Dark mode</b>, and this list of shortcuts (<kbd>?</kbd>)</li>
       <li><b>Present</b> (top right) or <kbd>?present</kbd> in the URL : a read-only view with only the zoom controls. Pan, zoom, hover and click still work; <kbd>Esc</kbd> or the Present button exits</li>
       <li><kbd>Drag Canvas</kbd> : Pan viewport</li>
       <li><kbd>Scroll Wheel</kbd> : Scroll the canvas up / down (<kbd>Shift</kbd> + wheel: left / right)</li>
@@ -1836,7 +1879,7 @@
       'use strict';
 
 const TOKENS = {"palette":[{"slot":"1","name":"sky","hex":"#e0f2fe","light":{"soft":"#b9e5ff","strong":"#2f7da8","ink":"#00436a","solid":"#005c8b","on-solid":"#ffffff"},"dark":{"soft":"#194259","strong":"#69b4e2","ink":"#c6eaff","solid":"#93d4fd","on-solid":"#0f172a"}},{"slot":"2","name":"amber","hex":"#fef3c7","light":{"soft":"#ecdeaa","strong":"#907100","ink":"#513a00","solid":"#6f5100","on-solid":"#ffffff"},"dark":{"soft":"#483c06","strong":"#c6a92a","ink":"#f0e5b8","solid":"#e2ca6a","on-solid":"#0f172a"}},{"slot":"3","name":"emerald","hex":"#dcfce7","light":{"soft":"#b9edcb","strong":"#008d4e","ink":"#004e20","solid":"#006c2f","on-solid":"#ffffff"},"dark":{"soft":"#17482e","strong":"#50c586","ink":"#c5f1d5","solid":"#84e2ab","on-solid":"#0f172a"}},{"slot":"4","name":"rose","hex":"#fee2e2","light":{"soft":"#ffcccd","strong":"#b15259","ink":"#6e1724","solid":"#932a37","on-solid":"#ffffff"},"dark":{"soft":"#5c2d2f","strong":"#ee898e","ink":"#ffd5d6","solid":"#ffaeb0","on-solid":"#0f172a"}},{"slot":"5","name":"purple","hex":"#f3e8ff","light":{"soft":"#ead2ff","strong":"#895db0","ink":"#4e276d","solid":"#6b3893","on-solid":"#ffffff"},"dark":{"soft":"#47325a","strong":"#c194eb","ink":"#efdbff","solid":"#deb7ff","on-solid":"#0f172a"}},{"slot":"6","name":"orange","hex":"#ffedd5","light":{"soft":"#fad8ab","strong":"#a66400","ink":"#602f00","solid":"#834300","on-solid":"#ffffff"},"dark":{"soft":"#523709","strong":"#de9c31","ink":"#fde0b9","solid":"#f8bf6c","on-solid":"#0f172a"}},{"slot":"7","name":"teal","hex":"#ccfbf1","light":{"soft":"#aaeee0","strong":"#008f79","ink":"#004f40","solid":"#006d5a","on-solid":"#ffffff"},"dark":{"soft":"#00493f","strong":"#00c7af","ink":"#b9f2e7","solid":"#60e4cf","on-solid":"#0f172a"}},{"slot":"8","name":"indigo","hex":"#e0e7ff","light":{"soft":"#cedcff","strong":"#5b6cc2","ink":"#2a347b","solid":"#3c49a7","on-solid":"#ffffff"},"dark":{"soft":"#313a62","strong":"#8fa4ff","ink":"#d7e3ff","solid":"#b1c5ff","on-solid":"#0f172a"}},{"slot":"9","name":"neutral","light":{"soft":"#e2e8f0","strong":"#64748b","ink":"#334155","solid":"#475569","on-solid":"#ffffff"},"dark":{"soft":"#243049","strong":"#94a3b8","ink":"#e2e8f0","solid":"#cbd5e1","on-solid":"#0f172a"}}],"font":{"metrics":{"label":7.4,"title":7.4,"detail":6.4,"note":6.2,"type":6.6,"edgeLabel":7,"edgeWrap":6.6}},"motion":{"ease":"0.15s ease"},"type":{"fitMin":"11px","fitMinOverview":"9px"},"icon":{"set":"default","size":{"xs":10,"sm":12,"md":14,"lg":18,"xl":22,"tile":32},"stroke":2,"strokeFine":1.75,"strokeBold":2.5,"cap":"round","join":"round"}};
-const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><circle cx=\"12\" cy=\"7\" r=\"4\"/>","users":"<path d=\"M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2\"/><circle cx=\"9\" cy=\"7\" r=\"4\"/><path d=\"M22 21v-2a4 4 0 0 0-3-3.87\"/><path d=\"M16 3.13a4 4 0 0 1 0 7.75\"/>","briefcase":"<rect width=\"20\" height=\"14\" x=\"2\" y=\"7\" rx=\"2\"/><path d=\"M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16\"/>","building":"<rect width=\"16\" height=\"20\" x=\"4\" y=\"2\" rx=\"2\"/><path d=\"M9 22v-4h6v4\"/><path d=\"M8 6h.01M12 6h.01M16 6h.01M8 10h.01M12 10h.01M16 10h.01M8 14h.01M12 14h.01M16 14h.01\"/>","headset":"<path d=\"M3 14v-2a9 9 0 0 1 18 0v2\"/><path d=\"M21 16a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 16a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z\"/><path d=\"M21 17v1a4 4 0 0 1-4 4h-4\"/>","monitor":"<rect width=\"20\" height=\"14\" x=\"2\" y=\"3\" rx=\"2\"/><path d=\"M8 21h8M12 17v4\"/>","code":"<polyline points=\"16 18 22 12 16 6\"/><polyline points=\"8 6 2 12 8 18\"/>","server":"<rect width=\"20\" height=\"8\" x=\"2\" y=\"2\" rx=\"2\"/><rect width=\"20\" height=\"8\" x=\"2\" y=\"14\" rx=\"2\"/><path d=\"M6 6h.01M6 18h.01\"/>","database":"<ellipse cx=\"12\" cy=\"5\" rx=\"9\" ry=\"3\"/><path d=\"M3 5v14a9 3 0 0 0 18 0V5\"/><path d=\"M3 12a9 3 0 0 0 18 0\"/>","cloud":"<path d=\"M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z\"/>","cpu":"<rect width=\"16\" height=\"16\" x=\"4\" y=\"4\" rx=\"2\"/><rect width=\"6\" height=\"6\" x=\"9\" y=\"9\" rx=\"1\"/><path d=\"M15 2v2M15 20v2M9 2v2M9 20v2M2 15h2M2 9h2M20 15h2M20 9h2\"/>","cog":"<circle cx=\"12\" cy=\"12\" r=\"3\"/><path d=\"M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12\"/>","shield":"<path d=\"M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z\"/>","scale":"<path d=\"m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z\"/><path d=\"m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z\"/><path d=\"M7 21h10M12 3v18M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2\"/>","banknote":"<rect width=\"20\" height=\"12\" x=\"2\" y=\"6\" rx=\"2\"/><circle cx=\"12\" cy=\"12\" r=\"2\"/><path d=\"M6 12h.01M18 12h.01\"/>","credit-card":"<rect width=\"20\" height=\"14\" x=\"2\" y=\"5\" rx=\"2\"/><path d=\"M2 10h20\"/>","mail":"<rect width=\"20\" height=\"16\" x=\"2\" y=\"4\" rx=\"2\"/><path d=\"m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7\"/>","package":"<path d=\"m7.5 4.27 9 5.15\"/><path d=\"M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z\"/><path d=\"m3.3 7 8.7 5 8.7-5M12 22V12\"/>","truck":"<path d=\"M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2\"/><path d=\"M15 18H9\"/><path d=\"M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14\"/><circle cx=\"17\" cy=\"18\" r=\"2\"/><circle cx=\"7\" cy=\"18\" r=\"2\"/>","cart":"<circle cx=\"8\" cy=\"21\" r=\"1\"/><circle cx=\"19\" cy=\"21\" r=\"1\"/><path d=\"M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12\"/>","clipboard":"<rect width=\"8\" height=\"4\" x=\"8\" y=\"2\" rx=\"1\"/><path d=\"M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2\"/><path d=\"M9 12h6M9 16h4\"/>","check":"<path d=\"M22 11.08V12a10 10 0 1 1-5.93-9.14\"/><path d=\"m9 11 3 3L22 4\"/>","layers":"<path d=\"m12 2 10 5-10 5L2 7z\"/><path d=\"m2 17 10 5 10-5\"/><path d=\"m2 12 10 5 10-5\"/>","globe":"<circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"M2 12h20\"/><path d=\"M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z\"/>","flag":"<path d=\"M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z\"/><path d=\"M4 22v-7\"/>","undo":"<path d=\"M9 14 4 9l5-5\"/><path d=\"M4 9h10.5a5.5 5.5 0 0 1 0 11H11\"/>","redo":"<path d=\"m15 14 5-5-5-5\"/><path d=\"M20 9H9.5a5.5 5.5 0 0 0 0 11H13\"/>","export":"<path d=\"M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4\"/><polyline points=\"7 10 12 15 17 10\"/><line x1=\"12\" y1=\"15\" x2=\"12\" y2=\"3\"/>","save":"<path d=\"M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z\"/><polyline points=\"17 21 17 13 7 13 7 21\"/><polyline points=\"7 3 7 8 15 8\"/>","trash":"<path d=\"M3 6h18\"/><path d=\"M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2\"/><path d=\"M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6\"/><path d=\"M10 11v6\"/><path d=\"M14 11v6\"/>","tidy":"<path d=\"m21.64 3.64-1.28-1.28a1.21 1.21 0 0 0-1.72 0L2.36 18.64a1.21 1.21 0 0 0 0 1.72l1.28 1.28a1.2 1.2 0 0 0 1.72 0L21.64 5.36a1.2 1.2 0 0 0 0-1.72\"/><path d=\"m14 7 3 3\"/><path d=\"M5 6v4\"/><path d=\"M19 14v4\"/><path d=\"M10 2v2\"/><path d=\"M7 8H3\"/><path d=\"M21 16h-4\"/><path d=\"M11 3H9\"/>","minus":"<path d=\"M5 12h14\"/>","plus":"<path d=\"M5 12h14\"/><path d=\"M12 5v14\"/>","close":"<path d=\"M18 6 6 18\"/><path d=\"m6 6 12 12\"/>","sun":"<circle cx=\"12\" cy=\"12\" r=\"4\"/><path d=\"M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41\"/>","moon":"<path d=\"M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z\"/>","key":"<circle cx=\"7.5\" cy=\"15.5\" r=\"5\"/><path d=\"m21 2-9.6 9.6\"/><path d=\"m15.5 7.5 3 3L22 7l-3-3\"/>","link":"<path d=\"M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71\"/><path d=\"M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71\"/>","chevron-down":"<path d=\"m6 9 6 6 6-6\"/>","note-lines":"<path d=\"M5 7h14\"/><path d=\"M5 12h14\"/><path d=\"M5 17h9\"/>","type-erd":"<rect x=\"2.5\" y=\"3\" width=\"10\" height=\"8\" rx=\"1.5\"/><path d=\"M2.5 6.5h10\"/><rect x=\"11.5\" y=\"13\" width=\"10\" height=\"8\" rx=\"1.5\"/><path d=\"M11.5 16.5h10\"/><path d=\"M7.5 11v4.5h4\"/>","table-add":"<rect x=\"3\" y=\"4\" width=\"18\" height=\"16\" rx=\"2\"/><path d=\"M3 10h18\"/><path d=\"M8 15h8\"/>","relationship":"<path d=\"M3 12h9\"/><path d=\"m12 12 8-5\"/><path d=\"M12 12h8\"/><path d=\"m12 12 8 5\"/><path d=\"M6.5 8v8\"/>","note":"<path d=\"M4 4h16v11l-5 5H4z\"/><path d=\"M20 15h-5v5\"/><path d=\"M8 9h8M8 13h5\"/>","columns":"<rect x=\"3\" y=\"3\" width=\"18\" height=\"18\" rx=\"2\"/><path d=\"M3 9h18\"/><path d=\"M3 15h18\"/>","types":"<path d=\"M4 7V5h16v2\"/><path d=\"M12 5v14\"/><path d=\"M9 19h6\"/>","notes":"<path d=\"M15.5 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8.5z\"/><path d=\"M15 3v5a1 1 0 0 0 1 1h5\"/><path d=\"M7 13h7\"/><path d=\"M7 17h4\"/>","grip":"<circle cx=\"9\" cy=\"6\" r=\"1.6\" fill=\"currentColor\" stroke=\"none\"/><circle cx=\"15\" cy=\"6\" r=\"1.6\" fill=\"currentColor\" stroke=\"none\"/><circle cx=\"9\" cy=\"12\" r=\"1.6\" fill=\"currentColor\" stroke=\"none\"/><circle cx=\"15\" cy=\"12\" r=\"1.6\" fill=\"currentColor\" stroke=\"none\"/><circle cx=\"9\" cy=\"18\" r=\"1.6\" fill=\"currentColor\" stroke=\"none\"/><circle cx=\"15\" cy=\"18\" r=\"1.6\" fill=\"currentColor\" stroke=\"none\"/>","split":"<path d=\"M2 12h4\"/><circle cx=\"9\" cy=\"12\" r=\"3\"/><circle cx=\"15\" cy=\"12\" r=\"3\"/><path d=\"M18 12h4\"/>","type-flowchart":"<rect width=\"18\" height=\"18\" x=\"3\" y=\"3\" rx=\"2\"/><path d=\"M3 9h18\"/><path d=\"M3 15h18\"/><path d=\"M9 3v18\"/>","shapes":"<rect x=\"3\" y=\"13\" width=\"8\" height=\"8\" rx=\"1.5\"/><circle cx=\"17\" cy=\"17\" r=\"4\"/><path d=\"M12 3 7.5 10h9z\"/>","chevron-up":"<path d=\"m6 15 6-6 6 6\"/>","shape-terminator":"<rect x=\"2\" y=\"7\" width=\"20\" height=\"10\" rx=\"5\"/>","shape-process":"<rect x=\"3\" y=\"6\" width=\"18\" height=\"12\" rx=\"2.5\"/>","shape-decision":"<path d=\"M12 3 2 12l10 9 10-9z\"/>","shape-connector":"<path class=\"tile-line\" d=\"M0.5 12H2M22 12h1.5\"/><path class=\"tile-line tile-gap\" d=\"M10.5 12h3\" stroke-dasharray=\"1 2\"/><circle cx=\"6\" cy=\"12\" r=\"4\"/><circle cx=\"18\" cy=\"12\" r=\"4\"/>","shape-subprocess":"<rect x=\"2\" y=\"6\" width=\"20\" height=\"12\" rx=\"1\"/><path class=\"tile-line\" d=\"M5.5 6v12M18.5 6v12\"/>","shape-data":"<path d=\"M6 6h16l-4 12H2z\"/>","shape-document":"<path d=\"M3 5h18v11c-3-1.6-6-1.6-9 0s-6 1.6-9 0z\"/>","shape-database":"<path d=\"M4 6.5a8 2.5 0 0 1 16 0v11a8 2.5 0 0 1-16 0z\"/><path class=\"tile-line\" d=\"M4 6.5a8 2.5 0 0 0 16 0\"/>","shape-delay":"<path d=\"M3 6h11a6 6 0 0 1 0 12H3z\"/>","shape-note":"<path class=\"note-paper\" d=\"M4 5h16v10l-5 5H4z\"/><path class=\"note-fold\" d=\"M20 15h-5v5\"/><path class=\"note-lines\" d=\"M7.5 9.5h9M7.5 13h6\"/>","lane":"<rect x=\"3\" y=\"4\" width=\"18\" height=\"16\" rx=\"2\"/><path d=\"M3 12h18\"/>","direction-tb":"<path d=\"M12 3v18\"/><path d=\"m7 16 5 5 5-5\"/>","type-sequence":"<rect x=\"3\" y=\"3\" width=\"6\" height=\"4\" rx=\"1\"/><rect x=\"15\" y=\"3\" width=\"6\" height=\"4\" rx=\"1\"/><path d=\"M6 7v14M18 7v14\"/><path d=\"M6 12h12\"/><path d=\"m15 10 3 2-3 2\"/>","focus":"<circle cx=\"12\" cy=\"12\" r=\"8\"/><circle cx=\"12\" cy=\"12\" r=\"2.5\" fill=\"currentColor\"/>","participant":"<rect x=\"4\" y=\"3\" width=\"16\" height=\"6\" rx=\"1.5\"/><path d=\"M12 9v12\" stroke-dasharray=\"3 3\"/>","message":"<path d=\"M4 12h16\"/><path d=\"m14 6 6 6-6 6\"/>","frame":"<rect x=\"3\" y=\"4\" width=\"18\" height=\"16\" rx=\"2\"/><path d=\"M3 9h8V4\"/>","numbers":"<path d=\"M10 6h11M10 12h11M10 18h11\"/><path d=\"M4 6h1v4\"/><path d=\"M4 10h2\"/><path d=\"M6 18H4c0-1 2-2 2-3s-1-1.5-2-1\"/>","message-return":"<path d=\"M4 9h16\"/><path d=\"m16 5 4 4-4 4\"/><path d=\"M6 17h10\" stroke-dasharray=\"2 3\"/>","lifespans":"<path d=\"M6 3h12\"/><path d=\"M12 3v14\" stroke-dasharray=\"3 3\"/><path d=\"M8 21h8\"/>","eye":"<path d=\"M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z\"/><circle cx=\"12\" cy=\"12\" r=\"3\"/>","direction-lr":"<path d=\"M3 12h18\"/><path d=\"m16 7 5 5-5 5\"/>","reverse":"<path d=\"M4 8h16\"/><path d=\"m16 4 4 4-4 4\"/><path d=\"M20 16H4\"/><path d=\"m8 12-4 4 4 4\"/>","label":"<path d=\"M4 7h16\"/><path d=\"M4 12h10\"/><path d=\"M4 17h6\"/>","line-dashed":"<path d=\"M3 12h4\"/><path d=\"M10 12h4\"/><path d=\"M17 12h4\"/>","line-solid":"<path d=\"M3 12h18\"/>","message-async":"<path d=\"M3 12h16\"/><path d=\"m14 7 6 5-6 5\"/>","reply":"<path d=\"M9 14 4 9l5-5\"/><path d=\"M4 9h10a6 6 0 0 1 0 12h-3\"/>","kind-system":"<rect x=\"4\" y=\"6\" width=\"16\" height=\"12\" rx=\"2\"/>","kind-ui":"<rect x=\"3\" y=\"4\" width=\"18\" height=\"12\" rx=\"2\"/><path d=\"M8 20h8M12 16v4\"/>","kind-database":"<ellipse cx=\"12\" cy=\"5\" rx=\"8\" ry=\"3\"/><path d=\"M4 5v14c0 1.66 3.58 3 8 3s8-1.34 8-3V5\"/><path d=\"M4 12c0 1.66 3.58 3 8 3s8-1.34 8-3\"/>","kind-queue":"<path d=\"M6 6h12a3 6 0 0 1 0 12H6a3 6 0 0 1 0-12z\"/><path d=\"M18 6a3 6 0 0 0 0 12\"/>","kind-external":"<circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18\"/>","actor":"<circle cx=\"12\" cy=\"5\" r=\"3\"/><path d=\"M12 8v7\"/><path d=\"M5 11h14\"/><path d=\"m12 15-5 6\"/><path d=\"m12 15 5 6\"/>","type-usecase":"<circle cx=\"4.5\" cy=\"6.5\" r=\"1.8\"/><path d=\"M4.5 8.3v4.7M2 10.5h5M4.5 13l-2 4.5M4.5 13l2 4.5\"/><ellipse cx=\"15.5\" cy=\"12\" rx=\"6.5\" ry=\"4.5\"/><path d=\"M7.4 10.6 9 11\"/>","usecase":"<ellipse cx=\"12\" cy=\"12\" rx=\"10\" ry=\"6.5\"/>","subject":"<rect x=\"2.5\" y=\"3\" width=\"19\" height=\"18\" rx=\"2\"/><path d=\"M2.5 8h19\"/><ellipse cx=\"12\" cy=\"14.5\" rx=\"5.5\" ry=\"3\"/>","clock":"<circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"M12 6v6l4 2\"/>","present":"<rect width=\"20\" height=\"14\" x=\"2\" y=\"3\" rx=\"2\"/><path d=\"M10 8l5 3-5 3z\"/><path d=\"M8 21h8M12 17v4\"/>","search":"<circle cx=\"11\" cy=\"11\" r=\"8\"/><path d=\"m21 21-4.3-4.3\"/>","hash":"<path d=\"M4 9h16M4 15h16M10 3 8 21M16 3l-2 18\"/>"};
+const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><circle cx=\"12\" cy=\"7\" r=\"4\"/>","users":"<path d=\"M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2\"/><circle cx=\"9\" cy=\"7\" r=\"4\"/><path d=\"M22 21v-2a4 4 0 0 0-3-3.87\"/><path d=\"M16 3.13a4 4 0 0 1 0 7.75\"/>","briefcase":"<rect width=\"20\" height=\"14\" x=\"2\" y=\"7\" rx=\"2\"/><path d=\"M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16\"/>","building":"<rect width=\"16\" height=\"20\" x=\"4\" y=\"2\" rx=\"2\"/><path d=\"M9 22v-4h6v4\"/><path d=\"M8 6h.01M12 6h.01M16 6h.01M8 10h.01M12 10h.01M16 10h.01M8 14h.01M12 14h.01M16 14h.01\"/>","headset":"<path d=\"M3 14v-2a9 9 0 0 1 18 0v2\"/><path d=\"M21 16a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 16a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z\"/><path d=\"M21 17v1a4 4 0 0 1-4 4h-4\"/>","monitor":"<rect width=\"20\" height=\"14\" x=\"2\" y=\"3\" rx=\"2\"/><path d=\"M8 21h8M12 17v4\"/>","code":"<polyline points=\"16 18 22 12 16 6\"/><polyline points=\"8 6 2 12 8 18\"/>","server":"<rect width=\"20\" height=\"8\" x=\"2\" y=\"2\" rx=\"2\"/><rect width=\"20\" height=\"8\" x=\"2\" y=\"14\" rx=\"2\"/><path d=\"M6 6h.01M6 18h.01\"/>","database":"<ellipse cx=\"12\" cy=\"5\" rx=\"9\" ry=\"3\"/><path d=\"M3 5v14a9 3 0 0 0 18 0V5\"/><path d=\"M3 12a9 3 0 0 0 18 0\"/>","cloud":"<path d=\"M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z\"/>","cpu":"<rect width=\"16\" height=\"16\" x=\"4\" y=\"4\" rx=\"2\"/><rect width=\"6\" height=\"6\" x=\"9\" y=\"9\" rx=\"1\"/><path d=\"M15 2v2M15 20v2M9 2v2M9 20v2M2 15h2M2 9h2M20 15h2M20 9h2\"/>","cog":"<circle cx=\"12\" cy=\"12\" r=\"3\"/><path d=\"M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12\"/>","shield":"<path d=\"M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z\"/>","scale":"<path d=\"m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z\"/><path d=\"m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z\"/><path d=\"M7 21h10M12 3v18M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2\"/>","banknote":"<rect width=\"20\" height=\"12\" x=\"2\" y=\"6\" rx=\"2\"/><circle cx=\"12\" cy=\"12\" r=\"2\"/><path d=\"M6 12h.01M18 12h.01\"/>","credit-card":"<rect width=\"20\" height=\"14\" x=\"2\" y=\"5\" rx=\"2\"/><path d=\"M2 10h20\"/>","mail":"<rect width=\"20\" height=\"16\" x=\"2\" y=\"4\" rx=\"2\"/><path d=\"m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7\"/>","package":"<path d=\"m7.5 4.27 9 5.15\"/><path d=\"M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z\"/><path d=\"m3.3 7 8.7 5 8.7-5M12 22V12\"/>","truck":"<path d=\"M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2\"/><path d=\"M15 18H9\"/><path d=\"M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14\"/><circle cx=\"17\" cy=\"18\" r=\"2\"/><circle cx=\"7\" cy=\"18\" r=\"2\"/>","cart":"<circle cx=\"8\" cy=\"21\" r=\"1\"/><circle cx=\"19\" cy=\"21\" r=\"1\"/><path d=\"M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12\"/>","clipboard":"<rect width=\"8\" height=\"4\" x=\"8\" y=\"2\" rx=\"1\"/><path d=\"M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2\"/><path d=\"M9 12h6M9 16h4\"/>","check":"<path d=\"M22 11.08V12a10 10 0 1 1-5.93-9.14\"/><path d=\"m9 11 3 3L22 4\"/>","layers":"<path d=\"m12 2 10 5-10 5L2 7z\"/><path d=\"m2 17 10 5 10-5\"/><path d=\"m2 12 10 5 10-5\"/>","globe":"<circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"M2 12h20\"/><path d=\"M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z\"/>","flag":"<path d=\"M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z\"/><path d=\"M4 22v-7\"/>","undo":"<path d=\"M9 14 4 9l5-5\"/><path d=\"M4 9h10.5a5.5 5.5 0 0 1 0 11H11\"/>","redo":"<path d=\"m15 14 5-5-5-5\"/><path d=\"M20 9H9.5a5.5 5.5 0 0 0 0 11H13\"/>","export":"<path d=\"M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4\"/><polyline points=\"7 10 12 15 17 10\"/><line x1=\"12\" y1=\"15\" x2=\"12\" y2=\"3\"/>","save":"<path d=\"M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z\"/><polyline points=\"17 21 17 13 7 13 7 21\"/><polyline points=\"7 3 7 8 15 8\"/>","trash":"<path d=\"M3 6h18\"/><path d=\"M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2\"/><path d=\"M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6\"/><path d=\"M10 11v6\"/><path d=\"M14 11v6\"/>","tidy":"<path d=\"m21.64 3.64-1.28-1.28a1.21 1.21 0 0 0-1.72 0L2.36 18.64a1.21 1.21 0 0 0 0 1.72l1.28 1.28a1.2 1.2 0 0 0 1.72 0L21.64 5.36a1.2 1.2 0 0 0 0-1.72\"/><path d=\"m14 7 3 3\"/><path d=\"M5 6v4\"/><path d=\"M19 14v4\"/><path d=\"M10 2v2\"/><path d=\"M7 8H3\"/><path d=\"M21 16h-4\"/><path d=\"M11 3H9\"/>","minus":"<path d=\"M5 12h14\"/>","plus":"<path d=\"M5 12h14\"/><path d=\"M12 5v14\"/>","close":"<path d=\"M18 6 6 18\"/><path d=\"m6 6 12 12\"/>","more":"<circle cx=\"12\" cy=\"12\" r=\"1\"/><circle cx=\"19\" cy=\"12\" r=\"1\"/><circle cx=\"5\" cy=\"12\" r=\"1\"/>","fit":"<path d=\"M3 7V5a2 2 0 0 1 2-2h2\"/><path d=\"M17 3h2a2 2 0 0 1 2 2v2\"/><path d=\"M21 17v2a2 2 0 0 1-2 2h-2\"/><path d=\"M7 21H5a2 2 0 0 1-2-2v-2\"/>","sun":"<circle cx=\"12\" cy=\"12\" r=\"4\"/><path d=\"M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41\"/>","moon":"<path d=\"M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z\"/>","key":"<circle cx=\"7.5\" cy=\"15.5\" r=\"5\"/><path d=\"m21 2-9.6 9.6\"/><path d=\"m15.5 7.5 3 3L22 7l-3-3\"/>","link":"<path d=\"M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71\"/><path d=\"M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71\"/>","chevron-down":"<path d=\"m6 9 6 6 6-6\"/>","note-lines":"<path d=\"M5 7h14\"/><path d=\"M5 12h14\"/><path d=\"M5 17h9\"/>","type-erd":"<rect x=\"2.5\" y=\"3\" width=\"10\" height=\"8\" rx=\"1.5\"/><path d=\"M2.5 6.5h10\"/><rect x=\"11.5\" y=\"13\" width=\"10\" height=\"8\" rx=\"1.5\"/><path d=\"M11.5 16.5h10\"/><path d=\"M7.5 11v4.5h4\"/>","table-add":"<rect x=\"3\" y=\"4\" width=\"18\" height=\"16\" rx=\"2\"/><path d=\"M3 10h18\"/><path d=\"M8 15h8\"/>","relationship":"<path d=\"M3 12h9\"/><path d=\"m12 12 8-5\"/><path d=\"M12 12h8\"/><path d=\"m12 12 8 5\"/><path d=\"M6.5 8v8\"/>","note":"<path d=\"M4 4h16v11l-5 5H4z\"/><path d=\"M20 15h-5v5\"/><path d=\"M8 9h8M8 13h5\"/>","columns":"<rect x=\"3\" y=\"3\" width=\"18\" height=\"18\" rx=\"2\"/><path d=\"M3 9h18\"/><path d=\"M3 15h18\"/>","types":"<path d=\"M4 7V5h16v2\"/><path d=\"M12 5v14\"/><path d=\"M9 19h6\"/>","notes":"<path d=\"M15.5 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8.5z\"/><path d=\"M15 3v5a1 1 0 0 0 1 1h5\"/><path d=\"M7 13h7\"/><path d=\"M7 17h4\"/>","grip":"<circle cx=\"9\" cy=\"6\" r=\"1.6\" fill=\"currentColor\" stroke=\"none\"/><circle cx=\"15\" cy=\"6\" r=\"1.6\" fill=\"currentColor\" stroke=\"none\"/><circle cx=\"9\" cy=\"12\" r=\"1.6\" fill=\"currentColor\" stroke=\"none\"/><circle cx=\"15\" cy=\"12\" r=\"1.6\" fill=\"currentColor\" stroke=\"none\"/><circle cx=\"9\" cy=\"18\" r=\"1.6\" fill=\"currentColor\" stroke=\"none\"/><circle cx=\"15\" cy=\"18\" r=\"1.6\" fill=\"currentColor\" stroke=\"none\"/>","split":"<path d=\"M2 12h4\"/><circle cx=\"9\" cy=\"12\" r=\"3\"/><circle cx=\"15\" cy=\"12\" r=\"3\"/><path d=\"M18 12h4\"/>","type-flowchart":"<rect width=\"18\" height=\"18\" x=\"3\" y=\"3\" rx=\"2\"/><path d=\"M3 9h18\"/><path d=\"M3 15h18\"/><path d=\"M9 3v18\"/>","shapes":"<rect x=\"3\" y=\"13\" width=\"8\" height=\"8\" rx=\"1.5\"/><circle cx=\"17\" cy=\"17\" r=\"4\"/><path d=\"M12 3 7.5 10h9z\"/>","chevron-up":"<path d=\"m6 15 6-6 6 6\"/>","shape-terminator":"<rect x=\"2\" y=\"7\" width=\"20\" height=\"10\" rx=\"5\"/>","shape-process":"<rect x=\"3\" y=\"6\" width=\"18\" height=\"12\" rx=\"2.5\"/>","shape-decision":"<path d=\"M12 3 2 12l10 9 10-9z\"/>","shape-connector":"<path class=\"tile-line\" d=\"M0.5 12H2M22 12h1.5\"/><path class=\"tile-line tile-gap\" d=\"M10.5 12h3\" stroke-dasharray=\"1 2\"/><circle cx=\"6\" cy=\"12\" r=\"4\"/><circle cx=\"18\" cy=\"12\" r=\"4\"/>","shape-subprocess":"<rect x=\"2\" y=\"6\" width=\"20\" height=\"12\" rx=\"2.5\"/><path class=\"tile-line\" d=\"M6 8.5h1a1.5 1.5 0 0 1 1.5 1.5v1a1.5 1.5 0 0 1-1.5 1.5h-1a1.5 1.5 0 0 1-1.5-1.5v-1a1.5 1.5 0 0 1 1.5-1.5zM6.5 9.5v2M5.5 10.5h2\"/>","shape-data":"<path d=\"M6 6h16l-4 12H2z\"/>","shape-document":"<path d=\"M3 5h18v11c-3-1.6-6-1.6-9 0s-6 1.6-9 0z\"/>","shape-database":"<path d=\"M4 6.5a8 2.5 0 0 1 16 0v11a8 2.5 0 0 1-16 0z\"/><path class=\"tile-line\" d=\"M4 6.5a8 2.5 0 0 0 16 0\"/>","shape-delay":"<path d=\"M3 6h11a6 6 0 0 1 0 12H3z\"/>","shape-note":"<path class=\"note-paper\" d=\"M4 5h16v10l-5 5H4z\"/><path class=\"note-fold\" d=\"M20 15h-5v5\"/><path class=\"note-lines\" d=\"M7.5 9.5h9M7.5 13h6\"/>","lane":"<rect x=\"3\" y=\"4\" width=\"18\" height=\"16\" rx=\"2\"/><path d=\"M3 12h18\"/>","direction-tb":"<path d=\"M12 3v18\"/><path d=\"m7 16 5 5 5-5\"/>","type-sequence":"<rect x=\"3\" y=\"3\" width=\"6\" height=\"4\" rx=\"1\"/><rect x=\"15\" y=\"3\" width=\"6\" height=\"4\" rx=\"1\"/><path d=\"M6 7v14M18 7v14\"/><path d=\"M6 12h12\"/><path d=\"m15 10 3 2-3 2\"/>","focus":"<circle cx=\"12\" cy=\"12\" r=\"8\"/><circle cx=\"12\" cy=\"12\" r=\"2.5\" fill=\"currentColor\"/>","participant":"<rect x=\"4\" y=\"3\" width=\"16\" height=\"6\" rx=\"1.5\"/><path d=\"M12 9v12\" stroke-dasharray=\"3 3\"/>","message":"<path d=\"M4 12h16\"/><path d=\"m14 6 6 6-6 6\"/>","frame":"<rect x=\"3\" y=\"4\" width=\"18\" height=\"16\" rx=\"2\"/><path d=\"M3 9h8V4\"/>","numbers":"<path d=\"M10 6h11M10 12h11M10 18h11\"/><path d=\"M4 6h1v4\"/><path d=\"M4 10h2\"/><path d=\"M6 18H4c0-1 2-2 2-3s-1-1.5-2-1\"/>","message-return":"<path d=\"M4 9h16\"/><path d=\"m16 5 4 4-4 4\"/><path d=\"M6 17h10\" stroke-dasharray=\"2 3\"/>","lifespans":"<path d=\"M6 3h12\"/><path d=\"M12 3v14\" stroke-dasharray=\"3 3\"/><path d=\"M8 21h8\"/>","eye":"<path d=\"M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z\"/><circle cx=\"12\" cy=\"12\" r=\"3\"/>","direction-lr":"<path d=\"M3 12h18\"/><path d=\"m16 7 5 5-5 5\"/>","reverse":"<path d=\"M4 8h16\"/><path d=\"m16 4 4 4-4 4\"/><path d=\"M20 16H4\"/><path d=\"m8 12-4 4 4 4\"/>","label":"<path d=\"M4 7h16\"/><path d=\"M4 12h10\"/><path d=\"M4 17h6\"/>","line-dashed":"<path d=\"M3 12h4\"/><path d=\"M10 12h4\"/><path d=\"M17 12h4\"/>","line-solid":"<path d=\"M3 12h18\"/>","message-async":"<path d=\"M3 12h16\"/><path d=\"m14 7 6 5-6 5\"/>","reply":"<path d=\"M9 14 4 9l5-5\"/><path d=\"M4 9h10a6 6 0 0 1 0 12h-3\"/>","kind-system":"<rect x=\"4\" y=\"6\" width=\"16\" height=\"12\" rx=\"2\"/>","kind-ui":"<rect x=\"3\" y=\"4\" width=\"18\" height=\"12\" rx=\"2\"/><path d=\"M8 20h8M12 16v4\"/>","kind-database":"<ellipse cx=\"12\" cy=\"5\" rx=\"8\" ry=\"3\"/><path d=\"M4 5v14c0 1.66 3.58 3 8 3s8-1.34 8-3V5\"/><path d=\"M4 12c0 1.66 3.58 3 8 3s8-1.34 8-3\"/>","kind-queue":"<path d=\"M6 6h12a3 6 0 0 1 0 12H6a3 6 0 0 1 0-12z\"/><path d=\"M18 6a3 6 0 0 0 0 12\"/>","kind-external":"<circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18\"/>","actor":"<circle cx=\"12\" cy=\"5\" r=\"3\"/><path d=\"M12 8v7\"/><path d=\"M5 11h14\"/><path d=\"m12 15-5 6\"/><path d=\"m12 15 5 6\"/>","type-usecase":"<circle cx=\"4.5\" cy=\"6.5\" r=\"1.8\"/><path d=\"M4.5 8.3v4.7M2 10.5h5M4.5 13l-2 4.5M4.5 13l2 4.5\"/><ellipse cx=\"15.5\" cy=\"12\" rx=\"6.5\" ry=\"4.5\"/><path d=\"M7.4 10.6 9 11\"/>","usecase":"<ellipse cx=\"12\" cy=\"12\" rx=\"10\" ry=\"6.5\"/>","subject":"<rect x=\"2.5\" y=\"3\" width=\"19\" height=\"18\" rx=\"2\"/><path d=\"M2.5 8h19\"/><ellipse cx=\"12\" cy=\"14.5\" rx=\"5.5\" ry=\"3\"/>","clock":"<circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"M12 6v6l4 2\"/>","present":"<rect width=\"20\" height=\"14\" x=\"2\" y=\"3\" rx=\"2\"/><path d=\"M10 8l5 3-5 3z\"/><path d=\"M8 21h8M12 17v4\"/>","search":"<circle cx=\"11\" cy=\"11\" r=\"8\"/><path d=\"m21 21-4.3-4.3\"/>","hash":"<path d=\"M4 9h16M4 15h16M10 3 8 21M16 3l-2 18\"/>"};
 // --- PLUGIN INTERFACE ---
       // A diagram type registers itself once with registerDiagramPlugin({...}). The shell never touches
       // type internals; it only calls these members:
@@ -1954,7 +1997,8 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
         function onConfirmOutside(e) { if (confirmEl && !confirmEl.contains(e.target)) closeConfirm(); }
         // Ask before a delete: a bubble under `anchor` (a DOM element; above it when there is no room below; the upper middle
         // of the window when null), kept on screen. opts: { message, title?, label (the dialog's aria-label), ok? (button text,
-        // "Delete") }. Escape, Cancel, a click elsewhere or a pan/zoom (the type calls closeConfirm) dismisses it.
+        // "Delete"), okClass? (the main button's style, "btn-danger"), extra? (a DOM node shown under the message) }.
+        // Escape, Cancel, a click elsewhere or a pan/zoom (the type calls closeConfirm) dismisses it.
         function confirm(anchor, opts, onYes) {
           closeConfirm();
           const box = document.createElement('div');
@@ -1965,12 +2009,13 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
           const add = (cls, text) => { const d = document.createElement('div'); d.className = cls; d.textContent = text; box.appendChild(d); };
           if (opts.title) add('confirm-title', opts.title);
           add('confirm-msg', opts.message);
+          if (opts.extra) box.appendChild(opts.extra);
           const row = document.createElement('div');
           row.className = 'confirm-actions';
           const button = (cls, text) => { const b = document.createElement('button'); b.type = 'button'; b.className = cls; b.textContent = text; return b; };
           const cancel = button('btn confirm-cancel', 'Cancel');
           cancel.addEventListener('click', () => closeConfirm());
-          const ok = button('btn btn-danger confirm-ok', opts.ok || 'Delete');
+          const ok = button(`btn ${opts.okClass || 'btn-danger'} confirm-ok`, opts.ok || 'Delete');
           ok.addEventListener('click', () => { closeConfirm(); onYes(); });
           row.append(cancel);
           // An optional milder second choice (opts.alt: { text, onClick }) between Cancel and the main action
@@ -2200,10 +2245,15 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
       }
       captureArtifactScaffold();
       // window.claude carries only use(); resolve namespaces through it, never read window.claude.<name>
+      // Playground pages (dev/build_playground.py): a <script id="playground"> in the body, {"type", "types": [{id, name}]}.
+      // Save downloads a standalone file and the header icon is a menu that goes to a blank page of another type.
+      const playground = (() => {
+        try { const el = document.getElementById('playground'); return el ? JSON.parse(el.textContent) : null; } catch (_) { return null; }
+      })();
       const claudeHost = artifactShaped && window.claude && typeof window.claude.use === 'function' ? window.claude : null;
       // null: a plain file; 'pending': use() has not answered yet; 'publish': Save publishes diagram.json;
       // 'view-only': the viewer cannot save (Save hidden, Export > HTML file offered)
-      let artifactMode = claudeHost ? 'pending' : null;
+      let artifactMode = claudeHost && !playground ? 'pending' : null;
       let artifactApi = null;
       let downloadsApi = null;
       let publishing = false;
@@ -2214,6 +2264,8 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
       let chartData = { title: "", direction: "LR", lanes: [], nodes: [], edges: [] };
       let fileHandle = null;
       let everSaved = false;
+      let storedName = '';   // the file a stored handle from an earlier visit points at (Save writes there once allowed)
+      let downloadToldOnce = false;
       let hasUnsavedChanges = false;
 
       // Undo / redo history: JSON snapshots of chartData, taken at each committed edit
@@ -2246,7 +2298,9 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
       const zoomLevelEl = document.getElementById('zoom-level');
       const btnUndo = document.getElementById('btn-undo');
       const btnRedo = document.getElementById('btn-redo');
-      const btnHelp = document.getElementById('btn-help');
+      const btnMore = document.getElementById('btn-more');
+      const moreMenu = document.getElementById('more-menu');
+      const menuHelp = document.getElementById('menu-help');
       const helpDrawer = document.getElementById('help-drawer');
 
       let dataReadme = null;   // the data block's "_readme" line (written by scripts/layout_engine.py assemble_page)
@@ -2399,18 +2453,30 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
           saveStatus.className = "badge badge-status saved";
           return;
         }
+        // Name the file Save writes to: the one chosen this visit, else the one remembered from an earlier visit
+        const target = fileHandle ? fileHandle.name : storedName;
         if (unsaved) {
           saveStatus.textContent = "Unsaved changes";
           saveStatus.className = "badge badge-status unsaved";
+          saveStatus.title = target ? `Save writes to ${target}` : '';
         } else if (fileHandle) {
-          saveStatus.textContent = "Saved to file";
+          saveStatus.textContent = `Saved to ${target}`;
           saveStatus.className = "badge badge-status saved";
+          saveStatus.title = `Save writes straight to ${target}`;
         } else if (everSaved) {
-          saveStatus.textContent = "Downloaded";
+          saveStatus.textContent = "Downloaded a copy";
           saveStatus.className = "badge badge-status saved";
+          saveStatus.title = location.protocol === 'file:'
+            ? 'The edited diagram went to your downloads folder. The file you opened was not changed.'
+            : 'The edited diagram went to your downloads folder.';
+        } else if (target) {
+          saveStatus.textContent = `Saves to ${target}`;
+          saveStatus.className = "badge badge-status";
+          saveStatus.title = `Save writes to ${target}. Your browser may ask once per session to let this page edit it.`;
         } else {
           saveStatus.textContent = "Ready";
           saveStatus.className = "badge badge-status";
+          saveStatus.title = '';
         }
       }
 
@@ -2482,18 +2548,13 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
 
       // --- THEME (light / dark) ---
       // Priority: ?theme=dark|light  >  saved choice (localStorage)  >  OS preference
-      const btnTheme = document.getElementById('btn-theme');
+      const menuTheme = document.getElementById('menu-theme');
       function currentTheme() {
         return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
       }
-      // The button shows the theme you would switch TO (stroke icons, same family as the other controls)
-      const ICON_SUN = ui.icon('sun'), ICON_MOON = ui.icon('moon');
       function applyTheme(theme, persist) {
         document.documentElement.setAttribute('data-theme', theme);
-        btnTheme.innerHTML = theme === 'dark' ? ICON_SUN : ICON_MOON;
-        const next = theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode';
-        btnTheme.title = next;
-        btnTheme.setAttribute('aria-label', next);
+        menuTheme.setAttribute('aria-checked', String(theme === 'dark'));
         if (persist) { try { localStorage.setItem('flowchart-theme', theme); } catch (e) {} }
         if (plugin) plugin.render();   // type colors may depend on the theme
       }
@@ -2507,7 +2568,7 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
         }
         applyTheme(theme, false);
       }
-      btnTheme.addEventListener('click', () => applyTheme(currentTheme() === 'dark' ? 'light' : 'dark', true));
+      menuTheme.addEventListener('click', () => applyTheme(currentTheme() === 'dark' ? 'light' : 'dark', true));
 
       // --- VIEWPORT PAN & ZOOM & FIT ---
       function updateTransform() {
@@ -2609,13 +2670,20 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
         const dock = document.querySelector('.dock-area');
         const dockRect = dock && getComputedStyle(dock).display !== 'none' ? dock.getBoundingClientRect() : null;
         const dockBand = dockRect && dockRect.height ? Math.max(0, vpRect.bottom - dockRect.top) : 0;
+        // Chrome floating over the top of the viewport (a type's [data-overlay-top], e.g. the flowchart's tab box): fit below it
+        let topBand = 0;
+        if (!capture) document.querySelectorAll('[data-overlay-top]').forEach((el) => {
+          if (el.hidden || getComputedStyle(el).display === 'none') return;
+          const r = el.getBoundingClientRect();
+          if (r.height) topBand = Math.max(topBand, r.bottom - vpRect.top);
+        });
         const scaleX = (vpRect.width - pad) / frame.w;
-        const scaleY = (vpRect.height - dockBand - pad) / frame.h;
-        return { vpRect, frame, capture, dockBand, scaleX, scaleY, minPan: capture ? 0 : 20 };
+        const scaleY = (vpRect.height - dockBand - topBand - pad) / frame.h;
+        return { vpRect, frame, capture, dockBand, topBand, scaleX, scaleY, minPan: capture ? 0 : 20 };
       }
 
       function fitView() {
-        const { vpRect, frame, capture, dockBand, scaleX, scaleY, minPan } = fitMetrics();
+        const { vpRect, frame, capture, dockBand, topBand, scaleX, scaleY, minPan } = fitMetrics();
 
         // Capture mode: scale to the exact width requested (?capture&w=1600) and pin to the top-left,
         // so the screenshot is the diagram only and does not depend on browser viewport quirks.
@@ -2632,7 +2700,7 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
 
         scale = Math.min(Math.max(Math.min(scaleX, scaleY), 0.25), 1.0);
         panX = Math.max(minPan, (vpRect.width - frame.w * scale) / 2) - frame.x * scale;
-        panY = Math.max(minPan, (vpRect.height - dockBand - frame.h * scale) / 2) - frame.y * scale;
+        panY = topBand + Math.max(minPan, (vpRect.height - dockBand - topBand - frame.h * scale) / 2) - frame.y * scale;
 
         updateTransform();
       }
@@ -2901,11 +2969,11 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
 
       function setHelpOpen(open) {
         helpDrawer.classList.toggle('open', open);
-        btnHelp.setAttribute('aria-expanded', String(open));
+        btnMore.setAttribute('aria-expanded', String(open || !moreMenu.hidden));
         if (open) document.getElementById('help-close').focus();
-        else if (helpDrawer.contains(document.activeElement)) btnHelp.focus();
+        else if (helpDrawer.contains(document.activeElement)) btnMore.focus();
       }
-      btnHelp.addEventListener('click', () => setHelpOpen(!helpDrawer.classList.contains('open')));
+      menuHelp.addEventListener('click', () => { setMoreOpen(false); setHelpOpen(!helpDrawer.classList.contains('open')); });
       document.getElementById('help-close').addEventListener('click', () => setHelpOpen(false));
 
       // --- SEARCH (spec: dev/plans/search.md) ---
@@ -3098,8 +3166,9 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
         }
       }
 
-      function exportFileName(ext) {
-        return ((chartData.title || plugin.id).toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '') || 'diagram') + '.' + ext;
+      function exportFileName(ext, part) {
+        const clean = (t) => String(t).toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '');
+        return (clean(chartData.title || plugin.id) || 'diagram') + (part && clean(part) ? '-' + clean(part) : '') + '.' + ext;
       }
 
       // Inside an artifact the page cannot start a download itself; the viewer confirms one through the downloads
@@ -3156,6 +3225,11 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
       function exportDiagram(format) {
         try {
           if (format === 'html') { downloadHtmlFile(); return; }
+          // One SVG per tab, for a type that has tabs (the flowchart's subprocess flows)
+          if (format === 'svg-all') {
+            plugin.eachTab(name => deliverFile(exportFileName('svg', name), new Blob([svgDocument(buildExportSvg().svg)], { type: 'image/svg+xml;charset=utf-8' })));
+            return;
+          }
           if (format === 'svg') {
             downloadBlob(new Blob([svgDocument(buildExportSvg().svg)], { type: 'image/svg+xml;charset=utf-8' }), 'svg');
             return;
@@ -3198,7 +3272,7 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
             job = navigator.clipboard.writeText(svgDocument(buildExportSvg().svg));
           } else if (format === 'mermaid') {
             if (typeof plugin.toMermaid !== 'function') throw new Error('this diagram type has no Mermaid export');
-            job = navigator.clipboard.writeText(plugin.toMermaid(mermaidData(), { palette: SWATCHES.map((w) => w.hex) }));
+            job = navigator.clipboard.writeText(plugin.toMermaid(mermaidData(), { palette: SWATCHES.map((w) => w.hex), stock: true }));
           } else if (format === 'png') {
             if (!canCopyPng) throw new Error('this browser cannot copy images');
             job = navigator.clipboard.write([new ClipboardItem({ 'image/png': exportPngBlob() })]);
@@ -3214,20 +3288,49 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
       document.querySelectorAll('[data-copy="png"]').forEach(el => { el.hidden = !canCopyPng; });
       document.querySelectorAll('[data-copy="svg"]').forEach(el => { el.hidden = !(navigator.clipboard && navigator.clipboard.writeText); });
       // Mermaid is offered only when the diagram type can read/write it (the type script registers after this one runs)
-      const btnImportMermaid = document.getElementById('btn-import-mermaid');
-      if (btnImportMermaid) btnImportMermaid.addEventListener('click', (e) => { e.stopPropagation(); setExportOpen(false); openMermaidImport(); });
+      const menuImportMermaid = document.getElementById('menu-import-mermaid');
+      menuImportMermaid.addEventListener('click', (e) => { e.stopPropagation(); setMoreOpen(false); setExportOpen(false); openMermaidImport(); });
       function syncCopyMenu() {
         document.querySelectorAll('[data-copy="mermaid"]').forEach(el => { el.hidden = !(plugin && typeof plugin.toMermaid === 'function' && navigator.clipboard && navigator.clipboard.writeText); });
-        if (btnImportMermaid) btnImportMermaid.hidden = !(plugin && typeof plugin.fromMermaid === 'function');
+        menuImportMermaid.hidden = !(plugin && typeof plugin.fromMermaid === 'function');
         // Drop the "Copy" heading when this browser has no copy items to offer
         document.querySelectorAll('[data-copy-label]').forEach(el => { el.hidden = !document.querySelector('[data-copy]:not([hidden])'); });
       }
       syncCopyMenu();
 
       function setExportOpen(open) {
+        if (open) setMoreOpen(false);
         exportMenu.hidden = !open;
         btnExport.setAttribute('aria-expanded', String(open));
       }
+      function setMoreOpen(open) {
+        if (open) setExportOpen(false);
+        moreMenu.hidden = !open;
+        btnMore.setAttribute('aria-expanded', String(open || helpDrawer.classList.contains('open')));
+      }
+      btnMore.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const opening = moreMenu.hidden;
+        setMoreOpen(opening);
+        // Opened from the keyboard (detail 0): focus the first item, as a menu button does
+        if (opening && e.detail === 0) { const first = [...moreMenu.querySelectorAll('[role^="menuitem"]')].find((el) => !el.hidden); if (first) first.focus(); }
+      });
+      // Arrow keys move between the visible items of whichever menu is open
+      function menuArrowKeys(menu, btn, close) {
+        const items = () => [...menu.querySelectorAll('[role^="menuitem"]')].filter((el) => !el.hidden);
+        const onKey = (e) => {
+          if (menu.hidden || (e.key !== 'ArrowDown' && e.key !== 'ArrowUp')) return;
+          const list = items();
+          if (!list.length) return;
+          e.preventDefault();
+          const i = list.indexOf(document.activeElement);
+          list[i < 0 ? (e.key === 'ArrowDown' ? 0 : list.length - 1) : (i + (e.key === 'ArrowDown' ? 1 : list.length - 1)) % list.length].focus();
+        };
+        menu.addEventListener('keydown', onKey);
+        btn.addEventListener('keydown', onKey);
+      }
+      menuArrowKeys(moreMenu, btnMore);
+      menuArrowKeys(exportMenu, btnExport);
       btnExport.addEventListener('click', (e) => { e.stopPropagation(); setExportOpen(exportMenu.hidden); });
       exportMenu.addEventListener('click', (e) => {
         const b = e.target.closest('[data-export], [data-copy]');
@@ -3236,11 +3339,15 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
         if (b.dataset.copy) copyDiagram(b.dataset.copy);
         else exportDiagram(b.dataset.export);
       });
-      document.addEventListener('click', () => setExportOpen(false));
-      window.addEventListener('keydown', (e) => { if (e.key === 'Escape') setExportOpen(false); });
+      document.addEventListener('click', () => { setExportOpen(false); setMoreOpen(false); });
+      window.addEventListener('keydown', (e) => {
+        if (e.key !== 'Escape') return;
+        if (!moreMenu.hidden && moreMenu.contains(document.activeElement)) btnMore.focus();
+        setExportOpen(false); setMoreOpen(false);
+      });
 
       // --- IMPORT MERMAID ---
-      // Toolbar Paste Mermaid button (#btn-import-mermaid) and canvas paste (Ctrl+V outside text fields): the text is read
+      // More menu's Paste Mermaid item (#menu-import-mermaid) and canvas paste (Ctrl+V outside text fields): the text is read
       // by the type's fromMermaid (mermaid.js) and replaces the diagram as one undo step, laid out fresh. What the reader
       // could not map exactly is listed afterwards, and text of another diagram type is refused.
       const MERMAID_TYPE_NAME = { flowchart: 'flowchart', usecase: 'use case diagram', sequence: 'sequence diagram', erd: 'ER diagram' };
@@ -3285,7 +3392,7 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
         return true;
       }
       function positionImportBox(box) {
-        const anchor = (btnImportMermaid && !btnImportMermaid.hidden ? btnImportMermaid : btnExport).getBoundingClientRect();
+        const anchor = btnMore.getBoundingClientRect();
         const bw = box.offsetWidth;
         box.style.left = `${Math.max(8, Math.min(anchor.right - bw, innerWidth - bw - 8))}px`;
         box.style.top = `${anchor.bottom + 8}px`;
@@ -3474,17 +3581,24 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
           req.onerror = () => reject(req.error);
         });
       }
-      async function loadStoredHandle() {
+      async function readStoredHandle() {
         try {
           const db = await handleDb();
-          const h = await new Promise((resolve, reject) => {
+          return await new Promise((resolve, reject) => {
             const r = db.transaction('handles').objectStore('handles').get(location.href);
             r.onsuccess = () => resolve(r.result || null);
             r.onerror = () => reject(r.error);
           });
+        } catch (_) { return null; }
+      }
+      async function loadStoredHandle() {
+        try {
+          const h = await readStoredHandle();
           if (!h) return null;
           const opts = { mode: 'readwrite' };
           if ((await h.queryPermission(opts)) === 'granted') return h;
+          // The browser forgets the permission when it closes: say why it asks before its prompt shows
+          showToast(`Your browser asks once per session to let this page edit ${h.name}.`);
           if ((await h.requestPermission(opts)) === 'granted') return h;
         } catch (_) {}
         return null;
@@ -3746,29 +3860,94 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
         }
       }
 
-      async function writeFile(replacedHtml) {
+      // The opened file's own location, when the page was opened from disk (file://): { file, folder, name, win }.
+      // Windows paths (file:///C:/... and UNC file://server/share/...) come back with backslashes.
+      function localFilePath() {
+        if (location.protocol !== 'file:') return null;
+        let p;
+        try { p = decodeURIComponent(location.pathname); } catch (_) { return null; }
+        const win = !!location.host || /^\/[A-Za-z]:\//.test(p);
+        if (location.host) p = '//' + location.host + p;
+        if (win) p = p.replace(/^\/(?=[A-Za-z]:)/, '').replace(/\//g, '\\');
+        const sep = win ? '\\' : '/';
+        const i = p.lastIndexOf(sep);
+        if (i < 0 || !/\.html?$/i.test(p)) return null;
+        return { file: p, folder: p.slice(0, i) || sep, name: p.slice(i + 1), win };
+      }
+
+      // Copy text from inside a click. The async clipboard first; the old execCommand route where it is missing.
+      function copyText(text) {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          return navigator.clipboard.writeText(text).then(() => true, () => false);
+        }
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.setAttribute('readonly', '');
+        ta.style.cssText = 'position:fixed;left:-9999px;top:0;opacity:0';
+        document.body.appendChild(ta);
+        ta.select();
+        let ok = false;
+        try { ok = document.execCommand('copy'); } catch (_) {}
+        ta.remove();
+        return Promise.resolve(ok);
+      }
+
+      // Before the first Save dialog of a file opened from disk: copy the file's path right away (the Save click allows it)
+      // and show it, so the user can paste it into the dialog and save over the original instead of making a copy elsewhere.
+      // The dialog opens from the bubble's own button, which supplies the click the browser requires.
+      async function askSaveLocation(loc, choose) {
+        const plat = ((navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || '').toLowerCase();
+        const mac = !loc.win && /mac/.test(plat);
+        // macOS "Go to folder" takes a folder (the name is already filled in); Windows and GTK file boxes take the whole path
+        const text = mac ? loc.folder : loc.file;
+        const copied = await copyText(text);
+        const where = loc.win ? 'click the File name box and press Ctrl+V.' : mac ? 'press \u2318\u21e7G, then \u2318V.' : 'press Ctrl+L, then Ctrl+V.';
+        const path = document.createElement('code');
+        path.className = 'save-where';
+        path.textContent = text;
+        ui.confirm(btnSave, {
+          label: 'Save over the file you opened',
+          title: copied ? 'Path copied' : 'Save over the file you opened',
+          message: (copied ? 'In the next window, ' : 'Copy this path. In the next window, ') + where,
+          extra: path,
+          ok: 'Choose\u2026',
+          okClass: 'btn-primary'
+        }, choose);
+      }
+
+      async function pickSaveFile() {
+        // Browsers cannot read a page's own folder, so reuse the current file name
+        // (saving over it) and a stable picker id so the dialog reopens in the
+        // last folder used for diagrams.
+        let currentName = '';
+        try {
+          currentName = decodeURIComponent(location.pathname.split('/').pop() || '');
+        } catch (_) {}
+        const suggested = /\.html?$/i.test(currentName)
+          ? currentName
+          : (chartData.title || plugin.id).toLowerCase().replace(/[^a-z0-9_-]/g, '-') + '.html';
+        return window.showSaveFilePicker({
+          id: 'ultimate-diagram-save',
+          suggestedName: suggested,
+          types: [{
+            description: 'HTML Diagram File',
+            accept: { 'text/html': ['.html'] }
+          }]
+        });
+      }
+
+      async function writeFile(replacedHtml, picked) {
         if ('showSaveFilePicker' in window) {
           try {
-            if (!fileHandle) fileHandle = await loadStoredHandle();
+            if (!fileHandle && !picked) fileHandle = await loadStoredHandle();
             if (!fileHandle) {
-              // Browsers cannot read a page's own folder, so reuse the current file name
-              // (saving over it) and a stable picker id so the dialog reopens in the
-              // last folder used for diagrams.
-              let currentName = '';
-              try {
-                currentName = decodeURIComponent(location.pathname.split('/').pop() || '');
-              } catch (_) {}
-              const suggested = /\.html?$/i.test(currentName)
-                ? currentName
-                : (chartData.title || plugin.id).toLowerCase().replace(/[^a-z0-9_-]/g, '-') + '.html';
-              fileHandle = await window.showSaveFilePicker({
-                id: 'ultimate-diagram-save',
-                suggestedName: suggested,
-                types: [{
-                  description: 'HTML Diagram File',
-                  accept: { 'text/html': ['.html'] }
-                }]
-              });
+              const loc = !picked && localFilePath();
+              if (loc) {
+                // The dialog has to open from a fresh click: the bubble's button calls back here
+                askSaveLocation(loc, () => writeFile(replacedHtml, true));
+                return;
+              }
+              fileHandle = await pickSaveFile();
               storeHandle(fileHandle);
             }
 
@@ -3798,12 +3977,28 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
           savedJson = JSON.stringify(chartData);
           everSaved = true;
           updateStatus(false);
+          if (!downloadToldOnce) {
+            // The download is a copy: say so once, so nobody reopens the old file expecting their edits
+            downloadToldOnce = true;
+            showToast(location.protocol === 'file:'
+              ? 'Saved a copy to your downloads folder. The file you opened was not changed.'
+              : 'Saved a copy to your downloads folder.');
+          }
         } catch (err) {
           alert("Save failed: " + err.message);
         }
       }
 
       async function saveToFile() {
+        if (playground) {
+          try {
+            await deliverFile(exportFileName('html'), new Blob([await buildExportHtmlFile()], { type: 'text/html' }));
+            savedJson = JSON.stringify(chartData);
+            everSaved = true;
+            updateStatus(false);
+          } catch (err) { showToast('Download failed: ' + (err && err.message || err)); }
+          return;
+        }
         if (artifactMode === 'publish') return publishToArtifact();
         if (artifactMode === 'view-only') return downloadHtmlFile();
         if (artifactMode === 'pending') return;   // use() has not answered yet; Save is disabled until it does
@@ -3829,7 +4024,9 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
         setStatusBadge(hasUnsavedChanges);
       }
 
-      if (claudeHost) {
+      if (claudeHost && playground) {
+        Promise.resolve().then(() => claudeHost.use('downloads')).then(d => { downloadsApi = d || null; }, () => {});
+      } else if (claudeHost) {
         const useNamespace = (name) => {
           try { return Promise.resolve(claudeHost.use(name)).then(v => v || null, () => null); }
           catch (_) { return Promise.resolve(null); }
@@ -3847,6 +4044,54 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
       }
 
       btnSave.addEventListener('click', saveToFile);
+      // A file opened from disk that was saved before: show which file Save writes to (reading the stored handle asks nothing)
+      if (!claudeHost && location.protocol === 'file:' && 'showSaveFilePicker' in window) {
+        readStoredHandle().then((h) => {
+          if (h && h.name && !fileHandle) { storedName = h.name; setStatusBadge(hasUnsavedChanges); }
+        });
+      }
+
+      // --- PLAYGROUND: the header icon becomes a type menu ---
+      if (playground) {
+        btnSave.title = 'Download this diagram as an HTML file (Ctrl+S)';
+        const icon = document.querySelector('.toolbar-left > svg');
+        const wrap = document.createElement('div');
+        wrap.className = 'menu-wrap type-switch';
+        const btn = document.createElement('button');
+        btn.type = 'button'; btn.id = 'btn-type'; btn.className = 'btn btn-icon';
+        btn.title = 'Diagram type'; btn.setAttribute('aria-label', 'Diagram type');
+        btn.setAttribute('aria-haspopup', 'menu'); btn.setAttribute('aria-expanded', 'false');
+        const menu = document.createElement('div');
+        menu.id = 'type-menu'; menu.className = 'menu menu-left'; menu.setAttribute('role', 'menu'); menu.hidden = true;
+        icon.replaceWith(wrap);
+        btn.appendChild(icon);
+        wrap.append(btn, menu);
+        const setOpen = (open) => { menu.hidden = !open; btn.setAttribute('aria-expanded', String(open)); };
+        const goTo = (id) => { location.assign('../' + id + '/index.html'); };
+        for (const t of playground.types) {
+          const item = document.createElement('button');
+          item.type = 'button'; item.dataset.type = t.id; item.setAttribute('role', 'menuitemradio');
+          const here = t.id === playground.type;
+          item.setAttribute('aria-checked', String(here));
+          if (here) item.appendChild(ui.iconEl('check', { size: 'sm' }));
+          item.append(here ? ' ' + t.name : t.name);
+          item.addEventListener('click', () => {
+            setOpen(false);
+            if (here) return;
+            if (!hasUnsavedChanges) { goTo(t.id); return; }
+            const mine = playground.types.find((x) => x.id === playground.type).name;
+            ui.confirm(btn, {
+              label: 'Switch diagram type', title: 'Switch to ' + t.name + '?',
+              message: 'Your edits to this ' + mine.toLowerCase() + ' are lost unless you save.', ok: 'Switch',
+              alt: { text: 'Save', onClick: async () => { await saveToFile(); if (!hasUnsavedChanges) goTo(t.id); } }
+            }, () => goTo(t.id));
+          });
+          menu.appendChild(item);
+        }
+        btn.addEventListener('click', (e) => { e.stopPropagation(); setOpen(menu.hidden); });
+        document.addEventListener('click', () => setOpen(false));
+        window.addEventListener('keydown', (e) => { if (e.key === 'Escape') setOpen(false); });
+      }
 
       window.addEventListener('keydown', (e) => {
         if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
@@ -4467,16 +4712,22 @@ function mmdParseFlow(text) {
     }
   }
 
+  // A repeated id under another parent is a separate subgraph (the same lane inside a `sub_` block); `sub` names the
+  // top-level `sub_` block a subgraph sits in (flowcharts), else null.
+  const sgScoped = new Map();
   function parseSubgraph(rest) {
     let id, title, m;
     if ((m = /^([^\s\[\]"]+)\s*\[([\s\S]*)\]$/.exec(rest))) { id = m[1]; title = m[2].trim().replace(/^"([\s\S]*)"$/, '$1'); } else if ((m = /^"([\s\S]*)"$/.exec(rest))) { id = title = m[1]; } else { id = title = rest; }
     title = mmdText(title);
-    if (!sgById.has(id)) {
-      const sg = { id, title, parent: stack.length ? stack[stack.length - 1].id : null, nodes: [], classes: [], line: ln };
-      sgById.set(id, sg);
-      ast.subgraphs.push(sg);
-      stack.push(sg);
-    } else stack.push(sgById.get(id));
+    const top = stack.length ? stack[stack.length - 1] : null, parent = top ? top.id : null;
+    const key = parent + '>' + id;
+    const known = sgScoped.get(key) || (sgById.has(id) && sgById.get(id).parent === parent ? sgById.get(id) : null);
+    if (known) { stack.push(known); return; }
+    const sg = { id, title, parent, sub: !top && /^sub_/.test(id) ? id : (top ? top.sub : null), nodes: [], classes: [], line: ln };
+    sgScoped.set(key, sg);
+    if (!sgById.has(id)) sgById.set(id, sg);
+    ast.subgraphs.push(sg);
+    stack.push(sg);
   }
 
   function statement(s) {

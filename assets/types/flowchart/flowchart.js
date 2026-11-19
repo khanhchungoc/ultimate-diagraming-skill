@@ -125,6 +125,9 @@
         }
         renderNotes(true);   // last: notes are fitted around the final nodes, arrows and labels
         pinLaneHeaders();
+        renderTabs();
+        followTab();
+        updateSubButtons();
       }
 
       const OUTER_CLEAR = 16;   // px between the outermost arrow/label and the last lane's outer edge
@@ -280,8 +283,11 @@
             laneEl.style.minHeight = `${computedHeight}px`;
             laneEl.style.height = `${computedHeight}px`;
           }
-          // stripe, icon, pill tint; a lane without its own colour takes the palette colour for its position (not saved)
-          const laneColor = colorSlot(lane.color || SWATCHES[index % SWATCHES.length].slot);   // a slot, or a custom hex
+          // stripe, icon, pill tint; a lane without its own colour takes the palette colour for its position (not saved).
+          // With subprocess flows the position is the actor's in the one list, so a lane has one colour in every flow.
+          const at = chartData.actors ? chartData.actors.findIndex(a => a.id === lane.id) : index;
+          const colorAt = at < 0 ? chartData.actors.length : at;
+          const laneColor = colorSlot(lane.color || SWATCHES[colorAt % SWATCHES.length].slot);   // a slot, or a custom hex
           const laneSw = paletteOf(laneColor);
           const laneHex = laneSw ? laneSw.hex : laneColor;                                       // --lane-color mixes a hex
           if (laneHex) laneEl.style.setProperty('--lane-color', laneHex);
@@ -529,7 +535,7 @@
       // A shaped node keeps its slot's box (144x64; a decision 144x96), made transparent by flowchart.css, and draws
       // its outline inside it as an SVG stretched to the box (preserveAspectRatio="none", non-scaling stroke). The
       // outline stays 1px inside the box so the 2px stroke ends on the box edge, like a task's border. `.shape-path`
-      // is the filled outline, `.shape-line` an inner stroke (the subprocess bars, the cylinder's front rim).
+      // is the filled outline, `.shape-line` an inner stroke (the subprocess's + marker, the cylinder's front rim).
       // Shapes keep their screen orientation in a top-to-bottom diagram: the document's wave is always at the
       // bottom, the delay's arc always on the right. Keep outlineInset() in step with any change here.
       // The diamond has its four corners rounded by DIAMOND_ROUND px along each edge: a quadratic curve through
@@ -543,7 +549,7 @@
       }
       const SHAPE_OUTLINES = {
         decision:   { h: DECISION_HEIGHT, svg: `<path class="shape-path diamond-poly" d="${diamondPath(144, DECISION_HEIGHT)}"/>` },
-        subprocess: { h: 64, svg: '<rect class="shape-path" x="1" y="1" width="142" height="62" rx="2"/><path class="shape-line" d="M13 1V63M131 1V63"/>' },
+        subprocess: { h: 64, svg: '<rect class="shape-path" x="1" y="1" width="142" height="62" rx="8"/><rect class="shape-line sub-mark" x="7" y="7" width="12" height="12" rx="4"/><path class="shape-line sub-mark" d="M13 10V16M10 13H16"/>' },
         document:   { h: 64, svg: '<path class="shape-path" d="M1 1H143V57C119 49 96 49 72 57C48 65 25 65 1 57Z"/>' },
         io:         { h: 64, svg: '<polygon class="shape-path" points="13,1 143,1 131,63 1,63"/>' },
         database:   { h: 64, svg: '<path class="shape-path" d="M1 9A71 8 0 0 1 143 9V55A71 8 0 0 1 1 55Z"/><path class="shape-line" d="M1 9A71 8 0 0 0 143 9"/>' },
@@ -1022,6 +1028,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
             if ((node.label || '') !== label.textContent.trim()) {
               const wasDot = isDot(node);
               node.label = label.textContent.trim();
+              syncChildName(node);
               updateStatus(true);
               if (wasDot !== isDot(node)) render();
               else fitNodeLabel(label, node.type);
@@ -1047,6 +1054,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           });
 
           nodeEl.appendChild(buildNoteBadge(node));   // note badge, or the "+" chip to add one
+          if (node.type === 'subprocess' && hasChild(node.id)) { nodeEl.classList.add('has-child'); nodeEl.appendChild(buildSubLink(node)); }
 
           nodeEl.addEventListener('pointerdown', (e) => handleNodePointerDown(e, node));
           nodeEl.addEventListener('mouseenter', () => {
@@ -3284,7 +3292,8 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
       // Removes a lane together with its steps and every arrow attached to them (one undo step).
       // The last remaining lane cannot be deleted: every step needs a lane.
       function deleteLane(laneId) {
-        if (chartData.lanes.length <= 1 || !chartData.lanes.some(l => l.id === laneId)) return;
+        if (chartData.lanes.length <= 1 || !chartData.lanes.some(l => l.id === laneId) || laneUsedElsewhere(laneId)) return;
+        if (chartData.flows) chartData.actors = chartData.actors.filter(a => a.id !== laneId || laneUsedElsewhere(laneId, true));
         const gone = new Set(chartData.nodes.filter(n => n.laneId === laneId).map(n => n.id));
         chartData.lanes = chartData.lanes.filter(l => l.id !== laneId);
         chartData.nodes = chartData.nodes.filter(n => !gone.has(n.id));
@@ -3301,6 +3310,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         ui.closeConfirm();
         const lane = chartData.lanes.find(l => l.id === laneId);
         if (!lane || chartData.lanes.length <= 1) return;
+        if (laneUsedElsewhere(laneId)) { flashHint(`\u201c${lane.name}\u201d has steps in another flow: delete or move them there first.`); return; }
         const steps = chartData.nodes.filter(n => n.laneId === laneId).length;
         // Under the anchor (a delete button, else the lane's pill), or above it when there is no room below
         // (the dock's Delete sits at the bottom of the window); kept on screen
@@ -3341,6 +3351,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         const many = selectedNodeIds.size > 1;
         document.querySelectorAll('.flow-node[data-node-id]').forEach(el => el.classList.toggle('selected', isNodeSelected(el.dataset.nodeId)));
         swimlanesContainer.classList.toggle('multi-select', many);
+        updateSubButtons();
         if (deleteLabelEl) deleteLabelEl.textContent = many ? `Delete ${selectedNodeIds.size}` : 'Delete';
       }
 
@@ -3445,6 +3456,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         if (isConnector(node)) { joinConnector(node); return; }   // deleting a connector puts the whole arrow back
         chartData.nodes = chartData.nodes.filter(n => n.id !== nodeId);
         chartData.edges = chartData.edges.filter(e => e.from !== nodeId && e.to !== nodeId);
+        dropChildOf([nodeId]);
         pruneConnectors();   // a pair attached to this step goes with it
         pruneNotes();   // its notes lose the link (a note explaining only this step goes with it)
         clearNodeSelection();
@@ -3457,6 +3469,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         const gone = new Set(ids.filter(id => nodeById(id) && !isConnector(nodeById(id))));
         chartData.nodes = chartData.nodes.filter(n => !gone.has(n.id));
         chartData.edges = chartData.edges.filter(e => !gone.has(e.from) && !gone.has(e.to));
+        dropChildOf([...gone]);
         pruneConnectors();   // a pair attached to a deleted step goes with it
         // A selected circle whose pair is still there: the whole arrow comes back, as when it is deleted alone
         ids.forEach(id => { const n = nodeById(id); if (isConnector(n)) joinConnectorData(n); });
@@ -3520,6 +3533,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
       function makeNode(type, p) {
         const node = { id: uid('n'), laneId: p.laneId, type, label: NODE_DEFAULTS[type] || 'New Step', x: p.x, y: p.y };
         chartData.nodes.push(node);
+        if (type === 'subprocess' && !chartData.tab) addEmptyChild(node);   // a new subprocess gets its own tab (one level)
         return node;
       }
 
@@ -3924,6 +3938,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         // A moved note's offset is in screen terms, which the switch turns sideways: let every note be re-fitted
         notesList().forEach(n => { delete n.pos; });
         layoutDiagram(chartData);
+        layoutOtherFlows();
         render();
         updateStatus(true);
         fitView();
@@ -4676,7 +4691,8 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
       // label, and every position in one trailing "layout" map. The in-memory model keeps x/y/height/color on
       // the objects. scripts/disk_format.py is the Python twin: keep the two byte-identical.
       const DISK_KEYS = ['diagramType', 'schemaVersion', 'title', 'direction', 'swimlanes', 'showNotes',
-        'lanes', 'nodes', 'edges', 'notes', 'layout'];
+        'lanes', 'nodes', 'edges', 'notes', 'children', 'layout'];
+      const CHILD_KEYS = ['name', 'laneOrder', 'laneHeights', 'nodes', 'edges', 'notes'];
       const NODE_LAYOUT = ['x', 'y'], LANE_LAYOUT = ['height', 'color'];
       const GENERATED_ID = /^(n|c|e|lane)_\d{12,}(_\d+)?$/;   // uid(): <prefix>_<Date.now()>[_k]
       const SLUG_MAX = 30;
@@ -4688,8 +4704,10 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         return s;
       }
 
+      // `d` is the full model (global lanes, the parent's steps, `children`): ids are renamed across every flow
       function renameGeneratedIds(d) {
-        const lanes = d.lanes || [], nodes = d.nodes || [], edges = d.edges || [];
+        const kids = d.children || {}, tabs = [d, ...Object.values(kids)];
+        const lanes = d.lanes || [], nodes = tabs.flatMap(t => t.nodes || []), edges = tabs.flatMap(t => t.edges || []);
         const used = new Set([...lanes, ...nodes, ...edges].map(o => o.id));
         const rename = new Map();
         const take = (base) => {
@@ -4719,7 +4737,13 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         [...lanes, ...nodes, ...edges].forEach(o => { o.id = r(o.id); });
         nodes.forEach(n => { if ('laneId' in n) n.laneId = r(n.laneId); });
         edges.forEach(e => ['from', 'to'].forEach(k => { if (k in e) e[k] = r(e[k]); }));
-        (d.notes || []).forEach(note => { if (Array.isArray(note.nodes)) note.nodes = note.nodes.map(r); });
+        tabs.forEach(t => (t.notes || []).forEach(note => { if (Array.isArray(note.nodes)) note.nodes = note.nodes.map(r); }));
+        Object.keys(kids).forEach(key => {
+          const c = kids[key];
+          c.laneOrder = (c.laneOrder || []).map(r);
+          if (c.laneHeights) c.laneHeights = Object.fromEntries(Object.entries(c.laneHeights).map(([k, v]) => [r(k), v]));
+          if (rename.has(key)) { kids[r(key)] = c; delete kids[key]; }
+        });
       }
 
       function orderedKeys(d, keys) {
@@ -4729,23 +4753,110 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         return out;
       }
 
-      function toDisk(data) {
+      // --- SUBPROCESS TABS (plan: dev/plans/plan-subprocess.md) ---
+      // A flowchart can hold child flows, one per subprocess step. On disk (and in the Mermaid writer) that is the full
+      // model: `lanes` is the one list of actors, `nodes`/`edges`/`notes` the parent flow, `children[slug]` =
+      // {name, laneOrder, laneHeights, nodes, edges, notes}. The editor works on one flow at a time, so in memory the
+      // ACTIVE flow's lanes, steps, arrows and notes sit on chartData itself (every function here and in the engine sees an
+      // ordinary flowchart), and the others are parked beside it:
+      //   chartData.tab      the active child's slug (absent: the parent flow)
+      //   chartData.flows    { key: { lanes, nodes, edges, notes } } for every other flow; the parent's key is ''
+      //   chartData.actors   every lane's id, name, icon and colour, once (a lane edited in one flow is copied here when the
+      //                      flow is left, and read from here when another is entered, so an actor is one actor everywhere)
+      //   chartData.tabNames { slug: name }
+      // A diagram without children has none of these: it is saved and loaded exactly as before.
+      const PARENT = '';
+      const curTab = () => chartData.tab || PARENT;
+      const withoutHeight = (l) => { const o = { ...l }; delete o.height; return o; };
+      const flowSort = (items, laneIds) => {
+        const idx = new Map(laneIds.map((id, i) => [id, i]));
+        items.sort((a, b) => ((a.x || 0) - (b.x || 0)) || ((idx.get(a.laneId) || 0) - (idx.get(b.laneId) || 0)) || ((a.y || 0) - (b.y || 0)));
+      };
+
+      // Copy the active flow's lane names, icons and colours into the one actor list
+      function syncActors() {
+        if (!chartData.flows) return;
+        chartData.lanes.forEach(l => {
+          const i = chartData.actors.findIndex(a => a.id === l.id);
+          if (i < 0) chartData.actors.push(withoutHeight(l)); else chartData.actors[i] = withoutHeight(l);
+        });
+      }
+
+      // Memory model -> full model (a copy). Flows without children come back as they are.
+      function fullOf(data) {
         const d = JSON.parse(JSON.stringify(data));
+        if (!d.flows) return d;
+        const key = d.tab || PARENT;
+        const tabs = { ...d.flows, [key]: { lanes: d.lanes, nodes: d.nodes, edges: d.edges, notes: d.notes } };
+        d.actors = d.actors.map(a => (d.lanes.find(l => l.id === a.id) ? withoutHeight(d.lanes.find(l => l.id === a.id)) : a));
+        d.lanes.forEach(l => { if (!d.actors.some(a => a.id === l.id)) d.actors.push(withoutHeight(l)); });
+        const actor = (id) => d.actors.find(a => a.id === id);
+        const parent = tabs[PARENT];
+        const shown = new Set(parent.lanes.map(l => l.id));
+        d.lanes = parent.lanes.map(l => ({ ...actor(l.id), ...(l.height != null ? { height: l.height } : {}) }))
+          .concat(d.actors.filter(a => !shown.has(a.id)).map(a => ({ ...a })));
+        d.nodes = parent.nodes;
+        d.edges = parent.edges;
+        if (parent.notes) d.notes = parent.notes; else delete d.notes;
+        d.children = {};
+        Object.keys(d.tabNames).forEach(slugKey => {
+          const t = tabs[slugKey], c = { name: d.tabNames[slugKey], laneOrder: t.lanes.map(l => l.id) };
+          const heights = t.lanes.filter(l => l.height != null);
+          if (heights.length) c.laneHeights = Object.fromEntries(heights.map(l => [l.id, l.height]));
+          c.nodes = t.nodes;
+          c.edges = t.edges;
+          if (t.notes && t.notes.length) c.notes = t.notes;
+          d.children[slugKey] = c;
+        });
+        ['flows', 'actors', 'tabNames', 'tab'].forEach(k => delete d[k]);
+        return d;
+      }
+
+      // Full model -> memory model: the parent flow active, the children parked. No children: nothing changes.
+      function tabsOf(d) {
+        const kids = d.children || {};
+        delete d.children;
+        if (!Object.keys(kids).length) return d;
+        const actors = d.lanes.map(withoutHeight);
+        const inParent = new Set(d.nodes.map(n => n.laneId)), inKids = new Set();
+        Object.values(kids).forEach(c => [...(c.laneOrder || []), ...(c.nodes || []).map(n => n.laneId)].forEach(id => inKids.add(id)));
+        d.lanes = d.lanes.filter(l => inParent.has(l.id) || !inKids.has(l.id));
+        d.actors = actors;
+        d.flows = {};
+        d.tabNames = {};
+        Object.keys(kids).forEach(slugKey => {
+          const c = kids[slugKey], heights = c.laneHeights || {};
+          const order = [...(c.laneOrder || []), ...(c.nodes || []).map(n => n.laneId)].filter((id, i, all) => all.indexOf(id) === i && actors.some(a => a.id === id));
+          d.tabNames[slugKey] = c.name || slugKey;
+          d.flows[slugKey] = { lanes: order.map(id => ({ ...actors.find(a => a.id === id), ...(heights[id] != null ? { height: heights[id] } : {}) })),
+            nodes: c.nodes || [], edges: c.edges || [], notes: c.notes || [] };
+          if (!d.flows[slugKey].notes.length) delete d.flows[slugKey].notes;
+        });
+        return d;
+      }
+
+      function toDisk(data) {
+        const d = fullOf(data);
         delete d.layout;
         slotColors(d, 'lanes');
-        const lanes = d.lanes || [], nodes = d.nodes || [];
-        const laneIndex = new Map(lanes.map((l, i) => [l.id, i]));
+        const lanes = d.lanes || [], nodes = d.nodes || [], kids = d.children || {};
         // Flow order: x runs along the flow in both directions (the engine has ranked the steps already)
-        nodes.sort((a, b) => ((a.x || 0) - (b.x || 0)) || ((laneIndex.get(a.laneId) || 0) - (laneIndex.get(b.laneId) || 0))
-          || ((a.y || 0) - (b.y || 0)));
+        flowSort(nodes, lanes.map(l => l.id));
+        Object.values(kids).forEach(c => flowSort(c.nodes || [], c.laneOrder || []));
         renameGeneratedIds(d);
         const layout = {};
-        [[lanes, LANE_LAYOUT], [nodes, NODE_LAYOUT]].forEach(([items, keys]) => items.forEach(o => {
+        [[lanes, LANE_LAYOUT], [nodes, NODE_LAYOUT], ...Object.values(d.children || {}).map(c => [c.nodes || [], NODE_LAYOUT])].forEach(([items, keys]) => items.forEach(o => {
           const pos = {};
           keys.forEach(k => { if (k in o) { pos[k] = o[k]; delete o[k]; } });
           if (Object.keys(pos).length) layout[o.id] = pos;
         }));
         if (Object.keys(layout).length) d.layout = layout;
+        if (d.children) {
+          // children in the order the parent flow reaches them, each with its keys in a fixed order
+          const ids = nodes.map(n => n.id).filter(id => d.children[id]);
+          const order = ids.concat(Object.keys(d.children).filter(k => !ids.includes(k)));
+          d.children = Object.fromEntries(order.map(k => [k, orderedKeys(d.children[k], CHILD_KEYS)]));
+        }
         return orderedKeys(d, DISK_KEYS);
       }
 
@@ -4753,13 +4864,318 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         const d = JSON.parse(JSON.stringify(data));
         const layout = d.layout || {};
         delete d.layout;
-        [...(d.lanes || []), ...(d.nodes || [])].forEach(o => Object.assign(o, layout[o.id] || {}));
+        [...(d.lanes || []), ...(d.nodes || []), ...Object.values(d.children || {}).flatMap(c => c.nodes || [])].forEach(o => Object.assign(o, layout[o.id] || {}));
         slotColors(d, 'lanes');
+        tabsOf(d);
         // A step without a position (added by hand to the JSON, or pasted from Mermaid) would sit on top of another:
         // when any is missing the whole diagram is laid out, as ERD and use case pages do. Placed pages load as saved.
-        if ((d.nodes || []).some(n => !Number.isFinite(n.x) || !Number.isFinite(n.y))) layoutDiagram(d);
+        const missing = (nodes) => (nodes || []).some(n => !Number.isFinite(n.x) || !Number.isFinite(n.y));
+        if (missing(d.nodes)) layoutDiagram(d);
+        Object.values(d.flows || {}).forEach(f => { if (missing(f.nodes)) layoutFlow(f, d.direction); });
         return d;
       }
+
+      // Lay out a parked flow (a copy of its arrays goes through the engine, and comes back)
+      function layoutFlow(f, direction) {
+        const flat = { direction, lanes: f.lanes, nodes: f.nodes, edges: f.edges, notes: f.notes || [] };
+        layoutDiagram(flat);
+        f.lanes = flat.lanes; f.nodes = flat.nodes; f.edges = flat.edges;
+      }
+
+      // --- TAB ROW, SWITCHING, THE LINK ON A SUBPROCESS STEP ---
+      const flowTabs = document.getElementById('flow-tabs');
+      let renderedTab = null;     // the flow the canvas was last drawn for (null: nothing drawn yet)
+      const tabViews = {};        // key -> { scale, panX, panY }: each flow keeps its own pan and zoom
+      const PARENT_LABEL = 'Main flow';
+
+      // Tab keys in reading order: the parent, then each child in the order the parent's steps reach it
+      function tabKeys() {
+        if (!chartData.flows) return [];
+        const pf = chartData.flows[PARENT] || chartData;
+        const lanes = (chartData.tab ? pf.lanes : chartData.lanes).map(l => l.id);
+        const sorted = [...pf.nodes];
+        flowSort(sorted, lanes);
+        const kids = Object.keys(chartData.tabNames);
+        const first = sorted.map(n => n.id).filter(id => kids.includes(id));
+        return [PARENT, ...first, ...kids.filter(k => !first.includes(k))];
+      }
+      const tabLabel = (key) => (key === PARENT ? PARENT_LABEL : chartData.tabNames[key]);
+      const hasChild = (nodeId) => !!chartData.flows && !chartData.tab && nodeId in chartData.tabNames;
+
+      function renderTabs() {
+        flowTabs.hidden = !chartData.flows;
+        document.querySelectorAll('[data-export="svg-all"]').forEach(el => { el.hidden = !chartData.flows; });
+        flowTabs.replaceChildren();
+        if (!chartData.flows) return;
+        const cur = curTab();
+        // The main flow's tab, then the inner box of subprocess tabs (one level: a child flow has no children)
+        const inner = document.createElement('div');
+        inner.className = 'flow-subtabs';
+        tabKeys().forEach(key => {
+          const b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'flow-tab';
+          b.setAttribute('role', 'tab');
+          b.setAttribute('aria-selected', String(key === cur));
+          b.tabIndex = key === cur ? 0 : -1;
+          b.dataset.tab = key;
+          b.textContent = tabLabel(key);
+          // From a subprocess, the main flow's tab goes back up with that subprocess step selected
+          const back = key === PARENT && cur !== PARENT;
+          b.title = key === PARENT ? (back ? `Back to the main flow, at the step "${tabLabel(cur)}"` : 'The main flow') : `Subprocess: ${tabLabel(key)}`;
+          b.addEventListener('click', () => (back ? switchTab(PARENT, cur) : switchTab(key)));
+          b.addEventListener('keydown', (e) => {
+            const all = [...flowTabs.querySelectorAll('.flow-tab')], i = all.indexOf(b);
+            const to = e.key === 'ArrowRight' ? all[(i + 1) % all.length] : e.key === 'ArrowLeft' ? all[(i + all.length - 1) % all.length] : null;
+            if (to) { e.preventDefault(); switchTab(to.dataset.tab); const again = flowTabs.querySelector(`.flow-tab[data-tab="${CSS.escape(to.dataset.tab)}"]`); if (again) again.focus(); }
+          });
+          (key === PARENT ? flowTabs : inner).appendChild(b);
+        });
+        if (inner.childElementCount) flowTabs.appendChild(inner);
+      }
+
+      // Each flow keeps its own pan and zoom: called at the end of render(), so an undo that lands on another flow follows too
+      function followTab() {
+        const t = curTab();
+        if (renderedTab === null) { renderedTab = t; return; }
+        if (renderedTab === t) return;
+        tabViews[renderedTab] = { scale, panX, panY };
+        renderedTab = t;
+        const v = tabViews[t];
+        if (v) { scale = v.scale; panX = v.panX; panY = v.panY; updateTransform(); } else fitView();
+      }
+
+      // Make `key` the active flow (not an edit: nothing to undo or save). `selectId` selects that step in it.
+      function switchTab(key, selectId) {
+        if (!chartData.flows || (key !== PARENT && !(key in chartData.tabNames))) return;
+        if (key !== curTab()) {
+          plugin.cancelInteraction();
+          plugin.clearSelection();
+          ui.closeConfirm();
+          syncActors();
+          const cur = curTab();
+          chartData.flows[cur] = { lanes: chartData.lanes, nodes: chartData.nodes, edges: chartData.edges };
+          if (chartData.notes) chartData.flows[cur].notes = chartData.notes;
+          const next = chartData.flows[key];
+          delete chartData.flows[key];
+          // the actors list is the one source of a lane's name, icon and colour
+          chartData.lanes = next.lanes.map(l => ({ ...chartData.actors.find(a => a.id === l.id), ...(l.height != null ? { height: l.height } : {}) }));
+          chartData.nodes = next.nodes;
+          chartData.edges = next.edges;
+          if (next.notes) chartData.notes = next.notes; else delete chartData.notes;
+          if (key === PARENT) delete chartData.tab; else chartData.tab = key;
+          render();
+        }
+        if (selectId && nodeById(selectId)) selectNode(selectId);
+      }
+
+      // A child flow's own lanes, steps and arrows go when its parent step does
+      function dropChildOf(ids) {
+        if (!chartData.flows || chartData.tab) return;
+        ids.filter(id => id in chartData.tabNames).forEach(id => { delete chartData.flows[id]; delete chartData.tabNames[id]; });
+        if (!Object.keys(chartData.tabNames).length) ['flows', 'actors', 'tabNames'].forEach(k => delete chartData[k]);
+      }
+      const laneUsedElsewhere = (laneId, inLanes) => !!chartData.flows && Object.values(chartData.flows).some(f => (inLanes ? f.lanes.some(l => l.id === laneId) : f.nodes.some(n => n.laneId === laneId)));
+
+      // After a direction change every parked flow is laid out again too (a step's x/y mean different things in each)
+      function layoutOtherFlows() {
+        Object.values(chartData.flows || {}).forEach(f => layoutFlow(f, chartData.direction));
+      }
+
+      // Visit every flow in turn (the export of all of them), then come back to the one the person was on
+      function eachTab(fn) {
+        const home = curTab();
+        tabKeys().forEach(key => { switchTab(key); fn(tabLabel(key)); });
+        switchTab(home);
+      }
+
+      // The subprocess step's + marker (top left, inside the box) becomes a button when the step has a child flow: opens its tab
+      function buildSubLink(node) {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'sub-open';
+        b.setAttribute('data-export-skip', '');
+        b.title = `Open the subprocess flow: ${chartData.tabNames[node.id]}`;
+        b.setAttribute('aria-label', b.title);
+                b.addEventListener('pointerdown', (e) => e.stopPropagation());   // never starts a node drag
+        b.addEventListener('click', (e) => { e.stopPropagation(); switchTab(node.id); });
+        return b;
+      }
+
+
+      // --- COLLAPSE TO SUBPROCESS / EXPAND (dock buttons) ---
+      // Collapse: a run of two or more steps (runOf: one way in, one way out, no loop-back across the boundary) moves into a
+      // new child flow and leaves one subprocess step in its place; the child gets a start pill, the run and one end pill.
+      // Expand does the reverse (the same wiring as `--extract --flat`, scripts/subprocess_flow.py flatten). Each is one edit.
+      // Only from the parent flow: a child cannot hold another (one level). Neither is offered while a connector is involved.
+      const btnCollapseSub = document.getElementById('btn-collapse-sub');
+      const btnExpandSub = document.getElementById('btn-expand-sub');
+      let subSeq = 0;
+      const subId = (prefix) => `${prefix}_${Date.now()}_${subSeq++}`;
+
+      function collapsibleRun() {
+        if (chartData.tab || selectedNodeIds.size < 2) return null;
+        const ids = [...selectedNodeIds];
+        if (ids.some(id => hasChild(id))) return null;
+        const run = runOf(ids);
+        return run && [...run.set].every(id => !isConnector(nodeById(id))) ? run : null;
+      }
+      const expandableId = () => {
+        const id = !chartData.tab && selectedNodeIds.size === 1 ? [...selectedNodeIds][0] : null;
+        return id && hasChild(id) ? id : null;
+      };
+      function updateSubButtons() {
+        if (btnCollapseSub) btnCollapseSub.hidden = !collapsibleRun();
+        if (btnExpandSub) btnExpandSub.hidden = !expandableId();
+      }
+
+      function collapseToSubprocess() {
+        const run = collapsibleRun();
+        if (!run) return;
+        syncActors();
+        const ids = run.set, entry = nodeById(run.entry), exit = nodeById(run.exit);
+        const id = subId('n'), name = 'New Subprocess';
+        const inner = chartData.edges.filter(e => ids.has(e.from) && ids.has(e.to));
+        const moved = chartData.nodes.filter(n => ids.has(n.id));
+        const notes = notesList();
+        const kidNotes = notes.filter(n => n.nodes.length && n.nodes.every(i => ids.has(i)));
+        const start = { id: subId('n'), laneId: entry.laneId, type: 'start', label: name };
+        const end = { id: subId('n'), laneId: exit.laneId, type: 'end', label: 'Subprocess Done' };
+        const kidNodes = [start, ...moved, end];
+        const kidEdges = [...inner, { id: subId('e'), from: start.id, to: entry.id, label: '' }, { id: subId('e'), from: exit.id, to: end.id, label: '' }];
+        // the parent: the run is replaced by one subprocess step, the arrows that entered and left it now meet that step
+        run.ins.forEach(e => { e.to = id; });
+        if (run.out) run.out.from = id;
+        chartData.nodes = chartData.nodes.filter(n => !ids.has(n.id)).concat({ id, laneId: entry.laneId, type: 'subprocess', label: name, x: entry.x, y: entry.y });
+        chartData.edges = chartData.edges.filter(e => !inner.includes(e));
+        if (kidNotes.length) { chartData.notes = notes.filter(n => !kidNotes.includes(n)); if (!chartData.notes.length) delete chartData.notes; }
+        const used = new Set(kidNodes.map(n => n.laneId));
+        if (!chartData.flows) { chartData.actors = chartData.lanes.map(withoutHeight); chartData.flows = {}; chartData.tabNames = {}; }
+        const flow = { lanes: chartData.lanes.filter(l => used.has(l.id)).map(withoutHeight), nodes: kidNodes, edges: kidEdges };
+        if (kidNotes.length) flow.notes = kidNotes;
+        chartData.flows[id] = flow;
+        chartData.tabNames[id] = name;
+        layoutFlow(flow, chartData.direction);
+        // a lane that only the child still uses leaves the parent (as it would on reload)
+        chartData.lanes = chartData.lanes.filter(l => chartData.nodes.some(n => n.laneId === l.id) || !used.has(l.id));
+        pruneNotes();
+        clearNodeSelection();
+        layoutDiagram(chartData);
+        render();
+        selectNode(id);
+        updateStatus(true);
+        // the new step is waiting for its name: its text opens for editing
+        const label = document.querySelector(`#node-${CSS.escape(id)} .node-label`);
+        if (label) label.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+      }
+
+      // A subprocess step added from Shapes: a child flow of its own, start pill -> one step -> end pill in the step's lane
+      function addEmptyChild(node) {
+        syncActors();
+        const start = { id: subId('n'), laneId: node.laneId, type: 'start', label: node.label };
+        const step = { id: subId('n'), laneId: node.laneId, type: 'task', label: 'New Step' };
+        const end = { id: subId('n'), laneId: node.laneId, type: 'end', label: 'Subprocess Done' };
+        const edges = [{ id: subId('e'), from: start.id, to: step.id, label: '' }, { id: subId('e'), from: step.id, to: end.id, label: '' }];
+        if (!chartData.flows) { chartData.actors = chartData.lanes.map(withoutHeight); chartData.flows = {}; chartData.tabNames = {}; }
+        const flow = { lanes: chartData.lanes.filter(l => l.id === node.laneId).map(withoutHeight), nodes: [start, step, end], edges };
+        chartData.flows[node.id] = flow;
+        chartData.tabNames[node.id] = node.label;
+        layoutFlow(flow, chartData.direction);
+      }
+
+      function expandSubprocess() {
+        const id = expandableId();
+        if (!id) return;
+        syncActors();
+        const kid = chartData.flows[id];
+        const starts = kid.nodes.filter(n => n.type === 'start'), ends = kid.nodes.filter(n => n.type === 'end');
+        if (starts.length !== 1) { flashHint('Expand needs the subprocess to have exactly one start pill.'); return; }
+        const letters = (nodes) => new Set(nodes.filter(isConnector).map(n => String(n.label || '').trim().toUpperCase()));
+        const clash = [...letters(kid.nodes)].find(l => letters(chartData.nodes).has(l));
+        if (clash) { flashHint(`Both flows use the connector ${clash}: rename one before expanding.`); return; }
+        const start = starts[0];
+        const edges = chartData.edges;
+        const outs = edges.filter(e => e.from === id);
+        let decision = null, branches = outs;
+        const next = outs.length === 1 ? nodeById(outs[0].to) : null;
+        if (next && next.type === 'decision') {
+          branches = edges.filter(e => e.from === next.id);
+          if (ends.length === branches.length && !edges.some(e => e.to === next.id && e.from !== id)) decision = next;
+        }
+        const drop = new Set([id, start.id]), dropEdges = new Set(), fresh = [];
+        const wire = (from, to, a, b) => fresh.push({ id: subId('e'), from, to, label: a.label || b.label || '', ...(a.feedback ? { feedback: true } : {}) });
+        let kidEdges = kid.edges.slice();
+        const first = kidEdges.filter(e => e.from === start.id);
+        edges.filter(e => e.to === id).forEach(ie => first.forEach(f => wire(ie.from, f.to, ie, f)));
+        if (outs.length) {
+          let target;
+          if (decision) {
+            const map = endToBranch(ends, branches);
+            target = (end) => (map[end.id] ? [map[end.id]] : []);
+            drop.add(decision.id);
+            branches.forEach(b => dropEdges.add(b.id));
+          } else target = () => outs;
+          ends.forEach(end => {
+            drop.add(end.id);
+            kidEdges.filter(e => e.to === end.id).forEach(ie => target(end).forEach(t => wire(ie.from, t.to, ie, t)));
+          });
+          kidEdges = kidEdges.filter(e => !ends.some(end => end.id === e.to));
+        }
+        kidEdges = kidEdges.filter(e => e.from !== start.id);
+        const relink = first.length ? first[0].to : null;
+        notesList().forEach(n => { n.nodes = n.nodes.map(i => (i === id ? relink : i)).filter(Boolean); });
+        // the child's lanes that the parent lacks come in, in the order of the one actor list
+        const at = (laneId) => chartData.actors.findIndex(a => a.id === laneId);
+        kid.lanes.forEach(l => {
+          if (chartData.lanes.some(x => x.id === l.id)) return;
+          let pos = chartData.lanes.findIndex(x => at(x.id) > at(l.id));
+          if (pos < 0) pos = chartData.lanes.length;
+          chartData.lanes.splice(pos, 0, withoutHeight(chartData.actors.find(a => a.id === l.id) || l));
+        });
+        chartData.nodes = chartData.nodes.filter(n => !drop.has(n.id)).concat(kid.nodes.filter(n => !drop.has(n.id)));
+        chartData.edges = edges.filter(e => !drop.has(e.from) && !drop.has(e.to) && !dropEdges.has(e.id)).concat(kidEdges, fresh);
+        if (kid.notes && kid.notes.length) chartData.notes = notesList().concat(kid.notes);
+        dropChildOf([id]);
+        pruneConnectors();
+        pruneNotes();
+        clearNodeSelection();
+        layoutDiagram(chartData);
+        render();
+        updateStatus(true);
+      }
+
+      // Which branch of the decision after a subprocess each of the child's end pills stands for: by the same name, then by a
+      // branch word inside the end's name ("Approved" in "Specification Approved"), then Yes/No by wording (not, fail, reject,
+      // decline, cancel... is the No), then by position. Mirrors _end_to_branch in scripts/subprocess_flow.py.
+      function endToBranch(ends, branches) {
+        const lab = (x) => String(x || '').trim().toLowerCase();
+        const left = branches.slice(), out = {};
+        const take = (end, b) => { out[end.id] = b; left.splice(left.indexOf(b), 1); };
+        ends.forEach(end => { const b = left.find(x => lab(x.label) === lab(end.label)); if (b) take(end, b); });
+        ends.filter(e => !out[e.id]).forEach(end => { const b = left.find(x => lab(x.label) && lab(end.label).includes(lab(x.label))); if (b) take(end, b); });
+        const rest = ends.filter(e => !out[e.id]);
+        const yes = left.find(b => lab(b.label) === 'yes'), no = left.find(b => lab(b.label) === 'no');
+        if (rest.length === 2 && left.length === 2 && yes && no) {
+          const NO_WORDS = /\b(not|no|fail|failed|reject|rejected|declin\w*|cancel\w*|denied|invalid|incomplete|unable|refused)\b/i;
+          const neg = rest.filter(e => NO_WORDS.test(String(e.label || '')));
+          const n = neg.length === 1 ? neg[0] : rest[1];
+          out[n.id] = no;
+          out[rest.find(e => e !== n).id] = yes;
+        } else rest.forEach((e, i) => { if (left[i]) out[e.id] = left[i]; });
+        return out;
+      }
+
+      // The tab of a subprocess step is named like the step, and so is its start pill (the contract of the parent and the child)
+      function syncChildName(node) {
+        if (!hasChild(node.id) || !node.label) return;
+        chartData.tabNames[node.id] = node.label;
+        const start = chartData.flows[node.id].nodes.find(n => n.type === 'start');
+        if (start) start.label = node.label;
+        renderTabs();
+      }
+      if (btnCollapseSub) btnCollapseSub.addEventListener('click', collapseToSubprocess);
+      if (btnExpandSub) btnExpandSub.addEventListener('click', expandSubprocess);
+
 
       // --- REGISTER WITH THE SHELL ---
       registerDiagramPlugin({
@@ -4772,6 +5188,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         contentEl: swimlanesContainer,
         report: { node: '.flow-node', label: '.edge-label', labelText: '.edge-label-text', nodeText: '.node-label' },
         render,
+        eachTab,
         isBackground: (el) => (isPresenting() && !!el.closest('.flow-node:not(.type-connector)')) || el.id === 'swimlanes-container' || el.classList.contains('lane-track') || el.classList.contains('lane-gutter'),
         clearSelection() {
           clearNodeSelection();

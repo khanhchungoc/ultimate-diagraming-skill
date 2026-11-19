@@ -61,7 +61,8 @@ try {
     return t.ev(`window.__clip[0]`);
   };
   const openImport = async () => {
-    await t.clickOn('#btn-import-mermaid');
+    await t.clickOn('#btn-more');
+    await t.clickOn('#menu-import-mermaid');
     await sleep(100);
   };
   // Opens the bubble, types the text into its box and presses Import; returns the error text ('' when none)
@@ -78,7 +79,8 @@ try {
   for (const [kind, file] of Object.entries(pages)) {
     const E = EDIT[kind];
     await t.open(file);
-    t.check(`${kind}: the toolbar offers Paste Mermaid`, await t.ev(`!document.getElementById('btn-import-mermaid').hidden`));
+    t.check(`${kind}: the More menu offers Paste Mermaid`, await t.ev(`(document.getElementById('btn-more').click(), !document.getElementById('menu-import-mermaid').hidden && !document.getElementById('more-menu').hidden)`));
+    await t.ev(`document.getElementById('btn-more').click()`);
     const base = await save();
     const text = await copyText();
     t.check(`${kind}: Copy as Mermaid wrote the diagram's own type`, new RegExp(kind === 'erd' ? 'erDiagram' : kind === 'sequence' ? 'sequenceDiagram' : 'flowchart').test(text), text.slice(0, 40));

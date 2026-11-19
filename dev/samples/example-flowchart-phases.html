@@ -488,6 +488,7 @@
       flex-wrap: wrap;
       justify-content: center;
     }
+    .toolbar-zoom { gap: 2px; }
     .toolbar-zoom { grid-column: 1; grid-row: 1; justify-self: start; }
     .toolbar-center .btn,
     .toolbar-zoom .btn { border-color: transparent; }
@@ -498,6 +499,9 @@
     /* Larger icons on the edit dock's own buttons (not the caret, not the bubble's tiles) */
     .toolbar-center > .btn > svg:first-child,
     .dock-pop-trigger > svg:first-child { width: var(--icon-lg); height: var(--icon-lg); }
+    /* The zoom dock is narrower: square 28px buttons */
+    .toolbar-zoom > .btn { width: 28px; height: 28px; padding: 0; justify-content: center; }
+    .toolbar-zoom > .btn:disabled, .toolbar-zoom > .btn:disabled:hover { background: transparent; }
     .toolbar-center .btn:hover,
     .toolbar-zoom .btn:hover { border-color: var(--border-dark); }
     .dock-sep {
@@ -506,6 +510,7 @@
       margin: 4px 2px;
       background: var(--border-color);
     }
+    .toolbar-zoom .dock-sep { margin: 4px 3px; }
 
     /* Dock popover (e.g. the flowchart's Shapes): a bubble that blows up from the trigger, above it.
        Generic: any [data-dock-pop] wrapper with a .dock-pop-trigger and a .dock-pop holding a .dock-pop-grid.
@@ -647,9 +652,9 @@
       pointer-events: none;
     }
     #zoom-level {
-      font-size: var(--text-md);
+      font-size: var(--text-sm);
       font-weight: var(--weight-semibold);
-      width: 45px;
+      width: 38px;
       text-align: center;
       color: var(--text-main);
       font-variant-numeric: tabular-nums;
@@ -678,6 +683,7 @@
       border-radius: var(--radius-2xl);
     }
     .badge-status {
+      display: inline-block; max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;   /* "Saved to <long file name>" */
       background: var(--bg-soft);
       color: var(--text-soft);
     }
@@ -826,11 +832,15 @@
       background: var(--bg-panel); border: 1px solid var(--menu-border); border-radius: var(--radius-lg);
       box-shadow: var(--shadow-lg); padding: 4px; display: flex; flex-direction: column;
     }
+    .menu-left { left: 0; right: auto; }   /* opens to the right of a button at the left edge (the playground type menu) */
     .menu[hidden] { display: none; }
     .menu button {
       background: none; border: 0; text-align: left; padding: 7px 10px; border-radius: var(--radius-md);
       font: inherit; font-size: var(--t-control-size); color: var(--text, inherit); cursor: pointer;
     }
+    .menu button kbd { float: right; margin-left: 24px; font: inherit; font-size: var(--text-xs); color: var(--text-muted); }
+    .menu button[role="menuitemcheckbox"]::after { content: "¹3"; float: right; margin-left: 24px; visibility: hidden; }
+    .menu button[role="menuitemcheckbox"][aria-checked="true"]::after { visibility: visible; }
     .menu button:hover, .menu button:focus-visible { background: var(--bg-hover); outline: none; }
     .menu button[hidden] { display: none; }
     .menu-label {
@@ -873,6 +883,14 @@
     .confirm-error { color: var(--danger); font-weight: var(--weight-regular); }
     .confirm-list { margin: 0 0 12px; padding-left: 18px; max-height: 200px; overflow: auto; color: var(--text-soft); }
     .confirm-list li { margin-bottom: 4px; overflow-wrap: anywhere; }
+
+    /* Save location: the first Save of a file opened from disk copies and shows where that file lives, to paste into the
+       browser's Save dialog (shell.js askSaveLocation). */
+    .save-where {
+      display: block; margin-bottom: 12px; padding: 6px 8px; overflow-wrap: anywhere; user-select: all;
+      font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-main); background: var(--bg-page);
+      border: 1px solid var(--border-color); border-radius: var(--radius-md);
+    }
     /* Note: extra detail kept off the diagram so labels stay short. A neutral slate paper card with a bracket edge (the
        classic flowchart annotation, which has no colour of its own), joined to what it explains by a dashed leader.
        Neutral on purpose: every hue on the canvas already means something (gold decision, green start, blue selection,
@@ -1260,7 +1278,22 @@
       align-items: center;
       gap: 10px;
     }
-    .toolbar-left > svg { flex: none; color: var(--primary); }   /* the type's header icon */
+    .toolbar-left > svg, .type-switch svg { flex: none; color: var(--primary); }   /* the type's header icon */
+    /* Header buttons: icon-only 36px squares, borderless until hovered or focused; Save keeps its label */
+    header .btn-icon {
+      width: 36px; height: 36px; padding: 0;
+      justify-content: center;
+      border-color: transparent;
+      background: transparent;
+    }
+    header .btn-icon:hover, header .btn-icon:focus-visible, header .btn-icon[aria-expanded="true"] {
+      background: var(--bg-hover);
+      border-color: var(--border-dark);
+    }
+    header .btn-icon:disabled, header .btn-icon:disabled:hover { background: transparent; border-color: transparent; }
+    header .btn-icon svg, #btn-save svg { width: var(--icon-lg); height: var(--icon-lg); }
+    #btn-save { height: 36px; }
+    .toolbar-sep { width: 1px; height: 20px; background: var(--border-color); flex: none; }
 
     .app-title-container {
       display: flex;
@@ -1399,12 +1432,12 @@
     body.presentation .toolbar-center,
     body.presentation .toolbar-left,
     body.presentation .menu-wrap,
-    body.presentation #btn-import-mermaid,
+    body.presentation #btn-more,
     body.presentation #btn-save,
-    body.presentation #btn-help,
+    body.presentation .toolbar-sep,
     body.presentation #btn-undo,
     body.presentation #btn-redo,
-    body.presentation #btn-theme,
+    body.presentation .toolbar-zoom .dock-sep,
     body.presentation #btn-search,
     body.presentation #search-bar,
     body.presentation #help-drawer { display: none !important; }
@@ -1421,7 +1454,6 @@
       .toolbar-left { min-width: 0; flex: 1 1 auto; }
       .toolbar-right { gap: 6px; flex: none; }
       .btn-label { display: none; }
-      #btn-help { display: none; }   /* keyboard shortcuts mean little on a phone; frees room for the title */
       #help-drawer { right: 12px; bottom: 120px; }
     }
     @media (prefers-reduced-motion: reduce) {
@@ -1768,7 +1800,8 @@
       position: relative;
       z-index: 2;
     }
-    .flow-node.type-subprocess { padding: 4px 16px; }            /* clear of the two bars */
+    .flow-node.type-subprocess { padding: 4px 20px; }            /* clear of the + marker */
+    .flow-node.type-subprocess.has-child .shape-outline .sub-mark { stroke: var(--primary); }
     .flow-node.type-io         { padding: 4px 16px; }            /* clear of the slanted sides */
     .flow-node.type-document   { padding: 3px 8px 11px; }        /* centred above the wave */
     .flow-node.type-database   { padding: 15px 10px 5px; }       /* below the top rim */
@@ -2177,6 +2210,47 @@
     /* Top-to-bottom: the pill is centred on its column (see pinLaneHeaders), wrapped names too, and so in exports */
     #swimlanes-container.dir-tb .lane-pill { text-align: center; }
     body.exporting #swimlanes-container.dir-tb .lane-pill { transform: translate(var(--pill-cx, 12px), 12px) !important; }
+
+    /* Subprocess flows: folder tabs hanging from the header (renderTabs). The outer box is the main flow: its own tab, then an
+       inner box holding one tab per subprocess. The top edge is open, so each box reads as hanging from the header. It floats
+       over the canvas (fitView leaves room for it through [data-overlay-top]). Active flow: bold and a 2px primary mark. */
+    .flow-tabs, .flow-subtabs {
+      display: flex; align-items: flex-start; gap: 4px; padding: 0 6px 6px;
+      background: var(--bg-panel); border: 1.5px solid var(--border-dark); border-top: 0;
+      border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+    }
+    .flow-tabs {
+      position: fixed; top: 56px; left: 16px; z-index: 120; max-width: calc(100vw - 32px); overflow-x: auto;
+      box-shadow: var(--shadow-md);
+    }
+    .flow-tabs[hidden] { display: none; }
+    .flow-subtabs { min-width: 0; }
+    .flow-tab {
+      flex: none; display: inline-flex; align-items: center; height: 28px; max-width: 180px; padding: 0 10px; box-sizing: border-box;
+      background: none; border: 0; border-bottom: 2px solid transparent; border-radius: 0 0 var(--radius-md) var(--radius-md);
+      font: inherit; font-size: var(--text-md); color: var(--text-soft); cursor: pointer;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .flow-tab:hover { background: var(--bg-hover); color: var(--text-main); }
+    .flow-tab:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+    .flow-tab[aria-selected="true"] { font-weight: var(--weight-bold); color: var(--text-main); border-bottom-color: var(--primary); }
+    body.presentation .flow-tabs { top: 12px; }
+    body.capture .flow-tabs { display: none; }
+    /* Over the + marker drawn in the outline (SHAPE_OUTLINES): a transparent hit area that tints on hover */
+    .sub-open {
+      position: absolute;
+      top: 4px; left: 4px;
+      z-index: 3;
+      width: 18px; height: 18px;
+      padding: 0;
+      border: none;
+      border-radius: 6px;
+      background: transparent;
+      cursor: pointer;
+      transition: background var(--ease);
+    }
+    .sub-open:hover { background: var(--primary-wash); }
+    .btn-sub[hidden] { display: none; }
   </style>
 </head>
 <body>
@@ -2195,28 +2269,29 @@
       <button id="btn-search" class="btn btn-icon" title="Search (Ctrl+F or /)" aria-label="Search" aria-expanded="false" aria-controls="search-bar" hidden>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
       </button>
-      <button id="btn-undo" class="btn btn-icon" title="Undo (Ctrl+Z)" aria-label="Undo" disabled>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>
-      </button>
-      <button id="btn-redo" class="btn btn-icon" title="Redo (Ctrl+Y / Ctrl+Shift+Z)" aria-label="Redo" disabled>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg>
-      </button>
-      <button id="btn-theme" class="btn btn-icon" title="Switch to dark mode" aria-label="Switch to dark mode"></button>
-      <button id="btn-help" class="btn btn-icon" title="Keyboard shortcuts" aria-label="Keyboard shortcuts" aria-expanded="false" aria-controls="help-drawer">?</button>
-      <button id="btn-present" class="btn" title="Present: a read-only view (Esc exits)" aria-label="Present" aria-pressed="false">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="20" height="14" x="2" y="3" rx="2"/><path d="M10 8l5 3-5 3z"/><path d="M8 21h8M12 17v4"/></svg><span class="btn-label">Present</span>
-      </button>
-      <button id="btn-import-mermaid" class="btn" title="Paste Mermaid text to replace the diagram" aria-label="Paste Mermaid" hidden>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg><span class="btn-label">Paste Mermaid</span>
+      <div class="menu-wrap">
+        <button id="btn-more" class="btn btn-icon" title="More" aria-label="More" aria-haspopup="menu" aria-expanded="false">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+        </button>
+        <div id="more-menu" class="menu" role="menu" hidden>
+          <button type="button" id="menu-import-mermaid" role="menuitem" hidden>Paste Mermaid…</button>
+          <button type="button" id="menu-theme" role="menuitemcheckbox" aria-checked="false">Dark mode</button>
+          <button type="button" id="menu-help" role="menuitem">Keyboard shortcuts<kbd>?</kbd></button>
+        </div>
+      </div>
+      <span class="toolbar-sep" aria-hidden="true"></span>
+      <button id="btn-present" class="btn btn-icon" title="Present: a read-only view (Esc exits)" aria-label="Present" aria-pressed="false">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="20" height="14" x="2" y="3" rx="2"/><path d="M10 8l5 3-5 3z"/><path d="M8 21h8M12 17v4"/></svg>
       </button>
       <div class="menu-wrap">
-        <button id="btn-export" class="btn" title="Download or copy the diagram as an image" aria-label="Export" aria-haspopup="menu" aria-expanded="false">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg><span class="btn-label">Export</span>
+        <button id="btn-export" class="btn btn-icon" title="Export: download or copy the diagram as an image" aria-label="Export" aria-haspopup="menu" aria-expanded="false">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         </button>
         <div id="export-menu" class="menu" role="menu" hidden>
           <div class="menu-label" role="presentation">Download</div>
           <button type="button" role="menuitem" data-export="svg">SVG image</button>
           <button type="button" role="menuitem" data-export="png">PNG image (1.5x)</button>
+          <button type="button" role="menuitem" data-export="svg-all" hidden>SVG images, every tab</button>
           <div class="menu-label" role="presentation" data-copy-label>Copy</div>
           <button type="button" role="menuitem" data-copy="mermaid">Mermaid</button>
           <button type="button" role="menuitem" data-copy="svg">SVG (text)</button>
@@ -2275,7 +2350,7 @@
             <div class="dock-pop-heading" aria-hidden="true">Classic</div>
             <div class="dock-pop-grid" role="group" aria-label="Classic">
               <button id="btn-add-subprocess" class="btn btn-shape" data-node-type="subprocess" title="Subprocess: a process documented elsewhere (click, or drag onto the canvas or onto an arrow)" aria-label="Subprocess">
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="1"/><path class="tile-line" d="M5.5 6v12M18.5 6v12"/></svg><span class="tile-caption">Subprocess</span>
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="2.5"/><path class="tile-line" d="M6 8.5h1a1.5 1.5 0 0 1 1.5 1.5v1a1.5 1.5 0 0 1-1.5 1.5h-1a1.5 1.5 0 0 1-1.5-1.5v-1a1.5 1.5 0 0 1 1.5-1.5zM6.5 9.5v2M5.5 10.5h2"/></svg><span class="tile-caption">Subprocess</span>
               </button>
               <button id="btn-add-io" class="btn btn-shape" data-node-type="io" title="Data (input or output; click, or drag onto the canvas or onto an arrow)" aria-label="Data">
                 <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6h16l-4 12H2z"/></svg><span class="tile-caption">Data</span>
@@ -2308,6 +2383,13 @@
       <button id="btn-notes" class="btn" title="Show all notes" aria-label="Notes" aria-pressed="false">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15.5 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8.5z"/><path d="M15 3v5a1 1 0 0 0 1 1h5"/><path d="M7 13h7"/><path d="M7 17h4"/></svg><span class="btn-label">Notes</span><span class="btn-count" hidden></span>
       </button>
+      <!-- Shown by updateSubButtons (flowchart.js) when the selection can be moved into a subprocess, or is one -->
+      <button id="btn-collapse-sub" class="btn btn-sub" title="Move the selected steps into a subprocess flow of their own" aria-label="Collapse to subprocess" hidden>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 2 10 5-10 5L2 7z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></svg><span class="btn-label">Collapse</span>
+      </button>
+      <button id="btn-expand-sub" class="btn btn-sub" title="Put this subprocess flow back in place of the step" aria-label="Expand subprocess" hidden>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 2 10 5-10 5L2 7z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></svg><span class="btn-label">Expand</span>
+      </button>
       <button id="btn-direction"class="btn" data-dock-group="layout" title="Switch to a top-to-bottom layout" aria-label="Vertical">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v18"/><path d="m7 16 5 5 5-5"/></svg><span class="btn-label">Vertical</span>
       </button>
@@ -2327,7 +2409,14 @@
   </div>
 
   <!-- Zoom controls: floating in the bottom-left corner of the viewport -->
-  <div class="toolbar-zoom" role="group" aria-label="Zoom">
+  <div class="toolbar-zoom" role="group" aria-label="View">
+    <button id="btn-undo" class="btn btn-icon" title="Undo (Ctrl+Z)" aria-label="Undo" disabled>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>
+    </button>
+    <button id="btn-redo" class="btn btn-icon" title="Redo (Ctrl+Y / Ctrl+Shift+Z)" aria-label="Redo" disabled>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg>
+    </button>
+    <span class="dock-sep" aria-hidden="true"></span>
     <button id="btn-zoom-out" class="btn btn-icon" title="Zoom out" aria-label="Zoom out">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/></svg>
     </button>
@@ -2335,11 +2424,14 @@
     <button id="btn-zoom-in" class="btn btn-icon" title="Zoom in" aria-label="Zoom in">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
     </button>
-    <button id="btn-zoom-reset" class="btn" title="Fit to screen">Fit</button>
+    <button id="btn-zoom-reset" class="btn btn-icon" title="Fit to screen" aria-label="Fit to screen">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/></svg>
+    </button>
   </div>
   </div>
 
-  <!-- No extra page chrome: connecting an arrow shows no banner, so the canvas never shifts -->
+  <!-- The flow tabs: shown only when the diagram has subprocess flows (renderTabs in flowchart.js). A connecting arrow shows no banner, so the canvas never shifts -->
+  <div id="flow-tabs" class="flow-tabs" role="tablist" aria-label="Flows" data-overlay-top hidden></div>
 
 
   <!-- Viewport for Pan and Zoom -->
@@ -2411,6 +2503,8 @@
       <li><kbd>Link a Note</kbd> : One note can explain several steps. Select the note, then drag its link handle (bottom-right corner) onto a step, or <kbd>Shift</kbd>+click the step; do the same on a linked step to unlink it</li>
       <li><kbd>Note Badge</kbd> : A step with a note shows a small badge: hover the badge (or the step) to peek at the note, click it to edit</li>
       <li><kbd>Notes</kbd> : Show or hide every note at once; they are fitted into the gaps between steps (saved with the file). Drag a note to place it yourself: it then follows its step. Double-click to edit, <kbd>Delete</kbd> removes the selected note</li>
+      <li><kbd>Subprocess Tabs</kbd> : A large flow can be split into subprocess flows, one tab each (the folder tabs under the header: Main flow, with its subprocesses inside). A Subprocess added from <b>Shapes</b> on the main flow gets its own tab (start, one step, end) to fill in. A subprocess step is a step with a + in its top-left corner; when it has a flow, the + turns blue: click it, or the tab, to open it; the <b>Main flow</b> tab goes back to the step. A lane is one actor in every tab: rename or recolour it anywhere. Each tab keeps its own zoom and Tidy; Export takes the tab on screen, or every tab as its own SVG</li>
+      <li><kbd>Collapse / Expand</kbd> : Select two or more steps in one run (one way in, one way out, no loop-back across the edge) and click <b>Collapse</b> to move them into a new subprocess flow, named by typing; select a subprocess step and click <b>Expand</b> to put its flow back in place. Both are one undo step</li>
       <li><kbd>Vertical / Horizontal</kbd> : Switch between a left-to-right and a top-to-bottom layout (lanes become columns); saved with the file</li>
       <li><kbd>Show lanes</kbd> : In a diagram drawn without swimlanes, the Lane button reads Show lanes and turns them back on (name the actor, then add more lanes)</li>
       <li><kbd>Drag Lane Name</kbd> : Drag a lane's name pill to reorder swimlanes (a blue line shows where it will land), or use the move buttons in its bar; double-click the name to rename</li>
@@ -2418,7 +2512,8 @@
       <li><kbd>Ctrl</kbd> + <kbd>S</kbd> : Save changes directly into HTML</li>
       <li><kbd>Ctrl</kbd> + <kbd>F</kbd> or <kbd>/</kbd> : Search the diagram's text. <kbd>Enter</kbd> / <kbd>Shift</kbd> + <kbd>Enter</kbd> (or the arrow buttons) go to the next / previous match, <kbd>Esc</kbd> closes the search</li>
       <li><b>Export</b> (top right): download the whole diagram as an SVG or a 1.5x PNG, or copy it to the clipboard as a 1.5x PNG</li>
-      <li><kbd>Ctrl</kbd> + <kbd>Z</kbd> / <kbd>Ctrl</kbd> + <kbd>Y</kbd> : Undo / redo the last edit (also <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Z</kbd>)</li>
+      <li><kbd>Ctrl</kbd> + <kbd>Z</kbd> / <kbd>Ctrl</kbd> + <kbd>Y</kbd> : Undo / redo the last edit (also <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Z</kbd>), or the buttons at the bottom left</li>
+      <li><b>More</b> (<b>&#8943;</b>, top right) : <b>Paste Mermaid</b> (replace the diagram from Mermaid text; <kbd>Ctrl</kbd> + <kbd>V</kbd> on the canvas does the same), <b>Dark mode</b>, and this list of shortcuts (<kbd>?</kbd>)</li>
       <li><b>Present</b> (top right) or <kbd>?present</kbd> in the URL : a read-only view with only the zoom controls. Pan, zoom, hover and click still work; <kbd>Esc</kbd> or the Present button exits</li>
       <li><kbd>Drag Canvas</kbd> : Pan viewport</li>
       <li><kbd>Scroll Wheel</kbd> : Scroll the canvas up / down (<kbd>Shift</kbd> + wheel: left / right)</li>
@@ -2433,7 +2528,7 @@
       'use strict';
 
 const TOKENS = {"palette":[{"slot":"1","name":"sky","hex":"#e0f2fe","light":{"soft":"#b9e5ff","strong":"#2f7da8","ink":"#00436a","solid":"#005c8b","on-solid":"#ffffff"},"dark":{"soft":"#194259","strong":"#69b4e2","ink":"#c6eaff","solid":"#93d4fd","on-solid":"#0f172a"}},{"slot":"2","name":"amber","hex":"#fef3c7","light":{"soft":"#ecdeaa","strong":"#907100","ink":"#513a00","solid":"#6f5100","on-solid":"#ffffff"},"dark":{"soft":"#483c06","strong":"#c6a92a","ink":"#f0e5b8","solid":"#e2ca6a","on-solid":"#0f172a"}},{"slot":"3","name":"emerald","hex":"#dcfce7","light":{"soft":"#b9edcb","strong":"#008d4e","ink":"#004e20","solid":"#006c2f","on-solid":"#ffffff"},"dark":{"soft":"#17482e","strong":"#50c586","ink":"#c5f1d5","solid":"#84e2ab","on-solid":"#0f172a"}},{"slot":"4","name":"rose","hex":"#fee2e2","light":{"soft":"#ffcccd","strong":"#b15259","ink":"#6e1724","solid":"#932a37","on-solid":"#ffffff"},"dark":{"soft":"#5c2d2f","strong":"#ee898e","ink":"#ffd5d6","solid":"#ffaeb0","on-solid":"#0f172a"}},{"slot":"5","name":"purple","hex":"#f3e8ff","light":{"soft":"#ead2ff","strong":"#895db0","ink":"#4e276d","solid":"#6b3893","on-solid":"#ffffff"},"dark":{"soft":"#47325a","strong":"#c194eb","ink":"#efdbff","solid":"#deb7ff","on-solid":"#0f172a"}},{"slot":"6","name":"orange","hex":"#ffedd5","light":{"soft":"#fad8ab","strong":"#a66400","ink":"#602f00","solid":"#834300","on-solid":"#ffffff"},"dark":{"soft":"#523709","strong":"#de9c31","ink":"#fde0b9","solid":"#f8bf6c","on-solid":"#0f172a"}},{"slot":"7","name":"teal","hex":"#ccfbf1","light":{"soft":"#aaeee0","strong":"#008f79","ink":"#004f40","solid":"#006d5a","on-solid":"#ffffff"},"dark":{"soft":"#00493f","strong":"#00c7af","ink":"#b9f2e7","solid":"#60e4cf","on-solid":"#0f172a"}},{"slot":"8","name":"indigo","hex":"#e0e7ff","light":{"soft":"#cedcff","strong":"#5b6cc2","ink":"#2a347b","solid":"#3c49a7","on-solid":"#ffffff"},"dark":{"soft":"#313a62","strong":"#8fa4ff","ink":"#d7e3ff","solid":"#b1c5ff","on-solid":"#0f172a"}},{"slot":"9","name":"neutral","light":{"soft":"#e2e8f0","strong":"#64748b","ink":"#334155","solid":"#475569","on-solid":"#ffffff"},"dark":{"soft":"#243049","strong":"#94a3b8","ink":"#e2e8f0","solid":"#cbd5e1","on-solid":"#0f172a"}}],"font":{"metrics":{"label":7.4,"title":7.4,"detail":6.4,"note":6.2,"type":6.6,"edgeLabel":7,"edgeWrap":6.6}},"motion":{"ease":"0.15s ease"},"type":{"fitMin":"11px","fitMinOverview":"9px"},"icon":{"set":"default","size":{"xs":10,"sm":12,"md":14,"lg":18,"xl":22,"tile":32},"stroke":2,"strokeFine":1.75,"strokeBold":2.5,"cap":"round","join":"round"}};
-const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><circle cx=\"12\" cy=\"7\" r=\"4\"/>","users":"<path d=\"M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2\"/><circle cx=\"9\" cy=\"7\" r=\"4\"/><path d=\"M22 21v-2a4 4 0 0 0-3-3.87\"/><path d=\"M16 3.13a4 4 0 0 1 0 7.75\"/>","briefcase":"<rect width=\"20\" height=\"14\" x=\"2\" y=\"7\" rx=\"2\"/><path d=\"M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16\"/>","building":"<rect width=\"16\" height=\"20\" x=\"4\" y=\"2\" rx=\"2\"/><path d=\"M9 22v-4h6v4\"/><path d=\"M8 6h.01M12 6h.01M16 6h.01M8 10h.01M12 10h.01M16 10h.01M8 14h.01M12 14h.01M16 14h.01\"/>","headset":"<path d=\"M3 14v-2a9 9 0 0 1 18 0v2\"/><path d=\"M21 16a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 16a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z\"/><path d=\"M21 17v1a4 4 0 0 1-4 4h-4\"/>","monitor":"<rect width=\"20\" height=\"14\" x=\"2\" y=\"3\" rx=\"2\"/><path d=\"M8 21h8M12 17v4\"/>","code":"<polyline points=\"16 18 22 12 16 6\"/><polyline points=\"8 6 2 12 8 18\"/>","server":"<rect width=\"20\" height=\"8\" x=\"2\" y=\"2\" rx=\"2\"/><rect width=\"20\" height=\"8\" x=\"2\" y=\"14\" rx=\"2\"/><path d=\"M6 6h.01M6 18h.01\"/>","database":"<ellipse cx=\"12\" cy=\"5\" rx=\"9\" ry=\"3\"/><path d=\"M3 5v14a9 3 0 0 0 18 0V5\"/><path d=\"M3 12a9 3 0 0 0 18 0\"/>","cloud":"<path d=\"M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z\"/>","cpu":"<rect width=\"16\" height=\"16\" x=\"4\" y=\"4\" rx=\"2\"/><rect width=\"6\" height=\"6\" x=\"9\" y=\"9\" rx=\"1\"/><path d=\"M15 2v2M15 20v2M9 2v2M9 20v2M2 15h2M2 9h2M20 15h2M20 9h2\"/>","cog":"<circle cx=\"12\" cy=\"12\" r=\"3\"/><path d=\"M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12\"/>","shield":"<path d=\"M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z\"/>","scale":"<path d=\"m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z\"/><path d=\"m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z\"/><path d=\"M7 21h10M12 3v18M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2\"/>","banknote":"<rect width=\"20\" height=\"12\" x=\"2\" y=\"6\" rx=\"2\"/><circle cx=\"12\" cy=\"12\" r=\"2\"/><path d=\"M6 12h.01M18 12h.01\"/>","credit-card":"<rect width=\"20\" height=\"14\" x=\"2\" y=\"5\" rx=\"2\"/><path d=\"M2 10h20\"/>","mail":"<rect width=\"20\" height=\"16\" x=\"2\" y=\"4\" rx=\"2\"/><path d=\"m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7\"/>","package":"<path d=\"m7.5 4.27 9 5.15\"/><path d=\"M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z\"/><path d=\"m3.3 7 8.7 5 8.7-5M12 22V12\"/>","truck":"<path d=\"M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2\"/><path d=\"M15 18H9\"/><path d=\"M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14\"/><circle cx=\"17\" cy=\"18\" r=\"2\"/><circle cx=\"7\" cy=\"18\" r=\"2\"/>","cart":"<circle cx=\"8\" cy=\"21\" r=\"1\"/><circle cx=\"19\" cy=\"21\" r=\"1\"/><path d=\"M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12\"/>","clipboard":"<rect width=\"8\" height=\"4\" x=\"8\" y=\"2\" rx=\"1\"/><path d=\"M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2\"/><path d=\"M9 12h6M9 16h4\"/>","check":"<path d=\"M22 11.08V12a10 10 0 1 1-5.93-9.14\"/><path d=\"m9 11 3 3L22 4\"/>","layers":"<path d=\"m12 2 10 5-10 5L2 7z\"/><path d=\"m2 17 10 5 10-5\"/><path d=\"m2 12 10 5 10-5\"/>","globe":"<circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"M2 12h20\"/><path d=\"M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z\"/>","flag":"<path d=\"M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z\"/><path d=\"M4 22v-7\"/>","undo":"<path d=\"M9 14 4 9l5-5\"/><path d=\"M4 9h10.5a5.5 5.5 0 0 1 0 11H11\"/>","redo":"<path d=\"m15 14 5-5-5-5\"/><path d=\"M20 9H9.5a5.5 5.5 0 0 0 0 11H13\"/>","export":"<path d=\"M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4\"/><polyline points=\"7 10 12 15 17 10\"/><line x1=\"12\" y1=\"15\" x2=\"12\" y2=\"3\"/>","save":"<path d=\"M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z\"/><polyline points=\"17 21 17 13 7 13 7 21\"/><polyline points=\"7 3 7 8 15 8\"/>","trash":"<path d=\"M3 6h18\"/><path d=\"M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2\"/><path d=\"M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6\"/><path d=\"M10 11v6\"/><path d=\"M14 11v6\"/>","tidy":"<path d=\"m21.64 3.64-1.28-1.28a1.21 1.21 0 0 0-1.72 0L2.36 18.64a1.21 1.21 0 0 0 0 1.72l1.28 1.28a1.2 1.2 0 0 0 1.72 0L21.64 5.36a1.2 1.2 0 0 0 0-1.72\"/><path d=\"m14 7 3 3\"/><path d=\"M5 6v4\"/><path d=\"M19 14v4\"/><path d=\"M10 2v2\"/><path d=\"M7 8H3\"/><path d=\"M21 16h-4\"/><path d=\"M11 3H9\"/>","minus":"<path d=\"M5 12h14\"/>","plus":"<path d=\"M5 12h14\"/><path d=\"M12 5v14\"/>","close":"<path d=\"M18 6 6 18\"/><path d=\"m6 6 12 12\"/>","sun":"<circle cx=\"12\" cy=\"12\" r=\"4\"/><path d=\"M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41\"/>","moon":"<path d=\"M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z\"/>","key":"<circle cx=\"7.5\" cy=\"15.5\" r=\"5\"/><path d=\"m21 2-9.6 9.6\"/><path d=\"m15.5 7.5 3 3L22 7l-3-3\"/>","link":"<path d=\"M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71\"/><path d=\"M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71\"/>","chevron-down":"<path d=\"m6 9 6 6 6-6\"/>","note-lines":"<path d=\"M5 7h14\"/><path d=\"M5 12h14\"/><path d=\"M5 17h9\"/>","type-erd":"<rect x=\"2.5\" y=\"3\" width=\"10\" height=\"8\" rx=\"1.5\"/><path d=\"M2.5 6.5h10\"/><rect x=\"11.5\" y=\"13\" width=\"10\" height=\"8\" rx=\"1.5\"/><path d=\"M11.5 16.5h10\"/><path d=\"M7.5 11v4.5h4\"/>","table-add":"<rect x=\"3\" y=\"4\" width=\"18\" height=\"16\" rx=\"2\"/><path d=\"M3 10h18\"/><path d=\"M8 15h8\"/>","relationship":"<path d=\"M3 12h9\"/><path d=\"m12 12 8-5\"/><path d=\"M12 12h8\"/><path d=\"m12 12 8 5\"/><path d=\"M6.5 8v8\"/>","note":"<path d=\"M4 4h16v11l-5 5H4z\"/><path d=\"M20 15h-5v5\"/><path d=\"M8 9h8M8 13h5\"/>","columns":"<rect x=\"3\" y=\"3\" width=\"18\" height=\"18\" rx=\"2\"/><path d=\"M3 9h18\"/><path d=\"M3 15h18\"/>","types":"<path d=\"M4 7V5h16v2\"/><path d=\"M12 5v14\"/><path d=\"M9 19h6\"/>","notes":"<path d=\"M15.5 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8.5z\"/><path d=\"M15 3v5a1 1 0 0 0 1 1h5\"/><path d=\"M7 13h7\"/><path d=\"M7 17h4\"/>","grip":"<circle cx=\"9\" cy=\"6\" r=\"1.6\" fill=\"currentColor\" stroke=\"none\"/><circle cx=\"15\" cy=\"6\" r=\"1.6\" fill=\"currentColor\" stroke=\"none\"/><circle cx=\"9\" cy=\"12\" r=\"1.6\" fill=\"currentColor\" stroke=\"none\"/><circle cx=\"15\" cy=\"12\" r=\"1.6\" fill=\"currentColor\" stroke=\"none\"/><circle cx=\"9\" cy=\"18\" r=\"1.6\" fill=\"currentColor\" stroke=\"none\"/><circle cx=\"15\" cy=\"18\" r=\"1.6\" fill=\"currentColor\" stroke=\"none\"/>","split":"<path d=\"M2 12h4\"/><circle cx=\"9\" cy=\"12\" r=\"3\"/><circle cx=\"15\" cy=\"12\" r=\"3\"/><path d=\"M18 12h4\"/>","type-flowchart":"<rect width=\"18\" height=\"18\" x=\"3\" y=\"3\" rx=\"2\"/><path d=\"M3 9h18\"/><path d=\"M3 15h18\"/><path d=\"M9 3v18\"/>","shapes":"<rect x=\"3\" y=\"13\" width=\"8\" height=\"8\" rx=\"1.5\"/><circle cx=\"17\" cy=\"17\" r=\"4\"/><path d=\"M12 3 7.5 10h9z\"/>","chevron-up":"<path d=\"m6 15 6-6 6 6\"/>","shape-terminator":"<rect x=\"2\" y=\"7\" width=\"20\" height=\"10\" rx=\"5\"/>","shape-process":"<rect x=\"3\" y=\"6\" width=\"18\" height=\"12\" rx=\"2.5\"/>","shape-decision":"<path d=\"M12 3 2 12l10 9 10-9z\"/>","shape-connector":"<path class=\"tile-line\" d=\"M0.5 12H2M22 12h1.5\"/><path class=\"tile-line tile-gap\" d=\"M10.5 12h3\" stroke-dasharray=\"1 2\"/><circle cx=\"6\" cy=\"12\" r=\"4\"/><circle cx=\"18\" cy=\"12\" r=\"4\"/>","shape-subprocess":"<rect x=\"2\" y=\"6\" width=\"20\" height=\"12\" rx=\"1\"/><path class=\"tile-line\" d=\"M5.5 6v12M18.5 6v12\"/>","shape-data":"<path d=\"M6 6h16l-4 12H2z\"/>","shape-document":"<path d=\"M3 5h18v11c-3-1.6-6-1.6-9 0s-6 1.6-9 0z\"/>","shape-database":"<path d=\"M4 6.5a8 2.5 0 0 1 16 0v11a8 2.5 0 0 1-16 0z\"/><path class=\"tile-line\" d=\"M4 6.5a8 2.5 0 0 0 16 0\"/>","shape-delay":"<path d=\"M3 6h11a6 6 0 0 1 0 12H3z\"/>","shape-note":"<path class=\"note-paper\" d=\"M4 5h16v10l-5 5H4z\"/><path class=\"note-fold\" d=\"M20 15h-5v5\"/><path class=\"note-lines\" d=\"M7.5 9.5h9M7.5 13h6\"/>","lane":"<rect x=\"3\" y=\"4\" width=\"18\" height=\"16\" rx=\"2\"/><path d=\"M3 12h18\"/>","direction-tb":"<path d=\"M12 3v18\"/><path d=\"m7 16 5 5 5-5\"/>","type-sequence":"<rect x=\"3\" y=\"3\" width=\"6\" height=\"4\" rx=\"1\"/><rect x=\"15\" y=\"3\" width=\"6\" height=\"4\" rx=\"1\"/><path d=\"M6 7v14M18 7v14\"/><path d=\"M6 12h12\"/><path d=\"m15 10 3 2-3 2\"/>","focus":"<circle cx=\"12\" cy=\"12\" r=\"8\"/><circle cx=\"12\" cy=\"12\" r=\"2.5\" fill=\"currentColor\"/>","participant":"<rect x=\"4\" y=\"3\" width=\"16\" height=\"6\" rx=\"1.5\"/><path d=\"M12 9v12\" stroke-dasharray=\"3 3\"/>","message":"<path d=\"M4 12h16\"/><path d=\"m14 6 6 6-6 6\"/>","frame":"<rect x=\"3\" y=\"4\" width=\"18\" height=\"16\" rx=\"2\"/><path d=\"M3 9h8V4\"/>","numbers":"<path d=\"M10 6h11M10 12h11M10 18h11\"/><path d=\"M4 6h1v4\"/><path d=\"M4 10h2\"/><path d=\"M6 18H4c0-1 2-2 2-3s-1-1.5-2-1\"/>","message-return":"<path d=\"M4 9h16\"/><path d=\"m16 5 4 4-4 4\"/><path d=\"M6 17h10\" stroke-dasharray=\"2 3\"/>","lifespans":"<path d=\"M6 3h12\"/><path d=\"M12 3v14\" stroke-dasharray=\"3 3\"/><path d=\"M8 21h8\"/>","eye":"<path d=\"M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z\"/><circle cx=\"12\" cy=\"12\" r=\"3\"/>","direction-lr":"<path d=\"M3 12h18\"/><path d=\"m16 7 5 5-5 5\"/>","reverse":"<path d=\"M4 8h16\"/><path d=\"m16 4 4 4-4 4\"/><path d=\"M20 16H4\"/><path d=\"m8 12-4 4 4 4\"/>","label":"<path d=\"M4 7h16\"/><path d=\"M4 12h10\"/><path d=\"M4 17h6\"/>","line-dashed":"<path d=\"M3 12h4\"/><path d=\"M10 12h4\"/><path d=\"M17 12h4\"/>","line-solid":"<path d=\"M3 12h18\"/>","message-async":"<path d=\"M3 12h16\"/><path d=\"m14 7 6 5-6 5\"/>","reply":"<path d=\"M9 14 4 9l5-5\"/><path d=\"M4 9h10a6 6 0 0 1 0 12h-3\"/>","kind-system":"<rect x=\"4\" y=\"6\" width=\"16\" height=\"12\" rx=\"2\"/>","kind-ui":"<rect x=\"3\" y=\"4\" width=\"18\" height=\"12\" rx=\"2\"/><path d=\"M8 20h8M12 16v4\"/>","kind-database":"<ellipse cx=\"12\" cy=\"5\" rx=\"8\" ry=\"3\"/><path d=\"M4 5v14c0 1.66 3.58 3 8 3s8-1.34 8-3V5\"/><path d=\"M4 12c0 1.66 3.58 3 8 3s8-1.34 8-3\"/>","kind-queue":"<path d=\"M6 6h12a3 6 0 0 1 0 12H6a3 6 0 0 1 0-12z\"/><path d=\"M18 6a3 6 0 0 0 0 12\"/>","kind-external":"<circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18\"/>","actor":"<circle cx=\"12\" cy=\"5\" r=\"3\"/><path d=\"M12 8v7\"/><path d=\"M5 11h14\"/><path d=\"m12 15-5 6\"/><path d=\"m12 15 5 6\"/>","type-usecase":"<circle cx=\"4.5\" cy=\"6.5\" r=\"1.8\"/><path d=\"M4.5 8.3v4.7M2 10.5h5M4.5 13l-2 4.5M4.5 13l2 4.5\"/><ellipse cx=\"15.5\" cy=\"12\" rx=\"6.5\" ry=\"4.5\"/><path d=\"M7.4 10.6 9 11\"/>","usecase":"<ellipse cx=\"12\" cy=\"12\" rx=\"10\" ry=\"6.5\"/>","subject":"<rect x=\"2.5\" y=\"3\" width=\"19\" height=\"18\" rx=\"2\"/><path d=\"M2.5 8h19\"/><ellipse cx=\"12\" cy=\"14.5\" rx=\"5.5\" ry=\"3\"/>","clock":"<circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"M12 6v6l4 2\"/>","present":"<rect width=\"20\" height=\"14\" x=\"2\" y=\"3\" rx=\"2\"/><path d=\"M10 8l5 3-5 3z\"/><path d=\"M8 21h8M12 17v4\"/>","search":"<circle cx=\"11\" cy=\"11\" r=\"8\"/><path d=\"m21 21-4.3-4.3\"/>","hash":"<path d=\"M4 9h16M4 15h16M10 3 8 21M16 3l-2 18\"/>"};
+const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><circle cx=\"12\" cy=\"7\" r=\"4\"/>","users":"<path d=\"M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2\"/><circle cx=\"9\" cy=\"7\" r=\"4\"/><path d=\"M22 21v-2a4 4 0 0 0-3-3.87\"/><path d=\"M16 3.13a4 4 0 0 1 0 7.75\"/>","briefcase":"<rect width=\"20\" height=\"14\" x=\"2\" y=\"7\" rx=\"2\"/><path d=\"M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16\"/>","building":"<rect width=\"16\" height=\"20\" x=\"4\" y=\"2\" rx=\"2\"/><path d=\"M9 22v-4h6v4\"/><path d=\"M8 6h.01M12 6h.01M16 6h.01M8 10h.01M12 10h.01M16 10h.01M8 14h.01M12 14h.01M16 14h.01\"/>","headset":"<path d=\"M3 14v-2a9 9 0 0 1 18 0v2\"/><path d=\"M21 16a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 16a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z\"/><path d=\"M21 17v1a4 4 0 0 1-4 4h-4\"/>","monitor":"<rect width=\"20\" height=\"14\" x=\"2\" y=\"3\" rx=\"2\"/><path d=\"M8 21h8M12 17v4\"/>","code":"<polyline points=\"16 18 22 12 16 6\"/><polyline points=\"8 6 2 12 8 18\"/>","server":"<rect width=\"20\" height=\"8\" x=\"2\" y=\"2\" rx=\"2\"/><rect width=\"20\" height=\"8\" x=\"2\" y=\"14\" rx=\"2\"/><path d=\"M6 6h.01M6 18h.01\"/>","database":"<ellipse cx=\"12\" cy=\"5\" rx=\"9\" ry=\"3\"/><path d=\"M3 5v14a9 3 0 0 0 18 0V5\"/><path d=\"M3 12a9 3 0 0 0 18 0\"/>","cloud":"<path d=\"M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z\"/>","cpu":"<rect width=\"16\" height=\"16\" x=\"4\" y=\"4\" rx=\"2\"/><rect width=\"6\" height=\"6\" x=\"9\" y=\"9\" rx=\"1\"/><path d=\"M15 2v2M15 20v2M9 2v2M9 20v2M2 15h2M2 9h2M20 15h2M20 9h2\"/>","cog":"<circle cx=\"12\" cy=\"12\" r=\"3\"/><path d=\"M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12\"/>","shield":"<path d=\"M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z\"/>","scale":"<path d=\"m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z\"/><path d=\"m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z\"/><path d=\"M7 21h10M12 3v18M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2\"/>","banknote":"<rect width=\"20\" height=\"12\" x=\"2\" y=\"6\" rx=\"2\"/><circle cx=\"12\" cy=\"12\" r=\"2\"/><path d=\"M6 12h.01M18 12h.01\"/>","credit-card":"<rect width=\"20\" height=\"14\" x=\"2\" y=\"5\" rx=\"2\"/><path d=\"M2 10h20\"/>","mail":"<rect width=\"20\" height=\"16\" x=\"2\" y=\"4\" rx=\"2\"/><path d=\"m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7\"/>","package":"<path d=\"m7.5 4.27 9 5.15\"/><path d=\"M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z\"/><path d=\"m3.3 7 8.7 5 8.7-5M12 22V12\"/>","truck":"<path d=\"M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2\"/><path d=\"M15 18H9\"/><path d=\"M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14\"/><circle cx=\"17\" cy=\"18\" r=\"2\"/><circle cx=\"7\" cy=\"18\" r=\"2\"/>","cart":"<circle cx=\"8\" cy=\"21\" r=\"1\"/><circle cx=\"19\" cy=\"21\" r=\"1\"/><path d=\"M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12\"/>","clipboard":"<rect width=\"8\" height=\"4\" x=\"8\" y=\"2\" rx=\"1\"/><path d=\"M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2\"/><path d=\"M9 12h6M9 16h4\"/>","check":"<path d=\"M22 11.08V12a10 10 0 1 1-5.93-9.14\"/><path d=\"m9 11 3 3L22 4\"/>","layers":"<path d=\"m12 2 10 5-10 5L2 7z\"/><path d=\"m2 17 10 5 10-5\"/><path d=\"m2 12 10 5 10-5\"/>","globe":"<circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"M2 12h20\"/><path d=\"M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z\"/>","flag":"<path d=\"M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z\"/><path d=\"M4 22v-7\"/>","undo":"<path d=\"M9 14 4 9l5-5\"/><path d=\"M4 9h10.5a5.5 5.5 0 0 1 0 11H11\"/>","redo":"<path d=\"m15 14 5-5-5-5\"/><path d=\"M20 9H9.5a5.5 5.5 0 0 0 0 11H13\"/>","export":"<path d=\"M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4\"/><polyline points=\"7 10 12 15 17 10\"/><line x1=\"12\" y1=\"15\" x2=\"12\" y2=\"3\"/>","save":"<path d=\"M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z\"/><polyline points=\"17 21 17 13 7 13 7 21\"/><polyline points=\"7 3 7 8 15 8\"/>","trash":"<path d=\"M3 6h18\"/><path d=\"M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2\"/><path d=\"M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6\"/><path d=\"M10 11v6\"/><path d=\"M14 11v6\"/>","tidy":"<path d=\"m21.64 3.64-1.28-1.28a1.21 1.21 0 0 0-1.72 0L2.36 18.64a1.21 1.21 0 0 0 0 1.72l1.28 1.28a1.2 1.2 0 0 0 1.72 0L21.64 5.36a1.2 1.2 0 0 0 0-1.72\"/><path d=\"m14 7 3 3\"/><path d=\"M5 6v4\"/><path d=\"M19 14v4\"/><path d=\"M10 2v2\"/><path d=\"M7 8H3\"/><path d=\"M21 16h-4\"/><path d=\"M11 3H9\"/>","minus":"<path d=\"M5 12h14\"/>","plus":"<path d=\"M5 12h14\"/><path d=\"M12 5v14\"/>","close":"<path d=\"M18 6 6 18\"/><path d=\"m6 6 12 12\"/>","more":"<circle cx=\"12\" cy=\"12\" r=\"1\"/><circle cx=\"19\" cy=\"12\" r=\"1\"/><circle cx=\"5\" cy=\"12\" r=\"1\"/>","fit":"<path d=\"M3 7V5a2 2 0 0 1 2-2h2\"/><path d=\"M17 3h2a2 2 0 0 1 2 2v2\"/><path d=\"M21 17v2a2 2 0 0 1-2 2h-2\"/><path d=\"M7 21H5a2 2 0 0 1-2-2v-2\"/>","sun":"<circle cx=\"12\" cy=\"12\" r=\"4\"/><path d=\"M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41\"/>","moon":"<path d=\"M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z\"/>","key":"<circle cx=\"7.5\" cy=\"15.5\" r=\"5\"/><path d=\"m21 2-9.6 9.6\"/><path d=\"m15.5 7.5 3 3L22 7l-3-3\"/>","link":"<path d=\"M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71\"/><path d=\"M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71\"/>","chevron-down":"<path d=\"m6 9 6 6 6-6\"/>","note-lines":"<path d=\"M5 7h14\"/><path d=\"M5 12h14\"/><path d=\"M5 17h9\"/>","type-erd":"<rect x=\"2.5\" y=\"3\" width=\"10\" height=\"8\" rx=\"1.5\"/><path d=\"M2.5 6.5h10\"/><rect x=\"11.5\" y=\"13\" width=\"10\" height=\"8\" rx=\"1.5\"/><path d=\"M11.5 16.5h10\"/><path d=\"M7.5 11v4.5h4\"/>","table-add":"<rect x=\"3\" y=\"4\" width=\"18\" height=\"16\" rx=\"2\"/><path d=\"M3 10h18\"/><path d=\"M8 15h8\"/>","relationship":"<path d=\"M3 12h9\"/><path d=\"m12 12 8-5\"/><path d=\"M12 12h8\"/><path d=\"m12 12 8 5\"/><path d=\"M6.5 8v8\"/>","note":"<path d=\"M4 4h16v11l-5 5H4z\"/><path d=\"M20 15h-5v5\"/><path d=\"M8 9h8M8 13h5\"/>","columns":"<rect x=\"3\" y=\"3\" width=\"18\" height=\"18\" rx=\"2\"/><path d=\"M3 9h18\"/><path d=\"M3 15h18\"/>","types":"<path d=\"M4 7V5h16v2\"/><path d=\"M12 5v14\"/><path d=\"M9 19h6\"/>","notes":"<path d=\"M15.5 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8.5z\"/><path d=\"M15 3v5a1 1 0 0 0 1 1h5\"/><path d=\"M7 13h7\"/><path d=\"M7 17h4\"/>","grip":"<circle cx=\"9\" cy=\"6\" r=\"1.6\" fill=\"currentColor\" stroke=\"none\"/><circle cx=\"15\" cy=\"6\" r=\"1.6\" fill=\"currentColor\" stroke=\"none\"/><circle cx=\"9\" cy=\"12\" r=\"1.6\" fill=\"currentColor\" stroke=\"none\"/><circle cx=\"15\" cy=\"12\" r=\"1.6\" fill=\"currentColor\" stroke=\"none\"/><circle cx=\"9\" cy=\"18\" r=\"1.6\" fill=\"currentColor\" stroke=\"none\"/><circle cx=\"15\" cy=\"18\" r=\"1.6\" fill=\"currentColor\" stroke=\"none\"/>","split":"<path d=\"M2 12h4\"/><circle cx=\"9\" cy=\"12\" r=\"3\"/><circle cx=\"15\" cy=\"12\" r=\"3\"/><path d=\"M18 12h4\"/>","type-flowchart":"<rect width=\"18\" height=\"18\" x=\"3\" y=\"3\" rx=\"2\"/><path d=\"M3 9h18\"/><path d=\"M3 15h18\"/><path d=\"M9 3v18\"/>","shapes":"<rect x=\"3\" y=\"13\" width=\"8\" height=\"8\" rx=\"1.5\"/><circle cx=\"17\" cy=\"17\" r=\"4\"/><path d=\"M12 3 7.5 10h9z\"/>","chevron-up":"<path d=\"m6 15 6-6 6 6\"/>","shape-terminator":"<rect x=\"2\" y=\"7\" width=\"20\" height=\"10\" rx=\"5\"/>","shape-process":"<rect x=\"3\" y=\"6\" width=\"18\" height=\"12\" rx=\"2.5\"/>","shape-decision":"<path d=\"M12 3 2 12l10 9 10-9z\"/>","shape-connector":"<path class=\"tile-line\" d=\"M0.5 12H2M22 12h1.5\"/><path class=\"tile-line tile-gap\" d=\"M10.5 12h3\" stroke-dasharray=\"1 2\"/><circle cx=\"6\" cy=\"12\" r=\"4\"/><circle cx=\"18\" cy=\"12\" r=\"4\"/>","shape-subprocess":"<rect x=\"2\" y=\"6\" width=\"20\" height=\"12\" rx=\"2.5\"/><path class=\"tile-line\" d=\"M6 8.5h1a1.5 1.5 0 0 1 1.5 1.5v1a1.5 1.5 0 0 1-1.5 1.5h-1a1.5 1.5 0 0 1-1.5-1.5v-1a1.5 1.5 0 0 1 1.5-1.5zM6.5 9.5v2M5.5 10.5h2\"/>","shape-data":"<path d=\"M6 6h16l-4 12H2z\"/>","shape-document":"<path d=\"M3 5h18v11c-3-1.6-6-1.6-9 0s-6 1.6-9 0z\"/>","shape-database":"<path d=\"M4 6.5a8 2.5 0 0 1 16 0v11a8 2.5 0 0 1-16 0z\"/><path class=\"tile-line\" d=\"M4 6.5a8 2.5 0 0 0 16 0\"/>","shape-delay":"<path d=\"M3 6h11a6 6 0 0 1 0 12H3z\"/>","shape-note":"<path class=\"note-paper\" d=\"M4 5h16v10l-5 5H4z\"/><path class=\"note-fold\" d=\"M20 15h-5v5\"/><path class=\"note-lines\" d=\"M7.5 9.5h9M7.5 13h6\"/>","lane":"<rect x=\"3\" y=\"4\" width=\"18\" height=\"16\" rx=\"2\"/><path d=\"M3 12h18\"/>","direction-tb":"<path d=\"M12 3v18\"/><path d=\"m7 16 5 5 5-5\"/>","type-sequence":"<rect x=\"3\" y=\"3\" width=\"6\" height=\"4\" rx=\"1\"/><rect x=\"15\" y=\"3\" width=\"6\" height=\"4\" rx=\"1\"/><path d=\"M6 7v14M18 7v14\"/><path d=\"M6 12h12\"/><path d=\"m15 10 3 2-3 2\"/>","focus":"<circle cx=\"12\" cy=\"12\" r=\"8\"/><circle cx=\"12\" cy=\"12\" r=\"2.5\" fill=\"currentColor\"/>","participant":"<rect x=\"4\" y=\"3\" width=\"16\" height=\"6\" rx=\"1.5\"/><path d=\"M12 9v12\" stroke-dasharray=\"3 3\"/>","message":"<path d=\"M4 12h16\"/><path d=\"m14 6 6 6-6 6\"/>","frame":"<rect x=\"3\" y=\"4\" width=\"18\" height=\"16\" rx=\"2\"/><path d=\"M3 9h8V4\"/>","numbers":"<path d=\"M10 6h11M10 12h11M10 18h11\"/><path d=\"M4 6h1v4\"/><path d=\"M4 10h2\"/><path d=\"M6 18H4c0-1 2-2 2-3s-1-1.5-2-1\"/>","message-return":"<path d=\"M4 9h16\"/><path d=\"m16 5 4 4-4 4\"/><path d=\"M6 17h10\" stroke-dasharray=\"2 3\"/>","lifespans":"<path d=\"M6 3h12\"/><path d=\"M12 3v14\" stroke-dasharray=\"3 3\"/><path d=\"M8 21h8\"/>","eye":"<path d=\"M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z\"/><circle cx=\"12\" cy=\"12\" r=\"3\"/>","direction-lr":"<path d=\"M3 12h18\"/><path d=\"m16 7 5 5-5 5\"/>","reverse":"<path d=\"M4 8h16\"/><path d=\"m16 4 4 4-4 4\"/><path d=\"M20 16H4\"/><path d=\"m8 12-4 4 4 4\"/>","label":"<path d=\"M4 7h16\"/><path d=\"M4 12h10\"/><path d=\"M4 17h6\"/>","line-dashed":"<path d=\"M3 12h4\"/><path d=\"M10 12h4\"/><path d=\"M17 12h4\"/>","line-solid":"<path d=\"M3 12h18\"/>","message-async":"<path d=\"M3 12h16\"/><path d=\"m14 7 6 5-6 5\"/>","reply":"<path d=\"M9 14 4 9l5-5\"/><path d=\"M4 9h10a6 6 0 0 1 0 12h-3\"/>","kind-system":"<rect x=\"4\" y=\"6\" width=\"16\" height=\"12\" rx=\"2\"/>","kind-ui":"<rect x=\"3\" y=\"4\" width=\"18\" height=\"12\" rx=\"2\"/><path d=\"M8 20h8M12 16v4\"/>","kind-database":"<ellipse cx=\"12\" cy=\"5\" rx=\"8\" ry=\"3\"/><path d=\"M4 5v14c0 1.66 3.58 3 8 3s8-1.34 8-3V5\"/><path d=\"M4 12c0 1.66 3.58 3 8 3s8-1.34 8-3\"/>","kind-queue":"<path d=\"M6 6h12a3 6 0 0 1 0 12H6a3 6 0 0 1 0-12z\"/><path d=\"M18 6a3 6 0 0 0 0 12\"/>","kind-external":"<circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18\"/>","actor":"<circle cx=\"12\" cy=\"5\" r=\"3\"/><path d=\"M12 8v7\"/><path d=\"M5 11h14\"/><path d=\"m12 15-5 6\"/><path d=\"m12 15 5 6\"/>","type-usecase":"<circle cx=\"4.5\" cy=\"6.5\" r=\"1.8\"/><path d=\"M4.5 8.3v4.7M2 10.5h5M4.5 13l-2 4.5M4.5 13l2 4.5\"/><ellipse cx=\"15.5\" cy=\"12\" rx=\"6.5\" ry=\"4.5\"/><path d=\"M7.4 10.6 9 11\"/>","usecase":"<ellipse cx=\"12\" cy=\"12\" rx=\"10\" ry=\"6.5\"/>","subject":"<rect x=\"2.5\" y=\"3\" width=\"19\" height=\"18\" rx=\"2\"/><path d=\"M2.5 8h19\"/><ellipse cx=\"12\" cy=\"14.5\" rx=\"5.5\" ry=\"3\"/>","clock":"<circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"M12 6v6l4 2\"/>","present":"<rect width=\"20\" height=\"14\" x=\"2\" y=\"3\" rx=\"2\"/><path d=\"M10 8l5 3-5 3z\"/><path d=\"M8 21h8M12 17v4\"/>","search":"<circle cx=\"11\" cy=\"11\" r=\"8\"/><path d=\"m21 21-4.3-4.3\"/>","hash":"<path d=\"M4 9h16M4 15h16M10 3 8 21M16 3l-2 18\"/>"};
 // --- PLUGIN INTERFACE ---
       // A diagram type registers itself once with registerDiagramPlugin({...}). The shell never touches
       // type internals; it only calls these members:
@@ -2551,7 +2646,8 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
         function onConfirmOutside(e) { if (confirmEl && !confirmEl.contains(e.target)) closeConfirm(); }
         // Ask before a delete: a bubble under `anchor` (a DOM element; above it when there is no room below; the upper middle
         // of the window when null), kept on screen. opts: { message, title?, label (the dialog's aria-label), ok? (button text,
-        // "Delete") }. Escape, Cancel, a click elsewhere or a pan/zoom (the type calls closeConfirm) dismisses it.
+        // "Delete"), okClass? (the main button's style, "btn-danger"), extra? (a DOM node shown under the message) }.
+        // Escape, Cancel, a click elsewhere or a pan/zoom (the type calls closeConfirm) dismisses it.
         function confirm(anchor, opts, onYes) {
           closeConfirm();
           const box = document.createElement('div');
@@ -2562,12 +2658,13 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
           const add = (cls, text) => { const d = document.createElement('div'); d.className = cls; d.textContent = text; box.appendChild(d); };
           if (opts.title) add('confirm-title', opts.title);
           add('confirm-msg', opts.message);
+          if (opts.extra) box.appendChild(opts.extra);
           const row = document.createElement('div');
           row.className = 'confirm-actions';
           const button = (cls, text) => { const b = document.createElement('button'); b.type = 'button'; b.className = cls; b.textContent = text; return b; };
           const cancel = button('btn confirm-cancel', 'Cancel');
           cancel.addEventListener('click', () => closeConfirm());
-          const ok = button('btn btn-danger confirm-ok', opts.ok || 'Delete');
+          const ok = button(`btn ${opts.okClass || 'btn-danger'} confirm-ok`, opts.ok || 'Delete');
           ok.addEventListener('click', () => { closeConfirm(); onYes(); });
           row.append(cancel);
           // An optional milder second choice (opts.alt: { text, onClick }) between Cancel and the main action
@@ -2797,10 +2894,15 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
       }
       captureArtifactScaffold();
       // window.claude carries only use(); resolve namespaces through it, never read window.claude.<name>
+      // Playground pages (dev/build_playground.py): a <script id="playground"> in the body, {"type", "types": [{id, name}]}.
+      // Save downloads a standalone file and the header icon is a menu that goes to a blank page of another type.
+      const playground = (() => {
+        try { const el = document.getElementById('playground'); return el ? JSON.parse(el.textContent) : null; } catch (_) { return null; }
+      })();
       const claudeHost = artifactShaped && window.claude && typeof window.claude.use === 'function' ? window.claude : null;
       // null: a plain file; 'pending': use() has not answered yet; 'publish': Save publishes diagram.json;
       // 'view-only': the viewer cannot save (Save hidden, Export > HTML file offered)
-      let artifactMode = claudeHost ? 'pending' : null;
+      let artifactMode = claudeHost && !playground ? 'pending' : null;
       let artifactApi = null;
       let downloadsApi = null;
       let publishing = false;
@@ -2811,6 +2913,8 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
       let chartData = { title: "", direction: "LR", lanes: [], nodes: [], edges: [] };
       let fileHandle = null;
       let everSaved = false;
+      let storedName = '';   // the file a stored handle from an earlier visit points at (Save writes there once allowed)
+      let downloadToldOnce = false;
       let hasUnsavedChanges = false;
 
       // Undo / redo history: JSON snapshots of chartData, taken at each committed edit
@@ -2843,7 +2947,9 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
       const zoomLevelEl = document.getElementById('zoom-level');
       const btnUndo = document.getElementById('btn-undo');
       const btnRedo = document.getElementById('btn-redo');
-      const btnHelp = document.getElementById('btn-help');
+      const btnMore = document.getElementById('btn-more');
+      const moreMenu = document.getElementById('more-menu');
+      const menuHelp = document.getElementById('menu-help');
       const helpDrawer = document.getElementById('help-drawer');
 
       let dataReadme = null;   // the data block's "_readme" line (written by scripts/layout_engine.py assemble_page)
@@ -2996,18 +3102,30 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
           saveStatus.className = "badge badge-status saved";
           return;
         }
+        // Name the file Save writes to: the one chosen this visit, else the one remembered from an earlier visit
+        const target = fileHandle ? fileHandle.name : storedName;
         if (unsaved) {
           saveStatus.textContent = "Unsaved changes";
           saveStatus.className = "badge badge-status unsaved";
+          saveStatus.title = target ? `Save writes to ${target}` : '';
         } else if (fileHandle) {
-          saveStatus.textContent = "Saved to file";
+          saveStatus.textContent = `Saved to ${target}`;
           saveStatus.className = "badge badge-status saved";
+          saveStatus.title = `Save writes straight to ${target}`;
         } else if (everSaved) {
-          saveStatus.textContent = "Downloaded";
+          saveStatus.textContent = "Downloaded a copy";
           saveStatus.className = "badge badge-status saved";
+          saveStatus.title = location.protocol === 'file:'
+            ? 'The edited diagram went to your downloads folder. The file you opened was not changed.'
+            : 'The edited diagram went to your downloads folder.';
+        } else if (target) {
+          saveStatus.textContent = `Saves to ${target}`;
+          saveStatus.className = "badge badge-status";
+          saveStatus.title = `Save writes to ${target}. Your browser may ask once per session to let this page edit it.`;
         } else {
           saveStatus.textContent = "Ready";
           saveStatus.className = "badge badge-status";
+          saveStatus.title = '';
         }
       }
 
@@ -3079,18 +3197,13 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
 
       // --- THEME (light / dark) ---
       // Priority: ?theme=dark|light  >  saved choice (localStorage)  >  OS preference
-      const btnTheme = document.getElementById('btn-theme');
+      const menuTheme = document.getElementById('menu-theme');
       function currentTheme() {
         return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
       }
-      // The button shows the theme you would switch TO (stroke icons, same family as the other controls)
-      const ICON_SUN = ui.icon('sun'), ICON_MOON = ui.icon('moon');
       function applyTheme(theme, persist) {
         document.documentElement.setAttribute('data-theme', theme);
-        btnTheme.innerHTML = theme === 'dark' ? ICON_SUN : ICON_MOON;
-        const next = theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode';
-        btnTheme.title = next;
-        btnTheme.setAttribute('aria-label', next);
+        menuTheme.setAttribute('aria-checked', String(theme === 'dark'));
         if (persist) { try { localStorage.setItem('flowchart-theme', theme); } catch (e) {} }
         if (plugin) plugin.render();   // type colors may depend on the theme
       }
@@ -3104,7 +3217,7 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
         }
         applyTheme(theme, false);
       }
-      btnTheme.addEventListener('click', () => applyTheme(currentTheme() === 'dark' ? 'light' : 'dark', true));
+      menuTheme.addEventListener('click', () => applyTheme(currentTheme() === 'dark' ? 'light' : 'dark', true));
 
       // --- VIEWPORT PAN & ZOOM & FIT ---
       function updateTransform() {
@@ -3206,13 +3319,20 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
         const dock = document.querySelector('.dock-area');
         const dockRect = dock && getComputedStyle(dock).display !== 'none' ? dock.getBoundingClientRect() : null;
         const dockBand = dockRect && dockRect.height ? Math.max(0, vpRect.bottom - dockRect.top) : 0;
+        // Chrome floating over the top of the viewport (a type's [data-overlay-top], e.g. the flowchart's tab box): fit below it
+        let topBand = 0;
+        if (!capture) document.querySelectorAll('[data-overlay-top]').forEach((el) => {
+          if (el.hidden || getComputedStyle(el).display === 'none') return;
+          const r = el.getBoundingClientRect();
+          if (r.height) topBand = Math.max(topBand, r.bottom - vpRect.top);
+        });
         const scaleX = (vpRect.width - pad) / frame.w;
-        const scaleY = (vpRect.height - dockBand - pad) / frame.h;
-        return { vpRect, frame, capture, dockBand, scaleX, scaleY, minPan: capture ? 0 : 20 };
+        const scaleY = (vpRect.height - dockBand - topBand - pad) / frame.h;
+        return { vpRect, frame, capture, dockBand, topBand, scaleX, scaleY, minPan: capture ? 0 : 20 };
       }
 
       function fitView() {
-        const { vpRect, frame, capture, dockBand, scaleX, scaleY, minPan } = fitMetrics();
+        const { vpRect, frame, capture, dockBand, topBand, scaleX, scaleY, minPan } = fitMetrics();
 
         // Capture mode: scale to the exact width requested (?capture&w=1600) and pin to the top-left,
         // so the screenshot is the diagram only and does not depend on browser viewport quirks.
@@ -3229,7 +3349,7 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
 
         scale = Math.min(Math.max(Math.min(scaleX, scaleY), 0.25), 1.0);
         panX = Math.max(minPan, (vpRect.width - frame.w * scale) / 2) - frame.x * scale;
-        panY = Math.max(minPan, (vpRect.height - dockBand - frame.h * scale) / 2) - frame.y * scale;
+        panY = topBand + Math.max(minPan, (vpRect.height - dockBand - topBand - frame.h * scale) / 2) - frame.y * scale;
 
         updateTransform();
       }
@@ -3498,11 +3618,11 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
 
       function setHelpOpen(open) {
         helpDrawer.classList.toggle('open', open);
-        btnHelp.setAttribute('aria-expanded', String(open));
+        btnMore.setAttribute('aria-expanded', String(open || !moreMenu.hidden));
         if (open) document.getElementById('help-close').focus();
-        else if (helpDrawer.contains(document.activeElement)) btnHelp.focus();
+        else if (helpDrawer.contains(document.activeElement)) btnMore.focus();
       }
-      btnHelp.addEventListener('click', () => setHelpOpen(!helpDrawer.classList.contains('open')));
+      menuHelp.addEventListener('click', () => { setMoreOpen(false); setHelpOpen(!helpDrawer.classList.contains('open')); });
       document.getElementById('help-close').addEventListener('click', () => setHelpOpen(false));
 
       // --- SEARCH (spec: dev/plans/search.md) ---
@@ -3695,8 +3815,9 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
         }
       }
 
-      function exportFileName(ext) {
-        return ((chartData.title || plugin.id).toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '') || 'diagram') + '.' + ext;
+      function exportFileName(ext, part) {
+        const clean = (t) => String(t).toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '');
+        return (clean(chartData.title || plugin.id) || 'diagram') + (part && clean(part) ? '-' + clean(part) : '') + '.' + ext;
       }
 
       // Inside an artifact the page cannot start a download itself; the viewer confirms one through the downloads
@@ -3753,6 +3874,11 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
       function exportDiagram(format) {
         try {
           if (format === 'html') { downloadHtmlFile(); return; }
+          // One SVG per tab, for a type that has tabs (the flowchart's subprocess flows)
+          if (format === 'svg-all') {
+            plugin.eachTab(name => deliverFile(exportFileName('svg', name), new Blob([svgDocument(buildExportSvg().svg)], { type: 'image/svg+xml;charset=utf-8' })));
+            return;
+          }
           if (format === 'svg') {
             downloadBlob(new Blob([svgDocument(buildExportSvg().svg)], { type: 'image/svg+xml;charset=utf-8' }), 'svg');
             return;
@@ -3795,7 +3921,7 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
             job = navigator.clipboard.writeText(svgDocument(buildExportSvg().svg));
           } else if (format === 'mermaid') {
             if (typeof plugin.toMermaid !== 'function') throw new Error('this diagram type has no Mermaid export');
-            job = navigator.clipboard.writeText(plugin.toMermaid(mermaidData(), { palette: SWATCHES.map((w) => w.hex) }));
+            job = navigator.clipboard.writeText(plugin.toMermaid(mermaidData(), { palette: SWATCHES.map((w) => w.hex), stock: true }));
           } else if (format === 'png') {
             if (!canCopyPng) throw new Error('this browser cannot copy images');
             job = navigator.clipboard.write([new ClipboardItem({ 'image/png': exportPngBlob() })]);
@@ -3811,20 +3937,49 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
       document.querySelectorAll('[data-copy="png"]').forEach(el => { el.hidden = !canCopyPng; });
       document.querySelectorAll('[data-copy="svg"]').forEach(el => { el.hidden = !(navigator.clipboard && navigator.clipboard.writeText); });
       // Mermaid is offered only when the diagram type can read/write it (the type script registers after this one runs)
-      const btnImportMermaid = document.getElementById('btn-import-mermaid');
-      if (btnImportMermaid) btnImportMermaid.addEventListener('click', (e) => { e.stopPropagation(); setExportOpen(false); openMermaidImport(); });
+      const menuImportMermaid = document.getElementById('menu-import-mermaid');
+      menuImportMermaid.addEventListener('click', (e) => { e.stopPropagation(); setMoreOpen(false); setExportOpen(false); openMermaidImport(); });
       function syncCopyMenu() {
         document.querySelectorAll('[data-copy="mermaid"]').forEach(el => { el.hidden = !(plugin && typeof plugin.toMermaid === 'function' && navigator.clipboard && navigator.clipboard.writeText); });
-        if (btnImportMermaid) btnImportMermaid.hidden = !(plugin && typeof plugin.fromMermaid === 'function');
+        menuImportMermaid.hidden = !(plugin && typeof plugin.fromMermaid === 'function');
         // Drop the "Copy" heading when this browser has no copy items to offer
         document.querySelectorAll('[data-copy-label]').forEach(el => { el.hidden = !document.querySelector('[data-copy]:not([hidden])'); });
       }
       syncCopyMenu();
 
       function setExportOpen(open) {
+        if (open) setMoreOpen(false);
         exportMenu.hidden = !open;
         btnExport.setAttribute('aria-expanded', String(open));
       }
+      function setMoreOpen(open) {
+        if (open) setExportOpen(false);
+        moreMenu.hidden = !open;
+        btnMore.setAttribute('aria-expanded', String(open || helpDrawer.classList.contains('open')));
+      }
+      btnMore.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const opening = moreMenu.hidden;
+        setMoreOpen(opening);
+        // Opened from the keyboard (detail 0): focus the first item, as a menu button does
+        if (opening && e.detail === 0) { const first = [...moreMenu.querySelectorAll('[role^="menuitem"]')].find((el) => !el.hidden); if (first) first.focus(); }
+      });
+      // Arrow keys move between the visible items of whichever menu is open
+      function menuArrowKeys(menu, btn, close) {
+        const items = () => [...menu.querySelectorAll('[role^="menuitem"]')].filter((el) => !el.hidden);
+        const onKey = (e) => {
+          if (menu.hidden || (e.key !== 'ArrowDown' && e.key !== 'ArrowUp')) return;
+          const list = items();
+          if (!list.length) return;
+          e.preventDefault();
+          const i = list.indexOf(document.activeElement);
+          list[i < 0 ? (e.key === 'ArrowDown' ? 0 : list.length - 1) : (i + (e.key === 'ArrowDown' ? 1 : list.length - 1)) % list.length].focus();
+        };
+        menu.addEventListener('keydown', onKey);
+        btn.addEventListener('keydown', onKey);
+      }
+      menuArrowKeys(moreMenu, btnMore);
+      menuArrowKeys(exportMenu, btnExport);
       btnExport.addEventListener('click', (e) => { e.stopPropagation(); setExportOpen(exportMenu.hidden); });
       exportMenu.addEventListener('click', (e) => {
         const b = e.target.closest('[data-export], [data-copy]');
@@ -3833,11 +3988,15 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
         if (b.dataset.copy) copyDiagram(b.dataset.copy);
         else exportDiagram(b.dataset.export);
       });
-      document.addEventListener('click', () => setExportOpen(false));
-      window.addEventListener('keydown', (e) => { if (e.key === 'Escape') setExportOpen(false); });
+      document.addEventListener('click', () => { setExportOpen(false); setMoreOpen(false); });
+      window.addEventListener('keydown', (e) => {
+        if (e.key !== 'Escape') return;
+        if (!moreMenu.hidden && moreMenu.contains(document.activeElement)) btnMore.focus();
+        setExportOpen(false); setMoreOpen(false);
+      });
 
       // --- IMPORT MERMAID ---
-      // Toolbar Paste Mermaid button (#btn-import-mermaid) and canvas paste (Ctrl+V outside text fields): the text is read
+      // More menu's Paste Mermaid item (#menu-import-mermaid) and canvas paste (Ctrl+V outside text fields): the text is read
       // by the type's fromMermaid (mermaid.js) and replaces the diagram as one undo step, laid out fresh. What the reader
       // could not map exactly is listed afterwards, and text of another diagram type is refused.
       const MERMAID_TYPE_NAME = { flowchart: 'flowchart', usecase: 'use case diagram', sequence: 'sequence diagram', erd: 'ER diagram' };
@@ -3882,7 +4041,7 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
         return true;
       }
       function positionImportBox(box) {
-        const anchor = (btnImportMermaid && !btnImportMermaid.hidden ? btnImportMermaid : btnExport).getBoundingClientRect();
+        const anchor = btnMore.getBoundingClientRect();
         const bw = box.offsetWidth;
         box.style.left = `${Math.max(8, Math.min(anchor.right - bw, innerWidth - bw - 8))}px`;
         box.style.top = `${anchor.bottom + 8}px`;
@@ -4071,17 +4230,24 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
           req.onerror = () => reject(req.error);
         });
       }
-      async function loadStoredHandle() {
+      async function readStoredHandle() {
         try {
           const db = await handleDb();
-          const h = await new Promise((resolve, reject) => {
+          return await new Promise((resolve, reject) => {
             const r = db.transaction('handles').objectStore('handles').get(location.href);
             r.onsuccess = () => resolve(r.result || null);
             r.onerror = () => reject(r.error);
           });
+        } catch (_) { return null; }
+      }
+      async function loadStoredHandle() {
+        try {
+          const h = await readStoredHandle();
           if (!h) return null;
           const opts = { mode: 'readwrite' };
           if ((await h.queryPermission(opts)) === 'granted') return h;
+          // The browser forgets the permission when it closes: say why it asks before its prompt shows
+          showToast(`Your browser asks once per session to let this page edit ${h.name}.`);
           if ((await h.requestPermission(opts)) === 'granted') return h;
         } catch (_) {}
         return null;
@@ -4343,29 +4509,94 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
         }
       }
 
-      async function writeFile(replacedHtml) {
+      // The opened file's own location, when the page was opened from disk (file://): { file, folder, name, win }.
+      // Windows paths (file:///C:/... and UNC file://server/share/...) come back with backslashes.
+      function localFilePath() {
+        if (location.protocol !== 'file:') return null;
+        let p;
+        try { p = decodeURIComponent(location.pathname); } catch (_) { return null; }
+        const win = !!location.host || /^\/[A-Za-z]:\//.test(p);
+        if (location.host) p = '//' + location.host + p;
+        if (win) p = p.replace(/^\/(?=[A-Za-z]:)/, '').replace(/\//g, '\\');
+        const sep = win ? '\\' : '/';
+        const i = p.lastIndexOf(sep);
+        if (i < 0 || !/\.html?$/i.test(p)) return null;
+        return { file: p, folder: p.slice(0, i) || sep, name: p.slice(i + 1), win };
+      }
+
+      // Copy text from inside a click. The async clipboard first; the old execCommand route where it is missing.
+      function copyText(text) {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          return navigator.clipboard.writeText(text).then(() => true, () => false);
+        }
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.setAttribute('readonly', '');
+        ta.style.cssText = 'position:fixed;left:-9999px;top:0;opacity:0';
+        document.body.appendChild(ta);
+        ta.select();
+        let ok = false;
+        try { ok = document.execCommand('copy'); } catch (_) {}
+        ta.remove();
+        return Promise.resolve(ok);
+      }
+
+      // Before the first Save dialog of a file opened from disk: copy the file's path right away (the Save click allows it)
+      // and show it, so the user can paste it into the dialog and save over the original instead of making a copy elsewhere.
+      // The dialog opens from the bubble's own button, which supplies the click the browser requires.
+      async function askSaveLocation(loc, choose) {
+        const plat = ((navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || '').toLowerCase();
+        const mac = !loc.win && /mac/.test(plat);
+        // macOS "Go to folder" takes a folder (the name is already filled in); Windows and GTK file boxes take the whole path
+        const text = mac ? loc.folder : loc.file;
+        const copied = await copyText(text);
+        const where = loc.win ? 'click the File name box and press Ctrl+V.' : mac ? 'press \u2318\u21e7G, then \u2318V.' : 'press Ctrl+L, then Ctrl+V.';
+        const path = document.createElement('code');
+        path.className = 'save-where';
+        path.textContent = text;
+        ui.confirm(btnSave, {
+          label: 'Save over the file you opened',
+          title: copied ? 'Path copied' : 'Save over the file you opened',
+          message: (copied ? 'In the next window, ' : 'Copy this path. In the next window, ') + where,
+          extra: path,
+          ok: 'Choose\u2026',
+          okClass: 'btn-primary'
+        }, choose);
+      }
+
+      async function pickSaveFile() {
+        // Browsers cannot read a page's own folder, so reuse the current file name
+        // (saving over it) and a stable picker id so the dialog reopens in the
+        // last folder used for diagrams.
+        let currentName = '';
+        try {
+          currentName = decodeURIComponent(location.pathname.split('/').pop() || '');
+        } catch (_) {}
+        const suggested = /\.html?$/i.test(currentName)
+          ? currentName
+          : (chartData.title || plugin.id).toLowerCase().replace(/[^a-z0-9_-]/g, '-') + '.html';
+        return window.showSaveFilePicker({
+          id: 'ultimate-diagram-save',
+          suggestedName: suggested,
+          types: [{
+            description: 'HTML Diagram File',
+            accept: { 'text/html': ['.html'] }
+          }]
+        });
+      }
+
+      async function writeFile(replacedHtml, picked) {
         if ('showSaveFilePicker' in window) {
           try {
-            if (!fileHandle) fileHandle = await loadStoredHandle();
+            if (!fileHandle && !picked) fileHandle = await loadStoredHandle();
             if (!fileHandle) {
-              // Browsers cannot read a page's own folder, so reuse the current file name
-              // (saving over it) and a stable picker id so the dialog reopens in the
-              // last folder used for diagrams.
-              let currentName = '';
-              try {
-                currentName = decodeURIComponent(location.pathname.split('/').pop() || '');
-              } catch (_) {}
-              const suggested = /\.html?$/i.test(currentName)
-                ? currentName
-                : (chartData.title || plugin.id).toLowerCase().replace(/[^a-z0-9_-]/g, '-') + '.html';
-              fileHandle = await window.showSaveFilePicker({
-                id: 'ultimate-diagram-save',
-                suggestedName: suggested,
-                types: [{
-                  description: 'HTML Diagram File',
-                  accept: { 'text/html': ['.html'] }
-                }]
-              });
+              const loc = !picked && localFilePath();
+              if (loc) {
+                // The dialog has to open from a fresh click: the bubble's button calls back here
+                askSaveLocation(loc, () => writeFile(replacedHtml, true));
+                return;
+              }
+              fileHandle = await pickSaveFile();
               storeHandle(fileHandle);
             }
 
@@ -4395,12 +4626,28 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
           savedJson = JSON.stringify(chartData);
           everSaved = true;
           updateStatus(false);
+          if (!downloadToldOnce) {
+            // The download is a copy: say so once, so nobody reopens the old file expecting their edits
+            downloadToldOnce = true;
+            showToast(location.protocol === 'file:'
+              ? 'Saved a copy to your downloads folder. The file you opened was not changed.'
+              : 'Saved a copy to your downloads folder.');
+          }
         } catch (err) {
           alert("Save failed: " + err.message);
         }
       }
 
       async function saveToFile() {
+        if (playground) {
+          try {
+            await deliverFile(exportFileName('html'), new Blob([await buildExportHtmlFile()], { type: 'text/html' }));
+            savedJson = JSON.stringify(chartData);
+            everSaved = true;
+            updateStatus(false);
+          } catch (err) { showToast('Download failed: ' + (err && err.message || err)); }
+          return;
+        }
         if (artifactMode === 'publish') return publishToArtifact();
         if (artifactMode === 'view-only') return downloadHtmlFile();
         if (artifactMode === 'pending') return;   // use() has not answered yet; Save is disabled until it does
@@ -4426,7 +4673,9 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
         setStatusBadge(hasUnsavedChanges);
       }
 
-      if (claudeHost) {
+      if (claudeHost && playground) {
+        Promise.resolve().then(() => claudeHost.use('downloads')).then(d => { downloadsApi = d || null; }, () => {});
+      } else if (claudeHost) {
         const useNamespace = (name) => {
           try { return Promise.resolve(claudeHost.use(name)).then(v => v || null, () => null); }
           catch (_) { return Promise.resolve(null); }
@@ -4444,6 +4693,54 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
       }
 
       btnSave.addEventListener('click', saveToFile);
+      // A file opened from disk that was saved before: show which file Save writes to (reading the stored handle asks nothing)
+      if (!claudeHost && location.protocol === 'file:' && 'showSaveFilePicker' in window) {
+        readStoredHandle().then((h) => {
+          if (h && h.name && !fileHandle) { storedName = h.name; setStatusBadge(hasUnsavedChanges); }
+        });
+      }
+
+      // --- PLAYGROUND: the header icon becomes a type menu ---
+      if (playground) {
+        btnSave.title = 'Download this diagram as an HTML file (Ctrl+S)';
+        const icon = document.querySelector('.toolbar-left > svg');
+        const wrap = document.createElement('div');
+        wrap.className = 'menu-wrap type-switch';
+        const btn = document.createElement('button');
+        btn.type = 'button'; btn.id = 'btn-type'; btn.className = 'btn btn-icon';
+        btn.title = 'Diagram type'; btn.setAttribute('aria-label', 'Diagram type');
+        btn.setAttribute('aria-haspopup', 'menu'); btn.setAttribute('aria-expanded', 'false');
+        const menu = document.createElement('div');
+        menu.id = 'type-menu'; menu.className = 'menu menu-left'; menu.setAttribute('role', 'menu'); menu.hidden = true;
+        icon.replaceWith(wrap);
+        btn.appendChild(icon);
+        wrap.append(btn, menu);
+        const setOpen = (open) => { menu.hidden = !open; btn.setAttribute('aria-expanded', String(open)); };
+        const goTo = (id) => { location.assign('../' + id + '/index.html'); };
+        for (const t of playground.types) {
+          const item = document.createElement('button');
+          item.type = 'button'; item.dataset.type = t.id; item.setAttribute('role', 'menuitemradio');
+          const here = t.id === playground.type;
+          item.setAttribute('aria-checked', String(here));
+          if (here) item.appendChild(ui.iconEl('check', { size: 'sm' }));
+          item.append(here ? ' ' + t.name : t.name);
+          item.addEventListener('click', () => {
+            setOpen(false);
+            if (here) return;
+            if (!hasUnsavedChanges) { goTo(t.id); return; }
+            const mine = playground.types.find((x) => x.id === playground.type).name;
+            ui.confirm(btn, {
+              label: 'Switch diagram type', title: 'Switch to ' + t.name + '?',
+              message: 'Your edits to this ' + mine.toLowerCase() + ' are lost unless you save.', ok: 'Switch',
+              alt: { text: 'Save', onClick: async () => { await saveToFile(); if (!hasUnsavedChanges) goTo(t.id); } }
+            }, () => goTo(t.id));
+          });
+          menu.appendChild(item);
+        }
+        btn.addEventListener('click', (e) => { e.stopPropagation(); setOpen(menu.hidden); });
+        document.addEventListener('click', () => setOpen(false));
+        window.addEventListener('keydown', (e) => { if (e.key === 'Escape') setOpen(false); });
+      }
 
       window.addEventListener('keydown', (e) => {
         if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
@@ -5884,16 +6181,22 @@ function mmdParseFlow(text) {
     }
   }
 
+  // A repeated id under another parent is a separate subgraph (the same lane inside a `sub_` block); `sub` names the
+  // top-level `sub_` block a subgraph sits in (flowcharts), else null.
+  const sgScoped = new Map();
   function parseSubgraph(rest) {
     let id, title, m;
     if ((m = /^([^\s\[\]"]+)\s*\[([\s\S]*)\]$/.exec(rest))) { id = m[1]; title = m[2].trim().replace(/^"([\s\S]*)"$/, '$1'); } else if ((m = /^"([\s\S]*)"$/.exec(rest))) { id = title = m[1]; } else { id = title = rest; }
     title = mmdText(title);
-    if (!sgById.has(id)) {
-      const sg = { id, title, parent: stack.length ? stack[stack.length - 1].id : null, nodes: [], classes: [], line: ln };
-      sgById.set(id, sg);
-      ast.subgraphs.push(sg);
-      stack.push(sg);
-    } else stack.push(sgById.get(id));
+    const top = stack.length ? stack[stack.length - 1] : null, parent = top ? top.id : null;
+    const key = parent + '>' + id;
+    const known = sgScoped.get(key) || (sgById.has(id) && sgById.get(id).parent === parent ? sgById.get(id) : null);
+    if (known) { stack.push(known); return; }
+    const sg = { id, title, parent, sub: !top && /^sub_/.test(id) ? id : (top ? top.sub : null), nodes: [], classes: [], line: ln };
+    sgScoped.set(key, sg);
+    if (!sgById.has(id)) sgById.set(id, sg);
+    ast.subgraphs.push(sg);
+    stack.push(sg);
   }
 
   function statement(s) {
@@ -5940,7 +6243,8 @@ function mmdParseFlow(text) {
 // Mermaid reader and writer for the flowchart type (plan: dev/plans/plan-mermaid-input.md).
 // Plain script, globals only; it is concatenated after assets/shell/mermaid-flow.js, which holds the tokenizer.
 //   fromMermaid(text)      -> { data, infos, warnings }   authoring JSON, no positions
-//   toMermaid(data, opts)  -> string                      opts.palette: 8 hex colours for the slots c1..c8 (adds classDef lines)
+//   toMermaid(data, opts)  -> string                      opts.palette: 8 hex colours for the slots c1..c8 (adds classDef lines);
+//                                                         opts.stock: write for stock Mermaid (a lane repeated in a sub_ block gets its own id)
 
 const MMD_FLOW_KNOWN_DIRECTIVES = ['type', 'icon', 'color', 'showNotes', 'laneOrder', 'schemaVersion', 'swimlanes'];
 const MMD_FLOW_FLAGS = ['isStart', 'isEnd'];
@@ -6033,24 +6337,42 @@ function fromMermaidAst(ast) {
     if (!onlySlots) infos.push(`[INFO] line ${kinds[k][0].line}: ${k} statements are ignored (${kinds[k].length})`);
   });
 
-  // Lanes: top-level subgraphs; nested ones flatten into their top-level lane
-  const topOf = (sg) => { while (sg.parent) sg = sgById.get(sg.parent); return sg; };
-  const nested = ast.subgraphs.filter((s) => s.parent);
+  // Lanes: top-level subgraphs, and the lanes written inside a top-level `sub_<slug>` block (a child flow, one level only);
+  // the same lane id in several places is one lane (the first occurrence names it). Deeper subgraphs flatten into their lane.
+  const isSub = (s) => s.sub === s.id && !s.parent;
+  const isLane = (s) => !isSub(s) && (s.sub ? s.parent === s.sub : !s.parent);
+  const laneOf = (sg) => { while (!isLane(sg) && sg.parent) sg = sgById.get(sg.parent); return sg; };
+  const nested = ast.subgraphs.filter((s) => !isSub(s) && !isLane(s));
   if (nested.length) infos.push(`[INFO] nested subgraphs flattened into their top-level lane: ${nested.map((s) => s.id).join(', ')}`);
   const laneIdOf = (id) => (/^[\w-]+$/.test(id) ? id : mmdSafeId(id));
-  const tops = ast.subgraphs.filter((s) => !s.parent);
+  // Stock Mermaid merges a lane id repeated in another block, so "Copy as Mermaid" writes it as `lane_x__<slug>` inside a `sub_<slug>`
+  const baseId = (s) => (s.sub && s.id.endsWith('__' + s.sub.slice(4)) ? s.id.slice(0, -(s.sub.length - 2)) : s.id);
+  const laneSgs = ast.subgraphs.filter(isLane);
   // No subgraph: no lanes at all (the engine creates its own lane-main). `%% @swimlanes false` keeps written lanes hidden.
-  const swimlanes = tops.length > 0 && dir.swimlanes !== false;
-  const lanes = tops.map((s) => {
-    const l = { id: laneIdOf(s.id), name: s.title };
-    if (dir.icons[s.id]) l.icon = dir.icons[s.id];
-    const c = s.classes.map((x) => /^c([1-8])$/.exec(x)).find(Boolean);
+  const swimlanes = laneSgs.length > 0 && dir.swimlanes !== false;
+  const lanes = [], laneNamed = new Map();
+  laneSgs.forEach((s) => {
+    const id = laneIdOf(baseId(s)), first = laneNamed.get(id);
+    if (first) {
+      if (s.title !== s.id && s.title !== first) warnings.push(`[WARN] line ${s.line}: lane ${id} is named "${s.title}" here and "${first}" first; the first name wins`);
+      return;
+    }
+    laneNamed.set(id, s.title);
+    const l = { id, name: s.title };
+    const b = baseId(s), same = laneSgs.filter((t) => laneIdOf(baseId(t)) === id);
+    if (dir.icons[b]) l.icon = dir.icons[b];
+    const c = same.flatMap((t) => t.classes).map((x) => /^c([1-8])$/.exec(x)).find(Boolean);
     if (c) l.color = c[1];
-    else if (dir.colors[s.id]) l.color = dir.colors[s.id];
-    return l;
+    else if (dir.colors[b]) l.color = dir.colors[b];
+    lanes.push(l);
   });
-  const laneOfNode = new Map();
-  ast.subgraphs.forEach((s) => s.nodes.forEach((id) => laneOfNode.set(id, laneIdOf(topOf(s).id))));
+  const laneOfNode = new Map(), tabOfNode = new Map(), firstLane = new Map();
+  laneSgs.forEach((s) => { if (!firstLane.has(s.sub)) firstLane.set(s.sub, laneIdOf(baseId(s))); });
+  ast.subgraphs.forEach((s) => s.nodes.forEach((id) => {
+    tabOfNode.set(id, s.sub);
+    if (!isSub(s)) laneOfNode.set(id, laneIdOf(baseId(laneOf(s))));
+  }));
+  const tabOf = (id) => tabOfNode.get(id) || null;
 
   // Notes: flag-shaped nodes whose every edge is dotted
   const flowNodes = ast.nodes.filter((n) => !sgById.has(n.id));
@@ -6094,8 +6416,8 @@ function fromMermaidAst(ast) {
     else if (!type) { type = 'task'; (lenient[n.shape] = lenient[n.shape] || []).push(n.id); }
     if (n.classes.some((c) => !MMD_FLOW_FLAGS.includes(c))) classIgnored = true;
     let laneId = laneOfNode.get(n.id);
-    if (!laneId && lanes.length) {
-      laneId = lanes[0].id;
+    if (!laneId && firstLane.has(tabOf(n.id))) {
+      laneId = firstLane.get(tabOf(n.id));
       warnings.push(`[WARN] line ${n.line}: step ${n.id} is outside every lane; put into lane ${laneId}`);
     }
     return laneId ? { id: n.id, laneId, type, label: n.label } : { id: n.id, type, label: n.label };
@@ -6114,6 +6436,25 @@ function fromMermaidAst(ast) {
     return o;
   });
 
+  // Child flows: each `sub_<slug>` block holds its own steps, arrows and notes; nothing crosses its boundary
+  const children = {};
+  ast.subgraphs.filter(isSub).forEach((s) => {
+    children[s.id.slice(4)] = { name: s.title, laneOrder: [...new Set(laneSgs.filter((l) => l.sub === s.id).map((l) => laneIdOf(baseId(l))))], nodes: [], edges: [], notes: [] };
+  });
+  const parentTab = { nodes: [], edges: [], notes: [] };
+  const into = (t) => (t ? children[t.slice(4)] : parentTab);
+  nodes.forEach((n) => into(tabOf(n.id)).nodes.push(n));
+  edges.forEach((e) => {
+    if (tabOf(e.from) === tabOf(e.to)) into(tabOf(e.from)).edges.push(e);
+    else warnings.push(`[WARN] edge ${e.from} --> ${e.to} crosses a sub_ boundary and is dropped (a child links to its parent by the slug only)`);
+  });
+  notes.forEach((n) => {
+    const t = tabOf(n.nodes[0] || ''), other = n.nodes.find((x) => tabOf(x) !== t);
+    if (other) warnings.push(`[WARN] note ${n.id} is linked to steps in two flows; its link to ${other} is dropped`);
+    n.nodes = n.nodes.filter((x) => tabOf(x) === t);
+    into(t).notes.push(n);
+  });
+
   const data = { diagramType: 'flowchart' };
   if (dir.schemaVersion != null && !isNaN(dir.schemaVersion)) data.schemaVersion = dir.schemaVersion;
   if (ast.title) data.title = ast.title;
@@ -6122,10 +6463,23 @@ function fromMermaidAst(ast) {
   if (dir.showNotes) data.showNotes = true;
   if (dir.laneOrder) data.laneOrder = dir.laneOrder;
   data.lanes = lanes;
-  data.nodes = nodes;
-  data.edges = edges;
-  if (notes.length) data.notes = notes;
+  data.nodes = parentTab.nodes;
+  data.edges = parentTab.edges;
+  if (parentTab.notes.length) data.notes = parentTab.notes;
+  if (Object.keys(children).length) {
+    Object.values(children).forEach((c) => { if (!c.notes.length) delete c.notes; });
+    data.children = children;
+  }
   return { data, infos, warnings };
+}
+
+// The lanes of the parent flow: those with a parent step, or that no child flow uses (an empty lane stays where it was added)
+function mmdFlowParentLanes(data) {
+  const kids = Object.values(data.children || {});
+  const used = (nodes) => new Set((nodes || []).map((n) => n.laneId));
+  const inParent = used(data.nodes), inKids = new Set();
+  kids.forEach((c) => used(c.nodes).forEach((id) => inKids.add(id)) || (c.laneOrder || []).forEach((id) => inKids.add(id)));
+  return (data.lanes || []).filter((l) => inParent.has(l.id) || !inKids.has(l.id));
 }
 
 function toMermaid(data, opts) {
@@ -6133,13 +6487,27 @@ function toMermaid(data, opts) {
   const used = new Set(), ids = new Map();
   const sid = (kind, raw) => { const k = kind + '\0' + raw; if (!ids.has(k)) ids.set(k, mmdSafeId(raw, used)); return ids.get(k); };
   const lanes = data.lanes || [];
-  const collapsed = mmdFlowCollapseConnectors(data.nodes || [], data.edges || []);
-  const nodes = collapsed.nodes;
+  const kids = data.children || {};
+  // The parent flow, then each child flow in the order the parent reaches its subprocess step
+  const tabs = [{ slug: null, nodes: data.nodes || [], edges: data.edges || [], notes: data.notes || [], lanes: mmdFlowParentLanes(data) }];
+  const slugs = (data.nodes || []).map((n) => n.id).filter((id) => kids[id]);
+  Object.keys(kids).forEach((k) => { if (!slugs.includes(k)) slugs.push(k); });
+  slugs.forEach((k) => {
+    const c = kids[k], byId = new Map(lanes.map((l) => [l.id, l]));
+    const order = (c.laneOrder || []).concat((c.nodes || []).map((n) => n.laneId)).filter((id, i, a) => byId.has(id) && a.indexOf(id) === i);
+    tabs.push({ slug: k, name: c.name, nodes: c.nodes || [], edges: c.edges || [], notes: c.notes || [], lanes: order.map((id) => byId.get(id)) });
+  });
+  tabs.forEach((t) => {
+    const collapsed = mmdFlowCollapseConnectors(t.nodes, t.edges);
+    t.nodes = collapsed.nodes;
+    const ids = new Set(t.nodes.map((n) => n.id));
+    t.edges = collapsed.edges.filter((e) => ids.has(e.from) && ids.has(e.to));
+  });
   lanes.forEach((l) => sid('l', l.id));
-  nodes.forEach((n) => sid('n', n.id));
-  const nodeIds = new Set(nodes.map((n) => n.id));
-  const edges = collapsed.edges.filter((e) => nodeIds.has(e.from) && nodeIds.has(e.to));
-  const hasOut = new Set(edges.map((e) => e.from));
+  tabs.forEach((t) => t.nodes.forEach((n) => sid('n', n.id)));
+  const nodeIds = new Set(tabs.flatMap((t) => t.nodes.map((n) => n.id)));
+  const hasOut = new Set(tabs.flatMap((t) => t.edges.map((e) => e.from)));
+  const nodes = tabs.flatMap((t) => t.nodes);
   const q = mmdQuote;
   const out = [];
   const flags = [];
@@ -6181,51 +6549,66 @@ function toMermaid(data, opts) {
       default: return `${id}[${q(L)}]`;
     }
   };
-  const placed = new Set();
-  lanes.forEach((l) => {
-    out.push(`  subgraph ${sid('l', l.id)}[${q(l.name)}]`);
-    nodes.filter((n) => n.laneId === l.id).forEach((n) => { out.push('    ' + decl(n)); placed.add(n.id); });
-    out.push('  end');
-  });
-  nodes.filter((n) => !placed.has(n.id)).forEach((n) => out.push('  ' + decl(n)));
 
   // Edges: consecutive edges sharing target and link group as `a & b --> target`; otherwise consecutive hops chain
   const link = (e) => (e.feedback ? '==>' : '-->') + (e.label ? `|${q(e.label)}|` : '');
-  const isJoinAt = (idx) => {
-    if (idx + 1 >= edges.length) return false;
-    const e0 = edges[idx], e1 = edges[idx + 1];
-    return e0.from !== e0.to && e1.from !== e1.to && e1.from !== e0.from && e1.to === e0.to && link(e1) === link(e0);
-  };
-  for (let i = 0; i < edges.length;) {
-    if (isJoinAt(i)) {
-      const tgt = edges[i].to, lk = link(edges[i]), srcs = [edges[i].from], seenSrc = new Set(srcs);
-      let k = 1;
-      while (i + k < edges.length && edges[i + k].to === tgt && link(edges[i + k]) === lk
-             && edges[i + k].from !== tgt && !seenSrc.has(edges[i + k].from)) {
-        srcs.push(edges[i + k].from);
-        seenSrc.add(edges[i + k].from);
+  const emitEdges = (edges) => {
+    const isJoinAt = (idx) => {
+      if (idx + 1 >= edges.length) return false;
+      const e0 = edges[idx], e1 = edges[idx + 1];
+      return e0.from !== e0.to && e1.from !== e1.to && e1.from !== e0.from && e1.to === e0.to && link(e1) === link(e0);
+    };
+    for (let i = 0; i < edges.length;) {
+      if (isJoinAt(i)) {
+        const tgt = edges[i].to, lk = link(edges[i]), srcs = [edges[i].from], seenSrc = new Set(srcs);
+        let k = 1;
+        while (i + k < edges.length && edges[i + k].to === tgt && link(edges[i + k]) === lk
+               && edges[i + k].from !== tgt && !seenSrc.has(edges[i + k].from)) {
+          srcs.push(edges[i + k].from);
+          seenSrc.add(edges[i + k].from);
+          k++;
+        }
+        out.push(`  ${srcs.map((s) => sid('n', s)).join(' & ')} ${lk} ${sid('n', tgt)}`);
+        i += k;
+        continue;
+      }
+      let line = `  ${sid('n', edges[i].from)} ${link(edges[i])} ${sid('n', edges[i].to)}`, k = 1;
+      while (i + k < edges.length && k < 6 && edges[i + k].from === edges[i + k - 1].to && !isJoinAt(i + k)) {
+        line += ` ${link(edges[i + k])} ${sid('n', edges[i + k].to)}`;
         k++;
       }
-      out.push(`  ${srcs.map((s) => sid('n', s)).join(' & ')} ${lk} ${sid('n', tgt)}`);
+      out.push(line);
       i += k;
-      continue;
     }
-    let line = `  ${sid('n', edges[i].from)} ${link(edges[i])} ${sid('n', edges[i].to)}`, k = 1;
-    while (i + k < edges.length && k < 6 && edges[i + k].from === edges[i + k - 1].to && !isJoinAt(i + k)) {
-      line += ` ${link(edges[i + k])} ${sid('n', edges[i + k].to)}`;
-      k++;
-    }
-    out.push(line);
-    i += k;
-  }
+  };
 
-  (data.notes || []).forEach((n) => {
-    const nid = sid('note', n.id), links = (n.nodes || []).filter((x) => nodeIds.has(x)).map((x) => sid('n', x));
-    out.push(`  ${nid}>${q(n.text)}]` + (links.length ? ` -.- ${links.join(' & ')}` : ''));
+  const stockIds = {};
+  tabs.forEach((t) => {
+    const pad = t.slug === null ? '' : '  ';
+    const placed = new Set();
+    if (t.slug !== null) out.push('', `  subgraph sub_${sid('n', t.slug)}[${q(t.name || t.slug)}]`);
+    t.lanes.forEach((l) => {
+      const lid = sid('l', l.id) + (opts.stock && t.slug !== null ? '__' + sid('n', t.slug) : '');
+      if (lid !== sid('l', l.id)) (stockIds[l.id] = stockIds[l.id] || []).push(lid);
+      out.push(`${pad}  subgraph ${lid}[${q(l.name)}]`);
+      t.nodes.filter((n) => n.laneId === l.id).forEach((n) => { out.push(`${pad}    ` + decl(n)); placed.add(n.id); });
+      out.push(`${pad}  end`);
+    });
+    t.nodes.filter((n) => !placed.has(n.id)).forEach((n) => out.push(`${pad}  ` + decl(n)));
+    if (t.slug !== null) out.push('  end');
+    emitEdges(t.edges);
+    t.notes.forEach((n) => {
+      const nid = sid('note', n.id), links = (n.nodes || []).filter((x) => nodeIds.has(x)).map((x) => sid('n', x));
+      out.push(`  ${nid}>${q(n.text)}]` + (links.length ? ` -.- ${links.join(' & ')}` : ''));
+    });
   });
 
   const slots = new Set();
-  lanes.forEach((l) => { if (/^[1-8]$/.test(String(l.color))) { out.push(`  class ${sid('l', l.id)} c${l.color}`); slots.add(+l.color); } });
+  lanes.forEach((l) => {
+    if (!/^[1-8]$/.test(String(l.color))) return;
+    [sid('l', l.id), ...(stockIds[l.id] || [])].forEach((id) => out.push(`  class ${id} c${l.color}`));
+    slots.add(+l.color);
+  });
   flags.forEach((f) => out.push('  ' + f));
   if (opts.palette) [...slots].sort().forEach((s) => { if (opts.palette[s - 1]) out.push(`  classDef c${s} fill:${opts.palette[s - 1]}`); });
   return out.join('\n') + '\n';
@@ -6357,6 +6740,9 @@ function toMermaid(data, opts) {
         }
         renderNotes(true);   // last: notes are fitted around the final nodes, arrows and labels
         pinLaneHeaders();
+        renderTabs();
+        followTab();
+        updateSubButtons();
       }
 
       const OUTER_CLEAR = 16;   // px between the outermost arrow/label and the last lane's outer edge
@@ -6512,8 +6898,11 @@ function toMermaid(data, opts) {
             laneEl.style.minHeight = `${computedHeight}px`;
             laneEl.style.height = `${computedHeight}px`;
           }
-          // stripe, icon, pill tint; a lane without its own colour takes the palette colour for its position (not saved)
-          const laneColor = colorSlot(lane.color || SWATCHES[index % SWATCHES.length].slot);   // a slot, or a custom hex
+          // stripe, icon, pill tint; a lane without its own colour takes the palette colour for its position (not saved).
+          // With subprocess flows the position is the actor's in the one list, so a lane has one colour in every flow.
+          const at = chartData.actors ? chartData.actors.findIndex(a => a.id === lane.id) : index;
+          const colorAt = at < 0 ? chartData.actors.length : at;
+          const laneColor = colorSlot(lane.color || SWATCHES[colorAt % SWATCHES.length].slot);   // a slot, or a custom hex
           const laneSw = paletteOf(laneColor);
           const laneHex = laneSw ? laneSw.hex : laneColor;                                       // --lane-color mixes a hex
           if (laneHex) laneEl.style.setProperty('--lane-color', laneHex);
@@ -6761,7 +7150,7 @@ function toMermaid(data, opts) {
       // A shaped node keeps its slot's box (144x64; a decision 144x96), made transparent by flowchart.css, and draws
       // its outline inside it as an SVG stretched to the box (preserveAspectRatio="none", non-scaling stroke). The
       // outline stays 1px inside the box so the 2px stroke ends on the box edge, like a task's border. `.shape-path`
-      // is the filled outline, `.shape-line` an inner stroke (the subprocess bars, the cylinder's front rim).
+      // is the filled outline, `.shape-line` an inner stroke (the subprocess's + marker, the cylinder's front rim).
       // Shapes keep their screen orientation in a top-to-bottom diagram: the document's wave is always at the
       // bottom, the delay's arc always on the right. Keep outlineInset() in step with any change here.
       // The diamond has its four corners rounded by DIAMOND_ROUND px along each edge: a quadratic curve through
@@ -6775,7 +7164,7 @@ function toMermaid(data, opts) {
       }
       const SHAPE_OUTLINES = {
         decision:   { h: DECISION_HEIGHT, svg: `<path class="shape-path diamond-poly" d="${diamondPath(144, DECISION_HEIGHT)}"/>` },
-        subprocess: { h: 64, svg: '<rect class="shape-path" x="1" y="1" width="142" height="62" rx="2"/><path class="shape-line" d="M13 1V63M131 1V63"/>' },
+        subprocess: { h: 64, svg: '<rect class="shape-path" x="1" y="1" width="142" height="62" rx="8"/><rect class="shape-line sub-mark" x="7" y="7" width="12" height="12" rx="4"/><path class="shape-line sub-mark" d="M13 10V16M10 13H16"/>' },
         document:   { h: 64, svg: '<path class="shape-path" d="M1 1H143V57C119 49 96 49 72 57C48 65 25 65 1 57Z"/>' },
         io:         { h: 64, svg: '<polygon class="shape-path" points="13,1 143,1 131,63 1,63"/>' },
         database:   { h: 64, svg: '<path class="shape-path" d="M1 9A71 8 0 0 1 143 9V55A71 8 0 0 1 1 55Z"/><path class="shape-line" d="M1 9A71 8 0 0 0 143 9"/>' },
@@ -7254,6 +7643,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
             if ((node.label || '') !== label.textContent.trim()) {
               const wasDot = isDot(node);
               node.label = label.textContent.trim();
+              syncChildName(node);
               updateStatus(true);
               if (wasDot !== isDot(node)) render();
               else fitNodeLabel(label, node.type);
@@ -7279,6 +7669,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           });
 
           nodeEl.appendChild(buildNoteBadge(node));   // note badge, or the "+" chip to add one
+          if (node.type === 'subprocess' && hasChild(node.id)) { nodeEl.classList.add('has-child'); nodeEl.appendChild(buildSubLink(node)); }
 
           nodeEl.addEventListener('pointerdown', (e) => handleNodePointerDown(e, node));
           nodeEl.addEventListener('mouseenter', () => {
@@ -9516,7 +9907,8 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
       // Removes a lane together with its steps and every arrow attached to them (one undo step).
       // The last remaining lane cannot be deleted: every step needs a lane.
       function deleteLane(laneId) {
-        if (chartData.lanes.length <= 1 || !chartData.lanes.some(l => l.id === laneId)) return;
+        if (chartData.lanes.length <= 1 || !chartData.lanes.some(l => l.id === laneId) || laneUsedElsewhere(laneId)) return;
+        if (chartData.flows) chartData.actors = chartData.actors.filter(a => a.id !== laneId || laneUsedElsewhere(laneId, true));
         const gone = new Set(chartData.nodes.filter(n => n.laneId === laneId).map(n => n.id));
         chartData.lanes = chartData.lanes.filter(l => l.id !== laneId);
         chartData.nodes = chartData.nodes.filter(n => !gone.has(n.id));
@@ -9533,6 +9925,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         ui.closeConfirm();
         const lane = chartData.lanes.find(l => l.id === laneId);
         if (!lane || chartData.lanes.length <= 1) return;
+        if (laneUsedElsewhere(laneId)) { flashHint(`\u201c${lane.name}\u201d has steps in another flow: delete or move them there first.`); return; }
         const steps = chartData.nodes.filter(n => n.laneId === laneId).length;
         // Under the anchor (a delete button, else the lane's pill), or above it when there is no room below
         // (the dock's Delete sits at the bottom of the window); kept on screen
@@ -9573,6 +9966,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         const many = selectedNodeIds.size > 1;
         document.querySelectorAll('.flow-node[data-node-id]').forEach(el => el.classList.toggle('selected', isNodeSelected(el.dataset.nodeId)));
         swimlanesContainer.classList.toggle('multi-select', many);
+        updateSubButtons();
         if (deleteLabelEl) deleteLabelEl.textContent = many ? `Delete ${selectedNodeIds.size}` : 'Delete';
       }
 
@@ -9677,6 +10071,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         if (isConnector(node)) { joinConnector(node); return; }   // deleting a connector puts the whole arrow back
         chartData.nodes = chartData.nodes.filter(n => n.id !== nodeId);
         chartData.edges = chartData.edges.filter(e => e.from !== nodeId && e.to !== nodeId);
+        dropChildOf([nodeId]);
         pruneConnectors();   // a pair attached to this step goes with it
         pruneNotes();   // its notes lose the link (a note explaining only this step goes with it)
         clearNodeSelection();
@@ -9689,6 +10084,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         const gone = new Set(ids.filter(id => nodeById(id) && !isConnector(nodeById(id))));
         chartData.nodes = chartData.nodes.filter(n => !gone.has(n.id));
         chartData.edges = chartData.edges.filter(e => !gone.has(e.from) && !gone.has(e.to));
+        dropChildOf([...gone]);
         pruneConnectors();   // a pair attached to a deleted step goes with it
         // A selected circle whose pair is still there: the whole arrow comes back, as when it is deleted alone
         ids.forEach(id => { const n = nodeById(id); if (isConnector(n)) joinConnectorData(n); });
@@ -9752,6 +10148,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
       function makeNode(type, p) {
         const node = { id: uid('n'), laneId: p.laneId, type, label: NODE_DEFAULTS[type] || 'New Step', x: p.x, y: p.y };
         chartData.nodes.push(node);
+        if (type === 'subprocess' && !chartData.tab) addEmptyChild(node);   // a new subprocess gets its own tab (one level)
         return node;
       }
 
@@ -10156,6 +10553,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         // A moved note's offset is in screen terms, which the switch turns sideways: let every note be re-fitted
         notesList().forEach(n => { delete n.pos; });
         layoutDiagram(chartData);
+        layoutOtherFlows();
         render();
         updateStatus(true);
         fitView();
@@ -10908,7 +11306,8 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
       // label, and every position in one trailing "layout" map. The in-memory model keeps x/y/height/color on
       // the objects. scripts/disk_format.py is the Python twin: keep the two byte-identical.
       const DISK_KEYS = ['diagramType', 'schemaVersion', 'title', 'direction', 'swimlanes', 'showNotes',
-        'lanes', 'nodes', 'edges', 'notes', 'layout'];
+        'lanes', 'nodes', 'edges', 'notes', 'children', 'layout'];
+      const CHILD_KEYS = ['name', 'laneOrder', 'laneHeights', 'nodes', 'edges', 'notes'];
       const NODE_LAYOUT = ['x', 'y'], LANE_LAYOUT = ['height', 'color'];
       const GENERATED_ID = /^(n|c|e|lane)_\d{12,}(_\d+)?$/;   // uid(): <prefix>_<Date.now()>[_k]
       const SLUG_MAX = 30;
@@ -10920,8 +11319,10 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         return s;
       }
 
+      // `d` is the full model (global lanes, the parent's steps, `children`): ids are renamed across every flow
       function renameGeneratedIds(d) {
-        const lanes = d.lanes || [], nodes = d.nodes || [], edges = d.edges || [];
+        const kids = d.children || {}, tabs = [d, ...Object.values(kids)];
+        const lanes = d.lanes || [], nodes = tabs.flatMap(t => t.nodes || []), edges = tabs.flatMap(t => t.edges || []);
         const used = new Set([...lanes, ...nodes, ...edges].map(o => o.id));
         const rename = new Map();
         const take = (base) => {
@@ -10951,7 +11352,13 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         [...lanes, ...nodes, ...edges].forEach(o => { o.id = r(o.id); });
         nodes.forEach(n => { if ('laneId' in n) n.laneId = r(n.laneId); });
         edges.forEach(e => ['from', 'to'].forEach(k => { if (k in e) e[k] = r(e[k]); }));
-        (d.notes || []).forEach(note => { if (Array.isArray(note.nodes)) note.nodes = note.nodes.map(r); });
+        tabs.forEach(t => (t.notes || []).forEach(note => { if (Array.isArray(note.nodes)) note.nodes = note.nodes.map(r); }));
+        Object.keys(kids).forEach(key => {
+          const c = kids[key];
+          c.laneOrder = (c.laneOrder || []).map(r);
+          if (c.laneHeights) c.laneHeights = Object.fromEntries(Object.entries(c.laneHeights).map(([k, v]) => [r(k), v]));
+          if (rename.has(key)) { kids[r(key)] = c; delete kids[key]; }
+        });
       }
 
       function orderedKeys(d, keys) {
@@ -10961,23 +11368,110 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         return out;
       }
 
-      function toDisk(data) {
+      // --- SUBPROCESS TABS (plan: dev/plans/plan-subprocess.md) ---
+      // A flowchart can hold child flows, one per subprocess step. On disk (and in the Mermaid writer) that is the full
+      // model: `lanes` is the one list of actors, `nodes`/`edges`/`notes` the parent flow, `children[slug]` =
+      // {name, laneOrder, laneHeights, nodes, edges, notes}. The editor works on one flow at a time, so in memory the
+      // ACTIVE flow's lanes, steps, arrows and notes sit on chartData itself (every function here and in the engine sees an
+      // ordinary flowchart), and the others are parked beside it:
+      //   chartData.tab      the active child's slug (absent: the parent flow)
+      //   chartData.flows    { key: { lanes, nodes, edges, notes } } for every other flow; the parent's key is ''
+      //   chartData.actors   every lane's id, name, icon and colour, once (a lane edited in one flow is copied here when the
+      //                      flow is left, and read from here when another is entered, so an actor is one actor everywhere)
+      //   chartData.tabNames { slug: name }
+      // A diagram without children has none of these: it is saved and loaded exactly as before.
+      const PARENT = '';
+      const curTab = () => chartData.tab || PARENT;
+      const withoutHeight = (l) => { const o = { ...l }; delete o.height; return o; };
+      const flowSort = (items, laneIds) => {
+        const idx = new Map(laneIds.map((id, i) => [id, i]));
+        items.sort((a, b) => ((a.x || 0) - (b.x || 0)) || ((idx.get(a.laneId) || 0) - (idx.get(b.laneId) || 0)) || ((a.y || 0) - (b.y || 0)));
+      };
+
+      // Copy the active flow's lane names, icons and colours into the one actor list
+      function syncActors() {
+        if (!chartData.flows) return;
+        chartData.lanes.forEach(l => {
+          const i = chartData.actors.findIndex(a => a.id === l.id);
+          if (i < 0) chartData.actors.push(withoutHeight(l)); else chartData.actors[i] = withoutHeight(l);
+        });
+      }
+
+      // Memory model -> full model (a copy). Flows without children come back as they are.
+      function fullOf(data) {
         const d = JSON.parse(JSON.stringify(data));
+        if (!d.flows) return d;
+        const key = d.tab || PARENT;
+        const tabs = { ...d.flows, [key]: { lanes: d.lanes, nodes: d.nodes, edges: d.edges, notes: d.notes } };
+        d.actors = d.actors.map(a => (d.lanes.find(l => l.id === a.id) ? withoutHeight(d.lanes.find(l => l.id === a.id)) : a));
+        d.lanes.forEach(l => { if (!d.actors.some(a => a.id === l.id)) d.actors.push(withoutHeight(l)); });
+        const actor = (id) => d.actors.find(a => a.id === id);
+        const parent = tabs[PARENT];
+        const shown = new Set(parent.lanes.map(l => l.id));
+        d.lanes = parent.lanes.map(l => ({ ...actor(l.id), ...(l.height != null ? { height: l.height } : {}) }))
+          .concat(d.actors.filter(a => !shown.has(a.id)).map(a => ({ ...a })));
+        d.nodes = parent.nodes;
+        d.edges = parent.edges;
+        if (parent.notes) d.notes = parent.notes; else delete d.notes;
+        d.children = {};
+        Object.keys(d.tabNames).forEach(slugKey => {
+          const t = tabs[slugKey], c = { name: d.tabNames[slugKey], laneOrder: t.lanes.map(l => l.id) };
+          const heights = t.lanes.filter(l => l.height != null);
+          if (heights.length) c.laneHeights = Object.fromEntries(heights.map(l => [l.id, l.height]));
+          c.nodes = t.nodes;
+          c.edges = t.edges;
+          if (t.notes && t.notes.length) c.notes = t.notes;
+          d.children[slugKey] = c;
+        });
+        ['flows', 'actors', 'tabNames', 'tab'].forEach(k => delete d[k]);
+        return d;
+      }
+
+      // Full model -> memory model: the parent flow active, the children parked. No children: nothing changes.
+      function tabsOf(d) {
+        const kids = d.children || {};
+        delete d.children;
+        if (!Object.keys(kids).length) return d;
+        const actors = d.lanes.map(withoutHeight);
+        const inParent = new Set(d.nodes.map(n => n.laneId)), inKids = new Set();
+        Object.values(kids).forEach(c => [...(c.laneOrder || []), ...(c.nodes || []).map(n => n.laneId)].forEach(id => inKids.add(id)));
+        d.lanes = d.lanes.filter(l => inParent.has(l.id) || !inKids.has(l.id));
+        d.actors = actors;
+        d.flows = {};
+        d.tabNames = {};
+        Object.keys(kids).forEach(slugKey => {
+          const c = kids[slugKey], heights = c.laneHeights || {};
+          const order = [...(c.laneOrder || []), ...(c.nodes || []).map(n => n.laneId)].filter((id, i, all) => all.indexOf(id) === i && actors.some(a => a.id === id));
+          d.tabNames[slugKey] = c.name || slugKey;
+          d.flows[slugKey] = { lanes: order.map(id => ({ ...actors.find(a => a.id === id), ...(heights[id] != null ? { height: heights[id] } : {}) })),
+            nodes: c.nodes || [], edges: c.edges || [], notes: c.notes || [] };
+          if (!d.flows[slugKey].notes.length) delete d.flows[slugKey].notes;
+        });
+        return d;
+      }
+
+      function toDisk(data) {
+        const d = fullOf(data);
         delete d.layout;
         slotColors(d, 'lanes');
-        const lanes = d.lanes || [], nodes = d.nodes || [];
-        const laneIndex = new Map(lanes.map((l, i) => [l.id, i]));
+        const lanes = d.lanes || [], nodes = d.nodes || [], kids = d.children || {};
         // Flow order: x runs along the flow in both directions (the engine has ranked the steps already)
-        nodes.sort((a, b) => ((a.x || 0) - (b.x || 0)) || ((laneIndex.get(a.laneId) || 0) - (laneIndex.get(b.laneId) || 0))
-          || ((a.y || 0) - (b.y || 0)));
+        flowSort(nodes, lanes.map(l => l.id));
+        Object.values(kids).forEach(c => flowSort(c.nodes || [], c.laneOrder || []));
         renameGeneratedIds(d);
         const layout = {};
-        [[lanes, LANE_LAYOUT], [nodes, NODE_LAYOUT]].forEach(([items, keys]) => items.forEach(o => {
+        [[lanes, LANE_LAYOUT], [nodes, NODE_LAYOUT], ...Object.values(d.children || {}).map(c => [c.nodes || [], NODE_LAYOUT])].forEach(([items, keys]) => items.forEach(o => {
           const pos = {};
           keys.forEach(k => { if (k in o) { pos[k] = o[k]; delete o[k]; } });
           if (Object.keys(pos).length) layout[o.id] = pos;
         }));
         if (Object.keys(layout).length) d.layout = layout;
+        if (d.children) {
+          // children in the order the parent flow reaches them, each with its keys in a fixed order
+          const ids = nodes.map(n => n.id).filter(id => d.children[id]);
+          const order = ids.concat(Object.keys(d.children).filter(k => !ids.includes(k)));
+          d.children = Object.fromEntries(order.map(k => [k, orderedKeys(d.children[k], CHILD_KEYS)]));
+        }
         return orderedKeys(d, DISK_KEYS);
       }
 
@@ -10985,13 +11479,318 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         const d = JSON.parse(JSON.stringify(data));
         const layout = d.layout || {};
         delete d.layout;
-        [...(d.lanes || []), ...(d.nodes || [])].forEach(o => Object.assign(o, layout[o.id] || {}));
+        [...(d.lanes || []), ...(d.nodes || []), ...Object.values(d.children || {}).flatMap(c => c.nodes || [])].forEach(o => Object.assign(o, layout[o.id] || {}));
         slotColors(d, 'lanes');
+        tabsOf(d);
         // A step without a position (added by hand to the JSON, or pasted from Mermaid) would sit on top of another:
         // when any is missing the whole diagram is laid out, as ERD and use case pages do. Placed pages load as saved.
-        if ((d.nodes || []).some(n => !Number.isFinite(n.x) || !Number.isFinite(n.y))) layoutDiagram(d);
+        const missing = (nodes) => (nodes || []).some(n => !Number.isFinite(n.x) || !Number.isFinite(n.y));
+        if (missing(d.nodes)) layoutDiagram(d);
+        Object.values(d.flows || {}).forEach(f => { if (missing(f.nodes)) layoutFlow(f, d.direction); });
         return d;
       }
+
+      // Lay out a parked flow (a copy of its arrays goes through the engine, and comes back)
+      function layoutFlow(f, direction) {
+        const flat = { direction, lanes: f.lanes, nodes: f.nodes, edges: f.edges, notes: f.notes || [] };
+        layoutDiagram(flat);
+        f.lanes = flat.lanes; f.nodes = flat.nodes; f.edges = flat.edges;
+      }
+
+      // --- TAB ROW, SWITCHING, THE LINK ON A SUBPROCESS STEP ---
+      const flowTabs = document.getElementById('flow-tabs');
+      let renderedTab = null;     // the flow the canvas was last drawn for (null: nothing drawn yet)
+      const tabViews = {};        // key -> { scale, panX, panY }: each flow keeps its own pan and zoom
+      const PARENT_LABEL = 'Main flow';
+
+      // Tab keys in reading order: the parent, then each child in the order the parent's steps reach it
+      function tabKeys() {
+        if (!chartData.flows) return [];
+        const pf = chartData.flows[PARENT] || chartData;
+        const lanes = (chartData.tab ? pf.lanes : chartData.lanes).map(l => l.id);
+        const sorted = [...pf.nodes];
+        flowSort(sorted, lanes);
+        const kids = Object.keys(chartData.tabNames);
+        const first = sorted.map(n => n.id).filter(id => kids.includes(id));
+        return [PARENT, ...first, ...kids.filter(k => !first.includes(k))];
+      }
+      const tabLabel = (key) => (key === PARENT ? PARENT_LABEL : chartData.tabNames[key]);
+      const hasChild = (nodeId) => !!chartData.flows && !chartData.tab && nodeId in chartData.tabNames;
+
+      function renderTabs() {
+        flowTabs.hidden = !chartData.flows;
+        document.querySelectorAll('[data-export="svg-all"]').forEach(el => { el.hidden = !chartData.flows; });
+        flowTabs.replaceChildren();
+        if (!chartData.flows) return;
+        const cur = curTab();
+        // The main flow's tab, then the inner box of subprocess tabs (one level: a child flow has no children)
+        const inner = document.createElement('div');
+        inner.className = 'flow-subtabs';
+        tabKeys().forEach(key => {
+          const b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'flow-tab';
+          b.setAttribute('role', 'tab');
+          b.setAttribute('aria-selected', String(key === cur));
+          b.tabIndex = key === cur ? 0 : -1;
+          b.dataset.tab = key;
+          b.textContent = tabLabel(key);
+          // From a subprocess, the main flow's tab goes back up with that subprocess step selected
+          const back = key === PARENT && cur !== PARENT;
+          b.title = key === PARENT ? (back ? `Back to the main flow, at the step "${tabLabel(cur)}"` : 'The main flow') : `Subprocess: ${tabLabel(key)}`;
+          b.addEventListener('click', () => (back ? switchTab(PARENT, cur) : switchTab(key)));
+          b.addEventListener('keydown', (e) => {
+            const all = [...flowTabs.querySelectorAll('.flow-tab')], i = all.indexOf(b);
+            const to = e.key === 'ArrowRight' ? all[(i + 1) % all.length] : e.key === 'ArrowLeft' ? all[(i + all.length - 1) % all.length] : null;
+            if (to) { e.preventDefault(); switchTab(to.dataset.tab); const again = flowTabs.querySelector(`.flow-tab[data-tab="${CSS.escape(to.dataset.tab)}"]`); if (again) again.focus(); }
+          });
+          (key === PARENT ? flowTabs : inner).appendChild(b);
+        });
+        if (inner.childElementCount) flowTabs.appendChild(inner);
+      }
+
+      // Each flow keeps its own pan and zoom: called at the end of render(), so an undo that lands on another flow follows too
+      function followTab() {
+        const t = curTab();
+        if (renderedTab === null) { renderedTab = t; return; }
+        if (renderedTab === t) return;
+        tabViews[renderedTab] = { scale, panX, panY };
+        renderedTab = t;
+        const v = tabViews[t];
+        if (v) { scale = v.scale; panX = v.panX; panY = v.panY; updateTransform(); } else fitView();
+      }
+
+      // Make `key` the active flow (not an edit: nothing to undo or save). `selectId` selects that step in it.
+      function switchTab(key, selectId) {
+        if (!chartData.flows || (key !== PARENT && !(key in chartData.tabNames))) return;
+        if (key !== curTab()) {
+          plugin.cancelInteraction();
+          plugin.clearSelection();
+          ui.closeConfirm();
+          syncActors();
+          const cur = curTab();
+          chartData.flows[cur] = { lanes: chartData.lanes, nodes: chartData.nodes, edges: chartData.edges };
+          if (chartData.notes) chartData.flows[cur].notes = chartData.notes;
+          const next = chartData.flows[key];
+          delete chartData.flows[key];
+          // the actors list is the one source of a lane's name, icon and colour
+          chartData.lanes = next.lanes.map(l => ({ ...chartData.actors.find(a => a.id === l.id), ...(l.height != null ? { height: l.height } : {}) }));
+          chartData.nodes = next.nodes;
+          chartData.edges = next.edges;
+          if (next.notes) chartData.notes = next.notes; else delete chartData.notes;
+          if (key === PARENT) delete chartData.tab; else chartData.tab = key;
+          render();
+        }
+        if (selectId && nodeById(selectId)) selectNode(selectId);
+      }
+
+      // A child flow's own lanes, steps and arrows go when its parent step does
+      function dropChildOf(ids) {
+        if (!chartData.flows || chartData.tab) return;
+        ids.filter(id => id in chartData.tabNames).forEach(id => { delete chartData.flows[id]; delete chartData.tabNames[id]; });
+        if (!Object.keys(chartData.tabNames).length) ['flows', 'actors', 'tabNames'].forEach(k => delete chartData[k]);
+      }
+      const laneUsedElsewhere = (laneId, inLanes) => !!chartData.flows && Object.values(chartData.flows).some(f => (inLanes ? f.lanes.some(l => l.id === laneId) : f.nodes.some(n => n.laneId === laneId)));
+
+      // After a direction change every parked flow is laid out again too (a step's x/y mean different things in each)
+      function layoutOtherFlows() {
+        Object.values(chartData.flows || {}).forEach(f => layoutFlow(f, chartData.direction));
+      }
+
+      // Visit every flow in turn (the export of all of them), then come back to the one the person was on
+      function eachTab(fn) {
+        const home = curTab();
+        tabKeys().forEach(key => { switchTab(key); fn(tabLabel(key)); });
+        switchTab(home);
+      }
+
+      // The subprocess step's + marker (top left, inside the box) becomes a button when the step has a child flow: opens its tab
+      function buildSubLink(node) {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'sub-open';
+        b.setAttribute('data-export-skip', '');
+        b.title = `Open the subprocess flow: ${chartData.tabNames[node.id]}`;
+        b.setAttribute('aria-label', b.title);
+                b.addEventListener('pointerdown', (e) => e.stopPropagation());   // never starts a node drag
+        b.addEventListener('click', (e) => { e.stopPropagation(); switchTab(node.id); });
+        return b;
+      }
+
+
+      // --- COLLAPSE TO SUBPROCESS / EXPAND (dock buttons) ---
+      // Collapse: a run of two or more steps (runOf: one way in, one way out, no loop-back across the boundary) moves into a
+      // new child flow and leaves one subprocess step in its place; the child gets a start pill, the run and one end pill.
+      // Expand does the reverse (the same wiring as `--extract --flat`, scripts/subprocess_flow.py flatten). Each is one edit.
+      // Only from the parent flow: a child cannot hold another (one level). Neither is offered while a connector is involved.
+      const btnCollapseSub = document.getElementById('btn-collapse-sub');
+      const btnExpandSub = document.getElementById('btn-expand-sub');
+      let subSeq = 0;
+      const subId = (prefix) => `${prefix}_${Date.now()}_${subSeq++}`;
+
+      function collapsibleRun() {
+        if (chartData.tab || selectedNodeIds.size < 2) return null;
+        const ids = [...selectedNodeIds];
+        if (ids.some(id => hasChild(id))) return null;
+        const run = runOf(ids);
+        return run && [...run.set].every(id => !isConnector(nodeById(id))) ? run : null;
+      }
+      const expandableId = () => {
+        const id = !chartData.tab && selectedNodeIds.size === 1 ? [...selectedNodeIds][0] : null;
+        return id && hasChild(id) ? id : null;
+      };
+      function updateSubButtons() {
+        if (btnCollapseSub) btnCollapseSub.hidden = !collapsibleRun();
+        if (btnExpandSub) btnExpandSub.hidden = !expandableId();
+      }
+
+      function collapseToSubprocess() {
+        const run = collapsibleRun();
+        if (!run) return;
+        syncActors();
+        const ids = run.set, entry = nodeById(run.entry), exit = nodeById(run.exit);
+        const id = subId('n'), name = 'New Subprocess';
+        const inner = chartData.edges.filter(e => ids.has(e.from) && ids.has(e.to));
+        const moved = chartData.nodes.filter(n => ids.has(n.id));
+        const notes = notesList();
+        const kidNotes = notes.filter(n => n.nodes.length && n.nodes.every(i => ids.has(i)));
+        const start = { id: subId('n'), laneId: entry.laneId, type: 'start', label: name };
+        const end = { id: subId('n'), laneId: exit.laneId, type: 'end', label: 'Subprocess Done' };
+        const kidNodes = [start, ...moved, end];
+        const kidEdges = [...inner, { id: subId('e'), from: start.id, to: entry.id, label: '' }, { id: subId('e'), from: exit.id, to: end.id, label: '' }];
+        // the parent: the run is replaced by one subprocess step, the arrows that entered and left it now meet that step
+        run.ins.forEach(e => { e.to = id; });
+        if (run.out) run.out.from = id;
+        chartData.nodes = chartData.nodes.filter(n => !ids.has(n.id)).concat({ id, laneId: entry.laneId, type: 'subprocess', label: name, x: entry.x, y: entry.y });
+        chartData.edges = chartData.edges.filter(e => !inner.includes(e));
+        if (kidNotes.length) { chartData.notes = notes.filter(n => !kidNotes.includes(n)); if (!chartData.notes.length) delete chartData.notes; }
+        const used = new Set(kidNodes.map(n => n.laneId));
+        if (!chartData.flows) { chartData.actors = chartData.lanes.map(withoutHeight); chartData.flows = {}; chartData.tabNames = {}; }
+        const flow = { lanes: chartData.lanes.filter(l => used.has(l.id)).map(withoutHeight), nodes: kidNodes, edges: kidEdges };
+        if (kidNotes.length) flow.notes = kidNotes;
+        chartData.flows[id] = flow;
+        chartData.tabNames[id] = name;
+        layoutFlow(flow, chartData.direction);
+        // a lane that only the child still uses leaves the parent (as it would on reload)
+        chartData.lanes = chartData.lanes.filter(l => chartData.nodes.some(n => n.laneId === l.id) || !used.has(l.id));
+        pruneNotes();
+        clearNodeSelection();
+        layoutDiagram(chartData);
+        render();
+        selectNode(id);
+        updateStatus(true);
+        // the new step is waiting for its name: its text opens for editing
+        const label = document.querySelector(`#node-${CSS.escape(id)} .node-label`);
+        if (label) label.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+      }
+
+      // A subprocess step added from Shapes: a child flow of its own, start pill -> one step -> end pill in the step's lane
+      function addEmptyChild(node) {
+        syncActors();
+        const start = { id: subId('n'), laneId: node.laneId, type: 'start', label: node.label };
+        const step = { id: subId('n'), laneId: node.laneId, type: 'task', label: 'New Step' };
+        const end = { id: subId('n'), laneId: node.laneId, type: 'end', label: 'Subprocess Done' };
+        const edges = [{ id: subId('e'), from: start.id, to: step.id, label: '' }, { id: subId('e'), from: step.id, to: end.id, label: '' }];
+        if (!chartData.flows) { chartData.actors = chartData.lanes.map(withoutHeight); chartData.flows = {}; chartData.tabNames = {}; }
+        const flow = { lanes: chartData.lanes.filter(l => l.id === node.laneId).map(withoutHeight), nodes: [start, step, end], edges };
+        chartData.flows[node.id] = flow;
+        chartData.tabNames[node.id] = node.label;
+        layoutFlow(flow, chartData.direction);
+      }
+
+      function expandSubprocess() {
+        const id = expandableId();
+        if (!id) return;
+        syncActors();
+        const kid = chartData.flows[id];
+        const starts = kid.nodes.filter(n => n.type === 'start'), ends = kid.nodes.filter(n => n.type === 'end');
+        if (starts.length !== 1) { flashHint('Expand needs the subprocess to have exactly one start pill.'); return; }
+        const letters = (nodes) => new Set(nodes.filter(isConnector).map(n => String(n.label || '').trim().toUpperCase()));
+        const clash = [...letters(kid.nodes)].find(l => letters(chartData.nodes).has(l));
+        if (clash) { flashHint(`Both flows use the connector ${clash}: rename one before expanding.`); return; }
+        const start = starts[0];
+        const edges = chartData.edges;
+        const outs = edges.filter(e => e.from === id);
+        let decision = null, branches = outs;
+        const next = outs.length === 1 ? nodeById(outs[0].to) : null;
+        if (next && next.type === 'decision') {
+          branches = edges.filter(e => e.from === next.id);
+          if (ends.length === branches.length && !edges.some(e => e.to === next.id && e.from !== id)) decision = next;
+        }
+        const drop = new Set([id, start.id]), dropEdges = new Set(), fresh = [];
+        const wire = (from, to, a, b) => fresh.push({ id: subId('e'), from, to, label: a.label || b.label || '', ...(a.feedback ? { feedback: true } : {}) });
+        let kidEdges = kid.edges.slice();
+        const first = kidEdges.filter(e => e.from === start.id);
+        edges.filter(e => e.to === id).forEach(ie => first.forEach(f => wire(ie.from, f.to, ie, f)));
+        if (outs.length) {
+          let target;
+          if (decision) {
+            const map = endToBranch(ends, branches);
+            target = (end) => (map[end.id] ? [map[end.id]] : []);
+            drop.add(decision.id);
+            branches.forEach(b => dropEdges.add(b.id));
+          } else target = () => outs;
+          ends.forEach(end => {
+            drop.add(end.id);
+            kidEdges.filter(e => e.to === end.id).forEach(ie => target(end).forEach(t => wire(ie.from, t.to, ie, t)));
+          });
+          kidEdges = kidEdges.filter(e => !ends.some(end => end.id === e.to));
+        }
+        kidEdges = kidEdges.filter(e => e.from !== start.id);
+        const relink = first.length ? first[0].to : null;
+        notesList().forEach(n => { n.nodes = n.nodes.map(i => (i === id ? relink : i)).filter(Boolean); });
+        // the child's lanes that the parent lacks come in, in the order of the one actor list
+        const at = (laneId) => chartData.actors.findIndex(a => a.id === laneId);
+        kid.lanes.forEach(l => {
+          if (chartData.lanes.some(x => x.id === l.id)) return;
+          let pos = chartData.lanes.findIndex(x => at(x.id) > at(l.id));
+          if (pos < 0) pos = chartData.lanes.length;
+          chartData.lanes.splice(pos, 0, withoutHeight(chartData.actors.find(a => a.id === l.id) || l));
+        });
+        chartData.nodes = chartData.nodes.filter(n => !drop.has(n.id)).concat(kid.nodes.filter(n => !drop.has(n.id)));
+        chartData.edges = edges.filter(e => !drop.has(e.from) && !drop.has(e.to) && !dropEdges.has(e.id)).concat(kidEdges, fresh);
+        if (kid.notes && kid.notes.length) chartData.notes = notesList().concat(kid.notes);
+        dropChildOf([id]);
+        pruneConnectors();
+        pruneNotes();
+        clearNodeSelection();
+        layoutDiagram(chartData);
+        render();
+        updateStatus(true);
+      }
+
+      // Which branch of the decision after a subprocess each of the child's end pills stands for: by the same name, then by a
+      // branch word inside the end's name ("Approved" in "Specification Approved"), then Yes/No by wording (not, fail, reject,
+      // decline, cancel... is the No), then by position. Mirrors _end_to_branch in scripts/subprocess_flow.py.
+      function endToBranch(ends, branches) {
+        const lab = (x) => String(x || '').trim().toLowerCase();
+        const left = branches.slice(), out = {};
+        const take = (end, b) => { out[end.id] = b; left.splice(left.indexOf(b), 1); };
+        ends.forEach(end => { const b = left.find(x => lab(x.label) === lab(end.label)); if (b) take(end, b); });
+        ends.filter(e => !out[e.id]).forEach(end => { const b = left.find(x => lab(x.label) && lab(end.label).includes(lab(x.label))); if (b) take(end, b); });
+        const rest = ends.filter(e => !out[e.id]);
+        const yes = left.find(b => lab(b.label) === 'yes'), no = left.find(b => lab(b.label) === 'no');
+        if (rest.length === 2 && left.length === 2 && yes && no) {
+          const NO_WORDS = /\b(not|no|fail|failed|reject|rejected|declin\w*|cancel\w*|denied|invalid|incomplete|unable|refused)\b/i;
+          const neg = rest.filter(e => NO_WORDS.test(String(e.label || '')));
+          const n = neg.length === 1 ? neg[0] : rest[1];
+          out[n.id] = no;
+          out[rest.find(e => e !== n).id] = yes;
+        } else rest.forEach((e, i) => { if (left[i]) out[e.id] = left[i]; });
+        return out;
+      }
+
+      // The tab of a subprocess step is named like the step, and so is its start pill (the contract of the parent and the child)
+      function syncChildName(node) {
+        if (!hasChild(node.id) || !node.label) return;
+        chartData.tabNames[node.id] = node.label;
+        const start = chartData.flows[node.id].nodes.find(n => n.type === 'start');
+        if (start) start.label = node.label;
+        renderTabs();
+      }
+      if (btnCollapseSub) btnCollapseSub.addEventListener('click', collapseToSubprocess);
+      if (btnExpandSub) btnExpandSub.addEventListener('click', expandSubprocess);
+
 
       // --- REGISTER WITH THE SHELL ---
       registerDiagramPlugin({
@@ -11004,6 +11803,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         contentEl: swimlanesContainer,
         report: { node: '.flow-node', label: '.edge-label', labelText: '.edge-label-text', nodeText: '.node-label' },
         render,
+        eachTab,
         isBackground: (el) => (isPresenting() && !!el.closest('.flow-node:not(.type-connector)')) || el.id === 'swimlanes-container' || el.classList.contains('lane-track') || el.classList.contains('lane-gutter'),
         clearSelection() {
           clearNodeSelection();

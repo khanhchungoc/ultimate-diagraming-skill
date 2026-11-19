@@ -115,7 +115,8 @@
         function onConfirmOutside(e) { if (confirmEl && !confirmEl.contains(e.target)) closeConfirm(); }
         // Ask before a delete: a bubble under `anchor` (a DOM element; above it when there is no room below; the upper middle
         // of the window when null), kept on screen. opts: { message, title?, label (the dialog's aria-label), ok? (button text,
-        // "Delete") }. Escape, Cancel, a click elsewhere or a pan/zoom (the type calls closeConfirm) dismisses it.
+        // "Delete"), okClass? (the main button's style, "btn-danger"), extra? (a DOM node shown under the message) }.
+        // Escape, Cancel, a click elsewhere or a pan/zoom (the type calls closeConfirm) dismisses it.
         function confirm(anchor, opts, onYes) {
           closeConfirm();
           const box = document.createElement('div');
@@ -126,12 +127,13 @@
           const add = (cls, text) => { const d = document.createElement('div'); d.className = cls; d.textContent = text; box.appendChild(d); };
           if (opts.title) add('confirm-title', opts.title);
           add('confirm-msg', opts.message);
+          if (opts.extra) box.appendChild(opts.extra);
           const row = document.createElement('div');
           row.className = 'confirm-actions';
           const button = (cls, text) => { const b = document.createElement('button'); b.type = 'button'; b.className = cls; b.textContent = text; return b; };
           const cancel = button('btn confirm-cancel', 'Cancel');
           cancel.addEventListener('click', () => closeConfirm());
-          const ok = button('btn btn-danger confirm-ok', opts.ok || 'Delete');
+          const ok = button(`btn ${opts.okClass || 'btn-danger'} confirm-ok`, opts.ok || 'Delete');
           ok.addEventListener('click', () => { closeConfirm(); onYes(); });
           row.append(cancel);
           // An optional milder second choice (opts.alt: { text, onClick }) between Cancel and the main action
@@ -361,10 +363,15 @@
       }
       captureArtifactScaffold();
       // window.claude carries only use(); resolve namespaces through it, never read window.claude.<name>
+      // Playground pages (dev/build_playground.py): a <script id="playground"> in the body, {"type", "types": [{id, name}]}.
+      // Save downloads a standalone file and the header icon is a menu that goes to a blank page of another type.
+      const playground = (() => {
+        try { const el = document.getElementById('playground'); return el ? JSON.parse(el.textContent) : null; } catch (_) { return null; }
+      })();
       const claudeHost = artifactShaped && window.claude && typeof window.claude.use === 'function' ? window.claude : null;
       // null: a plain file; 'pending': use() has not answered yet; 'publish': Save publishes diagram.json;
       // 'view-only': the viewer cannot save (Save hidden, Export > HTML file offered)
-      let artifactMode = claudeHost ? 'pending' : null;
+      let artifactMode = claudeHost && !playground ? 'pending' : null;
       let artifactApi = null;
       let downloadsApi = null;
       let publishing = false;
@@ -375,6 +382,8 @@
       let chartData = { title: "", direction: "LR", lanes: [], nodes: [], edges: [] };
       let fileHandle = null;
       let everSaved = false;
+      let storedName = '';   // the file a stored handle from an earlier visit points at (Save writes there once allowed)
+      let downloadToldOnce = false;
       let hasUnsavedChanges = false;
 
       // Undo / redo history: JSON snapshots of chartData, taken at each committed edit
@@ -407,7 +416,9 @@
       const zoomLevelEl = document.getElementById('zoom-level');
       const btnUndo = document.getElementById('btn-undo');
       const btnRedo = document.getElementById('btn-redo');
-      const btnHelp = document.getElementById('btn-help');
+      const btnMore = document.getElementById('btn-more');
+      const moreMenu = document.getElementById('more-menu');
+      const menuHelp = document.getElementById('menu-help');
       const helpDrawer = document.getElementById('help-drawer');
 
       let dataReadme = null;   // the data block's "_readme" line (written by scripts/layout_engine.py assemble_page)
@@ -560,18 +571,30 @@
           saveStatus.className = "badge badge-status saved";
           return;
         }
+        // Name the file Save writes to: the one chosen this visit, else the one remembered from an earlier visit
+        const target = fileHandle ? fileHandle.name : storedName;
         if (unsaved) {
           saveStatus.textContent = "Unsaved changes";
           saveStatus.className = "badge badge-status unsaved";
+          saveStatus.title = target ? `Save writes to ${target}` : '';
         } else if (fileHandle) {
-          saveStatus.textContent = "Saved to file";
+          saveStatus.textContent = `Saved to ${target}`;
           saveStatus.className = "badge badge-status saved";
+          saveStatus.title = `Save writes straight to ${target}`;
         } else if (everSaved) {
-          saveStatus.textContent = "Downloaded";
+          saveStatus.textContent = "Downloaded a copy";
           saveStatus.className = "badge badge-status saved";
+          saveStatus.title = location.protocol === 'file:'
+            ? 'The edited diagram went to your downloads folder. The file you opened was not changed.'
+            : 'The edited diagram went to your downloads folder.';
+        } else if (target) {
+          saveStatus.textContent = `Saves to ${target}`;
+          saveStatus.className = "badge badge-status";
+          saveStatus.title = `Save writes to ${target}. Your browser may ask once per session to let this page edit it.`;
         } else {
           saveStatus.textContent = "Ready";
           saveStatus.className = "badge badge-status";
+          saveStatus.title = '';
         }
       }
 
@@ -643,18 +666,13 @@
 
       // --- THEME (light / dark) ---
       // Priority: ?theme=dark|light  >  saved choice (localStorage)  >  OS preference
-      const btnTheme = document.getElementById('btn-theme');
+      const menuTheme = document.getElementById('menu-theme');
       function currentTheme() {
         return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
       }
-      // The button shows the theme you would switch TO (stroke icons, same family as the other controls)
-      const ICON_SUN = ui.icon('sun'), ICON_MOON = ui.icon('moon');
       function applyTheme(theme, persist) {
         document.documentElement.setAttribute('data-theme', theme);
-        btnTheme.innerHTML = theme === 'dark' ? ICON_SUN : ICON_MOON;
-        const next = theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode';
-        btnTheme.title = next;
-        btnTheme.setAttribute('aria-label', next);
+        menuTheme.setAttribute('aria-checked', String(theme === 'dark'));
         if (persist) { try { localStorage.setItem('flowchart-theme', theme); } catch (e) {} }
         if (plugin) plugin.render();   // type colors may depend on the theme
       }
@@ -668,7 +686,7 @@
         }
         applyTheme(theme, false);
       }
-      btnTheme.addEventListener('click', () => applyTheme(currentTheme() === 'dark' ? 'light' : 'dark', true));
+      menuTheme.addEventListener('click', () => applyTheme(currentTheme() === 'dark' ? 'light' : 'dark', true));
 
       // --- VIEWPORT PAN & ZOOM & FIT ---
       function updateTransform() {
@@ -770,13 +788,20 @@
         const dock = document.querySelector('.dock-area');
         const dockRect = dock && getComputedStyle(dock).display !== 'none' ? dock.getBoundingClientRect() : null;
         const dockBand = dockRect && dockRect.height ? Math.max(0, vpRect.bottom - dockRect.top) : 0;
+        // Chrome floating over the top of the viewport (a type's [data-overlay-top], e.g. the flowchart's tab box): fit below it
+        let topBand = 0;
+        if (!capture) document.querySelectorAll('[data-overlay-top]').forEach((el) => {
+          if (el.hidden || getComputedStyle(el).display === 'none') return;
+          const r = el.getBoundingClientRect();
+          if (r.height) topBand = Math.max(topBand, r.bottom - vpRect.top);
+        });
         const scaleX = (vpRect.width - pad) / frame.w;
-        const scaleY = (vpRect.height - dockBand - pad) / frame.h;
-        return { vpRect, frame, capture, dockBand, scaleX, scaleY, minPan: capture ? 0 : 20 };
+        const scaleY = (vpRect.height - dockBand - topBand - pad) / frame.h;
+        return { vpRect, frame, capture, dockBand, topBand, scaleX, scaleY, minPan: capture ? 0 : 20 };
       }
 
       function fitView() {
-        const { vpRect, frame, capture, dockBand, scaleX, scaleY, minPan } = fitMetrics();
+        const { vpRect, frame, capture, dockBand, topBand, scaleX, scaleY, minPan } = fitMetrics();
 
         // Capture mode: scale to the exact width requested (?capture&w=1600) and pin to the top-left,
         // so the screenshot is the diagram only and does not depend on browser viewport quirks.
@@ -793,7 +818,7 @@
 
         scale = Math.min(Math.max(Math.min(scaleX, scaleY), 0.25), 1.0);
         panX = Math.max(minPan, (vpRect.width - frame.w * scale) / 2) - frame.x * scale;
-        panY = Math.max(minPan, (vpRect.height - dockBand - frame.h * scale) / 2) - frame.y * scale;
+        panY = topBand + Math.max(minPan, (vpRect.height - dockBand - topBand - frame.h * scale) / 2) - frame.y * scale;
 
         updateTransform();
       }
@@ -1062,11 +1087,11 @@
 
       function setHelpOpen(open) {
         helpDrawer.classList.toggle('open', open);
-        btnHelp.setAttribute('aria-expanded', String(open));
+        btnMore.setAttribute('aria-expanded', String(open || !moreMenu.hidden));
         if (open) document.getElementById('help-close').focus();
-        else if (helpDrawer.contains(document.activeElement)) btnHelp.focus();
+        else if (helpDrawer.contains(document.activeElement)) btnMore.focus();
       }
-      btnHelp.addEventListener('click', () => setHelpOpen(!helpDrawer.classList.contains('open')));
+      menuHelp.addEventListener('click', () => { setMoreOpen(false); setHelpOpen(!helpDrawer.classList.contains('open')); });
       document.getElementById('help-close').addEventListener('click', () => setHelpOpen(false));
 
       // --- SEARCH (spec: dev/plans/search.md) ---
@@ -1259,8 +1284,9 @@
         }
       }
 
-      function exportFileName(ext) {
-        return ((chartData.title || plugin.id).toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '') || 'diagram') + '.' + ext;
+      function exportFileName(ext, part) {
+        const clean = (t) => String(t).toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '');
+        return (clean(chartData.title || plugin.id) || 'diagram') + (part && clean(part) ? '-' + clean(part) : '') + '.' + ext;
       }
 
       // Inside an artifact the page cannot start a download itself; the viewer confirms one through the downloads
@@ -1317,6 +1343,11 @@
       function exportDiagram(format) {
         try {
           if (format === 'html') { downloadHtmlFile(); return; }
+          // One SVG per tab, for a type that has tabs (the flowchart's subprocess flows)
+          if (format === 'svg-all') {
+            plugin.eachTab(name => deliverFile(exportFileName('svg', name), new Blob([svgDocument(buildExportSvg().svg)], { type: 'image/svg+xml;charset=utf-8' })));
+            return;
+          }
           if (format === 'svg') {
             downloadBlob(new Blob([svgDocument(buildExportSvg().svg)], { type: 'image/svg+xml;charset=utf-8' }), 'svg');
             return;
@@ -1359,7 +1390,7 @@
             job = navigator.clipboard.writeText(svgDocument(buildExportSvg().svg));
           } else if (format === 'mermaid') {
             if (typeof plugin.toMermaid !== 'function') throw new Error('this diagram type has no Mermaid export');
-            job = navigator.clipboard.writeText(plugin.toMermaid(mermaidData(), { palette: SWATCHES.map((w) => w.hex) }));
+            job = navigator.clipboard.writeText(plugin.toMermaid(mermaidData(), { palette: SWATCHES.map((w) => w.hex), stock: true }));
           } else if (format === 'png') {
             if (!canCopyPng) throw new Error('this browser cannot copy images');
             job = navigator.clipboard.write([new ClipboardItem({ 'image/png': exportPngBlob() })]);
@@ -1375,20 +1406,49 @@
       document.querySelectorAll('[data-copy="png"]').forEach(el => { el.hidden = !canCopyPng; });
       document.querySelectorAll('[data-copy="svg"]').forEach(el => { el.hidden = !(navigator.clipboard && navigator.clipboard.writeText); });
       // Mermaid is offered only when the diagram type can read/write it (the type script registers after this one runs)
-      const btnImportMermaid = document.getElementById('btn-import-mermaid');
-      if (btnImportMermaid) btnImportMermaid.addEventListener('click', (e) => { e.stopPropagation(); setExportOpen(false); openMermaidImport(); });
+      const menuImportMermaid = document.getElementById('menu-import-mermaid');
+      menuImportMermaid.addEventListener('click', (e) => { e.stopPropagation(); setMoreOpen(false); setExportOpen(false); openMermaidImport(); });
       function syncCopyMenu() {
         document.querySelectorAll('[data-copy="mermaid"]').forEach(el => { el.hidden = !(plugin && typeof plugin.toMermaid === 'function' && navigator.clipboard && navigator.clipboard.writeText); });
-        if (btnImportMermaid) btnImportMermaid.hidden = !(plugin && typeof plugin.fromMermaid === 'function');
+        menuImportMermaid.hidden = !(plugin && typeof plugin.fromMermaid === 'function');
         // Drop the "Copy" heading when this browser has no copy items to offer
         document.querySelectorAll('[data-copy-label]').forEach(el => { el.hidden = !document.querySelector('[data-copy]:not([hidden])'); });
       }
       syncCopyMenu();
 
       function setExportOpen(open) {
+        if (open) setMoreOpen(false);
         exportMenu.hidden = !open;
         btnExport.setAttribute('aria-expanded', String(open));
       }
+      function setMoreOpen(open) {
+        if (open) setExportOpen(false);
+        moreMenu.hidden = !open;
+        btnMore.setAttribute('aria-expanded', String(open || helpDrawer.classList.contains('open')));
+      }
+      btnMore.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const opening = moreMenu.hidden;
+        setMoreOpen(opening);
+        // Opened from the keyboard (detail 0): focus the first item, as a menu button does
+        if (opening && e.detail === 0) { const first = [...moreMenu.querySelectorAll('[role^="menuitem"]')].find((el) => !el.hidden); if (first) first.focus(); }
+      });
+      // Arrow keys move between the visible items of whichever menu is open
+      function menuArrowKeys(menu, btn, close) {
+        const items = () => [...menu.querySelectorAll('[role^="menuitem"]')].filter((el) => !el.hidden);
+        const onKey = (e) => {
+          if (menu.hidden || (e.key !== 'ArrowDown' && e.key !== 'ArrowUp')) return;
+          const list = items();
+          if (!list.length) return;
+          e.preventDefault();
+          const i = list.indexOf(document.activeElement);
+          list[i < 0 ? (e.key === 'ArrowDown' ? 0 : list.length - 1) : (i + (e.key === 'ArrowDown' ? 1 : list.length - 1)) % list.length].focus();
+        };
+        menu.addEventListener('keydown', onKey);
+        btn.addEventListener('keydown', onKey);
+      }
+      menuArrowKeys(moreMenu, btnMore);
+      menuArrowKeys(exportMenu, btnExport);
       btnExport.addEventListener('click', (e) => { e.stopPropagation(); setExportOpen(exportMenu.hidden); });
       exportMenu.addEventListener('click', (e) => {
         const b = e.target.closest('[data-export], [data-copy]');
@@ -1397,11 +1457,15 @@
         if (b.dataset.copy) copyDiagram(b.dataset.copy);
         else exportDiagram(b.dataset.export);
       });
-      document.addEventListener('click', () => setExportOpen(false));
-      window.addEventListener('keydown', (e) => { if (e.key === 'Escape') setExportOpen(false); });
+      document.addEventListener('click', () => { setExportOpen(false); setMoreOpen(false); });
+      window.addEventListener('keydown', (e) => {
+        if (e.key !== 'Escape') return;
+        if (!moreMenu.hidden && moreMenu.contains(document.activeElement)) btnMore.focus();
+        setExportOpen(false); setMoreOpen(false);
+      });
 
       // --- IMPORT MERMAID ---
-      // Toolbar Paste Mermaid button (#btn-import-mermaid) and canvas paste (Ctrl+V outside text fields): the text is read
+      // More menu's Paste Mermaid item (#menu-import-mermaid) and canvas paste (Ctrl+V outside text fields): the text is read
       // by the type's fromMermaid (mermaid.js) and replaces the diagram as one undo step, laid out fresh. What the reader
       // could not map exactly is listed afterwards, and text of another diagram type is refused.
       const MERMAID_TYPE_NAME = { flowchart: 'flowchart', usecase: 'use case diagram', sequence: 'sequence diagram', erd: 'ER diagram' };
@@ -1446,7 +1510,7 @@
         return true;
       }
       function positionImportBox(box) {
-        const anchor = (btnImportMermaid && !btnImportMermaid.hidden ? btnImportMermaid : btnExport).getBoundingClientRect();
+        const anchor = btnMore.getBoundingClientRect();
         const bw = box.offsetWidth;
         box.style.left = `${Math.max(8, Math.min(anchor.right - bw, innerWidth - bw - 8))}px`;
         box.style.top = `${anchor.bottom + 8}px`;
@@ -1635,17 +1699,24 @@
           req.onerror = () => reject(req.error);
         });
       }
-      async function loadStoredHandle() {
+      async function readStoredHandle() {
         try {
           const db = await handleDb();
-          const h = await new Promise((resolve, reject) => {
+          return await new Promise((resolve, reject) => {
             const r = db.transaction('handles').objectStore('handles').get(location.href);
             r.onsuccess = () => resolve(r.result || null);
             r.onerror = () => reject(r.error);
           });
+        } catch (_) { return null; }
+      }
+      async function loadStoredHandle() {
+        try {
+          const h = await readStoredHandle();
           if (!h) return null;
           const opts = { mode: 'readwrite' };
           if ((await h.queryPermission(opts)) === 'granted') return h;
+          // The browser forgets the permission when it closes: say why it asks before its prompt shows
+          showToast(`Your browser asks once per session to let this page edit ${h.name}.`);
           if ((await h.requestPermission(opts)) === 'granted') return h;
         } catch (_) {}
         return null;
@@ -1907,29 +1978,94 @@
         }
       }
 
-      async function writeFile(replacedHtml) {
+      // The opened file's own location, when the page was opened from disk (file://): { file, folder, name, win }.
+      // Windows paths (file:///C:/... and UNC file://server/share/...) come back with backslashes.
+      function localFilePath() {
+        if (location.protocol !== 'file:') return null;
+        let p;
+        try { p = decodeURIComponent(location.pathname); } catch (_) { return null; }
+        const win = !!location.host || /^\/[A-Za-z]:\//.test(p);
+        if (location.host) p = '//' + location.host + p;
+        if (win) p = p.replace(/^\/(?=[A-Za-z]:)/, '').replace(/\//g, '\\');
+        const sep = win ? '\\' : '/';
+        const i = p.lastIndexOf(sep);
+        if (i < 0 || !/\.html?$/i.test(p)) return null;
+        return { file: p, folder: p.slice(0, i) || sep, name: p.slice(i + 1), win };
+      }
+
+      // Copy text from inside a click. The async clipboard first; the old execCommand route where it is missing.
+      function copyText(text) {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          return navigator.clipboard.writeText(text).then(() => true, () => false);
+        }
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.setAttribute('readonly', '');
+        ta.style.cssText = 'position:fixed;left:-9999px;top:0;opacity:0';
+        document.body.appendChild(ta);
+        ta.select();
+        let ok = false;
+        try { ok = document.execCommand('copy'); } catch (_) {}
+        ta.remove();
+        return Promise.resolve(ok);
+      }
+
+      // Before the first Save dialog of a file opened from disk: copy the file's path right away (the Save click allows it)
+      // and show it, so the user can paste it into the dialog and save over the original instead of making a copy elsewhere.
+      // The dialog opens from the bubble's own button, which supplies the click the browser requires.
+      async function askSaveLocation(loc, choose) {
+        const plat = ((navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || '').toLowerCase();
+        const mac = !loc.win && /mac/.test(plat);
+        // macOS "Go to folder" takes a folder (the name is already filled in); Windows and GTK file boxes take the whole path
+        const text = mac ? loc.folder : loc.file;
+        const copied = await copyText(text);
+        const where = loc.win ? 'click the File name box and press Ctrl+V.' : mac ? 'press \u2318\u21e7G, then \u2318V.' : 'press Ctrl+L, then Ctrl+V.';
+        const path = document.createElement('code');
+        path.className = 'save-where';
+        path.textContent = text;
+        ui.confirm(btnSave, {
+          label: 'Save over the file you opened',
+          title: copied ? 'Path copied' : 'Save over the file you opened',
+          message: (copied ? 'In the next window, ' : 'Copy this path. In the next window, ') + where,
+          extra: path,
+          ok: 'Choose\u2026',
+          okClass: 'btn-primary'
+        }, choose);
+      }
+
+      async function pickSaveFile() {
+        // Browsers cannot read a page's own folder, so reuse the current file name
+        // (saving over it) and a stable picker id so the dialog reopens in the
+        // last folder used for diagrams.
+        let currentName = '';
+        try {
+          currentName = decodeURIComponent(location.pathname.split('/').pop() || '');
+        } catch (_) {}
+        const suggested = /\.html?$/i.test(currentName)
+          ? currentName
+          : (chartData.title || plugin.id).toLowerCase().replace(/[^a-z0-9_-]/g, '-') + '.html';
+        return window.showSaveFilePicker({
+          id: 'ultimate-diagram-save',
+          suggestedName: suggested,
+          types: [{
+            description: 'HTML Diagram File',
+            accept: { 'text/html': ['.html'] }
+          }]
+        });
+      }
+
+      async function writeFile(replacedHtml, picked) {
         if ('showSaveFilePicker' in window) {
           try {
-            if (!fileHandle) fileHandle = await loadStoredHandle();
+            if (!fileHandle && !picked) fileHandle = await loadStoredHandle();
             if (!fileHandle) {
-              // Browsers cannot read a page's own folder, so reuse the current file name
-              // (saving over it) and a stable picker id so the dialog reopens in the
-              // last folder used for diagrams.
-              let currentName = '';
-              try {
-                currentName = decodeURIComponent(location.pathname.split('/').pop() || '');
-              } catch (_) {}
-              const suggested = /\.html?$/i.test(currentName)
-                ? currentName
-                : (chartData.title || plugin.id).toLowerCase().replace(/[^a-z0-9_-]/g, '-') + '.html';
-              fileHandle = await window.showSaveFilePicker({
-                id: 'ultimate-diagram-save',
-                suggestedName: suggested,
-                types: [{
-                  description: 'HTML Diagram File',
-                  accept: { 'text/html': ['.html'] }
-                }]
-              });
+              const loc = !picked && localFilePath();
+              if (loc) {
+                // The dialog has to open from a fresh click: the bubble's button calls back here
+                askSaveLocation(loc, () => writeFile(replacedHtml, true));
+                return;
+              }
+              fileHandle = await pickSaveFile();
               storeHandle(fileHandle);
             }
 
@@ -1959,12 +2095,28 @@
           savedJson = JSON.stringify(chartData);
           everSaved = true;
           updateStatus(false);
+          if (!downloadToldOnce) {
+            // The download is a copy: say so once, so nobody reopens the old file expecting their edits
+            downloadToldOnce = true;
+            showToast(location.protocol === 'file:'
+              ? 'Saved a copy to your downloads folder. The file you opened was not changed.'
+              : 'Saved a copy to your downloads folder.');
+          }
         } catch (err) {
           alert("Save failed: " + err.message);
         }
       }
 
       async function saveToFile() {
+        if (playground) {
+          try {
+            await deliverFile(exportFileName('html'), new Blob([await buildExportHtmlFile()], { type: 'text/html' }));
+            savedJson = JSON.stringify(chartData);
+            everSaved = true;
+            updateStatus(false);
+          } catch (err) { showToast('Download failed: ' + (err && err.message || err)); }
+          return;
+        }
         if (artifactMode === 'publish') return publishToArtifact();
         if (artifactMode === 'view-only') return downloadHtmlFile();
         if (artifactMode === 'pending') return;   // use() has not answered yet; Save is disabled until it does
@@ -1990,7 +2142,9 @@
         setStatusBadge(hasUnsavedChanges);
       }
 
-      if (claudeHost) {
+      if (claudeHost && playground) {
+        Promise.resolve().then(() => claudeHost.use('downloads')).then(d => { downloadsApi = d || null; }, () => {});
+      } else if (claudeHost) {
         const useNamespace = (name) => {
           try { return Promise.resolve(claudeHost.use(name)).then(v => v || null, () => null); }
           catch (_) { return Promise.resolve(null); }
@@ -2008,6 +2162,54 @@
       }
 
       btnSave.addEventListener('click', saveToFile);
+      // A file opened from disk that was saved before: show which file Save writes to (reading the stored handle asks nothing)
+      if (!claudeHost && location.protocol === 'file:' && 'showSaveFilePicker' in window) {
+        readStoredHandle().then((h) => {
+          if (h && h.name && !fileHandle) { storedName = h.name; setStatusBadge(hasUnsavedChanges); }
+        });
+      }
+
+      // --- PLAYGROUND: the header icon becomes a type menu ---
+      if (playground) {
+        btnSave.title = 'Download this diagram as an HTML file (Ctrl+S)';
+        const icon = document.querySelector('.toolbar-left > svg');
+        const wrap = document.createElement('div');
+        wrap.className = 'menu-wrap type-switch';
+        const btn = document.createElement('button');
+        btn.type = 'button'; btn.id = 'btn-type'; btn.className = 'btn btn-icon';
+        btn.title = 'Diagram type'; btn.setAttribute('aria-label', 'Diagram type');
+        btn.setAttribute('aria-haspopup', 'menu'); btn.setAttribute('aria-expanded', 'false');
+        const menu = document.createElement('div');
+        menu.id = 'type-menu'; menu.className = 'menu menu-left'; menu.setAttribute('role', 'menu'); menu.hidden = true;
+        icon.replaceWith(wrap);
+        btn.appendChild(icon);
+        wrap.append(btn, menu);
+        const setOpen = (open) => { menu.hidden = !open; btn.setAttribute('aria-expanded', String(open)); };
+        const goTo = (id) => { location.assign('../' + id + '/index.html'); };
+        for (const t of playground.types) {
+          const item = document.createElement('button');
+          item.type = 'button'; item.dataset.type = t.id; item.setAttribute('role', 'menuitemradio');
+          const here = t.id === playground.type;
+          item.setAttribute('aria-checked', String(here));
+          if (here) item.appendChild(ui.iconEl('check', { size: 'sm' }));
+          item.append(here ? ' ' + t.name : t.name);
+          item.addEventListener('click', () => {
+            setOpen(false);
+            if (here) return;
+            if (!hasUnsavedChanges) { goTo(t.id); return; }
+            const mine = playground.types.find((x) => x.id === playground.type).name;
+            ui.confirm(btn, {
+              label: 'Switch diagram type', title: 'Switch to ' + t.name + '?',
+              message: 'Your edits to this ' + mine.toLowerCase() + ' are lost unless you save.', ok: 'Switch',
+              alt: { text: 'Save', onClick: async () => { await saveToFile(); if (!hasUnsavedChanges) goTo(t.id); } }
+            }, () => goTo(t.id));
+          });
+          menu.appendChild(item);
+        }
+        btn.addEventListener('click', (e) => { e.stopPropagation(); setOpen(menu.hidden); });
+        document.addEventListener('click', () => setOpen(false));
+        window.addEventListener('keydown', (e) => { if (e.key === 'Escape') setOpen(false); });
+      }
 
       window.addEventListener('keydown', (e) => {
         if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {

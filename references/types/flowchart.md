@@ -54,7 +54,7 @@ flowchart
 Conventions beyond standard Mermaid:
 
 - **Header**: write a bare `flowchart`; `--layout` picks the direction. Write `flowchart TB` or `flowchart LR` only where "Choosing the structure" says to.
-- **Lanes**: one top-level `subgraph lane_<slug>["Actor name"]` per lane, with its steps inside, in any order (`--layout` orders them by the flow, see below). No nested subgraphs. A diagram with one actor has no `subgraph` at all (no lane header column). Optional lane lines: `class lane_x c3` (palette slot `c1` to `c8`: only to give related lanes the same colour on purpose, never copied from the source; the theme supplies colours, and a colour the user set in the editor stays), `%% @icon lane_x user` (see Lane icons), `%% @laneOrder fixed` (keep the written lane order).
+- **Lanes**: one top-level `subgraph lane_<slug>["Actor name"]` per lane, with its steps inside, in any order (`--layout` orders them by the flow, see below). No nested subgraphs, except a child flow's `sub_` block (rule 12). A diagram with one actor has no `subgraph` at all (no lane header column). Optional lane lines: `class lane_x c3` (palette slot `c1` to `c8`: only to give related lanes the same colour on purpose, never copied from the source; the theme supplies colours, and a colour the user set in the editor stays), `%% @icon lane_x user` (see Lane icons), `%% @laneOrder fixed` (keep the written lane order).
 - **Steps**: ids are short slugs of the label (`validate_policy`, not `n5`) so every edge reads on its own; never `end`, `class` or `style`. Quote every label (`["Check (fast)"]`). Shapes: rule 10.
 - **Start and end**: both are a pill `(["..."])`. A pill with no outgoing edge is an end; any other pill is a start. Open the flow with an explicit start pill (rule 1).
 - **Edges**: `a --> b`, `a -->|"Yes"| b`; chains and `a & b --> c` are fine. Rule 2 says when a label is needed.
@@ -78,7 +78,7 @@ Conventions beyond standard Mermaid:
 4. **Keep labels short, counted in words**: at most **5 words** for any step or decision (tasks are usually 2–4, rule 1). A longer label is cut with `...` and shows on hover, but an exported or printed diagram has no hover.
    - **Lane names**: at most 4 words (about 32 characters), so the floating pill never truncates.
    - **Fidelity**: keep the user's wording when it fits 5 words and rule 1. Otherwise cut the label to its verb + object; if the cut removed real detail (rule 9's list), put only that detail in a note, never the whole original sentence. Never abbreviate words (`"Auth"`) to save space.
-5. **Overview requests**: if the user asks for a summary, high-level overview or one-slide flow, aim for about 7 columns and 12 nodes so it fits a 1080p screen without panning. Otherwise include every step the source has; the page pans and zooms.
+5. **Overview requests**: if the user asks for a summary, high-level overview or one-slide flow, aim for about 7 columns and 12 nodes so it fits a 1080p screen without panning. Otherwise include every step the source has; the page pans and zooms. Each flow (the parent, and every child of rule 12) holds at most **30 steps** (starts, ends and notes do not count) and **6 lanes**; `--layout` prints a `[WARN]` for more. Fix too many lanes in this order: (a) a system that only stores or is read from becomes a database shape `[("...")]` in the acting actor's lane, not a lane of its own; (b) actors with the same role merge into one lane (rule 7); (c) the block that needs the extra lanes becomes a subprocess (rule 12), and its child carries those lanes.
 6. **Exceptions end in their own end state.** A path that finishes unresolved (manual intervention, escalation, an unhandled fallback) ends in a separate end node named for that outcome (`"Manual Payment Required"`), never merged into the success end (`"Claim Settled"`). Creating a task for someone else is not completion. If a failure path must undo earlier work (such as releasing reserved stock or reversing a charge), include the compensating step before that failure end node.
    - **Approvals are decisions.** An approval, sign-off or authorisation is a decision node (`"Budget Approved?"`) with both outcomes, even when the source names only the approval; a plain review or check with no stated failure outcome stays a task. An unstated rejection ends in its own state (`"Request Rejected"`): report that end state as an assumption, but not the decision itself (this rule chose it).
    - **Timeouts, escalations, retries and repeat limits**: model any SLA timeout, retry limit or repeat limit (such as repeating a probation review once) as an explicit decision node (`"Approved in 48h?"`, `"Retries < 3?"`, `"First Probation Extension?"`) with both branches (`Yes` looping back, `No` ending or escalating) rather than hiding the limit inside a note or edge label; use a delay shape only for an unconditional wait along a path.
@@ -109,6 +109,53 @@ Other Mermaid shapes (hexagon, trapezoid, ...) are read as a task with an `[INFO
 
 11. **Plain arrows only; never write a connector** (`id(("A"))`). `--layout` splits a long, tangled arrow into a lettered connector pair itself and prints `[INFO] Added connector pair A: <from> -> <to>`, or `[INFO] Layout: Long arrow ...` for one it leaves. Report those lines; do not edit the Mermaid for them. If the source draws connectors, write the arrow they stand for.
 
+12. **Split a large flow into subprocesses by business meaning.** Over 30 steps or 6 lanes in one flow, move a block into a child flow: the parent keeps a `[["..."]]` step (rule 10) with the child's id, the child is a top-level `subgraph sub_<slug>["Name"]` block (below). The step count says *when* to split, never *where*. Cut where the block is a unit of business meaning; signals, strongest first:
+    1. **One business outcome**: the block ends in a named result (`"Credit Decided"`, `"Funds Disbursed"`).
+    2. **Named in the source**: a section heading, an SOP or procedure name, a `Phase N` box, a standard process name.
+    3. **State change of the business object** at its boundary (Application, Approved, Funded).
+    4. **One owning team**, even when it touches other lanes. A lane alone is not a subprocess: a lane says who, a subprocess says what.
+    5. **Reused**: the same work is invoked from more than one place.
+    6. **A cohesive exception path** (`"Handle Fraud Alert"`).
+    7. **A compliance or SLA unit**: audited, measured or timed as a whole.
+
+    Test: can the block be named as verb + business object (rule 1), and does it end in a business outcome? If not, do not cut there. Anti-patterns: cutting at step 30 because it is step 30; a subprocess of one or two steps; one that hides a decision the parent needs to route on; one subprocess per lane. A `[["..."]]` step without a `sub_` block stays a label for a process documented elsewhere. One level only: a child has no children.
+
+    Hard constraints: one way in and one way out (every arrow into the block reaches its start, its outcomes leave through the parent step), and no loop-back arrow crosses the boundary (an arrow never crosses a `sub_` boundary: the link is the slug only).
+    - **Convention**: `sub_<slug>` belongs to the parent step with the id `<slug>`. The child holds its own `lane_` subgraphs, written after the parent's arrows; its arrows and notes follow its block. Step and note ids are unique in the whole file.
+    - **One actor, one lane id**: the same actor in several flows reuses the same `lane_<slug>` in each `sub_` block. The first `subgraph lane_x["Name"]` (and its `class` / `%% @icon` line) sets name, icon and colour; a repeat may write the same name or none. A repeat with another name is a `[WARN]` and the first name wins. A child shows only the lanes its steps use.
+    - **Parent-child contract**: the child opens with one start pill named like the parent step (or the trigger it receives). Its end pills are its outcomes. When the parent step is followed by a decision, the ends map to its branches by name: two ends to `Yes`/`No` of a yes/no question (`"Income Verified"` / `"Income Not Verified"` to `Income Verified?`), three or more one-to-one to named branches; one end means the parent just continues. `--layout` warns for a `sub_` without its `[["..."]]` step, a child without exactly one start, and a child whose number of ends differs from the branches of the decision after the step (one end when the parent just continues).
+    - **Candidates**: when a flow has more than 30 steps, `--layout` also prints the single-entry, single-exit blocks of it, largest first (`[INFO] Subprocess candidate: verify_docs..income_ok (8 steps, 3 lanes)`). They are only valid cuts: name and choose by the signals above.
+
+```mermaid
+flowchart
+  subgraph lane_officer["Loan Officer"]
+    submit(["Application Received"])
+    verify_income[["Verify Income"]]
+    income_ok{"Income Verified?"}
+    funded(["Loan Funded"])
+    declined(["Application Declined"])
+  end
+  submit --> verify_income --> income_ok
+  income_ok -->|"Yes"| funded
+  income_ok -->|"No"| declined
+
+  subgraph sub_verify_income["Verify Income"]
+    subgraph lane_officer["Loan Officer"]
+      vi_start(["Verify Income"])
+      check_payslips["Check Payslips"]
+      vi_ok(["Income Verified"])
+      vi_fail(["Income Not Verified"])
+    end
+    subgraph lane_employer["Employer"]
+      confirm_salary["Confirm Salary"]
+      salary_matches{"Salary Matches?"}
+    end
+  end
+  vi_start --> check_payslips --> confirm_salary --> salary_matches
+  salary_matches -->|"Yes"| vi_ok
+  salary_matches -->|"No"| vi_fail
+```
+
 ## Choosing the structure
 
 Decide from the source, once, first match first (rule 7 has the details). Do not trial the alternatives.
@@ -116,6 +163,7 @@ Decide from the source, once, first match first (rule 7 has the details). Do not
 - Sequential boxes titled `Step N` / `Phase N` / `Stage N`: one lane per container, in order; `flowchart TB` if they stack downwards.
 - Several actors or systems handing work over: one lane per actor. One actor, one sequence: no `subgraph`.
 - Write a direction only for phase lanes as above, or when the user names one ("vertical" is `TB`, "left to right" is `LR`); otherwise a bare `flowchart`.
+- A flow over 30 steps or 6 lanes: split it into subprocesses by business meaning (rule 12); the parent stays within the limits too.
 - Write lanes in any order: `--layout` orders them by the flow (not phase lanes) and prints `[INFO] Lane order: ...`; report it.
 
 **Updating an existing flowchart**: a re-layout resets lane heights and keeps lane order, lane membership and loop-back edges; a note the user dragged keeps its place beside its step. With Auto layout on (the default) the page already re-lays out after every step edit, so hand-placed positions exist only where the user switched Auto off.

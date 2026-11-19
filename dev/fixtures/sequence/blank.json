@@ -1,0 +1,10 @@
+{
+  "diagramType": "sequence",
+  "title": "Sequence diagram",
+  "participants": [
+    { "id": "p1", "name": "User", "kind": "actor" },
+    { "id": "p2", "name": "System", "kind": "system" }
+  ],
+  "messages": [],
+  "fragments": []
+}

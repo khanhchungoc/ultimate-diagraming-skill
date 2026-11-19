@@ -59,6 +59,10 @@ export async function launch(browser) {
   };
   await send('Page.enable');
   await send('Runtime.enable');
+  // Headless Chrome cannot show the Save dialog, so a page's Save takes the download path, which the tests capture.
+  // Without the picker the shell also skips the "Save over the file you opened" bubble; a test that covers the bubble
+  // puts a stub window.showSaveFilePicker back after open(), or opens the page with "keep-picker" in its query.
+  await send('Page.addScriptToEvaluateOnNewDocument', { source: `if (!/[?&]keep-picker/.test(location.search)) delete window.showSaveFilePicker;` });
 
   const MIME = {
     '.html': 'text/html; charset=utf-8',

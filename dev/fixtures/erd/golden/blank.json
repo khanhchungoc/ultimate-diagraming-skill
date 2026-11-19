@@ -1,0 +1,14 @@
+{
+  "diagramType": "erd",
+  "title": "ER diagram",
+  "direction": "LR",
+  "entities": [],
+  "relationships": [],
+  "schemaVersion": 3,
+  "canvas": {
+    "width": 0,
+    "height": 0,
+    "crossings": 0,
+    "length": 0
+  }
+}
