@@ -10,7 +10,7 @@
 // Exit codes: 0 all passed, 1 setup error, 2 a check failed.
 import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import { argOf, launch, sleep } from './cdp.mjs';
 
 const browser = argOf('browser'), laid = argOf('laid'), scrambled = argOf('scrambled'), artifact = argOf('artifact');
@@ -200,6 +200,48 @@ try {
   await t.ev(t.key('s', { ctrlKey: true }));
   await sleep(500);
   t.check('Ctrl+S save path raises no errors', t.errors.length === 0, t.errors.join(' | '));
+
+  // 6b. First Save of a file opened from disk, in a browser with the Save dialog: a bubble shows the file's path with a
+  //     copy button, and its main button copies the path and opens the dialog. The dialog and clipboard are stubbed.
+  await t.open(laid);
+  await t.ev(`(() => {
+    window.__picked = []; window.__copied = []; window.__written = null;
+    window.showSaveFilePicker = async (o) => { window.__picked.push(o); return { name: o.suggestedName,
+      createWritable: async () => ({ write: async (h) => { window.__written = h; }, close: async () => {} }) }; };
+    navigator.clipboard.writeText = async (s) => { window.__copied.push(s); };
+  })()`);
+  const laidPath = resolve(laid);
+  const bubble = () => t.ev(`(() => { const b = document.querySelector('.confirm .save-where'); return b && {
+    path: b.querySelector('.save-where-path').textContent, tip: b.querySelector('.save-where-tip').textContent,
+    ok: b.closest('.confirm').querySelector('.confirm-ok').textContent }; })()`);
+  await t.ev(t.key('s', { ctrlKey: true }));
+  await sleep(300);
+  const b1 = await bubble();
+  t.check('save location: the first Save shows the opened file\'s path before the dialog', b1 && b1.path === laidPath && /Ctrl\+L/.test(b1.tip)
+    && (await t.ev(`window.__picked.length`)) === 0, JSON.stringify(b1));
+  await t.ev(`document.querySelector('.save-where-copy').click()`);
+  await sleep(100);
+  t.check('save location: the copy button copies the path', JSON.stringify(await t.ev(`window.__copied`)) === JSON.stringify([laidPath])
+    && /^Path copied/.test((await bubble()).tip), JSON.stringify(await t.ev(`window.__copied`)));
+  await t.ev(`document.querySelector('.confirm .confirm-ok').click()`);
+  await sleep(300);
+  const pick1 = await t.ev(`({ picked: window.__picked.map(o => o.suggestedName), copied: window.__copied.length, written: !!window.__written && window.__written.includes('id="diagram-data"'),
+    open: !!document.querySelector('.save-where'), status: document.getElementById('save-status').textContent })`);
+  t.check('save location: the main button copies the path, opens the dialog with the file\'s name and writes the file',
+    JSON.stringify(pick1.picked) === JSON.stringify([basename(laidPath)]) && pick1.copied === 2 && pick1.written && !pick1.open && /saved to file/i.test(pick1.status), JSON.stringify(pick1));
+  await t.ev(`window.__written = null`);
+  await t.ev(t.key('s', { ctrlKey: true }));
+  await sleep(300);
+  t.check('save location: the next Save writes straight to the chosen file with no bubble or dialog',
+    (await t.ev(`!!window.__written && !document.querySelector('.save-where') && window.__picked.length === 1`)));
+  await t.open(laid);
+  await t.ev(`window.__picked = []; window.showSaveFilePicker = async (o) => { window.__picked.push(o); throw new DOMException('x', 'AbortError'); }`);
+  await t.ev(t.key('s', { ctrlKey: true }));
+  await sleep(300);
+  await t.ev(`document.querySelector('.confirm .confirm-cancel').click()`);
+  await sleep(100);
+  t.check('save location: Cancel closes the bubble without opening the dialog',
+    (await t.ev(`!document.querySelector('.save-where') && window.__picked.length === 0`)) && t.errors.length === 0, t.errors.join(' | '));
 
   // 7. Drag shapes out of the dock (flowchart plugin): empty canvas adds a node, an arrow gets the node spliced in
   await t.open(laid);
