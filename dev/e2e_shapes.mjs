@@ -115,7 +115,7 @@ try {
   })`);
   // The export inlines computed styles and drops class names, so each outline is recognised by its geometry
   // (SHAPE_OUTLINES in flowchart.js), drawn with a stroke
-  const GEOMETRY = { subprocess: 'M13 1V63M131 1V63', io: '13,1 143,1 131,63 1,63', document: 'V57C119 49 96 49 72 57',
+  const GEOMETRY = { subprocess: 'M13 10V16M10 13H16', io: '13,1 143,1 131,63 1,63', document: 'V57C119 49 96 49 72 57',
     database: 'A71 8 0 0 0 143 9', delay: 'H111A32 31 0 0 1 111 63' };
   const inExport = SHAPES.map(s => new RegExp(`${GEOMETRY[s].replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[^"]*"[^>]*stroke:`).test(svgText));
   t.check('SVG export contains each shape\'s outline', inExport.every(Boolean), JSON.stringify(Object.fromEntries(SHAPES.map((s, i) => [s, inExport[i]]))));
