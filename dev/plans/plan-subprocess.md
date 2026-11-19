@@ -74,7 +74,7 @@ flowchart
   income_ok -->|"No"| ...
 
   subgraph sub_verify_income["Verify Income"]
-    subgraph lane_officer_vi["Loan Officer"]
+    subgraph lane_officer["Loan Officer"]
       vi_start(["Verify Income"])
       ...
       vi_ok(["Income Verified"])
@@ -88,10 +88,11 @@ flowchart
 ```
 
 - `sub_<slug>` belongs to the parent node with id `<slug>`, which must be a `[["..."]]` node. A `[["..."]]` node without a `sub_` block stays a plain subprocess label, as today (a process documented elsewhere).
-- Ids are unique across the whole file, lanes included, so every edge reads on its own. The same actor in two tabs uses two lane ids with the same name; the page shows them as the same actor (same colour and icon).
+- Step and note ids are unique across the whole file, so every edge reads on its own.
+- **One actor, one lane id (single source of truth).** The same actor in several tabs reuses the same `lane_<slug>` inside each `sub_` block. The lane's name, icon and colour are defined once: the first `subgraph lane_x["Name"]` (or its `class` / `%% @icon` line) sets them, and a repeat may write the same name or none. A repeat with a different name is a `[WARN]` and the first name wins.
 - Edges never cross a `sub_` boundary. The link between parent and child is the slug only.
 - This is the one exception to "no nested subgraphs": one level, `sub_` holding `lane_`.
-- Stock Mermaid renders a `sub_` block as a cluster next to the parent. That is acceptable for "Copy as Mermaid"; check it in Phase 1.
+- Stock Mermaid renders a `sub_` block as a cluster next to the parent. That is acceptable for "Copy as Mermaid"; check it in Phase 1, including how stock Mermaid treats a `lane_` id repeated inside a `sub_` block (if it merges the clusters, "Copy as Mermaid" suffixes repeats there only; the skill's own format keeps the shared id).
 
 ### 4. Parent–child contract
 
@@ -104,7 +105,8 @@ flowchart
 - A tab row above the canvas: the parent first, then one tab per child in the order the parent's flow reaches them. Tab label is the subprocess name.
 - A `[["..."]]` node with a child shows a ⊞ marker; clicking it switches to that tab. A child tab has a "↑ Parent" link that returns and selects the parent node.
 - Each tab keeps its own view (pan, zoom), Auto-Tidy and layout. Export and print take the current tab; "export all" writes one page per tab.
-- Data: `chartData.children = { "<slug>": { lanes, nodes, edges, notes } }`, inside the same `diagram.json`. The parent keeps its current shape, so a diagram without children is unchanged.
+- Data: `chartData.lanes` stays the one list of actors (id, name, icon, colour) for every tab. `chartData.children = { "<slug>": { laneOrder, laneHeights, nodes, edges, notes } }` holds each child, inside the same `diagram.json`; a child refers to lanes by id and keeps only its own order and heights. The parent keeps its current shape, so a diagram without children is unchanged.
+- Renaming a lane or changing its icon or colour in any tab changes it in every tab. Deleting a lane is refused while another tab still has steps in it.
 - Editor: "Collapse to subprocess" on a selection moves a `runOf()`-valid run into a new child and leaves a `[["..."]]` node in its place; "Expand" does the reverse. Phase 3.
 - With no children, no tab row is shown.
 
@@ -160,5 +162,4 @@ Round trip: `--extract` then `--layout` gives the same diagram (children include
 
 ## Open questions
 
-- Should the same actor in two tabs share one lane id instead of two? Sharing is simpler to read but breaks "ids unique per tab". Proposed: separate ids, same name.
 - Does `--flat` keep the `[["..."]]` node as a marker around the expanded steps, or drop it? Proposed: drop it; the outline header already names the subprocesses.
