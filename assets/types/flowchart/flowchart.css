@@ -784,3 +784,4 @@
     .sub-open:hover { transform: scale(1.1); background: var(--primary-wash); }
     .sub-open svg { display: block; }
     .flow-node.type-start:not(.terminal-dot) .sub-open, .flow-node.type-end:not(.terminal-dot) .sub-open { left: 8px; }
+    .btn-sub[hidden] { display: none; }

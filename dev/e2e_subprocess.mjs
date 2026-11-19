@@ -1,12 +1,14 @@
 // Subprocess flows on the flowchart page (plan: dev/plans/plan-subprocess.md, Phase 2): the tab row, the button on a subprocess
 // step, "Parent", a pan and zoom per tab, one actor list for every tab, a lane that another tab still uses, Auto-Tidy and
-// direction per tab, Save and reopen, export of one tab and of all, Copy as Mermaid. Driven with real input, see cdp.mjs.
+// direction per tab, Save and reopen, export of one tab and of all, Copy as Mermaid, Collapse to subprocess and Expand (Phase 3).
+// Driven with real input, see cdp.mjs.
 //
 //   node dev/e2e_subprocess.mjs --browser <chrome> --page <laid-out.html> [--plain <html>]
 //
 // --page:  dev/fixtures/subprocess/laptop-purchase.mmd laid out by `layout_engine.py --layout`
 // --plain: any page without subprocess flows (no tab row must show)
 // Exit codes: 0 all passed, 1 setup error, 2 a check failed.
+import { execFileSync } from 'node:child_process';
 import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -198,7 +200,90 @@ try {
   t.check('pasting that text back gives the same tabs and lanes (the per-block ids read as the one actor)', J(await tabs()) === J(['Main flow*', 'Approve Specification', 'Procure Laptop', 'Source from Supplier'])
     && (await laneNames()).length === 5 && t.errors.length === 0, J(await tabs()) + J(await laneNames()) + t.errors.join(' | '));
 
-  // 13. A page with no children has no tab row
+  // 13. Collapse to subprocess and Expand (the editor)
+  await t.open(page);
+  const clickStep = async (id, modifiers = 0) => { await t.clickOn(`.flow-node[data-node-id="${id}"] .node-label`, { modifiers }); await sleep(120); };
+  const stepsOf = (model) => J(model.nodes.map((n) => n.id).sort());
+  const edgeSet = (edges) => J(edges.map((e) => [e.from, e.to, e.label || '', !!e.feedback].join('|')).sort());
+  const orig = JSON.parse(blockOf(readFileSync(page, 'utf8')));
+  const visible = (sel) => t.ev(`(() => { const b = document.querySelector(${J(sel)}); return !!b && !b.hidden; })()`);
+  await clickStep('configure_laptop');
+  t.check('one step selected: no Collapse (a run of two or more), no Expand', !(await visible('#btn-collapse-sub')) && !(await visible('#btn-expand-sub')));
+  await clickStep('assign_laptop', 2);
+  t.check('two steps in a run: Collapse is offered', await visible('#btn-collapse-sub'));
+  await clickStep('configure_laptop');
+  await clickStep('close_request', 2);
+  t.check('steps that are not one run: no Collapse', !(await visible('#btn-collapse-sub')));
+  await clickStep('configure_laptop');
+  await clickStep('assign_laptop', 2);
+  await t.clickOn('#btn-collapse-sub');
+  await sleep(700);
+  const after = await tabs();
+  t.check('Collapse makes a new tab, leaves one subprocess step with its open button, and its name in edit',
+    after.length === 5 && after[4] === 'New Subprocess' && (await t.ev(`document.querySelectorAll('.sub-open').length`)) === 4
+    && (await t.ev(`document.activeElement.classList.contains('node-label') && document.activeElement.isContentEditable`)), J(after));
+  await t.type('Prepare Laptop');
+  await t.press('Enter');
+  await sleep(250);
+  const sName = await tabs();
+  t.check('naming the step names its tab', sName.includes('Prepare Laptop') && !sName.includes('New Subprocess'), J(sName));
+  const sid = await t.ev(`document.querySelector('.flow-node.type-subprocess.selected')?.dataset.nodeId || ''`);
+  t.check('the parent no longer has the two steps, the child does, with a start pill named like the step and one end', await (async () => {
+    const ids = await nodeIds();
+    await goTab(sid);
+    const kid = await t.ev(`JSON.stringify([...document.querySelectorAll('.flow-node')].map((n) => [n.dataset.nodeId, n.className, n.textContent.trim().slice(0, 40)]))`);
+    const k = JSON.parse(kid);
+    const ok = !ids.includes('configure_laptop') && ids.includes(sid) && k.some((x) => x[0] === 'configure_laptop') && k.some((x) => x[0] === 'assign_laptop')
+      && k.filter((x) => /type-start/.test(x[1])).length === 1 && k.filter((x) => /type-end/.test(x[1])).length === 1 && k.some((x) => /type-start/.test(x[1]) && /Prepare Laptop/.test(x[2]));
+    await goTab('');
+    return ok;
+  })());
+  t.check('a child cannot be collapsed again (no Collapse there)', await (async () => {
+    await goTab(sid);
+    await clickStep('configure_laptop');
+    await clickStep('assign_laptop', 2);
+    const r = !(await visible('#btn-collapse-sub'));
+    await goTab('');
+    return r;
+  })());
+  const savedC = JSON.parse(blockOf(await save()));
+  t.check('the saved file has the new child under the step (a renamed id), the check on its lanes and steps passes', Object.keys(savedC.children).length === 4
+    && Object.keys(savedC.children).every((k) => savedC.nodes.some((n) => n.id === k && n.type === 'subprocess')) && !Object.keys(savedC.children).some((k) => /^n_\d{12}/.test(k)), J(Object.keys(savedC.children)));
+  // Undo: the name and then the whole move are one undo step each
+  await t.ev(`document.getElementById('btn-undo').click()`);
+  await t.ev(`document.getElementById('btn-undo').click()`);
+  await sleep(300);
+  t.check('Undo brings the original flow back: the rename is one step, the Collapse one step', J(await tabs()) === J(first) && J(await nodeIds()) === J(parentNodes), J(await tabs()));
+  // Collapse then Expand gives the same steps and arrows
+  await clickStep('configure_laptop');
+  await clickStep('assign_laptop', 2);
+  await t.clickOn('#btn-collapse-sub');
+  await sleep(500);
+  await t.press('Escape');
+  await clickStep(await t.ev(`document.querySelector('.flow-node.type-subprocess[data-node-id^="n_"]').dataset.nodeId`));
+  t.check('a subprocess step with a child offers Expand', await visible('#btn-expand-sub'));
+  await t.clickOn('#btn-expand-sub');
+  await sleep(500);
+  const round = JSON.parse(blockOf(await save()));
+  t.check('Collapse then Expand gives back the same steps and the same arrows', stepsOf(round) === stepsOf(orig) && edgeSet(round.edges) === edgeSet(orig.edges)
+    && J(Object.keys(round.children)) === J(Object.keys(orig.children)), stepsOf(round).length + ' vs ' + stepsOf(orig).length);
+  // Expanding every child equals `--extract --flat` (the same wiring in JS and Python)
+  await t.open(page);
+  for (const k of ['approve_spec', 'procure_laptop', 'source_laptop']) {
+    await t.ev(`document.getElementById('btn-zoom-reset').click()`);
+    await sleep(200);
+    await clickStep(k);
+    await t.clickOn('#btn-expand-sub');
+    await sleep(500);
+  }
+  const flatPage = JSON.parse(blockOf(await save()));
+  const flatPy = JSON.parse(execFileSync('python3', [join(import.meta.dirname, '..', 'scripts', 'layout_engine.py'), '--extract', page, '--flat', '--json'], { encoding: 'utf8', maxBuffer: 1 << 26 }));
+  t.check('expanding every subprocess in the editor gives what --extract --flat prints (steps and arrows)', !flatPage.children && stepsOf(flatPage) === stepsOf(flatPy) && edgeSet(flatPage.edges) === edgeSet(flatPy.edges),
+    `${stepsOf(flatPage) === stepsOf(flatPy)} ${J(JSON.parse(edgeSet(flatPage.edges)).filter((e) => !JSON.parse(edgeSet(flatPy.edges)).includes(e)))} ${J(JSON.parse(edgeSet(flatPy.edges)).filter((e) => !JSON.parse(edgeSet(flatPage.edges)).includes(e)))}`);
+  t.check('with no child left the tab row is gone', await t.ev(`document.getElementById('flow-tabs').hidden`) && !(await t.ev(`!!document.querySelector('.sub-open')`)));
+
+
+  // 14. A page with no children has no tab row
   if (plain) {
     await t.open(plain);
     t.check('a diagram without subprocess flows shows no tab row and no SVG-per-tab item', await t.ev(`document.getElementById('flow-tabs').hidden && document.querySelector('[data-export="svg-all"]').hidden`));

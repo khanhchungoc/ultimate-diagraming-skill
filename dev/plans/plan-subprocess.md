@@ -1,6 +1,14 @@
 # Plan: subprocesses for flowcharts (tabs, limits, splitting by meaning)
 
-Status: proposed. Not started.
+Status: implemented in three phases (rules and format, tabs on the page, editor). Where the build differs from the text below:
+
+- A child holds a `name` (the `sub_` block's title) beside `laneOrder`, `laneHeights`, `nodes`, `edges`, `notes`; `laneHeights` stays out of the authoring JSON.
+- The parent flow shows the lanes that have a parent step or that no child lists in its `laneOrder` or steps.
+- One end pill is always accepted, also when a decision follows the subprocess step (the parent routes on it itself); the end count is checked only against two or more ends, and a child with no end warns.
+- `--extract --sub <slug>` prints the child as its own standalone flowchart (with its outline line), not as a bare `sub_` block.
+- Copy as Mermaid writes a repeated lane inside a `sub_` block as `lane_x__<slug>` (stock Mermaid merges a repeated id); the reader reads it back as the same lane. `--extract` keeps the shared id.
+- The editor's Collapse needs a run of two or more steps and ends the child with one end pill; Expand wires like `--extract --flat`.
+- `--verify` audits the parent flow only.
 
 ## Problem
 

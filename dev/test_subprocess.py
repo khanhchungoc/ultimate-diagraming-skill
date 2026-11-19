@@ -145,8 +145,14 @@ two = copy.deepcopy(d)
 two["children"]["sp"]["nodes"].append({"id": "c9", "laneId": "lane_a", "type": "start", "label": "Again"})
 check("contract: two start pills warn", any("2 start pills" in w for w in sub.checks(two)))
 three = copy.deepcopy(d)
-three["children"]["sp"]["nodes"] = [n for n in three["children"]["sp"]["nodes"] if n["id"] != "cn"]
-check("contract: end count against the branches of the decision after the step", any("1 end pills" in w and "has 2" in w for w in sub.checks(three)), sub.checks(three))
+three["children"]["sp"]["nodes"] += [{"id": "cx", "laneId": "lane_a", "type": "end", "label": "Part Skipped"}]
+check("contract: three end pills against the two branches of the decision after the step warn", any("3 end pills" in w and "has 2" in w for w in sub.checks(three)), sub.checks(three))
+single = copy.deepcopy(d)
+single["children"]["sp"]["nodes"] = [n for n in single["children"]["sp"]["nodes"] if n["id"] != "cn"]
+check("contract: one end pill is always fine, the parent just continues", not sub.checks(single), sub.checks(single))
+none = copy.deepcopy(d)
+none["children"]["sp"]["nodes"] = [n for n in none["children"]["sp"]["nodes"] if n["type"] != "end"]
+check("contract: a child with no end pill warns", any("0 end pills" in w for w in sub.checks(none)), sub.checks(none))
 one = copy.deepcopy(d)
 one["nodes"] = [n for n in one["nodes"] if n["id"] not in ("d", "ok", "bad")]
 one["edges"] = [{"id": "e1", "from": "s", "to": "sp", "label": ""}, {"id": "e2", "from": "sp", "to": "ok2", "label": ""}]

@@ -127,6 +127,7 @@
         pinLaneHeaders();
         renderTabs();
         followTab();
+        updateSubButtons();
       }
 
       const OUTER_CLEAR = 16;   // px between the outermost arrow/label and the last lane's outer edge
@@ -1027,6 +1028,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
             if ((node.label || '') !== label.textContent.trim()) {
               const wasDot = isDot(node);
               node.label = label.textContent.trim();
+              syncChildName(node);
               updateStatus(true);
               if (wasDot !== isDot(node)) render();
               else fitNodeLabel(label, node.type);
@@ -3349,6 +3351,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         const many = selectedNodeIds.size > 1;
         document.querySelectorAll('.flow-node[data-node-id]').forEach(el => el.classList.toggle('selected', isNodeSelected(el.dataset.nodeId)));
         swimlanesContainer.classList.toggle('multi-select', many);
+        updateSubButtons();
         if (deleteLabelEl) deleteLabelEl.textContent = many ? `Delete ${selectedNodeIds.size}` : 'Delete';
       }
 
@@ -5001,6 +5004,166 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         b.addEventListener('click', (e) => { e.stopPropagation(); switchTab(node.id); });
         return b;
       }
+
+
+      // --- COLLAPSE TO SUBPROCESS / EXPAND (dock buttons) ---
+      // Collapse: a run of two or more steps (runOf: one way in, one way out, no loop-back across the boundary) moves into a
+      // new child flow and leaves one subprocess step in its place; the child gets a start pill, the run and one end pill.
+      // Expand does the reverse (the same wiring as `--extract --flat`, scripts/subprocess_flow.py flatten). Each is one edit.
+      // Only from the parent flow: a child cannot hold another (one level). Neither is offered while a connector is involved.
+      const btnCollapseSub = document.getElementById('btn-collapse-sub');
+      const btnExpandSub = document.getElementById('btn-expand-sub');
+      let subSeq = 0;
+      const subId = (prefix) => `${prefix}_${Date.now()}_${subSeq++}`;
+
+      function collapsibleRun() {
+        if (chartData.tab || selectedNodeIds.size < 2) return null;
+        const ids = [...selectedNodeIds];
+        if (ids.some(id => hasChild(id))) return null;
+        const run = runOf(ids);
+        return run && [...run.set].every(id => !isConnector(nodeById(id))) ? run : null;
+      }
+      const expandableId = () => {
+        const id = !chartData.tab && selectedNodeIds.size === 1 ? [...selectedNodeIds][0] : null;
+        return id && hasChild(id) ? id : null;
+      };
+      function updateSubButtons() {
+        if (btnCollapseSub) btnCollapseSub.hidden = !collapsibleRun();
+        if (btnExpandSub) btnExpandSub.hidden = !expandableId();
+      }
+
+      function collapseToSubprocess() {
+        const run = collapsibleRun();
+        if (!run) return;
+        syncActors();
+        const ids = run.set, entry = nodeById(run.entry), exit = nodeById(run.exit);
+        const id = subId('n'), name = 'New Subprocess';
+        const inner = chartData.edges.filter(e => ids.has(e.from) && ids.has(e.to));
+        const moved = chartData.nodes.filter(n => ids.has(n.id));
+        const notes = notesList();
+        const kidNotes = notes.filter(n => n.nodes.length && n.nodes.every(i => ids.has(i)));
+        const start = { id: subId('n'), laneId: entry.laneId, type: 'start', label: name };
+        const end = { id: subId('n'), laneId: exit.laneId, type: 'end', label: 'Subprocess Done' };
+        const kidNodes = [start, ...moved, end];
+        const kidEdges = [...inner, { id: subId('e'), from: start.id, to: entry.id, label: '' }, { id: subId('e'), from: exit.id, to: end.id, label: '' }];
+        // the parent: the run is replaced by one subprocess step, the arrows that entered and left it now meet that step
+        run.ins.forEach(e => { e.to = id; });
+        if (run.out) run.out.from = id;
+        chartData.nodes = chartData.nodes.filter(n => !ids.has(n.id)).concat({ id, laneId: entry.laneId, type: 'subprocess', label: name, x: entry.x, y: entry.y });
+        chartData.edges = chartData.edges.filter(e => !inner.includes(e));
+        if (kidNotes.length) { chartData.notes = notes.filter(n => !kidNotes.includes(n)); if (!chartData.notes.length) delete chartData.notes; }
+        const used = new Set(kidNodes.map(n => n.laneId));
+        if (!chartData.flows) { chartData.actors = chartData.lanes.map(withoutHeight); chartData.flows = {}; chartData.tabNames = {}; }
+        const flow = { lanes: chartData.lanes.filter(l => used.has(l.id)).map(withoutHeight), nodes: kidNodes, edges: kidEdges };
+        if (kidNotes.length) flow.notes = kidNotes;
+        chartData.flows[id] = flow;
+        chartData.tabNames[id] = name;
+        layoutFlow(flow, chartData.direction);
+        // a lane that only the child still uses leaves the parent (as it would on reload)
+        chartData.lanes = chartData.lanes.filter(l => chartData.nodes.some(n => n.laneId === l.id) || !used.has(l.id));
+        pruneNotes();
+        clearNodeSelection();
+        layoutDiagram(chartData);
+        render();
+        selectNode(id);
+        updateStatus(true);
+        // the new step is waiting for its name: its text opens for editing
+        const label = document.querySelector(`#node-${CSS.escape(id)} .node-label`);
+        if (label) label.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+      }
+
+      function expandSubprocess() {
+        const id = expandableId();
+        if (!id) return;
+        syncActors();
+        const kid = chartData.flows[id];
+        const starts = kid.nodes.filter(n => n.type === 'start'), ends = kid.nodes.filter(n => n.type === 'end');
+        if (starts.length !== 1) { flashHint('Expand needs the subprocess to have exactly one start pill.'); return; }
+        const letters = (nodes) => new Set(nodes.filter(isConnector).map(n => String(n.label || '').trim().toUpperCase()));
+        const clash = [...letters(kid.nodes)].find(l => letters(chartData.nodes).has(l));
+        if (clash) { flashHint(`Both flows use the connector ${clash}: rename one before expanding.`); return; }
+        const start = starts[0];
+        const edges = chartData.edges;
+        const outs = edges.filter(e => e.from === id);
+        let decision = null, branches = outs;
+        const next = outs.length === 1 ? nodeById(outs[0].to) : null;
+        if (next && next.type === 'decision') {
+          branches = edges.filter(e => e.from === next.id);
+          if (ends.length === branches.length && !edges.some(e => e.to === next.id && e.from !== id)) decision = next;
+        }
+        const drop = new Set([id, start.id]), dropEdges = new Set(), fresh = [];
+        const wire = (from, to, a, b) => fresh.push({ id: subId('e'), from, to, label: a.label || b.label || '', ...(a.feedback ? { feedback: true } : {}) });
+        let kidEdges = kid.edges.slice();
+        const first = kidEdges.filter(e => e.from === start.id);
+        edges.filter(e => e.to === id).forEach(ie => first.forEach(f => wire(ie.from, f.to, ie, f)));
+        if (outs.length) {
+          let target;
+          if (decision) {
+            const map = endToBranch(ends, branches);
+            target = (end) => (map[end.id] ? [map[end.id]] : []);
+            drop.add(decision.id);
+            branches.forEach(b => dropEdges.add(b.id));
+          } else target = () => outs;
+          ends.forEach(end => {
+            drop.add(end.id);
+            kidEdges.filter(e => e.to === end.id).forEach(ie => target(end).forEach(t => wire(ie.from, t.to, ie, t)));
+          });
+          kidEdges = kidEdges.filter(e => !ends.some(end => end.id === e.to));
+        }
+        kidEdges = kidEdges.filter(e => e.from !== start.id);
+        const relink = first.length ? first[0].to : null;
+        notesList().forEach(n => { n.nodes = n.nodes.map(i => (i === id ? relink : i)).filter(Boolean); });
+        // the child's lanes that the parent lacks come in, in the order of the one actor list
+        const at = (laneId) => chartData.actors.findIndex(a => a.id === laneId);
+        kid.lanes.forEach(l => {
+          if (chartData.lanes.some(x => x.id === l.id)) return;
+          let pos = chartData.lanes.findIndex(x => at(x.id) > at(l.id));
+          if (pos < 0) pos = chartData.lanes.length;
+          chartData.lanes.splice(pos, 0, withoutHeight(chartData.actors.find(a => a.id === l.id) || l));
+        });
+        chartData.nodes = chartData.nodes.filter(n => !drop.has(n.id)).concat(kid.nodes.filter(n => !drop.has(n.id)));
+        chartData.edges = edges.filter(e => !drop.has(e.from) && !drop.has(e.to) && !dropEdges.has(e.id)).concat(kidEdges, fresh);
+        if (kid.notes && kid.notes.length) chartData.notes = notesList().concat(kid.notes);
+        dropChildOf([id]);
+        pruneConnectors();
+        pruneNotes();
+        clearNodeSelection();
+        layoutDiagram(chartData);
+        render();
+        updateStatus(true);
+      }
+
+      // Which branch of the decision after a subprocess each of the child's end pills stands for: by the same name, then by a
+      // branch word inside the end's name ("Approved" in "Specification Approved"), then Yes/No by wording (not, fail, reject,
+      // decline, cancel... is the No), then by position. Mirrors _end_to_branch in scripts/subprocess_flow.py.
+      function endToBranch(ends, branches) {
+        const lab = (x) => String(x || '').trim().toLowerCase();
+        const left = branches.slice(), out = {};
+        const take = (end, b) => { out[end.id] = b; left.splice(left.indexOf(b), 1); };
+        ends.forEach(end => { const b = left.find(x => lab(x.label) === lab(end.label)); if (b) take(end, b); });
+        ends.filter(e => !out[e.id]).forEach(end => { const b = left.find(x => lab(x.label) && lab(end.label).includes(lab(x.label))); if (b) take(end, b); });
+        const rest = ends.filter(e => !out[e.id]);
+        const yes = left.find(b => lab(b.label) === 'yes'), no = left.find(b => lab(b.label) === 'no');
+        if (rest.length === 2 && left.length === 2 && yes && no) {
+          const NO_WORDS = /\b(not|no|fail|failed|reject|rejected|declin\w*|cancel\w*|denied|invalid|incomplete|unable|refused)\b/i;
+          const neg = rest.filter(e => NO_WORDS.test(String(e.label || '')));
+          const n = neg.length === 1 ? neg[0] : rest[1];
+          out[n.id] = no;
+          out[rest.find(e => e !== n).id] = yes;
+        } else rest.forEach((e, i) => { if (left[i]) out[e.id] = left[i]; });
+        return out;
+      }
+
+      // The tab of a subprocess step is named like the step, and so is its start pill (the contract of the parent and the child)
+      function syncChildName(node) {
+        if (!hasChild(node.id) || !node.label) return;
+        chartData.tabNames[node.id] = node.label;
+        const start = chartData.flows[node.id].nodes.find(n => n.type === 'start');
+        if (start) start.label = node.label;
+        renderTabs();
+      }
+      if (btnCollapseSub) btnCollapseSub.addEventListener('click', collapseToSubprocess);
+      if (btnExpandSub) btnExpandSub.addEventListener('click', expandSubprocess);
 
 
       // --- REGISTER WITH THE SHELL ---
