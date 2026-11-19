@@ -40,7 +40,7 @@
       align-items: center;
       gap: 10px;
     }
-    .toolbar-left > svg { flex: none; color: var(--primary); }   /* the type's header icon */
+    .toolbar-left > svg, .type-switch svg { flex: none; color: var(--primary); }   /* the type's header icon */
 
     .app-title-container {
       display: flex;

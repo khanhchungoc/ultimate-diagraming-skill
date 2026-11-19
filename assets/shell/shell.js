@@ -361,10 +361,15 @@
       }
       captureArtifactScaffold();
       // window.claude carries only use(); resolve namespaces through it, never read window.claude.<name>
+      // Playground pages (dev/build_playground.py): a <script id="playground"> in the body, {"type", "types": [{id, name}]}.
+      // Save downloads a standalone file and the header icon is a menu that goes to a blank page of another type.
+      const playground = (() => {
+        try { const el = document.getElementById('playground'); return el ? JSON.parse(el.textContent) : null; } catch (_) { return null; }
+      })();
       const claudeHost = artifactShaped && window.claude && typeof window.claude.use === 'function' ? window.claude : null;
       // null: a plain file; 'pending': use() has not answered yet; 'publish': Save publishes diagram.json;
       // 'view-only': the viewer cannot save (Save hidden, Export > HTML file offered)
-      let artifactMode = claudeHost ? 'pending' : null;
+      let artifactMode = claudeHost && !playground ? 'pending' : null;
       let artifactApi = null;
       let downloadsApi = null;
       let publishing = false;
@@ -1965,6 +1970,15 @@
       }
 
       async function saveToFile() {
+        if (playground) {
+          try {
+            await deliverFile(exportFileName('html'), new Blob([await buildExportHtmlFile()], { type: 'text/html' }));
+            savedJson = JSON.stringify(chartData);
+            everSaved = true;
+            updateStatus(false);
+          } catch (err) { showToast('Download failed: ' + (err && err.message || err)); }
+          return;
+        }
         if (artifactMode === 'publish') return publishToArtifact();
         if (artifactMode === 'view-only') return downloadHtmlFile();
         if (artifactMode === 'pending') return;   // use() has not answered yet; Save is disabled until it does
@@ -1990,7 +2004,9 @@
         setStatusBadge(hasUnsavedChanges);
       }
 
-      if (claudeHost) {
+      if (claudeHost && playground) {
+        Promise.resolve().then(() => claudeHost.use('downloads')).then(d => { downloadsApi = d || null; }, () => {});
+      } else if (claudeHost) {
         const useNamespace = (name) => {
           try { return Promise.resolve(claudeHost.use(name)).then(v => v || null, () => null); }
           catch (_) { return Promise.resolve(null); }
@@ -2008,6 +2024,48 @@
       }
 
       btnSave.addEventListener('click', saveToFile);
+
+      // --- PLAYGROUND: the header icon becomes a type menu ---
+      if (playground) {
+        btnSave.title = 'Download this diagram as an HTML file (Ctrl+S)';
+        const icon = document.querySelector('.toolbar-left > svg');
+        const wrap = document.createElement('div');
+        wrap.className = 'menu-wrap type-switch';
+        const btn = document.createElement('button');
+        btn.type = 'button'; btn.id = 'btn-type'; btn.className = 'btn btn-icon';
+        btn.title = 'Diagram type'; btn.setAttribute('aria-label', 'Diagram type');
+        btn.setAttribute('aria-haspopup', 'menu'); btn.setAttribute('aria-expanded', 'false');
+        const menu = document.createElement('div');
+        menu.id = 'type-menu'; menu.className = 'menu menu-left'; menu.setAttribute('role', 'menu'); menu.hidden = true;
+        icon.replaceWith(wrap);
+        btn.appendChild(icon);
+        wrap.append(btn, menu);
+        const setOpen = (open) => { menu.hidden = !open; btn.setAttribute('aria-expanded', String(open)); };
+        const goTo = (id) => { location.assign('../' + id + '/index.html'); };
+        for (const t of playground.types) {
+          const item = document.createElement('button');
+          item.type = 'button'; item.dataset.type = t.id; item.setAttribute('role', 'menuitemradio');
+          const here = t.id === playground.type;
+          item.setAttribute('aria-checked', String(here));
+          if (here) item.appendChild(ui.iconEl('check', { size: 'sm' }));
+          item.append(here ? ' ' + t.name : t.name);
+          item.addEventListener('click', () => {
+            setOpen(false);
+            if (here) return;
+            if (!hasUnsavedChanges) { goTo(t.id); return; }
+            const mine = playground.types.find((x) => x.id === playground.type).name;
+            ui.confirm(btn, {
+              label: 'Switch diagram type', title: 'Switch to ' + t.name + '?',
+              message: 'Your edits to this ' + mine.toLowerCase() + ' are lost unless you save.', ok: 'Switch',
+              alt: { text: 'Save', onClick: async () => { await saveToFile(); if (!hasUnsavedChanges) goTo(t.id); } }
+            }, () => goTo(t.id));
+          });
+          menu.appendChild(item);
+        }
+        btn.addEventListener('click', (e) => { e.stopPropagation(); setOpen(menu.hidden); });
+        document.addEventListener('click', () => setOpen(false));
+        window.addEventListener('keydown', (e) => { if (e.key === 'Escape') setOpen(false); });
+      }
 
       window.addEventListener('keydown', (e) => {
         if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
