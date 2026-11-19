@@ -535,7 +535,7 @@
       // A shaped node keeps its slot's box (144x64; a decision 144x96), made transparent by flowchart.css, and draws
       // its outline inside it as an SVG stretched to the box (preserveAspectRatio="none", non-scaling stroke). The
       // outline stays 1px inside the box so the 2px stroke ends on the box edge, like a task's border. `.shape-path`
-      // is the filled outline, `.shape-line` an inner stroke (the subprocess bars, the cylinder's front rim).
+      // is the filled outline, `.shape-line` an inner stroke (the subprocess's + marker, the cylinder's front rim).
       // Shapes keep their screen orientation in a top-to-bottom diagram: the document's wave is always at the
       // bottom, the delay's arc always on the right. Keep outlineInset() in step with any change here.
       // The diamond has its four corners rounded by DIAMOND_ROUND px along each edge: a quadratic curve through
@@ -549,7 +549,7 @@
       }
       const SHAPE_OUTLINES = {
         decision:   { h: DECISION_HEIGHT, svg: `<path class="shape-path diamond-poly" d="${diamondPath(144, DECISION_HEIGHT)}"/>` },
-        subprocess: { h: 64, svg: '<rect class="shape-path" x="1" y="1" width="142" height="62" rx="2"/><path class="shape-line" d="M13 1V63M131 1V63"/>' },
+        subprocess: { h: 64, svg: '<rect class="shape-path" x="1" y="1" width="142" height="62" rx="8"/><rect class="shape-line sub-mark" x="7" y="7" width="12" height="12" rx="4"/><path class="shape-line sub-mark" d="M13 10V16M10 13H16"/>' },
         document:   { h: 64, svg: '<path class="shape-path" d="M1 1H143V57C119 49 96 49 72 57C48 65 25 65 1 57Z"/>' },
         io:         { h: 64, svg: '<polygon class="shape-path" points="13,1 143,1 131,63 1,63"/>' },
         database:   { h: 64, svg: '<path class="shape-path" d="M1 9A71 8 0 0 1 143 9V55A71 8 0 0 1 1 55Z"/><path class="shape-line" d="M1 9A71 8 0 0 0 143 9"/>' },
@@ -1054,7 +1054,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           });
 
           nodeEl.appendChild(buildNoteBadge(node));   // note badge, or the "+" chip to add one
-          if (node.type === 'subprocess' && hasChild(node.id)) nodeEl.appendChild(buildSubLink(node));
+          if (node.type === 'subprocess' && hasChild(node.id)) { nodeEl.classList.add('has-child'); nodeEl.appendChild(buildSubLink(node)); }
 
           nodeEl.addEventListener('pointerdown', (e) => handleNodePointerDown(e, node));
           nodeEl.addEventListener('mouseenter', () => {
@@ -3533,6 +3533,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
       function makeNode(type, p) {
         const node = { id: uid('n'), laneId: p.laneId, type, label: NODE_DEFAULTS[type] || 'New Step', x: p.x, y: p.y };
         chartData.nodes.push(node);
+        if (type === 'subprocess' && !chartData.tab) addEmptyChild(node);   // a new subprocess gets its own tab (one level)
         return node;
       }
 
@@ -4991,7 +4992,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         switchTab(home);
       }
 
-      // The small button on a subprocess step that has a child flow: opens its tab
+      // The subprocess step's + marker (top left, inside the box) becomes a button when the step has a child flow: opens its tab
       function buildSubLink(node) {
         const b = document.createElement('button');
         b.type = 'button';
@@ -4999,8 +5000,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         b.setAttribute('data-export-skip', '');
         b.title = `Open the subprocess flow: ${chartData.tabNames[node.id]}`;
         b.setAttribute('aria-label', b.title);
-        b.innerHTML = ui.icon('layers', { size: 'xs', bold: true });
-        b.addEventListener('pointerdown', (e) => e.stopPropagation());   // never starts a node drag
+                b.addEventListener('pointerdown', (e) => e.stopPropagation());   // never starts a node drag
         b.addEventListener('click', (e) => { e.stopPropagation(); switchTab(node.id); });
         return b;
       }
@@ -5070,6 +5070,20 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         // the new step is waiting for its name: its text opens for editing
         const label = document.querySelector(`#node-${CSS.escape(id)} .node-label`);
         if (label) label.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+      }
+
+      // A subprocess step added from Shapes: a child flow of its own, start pill -> one step -> end pill in the step's lane
+      function addEmptyChild(node) {
+        syncActors();
+        const start = { id: subId('n'), laneId: node.laneId, type: 'start', label: node.label };
+        const step = { id: subId('n'), laneId: node.laneId, type: 'task', label: 'New Step' };
+        const end = { id: subId('n'), laneId: node.laneId, type: 'end', label: 'Subprocess Done' };
+        const edges = [{ id: subId('e'), from: start.id, to: step.id, label: '' }, { id: subId('e'), from: step.id, to: end.id, label: '' }];
+        if (!chartData.flows) { chartData.actors = chartData.lanes.map(withoutHeight); chartData.flows = {}; chartData.tabNames = {}; }
+        const flow = { lanes: chartData.lanes.filter(l => l.id === node.laneId).map(withoutHeight), nodes: [start, step, end], edges };
+        chartData.flows[node.id] = flow;
+        chartData.tabNames[node.id] = node.label;
+        layoutFlow(flow, chartData.direction);
       }
 
       function expandSubprocess() {

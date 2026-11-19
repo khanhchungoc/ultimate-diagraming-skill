@@ -287,6 +287,21 @@ try {
   if (plain) {
     await t.open(plain);
     t.check('a diagram without subprocess flows shows no tab row and no SVG-per-tab item', await t.ev(`document.getElementById('flow-tabs').hidden && document.querySelector('[data-export="svg-all"]').hidden`));
+    // 15. A Subprocess shape added from Shapes gets a tab of its own (start, one step, end); undo takes both away
+    await t.ev(`document.getElementById('btn-add-subprocess').click()`);
+    await sleep(400);
+    t.check('a Subprocess from Shapes adds its tab and the open button', J(await tabs()) === J(['Main flow*', 'Subprocess']) && (await t.ev(`document.querySelectorAll('.sub-open').length`)) === 1, J(await tabs()));
+    await t.ev(`document.querySelectorAll('.flow-tab')[1].click()`);
+    await sleep(400);
+    t.check('its flow is a start pill named like the step, one step and an end pill', J(await t.ev(`[...document.querySelectorAll('.flow-node')].map((n) => n.textContent.trim())`)) === J(['Subprocess', 'New Step', 'Subprocess Done']),
+      J(await t.ev(`[...document.querySelectorAll('.flow-node')].map((n) => n.textContent.trim())`)));
+    await t.ev(`document.getElementById('btn-add-subprocess').click()`);
+    await sleep(400);
+    t.check('a Subprocess added inside a child flow gets no tab (one level)', (await tabs()).length === 2, J(await tabs()));
+    await t.ev(`document.getElementById('btn-undo').click()`);
+    await t.ev(`document.getElementById('btn-undo').click()`);
+    await sleep(400);
+    t.check('undo removes the step and its tab', await t.ev(`document.getElementById('flow-tabs').hidden`), J(await tabs()));
   }
   t.check('no errors in the whole run', t.errors.length === 0, t.errors.join(' | '));
   code = t.finish();
