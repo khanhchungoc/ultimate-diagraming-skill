@@ -21,6 +21,7 @@ import unicodedata
 from functools import lru_cache
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
+import subprocess_flow
 from tokens import load_tokens
 
 FLOWCHART_KEYS = ("diagramType", "schemaVersion", "title", "direction", "swimlanes", "showNotes",
@@ -199,10 +200,8 @@ def flowchart_to_disk(data: Dict[str, Any]) -> Dict[str, Any]:
                 layout[o["id"]] = pos
     if layout:
         d["layout"] = layout
-    if kids:  # in the order the parent flow reaches them, each with its keys in a fixed order
-        order = [n["id"] for n in nodes if n.get("id") in kids]
-        order += [k for k in kids if k not in order]
-        d["children"] = {slug: _ordered(kids[slug], CHILD_KEYS) for slug in order}
+    if kids:  # in the order the parent flow reaches them (depth first), each with its keys in a fixed order
+        d["children"] = {slug: _ordered(kids[slug], CHILD_KEYS) for slug in subprocess_flow.child_order(d)}
     return _ordered(d, FLOWCHART_KEYS)
 
 

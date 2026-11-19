@@ -14,6 +14,7 @@ from typing import Any, Dict, List, Optional, Tuple
 STEP_LIMIT = 30  # steps per tab (starts, ends, connectors and notes excluded)
 LANE_LIMIT = 6   # lanes per tab
 RPST_LIMIT = 5   # candidates listed
+MAX_FLOW_DEPTH = 4  # levels, 1 is the main flow (plan: dev/plans/plan-subprocess-depth.md); mirrors MMD_FLOW_MAX_DEPTH in mermaid.js
 
 _NO_WORDS = re.compile(r"\b(not|no|fail|failed|reject|rejected|declin\w*|cancel\w*|denied|invalid|incomplete|unable|refused)\b", re.I)
 
@@ -22,11 +23,52 @@ def children(data: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
     return data.get("children") or {}
 
 
-def child_order(data: Dict[str, Any]) -> List[str]:
-    """Child slugs in the order of their parent steps in `nodes` (flow order on disk), then any others."""
+def parents(data: Dict[str, Any]) -> Dict[str, str]:
+    """Child slug -> key of the flow holding its `[["..."]]` step ('' is the main flow); a slug with no such step is absent."""
+    out: Dict[str, str] = {}
     kids = children(data)
-    slugs = [n["id"] for n in data.get("nodes") or [] if n.get("id") in kids]
-    return slugs + [k for k in kids if k not in slugs]
+    for key, nodes in [("", data.get("nodes") or [])] + [(k, c.get("nodes") or []) for k, c in kids.items()]:
+        for n in nodes:
+            if n.get("id") in kids and n["id"] != key:
+                out.setdefault(n["id"], key)
+    return out
+
+
+def parent_of(data: Dict[str, Any], slug: str) -> Optional[str]:
+    return parents(data).get(slug)
+
+
+def depth_of(data: Dict[str, Any], key: str) -> int:
+    """1 for the main flow (key ''), else 1 + the parent's depth; a flow with no parent step counts as a child of the main flow."""
+    up, depth, seen = parents(data), 1, set()
+    while key and key not in seen:
+        seen.add(key)
+        depth, key = depth + 1, up.get(key, "")
+    return depth
+
+
+def can_nest(data: Dict[str, Any], key: str) -> bool:
+    return depth_of(data, key) < MAX_FLOW_DEPTH
+
+
+def child_order(data: Dict[str, Any]) -> List[str]:
+    """Child slugs depth first: each flow's children in the order of their steps in `nodes` (flow order on disk), then any
+    whose parent step is missing."""
+    kids, up = children(data), parents(data)
+    order: List[str] = []
+
+    def walk(key: str) -> None:
+        for n in (data.get("nodes") if key == "" else kids[key].get("nodes")) or []:
+            if n.get("id") in kids and up.get(n["id"]) == key and n["id"] not in order:
+                order.append(n["id"])
+                walk(n["id"])
+
+    walk("")
+    for k in kids:
+        if k not in order:
+            order.append(k)
+            walk(k)
+    return order
 
 
 def is_step(n: Dict[str, Any]) -> bool:
@@ -97,6 +139,13 @@ def _tabs(data: Dict[str, Any]) -> List[Tuple[Optional[str], str, List[Dict[str,
     return out
 
 
+def host_view(data: Dict[str, Any], slug: str) -> Dict[str, Any]:
+    """The flow holding the subprocess step `slug` (its nodes and edges) with that child, the shape `_ends_and_branches` reads."""
+    up = parents(data).get(slug, "")
+    host = data if up == "" else children(data)[up]
+    return {"children": {slug: children(data)[slug]}, "nodes": host.get("nodes") or [], "edges": host.get("edges") or []}
+
+
 def _ends_and_branches(data: Dict[str, Any], slug: str) -> Tuple[List[Dict[str, Any]], Optional[Dict[str, Any]], List[Dict[str, Any]]]:
     """(child end pills, the decision that follows the subprocess step or None, that decision's outgoing edges)."""
     c = children(data)[slug]
@@ -121,17 +170,21 @@ def checks(data: Dict[str, Any]) -> List[str]:
         if lane_count > LANE_LIMIT:
             warns.append(f"Flow {tab} has {lane_count} lanes (limit {LANE_LIMIT}): show a system that only stores data as a database "
                          "shape, merge actors with the same role, or move the block that needs the extra lanes into a subprocess")
-    by_id = {n["id"]: n for n in data.get("nodes") or []}
+    up = parents(data)
     for slug in child_order(data):
         c = children(data)[slug]
         name = c.get("name") or slug
-        if by_id.get(slug, {}).get("type") != "subprocess":
-            warns.append(f'sub_{slug} ("{name}") has no matching [["..."]] step with the id {slug} in the parent flow')
+        host = data if up.get(slug, "") == "" else children(data)[up[slug]]
+        step = next((n for n in host.get("nodes") or [] if n.get("id") == slug), {})
+        if slug not in up or step.get("type") != "subprocess":
+            warns.append(f'sub_{slug} ("{name}") has no matching [["..."]] step with the id {slug} in its parent flow')
+        if depth_of(data, slug) > MAX_FLOW_DEPTH:
+            warns.append(f'Flow "{name}" is on level {depth_of(data, slug)} (limit {MAX_FLOW_DEPTH}): move it up or merge it into its parent')
         starts = [n for n in c.get("nodes") or [] if n.get("type") == "start"]
         if len(starts) != 1:
             warns.append(f'Child flow "{name}" has {len(starts)} start pills (exactly one is needed)')
-        if slug in by_id:
-            ends, decision, branches = _ends_and_branches(data, slug)
+        if slug in up:
+            ends, decision, branches = _ends_and_branches(host_view(data, slug), slug)
             want = len(branches) if decision is not None else (1 if branches else None)
             # one end per branch of the decision after the step; one end when the parent just continues
             if want is not None and len(ends) != want:
@@ -203,7 +256,7 @@ def outline(data: Dict[str, Any], only: Optional[str] = None) -> List[str]:
         steps, lane_count = tab_stats(c.get("nodes") or [])
         ends = [n.get("label", "") for n in c.get("nodes") or [] if n.get("type") == "end"]
         label = nodes_of.get(slug, {}).get("label") or c.get("name") or slug
-        lines.append(f"%% {slug} [[{label}]] -> sub_{slug}: {steps} steps, {lane_count} lanes, ends {' | '.join(ends) or 'none'}")
+        lines.append(f"%% {'  ' * (depth_of(data, slug) - 2)}{slug} [[{label}]] -> sub_{slug}: {steps} steps, {lane_count} lanes, ends {' | '.join(ends) or 'none'}")
     if only:
         return lines
     every = [n for _, _, ns, _ in _tabs(data) for n in ns]
@@ -249,27 +302,29 @@ def flatten(data: Dict[str, Any]) -> Dict[str, Any]:
     count = [0]
 
     def new_id() -> str:
-        used = {e["id"] for e in d["edges"]}
+        used = {e["id"] for t in [d, *kids.values()] for e in t.get("edges") or []}
         while True:
             count[0] += 1
             if f"e{count[0]}" not in used:
                 return f"e{count[0]}"
 
-    for slug in child_order(data):
+    up = parents(data)
+    for slug in sorted(child_order(data), key=lambda s: -depth_of(data, s)):  # deepest first: a child is whole before its parent takes it in
         c = kids[slug]
-        p = next((n for n in d["nodes"] if n["id"] == slug and n.get("type") == "subprocess"), None)
+        host = d if up.get(slug, "") == "" else kids[up[slug]]
+        p = next((n for n in host["nodes"] if n["id"] == slug and n.get("type") == "subprocess"), None)
         starts = [n for n in c.get("nodes") or [] if n.get("type") == "start"]
         if p is None or len(starts) != 1:
             continue
-        sub = {"children": {slug: c}, "nodes": d["nodes"], "edges": d["edges"]}
+        sub = {"children": {slug: c}, "nodes": host["nodes"], "edges": host["edges"]}
         ends, decision, branches = _ends_and_branches(sub, slug)
-        if decision is not None and (len(ends) != len(branches) or any(e["to"] == decision["id"] and e["from"] != slug for e in d["edges"])):
+        if decision is not None and (len(ends) != len(branches) or any(e["to"] == decision["id"] and e["from"] != slug for e in host["edges"])):
             decision = None
-        outs = [e for e in d["edges"] if e["from"] == slug]
+        outs = [e for e in host["edges"] if e["from"] == slug]
         drop, new_edges = {slug, starts[0]["id"]}, []
         kid_edges = list(c.get("edges") or [])
         first = [e for e in kid_edges if e["from"] == starts[0]["id"]]
-        for ie in [e for e in d["edges"] if e["to"] == slug]:
+        for ie in [e for e in host["edges"] if e["to"] == slug]:
             for s in first:
                 new_edges.append({"id": new_id(), "from": ie["from"], "to": s["to"], "label": ie.get("label") or s.get("label") or "",
                                   **({"feedback": True} if ie.get("feedback") else {})})
@@ -292,13 +347,13 @@ def flatten(data: Dict[str, Any]) -> Dict[str, Any]:
         else:
             drop_edges = set()
         kid_edges = [e for e in kid_edges if e["from"] != starts[0]["id"]]
-        d["edges"] = [e for e in d["edges"] if e["from"] not in drop and e["to"] not in drop and e["id"] not in drop_edges] + kid_edges + new_edges
-        d["nodes"] = [n for n in d["nodes"] if n["id"] not in drop] + [n for n in c.get("nodes") or [] if n["id"] not in drop]
+        host["edges"] = [e for e in host["edges"] if e["from"] not in drop and e["to"] not in drop and e["id"] not in drop_edges] + kid_edges + new_edges
+        host["nodes"] = [n for n in host["nodes"] if n["id"] not in drop] + [n for n in c.get("nodes") or [] if n["id"] not in drop]
         relink = first[0]["to"] if first else None
-        notes = d.get("notes") or []
+        notes = host.get("notes") or []
         for note in notes + (c.get("notes") or []):
             note["nodes"] = [relink if i == slug else i for i in note.get("nodes") or [] if i not in drop or i == slug]
-        d["notes"] = [n for n in notes + (c.get("notes") or []) if n["nodes"]]
-        if not d["notes"]:
-            d.pop("notes")
+        host["notes"] = [n for n in notes + (c.get("notes") or []) if n["nodes"]]
+        if not host["notes"]:
+            host.pop("notes")
     return d
