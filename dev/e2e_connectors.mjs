@@ -39,7 +39,7 @@ const conn = (role) => `[...document.querySelectorAll('.flow-node.type-connector
 const selectEdge = (id) => t.ev(`document.querySelector('.edge-line[data-edge-id="${id}"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))`);
 // The stub arrow leaving the out-connector
 const selectStub = () => t.ev(`document.querySelector('.edge-line[data-from="' + (${conn('out')}).dataset.nodeId + '"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))`);
-const split = async (id) => { await selectEdge(id); await t.ev(`document.querySelector('.edge-split-chip').click()`); };
+const split = async (id) => { await selectEdge(id); await t.ev(`document.querySelector('.edge-bar [data-act="split"]').click()`); };
 const click = (sel) => t.ev(`(() => {
   const el = ${sel}; const r = el.getBoundingClientRect();
   const o = { bubbles: true, button: 0, clientX: r.left + r.width / 2, clientY: r.top + r.height / 2, pointerId: 1, isPrimary: true };
@@ -65,8 +65,8 @@ try {
   await t.open(pages.forward);
   const d0 = await state();
   await selectEdge('e8');
-  t.check('the selected arrow shows a Split chip', await t.ev(`!!document.querySelector('.edge-split-chip')`));
-  await t.ev(`document.querySelector('.edge-split-chip').click()`);
+  t.check('the selected arrow shows a toolbar with a Connector button', await t.ev(`!!document.querySelector('.edge-bar [data-act="split"]')`));
+  await t.ev(`document.querySelector('.edge-bar [data-act="split"]').click()`);
   const d1 = await state();
   const e8 = edgeOf(d1, 'e8');
   t.check('Split makes an A pair; the arrow keeps its id and its "Yes" label on the in-side',
@@ -252,7 +252,7 @@ try {
   await split('e3');
   await split('e6');
   const menu = await t.ev(`[...document.querySelectorAll('.edge-split-menu button')].map(b => b.textContent)`);
-  t.check('the Split chip offers to join A when A continues at the same step', menu.length === 2 && /^Split into new B/.test(menu[0]) && /^Join A/.test(menu[1]), JSON.stringify(menu));
+  t.check('the Connector button offers to join A when A continues at the same step', menu.length === 2 && /^Split into new B/.test(menu[0]) && /^Join A/.test(menu[1]), JSON.stringify(menu));
   await t.ev(`[...document.querySelectorAll('.edge-split-menu button')].find(b => b.textContent.startsWith('Join A')).click()`);
   const m1 = await state();
   const outs = connsOf(m1).filter(c => m1.edges.some(e => e.from === c.id));

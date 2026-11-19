@@ -817,21 +817,29 @@
         selectNode(cIn.id);
       }
 
-      // The selected arrow's Split chip (beside its label). When a pair already continues at this arrow's target, it
-      // opens a choice: a new pair, or join that pair (a merge: several sources continuing at one out-connector).
-      function buildSplitChip(edge, labelContainer, route) {
-        const chip = document.createElement('button');
-        chip.type = 'button';
-        chip.className = 'edge-split-chip';
-        chip.dataset.exportSkip = '';
-        chip.title = 'Split into a connector pair';
-        chip.setAttribute('aria-label', 'Split this arrow into a connector pair');
-        chip.innerHTML = ui.icon('split');
-        chip.style.left = `${route.midX + labelContainer.offsetWidth / 2 + 18}px`;
-        chip.style.top = `${route.midY}px`;
-        chip.addEventListener('pointerdown', (e) => e.stopPropagation());
-        chip.addEventListener('click', (e) => {
+      // The selected arrow's toolbar (components/actionbar.css): Connector, Label, Delete. It sits just right
+      // of the midpoint (past the label when there is one), so it never covers the text or the spot to double-click.
+      // Connector opens a choice when a pair already continues at this arrow's target: a new pair, or join that pair
+      // (a merge: several sources continuing at one out-connector).
+      function buildEdgeBar(edge, labelContainer, route, hasLabel) {
+        const bar = ui.actionBar('actionbar edge-bar', 'Arrow');
+        const btn = (act, icon, title, extra) => ui.abButton('ab-btn', act, ui.icon(icon), title, undefined, undefined, extra);
+        if (!isConnector(nodeById(edge.from)) && !isConnector(nodeById(edge.to)) && edge.from !== edge.to) {
+          bar.appendChild(btn('split', 'split', 'Connector: split this arrow into a lettered pair'));
+        }
+        bar.appendChild(btn('label', 'label', 'Label (or double-click the arrow)'));
+        bar.appendChild(btn('delete', 'trash', 'Delete the arrow', 'is-danger'));
+        bar.style.left = `${route.midX + (hasLabel ? labelContainer.offsetWidth / 2 : 0) + 8}px`;
+        bar.style.top = `${route.midY}px`;
+        bar.addEventListener('pointerdown', (e) => e.stopPropagation());
+        bar.addEventListener('dblclick', (e) => e.stopPropagation());
+        bar.addEventListener('click', (e) => {
           e.stopPropagation();
+          const b = e.target.closest('.ab-btn');
+          if (!b) return;
+          if (b.dataset.act === 'delete') { deleteEdge(edge.id); return; }
+          if (b.dataset.act === 'label') { labelContainer.dispatchEvent(new MouseEvent('dblclick', { bubbles: false })); return; }
+          bar.querySelector('.edge-split-menu')?.remove();
           const joins = joinableLetters(edge.to);
           if (!joins.length) { splitEdge(edge.id); return; }
           const menu = document.createElement('div');
@@ -839,24 +847,22 @@
           menu.dataset.exportSkip = '';
           menu.setAttribute('role', 'menu');
           const item = (text, fn) => {
-            const b = document.createElement('button');
-            b.type = 'button';
-            b.setAttribute('role', 'menuitem');
-            b.textContent = text;
-            b.addEventListener('pointerdown', (ev) => ev.stopPropagation());
-            b.addEventListener('click', (ev) => { ev.stopPropagation(); fn(); });
-            menu.appendChild(b);
-            return b;
+            const m = document.createElement('button');
+            m.type = 'button';
+            m.setAttribute('role', 'menuitem');
+            m.textContent = text;
+            m.addEventListener('pointerdown', (ev) => ev.stopPropagation());
+            m.addEventListener('click', (ev) => { ev.stopPropagation(); fn(); });
+            menu.appendChild(m);
+            return m;
           };
           const first = item(`Split into new ${nextConnectorLetter(chartData.nodes)}`, () => splitEdge(edge.id));
           joins.forEach(l => item(`Join ${l} (continues at ${stepLabel(edge.to)})`, () => splitEdge(edge.id, l)));
-          menu.style.left = chip.style.left;
-          menu.style.top = `${route.midY + 16}px`;
-          chip.after(menu);
+          bar.appendChild(menu);
           first.focus();
-          menu.addEventListener('keydown', (ev) => { if (ev.key === 'Escape') { ev.stopPropagation(); menu.remove(); chip.focus(); } });
+          menu.addEventListener('keydown', (ev) => { if (ev.key === 'Escape') { ev.stopPropagation(); menu.remove(); b.focus(); } });
         });
-        return chip;
+        return bar;
       }
 
       // Pairs whose out-connector continues at step `toId`: an arrow into that step may join them
@@ -2626,8 +2632,8 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
             labelText.className = 'edge-label-text';
             labelText.contentEditable = 'false';
             labelText.spellcheck = false;
-            labelText.dataset.tip = 'Double-click to edit condition';
-            labelText.textContent = hasLabel ? edge.label : '+';
+            labelText.dataset.tip = 'Double-click to edit the label';
+            labelText.textContent = hasLabel ? edge.label : '';
 
             labelText.addEventListener('pointerdown', (e) => {
               e.stopPropagation();
@@ -2635,12 +2641,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
 
             labelText.addEventListener('blur', () => {
               labelText.contentEditable = 'false';
-              const text = labelText.textContent.trim();
-              if (text === '' || text === '+') {
-                edge.label = '';
-              } else {
-                edge.label = text;
-              }
+              edge.label = labelText.textContent.trim();
               updateStatus(true);
               render();
             });
@@ -2659,11 +2660,9 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
             labelContainer.addEventListener('dblclick', (e) => {
               e.stopPropagation();
               labelText.contentEditable = 'true';
+              labelContainer.classList.add('editing');   // shows an empty label's box, hides the toolbar
               labelText.focus();
-              if (labelText.textContent.trim() === '+') {
-                labelText.textContent = '';
-                labelContainer.classList.remove('empty-placeholder');
-              } else {
+              if (hasLabel) {
                 const range = document.createRange();
                 range.selectNodeContents(labelText);
                 const sel = window.getSelection();
@@ -2706,19 +2705,12 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
                 edgeLabelsGroup.appendChild(h);
               });
 
-              // Split chip beside the label: replace this arrow with a connector pair
-              if (!isConnector(nodeById(edge.from)) && !isConnector(nodeById(edge.to)) && edge.from !== edge.to) {
-                labelContainer.after(buildSplitChip(edge, labelContainer, pathD));
-              }
+              labelContainer.after(buildEdgeBar(edge, labelContainer, pathD, hasLabel));
             }
 
             labelContainer.addEventListener('click', (e) => {
               e.stopPropagation();
-              selectEdge(edge.id, false);
-              // The "+" placeholder starts typing on a single click
-              if (labelContainer.classList.contains('empty-placeholder') && labelText.contentEditable !== 'true') {
-                labelContainer.dispatchEvent(new MouseEvent('dblclick', { bubbles: false }));
-              }
+              selectEdge(edge.id, edge.id !== selectedEdgeId);   // a first click draws the toolbar
             });
 
             // Hovering the arrow or its label lights up both, so it is clear which label belongs to which arrow
@@ -2728,16 +2720,8 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
               if (edge.id !== selectedEdgeId) path.setAttribute('marker-end', on ? 'url(#arrowhead-selected)' : 'url(#arrowhead)');
             };
             [path, hit].forEach(el => {
-              el.addEventListener('mouseenter', () => {
-                labelContainer.classList.add('hover-visible');
-                setLinked(true);
-              });
-              el.addEventListener('mouseleave', () => {
-                setLinked(false);
-                if (edge.id !== selectedEdgeId && !labelText.matches(':focus')) {
-                  labelContainer.classList.remove('hover-visible');
-                }
-              });
+              el.addEventListener('mouseenter', () => setLinked(true));
+              el.addEventListener('mouseleave', () => setLinked(false));
             });
             labelContainer.addEventListener('mouseenter', () => setLinked(true));
             labelContainer.addEventListener('mouseleave', () => setLinked(false));
