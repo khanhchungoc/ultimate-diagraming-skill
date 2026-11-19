@@ -10,7 +10,7 @@
 // Exit codes: 0 all passed, 1 setup error, 2 a check failed.
 import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import { argOf, launch, sleep } from './cdp.mjs';
 
 const browser = argOf('browser'), laid = argOf('laid'), scrambled = argOf('scrambled'), artifact = argOf('artifact');
@@ -200,6 +200,72 @@ try {
   await t.ev(t.key('s', { ctrlKey: true }));
   await sleep(500);
   t.check('Ctrl+S save path raises no errors', t.errors.length === 0, t.errors.join(' | '));
+
+  // 6b. First Save of a file opened from disk, in a browser with the Save dialog: Save copies the file's path at once and
+  //     shows it in a bubble; the bubble's button opens the dialog. The dialog and clipboard are stubbed.
+  await t.open(laid);
+  await t.ev(`(() => {
+    window.__picked = []; window.__copied = []; window.__written = null;
+    window.showSaveFilePicker = async (o) => { window.__picked.push(o); return { name: o.suggestedName,
+      createWritable: async () => ({ write: async (h) => { window.__written = h; }, close: async () => {} }) }; };
+    navigator.clipboard.writeText = async (s) => { window.__copied.push(s); };
+  })()`);
+  const laidPath = resolve(laid);
+  await t.ev(t.key('s', { ctrlKey: true }));
+  await sleep(300);
+  const b1 = await t.ev(`(() => { const p = document.querySelector('.confirm .save-where'); return p && { path: p.textContent,
+    title: document.querySelector('.confirm .confirm-title').textContent, msg: document.querySelector('.confirm .confirm-msg').textContent,
+    copied: window.__copied, picked: window.__picked.length }; })()`);
+  t.check('save location: the first Save copies the opened file\'s path at once and shows it, before any dialog',
+    b1 && b1.path === laidPath && b1.title === 'Path copied' && /Ctrl\+L/.test(b1.msg) && JSON.stringify(b1.copied) === JSON.stringify([laidPath]) && b1.picked === 0,
+    JSON.stringify(b1));
+  await t.ev(`document.querySelector('.confirm .confirm-ok').click()`);
+  await sleep(300);
+  const pick1 = await t.ev(`({ picked: window.__picked.map(o => o.suggestedName), written: !!window.__written && window.__written.includes('id="diagram-data"'),
+    open: !!document.querySelector('.save-where'), status: document.getElementById('save-status').textContent })`);
+  t.check('save location: the bubble\'s button opens the dialog with the file\'s name and writes the file',
+    JSON.stringify(pick1.picked) === JSON.stringify([basename(laidPath)]) && pick1.written && !pick1.open && pick1.status === `Saved to ${basename(laidPath)}`, JSON.stringify(pick1));
+  await t.ev(`window.__written = null`);
+  await t.ev(t.key('s', { ctrlKey: true }));
+  await sleep(300);
+  t.check('save location: the next Save writes straight to the chosen file with no bubble or dialog',
+    (await t.ev(`!!window.__written && !document.querySelector('.save-where') && window.__picked.length === 1`)));
+  // 6c. Reopening a file saved on an earlier visit: the badge names the file Save writes to and says the browser may ask.
+  //     The stored handle is faked as a plain { name } record (a real one needs the Save dialog).
+  const badgeOf = () => t.ev(`(() => { const b = document.getElementById('save-status'); return { text: b.textContent, title: b.title }; })()`);
+  await t.open(laid, '?keep-picker');
+  await t.ev(`new Promise((res, rej) => { const q = indexedDB.open('ultimate-diagram', 1);
+    q.onupgradeneeded = () => q.result.createObjectStore('handles');
+    q.onsuccess = () => { const tx = q.result.transaction('handles', 'readwrite'); tx.objectStore('handles').put({ name: 'flow-old.html' }, location.href); tx.oncomplete = res; tx.onerror = rej; };
+    q.onerror = rej; })`);
+  await t.open(laid, '?keep-picker');
+  const stored = await badgeOf();
+  t.check('remembered file: the badge reads "Saves to <file>" and says the browser may ask once per session',
+    stored.text === 'Saves to flow-old.html' && /once per session/.test(stored.title), JSON.stringify(stored));
+  await t.open(laid);
+  t.check('remembered file: a page with no stored file still reads "Ready"', (await badgeOf()).text === 'Ready');
+
+  // 6d. No Save dialog (Firefox, Safari): Save downloads a copy, the badge says so, and a toast says once that the
+  //     opened file was not changed
+  await t.send('Browser.setDownloadBehavior', { behavior: 'allow', downloadPath: mkdtempSync(join(tmpdir(), 'dlcopy_')) });
+  const copyToasts = `[...document.querySelectorAll('.toast')].filter(e => /file you opened was not changed/.test(e.textContent)).length`;
+  await t.ev(t.key('s', { ctrlKey: true }));
+  await sleep(400);
+  const dl1 = await badgeOf();
+  const toasts1 = await t.ev(copyToasts);
+  await t.ev(t.key('s', { ctrlKey: true }));
+  await sleep(400);
+  t.check('download: the badge reads "Downloaded a copy" and one toast says the opened file was not changed, also after a second Save',
+    dl1.text === 'Downloaded a copy' && /not changed/.test(dl1.title) && toasts1 === 1 && (await t.ev(copyToasts)) === 1, JSON.stringify({ dl1, toasts1 }));
+
+  await t.open(laid);
+  await t.ev(`window.__picked = []; window.showSaveFilePicker = async (o) => { window.__picked.push(o); throw new DOMException('x', 'AbortError'); }`);
+  await t.ev(t.key('s', { ctrlKey: true }));
+  await sleep(300);
+  await t.ev(`document.querySelector('.confirm .confirm-cancel').click()`);
+  await sleep(100);
+  t.check('save location: Cancel closes the bubble without opening the dialog',
+    (await t.ev(`!document.querySelector('.save-where') && window.__picked.length === 0`)) && t.errors.length === 0, t.errors.join(' | '));
 
   // 7. Drag shapes out of the dock (flowchart plugin): empty canvas adds a node, an arrow gets the node spliced in
   await t.open(laid);

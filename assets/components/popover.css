@@ -53,3 +53,11 @@
     .confirm-error { color: var(--danger); font-weight: var(--weight-regular); }
     .confirm-list { margin: 0 0 12px; padding-left: 18px; max-height: 200px; overflow: auto; color: var(--text-soft); }
     .confirm-list li { margin-bottom: 4px; overflow-wrap: anywhere; }
+
+    /* Save location: the first Save of a file opened from disk copies and shows where that file lives, to paste into the
+       browser's Save dialog (shell.js askSaveLocation). */
+    .save-where {
+      display: block; margin-bottom: 12px; padding: 6px 8px; overflow-wrap: anywhere; user-select: all;
+      font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-main); background: var(--bg-page);
+      border: 1px solid var(--border-color); border-radius: var(--radius-md);
+    }
