@@ -12,7 +12,9 @@
       color: var(--text-main);
       cursor: pointer;
       touch-action: manipulation;
-      transition: background-color var(--ease), border-color var(--ease), color var(--ease), transform var(--ease);
+      transition: background-color var(--dur-micro) var(--curve-out), border-color var(--dur-micro) var(--curve-out),
+                  color var(--dur-micro) var(--curve-out), opacity var(--dur-micro) var(--curve-out),
+                  transform var(--dur-micro) var(--curve-spring-tactile);
     }
     .btn svg { flex: none; }
     .btn:hover {
@@ -20,7 +22,7 @@
       border-color: var(--border-dark);
     }
     .btn:active {
-      transform: translateY(1px);
+      transform: scale(0.96);
     }
     .btn:disabled,
     .btn:disabled:hover {

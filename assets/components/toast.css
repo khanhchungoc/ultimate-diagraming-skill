@@ -4,5 +4,10 @@
       max-width: min(90vw, 420px); padding: 8px 14px; border-radius: var(--radius-lg);
       background: var(--text-main); color: var(--bg-panel);
       font-size: var(--t-control-size); box-shadow: var(--shadow-lg);
+      animation: toast-in 170ms var(--curve-spring-tactile);
+    }
+    @keyframes toast-in {
+      from { transform: translate(-50%, 12px) scale(0.95); clip-path: inset(100% 0 0 0); }
+      to   { transform: translate(-50%, 0) scale(1); clip-path: inset(0 0 0 0); }
     }
 

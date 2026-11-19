@@ -17,7 +17,7 @@
       position: relative;
       border-bottom: 1px dashed var(--border-dark);
       min-height: var(--lane-min-height);
-      transition: background 0.15s ease, outline 0.15s ease;
+      transition: background-color var(--dur-micro) var(--curve-inout);
     }
     .swimlane:last-child {
       border-bottom: none;
@@ -98,14 +98,14 @@
       flex: none;
       width: var(--lane-gutter, 0px);
       background: var(--lane-bg);
-      transition: background 0.15s ease;
+      transition: background-color var(--dur-micro) var(--curve-inout);
     }
     .lane-track {
       flex: 1;
       position: relative;
       min-width: 1400px;
       background: var(--lane-bg);
-      transition: background 0.15s ease;
+      transition: background-color var(--dur-micro) var(--curve-inout);
     }
     /* The lane under the pointer (see setHoverLane), holding the selected node, or selected itself takes one solid
        highlight colour, the same whether it is a white or a grey lane (it is set in --lane-bg, so the pill halo
@@ -126,7 +126,11 @@
       z-index: 15;
       overflow: visible;   /* a note dragged into the margin keeps its whole dashed leader (inline SVG clips by default) */
     }
-    .edge-line { pointer-events: stroke; cursor: pointer; }
+    .edge-line {
+      pointer-events: stroke;
+      cursor: pointer;
+      transition: stroke var(--dur-micro) var(--curve-inout), stroke-width var(--dur-micro) var(--curve-inout);
+    }
     body.presentation .edge-hit { pointer-events: none !important; }
     .edge-line:hover, .edge-line.hover, .edge-line.selected {
       stroke: var(--primary);
@@ -151,6 +155,7 @@
       gap: 6px;
       line-height: var(--t-label-leading);
       max-width: 140px; /* keep in sync with LE.LABEL_MAX_W */
+      transition: border-color var(--dur-micro) var(--curve-inout), background-color var(--dur-micro) var(--curve-inout);
     }
     /* Highlighted (hover, selected, linked to a hovered node): the node border weight (2px). The padding gives
        back what the border adds so the label does not jump: the 1.5px rest border is drawn 1px wide at 100%
@@ -208,8 +213,8 @@
       font-weight: var(--t-title-weight);
       line-height: var(--t-title-leading);
       user-select: none;
-      transition: box-shadow 0.15s;
     }
+    .flow-node.dragging { z-index: 45; }
     .flow-node { --node-accent: var(--task-accent); }
     .flow-node.type-start { --node-accent: var(--start-accent); }
     .flow-node.type-end { --node-accent: var(--end-accent); }
@@ -271,7 +276,7 @@
       stroke: var(--decision-stroke);
       stroke-width: var(--node-stroke); /* same weight as rect nodes; never changes on hover/select */
       stroke-linejoin: round;
-      transition: stroke 0.15s, fill 0.15s;
+      transition: stroke var(--dur-micro) var(--curve-out), fill var(--dur-fast) var(--curve-inout);
     }
     .flow-node.type-start:hover, .flow-node.type-start.selected,
     .flow-node.type-end:hover, .flow-node.type-end.selected { --ring: var(--node-accent); }
@@ -280,7 +285,6 @@
     }
     .flow-node.type-decision.selected .diamond-poly {
       stroke: var(--node-accent);
-      filter: drop-shadow(var(--shadow-glow-tight) color-mix(in srgb, var(--node-accent) 45%, transparent));
     }
     /* Classic flowchart shapes (subprocess, io, document, database, delay): the task's 144x64 slot and colours,
        the box transparent and the outline drawn inside it (SHAPE_OUTLINES in flowchart.js); the outline carries
@@ -303,16 +307,12 @@
       vector-effect: non-scaling-stroke;
       stroke-width: var(--node-stroke); /* same weight as rect nodes; never changes on hover/select */
       stroke-linejoin: round;
-      transition: stroke 0.15s, fill 0.15s;
+      transition: stroke var(--dur-micro) var(--curve-out), fill var(--dur-fast) var(--curve-inout);
     }
     .flow-node:not(.type-decision) .shape-outline .shape-path { fill: var(--node-bg); stroke: var(--node-border); }
     .flow-node .shape-outline .shape-line { fill: none; stroke: var(--node-border); }
     .flow-node:not(.type-decision):hover .shape-outline > * { stroke: var(--node-accent); }
-    .flow-node:not(.type-decision):hover .shape-outline .shape-path { filter: drop-shadow(var(--shadow-md)); }
     .flow-node:not(.type-decision).selected .shape-outline > * { stroke: var(--node-accent); }
-    .flow-node:not(.type-decision).selected .shape-outline .shape-path {
-      filter: drop-shadow(var(--shadow-glow-tight) color-mix(in srgb, var(--node-accent) 45%, transparent));
-    }
     .flow-node:is(.type-subprocess, .type-io, .type-document, .type-database, .type-delay) .node-label {
       position: relative;
       z-index: 2;
@@ -365,15 +365,16 @@
       border: 2px solid var(--node-accent, var(--primary));
       opacity: 0;
       cursor: crosshair;
-      transition: opacity 0.15s, transform 0.15s, background-color 0.15s;
+      transition: opacity var(--dur-micro) var(--curve-out), transform var(--dur-micro) var(--curve-spring-tactile), background-color var(--dur-micro) var(--curve-out);
       z-index: 35;
-      transform: translate(-50%, -50%);
+      transform: translate(-50%, -50%) scale(0.55);
       box-shadow: var(--shadow-chip);
     }
     .flow-node:hover .port {
       opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
     }
-    @media (hover: none) { .flow-node.selected .port { opacity: 1; } }
+    @media (hover: none) { .flow-node.selected .port { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
     /* While dragging an arrow, targets auto-anchor: no anchor points shown anywhere */
     body.connecting .port, body.reconnecting .port {
       opacity: 0 !important;
@@ -393,6 +394,7 @@
       cursor: grab;
       pointer-events: auto;
       z-index: 32;
+      transition: background-color var(--dur-micro) var(--curve-out), transform var(--dur-micro) var(--curve-spring-tactile);
     }
     .edge-end-handle:hover { background: var(--primary); }
     body.reconnecting .edge-end-handle { cursor: grabbing; }
@@ -434,15 +436,26 @@
       fill: none;
       pointer-events: none;
     }
-    .flow-node.connector-pulse { animation: connector-pulse 1.1s ease-out; }
-    @keyframes connector-pulse {
-      0%   { box-shadow: 0 0 0 0 color-mix(in srgb, var(--primary) 65%, transparent); }
-      100% { box-shadow: 0 0 0 18px color-mix(in srgb, var(--primary) 0%, transparent); } /* tokens-ok: pulse extent, an animation keyframe not a resting shadow */
+    .flow-node.connector-pulse::after,
+    .flow-node.just-inserted::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      border: 2px solid var(--primary);
+      pointer-events: none;
     }
-    @media (prefers-reduced-motion: reduce) { .flow-node.connector-pulse { animation: none; box-shadow: 0 0 0 var(--ring-lg) var(--primary); } }
+    .flow-node.connector-pulse::after { animation: connector-pulse 550ms var(--curve-out) forwards; }
+    @keyframes connector-pulse {
+      0%   { transform: scale(1); opacity: 0.75; }
+      100% { transform: scale(1.85); opacity: 0; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .flow-node.connector-pulse::after { animation: none; transform: scale(1.2); opacity: 0.85; }
+    }
     /* The selected arrow's toolbar (an .actionbar): just right of the midpoint (past the label); hidden while an end is
        dragged, while the label is typed, in presentation and in capture. Its Connector button opens the menu below. */
-    .edge-bar { transform: translateY(-50%); z-index: 33; pointer-events: auto; }
+    .edge-bar { translate: 0 -50%; z-index: 33; pointer-events: auto; }
     body:is(.presentation, .capture, .reconnecting) .edge-bar { display: none !important; }
     .edge-split-menu {
       position: absolute;
@@ -550,7 +563,7 @@
     .lane-bar.is-below { bottom: auto; top: calc(100% + 8px); }
     .swimlane.lane-selected .lane-bar { display: flex; }
     .lane-pill.editing .lane-bar { display: none !important; }
-    #swimlanes-container.dir-tb .lane-bar { left: 50%; transform: translateX(-50%); }
+    #swimlanes-container.dir-tb .lane-bar { left: 50%; translate: -50% 0; }
     #swimlanes-container.dir-tb .lane-move svg { rotate: -90deg; }
     .lane-pill .lane-icon { width: auto; height: auto; border: none; background: none; border-radius: 0; color: inherit; }
     /* Exports draw each pill and stripe at the lane's own top-left, whatever the view, in the resting style */
@@ -606,10 +619,10 @@
       transform-origin: 0 0;
       opacity: 0.92;
       box-shadow: var(--shadow-xl);
-      transition: opacity 0.1s;
+      transition: opacity var(--dur-micro) var(--curve-out);
     }
     .palette-ghost:is(.type-decision, .type-subprocess, .type-io, .type-document, .type-database, .type-delay) {
-      box-shadow: none; filter: drop-shadow(var(--shadow-xl));
+      box-shadow: none;
     }
     .palette-ghost.off-canvas { opacity: 0.4; }
     .palette-ghost.inserting { opacity: 0.75; }
@@ -638,11 +651,10 @@
       box-shadow: var(--shadow-glow) var(--primary-glow);
       z-index: 56;
     }
-    .flow-node.just-inserted { animation: just-inserted 0.9s ease-out; }
+    .flow-node.just-inserted::after { animation: just-inserted 420ms var(--curve-out) forwards; }
     @keyframes just-inserted {
-      0% { box-shadow: 0 0 0 0 var(--primary-ring); }
-      40% { box-shadow: 0 0 0 10px var(--primary-ring); } /* tokens-ok: pulse extent, an animation keyframe not a resting shadow */
-      100% { box-shadow: 0 0 0 0 transparent; }
+      0%   { transform: scale(0.96); opacity: 0.85; }
+      100% { transform: scale(1.18); opacity: 0; }
     }
 
     /* Node notes (see renderNotes): the shared card, leader, badge and chips live in components/note.css. Here only what

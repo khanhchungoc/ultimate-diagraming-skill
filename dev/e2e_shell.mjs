@@ -185,7 +185,7 @@ try {
   const scrambledPositions = await t.ev(positions);
   const stageView = `document.getElementById('stage').style.transform`;
   await t.ev(`document.getElementById('btn-zoom-in').click()`);
-  await sleep(100);
+  await sleep(260);
   const viewBefore = await t.ev(stageView);
   await t.ev(`document.getElementById('btn-auto-tidy').click()`);
   await sleep(300);
@@ -411,6 +411,7 @@ try {
   const pillMoves = [...svgText.matchAll(/matrix\(1, 0, 0, 1, ([\d.]+), ([\d.]+)\)/g)].filter(m => +m[1] === 12 && +m[2] === 12).length;
   t.check("SVG export names every lane once, with pills at the lanes' own top-left", counts.every(c => c === 1) && pillMoves === laneCount, `counts=${counts} pillsAtLaneCorner=${pillMoves}/${laneCount}`);
   await t.ev(`document.getElementById('btn-zoom-reset').click()`);
+  await sleep(280);
   const afterFit = await t.ev(pills);
   t.check("Fit brings the pills back to the lanes' top-left", afterFit.every(p => p.laneDx >= 3 && p.laneDx <= 20), JSON.stringify(afterFit));
   // Rename by double-clicking the pill's name

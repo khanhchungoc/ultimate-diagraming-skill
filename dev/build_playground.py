@@ -30,6 +30,7 @@ def build(out: Path) -> None:
         index = files["index.html"]
         assert index.count(SCRIPT_TAG) == 1, "index.html no longer ends with the app.js tag"
         files["index.html"] = index.replace(SCRIPT_TAG, f'  <script id="playground" type="application/json">{flag}</script>\n' + SCRIPT_TAG)
+        files["app.css"] = files["app.css"].rstrip() + "\n@media (prefers-reduced-motion: no-preference) { @view-transition { navigation: auto; } }\n"
         for name, text in files.items():
             path = out / kind / name
             path.parent.mkdir(parents=True, exist_ok=True)
