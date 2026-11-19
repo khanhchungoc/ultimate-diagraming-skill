@@ -1,0 +1,151 @@
+---
+title: "Corporate Laptop Purchase Request"
+---
+flowchart
+  subgraph lane_employee["Employee"]
+    submit_request(["Submit Laptop Request"])
+    update_request["Update Request"]
+    confirm_receipt["Confirm Receipt"]
+    issue_found{"Any Issues Found?"}
+    raise_ticket["Raise IT Ticket"]
+    close_request["Close Request"]
+    laptop_issued(["Laptop Issued"])
+  end
+  subgraph lane_system["System"]
+    check_mandatory_info["Check Mandatory Info"]
+    info_provided{"All Info Provided?"}
+  end
+  subgraph lane_it["IT Support"]
+    check_inventory["Check Inventory"]
+    existing_found{"Existing Match Found?"}
+    reserve_device["Reserve Device"]
+    notify_employee["Notify Employee"]
+    laptop_allocated(["Laptop Allocated"])
+    approve_spec[["Approve Specification"]]
+    spec_outcome{"Specification Outcome?"}
+    source_laptop[["Source from Supplier"]]
+    inspect_device["Inspect Device"]
+    device_ok{"Device Correct & OK?"}
+    configure_laptop["Configure Laptop"]
+    assign_laptop["Assign Laptop"]
+    resolve_issue["Resolve Ticket Issue"]
+  end
+  subgraph lane_manager["Line Manager"]
+    procure_laptop[["Procure Laptop"]]
+    po_sent{"Purchase Order Sent?"}
+    request_rejected(["Request Rejected"])
+    request_withdrawn(["Request Withdrawn"])
+    request_cancelled(["Request Cancelled"])
+  end
+  subgraph lane_supplier["Supplier"]
+    return_to_supplier["Return to Supplier"]
+    send_replacement["Send Replacement"]
+  end
+  submit_request --> check_mandatory_info --> info_provided
+  info_provided -->|"No"| update_request ==>|"Resubmit"| check_mandatory_info
+  info_provided -->|"Yes"| check_inventory --> existing_found
+  existing_found -->|"Yes"| reserve_device --> notify_employee --> laptop_allocated
+  existing_found -->|"No"| approve_spec --> spec_outcome
+  spec_outcome -->|"Approved"| procure_laptop --> po_sent
+  spec_outcome -->|"Rejected"| request_rejected
+  spec_outcome -->|"Withdrawn"| request_withdrawn
+  po_sent -->|"Yes"| source_laptop --> inspect_device --> device_ok
+  po_sent -->|"No"| request_cancelled
+  device_ok -->|"No"| return_to_supplier --> send_replacement ==> inspect_device
+  device_ok -->|"Yes"| configure_laptop --> assign_laptop --> confirm_receipt --> issue_found
+  issue_found -->|"Yes"| raise_ticket --> resolve_issue ==> confirm_receipt
+  issue_found -->|"No"| close_request --> laptop_issued
+  note_submission>"Mandatory request submission details:<br>• Business justification & specification<br>• Needed-by date & project/cost centre"] -.- submit_request
+
+  subgraph sub_approve_spec["Approve Specification"]
+    subgraph lane_manager["Line Manager"]
+      as_start(["Approve Specification"])
+      review_justification["Review Justification"]
+      justification_approved{"Justification Approved?"}
+      notify_rejection["Notify Rejection"]
+      as_rejected(["Justification Rejected"])
+    end
+    subgraph lane_it["IT Support"]
+      review_spec["Review Specification"]
+      spec_standard{"Standard Specification?"}
+      request_extra_justification["Request Justification"]
+      reevaluate_spec["Re-evaluate Spec"]
+      spec_approved{"Spec Approved?"}
+      suggest_standard_spec["Suggest Standard Spec"]
+      confirm_spec["Approve Specification"]
+      as_approved(["Specification Approved"])
+    end
+    subgraph lane_employee["Employee"]
+      provide_extra_justification["Provide Justification"]
+      accept_standard_spec{"Accept Standard Spec?"}
+      as_withdrawn(["Request Withdrawn"])
+    end
+  end
+  as_start --> review_justification --> justification_approved
+  justification_approved -->|"No"| notify_rejection --> as_rejected
+  justification_approved -->|"Yes"| review_spec --> spec_standard
+  spec_standard -->|"Yes"| confirm_spec
+  spec_standard -->|"No"| request_extra_justification --> provide_extra_justification --> reevaluate_spec --> spec_approved
+  spec_approved -->|"Yes"| confirm_spec
+  spec_approved -->|"No"| suggest_standard_spec --> accept_standard_spec
+  accept_standard_spec -->|"Accept"| confirm_spec
+  accept_standard_spec -->|"Decline"| as_withdrawn
+  confirm_spec --> as_approved
+
+  subgraph sub_procure_laptop["Procure Laptop"]
+    subgraph lane_procurement["Procurement"]
+      pl_start(["Procure Laptop"])
+      obtain_price["Obtain Price"]
+      purchase_value_band{"Purchase Value Band?"}
+      obtain_2_quotes["Obtain 2 Quotes"]
+      obtain_3_quotes["Obtain 3 Quotes"]
+      obtain_budget_approval["Obtain Budget Approval"]
+      select_supplier["Select Preferred Supplier"]
+      create_send_po["Create & Send PO"]
+      pl_sent(["Purchase Order Sent"])
+    end
+    subgraph lane_finance["Finance"]
+      check_budget["Check Cost Centre Budget"]
+      budget_available{"Budget Available?"}
+    end
+    subgraph lane_manager["Line Manager"]
+      select_cost_centre{"Select New Cost Centre?"}
+      update_cost_centre["Update Cost Centre"]
+      pl_cancelled(["Procurement Cancelled"])
+    end
+  end
+  pl_start --> obtain_price --> purchase_value_band
+  purchase_value_band -->|"<= $1,500"| check_budget
+  purchase_value_band -->|"$1,500 - $5,000"| obtain_2_quotes --> select_supplier
+  purchase_value_band -->|"> $5,000"| obtain_3_quotes --> obtain_budget_approval --> select_supplier
+  select_supplier --> check_budget --> budget_available
+  budget_available -->|"Yes"| create_send_po --> pl_sent
+  budget_available -->|"No"| select_cost_centre
+  select_cost_centre -->|"Yes"| update_cost_centre ==> check_budget
+  select_cost_centre -->|"Cancel"| pl_cancelled
+  note_quote_rules>"≤ $1,500: direct to Finance<br>$1,500–$5,000: 2 supplier quotes<br>> $5,000: 3 supplier quotes + budget approval"] -.- purchase_value_band
+
+  subgraph sub_source_laptop["Source from Supplier"]
+    subgraph lane_supplier["Supplier"]
+      sl_start(["Source from Supplier"])
+      check_stock["Check Stock"]
+      in_stock{"Laptop In Stock?"}
+      propose_alternative["Propose Alternative"]
+      confirm_delivery["Confirm Delivery Date"]
+      deliver_laptop["Deliver Laptop"]
+      sl_done(["Laptop Delivered"])
+    end
+    subgraph lane_it["IT Support"]
+      review_alternative["Review Alternative"]
+      alternative_acceptable{"Alternative Acceptable?"}
+    end
+    subgraph lane_procurement["Procurement"]
+      select_another_supplier["Select New Supplier"]
+    end
+  end
+  sl_start --> check_stock --> in_stock
+  in_stock -->|"Yes"| confirm_delivery
+  in_stock -->|"No"| propose_alternative --> review_alternative --> alternative_acceptable
+  alternative_acceptable -->|"Accept"| confirm_delivery
+  alternative_acceptable -->|"Reject"| select_another_supplier ==> check_stock
+  confirm_delivery --> deliver_laptop --> sl_done

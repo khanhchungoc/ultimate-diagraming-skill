@@ -31,6 +31,7 @@ from audit_sequence import SequenceAudit
 from audit_usecase import UsecaseAudit
 from disk_format import (DISK_CODECS, authoring_json, color_kind, format_json, from_disk,  # noqa: F401 (DISK_CODECS: registry)
                          palette_slots, readme_text, stamp_reading_guide, to_disk, with_readme)
+import subprocess_flow as sub
 from engine_runner import EngineUnavailable, layout_session, run_layout, run_mermaid
 from tokens import expand_icons, load_icons, load_tokens, merge_theme, tokens_css, tokens_js
 
@@ -1273,6 +1274,7 @@ def item_ids(kind: str, data: Dict[str, Any]) -> Set[Tuple[str, Any]]:
     keys = {"flowchart": ("lanes", "nodes"), "usecase": ("subjects", "actors", "useCases"), "erd": ("entities",),
             "sequence": ("participants",)}[kind]
     ids = {(k, it["id"]) for k in keys for it in data.get(k) or []}
+    ids |= {("nodes", n["id"]) for c in (data.get("children") or {}).values() for n in c.get("nodes") or []}
     if kind == "sequence":
         ids |= {("message", i) for i in range(len(data.get("messages") or []))}
     return ids
@@ -1294,6 +1296,10 @@ def keep_positions_from(kind: str, new: Dict[str, Any], old: Dict[str, Any], tim
         return None, "; ".join(parts)
     layout = {spelled.get(k, k): v for k, v in (old_disk.get("layout") or {}).items()}
     disk = {**new, "schemaVersion": old_disk.get("schemaVersion", new.get("schemaVersion"))}
+    old_kids = old_disk.get("children") or {}
+    if disk.get("children"):  # a child keeps its lane order and heights while its steps are the same
+        disk["children"] = {k: {**c, **{f: old_kids[k][f] for f in ("laneOrder", "laneHeights") if f in old_kids.get(k, {})}}
+                            for k, c in disk["children"].items()}
     if layout:
         disk["layout"] = layout
     return from_disk(kind, {k: v for k, v in disk.items() if v is not None}), ""
@@ -1722,6 +1728,49 @@ def add_connector_pairs(data: Dict[str, Any], laid: Dict[str, Any], long_arrows:
     return out, info
 
 
+def split_long_arrows(data: Dict[str, Any], laid: Dict[str, Any], audit: Any, report: Dict[str, Any], timeout: int,
+                      browser: Optional[str], tokens: Optional[Dict[str, Any]], prefix: str = "") -> Tuple[Dict[str, Any], Any, Dict[str, Any]]:
+    """Rule 11: the tool splits the long arrows itself, round after round, and keeps the best layout seen.
+    Returns (laid out data, audit, report); prints one [INFO] line per connector pair."""
+    quality = lambda r: (not r["passed"], len(r["issues"]), r["long_arrows_count"], r["edge_crossings"])  # noqa: E731
+    base, letters = data, 0
+    for _ in range(LONG_ARROW_MAX_ROUNDS):
+        if not report["long_arrows"] or letters >= LONG_ARROW_MAX_PAIRS:
+            break
+        split, info = add_connector_pairs(base, laid, report["long_arrows"], LONG_ARROW_MAX_PAIRS - letters)
+        laid2 = run_layout("flowchart", split, timeout=timeout, browser=browser, tokens=tokens)
+        audit2 = make_audit(laid2, tokens)
+        report2 = audit2.verify_collisions()
+        if quality(report2) >= quality(report):
+            break
+        base, letters = split, letters + len(info)
+        laid, audit, report = laid2, audit2, report2
+        print("\n".join(info if not prefix else [i.replace("[INFO] ", f"[INFO] {prefix}", 1) for i in info]))
+    return laid, audit, report
+
+
+def layout_children(data: Dict[str, Any], report: Dict[str, Any], keep: bool, timeout: int, browser: Optional[str],
+                    tokens: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    """Lay out each child flow of a flowchart as its own flat diagram (same direction as the parent), merge it back and add
+    its audit lines to `report` (prefixed with the flow's name)."""
+    for slug in sub.child_order(data):
+        name = data["children"][slug].get("name") or slug
+        flat = sub.flat_tab(data, slug)
+        if not keep:
+            flat, note = order_flowchart_lanes(flat, timeout, browser, tokens)
+            if note:
+                print(f"[INFO] {name}: {note}")
+        laid = run_layout("flowchart", flat, timeout=timeout, browser=browser, tokens=tokens, keep=keep)
+        audit = make_audit(laid, tokens)
+        rep = audit.verify_collisions()
+        if not keep and rep["long_arrows"]:
+            laid, audit, rep = split_long_arrows(flat, laid, audit, rep, timeout, browser, tokens, prefix=f"{name}: ")
+        data = sub.merge_tab(data, slug, laid)
+        for key in ("issues", "data_issues", "budget_warnings"):
+            report[key] = list(report[key]) + [f"{name}: {i}" for i in rep[key]]
+    return data
+
+
 def order_flowchart_lanes(data: Dict[str, Any], timeout: int, browser: Optional[str],
                           tokens: Optional[Dict[str, Any]] = None) -> Tuple[Dict[str, Any], str]:
     """Order swimlanes by each lane's first step on the flow (flowchart rule: lane order follows the flow); return
@@ -1920,6 +1969,8 @@ def main():
     parser.add_argument("--extract", "-e", help="Print the diagram of an HTML page (or a diagram.json / JSON file) as Mermaid, "
                                                  "written with the page's stored theme palette")
     parser.add_argument("--json", action="store_true", help="With --extract: print the canonical JSON instead of Mermaid")
+    parser.add_argument("--flat", action="store_true", help="With --extract: one flow with every subprocess expanded in place")
+    parser.add_argument("--sub", metavar="SLUG", help="With --extract: only this subprocess flow (a child), as its own flowchart")
     parser.add_argument("--keep-from", help="With --layout <file.mmd>: an older HTML page or diagram.json; when both have exactly "
                                             "the same item ids, take its positions and only redraw lines and labels")
     parser.add_argument("--keep-layout", action="store_true",
@@ -1961,6 +2012,17 @@ def main():
         # Authoring JSON: the block without its `layout` map (--layout recomputes positions anyway)
         model = from_disk(kind, raw)
         data = authoring_json(kind, model)
+        head = []
+        if (args.flat or args.sub) and not (kind == "flowchart" and data.get("children")):
+            sys.exit("[ERROR] --flat and --sub need a flowchart with subprocess flows (a sub_ block); this file has none.")
+        if kind == "flowchart" and data.get("children"):
+            head = sub.outline(data, args.sub)
+            if args.sub:
+                if args.sub not in data["children"]:
+                    sys.exit(f"[ERROR] No subprocess flow {args.sub!r}. This file has: {', '.join(sub.child_order(data))}.")
+                data = sub.flat_tab(data, args.sub)
+            elif args.flat:
+                data = sub.flatten(data)
         if args.json:
             text, what = format_json(data), "Extracted data"
         else:
@@ -1975,6 +2037,8 @@ def main():
             except (EngineUnavailable, RuntimeError) as exc:
                 sys.exit(f"[ERROR] {exc}")
             what = "Mermaid"
+            if head:
+                text = re.sub(r"(?m)^flowchart", "\n".join(head) + "\nflowchart", text, count=1)
         if args.output:
             out_p = Path(args.output)
             out_p.parent.mkdir(parents=True, exist_ok=True)
@@ -2077,6 +2141,9 @@ def main():
             data, icon_note = auto_lane_icons(data)
             if icon_note:
                 print(f"[INFO] {icon_note}")
+        kids = data["diagramType"] == "flowchart" and data.get("children")
+        if kids:
+            full, data = data, sub.flat_tab(data)
         direction_note = ""
         audit = report = None
         try:
@@ -2105,29 +2172,26 @@ def main():
                     audit = make_audit(laid_out_data, tokens)
                     report = audit.verify_collisions()
                 if data["diagramType"] == "flowchart" and not keep and report["long_arrows"]:
-                    # Rule 11: the tool splits the long arrows itself, round after round, and keeps the best layout seen
-                    quality = lambda r: (not r["passed"], len(r["issues"]), r["long_arrows_count"], r["edge_crossings"])
-                    base, letters = data, 0
-                    for _ in range(LONG_ARROW_MAX_ROUNDS):
-                        if not report["long_arrows"] or letters >= LONG_ARROW_MAX_PAIRS:
-                            break
-                        split, info = add_connector_pairs(base, laid_out_data, report["long_arrows"], LONG_ARROW_MAX_PAIRS - letters)
-                        laid2 = run_layout("flowchart", split, timeout=args.timeout, browser=args.browser, tokens=tokens)
-                        audit2 = make_audit(laid2, tokens)
-                        report2 = audit2.verify_collisions()
-                        if quality(report2) >= quality(report):
-                            break
-                        base, letters = split, letters + len(info)
-                        laid_out_data, audit, report = laid2, audit2, report2
-                        print("\n".join(info))
+                    laid_out_data, audit, report = split_long_arrows(data, laid_out_data, audit, report, args.timeout, args.browser, tokens)
+                if kids:
+                    laid_out_data = sub.merge_tab(full, None, laid_out_data)
+                    laid_out_data = layout_children(laid_out_data, report, keep, args.timeout, args.browser, tokens)
         except EngineUnavailable as exc:
             sys.exit(f"[ERROR] {exc}")
 
         # What is left of the long arrows is layout: report it, never a reason to edit the JSON
-        is_long = lambda w: w.startswith("Long arrow") or "long, tangled arrow" in w
+        is_long = lambda w: "Long arrow" in w or "long, tangled arrow" in w
         for w in [w for w in report["budget_warnings"] if is_long(w)]:
             print(f"[INFO] Layout: {w.split(': split')[0]} ({LAYOUT_NOTE})")
         report["budget_warnings"] = [w for w in report["budget_warnings"] if not is_long(w)]
+        if laid_out_data["diagramType"] == "flowchart":
+            report["budget_warnings"] = list(report["budget_warnings"]) + sub.checks(laid_out_data)
+            for slug in [None, *sub.child_order(laid_out_data)]:
+                tab = sub.flat_tab(laid_out_data, slug)
+                if sub.tab_stats(tab["nodes"])[0] > sub.STEP_LIMIT:
+                    print("\n".join(sub.rpst_candidates(tab)))
+            if kids:
+                print(f"[INFO] {len(laid_out_data['children'])} subprocess flow(s) saved with the diagram; the page shows only the parent flow for now.")
 
         if args.target == "artifact":
             out_path = Path(args.output) if args.output else in_p.with_suffix("")

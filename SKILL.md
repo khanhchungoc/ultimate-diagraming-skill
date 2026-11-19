@@ -75,6 +75,7 @@ Use to summarize, explain or answer questions about a diagram page: an `.html` f
    python "<skill-dir>/scripts/layout_engine.py" --extract <page.html or diagram.json>
    ```
    If that cannot run on an `.html` file, read only the lines the page's line 2 names (the `"diagram-data"` JSON block).
+   A flowchart with subprocess flows prints an outline, the parent, then the children; add `--sub <slug>` for one child or `--flat` for the whole flow expanded in place.
 2. Answer from that Mermaid alone. [references/reading.md](references/reading.md) lists the conventions that are not plain Mermaid.
 
 ## Procedure: Update an Existing Diagram

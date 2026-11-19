@@ -24,7 +24,8 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 from tokens import load_tokens
 
 FLOWCHART_KEYS = ("diagramType", "schemaVersion", "title", "direction", "swimlanes", "showNotes",
-                  "lanes", "nodes", "edges", "notes", "layout")
+                  "lanes", "nodes", "edges", "notes", "children", "layout")
+CHILD_KEYS = ("name", "laneOrder", "laneHeights", "nodes", "edges", "notes")  # a child flow (subprocess tab) of a flowchart
 SEQUENCE_KEYS = ("diagramType", "schemaVersion", "title", "numbered", "showDetails", "rails",
                  "lifespans", "participantOrder", "colorKey", "participants", "messages", "fragments", "notes")
 # Engine output on the sequence model, never saved: positions, hidden (inside a collapsed frame), frame dividers
@@ -122,7 +123,11 @@ def slug(text: Any, sep: str = "_") -> str:
 
 def _rename_generated_ids(d: Dict[str, Any]) -> None:
     """Give editor-generated ids a readable name (in place); ids an author chose are never touched."""
-    lanes, nodes, edges = d.get("lanes") or [], d.get("nodes") or [], d.get("edges") or []
+    kids = d.get("children") or {}
+    tabs = [d, *kids.values()]
+    lanes = d.get("lanes") or []
+    nodes = [n for t in tabs for n in t.get("nodes") or []]
+    edges = [e for t in tabs for e in t.get("edges") or []]
     used = {o.get("id") for o in lanes + nodes + edges}
     rename: Dict[str, str] = {}
 
@@ -162,9 +167,16 @@ def _rename_generated_ids(d: Dict[str, Any]) -> None:
         for k in ("from", "to"):
             if k in e:
                 e[k] = rename.get(e[k], e[k])
-    for note in d.get("notes") or []:
-        if isinstance(note.get("nodes"), list):
-            note["nodes"] = [rename.get(i, i) for i in note["nodes"]]
+    for t in tabs:
+        for note in t.get("notes") or []:
+            if isinstance(note.get("nodes"), list):
+                note["nodes"] = [rename.get(i, i) for i in note["nodes"]]
+    for key, c in list(kids.items()):
+        c["laneOrder"] = [rename.get(i, i) for i in c.get("laneOrder") or []]
+        if "laneHeights" in c:
+            c["laneHeights"] = {rename.get(k, k): v for k, v in c["laneHeights"].items()}
+        if key in rename:
+            kids[rename[key]] = kids.pop(key)
 
 
 def flowchart_to_disk(data: Dict[str, Any]) -> Dict[str, Any]:
@@ -172,25 +184,31 @@ def flowchart_to_disk(data: Dict[str, Any]) -> Dict[str, Any]:
     d.pop("layout", None)
     _slot_colors(d, "lanes")
     lanes, nodes = d.get("lanes") or [], d.get("nodes") or []
-    lane_index = {lane.get("id"): i for i, lane in enumerate(lanes)}
+    kids = d.get("children") or {}
     # Flow order: x runs along the flow in both directions (the engine has ranked the steps already)
-    nodes.sort(key=lambda n: (n.get("x") or 0, lane_index.get(n.get("laneId"), 0), n.get("y") or 0))
+    for items, order in [(nodes, [lane.get("id") for lane in lanes])] + [(c.get("nodes") or [], c.get("laneOrder") or []) for c in kids.values()]:
+        lane_index = {i: k for k, i in enumerate(order)}
+        items.sort(key=lambda n: (n.get("x") or 0, lane_index.get(n.get("laneId"), 0), n.get("y") or 0))
     _rename_generated_ids(d)
+    kids = d.get("children") or {}
     layout: Dict[str, Any] = {}
-    for items, keys in ((lanes, LANE_LAYOUT), (nodes, NODE_LAYOUT)):
+    for items, keys in [(lanes, LANE_LAYOUT), (nodes, NODE_LAYOUT)] + [(c.get("nodes") or [], NODE_LAYOUT) for c in kids.values()]:
         for o in items:
             pos = {k: o.pop(k) for k in keys if k in o}
             if pos:
                 layout[o["id"]] = pos
     if layout:
         d["layout"] = layout
+    if kids:
+        d["children"] = {slug: _ordered(c, CHILD_KEYS) for slug, c in kids.items()}
     return _ordered(d, FLOWCHART_KEYS)
 
 
 def flowchart_from_disk(data: Dict[str, Any]) -> Dict[str, Any]:
     d = copy.deepcopy(data)
     layout = d.pop("layout", None) or {}
-    for o in (d.get("lanes") or []) + (d.get("nodes") or []):
+    kid_nodes = [n for c in (d.get("children") or {}).values() for n in c.get("nodes") or []]
+    for o in (d.get("lanes") or []) + (d.get("nodes") or []) + kid_nodes:
         o.update(layout.get(o.get("id")) or {})
     _slot_colors(d, "lanes")
     return d
@@ -596,6 +614,8 @@ def authoring_json(kind: str, data: Dict[str, Any]) -> Dict[str, Any]:
     d = to_disk(kind, data)
     d.pop("layout", None)
     d.pop(README_KEY, None)
+    for c in (d.get("children") or {}).values():
+        c.pop("laneHeights", None)
     if kind == "sequence":
         _strip_auto_sequence_columns(d)
     return d

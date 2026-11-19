@@ -264,16 +264,22 @@ function mmdParseFlow(text) {
     }
   }
 
+  // A repeated id under another parent is a separate subgraph (the same lane inside a `sub_` block); `sub` names the
+  // top-level `sub_` block a subgraph sits in (flowcharts), else null.
+  const sgScoped = new Map();
   function parseSubgraph(rest) {
     let id, title, m;
     if ((m = /^([^\s\[\]"]+)\s*\[([\s\S]*)\]$/.exec(rest))) { id = m[1]; title = m[2].trim().replace(/^"([\s\S]*)"$/, '$1'); } else if ((m = /^"([\s\S]*)"$/.exec(rest))) { id = title = m[1]; } else { id = title = rest; }
     title = mmdText(title);
-    if (!sgById.has(id)) {
-      const sg = { id, title, parent: stack.length ? stack[stack.length - 1].id : null, nodes: [], classes: [], line: ln };
-      sgById.set(id, sg);
-      ast.subgraphs.push(sg);
-      stack.push(sg);
-    } else stack.push(sgById.get(id));
+    const top = stack.length ? stack[stack.length - 1] : null, parent = top ? top.id : null;
+    const key = parent + '>' + id;
+    const known = sgScoped.get(key) || (sgById.has(id) && sgById.get(id).parent === parent ? sgById.get(id) : null);
+    if (known) { stack.push(known); return; }
+    const sg = { id, title, parent, sub: !top && /^sub_/.test(id) ? id : (top ? top.sub : null), nodes: [], classes: [], line: ln };
+    sgScoped.set(key, sg);
+    if (!sgById.has(id)) sgById.set(id, sg);
+    ast.subgraphs.push(sg);
+    stack.push(sg);
   }
 
   function statement(s) {
