@@ -377,6 +377,8 @@
       let chartData = { title: "", direction: "LR", lanes: [], nodes: [], edges: [] };
       let fileHandle = null;
       let everSaved = false;
+      let storedName = '';   // the file a stored handle from an earlier visit points at (Save writes there once allowed)
+      let downloadToldOnce = false;
       let hasUnsavedChanges = false;
 
       // Undo / redo history: JSON snapshots of chartData, taken at each committed edit
@@ -562,18 +564,30 @@
           saveStatus.className = "badge badge-status saved";
           return;
         }
+        // Name the file Save writes to: the one chosen this visit, else the one remembered from an earlier visit
+        const target = fileHandle ? fileHandle.name : storedName;
         if (unsaved) {
           saveStatus.textContent = "Unsaved changes";
           saveStatus.className = "badge badge-status unsaved";
+          saveStatus.title = target ? `Save writes to ${target}` : '';
         } else if (fileHandle) {
-          saveStatus.textContent = "Saved to file";
+          saveStatus.textContent = `Saved to ${target}`;
           saveStatus.className = "badge badge-status saved";
+          saveStatus.title = `Save writes straight to ${target}`;
         } else if (everSaved) {
-          saveStatus.textContent = "Downloaded";
+          saveStatus.textContent = "Downloaded a copy";
           saveStatus.className = "badge badge-status saved";
+          saveStatus.title = location.protocol === 'file:'
+            ? 'The edited diagram went to your downloads folder. The file you opened was not changed.'
+            : 'The edited diagram went to your downloads folder.';
+        } else if (target) {
+          saveStatus.textContent = `Saves to ${target}`;
+          saveStatus.className = "badge badge-status";
+          saveStatus.title = `Save writes to ${target}. Your browser may ask once per session to let this page edit it.`;
         } else {
           saveStatus.textContent = "Ready";
           saveStatus.className = "badge badge-status";
+          saveStatus.title = '';
         }
       }
 
@@ -1637,17 +1651,24 @@
           req.onerror = () => reject(req.error);
         });
       }
-      async function loadStoredHandle() {
+      async function readStoredHandle() {
         try {
           const db = await handleDb();
-          const h = await new Promise((resolve, reject) => {
+          return await new Promise((resolve, reject) => {
             const r = db.transaction('handles').objectStore('handles').get(location.href);
             r.onsuccess = () => resolve(r.result || null);
             r.onerror = () => reject(r.error);
           });
+        } catch (_) { return null; }
+      }
+      async function loadStoredHandle() {
+        try {
+          const h = await readStoredHandle();
           if (!h) return null;
           const opts = { mode: 'readwrite' };
           if ((await h.queryPermission(opts)) === 'granted') return h;
+          // The browser forgets the permission when it closes: say why it asks before its prompt shows
+          showToast(`Your browser asks once per session to let this page edit ${h.name}.`);
           if ((await h.requestPermission(opts)) === 'granted') return h;
         } catch (_) {}
         return null;
@@ -2026,6 +2047,13 @@
           savedJson = JSON.stringify(chartData);
           everSaved = true;
           updateStatus(false);
+          if (!downloadToldOnce) {
+            // The download is a copy: say so once, so nobody reopens the old file expecting their edits
+            downloadToldOnce = true;
+            showToast(location.protocol === 'file:'
+              ? 'Saved a copy to your downloads folder. The file you opened was not changed.'
+              : 'Saved a copy to your downloads folder.');
+          }
         } catch (err) {
           alert("Save failed: " + err.message);
         }
@@ -2075,6 +2103,12 @@
       }
 
       btnSave.addEventListener('click', saveToFile);
+      // A file opened from disk that was saved before: show which file Save writes to (reading the stored handle asks nothing)
+      if (!claudeHost && location.protocol === 'file:' && 'showSaveFilePicker' in window) {
+        readStoredHandle().then((h) => {
+          if (h && h.name && !fileHandle) { storedName = h.name; setStatusBadge(hasUnsavedChanges); }
+        });
+      }
 
       window.addEventListener('keydown', (e) => {
         if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
