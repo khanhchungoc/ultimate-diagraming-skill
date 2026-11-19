@@ -157,6 +157,9 @@ export async function launch(browser) {
     // click, dblclick and pointer events itself, exactly as for a person. Coordinates are viewport px.
     /** Centre of the first element matching `selector` (or null); `fx`/`fy` pick another point of its box (0..1). */
     async at(selector, fx = 0.5, fy = 0.5) {
+      // A camera glide (Fit, zoom buttons, pan-into-view) or a FLIP (undo, collapse) moves things for ~250ms: aim at where they settle
+      const moving = `!!document.querySelector('#viewport.gesturing') || document.getAnimations().some((a) => a.playState === 'running' && a.effect && a.effect.getComputedTiming().iterations !== Infinity)`;
+      for (let i = 0; i < 30 && await api.ev(moving).catch(() => false); i++) await sleep(20);
       return api.ev(`(() => { const el = document.querySelector(${JSON.stringify(selector)}); if (!el) return null;
         const r = el.getBoundingClientRect(); return { x: r.left + r.width * ${fx}, y: r.top + r.height * ${fy} }; })()`);
     },

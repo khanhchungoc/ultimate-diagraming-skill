@@ -276,7 +276,7 @@
         if (oldBar && (!seqSel || isPresent())) motion.hideBar(oldBar);
         let snap = null, exitSnap = null;
         const exitToFrag = new Map(), fromKey = new Map(), prevCollapsed = new Map(), prevKinds = new Map();
-        const prevLife = new Map(), prevCap = new Map(), prevAct = new Map(), prevLine = new Map(), prevFragBox = new Map(), prevDiv = new Map();
+        const prevAct = new Map(), prevLine = new Map(), prevFragBox = new Map(), prevDiv = new Map();
         let prevNumbered = false, prevRails = false;
 
         if (canAnim) {
@@ -285,8 +285,6 @@
           prevRails = !!seqHtml.querySelector('.seq-participant.is-rail');
           seqHtml.querySelectorAll('.frame-tag[data-frag-id]').forEach((el) => prevCollapsed.set(el.dataset.fragId, el.classList.contains('is-collapsed')));
           seqHtml.querySelectorAll('.seq-participant[data-node-id]').forEach((el) => prevKinds.set(el.dataset.nodeId, participantKindOf(el)));
-          seqLifeG.querySelectorAll('.seq-lifeline[data-node-id]').forEach((el) => prevLife.set(el.dataset.nodeId, svgNums(el, ['x1', 'y1', 'x2', 'y2'])));
-          seqLifeG.querySelectorAll('.seq-cap[data-node-id]').forEach((el) => prevCap.set(el.dataset.nodeId, svgNums(el, ['x1', 'y1', 'x2', 'y2'])));
           const anonCnt = {};
           seqActG.querySelectorAll('.seq-activation[data-node-id]').forEach((el) => {
             const pid = el.dataset.nodeId, mid = el.dataset.mid;
@@ -567,19 +565,7 @@
           }
 
           const svgTracks = [];
-          seqLifeG.querySelectorAll('.seq-lifeline[data-node-id]').forEach((el) => {
-            const prev = prevLife.get(el.dataset.nodeId), to = svgNums(el, ['x1', 'y1', 'x2', 'y2']);
-            if (prev && ptsDiff(prev, to)) svgTracks.push({ type: 'line', el, from: prev, to });
-          });
-          seqLifeG.querySelectorAll('.seq-cap[data-node-id]').forEach((el) => {
-            const id = el.dataset.nodeId, to = svgNums(el, ['x1', 'y1', 'x2', 'y2']);
-            const prev = prevCap.get(id);
-            if (prev) { if (ptsDiff(prev, to)) svgTracks.push({ type: 'line', el, from: prev, to }); }
-            else {
-              const pl = prevLife.get(id);
-              if (pl) svgTracks.push({ type: 'line', el, from: [pl[0] - 7, pl[3], pl[2] + 7, pl[3]], to });
-            }
-          });
+          // Lifelines and their caps snap (not tweened): their length is read straight off the DOM by tools mid-change
           const newActKeys = new Set(), anonCnt2 = {};
           seqActG.querySelectorAll('.seq-activation[data-node-id]').forEach((el) => {
             const pid = el.dataset.nodeId, mid = el.dataset.mid;
