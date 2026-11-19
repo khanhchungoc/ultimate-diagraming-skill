@@ -1163,6 +1163,11 @@
             if (!note) return;
             const willShow = all || isFreeNote(note) || !!notePeeked(note);
             if (willShow) nextVis.add(id);
+            if (id === selectedNoteId && wasVisibleNoteIds.has(id)) {
+              // clicked while a hover peek was still unfolding: settle it, so its link handle is where it will stay
+              card.getAnimations().forEach((a) => a.finish());
+              card.style.pointerEvents = '';
+            }
             if (!willShow && wasVisibleNoteIds.has(id) && !isFreeNote(note)) {
               const badge = (note.entities || [])[0] && entityEl(note.entities[0])?.querySelector('.note-badge');
               motion.foldNote(card, badge);
@@ -1197,7 +1202,11 @@
                 card.style.pointerEvents = 'none';
                 setTimeout(() => { if (card.isConnected) card.style.pointerEvents = ''; }, 180);
               }
-              motion.unfoldNote(card, badge, leader);
+              if (selectedNoteId === id || editingNoteId === id) {
+                // a selected card is about to be dragged from (its link handle): fade in place, never move it
+                motion.anim(card, [{ opacity: 0 }, { opacity: 1 }], { duration: 120, easing: motion.curve('curve-out') });
+                if (leader) motion.drawPath(leader, { duration: 150, easing: 'curve-out' });
+              } else motion.unfoldNote(card, badge, leader);
             }
           });
         }

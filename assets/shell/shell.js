@@ -2221,8 +2221,9 @@
         if (wasHidden && motion.enabled()) {
           menu.style.transformOrigin = origin;
           motion.anim(menu, [
-            { transform: 'scale(0.92, 0.86) translateY(-4px)', clipPath: 'inset(0 0 25% 0 round 8px)' },
-            { transform: 'none', clipPath: 'inset(0 0 0 0 round 8px)' }
+            // opacity + a small slide only: a scale would move the items under a pointer that aims at their final place
+            { opacity: 0, transform: 'translateY(-4px)' },
+            { opacity: 1, transform: 'none' }
           ], { duration: 160, easing: motion.curve('curve-spring-tactile') });
         }
       }
