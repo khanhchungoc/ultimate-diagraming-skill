@@ -133,11 +133,11 @@ def checks(data: Dict[str, Any]) -> List[str]:
         if slug in by_id:
             ends, decision, branches = _ends_and_branches(data, slug)
             want = len(branches) if decision is not None else (1 if branches else None)
-            # one end is always fine: the parent just continues (into a decision it routes on itself, too)
-            if want is not None and (not ends or (len(ends) > 1 and len(ends) != want)):
+            # one end per branch of the decision after the step; one end when the parent just continues
+            if want is not None and len(ends) != want:
                 after = f'the branches of "{decision.get("label")}"' if decision is not None else "the step after it"
                 warns.append(f'Child flow "{name}" has {len(ends)} end pills but {after} {"has" if decision is not None else "needs"} {want}: '
-                             "one end per branch (a single end when the parent just continues)")
+                             "one end per branch of a following decision, a single end when the parent just continues")
     return warns
 
 
