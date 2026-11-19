@@ -133,7 +133,7 @@ Or ask your AI agent to install it for you: *"Install the ultimate-diagram skill
 ### Save vs Export
 
 - **Opened as a claude.ai Artifact** (Claude Code with Artifact output): **Save** stores your edits directly in the artifact as a new version, so your agent's next change starts from them. If you only have view access (for example the live demos), use **Export > HTML file (editable)** to get your own editable copy as a standalone HTML file. See [Artifacts](docs/artifacts.md).
-- **Opened as a regular HTML file:** the browser cannot write into the file you opened, so the first **Save** works like Save As: you choose where the edited copy goes. To have your agent continue from your edits, tell it which saved file to use.
+- **Opened as a regular HTML file:** the browser cannot write into the file you opened, so the first **Save** works like Save As. In Chrome and Edge, Save first copies the path of the file you opened and shows it: paste it into the Save window (Windows: click the File name box, then Ctrl+V; macOS: ⌘⇧G, then ⌘V; Linux: Ctrl+L, then Ctrl+V) to save over the original. After that, Save writes straight to the file; when you reopen it, the browser asks once per session to allow editing. Firefox and Safari save a copy to your downloads folder instead. To have your agent continue from your edits, tell it which saved file to use.
 
 ## Use your brand
 

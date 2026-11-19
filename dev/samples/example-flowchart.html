@@ -900,6 +900,14 @@
     .confirm-error { color: var(--danger); font-weight: var(--weight-regular); }
     .confirm-list { margin: 0 0 12px; padding-left: 18px; max-height: 200px; overflow: auto; color: var(--text-soft); }
     .confirm-list li { margin-bottom: 4px; overflow-wrap: anywhere; }
+
+    /* Save location: the first Save of a file opened from disk copies and shows where that file lives, to paste into the
+       browser's Save dialog (shell.js askSaveLocation). */
+    .save-where {
+      display: block; margin-bottom: 12px; padding: 6px 8px; overflow-wrap: anywhere; user-select: all;
+      font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-main); background: var(--bg-page);
+      border: 1px solid var(--border-color); border-radius: var(--radius-md);
+    }
     /* Note: extra detail kept off the diagram so labels stay short. A neutral slate paper card with a bracket edge (the
        classic flowchart annotation, which has no colour of its own), joined to what it explains by a dashed leader.
        Neutral on purpose: every hue on the canvas already means something (gold decision, green start, blue selection,
@@ -2578,7 +2586,8 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
         function onConfirmOutside(e) { if (confirmEl && !confirmEl.contains(e.target)) closeConfirm(); }
         // Ask before a delete: a bubble under `anchor` (a DOM element; above it when there is no room below; the upper middle
         // of the window when null), kept on screen. opts: { message, title?, label (the dialog's aria-label), ok? (button text,
-        // "Delete") }. Escape, Cancel, a click elsewhere or a pan/zoom (the type calls closeConfirm) dismisses it.
+        // "Delete"), okClass? (the main button's style, "btn-danger"), extra? (a DOM node shown under the message) }.
+        // Escape, Cancel, a click elsewhere or a pan/zoom (the type calls closeConfirm) dismisses it.
         function confirm(anchor, opts, onYes) {
           closeConfirm();
           const box = document.createElement('div');
@@ -2589,12 +2598,13 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
           const add = (cls, text) => { const d = document.createElement('div'); d.className = cls; d.textContent = text; box.appendChild(d); };
           if (opts.title) add('confirm-title', opts.title);
           add('confirm-msg', opts.message);
+          if (opts.extra) box.appendChild(opts.extra);
           const row = document.createElement('div');
           row.className = 'confirm-actions';
           const button = (cls, text) => { const b = document.createElement('button'); b.type = 'button'; b.className = cls; b.textContent = text; return b; };
           const cancel = button('btn confirm-cancel', 'Cancel');
           cancel.addEventListener('click', () => closeConfirm());
-          const ok = button('btn btn-danger confirm-ok', opts.ok || 'Delete');
+          const ok = button(`btn ${opts.okClass || 'btn-danger'} confirm-ok`, opts.ok || 'Delete');
           ok.addEventListener('click', () => { closeConfirm(); onYes(); });
           row.append(cancel);
           // An optional milder second choice (opts.alt: { text, onClick }) between Cancel and the main action
@@ -4370,29 +4380,94 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
         }
       }
 
-      async function writeFile(replacedHtml) {
+      // The opened file's own location, when the page was opened from disk (file://): { file, folder, name, win }.
+      // Windows paths (file:///C:/... and UNC file://server/share/...) come back with backslashes.
+      function localFilePath() {
+        if (location.protocol !== 'file:') return null;
+        let p;
+        try { p = decodeURIComponent(location.pathname); } catch (_) { return null; }
+        const win = !!location.host || /^\/[A-Za-z]:\//.test(p);
+        if (location.host) p = '//' + location.host + p;
+        if (win) p = p.replace(/^\/(?=[A-Za-z]:)/, '').replace(/\//g, '\\');
+        const sep = win ? '\\' : '/';
+        const i = p.lastIndexOf(sep);
+        if (i < 0 || !/\.html?$/i.test(p)) return null;
+        return { file: p, folder: p.slice(0, i) || sep, name: p.slice(i + 1), win };
+      }
+
+      // Copy text from inside a click. The async clipboard first; the old execCommand route where it is missing.
+      function copyText(text) {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          return navigator.clipboard.writeText(text).then(() => true, () => false);
+        }
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.setAttribute('readonly', '');
+        ta.style.cssText = 'position:fixed;left:-9999px;top:0;opacity:0';
+        document.body.appendChild(ta);
+        ta.select();
+        let ok = false;
+        try { ok = document.execCommand('copy'); } catch (_) {}
+        ta.remove();
+        return Promise.resolve(ok);
+      }
+
+      // Before the first Save dialog of a file opened from disk: copy the file's path right away (the Save click allows it)
+      // and show it, so the user can paste it into the dialog and save over the original instead of making a copy elsewhere.
+      // The dialog opens from the bubble's own button, which supplies the click the browser requires.
+      async function askSaveLocation(loc, choose) {
+        const plat = ((navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || '').toLowerCase();
+        const mac = !loc.win && /mac/.test(plat);
+        // macOS "Go to folder" takes a folder (the name is already filled in); Windows and GTK file boxes take the whole path
+        const text = mac ? loc.folder : loc.file;
+        const copied = await copyText(text);
+        const where = loc.win ? 'click the File name box and press Ctrl+V.' : mac ? 'press \u2318\u21e7G, then \u2318V.' : 'press Ctrl+L, then Ctrl+V.';
+        const path = document.createElement('code');
+        path.className = 'save-where';
+        path.textContent = text;
+        ui.confirm(btnSave, {
+          label: 'Save over the file you opened',
+          title: copied ? 'Path copied' : 'Save over the file you opened',
+          message: (copied ? 'In the next window, ' : 'Copy this path. In the next window, ') + where,
+          extra: path,
+          ok: 'Choose\u2026',
+          okClass: 'btn-primary'
+        }, choose);
+      }
+
+      async function pickSaveFile() {
+        // Browsers cannot read a page's own folder, so reuse the current file name
+        // (saving over it) and a stable picker id so the dialog reopens in the
+        // last folder used for diagrams.
+        let currentName = '';
+        try {
+          currentName = decodeURIComponent(location.pathname.split('/').pop() || '');
+        } catch (_) {}
+        const suggested = /\.html?$/i.test(currentName)
+          ? currentName
+          : (chartData.title || plugin.id).toLowerCase().replace(/[^a-z0-9_-]/g, '-') + '.html';
+        return window.showSaveFilePicker({
+          id: 'ultimate-diagram-save',
+          suggestedName: suggested,
+          types: [{
+            description: 'HTML Diagram File',
+            accept: { 'text/html': ['.html'] }
+          }]
+        });
+      }
+
+      async function writeFile(replacedHtml, picked) {
         if ('showSaveFilePicker' in window) {
           try {
-            if (!fileHandle) fileHandle = await loadStoredHandle();
+            if (!fileHandle && !picked) fileHandle = await loadStoredHandle();
             if (!fileHandle) {
-              // Browsers cannot read a page's own folder, so reuse the current file name
-              // (saving over it) and a stable picker id so the dialog reopens in the
-              // last folder used for diagrams.
-              let currentName = '';
-              try {
-                currentName = decodeURIComponent(location.pathname.split('/').pop() || '');
-              } catch (_) {}
-              const suggested = /\.html?$/i.test(currentName)
-                ? currentName
-                : (chartData.title || plugin.id).toLowerCase().replace(/[^a-z0-9_-]/g, '-') + '.html';
-              fileHandle = await window.showSaveFilePicker({
-                id: 'ultimate-diagram-save',
-                suggestedName: suggested,
-                types: [{
-                  description: 'HTML Diagram File',
-                  accept: { 'text/html': ['.html'] }
-                }]
-              });
+              const loc = !picked && localFilePath();
+              if (loc) {
+                // The dialog has to open from a fresh click: the bubble's button calls back here
+                askSaveLocation(loc, () => writeFile(replacedHtml, true));
+                return;
+              }
+              fileHandle = await pickSaveFile();
               storeHandle(fileHandle);
             }
 
