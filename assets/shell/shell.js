@@ -416,7 +416,9 @@
       const zoomLevelEl = document.getElementById('zoom-level');
       const btnUndo = document.getElementById('btn-undo');
       const btnRedo = document.getElementById('btn-redo');
-      const btnHelp = document.getElementById('btn-help');
+      const btnMore = document.getElementById('btn-more');
+      const moreMenu = document.getElementById('more-menu');
+      const menuHelp = document.getElementById('menu-help');
       const helpDrawer = document.getElementById('help-drawer');
 
       let dataReadme = null;   // the data block's "_readme" line (written by scripts/layout_engine.py assemble_page)
@@ -664,18 +666,13 @@
 
       // --- THEME (light / dark) ---
       // Priority: ?theme=dark|light  >  saved choice (localStorage)  >  OS preference
-      const btnTheme = document.getElementById('btn-theme');
+      const menuTheme = document.getElementById('menu-theme');
       function currentTheme() {
         return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
       }
-      // The button shows the theme you would switch TO (stroke icons, same family as the other controls)
-      const ICON_SUN = ui.icon('sun'), ICON_MOON = ui.icon('moon');
       function applyTheme(theme, persist) {
         document.documentElement.setAttribute('data-theme', theme);
-        btnTheme.innerHTML = theme === 'dark' ? ICON_SUN : ICON_MOON;
-        const next = theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode';
-        btnTheme.title = next;
-        btnTheme.setAttribute('aria-label', next);
+        menuTheme.setAttribute('aria-checked', String(theme === 'dark'));
         if (persist) { try { localStorage.setItem('flowchart-theme', theme); } catch (e) {} }
         if (plugin) plugin.render();   // type colors may depend on the theme
       }
@@ -689,7 +686,7 @@
         }
         applyTheme(theme, false);
       }
-      btnTheme.addEventListener('click', () => applyTheme(currentTheme() === 'dark' ? 'light' : 'dark', true));
+      menuTheme.addEventListener('click', () => applyTheme(currentTheme() === 'dark' ? 'light' : 'dark', true));
 
       // --- VIEWPORT PAN & ZOOM & FIT ---
       function updateTransform() {
@@ -1083,11 +1080,11 @@
 
       function setHelpOpen(open) {
         helpDrawer.classList.toggle('open', open);
-        btnHelp.setAttribute('aria-expanded', String(open));
+        btnMore.setAttribute('aria-expanded', String(open || !moreMenu.hidden));
         if (open) document.getElementById('help-close').focus();
-        else if (helpDrawer.contains(document.activeElement)) btnHelp.focus();
+        else if (helpDrawer.contains(document.activeElement)) btnMore.focus();
       }
-      btnHelp.addEventListener('click', () => setHelpOpen(!helpDrawer.classList.contains('open')));
+      menuHelp.addEventListener('click', () => { setMoreOpen(false); setHelpOpen(!helpDrawer.classList.contains('open')); });
       document.getElementById('help-close').addEventListener('click', () => setHelpOpen(false));
 
       // --- SEARCH (spec: dev/plans/search.md) ---
@@ -1402,20 +1399,43 @@
       document.querySelectorAll('[data-copy="png"]').forEach(el => { el.hidden = !canCopyPng; });
       document.querySelectorAll('[data-copy="svg"]').forEach(el => { el.hidden = !(navigator.clipboard && navigator.clipboard.writeText); });
       // Mermaid is offered only when the diagram type can read/write it (the type script registers after this one runs)
-      const btnImportMermaid = document.getElementById('btn-import-mermaid');
-      if (btnImportMermaid) btnImportMermaid.addEventListener('click', (e) => { e.stopPropagation(); setExportOpen(false); openMermaidImport(); });
+      const menuImportMermaid = document.getElementById('menu-import-mermaid');
+      menuImportMermaid.addEventListener('click', (e) => { e.stopPropagation(); setMoreOpen(false); setExportOpen(false); openMermaidImport(); });
       function syncCopyMenu() {
         document.querySelectorAll('[data-copy="mermaid"]').forEach(el => { el.hidden = !(plugin && typeof plugin.toMermaid === 'function' && navigator.clipboard && navigator.clipboard.writeText); });
-        if (btnImportMermaid) btnImportMermaid.hidden = !(plugin && typeof plugin.fromMermaid === 'function');
+        menuImportMermaid.hidden = !(plugin && typeof plugin.fromMermaid === 'function');
         // Drop the "Copy" heading when this browser has no copy items to offer
         document.querySelectorAll('[data-copy-label]').forEach(el => { el.hidden = !document.querySelector('[data-copy]:not([hidden])'); });
       }
       syncCopyMenu();
 
       function setExportOpen(open) {
+        if (open) setMoreOpen(false);
         exportMenu.hidden = !open;
         btnExport.setAttribute('aria-expanded', String(open));
       }
+      function setMoreOpen(open) {
+        if (open) setExportOpen(false);
+        moreMenu.hidden = !open;
+        btnMore.setAttribute('aria-expanded', String(open || helpDrawer.classList.contains('open')));
+      }
+      btnMore.addEventListener('click', (e) => { e.stopPropagation(); setMoreOpen(moreMenu.hidden); });
+      // Arrow keys move between the visible items of whichever menu is open
+      function menuArrowKeys(menu, btn, close) {
+        const items = () => [...menu.querySelectorAll('[role^="menuitem"]')].filter((el) => !el.hidden);
+        const onKey = (e) => {
+          if (menu.hidden || (e.key !== 'ArrowDown' && e.key !== 'ArrowUp')) return;
+          const list = items();
+          if (!list.length) return;
+          e.preventDefault();
+          const i = list.indexOf(document.activeElement);
+          list[i < 0 ? (e.key === 'ArrowDown' ? 0 : list.length - 1) : (i + (e.key === 'ArrowDown' ? 1 : list.length - 1)) % list.length].focus();
+        };
+        menu.addEventListener('keydown', onKey);
+        btn.addEventListener('keydown', onKey);
+      }
+      menuArrowKeys(moreMenu, btnMore);
+      menuArrowKeys(exportMenu, btnExport);
       btnExport.addEventListener('click', (e) => { e.stopPropagation(); setExportOpen(exportMenu.hidden); });
       exportMenu.addEventListener('click', (e) => {
         const b = e.target.closest('[data-export], [data-copy]');
@@ -1424,11 +1444,15 @@
         if (b.dataset.copy) copyDiagram(b.dataset.copy);
         else exportDiagram(b.dataset.export);
       });
-      document.addEventListener('click', () => setExportOpen(false));
-      window.addEventListener('keydown', (e) => { if (e.key === 'Escape') setExportOpen(false); });
+      document.addEventListener('click', () => { setExportOpen(false); setMoreOpen(false); });
+      window.addEventListener('keydown', (e) => {
+        if (e.key !== 'Escape') return;
+        if (!moreMenu.hidden && moreMenu.contains(document.activeElement)) btnMore.focus();
+        setExportOpen(false); setMoreOpen(false);
+      });
 
       // --- IMPORT MERMAID ---
-      // Toolbar Paste Mermaid button (#btn-import-mermaid) and canvas paste (Ctrl+V outside text fields): the text is read
+      // More menu's Paste Mermaid item (#menu-import-mermaid) and canvas paste (Ctrl+V outside text fields): the text is read
       // by the type's fromMermaid (mermaid.js) and replaces the diagram as one undo step, laid out fresh. What the reader
       // could not map exactly is listed afterwards, and text of another diagram type is refused.
       const MERMAID_TYPE_NAME = { flowchart: 'flowchart', usecase: 'use case diagram', sequence: 'sequence diagram', erd: 'ER diagram' };
@@ -1473,7 +1497,7 @@
         return true;
       }
       function positionImportBox(box) {
-        const anchor = (btnImportMermaid && !btnImportMermaid.hidden ? btnImportMermaid : btnExport).getBoundingClientRect();
+        const anchor = btnMore.getBoundingClientRect();
         const bw = box.offsetWidth;
         box.style.left = `${Math.max(8, Math.min(anchor.right - bw, innerWidth - bw - 8))}px`;
         box.style.top = `${anchor.bottom + 8}px`;
