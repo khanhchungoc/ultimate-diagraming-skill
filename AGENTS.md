@@ -34,10 +34,10 @@ The playground is one claude.ai artifact holding a blank page of every diagram t
 
 **Whenever a change touches what a page runs or looks like** (anything under `assets/`, `scripts/layout_engine.py`, `scripts/tokens.py`, `scripts/disk_format.py`, or `SUPPORTED_TYPES`), finish the task by republishing it:
 
-1. Rebuild: `python scripts/layout_engine.py --playground -o <scratchpad>/playground` (until that flag exists, skip: nothing is published yet).
+1. Rebuild: `python dev/build_playground.py -o <scratchpad>/playground`.
 2. Read the live artifact first (`Artifact` action `read` on the URL below), then publish the rebuilt folder to the **same URL** (`Artifact` publish with `url`, `root` = the folder, `files` mapping every path). Never publish without `url`: that makes a second artifact and the README link goes stale.
 3. Open it and check every type in the switcher loads, then say in your report that it was republished. If you cannot publish (an agent without the claude.ai `Artifact` tool, or not the artifact's owner), say so in your report instead of skipping silently.
 
 A new diagram type joins the playground in the same change (switcher entry, `blank.json`, folder). Changes only under `dev/`, `docs/`, `references/` or `README.md` need no republish.
 
-Playground URL: _not published yet_. Whoever publishes it first replaces this line with the link and adds it to `README.md`.
+Playground URL: https://claude.ai/artifact/Ny25B5E4ts4TramawB4BQp

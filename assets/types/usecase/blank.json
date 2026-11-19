@@ -1,0 +1,8 @@
+{
+  "diagramType": "usecase",
+  "title": "Use case diagram",
+  "subjects": [{ "id": "system", "name": "System" }],
+  "actors": [],
+  "useCases": [],
+  "links": []
+}

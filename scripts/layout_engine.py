@@ -840,7 +840,8 @@ class FlowchartAudit:
                     mid_x = sx + (ex - sx) / 2
                     result[eid] = [(sx, sy), (mid_x, sy), (mid_x, ey), (ex, ey)]
 
-        self._reroute_by_cost(result, rects, ports, segment_clear, rect_list)
+        if rects:  # a blank diagram has no steps to route
+            self._reroute_by_cost(result, rects, ports, segment_clear, rect_list)
         return result
 
     def _lane_dividers(self) -> List[float]:

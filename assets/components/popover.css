@@ -5,6 +5,7 @@
       background: var(--bg-panel); border: 1px solid var(--menu-border); border-radius: var(--radius-lg);
       box-shadow: var(--shadow-lg); padding: 4px; display: flex; flex-direction: column;
     }
+    .menu-left { left: 0; right: auto; }   /* opens to the right of a button at the left edge (the playground type menu) */
     .menu[hidden] { display: none; }
     .menu button {
       background: none; border: 0; text-align: left; padding: 7px 10px; border-radius: var(--radius-md);
