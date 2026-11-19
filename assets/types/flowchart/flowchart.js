@@ -62,6 +62,7 @@
       const coordsDiffer = (a, b) => !a || !b || a.length !== b.length || a.some((v, i) => Math.abs(v - b[i]) > 0.5);
       const freeNoteSkipKeys = () => new Set(notesList().filter(isFree).map(n => n.id));
       let motionDepth = 0;
+      let tabGlide = false;
 
       function captureSvg() {
         const edges = new Map(), leaders = new Map();
@@ -208,6 +209,9 @@
         });
       }
 
+      // Runs fn with every nested withMotion / withConnectorMotion turned into a plain call
+      function withoutMotion(fn) { motionDepth++; try { fn(); } finally { motionDepth--; } }
+
       function withMotion(fn, opts) {
         const o = opts || {};
         if (motionDepth > 0 || !motion.enabled()) { fn(); return; }
@@ -259,7 +263,7 @@
               });
             }
           }
-          playSvg(svgSnap, o);
+          if (!o.noSvg) playSvg(svgSnap, o);   // noSvg (undo / redo): arrows snap, so a probe of them right after sees their final place
         } finally {
           motionDepth--;
         }
@@ -460,10 +464,12 @@
         updateStatus(true);
       }
       // Moves a lane one place (-1 earlier, +1 later), like dragging its pill there
-      function moveLane(index, dir) {
+      // `animate` false (the bar's arrow buttons): the bar sits inside the lane that would slide away, so a second
+      // click on it (Move earlier right after Move later) would miss a moving target
+      function moveLane(index, dir, animate = true) {
         const to = index + dir;
         if (to < 0 || to >= chartData.lanes.length) return;
-        withMotion(() => {
+        (animate ? withMotion : withoutMotion)(() => {
           const [moved] = chartData.lanes.splice(index, 1);
           chartData.lanes.splice(to, 0, moved);
           relayout();   // lane order changes how steps are ordered and where loop-backs run
@@ -568,7 +574,7 @@
               if (b.dataset.act === 'rename') startRename();
               else if (b.dataset.act === 'delete') confirmDeleteLane(lane.id, b);
               else if (b.dataset.act === 'hide') { chartData.swimlanes = false; selectedLaneId = null; render(); updateStatus(true); }
-              else moveLane(index, b.dataset.act === 'earlier' ? -1 : 1);
+              else moveLane(index, b.dataset.act === 'earlier' ? -1 : 1, false);
             });
             pill.appendChild(bar);
           }
@@ -3085,6 +3091,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         dragStartX = e.clientX;
         dragStartY = e.clientY;
 
+        motion.cancelAll();   // a layout animation still in flight would skew the start rect below
         const nodeEl = document.getElementById(`node-${node.id}`);
         const nRect = nodeEl.getBoundingClientRect();
 
@@ -3591,7 +3598,8 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
       // The last remaining lane cannot be deleted: every step needs a lane.
       function deleteLane(laneId) {
         if (chartData.lanes.length <= 1 || !chartData.lanes.some(l => l.id === laneId) || laneUsedElsewhere(laneId)) return;
-        withMotion(() => {
+        // No slide: the lanes below would be moving under the pointer when the next lane is clicked
+        withoutMotion(() => {
           if (chartData.flows) chartData.actors = chartData.actors.filter(a => a.id !== laneId || laneUsedElsewhere(laneId, true));
           const gone = new Set(chartData.nodes.filter(n => n.laneId === laneId).map(n => n.id));
           chartData.lanes = chartData.lanes.filter(l => l.id !== laneId);
@@ -3602,7 +3610,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           pruneNotes();
           selectedLaneId = null;
           relayout();
-        }, { ghostExit: true, duration: 210, skipFreeNotes: true });
+        });
       }
 
       // Deleting a lane also deletes its steps, so it is confirmed first: a small popover under the delete button
@@ -4125,6 +4133,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
 
       function startPaletteDrag(e, btn) {
         if (e.button !== 0 || btn.disabled || document.body.classList.contains('presentation')) return;
+        motion.cancelAll();   // arrows still gliding to their places would not match the routes the drop is tested against
         paletteDrag = { type: btn.dataset.nodeType, btn, ghost: null, startX: e.clientX, startY: e.clientY, placement: null, onCanvas: false };
         window.addEventListener('pointermove', onPaletteMove);
         window.addEventListener('pointerup', onPaletteUp);
@@ -4266,7 +4275,9 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         btnDirection.setAttribute('aria-label', label);
       }
       if (btnDirection) btnDirection.addEventListener('click', () => {
-        withMotion(() => {
+        // A turn of the whole diagram is not animated (nor is its undo, see plugin.render): edges and steps would sweep
+        // across each other, and the next click would land on a diagram still on the move
+        withoutMotion(() => {
           if (isTB()) delete chartData.direction;
           else chartData.direction = 'TB';
           selectedEdgeId = null;
@@ -4277,8 +4288,8 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           layoutOtherFlows();
           render();
           updateStatus(true);
-        }, { duration: 260, forceDrawEdges: true });
-        fitView(true);
+        });
+        fitView(false);
       });
 
       // --- AUTO LAYOUT TOGGLE ---
@@ -5424,7 +5435,9 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         const t = curTab();
         if (renderedTab === null) { renderedTab = t; return; }
         if (renderedTab === t) return;
-        tabViews[renderedTab] = { scale, panX, panY };
+        tabGlide = true;   // the view following a tab switch is not the reader panning: it keeps an open confirm (a tab's delete asks from the parent)
+        setTimeout(() => { tabGlide = false; }, 320);
+        tabViews[renderedTab] = viewTarget();   // where a glide in flight lands, not where it passes
         renderedTab = t;
         const v = tabViews[t];
         if (v) {
@@ -5790,7 +5803,12 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         fromMermaid,
         contentEl: swimlanesContainer,
         report: { node: '.flow-node', label: '.edge-label', labelText: '.edge-label-text', nodeText: '.node-label' },
-        render: () => withMotion(render, { ghostExit: true, ghosts: true }),
+        // undo / redo: no animation when it turns the diagram or adds, removes or reorders lanes (see btnDirection, deleteLane, moveLane)
+        render: () => {
+          const lanesNow = [...lanesRoot.querySelectorAll('.swimlane[data-lane-id]')].map(l => l.dataset.laneId).join();
+          const shape = swimlanesContainer.classList.contains('dir-tb') !== isTB() || lanesNow !== chartData.lanes.map(l => l.id).join();
+          if (shape) withoutMotion(render); else withMotion(render, { ghostExit: true, ghosts: true, noSvg: true });
+        },
         tidy: () => withMotion(() => { layoutDiagram(chartData); render(); updateStatus(true); }, { duration: 220, skipFreeNotes: true }),
         eachTab,
         isBackground: (el) => (isPresenting() && !!el.closest('.flow-node:not(.type-connector)')) || el.id === 'swimlanes-container' || el.classList.contains('lane-track') || el.classList.contains('lane-gutter'),
@@ -5858,7 +5876,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           document.querySelectorAll('.swimlane').forEach(el => add('lane:' + el.dataset.laneId, el.querySelector('.lane-pill'), el.querySelector('.lane-title')?.textContent));
           return items;
         },
-        onViewChange() { ui.closeConfirm(); pinLaneHeaders(); },
+        onViewChange() { if (!tabGlide) ui.closeConfirm(); pinLaneHeaders(); },
         // Notes on show may sit in the margin outside the lanes: Fit and screenshots take them in (peeked ones
         // are transient and do not count)
         contentOverflow() {

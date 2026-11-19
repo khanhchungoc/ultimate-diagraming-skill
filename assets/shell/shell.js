@@ -1074,6 +1074,7 @@
         vpAnim = null;
         viewport.classList.remove('gesturing');
       }
+      const viewTarget = () => (vpAnim ? { scale: vpAnim.targetScale, panX: vpAnim.targetPanX, panY: vpAnim.targetPanY } : { scale, panX, panY });
       function animateViewport(targetPanX, targetPanY, targetScale, opts) {
         const o = opts || {};
         if (!motion.enabled() || o.duration === 0) {
@@ -1098,6 +1099,7 @@
         viewport.classList.add('gesturing');
         const job = { targetPanX, targetPanY, targetScale, raf: 0 };
         vpAnim = job;
+        showZoom();
         const tick = (now) => {
           if (vpAnim !== job) return;
           const u = Math.min(1, (now - start) / d);
@@ -1436,9 +1438,10 @@
       menuTheme.addEventListener('click', () => applyTheme(currentTheme() === 'dark' ? 'light' : 'dark', true));
 
       // --- VIEWPORT PAN & ZOOM & FIT ---
+      function showZoom() { zoomLevelEl.textContent = `${Math.round((vpAnim ? vpAnim.targetScale : scale) * 100)}%`; }   // a glide in flight shows where it lands
       function updateTransform() {
         stage.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
-        zoomLevelEl.textContent = `${Math.round(scale * 100)}%`;
+        showZoom();
         if (plugin && plugin.onViewChange) plugin.onViewChange();   // e.g. keep frozen headers pinned
       }
 
