@@ -66,6 +66,13 @@
       <button id="btn-notes" class="btn" title="Show all notes" aria-label="Notes" aria-pressed="false">
         {{icon:notes}}<span class="btn-label">Notes</span><span class="btn-count" hidden></span>
       </button>
+      <!-- Shown by updateSubButtons (flowchart.js) when the selection can be moved into a subprocess, or is one -->
+      <button id="btn-collapse-sub" class="btn btn-sub" title="Move the selected steps into a subprocess flow of their own" aria-label="Collapse to subprocess" hidden>
+        {{icon:layers}}<span class="btn-label">Collapse</span>
+      </button>
+      <button id="btn-expand-sub" class="btn btn-sub" title="Put this subprocess flow back in place of the step" aria-label="Expand subprocess" hidden>
+        {{icon:layers}}<span class="btn-label">Expand</span>
+      </button>
       <button id="btn-direction"class="btn" data-dock-group="layout" title="Switch to a top-to-bottom layout" aria-label="Vertical">
         {{icon:direction-tb}}<span class="btn-label">Vertical</span>
       </button>

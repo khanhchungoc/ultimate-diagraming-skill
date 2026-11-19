@@ -6,6 +6,8 @@ Used when explaining an existing diagram: `--extract` prints standard Mermaid, s
 
 Each `subgraph` is a swimlane (the actor); steps are in their lane. A pill `(["..."])` with no outgoing edge is an end, any other pill a start. `==>` is a loop back to an earlier step. A flag node `n1>"..."] -.- a & b` is a note on steps `a` and `b`, not a step.
 
+A large flow is split into subprocesses. `--extract` prints, in this order: a `%%` outline (totals, then one line per subprocess with its step and lane counts and its end states), the parent flow, then each child as a top-level `subgraph sub_<slug>["Name"]` block, in the order the parent reaches them, with its arrows and notes after the block. Read the outline first, then the parent, then the children you need. A `[["..."]]` step is a link to the `sub_` block with the same slug; the child's start pill is its entry and its end pills are the outcomes the parent routes on. A lane id repeated in a `sub_` block is the same actor. Arrows never cross a `sub_` block. `--extract <file> --flat` prints one flow with every subprocess expanded in place (for end-to-end questions); `--extract <file> --sub <slug>` prints one child alone.
+
 ## Sequence
 
 Messages are in time order (a step number is a message's position). `->>` is a call, `-->>` a reply, `-)` async; `Label<br>detail` splits at the first `<br>`. A `rect` is a named phase: its name is the first note inside it, over the first and last participant. A `box` colours its participants, its label is the colour's meaning. A note sits below the message above it, or above the next message after a frame opening, `else` or `end`.

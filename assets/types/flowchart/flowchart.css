@@ -744,3 +744,44 @@
     /* Top-to-bottom: the pill is centred on its column (see pinLaneHeaders), wrapped names too, and so in exports */
     #swimlanes-container.dir-tb .lane-pill { text-align: center; }
     body.exporting #swimlanes-container.dir-tb .lane-pill { transform: translate(var(--pill-cx, 12px), 12px) !important; }
+
+    /* Subprocess flows: the tab row above the canvas, and the button on a subprocess step that opens its tab */
+    .flow-tabs {
+      flex: none;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      overflow-x: auto;
+      background: var(--bg-panel);
+      border-bottom: 1px solid var(--border-color);
+    }
+    .flow-tabs[hidden] { display: none; }
+    .flow-tab, .flow-up { flex: none; white-space: nowrap; }
+    .flow-tab[aria-selected="true"] {
+      background: var(--primary-wash);
+      border-color: var(--primary-ring);
+      color: var(--primary);
+    }
+    .flow-up { margin-left: auto; }
+    .sub-open {
+      position: absolute;
+      top: -10px; left: -10px;
+      z-index: 3;
+      width: 24px; height: 24px;
+      padding: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: var(--radius-round);
+      border: 1px solid var(--primary-ring);
+      background: var(--bg-panel);
+      color: var(--primary);
+      box-shadow: var(--shadow-sm);
+      cursor: pointer;
+      transition: transform var(--ease), background var(--ease);
+    }
+    .sub-open:hover { transform: scale(1.1); background: var(--primary-wash); }
+    .sub-open svg { display: block; }
+    .flow-node.type-start:not(.terminal-dot) .sub-open, .flow-node.type-end:not(.terminal-dot) .sub-open { left: 8px; }
+    .btn-sub[hidden] { display: none; }

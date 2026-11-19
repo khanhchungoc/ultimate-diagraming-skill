@@ -1,7 +1,8 @@
 // Mermaid reader and writer for the flowchart type (plan: dev/plans/plan-mermaid-input.md).
 // Plain script, globals only; it is concatenated after assets/shell/mermaid-flow.js, which holds the tokenizer.
 //   fromMermaid(text)      -> { data, infos, warnings }   authoring JSON, no positions
-//   toMermaid(data, opts)  -> string                      opts.palette: 8 hex colours for the slots c1..c8 (adds classDef lines)
+//   toMermaid(data, opts)  -> string                      opts.palette: 8 hex colours for the slots c1..c8 (adds classDef lines);
+//                                                         opts.stock: write for stock Mermaid (a lane repeated in a sub_ block gets its own id)
 
 const MMD_FLOW_KNOWN_DIRECTIVES = ['type', 'icon', 'color', 'showNotes', 'laneOrder', 'schemaVersion', 'swimlanes'];
 const MMD_FLOW_FLAGS = ['isStart', 'isEnd'];
@@ -94,24 +95,42 @@ function fromMermaidAst(ast) {
     if (!onlySlots) infos.push(`[INFO] line ${kinds[k][0].line}: ${k} statements are ignored (${kinds[k].length})`);
   });
 
-  // Lanes: top-level subgraphs; nested ones flatten into their top-level lane
-  const topOf = (sg) => { while (sg.parent) sg = sgById.get(sg.parent); return sg; };
-  const nested = ast.subgraphs.filter((s) => s.parent);
+  // Lanes: top-level subgraphs, and the lanes written inside a top-level `sub_<slug>` block (a child flow, one level only);
+  // the same lane id in several places is one lane (the first occurrence names it). Deeper subgraphs flatten into their lane.
+  const isSub = (s) => s.sub === s.id && !s.parent;
+  const isLane = (s) => !isSub(s) && (s.sub ? s.parent === s.sub : !s.parent);
+  const laneOf = (sg) => { while (!isLane(sg) && sg.parent) sg = sgById.get(sg.parent); return sg; };
+  const nested = ast.subgraphs.filter((s) => !isSub(s) && !isLane(s));
   if (nested.length) infos.push(`[INFO] nested subgraphs flattened into their top-level lane: ${nested.map((s) => s.id).join(', ')}`);
   const laneIdOf = (id) => (/^[\w-]+$/.test(id) ? id : mmdSafeId(id));
-  const tops = ast.subgraphs.filter((s) => !s.parent);
+  // Stock Mermaid merges a lane id repeated in another block, so "Copy as Mermaid" writes it as `lane_x__<slug>` inside a `sub_<slug>`
+  const baseId = (s) => (s.sub && s.id.endsWith('__' + s.sub.slice(4)) ? s.id.slice(0, -(s.sub.length - 2)) : s.id);
+  const laneSgs = ast.subgraphs.filter(isLane);
   // No subgraph: no lanes at all (the engine creates its own lane-main). `%% @swimlanes false` keeps written lanes hidden.
-  const swimlanes = tops.length > 0 && dir.swimlanes !== false;
-  const lanes = tops.map((s) => {
-    const l = { id: laneIdOf(s.id), name: s.title };
-    if (dir.icons[s.id]) l.icon = dir.icons[s.id];
-    const c = s.classes.map((x) => /^c([1-8])$/.exec(x)).find(Boolean);
+  const swimlanes = laneSgs.length > 0 && dir.swimlanes !== false;
+  const lanes = [], laneNamed = new Map();
+  laneSgs.forEach((s) => {
+    const id = laneIdOf(baseId(s)), first = laneNamed.get(id);
+    if (first) {
+      if (s.title !== s.id && s.title !== first) warnings.push(`[WARN] line ${s.line}: lane ${id} is named "${s.title}" here and "${first}" first; the first name wins`);
+      return;
+    }
+    laneNamed.set(id, s.title);
+    const l = { id, name: s.title };
+    const b = baseId(s), same = laneSgs.filter((t) => laneIdOf(baseId(t)) === id);
+    if (dir.icons[b]) l.icon = dir.icons[b];
+    const c = same.flatMap((t) => t.classes).map((x) => /^c([1-8])$/.exec(x)).find(Boolean);
     if (c) l.color = c[1];
-    else if (dir.colors[s.id]) l.color = dir.colors[s.id];
-    return l;
+    else if (dir.colors[b]) l.color = dir.colors[b];
+    lanes.push(l);
   });
-  const laneOfNode = new Map();
-  ast.subgraphs.forEach((s) => s.nodes.forEach((id) => laneOfNode.set(id, laneIdOf(topOf(s).id))));
+  const laneOfNode = new Map(), tabOfNode = new Map(), firstLane = new Map();
+  laneSgs.forEach((s) => { if (!firstLane.has(s.sub)) firstLane.set(s.sub, laneIdOf(baseId(s))); });
+  ast.subgraphs.forEach((s) => s.nodes.forEach((id) => {
+    tabOfNode.set(id, s.sub);
+    if (!isSub(s)) laneOfNode.set(id, laneIdOf(baseId(laneOf(s))));
+  }));
+  const tabOf = (id) => tabOfNode.get(id) || null;
 
   // Notes: flag-shaped nodes whose every edge is dotted
   const flowNodes = ast.nodes.filter((n) => !sgById.has(n.id));
@@ -155,8 +174,8 @@ function fromMermaidAst(ast) {
     else if (!type) { type = 'task'; (lenient[n.shape] = lenient[n.shape] || []).push(n.id); }
     if (n.classes.some((c) => !MMD_FLOW_FLAGS.includes(c))) classIgnored = true;
     let laneId = laneOfNode.get(n.id);
-    if (!laneId && lanes.length) {
-      laneId = lanes[0].id;
+    if (!laneId && firstLane.has(tabOf(n.id))) {
+      laneId = firstLane.get(tabOf(n.id));
       warnings.push(`[WARN] line ${n.line}: step ${n.id} is outside every lane; put into lane ${laneId}`);
     }
     return laneId ? { id: n.id, laneId, type, label: n.label } : { id: n.id, type, label: n.label };
@@ -175,6 +194,25 @@ function fromMermaidAst(ast) {
     return o;
   });
 
+  // Child flows: each `sub_<slug>` block holds its own steps, arrows and notes; nothing crosses its boundary
+  const children = {};
+  ast.subgraphs.filter(isSub).forEach((s) => {
+    children[s.id.slice(4)] = { name: s.title, laneOrder: [...new Set(laneSgs.filter((l) => l.sub === s.id).map((l) => laneIdOf(baseId(l))))], nodes: [], edges: [], notes: [] };
+  });
+  const parentTab = { nodes: [], edges: [], notes: [] };
+  const into = (t) => (t ? children[t.slice(4)] : parentTab);
+  nodes.forEach((n) => into(tabOf(n.id)).nodes.push(n));
+  edges.forEach((e) => {
+    if (tabOf(e.from) === tabOf(e.to)) into(tabOf(e.from)).edges.push(e);
+    else warnings.push(`[WARN] edge ${e.from} --> ${e.to} crosses a sub_ boundary and is dropped (a child links to its parent by the slug only)`);
+  });
+  notes.forEach((n) => {
+    const t = tabOf(n.nodes[0] || ''), other = n.nodes.find((x) => tabOf(x) !== t);
+    if (other) warnings.push(`[WARN] note ${n.id} is linked to steps in two flows; its link to ${other} is dropped`);
+    n.nodes = n.nodes.filter((x) => tabOf(x) === t);
+    into(t).notes.push(n);
+  });
+
   const data = { diagramType: 'flowchart' };
   if (dir.schemaVersion != null && !isNaN(dir.schemaVersion)) data.schemaVersion = dir.schemaVersion;
   if (ast.title) data.title = ast.title;
@@ -183,10 +221,23 @@ function fromMermaidAst(ast) {
   if (dir.showNotes) data.showNotes = true;
   if (dir.laneOrder) data.laneOrder = dir.laneOrder;
   data.lanes = lanes;
-  data.nodes = nodes;
-  data.edges = edges;
-  if (notes.length) data.notes = notes;
+  data.nodes = parentTab.nodes;
+  data.edges = parentTab.edges;
+  if (parentTab.notes.length) data.notes = parentTab.notes;
+  if (Object.keys(children).length) {
+    Object.values(children).forEach((c) => { if (!c.notes.length) delete c.notes; });
+    data.children = children;
+  }
   return { data, infos, warnings };
+}
+
+// The lanes of the parent flow: those with a parent step, or that no child flow uses (an empty lane stays where it was added)
+function mmdFlowParentLanes(data) {
+  const kids = Object.values(data.children || {});
+  const used = (nodes) => new Set((nodes || []).map((n) => n.laneId));
+  const inParent = used(data.nodes), inKids = new Set();
+  kids.forEach((c) => used(c.nodes).forEach((id) => inKids.add(id)) || (c.laneOrder || []).forEach((id) => inKids.add(id)));
+  return (data.lanes || []).filter((l) => inParent.has(l.id) || !inKids.has(l.id));
 }
 
 function toMermaid(data, opts) {
@@ -194,13 +245,27 @@ function toMermaid(data, opts) {
   const used = new Set(), ids = new Map();
   const sid = (kind, raw) => { const k = kind + '\0' + raw; if (!ids.has(k)) ids.set(k, mmdSafeId(raw, used)); return ids.get(k); };
   const lanes = data.lanes || [];
-  const collapsed = mmdFlowCollapseConnectors(data.nodes || [], data.edges || []);
-  const nodes = collapsed.nodes;
+  const kids = data.children || {};
+  // The parent flow, then each child flow in the order the parent reaches its subprocess step
+  const tabs = [{ slug: null, nodes: data.nodes || [], edges: data.edges || [], notes: data.notes || [], lanes: mmdFlowParentLanes(data) }];
+  const slugs = (data.nodes || []).map((n) => n.id).filter((id) => kids[id]);
+  Object.keys(kids).forEach((k) => { if (!slugs.includes(k)) slugs.push(k); });
+  slugs.forEach((k) => {
+    const c = kids[k], byId = new Map(lanes.map((l) => [l.id, l]));
+    const order = (c.laneOrder || []).concat((c.nodes || []).map((n) => n.laneId)).filter((id, i, a) => byId.has(id) && a.indexOf(id) === i);
+    tabs.push({ slug: k, name: c.name, nodes: c.nodes || [], edges: c.edges || [], notes: c.notes || [], lanes: order.map((id) => byId.get(id)) });
+  });
+  tabs.forEach((t) => {
+    const collapsed = mmdFlowCollapseConnectors(t.nodes, t.edges);
+    t.nodes = collapsed.nodes;
+    const ids = new Set(t.nodes.map((n) => n.id));
+    t.edges = collapsed.edges.filter((e) => ids.has(e.from) && ids.has(e.to));
+  });
   lanes.forEach((l) => sid('l', l.id));
-  nodes.forEach((n) => sid('n', n.id));
-  const nodeIds = new Set(nodes.map((n) => n.id));
-  const edges = collapsed.edges.filter((e) => nodeIds.has(e.from) && nodeIds.has(e.to));
-  const hasOut = new Set(edges.map((e) => e.from));
+  tabs.forEach((t) => t.nodes.forEach((n) => sid('n', n.id)));
+  const nodeIds = new Set(tabs.flatMap((t) => t.nodes.map((n) => n.id)));
+  const hasOut = new Set(tabs.flatMap((t) => t.edges.map((e) => e.from)));
+  const nodes = tabs.flatMap((t) => t.nodes);
   const q = mmdQuote;
   const out = [];
   const flags = [];
@@ -242,51 +307,66 @@ function toMermaid(data, opts) {
       default: return `${id}[${q(L)}]`;
     }
   };
-  const placed = new Set();
-  lanes.forEach((l) => {
-    out.push(`  subgraph ${sid('l', l.id)}[${q(l.name)}]`);
-    nodes.filter((n) => n.laneId === l.id).forEach((n) => { out.push('    ' + decl(n)); placed.add(n.id); });
-    out.push('  end');
-  });
-  nodes.filter((n) => !placed.has(n.id)).forEach((n) => out.push('  ' + decl(n)));
 
   // Edges: consecutive edges sharing target and link group as `a & b --> target`; otherwise consecutive hops chain
   const link = (e) => (e.feedback ? '==>' : '-->') + (e.label ? `|${q(e.label)}|` : '');
-  const isJoinAt = (idx) => {
-    if (idx + 1 >= edges.length) return false;
-    const e0 = edges[idx], e1 = edges[idx + 1];
-    return e0.from !== e0.to && e1.from !== e1.to && e1.from !== e0.from && e1.to === e0.to && link(e1) === link(e0);
-  };
-  for (let i = 0; i < edges.length;) {
-    if (isJoinAt(i)) {
-      const tgt = edges[i].to, lk = link(edges[i]), srcs = [edges[i].from], seenSrc = new Set(srcs);
-      let k = 1;
-      while (i + k < edges.length && edges[i + k].to === tgt && link(edges[i + k]) === lk
-             && edges[i + k].from !== tgt && !seenSrc.has(edges[i + k].from)) {
-        srcs.push(edges[i + k].from);
-        seenSrc.add(edges[i + k].from);
+  const emitEdges = (edges) => {
+    const isJoinAt = (idx) => {
+      if (idx + 1 >= edges.length) return false;
+      const e0 = edges[idx], e1 = edges[idx + 1];
+      return e0.from !== e0.to && e1.from !== e1.to && e1.from !== e0.from && e1.to === e0.to && link(e1) === link(e0);
+    };
+    for (let i = 0; i < edges.length;) {
+      if (isJoinAt(i)) {
+        const tgt = edges[i].to, lk = link(edges[i]), srcs = [edges[i].from], seenSrc = new Set(srcs);
+        let k = 1;
+        while (i + k < edges.length && edges[i + k].to === tgt && link(edges[i + k]) === lk
+               && edges[i + k].from !== tgt && !seenSrc.has(edges[i + k].from)) {
+          srcs.push(edges[i + k].from);
+          seenSrc.add(edges[i + k].from);
+          k++;
+        }
+        out.push(`  ${srcs.map((s) => sid('n', s)).join(' & ')} ${lk} ${sid('n', tgt)}`);
+        i += k;
+        continue;
+      }
+      let line = `  ${sid('n', edges[i].from)} ${link(edges[i])} ${sid('n', edges[i].to)}`, k = 1;
+      while (i + k < edges.length && k < 6 && edges[i + k].from === edges[i + k - 1].to && !isJoinAt(i + k)) {
+        line += ` ${link(edges[i + k])} ${sid('n', edges[i + k].to)}`;
         k++;
       }
-      out.push(`  ${srcs.map((s) => sid('n', s)).join(' & ')} ${lk} ${sid('n', tgt)}`);
+      out.push(line);
       i += k;
-      continue;
     }
-    let line = `  ${sid('n', edges[i].from)} ${link(edges[i])} ${sid('n', edges[i].to)}`, k = 1;
-    while (i + k < edges.length && k < 6 && edges[i + k].from === edges[i + k - 1].to && !isJoinAt(i + k)) {
-      line += ` ${link(edges[i + k])} ${sid('n', edges[i + k].to)}`;
-      k++;
-    }
-    out.push(line);
-    i += k;
-  }
+  };
 
-  (data.notes || []).forEach((n) => {
-    const nid = sid('note', n.id), links = (n.nodes || []).filter((x) => nodeIds.has(x)).map((x) => sid('n', x));
-    out.push(`  ${nid}>${q(n.text)}]` + (links.length ? ` -.- ${links.join(' & ')}` : ''));
+  const stockIds = {};
+  tabs.forEach((t) => {
+    const pad = t.slug === null ? '' : '  ';
+    const placed = new Set();
+    if (t.slug !== null) out.push('', `  subgraph sub_${sid('n', t.slug)}[${q(t.name || t.slug)}]`);
+    t.lanes.forEach((l) => {
+      const lid = sid('l', l.id) + (opts.stock && t.slug !== null ? '__' + sid('n', t.slug) : '');
+      if (lid !== sid('l', l.id)) (stockIds[l.id] = stockIds[l.id] || []).push(lid);
+      out.push(`${pad}  subgraph ${lid}[${q(l.name)}]`);
+      t.nodes.filter((n) => n.laneId === l.id).forEach((n) => { out.push(`${pad}    ` + decl(n)); placed.add(n.id); });
+      out.push(`${pad}  end`);
+    });
+    t.nodes.filter((n) => !placed.has(n.id)).forEach((n) => out.push(`${pad}  ` + decl(n)));
+    if (t.slug !== null) out.push('  end');
+    emitEdges(t.edges);
+    t.notes.forEach((n) => {
+      const nid = sid('note', n.id), links = (n.nodes || []).filter((x) => nodeIds.has(x)).map((x) => sid('n', x));
+      out.push(`  ${nid}>${q(n.text)}]` + (links.length ? ` -.- ${links.join(' & ')}` : ''));
+    });
   });
 
   const slots = new Set();
-  lanes.forEach((l) => { if (/^[1-8]$/.test(String(l.color))) { out.push(`  class ${sid('l', l.id)} c${l.color}`); slots.add(+l.color); } });
+  lanes.forEach((l) => {
+    if (!/^[1-8]$/.test(String(l.color))) return;
+    [sid('l', l.id), ...(stockIds[l.id] || [])].forEach((id) => out.push(`  class ${id} c${l.color}`));
+    slots.add(+l.color);
+  });
   flags.forEach((f) => out.push('  ' + f));
   if (opts.palette) [...slots].sort().forEach((s) => { if (opts.palette[s - 1]) out.push(`  classDef c${s} fill:${opts.palette[s - 1]}`); });
   return out.join('\n') + '\n';
