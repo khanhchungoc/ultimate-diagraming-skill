@@ -713,16 +713,26 @@ class FlowchartAudit:
             up_cands.sort(key=lambda e: 0 if abs(rects[e["to"]][0] + rects[e["to"]][2] / 2 - fcx) < 30 else 1)
             down_cands.sort(key=lambda e: 0 if abs(rects[e["to"]][0] + rects[e["to"]][2] / 2 - fcx) < 30 else 1)
 
+            def _is_parallel_fork(cands):
+                return (
+                    u_node.get("type") != "decision"
+                    and len(cands) >= 2
+                    and all(not (e.get("label") or "").strip() and rects[e["to"]][0] > fx + fw + 20 for e in cands)
+                )
+
+            up_fork, down_fork = _is_parallel_fork(up_cands), _is_parallel_fork(down_cands)
+
             is_multi_or_decision = u_node.get("type") == "decision" or len(fwd_outs) > 1
-            top_edge_id = up_cands[0]["id"] if (is_multi_or_decision and up_cands) else None
-            bottom_edge_id = down_cands[0]["id"] if (is_multi_or_decision and down_cands) else None
-            if not top_edge_id and up_cands and abs(rects[up_cands[0]["to"]][0] + rects[up_cands[0]["to"]][2] / 2 - fcx) < 30:
+            top_edge_id = up_cands[0]["id"] if (not up_fork and is_multi_or_decision and up_cands) else None
+            bottom_edge_id = down_cands[0]["id"] if (not down_fork and is_multi_or_decision and down_cands) else None
+            if not up_fork and not top_edge_id and up_cands and abs(rects[up_cands[0]["to"]][0] + rects[up_cands[0]["to"]][2] / 2 - fcx) < 30:
                 top_edge_id = up_cands[0]["id"]
-            if not bottom_edge_id and down_cands and abs(rects[down_cands[0]["to"]][0] + rects[down_cands[0]["to"]][2] / 2 - fcx) < 30:
+            if not down_fork and not bottom_edge_id and down_cands and abs(rects[down_cands[0]["to"]][0] + rects[down_cands[0]["to"]][2] / 2 - fcx) < 30:
                 bottom_edge_id = down_cands[0]["id"]
 
             for e in fwd_outs:
                 v_id = e["to"]
+                in_fork = (up_fork and e in up_cands) or (down_fork and e in down_cands)
                 tx, ty, tw, th = rects[v_id]
                 tcy = ty + th / 2
                 from_port = "right"
@@ -742,7 +752,7 @@ class FlowchartAudit:
                     from_port = "bottom" if tcy > fcy else "top"
                 if from_port in ("top", "bottom") and abs((tx + tw / 2) - fcx) < 30:
                     to_port = "top" if tcy > fcy else "bottom"
-                elif (from_port == "right" and to_port == "left" and abs(tcy - fcy) > 30
+                elif (not in_fork and from_port == "right" and to_port == "left" and abs(tcy - fcy) > 30
                         and tx + tw / 2 > fx + fw + 24 and (v_id, tcy > fcy) not in vertical_entry):
                     # Side exit into another lane: enter via bottom/top (one bend)
                     # unless an intermediate node obstructs the vertical drop at tcx

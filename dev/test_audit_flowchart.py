@@ -231,6 +231,25 @@ def main() -> int:
           and one8_edges["e_early"]["to"] == "n2",
           f"info8={info8} info_one8={info_one8}")
 
+    # 9. Unlabelled same-side parallel fork keeps all 4 branches on one shared fork bus (LR and TB)
+    for d9 in ("LR", "TB"):
+        lanes9 = [{"id": f"l{i}", "name": f"L{i}", "icon": "user"} for i in range(1, 6)]
+        nodes9 = [
+            {"id": "src", "laneId": "l1", "type": "task", "label": "Clear", "x": 56, "y": 48},
+            {"id": "t1", "laneId": "l2", "type": "task", "label": "T1", "x": 256, "y": 48},
+            {"id": "t2", "laneId": "l3", "type": "task", "label": "T2", "x": 256, "y": 48},
+            {"id": "t3", "laneId": "l4", "type": "task", "label": "T3", "x": 256, "y": 48},
+            {"id": "t4", "laneId": "l5", "type": "task", "label": "T4", "x": 256, "y": 48},
+        ]
+        edges9 = [{"id": f"ef{i}", "from": "src", "to": f"t{i}", "label": ""} for i in range(1, 5)]
+        a9 = _audit(nodes9, edges9, lanes=lanes9, direction=d9)
+        r9 = a9.verify_collisions()
+        p9 = a9._route_all_edges(_rects(a9))
+        bus_xs = {round(p9[f"ef{i}"][1][0], 1) for i in range(1, 5) if len(p9[f"ef{i}"]) == 4}
+        check(f"unlabelled 4-way parallel fork shares one fork bus ({d9})",
+              r9["passed"] and r9["edge_crossings"] == 0 and r9["long_arrows_count"] == 0 and len(bus_xs) == 1,
+              f"d={d9} r9={r9} bus_xs={bus_xs} p9={p9}")
+
     print(f"{total - failed}/{total} cases passed")
     return 2 if failed else 0
 

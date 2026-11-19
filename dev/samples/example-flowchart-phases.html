@@ -7446,22 +7446,31 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           alignedFirst(upCands);
           alignedFirst(downCands);
 
+          // Unlabelled same-side parallel fork from a non-decision step keeps all branches on the flow exit/entry sides
+          // so they share one orthogonal fork bus instead of splitting the furthest branch onto a side port.
+          const isParallelFork = (cands) => (!uNode || uNode.type !== 'decision')
+            && cands.length >= 2
+            && cands.every(e => !(e.label || '').trim() && rects[e.to].x > f.x + f.w + 20);
+          const upFork = isParallelFork(upCands);
+          const downFork = isParallelFork(downCands);
+
           // A decision gives each branch its own vertex: a vertex already taken by a loop-back branch
           // is not reused for a forward one (it would leave the diamond's slanted sides, off the vertex)
           const backTaken = new Set(uNode && uNode.type === 'decision'
             ? uOuts.filter(e => !fwdOuts.includes(e)).map(e => edgePorts[e.id] && edgePorts[e.id].fromPort)
             : []);
-          let topEdgeId = (isMultiOrDecision && upCands.length > 0 && !backTaken.has('top')) ? upCands[0].id : null;
-          let bottomEdgeId = (isMultiOrDecision && downCands.length > 0 && !backTaken.has('bottom')) ? downCands[0].id : null;
-          if (!topEdgeId && upCands.length > 0 && !backTaken.has('top') && Math.abs(rects[upCands[0].to].cx - f.cx) < 30) {
+          let topEdgeId = (!upFork && isMultiOrDecision && upCands.length > 0 && !backTaken.has('top')) ? upCands[0].id : null;
+          let bottomEdgeId = (!downFork && isMultiOrDecision && downCands.length > 0 && !backTaken.has('bottom')) ? downCands[0].id : null;
+          if (!upFork && !topEdgeId && upCands.length > 0 && !backTaken.has('top') && Math.abs(rects[upCands[0].to].cx - f.cx) < 30) {
             topEdgeId = upCands[0].id;
           }
-          if (!bottomEdgeId && downCands.length > 0 && !backTaken.has('bottom') && Math.abs(rects[downCands[0].to].cx - f.cx) < 30) {
+          if (!downFork && !bottomEdgeId && downCands.length > 0 && !backTaken.has('bottom') && Math.abs(rects[downCands[0].to].cx - f.cx) < 30) {
             bottomEdgeId = downCands[0].id;
           }
 
           fwdOuts.forEach(e => {
             const t = rects[e.to];
+            const inFork = (upFork && upCands.includes(e)) || (downFork && downCands.includes(e));
             let fromPort = 'right';
             if (e.id === topEdgeId) {
               fromPort = 'top';
@@ -7485,7 +7494,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
             if ((fromPort === 'top' || fromPort === 'bottom') && Math.abs(t.cx - f.cx) < 30) {
               // Target sits directly above/below: straight vertical line
               toPort = (t.cy < f.cy) ? 'bottom' : 'top';
-            } else if (fromPort === 'right' && toPort === 'left' && Math.abs(t.cy - f.cy) > 30 && t.cx > f.x + f.w + 24) {
+            } else if (!inFork && fromPort === 'right' && toPort === 'left' && Math.abs(t.cy - f.cy) > 30 && t.cx > f.x + f.w + 24) {
               // Side exit into a node in another lane that lies clearly to the right:
               // run along the source row, then enter the target from its bottom/top (one bend instead of two)
               const enterSide = t.cy < f.cy ? 'bottom' : 'top';
@@ -7599,12 +7608,31 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
             const goingDown = group.filter(e => rects[e.to].cy >= rects[e.from].cy).sort((a, b) => rects[b.from].cy - rects[a.from].cy);
             const ordered = [...goingUp, ...goingDown];
 
-            ordered.forEach((e, idx) => {
-              const sx = rects[e.from].x + rects[e.from].w;
-              const ex = rects[e.to].x;
+            // Unlabelled same-source same-direction fork branches share one channel slot so they form a single fork bus
+            const forkCounts = new Map();
+            const forkKeyOf = (e) => `${e.from}\0${rects[e.to].cy < rects[e.from].cy ? 'u' : 'd'}`;
+            ordered.forEach(e => {
+              if (!(e.label || '').trim()) forkCounts.set(forkKeyOf(e), (forkCounts.get(forkKeyOf(e)) || 0) + 1);
+            });
+            const slots = [];
+            const forkSlot = new Map();
+            ordered.forEach(e => {
+              const fk = forkKeyOf(e);
+              if (!(e.label || '').trim() && (forkCounts.get(fk) || 0) >= 2) {
+                if (!forkSlot.has(fk)) { const s = []; forkSlot.set(fk, s); slots.push(s); }
+                forkSlot.get(fk).push(e);
+              } else {
+                slots.push([e]);
+              }
+            });
+
+            slots.forEach((slot, idx) => {
+              const sx = rects[slot[0].from].x + rects[slot[0].from].w;
+              const ex = Math.min(...slot.map(e => rects[e.to].x));
               const gap = ex - sx;
-              const frac = (idx + 1) / (ordered.length + 1);
-              channelXMap[e.id] = sx + Math.max(24, Math.min(gap - 24, gap * frac));
+              const frac = (idx + 1) / (slots.length + 1);
+              const cx = sx + Math.max(24, Math.min(gap - 24, gap * frac));
+              slot.forEach(e => { channelXMap[e.id] = cx; });
             });
           }
         });
@@ -7989,10 +8017,15 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
                   ends.push({ e, a: n - 1, b: n - 2, x: pts[n - 1][0], fixed: n < 3, peer: e.from, far: pts[0][0] });
               });
               ends.sort((p1, p2) => p1.x - p2.x);
+              const clusterGap = role === 'in' ? SPREAD : 10;
+              const hasOutOnSide = role === 'in' && validEdges.some(o => {
+                const op = edgePolylines[o.id];
+                return op && o.from === nid && Math.abs(op[0][1] - edgeY) < 1 && Math.abs(op[0][0] - op[1][0]) < 1;
+              });
               let i = 0;
               while (i < ends.length) {
                 let j = i + 1;
-                while (j < ends.length && ends[j].x - ends[j - 1].x < 10) j++;
+                while (j < ends.length && ends[j].x - ends[j - 1].x < clusterGap) j++;
                 const cluster = ends.slice(i, j);
                 i = j;
                 if (cluster.length < 2 || new Set(cluster.map(c => c.peer)).size < 2) continue;
@@ -8007,9 +8040,19 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
                 if (role === 'in') {
                   // Fan-in: arrows entering one side of one step share a single trunk (and one arrowhead) and
                   // join where their runs meet it, like a merge on a hand-drawn flowchart. Spreading them 24px
-                  // apart drew a doubled line. A straight arrow keeps its line; the others join it.
-                  const jx = fixed.length ? fixed[0].x : base0;
-                  cluster.forEach(c => shiftEnd(c, jx));
+                  // apart drew a doubled line. A straight arrow keeps its line; otherwise centre when the side has no exits.
+                  const lo = r.x + 14, hi = r.x + r.w - 14;
+                  const cands = fixed.length ? [fixed[0].x]
+                    : !hasOutOnSide ? [r.cx, ...cluster.map(c => c.x), base0]
+                    : [...cluster.map(c => c.x), base0];
+                  const canJoinAt = (jx) => jx >= lo && jx <= hi && movable.every(c => {
+                    const pts = edgePolylines[c.e.id];
+                    const ids = [c.e.from, c.e.to];
+                    return segmentClear(jx, pts[c.a][1], jx, pts[c.b][1], ids)
+                      && segmentClear(jx, pts[c.b][1], pts[c.b - 1][0], pts[c.b - 1][1], ids);
+                  });
+                  const jx = cands.find(canJoinAt);
+                  if (jx !== undefined) movable.forEach(c => shiftEnd(c, jx));
                 } else if (fixed.length) {
                   const fx = fixed[0].x;
                   // Each moved end slides toward the side its other end lies on, so it never has to cross
