@@ -222,7 +222,17 @@
       --dim-line: 0.12;
       --dim-filter: grayscale(0.85);
       --dash: 3 5;
-      --ease: 0.15s ease;
+      --ease: 120ms cubic-bezier(0.2, 0, 0, 1);
+      --dur-micro: 100ms;
+      --dur-fast: 140ms;
+      --dur-base: 180ms;
+      --dur-layout: 230ms;
+      --dur-camera: 240ms;
+      --curve-out: cubic-bezier(0.22, 1, 0.36, 1);
+      --curve-in: cubic-bezier(0.4, 0, 1, 1);
+      --curve-inout: cubic-bezier(0.4, 0, 0.2, 1);
+      --curve-spring-settle: linear(0, 0.0734, 0.2223, 0.3833, 0.5286, 0.6489, 0.7435, 0.8153, 0.8686, 0.9074, 0.9352, 0.955, 0.9689, 0.9786, 1);
+      --curve-spring-tactile: linear(0, 0.1021, 0.3124, 0.5352, 0.7235, 0.8616, 0.9511, 1.0018, 1.0252, 1.0315, 1.0288, 1.0223, 1.0152, 1.0092, 1);
       --radius-xs: 3px;
       --radius-sm: 4px;
       --radius-md: 6px;
@@ -589,7 +599,7 @@
        Generic: any [data-dock-pop] wrapper with a .dock-pop-trigger and a .dock-pop holding a .dock-pop-grid.
        The grid takes up to 6 columns (set by shell.js) and wraps into more rows, scrolling if it gets tall. */
     .dock-pop-wrap { position: relative; display: inline-flex; }
-    .dock-pop-caret { display: inline-flex; opacity: 0.6; transition: transform 0.25s ease; }
+    .dock-pop-caret { display: inline-flex; opacity: 0.6; transition: transform var(--dur-base) var(--curve-inout); }
     .dock-pop-wrap.open .dock-pop-caret { transform: rotate(180deg); }
     .dock-pop-wrap.open > .dock-pop-trigger { background: var(--bg-hover); border-color: var(--border-dark); }
     .dock-pop {
@@ -604,20 +614,20 @@
       border-radius: var(--radius-2xl);
       box-shadow: var(--shadow-lg);
       transform-origin: calc(50% - var(--pop-shift)) calc(100% + 14px);
-      transform: translateX(calc(-50% + var(--pop-shift))) translateY(8px) scale(0.3);
+      transform: translateX(calc(-50% + var(--pop-shift))) translateY(8px) scale(0.82);
       opacity: 0;
       visibility: hidden;
       pointer-events: none;
       /* closing: quick shrink back into the trigger */
-      transition: transform 0.16s ease-in, opacity 0.14s ease-in, visibility 0s linear 0.16s;
+      transition: transform 120ms var(--curve-in), opacity 100ms var(--curve-in), visibility 0s linear 120ms;
     }
     .dock-pop-wrap.open .dock-pop {
       transform: translateX(calc(-50% + var(--pop-shift))) translateY(0) scale(1);
       opacity: 1;
       visibility: visible;
       pointer-events: auto;
-      /* opening: springy overshoot, like a bubble being blown up */
-      transition: transform 0.42s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.16s ease-out, visibility 0s;
+      /* opening: crisp tactile spring from the trigger */
+      transition: transform 190ms var(--curve-spring-tactile), opacity 120ms var(--curve-out), visibility 0s;
     }
     /* Tail pointing at the trigger, and an invisible bridge over the gap so the hover is not lost */
     .dock-pop::after {
@@ -686,23 +696,20 @@
       line-height: var(--t-overline-leading);
     }
     .dock-pop-wrap.open .dock-pop-grid > .btn {
-      animation: dock-pop-tile 0.34s cubic-bezier(0.34, 1.56, 0.64, 1) both;
-      animation-delay: calc(60ms + var(--i, 0) * 28ms);
+      animation: dock-pop-tile 150ms var(--curve-out) both;
+      animation-delay: calc(var(--i, 0) * 15ms);
     }
     @keyframes dock-pop-tile {
-      from { opacity: 0; transform: translateY(6px) scale(0.6); }
+      from { opacity: 0; transform: translateY(6px) scale(0.85); }
       to   { opacity: 1; transform: none; }
     }
     /* While a tile is being dragged onto the canvas, get the bubble out of the way */
     body.palette-dragging .dock-pop { opacity: 0; visibility: hidden; pointer-events: none; }
 
-    /* Delete: collapsed to nothing until something is selected, then slides open */
+    /* Delete: hidden until something is selected; shell.js FLIP-slides dock siblings when toggled */
     .toolbar-center .dock-delete {
-      max-width: 120px;
-      overflow: hidden;
       white-space: nowrap;
-      transition: max-width 0.25s ease, padding 0.25s ease, margin 0.25s ease, opacity 0.2s ease,
-                  background-color var(--ease), border-color var(--ease), color var(--ease);
+      transition: background-color var(--ease), border-color var(--ease), color var(--ease);
     }
     /* Red text and icon only; hover adds a light red background and a red border */
     .toolbar-center .dock-delete,
@@ -716,13 +723,7 @@
       border-color: var(--danger);
     }
     .toolbar-center .dock-delete:not(.show) {
-      max-width: 0;
-      padding-left: 0;
-      padding-right: 0;
-      margin-left: -4px;    /* swallow the dock's flex gap */
-      opacity: 0;
-      border-width: 0;
-      pointer-events: none;
+      display: none;
     }
     #zoom-level {
       font-size: var(--text-sm);
@@ -759,6 +760,7 @@
       display: inline-block; max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;   /* "Saved to <long file name>" */
       background: var(--bg-soft);
       color: var(--text-soft);
+      transition: background-color var(--dur-base) var(--curve-inout), color var(--dur-base) var(--curve-inout);
     }
     .badge-status.saved {
       background: var(--status-saved-bg);
@@ -780,7 +782,10 @@
       font-size: var(--text-xs);
       line-height: var(--line-16);
       text-align: center;
+      transition: background-color var(--dur-micro) var(--curve-inout), color var(--dur-micro) var(--curve-inout),
+                  transform var(--dur-micro) var(--curve-spring-tactile);
     }
+    .btn[aria-pressed="true"] .btn-count { transform: scale(1); }
     .btn-count[hidden] { display: none; }
     /* Buttons */
     .btn {
@@ -796,7 +801,9 @@
       color: var(--text-main);
       cursor: pointer;
       touch-action: manipulation;
-      transition: background-color var(--ease), border-color var(--ease), color var(--ease), transform var(--ease);
+      transition: background-color var(--dur-micro) var(--curve-out), border-color var(--dur-micro) var(--curve-out),
+                  color var(--dur-micro) var(--curve-out), opacity var(--dur-micro) var(--curve-out),
+                  transform var(--dur-micro) var(--curve-spring-tactile);
     }
     .btn svg { flex: none; }
     .btn:hover {
@@ -804,7 +811,7 @@
       border-color: var(--border-dark);
     }
     .btn:active {
-      transform: translateY(1px);
+      transform: scale(0.96);
     }
     .btn:disabled,
     .btn:disabled:hover {
@@ -866,7 +873,7 @@
       flex: none;
       border-radius: var(--radius-pill);
       background: var(--border-dark);
-      transition: background-color 0.18s;
+      transition: background-color var(--dur-base) var(--curve-inout);
     }
     .btn-switch .switch-knob {
       position: absolute;
@@ -875,7 +882,7 @@
       border-radius: var(--radius-round);
       background: var(--toggle-knob);   /* white in both themes: reads on the grey (off) and the primary (on) track */
       box-shadow: var(--shadow-knob);
-      transition: transform 0.18s;
+      transition: transform var(--dur-base) var(--curve-spring-tactile);
     }
     .btn-switch[aria-checked="true"] .switch-track { background: var(--primary); }
     .btn-switch[aria-checked="true"] .switch-knob { transform: translateX(12px); }
@@ -888,12 +895,32 @@
       max-width: min(90vw, 420px); padding: 8px 14px; border-radius: var(--radius-lg);
       background: var(--text-main); color: var(--bg-panel);
       font-size: var(--t-control-size); box-shadow: var(--shadow-lg);
+      animation: toast-in 170ms var(--curve-spring-tactile);
+    }
+    @keyframes toast-in {
+      from { transform: translate(-50%, 12px) scale(0.95); clip-path: inset(100% 0 0 0); }
+      to   { transform: translate(-50%, 0) scale(1); clip-path: inset(0 0 0 0); }
     }
     /* A prompt above the dock while a tool waits for a click ("Click a table", "Click a participant"); text only, never takes the pointer */
     .hint {
       position: fixed; left: 50%; bottom: 76px; transform: translateX(-50%); z-index: 150; padding: 6px 12px; border-radius: var(--radius-pill);
       border: 1px solid var(--border-dark); background: var(--bg-panel); color: var(--text-main); font-size: var(--t-control-size); font-weight: var(--t-control-weight);
       box-shadow: var(--shadow-md); max-width: calc(100vw - 32px); text-align: center; pointer-events: none;
+      animation: hint-in 160ms var(--curve-out);
+    }
+    @keyframes hint-in {
+      from { transform: translate(-50%, 10px) scale(0.96); clip-path: inset(100% 0 0 0); }
+      to   { transform: translate(-50%, 0) scale(1); clip-path: inset(0 0 0 0); }
+    }
+    .hint.is-progress { position: fixed; overflow: hidden; }
+    .hint.is-progress::after {
+      content: ''; position: absolute; inset: 0; pointer-events: none;
+      background: linear-gradient(90deg, transparent, var(--primary-wash), transparent);
+      animation: hint-sheen 1200ms var(--curve-inout) infinite;
+    }
+    @keyframes hint-sheen {
+      from { transform: translateX(-100%); }
+      to   { transform: translateX(100%); }
     }
     .hint kbd { font: inherit; font-weight: var(--weight-semibold); }
     /* The prompt of a note tool wears the note's colours */
@@ -913,7 +940,8 @@
     }
     .menu button kbd { float: right; margin-left: 24px; font: inherit; font-size: var(--text-xs); color: var(--text-muted); }
     .menu button[role="menuitemcheckbox"]::after { content: "¹3"; float: right; margin-left: 24px; visibility: hidden; }
-    .menu button[role="menuitemcheckbox"][aria-checked="true"]::after { visibility: visible; }
+    .menu button[role="menuitemcheckbox"][aria-checked="true"]::after { visibility: visible; transform: scale(1); }
+    .menu button[role="menuitemcheckbox"]::after { transition: transform var(--dur-fast) var(--curve-spring-tactile); transform: scale(0.4); }
     .menu button:hover, .menu button:focus-visible { background: var(--bg-hover); outline: none; }
     .menu button[hidden] { display: none; }
     .menu-label {
@@ -954,6 +982,12 @@
     }
     .confirm-field:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
     .confirm-error { color: var(--danger); font-weight: var(--weight-regular); }
+    .confirm-error:not([hidden]) { animation: confirm-err-in var(--dur-fast) var(--curve-out); }
+    @keyframes confirm-err-in {
+      0% { clip-path: inset(0 0 100% 0); transform: translateX(3px); }
+      50% { transform: translateX(-2px); }
+      100% { clip-path: inset(0 0 0 0); transform: none; }
+    }
     .confirm-list { margin: 0 0 12px; padding-left: 18px; max-height: 200px; overflow: auto; color: var(--text-soft); }
     .confirm-list li { margin-bottom: 4px; overflow-wrap: anywhere; }
 
@@ -986,7 +1020,7 @@
       pointer-events: auto;
       cursor: move;
       user-select: none;
-      transition: box-shadow var(--ease), border-color var(--ease);
+      transition: border-color var(--dur-micro) var(--curve-out);
     }
     .note:hover { border-color: color-mix(in srgb, var(--note-accent) 60%, var(--note-border)); border-left-color: var(--note-accent); }
     .note.selected {
@@ -1019,8 +1053,8 @@
       padding: 6px 10px 7px 10px;
     }
     .note-layer .note.show, .note-layer .note.peek { display: block; }
-    .note-layer .note.peek:not(.show) { animation: note-in 0.14s ease-out; box-shadow: var(--shadow-lg); }
-    @keyframes note-in { from { opacity: 0; transform: translateY(3px); } }
+    .note-layer .note.peek:not(.show) { animation: note-in var(--dur-fast) var(--curve-spring-tactile); box-shadow: var(--shadow-lg); }
+    @keyframes note-in { from { transform: scale(0.92); clip-path: inset(0 0 25% 0); } to { transform: none; clip-path: inset(0 0 0 0); } }
     .note-layer.measuring .note { display: block; visibility: hidden; animation: none; }
 
     /* Leader: the dashed line from a card to what it explains; .linking is the one being dragged to a new target */
@@ -1038,8 +1072,8 @@
     body.exporting .note-leader.peek:not(.show) { display: none !important; }
     body.note-linking, body.note-linking * { cursor: crosshair !important; }
     /* The thing the selected note explains, and the thing a dragged note would land on */
-    .note-linked { outline: 1.5px dashed var(--note-accent); outline-offset: 5px; }
-    .note-target { outline: 2px dashed var(--note-accent); outline-offset: 4px; }
+    .note-linked { outline: 1.5px dashed var(--note-accent); outline-offset: 5px; transition: outline-color var(--dur-micro) var(--curve-out), outline-offset var(--dur-micro) var(--curve-out); }
+    .note-target { outline: 2px dashed var(--note-accent); outline-offset: 4px; transition: outline-color var(--dur-micro) var(--curve-out), outline-offset var(--dur-micro) var(--curve-out); }
 
     /* Delete: a small round button on the card's corner, shown on hover or while the note is selected */
     .note-del {
@@ -1075,7 +1109,11 @@
       box-shadow: var(--shadow-chip);
     }
     .note-link:hover { background: var(--note-accent); border-color: var(--note-accent); color: var(--bg-panel); }
-    .note:hover > .note-del, .note.selected > .note-del, .note:hover > .note-link, .note.selected > .note-link { display: inline-flex; }
+    .note:hover > .note-del, .note.selected > .note-del, .note:hover > .note-link, .note.selected > .note-link {
+      display: inline-flex;
+      animation: note-chip-in var(--dur-micro) var(--curve-spring-tactile);
+    }
+    @keyframes note-chip-in { from { transform: scale(0.6); } to { transform: scale(1); } }
 
     /* Badge on an item with a note: a small paper chip on its top-right corner. Hover peeks the note, click edits it.
        The "+" chip in the same place adds a note to the selected item. Both are editing hints, never exported. */
@@ -1170,10 +1208,14 @@
     .swatch-btn {
       display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; padding: 0; box-sizing: border-box;
       border: 1px solid transparent; border-radius: var(--radius-md); background: transparent; cursor: pointer;
+      transition: background-color var(--dur-micro) var(--curve-out), border-color var(--dur-micro) var(--curve-out);
     }
     .swatch-btn:hover { background: var(--bg-hover); }
     .swatch-btn[aria-pressed="true"] { background: var(--primary-wash); border-color: var(--primary-ring); }
-    .swatch-dot { display: block; width: 14px; height: 14px; border-radius: var(--radius-round); background: var(--sw-stripe); border: 1px solid var(--dot-edge); box-sizing: border-box; }
+    .swatch-dot { display: block; width: 14px; height: 14px; border-radius: var(--radius-round); background: var(--sw-stripe); border: 1px solid var(--dot-edge); box-sizing: border-box; transition: transform var(--dur-fast) var(--curve-spring-tactile); }
+    .swatch-btn:hover .swatch-dot { transform: scale(1.15); }
+    .swatch-btn[aria-pressed="true"] .swatch-dot { animation: swatch-pop 160ms var(--curve-spring-tactile); }
+    @keyframes swatch-pop { 0% { transform: scale(0.85); } 60% { transform: scale(1.08); } 100% { transform: scale(1); } }
     .swatch-dot.is-none { background: var(--bg-panel); border: 1.5px dashed var(--border-dark); }
     /* Swatch pill: a name on a swatch's pale fill with the swatch's ink, in a halo of the surface behind it, so a line passing
        behind is cut cleanly around the pill. Used by the flowchart's lane name and the sequence's participant. An element
@@ -1192,7 +1234,7 @@
       line-height: var(--leading-snug);
       white-space: nowrap;
       user-select: none;
-      transition: background var(--ease), color var(--ease), box-shadow var(--ease);
+      transition: background-color var(--dur-base) var(--curve-inout), color var(--dur-base) var(--curve-inout);
       --halo: 0 0 0 5px var(--halo-bg, var(--bg-panel));
       box-shadow: var(--halo);
     }
@@ -1207,7 +1249,7 @@
       stroke-width: 1.25px;   /* thin at rest: hover, selection and the in/out highlights (2px) stand out more */
       stroke-linejoin: round;
       stroke-linecap: round;
-      transition: stroke 0.15s ease, stroke-width 0.15s ease;
+      transition: stroke var(--dur-micro) var(--curve-out), stroke-width var(--dur-micro) var(--curve-out);
     }
     .edge-hit {
       fill: none;
@@ -1226,7 +1268,7 @@
       cursor: pointer;
       z-index: 30;
       box-shadow: var(--shadow-sm);
-      transition: border-color var(--ease), box-shadow var(--ease), color var(--ease), opacity var(--ease);
+      transition: border-color var(--dur-micro) var(--curve-out), color var(--dur-micro) var(--curve-out), opacity var(--dur-micro) var(--curve-out);
     }
     .edge-label.hl-in  { border-color: var(--edge-in);  box-shadow: var(--shadow-glow) var(--edge-in-glow); }
     .edge-label.hl-out { border-color: var(--edge-out); box-shadow: var(--shadow-glow) var(--edge-out-glow); }
@@ -1247,7 +1289,7 @@
       vertical-align: -3px;
     }
     .frame-chev:hover { background: var(--bg-hover); color: var(--text-main); }
-    .frame-chev svg { transition: transform var(--ease); }
+    .frame-chev svg { transition: transform var(--dur-base) var(--curve-inout); }
     .frame-tag.is-collapsed .frame-chev svg { transform: rotate(-90deg); }
     .frame-summary {
       position: absolute; height: 26px; padding: 0 12px; border: 1.5px dashed var(--border-dark); border-radius: var(--radius-pill);
@@ -1267,8 +1309,11 @@
       display: inline-flex; align-items: center; justify-content: center; gap: 4px; height: 26px; min-width: 26px; padding: 0 6px; box-sizing: border-box;
       border: 1px solid transparent; border-radius: var(--radius-md); background: transparent; color: var(--text-soft);
       font: inherit; font-size: var(--t-detail-size); cursor: pointer;
+      transition: background-color var(--dur-micro) var(--curve-out), color var(--dur-micro) var(--curve-out),
+                  border-color var(--dur-micro) var(--curve-out), transform var(--dur-micro) var(--curve-spring-tactile);
     }
     .ab-btn:hover { background: var(--bg-hover); color: var(--text-main); }
+    .ab-btn:active { transform: scale(0.94); }
     .ab-btn[aria-pressed="true"] { background: var(--primary-wash); border-color: var(--primary-ring); color: var(--primary); }
     .ab-btn.is-danger:hover { background: color-mix(in srgb, var(--danger) 10%, var(--bg-panel)); color: var(--danger); }
     .ab-btn svg { display: block; }
@@ -1281,7 +1326,7 @@
     .color-key { display: flex; width: max-content; gap: 4px 18px; white-space: nowrap; font-size: var(--t-detail-size); color: var(--text-soft); user-select: none; }
     .color-key-item { display: inline-flex; align-items: center; gap: 6px; }
     .color-key-dot { width: 12px; height: 12px; border-radius: var(--radius-xs); background: var(--sw-stripe); border: 1px solid var(--dot-edge-soft); box-sizing: border-box; }
-    .color-key-label { outline: none; min-width: 12px; cursor: text; }
+    .color-key-label { outline: none; min-width: 12px; cursor: text; transition: background-color var(--dur-micro) var(--curve-out), outline-color var(--dur-micro) var(--curve-out); }
     .color-key-label.is-empty::before { content: attr(data-hint); font-style: italic; color: var(--text-muted); }
     .color-key-label.is-editing { background: var(--bg-panel); outline: 1.5px solid var(--primary-ring); border-radius: var(--radius-xs); }
     .color-key-label.is-selected { outline: 1.5px solid var(--primary-ring); border-radius: var(--radius-xs); }
@@ -1305,9 +1350,8 @@
     #search-input:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
     #search-count { min-width: 64px; font-size: var(--t-control-size); color: var(--text-soft); text-align: center; white-space: nowrap; }
     #btn-search[hidden] { display: none; }
-    .search-dim { opacity: var(--dim); filter: var(--dim-filter); }
+    .search-dim { opacity: var(--dim); filter: var(--dim-filter); transition: opacity var(--dur-micro) var(--curve-inout), filter var(--dur-micro) var(--curve-inout); }
     .search-current { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
-    .search-glide #stage { transition: transform var(--ease); }
     @media (max-width: 720px) { #search-bar { left: 12px; right: 12px; } #search-input { flex: 1 1 auto; min-width: 0; width: auto; } }
 
 
@@ -1388,6 +1432,7 @@
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+      transition: border-color var(--dur-micro) var(--curve-out), background-color var(--dur-micro) var(--curve-out);
     }
     h1#chart-title:focus, h1#chart-title:hover {
       border-color: var(--border-dark);
@@ -1536,6 +1581,30 @@
         scroll-behavior: auto !important;
       }
     }
+    body.capture *, body.capture *::before, body.capture *::after,
+    body.exporting *, body.exporting *::before, body.exporting *::after,
+    html[data-noanim] *, html[data-noanim] *::before, html[data-noanim] *::after {
+      transition-duration: 0.01ms !important;
+      animation-duration: 0.01ms !important;
+    }
+    /* Inert ghost layer for non-blocking exit/morph clones (stripped of test-queried classes, skipped in exports) */
+    #motion-ghost-layer {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 2200;
+      overflow: hidden;
+    }
+    ::view-transition-old(root),
+    ::view-transition-new(root) {
+      animation: none;
+      mix-blend-mode: normal;
+    }
+    ::view-transition-new(root) { z-index: 1; }
+    body.theme-animating, body.theme-animating * {
+      transition: background-color 160ms var(--curve-inout), border-color 160ms var(--curve-inout),
+                  color 160ms var(--curve-inout), fill 160ms var(--curve-inout), stroke 160ms var(--curve-inout) !important;
+    }
     /* ER diagram. Colours, fonts and the swatch roles (--sw-*) are tokens; buttons, notes, edge labels, confirm bubbles and
        the rest of the shared parts are in assets/components/. Only what is specific to tables and relationships is here. */
 
@@ -1556,9 +1625,10 @@
     body.capture #erd-canvas { margin: 0; }
 
     /* --- Relationship lines --- */
+    .erd-rel { transition: opacity var(--dur-micro) var(--curve-inout); }
     .erd-rel .edge-line {
       pointer-events: none;
-      transition: stroke 0.15s ease, stroke-width 0.15s ease, opacity 0.15s ease;
+      transition: stroke var(--dur-micro) var(--curve-inout), stroke-width var(--dur-micro) var(--curve-inout), opacity var(--dur-micro) var(--curve-inout);
       marker-start: var(--mk-s);
       marker-end: var(--mk-e);
     }
@@ -1607,7 +1677,7 @@
       pointer-events: auto;
       cursor: pointer;
       box-shadow: var(--shadow-sm);
-      transition: box-shadow 0.15s, opacity 0.15s;
+      transition: opacity var(--dur-micro) var(--curve-inout), background-color var(--dur-base) var(--curve-inout);
     }
     /* A coloured table: the whole card takes a light wash of its colour, the header the full pill colour */
     .erd-entity.swatch-scope:not(.erd-card-table) { background: color-mix(in srgb, var(--sw-pill-bg) 35%, var(--node-bg)); }
@@ -1619,7 +1689,6 @@
       border-radius: var(--radius-lg);
       box-shadow: inset 0 0 0 var(--ring-thin) var(--ring);
       pointer-events: none;
-      transition: box-shadow 0.15s;
     }
     .erd-entity:hover { --ring: var(--node-accent); box-shadow: var(--shadow-md); }
     /* The neighbourhood of the hovered or selected table: related tables get a ring in the primary colour */
@@ -1640,6 +1709,7 @@
       background: var(--sw-pill-bg, var(--bg-soft));
       color: var(--sw-pill-ink, var(--text-main));
       border-bottom: 1px solid color-mix(in srgb, var(--sw-stripe, var(--border-dark)) 45%, var(--border-color));
+      transition: background-color var(--dur-base) var(--curve-inout), color var(--dur-base) var(--curve-inout), border-color var(--dur-base) var(--curve-inout);
     }
     .erd-entity.is-flat .erd-head { border-radius: var(--radius-lg); border-bottom: none; }
     .erd-name {
@@ -1667,7 +1737,7 @@
       cursor: pointer;
     }
     .erd-chevron:hover { opacity: 1; background: color-mix(in srgb, currentColor 14%, transparent); }
-    .erd-chevron svg { display: block; transition: transform var(--ease); }
+    .erd-chevron svg { display: block; transition: transform var(--dur-base) var(--curve-inout); }
     .erd-entity.is-collapsed .erd-chevron svg { transform: rotate(-90deg); }
 
     .erd-row {
@@ -1677,7 +1747,7 @@
       height: 26px;
       padding: 0 12px 0 12px;
       white-space: nowrap;
-      transition: background-color 0.12s;
+      transition: background-color var(--dur-micro) var(--curve-inout), color var(--dur-fast) var(--curve-inout);
     }
     .erd-row + .erd-row { border-top: 1px solid color-mix(in srgb, var(--border-color) 55%, transparent); }
     .erd-glyph {
@@ -1767,9 +1837,15 @@
       z-index: 4;
       touch-action: none;
       padding: 0;
+      transition: background-color var(--dur-micro) var(--curve-out), transform var(--dur-micro) var(--curve-spring-tactile);
     }
     .erd-port:hover { background: var(--primary); }
-    .erd-row:hover > .erd-port, .erd-head:hover > .erd-port, body.erd-armed .erd-port { display: block; }
+    .erd-row:hover > .erd-port, .erd-head:hover > .erd-port, body.erd-armed .erd-port {
+      display: block;
+      animation: erd-port-in var(--dur-micro) var(--curve-spring-tactile);
+    }
+    body.erd-armed .erd-port { transform: scale(1.15); }
+    @keyframes erd-port-in { from { transform: scale(0.55); } to { transform: none; } }
     body.erd-dragging .erd-port { display: none; }
     /* Several tables selected: no ports, a drag moves them all */
     .erd-multi .erd-port { display: none !important; }
@@ -1785,14 +1861,18 @@
     .erd-entity.erd-target { --ring: var(--primary); }
     #erd-rubber { stroke: var(--primary); stroke-width: 2; stroke-dasharray: 6 4; display: none; fill: none; pointer-events: none; }
     .erd-row.selected { background: color-mix(in srgb, var(--primary) 13%, transparent); box-shadow: inset 0 0 0 var(--ring-thin) var(--primary); }
-    .erd-row.is-dragging, .erd-entity.is-dragging { opacity: 0.8; z-index: 50; box-shadow: var(--shadow-lg); background: var(--node-bg); }
-    .erd-drop-line { position: absolute; display: none; height: 4px; background: var(--primary); border-radius: var(--radius-xs); z-index: 60; pointer-events: none; }
+    .erd-row.is-dragging, .erd-entity.is-dragging { opacity: 0.85; z-index: 50; box-shadow: var(--shadow-lg); background: var(--node-bg); }
+    .erd-entity.is-dragging { transform: scale(1.015); }
+    .erd-drop-line { position: absolute; display: none; height: 4px; background: var(--primary); border-radius: var(--radius-xs); z-index: 60; pointer-events: none; transform-origin: left center; animation: erd-drop-in 90ms var(--curve-out); }
     .erd-guide { position: absolute; display: none; pointer-events: none; z-index: 55; }
-    .erd-guide-v { top: 0; bottom: 0; width: 0; border-left: 1.5px dashed var(--guide); }
-    .erd-guide-h { left: 0; right: 0; height: 0; border-top: 1.5px dashed var(--guide); }
+    .erd-guide-v { top: 0; bottom: 0; width: 0; border-left: 1.5px dashed var(--guide); transform-origin: top center; animation: erd-guide-v-in 90ms var(--curve-out); }
+    .erd-guide-h { left: 0; right: 0; height: 0; border-top: 1.5px dashed var(--guide); transform-origin: left center; animation: erd-guide-h-in 90ms var(--curve-out); }
+    @keyframes erd-drop-in { from { transform: scaleX(0); } to { transform: none; } }
+    @keyframes erd-guide-v-in { from { transform: scaleY(0); } to { transform: none; } }
+    @keyframes erd-guide-h-in { from { transform: scaleX(0); } to { transform: none; } }
 
     /* The table dragged out of the dock */
-    .erd-entity.erd-ghost { position: fixed; z-index: 1000; pointer-events: none; transform-origin: 0 0; opacity: 0.95; box-shadow: var(--shadow-xl); }
+    .erd-entity.erd-ghost { position: fixed; z-index: 1000; pointer-events: none; transform-origin: 0 0; opacity: 0.95; box-shadow: var(--shadow-xl); transition: opacity var(--dur-micro) var(--curve-out); }
     .erd-entity.erd-ghost.off-target { opacity: 0.5; }
     body.palette-dragging, body.palette-dragging * { cursor: grabbing !important; user-select: none; }
 
@@ -1820,7 +1900,7 @@
       gap: 2px;
       padding: 3px;
       z-index: 53;
-      transform: translate(-50%, -100%);
+      translate: -50% -100%;
       background: var(--bg-panel);
       border: 1px solid var(--border-dark);
       border-radius: var(--radius-lg);
@@ -1830,8 +1910,8 @@
       cursor: default;
       -webkit-user-select: none; user-select: none;
     }
-    .erd-actionbar.is-below { transform: translate(-50%, 0); }
-    .erd-actionbar.is-left { transform: none; }
+    .erd-actionbar.is-below { translate: -50% 0; }
+    .erd-actionbar.is-left { translate: none; }
     .erd-actionbar.is-wrap { flex-wrap: wrap; justify-content: center; max-width: 292px; row-gap: 2px; }
     .erd-actionbar.is-wide { max-width: none; }
     .erd-ab-break { flex-basis: 100%; height: 0; }
@@ -2088,8 +2168,8 @@
       <li><b>Colour</b> swatches in a table's action bar : Tint the table (all selected tables at once) with one of the eight colours; <b>none</b> clears it. Give each domain (billing, accounts...) its own colour: related tables then read as a group without a box around them. Naming a colour is optional: a tinted table's bar has <b>Name colour</b>, which adds that colour to a legend above the tables (double-click an entry, or select it and press <kbd>Enter</kbd>, to rename it; clear the text to remove it). Without names there is no legend</li>
       <li><kbd>Drag</kbd> a table : Move it anywhere (dashed guides snap it to another table's centre); only its lines re-route, nothing else moves. Tables it would overlap are pushed aside</li>
       <li><b>Zoomed out</b> : Below 50% zoom the diagram becomes an overview: tables show only their names, lines keep a fixed thickness, labels keep a readable size (hover a table to see its related tables' joining columns). Zoom in past 60% for the full tables; double-click a table in the overview to zoom to it</li>
-      <li><b>Note</b> (dock), <kbd>N</kbd> or the <b>+</b> chip on a hovered table : Add a callout note to a table (or click/drag <b>Note</b> onto a table header). <kbd>Enter</kbd> breaks a line; <kbd>Ctrl</kbd> + <kbd>Enter</kbd>, <kbd>Esc</kbd> or a click away finishes; an empty note is dropped. A table with a note has a badge: hover it to peek, click it to edit. On a column, <kbd>N</kbd>, its action bar's note button or clicking/dragging <b>Note</b> onto a row adds an inline note directly next to the column name (double-click to edit, clear it to remove)</li>
-      <li><kbd>Drag</kbd> a note's card : Pin it where you drop it. Drag its link handle onto another table (or <kbd>Shift</kbd> + <kbd>Click</kbd> a table while the note is selected) to link it, and onto a linked table to unlink it</li>
+      <li><b>Note</b> (dock), <kbd>N</kbd> or the <b>+</b> chip on a hovered table : Add a callout note to a table (or click/drag <b>Note</b> onto a table header). With nothing selected, <kbd>N</kbd> or a click on <b>Note</b> adds a free note at the centre of the view, and dropping <b>Note</b> on empty canvas makes one there. <kbd>Enter</kbd> breaks a line; <kbd>Ctrl</kbd> + <kbd>Enter</kbd>, <kbd>Esc</kbd> or a click away finishes; an empty note is dropped. A table with a note has a badge: hover it to peek, click it to edit. On a column, <kbd>N</kbd>, its action bar's note button or clicking/dragging <b>Note</b> onto a row adds an inline note directly next to the column name (double-click to edit, clear it to remove)</li>
+      <li><kbd>Drag</kbd> a note's card : Pin it where you drop it. Drag its link handle onto another table (or <kbd>Shift</kbd> + <kbd>Click</kbd> a table while the note is selected) to link it, and onto a linked table to unlink it. A free note (linked to no table) stays where it is, always on show, with no leader or badge, and Tidy never moves it; dragging its link handle onto a table links it. Unlinking never makes a note free</li>
       <li><kbd>Select Several Tables</kbd> : <kbd>Ctrl</kbd>/<kbd>Cmd</kbd>+click adds a table to the selection or takes it out; <kbd>Shift</kbd>+drag on blank canvas draws a box (with <kbd>Ctrl</kbd>/<kbd>Cmd</kbd> too, each table it touches is added or taken out); <kbd>Ctrl</kbd>/<kbd>Cmd</kbd>+<kbd>A</kbd> selects every table; <kbd>Esc</kbd> or a click on blank canvas clears it. Drag any of them to move them all; <kbd>Delete</kbd> removes them all with their relationships (one <kbd>Ctrl+Z</kbd> brings them back)</li>
       <li><kbd>&uarr;</kbd> <kbd>&darr;</kbd> / <kbd>&larr;</kbd> <kbd>&rarr;</kbd> : Walk the columns of a table / the tables</li>
       <li><kbd>Delete</kbd> : Delete the selection: a table (it asks first when it has relationships, and removes them), a column, a line or a note</li>
@@ -2119,7 +2199,7 @@
     (function () {
       'use strict';
 
-const TOKENS = {"palette":[{"slot":"1","name":"sky","hex":"#e0f2fe","light":{"soft":"#b9e5ff","strong":"#2f7da8","ink":"#00436a","solid":"#005c8b","on-solid":"#ffffff"},"dark":{"soft":"#194259","strong":"#69b4e2","ink":"#c6eaff","solid":"#93d4fd","on-solid":"#0f172a"}},{"slot":"2","name":"amber","hex":"#fef3c7","light":{"soft":"#ecdeaa","strong":"#907100","ink":"#513a00","solid":"#6f5100","on-solid":"#ffffff"},"dark":{"soft":"#483c06","strong":"#c6a92a","ink":"#f0e5b8","solid":"#e2ca6a","on-solid":"#0f172a"}},{"slot":"3","name":"emerald","hex":"#dcfce7","light":{"soft":"#b9edcb","strong":"#008d4e","ink":"#004e20","solid":"#006c2f","on-solid":"#ffffff"},"dark":{"soft":"#17482e","strong":"#50c586","ink":"#c5f1d5","solid":"#84e2ab","on-solid":"#0f172a"}},{"slot":"4","name":"rose","hex":"#fee2e2","light":{"soft":"#ffcccd","strong":"#b15259","ink":"#6e1724","solid":"#932a37","on-solid":"#ffffff"},"dark":{"soft":"#5c2d2f","strong":"#ee898e","ink":"#ffd5d6","solid":"#ffaeb0","on-solid":"#0f172a"}},{"slot":"5","name":"purple","hex":"#f3e8ff","light":{"soft":"#ead2ff","strong":"#895db0","ink":"#4e276d","solid":"#6b3893","on-solid":"#ffffff"},"dark":{"soft":"#47325a","strong":"#c194eb","ink":"#efdbff","solid":"#deb7ff","on-solid":"#0f172a"}},{"slot":"6","name":"orange","hex":"#ffedd5","light":{"soft":"#fad8ab","strong":"#a66400","ink":"#602f00","solid":"#834300","on-solid":"#ffffff"},"dark":{"soft":"#523709","strong":"#de9c31","ink":"#fde0b9","solid":"#f8bf6c","on-solid":"#0f172a"}},{"slot":"7","name":"teal","hex":"#ccfbf1","light":{"soft":"#aaeee0","strong":"#008f79","ink":"#004f40","solid":"#006d5a","on-solid":"#ffffff"},"dark":{"soft":"#00493f","strong":"#00c7af","ink":"#b9f2e7","solid":"#60e4cf","on-solid":"#0f172a"}},{"slot":"8","name":"indigo","hex":"#e0e7ff","light":{"soft":"#cedcff","strong":"#5b6cc2","ink":"#2a347b","solid":"#3c49a7","on-solid":"#ffffff"},"dark":{"soft":"#313a62","strong":"#8fa4ff","ink":"#d7e3ff","solid":"#b1c5ff","on-solid":"#0f172a"}},{"slot":"9","name":"neutral","light":{"soft":"#e2e8f0","strong":"#64748b","ink":"#334155","solid":"#475569","on-solid":"#ffffff"},"dark":{"soft":"#243049","strong":"#94a3b8","ink":"#e2e8f0","solid":"#cbd5e1","on-solid":"#0f172a"}}],"font":{"metrics":{"label":7.4,"title":7.4,"detail":6.4,"note":6.2,"type":6.6,"edgeLabel":7,"edgeWrap":6.6}},"motion":{"ease":"0.15s ease"},"type":{"fitMin":"11px","fitMinOverview":"9px"},"icon":{"set":"default","size":{"xs":10,"sm":12,"md":14,"lg":18,"xl":22,"tile":32},"stroke":2,"strokeFine":1.75,"strokeBold":2.5,"cap":"round","join":"round"}};
+const TOKENS = {"palette":[{"slot":"1","name":"sky","hex":"#e0f2fe","light":{"soft":"#b9e5ff","strong":"#2f7da8","ink":"#00436a","solid":"#005c8b","on-solid":"#ffffff"},"dark":{"soft":"#194259","strong":"#69b4e2","ink":"#c6eaff","solid":"#93d4fd","on-solid":"#0f172a"}},{"slot":"2","name":"amber","hex":"#fef3c7","light":{"soft":"#ecdeaa","strong":"#907100","ink":"#513a00","solid":"#6f5100","on-solid":"#ffffff"},"dark":{"soft":"#483c06","strong":"#c6a92a","ink":"#f0e5b8","solid":"#e2ca6a","on-solid":"#0f172a"}},{"slot":"3","name":"emerald","hex":"#dcfce7","light":{"soft":"#b9edcb","strong":"#008d4e","ink":"#004e20","solid":"#006c2f","on-solid":"#ffffff"},"dark":{"soft":"#17482e","strong":"#50c586","ink":"#c5f1d5","solid":"#84e2ab","on-solid":"#0f172a"}},{"slot":"4","name":"rose","hex":"#fee2e2","light":{"soft":"#ffcccd","strong":"#b15259","ink":"#6e1724","solid":"#932a37","on-solid":"#ffffff"},"dark":{"soft":"#5c2d2f","strong":"#ee898e","ink":"#ffd5d6","solid":"#ffaeb0","on-solid":"#0f172a"}},{"slot":"5","name":"purple","hex":"#f3e8ff","light":{"soft":"#ead2ff","strong":"#895db0","ink":"#4e276d","solid":"#6b3893","on-solid":"#ffffff"},"dark":{"soft":"#47325a","strong":"#c194eb","ink":"#efdbff","solid":"#deb7ff","on-solid":"#0f172a"}},{"slot":"6","name":"orange","hex":"#ffedd5","light":{"soft":"#fad8ab","strong":"#a66400","ink":"#602f00","solid":"#834300","on-solid":"#ffffff"},"dark":{"soft":"#523709","strong":"#de9c31","ink":"#fde0b9","solid":"#f8bf6c","on-solid":"#0f172a"}},{"slot":"7","name":"teal","hex":"#ccfbf1","light":{"soft":"#aaeee0","strong":"#008f79","ink":"#004f40","solid":"#006d5a","on-solid":"#ffffff"},"dark":{"soft":"#00493f","strong":"#00c7af","ink":"#b9f2e7","solid":"#60e4cf","on-solid":"#0f172a"}},{"slot":"8","name":"indigo","hex":"#e0e7ff","light":{"soft":"#cedcff","strong":"#5b6cc2","ink":"#2a347b","solid":"#3c49a7","on-solid":"#ffffff"},"dark":{"soft":"#313a62","strong":"#8fa4ff","ink":"#d7e3ff","solid":"#b1c5ff","on-solid":"#0f172a"}},{"slot":"9","name":"neutral","light":{"soft":"#e2e8f0","strong":"#64748b","ink":"#334155","solid":"#475569","on-solid":"#ffffff"},"dark":{"soft":"#243049","strong":"#94a3b8","ink":"#e2e8f0","solid":"#cbd5e1","on-solid":"#0f172a"}}],"font":{"metrics":{"label":7.4,"title":7.4,"detail":6.4,"note":6.2,"type":6.6,"edgeLabel":7,"edgeWrap":6.6}},"motion":{"ease":"120ms cubic-bezier(0.2, 0, 0, 1)","dur-micro":"100ms","dur-fast":"140ms","dur-base":"180ms","dur-layout":"230ms","dur-camera":"240ms","curve-out":"cubic-bezier(0.22, 1, 0.36, 1)","curve-in":"cubic-bezier(0.4, 0, 1, 1)","curve-inout":"cubic-bezier(0.4, 0, 0.2, 1)","curve-spring-settle":"linear(0, 0.0734, 0.2223, 0.3833, 0.5286, 0.6489, 0.7435, 0.8153, 0.8686, 0.9074, 0.9352, 0.955, 0.9689, 0.9786, 1)","curve-spring-tactile":"linear(0, 0.1021, 0.3124, 0.5352, 0.7235, 0.8616, 0.9511, 1.0018, 1.0252, 1.0315, 1.0288, 1.0223, 1.0152, 1.0092, 1)"},"type":{"fitMin":"11px","fitMinOverview":"9px"},"icon":{"set":"default","size":{"xs":10,"sm":12,"md":14,"lg":18,"xl":22,"tile":32},"stroke":2,"strokeFine":1.75,"strokeBold":2.5,"cap":"round","join":"round"}};
 const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><circle cx=\"12\" cy=\"7\" r=\"4\"/>","users":"<path d=\"M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2\"/><circle cx=\"9\" cy=\"7\" r=\"4\"/><path d=\"M22 21v-2a4 4 0 0 0-3-3.87\"/><path d=\"M16 3.13a4 4 0 0 1 0 7.75\"/>","briefcase":"<rect width=\"20\" height=\"14\" x=\"2\" y=\"7\" rx=\"2\"/><path d=\"M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16\"/>","building":"<rect width=\"16\" height=\"20\" x=\"4\" y=\"2\" rx=\"2\"/><path d=\"M9 22v-4h6v4\"/><path d=\"M8 6h.01M12 6h.01M16 6h.01M8 10h.01M12 10h.01M16 10h.01M8 14h.01M12 14h.01M16 14h.01\"/>","headset":"<path d=\"M3 14v-2a9 9 0 0 1 18 0v2\"/><path d=\"M21 16a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 16a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z\"/><path d=\"M21 17v1a4 4 0 0 1-4 4h-4\"/>","monitor":"<rect width=\"20\" height=\"14\" x=\"2\" y=\"3\" rx=\"2\"/><path d=\"M8 21h8M12 17v4\"/>","code":"<polyline points=\"16 18 22 12 16 6\"/><polyline points=\"8 6 2 12 8 18\"/>","server":"<rect width=\"20\" height=\"8\" x=\"2\" y=\"2\" rx=\"2\"/><rect width=\"20\" height=\"8\" x=\"2\" y=\"14\" rx=\"2\"/><path d=\"M6 6h.01M6 18h.01\"/>","database":"<ellipse cx=\"12\" cy=\"5\" rx=\"9\" ry=\"3\"/><path d=\"M3 5v14a9 3 0 0 0 18 0V5\"/><path d=\"M3 12a9 3 0 0 0 18 0\"/>","cloud":"<path d=\"M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z\"/>","cpu":"<rect width=\"16\" height=\"16\" x=\"4\" y=\"4\" rx=\"2\"/><rect width=\"6\" height=\"6\" x=\"9\" y=\"9\" rx=\"1\"/><path d=\"M15 2v2M15 20v2M9 2v2M9 20v2M2 15h2M2 9h2M20 15h2M20 9h2\"/>","cog":"<circle cx=\"12\" cy=\"12\" r=\"3\"/><path d=\"M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12\"/>","shield":"<path d=\"M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z\"/>","scale":"<path d=\"m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z\"/><path d=\"m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z\"/><path d=\"M7 21h10M12 3v18M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2\"/>","banknote":"<rect width=\"20\" height=\"12\" x=\"2\" y=\"6\" rx=\"2\"/><circle cx=\"12\" cy=\"12\" r=\"2\"/><path d=\"M6 12h.01M18 12h.01\"/>","credit-card":"<rect width=\"20\" height=\"14\" x=\"2\" y=\"5\" rx=\"2\"/><path d=\"M2 10h20\"/>","mail":"<rect width=\"20\" height=\"16\" x=\"2\" y=\"4\" rx=\"2\"/><path d=\"m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7\"/>","package":"<path d=\"m7.5 4.27 9 5.15\"/><path d=\"M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z\"/><path d=\"m3.3 7 8.7 5 8.7-5M12 22V12\"/>","truck":"<path d=\"M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2\"/><path d=\"M15 18H9\"/><path d=\"M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14\"/><circle cx=\"17\" cy=\"18\" r=\"2\"/><circle cx=\"7\" cy=\"18\" r=\"2\"/>","cart":"<circle cx=\"8\" cy=\"21\" r=\"1\"/><circle cx=\"19\" cy=\"21\" r=\"1\"/><path d=\"M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12\"/>","clipboard":"<rect width=\"8\" height=\"4\" x=\"8\" y=\"2\" rx=\"1\"/><path d=\"M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2\"/><path d=\"M9 12h6M9 16h4\"/>","check":"<path d=\"M22 11.08V12a10 10 0 1 1-5.93-9.14\"/><path d=\"m9 11 3 3L22 4\"/>","layers":"<path d=\"m12 2 10 5-10 5L2 7z\"/><path d=\"m2 17 10 5 10-5\"/><path d=\"m2 12 10 5 10-5\"/>","globe":"<circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"M2 12h20\"/><path d=\"M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z\"/>","flag":"<path d=\"M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z\"/><path d=\"M4 22v-7\"/>","undo":"<path d=\"M9 14 4 9l5-5\"/><path d=\"M4 9h10.5a5.5 5.5 0 0 1 0 11H11\"/>","redo":"<path d=\"m15 14 5-5-5-5\"/><path d=\"M20 9H9.5a5.5 5.5 0 0 0 0 11H13\"/>","export":"<path d=\"M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4\"/><polyline points=\"7 10 12 15 17 10\"/><line x1=\"12\" y1=\"15\" x2=\"12\" y2=\"3\"/>","save":"<path d=\"M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z\"/><polyline points=\"17 21 17 13 7 13 7 21\"/><polyline points=\"7 3 7 8 15 8\"/>","trash":"<path d=\"M3 6h18\"/><path d=\"M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2\"/><path d=\"M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6\"/><path d=\"M10 11v6\"/><path d=\"M14 11v6\"/>","tidy":"<path d=\"m21.64 3.64-1.28-1.28a1.21 1.21 0 0 0-1.72 0L2.36 18.64a1.21 1.21 0 0 0 0 1.72l1.28 1.28a1.2 1.2 0 0 0 1.72 0L21.64 5.36a1.2 1.2 0 0 0 0-1.72\"/><path d=\"m14 7 3 3\"/><path d=\"M5 6v4\"/><path d=\"M19 14v4\"/><path d=\"M10 2v2\"/><path d=\"M7 8H3\"/><path d=\"M21 16h-4\"/><path d=\"M11 3H9\"/>","minus":"<path d=\"M5 12h14\"/>","plus":"<path d=\"M5 12h14\"/><path d=\"M12 5v14\"/>","close":"<path d=\"M18 6 6 18\"/><path d=\"m6 6 12 12\"/>","more":"<circle cx=\"12\" cy=\"12\" r=\"1\"/><circle cx=\"19\" cy=\"12\" r=\"1\"/><circle cx=\"5\" cy=\"12\" r=\"1\"/>","fit":"<path d=\"M3 7V5a2 2 0 0 1 2-2h2\"/><path d=\"M17 3h2a2 2 0 0 1 2 2v2\"/><path d=\"M21 17v2a2 2 0 0 1-2 2h-2\"/><path d=\"M7 21H5a2 2 0 0 1-2-2v-2\"/>","sun":"<circle cx=\"12\" cy=\"12\" r=\"4\"/><path d=\"M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41\"/>","moon":"<path d=\"M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z\"/>","key":"<circle cx=\"7.5\" cy=\"15.5\" r=\"5\"/><path d=\"m21 2-9.6 9.6\"/><path d=\"m15.5 7.5 3 3L22 7l-3-3\"/>","link":"<path d=\"M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71\"/><path d=\"M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71\"/>","chevron-down":"<path d=\"m6 9 6 6 6-6\"/>","note-lines":"<path d=\"M5 7h14\"/><path d=\"M5 12h14\"/><path d=\"M5 17h9\"/>","type-erd":"<rect x=\"2.5\" y=\"3\" width=\"10\" height=\"8\" rx=\"1.5\"/><path d=\"M2.5 6.5h10\"/><rect x=\"11.5\" y=\"13\" width=\"10\" height=\"8\" rx=\"1.5\"/><path d=\"M11.5 16.5h10\"/><path d=\"M7.5 11v4.5h4\"/>","table-add":"<rect x=\"3\" y=\"4\" width=\"18\" height=\"16\" rx=\"2\"/><path d=\"M3 10h18\"/><path d=\"M8 15h8\"/>","relationship":"<path d=\"M3 12h9\"/><path d=\"m12 12 8-5\"/><path d=\"M12 12h8\"/><path d=\"m12 12 8 5\"/><path d=\"M6.5 8v8\"/>","note":"<path d=\"M4 4h16v11l-5 5H4z\"/><path d=\"M20 15h-5v5\"/><path d=\"M8 9h8M8 13h5\"/>","columns":"<rect x=\"3\" y=\"3\" width=\"18\" height=\"18\" rx=\"2\"/><path d=\"M3 9h18\"/><path d=\"M3 15h18\"/>","types":"<path d=\"M4 7V5h16v2\"/><path d=\"M12 5v14\"/><path d=\"M9 19h6\"/>","notes":"<path d=\"M15.5 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8.5z\"/><path d=\"M15 3v5a1 1 0 0 0 1 1h5\"/><path d=\"M7 13h7\"/><path d=\"M7 17h4\"/>","grip":"<circle cx=\"9\" cy=\"6\" r=\"1.6\" fill=\"currentColor\" stroke=\"none\"/><circle cx=\"15\" cy=\"6\" r=\"1.6\" fill=\"currentColor\" stroke=\"none\"/><circle cx=\"9\" cy=\"12\" r=\"1.6\" fill=\"currentColor\" stroke=\"none\"/><circle cx=\"15\" cy=\"12\" r=\"1.6\" fill=\"currentColor\" stroke=\"none\"/><circle cx=\"9\" cy=\"18\" r=\"1.6\" fill=\"currentColor\" stroke=\"none\"/><circle cx=\"15\" cy=\"18\" r=\"1.6\" fill=\"currentColor\" stroke=\"none\"/>","split":"<path d=\"M2 12h4\"/><circle cx=\"9\" cy=\"12\" r=\"3\"/><circle cx=\"15\" cy=\"12\" r=\"3\"/><path d=\"M18 12h4\"/>","type-flowchart":"<rect width=\"18\" height=\"18\" x=\"3\" y=\"3\" rx=\"2\"/><path d=\"M3 9h18\"/><path d=\"M3 15h18\"/><path d=\"M9 3v18\"/>","shapes":"<rect x=\"3\" y=\"13\" width=\"8\" height=\"8\" rx=\"1.5\"/><circle cx=\"17\" cy=\"17\" r=\"4\"/><path d=\"M12 3 7.5 10h9z\"/>","chevron-up":"<path d=\"m6 15 6-6 6 6\"/>","shape-terminator":"<rect x=\"2\" y=\"7\" width=\"20\" height=\"10\" rx=\"5\"/>","shape-process":"<rect x=\"3\" y=\"6\" width=\"18\" height=\"12\" rx=\"2.5\"/>","shape-decision":"<path d=\"M12 3 2 12l10 9 10-9z\"/>","shape-connector":"<path class=\"tile-line\" d=\"M0.5 12H2M22 12h1.5\"/><path class=\"tile-line tile-gap\" d=\"M10.5 12h3\" stroke-dasharray=\"1 2\"/><circle cx=\"6\" cy=\"12\" r=\"4\"/><circle cx=\"18\" cy=\"12\" r=\"4\"/>","shape-subprocess":"<rect x=\"2\" y=\"6\" width=\"20\" height=\"12\" rx=\"2.5\"/><path class=\"tile-line\" d=\"M6 8.5h1a1.5 1.5 0 0 1 1.5 1.5v1a1.5 1.5 0 0 1-1.5 1.5h-1a1.5 1.5 0 0 1-1.5-1.5v-1a1.5 1.5 0 0 1 1.5-1.5zM6.5 9.5v2M5.5 10.5h2\"/>","shape-data":"<path d=\"M6 6h16l-4 12H2z\"/>","shape-document":"<path d=\"M3 5h18v11c-3-1.6-6-1.6-9 0s-6 1.6-9 0z\"/>","shape-database":"<path d=\"M4 6.5a8 2.5 0 0 1 16 0v11a8 2.5 0 0 1-16 0z\"/><path class=\"tile-line\" d=\"M4 6.5a8 2.5 0 0 0 16 0\"/>","shape-delay":"<path d=\"M3 6h11a6 6 0 0 1 0 12H3z\"/>","shape-note":"<path class=\"note-paper\" d=\"M4 5h16v10l-5 5H4z\"/><path class=\"note-fold\" d=\"M20 15h-5v5\"/><path class=\"note-lines\" d=\"M7.5 9.5h9M7.5 13h6\"/>","lane":"<rect x=\"3\" y=\"4\" width=\"18\" height=\"16\" rx=\"2\"/><path d=\"M3 12h18\"/>","direction-tb":"<path d=\"M12 3v18\"/><path d=\"m7 16 5 5 5-5\"/>","type-sequence":"<rect x=\"3\" y=\"3\" width=\"6\" height=\"4\" rx=\"1\"/><rect x=\"15\" y=\"3\" width=\"6\" height=\"4\" rx=\"1\"/><path d=\"M6 7v14M18 7v14\"/><path d=\"M6 12h12\"/><path d=\"m15 10 3 2-3 2\"/>","focus":"<circle cx=\"12\" cy=\"12\" r=\"8\"/><circle cx=\"12\" cy=\"12\" r=\"2.5\" fill=\"currentColor\"/>","participant":"<rect x=\"4\" y=\"3\" width=\"16\" height=\"6\" rx=\"1.5\"/><path d=\"M12 9v12\" stroke-dasharray=\"3 3\"/>","message":"<path d=\"M4 12h16\"/><path d=\"m14 6 6 6-6 6\"/>","frame":"<rect x=\"3\" y=\"4\" width=\"18\" height=\"16\" rx=\"2\"/><path d=\"M3 9h8V4\"/>","numbers":"<path d=\"M10 6h11M10 12h11M10 18h11\"/><path d=\"M4 6h1v4\"/><path d=\"M4 10h2\"/><path d=\"M6 18H4c0-1 2-2 2-3s-1-1.5-2-1\"/>","message-return":"<path d=\"M4 9h16\"/><path d=\"m16 5 4 4-4 4\"/><path d=\"M6 17h10\" stroke-dasharray=\"2 3\"/>","lifespans":"<path d=\"M6 3h12\"/><path d=\"M12 3v14\" stroke-dasharray=\"3 3\"/><path d=\"M8 21h8\"/>","eye":"<path d=\"M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z\"/><circle cx=\"12\" cy=\"12\" r=\"3\"/>","direction-lr":"<path d=\"M3 12h18\"/><path d=\"m16 7 5 5-5 5\"/>","reverse":"<path d=\"M4 8h16\"/><path d=\"m16 4 4 4-4 4\"/><path d=\"M20 16H4\"/><path d=\"m8 12-4 4 4 4\"/>","label":"<path d=\"M4 7h16\"/><path d=\"M4 12h10\"/><path d=\"M4 17h6\"/>","line-dashed":"<path d=\"M3 12h4\"/><path d=\"M10 12h4\"/><path d=\"M17 12h4\"/>","line-solid":"<path d=\"M3 12h18\"/>","message-async":"<path d=\"M3 12h16\"/><path d=\"m14 7 6 5-6 5\"/>","reply":"<path d=\"M9 14 4 9l5-5\"/><path d=\"M4 9h10a6 6 0 0 1 0 12h-3\"/>","kind-system":"<rect x=\"4\" y=\"6\" width=\"16\" height=\"12\" rx=\"2\"/>","kind-ui":"<rect x=\"3\" y=\"4\" width=\"18\" height=\"12\" rx=\"2\"/><path d=\"M8 20h8M12 16v4\"/>","kind-database":"<ellipse cx=\"12\" cy=\"5\" rx=\"8\" ry=\"3\"/><path d=\"M4 5v14c0 1.66 3.58 3 8 3s8-1.34 8-3V5\"/><path d=\"M4 12c0 1.66 3.58 3 8 3s8-1.34 8-3\"/>","kind-queue":"<path d=\"M6 6h12a3 6 0 0 1 0 12H6a3 6 0 0 1 0-12z\"/><path d=\"M18 6a3 6 0 0 0 0 12\"/>","kind-external":"<circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18\"/>","actor":"<circle cx=\"12\" cy=\"5\" r=\"3\"/><path d=\"M12 8v7\"/><path d=\"M5 11h14\"/><path d=\"m12 15-5 6\"/><path d=\"m12 15 5 6\"/>","type-usecase":"<circle cx=\"4.5\" cy=\"6.5\" r=\"1.8\"/><path d=\"M4.5 8.3v4.7M2 10.5h5M4.5 13l-2 4.5M4.5 13l2 4.5\"/><ellipse cx=\"15.5\" cy=\"12\" rx=\"6.5\" ry=\"4.5\"/><path d=\"M7.4 10.6 9 11\"/>","usecase":"<ellipse cx=\"12\" cy=\"12\" rx=\"10\" ry=\"6.5\"/>","subject":"<rect x=\"2.5\" y=\"3\" width=\"19\" height=\"18\" rx=\"2\"/><path d=\"M2.5 8h19\"/><ellipse cx=\"12\" cy=\"14.5\" rx=\"5.5\" ry=\"3\"/>","clock":"<circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"M12 6v6l4 2\"/>","present":"<rect width=\"20\" height=\"14\" x=\"2\" y=\"3\" rx=\"2\"/><path d=\"M10 8l5 3-5 3z\"/><path d=\"M8 21h8M12 17v4\"/>","search":"<circle cx=\"11\" cy=\"11\" r=\"8\"/><path d=\"m21 21-4.3-4.3\"/>","hash":"<path d=\"M4 9h16M4 15h16M10 3 8 21M16 3l-2 18\"/>"};
 // --- PLUGIN INTERFACE ---
       // A diagram type registers itself once with registerDiagramPlugin({...}). The shell never touches
@@ -2202,7 +2282,12 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
           dot.className = sw.slot ? 'swatch-dot' : 'swatch-dot is-none';
           if (sw.slot) setSwatch(dot, sw.slot);
           b.appendChild(dot);
-          b.addEventListener('click', (e) => { e.stopPropagation(); onPick(sw.slot); });
+          b.addEventListener('click', (e) => {
+            e.stopPropagation();
+            row.querySelectorAll('.swatch-btn[aria-pressed="true"]').forEach((x) => x.setAttribute('aria-pressed', 'false'));
+            b.setAttribute('aria-pressed', 'true');
+            onPick(sw.slot);
+          });
           row.appendChild(b);
         });
         return row;
@@ -2230,6 +2315,7 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
         let confirmEl = null;
         function closeConfirm() {
           if (!confirmEl) return false;
+          if (typeof motion !== 'undefined') motion.ghostExit(confirmEl, { duration: 110, transform: 'scale(0.92) translateY(4px)' });
           confirmEl.remove();
           confirmEl = null;
           document.removeEventListener('pointerdown', onConfirmOutside, true);
@@ -2280,6 +2366,13 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
           const top = r.bottom + 8 + bh > innerHeight - 8 ? r.top - 8 - bh : r.bottom + 8;
           box.style.left = `${Math.max(8, Math.min(r.left, innerWidth - bw - 8))}px`;
           box.style.top = `${Math.max(8, Math.min(top, innerHeight - bh - 8))}px`;
+          if (typeof motion !== 'undefined' && motion.enabled()) {
+            const above = top < r.top;
+            motion.anim(box, [
+              { transform: `scale(0.92) translateY(${above ? 4 : -4}px)`, clipPath: `inset(${above ? '20% 0 0 0' : '0 0 20% 0'} round 10px)` },
+              { transform: 'none', clipPath: 'inset(0 0 0 0 round 10px)' }
+            ], { duration: motion.dur('dur-base', 160), easing: motion.curve('curve-spring-tactile') });
+          }
           cancel.focus();
           document.addEventListener('pointerdown', onConfirmOutside, true);
         }
@@ -2544,6 +2637,686 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
       const menuHelp = document.getElementById('menu-help');
       const helpDrawer = document.getElementById('help-drawer');
 
+      // --- MOTION KERNEL (shared by shell + all 4 diagram plugins; zero external dependencies) ---
+      const noAnimParam = /[?&](?:report|tidy|noanim)(?:=|&|$)/.test(window.location.search);
+      if (noAnimParam) document.documentElement.dataset.noanim = '1';
+      const reducedMq = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
+      const motion = (() => {
+        const dur = (k, fb = 180) => {
+          const v = TOKENS.motion && TOKENS.motion[k];
+          const m = v && /^(\d+(?:\.\d+)?)(m?s)/.exec(v);
+          return m ? parseFloat(m[1]) * (m[2] === 's' ? 1000 : 1) : fb;
+        };
+        const curve = (k, fb = 'cubic-bezier(0.22, 1, 0.36, 1)') => (TOKENS.motion && TOKENS.motion[k]) || fb;
+        const enabled = () => !noAnimParam && !(reducedMq && reducedMq.matches)
+          && document.documentElement.dataset.diagramReady === '1'
+          && !document.body.classList.contains('capture') && !document.body.classList.contains('exporting');
+
+        let lastPlayAt = -1000, cachedScale = 1, lastStampFrame = -1;
+        const speedScale = () => {
+          const now = performance.now();
+          if (now - lastStampFrame <= 16) return cachedScale;
+          const dt = now - lastPlayAt;
+          return dt < 90 ? 0.55 : dt < 180 ? 0.75 : 1;
+        };
+        const markPlay = () => {
+          const now = performance.now();
+          if (now - lastStampFrame > 16) { cachedScale = speedScale(); lastStampFrame = now; }
+          lastPlayAt = now;
+          return cachedScale;
+        };
+
+        const easeCache = new Map();
+        const easeFn = (nameOrCurve) => {
+          const s = curve(nameOrCurve, nameOrCurve);
+          if (easeCache.has(s)) return easeCache.get(s);
+          let fn;
+          if (s.startsWith('linear(')) {
+            const pts = s.slice(7, -1).split(',').map((x) => parseFloat(x));
+            const n = pts.length - 1;
+            fn = (t) => {
+              if (t <= 0) return pts[0];
+              if (t >= 1) return pts[n];
+              const p = t * n, i = p | 0;
+              return pts[i] + (pts[i + 1] - pts[i]) * (p - i);
+            };
+          } else {
+            const m = /cubic-bezier\(([^)]+)\)/.exec(s);
+            if (m) {
+              const [x1, y1, x2, y2] = m[1].split(',').map(Number);
+              const cx = 3 * x1, bx = 3 * (x2 - x1) - cx, ax = 1 - cx - bx;
+              const cy = 3 * y1, by = 3 * (y2 - y1) - cy, ay = 1 - cy - by;
+              fn = (t) => {
+                let u = t;
+                for (let i = 0; i < 5; i++) {
+                  const x = ((ax * u + bx) * u + cx) * u - t;
+                  const dx = (3 * ax * u + 2 * bx) * u + cx;
+                  if (Math.abs(dx) < 1e-5) break;
+                  u = Math.max(0, Math.min(1, u - x / dx));
+                }
+                return ((ay * u + by) * u + cy) * u;
+              };
+            } else {
+              fn = (t) => 1 - (1 - t) * (1 - t) * (1 - t);
+            }
+          }
+          easeCache.set(s, fn);
+          return fn;
+        };
+
+        const activeAnims = new Set();
+        const elemAnims = new WeakMap();
+        const trackAnim = (el, anim) => {
+          if (!anim) return anim;
+          activeAnims.add(anim);
+          let list = elemAnims.get(el);
+          if (!list) { list = new Set(); elemAnims.set(el, list); }
+          list.add(anim);
+          const drop = () => { activeAnims.delete(anim); list.delete(anim); };
+          anim.addEventListener('finish', drop, { once: true });
+          anim.addEventListener('cancel', drop, { once: true });
+          return anim;
+        };
+        const cancelEl = (el) => {
+          const list = elemAnims.get(el);
+          if (!list) return;
+          for (const a of list) { try { a.cancel(); } catch (_) {} }
+          list.clear();
+        };
+
+        let ghostLayer = null;
+        const ensureGhostLayer = () => {
+          if (ghostLayer && ghostLayer.isConnected) return ghostLayer;
+          ghostLayer = document.getElementById('motion-ghost-layer');
+          if (!ghostLayer) {
+            ghostLayer = document.createElement('div');
+            ghostLayer.id = 'motion-ghost-layer';
+            ghostLayer.setAttribute('data-export-skip', '');
+            ghostLayer.setAttribute('aria-hidden', 'true');
+            document.body.appendChild(ghostLayer);
+          }
+          return ghostLayer;
+        };
+
+        const GHOST_PROPS = [
+          'display', 'position', 'boxSizing', 'flexDirection', 'flexWrap', 'alignItems', 'justifyContent',
+          'gap', 'flex', 'width', 'height', 'minWidth', 'maxWidth',
+          'paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft',
+          'marginTop', 'marginRight', 'marginBottom', 'marginLeft',
+          'borderTopWidth', 'borderTopStyle', 'borderTopColor',
+          'borderRightWidth', 'borderRightStyle', 'borderRightColor',
+          'borderBottomWidth', 'borderBottomStyle', 'borderBottomColor',
+          'borderLeftWidth', 'borderLeftStyle', 'borderLeftColor',
+          'borderTopLeftRadius', 'borderTopRightRadius', 'borderBottomRightRadius', 'borderBottomLeftRadius',
+          'backgroundColor', 'backgroundImage', 'color', 'fontFamily', 'fontSize', 'fontWeight',
+          'lineHeight', 'letterSpacing', 'boxShadow', 'textAlign', 'whiteSpace', 'overflow', 'opacity'
+        ];
+        const freezeClone = (el, skipFn) => {
+          const build = (src, isRoot) => {
+            if (src.nodeType === 3) return document.createTextNode(src.nodeValue);
+            if (src.nodeType !== 1) return null;
+            if (!isRoot && skipFn && skipFn(src)) return null;
+            const cs = getComputedStyle(src);
+            if (!isRoot && cs.display === 'none') return null;
+            if (src.namespaceURI === 'http://www.w3.org/2000/svg') {
+              const svg = src.cloneNode(true);
+              svg.removeAttribute('id'); svg.removeAttribute('class');
+              svg.querySelectorAll('[id],[class]').forEach((n) => { n.removeAttribute('id'); n.removeAttribute('class'); });
+              return svg;
+            }
+            const tag = (cs.display === 'inline' || cs.display === 'inline-flex' || cs.display === 'inline-block') && !isRoot ? 'span' : 'div';
+            const dst = document.createElement(tag);
+            for (let j = 0; j < GHOST_PROPS.length; j++) {
+              const p = GHOST_PROPS[j];
+              if (cs[p]) dst.style[p] = cs[p];
+            }
+            if (src.tagName === 'INPUT' || src.tagName === 'TEXTAREA') dst.textContent = src.value;
+            else {
+              for (let c = src.firstChild; c; c = c.nextSibling) {
+                const child = build(c, false);
+                if (child) dst.appendChild(child);
+              }
+            }
+            return dst;
+          };
+          const clone = build(el, true);
+          clone.setAttribute('data-motion-ghost', '');
+          clone.setAttribute('data-export-skip', '');
+          clone.setAttribute('aria-hidden', 'true');
+          return clone;
+        };
+
+        const ghostExit = (el, opts) => {
+          if (!el || !enabled()) return null;
+          const o = opts || {};
+          const r = o.fromRect || el.getBoundingClientRect();
+          if (!r || r.width <= 0 || r.height <= 0) return null;
+          const clone = o.preCloned || freezeClone(el, o.skipChild);
+          const inStage = !o.preCloned && stage.contains(el);
+          const ow = o.baseW ?? (inStage && el.offsetWidth ? el.offsetWidth : r.width);
+          const oh = o.baseH ?? (inStage && el.offsetHeight ? el.offsetHeight : r.height);
+          const sx = ow ? r.width / ow : 1, sy = oh ? r.height / oh : 1;
+          const baseScale = (Math.abs(sx - 1) > 0.01 || Math.abs(sy - 1) > 0.01) ? ` scale(${sx}, ${sy})` : '';
+          clone.style.position = 'fixed';
+          clone.style.left = `${r.left}px`;
+          clone.style.top = `${r.top}px`;
+          clone.style.width = `${ow}px`;
+          clone.style.height = `${oh}px`;
+          clone.style.margin = '0';
+          clone.style.pointerEvents = 'none';
+          clone.style.transformOrigin = o.origin || (baseScale ? 'top left' : 'center');
+          clone.style.transform = baseScale.trim() || 'none';
+          ensureGhostLayer().appendChild(clone);
+          let toFrame;
+          if (o.toRect) {
+            const dx = o.toRect.left - r.left, dy = o.toRect.top - r.top;
+            const tx = (ow ? o.toRect.width / ow : 1), ty = (oh ? o.toRect.height / oh : 1);
+            clone.style.transformOrigin = 'top left';
+            toFrame = { transform: `translate(${dx}px, ${dy}px) scale(${tx}, ${ty})`, opacity: o.opacity ?? 0.15 };
+          } else {
+            toFrame = { transform: (baseScale ? baseScale + ' ' : '') + (o.transform || 'scale(0.92)'), opacity: o.opacity ?? 0 };
+            if (o.clipPath) toFrame.clipPath = o.clipPath;
+          }
+          const fromFrame = { transform: baseScale.trim() || 'none', opacity: 1 };
+          if (o.clipPath) fromFrame.clipPath = 'inset(0 0 0 0)';
+          const anim = clone.animate([fromFrame, toFrame], {
+            duration: Math.max(40, Math.round((o.duration ?? 110) * speedScale())),
+            easing: curve(o.easing || 'curve-in'),
+            fill: 'forwards'
+          });
+          const cleanup = () => clone.remove();
+          anim.addEventListener('finish', cleanup, { once: true });
+          anim.addEventListener('cancel', cleanup, { once: true });
+          return trackAnim(clone, anim);
+        };
+
+        const keyOf = (spec, el) => (typeof spec.key === 'function'
+          ? String(spec.key(el))
+          : (spec.key.startsWith('data-') ? el.getAttribute(spec.key) : el.dataset[spec.key]) || '');
+
+        const capture = (root, specs, opts) => {
+          if (!enabled() || !root) return null;
+          const list = Array.isArray(specs) ? specs : [specs];
+          const inStage = root === stage || stage.contains(root);
+          const st = inStage ? stage.getBoundingClientRect() : null;
+          const k = inStage ? (stage.offsetWidth ? st.width / stage.offsetWidth : scale) || 1 : 1;
+          const snap = new Map();
+          const raw = new Map();
+          const els = [];
+          for (let si = 0; si < list.length; si++) {
+            const spec = list[si], nodes = root.querySelectorAll(spec.selector);
+            for (let i = 0; i < nodes.length; i++) {
+              const el = nodes[i], id = keyOf(spec, el);
+              if (!id) continue;
+              const vr = el.getBoundingClientRect();
+              if (!vr.width && !vr.height) continue;
+              const entry = {
+                id, si, mode: spec.mode || 'pos', vr, el,
+                x: inStage ? (vr.left - st.left) / k : vr.left,
+                y: inStage ? (vr.top - st.top) / k : vr.top,
+                w: vr.width / k, h: vr.height / k,
+                baseW: inStage && el.offsetWidth ? el.offsetWidth : vr.width / k,
+                baseH: inStage && el.offsetHeight ? el.offsetHeight : vr.height / k,
+                preCloned: opts && opts.ghosts ? freezeClone(el) : null
+              };
+              snap.set(si + ':' + id, entry);
+              raw.set(id, entry);
+              els.push(el);
+            }
+          }
+          for (let i = 0; i < els.length; i++) cancelEl(els[i]);
+          snap._raw = raw; snap._inStage = inStage;
+          return snap;
+        };
+
+        const play = (snap, root, specs, opts) => {
+          if (!snap || !enabled() || !root) return 0;
+          const o = opts || {};
+          const list = Array.isArray(specs) ? specs : [specs];
+          const inStage = snap._inStage;
+          const st = inStage ? stage.getBoundingClientRect() : null;
+          const k = inStage ? (stage.offsetWidth ? st.width / stage.offsetWidth : scale) || 1 : 1;
+          const vpW = window.innerWidth, vpH = window.innerHeight;
+          const items = [];
+          const newByKey = new Map();
+          const newRaw = new Map();
+          for (let si = 0; si < list.length; si++) {
+            const spec = list[si], nodes = root.querySelectorAll(spec.selector);
+            for (let i = 0; i < nodes.length; i++) {
+              const el = nodes[i], id = keyOf(spec, el);
+              if (!id) continue;
+              if (o.skipKeys && o.skipKeys.has(id)) continue;
+              if (o.skipSelector && el.matches(o.skipSelector)) continue;
+              const vr = el.getBoundingClientRect();
+              if (!vr.width && !vr.height) continue;
+              const it = {
+                id, key: si + ':' + id, mode: spec.mode || 'pos', el, vr,
+                x: inStage ? (vr.left - st.left) / k : vr.left,
+                y: inStage ? (vr.top - st.top) / k : vr.top,
+                w: vr.width / k, h: vr.height / k
+              };
+              items.push(it);
+              newByKey.set(it.key, it);
+              newRaw.set(id, it);
+            }
+          }
+          const sf = markPlay();
+          const baseDur = Math.max(40, Math.round((o.duration ?? dur('dur-layout', 230)) * sf));
+          const easing = curve(o.easing || 'curve-spring-settle');
+          const cull = items.length > 120;
+          const ox = o.originRect ? (inStage ? (o.originRect.left - st.left) / k : o.originRect.left) : 0;
+          const oy = o.originRect ? (inStage ? (o.originRect.top - st.top) / k : o.originRect.top) : 0;
+          const ow = o.originRect ? o.originRect.width / k : 0;
+          const oh = o.originRect ? o.originRect.height / k : 0;
+          const lookup = (map, id) => !map ? null : (map instanceof Map ? map.get(id) : map[id]);
+
+          for (let i = 0; i < items.length; i++) {
+            const it = items[i];
+            if (cull && (it.vr.right < 0 || it.vr.left > vpW || it.vr.bottom < 0 || it.vr.top > vpH)) continue;
+            const prev = snap.get(it.key);
+            if (prev) {
+              const dx = prev.x - it.x, dy = prev.y - it.y;
+              const dw = Math.abs(prev.w - it.w), dh = Math.abs(prev.h - it.h);
+              const mode = cull ? 'pos' : it.mode;
+              const moved = Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5;
+              const resized = mode !== 'pos' && (dw > 1 || dh > 1);
+              if (!moved && !resized) continue;
+              if (resized && mode === 'size' && it.w > 0 && it.h > 0) {
+                const rw = prev.w / it.w, rh = prev.h / it.h;
+                if (rw >= 0.45 && rw <= 2.2 && rh >= 0.45 && rh <= 2.2) {
+                  it.el.style.transformOrigin = o.transformOrigin || 'top left';
+                  trackAnim(it.el, it.el.animate([{ transform: `translate(${dx}px, ${dy}px) scale(${rw}, ${rh})` }, { transform: 'none' }], { duration: baseDur, easing }));
+                  continue;
+                }
+              }
+              if (resized && (it.w > prev.w || it.h > prev.h)) {
+                const rClip = Math.max(0, it.w - prev.w), bClip = Math.max(0, it.h - prev.h);
+                trackAnim(it.el, it.el.animate([
+                  { transform: `translate(${dx}px, ${dy}px)`, clipPath: `inset(0 ${rClip}px ${bClip}px 0)` },
+                  { transform: 'none', clipPath: 'inset(0 0 0 0)' }
+                ], { duration: baseDur, easing }));
+              } else {
+                trackAnim(it.el, it.el.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'none' }], { duration: baseDur, easing }));
+              }
+            } else if (o.enter !== false) {
+              const fk = lookup(o.fromKey, it.id);
+              const src = fk ? snap._raw.get(fk) : (o.originRect ? { x: ox, y: oy, w: ow, h: oh } : null);
+              if (src && it.w > 0 && it.h > 0) {
+                const dx = src.x - it.x, dy = src.y - it.y;
+                const rw = Math.max(0.25, Math.min(2.5, src.w / it.w)), rh = Math.max(0.25, Math.min(2.5, src.h / it.h));
+                it.el.style.transformOrigin = 'top left';
+                trackAnim(it.el, it.el.animate([{ transform: `translate(${dx}px, ${dy}px) scale(${rw}, ${rh})` }, { transform: 'none' }], { duration: baseDur, easing }));
+              } else {
+                const sc = o.enterScale ?? 0.88;
+                trackAnim(it.el, it.el.animate([
+                  { transform: `scale(${sc})`, clipPath: 'inset(6% 6% 6% 6%)' },
+                  { transform: 'none', clipPath: 'inset(0 0 0 0)' }
+                ], { duration: Math.round(baseDur * 0.82), easing: curve('curve-spring-tactile') }));
+              }
+            }
+          }
+          if (o.toKey || o.ghostExit) {
+            for (const [k2, prev] of snap) {
+              if (newByKey.has(k2)) continue;
+              const tk = lookup(o.toKey, prev.id);
+              const target = tk ? newRaw.get(tk) : null;
+              if (target && prev.preCloned) ghostExit(prev.el, { preCloned: prev.preCloned, fromRect: prev.vr, toRect: target.vr, baseW: prev.baseW, baseH: prev.baseH, duration: baseDur, easing });
+              else if (o.ghostExit && prev.preCloned) ghostExit(prev.el, { preCloned: prev.preCloned, fromRect: prev.vr, baseW: prev.baseW, baseH: prev.baseH, duration: 110 });
+            }
+          }
+          return baseDur;
+        };
+
+        const morphRect = (fromRect, toEl, opts) => {
+          if (!enabled() || !fromRect || !toEl) return null;
+          const o = opts || {};
+          cancelEl(toEl);
+          const toRect = toEl.getBoundingClientRect();
+          if (!toRect.width || !toRect.height) return null;
+          const inStage = stage.contains(toEl);
+          const k = inStage && stage.offsetWidth ? stage.getBoundingClientRect().width / stage.offsetWidth : 1;
+          const dx = (fromRect.left - toRect.left) / k, dy = (fromRect.top - toRect.top) / k;
+          const sx = fromRect.width / toRect.width, sy = fromRect.height / toRect.height;
+          if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5 && Math.abs(sx - 1) < 0.02 && Math.abs(sy - 1) < 0.02) return null;
+          toEl.style.transformOrigin = o.origin || 'top left';
+          return trackAnim(toEl, toEl.animate(
+            [{ transform: `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})` }, { transform: 'none' }],
+            { duration: Math.max(40, Math.round((o.duration ?? dur('dur-base', 180)) * speedScale())), easing: curve(o.easing || 'curve-spring-settle') }
+          ));
+        };
+
+        const drawPath = (pathEl, opts) => {
+          if (!enabled() || !pathEl || typeof pathEl.getTotalLength !== 'function') return null;
+          const o = opts || {};
+          const len = pathEl.getTotalLength();
+          if (!len) return null;
+          cancelEl(pathEl);
+          pathEl.style.strokeDasharray = `${len} ${len}`;
+          pathEl.style.strokeDashoffset = `${len}`;
+          const anim = pathEl.animate([{ strokeDashoffset: len }, { strokeDashoffset: 0 }], {
+            duration: Math.max(40, Math.round((o.duration ?? dur('dur-fast', 140)) * speedScale())),
+            easing: curve(o.easing || 'curve-out')
+          });
+          const clear = () => { pathEl.style.strokeDasharray = ''; pathEl.style.strokeDashoffset = ''; };
+          anim.addEventListener('finish', clear, { once: true });
+          anim.addEventListener('cancel', clear, { once: true });
+          return trackAnim(pathEl, anim);
+        };
+
+        const normPoly = (a, b) => {
+          const out = a.slice();
+          while (out.length < b.length) {
+            let best = 0, bestLen = -1;
+            for (let i = 0; i < out.length - 2; i += 2) {
+              const l = Math.hypot(out[i + 2] - out[i], out[i + 3] - out[i + 1]);
+              if (l > bestLen) { bestLen = l; best = i; }
+            }
+            out.splice(best + 2, 0, (out[best] + out[best + 2]) / 2, (out[best + 1] + out[best + 3]) / 2);
+          }
+          return out;
+        };
+
+        let svgJob = null;
+        const applySvgJob = (job, p) => {
+          const { n, els, kinds, offs, cnts, fromBuf, toBuf } = job;
+          for (let i = 0; i < n; i++) {
+            const o = offs[i], k = kinds[i], el = els[i];
+            if (k === 0) {
+              el.setAttribute('d',
+                'M ' + (fromBuf[o] + (toBuf[o] - fromBuf[o]) * p) + ' ' + (fromBuf[o + 1] + (toBuf[o + 1] - fromBuf[o + 1]) * p) +
+                ' C ' + (fromBuf[o + 2] + (toBuf[o + 2] - fromBuf[o + 2]) * p) + ' ' + (fromBuf[o + 3] + (toBuf[o + 3] - fromBuf[o + 3]) * p) +
+                ', ' + (fromBuf[o + 4] + (toBuf[o + 4] - fromBuf[o + 4]) * p) + ' ' + (fromBuf[o + 5] + (toBuf[o + 5] - fromBuf[o + 5]) * p) +
+                ', ' + (fromBuf[o + 6] + (toBuf[o + 6] - fromBuf[o + 6]) * p) + ' ' + (fromBuf[o + 7] + (toBuf[o + 7] - fromBuf[o + 7]) * p));
+            } else if (k === 1) {
+              if (el.tagName === 'path') {
+                el.setAttribute('d', 'M ' + (fromBuf[o] + (toBuf[o] - fromBuf[o]) * p) + ' ' + (fromBuf[o + 1] + (toBuf[o + 1] - fromBuf[o + 1]) * p) +
+                  ' L ' + (fromBuf[o + 2] + (toBuf[o + 2] - fromBuf[o + 2]) * p) + ' ' + (fromBuf[o + 3] + (toBuf[o + 3] - fromBuf[o + 3]) * p));
+              } else {
+                el.setAttribute('x1', fromBuf[o] + (toBuf[o] - fromBuf[o]) * p);
+                el.setAttribute('y1', fromBuf[o + 1] + (toBuf[o + 1] - fromBuf[o + 1]) * p);
+                el.setAttribute('x2', fromBuf[o + 2] + (toBuf[o + 2] - fromBuf[o + 2]) * p);
+                el.setAttribute('y2', fromBuf[o + 3] + (toBuf[o + 3] - fromBuf[o + 3]) * p);
+              }
+            } else if (k === 2) {
+              el.setAttribute('x', fromBuf[o] + (toBuf[o] - fromBuf[o]) * p);
+              el.setAttribute('y', fromBuf[o + 1] + (toBuf[o + 1] - fromBuf[o + 1]) * p);
+              el.setAttribute('width', Math.max(0, fromBuf[o + 2] + (toBuf[o + 2] - fromBuf[o + 2]) * p));
+              el.setAttribute('height', Math.max(0, fromBuf[o + 3] + (toBuf[o + 3] - fromBuf[o + 3]) * p));
+            } else {
+              const cnt = cnts[i], isPoly = k === 4;
+              let s = (isPoly ? '' : 'M ') + (fromBuf[o] + (toBuf[o] - fromBuf[o]) * p) + ' ' + (fromBuf[o + 1] + (toBuf[o + 1] - fromBuf[o + 1]) * p);
+              for (let j = 2; j < cnt; j += 2) {
+                s += (isPoly ? ' ' : ' L ') + (fromBuf[o + j] + (toBuf[o + j] - fromBuf[o + j]) * p) + ' ' + (fromBuf[o + j + 1] + (toBuf[o + j + 1] - fromBuf[o + j + 1]) * p);
+              }
+              el.setAttribute(isPoly ? 'points' : 'd', s);
+            }
+          }
+        };
+
+        const tweenSvg = (tracks, opts) => {
+          if (svgJob) { cancelAnimationFrame(svgJob.raf); svgJob = null; }
+          if (!enabled() || !tracks || !tracks.length) return;
+          const o = opts || {};
+          const polyCap = tracks.length > 60;
+          const active = [];
+          let total = 0;
+          for (let i = 0; i < tracks.length; i++) {
+            const tr = tracks[i];
+            if (!tr || !tr.el || !tr.from || !tr.to) continue;
+            if (tr.type === 'polyline') {
+              if (polyCap || Math.abs(tr.from.length - tr.to.length) > 24 || tr.from.length < 4 || tr.to.length < 4) {
+                if (tr.el.tagName === 'path') drawPath(tr.el, o);
+                continue;
+              }
+              const f = tr.from.length < tr.to.length ? normPoly(tr.from, tr.to) : tr.from;
+              const t = tr.to.length < tr.from.length ? normPoly(tr.to, tr.from) : tr.to;
+              active.push({ kind: tr.el.tagName === 'polyline' ? 4 : 3, el: tr.el, f, t });
+              total += f.length;
+            } else {
+              const kind = tr.type === 'bezier' ? 0 : tr.type === 'rect' ? 2 : 1;
+              const len = kind === 0 ? 8 : 4;
+              if (tr.from.length < len || tr.to.length < len) continue;
+              active.push({ kind, el: tr.el, f: tr.from, t: tr.to });
+              total += len;
+            }
+          }
+          const n = active.length;
+          if (!n) return;
+          const els = new Array(n), kinds = new Uint8Array(n), offs = new Int32Array(n), cnts = new Int32Array(n);
+          const fromBuf = new Float64Array(total), toBuf = new Float64Array(total);
+          let pos = 0;
+          for (let i = 0; i < n; i++) {
+            const tr = active[i], len = tr.f.length;
+            els[i] = tr.el; kinds[i] = tr.kind; offs[i] = pos; cnts[i] = len;
+            for (let j = 0; j < len; j++) { fromBuf[pos + j] = tr.f[j]; toBuf[pos + j] = tr.t[j]; }
+            pos += len;
+          }
+          const d = Math.max(40, Math.round((o.duration ?? dur('dur-layout', 230)) * markPlay()));
+          const ease = easeFn(o.easing || 'curve-spring-settle');
+          const start = performance.now();
+          const job = { n, els, kinds, offs, cnts, fromBuf, toBuf, raf: 0 };
+          svgJob = job;
+          const tick = (now) => {
+            if (svgJob !== job) return;
+            const u = Math.min(1, (now - start) / d);
+            applySvgJob(job, u >= 1 ? 1 : ease(u));
+            if (u < 1) job.raf = requestAnimationFrame(tick);
+            else { svgJob = null; if (o.onComplete) o.onComplete(); }
+          };
+          applySvgJob(job, 0);
+          job.raf = requestAnimationFrame(tick);
+        };
+
+        let lastBar = null, barTimer = false;
+        const hideBar = (barOrSel) => {
+          const el = typeof barOrSel === 'string' ? document.querySelector(barOrSel) : barOrSel;
+          if (!el) return;
+          if (enabled()) {
+            const r = el.getBoundingClientRect();
+            if (r.width > 0 && r.height > 0) {
+              const pre = freezeClone(el);
+              const inSt = stage.contains(el);
+              lastBar = {
+                rect: r, at: performance.now(), pre, el, claimed: false,
+                baseW: inSt && el.offsetWidth ? el.offsetWidth : r.width,
+                baseH: inSt && el.offsetHeight ? el.offsetHeight : r.height
+              };
+              if (!barTimer) {
+                barTimer = true;
+                queueMicrotask(() => {
+                  barTimer = false;
+                  if (lastBar && !lastBar.claimed) ghostExit(lastBar.el, { preCloned: lastBar.pre, fromRect: lastBar.rect, baseW: lastBar.baseW, baseH: lastBar.baseH, duration: 100 });
+                });
+              }
+            }
+          }
+          el.remove();
+        };
+        const showBar = (barEl, opts) => {
+          if (!barEl || !enabled()) return;
+          const o = opts || {};
+          if (lastBar && !lastBar.claimed && performance.now() - lastBar.at < 50) {
+            lastBar.claimed = true;
+            const r = lastBar.rect;
+            lastBar = null;
+            morphRect(r, barEl, { duration: o.duration ?? 170, easing: o.easing || 'curve-spring-settle' });
+            return;
+          }
+          const clip = o.clipRight || barEl.classList.contains('edge-bar');
+          trackAnim(barEl, barEl.animate(
+            clip
+              ? [{ clipPath: 'inset(0 100% 0 0 round 8px)' }, { clipPath: 'inset(0 0 0 0 round 8px)' }]
+              : [{ transform: 'scale(0.94) translateY(4px)', clipPath: 'inset(0 0 20% 0 round 8px)' }, { transform: 'none', clipPath: 'inset(0 0 0 0 round 8px)' }],
+            { duration: dur('dur-fast', 140), easing: curve('curve-out') }
+          ));
+        };
+
+        const unfoldNote = (cardEl, badgeEl, leaderEl, opts) => {
+          if (!cardEl || !enabled()) return;
+          const o = opts || {};
+          const br = badgeEl && badgeEl.getBoundingClientRect();
+          if (br && br.width > 0) {
+            morphRect(br, cardEl, { duration: o.duration ?? 170, easing: o.easing || 'curve-spring-tactile' });
+          } else {
+            trackAnim(cardEl, cardEl.animate([{ transform: 'scale(0.88)' }, { transform: 'none' }], {
+              duration: o.duration ?? 170, easing: curve(o.easing || 'curve-spring-tactile')
+            }));
+          }
+          if (leaderEl) drawPath(leaderEl, { duration: 150, easing: 'curve-out' });
+        };
+        const foldNote = (cardEl, badgeEl, opts) => {
+          if (!cardEl || !enabled()) return;
+          const br = badgeEl && badgeEl.getBoundingClientRect();
+          ghostExit(cardEl, { toRect: br && br.width > 0 ? br : null, duration: (opts && opts.duration) ?? 120, easing: 'curve-in' });
+        };
+        const hideHint = (el) => {
+          if (!el) return;
+          ghostExit(el, { duration: 110, transform: 'translateY(10px) scale(0.96)' });
+          el.remove();
+        };
+
+        const anim = (el, frames, opts) => {
+          if (!el || !enabled()) return null;
+          cancelEl(el);
+          return trackAnim(el, el.animate(frames, opts));
+        };
+        const hiddenWhile = new Set();
+        const ghostMorph = (fromRect, toEl, duration, easing) => {
+          if (!enabled() || !fromRect || !toEl) return null;
+          const tr = toEl.getBoundingClientRect();
+          if (!tr.width || !tr.height) return null;
+          const dx = fromRect.left - tr.left, dy = fromRect.top - tr.top;
+          if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5 && Math.abs(fromRect.width - tr.width) < 1) return null;
+          const ghost = freezeClone(toEl);
+          ghost.style.position = 'fixed';
+          ghost.style.left = `${tr.left}px`;
+          ghost.style.top = `${tr.top}px`;
+          ghost.style.width = `${tr.width}px`;
+          ghost.style.height = `${tr.height}px`;
+          ghost.style.margin = '0';
+          ghost.style.transformOrigin = 'top left';
+          ensureGhostLayer().appendChild(ghost);
+          toEl.style.opacity = '0';
+          hiddenWhile.add(toEl);
+          const a = ghost.animate([
+            { transform: `translate(${dx}px, ${dy}px) scale(${fromRect.width / tr.width}, ${fromRect.height / tr.height})` },
+            { transform: 'none' }
+          ], { duration: Math.max(40, Math.round(duration * speedScale())), easing: curve(easing || 'curve-inout') });
+          const done = () => { ghost.remove(); toEl.style.opacity = ''; hiddenWhile.delete(toEl); };
+          a.addEventListener('finish', done, { once: true });
+          a.addEventListener('cancel', done, { once: true });
+          return trackAnim(ghost, a);
+        };
+        const cancelAll = () => {
+          for (const a of [...activeAnims]) { try { a.cancel(); } catch (_) {} }
+          activeAnims.clear();
+          for (const el of hiddenWhile) el.style.opacity = '';
+          hiddenWhile.clear();
+          if (svgJob) { cancelAnimationFrame(svgJob.raf); applySvgJob(svgJob, 1); svgJob = null; }
+          if (ghostLayer) ghostLayer.textContent = '';
+        };
+        const pulseEl = (el, transform = 'scale(1.15)', duration = 180) => {
+          if (el && enabled()) trackAnim(el, el.animate([{ transform: 'none' }, { transform }, { transform: 'none' }], {
+            duration, easing: curve('curve-spring-tactile')
+          }));
+        };
+        const morphRing = (fromRect, toEl) => {
+          if (!enabled() || !fromRect || !toEl) return;
+          const tr = toEl.getBoundingClientRect();
+          if (!tr.width || !tr.height || fromRect.right < 0 || fromRect.left > innerWidth || tr.right < 0 || tr.left > innerWidth) return;
+          const ring = document.createElement('div');
+          ring.setAttribute('data-motion-ghost', '');
+          ring.setAttribute('data-export-skip', '');
+          ring.setAttribute('aria-hidden', 'true');
+          ring.style.cssText = `position:fixed;left:${tr.left - 2}px;top:${tr.top - 2}px;width:${tr.width + 4}px;height:${tr.height + 4}px;border:2px solid var(--focus-ring);border-radius:var(--radius-md);pointer-events:none;transform-origin:top left;`;
+          ensureGhostLayer().appendChild(ring);
+          const anim = ring.animate([
+            { transform: `translate(${fromRect.left - tr.left}px, ${fromRect.top - tr.top}px) scale(${fromRect.width / tr.width}, ${fromRect.height / tr.height})` },
+            { transform: 'none' }
+          ], { duration: 160, easing: curve('curve-inout') });
+          const drop = () => ring.remove();
+          anim.addEventListener('finish', drop, { once: true });
+          anim.addEventListener('cancel', drop, { once: true });
+          trackAnim(ring, anim);
+        };
+
+        const flipDock = (mutateFn) => {
+          const dock = document.querySelector('.toolbar-center');
+          if (!dock || !enabled()) { mutateFn(); return; }
+          const kids = [...dock.children];
+          const prev = new Map();
+          for (let i = 0; i < kids.length; i++) {
+            const r = kids[i].getBoundingClientRect();
+            if (r.width > 0) prev.set(kids[i], r);
+          }
+          mutateFn();
+          const durMs = Math.round(dur('dur-base', 180) * speedScale());
+          const eas = curve('curve-spring-settle');
+          for (let i = 0; i < kids.length; i++) {
+            const el = kids[i], oldR = prev.get(el), newR = el.getBoundingClientRect();
+            if (!newR.width) continue;
+            if (oldR) {
+              const dx = oldR.left - newR.left;
+              if (Math.abs(dx) > 0.5) trackAnim(el, el.animate([{ transform: `translateX(${dx}px)` }, { transform: 'none' }], { duration: durMs, easing: eas }));
+            } else {
+              trackAnim(el, el.animate([{ transform: 'scale(0.85)', clipPath: 'inset(0 30% 0 30%)' }, { transform: 'none', clipPath: 'inset(0 0 0 0)' }], { duration: durMs, easing: eas }));
+            }
+          }
+        };
+
+        return {
+          enabled, dur, curve, speedScale, easeFn, anim, ghostMorph, capture, play, morphRect,
+          ghostExit, tweenSvg, drawPath, showBar, hideBar, unfoldNote, foldNote, hideHint, cancelAll, pulseEl, morphRing, flipDock
+        };
+      })();
+
+      let vpAnim = null;
+      function cancelViewportAnim() {
+        if (!vpAnim) return;
+        cancelAnimationFrame(vpAnim.raf);
+        vpAnim = null;
+        viewport.classList.remove('gesturing');
+      }
+      const viewTarget = () => (vpAnim ? { scale: vpAnim.targetScale, panX: vpAnim.targetPanX, panY: vpAnim.targetPanY } : { scale, panX, panY });
+      function animateViewport(targetPanX, targetPanY, targetScale, opts) {
+        const o = opts || {};
+        if (!motion.enabled() || o.duration === 0) {
+          cancelViewportAnim();
+          panX = targetPanX; panY = targetPanY; scale = targetScale;
+          updateTransform();
+          if (o.onComplete) o.onComplete();
+          return;
+        }
+        const sx = panX, sy = panY, sk = scale;
+        if (Math.abs(targetPanX - sx) < 0.5 && Math.abs(targetPanY - sy) < 0.5 && Math.abs(targetScale - sk) < 0.002) {
+          cancelViewportAnim();
+          panX = targetPanX; panY = targetPanY; scale = targetScale;
+          updateTransform();
+          if (o.onComplete) o.onComplete();
+          return;
+        }
+        if (vpAnim) cancelAnimationFrame(vpAnim.raf);
+        const d = Math.max(40, Math.round((o.duration ?? motion.dur('dur-camera', 240)) * motion.speedScale()));
+        const ease = motion.easeFn(o.easing || 'curve-out');
+        const start = performance.now();
+        viewport.classList.add('gesturing');
+        const job = { targetPanX, targetPanY, targetScale, raf: 0 };
+        vpAnim = job;
+        showZoom();
+        const tick = (now) => {
+          if (vpAnim !== job) return;
+          const u = Math.min(1, (now - start) / d);
+          const p = u >= 1 ? 1 : ease(u);
+          panX = sx + (targetPanX - sx) * p;
+          panY = sy + (targetPanY - sy) * p;
+          scale = sk + (targetScale - sk) * p;
+          updateTransform();
+          if (u < 1) { job.raf = requestAnimationFrame(tick); }
+          else { vpAnim = null; viewport.classList.remove('gesturing'); if (o.onComplete) o.onComplete(); }
+        };
+        job.raf = requestAnimationFrame(tick);
+      }
+
       let dataReadme = null;   // the data block's "_readme" line (written by scripts/layout_engine.py assemble_page)
 
       async function loadInitialData() {
@@ -2591,9 +3364,11 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
           chartTitleEl.contentEditable = 'false';
           const val = chartTitleEl.textContent.trim();
           if (val && chartData.title !== val) {
+            const sr = saveStatus.getBoundingClientRect();
             chartData.title = val;
             document.title = val;
             updateStatus(true);
+            motion.morphRect(sr, saveStatus, { duration: 140, easing: 'curve-out' });
           }
         });
         chartTitleEl.addEventListener('keydown', (e) => {
@@ -2652,6 +3427,15 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
       const presentOn = () => document.body.classList.contains('presentation');
       function setPresent(on) {
         if (on === presentOn()) return;
+        const canAnim = motion.enabled();
+        const presentRect = canAnim ? btnPresent.getBoundingClientRect() : null;
+        const hdr = canAnim ? document.querySelector('header') : null;
+        const dockCenter = canAnim ? document.querySelector('.toolbar-center') : null;
+        if (canAnim) motion.cancelAll();
+        if (on && canAnim) {
+          if (hdr) motion.ghostExit(hdr, { duration: 220, easing: 'curve-inout', transform: 'translateY(-100%)', opacity: 1, skipChild: (el) => el.id === 'btn-present' });
+          if (dockCenter) motion.ghostExit(dockCenter, { duration: 220, easing: 'curve-inout', transform: 'translateY(calc(100% + 24px))', opacity: 1 });
+        }
         if (on) {
           plugin.cancelInteraction(); plugin.clearSelection();
           setSearchOpen(false); if (plugin.clearSearch) plugin.clearSearch();
@@ -2665,6 +3449,15 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
           restoreSnapshot(e.json);
           committedJson = e.committed; presentEntry = null;
         } else if (plugin.render && chartData) plugin.render();   // a plugin draws its editing handles at render
+        if (canAnim) {
+          if (presentRect) motion.ghostMorph(presentRect, btnPresent, 220, 'curve-inout');
+          if (!on) {
+            const eas = motion.curve('curve-inout');
+            if (hdr) hdr.querySelectorAll('.toolbar-left, .toolbar-right > :not(#btn-present)').forEach((el) => motion.anim(el, [{ transform: 'translateY(-56px)' }, { transform: 'none' }], { duration: 220, easing: eas }));
+            if (dockCenter) motion.anim(dockCenter, [{ transform: 'translateY(calc(100% + 24px))' }, { transform: 'none' }], { duration: 220, easing: eas });
+          }
+          fitView(true);
+        }
         if (on) showToast('Esc or the Present button to exit');
       }
       btnPresent.addEventListener('click', () => setPresent(!presentOn()));
@@ -2679,45 +3472,50 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
         if (typeof queueDeleteRefresh === 'function') queueDeleteRefresh();
       }
 
+      function setStatusBadgeText(text, cls, title) {
+        const changed = saveStatus.textContent !== text;
+        const prevRect = changed && motion.enabled() ? saveStatus.getBoundingClientRect() : null;
+        saveStatus.textContent = text;
+        if (cls !== undefined) saveStatus.className = cls;
+        if (title !== undefined) saveStatus.title = title;
+        if (prevRect && prevRect.width > 0) {
+          motion.morphRect(prevRect, saveStatus, { duration: 180, easing: 'curve-inout' });
+          const roll = document.createElement('span');
+          roll.style.display = 'inline-block';
+          roll.textContent = text;
+          saveStatus.textContent = '';
+          saveStatus.appendChild(roll);
+          const a = motion.anim(roll, [{ transform: 'translateY(4px)' }, { transform: 'none' }], { duration: 180, easing: motion.curve('curve-inout') });
+          if (a) a.addEventListener('finish', () => { if (roll.parentNode === saveStatus) saveStatus.textContent = text; }, { once: true });
+        }
+      }
+
       // Green means "this is on disk". A page nobody has saved yet is just "Ready" (neutral).
       function setStatusBadge(unsaved) {
         hasUnsavedChanges = unsaved;
         if (unsaved) reloadExpected = false;
         if (artifactMode === 'view-only') {
-          saveStatus.textContent = "View only";
-          saveStatus.className = "badge badge-status";
-          saveStatus.title = unsaved ? 'Your edits are not kept. Use Export > HTML file to keep them.' : 'You cannot save this artifact.';
+          setStatusBadgeText("View only", "badge badge-status", unsaved ? 'Your edits are not kept. Use Export > HTML file to keep them.' : 'You cannot save this artifact.');
           return;
         }
         if (artifactMode === 'publish' && !unsaved) {
-          saveStatus.textContent = "Saved to artifact";
-          saveStatus.className = "badge badge-status saved";
+          setStatusBadgeText("Saved to artifact", "badge badge-status saved");
           return;
         }
         // Name the file Save writes to: the one chosen this visit, else the one remembered from an earlier visit
         const target = fileHandle ? fileHandle.name : storedName;
         if (unsaved) {
-          saveStatus.textContent = "Unsaved changes";
-          saveStatus.className = "badge badge-status unsaved";
-          saveStatus.title = target ? `Save writes to ${target}` : '';
+          setStatusBadgeText("Unsaved changes", "badge badge-status unsaved", target ? `Save writes to ${target}` : '');
         } else if (fileHandle) {
-          saveStatus.textContent = `Saved to ${target}`;
-          saveStatus.className = "badge badge-status saved";
-          saveStatus.title = `Save writes straight to ${target}`;
+          setStatusBadgeText(`Saved to ${target}`, "badge badge-status saved", `Save writes straight to ${target}`);
         } else if (everSaved) {
-          saveStatus.textContent = "Downloaded a copy";
-          saveStatus.className = "badge badge-status saved";
-          saveStatus.title = location.protocol === 'file:'
+          setStatusBadgeText("Downloaded a copy", "badge badge-status saved", location.protocol === 'file:'
             ? 'The edited diagram went to your downloads folder. The file you opened was not changed.'
-            : 'The edited diagram went to your downloads folder.';
+            : 'The edited diagram went to your downloads folder.');
         } else if (target) {
-          saveStatus.textContent = `Saves to ${target}`;
-          saveStatus.className = "badge badge-status";
-          saveStatus.title = `Save writes to ${target}. Your browser may ask once per session to let this page edit it.`;
+          setStatusBadgeText(`Saves to ${target}`, "badge badge-status", `Save writes to ${target}. Your browser may ask once per session to let this page edit it.`);
         } else {
-          saveStatus.textContent = "Ready";
-          saveStatus.className = "badge badge-status";
-          saveStatus.title = '';
+          setStatusBadgeText("Ready", "badge badge-status", '');
         }
       }
 
@@ -2745,14 +3543,23 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
         updateHistoryButtons();
       }
 
+      function nudgeHistoryIcon(btn, deg) {
+        if (!motion.enabled()) return;
+        const svg = btn && btn.querySelector('svg');
+        if (svg) motion.anim(svg, [{ transform: 'none' }, { transform: `rotate(${deg}deg)` }, { transform: 'none' }], {
+          duration: 140, easing: motion.curve('curve-spring-tactile')
+        });
+      }
       function undo() {
         if (!undoStack.length || pointerHeld) return;
+        nudgeHistoryIcon(btnUndo, -12);
         redoStack.push(committedJson);
         restoreSnapshot(undoStack.pop());
       }
 
       function redo() {
         if (!redoStack.length || pointerHeld) return;
+        nudgeHistoryIcon(btnRedo, 12);
         undoStack.push(committedJson);
         restoreSnapshot(redoStack.pop());
       }
@@ -2793,11 +3600,33 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
       function currentTheme() {
         return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
       }
+      let themeTimer = 0;
       function applyTheme(theme, persist) {
-        document.documentElement.setAttribute('data-theme', theme);
-        menuTheme.setAttribute('aria-checked', String(theme === 'dark'));
-        if (persist) { try { localStorage.setItem('flowchart-theme', theme); } catch (e) {} }
-        if (plugin) plugin.render();   // type colors may depend on the theme
+        const flip = () => {
+          document.documentElement.setAttribute('data-theme', theme);
+          menuTheme.setAttribute('aria-checked', String(theme === 'dark'));
+          if (persist) { try { localStorage.setItem('flowchart-theme', theme); } catch (e) {} }
+          if (plugin) plugin.render();   // type colors may depend on the theme
+        };
+        if (!persist || !motion.enabled()) { flip(); return; }
+        // shortcut: only use async startViewTransition when #more-menu is open; programmatic hidden clicks expect sync data-theme update
+        if (document.startViewTransition && !moreMenu.hidden) {
+          const r = btnMore.getBoundingClientRect();
+          const cx = Math.round(r.left + r.width / 2), cy = Math.round(r.top + r.height / 2);
+          const maxR = Math.ceil(Math.hypot(Math.max(cx, innerWidth - cx), Math.max(cy, innerHeight - cy)));
+          const vt = document.startViewTransition(flip);
+          vt.ready.then(() => {
+            document.documentElement.animate(
+              { clipPath: [`circle(0px at ${cx}px ${cy}px)`, `circle(${maxR}px at ${cx}px ${cy}px)`] },
+              { duration: 260, easing: motion.curve('curve-inout'), pseudoElement: '::view-transition-new(root)' }
+            );
+          }).catch(() => {});
+          return;
+        }
+        document.body.classList.add('theme-animating');
+        clearTimeout(themeTimer);
+        themeTimer = setTimeout(() => document.body.classList.remove('theme-animating'), 180);
+        flip();
       }
       function initTheme() {
         let theme = null;
@@ -2812,9 +3641,10 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
       menuTheme.addEventListener('click', () => applyTheme(currentTheme() === 'dark' ? 'light' : 'dark', true));
 
       // --- VIEWPORT PAN & ZOOM & FIT ---
+      function showZoom() { zoomLevelEl.textContent = `${Math.round((vpAnim ? vpAnim.targetScale : scale) * 100)}%`; }   // a glide in flight shows where it lands
       function updateTransform() {
         stage.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
-        zoomLevelEl.textContent = `${Math.round(scale * 100)}%`;
+        showZoom();
         if (plugin && plugin.onViewChange) plugin.onViewChange();   // e.g. keep frozen headers pinned
       }
 
@@ -2923,7 +3753,7 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
         return { vpRect, frame, capture, dockBand, topBand, scaleX, scaleY, minPan: capture ? 0 : 20 };
       }
 
-      function fitView() {
+      function fitView(animate) {
         const { vpRect, frame, capture, dockBand, topBand, scaleX, scaleY, minPan } = fitMetrics();
 
         // Capture mode: scale to the exact width requested (?capture&w=1600) and pin to the top-left,
@@ -2931,6 +3761,7 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
         if (capture) {
           const reqW = parseFloat(new URLSearchParams(window.location.search).get('w'));
           if (reqW > 0) {
+            cancelViewportAnim();
             scale = Math.min(1, reqW / frame.w);
             panX = -frame.x * scale;
             panY = -frame.y * scale;
@@ -2939,11 +3770,17 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
           }
         }
 
-        scale = Math.min(Math.max(Math.min(scaleX, scaleY), 0.25), 1.0);
-        panX = Math.max(minPan, (vpRect.width - frame.w * scale) / 2) - frame.x * scale;
-        panY = topBand + Math.max(minPan, (vpRect.height - dockBand - topBand - frame.h * scale) / 2) - frame.y * scale;
+        const nextScale = Math.min(Math.max(Math.min(scaleX, scaleY), 0.25), 1.0);
+        const nextPanX = Math.max(minPan, (vpRect.width - frame.w * nextScale) / 2) - frame.x * nextScale;
+        const nextPanY = topBand + Math.max(minPan, (vpRect.height - dockBand - topBand - frame.h * nextScale) / 2) - frame.y * nextScale;
 
-        updateTransform();
+        if (animate && motion.enabled()) {
+          animateViewport(nextPanX, nextPanY, nextScale, { duration: motion.dur('dur-camera', 240), easing: 'curve-out' });
+        } else {
+          cancelViewportAnim();
+          scale = nextScale; panX = nextPanX; panY = nextPanY;
+          updateTransform();
+        }
       }
 
       // Middle button only pans, wherever it lands: no node drag, selection or edit sees it
@@ -2977,6 +3814,7 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
         if (!(e.button === 1 || (e.button === 0 && spaceHeld))) return;
         e.preventDefault();
         e.stopImmediatePropagation();
+        cancelViewportAnim();
         isPanning = true;
         panStartX = e.clientX - panX;
         panStartY = e.clientY - panY;
@@ -2989,6 +3827,7 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
         if (e.target === viewport || e.target.id === 'stage' || plugin.isBackground(e.target)) {
           if (plugin.cancelInteraction()) return;
           if (startMarquee(e)) return;   // Shift + drag draws a selection box instead of panning
+          cancelViewportAnim();
           isPanning = true;
           panStartX = e.clientX - panX;
           panStartY = e.clientY - panY;
@@ -3029,6 +3868,7 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
           e.stopImmediatePropagation();
           if (touches.size > 2) return;
           endMarquee();
+          cancelViewportAnim();
           isPanning = false;
           plugin.cancelInteraction();
           viewport.classList.add('panning', 'gesturing');
@@ -3081,7 +3921,7 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
         }
         const dx = e.clientX - g.sx, dy = e.clientY - g.sy;
         if (!g.moved && Math.hypot(dx, dy) < TAP_SLOP) return;
-        if (!g.moved) { g.moved = true; viewport.classList.add('panning', 'gesturing'); }
+        if (!g.moved) { cancelViewportAnim(); g.moved = true; viewport.classList.add('panning', 'gesturing'); }
         panX = g.panX + dx;
         panY = g.panY + dy;
         scheduleTransform();
@@ -3142,6 +3982,9 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
       }
       function endMarquee() {
         if (!marquee) return;
+        if (marquee.el.offsetWidth > 4 || marquee.el.offsetHeight > 4) {
+          motion.ghostExit(marquee.el, { duration: 90, transform: 'scale(0.92)' });
+        }
         marquee.el.remove();
         marquee = null;
       }
@@ -3170,6 +4013,7 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
       const WHEEL_SCROLL = 0.4;   // canvas px per px a mouse wheel notch reports (~40px per notch)
       viewport.addEventListener('wheel', (e) => {
         e.preventDefault();
+        cancelViewportAnim();
         const unit = e.deltaMode === 1 ? 16 : (e.deltaMode === 2 ? 400 : 1);
         const dX = e.deltaX * unit, dY = e.deltaY * unit;
         const isZoom = e.ctrlKey || e.metaKey;   // Ctrl/Cmd + wheel, and a trackpad pinch (reported as ctrl+wheel)
@@ -3199,20 +4043,33 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
       }, { passive: false });
 
       btnZoomIn.addEventListener('click', () => {
-        scale = Math.min(scale * 1.15, 2.5);
-        updateTransform();
+        const base = vpAnim ? vpAnim.targetScale : scale;
+        const tx = vpAnim ? vpAnim.targetPanX : panX, ty = vpAnim ? vpAnim.targetPanY : panY;
+        animateViewport(tx, ty, Math.min(base * 1.15, 2.5), { duration: 200, easing: 'curve-out' });
       });
       btnZoomOut.addEventListener('click', () => {
-        scale = Math.max(scale * 0.85, 0.2);
-        updateTransform();
+        const base = vpAnim ? vpAnim.targetScale : scale;
+        const tx = vpAnim ? vpAnim.targetPanX : panX, ty = vpAnim ? vpAnim.targetPanY : panY;
+        animateViewport(tx, ty, Math.max(base * 0.85, 0.2), { duration: 200, easing: 'curve-out' });
       });
-      btnZoomReset.addEventListener('click', fitView);
+      btnZoomReset.addEventListener('click', () => fitView(true));
 
       function setHelpOpen(open) {
+        const wasOpen = helpDrawer.classList.contains('open');
+        if (open === wasOpen) return;
+        if (!open) motion.ghostExit(helpDrawer, { duration: 110, transform: 'scale(0.92) translateY(10px)', origin: 'bottom right' });
         helpDrawer.classList.toggle('open', open);
         btnMore.setAttribute('aria-expanded', String(open || !moreMenu.hidden));
-        if (open) document.getElementById('help-close').focus();
-        else if (helpDrawer.contains(document.activeElement)) btnMore.focus();
+        if (open) {
+          if (motion.enabled()) {
+            helpDrawer.style.transformOrigin = 'bottom right';
+            motion.anim(helpDrawer, [
+              { transform: 'scale(0.92) translateY(10px)', clipPath: 'inset(100% 0 0 100% round 8px)' },
+              { transform: 'none', clipPath: 'inset(0 0 0 0 round 8px)' }
+            ], { duration: motion.dur('dur-base', 180), easing: motion.curve('curve-spring-tactile') });
+          }
+          document.getElementById('help-close').focus();
+        } else if (helpDrawer.contains(document.activeElement)) btnMore.focus();
       }
       menuHelp.addEventListener('click', () => { setMoreOpen(false); setHelpOpen(!helpDrawer.classList.contains('open')); });
       document.getElementById('help-close').addEventListener('click', () => setHelpOpen(false));
@@ -3233,13 +4090,14 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
       const SEARCH_MIN_SCALE = 0.6;   // below this zoom a centred match is too small to read, so zoom in on it
       let searchMatches = [];         // [{ id, text, el }] matching the query, one per element, in plugin order
       let searchIndex = 0;
-      let searchTimer = 0;
 
       const searchFold = (s) => String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
       const searchOpen = () => !searchBar.hidden;
 
       // Marks the stage for the current query and keeps the current match when its id still matches.
       function applySearch() {
+        const prevCur = stage.querySelector('.search-current');
+        const prevRect = prevCur && motion.enabled() ? prevCur.getBoundingClientRect() : null;
         stage.querySelectorAll('.search-dim, .search-current').forEach(el => el.classList.remove('search-dim', 'search-current'));
         const q = searchFold(searchInput.value.trim());
         const keep = searchMatches[searchIndex] && searchMatches[searchIndex].id;
@@ -3251,7 +4109,11 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
           items.forEach(it => { if (!seen.has(it.el)) it.el.classList.add('search-dim'); });
           const kept = searchMatches.findIndex(m => m.id === keep);
           searchIndex = kept >= 0 ? kept : Math.min(searchIndex, Math.max(searchMatches.length - 1, 0));
-          if (searchMatches[searchIndex]) searchMatches[searchIndex].el.classList.add('search-current');
+          if (searchMatches[searchIndex]) {
+            const nextEl = searchMatches[searchIndex].el;
+            nextEl.classList.add('search-current');
+            if (prevRect && nextEl !== prevCur) motion.morphRing(prevRect, nextEl);
+          }
         } else searchIndex = 0;
         searchCount.textContent = !q ? '' : searchMatches.length ? `${searchIndex + 1} / ${searchMatches.length}` : 'No matches';
         searchPrev.disabled = searchNext.disabled = !searchMatches.length;
@@ -3270,13 +4132,7 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
           s = Math.max(s, Math.min(Math.max(fit, 0.25), 1));
         }
         const cx = (r.left + r.width / 2 - st.left) / k, cy = (r.top + r.height / 2 - st.top) / k;
-        const reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-        viewport.classList.toggle('search-glide', !reduced);
-        scale = s;
-        panX = vp.width / 2 - cx * s;
-        panY = vp.height / 2 - cy * s;
-        updateTransform();
-        if (!reduced) { clearTimeout(searchTimer); searchTimer = setTimeout(() => viewport.classList.remove('search-glide'), 400); }
+        animateViewport(vp.width / 2 - cx * s, vp.height / 2 - cy * s, s, { duration: 220, easing: 'curve-out' });
       }
 
       function stepSearch(dir) {
@@ -3287,9 +4143,25 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
       }
 
       function setSearchOpen(on) {
+        const wasOpen = !searchBar.hidden;
+        if (on === wasOpen) {
+          if (!on) { searchInput.value = ''; applySearch(); }
+          return;
+        }
+        if (!on) {
+          motion.ghostExit(searchBar, { duration: 110, transform: 'translateY(-6px)', clipPath: 'inset(0 0 100% 0 round 8px)' });
+        }
         searchBar.hidden = !on;
         btnSearch.setAttribute('aria-expanded', String(on));
-        if (on) { searchInput.focus(); searchInput.select(); } else {
+        if (on) {
+          if (motion.enabled()) {
+            motion.anim(searchBar, [
+              { transform: 'translateY(-6px)', clipPath: 'inset(0 0 100% 0 round 8px)' },
+              { transform: 'none', clipPath: 'inset(0 0 0 0 round 8px)' }
+            ], { duration: 160, easing: motion.curve('curve-out') });
+          }
+          searchInput.focus(); searchInput.select();
+        } else {
           searchInput.value = '';
           searchInput.blur();
         }
@@ -3324,7 +4196,7 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
       // foreignObject. The result is a self-contained SVG, and the PNG is that SVG rasterised.
       const btnExport = document.getElementById('btn-export');
       const exportMenu = document.getElementById('export-menu');
-      const TRANSIENT_CLASSES = ['selected', 'hover', 'linked', 'hl-in', 'hl-out', 'multi-selected', 'dragging', 'lane-hover', 'search-dim', 'search-current'];
+      const TRANSIENT_CLASSES = ['selected', 'hover', 'linked', 'hl-in', 'hl-out', 'multi-selected', 'dragging', 'lane-hover', 'search-dim', 'search-current', 'motion-entering', 'motion-active'];
       const SKIP_SELECTOR = '#drag-edge, .snap-guide, #lane-drop-line, #seq-drop-line, [data-export-skip]';
       const EXPORT_SVG_NS = 'http://www.w3.org/2000/svg';
       let defaultStyleCache = null;
@@ -3368,6 +4240,7 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
       function buildExportSvg() {
         const root = stage.firstElementChild;
         if (!root) throw new Error('Nothing to export');
+        motion.cancelAll();
         // Freeze transitions and drop selection/hover state while computed styles are read
         const frozen = document.createElement('style');
         frozen.textContent = '*,*::before,*::after{transition:none!important;animation:none!important}';
@@ -3430,14 +4303,18 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
 
       function downloadBlob(blob, ext) { return deliverFile(exportFileName(ext), blob); }
 
-      // A short message that fades out; used for save and download problems inside an artifact
+      // A short message that slides in and retracts; used for save and download problems inside an artifact
       function showToast(message) {
         const t = document.createElement('div');
         t.className = 'toast';
         t.setAttribute('role', 'status');
         t.textContent = message;
         document.body.appendChild(t);
-        setTimeout(() => t.remove(), 6000);
+        setTimeout(() => {
+          if (!t.isConnected) return;
+          motion.ghostExit(t, { duration: 120, transform: 'translateY(12px) scale(0.95)' });
+          t.remove();
+        }, 6000);
       }
 
       function svgDocument(svg) { return '<?xml version="1.0" encoding="UTF-8"?>\n' + svg; }
@@ -3487,8 +4364,7 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
 
       function flashCopied(what) { flashStatus('Copied as ' + what); }
       function flashStatus(text) {
-        saveStatus.textContent = text;
-        saveStatus.className = 'badge badge-status saved';
+        setStatusBadgeText(text, 'badge badge-status saved');
         clearTimeout(copyFlashTimer);
         copyFlashTimer = setTimeout(() => setStatusBadge(hasUnsavedChanges), 1500);
       }
@@ -3539,14 +4415,32 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
       }
       syncCopyMenu();
 
+      function animateMenuToggle(menu, open, leftOrigin) {
+        const origin = leftOrigin ? 'top left' : 'top right';
+        if (!open) {
+          if (!menu.hidden) motion.ghostExit(menu, { duration: 110, transform: 'scale(0.92, 0.86) translateY(-4px)', clipPath: 'inset(0 0 25% 0 round 8px)', origin });
+          menu.hidden = true;
+          return;
+        }
+        const wasHidden = menu.hidden;
+        menu.hidden = false;
+        if (wasHidden && motion.enabled()) {
+          menu.style.transformOrigin = origin;
+          motion.anim(menu, [
+            // opacity + a small slide only: a scale would move the items under a pointer that aims at their final place
+            { opacity: 0, transform: 'translateY(-4px)' },
+            { opacity: 1, transform: 'none' }
+          ], { duration: 160, easing: motion.curve('curve-spring-tactile') });
+        }
+      }
       function setExportOpen(open) {
         if (open) setMoreOpen(false);
-        exportMenu.hidden = !open;
+        animateMenuToggle(exportMenu, open, false);
         btnExport.setAttribute('aria-expanded', String(open));
       }
       function setMoreOpen(open) {
         if (open) setExportOpen(false);
-        moreMenu.hidden = !open;
+        animateMenuToggle(moreMenu, open, false);
         btnMore.setAttribute('aria-expanded', String(open || helpDrawer.classList.contains('open')));
       }
       btnMore.addEventListener('click', (e) => {
@@ -3620,7 +4514,7 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
         document.title = chartTitleEl.textContent;
         plugin.render();
         updateStatus(true);
-        fitView();
+        fitView(true);
         const note = (list, label) => (list || []).map((m) => `${label}: ${String(m).replace(/^\[(?:INFO|WARN)\]\s*/, '')}`);
         return note(res.warnings, 'Warning').concat(note(res.infos, 'Note'));
       }
@@ -3628,6 +4522,7 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
       let importEl = null;
       function closeMermaidImport() {
         if (!importEl) return false;
+        motion.ghostExit(importEl, { duration: 110, transform: 'scale(0.94) translateY(-6px)', origin: 'top right' });
         importEl.remove();
         importEl = null;
         return true;
@@ -3691,6 +4586,13 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
         document.body.appendChild(box);
         importEl = box;
         positionImportBox(box);
+        if (motion.enabled()) {
+          box.style.transformOrigin = 'top right';
+          motion.anim(box, [
+            { transform: 'scale(0.94) translateY(-6px)', clipPath: 'inset(0 0 25% 0 round 10px)' },
+            { transform: 'none', clipPath: 'inset(0 0 0 0 round 10px)' }
+          ], { duration: motion.dur('dur-base', 180), easing: motion.curve('curve-out') });
+        }
         field.focus();
       }
       window.addEventListener('paste', (e) => {
@@ -3795,9 +4697,12 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
         if (!btnDelete || !plugin) return;
         const on = !document.body.classList.contains('presentation') && !!(plugin.hasSelection && plugin.hasSelection());
         if (on === btnDelete.classList.contains('show')) return;
-        btnDelete.classList.toggle('show', on);
-        btnDelete.setAttribute('aria-hidden', String(!on));
-        btnDelete.tabIndex = on ? 0 : -1;
+        if (!on) motion.ghostExit(btnDelete, { duration: 110, transform: 'scale(0.85)' });
+        motion.flipDock(() => {
+          btnDelete.classList.toggle('show', on);
+          btnDelete.setAttribute('aria-hidden', String(!on));
+          btnDelete.tabIndex = on ? 0 : -1;
+        });
       }
       function queueDeleteRefresh() {
         if (deleteCheckQueued) return;
@@ -4063,6 +4968,7 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
               savedJson = snapshot;
               everSaved = true;
               updateStatus(false);
+              motion.pulseEl(btnSave.querySelector('svg'));
               if (JSON.stringify(chartData) !== snapshot) updateStatus(true);   // edited mid-publish: still unsaved
               return;
             } catch (err) {
@@ -4199,6 +5105,7 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
             savedJson = JSON.stringify(chartData);
             everSaved = true;
             updateStatus(false);
+            motion.pulseEl(btnSave.querySelector('svg'));
             return;
           } catch (err) {
             if (err.name === 'AbortError') return;
@@ -4294,6 +5201,12 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
 
       // --- PLAYGROUND: the header icon becomes a type menu ---
       if (playground) {
+        const catchVt = (e) => { if (e.viewTransition) { e.viewTransition.finished.catch(() => {}); e.viewTransition.ready.catch(() => {}); } };
+        window.addEventListener('pageswap', catchVt);
+        window.addEventListener('pagereveal', catchVt);
+        window.addEventListener('unhandledrejection', (e) => {
+          if (e.reason && e.reason.name === 'AbortError' && /Transition was skipped/.test(e.reason.message || '')) e.preventDefault();
+        });
         btnSave.title = 'Download this diagram as an HTML file (Ctrl+S)';
         const icon = document.querySelector('.toolbar-left > svg');
         const wrap = document.createElement('div');
@@ -4307,7 +5220,7 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
         icon.replaceWith(wrap);
         btn.appendChild(icon);
         wrap.append(btn, menu);
-        const setOpen = (open) => { menu.hidden = !open; btn.setAttribute('aria-expanded', String(open)); };
+        const setOpen = (open) => { animateMenuToggle(menu, open, true); btn.setAttribute('aria-expanded', String(open)); };
         const goTo = (id) => { location.assign('../' + id + '/index.html'); };
         for (const t of playground.types) {
           const item = document.createElement('button');
@@ -4348,6 +5261,10 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
           if (presentOn() && !document.body.classList.contains('capture')) { setPresent(false); return; }
           if (helpDrawer.classList.contains('open')) { setHelpOpen(false); return; }
           plugin.cancelInteraction();
+        } else if (e.key === '?' && !e.ctrlKey && !e.metaKey && !e.altKey && !typingInField() && !presentOn()) {
+          e.preventDefault();
+          setMoreOpen(false);
+          setHelpOpen(!helpDrawer.classList.contains('open'));
         } else if (e.key === 'Delete' || e.key === 'Backspace') {
           if (document.body.classList.contains('presentation')) return;
           if (document.activeElement && (document.activeElement.isContentEditable || document.activeElement.tagName === 'INPUT')) {
@@ -6469,7 +7386,7 @@ function toMermaid(data, opts) {
         worker.onerror = (ev) => { ev.preventDefault(); erdFinishJob(job, null); };
         worker.postMessage({ seq: job.seq, data: chartData });
         document.body.dataset.erdBusy = '';
-        erdHint('Laying out the diagram…', true);
+        erdHint('Laying out the diagram…', true, true);
         return true;
       }
 
@@ -6508,8 +7425,8 @@ function toMermaid(data, opts) {
         if (ents.some((e) => !erdIsPlaced(e))) {
           // anything unplaced (a v1/v2 page, a table made by hand): the whole diagram is laid out
           const background = erdJob || (erdAsyncOK() && erdStartJob(() => {
-            render();
-            fitView();
+            render({ duration: 260, easing: 'curve-spring-settle', skipFreeNotes: true });
+            fitView(true);
             committedJson = savedJson = JSON.stringify(chartData);   // the laid-out page is the one that counts as unedited
             setStatusBadge(false);
           }));
@@ -6524,14 +7441,95 @@ function toMermaid(data, opts) {
       // The swatch a table wears ('' = neutral)
       const entityColor = (e) => e.color || '';
       const ERD_KEY_GAP = 34;   // the legend sits this far above the top-left corner of the tables
+      const ERD_FLIP_SPECS = [
+        { selector: '.erd-entity[data-node-id]', key: 'nodeId', mode: 'clip' },
+        { selector: '.erd-row[data-col]', key: (el) => { const p = el.closest('.erd-entity[data-node-id]'); return p ? `${p.dataset.nodeId}:${el.dataset.col}` : ''; } },
+        { selector: '.edge-label[data-edge-id]', key: 'edgeId' },
+        { selector: '.note[data-note-id]', key: 'noteId' },
+        { selector: '.color-key-item[data-color]', key: 'color' }
+      ];
+      const ERD_NUM_RE = /-?[\d.]+(?:e[-+]?\d+)?/gi;
+      let erdInRender = false;
+      function erdCapture(opts) {
+        if (!motion.enabled()) return null;
+        const html = motion.capture(erdCanvas, ERD_FLIP_SPECS, opts);
+        if (!html) return null;
+        const beziers = new Map();
+        erdRels.querySelectorAll('.erd-rel[data-edge-id] .edge-line').forEach((line) => {
+          const nums = (line.getAttribute('d') || '').match(ERD_NUM_RE);
+          if (nums && nums.length === 8) beziers.set(line.parentNode.dataset.edgeId, nums.map(Number));
+        });
+        const leaders = new Map();
+        erdLeaders.querySelectorAll('.note-leader[data-note-id][data-entity-id]').forEach((ln) => {
+          leaders.set(`${ln.dataset.noteId}:${ln.dataset.entityId}`,
+            [+ln.getAttribute('x1'), +ln.getAttribute('y1'), +ln.getAttribute('x2'), +ln.getAttribute('y2')]);
+        });
+        return { html, beziers, leaders };
+      }
+      function erdPlay(snap, opts) {
+        if (!snap || !motion.enabled()) return;
+        const o = opts || {};
+        const skipKeys = o.skipKeys ? new Set(o.skipKeys) : new Set();
+        if (o.skipFreeNotes) notesList().forEach((n) => { if (isFreeNote(n)) skipKeys.add(n.id); });
+        const durMs = motion.play(snap.html, erdCanvas, ERD_FLIP_SPECS, Object.assign({}, o, { skipKeys }));
+        if (o.shrinkGhosts) {
+          const st = stage.getBoundingClientRect();
+          const k = (stage.offsetWidth ? st.width / stage.offsetWidth : scale) || 1;
+          const op = o.shrinkOpacity ?? 0.9;
+          for (const [key, prev] of snap.html) {
+            if (!key.startsWith('0:') || !prev.preCloned) continue;
+            const cur = entityEl(prev.id);
+            if (!cur) continue;
+            const dw = prev.baseW - cur.offsetWidth, dh = prev.baseH - cur.offsetHeight;
+            if (dw <= 2 && dh <= 2) continue;
+            const cvr = cur.getBoundingClientRect();
+            const dx = (cvr.left - st.left) / k - prev.x, dy = (cvr.top - st.top) / k - prev.y;
+            motion.ghostExit(prev.el, {
+              preCloned: prev.preCloned, fromRect: prev.vr, baseW: prev.baseW, baseH: prev.baseH,
+              transform: `translate(${dx}px, ${dy}px)`,
+              clipPath: `inset(0 ${Math.max(0, dw)}px ${Math.max(0, dh)}px 0 round var(--radius-lg))`,
+              opacity: op, duration: durMs || 200, easing: o.easing || 'curve-spring-settle'
+            });
+          }
+        }
+        const tracks = [];
+        erdRels.querySelectorAll('.erd-rel[data-edge-id]').forEach((g) => {
+          const id = g.dataset.edgeId, line = g.querySelector('.edge-line'), rel = erdRel(id);
+          const from = snap.beziers.get(id);
+          if (from && rel && rel.curve && rel.curve.length === 4) {
+            const to = rel.curve.flat();
+            if (to.some((v, i) => Math.abs(v - from[i]) > 0.5)) tracks.push({ type: 'bezier', el: line, from, to });
+          } else if (o.drawNewRels && line) {
+            motion.drawPath(line, { duration: 140, easing: 'curve-out' });
+          }
+        });
+        erdLeaders.querySelectorAll('.note-leader[data-note-id][data-entity-id]').forEach((ln) => {
+          const key = `${ln.dataset.noteId}:${ln.dataset.entityId}`, from = snap.leaders.get(key);
+          const to = [+ln.getAttribute('x1'), +ln.getAttribute('y1'), +ln.getAttribute('x2'), +ln.getAttribute('y2')];
+          if (from) {
+            if (to.some((v, i) => Math.abs(v - from[i]) > 0.5)) tracks.push({ type: 'line', el: ln, from, to });
+          } else if (o.drawNewLeaders) {
+            motion.drawPath(ln, { duration: 150, easing: 'curve-out' });
+          }
+        });
+        if (tracks.length) motion.tweenSvg(tracks, { duration: o.duration ?? durMs, easing: o.easing || 'curve-spring-settle' });
+      }
 
-      function render() {
+      function render(motionOpts) {
+        const m = motionOpts === false ? null : (motionOpts || {});
+        const snap = m ? (m.snap || erdCapture(m.shrinkGhosts ? { ghosts: true } : undefined)) : null;
         ensureLayout();
         const C = chartData.canvas || { width: 800, height: 400 };
         erdCanvas.style.width = `${C.width}px`;
         erdCanvas.style.height = `${C.height}px`;
         erdSvg.setAttribute('width', C.width);
         erdSvg.setAttribute('height', C.height);
+        const oldBar = erdHtml.querySelector('.erd-actionbar');
+        let oldBarRect = null;
+        if (oldBar) {
+          if (!erdSel || erdPresenting()) motion.hideBar(oldBar);
+          else { oldBarRect = oldBar.getBoundingClientRect(); oldBar.remove(); }
+        }
         erdRels.textContent = '';
         erdLeaders.textContent = '';
         erdHtml.textContent = '';
@@ -6540,16 +7538,28 @@ function toMermaid(data, opts) {
         if (hoverEntityId && !erdEntity(hoverEntityId)) hoverEntityId = null;
         if (hoverRelId && !erdRel(hoverRelId)) hoverRelId = null;
 
-        erdHideCard();
-        renderRelationships();
-        erdEntities().forEach((e) => erdHtml.appendChild(buildEntity(e)));
-        drawKey();
-        renderLabels();
-        renderNotes(true);
-        updateButtons();
-        erdUpdateOverview(true);
-        applyHighlight();
-        drawSelectionTools();
+        erdInRender = true;
+        try {
+          erdHideCard();
+          renderRelationships();
+          erdEntities().forEach((e) => erdHtml.appendChild(buildEntity(e)));
+          drawKey();
+          renderLabels();
+          renderNotes(true);
+          updateButtons();
+          erdUpdateOverview(true);
+          applyHighlight();
+          drawSelectionTools(oldBarRect);
+        } finally { erdInRender = false; }
+        if (snap) erdPlay(snap, m);
+        if (m && m.collapseId && motion.enabled()) {
+          const ent = erdEntity(m.collapseId), chev = entityEl(m.collapseId)?.querySelector('.erd-chevron svg');
+          if (ent && chev) {
+            const on = ent.collapsed === true;
+            motion.anim(chev, [{ transform: on ? 'rotate(0deg)' : 'rotate(-90deg)' }, { transform: on ? 'rotate(-90deg)' : 'none' }],
+              { duration: 180, easing: motion.curve('curve-inout') });
+          }
+        }
       }
       function erdSelExists(sel) {
         if (sel.kind === 'entity') return !!erdEntity(sel.id);
@@ -6959,14 +7969,30 @@ function toMermaid(data, opts) {
       // (--inv on the canvas) so they stay readable; a label that would then cover another label or a table is hidden
       // until its line or either table is hovered. All of it is CSS keyed to body.erd-overview:not(.exporting), so every
       // export and copy is the full diagram. Nothing here changes the layout or the saved file.
-      let erdOverview = false, erdMeasuredAt = null;
+      let erdOverview = false, erdMeasuredAt = null, lastWheelZoomAt = 0;
+      window.addEventListener('wheel', (e) => { if (e.ctrlKey || e.metaKey) lastWheelZoomAt = performance.now(); }, { passive: true, capture: true });
       function erdUpdateOverview(force) {
         const was = erdOverview;
         if (!erdOverview && scale < 0.5) erdOverview = true; else if (erdOverview && scale > 0.6) erdOverview = false;
+        const canMorph = was !== erdOverview && force !== true && motion.enabled()
+          && !viewport.classList.contains('panning') && (performance.now() - lastWheelZoomAt > 120);
+        const nameSpec = [{ selector: '.erd-entity[data-node-id] .erd-name', key: (el) => el.closest('.erd-entity').dataset.nodeId }];
+        const nameSnap = canMorph ? motion.capture(erdHtml, nameSpec) : null;
         document.body.classList.toggle('erd-overview', erdOverview);
         erdCanvas.style.setProperty('--inv', String(1 / scale));
         if (erdOverview) { if (force === true || was !== erdOverview || erdMeasuredAt !== scale) { erdMeasuredAt = scale; erdOverviewMeasure(); } }
         else if (was || force === true) { erdMeasuredAt = null; erdOverviewReset(); }
+        if (nameSnap) {
+          motion.play(nameSnap, erdHtml, nameSpec, { duration: 160, easing: 'curve-inout', enter: false });
+          if (!erdOverview) {
+            erdHtml.querySelectorAll('.erd-entity[data-node-id]').forEach((ent) => {
+              motion.anim(ent, [
+                { clipPath: `inset(0 0 ${Math.max(0, ent.offsetHeight - ER.HEAD_H)}px 0 round var(--radius-lg))` },
+                { clipPath: 'inset(0 0 0 0 round var(--radius-lg))' }
+              ], { duration: 160, easing: motion.curve('curve-inout') });
+            });
+          }
+        }
         if (was !== erdOverview) { applyHighlight(); if (!erdOverview) erdHideCard(); }
       }
       function erdOverviewReset() {
@@ -7008,15 +8034,21 @@ function toMermaid(data, opts) {
       // over its own box (fixed to the screen, an overlay: nothing moves). Read only and click-through (erd.css), so the
       // table under it can still be dragged, and a double-click reaches the table and zooms to it.
       let erdCardEl = null, erdCardId = null;
-      function erdHideCard() {
-        if (erdCardEl) erdCardEl.remove();
+      function erdHideCard(animate) {
+        if (erdCardEl) {
+          if (animate && motion.enabled()) {
+            const mini = erdCardId && entityEl(erdCardId);
+            motion.ghostExit(erdCardEl, { toRect: mini ? mini.getBoundingClientRect() : null, duration: 150, easing: 'curve-in' });
+          }
+          erdCardEl.remove();
+        }
         erdCardEl = null; erdCardId = null;
       }
       function erdSyncCard() {
         const sel = erdSel && erdSel.kind === 'entity' && !isMultiSelected() && erdEntity(erdSel.id) ? erdSel.id : null;
         const want = !erdOverview || (erdDrag && erdDrag.moved) ? null : sel;
         if (want === erdCardId && (!want || erdCardEl)) return;
-        erdHideCard();
+        erdHideCard(true);
         if (!want) return;
         const e = erdEntity(want), el = entityEl(want);
         if (!e || !el) return;
@@ -7035,6 +8067,7 @@ function toMermaid(data, opts) {
         wrap.style.top = `${Math.max(vp.top + 8, Math.min(r.top, vp.bottom - h - 8))}px`;
         erdCardEl = wrap;
         erdCardId = want;
+        motion.morphRect(r, wrap, { duration: 190, easing: 'curve-spring-tactile', origin: 'top left' });
       }
       // Zoom to a table at 100%, centred in the view
       function erdZoomToTable(id) {
@@ -7042,21 +8075,25 @@ function toMermaid(data, opts) {
         if (!el) return;
         const r = el.getBoundingClientRect(), vp = viewport.getBoundingClientRect();
         const sx = (r.left + r.width / 2 - vp.left - panX) / scale, sy = (r.top + r.height / 2 - vp.top - panY) / scale;
-        scale = 1;
-        panX = vp.width / 2 - sx;
-        panY = vp.height / 2 - sy;
-        updateTransform();
-        erdSyncCard();
+        if (erdCardEl) {
+          const box = erdEntity(id)?.box;
+          const toRect = box ? { left: vp.left + vp.width / 2 - box.w / 2, top: vp.top + vp.height / 2 - box.h / 2, width: box.w, height: box.h } : null;
+          motion.ghostExit(erdCardEl, { toRect, opacity: 0.9, duration: 150, easing: 'curve-out' });
+          erdCardEl.remove();
+          erdCardEl = null; erdCardId = null;
+        }
+        animateViewport(vp.width / 2 - sx, vp.height / 2 - sy, 1, { duration: 150, easing: 'curve-out', onComplete: erdSyncCard });
       }
 
       // --- COLLAPSE ---
       function toggleCollapsed(id) {
         const e = erdEntity(id);
         if (!e) return;
-        if (e.collapsed === true) delete e.collapsed; else e.collapsed = true;
+        const was = e.collapsed === true;
+        if (was) delete e.collapsed; else e.collapsed = true;
         // Tables stay where they are, only their sizes and the lines change (render() re-routes because the model
         // changed). In ?present it is a change of view, not an edit.
-        render();
+        render({ duration: 200, easing: 'curve-spring-settle', shrinkGhosts: !was, shrinkOpacity: 1, collapseId: id });
         if (!erdPresenting()) updateStatus(true);
       }
 
@@ -7156,11 +8193,11 @@ function toMermaid(data, opts) {
       if (erdBtnColumns) erdBtnColumns.addEventListener('click', () => {
         const next = ERD_DETAILS[(ERD_DETAILS.indexOf(erdDetail()) + 1) % ERD_DETAILS.length];
         if (next === 'all') delete chartData.detail; else chartData.detail = next;
-        resizeLayout(() => { render(); updateStatus(true); fitView(); });   // sizes change; rank and order do not (check_golden.py)
+        resizeLayout(() => { render({ duration: 230, easing: 'curve-spring-settle', shrinkGhosts: true, shrinkOpacity: 0.2 }); updateStatus(true); fitView(true); });   // sizes change; rank and order do not (check_golden.py)
       });
       if (erdBtnTypes) erdBtnTypes.addEventListener('click', () => {
         if (chartData.showTypes === false) delete chartData.showTypes; else chartData.showTypes = false;
-        resizeLayout(() => { render(); updateStatus(true); });
+        resizeLayout(() => { render({ duration: 200, easing: 'curve-spring-settle', shrinkGhosts: true, shrinkOpacity: 0.2 }); updateStatus(true); });
       });
 
       // --- NOTES ---
@@ -7169,6 +8206,8 @@ function toMermaid(data, opts) {
       // ("showNotes": true). Each unpinned note is fitted into a clear gap near its table on every render, and a dashed
       // leader joins the card to its tables. (The card is the flowchart's, and so is the fitting, with this type's
       // obstacles.) Editing (NOTES, in EDITING): add (dock, N, the + chip), edit in place, link and unlink tables, drag to pin.
+      // A free note has no tables ("entities": []) and an absolute `pos` in canvas coordinates (a table's x/y space): no
+      // leader, no badge, always on show, never moved by Tidy; the other notes are fitted around it.
       const NOTE_GAP = 8, NOTE_MIN_GAP = 10, NOTE_IDEAL_GAP = 20, NOTE_REACH = 168, NOTE_STEP = 8, NOTE_PEEK_DELAY = 100;
       let noteOffsets = {};          // noteId -> {x, y}: fitted top-left relative to its anchor table's top-left
       let noteSizes = {};            // noteId -> {w, h}
@@ -7182,7 +8221,8 @@ function toMermaid(data, opts) {
       const noteById = (id) => notesList().find((n) => n.id === id);
       const linkedEntities = (note) => (note.entities || []).filter((id) => erdEntity(id) && erdEntity(id).box);
       let editingNoteId = null;      // the note being typed: it counts as live while still empty
-      const liveNotes = () => notesList().filter((n) => (noteTextOf(n) || n.id === editingNoteId) && linkedEntities(n).length);
+      const isFreeNote = (note) => !(note.entities || []).length;
+      const liveNotes = () => notesList().filter((n) => (noteTextOf(n) || n.id === editingNoteId) && (isFreeNote(n) || linkedEntities(n).length));
       // A table note has no `column`
       const notesOfEntity = (id) => liveNotes().filter((n) => !n.column && (n.entities || []).includes(id));
       const erdPresenting = () => document.body.classList.contains('presentation');
@@ -7266,8 +8306,8 @@ function toMermaid(data, opts) {
         const segBox = ([x1, y1, x2, y2]) => ({ x: Math.min(x1, x2), y: Math.min(y1, y2), w: Math.abs(x2 - x1), h: Math.abs(y2 - y1) });
         const boxesOf = {};
         live.forEach((n) => { boxesOf[n.id] = linkedEntities(n).map((id) => erdEntity(id).box); });
-        const placed = live.filter((n) => n.pos || noteOffsets[n.id]).map((n) => {
-          const o = n.pos || noteOffsets[n.id], a = boxesOf[n.id][0];
+        const placed = live.filter((n) => n.pos || noteOffsets[n.id]).map((n) => {   // free notes are obstacles like any placed note
+          const o = n.pos || noteOffsets[n.id], a = isFreeNote(n) ? { x: 0, y: 0 } : boxesOf[n.id][0];
           return { x: a.x + o.x, y: a.y + o.y, w: noteSizes[n.id].w, h: noteSizes[n.id].h };
         });
         todo.sort((a, b) => boxesOf[a.id][0].x - boxesOf[b.id][0].x || boxesOf[a.id][0].y - boxesOf[b.id][0].y);
@@ -7321,8 +8361,8 @@ function toMermaid(data, opts) {
           const note = noteById(card.dataset.noteId);
           if (!note) return;
           const ids = linkedEntities(note), o = note.pos || noteOffsets[note.id];
-          if (!ids.length || !o) return;
-          const a = erdEntity(ids[0]).box, x = a.x + o.x, y = a.y + o.y, s = noteSizes[note.id] || { w: 0, h: 0 };
+          if ((!ids.length && !isFreeNote(note)) || !o) return;
+          const a = ids.length ? erdEntity(ids[0]).box : { x: 0, y: 0 }, x = a.x + o.x, y = a.y + o.y, s = noteSizes[note.id] || { w: 0, h: 0 };
           card.style.left = `${x}px`;
           card.style.top = `${y}px`;
           drawLeaders(note.id, { x, y, w: s.w, h: s.h });
@@ -7346,17 +8386,66 @@ function toMermaid(data, opts) {
         const ids = note.entities || [];
         return note.id === selectedNoteId || ids.includes(peekEntityId) || (erdSel && erdSel.kind === 'entity' && ids.includes(erdSel.id));
       }
+      let wasVisibleNoteIds = new Set(), pendingNoteOriginRect = null;
       function applyNoteVisibility() {
         if (!erdNotesLayer) return;
         const all = !!chartData.showNotes;
+        const canAnim = !erdInRender && motion.enabled();
+        const nextVis = new Set();
+        if (canAnim) {
+          [...erdNotesLayer.children].forEach((card) => {
+            const id = card.dataset.noteId, note = noteById(id);
+            if (!note) return;
+            const willShow = all || isFreeNote(note) || !!notePeeked(note);
+            if (willShow) nextVis.add(id);
+            if (id === selectedNoteId && wasVisibleNoteIds.has(id)) {
+              // clicked while a hover peek was still unfolding: settle it, so its link handle is where it will stay
+              card.getAnimations().forEach((a) => a.finish());
+              card.style.pointerEvents = '';
+            }
+            if (!willShow && wasVisibleNoteIds.has(id) && !isFreeNote(note)) {
+              const badge = (note.entities || [])[0] && entityEl(note.entities[0])?.querySelector('.note-badge');
+              motion.foldNote(card, badge);
+            }
+          });
+        }
         erdCanvas.classList.toggle('notes-on', all);
         [...erdNotesLayer.children, ...erdLeaders.children].forEach((el) => {
           const note = noteById(el.dataset.noteId);
           if (!note) return;
-          el.classList.toggle('show', all);
-          el.classList.toggle('peek', !!notePeeked(note));
-          if (el.classList.contains('note')) el.classList.toggle('selected', note.id === selectedNoteId);
+          const show = all || isFreeNote(note), peek = !!notePeeked(note);
+          el.classList.toggle('show', show);   // a free note has nothing to hover: it is always on show
+          el.classList.toggle('peek', peek);
+          if (el.classList.contains('note')) {
+            el.classList.toggle('selected', note.id === selectedNoteId);
+            if (show || peek) nextVis.add(note.id);
+          }
         });
+        if (canAnim) {
+          [...erdNotesLayer.children].forEach((card) => {
+            const id = card.dataset.noteId, note = noteById(id);
+            if (!note || !nextVis.has(id) || wasVisibleNoteIds.has(id)) return;
+            if (pendingNoteOriginRect) {
+              const r = pendingNoteOriginRect; pendingNoteOriginRect = null;
+              motion.morphRect(r, card, { duration: 170, easing: 'curve-spring-tactile' });
+            } else if (isFreeNote(note)) {
+              motion.unfoldNote(card);
+            } else {
+              const badge = (note.entities || [])[0] && entityEl(note.entities[0])?.querySelector('.note-badge');
+              const leader = erdLeaders.querySelector(`.note-leader[data-note-id="${id}"]`);
+              if (editingNoteId !== id && selectedNoteId !== id && badge && badge.getBoundingClientRect().width > 0) {
+                card.style.pointerEvents = 'none';
+                setTimeout(() => { if (card.isConnected) card.style.pointerEvents = ''; }, 180);
+              }
+              if (selectedNoteId === id || editingNoteId === id) {
+                // a selected card is about to be dragged from (its link handle): fade in place, never move it
+                motion.anim(card, [{ opacity: 0 }, { opacity: 1 }], { duration: 120, easing: motion.curve('curve-out') });
+                if (leader) motion.drawPath(leader, { duration: 150, easing: 'curve-out' });
+              } else motion.unfoldNote(card, badge, leader);
+            }
+          });
+        }
+        wasVisibleNoteIds = nextVis;
       }
       // Hover: a table peeks its notes after NOTE_PEEK_DELAY (its badge at once); leaving lets them go after a grace
       // period, so the pointer can travel from the table to a card without it vanishing on the way
@@ -7448,25 +8537,26 @@ function toMermaid(data, opts) {
       const erdFirstPk = (ent) => erdToCol({}, ent);
 
       // A structural edit: tables stay and only lines are re-routed
-      function commit() {
-        render();
+      function commit(motionOpts) {
+        render(motionOpts);
         updateStatus(true);
       }
 
       // A short message above the dock (why something was refused), or a prompt that stays while a tool waits
       let erdHintTimer = 0;
-      function erdHint(html, sticky) {
+      function erdHint(html, sticky, progress) {
         let hint = document.querySelector('.hint');
         clearTimeout(erdHintTimer);
-        if (html === null) { if (hint) hint.remove(); return; }
+        if (html === null) { if (hint) motion.hideHint(hint); return; }
         if (!hint) {
           hint = erdHtmlEl('div', 'hint');
           hint.setAttribute('role', 'status');
           hint.dataset.exportSkip = '';
           document.body.appendChild(hint);
         }
+        hint.classList.toggle('is-progress', !!progress);
         hint.innerHTML = html;
-        if (!sticky) erdHintTimer = setTimeout(() => hint.remove(), 3200);
+        if (!sticky) erdHintTimer = setTimeout(() => { if (hint.isConnected) motion.hideHint(hint); }, 3200);
       }
       const erdText = (s) => String(s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
 
@@ -7480,9 +8570,7 @@ function toMermaid(data, opts) {
         if (r.left < v.left + pad) dx = v.left + pad - r.left; else if (r.right > v.right - pad) dx = v.right - pad - r.right;
         if (r.top < v.top + pad) dy = v.top + pad - r.top; else if (r.bottom > bottom - pad) dy = bottom - pad - r.bottom;
         if (!dx && !dy) return;
-        panX += dx;
-        panY += dy;
-        updateTransform();
+        animateViewport(panX + dx, panY + dy, scale, { duration: motion.dur('dur-camera', 240), easing: 'curve-out' });
       }
 
       // --- OVERLAYS: the rubber band of a drawing drag, a drop line, snap guides ---
@@ -7572,7 +8660,7 @@ function toMermaid(data, opts) {
       function cancelDrag() {
         const d = endDrag();
         if (!d) return false;
-        if (d.moved) render();   // everything back where it was
+        if (d.moved) render(false);   // everything back where it was immediately
         return true;
       }
 
@@ -7624,9 +8712,16 @@ function toMermaid(data, opts) {
       }
 
       // The tools drawn on the selection: never exported ([data-export-skip]), not in ?present, hidden while dragging
-      function drawSelectionTools() {
-        erdHtml.querySelectorAll('.erd-actionbar, .erd-handle').forEach((el) => el.remove());
-        if (!erdSel || erdPresenting()) return;
+      let lastHandleRelId = null;
+      function drawSelectionTools(prevBarRect) {
+        const oldBar = erdHtml.querySelector('.erd-actionbar');
+        if (oldBar) {
+          if (!erdSel || erdPresenting()) motion.hideBar(oldBar);
+          else { prevBarRect = oldBar.getBoundingClientRect(); oldBar.remove(); }
+        }
+        erdHtml.querySelectorAll('.erd-handle').forEach((el) => el.remove());
+        if (!erdSel || erdPresenting()) { lastHandleRelId = null; return; }
+        if (erdSel.kind !== 'rel') lastHandleRelId = null;
         const bar = ui.actionBar('erd-actionbar');
         let at = null, below = false;
         if (erdSel.kind === 'entity') {
@@ -7687,13 +8782,23 @@ function toMermaid(data, opts) {
           const hFrom = erdPointAlong(rel.curve, gap, false), hTo = erdPointAlong(rel.curve, gap, true);
           addHandle('from', rel.id, hFrom[0], hFrom[1]);
           addHandle('to', rel.id, hTo[0], hTo[1]);
+          if (lastHandleRelId !== erdSel.id && motion.enabled()) {
+            erdHtml.querySelectorAll('.erd-handle').forEach((h) => {
+              motion.anim(h, [{ transform: 'scale(0.4)' }, { transform: 'none' }], { duration: 110, easing: motion.curve('curve-spring-tactile') });
+            });
+          }
+          lastHandleRelId = erdSel.id;
           erdHtml.appendChild(bar);
           placeRelBar(bar, rel);
+          if (prevBarRect && prevBarRect.width > 0 && prevBarRect.height > 0) motion.ghostMorph(prevBarRect, bar, 170, 'curve-spring-settle');
+          else motion.showBar(bar);
           return;
         } else return;
         bar.classList.toggle('is-below', below);
         Object.assign(bar.style, { left: erdPx(at.x), top: erdPx(Math.max(2, at.y)) });
         erdHtml.appendChild(bar);
+        if (prevBarRect && prevBarRect.width > 0 && prevBarRect.height > 0) motion.ghostMorph(prevBarRect, bar, 170, 'curve-spring-settle');
+        else motion.showBar(bar);
       }
       // The line's bar sits above or below a point near the middle of its curve, wherever it hides the fewest tables
       function placeRelBar(bar, rel) {
@@ -7776,13 +8881,17 @@ function toMermaid(data, opts) {
         return used;
       }
       function drawKey() {
+        const keySpec = [{ selector: '.color-key-item[data-color]', key: 'color' }];
+        const snap = !erdInRender && motion.enabled() ? motion.capture(erdHtml, keySpec) : null;
         erdHtml.querySelectorAll('.color-key').forEach((el) => el.remove());
         const key = chartData.colorKey || {}, boxes = erdEntities().filter((e) => e.box).map((e) => e.box);
         const shown = erdKeyColors().filter((c) => key[c] || c === erdKeyDraft);
         const el = boxes.length && ui.colorKey(shown, key, { prompts: erdKeyDraft !== null, cls: 'erd-key' });
         if (!el) return;
+        el.querySelectorAll('.color-key-item').forEach((it) => { const lbl = it.querySelector('.color-key-label'); if (lbl) it.dataset.color = lbl.dataset.color; });
         Object.assign(el.style, { left: erdPx(Math.min(...boxes.map((b) => b.x))), top: erdPx(Math.min(...boxes.map((b) => b.y)) - ERD_KEY_GAP) });
         erdHtml.appendChild(el);
+        if (snap) motion.play(snap, erdHtml, keySpec, { duration: 170, easing: 'curve-spring-settle' });
       }
       // Sets or clears (value '') one label; true when it changed
       function setKeyLabel(color, value) {
@@ -7908,6 +9017,8 @@ function toMermaid(data, opts) {
         erdSel = { kind: 'rel', id: rel.id };
         selectedNoteId = null;
         commit();
+        const line = relEl(rel.id)?.querySelector('.edge-line');
+        if (line) motion.drawPath(line, { duration: 140, easing: 'curve-out' });
         return true;
       }
 
@@ -7959,6 +9070,12 @@ function toMermaid(data, opts) {
         else if (toCol) rel.columns = [toCol]; else delete rel.columns;
         if (oldCols && oldCols.length && !(oldCols.length === 1 && oldCols[0] === erdFirstPk(from))) rel.toColumns = oldCols; else delete rel.toColumns;
         commit();
+        const line = relEl(rel.id)?.querySelector('.edge-line');
+        if (line && motion.enabled()) {
+          motion.anim(line, [{ strokeWidth: '3.2px' }, { strokeWidth: '' }], { duration: 180, easing: motion.curve('curve-out') });
+          if (rel.identifying) motion.drawPath(line, { duration: 160, easing: 'curve-out' });
+          else motion.anim(line, [{ strokeDashoffset: '20' }, { strokeDashoffset: '0' }], { duration: 180, easing: motion.curve('curve-out') });
+        }
       }
 
       // --- Move a table ---
@@ -7990,12 +9107,29 @@ function toMermaid(data, opts) {
             els.forEach((x) => { x.style.translate = `${dx}px ${dy}px`; });
           },
           drop(ev, d) {
+            els.forEach((x) => x.classList.remove('is-dragging'));
             const dx = d.sdx === undefined ? d.dx : d.sdx, dy = d.sdy === undefined ? d.dy : d.sdy;
             const ents = ids.map(erdEntity).filter((x) => x && x.box);
             if (!ents.length) { render(); return; }
+            const snap = erdCapture();
             ents.forEach((t) => erdPlaceAt(t, t.box.x + dx, t.box.y + dy, !!d.snapped));   // a snapped drop keeps its exact alignment
+            const beforeSettle = new Map(ents.map((t) => [t.id, { x: t.x, y: t.y }]));
             erdSettled({ tables: new Set(ids) });
-            render();
+            const skipKeys = new Set();
+            ents.forEach((t) => {
+              const b = beforeSettle.get(t.id);
+              if (t.x === b.x && t.y === b.y) {
+                skipKeys.add(t.id);
+                (t.columns || []).forEach((c) => skipKeys.add(`${t.id}:${c.name}`));
+              }
+            });
+            render({ snap, skipKeys, duration: 190, easing: 'curve-spring-settle' });
+            if (motion.enabled()) {
+              skipKeys.forEach((tid) => {
+                const dropped = !tid.includes(':') && entityEl(tid);
+                if (dropped) motion.anim(dropped, [{ transform: 'scale(1.015)' }, { transform: 'none' }], { duration: 130, easing: motion.curve('curve-spring-settle') });
+              });
+            }
             updateStatus(true);
           }
         };
@@ -8021,6 +9155,8 @@ function toMermaid(data, opts) {
             Object.assign(erdDropLine.style, { display: 'block', left: erdPx(e.box.x + 4), width: erdPx(e.box.w - 8), top: erdPx(y - 2), height: '4px' });
           },
           drop(ev, d) {
+            el.classList.remove('is-dragging');
+            const snap = erdCapture();
             const cols = e.columns || [], from = cols.findIndex((c) => c.name === colName);
             let to;
             if (d.before) to = cols.findIndex((c) => c.name === d.before.dataset.col);
@@ -8029,12 +9165,12 @@ function toMermaid(data, opts) {
               const last = rows[rows.length - 1];
               to = last ? cols.findIndex((c) => c.name === last.dataset.col) + 1 : from;
             }
-            if (from < 0 || to < 0) { render(); return; }
+            if (from < 0 || to < 0) { render({ snap }); return; }
             const [col] = cols.splice(from, 1);
             if (to > from) to--;
-            if (to === from) { cols.splice(from, 0, col); render(); return; }
+            if (to === from) { cols.splice(from, 0, col); render({ snap }); return; }
             cols.splice(to, 0, col);
-            commit();
+            commit({ snap, duration: 180, easing: 'curve-spring-settle' });
           }
         };
       }
@@ -8281,6 +9417,11 @@ function toMermaid(data, opts) {
         if (!col) return;
         if (col[flag]) delete col[flag]; else col[flag] = true;
         commit();
+        if (!motion.enabled()) return;
+        const row = colEls(entityId).find((r) => r.dataset.col === name);
+        if (!row) return;
+        const target = flag === 'unique' ? row.querySelector('.erd-uniq') : flag === 'nullable' ? row.querySelector('.erd-col-type') : row.querySelector('.erd-glyph');
+        if (target) motion.anim(target, [{ transform: 'scale(0.7)' }, { transform: 'scale(1.12)' }, { transform: 'none' }], { duration: 140, easing: motion.curve('curve-spring-tactile') });
       }
       // Up or down to the neighbouring column that is on show
       function moveColumnBy(entityId, name, dir) {
@@ -8334,32 +9475,58 @@ function toMermaid(data, opts) {
         placeNewTable(e, opts.pt);
         selectedNoteId = null;
         erdSel = { kind: 'entity', id: e.id };
-        commit();
-        panIntoView(entityEl(e.id));
+        commit({ originRect: opts.originRect || null, duration: 200, easing: 'curve-spring-tactile' });
+        if (!opts.originRect) panIntoView(entityEl(e.id));
         editEntityName(e.id);
       }
 
       // --- Delete ---
+      function ghostRetractRel(g) {
+        const line = g && g.querySelector('.edge-line');
+        if (!line || !motion.enabled()) return;
+        const len = line.getTotalLength();
+        if (!len) return;
+        const clone = line.cloneNode(true);
+        clone.style.stroke = getComputedStyle(line).stroke;
+        clone.style.strokeWidth = getComputedStyle(line).strokeWidth;
+        erdOverlay.appendChild(clone);
+        const a = clone.animate(
+          [{ strokeDasharray: `${len} ${len}`, strokeDashoffset: 0, opacity: 1 },
+           { strokeDasharray: `${len} ${len}`, strokeDashoffset: len, opacity: 0 }],
+          { duration: 120, easing: motion.curve('curve-in') }
+        );
+        const rm = () => clone.remove();
+        a.addEventListener('finish', rm, { once: true });
+        a.addEventListener('cancel', rm, { once: true });
+      }
       function deleteEntity(id) { deleteEntities([id]); }
       function deleteEntities(ids) {
         ids = ids.filter((id) => erdEntity(id));
         if (!ids.length) return;
         const gone = new Set(ids);
+        if (motion.enabled()) {
+          ids.forEach((id) => { const el = entityEl(id); if (el) motion.ghostExit(el, { duration: 120, easing: 'curve-in', transform: 'scale(0.92)' }); });
+          erdRels.querySelectorAll('.erd-rel').forEach((g) => { if (gone.has(g.dataset.from) || gone.has(g.dataset.to)) ghostRetractRel(g); });
+        }
         chartData.entities = erdEntities().filter((e) => !gone.has(e.id));
         chartData.relationships = erdRelsList().filter((r) => !gone.has(r.from) && !gone.has(r.to));
-        // A note loses the tables; one left with no table goes
+        // A note loses the tables; one left with no table goes (a free note never had any and stays)
         if (Array.isArray(chartData.notes)) {
-          chartData.notes.forEach((n) => { n.entities = (n.entities || []).filter((x) => !gone.has(x)); });
-          chartData.notes = chartData.notes.filter((n) => n.entities.length);
+          chartData.notes = chartData.notes.filter((n) => {
+            const had = (n.entities || []).length;
+            n.entities = (n.entities || []).filter((x) => !gone.has(x));
+            return !had || n.entities.length;
+          });
           if (!chartData.notes.length) delete chartData.notes;
         }
         erdSel = null;
-        commit();
+        commit({ enter: false, duration: 180 });
       }
       function deleteRel(id) {
+        ghostRetractRel(relEl(id));
         chartData.relationships = erdRelsList().filter((r) => r.id !== id);
         erdSel = null;
-        commit();
+        commit({ enter: false, duration: 160 });
       }
 
       // Deleting a table with relationships, or an area with tables, is confirmed first, in a small bubble at the button
@@ -8404,6 +9571,17 @@ function toMermaid(data, opts) {
         chartData.notes.push(note);
         editNote(note.id);
       }
+      // A free note with its top-left at a canvas point (default: the middle of the view); dropped again if left empty
+      function addFreeNote(pt, originRect) {
+        if (erdPresenting()) return;
+        const v = viewport.getBoundingClientRect();
+        const c = pt || erdPoint({ clientX: v.left + v.width / 2 - 80 * scale, clientY: v.top + v.height / 2 - 20 * scale });
+        const note = { id: erdUid('n'), text: '', entities: [], pos: { x: erdRound4(c.x), y: erdRound4(c.y) } };
+        chartData.notes = notesList();
+        chartData.notes.push(note);
+        pendingNoteOriginRect = originRect || null;
+        editNote(note.id);
+      }
       function selectNote(id) {
         erdSel = null;
         selectedNoteId = id;
@@ -8422,6 +9600,7 @@ function toMermaid(data, opts) {
         if (!noteCard(id)) renderNotes(false);
         const card = noteCard(id);
         if (!card) return;
+        card.style.pointerEvents = '';
         applyNoteVisibility();
         const text = card.querySelector('.note-text');
         text.contentEditable = 'true';
@@ -8446,7 +9625,7 @@ function toMermaid(data, opts) {
           if (selectedNoteId === note.id) selectedNoteId = null;
         }
         updateStatus(true);
-        render();   // badges appear or go, and the notes are fitted again around the new size
+        render({ skipKeys: new Set([note.id]), duration: 160 });   // badges appear or go, and the notes are fitted again around the new size
       }
       // Clicking anywhere else finishes the note being typed
       window.addEventListener('pointerdown', (e) => {
@@ -8472,7 +9651,10 @@ function toMermaid(data, opts) {
         const note = noteById(noteId), e = erdEntity(entityId);
         if (!note || !e) return;
         const ids = note.entities || [];
-        if (!ids.includes(entityId)) note.entities = ids.concat(entityId);
+        if (!ids.length) {   // a free note becomes anchored: its absolute pos turns relative to the table
+          if (e.box) note.pos = { x: Math.round(note.pos.x - e.box.x), y: Math.round(note.pos.y - e.box.y) }; else delete note.pos;
+          note.entities = [entityId];
+        } else if (!ids.includes(entityId)) note.entities = ids.concat(entityId);
         else if (ids.length > 1) {
           if (ids[0] === entityId && note.pos) {
             const card = noteCard(noteId), next = erdEntity(ids[1]);
@@ -8483,7 +9665,11 @@ function toMermaid(data, opts) {
         } else { erdHint('A note keeps at least one table: delete the note instead'); return; }
         selectedNoteId = noteId;
         updateStatus(true);
-        render();
+        render({ drawNewLeaders: true, skipFreeNotes: true });
+        if (motion.enabled()) {
+          const badge = entityEl(entityId)?.querySelector('.note-badge');
+          if (badge) motion.anim(badge, [{ transform: 'scale(0.4)' }, { transform: 'none' }], { duration: 140, easing: motion.curve('curve-spring-tactile') });
+        }
       }
       function startNoteLink(ev, noteId, card) {
         if (ev.button !== 0 || erdPresenting()) return;
@@ -8524,19 +9710,21 @@ function toMermaid(data, opts) {
             card.classList.add('dragging');
             d.nx = erdRound4(x0 + d.dx);
             d.ny = erdRound4(y0 + d.dy);
-            card.style.left = erdPx(d.nx);
-            card.style.top = erdPx(d.ny);
+            card.style.translate = `${d.nx - x0}px ${d.ny - y0}px`;
             drawLeaders(id, { x: d.nx, y: d.ny, ...(noteSizes[id] || { w: 0, h: 0 }) });
           },
           drop(e, d) {
             card.classList.remove('dragging');
+            card.style.translate = '';
+            card.style.left = erdPx(d.nx);
+            card.style.top = erdPx(d.ny);
             const note = noteById(id), anchor = note && linkedEntities(note)[0];
-            if (!anchor) { render(); return; }
-            const a = erdEntity(anchor).box;
+            if (!anchor && !(note && isFreeNote(note))) { render(); return; }
+            const a = anchor ? erdEntity(anchor).box : { x: 0, y: 0 };   // a free note's pos is absolute
             note.pos = { x: Math.round(d.nx - a.x), y: Math.round(d.ny - a.y) };
             updateStatus(true);
           },
-          cleanup() { card.classList.remove('dragging'); }
+          cleanup() { card.classList.remove('dragging'); card.style.translate = ''; }
         });
       }
       // N: add a note to the selected table (or open the one it has), or open the selected note
@@ -8546,9 +9734,8 @@ function toMermaid(data, opts) {
         const a = document.activeElement;
         if (a && (a.isContentEditable || a.tagName === 'INPUT' || a.tagName === 'TEXTAREA')) return;
         const id = erdSelectedEntityId();
-        if (!id && !selectedNoteId) return;
         e.preventDefault();
-        if (id) addNoteTo(id, erdSel.kind === 'col' ? erdSel.col : null); else editNote(selectedNoteId);
+        if (id) addNoteTo(id, erdSel.kind === 'col' ? erdSel.col : null); else if (selectedNoteId) editNote(selectedNoteId); else addFreeNote();
       });
 
       // --- The dock: Table, Relationship, Note ---
@@ -8618,7 +9805,7 @@ function toMermaid(data, opts) {
           document.body.appendChild(d.ghost);
           document.body.classList.add('palette-dragging');
         }
-        d.ghost.style.transform = `scale(${scale})`;
+        d.ghost.style.transform = `scale(${scale * 1.015})`;
         d.ghost.style.left = `${e.clientX - ER.MIN_W * scale / 2}px`;
         d.ghost.style.top = `${e.clientY - ER.HEAD_H * scale / 2}px`;
         const pt = erdPoint(e), C = chartData.canvas || { width: 0, height: 0 };
@@ -8632,14 +9819,14 @@ function toMermaid(data, opts) {
         window.removeEventListener('pointercancel', cancelTableToolDrag);
         const d = tableToolDrag;
         tableToolDrag = null;
-        if (d && d.ghost) { d.ghost.remove(); document.body.classList.remove('palette-dragging'); }
+        if (d && d.ghost) { d.ghostRect = d.ghost.getBoundingClientRect(); d.ghost.remove(); document.body.classList.remove('palette-dragging'); }
         return d;
       }
       function onTableToolUp() {
         const d = endTableToolDrag();
         if (!d || !d.ghost) return;
         erdBtnAddTable.dataset.dragged = '1';   // swallow the click that may follow on the button
-        if (d.pt) addTable({ pt: d.pt });
+        if (d.pt) addTable({ pt: d.pt, originRect: d.ghostRect });
       }
       function cancelTableToolDrag() {
         const d = endTableToolDrag();
@@ -8657,7 +9844,7 @@ function toMermaid(data, opts) {
           const id = erdSelectedEntityId(), noteId = !id && selectedNoteId;
           if (id) { setNotePicking(false); addNoteTo(id, erdSel.kind === 'col' ? erdSel.col : null); }
           else if (noteId) editNote(noteId);
-          else { setRelArmed(false); setNotePicking(!notePicking); }
+          else { setRelArmed(false); setNotePicking(false); addFreeNote(); }
         });
         erdBtnAddNote.addEventListener('pointerdown', (e) => {
           delete erdBtnAddNote.dataset.dragged;
@@ -8696,7 +9883,8 @@ function toMermaid(data, opts) {
         d.ghost.style.left = `${e.clientX + 12}px`;
         d.ghost.style.top = `${e.clientY + 12}px`;
         d.target = erdNoteTargetAt(e.clientX, e.clientY);
-        d.ghost.classList.toggle('off-target', !d.target);
+        d.pt = viewport.contains(document.elementFromPoint(e.clientX, e.clientY)) ? erdPoint(e) : null;   // off a table: a free note here
+        d.ghost.classList.toggle('off-target', !d.target && !d.pt);
         markNoteTarget(d.target);
       }
       function endNoteToolDrag() {
@@ -8705,7 +9893,7 @@ function toMermaid(data, opts) {
         window.removeEventListener('pointercancel', cancelNoteToolDrag);
         const d = noteToolDrag;
         noteToolDrag = null;
-        if (d && d.ghost) { d.ghost.remove(); document.body.classList.remove('palette-dragging'); }
+        if (d && d.ghost) { d.ghostRect = d.ghost.getBoundingClientRect(); d.ghost.remove(); document.body.classList.remove('palette-dragging'); }
         markNoteTarget(null);
         return d;
       }
@@ -8713,7 +9901,7 @@ function toMermaid(data, opts) {
         const d = endNoteToolDrag();
         if (!d || !d.ghost) return;
         erdBtnAddNote.dataset.dragged = '1';   // swallow the click that may follow on the button
-        if (d.target) giveNoteTo(d.target.id, d.target.col);
+        if (d.target) giveNoteTo(d.target.id, d.target.col); else if (d.pt) { setNotePicking(false); addFreeNote(d.pt, d.ghostRect); }
       }
       function cancelNoteToolDrag() {
         const d = endNoteToolDrag();
@@ -8932,7 +10120,7 @@ function toMermaid(data, opts) {
         },
         // The Tidy button: a cold layout, one undo step
         tidy() {
-          const done = () => { render(); updateStatus(true); };
+          const done = () => { render({ duration: 260, easing: 'curve-spring-settle', skipFreeNotes: true }); updateStatus(true); };
           if (!(erdAsyncOK() && erdStartJob(done))) { erdLayout(); done(); }
         },
         // Text search (spec: dev/plans/search.md): areas, tables by position each followed by its columns, then relation labels.
