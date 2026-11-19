@@ -1,0 +1,25 @@
+{
+  "diagramType": "sequence",
+  "title": "Sequence diagram",
+  "participants": [
+    {
+      "id": "p1",
+      "name": "User",
+      "kind": "actor",
+      "x": 158
+    },
+    {
+      "id": "p2",
+      "name": "System",
+      "kind": "system",
+      "x": 358
+    }
+  ],
+  "messages": [],
+  "fragments": [],
+  "schemaVersion": 1,
+  "layout": {
+    "width": 488,
+    "height": 192
+  }
+}

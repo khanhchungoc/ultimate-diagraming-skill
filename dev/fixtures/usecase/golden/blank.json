@@ -1,0 +1,26 @@
+{
+  "diagramType": "usecase",
+  "title": "Use case diagram",
+  "subjects": [
+    {
+      "id": "system",
+      "name": "System",
+      "x": 40,
+      "w": 240,
+      "_titleH": 36,
+      "y": 40,
+      "h": 132
+    }
+  ],
+  "actors": [],
+  "useCases": [],
+  "links": [],
+  "schemaVersion": 1,
+  "_parents": [],
+  "canvas": {
+    "width": 320,
+    "height": 212,
+    "crossings": 0,
+    "hits": 0
+  }
+}

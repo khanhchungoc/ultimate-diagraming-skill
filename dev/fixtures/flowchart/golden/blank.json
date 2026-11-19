@@ -1,0 +1,16 @@
+{
+  "title": "Flowchart",
+  "direction": "LR",
+  "lanes": [
+    {
+      "id": "lane-1",
+      "name": "Lane 1",
+      "icon": "user",
+      "height": 160
+    }
+  ],
+  "nodes": [],
+  "edges": [],
+  "diagramType": "flowchart",
+  "schemaVersion": 1
+}
