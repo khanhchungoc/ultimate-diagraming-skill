@@ -5331,7 +5331,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
       const PARENT_LABEL = 'Main flow';
 
       // Flow tree. The model stays flat (flows / tabNames by slug); a flow's parent is the flow holding the step with that id,
-      // so no field is stored. MAX_FLOW_DEPTH: level 1 is the main flow (plan: dev/plans/plan-subprocess-depth.md).
+      // so no field is stored. MAX_FLOW_DEPTH: level 1 is the main flow (plan: dev/plans/archive/plan-subprocess-depth.md).
       const MAX_FLOW_DEPTH = 4;
       const flowOf = (key) => (key === curTab() ? chartData : (chartData.flows || {})[key]);
       const parentOf = (slug) => [PARENT, ...Object.keys(chartData.tabNames || {})].find(k => { const f = flowOf(k); return f && f.nodes.some(n => n.id === slug); }) || PARENT;
