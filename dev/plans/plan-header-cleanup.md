@@ -95,5 +95,5 @@ Target:  [↶][↷]│[−]100%[+][⛶]                      square 28px buttons
 
 ## Out of scope
 
-- Main flow / subprocess folder tabs: see `dev/plans/plan-page-tabs.md`, built in parallel.
+- Main flow / subprocess folder tabs: done on the same branch by restyling the existing subprocess tab row (`.flow-tabs` in `assets/types/flowchart/flowchart.css`): the main flow is the outer box, its subprocesses an inner box; the Main flow tab replaces "↑ Parent".
 - The "Unsaved changes" badge style.

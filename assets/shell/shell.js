@@ -788,13 +788,20 @@
         const dock = document.querySelector('.dock-area');
         const dockRect = dock && getComputedStyle(dock).display !== 'none' ? dock.getBoundingClientRect() : null;
         const dockBand = dockRect && dockRect.height ? Math.max(0, vpRect.bottom - dockRect.top) : 0;
+        // Chrome floating over the top of the viewport (a type's [data-overlay-top], e.g. the flowchart's tab box): fit below it
+        let topBand = 0;
+        if (!capture) document.querySelectorAll('[data-overlay-top]').forEach((el) => {
+          if (el.hidden || getComputedStyle(el).display === 'none') return;
+          const r = el.getBoundingClientRect();
+          if (r.height) topBand = Math.max(topBand, r.bottom - vpRect.top);
+        });
         const scaleX = (vpRect.width - pad) / frame.w;
-        const scaleY = (vpRect.height - dockBand - pad) / frame.h;
-        return { vpRect, frame, capture, dockBand, scaleX, scaleY, minPan: capture ? 0 : 20 };
+        const scaleY = (vpRect.height - dockBand - topBand - pad) / frame.h;
+        return { vpRect, frame, capture, dockBand, topBand, scaleX, scaleY, minPan: capture ? 0 : 20 };
       }
 
       function fitView() {
-        const { vpRect, frame, capture, dockBand, scaleX, scaleY, minPan } = fitMetrics();
+        const { vpRect, frame, capture, dockBand, topBand, scaleX, scaleY, minPan } = fitMetrics();
 
         // Capture mode: scale to the exact width requested (?capture&w=1600) and pin to the top-left,
         // so the screenshot is the diagram only and does not depend on browser viewport quirks.
@@ -811,7 +818,7 @@
 
         scale = Math.min(Math.max(Math.min(scaleX, scaleY), 0.25), 1.0);
         panX = Math.max(minPan, (vpRect.width - frame.w * scale) / 2) - frame.x * scale;
-        panY = Math.max(minPan, (vpRect.height - dockBand - frame.h * scale) / 2) - frame.y * scale;
+        panY = topBand + Math.max(minPan, (vpRect.height - dockBand - topBand - frame.h * scale) / 2) - frame.y * scale;
 
         updateTransform();
       }
@@ -1419,7 +1426,13 @@
         moreMenu.hidden = !open;
         btnMore.setAttribute('aria-expanded', String(open || helpDrawer.classList.contains('open')));
       }
-      btnMore.addEventListener('click', (e) => { e.stopPropagation(); setMoreOpen(moreMenu.hidden); });
+      btnMore.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const opening = moreMenu.hidden;
+        setMoreOpen(opening);
+        // Opened from the keyboard (detail 0): focus the first item, as a menu button does
+        if (opening && e.detail === 0) { const first = [...moreMenu.querySelectorAll('[role^="menuitem"]')].find((el) => !el.hidden); if (first) first.focus(); }
+      });
       // Arrow keys move between the visible items of whichever menu is open
       function menuArrowKeys(menu, btn, close) {
         const items = () => [...menu.querySelectorAll('[role^="menuitem"]')].filter((el) => !el.hidden);
