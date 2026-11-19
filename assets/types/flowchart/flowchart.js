@@ -4841,8 +4841,13 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         if (Object.keys(layout).length) d.layout = layout;
         if (d.children) {
           // children in the order the parent flow reaches them, each with its keys in a fixed order
-          const ids = nodes.map(n => n.id).filter(id => d.children[id]);
-          const order = ids.concat(Object.keys(d.children).filter(k => !ids.includes(k)));
+          // depth first, mirroring child_order in scripts/subprocess_flow.py; a child whose step is missing goes last
+          const order = [];
+          const walk = (flowNodes) => (flowNodes || []).forEach(n => {
+            if (d.children[n.id] && !order.includes(n.id)) { order.push(n.id); walk(d.children[n.id].nodes); }
+          });
+          walk(nodes);
+          Object.keys(d.children).forEach(k => { if (!order.includes(k)) order.push(k); });
           d.children = Object.fromEntries(order.map(k => [k, orderedKeys(d.children[k], CHILD_KEYS)]));
         }
         return orderedKeys(d, DISK_KEYS);
