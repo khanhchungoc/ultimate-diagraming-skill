@@ -1,5 +1,7 @@
 # Plan: ERD, data only for the agent
 
+Archived 2026-11-19. Phase 1 shipped; the agent-cost goal is now covered by the Mermaid/line-format authoring path (plan-speed-cost.md). Only open item: the last line through a table on `saas-billing` (needs two tables to move together); everything else is done, obsolete or already at "good enough".
+
 Status: Phase 1 done (PR #25: no character budgets for names, types and labels; `detail` picked by `--layout`; hover text works). Phase 0 (agent benchmark) is not run here: it needs fresh agents and is out of scope for the layout pass. Phase 2: item 1 partly done, items 2 and 3 tried or open, item 4 partly obsolete (see below).
 
 ## Why
