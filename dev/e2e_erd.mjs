@@ -523,21 +523,27 @@ sys.stdout.write(format_json(out))`;
   await t.type('Prices exclude tax');
   await t.press('Escape');
   t.check('the dock Note button adds a note to the selected table', dockEdit === '' && (await saved()).notes.some((n) => n.text === 'Prices exclude tax' && n.entities.join() === 'product'));
-  // dock Note with nothing selected: arm, then click a table
+  // Note with nothing selected: a free note at the centre of the view (no table, no badge, no leader), shown at rest
   await t.press('Escape');
   await t.press('Escape');
+  const nBadges = await count('.note-badge');
   await t.clickOn('#btn-add-note');
-  const picking = await t.ev(`document.body.classList.contains('note-picking')`);
-  await t.clickOn(head('category'));
-  const pickEdit = await editing();
-  await t.type('Tree of categories');
+  const freeEdit = await editing();
+  await t.type('Free from the dock');
   await t.press('Escape');
-  t.check('Note with nothing selected waits for a table (Esc cancels), then notes the table clicked',
-    picking && pickEdit === '' && (await saved()).notes.some((n) => n.text === 'Tree of categories' && n.entities.join() === 'category'));
+  d = await saved();
+  const fn = d.notes.find((n) => n.text === 'Free from the dock');
+  const fcard = await t.ev(`(() => { const c = [...document.querySelectorAll('.note')].find((x) => x.textContent === 'Free from the dock'), v = document.getElementById('viewport').getBoundingClientRect();
+    if (!c) return null; const r = c.getBoundingClientRect(); return [Math.round(r.left + r.width / 2 - (v.left + v.width / 2)), Math.round(r.top + r.height / 2 - (v.top + v.height / 2)), getComputedStyle(c).display]; })()`);
+  t.check('Note with nothing selected adds a free note at the view centre: no tables, a numeric pos, shown at rest, no badge or leader',
+    freeEdit === '' && fn && fn.entities.length === 0 && Number.isFinite(fn.pos?.x) && Number.isFinite(fn.pos?.y) && fcard && Math.abs(fcard[0]) < 200 && Math.abs(fcard[1]) < 150 && fcard[2] !== 'none'
+      && (await count('.note-badge')) === nBadges && (await count(`.note-leader[data-note-id="${fn.id}"]`)) === 0, `${freeEdit} ${J(fn)} ${J(fcard)}`);
   await t.press('Escape');
-  await t.clickOn('#btn-add-note');
+  await t.press('n');
+  const keyEdit = await editing();
+  await t.type('Free from N');
   await t.press('Escape');
-  t.check('Escape cancels the armed Note tool', !(await t.ev(`document.body.classList.contains('note-picking')`)));
+  t.check('N with nothing selected adds a free note too', keyEdit === '' && (await saved()).notes.some((n) => n.text === 'Free from N' && n.entities.length === 0 && Number.isFinite(n.pos?.x)));
   // drag the Note button onto a table
   const nb = await t.at('#btn-add-note'), rv = await t.at(head('review'));
   await t.dragTo(nb.x, nb.y, rv.x, rv.y, { steps: 8 });
@@ -545,6 +551,55 @@ sys.stdout.write(format_json(out))`;
   await t.type('Moderated');
   await t.press('Escape');
   t.check('dragging the Note button onto a table gives it a note', dragEdit === '' && (await saved()).notes.some((n) => n.text === 'Moderated' && n.entities.join() === 'review'));
+  // Free notes more: drop on empty canvas, Tidy, the link handle, and the saved block round trip (also through the Python codec)
+  const freeNote = (dd, txt) => dd.notes.find((n) => n.text === txt);
+  const emptySpot = () => t.ev(`(() => { const v = document.getElementById('viewport').getBoundingClientRect();
+    for (let y = v.top + 100; y < v.bottom - 180; y += 20) for (let x = v.left + 40; x < v.right - 260; x += 20) {
+      const h = document.elementFromPoint(x, y);
+      if (h && h.closest('#erd-canvas') && !h.closest('.erd-entity, .note, .erd-rel, .edge-label, .erd-label, .dock-area, .toolbar') && !['path', 'line', 'polyline'].includes(h.tagName)) return { x, y };
+    } return null; })()`);
+  const spot = await emptySpot();
+  const nbFree = await t.at('#btn-add-note');
+  await t.dragTo(nbFree.x, nbFree.y, spot.x, spot.y, { steps: 8 });
+  const dropEdit = await editing();
+  await t.type('Dropped free');
+  await t.press('Escape');
+  const dropCard = await t.ev(`(() => { const c = [...document.querySelectorAll('.note')].find((x) => x.textContent === 'Dropped free'); const r = c.getBoundingClientRect(); return [Math.round(r.left - ${spot.x}), Math.round(r.top - ${spot.y})]; })()`);
+  d = await saved();
+  t.check('dropping the Note button on empty canvas makes a free note at the drop point; on a table it links (above)',
+    dropEdit === '' && freeNote(d, 'Dropped free')?.entities.length === 0 && Math.abs(dropCard[0]) < 16 && Math.abs(dropCard[1]) < 16, `${dropEdit} ${J(dropCard)} ${J(freeNote(d, 'Dropped free'))}`);
+  const rawFree = await t.ev(`document.getElementById('diagram-data').textContent`);
+  t.check('the saved block with free notes agrees with the Python codec', pythonAgrees(rawFree) === '', pythonAgrees(rawFree));
+  const tmpFree = join(root, 'dev', '.e2e_erd_free.html');
+  writeFileSync(tmpFree, readFileSync(page, 'utf8').replace(/(<script id="diagram-data" type="application\/json">)[\s\S]*?(<\/script>)/, (m, a2, b2) => a2 + rawFree + b2));
+  await freshPage(tmpFree);
+  await t.press('s', { modifiers: 2 });
+  await sleep(250);
+  const rawBack = await t.ev(`document.getElementById('diagram-data').textContent`);
+  t.check('a free note round trips: disk, memory, disk is the same text, and the notes are on show at rest',
+    rawBack === rawFree && (await t.ev(`[...document.querySelectorAll('.note')].filter((c) => getComputedStyle(c).display !== 'none').length`)) === 3, `${rawBack === rawFree}`);
+  const place = () => t.ev(`(() => { const c = [...document.querySelectorAll('.note')].find((x) => x.textContent === 'Dropped free'), r = c.getBoundingClientRect(); return [Math.round(r.left), Math.round(r.top)]; })()`);
+  const fp0 = await place(), fd0 = freeNote(await saved(), 'Dropped free').pos;
+  await t.clickOn('#btn-auto-tidy');
+  const fp1 = await place(), fd1 = freeNote(await saved(), 'Dropped free').pos;
+  t.check('Tidy leaves a free note in place', J(fd0) === J(fd1) && Math.abs(fp0[0] - fp1[0]) <= 2 && Math.abs(fp0[1] - fp1[1]) <= 2, `${J(fd0)} ${J(fd1)} ${fp0} ${fp1}`);
+  // the link handle: drag it from the selected free note onto a table
+  const cardCentre = await t.ev(`(() => { const c = [...document.querySelectorAll('.note')].find((x) => x.textContent === 'Dropped free'), r = c.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`);
+  await t.click(cardCentre.x, cardCentre.y);   // selects the note, which shows its link handle
+  const handle = await t.ev(`(() => { const c = [...document.querySelectorAll('.note')].find((x) => x.textContent === 'Dropped free'), h = c.querySelector('.note-link').getBoundingClientRect(); return { x: h.left + h.width / 2, y: h.top + h.height / 2 }; })()`);
+  const tt = await t.at(head('review'));
+  await t.dragTo(handle.x, handle.y, tt.x, tt.y, { steps: 8 });
+  const fp2 = await place();
+  d = await saved();
+  const linkedNote = freeNote(d, 'Dropped free');
+  t.check('dragging a free note onto a table links it: it stays where it is (pos now relative), with a leader and a badge',
+    linkedNote.entities.join() === 'review' && Math.abs(fp2[0] - fp1[0]) <= 2 && Math.abs(fp2[1] - fp1[1]) <= 2
+      && (await count(`.note-leader[data-note-id="${linkedNote.id}"]`)) === 1 && (await count('.erd-entity[data-node-id="review"] .note-badge')) >= 1, `${J(linkedNote)} ${fp1} ${fp2}`);
+  const handle2 = await t.ev(`(() => { const c = [...document.querySelectorAll('.note')].find((x) => x.textContent === 'Dropped free'), h = c.querySelector('.note-link').getBoundingClientRect(); return { x: h.left + h.width / 2, y: h.top + h.height / 2 }; })()`);
+  const tt2 = await t.at(head('review'));
+  await t.dragTo(handle2.x, handle2.y, tt2.x, tt2.y, { steps: 8 });
+  t.check('the last link of a note stays (it never becomes free by unlinking)', freeNote(await saved(), 'Dropped free').entities.join() === 'review');
+  unlinkSync(tmpFree);
   // column notes: inline next to the column name (not callouts)
   await freshPage();
   t.check('existing column notes render inline inside their column row, not as callout notes',

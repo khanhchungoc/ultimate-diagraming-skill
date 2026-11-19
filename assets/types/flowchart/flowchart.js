@@ -3935,8 +3935,9 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         if (isTB()) delete chartData.direction;
         else chartData.direction = 'TB';
         selectedEdgeId = null;
-        // A moved note's offset is in screen terms, which the switch turns sideways: let every note be re-fitted
-        notesList().forEach(n => { delete n.pos; });
+        // A moved note's offset is in screen terms, which the switch turns sideways: let every anchored note be re-fitted
+        // (a free note's position is in flow terms and turns with the diagram)
+        notesList().forEach(n => { if (!isFree(n)) delete n.pos; });
         layoutDiagram(chartData);
         layoutOtherFlows();
         render();
@@ -3974,6 +3975,10 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
       // Dragging a note pins it: "pos" keeps its top-left relative to its anchor's top-left (screen px), so it
       // follows its anchor and is never re-fitted. Linking: drag a selected note's link handle onto a step, or
       // Shift+click a step while the note is selected; the same on a linked step unlinks it (never the last one).
+      // A free note has no links ("nodes": []): its "pos" is absolute, in flow terms like a step's x/y (x along the flow
+      // from the start of the lane track, y across), so it stays where it was dropped through Auto-Tidy. It has no
+      // leader and no badge, is always on show, and the other notes are fitted around it. Dropping the Note tile (or a
+      // free note's link handle) on a step links it; N or the tile with nothing selected adds one at the view's centre.
       const SVG_NS = 'http://www.w3.org/2000/svg';
       const notesLayer = document.getElementById('notes-layer');
       const noteLeaderGroup = document.getElementById('note-leader-group');
@@ -4000,6 +4005,11 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
       const notesList = () => (Array.isArray(chartData.notes) ? chartData.notes : []);
       const noteById = (id) => notesList().find(n => n.id === id);
       const noteTextOf = (note) => (note && typeof note.text === 'string' ? note.text.trim() : '');
+      const isFree = (note) => !(note.nodes || []).length;
+      const validPos = (p) => !!p && Number.isFinite(p.x) && Number.isFinite(p.y);
+      // Container px <-> a free note's flow-term position (see placeNodeEl)
+      const toFlowPos = (x, y) => { const off = trackOffset(); return isTB() ? { x: Math.round(y - off), y: Math.round(x) } : { x: Math.round(x - off), y: Math.round(y) }; };
+      const freeAt = (note) => flowToContainer(note.pos.x, note.pos.y);
       const isLive = (note) => !!noteTextOf(note) || note.id === editingNoteId;
       const linkedIds = (note) => (note.nodes || []).filter(id => nodeElOf(id));
       // Notes with text that explain a node (the one being typed counts too, so its card exists)
@@ -4028,12 +4038,14 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           delete n.notePos;
         });
         if (!Array.isArray(chartData.notes)) return;
+        const orphans = new Set();   // a linked note whose every step is gone goes too; a free one (never linked) stays
         chartData.notes.forEach(note => {
           const kept = (note.nodes || []).filter(id => ids.has(id));
           if (kept[0] !== (note.nodes || [])[0]) delete note.pos;   // the anchor changed: let it be re-fitted
+          if ((note.nodes || []).length && !kept.length) orphans.add(note.id);
           note.nodes = kept;
         });
-        chartData.notes = chartData.notes.filter(n => n.nodes.length && (noteTextOf(n) || n.id === editingNoteId));
+        chartData.notes = chartData.notes.filter(n => !orphans.has(n.id) && (n.nodes.length || validPos(n.pos)) && (noteTextOf(n) || n.id === editingNoteId));
         if (!chartData.notes.length) delete chartData.notes;
       }
 
@@ -4058,7 +4070,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         if (!notesLayer) return;
         notesLayer.textContent = '';
         noteLeaderGroup.textContent = '';
-        const live = notesList().filter(n => isLive(n) && linkedIds(n).length);
+        const live = notesList().filter(n => isLive(n) && (isFree(n) || linkedIds(n).length));
         live.forEach(note => {
           notesLayer.appendChild(buildNoteCard(note));
           linkedIds(note).forEach(nodeId => {
@@ -4102,9 +4114,9 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         const segBox = ([x1, y1, x2, y2]) => ({ x: Math.min(x1, x2), y: Math.min(y1, y2), w: Math.abs(x2 - x1), h: Math.abs(y2 - y1) });
         const boxesOf = {};
         live.forEach(n => { boxesOf[n.id] = linkedIds(n).map(id => containerBox(nodeElOf(id))); });
-        const placed = live.filter(n => n.pos || noteOffsets[n.id]).map(n => {
-          const o = n.pos || noteOffsets[n.id], a = boxesOf[n.id][0];
-          return { x: a.x + o.x, y: a.y + o.y, w: noteSizes[n.id].w, h: noteSizes[n.id].h };
+        const placed = live.filter(n => n.pos || noteOffsets[n.id]).map(n => {   // free notes are obstacles like any placed note
+          const o = n.pos || noteOffsets[n.id], a = isFree(n) ? freeAt(n) : boxesOf[n.id][0];
+          return isFree(n) ? { ...a, w: noteSizes[n.id].w, h: noteSizes[n.id].h } : { x: a.x + o.x, y: a.y + o.y, w: noteSizes[n.id].w, h: noteSizes[n.id].h };
         });
         // Reading order (along the flow, then across), so earlier steps get the nearer gaps
         const along = (b) => (isTB() ? [b.y, b.x] : [b.x, b.y]);
@@ -4164,8 +4176,8 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           const note = noteById(card.dataset.noteId);
           if (!note || (noteDrag && noteDrag.id === note.id)) return;
           const anchor = linkedIds(note)[0], o = note.pos || noteOffsets[note.id];
-          if (!anchor || !o) return;
-          const a = containerBox(nodeElOf(anchor)), x = a.x + o.x, y = a.y + o.y;
+          if ((!anchor && !isFree(note)) || !o) return;
+          const a = anchor && containerBox(nodeElOf(anchor)), { x, y } = a ? { x: a.x + o.x, y: a.y + o.y } : freeAt(note);
           card.style.left = `${x}px`;
           card.style.top = `${y}px`;
           drawLeaders(note.id, { x, y, ...(noteSizes[note.id] || { w: 0, h: 0 }) });
@@ -4199,7 +4211,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         [...notesLayer.children, ...noteLeaderGroup.children].forEach(el => {
           const note = noteById(el.dataset.noteId);
           if (!note) return;
-          el.classList.toggle('show', all);
+          el.classList.toggle('show', all || isFree(note));   // a free note has nothing to hover: it is always on show
           el.classList.toggle('peek', notePeeked(note));
           if (el.classList.contains('note')) el.classList.toggle('selected', note.id === selectedNoteId);
         });
@@ -4257,7 +4269,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         const { card, text } = ui.noteCard(note, {
           onDelete: () => removeNote(note.id),
           onLink: (e) => startNoteLink(e, note.id, card),
-          linkTitle: 'Link to another step: drag onto it (onto a linked step to unlink; or Shift+click the step)',
+          linkTitle: isFree(note) ? 'Link to a step: drag onto it' : 'Link to another step: drag onto it (onto a linked step to unlink; or Shift+click the step)',
           onCommit: (el) => commitNote(note, el),
           // the card grows as it is typed into: keep its leaders attached
           onInput: () => { noteSizes[note.id] = { w: card.offsetWidth, h: card.offsetHeight }; positionNotes(); },
@@ -4287,6 +4299,17 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         const existing = notesOf(nodeId)[0];
         if (existing) { editNote(existing.id); return; }
         const note = { id: noteUid(), text: '', nodes: [nodeId] };
+        chartData.notes = notesList();
+        chartData.notes.push(note);
+        editNote(note.id);
+      }
+
+      // A free note with its top-left at a client point (default: the middle of the view); dropped again if left empty
+      function addFreeNote(clientX, clientY) {
+        if (isPresenting()) return;
+        const vp = viewport.getBoundingClientRect();
+        const c = clientX === undefined ? toContainer(vp.left + vp.width / 2 - 80 * scale, vp.top + vp.height / 2 - 20 * scale) : toContainer(clientX, clientY);
+        const note = { id: noteUid(), text: '', nodes: [], pos: toFlowPos(Math.round(c.x / 4) * 4, Math.round(c.y / 4) * 4) };
         chartData.notes = notesList();
         chartData.notes.push(note);
         editNote(note.id);
@@ -4355,7 +4378,11 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         const note = noteById(noteId);
         if (!note || !nodeById(nodeId) || isConnector(nodeById(nodeId))) return;
         const ids = note.nodes || [];
-        if (!ids.includes(nodeId)) note.nodes = ids.concat(nodeId);
+        if (!ids.length) {   // a free note becomes anchored: its absolute pos turns relative to the step
+          const card = noteCard(noteId), a = containerBox(nodeElOf(nodeId));
+          if (card) { const c = containerBox(card); note.pos = { x: Math.round(c.x - a.x), y: Math.round(c.y - a.y) }; } else delete note.pos;
+          note.nodes = [nodeId];
+        } else if (!ids.includes(nodeId)) note.nodes = ids.concat(nodeId);
         else if (ids.length > 1) {
           if (ids[0] === nodeId && note.pos) {
             const card = noteCard(noteId), next = nodeElOf(ids[1]);
@@ -4453,6 +4480,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         const d = endNoteDrag();
         if (!d || !d.moved) return;
         const note = noteById(d.id), anchor = note && linkedIds(note)[0];
+        if (note && isFree(note)) { note.pos = toFlowPos(d.nx, d.ny); updateStatus(true); return; }
         if (!anchor) return;
         const a = containerBox(nodeElOf(anchor));
         note.pos = { x: Math.round(d.nx - a.x), y: Math.round(d.ny - a.y) };
@@ -4465,15 +4493,14 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         return d.moved;
       }
 
-      // N adds a note to the selected step (or opens the one it has), or opens the selected note
+      // N adds a note to the selected step (or opens the one it has), opens the selected note, or with neither adds a free note
       window.addEventListener('keydown', (e) => {
         if (e.key !== 'n' && e.key !== 'N') return;
         if (e.ctrlKey || e.metaKey || e.altKey || isPresenting()) return;
         const a = document.activeElement;
         if (a && (a.isContentEditable || a.tagName === 'INPUT' || a.tagName === 'TEXTAREA')) return;
-        if (!selectedNodeId && !selectedNoteId) return;
         e.preventDefault();
-        if (selectedNodeId) addNoteTo(selectedNodeId); else editNote(selectedNoteId);
+        if (selectedNodeId) addNoteTo(selectedNodeId); else if (selectedNoteId) editNote(selectedNoteId); else addFreeNote();
       });
 
       // --- NOTE TOOL (last tile in the Shapes menu) ---
@@ -4517,7 +4544,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           // which would otherwise take it straight out of the note just opened
           if (nodeId) setTimeout(() => giveNoteTo(nodeId));
           else if (noteId) setTimeout(() => editNote(noteId));
-          else setNotePicking(!notePicking);
+          else setTimeout(() => addFreeNote());
         });
         btnAddNote.addEventListener('pointerdown', (e) => {
           delete btnAddNote.dataset.dragged;
@@ -4550,7 +4577,9 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         d.ghost.style.left = `${e.clientX + 12}px`;
         d.ghost.style.top = `${e.clientY + 12}px`;
         d.target = nodeIdAt(e.clientX, e.clientY);
-        d.ghost.classList.toggle('off-target', !d.target);
+        d.x = e.clientX; d.y = e.clientY;
+        d.over = viewport.contains(document.elementFromPoint(e.clientX, e.clientY));
+        d.ghost.classList.toggle('off-target', !d.target && !d.over);
         markNoteTarget(d.target);
       }
       function endNoteToolDrag() {
@@ -4567,7 +4596,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         const d = endNoteToolDrag();
         if (!d || !d.ghost) return;
         btnAddNote.dataset.dragged = '1';   // swallow the click that may follow on the tile
-        if (d.target) giveNoteTo(d.target);
+        if (d.target) giveNoteTo(d.target); else if (d.over) { setNotePicking(false); addFreeNote(d.x, d.y); }   // anywhere else on the diagram: a free note
       }
       function cancelNoteToolDrag() {
         const d = endNoteToolDrag();
@@ -5270,7 +5299,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
             o.right = Math.max(o.right, b.x + b.w + pad - W);
             o.bottom = Math.max(o.bottom, b.y + b.h + pad - H);
           };
-          if (notesLayer && chartData.showNotes) [...notesLayer.children].forEach(c => take(c, PAD));
+          if (notesLayer) [...notesLayer.children].forEach(c => { if (c.classList.contains('show')) take(c, PAD); });   // on show: all, or a free note
           edgeLabelsGroup.querySelectorAll('.edge-label.has-label').forEach(l => take(l, OUTER_CLEAR));
           return o;
         },

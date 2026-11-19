@@ -1,11 +1,15 @@
-// Interaction test for flowchart notes: add (N / "+" chip / Note tile), edit (Enter = new line), badge, hover
+// Interaction test for flowchart notes: add (N / "+" chip / Note tile; with nothing selected a free note at the view centre), edit (Enter = new line), badge, hover
 // peek, the dock's Notes toggle, fitting clear of nodes, drag to pin (the note then follows its node, also through
-// Auto-Tidy), linking one note to several steps, delete, undo, and exports leaving peeked notes out. Driven over the Chrome DevTools Protocol, see cdp.mjs.
+// Auto-Tidy), linking one note to several steps, delete, undo, and exports leaving peeked notes out; free notes (saved with an empty link
+// list and a pos, disk / memory / disk unchanged, left in place by Auto-Tidy, drop on a step links and elsewhere is free, the link handle links one). Driven over the Chrome DevTools Protocol, see cdp.mjs.
 //
 //   node dev/e2e_notes.mjs --browser <chrome> --page <flowchart.html>
 //
 // --page: any laid-out flowchart page with at least two steps that have no note (e.g. dev/samples/example-flowchart.html)
 // Exit codes: 0 all passed, 1 setup error, 2 a check failed.
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { argOf, launch, sleep } from './cdp.mjs';
 
 const browser = argOf('browser'), page = argOf('page');
@@ -141,21 +145,25 @@ try {
   const viaClick = await t.ev(`document.querySelector('${N} .note-badge')?.getAttribute('aria-label') || ''`);
   t.check('Note tile click adds a note to the selected step', /From the tile/.test(viaClick), `badge=${viaClick}`);
 
-  const other = await t.ev(`[...document.querySelectorAll('.flow-node')].find(n => !n.querySelector('.note-badge')).dataset.nodeId`);
-  const O = `.flow-node[data-node-id="${other}"]`;
+  // Nothing selected: the tile (and N) add a free note at the centre of the view: no links, no badge, no leader
   await t.ev(deselect);
   await t.ev(`document.getElementById('btn-add-note').click()`);
-  const prompt = await t.ev(`!!document.querySelector('.note-pick-hint') && document.body.classList.contains('note-picking')`);
-  await t.ev(t.key('Escape'));
-  const cancelled = await t.ev(`!document.querySelector('.note-pick-hint') && !document.body.classList.contains('note-picking')`);
-  await t.ev(`document.getElementById('btn-add-note').click()`);
-  await t.ev(t.drag(O));
-  await type('Picked');
+  await sleep(30);
+  await type('Centred');
   await t.ev(enterKey);
   await sleep(50);
-  const viaPick = await t.ev(`document.querySelector('${O} .note-badge')?.getAttribute('aria-label') || ''`);
-  t.check('Note tile with nothing selected prompts for a step (Escape cancels), and the clicked step gets the note',
-    prompt && cancelled && /Picked/.test(viaPick), `prompt=${prompt} cancelled=${cancelled} badge=${viaPick}`);
+  const freeCard = (txt) => `[...document.querySelectorAll('.note')].find(c => c.dataset.nodes === '' && c.textContent.includes('${txt}'))`;
+  const centred = await t.ev(`(() => { const v = document.getElementById('viewport').getBoundingClientRect(), el = ${freeCard('Centred')}; if (!el) return null;
+    const c = el.getBoundingClientRect(); return [Math.round(c.left + c.width / 2 - (v.left + v.width / 2)), Math.round(c.top + c.height / 2 - (v.top + v.height / 2)), getComputedStyle(el).display]; })()`);
+  const noMarks = await t.ev(`(() => { const el = ${freeCard('Centred')}; return !!el && !document.querySelector('.note-leader[data-note-id="' + el.dataset.noteId + '"]') && ![...document.querySelectorAll('.note-badge')].some(b => /Centred/.test(b.getAttribute('aria-label'))); })()`);
+  await t.ev(deselect);
+  await t.ev(t.key('n'));
+  await type('By key');
+  await t.ev(enterKey);
+  await sleep(50);
+  t.check('with nothing selected the Note tile and N add a free note at the view centre: shown at rest, no leader, no badge',
+    !!centred && Math.abs(centred[0]) < 120 && Math.abs(centred[1]) < 60 && centred[2] !== 'none' && noMarks && (await t.ev(`!!(${freeCard('By key')})`)),
+    `centre=${centred} noMarks=${noMarks}`);
 
   // Target: a step without a note that the pointer can actually reach (on screen, not under a note or the
   // dock), chosen in the same instant as the drag
@@ -224,6 +232,74 @@ try {
   const lastKept = await t.ev(`!!${C} && document.querySelectorAll('.note-leader[data-note-id="${noteId}"]').length === 1`);
   t.check('dragging the link handle onto a step links it; the last link cannot be removed',
     viaHandle && handleLinked[0] === 2 && handleLinked[2] && lastKept, `highlight=${viaHandle} state=${handleLinked} lastKept=${lastKept}`);
+
+  // 12. Free notes: no links, an absolute pos
+  const saved = async () => { await t.press('s', { modifiers: 2 }); await sleep(250); return t.ev(`document.getElementById('diagram-data').textContent`); };
+  const raw1 = await saved(), d1 = JSON.parse(raw1);
+  const free1 = (d1.notes || []).filter((n) => !(n.nodes || []).length);
+  t.check('free notes are saved with an empty link list and a numeric pos (no new key)',
+    free1.length >= 2 && free1.every((n) => Number.isFinite(n.pos?.x) && Number.isFinite(n.pos?.y) && Object.keys(n).every((k) => ['id', 'text', 'nodes', 'pos'].includes(k))), JSON.stringify(free1));
+  const dir = mkdtempSync(join(tmpdir(), 'e2e_notes_'));
+  const again = join(dir, 'again.html');
+  writeFileSync(again, readFileSync(page, 'utf8').replace(/(<script id="diagram-data" type="application\/json">)[\s\S]*?(<\/script>)/, (m, a, b) => a + raw1 + b));
+  await t.open(again);
+  const raw2 = await saved();
+  const shownAgain = await t.ev(`[...document.querySelectorAll('.note')].filter(c => c.dataset.nodes === '' && getComputedStyle(c).display !== 'none').length`);
+  t.check('a free note round trips: disk, memory, disk is the same text, and both free notes are on show at rest', raw2 === raw1 && shownAgain === free1.length, `shown=${shownAgain} same=${raw2 === raw1}`);
+
+  // Auto-Tidy and a node drag leave a free note where it is (in the container's own units)
+  const place = (txt) => t.ev(`(() => { const el = ${freeCard(txt)}, k = document.getElementById('swimlanes-container'), c = el.getBoundingClientRect(), r = k.getBoundingClientRect(), f = r.width / k.offsetWidth;
+    return [Math.round((c.left - r.left) / f), Math.round((c.top - r.top) / f)]; })()`);
+  const f0 = await place('Centred');
+  await t.ev(t.drag(N, 0, 40));
+  await t.ev(`document.getElementById('btn-auto-tidy').click()`);
+  await sleep(120);
+  const f1 = await place('Centred');
+  t.check('Auto-Tidy leaves a free note in place', near(f0, f1, 2), `before=${f0} after=${f1}`);
+
+  // Dropping the Note tile on empty canvas makes a free note there; on a step it links (checked above)
+  const spot = await t.ev(`(() => { const v = document.getElementById('viewport').getBoundingClientRect();
+    for (let y = v.top + 90; y < v.bottom - 160; y += 24) for (let x = v.left + 60; x < v.right - 260; x += 24) {
+      const h = document.elementFromPoint(x, y);
+      if (h && document.getElementById('viewport').contains(h) && !h.closest('.flow-node, .note, .edge-label, .lane-pill, .dock-area, .zoom-dock, .toolbar') && !['path', 'line', 'polyline'].includes(h.tagName)) return [x, y];
+    } return null; })()`);
+  const nodesWithBadge = () => t.ev(`document.querySelectorAll('.note-badge').length`);
+  const badges0 = await nodesWithBadge();
+  await t.ev(`(() => { const tile = document.getElementById('btn-add-note'), a = tile.getBoundingClientRect();
+    const o = (cx, cy) => ({ bubbles: true, button: 0, clientX: cx, clientY: cy, pointerId: 1, isPrimary: true });
+    tile.dispatchEvent(new PointerEvent('pointerdown', o(a.left + 5, a.top + 5)));
+    window.dispatchEvent(new PointerEvent('pointermove', o(a.left + 40, a.top - 40)));
+    window.dispatchEvent(new PointerEvent('pointermove', o(${spot[0]}, ${spot[1]})));
+    window.dispatchEvent(new PointerEvent('pointerup', o(${spot[0]}, ${spot[1]}))); })()`);
+  await sleep(30);
+  await type('Dropped free');
+  await t.ev(enterKey);
+  await sleep(50);
+  const dropAt = await t.ev(`(() => { const c = ${freeCard('Dropped free')}; if (!c) return null; const r = c.getBoundingClientRect(); return [Math.round(r.left - ${spot[0]}), Math.round(r.top - ${spot[1]})]; })()`);
+  t.check('dropping the Note tile on empty canvas makes a free note at the drop point (no badge, no link)',
+    !!dropAt && Math.abs(dropAt[0]) < 16 && Math.abs(dropAt[1]) < 16 && (await nodesWithBadge()) === badges0, `offset=${dropAt} badges ${badges0}->${await nodesWithBadge()}`);
+
+  // A free note's link handle: dropped on a step it becomes anchored, and stays where it is; then its last link is kept
+  const target = await t.ev(`${reachable}[0].dataset.nodeId`);
+  const cardBox = () => t.ev(`(() => { const r = ${freeCard('Dropped free')}.getBoundingClientRect(); return [Math.round(r.left), Math.round(r.top)]; })()`);
+  const where0 = await cardBox();
+  await t.ev(t.drag(`.note[data-note-id="${await t.ev(`${freeCard('Dropped free')}.dataset.noteId`)}"]`));
+  await t.ev(`(() => { const h = ${freeCard('Dropped free')}.querySelector('.note-link'), a = h.getBoundingClientRect();
+    const b = document.querySelector('.flow-node[data-node-id="${target}"]').getBoundingClientRect();
+    const o = (x, y) => ({ bubbles: true, button: 0, clientX: x, clientY: y, pointerId: 1, isPrimary: true });
+    h.dispatchEvent(new PointerEvent('pointerdown', o(a.left + 5, a.top + 5)));
+    window.dispatchEvent(new PointerEvent('pointermove', o(b.left + b.width / 2, b.top + b.height / 2)));
+    window.dispatchEvent(new PointerEvent('pointerup', o(b.left + b.width / 2, b.top + b.height / 2))); })()`);
+  await sleep(50);
+  const where1 = await t.ev(`(() => { const c = document.querySelector('.note[data-nodes~="${target}"]'); if (!c) return null; const r = c.getBoundingClientRect(); return [Math.round(r.left), Math.round(r.top)]; })()`);
+  const d3 = JSON.parse(await saved());
+  const freeLinked = (d3.notes || []).find((n) => n.text === 'Dropped free');
+  await shiftClick(target);   // the last link cannot be removed
+  const stillLinked = (JSON.parse(await saved()).notes || []).find((n) => n.text === 'Dropped free');
+  t.check('dragging a free note onto a step links it (it stays where it is, now relative to the step, with a leader and a badge); the link then stays',
+    !!where1 && near(where0, where1, 2) && freeLinked && freeLinked.nodes.join() === target && Number.isFinite(freeLinked.pos?.x) && stillLinked.nodes.join() === target
+      && (await t.ev(`!!document.querySelector('.flow-node[data-node-id="${target}"] .note-badge') && !!document.querySelector('.note-leader[data-node-id="${target}"]')`)),
+    `before=${where0} after=${where1} note=${JSON.stringify(freeLinked)}`);
 
   t.check('no script errors', t.errors.length === 0, t.errors.join(' | '));
   code = t.finish();
