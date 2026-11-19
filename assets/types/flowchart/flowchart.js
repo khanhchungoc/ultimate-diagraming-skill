@@ -3533,6 +3533,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
       function makeNode(type, p) {
         const node = { id: uid('n'), laneId: p.laneId, type, label: NODE_DEFAULTS[type] || 'New Step', x: p.x, y: p.y };
         chartData.nodes.push(node);
+        if (type === 'subprocess' && !chartData.tab) addEmptyChild(node);   // a new subprocess gets its own tab (one level)
         return node;
       }
 
@@ -5069,6 +5070,20 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         // the new step is waiting for its name: its text opens for editing
         const label = document.querySelector(`#node-${CSS.escape(id)} .node-label`);
         if (label) label.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+      }
+
+      // A subprocess step added from Shapes: a child flow of its own, start pill -> one step -> end pill in the step's lane
+      function addEmptyChild(node) {
+        syncActors();
+        const start = { id: subId('n'), laneId: node.laneId, type: 'start', label: node.label };
+        const step = { id: subId('n'), laneId: node.laneId, type: 'task', label: 'New Step' };
+        const end = { id: subId('n'), laneId: node.laneId, type: 'end', label: 'Subprocess Done' };
+        const edges = [{ id: subId('e'), from: start.id, to: step.id, label: '' }, { id: subId('e'), from: step.id, to: end.id, label: '' }];
+        if (!chartData.flows) { chartData.actors = chartData.lanes.map(withoutHeight); chartData.flows = {}; chartData.tabNames = {}; }
+        const flow = { lanes: chartData.lanes.filter(l => l.id === node.laneId).map(withoutHeight), nodes: [start, step, end], edges };
+        chartData.flows[node.id] = flow;
+        chartData.tabNames[node.id] = node.label;
+        layoutFlow(flow, chartData.direction);
       }
 
       function expandSubprocess() {
