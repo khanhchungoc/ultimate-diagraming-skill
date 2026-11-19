@@ -1,12 +1,15 @@
-# Plan: subprocess nesting up to 4 levels, and a calmer tab bar
+# Plan: subprocess nesting up to 4 levels, a calmer tab bar, free notes, and quieter arrow and node editing
 
 Status: proposed, nothing built yet. Builds on `plan-subprocess.md`, which stops at two levels (a main flow plus children) and lists a third level as out of scope "until a real case needs it". This plan is that case.
 
 ## Goals
 
+Part A (sections 1 to 4): subprocess depth and the tab bar. Part B (sections 8 to 10): free notes in every diagram but sequence, the arrow label and toolbar, and node anchor points on hover only. The two parts are independent and can ship separately.
+
 - A flowchart can nest subprocesses up to **4 levels**: level 1 is the main flow, level 4 is the deepest allowed.
 - On a level-4 flow the editor does not offer the subprocess shape at all, so a fifth level cannot be created by hand.
 - The tab bar stops looking like a dangling underline and follows the look of the rest of the chrome (header buttons, zoom dock).
+- Part B: a note can be dropped anywhere and linked to nothing; a flowchart arrow gets a double-click label and a small click toolbar instead of a hover "+"; a flowchart step shows its anchor points on hover only.
 
 ## Non-goals
 
@@ -93,11 +96,16 @@ Rejected: a breadcrumb with child chips (loses the folder look you drew), and on
 2. Mermaid and disk: nested `sub_` parse and write, `subprocess_flow.py` tree outline and recursive `--flat`, `[WARN]` for depth over 4. Update `references/types/flowchart.md` and `references/reading.md`.
 3. Tab bar: the nested boxes and the filled active chip, then `dev/architecture.md`, `help.html` and the header plan.
 4. Examples: rebuild examples, add one 4-level sample.
+5. Part B, step 1: anchor points on hover only (CSS plus the touch rule), then the arrow label and toolbar. Both are flowchart-only and need no format change.
+6. Part B, step 2: free notes. The disk format (`disk_format.py`, `--extract`, audit) first, then the flowchart, ERD and use case editors one at a time.
 
 ## 6. Tests
 
 - `dev/test_subprocess.py`: depth helpers; a 4-level file round-trips (disk, memory, disk) unchanged; a level-5 `sub_` becomes a plain label with an `[INFO]`; deleting a mid-level step removes its whole subtree.
 - `e2e_subprocess`: create levels 2, 3 and 4 from Shapes; the Subprocess tile is disabled on level 4 and cannot be added by drag or paste; tab clicks in an outer box go up and select the right step; only direct children show in the innermost box; export of all tabs includes every level.
+- Free notes: a free note round-trips (disk, memory, disk) in all three types; Auto Tidy leaves it in place while anchored notes still move; dropping over a step links it, dropping on empty canvas makes it free; dragging a free note onto a step links it; `disk_format.py` rejects a free note with no `pos`. Sequence is not changed (`e2e_sequence` unchanged).
+- Arrows: no "+" on hover or at rest; double-click adds and edits a label; click shows the three-button toolbar; Label and Delete work and Delete undoes in one step; the Connector button is absent for connector-adjacent and self-loop arrows.
+- Anchor points: hidden on a selected step, shown on hover, shown on a selected step under `hover: none`; still hidden while connecting.
 - Contrast check for the active chip in light and dark (`dev/check_contrast.py`).
 - A screenshot of the tab bar at 1, 2 and 4 levels, light and dark, for the review.
 
@@ -105,7 +113,49 @@ Rejected: a breadcrumb with child chips (loses the folder look you drew), and on
 
 Touching `assets/` means the playground artifact is republished at the end of each phase that changes what a page runs or looks like (see `AGENTS.md`).
 
+## 8. Free notes (flowchart, ERD, use case; not sequence)
+
+Today a note must explain at least one step, table or use case: it lives in `notes[]` with a link list (`nodes` in a flowchart, `entities` in an ERD, `useCases` in a use case diagram), the first link is its anchor, and a dragged note stores `pos` relative to that anchor. The editors refuse to unlink the last one (flowchart: `flowchart.js` near line 3970; ERD: `erd.js` near line 2151). Sequence diagrams already have "place" notes that stay where they are dropped, so sequence is left alone.
+
+Change:
+
+- A note may be **free**: an empty link list. Its `pos` is then absolute, in the diagram's own coordinates (the same space a step's x/y live in), not relative to an anchor.
+- Dropping: the note is dropped where the pointer is released. Released over a step, table or use case it links to it as today; released anywhere else it becomes a free note at that point. Adding with the N key or the dock button still creates an anchored note when something is selected, and a free note at the viewport centre when nothing is.
+- A free note keeps its link handle: dragging it onto a step, table or use case links it (it becomes anchored, its `pos` is converted to relative). Unlinking the last link of an anchored note keeps today's rule (blocked), so a free note is only made by dropping.
+- No leader line, and no badge on any element, because nothing is linked.
+- **Auto Tidy and re-layout do not move free notes.** Anchored notes still follow their anchor and are re-fitted as today, treating free notes as obstacles like nodes and arrows. A free note may end up over a moved step after a tidy; that is accepted and the user drags it.
+- Disk: no new key. A note with an empty link list and a `pos` is free. `scripts/disk_format.py` (notes validation and key order for the three types) must accept an empty list, and drop a free note that has no `pos` as invalid. `--extract` prints free notes in a "Notes" section after the flow. The audit and `--verify` must not warn on an empty link list.
+
+## 9. Flowchart arrows: label and toolbar
+
+Today an arrow with no label shows a "+" pill at its midpoint (`edge-label.empty-placeholder`, `flowchart.js` near line 2620); a single click on it starts typing; a selected arrow shows a split chip (Connector) beside it (`buildSplitChip`).
+
+Change:
+
+- **Hover:** no "+" pill. An arrow without a label draws nothing at its midpoint, on hover or otherwise. An arrow with a label looks as today.
+- **Double-click** on the arrow (or on its label) opens the label editor at the midpoint, for an empty and a labelled arrow alike. A single click on the midpoint no longer starts typing.
+- **Click** on an arrow selects it and shows a small toolbar at the midpoint with three icon buttons: **Connector** (today's split chip, same condition: hidden when either end is already a connector circle or the arrow loops to itself), **Label** (opens the same editor as double-click), **Delete** (removes the arrow, same as the Delete key, one undo step).
+- The toolbar replaces `buildSplitChip` and reuses the existing action bar component (`assets/components/actionbar.css`) and the icon set, so it matches the header buttons and the zoom dock. It sits beside the label when there is one, so it never covers the text, and follows the arrow on drag and re-route. It is hidden while an endpoint is being dragged, while the label is edited, and in presentation and capture modes.
+- Enter or blur commits the label and Escape cancels, as today. An empty result clears the label and the arrow goes back to drawing nothing.
+- Help (`help.html`) and the tooltip text "Double-click to edit condition" are updated to match.
+
+## 10. Flowchart steps: anchor points on hover only
+
+The four anchor points (`.port`, `flowchart.css` near line 391) show on `.flow-node:hover` and on `.flow-node.selected`.
+
+Change: drop `.flow-node.selected .port`, so anchor points show on hover only. The existing rules stay: hidden while an arrow is being dragged or reconnected, with several steps selected, on connector circles, and in presentation mode.
+
+Touch devices have no hover, so without the selected rule they could not start an arrow. Keep the selected-step rule inside `@media (hover: none)` only.
+
+## 11. Doc and reference updates for Part B
+
+`help.html` (flowchart, ERD, use case), `references/types/*.md` (free notes, the arrow label gesture), `references/reading.md` (free notes in the outline), and `dev/architecture.md`.
+
 ## Decisions
 
 - The level-4 Subprocess tile is disabled, not hidden, so the layout does not jump.
 - The tab bar is nested folder boxes along the path to the current flow, the innermost holding its direct children only, never grandchildren (sketch confirmed).
+- Free notes are for flowchart, ERD and use case; sequence keeps its own place notes.
+- Auto Tidy never moves a free note.
+- The arrow toolbar has three buttons: Connector, Label, Delete.
+- Anchor points show on hover only, except on touch devices.
