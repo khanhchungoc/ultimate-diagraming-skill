@@ -760,12 +760,14 @@ try {
   const fullH = await t.ev(`document.getElementById('seq-canvas').offsetHeight`);
   const tallLife = await lifeLen('spm');
   await t.clickOn('#btn-lifespans');
+  await t.settle();
   const trimmed = { spm: await boxTop('spm'), cust: await boxTop('cust'), job: await boxTop('job'), len: await lifeLen('spm') };
   t.check('Trim lifelines draws each box at the top of its lifeline, which ends in a short cap',
     trimmed.cust === 24 && trimmed.spm > 400 && trimmed.job > trimmed.spm && trimmed.len < tallLife / 2 && (await count('.seq-cap')) === 8, JSON.stringify(trimmed));
   t.check('the participants that start in the top rows stay in the top row; a header slot makes the diagram taller, not wider',
     (await t.ev(`document.getElementById('seq-canvas').offsetHeight`)) > fullH && (await t.ev(`document.getElementById('btn-lifespans').getAttribute('aria-checked')`)) === 'true');
   await t.press('z', { modifiers: 2 });
+  await t.settle();
   t.check('the toggle is one undo step', (await count('.seq-cap')) === 0 && (await boxTop('spm')) === 24 && (await lifeLen('spm')) === tallLife);
   await t.press('y', { modifiers: 2 });
   // The pinned row names only the lifelines alive under it, at two scroll positions

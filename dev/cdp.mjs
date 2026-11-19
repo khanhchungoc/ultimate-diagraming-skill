@@ -133,6 +133,12 @@ export async function launch(browser) {
         await sleep(100);
       }
       await sleep(700);
+      await api.settle();
+    },
+    /** Waits (cap ~800ms) until the shell reports no motion in flight (<html data-motion-busy>, set by the motion kernel). */
+    async settle(cap = 800) {
+      const t0 = Date.now();
+      while (Date.now() - t0 < cap && await api.ev(`document.documentElement.dataset.motionBusy === '1'`).catch(() => false)) await sleep(20);
     },
     async ev(expression) {
       const r = await send('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true });
@@ -161,6 +167,7 @@ export async function launch(browser) {
       // A camera glide (Fit, zoom buttons, pan-into-view) or a FLIP (undo, collapse) moves things for ~250ms: aim at where they settle
       const moving = `!!document.querySelector('#viewport.gesturing') || document.getAnimations().some((a) => a.playState === 'running' && a.effect && a.effect.getComputedTiming().iterations !== Infinity)`;
       for (let i = 0; i < 30 && await api.ev(moving).catch(() => false); i++) await sleep(20);
+      await api.settle();
       return api.ev(`(() => { const el = document.querySelector(${JSON.stringify(selector)}); if (!el) return null;
         const r = el.getBoundingClientRect(); return { x: r.left + r.width * ${fx}, y: r.top + r.height * ${fy} }; })()`);
     },

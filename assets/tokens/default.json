@@ -157,6 +157,7 @@
     "dur-base": "180ms",
     "dur-layout": "230ms",
     "dur-camera": "240ms",
+    "dur-tab": "300ms",
     "curve-out": "cubic-bezier(0.22, 1, 0.36, 1)",
     "curve-in": "cubic-bezier(0.4, 0, 1, 1)",
     "curve-inout": "cubic-bezier(0.4, 0, 0.2, 1)",
