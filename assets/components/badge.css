@@ -8,6 +8,7 @@
       display: inline-block; max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;   /* "Saved to <long file name>" */
       background: var(--bg-soft);
       color: var(--text-soft);
+      transition: background-color var(--dur-base) var(--curve-inout), color var(--dur-base) var(--curve-inout);
     }
     .badge-status.saved {
       background: var(--status-saved-bg);
@@ -29,5 +30,8 @@
       font-size: var(--text-xs);
       line-height: var(--line-16);
       text-align: center;
+      transition: background-color var(--dur-micro) var(--curve-inout), color var(--dur-micro) var(--curve-inout),
+                  transform var(--dur-micro) var(--curve-spring-tactile);
     }
+    .btn[aria-pressed="true"] .btn-count { transform: scale(1); }
     .btn-count[hidden] { display: none; }

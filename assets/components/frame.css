@@ -14,7 +14,7 @@
       vertical-align: -3px;
     }
     .frame-chev:hover { background: var(--bg-hover); color: var(--text-main); }
-    .frame-chev svg { transition: transform var(--ease); }
+    .frame-chev svg { transition: transform var(--dur-base) var(--curve-inout); }
     .frame-tag.is-collapsed .frame-chev svg { transform: rotate(-90deg); }
     .frame-summary {
       position: absolute; height: 26px; padding: 0 12px; border: 1.5px dashed var(--border-dark); border-radius: var(--radius-pill);

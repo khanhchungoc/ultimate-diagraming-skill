@@ -3,6 +3,21 @@
       position: fixed; left: 50%; bottom: 76px; transform: translateX(-50%); z-index: 150; padding: 6px 12px; border-radius: var(--radius-pill);
       border: 1px solid var(--border-dark); background: var(--bg-panel); color: var(--text-main); font-size: var(--t-control-size); font-weight: var(--t-control-weight);
       box-shadow: var(--shadow-md); max-width: calc(100vw - 32px); text-align: center; pointer-events: none;
+      animation: hint-in 160ms var(--curve-out);
+    }
+    @keyframes hint-in {
+      from { transform: translate(-50%, 10px) scale(0.96); clip-path: inset(100% 0 0 0); }
+      to   { transform: translate(-50%, 0) scale(1); clip-path: inset(0 0 0 0); }
+    }
+    .hint.is-progress { position: fixed; overflow: hidden; }
+    .hint.is-progress::after {
+      content: ''; position: absolute; inset: 0; pointer-events: none;
+      background: linear-gradient(90deg, transparent, var(--primary-wash), transparent);
+      animation: hint-sheen 1200ms var(--curve-inout) infinite;
+    }
+    @keyframes hint-sheen {
+      from { transform: translateX(-100%); }
+      to   { transform: translateX(100%); }
     }
     .hint kbd { font: inherit; font-weight: var(--weight-semibold); }
     /* The prompt of a note tool wears the note's colours */

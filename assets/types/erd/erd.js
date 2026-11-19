@@ -151,7 +151,7 @@
         worker.onerror = (ev) => { ev.preventDefault(); erdFinishJob(job, null); };
         worker.postMessage({ seq: job.seq, data: chartData });
         document.body.dataset.erdBusy = '';
-        erdHint('Laying out the diagram…', true);
+        erdHint('Laying out the diagram…', true, true);
         return true;
       }
 
@@ -190,8 +190,8 @@
         if (ents.some((e) => !erdIsPlaced(e))) {
           // anything unplaced (a v1/v2 page, a table made by hand): the whole diagram is laid out
           const background = erdJob || (erdAsyncOK() && erdStartJob(() => {
-            render();
-            fitView();
+            render({ duration: 260, easing: 'curve-spring-settle', skipFreeNotes: true });
+            fitView(true);
             committedJson = savedJson = JSON.stringify(chartData);   // the laid-out page is the one that counts as unedited
             setStatusBadge(false);
           }));
@@ -206,14 +206,95 @@
       // The swatch a table wears ('' = neutral)
       const entityColor = (e) => e.color || '';
       const ERD_KEY_GAP = 34;   // the legend sits this far above the top-left corner of the tables
+      const ERD_FLIP_SPECS = [
+        { selector: '.erd-entity[data-node-id]', key: 'nodeId', mode: 'clip' },
+        { selector: '.erd-row[data-col]', key: (el) => { const p = el.closest('.erd-entity[data-node-id]'); return p ? `${p.dataset.nodeId}:${el.dataset.col}` : ''; } },
+        { selector: '.edge-label[data-edge-id]', key: 'edgeId' },
+        { selector: '.note[data-note-id]', key: 'noteId' },
+        { selector: '.color-key-item[data-color]', key: 'color' }
+      ];
+      const ERD_NUM_RE = /-?[\d.]+(?:e[-+]?\d+)?/gi;
+      let erdInRender = false;
+      function erdCapture(opts) {
+        if (!motion.enabled()) return null;
+        const html = motion.capture(erdCanvas, ERD_FLIP_SPECS, opts);
+        if (!html) return null;
+        const beziers = new Map();
+        erdRels.querySelectorAll('.erd-rel[data-edge-id] .edge-line').forEach((line) => {
+          const nums = (line.getAttribute('d') || '').match(ERD_NUM_RE);
+          if (nums && nums.length === 8) beziers.set(line.parentNode.dataset.edgeId, nums.map(Number));
+        });
+        const leaders = new Map();
+        erdLeaders.querySelectorAll('.note-leader[data-note-id][data-entity-id]').forEach((ln) => {
+          leaders.set(`${ln.dataset.noteId}:${ln.dataset.entityId}`,
+            [+ln.getAttribute('x1'), +ln.getAttribute('y1'), +ln.getAttribute('x2'), +ln.getAttribute('y2')]);
+        });
+        return { html, beziers, leaders };
+      }
+      function erdPlay(snap, opts) {
+        if (!snap || !motion.enabled()) return;
+        const o = opts || {};
+        const skipKeys = o.skipKeys ? new Set(o.skipKeys) : new Set();
+        if (o.skipFreeNotes) notesList().forEach((n) => { if (isFreeNote(n)) skipKeys.add(n.id); });
+        const durMs = motion.play(snap.html, erdCanvas, ERD_FLIP_SPECS, Object.assign({}, o, { skipKeys }));
+        if (o.shrinkGhosts) {
+          const st = stage.getBoundingClientRect();
+          const k = (stage.offsetWidth ? st.width / stage.offsetWidth : scale) || 1;
+          const op = o.shrinkOpacity ?? 0.9;
+          for (const [key, prev] of snap.html) {
+            if (!key.startsWith('0:') || !prev.preCloned) continue;
+            const cur = entityEl(prev.id);
+            if (!cur) continue;
+            const dw = prev.baseW - cur.offsetWidth, dh = prev.baseH - cur.offsetHeight;
+            if (dw <= 2 && dh <= 2) continue;
+            const cvr = cur.getBoundingClientRect();
+            const dx = (cvr.left - st.left) / k - prev.x, dy = (cvr.top - st.top) / k - prev.y;
+            motion.ghostExit(prev.el, {
+              preCloned: prev.preCloned, fromRect: prev.vr, baseW: prev.baseW, baseH: prev.baseH,
+              transform: `translate(${dx}px, ${dy}px)`,
+              clipPath: `inset(0 ${Math.max(0, dw)}px ${Math.max(0, dh)}px 0 round var(--radius-lg))`,
+              opacity: op, duration: durMs || 200, easing: o.easing || 'curve-spring-settle'
+            });
+          }
+        }
+        const tracks = [];
+        erdRels.querySelectorAll('.erd-rel[data-edge-id]').forEach((g) => {
+          const id = g.dataset.edgeId, line = g.querySelector('.edge-line'), rel = erdRel(id);
+          const from = snap.beziers.get(id);
+          if (from && rel && rel.curve && rel.curve.length === 4) {
+            const to = rel.curve.flat();
+            if (to.some((v, i) => Math.abs(v - from[i]) > 0.5)) tracks.push({ type: 'bezier', el: line, from, to });
+          } else if (o.drawNewRels && line) {
+            motion.drawPath(line, { duration: 140, easing: 'curve-out' });
+          }
+        });
+        erdLeaders.querySelectorAll('.note-leader[data-note-id][data-entity-id]').forEach((ln) => {
+          const key = `${ln.dataset.noteId}:${ln.dataset.entityId}`, from = snap.leaders.get(key);
+          const to = [+ln.getAttribute('x1'), +ln.getAttribute('y1'), +ln.getAttribute('x2'), +ln.getAttribute('y2')];
+          if (from) {
+            if (to.some((v, i) => Math.abs(v - from[i]) > 0.5)) tracks.push({ type: 'line', el: ln, from, to });
+          } else if (o.drawNewLeaders) {
+            motion.drawPath(ln, { duration: 150, easing: 'curve-out' });
+          }
+        });
+        if (tracks.length) motion.tweenSvg(tracks, { duration: o.duration ?? durMs, easing: o.easing || 'curve-spring-settle' });
+      }
 
-      function render() {
+      function render(motionOpts) {
+        const m = motionOpts === false ? null : (motionOpts || {});
+        const snap = m ? (m.snap || erdCapture(m.shrinkGhosts ? { ghosts: true } : undefined)) : null;
         ensureLayout();
         const C = chartData.canvas || { width: 800, height: 400 };
         erdCanvas.style.width = `${C.width}px`;
         erdCanvas.style.height = `${C.height}px`;
         erdSvg.setAttribute('width', C.width);
         erdSvg.setAttribute('height', C.height);
+        const oldBar = erdHtml.querySelector('.erd-actionbar');
+        let oldBarRect = null;
+        if (oldBar) {
+          if (!erdSel || erdPresenting()) motion.hideBar(oldBar);
+          else { oldBarRect = oldBar.getBoundingClientRect(); oldBar.remove(); }
+        }
         erdRels.textContent = '';
         erdLeaders.textContent = '';
         erdHtml.textContent = '';
@@ -222,16 +303,28 @@
         if (hoverEntityId && !erdEntity(hoverEntityId)) hoverEntityId = null;
         if (hoverRelId && !erdRel(hoverRelId)) hoverRelId = null;
 
-        erdHideCard();
-        renderRelationships();
-        erdEntities().forEach((e) => erdHtml.appendChild(buildEntity(e)));
-        drawKey();
-        renderLabels();
-        renderNotes(true);
-        updateButtons();
-        erdUpdateOverview(true);
-        applyHighlight();
-        drawSelectionTools();
+        erdInRender = true;
+        try {
+          erdHideCard();
+          renderRelationships();
+          erdEntities().forEach((e) => erdHtml.appendChild(buildEntity(e)));
+          drawKey();
+          renderLabels();
+          renderNotes(true);
+          updateButtons();
+          erdUpdateOverview(true);
+          applyHighlight();
+          drawSelectionTools(oldBarRect);
+        } finally { erdInRender = false; }
+        if (snap) erdPlay(snap, m);
+        if (m && m.collapseId && motion.enabled()) {
+          const ent = erdEntity(m.collapseId), chev = entityEl(m.collapseId)?.querySelector('.erd-chevron svg');
+          if (ent && chev) {
+            const on = ent.collapsed === true;
+            motion.anim(chev, [{ transform: on ? 'rotate(0deg)' : 'rotate(-90deg)' }, { transform: on ? 'rotate(-90deg)' : 'none' }],
+              { duration: 180, easing: motion.curve('curve-inout') });
+          }
+        }
       }
       function erdSelExists(sel) {
         if (sel.kind === 'entity') return !!erdEntity(sel.id);
@@ -641,14 +734,30 @@
       // (--inv on the canvas) so they stay readable; a label that would then cover another label or a table is hidden
       // until its line or either table is hovered. All of it is CSS keyed to body.erd-overview:not(.exporting), so every
       // export and copy is the full diagram. Nothing here changes the layout or the saved file.
-      let erdOverview = false, erdMeasuredAt = null;
+      let erdOverview = false, erdMeasuredAt = null, lastWheelZoomAt = 0;
+      window.addEventListener('wheel', (e) => { if (e.ctrlKey || e.metaKey) lastWheelZoomAt = performance.now(); }, { passive: true, capture: true });
       function erdUpdateOverview(force) {
         const was = erdOverview;
         if (!erdOverview && scale < 0.5) erdOverview = true; else if (erdOverview && scale > 0.6) erdOverview = false;
+        const canMorph = was !== erdOverview && force !== true && motion.enabled()
+          && !viewport.classList.contains('panning') && (performance.now() - lastWheelZoomAt > 120);
+        const nameSpec = [{ selector: '.erd-entity[data-node-id] .erd-name', key: (el) => el.closest('.erd-entity').dataset.nodeId }];
+        const nameSnap = canMorph ? motion.capture(erdHtml, nameSpec) : null;
         document.body.classList.toggle('erd-overview', erdOverview);
         erdCanvas.style.setProperty('--inv', String(1 / scale));
         if (erdOverview) { if (force === true || was !== erdOverview || erdMeasuredAt !== scale) { erdMeasuredAt = scale; erdOverviewMeasure(); } }
         else if (was || force === true) { erdMeasuredAt = null; erdOverviewReset(); }
+        if (nameSnap) {
+          motion.play(nameSnap, erdHtml, nameSpec, { duration: 160, easing: 'curve-inout', enter: false });
+          if (!erdOverview) {
+            erdHtml.querySelectorAll('.erd-entity[data-node-id]').forEach((ent) => {
+              motion.anim(ent, [
+                { clipPath: `inset(0 0 ${Math.max(0, ent.offsetHeight - ER.HEAD_H)}px 0 round var(--radius-lg))` },
+                { clipPath: 'inset(0 0 0 0 round var(--radius-lg))' }
+              ], { duration: 160, easing: motion.curve('curve-inout') });
+            });
+          }
+        }
         if (was !== erdOverview) { applyHighlight(); if (!erdOverview) erdHideCard(); }
       }
       function erdOverviewReset() {
@@ -690,15 +799,21 @@
       // over its own box (fixed to the screen, an overlay: nothing moves). Read only and click-through (erd.css), so the
       // table under it can still be dragged, and a double-click reaches the table and zooms to it.
       let erdCardEl = null, erdCardId = null;
-      function erdHideCard() {
-        if (erdCardEl) erdCardEl.remove();
+      function erdHideCard(animate) {
+        if (erdCardEl) {
+          if (animate && motion.enabled()) {
+            const mini = erdCardId && entityEl(erdCardId);
+            motion.ghostExit(erdCardEl, { toRect: mini ? mini.getBoundingClientRect() : null, duration: 150, easing: 'curve-in' });
+          }
+          erdCardEl.remove();
+        }
         erdCardEl = null; erdCardId = null;
       }
       function erdSyncCard() {
         const sel = erdSel && erdSel.kind === 'entity' && !isMultiSelected() && erdEntity(erdSel.id) ? erdSel.id : null;
         const want = !erdOverview || (erdDrag && erdDrag.moved) ? null : sel;
         if (want === erdCardId && (!want || erdCardEl)) return;
-        erdHideCard();
+        erdHideCard(true);
         if (!want) return;
         const e = erdEntity(want), el = entityEl(want);
         if (!e || !el) return;
@@ -717,6 +832,7 @@
         wrap.style.top = `${Math.max(vp.top + 8, Math.min(r.top, vp.bottom - h - 8))}px`;
         erdCardEl = wrap;
         erdCardId = want;
+        motion.morphRect(r, wrap, { duration: 190, easing: 'curve-spring-tactile', origin: 'top left' });
       }
       // Zoom to a table at 100%, centred in the view
       function erdZoomToTable(id) {
@@ -724,21 +840,25 @@
         if (!el) return;
         const r = el.getBoundingClientRect(), vp = viewport.getBoundingClientRect();
         const sx = (r.left + r.width / 2 - vp.left - panX) / scale, sy = (r.top + r.height / 2 - vp.top - panY) / scale;
-        scale = 1;
-        panX = vp.width / 2 - sx;
-        panY = vp.height / 2 - sy;
-        updateTransform();
-        erdSyncCard();
+        if (erdCardEl) {
+          const box = erdEntity(id)?.box;
+          const toRect = box ? { left: vp.left + vp.width / 2 - box.w / 2, top: vp.top + vp.height / 2 - box.h / 2, width: box.w, height: box.h } : null;
+          motion.ghostExit(erdCardEl, { toRect, opacity: 0.9, duration: 150, easing: 'curve-out' });
+          erdCardEl.remove();
+          erdCardEl = null; erdCardId = null;
+        }
+        animateViewport(vp.width / 2 - sx, vp.height / 2 - sy, 1, { duration: 150, easing: 'curve-out', onComplete: erdSyncCard });
       }
 
       // --- COLLAPSE ---
       function toggleCollapsed(id) {
         const e = erdEntity(id);
         if (!e) return;
-        if (e.collapsed === true) delete e.collapsed; else e.collapsed = true;
+        const was = e.collapsed === true;
+        if (was) delete e.collapsed; else e.collapsed = true;
         // Tables stay where they are, only their sizes and the lines change (render() re-routes because the model
         // changed). In ?present it is a change of view, not an edit.
-        render();
+        render({ duration: 200, easing: 'curve-spring-settle', shrinkGhosts: !was, shrinkOpacity: 1, collapseId: id });
         if (!erdPresenting()) updateStatus(true);
       }
 
@@ -838,11 +958,11 @@
       if (erdBtnColumns) erdBtnColumns.addEventListener('click', () => {
         const next = ERD_DETAILS[(ERD_DETAILS.indexOf(erdDetail()) + 1) % ERD_DETAILS.length];
         if (next === 'all') delete chartData.detail; else chartData.detail = next;
-        resizeLayout(() => { render(); updateStatus(true); fitView(); });   // sizes change; rank and order do not (check_golden.py)
+        resizeLayout(() => { render({ duration: 230, easing: 'curve-spring-settle', shrinkGhosts: true, shrinkOpacity: 0.2 }); updateStatus(true); fitView(true); });   // sizes change; rank and order do not (check_golden.py)
       });
       if (erdBtnTypes) erdBtnTypes.addEventListener('click', () => {
         if (chartData.showTypes === false) delete chartData.showTypes; else chartData.showTypes = false;
-        resizeLayout(() => { render(); updateStatus(true); });
+        resizeLayout(() => { render({ duration: 200, easing: 'curve-spring-settle', shrinkGhosts: true, shrinkOpacity: 0.2 }); updateStatus(true); });
       });
 
       // --- NOTES ---
@@ -1031,17 +1151,57 @@
         const ids = note.entities || [];
         return note.id === selectedNoteId || ids.includes(peekEntityId) || (erdSel && erdSel.kind === 'entity' && ids.includes(erdSel.id));
       }
+      let wasVisibleNoteIds = new Set(), pendingNoteOriginRect = null;
       function applyNoteVisibility() {
         if (!erdNotesLayer) return;
         const all = !!chartData.showNotes;
+        const canAnim = !erdInRender && motion.enabled();
+        const nextVis = new Set();
+        if (canAnim) {
+          [...erdNotesLayer.children].forEach((card) => {
+            const id = card.dataset.noteId, note = noteById(id);
+            if (!note) return;
+            const willShow = all || isFreeNote(note) || !!notePeeked(note);
+            if (willShow) nextVis.add(id);
+            if (!willShow && wasVisibleNoteIds.has(id) && !isFreeNote(note)) {
+              const badge = (note.entities || [])[0] && entityEl(note.entities[0])?.querySelector('.note-badge');
+              motion.foldNote(card, badge);
+            }
+          });
+        }
         erdCanvas.classList.toggle('notes-on', all);
         [...erdNotesLayer.children, ...erdLeaders.children].forEach((el) => {
           const note = noteById(el.dataset.noteId);
           if (!note) return;
-          el.classList.toggle('show', all || isFreeNote(note));   // a free note has nothing to hover: it is always on show
-          el.classList.toggle('peek', !!notePeeked(note));
-          if (el.classList.contains('note')) el.classList.toggle('selected', note.id === selectedNoteId);
+          const show = all || isFreeNote(note), peek = !!notePeeked(note);
+          el.classList.toggle('show', show);   // a free note has nothing to hover: it is always on show
+          el.classList.toggle('peek', peek);
+          if (el.classList.contains('note')) {
+            el.classList.toggle('selected', note.id === selectedNoteId);
+            if (show || peek) nextVis.add(note.id);
+          }
         });
+        if (canAnim) {
+          [...erdNotesLayer.children].forEach((card) => {
+            const id = card.dataset.noteId, note = noteById(id);
+            if (!note || !nextVis.has(id) || wasVisibleNoteIds.has(id)) return;
+            if (pendingNoteOriginRect) {
+              const r = pendingNoteOriginRect; pendingNoteOriginRect = null;
+              motion.morphRect(r, card, { duration: 170, easing: 'curve-spring-tactile' });
+            } else if (isFreeNote(note)) {
+              motion.unfoldNote(card);
+            } else {
+              const badge = (note.entities || [])[0] && entityEl(note.entities[0])?.querySelector('.note-badge');
+              const leader = erdLeaders.querySelector(`.note-leader[data-note-id="${id}"]`);
+              if (editingNoteId !== id && selectedNoteId !== id && badge && badge.getBoundingClientRect().width > 0) {
+                card.style.pointerEvents = 'none';
+                setTimeout(() => { if (card.isConnected) card.style.pointerEvents = ''; }, 180);
+              }
+              motion.unfoldNote(card, badge, leader);
+            }
+          });
+        }
+        wasVisibleNoteIds = nextVis;
       }
       // Hover: a table peeks its notes after NOTE_PEEK_DELAY (its badge at once); leaving lets them go after a grace
       // period, so the pointer can travel from the table to a card without it vanishing on the way
@@ -1133,25 +1293,26 @@
       const erdFirstPk = (ent) => erdToCol({}, ent);
 
       // A structural edit: tables stay and only lines are re-routed
-      function commit() {
-        render();
+      function commit(motionOpts) {
+        render(motionOpts);
         updateStatus(true);
       }
 
       // A short message above the dock (why something was refused), or a prompt that stays while a tool waits
       let erdHintTimer = 0;
-      function erdHint(html, sticky) {
+      function erdHint(html, sticky, progress) {
         let hint = document.querySelector('.hint');
         clearTimeout(erdHintTimer);
-        if (html === null) { if (hint) hint.remove(); return; }
+        if (html === null) { if (hint) motion.hideHint(hint); return; }
         if (!hint) {
           hint = erdHtmlEl('div', 'hint');
           hint.setAttribute('role', 'status');
           hint.dataset.exportSkip = '';
           document.body.appendChild(hint);
         }
+        hint.classList.toggle('is-progress', !!progress);
         hint.innerHTML = html;
-        if (!sticky) erdHintTimer = setTimeout(() => hint.remove(), 3200);
+        if (!sticky) erdHintTimer = setTimeout(() => { if (hint.isConnected) motion.hideHint(hint); }, 3200);
       }
       const erdText = (s) => String(s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
 
@@ -1165,9 +1326,7 @@
         if (r.left < v.left + pad) dx = v.left + pad - r.left; else if (r.right > v.right - pad) dx = v.right - pad - r.right;
         if (r.top < v.top + pad) dy = v.top + pad - r.top; else if (r.bottom > bottom - pad) dy = bottom - pad - r.bottom;
         if (!dx && !dy) return;
-        panX += dx;
-        panY += dy;
-        updateTransform();
+        animateViewport(panX + dx, panY + dy, scale, { duration: motion.dur('dur-camera', 240), easing: 'curve-out' });
       }
 
       // --- OVERLAYS: the rubber band of a drawing drag, a drop line, snap guides ---
@@ -1257,7 +1416,7 @@
       function cancelDrag() {
         const d = endDrag();
         if (!d) return false;
-        if (d.moved) render();   // everything back where it was
+        if (d.moved) render(false);   // everything back where it was immediately
         return true;
       }
 
@@ -1309,9 +1468,16 @@
       }
 
       // The tools drawn on the selection: never exported ([data-export-skip]), not in ?present, hidden while dragging
-      function drawSelectionTools() {
-        erdHtml.querySelectorAll('.erd-actionbar, .erd-handle').forEach((el) => el.remove());
-        if (!erdSel || erdPresenting()) return;
+      let lastHandleRelId = null;
+      function drawSelectionTools(prevBarRect) {
+        const oldBar = erdHtml.querySelector('.erd-actionbar');
+        if (oldBar) {
+          if (!erdSel || erdPresenting()) motion.hideBar(oldBar);
+          else { prevBarRect = oldBar.getBoundingClientRect(); oldBar.remove(); }
+        }
+        erdHtml.querySelectorAll('.erd-handle').forEach((el) => el.remove());
+        if (!erdSel || erdPresenting()) { lastHandleRelId = null; return; }
+        if (erdSel.kind !== 'rel') lastHandleRelId = null;
         const bar = ui.actionBar('erd-actionbar');
         let at = null, below = false;
         if (erdSel.kind === 'entity') {
@@ -1372,13 +1538,23 @@
           const hFrom = erdPointAlong(rel.curve, gap, false), hTo = erdPointAlong(rel.curve, gap, true);
           addHandle('from', rel.id, hFrom[0], hFrom[1]);
           addHandle('to', rel.id, hTo[0], hTo[1]);
+          if (lastHandleRelId !== erdSel.id && motion.enabled()) {
+            erdHtml.querySelectorAll('.erd-handle').forEach((h) => {
+              motion.anim(h, [{ transform: 'scale(0.4)' }, { transform: 'none' }], { duration: 110, easing: motion.curve('curve-spring-tactile') });
+            });
+          }
+          lastHandleRelId = erdSel.id;
           erdHtml.appendChild(bar);
           placeRelBar(bar, rel);
+          if (prevBarRect && prevBarRect.width > 0 && prevBarRect.height > 0) motion.ghostMorph(prevBarRect, bar, 170, 'curve-spring-settle');
+          else motion.showBar(bar);
           return;
         } else return;
         bar.classList.toggle('is-below', below);
         Object.assign(bar.style, { left: erdPx(at.x), top: erdPx(Math.max(2, at.y)) });
         erdHtml.appendChild(bar);
+        if (prevBarRect && prevBarRect.width > 0 && prevBarRect.height > 0) motion.ghostMorph(prevBarRect, bar, 170, 'curve-spring-settle');
+        else motion.showBar(bar);
       }
       // The line's bar sits above or below a point near the middle of its curve, wherever it hides the fewest tables
       function placeRelBar(bar, rel) {
@@ -1461,13 +1637,17 @@
         return used;
       }
       function drawKey() {
+        const keySpec = [{ selector: '.color-key-item[data-color]', key: 'color' }];
+        const snap = !erdInRender && motion.enabled() ? motion.capture(erdHtml, keySpec) : null;
         erdHtml.querySelectorAll('.color-key').forEach((el) => el.remove());
         const key = chartData.colorKey || {}, boxes = erdEntities().filter((e) => e.box).map((e) => e.box);
         const shown = erdKeyColors().filter((c) => key[c] || c === erdKeyDraft);
         const el = boxes.length && ui.colorKey(shown, key, { prompts: erdKeyDraft !== null, cls: 'erd-key' });
         if (!el) return;
+        el.querySelectorAll('.color-key-item').forEach((it) => { const lbl = it.querySelector('.color-key-label'); if (lbl) it.dataset.color = lbl.dataset.color; });
         Object.assign(el.style, { left: erdPx(Math.min(...boxes.map((b) => b.x))), top: erdPx(Math.min(...boxes.map((b) => b.y)) - ERD_KEY_GAP) });
         erdHtml.appendChild(el);
+        if (snap) motion.play(snap, erdHtml, keySpec, { duration: 170, easing: 'curve-spring-settle' });
       }
       // Sets or clears (value '') one label; true when it changed
       function setKeyLabel(color, value) {
@@ -1593,6 +1773,8 @@
         erdSel = { kind: 'rel', id: rel.id };
         selectedNoteId = null;
         commit();
+        const line = relEl(rel.id)?.querySelector('.edge-line');
+        if (line) motion.drawPath(line, { duration: 140, easing: 'curve-out' });
         return true;
       }
 
@@ -1644,6 +1826,12 @@
         else if (toCol) rel.columns = [toCol]; else delete rel.columns;
         if (oldCols && oldCols.length && !(oldCols.length === 1 && oldCols[0] === erdFirstPk(from))) rel.toColumns = oldCols; else delete rel.toColumns;
         commit();
+        const line = relEl(rel.id)?.querySelector('.edge-line');
+        if (line && motion.enabled()) {
+          motion.anim(line, [{ strokeWidth: '3.2px' }, { strokeWidth: '' }], { duration: 180, easing: motion.curve('curve-out') });
+          if (rel.identifying) motion.drawPath(line, { duration: 160, easing: 'curve-out' });
+          else motion.anim(line, [{ strokeDashoffset: '20' }, { strokeDashoffset: '0' }], { duration: 180, easing: motion.curve('curve-out') });
+        }
       }
 
       // --- Move a table ---
@@ -1675,12 +1863,29 @@
             els.forEach((x) => { x.style.translate = `${dx}px ${dy}px`; });
           },
           drop(ev, d) {
+            els.forEach((x) => x.classList.remove('is-dragging'));
             const dx = d.sdx === undefined ? d.dx : d.sdx, dy = d.sdy === undefined ? d.dy : d.sdy;
             const ents = ids.map(erdEntity).filter((x) => x && x.box);
             if (!ents.length) { render(); return; }
+            const snap = erdCapture();
             ents.forEach((t) => erdPlaceAt(t, t.box.x + dx, t.box.y + dy, !!d.snapped));   // a snapped drop keeps its exact alignment
+            const beforeSettle = new Map(ents.map((t) => [t.id, { x: t.x, y: t.y }]));
             erdSettled({ tables: new Set(ids) });
-            render();
+            const skipKeys = new Set();
+            ents.forEach((t) => {
+              const b = beforeSettle.get(t.id);
+              if (t.x === b.x && t.y === b.y) {
+                skipKeys.add(t.id);
+                (t.columns || []).forEach((c) => skipKeys.add(`${t.id}:${c.name}`));
+              }
+            });
+            render({ snap, skipKeys, duration: 190, easing: 'curve-spring-settle' });
+            if (motion.enabled()) {
+              skipKeys.forEach((tid) => {
+                const dropped = !tid.includes(':') && entityEl(tid);
+                if (dropped) motion.anim(dropped, [{ transform: 'scale(1.015)' }, { transform: 'none' }], { duration: 130, easing: motion.curve('curve-spring-settle') });
+              });
+            }
             updateStatus(true);
           }
         };
@@ -1706,6 +1911,8 @@
             Object.assign(erdDropLine.style, { display: 'block', left: erdPx(e.box.x + 4), width: erdPx(e.box.w - 8), top: erdPx(y - 2), height: '4px' });
           },
           drop(ev, d) {
+            el.classList.remove('is-dragging');
+            const snap = erdCapture();
             const cols = e.columns || [], from = cols.findIndex((c) => c.name === colName);
             let to;
             if (d.before) to = cols.findIndex((c) => c.name === d.before.dataset.col);
@@ -1714,12 +1921,12 @@
               const last = rows[rows.length - 1];
               to = last ? cols.findIndex((c) => c.name === last.dataset.col) + 1 : from;
             }
-            if (from < 0 || to < 0) { render(); return; }
+            if (from < 0 || to < 0) { render({ snap }); return; }
             const [col] = cols.splice(from, 1);
             if (to > from) to--;
-            if (to === from) { cols.splice(from, 0, col); render(); return; }
+            if (to === from) { cols.splice(from, 0, col); render({ snap }); return; }
             cols.splice(to, 0, col);
-            commit();
+            commit({ snap, duration: 180, easing: 'curve-spring-settle' });
           }
         };
       }
@@ -1966,6 +2173,11 @@
         if (!col) return;
         if (col[flag]) delete col[flag]; else col[flag] = true;
         commit();
+        if (!motion.enabled()) return;
+        const row = colEls(entityId).find((r) => r.dataset.col === name);
+        if (!row) return;
+        const target = flag === 'unique' ? row.querySelector('.erd-uniq') : flag === 'nullable' ? row.querySelector('.erd-col-type') : row.querySelector('.erd-glyph');
+        if (target) motion.anim(target, [{ transform: 'scale(0.7)' }, { transform: 'scale(1.12)' }, { transform: 'none' }], { duration: 140, easing: motion.curve('curve-spring-tactile') });
       }
       // Up or down to the neighbouring column that is on show
       function moveColumnBy(entityId, name, dir) {
@@ -2019,17 +2231,39 @@
         placeNewTable(e, opts.pt);
         selectedNoteId = null;
         erdSel = { kind: 'entity', id: e.id };
-        commit();
-        panIntoView(entityEl(e.id));
+        commit({ originRect: opts.originRect || null, duration: 200, easing: 'curve-spring-tactile' });
+        if (!opts.originRect) panIntoView(entityEl(e.id));
         editEntityName(e.id);
       }
 
       // --- Delete ---
+      function ghostRetractRel(g) {
+        const line = g && g.querySelector('.edge-line');
+        if (!line || !motion.enabled()) return;
+        const len = line.getTotalLength();
+        if (!len) return;
+        const clone = line.cloneNode(true);
+        clone.style.stroke = getComputedStyle(line).stroke;
+        clone.style.strokeWidth = getComputedStyle(line).strokeWidth;
+        erdOverlay.appendChild(clone);
+        const a = clone.animate(
+          [{ strokeDasharray: `${len} ${len}`, strokeDashoffset: 0, opacity: 1 },
+           { strokeDasharray: `${len} ${len}`, strokeDashoffset: len, opacity: 0 }],
+          { duration: 120, easing: motion.curve('curve-in') }
+        );
+        const rm = () => clone.remove();
+        a.addEventListener('finish', rm, { once: true });
+        a.addEventListener('cancel', rm, { once: true });
+      }
       function deleteEntity(id) { deleteEntities([id]); }
       function deleteEntities(ids) {
         ids = ids.filter((id) => erdEntity(id));
         if (!ids.length) return;
         const gone = new Set(ids);
+        if (motion.enabled()) {
+          ids.forEach((id) => { const el = entityEl(id); if (el) motion.ghostExit(el, { duration: 120, easing: 'curve-in', transform: 'scale(0.92)' }); });
+          erdRels.querySelectorAll('.erd-rel').forEach((g) => { if (gone.has(g.dataset.from) || gone.has(g.dataset.to)) ghostRetractRel(g); });
+        }
         chartData.entities = erdEntities().filter((e) => !gone.has(e.id));
         chartData.relationships = erdRelsList().filter((r) => !gone.has(r.from) && !gone.has(r.to));
         // A note loses the tables; one left with no table goes (a free note never had any and stays)
@@ -2042,12 +2276,13 @@
           if (!chartData.notes.length) delete chartData.notes;
         }
         erdSel = null;
-        commit();
+        commit({ enter: false, duration: 180 });
       }
       function deleteRel(id) {
+        ghostRetractRel(relEl(id));
         chartData.relationships = erdRelsList().filter((r) => r.id !== id);
         erdSel = null;
-        commit();
+        commit({ enter: false, duration: 160 });
       }
 
       // Deleting a table with relationships, or an area with tables, is confirmed first, in a small bubble at the button
@@ -2093,13 +2328,14 @@
         editNote(note.id);
       }
       // A free note with its top-left at a canvas point (default: the middle of the view); dropped again if left empty
-      function addFreeNote(pt) {
+      function addFreeNote(pt, originRect) {
         if (erdPresenting()) return;
         const v = viewport.getBoundingClientRect();
         const c = pt || erdPoint({ clientX: v.left + v.width / 2 - 80 * scale, clientY: v.top + v.height / 2 - 20 * scale });
         const note = { id: erdUid('n'), text: '', entities: [], pos: { x: erdRound4(c.x), y: erdRound4(c.y) } };
         chartData.notes = notesList();
         chartData.notes.push(note);
+        pendingNoteOriginRect = originRect || null;
         editNote(note.id);
       }
       function selectNote(id) {
@@ -2120,6 +2356,7 @@
         if (!noteCard(id)) renderNotes(false);
         const card = noteCard(id);
         if (!card) return;
+        card.style.pointerEvents = '';
         applyNoteVisibility();
         const text = card.querySelector('.note-text');
         text.contentEditable = 'true';
@@ -2144,7 +2381,7 @@
           if (selectedNoteId === note.id) selectedNoteId = null;
         }
         updateStatus(true);
-        render();   // badges appear or go, and the notes are fitted again around the new size
+        render({ skipKeys: new Set([note.id]), duration: 160 });   // badges appear or go, and the notes are fitted again around the new size
       }
       // Clicking anywhere else finishes the note being typed
       window.addEventListener('pointerdown', (e) => {
@@ -2184,7 +2421,11 @@
         } else { erdHint('A note keeps at least one table: delete the note instead'); return; }
         selectedNoteId = noteId;
         updateStatus(true);
-        render();
+        render({ drawNewLeaders: true, skipFreeNotes: true });
+        if (motion.enabled()) {
+          const badge = entityEl(entityId)?.querySelector('.note-badge');
+          if (badge) motion.anim(badge, [{ transform: 'scale(0.4)' }, { transform: 'none' }], { duration: 140, easing: motion.curve('curve-spring-tactile') });
+        }
       }
       function startNoteLink(ev, noteId, card) {
         if (ev.button !== 0 || erdPresenting()) return;
@@ -2225,19 +2466,21 @@
             card.classList.add('dragging');
             d.nx = erdRound4(x0 + d.dx);
             d.ny = erdRound4(y0 + d.dy);
-            card.style.left = erdPx(d.nx);
-            card.style.top = erdPx(d.ny);
+            card.style.translate = `${d.nx - x0}px ${d.ny - y0}px`;
             drawLeaders(id, { x: d.nx, y: d.ny, ...(noteSizes[id] || { w: 0, h: 0 }) });
           },
           drop(e, d) {
             card.classList.remove('dragging');
+            card.style.translate = '';
+            card.style.left = erdPx(d.nx);
+            card.style.top = erdPx(d.ny);
             const note = noteById(id), anchor = note && linkedEntities(note)[0];
             if (!anchor && !(note && isFreeNote(note))) { render(); return; }
             const a = anchor ? erdEntity(anchor).box : { x: 0, y: 0 };   // a free note's pos is absolute
             note.pos = { x: Math.round(d.nx - a.x), y: Math.round(d.ny - a.y) };
             updateStatus(true);
           },
-          cleanup() { card.classList.remove('dragging'); }
+          cleanup() { card.classList.remove('dragging'); card.style.translate = ''; }
         });
       }
       // N: add a note to the selected table (or open the one it has), or open the selected note
@@ -2318,7 +2561,7 @@
           document.body.appendChild(d.ghost);
           document.body.classList.add('palette-dragging');
         }
-        d.ghost.style.transform = `scale(${scale})`;
+        d.ghost.style.transform = `scale(${scale * 1.015})`;
         d.ghost.style.left = `${e.clientX - ER.MIN_W * scale / 2}px`;
         d.ghost.style.top = `${e.clientY - ER.HEAD_H * scale / 2}px`;
         const pt = erdPoint(e), C = chartData.canvas || { width: 0, height: 0 };
@@ -2332,14 +2575,14 @@
         window.removeEventListener('pointercancel', cancelTableToolDrag);
         const d = tableToolDrag;
         tableToolDrag = null;
-        if (d && d.ghost) { d.ghost.remove(); document.body.classList.remove('palette-dragging'); }
+        if (d && d.ghost) { d.ghostRect = d.ghost.getBoundingClientRect(); d.ghost.remove(); document.body.classList.remove('palette-dragging'); }
         return d;
       }
       function onTableToolUp() {
         const d = endTableToolDrag();
         if (!d || !d.ghost) return;
         erdBtnAddTable.dataset.dragged = '1';   // swallow the click that may follow on the button
-        if (d.pt) addTable({ pt: d.pt });
+        if (d.pt) addTable({ pt: d.pt, originRect: d.ghostRect });
       }
       function cancelTableToolDrag() {
         const d = endTableToolDrag();
@@ -2406,7 +2649,7 @@
         window.removeEventListener('pointercancel', cancelNoteToolDrag);
         const d = noteToolDrag;
         noteToolDrag = null;
-        if (d && d.ghost) { d.ghost.remove(); document.body.classList.remove('palette-dragging'); }
+        if (d && d.ghost) { d.ghostRect = d.ghost.getBoundingClientRect(); d.ghost.remove(); document.body.classList.remove('palette-dragging'); }
         markNoteTarget(null);
         return d;
       }
@@ -2414,7 +2657,7 @@
         const d = endNoteToolDrag();
         if (!d || !d.ghost) return;
         erdBtnAddNote.dataset.dragged = '1';   // swallow the click that may follow on the button
-        if (d.target) giveNoteTo(d.target.id, d.target.col); else if (d.pt) { setNotePicking(false); addFreeNote(d.pt); }
+        if (d.target) giveNoteTo(d.target.id, d.target.col); else if (d.pt) { setNotePicking(false); addFreeNote(d.pt, d.ghostRect); }
       }
       function cancelNoteToolDrag() {
         const d = endNoteToolDrag();
@@ -2633,7 +2876,7 @@
         },
         // The Tidy button: a cold layout, one undo step
         tidy() {
-          const done = () => { render(); updateStatus(true); };
+          const done = () => { render({ duration: 260, easing: 'curve-spring-settle', skipFreeNotes: true }); updateStatus(true); };
           if (!(erdAsyncOK() && erdStartJob(done))) { erdLayout(); done(); }
         },
         // Text search (spec: dev/plans/search.md): areas, tables by position each followed by its columns, then relation labels.

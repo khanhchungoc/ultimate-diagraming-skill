@@ -21,7 +21,14 @@ _TRACKING = re.compile(r"^(0|-?\d+(\.\d+)?(em|px))$")
 _KEY = re.compile(r"^[\w-]+$")
 _RADIUS = re.compile(r"^\d+(\.\d+)?(px|rem|em|%)?( \d+(\.\d+)?(px|rem|em|%)?){0,3}$")
 _VAR = re.compile(r"var\(--([\w-]+)\)")
-_TIME = re.compile(r"^\d+(\.\d+)?m?s( [a-z-]+)?$")
+_DUR = r"\d+(?:\.\d+)?m?s"
+_NUM = r"-?\d+(?:\.\d+)?"
+_CURVE = (
+    rf"(?:linear|ease(?:-in(?:-out)?|-out)?|step-(?:start|end)"
+    rf"|cubic-bezier\(\s*{_NUM}\s*,\s*{_NUM}\s*,\s*{_NUM}\s*,\s*{_NUM}\s*\)"
+    rf"|linear\(\s*{_NUM}(?:\s+\d+(?:\.\d+)?%){{0,2}}(?:\s*,\s*{_NUM}(?:\s+\d+(?:\.\d+)?%){{0,2}})*\s*\))"
+)
+_TIME = re.compile(rf"^(?:{_DUR}|{_CURVE}|{_DUR}\s+{_CURVE})$")
 # palette tone -> role name: soft is the fill, strong the line; the rest are named as their role
 _TONES = {"soft": "fill", "strong": "line", "ink": "ink", "solid": "solid", "on-solid": "on-solid"}
 _NAME = re.compile(r"^[\w][\w .-]*$")
@@ -113,7 +120,7 @@ def _validate(t: Dict[str, Any]) -> None:
         ok = {"dim": _OPACITY, "dim-line": _OPACITY, "dim-filter": _FILTER, "dash": _DASH}.get(k)
         if not ok or not (isinstance(v, str) and ok.match(v)): raise _err(f"effect.{k}", v)
     for k, v in t["motion"].items():
-        if not (isinstance(v, str) and _TIME.match(v)): raise _err(f"motion.{k}", v)
+        if not _KEY.match(k) or not (isinstance(v, str) and _TIME.match(v)): raise _err(f"motion.{k}", v)
     for k, v in t["radius"].items():
         if not _KEY.match(k) or not (isinstance(v, str) and _RADIUS.match(v)): raise _err(f"radius.{k}", v)
     for k, v in t["shadow"].items():
@@ -358,7 +365,9 @@ if __name__ == "__main__":
     assert m["color"]["light"]["bg-page"] == "#f8fafc", "merge keeps untouched keys"
     assert resolve_colors(m, "light")["primary-hover"] == "#ff0000", "var() resolves"
     assert load_tokens(theme({"radius": {"md": "3px 8px 8px 3px"}}))["radius"]["md"] == "3px 8px 8px 3px", "shorthand radius"
-    for bad in ({"color": {"light": {"primary": "url(javascript:alert(1))"}}},
+    assert load_tokens(theme({"motion": {"dur-x": "120ms", "curve-x": "cubic-bezier(0.2, 0, 0, 1)", "spring-x": "linear(0, 0.5 50%, 1)"}}))["motion"]["dur-x"] == "120ms"
+    for bad in ({"motion": {"x": "100ms; } a{b}"}}, {"motion": {"x": "cubic-bezier(1, 2)"}}, {"motion": {"x": "linear()"}},
+                {"color": {"light": {"primary": "url(javascript:alert(1))"}}},
                 {"color": {"light": {"primary": "red; } body { display:none"}}},
                 {"font": {"stack": "a; } </style><script>"}},
                 {"font": {"href": "https://evil.example/x.css"}},

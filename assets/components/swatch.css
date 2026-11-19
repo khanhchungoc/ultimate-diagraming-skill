@@ -35,9 +35,13 @@
     .swatch-btn {
       display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; padding: 0; box-sizing: border-box;
       border: 1px solid transparent; border-radius: var(--radius-md); background: transparent; cursor: pointer;
+      transition: background-color var(--dur-micro) var(--curve-out), border-color var(--dur-micro) var(--curve-out);
     }
     .swatch-btn:hover { background: var(--bg-hover); }
     .swatch-btn[aria-pressed="true"] { background: var(--primary-wash); border-color: var(--primary-ring); }
-    .swatch-dot { display: block; width: 14px; height: 14px; border-radius: var(--radius-round); background: var(--sw-stripe); border: 1px solid var(--dot-edge); box-sizing: border-box; }
+    .swatch-dot { display: block; width: 14px; height: 14px; border-radius: var(--radius-round); background: var(--sw-stripe); border: 1px solid var(--dot-edge); box-sizing: border-box; transition: transform var(--dur-fast) var(--curve-spring-tactile); }
+    .swatch-btn:hover .swatch-dot { transform: scale(1.15); }
+    .swatch-btn[aria-pressed="true"] .swatch-dot { animation: swatch-pop 160ms var(--curve-spring-tactile); }
+    @keyframes swatch-pop { 0% { transform: scale(0.85); } 60% { transform: scale(1.08); } 100% { transform: scale(1); } }
     .swatch-dot.is-none { background: var(--bg-panel); border: 1.5px dashed var(--border-dark); }
 

@@ -18,9 +18,10 @@
     body.capture #erd-canvas { margin: 0; }
 
     /* --- Relationship lines --- */
+    .erd-rel { transition: opacity var(--dur-micro) var(--curve-inout); }
     .erd-rel .edge-line {
       pointer-events: none;
-      transition: stroke 0.15s ease, stroke-width 0.15s ease, opacity 0.15s ease;
+      transition: stroke var(--dur-micro) var(--curve-inout), stroke-width var(--dur-micro) var(--curve-inout), opacity var(--dur-micro) var(--curve-inout);
       marker-start: var(--mk-s);
       marker-end: var(--mk-e);
     }
@@ -69,7 +70,7 @@
       pointer-events: auto;
       cursor: pointer;
       box-shadow: var(--shadow-sm);
-      transition: box-shadow 0.15s, opacity 0.15s;
+      transition: opacity var(--dur-micro) var(--curve-inout), background-color var(--dur-base) var(--curve-inout);
     }
     /* A coloured table: the whole card takes a light wash of its colour, the header the full pill colour */
     .erd-entity.swatch-scope:not(.erd-card-table) { background: color-mix(in srgb, var(--sw-pill-bg) 35%, var(--node-bg)); }
@@ -81,7 +82,6 @@
       border-radius: var(--radius-lg);
       box-shadow: inset 0 0 0 var(--ring-thin) var(--ring);
       pointer-events: none;
-      transition: box-shadow 0.15s;
     }
     .erd-entity:hover { --ring: var(--node-accent); box-shadow: var(--shadow-md); }
     /* The neighbourhood of the hovered or selected table: related tables get a ring in the primary colour */
@@ -102,6 +102,7 @@
       background: var(--sw-pill-bg, var(--bg-soft));
       color: var(--sw-pill-ink, var(--text-main));
       border-bottom: 1px solid color-mix(in srgb, var(--sw-stripe, var(--border-dark)) 45%, var(--border-color));
+      transition: background-color var(--dur-base) var(--curve-inout), color var(--dur-base) var(--curve-inout), border-color var(--dur-base) var(--curve-inout);
     }
     .erd-entity.is-flat .erd-head { border-radius: var(--radius-lg); border-bottom: none; }
     .erd-name {
@@ -129,7 +130,7 @@
       cursor: pointer;
     }
     .erd-chevron:hover { opacity: 1; background: color-mix(in srgb, currentColor 14%, transparent); }
-    .erd-chevron svg { display: block; transition: transform var(--ease); }
+    .erd-chevron svg { display: block; transition: transform var(--dur-base) var(--curve-inout); }
     .erd-entity.is-collapsed .erd-chevron svg { transform: rotate(-90deg); }
 
     .erd-row {
@@ -139,7 +140,7 @@
       height: 26px;
       padding: 0 12px 0 12px;
       white-space: nowrap;
-      transition: background-color 0.12s;
+      transition: background-color var(--dur-micro) var(--curve-inout), color var(--dur-fast) var(--curve-inout);
     }
     .erd-row + .erd-row { border-top: 1px solid color-mix(in srgb, var(--border-color) 55%, transparent); }
     .erd-glyph {
@@ -229,9 +230,15 @@
       z-index: 4;
       touch-action: none;
       padding: 0;
+      transition: background-color var(--dur-micro) var(--curve-out), transform var(--dur-micro) var(--curve-spring-tactile);
     }
     .erd-port:hover { background: var(--primary); }
-    .erd-row:hover > .erd-port, .erd-head:hover > .erd-port, body.erd-armed .erd-port { display: block; }
+    .erd-row:hover > .erd-port, .erd-head:hover > .erd-port, body.erd-armed .erd-port {
+      display: block;
+      animation: erd-port-in var(--dur-micro) var(--curve-spring-tactile);
+    }
+    body.erd-armed .erd-port { transform: scale(1.15); }
+    @keyframes erd-port-in { from { transform: scale(0.55); } to { transform: none; } }
     body.erd-dragging .erd-port { display: none; }
     /* Several tables selected: no ports, a drag moves them all */
     .erd-multi .erd-port { display: none !important; }
@@ -247,14 +254,18 @@
     .erd-entity.erd-target { --ring: var(--primary); }
     #erd-rubber { stroke: var(--primary); stroke-width: 2; stroke-dasharray: 6 4; display: none; fill: none; pointer-events: none; }
     .erd-row.selected { background: color-mix(in srgb, var(--primary) 13%, transparent); box-shadow: inset 0 0 0 var(--ring-thin) var(--primary); }
-    .erd-row.is-dragging, .erd-entity.is-dragging { opacity: 0.8; z-index: 50; box-shadow: var(--shadow-lg); background: var(--node-bg); }
-    .erd-drop-line { position: absolute; display: none; height: 4px; background: var(--primary); border-radius: var(--radius-xs); z-index: 60; pointer-events: none; }
+    .erd-row.is-dragging, .erd-entity.is-dragging { opacity: 0.85; z-index: 50; box-shadow: var(--shadow-lg); background: var(--node-bg); }
+    .erd-entity.is-dragging { transform: scale(1.015); }
+    .erd-drop-line { position: absolute; display: none; height: 4px; background: var(--primary); border-radius: var(--radius-xs); z-index: 60; pointer-events: none; transform-origin: left center; animation: erd-drop-in 90ms var(--curve-out); }
     .erd-guide { position: absolute; display: none; pointer-events: none; z-index: 55; }
-    .erd-guide-v { top: 0; bottom: 0; width: 0; border-left: 1.5px dashed var(--guide); }
-    .erd-guide-h { left: 0; right: 0; height: 0; border-top: 1.5px dashed var(--guide); }
+    .erd-guide-v { top: 0; bottom: 0; width: 0; border-left: 1.5px dashed var(--guide); transform-origin: top center; animation: erd-guide-v-in 90ms var(--curve-out); }
+    .erd-guide-h { left: 0; right: 0; height: 0; border-top: 1.5px dashed var(--guide); transform-origin: left center; animation: erd-guide-h-in 90ms var(--curve-out); }
+    @keyframes erd-drop-in { from { transform: scaleX(0); } to { transform: none; } }
+    @keyframes erd-guide-v-in { from { transform: scaleY(0); } to { transform: none; } }
+    @keyframes erd-guide-h-in { from { transform: scaleX(0); } to { transform: none; } }
 
     /* The table dragged out of the dock */
-    .erd-entity.erd-ghost { position: fixed; z-index: 1000; pointer-events: none; transform-origin: 0 0; opacity: 0.95; box-shadow: var(--shadow-xl); }
+    .erd-entity.erd-ghost { position: fixed; z-index: 1000; pointer-events: none; transform-origin: 0 0; opacity: 0.95; box-shadow: var(--shadow-xl); transition: opacity var(--dur-micro) var(--curve-out); }
     .erd-entity.erd-ghost.off-target { opacity: 0.5; }
     body.palette-dragging, body.palette-dragging * { cursor: grabbing !important; user-select: none; }
 
@@ -282,7 +293,7 @@
       gap: 2px;
       padding: 3px;
       z-index: 53;
-      transform: translate(-50%, -100%);
+      translate: -50% -100%;
       background: var(--bg-panel);
       border: 1px solid var(--border-dark);
       border-radius: var(--radius-lg);
@@ -292,8 +303,8 @@
       cursor: default;
       -webkit-user-select: none; user-select: none;
     }
-    .erd-actionbar.is-below { transform: translate(-50%, 0); }
-    .erd-actionbar.is-left { transform: none; }
+    .erd-actionbar.is-below { translate: -50% 0; }
+    .erd-actionbar.is-left { translate: none; }
     .erd-actionbar.is-wrap { flex-wrap: wrap; justify-content: center; max-width: 292px; row-gap: 2px; }
     .erd-actionbar.is-wide { max-width: none; }
     .erd-ab-break { flex-basis: 100%; height: 0; }

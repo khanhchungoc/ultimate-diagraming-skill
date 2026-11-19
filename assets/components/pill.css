@@ -15,7 +15,7 @@
       line-height: var(--leading-snug);
       white-space: nowrap;
       user-select: none;
-      transition: background var(--ease), color var(--ease), box-shadow var(--ease);
+      transition: background-color var(--dur-base) var(--curve-inout), color var(--dur-base) var(--curve-inout);
       --halo: 0 0 0 5px var(--halo-bg, var(--bg-panel));
       box-shadow: var(--halo);
     }

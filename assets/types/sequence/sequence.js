@@ -168,8 +168,92 @@
         return ui.iconEl(hasKindIcon(kind) ? kindIconName(kind) : 'kind-system', { size: size || 14, class: 'seq-kind-icon' });
       }
 
+      const SEQ_FLIP_SPECS = [
+        { selector: '.seq-participant[data-node-id]', key: 'nodeId', mode: 'clip' },
+        { selector: '.seq-msg-label[data-edge-id]', key: 'edgeId' },
+        { selector: '.seq-msg-detail[data-edge-id]', key: 'edgeId' },
+        { selector: '.frame-tag[data-frag-id]', key: 'fragId', mode: 'clip' },
+        { selector: '.frame-summary[data-frag-id]', key: (el) => 'sum:' + el.dataset.fragId },
+        { selector: '.seq-frag-branch-label[data-frag-id][data-at]', key: (el) => el.dataset.fragId + ':' + el.dataset.at },
+        { selector: '.note[data-note-id]', key: 'noteId', mode: 'clip' },
+        { selector: '.color-key-item', key: (el) => { const c = el.querySelector('[data-color]'); return c ? c.dataset.color : ''; } }
+      ];
+      let pendingDrawEdges = new Set();
+      let pendingOriginRect = null;
+      let pendingFrameBox = null, pendingFrameId = null;
+      let pendingNoteOriginRect = null, pendingNoteId = null;
+      let pendingColorAnim = null;
+      let retiringSvgEls = [];
+      let barGhostAnim = null;
+      let pendingBarRect = null;
+
+      function seqLinePts(d) {
+        const pts = [], re = /([MLHV])\s*([-\d.]+)(?:\s+([-\d.]+))?/gi;
+        let cx = 0, cy = 0, m;
+        while ((m = re.exec(d || ''))) {
+          const cmd = m[1].toUpperCase(), a = +m[2], b = m[3] !== undefined ? +m[3] : 0;
+          if (cmd === 'M' || cmd === 'L') { cx = a; cy = b; }
+          else if (cmd === 'H') cx = a;
+          else if (cmd === 'V') cy = a;
+          pts.push(cx, cy);
+        }
+        return pts;
+      }
+      function ptsDiff(a, b) {
+        if (!a || !b || a.length !== b.length) return true;
+        for (let i = 0; i < a.length; i++) if (Math.abs(a[i] - b[i]) > 0.5) return true;
+        return false;
+      }
+      const svgNums = (el, attrs) => attrs.map((a) => +el.getAttribute(a));
+      const participantKindOf = (el) => PARTICIPANT_KINDS.find((k) => k !== 'system' && el.classList.contains(`is-${k}`)) || 'system';
+      function captureColorStyles(kind, id) {
+        if (!motion.enabled()) return null;
+        const read = (el, props) => {
+          if (!el) return null;
+          const cs = getComputedStyle(el), out = {};
+          props.forEach((p) => { out[p] = cs[p]; });
+          return out;
+        };
+        if (kind === 'participant') {
+          return {
+            kind, id,
+            box: read(seqHtml.querySelector(`.seq-participant[data-node-id="${id}"]`), ['backgroundColor', 'borderColor', 'color']),
+            life: read(seqLifeG.querySelector(`.seq-lifeline[data-node-id="${id}"]`), ['stroke']),
+            cap: read(seqLifeG.querySelector(`.seq-cap[data-node-id="${id}"]`), ['stroke']),
+            act: read(seqActG.querySelector(`.seq-activation[data-node-id="${id}"]`), ['fill', 'stroke'])
+          };
+        }
+        return {
+          kind, id,
+          box: read(seqFragG.querySelector(`.seq-frag-box[data-frag-id="${id}"]`), ['fill', 'stroke']),
+          tag: read(seqHtml.querySelector(`.frame-tag[data-frag-id="${id}"]`), ['backgroundColor', 'borderColor'])
+        };
+      }
+      function playColorAnim(info) {
+        if (!info) return;
+        const opts = { duration: motion.dur('dur-base', 160), easing: motion.curve('curve-inout') };
+        const tween = (el, old) => {
+          if (!el || !old) return;
+          const cs = getComputedStyle(el), next = {};
+          let diff = false;
+          Object.keys(old).forEach((p) => { next[p] = cs[p]; if (next[p] !== old[p]) diff = true; });
+          if (diff) motion.anim(el, [old, next], opts);
+        };
+        if (info.kind === 'participant') {
+          tween(seqHtml.querySelector(`.seq-participant[data-node-id="${info.id}"]`), info.box);
+          tween(seqLifeG.querySelector(`.seq-lifeline[data-node-id="${info.id}"]`), info.life);
+          tween(seqLifeG.querySelector(`.seq-cap[data-node-id="${info.id}"]`), info.cap);
+          seqActG.querySelectorAll(`.seq-activation[data-node-id="${info.id}"]`).forEach((el) => tween(el, info.act));
+        } else {
+          tween(seqFragG.querySelector(`.seq-frag-box[data-frag-id="${info.id}"]`), info.box);
+          tween(seqHtml.querySelector(`.frame-tag[data-frag-id="${info.id}"]`), info.tag);
+        }
+      }
+
       function render() {
         ensureModel();
+        retiringSvgEls.forEach((el) => el.remove());
+        retiringSvgEls = [];
         // Undo and redo swap chartData for a snapshot and clear the selection first: put it back if the object is
         // still there, so undo, look, redo does not mean selecting again each time
         if (seqSelStash && seqSelStash.data !== chartData && !seqSel && selExists(seqSelStash.sel)) seqSel = seqSelStash.sel;
@@ -179,17 +263,103 @@
         const missing = !chartData.layout || ps.some((p) => p.x === undefined) || ms.some((m) => m.y === undefined);
         if (missing) layoutDiagram(chartData);
         const L = chartData.layout;
+        const byId = {};
+        ps.forEach((p) => { byId[p.id] = p; });
+        const showDetails = chartData.showDetails !== false;
+        const stepOf = {};
+        ms.forEach((m, i) => { stepOf[m.id] = i + 1; });
+
+        const canAnim = motion.enabled() && document.documentElement.dataset.diagramSettled === '1';
+        if (barGhostAnim) { try { barGhostAnim.cancel(); } catch (_) {} barGhostAnim = null; }
+        const oldBar = seqHtml.querySelector('.seq-actionbar');
+        pendingBarRect = oldBar && canAnim && seqSel && !isPresent() ? oldBar.getBoundingClientRect() : null;
+        if (oldBar && (!seqSel || isPresent())) motion.hideBar(oldBar);
+        let snap = null, exitSnap = null;
+        const exitToFrag = new Map(), fromKey = new Map(), prevCollapsed = new Map(), prevKinds = new Map();
+        const prevLife = new Map(), prevCap = new Map(), prevAct = new Map(), prevLine = new Map(), prevFragBox = new Map(), prevDiv = new Map();
+        let prevNumbered = false, prevRails = false;
+
+        if (canAnim) {
+          snap = motion.capture(seqHtml, SEQ_FLIP_SPECS);
+          prevNumbered = !!seqHtml.querySelector('.seq-msg-num');
+          prevRails = !!seqHtml.querySelector('.seq-participant.is-rail');
+          seqHtml.querySelectorAll('.frame-tag[data-frag-id]').forEach((el) => prevCollapsed.set(el.dataset.fragId, el.classList.contains('is-collapsed')));
+          seqHtml.querySelectorAll('.seq-participant[data-node-id]').forEach((el) => prevKinds.set(el.dataset.nodeId, participantKindOf(el)));
+          seqLifeG.querySelectorAll('.seq-lifeline[data-node-id]').forEach((el) => prevLife.set(el.dataset.nodeId, svgNums(el, ['x1', 'y1', 'x2', 'y2'])));
+          seqLifeG.querySelectorAll('.seq-cap[data-node-id]').forEach((el) => prevCap.set(el.dataset.nodeId, svgNums(el, ['x1', 'y1', 'x2', 'y2'])));
+          const anonCnt = {};
+          seqActG.querySelectorAll('.seq-activation[data-node-id]').forEach((el) => {
+            const pid = el.dataset.nodeId, mid = el.dataset.mid;
+            const k = mid ? `${pid}:${mid}` : `${pid}:anon:${(anonCnt[pid] = (anonCnt[pid] || 0) + 1)}`;
+            prevAct.set(k, { rect: svgNums(el, ['x', 'y', 'width', 'height']), sw: el.dataset.sw || el.style.getPropertyValue('--swatch-color'), pid });
+          });
+          seqMsgG.querySelectorAll('.seq-line[data-edge-id]').forEach((el) => prevLine.set(el.dataset.edgeId, seqLinePts(el.getAttribute('d'))));
+          seqFragG.querySelectorAll('.seq-frag-box[data-frag-id]').forEach((el) => prevFragBox.set(el.dataset.fragId, svgNums(el, ['x', 'y', 'width', 'height'])));
+          seqFragG.querySelectorAll('.seq-frag-else[data-frag-id][data-at]').forEach((el) => prevDiv.set(`${el.dataset.fragId}:${el.dataset.at}`, svgNums(el, ['x1', 'y1', 'x2', 'y2'])));
+
+          // Detect exiting elements (collapsed into a frame tag or deleted) so ghosts freeze only what exits
+          const nextMsgs = new Set(ms.filter((m) => !m.hidden && byId[m.from] && byId[m.to]).map((m) => m.id));
+          const nextFrags = new Set(fs.filter((f) => f.x !== undefined).map((f) => f.id));
+          const nextNotes = new Set(ns.filter((n) => n.x !== undefined).map((n) => n.id));
+          const nextDetails = new Set(showDetails ? ms.filter((m) => !m.hidden && m.detail && byId[m.from] && byId[m.to]).map((m) => m.id) : []);
+          const nextParts = new Set(ps.map((p) => p.id));
+          const collapsedOwners = fs.filter((f) => f.collapsed && f.x !== undefined).map((f) => ({ id: f.id, a: stepOf[f.from], b: stepOf[f.to] })).filter((r) => r.a && r.b);
+          const ownerAtStep = (s) => collapsedOwners.find((r) => r.a <= s && s <= r.b);
+          let hasExits = false;
+          const markExit = (el, key, targetFid) => { el.dataset.motionExit = key; hasExits = true; if (targetFid) exitToFrag.set(key, targetFid); };
+          seqHtml.querySelectorAll('.seq-msg-label[data-edge-id]').forEach((el) => {
+            const id = el.dataset.edgeId;
+            if (!nextMsgs.has(id)) markExit(el, `m:${id}`, (ownerAtStep(stepOf[id]) || {}).id);
+          });
+          seqHtml.querySelectorAll('.seq-msg-detail[data-edge-id]').forEach((el) => {
+            const id = el.dataset.edgeId;
+            if (!nextDetails.has(id)) markExit(el, `d:${id}`, (ownerAtStep(stepOf[id]) || {}).id);
+          });
+          seqHtml.querySelectorAll('.frame-tag[data-frag-id]').forEach((el) => {
+            const id = el.dataset.fragId;
+            if (!nextFrags.has(id)) {
+              const f = fragById(id), ow = f && stepOf[f.from] ? ownerAtStep(stepOf[f.from]) : null;
+              markExit(el, `f:${id}`, ow && ow.id !== id ? ow.id : null);
+            }
+          });
+          seqHtml.querySelectorAll('.note[data-note-id]').forEach((el) => {
+            const id = el.dataset.noteId;
+            if (!nextNotes.has(id)) {
+              const n = noteById(id), mid = n && (n.after !== undefined ? n.after : n.before);
+              markExit(el, `n:${id}`, mid ? (ownerAtStep(stepOf[mid]) || {}).id : null);
+            }
+          });
+          seqHtml.querySelectorAll('.seq-participant[data-node-id]').forEach((el) => {
+            const id = el.dataset.nodeId;
+            if (!nextParts.has(id)) markExit(el, `p:${id}`, null);
+          });
+          seqHtml.querySelectorAll('.frame-summary[data-frag-id]').forEach((el) => {
+            const id = el.dataset.fragId, f = fragById(id);
+            if (!f || !f.collapsed || !nextFrags.has(id)) markExit(el, `sum:${id}`, nextFrags.has(id) ? id : null);
+          });
+          if (hasExits) exitSnap = motion.capture(seqHtml, [{ selector: '[data-motion-exit]', key: 'motionExit' }], { ghosts: true });
+
+          // Map newly revealed elements from an expanded frame back to that frame's tag
+          fs.forEach((f) => {
+            if (prevCollapsed.get(f.id) !== true || f.collapsed || f.x === undefined) return;
+            const a = stepOf[f.from], b = stepOf[f.to];
+            if (!a || !b) return;
+            ms.forEach((m) => { if (!m.hidden && stepOf[m.id] >= a && stepOf[m.id] <= b && !snap._raw.has(m.id)) fromKey.set(m.id, f.id); });
+            fs.forEach((o) => { if (o !== f && o.x !== undefined && stepOf[o.from] >= a && stepOf[o.to] <= b && !snap._raw.has(o.id)) fromKey.set(o.id, f.id); });
+            ns.forEach((n) => {
+              if (n.x === undefined || snap._raw.has(n.id)) return;
+              const k = stepOf[n.after !== undefined ? n.after : n.before];
+              if (k && k >= a && k <= b) fromKey.set(n.id, f.id);
+            });
+          });
+        }
+
         seqCanvas.style.width = px(L.width);
         seqCanvas.style.height = px(L.height);
         seqSvg.setAttribute('width', L.width);
         seqSvg.setAttribute('height', L.height);
         [seqFragG, seqLifeG, seqActG, seqMsgG].forEach((g) => { g.textContent = ''; });
         seqHtml.textContent = '';
-        const byId = {};
-        ps.forEach((p) => { byId[p.id] = p; });
-        const showDetails = chartData.showDetails !== false;
-        const stepOf = {};
-        ms.forEach((m, i) => { stepOf[m.id] = i + 1; });
 
         // Fragments (behind everything else)
         fs.forEach((f) => {
@@ -228,7 +398,7 @@
           }
           seqHtml.appendChild(tag);
           (f.dividers || []).forEach((d) => {
-            seqFragG.appendChild(svgEl('line', { class: 'seq-frag-else', x1: f.x, x2: f.x + f.w, y1: d.y, y2: d.y }));
+            seqFragG.appendChild(svgEl('line', { class: 'seq-frag-else', x1: f.x, x2: f.x + f.w, y1: d.y, y2: d.y, 'data-frag-id': f.id, 'data-at': d.at }));
             seqFragG.appendChild(svgEl('line', { class: 'seq-div-hit', x1: f.x, x2: f.x + f.w, y1: d.y, y2: d.y, 'data-frag-id': f.id, 'data-at': d.at }));
             if (d.label) {
               const el = htmlEl('div', 'seq-frag-branch-label', { left: px(f.x + 10), top: px(d.y + 3) });
@@ -240,7 +410,7 @@
               seqHtml.appendChild(el);
             } else if (f.kind === 'alt') {
               // The short form (elseAt): an unlabelled "else" at the right, as before branches existed
-              const el = htmlEl('div', 'seq-frag-else-label', { left: px(f.x + f.w - 10), top: px(d.y + 3), transform: 'translateX(-100%)' });
+              const el = htmlEl('div', 'seq-frag-else-label', { left: px(f.x + f.w - 10), top: px(d.y + 3) });
               el.dataset.fragId = f.id;
               el.dataset.at = d.at;
               el.textContent = 'else';
@@ -251,7 +421,7 @@
             const inside = ms.filter((m) => m.hidden && stepOf[m.id] >= stepOf[f.from] && stepOf[m.id] <= stepOf[f.to]);
             if (inside.length) {
               const a = stepOf[inside[0].id], b = stepOf[inside[inside.length - 1].id];
-              const sum = htmlEl('button', 'frame-summary', { left: px(f.x + f.w / 2), top: px(inside[0].y), transform: 'translate(-50%, -50%)' });
+              const sum = htmlEl('button', 'frame-summary', { left: px(f.x + f.w / 2), top: px(inside[0].y) });
               sum.type = 'button';
               sum.dataset.fragId = f.id;
               sum.title = 'Expand this frame';
@@ -333,8 +503,8 @@
             const dir = b.x > a.x ? 1 : -1;
             const x1 = edgeX(a, m.y, dir), x2 = edgeX(b, m.y, -dir);
             d = `M ${x1} ${m.y} H ${x2}`;
-            labelStyle = { left: px((x1 + x2) / 2), top: px(m.y - 26), transform: 'translateX(-50%)' };
-            detailStyle = { left: px((x1 + x2) / 2), top: px(m.y + 3), transform: 'translateX(-50%)' };
+            labelStyle = { left: px((x1 + x2) / 2), top: px(m.y - 26) };
+            detailStyle = { left: px((x1 + x2) / 2), top: px(m.y + 3) };
           }
           const marker = !m.kind || m.kind === 'sync' ? 'url(#seq-arrow-solid)' : 'url(#seq-arrow-open)';
           seqMsgG.appendChild(svgEl('path', { class: `seq-line${m.kind === 'reply' ? ' is-reply' : ''}`, d, 'marker-end': marker, 'data-edge-id': m.id }));
@@ -377,6 +547,117 @@
         if (key) seqHtml.appendChild(key);
         applySelection();
         pinParticipants();
+
+        if (canAnim) {
+          const railShift = prevRails !== ps.some((p) => p.rail);
+          const hasCollapseChange = fs.some((f) => prevCollapsed.has(f.id) && prevCollapsed.get(f.id) !== !!f.collapsed);
+          const layoutDur = railShift ? 250 : hasCollapseChange ? 220 : motion.dur('dur-layout', 210);
+          const skipKeys = pendingNoteOriginRect && pendingNoteId ? new Set([pendingNoteId]) : null;
+          motion.play(snap, seqHtml, SEQ_FLIP_SPECS, {
+            duration: layoutDur, easing: 'curve-spring-settle', fromKey, originRect: pendingOriginRect, skipKeys
+          });
+          if (pendingNoteOriginRect && pendingNoteId) {
+            const noteEl = seqHtml.querySelector(`.note[data-note-id="${pendingNoteId}"]`);
+            if (noteEl) motion.morphRect(pendingNoteOriginRect, noteEl, { duration: 180, easing: 'curve-spring-settle' });
+          }
+          if (exitSnap) {
+            motion.play(exitSnap, seqHtml, [{ selector: '.frame-tag[data-frag-id]', key: 'fragId' }], {
+              enter: false, toKey: exitToFrag, ghostExit: true, duration: 190, easing: 'curve-in'
+            });
+          }
+
+          const svgTracks = [];
+          seqLifeG.querySelectorAll('.seq-lifeline[data-node-id]').forEach((el) => {
+            const prev = prevLife.get(el.dataset.nodeId), to = svgNums(el, ['x1', 'y1', 'x2', 'y2']);
+            if (prev && ptsDiff(prev, to)) svgTracks.push({ type: 'line', el, from: prev, to });
+          });
+          seqLifeG.querySelectorAll('.seq-cap[data-node-id]').forEach((el) => {
+            const id = el.dataset.nodeId, to = svgNums(el, ['x1', 'y1', 'x2', 'y2']);
+            const prev = prevCap.get(id);
+            if (prev) { if (ptsDiff(prev, to)) svgTracks.push({ type: 'line', el, from: prev, to }); }
+            else {
+              const pl = prevLife.get(id);
+              if (pl) svgTracks.push({ type: 'line', el, from: [pl[0] - 7, pl[3], pl[2] + 7, pl[3]], to });
+            }
+          });
+          const newActKeys = new Set(), anonCnt2 = {};
+          seqActG.querySelectorAll('.seq-activation[data-node-id]').forEach((el) => {
+            const pid = el.dataset.nodeId, mid = el.dataset.mid;
+            const k = mid ? `${pid}:${mid}` : `${pid}:anon:${(anonCnt2[pid] = (anonCnt2[pid] || 0) + 1)}`;
+            newActKeys.add(k);
+            const to = svgNums(el, ['x', 'y', 'width', 'height']), prev = prevAct.get(k);
+            if (prev) { if (ptsDiff(prev.rect, to)) svgTracks.push({ type: 'rect', el, from: prev.rect, to }); }
+            else if (mid && !fromKey.has(mid)) svgTracks.push({ type: 'rect', el, from: [to[0], to[1], to[2], 0], to });
+          });
+          const collapsedPids = new Set();
+          fs.forEach((f) => { if (f.collapsed && prevCollapsed.get(f.id) === false) ms.forEach((m) => { if (m.hidden) { collapsedPids.add(m.from); collapsedPids.add(m.to); } }); });
+          prevAct.forEach((old, k) => {
+            if (newActKeys.has(k) || !byId[old.pid] || collapsedPids.has(old.pid)) return;
+            const rEl = paintSwatch(svgEl('rect', { class: 'seq-activation', x: old.rect[0], y: old.rect[1], width: old.rect[2], height: old.rect[3], rx: 2, 'data-export-skip': '' }), old.sw);
+            rEl.style.pointerEvents = 'none';
+            seqActG.appendChild(rEl);
+            retiringSvgEls.push(rEl);
+            svgTracks.push({ type: 'rect', el: rEl, from: old.rect, to: [old.rect[0], old.rect[1], old.rect[2], 0] });
+          });
+          seqMsgG.querySelectorAll('.seq-line[data-edge-id]').forEach((el) => {
+            const id = el.dataset.edgeId;
+            if (pendingDrawEdges.has(id) || fromKey.has(id)) {
+              motion.drawPath(el, { duration: motion.dur('dur-fast', 140), easing: 'curve-out' });
+              return;
+            }
+            const prev = prevLine.get(id), to = seqLinePts(el.getAttribute('d'));
+            if (prev && ptsDiff(prev, to)) svgTracks.push({ type: prev.length === 4 && to.length === 4 ? 'line' : 'polyline', el, from: prev, to });
+          });
+          seqFragG.querySelectorAll('.seq-frag-box[data-frag-id]').forEach((el) => {
+            const id = el.dataset.fragId, to = svgNums(el, ['x', 'y', 'width', 'height']);
+            if (pendingFrameBox && id === pendingFrameId) {
+              svgTracks.push({ type: 'rect', el, from: [pendingFrameBox.x, pendingFrameBox.y, pendingFrameBox.w, pendingFrameBox.h], to });
+            } else {
+              const prev = prevFragBox.get(id);
+              if (prev && ptsDiff(prev, to)) svgTracks.push({ type: 'rect', el, from: prev, to });
+            }
+          });
+          seqFragG.querySelectorAll('.seq-frag-else[data-frag-id][data-at]').forEach((el) => {
+            const prev = prevDiv.get(`${el.dataset.fragId}:${el.dataset.at}`), to = svgNums(el, ['x1', 'y1', 'x2', 'y2']);
+            if (prev && ptsDiff(prev, to)) svgTracks.push({ type: 'line', el, from: prev, to });
+          });
+          if (svgTracks.length) {
+            motion.tweenSvg(svgTracks, {
+              duration: layoutDur, easing: 'curve-spring-settle',
+              onComplete: () => { retiringSvgEls.forEach((el) => el.remove()); retiringSvgEls = []; }
+            });
+          }
+
+          // Frame chevron rotations, number badge unfolds, participant kind icon morphs, swatch colour tweens
+          fs.forEach((f) => {
+            if (!prevCollapsed.has(f.id) || prevCollapsed.get(f.id) === !!f.collapsed) return;
+            const chev = seqHtml.querySelector(`.frame-tag[data-frag-id="${f.id}"] .frame-chev svg`);
+            if (chev) motion.anim(chev, [
+              { transform: f.collapsed ? 'rotate(0deg)' : 'rotate(-90deg)' },
+              { transform: f.collapsed ? 'rotate(-90deg)' : 'rotate(0deg)' }
+            ], { duration: motion.dur('dur-base', 180), easing: motion.curve('curve-inout') });
+          });
+          if (!prevNumbered && chartData.numbered) {
+            seqHtml.querySelectorAll('.seq-msg-num').forEach((num) => motion.anim(num, [
+              { transform: 'scale(0.4)', clipPath: 'inset(0 50% 0 50%)' },
+              { transform: 'none', clipPath: 'inset(0 0 0 0)' }
+            ], { duration: motion.dur('dur-fast', 140), easing: motion.curve('curve-spring-tactile') }));
+          }
+          ps.forEach((p) => {
+            const oldK = prevKinds.get(p.id), newK = p.kind || 'system';
+            if (!oldK || oldK === newK) return;
+            const box = seqHtml.querySelector(`.seq-participant[data-node-id="${p.id}"]`);
+            const ic = box && box.querySelector('.seq-kind-icon');
+            if (ic) motion.anim(ic, [{ transform: 'scale(0.65)' }, { transform: 'none' }], { duration: motion.dur('dur-base', 160), easing: motion.curve('curve-spring-tactile') });
+            if (box && (oldK === 'external' || newK === 'external')) motion.anim(box, [{ transform: 'scale(0.97)' }, { transform: 'none' }], { duration: 150, easing: motion.curve('curve-spring-tactile') });
+          });
+          if (pendingColorAnim) playColorAnim(pendingColorAnim);
+        }
+        pendingDrawEdges.clear();
+        pendingOriginRect = null;
+        pendingFrameBox = null; pendingFrameId = null;
+        pendingNoteOriginRect = null; pendingNoteId = null;
+        pendingColorAnim = null;
       }
 
       // --- PINNED PARTICIPANT ROW ---
@@ -597,10 +878,18 @@
           n[r.key] = id;
         });
       }
+      function animateDropLine(axis) {
+        if (!motion.enabled() || seqDrop.style.display === 'block') return;
+        motion.anim(seqDrop, [
+          { transform: axis === 'y' ? 'scaleY(0.25)' : 'scaleX(0.25)' },
+          { transform: 'none' }
+        ], { duration: 90, easing: motion.curve('curve-out') });
+      }
       function showDropLine(y, frame) {
         const L = chartData.layout;
         const x1 = frame ? frame.x + 6 : 8, x2 = frame ? frame.x + frame.w - 6 : L.width - 8;
         Object.entries({ x1, x2, y1: y, y2: y }).forEach(([k, v]) => seqDrop.setAttribute(k, v));
+        animateDropLine('x');
         seqDrop.style.display = 'block';
       }
 
@@ -662,7 +951,10 @@
         btnLifespans.setAttribute('aria-checked', String(!!chartData.lifespans));
         btnLifespans.title = chartData.lifespans ? 'Draw every lifeline from the top to the bottom again' : 'Trim lifelines: each one runs only from its participant\'s first message to its last';
         const anyCollapsed = chartData.fragments.some((f) => f.collapsed);
-        btnShowAll.hidden = !anyCollapsed;
+        if (btnShowAll.hidden !== !anyCollapsed) {
+          if (!anyCollapsed) motion.ghostExit(btnShowAll, { duration: 110, transform: 'scale(0.85)' });
+          motion.flipDock(() => { btnShowAll.hidden = !anyCollapsed; });
+        }
         btnShowAll.title = 'Expand every collapsed frame';
         setDockButton(btnAddParticipant, true, kind === 'participant' ? 'Add a participant to the right of the selected one' : 'Add a participant at the right end');
         const msgOk = kind === 'participant' || kind === 'message';
@@ -781,6 +1073,7 @@
       function setParticipantColor(pid, slot) {
         const p = partById(pid);
         if (!p || (p.color || '') === slot) return;
+        pendingColorAnim = slot ? captureColorStyles('participant', pid) : null;
         if (slot) {
           p.color = slot;
           chartData.colorKey = chartData.colorKey || {};
@@ -800,7 +1093,7 @@
         }
         hint.textContent = text;
         clearTimeout(seqHintTimer);
-        seqHintTimer = setTimeout(() => hint.remove(), 3200);
+        seqHintTimer = setTimeout(() => motion.hideHint(hint), 3200);
       }
 
       // --- DRAGS ---
@@ -855,7 +1148,7 @@
         return {
           move(pt, d) {
             el.classList.add('dragging');
-            el.style.transform = `translateX(${d.dx}px)`;
+            el.style.transform = `translateX(${d.dx}px) scale(1.02)`;
             const ps = chartData.participants, me = partById(id), L = chartData.layout;
             const others = ps.filter((p) => p.id !== id);
             // With lifespans, a box dropped right on another lifeline shares that column (see shareColumn)
@@ -866,6 +1159,7 @@
             const left = others[d.index - 1], right = others[d.index];
             const x = left && right ? (left.x + right.x) / 2 : left ? left.x + SQ.BOX_W / 2 + 16 : right ? right.x - SQ.BOX_W / 2 - 16 : me.x;
             Object.entries({ x1: x, x2: x, y1: SQ.TOP - 10, y2: L.height - 30 }).forEach(([k, v]) => seqDrop.setAttribute(k, v));
+            animateDropLine('y');
             seqDrop.style.display = 'block';
           },
           drop(pt, d) {
@@ -928,8 +1222,7 @@
             const el = document.querySelector(`.seq-msg-label[data-edge-id="${id}"]`);
             if (el) {
               el.classList.add('dragging');
-              const base = el.style.transform.replace(/translate[XY]\([^)]*\)/g, '').trim();
-              el.style.transform = `${base} translateY(${d.dy}px)`.trim();
+              el.style.transform = `translateY(${d.dy}px) scale(1.02)`;
             }
             const m = msgById(id);
             d.slot = nearestSlot(rowSlots(id), m.y + d.dy);
@@ -964,8 +1257,15 @@
         const p = free && pt.y > SQ.TOP + SQ.BOX_H + 8 && pt.y < slots[slots.length - 1].y + 24 ? nearestParticipant(pt.x) : null;
         if (!p || Math.abs(p.x - pt.x) > 16) { hidePlus(); return; }
         const slot = nearestSlot(slots, pt.y);
+        const wasHidden = seqPlus.style.display !== 'flex';
         if (!seqPlus.isConnected) seqHtml.appendChild(seqPlus);
-        Object.assign(seqPlus.style, { display: 'flex', left: px(p.x), top: px(slot.y) });
+        seqPlus.style.display = 'flex';
+        seqPlus.style.translate = `${p.x}px ${slot.y}px`;
+        if (wasHidden && motion.enabled()) {
+          motion.anim(seqPlus, [{ transform: 'scale(0.6)' }, { transform: 'none' }], {
+            duration: motion.dur('dur-micro', 100), easing: motion.curve('curve-spring-tactile')
+          });
+        }
         seqPlus.dataset.pid = p.id;
         seqPlus.dataset.slot = slots.indexOf(slot);
       }
@@ -1008,6 +1308,7 @@
             const m = { id: seqUid('m'), from: from.id, to: to.id, label: kind === 'reply' ? 'Reply' : 'Message', kind };
             chartData.messages.splice(index, 0, m);
             joinFrames(slot, m.id);
+            pendingDrawEdges.add(m.id);
             editCreated('message', m.id);
           },
           click
@@ -1186,7 +1487,7 @@
         return {
           move(pt, d) {
             el.classList.add('dragging');
-            el.style.transform = `translate(${d.dx}px, ${d.dy}px)`;
+            el.style.transform = `translate(${d.dx}px, ${d.dy}px) scale(1.02)`;
             d.slot = nearestSlot(rowSlots().filter((s) => s.note), n.y + d.dy);
             showDropLine(d.slot.y, d.slot.frame);
             const p = snapLifeline(n.x + n.w / 2 + d.dx);
@@ -1243,6 +1544,7 @@
             Object.assign(box.style, { left: px(r.x), top: px(r.y), width: px(r.w), height: px(r.h) });
           },
           drop(pt) {
+            motion.ghostExit(box, { duration: 90, transform: 'scale(0.92)' });
             box.remove();
             const r = rect(pt);
             const byId = {};
@@ -1321,8 +1623,17 @@
       const delButton = (title, icon = 'trash') => abButton('delete', ui.icon(icon), title);
       const delSep = () => ui.abSep('seq-ab-sep');
       function drawSelectionTools(sel) {
-        seqHtml.querySelectorAll('.seq-actionbar, .seq-handle, .seq-add-branch').forEach((el) => el.remove());
-        if (!sel.kind || isPresent()) return;
+        if (barGhostAnim) { try { barGhostAnim.cancel(); } catch (_) {} barGhostAnim = null; }
+        const oldBar = seqHtml.querySelector('.seq-actionbar');
+        const fromRect = pendingBarRect || (oldBar && motion.enabled() ? oldBar.getBoundingClientRect() : null);
+        pendingBarRect = null;
+        if (!sel.kind || isPresent()) {
+          if (oldBar) motion.hideBar(oldBar);
+          seqHtml.querySelectorAll('.seq-handle, .seq-add-branch').forEach((el) => el.remove());
+          return;
+        }
+        if (oldBar) oldBar.remove();
+        seqHtml.querySelectorAll('.seq-handle, .seq-add-branch').forEach((el) => el.remove());
         const bar = ui.actionBar('seq-actionbar');
         let at = null;
         const byId = {};
@@ -1434,13 +1745,15 @@
         }
         Object.assign(bar.style, { left: px(at.x), top: px(Math.max(2, at.y)) });
         seqHtml.appendChild(bar);
+        if (fromRect && fromRect.width > 0) barGhostAnim = motion.ghostMorph(fromRect, bar, 170, 'curve-spring-settle');
+        else motion.showBar(bar);
       }
 
       seqHtml.addEventListener('click', (e) => {
         const add = e.target.closest('.seq-add-branch');
         if (add) { e.stopPropagation(); addBranch(add.dataset.fragId); return; }
         const ins = e.target.closest('.seq-insert');
-        if (ins) { e.stopPropagation(); insertParticipant(+ins.dataset.index); return; }
+        if (ins) { e.stopPropagation(); pendingOriginRect = ins.getBoundingClientRect(); insertParticipant(+ins.dataset.index); return; }
         const b = e.target.closest('.seq-ab-btn');
         if (!b || !seqSel) return;
         e.stopPropagation();
@@ -1457,7 +1770,7 @@
           if (act === 'async') { if (m.kind === 'reply') return; m.kind = m.kind === 'async' ? 'sync' : 'async'; relayout(); }
           else if (act === 'activate') { if (m.activate === false) delete m.activate; else m.activate = false; relayout(); }
           else if (act === 'resetbar') { clearBar(m); relayout(); }
-          else if (act === 'reverse') { const t = m.from; m.from = m.to; m.to = t; relayout(); }
+          else if (act === 'reverse') { const t = m.from; m.from = m.to; m.to = t; pendingDrawEdges.add(m.id); relayout(); }
           else if (act === 'reply') addReply(m);
         } else if (sel.kind === 'participant') {
           const p = partById(sel.id);
@@ -1473,6 +1786,7 @@
             setBranches(f, brs);   // away from alt/par the branches go, in the same undo step
             relayout();
           } else if (act === 'color' && (f.color || '') !== value) {
+            pendingColorAnim = value ? captureColorStyles('fragment', f.id) : null;
             if (value) f.color = value; else delete f.color;
             relayout();
           } else if (act === 'focus') {
@@ -1509,6 +1823,7 @@
         ms.splice(at, 0, reply);
         // It stays in the frames its call is in: a frame that ended at the last message of the bar grows
         chartData.fragments.forEach((f) => { if (msgIndex(f.to) === at - 1 && msgIndex(f.from) <= i) f.to = reply.id; });
+        pendingDrawEdges.add(reply.id);
         editCreated('message', reply.id);
       }
       // + branch: a divider above the frame's last message that does not start a branch yet
@@ -1587,11 +1902,15 @@
           const label = seqHtml.querySelector(`.seq-msg-label[data-edge-id="${id}"]`);
           if (!label) return;
           const box = htmlEl('div', `seq-msg-detail is-editing${m.from === m.to ? ' is-self' : ''}`, {
-            left: label.style.left, top: px(m.from === m.to ? m.y + 24 : m.y + 3), transform: label.style.transform });
+            left: label.style.left, top: px(m.from === m.to ? m.y + 24 : m.y + 3) });
           box.dataset.edgeId = id;
           el = htmlEl('span', 'seq-msg-detail-text');
           box.appendChild(el);
           seqHtml.appendChild(box);
+          if (motion.enabled()) motion.anim(box, [
+            { transform: 'translateY(-4px) scale(0.94)', clipPath: 'inset(0 0 100% 0)' },
+            { transform: 'none', clipPath: 'inset(0 0 0 0)' }
+          ], { duration: motion.dur('dur-base', 160), easing: motion.curve('curve-out') });
         }
         beginEdit(el, {
           raw: m.detail || '', restore: true,
@@ -1687,9 +2006,22 @@
       seqHtml.addEventListener('dblclick', onSeqDblClick);
 
       // Bring an element into the viewport (a created object can land below or right of the screen)
+      function settledRect(el) {
+        const hr = seqHtml.getBoundingClientRect();
+        const x = el.offsetLeft - (el.classList.contains('seq-msg-label') && !el.classList.contains('is-self') ? el.offsetWidth / 2 : 0);
+        const ty = parseFloat((el.style.translate || '').split(/\s+/)[1]) || 0;
+        const y = el.offsetTop + ty;
+        return {
+          left: hr.left + x * scale,
+          top: hr.top + y * scale,
+          right: hr.left + (x + el.offsetWidth) * scale,
+          bottom: hr.top + (y + el.offsetHeight) * scale
+        };
+      }
       function panIntoView(el) {
         if (!el) return;
-        const r = el.getBoundingClientRect(), v = viewport.getBoundingClientRect(), pad = 60;
+        const r = motion.enabled() ? settledRect(el) : el.getBoundingClientRect();
+        const v = viewport.getBoundingClientRect(), pad = 60;
         const dock = document.querySelector('.dock-area .toolbar-center');
         const bottom = Math.min(v.bottom, dock && dock.offsetHeight ? dock.getBoundingClientRect().top : v.bottom);
         // The pinned participant row covers the top of the viewport
@@ -1698,9 +2030,7 @@
         if (r.left < v.left + pad) dx = v.left + pad - r.left; else if (r.right > v.right - pad) dx = v.right - pad - r.right;
         if (r.top < top + pad) dy = top + pad - r.top; else if (r.bottom > bottom - pad) dy = bottom - pad - r.bottom;
         if (!dx && !dy) return;
-        panX += dx;
-        panY += dy;
-        updateTransform();
+        animateViewport(panX + dx, panY + dy, scale, { duration: motion.dur('dur-camera', 200), easing: 'curve-out' });
       }
       // Create means name: a new object is selected, on screen, and its placeholder text is in edit
       function editCreated(kind, id) {
@@ -1931,6 +2261,7 @@
           m = { id: seqUid('m'), from: ps[i].id, to, label: kind === 'reply' ? 'Reply' : 'Message', kind };
           ms.unshift(m);
         }
+        pendingDrawEdges.add(m.id);
         editCreated('message', m.id);
       });
 
@@ -2015,7 +2346,7 @@
             if (!outline) { outline = htmlEl('div', 'seq-frame-ghost'); outline.dataset.exportSkip = ''; outline.innerHTML = '<span>opt</span>'; seqHtml.appendChild(outline); }
             Object.assign(outline.style, { display: 'block', left: px(box.x), top: px(box.y), width: px(box.w), height: px(box.h) });
             ghost.style.visibility = 'hidden';   // the outline around the arrow is the frame now
-            spot = { pt, msg: m };
+            spot = { pt, msg: m, box };
             return;
           }
           const slots = kind === 'note' ? rowSlots().filter((sl) => sl.note) : rowSlots();
@@ -2028,6 +2359,9 @@
           window.removeEventListener('pointermove', onMove);
           window.removeEventListener('pointerup', onUp);
           const at = spot;
+          const noteRect = kind === 'note' && at && ghost ? ghost.getBoundingClientRect() : null;
+          const tagSpan = kind === 'frame' && at && outline ? outline.querySelector('span') : null;
+          const frameTagRect = tagSpan ? tagSpan.getBoundingClientRect() : null;
           clear();
           start = null;
           if (dragged && !at && kind === 'frame' && !chartData.messages.length) { ui.toast('Add a message first: a frame wraps messages'); return; }
@@ -2038,11 +2372,16 @@
             setNoteSpot(n, at.pt.x);
             chartData.notes = chartData.notes || [];
             chartData.notes.push(n);
+            pendingNoteOriginRect = noteRect;
+            pendingNoteId = n.id;
             editCreated('note', n.id);
             return;
           }
           const f = { id: seqUid('f'), kind: 'opt', label: 'condition', from: at.msg.id, to: at.msg.id };
           chartData.fragments.push(f);
+          pendingOriginRect = frameTagRect;
+          pendingFrameBox = at.box;
+          pendingFrameId = f.id;
           editCreated('fragment', f.id);
         }
         btn.addEventListener('pointerdown', (e) => {
@@ -2237,7 +2576,7 @@
           seqHtml.querySelectorAll('.seq-participant').forEach((el) => add('participant', el.dataset.nodeId, el, el));
           const rows = [];
           seqHtml.querySelectorAll('.seq-msg-label').forEach((el) => rows.push([parseFloat(el.style.top) + 26, 'msg', el.dataset.edgeId, el, el]));
-          seqHtml.querySelectorAll('.seq-frag-label').forEach((el) => rows.push([parseFloat(el.style.top), 'frag', el.dataset.fragId, el, el.querySelector('.seq-frag-text')]));
+          seqHtml.querySelectorAll('.frame-tag').forEach((el) => rows.push([parseFloat(el.style.top), 'frag', el.dataset.fragId, el, el.querySelector('.seq-frag-text')]));
           seqHtml.querySelectorAll('.note').forEach((el) => rows.push([parseFloat(el.style.top), 'note', el.dataset.noteId, el, el.querySelector('.note-text')]));
           rows.sort((a, b) => a[0] - b[0]).forEach((r) => add(r[1], r[2], r[3], r[4]));
           return out;
