@@ -1950,7 +1950,7 @@
         // macOS "Go to folder" takes a folder (the name is already filled in); Windows and GTK file boxes take the whole path
         const text = mac ? loc.folder : loc.file;
         const copied = await copyText(text);
-        const where = loc.win ? 'paste it into the File name box.' : mac ? 'press \u2318\u21e7G and paste it.' : 'press Ctrl+L and paste it.';
+        const where = loc.win ? 'click the File name box and press Ctrl+V.' : mac ? 'press \u2318\u21e7G, then \u2318V.' : 'press Ctrl+L, then Ctrl+V.';
         const path = document.createElement('code');
         path.className = 'save-where';
         path.textContent = text;
