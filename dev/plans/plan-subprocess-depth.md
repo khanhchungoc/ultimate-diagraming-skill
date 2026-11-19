@@ -59,24 +59,33 @@ Other changes:
 
 `.flow-tabs` / `.flow-subtabs` (`flowchart.css`, near line 752) draw a box with a bottom border and rounded bottom corners, and the active tab adds its own 2px blue underline inside 6px of padding. The blue line therefore floats above the box edge and reads as a stray mark, and two nested boxes (main, then subprocess) double the borders. Nothing else in the chrome uses an underline; the header buttons and the zoom dock are filled, rounded, square-edged controls.
 
-### Proposed look
+### Proposed look (from the sketch)
 
-- One bar, not nested boxes: a single rounded container with an all-round 1.5px border and the same shadow as the zoom dock, hanging a few pixels below the header.
-- The active tab is a filled chip (primary tint background, primary text, bold), not an underline. Inactive tabs are plain text and tint on hover, like the dock buttons.
-- No bottom border on tabs at all, so nothing can dangle.
+Nested folder boxes hanging from the header, one box per level on the path, each box inside the one before it:
+
+```
+ +-------+--------------------------+
+ | Main  |  +-----+---------------+ |
+ |       |  | Sub |  +----+----+  | |
+ |       |  |     |  |SS1 |SS2 |  | |
+```
+
+- The outer box holds the Main flow's tab, then the box of Main's chosen child. That box holds its own tab, then the box of its chosen child, and so on. The innermost box holds the current flow's direct children as chips (SubSub1 and SubSub2 in the sketch).
+- Every box has its top edge open, so it reads as hanging from the header, as the current outer and inner boxes already do. Each box wraps the one inside it, so a deeper box is shorter and narrower.
+- The active tab is a filled chip (primary tint, primary text, bold). The blue underline goes: it is what dangles today, because it floats inside the box's padding instead of meeting an edge.
+- Inactive tabs are plain text and tint on hover, like the zoom dock's buttons. Boxes share one border weight and the dock's shadow, drawn once around the outermost box.
+- Clicking a tab in an outer box goes back up to that flow and the boxes inside it collapse to that flow's own children.
 
 ### Showing 4 levels
 
-Decided: opening a flow shows only its **direct children**, never grandchildren. The bar is the path down to the current flow, then that flow's direct children:
+Decided: opening a flow shows only its **direct children**, never grandchildren. Siblings of the current flow are not shown, because only the chosen path is drawn; to reach a sibling, click the parent's tab and pick from its children.
 
-- Ancestors on the left as a breadcrumb, for example `Main flow › Verify Income`, each clickable (clicking goes up to it and selects the step that led down).
-- The current flow is the active (filled) chip at the end of the path.
-- Right after it, one chip per direct child of the current flow, in the order the flow reaches them. Clicking one opens it, and the bar then shows that flow's own children. A flow with no children shows no chips.
-- Siblings are not shown. To reach one, go up to the parent and pick it from its children. This keeps the bar short at any depth.
-- A long path collapses its middle ancestors to `…` with a tooltip listing the hidden names; the bar scrolls horizontally if it still overflows, as it does today.
-- Keyboard: Left and Right move across the child chips (unchanged); Alt+Up goes to the parent flow.
+- A flow with no children has no inner box.
+- At level 4 the path has four boxes (Main, level 2, level 3, level 4) and level 4 has no inner box, so the bar is at most four boxes deep and about as tall as it is today plus a few pixels per level.
+- A long path that is too wide scrolls horizontally, as the bar does today; tab names truncate with an ellipsis at 180px.
+- Keyboard: Left and Right move across the tabs in the focused box; Alt+Up goes to the parent flow.
 
-Rejected: one row of tabs per level (four stacked rows cover the canvas, and `fitView` would reserve all of them through `[data-overlay-top]`), and showing siblings next to the current flow (the bar grows with every flow at that level).
+Rejected: a breadcrumb with child chips (loses the folder look you drew), and one row of tabs per level (four stacked rows cover the canvas, and `fitView` would reserve all of them through `[data-overlay-top]`).
 
 ## 5. Phases
 
@@ -88,7 +97,7 @@ Rejected: one row of tabs per level (four stacked rows cover the canvas, and `fi
 ## 6. Tests
 
 - `dev/test_subprocess.py`: depth helpers; a 4-level file round-trips (disk, memory, disk) unchanged; a level-5 `sub_` becomes a plain label with an `[INFO]`; deleting a mid-level step removes its whole subtree.
-- `e2e_subprocess`: create levels 2, 3 and 4 from Shapes; the Subprocess tile is disabled on level 4 and cannot be added by drag or paste; breadcrumb clicks go up and select the right step; only direct children show as chips; export of all tabs includes every level.
+- `e2e_subprocess`: create levels 2, 3 and 4 from Shapes; the Subprocess tile is disabled on level 4 and cannot be added by drag or paste; tab clicks in an outer box go up and select the right step; only direct children show in the innermost box; export of all tabs includes every level.
 - Contrast check for the active chip in light and dark (`dev/check_contrast.py`).
 - A screenshot of the tab bar at 1, 2 and 4 levels, light and dark, for the review.
 
@@ -99,4 +108,4 @@ Touching `assets/` means the playground artifact is republished at the end of ea
 ## Decisions
 
 - The level-4 Subprocess tile is disabled, not hidden, so the layout does not jump.
-- The tab bar shows the path to the current flow plus its direct children only, never grandchildren.
+- The tab bar is nested folder boxes along the path to the current flow, the innermost holding its direct children only, never grandchildren (sketch confirmed).
