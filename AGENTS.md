@@ -40,4 +40,4 @@ The playground is one claude.ai artifact holding a blank page of every diagram t
 
 A new diagram type joins the playground in the same change (switcher entry, `blank.json`, folder). Changes only under `dev/`, `docs/`, `references/` or `README.md` need no republish.
 
-Playground URL: _not published yet_. Whoever publishes it first replaces this line with the link and adds it to `README.md`.
+Playground URL: https://claude.ai/artifact/Ny25B5E4ts4TramawB4BQp
