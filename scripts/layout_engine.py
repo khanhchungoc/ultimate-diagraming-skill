@@ -2191,7 +2191,9 @@ def main():
                 if sub.tab_stats(tab["nodes"])[0] > sub.STEP_LIMIT:
                     print("\n".join(sub.rpst_candidates(tab)))
             if kids:
-                print(f"[INFO] {len(laid_out_data['children'])} subprocess flow(s) saved with the diagram; the page shows only the parent flow for now.")
+                names = ", ".join(f"{c.get('name') or k} ({sub.tab_stats(c['nodes'])[0]} steps, {sub.tab_stats(c['nodes'])[1]} lanes)"
+                                  for k, c in laid_out_data["children"].items())
+                print(f"[INFO] Subprocess flows, one tab each: {names}.")
 
         if args.target == "artifact":
             out_path = Path(args.output) if args.output else in_p.with_suffix("")

@@ -1280,8 +1280,9 @@
         }
       }
 
-      function exportFileName(ext) {
-        return ((chartData.title || plugin.id).toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '') || 'diagram') + '.' + ext;
+      function exportFileName(ext, part) {
+        const clean = (t) => String(t).toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '');
+        return (clean(chartData.title || plugin.id) || 'diagram') + (part && clean(part) ? '-' + clean(part) : '') + '.' + ext;
       }
 
       // Inside an artifact the page cannot start a download itself; the viewer confirms one through the downloads
@@ -1338,6 +1339,11 @@
       function exportDiagram(format) {
         try {
           if (format === 'html') { downloadHtmlFile(); return; }
+          // One SVG per tab, for a type that has tabs (the flowchart's subprocess flows)
+          if (format === 'svg-all') {
+            plugin.eachTab(name => deliverFile(exportFileName('svg', name), new Blob([svgDocument(buildExportSvg().svg)], { type: 'image/svg+xml;charset=utf-8' })));
+            return;
+          }
           if (format === 'svg') {
             downloadBlob(new Blob([svgDocument(buildExportSvg().svg)], { type: 'image/svg+xml;charset=utf-8' }), 'svg');
             return;

@@ -1928,6 +1928,7 @@
           <div class="menu-label" role="presentation">Download</div>
           <button type="button" role="menuitem" data-export="svg">SVG image</button>
           <button type="button" role="menuitem" data-export="png">PNG image (1.5x)</button>
+          <button type="button" role="menuitem" data-export="svg-all" hidden>SVG images, every tab</button>
           <div class="menu-label" role="presentation" data-copy-label>Copy</div>
           <button type="button" role="menuitem" data-copy="mermaid">Mermaid</button>
           <button type="button" role="menuitem" data-copy="svg">SVG (text)</button>
@@ -3370,8 +3371,9 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
         }
       }
 
-      function exportFileName(ext) {
-        return ((chartData.title || plugin.id).toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '') || 'diagram') + '.' + ext;
+      function exportFileName(ext, part) {
+        const clean = (t) => String(t).toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '');
+        return (clean(chartData.title || plugin.id) || 'diagram') + (part && clean(part) ? '-' + clean(part) : '') + '.' + ext;
       }
 
       // Inside an artifact the page cannot start a download itself; the viewer confirms one through the downloads
@@ -3428,6 +3430,11 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
       function exportDiagram(format) {
         try {
           if (format === 'html') { downloadHtmlFile(); return; }
+          // One SVG per tab, for a type that has tabs (the flowchart's subprocess flows)
+          if (format === 'svg-all') {
+            plugin.eachTab(name => deliverFile(exportFileName('svg', name), new Blob([svgDocument(buildExportSvg().svg)], { type: 'image/svg+xml;charset=utf-8' })));
+            return;
+          }
           if (format === 'svg') {
             downloadBlob(new Blob([svgDocument(buildExportSvg().svg)], { type: 'image/svg+xml;charset=utf-8' }), 'svg');
             return;

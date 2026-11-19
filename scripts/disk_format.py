@@ -199,8 +199,10 @@ def flowchart_to_disk(data: Dict[str, Any]) -> Dict[str, Any]:
                 layout[o["id"]] = pos
     if layout:
         d["layout"] = layout
-    if kids:
-        d["children"] = {slug: _ordered(c, CHILD_KEYS) for slug, c in kids.items()}
+    if kids:  # in the order the parent flow reaches them, each with its keys in a fixed order
+        order = [n["id"] for n in nodes if n.get("id") in kids]
+        order += [k for k in kids if k not in order]
+        d["children"] = {slug: _ordered(kids[slug], CHILD_KEYS) for slug in order}
     return _ordered(d, FLOWCHART_KEYS)
 
 
