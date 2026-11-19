@@ -1731,6 +1731,7 @@
         }
         Object.assign(bar.style, { left: px(at.x), top: px(Math.max(2, at.y)) });
         seqHtml.appendChild(bar);
+        if (bar.classList.contains('is-wrap')) ui.fitBar(bar);
         if (fromRect && fromRect.width > 0) barGhostAnim = motion.ghostMorph(fromRect, bar, 170, 'curve-spring-settle');
         else motion.showBar(bar);
       }

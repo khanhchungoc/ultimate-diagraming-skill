@@ -2985,10 +2985,9 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
               if (popBar && motion.enabled()) {
                 const br = bar.getBoundingClientRect();
                 if (br.width > 0) {
-                  const fromR = (lastEdgeBarRect && lastEdgeBarRect.width > 0)
-                    ? lastEdgeBarRect
-                    : { left: br.left, top: br.top, width: 4, height: br.height };
-                  motion.ghostMorph(fromR, bar, lastEdgeBarRect ? 170 : 140, lastEdgeBarRect ? 'curve-spring-settle' : 'curve-out');
+                  // A first bar fades and slides in whole (its shadow with it); a bar replacing another morphs from its box
+                  if (lastEdgeBarRect && lastEdgeBarRect.width > 0) motion.ghostMorph(lastEdgeBarRect, bar, 170, 'curve-spring-settle');
+                  else motion.showBar(bar);
                 }
                 lastEdgeBarRect = null;
               }
@@ -3589,10 +3588,8 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         if (nextBar && nextBar !== prevBar && motion.enabled()) {
           const nr = nextBar.getBoundingClientRect();
           if (nr.width > 0) {
-            const fromR = (prevRect && prevRect.width > 0)
-              ? prevRect
-              : { left: nr.left, top: nr.top + nr.height * 0.2, width: nr.width, height: Math.max(4, nr.height * 0.8) };
-            motion.ghostMorph(fromR, nextBar, prevRect ? 170 : 140, prevRect ? 'curve-spring-settle' : 'curve-out');
+            if (prevRect && prevRect.width > 0) motion.ghostMorph(prevRect, nextBar, 170, 'curve-spring-settle');
+            else motion.showBar(nextBar);
           }
         }
       }
