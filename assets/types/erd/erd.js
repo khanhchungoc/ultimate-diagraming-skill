@@ -851,6 +851,8 @@
       // ("showNotes": true). Each unpinned note is fitted into a clear gap near its table on every render, and a dashed
       // leader joins the card to its tables. (The card is the flowchart's, and so is the fitting, with this type's
       // obstacles.) Editing (NOTES, in EDITING): add (dock, N, the + chip), edit in place, link and unlink tables, drag to pin.
+      // A free note has no tables ("entities": []) and an absolute `pos` in canvas coordinates (a table's x/y space): no
+      // leader, no badge, always on show, never moved by Tidy; the other notes are fitted around it.
       const NOTE_GAP = 8, NOTE_MIN_GAP = 10, NOTE_IDEAL_GAP = 20, NOTE_REACH = 168, NOTE_STEP = 8, NOTE_PEEK_DELAY = 100;
       let noteOffsets = {};          // noteId -> {x, y}: fitted top-left relative to its anchor table's top-left
       let noteSizes = {};            // noteId -> {w, h}
@@ -864,7 +866,8 @@
       const noteById = (id) => notesList().find((n) => n.id === id);
       const linkedEntities = (note) => (note.entities || []).filter((id) => erdEntity(id) && erdEntity(id).box);
       let editingNoteId = null;      // the note being typed: it counts as live while still empty
-      const liveNotes = () => notesList().filter((n) => (noteTextOf(n) || n.id === editingNoteId) && linkedEntities(n).length);
+      const isFreeNote = (note) => !(note.entities || []).length;
+      const liveNotes = () => notesList().filter((n) => (noteTextOf(n) || n.id === editingNoteId) && (isFreeNote(n) || linkedEntities(n).length));
       // A table note has no `column`
       const notesOfEntity = (id) => liveNotes().filter((n) => !n.column && (n.entities || []).includes(id));
       const erdPresenting = () => document.body.classList.contains('presentation');
@@ -948,8 +951,8 @@
         const segBox = ([x1, y1, x2, y2]) => ({ x: Math.min(x1, x2), y: Math.min(y1, y2), w: Math.abs(x2 - x1), h: Math.abs(y2 - y1) });
         const boxesOf = {};
         live.forEach((n) => { boxesOf[n.id] = linkedEntities(n).map((id) => erdEntity(id).box); });
-        const placed = live.filter((n) => n.pos || noteOffsets[n.id]).map((n) => {
-          const o = n.pos || noteOffsets[n.id], a = boxesOf[n.id][0];
+        const placed = live.filter((n) => n.pos || noteOffsets[n.id]).map((n) => {   // free notes are obstacles like any placed note
+          const o = n.pos || noteOffsets[n.id], a = isFreeNote(n) ? { x: 0, y: 0 } : boxesOf[n.id][0];
           return { x: a.x + o.x, y: a.y + o.y, w: noteSizes[n.id].w, h: noteSizes[n.id].h };
         });
         todo.sort((a, b) => boxesOf[a.id][0].x - boxesOf[b.id][0].x || boxesOf[a.id][0].y - boxesOf[b.id][0].y);
@@ -1003,8 +1006,8 @@
           const note = noteById(card.dataset.noteId);
           if (!note) return;
           const ids = linkedEntities(note), o = note.pos || noteOffsets[note.id];
-          if (!ids.length || !o) return;
-          const a = erdEntity(ids[0]).box, x = a.x + o.x, y = a.y + o.y, s = noteSizes[note.id] || { w: 0, h: 0 };
+          if ((!ids.length && !isFreeNote(note)) || !o) return;
+          const a = ids.length ? erdEntity(ids[0]).box : { x: 0, y: 0 }, x = a.x + o.x, y = a.y + o.y, s = noteSizes[note.id] || { w: 0, h: 0 };
           card.style.left = `${x}px`;
           card.style.top = `${y}px`;
           drawLeaders(note.id, { x, y, w: s.w, h: s.h });
@@ -1035,7 +1038,7 @@
         [...erdNotesLayer.children, ...erdLeaders.children].forEach((el) => {
           const note = noteById(el.dataset.noteId);
           if (!note) return;
-          el.classList.toggle('show', all);
+          el.classList.toggle('show', all || isFreeNote(note));   // a free note has nothing to hover: it is always on show
           el.classList.toggle('peek', !!notePeeked(note));
           if (el.classList.contains('note')) el.classList.toggle('selected', note.id === selectedNoteId);
         });
@@ -2029,10 +2032,13 @@
         const gone = new Set(ids);
         chartData.entities = erdEntities().filter((e) => !gone.has(e.id));
         chartData.relationships = erdRelsList().filter((r) => !gone.has(r.from) && !gone.has(r.to));
-        // A note loses the tables; one left with no table goes
+        // A note loses the tables; one left with no table goes (a free note never had any and stays)
         if (Array.isArray(chartData.notes)) {
-          chartData.notes.forEach((n) => { n.entities = (n.entities || []).filter((x) => !gone.has(x)); });
-          chartData.notes = chartData.notes.filter((n) => n.entities.length);
+          chartData.notes = chartData.notes.filter((n) => {
+            const had = (n.entities || []).length;
+            n.entities = (n.entities || []).filter((x) => !gone.has(x));
+            return !had || n.entities.length;
+          });
           if (!chartData.notes.length) delete chartData.notes;
         }
         erdSel = null;
@@ -2082,6 +2088,16 @@
         const existing = notesOfEntity(entityId)[0];
         if (existing) { editNote(existing.id); return; }
         const note = { id: erdUid('n'), text: '', entities: [entityId] };
+        chartData.notes = notesList();
+        chartData.notes.push(note);
+        editNote(note.id);
+      }
+      // A free note with its top-left at a canvas point (default: the middle of the view); dropped again if left empty
+      function addFreeNote(pt) {
+        if (erdPresenting()) return;
+        const v = viewport.getBoundingClientRect();
+        const c = pt || erdPoint({ clientX: v.left + v.width / 2 - 80 * scale, clientY: v.top + v.height / 2 - 20 * scale });
+        const note = { id: erdUid('n'), text: '', entities: [], pos: { x: erdRound4(c.x), y: erdRound4(c.y) } };
         chartData.notes = notesList();
         chartData.notes.push(note);
         editNote(note.id);
@@ -2154,7 +2170,10 @@
         const note = noteById(noteId), e = erdEntity(entityId);
         if (!note || !e) return;
         const ids = note.entities || [];
-        if (!ids.includes(entityId)) note.entities = ids.concat(entityId);
+        if (!ids.length) {   // a free note becomes anchored: its absolute pos turns relative to the table
+          if (e.box) note.pos = { x: Math.round(note.pos.x - e.box.x), y: Math.round(note.pos.y - e.box.y) }; else delete note.pos;
+          note.entities = [entityId];
+        } else if (!ids.includes(entityId)) note.entities = ids.concat(entityId);
         else if (ids.length > 1) {
           if (ids[0] === entityId && note.pos) {
             const card = noteCard(noteId), next = erdEntity(ids[1]);
@@ -2213,8 +2232,8 @@
           drop(e, d) {
             card.classList.remove('dragging');
             const note = noteById(id), anchor = note && linkedEntities(note)[0];
-            if (!anchor) { render(); return; }
-            const a = erdEntity(anchor).box;
+            if (!anchor && !(note && isFreeNote(note))) { render(); return; }
+            const a = anchor ? erdEntity(anchor).box : { x: 0, y: 0 };   // a free note's pos is absolute
             note.pos = { x: Math.round(d.nx - a.x), y: Math.round(d.ny - a.y) };
             updateStatus(true);
           },
@@ -2228,9 +2247,8 @@
         const a = document.activeElement;
         if (a && (a.isContentEditable || a.tagName === 'INPUT' || a.tagName === 'TEXTAREA')) return;
         const id = erdSelectedEntityId();
-        if (!id && !selectedNoteId) return;
         e.preventDefault();
-        if (id) addNoteTo(id, erdSel.kind === 'col' ? erdSel.col : null); else editNote(selectedNoteId);
+        if (id) addNoteTo(id, erdSel.kind === 'col' ? erdSel.col : null); else if (selectedNoteId) editNote(selectedNoteId); else addFreeNote();
       });
 
       // --- The dock: Table, Relationship, Note ---
@@ -2339,7 +2357,7 @@
           const id = erdSelectedEntityId(), noteId = !id && selectedNoteId;
           if (id) { setNotePicking(false); addNoteTo(id, erdSel.kind === 'col' ? erdSel.col : null); }
           else if (noteId) editNote(noteId);
-          else { setRelArmed(false); setNotePicking(!notePicking); }
+          else { setRelArmed(false); setNotePicking(false); addFreeNote(); }
         });
         erdBtnAddNote.addEventListener('pointerdown', (e) => {
           delete erdBtnAddNote.dataset.dragged;
@@ -2378,7 +2396,8 @@
         d.ghost.style.left = `${e.clientX + 12}px`;
         d.ghost.style.top = `${e.clientY + 12}px`;
         d.target = erdNoteTargetAt(e.clientX, e.clientY);
-        d.ghost.classList.toggle('off-target', !d.target);
+        d.pt = viewport.contains(document.elementFromPoint(e.clientX, e.clientY)) ? erdPoint(e) : null;   // off a table: a free note here
+        d.ghost.classList.toggle('off-target', !d.target && !d.pt);
         markNoteTarget(d.target);
       }
       function endNoteToolDrag() {
@@ -2395,7 +2414,7 @@
         const d = endNoteToolDrag();
         if (!d || !d.ghost) return;
         erdBtnAddNote.dataset.dragged = '1';   // swallow the click that may follow on the button
-        if (d.target) giveNoteTo(d.target.id, d.target.col);
+        if (d.target) giveNoteTo(d.target.id, d.target.col); else if (d.pt) { setNotePicking(false); addFreeNote(d.pt); }
       }
       function cancelNoteToolDrag() {
         const d = endNoteToolDrag();

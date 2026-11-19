@@ -159,6 +159,8 @@ class ErdAudit:
         for n in ns:
             if not str(n.get("text") or "").strip():
                 errors.append(f"Note '{n.get('id')}' has no text.")
+            if not n.get("entities") and not isinstance(n.get("pos"), dict):  # free note: no tables, an absolute pos
+                errors.append(f"Note '{n.get('id')}' links to no table and has no 'pos': list its tables, or give it a position.")
             for eid in n.get("entities") or []:
                 if eid not in emap:
                     dangling += 1
