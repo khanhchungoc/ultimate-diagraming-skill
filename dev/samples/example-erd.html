@@ -892,6 +892,7 @@
     /* A short message (save conflicts, blocked downloads) inside a claude.ai artifact */
     .toast {
       position: fixed; left: 50%; bottom: 84px; transform: translateX(-50%); z-index: 50;
+      pointer-events: none;   /* a status line, never a target: it must not swallow clicks meant for the action bar beneath */
       max-width: min(90vw, 420px); padding: 8px 14px; border-radius: var(--radius-lg);
       background: var(--text-main); color: var(--bg-panel);
       font-size: var(--t-control-size); box-shadow: var(--shadow-lg);
