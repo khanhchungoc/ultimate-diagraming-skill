@@ -1554,6 +1554,7 @@
           }
           lastHandleRelId = erdSel.id;
           erdHtml.appendChild(bar);
+          ui.fitBar(bar);
           placeRelBar(bar, rel);
           if (prevBarRect && prevBarRect.width > 0 && prevBarRect.height > 0) motion.ghostMorph(prevBarRect, bar, 170, 'curve-spring-settle');
           else motion.showBar(bar);
@@ -1562,6 +1563,7 @@
         bar.classList.toggle('is-below', below);
         Object.assign(bar.style, { left: erdPx(at.x), top: erdPx(Math.max(2, at.y)) });
         erdHtml.appendChild(bar);
+        if (bar.classList.contains('is-wrap')) ui.fitBar(bar);
         if (prevBarRect && prevBarRect.width > 0 && prevBarRect.height > 0) motion.ghostMorph(prevBarRect, bar, 170, 'curve-spring-settle');
         else motion.showBar(bar);
       }

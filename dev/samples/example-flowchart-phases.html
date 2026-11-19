@@ -2835,6 +2835,15 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
           return b;
         }
         const abSep = (cls) => { const s = document.createElement('span'); s.className = cls || 'ab-sep'; return s; };
+        // A wrapped bar (is-wrap, rows split by a `-ab-break` item) is as wide as its widest row, not as its max-width: call
+        // it once the bar is in the page. No empty side padding, and a row that fits never wraps on its own.
+        function fitBar(bar) {
+          const kids = [...bar.children].filter((k) => !/-ab-break$/.test(k.className));
+          if (!kids.length) return;
+          const l = Math.min(...kids.map((k) => k.offsetLeft)), r = Math.max(...kids.map((k) => k.offsetLeft + k.offsetWidth));
+          const cs = getComputedStyle(bar), edge = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight) + parseFloat(cs.borderLeftWidth) + parseFloat(cs.borderRightWidth);
+          bar.style.maxWidth = `${Math.ceil(r - l + edge) + 2}px`;   // +2: fractional text widths must not tip a full row into wrapping
+        }
         // The colour legend: one entry per colour in `used` (slots), a dot and its label from `key` ({slot: text}). An entry
         // with no label is drawn only with opts.prompts (a prompt "What does Blue mean?" for the edit, left out of ?present and
         // exports). opts.cls adds a class to the legend (the type positions it). The label span carries data-color for the
@@ -2863,7 +2872,7 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
           });
           return box;
         }
-        return { confirm, closeConfirm, isConfirmOpen: () => !!confirmEl, noteCard, actionBar, abButton, abSep, colorKey, icon, iconEl, toast: (m) => showToast(m) };
+        return { confirm, closeConfirm, isConfirmOpen: () => !!confirmEl, noteCard, actionBar, abButton, abSep, fitBar, colorKey, icon, iconEl, toast: (m) => showToast(m) };
       })();
 
       // --- ENGINE SOURCE (for plugins that run a background Web Worker, e.g. ERD) ---
@@ -3541,11 +3550,10 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
             morphRect(r, barEl, { duration: o.duration ?? 170, easing: o.easing || 'curve-spring-settle' });
             return;
           }
-          const clip = o.clipRight || barEl.classList.contains('edge-bar');
+          // Opacity + transform only: a clip-path would cut the box-shadow off until it ends, so the shadow showed up late.
+          const slide = o.clipRight || barEl.classList.contains('edge-bar');
           trackAnim(barEl, barEl.animate(
-            clip
-              ? [{ clipPath: 'inset(0 100% 0 0 round 8px)' }, { clipPath: 'inset(0 0 0 0 round 8px)' }]
-              : [{ transform: 'scale(0.94) translateY(4px)', clipPath: 'inset(0 0 20% 0 round 8px)' }, { transform: 'none', clipPath: 'inset(0 0 0 0 round 8px)' }],
+            [{ opacity: 0, transform: slide ? 'translateX(-8px)' : 'scale(0.94) translateY(4px)' }, { opacity: 1, transform: 'none' }],
             { duration: dur('dur-fast', 140), easing: curve('curve-out') }
           ));
         };
@@ -10539,10 +10547,9 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
               if (popBar && motion.enabled()) {
                 const br = bar.getBoundingClientRect();
                 if (br.width > 0) {
-                  const fromR = (lastEdgeBarRect && lastEdgeBarRect.width > 0)
-                    ? lastEdgeBarRect
-                    : { left: br.left, top: br.top, width: 4, height: br.height };
-                  motion.ghostMorph(fromR, bar, lastEdgeBarRect ? 170 : 140, lastEdgeBarRect ? 'curve-spring-settle' : 'curve-out');
+                  // A first bar fades and slides in whole (its shadow with it); a bar replacing another morphs from its box
+                  if (lastEdgeBarRect && lastEdgeBarRect.width > 0) motion.ghostMorph(lastEdgeBarRect, bar, 170, 'curve-spring-settle');
+                  else motion.showBar(bar);
                 }
                 lastEdgeBarRect = null;
               }
@@ -11143,10 +11150,8 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         if (nextBar && nextBar !== prevBar && motion.enabled()) {
           const nr = nextBar.getBoundingClientRect();
           if (nr.width > 0) {
-            const fromR = (prevRect && prevRect.width > 0)
-              ? prevRect
-              : { left: nr.left, top: nr.top + nr.height * 0.2, width: nr.width, height: Math.max(4, nr.height * 0.8) };
-            motion.ghostMorph(fromR, nextBar, prevRect ? 170 : 140, prevRect ? 'curve-spring-settle' : 'curve-out');
+            if (prevRect && prevRect.width > 0) motion.ghostMorph(prevRect, nextBar, 170, 'curve-spring-settle');
+            else motion.showBar(nextBar);
           }
         }
       }

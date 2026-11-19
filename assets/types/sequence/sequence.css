@@ -128,7 +128,7 @@
     /* The colour key above the card's top-left corner */
     .seq-key { position: absolute; left: 0; top: -34px; }
     /* The participant action bar has a second row for the swatches */
-    .seq-actionbar.is-wrap { flex-wrap: wrap; justify-content: center; width: max-content; max-width: 292px; row-gap: 2px; }
+    .seq-actionbar.is-wrap { flex-wrap: wrap; justify-content: center; width: max-content; max-width: 400px; row-gap: 2px; }
     .seq-actionbar.is-rows { flex-direction: column; row-gap: 2px; }
     .seq-ab-row { display: flex; align-items: center; gap: 2px; }
     .seq-ab-break { flex-basis: 100%; height: 0; }

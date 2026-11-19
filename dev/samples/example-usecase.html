@@ -2228,6 +2228,15 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
           return b;
         }
         const abSep = (cls) => { const s = document.createElement('span'); s.className = cls || 'ab-sep'; return s; };
+        // A wrapped bar (is-wrap, rows split by a `-ab-break` item) is as wide as its widest row, not as its max-width: call
+        // it once the bar is in the page. No empty side padding, and a row that fits never wraps on its own.
+        function fitBar(bar) {
+          const kids = [...bar.children].filter((k) => !/-ab-break$/.test(k.className));
+          if (!kids.length) return;
+          const l = Math.min(...kids.map((k) => k.offsetLeft)), r = Math.max(...kids.map((k) => k.offsetLeft + k.offsetWidth));
+          const cs = getComputedStyle(bar), edge = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight) + parseFloat(cs.borderLeftWidth) + parseFloat(cs.borderRightWidth);
+          bar.style.maxWidth = `${Math.ceil(r - l + edge) + 2}px`;   // +2: fractional text widths must not tip a full row into wrapping
+        }
         // The colour legend: one entry per colour in `used` (slots), a dot and its label from `key` ({slot: text}). An entry
         // with no label is drawn only with opts.prompts (a prompt "What does Blue mean?" for the edit, left out of ?present and
         // exports). opts.cls adds a class to the legend (the type positions it). The label span carries data-color for the
@@ -2256,7 +2265,7 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
           });
           return box;
         }
-        return { confirm, closeConfirm, isConfirmOpen: () => !!confirmEl, noteCard, actionBar, abButton, abSep, colorKey, icon, iconEl, toast: (m) => showToast(m) };
+        return { confirm, closeConfirm, isConfirmOpen: () => !!confirmEl, noteCard, actionBar, abButton, abSep, fitBar, colorKey, icon, iconEl, toast: (m) => showToast(m) };
       })();
 
       // --- ENGINE SOURCE (for plugins that run a background Web Worker, e.g. ERD) ---
@@ -2934,11 +2943,10 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
             morphRect(r, barEl, { duration: o.duration ?? 170, easing: o.easing || 'curve-spring-settle' });
             return;
           }
-          const clip = o.clipRight || barEl.classList.contains('edge-bar');
+          // Opacity + transform only: a clip-path would cut the box-shadow off until it ends, so the shadow showed up late.
+          const slide = o.clipRight || barEl.classList.contains('edge-bar');
           trackAnim(barEl, barEl.animate(
-            clip
-              ? [{ clipPath: 'inset(0 100% 0 0 round 8px)' }, { clipPath: 'inset(0 0 0 0 round 8px)' }]
-              : [{ transform: 'scale(0.94) translateY(4px)', clipPath: 'inset(0 0 20% 0 round 8px)' }, { transform: 'none', clipPath: 'inset(0 0 0 0 round 8px)' }],
+            [{ opacity: 0, transform: slide ? 'translateX(-8px)' : 'scale(0.94) translateY(4px)' }, { opacity: 1, transform: 'none' }],
             { duration: dur('dur-fast', 140), easing: curve('curve-out') }
           ));
         };
@@ -8385,9 +8393,7 @@ function toMermaid(data, opts) {
         else if (selIds.length === 1) at = itemBar(bar, itemOf(selIds[0]));
         if (!at) return;
         html.appendChild(bar);
-        // wrapped rows: the bar is as wide as its widest row, not the 340px wrap limit (no empty side padding)
-        const kids = [...bar.children].filter((k) => !k.classList.contains('uc-ab-break'));
-        if (kids.length) bar.style.maxWidth = `${Math.ceil(Math.max(...kids.map((k) => k.offsetLeft + k.offsetWidth)) - Math.min(...kids.map((k) => k.offsetLeft)) + 8)}px`;
+        ui.fitBar(bar);
         const C = chartData.canvas || { width: 1e9, height: 1e9 }, w = bar.offsetWidth, h = bar.offsetHeight;
         const below = at.y < 110;
         bar.classList.toggle('is-below', below);
