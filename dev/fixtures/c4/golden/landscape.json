@@ -10,19 +10,40 @@
     {
       "id": "shopco",
       "name": "ShopCo",
-      "kind": "boundary"
+      "kind": "boundary",
+      "x": 378,
+      "y": 64,
+      "_depth": 1,
+      "_collapsed": false,
+      "_hidden": false,
+      "w": 1216,
+      "h": 224
     },
     {
       "id": "platform",
       "name": "Order Platform",
       "kind": "system",
       "parent": "shopco",
-      "collapsed": false
+      "collapsed": false,
+      "x": 402,
+      "y": 120,
+      "_depth": 2,
+      "_collapsed": false,
+      "_hidden": false,
+      "w": 848,
+      "h": 144
     },
     {
       "id": "third",
       "name": "Third-party services",
-      "kind": "boundary"
+      "kind": "boundary",
+      "x": 1754,
+      "y": 52,
+      "_depth": 1,
+      "_collapsed": false,
+      "_hidden": false,
+      "w": 220,
+      "h": 248
     }
   ],
   "elements": [
@@ -31,14 +52,24 @@
       "kind": "person",
       "name": "Customer",
       "description": "Buys products online",
-      "color": "1"
+      "color": "1",
+      "x": 48,
+      "y": 48,
+      "_hidden": false,
+      "w": 160,
+      "h": 104
     },
     {
       "id": "support",
       "kind": "person",
       "name": "Support agent",
       "description": "Handles order questions",
-      "color": "1"
+      "color": "1",
+      "x": 48,
+      "y": 192,
+      "_hidden": false,
+      "w": 160,
+      "h": 120
     },
     {
       "id": "web",
@@ -46,7 +77,12 @@
       "name": "Web App",
       "tech": "React",
       "group": "platform",
-      "icon": "monitor"
+      "icon": "monitor",
+      "x": 426,
+      "y": 176,
+      "_hidden": false,
+      "w": 160,
+      "h": 64
     },
     {
       "id": "api",
@@ -54,7 +90,12 @@
       "name": "API Gateway",
       "tech": "Node.js, REST",
       "group": "platform",
-      "icon": "server"
+      "icon": "server",
+      "x": 746,
+      "y": 176,
+      "_hidden": false,
+      "w": 160,
+      "h": 64
     },
     {
       "id": "orddb",
@@ -62,7 +103,12 @@
       "name": "Order DB",
       "tech": "PostgreSQL",
       "group": "platform",
-      "icon": "database"
+      "icon": "database",
+      "x": 1066,
+      "y": 176,
+      "_hidden": false,
+      "w": 160,
+      "h": 64
     },
     {
       "id": "crm",
@@ -70,21 +116,36 @@
       "name": "CRM",
       "description": "Customer records",
       "color": "2",
-      "group": "shopco"
+      "group": "shopco",
+      "x": 1410,
+      "y": 160,
+      "_hidden": false,
+      "w": 160,
+      "h": 64
     },
     {
       "id": "pay",
       "kind": "external",
       "name": "Payment Provider",
       "group": "third",
-      "icon": "credit-card"
+      "icon": "credit-card",
+      "x": 1778,
+      "y": 108,
+      "_hidden": false,
+      "w": 160,
+      "h": 64
     },
     {
       "id": "mail",
       "kind": "external",
       "name": "Email Service",
       "group": "third",
-      "icon": "mail"
+      "icon": "mail",
+      "x": 1778,
+      "y": 212,
+      "_hidden": false,
+      "w": 160,
+      "h": 64
     }
   ],
   "relations": [
@@ -140,5 +201,254 @@
         "platform"
       ]
     }
-  ]
+  ],
+  "_dir": "LR",
+  "_edges": [
+    {
+      "id": "r0",
+      "from": "cust",
+      "to": "web",
+      "label": "Browses and orders",
+      "tech": "HTTPS",
+      "async": false,
+      "count": 1,
+      "members": [
+        0
+      ],
+      "text": "Browses and orders",
+      "points": [
+        [
+          208,
+          100
+        ],
+        [
+          506,
+          100
+        ],
+        [
+          506,
+          176
+        ]
+      ],
+      "path": "M 208 100 L 498.0 100.0 Q 506.0 100.0 506.0 108.0 L 506 176",
+      "labelBox": {
+        "x": 284,
+        "y": 78,
+        "w": 146,
+        "h": 44
+      }
+    },
+    {
+      "id": "r1",
+      "from": "web",
+      "to": "api",
+      "label": "Calls",
+      "tech": "JSON/HTTPS",
+      "async": false,
+      "count": 1,
+      "members": [
+        1
+      ],
+      "text": "Calls",
+      "points": [
+        [
+          586,
+          208
+        ],
+        [
+          746,
+          208
+        ]
+      ],
+      "path": "M 586 208 L 746 208",
+      "labelBox": {
+        "x": 610,
+        "y": 186,
+        "w": 97,
+        "h": 44
+      }
+    },
+    {
+      "id": "r2",
+      "from": "api",
+      "to": "orddb",
+      "label": "Reads and writes orders",
+      "tech": "SQL",
+      "async": false,
+      "count": 1,
+      "members": [
+        2
+      ],
+      "text": "Reads and writes orders",
+      "points": [
+        [
+          906,
+          208
+        ],
+        [
+          1066,
+          208
+        ]
+      ],
+      "path": "M 906 208 L 1066 208",
+      "labelBox": {
+        "x": 906,
+        "y": 178,
+        "w": 160,
+        "h": 60
+      }
+    },
+    {
+      "id": "r3",
+      "from": "api",
+      "to": "pay",
+      "label": "Charges cards",
+      "tech": "REST",
+      "async": false,
+      "count": 1,
+      "members": [
+        3
+      ],
+      "text": "Charges cards",
+      "points": [
+        [
+          826,
+          176
+        ],
+        [
+          826,
+          140
+        ],
+        [
+          1778,
+          140
+        ]
+      ],
+      "path": "M 826 176 L 826.0 148.0 Q 826.0 140.0 834.0 140.0 L 1778 140",
+      "labelBox": {
+        "x": 1247,
+        "y": 118,
+        "w": 111,
+        "h": 44
+      }
+    },
+    {
+      "id": "r4",
+      "from": "api",
+      "to": "mail",
+      "label": "Sends receipts",
+      "tech": "SMTP",
+      "async": true,
+      "count": 1,
+      "members": [
+        4
+      ],
+      "text": "Sends receipts",
+      "points": [
+        [
+          814,
+          240
+        ],
+        [
+          814,
+          304
+        ],
+        [
+          1858,
+          304
+        ],
+        [
+          1858,
+          276
+        ]
+      ],
+      "path": "M 814 240 L 814.0 296.0 Q 814.0 304.0 822.0 304.0 L 1484.0 304.0 A 6 6 0 0 1 1496.0 304.0 L 1850.0 304.0 Q 1858.0 304.0 1858.0 296.0 L 1858 276",
+      "labelBox": {
+        "x": 1277,
+        "y": 282,
+        "w": 118,
+        "h": 44
+      }
+    },
+    {
+      "id": "r5",
+      "from": "support",
+      "to": "crm",
+      "label": "Looks up customers",
+      "tech": "",
+      "async": false,
+      "count": 1,
+      "members": [
+        5
+      ],
+      "text": "Looks up customers",
+      "points": [
+        [
+          128,
+          312
+        ],
+        [
+          128,
+          340
+        ],
+        [
+          1490,
+          340
+        ],
+        [
+          1490,
+          224
+        ]
+      ],
+      "path": "M 128 312 L 128.0 332.0 Q 128.0 340.0 136.0 340.0 L 1482.0 340.0 Q 1490.0 340.0 1490.0 332.0 L 1490 224",
+      "labelBox": {
+        "x": 736,
+        "y": 326,
+        "w": 146,
+        "h": 28
+      }
+    },
+    {
+      "id": "r6",
+      "from": "api",
+      "to": "crm",
+      "label": "Syncs customers",
+      "tech": "REST",
+      "async": false,
+      "count": 1,
+      "members": [
+        6
+      ],
+      "text": "Syncs customers",
+      "points": [
+        [
+          838,
+          240
+        ],
+        [
+          838,
+          268
+        ],
+        [
+          1490,
+          268
+        ],
+        [
+          1490,
+          224
+        ]
+      ],
+      "path": "M 838 240 L 838.0 260.0 Q 838.0 268.0 846.0 268.0 L 1482.0 268.0 Q 1490.0 268.0 1490.0 260.0 L 1490 224",
+      "labelBox": {
+        "x": 1102,
+        "y": 246,
+        "w": 125,
+        "h": 44
+      }
+    }
+  ],
+  "canvas": {
+    "width": 2022,
+    "height": 402
+  }
 }

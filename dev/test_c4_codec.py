@@ -108,7 +108,7 @@ def main():
     check("no depth limit in the codec", not raises(deep))
     check("blank diagram is valid", to_disk("c4", json.loads((ROOT / "assets/types/c4/blank.json").read_text(encoding="utf-8")))["groups"] == [])
 
-    for p in sorted((ROOT / "dev/fixtures/c4").glob("*.json")) + [ROOT / "assets/types/c4/default.json"]:
+    for p in sorted((ROOT / "dev/fixtures/c4").glob("*.json")) + sorted((ROOT / "dev/fixtures/c4/level3").glob("*.json")) + [ROOT / "assets/types/c4/default.json"]:
         f = json.loads(p.read_text(encoding="utf-8"))
         check(f"{p.name}: disk form is a fixed point", to_disk("c4", from_disk("c4", f)) == f)
     print("all cases passed" if not failed else f"{failed} case(s) failed")

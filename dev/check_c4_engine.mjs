@@ -154,7 +154,7 @@ run('landscape (platform collapsed)', clone(landC));
 }
 
 // ---- components (system > container > component: any depth)
-const comp = fixture('components');
+const comp = fixture('level3/components');
 run('components (expanded)', clone(comp));
 const compC = withCollapsed(comp, 'apiapp', true);
 run('components (apiapp collapsed)', clone(compC));
