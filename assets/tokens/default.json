@@ -15,6 +15,37 @@
       "edgeWrap": 6.6
     }
   },
+  "c4": {
+    "cardW": 156,
+    "cardMaxW": 240,
+    "cardH": 112,
+    "cardLine": 18,
+    "pad": 14,
+    "tagH": 30,
+    "padB": 14,
+    "tagPad": 72,
+    "emptyW": 200,
+    "emptyH": 96,
+    "innerGap": 20,
+    "innerLinkX": 120,
+    "innerLinkY": 64,
+    "ringV": 84,
+    "ringH": 130,
+    "ringGap": 34,
+    "ringLinkX": 150,
+    "ringLinkY": 90,
+    "ringStagger": 6,
+    "ringStaggerCap": 12,
+    "centreGap": 50,
+    "rowMax": 8,
+    "margin": 48,
+    "sep": 24,
+    "flowAcross": 40,
+    "flowAlong": 72,
+    "flowPerEdge": 10,
+    "flowEdgeCap": 8,
+    "flowRowGap": 40
+  },
   "type": {
     "family": {
       "ui": "font.family",

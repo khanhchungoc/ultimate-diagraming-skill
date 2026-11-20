@@ -114,6 +114,8 @@ def _validate(t: Dict[str, Any]) -> None:
         if isinstance(v, bool) or not isinstance(v, (int, float)) or not 1 <= v <= 30: raise _err(f"font.metrics.{k}", v)
     for k, v in t["size"].items():
         if not (isinstance(v, str) and _LENGTH.match(v)): raise _err(f"size.{k}", v)
+    for k, v in t["c4"].items():  # c4 layout sizes in px, read by assets/types/c4/engine.js
+        if not _KEY.match(k) or isinstance(v, bool) or not isinstance(v, int) or not 1 <= v <= 2000: raise _err(f"c4.{k}", v)
     _validate_type(t["type"])
     _validate_icon(t["icon"])
     for k, v in t.get("effect", {}).items():
@@ -329,7 +331,8 @@ def tokens_css(tokens: Dict[str, Any]) -> str:
 def tokens_data(tokens: Dict[str, Any]) -> Dict[str, Any]:
     """The part of the tokens the JS reads: the page, the ERD worker and scripts/run_engine.mjs all get exactly this as TOKENS."""
     return {"palette": tokens["palette"], "font": {"metrics": tokens["font"]["metrics"]}, "motion": tokens["motion"],
-            "type": {k: tokens["type"][k] for k in ("fitMin", "fitMinOverview")}, "icon": tokens["icon"]}
+            "type": {k: tokens["type"][k] for k in ("fitMin", "fitMinOverview")}, "icon": tokens["icon"],
+            "c4": tokens["c4"]}
 
 
 def tokens_js(tokens: Dict[str, Any]) -> str:
