@@ -1947,7 +1947,7 @@
       }
       function editMessage(id) {
         const el = seqHtml.querySelector(`.seq-msg-label[data-edge-id="${id}"] .seq-msg-label-text`);
-        beginEdit(el, { multiline: true, raw: (msgById(id) || {}).label, onTab: () => editDetail(id) });
+        beginEdit(el, { multiline: true, restore: true, raw: (msgById(id) || {}).label, onTab: () => editDetail(id) });
       }
       // The detail line under a message's arrow; one is made for the edit when the message has none (or details are hidden)
       function editDetail(id) {
