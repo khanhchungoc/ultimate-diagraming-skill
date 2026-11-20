@@ -17,7 +17,7 @@
     }
     .uc-subject.selected { border-color: var(--primary); box-shadow: var(--shadow-ring); }
     /* Edge tabs: a short pill centred on the right and on the bottom edge, shown on hover or selection; drag to resize that way */
-    .uc-subject-tab { position: absolute; box-sizing: border-box; background: var(--bg-panel); border: 2px solid var(--primary); border-radius: var(--radius-round); opacity: 0; pointer-events: auto; touch-action: none; transition: opacity var(--dur-micro) var(--curve-out), background-color var(--dur-micro) var(--curve-out); }
+    .uc-subject-tab { position: absolute; box-sizing: border-box; background: var(--bg-panel); border: 2px solid var(--primary); border-radius: var(--radius-pill); opacity: 0; pointer-events: auto; touch-action: none; transition: opacity var(--dur-micro) var(--curve-out), background-color var(--dur-micro) var(--curve-out); }
     .uc-subject-tab.is-x { right: -5px; top: 50%; width: 10px; height: 36px; margin-top: -18px; cursor: ew-resize; }
     .uc-subject-tab.is-y { bottom: -5px; left: 50%; height: 10px; width: 36px; margin-left: -18px; cursor: ns-resize; }
     .uc-subject:hover .uc-subject-tab, .uc-subject.selected .uc-subject-tab { opacity: 1; }
@@ -25,7 +25,7 @@
     .uc-subject.drop-target { border-color: var(--primary); background: var(--primary-wash); }
     .uc-subject-title {
       position: absolute; left: 0; top: 0; right: 0; display: flex; align-items: center; gap: 6px; padding: 0 10px; box-sizing: border-box;
-      pointer-events: auto; cursor: pointer; color: var(--text-main);
+      pointer-events: auto; cursor: move; color: var(--text-main);
     }
         .uc-subject-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .uc-subject-name.is-editing { overflow: visible; text-overflow: clip; background: var(--bg-panel); outline: 1.5px solid var(--primary-ring); border-radius: var(--radius-xs); padding: 0 3px; }
@@ -60,7 +60,7 @@
     /* --- Use cases: an ellipse; level shows in its size and outline --- */
     .uc-case {
       --ring: var(--node-border);
-      position: absolute; box-sizing: border-box; z-index: 20; pointer-events: auto; cursor: pointer; color: var(--text-main);
+      position: absolute; box-sizing: border-box; z-index: 20; pointer-events: auto; cursor: move; color: var(--text-main);
       transition: opacity 110ms var(--curve-inout), filter 110ms var(--curve-inout);
     }
     .uc-shape {
@@ -97,7 +97,7 @@
     /* --- Actors: a round avatar (person, server or clock), the name below, «system» / «time» under the name --- */
     .uc-actor {
       --ring: var(--border-dark);
-      position: absolute; box-sizing: border-box; z-index: 20; pointer-events: auto; cursor: pointer; color: var(--text-main);
+      position: absolute; box-sizing: border-box; z-index: 20; pointer-events: auto; cursor: move; color: var(--text-main);
       display: flex; flex-direction: column; align-items: center; transition: opacity 110ms var(--curve-inout), filter 110ms var(--curve-inout);
     }
     .uc-figure {
@@ -197,3 +197,6 @@
     .uc-help-line svg .d { stroke-dasharray: var(--dash); }
     .uc-help-line svg .f { fill: var(--node-border); }
     .uc-help-line svg .h { fill: var(--bg-panel); stroke: var(--text-soft); stroke-width: var(--ring-md); }
+
+    /* Read only: nothing moves, so the hand */
+    body.presentation :is(.uc-subject-title, .uc-case, .uc-actor) { cursor: pointer; }
