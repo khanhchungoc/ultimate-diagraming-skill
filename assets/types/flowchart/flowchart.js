@@ -1505,7 +1505,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
             }
 
             let toPort = 'left';
-            if (hasLeftLoopback.has(e.to) && Math.abs(t.cy - f.cy) > 30) {
+            if (hasLeftLoopback.has(e.to) && fromPort === 'right' && Math.abs(t.cy - f.cy) > 30) {
               toPort = (t.cy < f.cy) ? 'bottom' : 'top';
             } else if (fromPort === 'right' && fwdOuts.length === 1 && uNode && uNode.type !== 'decision') {
               // One step into another lane: leave via top/bottom for a single bend instead of a Z
