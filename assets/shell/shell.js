@@ -390,7 +390,15 @@
       const playground = (() => {
         try { const el = document.getElementById('playground'); return el ? JSON.parse(el.textContent) : null; } catch (_) { return null; }
       })();
-      const claudeHost = artifactShaped && window.claude && typeof window.claude.use === 'function' ? window.claude : null;
+      // Embedded in a host artifact (<iframe src="slug/index.html">, same origin): Save goes to the host artifact, into the
+      // folder the iframe's src names, and window.claude may only exist one frame up. A top-level page leaves both alone.
+      let embedDir = '', hostClaude = window.claude;
+      try {
+        const src = window.parent !== window && window.frameElement ? (window.frameElement.getAttribute('src') || '').split(/[?#]/)[0].replace(/^\/+/, '') : '';
+        embedDir = src.slice(0, src.lastIndexOf('/') + 1);
+        if (!hostClaude && embedDir) hostClaude = window.parent.claude;
+      } catch (_) { embedDir = ''; }
+      const claudeHost = artifactShaped && hostClaude && typeof hostClaude.use === 'function' ? hostClaude : null;
       // null: a plain file; 'pending': use() has not answered yet; 'publish': Save publishes diagram.json;
       // 'view-only': the viewer cannot save (Save hidden, Export > HTML file offered)
       let artifactMode = claudeHost && !playground ? 'pending' : null;
@@ -1205,7 +1213,8 @@
         });
 
         const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.has('present') || urlParams.has('capture')) {
+        // window.name is how an embedding page asks for it: <iframe name="present" srcdoc=...> has no query string to carry ?present
+        if (urlParams.has('present') || urlParams.has('capture') || window.name === 'present') {
           document.body.classList.add('presentation');
           document.getElementById('btn-present').setAttribute('aria-pressed', 'true');
         }
@@ -2770,11 +2779,11 @@
             try {
               diagramJson = serializeDiagramJson() + '\n';
               snapshot = JSON.stringify(chartData);   // what this publish carries; an edit made while it runs is not in it
-              files['diagram.json'] = diagramJson;
+              files[embedDir + 'diagram.json'] = diagramJson;
               // The artifact's own title (listing, tab) is the <title> of index.html: when the diagram was renamed, carry the
               // new name there too. The copy this view loaded is what it fetches, so only the title can differ from the live page.
               const title = chartData.title || plugin.defaultTitle;
-              if (title !== publishedTitle && !skipIndex) {
+              if (title !== publishedTitle && !skipIndex && !embedDir) {   // an embed leaves the host's title alone
                 try {
                   const r = await fetch('index.html');
                   if (r.ok) {

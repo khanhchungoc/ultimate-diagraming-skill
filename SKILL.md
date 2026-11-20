@@ -101,6 +101,12 @@ Use when the user saved edits in the browser, or asks to change a diagram that a
 
 ---
 
+## Embed in another page
+
+To show a diagram inside another HTML page or Artifact you are writing (present mode by default), read [references/embedding.md](references/embedding.md).
+
+---
+
 ## Use your brand
 
 Only when the user gives a website URL or brand guide and wants diagrams in that look: read [references/theme.md](references/theme.md) and follow its workflow.
