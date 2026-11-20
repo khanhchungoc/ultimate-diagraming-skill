@@ -44,16 +44,13 @@ Ponytail wins every tie: add an abstraction only when two or more real callers e
 - **Verify before done.** Each slice has a checker or e2e test under `dev/`; run it, and check light and dark themes and contrast.
 - **No new dependencies** without a stated reason; the skill must stay portable.
 
-## Playground artifact (keep it current)
+## Playground (GitHub Pages)
 
-The playground is one claude.ai artifact holding a blank page of every diagram type with a type switcher (design: `dev/plans/plan-playground.md`). Users open it from the README, so it must always run the current code.
+The playground is a blank page of every diagram type with a type switcher (design: `dev/plans/plan-playground.md`), hosted on GitHub Pages. Users open it from the README.
 
-**Whenever a change touches what a page runs or looks like** (anything under `assets/`, `scripts/layout_engine.py`, `scripts/tokens.py`, `scripts/disk_format.py`, or `SUPPORTED_TYPES`), finish the task by republishing it:
+It deploys itself: `.github/workflows/playground.yml` runs `python dev/build_playground.py -o _site` and publishes it on every push to `main` that touches `assets/`, `scripts/` or `dev/build_playground.py`. No manual publish step, and any agent can maintain it.
 
-1. Rebuild: `python dev/build_playground.py -o <scratchpad>/playground`.
-2. Read the live artifact first (`Artifact` action `read` on the URL below), then publish the rebuilt folder to the **same URL** (`Artifact` publish with `url`, `root` = the folder, `files` mapping every path). Never publish without `url`: that makes a second artifact and the README link goes stale.
-3. Open it and check every type in the switcher loads, then say in your report that it was republished. If you cannot publish (an agent without the claude.ai `Artifact` tool, or not the artifact's owner), say so in your report instead of skipping silently.
+- Before pushing a change that touches what a page runs or looks like, run `python dev/build_playground.py -o <scratchpad>/playground` and check every type in the switcher loads.
+- A new diagram type joins the playground in the same change (switcher entry, `blank.json`, folder).
 
-A new diagram type joins the playground in the same change (switcher entry, `blank.json`, folder). Changes only under `dev/`, `docs/`, `references/` or `README.md` need no republish.
-
-Playground URL: https://claude.ai/artifact/Ny25B5E4ts4TramawB4BQp
+Playground URL: https://khanhchungoc.github.io/ultimate-diagraming-skill/
