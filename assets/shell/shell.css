@@ -202,6 +202,7 @@
     body.presentation #btn-redo,
     body.presentation .toolbar-zoom .dock-sep,
     body.presentation #btn-search,
+    body.presentation #btn-theme,
     body.presentation #search-bar,
     body.presentation #help-drawer { display: none !important; }
     /* The header collapses to nothing; only the Present button stays, pinned to a corner. The zoom dock is not in the header. */
