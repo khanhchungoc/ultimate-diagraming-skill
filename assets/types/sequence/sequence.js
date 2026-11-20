@@ -4,6 +4,7 @@
       const seqCanvas = document.getElementById('seq-canvas');
       const seqSvg = document.getElementById('seq-svg');
       const seqHtml = document.getElementById('seq-html');
+      seqHtml.style.setProperty('--seq-label-max', `${SQ.LABEL_MAX_W}px`);   // the edit box wraps where the engine does
       const seqFragG = document.getElementById('seq-fragments');
       const seqLifeG = document.getElementById('seq-lifelines');
       const seqActG = document.getElementById('seq-activations');
@@ -157,7 +158,7 @@
       // A small icon per participant kind, the registry's kind-<kind> (system and actor have none: actor is the pill)
       // A person (actor) wears the registry's user icon; a system, the default kind, wears none on its pill
       const kindIconName = (kind) => (kind === 'actor' ? 'user' : `kind-${kind || 'system'}`);
-      const hasKindIcon = (kind) => kind !== 'system' && !!ICONS[kindIconName(kind)];
+      const hasKindIcon = (kind) => !!kind && kind !== 'system' && !!ICONS[kindIconName(kind)];   // no kind = a plain service: a blank pill
       const PARTICIPANT_KINDS = ['system', 'actor', 'ui', 'database', 'queue', 'external'];
       const KIND_TITLES = {
         system: 'Service: a back-end service or app that is none of the kinds below (the default)',
@@ -446,7 +447,7 @@
           const box = htmlEl('div', `seq-participant swatch-pill${p.kind === 'actor' ? ' is-actor' : ''}${hasKindIcon(p.kind) ? ` is-${p.kind}` : ''}${rail ? ' is-rail' : ''}`, { left: px(p.x - (rail ? SQ.RAIL_W : SQ.BOX_W) / 2), top: px(top) });
           box.dataset.nodeId = p.id;
           paintSwatch(box, sw);
-          if (hasKindIcon(p.kind) || rail) box.appendChild(kindIcon(p.kind));
+          if (hasKindIcon(p.kind) || rail) box.appendChild(kindIcon(p.kind, rail ? undefined : 16));
           const name = htmlEl('span', 'seq-participant-name');
           name.textContent = p.name;
           box.appendChild(name);
@@ -501,18 +502,18 @@
             const xs = edgeX(a, m.y, 1), xe = edgeX(a, m.y + 28, 1);
             d = `M ${xs} ${m.y} H ${xs + SQ.SELF_LOOP} V ${m.y + 28} H ${xe}`;
             labelStyle = { left: px(xs + SQ.SELF_LOOP + 8), top: px(m.y + 4) };
-            detailStyle = { left: px(xs + SQ.SELF_LOOP + 14), top: px(m.y + 24) };
+            detailStyle = { left: px(xs + SQ.SELF_LOOP + 14), top: px(m.y + 24 + ((m.lab || 1) - 1) * SQ.LABEL_LINE) };
           } else {
             const dir = b.x > a.x ? 1 : -1;
             const x1 = edgeX(a, m.y, dir), x2 = edgeX(b, m.y, -dir);
             d = `M ${x1} ${m.y} H ${x2}`;
-            labelStyle = { left: px((x1 + x2) / 2), top: px(m.y - 26) };
+            labelStyle = { left: px((x1 + x2) / 2), top: px(m.y - 26 - ((m.lab || 1) - 1) * SQ.LABEL_LINE) };
             detailStyle = { left: px((x1 + x2) / 2), top: px(m.y + 3) };
           }
           const marker = !m.kind || m.kind === 'sync' ? 'url(#seq-arrow-solid)' : 'url(#seq-arrow-open)';
           seqMsgG.appendChild(svgEl('path', { class: `seq-line${m.kind === 'reply' ? ' is-reply' : ''}`, d, 'marker-end': marker, 'data-edge-id': m.id }));
           seqMsgG.appendChild(svgEl('path', { class: 'seq-msg-hit', d, 'data-edge-id': m.id }));
-          const label = htmlEl('div', `seq-msg-label${self ? ' is-self' : ''}`, labelStyle);
+          const label = htmlEl('div', `seq-msg-label${self ? ' is-self' : ''}${m.lab > 1 ? ' is-wrapped' : ''}`, labelStyle);
           label.dataset.edgeId = m.id;
           if (chartData.numbered) {
             const num = htmlEl('span', 'seq-msg-num');
@@ -520,15 +521,15 @@
             label.appendChild(num);
           }
           const text = htmlEl('span', 'seq-msg-label-text');
-          text.textContent = m.label || '';
+          text.textContent = m.lab > 1 ? sqWrapText(m.label, SQ.CHAR_W, SQ.LABEL_MAX_W - (chartData.numbered ? SQ.NUM_W : 0)).join('\n') : (m.label || '');
           label.appendChild(text);
           if (m.detail && !showDetails) label.title = m.detail;   // details hidden: the payload is the tooltip
           seqHtml.appendChild(label);
           if (m.detail && showDetails) {
-            const det = htmlEl('div', `seq-msg-detail${self ? ' is-self' : ''}`, detailStyle);
+            const det = htmlEl('div', `seq-msg-detail${self ? ' is-self' : ''}${m.det > 1 ? ' is-wrapped' : ''}`, detailStyle);
             det.dataset.edgeId = m.id;
             const dt = htmlEl('span', 'seq-msg-detail-text');
-            dt.textContent = m.detail;
+            dt.textContent = m.det > 1 ? sqWrapText(m.detail, SQ.DETAIL_CHAR_W, SQ.LABEL_MAX_W).join('\n') : m.detail;
             det.appendChild(dt);
             seqHtml.appendChild(det);
           }
@@ -1672,7 +1673,7 @@
           bar.appendChild(delSep());
           bar.appendChild(delButton('Delete this message (Delete key)'));
           const self = m.from === m.to;
-          at = { x: self ? a.x + SQ.SELF_LOOP + 60 : (a.x + b.x) / 2, top: m.y - 24, bottom: m.y + 10 };
+          at = { x: self ? a.x + SQ.SELF_LOOP + 60 : (a.x + b.x) / 2, top: m.y - 24 - (self ? 0 : ((m.lab || 1) - 1) * SQ.LABEL_LINE), bottom: m.y + 10 };
           addBarHandle(m.id);
           // End handles: drag one to another lifeline to move that end
           if (self) { addHandle('from', m.id, a.x, m.y, 'seq-end'); addHandle('to', m.id, a.x, m.y + 28, 'seq-end'); }
@@ -1864,7 +1865,7 @@
       }
 
       // --- INLINE TEXT EDITING (double-click, Enter / F2, or straight after creating something) ---
-      // Enter commits; Escape keeps the old text. A note takes Shift+Enter for a line break. Tab in a message's label
+      // Enter commits; Escape keeps the old text. A note takes Shift+Enter for a line break. A message label takes Shift+Enter for a line break too; Tab in it
       // moves on to its detail; an empty detail removes it.
       const EDIT_TEXT = '.seq-participant-name, .seq-msg-label-text, .seq-frag-text';
       const EDIT_OWNER = { participant: '.seq-participant[data-node-id="ID"]', message: '.seq-msg-label[data-edge-id="ID"]', fragment: '.frame-tag[data-frag-id="ID"]' };
@@ -1879,6 +1880,10 @@
       function beginEdit(el, opts = {}) {
         if (!el || el.isContentEditable) return;
         const multi = !!opts.multiline;
+        // A wrapped label or detail is edited at the width it was drawn at, so it breaks where it did, not where the browser would
+        const wrapBox = el.closest('.is-wrapped');
+        if (wrapBox) wrapBox.style.width = `${wrapBox.offsetWidth + 2}px`;   // 2px of slack: a line that just fit must not tip over
+        const shown = el.textContent;   // what is drawn (a wrapped text has its line breaks), put back if nothing changes
         if (opts.raw !== undefined) el.textContent = opts.raw;
         el.contentEditable = multi ? 'plaintext-only' : 'true';
         el.focus();
@@ -1892,10 +1897,13 @@
         const commit = () => {
           el.removeEventListener('blur', commit);
           el.removeEventListener('keydown', onKey);
+          document.removeEventListener('pointerdown', onOutside, true);
+          if (box) { box.removeEventListener('pointerdown', onBoxDown); box.removeEventListener('mousedown', onBoxMouse); }
           el.contentEditable = 'false';
           const value = (multi ? el.innerText : el.textContent).replace(/\r/g, '').replace(/^\s+|\s+$/g, '');
           const changed = (opts.apply || applyText)(el, value);
           if (changed) relayout();
+          else if (wrapBox) { el.textContent = shown; wrapBox.style.width = ''; }   // no redraw: the box must not move
           else if (opts.restore) render();
           else el.textContent = original;
           if (tabbed && opts.onTab) opts.onTab();
@@ -1908,12 +1916,39 @@
           else if (ke.key === 'Escape') { ke.preventDefault(); ke.stopPropagation(); el.textContent = original; el.blur(); }
           else if (ke.key === 'Tab' && opts.onTab) { ke.preventDefault(); tabbed = true; el.blur(); }
         };
+        // A press on the edit box's padding puts the caret in the text (at its start or end, whichever is nearer) instead of leaving the edit
+        const box = el.closest('.seq-msg-label, .seq-msg-detail, .note, .seq-participant, .frame-tag');
+        const onBoxDown = (pe) => {
+          if (pe.target === el || el.contains(pe.target)) return;
+          pe.preventDefault(); pe.stopPropagation();
+          // The caret goes to the text nearest the press: the press point pulled onto the text's own box
+          const r = el.getBoundingClientRect();
+          const px = Math.min(Math.max(pe.clientX, r.left + 1), r.right - 1), py = Math.min(Math.max(pe.clientY, r.top + 1), r.bottom - 1);
+          let rg = null;
+          if (document.caretPositionFromPoint) {
+            const cp = document.caretPositionFromPoint(px, py);
+            if (cp && el.contains(cp.offsetNode)) { rg = document.createRange(); rg.setStart(cp.offsetNode, cp.offset); rg.collapse(true); }
+          } else if (document.caretRangeFromPoint) {
+            rg = document.caretRangeFromPoint(px, py);
+            if (rg && !el.contains(rg.startContainer)) rg = null;
+          }
+          if (!rg) { rg = document.createRange(); rg.selectNodeContents(el); rg.collapse(false); }
+          const sel = window.getSelection();
+          sel.removeAllRanges(); sel.addRange(rg);
+          el.focus();
+        };
+        const onBoxMouse = (me) => { if (me.target !== el && !el.contains(me.target)) me.preventDefault(); };
+        if (box) { box.addEventListener('pointerdown', onBoxDown); box.addEventListener('mousedown', onBoxMouse); }
+        // A press anywhere outside the edit ends it first (capture phase), whatever the target does with the press:
+        // a lifeline, a bar or the canvas may swallow it and so keep the focus here
+        const onOutside = (pe) => { if (!(box || el).contains(pe.target)) el.blur(); };
+        document.addEventListener('pointerdown', onOutside, true);
         el.addEventListener('blur', commit);
         el.addEventListener('keydown', onKey);
       }
       function editMessage(id) {
         const el = seqHtml.querySelector(`.seq-msg-label[data-edge-id="${id}"] .seq-msg-label-text`);
-        beginEdit(el, { onTab: () => editDetail(id) });
+        beginEdit(el, { multiline: true, raw: (msgById(id) || {}).label, onTab: () => editDetail(id) });
       }
       // The detail line under a message's arrow; one is made for the edit when the message has none (or details are hidden)
       function editDetail(id) {

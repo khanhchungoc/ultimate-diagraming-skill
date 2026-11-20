@@ -17,6 +17,7 @@ BOX_W = 148
 RAIL_W = 36              # a rail: the thin column of a participant with nothing to show outside collapsed frames
 SELF_LOOP = 40
 NUM_W = 26               # the step number before a label when "numbered"
+LABEL_MAX_W = 320         # mirrors SQ.LABEL_MAX_W: a wider label wraps
 LABEL_MARGIN = 16        # clear space a label needs beside its arrow ends
 MAX_PARTICIPANTS = 6
 MAX_MESSAGES = 16
@@ -275,8 +276,8 @@ class SequenceAudit:
                         overflows += 1
                     continue
                 detail = m.get("detail") if show_details else None
-                label_w = max(math.ceil(len("" if m.get("label") is None else str(m["label"])) * self.metrics["label"]) + (NUM_W if numbered else 0),
-                              math.ceil(len(str(detail or "")) * self.metrics["detail"]))
+                label_w = min(max(math.ceil(max(len(s) for s in ("" if m.get("label") is None else str(m["label"])).split("\n")) * self.metrics["label"]) + (NUM_W if numbered else 0),
+                              math.ceil(len(str(detail or "")) * self.metrics["detail"])), LABEL_MAX_W)
                 if a is b:
                     nxt = min((q["x"] for q in ps if q["x"] > a["x"]), default=math.inf)
                     if a["x"] + SELF_LOOP + 8 + label_w + 8 > nxt:

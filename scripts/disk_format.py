@@ -30,7 +30,7 @@ CHILD_KEYS = ("name", "laneOrder", "laneHeights", "nodes", "edges", "notes")  # 
 SEQUENCE_KEYS = ("diagramType", "schemaVersion", "title", "numbered", "showDetails", "rails",
                  "lifespans", "participantOrder", "colorKey", "participants", "messages", "fragments", "notes")
 # Engine output on the sequence model, never saved: positions, hidden (inside a collapsed frame), frame dividers
-SEQUENCE_LAYOUT = (("participants", ("x", "rail", "top", "bottom")), ("messages", ("y", "hidden")),
+SEQUENCE_LAYOUT = (("participants", ("x", "rail", "top", "bottom")), ("messages", ("y", "hidden", "lab", "det")),
                    ("fragments", ("x", "y", "w", "h", "elseY", "dividers")), ("notes", ("x", "y", "w", "h")))
 ERD_KEYS = ("diagramType", "schemaVersion", "title", "detail", "showTypes", "showNotes", "colorKey",
             "entities", "relationships", "notes", "layout")
