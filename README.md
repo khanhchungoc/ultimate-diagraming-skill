@@ -89,7 +89,7 @@ You need Python 3.9+ and Chrome, Chromium or Edge (used to lay out and check eve
 
 ### Option A: one command
 
-Needs Node.js. Run in a terminal. Listed on [skills.sh](https://skills.sh).
+Needs Node.js. Run in a terminal.
 
 All your projects:
 
