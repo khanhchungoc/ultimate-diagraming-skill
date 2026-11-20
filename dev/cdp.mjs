@@ -124,14 +124,21 @@ export async function launch(browser) {
       // The first load event can belong to the previous page (about:blank): wait for the real one.
       for (let i = 0; i < 100; i++) {
         const r = await send('Runtime.evaluate', {
-          expression: `JSON.stringify([location.href, document.readyState, document.documentElement.dataset.diagramReady || ''])`,
+          expression: `JSON.stringify([location.href, document.readyState, document.documentElement.dataset.diagramReady || '', document.documentElement.dataset.diagramSettled || ''])`,
           returnByValue: true,
         });
-        const [href, ready, diagramReady] = JSON.parse(r.result.value);
-        if (href === url && ready === 'complete' && (!isSplit || diagramReady === '1')) break;
+        const [href, ready, diagramReady, settled] = JSON.parse(r.result.value);
+        // settled: the web font is in and the shell animates (until then motion is off, so the font-swap render does not FLIP)
+        if (href === url && ready === 'complete' && (!isSplit || diagramReady === '1') && (!diagramReady || settled === '1')) break;
         await sleep(100);
       }
       await sleep(700);
+      await api.settle();
+    },
+    /** Waits (cap ~800ms) until the shell reports no motion in flight (<html data-motion-busy>, set by the motion kernel). */
+    async settle(cap = 800) {
+      const t0 = Date.now();
+      while (Date.now() - t0 < cap && await api.ev(`document.documentElement.dataset.motionBusy === '1'`).catch(() => false)) await sleep(20);
     },
     async ev(expression) {
       const r = await send('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true });
@@ -157,6 +164,10 @@ export async function launch(browser) {
     // click, dblclick and pointer events itself, exactly as for a person. Coordinates are viewport px.
     /** Centre of the first element matching `selector` (or null); `fx`/`fy` pick another point of its box (0..1). */
     async at(selector, fx = 0.5, fy = 0.5) {
+      // A camera glide (Fit, zoom buttons, pan-into-view) or a FLIP (undo, collapse) moves things for ~250ms: aim at where they settle
+      const moving = `!!document.querySelector('#viewport.gesturing') || document.getAnimations().some((a) => a.playState === 'running' && a.effect && a.effect.getComputedTiming().iterations !== Infinity)`;
+      for (let i = 0; i < 30 && await api.ev(moving).catch(() => false); i++) await sleep(20);
+      await api.settle();
       return api.ev(`(() => { const el = document.querySelector(${JSON.stringify(selector)}); if (!el) return null;
         const r = el.getBoundingClientRect(); return { x: r.left + r.width * ${fx}, y: r.top + r.height * ${fy} }; })()`);
     },

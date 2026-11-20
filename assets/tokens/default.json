@@ -151,7 +151,18 @@
     "dash": "3 5"
   },
   "motion": {
-    "ease": "0.15s ease"
+    "ease": "120ms cubic-bezier(0.2, 0, 0, 1)",
+    "dur-micro": "100ms",
+    "dur-fast": "140ms",
+    "dur-base": "180ms",
+    "dur-layout": "230ms",
+    "dur-camera": "240ms",
+    "dur-tab": "300ms",
+    "curve-out": "cubic-bezier(0.22, 1, 0.36, 1)",
+    "curve-in": "cubic-bezier(0.4, 0, 1, 1)",
+    "curve-inout": "cubic-bezier(0.4, 0, 0.2, 1)",
+    "curve-spring-settle": "linear(0, 0.0734, 0.2223, 0.3833, 0.5286, 0.6489, 0.7435, 0.8153, 0.8686, 0.9074, 0.9352, 0.955, 0.9689, 0.9786, 1)",
+    "curve-spring-tactile": "linear(0, 0.1021, 0.3124, 0.5352, 0.7235, 0.8616, 0.9511, 1.0018, 1.0252, 1.0315, 1.0288, 1.0223, 1.0152, 1.0092, 1)"
   },
   "radius": {
     "xs": "3px",

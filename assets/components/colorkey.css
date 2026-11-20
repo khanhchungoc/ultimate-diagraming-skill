@@ -4,7 +4,7 @@
     .color-key { display: flex; width: max-content; gap: 4px 18px; white-space: nowrap; font-size: var(--t-detail-size); color: var(--text-soft); user-select: none; }
     .color-key-item { display: inline-flex; align-items: center; gap: 6px; }
     .color-key-dot { width: 12px; height: 12px; border-radius: var(--radius-xs); background: var(--sw-stripe); border: 1px solid var(--dot-edge-soft); box-sizing: border-box; }
-    .color-key-label { outline: none; min-width: 12px; cursor: text; }
+    .color-key-label { outline: none; min-width: 12px; cursor: text; transition: background-color var(--dur-micro) var(--curve-out), outline-color var(--dur-micro) var(--curve-out); }
     .color-key-label.is-empty::before { content: attr(data-hint); font-style: italic; color: var(--text-muted); }
     .color-key-label.is-editing { background: var(--bg-panel); outline: 1.5px solid var(--primary-ring); border-radius: var(--radius-xs); }
     .color-key-label.is-selected { outline: 1.5px solid var(--primary-ring); border-radius: var(--radius-xs); }

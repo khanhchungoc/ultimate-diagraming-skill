@@ -79,7 +79,12 @@
           dot.className = sw.slot ? 'swatch-dot' : 'swatch-dot is-none';
           if (sw.slot) setSwatch(dot, sw.slot);
           b.appendChild(dot);
-          b.addEventListener('click', (e) => { e.stopPropagation(); onPick(sw.slot); });
+          b.addEventListener('click', (e) => {
+            e.stopPropagation();
+            row.querySelectorAll('.swatch-btn[aria-pressed="true"]').forEach((x) => x.setAttribute('aria-pressed', 'false'));
+            b.setAttribute('aria-pressed', 'true');
+            onPick(sw.slot);
+          });
           row.appendChild(b);
         });
         return row;
@@ -107,6 +112,7 @@
         let confirmEl = null;
         function closeConfirm() {
           if (!confirmEl) return false;
+          if (typeof motion !== 'undefined') motion.ghostExit(confirmEl, { duration: 110, transform: 'scale(0.92) translateY(4px)' });
           confirmEl.remove();
           confirmEl = null;
           document.removeEventListener('pointerdown', onConfirmOutside, true);
@@ -157,6 +163,13 @@
           const top = r.bottom + 8 + bh > innerHeight - 8 ? r.top - 8 - bh : r.bottom + 8;
           box.style.left = `${Math.max(8, Math.min(r.left, innerWidth - bw - 8))}px`;
           box.style.top = `${Math.max(8, Math.min(top, innerHeight - bh - 8))}px`;
+          if (typeof motion !== 'undefined' && motion.enabled()) {
+            const above = top < r.top;
+            motion.anim(box, [
+              { transform: `scale(0.92) translateY(${above ? 4 : -4}px)`, clipPath: `inset(${above ? '20% 0 0 0' : '0 0 20% 0'} round 10px)` },
+              { transform: 'none', clipPath: 'inset(0 0 0 0 round 10px)' }
+            ], { duration: motion.dur('dur-base', 160), easing: motion.curve('curve-spring-tactile') });
+          }
           cancel.focus();
           document.addEventListener('pointerdown', onConfirmOutside, true);
         }
@@ -238,6 +251,15 @@
           return b;
         }
         const abSep = (cls) => { const s = document.createElement('span'); s.className = cls || 'ab-sep'; return s; };
+        // A wrapped bar (is-wrap, rows split by a `-ab-break` item) is as wide as its widest row, not as its max-width: call
+        // it once the bar is in the page. No empty side padding, and a row that fits never wraps on its own.
+        function fitBar(bar) {
+          const kids = [...bar.children].filter((k) => !/-ab-break$/.test(k.className));
+          if (!kids.length) return;
+          const l = Math.min(...kids.map((k) => k.offsetLeft)), r = Math.max(...kids.map((k) => k.offsetLeft + k.offsetWidth));
+          const cs = getComputedStyle(bar), edge = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight) + parseFloat(cs.borderLeftWidth) + parseFloat(cs.borderRightWidth);
+          bar.style.maxWidth = `${Math.ceil(r - l + edge) + 2}px`;   // +2: fractional text widths must not tip a full row into wrapping
+        }
         // The colour legend: one entry per colour in `used` (slots), a dot and its label from `key` ({slot: text}). An entry
         // with no label is drawn only with opts.prompts (a prompt "What does Blue mean?" for the edit, left out of ?present and
         // exports). opts.cls adds a class to the legend (the type positions it). The label span carries data-color for the
@@ -266,7 +288,7 @@
           });
           return box;
         }
-        return { confirm, closeConfirm, isConfirmOpen: () => !!confirmEl, noteCard, actionBar, abButton, abSep, colorKey, icon, iconEl, toast: (m) => showToast(m) };
+        return { confirm, closeConfirm, isConfirmOpen: () => !!confirmEl, noteCard, actionBar, abButton, abSep, fitBar, colorKey, icon, iconEl, toast: (m) => showToast(m) };
       })();
 
       // --- ENGINE SOURCE (for plugins that run a background Web Worker, e.g. ERD) ---
@@ -421,6 +443,706 @@
       const menuHelp = document.getElementById('menu-help');
       const helpDrawer = document.getElementById('help-drawer');
 
+      // --- MOTION KERNEL (shared by shell + all 4 diagram plugins; zero external dependencies) ---
+      const noAnimParam = /[?&](?:report|tidy|noanim)(?:=|&|$)/.test(window.location.search);
+      if (noAnimParam) document.documentElement.dataset.noanim = '1';
+      const reducedMq = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
+      const motion = (() => {
+        const dur = (k, fb = 180) => {
+          const v = TOKENS.motion && TOKENS.motion[k];
+          const m = v && /^(\d+(?:\.\d+)?)(m?s)/.exec(v);
+          return m ? parseFloat(m[1]) * (m[2] === 's' ? 1000 : 1) : fb;
+        };
+        const curve = (k, fb = 'cubic-bezier(0.22, 1, 0.36, 1)') => (TOKENS.motion && TOKENS.motion[k]) || fb;
+        const enabled = () => !noAnimParam && !(reducedMq && reducedMq.matches)
+          && document.documentElement.dataset.diagramSettled === '1'   // not while loading: the render after the web font arrives would FLIP from the fallback-font layout, and Fit would measure it mid-flight
+          && !document.body.classList.contains('capture') && !document.body.classList.contains('exporting');
+
+        let lastPlayAt = -1000, cachedScale = 1, lastStampFrame = -1;
+        const speedScale = () => {
+          const now = performance.now();
+          if (now - lastStampFrame <= 16) return cachedScale;
+          const dt = now - lastPlayAt;
+          return dt < 90 ? 0.55 : dt < 180 ? 0.75 : 1;
+        };
+        const markPlay = () => {
+          const now = performance.now();
+          if (now - lastStampFrame > 16) { cachedScale = speedScale(); lastStampFrame = now; }
+          lastPlayAt = now;
+          return cachedScale;
+        };
+
+        const easeCache = new Map();
+        const easeFn = (nameOrCurve) => {
+          const s = curve(nameOrCurve, nameOrCurve);
+          if (easeCache.has(s)) return easeCache.get(s);
+          let fn;
+          if (s.startsWith('linear(')) {
+            const pts = s.slice(7, -1).split(',').map((x) => parseFloat(x));
+            const n = pts.length - 1;
+            fn = (t) => {
+              if (t <= 0) return pts[0];
+              if (t >= 1) return pts[n];
+              const p = t * n, i = p | 0;
+              return pts[i] + (pts[i + 1] - pts[i]) * (p - i);
+            };
+          } else {
+            const m = /cubic-bezier\(([^)]+)\)/.exec(s);
+            if (m) {
+              const [x1, y1, x2, y2] = m[1].split(',').map(Number);
+              const cx = 3 * x1, bx = 3 * (x2 - x1) - cx, ax = 1 - cx - bx;
+              const cy = 3 * y1, by = 3 * (y2 - y1) - cy, ay = 1 - cy - by;
+              fn = (t) => {
+                let u = t;
+                for (let i = 0; i < 5; i++) {
+                  const x = ((ax * u + bx) * u + cx) * u - t;
+                  const dx = (3 * ax * u + 2 * bx) * u + cx;
+                  if (Math.abs(dx) < 1e-5) break;
+                  u = Math.max(0, Math.min(1, u - x / dx));
+                }
+                return ((ay * u + by) * u + cy) * u;
+              };
+            } else {
+              fn = (t) => 1 - (1 - t) * (1 - t) * (1 - t);
+            }
+          }
+          easeCache.set(s, fn);
+          return fn;
+        };
+
+        let svgJob = null;
+        const activeAnims = new Set();
+        const elemAnims = new WeakMap();
+        // Busy hook: <html data-motion-busy="1"> while any WAAPI animation, SVG tween or camera glide is in flight (tests wait on it).
+        let vpBusy = false;
+        const syncBusy = () => {
+          const busy = activeAnims.size > 0 || !!svgJob || vpBusy;
+          const ds = document.documentElement.dataset;
+          if (busy) { if (ds.motionBusy !== '1') ds.motionBusy = '1'; } else if ('motionBusy' in ds) delete ds.motionBusy;
+        };
+        const setViewportBusy = (b) => { vpBusy = b; syncBusy(); };
+        const trackAnim = (el, anim) => {
+          if (!anim) return anim;
+          activeAnims.add(anim);
+          syncBusy();
+          let list = elemAnims.get(el);
+          if (!list) { list = new Set(); elemAnims.set(el, list); }
+          list.add(anim);
+          const drop = () => { activeAnims.delete(anim); list.delete(anim); syncBusy(); };
+          anim.addEventListener('finish', drop, { once: true });
+          anim.addEventListener('cancel', drop, { once: true });
+          return anim;
+        };
+        const cancelEl = (el) => {
+          const list = elemAnims.get(el);
+          if (!list) return;
+          for (const a of list) { try { a.cancel(); } catch (_) {} }
+          list.clear();
+        };
+
+        let ghostLayer = null;
+        const ensureGhostLayer = () => {
+          if (ghostLayer && ghostLayer.isConnected) return ghostLayer;
+          ghostLayer = document.getElementById('motion-ghost-layer');
+          if (!ghostLayer) {
+            ghostLayer = document.createElement('div');
+            ghostLayer.id = 'motion-ghost-layer';
+            ghostLayer.setAttribute('data-export-skip', '');
+            ghostLayer.setAttribute('aria-hidden', 'true');
+            document.body.appendChild(ghostLayer);
+          }
+          return ghostLayer;
+        };
+
+        const GHOST_PROPS = [
+          'display', 'position', 'boxSizing', 'flexDirection', 'flexWrap', 'alignItems', 'justifyContent',
+          'gap', 'flex', 'width', 'height', 'minWidth', 'maxWidth',
+          'paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft',
+          'marginTop', 'marginRight', 'marginBottom', 'marginLeft',
+          'borderTopWidth', 'borderTopStyle', 'borderTopColor',
+          'borderRightWidth', 'borderRightStyle', 'borderRightColor',
+          'borderBottomWidth', 'borderBottomStyle', 'borderBottomColor',
+          'borderLeftWidth', 'borderLeftStyle', 'borderLeftColor',
+          'borderTopLeftRadius', 'borderTopRightRadius', 'borderBottomRightRadius', 'borderBottomLeftRadius',
+          'backgroundColor', 'backgroundImage', 'color', 'fontFamily', 'fontSize', 'fontWeight',
+          'lineHeight', 'letterSpacing', 'boxShadow', 'textAlign', 'whiteSpace', 'overflow', 'opacity'
+        ];
+        const freezeClone = (el, skipFn) => {
+          const build = (src, isRoot) => {
+            if (src.nodeType === 3) return document.createTextNode(src.nodeValue);
+            if (src.nodeType !== 1) return null;
+            if (!isRoot && skipFn && skipFn(src)) return null;
+            const cs = getComputedStyle(src);
+            if (!isRoot && cs.display === 'none') return null;
+            if (src.namespaceURI === 'http://www.w3.org/2000/svg') {
+              const svg = src.cloneNode(true);
+              svg.removeAttribute('id'); svg.removeAttribute('class');
+              svg.querySelectorAll('[id],[class]').forEach((n) => { n.removeAttribute('id'); n.removeAttribute('class'); });
+              return svg;
+            }
+            const tag = (cs.display === 'inline' || cs.display === 'inline-flex' || cs.display === 'inline-block') && !isRoot ? 'span' : 'div';
+            const dst = document.createElement(tag);
+            for (let j = 0; j < GHOST_PROPS.length; j++) {
+              const p = GHOST_PROPS[j];
+              if (cs[p]) dst.style[p] = cs[p];
+            }
+            if (src.tagName === 'INPUT' || src.tagName === 'TEXTAREA') dst.textContent = src.value;
+            else {
+              for (let c = src.firstChild; c; c = c.nextSibling) {
+                const child = build(c, false);
+                if (child) dst.appendChild(child);
+              }
+            }
+            return dst;
+          };
+          const clone = build(el, true);
+          clone.setAttribute('data-motion-ghost', '');
+          clone.setAttribute('data-export-skip', '');
+          clone.setAttribute('aria-hidden', 'true');
+          return clone;
+        };
+
+        const ghostExit = (el, opts) => {
+          if (!el || !enabled()) return null;
+          const o = opts || {};
+          const r = o.fromRect || el.getBoundingClientRect();
+          if (!r || r.width <= 0 || r.height <= 0) return null;
+          const clone = o.preCloned || freezeClone(el, o.skipChild);
+          const inStage = !o.preCloned && stage.contains(el);
+          const ow = o.baseW ?? (inStage && el.offsetWidth ? el.offsetWidth : r.width);
+          const oh = o.baseH ?? (inStage && el.offsetHeight ? el.offsetHeight : r.height);
+          const sx = ow ? r.width / ow : 1, sy = oh ? r.height / oh : 1;
+          const baseScale = (Math.abs(sx - 1) > 0.01 || Math.abs(sy - 1) > 0.01) ? ` scale(${sx}, ${sy})` : '';
+          clone.style.position = 'fixed';
+          clone.style.left = `${r.left}px`;
+          clone.style.top = `${r.top}px`;
+          clone.style.width = `${ow}px`;
+          clone.style.height = `${oh}px`;
+          clone.style.margin = '0';
+          clone.style.pointerEvents = 'none';
+          clone.style.transformOrigin = o.origin || (baseScale ? 'top left' : 'center');
+          clone.style.transform = baseScale.trim() || 'none';
+          ensureGhostLayer().appendChild(clone);
+          let toFrame;
+          if (o.toRect) {
+            const dx = o.toRect.left - r.left, dy = o.toRect.top - r.top;
+            const tx = (ow ? o.toRect.width / ow : 1), ty = (oh ? o.toRect.height / oh : 1);
+            clone.style.transformOrigin = 'top left';
+            toFrame = { transform: `translate(${dx}px, ${dy}px) scale(${tx}, ${ty})`, opacity: o.opacity ?? 0.15 };
+          } else {
+            toFrame = { transform: (baseScale ? baseScale + ' ' : '') + (o.transform || 'scale(0.92)'), opacity: o.opacity ?? 0 };
+            if (o.clipPath) toFrame.clipPath = o.clipPath;
+          }
+          const fromFrame = { transform: baseScale.trim() || 'none', opacity: 1 };
+          if (o.clipPath) fromFrame.clipPath = 'inset(0 0 0 0)';
+          const anim = clone.animate([fromFrame, toFrame], {
+            duration: Math.max(40, Math.round((o.duration ?? 110) * speedScale())),
+            easing: curve(o.easing || 'curve-in'),
+            fill: 'forwards'
+          });
+          const cleanup = () => clone.remove();
+          anim.addEventListener('finish', cleanup, { once: true });
+          anim.addEventListener('cancel', cleanup, { once: true });
+          return trackAnim(clone, anim);
+        };
+
+        const keyOf = (spec, el) => (typeof spec.key === 'function'
+          ? String(spec.key(el))
+          : (spec.key.startsWith('data-') ? el.getAttribute(spec.key) : el.dataset[spec.key]) || '');
+
+        const capture = (root, specs, opts) => {
+          if (!enabled() || !root) return null;
+          const list = Array.isArray(specs) ? specs : [specs];
+          const inStage = root === stage || stage.contains(root);
+          const st = inStage ? stage.getBoundingClientRect() : null;
+          const k = inStage ? (stage.offsetWidth ? st.width / stage.offsetWidth : scale) || 1 : 1;
+          const snap = new Map();
+          const raw = new Map();
+          const els = [];
+          for (let si = 0; si < list.length; si++) {
+            const spec = list[si], nodes = root.querySelectorAll(spec.selector);
+            for (let i = 0; i < nodes.length; i++) {
+              const el = nodes[i], id = keyOf(spec, el);
+              if (!id) continue;
+              const vr = el.getBoundingClientRect();
+              if (!vr.width && !vr.height) continue;
+              const entry = {
+                id, si, mode: spec.mode || 'pos', vr, el,
+                x: inStage ? (vr.left - st.left) / k : vr.left,
+                y: inStage ? (vr.top - st.top) / k : vr.top,
+                w: vr.width / k, h: vr.height / k,
+                baseW: inStage && el.offsetWidth ? el.offsetWidth : vr.width / k,
+                baseH: inStage && el.offsetHeight ? el.offsetHeight : vr.height / k,
+                preCloned: opts && opts.ghosts ? freezeClone(el) : null
+              };
+              snap.set(si + ':' + id, entry);
+              raw.set(id, entry);
+              els.push(el);
+            }
+          }
+          for (let i = 0; i < els.length; i++) cancelEl(els[i]);
+          snap._raw = raw; snap._inStage = inStage;
+          return snap;
+        };
+
+        const play = (snap, root, specs, opts) => {
+          if (!snap || !enabled() || !root) return 0;
+          const o = opts || {};
+          const list = Array.isArray(specs) ? specs : [specs];
+          const inStage = snap._inStage;
+          const st = inStage ? stage.getBoundingClientRect() : null;
+          const k = inStage ? (stage.offsetWidth ? st.width / stage.offsetWidth : scale) || 1 : 1;
+          const vpW = window.innerWidth, vpH = window.innerHeight;
+          const items = [];
+          const newByKey = new Map();
+          const newRaw = new Map();
+          for (let si = 0; si < list.length; si++) {
+            const spec = list[si], nodes = root.querySelectorAll(spec.selector);
+            for (let i = 0; i < nodes.length; i++) {
+              const el = nodes[i], id = keyOf(spec, el);
+              if (!id) continue;
+              if (o.skipKeys && o.skipKeys.has(id)) continue;
+              if (o.skipSelector && el.matches(o.skipSelector)) continue;
+              const vr = el.getBoundingClientRect();
+              if (!vr.width && !vr.height) continue;
+              const it = {
+                id, key: si + ':' + id, mode: spec.mode || 'pos', el, vr,
+                x: inStage ? (vr.left - st.left) / k : vr.left,
+                y: inStage ? (vr.top - st.top) / k : vr.top,
+                w: vr.width / k, h: vr.height / k
+              };
+              items.push(it);
+              newByKey.set(it.key, it);
+              newRaw.set(id, it);
+            }
+          }
+          const sf = markPlay();
+          const baseDur = Math.max(40, Math.round((o.duration ?? dur('dur-layout', 230)) * sf));
+          const easing = curve(o.easing || 'curve-spring-settle');
+          const cull = items.length > 120;
+          const ox = o.originRect ? (inStage ? (o.originRect.left - st.left) / k : o.originRect.left) : 0;
+          const oy = o.originRect ? (inStage ? (o.originRect.top - st.top) / k : o.originRect.top) : 0;
+          const ow = o.originRect ? o.originRect.width / k : 0;
+          const oh = o.originRect ? o.originRect.height / k : 0;
+          const lookup = (map, id) => !map ? null : (map instanceof Map ? map.get(id) : map[id]);
+
+          for (let i = 0; i < items.length; i++) {
+            const it = items[i];
+            if (cull && (it.vr.right < 0 || it.vr.left > vpW || it.vr.bottom < 0 || it.vr.top > vpH)) continue;
+            const prev = snap.get(it.key);
+            if (prev) {
+              const dx = prev.x - it.x, dy = prev.y - it.y;
+              const dw = Math.abs(prev.w - it.w), dh = Math.abs(prev.h - it.h);
+              const mode = cull ? 'pos' : it.mode;
+              const moved = Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5;
+              const resized = mode !== 'pos' && (dw > 1 || dh > 1);
+              if (!moved && !resized) continue;
+              if (resized && mode === 'size' && it.w > 0 && it.h > 0) {
+                const rw = prev.w / it.w, rh = prev.h / it.h;
+                if (rw >= 0.45 && rw <= 2.2 && rh >= 0.45 && rh <= 2.2) {
+                  it.el.style.transformOrigin = o.transformOrigin || 'top left';
+                  trackAnim(it.el, it.el.animate([{ transform: `translate(${dx}px, ${dy}px) scale(${rw}, ${rh})` }, { transform: 'none' }], { duration: baseDur, easing }));
+                  continue;
+                }
+              }
+              if (resized && (it.w > prev.w || it.h > prev.h)) {
+                const rClip = Math.max(0, it.w - prev.w), bClip = Math.max(0, it.h - prev.h);
+                trackAnim(it.el, it.el.animate([
+                  { transform: `translate(${dx}px, ${dy}px)`, clipPath: `inset(0 ${rClip}px ${bClip}px 0)` },
+                  { transform: 'none', clipPath: 'inset(0 0 0 0)' }
+                ], { duration: baseDur, easing }));
+              } else {
+                trackAnim(it.el, it.el.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'none' }], { duration: baseDur, easing }));
+              }
+            } else if (o.enter !== false) {
+              const fk = lookup(o.fromKey, it.id);
+              const src = fk ? snap._raw.get(fk) : (o.originRect ? { x: ox, y: oy, w: ow, h: oh } : null);
+              if (src && it.w > 0 && it.h > 0) {
+                const dx = src.x - it.x, dy = src.y - it.y;
+                const rw = Math.max(0.25, Math.min(2.5, src.w / it.w)), rh = Math.max(0.25, Math.min(2.5, src.h / it.h));
+                it.el.style.transformOrigin = 'top left';
+                trackAnim(it.el, it.el.animate([{ transform: `translate(${dx}px, ${dy}px) scale(${rw}, ${rh})` }, { transform: 'none' }], { duration: baseDur, easing }));
+              } else {
+                const sc = o.enterScale ?? 0.88;
+                if (o.enterShift != null) {
+                  // calm entrance (tab switch): a short slide and a fade, no clip, no overshoot
+                  trackAnim(it.el, it.el.animate([
+                    { opacity: 0, transform: `translateY(${o.enterShift}px) scale(${sc})` },
+                    { opacity: 1, transform: 'none' }
+                  ], { duration: baseDur, easing: curve(o.enterEasing || 'curve-out') }));
+                  continue;
+                }
+                trackAnim(it.el, it.el.animate([
+                  { transform: `scale(${sc})`, clipPath: 'inset(6% 6% 6% 6%)' },
+                  { transform: 'none', clipPath: 'inset(0 0 0 0)' }
+                ], { duration: Math.round(baseDur * 0.82), easing: curve('curve-spring-tactile') }));
+              }
+            }
+          }
+          if (o.toKey || o.ghostExit) {
+            for (const [k2, prev] of snap) {
+              if (newByKey.has(k2)) continue;
+              const tk = lookup(o.toKey, prev.id);
+              const target = tk ? newRaw.get(tk) : null;
+              if (target && prev.preCloned) ghostExit(prev.el, { preCloned: prev.preCloned, fromRect: prev.vr, toRect: target.vr, baseW: prev.baseW, baseH: prev.baseH, duration: baseDur, easing });
+              else if (o.ghostExit && prev.preCloned) ghostExit(prev.el, { preCloned: prev.preCloned, fromRect: prev.vr, baseW: prev.baseW, baseH: prev.baseH, duration: o.exitDuration ?? 110, transform: o.exitTransform, easing: o.exitEasing });
+            }
+          }
+          return baseDur;
+        };
+
+        const morphRect = (fromRect, toEl, opts) => {
+          if (!enabled() || !fromRect || !toEl) return null;
+          const o = opts || {};
+          cancelEl(toEl);
+          const toRect = toEl.getBoundingClientRect();
+          if (!toRect.width || !toRect.height) return null;
+          const inStage = stage.contains(toEl);
+          const k = inStage && stage.offsetWidth ? stage.getBoundingClientRect().width / stage.offsetWidth : 1;
+          const dx = (fromRect.left - toRect.left) / k, dy = (fromRect.top - toRect.top) / k;
+          const sx = fromRect.width / toRect.width, sy = fromRect.height / toRect.height;
+          if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5 && Math.abs(sx - 1) < 0.02 && Math.abs(sy - 1) < 0.02) return null;
+          toEl.style.transformOrigin = o.origin || 'top left';
+          return trackAnim(toEl, toEl.animate(
+            [{ transform: `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})` }, { transform: 'none' }],
+            { duration: Math.max(40, Math.round((o.duration ?? dur('dur-base', 180)) * speedScale())), easing: curve(o.easing || 'curve-spring-settle') }
+          ));
+        };
+
+        const drawPath = (pathEl, opts) => {
+          if (!enabled() || !pathEl || typeof pathEl.getTotalLength !== 'function') return null;
+          const o = opts || {};
+          const len = pathEl.getTotalLength();
+          if (!len) return null;
+          cancelEl(pathEl);
+          pathEl.style.strokeDasharray = `${len} ${len}`;
+          pathEl.style.strokeDashoffset = `${len}`;
+          const anim = pathEl.animate([{ strokeDashoffset: len }, { strokeDashoffset: 0 }], {
+            duration: Math.max(40, Math.round((o.duration ?? dur('dur-fast', 140)) * speedScale())),
+            easing: curve(o.easing || 'curve-out')
+          });
+          const clear = () => { pathEl.style.strokeDasharray = ''; pathEl.style.strokeDashoffset = ''; };
+          anim.addEventListener('finish', clear, { once: true });
+          anim.addEventListener('cancel', clear, { once: true });
+          return trackAnim(pathEl, anim);
+        };
+
+        const normPoly = (a, b) => {
+          const out = a.slice();
+          while (out.length < b.length) {
+            let best = 0, bestLen = -1;
+            for (let i = 0; i < out.length - 2; i += 2) {
+              const l = Math.hypot(out[i + 2] - out[i], out[i + 3] - out[i + 1]);
+              if (l > bestLen) { bestLen = l; best = i; }
+            }
+            out.splice(best + 2, 0, (out[best] + out[best + 2]) / 2, (out[best + 1] + out[best + 3]) / 2);
+          }
+          return out;
+        };
+
+        const applySvgJob = (job, p) => {
+          const { n, els, kinds, offs, cnts, fromBuf, toBuf } = job;
+          for (let i = 0; i < n; i++) {
+            const o = offs[i], k = kinds[i], el = els[i];
+            if (k === 0) {
+              el.setAttribute('d',
+                'M ' + (fromBuf[o] + (toBuf[o] - fromBuf[o]) * p) + ' ' + (fromBuf[o + 1] + (toBuf[o + 1] - fromBuf[o + 1]) * p) +
+                ' C ' + (fromBuf[o + 2] + (toBuf[o + 2] - fromBuf[o + 2]) * p) + ' ' + (fromBuf[o + 3] + (toBuf[o + 3] - fromBuf[o + 3]) * p) +
+                ', ' + (fromBuf[o + 4] + (toBuf[o + 4] - fromBuf[o + 4]) * p) + ' ' + (fromBuf[o + 5] + (toBuf[o + 5] - fromBuf[o + 5]) * p) +
+                ', ' + (fromBuf[o + 6] + (toBuf[o + 6] - fromBuf[o + 6]) * p) + ' ' + (fromBuf[o + 7] + (toBuf[o + 7] - fromBuf[o + 7]) * p));
+            } else if (k === 1) {
+              if (el.tagName === 'path') {
+                el.setAttribute('d', 'M ' + (fromBuf[o] + (toBuf[o] - fromBuf[o]) * p) + ' ' + (fromBuf[o + 1] + (toBuf[o + 1] - fromBuf[o + 1]) * p) +
+                  ' L ' + (fromBuf[o + 2] + (toBuf[o + 2] - fromBuf[o + 2]) * p) + ' ' + (fromBuf[o + 3] + (toBuf[o + 3] - fromBuf[o + 3]) * p));
+              } else {
+                el.setAttribute('x1', fromBuf[o] + (toBuf[o] - fromBuf[o]) * p);
+                el.setAttribute('y1', fromBuf[o + 1] + (toBuf[o + 1] - fromBuf[o + 1]) * p);
+                el.setAttribute('x2', fromBuf[o + 2] + (toBuf[o + 2] - fromBuf[o + 2]) * p);
+                el.setAttribute('y2', fromBuf[o + 3] + (toBuf[o + 3] - fromBuf[o + 3]) * p);
+              }
+            } else if (k === 2) {
+              el.setAttribute('x', fromBuf[o] + (toBuf[o] - fromBuf[o]) * p);
+              el.setAttribute('y', fromBuf[o + 1] + (toBuf[o + 1] - fromBuf[o + 1]) * p);
+              el.setAttribute('width', Math.max(0, fromBuf[o + 2] + (toBuf[o + 2] - fromBuf[o + 2]) * p));
+              el.setAttribute('height', Math.max(0, fromBuf[o + 3] + (toBuf[o + 3] - fromBuf[o + 3]) * p));
+            } else {
+              const cnt = cnts[i], isPoly = k === 4;
+              let s = (isPoly ? '' : 'M ') + (fromBuf[o] + (toBuf[o] - fromBuf[o]) * p) + ' ' + (fromBuf[o + 1] + (toBuf[o + 1] - fromBuf[o + 1]) * p);
+              for (let j = 2; j < cnt; j += 2) {
+                s += (isPoly ? ' ' : ' L ') + (fromBuf[o + j] + (toBuf[o + j] - fromBuf[o + j]) * p) + ' ' + (fromBuf[o + j + 1] + (toBuf[o + j + 1] - fromBuf[o + j + 1]) * p);
+              }
+              el.setAttribute(isPoly ? 'points' : 'd', s);
+            }
+          }
+        };
+
+        const tweenSvg = (tracks, opts) => {
+          if (svgJob) { cancelAnimationFrame(svgJob.raf); svgJob = null; syncBusy(); }
+          if (!enabled() || !tracks || !tracks.length) return;
+          const o = opts || {};
+          const polyCap = tracks.length > 60;
+          const active = [];
+          let total = 0;
+          for (let i = 0; i < tracks.length; i++) {
+            const tr = tracks[i];
+            if (!tr || !tr.el || !tr.from || !tr.to) continue;
+            if (tr.type === 'polyline') {
+              if (polyCap || Math.abs(tr.from.length - tr.to.length) > 24 || tr.from.length < 4 || tr.to.length < 4) {
+                if (tr.el.tagName === 'path') drawPath(tr.el, o);
+                continue;
+              }
+              const f = tr.from.length < tr.to.length ? normPoly(tr.from, tr.to) : tr.from;
+              const t = tr.to.length < tr.from.length ? normPoly(tr.to, tr.from) : tr.to;
+              active.push({ kind: tr.el.tagName === 'polyline' ? 4 : 3, el: tr.el, f, t });
+              total += f.length;
+            } else {
+              const kind = tr.type === 'bezier' ? 0 : tr.type === 'rect' ? 2 : 1;
+              const len = kind === 0 ? 8 : 4;
+              if (tr.from.length < len || tr.to.length < len) continue;
+              active.push({ kind, el: tr.el, f: tr.from, t: tr.to });
+              total += len;
+            }
+          }
+          const n = active.length;
+          if (!n) return;
+          const els = new Array(n), kinds = new Uint8Array(n), offs = new Int32Array(n), cnts = new Int32Array(n);
+          const fromBuf = new Float64Array(total), toBuf = new Float64Array(total);
+          let pos = 0;
+          for (let i = 0; i < n; i++) {
+            const tr = active[i], len = tr.f.length;
+            els[i] = tr.el; kinds[i] = tr.kind; offs[i] = pos; cnts[i] = len;
+            for (let j = 0; j < len; j++) { fromBuf[pos + j] = tr.f[j]; toBuf[pos + j] = tr.t[j]; }
+            pos += len;
+          }
+          const d = Math.max(40, Math.round((o.duration ?? dur('dur-layout', 230)) * markPlay()));
+          const ease = easeFn(o.easing || 'curve-spring-settle');
+          const start = performance.now();
+          const job = { n, els, kinds, offs, cnts, fromBuf, toBuf, raf: 0 };
+          svgJob = job;
+          syncBusy();
+          const tick = (now) => {
+            if (svgJob !== job) return;
+            const u = Math.min(1, (now - start) / d);
+            applySvgJob(job, u >= 1 ? 1 : ease(u));
+            if (u < 1) job.raf = requestAnimationFrame(tick);
+            else { svgJob = null; syncBusy(); if (o.onComplete) o.onComplete(); }
+          };
+          applySvgJob(job, 0);
+          job.raf = requestAnimationFrame(tick);
+        };
+
+        let lastBar = null, barTimer = false;
+        const hideBar = (barOrSel) => {
+          const el = typeof barOrSel === 'string' ? document.querySelector(barOrSel) : barOrSel;
+          if (!el) return;
+          if (enabled()) {
+            const r = el.getBoundingClientRect();
+            if (r.width > 0 && r.height > 0) {
+              const pre = freezeClone(el);
+              const inSt = stage.contains(el);
+              lastBar = {
+                rect: r, at: performance.now(), pre, el, claimed: false,
+                baseW: inSt && el.offsetWidth ? el.offsetWidth : r.width,
+                baseH: inSt && el.offsetHeight ? el.offsetHeight : r.height
+              };
+              if (!barTimer) {
+                barTimer = true;
+                queueMicrotask(() => {
+                  barTimer = false;
+                  if (lastBar && !lastBar.claimed) ghostExit(lastBar.el, { preCloned: lastBar.pre, fromRect: lastBar.rect, baseW: lastBar.baseW, baseH: lastBar.baseH, duration: 100 });
+                });
+              }
+            }
+          }
+          el.remove();
+        };
+        const showBar = (barEl, opts) => {
+          if (!barEl || !enabled()) return;
+          const o = opts || {};
+          if (lastBar && !lastBar.claimed && performance.now() - lastBar.at < 50) {
+            lastBar.claimed = true;
+            const r = lastBar.rect;
+            lastBar = null;
+            morphRect(r, barEl, { duration: o.duration ?? 170, easing: o.easing || 'curve-spring-settle' });
+            return;
+          }
+          // Opacity + transform only: a clip-path would cut the box-shadow off until it ends, so the shadow showed up late.
+          const slide = o.clipRight || barEl.classList.contains('edge-bar');
+          trackAnim(barEl, barEl.animate(
+            [{ opacity: 0, transform: slide ? 'translateX(-8px)' : 'scale(0.94) translateY(4px)' }, { opacity: 1, transform: 'none' }],
+            { duration: dur('dur-fast', 140), easing: curve('curve-out') }
+          ));
+        };
+
+        const unfoldNote = (cardEl, badgeEl, leaderEl, opts) => {
+          if (!cardEl || !enabled()) return;
+          const o = opts || {};
+          const br = badgeEl && badgeEl.getBoundingClientRect();
+          if (br && br.width > 0) {
+            morphRect(br, cardEl, { duration: o.duration ?? 170, easing: o.easing || 'curve-spring-tactile' });
+          } else {
+            trackAnim(cardEl, cardEl.animate([{ transform: 'scale(0.88)' }, { transform: 'none' }], {
+              duration: o.duration ?? 170, easing: curve(o.easing || 'curve-spring-tactile')
+            }));
+          }
+          if (leaderEl) drawPath(leaderEl, { duration: 150, easing: 'curve-out' });
+        };
+        const foldNote = (cardEl, badgeEl, opts) => {
+          if (!cardEl || !enabled()) return;
+          const br = badgeEl && badgeEl.getBoundingClientRect();
+          ghostExit(cardEl, { toRect: br && br.width > 0 ? br : null, duration: (opts && opts.duration) ?? 120, easing: 'curve-in' });
+        };
+        const hideHint = (el) => {
+          if (!el) return;
+          ghostExit(el, { duration: 110, transform: 'translateY(10px) scale(0.96)' });
+          el.remove();
+        };
+
+        const anim = (el, frames, opts) => {
+          if (!el || !enabled()) return null;
+          cancelEl(el);
+          return trackAnim(el, el.animate(frames, opts));
+        };
+        const hiddenWhile = new Set();
+        const ghostMorph = (fromRect, toEl, duration, easing) => {
+          if (!enabled() || !fromRect || !toEl) return null;
+          const tr = toEl.getBoundingClientRect();
+          if (!tr.width || !tr.height) return null;
+          const dx = fromRect.left - tr.left, dy = fromRect.top - tr.top;
+          if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5 && Math.abs(fromRect.width - tr.width) < 1) return null;
+          const ghost = freezeClone(toEl);
+          ghost.style.position = 'fixed';
+          ghost.style.left = `${tr.left}px`;
+          ghost.style.top = `${tr.top}px`;
+          ghost.style.width = `${tr.width}px`;
+          ghost.style.height = `${tr.height}px`;
+          ghost.style.margin = '0';
+          ghost.style.transformOrigin = 'top left';
+          ensureGhostLayer().appendChild(ghost);
+          toEl.style.opacity = '0';
+          hiddenWhile.add(toEl);
+          const a = ghost.animate([
+            { transform: `translate(${dx}px, ${dy}px) scale(${fromRect.width / tr.width}, ${fromRect.height / tr.height})` },
+            { transform: 'none' }
+          ], { duration: Math.max(40, Math.round(duration * speedScale())), easing: curve(easing || 'curve-inout') });
+          const done = () => { ghost.remove(); toEl.style.opacity = ''; hiddenWhile.delete(toEl); };
+          a.addEventListener('finish', done, { once: true });
+          a.addEventListener('cancel', done, { once: true });
+          return trackAnim(ghost, a);
+        };
+        const cancelAll = () => {
+          for (const a of [...activeAnims]) { try { a.cancel(); } catch (_) {} }
+          activeAnims.clear();
+          for (const el of hiddenWhile) el.style.opacity = '';
+          hiddenWhile.clear();
+          if (svgJob) { cancelAnimationFrame(svgJob.raf); applySvgJob(svgJob, 1); svgJob = null; }
+          if (ghostLayer) ghostLayer.textContent = '';
+          syncBusy();
+        };
+        const pulseEl = (el, transform = 'scale(1.15)', duration = 180) => {
+          if (el && enabled()) trackAnim(el, el.animate([{ transform: 'none' }, { transform }, { transform: 'none' }], {
+            duration, easing: curve('curve-spring-tactile')
+          }));
+        };
+        const morphRing = (fromRect, toEl) => {
+          if (!enabled() || !fromRect || !toEl) return;
+          const tr = toEl.getBoundingClientRect();
+          if (!tr.width || !tr.height || fromRect.right < 0 || fromRect.left > innerWidth || tr.right < 0 || tr.left > innerWidth) return;
+          const ring = document.createElement('div');
+          ring.setAttribute('data-motion-ghost', '');
+          ring.setAttribute('data-export-skip', '');
+          ring.setAttribute('aria-hidden', 'true');
+          ring.style.cssText = `position:fixed;left:${tr.left - 2}px;top:${tr.top - 2}px;width:${tr.width + 4}px;height:${tr.height + 4}px;border:2px solid var(--focus-ring);border-radius:var(--radius-md);pointer-events:none;transform-origin:top left;`;
+          ensureGhostLayer().appendChild(ring);
+          const anim = ring.animate([
+            { transform: `translate(${fromRect.left - tr.left}px, ${fromRect.top - tr.top}px) scale(${fromRect.width / tr.width}, ${fromRect.height / tr.height})` },
+            { transform: 'none' }
+          ], { duration: 160, easing: curve('curve-inout') });
+          const drop = () => ring.remove();
+          anim.addEventListener('finish', drop, { once: true });
+          anim.addEventListener('cancel', drop, { once: true });
+          trackAnim(ring, anim);
+        };
+
+        const flipDock = (mutateFn) => {
+          const dock = document.querySelector('.toolbar-center');
+          if (!dock || !enabled()) { mutateFn(); return; }
+          const kids = [...dock.children];
+          const prev = new Map();
+          for (let i = 0; i < kids.length; i++) {
+            const r = kids[i].getBoundingClientRect();
+            if (r.width > 0) prev.set(kids[i], r);
+          }
+          mutateFn();
+          const durMs = Math.round(dur('dur-base', 180) * speedScale());
+          const eas = curve('curve-spring-settle');
+          for (let i = 0; i < kids.length; i++) {
+            const el = kids[i], oldR = prev.get(el), newR = el.getBoundingClientRect();
+            if (!newR.width) continue;
+            if (oldR) {
+              const dx = oldR.left - newR.left;
+              if (Math.abs(dx) > 0.5) trackAnim(el, el.animate([{ transform: `translateX(${dx}px)` }, { transform: 'none' }], { duration: durMs, easing: eas }));
+            } else {
+              trackAnim(el, el.animate([{ transform: 'scale(0.85)', clipPath: 'inset(0 30% 0 30%)' }, { transform: 'none', clipPath: 'inset(0 0 0 0)' }], { duration: durMs, easing: eas }));
+            }
+          }
+        };
+
+        return {
+          enabled, dur, curve, speedScale, easeFn, anim, ghostMorph, capture, play, morphRect,
+          ghostExit, setViewportBusy, tweenSvg, drawPath, showBar, hideBar, unfoldNote, foldNote, hideHint, cancelAll, pulseEl, morphRing, flipDock
+        };
+      })();
+
+      let vpAnim = null;
+      function cancelViewportAnim() {
+        if (!vpAnim) return;
+        cancelAnimationFrame(vpAnim.raf);
+        vpAnim = null;
+        motion.setViewportBusy(false);
+        viewport.classList.remove('gesturing');
+      }
+      const viewTarget = () => (vpAnim ? { scale: vpAnim.targetScale, panX: vpAnim.targetPanX, panY: vpAnim.targetPanY } : { scale, panX, panY });
+      function animateViewport(targetPanX, targetPanY, targetScale, opts) {
+        const o = opts || {};
+        if (!motion.enabled() || o.duration === 0) {
+          cancelViewportAnim();
+          panX = targetPanX; panY = targetPanY; scale = targetScale;
+          updateTransform();
+          if (o.onComplete) o.onComplete();
+          return;
+        }
+        const sx = panX, sy = panY, sk = scale;
+        if (Math.abs(targetPanX - sx) < 0.5 && Math.abs(targetPanY - sy) < 0.5 && Math.abs(targetScale - sk) < 0.002) {
+          cancelViewportAnim();
+          panX = targetPanX; panY = targetPanY; scale = targetScale;
+          updateTransform();
+          if (o.onComplete) o.onComplete();
+          return;
+        }
+        if (vpAnim) cancelAnimationFrame(vpAnim.raf);
+        const d = Math.max(40, Math.round((o.duration ?? motion.dur('dur-camera', 240)) * motion.speedScale()));
+        const ease = motion.easeFn(o.easing || 'curve-out');
+        const start = performance.now();
+        viewport.classList.add('gesturing');
+        const job = { targetPanX, targetPanY, targetScale, raf: 0 };
+        vpAnim = job;
+        motion.setViewportBusy(true);
+        showZoom();
+        const tick = (now) => {
+          if (vpAnim !== job) return;
+          const u = Math.min(1, (now - start) / d);
+          const p = u >= 1 ? 1 : ease(u);
+          panX = sx + (targetPanX - sx) * p;
+          panY = sy + (targetPanY - sy) * p;
+          scale = sk + (targetScale - sk) * p;
+          updateTransform();
+          if (u < 1) { job.raf = requestAnimationFrame(tick); }
+          else { vpAnim = null; motion.setViewportBusy(false); viewport.classList.remove('gesturing'); if (o.onComplete) o.onComplete(); }
+        };
+        job.raf = requestAnimationFrame(tick);
+      }
+
       let dataReadme = null;   // the data block's "_readme" line (written by scripts/layout_engine.py assemble_page)
 
       async function loadInitialData() {
@@ -468,9 +1190,11 @@
           chartTitleEl.contentEditable = 'false';
           const val = chartTitleEl.textContent.trim();
           if (val && chartData.title !== val) {
+            const sr = saveStatus.getBoundingClientRect();
             chartData.title = val;
             document.title = val;
             updateStatus(true);
+            motion.morphRect(sr, saveStatus, { duration: 140, easing: 'curve-out' });
           }
         });
         chartTitleEl.addEventListener('keydown', (e) => {
@@ -529,6 +1253,15 @@
       const presentOn = () => document.body.classList.contains('presentation');
       function setPresent(on) {
         if (on === presentOn()) return;
+        const canAnim = motion.enabled();
+        const presentRect = canAnim ? btnPresent.getBoundingClientRect() : null;
+        const hdr = canAnim ? document.querySelector('header') : null;
+        const dockCenter = canAnim ? document.querySelector('.toolbar-center') : null;
+        if (canAnim) motion.cancelAll();
+        if (on && canAnim) {
+          if (hdr) motion.ghostExit(hdr, { duration: 220, easing: 'curve-inout', transform: 'translateY(-100%)', opacity: 1, skipChild: (el) => el.id === 'btn-present' });
+          if (dockCenter) motion.ghostExit(dockCenter, { duration: 220, easing: 'curve-inout', transform: 'translateY(calc(100% + 24px))', opacity: 1 });
+        }
         if (on) {
           plugin.cancelInteraction(); plugin.clearSelection();
           setSearchOpen(false); if (plugin.clearSearch) plugin.clearSearch();
@@ -542,6 +1275,15 @@
           restoreSnapshot(e.json);
           committedJson = e.committed; presentEntry = null;
         } else if (plugin.render && chartData) plugin.render();   // a plugin draws its editing handles at render
+        if (canAnim) {
+          if (presentRect) motion.ghostMorph(presentRect, btnPresent, 220, 'curve-inout');
+          if (!on) {
+            const eas = motion.curve('curve-inout');
+            if (hdr) hdr.querySelectorAll('.toolbar-left, .toolbar-right > :not(#btn-present)').forEach((el) => motion.anim(el, [{ transform: 'translateY(-56px)' }, { transform: 'none' }], { duration: 220, easing: eas }));
+            if (dockCenter) motion.anim(dockCenter, [{ transform: 'translateY(calc(100% + 24px))' }, { transform: 'none' }], { duration: 220, easing: eas });
+          }
+          fitView(true);
+        }
         if (on) showToast('Esc or the Present button to exit');
       }
       btnPresent.addEventListener('click', () => setPresent(!presentOn()));
@@ -556,45 +1298,50 @@
         if (typeof queueDeleteRefresh === 'function') queueDeleteRefresh();
       }
 
+      function setStatusBadgeText(text, cls, title) {
+        const changed = saveStatus.textContent !== text;
+        const prevRect = changed && motion.enabled() ? saveStatus.getBoundingClientRect() : null;
+        saveStatus.textContent = text;
+        if (cls !== undefined) saveStatus.className = cls;
+        if (title !== undefined) saveStatus.title = title;
+        if (prevRect && prevRect.width > 0) {
+          motion.morphRect(prevRect, saveStatus, { duration: 180, easing: 'curve-inout' });
+          const roll = document.createElement('span');
+          roll.style.display = 'inline-block';
+          roll.textContent = text;
+          saveStatus.textContent = '';
+          saveStatus.appendChild(roll);
+          const a = motion.anim(roll, [{ transform: 'translateY(4px)' }, { transform: 'none' }], { duration: 180, easing: motion.curve('curve-inout') });
+          if (a) a.addEventListener('finish', () => { if (roll.parentNode === saveStatus) saveStatus.textContent = text; }, { once: true });
+        }
+      }
+
       // Green means "this is on disk". A page nobody has saved yet is just "Ready" (neutral).
       function setStatusBadge(unsaved) {
         hasUnsavedChanges = unsaved;
         if (unsaved) reloadExpected = false;
         if (artifactMode === 'view-only') {
-          saveStatus.textContent = "View only";
-          saveStatus.className = "badge badge-status";
-          saveStatus.title = unsaved ? 'Your edits are not kept. Use Export > HTML file to keep them.' : 'You cannot save this artifact.';
+          setStatusBadgeText("View only", "badge badge-status", unsaved ? 'Your edits are not kept. Use Export > HTML file to keep them.' : 'You cannot save this artifact.');
           return;
         }
         if (artifactMode === 'publish' && !unsaved) {
-          saveStatus.textContent = "Saved to artifact";
-          saveStatus.className = "badge badge-status saved";
+          setStatusBadgeText("Saved to artifact", "badge badge-status saved");
           return;
         }
         // Name the file Save writes to: the one chosen this visit, else the one remembered from an earlier visit
         const target = fileHandle ? fileHandle.name : storedName;
         if (unsaved) {
-          saveStatus.textContent = "Unsaved changes";
-          saveStatus.className = "badge badge-status unsaved";
-          saveStatus.title = target ? `Save writes to ${target}` : '';
+          setStatusBadgeText("Unsaved changes", "badge badge-status unsaved", target ? `Save writes to ${target}` : '');
         } else if (fileHandle) {
-          saveStatus.textContent = `Saved to ${target}`;
-          saveStatus.className = "badge badge-status saved";
-          saveStatus.title = `Save writes straight to ${target}`;
+          setStatusBadgeText(`Saved to ${target}`, "badge badge-status saved", `Save writes straight to ${target}`);
         } else if (everSaved) {
-          saveStatus.textContent = "Downloaded a copy";
-          saveStatus.className = "badge badge-status saved";
-          saveStatus.title = location.protocol === 'file:'
+          setStatusBadgeText("Downloaded a copy", "badge badge-status saved", location.protocol === 'file:'
             ? 'The edited diagram went to your downloads folder. The file you opened was not changed.'
-            : 'The edited diagram went to your downloads folder.';
+            : 'The edited diagram went to your downloads folder.');
         } else if (target) {
-          saveStatus.textContent = `Saves to ${target}`;
-          saveStatus.className = "badge badge-status";
-          saveStatus.title = `Save writes to ${target}. Your browser may ask once per session to let this page edit it.`;
+          setStatusBadgeText(`Saves to ${target}`, "badge badge-status", `Save writes to ${target}. Your browser may ask once per session to let this page edit it.`);
         } else {
-          saveStatus.textContent = "Ready";
-          saveStatus.className = "badge badge-status";
-          saveStatus.title = '';
+          setStatusBadgeText("Ready", "badge badge-status", '');
         }
       }
 
@@ -622,14 +1369,23 @@
         updateHistoryButtons();
       }
 
+      function nudgeHistoryIcon(btn, deg) {
+        if (!motion.enabled()) return;
+        const svg = btn && btn.querySelector('svg');
+        if (svg) motion.anim(svg, [{ transform: 'none' }, { transform: `rotate(${deg}deg)` }, { transform: 'none' }], {
+          duration: 140, easing: motion.curve('curve-spring-tactile')
+        });
+      }
       function undo() {
         if (!undoStack.length || pointerHeld) return;
+        nudgeHistoryIcon(btnUndo, -12);
         redoStack.push(committedJson);
         restoreSnapshot(undoStack.pop());
       }
 
       function redo() {
         if (!redoStack.length || pointerHeld) return;
+        nudgeHistoryIcon(btnRedo, 12);
         undoStack.push(committedJson);
         restoreSnapshot(redoStack.pop());
       }
@@ -670,11 +1426,33 @@
       function currentTheme() {
         return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
       }
+      let themeTimer = 0;
       function applyTheme(theme, persist) {
-        document.documentElement.setAttribute('data-theme', theme);
-        menuTheme.setAttribute('aria-checked', String(theme === 'dark'));
-        if (persist) { try { localStorage.setItem('flowchart-theme', theme); } catch (e) {} }
-        if (plugin) plugin.render();   // type colors may depend on the theme
+        const flip = () => {
+          document.documentElement.setAttribute('data-theme', theme);
+          menuTheme.setAttribute('aria-checked', String(theme === 'dark'));
+          if (persist) { try { localStorage.setItem('flowchart-theme', theme); } catch (e) {} }
+          if (plugin) plugin.render();   // type colors may depend on the theme
+        };
+        if (!persist || !motion.enabled()) { flip(); return; }
+        // shortcut: only use async startViewTransition when #more-menu is open; programmatic hidden clicks expect sync data-theme update
+        if (document.startViewTransition && !moreMenu.hidden) {
+          const r = btnMore.getBoundingClientRect();
+          const cx = Math.round(r.left + r.width / 2), cy = Math.round(r.top + r.height / 2);
+          const maxR = Math.ceil(Math.hypot(Math.max(cx, innerWidth - cx), Math.max(cy, innerHeight - cy)));
+          const vt = document.startViewTransition(flip);
+          vt.ready.then(() => {
+            document.documentElement.animate(
+              { clipPath: [`circle(0px at ${cx}px ${cy}px)`, `circle(${maxR}px at ${cx}px ${cy}px)`] },
+              { duration: 260, easing: motion.curve('curve-inout'), pseudoElement: '::view-transition-new(root)' }
+            );
+          }).catch(() => {});
+          return;
+        }
+        document.body.classList.add('theme-animating');
+        clearTimeout(themeTimer);
+        themeTimer = setTimeout(() => document.body.classList.remove('theme-animating'), 180);
+        flip();
       }
       function initTheme() {
         let theme = null;
@@ -689,9 +1467,10 @@
       menuTheme.addEventListener('click', () => applyTheme(currentTheme() === 'dark' ? 'light' : 'dark', true));
 
       // --- VIEWPORT PAN & ZOOM & FIT ---
+      function showZoom() { zoomLevelEl.textContent = `${Math.round((vpAnim ? vpAnim.targetScale : scale) * 100)}%`; }   // a glide in flight shows where it lands
       function updateTransform() {
         stage.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
-        zoomLevelEl.textContent = `${Math.round(scale * 100)}%`;
+        showZoom();
         if (plugin && plugin.onViewChange) plugin.onViewChange();   // e.g. keep frozen headers pinned
       }
 
@@ -800,7 +1579,7 @@
         return { vpRect, frame, capture, dockBand, topBand, scaleX, scaleY, minPan: capture ? 0 : 20 };
       }
 
-      function fitView() {
+      function fitView(animate) {
         const { vpRect, frame, capture, dockBand, topBand, scaleX, scaleY, minPan } = fitMetrics();
 
         // Capture mode: scale to the exact width requested (?capture&w=1600) and pin to the top-left,
@@ -808,6 +1587,7 @@
         if (capture) {
           const reqW = parseFloat(new URLSearchParams(window.location.search).get('w'));
           if (reqW > 0) {
+            cancelViewportAnim();
             scale = Math.min(1, reqW / frame.w);
             panX = -frame.x * scale;
             panY = -frame.y * scale;
@@ -816,11 +1596,17 @@
           }
         }
 
-        scale = Math.min(Math.max(Math.min(scaleX, scaleY), 0.25), 1.0);
-        panX = Math.max(minPan, (vpRect.width - frame.w * scale) / 2) - frame.x * scale;
-        panY = topBand + Math.max(minPan, (vpRect.height - dockBand - topBand - frame.h * scale) / 2) - frame.y * scale;
+        const nextScale = Math.min(Math.max(Math.min(scaleX, scaleY), 0.25), 1.0);
+        const nextPanX = Math.max(minPan, (vpRect.width - frame.w * nextScale) / 2) - frame.x * nextScale;
+        const nextPanY = topBand + Math.max(minPan, (vpRect.height - dockBand - topBand - frame.h * nextScale) / 2) - frame.y * nextScale;
 
-        updateTransform();
+        if (animate && motion.enabled()) {
+          animateViewport(nextPanX, nextPanY, nextScale, { duration: motion.dur('dur-camera', 240), easing: 'curve-out' });
+        } else {
+          cancelViewportAnim();
+          scale = nextScale; panX = nextPanX; panY = nextPanY;
+          updateTransform();
+        }
       }
 
       // Middle button only pans, wherever it lands: no node drag, selection or edit sees it
@@ -854,6 +1640,7 @@
         if (!(e.button === 1 || (e.button === 0 && spaceHeld))) return;
         e.preventDefault();
         e.stopImmediatePropagation();
+        cancelViewportAnim();
         isPanning = true;
         panStartX = e.clientX - panX;
         panStartY = e.clientY - panY;
@@ -866,6 +1653,7 @@
         if (e.target === viewport || e.target.id === 'stage' || plugin.isBackground(e.target)) {
           if (plugin.cancelInteraction()) return;
           if (startMarquee(e)) return;   // Shift + drag draws a selection box instead of panning
+          cancelViewportAnim();
           isPanning = true;
           panStartX = e.clientX - panX;
           panStartY = e.clientY - panY;
@@ -906,6 +1694,7 @@
           e.stopImmediatePropagation();
           if (touches.size > 2) return;
           endMarquee();
+          cancelViewportAnim();
           isPanning = false;
           plugin.cancelInteraction();
           viewport.classList.add('panning', 'gesturing');
@@ -958,7 +1747,7 @@
         }
         const dx = e.clientX - g.sx, dy = e.clientY - g.sy;
         if (!g.moved && Math.hypot(dx, dy) < TAP_SLOP) return;
-        if (!g.moved) { g.moved = true; viewport.classList.add('panning', 'gesturing'); }
+        if (!g.moved) { cancelViewportAnim(); g.moved = true; viewport.classList.add('panning', 'gesturing'); }
         panX = g.panX + dx;
         panY = g.panY + dy;
         scheduleTransform();
@@ -1019,6 +1808,9 @@
       }
       function endMarquee() {
         if (!marquee) return;
+        if (marquee.el.offsetWidth > 4 || marquee.el.offsetHeight > 4) {
+          motion.ghostExit(marquee.el, { duration: 90, transform: 'scale(0.92)' });
+        }
         marquee.el.remove();
         marquee = null;
       }
@@ -1047,6 +1839,7 @@
       const WHEEL_SCROLL = 0.4;   // canvas px per px a mouse wheel notch reports (~40px per notch)
       viewport.addEventListener('wheel', (e) => {
         e.preventDefault();
+        cancelViewportAnim();
         const unit = e.deltaMode === 1 ? 16 : (e.deltaMode === 2 ? 400 : 1);
         const dX = e.deltaX * unit, dY = e.deltaY * unit;
         const isZoom = e.ctrlKey || e.metaKey;   // Ctrl/Cmd + wheel, and a trackpad pinch (reported as ctrl+wheel)
@@ -1076,20 +1869,33 @@
       }, { passive: false });
 
       btnZoomIn.addEventListener('click', () => {
-        scale = Math.min(scale * 1.15, 2.5);
-        updateTransform();
+        const base = vpAnim ? vpAnim.targetScale : scale;
+        const tx = vpAnim ? vpAnim.targetPanX : panX, ty = vpAnim ? vpAnim.targetPanY : panY;
+        animateViewport(tx, ty, Math.min(base * 1.15, 2.5), { duration: 200, easing: 'curve-out' });
       });
       btnZoomOut.addEventListener('click', () => {
-        scale = Math.max(scale * 0.85, 0.2);
-        updateTransform();
+        const base = vpAnim ? vpAnim.targetScale : scale;
+        const tx = vpAnim ? vpAnim.targetPanX : panX, ty = vpAnim ? vpAnim.targetPanY : panY;
+        animateViewport(tx, ty, Math.max(base * 0.85, 0.2), { duration: 200, easing: 'curve-out' });
       });
-      btnZoomReset.addEventListener('click', fitView);
+      btnZoomReset.addEventListener('click', () => fitView(true));
 
       function setHelpOpen(open) {
+        const wasOpen = helpDrawer.classList.contains('open');
+        if (open === wasOpen) return;
+        if (!open) motion.ghostExit(helpDrawer, { duration: 110, transform: 'scale(0.92) translateY(10px)', origin: 'bottom right' });
         helpDrawer.classList.toggle('open', open);
         btnMore.setAttribute('aria-expanded', String(open || !moreMenu.hidden));
-        if (open) document.getElementById('help-close').focus();
-        else if (helpDrawer.contains(document.activeElement)) btnMore.focus();
+        if (open) {
+          if (motion.enabled()) {
+            helpDrawer.style.transformOrigin = 'bottom right';
+            motion.anim(helpDrawer, [
+              { transform: 'scale(0.92) translateY(10px)', clipPath: 'inset(100% 0 0 100% round 8px)' },
+              { transform: 'none', clipPath: 'inset(0 0 0 0 round 8px)' }
+            ], { duration: motion.dur('dur-base', 180), easing: motion.curve('curve-spring-tactile') });
+          }
+          document.getElementById('help-close').focus();
+        } else if (helpDrawer.contains(document.activeElement)) btnMore.focus();
       }
       menuHelp.addEventListener('click', () => { setMoreOpen(false); setHelpOpen(!helpDrawer.classList.contains('open')); });
       document.getElementById('help-close').addEventListener('click', () => setHelpOpen(false));
@@ -1110,13 +1916,14 @@
       const SEARCH_MIN_SCALE = 0.6;   // below this zoom a centred match is too small to read, so zoom in on it
       let searchMatches = [];         // [{ id, text, el }] matching the query, one per element, in plugin order
       let searchIndex = 0;
-      let searchTimer = 0;
 
       const searchFold = (s) => String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
       const searchOpen = () => !searchBar.hidden;
 
       // Marks the stage for the current query and keeps the current match when its id still matches.
       function applySearch() {
+        const prevCur = stage.querySelector('.search-current');
+        const prevRect = prevCur && motion.enabled() ? prevCur.getBoundingClientRect() : null;
         stage.querySelectorAll('.search-dim, .search-current').forEach(el => el.classList.remove('search-dim', 'search-current'));
         const q = searchFold(searchInput.value.trim());
         const keep = searchMatches[searchIndex] && searchMatches[searchIndex].id;
@@ -1128,7 +1935,11 @@
           items.forEach(it => { if (!seen.has(it.el)) it.el.classList.add('search-dim'); });
           const kept = searchMatches.findIndex(m => m.id === keep);
           searchIndex = kept >= 0 ? kept : Math.min(searchIndex, Math.max(searchMatches.length - 1, 0));
-          if (searchMatches[searchIndex]) searchMatches[searchIndex].el.classList.add('search-current');
+          if (searchMatches[searchIndex]) {
+            const nextEl = searchMatches[searchIndex].el;
+            nextEl.classList.add('search-current');
+            if (prevRect && nextEl !== prevCur) motion.morphRing(prevRect, nextEl);
+          }
         } else searchIndex = 0;
         searchCount.textContent = !q ? '' : searchMatches.length ? `${searchIndex + 1} / ${searchMatches.length}` : 'No matches';
         searchPrev.disabled = searchNext.disabled = !searchMatches.length;
@@ -1147,13 +1958,7 @@
           s = Math.max(s, Math.min(Math.max(fit, 0.25), 1));
         }
         const cx = (r.left + r.width / 2 - st.left) / k, cy = (r.top + r.height / 2 - st.top) / k;
-        const reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-        viewport.classList.toggle('search-glide', !reduced);
-        scale = s;
-        panX = vp.width / 2 - cx * s;
-        panY = vp.height / 2 - cy * s;
-        updateTransform();
-        if (!reduced) { clearTimeout(searchTimer); searchTimer = setTimeout(() => viewport.classList.remove('search-glide'), 400); }
+        animateViewport(vp.width / 2 - cx * s, vp.height / 2 - cy * s, s, { duration: 220, easing: 'curve-out' });
       }
 
       function stepSearch(dir) {
@@ -1164,9 +1969,25 @@
       }
 
       function setSearchOpen(on) {
+        const wasOpen = !searchBar.hidden;
+        if (on === wasOpen) {
+          if (!on) { searchInput.value = ''; applySearch(); }
+          return;
+        }
+        if (!on) {
+          motion.ghostExit(searchBar, { duration: 110, transform: 'translateY(-6px)', clipPath: 'inset(0 0 100% 0 round 8px)' });
+        }
         searchBar.hidden = !on;
         btnSearch.setAttribute('aria-expanded', String(on));
-        if (on) { searchInput.focus(); searchInput.select(); } else {
+        if (on) {
+          if (motion.enabled()) {
+            motion.anim(searchBar, [
+              { transform: 'translateY(-6px)', clipPath: 'inset(0 0 100% 0 round 8px)' },
+              { transform: 'none', clipPath: 'inset(0 0 0 0 round 8px)' }
+            ], { duration: 160, easing: motion.curve('curve-out') });
+          }
+          searchInput.focus(); searchInput.select();
+        } else {
           searchInput.value = '';
           searchInput.blur();
         }
@@ -1201,7 +2022,7 @@
       // foreignObject. The result is a self-contained SVG, and the PNG is that SVG rasterised.
       const btnExport = document.getElementById('btn-export');
       const exportMenu = document.getElementById('export-menu');
-      const TRANSIENT_CLASSES = ['selected', 'hover', 'linked', 'hl-in', 'hl-out', 'multi-selected', 'dragging', 'lane-hover', 'search-dim', 'search-current'];
+      const TRANSIENT_CLASSES = ['selected', 'hover', 'linked', 'hl-in', 'hl-out', 'multi-selected', 'dragging', 'lane-hover', 'search-dim', 'search-current', 'motion-entering', 'motion-active'];
       const SKIP_SELECTOR = '#drag-edge, .snap-guide, #lane-drop-line, #seq-drop-line, [data-export-skip]';
       const EXPORT_SVG_NS = 'http://www.w3.org/2000/svg';
       let defaultStyleCache = null;
@@ -1245,6 +2066,7 @@
       function buildExportSvg() {
         const root = stage.firstElementChild;
         if (!root) throw new Error('Nothing to export');
+        motion.cancelAll();
         // Freeze transitions and drop selection/hover state while computed styles are read
         const frozen = document.createElement('style');
         frozen.textContent = '*,*::before,*::after{transition:none!important;animation:none!important}';
@@ -1307,14 +2129,18 @@
 
       function downloadBlob(blob, ext) { return deliverFile(exportFileName(ext), blob); }
 
-      // A short message that fades out; used for save and download problems inside an artifact
+      // A short message that slides in and retracts; used for save and download problems inside an artifact
       function showToast(message) {
         const t = document.createElement('div');
         t.className = 'toast';
         t.setAttribute('role', 'status');
         t.textContent = message;
         document.body.appendChild(t);
-        setTimeout(() => t.remove(), 6000);
+        setTimeout(() => {
+          if (!t.isConnected) return;
+          motion.ghostExit(t, { duration: 120, transform: 'translateY(12px) scale(0.95)' });
+          t.remove();
+        }, 6000);
       }
 
       function svgDocument(svg) { return '<?xml version="1.0" encoding="UTF-8"?>\n' + svg; }
@@ -1364,8 +2190,7 @@
 
       function flashCopied(what) { flashStatus('Copied as ' + what); }
       function flashStatus(text) {
-        saveStatus.textContent = text;
-        saveStatus.className = 'badge badge-status saved';
+        setStatusBadgeText(text, 'badge badge-status saved');
         clearTimeout(copyFlashTimer);
         copyFlashTimer = setTimeout(() => setStatusBadge(hasUnsavedChanges), 1500);
       }
@@ -1416,14 +2241,31 @@
       }
       syncCopyMenu();
 
+      function animateMenuToggle(menu, open, leftOrigin) {
+        const origin = leftOrigin ? 'top left' : 'top right';
+        if (!open) {
+          if (!menu.hidden) motion.ghostExit(menu, { duration: 110, transform: 'scale(0.92, 0.86) translateY(-4px)', clipPath: 'inset(0 0 25% 0 round 8px)', origin });
+          menu.hidden = true;
+          return;
+        }
+        const wasHidden = menu.hidden;
+        menu.hidden = false;
+        if (wasHidden && motion.enabled()) {
+          menu.style.transformOrigin = origin;
+          motion.anim(menu, [
+            { transform: 'scale(0.92, 0.86) translateY(-4px)', clipPath: 'inset(0 0 25% 0 round 8px)' },
+            { transform: 'none', clipPath: 'inset(0 0 0 0 round 8px)' }
+          ], { duration: 120, easing: motion.curve('curve-out') });   // short and without overshoot: items settle before a click lands
+        }
+      }
       function setExportOpen(open) {
         if (open) setMoreOpen(false);
-        exportMenu.hidden = !open;
+        animateMenuToggle(exportMenu, open, false);
         btnExport.setAttribute('aria-expanded', String(open));
       }
       function setMoreOpen(open) {
         if (open) setExportOpen(false);
-        moreMenu.hidden = !open;
+        animateMenuToggle(moreMenu, open, false);
         btnMore.setAttribute('aria-expanded', String(open || helpDrawer.classList.contains('open')));
       }
       btnMore.addEventListener('click', (e) => {
@@ -1497,7 +2339,7 @@
         document.title = chartTitleEl.textContent;
         plugin.render();
         updateStatus(true);
-        fitView();
+        fitView(true);
         const note = (list, label) => (list || []).map((m) => `${label}: ${String(m).replace(/^\[(?:INFO|WARN)\]\s*/, '')}`);
         return note(res.warnings, 'Warning').concat(note(res.infos, 'Note'));
       }
@@ -1505,6 +2347,7 @@
       let importEl = null;
       function closeMermaidImport() {
         if (!importEl) return false;
+        motion.ghostExit(importEl, { duration: 110, transform: 'scale(0.94) translateY(-6px)', origin: 'top right' });
         importEl.remove();
         importEl = null;
         return true;
@@ -1568,6 +2411,13 @@
         document.body.appendChild(box);
         importEl = box;
         positionImportBox(box);
+        if (motion.enabled()) {
+          box.style.transformOrigin = 'top right';
+          motion.anim(box, [
+            { transform: 'scale(0.94) translateY(-6px)', clipPath: 'inset(0 0 25% 0 round 10px)' },
+            { transform: 'none', clipPath: 'inset(0 0 0 0 round 10px)' }
+          ], { duration: motion.dur('dur-base', 180), easing: motion.curve('curve-out') });
+        }
         field.focus();
       }
       window.addEventListener('paste', (e) => {
@@ -1672,9 +2522,12 @@
         if (!btnDelete || !plugin) return;
         const on = !document.body.classList.contains('presentation') && !!(plugin.hasSelection && plugin.hasSelection());
         if (on === btnDelete.classList.contains('show')) return;
-        btnDelete.classList.toggle('show', on);
-        btnDelete.setAttribute('aria-hidden', String(!on));
-        btnDelete.tabIndex = on ? 0 : -1;
+        if (!on) motion.ghostExit(btnDelete, { duration: 110, transform: 'scale(0.85)' });
+        motion.flipDock(() => {
+          btnDelete.classList.toggle('show', on);
+          btnDelete.setAttribute('aria-hidden', String(!on));
+          btnDelete.tabIndex = on ? 0 : -1;
+        });
       }
       function queueDeleteRefresh() {
         if (deleteCheckQueued) return;
@@ -1940,6 +2793,7 @@
               savedJson = snapshot;
               everSaved = true;
               updateStatus(false);
+              motion.pulseEl(btnSave.querySelector('svg'));
               if (JSON.stringify(chartData) !== snapshot) updateStatus(true);   // edited mid-publish: still unsaved
               return;
             } catch (err) {
@@ -2076,6 +2930,7 @@
             savedJson = JSON.stringify(chartData);
             everSaved = true;
             updateStatus(false);
+            motion.pulseEl(btnSave.querySelector('svg'));
             return;
           } catch (err) {
             if (err.name === 'AbortError') return;
@@ -2171,6 +3026,12 @@
 
       // --- PLAYGROUND: the header icon becomes a type menu ---
       if (playground) {
+        const catchVt = (e) => { if (e.viewTransition) { e.viewTransition.finished.catch(() => {}); e.viewTransition.ready.catch(() => {}); } };
+        window.addEventListener('pageswap', catchVt);
+        window.addEventListener('pagereveal', catchVt);
+        window.addEventListener('unhandledrejection', (e) => {
+          if (e.reason && e.reason.name === 'AbortError' && /Transition was skipped/.test(e.reason.message || '')) e.preventDefault();
+        });
         btnSave.title = 'Download this diagram as an HTML file (Ctrl+S)';
         const icon = document.querySelector('.toolbar-left > svg');
         const wrap = document.createElement('div');
@@ -2184,7 +3045,7 @@
         icon.replaceWith(wrap);
         btn.appendChild(icon);
         wrap.append(btn, menu);
-        const setOpen = (open) => { menu.hidden = !open; btn.setAttribute('aria-expanded', String(open)); };
+        const setOpen = (open) => { animateMenuToggle(menu, open, true); btn.setAttribute('aria-expanded', String(open)); };
         const goTo = (id) => { location.assign('../' + id + '/index.html'); };
         for (const t of playground.types) {
           const item = document.createElement('button');
@@ -2225,6 +3086,10 @@
           if (presentOn() && !document.body.classList.contains('capture')) { setPresent(false); return; }
           if (helpDrawer.classList.contains('open')) { setHelpOpen(false); return; }
           plugin.cancelInteraction();
+        } else if (e.key === '?' && !e.ctrlKey && !e.metaKey && !e.altKey && !typingInField() && !presentOn()) {
+          e.preventDefault();
+          setMoreOpen(false);
+          setHelpOpen(!helpDrawer.classList.contains('open'));
         } else if (e.key === 'Delete' || e.key === 'Backspace') {
           if (document.body.classList.contains('presentation')) return;
           if (document.activeElement && (document.activeElement.isContentEditable || document.activeElement.tagName === 'INPUT')) {

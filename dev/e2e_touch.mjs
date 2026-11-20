@@ -90,6 +90,7 @@ t.check('then a drag from that lifeline to another draws a message (its label op
 // --- Sequence: Focus by tap, and a rail named by a long press ---
 await t.open(sequence);
 for (let i = 0; i < 4; i++) { await t.ev(`document.getElementById('btn-zoom-in').click()`); await sleep(60); }
+await sleep(260);   // the last zoom glide settles
 // Pan by touch until the element is on screen (one finger pans 1:1)
 async function bringIntoView(sel) {
   for (let i = 0; i < 40; i++) {

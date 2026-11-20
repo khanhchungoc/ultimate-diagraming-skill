@@ -20,7 +20,7 @@
       pointer-events: auto;
       cursor: move;
       user-select: none;
-      transition: box-shadow var(--ease), border-color var(--ease);
+      transition: border-color var(--dur-micro) var(--curve-out);
     }
     .note:hover { border-color: color-mix(in srgb, var(--note-accent) 60%, var(--note-border)); border-left-color: var(--note-accent); }
     .note.selected {
@@ -53,8 +53,8 @@
       padding: 6px 10px 7px 10px;
     }
     .note-layer .note.show, .note-layer .note.peek { display: block; }
-    .note-layer .note.peek:not(.show) { animation: note-in 0.14s ease-out; box-shadow: var(--shadow-lg); }
-    @keyframes note-in { from { opacity: 0; transform: translateY(3px); } }
+    .note-layer .note.peek:not(.show) { animation: note-in var(--dur-fast) var(--curve-spring-tactile); box-shadow: var(--shadow-lg); }
+    @keyframes note-in { from { transform: scale(0.92); clip-path: inset(0 0 25% 0); } to { transform: none; clip-path: inset(0 0 0 0); } }
     .note-layer.measuring .note { display: block; visibility: hidden; animation: none; }
 
     /* Leader: the dashed line from a card to what it explains; .linking is the one being dragged to a new target */
@@ -72,8 +72,8 @@
     body.exporting .note-leader.peek:not(.show) { display: none !important; }
     body.note-linking, body.note-linking * { cursor: crosshair !important; }
     /* The thing the selected note explains, and the thing a dragged note would land on */
-    .note-linked { outline: 1.5px dashed var(--note-accent); outline-offset: 5px; }
-    .note-target { outline: 2px dashed var(--note-accent); outline-offset: 4px; }
+    .note-linked { outline: 1.5px dashed var(--note-accent); outline-offset: 5px; transition: outline-color var(--dur-micro) var(--curve-out), outline-offset var(--dur-micro) var(--curve-out); }
+    .note-target { outline: 2px dashed var(--note-accent); outline-offset: 4px; transition: outline-color var(--dur-micro) var(--curve-out), outline-offset var(--dur-micro) var(--curve-out); }
 
     /* Delete: a small round button on the card's corner, shown on hover or while the note is selected */
     .note-del {
@@ -109,7 +109,11 @@
       box-shadow: var(--shadow-chip);
     }
     .note-link:hover { background: var(--note-accent); border-color: var(--note-accent); color: var(--bg-panel); }
-    .note:hover > .note-del, .note.selected > .note-del, .note:hover > .note-link, .note.selected > .note-link { display: inline-flex; }
+    .note:hover > .note-del, .note.selected > .note-del, .note:hover > .note-link, .note.selected > .note-link {
+      display: inline-flex;
+      animation: note-chip-in var(--dur-micro) var(--curve-spring-tactile);
+    }
+    @keyframes note-chip-in { from { transform: scale(0.6); } to { transform: scale(1); } }
 
     /* Badge on an item with a note: a small paper chip on its top-right corner. Hover peeks the note, click edits it.
        The "+" chip in the same place adds a note to the selected item. Both are editing hints, never exported. */

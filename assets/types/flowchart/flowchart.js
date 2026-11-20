@@ -18,17 +18,17 @@
       // A node's extent across its lane (lane sizing, lane hit tests) and along the flow (snapping)
       const crossSize = (n) => (isConnector(n) ? CONN.SIZE : isTB() ? NODE_WIDTH : nodeScreenH(n));
       const flowSize = (n, el) => (isConnector(n) ? CONN.SIZE : isTB() ? DECISION_HEIGHT : ((el && el.offsetWidth) || NODE_WIDTH));
+      function nodePos(n) {
+        if (isConnector(n)) return { left: (isTB() ? n.y : n.x) || 0, top: (isTB() ? n.x : n.y) || 0 };
+        if (isTB()) return { left: n.y || 0, top: (n.x || 0) + flowInset(n) };
+        return { left: n.x || 80, top: n.y || 53 };
+      }
       function placeNodeEl(el, n) {
-        if (isConnector(n)) {
-          el.style.left = `${(isTB() ? n.y : n.x) || 0}px`;
-          el.style.top = `${(isTB() ? n.x : n.y) || 0}px`;
-        } else if (isTB()) {
-          el.style.left = `${n.y || 0}px`;
-          el.style.top = `${(n.x || 0) + flowInset(n)}px`;
-        } else {
-          el.style.left = `${n.x || 80}px`;
-          el.style.top = `${n.y || 53}px`;
-        }
+        const p = nodePos(n);
+        el.style.left = `${p.left}px`;
+        el.style.top = `${p.top}px`;
+        el.style.translate = '';
+        el.style.scale = '';
       }
       // Pointer position in flow terms: gx along the flow from the start of the lane tracks, gy across the lanes from
       // the container's edge (so gy - laneTopOf(lane) is a node's n.y)
@@ -46,6 +46,227 @@
       // Flow coordinates -> container coordinates (where an overlay such as a snap guide is drawn)
       function flowToContainer(gx, gy) {
         return isTB() ? { x: gy, y: trackOffset() + gx } : { x: trackOffset() + gx, y: gy };
+      }
+
+      // --- MOTION HELPERS (Phase 2) ---
+      const FLOW_SPECS = [
+        { selector: '.swimlane[data-lane-id]', key: 'laneId', mode: 'pos' },
+        { selector: '.flow-node[data-node-id]', key: 'nodeId', mode: 'size' },
+        { selector: '.edge-label[data-edge-id]', key: 'edgeId', mode: 'pos' },
+        { selector: '.note[data-note-id]', key: 'noteId', mode: 'pos' }
+      ];
+      const TAB_SPECS = [
+        { selector: '.flow-subtabs[data-level]', key: 'level', mode: 'clip' },
+        { selector: '.flow-tab[data-tab]', key: 'tab', mode: 'pos' }
+      ];
+      const coordsDiffer = (a, b) => !a || !b || a.length !== b.length || a.some((v, i) => Math.abs(v - b[i]) > 0.5);
+      const freeNoteSkipKeys = () => new Set(notesList().filter(isFree).map(n => n.id));
+      let motionDepth = 0;
+      let tabGlide = false;
+
+      function captureSvg() {
+        const edges = new Map(), leaders = new Map();
+        edgeGroup.querySelectorAll('.edge-line[data-edge-id]').forEach(el => {
+          const pts = lastRoutes[el.dataset.edgeId]?.points;
+          if (pts && pts.length >= 2) edges.set(el.dataset.edgeId, pts.flat());
+        });
+        noteLeaderGroup.querySelectorAll('.note-leader').forEach(el => {
+          if (!el.classList.contains('show') && !el.classList.contains('peek')) return;
+          leaders.set(`${el.dataset.noteId}:${el.dataset.nodeId}`, [+el.getAttribute('x1'), +el.getAttribute('y1'), +el.getAttribute('x2'), +el.getAttribute('y2')]);
+        });
+        return { edges, leaders };
+      }
+
+      function playSvg(svgSnap, opts) {
+        if (!svgSnap) return;
+        const tracks = [], finalDs = [];
+        const dur = opts.duration, eas = opts.easing;
+        edgeGroup.querySelectorAll('.edge-line[data-edge-id]').forEach(el => {
+          const id = el.dataset.edgeId, pts = lastRoutes[id]?.points;
+          const newPts = pts && pts.length >= 2 ? pts.flat() : null;
+          if (opts.forceDrawEdges || !svgSnap.edges.has(id) || (opts.drawEdges && opts.drawEdges.has(id))) {
+            motion.drawPath(el, { duration: opts.drawDuration ?? 140, easing: 'curve-out' });
+          } else if (newPts) {
+            const oldPts = svgSnap.edges.get(id);
+            if (coordsDiffer(oldPts, newPts)) {
+              finalDs.push([el, el.getAttribute('d')]);
+              tracks.push({ type: 'polyline', el, from: oldPts, to: newPts });
+            }
+          }
+        });
+        noteLeaderGroup.querySelectorAll('.note-leader').forEach(el => {
+          if (!el.classList.contains('show') && !el.classList.contains('peek')) return;
+          const k = `${el.dataset.noteId}:${el.dataset.nodeId}`;
+          const to = [+el.getAttribute('x1'), +el.getAttribute('y1'), +el.getAttribute('x2'), +el.getAttribute('y2')];
+          const from = svgSnap.leaders.get(k);
+          if (from && coordsDiffer(from, to)) tracks.push({ type: 'line', el, from, to });
+          else if (!from && opts.drawNewLeaders) motion.drawPath(el, { duration: 150, easing: 'curve-out' });
+        });
+        if (tracks.length) {
+          motion.tweenSvg(tracks, {
+            duration: dur, easing: eas,
+            onComplete: () => { for (const [el, d] of finalDs) if (el.isConnected) el.setAttribute('d', d); }
+          });
+        }
+      }
+
+      function retractSvgLine(pathEl) {
+        if (!pathEl || !motion.enabled() || typeof pathEl.getTotalLength !== 'function') return;
+        const len = pathEl.getTotalLength(), svgRoot = document.getElementById('connector-svg');
+        if (!len || !svgRoot) return;
+        const sr = svgRoot.getBoundingClientRect();
+        if (!sr.width || !sr.height) return;
+        const wrap = document.createElementNS(SVG_NS, 'svg');
+        wrap.setAttribute('data-motion-ghost', '');
+        wrap.setAttribute('data-export-skip', '');
+        wrap.setAttribute('aria-hidden', 'true');
+        wrap.style.cssText = `position:fixed;left:${sr.left}px;top:${sr.top}px;width:${sr.width}px;height:${sr.height}px;overflow:visible;pointer-events:none;z-index:2200;`;
+        wrap.setAttribute('viewBox', `0 0 ${svgRoot.clientWidth || sr.width / scale} ${svgRoot.clientHeight || sr.height / scale}`);
+        const clone = pathEl.cloneNode(false);
+        clone.removeAttribute('id'); clone.removeAttribute('class');
+        const cs = getComputedStyle(pathEl);
+        clone.setAttribute('fill', 'none');
+        clone.setAttribute('stroke', cs.stroke || 'var(--primary)');
+        clone.setAttribute('stroke-width', cs.strokeWidth || '2');
+        clone.style.strokeDasharray = `${len} ${len}`;
+        wrap.appendChild(clone);
+        document.body.appendChild(wrap);
+        const anim = motion.anim(clone, [{ strokeDashoffset: 0, opacity: 1 }, { strokeDashoffset: -len, opacity: 0.2 }], {
+          duration: Math.max(40, Math.round(100 * motion.speedScale())), easing: motion.curve('curve-in')
+        });
+        const drop = () => wrap.remove();
+        if (anim) { anim.addEventListener('finish', drop, { once: true }); anim.addEventListener('cancel', drop, { once: true }); } else wrap.remove();
+      }
+
+      function withTabMotion(fn) {
+        if (!motion.enabled()) { fn(); return; }
+        const wasShown = !flowTabs.hidden;
+        const prevAct = wasShown ? flowTabs.querySelector('.flow-tab[aria-selected="true"]') : null;
+        const prevKey = prevAct ? prevAct.dataset.tab : null;
+        const prevRect = prevAct ? prevAct.getBoundingClientRect() : null;
+        const tabSnap = wasShown ? motion.capture(flowTabs, TAB_SPECS, { ghosts: true }) : null;
+        fn();
+        if (flowTabs.hidden) return;
+        if (!wasShown) {
+          flowTabs.style.transformOrigin = 'top left';
+          motion.anim(flowTabs, [
+            { transform: 'translateY(-6px) scale(0.96)', clipPath: 'inset(0 100% 0 0 round var(--radius-lg))' },
+            { transform: 'none', clipPath: 'inset(0 0 0 0 round var(--radius-lg))' }
+          ], { duration: motion.dur('dur-base', 180), easing: motion.curve('curve-spring-tactile') });
+          return;
+        }
+        const nextAct = flowTabs.querySelector('.flow-tab[aria-selected="true"]');
+        const nextRect = (prevRect && nextAct && prevKey !== nextAct.dataset.tab) ? nextAct.getBoundingClientRect() : null;
+        if (tabSnap) {
+          flowTabs.querySelectorAll('.flow-subtabs[data-level]').forEach(box => {
+            const prevB = tabSnap.get('0:' + box.dataset.level);
+            if (!prevB) {
+              motion.anim(box, [{ clipPath: 'inset(0 100% 0 0)' }, { clipPath: 'inset(0 0 0 0)' }], {
+                duration: motion.dur('dur-base', 180), easing: motion.curve('curve-spring-settle')
+              });
+              return;
+            }
+            const vr = box.getBoundingClientRect();
+            const ldx = prevB.x - vr.left, ldy = prevB.y - vr.top;
+            if (Math.abs(ldx) <= 0.5 && Math.abs(ldy) <= 0.5) return;
+            box.querySelectorAll('.flow-tab[data-tab]').forEach(t => {
+              const prevT = tabSnap.get('1:' + t.dataset.tab);
+              if (prevT) { prevT.x -= ldx; prevT.y -= ldy; }
+            });
+          });
+          motion.play(tabSnap, flowTabs, TAB_SPECS, { duration: motion.dur('dur-tab', 300), easing: 'curve-inout', ghostExit: true });
+        }
+        if (nextRect && nextRect.width > 0 && nextRect.height > 0) {
+          const nr = nextRect;
+          const chip = document.createElement('div');
+          chip.setAttribute('data-motion-ghost', '');
+          chip.setAttribute('data-export-skip', '');
+          chip.setAttribute('aria-hidden', 'true');
+          chip.style.cssText = `position:fixed;left:${nr.left}px;top:${nr.top}px;width:${nr.width}px;height:${nr.height}px;background:var(--primary-wash);border-radius:0 0 var(--radius-md) var(--radius-md);pointer-events:none;z-index:121;transform-origin:top left;`;
+          document.body.appendChild(chip);
+          const dx = prevRect.left - nr.left, dy = prevRect.top - nr.top;
+          const sx = prevRect.width / nr.width, sy = prevRect.height / nr.height;
+          const a = motion.anim(chip, [
+            { transform: `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})`, opacity: 0.9 },
+            { transform: 'none', opacity: 0 }
+          ], { duration: Math.max(40, Math.round(motion.dur('dur-tab', 300) * 0.9 * motion.speedScale())), easing: motion.curve('curve-inout') });
+          const drop = () => chip.remove();
+          if (a) { a.addEventListener('finish', drop, { once: true }); a.addEventListener('cancel', drop, { once: true }); } else chip.remove();
+        }
+      }
+
+      function withConnectorMotion(fn, opts) {
+        if (!motion.enabled() || motionDepth > 0) { fn(); return; }
+        const prevConns = new Map();
+        document.querySelectorAll('.flow-node.type-connector[data-node-id]').forEach(el => {
+          const r = el.getBoundingClientRect();
+          if (r.width > 0) prevConns.set(el.dataset.nodeId, r);
+        });
+        withMotion(fn, { ...(opts || {}), skipKeys: new Set(prevConns.keys()) });
+        document.querySelectorAll('.flow-node.type-connector[data-node-id]').forEach(el => {
+          const pr = prevConns.get(el.dataset.nodeId);
+          if (pr) motion.ghostMorph(pr, el, 180, 'curve-spring-settle');
+        });
+      }
+
+      // Runs fn with every nested withMotion / withConnectorMotion turned into a plain call
+      function withoutMotion(fn) { motionDepth++; try { fn(); } finally { motionDepth--; } }
+
+      function withMotion(fn, opts) {
+        const o = opts || {};
+        if (motionDepth > 0 || !motion.enabled()) { fn(); return; }
+        motionDepth++;
+        try {
+          const snap = motion.capture(swimlanesContainer, FLOW_SPECS, o.ghosts ? { ghosts: true } : undefined);
+          const svgSnap = captureSvg();
+          withTabMotion(fn);
+          if (snap) {
+            const st = stage.getBoundingClientRect();
+            const k = (stage.offsetWidth ? st.width / stage.offsetWidth : scale) || 1;
+            const laneShift = new Map();
+            lanesRoot.querySelectorAll('.swimlane[data-lane-id]').forEach(laneEl => {
+              const prevL = snap.get('0:' + laneEl.dataset.laneId);
+              if (!prevL) return;
+              const vr = laneEl.getBoundingClientRect();
+              const ldx = prevL.x - (vr.left - st.left) / k;
+              const ldy = prevL.y - (vr.top - st.top) / k;
+              if (Math.abs(ldx) <= 0.5 && Math.abs(ldy) <= 0.5) return;
+              laneShift.set(laneEl, { ldx, ldy });
+              laneEl.querySelectorAll('.flow-node[data-node-id]').forEach(nEl => {
+                const prevN = snap.get('1:' + nEl.dataset.nodeId);
+                if (prevN) { prevN.x -= ldx; prevN.y -= ldy; }
+              });
+            });
+            let skipKeys = o.skipKeys;
+            if (o.skipFreeNotes) {
+              const free = freeNoteSkipKeys();
+              if (free.size) skipKeys = skipKeys ? new Set([...skipKeys, ...free]) : free;
+            }
+            motion.play(snap, swimlanesContainer, FLOW_SPECS, { ...o, skipKeys });
+            if (laneShift.size && (o.fromKey || o.originRect)) {
+              // Counteract parent lane shift for entering nodes that morph from a stage-space rect/fromKey
+              const durMs = Math.max(40, Math.round((o.duration ?? motion.dur('dur-layout', 230)) * motion.speedScale()));
+              const eas = motion.curve(o.easing || 'curve-spring-settle');
+              laneShift.forEach(({ ldx, ldy }, laneEl) => {
+                laneEl.querySelectorAll('.flow-node[data-node-id]').forEach(nEl => {
+                  if (snap.has('1:' + nEl.dataset.nodeId)) return;
+                  const anims = nEl.getAnimations();
+                  if (anims.length) {
+                    const kf = anims[0].effect && anims[0].effect.getKeyframes && anims[0].effect.getKeyframes();
+                    if (kf && kf[0] && kf[0].transform && kf[0].transform !== 'none') {
+                      const prevT = kf[0].transform;
+                      anims[0].cancel();
+                      motion.anim(nEl, [{ transform: `translate(${-ldx}px, ${-ldy}px) ${prevT}` }, { transform: 'none' }], { duration: durMs, easing: eas });
+                    }
+                  }
+                });
+              });
+            }
+          }
+          playSvg(svgSnap, o);
+        } finally {
+          motionDepth--;
+        }
       }
 
       // --- STATE & INITIALIZATION ---
@@ -246,9 +467,11 @@
       function moveLane(index, dir) {
         const to = index + dir;
         if (to < 0 || to >= chartData.lanes.length) return;
-        const [moved] = chartData.lanes.splice(index, 1);
-        chartData.lanes.splice(to, 0, moved);
-        relayout();   // lane order changes how steps are ordered and where loop-backs run
+        withMotion(() => {
+          const [moved] = chartData.lanes.splice(index, 1);
+          chartData.lanes.splice(to, 0, moved);
+          relayout();   // lane order changes how steps are ordered and where loop-backs run
+        }, { duration: 210, skipFreeNotes: true });
       }
 
       function renderLanes(trackWidth) {
@@ -488,6 +711,7 @@
       function showLaneDropLine(insertIdx) {
         const lanes = [...lanesRoot.children];
         if (!lanes.length) return;
+        const wasHidden = laneDropLine.style.display !== 'block';
         const last = lanes[lanes.length - 1];
         if (isTB()) {
           const x = insertIdx < lanes.length ? lanes[insertIdx].offsetLeft : last.offsetLeft + last.offsetWidth;
@@ -499,6 +723,11 @@
           laneDropLine.style.left = '';
         }
         laneDropLine.style.display = 'block';
+        if (wasHidden && motion.enabled()) {
+          motion.anim(laneDropLine, [{ transform: isTB() ? 'scaleY(0)' : 'scaleX(0)' }, { transform: 'none' }], {
+            duration: 90, easing: motion.curve('curve-out')
+          });
+        }
       }
 
       function endLaneDrag() {
@@ -738,12 +967,13 @@
           line.setAttribute('x1', p[0]); line.setAttribute('y1', p[1]);
           line.setAttribute('x2', q[0]); line.setAttribute('y2', q[1]);
           edgeGroup.appendChild(line);
+          motion.drawPath(line, { duration: 120, easing: 'curve-out' });
         });
       }
 
       // Pan (same zoom) so the partner is centred, with a short pulse on it. An out-connector with several
       // in-connectors steps through them on each click.
-      let jumpTurn = 0, panAnim = 0;
+      let jumpTurn = 0;
       function jumpToPartner(node) {
         const partners = connectorPartners(node);
         if (!partners.length) return;
@@ -752,20 +982,11 @@
         if (!el) return;
         const vp = viewport.getBoundingClientRect(), r = el.getBoundingClientRect();
         const dx = (vp.left + vp.width / 2) - (r.left + r.width / 2), dy = (vp.top + vp.height / 2) - (r.top + r.height / 2);
-        const x0 = panX, y0 = panY, t0 = performance.now(), MS = 280;
-        cancelAnimationFrame(panAnim);
-        const stepPan = (t) => {
-          const k = Math.min(1, (t - t0) / MS), ease = 1 - Math.pow(1 - k, 3);
-          panX = x0 + dx * ease;
-          panY = y0 + dy * ease;
-          updateTransform();
-          if (k < 1) panAnim = requestAnimationFrame(stepPan);
-        };
-        panAnim = requestAnimationFrame(stepPan);
+        animateViewport(panX + dx, panY + dy, scale, { duration: motion.dur('dur-camera', 240), easing: 'curve-inout' });
         el.classList.remove('connector-pulse');
         void el.offsetWidth;   // restart the animation
         el.classList.add('connector-pulse');
-        setTimeout(() => el.classList.remove('connector-pulse'), 1200);
+        setTimeout(() => el.classList.remove('connector-pulse'), 700);
       }
 
       // A short message above the dock (e.g. why a rename was refused)
@@ -781,7 +1002,7 @@
         }
         hint.textContent = text;
         clearTimeout(hintTimer);
-        hintTimer = setTimeout(() => hint.remove(), 2600);
+        hintTimer = setTimeout(() => { if (hint.isConnected) motion.hideHint(hint); }, 2600);
       }
 
       // Every circle of the old letter takes the new one: a rename never splits a pair. A letter in use is refused.
@@ -803,18 +1024,23 @@
         if (!edge) return;
         const src = nodeById(edge.from), tgt = nodeById(edge.to);
         if (!src || !tgt || isConnector(src) || isConnector(tgt)) return;
-        const letter = joinLetter || nextConnectorLetter(chartData.nodes);
-        const cIn = { id: uid('c'), laneId: src.laneId, type: 'connector', label: letter, x: src.x || 0, y: src.y || 0 };
-        chartData.nodes.push(cIn);
-        if (!joinLetter) {
-          const cOut = { id: uid('c'), laneId: tgt.laneId, type: 'connector', label: letter, x: tgt.x || 0, y: tgt.y || 0 };
-          chartData.nodes.push(cOut);
-          chartData.edges.push({ id: uid('e'), from: cOut.id, to: tgt.id, label: '' });
-        }
-        edge.to = cIn.id;
-        selectedEdgeId = null;
-        placeAfterConnectorEdit();
-        selectNode(cIn.id);
+        const rt = lastRoutes[edgeId], sr = swimlanesContainer.getBoundingClientRect();
+        const midRect = rt && rt.midX != null ? { left: sr.left + rt.midX * scale - 16 * scale, top: sr.top + rt.midY * scale - 16 * scale, width: 32 * scale, height: 32 * scale } : null;
+        let cIn;
+        withMotion(() => {
+          const letter = joinLetter || nextConnectorLetter(chartData.nodes);
+          cIn = { id: uid('c'), laneId: src.laneId, type: 'connector', label: letter, x: src.x || 0, y: src.y || 0 };
+          chartData.nodes.push(cIn);
+          if (!joinLetter) {
+            const cOut = { id: uid('c'), laneId: tgt.laneId, type: 'connector', label: letter, x: tgt.x || 0, y: tgt.y || 0 };
+            chartData.nodes.push(cOut);
+            chartData.edges.push({ id: uid('e'), from: cOut.id, to: tgt.id, label: '' });
+          }
+          edge.to = cIn.id;
+          selectedEdgeId = null;
+          placeAfterConnectorEdit();
+          selectNode(cIn.id);
+        }, { originRect: midRect, duration: 180, drawEdges: new Set([edgeId]), skipFreeNotes: true });
       }
 
       // The selected arrow's toolbar (components/actionbar.css): Connector, Label, Delete. It sits just right
@@ -859,8 +1085,20 @@
           const first = item(`Split into new ${nextConnectorLetter(chartData.nodes)}`, () => splitEdge(edge.id));
           joins.forEach(l => item(`Join ${l} (continues at ${stepLabel(edge.to)})`, () => splitEdge(edge.id, l)));
           bar.appendChild(menu);
+          menu.style.transformOrigin = 'top left';
+          motion.anim(menu, [
+            { transform: 'scale(0.92, 0.86) translateY(-4px)', clipPath: 'inset(0 0 25% 0 round var(--radius-lg))' },
+            { transform: 'none', clipPath: 'inset(0 0 0 0 round var(--radius-lg))' }
+          ], { duration: Math.max(40, Math.round(motion.dur('dur-fast', 140) * motion.speedScale())), easing: motion.curve('curve-spring-tactile') });
           first.focus();
-          menu.addEventListener('keydown', (ev) => { if (ev.key === 'Escape') { ev.stopPropagation(); menu.remove(); b.focus(); } });
+          menu.addEventListener('keydown', (ev) => {
+            if (ev.key === 'Escape') {
+              ev.stopPropagation();
+              motion.ghostExit(menu, { duration: 100, transform: 'scale(0.92) translateY(-4px)', origin: 'top left' });
+              menu.remove();
+              b.focus();
+            }
+          });
         });
         return bar;
       }
@@ -873,10 +1111,12 @@
       // Delete a connector = join: the whole arrow comes back (src -> tgt, with its label and feedback flag). Deleting
       // one in-connector of a merge joins only its source; deleting the out-connector joins every source.
       function joinConnector(node) {
-        joinConnectorData(node);
-        pruneNotes();
-        clearNodeSelection();
-        placeAfterConnectorEdit();
+        withMotion(() => {
+          joinConnectorData(node);
+          pruneNotes();
+          clearNodeSelection();
+          placeAfterConnectorEdit();
+        }, { ghostExit: true, duration: 200, skipFreeNotes: true });
       }
       function joinConnectorData(node) {
         const letter = connectorLetter(node), role = connectorRole(node.id);
@@ -943,10 +1183,12 @@
         const others = connectorPartners(node).flatMap(p => chartData.edges
           .filter(e => (role === 'out' ? e.to === p.id : e.from === p.id)).map(e => (role === 'out' ? e.from : e.to)));
         if (others.includes(stepId)) { flashHint('That step is already the other end of this pair'); return false; }
-        mine.forEach(e => { if (role === 'out') e.to = stepId; else e.from = stepId; });
-        node.laneId = step.laneId;
-        placeAfterConnectorEdit();
-        selectNode(node.id);
+        withConnectorMotion(() => {
+          mine.forEach(e => { if (role === 'out') e.to = stepId; else e.from = stepId; });
+          node.laneId = step.laneId;
+          placeAfterConnectorEdit();
+          selectNode(node.id);
+        }, { duration: 190, skipFreeNotes: true });
         return true;
       }
 
@@ -964,31 +1206,37 @@
           flashHint(`This step already flows into pair ${letter}`);
           return false;
         }
-        const cIn = { id: uid('c'), laneId: src.laneId, type: 'connector', label: letter, x: src.x || 0, y: src.y || 0 };
-        chartData.nodes.push(cIn);
-        edge.to = cIn.id;
-        pruneConnectors();
-        selectedEdgeId = null;
-        placeAfterConnectorEdit();
-        selectNode(cIn.id);
+        withConnectorMotion(() => {
+          const cIn = { id: uid('c'), laneId: src.laneId, type: 'connector', label: letter, x: src.x || 0, y: src.y || 0 };
+          chartData.nodes.push(cIn);
+          edge.to = cIn.id;
+          pruneConnectors();
+          selectedEdgeId = null;
+          placeAfterConnectorEdit();
+          selectNode(cIn.id);
+        }, { duration: 190, skipFreeNotes: true });
         return true;
       }
 
       // Re-place only the circles (an arrow edit moved a stub to another step): steps stay where they are
       function placeCirclesOnly() {
-        render();
-        placeConnectorsInPlace(chartData);
-        render();
+        withConnectorMotion(() => {
+          render();
+          placeConnectorsInPlace(chartData);
+          render();
+        }, { duration: 180, skipFreeNotes: true });
       }
 
       // Lay out after a connector edit: Auto-Tidy on, the whole layout (no step moves, only the circles appear);
       // off, the steps stay where they are and only the circles are placed beside them
       function placeAfterConnectorEdit() {
         if (autoLayout) { relayout(); return; }
-        render();   // sizes the lanes the circles are fitted into
-        placeConnectorsInPlace(chartData);
-        render();
-        updateStatus(true);
+        withMotion(() => {
+          render();   // sizes the lanes the circles are fitted into
+          placeConnectorsInPlace(chartData);
+          render();
+          updateStatus(true);
+        }, { duration: 180, skipFreeNotes: true });
       }
 
       function renderNodes() {
@@ -1036,7 +1284,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
               node.label = label.textContent.trim();
               syncChildName(node);
               updateStatus(true);
-              if (wasDot !== isDot(node)) render();
+              if (wasDot !== isDot(node)) withMotion(render, { duration: 180, skipFreeNotes: true });
               else fitNodeLabel(label, node.type);
             }
           });
@@ -1094,10 +1342,13 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           const el = document.getElementById(`node-${n.id}`);
           if (!el) return;
           const r = el.getBoundingClientRect();
-          const x = (r.left - stageRect.left) / scale;
-          const y = (r.top - stageRect.top) / scale;
-          const w = r.width / scale;
-          const h = r.height / scale;
+          // Rounded to 0.01px: dividing a screen rect by the zoom leaves ~1e-4 of noise that depends on the camera (mid-glide
+          // or not), and the route search breaks ties on exact comparisons: the same chart must route the same at any zoom
+          const q = (v) => Math.round(v * 100) / 100;
+          const x = q((r.left - stageRect.left) / scale);
+          const y = q((r.top - stageRect.top) / scale);
+          const w = q(r.width / scale);
+          const h = q(r.height / scale);
           rects[n.id] = tb ? { x: y, y: x, w: h, h: w, cx: y + h / 2, cy: x + w / 2 } : { x, y, w, h, cx: x + w / 2, cy: y + h / 2 };
         });
 
@@ -2555,7 +2806,17 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         return { x: spot.x, y: spot.y, w: lw, h: lh, wrapped: lw < singleLineWidth };
       }
 
+      let lastEdgeBarId = null, lastEdgeBarRect = null;
       function renderEdges() {
+        const oldBar = edgeLabelsGroup.querySelector('.edge-bar');
+        const barChanged = !draggingNode && selectedEdgeId !== lastEdgeBarId;
+        if (oldBar && barChanged) {
+          lastEdgeBarRect = motion.enabled() ? oldBar.getBoundingClientRect() : null;
+          if (!selectedEdgeId) motion.hideBar(oldBar);
+          else oldBar.remove();
+        } else if (!oldBar && barChanged) {
+          lastEdgeBarRect = null;
+        }
         edgeGroup.innerHTML = '';
         edgeLabelsGroup.innerHTML = '';
 
@@ -2659,8 +2920,14 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
 
             labelContainer.addEventListener('dblclick', (e) => {
               e.stopPropagation();
+              const wasEmpty = labelContainer.classList.contains('empty-placeholder') && !labelContainer.classList.contains('editing');
               labelText.contentEditable = 'true';
               labelContainer.classList.add('editing');   // shows an empty label's box, hides the toolbar
+              if (wasEmpty) {
+                motion.anim(labelContainer, [{ transform: 'translate(-50%, -50%) scale(0.84)' }, { transform: 'translate(-50%, -50%) scale(1)' }], {
+                  duration: Math.max(40, Math.round(motion.dur('dur-fast', 140) * motion.speedScale())), easing: motion.curve('curve-out')
+                });
+              }
               labelText.focus();
               if (hasLabel) {
                 const range = document.createRange();
@@ -2688,6 +2955,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
 
             if (isSelected) {
               const total = path.getTotalLength();
+              const popBar = !draggingNode && edge.id !== lastEdgeBarId;
 
               // Drag either end of the selected arrow onto another node to re-attach it. At a connector circle, the
               // handle moves the circle (onto a step) or joins another pair (onto a circle); an arrowhead dropped on a
@@ -2703,9 +2971,24 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
                 h.style.top = `${pt.y}px`;
                 h.addEventListener('pointerdown', (e) => startReconnect(e, edge, end, path));
                 edgeLabelsGroup.appendChild(h);
+                if (popBar) {
+                  motion.anim(h, [{ transform: 'translate(-50%, -50%) scale(0.4)' }, { transform: 'translate(-50%, -50%) scale(1)' }], {
+                    duration: 110, easing: motion.curve('curve-spring-tactile')
+                  });
+                }
               });
 
-              labelContainer.after(buildEdgeBar(edge, labelContainer, pathD, hasLabel));
+              const bar = buildEdgeBar(edge, labelContainer, pathD, hasLabel);
+              labelContainer.after(bar);
+              if (popBar && motion.enabled()) {
+                const br = bar.getBoundingClientRect();
+                if (br.width > 0) {
+                  // A first bar fades and slides in whole (its shadow with it); a bar replacing another morphs from its box
+                  if (lastEdgeBarRect && lastEdgeBarRect.width > 0) motion.ghostMorph(lastEdgeBarRect, bar, 170, 'curve-spring-settle');
+                  else motion.showBar(bar);
+                }
+                lastEdgeBarRect = null;
+              }
             }
 
             labelContainer.addEventListener('click', (e) => {
@@ -2727,6 +3010,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
             labelContainer.addEventListener('mouseleave', () => setLinked(false));
           }
         });
+        if (!draggingNode) lastEdgeBarId = selectedEdgeId;
         applyNodeHover(); // keep the hover highlight across a re-render (e.g. while dragging)
         positionNotes();  // notes follow their nodes (a dragged node moves its note with it)
       }
@@ -2792,13 +3076,22 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         if (group) { selectedNodeId = node.id; applyNoteVisibility(); } else selectNode(node.id);
         draggingNode = node;
         const laneIndexOf = (n) => Math.max(0, chartData.lanes.findIndex(l => l.id === n.laneId));
-        const startOf = (n) => ({ node: n, x: n.x || 0, gy: laneTopOf(n.laneId) + (n.y || 0), lane: laneIndexOf(n) });
+        const startOf = (n) => {
+          const el = nodeElOf(n.id), p = nodePos(n);
+          return {
+            node: n, el, x: n.x || 0, gy: laneTopOf(n.laneId) + (n.y || 0), lane: laneIndexOf(n),
+            baseLeft: el ? (parseFloat(el.style.left) || p.left) : p.left,
+            baseTop: el ? (parseFloat(el.style.top) || p.top) : p.top,
+            laneId: n.laneId
+          };
+        };
         dragGroup = group ? [...selectedNodeIds].map(nodeById).filter(n => n && n !== node && !isConnector(n)).map(startOf) : null;
         dragOrigin = startOf(node);
         dragOrigin.saved = [node, ...(dragGroup || []).map(g => g.node)].map(n => ({ node: n, x: n.x, y: n.y, laneId: n.laneId }));
         dragStartX = e.clientX;
         dragStartY = e.clientY;
 
+        motion.cancelAll();   // a layout animation still in flight would skew the start rect below
         const nodeEl = document.getElementById(`node-${node.id}`);
         const nRect = nodeEl.getBoundingClientRect();
 
@@ -2870,17 +3163,27 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
 
         draggingNode.x = localX;
         draggingNode.y = localY;
+        draggingNode.laneId = targetLane.id;
 
-        // If the node crossed swimlanes, reparent into the target lane track
-        if (draggingNode.laneId !== targetLane.id) {
-          draggingNode.laneId = targetLane.id;
-          const targetTrack = document.querySelector(`.lane-track[data-lane-id="${targetLane.id}"]`);
-          if (targetTrack && nodeEl.parentElement !== targetTrack) {
-            targetTrack.appendChild(nodeEl);
+        const moveDragItem = (item) => {
+          const { node: n, el } = item;
+          if (!el) return;
+          const p = nodePos(n);
+          if (n.laneId !== item.laneId) {
+            item.laneId = n.laneId;
+            const track = document.querySelector(`.lane-track[data-lane-id="${n.laneId}"]`);
+            if (track && el.parentElement !== track) track.appendChild(el);
+            item.baseLeft = p.left; item.baseTop = p.top;
+            el.style.left = `${p.left}px`;
+            el.style.top = `${p.top}px`;
+            el.style.translate = '';
+          } else {
+            el.style.translate = `${p.left - item.baseLeft}px ${p.top - item.baseTop}px`;
           }
-        }
-
-        placeNodeEl(nodeEl, draggingNode);
+          el.style.scale = '1.02';
+          el.classList.add('dragging');
+        };
+        moveDragItem(dragOrigin);
         // The other selected steps move by the same distance and the same number of lanes (held within the first
         // and last lane), so a selection that spans lanes keeps its shape
         if (dragGroup) {
@@ -2888,15 +3191,10 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           const dLane = chartData.lanes.indexOf(targetLane) - dragOrigin.lane, last = chartData.lanes.length - 1;
           dragGroup.forEach(g => {
             const lane = chartData.lanes[Math.max(0, Math.min(last, g.lane + dLane))];
-            const el = nodeElOf(g.node.id);
             g.node.x = Math.max(16, g.x + ddx);
             g.node.y = g.gy + ddy - laneTopOf(lane.id);
-            if (g.node.laneId !== lane.id) {
-              g.node.laneId = lane.id;
-              const track = document.querySelector(`.lane-track[data-lane-id="${lane.id}"]`);
-              if (track && el && el.parentElement !== track) track.appendChild(el);
-            }
-            if (el) placeNodeEl(el, g.node);
+            g.node.laneId = lane.id;
+            moveDragItem(g);
           });
         }
         if (isConnector(draggingNode)) markConnectorTarget(stepUnder(e.clientX, e.clientY, draggingNode.id));
@@ -3010,14 +3308,16 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         const hGuide = getSnapGuide('snap-guide-h', 'snap-guide-h');
         const [flowGuide, crossGuide] = isTB() ? [hGuide, vGuide] : [vGuide, hGuide];
         const flowProp = isTB() ? 'top' : 'left', crossProp = isTB() ? 'left' : 'top';
-        if (snap.guideX !== null) {
-          flowGuide.style[flowProp] = `${trackOffset() + snap.guideX}px`;
-          flowGuide.style.display = 'block';
-        } else flowGuide.style.display = 'none';
-        if (snap.guideY !== null) {
-          crossGuide.style[crossProp] = `${snap.guideY}px`;
-          crossGuide.style.display = 'block';
-        } else crossGuide.style.display = 'none';
+        const showGuide = (el, prop, val, axis) => {
+          if (val !== null) {
+            const wasHidden = el.style.display !== 'block';
+            el.style[prop] = `${val}px`;
+            el.style.display = 'block';
+            if (wasHidden && motion.enabled()) motion.anim(el, [{ transform: axis }, { transform: 'none' }], { duration: 90, easing: motion.curve('curve-out') });
+          } else el.style.display = 'none';
+        };
+        showGuide(flowGuide, flowProp, snap.guideX !== null ? trackOffset() + snap.guideX : null, isTB() ? 'scaleX(0)' : 'scaleY(0)');
+        showGuide(crossGuide, crossProp, snap.guideY, isTB() ? 'scaleY(0)' : 'scaleX(0)');
       }
 
       function hideSnapGuides() {
@@ -3036,6 +3336,9 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           draggingNode = null;
           dragGroup = null;
           dragOrigin = null;
+          const clearDrag = (n) => { const el = nodeElOf(n.id); if (el) { el.classList.remove('dragging'); placeNodeEl(el, n); } };
+          clearDrag(node);
+          if (group) group.forEach(g => clearDrag(g.node));
           if (dragMoved && isConnector(node)) {
             // A circle dropped on a step moves that end of the pair there; dropped anywhere else it goes back
             const stepId = stepUnder(e.clientX, e.clientY, node.id);
@@ -3045,8 +3348,10 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
             moveRunIntoEdge(ids, target.edgeId, e.clientX, e.clientY, node.id);
           } else if (dragMoved && e.altKey && !dragCanInsert && !runOf(ids)) {
             // Alt asked for a move into an arrow, but this is not a run: everything goes back where it was
-            origin.saved.forEach(o => { o.node.x = o.x; o.node.y = o.y; o.node.laneId = o.laneId; });
-            render();
+            withMotion(() => {
+              origin.saved.forEach(o => { o.node.x = o.x; o.node.y = o.y; o.node.laneId = o.laneId; });
+              render();
+            }, { duration: 190, skipFreeNotes: true });
             flashHint(RUN_HINT);
           } else if (dragMoved && group) {
             finishStepMove([node, ...group.map(g => g.node)]);
@@ -3203,6 +3508,9 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
               updateStatus(true);
               // A stub re-attached to another step: its circle follows to that step (steps stay put)
               if (isConnector(nodeById(edge.from)) || isConnector(nodeById(edge.to))) { placeCirclesOnly(); return; }
+              renderEdges();
+              motion.drawPath(edgeGroup.querySelector(`.edge-line[data-edge-id="${CSS.escape(edge.id)}"]`), { duration: 140, easing: 'curve-out' });
+              return;
             }
           }
           renderEdges();
@@ -3233,6 +3541,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         updateStatus(true);
         renderEdges();
         selectEdge(newEdge.id);
+        motion.drawPath(edgeGroup.querySelector(`.edge-line[data-edge-id="${CSS.escape(newEdge.id)}"]`), { duration: 140, easing: 'curve-out' });
 
         setTimeout(() => {
           const labelTextEl = document.querySelector(`.edge-label[data-edge-id="${newEdge.id}"] .edge-label-text`);
@@ -3266,27 +3575,39 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
 
       function selectLane(laneId) {
         const hadEdge = selectedEdgeId;
+        const prevBar = lanesRoot.querySelector('.lane-selected .lane-bar');
+        const prevRect = prevBar && motion.enabled() ? prevBar.getBoundingClientRect() : null;
         selectedLaneId = laneId;
         clearNodeSelection();
         selectedEdgeId = null;
         if (hadEdge) renderEdges();
         markSelectedLane();
+        const nextBar = lanesRoot.querySelector('.lane-selected .lane-bar');
+        if (nextBar && nextBar !== prevBar && motion.enabled()) {
+          const nr = nextBar.getBoundingClientRect();
+          if (nr.width > 0) {
+            if (prevRect && prevRect.width > 0) motion.ghostMorph(prevRect, nextBar, 170, 'curve-spring-settle');
+            else motion.showBar(nextBar);
+          }
+        }
       }
 
       // Removes a lane together with its steps and every arrow attached to them (one undo step).
       // The last remaining lane cannot be deleted: every step needs a lane.
       function deleteLane(laneId) {
         if (chartData.lanes.length <= 1 || !chartData.lanes.some(l => l.id === laneId) || laneUsedElsewhere(laneId)) return;
-        if (chartData.flows) chartData.actors = chartData.actors.filter(a => a.id !== laneId || laneUsedElsewhere(laneId, true));
-        const gone = new Set(chartData.nodes.filter(n => n.laneId === laneId).map(n => n.id));
-        chartData.lanes = chartData.lanes.filter(l => l.id !== laneId);
-        chartData.nodes = chartData.nodes.filter(n => !gone.has(n.id));
-        chartData.edges = chartData.edges.filter(e => !gone.has(e.from) && !gone.has(e.to));
-        dropChildOf([...gone]);
-        pruneConnectors();   // a pair with one end in the lane goes with it
-        pruneNotes();
-        selectedLaneId = null;
-        relayout();
+        withMotion(() => {
+          if (chartData.flows) chartData.actors = chartData.actors.filter(a => a.id !== laneId || laneUsedElsewhere(laneId, true));
+          const gone = new Set(chartData.nodes.filter(n => n.laneId === laneId).map(n => n.id));
+          chartData.lanes = chartData.lanes.filter(l => l.id !== laneId);
+          chartData.nodes = chartData.nodes.filter(n => !gone.has(n.id));
+          chartData.edges = chartData.edges.filter(e => !gone.has(e.from) && !gone.has(e.to));
+          dropChildOf([...gone]);
+          pruneConnectors();   // a pair with one end in the lane goes with it
+          pruneNotes();
+          selectedLaneId = null;
+          relayout();
+        }, { ghostExit: true, duration: 210, skipFreeNotes: true });
       }
 
       // Deleting a lane also deletes its steps, so it is confirmed first: a small popover under the delete button
@@ -3308,14 +3629,14 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
       }
 
       function selectNode(nodeId) {
+        const hadEdge = !!selectedEdgeId;
         selectedNodeId = nodeId;
         selectedNodeIds = new Set(nodeId ? [nodeId] : []);
         selectedEdgeId = null;
         selectedNoteId = null;
         if (selectedLaneId) { selectedLaneId = null; markSelectedLane(); }
         markSelectedNodes();
-        document.querySelectorAll('.edge-line').forEach(p => p.classList.remove('selected'));
-        document.querySelectorAll('.edge-label').forEach(c => c.classList.remove('selected'));
+        if (hadEdge) renderEdges();
         applyNoteVisibility();   // a selected node shows its note
       }
 
@@ -3440,39 +3761,46 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         const node = nodeById(nodeId);
         if (isConnector(node)) { joinConnector(node); return; }   // deleting a connector puts the whole arrow back
         if (!confirmed && askSubDelete([nodeId])) return;   // a subprocess with content: Merge / Delete everything / Cancel
-        chartData.nodes = chartData.nodes.filter(n => n.id !== nodeId);
-        chartData.edges = chartData.edges.filter(e => e.from !== nodeId && e.to !== nodeId);
-        dropChildOf([nodeId]);
-        pruneConnectors();   // a pair attached to this step goes with it
-        pruneNotes();   // its notes lose the link (a note explaining only this step goes with it)
-        clearNodeSelection();
-        relayout();
+        withMotion(() => {
+          chartData.nodes = chartData.nodes.filter(n => n.id !== nodeId);
+          chartData.edges = chartData.edges.filter(e => e.from !== nodeId && e.to !== nodeId);
+          dropChildOf([nodeId]);
+          pruneConnectors();   // a pair attached to this step goes with it
+          pruneNotes();   // its notes lose the link (a note explaining only this step goes with it)
+          clearNodeSelection();
+          relayout();
+        }, { ghostExit: true, ghosts: true, duration: 200, skipFreeNotes: true });
       }
 
       // Delete several steps as one edit, so one undo brings them all back. Like a single delete, the arrows around
       // the hole go with it (no bridging).
       function deleteNodes(ids, confirmed) {
         if (!confirmed && askSubDelete(ids)) return;
-        const gone = new Set(ids.filter(id => nodeById(id) && !isConnector(nodeById(id))));
-        chartData.nodes = chartData.nodes.filter(n => !gone.has(n.id));
-        chartData.edges = chartData.edges.filter(e => !gone.has(e.from) && !gone.has(e.to));
-        dropChildOf([...gone]);
-        pruneConnectors();   // a pair attached to a deleted step goes with it
-        // A selected circle whose pair is still there: the whole arrow comes back, as when it is deleted alone
-        ids.forEach(id => { const n = nodeById(id); if (isConnector(n)) joinConnectorData(n); });
-        pruneConnectors();
-        pruneNotes();
-        clearNodeSelection();
-        relayout();
+        withMotion(() => {
+          const gone = new Set(ids.filter(id => nodeById(id) && !isConnector(nodeById(id))));
+          chartData.nodes = chartData.nodes.filter(n => !gone.has(n.id));
+          chartData.edges = chartData.edges.filter(e => !gone.has(e.from) && !gone.has(e.to));
+          dropChildOf([...gone]);
+          pruneConnectors();   // a pair attached to a deleted step goes with it
+          // A selected circle whose pair is still there: the whole arrow comes back, as when it is deleted alone
+          ids.forEach(id => { const n = nodeById(id); if (isConnector(n)) joinConnectorData(n); });
+          pruneConnectors();
+          pruneNotes();
+          clearNodeSelection();
+          relayout();
+        }, { ghostExit: true, ghosts: true, duration: 200, skipFreeNotes: true });
       }
 
       function deleteEdge(edgeId) {
-        const before = chartData.nodes.length;
-        chartData.edges = chartData.edges.filter(e => e.id !== edgeId);
-        pruneConnectors();   // deleting either stub of a split arrow deletes the whole arrow
-        selectedEdgeId = null;
-        updateStatus(true);
-        if (chartData.nodes.length !== before) render(); else renderEdges();
+        retractSvgLine(edgeGroup.querySelector(`.edge-line[data-edge-id="${CSS.escape(edgeId)}"]`));
+        withMotion(() => {
+          const before = chartData.nodes.length;
+          chartData.edges = chartData.edges.filter(e => e.id !== edgeId);
+          pruneConnectors();   // deleting either stub of a split arrow deletes the whole arrow
+          selectedEdgeId = null;
+          updateStatus(true);
+          if (chartData.nodes.length !== before) render(); else renderEdges();
+        }, { ghostExit: true, ghosts: true, duration: 180, skipFreeNotes: true });
       }
 
       // --- ADD ELEMENTS ---
@@ -3525,10 +3853,13 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
       }
 
       function addNodeAt(type, p) {
-        const node = makeNode(type, p);
-        render();              // draw it where it was dropped first, so relayout can keep it there on screen
-        relayout(node.id);
-        selectNode(node.id);
+        let node;
+        withMotion(() => {
+          node = makeNode(type, p);
+          render();              // draw it where it was dropped first, so relayout can keep it there on screen
+          relayout(node.id);
+          selectNode(node.id);
+        }, { duration: 200, enterScale: 0.84, easing: 'curve-spring-tactile', skipFreeNotes: true });
         return node;
       }
 
@@ -3584,10 +3915,17 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         const path = [...edgeGroup.querySelectorAll('.edge-line')].find(p => p.dataset.edgeId === t.edgeId);
         if (path) path.classList.add('insert-target');
         if (hint) {
+          const wasHidden = hint.style.display !== 'block';
           hint.textContent = text;
           hint.style.left = `${t.x}px`;
           hint.style.top = `${t.y}px`;
           hint.style.display = 'block';
+          if (wasHidden && motion.enabled()) {
+            motion.anim(hint, [
+              { transform: 'translate(-50%, calc(-100% - 10px)) scale(0.75)' },
+              { transform: 'translate(-50%, calc(-100% - 10px)) scale(1)' }
+            ], { duration: 110, easing: motion.curve('curve-spring-tactile') });
+          }
         }
       }
 
@@ -3603,18 +3941,20 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
       // the view is re-panned so that step stays where it was on screen (a step just added appears where it was dropped).
       function relayout(focusId) {
         if (!autoLayout) { render(); updateStatus(true); return; }
-        const before = focusId && document.getElementById(`node-${focusId}`);
-        const r0 = before && before.getBoundingClientRect();
-        layoutDiagram(chartData);
-        render();
-        updateStatus(true);
-        const el = focusId && document.getElementById(`node-${focusId}`);
-        if (r0 && el) {
-          const r = el.getBoundingClientRect();
-          panX += (r0.left + r0.width / 2) - (r.left + r.width / 2);
-          panY += (r0.top + r0.height / 2) - (r.top + r.height / 2);
-          updateTransform();
-        }
+        withMotion(() => {
+          const before = focusId && document.getElementById(`node-${focusId}`);
+          const r0 = before && before.getBoundingClientRect();
+          layoutDiagram(chartData);
+          render();
+          updateStatus(true);
+          const el = focusId && document.getElementById(`node-${focusId}`);
+          if (r0 && el) {
+            const r = el.getBoundingClientRect();
+            panX += (r0.left + r0.width / 2) - (r.left + r.width / 2);
+            panY += (r0.top + r0.height / 2) - (r.top + r.height / 2);
+            updateTransform();
+          }
+        }, { duration: 220, skipFreeNotes: true });
       }
 
       // --- REORDER: MOVE A RUN OF STEPS INTO AN ARROW ---
@@ -3673,41 +4013,44 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
       // With auto layout on (and always for a step that had no arrows) the layout is tidied; off, the steps of a
       // moved run stay where they were dropped and Tidy lays the result out. Given a pointer position, the view is
       // re-panned so that `focusId` (default: the entry) sits under it.
-      function moveRunIntoEdge(ids, edgeId, clientX, clientY, focusId) {
+      function moveRunIntoEdge(ids, edgeId, clientX, clientY, focusId, originRect) {
         const run = runOf(ids);
         const edge = chartData.edges.find(x => x.id === edgeId);
         if (!run || !edge || run.set.has(edge.from) || run.set.has(edge.to)) return false;
         const lifted = run.ins.length > 0 || !!run.out;
         const after = run.out ? run.out.to : null;
         const drop = new Set(run.out ? [run.out] : []);
-        run.ins.forEach(p => {
-          const dup = chartData.edges.some(x => x !== p && !drop.has(x) && x.from === p.from && x.to === after);
-          if (after && p.from !== after && !dup) p.to = after; else drop.add(p);
-        });
-        chartData.edges = chartData.edges.filter(x => !drop.has(x));
-        const target = edge.to;
-        edge.to = run.entry;
-        const second = { id: uid('e'), from: run.exit, to: target, label: run.out ? (run.out.label || '') : (nodeById(run.exit).type === 'decision' ? 'Yes' : '') };
-        if (edge.feedback) { second.feedback = true; delete edge.feedback; }
-        chartData.edges.push(second);
-        if (autoLayout || !lifted) layoutDiagram(chartData);
-        render();
-        updateStatus(true);
-        if (ids.length === 1) selectNode(ids[0]); else setNodeSelection(ids, selectedNodeId);
-        // Same zoom, re-panned so the step sits where it was dropped (no Fit jump on big diagrams)
-        const el = clientX != null && nodeElOf(focusId || run.entry);
-        if (el) {
-          const r = el.getBoundingClientRect();
-          panX += clientX - (r.left + r.width / 2);
-          panY += clientY - (r.top + r.height / 2);
-          updateTransform();
-        }
-        run.set.forEach(id => {
-          const moved = nodeElOf(id);
-          if (!moved) return;
-          moved.classList.add('just-inserted');
-          setTimeout(() => moved.classList.remove('just-inserted'), 900);
-        });
+        const secondId = uid('e');
+        withMotion(() => {
+          run.ins.forEach(p => {
+            const dup = chartData.edges.some(x => x !== p && !drop.has(x) && x.from === p.from && x.to === after);
+            if (after && p.from !== after && !dup) p.to = after; else drop.add(p);
+          });
+          chartData.edges = chartData.edges.filter(x => !drop.has(x));
+          const target = edge.to;
+          edge.to = run.entry;
+          const second = { id: secondId, from: run.exit, to: target, label: run.out ? (run.out.label || '') : (nodeById(run.exit).type === 'decision' ? 'Yes' : '') };
+          if (edge.feedback) { second.feedback = true; delete edge.feedback; }
+          chartData.edges.push(second);
+          if (autoLayout || !lifted) layoutDiagram(chartData);
+          render();
+          updateStatus(true);
+          if (ids.length === 1) selectNode(ids[0]); else setNodeSelection(ids, selectedNodeId);
+          // Same zoom, re-panned so the step sits where it was dropped (no Fit jump on big diagrams)
+          const el = clientX != null && nodeElOf(focusId || run.entry);
+          if (el) {
+            const r = el.getBoundingClientRect();
+            panX += clientX - (r.left + r.width / 2);
+            panY += clientY - (r.top + r.height / 2);
+            updateTransform();
+          }
+          run.set.forEach(id => {
+            const moved = nodeElOf(id);
+            if (!moved) return;
+            moved.classList.add('just-inserted');
+            setTimeout(() => moved.classList.remove('just-inserted'), 460);
+          });
+        }, { duration: 220, originRect, drawEdges: new Set([edgeId, secondId]), skipFreeNotes: true });
         return true;
       }
 
@@ -3787,6 +4130,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
 
       function startPaletteDrag(e, btn) {
         if (e.button !== 0 || btn.disabled || document.body.classList.contains('presentation')) return;
+        motion.cancelAll();   // arrows still gliding to their places would not match the routes the drop is tested against
         paletteDrag = { type: btn.dataset.nodeType, btn, ghost: null, startX: e.clientX, startY: e.clientY, placement: null, onCanvas: false };
         window.addEventListener('pointermove', onPaletteMove);
         window.addEventListener('pointerup', onPaletteUp);
@@ -3839,7 +4183,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         }
         setInsertTarget(target);
         pd.ghost.classList.toggle('inserting', !!target);
-        pd.ghost.style.transform = `scale(${scale})`;
+        pd.ghost.style.transform = `scale(${scale * 1.03})`;
         pd.ghost.style.left = `${gx}px`;
         pd.ghost.style.top = `${gy}px`;
       }
@@ -3848,12 +4192,15 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         const pd = paletteDrag;
         const target = insertTarget;
         const dragged = !!(pd && pd.ghost);
+        const ghostRect = dragged && motion.enabled() ? pd.ghost.getBoundingClientRect() : null;
         if (dragged) pd.btn.dataset.dragged = '1';   // swallow the click that may follow on the button
         cancelPaletteDrag();
         if (!dragged || !pd.onCanvas || !pd.placement) return;
         if (target) {
-          const node = makeNode(pd.type, pd.placement);
-          moveRunIntoEdge([node.id], target.edgeId, e.clientX, e.clientY);
+          withMotion(() => {
+            const node = makeNode(pd.type, pd.placement);
+            moveRunIntoEdge([node.id], target.edgeId, e.clientX, e.clientY, node.id, ghostRect);
+          }, { duration: 220, originRect: ghostRect, skipFreeNotes: true });
         } else {
           // A shape dropped onto blank canvas stays where it was dropped, even with Auto-Tidy on: it has no
           // arrows yet, so a re-layout would only throw it to the start of the flow. The next step edit (or
@@ -3862,6 +4209,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           render();
           updateStatus(true);
           selectNode(node.id);
+          if (ghostRect) motion.morphRect(ghostRect, nodeElOf(node.id), { duration: 180, easing: 'curve-spring-settle' });
         }
       }
 
@@ -3892,19 +4240,23 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
 
       btnAddLane.addEventListener('click', () => {
         if (chartData.swimlanes === false) {
-          delete chartData.swimlanes;
-          updateStatus(true);
-          render();
+          withMotion(() => {
+            delete chartData.swimlanes;
+            updateStatus(true);
+            render();
+          }, { duration: 210, skipFreeNotes: true });
           return;
         }
-        const newLane = {                     // no color: the renderer assigns the palette colour for its position
-          id: `lane_${Date.now()}`,
-          name: `Actor / Role ${chartData.lanes.length + 1}`,
-          icon: 'users',
-          height: LE.LANE_MIN
-        };
-        chartData.lanes.push(newLane);
-        relayout();
+        withMotion(() => {
+          const newLane = {                     // no color: the renderer assigns the palette colour for its position
+            id: `lane_${Date.now()}`,
+            name: `Actor / Role ${chartData.lanes.length + 1}`,
+            icon: 'users',
+            height: LE.LANE_MIN
+          };
+          chartData.lanes.push(newLane);
+          relayout();
+        }, { duration: 210, skipFreeNotes: true });
       });
 
       // --- DIRECTION TOGGLE ---
@@ -3920,17 +4272,19 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         btnDirection.setAttribute('aria-label', label);
       }
       if (btnDirection) btnDirection.addEventListener('click', () => {
-        if (isTB()) delete chartData.direction;
-        else chartData.direction = 'TB';
-        selectedEdgeId = null;
-        // A moved note's offset is in screen terms, which the switch turns sideways: let every anchored note be re-fitted
-        // (a free note's position is in flow terms and turns with the diagram)
-        notesList().forEach(n => { if (!isFree(n)) delete n.pos; });
-        layoutDiagram(chartData);
-        layoutOtherFlows();
-        render();
-        updateStatus(true);
-        fitView();
+        withMotion(() => {
+          if (isTB()) delete chartData.direction;
+          else chartData.direction = 'TB';
+          selectedEdgeId = null;
+          // A moved note's offset is in screen terms, which the switch turns sideways: let every anchored note be re-fitted
+          // (a free note's position is in flow terms and turns with the diagram)
+          notesList().forEach(n => { if (!isFree(n)) delete n.pos; });
+          layoutDiagram(chartData);
+          layoutOtherFlows();
+          render();
+          updateStatus(true);
+        }, { duration: 260, forceDrawEdges: true });
+        fitView(true);
       });
 
       // --- AUTO LAYOUT TOGGLE ---
@@ -4192,9 +4546,29 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         return note.id === selectedNoteId || note.id === editingNoteId || !!(noteDrag && noteDrag.id === note.id)
           || !!(noteLink && noteLink.id === note.id) || ids.includes(peekNodeId) || ids.includes(selectedNodeId);
       }
+      let skipNoteUnfoldId = null;
       function applyNoteVisibility() {
         if (!notesLayer) return;
         const all = !!chartData.showNotes;
+        const canAnim = motionDepth === 0 && motion.enabled();
+        const prevVis = new Map(), badgeRects = new Map();
+        if (canAnim) {
+          [...notesLayer.children].forEach(card => {
+            const note = noteById(card.dataset.noteId);
+            if (!note || isFree(note)) return;
+            const wasVis = card.classList.contains('show') || card.classList.contains('peek');
+            const willVis = all || notePeeked(note);
+            prevVis.set(note.id, wasVis);
+            const anchorId = linkedIds(note)[0];
+            const badgeEl = anchorId && nodeElOf(anchorId)?.querySelector('.note-badge');
+            if (wasVis && !willVis) {
+              motion.foldNote(card, badgeEl);
+            } else if (!wasVis && willVis && badgeEl) {
+              const br = badgeEl.getBoundingClientRect();
+              if (br.width > 0) badgeRects.set(note.id, br);
+            }
+          });
+        }
         swimlanesContainer.classList.toggle('notes-on', all);
         [...notesLayer.children, ...noteLeaderGroup.children].forEach(el => {
           const note = noteById(el.dataset.noteId);
@@ -4203,6 +4577,27 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           el.classList.toggle('peek', notePeeked(note));
           if (el.classList.contains('note')) el.classList.toggle('selected', note.id === selectedNoteId);
         });
+        if (canAnim) {
+          [...notesLayer.children].forEach(card => {
+            const note = noteById(card.dataset.noteId);
+            if (!note || isFree(note) || note.id === skipNoteUnfoldId) return;
+            const nowVis = card.classList.contains('show') || card.classList.contains('peek');
+            if (!prevVis.get(note.id) && nowVis) {
+              const anchorId = linkedIds(note)[0];
+              const leaderEl = anchorId && noteLeaderGroup.querySelector(`.note-leader[data-note-id="${CSS.escape(note.id)}"][data-node-id="${CSS.escape(anchorId)}"]`);
+              const br = badgeRects.get(note.id);
+              if (note.id === editingNoteId) {
+                motion.anim(card, [{ transform: 'scale(0.88)' }, { transform: 'none' }], { duration: 170, easing: motion.curve('curve-spring-tactile') });
+              } else if (br) {
+                motion.ghostMorph(br, card, 170, 'curve-spring-tactile');
+                if (leaderEl) motion.drawPath(leaderEl, { duration: 150, easing: 'curve-out' });
+              } else if (leaderEl) {
+                motion.drawPath(leaderEl, { duration: 150, easing: 'curve-out' });
+              }
+            }
+          });
+        }
+        skipNoteUnfoldId = null;
         // The selected note's steps are outlined, so it is clear which ones it explains
         const sel = selectedNoteId && noteById(selectedNoteId);
         document.querySelectorAll('.flow-node').forEach(el => el.classList.toggle('note-linked', !!sel && (sel.nodes || []).includes(el.dataset.nodeId)));
@@ -4293,7 +4688,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
       }
 
       // A free note with its top-left at a client point (default: the middle of the view); dropped again if left empty
-      function addFreeNote(clientX, clientY) {
+      function addFreeNote(clientX, clientY, fromRect) {
         if (isPresenting()) return;
         const vp = viewport.getBoundingClientRect();
         const c = clientX === undefined ? toContainer(vp.left + vp.width / 2 - 80 * scale, vp.top + vp.height / 2 - 20 * scale) : toContainer(clientX, clientY);
@@ -4301,6 +4696,11 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         chartData.notes = notesList();
         chartData.notes.push(note);
         editNote(note.id);
+        const card = noteCard(note.id);
+        if (card && motion.enabled()) {
+          if (fromRect) motion.morphRect(fromRect, card, { duration: 170, easing: 'curve-spring-tactile' });
+          else motion.anim(card, [{ transform: 'scale(0.88)' }, { transform: 'none' }], { duration: 160, easing: motion.curve('curve-spring-tactile') });
+        }
       }
 
       function editNote(id) {
@@ -4331,6 +4731,9 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         const value = text.innerText.replace(/\u00a0/g, ' ').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
         if (value) note.text = value;
         else {
+          const card = noteCard(note.id), anchorId = linkedIds(note)[0];
+          const badgeEl = anchorId && nodeElOf(anchorId)?.querySelector('.note-badge');
+          if (card) motion.foldNote(card, badgeEl);
           chartData.notes = notesList().filter(n => n !== note);
           if (!chartData.notes.length) delete chartData.notes;
           if (selectedNoteId === note.id) selectedNoteId = null;
@@ -4351,7 +4754,11 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
       }, true);
 
       function removeNote(id) {
-        if (!noteById(id)) return;
+        const note = noteById(id);
+        if (!note) return;
+        const card = noteCard(id), anchorId = linkedIds(note)[0];
+        const badgeEl = anchorId && nodeElOf(anchorId)?.querySelector('.note-badge');
+        if (card) motion.foldNote(card, badgeEl);
         chartData.notes = notesList().filter(n => n.id !== id);
         if (!chartData.notes.length) delete chartData.notes;
         if (editingNoteId === id) editingNoteId = null;
@@ -4365,6 +4772,9 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
       function toggleNoteLink(noteId, nodeId) {
         const note = noteById(noteId);
         if (!note || !nodeById(nodeId) || isConnector(nodeById(nodeId))) return;
+        const prevLinks = new Set(note.nodes || []);
+        const oldCard = noteCard(noteId);
+        const wasCardVis = !!oldCard && (oldCard.classList.contains('show') || oldCard.classList.contains('peek'));
         const ids = note.nodes || [];
         if (!ids.length) {   // a free note becomes anchored: its absolute pos turns relative to the step
           const card = noteCard(noteId), a = containerBox(nodeElOf(nodeId));
@@ -4383,7 +4793,14 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         } else return;   // the last step: delete the note instead
         selectedNoteId = noteId;
         updateStatus(true);
+        if (wasCardVis) skipNoteUnfoldId = noteId;
         render();
+        if (!prevLinks.has(nodeId) && (note.nodes || []).includes(nodeId)) {
+          const line = noteLeaderGroup.querySelector(`.note-leader[data-note-id="${CSS.escape(noteId)}"][data-node-id="${CSS.escape(nodeId)}"]`);
+          if (line) motion.drawPath(line, { duration: 150, easing: 'curve-out' });
+          const badge = nodeElOf(nodeId)?.querySelector('.note-badge');
+          if (badge) motion.pulseEl(badge, 'scale(1.25)', 160);
+        }
       }
 
       // --- Dragging a note's link handle onto a step ---
@@ -4451,8 +4868,8 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         d.card.classList.add('dragging');
         d.nx = Math.round((d.x + (e.clientX - d.sx) / scale) / 4) * 4;
         d.ny = Math.round((d.y + (e.clientY - d.sy) / scale) / 4) * 4;
-        d.card.style.left = `${d.nx}px`;
-        d.card.style.top = `${d.ny}px`;
+        d.card.style.translate = `${d.nx - d.x}px ${d.ny - d.y}px`;
+        d.card.style.scale = '1.02';
         drawLeaders(d.id, { x: d.nx, y: d.ny, ...(noteSizes[d.id] || { w: 0, h: 0 }) });
       }
       function endNoteDrag() {
@@ -4461,7 +4878,15 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         window.removeEventListener('pointercancel', cancelNoteDrag);
         const d = noteDrag;
         noteDrag = null;
-        if (d) d.card.classList.remove('dragging');
+        if (d) {
+          d.card.classList.remove('dragging');
+          d.card.style.translate = '';
+          d.card.style.scale = '';
+          if (d.moved) {
+            d.card.style.left = `${d.nx}px`;
+            d.card.style.top = `${d.ny}px`;
+          }
+        }
         return d;
       }
       function onNoteUp() {
@@ -4509,7 +4934,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           hint.setAttribute('role', 'status');
           hint.innerHTML = 'Click a step to add a note · <kbd>Esc</kbd> to cancel';
           document.body.appendChild(hint);
-        } else if (!on && hint) hint.remove();
+        } else if (!on && hint) motion.hideHint(hint);
       }
       // The step under a screen point (ghosts and overlays ignore the pointer, so they never get in the way)
       function nodeIdAt(clientX, clientY) {
@@ -4581,10 +5006,11 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         return d;
       }
       function onNoteToolUp() {
+        const ghostRect = noteToolDrag && noteToolDrag.ghost && motion.enabled() ? noteToolDrag.ghost.getBoundingClientRect() : null;
         const d = endNoteToolDrag();
         if (!d || !d.ghost) return;
         btnAddNote.dataset.dragged = '1';   // swallow the click that may follow on the tile
-        if (d.target) giveNoteTo(d.target); else if (d.over) { setNotePicking(false); addFreeNote(d.x, d.y); }   // anywhere else on the diagram: a free note
+        if (d.target) giveNoteTo(d.target); else if (d.over) { setNotePicking(false); addFreeNote(d.x, d.y, ghostRect); }   // anywhere else on the diagram: a free note
       }
       function cancelNoteToolDrag() {
         const d = endNoteToolDrag();
@@ -4613,7 +5039,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           hint.dataset.exportSkip = '';
           hint.innerHTML = 'Click an arrow to break it into a connector pair · <kbd>Esc</kbd> to cancel';
           document.body.appendChild(hint);
-        } else if (!on && hint) hint.remove();
+        } else if (!on && hint) motion.hideHint(hint);
       }
       if (btnAddConnector) {
         btnAddConnector.addEventListener('click', (e) => {
@@ -4984,16 +5410,16 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           });
           return b;
         };
-        const box = (parent) => { const d = document.createElement('div'); d.className = 'flow-subtabs'; d.setAttribute('role', 'none'); parent.appendChild(d); return d; };
+        const box = (parent, level) => { const d = document.createElement('div'); d.className = 'flow-subtabs'; d.dataset.level = String(level); d.setAttribute('role', 'none'); parent.appendChild(d); return d; };
         const path = [cur];
         while (path[0] !== PARENT) path.unshift(parentOf(path[0]));
         let at = flowTabs;
         path.forEach((key, i) => {
-          if (i) at = box(at);
+          if (i) at = box(at, i);
           at.appendChild(tab(key));
         });
         const kids = childrenOf(cur);
-        if (kids.length) { const inner = box(at); kids.forEach(k => inner.appendChild(tab(k))); }
+        if (kids.length) { const inner = box(at, path.length); kids.forEach(k => inner.appendChild(tab(k))); }
         // hanging boxes: each is one flex row
         const act = flowTabs.querySelector('.flow-tab[aria-selected="true"]');
         if (act && act.scrollIntoView) act.scrollIntoView({ block: 'nearest', inline: 'nearest' });
@@ -5004,32 +5430,45 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         const t = curTab();
         if (renderedTab === null) { renderedTab = t; return; }
         if (renderedTab === t) return;
-        tabViews[renderedTab] = { scale, panX, panY };
+        tabGlide = true;   // the view following a tab switch is not the reader panning: it keeps an open confirm (a tab's delete asks from the parent)
+        setTimeout(() => { tabGlide = false; }, 420);
+        tabViews[renderedTab] = viewTarget();   // where a glide in flight lands, not where it passes
         renderedTab = t;
         const v = tabViews[t];
-        if (v) { scale = v.scale; panX = v.panX; panY = v.panY; updateTransform(); } else fitView();
+        if (v) {
+          if (motion.enabled()) animateViewport(v.panX, v.panY, v.scale, { duration: motion.dur('dur-tab', 300), easing: 'curve-inout' });
+          else { cancelViewportAnim(); scale = v.scale; panX = v.panX; panY = v.panY; updateTransform(); }
+        } else fitView(true);
       }
 
       // Make `key` the active flow (not an edit: nothing to undo or save). `selectId` selects that step in it.
-      function switchTab(key, selectId) {
+      // A tab switch is calm: the old flow dims out in place, the new one settles in with a short slide (no node flies in from afar)
+      const TAB_SWITCH_MOTION = () => ({
+        duration: motion.dur('dur-tab', 300), easing: 'curve-inout', ghosts: true, ghostExit: true,
+        exitDuration: 160, exitTransform: 'scale(0.99)', exitEasing: 'curve-inout',
+        enterScale: 0.98, enterShift: 14, enterEasing: 'curve-out', forceDrawEdges: true, drawDuration: 220
+      });
+      function switchTab(key, selectId, originRect) {
         if (!chartData.flows || (key !== PARENT && !(key in chartData.tabNames))) return;
         if (key !== curTab()) {
-          plugin.cancelInteraction();
-          plugin.clearSelection();
-          ui.closeConfirm();
-          syncActors();
-          const cur = curTab();
-          chartData.flows[cur] = { lanes: chartData.lanes, nodes: chartData.nodes, edges: chartData.edges };
-          if (chartData.notes) chartData.flows[cur].notes = chartData.notes;
-          const next = chartData.flows[key];
-          delete chartData.flows[key];
-          // the actors list is the one source of a lane's name, icon and colour
-          chartData.lanes = next.lanes.map(l => ({ ...chartData.actors.find(a => a.id === l.id), ...(l.height != null ? { height: l.height } : {}) }));
-          chartData.nodes = next.nodes;
-          chartData.edges = next.edges;
-          if (next.notes) chartData.notes = next.notes; else delete chartData.notes;
-          if (key === PARENT) delete chartData.tab; else chartData.tab = key;
-          render();
+          withMotion(() => {
+            plugin.cancelInteraction();
+            plugin.clearSelection();
+            ui.closeConfirm();
+            syncActors();
+            const cur = curTab();
+            chartData.flows[cur] = { lanes: chartData.lanes, nodes: chartData.nodes, edges: chartData.edges };
+            if (chartData.notes) chartData.flows[cur].notes = chartData.notes;
+            const next = chartData.flows[key];
+            delete chartData.flows[key];
+            // the actors list is the one source of a lane's name, icon and colour
+            chartData.lanes = next.lanes.map(l => ({ ...chartData.actors.find(a => a.id === l.id), ...(l.height != null ? { height: l.height } : {}) }));
+            chartData.nodes = next.nodes;
+            chartData.edges = next.edges;
+            if (next.notes) chartData.notes = next.notes; else delete chartData.notes;
+            if (key === PARENT) delete chartData.tab; else chartData.tab = key;
+            render();
+          }, TAB_SWITCH_MOTION());
         }
         if (selectId && nodeById(selectId)) selectNode(selectId);
       }
@@ -5068,7 +5507,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         b.title = `Open the subprocess flow: ${chartData.tabNames[node.id]}`;
         b.setAttribute('aria-label', b.title);
                 b.addEventListener('pointerdown', (e) => e.stopPropagation());   // never starts a node drag
-        b.addEventListener('click', (e) => { e.stopPropagation(); switchTab(node.id); });
+        b.addEventListener('click', (e) => { e.stopPropagation(); switchTab(node.id, null, nodeElOf(node.id)?.getBoundingClientRect()); });
         return b;
       }
 
@@ -5102,38 +5541,50 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
       function collapseToSubprocess() {
         const run = collapsibleRun();
         if (!run) return;
-        syncActors();
-        const ids = run.set, entry = nodeById(run.entry), exit = nodeById(run.exit);
-        const id = subId('n'), name = 'New Subprocess';
-        const inner = chartData.edges.filter(e => ids.has(e.from) && ids.has(e.to));
-        const moved = chartData.nodes.filter(n => ids.has(n.id));
-        const notes = notesList();
-        const kidNotes = notes.filter(n => n.nodes.length && n.nodes.every(i => ids.has(i)));
-        const start = { id: subId('n'), laneId: entry.laneId, type: 'start', label: name };
-        const end = { id: subId('n'), laneId: exit.laneId, type: 'end', label: 'Subprocess Done' };
-        const kidNodes = [start, ...moved, end];
-        const kidEdges = [...inner, { id: subId('e'), from: start.id, to: entry.id, label: '' }, { id: subId('e'), from: exit.id, to: end.id, label: '' }];
-        // the parent: the run is replaced by one subprocess step, the arrows that entered and left it now meet that step
-        run.ins.forEach(e => { e.to = id; });
-        if (run.out) run.out.from = id;
-        chartData.nodes = chartData.nodes.filter(n => !ids.has(n.id)).concat({ id, laneId: entry.laneId, type: 'subprocess', label: name, x: entry.x, y: entry.y });
-        chartData.edges = chartData.edges.filter(e => !inner.includes(e));
-        if (kidNotes.length) { chartData.notes = notes.filter(n => !kidNotes.includes(n)); if (!chartData.notes.length) delete chartData.notes; }
-        const used = new Set(kidNodes.map(n => n.laneId));
-        if (!chartData.flows) { chartData.actors = chartData.lanes.map(withoutHeight); chartData.flows = {}; chartData.tabNames = {}; }
-        const flow = { lanes: chartData.lanes.filter(l => used.has(l.id)).map(withoutHeight), nodes: kidNodes, edges: kidEdges };
-        if (kidNotes.length) flow.notes = kidNotes;
-        chartData.flows[id] = flow;
-        chartData.tabNames[id] = name;
-        layoutFlow(flow, chartData.direction);
-        // a lane that only the child still uses leaves the parent (as it would on reload)
-        chartData.lanes = chartData.lanes.filter(l => chartData.nodes.some(n => n.laneId === l.id) || !used.has(l.id));
-        pruneNotes();
-        clearNodeSelection();
-        layoutDiagram(chartData);
-        render();
-        selectNode(id);
-        updateStatus(true);
+        const ids = run.set, id = subId('n'), name = 'New Subprocess';
+        const toKey = Object.fromEntries([...ids].map(nid => [nid, id]));
+        let originRect = null;
+        if (motion.enabled()) {
+          let l = Infinity, t = Infinity, r = -Infinity, b = -Infinity;
+          ids.forEach(nid => {
+            const vr = nodeElOf(nid)?.getBoundingClientRect();
+            if (vr && vr.width > 0) { l = Math.min(l, vr.left); t = Math.min(t, vr.top); r = Math.max(r, vr.right); b = Math.max(b, vr.bottom); }
+          });
+          if (l < Infinity) originRect = { left: l, top: t, width: Math.max(1, r - l), height: Math.max(1, b - t) };
+        }
+        withMotion(() => {
+          syncActors();
+          const entry = nodeById(run.entry), exit = nodeById(run.exit);
+          const inner = chartData.edges.filter(e => ids.has(e.from) && ids.has(e.to));
+          const moved = chartData.nodes.filter(n => ids.has(n.id));
+          const notes = notesList();
+          const kidNotes = notes.filter(n => n.nodes.length && n.nodes.every(i => ids.has(i)));
+          const start = { id: subId('n'), laneId: entry.laneId, type: 'start', label: name };
+          const end = { id: subId('n'), laneId: exit.laneId, type: 'end', label: 'Subprocess Done' };
+          const kidNodes = [start, ...moved, end];
+          const kidEdges = [...inner, { id: subId('e'), from: start.id, to: entry.id, label: '' }, { id: subId('e'), from: exit.id, to: end.id, label: '' }];
+          // the parent: the run is replaced by one subprocess step, the arrows that entered and left it now meet that step
+          run.ins.forEach(e => { e.to = id; });
+          if (run.out) run.out.from = id;
+          chartData.nodes = chartData.nodes.filter(n => !ids.has(n.id)).concat({ id, laneId: entry.laneId, type: 'subprocess', label: name, x: entry.x, y: entry.y });
+          chartData.edges = chartData.edges.filter(e => !inner.includes(e));
+          if (kidNotes.length) { chartData.notes = notes.filter(n => !kidNotes.includes(n)); if (!chartData.notes.length) delete chartData.notes; }
+          const used = new Set(kidNodes.map(n => n.laneId));
+          if (!chartData.flows) { chartData.actors = chartData.lanes.map(withoutHeight); chartData.flows = {}; chartData.tabNames = {}; }
+          const flow = { lanes: chartData.lanes.filter(l => used.has(l.id)).map(withoutHeight), nodes: kidNodes, edges: kidEdges };
+          if (kidNotes.length) flow.notes = kidNotes;
+          chartData.flows[id] = flow;
+          chartData.tabNames[id] = name;
+          layoutFlow(flow, chartData.direction);
+          // a lane that only the child still uses leaves the parent (as it would on reload)
+          chartData.lanes = chartData.lanes.filter(l => chartData.nodes.some(n => n.laneId === l.id) || !used.has(l.id));
+          pruneNotes();
+          clearNodeSelection();
+          layoutDiagram(chartData);
+          render();
+          selectNode(id);
+          updateStatus(true);
+        }, { duration: 240, ghosts: true, toKey, originRect, skipFreeNotes: true });
         // the new step is waiting for its name: its text opens for editing
         const label = document.querySelector(`#node-${CSS.escape(id)} .node-label`);
         if (label) label.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
@@ -5166,58 +5617,61 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         if (!id) return;
         const why = expandBlocker(id);
         if (why) { flashHint(why); return; }
-        syncActors();
         const kid = chartData.flows[id];
-        const starts = kid.nodes.filter(n => n.type === 'start'), ends = kid.nodes.filter(n => n.type === 'end');
-        const start = starts[0];
-        const edges = chartData.edges;
-        const outs = edges.filter(e => e.from === id);
-        let decision = null, branches = outs;
-        const next = outs.length === 1 ? nodeById(outs[0].to) : null;
-        if (next && next.type === 'decision') {
-          branches = edges.filter(e => e.from === next.id);
-          if (ends.length === branches.length && !edges.some(e => e.to === next.id && e.from !== id)) decision = next;
-        }
-        const drop = new Set([id, start.id]), dropEdges = new Set(), fresh = [];
-        const wire = (from, to, a, b) => fresh.push({ id: subId('e'), from, to, label: a.label || b.label || '', ...(a.feedback ? { feedback: true } : {}) });
-        let kidEdges = kid.edges.slice();
-        const first = kidEdges.filter(e => e.from === start.id);
-        edges.filter(e => e.to === id).forEach(ie => first.forEach(f => wire(ie.from, f.to, ie, f)));
-        if (outs.length) {
-          let target;
-          if (decision) {
-            const map = endToBranch(ends, branches);
-            target = (end) => (map[end.id] ? [map[end.id]] : []);
-            drop.add(decision.id);
-            branches.forEach(b => dropEdges.add(b.id));
-          } else target = () => outs;
-          ends.forEach(end => {
-            drop.add(end.id);
-            kidEdges.filter(e => e.to === end.id).forEach(ie => target(end).forEach(t => wire(ie.from, t.to, ie, t)));
+        const fromKey = Object.fromEntries(kid.nodes.filter(n => n.type !== 'start' && n.type !== 'end').map(n => [n.id, id]));
+        withMotion(() => {
+          syncActors();
+          const starts = kid.nodes.filter(n => n.type === 'start'), ends = kid.nodes.filter(n => n.type === 'end');
+          const start = starts[0];
+          const edges = chartData.edges;
+          const outs = edges.filter(e => e.from === id);
+          let decision = null, branches = outs;
+          const next = outs.length === 1 ? nodeById(outs[0].to) : null;
+          if (next && next.type === 'decision') {
+            branches = edges.filter(e => e.from === next.id);
+            if (ends.length === branches.length && !edges.some(e => e.to === next.id && e.from !== id)) decision = next;
+          }
+          const drop = new Set([id, start.id]), dropEdges = new Set(), fresh = [];
+          const wire = (from, to, a, b) => fresh.push({ id: subId('e'), from, to, label: a.label || b.label || '', ...(a.feedback ? { feedback: true } : {}) });
+          let kidEdges = kid.edges.slice();
+          const first = kidEdges.filter(e => e.from === start.id);
+          edges.filter(e => e.to === id).forEach(ie => first.forEach(f => wire(ie.from, f.to, ie, f)));
+          if (outs.length) {
+            let target;
+            if (decision) {
+              const map = endToBranch(ends, branches);
+              target = (end) => (map[end.id] ? [map[end.id]] : []);
+              drop.add(decision.id);
+              branches.forEach(b => dropEdges.add(b.id));
+            } else target = () => outs;
+            ends.forEach(end => {
+              drop.add(end.id);
+              kidEdges.filter(e => e.to === end.id).forEach(ie => target(end).forEach(t => wire(ie.from, t.to, ie, t)));
+            });
+            kidEdges = kidEdges.filter(e => !ends.some(end => end.id === e.to));
+          }
+          kidEdges = kidEdges.filter(e => e.from !== start.id);
+          const relink = first.length ? first[0].to : null;
+          notesList().forEach(n => { n.nodes = n.nodes.map(i => (i === id ? relink : i)).filter(Boolean); });
+          // the child's lanes that the parent lacks come in, in the order of the one actor list
+          const at = (laneId) => chartData.actors.findIndex(a => a.id === laneId);
+          kid.lanes.forEach(l => {
+            if (chartData.lanes.some(x => x.id === l.id)) return;
+            let pos = chartData.lanes.findIndex(x => at(x.id) > at(l.id));
+            if (pos < 0) pos = chartData.lanes.length;
+            chartData.lanes.splice(pos, 0, withoutHeight(chartData.actors.find(a => a.id === l.id) || l));
           });
-          kidEdges = kidEdges.filter(e => !ends.some(end => end.id === e.to));
-        }
-        kidEdges = kidEdges.filter(e => e.from !== start.id);
-        const relink = first.length ? first[0].to : null;
-        notesList().forEach(n => { n.nodes = n.nodes.map(i => (i === id ? relink : i)).filter(Boolean); });
-        // the child's lanes that the parent lacks come in, in the order of the one actor list
-        const at = (laneId) => chartData.actors.findIndex(a => a.id === laneId);
-        kid.lanes.forEach(l => {
-          if (chartData.lanes.some(x => x.id === l.id)) return;
-          let pos = chartData.lanes.findIndex(x => at(x.id) > at(l.id));
-          if (pos < 0) pos = chartData.lanes.length;
-          chartData.lanes.splice(pos, 0, withoutHeight(chartData.actors.find(a => a.id === l.id) || l));
-        });
-        chartData.nodes = chartData.nodes.filter(n => !drop.has(n.id)).concat(kid.nodes.filter(n => !drop.has(n.id)));
-        chartData.edges = edges.filter(e => !drop.has(e.from) && !drop.has(e.to) && !dropEdges.has(e.id)).concat(kidEdges, fresh);
-        if (kid.notes && kid.notes.length) chartData.notes = notesList().concat(kid.notes);
-        dropFlows([id]);   // only this flow: the ones below it stay, one level up
-        pruneConnectors();
-        pruneNotes();
-        clearNodeSelection();
-        layoutDiagram(chartData);
-        render();
-        updateStatus(true);
+          chartData.nodes = chartData.nodes.filter(n => !drop.has(n.id)).concat(kid.nodes.filter(n => !drop.has(n.id)));
+          chartData.edges = edges.filter(e => !drop.has(e.from) && !drop.has(e.to) && !dropEdges.has(e.id)).concat(kidEdges, fresh);
+          if (kid.notes && kid.notes.length) chartData.notes = notesList().concat(kid.notes);
+          dropFlows([id]);   // only this flow: the ones below it stay, one level up
+          pruneConnectors();
+          pruneNotes();
+          clearNodeSelection();
+          layoutDiagram(chartData);
+          render();
+          updateStatus(true);
+        }, { duration: 240, fromKey, skipFreeNotes: true });
       }
 
       // Which branch of the decision after a subprocess each of the child's end pills stands for: by the same name, then by a
@@ -5295,6 +5749,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
       let tabMenu = null;
       function closeTabMenu(focusKey) {
         if (!tabMenu) return;
+        motion.ghostExit(tabMenu, { duration: 110, transform: 'scale(0.92, 0.86) translateY(-4px)', origin: 'top left' });
         tabMenu.remove();
         tabMenu = null;
         document.removeEventListener('pointerdown', onTabMenuOutside, true);
@@ -5317,7 +5772,11 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         m.appendChild(item);
         m.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeTabMenu(key); } });
         document.body.appendChild(m);
-        m.style.cssText = `position: fixed; right: auto; left: ${Math.max(8, Math.min(x, innerWidth - m.offsetWidth - 8))}px; top: ${Math.max(8, Math.min(y, innerHeight - m.offsetHeight - 8))}px`;
+        m.style.cssText = `position: fixed; right: auto; left: ${Math.max(8, Math.min(x, innerWidth - m.offsetWidth - 8))}px; top: ${Math.max(8, Math.min(y, innerHeight - m.offsetHeight - 8))}px; transform-origin: top left`;
+        motion.anim(m, [
+          { transform: 'scale(0.92, 0.86) translateY(-4px)', clipPath: 'inset(0 0 25% 0 round var(--radius-lg))' },
+          { transform: 'none', clipPath: 'inset(0 0 0 0 round var(--radius-lg))' }
+        ], { duration: Math.max(40, Math.round(motion.dur('dur-fast', 140) * motion.speedScale())), easing: motion.curve('curve-spring-tactile') });
         tabMenu = m;
         item.focus();
         document.addEventListener('pointerdown', onTabMenuOutside, true);
@@ -5329,7 +5788,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         chartData.tabNames[node.id] = node.label;
         const start = chartData.flows[node.id].nodes.find(n => n.type === 'start');
         if (start) start.label = node.label;
-        renderTabs();
+        withTabMotion(renderTabs);
       }
       if (btnCollapseSub) btnCollapseSub.addEventListener('click', collapseToSubprocess);
       if (btnExpandSub) btnExpandSub.addEventListener('click', () => expandSubprocess());
@@ -5345,7 +5804,8 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         fromMermaid,
         contentEl: swimlanesContainer,
         report: { node: '.flow-node', label: '.edge-label', labelText: '.edge-label-text', nodeText: '.node-label' },
-        render,
+        render: () => withMotion(render, { ghostExit: true, ghosts: true }),
+        tidy: () => withMotion(() => { layoutDiagram(chartData); render(); updateStatus(true); }, { duration: 220, skipFreeNotes: true }),
         eachTab,
         isBackground: (el) => (isPresenting() && !!el.closest('.flow-node:not(.type-connector)')) || el.id === 'swimlanes-container' || el.classList.contains('lane-track') || el.classList.contains('lane-gutter'),
         clearSelection() {
@@ -5412,7 +5872,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           document.querySelectorAll('.swimlane').forEach(el => add('lane:' + el.dataset.laneId, el.querySelector('.lane-pill'), el.querySelector('.lane-title')?.textContent));
           return items;
         },
-        onViewChange() { ui.closeConfirm(); pinLaneHeaders(); },
+        onViewChange() { if (!tabGlide) ui.closeConfirm(); pinLaneHeaders(); },
         // Notes on show may sit in the margin outside the lanes: Fit and screenshots take them in (peeked ones
         // are transient and do not count)
         contentOverflow() {

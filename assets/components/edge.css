@@ -7,7 +7,7 @@
       stroke-width: 1.25px;   /* thin at rest: hover, selection and the in/out highlights (2px) stand out more */
       stroke-linejoin: round;
       stroke-linecap: round;
-      transition: stroke 0.15s ease, stroke-width 0.15s ease;
+      transition: stroke var(--dur-micro) var(--curve-out), stroke-width var(--dur-micro) var(--curve-out);
     }
     .edge-hit {
       fill: none;
@@ -26,7 +26,7 @@
       cursor: pointer;
       z-index: 30;
       box-shadow: var(--shadow-sm);
-      transition: border-color var(--ease), box-shadow var(--ease), color var(--ease), opacity var(--ease);
+      transition: border-color var(--dur-micro) var(--curve-out), color var(--dur-micro) var(--curve-out), opacity var(--dur-micro) var(--curve-out);
     }
     .edge-label.hl-in  { border-color: var(--edge-in);  box-shadow: var(--shadow-glow) var(--edge-in-glow); }
     .edge-label.hl-out { border-color: var(--edge-out); box-shadow: var(--shadow-glow) var(--edge-out-glow); }

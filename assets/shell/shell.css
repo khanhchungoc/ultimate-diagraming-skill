@@ -77,6 +77,7 @@
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+      transition: border-color var(--dur-micro) var(--curve-out), background-color var(--dur-micro) var(--curve-out);
     }
     h1#chart-title:focus, h1#chart-title:hover {
       border-color: var(--border-dark);
@@ -220,8 +221,32 @@
     }
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after {
-        transition-duration: 0.01ms !important;
+        transition: none !important;   /* not a tiny duration: that gives every element an 'all' transition, so a measure reads pre-change values */
         animation-duration: 0.01ms !important;
         scroll-behavior: auto !important;
       }
+    }
+    body.capture *, body.capture *::before, body.capture *::after,
+    body.exporting *, body.exporting *::before, body.exporting *::after,
+    html[data-noanim] *, html[data-noanim] *::before, html[data-noanim] *::after {
+      transition: none !important;
+      animation-duration: 0.01ms !important;
+    }
+    /* Inert ghost layer for non-blocking exit/morph clones (stripped of test-queried classes, skipped in exports) */
+    #motion-ghost-layer {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 2200;
+      overflow: hidden;
+    }
+    ::view-transition-old(root),
+    ::view-transition-new(root) {
+      animation: none;
+      mix-blend-mode: normal;
+    }
+    ::view-transition-new(root) { z-index: 1; }
+    body.theme-animating, body.theme-animating * {
+      transition: background-color 160ms var(--curve-inout), border-color 160ms var(--curve-inout),
+                  color 160ms var(--curve-inout), fill 160ms var(--curve-inout), stroke 160ms var(--curve-inout) !important;
     }

@@ -10,8 +10,11 @@
       display: inline-flex; align-items: center; justify-content: center; gap: 4px; height: 26px; min-width: 26px; padding: 0 6px; box-sizing: border-box;
       border: 1px solid transparent; border-radius: var(--radius-md); background: transparent; color: var(--text-soft);
       font: inherit; font-size: var(--t-detail-size); cursor: pointer;
+      transition: background-color var(--dur-micro) var(--curve-out), color var(--dur-micro) var(--curve-out),
+                  border-color var(--dur-micro) var(--curve-out), transform var(--dur-micro) var(--curve-spring-tactile);
     }
     .ab-btn:hover { background: var(--bg-hover); color: var(--text-main); }
+    .ab-btn:active { transform: scale(0.94); }
     .ab-btn[aria-pressed="true"] { background: var(--primary-wash); border-color: var(--primary-ring); color: var(--primary); }
     .ab-btn.is-danger:hover { background: color-mix(in srgb, var(--danger) 10%, var(--bg-panel)); color: var(--danger); }
     .ab-btn svg { display: block; }

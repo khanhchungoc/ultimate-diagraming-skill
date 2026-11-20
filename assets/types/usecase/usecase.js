@@ -111,7 +111,7 @@
       function hint(text, sticky) {
         let el = document.querySelector('.hint');
         clearTimeout(hintTimer);
-        if (text === null) { if (el) el.remove(); return; }
+        if (text === null) { if (el) motion.hideHint(el); return; }
         if (!el) {
           el = htmlEl('div', 'hint');
           el.setAttribute('role', 'status');
@@ -119,7 +119,100 @@
           document.body.appendChild(el);
         }
         el.innerHTML = text;
-        if (!sticky) hintTimer = setTimeout(() => el.remove(), 3600);
+        if (!sticky) hintTimer = setTimeout(() => motion.hideHint(el), 3600);
+      }
+
+      // --- MOTION HELPERS ---
+      const FLIP_SPECS = [
+        { selector: '.uc-actor[data-node-id]', key: 'nodeId' },
+        { selector: '.uc-case[data-node-id]', key: 'nodeId', mode: 'size' },
+        { selector: '.uc-subject[data-subject-id]', key: 'subjectId', mode: 'clip' },
+        { selector: '.uc-label[data-edge-id]', key: 'edgeId' },
+        { selector: '.note[data-note-id]', key: 'noteId' }
+      ];
+      let ucGhosts = [];
+      function cancelUcGhosts() {
+        for (let i = 0; i < ucGhosts.length; i++) { try { ucGhosts[i].cancel(); } catch (_) {} }
+        ucGhosts = [];
+      }
+      function parsePathCoords(d) {
+        if (!d) return null;
+        const nums = (d.match(/-?\d+(?:\.\d+)?/g) || []).map(Number);
+        if (d.includes(' C ') && nums.length === 8) return { kind: 'bezier', pts: nums, d };
+        if (d.includes(' Q ') && !d.includes(' L ') && nums.length === 6) {
+          const [x0, y0, cx, cy, x2, y2] = nums;
+          return { kind: 'bezier', pts: [x0, y0, (x0 + 2 * cx) / 3, (y0 + 2 * cy) / 3, (x2 + 2 * cx) / 3, (y2 + 2 * cy) / 3, x2, y2], d };
+        }
+        if (!d.includes(' C ') && !d.includes(' Q ') && nums.length === 4) return { kind: 'line', pts: nums, d };
+        return { kind: 'raw', pts: null, d };
+      }
+      const toBezier = (c) => (c.kind === 'bezier' ? c.pts : [
+        c.pts[0], c.pts[1],
+        c.pts[0] + (c.pts[2] - c.pts[0]) / 3, c.pts[1] + (c.pts[3] - c.pts[1]) / 3,
+        c.pts[0] + 2 * (c.pts[2] - c.pts[0]) / 3, c.pts[1] + 2 * (c.pts[3] - c.pts[1]) / 3,
+        c.pts[2], c.pts[3]
+      ]);
+      function captureSvg() {
+        if (!motion.enabled()) return null;
+        const links = new Map(), parents = new Map(), leaders = new Map();
+        linksG.querySelectorAll('.uc-link[data-edge-id]').forEach((g) => {
+          const line = g.querySelector('.edge-line');
+          if (line) links.set(g.dataset.edgeId, parsePathCoords(line.getAttribute('d')));
+        });
+        linksG.querySelectorAll('.uc-parent[data-from][data-to]').forEach((g) => {
+          const line = g.querySelector('.edge-line');
+          if (line) parents.set(`${g.dataset.from}->${g.dataset.to}`, parsePathCoords(line.getAttribute('d')));
+        });
+        leadersG.querySelectorAll('.note-leader[data-note-id][data-item-id]').forEach((l) => {
+          leaders.set(`${l.dataset.noteId}:${l.dataset.itemId}`, [
+            +l.getAttribute('x1') || 0, +l.getAttribute('y1') || 0,
+            +l.getAttribute('x2') || 0, +l.getAttribute('y2') || 0
+          ]);
+        });
+        return { links, parents, leaders };
+      }
+      function playSvg(svgSnap, opts) {
+        if (!svgSnap || !motion.enabled()) return;
+        const o = opts || {}, tracks = [], drawEls = [];
+        const addDiff = (el, prev, cur) => {
+          if (!prev || !cur || prev.d === cur.d) return;
+          if (prev.pts && cur.pts) {
+            const bz = prev.kind === 'bezier' || cur.kind === 'bezier';
+            const from = bz ? toBezier(prev) : prev.pts, to = bz ? toBezier(cur) : cur.pts;
+            let diff = false;
+            for (let i = 0; i < from.length; i++) if (Math.abs(from[i] - to[i]) > 0.3) { diff = true; break; }
+            if (diff) tracks.push({ type: bz ? 'bezier' : 'line', el, from, to });
+          } else {
+            drawEls.push(el);
+          }
+        };
+        linksG.querySelectorAll('.uc-link[data-edge-id]').forEach((g) => {
+          const id = g.dataset.edgeId, line = g.querySelector('.edge-line');
+          if (!line) return;
+          if (o.drawLinkIds && o.drawLinkIds.has(id)) { drawEls.push(line); return; }
+          const prev = svgSnap.links.get(id);
+          if (prev) addDiff(line, prev, parsePathCoords(line.getAttribute('d')));
+          else drawEls.push(line);
+        });
+        linksG.querySelectorAll('.uc-parent[data-from][data-to]').forEach((g) => {
+          const line = g.querySelector('.edge-line');
+          if (!line) return;
+          const prev = svgSnap.parents.get(`${g.dataset.from}->${g.dataset.to}`);
+          if (prev) addDiff(line, prev, parsePathCoords(line.getAttribute('d')));
+          else drawEls.push(line);
+        });
+        leadersG.querySelectorAll('.note-leader[data-note-id][data-item-id]').forEach((l) => {
+          const key = `${l.dataset.noteId}:${l.dataset.itemId}`;
+          const prev = svgSnap.leaders.get(key);
+          const cur = [+l.getAttribute('x1') || 0, +l.getAttribute('y1') || 0, +l.getAttribute('x2') || 0, +l.getAttribute('y2') || 0];
+          if (prev) {
+            if (prev.some((v, i) => Math.abs(v - cur[i]) > 0.3)) tracks.push({ type: 'line', el: l, from: prev, to: cur });
+          } else if (o.drawNewLeaders && (l.classList.contains('show') || l.classList.contains('peek'))) {
+            drawEls.push(l);
+          }
+        });
+        if (tracks.length) motion.tweenSvg(tracks, { duration: o.duration, easing: o.easing });
+        for (let i = 0; i < drawEls.length; i++) motion.drawPath(drawEls[i], { duration: 140, easing: 'curve-out' });
       }
 
       // --- RENDERING ---
@@ -127,7 +220,16 @@
         routeDiagram(chartData);   // lays out afresh by itself when an actor or use case has no x/y
       }
 
-      function render() {
+      function render(motionOpts) {
+        const useMotion = motionOpts !== false && motion.enabled();
+        const mOpts = typeof motionOpts === 'object' && motionOpts ? motionOpts : {};
+        let snap = mOpts.snap || null, svgSnap = mOpts.svgSnap || null;
+        if (useMotion && !snap) {
+          cancelUcGhosts();
+          snap = motion.capture(canvas, FLIP_SPECS, mOpts.captureOpts);
+          svgSnap = captureSvg();
+        }
+        html.querySelectorAll('.uc-actionbar').forEach((el) => motion.hideBar(el));
         ensureLayout();
         const C = chartData.canvas || { width: 800, height: 400 };
         canvas.style.width = px(C.width);
@@ -154,6 +256,13 @@
         updateButtons();
         applySelection();
         if (hadFocus && els.items.has(hadFocus)) els.items.get(hadFocus).focus({ preventScroll: true });
+        if (useMotion && snap) {
+          const freeIds = new Set(notesList().filter(isFreeNote).map((n) => n.id));
+          const skipKeys = mOpts.skipKeys ? new Set([...freeIds, ...mOpts.skipKeys]) : freeIds;
+          motion.play(snap, canvas, FLIP_SPECS, Object.assign({}, mOpts, { skipKeys }));
+          playSvg(svgSnap, mOpts);
+          if (mOpts.afterPlay) mOpts.afterPlay();
+        }
       }
       function otherExists(o) {
         if (o.kind === 'link') return !!linkOf(o.id);
@@ -526,9 +635,24 @@
             if (nameOf(u).toLowerCase().includes(searchQ) || (u.refs || []).some((r) => String(r).toLowerCase().includes(searchQ))) searchIds.push(u.id);
           });
         }
+        const animKids = motion.enabled() ? [searchCount, searchFit, searchClear] : null;
+        const prevSearch = animKids ? animKids.map((el) => { const r = el.getBoundingClientRect(); return r.width > 0 ? r : null; }) : null;
         searchCount.textContent = !searchQ ? '' : searchIds.length ? `${searchIds.length} match${searchIds.length === 1 ? '' : 'es'}` : 'No match';
         searchFit.hidden = !searchIds.length;
         searchClear.hidden = !searchQ;
+        if (animKids) {
+          const durMs = Math.round(motion.dur('dur-fast', 140) * motion.speedScale());
+          for (let i = 0; i < animKids.length; i++) {
+            const el = animKids[i], oldR = prevSearch[i], newR = el.getBoundingClientRect();
+            if (!newR.width) continue;
+            if (oldR) {
+              const dx = oldR.left - newR.left;
+              if (Math.abs(dx) > 0.5) motion.anim(el, [{ transform: `translateX(${dx}px)` }, { transform: 'none' }], { duration: durMs, easing: motion.curve('curve-spring-settle') });
+            } else {
+              motion.anim(el, [{ transform: 'scale(0.85)', clipPath: 'inset(0 25% 0 25%)' }, { transform: 'none', clipPath: 'inset(0 0 0 0)' }], { duration: durMs, easing: motion.curve('curve-spring-tactile') });
+            }
+          }
+        }
         applyFocus();
       }
       searchEl.addEventListener('input', () => setSearch(searchEl.value));
@@ -548,10 +672,10 @@
         const vp = viewport.getBoundingClientRect(), dock = document.querySelector('.dock-area');
         const band = dock && dock.offsetHeight ? Math.max(0, vp.bottom - dock.getBoundingClientRect().top) : 0;
         const pad = 120, w = Math.max(1, x1 - x0), h = Math.max(1, y1 - y0);
-        scale = Math.min(Math.max(Math.min((vp.width - pad) / w, (vp.height - band - pad) / h), 0.25), 1.25);
-        panX = (vp.width - w * scale) / 2 - (canvas.offsetLeft + x0) * scale;
-        panY = (vp.height - band - h * scale) / 2 - (canvas.offsetTop + y0) * scale;
-        updateTransform();
+        const nextScale = Math.min(Math.max(Math.min((vp.width - pad) / w, (vp.height - band - pad) / h), 0.25), 1.25);
+        const nextPanX = (vp.width - w * nextScale) / 2 - (canvas.offsetLeft + x0) * nextScale;
+        const nextPanY = (vp.height - band - h * nextScale) / 2 - (canvas.offsetTop + y0) * nextScale;
+        animateViewport(nextPanX, nextPanY, nextScale, { duration: motion.dur('dur-camera', 240), easing: 'curve-out' });
       }
 
       // --- DOCK BUTTONS: Refs, Levels, Notes, Auto-Tidy ---
@@ -564,8 +688,38 @@
           : 'Auto-Tidy is off: things stay where you drop them (click to re-arrange after every change)';
         updateNotesButton();
       }
-      btnRefs.addEventListener('click', () => { if (chartData.showRefs === true) delete chartData.showRefs; else chartData.showRefs = true; render(); updateStatus(true); });
-      btnLevels.addEventListener('click', () => { levelsOn = !levelsOn; if (!levelsOn) selIds = selIds.filter((id) => !isHiddenByLevel(id)); setSearch(searchEl.value); render(); });
+      btnRefs.addEventListener('click', () => {
+        if (chartData.showRefs === true) delete chartData.showRefs; else chartData.showRefs = true;
+        render({
+          duration: 190,
+          afterPlay: () => {
+            if (chartData.showRefs !== true) return;
+            html.querySelectorAll('.uc-refs').forEach((r) => motion.anim(r, [
+              { transform: 'translate(-50%, -4px) scale(0.88)', clipPath: 'inset(0 0 100% 0)' },
+              { transform: 'translate(-50%, 2px) scale(1)', clipPath: 'inset(0 0 0 0)' }
+            ], { duration: 190, easing: motion.curve('curve-spring-tactile') }));
+          }
+        });
+        updateStatus(true);
+      });
+      btnLevels.addEventListener('click', () => {
+        const snap = motion.capture(canvas, FLIP_SPECS, { ghosts: true }), svgSnap = captureSvg();
+        levelsOn = !levelsOn;
+        let toKey = null;
+        if (!levelsOn) {
+          selIds = selIds.filter((id) => !isHiddenByLevel(id));
+          toKey = {};
+          cases().forEach((u) => {
+            if (!isHiddenByLevel(u.id)) return;
+            const inc = linksOf().find((l) => l.type === 'include' && l.to === u.id && !isHiddenByLevel(l.from));
+            const ext = !inc && linksOf().find((l) => l.type === 'extend' && l.from === u.id && !isHiddenByLevel(l.to));
+            if (inc) toKey[u.id] = inc.from;
+            else if (ext) toKey[u.id] = ext.to;
+          });
+        }
+        setSearch(searchEl.value);
+        render({ snap, svgSnap, toKey, ghostExit: !levelsOn, duration: 220 });
+      });
       btnAutoLayout.addEventListener('click', () => {
         autoTidy = !autoTidy;
         try { localStorage.setItem('usecase-auto-tidy', autoTidy ? 'on' : 'off'); } catch (e) {}
@@ -575,7 +729,7 @@
       btnNotes.addEventListener('click', () => {
         if (chartData.showNotes) delete chartData.showNotes; else chartData.showNotes = true;
         peekId = null;
-        applyNoteVisibility();
+        applyNoteVisibility(true);
         updateNotesButton();
         updateStatus(true);
       });
@@ -589,9 +743,16 @@
       }
 
       // A finished edit: re-lay out first when Auto-Tidy is on and the edit was structural, then one undo step
-      function commit(relayout) {
+      function commit(relayout, motionOpts) {
+        const useMotion = motionOpts !== false && motion.enabled();
+        const mOpts = typeof motionOpts === 'object' && motionOpts ? Object.assign({}, motionOpts) : {};
+        if (useMotion && !mOpts.snap) {
+          cancelUcGhosts();
+          mOpts.snap = motion.capture(canvas, FLIP_SPECS, mOpts.captureOpts);
+          mOpts.svgSnap = captureSvg();
+        }
         if (relayout && autoTidy) layoutDiagram(chartData);
-        render();
+        render(motionOpts === false ? false : mOpts);
         updateStatus(true);
       }
 
@@ -613,7 +774,7 @@
       const noteCard = (id) => notesLayer && [...notesLayer.children].find((el) => el.dataset.noteId === id);
       const selectedNoteId = () => (selOther && selOther.kind === 'note' ? selOther.id : null);
 
-      function renderNotes(refit) {
+      function renderNotes(refit, animate = false) {
         if (notesLayer && notesLayer.isConnected) notesLayer.remove();
         leadersG.textContent = '';
         notesLayer = htmlEl('div', 'note-layer');
@@ -630,7 +791,7 @@
         notesLayer.classList.remove('measuring');
         if (refit) noteOffsets = {};
         fitNotes(live);
-        positionNotes();
+        positionNotes(animate);
       }
       function buildNoteCard(note) {
         const { card, text } = ui.noteCard(note, {
@@ -682,7 +843,7 @@
           placedBoxes.push({ x: best.x, y: best.y, w: s.w, h: s.h });
         });
       }
-      function positionNotes() {
+      function positionNotes(animate = false) {
         if (!notesLayer) return;
         [...notesLayer.children].forEach((card) => {
           const note = noteOf(card.dataset.noteId);
@@ -694,7 +855,7 @@
           card.style.top = px(y);
           drawLeaders(note.id, { x, y, w: s.w, h: s.h });
         });
-        applyNoteVisibility();
+        applyNoteVisibility(animate);
       }
       function drawLeaders(noteId, b) {
         [...leadersG.children].forEach((line) => {
@@ -710,9 +871,26 @@
         const ids = linkedItems(note);
         return note.id === selectedNoteId() || ids.includes(peekId) || (selIds.length === 1 && ids.includes(selIds[0]));
       }
-      function applyNoteVisibility() {
+      function noteBadgeEl(note) {
+        const anchorId = note && linkedItems(note)[0];
+        const host = anchorId && els.items.get(anchorId);
+        return host ? host.querySelector('.note-badge, .note-add') : null;
+      }
+      function applyNoteVisibility(animate = false) {
         if (!notesLayer) return;
         const all = !!chartData.showNotes;
+        const anim = animate && motion.enabled();
+        const wasVis = new Map();
+        if (anim) {
+          [...notesLayer.children].forEach((card) => {
+            const note = noteOf(card.dataset.noteId);
+            if (!note) return;
+            const prev = card.classList.contains('show') || card.classList.contains('peek');
+            const next = all || isFreeNote(note) || !!notePeeked(note);
+            wasVis.set(note.id, prev);
+            if (prev && !next) motion.foldNote(card, isFreeNote(note) ? null : noteBadgeEl(note));
+          });
+        }
         canvas.classList.toggle('notes-on', all);
         [...notesLayer.children, ...leadersG.children].forEach((el) => {
           const note = noteOf(el.dataset.noteId);
@@ -720,14 +898,26 @@
           el.classList.toggle('show', all || isFreeNote(note));   // a free note has nothing to hover: it is always on show
           el.classList.toggle('peek', !!notePeeked(note));
         });
+        if (anim) {
+          [...notesLayer.children].forEach((card) => {
+            const note = noteOf(card.dataset.noteId);
+            if (!note) return;
+            const now = card.classList.contains('show') || card.classList.contains('peek');
+            if (!wasVis.get(note.id) && now) {
+              const leaders = [...leadersG.children].filter((l) => l.dataset.noteId === note.id);
+              motion.unfoldNote(card, isFreeNote(note) ? null : noteBadgeEl(note), leaders[0], { duration: 170 });
+              leaders.slice(1).forEach((l) => motion.drawPath(l, { duration: 150, easing: 'curve-out' }));
+            }
+          });
+        }
         applyNoteSelection();
       }
       function applyNoteSelection() {
         if (!notesLayer) return;
         [...notesLayer.children].forEach((el) => el.classList.toggle('selected', el.dataset.noteId === selectedNoteId()));
       }
-      function peekSoon(id, delay) { clearTimeout(peekTimer); peekTimer = setTimeout(() => { if (peekId !== id) { peekId = id; applyNoteVisibility(); } }, delay); }
-      function unpeekSoon(id) { clearTimeout(peekTimer); peekTimer = setTimeout(() => { if (peekId === id) { peekId = null; applyNoteVisibility(); } }, 220); }
+      function peekSoon(id, delay) { clearTimeout(peekTimer); peekTimer = setTimeout(() => { if (peekId !== id) { peekId = id; applyNoteVisibility(true); } }, delay); }
+      function unpeekSoon(id) { clearTimeout(peekTimer); peekTimer = setTimeout(() => { if (peekId === id) { peekId = null; applyNoteVisibility(true); } }, 220); }
       function buildNoteBadge(o) {
         const notes = notesOfItem(o.id);
         if (!notes.length) {
@@ -780,10 +970,15 @@
         cancelDrag();
         editingNoteId = id;
         selectOther('note', id);
-        if (!noteCard(id)) renderNotes(false);
+        const existed = !!noteCard(id);
+        if (!existed) renderNotes(false, false);
         const card = noteCard(id);
         if (!card) return;
-        applyNoteVisibility();
+        applyNoteVisibility(existed);
+        if (!existed && motion.enabled()) {
+          const leaders = [...leadersG.children].filter((l) => l.dataset.noteId === note.id);
+          motion.unfoldNote(card, isFreeNote(note) ? null : noteBadgeEl(note), leaders[0], { duration: 170 });
+        }
         const text = card.querySelector('.note-text');
         text.contentEditable = 'true';
         text.focus();
@@ -802,6 +997,8 @@
         const value = text.innerText.replace(/ /g, ' ').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
         if (value) note.text = value;
         else {
+          const card = noteCard(note.id);
+          if (card) motion.foldNote(card, isFreeNote(note) ? null : noteBadgeEl(note));
           chartData.notes = notesList().filter((n) => n !== note);
           if (!chartData.notes.length) delete chartData.notes;
           if (selectedNoteId() === note.id) selOther = null;
@@ -818,7 +1015,10 @@
         if (text && note) commitNote(note, text);
       }, true);
       function removeNote(id) {
-        if (!noteOf(id)) return;
+        const note = noteOf(id);
+        if (!note) return;
+        const card = noteCard(id);
+        if (card) motion.foldNote(card, isFreeNote(note) ? null : noteBadgeEl(note));
         chartData.notes = notesList().filter((n) => n.id !== id);
         if (!chartData.notes.length) delete chartData.notes;
         if (editingNoteId === id) editingNoteId = null;
@@ -831,7 +1031,8 @@
         if (!note || !kind) return;
         const key = kind === 'actor' ? 'actors' : 'useCases', all = linkedItems(note);
         const list = note[key] || [];
-        if (isFreeNote(note)) {   // a free note becomes anchored: its absolute pos turns into a relative _pos, which is not saved
+        const wasFree = isFreeNote(note);
+        if (wasFree) {   // a free note becomes anchored: its absolute pos turns into a relative _pos, which is not saved
           const a = itemOf(itemId);
           if (note.pos && a) note._pos = { x: Math.round(note.pos.x - a.x), y: Math.round(note.pos.y - a.y) };
           delete note.pos;
@@ -840,7 +1041,14 @@
         else if (all.length > 1) { note[key] = list.filter((x) => x !== itemId); if (!note[key].length) delete note[key]; delete note._pos; }
         else { hint('A note keeps at least one item: delete the note instead'); return; }
         updateStatus(true);
-        render();
+        render({
+          drawNewLeaders: true,
+          afterPlay: () => {
+            if (!wasFree) return;
+            const b = els.items.get(itemId)?.querySelector('.note-badge');
+            if (b) motion.anim(b, [{ transform: 'scale(0.4)' }, { transform: 'none' }], { duration: 160, easing: motion.curve('curve-spring-tactile') });
+          }
+        });
       }
       function startNoteLink(ev, noteId, card) {
         if (ev.button !== 0 || presenting()) return;
@@ -874,11 +1082,13 @@
           move(e, d) {
             card.classList.add('dragging');
             d.nx = Math.round((x0 + d.dx) / 4) * 4; d.ny = Math.round((y0 + d.dy) / 4) * 4;
-            card.style.left = px(d.nx); card.style.top = px(d.ny);
+            card.style.translate = `${d.nx - x0}px ${d.ny - y0}px`;
             drawLeaders(id, { x: d.nx, y: d.ny, ...(noteSizes[id] || { w: 0, h: 0 }) });
           },
           drop(e, d) {
             card.classList.remove('dragging');
+            card.style.translate = '';
+            card.style.left = px(d.nx); card.style.top = px(d.ny);
             const note = noteOf(id), anchor = note && linkedItems(note)[0];
             if (note && isFreeNote(note)) { note.pos = { x: Math.round(d.nx), y: Math.round(d.ny) }; updateStatus(true); return; }
             if (!anchor) { render(); return; }
@@ -886,7 +1096,7 @@
             note._pos = { x: Math.round(d.nx - a.x), y: Math.round(d.ny - a.y) };
             updateStatus(true);
           },
-          cleanup() { card.classList.remove('dragging'); }
+          cleanup() { card.classList.remove('dragging'); card.style.translate = ''; }
         });
       }
 
@@ -913,8 +1123,7 @@
         if (r.left < v.left + pad) dx = v.left + pad - r.left; else if (r.right > v.right - pad) dx = v.right - pad - r.right;
         if (r.top < v.top + pad) dy = v.top + pad - r.top; else if (r.bottom > bottom - pad) dy = bottom - pad - r.bottom;
         if (!dx && !dy) return;
-        panX += dx; panY += dy;
-        updateTransform();
+        animateViewport(panX + dx, panY + dy, scale, { duration: motion.dur('dur-base', 180), easing: 'curve-out' });
       }
 
       function beginDrag(e, d) {
@@ -1089,7 +1298,15 @@
             }
             ids.forEach((id) => { const a = actorOf(id); if (a) keepOutside(a); });
             void targetSubjects;
-            commit(moved);
+            commit(moved, {
+              duration: 200,
+              afterPlay: () => {
+                ids.forEach((id) => {
+                  const inner = els.items.get(id)?.querySelector('.uc-shape, .uc-figure');
+                  if (inner) motion.anim(inner, [{ transform: 'scale(1.02)' }, { transform: 'none' }], { duration: 110, easing: motion.curve('curve-out') });
+                });
+              }
+            });
           }
         };
       }
@@ -1166,11 +1383,12 @@
       }
       // A port dragged onto blank space inside a subject draws out a new use case, already connected
       function drawOutCase(fromId, pt, s) {
+        const snap = motion.capture(canvas, FLIP_SPECS), svgSnap = captureSvg();
         const u = newCase(s, pt);
-        addLink(kindOf(fromId) === 'actor' ? 'association' : 'include', fromId, u.id);
+        const l = addLink(kindOf(fromId) === 'actor' ? 'association' : 'include', fromId, u.id);
         selectItem(u.id);
-        commit(true);
-        placeCentred(u, pt);
+        commit(true, false);
+        placeCentred(u, pt, { snap, svgSnap, enterScale: 0.82, duration: 180, easing: 'curve-spring-tactile', drawLinkIds: new Set([l.id]) });
         editName(u.id);
       }
 
@@ -1180,12 +1398,12 @@
         return canvasPoint({ clientX: v.left + v.width / 2, clientY: v.top + v.height / 3 });
       }
       // Put the item's centre at pt once its size is known (a new item is routed first)
-      function placeCentred(o, pt) {
+      function placeCentred(o, pt, motionOpts) {
         routeDiagram(chartData);
         if (autoTidy && !pt._keep) { /* the layout decides */ }
         o.x = Math.round(pt.x - (o.w || 0) / 2);
         o.y = Math.round(pt.y - (o.h || 0) / 2);
-        render();
+        render(motionOpts);
         updateStatus(true);
       }
       // The real subject list when the diagram has none yet: the implicit boundary becomes a subject of its own
@@ -1211,7 +1429,8 @@
         for (let k = 0; k < 60 && boxes.some((b) => overlap({ x: pt.x - w / 2, y, w, h }, b, 12)); k++) y += 48;
         return { x: pt.x, y: y + h / 2 };
       }
-      function addActor(kind, pt) {
+      function addActor(kind, pt, ghostRect) {
+        const snap = pt ? motion.capture(canvas, FLIP_SPECS) : null, svgSnap = pt ? captureSvg() : null;
         const a = { id: uid('a'), name: kind === 'system' ? 'New system' : 'New actor' };
         if (kind === 'system') a.kind = 'system';
         const size = kind === 'system' ? SIZE.tile : SIZE.actor;
@@ -1220,30 +1439,31 @@
         chartData.actors = actors();
         chartData.actors.push(a);
         selectItem(a.id);
-        commit(!pt);
-        if (pt) { placeCentred(a, pt); }
+        commit(!pt, pt ? false : { duration: 190, easing: 'curve-spring-tactile' });
+        if (pt) placeCentred(a, pt, { snap, svgSnap, originRect: ghostRect, duration: 190, easing: 'curve-spring-tactile' });
         panIntoView(els.items.get(a.id));
         editName(a.id);
       }
-      function addCase(pt) {
+      function addCase(pt, ghostRect) {
+        const snap = pt ? motion.capture(canvas, FLIP_SPECS) : null, svgSnap = pt ? captureSvg() : null;
         const centre = pt || freeSpot(viewCentre(), SIZE.useCase[0], SIZE.useCase[1]);
         let s = subjectAt(centre);
         if (!s) { const p = primaryId(); const sel = p && caseOf(p); s = (sel && subjectOf(caseSubjectId(sel))) || subjectAt(viewCentre()) || null; }
         const u = newCase(s, centre);
         selectItem(u.id);
-        commit(!pt);
-        if (pt) placeCentred(u, pt);
+        commit(!pt, pt ? false : { duration: 190, easing: 'curve-spring-tactile' });
+        if (pt) placeCentred(u, pt, { snap, svgSnap, originRect: ghostRect, duration: 190, easing: 'curve-spring-tactile' });
         panIntoView(els.items.get(u.id));
         editName(u.id);
       }
-      function addSubject(pt) {
+      function addSubject(pt, ghostRect) {
         materialiseSubjects();
         const s = { id: uid('s'), name: 'New system' };
         const at = pt || viewCentre();
         s.x = Math.round(at.x - SIZE.subject[0] / 2); s.y = Math.round(at.y - SIZE.subject[1] / 2); s.w = SIZE.subject[0]; s.h = SIZE.subject[1];
         chartData.subjects.push(s);
         selectOther('subject', s.id);
-        commit(!pt);
+        commit(!pt, { originRect: ghostRect, duration: 190, easing: 'curve-spring-tactile' });
         panIntoView(els.subjects.get(s.id));
         editSubjectName(s.id);
       }
@@ -1269,7 +1489,7 @@
         chartData.useCases = cases().filter((u) => !gone.has(u.id));
         dropRefs(ids);
         selIds = []; selOther = null;
-        commit(true);
+        commit(true, { captureOpts: { ghosts: true }, ghostExit: true, duration: 200 });
       }
       function deleteSubject(id) {
         const s = realSubjects().find((x) => x.id === id);
@@ -1280,12 +1500,12 @@
         chartData.useCases = cases().filter((u) => !mine.includes(u.id));
         dropRefs(mine);
         selIds = []; selOther = null;
-        commit(true);
+        commit(true, { captureOpts: { ghosts: true }, ghostExit: true, duration: 200 });
       }
       function deleteLink(id) {
         chartData.links = linksOf().filter((l) => l.id !== id);
         selIds = []; selOther = null;
-        commit(true);
+        commit(true, { captureOpts: { ghosts: true }, ghostExit: true, duration: 180 });
       }
       function confirmDelete(message, label, onOk, anchor) { ui.confirm(anchor, { message, label }, onOk); }
       function deleteSelection(anchorEl) {
@@ -1319,10 +1539,43 @@
       function toggleCollapsed(id) {
         const s = realSubjects().find((x) => x.id === id);
         if (!s) return;
-        if (s.collapsed === true) delete s.collapsed; else s.collapsed = true;
+        cancelUcGhosts();
+        const wasCollapsed = s.collapsed === true;
+        const snap = motion.capture(canvas, FLIP_SPECS, { ghosts: !wasCollapsed });
+        const svgSnap = captureSvg();
+        const prevSub = snap && snap._raw ? snap._raw.get(id) : null;
+        const memberIds = cases().filter((u) => caseSubjectId(u) === id).map((u) => u.id);
+        if (wasCollapsed) delete s.collapsed; else s.collapsed = true;
+        const toKey = {};
+        if (!wasCollapsed) memberIds.forEach((cid) => { toKey[cid] = id; });
         // the engine keeps a collapsed subject's use cases where they sit expanded, so expanding restores them;
         // with Auto-Tidy on the other subjects close up (collapse) or make room (expand)
-        commit(true);
+        commit(true, {
+          snap, svgSnap, duration: 220,
+          toKey: !wasCollapsed ? toKey : undefined,
+          skipKeys: wasCollapsed ? memberIds : undefined,
+          afterPlay: () => {
+            const subEl = els.subjects.get(id), chevSvg = subEl && subEl.querySelector('.frame-chev svg');
+            if (chevSvg) {
+              motion.anim(chevSvg, wasCollapsed
+                ? [{ transform: 'rotate(-90deg)' }, { transform: 'none' }]
+                : [{ transform: 'rotate(0deg)' }, { transform: 'rotate(-90deg)' }],
+                { duration: 180, easing: motion.curve('curve-inout') });
+            }
+            if (!wasCollapsed && prevSub && prevSub.preCloned && subEl && prevSub.vr.height > subEl.getBoundingClientRect().height + 2) {
+              const a = motion.ghostExit(prevSub.el, {
+                preCloned: prevSub.preCloned, fromRect: prevSub.vr, baseW: prevSub.baseW, baseH: prevSub.baseH,
+                transform: 'none', clipPath: 'inset(0 0 85% 0)', opacity: 0.2, duration: 210, easing: 'curve-spring-settle'
+              });
+              if (a) ucGhosts.push(a);
+            } else if (wasCollapsed && prevSub) {
+              memberIds.forEach((cid) => {
+                const el = els.items.get(cid);
+                if (el) { const a = motion.ghostMorph(prevSub.vr, el, 220, 'curve-spring-settle'); if (a) ucGhosts.push(a); }
+              });
+            }
+          }
+        });
       }
       function moveToSubject(subjectId) {
         const s = subjectOf(subjectId), ids = selIds.filter((id) => caseOf(id));
@@ -1335,7 +1588,7 @@
           objs.forEach((o) => { o.x += dx; o.y += dy; });
         }
         ids.forEach((id) => { caseOf(id).subject = subjectId; });
-        commit(true);
+        commit(true, { duration: 210 });
       }
       function connectToCases() {
         const actor = selIds.find((id) => actorOf(id)), targets = selIds.filter((id) => caseOf(id));
@@ -1347,6 +1600,10 @@
       }
       // --- Line edits ---
       const isCaseCase = (l) => !!caseOf(l.from) && !!caseOf(l.to);
+      function pulseReversedLink(id) {
+        const line = els.links.get(id)?.g?.querySelector('.edge-line');
+        if (line) motion.anim(line, [{ strokeWidth: 'var(--ring-lg)' }, { strokeWidth: '' }], { duration: 220, easing: motion.curve('curve-out') });
+      }
       function setLinkType(l, type) {
         if (l.type === type) return;
         if (type === 'association' ? isCaseCase(l) : !isCaseCase(l)) { hint(type === 'association' ? 'An association joins an actor and a use case' : '«include» and «extend» join two use cases'); return; }
@@ -1356,12 +1613,12 @@
         if (type !== 'extend') { delete l.condition; delete l.extensionPoint; }
         if (type !== 'association') delete l.navigable;
         if (reversed) hint(type === 'extend' ? '«extend» points from the extension to the base, so the line was reversed' : '«include» points from the base to the part it always needs, so the line was reversed');
-        commit(false);
+        commit(false, reversed ? { drawLinkIds: new Set([l.id]), afterPlay: () => pulseReversedLink(l.id) } : undefined);
       }
       function reverseLink(l) {
         const f = l.from; l.from = l.to; l.to = f;
         if (l.type === 'extend') delete l.extensionPoint;
-        commit(false);
+        commit(false, { drawLinkIds: new Set([l.id]), afterPlay: () => pulseReversedLink(l.id) });
       }
       function addPoint(u, name) {
         u.extensionPoints = Array.isArray(u.extensionPoints) ? u.extensionPoints : [];
@@ -1372,7 +1629,11 @@
 
       // --- Menus (a small list under a button) ---
       let menuEl = null;
-      function closeMenu() { if (!menuEl) return false; menuEl.remove(); menuEl = null; return true; }
+      function closeMenu() {
+        if (!menuEl) return false;
+        motion.ghostExit(menuEl, { duration: 110, transform: 'scale(0.92, 0.86) translateY(-4px)', origin: 'top left' });
+        menuEl.remove(); menuEl = null; return true;
+      }
       function openMenu(anchor, title, items, onPick) {
         closeMenu();
         const m = htmlEl('div', 'menu uc-menu');
@@ -1392,6 +1653,11 @@
         m.style.left = px(Math.max(8, Math.min(r.left, innerWidth - m.offsetWidth - 8)));
         const below = r.bottom + 6 + m.offsetHeight < innerHeight - 8;
         m.style.top = px(below ? r.bottom + 6 : Math.max(8, r.top - 6 - m.offsetHeight));
+        m.style.transformOrigin = below ? 'top left' : 'bottom left';
+        motion.anim(m, [
+          { transform: `scale(0.92, 0.86) translateY(${below ? -4 : 4}px)`, clipPath: below ? 'inset(0 0 25% 0 round 8px)' : 'inset(25% 0 0 0 round 8px)' },
+          { transform: 'none', clipPath: 'inset(0 0 0 0 round 8px)' }
+        ], { duration: 130, easing: motion.curve('curve-spring-tactile') });
         menuEl = m;
         const first = m.querySelector('button');
         if (first) first.focus();
@@ -1417,7 +1683,7 @@
       const swatchOf = (ids) => { const cs = [...new Set(ids.map((id) => (itemOf(id) || {}).color || ''))]; return cs.length === 1 ? cs[0] : ''; };
 
       function drawSelectionTools() {
-        html.querySelectorAll('.uc-actionbar').forEach((el) => el.remove());
+        html.querySelectorAll('.uc-actionbar').forEach((el) => motion.hideBar(el));
         if (presenting()) return;
         const bar = htmlEl('div', 'uc-actionbar is-wrap');
         bar.dataset.exportSkip = '';
@@ -1429,16 +1695,16 @@
         else if (selIds.length === 1) at = itemBar(bar, itemOf(selIds[0]));
         if (!at) return;
         html.appendChild(bar);
-        // wrapped rows: the bar is as wide as its widest row, not the 340px wrap limit (no empty side padding)
-        const kids = [...bar.children].filter((k) => !k.classList.contains('uc-ab-break'));
-        if (kids.length) bar.style.maxWidth = `${Math.ceil(Math.max(...kids.map((k) => k.offsetLeft + k.offsetWidth)) - Math.min(...kids.map((k) => k.offsetLeft)) + 8)}px`;
-        const C = chartData.canvas || { width: 1e9, height: 1e9 }, w = bar.offsetWidth;
+        ui.fitBar(bar);
+        const C = chartData.canvas || { width: 1e9, height: 1e9 }, w = bar.offsetWidth, h = bar.offsetHeight;
         const below = at.y < 110;
         bar.classList.toggle('is-below', below);
+        const cx = Math.max(w / 2 - 30, Math.min(at.x, C.width - w / 2 + 30));
         Object.assign(bar.style, {
-          left: px(Math.max(w / 2 - 30, Math.min(at.x, C.width - w / 2 + 30))),
-          top: px(Math.max(2, below ? at.bottom + 10 : at.y - 10))
+          left: px(Math.round(cx - w / 2)),
+          top: px(Math.round(Math.max(2, below ? at.bottom + 10 : at.y - 10 - h)))
         });
+        motion.showBar(bar);
       }
       const anchorOfBox = (b) => ({ x: b.x + b.w / 2, y: b.y, bottom: b.y + b.h });
       function itemBar(bar, o) {
@@ -1539,7 +1805,12 @@
         const l = linkOf(selOther.id), v = input.value.trim().slice(0, 80);
         if (!l || (l.condition || '') === v) return;
         if (v) l.condition = v; else delete l.condition;
-        commit(false);
+        commit(false, v ? {
+          afterPlay: () => {
+            const cond = els.links.get(l.id)?.label?.querySelector('.uc-cond');
+            if (cond) motion.anim(cond, [{ transform: 'translateY(-3px)', clipPath: 'inset(0 0 100% 0)' }, { transform: 'none', clipPath: 'inset(0 0 0 0)' }], { duration: 150, easing: motion.curve('curve-out') });
+          }
+        } : undefined);
       });
 
       function runAction(act, value, btn) {
@@ -1576,8 +1847,20 @@
         }
         const o = itemOf(primaryId());
         if (!o) return;
-        if (act === 'kind') { if (value === 'human') delete o.kind; else o.kind = value; commit(false); }
-        else if (act === 'level') { if (value === 'user') delete o.level; else o.level = value; commit(false); }
+        if (act === 'kind') {
+          if (value === 'human') delete o.kind; else o.kind = value;
+          commit(false, {
+            duration: 180,
+            afterPlay: () => {
+              const el = els.items.get(o.id);
+              const figSvg = el && el.querySelector('.uc-figure svg');
+              if (figSvg) motion.anim(figSvg, [{ transform: 'scale(0.65)' }, { transform: 'none' }], { duration: 160, easing: motion.curve('curve-spring-tactile') });
+              const kw = el && el.querySelector('.uc-kw');
+              if (kw) motion.anim(kw, [{ transform: 'translateY(-4px) scale(0.85)', clipPath: 'inset(0 0 100% 0)' }, { transform: 'none', clipPath: 'inset(0 0 0 0)' }], { duration: 160, easing: motion.curve('curve-out') });
+            }
+          });
+        }
+        else if (act === 'level') { if (value === 'user') delete o.level; else o.level = value; commit(false, { duration: 190 }); }
         else if (act === 'point') { addPoint(o); commit(false); const eps = els.items.get(o.id).querySelectorAll('.uc-ep'); editPoint(o.id, eps.length - 1); }
         else if (act === 'note') addNoteTo(o.id);
         else if (act === 'delete') deleteSelection(btn);
@@ -1706,7 +1989,7 @@
           window.removeEventListener('pointercancel', cancel);
           const d = tool;
           tool = null;
-          if (d && d.ghost) { d.ghost.remove(); document.body.classList.remove('palette-dragging'); }
+          if (d && d.ghost) { d.ghostRect = d.ghost.getBoundingClientRect(); d.ghost.remove(); document.body.classList.remove('palette-dragging'); }
           canvas.querySelectorAll('.drop-target, .note-target').forEach((el) => el.classList.remove('drop-target', 'note-target'));
           return d;
         };
@@ -1720,7 +2003,7 @@
             document.body.appendChild(d.ghost);
             document.body.classList.add('palette-dragging');
           }
-          d.ghost.style.transform = `scale(${scale})`;
+          d.ghost.style.transform = `scale(${scale * 1.02})`;
           d.ghost.style.left = px(e.clientX - d.ghost.offsetWidth * scale / 2);
           d.ghost.style.top = px(e.clientY - d.ghost.offsetHeight * scale / 2);
           const pt = canvasPoint(e), C = chartData.canvas || { width: 0, height: 0 };
@@ -1736,7 +2019,7 @@
           const d = end();
           if (!d || !d.ghost) return;
           btn.dataset.dragged = '1';
-          if (kind === 'note' ? d.id || d.pt : d.pt) onDrop(kind === 'note' ? d.id : d.pt, d.pt);   // a note: on an item links it, anywhere else on the canvas it is free
+          if (kind === 'note' ? d.id || d.pt : d.pt) onDrop(kind === 'note' ? d.id : d.pt, d.pt, d.ghostRect);   // a note: on an item links it, anywhere else on the canvas it is free
         };
         const cancel = () => { end(); };
         btn.addEventListener('click', (e) => {
@@ -1755,10 +2038,10 @@
         });
         btn._cancelTool = () => { const d = end(); return !!(d && d.ghost); };
       }
-      wireTool(document.getElementById('btn-add-actor'), 'actor', () => addActor('human'), (pt) => addActor('human', pt));
-      wireTool(document.getElementById('btn-add-system'), 'system', () => addActor('system'), (pt) => addActor('system', pt));
-      wireTool(document.getElementById('btn-add-usecase'), 'case', () => addCase(), (pt) => addCase(pt));
-      wireTool(document.getElementById('btn-add-subject'), 'subject', () => addSubject(), (pt) => addSubject(pt));
+      wireTool(document.getElementById('btn-add-actor'), 'actor', () => addActor('human'), (pt, r) => addActor('human', pt, r));
+      wireTool(document.getElementById('btn-add-system'), 'system', () => addActor('system'), (pt, r) => addActor('system', pt, r));
+      wireTool(document.getElementById('btn-add-usecase'), 'case', () => addCase(), (pt, r) => addCase(pt, r));
+      wireTool(document.getElementById('btn-add-subject'), 'subject', () => addSubject(), (pt, r) => addSubject(pt, r));
       // Note: a click adds one to the selected item, or a free one at the view's centre with nothing selected; a drag gives the item under the drop a note, or drops a free one
       wireTool(document.getElementById('btn-add-note'), 'note', () => {
         const p = primaryId();

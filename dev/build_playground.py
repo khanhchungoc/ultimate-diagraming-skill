@@ -30,6 +30,13 @@ def build(out: Path) -> None:
         index = files["index.html"]
         assert index.count(SCRIPT_TAG) == 1, "index.html no longer ends with the app.js tag"
         files["index.html"] = index.replace(SCRIPT_TAG, f'  <script id="playground" type="application/json">{flag}</script>\n' + SCRIPT_TAG)
+        # A cross-document view transition can be aborted ("opt-in disabled", invalid state); its promises then reject with nobody
+        # listening. Swallow them from the head, before the first pagereveal fires (app.js runs too late for that).
+        guard = ('<script>for (const ev of ["pageswap", "pagereveal"]) addEventListener(ev, (e) => { const t = e.viewTransition; '
+                 'if (t) for (const k of ["ready", "finished", "updateCallbackDone"]) t[k].catch(() => {}); }); '
+                 'addEventListener("unhandledrejection", (e) => { if (e.reason && /Transition was (skipped|aborted)/.test(e.reason.message || "")) e.preventDefault(); });</script>\n')
+        files["index.html"] = files["index.html"].replace("</head>", guard + "</head>", 1)
+        files["app.css"] = files["app.css"].rstrip() + "\n@media (prefers-reduced-motion: no-preference) { @view-transition { navigation: auto; } }\n"
         for name, text in files.items():
             path = out / kind / name
             path.parent.mkdir(parents=True, exist_ok=True)
