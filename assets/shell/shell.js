@@ -1610,7 +1610,7 @@
         const nextPanY = topBand + Math.max(minPan, (vpRect.height - dockBand - topBand - frame.h * nextScale) / 2) - frame.y * nextScale;
 
         if (animate && motion.enabled()) {
-          animateViewport(nextPanX, nextPanY, nextScale, { duration: typeof animate === 'number' ? animate : motion.dur('dur-camera', 240), easing: 'curve-out' });   // animate: true, or the camera's duration in ms (a big layout change)
+          animateViewport(nextPanX, nextPanY, nextScale, { duration: motion.dur('dur-camera', 240), easing: 'curve-out' });
         } else {
           cancelViewportAnim();
           scale = nextScale; panX = nextPanX; panY = nextPanY;

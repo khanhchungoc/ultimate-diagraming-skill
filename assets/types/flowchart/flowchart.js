@@ -4322,8 +4322,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           layoutOtherFlows();
           render();
           updateStatus(true);
-        }, { duration: BIG_MS, forceDrawEdges: true });
-        fitView(BIG_MS);
+        }, { duration: BIG_MS });   // arrows morph from their old routes (as in Tidy); the view stays where the reader had it
       });
 
       // --- AUTO LAYOUT TOGGLE ---
