@@ -1854,9 +1854,16 @@
         const e = erdEntity(id);
         const ids = group || [id];
         const els = ids.map((x) => entityEl(x)).filter(Boolean);
+        // Lines of the moved tables fade while they move (they would lag behind); the drop re-routes them
+        let lineEls = null;
+        const fadeLines = (on) => {
+          if (!lineEls && on) lineEls = erdRelsList().filter((r) => ids.includes(r.from) || ids.includes(r.to)).flatMap((r) => [relEl(r.id), labelEl(r.id)]).filter(Boolean);
+          (lineEls || []).forEach((x) => x.classList.toggle('drag-fade', on));
+        };
         return {
           move(ev, d) {
             els.forEach((x) => x.classList.add('is-dragging'));
+            fadeLines(true);
             let dx = d.dx, dy = d.dy;
             if (e.box) {
               const cx = e.box.x + e.box.w / 2 + dx, cy = e.box.y + e.box.h / 2 + dy;
@@ -1875,6 +1882,7 @@
           },
           drop(ev, d) {
             els.forEach((x) => x.classList.remove('is-dragging'));
+            fadeLines(false);
             const dx = d.sdx === undefined ? d.dx : d.sdx, dy = d.sdy === undefined ? d.dy : d.sdy;
             const ents = ids.map(erdEntity).filter((x) => x && x.box);
             if (!ents.length) { render(); return; }
