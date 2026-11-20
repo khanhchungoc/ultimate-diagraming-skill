@@ -1883,6 +1883,7 @@
         // A wrapped label or detail is edited at the width it was drawn at, so it breaks where it did, not where the browser would
         const wrapBox = el.closest('.is-wrapped');
         if (wrapBox) wrapBox.style.width = `${wrapBox.offsetWidth + 2}px`;   // 2px of slack: a line that just fit must not tip over
+        const shown = el.textContent;   // what is drawn (a wrapped text has its line breaks), put back if nothing changes
         if (opts.raw !== undefined) el.textContent = opts.raw;
         el.contentEditable = multi ? 'plaintext-only' : 'true';
         el.focus();
@@ -1899,10 +1900,10 @@
           document.removeEventListener('pointerdown', onOutside, true);
           if (box) { box.removeEventListener('pointerdown', onBoxDown); box.removeEventListener('mousedown', onBoxMouse); }
           el.contentEditable = 'false';
-          if (wrapBox) wrapBox.style.width = '';
           const value = (multi ? el.innerText : el.textContent).replace(/\r/g, '').replace(/^\s+|\s+$/g, '');
           const changed = (opts.apply || applyText)(el, value);
           if (changed) relayout();
+          else if (wrapBox) { el.textContent = shown; wrapBox.style.width = ''; }   // no redraw: the box must not move
           else if (opts.restore) render();
           else el.textContent = original;
           if (tabbed && opts.onTab) opts.onTab();
@@ -1947,7 +1948,7 @@
       }
       function editMessage(id) {
         const el = seqHtml.querySelector(`.seq-msg-label[data-edge-id="${id}"] .seq-msg-label-text`);
-        beginEdit(el, { multiline: true, restore: true, raw: (msgById(id) || {}).label, onTab: () => editDetail(id) });
+        beginEdit(el, { multiline: true, raw: (msgById(id) || {}).label, onTab: () => editDetail(id) });
       }
       // The detail line under a message's arrow; one is made for the edit when the message has none (or details are hidden)
       function editDetail(id) {
