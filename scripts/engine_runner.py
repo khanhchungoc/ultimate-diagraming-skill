@@ -22,6 +22,7 @@ from tokens import load_tokens, tokens_data
 
 SCRIPTS_DIR = Path(__file__).resolve().parent
 ASSETS_DIR = SCRIPTS_DIR.parent / "assets"
+ROUTER_PATH = ASSETS_DIR / "shell" / "ortho-router.js"   # the shared orthogonal router, loaded ahead of every engine
 _active_session: contextvars.ContextVar[Optional["_NodeSession"]] = contextvars.ContextVar(
     "_active_layout_session", default=None
 )
@@ -166,7 +167,7 @@ def _via_browser(data: Dict[str, Any], timeout: int, browser: Optional[str], tok
     except Exception:
         return None
     kind = data.get("diagramType") or "flowchart"
-    engine_src = _engine_path(kind).read_text(encoding="utf-8")
+    engine_src = ROUTER_PATH.read_text(encoding="utf-8") + "\n" + _engine_path(kind).read_text(encoding="utf-8")
     payload = json.dumps({"tokens": tokens_data(tokens), "diagram": data})
     js = (
         f"(() => {{\nconst __req = {payload};\nconst TOKENS = __req.tokens;\n"

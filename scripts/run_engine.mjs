@@ -5,7 +5,10 @@
 // Zero dependencies; needs Node >= 18.
 import { readFileSync } from 'node:fs';
 import { createInterface } from 'node:readline';
+import { fileURLToPath } from 'node:url';
 
+// The shared orthogonal router, loaded ahead of every engine (the page joins it ahead of engine.js too: ENGINE_JS)
+const routerSrc = readFileSync(fileURLToPath(new URL('../assets/shell/ortho-router.js', import.meta.url)), 'utf8');
 const factories = new Map();
 const engines = new Map();
 
@@ -14,7 +17,7 @@ function getEngine(enginePath, tokens, tokensKey) {
   if (!factory) {
     factory = new Function(
       'TOKENS',
-      `${readFileSync(enginePath, 'utf8')}\nreturn { layoutDiagram, routeDiagram: typeof routeDiagram === 'function' ? routeDiagram : null };`
+      `${routerSrc}\n${readFileSync(enginePath, 'utf8')}\nreturn { layoutDiagram, routeDiagram: typeof routeDiagram === 'function' ? routeDiagram : null };`
     );
     factories.set(enginePath, factory);
   }

@@ -1553,7 +1553,7 @@ def _build_parts(kind: str, data: Optional[Dict[str, Any]] = None,
         "THEME": theme_script(theme),
         "SHELL_JS": _read_asset(ASSETS_DIR / "shell" / "shell.js").rstrip(chr(10)),
         "TOKENS_JS": tokens_js(tokens),
-        "ENGINE_JS": _read_asset(type_dir / "engine.js").rstrip(chr(10)),
+        "ENGINE_JS": "\n".join(_read_asset(f).rstrip(chr(10)) for f in (ASSETS_DIR / "shell" / "ortho-router.js", type_dir / "engine.js")),
         # The Mermaid reader and writer: the shared tokenizer, then the type's own (plain scripts, globals only)
         "MERMAID_JS": "\n".join(_read_asset(f).rstrip(chr(10)) for f in (ASSETS_DIR / "shell" / "mermaid-flow.js", type_dir / "mermaid.js")),
         "TYPE_JS": _read_asset(type_dir / f"{kind}.js").rstrip(chr(10)),
