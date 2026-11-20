@@ -79,7 +79,7 @@
     "direction-lr": "<path d=\"M3 12h18\"/><path d=\"m16 7 5 5-5 5\"/>",
     "reverse": "<path d=\"M4 8h16\"/><path d=\"m16 4 4 4-4 4\"/><path d=\"M20 16H4\"/><path d=\"m8 12-4 4 4 4\"/>",
     "rename": "<path d=\"M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z\"/><path d=\"m15 5 4 4\"/>",
-    "label": "<path d=\"M4 7h16\"/><path d=\"M4 12h10\"/><path d=\"M4 17h6\"/>",
+    "label": "<path d=\"M12 4v16\"/><path d=\"M4 7V5a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v2\"/><path d=\"M9 20h6\"/>",
     "line-dashed": "<path d=\"M3 12h4\"/><path d=\"M10 12h4\"/><path d=\"M17 12h4\"/>",
     "line-solid": "<path d=\"M3 12h18\"/>",
     "message-async": "<path d=\"M3 12h16\"/><path d=\"m14 7 6 5-6 5\"/>",

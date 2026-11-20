@@ -1684,15 +1684,13 @@
       }
       const abSep = () => htmlEl('span', 'uc-ab-sep');
       const abBreak = () => htmlEl('span', 'uc-ab-break');
-      const lineGlyph = (type, arrow) => `<svg width="30" height="14" viewBox="0 0 30 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 7H${type === 'association' && !arrow ? 28 : 26}"${type === 'association' ? '' : ' stroke-dasharray="4 3"'}/>${type === 'association' && !arrow ? '' : '<path d="M21 2.5 28 7 21 11.5"/>'}</svg>`;
+      const lineGlyph = (type, arrow) => `<svg width="22" height="10" viewBox="0 0 30 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 7H${type === 'association' && !arrow ? 28 : 26}"${type === 'association' ? '' : ' stroke-dasharray="4 3"'}/>${type === 'association' && !arrow ? '' : '<path d="M21 2.5 28 7 21 11.5"/>'}</svg>`;
       const swatchOf = (ids) => { const cs = [...new Set(ids.map((id) => (itemOf(id) || {}).color || ''))]; return cs.length === 1 ? cs[0] : ''; };
 
       function drawSelectionTools() {
         html.querySelectorAll('.uc-actionbar').forEach((el) => motion.hideBar(el));
         if (presenting()) return;
-        const bar = htmlEl('div', 'uc-actionbar is-wrap');
-        bar.dataset.exportSkip = '';
-        bar.setAttribute('role', 'toolbar');
+        const bar = ui.actionBar('uc-actionbar is-wrap');
         let at = null;
         if (selOther && selOther.kind === 'link') at = linkBar(bar, linkOf(selOther.id));
         else if (selOther && selOther.kind === 'subject') at = subjectBar(bar, subjectOf(selOther.id));
@@ -1706,7 +1704,7 @@
         bar.classList.toggle('is-below', below);
         const cx = Math.max(w / 2 - 30, Math.min(at.x, C.width - w / 2 + 30));
         Object.assign(bar.style, {
-          left: px(Math.round(cx - w / 2)),
+          left: px(Math.round(cx)),   // the bar is centred on it (translate), so it stays put when collapsed
           top: px(Math.round(below ? at.bottom + 10 / scale : at.y - 10 / scale - h))
         });
         motion.showBar(bar);

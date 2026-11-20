@@ -18,6 +18,12 @@
       transition: background-color var(--dur-micro) var(--curve-out), color var(--dur-micro) var(--curve-out),
                   border-color var(--dur-micro) var(--curve-out), transform var(--dur-micro) var(--curve-spring-tactile);
     }
+    /* The show / hide chevron (ui.actionBar): first in every bar; collapsed, a bar is only this */
+    .ab-toggle { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 26px; padding: 0; border: 0; border-radius: var(--radius-md); background: transparent; color: var(--text-muted); cursor: pointer; }
+    .ab-toggle:hover { background: var(--bg-hover); color: var(--text-main); }
+    .ab-toggle svg { display: block; transition: rotate var(--dur-micro) var(--curve-out); }
+    body.bars-collapsed .ab-toggle svg { rotate: 180deg; }
+    body.bars-collapsed :is(.actionbar, .uc-actionbar, .erd-actionbar, .seq-actionbar) > :not(.ab-toggle) { display: none !important; }
     .ab-btn:hover { background: var(--bg-hover); color: var(--text-main); }
     .ab-btn:active { transform: scale(0.94); }
     .ab-btn[aria-pressed="true"] { background: var(--primary-wash); border-color: var(--primary-ring); color: var(--primary); }
