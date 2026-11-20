@@ -70,12 +70,12 @@ Logical JSON the agent writes. Key order is fixed: `diagramType, schemaVersion, 
 }
 ```
 
-- **Element kinds:** `person`, `system`, `container`, `component`, `database`, `queue`, `external`. The kind sets the default shape and icon; `icon` and `color` (palette slot `c1` to `c8`) override.
+- **Element kinds:** `person`, `system`, `container`, `component`, `database`, `queue`, `external`. The kind sets the default shape and icon; `icon` and `color` (palette slot `"1"` to `"9"`) override.
 - **Groups:** `kind` is `boundary` (an ownership or trust frame, such as "Third-party services") or `system` (a software system whose inside is the next level). Groups form a tree of any depth in the model, engine and codec; v1 allows depth 2 and rejects deeper nesting in the audit only. An element belongs to at most one group.
 - **Relations:** between elements only. `label` is required (C4 requires it); `tech` is optional but warned about on container-to-container links; `async: true` draws a dashed line.
 - **One model, all levels.** The level is the collapse state of the `system` groups. A collapsed group draws as one system box, and relations that cross its border are aggregated onto it (one arrow per neighbour, labelled with the count when it merges several). Level 1 is every system group collapsed; Level 2 is one expanded. `collapsed` is saved, so the page reopens where the user left it.
 - **Arrange (the layout):** `arrange` is one of `surround`, `flow` or `layers`; omitted, it is `surround` when any item is marked `core` and `flow` when none is. `core: true` on an element or a group marks a centre; zero, one or many may be marked, and a group can be the centre. Nothing is picked automatically. In `layers`, each top-level group is a layer band, stacked in the order written (top to bottom, or left to right with `direction`), and every element must sit in a top-level group.
-- **Groups can be coloured**, like the frames in a sequence diagram: `color` on a group is a palette slot `c1` to `c8` (or a custom hex, as `setSwatch` accepts). The frame line, its tint and the tag take that colour at low opacity in both themes; used colours appear in `colorKey`. No colour means the neutral frame. Elements keep their own `color` (default by kind).
+- **Groups can be coloured**, like the frames in a sequence diagram: `color` on a group is a palette slot (`"1"` to `"9"`, as the codec and tokens name them) or a custom hex, as `setSwatch` accepts). The frame line, its tint and the tag take that colour at low opacity in both themes; used colours appear in `colorKey`. No colour means the neutral frame. Elements keep their own `color` (default by kind).
 - **Relations may join any two elements**, including two in the same group or the same layer, as well as elements in different groups. A relation from an element to itself is an error.
 - **Disk format:** a trailing `layout` map `{id: {x, y}}` (elements, then groups), as the ERD and use case types. `toDisk` drops every `_`-prefixed field, sizes, points and canvas. The codec lives in `scripts/disk_format.py`.
 
@@ -128,7 +128,7 @@ Nothing is invented; every item below already exists.
 | Item | Source |
 |---|---|
 | Node: icon card | the flowchart node tile classes in `flowchart.css`, drawn as a card with a coloured disc and glyph at the top (about 54px disc, 32px glyph) and the name and `tech` or description below in the normal label and detail sizes, so the text keeps the room. Sizes come from `TOKENS`. Selected, hover and focus states as the flowchart |
-| Colour | palette slots `c1` to `c8` from `assets/tokens/default.json`; defaults by kind: person `c1`, system `c2`, container `c3`, database `c4`, external neutral. Never a hardcoded colour; contrast pairs added to the tokens and checked by `check_contrast.py` |
+| Colour | palette slots "1" to "9" from `assets/tokens/default.json`; defaults by kind: person 1, system 2, container 3, database 4, external neutral. Never a hardcoded colour; contrast pairs added to the tokens and checked by `check_contrast.py` |
 | Shapes | every kind is the same icon card; the kind shows in the disc colour and in the glyph, so nodes are told apart at a glance. A database keeps the `shape-database` glyph; a person uses the use case actor colour |
 | Arrow, hover in/out highlight, selected state | `assets/components/edge.css` (`.edge-line`, `--edge-in`, `--edge-out`) |
 | Relation label pill with tech tag | `.edge-label`, masking the line, same metrics (`edgeLabel`, `edgeWrap`) |
