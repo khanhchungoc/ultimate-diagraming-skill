@@ -815,7 +815,8 @@
     #zoom-level {
       font-size: var(--text-sm);
       font-weight: var(--weight-semibold);
-      width: 38px;
+      min-width: 38px;   /* grows with a wide theme font; a fixed width cut "100%" */
+      padding: 0 2px;
       text-align: center;
       color: var(--text-main);
       font-variant-numeric: tabular-nums;
@@ -13085,8 +13086,11 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         return d;
       }
 
+      // The last lane's extra room for outer loop-backs (outerExtra) is drawn, never saved: a Save without edits writes what the engine wrote
+      const withoutOuterExtra = (data) => (!outerExtra || !data.lanes || !data.lanes.length ? data
+        : { ...data, lanes: data.lanes.map((l, i) => (i === data.lanes.length - 1 && l.height != null ? { ...l, height: l.height - outerExtra } : l)) });
       function toDisk(data) {
-        const d = fullOf(data);
+        const d = fullOf(withoutOuterExtra(data));
         delete d.layout;
         slotColors(d, 'lanes');
         const lanes = d.lanes || [], nodes = d.nodes || [], kids = d.children || {};
