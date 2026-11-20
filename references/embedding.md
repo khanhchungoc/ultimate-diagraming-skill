@@ -1,23 +1,56 @@
-# Embedding a diagram in another HTML page or Artifact
+# Embed a diagram in another HTML page or Artifact
 
-Use when the HTML you are writing (a report, dashboard or claude.ai Artifact) should show a diagram. The embed opens in present mode: read-only, with only the zoom controls and a Present button; pan, zoom, hover and click still work. Set `name="present"` on the `<iframe>`. Without it the embed opens in edit mode.
+Applies when the HTML you are writing (report, dashboard, Artifact) must show a diagram. The embed opens in present mode: read-only, zoom controls and a Present button only; pan, zoom, hover and click work. Embedding needs no user question: skip *Output choice* in SKILL.md.
 
-1. Build the diagram as usual (see SKILL.md), as a file or with `--target artifact`.
-2. Put the iframe in your page. Size it with CSS; the diagram fits itself to the frame.
+## 1. Pick the form
 
-**Inside an Artifact** (host page and diagram published together): build the diagram with `--target artifact -o <scratch>/<slug>`, then publish the host page with the four diagram files under a folder:
-- `files`: `{"<slug>/index.html": "<scratch>/<slug>/index.html", "<slug>/diagram.json": ..., "<slug>/app.css": ..., "<slug>/app.js": ...}`
-- in the host page: `<iframe name="present" src="<slug>/index.html" style="width:100%;height:520px;border:0"></iframe>`
+| Host | Form | Save from the embed |
+|---|---|---|
+| claude.ai Artifact (new or existing) | **Folder**: diagram files in `<slug>/` inside the host | Yes: publishes `<slug>/diagram.json` to the host |
+| Plain `.html` file, diagram kept apart | **Sibling**: `flow.html` next to it | No: Save downloads a file |
+| Plain `.html` file, one file only | **Inline**: whole diagram in `srcdoc` | No: Save downloads a file |
 
-**Inside a plain HTML file**, either keep the diagram as a sibling file:
-`<iframe name="present" src="flow.html" style="width:100%;height:520px;border:0"></iframe>`
-or inline it: put the whole diagram `.html` in `srcdoc`, with `&` written `&amp;` and `"` written `&quot;` (do it with a script, never by hand; the page is about 350 KB).
+Use Folder whenever you publish an Artifact. Every form needs `name="present"` on the `<iframe>`; without it the embed opens in edit mode. Pick a distinct `<slug>` per diagram.
 
-A diagram served from a URL also opens in present mode with `?present` added to it.
+## 2. Build
 
-Present mode has no Save and no editing. To change the diagram, follow *Update* in SKILL.md and re-embed.
+Follow *Procedure: New Diagram* in SKILL.md, with one change to the command's target:
+- Folder: add `--target artifact` and `-o <scratch>/<slug>` (the folder, not an `.html`).
+- Sibling or Inline: as written, `-o <target>.html`.
 
-## Save and update
+Do not open `app.css`, `app.js` or the diagram `.html` whole.
 
-- **User Save:** exit present mode with the Present button, edit, press Save. An embed from a folder of a host Artifact (the `src="<slug>/index.html"` form) publishes `<slug>/diagram.json` to the host Artifact, in place; the host page and its title stay as they are. The other forms (`srcdoc`, a sibling file) have no host to save to: Save offers Export > HTML file.
-- **Agent update:** follow *Update in place* in [artifacts.md](artifacts.md) with the host's URL, with the folder in every path: read the host without `path` (satisfies the overwrite gate), read `<slug>/diagram.json`, `--extract` it, edit, `--layout ... --keep-from <diagram.json> --target artifact -o <scratch>/<slug>`, then publish with only `files: {"<slug>/diagram.json": ...}`. No republish of the host page is needed.
+## 3. Write the iframe
+
+```html
+<iframe name="present" src="<slug>/index.html" style="width:100%;height:520px;border:0"></iframe>
+```
+- Sibling: `src="flow.html"`.
+- Inline: replace `src` with `srcdoc="..."` holding the whole diagram `.html`, `&` as `&amp;` and `"` as `&quot;`. Generate it with a script, never by hand (the page is about 350 KB).
+- The diagram fits itself to the frame on load; set the height in CSS.
+
+## 4. Publish (Folder form)
+
+New host: `Artifact` publish with
+- `file_path`: your host `.html`
+- `files`: `{"<slug>/index.html": "<scratch>/<slug>/index.html", "<slug>/diagram.json": "<scratch>/<slug>/diagram.json", "<slug>/app.css": "<scratch>/<slug>/app.css", "<slug>/app.js": "<scratch>/<slug>/app.js"}`
+- `capabilities`: `{artifact: {}, downloads: true}`. Without `artifact` the embed cannot Save to the host.
+
+Existing host (add a diagram): `Artifact` read of its `url` first, then publish to that `url` with your edited host page and the same `files`, `capabilities` only if the host lacks them.
+
+Tell the user: the link; the diagram opens in present mode; to edit, press Present (top right), edit, then Save, which updates the artifact in place.
+
+## 5. Update a diagram already embedded
+
+Edit the diagram only; never republish the host page or `app.*`. This is *Update in place* in [artifacts.md](artifacts.md) with the host's `url` and `<slug>/` in every path:
+1. `Artifact` read of the host `url` without `path` (satisfies the overwrite gate).
+2. `Artifact` read with `path: "<slug>/diagram.json"`, and with `path: "<slug>/index.html"` (small); save both in `<scratch>/<slug>/`, so the rebuilt page keeps its theme (artifacts.md step 2).
+3. `--extract <scratch>/<slug>/diagram.json -o <scratch>/edit.mmd`, edit the Mermaid.
+4. `--layout <scratch>/edit.mmd --keep-from <scratch>/<slug>/diagram.json --target artifact -o <scratch>/<slug>`
+5. Publish to the host `url` (no `capabilities`) with `file_path`: the host page text from step 1, saved to a file, and `files: {"<slug>/diagram.json": "<scratch>/<slug>/diagram.json"}`.
+
+Sibling and Inline forms: *Update an Existing Diagram* in SKILL.md, then replace the file or the `srcdoc`.
+
+## Report
+
+The host link, and if Save from the embed fails (`Saving is not available here`), tell the user to use Export > HTML file.
