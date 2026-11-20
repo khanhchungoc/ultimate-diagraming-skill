@@ -192,4 +192,4 @@ For contributors: [references/theme.md](references/theme.md).
 
 ## Update check
 
-After a diagram, the skill may fetch one public file (`package.json` on `main`) with the client's own web tool to see if a newer version exists. It sends no user data and runs no code. Say "no update check" to turn it off.
+After a diagram, the skill may fetch one public file (`package.json` on `main`) with the client's own web tool to see if a newer version exists. It sends no user data. If you pick "Update now", the agent runs the one install command above, with your approval. Say "no update check" to turn it off.
