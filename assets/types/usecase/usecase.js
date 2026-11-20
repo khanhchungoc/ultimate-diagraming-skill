@@ -1131,7 +1131,7 @@
             selectOther('subject', id);
             // Dragging the title moves the frame: it is drawn around its use cases, so they travel with it
             const inside = (chartData.useCases || []).filter((u) => caseSubjectId(u) === id && placed(u)).map((u) => u.id);
-            if (inside.length) beginDrag(e, Object.assign(itemDrag(inside, true), { click: () => selectOther('subject', id) }));
+            if (inside.length) beginDrag(e, Object.assign(itemDrag(inside, id), { click: () => selectOther('subject', id) }));
           } else setSel([], null);
           return;
         }
@@ -1195,7 +1195,7 @@
       }
 
       // --- Move actors and use cases (one or the whole selection) ---
-      function itemDrag(ids, keepSubject) {
+      function itemDrag(ids, keepSubject) {   // keepSubject: the id of a frame being dragged by its title; it moves with its use cases
         const targetSubjects = allSubjects();
         // Lines (and labels) of the moved items fade while they move, as they would lag behind; the drop re-routes them
         let faded = null;
@@ -1208,9 +1208,11 @@
           (faded || []).forEach((x) => x.classList.toggle('drag-fade', on));
         };
         return {
-          cleanup() { fade(false); },
+          cleanup() { fade(false); const f = keepSubject && els.subjects.get(keepSubject); if (f) f.style.translate = ''; },
           move(e, d) {
             fade(true);
+            const frame = keepSubject && els.subjects.get(keepSubject);
+            if (frame) frame.style.translate = `${d.dx}px ${d.dy}px`;   // the frame travels with them
             ids.forEach((id) => { const el = els.items.get(id); if (el) { el.classList.add('is-dragging'); el.style.translate = `${d.dx}px ${d.dy}px`; } });
             canvas.querySelectorAll('.drop-target').forEach((el) => el.classList.remove('drop-target'));
             if (!keepSubject && ids.some((id) => kindOf(id) === 'case') && realSubjects().length) {
@@ -1498,14 +1500,10 @@
         const prevSub = snap && snap._raw ? snap._raw.get(id) : null;
         const memberIds = cases().filter((u) => caseSubjectId(u) === id).map((u) => u.id);
         if (wasCollapsed) delete s.collapsed; else s.collapsed = true;
-        const toKey = {};
-        if (!wasCollapsed) memberIds.forEach((cid) => { toKey[cid] = id; });
         // the engine keeps a collapsed subject's use cases where they sit expanded, so expanding restores them;
         // with Auto-Tidy on the other subjects close up (collapse) or make room (expand)
         commit(true, {
           snap, svgSnap, duration: 220,
-          toKey: !wasCollapsed ? toKey : undefined,
-          skipKeys: wasCollapsed ? memberIds : undefined,
           afterPlay: () => {
             const subEl = els.subjects.get(id), chevSvg = subEl && subEl.querySelector('.frame-chev svg');
             if (chevSvg) {
@@ -1520,10 +1518,11 @@
                 transform: 'none', clipPath: 'inset(0 0 85% 0)', opacity: 0.2, duration: 210, easing: 'curve-spring-settle'
               });
               if (a) ucGhosts.push(a);
-            } else if (wasCollapsed && prevSub) {
-              memberIds.forEach((cid) => {
+            } else if (wasCollapsed) {
+              // the use cases come back in place: a short fade and settle, one after another, not a flight from the title
+              memberIds.forEach((cid, i) => {
                 const el = els.items.get(cid);
-                if (el) { const a = motion.ghostMorph(prevSub.vr, el, 220, 'curve-spring-settle'); if (a) ucGhosts.push(a); }
+                if (el) { const a = motion.anim(el, [{ opacity: 0, transform: 'scale(0.94)' }, { opacity: 1, transform: 'none' }], { duration: 180, delay: Math.min(i, 6) * 25, easing: motion.curve('curve-out'), fill: 'backwards' }); if (a) ucGhosts.push(a); }
               });
             }
           }
@@ -1646,10 +1645,13 @@
         if (!at) return;
         html.appendChild(bar);
         ui.fitBar(bar);
-        const C = chartData.canvas || { width: 1e9, height: 1e9 }, w = ui.barSize(bar).w, h = ui.barSize(bar).h;
+        const w = ui.barSize(bar).w, h = ui.barSize(bar).h;
         const below = !ui.roomAbove({ getBoundingClientRect: () => ({ top: canvas.getBoundingClientRect().top + at.y * scale }) }, bar);   // by where the anchor is in the window
         bar.classList.toggle('is-below', below);
-        const cx = Math.max(w / 2 - 30, Math.min(at.x, C.width - w / 2 + 30));
+        // centred on its anchor; only the window's edges move it (the bar is not zoomed, so its width on screen is w)
+        const vp = viewport.getBoundingClientRect(), cr = canvas.getBoundingClientRect();
+        const sx = Math.max(vp.left + 8 + w / 2, Math.min(cr.left + at.x * scale, vp.right - 8 - w / 2));
+        const cx = (sx - cr.left) / scale;
         Object.assign(bar.style, {
           left: px(Math.round(cx)),   // the bar is centred on it (translate), so it stays put when collapsed
           top: px(Math.round(below ? at.bottom + 10 / scale : at.y - 10 / scale - h))

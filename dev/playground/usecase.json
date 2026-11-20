@@ -3,6 +3,6 @@
   "title": "Use case diagram",
   "subjects": [{ "id": "system", "name": "System" }],
   "actors": [{ "id": "user", "name": "User" }],
-  "useCases": [{ "id": "uc1", "name": "Do something", "subject": "system" }],
+  "useCases": [{ "id": "uc1", "name": "Do something", "subject": "system", "refs": ["UC-01"] }],
   "links": [{ "id": "l1", "type": "association", "from": "user", "to": "uc1" }]
 }
