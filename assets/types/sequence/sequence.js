@@ -1674,7 +1674,7 @@
           bar.appendChild(delSep());
           bar.appendChild(delButton('Delete this message (Delete key)'));
           const self = m.from === m.to;
-          at = { x: self ? a.x + SQ.SELF_LOOP + 60 : (a.x + b.x) / 2, top: m.y - 24, bottom: m.y + 10 };
+          at = { x: self ? a.x + SQ.SELF_LOOP + 60 : (a.x + b.x) / 2, top: m.y - 24 - (self ? 0 : ((m.lab || 1) - 1) * SQ.LABEL_LINE), bottom: m.y + 10 };
           addBarHandle(m.id);
           // End handles: drag one to another lifeline to move that end
           if (self) { addHandle('from', m.id, a.x, m.y, 'seq-end'); addHandle('to', m.id, a.x, m.y + 28, 'seq-end'); }
@@ -1894,6 +1894,7 @@
         const commit = () => {
           el.removeEventListener('blur', commit);
           el.removeEventListener('keydown', onKey);
+          if (box) { box.removeEventListener('pointerdown', onBoxDown); box.removeEventListener('mousedown', onBoxMouse); }
           el.contentEditable = 'false';
           const value = (multi ? el.innerText : el.textContent).replace(/\r/g, '').replace(/^\s+|\s+$/g, '');
           const changed = (opts.apply || applyText)(el, value);
@@ -1910,6 +1911,20 @@
           else if (ke.key === 'Escape') { ke.preventDefault(); ke.stopPropagation(); el.textContent = original; el.blur(); }
           else if (ke.key === 'Tab' && opts.onTab) { ke.preventDefault(); tabbed = true; el.blur(); }
         };
+        // A press on the edit box's padding puts the caret in the text (at its start or end, whichever is nearer) instead of leaving the edit
+        const box = el.closest('.seq-msg-label, .seq-msg-detail, .note, .seq-participant, .frame-tag');
+        const onBoxDown = (pe) => {
+          if (pe.target === el || el.contains(pe.target)) return;
+          pe.preventDefault(); pe.stopPropagation();
+          const r = el.getBoundingClientRect(), end = pe.clientY > r.bottom || (pe.clientY >= r.top && pe.clientX > r.left + r.width / 2);
+          const rg = document.createRange();
+          rg.selectNodeContents(el); rg.collapse(!end);
+          const sel = window.getSelection();
+          sel.removeAllRanges(); sel.addRange(rg);
+          el.focus();
+        };
+        const onBoxMouse = (me) => { if (me.target !== el && !el.contains(me.target)) me.preventDefault(); };
+        if (box) { box.addEventListener('pointerdown', onBoxDown); box.addEventListener('mousedown', onBoxMouse); }
         el.addEventListener('blur', commit);
         el.addEventListener('keydown', onKey);
       }
