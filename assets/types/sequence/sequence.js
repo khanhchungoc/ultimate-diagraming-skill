@@ -446,7 +446,7 @@
           const box = htmlEl('div', `seq-participant swatch-pill${p.kind === 'actor' ? ' is-actor' : ''}${hasKindIcon(p.kind) ? ` is-${p.kind}` : ''}${rail ? ' is-rail' : ''}`, { left: px(p.x - (rail ? SQ.RAIL_W : SQ.BOX_W) / 2), top: px(top) });
           box.dataset.nodeId = p.id;
           paintSwatch(box, sw);
-          if (hasKindIcon(p.kind) || rail) box.appendChild(kindIcon(p.kind));
+          if (hasKindIcon(p.kind) || rail) box.appendChild(kindIcon(p.kind, rail ? undefined : 16));
           const name = htmlEl('span', 'seq-participant-name');
           name.textContent = p.name;
           box.appendChild(name);
