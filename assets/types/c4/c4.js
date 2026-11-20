@@ -286,7 +286,6 @@
         groups().concat(elements()).forEach((o) => { const c = swatchOf(o); if (c && swatchSlot(c) && !used.includes(c)) used.push(c); });
         legendEl = ui.colorKey(used, chartData.colorKey, { cls: 'c4-key' });
         if (!legendEl) return;
-        legendEl.style.top = px((chartData.canvas || { height: 0 }).height + 12);
         html.appendChild(legendEl);
       }
 
@@ -442,6 +441,7 @@
         report: { node: '.c4-node, .c4-group.is-tile', label: '.c4-label', labelText: '.c4-label-text', nodeText: '.c4-name' },
         render,
         isBackground: (el) => el === canvas || el === svg || el === html || el === legendEl,
+        contentOverflow: () => (legendEl ? { top: 40 } : null),   // the colour key sits above the diagram
         clearSelection: clearSelectionNow,
         cancelInteraction: () => false,
         hasSelection: () => false,   // nothing can be deleted until the editing step
