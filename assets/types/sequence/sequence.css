@@ -53,13 +53,14 @@
       translate: -50% 0; transition: opacity var(--dur-micro) var(--curve-inout), color var(--dur-micro) var(--curve-out);
       text-shadow: 0 0 2px var(--bg-panel), 0 0 2px var(--bg-panel), 0 0 5px var(--bg-panel), 0 0 5px var(--bg-panel);
     }
+    .is-wrapped:has([contenteditable="true"], [contenteditable="plaintext-only"]) { white-space: pre-wrap; }   /* an edit keeps the width the text was drawn at (see beginEdit) */
     .seq-msg-label.is-self { translate: none; }
     .seq-msg-label.is-wrapped, .seq-msg-detail.is-wrapped { height: auto; white-space: pre; text-align: center; }
     .seq-msg-label.is-self.is-wrapped, .seq-msg-detail.is-self.is-wrapped { text-align: left; }
     .seq-msg-label.selected { color: var(--primary); font-weight: var(--weight-semibold); }
     .seq-msg-label-text { outline: none; }
     [contenteditable="true"], [contenteditable="plaintext-only"] { cursor: text; user-select: text; }
-    .seq-msg-label:has([contenteditable="true"], [contenteditable="plaintext-only"]) { cursor: text; height: auto; white-space: pre-wrap; text-align: left; min-width: 60px; width: max-content; max-width: var(--seq-label-max, 320px); background: var(--bg-panel); outline: 1.5px solid var(--primary-ring); border-radius: var(--radius-xs); }
+    .seq-msg-label:has([contenteditable="true"], [contenteditable="plaintext-only"]) { cursor: text; height: auto; white-space: pre-wrap; min-width: 60px; width: max-content; max-width: var(--seq-label-max, 320px); background: var(--bg-panel); outline: 1.5px solid var(--primary-ring); border-radius: var(--radius-xs); }
     .seq-frag-kind { font-weight: var(--weight-bold); text-transform: lowercase; margin-right: 6px; }
     .seq-frag-text { outline: none; color: var(--text-soft); }
     .seq-frag-else-label { position: absolute; font-size: var(--t-detail-size); font-weight: var(--weight-semibold); color: var(--text-soft); user-select: none; translate: -100% 0; }

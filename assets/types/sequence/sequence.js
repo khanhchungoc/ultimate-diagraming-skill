@@ -1880,6 +1880,9 @@
       function beginEdit(el, opts = {}) {
         if (!el || el.isContentEditable) return;
         const multi = !!opts.multiline;
+        // A wrapped label or detail is edited at the width it was drawn at, so it breaks where it did, not where the browser would
+        const wrapBox = el.closest('.is-wrapped');
+        if (wrapBox) wrapBox.style.width = `${wrapBox.offsetWidth + 2}px`;   // 2px of slack: a line that just fit must not tip over
         if (opts.raw !== undefined) el.textContent = opts.raw;
         el.contentEditable = multi ? 'plaintext-only' : 'true';
         el.focus();
@@ -1896,6 +1899,7 @@
           document.removeEventListener('pointerdown', onOutside, true);
           if (box) { box.removeEventListener('pointerdown', onBoxDown); box.removeEventListener('mousedown', onBoxMouse); }
           el.contentEditable = 'false';
+          if (wrapBox) wrapBox.style.width = '';
           const value = (multi ? el.innerText : el.textContent).replace(/\r/g, '').replace(/^\s+|\s+$/g, '');
           const changed = (opts.apply || applyText)(el, value);
           if (changed) relayout();
