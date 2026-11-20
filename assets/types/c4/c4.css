@@ -43,13 +43,11 @@
     body.exporting .is-dim { opacity: 1 !important; filter: none !important; }
     .c4-disc {
       flex: none; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-round);
-      width: calc(var(--icon-tile) * 1.7); height: calc(var(--icon-tile) * 1.7); background: var(--sw-pill-solid, var(--text-soft)); color: var(--sw-on-solid, var(--bg-panel));
+      width: calc(var(--icon-tile) * 1.7); height: calc(var(--icon-tile) * 1.7); background: var(--sw-disc, var(--swatch-disc-neutral)); color: var(--sw-on-disc, var(--swatch-disc-neutral-ink));
     }
     .c4-disc svg { display: block; }
-    /* Dark: the slot's solid role is a pale pastel (made for a dark glyph), so the disc takes the slot's line colour deepened toward the
-       page colour (a solid, saturated disc, 3:1 or more against the glyph) and the glyph the main text colour; the neutral slot and externals deepen the soft text colour. */
-    :root[data-theme="dark"] .c4-disc { background: color-mix(in srgb, var(--sw-line, var(--text-soft)) 72%, var(--bg-page)); color: var(--text-main); }
-    :root[data-theme="dark"] .c4-node[data-kind="external"] .c4-disc, :root[data-theme="dark"] .c4-node:not([data-sw]) .c4-disc { background: color-mix(in srgb, var(--text-soft) 55%, var(--bg-page)); color: var(--text-main); }
+    /* The disc is a solid surface per theme (--sw-disc, --sw-on-disc: tokens swatch-disc-*); the neutral slot and externals take the neutral pair. */
+    .c4-node[data-kind="external"] .c4-disc, .c4-node:not([data-sw]) .c4-disc { background: var(--swatch-disc-neutral); color: var(--swatch-disc-neutral-ink); }
     .c4-text { min-width: 0; max-width: 100%; flex: 0 1 auto; display: flex; flex-direction: column; align-items: center; overflow: hidden; }
     .c4-name, .c4-tech, .c4-desc { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
     .c4-desc { -webkit-line-clamp: 3; }

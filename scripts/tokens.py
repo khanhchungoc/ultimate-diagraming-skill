@@ -281,6 +281,15 @@ def _sw_vars(tokens: Dict[str, Any], mode: str, only_mode: bool = False) -> Dict
         fill = {**s["light"], **s[mode]}.get("soft", "")
         tint = _mix(fill, bg, 0.6)
         if tint: out[f"sw-{s['slot']}-tint"] = tint
+        # disc: a solid, saturated surface for a glyph (the c4 icon disc). Light: the slot's solid role. Dark: the line colour
+        # mixed swatch-disc-mix into swatch-disc-base, the glyph swatch-disc-ink (the solid role is a pastel there, made for a dark glyph)
+        full = {**s["light"], **s[mode]}
+        if mode == "light":
+            disc, on = full.get("solid"), full.get("on-solid")
+        else:
+            disc = _mix(full.get("strong", ""), colors.get("swatch-disc-base", ""), float(colors.get("swatch-disc-mix", "0%").rstrip("%")) / 100)
+            on = colors.get("swatch-disc-ink")
+        if disc and on: out[f"sw-{s['slot']}-disc"], out[f"sw-{s['slot']}-on-disc"] = disc, on
     return out
 
 
@@ -322,7 +331,8 @@ def tokens_css(tokens: Dict[str, Any]) -> str:
         f'    [data-sw="{s["slot"]}"] {{ --sw-stripe: var(--sw-{s["slot"]}-line); --sw-line: var(--sw-{s["slot"]}-line); '
         f'--sw-pill-bg: var(--sw-{s["slot"]}-fill); --sw-pill-ink: var(--sw-{s["slot"]}-ink); '
         f'--sw-pill-solid: var(--sw-{s["slot"]}-solid); --sw-on-solid: var(--sw-{s["slot"]}-on-solid); '
-        f'--sw-tint: var(--sw-{s["slot"]}-tint); }}'
+        f'--sw-tint: var(--sw-{s["slot"]}-tint); '
+        f'--sw-disc: var(--sw-{s["slot"]}-disc); --sw-on-disc: var(--sw-{s["slot"]}-on-disc); }}'
         for s in tokens["palette"])
     return (_block(":root", light, "light") + "\n\n" + _block(':root[data-theme="dark"]', dark, "dark") + "\n\n" + slots
             + "\n\n" + _type_classes(tokens))
