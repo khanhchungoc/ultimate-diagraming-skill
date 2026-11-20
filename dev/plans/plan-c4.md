@@ -75,6 +75,7 @@ Logical JSON the agent writes. Key order is fixed: `diagramType, schemaVersion, 
 - **Relations:** between elements only. `label` is required (C4 requires it); `tech` is optional but warned about on container-to-container links; `async: true` draws a dashed line.
 - **One model, all levels.** The level is the collapse state of the `system` groups. A collapsed group draws as one system box, and relations that cross its border are aggregated onto it (one arrow per neighbour, labelled with the count when it merges several). Level 1 is every system group collapsed; Level 2 is one expanded. `collapsed` is saved, so the page reopens where the user left it.
 - **Arrange (the layout):** `arrange` is one of `surround`, `flow` or `layers`; omitted, it is `surround` when any item is marked `core` and `flow` when none is. `core: true` on an element or a group marks a centre; zero, one or many may be marked, and a group can be the centre. Nothing is picked automatically. In `layers`, each top-level group is a layer band, stacked in the order written (top to bottom, or left to right with `direction`), and every element must sit in a top-level group.
+- **Groups can be coloured**, like the frames in a sequence diagram: `color` on a group is a palette slot `c1` to `c8` (or a custom hex, as `setSwatch` accepts). The frame line, its tint and the tag take that colour at low opacity in both themes; used colours appear in `colorKey`. No colour means the neutral frame. Elements keep their own `color` (default by kind).
 - **Relations may join any two elements**, including two in the same group or the same layer, as well as elements in different groups. A relation from an element to itself is an error.
 - **Disk format:** a trailing `layout` map `{id: {x, y}}` (elements, then groups), as the ERD and use case types. `toDisk` drops every `_`-prefixed field, sizes, points and canvas. The codec lives in `scripts/disk_format.py`.
 
@@ -131,7 +132,7 @@ Nothing is invented; every item below already exists.
 | Shapes | every kind is the same icon card; the kind shows in the disc colour and in the glyph, so nodes are told apart at a glance. A database keeps the `shape-database` glyph; a person uses the use case actor colour |
 | Arrow, hover in/out highlight, selected state | `assets/components/edge.css` (`.edge-line`, `--edge-in`, `--edge-out`) |
 | Relation label pill with tech tag | `.edge-label`, masking the line, same metrics (`edgeLabel`, `edgeWrap`) |
-| Groups and system boundaries | `assets/components/frame.css`: `.frame-tag`, the collapse chevron, the dashed `.frame-summary` row |
+| Groups and system boundaries | `assets/components/frame.css`: `.frame-tag`, the collapse chevron, the dashed `.frame-summary` row. A group's `color` goes through `setSwatch` and `assets/components/swatch.css` exactly as a sequence frame's does (`.frame-tag.swatch-scope`, `--sw-line` at low opacity for the line and tint), plus an entry in the colour key |
 | Dock, line action bar, multi-select bar, search, help drawer, colour key, notes | `assets/shell` and `assets/components`, unchanged |
 | Routing | one-bend arrows routed through the gutters the ring layout leaves; path rounding, hops and label placement come from `assets/shell/ortho-router.js` (extracted in phase 1). The flowchart's own router stays as it is |
 
@@ -204,6 +205,18 @@ The one interface between `engine.js`, the page (`c4.js`) and the audit. Coordin
 A relation whose two ends resolve to the same visible item (both inside one collapsed group) is not drawn. Direction (`direction` in the JSON, else chosen like the flowchart) sets the flow axis: top to bottom puts people first.
 
 Disk format: unchanged from the codec (`layout` map `{id: {x, y}}`, elements then groups); `toDisk` drops every `_` field, sizes, `points`, `path`, `labelBox`, `_edges` and `canvas`.
+
+## Gutter routing interface
+
+One interface between the layout (`engine.js`) and the routing (`assets/types/c4/route.js`), so the two can be built and tested apart. `route.js` is a plain script loaded before `engine.js` for the c4 type only (the page assembler, `run_engine.mjs` and `engine_runner.py` load `assets/types/<type>/route.js` when the file exists, and nothing changes for other types).
+
+`routeC4Edges(nodes, edges)` returns one result per edge, in the same order:
+
+- `nodes`: `{elementId: {x, y, w, h, item: {id, x, y, w, h}}}`; `x`, `y` are the box centre, `item` is the framed group or loose element the box belongs to (centre and size). Only visible elements appear; the engine has already merged aggregated edges and dropped edges inside one collapsed group.
+- `edges`: `[{from, to, label, tech, hint}]`; `from` and `to` are keys of `nodes`. `hint` is `"v"` (run down or up first), `"h"` (run across first), `"u"` (loop under the row), or absent (choose by the gap).
+- result: `{d, points, lx, ly, w}`; `d` is the SVG path, `points` the polyline `[[x, y], ...]`, `lx`, `ly` the centre of the label pill and `w` its width. The pill is 32px high.
+
+Rules it implements: one bend, the run placed between the facing edges of the two items (so never through a frame), ports spread along a side in the order of the targets, bends staggered so arrows nest, loops under a row staggered so they do not share a line, near-aligned ends straight, labels placed on a run long enough for them. Path rounding and label placement reuse `ortho-router.js` where they fit. The router reads label widths from `TOKENS.font.metrics` and holds no layout logic.
 
 ## Interaction and UX
 
