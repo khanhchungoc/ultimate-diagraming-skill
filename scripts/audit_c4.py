@@ -38,7 +38,7 @@ class C4Audit:
         self.icon_packs = set(icon_packs or ())
 
     def pass_line(self, report: Dict[str, Any]) -> str:
-        return "[PASS] Model clean."
+        return "[PASS] Layout clean."
 
     def verify_collisions(self) -> Dict[str, Any]:
         errors: List[str] = []
