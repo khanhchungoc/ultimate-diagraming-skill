@@ -159,7 +159,15 @@
       gap: 6px;
       line-height: var(--t-label-leading);
       max-width: 140px; /* keep in sync with LE.LABEL_MAX_W */
-      transition: border-color var(--dur-micro) var(--curve-inout), background-color var(--dur-micro) var(--curve-inout);
+      transition: border-color var(--dur-micro) var(--curve-inout), background-color var(--dur-micro) var(--curve-inout),
+        clip-path var(--dur-micro) var(--curve-out);
+      /* At rest only the text's own box masks the line: the label is clipped to the text bounds (box = 1.5px border +
+         3px / 8px padding), so there is no pill around it and little of the diagram is covered. Active states
+         grow the clip out to the full pill (morph, not fade); the negative inset leaves room for the glow. */
+      clip-path: inset(4.5px 9.5px round 3px);
+    }
+    .edge-label:is(:hover, .linked, .selected, .hl-in, .hl-out, .editing, :focus-within) {
+      clip-path: inset(-12px round var(--radius-lg));
     }
     /* Highlighted (hover, selected, linked to a hovered node): the node border weight (2px). The padding gives
        back what the border adds so the label does not jump: the 1.5px rest border is drawn 1px wide at 100%
