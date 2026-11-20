@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- For agents: the whole diagram is the JSON (application/json) in the "diagram-data" script on lines 12-64 of this file. Read lines 1-64 only (offset 1, limit 64); everything after line 64 is editor code (CSS, JS, icons) and says nothing about the diagram.
+<!-- For agents: the whole diagram is the JSON (application/json) in the "diagram-data" script on lines 14-66 of this file. Read lines 1-66 only (offset 1, limit 66); everything after line 66 is editor code (CSS, JS, icons) and says nothing about the diagram.
      The model's first key, "_readme", says how to read it. The "end diagram-data" comment marks the true end: if it is not on the line named above (the JSON was edited by hand since the last save), trust the comment. To print just the model:
      sed -n '/<script id="diagram-data" type="application\/json">/,/<\/script>/p' FILE
      python -c "import re,sys;print(re.search(r'<script id=\"diagram-data\" type=\"application\/json\">(.*?)<\/script>',open(sys.argv[1],encoding='utf8').read(),re.S)[1])" FILE -->
@@ -7,6 +7,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- The theme is set before the first paint (priority: ?theme=dark|light, then the saved choice, then the OS), so a page never flashes the other theme. shell.js reads it back. -->
+  <script>(function () { var t = null; try { t = new URLSearchParams(location.search).get('theme'); } catch (e) {} if (t !== 'dark' && t !== 'light') { try { t = localStorage.getItem('flowchart-theme'); } catch (e) {} } if (t !== 'dark' && t !== 'light') t = window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'; document.documentElement.setAttribute('data-theme', t); })();</script>
   <title>Supplier Onboarding</title>
   <!-- Diagram model: the source of truth for this page. Everything after this block is the editor. -->
   <script id="diagram-data" type="application/json">
@@ -496,7 +498,7 @@
     .toolbar-center {
       grid-column: 2;
       grid-row: 1;
-      flex-wrap: wrap;
+      flex-wrap: nowrap;   /* one row at every width: the labels go first (see below). Never overflow:auto here, it would clip the popovers that open above the dock */
       justify-content: center;
     }
     .toolbar-zoom { gap: 2px; }
@@ -666,14 +668,18 @@
     @media (max-width: 720px) {
       .dock-area { left: 12px; right: 12px; bottom: 12px; grid-template-columns: 1fr; }
       .toolbar-center { grid-column: 1; grid-row: 1; justify-content: space-evenly; }
-      .toolbar-center > .btn, .toolbar-center > .dock-pop-wrap { flex: 1 1 0; justify-content: center; }
+      .toolbar-center > .btn, .toolbar-center > .dock-pop-wrap { flex: 1 1 0; min-width: 0; justify-content: center; }
       .dock-pop-wrap > .dock-pop-trigger { flex: 1 1 auto; justify-content: center; }
       .toolbar-center > .dock-delete:not(.show) { flex: 0 0 0; }
       .toolbar-zoom { grid-column: 1; grid-row: 2; }
     }
-    /* Medium widths: keep one row, but centre the add dock in the space right of the zoom dock instead of on the
-       viewport, so the two never collide. If the add dock still runs out of room, its buttons wrap inside it. */
-    @media (min-width: 721px) and (max-width: 1100px) {
+    /* Below 1300px the dock is icon-only (the labels need about 800px beside the zoom dock): same icons, same tooltips, one row.
+       Between 721px and 1300px the add dock is centred in the space right of the zoom dock, so the two never collide. */
+    @media (max-width: 1300px) {
+      .toolbar-center .btn-label { display: none; }
+      .toolbar-center > .btn:not(:has(.btn-count:not([hidden]))) { padding-inline: 8px; }
+    }
+    @media (min-width: 721px) and (max-width: 1300px) {
       .dock-area { grid-template-columns: auto minmax(0, 1fr); }
       .toolbar-zoom { grid-column: 1; grid-row: 1; }
       .toolbar-center { grid-column: 2; grid-row: 1; justify-self: center; }
@@ -786,37 +792,17 @@
     .btn-danger:hover { filter: brightness(0.92); background: var(--danger); color: var(--on-danger); }
     /* Neutral until pointed at, then solid red: the small round delete chips (note, lane) */
     .btn-danger-hover:hover { background: var(--danger); border-color: var(--danger); color: var(--on-danger); }
-    /* Pressed toggle (dock buttons that switch a view on, such as Notes, Types, Numbers): tinted while aria-pressed is true */
-    .btn[aria-pressed="true"] {
+    /* Toggle buttons in the dock (Notes, Numbers, Types, Refs, Auto-Tidy...): an icon button like the others, tinted while it is
+       on (aria-pressed or, for a role="switch" button, aria-checked), so the icon says what it switches and the tint says
+       whether it is on. No bare slider that would need a label. */
+    .btn[aria-pressed="true"],
+    .btn-switch[aria-checked="true"] {
       background: var(--primary-wash);
       border-color: var(--primary-ring);
       color: var(--primary);
     }
-    .btn[aria-pressed="true"] .btn-count { background: var(--primary); color: var(--bg-panel); }
-
-    /* Sliding switch (Auto-Tidy in the dock): knob right and track filled while aria-checked is true */
-    .btn-switch .switch-track {
-      position: relative;
-      width: 28px; height: 16px;
-      flex: none;
-      border-radius: var(--radius-pill);
-      background: var(--border-dark);
-      transition: background-color var(--dur-base) var(--curve-inout);
-    }
-    .btn-switch .switch-knob {
-      position: absolute;
-      top: 2px; left: 2px;
-      width: 12px; height: 12px;
-      border-radius: var(--radius-round);
-      background: var(--toggle-knob);   /* white in both themes: reads on the grey (off) and the primary (on) track */
-      box-shadow: var(--shadow-knob);
-      transition: transform var(--dur-base) var(--curve-spring-tactile);
-    }
-    .btn-switch[aria-checked="true"] .switch-track { background: var(--primary); }
-    .btn-switch[aria-checked="true"] .switch-knob { transform: translateX(12px); }
-    @media (prefers-reduced-motion: reduce) {
-      .btn-switch .switch-track, .btn-switch .switch-knob { transition: none; }
-    }
+    .btn[aria-pressed="true"] .btn-count,
+    .btn-switch[aria-checked="true"] .btn-count { background: var(--primary); color: var(--bg-panel); }
     /* A short message (save conflicts, blocked downloads) inside a claude.ai artifact */
     .toast {
       position: fixed; left: 50%; bottom: 84px; transform: translateX(-50%); z-index: 50;
@@ -1534,6 +1520,17 @@
       transition: background-color 160ms var(--curve-inout), border-color 160ms var(--curve-inout),
                   color 160ms var(--curve-inout), fill 160ms var(--curve-inout), stroke 160ms var(--curve-inout) !important;
     }
+
+/* Page loading (a playground switching type): a spinner in the middle of the canvas, from the click until the next page has drawn */
+#page-loading { position: absolute; inset: 0; display: none; place-items: center; pointer-events: none; z-index: 60; }
+html.is-loading #page-loading { display: grid; }
+#page-loading::before {
+  content: ''; width: 28px; height: 28px; border-radius: 50%;
+  border: 3px solid var(--border-dark); border-top-color: var(--primary);
+  animation: page-spin 0.8s linear infinite;
+}
+@keyframes page-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { #page-loading::before { animation-duration: 2.4s; } }
     /* Swimlanes Container */
     #swimlanes-container {
       position: relative;
@@ -1630,6 +1627,10 @@
     .swimlane.lane-dragging .lane-pill { opacity: 0.45; }
 
     /* Empty left gutter that indents nodes past the lane name pill (width set by sizeLaneGutter) */
+    /* While the lane backdrops morph (direction switch), the real lane backgrounds and dividers wait */
+    .lane-morph .lane-track, .lane-morph .lane-gutter { background: transparent !important; transition: none; }
+    .lane-morph .swimlane { border-color: transparent !important; }
+    #swimlanes-container.lane-morph { background: transparent !important; border-color: transparent !important; box-shadow: none !important; }
     .lane-gutter {
       flex: none;
       width: var(--lane-gutter, 0px);
@@ -1821,6 +1822,10 @@
     }
     .flow-node.type-decision.selected .diamond-poly {
       stroke: var(--node-accent);
+    }
+    /* A selected decision or classic shape has no box to carry the step's halo: glow its outline instead */
+    .flow-node.selected:is(.type-decision, .type-subprocess, .type-io, .type-document, .type-database, .type-delay) :is(.decision-diamond-svg, .shape-outline) {
+      filter: drop-shadow(0 0 var(--ring-lg) color-mix(in srgb, var(--node-accent) 60%, transparent));
     }
     /* Classic flowchart shapes (subprocess, io, document, database, delay): the task's 144x64 slot and colours,
        the box transparent and the outline drawn inside it (SHAPE_OUTLINES in flowchart.js); the outline carries
@@ -2255,7 +2260,7 @@
     /* Columns are narrow, so a long lane name wraps (up to two lines) instead of being cut off */
     #swimlanes-container.dir-tb .lane-pill { white-space: normal; border-radius: var(--radius-2xl); justify-content: center; }
     #swimlanes-container.dir-tb .lane-pill .lane-title {
-      display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere;
+      display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; text-overflow: clip; overflow-wrap: anywhere;
     }
     /* Top-to-bottom: the pill is centred on its column (see pinLaneHeaders), wrapped names too, and so in exports */
     #swimlanes-container.dir-tb .lane-pill { text-align: center; }
@@ -2444,9 +2449,9 @@
       <button id="btn-direction"class="btn" data-dock-group="layout" title="Switch to a top-to-bottom layout" aria-label="Vertical">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v18"/><path d="m7 16 5 5 5-5"/></svg><span class="btn-label">Vertical</span>
       </button>
-      <!-- Auto-Tidy on/off (see AUTO LAYOUT in flowchart.js), a sliding switch; the shell places it just before Tidy -->
-      <button id="btn-auto-layout" class="btn btn-switch" role="switch" data-dock-group="layout" title="Auto-Tidy is on: the diagram re-arranges itself after every step edit (click to place steps by hand)" aria-label="Auto-Tidy" aria-checked="true">
-        <span class="switch-track" aria-hidden="true"><span class="switch-knob"></span></span><span class="btn-label">Auto-Tidy</span>
+      <!-- Auto-Tidy on/off (see AUTO LAYOUT in flowchart.js): hidden for now, Auto-Tidy is always on (the code stays for when it returns) -->
+      <button id="btn-auto-layout" hidden class="btn btn-switch" role="switch" data-dock-group="layout" title="Auto-Tidy is on: the diagram re-arranges itself after every step edit (click to place steps by hand)" aria-label="Auto-Tidy" aria-checked="true">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 0 0-15-6.7L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 15 6.7l3-2.7"/><path d="M16 16h5v5"/></svg><span class="btn-label">Auto-Tidy</span>
       </button>
       <!-- Shown only while something is selected (plugin.hasSelection) -->
       <button id="btn-delete-selection" class="btn dock-delete" title="Delete the selection (Delete key)" aria-label="Delete selection" aria-hidden="true" tabindex="-1">
@@ -2487,6 +2492,7 @@
 
   <!-- Viewport for Pan and Zoom -->
   <div id="viewport">
+    <div id="page-loading" role="status" aria-label="Loading"></div>
     <div id="stage">
       <div id="swimlanes-container">
         <!-- SVG Connections Overlay -->
@@ -2546,10 +2552,10 @@
       <li><kbd>Select Several Steps</kbd> : <kbd>Ctrl</kbd>/<kbd>Cmd</kbd>+click adds a step to the selection or takes it out; <kbd>Shift</kbd>+click selects the steps along the arrows from the step clicked last; <kbd>Shift</kbd>+drag on blank canvas draws a box (with <kbd>Ctrl</kbd>/<kbd>Cmd</kbd> too, each step it touches is added or taken out); <kbd>Ctrl</kbd>/<kbd>Cmd</kbd>+<kbd>A</kbd> selects every step; <kbd>Esc</kbd> or a click on blank canvas clears it</li>
       <li><kbd>Delete</kbd> : Delete the selected step, steps, arrow or lane (or the bar's Delete button, shown while something is selected, with the count when several steps are). One <kbd>Ctrl+Z</kbd> brings them all back</li>
       <li><kbd>Click Lane Name</kbd> : Select the lane: a bar appears over its name with the lane's <b>colour</b> (the dots; the first, empty one gives it back the colour for its position), <b>Rename</b>, move earlier or later (up and down, left and right in a top-to-bottom diagram) and delete. The lane's icon comes from the AI or is guessed from its name. <kbd>Delete</kbd> asks to confirm and removes it with its steps and their arrows (undo brings them back; the last lane stays)</li>
-      <li><kbd>Drag Node</kbd> : Drop a step into another lane (or onto an arrow). With <b>Auto-Tidy</b> on, the layout tidies itself after every step you add, move or delete (<kbd>Ctrl+Z</kbd> undoes both at once), except a shape dragged onto blank canvas, which stays where you drop it until you connect it; with it off, steps stay where you drop them and snap to other steps' and lane centers. With several steps selected, drag any of them to move them all (each keeps its lane offset); <kbd>Alt</kbd>+<kbd>↑</kbd>/<kbd>↓</kbd> moves the selection one lane up or down (<kbd>←</kbd>/<kbd>→</kbd> in a top-to-bottom diagram)</li>
+      <li><kbd>Drag Node</kbd> : Drop a step into another lane (or onto an arrow). The layout tidies itself after every step you add, move or delete (<kbd>Ctrl+Z</kbd> undoes both at once), except a shape dragged onto blank canvas, which stays where you drop it until you connect it; with it off, steps stay where you drop them and snap to other steps' and lane centers. With several steps selected, drag any of them to move them all (each keeps its lane offset); <kbd>Alt</kbd>+<kbd>↑</kbd>/<kbd>↓</kbd> moves the selection one lane up or down (<kbd>←</kbd>/<kbd>→</kbd> in a top-to-bottom diagram)</li>
       <li><kbd>Move Steps in the Flow</kbd> : Select a step, or a run of steps with one way in and one way out (<kbd>Shift</kbd>+click its first and last step), and drag it onto another arrow while holding <kbd>Alt</kbd>: the run moves there and the gap it leaves closes up. <kbd>Alt</kbd>+<kbd>←</kbd>/<kbd>→</kbd> (<kbd>↑</kbd>/<kbd>↓</kbd> top to bottom) moves it one step earlier or later along a straight part of the flow. Without <kbd>Alt</kbd>, dragging a connected step never rewires it</li>
       <li><kbd>Reorder Steps</kbd> : Rewire the arrows (drag an arrow's end to another step, or delete and redraw it). Arrow edits never re-arrange the diagram, so it holds still while you rewire; press <b>Tidy</b> (or edit a step) to lay out the new order</li>
-      <li><kbd>Auto-Tidy</kbd> : Turn automatic layout on or off (remembered in this browser); <kbd>Tidy</kbd> lays the diagram out once, now</li>
+      <li><kbd>Tidy</kbd> : Lays the diagram out once, now</li>
       <li><kbd>Note</kbd> (under <b>Shapes</b>, <b>Annotate</b>) : Drag it onto a step to give that step a note, or click it to add one to the selected step. Dropped anywhere else, or clicked with nothing selected, it makes a free note (see below)</li>
       <li><kbd>N</kbd> : Add a note to the selected step, or a free note at the centre of the view when nothing is selected (or click the <kbd>+</kbd> chip on the corner of a hovered or selected step); <kbd>Enter</kbd> starts a new line, <kbd>Ctrl+Enter</kbd>, <kbd>Esc</kbd> or a click elsewhere finishes, an empty note is removed</li>
       <li><kbd>Link a Note</kbd> : One note can explain several steps. Select the note, then drag its link handle (bottom-right corner) onto a step, or <kbd>Shift</kbd>+click the step; do the same on a linked step to unlink it</li>
@@ -2581,7 +2587,7 @@
       'use strict';
 
 const TOKENS = {"palette":[{"slot":"1","name":"sky","hex":"#e0f2fe","light":{"soft":"#b9e5ff","strong":"#2f7da8","ink":"#00436a","solid":"#005c8b","on-solid":"#ffffff"},"dark":{"soft":"#194259","strong":"#69b4e2","ink":"#c6eaff","solid":"#93d4fd","on-solid":"#0f172a"}},{"slot":"2","name":"amber","hex":"#fef3c7","light":{"soft":"#ecdeaa","strong":"#907100","ink":"#513a00","solid":"#6f5100","on-solid":"#ffffff"},"dark":{"soft":"#483c06","strong":"#c6a92a","ink":"#f0e5b8","solid":"#e2ca6a","on-solid":"#0f172a"}},{"slot":"3","name":"emerald","hex":"#dcfce7","light":{"soft":"#b9edcb","strong":"#008d4e","ink":"#004e20","solid":"#006c2f","on-solid":"#ffffff"},"dark":{"soft":"#17482e","strong":"#50c586","ink":"#c5f1d5","solid":"#84e2ab","on-solid":"#0f172a"}},{"slot":"4","name":"rose","hex":"#fee2e2","light":{"soft":"#ffcccd","strong":"#b15259","ink":"#6e1724","solid":"#932a37","on-solid":"#ffffff"},"dark":{"soft":"#5c2d2f","strong":"#ee898e","ink":"#ffd5d6","solid":"#ffaeb0","on-solid":"#0f172a"}},{"slot":"5","name":"purple","hex":"#f3e8ff","light":{"soft":"#ead2ff","strong":"#895db0","ink":"#4e276d","solid":"#6b3893","on-solid":"#ffffff"},"dark":{"soft":"#47325a","strong":"#c194eb","ink":"#efdbff","solid":"#deb7ff","on-solid":"#0f172a"}},{"slot":"6","name":"orange","hex":"#ffedd5","light":{"soft":"#fad8ab","strong":"#a66400","ink":"#602f00","solid":"#834300","on-solid":"#ffffff"},"dark":{"soft":"#523709","strong":"#de9c31","ink":"#fde0b9","solid":"#f8bf6c","on-solid":"#0f172a"}},{"slot":"7","name":"teal","hex":"#ccfbf1","light":{"soft":"#aaeee0","strong":"#008f79","ink":"#004f40","solid":"#006d5a","on-solid":"#ffffff"},"dark":{"soft":"#00493f","strong":"#00c7af","ink":"#b9f2e7","solid":"#60e4cf","on-solid":"#0f172a"}},{"slot":"8","name":"indigo","hex":"#e0e7ff","light":{"soft":"#cedcff","strong":"#5b6cc2","ink":"#2a347b","solid":"#3c49a7","on-solid":"#ffffff"},"dark":{"soft":"#313a62","strong":"#8fa4ff","ink":"#d7e3ff","solid":"#b1c5ff","on-solid":"#0f172a"}},{"slot":"9","name":"neutral","light":{"soft":"#e2e8f0","strong":"#64748b","ink":"#334155","solid":"#475569","on-solid":"#ffffff"},"dark":{"soft":"#243049","strong":"#94a3b8","ink":"#e2e8f0","solid":"#cbd5e1","on-solid":"#0f172a"}}],"font":{"metrics":{"label":7.4,"title":7.4,"detail":6.4,"note":6.2,"type":6.6,"edgeLabel":7,"edgeWrap":6.6}},"motion":{"ease":"120ms cubic-bezier(0.2, 0, 0, 1)","dur-micro":"100ms","dur-fast":"140ms","dur-base":"180ms","dur-layout":"230ms","dur-camera":"240ms","dur-tab":"300ms","curve-out":"cubic-bezier(0.22, 1, 0.36, 1)","curve-in":"cubic-bezier(0.4, 0, 1, 1)","curve-inout":"cubic-bezier(0.4, 0, 0.2, 1)","curve-spring-settle":"linear(0, 0.0734, 0.2223, 0.3833, 0.5286, 0.6489, 0.7435, 0.8153, 0.8686, 0.9074, 0.9352, 0.955, 0.9689, 0.9786, 1)","curve-spring-tactile":"linear(0, 0.1021, 0.3124, 0.5352, 0.7235, 0.8616, 0.9511, 1.0018, 1.0252, 1.0315, 1.0288, 1.0223, 1.0152, 1.0092, 1)"},"type":{"fitMin":"11px","fitMinOverview":"9px"},"icon":{"set":"default","size":{"xs":10,"sm":12,"md":14,"lg":18,"xl":22,"tile":32},"stroke":2,"strokeFine":1.75,"strokeBold":2.5,"cap":"round","join":"round"}};
-const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><circle cx=\"12\" cy=\"7\" r=\"4\"/>","users":"<path d=\"M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2\"/><circle cx=\"9\" cy=\"7\" r=\"4\"/><path d=\"M22 21v-2a4 4 0 0 0-3-3.87\"/><path d=\"M16 3.13a4 4 0 0 1 0 7.75\"/>","briefcase":"<rect width=\"20\" height=\"14\" x=\"2\" y=\"7\" rx=\"2\"/><path d=\"M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16\"/>","building":"<rect width=\"16\" height=\"20\" x=\"4\" y=\"2\" rx=\"2\"/><path d=\"M9 22v-4h6v4\"/><path d=\"M8 6h.01M12 6h.01M16 6h.01M8 10h.01M12 10h.01M16 10h.01M8 14h.01M12 14h.01M16 14h.01\"/>","headset":"<path d=\"M3 14v-2a9 9 0 0 1 18 0v2\"/><path d=\"M21 16a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 16a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z\"/><path d=\"M21 17v1a4 4 0 0 1-4 4h-4\"/>","monitor":"<rect width=\"20\" height=\"14\" x=\"2\" y=\"3\" rx=\"2\"/><path d=\"M8 21h8M12 17v4\"/>","code":"<polyline points=\"16 18 22 12 16 6\"/><polyline points=\"8 6 2 12 8 18\"/>","server":"<rect width=\"20\" height=\"8\" x=\"2\" y=\"2\" rx=\"2\"/><rect width=\"20\" height=\"8\" x=\"2\" y=\"14\" rx=\"2\"/><path d=\"M6 6h.01M6 18h.01\"/>","database":"<ellipse cx=\"12\" cy=\"5\" rx=\"9\" ry=\"3\"/><path d=\"M3 5v14a9 3 0 0 0 18 0V5\"/><path d=\"M3 12a9 3 0 0 0 18 0\"/>","cloud":"<path d=\"M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z\"/>","cpu":"<rect width=\"16\" height=\"16\" x=\"4\" y=\"4\" rx=\"2\"/><rect width=\"6\" height=\"6\" x=\"9\" y=\"9\" rx=\"1\"/><path d=\"M15 2v2M15 20v2M9 2v2M9 20v2M2 15h2M2 9h2M20 15h2M20 9h2\"/>","cog":"<circle cx=\"12\" cy=\"12\" r=\"3\"/><path d=\"M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12\"/>","shield":"<path d=\"M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z\"/>","scale":"<path d=\"m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z\"/><path d=\"m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z\"/><path d=\"M7 21h10M12 3v18M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2\"/>","banknote":"<rect width=\"20\" height=\"12\" x=\"2\" y=\"6\" rx=\"2\"/><circle cx=\"12\" cy=\"12\" r=\"2\"/><path d=\"M6 12h.01M18 12h.01\"/>","credit-card":"<rect width=\"20\" height=\"14\" x=\"2\" y=\"5\" rx=\"2\"/><path d=\"M2 10h20\"/>","mail":"<rect width=\"20\" height=\"16\" x=\"2\" y=\"4\" rx=\"2\"/><path d=\"m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7\"/>","package":"<path d=\"m7.5 4.27 9 5.15\"/><path d=\"M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z\"/><path d=\"m3.3 7 8.7 5 8.7-5M12 22V12\"/>","truck":"<path d=\"M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2\"/><path d=\"M15 18H9\"/><path d=\"M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14\"/><circle cx=\"17\" cy=\"18\" r=\"2\"/><circle cx=\"7\" cy=\"18\" r=\"2\"/>","cart":"<circle cx=\"8\" cy=\"21\" r=\"1\"/><circle cx=\"19\" cy=\"21\" r=\"1\"/><path d=\"M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12\"/>","clipboard":"<rect width=\"8\" height=\"4\" x=\"8\" y=\"2\" rx=\"1\"/><path d=\"M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2\"/><path d=\"M9 12h6M9 16h4\"/>","check":"<path d=\"M22 11.08V12a10 10 0 1 1-5.93-9.14\"/><path d=\"m9 11 3 3L22 4\"/>","layers":"<path d=\"m12 2 10 5-10 5L2 7z\"/><path d=\"m2 17 10 5 10-5\"/><path d=\"m2 12 10 5 10-5\"/>","globe":"<circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"M2 12h20\"/><path d=\"M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z\"/>","flag":"<path d=\"M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z\"/><path d=\"M4 22v-7\"/>","undo":"<path d=\"M9 14 4 9l5-5\"/><path d=\"M4 9h10.5a5.5 5.5 0 0 1 0 11H11\"/>","redo":"<path d=\"m15 14 5-5-5-5\"/><path d=\"M20 9H9.5a5.5 5.5 0 0 0 0 11H13\"/>","export":"<path d=\"M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4\"/><polyline points=\"7 10 12 15 17 10\"/><line x1=\"12\" y1=\"15\" x2=\"12\" y2=\"3\"/>","save":"<path d=\"M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z\"/><polyline points=\"17 21 17 13 7 13 7 21\"/><polyline points=\"7 3 7 8 15 8\"/>","trash":"<path d=\"M3 6h18\"/><path d=\"M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2\"/><path d=\"M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6\"/><path d=\"M10 11v6\"/><path d=\"M14 11v6\"/>","tidy":"<path d=\"m21.64 3.64-1.28-1.28a1.21 1.21 0 0 0-1.72 0L2.36 18.64a1.21 1.21 0 0 0 0 1.72l1.28 1.28a1.2 1.2 0 0 0 1.72 0L21.64 5.36a1.2 1.2 0 0 0 0-1.72\"/><path d=\"m14 7 3 3\"/><path d=\"M5 6v4\"/><path d=\"M19 14v4\"/><path d=\"M10 2v2\"/><path d=\"M7 8H3\"/><path d=\"M21 16h-4\"/><path d=\"M11 3H9\"/>","minus":"<path d=\"M5 12h14\"/>","plus":"<path d=\"M5 12h14\"/><path d=\"M12 5v14\"/>","close":"<path d=\"M18 6 6 18\"/><path d=\"m6 6 12 12\"/>","more":"<circle cx=\"12\" cy=\"12\" r=\"1\"/><circle cx=\"19\" cy=\"12\" r=\"1\"/><circle cx=\"5\" cy=\"12\" r=\"1\"/>","fit":"<path d=\"M3 7V5a2 2 0 0 1 2-2h2\"/><path d=\"M17 3h2a2 2 0 0 1 2 2v2\"/><path d=\"M21 17v2a2 2 0 0 1-2 2h-2\"/><path d=\"M7 21H5a2 2 0 0 1-2-2v-2\"/>","sun":"<circle cx=\"12\" cy=\"12\" r=\"4\"/><path d=\"M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41\"/>","moon":"<path d=\"M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z\"/>","key":"<circle cx=\"7.5\" cy=\"15.5\" r=\"5\"/><path d=\"m21 2-9.6 9.6\"/><path d=\"m15.5 7.5 3 3L22 7l-3-3\"/>","link":"<path d=\"M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71\"/><path d=\"M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71\"/>","chevron-down":"<path d=\"m6 9 6 6 6-6\"/>","note-lines":"<path d=\"M5 7h14\"/><path d=\"M5 12h14\"/><path d=\"M5 17h9\"/>","type-erd":"<rect x=\"2.5\" y=\"3\" width=\"10\" height=\"8\" rx=\"1.5\"/><path d=\"M2.5 6.5h10\"/><rect x=\"11.5\" y=\"13\" width=\"10\" height=\"8\" rx=\"1.5\"/><path d=\"M11.5 16.5h10\"/><path d=\"M7.5 11v4.5h4\"/>","table-add":"<rect x=\"3\" y=\"4\" width=\"18\" height=\"16\" rx=\"2\"/><path d=\"M3 10h18\"/><path d=\"M8 15h8\"/>","relationship":"<path d=\"M3 12h9\"/><path d=\"m12 12 8-5\"/><path d=\"M12 12h8\"/><path d=\"m12 12 8 5\"/><path d=\"M6.5 8v8\"/>","note":"<path d=\"M4 4h16v11l-5 5H4z\"/><path d=\"M20 15h-5v5\"/><path d=\"M8 9h8M8 13h5\"/>","columns":"<rect x=\"3\" y=\"3\" width=\"18\" height=\"18\" rx=\"2\"/><path d=\"M3 9h18\"/><path d=\"M3 15h18\"/>","types":"<path d=\"M4 7V5h16v2\"/><path d=\"M12 5v14\"/><path d=\"M9 19h6\"/>","notes":"<path d=\"M15.5 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8.5z\"/><path d=\"M15 3v5a1 1 0 0 0 1 1h5\"/><path d=\"M7 13h7\"/><path d=\"M7 17h4\"/>","grip":"<circle cx=\"9\" cy=\"6\" r=\"1.6\" fill=\"currentColor\" stroke=\"none\"/><circle cx=\"15\" cy=\"6\" r=\"1.6\" fill=\"currentColor\" stroke=\"none\"/><circle cx=\"9\" cy=\"12\" r=\"1.6\" fill=\"currentColor\" stroke=\"none\"/><circle cx=\"15\" cy=\"12\" r=\"1.6\" fill=\"currentColor\" stroke=\"none\"/><circle cx=\"9\" cy=\"18\" r=\"1.6\" fill=\"currentColor\" stroke=\"none\"/><circle cx=\"15\" cy=\"18\" r=\"1.6\" fill=\"currentColor\" stroke=\"none\"/>","split":"<path d=\"M2 12h4\"/><circle cx=\"9\" cy=\"12\" r=\"3\"/><circle cx=\"15\" cy=\"12\" r=\"3\"/><path d=\"M18 12h4\"/>","type-flowchart":"<rect width=\"18\" height=\"18\" x=\"3\" y=\"3\" rx=\"2\"/><path d=\"M3 9h18\"/><path d=\"M3 15h18\"/><path d=\"M9 3v18\"/>","shapes":"<rect x=\"3\" y=\"13\" width=\"8\" height=\"8\" rx=\"1.5\"/><circle cx=\"17\" cy=\"17\" r=\"4\"/><path d=\"M12 3 7.5 10h9z\"/>","chevron-up":"<path d=\"m6 15 6-6 6 6\"/>","shape-terminator":"<rect x=\"2\" y=\"7\" width=\"20\" height=\"10\" rx=\"5\"/>","shape-process":"<rect x=\"3\" y=\"6\" width=\"18\" height=\"12\" rx=\"2.5\"/>","shape-decision":"<path d=\"M12 3 2 12l10 9 10-9z\"/>","shape-connector":"<path class=\"tile-line\" d=\"M0.5 12H2M22 12h1.5\"/><path class=\"tile-line tile-gap\" d=\"M10.5 12h3\" stroke-dasharray=\"1 2\"/><circle cx=\"6\" cy=\"12\" r=\"4\"/><circle cx=\"18\" cy=\"12\" r=\"4\"/>","shape-subprocess":"<rect x=\"2\" y=\"6\" width=\"20\" height=\"12\" rx=\"2.5\"/><path class=\"tile-line\" d=\"M6 8.5h1a1.5 1.5 0 0 1 1.5 1.5v1a1.5 1.5 0 0 1-1.5 1.5h-1a1.5 1.5 0 0 1-1.5-1.5v-1a1.5 1.5 0 0 1 1.5-1.5zM6.5 9.5v2M5.5 10.5h2\"/>","shape-data":"<path d=\"M6 6h16l-4 12H2z\"/>","shape-document":"<path d=\"M3 5h18v11c-3-1.6-6-1.6-9 0s-6 1.6-9 0z\"/>","shape-database":"<path d=\"M4 6.5a8 2.5 0 0 1 16 0v11a8 2.5 0 0 1-16 0z\"/><path class=\"tile-line\" d=\"M4 6.5a8 2.5 0 0 0 16 0\"/>","shape-delay":"<path d=\"M3 6h11a6 6 0 0 1 0 12H3z\"/>","shape-note":"<path class=\"note-paper\" d=\"M4 5h16v10l-5 5H4z\"/><path class=\"note-fold\" d=\"M20 15h-5v5\"/><path class=\"note-lines\" d=\"M7.5 9.5h9M7.5 13h6\"/>","lane":"<rect x=\"3\" y=\"4\" width=\"18\" height=\"16\" rx=\"2\"/><path d=\"M3 12h18\"/>","direction-tb":"<path d=\"M12 3v18\"/><path d=\"m7 16 5 5 5-5\"/>","type-sequence":"<rect x=\"3\" y=\"3\" width=\"6\" height=\"4\" rx=\"1\"/><rect x=\"15\" y=\"3\" width=\"6\" height=\"4\" rx=\"1\"/><path d=\"M6 7v14M18 7v14\"/><path d=\"M6 12h12\"/><path d=\"m15 10 3 2-3 2\"/>","focus":"<circle cx=\"12\" cy=\"12\" r=\"8\"/><circle cx=\"12\" cy=\"12\" r=\"2.5\" fill=\"currentColor\"/>","participant":"<rect x=\"4\" y=\"3\" width=\"16\" height=\"6\" rx=\"1.5\"/><path d=\"M12 9v12\" stroke-dasharray=\"3 3\"/>","message":"<path d=\"M4 12h16\"/><path d=\"m14 6 6 6-6 6\"/>","frame":"<rect x=\"3\" y=\"4\" width=\"18\" height=\"16\" rx=\"2\"/><path d=\"M3 9h8V4\"/>","numbers":"<path d=\"M10 6h11M10 12h11M10 18h11\"/><path d=\"M4 6h1v4\"/><path d=\"M4 10h2\"/><path d=\"M6 18H4c0-1 2-2 2-3s-1-1.5-2-1\"/>","message-return":"<path d=\"M4 9h16\"/><path d=\"m16 5 4 4-4 4\"/><path d=\"M6 17h10\" stroke-dasharray=\"2 3\"/>","lifespans":"<path d=\"M6 3h12\"/><path d=\"M12 3v14\" stroke-dasharray=\"3 3\"/><path d=\"M8 21h8\"/>","eye":"<path d=\"M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z\"/><circle cx=\"12\" cy=\"12\" r=\"3\"/>","direction-lr":"<path d=\"M3 12h18\"/><path d=\"m16 7 5 5-5 5\"/>","reverse":"<path d=\"M4 8h16\"/><path d=\"m16 4 4 4-4 4\"/><path d=\"M20 16H4\"/><path d=\"m8 12-4 4 4 4\"/>","label":"<path d=\"M4 7h16\"/><path d=\"M4 12h10\"/><path d=\"M4 17h6\"/>","line-dashed":"<path d=\"M3 12h4\"/><path d=\"M10 12h4\"/><path d=\"M17 12h4\"/>","line-solid":"<path d=\"M3 12h18\"/>","message-async":"<path d=\"M3 12h16\"/><path d=\"m14 7 6 5-6 5\"/>","reply":"<path d=\"M9 14 4 9l5-5\"/><path d=\"M4 9h10a6 6 0 0 1 0 12h-3\"/>","kind-system":"<rect x=\"4\" y=\"6\" width=\"16\" height=\"12\" rx=\"2\"/>","kind-ui":"<rect x=\"3\" y=\"4\" width=\"18\" height=\"12\" rx=\"2\"/><path d=\"M8 20h8M12 16v4\"/>","kind-database":"<ellipse cx=\"12\" cy=\"5\" rx=\"8\" ry=\"3\"/><path d=\"M4 5v14c0 1.66 3.58 3 8 3s8-1.34 8-3V5\"/><path d=\"M4 12c0 1.66 3.58 3 8 3s8-1.34 8-3\"/>","kind-queue":"<path d=\"M6 6h12a3 6 0 0 1 0 12H6a3 6 0 0 1 0-12z\"/><path d=\"M18 6a3 6 0 0 0 0 12\"/>","kind-external":"<circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18\"/>","actor":"<circle cx=\"12\" cy=\"5\" r=\"3\"/><path d=\"M12 8v7\"/><path d=\"M5 11h14\"/><path d=\"m12 15-5 6\"/><path d=\"m12 15 5 6\"/>","type-usecase":"<circle cx=\"4.5\" cy=\"6.5\" r=\"1.8\"/><path d=\"M4.5 8.3v4.7M2 10.5h5M4.5 13l-2 4.5M4.5 13l2 4.5\"/><ellipse cx=\"15.5\" cy=\"12\" rx=\"6.5\" ry=\"4.5\"/><path d=\"M7.4 10.6 9 11\"/>","usecase":"<ellipse cx=\"12\" cy=\"12\" rx=\"10\" ry=\"6.5\"/>","subject":"<rect x=\"2.5\" y=\"3\" width=\"19\" height=\"18\" rx=\"2\"/><path d=\"M2.5 8h19\"/><ellipse cx=\"12\" cy=\"14.5\" rx=\"5.5\" ry=\"3\"/>","clock":"<circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"M12 6v6l4 2\"/>","present":"<rect width=\"20\" height=\"14\" x=\"2\" y=\"3\" rx=\"2\"/><path d=\"M10 8l5 3-5 3z\"/><path d=\"M8 21h8M12 17v4\"/>","search":"<circle cx=\"11\" cy=\"11\" r=\"8\"/><path d=\"m21 21-4.3-4.3\"/>","hash":"<path d=\"M4 9h16M4 15h16M10 3 8 21M16 3l-2 18\"/>"};
+const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><circle cx=\"12\" cy=\"7\" r=\"4\"/>","users":"<path d=\"M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2\"/><circle cx=\"9\" cy=\"7\" r=\"4\"/><path d=\"M22 21v-2a4 4 0 0 0-3-3.87\"/><path d=\"M16 3.13a4 4 0 0 1 0 7.75\"/>","briefcase":"<rect width=\"20\" height=\"14\" x=\"2\" y=\"7\" rx=\"2\"/><path d=\"M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16\"/>","building":"<rect width=\"16\" height=\"20\" x=\"4\" y=\"2\" rx=\"2\"/><path d=\"M9 22v-4h6v4\"/><path d=\"M8 6h.01M12 6h.01M16 6h.01M8 10h.01M12 10h.01M16 10h.01M8 14h.01M12 14h.01M16 14h.01\"/>","headset":"<path d=\"M3 14v-2a9 9 0 0 1 18 0v2\"/><path d=\"M21 16a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 16a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z\"/><path d=\"M21 17v1a4 4 0 0 1-4 4h-4\"/>","monitor":"<rect width=\"20\" height=\"14\" x=\"2\" y=\"3\" rx=\"2\"/><path d=\"M8 21h8M12 17v4\"/>","code":"<polyline points=\"16 18 22 12 16 6\"/><polyline points=\"8 6 2 12 8 18\"/>","server":"<rect width=\"20\" height=\"8\" x=\"2\" y=\"2\" rx=\"2\"/><rect width=\"20\" height=\"8\" x=\"2\" y=\"14\" rx=\"2\"/><path d=\"M6 6h.01M6 18h.01\"/>","database":"<ellipse cx=\"12\" cy=\"5\" rx=\"9\" ry=\"3\"/><path d=\"M3 5v14a9 3 0 0 0 18 0V5\"/><path d=\"M3 12a9 3 0 0 0 18 0\"/>","cloud":"<path d=\"M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z\"/>","cpu":"<rect width=\"16\" height=\"16\" x=\"4\" y=\"4\" rx=\"2\"/><rect width=\"6\" height=\"6\" x=\"9\" y=\"9\" rx=\"1\"/><path d=\"M15 2v2M15 20v2M9 2v2M9 20v2M2 15h2M2 9h2M20 15h2M20 9h2\"/>","cog":"<circle cx=\"12\" cy=\"12\" r=\"3\"/><path d=\"M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12\"/>","shield":"<path d=\"M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z\"/>","scale":"<path d=\"m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z\"/><path d=\"m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z\"/><path d=\"M7 21h10M12 3v18M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2\"/>","banknote":"<rect width=\"20\" height=\"12\" x=\"2\" y=\"6\" rx=\"2\"/><circle cx=\"12\" cy=\"12\" r=\"2\"/><path d=\"M6 12h.01M18 12h.01\"/>","credit-card":"<rect width=\"20\" height=\"14\" x=\"2\" y=\"5\" rx=\"2\"/><path d=\"M2 10h20\"/>","mail":"<rect width=\"20\" height=\"16\" x=\"2\" y=\"4\" rx=\"2\"/><path d=\"m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7\"/>","package":"<path d=\"m7.5 4.27 9 5.15\"/><path d=\"M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z\"/><path d=\"m3.3 7 8.7 5 8.7-5M12 22V12\"/>","truck":"<path d=\"M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2\"/><path d=\"M15 18H9\"/><path d=\"M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14\"/><circle cx=\"17\" cy=\"18\" r=\"2\"/><circle cx=\"7\" cy=\"18\" r=\"2\"/>","cart":"<circle cx=\"8\" cy=\"21\" r=\"1\"/><circle cx=\"19\" cy=\"21\" r=\"1\"/><path d=\"M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12\"/>","clipboard":"<rect width=\"8\" height=\"4\" x=\"8\" y=\"2\" rx=\"1\"/><path d=\"M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2\"/><path d=\"M9 12h6M9 16h4\"/>","check":"<path d=\"M22 11.08V12a10 10 0 1 1-5.93-9.14\"/><path d=\"m9 11 3 3L22 4\"/>","layers":"<path d=\"m12 2 10 5-10 5L2 7z\"/><path d=\"m2 17 10 5 10-5\"/><path d=\"m2 12 10 5 10-5\"/>","globe":"<circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"M2 12h20\"/><path d=\"M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z\"/>","flag":"<path d=\"M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z\"/><path d=\"M4 22v-7\"/>","undo":"<path d=\"M9 14 4 9l5-5\"/><path d=\"M4 9h10.5a5.5 5.5 0 0 1 0 11H11\"/>","redo":"<path d=\"m15 14 5-5-5-5\"/><path d=\"M20 9H9.5a5.5 5.5 0 0 0 0 11H13\"/>","export":"<path d=\"M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4\"/><polyline points=\"7 10 12 15 17 10\"/><line x1=\"12\" y1=\"15\" x2=\"12\" y2=\"3\"/>","save":"<path d=\"M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z\"/><polyline points=\"17 21 17 13 7 13 7 21\"/><polyline points=\"7 3 7 8 15 8\"/>","trash":"<path d=\"M3 6h18\"/><path d=\"M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2\"/><path d=\"M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6\"/><path d=\"M10 11v6\"/><path d=\"M14 11v6\"/>","tidy":"<path d=\"m21.64 3.64-1.28-1.28a1.21 1.21 0 0 0-1.72 0L2.36 18.64a1.21 1.21 0 0 0 0 1.72l1.28 1.28a1.2 1.2 0 0 0 1.72 0L21.64 5.36a1.2 1.2 0 0 0 0-1.72\"/><path d=\"m14 7 3 3\"/><path d=\"M5 6v4\"/><path d=\"M19 14v4\"/><path d=\"M10 2v2\"/><path d=\"M7 8H3\"/><path d=\"M21 16h-4\"/><path d=\"M11 3H9\"/>","minus":"<path d=\"M5 12h14\"/>","plus":"<path d=\"M5 12h14\"/><path d=\"M12 5v14\"/>","close":"<path d=\"M18 6 6 18\"/><path d=\"m6 6 12 12\"/>","more":"<circle cx=\"12\" cy=\"12\" r=\"1\"/><circle cx=\"19\" cy=\"12\" r=\"1\"/><circle cx=\"5\" cy=\"12\" r=\"1\"/>","fit":"<path d=\"M3 7V5a2 2 0 0 1 2-2h2\"/><path d=\"M17 3h2a2 2 0 0 1 2 2v2\"/><path d=\"M21 17v2a2 2 0 0 1-2 2h-2\"/><path d=\"M7 21H5a2 2 0 0 1-2-2v-2\"/>","sun":"<circle cx=\"12\" cy=\"12\" r=\"4\"/><path d=\"M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41\"/>","moon":"<path d=\"M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z\"/>","key":"<circle cx=\"7.5\" cy=\"15.5\" r=\"5\"/><path d=\"m21 2-9.6 9.6\"/><path d=\"m15.5 7.5 3 3L22 7l-3-3\"/>","link":"<path d=\"M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71\"/><path d=\"M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71\"/>","chevron-down":"<path d=\"m6 9 6 6 6-6\"/>","note-lines":"<path d=\"M5 7h14\"/><path d=\"M5 12h14\"/><path d=\"M5 17h9\"/>","type-erd":"<rect x=\"2.5\" y=\"3\" width=\"10\" height=\"8\" rx=\"1.5\"/><path d=\"M2.5 6.5h10\"/><rect x=\"11.5\" y=\"13\" width=\"10\" height=\"8\" rx=\"1.5\"/><path d=\"M11.5 16.5h10\"/><path d=\"M7.5 11v4.5h4\"/>","table-add":"<rect x=\"3\" y=\"4\" width=\"18\" height=\"16\" rx=\"2\"/><path d=\"M3 10h18\"/><path d=\"M8 15h8\"/>","relationship":"<path d=\"M3 12h9\"/><path d=\"m12 12 8-5\"/><path d=\"M12 12h8\"/><path d=\"m12 12 8 5\"/><path d=\"M6.5 8v8\"/>","note":"<path d=\"M4 4h16v11l-5 5H4z\"/><path d=\"M20 15h-5v5\"/><path d=\"M8 9h8M8 13h5\"/>","columns":"<rect x=\"3\" y=\"3\" width=\"18\" height=\"18\" rx=\"2\"/><path d=\"M3 9h18\"/><path d=\"M3 15h18\"/>","types":"<path d=\"M4 7V5h16v2\"/><path d=\"M12 5v14\"/><path d=\"M9 19h6\"/>","notes":"<path d=\"M15.5 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8.5z\"/><path d=\"M15 3v5a1 1 0 0 0 1 1h5\"/><path d=\"M7 13h7\"/><path d=\"M7 17h4\"/>","grip":"<circle cx=\"9\" cy=\"6\" r=\"1.6\" fill=\"currentColor\" stroke=\"none\"/><circle cx=\"15\" cy=\"6\" r=\"1.6\" fill=\"currentColor\" stroke=\"none\"/><circle cx=\"9\" cy=\"12\" r=\"1.6\" fill=\"currentColor\" stroke=\"none\"/><circle cx=\"15\" cy=\"12\" r=\"1.6\" fill=\"currentColor\" stroke=\"none\"/><circle cx=\"9\" cy=\"18\" r=\"1.6\" fill=\"currentColor\" stroke=\"none\"/><circle cx=\"15\" cy=\"18\" r=\"1.6\" fill=\"currentColor\" stroke=\"none\"/>","split":"<path d=\"M2 12h4\"/><circle cx=\"9\" cy=\"12\" r=\"3\"/><circle cx=\"15\" cy=\"12\" r=\"3\"/><path d=\"M18 12h4\"/>","type-flowchart":"<rect width=\"18\" height=\"18\" x=\"3\" y=\"3\" rx=\"2\"/><path d=\"M3 9h18\"/><path d=\"M3 15h18\"/><path d=\"M9 3v18\"/>","shapes":"<rect x=\"3\" y=\"13\" width=\"8\" height=\"8\" rx=\"1.5\"/><circle cx=\"17\" cy=\"17\" r=\"4\"/><path d=\"M12 3 7.5 10h9z\"/>","chevron-up":"<path d=\"m6 15 6-6 6 6\"/>","shape-terminator":"<rect x=\"2\" y=\"7\" width=\"20\" height=\"10\" rx=\"5\"/>","shape-process":"<rect x=\"3\" y=\"6\" width=\"18\" height=\"12\" rx=\"2.5\"/>","shape-decision":"<path d=\"M12 3 2 12l10 9 10-9z\"/>","shape-connector":"<path class=\"tile-line\" d=\"M0.5 12H2M22 12h1.5\"/><path class=\"tile-line tile-gap\" d=\"M10.5 12h3\" stroke-dasharray=\"1 2\"/><circle cx=\"6\" cy=\"12\" r=\"4\"/><circle cx=\"18\" cy=\"12\" r=\"4\"/>","shape-subprocess":"<rect x=\"2\" y=\"6\" width=\"20\" height=\"12\" rx=\"2.5\"/><path class=\"tile-line\" d=\"M6 8.5h1a1.5 1.5 0 0 1 1.5 1.5v1a1.5 1.5 0 0 1-1.5 1.5h-1a1.5 1.5 0 0 1-1.5-1.5v-1a1.5 1.5 0 0 1 1.5-1.5zM6.5 9.5v2M5.5 10.5h2\"/>","shape-data":"<path d=\"M6 6h16l-4 12H2z\"/>","shape-document":"<path d=\"M3 5h18v11c-3-1.6-6-1.6-9 0s-6 1.6-9 0z\"/>","shape-database":"<path d=\"M4 6.5a8 2.5 0 0 1 16 0v11a8 2.5 0 0 1-16 0z\"/><path class=\"tile-line\" d=\"M4 6.5a8 2.5 0 0 0 16 0\"/>","shape-delay":"<path d=\"M3 6h11a6 6 0 0 1 0 12H3z\"/>","shape-note":"<path class=\"note-paper\" d=\"M4 5h16v10l-5 5H4z\"/><path class=\"note-fold\" d=\"M20 15h-5v5\"/><path class=\"note-lines\" d=\"M7.5 9.5h9M7.5 13h6\"/>","lane":"<rect x=\"3\" y=\"4\" width=\"18\" height=\"16\" rx=\"2\"/><path d=\"M3 12h18\"/>","direction-tb":"<path d=\"M12 3v18\"/><path d=\"m7 16 5 5 5-5\"/>","type-sequence":"<rect x=\"3\" y=\"3\" width=\"6\" height=\"4\" rx=\"1\"/><rect x=\"15\" y=\"3\" width=\"6\" height=\"4\" rx=\"1\"/><path d=\"M6 7v14M18 7v14\"/><path d=\"M6 12h12\"/><path d=\"m15 10 3 2-3 2\"/>","focus":"<circle cx=\"12\" cy=\"12\" r=\"8\"/><circle cx=\"12\" cy=\"12\" r=\"2.5\" fill=\"currentColor\"/>","participant":"<rect x=\"4\" y=\"3\" width=\"16\" height=\"6\" rx=\"1.5\"/><path d=\"M12 9v12\" stroke-dasharray=\"3 3\"/>","message":"<path d=\"M4 12h16\"/><path d=\"m14 6 6 6-6 6\"/>","frame":"<rect x=\"3\" y=\"4\" width=\"18\" height=\"16\" rx=\"2\"/><path d=\"M3 9h8V4\"/>","numbers":"<path d=\"M10 6h11M10 12h11M10 18h11\"/><path d=\"M4 6h1v4\"/><path d=\"M4 10h2\"/><path d=\"M6 18H4c0-1 2-2 2-3s-1-1.5-2-1\"/>","message-return":"<path d=\"M4 9h16\"/><path d=\"m16 5 4 4-4 4\"/><path d=\"M6 17h10\" stroke-dasharray=\"2 3\"/>","lifespans":"<path d=\"M6 3h12\"/><path d=\"M12 3v14\" stroke-dasharray=\"3 3\"/><path d=\"M8 21h8\"/>","eye":"<path d=\"M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z\"/><circle cx=\"12\" cy=\"12\" r=\"3\"/>","direction-lr":"<path d=\"M3 12h18\"/><path d=\"m16 7 5 5-5 5\"/>","reverse":"<path d=\"M4 8h16\"/><path d=\"m16 4 4 4-4 4\"/><path d=\"M20 16H4\"/><path d=\"m8 12-4 4 4 4\"/>","label":"<path d=\"M4 7h16\"/><path d=\"M4 12h10\"/><path d=\"M4 17h6\"/>","line-dashed":"<path d=\"M3 12h4\"/><path d=\"M10 12h4\"/><path d=\"M17 12h4\"/>","line-solid":"<path d=\"M3 12h18\"/>","message-async":"<path d=\"M3 12h16\"/><path d=\"m14 7 6 5-6 5\"/>","reply":"<path d=\"M9 14 4 9l5-5\"/><path d=\"M4 9h10a6 6 0 0 1 0 12h-3\"/>","kind-system":"<rect x=\"4\" y=\"6\" width=\"16\" height=\"12\" rx=\"2\"/>","kind-ui":"<rect x=\"3\" y=\"4\" width=\"18\" height=\"12\" rx=\"2\"/><path d=\"M8 20h8M12 16v4\"/>","kind-database":"<ellipse cx=\"12\" cy=\"5\" rx=\"8\" ry=\"3\"/><path d=\"M4 5v14c0 1.66 3.58 3 8 3s8-1.34 8-3V5\"/><path d=\"M4 12c0 1.66 3.58 3 8 3s8-1.34 8-3\"/>","kind-queue":"<path d=\"M6 6h12a3 6 0 0 1 0 12H6a3 6 0 0 1 0-12z\"/><path d=\"M18 6a3 6 0 0 0 0 12\"/>","kind-external":"<circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18\"/>","auto":"<path d=\"M21 12a9 9 0 0 0-15-6.7L3 8\"/><path d=\"M3 3v5h5\"/><path d=\"M3 12a9 9 0 0 0 15 6.7l3-2.7\"/><path d=\"M16 16h5v5\"/>","actor":"<circle cx=\"12\" cy=\"5\" r=\"3\"/><path d=\"M12 8v7\"/><path d=\"M5 11h14\"/><path d=\"m12 15-5 6\"/><path d=\"m12 15 5 6\"/>","type-usecase":"<circle cx=\"4.5\" cy=\"6.5\" r=\"1.8\"/><path d=\"M4.5 8.3v4.7M2 10.5h5M4.5 13l-2 4.5M4.5 13l2 4.5\"/><ellipse cx=\"15.5\" cy=\"12\" rx=\"6.5\" ry=\"4.5\"/><path d=\"M7.4 10.6 9 11\"/>","usecase":"<ellipse cx=\"12\" cy=\"12\" rx=\"10\" ry=\"6.5\"/>","subject":"<rect x=\"2.5\" y=\"3\" width=\"19\" height=\"18\" rx=\"2\"/><path d=\"M2.5 8h19\"/><ellipse cx=\"12\" cy=\"14.5\" rx=\"5.5\" ry=\"3\"/>","clock":"<circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"M12 6v6l4 2\"/>","present":"<rect width=\"20\" height=\"14\" x=\"2\" y=\"3\" rx=\"2\"/><path d=\"M10 8l5 3-5 3z\"/><path d=\"M8 21h8M12 17v4\"/>","search":"<circle cx=\"11\" cy=\"11\" r=\"8\"/><path d=\"m21 21-4.3-4.3\"/>","hash":"<path d=\"M4 9h16M4 15h16M10 3 8 21M16 3l-2 18\"/>"};
 // --- PLUGIN INTERFACE ---
       // A diagram type registers itself once with registerDiagramPlugin({...}). The shell never touches
       // type internals; it only calls these members:
@@ -2974,7 +2980,15 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
       const playground = (() => {
         try { const el = document.getElementById('playground'); return el ? JSON.parse(el.textContent) : null; } catch (_) { return null; }
       })();
-      const claudeHost = artifactShaped && window.claude && typeof window.claude.use === 'function' ? window.claude : null;
+      // Embedded in a host artifact (<iframe src="slug/index.html">, same origin): Save goes to the host artifact, into the
+      // folder the iframe's src names, and window.claude may only exist one frame up. A top-level page leaves both alone.
+      let embedDir = '', hostClaude = window.claude;
+      try {
+        const src = window.parent !== window && window.frameElement ? (window.frameElement.getAttribute('src') || '').split(/[?#]/)[0].replace(/^\/+/, '') : '';
+        embedDir = src.slice(0, src.lastIndexOf('/') + 1);
+        if (!hostClaude && embedDir) hostClaude = window.parent.claude;
+      } catch (_) { embedDir = ''; }
+      const claudeHost = artifactShaped && hostClaude && typeof hostClaude.use === 'function' ? hostClaude : null;
       // null: a plain file; 'pending': use() has not answered yet; 'publish': Save publishes diagram.json;
       // 'view-only': the viewer cannot save (Save hidden, Export > HTML file offered)
       let artifactMode = claudeHost && !playground ? 'pending' : null;
@@ -3789,7 +3803,8 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
         });
 
         const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.has('present') || urlParams.has('capture')) {
+        // window.name is how an embedding page asks for it: <iframe name="present" srcdoc=...> has no query string to carry ?present
+        if (urlParams.has('present') || urlParams.has('capture') || window.name === 'present') {
           document.body.classList.add('presentation');
           document.getElementById('btn-present').setAttribute('aria-pressed', 'true');
         }
@@ -3814,6 +3829,7 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
         updateStatus(false);
         committedJson = savedJson = JSON.stringify(chartData);
         updateHistoryButtons();
+        document.documentElement.classList.remove('is-loading');
         document.documentElement.dataset.diagramReady = '1';
 
         requestAnimationFrame(() => {
@@ -4005,7 +4021,7 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
       });
 
       // --- THEME (light / dark) ---
-      // Priority: ?theme=dark|light  >  saved choice (localStorage)  >  OS preference
+      // Priority (script in shell.html's <head>): ?theme=dark|light  >  saved choice (localStorage)  >  OS preference
       const menuTheme = document.getElementById('menu-theme');
       function currentTheme() {
         return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
@@ -4038,16 +4054,8 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
         themeTimer = setTimeout(() => document.body.classList.remove('theme-animating'), 180);
         flip();
       }
-      function initTheme() {
-        let theme = null;
-        const q = new URLSearchParams(window.location.search).get('theme');
-        if (q === 'dark' || q === 'light') theme = q;
-        if (!theme) { try { theme = localStorage.getItem('flowchart-theme'); } catch (e) {} }
-        if (theme !== 'dark' && theme !== 'light') {
-          theme = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
-        }
-        applyTheme(theme, false);
-      }
+      // The theme was chosen by the script at the top of <head> (shell.html), before the first paint: read it back
+      function initTheme() { applyTheme(currentTheme(), false); }
       menuTheme.addEventListener('click', () => applyTheme(currentTheme() === 'dark' ? 'light' : 'dark', true));
 
       // --- VIEWPORT PAN & ZOOM & FIT ---
@@ -5354,11 +5362,11 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
             try {
               diagramJson = serializeDiagramJson() + '\n';
               snapshot = JSON.stringify(chartData);   // what this publish carries; an edit made while it runs is not in it
-              files['diagram.json'] = diagramJson;
+              files[embedDir + 'diagram.json'] = diagramJson;
               // The artifact's own title (listing, tab) is the <title> of index.html: when the diagram was renamed, carry the
               // new name there too. The copy this view loaded is what it fetches, so only the title can differ from the live page.
               const title = chartData.title || plugin.defaultTitle;
-              if (title !== publishedTitle && !skipIndex) {
+              if (title !== publishedTitle && !skipIndex && !embedDir) {   // an embed leaves the host's title alone
                 try {
                   const r = await fetch('index.html');
                   if (r.ok) {
@@ -5630,7 +5638,9 @@ const ICONS = {"user":"<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><c
         btn.appendChild(icon);
         wrap.append(btn, menu);
         const setOpen = (open) => { animateMenuToggle(menu, open, true); btn.setAttribute('aria-expanded', String(open)); };
-        const goTo = (id) => { location.assign('../' + id + '/index.html'); };
+        // The theme travels in the URL, so the next page matches even where storage is blocked; the spinner shows until it renders
+        const goTo = (id) => { document.documentElement.classList.add('is-loading'); location.assign('../' + id + '/index.html?theme=' + currentTheme()); };
+        window.addEventListener('pageshow', (e) => { if (e.persisted) document.documentElement.classList.remove('is-loading'); });
         for (const t of playground.types) {
           const item = document.createElement('button');
           item.type = 'button'; item.dataset.type = t.id; item.setAttribute('role', 'menuitemradio');
@@ -7849,8 +7859,7 @@ function toMermaid(data, opts) {
       let dragStartY = 0;
       let dragStartGlobalX = 0;
       let dragStartGlobalY = 0;
-      let autoLayout = true;   // see AUTO LAYOUT
-      try { autoLayout = localStorage.getItem('flowchart-auto-layout') !== 'off'; } catch (e) {}
+      let autoLayout = true;   // see AUTO LAYOUT: always on for now (the button is hidden), so a saved 'off' is not read
       let dragCanInsert = false;   // the dragged node has no arrows, so it may be dropped into one
       let dragGroup = null;        // the other selected steps moving with draggingNode: [{ node, x, gy, lane }]
       let dragOrigin = null;       // where the drag started: { x, gy, lane, saved: [{ node, x, y, laneId }] }
@@ -7858,6 +7867,7 @@ function toMermaid(data, opts) {
       // Edge Connecting state
       let connectingFromNodeId = null;
       let connectingFromPort = null;
+      let connectingDownAt = null;       // where the anchor was pressed: a release close to it is a click, not a drag
       let connectingStartPoint = null;
 
       // Last computed arrow routes (renderEdges), and the arrow a dragged node would be inserted into
@@ -9498,7 +9508,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
                 const lo = Math.min(sy, ey) + 14, hi = Math.max(sy, ey) - 14;
                 for (let y = lo; y <= hi; y += 10) add([[sx, sy], [sx, y], [ex, y], [ex, ey]], Math.abs(y - (sy + ey) / 2));
               } else {
-                [14, 20, 28, 36, 48, 72].forEach(d => {
+                [28, 36, 48, 72].forEach(d => {
                   const g = fp === 'top' ? Math.min(sy, ey) - d : Math.max(sy, ey) + d;
                   if (g < 8) return;
                   add([[sx, sy], [sx, g], [ex, g], [ex, ey]]);
@@ -10949,6 +10959,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
       function startConnecting(e, nodeId, port) {
         connectingFromNodeId = nodeId;
         connectingFromPort = port;
+        connectingDownAt = { x: e.clientX, y: e.clientY };
         document.body.classList.add('connecting');
 
         const fromEl = document.getElementById(`node-${nodeId}`);
@@ -10998,6 +11009,16 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         const targetEl = document.elementFromPoint(ev.clientX, ev.clientY);
         const targetNodeEl = targetEl ? targetEl.closest('.flow-node') : null;
 
+        // A click on the anchor (not dragged; the anchor itself ignores the pointer while connecting, so a release
+        // there may land on the lane): connect to the nearest step in its direction
+        if (connectingDownAt && connectingFromPort && Math.hypot(ev.clientX - connectingDownAt.x, ev.clientY - connectingDownAt.y) < 6) {
+          const t = nearestNodeInDirection(connectingFromNodeId, connectingFromPort);
+          if (t) createConnection(connectingFromNodeId, t);
+          else flashHint('No step in that direction');
+          cancelConnecting();
+          return;
+        }
+
         if (targetNodeEl) {
           const targetNodeId = targetNodeEl.dataset.nodeId;
           if (targetNodeId && targetNodeId !== connectingFromNodeId) {
@@ -11009,6 +11030,29 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
 
         // Released away from any node: drop the connection attempt
         cancelConnecting();
+      }
+
+      // Closest step whose centre lies in the port's direction (within a 45° cone), skipping connectors and steps
+      // already linked from the source
+      function nearestNodeInDirection(fromId, port) {
+        const fromEl = document.getElementById(`node-${fromId}`);
+        if (!fromEl) return null;
+        const fr = fromEl.getBoundingClientRect();
+        const fx = fr.left + fr.width / 2, fy = fr.top + fr.height / 2;
+        const dir = { right: [1, 0], left: [-1, 0], top: [0, -1], bottom: [0, 1] }[port];
+        let best = null, bestD = Infinity;
+        document.querySelectorAll('.flow-node').forEach(el => {
+          const id = el.dataset.nodeId;
+          if (!id || id === fromId || isConnector(nodeById(id))) return;
+          if (chartData.edges.some(e => e.from === fromId && e.to === id)) return;
+          const r = el.getBoundingClientRect();
+          const dx = r.left + r.width / 2 - fx, dy = r.top + r.height / 2 - fy;
+          const along = dx * dir[0] + dy * dir[1], across = Math.abs(dx * dir[1] + dy * dir[0]);
+          if (along <= 0 || across > along) return;
+          const d = Math.hypot(dx, dy);
+          if (d < bestD) { bestD = d; best = id; }
+        });
+        return best;
       }
 
       // --- RE-ATTACH AN EXISTING ARROW END TO A DIFFERENT NODE ---
@@ -11123,6 +11167,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
       function cancelConnecting() {
         connectingFromNodeId = null;
         connectingFromPort = null;
+        connectingDownAt = null;
         connectingStartPoint = null;
         document.body.classList.remove('connecting');
         dragEdge.style.display = 'none';
@@ -11823,6 +11868,9 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         }, { duration: 210, skipFreeNotes: true });
       });
 
+      // A whole-diagram layout change (switching direction, Tidy) moves every step at once: slower than a single edit
+      const BIG_MS = 520;
+
       // --- DIRECTION TOGGLE ---
       // Switches between left-to-right and top-to-bottom ("direction": "TB" in the data, so it is saved with the
       // file and undoable). Node positions mean different things in each, so the switch always re-runs the layout.
@@ -11835,7 +11883,46 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         btnDirection.title = next === 'TB' ? 'Switch to a top-to-bottom layout' : 'Switch to a left-to-right layout';
         btnDirection.setAttribute('aria-label', label);
       }
+      // The lanes change shape on a direction switch (rows become columns). A lane box holds its steps, so scaling it would
+      // stretch them: instead one childless backdrop per lane morphs from the old box to the new one behind the steps while
+      // the real lane backgrounds are hidden. One transform animation per lane, so the cost follows the lane count, not the
+      // step count.
+      const laneBoxes = () => {
+        const m = new Map([...lanesRoot.querySelectorAll('.swimlane[data-lane-id]')].map(el => [el.dataset.laneId, el.getBoundingClientRect()]));
+        m.set('', swimlanesContainer.getBoundingClientRect());   // the card behind the lanes (key '': no lane has an empty id)
+        return m;
+      };
+      function morphLaneBackdrops(prev) {
+        if (!motion.enabled() || prev.size < 2) return;
+        const cr = swimlanesContainer.getBoundingClientRect();
+        const k = (swimlanesContainer.offsetWidth ? cr.width / swimlanesContainer.offsetWidth : scale) || 1;
+        const dur = Math.max(40, Math.round(BIG_MS * motion.speedScale())), eas = motion.curve('curve-inout');
+        const made = [];
+        const backdrop = (from, to, css) => {
+          if (!from || !to.width || !to.height) return;
+          const back = document.createElement('div');
+          back.setAttribute('data-export-skip', '');
+          back.style.cssText = `position:absolute;box-sizing:border-box;pointer-events:none;transform-origin:0 0;left:${(to.left - cr.left) / k}px;top:${(to.top - cr.top) / k}px;width:${to.width / k}px;height:${to.height / k}px;${css}`;
+          swimlanesContainer.insertBefore(back, lanesRoot);
+          const a = back.animate([{ transform: `translate(${(from.left - to.left) / k}px, ${(from.top - to.top) / k}px) scale(${from.width / to.width}, ${from.height / to.height})` }, { transform: 'none' }], { duration: dur, easing: eas });
+          made.push(a);
+          a.addEventListener('finish', () => back.remove(), { once: true });
+          a.addEventListener('cancel', () => back.remove(), { once: true });
+        };
+        // The card first (the lanes sit on it): its own look is copied, then hidden while the backdrops run
+        const card = getComputedStyle(swimlanesContainer);
+        backdrop(prev.get(''), cr, `left:-${card.borderLeftWidth};top:-${card.borderTopWidth};background:${card.backgroundColor};border:${card.border};border-radius:${card.borderRadius};box-shadow:${card.boxShadow}`);
+        lanesRoot.querySelectorAll('.swimlane[data-lane-id]').forEach(el => {
+          const track = el.querySelector('.lane-track');
+          if (track) backdrop(prev.get(el.dataset.laneId), el.getBoundingClientRect(), `background:${getComputedStyle(track).backgroundColor}`);
+        });
+        if (!made.length) return;
+        swimlanesContainer.classList.add('lane-morph');
+        Promise.allSettled(made.map(a => a.finished)).then(() => swimlanesContainer.classList.remove('lane-morph'));
+      }
+
       if (btnDirection) btnDirection.addEventListener('click', () => {
+        const prevLanes = laneBoxes();
         withMotion(() => {
           if (isTB()) delete chartData.direction;
           else chartData.direction = 'TB';
@@ -11847,8 +11934,8 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           layoutOtherFlows();
           render();
           updateStatus(true);
-        }, { duration: 260, forceDrawEdges: true });
-        fitView(true);
+        }, { duration: BIG_MS });   // arrows morph from their old routes (as in Tidy); the view stays where the reader had it
+        morphLaneBackdrops(prevLanes);
       });
 
       // --- AUTO LAYOUT TOGGLE ---
@@ -11864,7 +11951,6 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
       }
       if (btnAutoLayout) btnAutoLayout.addEventListener('click', () => {
         autoLayout = !autoLayout;
-        try { localStorage.setItem('flowchart-auto-layout', autoLayout ? 'on' : 'off'); } catch (e) {}
         updateAutoLayoutButton();
         if (autoLayout) relayout();
       });
@@ -13369,7 +13455,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         contentEl: swimlanesContainer,
         report: { node: '.flow-node', label: '.edge-label', labelText: '.edge-label-text', nodeText: '.node-label' },
         render: () => withMotion(render, { ghostExit: true, ghosts: true }),
-        tidy: () => withMotion(() => { layoutDiagram(chartData); render(); updateStatus(true); }, { duration: 220, skipFreeNotes: true }),
+        tidy: () => withMotion(() => { layoutDiagram(chartData); render(); updateStatus(true); }, { duration: BIG_MS, skipFreeNotes: true }),
         eachTab,
         isBackground: (el) => (isPresenting() && !!el.closest('.flow-node:not(.type-connector)')) || el.id === 'swimlanes-container' || el.classList.contains('lane-track') || el.classList.contains('lane-gutter'),
         clearSelection() {
