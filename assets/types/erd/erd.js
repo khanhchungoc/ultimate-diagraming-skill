@@ -2895,7 +2895,7 @@
         },
         // The Tidy button: a cold layout, one undo step
         tidy() {
-          const done = () => { render({ duration: 260, easing: 'curve-spring-settle', skipFreeNotes: true }); updateStatus(true); };
+          const done = () => { render({ duration: 520, easing: 'curve-spring-settle', skipFreeNotes: true }); updateStatus(true); };   // every table moves: slower than a single edit
           if (!(erdAsyncOK() && erdStartJob(done))) { erdLayout(); done(); }
         },
         // Text search (spec: dev/plans/search.md): areas, tables by position each followed by its columns, then relation labels.

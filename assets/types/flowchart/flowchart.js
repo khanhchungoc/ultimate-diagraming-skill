@@ -4295,6 +4295,9 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         }, { duration: 210, skipFreeNotes: true });
       });
 
+      // A whole-diagram layout change (switching direction, Tidy) moves every step at once: slower than a single edit
+      const BIG_MS = 520;
+
       // --- DIRECTION TOGGLE ---
       // Switches between left-to-right and top-to-bottom ("direction": "TB" in the data, so it is saved with the
       // file and undoable). Node positions mean different things in each, so the switch always re-runs the layout.
@@ -4319,8 +4322,8 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           layoutOtherFlows();
           render();
           updateStatus(true);
-        }, { duration: 260, forceDrawEdges: true });
-        fitView(true);
+        }, { duration: BIG_MS, forceDrawEdges: true });
+        fitView(BIG_MS);
       });
 
       // --- AUTO LAYOUT TOGGLE ---
@@ -5841,7 +5844,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         contentEl: swimlanesContainer,
         report: { node: '.flow-node', label: '.edge-label', labelText: '.edge-label-text', nodeText: '.node-label' },
         render: () => withMotion(render, { ghostExit: true, ghosts: true }),
-        tidy: () => withMotion(() => { layoutDiagram(chartData); render(); updateStatus(true); }, { duration: 220, skipFreeNotes: true }),
+        tidy: () => withMotion(() => { layoutDiagram(chartData); render(); updateStatus(true); }, { duration: BIG_MS, skipFreeNotes: true }),
         eachTab,
         isBackground: (el) => (isPresenting() && !!el.closest('.flow-node:not(.type-connector)')) || el.id === 'swimlanes-container' || el.classList.contains('lane-track') || el.classList.contains('lane-gutter'),
         clearSelection() {
