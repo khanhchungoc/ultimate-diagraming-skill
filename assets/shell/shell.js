@@ -2047,12 +2047,15 @@
         btnSearch.addEventListener('click', () => setSearchOpen(!searchOpen()));
         searchPrev.addEventListener('click', () => stepSearch(-1));
         searchNext.addEventListener('click', () => stepSearch(1));
-        document.getElementById('search-close').addEventListener('click', () => setSearchOpen(false));
         searchInput.addEventListener('input', () => { searchIndex = 0; applySearch(); centreSearchMatch(); });
         searchInput.addEventListener('keydown', (e) => {
           if (e.key === 'Enter') { e.preventDefault(); stepSearch(e.shiftKey ? -1 : 1); }
           else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); setSearchOpen(false); }
         });
+        // A click elsewhere closes an empty search bar (one with text stays, its dimming is the result)
+        document.addEventListener('pointerdown', (e) => {
+          if (searchOpen() && !searchInput.value && !e.target.closest('#search-dock')) setSearchOpen(false);
+        }, true);
         window.addEventListener('keydown', (e) => {
           const mod = (e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === 'f';
           const slash = e.key === '/' && !e.ctrlKey && !e.metaKey && !e.altKey;
@@ -3078,21 +3081,33 @@
         });
         btnSave.title = 'Download this diagram as an HTML file (Ctrl+S)';
         const icon = document.querySelector('.toolbar-left > svg');
-        const tabs = document.createElement('div');
-        tabs.id = 'type-tabs'; tabs.className = 'type-tabs'; tabs.setAttribute('role', 'radiogroup'); tabs.setAttribute('aria-label', 'Diagram type');
-        icon.replaceWith(tabs);
-        const btn = tabs;   // the confirm bubble anchors here
+        const wrap = document.createElement('div');
+        wrap.className = 'menu-wrap type-switch';
+        const btn = document.createElement('button');
+        btn.type = 'button'; btn.id = 'btn-type'; btn.className = 'btn type-btn';
+        btn.title = 'Switch diagram type'; btn.setAttribute('aria-label', 'Diagram type');
+        btn.setAttribute('aria-haspopup', 'menu'); btn.setAttribute('aria-expanded', 'false');
+        const menu = document.createElement('div');
+        menu.id = 'type-menu'; menu.className = 'menu menu-left'; menu.setAttribute('role', 'menu'); menu.hidden = true;
+        icon.replaceWith(wrap);
+        const cur = playground.types.find((x) => x.id === playground.type);
+        const curLabel = document.createElement('span'); curLabel.className = 'btn-label'; curLabel.textContent = cur.name;
+        icon.remove();
+        btn.append(ui.iconEl('type-' + cur.id, { size: 'sm' }), curLabel, ui.iconEl('chevron-down', { size: 'sm' }));
+        wrap.append(btn, menu);
+        const setOpen = (open) => { animateMenuToggle(menu, open, true); btn.setAttribute('aria-expanded', String(open)); };
+        // The theme travels in the URL, so the next page matches even where storage is blocked; the spinner shows until it renders
         const goTo = (id) => { document.documentElement.classList.add('is-loading'); location.assign('../' + id + '/index.html?theme=' + currentTheme()); };
         window.addEventListener('pageshow', (e) => { if (e.persisted) document.documentElement.classList.remove('is-loading'); });
         for (const t of playground.types) {
           const item = document.createElement('button');
-          item.type = 'button'; item.dataset.type = t.id; item.setAttribute('role', 'radio'); item.title = t.name;
+          item.type = 'button'; item.dataset.type = t.id; item.setAttribute('role', 'menuitemradio');
           const here = t.id === playground.type;
           item.setAttribute('aria-checked', String(here));
-          item.append(ui.iconEl('type-' + t.id, { size: 'sm' }));
-          const label = document.createElement('span'); label.className = 'type-tab-label'; label.textContent = t.name.replace(/ diagram$/i, '');
-          item.append(label);
+          item.append(ui.iconEl('type-' + t.id, { size: 'sm' }), t.name);
+          if (here) item.appendChild(ui.iconEl('check', { size: 'sm', class: 'menu-check' }));
           item.addEventListener('click', () => {
+            setOpen(false);
             if (here) return;
             if (!hasUnsavedChanges) { goTo(t.id); return; }
             const mine = playground.types.find((x) => x.id === playground.type).name;
@@ -3102,8 +3117,11 @@
               alt: { text: 'Save', onClick: async () => { await saveToFile(); if (!hasUnsavedChanges) goTo(t.id); } }
             }, () => goTo(t.id));
           });
-          tabs.appendChild(item);
+          menu.appendChild(item);
         }
+        btn.addEventListener('click', (e) => { e.stopPropagation(); setOpen(menu.hidden); });
+        document.addEventListener('click', () => setOpen(false));
+        window.addEventListener('keydown', (e) => { if (e.key === 'Escape') setOpen(false); });
       }
 
       window.addEventListener('keydown', (e) => {

@@ -40,14 +40,13 @@
       align-items: center;
       gap: 10px;
     }
-    .toolbar-left > svg { flex: none; color: var(--primary); }   /* the type's header icon */
-    /* Playground type tabs: icon + label per diagram type. The active tab carries view-transition-name, so the page change
-       (see @view-transition in build_playground.py) morphs the highlight from the old tab to the new one. */
-    .type-tabs { display: flex; gap: 2px; padding: 3px; border: 1px solid var(--border-color); border-radius: var(--radius-md); flex: none; }
-    .type-tabs button { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px; border: 0; border-radius: var(--radius-sm); background: none; color: var(--text-muted); font: inherit; font-size: var(--text-sm); cursor: pointer; }
-    .type-tabs button:hover { background: var(--bg-hover); color: var(--text-main); }
-    .type-tabs button:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
-    .type-tabs button[aria-checked="true"] { background: var(--bg-hover); color: var(--primary); view-transition-name: type-tab; }
+    .toolbar-left > svg, .type-switch svg { flex: none; color: var(--primary); }   /* the type's header icon */
+    /* Playground type switcher: a labeled button (icon, name, chevron) over a scrollable menu, so it holds any number of types */
+    .type-btn { gap: 8px; padding: 0 10px; height: 36px; }
+    .type-btn svg:last-child { color: var(--text-muted); }
+    #type-menu { min-width: 220px; max-height: min(60vh, 420px); overflow-y: auto; }
+    #type-menu button { display: flex; align-items: center; gap: 10px; width: 100%; }
+    #type-menu .menu-check { margin-left: auto; }
     /* Header buttons: icon-only 36px squares, borderless until hovered or focused; Save keeps its label */
     header .btn-icon {
       width: 36px; height: 36px; padding: 0;
@@ -223,11 +222,10 @@
     @media (max-width: 720px) {
       header { padding: 0 10px; }
       .toolbar-left { min-width: 0; flex: 1 1 auto; }
+      .type-btn .btn-label { display: inline; max-width: 96px; overflow: hidden; text-overflow: ellipsis; }   /* the type name stays on a phone */
+      .type-switch ~ .app-title-container { display: none; }   /* no room for the title beside the switcher on a phone */
       .toolbar-right { gap: 6px; flex: none; }
       .btn-label { display: none; }
-      .type-tabs button:not([aria-checked="true"]) .type-tab-label { display: none; }   /* icons only, the active tab keeps its name */
-      .type-tabs button { padding: 0 8px; }
-      .type-tabs ~ .app-title-container { display: none; }   /* no room for the title beside the tabs; the active tab names the type */
       #help-drawer { right: 12px; bottom: 120px; }
     }
     @media (prefers-reduced-motion: reduce) {
