@@ -1,0 +1,35 @@
+{
+  "diagramType": "c4",
+  "schemaVersion": 1,
+  "title": "No centre",
+  "colorKey": { "2": "Core", "4": "Back office" },
+  "groups": [
+    { "id": "clients", "name": "Clients", "kind": "boundary" },
+    { "id": "svc", "name": "Core services", "kind": "boundary", "color": "2" },
+    { "id": "back", "name": "Back office", "kind": "boundary", "color": "4" }
+  ],
+  "elements": [
+    { "id": "web", "kind": "system", "name": "Storefront", "description": "Web app", "icon": "monitor", "group": "clients" },
+    { "id": "app", "kind": "system", "name": "Mobile App", "description": "iOS, Android", "icon": "mobile", "group": "clients" },
+    { "id": "gw", "kind": "system", "name": "API Gateway", "description": "Routing, auth", "icon": "gateway" },
+    { "id": "orders", "kind": "system", "name": "Orders", "description": "Order lifecycle", "icon": "cart", "group": "svc" },
+    { "id": "catalog", "kind": "system", "name": "Catalogue", "description": "Products, prices", "icon": "database", "group": "svc" },
+    { "id": "bill", "kind": "system", "name": "Billing", "description": "Invoices, refunds", "icon": "credit-card", "group": "back" },
+    { "id": "inv", "kind": "system", "name": "Inventory", "description": "Stock levels", "icon": "storage", "group": "back" },
+    { "id": "notif", "kind": "system", "name": "Notifications", "description": "Events to messages", "icon": "bell" },
+    { "id": "supp", "kind": "external", "name": "Supplier EDI", "description": "Replenishment", "icon": "truck" },
+    { "id": "smtp", "kind": "external", "name": "Email Service", "description": "Transactional", "icon": "mail" }
+  ],
+  "relations": [
+    { "from": "web", "to": "gw", "label": "Browses", "tech": "HTTPS" },
+    { "from": "app", "to": "gw", "label": "Calls", "tech": "HTTPS" },
+    { "from": "gw", "to": "orders", "label": "Routes orders", "tech": "gRPC" },
+    { "from": "gw", "to": "catalog", "label": "Routes search", "tech": "gRPC" },
+    { "from": "orders", "to": "bill", "label": "Charges", "tech": "gRPC" },
+    { "from": "orders", "to": "inv", "label": "Reserves stock", "tech": "AMQP" },
+    { "from": "orders", "to": "notif", "label": "Emits events", "tech": "AMQP" },
+    { "from": "bill", "to": "notif", "label": "Emits receipts", "tech": "AMQP" },
+    { "from": "inv", "to": "supp", "label": "Orders stock", "tech": "EDI" },
+    { "from": "notif", "to": "smtp", "label": "Sends", "tech": "SMTP" }
+  ]
+}

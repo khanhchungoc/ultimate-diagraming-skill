@@ -41,9 +41,11 @@ ERD_DERIVED = (("entities", ("box",)), ("relationships", ("curve", "points", "la
 USECASE_KEYS = ("diagramType", "schemaVersion", "title", "showRefs", "showNotes", "colorKey",
                 "subjects", "actors", "useCases", "links", "notes", "layout")
 USECASE_SCHEMA_VERSION = 1
-C4_KEYS = ("diagramType", "schemaVersion", "title", "showTech", "showNotes", "colorKey",
+C4_KEYS = ("diagramType", "schemaVersion", "title", "arrange", "showTech", "showNotes", "colorKey",
            "groups", "elements", "relations", "notes", "layout")
 C4_SCHEMA_VERSION = 1
+C4_ARRANGE = ("surround", "flow", "layers")  # the layout; absent means surround when any item is `core`, else flow
+C4_SIDES = ("N", "S", "E", "W")  # author hint for the side of the centre an item sits on
 C4_ELEMENT_KINDS = ("person", "system", "container", "component", "database", "queue", "external")
 C4_GROUP_KINDS = ("boundary", "system", "container")  # "container" is reserved for Level 3; the audit rejects it in v1
 NODE_LAYOUT = ("x", "y")
@@ -535,6 +537,9 @@ def usecase_from_disk(data: Dict[str, Any]) -> Dict[str, Any]:
 #  from_disk(block): validate_c4(); deep copy; when schemaVersion is absent or 1 the layout x/y go back on the element or
 #   group with that id (any other version: layout dropped); "layout" removed; colours as slots.
 #  Groups are a tree of any depth through `parent`; the depth limit belongs to the audit, not the codec.
+#  Layout fields, all optional, validated at the boundary (ValueError): top-level `arrange` (surround | flow | layers),
+#   `core` (bool) and `side` (N | S | E | W) on elements and groups, `color` on elements and groups (a palette slot or a custom
+#   hex, as the ERD and sequence codecs; written as a slot). They are kept as written; none is derived.
 C4_GENERATED_ID = re.compile(r"^(e|g|n)_\d{12,}(_\d+)?$")
 C4_DERIVED = (("groups", ("w", "h")), ("elements", ("w", "h")), ("relations", ("points", "labelBox")))
 C4_OBJECTS = ("groups", "elements", "relations", "notes")
@@ -542,7 +547,10 @@ C4_OBJECTS = ("groups", "elements", "relations", "notes")
 
 def validate_c4(d: Dict[str, Any]) -> None:
     """Boundary check of a c4 model: fails loudly (ValueError) on duplicate or unknown ids, unknown kinds and group
-    cycles. The group depth limit is not checked here (audit_c4)."""
+    cycles, an unknown `arrange`, a bad `side`, a non-boolean `core` or a bad `color`. The group depth limit is not checked
+    here (audit_c4)."""
+    if d.get("arrange") is not None and d["arrange"] not in C4_ARRANGE:
+        raise ValueError(f"c4: unknown arrange {d['arrange']!r}: use surround, flow or layers")
     groups, elements = d.get("groups") or [], d.get("elements") or []
     relations, notes = d.get("relations") or [], d.get("notes") or []
     seen: set = set()
@@ -554,6 +562,13 @@ def validate_c4(d: Dict[str, Any]) -> None:
             raise ValueError(f"c4: duplicate id {i!r}")
         seen.add(i)
     gids, eids = {g["id"] for g in groups}, {e["id"] for e in elements}
+    for o in groups + elements:
+        if o.get("side") is not None and o["side"] not in C4_SIDES:
+            raise ValueError(f"c4: {o['id']!r} has bad side {o['side']!r}: use N, S, E or W")
+        if "core" in o and not isinstance(o["core"], bool):
+            raise ValueError(f"c4: {o['id']!r} has non-boolean core {o['core']!r}")
+        if o.get("color") is not None and color_kind(o["color"]) == "bad":
+            raise ValueError(f"c4: {o['id']!r} has bad color {o['color']!r}: use a palette slot or a hex")
     for g in groups:
         if g.get("kind", "boundary") not in C4_GROUP_KINDS:
             raise ValueError(f"c4: group {g['id']!r} has unknown kind {g.get('kind')!r}")

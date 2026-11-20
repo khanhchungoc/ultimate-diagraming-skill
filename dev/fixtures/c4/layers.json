@@ -1,0 +1,33 @@
+{
+  "diagramType": "c4",
+  "schemaVersion": 1,
+  "title": "Layers",
+  "arrange": "layers",
+  "colorKey": { "1": "Experience", "2": "Services", "3": "Platform", "4": "External" },
+  "groups": [
+    { "id": "exp", "name": "Experience", "kind": "boundary", "color": "1" },
+    { "id": "svc", "name": "Services", "kind": "boundary", "color": "2" },
+    { "id": "plat", "name": "Platform", "kind": "boundary", "color": "3" },
+    { "id": "ext", "name": "External", "kind": "boundary", "color": "4" }
+  ],
+  "elements": [
+    { "id": "web", "kind": "system", "name": "Storefront", "description": "Web app", "icon": "monitor", "group": "exp" },
+    { "id": "app", "kind": "system", "name": "Mobile App", "description": "iOS, Android", "icon": "mobile", "group": "exp" },
+    { "id": "catalog", "kind": "system", "name": "Catalogue", "description": "Products, prices", "icon": "database", "group": "svc" },
+    { "id": "orders", "kind": "system", "name": "Orders", "description": "Order lifecycle", "icon": "cart", "group": "svc" },
+    { "id": "bill", "kind": "system", "name": "Billing", "description": "Invoices, refunds", "icon": "credit-card", "group": "svc" },
+    { "id": "inv", "kind": "system", "name": "Inventory", "description": "Stock levels", "icon": "storage", "group": "plat" },
+    { "id": "notif", "kind": "system", "name": "Notifications", "description": "Events to messages", "icon": "bell", "group": "plat" },
+    { "id": "supp", "kind": "external", "name": "Supplier EDI", "description": "Replenishment", "icon": "truck", "group": "ext" },
+    { "id": "smtp", "kind": "external", "name": "Email Service", "description": "Transactional", "icon": "mail", "group": "ext" }
+  ],
+  "relations": [
+    { "from": "web", "to": "orders", "label": "Orders", "tech": "HTTPS" },
+    { "from": "app", "to": "catalog", "label": "Browses", "tech": "HTTPS" },
+    { "from": "orders", "to": "bill", "label": "Charges", "tech": "gRPC" },
+    { "from": "orders", "to": "inv", "label": "Reserves stock", "tech": "AMQP" },
+    { "from": "bill", "to": "notif", "label": "Emits receipts", "tech": "AMQP" },
+    { "from": "inv", "to": "supp", "label": "Orders stock", "tech": "EDI" },
+    { "from": "notif", "to": "smtp", "label": "Sends", "tech": "SMTP" }
+  ]
+}

@@ -156,6 +156,43 @@ warn("missing icon pack", aws, "pack 'aws'")
 no_warn("installed icon pack", aws, "pack", packs=["aws"])
 no_warn("generic icon", lambda d: d["elements"][1].update(icon="server"), "pack")
 
+# Arrange.
+err("unknown arrange", lambda d: d.update(arrange="radial"), "Unknown arrange 'radial'")
+no_err("known arrange", lambda d: d.update(arrange="surround"), "Unknown arrange")
+err("relation to itself", lambda d: d["relations"].append({"from": "api", "to": "api", "label": "Loops"}), "to itself")
+no_err("relations between two elements", None, "to itself")
+
+
+def layers(d, loose=False, skip=False):
+    d["arrange"] = "layers"
+    d["groups"] = [{"id": "top", "name": "Top", "kind": "boundary"}, {"id": "mid", "name": "Mid", "kind": "boundary"},
+                   {"id": "low", "name": "Low", "kind": "boundary"}, {"id": "sub", "name": "Sub", "kind": "boundary", "parent": "low"}]
+    d["elements"] = [{"id": "a", "kind": "system", "name": "A", "group": "top"}, {"id": "b", "kind": "system", "name": "B", "group": "mid"},
+                     {"id": "c", "kind": "system", "name": "C", "group": "sub"}]
+    d["relations"] = [{"from": "a", "to": "b", "label": "Calls"}, {"from": "b", "to": "c", "label": "Calls"}]
+    if loose:
+        d["elements"].append({"id": "x", "kind": "external", "name": "X"})
+        d["relations"].append({"from": "c", "to": "x", "label": "Calls"})
+    if skip:
+        d["relations"].append({"from": "a", "to": "c", "label": "Skips"})
+
+
+err("layers with an element outside a top-level group", lambda d: layers(d, loose=True), "'x' is not in a top-level group")
+no_err("layers with every element in a band", layers, "top-level group")
+warn("layers with a relation that skips a layer", lambda d: layers(d, skip=True), "skips a layer")
+no_warn("layers with adjacent relations only", layers, "skips a layer")
+no_err("loose element outside layers", None, "top-level group")
+warn("core on an element with no relation", lambda d: d["elements"].append({"id": "lone", "kind": "system", "name": "L", "core": True}), "'lone' is marked core")
+warn("core on a group with no relation", lambda d: (d["groups"].append({"id": "empty", "name": "E", "kind": "boundary", "core": True}),
+                                                    d["elements"].append({"id": "q", "kind": "system", "name": "Q", "group": "empty"})),
+     "'empty' is marked core")
+no_warn("core on a related element", lambda d: d["elements"][1].update(core=True), "marked core")
+no_warn("core on a group whose member has relations", lambda d: d["groups"][1].update(core=True), "marked core")
+check("info names the default layout flow", has(run()["info"], "Layout: flow"))
+check("info names the default layout surround", has(run(lambda d: d["elements"][0].update(core=True))["info"], "Layout: surround"))
+check("info names the chosen layout", has(run(lambda d: d.update(arrange="flow"))["info"], "Layout: flow.")
+      and has(run(layers)["info"], "Layout: layers."))
+
 # Info: the level it opens at.
 check("info level 2", has(run()["info"], "Level 2"))
 check("info level 1", has(run(lambda d: d["groups"][1].update(collapsed=True))["info"], "Level 1"))

@@ -17,7 +17,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
 from disk_format import format_json, from_disk, to_disk  # noqa: E402
 
-KEYS = ["diagramType", "schemaVersion", "title", "showTech", "showNotes", "colorKey",
+KEYS = ["diagramType", "schemaVersion", "title", "arrange", "showTech", "showNotes", "colorKey",
         "groups", "elements", "relations", "notes", "layout"]
 failed = 0
 
@@ -101,8 +101,23 @@ def main():
     b = base(); b["elements"][0]["kind"] = "robot"; bad["unknown element kind"] = b
     b = base(); b["groups"][0]["kind"] = "zone"; bad["unknown group kind"] = b
     b = base(); b["notes"][0]["groups"] = ["nope"]; bad["note to unknown id"] = b
+    b = base(); b["arrange"] = "radial"; bad["unknown arrange"] = b
+    b = base(); b["elements"][0]["side"] = "up"; bad["bad element side"] = b
+    b = base(); b["groups"][0]["side"] = "n"; bad["bad group side"] = b
+    b = base(); b["elements"][0]["core"] = "yes"; bad["non-boolean core"] = b
+    b = base(); b["groups"][0]["color"] = "teal"; bad["bad group colour"] = b
     for name, model in bad.items():
         check(f"rejects {name}", raises(model))
+    ok = base()
+    ok.update(arrange="layers")
+    ok["groups"][0].update(core=True, side="N", color="#abcdef")
+    ok["elements"][0].update(core=True, side="W")
+    d2 = to_disk("c4", ok)
+    check("accepts arrange, core, side and a hex group colour",
+          d2["arrange"] == "layers" and list(d2)[:4] == ["diagramType", "schemaVersion", "title", "arrange"]
+          and d2["groups"][0]["color"] == "#abcdef" and d2["elements"][0]["core"] is True and d2["groups"][0]["side"] == "N"
+          and to_disk("c4", from_disk("c4", d2)) == d2)
+    check("absent arrange stays absent", "arrange" not in to_disk("c4", base()))
     deep = {"diagramType": "c4", "groups": [{"id": f"g{i}", "name": "G", "kind": "boundary", **({"parent": f"g{i-1}"} if i else {})}
                                             for i in range(6)], "elements": [], "relations": []}
     check("no depth limit in the codec", not raises(deep))

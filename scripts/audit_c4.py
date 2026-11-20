@@ -10,6 +10,7 @@ from typing import Any, Dict, Iterable, List, Optional, Set
 
 MAX_GROUP_DEPTH = 2        # the ONLY depth limit. Groups nest to this depth; 3 turns Level 3 on (container groups, components)
 GROUP_KINDS = ("boundary", "system", "container")
+ARRANGES = ("surround", "flow", "layers")
 MAX_GROUP_CHILDREN = 12    # more visible children than this in a group: suggest splitting
 MAX_VISIBLE = 80           # more visible elements than this: the page opens with system groups collapsed
 MAX_LABEL = 40             # characters; a longer relation label overflows its pill
@@ -101,7 +102,9 @@ class C4Audit:
                     errors.append(f"Relation {a} -> {b} points at unknown id '{end}': relations join elements.")
             if not label:
                 errors.append(f"Relation {a} -> {b} has no label: every arrow says what it does.")
-            if a in emap and b in emap:
+            if a == b and a in emap:
+                errors.append(f"Relation {a} -> {b} joins an element to itself: relate two different elements.")
+            elif a in emap and b in emap:
                 degree[a] = degree.get(a, 0) + 1
                 degree[b] = degree.get(b, 0) + 1
                 if emap[a].get("kind") == "container" and emap[b].get("kind") == "container" and not _s(r.get("tech")):
@@ -145,6 +148,44 @@ class C4Audit:
         for gid, n in kids.items():
             if n > MAX_GROUP_CHILDREN and not hidden(gid):
                 warns.append(f"Group '{gid}' has {n} children: split it into smaller groups.")
+
+        # Arrange: the layout, `core` centres and layer bands.
+        arrange = self.data.get("arrange")
+        if arrange is not None and arrange not in ARRANGES:
+            errors.append(f"Unknown arrange '{arrange}': use surround, flow or layers.")
+        cores = [o for o in gs + es if o.get("core")]
+        layout = arrange if arrange in ARRANGES else "surround" if cores else "flow"
+        if layout == "layers":
+            def top(gid: Any) -> Any:  # the top-level group a group sits in (cycles end at the chain)
+                seen_g: Set[Any] = set()
+                while gid in gmap and gmap[gid].get("parent") in gmap and gid not in seen_g:
+                    seen_g.add(gid)
+                    gid = gmap[gid]["parent"]
+                return gid if gid in gmap else None
+
+            band = {g.get("id"): i for i, g in enumerate(g for g in gs if g.get("parent") not in gmap)}
+            where = {e.get("id"): band.get(top(_group(e))) for e in es}
+            for e in es:
+                if where[e.get("id")] is None:
+                    errors.append(f"Element '{e.get('id')}' is not in a top-level group: in 'layers' every element sits in a layer band.")
+            for r in rs:
+                a, b = where.get(r.get("from")), where.get(r.get("to"))
+                if a is not None and b is not None and abs(a - b) > 1:
+                    warns.append(f"Relation {r.get('from')} -> {r.get('to')} skips a layer: its arrow runs down the outer lane; route it through the layer between.")
+        else:
+            under: Dict[Any, Any] = {}  # every group id -> the ids of the groups it sits in, itself first
+            for g in gs:
+                chain, cur = [], g.get("id")
+                while cur in gmap and cur not in chain:
+                    chain.append(cur)
+                    cur = gmap[cur].get("parent")
+                under[g.get("id")] = chain
+            for o in cores:
+                oid = o.get("id")
+                inside = [e.get("id") for e in es if oid == e.get("id") or oid in under.get(_group(e), ())]
+                if not any(degree.get(i) for i in inside):
+                    warns.append(f"'{oid}' is marked core but has no relation: connect it or drop 'core'.")
+        info.append(f"Layout: {layout}" + ("" if arrange else " (default: " + ("an item is marked core)" if cores else "no item is marked core)")) + ".")
 
         # Info: the level it opens at.
         systems = [g for g in gs if g.get("kind") == "system"]

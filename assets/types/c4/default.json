@@ -7,7 +7,7 @@
   ],
   "elements": [
     { "id": "cust", "kind": "person", "name": "Customer", "description": "Buys products online" },
-    { "id": "shop", "kind": "system", "name": "Web Shop", "description": "Browse and order", "group": "shopco" },
+    { "id": "shop", "kind": "system", "name": "Web Shop", "description": "Browse and order", "group": "shopco", "core": true },
     { "id": "pay", "kind": "external", "name": "Payment Provider", "description": "Takes card payments" }
   ],
   "relations": [

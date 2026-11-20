@@ -1,0 +1,34 @@
+{
+  "diagramType": "c4",
+  "schemaVersion": 1,
+  "title": "Two centres",
+  "colorKey": { "3": "Payments" },
+  "groups": [
+    { "id": "cust_group", "name": "Customers", "kind": "boundary" },
+    { "id": "staff", "name": "Staff", "kind": "boundary" },
+    { "id": "pay_group", "name": "Payments and identity", "kind": "boundary", "color": "3" }
+  ],
+  "elements": [
+    { "id": "core", "kind": "system", "name": "Order Platform", "description": "Cart and checkout", "icon": "cart", "core": true },
+    { "id": "portal", "kind": "system", "name": "Support Portal", "description": "Agent workspace", "icon": "monitor", "core": true },
+    { "id": "cust", "kind": "person", "name": "Customer", "description": "Buys online", "icon": "user", "group": "cust_group" },
+    { "id": "agent", "kind": "person", "name": "Support Agent", "description": "Handles orders", "icon": "headset", "group": "staff" },
+    { "id": "wh", "kind": "person", "name": "Warehouse Operator", "description": "Packs orders", "icon": "package", "group": "staff" },
+    { "id": "pay", "kind": "external", "name": "Payment Provider", "description": "Card processing", "icon": "credit-card", "group": "pay_group" },
+    { "id": "idp", "kind": "external", "name": "Identity Provider", "description": "Single sign-on", "icon": "key", "group": "pay_group" },
+    { "id": "ship", "kind": "external", "name": "Carrier API", "description": "Labels, tracking", "icon": "truck", "side": "W" },
+    { "id": "mail", "kind": "external", "name": "Email Service", "description": "Transactional", "icon": "mail", "side": "E" },
+    { "id": "cards", "kind": "external", "name": "Card Network", "description": "Authorises", "icon": "banknote" }
+  ],
+  "relations": [
+    { "from": "cust", "to": "core", "label": "Places orders", "tech": "HTTPS" },
+    { "from": "agent", "to": "portal", "label": "Manages orders", "tech": "HTTPS" },
+    { "from": "wh", "to": "core", "label": "Fulfils orders", "tech": "HTTPS" },
+    { "from": "portal", "to": "core", "label": "Reads orders", "tech": "REST" },
+    { "from": "core", "to": "pay", "label": "Charges cards", "tech": "REST" },
+    { "from": "core", "to": "idp", "label": "Signs in", "tech": "OIDC" },
+    { "from": "core", "to": "ship", "label": "Books shipments", "tech": "REST" },
+    { "from": "portal", "to": "mail", "label": "Sends replies", "tech": "SMTP" },
+    { "from": "pay", "to": "cards", "label": "Authorises", "tech": "ISO 8583" }
+  ]
+}

@@ -2,10 +2,10 @@
   "diagramType": "c4",
   "schemaVersion": 1,
   "title": "ShopCo system landscape",
-  "colorKey": { "1": "People", "2": "ShopCo systems" },
+  "colorKey": { "1": "People", "2": "ShopCo systems", "3": "Order Platform" },
   "groups": [
     { "id": "shopco", "name": "ShopCo", "kind": "boundary" },
-    { "id": "platform", "name": "Order Platform", "kind": "system", "parent": "shopco", "collapsed": false },
+    { "id": "platform", "name": "Order Platform", "kind": "system", "parent": "shopco", "collapsed": false, "core": true, "color": "3" },
     { "id": "third", "name": "Third-party services", "kind": "boundary" }
   ],
   "elements": [

@@ -1,0 +1,36 @@
+{
+  "diagramType": "c4",
+  "schemaVersion": 1,
+  "title": "One centre",
+  "colorKey": { "1": "Staff", "3": "Payments" },
+  "groups": [
+    { "id": "cust_group", "name": "Customers", "kind": "boundary" },
+    { "id": "staff", "name": "Staff", "kind": "boundary", "color": "1" },
+    { "id": "erp_group", "name": "ShopCo systems", "kind": "boundary", "side": "E" },
+    { "id": "pay_group", "name": "Payments and identity", "kind": "boundary", "color": "3" },
+    { "id": "logi", "name": "Logistics and comms", "kind": "boundary" }
+  ],
+  "elements": [
+    { "id": "core", "kind": "system", "name": "Order Platform", "description": "Cart and checkout", "icon": "cart", "core": true },
+    { "id": "cust", "kind": "person", "name": "Customer", "description": "Buys online", "icon": "user", "group": "cust_group" },
+    { "id": "agent", "kind": "person", "name": "Support Agent", "description": "Handles orders", "icon": "headset", "group": "staff" },
+    { "id": "wh", "kind": "person", "name": "Warehouse Operator", "description": "Packs orders", "icon": "package", "group": "staff" },
+    { "id": "erp", "kind": "system", "name": "ERP", "description": "Stock, invoicing", "icon": "building", "group": "erp_group" },
+    { "id": "pay", "kind": "external", "name": "Payment Provider", "description": "Card processing", "icon": "credit-card", "group": "pay_group" },
+    { "id": "idp", "kind": "external", "name": "Identity Provider", "description": "Single sign-on", "icon": "key", "group": "pay_group" },
+    { "id": "ship", "kind": "external", "name": "Carrier API", "description": "Labels, tracking", "icon": "truck", "group": "logi" },
+    { "id": "mail", "kind": "external", "name": "Email Service", "description": "Transactional", "icon": "mail", "group": "logi" },
+    { "id": "cards", "kind": "external", "name": "Card Network", "description": "Authorises", "icon": "banknote" }
+  ],
+  "relations": [
+    { "from": "cust", "to": "core", "label": "Places orders", "tech": "HTTPS" },
+    { "from": "agent", "to": "core", "label": "Manages orders", "tech": "HTTPS" },
+    { "from": "wh", "to": "core", "label": "Fulfils orders", "tech": "HTTPS" },
+    { "from": "core", "to": "erp", "label": "Syncs stock", "tech": "Events" },
+    { "from": "core", "to": "pay", "label": "Charges cards", "tech": "REST" },
+    { "from": "core", "to": "idp", "label": "Signs in", "tech": "OIDC" },
+    { "from": "core", "to": "ship", "label": "Books shipments", "tech": "REST" },
+    { "from": "core", "to": "mail", "label": "Sends receipts", "tech": "SMTP" },
+    { "from": "pay", "to": "cards", "label": "Authorises", "tech": "ISO 8583" }
+  ]
+}
