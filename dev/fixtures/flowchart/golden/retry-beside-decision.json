@@ -8,7 +8,7 @@
       "id": "lane_1",
       "name": "Lane 1",
       "icon": "user",
-      "height": 392
+      "height": 424
     }
   ],
   "nodes": [
@@ -26,7 +26,7 @@
       "type": "task",
       "label": "New Step",
       "x": 56,
-      "y": 216
+      "y": 248
     },
     {
       "id": "n2",
@@ -58,7 +58,7 @@
       "type": "task",
       "label": "New Step",
       "x": 328,
-      "y": 216
+      "y": 248
     },
     {
       "id": "n3",

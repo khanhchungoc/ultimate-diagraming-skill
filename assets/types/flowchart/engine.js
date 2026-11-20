@@ -13,7 +13,7 @@
           LABEL_ACROSS: false
         },
         TB: {
-          COL_WIDTH: 136, TIGHT_STEP: 96, START_X: 56, ROW_HEIGHT: 184,
+          COL_WIDTH: 136, TIGHT_STEP: 96, START_X: 56, ROW_HEIGHT: 216,
           NODE_W: 96, MIN_GAP: 32, LABEL_MAX_W: 140, LABEL_STUB: 16, NODE_H: 144, DEC_H: 144, LANE_MIN: 240, TOP_PAD: 32, BOTTOM_PAD: 32, NEAR_MIN: 24, LOOP_ROOM: 72, LOOP_STEP: 16,
           LABEL_ACROSS: true   // an arrow label sits across a vertical arrow, so it needs its height, not its width, of room
         }

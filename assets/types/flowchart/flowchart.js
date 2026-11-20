@@ -2641,15 +2641,16 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
       }
 
       let measureLabelCtx = null;
+      const ARROWHEAD_LEN = 16;   // the arrowhead marker's length in px at the 1.25px line width (stage.html)
 
       function pickClearLabelPosition(points, fromPort, labelText, nodeBoxes, placedLabels, otherPolylines) {
         const candidates = [];
 
         if (points.length === 2) {
-          candidates.push({
-            x: (points[0][0] + points[1][0]) / 2,
-            y: (points[0][1] + points[1][1]) / 2
-          });
+          // Centred on the part of the line the arrowhead leaves free, so a short gap never puts the label on the head
+          const [a, b] = points, len = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
+          const t = Math.max(0, len - ARROWHEAD_LEN) / 2 / len;
+          candidates.push({ x: a[0] + (b[0] - a[0]) * t, y: a[1] + (b[1] - a[1]) * t });
         } else if (points.length === 3) {
           if (fromPort === 'top' || fromPort === 'bottom') {
             const p0 = points[0];
