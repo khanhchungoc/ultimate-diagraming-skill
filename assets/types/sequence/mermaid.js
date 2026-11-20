@@ -28,7 +28,7 @@ const MMD_SEQ_ARROW_OF = { sync: '->>', reply: '-->>', async: '-)' };
 function mmdSeqEsc(s, nl) {
   return String(s == null ? '' : s).replace(/\r\n?/g, '\n')
     .replace(/[#;]/g, (c) => (c === '#' ? '#35;' : '#59;'))
-    .replace(/<(?=br\s*\/?>)/gi, '#lt;')
+    .replace(/<(?=br\s*\/?>|\/?small\b)/gi, '#lt;')
     .replace(/\n/g, nl || '<br>');
 }
 
@@ -201,9 +201,10 @@ function fromMermaid(text, opts) {
     const from = part(m[1].trim()), to = part(m[4].trim());
     const dir = take(['activate', 'until']);
     const raw = m[5] === undefined ? '' : m[5];
-    const cut = /<br\s*\/?>/i.exec(raw);
-    const msg = { from: from.id, to: to.id, label: mmdText(cut ? raw.slice(0, cut.index) : raw) };
-    if (cut) { const d = mmdText(raw.slice(cut.index + cut[0].length)); if (d) msg.detail = d; }
+    // A <br> is a line break in the label; only a trailing "<br><small>…</small>" (what the export writes) is the detail line
+    const det = /<br\s*\/?>\s*<small>([\s\S]*?)<\/small>\s*$/i.exec(raw);
+    const msg = { from: from.id, to: to.id, label: mmdText(det ? raw.slice(0, det.index) : raw) };
+    if (det) { const d = mmdText(det[1]); if (d) msg.detail = d; }
     if (arrow[0] !== 'sync') msg.kind = arrow[0];
     if (dir.activate && !flag(dir.activate)) msg.activate = false;
     if (dir.until) {
@@ -570,7 +571,7 @@ function toMermaid(data, opts) {
       if (destroyIdx.get(p.id) === k) line('destroy ' + pid(p.id));
     });
     const label = mmdSeqEsc(m.label, '#10;'), detail = same(m.detail) ? mmdSeqEsc(m.detail, '#10;') : '';
-    line(pid(m.from) + MMD_SEQ_ARROW_OF[m.kind || 'sync'] + pid(m.to) + ':' + (label || detail ? ' ' + label + (detail ? '<br>' + detail : '') : ''));
+    line(pid(m.from) + MMD_SEQ_ARROW_OF[m.kind || 'sync'] + pid(m.to) + ':' + (label || detail ? ' ' + label + (detail ? '<br><small>' + detail + '</small>' : '') : ''));
     prev = 'msg';
     (noteSlots.after.get(k) || []).forEach(emitNote);
     while (stack.length && stack[stack.length - 1].b === k) { stack.pop(); depth--; line('end'); prev = 'end'; }

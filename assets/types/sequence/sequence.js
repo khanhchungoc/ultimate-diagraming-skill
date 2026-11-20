@@ -4,6 +4,7 @@
       const seqCanvas = document.getElementById('seq-canvas');
       const seqSvg = document.getElementById('seq-svg');
       const seqHtml = document.getElementById('seq-html');
+      seqHtml.style.setProperty('--seq-label-max', `${SQ.LABEL_MAX_W}px`);   // the edit box wraps where the engine does
       const seqFragG = document.getElementById('seq-fragments');
       const seqLifeG = document.getElementById('seq-lifelines');
       const seqActG = document.getElementById('seq-activations');
@@ -157,7 +158,7 @@
       // A small icon per participant kind, the registry's kind-<kind> (system and actor have none: actor is the pill)
       // A person (actor) wears the registry's user icon; a system, the default kind, wears none on its pill
       const kindIconName = (kind) => (kind === 'actor' ? 'user' : `kind-${kind || 'system'}`);
-      const hasKindIcon = (kind) => kind !== 'system' && !!ICONS[kindIconName(kind)];
+      const hasKindIcon = (kind) => !!kind && kind !== 'system' && !!ICONS[kindIconName(kind)];   // no kind = a plain service: a blank pill
       const PARTICIPANT_KINDS = ['system', 'actor', 'ui', 'database', 'queue', 'external'];
       const KIND_TITLES = {
         system: 'Service: a back-end service or app that is none of the kinds below (the default)',
@@ -1915,9 +1916,18 @@
         const onBoxDown = (pe) => {
           if (pe.target === el || el.contains(pe.target)) return;
           pe.preventDefault(); pe.stopPropagation();
-          const r = el.getBoundingClientRect(), end = pe.clientY > r.bottom || (pe.clientY >= r.top && pe.clientX > r.left + r.width / 2);
-          const rg = document.createRange();
-          rg.selectNodeContents(el); rg.collapse(!end);
+          // The caret goes to the text nearest the press: the press point pulled onto the text's own box
+          const r = el.getBoundingClientRect();
+          const px = Math.min(Math.max(pe.clientX, r.left + 1), r.right - 1), py = Math.min(Math.max(pe.clientY, r.top + 1), r.bottom - 1);
+          let rg = null;
+          if (document.caretPositionFromPoint) {
+            const cp = document.caretPositionFromPoint(px, py);
+            if (cp && el.contains(cp.offsetNode)) { rg = document.createRange(); rg.setStart(cp.offsetNode, cp.offset); rg.collapse(true); }
+          } else if (document.caretRangeFromPoint) {
+            rg = document.caretRangeFromPoint(px, py);
+            if (rg && !el.contains(rg.startContainer)) rg = null;
+          }
+          if (!rg) { rg = document.createRange(); rg.selectNodeContents(el); rg.collapse(false); }
           const sel = window.getSelection();
           sel.removeAllRanges(); sel.addRange(rg);
           el.focus();
