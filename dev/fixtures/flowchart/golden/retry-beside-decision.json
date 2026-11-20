@@ -1,0 +1,128 @@
+{
+  "diagramType": "flowchart",
+  "schemaVersion": 1,
+  "title": "Flowchart",
+  "direction": "TB",
+  "lanes": [
+    {
+      "id": "lane_1",
+      "name": "Lane 1",
+      "icon": "user",
+      "height": 424
+    }
+  ],
+  "nodes": [
+    {
+      "id": "n1",
+      "laneId": "lane_1",
+      "type": "start",
+      "label": "Start",
+      "x": 56,
+      "y": 32
+    },
+    {
+      "id": "n_new_step",
+      "laneId": "lane_1",
+      "type": "task",
+      "label": "New Step",
+      "x": 56,
+      "y": 248
+    },
+    {
+      "id": "n2",
+      "laneId": "lane_1",
+      "type": "task",
+      "label": "Do something",
+      "x": 192,
+      "y": 32
+    },
+    {
+      "id": "n_decision",
+      "laneId": "lane_1",
+      "type": "decision",
+      "label": "Decision?",
+      "x": 328,
+      "y": 32
+    },
+    {
+      "id": "n_new_step_2",
+      "laneId": "lane_1",
+      "type": "task",
+      "label": "New Step",
+      "x": 481,
+      "y": 32
+    },
+    {
+      "id": "n_new_step_3",
+      "laneId": "lane_1",
+      "type": "task",
+      "label": "New Step",
+      "x": 328,
+      "y": 248
+    },
+    {
+      "id": "n3",
+      "laneId": "lane_1",
+      "type": "end",
+      "label": "End",
+      "x": 617,
+      "y": 32
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "from": "n1",
+      "to": "n2",
+      "label": ""
+    },
+    {
+      "id": "e2",
+      "from": "n2",
+      "to": "n_decision",
+      "label": ""
+    },
+    {
+      "id": "e3",
+      "from": "n_decision",
+      "to": "n3",
+      "label": "Yes"
+    },
+    {
+      "id": "e4",
+      "from": "n_decision",
+      "to": "n_new_step_2",
+      "label": "Yes"
+    },
+    {
+      "id": "e5",
+      "from": "n2",
+      "to": "n3",
+      "label": ""
+    },
+    {
+      "id": "e6",
+      "from": "n_new_step_2",
+      "to": "n3",
+      "label": ""
+    },
+    {
+      "id": "e7",
+      "from": "n_new_step",
+      "to": "n3",
+      "label": ""
+    },
+    {
+      "id": "e8",
+      "from": "n_new_step_3",
+      "to": "n2",
+      "label": ""
+    },
+    {
+      "id": "e9",
+      "from": "n_decision",
+      "to": "n_new_step_3",
+      "label": "Yes"
+    }
+  ]
+}

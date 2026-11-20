@@ -7,25 +7,25 @@
       "id": "lane_hiring_mgr",
       "name": "Hiring Manager",
       "icon": "briefcase",
-      "height": 392
+      "height": 424
     },
     {
       "id": "lane_hr_ops",
       "name": "HR Operations",
       "icon": "cog",
-      "height": 392
+      "height": 424
     },
     {
       "id": "lane_recruiter",
       "name": "Recruiter",
       "icon": "user",
-      "height": 392
+      "height": 424
     },
     {
       "id": "lane_candidate",
       "name": "Candidate",
       "icon": "users",
-      "height": 392
+      "height": 424
     },
     {
       "id": "lane_bg_vendor",
@@ -37,7 +37,7 @@
       "id": "lane_it",
       "name": "IT Service Desk",
       "icon": "cpu",
-      "height": 392
+      "height": 424
     },
     {
       "id": "lane_facilities",
@@ -134,8 +134,8 @@
       "laneId": "lane_hiring_mgr",
       "type": "delay",
       "label": "Extend Probation 30 Days",
-      "x": 4878,
-      "y": 32
+      "x": 4725,
+      "y": 248
     },
     {
       "id": "probation_passed",
@@ -143,7 +143,7 @@
       "type": "end",
       "label": "Probation Passed",
       "x": 4878,
-      "y": 216
+      "y": 32
     },
     {
       "id": "headcount_approved",
@@ -223,7 +223,7 @@
       "type": "task",
       "label": "Record Exception",
       "x": 2674,
-      "y": 216
+      "y": 248
     },
     {
       "id": "clear_candidate",
@@ -246,7 +246,7 @@
       "laneId": "lane_hr_ops",
       "type": "task",
       "label": "Terminate Employment",
-      "x": 4725,
+      "x": 4878,
       "y": 32
     },
     {
@@ -254,7 +254,7 @@
       "laneId": "lane_hr_ops",
       "type": "end",
       "label": "Employment Terminated",
-      "x": 4878,
+      "x": 5014,
       "y": 32
     },
     {
@@ -311,7 +311,7 @@
       "type": "end",
       "label": "Candidate Rejected",
       "x": 1501,
-      "y": 216
+      "y": 248
     },
     {
       "id": "within_band",
@@ -335,7 +335,7 @@
       "type": "document",
       "label": "Issue Offer Letter",
       "x": 1807,
-      "y": 216
+      "y": 248
     },
     {
       "id": "offer_response",
@@ -351,7 +351,7 @@
       "type": "end",
       "label": "Offer Declined",
       "x": 2096,
-      "y": 216
+      "y": 248
     },
     {
       "id": "sign_contract",
@@ -431,7 +431,7 @@
       "type": "task",
       "label": "Order New Laptop",
       "x": 3235,
-      "y": 216
+      "y": 248
     },
     {
       "id": "enrol_mdm",
