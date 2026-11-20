@@ -34,6 +34,7 @@
     .uc-link.is-dashed .edge-line { stroke-dasharray: var(--dash); }
     .uc-link:is(.hover, .selected) .edge-line { stroke: var(--primary); stroke-width: var(--ring-md); marker-end: var(--mk-e-sel); }
     .uc-link.hl:not(.hover, .selected) .edge-line { stroke-width: var(--ring-md); }   /* lit by a hover or a focus: same neutral, bolder */
+    .drag-fade { opacity: 0.12 !important; }
     .uc-link.is-dim { opacity: var(--dim-line); }
     .uc-link.is-hidden, .uc-label.is-hidden { display: none; }
     .uc-mk path { stroke: var(--mk, var(--node-border)); stroke-width: var(--ring-thin); fill: none; stroke-linecap: round; stroke-linejoin: round; }

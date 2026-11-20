@@ -84,13 +84,12 @@
       pointer-events: none;
     }
     .erd-entity:hover { --ring: var(--node-accent); box-shadow: var(--shadow-md); }
-    /* The neighbourhood of the hovered or selected table: related tables get a ring in the primary colour */
-    .erd-entity.rel-parent, .erd-entity.rel-child { --ring: var(--primary); box-shadow: 0 0 0 var(--ring-lg) var(--primary-glow), var(--shadow-sm); }
-    .erd-entity.rel-parent::after, .erd-entity.rel-child::after { box-shadow: inset 0 0 0 var(--ring-md) var(--ring); }
-    .erd-entity.rel-parent .erd-head, .erd-entity.rel-child .erd-head { box-shadow: inset 0 0 0 var(--ring-fill) color-mix(in srgb, var(--primary) 16%, transparent); }
-    .erd-entity.selected { --ring: var(--primary); box-shadow: var(--shadow-ring); }
+    /* The neighbourhood of the hovered or selected table: related tables look exactly like the selected one */
+    .erd-entity:is(.rel-parent, .rel-child, .selected) { --ring: var(--primary); box-shadow: var(--shadow-ring); }
     .erd-entity.is-dim { opacity: 0.38; }
     body.exporting .is-dim { opacity: 1 !important; }
+    /* Lines of a table being dragged: faded until the drop re-routes them */
+    .drag-fade { opacity: 0.12 !important; transition: opacity var(--dur-micro) var(--curve-inout); }
 
     .erd-head {
       display: flex;
