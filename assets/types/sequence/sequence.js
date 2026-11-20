@@ -501,18 +501,19 @@
             const xs = edgeX(a, m.y, 1), xe = edgeX(a, m.y + 28, 1);
             d = `M ${xs} ${m.y} H ${xs + SQ.SELF_LOOP} V ${m.y + 28} H ${xe}`;
             labelStyle = { left: px(xs + SQ.SELF_LOOP + 8), top: px(m.y + 4) };
-            detailStyle = { left: px(xs + SQ.SELF_LOOP + 14), top: px(m.y + 24) };
+            detailStyle = { left: px(xs + SQ.SELF_LOOP + 14), top: px(m.y + 24 + ((m.lab || 1) - 1) * SQ.LABEL_LINE) };
           } else {
             const dir = b.x > a.x ? 1 : -1;
             const x1 = edgeX(a, m.y, dir), x2 = edgeX(b, m.y, -dir);
             d = `M ${x1} ${m.y} H ${x2}`;
-            labelStyle = { left: px((x1 + x2) / 2), top: px(m.y - 26) };
+            labelStyle = { left: px((x1 + x2) / 2), top: px(m.y - 26 - ((m.lab || 1) - 1) * SQ.LABEL_LINE) };
             detailStyle = { left: px((x1 + x2) / 2), top: px(m.y + 3) };
           }
           const marker = !m.kind || m.kind === 'sync' ? 'url(#seq-arrow-solid)' : 'url(#seq-arrow-open)';
           seqMsgG.appendChild(svgEl('path', { class: `seq-line${m.kind === 'reply' ? ' is-reply' : ''}`, d, 'marker-end': marker, 'data-edge-id': m.id }));
           seqMsgG.appendChild(svgEl('path', { class: 'seq-msg-hit', d, 'data-edge-id': m.id }));
-          const label = htmlEl('div', `seq-msg-label${self ? ' is-self' : ''}`, labelStyle);
+          if (m.lab > 1) labelStyle.width = px(SQ.LABEL_MAX_W);   // wrapped: a fixed width, the text flows inside
+          const label = htmlEl('div', `seq-msg-label${self ? ' is-self' : ''}${m.lab > 1 ? ' is-wrapped' : ''}`, labelStyle);
           label.dataset.edgeId = m.id;
           if (chartData.numbered) {
             const num = htmlEl('span', 'seq-msg-num');
@@ -525,7 +526,8 @@
           if (m.detail && !showDetails) label.title = m.detail;   // details hidden: the payload is the tooltip
           seqHtml.appendChild(label);
           if (m.detail && showDetails) {
-            const det = htmlEl('div', `seq-msg-detail${self ? ' is-self' : ''}`, detailStyle);
+            if (m.det > 1) detailStyle.width = px(SQ.LABEL_MAX_W);
+            const det = htmlEl('div', `seq-msg-detail${self ? ' is-self' : ''}${m.det > 1 ? ' is-wrapped' : ''}`, detailStyle);
             det.dataset.edgeId = m.id;
             const dt = htmlEl('span', 'seq-msg-detail-text');
             dt.textContent = m.detail;
@@ -1864,8 +1866,8 @@
       }
 
       // --- INLINE TEXT EDITING (double-click, Enter / F2, or straight after creating something) ---
-      // Enter commits; Escape keeps the old text. A note takes Shift+Enter for a line break. Tab or Shift+Enter in a message's label
-      // moves on to its detail (the second line, a <br> in Mermaid); an empty detail removes it.
+      // Enter commits; Escape keeps the old text. A note takes Shift+Enter for a line break. A message label takes Shift+Enter for a line break too; Tab in it
+      // moves on to its detail; an empty detail removes it.
       const EDIT_TEXT = '.seq-participant-name, .seq-msg-label-text, .seq-frag-text';
       const EDIT_OWNER = { participant: '.seq-participant[data-node-id="ID"]', message: '.seq-msg-label[data-edge-id="ID"]', fragment: '.frame-tag[data-frag-id="ID"]' };
       function applyText(el, value) {
@@ -1904,17 +1906,16 @@
           // The keys an edit uses stop here: an Enter that reached the window would open the selection's edit again
           if (ke.key === 'Enter' || ke.key === 'Tab' || ke.key === 'F2') ke.stopPropagation();
           if (ke.key === 'Enter' && multi && ke.shiftKey) { ke.preventDefault(); document.execCommand('insertText', false, '\n'); }
-          else if (ke.key === 'Enter' && ke.shiftKey && opts.onTab) { ke.preventDefault(); tabbed = true; el.blur(); }
           else if (ke.key === 'Enter') { ke.preventDefault(); el.blur(); }
           else if (ke.key === 'Escape') { ke.preventDefault(); ke.stopPropagation(); el.textContent = original; el.blur(); }
-          else if ((ke.key === 'Tab' || (ke.key === 'Enter' && ke.shiftKey)) && opts.onTab) { ke.preventDefault(); tabbed = true; el.blur(); }
+          else if (ke.key === 'Tab' && opts.onTab) { ke.preventDefault(); tabbed = true; el.blur(); }
         };
         el.addEventListener('blur', commit);
         el.addEventListener('keydown', onKey);
       }
       function editMessage(id) {
         const el = seqHtml.querySelector(`.seq-msg-label[data-edge-id="${id}"] .seq-msg-label-text`);
-        beginEdit(el, { onTab: () => editDetail(id) });
+        beginEdit(el, { multiline: true, onTab: () => editDetail(id) });
       }
       // The detail line under a message's arrow; one is made for the edit when the message has none (or details are hidden)
       function editDetail(id) {

@@ -53,6 +53,8 @@
       text-shadow: 0 0 2px var(--bg-panel), 0 0 2px var(--bg-panel), 0 0 5px var(--bg-panel), 0 0 5px var(--bg-panel);
     }
     .seq-msg-label.is-self { translate: none; }
+    .seq-msg-label.is-wrapped, .seq-msg-detail.is-wrapped { height: auto; white-space: pre-wrap; overflow-wrap: anywhere; text-align: center; }
+    .seq-msg-label.is-self.is-wrapped, .seq-msg-detail.is-self.is-wrapped { text-align: left; }
     .seq-msg-label.selected { color: var(--primary); font-weight: var(--weight-semibold); }
     .seq-msg-label-text { outline: none; }
     .seq-msg-label-text[contenteditable], .seq-msg-detail-text[contenteditable], .seq-participant-name[contenteditable], .seq-frag-text[contenteditable] { cursor: text; user-select: text; }

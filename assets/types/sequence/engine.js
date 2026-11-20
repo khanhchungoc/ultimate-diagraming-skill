@@ -13,7 +13,7 @@
       //         lifespans? (true: a lifeline runs only from its participant's first message to its last; participants
       //           may carry start?/end? message ids that widen it, and column?: the id of an earlier participant whose
       //           column it reuses, for participants whose lifespans never overlap)
-      // Output: participants[].x (center), messages[].y (arrow line), messages[].hidden (inside a collapsed frame),
+      // Output: participants[].x (center), messages[].y (arrow line), messages[].hidden (inside a collapsed frame), messages[].lab / det (lines of the wrapped label / detail),
       //         participants[].rail (true on a rail), participants[].top/bottom (with lifespans: the box's top and where the
       //         lifeline ends), fragments[].{x,y,w,h,dividers[{at,y,label}]}, notes[].{x,y,w,h},
       //         layout {width,height}.
@@ -30,9 +30,25 @@
         SUMMARY_ROW: 44,                        // the one row a collapsed frame takes
         RAIL_W: 36, RAIL_H: 80,                 // a rail's width and height
         GAP_CLEAR: 52, RAIL_CLEAR: 24,          // clear space between two boxes (MIN_GAP - BOX_W), and beside a rail
+        LABEL_MAX_W: 320, LABEL_LINE: 20, DETAIL_LINE: 14,   // a label or detail wider than this wraps to more lines, each adding a line of row height
         SUMMARY_W: 236                          // a collapsed frame is at least this wide when rails make the diagram narrow
       };
       const sqTextW = (t) => Math.ceil(String(t == null ? '' : t).length * SQ.CHAR_W);
+      // Lines a text takes when wrapped at maxW (words kept whole, "\n" a forced break, a word longer than a line split)
+      function sqLines(t, charW, maxW) {
+        const cpl = Math.max(1, Math.floor(maxW / charW));
+        let n = 0;
+        String(t == null ? '' : t).split('\n').forEach((seg) => {
+          let len = 0, lines = 1;
+          seg.split(' ').forEach((w) => {
+            if (len + (len ? 1 : 0) + w.length <= cpl) { len += (len ? 1 : 0) + w.length; return; }
+            if (len) lines++;
+            if (w.length > cpl) { lines += Math.floor((w.length - 1) / cpl); len = w.length % cpl || cpl; } else len = w.length;
+          });
+          n += lines;
+        });
+        return n;
+      }
       const sqGrid = (v) => Math.ceil(v / SQ.GRID) * SQ.GRID;
       // A fragment's further branches as [{at, label}]: "branches", or the short form "elseAt" (one unlabelled branch)
       const sqBranches = (f) => (Array.isArray(f.branches) ? f.branches : f.elseAt === undefined ? [] : [{ at: f.elseAt }]);
@@ -67,7 +83,13 @@
         const showDetails = data.showDetails !== false;
         const detailOf = (m) => (showDetails && m.detail ? String(m.detail) : '');
         // What a message needs sideways: the longer of its label (plus the step number) and its detail
-        const msgW = (m) => Math.max(sqTextW(m.label) + (data.numbered ? SQ.NUM_W : 0), Math.ceil(detailOf(m).length * SQ.DETAIL_CHAR_W));
+        // Both are capped at LABEL_MAX_W: past it the text wraps instead of pushing the lifelines apart
+        const numW = data.numbered ? SQ.NUM_W : 0;
+        const labelW = (m) => Math.min(Math.max.apply(null, String(m.label == null ? '' : m.label).split('\n').map(sqTextW)) + numW, SQ.LABEL_MAX_W);
+        const detailW = (m) => Math.min(Math.ceil(detailOf(m).length * SQ.DETAIL_CHAR_W), SQ.LABEL_MAX_W);
+        const msgW = (m) => Math.max(labelW(m), detailW(m));
+        const labelLines = (m) => sqLines(m.label, SQ.CHAR_W, SQ.LABEL_MAX_W - numW);
+        const detailLines = (m) => (detailOf(m) ? sqLines(m.detail, SQ.DETAIL_CHAR_W, SQ.LABEL_MAX_W) : 0);
 
         // 1. Fragments: resolve message ranges, nesting level (0 = innermost) and ordering. Done first: which messages a
         //    collapsed frame hides decides which participants are rails, and so the horizontal layout.
@@ -259,13 +281,18 @@
               y += SQ.SUMMARY_ROW;
               C.rowBottom = y - 4;
             } else {
-              m.y = y + SQ.ARROW_AT;
-              y += (m.from === m.to ? SQ.SELF_ROW : SQ.ROW) + (detailOf(m) ? SQ.DETAIL_ROW : 0);
+              const lab = labelLines(m), det = detailLines(m);   // kept on the message only when wrapped
+              if (lab > 1) m.lab = lab; else delete m.lab;
+              if (det > 1) m.det = det; else delete m.det;
+              const labX = (lab - 1) * SQ.LABEL_LINE;
+              m.y = y + SQ.ARROW_AT + (m.from === m.to ? 0 : labX);
+              y += (m.from === m.to ? SQ.SELF_ROW : SQ.ROW) + labX + (det ? SQ.DETAIL_ROW + (det - 1) * SQ.DETAIL_LINE : 0);
               placeNotes(afterOf[k]);   // inside every frame the message is in: before any of them closes
             }
             rowEnd[k] = y - SQ.ROW_BOTTOM_PAD;
           }
           if (C) { m.y = C.rowY; m.hidden = true; } else delete m.hidden;
+          if (C) { delete m.lab; delete m.det; }
           const rowBottom = C ? C.rowBottom : y - SQ.ROW_BOTTOM_PAD;
           const ending = frs.filter((r) => !r.hidden && r.b === k).sort((u, v) => span(u) - span(v) || frs.indexOf(v) - frs.indexOf(u));
           ending.forEach((r, e) => { r.bottom = rowBottom + SQ.FRAG_STEP_BOTTOM * e; });
