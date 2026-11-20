@@ -45,7 +45,7 @@ Consequence: bundling vendor logo SVGs into this repo and shipping them inside e
 
 ## Data
 
-Logical JSON the agent writes. Key order is fixed: `diagramType, schemaVersion, title, showTech, showNotes, colorKey, groups, elements, relations, notes, layout`.
+Logical JSON the agent writes. Key order is fixed: `diagramType, schemaVersion, title, arrange, showTech, showNotes, colorKey, groups, elements, relations, notes, layout`. (`arrange` is the layout choice; `layout` is the saved positions map. Adding `arrange` changes the codec, so phase 1b updates `C4_KEYS`, the goldens and the codec tests.)
 
 ```json
 {
@@ -74,7 +74,8 @@ Logical JSON the agent writes. Key order is fixed: `diagramType, schemaVersion, 
 - **Groups:** `kind` is `boundary` (an ownership or trust frame, such as "Third-party services") or `system` (a software system whose inside is the next level). Groups form a tree of any depth in the model, engine and codec; v1 allows depth 2 and rejects deeper nesting in the audit only. An element belongs to at most one group.
 - **Relations:** between elements only. `label` is required (C4 requires it); `tech` is optional but warned about on container-to-container links; `async: true` draws a dashed line.
 - **One model, all levels.** The level is the collapse state of the `system` groups. A collapsed group draws as one system box, and relations that cross its border are aggregated onto it (one arrow per neighbour, labelled with the count when it merges several). Level 1 is every system group collapsed; Level 2 is one expanded. `collapsed` is saved, so the page reopens where the user left it.
-- **Centre:** `core: true` on an element or a group marks it as a centre; zero, one or many may be marked. Nothing is picked automatically: with none marked, the layout is the layered flow described under Layout. A group can be the centre.
+- **Arrange (the layout):** `arrange` is one of `surround`, `flow` or `layers`; omitted, it is `surround` when any item is marked `core` and `flow` when none is. `core: true` on an element or a group marks a centre; zero, one or many may be marked, and a group can be the centre. Nothing is picked automatically. In `layers`, each top-level group is a layer band, stacked in the order written (top to bottom, or left to right with `direction`), and every element must sit in a top-level group.
+- **Relations may join any two elements**, including two in the same group or the same layer, as well as elements in different groups. A relation from an element to itself is an error.
 - **Disk format:** a trailing `layout` map `{id: {x, y}}` (elements, then groups), as the ERD and use case types. `toDisk` drops every `_`-prefixed field, sizes, points and canvas. The codec lives in `scripts/disk_format.py`.
 
 ## Level 3 readiness
@@ -99,6 +100,7 @@ Mermaid has a native C4 syntax: `C4Context`, `C4Container`, `C4Component`, `C4Dy
 | `groups` (`boundary`, `system`, nested) | `Enterprise_Boundary`, `System_Boundary`, `Boundary` | clean |
 | `relations` with `label`, `tech` | `Rel(from, to, "label", "tech")` | clean |
 | `async` | none | lost on export |
+| `arrange`, layer bands | none | lost on export; top-level groups become boundaries |
 | `icon`, `color`, `collapsed`, `layout` positions | none | lost on export; icon and colour travel as `%% @icon` and `%% @color` comment lines that Mermaid ignores and our reader restores |
 
 - **Export writes one level.** All `system` groups collapsed gives `C4Context`; one expanded gives `C4Container` for that system. A user who wants both copies twice. Mermaid has no collapse state.
@@ -139,6 +141,8 @@ Motion follows the repo principle, morph not fade: expanding a system group morp
 
 Input is the model; output is positions, sizes, routes and the canvas. Reads text widths only from `TOKENS.font.metrics`, like the other engines. The reference is `dev/plans/c4-layout-prototype.html` (open it in a browser: buttons switch between one centre, a group as the centre, two centres, four centres and no centre). The first engine written for this type was layered; it is replaced by this layout in phase 1b.
 
+**Three layouts, one engine.** `surround` (rings round a centre set), `flow` (no centre: layers found from the links) and `layers` (layers declared by the author) share the item model, the ring-by-row placement, the gutter routing and the frames. They differ only in how a ring number is assigned and which side a ring goes on: distance from the centre set with a side per item (`surround`), distance from the items nobody points at with every ring below (`flow`), and the index of the top-level group with every ring below (`layers`, each ring one band as wide as the widest). Adding another layout later means a new ring rule, not a new engine.
+
 **Items.** A top-level item is a framed group or one loose element. Collapsed groups count as one item; relations that cross a collapsed border are aggregated onto the nearest visible ancestor. The layout works on items, so the same code serves groups of any depth.
 
 **Rings.** The centre is the set of items marked `core` (0 to n). Every other item gets a ring number: its distance, in links, to the nearest centre item (breadth first from all centres at once). A link only ever joins the same ring or neighbouring rings, which is what keeps every arrow short.
@@ -154,6 +158,12 @@ Input is the model; output is positions, sizes, routes and the canvas. Reads tex
 - Otherwise the emptiest allowed side, in the order S, W, E, N.
 - **Exposure rule:** a ring-1 item may only sit on a side that every centre element it links to exposes to open space. In a 2x2 centre grid the top-left element exposes N and W only, so an item linked to it cannot sit below, where its arrow would cross another centre.
 - A ring-2 or later item follows the side of the inner neighbour it links to.
+
+**Inside a group.** Members are laid out by the same rules, one level down:
+- No relations between members: a row (a column beside the centre).
+- Relations that join neighbours in the row: the row, with room for a label between linked members.
+- Relations that skip a member (a to c across b), or enough links to make a row unreadable: the group lays its members out as a small flow, ranked by relation direction within the group, with the same boxes and bent arrows. The group's box is sized to fit it, and nothing outside the group changes.
+- A group collapsed to one tile hides its internal relations; relations that leave it are aggregated as before.
 
 **Rings are placed around the box built so far.** Ring r puts its N items in a row above, its S items in a row below, then its E and W items in columns beside the result, all centred on the origin. A framed item's members form a row above or below the centre and a column beside it, so an arrow to the far member never crosses a sibling. Order along a side is the average position of the inner neighbours (barycentre), ties by input order. A gutter between rings is left for arrows and labels.
 
@@ -183,6 +193,7 @@ The one interface between `engine.js`, the page (`c4.js`) and the audit. Coordin
 | `groups[].x, y, w, h` | The frame box, tag band included; a collapsed group has the size of one system tile. |
 | `elements[]._ring`, `groups[]._ring` | Ring number: 0 for a centre item, then distance in links; a hidden item has none. |
 | `groups[]._side`, `elements[]._side` | `N`, `S`, `E`, `W` or none for a centre item, resolved from the hint or the rules under Layout. |
+| `data._arrange` | The layout used (`surround`, `flow` or `layers`) after the default is applied. |
 | `groups[]._depth` | 1 for a top-level group, 2 for its child, and so on (any depth). |
 | `groups[]._collapsed` | Effective state: true when the group or any ancestor is collapsed. |
 | `data._edges` | The arrows actually drawn: `[{id, from, to, label, tech, async, count, members, points, path, labelBox}]`. `from`/`to` are the nearest visible ancestor (or the element itself) of each relation end; relations with the same visible pair and the same label merge, `count` is how many, `members` their indexes in `relations`; a merged edge with different labels shows the label of the first and `count`. |
@@ -209,7 +220,9 @@ Registered in `AUDITS`. Each rule has a failing and a passing unit case.
 
 - Error: duplicate id, relation to an unknown id, group cycle, element in two groups, relation without a label, group nesting deeper than 2.
 - Warn: container-to-container relation with no `tech`, element with no relation, person with no relation, external element inside a `system` group, a group with more than 12 visible children (suggest splitting), label longer than the pill limit, two relations between the same pair with the same label, missing icon pack.
-- Info: the level the diagram opens at and why.
+- Error: unknown `arrange`; `layers` with an element outside a top-level group; a relation from an element to itself.
+- Warn: `layers` with a relation that skips a layer (its arrow runs down the outer lane); `surround` or `flow` with a `core` flag on an item that has no relations.
+- Info: the level the diagram opens at and why, and the layout in use.
 - Layout checks reuse the flowchart's crossing and long-arrow audits.
 
 ## Files
@@ -233,6 +246,7 @@ Changed: `SKILL.md` (type table, read-back line), `scripts/layout_engine.py` (`S
 
 1. **Shared router and model.** Extract the orthogonal router (`computeAllEdgeRoutes` and its path and label helpers, which live in `flowchart.js`) into `assets/shell/ortho-router.js` with no behaviour change (golden unchanged). The layered ranking in `engine.js` is flowchart-specific and stays; extract it only when c4 shows what it truly shares. Schema, codec, `engine.js` with groups and collapse, `audit_c4.py`, fixtures and golden. `--layout` produces a static page.
 1b. **Layout rebuild.** Replace the first layered engine with the ring and layered layout under Layout, the reference being `dev/plans/c4-layout-prototype.html`. Same engine contract, plus the ring and side fields. Regenerate the goldens and fix the page for the icon card node.
+1c. **Layers layout and links inside a group.** The `layers` ring rule, equal-width bands, the audit rules, the small inner flow for groups whose members skip each other, fixtures and goldens. Same engine as 1b, so this is a ring rule and a group rule, not new machinery.
 2. **Render.** Tiles with generic icons, person avatar, database shape, groups as frames, orthogonal arrows with label pills, aggregated arrows, notes, colour key.
 3. **Levels and motion.** Collapse and expand, the Level control, morph motion, reduced-motion path.
 4. **Edit.** Dock, ports, label prompt, icon picker, action bar, Auto-Tidy, Save, undo, multi-select.
@@ -246,6 +260,8 @@ Each phase ends with its checker passing and the playground e2e still green; no 
 - `dev/test_audit_c4.py`: one failing and one passing case per audit rule.
 - `check_golden.py`: engine output per fixture, and laying out the saved model again moves nothing. A fixture with 2,000 elements across 40 groups proves the scale budget (opens collapsed, lays out within the bench limit in `dev/bench_layout.py`).
 - Flowchart golden stays byte-identical after the router extraction.
+- Layers fixtures: four bands with links between adjacent bands and one link inside a band; a band wider than the others; an element outside any band is an audit error; the skip-layer warning fires.
+- Links inside a group: a neighbour link (room for the label), a link that skips a member (inner flow, no arrow through a sibling), a chain of four members, and a collapsed group hiding its internal link.
 - Layout fixtures for every centre count: one centre, a group as the centre, two, four, and none (layered). Each checks: no overlaps, every box inside its frame, arrows orthogonal with at most one bend (loop-unders aside), no arrow crossing a box or a frame it does not enter, the exposure rule (no ring-1 item on a covered side), ring numbers as expected, determinism (two runs byte-equal), and the 2,000-element run under budget.
 - Level 3 readiness: a fixture with system > container > component runs through the engine and codec with `MAX_GROUP_DEPTH` raised in the test; with the v1 limit the audit rejects it with the documented message.
 - `dev/e2e_c4.mjs`: add each kind from the dock; connect and label a relation; collapse and expand a system group and check aggregated arrows appear and disappear; Level control; set an icon from the picker; a missing pack falls back to the generic icon with one warning; Save round trip keeps ids, collapse state and positions; `?present` disables editing.
@@ -267,6 +283,8 @@ Recommended, to confirm before phase 1.
 9. **Centre:** an explicit `core` flag on an element or group, any number including none; nothing is picked automatically.
 10. **Arrows:** one bend, run in the gutter between the facing frames, loop under a row for links inside a ring; c4 has its own gutter routing and reuses only path rounding and label placement.
 11. **Nodes:** icon cards, disc about 54px with a 32px glyph, text underneath.
+12. **Layers are a layout, not a group kind** (settled 2026-11-21): `arrange: "layers"` turns the top-level groups into stacked bands. No new group kind, and Level 3 readiness is unchanged. Layer bands do not map to Mermaid C4.
+13. **Links inside a group are allowed** (settled 2026-11-21), including between members that are not neighbours; the group lays out its members as a small flow when a row would put an arrow through a sibling.
 
 ## Sources
 

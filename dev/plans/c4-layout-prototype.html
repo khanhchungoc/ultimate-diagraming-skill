@@ -101,6 +101,13 @@ const MODES={
       ["portal","core","Reads orders","REST"],["core","erp","Syncs stock","Events"],["portal","crm","Looks up customers","REST"],
       ["erp","crm","Shares accounts","REST"],["core","pay","Charges cards","REST"],["core","ship","Books shipments","REST"],
       ["portal","mail","Sends replies","SMTP"],["pay","cards","Authorises","ISO 8583"]]},
+  layers:{label:"Layers",layers:true,
+    intro:"Layers are just another layout: each top-level group is a band, stacked in the order written. Elements in one band can link to each other (Orders to Billing); links between bands run down the gaps.",
+    center:[],
+    items:[{id:"exp",name:"Experience",ids:["web","app"]},{id:"svc",name:"Services",ids:["catalog","orders","bill"]},
+      {id:"plat",name:"Platform",ids:["inv","notif"]},{id:"ext",name:"External",ids:["supp","smtp"]}],
+    edges:[["web","orders","Orders","HTTPS"],["app","catalog","Browses","HTTPS"],["orders","bill","Charges","gRPC"],
+      ["orders","inv","Reserves stock","AMQP"],["bill","notif","Emits receipts","AMQP"],["inv","supp","Orders stock","EDI"],["notif","smtp","Sends","SMTP"]]},
   none:{label:"No centre",
     intro:"Nothing is in the middle: a service mesh. With no centre marked, the layout starts from the items nobody points at and flows down, layer by layer, in the same boxes and bent arrows.",
     center:[],
@@ -129,11 +136,12 @@ function layout(M){
   // 1. ring = distance from the centre
   items.forEach(i=>i.ring=-1);
   // no centre marked: a layered flow that starts from the items nobody points at
-  const flat=!M.center.length,pointed=new Set();
+  const flat=!M.center.length||M.layers,pointed=new Set();
   for(const [f,t] of M.edges){const a=ofEl[f],b=ofEl[t];if(a!==b)pointed.add(b)}
   const roots=items.filter(i=>!pointed.has(i)),seeds=flat?(roots.length?roots:[items[0]]):M.center.map(id=>byId[id]);
   const q=[...seeds];q.forEach(i=>i.ring=0);
-  for(let h=0;h<q.length;h++)for(const n of adj.get(q[h]))if(n.ring<0){n.ring=q[h].ring+1;q.push(n)}
+  if(M.layers)items.forEach((i,k)=>{i.ring=k}); // layers: the ring is the declared layer, not a distance
+  for(let h=0;h<q.length&&!M.layers;h++)for(const n of adj.get(q[h]))if(n.ring<0){n.ring=q[h].ring+1;q.push(n)}
   // the centre as a grid (any number of items); which sides of each centre element face open space
   const cols0=Math.ceil(Math.sqrt(seeds.length)),grid=[];
   for(let i=0;i<seeds.length;i+=cols0)grid.push(seeds.slice(i,i+cols0));
@@ -166,6 +174,7 @@ function layout(M){
     it.w=it.framed?cols*W+(cols-1)*gap+2*PAD:W;it.h=it.framed?rows*H+(rows-1)*GAP+TOP+PADB:H;
     it.rel=it.ids.map((e,i)=>({e,x:(it.framed?PAD:0)+(i%cols)*(W+gap),y:(it.framed?TOP:0)+Math.floor(i/cols)*(H+GAP)}));
   }
+  if(M.layers){const mw=Math.max(...items.map(i=>i.w));for(const it of items){const d=(mw-it.w)/2;it.rel.forEach(m=>m.x+=d);it.w=mw}} // every layer is a band as wide as the widest
   const place=(it,x,y)=>{it.x=x;it.y=y};
   // 4. the centre in a row on the origin, then each ring around the box so far
   const linked=(a,b)=>adj.get(a).includes(b);
