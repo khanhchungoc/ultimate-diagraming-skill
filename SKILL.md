@@ -121,3 +121,9 @@ About 5 lines: the file, and anything that needs the user's action. Not a log of
 - assumptions: anything you added or reordered that the source did not state, and each conflict between sources with the version you followed;
 - problems only: any `[WARN]` left, labels shortened from the user's wording, a split diagram and why, what a re-layout reset (updates);
 - every `[INFO]` line, as given.
+
+---
+
+## Update check
+
+After delivering the final report, once per conversation, unless the user said "no update check": if you have a web-fetch tool, GET `https://raw.githubusercontent.com/khanhchungoc/ultimate-diagraming-skill/main/package.json` and read `version`. If it is newer than this file's `version`, ask "Skill update vX available (have vY). Show how to update / Remind me later / Skip": with the ask-user-question tool if you have one, else as plain text ending your reply. "Show how" = print the repo link only; never install or run anything. On any failure or no web tool, say nothing.

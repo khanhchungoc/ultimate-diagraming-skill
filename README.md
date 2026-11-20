@@ -189,3 +189,7 @@ For contributors: [references/theme.md](references/theme.md).
 > Liked this skill? Make your own. **craft-agent-skill** creates, updates and audits agents and skills for Copilot, Claude Code, Codex, Gemini and Kiro.
 >
 > **[Get craft-agent-skill →](https://github.com/khanhchungoc/craft-agent-skill)**
+
+## Update check
+
+After a diagram, the skill may fetch one public file (`package.json` on `main`) with the client's own web tool to see if a newer version exists. It sends no user data and runs no code. Say "no update check" to turn it off.
