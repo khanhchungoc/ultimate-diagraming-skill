@@ -2047,7 +2047,6 @@
         btnSearch.addEventListener('click', () => setSearchOpen(!searchOpen()));
         searchPrev.addEventListener('click', () => stepSearch(-1));
         searchNext.addEventListener('click', () => stepSearch(1));
-        document.getElementById('search-close').addEventListener('click', () => setSearchOpen(false));
         searchInput.addEventListener('input', () => { searchIndex = 0; applySearch(); centreSearchMatch(); });
         searchInput.addEventListener('keydown', (e) => {
           if (e.key === 'Enter') { e.preventDefault(); stepSearch(e.shiftKey ? -1 : 1); }

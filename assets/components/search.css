@@ -1,12 +1,12 @@
-    /* Search: the bar under the header (input, counter, previous, next, close) and the two classes the shell puts on diagram
+    /* Search: the bar under the header (input, counter, previous, next) and the two classes the shell puts on diagram
        elements (search-dim on non-matches, search-current on the match being shown). View-only: exports and Save never see them.
-       Markup: #search-bar > input#search-input, #search-count, button#search-prev, button#search-next, button#search-close. */
+       Markup: #search-bar > input#search-input, #search-count, button#search-prev, button#search-next. */
     /* In the canvas, top right (below the header): an icon that opens into the text box; opening hides the icon */
     #search-dock { position: fixed; top: 68px; right: 16px; z-index: 150; display: flex; justify-content: flex-end; pointer-events: none; }
     #search-dock > * { pointer-events: auto; }
     #btn-search { background: var(--bg-panel); border: 1px solid var(--border-dark); box-shadow: var(--shadow-md); }
     #btn-search[aria-expanded="true"] { display: none; }
-    /* One rounded box like the other panels: icon, text, count, previous, next, close. Controls are flat (no boxes); the focus ring is the pill's */
+    /* One rounded box like the other panels: icon, text, count, previous, next. Controls are flat (no boxes); the focus ring is the pill's */
     #search-bar {
       display: flex; align-items: center; gap: 2px; padding: 4px 4px 4px 12px; height: 40px; box-sizing: border-box;
       background: var(--bg-panel); border: 1px solid var(--border-dark); border-radius: var(--radius-lg);

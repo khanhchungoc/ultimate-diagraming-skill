@@ -66,7 +66,7 @@ try {
   await t.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
   await t.ev(HELPERS);
 
-  const missing = await t.ev(`['btn-search','search-bar','search-input','search-count','search-prev','search-next','search-close']
+  const missing = await t.ev(`['btn-search','search-bar','search-input','search-count','search-prev','search-next']
     .filter((id) => !document.getElementById(id)).concat(typeof window.__searchItems === 'function' ? [] : ['window.__searchItems'])`);
   t.check('search UI and debug hook exist', missing.length === 0, 'missing: ' + missing.join(', '));
   const nItems = missing.length ? 0 : await t.ev(`window.__searchItems().length`);
