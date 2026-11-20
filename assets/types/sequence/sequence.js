@@ -1139,7 +1139,7 @@
         if (d.drop) d.drop(canvasPoint(e), d); else render();
       }
       // The rubber band of a connect or retarget drag, and the lifeline it would land on
-      const seqRubber = svgEl('line', { id: 'seq-rubber', x1: 0, y1: 0, x2: 0, y2: 0, 'marker-end': 'url(#seq-arrow-solid)' });
+      const seqRubber = svgEl('line', { id: 'seq-rubber', x1: 0, y1: 0, x2: 0, y2: 0, 'marker-end': 'url(#seq-arrow-drag)' });
       seqSvg.appendChild(seqRubber);
       function showRubber(x1, y1, x2, y2) {
         Object.entries({ x1, y1, x2, y2 }).forEach(([k, v]) => seqRubber.setAttribute(k, v));
@@ -1310,7 +1310,7 @@
             hidePlus();
             d.to = landing(pt, d);
             lightLifeline(d.to && d.to.id);
-            showRubber(from.x, y, pt.x, y + (pt.y - y) * 0.15);
+            showRubber(from.x, y, pt.x, y);   // always level: a message is drawn along its row
             showDropLine(y, slot.frame);
           },
           drop(pt, d) {
@@ -1666,10 +1666,10 @@
           if ((m.kind || 'sync') === 'sync') bar.appendChild(abButton('activate', '<span>Bar</span>', 'Activation bar: the call is drawn as busy until its reply (off draws no bar for this call)', m.activate !== false));
           if (m.until !== undefined) bar.appendChild(abButton('resetbar', '<span>Reset bar</span>', 'Draw this call\'s bar to its natural end again (clears "until" and the "activate": false it set on later calls)'));
           bar.appendChild(abButton('reverse', ui.icon('reverse'), 'Reverse the direction'));
-          if ((m.kind || 'sync') === 'sync' && m.from !== m.to) bar.appendChild(abButton('reply', `${ui.icon('reply')}<span>Reply</span>`, 'Add the reply under this call (or under the last message of its bar)'));
+          if ((m.kind || 'sync') === 'sync' && m.from !== m.to) bar.appendChild(abButton('reply', `${ui.icon('reply')}`, 'Add the reply under this call (or under the last message of its bar)'));
           bar.appendChild(htmlEl('span', 'seq-ab-sep'));
-          bar.appendChild(abButton('note', `${ui.icon('note')}<span>Note</span>`, 'Add a note under this message, over its sender'));
-          bar.appendChild(abButton('frame', `${ui.icon('frame')}<span>Frame</span>`, 'Wrap the selected message (or Shift+click range) in a frame'));
+          bar.appendChild(abButton('note', `${ui.icon('note')}`, 'Add a note under this message, over its sender'));
+          bar.appendChild(abButton('frame', `${ui.icon('frame')}`, 'Wrap the selected message (or Shift+click range) in a frame'));
           bar.appendChild(delSep());
           bar.appendChild(delButton('Delete this message (Delete key)'));
           const self = m.from === m.to;
@@ -1684,12 +1684,12 @@
           bar.setAttribute('aria-label', 'Participant');
           bar.classList.add('is-wrap');
           if (p.rail) {
-            bar.appendChild(abButton('show', `${ui.icon('eye')}<span>Show</span>`, 'Expand the frames that hide this participant'));
+            bar.appendChild(abButton('show', `${ui.icon('eye')}`, 'Expand the frames that hide this participant'));
             bar.appendChild(htmlEl('span', 'seq-ab-sep'));
           }
           PARTICIPANT_KINDS.forEach((k) => bar.appendChild(abButton('pkind', ui.icon(kindIconName(k)), KIND_TITLES[k], (p.kind || 'system') === k, k)));
           bar.appendChild(htmlEl('span', 'seq-ab-sep'));
-          bar.appendChild(abButton('note', `${ui.icon('note')}<span>Note</span>`, 'Add a note over this participant, above the first message'));
+          bar.appendChild(abButton('note', `${ui.icon('note')}`, 'Add a note over this participant, above the first message'));
           bar.appendChild(delSep());
           bar.appendChild(delButton('Delete this participant and its messages (Delete key)'));
           bar.appendChild(htmlEl('span', 'seq-ab-break'));
@@ -1745,7 +1745,7 @@
           const ms = sel.ids.map(msgById).filter((m) => m && !m.hidden);
           if (!ms.length) return;
           bar.setAttribute('aria-label', 'Messages');
-          bar.appendChild(abButton('frame', `${ui.icon('frame')}<span>Frame</span>`, 'Wrap the selected messages in a frame'));
+          bar.appendChild(abButton('frame', `${ui.icon('frame')}`, 'Wrap the selected messages in a frame'));
           bar.appendChild(delSep());
           bar.appendChild(delButton('Delete the selected messages (Delete key)'));
           const top = ms.reduce((u, v) => (v.y < u.y ? v : u)), a = byId[top.from], b = byId[top.to];
