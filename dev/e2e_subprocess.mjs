@@ -196,7 +196,7 @@ try {
   await sleep(300);
   const mmd = await t.ev(`window.__copied`);
   t.check('Copy as Mermaid holds the parent, the three sub_ blocks and per-block lane ids', !!mmd && (mmd.match(/subgraph sub_/g) || []).length === 3 && /subgraph lane_manager__procure_laptop\[/.test(mmd) && /subgraph lane_manager\[/.test(mmd), (mmd || '').slice(0, 200));
-  await t.ev(`document.getElementById('menu-import-mermaid').click()`);
+  await t.ev(`document.getElementById('btn-import-mermaid').click()`);
   await sleep(200);
   t.check('the Paste Mermaid box opens', await t.ev(`!!document.querySelector('.confirm-field')`));
   await t.ev(`(() => { const f = document.querySelector('.confirm-field'); f.value = window.__copied; document.querySelector('.confirm-ok').click(); })()`);
