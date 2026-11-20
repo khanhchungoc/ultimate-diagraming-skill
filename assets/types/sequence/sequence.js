@@ -187,6 +187,7 @@
       let retiringSvgEls = [];
       let barGhostAnim = null;
       let pendingBarRect = null;
+      let lastBarKey = null;   // which selection the bar was last drawn for: a redraw of the same one makes no entrance
 
       function seqLinePts(d) {
         const pts = [], re = /([MLHV])\s*([-\d.]+)(?:\s+([-\d.]+))?/gi;
@@ -1637,14 +1638,16 @@
       function drawSelectionTools(sel) {
         if (barGhostAnim) { try { barGhostAnim.cancel(); } catch (_) {} barGhostAnim = null; }
         const oldBar = seqHtml.querySelector('.seq-actionbar');
-        const fromRect = pendingBarRect || (oldBar && motion.enabled() ? oldBar.getBoundingClientRect() : null);
         pendingBarRect = null;
+        const barKey = sel.kind ? JSON.stringify([sel.kind, sel.id, sel.ids || null, sel.at || null]) : null;
+        const sameBar = barKey !== null && barKey === lastBarKey;
+        lastBarKey = barKey;
         if (!sel.kind || isPresent()) {
           if (oldBar) motion.hideBar(oldBar);
           seqHtml.querySelectorAll('.seq-handle, .seq-add-branch').forEach((el) => el.remove());
           return;
         }
-        if (oldBar) oldBar.remove();
+        if (oldBar) { if (sameBar) oldBar.remove(); else motion.hideBar(oldBar); }   // another element: the old bar closes, then the new one opens
         seqHtml.querySelectorAll('.seq-handle, .seq-add-branch').forEach((el) => el.remove());
         const bar = ui.actionBar('seq-actionbar');
         let at = null;
@@ -1765,8 +1768,7 @@
         bar.classList.toggle('is-below', !above);
         const gap = 8 / scale;   // a bar is not zoomed, so its gap to the anchor is screen pixels
         bar.style.top = px(above ? at.top - gap - ui.barSize(bar).h : at.bottom + gap);
-        if (fromRect && fromRect.width > 0) barGhostAnim = motion.ghostMorph(fromRect, bar, 170, 'curve-spring-settle');
-        else motion.showBar(bar);
+        if (!sameBar) motion.showBar(bar);
       }
 
       seqHtml.addEventListener('click', (e) => {

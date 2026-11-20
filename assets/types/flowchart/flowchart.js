@@ -2452,6 +2452,27 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           snap(e.to, pts.length - 1, pts.length - 2);
         });
 
+        // 5z. A Z with a small jog (out of one side, a short step, into the opposite side) between two steps that nearly line up:
+        // one end slides along its own straight edge so the arrow runs level. The end that moves is a plain box, and the other end's
+        // height (a diamond's vertex, say) must lie inside it.
+        const SLIDES = new Set(['task', 'subprocess', 'document']);
+        validEdges.forEach(e => {
+          const pts = edgePolylines[e.id];
+          if (!pts || pts.length !== 4) return;
+          const [a, b, c, d] = pts;
+          if (Math.abs(a[1] - b[1]) > 0.5 || Math.abs(b[0] - c[0]) > 0.5 || Math.abs(c[1] - d[1]) > 0.5) return;
+          const dy = d[1] - a[1];
+          if (Math.abs(dy) < 0.5 || Math.abs(dy) > 28 || Math.abs(d[0] - a[0]) < 30) return;
+          const fits = (id, y) => {
+            const n = nodeMap[id], r = rects[id];
+            if (!n || !r || !SLIDES.has(n.type)) return false;
+            const m = n.type === 'document' ? 10 : 6;
+            return y > r.y + m && y < r.y + r.h - m;
+          };
+          if (fits(e.from, d[1])) edgePolylines[e.id] = [[a[0], d[1]], d];
+          else if (fits(e.to, a[1])) edgePolylines[e.id] = [a, [d[0], a[1]]];
+        });
+
         // 6. Collect vertical segments from edges for planar bridge/hop overpasses
         const verticalSegments = [];
         validEdges.forEach(other => {
@@ -2799,17 +2820,11 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         return { x: spot.x, y: spot.y, w: lw, h: lh, wrapped: lw < singleLineWidth };
       }
 
-      let lastEdgeBarId = null, lastEdgeBarRect = null;
+      let lastEdgeBarId = null;
       function renderEdges() {
         const oldBar = edgeLabelsGroup.querySelector('.edge-bar');
         const barChanged = !draggingNode && selectedEdgeId !== lastEdgeBarId;
-        if (oldBar && barChanged) {
-          lastEdgeBarRect = motion.enabled() ? oldBar.getBoundingClientRect() : null;
-          if (!selectedEdgeId) motion.hideBar(oldBar);
-          else oldBar.remove();
-        } else if (!oldBar && barChanged) {
-          lastEdgeBarRect = null;
-        }
+        if (oldBar && barChanged) motion.hideBar(oldBar);   // another arrow: the old bar closes, then the new one opens
         edgeGroup.innerHTML = '';
         edgeLabelsGroup.innerHTML = '';
 
@@ -2976,11 +2991,8 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
               if (popBar && motion.enabled()) {
                 const br = bar.getBoundingClientRect();
                 if (br.width > 0) {
-                  // A first bar fades and slides in whole (its shadow with it); a bar replacing another morphs from its box
-                  if (lastEdgeBarRect && lastEdgeBarRect.width > 0) motion.ghostMorph(lastEdgeBarRect, bar, 170, 'curve-spring-settle');
-                  else motion.showBar(bar);
+                  motion.showBar(bar);   // fades and slides in whole (its shadow with it)
                 }
-                lastEdgeBarRect = null;
               }
             }
 
@@ -3606,7 +3618,6 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
       function selectLane(laneId) {
         const hadEdge = selectedEdgeId;
         const prevBar = lanesRoot.querySelector('.lane-selected .lane-bar');
-        const prevRect = prevBar && motion.enabled() ? prevBar.getBoundingClientRect() : null;
         selectedLaneId = laneId;
         clearNodeSelection();
         selectedEdgeId = null;
@@ -3616,8 +3627,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         if (nextBar && nextBar !== prevBar && motion.enabled()) {
           const nr = nextBar.getBoundingClientRect();
           if (nr.width > 0) {
-            if (prevRect && prevRect.width > 0) motion.ghostMorph(prevRect, nextBar, 170, 'curve-spring-settle');
-            else motion.showBar(nextBar);
+            motion.showBar(nextBar);
           }
         }
       }
@@ -3693,9 +3703,14 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
 
       // The selected step's action bar (components/actionbar.css), in its node: Note (one step) and Delete. It sits over the
       // node, or under it when there is no room above in the window (placeNodeBar, also run when the view moves).
+      let lastNodeBarKey = null;   // which selection the bar was last drawn for: a redraw of the same one makes no entrance
       function syncNodeBar() {
-        document.querySelectorAll('.node-bar').forEach(b => b.remove());
         const el = selectedNodeId && selectedNodeIds.has(selectedNodeId) && !isPresenting() ? nodeElOf(selectedNodeId) : null;
+        const key = el ? `${selectedNodeId}:${selectedNodeIds.size}` : null;
+        const same = key !== null && key === lastNodeBarKey;
+        lastNodeBarKey = key;
+        // another step: the old bar closes, then the new one opens in its own place
+        document.querySelectorAll('.node-bar').forEach(b => { if (same) b.remove(); else motion.hideBar(b); });
         if (!el) return;
         const many = selectedNodeIds.size > 1, node = nodeById(selectedNodeId);
         const bar = ui.actionBar('actionbar node-bar', 'Step');
@@ -3713,6 +3728,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         });
         el.appendChild(bar);
         placeNodeBar();
+        if (!same) motion.showBar(bar);
       }
       function placeNodeBar() {
         const bar = document.querySelector('.node-bar');
