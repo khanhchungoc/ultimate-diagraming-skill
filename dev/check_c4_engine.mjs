@@ -10,10 +10,16 @@ const read = (p) => readFileSync(at(p), 'utf8');
 const hasRoute = existsSync(at('../assets/types/c4/route.js'));
 const routerSrc = read('../assets/shell/ortho-router.js'), engineSrc = read('../assets/types/c4/engine.js');
 const make = (routeSrc) => new Function('TOKENS', `${routerSrc}\n${routeSrc}\n${engineSrc}\nreturn { layoutDiagram, routeDiagram };`)(tokens);
-const { layoutDiagram, routeDiagram } = make(hasRoute ? read('../assets/types/c4/route.js') : '');
+const routeSrc = hasRoute ? read('../assets/types/c4/route.js') : '';
+const { layoutDiagram, routeDiagram } = make(routeSrc);
+// the router with every call recorded: the edges the engine hands it (the last call of a layout is the one drawn)
+const spy = () => new Function('TOKENS', `const calls = [];\n${routerSrc}\n${routeSrc.replace('function routeC4Edges(', 'function realRoute(')}\n${engineSrc}\n` +
+  `function routeC4Edges(n, e) { calls.push(e); return ${hasRoute ? 'realRoute(n, e)' : 'c4Fallback(n, e)'}; }\nreturn { layoutDiagram, routeDiagram, calls };`)(tokens);
+const newRouter = hasRoute && routeSrc.includes('itemA');
 const fixture = (n) => JSON.parse(read(`./fixtures/c4/${n}.json`));
 const clone = (d) => JSON.parse(JSON.stringify(d));
 const LIMIT_MS = 3000;
+if (hasRoute && !newRouter) console.log('note: assets/types/c4/route.js does not take itemA/itemB yet; the arrow-vs-box check on all fixtures is skipped');
 if (!hasRoute) console.log('note: assets/types/c4/route.js is missing; arrows use the engine fallback and the arrow-vs-box checks are skipped');
 
 let failures = 0;
@@ -314,6 +320,127 @@ for (const [name, d0] of [['landscape collapsed', landC], ['components', comp]])
   noOverlap(col, 'collapse again'); inGroups(col, 'collapse again');
   check(col.elements.filter((e) => !inPlat.has(e.id)).every((e) => { const n = b.elements.find((q) => q.id === e.id); return n.x === e.x && n.y === e.y; }), 'collapse: outside items stay');
 }
+
+// ---- itemA / itemB, hints, member order, arrows against boxes, canvas
+// Independent of the engine: the chain of a node (itself, then its groups outward) from the plain data.
+const chainOf = (d, id) => {
+  const gBy = new Map(d.groups.map((g) => [g.id, g])), out = [id];
+  for (let g = gBy.get((elOf(d, id) || {}).group); g; g = gBy.get(g.parent)) out.push(g.id);
+  return out;
+};
+const nodeBox = (d, id) => { const o = elOf(d, id) || d.groups.find((g) => g.id === id); return boxOf(o); };
+const ctrBox = (b) => ({ x: b.x + b.w / 2, y: b.y + b.h / 2, w: b.w, h: b.h });
+
+function itemChecks(name, spec) {
+  const s = spy(), d = fixture(name);
+  s.layoutDiagram(d);
+  const calls = s.calls[s.calls.length - 1];
+  check(calls.length === d._edges.length, `${name}: router gets one edge per arrow`);
+  const seen = {};
+  calls.forEach((e) => {
+    const ca = chainOf(d, e.from).reverse(), cb = chainOf(d, e.to).reverse();   // outermost first
+    let k = 0;
+    while (k < ca.length - 1 && k < cb.length - 1 && ca[k] === cb[k]) k++;
+    const A = ca[k], B = cb[k];
+    check(e.itemA && e.itemB && e.itemA.id === A && e.itemB.id === B, `${name}: ${e.from} -> ${e.to} items are ${A}, ${B} (got ${e.itemA && e.itemA.id}, ${e.itemB && e.itemB.id})`);
+    if (e.itemA && e.itemB) {
+      check(JSON.stringify(e.itemA) === JSON.stringify({ id: A, ...ctrBox(nodeBox(d, A)) }), `${name}: ${e.from} -> ${e.to} itemA box`);
+      check(JSON.stringify(e.itemB) === JSON.stringify({ id: B, ...ctrBox(nodeBox(d, B)) }), `${name}: ${e.from} -> ${e.to} itemB box`);
+    }
+    seen[`${e.from}>${e.to}`] = e;
+  });
+  Object.entries(spec).forEach(([k, [a, b, hint]]) => {
+    const e = seen[k];
+    check(e && e.itemA.id === a && e.itemB.id === b, `${name}: ${k} items ${a}, ${b}`);
+    if (hint !== undefined) check(e && e.hint === hint, `${name}: ${k} hint ${hint} (got ${e && e.hint})`);
+  });
+  return d;
+}
+// nested (landscape): shopco > platform > api; an arrow from inside a group to a sibling of the group; two siblings inside a group
+itemChecks('landscape', {
+  'api>crm': ['platform', 'crm', undefined], 'cust>web': ['cust', 'shopco', undefined], 'api>pay': ['shopco', 'third', undefined],
+  'web>api': ['web', 'api', 'u'], 'api>orddb': ['api', 'orddb', 'h']
+});
+itemChecks('inner-links', { 'ui>bff': ['ui', 'bff', 'v'], 'gw>orders': ['gw', 'orders', 'h'], 'bff>cart': ['front', 'checkout', undefined], 'bff>gw': ['front', 'platform', undefined] });
+
+// Member order: a member linked to something entirely beyond one end of its group is the end member there (when it is the only one).
+function orderChecks(name, d, minHits) {
+  const gBy = new Map(d.groups.map((g) => [g.id, g]));
+  const inside = (id, gid) => chainOf(d, id).includes(gid) || (gBy.get(id) && (() => { for (let g = gBy.get(id); g; g = gBy.get(g.parent)) if (g.id === gid) return true; return false; })());
+  let hits = 0;
+  d.groups.filter((g) => !g._hidden && !g._collapsed).forEach((g) => {
+    const kids = d.elements.filter((e) => e.group === g.id).map((e) => e.id).concat(d.groups.filter((q) => q.parent === g.id).map((q) => q.id));
+    if (kids.length < 2) return;
+    const boxes = kids.map((k) => nodeBox(d, k));
+    const row = boxes.every((b) => boxes.every((c) => b.y < c.y + c.h && c.y < b.y + b.h)), col = boxes.every((b) => boxes.every((c) => b.x < c.x + c.w && c.x < b.x + b.w));
+    if (!row && !col) return;
+    const lo = (b) => (row ? b.x : b.y), hi = (b) => (row ? b.x + b.w : b.y + b.h), G = boxOf(g);
+    const reach = kids.map((k) => ({ before: false, after: false }));
+    d.relations.forEach((r) => {
+      [[r.from, r.to], [r.to, r.from]].forEach(([me, other]) => {
+        const i = kids.findIndex((k) => inside(me, k));
+        if (i < 0 || inside(other, g.id)) return;
+        const b = nodeBox(d, other);
+        if (hi(b) <= lo(G)) reach[i].before = true;
+        if (lo(b) >= hi(G)) reach[i].after = true;
+      });
+    });
+    const order = kids.map((k, i) => i).sort((p, q) => lo(boxes[p]) - lo(boxes[q]));
+    [['before', 0], ['after', kids.length - 1]].forEach(([side, end]) => {
+      const who = reach.map((r, i) => (r[side] ? i : -1)).filter((i) => i >= 0);
+      if (who.length !== 1 || reach[who[0]][side === 'before' ? 'after' : 'before']) return;
+      hits++;
+      check(order[end] === who[0], `${name}: in ${g.id}, ${kids[who[0]]} links ${side === 'before' ? (row ? 'left' : 'up') : (row ? 'right' : 'down')} and is not the end member there`);
+    });
+  });
+  check(hits >= minHits, `${name}: reorder rule applied ${hits} times (want at least ${minHits})`);
+}
+{
+  const d = fixture('landscape'); layoutDiagram(d);
+  orderChecks('landscape', d, 1);
+  const x = (id) => elOf(d, id).x;
+  check(x('api') > x('web') && x('api') > x('orddb') && elOf(d, 'crm').x > x('api'), 'landscape: api is the member nearest crm');
+  const w = fixture('landscape');   // the written order is not the drawn order, and the frame did not change
+  const before = w.groups.find((g) => g.id === 'platform');
+  check(before && d.groups.find((g) => g.id === 'platform').w === 736, 'landscape: reordering keeps the frame size');
+  const i = fixture('inner-links'); layoutDiagram(i);
+  orderChecks('inner-links', i, 1);
+}
+// every fixture: members stay in their frame at the same size whatever the order, and the order is stable
+for (const n of ran) { const d = fixture(n); layoutDiagram(d); orderChecks(n, d, 0); }
+
+// No arrow crosses a box it does not end on or a frame it does not enter.
+function arrowsClear(name, d) {
+  const gBy = new Map(d.groups.map((g) => [g.id, g]));
+  const boxes = d.elements.filter((e) => !e._hidden).map((e) => ({ id: e.id, ...boxOf(e) }))
+    .concat(d.groups.filter((g) => !g._hidden && g._collapsed).map((g) => ({ id: g.id, ...boxOf(g) })));
+  const frames = d.groups.filter((g) => !g._hidden && !g._collapsed).map((g) => ({ id: g.id, ...boxOf(g) }));
+  const up = (id) => { const s = new Set(); const e = elOf(d, id); for (let g = gBy.get(e ? e.group : (gBy.get(id) || {}).parent); g; g = gBy.get(g.parent)) s.add(g.id); return s; };
+  d._edges.forEach((e) => {
+    const enter = new Set([...up(e.from), ...up(e.to)]);
+    const segs = e.points.slice(1).map((p, k) => [e.points[k], p]);
+    boxes.forEach((b) => { if (b.id !== e.from && b.id !== e.to) check(!segs.some(([p, q]) => segHits(p, q, b)), `${name}: arrow ${e.from} -> ${e.to} crosses box ${b.id}`); });
+    frames.forEach((f) => { if (!enter.has(f.id)) check(!segs.some(([p, q]) => segHits(p, q, f)), `${name}: arrow ${e.from} -> ${e.to} crosses frame ${f.id}`); });
+  });
+}
+if (newRouter) {
+  for (const n of ran) { const d = fixture(n); layoutDiagram(d); arrowsClear(n, d); }
+} else if (hasRoute) {
+  for (const n of ['inner-links', 'landscape']) { const d = fixture(n); layoutDiagram(d); arrowsClear(`${n} (sibling boxes)`, d); }
+}
+
+// The canvas is tight: the content starts at the margin and ends one margin before the right and bottom edge.
+function canvasTight(name, d) {
+  const M = tokens.c4.margin;
+  let l = Infinity, t = Infinity, r = -Infinity, b = -Infinity;
+  const grow = (x0, y0, x1, y1) => { l = Math.min(l, x0); t = Math.min(t, y0); r = Math.max(r, x1); b = Math.max(b, y1); };
+  d.elements.concat(d.groups).filter((o) => !o._hidden && o.w > 0).forEach((o) => grow(o.x, o.y, o.x + o.w, o.y + o.h));
+  d._edges.forEach((e) => { e.points.forEach((p) => grow(p[0], p[1], p[0], p[1])); grow(e.labelBox.x, e.labelBox.y, e.labelBox.x + e.labelBox.w, e.labelBox.y + e.labelBox.h); });
+  check(Math.abs(l - M) <= 1 && Math.abs(t - M) <= 1, `${name}: content starts at the margin (${l}, ${t})`);
+  check(d.canvas.width - r >= M - 1 && d.canvas.width - r <= M + 1 && d.canvas.height - b >= M - 1 && d.canvas.height - b <= M + 1, `${name}: canvas ends one margin after the content (${d.canvas.width - r}, ${d.canvas.height - b})`);
+}
+for (const n of ran) { const d = fixture(n); layoutDiagram(d); canvasTight(n, d); }
+{ const d = clone(landC); layoutDiagram(d); canvasTight('landscape collapsed', d); }
 
 // ---- large landscape
 let worst = 0;

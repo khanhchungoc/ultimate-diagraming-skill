@@ -98,15 +98,22 @@ function c4Model(data) {
   return m;
 }
 
+// The two siblings just below the lowest container that holds both nodes: the ancestor-or-self of each (equal when one holds the other).
+function c4Sibs(m, x, y) {
+  const up = (n) => m.gN.get(n.par);
+  while (x.depth > y.depth) x = up(x);
+  while (y.depth > x.depth) y = up(y);
+  while (x.par !== y.par) { x = up(x); y = up(y); }
+  return [x, y];
+}
+
 // Relations between members of one container, as [ci, cj, count] by container id (the lowest common container of the two elements).
 function c4Links(m) {
-  const sets = new Map(), up = (n) => m.gN.get(n.par);
+  const sets = new Map();
   m.rels.forEach((r) => {
-    let x = m.eN.get(r.from), y = m.eN.get(r.to);
-    if (!x || !y || x === y) return;
-    while (x.depth > y.depth) x = up(x);
-    while (y.depth > x.depth) y = up(y);
-    while (x.par !== y.par) { x = up(x); y = up(y); }
+    const a0 = m.eN.get(r.from), b0 = m.eN.get(r.to);
+    if (!a0 || !b0 || a0 === b0) return;
+    const [x, y] = c4Sibs(m, a0, b0);
     if (x === y) return;
     const a = x.ci < y.ci ? x : y, b = a === x ? y : x, k = a.uid * 1e6 + b.uid;
     if (!sets.has(x.par)) sets.set(x.par, new Map());
@@ -257,12 +264,14 @@ function c4Size(m, g, vert) {
   g.kids.forEach((k) => { if (k.kind === 'g') c4Size(m, k, false); });
   const its = g.kids, n = its.length, pairs = m.links.has(g.id) ? Array.from(m.links.get(g.id).values()) : [];
   let c;
+  g.line = null;   // 'row' or 'col' when the members form one plain line (c4Order may reorder it), else null
   if (!n) c = { w: 0, h: 0 };
   else if (pairs.some((p) => p[1] - p[0] !== 1) || (pairs.length && n > C4.rowMax)) c = c4Flow(its, pairs);
   else {
     const linked = new Set(pairs.map((p) => p[0])), gap = (a) => (linked.has(a.ci) ? (vert ? C4.innerLinkY : C4.innerLinkX) : C4.innerGap);
     const lines = [];
     for (let o = 0; o < n; o += C4.rowMax) lines.push(its.slice(o, o + C4.rowMax));
+    if (lines.length === 1) g.line = vert ? 'col' : 'row';
     c = { w: 0, h: 0 };
     let off = 0;
     lines.forEach((ln) => {
@@ -464,6 +473,58 @@ function c4Place(m) {
   items.forEach((i) => { i.ax += dx; i.ay += dy; c4Assign(i); });
 }
 
+// ---------- member order ----------
+
+// Reorders the members of every plain row or column of members (one line, same sizes) by the barycentre of the elements they link to
+// OUTSIDE their group, along the line's axis, so a member whose arrows leave toward a side sits at that end. A member with no outside
+// link takes the mean of its linked members' keys, else keeps its place; ties by input order. The line keeps its total length (links
+// that are no longer adjacent give their label room back), so nothing around it moves. Outer groups first: moving a member moves
+// everything in it, and an inner group then sees the final position of its siblings. Run after c4Place.
+function c4Order(m) {
+  const up = (n) => m.gN.get(n.par);
+  m.eN.forEach((n) => { n.outs = null; });
+  m.gN.forEach((n) => { n.outs = null; });
+  m.rel2.forEach((r) => {
+    const [x, y] = c4Sibs(m, r.a, r.b);
+    for (let n = r.a; n !== x; n = up(n)) (n.outs || (n.outs = [])).push(r.b);
+    for (let n = r.b; n !== y; n = up(n)) (n.outs || (n.outs = [])).push(r.a);
+  });
+  const groups = Array.from(m.gN.values()).filter((g) => g.vis && !g.self && g.line && g.kids.length > 1);
+  groups.sort((p, q) => p.depth - q.depth || p.uid - q.uid);
+  groups.forEach((g) => {
+    const its = g.kids, n = its.length, vert = g.line === 'col';
+    const at = (k) => (vert ? k.ay + k.h / 2 : k.ax + k.w / 2);
+    let key = its.map((k) => (k.outs ? k.outs.reduce((s, o) => s + at(o), 0) / k.outs.length : null));
+    if (key.every((k) => k === null)) return;
+    const pairs = m.links.has(g.id) ? Array.from(m.links.get(g.id).values()) : [], nbr = its.map(() => []);
+    pairs.forEach((p) => { nbr[p[0]].push(p[1]); nbr[p[1]].push(p[0]); });
+    // a member with no outside link takes its linked members' mean key and, on a tie, sits on the inner side of them
+    const mid = vert ? g.ay + g.h / 2 : g.ax + g.w / 2, tie = its.map(() => 0);
+    for (let again = true; again;) {
+      again = false;
+      const next = key.slice();
+      key.forEach((k, i) => {
+        if (k !== null) return;
+        const ks = nbr[i].filter((j) => key[j] !== null).map((j) => key[j]);
+        if (ks.length) { next[i] = ks.reduce((s, v) => s + v, 0) / ks.length; tie[i] = next[i] > mid ? -1 : 1; again = true; }
+      });
+      key = next;
+    }
+    key = key.map((k, i) => (k === null ? at(its[i]) : k));
+    const order = its.map((_, i) => i).sort((p, q) => key[p] - key[q] || tie[p] - tie[q] || p - q);
+    if (order.every((i, k) => i === k)) return;
+    const seq = order.map((i) => its[i]), linked = new Set(pairs.map((p) => p[0] * n + p[1]));
+    const link = vert ? C4.innerLinkY : C4.innerLinkX, size = (k) => (vert ? k.h : k.w);
+    const base = seq.map((k, i) => (i ? (linked.has(Math.min(k.ci, seq[i - 1].ci) * n + Math.max(k.ci, seq[i - 1].ci)) ? link : C4.innerGap) : 0));
+    const total = seq.reduce((s, k, i) => s + size(k) + base[i], 0);
+    const old = Math.max.apply(null, its.map((k) => (vert ? k.ry : k.rx) + size(k)));
+    if (total > old) return;
+    const slack = old - total, each = Math.floor(slack / (n - 1)), rest = slack - each * (n - 1);
+    c4Line(seq, vert, (a, k) => { const i = seq.indexOf(k); return base[i] + each + (i === n - 1 ? rest : 0); });
+    c4Assign(g);
+  });
+}
+
 // ---------- state, frames ----------
 
 // Sizes and flags that never come from the saved file.
@@ -593,20 +654,38 @@ function c4Fallback(nodes, edges) {
 function c4Route(m, again) {
   const data = m.data, edges = c4Edges(m), nodes = {}, box = (n) => ({ x: n.ref.x + n.ref.w / 2, y: n.ref.y + n.ref.h / 2, w: n.ref.w, h: n.ref.h });
   const leaves = c4Leaves(m.root, []);
+  // `item` (the top-level item of the end) is only read by a router that predates itemA/itemB
   leaves.forEach((n) => { nodes[n.id] = Object.assign(box(n), { item: Object.assign(box(n.top), { id: n.top.id }) }); });
   // the lane of every top-level item: same ring and side, in reading order (a loop under the row unless the two are single boxes side by side)
   const lanes = new Map();
   m.items.forEach((i) => { if (i.side === 'N' || i.side === 'S') { const k = `${i.ring}${i.side}`; (lanes.get(k) || lanes.set(k, []).get(k)).push(i); } });
   lanes.forEach((l) => { l.sort((p, q) => p.ref.x - q.ref.x); l.forEach((i, k) => { i.lane = k; }); });
   const single = (i) => i.kind === 'e' || i.self;
-  const hint = (e) => {
-    const A = e.a.top, B = e.b.top;
-    if (A === B) return undefined;
+  // two siblings inside one group: side by side in a row, 'h' when next to each other and 'u' (loop under) when another member lies
+  // between; one above the other, 'v' when next to each other; anywhere else the router chooses by the gap
+  const innerHint = (x, y) => {
+    const X = x.ref, Y = y.ref, mid = (r, ax) => (ax ? r.y + r.h / 2 : r.x + r.w / 2);
+    const rowLike = X.y < Y.y + Y.h && Y.y < X.y + X.h, colLike = X.x < Y.x + Y.w && Y.x < X.x + X.w;
+    if (!rowLike && !colLike) return undefined;
+    const ax = rowLike ? 0 : 1, lo = Math.min(mid(X, ax), mid(Y, ax)), hi = Math.max(mid(X, ax), mid(Y, ax));
+    const b0 = rowLike ? Math.min(X.y, Y.y) : Math.min(X.x, Y.x), b1 = rowLike ? Math.max(X.y + X.h, Y.y + Y.h) : Math.max(X.x + X.w, Y.x + Y.w);
+    const between = m.gN.get(x.par).kids.some((s) => {
+      const r = s.ref, c = mid(r, ax), o0 = rowLike ? r.y : r.x, o1 = rowLike ? r.y + r.h : r.x + r.w;
+      return s !== x && s !== y && c > lo && c < hi && o0 < b1 && b0 < o1;
+    });
+    return rowLike ? (between ? 'u' : 'h') : (between ? undefined : 'v');
+  };
+  const hint = (A, B) => {
+    if (A.par) return innerHint(A, B);
     if (A.ring !== B.ring) { const o = A.ring > B.ring ? A : B; return c4Vert(o.side) ? 'v' : 'h'; }
     if (A.side !== B.side || !c4Vert(A.side)) return undefined;
     return Math.abs(A.lane - B.lane) === 1 && single(A) && single(B) ? undefined : 'u';
   };
-  const rEdges = edges.map((e) => ({ from: e.from, to: e.to, label: e.text, tech: e.tech, hint: hint(e) }));
+  const item = (n) => ({ id: n.id, x: n.ref.x + n.ref.w / 2, y: n.ref.y + n.ref.h / 2, w: n.ref.w, h: n.ref.h });
+  const rEdges = edges.map((e) => {
+    const [A, B] = c4Sibs(m, e.a, e.b);
+    return { from: e.from, to: e.to, label: e.text, tech: e.tech, hint: hint(A, B), itemA: item(A), itemB: item(B) };
+  });
   const res = !edges.length ? [] : typeof routeC4Edges === 'function' ? routeC4Edges(nodes, rEdges) : c4Fallback(nodes, rEdges);
   let right = 0, bottom = 0, left = Infinity, top = Infinity;
   const grow = (x, y) => { if (x > right) right = x; if (y > bottom) bottom = y; if (x < left) left = x; if (y < top) top = y; };
@@ -624,9 +703,9 @@ function c4Route(m, again) {
     grow(e.labelBox.x, e.labelBox.y); grow(e.labelBox.x + e.labelBox.w, e.labelBox.y + e.labelBox.h);
     data._edges.push(e);
   });
-  // an arrow that runs outside the picture moves the whole picture in, then the arrows are routed again
-  if (!again && (left < 0 || top < 0)) {
-    const dx = left < 0 ? C4.margin - left : 0, dy = top < 0 ? C4.margin - top : 0;
+  // the picture starts at the margin: an arrow outside it moves the whole picture in, then the arrows are routed again
+  if (!again && (left !== C4.margin || top !== C4.margin) && left < Infinity) {
+    const dx = C4.margin - left, dy = C4.margin - top;
     m.items.forEach((i) => c4Shift(i, dx, dy));
     c4Route(m, true);
     return;
@@ -641,6 +720,7 @@ function layoutDiagram(data) {
   m.links = c4Links(m);
   c4Rings(m);
   c4Place(m);
+  c4Order(m);
   c4Stamp(m);
   c4StampRings(m);
   c4Frames(m);
