@@ -85,27 +85,23 @@ The same demos as HTML files you can open in your browser without a connection: 
 
 ### Before you start
 
-You need Python 3.9+ and Chrome, Chromium or Edge (used to lay out and check every diagram). Node.js 18+ is optional: if it is installed, layout runs a bit faster. The `npx khanhchungoc/ultimate-diagraming-skill` installer checks all of these and tells you what is missing. `npx skills add` does not, so a missing one shows up on the first diagram. If something is missing, ask your agent to install it for you.
+You need Python 3.9+ and Chrome, Chromium or Edge (used to lay out and check every diagram). Node.js 18+ is optional: if it is installed, layout runs a bit faster. A missing one shows up on the first diagram; ask your agent to install it for you.
 
 ### Option A: one command
 
-If you have Node.js, run this in a terminal. It is listed on [skills.sh](https://skills.sh).
+Needs Node.js. Run in a terminal. Listed on [skills.sh](https://skills.sh).
+
+All your projects:
+
+```shell
+npx skills add khanhchungoc/ultimate-diagraming-skill -g
+```
+
+Current project only:
 
 ```shell
 npx skills add khanhchungoc/ultimate-diagraming-skill
 ```
-
-Add `-g` to install for all your projects. Without it, the skill goes into the current project folder.
-
-Or ask your AI agent to install it for you: *"Install the ultimate-diagram skill with `npx skills add khanhchungoc/ultimate-diagraming-skill`."*
-
-Prefer this project's own installer? It checks Python and Chrome for you and can save how Claude Code outputs diagrams:
-
-```shell
-npx khanhchungoc/ultimate-diagraming-skill
-```
-
-Add `--project` to install into the current project only, or `--runtime claude` to pick one agent.
 
 ### Option B: download (no terminal needed)
 
