@@ -166,7 +166,8 @@
     .seq-participant.linked { box-shadow: var(--shadow-ring), var(--halo); }
     body.exporting .is-dim { opacity: 1 !important; }
     /* Editing tools on the selection: never exported ([data-export-skip]), hidden in ?present and while dragging */
-    #seq-rubber { stroke: var(--primary); stroke-width: 2; stroke-dasharray: 6 4; display: none; }
+    #seq-rubber { stroke: var(--primary); stroke-width: 2; display: none; }
+    .seq-arrow-drag { fill: var(--primary); }
     .seq-lifeline.is-target { stroke: var(--primary); stroke-width: 2.5; stroke-dasharray: none; }
     .seq-plus, .seq-insert {
       position: absolute; display: none; align-items: center; justify-content: center; width: 20px; height: 20px;
