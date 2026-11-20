@@ -162,6 +162,8 @@ try {
   await t.type('Audit orders');
   await t.press('Enter');
   await sleep(100);
+  const audit = (await saved()).useCases.find((u) => u.name === 'Audit orders');
+  t.check('a use case made by hand gets the next requirement id (UC-01)', !!audit && J(audit.refs) === J(['UC-01']), J(audit));
   await tile('#btn-add-subject');
   t.check('Add > Subject: a third boundary, its name open', (await count('.uc-subject')) === 3 && (await editing()) === 'New system', `${await editing()}`);
   await t.type('Reporting');
@@ -194,6 +196,18 @@ try {
   const subAfter = await t.ev(`(() => { const r = document.querySelector('.uc-subject[data-subject-id="office"]').getBoundingClientRect(); return [r.left, r.top]; })()`);
   // boundaries stacked in one column keep their left edge aligned, so only the vertical move shows
   t.check('dragging a subject title moves the frame', Math.abs(subAfter[1] - subBefore[1] - 40) < 6, `${subBefore} -> ${subAfter}`);
+  await undo();
+  await blank();
+  // an edge tab resizes the frame one way
+  await t.clickOn('.uc-subject[data-subject-id="office"] .uc-subject-title');
+  const wBefore = await t.ev(`document.querySelector('.uc-subject[data-subject-id="office"]').getBoundingClientRect().width`);
+  const hBefore = await t.ev(`document.querySelector('.uc-subject[data-subject-id="office"]').getBoundingClientRect().height`);
+  const tabR = await t.at('.uc-subject[data-subject-id="office"] .uc-subject-tab.is-x');
+  await t.dragTo(tabR.x, tabR.y, tabR.x + 50, tabR.y, { steps: 8 });
+  await sleep(300);
+  const wAfter = await t.ev(`document.querySelector('.uc-subject[data-subject-id="office"]').getBoundingClientRect().width`);
+  const hAfter = await t.ev(`document.querySelector('.uc-subject[data-subject-id="office"]').getBoundingClientRect().height`);
+  t.check('dragging the right edge tab widens the frame and leaves its height', wAfter > wBefore + 30 && Math.abs(hAfter - hBefore) < 2 && (await count('.uc-subject-resize')) === 0, `${wBefore} -> ${wAfter}, ${hBefore} -> ${hAfter}`);
   await undo();
   await blank();
   t.check('no hover "+" note chip on items (the action bar has the note button)', (await count('.note-add')) === 0);
@@ -388,21 +402,21 @@ try {
   await t.clickOn(item('member'));
   t.check('a specialised actor reaches what its parent can do too', !(await dimmed()).includes('browse') && !(await dimmed()).includes('customer'), await dimmed());
   await blank();
-  // search
+  // search: the header's universal search (the type has no search field of its own); a use case is also found by requirement id
   await t.press('/');
-  t.check('/ focuses the search field', await t.ev(`document.activeElement.id === 'uc-search'`));
+  t.check('/ opens the universal search', await t.ev(`document.activeElement.id === 'search-input'`));
   await t.type('FR-9');
-  await sleep(100);
-  t.check('searching a requirement id lights the use case that has it and dims the rest', (await t.ev(`[...document.querySelectorAll('.uc-case.is-match')].map((e) => e.dataset.nodeId).join(',')`)) === 'pick' && (await count('.uc-case.is-dim')) === 6 && (await text('#uc-search-count')) === '1 match');
-  const view0 = await t.ev(`document.getElementById('stage').style.transform`);
-  await t.clickOn('#uc-search-fit');
-  await sleep(100);
-  t.check('Fit to matches zooms to them', (await t.ev(`document.getElementById('stage').style.transform`)) !== view0);
+  await sleep(150);
+  t.check('searching a requirement id finds the use case that has it and dims the rest',
+    (await t.ev(`[...document.querySelectorAll('.uc-case.search-current')].map((e) => e.dataset.nodeId).join(',')`)) === 'pick' && (await t.ev(`document.getElementById('search-count').textContent`)) === '1 / 1'
+    && (await count('.search-dim')) > 0);
   await t.press('Escape');
-  t.check('Esc in the field clears the search', (await count('.is-match')) === 0 && (await dimmed()) === '');
+  t.check('Esc closes the search and clears it', (await count('.search-dim')) === 0 && (await count('.search-current')) === 0);
   await t.press('/');
   await t.type('customer');
-  t.check('search also matches names', (await t.ev(`[...document.querySelectorAll('.uc-actor.is-match')].map((e) => e.dataset.nodeId).sort().join(',')`)) === 'customer,member');
+  await sleep(150);
+  const nameCount = await t.ev(`document.getElementById('search-count').textContent`);
+  t.check('search also matches names', /^1 \/ [2-9]$/.test(nameCount), nameCount);
   await t.press('Escape');
   await t.ev(`document.activeElement.blur()`);
   // Refs and Levels
@@ -506,11 +520,11 @@ sys.stdout.write(f.format_json(out))`;
   // The Present button toggles in place: the search is hidden and cleared, folds are view only
   await freshPage(page);
   await t.press('/'); await t.type('pick');
-  const matched = await count('.uc-case.is-match');
+  const matched = await count('.search-current');
   await t.clickOn('#btn-present');
   await t.press('/');
-  t.check('usecase: entering Present hides and clears the search, and / does not open it', matched > 0 && (await count('.uc-case.is-match')) === 0
-    && (await t.ev(`getComputedStyle(document.querySelector('.uc-search')).display === 'none' && document.activeElement.id !== 'uc-search'`)));
+  t.check('usecase: entering Present hides and clears the search, and / does not open it', matched > 0 && (await count('.search-current')) === 0
+    && (await t.ev(`document.getElementById('search-bar').hidden && getComputedStyle(document.getElementById('btn-search')).display === 'none' && document.activeElement.id !== 'search-input'`)));
   await t.clickOn('.uc-subject[data-subject-id="office"] .frame-chev');
   await t.press('Escape');
   t.check('usecase: Esc exits in one press, a fold made while presenting leaves no unsaved badge, undo step or collapsed item',

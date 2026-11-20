@@ -10,9 +10,26 @@
       </button>
       <span class="dock-sep" aria-hidden="true"></span>
       <!-- What is shown -->
-      <button id="btn-columns" class="btn" title="Columns: all. Click to show only key columns" aria-label="Columns">
-        {{icon:columns}}<span class="btn-label">Columns</span><span class="btn-count">All</span>
-      </button>
+      <!-- Columns: one of three views, so a choice from a popover (a radio group), not a button that cycles. Types below is a plain on/off switch. -->
+      <div class="dock-pop-wrap" data-dock-pop>
+        <button id="btn-columns" class="btn dock-pop-trigger" aria-label="Columns" aria-haspopup="true" aria-expanded="false" aria-controls="columns-pop">
+          {{icon:columns}}<span class="btn-label">Columns</span><span class="btn-count">All</span>
+          <span class="dock-pop-caret" aria-hidden="true">{{icon:chevron-up:xs:bold}}</span>
+        </button>
+        <div id="columns-pop" class="dock-pop" role="radiogroup" aria-label="Columns shown">
+          <div class="dock-pop-grid">
+            <button type="button" class="btn btn-shape" role="radio" data-detail="all" aria-checked="true" title="Every column" aria-label="All columns">
+              {{icon:columns:tile:fine}}<span class="tile-caption">All</span>
+            </button>
+            <button type="button" class="btn btn-shape" role="radio" data-detail="keys" aria-checked="false" title="Only the key columns" aria-label="Key columns only">
+              {{icon:key:tile:fine}}<span class="tile-caption">Keys</span>
+            </button>
+            <button type="button" class="btn btn-shape" role="radio" data-detail="names" aria-checked="false" title="Table names only" aria-label="Table names only">
+              {{icon:type-erd:tile:fine}}<span class="tile-caption">Names</span>
+            </button>
+          </div>
+        </div>
+      </div>
       <button id="btn-types" class="btn btn-switch" role="switch" title="Show or hide the column types" aria-label="Types" aria-checked="true">
         {{icon:types}}<span class="btn-label">Types</span>
       </button>

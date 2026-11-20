@@ -12,14 +12,14 @@
     :is(.actionbar, .uc-actionbar, .erd-actionbar, .seq-actionbar) { scale: var(--ui-scale, 1); transform-origin: 50% 100%; }
     :is(.actionbar, .uc-actionbar, .erd-actionbar, .seq-actionbar).is-below { transform-origin: 50% 0; }
     .ab-btn {
-      display: inline-flex; align-items: center; justify-content: center; gap: 4px; height: 26px; min-width: 26px; padding: 0 6px; box-sizing: border-box;
+      display: inline-flex; align-items: center; justify-content: center; gap: 4px; height: 30px; min-width: 30px; padding: 0 6px; box-sizing: border-box;
       border: 1px solid transparent; border-radius: var(--radius-md); background: transparent; color: var(--text-soft);
       font: inherit; font-size: var(--t-detail-size); cursor: pointer;
       transition: background-color var(--dur-micro) var(--curve-out), color var(--dur-micro) var(--curve-out),
                   border-color var(--dur-micro) var(--curve-out), transform var(--dur-micro) var(--curve-spring-tactile);
     }
     /* The show / hide chevron (ui.actionBar): the top right corner of every bar; collapsed, a bar is only this */
-    .ab-toggle { position: absolute; top: 3px; right: 3px; display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 26px; padding: 0; border: 0; border-radius: var(--radius-md); background: transparent; color: var(--text-muted); cursor: pointer; }
+    .ab-toggle { position: absolute; top: 3px; right: 3px; display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 30px; padding: 0; border: 0; border-radius: var(--radius-md); background: transparent; color: var(--text-muted); cursor: pointer; }
     .ab-toggle:hover { background: var(--bg-hover); color: var(--text-main); }
     .ab-toggle svg { display: block; transition: rotate var(--dur-micro) var(--curve-out); }
     body.bars-collapsed .ab-toggle svg { rotate: 180deg; }
@@ -27,13 +27,15 @@
     body:not(.bars-collapsed) :is(.actionbar, .uc-actionbar, .erd-actionbar, .seq-actionbar) { padding-right: 26px; }
     body.bars-collapsed .ab-toggle { position: static; }
     body.bars-collapsed :is(.actionbar, .uc-actionbar, .erd-actionbar, .seq-actionbar) > :not(.ab-toggle) { display: none !important; }
+    /* Bar icons (the 24-grid icons; the line glyphs keep their own size) are 18px, easy to hit and read */
+    :is(.ab-btn, .uc-ab-btn, .erd-ab-btn, .seq-ab-btn) svg[viewBox="0 0 24 24"] { width: 18px; height: 18px; }
     .ab-btn:hover { background: var(--bg-hover); color: var(--text-main); }
     .ab-btn:active { transform: scale(0.94); }
     .ab-btn[aria-pressed="true"] { background: var(--primary-wash); border-color: var(--primary-ring); color: var(--primary); }
     .ab-btn.is-danger { color: var(--danger); }
     .ab-btn.is-danger:hover { background: color-mix(in srgb, var(--danger) 10%, var(--bg-panel)); color: var(--danger); }
     .ab-btn svg { display: block; }
-    .ab-swatch { height: 26px; width: 26px; }
+    .ab-swatch { height: 30px; width: 30px; }
     /* Two rows: a .ab-break item splits them (the bar then has .is-wrap) */
     .actionbar.is-wrap { flex-wrap: wrap; justify-content: center; width: max-content; max-width: 340px; row-gap: 2px; }
     .ab-break { flex-basis: 100%; height: 0; }

@@ -122,20 +122,20 @@ try {
   t.check('Ctrl+Z restores the deleted lane', (await t.ev(`document.querySelectorAll('.swimlane').length`)) === lanesBefore
     && (await t.ev(`document.querySelectorAll('.flow-node').length`)) === nodesBefore);
 
-  // 2d. Hovering a lane shows no action bar; selecting it (pill click) shows it (colour, rename, move, delete: only that lane), and delete removes the lane
+  // 2d. Hovering a lane shows no action bar; selecting it (pill click) shows it (rename, delete, colour: only that lane), and delete removes the lane
   const toolsShown = await t.ev(`(() => {
     const L = document.querySelector('.swimlane:nth-child(2)'), r = L.getBoundingClientRect();
     L.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: r.left + 400, clientY: r.top + 40 }));
     const vis = el => !!el && el.getBoundingClientRect().width > 0;
     const onHover = vis(L.querySelector('.lane-bar'));
     L.querySelector('.lane-pill').click();
-    return [onHover, vis(L.querySelector('.lane-bar [data-act="earlier"]')), vis(L.querySelector('.lane-bar [data-act="delete"]')),
+    return [onHover, vis(L.querySelector('.lane-bar [data-act="rename"]')), vis(L.querySelector('.lane-bar [data-act="delete"]')),
       vis(document.querySelector('.swimlane:nth-child(1) .lane-bar')), !!L.querySelector('.lane-tools')];
   })()`);
   await t.ev(`document.querySelector('.swimlane:nth-child(2) .lane-bar [data-act="delete"]').click()`);
   await t.ev(`document.querySelector('.confirm-ok').click()`);
   const lanesAfterTool = await t.ev(`document.querySelectorAll('.swimlane').length`);
-  t.check('hovering a lane hides its bar; selecting it shows move + delete (only that lane), and delete (confirmed) removes the lane',
+  t.check('hovering a lane hides its bar; selecting it shows rename + delete (only that lane), and delete (confirmed) removes the lane',
     !toolsShown[0] && toolsShown[1] && toolsShown[2] && !toolsShown[3] && !toolsShown[4] && lanesAfterTool === lanesBefore - 1, `${JSON.stringify(toolsShown)} lanes=${lanesAfterTool}`);
   await t.ev(t.key('z', { ctrlKey: true }));
 
@@ -176,7 +176,7 @@ try {
 
   // 4. Theme toggle (shell) re-renders through the plugin
   const before = await t.ev(`document.documentElement.getAttribute('data-theme')`);
-  await t.ev(`document.getElementById('menu-theme').click()`);
+  await t.ev(`document.getElementById('btn-theme').click()`);
   const afterTheme = await t.ev(`document.documentElement.getAttribute('data-theme')`);
   t.check('theme toggle flips data-theme and keeps the diagram', before !== afterTheme && (await t.ev(`document.querySelectorAll('.flow-node').length`)) === nodeCount - 1 && t.errors.length === 0, t.errors.join(' | '));
 
@@ -575,10 +575,10 @@ try {
   await t.ev(`document.body.click()`);
   t.check('a click elsewhere closes the More menu', await t.ev(moreHidden));
   const themeNow = await t.ev(`document.documentElement.getAttribute('data-theme')`);
-  t.check('#menu-theme aria-checked follows the theme', await t.ev(`document.getElementById('menu-theme').getAttribute('aria-checked')`) === String(themeNow === 'dark'));
-  await t.ev(`document.getElementById('menu-theme').click()`);
-  t.check('#menu-theme aria-checked flips with the toggle', await t.ev(`document.getElementById('menu-theme').getAttribute('aria-checked')`) === String(themeNow !== 'dark'));
-  await t.ev(`document.getElementById('menu-theme').click()`);
+  t.check('#btn-theme aria-pressed follows the theme', await t.ev(`document.getElementById('btn-theme').getAttribute('aria-pressed')`) === String(themeNow === 'dark'));
+  await t.ev(`document.getElementById('btn-theme').click()`);
+  t.check('#btn-theme aria-pressed flips with the toggle', await t.ev(`document.getElementById('btn-theme').getAttribute('aria-pressed')`) === String(themeNow !== 'dark'));
+  await t.ev(`document.getElementById('btn-theme').click()`);
   await t.ev(`document.getElementById('menu-help').click()`);
   t.check('Keyboard shortcuts item opens the help drawer', await t.ev(`document.getElementById('help-drawer').classList.contains('open')`));
   await t.ev(`document.getElementById('help-close').click()`);

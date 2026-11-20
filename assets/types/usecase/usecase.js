@@ -21,10 +21,6 @@
       const btnLevels = document.getElementById('btn-levels');
       const btnNotes = document.getElementById('btn-notes');
       const btnAutoLayout = document.getElementById('btn-auto-layout');
-      const searchEl = document.getElementById('uc-search');
-      const searchCount = document.getElementById('uc-search-count');
-      const searchFit = document.getElementById('uc-search-fit');
-      const searchClear = document.getElementById('uc-search-clear');
 
       const LINK_TYPES = ['association', 'include', 'extend'];
       const KIND_ICON = { human: 'user', system: 'server', time: 'clock' };   // drawn in a round avatar
@@ -39,8 +35,6 @@
       let hoverLinkId = null;
       let hoverItemId = null;     // the actor or use case under the pointer: what it connects to directly stays lit, the rest dims
       let actorSw = new Map();    // actor id -> its colour slot (its own colour, else one picked for it; see actorSlots)
-      let searchQ = '';
-      let searchIds = [];
       let levelsOn = true;        // view only: off hides the subfunction use cases
       let autoTidy = true;        // always on for now (the Auto-Tidy button is hidden), so a saved 'off' is not read
       let uidCounter = 0;
@@ -296,10 +290,14 @@
         title.appendChild(htmlEl('span', 'uc-subject-name t-title', nameOf(s) || (real ? '' : 'System')));
         el.appendChild(title);
         if (real && s.collapsed !== true) {
-          const grip = htmlEl('div', 'uc-subject-resize');
-          grip.dataset.exportSkip = '';
-          grip.title = 'Drag to resize the frame';
-          el.appendChild(grip);
+          // Tabs on the right and bottom edges: drag one to grow or shrink the frame in that direction
+          [['x', 'Drag to change the width'], ['y', 'Drag to change the height']].forEach(([axis, title]) => {
+            const tab = htmlEl('div', `uc-subject-tab is-${axis}`);
+            tab.dataset.exportSkip = '';
+            tab.dataset.axis = axis;
+            tab.title = title;
+            el.appendChild(tab);
+          });
         }
         els.subjects.set(s.id, el);
         return el;
@@ -594,15 +592,13 @@
         return lit;
       }
       function applyFocus() {
-        let lit = null, fromSearch = false, hover = null;
+        let lit = null, hover = null;
         if (hoverItemId && !itemOf(hoverItemId)) hoverItemId = null;
-        if (searchQ) { lit = new Set(searchIds); fromSearch = true; }
-        else if (hoverItemId && !drag && !(selIds.length === 1 && !selOther && selIds[0] === hoverItemId)) { hover = hoverItemId; lit = direct(hover); }   // the clicked item keeps its wider focus
+        if (hoverItemId && !drag && !(selIds.length === 1 && !selOther && selIds[0] === hoverItemId)) { hover = hoverItemId; lit = direct(hover); }   // the clicked item keeps its wider focus
         else if (selIds.length === 1 && !selOther) lit = reach(selIds[0]);
         els.items.forEach((el, id) => {
           el.classList.toggle('is-dim', !!lit && !lit.has(id));
-          el.classList.toggle('is-match', fromSearch && lit.has(id));
-          el.classList.toggle('hl', !fromSearch && !!lit && lit.has(id) && selIds.length === 1 && id !== selIds[0] && false);
+          el.classList.toggle('hl', !!lit && lit.has(id) && selIds.length === 1 && id !== selIds[0] && false);
         });
         // hovering lights only the item's own lines; a selection lights every line inside what it reaches
         const lineLit = (from, to) => !!lit && (hover ? from === hover || to === hover : lit.has(from) && lit.has(to));
@@ -611,70 +607,16 @@
           if (!l) return;
           const on = lineLit(l.from, l.to);
           rec.g.classList.toggle('is-dim', !!lit && !on);
-          rec.g.classList.toggle('hl', !fromSearch && on);
-          if (rec.label) { rec.label.classList.toggle('is-dim', !!lit && !on); rec.label.classList.toggle('hl', !fromSearch && on); }
+          rec.g.classList.toggle('hl', on);
+          if (rec.label) { rec.label.classList.toggle('is-dim', !!lit && !on); rec.label.classList.toggle('hl', on); }
         });
         els.parents.forEach((g) => {
           const on = lineLit(g.dataset.from, g.dataset.to);
           g.classList.toggle('is-dim', !!lit && !on);
-          g.classList.toggle('hl', !fromSearch && on);
+          g.classList.toggle('hl', on);
         });
         els.subjects.forEach((el) => el.classList.remove('is-dim'));
         document.body.classList.toggle('uc-has-match', !!lit);
-      }
-
-      // --- SEARCH ---
-      function setSearch(q) {
-        searchQ = q.trim().toLowerCase();
-        searchIds = [];
-        if (searchQ) {
-          actors().forEach((a) => { if (nameOf(a).toLowerCase().includes(searchQ)) searchIds.push(a.id); });
-          cases().forEach((u) => {
-            if (isHiddenByLevel(u.id)) return;
-            if (nameOf(u).toLowerCase().includes(searchQ) || (u.refs || []).some((r) => String(r).toLowerCase().includes(searchQ))) searchIds.push(u.id);
-          });
-        }
-        const animKids = motion.enabled() ? [searchCount, searchFit, searchClear] : null;
-        const prevSearch = animKids ? animKids.map((el) => { const r = el.getBoundingClientRect(); return r.width > 0 ? r : null; }) : null;
-        searchCount.textContent = !searchQ ? '' : searchIds.length ? `${searchIds.length} match${searchIds.length === 1 ? '' : 'es'}` : 'No match';
-        searchFit.hidden = !searchIds.length;
-        searchClear.hidden = !searchQ;
-        if (animKids) {
-          const durMs = Math.round(motion.dur('dur-fast', 140) * motion.speedScale());
-          for (let i = 0; i < animKids.length; i++) {
-            const el = animKids[i], oldR = prevSearch[i], newR = el.getBoundingClientRect();
-            if (!newR.width) continue;
-            if (oldR) {
-              const dx = oldR.left - newR.left;
-              if (Math.abs(dx) > 0.5) motion.anim(el, [{ transform: `translateX(${dx}px)` }, { transform: 'none' }], { duration: durMs, easing: motion.curve('curve-spring-settle') });
-            } else {
-              motion.anim(el, [{ transform: 'scale(0.85)', clipPath: 'inset(0 25% 0 25%)' }, { transform: 'none', clipPath: 'inset(0 0 0 0)' }], { duration: durMs, easing: motion.curve('curve-spring-tactile') });
-            }
-          }
-        }
-        applyFocus();
-      }
-      searchEl.addEventListener('input', () => setSearch(searchEl.value));
-      searchEl.addEventListener('keydown', (e) => {
-        e.stopPropagation();
-        if (e.key === 'Enter') { e.preventDefault(); fitToMatches(); }
-        else if (e.key === 'Escape') { e.preventDefault(); clearSearch(); searchEl.blur(); }
-      });
-      function clearSearch() { searchEl.value = ''; setSearch(''); }
-      searchClear.addEventListener('click', () => { clearSearch(); searchEl.focus(); });
-      searchFit.addEventListener('click', fitToMatches);
-      function fitToMatches() {
-        const boxes = searchIds.map((id) => itemOf(id)).filter((o) => o && placed(o) && o.w).map(boxOf);
-        if (!boxes.length) return;
-        const x0 = Math.min(...boxes.map((b) => b.x)), y0 = Math.min(...boxes.map((b) => b.y));
-        const x1 = Math.max(...boxes.map((b) => b.x + b.w)), y1 = Math.max(...boxes.map((b) => b.y + b.h));
-        const vp = viewport.getBoundingClientRect(), dock = document.querySelector('.dock-area');
-        const band = dock && dock.offsetHeight ? Math.max(0, vp.bottom - dock.getBoundingClientRect().top) : 0;
-        const pad = 120, w = Math.max(1, x1 - x0), h = Math.max(1, y1 - y0);
-        const nextScale = Math.min(Math.max(Math.min((vp.width - pad) / w, (vp.height - band - pad) / h), 0.25), 1.25);
-        const nextPanX = (vp.width - w * nextScale) / 2 - (canvas.offsetLeft + x0) * nextScale;
-        const nextPanY = (vp.height - band - h * nextScale) / 2 - (canvas.offsetTop + y0) * nextScale;
-        animateViewport(nextPanX, nextPanY, nextScale, { duration: motion.dur('dur-camera', 240), easing: 'curve-out' });
       }
 
       // --- DOCK BUTTONS: Refs, Levels, Notes, Auto-Tidy ---
@@ -716,7 +658,6 @@
             else if (ext) toKey[u.id] = ext.to;
           });
         }
-        setSearch(searchEl.value);
         render({ snap, svgSnap, toKey, ghostExit: !levelsOn, duration: 220 });
       });
       btnAutoLayout.addEventListener('click', () => {
@@ -1180,8 +1121,8 @@
         }
         if (t.closest('.uc-actionbar, .confirm, .frame-chev, .note-badge, .note-del, .note-link, .note')) return;
         closeMenu();
-        const grip = t.closest('.uc-subject-resize');
-        if (grip) { e.preventDefault(); beginDrag(e, resizeDrag(grip.parentNode.dataset.subjectId)); return; }
+        const grip = t.closest('.uc-subject-tab');
+        if (grip) { e.preventDefault(); beginDrag(e, resizeDrag(grip.parentNode.dataset.subjectId, grip.dataset.axis)); return; }
         const title = t.closest('.uc-subject-title');
         if (title) {
           const id = title.parentNode.dataset.subjectId;
@@ -1236,14 +1177,15 @@
         [chartData.actors || [], chartData.useCases || [], realSubjects()].forEach((l, i) => l.forEach((o, k) => { if (d.snap[i][k]) { for (const key of ['x', 'y', 'fw', 'fh']) { if (key in d.snap[i][k]) o[key] = d.snap[i][k][key]; else delete o[key]; } } }));
       }
 
-      // --- Resize a subject frame from its bottom-right corner (saved as fw / fh, a minimum size) ---
-      function resizeDrag(id) {
+      // --- Resize a subject frame from a tab on its right (axis x) or bottom (axis y) edge (saved as fw / fh, a minimum size) ---
+      function resizeDrag(id, axis) {
         const s = subjectOf(id), w0 = s.w, h0 = s.h;
+        const apply = (d) => { if (axis !== 'y') s.fw = Math.max(1, Math.round(w0 + d.dx)); if (axis !== 'x') s.fh = Math.max(1, Math.round(h0 + d.dy)); };
         return {
           click: () => selectOther('subject', id),
-          move(e, d) { liveDrag(d, () => { s.fw = Math.max(1, Math.round(w0 + d.dx)); s.fh = Math.max(1, Math.round(h0 + d.dy)); }); },
+          move(e, d) { liveDrag(d, () => apply(d)); },
           drop(e, d) {
-            s.fw = Math.max(1, Math.round(w0 + d.dx)); s.fh = Math.max(1, Math.round(h0 + d.dy));
+            apply(d);
             routeDiagram(chartData);
             actors().forEach(keepOutside);
             commit(false);
@@ -1418,8 +1360,13 @@
         chartData.subjects = [s];
         cases().forEach((u) => { u.subject = s.id; });
       }
+      // The next requirement id for a use case made by hand: UC-01, UC-02... (the number after the highest UC-n in use)
+      function nextRef() {
+        const n = cases().reduce((m, u) => (u.refs || []).reduce((k, r) => { const x = /^UC-(\d+)$/i.exec(String(r)); return x ? Math.max(k, +x[1]) : k; }, m), 0) + 1;
+        return `UC-${String(n).padStart(2, '0')}`;
+      }
       function newCase(subject, pt) {
-        const u = { id: uid('u'), name: 'New use case' };
+        const u = { id: uid('u'), name: 'New use case', refs: [nextRef()] };
         if (subject && realSubjects().some((s) => s.id === subject.id)) u.subject = subject.id;
         else if (realSubjects().length) u.subject = realSubjects()[0].id;
         u.x = Math.round(pt.x - SIZE.useCase[0] / 2);
@@ -1699,7 +1646,7 @@
         if (!at) return;
         html.appendChild(bar);
         ui.fitBar(bar);
-        const C = chartData.canvas || { width: 1e9, height: 1e9 }, w = bar.offsetWidth, h = bar.offsetHeight;
+        const C = chartData.canvas || { width: 1e9, height: 1e9 }, w = ui.barSize(bar).w, h = ui.barSize(bar).h;
         const below = !ui.roomAbove({ getBoundingClientRect: () => ({ top: canvas.getBoundingClientRect().top + at.y * scale }) }, bar);   // by where the anchor is in the window
         bar.classList.toggle('is-below', below);
         const cx = Math.max(w / 2 - 30, Math.min(at.x, C.width - w / 2 + 30));
@@ -1749,7 +1696,6 @@
       function subjectBar(bar, s) {
         if (!s || typeof s.x !== 'number') return null;
         bar.setAttribute('aria-label', 'Subject');
-        bar.appendChild(abButton('collapse', `${ui.icon('chevron-down', { size: 'sm' })}<span>${s.collapsed ? 'Expand' : 'Collapse'}</span>`, s.collapsed ? 'Show the use cases again' : 'Collapse the subject to its name', s.collapsed === true));
         bar.appendChild(abButton('rename', ui.icon('rename'), 'Rename (F2)'));
         bar.appendChild(abButton('delete', ui.icon('trash'), 'Delete the subject and its use cases', undefined, undefined, 'is-danger'));
         return anchorOfBox(boxOf(s));
@@ -1837,8 +1783,7 @@
           return;
         }
         if (selOther && selOther.kind === 'subject') {
-          if (act === 'collapse') toggleCollapsed(selOther.id);
-          else if (act === 'rename') editSubjectName(selOther.id);
+          if (act === 'rename') editSubjectName(selOther.id);
           else if (act === 'delete') deleteSelection(btn);
           return;
         }
@@ -2081,10 +2026,8 @@
         if (a && a.tagName === 'INPUT') return;
         if (cancelInteraction()) return;
         if (selIds.length || selOther) { clearSelectionNow(); return; }
-        if (searchQ) clearSearch();
       }, true);
       window.addEventListener('keydown', (e) => {
-        if (e.key === '/' && !presenting() && !e.ctrlKey && !e.metaKey && !e.altKey && !typingInField()) { e.preventDefault(); searchEl.focus(); searchEl.select(); return; }
         if (presenting() ? !(e.key.startsWith('Arrow')) : false) return;
         if (drag || e.ctrlKey || e.metaKey) return;
         const a = document.activeElement;
@@ -2221,7 +2164,6 @@
           if (next.length === selIds.length && next.every((id) => selIds.includes(id)) && !selOther) return;
           setSel(next, null);
         },
-        clearSearch,
         selectAll() { if (!presenting()) setSel([...actors(), ...cases()].filter((o) => drawn(o.id)).map((o) => o.id), null); },
         deleteSelection,
         // Search: read the live DOM; ordered top to bottom, then left to right. A hidden note card (Notes off) has no box,
@@ -2236,7 +2178,8 @@
           };
           els.items.forEach((el, id) => {
             const n = el.querySelector('.uc-actor-name, .uc-name');
-            add((el.classList.contains('uc-actor') ? 'actor:' : 'uc:') + id, el, n && n.textContent);
+            const u = caseOf(id);   // a use case is also found by its requirement ids (FR-12, UC-03)
+            add((el.classList.contains('uc-actor') ? 'actor:' : 'uc:') + id, el, `${(n && n.textContent) || ''} ${u && Array.isArray(u.refs) ? u.refs.join(' ') : ''}`);
           });
           els.subjects.forEach((el, id) => { const n = el.querySelector('.uc-subject-name'); add('system:' + id, el, n && n.textContent); });
           html.querySelectorAll('.uc-label[data-edge-id]').forEach((el) => add('rel:' + el.dataset.edgeId, el, el.textContent));
