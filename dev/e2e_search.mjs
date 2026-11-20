@@ -85,6 +85,9 @@ try {
       (await visible('search-bar')) && (await t.ev(`document.activeElement.id`)) === 'search-input' && prevented);
     await press('search-input', 'Escape');
     t.check('Esc closes the bar', !(await visible('search-bar')));
+    await T(`keyOn(document.body, 'f', { ctrlKey: true })`);
+    await t.ev(`document.getElementById('chart-title').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))`);
+    t.check('a click elsewhere closes an empty search bar', !(await visible('search-bar')));
     await t.ev(`(() => { const h = document.getElementById('chart-title'); h.contentEditable = 'true'; h.focus(); })()`);
     const prevented2 = await T(`keyOn(document.activeElement, 'f', { ctrlKey: true })`);
     t.check('Ctrl+F inside the title field leaves the browser find alone', !(await visible('search-bar')) && !prevented2);

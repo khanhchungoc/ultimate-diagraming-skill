@@ -2053,6 +2053,10 @@
           if (e.key === 'Enter') { e.preventDefault(); stepSearch(e.shiftKey ? -1 : 1); }
           else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); setSearchOpen(false); }
         });
+        // A click elsewhere closes an empty search bar (one with text stays, its dimming is the result)
+        document.addEventListener('pointerdown', (e) => {
+          if (searchOpen() && !searchInput.value && !e.target.closest('#search-dock')) setSearchOpen(false);
+        }, true);
         window.addEventListener('keydown', (e) => {
           const mod = (e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === 'f';
           const slash = e.key === '/' && !e.ctrlKey && !e.metaKey && !e.altKey;
