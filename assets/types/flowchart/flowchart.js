@@ -2253,6 +2253,35 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           }));
         }
 
+        // 5a6. Fork bends: arrows that leave one point sideways and turn at different x (a Z next to a corridor route)
+        // snap to one shared turn, so the fork bends in one place. Skipped when both turn the same way and one is
+        // labelled (they would share a trunk and the label could not tell them apart), or when the snap would
+        // reverse a leg or cross a step.
+        {
+          const forks = {};
+          validEdges.forEach(e => {
+            const pts = edgePolylines[e.id];
+            if (pts && pts.length >= 4 && Math.abs(pts[0][1] - pts[1][1]) < 1 && Math.abs(pts[1][0] - pts[2][0]) < 1 && Math.abs(pts[1][0] - pts[0][0]) > 1) {
+              (forks[`${e.from}|${pts[0][0]}|${pts[0][1]}`] = forks[`${e.from}|${pts[0][0]}|${pts[0][1]}`] || []).push(e);
+            }
+          });
+          Object.values(forks).forEach(group => {
+            if (group.length < 2) return;
+            group.sort((a, b) => edgePolylines[a.id].length - edgePolylines[b.id].length || (a.id < b.id ? -1 : 1));
+            const lead = edgePolylines[group[0].id], x = lead[1][0], dirY = Math.sign(lead[2][1] - lead[1][1]);
+            group.slice(1).forEach(e => {
+              const pts = edgePolylines[e.id], old = pts[1][0];
+              if (Math.abs(old - x) < 1) return;
+              const sameWay = Math.sign(pts[2][1] - pts[1][1]) === dirY;
+              if (sameWay && ((e.label || '').trim() || (group[0].label || '').trim())) return;
+              if (Math.sign(x - pts[0][0]) !== Math.sign(old - pts[0][0])) return;
+              if (Math.sign(pts[3][0] - x) !== Math.sign(pts[3][0] - old)) return;
+              pts[1][0] = pts[2][0] = x;
+              if (!polyClear(pts, [e.from, e.to])) pts[1][0] = pts[2][0] = old;
+            });
+          });
+        }
+
         // 5b. De-overlap: unrelated edges must not share a collinear stretch. Spread interior
         // segments (never the port-attached first/last ones) onto parallel tracks.
         // Edges sharing a source or a target may still merge/fork on purpose.
@@ -2747,6 +2776,16 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           }
         }
 
+        // Where every long stretch is shared, a short leg only this arrow uses (about a label tall) is the one
+        // place the label belongs to it alone: try its middle, touching the node box (a diamond tip sits inside its box).
+        if (sharedStretches.length) {
+          for (let i = 0; i < points.length - 1; i++) {
+            const p = points[i], q = points[i + 1];
+            const len = Math.abs(q[0] - p[0]) + Math.abs(q[1] - p[1]);
+            if (len >= 26 && len < 56) candidates.push({ x: (p[0] + q[0]) / 2, y: (p[1] + q[1]) / 2, pad: -2 });
+          }
+        }
+
         const textLen = labelText ? labelText.trim().length : 0;
         const singleLineWidth = Math.max(40, textLen * FONT_M.edgeWrap + 18);
         let lw = singleLineWidth;
@@ -2792,7 +2831,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           let penalty = 0;
 
           for (const nb of nodeBoxes) {
-            if (BoxOverlap(bx, by, lw, lh, nb.x, nb.y, nb.w, nb.h, 8)) penalty += 1000;
+            if (BoxOverlap(bx, by, lw, lh, nb.x, nb.y, nb.w, nb.h, cand.pad ?? 8)) penalty += 1000;
           }
           for (const pl of placedLabels) {
             if (BoxOverlap(bx, by, lw, lh, pl.x, pl.y, pl.w, pl.h, 6)) penalty += 1000;
@@ -2832,7 +2871,10 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         const routes = computeAllEdgeRoutes();
         lastRoutes = routes;
 
-        chartData.edges.forEach(edge => {
+        // An arrow that hops over another is drawn after (above) the ones it hops, so the arc reads as passing over
+        // (a hop is the only `A` command in a path: corners are `Q`)
+        const hops = (ed) => (routes[ed.id] && routes[ed.id].path || '').includes(' A ') ? 1 : 0;
+        [...chartData.edges].sort((a, b) => hops(a) - hops(b)).forEach(edge => {
           const pathD = routes[edge.id];
           if (!pathD || !pathD.path) return;
 
