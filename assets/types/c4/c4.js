@@ -157,18 +157,15 @@
         const name = e.icon && ICONS[e.icon] !== undefined ? e.icon : KIND_ICON[e.kind] || 'box';
         return ICONS[name] !== undefined ? name : 'cloud';
       }
+      const swatchOf = (o) => {
+        const c = o && o.color ? colorSlot(o.color) : null;
+        return c && (swatchSlot(c) || /^#[0-9a-f]{3,8}$/i.test(c)) ? c : null;
+      };
       function paint(el, color, slot) {   // the swatch roles of the element's colour, else of the default slot of its kind; external: none
         if (color || slot) setSwatch(el, color || slot);
       }
       function ariaOf(e) { return [nameOf(e), KIND_NAME[e.kind] || e.kind, e.tech].filter(Boolean).join(', '); }
 
-      // A database is a cylinder: the flowchart's database outline, drawn for this tile's size (the cap is 8 deep)
-      function cylinder(w, h) {
-        const rx = w / 2 - 1, ry = 8, s = svgEl('svg', { class: 'c4-shape', width: w, height: h, viewBox: `0 0 ${w} ${h}`, 'aria-hidden': 'true' });
-        s.appendChild(svgEl('path', { class: 'shape-path', d: `M1 ${ry}A${rx} ${ry} 0 0 1 ${w - 1} ${ry}V${h - ry}A${rx} ${ry} 0 0 1 1 ${h - ry}Z` }));
-        s.appendChild(svgEl('path', { class: 'shape-line', d: `M1 ${ry}A${rx} ${ry} 0 0 0 ${w - 1} ${ry}` }));
-        return s;
-      }
       function buildNode(e) {
         const el = htmlEl('div', 'c4-node');
         el.dataset.nodeId = e.id;
@@ -177,10 +174,9 @@
         el.setAttribute('role', 'group');
         el.setAttribute('aria-label', ariaOf(e));
         Object.assign(el.style, { left: px(e.x), top: px(e.y), width: px(e.w), height: px(e.h) });
-        paint(el, e.color, KIND_SLOT[e.kind]);
-        if (e.kind === 'database') el.appendChild(cylinder(e.w, e.h));
-        const chip = htmlEl('span', 'c4-icon');
-        chip.innerHTML = ui.icon(iconOf(e), { size: e.kind === 'person' ? 'lg' : 'md' });
+        paint(el, e.color, KIND_SLOT[e.kind] || '9');   // external: the neutral slot
+        const chip = htmlEl('span', 'c4-disc');
+        chip.innerHTML = ui.icon(iconOf(e), { size: 'tile', fine: true });
         const text = htmlEl('span', 'c4-text');
         text.appendChild(htmlEl('span', 'c4-name t-title', nameOf(e)));
         if (e.tech && showTech()) text.appendChild(htmlEl('span', 'c4-tech t-detail', `[${e.tech}]`));
@@ -219,12 +215,15 @@
           text.appendChild(htmlEl('span', 'c4-name t-title', nameOf(g)));
           const n = descendants(g).filter((id) => elementOf(id)).length;
           text.appendChild(htmlEl('span', 'c4-desc t-detail', `${n} ${n === 1 ? 'element' : 'elements'} inside`));
-          el.append(chevron(g, true), text);
+          const chip = htmlEl('span', 'c4-disc');
+          chip.innerHTML = ui.icon(KIND_ICON.system, { size: 'tile', fine: true });
+          el.append(chip, text, chevron(g, true));
           el.addEventListener('dblclick', (ev) => { ev.stopPropagation(); toggleGroup(g.id); });
           hoverable(el, g.id);
         } else {
-          if (g.color) paint(el, g.color);
           const tag = htmlEl('div', 'frame-tag c4-tag');
+          const tint = swatchOf(g);   // a group's colour: a slot or custom hex, as a sequence frame's
+          if (tint) { paint(el, tint); paint(tag, tint); }
           tag.tabIndex = -1;
           tag.setAttribute('role', 'group');
           tag.setAttribute('aria-label', `${nameOf(g)}, ${g.kind === 'boundary' ? 'boundary' : 'software system'}`);
@@ -280,25 +279,14 @@
         });
       }
 
-      // The colour key as a legend under the diagram
+      // The colour key: the palette slots groups and elements use and what each means (colorKey); a slot with no label is left out
       let legendEl = null;
       function renderLegend() {
-        legendEl = null;
-        const key = chartData.colorKey && typeof chartData.colorKey === 'object' ? chartData.colorKey : {};
-        const slots = Object.keys(key).filter((k) => key[k] && swatchSlot(k));
-        if (!slots.length) return;
-        legendEl = htmlEl('div', 'c4-legend');
-        legendEl.setAttribute('role', 'list');
-        legendEl.setAttribute('aria-label', 'Colour key');
+        const used = [];
+        groups().concat(elements()).forEach((o) => { const c = swatchOf(o); if (c && swatchSlot(c) && !used.includes(c)) used.push(c); });
+        legendEl = ui.colorKey(used, chartData.colorKey, { cls: 'c4-key' });
+        if (!legendEl) return;
         legendEl.style.top = px((chartData.canvas || { height: 0 }).height + 12);
-        slots.forEach((k) => {
-          const item = htmlEl('span', 'c4-legend-item t-detail');
-          item.setAttribute('role', 'listitem');
-          const dot = htmlEl('span', 'swatch-dot');
-          setSwatch(dot, k);
-          item.append(dot, document.createTextNode(String(key[k])));
-          legendEl.appendChild(item);
-        });
         html.appendChild(legendEl);
       }
 
@@ -411,7 +399,7 @@
       // --- DISK FORMAT ---
       // The same bytes as c4_to_disk / c4_from_disk in scripts/disk_format.py (contract: the codec spec above C4_KEYS there). A
       // page-made id (e_<ms>) is renamed to its name slug by the editing step, which is also what makes them.
-      const DISK_KEYS = ['diagramType', 'schemaVersion', 'title', 'showTech', 'showNotes', 'colorKey', 'groups', 'elements', 'relations', 'notes', 'layout'];
+      const DISK_KEYS = ['diagramType', 'schemaVersion', 'title', 'arrange', 'showTech', 'showNotes', 'colorKey', 'groups', 'elements', 'relations', 'notes', 'layout'];
       const DISK_DERIVED = [['groups', ['w', 'h']], ['elements', ['w', 'h']], ['relations', ['points', 'labelBox']]];
       const DISK_OBJECTS = ['groups', 'elements', 'relations', 'notes'];
       const isNum = (v) => typeof v === 'number' && Number.isFinite(v);

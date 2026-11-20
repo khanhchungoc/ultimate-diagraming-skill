@@ -15,15 +15,19 @@
       border: var(--ring-thin) dashed var(--border-dark); border-radius: var(--radius-2xl);
       transition: border-color var(--dur-micro) var(--curve-out), background-color var(--dur-micro) var(--curve-out);
     }
-    .c4-group.is-frame[data-sw] { border-color: var(--sw-line); }
+    /* A group's colour (slot or custom hex, setSwatch) works as a sequence frame's: line, wash and tag at low strength in both themes */
+    .c4-group.is-frame.swatch-scope { background: color-mix(in srgb, var(--sw-line) 7%, transparent); border-color: color-mix(in srgb, var(--sw-line) 45%, var(--border-dark)); }
+    .frame-tag.swatch-scope { background: color-mix(in srgb, var(--sw-line) 18%, var(--bg-panel)); border-color: color-mix(in srgb, var(--sw-line) 45%, var(--border-dark)); }
     .c4-group[data-kind="boundary"].is-frame { border-style: solid; }   /* an ownership frame is solid, a system (which opens into its containers) dashed */
     .c4-tag { z-index: 25; left: 12px; top: 8px; display: flex; align-items: center; gap: 2px; pointer-events: auto; cursor: pointer; font-weight: var(--weight-semibold); }
     .c4-tag:focus-visible, .c4-node:focus-visible, .c4-group.is-tile:focus-visible, .c4-label:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 3px; }
 
-    /* --- Tiles: the flowchart tile (an inset ring that thickens to the accent on hover and selection), icon on the left --- */
+    /* --- Icon cards: the flowchart tile (an inset ring that thickens to the accent on hover and selection) with a coloured disc and
+       its glyph centred at the top, the name and the detail line under it. The disc is the kind colour (--sw-pill-solid), the glyph
+       --sw-on-solid; the box size is the engine's. --- */
     .c4-node, .c4-group.is-tile {
       --ring: var(--node-border);
-      position: absolute; box-sizing: border-box; display: flex; align-items: center; gap: 10px; padding: 6px 12px;
+      position: absolute; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 12px; text-align: center;
       background: var(--sw-tint, var(--sw-pill-bg, var(--node-bg))); color: var(--sw-pill-ink, var(--text-main));
       border-radius: var(--radius-lg); box-shadow: inset 0 0 0 var(--ring-thin) var(--ring), var(--shadow-sm);
       transition: box-shadow var(--dur-micro) var(--curve-out), background-color var(--dur-base) var(--curve-inout), opacity 110ms var(--curve-inout), filter 110ms var(--curve-inout);
@@ -37,25 +41,18 @@
     .c4-node.selected, .c4-group.is-tile.selected { --ring: var(--primary); box-shadow: inset 0 0 0 var(--ring-thin) var(--ring), var(--shadow-ring); }
     .c4-node.is-dim, .c4-group.is-tile.is-dim { opacity: var(--dim); filter: var(--dim-filter); }   /* greyed out, not just faded */
     body.exporting .is-dim { opacity: 1 !important; filter: none !important; }
-    .c4-icon { flex: none; display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; box-sizing: border-box; border-radius: var(--radius-md); background: var(--bg-panel); color: var(--sw-pill-ink, var(--text-soft)); box-shadow: inset 0 0 0 var(--ring-thin) var(--ring); }
-    .c4-node[data-kind="person"] .c4-icon { border-radius: var(--radius-round); width: 40px; height: 40px; }   /* the round avatar of the use case actor */
-    .c4-icon svg { display: block; }
-    .c4-text { min-width: 0; flex: 1 1 auto; display: flex; flex-direction: column; align-items: flex-start; text-align: left; overflow: hidden; }
-    .c4-name { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
-    .c4-tech, .c4-desc { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
+    .c4-disc {
+      flex: none; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-round);
+      width: calc(var(--icon-tile) * 1.7); height: calc(var(--icon-tile) * 1.7); background: var(--sw-pill-solid, var(--text-soft)); color: var(--sw-on-solid, var(--bg-panel));
+    }
+    .c4-disc svg { display: block; }
+    .c4-text { min-width: 0; max-width: 100%; flex: 0 1 auto; display: flex; flex-direction: column; align-items: center; overflow: hidden; }
+    .c4-name, .c4-tech, .c4-desc { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
+    .c4-desc { -webkit-line-clamp: 3; }
     .c4-tech { font-style: italic; }
-    .c4-group.is-tile .frame-chev { flex: none; width: 24px; height: 24px; margin: 0 -4px 0 -6px; color: inherit; }
+    .c4-group.is-tile .frame-chev { position: absolute; left: 4px; top: 4px; width: 24px; height: 24px; margin: 0; color: inherit; }
     .c4-group.is-tile .frame-chev svg { transform: rotate(-90deg); }
     .c4-group.is-frame .frame-chev { width: 24px; height: 24px; margin: 0 0 0 -6px; vertical-align: baseline; }
-
-    /* A database: the flowchart's cylinder outline, drawn for the tile's size; the box itself is transparent */
-    .c4-node[data-kind="database"] { background: transparent !important; box-shadow: none !important; padding-top: 14px; }
-    .c4-shape { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
-    .c4-shape > * { vector-effect: non-scaling-stroke; stroke-width: var(--ring-thin); stroke-linejoin: round; transition: stroke var(--dur-micro) var(--curve-out); }
-    .c4-shape .shape-path { fill: var(--sw-tint, var(--sw-pill-bg, var(--node-bg))); stroke: var(--ring); }
-    .c4-shape .shape-line { fill: none; stroke: var(--ring); }
-    .c4-node[data-kind="database"] > :not(.c4-shape) { position: relative; z-index: 1; }
-    .c4-node[data-kind="database"].selected .c4-shape { filter: drop-shadow(0 0 var(--ring-lg) var(--primary-glow)); }
 
     /* --- Arrows: the shared edge line (edge.css), neutral at rest; in/out lit as the flowchart does --- */
     .c4-edge { transition: opacity 110ms var(--curve-inout); }
@@ -78,10 +75,8 @@
     .c4-label.is-dim { opacity: var(--dim); }
     .c4-label.selected { border-color: var(--primary); box-shadow: var(--shadow-glow) var(--primary-glow); }
 
-    /* Legend of the colour key, under the diagram */
-    .c4-legend { position: absolute; left: 0; display: flex; flex-wrap: wrap; gap: 4px 16px; pointer-events: none; color: var(--text-main); }
-    .c4-legend-item { display: inline-flex; align-items: center; gap: 6px; padding: 2px 10px 2px 8px; border-radius: var(--radius-pill); background: var(--bg-panel); border: 1px solid var(--border-color); box-shadow: var(--shadow-sm); }
-    .c4-legend .swatch-dot { background: var(--sw-pill-bg); border: var(--ring-thin) solid var(--sw-line); }
+    /* The colour key (ui.colorKey), under the diagram */
+    .c4-key { position: absolute; left: 0; pointer-events: none; }
 
     /* ?present: read only. Selecting and collapsing still work. */
     body.presentation .c4-node, body.presentation .c4-group.is-tile { cursor: pointer; }
