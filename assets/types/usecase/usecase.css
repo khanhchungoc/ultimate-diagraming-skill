@@ -184,6 +184,7 @@
     .uc-ab-btn:active { transform: scale(0.94); }
     .uc-ab-btn[aria-pressed="true"] { background: var(--primary-wash); border-color: var(--primary-ring); color: var(--primary); }
     .uc-ab-btn[aria-disabled="true"] { opacity: 0.4; cursor: default; }
+    .uc-ab-btn.is-danger { color: var(--danger); }
     .uc-ab-btn.is-danger:hover { background: color-mix(in srgb, var(--danger) 10%, var(--bg-panel)); color: var(--danger); }
     .uc-ab-btn svg { display: block; }
     .uc-ab-btn:focus-visible, .uc-ab-input:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
@@ -195,18 +196,15 @@
       background: var(--bg-input); color: var(--text-main); font-size: var(--t-detail-size); font-weight: var(--t-detail-weight);
     }
     .uc-ab-glyph svg path { stroke: currentColor; fill: none; }
-    body.uc-dragging .uc-actionbar, body.uc-dragging .note-add { display: none !important; }
+    body.uc-dragging .uc-actionbar { display: none !important; }
     .uc-menu { position: fixed; right: auto; top: auto; z-index: 2100; }
 
-    /* The + chip that adds a note to an item (the chip itself is components/note.css) */
-    .uc-case:hover > .note-add, .uc-case.selected > .note-add, .uc-actor:hover > .note-add, .uc-actor.selected > .note-add { display: inline-flex; }
-    body:is(.palette-dragging, .uc-dragging, .note-picking) .uc-case:not(.selected) > .note-add { display: none; }
     body.note-picking .uc-case:hover, body.note-picking .uc-actor:hover { outline: 2px dashed var(--note-accent); outline-offset: 4px; }
     body.note-picking .uc-case, body.note-picking .uc-actor, body.note-picking .uc-case *, body.note-picking .uc-actor * { cursor: copy !important; }
     .uc-case.note-target, .uc-actor.note-target { outline: 2px dashed var(--note-accent); outline-offset: 4px; }
 
     /* ?present: read only. Selecting (and so the actor focus) and collapsing still work. */
-    body.presentation .uc-port, body.presentation .uc-actionbar, body.presentation .note-add { display: none !important; }
+    body.presentation .uc-port, body.presentation .uc-actionbar { display: none !important; }
 
     /* The tiny drawings in the help drawer */
     .uc-help-line { display: flex; align-items: center; gap: 8px; margin: 4px 0; }

@@ -121,14 +121,13 @@ try {
   await t.ev(`__t.click('n2')`);
   t.check('a plain click still selects one step, with its ports and a plain "Delete"',
     same(await t.ev(`__t.sel()`), ['n2']) && !(await t.ev(`document.getElementById('swimlanes-container').classList.contains('multi-select')`))
-    && (await t.ev(`document.querySelector('#btn-delete-selection .btn-label').textContent`)) === 'Delete');
+    && (await t.ev(`document.querySelector('.node-bar [data-act="delete"]').textContent.trim()`)) === '');
 
   await t.ev(`__t.click('n5', { ctrlKey: true })`);
   const two = await t.ev(`__t.sel()`);
-  const dock = await t.ev(`new Promise(r => requestAnimationFrame(() => r([document.querySelector('#btn-delete-selection .btn-label').textContent,
-    document.getElementById('btn-delete-selection').classList.contains('show')])))`);
+  const dock = await t.ev(`new Promise(r => requestAnimationFrame(() => r([document.querySelector('.node-bar [data-act="delete"]').textContent.trim(), true])))`);
   const portsHidden = await t.ev(`getComputedStyle(document.querySelector('#node-n2 .port')).display === 'none'`);
-  t.check('Ctrl+click adds a step; the dock shows "Delete 2" and connect ports hide', same(two, ['n2', 'n5']) && dock[0] === 'Delete 2' && dock[1] && portsHidden,
+  t.check('Ctrl+click adds a step; the step bar shows "Delete 2" and connect ports hide', same(two, ['n2', 'n5']) && dock[0] === 'Delete 2' && dock[1] && portsHidden,
     `sel=${JSON.stringify(two)} dock=${JSON.stringify(dock)} portsHidden=${portsHidden}`);
   await t.ev(`__t.click('n5', { metaKey: true })`);
   t.check('Ctrl/Cmd+click on a selected step takes it out', same(await t.ev(`__t.sel()`), ['n2']));

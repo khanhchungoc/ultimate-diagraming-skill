@@ -567,12 +567,17 @@
     /* The lane's action bar (components/actionbar.css) over its pill, shown only while the lane is selected; placeLaneBar flips
        it under the pill near the top of the window. Not hidden while the lane is dragged (removing the drag source from
        layout makes Chrome cancel the drag). */
+    /* The step's bar (syncNodeBar): over the node, centred, or under it (placeNodeBar); not while the step is dragged */
+    .node-bar { left: 50%; bottom: calc(100% + 10px); translate: -50% 0; cursor: default; }
+    .node-bar.is-below { bottom: auto; top: calc(100% + 10px); }
+    .flow-node.dragging .node-bar, body:is(.connecting, .reconnecting, .palette-dragging) .node-bar { display: none; }
+    /* The dock's Delete is not needed: the bars carry it */
+    #btn-delete-selection { display: none !important; }
     .lane-bar { display: none; left: 0; bottom: calc(100% + 8px); }
     .lane-bar.is-below { bottom: auto; top: calc(100% + 8px); }
     .swimlane.lane-selected .lane-bar { display: flex; }
     .lane-pill.editing .lane-bar { display: none !important; }
     #swimlanes-container.dir-tb .lane-bar { left: 50%; translate: -50% 0; }
-    #swimlanes-container.dir-tb .lane-move svg { rotate: -90deg; }
     .lane-pill .lane-icon { width: auto; height: auto; border: none; background: none; border-radius: 0; color: inherit; }
     /* Exports draw each pill and stripe at the lane's own top-left, whatever the view, in the resting style */
     body.exporting .lane-pill { transform: translate(12px, 12px) !important; }
@@ -667,24 +672,16 @@
 
     /* Node notes (see renderNotes): the shared card, leader, badge and chips live in components/note.css. Here only what
        is specific to a step: which steps show the "+" chip, where the badge sits on each shape, the step a note would land on. */
-    /* The "+" chip shows on a hovered or selected step */
-    .flow-node:hover .note-add, .flow-node.selected .note-add { display: inline-flex; }
     /* Several steps selected: no connect ports (a drag always moves the selection), and the "+" chip only on hover */
     .multi-select .flow-node .port { display: none !important; }
-    .multi-select .flow-node.selected:not(:hover) .note-add { display: none; }
-    /* Not while something else is being dragged or connected: the chip would only be in the way */
-    body:is(.palette-dragging, .connecting, .reconnecting, .note-picking) .flow-node:not(.selected) .note-add { display: none; }
     /* Pills keep their corner free: the badge sits on the straight top edge, near the right end */
-    .flow-node.type-start:not(.terminal-dot) :is(.note-badge, .note-add),
-    .flow-node.type-end:not(.terminal-dot) :is(.note-badge, .note-add) { right: 14px; }
+    .flow-node.type-start:not(.terminal-dot) .note-badge,
+    .flow-node.type-end:not(.terminal-dot) .note-badge { right: 14px; }
     /* Decision: on the diamond's upper-right edge rather than the empty corner of its box */
-    .flow-node.type-decision :is(.note-badge, .note-add) { top: 8px; right: 24px; }
-    .flow-node.type-decision .note-add { top: 6px; right: 22px; }
+    .flow-node.type-decision .note-badge { top: 8px; right: 24px; }
     /* Cylinder and delay: on the curve near the top-right, not the empty corner of the box */
     .flow-node.type-database .note-badge { top: -5px; right: 7px; }
-    .flow-node.type-database .note-add { top: -7px; right: 5px; }
     .flow-node.type-delay .note-badge { top: 1px; right: 2px; }
-    .flow-node.type-delay .note-add { top: -1px; right: 0; }
 
     /* Note tile in the Shapes menu, drawn as the note card itself; the step a note would land on */
     .btn-note-tool svg .note-paper { fill: var(--note-bg); stroke: var(--note-accent); }

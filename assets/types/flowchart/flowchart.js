@@ -349,6 +349,7 @@
         renderTabs();
         followTab();
         updateSubButtons();
+        syncNodeBar();
       }
 
       const OUTER_CLEAR = 16;   // px between the outermost arrow/label and the last lane's outer edge
@@ -451,9 +452,7 @@
         const bar = lanesRoot.querySelector('.lane-selected .lane-bar');
         if (!bar) return;
         const pill = bar.parentElement;
-        bar.classList.remove('is-below');
-        const need = bar.offsetHeight * scale + 16;
-        if (pill.getBoundingClientRect().top - viewport.getBoundingClientRect().top < need) bar.classList.add('is-below');
+        bar.classList.toggle('is-below', !ui.roomAbove(pill, bar, scale));
       }
       // A lane's colour: a palette slot, or '' for none (the colour for its position). One undo step.
       function setLaneColor(laneId, slot) {
@@ -543,24 +542,18 @@
           title.textContent = lane.name;
           pill.appendChild(title);
           // The lane's action bar (shown while the lane is selected, over the pill; below it near the viewport's top edge):
-          // colour (none = the colour for its position), rename, move earlier / later, delete (not on the only lane)
+          // rename, delete (hide lanes on the only lane), colour (none = the colour for its position)
           if (editable) {
-            const bar = ui.actionBar('actionbar lane-bar', 'Swimlane');
+            const bar = ui.actionBar('actionbar is-wrap lane-bar', 'Swimlane');
             const btn = (act, html, title, extra) => ui.abButton('ab-btn', act, html, title, undefined, undefined, extra);
-            bar.appendChild(swatchRow(lane.color || '', (slot) => setLaneColor(lane.id, slot), { btnClass: 'ab-swatch' }));
+            // Two rows like the other bars: the actions, then the colours (a lane moves by dragging its pill)
+            bar.appendChild(btn('rename', ui.icon('rename'), 'Rename the lane (or double-click its name)'));
             bar.appendChild(ui.abSep());
-            bar.appendChild(btn('rename', `${ui.icon('label')}<span>Rename</span>`, 'Rename the lane (or double-click its name)'));
-            if (chartData.lanes.length > 1) {
-              bar.appendChild(ui.abSep());
-              if (index > 0) bar.appendChild(btn('earlier', ui.icon('chevron-up'), tb ? 'Move one place left' : 'Move one place up', 'lane-move'));
-              if (index < chartData.lanes.length - 1) bar.appendChild(btn('later', ui.icon('chevron-down'), tb ? 'Move one place right' : 'Move one place down', 'lane-move'));
-              bar.appendChild(ui.abSep());
-              bar.appendChild(btn('delete', ui.icon('trash'), 'Delete swimlane (with its steps)', 'is-danger'));
-            } else {
-              // One lane is a one-actor diagram: the lane names and borders can go ("swimlanes": false; Show lanes brings them back)
-              bar.appendChild(ui.abSep());
-              bar.appendChild(btn('hide', `${ui.icon('eye')}<span>Hide lanes</span>`, 'Hide the lane name and borders (the Lane button then reads Show lanes)'));
-            }
+            if (chartData.lanes.length > 1) bar.appendChild(btn('delete', ui.icon('trash'), 'Delete swimlane (with its steps)', 'is-danger'));
+            // One lane is a one-actor diagram: the lane names and borders can go ("swimlanes": false; Show lanes brings them back)
+            else bar.appendChild(btn('hide', `${ui.icon('eye')}<span>Hide lanes</span>`, 'Hide the lane name and borders (the Lane button then reads Show lanes)'));
+            bar.appendChild(ui.abBreak());
+            bar.appendChild(swatchRow(lane.color || '', (slot) => setLaneColor(lane.id, slot), { btnClass: 'ab-swatch' }));
             // Buttons are not drag handles for the pill they sit in, and a press on the bar neither pans nor selects
             bar.addEventListener('pointerdown', (e) => e.stopPropagation());
             bar.addEventListener('dragstart', (e) => { e.preventDefault(); e.stopPropagation(); });
@@ -572,7 +565,6 @@
               if (b.dataset.act === 'rename') startRename();
               else if (b.dataset.act === 'delete') confirmDeleteLane(lane.id, b);
               else if (b.dataset.act === 'hide') { chartData.swimlanes = false; selectedLaneId = null; render(); updateStatus(true); }
-              else moveLane(index, b.dataset.act === 'earlier' ? -1 : 1);
             });
             pill.appendChild(bar);
           }
@@ -1307,7 +1299,8 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
             nodeEl.appendChild(port);
           });
 
-          nodeEl.appendChild(buildNoteBadge(node));   // note badge, or the "+" chip to add one
+          const badge = buildNoteBadge(node);   // a note badge (no hover "+": the step bar adds notes)
+          if (badge) nodeEl.appendChild(badge);
           if (node.type === 'subprocess' && hasChild(node.id)) { nodeEl.classList.add('has-child'); nodeEl.appendChild(buildSubLink(node)); }
 
           nodeEl.addEventListener('pointerdown', (e) => handleNodePointerDown(e, node));
@@ -3022,9 +3015,11 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         document.querySelectorAll('.edge-line').forEach(p => {
           p.setAttribute('marker-end', p.dataset.edgeId === selectedEdgeId ? 'url(#arrowhead-selected)' : 'url(#arrowhead)');
         });
-        if (!hoveredNodeId) return;
+        // A lone selected step lights its arrows like a hover does; a hover elsewhere takes over meanwhile
+        const focusId = hoveredNodeId || (selectedNodeIds.size === 1 ? selectedNodeId : null);
+        if (!focusId) return;
         chartData.edges.forEach(edge => {
-          const kind = edge.from === hoveredNodeId ? 'out' : edge.to === hoveredNodeId ? 'in' : null;
+          const kind = edge.from === focusId ? 'out' : edge.to === focusId ? 'in' : null;
           if (!kind) return;
           const path = document.querySelector(`.edge-line[data-edge-id="${edge.id}"]`);
           const label = document.querySelector(`.edge-label[data-edge-id="${edge.id}"]`);
@@ -3683,7 +3678,6 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
       // one edit. Arrows, notes and lanes are still selected one at a time, and selecting one clears the steps.
       // The selection is never saved.
       const isNodeSelected = (id) => selectedNodeIds.has(id);
-      const deleteLabelEl = document.querySelector('#btn-delete-selection .btn-label');
       let boxBase = [];   // the selection a toggle box started from (selectInRect)
 
       // Show the selection: the outline on each selected step, and the count on the dock's Delete ("Delete 3").
@@ -3693,7 +3687,37 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         document.querySelectorAll('.flow-node[data-node-id]').forEach(el => el.classList.toggle('selected', isNodeSelected(el.dataset.nodeId)));
         swimlanesContainer.classList.toggle('multi-select', many);
         updateSubButtons();
-        if (deleteLabelEl) deleteLabelEl.textContent = many ? `Delete ${selectedNodeIds.size}` : 'Delete';
+        applyNodeHover();
+        syncNodeBar();
+      }
+
+      // The selected step's action bar (components/actionbar.css), in its node: Note (one step) and Delete. It sits over the
+      // node, or under it when there is no room above in the window (placeNodeBar, also run when the view moves).
+      function syncNodeBar() {
+        document.querySelectorAll('.node-bar').forEach(b => b.remove());
+        const el = selectedNodeId && selectedNodeIds.has(selectedNodeId) && !isPresenting() ? nodeElOf(selectedNodeId) : null;
+        if (!el) return;
+        const many = selectedNodeIds.size > 1, node = nodeById(selectedNodeId);
+        const bar = ui.actionBar('actionbar node-bar', 'Step');
+        const btn = (act, html, title, extra) => ui.abButton('ab-btn', act, html, title, undefined, undefined, extra);
+        if (!many && !isConnector(node)) bar.appendChild(btn('note', ui.icon('note'), 'Add a note (N)'));
+        bar.appendChild(btn('delete', many ? `${ui.icon('trash')}<span>Delete ${selectedNodeIds.size}</span>` : ui.icon('trash'), many ? `Delete these ${selectedNodeIds.size} steps` : 'Delete (Delete key)', 'is-danger'));
+        ['pointerdown', 'mousedown', 'dblclick'].forEach(t => bar.addEventListener(t, (e) => e.stopPropagation()));
+        bar.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const b = e.target.closest('.ab-btn');
+          if (!b) return;
+          if (b.dataset.act === 'note') addNoteTo(selectedNodeId);
+          else if (many) deleteNodes([...selectedNodeIds]);
+          else deleteNode(selectedNodeId);
+        });
+        el.appendChild(bar);
+        placeNodeBar();
+      }
+      function placeNodeBar() {
+        const bar = document.querySelector('.node-bar');
+        if (!bar) return;
+        bar.classList.toggle('is-below', !ui.roomAbove(bar.parentElement, bar, scale));
       }
 
       function clearNodeSelection() {
@@ -4408,7 +4432,6 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
       const NOTE_STEP = 8;           // fitting grid
       const NOTE_PEEK_DELAY = 100;   // ms on a node before its notes peek: feels instant, skips quick fly-overs (the badge peeks at once)
       const NOTE_ICON = ui.icon('note-lines', { size: 'xs', bold: true });
-      const NOTE_ADD_ICON = ui.icon('plus', { size: 'sm', bold: true });
       let noteOffsets = {};          // noteId -> {x, y}: last fitted top-left relative to its anchor (screen px)
       let noteSizes = {};            // noteId -> {w, h}: measured card size
       let peekNodeId = null;         // node whose notes are peeked by hover
@@ -4714,13 +4737,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
               applyNoteVisibility();
             } else editNote(notes[0].id);
           });
-        } else {
-          b.className = 'note-add';
-          b.title = 'Add a note (N)';
-          b.setAttribute('aria-label', 'Add a note');
-          b.innerHTML = NOTE_ADD_ICON;
-          b.addEventListener('click', (e) => { e.stopPropagation(); addNoteTo(node.id); });
-        }
+        } else return null;   // no hover (+): the step bar's note button adds one
         return b;
       }
 
@@ -5951,7 +5968,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           document.querySelectorAll('.swimlane').forEach(el => add('lane:' + el.dataset.laneId, el.querySelector('.lane-pill'), el.querySelector('.lane-title')?.textContent));
           return items;
         },
-        onViewChange() { if (!tabGlide) ui.closeConfirm(); pinLaneHeaders(); },
+        onViewChange() { if (!tabGlide) ui.closeConfirm(); pinLaneHeaders(); placeNodeBar(); },
         // Notes on show may sit in the margin outside the lanes: Fit and screenshots take them in (peeked ones
         // are transient and do not count)
         contentOverflow() {

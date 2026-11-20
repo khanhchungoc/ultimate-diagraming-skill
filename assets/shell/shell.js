@@ -60,24 +60,24 @@
         if (w) el.dataset.sw = w.slot; else delete el.dataset.sw;
       }
       // A row of colour buttons: "none", then each swatch. `current` is the slot or custom hex now in use (or empty); onPick(slot)
-      // gets the chosen slot, or '' for none. opts.btnClass adds a class to every button. Returns the row element.
+      // gets the chosen slot, or '' for none (opts.white, a hex, makes that first button a real white instead). opts.btnClass adds a class to every button. Returns the row element.
       function swatchRow(current, onPick, opts) {
         const row = document.createElement('span');
         row.className = 'swatch-row';
         row.setAttribute('role', 'group');
         row.setAttribute('aria-label', 'Colour');
         const now = current ? colorSlot(current) : '';
-        [{ slot: '', name: 'none' }].concat(SWATCHES).forEach((sw) => {
+        [{ slot: (opts && opts.white) || '', name: opts && opts.white ? 'white' : 'none' }].concat(SWATCHES).forEach((sw) => {
           const b = document.createElement('button');
           b.type = 'button';
           b.className = `swatch-btn${opts && opts.btnClass ? ' ' + opts.btnClass : ''}`;
           b.dataset.value = sw.slot;
-          b.title = sw.slot ? `Colour: ${sw.name}` : 'No colour';
+          b.title = sw.slot || sw.name === 'white' ? `Colour: ${sw.name}` : 'No colour';
           b.setAttribute('aria-label', b.title);
           b.setAttribute('aria-pressed', String(now === sw.slot));
           const dot = document.createElement('span');
           dot.className = sw.slot ? 'swatch-dot' : 'swatch-dot is-none';
-          if (sw.slot) setSwatch(dot, sw.slot);
+          if (sw.slot) setSwatch(dot, sw.slot);   // opts.white: the first button is a real white (a type whose default is a colour by position)
           b.appendChild(dot);
           b.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -251,10 +251,17 @@
           return b;
         }
         const abSep = (cls) => { const s = document.createElement('span'); s.className = cls || 'ab-sep'; return s; };
+        const abBreak = (cls) => { const s = document.createElement('span'); s.className = cls || 'ab-break'; return s; };
+        // Does an action bar fit above `anchor` (an element or rect on screen) inside the viewport? Every type decides over or
+        // under its element with this, by where the element is in the window, not in the diagram. `scale` is the zoom.
+        function roomAbove(anchor, bar, scale) {
+          const top = (anchor.getBoundingClientRect ? anchor.getBoundingClientRect() : anchor).top;
+          return top - document.getElementById('viewport').getBoundingClientRect().top >= bar.offsetHeight * (scale || 1) + 16;
+        }
         // A wrapped bar (is-wrap, rows split by a `-ab-break` item) is as wide as its widest row, not as its max-width: call
         // it once the bar is in the page. No empty side padding, and a row that fits never wraps on its own.
         function fitBar(bar) {
-          const kids = [...bar.children].filter((k) => !/-ab-break$/.test(k.className));
+          const kids = [...bar.children].filter((k) => !/(^|-)ab-break$/.test(k.className));
           if (!kids.length) return;
           const l = Math.min(...kids.map((k) => k.offsetLeft)), r = Math.max(...kids.map((k) => k.offsetLeft + k.offsetWidth));
           const cs = getComputedStyle(bar), edge = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight) + parseFloat(cs.borderLeftWidth) + parseFloat(cs.borderRightWidth);
@@ -288,7 +295,7 @@
           });
           return box;
         }
-        return { confirm, closeConfirm, isConfirmOpen: () => !!confirmEl, noteCard, actionBar, abButton, abSep, fitBar, colorKey, icon, iconEl, toast: (m) => showToast(m) };
+        return { confirm, closeConfirm, isConfirmOpen: () => !!confirmEl, noteCard, actionBar, abButton, abSep, abBreak, roomAbove, fitBar, colorKey, icon, iconEl, toast: (m) => showToast(m) };
       })();
 
       // --- ENGINE SOURCE (for plugins that run a background Web Worker, e.g. ERD) ---

@@ -1506,8 +1506,7 @@
           bar.appendChild(swatchRow(e.color || '', (slot) => setEntityColor(e.id, slot), { btnClass: 'erd-ab-swatch' }));
           if (e.color) bar.appendChild(abButton('namecolor', '<span>Name colour</span>', 'Say what this colour means: it is then shown in a legend above the tables'));
           at = { x: e.box.x + e.box.w / 2, y: e.box.y - 10 };
-          below = e.box.y < 110;
-          if (below) at.y = e.box.y + e.box.h + 10;
+          at.top = e.box.y; at.bottom = e.box.y + e.box.h + 10;
         } else if (erdSel.kind === 'col') {
           const e = erdEntity(erdSel.entity);
           const col = e && (e.columns || []).find((c) => c.name === erdSel.col);
@@ -1525,8 +1524,7 @@
           bar.appendChild(abButton('delcol', ui.icon('trash'), 'Delete this column', undefined, undefined, 'is-danger'));
           // Over the table's header, not over its rows: the bar must not hide the neighbouring rows (the row itself is marked)
           at = { x: e.box.x + e.box.w / 2, y: e.box.y - 10 };
-          below = e.box.y < 70;
-          if (below) at.y = e.box.y + e.box.h + 10;
+          at.top = e.box.y; at.bottom = e.box.y + e.box.h + 10;
         } else if (erdSel.kind === 'rel') {
           const rel = erdRel(erdSel.id);
           if (!rel || !rel.curve || !rel.points || rel.points.length < 2) return;
@@ -1560,9 +1558,13 @@
           else motion.showBar(bar);
           return;
         } else return;
+        erdHtml.appendChild(bar);
+        if (at.top !== undefined) {   // over its table, or under it when there is no room above in the window
+          below = !ui.roomAbove({ getBoundingClientRect: () => ({ top: erdHtml.getBoundingClientRect().top + at.top * scale }) }, bar, scale);
+          if (below) at.y = at.bottom;
+        }
         bar.classList.toggle('is-below', below);
         Object.assign(bar.style, { left: erdPx(at.x), top: erdPx(Math.max(2, at.y)) });
-        erdHtml.appendChild(bar);
         if (bar.classList.contains('is-wrap')) ui.fitBar(bar);
         if (prevBarRect && prevBarRect.width > 0 && prevBarRect.height > 0) motion.ghostMorph(prevBarRect, bar, 170, 'curve-spring-settle');
         else motion.showBar(bar);

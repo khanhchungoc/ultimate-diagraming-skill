@@ -314,6 +314,7 @@
     }
     .erd-ab-btn:hover { background: var(--bg-hover); color: var(--text-main); }
     .erd-ab-btn[aria-pressed="true"] { background: var(--primary-wash); border-color: var(--primary-ring); color: var(--primary); }
+    .erd-ab-btn.is-danger { color: var(--danger); }
     .erd-ab-btn.is-danger:hover { background: color-mix(in srgb, var(--danger) 10%, var(--bg-panel)); color: var(--danger); }
     .erd-ab-btn svg { display: block; }
     .erd-ab-btn circle { fill: var(--bg-panel); }
