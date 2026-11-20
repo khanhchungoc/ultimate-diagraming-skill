@@ -146,6 +146,28 @@ Input is the model; output is positions, sizes, routes and the canvas. Reads tex
 
 Scale budget: ranking and ordering are O(n log n) per pass with a fixed pass count; a landscape that would open with more than 80 visible elements opens with `system` groups collapsed, and the audit says so. Expanding one group never re-lays-out the rest of the canvas (positions of everything outside the group are kept and shifted as one block).
 
+## Engine contract
+
+The one interface between `engine.js`, the page (`c4.js`) and the audit. Coordinates are canvas pixels, top-left origin. Derived fields are recomputed, never saved. Mirrors the use case contract.
+
+`layoutDiagram(data)` mutates `data` in place (full layout); `routeDiagram(data)` keeps every element and group `x`/`y` and recomputes everything else (group boxes, arrows, labels, canvas), and calls `layoutDiagram` when any visible item has no `x`/`y`. Both read text widths only from `TOKENS.font.metrics` and sizes from `TOKENS`, and call `routeEdgesOrthogonal` from `assets/shell/ortho-router.js` for arrows. `layoutDiagram` must be a top-level function (loaded by `scripts/run_engine.mjs`). Deterministic: ties break by input order.
+
+| Field | Meaning |
+|---|---|
+| `elements[].x, y, w, h` | Top-left and size of the tile. |
+| `elements[]._hidden` | True when an ancestor group is collapsed; a hidden element has `w`/`h` 0 and no arrows of its own. |
+| `groups[].x, y, w, h` | The frame box, tag band included; a collapsed group has the size of one system tile. |
+| `groups[]._depth` | 1 for a top-level group, 2 for its child, and so on (any depth). |
+| `groups[]._collapsed` | Effective state: true when the group or any ancestor is collapsed. |
+| `data._edges` | The arrows actually drawn: `[{id, from, to, label, tech, async, count, members, points, path, labelBox}]`. `from`/`to` are the nearest visible ancestor (or the element itself) of each relation end; relations with the same visible pair and the same label merge, `count` is how many, `members` their indexes in `relations`; a merged edge with different labels shows the label of the first and `count`. |
+| `data._edges[].points` | `[[x, y], ...]` orthogonal polyline, from `routeEdgesOrthogonal`. `path` is the SVG path with the router's corner rounding and hops. |
+| `data._edges[].labelBox` | `{x, y, w, h}` of the label pill (label line plus `[tech]` line). |
+| `data.canvas` | `{width, height}`. |
+
+A relation whose two ends resolve to the same visible item (both inside one collapsed group) is not drawn. Direction (`direction` in the JSON, else chosen like the flowchart) sets the flow axis: top to bottom puts people first.
+
+Disk format: unchanged from the codec (`layout` map `{id: {x, y}}`, elements then groups); `toDisk` drops every `_` field, sizes, `points`, `path`, `labelBox`, `_edges` and `canvas`.
+
 ## Interaction and UX
 
 - Add from the dock: person, system, container, database, queue, external, group. Connect by dragging between ports; the new relation asks for its label immediately (required).
