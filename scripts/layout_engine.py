@@ -41,7 +41,7 @@ DEFAULT_COL_WIDTH = 200
 START_X = 56
 
 # Complexity budget (a diagram beyond these is too dense to read at Fit zoom on a 1920px screen)
-SUPPORTED_TYPES = ("flowchart", "sequence", "erd", "usecase")  # add a type here when its engine and reference exist
+SUPPORTED_TYPES = ("flowchart", "sequence", "erd", "usecase", "c4")  # add a type here when its engine and reference exist
 DEFAULT_TYPE = "flowchart"
 SCHEMA_VERSION = 1
 ERD_SCHEMA_VERSION = 3  # ERD layout v3 (disk_format.ERD_SCHEMA_VERSION)
@@ -1264,7 +1264,7 @@ def _load_input(path: Path, force_from_disk: bool = False) -> Tuple[Dict[str, An
     kind = raw.get("diagramType") or DEFAULT_TYPE
     is_disk = force_from_disk or "_readme" in raw or ("layout" in raw and kind != "sequence") or (kind == "erd" and "groups" in raw)
     data = from_disk(kind, raw) if is_disk else raw
-    needs_engine = "_readme" in raw or ("layout" in raw and kind in ("erd", "usecase"))
+    needs_engine = "_readme" in raw or ("layout" in raw and kind in ("erd", "usecase", "c4"))
     return data, html_text, False, needs_engine
 
 
@@ -1556,7 +1556,7 @@ def _build_parts(kind: str, data: Optional[Dict[str, Any]] = None,
         "TOKENS_JS": tokens_js(tokens),
         "ENGINE_JS": "\n".join(_read_asset(f).rstrip(chr(10)) for f in (ASSETS_DIR / "shell" / "ortho-router.js", type_dir / "engine.js")),
         # The Mermaid reader and writer: the shared tokenizer, then the type's own (plain scripts, globals only)
-        "MERMAID_JS": "\n".join(_read_asset(f).rstrip(chr(10)) for f in (ASSETS_DIR / "shell" / "mermaid-flow.js", type_dir / "mermaid.js")),
+        "MERMAID_JS": "\n".join(_read_asset(f).rstrip(chr(10)) for f in (ASSETS_DIR / "shell" / "mermaid-flow.js", type_dir / "mermaid.js") if f.is_file()),   # a type with no Mermaid reader yet has no mermaid.js
         "TYPE_JS": _read_asset(type_dir / f"{kind}.js").rstrip(chr(10)),
     }
     return parts, tokens, icons
@@ -2089,7 +2089,7 @@ def main():
             print(note)
 
         data = normalize_diagram_type(data)
-        if (is_html or needs_engine) and data["diagramType"] in ("sequence", "erd", "usecase"):
+        if (is_html or needs_engine) and data["diagramType"] in ("sequence", "erd", "usecase", "c4"):
             # A sequence page saves no positions and an ER or use case page no routes: run the engine, as the page does on load
             try:
                 data = run_layout(data["diagramType"], data, timeout=args.timeout, browser=args.browser, tokens=tokens)
