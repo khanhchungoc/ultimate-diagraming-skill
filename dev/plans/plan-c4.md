@@ -39,7 +39,7 @@ Consequence: bundling vendor logo SVGs into this repo and shipping them inside e
 - Level 3 (components) UI, authoring guidance and examples in v1. The structure for it is in place, switched off by one limit.
 - Deployment and dynamic C4 views.
 - Bundling AWS, Azure or Google Cloud logo files in the repo.
-- Import from Structurizr, PlantUML C4 or Mermaid C4 (Copy as Mermaid C4 is phase 6, optional).
+- Import from Structurizr or PlantUML C4, and merging several Mermaid C4 levels into one file. Mermaid C4 export and single-level import are phase 6, optional (see Mermaid C4).
 - Force-directed or diagonal layout.
 
 ## Data
@@ -85,6 +85,24 @@ Level 3 is the same operation one level down: a `container` expands into its `co
 4. **The Level control is a depth number.** "Show to depth N" sets `collapsed` on every group at depth N or deeper; v1 offers 1 and 2. The saved model stores `collapsed` per group, never a level number, so a future third level is not a migration.
 
 A c4 fixture with a `component` element inside a `container` group runs through the engine and codec tests with the audit limit raised, so the readiness is tested, not assumed. Enabling Level 3 later means raising `MAX_GROUP_DEPTH`, allowing the `container` group kind, adding the third Level step, and adding docs and an example.
+
+## Mermaid C4 (phase 6, optional)
+
+Mermaid has a native C4 syntax: `C4Context`, `C4Container`, `C4Component`, `C4Dynamic`, `C4Deployment`. Mermaid marks it experimental, so the writer and reader are small and isolated in `assets/types/c4/mermaid.js` (`toMermaid(data, opts)`, `fromMermaid(text)`, the contract in `dev/architecture.md`) and may need updating when Mermaid changes. Unlike the use case type, which writes a flowchart marked `%% @type`, C4 targets Mermaid's own syntax, so it has its own parser and does not use `mermaid-flow.js`.
+
+| Our model | Mermaid C4 | Round trip |
+|---|---|---|
+| `person`, `system`, `container`, `component`, `database`, `queue`, `external` | `Person`, `System`, `Container`, `Component`, `ContainerDb`, `ContainerQueue`, and the `_Ext` forms | clean |
+| `name`, `tech`, `description` | label, techn, descr | clean |
+| `groups` (`boundary`, `system`, nested) | `Enterprise_Boundary`, `System_Boundary`, `Boundary` | clean |
+| `relations` with `label`, `tech` | `Rel(from, to, "label", "tech")` | clean |
+| `async` | none | lost on export |
+| `icon`, `color`, `collapsed`, `layout` positions | none | lost on export; icon and colour travel as `%% @icon` and `%% @color` comment lines that Mermaid ignores and our reader restores |
+
+- **Export writes one level.** All `system` groups collapsed gives `C4Context`; one expanded gives `C4Container` for that system. A user who wants both copies twice. Mermaid has no collapse state.
+- **Import reads one level** into the model; positions come from our engine. Merging a second level into the same file by element id is left out of v1.
+- **Not mapped:** `C4Dynamic` and `C4Deployment` (non-goals), and Mermaid's layout statements (`Lay_*`, `UpdateLayoutConfig`), which our layout replaces.
+- **Tests:** `dev/e2e_mermaid.mjs` gains c4: Copy as Mermaid then Import gives the same elements, groups and relations; the lossy fields round trip through the comment lines; text of another type or non-C4 text is refused with a message; a second copy gives identical text.
 
 ## Icons
 
@@ -170,7 +188,7 @@ Changed: `SKILL.md` (type table, read-back line), `scripts/layout_engine.py` (`S
 3. **Levels and motion.** Collapse and expand, the Level control, morph motion, reduced-motion path.
 4. **Edit.** Dock, ports, label prompt, icon picker, action bar, Auto-Tidy, Save, undo, multi-select.
 5. **Icon packs.** `ui.logo`, `build_icon_pack.py`, the technology pack if allowed, missing-pack fallback and warning, export.
-6. **Docs and polish.** Help drawer, reference, example, playground entry, README, `check_themes.py` and `check_contrast.py --strict` clean. Optional: Copy as Mermaid C4.
+6. **Docs and polish.** Help drawer, reference, example, playground entry, README, `check_themes.py` and `check_contrast.py --strict` clean. Optional: Mermaid C4 export and import.
 
 Each phase ends with its checker passing and the playground e2e still green; no phase leaves the type half-built across layers.
 
@@ -193,7 +211,7 @@ Recommended, to confirm before phase 1.
 3. **Arrows:** orthogonal, one bend per route, shared with the flowchart router.
 4. **Cloud-provider logos:** not bundled; user-built local packs from the vendor download.
 5. **Technology logos (open decision 1):** bundle a small Simple Icons subset, or ship generic icons only? Recommended: generic icons in v1, technology pack after a licence and trademark check of the specific marks. Needs the user's call.
-6. **Copy as Mermaid C4:** optional, phase 6.
+6. **Mermaid C4:** optional, phase 6; one level per copy, single-level import (settled 2026-11-20).
 7. **Generic first:** the default icon for each kind is a generic glyph, so a diagram with no packs installed looks finished.
 
 ## Sources
@@ -202,4 +220,5 @@ Recommended, to confirm before phase 1.
 - Azure architecture icons and terms: https://learn.microsoft.com/azure/architecture/icons
 - Simple Icons (CC0 artwork, trademark rights not waived): https://simpleicons.org
 - C4 model: https://c4model.com
+- Mermaid C4 syntax (experimental): https://mermaid.js.org/syntax/c4.html
 - Lucide (existing icon source, ISC): https://lucide.dev
