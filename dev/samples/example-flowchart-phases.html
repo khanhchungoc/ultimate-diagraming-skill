@@ -658,7 +658,8 @@
     #zoom-level {
       font-size: var(--text-sm);
       font-weight: var(--weight-semibold);
-      width: 38px;
+      min-width: 38px;   /* grows with a wide theme font; a fixed width cut "100%" */
+      padding: 0 2px;
       text-align: center;
       color: var(--text-main);
       font-variant-numeric: tabular-nums;
