@@ -44,22 +44,19 @@
       <button id="btn-theme" class="btn btn-icon" title="Dark mode" aria-label="Dark mode" aria-pressed="false">
         <span class="theme-moon">{{icon:moon}}</span><span class="theme-sun">{{icon:sun}}</span>
       </button>
-      <div class="menu-wrap">
-        <button id="btn-more" class="btn btn-icon" title="More" aria-label="More" aria-haspopup="menu" aria-expanded="false">
-          {{icon:more}}
-        </button>
-        <div id="more-menu" class="menu" role="menu" hidden>
-          <button type="button" id="menu-import-mermaid" role="menuitem" hidden>Paste Mermaid…</button>
-          <button type="button" id="menu-help" role="menuitem">Keyboard shortcuts<kbd>?</kbd></button>
-        </div>
-      </div>
+      <button id="btn-help" class="btn btn-icon" title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts" aria-expanded="false">
+        {{icon:help}}
+      </button>
       <span class="toolbar-sep" aria-hidden="true"></span>
-      <button id="btn-present" class="btn btn-icon" title="Present: a read-only view (Esc exits)" aria-label="Present" aria-pressed="false">
-        {{icon:present}}
+      <button id="btn-present" class="btn" title="Present: a read-only view (Esc exits)" aria-label="Present" aria-pressed="false">
+        {{icon:present}}<span class="btn-label">Present</span>
+      </button>
+      <button id="btn-import-mermaid" class="btn" title="Import: replace the diagram from pasted Mermaid text (Ctrl+V on the canvas does the same)" aria-label="Import Mermaid" hidden>
+        {{icon:import}}<span class="btn-label">Import</span>
       </button>
       <div class="menu-wrap">
-        <button id="btn-export" class="btn btn-icon" title="Export: download or copy the diagram as an image" aria-label="Export" aria-haspopup="menu" aria-expanded="false">
-          {{icon:export}}
+        <button id="btn-export" class="btn" title="Export: download or copy the diagram as an image" aria-label="Export" aria-haspopup="menu" aria-expanded="false">
+          {{icon:export}}<span class="btn-label">Export</span>
         </button>
         <div id="export-menu" class="menu" role="menu" hidden>
           <div class="menu-label" role="presentation">Download</div>

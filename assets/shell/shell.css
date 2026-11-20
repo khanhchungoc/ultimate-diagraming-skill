@@ -47,7 +47,7 @@
     #type-menu { min-width: 220px; max-height: min(60vh, 420px); overflow-y: auto; }
     #type-menu button { display: flex; align-items: center; gap: 10px; width: 100%; }
     #type-menu .menu-check { margin-left: auto; }
-    /* Header buttons: icon-only 36px squares, borderless until hovered or focused; Save keeps its label */
+    /* Header buttons: universal glyphs (theme, help) are icon-only 36px squares, borderless until hovered; actions (Import, Present, Export, Save) keep a text label */
     header .btn-icon {
       width: 36px; height: 36px; padding: 0;
       justify-content: center;
@@ -59,8 +59,8 @@
       border-color: var(--border-dark);
     }
     header .btn-icon:disabled, header .btn-icon:disabled:hover { background: transparent; border-color: transparent; }
-    header .btn-icon svg, #btn-save svg { width: var(--icon-lg); height: var(--icon-lg); }
-    #btn-save { height: 36px; }
+    header .btn-icon svg, header .toolbar-right > .btn svg, header .menu-wrap > .btn svg { width: var(--icon-lg); height: var(--icon-lg); }
+    header .toolbar-right > .btn:not(.btn-icon), header .menu-wrap > .btn { height: 36px; }   /* labeled buttons (Import, Present, Export, Save) line up with the icon squares */
     .toolbar-sep { width: 1px; height: 20px; background: var(--border-color); flex: none; }
 
     .app-title-container {
@@ -201,7 +201,8 @@
     body.presentation .toolbar-center,
     body.presentation .toolbar-left,
     body.presentation .menu-wrap,
-    body.presentation #btn-more,
+    body.presentation #btn-help,
+    body.presentation #btn-import-mermaid,
     body.presentation #btn-save,
     body.presentation .toolbar-sep,
     body.presentation #btn-undo,
@@ -226,6 +227,7 @@
       .type-switch ~ .app-title-container { display: none; }   /* no room for the title beside the switcher on a phone */
       .toolbar-right { gap: 6px; flex: none; }
       .btn-label { display: none; }
+      #btn-help { display: none; }   /* a phone has no keyboard shortcuts to list */
       #help-drawer { right: 12px; bottom: 120px; }
     }
     @media (prefers-reduced-motion: reduce) {

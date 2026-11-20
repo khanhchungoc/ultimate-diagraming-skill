@@ -490,9 +490,7 @@
       const zoomLevelEl = document.getElementById('zoom-level');
       const btnUndo = document.getElementById('btn-undo');
       const btnRedo = document.getElementById('btn-redo');
-      const btnMore = document.getElementById('btn-more');
-      const moreMenu = document.getElementById('more-menu');
-      const menuHelp = document.getElementById('menu-help');
+      const btnHelp = document.getElementById('btn-help');
       const helpDrawer = document.getElementById('help-drawer');
 
       // --- MOTION KERNEL (shared by shell + all 4 diagram plugins; zero external dependencies) ---
@@ -1929,7 +1927,7 @@
         if (open === wasOpen) return;
         if (!open) motion.ghostExit(helpDrawer, { duration: 110, transform: 'scale(0.92) translateY(10px)', origin: 'bottom right' });
         helpDrawer.classList.toggle('open', open);
-        btnMore.setAttribute('aria-expanded', String(open || !moreMenu.hidden));
+        btnHelp.setAttribute('aria-expanded', String(open));
         if (open) {
           if (motion.enabled()) {
             helpDrawer.style.transformOrigin = 'bottom right';
@@ -1939,9 +1937,9 @@
             ], { duration: motion.dur('dur-base', 180), easing: motion.curve('curve-spring-tactile') });
           }
           document.getElementById('help-close').focus();
-        } else if (helpDrawer.contains(document.activeElement)) btnMore.focus();
+        } else if (helpDrawer.contains(document.activeElement)) btnHelp.focus();
       }
-      menuHelp.addEventListener('click', () => { setMoreOpen(false); setHelpOpen(!helpDrawer.classList.contains('open')); });
+      btnHelp.addEventListener('click', () => { setHelpOpen(!helpDrawer.classList.contains('open')); });
       document.getElementById('help-close').addEventListener('click', () => setHelpOpen(false));
 
       // --- SEARCH (spec: dev/plans/search.md) ---
@@ -2278,11 +2276,11 @@
       document.querySelectorAll('[data-copy="png"]').forEach(el => { el.hidden = !canCopyPng; });
       document.querySelectorAll('[data-copy="svg"]').forEach(el => { el.hidden = !(navigator.clipboard && navigator.clipboard.writeText); });
       // Mermaid is offered only when the diagram type can read/write it (the type script registers after this one runs)
-      const menuImportMermaid = document.getElementById('menu-import-mermaid');
-      menuImportMermaid.addEventListener('click', (e) => { e.stopPropagation(); setMoreOpen(false); setExportOpen(false); openMermaidImport(); });
+      const btnImportMermaid = document.getElementById('btn-import-mermaid');
+      btnImportMermaid.addEventListener('click', (e) => { e.stopPropagation(); setExportOpen(false); openMermaidImport(); });
       function syncCopyMenu() {
         document.querySelectorAll('[data-copy="mermaid"]').forEach(el => { el.hidden = !(plugin && typeof plugin.toMermaid === 'function' && navigator.clipboard && navigator.clipboard.writeText); });
-        menuImportMermaid.hidden = !(plugin && typeof plugin.fromMermaid === 'function');
+        btnImportMermaid.hidden = !(plugin && typeof plugin.fromMermaid === 'function');
         // Drop the "Copy" heading when this browser has no copy items to offer
         document.querySelectorAll('[data-copy-label]').forEach(el => { el.hidden = !document.querySelector('[data-copy]:not([hidden])'); });
       }
@@ -2306,22 +2304,9 @@
         }
       }
       function setExportOpen(open) {
-        if (open) setMoreOpen(false);
         animateMenuToggle(exportMenu, open, false);
         btnExport.setAttribute('aria-expanded', String(open));
       }
-      function setMoreOpen(open) {
-        if (open) setExportOpen(false);
-        animateMenuToggle(moreMenu, open, false);
-        btnMore.setAttribute('aria-expanded', String(open || helpDrawer.classList.contains('open')));
-      }
-      btnMore.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const opening = moreMenu.hidden;
-        setMoreOpen(opening);
-        // Opened from the keyboard (detail 0): focus the first item, as a menu button does
-        if (opening && e.detail === 0) { const first = [...moreMenu.querySelectorAll('[role^="menuitem"]')].find((el) => !el.hidden); if (first) first.focus(); }
-      });
       // Arrow keys move between the visible items of whichever menu is open
       function menuArrowKeys(menu, btn, close) {
         const items = () => [...menu.querySelectorAll('[role^="menuitem"]')].filter((el) => !el.hidden);
@@ -2336,7 +2321,6 @@
         menu.addEventListener('keydown', onKey);
         btn.addEventListener('keydown', onKey);
       }
-      menuArrowKeys(moreMenu, btnMore);
       menuArrowKeys(exportMenu, btnExport);
       btnExport.addEventListener('click', (e) => { e.stopPropagation(); setExportOpen(exportMenu.hidden); });
       exportMenu.addEventListener('click', (e) => {
@@ -2346,15 +2330,14 @@
         if (b.dataset.copy) copyDiagram(b.dataset.copy);
         else exportDiagram(b.dataset.export);
       });
-      document.addEventListener('click', () => { setExportOpen(false); setMoreOpen(false); });
+      document.addEventListener('click', () => { setExportOpen(false); });
       window.addEventListener('keydown', (e) => {
         if (e.key !== 'Escape') return;
-        if (!moreMenu.hidden && moreMenu.contains(document.activeElement)) btnMore.focus();
-        setExportOpen(false); setMoreOpen(false);
+        setExportOpen(false);
       });
 
       // --- IMPORT MERMAID ---
-      // More menu's Paste Mermaid item (#menu-import-mermaid) and canvas paste (Ctrl+V outside text fields): the text is read
+      // The header's Import button (#btn-import-mermaid) and canvas paste (Ctrl+V outside text fields): the text is read
       // by the type's fromMermaid (mermaid.js) and replaces the diagram as one undo step, laid out fresh. What the reader
       // could not map exactly is listed afterwards, and text of another diagram type is refused.
       const MERMAID_TYPE_NAME = { flowchart: 'flowchart', usecase: 'use case diagram', sequence: 'sequence diagram', erd: 'ER diagram' };
@@ -2400,7 +2383,7 @@
         return true;
       }
       function positionImportBox(box) {
-        const anchor = btnMore.getBoundingClientRect();
+        const anchor = btnImportMermaid.getBoundingClientRect();
         const bw = box.offsetWidth;
         box.style.left = `${Math.max(8, Math.min(anchor.right - bw, innerWidth - bw - 8))}px`;
         box.style.top = `${anchor.bottom + 8}px`;
@@ -3140,7 +3123,6 @@
           plugin.cancelInteraction();
         } else if (e.key === '?' && !e.ctrlKey && !e.metaKey && !e.altKey && !typingInField() && !presentOn()) {
           e.preventDefault();
-          setMoreOpen(false);
           setHelpOpen(!helpDrawer.classList.contains('open'));
         } else if (e.key === 'Delete' || e.key === 'Backspace') {
           if (document.body.classList.contains('presentation')) return;
