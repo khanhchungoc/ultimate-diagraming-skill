@@ -17,6 +17,8 @@ These apply to every turn in this repository, from the first message to the last
 - **Ponytail, full level.** Follow the ponytail skill at its `full` level (the default): the smallest complete change, reuse before writing new code, one or two closing lines on what was skipped or not checked. Full rules: [.claude/skills/ponytail/SKILL.md](.claude/skills/ponytail/SKILL.md)
 - **Caveman, ultra level.** Write every reply in the ultracave style: fragments, one word when one word is enough, each fact once, payload verbatim. Full rules: [.claude/skills/ultracave/SKILL.md](.claude/skills/ultracave/SKILL.md)
 
+- **Motion skill, every task.** For any task that touches animation, transitions, or UI motion (including actions that add or change interactive behaviour), invoke the `motion` skill first and follow it. Repo principle: **morph, not fade**. An element that changes state, position or shape animates from its old geometry to its new one (see `morphRect`, `morphRing`, `ghostMorph` in `assets/shell/shell.js`); never cross-fade or fade in/out as a substitute. Source: [.claude/skills/motion/SKILL.md](.claude/skills/motion/SKILL.md)
+
 ## Exceptions (both modes)
 
 Drop the terse style and write plain full sentences for:
