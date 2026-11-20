@@ -3,7 +3,11 @@
       // elements (people, systems, containers, databases, queues, externals) as tiles, groups as frames (a collapsed one is a
       // single system tile), the arrows in data._edges with their label pills, and the colour key. It selects, highlights the
       // arrows in and out of what is hovered, collapses and expands groups (also in one go through the Level control) and
-      // searches. Editing (add, connect, label, icon picker) is a later step.
+      // searches; and it edits (contract: "Editing (phase 4)" in dev/plans/plan-c4.md): add from the dock, select (click,
+      // Ctrl/Shift, Shift+drag box, Ctrl+A), the action bars, inline rename, connect by port or by button with a required label,
+      // delete, ungroup. Auto-Tidy is always on: every edit calls layoutDiagram (positions dropped) and the shell's morph motion
+      // plays. Every finished edit ends in one updateStatus(true) (one undo step); an add waits for its first rename and a
+      // connection for its label, so each is one step.
       //
       // x/y of elements and groups are the only saved positions (the "layout" map, toDisk); sizes, _edges, _hidden, _depth,
       // _collapsed, points, path, labelBox and canvas are derived by routeDiagram on every render and never saved.
@@ -16,6 +20,7 @@
       const svg = document.getElementById('c4-svg');
       const edgesG = document.getElementById('c4-edges');
       const html = document.getElementById('c4-html');
+      const rubber = document.getElementById('c4-rubber');
       const levelBtns = [...document.querySelectorAll('.toolbar-center [data-level]')];
 
       // The generic glyph per kind (an element's own `icon` wins; a `logo:` name has no renderer yet and falls back to it) and the
@@ -24,25 +29,38 @@
       const KIND_SLOT = { person: '1', system: '2', container: '3', component: '3', database: '4', queue: '4' };
       const KIND_NAME = { person: 'Person', system: 'Software system', container: 'Container', component: 'Component', database: 'Database', queue: 'Queue', external: 'External system' };
       const GROUP_SLOT = '2';   // a collapsed system group is drawn as a system tile
+      const KINDS = ['person', 'system', 'container', 'database', 'queue', 'external'];   // what the dock adds and the kind menu offers (components wait for Level 3)
+      const DEFAULT_NAME = { person: 'Person', system: 'Software system', container: 'Container', database: 'Database', queue: 'Queue', external: 'External system' };
+      const GROUP_KINDS = [['system', 'System (opens into containers)'], ['boundary', 'Boundary (an ownership frame)']];
+      const SIDES = [['', 'Auto'], ['N', 'Top (N)'], ['S', 'Bottom (S)'], ['E', 'Right (E)'], ['W', 'Left (W)']];
+      const NAME_MAX = 80, LABEL_MAX = 80, TECH_MAX = 60, DESC_MAX = 200;
 
       // --- STATE ---
-      let sel = null;          // { kind: 'element' | 'group' | 'edge', id }
+      let sel = [];            // the selection, primary last: [{ kind: 'element' | 'group' | 'edge', id }]
       let hoverId = null;      // the element or collapsed group under the pointer
       let hoverEdgeId = null;
+      let connecting = null;   // { from } while the Connect button waits for a target
+      let drag = null;         // a connection being dragged from a port
+      let keyDraft = null;     // the colour slot whose colour key entry is being named
+      let boxBase = [];        // the selection a Shift+drag box started from
+      let newLink = null;      // the relation whose label is still being asked (its connection is not a step yet)
       const els = { nodes: new Map(), groups: new Map(), edges: new Map() };   // id -> element; edges: id -> { g, label }
       let byId = new Map();    // group id -> group (rebuilt each render)
 
       // --- MODEL ACCESS ---
       const groups = () => chartData.groups || [];
       const elements = () => chartData.elements || [];
+      const relations = () => chartData.relations || [];
       const edges = () => chartData._edges || [];
       const groupOf = (id) => byId.get(id) || groups().find((g) => g.id === id);
       const elementOf = (id) => elements().find((e) => e.id === id);
+      const edgeOf = (id) => edges().find((e) => e.id === id);
       const presenting = () => document.body.classList.contains('presentation');
       const placed = (o) => typeof o.x === 'number' && typeof o.y === 'number';
       const nameOf = (o) => (o && o.name != null ? String(o.name) : '');
       const showTech = () => chartData.showTech !== false;
       const px = (v) => `${v}px`;
+      const isTyping = () => { const a = document.activeElement; return !!a && (a.isContentEditable || a.tagName === 'INPUT' || a.tagName === 'TEXTAREA'); };
 
       function svgEl(tag, attrs) {
         const el = document.createElementNS(NS, tag);
@@ -55,6 +73,11 @@
         if (text !== undefined) el.textContent = text;
         return el;
       }
+      // Client point -> canvas coordinates
+      function canvasPoint(e) {
+        const r = canvas.getBoundingClientRect();
+        return { x: (e.clientX - r.left) / scale - canvas.clientLeft, y: (e.clientY - r.top) / scale - canvas.clientTop };
+      }
       // The arrowhead variants: the base marker is in stage.html, the others take the in / out / primary colour (--mk)
       const MARKERS = { '': null, in: '--edge-in', out: '--edge-out', sel: '--primary' };
       Object.keys(MARKERS).forEach((k) => {
@@ -65,6 +88,30 @@
         copy.style.setProperty('--mk', `var(${MARKERS[k]})`);
         base.parentNode.appendChild(copy);
       });
+
+      document.addEventListener('pointerdown', (e) => { if (e.pointerType === 'touch') document.body.classList.add('c4-touch'); }, true);   // bigger ports for a finger
+
+      // --- INPUT CHECKS (the boundary: a name or a label is checked once, here, and refused loudly) ---
+      function cleanText(v, what, max) {
+        if (typeof v !== 'string') throw new TypeError(`${what} must be text`);
+        const t = v.replace(/\s+/g, ' ').trim();
+        if (!t) throw new RangeError(`${what} is required`);
+        if (t.length > max) throw new RangeError(`${what} is longer than ${max} characters`);
+        return t;
+      }
+      function askText(v, what, max) {   // the page's form of cleanText: the refusal is a toast
+        try { return cleanText(v, what, max); } catch (err) { ui.toast(err.message); return null; }
+      }
+      const optText = (v, max) => String(v == null ? '' : v).replace(/\s+/g, ' ').trim().slice(0, max);
+      // Editor ids are <prefix>_<ms>; two in one millisecond take a _<k> suffix (the form the codec renames to a name slug)
+      function newId(prefix) {
+        const used = new Set(groups().concat(elements(), chartData.notes || []).map((o) => o.id));
+        const base = `${prefix}_${Date.now()}`;
+        let id = base, k = 2;
+        while (used.has(id)) id = `${base}_${k++}`;
+        return id;
+      }
+      const setOpt = (o, key, v) => { if (v === '' || v === undefined || v === false || v === null) delete o[key]; else o[key] = v; };
 
       // --- GROUP TREE ---
       const parentGroup = (g) => (g.parent ? groupOf(g.parent) : null);
@@ -91,7 +138,8 @@
       const FLIP_SPECS = [
         { selector: '.c4-node[data-node-id]', key: 'nodeId' },
         { selector: '.c4-group[data-group-id]', key: 'groupId' },
-        { selector: '.edge-label[data-edge-id]', key: 'edgeId' }
+        { selector: '.edge-label[data-edge-id]', key: 'edgeId' },
+        { selector: '.c4-actionbar', key: () => 'bar' }   // the action bar follows what it belongs to
       ];
       function captureEdges() {
         const m = new Map();
@@ -123,8 +171,9 @@
         edgesG.textContent = '';
         html.textContent = '';
         els.nodes = new Map(); els.groups = new Map(); els.edges = new Map();
-        if (sel && !selectionExists(sel)) sel = null;
-        if (hoverId && !els.nodes.has(hoverId) && !elementOf(hoverId) && !groupOf(hoverId)) hoverId = null;
+        sel = sel.filter(selectionExists);
+        if (connecting && !(elementOf(connecting.from) && !elementOf(connecting.from)._hidden)) endConnect();
+        if (hoverId && !elementOf(hoverId) && !groupOf(hoverId)) hoverId = null;
 
         groups().filter((g) => placed(g) && g.w > 0 && !hiddenGroup(g)).sort((a, b) => depthOf(a) - depthOf(b)).forEach((g) => {
           const el = buildGroup(g);
@@ -145,7 +194,7 @@
         const back = hadFocus && (els.nodes.get(hadFocus) || els.groups.get(hadFocus));
         if (back) back.focus({ preventScroll: true });
         if (snap) {
-          motion.play(snap, canvas, FLIP_SPECS, { duration: o.duration, fromKey: o.fromKey, toKey: o.toKey });
+          motion.play(snap, canvas, FLIP_SPECS, { duration: o.duration, fromKey: o.fromKey, toKey: o.toKey, ghostExit: o.ghostExit, enterScale: o.enterScale });
           playEdges(prevEdges);
           if (o.afterPlay) o.afterPlay();
         }
@@ -166,6 +215,20 @@
       }
       function ariaOf(e) { return [nameOf(e), KIND_NAME[e.kind] || e.kind, e.tech].filter(Boolean).join(', '); }
 
+      // The press on a tile, tag, arrow or label: one rule for all. Ctrl/Shift adds to the selection, a plain press selects it
+      // alone, while a connection waits for its target the press picks that target.
+      function press(ev, item) {
+        if (ev.button !== 0) return;
+        ev.stopPropagation();
+        if (ev.target.closest && ev.target.closest('.is-editing')) return;
+        if (isTyping()) document.activeElement.blur();   // commit a name being edited, as any click on the canvas does
+        if (presenting()) { setSel([item]); return; }
+        if (connecting) { ev.preventDefault(); if (item.kind === 'element') finishConnect(item.id); else ui.toast('Pick an element to connect to'); return; }
+        if (ev.ctrlKey || ev.metaKey || ev.shiftKey) { ev.preventDefault(); toggleSel(item); return; }
+        if (ev.target.closest && ev.target.closest('.frame-chev')) return;
+        setSel([item]);
+      }
+
       function buildNode(e) {
         const el = htmlEl('div', 'c4-node');
         el.dataset.nodeId = e.id;
@@ -182,7 +245,18 @@
         if (e.tech && showTech()) text.appendChild(htmlEl('span', 'c4-tech t-detail', `[${e.tech}]`));
         if (e.description) text.appendChild(htmlEl('span', 'c4-desc t-detail', String(e.description)));
         el.append(chip, text);
-        el.addEventListener('pointerdown', (ev) => { if (ev.button === 0) { ev.stopPropagation(); select({ kind: 'element', id: e.id }); } });
+        ['N', 'E', 'S', 'W'].forEach((side) => {   // a port on each side: drag it onto another element to connect
+          const port = htmlEl('span', 'c4-port');
+          port.dataset.side = side;
+          port.dataset.exportSkip = '';
+          port.dataset.touchDrag = '';
+          port.setAttribute('role', 'button');
+          port.setAttribute('aria-label', `Connect from ${nameOf(e)}: drag to another element`);
+          port.title = 'Drag to another element to connect them';
+          port.addEventListener('pointerdown', (ev) => { if (ev.button === 0 && !presenting()) startConnectDrag(ev, e.id); });
+          el.appendChild(port);
+        });
+        el.addEventListener('pointerdown', (ev) => press(ev, { kind: 'element', id: e.id }));
         hoverable(el, e.id);
         return el;
       }
@@ -218,7 +292,6 @@
           const chip = htmlEl('span', 'c4-disc');
           chip.innerHTML = ui.icon(KIND_ICON.system, { size: 'tile', fine: true });
           el.append(chip, text, chevron(g, true));
-          el.addEventListener('dblclick', (ev) => { ev.stopPropagation(); toggleGroup(g.id); });
           hoverable(el, g.id);
         } else {
           const tag = htmlEl('div', 'frame-tag c4-tag');
@@ -232,7 +305,7 @@
           tag.appendChild(htmlEl('span', 'c4-tag-name', nameOf(g)));
           el.appendChild(tag);
         }
-        el.addEventListener('pointerdown', (ev) => { if (ev.button === 0 && (tile || ev.target.closest('.frame-tag'))) { ev.stopPropagation(); select({ kind: 'group', id: g.id }); } });
+        el.addEventListener('pointerdown', (ev) => { if (tile || ev.target.closest('.frame-tag')) press(ev, { kind: 'group', id: g.id }); });
         return el;
       }
 
@@ -255,7 +328,7 @@
           g.append(tip, svgEl('path', { class: 'edge-hit', d: e.path }), line);
           g.addEventListener('pointerenter', () => { hoverEdgeId = e.id; applyState(); });
           g.addEventListener('pointerleave', () => { if (hoverEdgeId === e.id) { hoverEdgeId = null; applyState(); } });
-          g.addEventListener('pointerdown', (ev) => { if (ev.button === 0) { ev.stopPropagation(); select({ kind: 'edge', id: e.id }); } });
+          g.addEventListener('pointerdown', (ev) => press(ev, { kind: 'edge', id: e.id }));
           edgesG.appendChild(g);
           els.edges.set(e.id, { g, label: null });
         });
@@ -267,33 +340,62 @@
           const el = htmlEl('div', 'edge-label c4-label');
           el.dataset.edgeId = e.id;
           el.tabIndex = -1;
+          el.setAttribute('role', 'group');
+          el.setAttribute('aria-label', edgeTitle(e));
           Object.assign(el.style, { left: px(b.x), top: px(b.y), width: px(b.w), height: px(b.h) });
           el.title = edgeTitle(e);
           el.appendChild(htmlEl('span', 'c4-label-text', `${e.label || ''}${e.count > 1 ? ` ×${e.count}` : ''}`));
           if (e.tech && showTech()) el.appendChild(htmlEl('span', 'c4-label-tech', `[${e.tech}]`));
           el.addEventListener('pointerenter', () => { hoverEdgeId = e.id; applyState(); });
           el.addEventListener('pointerleave', () => { if (hoverEdgeId === e.id) { hoverEdgeId = null; applyState(); } });
-          el.addEventListener('pointerdown', (ev) => { if (ev.button === 0) { ev.stopPropagation(); select({ kind: 'edge', id: e.id }); } });
+          el.addEventListener('pointerdown', (ev) => press(ev, { kind: 'edge', id: e.id }));
           html.appendChild(el);
           rec.label = el;
         });
       }
 
-      // The colour key: the palette slots groups and elements use and what each means (colorKey); a slot with no label is left out
+      // The colour key: the palette slots groups and elements use and what each means (colorKey); a slot with no label is left
+      // out, except the one being named right now (keyDraft: the prompt "What does Blue mean?" after a colour was picked)
       let legendEl = null;
       function renderLegend() {
-        const used = [];
+        const used = [], key = chartData.colorKey || {};
         groups().concat(elements()).forEach((o) => { const c = swatchOf(o); if (c && swatchSlot(c) && !used.includes(c)) used.push(c); });
-        legendEl = ui.colorKey(used, chartData.colorKey, { cls: 'c4-key' });
-        if (!legendEl) return;
-        html.appendChild(legendEl);
+        const shown = used.filter((c) => key[c] || c === keyDraft);
+        if (legendEl) legendEl.remove();
+        legendEl = ui.colorKey(shown, key, { cls: 'c4-key', prompts: keyDraft !== null });
+        if (legendEl) html.appendChild(legendEl);
+      }
+      function setKeyLabel(slot, value) {   // sets or clears one label; true when it changed
+        const was = (chartData.colorKey && chartData.colorKey[slot]) || '';
+        if (value === was) return false;
+        if (value) (chartData.colorKey = chartData.colorKey || {})[slot] = value;
+        else { delete chartData.colorKey[slot]; if (!Object.keys(chartData.colorKey).length) delete chartData.colorKey; }
+        return true;
+      }
+      function editKey(slot) {
+        const el = html.querySelector(`.color-key-label[data-color="${slot}"]`);
+        if (!el || presenting()) { keyDraft = null; return; }
+        const was = (chartData.colorKey && chartData.colorKey[slot]) || '';
+        el.classList.remove('is-empty');
+        beginEdit(el, {
+          raw: was, restore: was, label: 'Colour key entry',
+          apply: (v) => setKeyLabel(slot, optText(v, NAME_MAX)),
+          settle: (changed) => { keyDraft = null; if (!changed) renderLegend(); }
+        });
       }
 
       // --- SELECTION AND HOVER ---
-      function select(s) {
-        sel = s;
+      const inSel = (kind, id) => sel.some((s) => s.kind === kind && s.id === id);
+      const selIds = (kind) => sel.filter((s) => s.kind === kind).map((s) => s.id);
+      const primary = () => sel[sel.length - 1] || null;
+      function setSel(list) {
+        sel = list.filter(selectionExists);
         applyState();
       }
+      function toggleSel(item) {
+        setSel(inSel(item.kind, item.id) ? sel.filter((s) => !(s.kind === item.kind && s.id === item.id)) : sel.concat(item));
+      }
+      const select = (s) => setSel(s ? [s] : []);
       function hoverable(el, id) {
         el.addEventListener('pointerenter', (ev) => { if (ev.pointerType !== 'touch') { hoverId = id; applyState(); } });
         el.addEventListener('pointerleave', () => { if (hoverId === id) { hoverId = null; applyState(); } });
@@ -301,19 +403,21 @@
       // What is lit: the arrows in (amber) and out (blue) of the hovered element, as the flowchart does; a lone selected element
       // lights its arrows too. A hover also greys out the arrows and elements that are not connected to it.
       function applyState() {
-        const focusId = hoverId || (sel && sel.kind !== 'edge' ? sel.id : null);
+        const lone = sel.length === 1 && sel[0].kind !== 'edge' ? sel[0].id : null;
+        const focusId = hoverId || lone;
         const near = new Set(focusId ? [focusId] : []);
         els.edges.forEach((rec, id) => {
-          const e = edges().find((x) => x.id === id) || {};
+          const e = edgeOf(id) || {};
           const out = !!focusId && e.from === focusId, inn = !!focusId && !out && e.to === focusId;
           if (out || inn) { near.add(e.from); near.add(e.to); }
-          const isSel = !!sel && sel.kind === 'edge' && sel.id === id, hov = hoverEdgeId === id && !isSel;
+          const isSel = inSel('edge', id), hov = hoverEdgeId === id && !isSel;
           const line = rec.g.querySelector('.edge-line');
           [line, rec.label].forEach((x) => {
             if (!x) return;
             x.classList.toggle('hl-in', inn);
             x.classList.toggle('hl-out', out);
           });
+          line.classList.toggle('selected', isSel);
           rec.g.classList.toggle('selected', isSel);
           rec.g.classList.toggle('hover', hov);
           if (rec.label) { rec.label.classList.toggle('selected', isSel); rec.label.classList.toggle('linked', hov); }
@@ -321,14 +425,25 @@
           rec.g.classList.toggle('is-dim', dim);
           if (rec.label) rec.label.classList.toggle('is-dim', dim);
         });
-        const items = [...els.nodes, ...[...els.groups].filter(([id]) => isTile(groupOf(id)))];
+        const tags = [...els.groups].filter(([, el]) => !el.classList.contains('is-tile')).map(([id, el]) => [id, el.querySelector('.frame-tag')]).filter(([, t]) => t);
+        const items = [...els.nodes, ...[...els.groups].filter(([id]) => isTile(groupOf(id))), ...tags];
+        const first = primary();
         items.forEach(([id, el]) => {
-          el.classList.toggle('selected', !!sel && sel.kind !== 'edge' && sel.id === id);
-          el.classList.toggle('is-dim', !!hoverId && !near.has(id));
-          el.tabIndex = sel && sel.id === id ? 0 : -1;
+          const isNode = el.classList.contains('c4-node');
+          if (isNode) el.classList.toggle('selected', inSel('element', id));
+          if (isNode || el.classList.contains('is-tile')) el.classList.toggle('is-dim', !!hoverId && !near.has(id) && !inSel(isNode ? 'element' : 'group', id));
+          el.tabIndex = first && first.kind !== 'edge' && first.id === id ? 0 : -1;
         });
-        if (!sel) { const first = items.length ? items[0][1] : null; if (first) first.tabIndex = 0; }
-        els.groups.forEach((el, id) => { const t = el.querySelector('.frame-tag'); if (t) t.classList.toggle('selected', !!sel && sel.kind === 'group' && sel.id === id); });
+        if (!(first && first.kind !== 'edge') && items.length) items[0][1].tabIndex = 0;
+        els.groups.forEach((el, id) => {
+          el.classList.toggle('selected', inSel('group', id));
+          const t = el.querySelector('.frame-tag');
+          if (t) t.classList.toggle('selected', inSel('group', id));
+        });
+        canvas.classList.toggle('c4-multi', sel.length > 1);
+        canvas.classList.toggle('c4-connecting', !!connecting);
+        drawBar();
+        if (typeof queueDeleteRefresh === 'function') queueDeleteRefresh();
       }
 
       // --- COLLAPSE, EXPAND AND LEVELS ---
@@ -370,37 +485,822 @@
       }
       levelBtns.forEach((b) => b.addEventListener('click', () => setCollapsed(levelsWanted(+b.dataset.level))));
 
+      // =====================================================================================================
+      // --- EDITING ---
+      // =====================================================================================================
+      // The one way an edit ends: Auto-Tidy (layoutDiagram drops every position and places everything afresh), the morph from
+      // the old geometry to the new (render plays it), and one updateStatus(true) = one undo step. relayout false: a change that
+      // moves nothing (colour, icon), only drawn again. mo: motion options for render, or false for none.
+      function commit(relayout, mo) {
+        const useMotion = mo !== false && motion.enabled() && html.childElementCount > 0;
+        const o = mo && typeof mo === 'object' ? Object.assign({}, mo) : {};
+        if (useMotion) {
+          motion.cancelAll();
+          if (!o.snap) o.snap = motion.capture(canvas, FLIP_SPECS, o.captureOpts);
+          if (!o.prevEdges) o.prevEdges = captureEdges();
+        }
+        if (relayout !== false) layoutDiagram(chartData);
+        render(mo === false ? false : o);
+        updateStatus(true);
+      }
+
+      // --- Menus and popovers: one floating box at a time, under their button; Esc, a press elsewhere or a pick closes it ---
+      let floating = null;   // { el, onClose(why) }
+      function closeFloating(why) {
+        if (!floating) return false;
+        const f = floating;
+        floating = null;
+        if (f.onClose) f.onClose(why || 'cancel');
+        motion.ghostExit(f.el, { duration: 110, transform: 'scale(0.92, 0.86) translateY(-4px)', origin: 'top left' });
+        f.el.remove();
+        return true;
+      }
+      function openFloating(el, anchor, onClose) {
+        closeFloating('replaced');
+        el.dataset.exportSkip = '';
+        document.body.appendChild(el);
+        const r = anchor.getBoundingClientRect ? anchor.getBoundingClientRect() : anchor;
+        el.style.left = px(Math.max(8, Math.min(r.left, innerWidth - el.offsetWidth - 8)));
+        const below = r.bottom + 6 + el.offsetHeight < innerHeight - 8;
+        el.style.top = px(below ? r.bottom + 6 : Math.max(8, r.top - 6 - el.offsetHeight));
+        el.style.transformOrigin = below ? 'top left' : 'bottom left';
+        motion.anim(el, [
+          { transform: `scale(0.92, 0.86) translateY(${below ? -4 : 4}px)`, clipPath: below ? 'inset(0 0 25% 0 round 8px)' : 'inset(25% 0 0 0 round 8px)' },
+          { transform: 'none', clipPath: 'inset(0 0 0 0 round 8px)' }
+        ], { duration: 130, easing: motion.curve('curve-spring-tactile') });
+        floating = { el, onClose };
+        return floating;
+      }
+      document.addEventListener('pointerdown', (e) => { if (floating && !floating.el.contains(e.target) && !e.target.closest('[data-menu]')) closeFloating('outside'); }, true);
+
+      function openMenu(anchor, title, items, onPick) {
+        const m = htmlEl('div', 'menu c4-menu');
+        m.id = 'c4-menu';
+        m.setAttribute('role', 'menu');
+        m.setAttribute('aria-label', title);
+        m.appendChild(htmlEl('div', 'menu-label', title)).setAttribute('role', 'presentation');
+        items.forEach((it) => {
+          const b = htmlEl('button', '', it.label);
+          b.type = 'button';
+          b.dataset.value = it.value;
+          b.setAttribute('role', 'menuitem');
+          if (it.selected) b.setAttribute('aria-current', 'true');
+          b.addEventListener('click', (e) => { e.stopPropagation(); closeFloating('pick'); onPick(it.value); });
+          m.appendChild(b);
+        });
+        m.addEventListener('keydown', (e) => {
+          const bs = [...m.querySelectorAll('button')], i = bs.indexOf(document.activeElement);
+          if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); bs[(i + (e.key === 'ArrowDown' ? 1 : bs.length - 1)) % bs.length].focus(); }
+          else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeFloating('cancel'); }
+        });
+        openFloating(m, anchor);
+        const cur = m.querySelector('[aria-current]') || m.querySelector('button');
+        if (cur) cur.focus();
+      }
+
+      // A small box with an input (the label prompt, the arrow's technology): Enter saves, Esc or a press elsewhere is `onClose`'s
+      // call. onCommit(value) returns true when the value was accepted (the box closes), false to keep it open.
+      function openPrompt(anchor, o) {
+        const box = htmlEl('div', 'c4-pop c4-prompt');
+        box.setAttribute('role', 'dialog');
+        box.setAttribute('aria-label', o.label);
+        const input = htmlEl('input', 'c4-input');
+        input.id = o.id;
+        input.type = 'text';
+        input.maxLength = o.max;
+        input.value = o.value || '';
+        input.placeholder = o.placeholder;
+        input.setAttribute('aria-label', o.label);
+        input.autocomplete = 'off';
+        input.spellcheck = false;
+        box.append(input, htmlEl('span', 'c4-pop-hint t-detail', o.hint));
+        let done = false;
+        const f = openFloating(box, anchor, (why) => {
+          if (done) return;
+          done = true;
+          if (why === 'cancel' || why === 'replaced') o.onCancel(why);
+          else if (!o.onCommit(input.value, why)) o.onCancel(why);
+        });
+        input.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault(); e.stopPropagation();
+            if (o.onCommit(input.value, 'enter')) { done = true; closeFloating('pick'); } else input.focus();
+          } else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeFloating('cancel'); }
+        });
+        input.focus();
+        input.select();
+        return f;
+      }
+
+      // --- Inline text editing (double-click, Enter / F2, or straight after creating something) ---
+      // o: raw (the text to edit), restore (what to show when nothing changed), apply(value) -> true when it changed the model,
+      // settle(changed) at the end, pending (an add or a connect whose undo step ends here).
+      function beginEdit(el, o) {
+        if (!el || el.isContentEditable) return;
+        if (o.raw !== undefined) el.textContent = o.raw;
+        el.classList.add('is-editing');
+        el.contentEditable = 'plaintext-only';
+        el.spellcheck = false;
+        if (o.label) el.setAttribute('aria-label', o.label);
+        el.focus();
+        const range = document.createRange();
+        range.selectNodeContents(el);
+        const s = window.getSelection();
+        s.removeAllRanges();
+        s.addRange(range);
+        const original = el.textContent;
+        let done = false, byKey = false;
+        const finish = () => {
+          if (done) return;
+          done = true;
+          el.removeEventListener('blur', finish);
+          el.removeEventListener('keydown', onKey);
+          el.contentEditable = 'false';
+          el.classList.remove('is-editing');
+          const changed = el.textContent !== original ? !!o.apply(el.textContent) : false;
+          if (o.settle) o.settle(changed);
+          if (changed) commit(true);
+          else { el.textContent = o.restore !== undefined ? o.restore : original; if (o.pending) updateStatus(true); }
+          if (byKey && o.after) o.after();   // Enter or Esc: the keyboard path goes on from the tile
+        };
+        const onKey = (ke) => {
+          if (ke.key === 'Enter' || ke.key === 'Escape') byKey = true;
+          if (ke.key === 'Enter' || ke.key === 'Tab' || ke.key === 'F2') ke.stopPropagation();
+          if (ke.key === 'Enter') { ke.preventDefault(); el.blur(); finish(); }
+          else if (ke.key === 'Escape') { ke.preventDefault(); ke.stopPropagation(); el.textContent = original; el.blur(); finish(); }
+        };
+        el.addEventListener('blur', finish);
+        el.addEventListener('keydown', onKey);
+      }
+      function nameEl(kind, id) {
+        if (kind === 'element') { const n = els.nodes.get(id); return n && n.querySelector('.c4-name'); }
+        const g = els.groups.get(id);
+        return g && (g.querySelector('.c4-tag-name') || g.querySelector('.c4-name'));
+      }
+      function editName(kind, id, pending) {
+        const o = kind === 'element' ? elementOf(id) : groupOf(id), el = nameEl(kind, id);
+        if (!o || !el) return;
+        beginEdit(el, {
+          raw: nameOf(o), pending,
+          after: () => { const t = kind === 'element' ? els.nodes.get(id) : (els.groups.get(id) || {}).querySelector && (els.groups.get(id).querySelector('.frame-tag') || els.groups.get(id)); if (t) t.focus({ preventScroll: true }); },
+          apply: (v) => {
+            const t = askText(v, 'A name', NAME_MAX);
+            if (t === null || t === nameOf(o)) return false;
+            o.name = t;
+            return true;
+          }
+        });
+      }
+      function editSelection() {
+        const p = primary();
+        if (!p || sel.length !== 1) return;
+        if (p.kind === 'edge') askLabel(p.id, false);
+        else editName(p.kind, p.id);
+      }
+      html.addEventListener('dblclick', (e) => {
+        if (presenting()) return;
+        const t = e.target;
+        const kl = t.closest('.color-key-label');
+        if (kl) { if (!kl.isContentEditable) { e.stopPropagation(); keyDraft = kl.dataset.color; editKey(kl.dataset.color); } return; }
+        if (t.closest('.c4-actionbar, .frame-chev, .c4-port') || t.isContentEditable) return;
+        const lbl = t.closest('.c4-label');
+        if (lbl) { e.stopPropagation(); askLabel(lbl.dataset.edgeId, false); return; }
+        const node = t.closest('.c4-node');
+        if (node) { e.stopPropagation(); editName('element', node.dataset.nodeId); return; }
+        const grp = t.closest('.c4-group');
+        if (!grp) return;
+        e.stopPropagation();
+        const id = grp.dataset.groupId;
+        if (!grp.classList.contains('is-tile') || t.closest('.c4-name')) editName('group', id); else toggleGroup(id);
+      });
+
+      // --- Add (the dock): a tile adds the item; one added while a group is selected joins it; it is selected and its name is open ---
+      function addItem(kind) {
+        if (presenting()) return null;
+        const isGroup = kind === 'group';
+        if (!isGroup && !KINDS.includes(kind)) throw new RangeError(`unknown element kind "${kind}"`);
+        if (isTyping()) document.activeElement.blur();
+        motion.cancelAll();
+        const p = primary(), host = sel.length === 1 && p.kind === 'group' ? groupOf(p.id) : null;
+        const useMotion = motion.enabled() && html.childElementCount > 0;
+        const snap = useMotion ? motion.capture(canvas, FLIP_SPECS) : null, prevEdges = useMotion ? captureEdges() : null;
+        const o = isGroup ? { id: newId('g'), name: 'New group', kind: 'system' } : { id: newId('e'), kind, name: DEFAULT_NAME[kind] };
+        if (host) { host.collapsed = false; o[isGroup ? 'parent' : 'group'] = host.id; }
+        if (isGroup) (chartData.groups = groups()).push(o); else (chartData.elements = elements()).push(o);
+        layoutDiagram(chartData);
+        sel = [{ kind: isGroup ? 'group' : 'element', id: o.id }];
+        render({ snap, prevEdges, fromKey: host ? { [o.id]: host.id } : undefined, enterScale: 0.82, duration: 200 });
+        editName(sel[0].kind, o.id, true);
+        return o.id;
+      }
+      [...KINDS, 'group'].forEach((k) => {
+        const b = document.getElementById(`btn-add-${k}`);
+        // A keyboard or tap pick hands the focus back to the Add button right after this click: open the name a tick later then
+        if (b) b.addEventListener('click', (e) => { if (e.detail === 0) setTimeout(() => addItem(k), 0); else addItem(k); });
+      });
+
+      // --- Connect: drag from a port onto another element, or the Connect button and a click on the target ---
+      function nodeIdAt(x, y) {
+        const el = document.elementFromPoint(x, y), it = el && el.closest('.c4-node, .c4-group.is-tile');
+        return it ? { id: it.dataset.nodeId || it.dataset.groupId, tile: !it.dataset.nodeId } : null;
+      }
+      function startConnectDrag(ev, fromId) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        if (isTyping()) document.activeElement.blur();
+        endDrag();
+        setSel([{ kind: 'element', id: fromId }]);
+        drag = { from: fromId, x: ev.clientX, y: ev.clientY, moved: false };
+        window.addEventListener('pointermove', onDragMove);
+        window.addEventListener('pointerup', onDragUp);
+        window.addEventListener('pointercancel', cancelDrag);
+      }
+      function onDragMove(e) {
+        const d = drag, src = d && elementOf(d.from);
+        if (!d || !src) return;
+        if (!d.moved && Math.hypot(e.clientX - d.x, e.clientY - d.y) < 4) return;
+        if (!d.moved) { d.moved = true; document.body.classList.add('c4-dragging'); hoverId = null; applyState(); }
+        const pt = canvasPoint(e);
+        rubber.setAttribute('x1', src.x + src.w / 2); rubber.setAttribute('y1', src.y + src.h / 2);
+        rubber.setAttribute('x2', pt.x); rubber.setAttribute('y2', pt.y);
+        rubber.style.display = 'block';
+        canvas.querySelectorAll('.c4-target').forEach((el) => el.classList.remove('c4-target'));
+        const hit = nodeIdAt(e.clientX, e.clientY);
+        if (hit && !hit.tile && hit.id !== d.from && els.nodes.get(hit.id)) els.nodes.get(hit.id).classList.add('c4-target');
+      }
+      function endDrag() {
+        window.removeEventListener('pointermove', onDragMove);
+        window.removeEventListener('pointerup', onDragUp);
+        window.removeEventListener('pointercancel', cancelDrag);
+        document.body.classList.remove('c4-dragging');
+        rubber.style.display = 'none';
+        canvas.querySelectorAll('.c4-target').forEach((el) => el.classList.remove('c4-target'));
+        const d = drag;
+        drag = null;
+        return d;
+      }
+      function onDragUp(e) {
+        const hit = drag && drag.moved ? nodeIdAt(e.clientX, e.clientY) : null;   // before the bar comes back: it may sit over the target
+        const d = endDrag();
+        if (!d || !d.moved) return;
+        if (!hit) return;
+        if (hit.tile) { ui.toast('Open the group first: a connection joins two elements'); return; }
+        connectItems(d.from, hit.id);
+      }
+      function cancelDrag() { return !!endDrag(); }
+      // The Connect button: the next element clicked (or picked with Enter) is the target
+      let hintEl = null;
+      function hint(text) {
+        if (text === null) { if (hintEl) { motion.hideHint(hintEl); hintEl = null; } return; }
+        if (!hintEl) {
+          hintEl = htmlEl('div', 'hint');
+          hintEl.setAttribute('role', 'status');
+          hintEl.dataset.exportSkip = '';
+          document.body.appendChild(hintEl);
+        }
+        hintEl.textContent = text;
+      }
+      function startConnect(fromId) {
+        connecting = { from: fromId };
+        hint('Click the element to connect to. Esc cancels.');
+        applyState();
+      }
+      function endConnect() {
+        if (!connecting) return false;
+        connecting = null;
+        hint(null);
+        applyState();
+        return true;
+      }
+      function finishConnect(toId) {
+        const from = connecting.from;
+        endConnect();
+        connectItems(from, toId);
+      }
+      // The new arrow appears at once (laid out, drawn in) and asks for its label; the connection is one undo step with the label,
+      // and Esc on the label (or an empty one) takes the whole connection back.
+      function connectItems(fromId, toId) {
+        if (!elementOf(fromId) || !elementOf(toId)) throw new RangeError('connectItems: both ends must be elements');
+        if (fromId === toId) { ui.toast('An element cannot connect to itself'); return false; }
+        if (isTyping()) document.activeElement.blur();
+        motion.cancelAll();
+        const useMotion = motion.enabled() && html.childElementCount > 0;
+        const snap = useMotion ? motion.capture(canvas, FLIP_SPECS) : null, prevEdges = useMotion ? captureEdges() : null;
+        const rel = { from: fromId, to: toId, label: '' };
+        (chartData.relations = relations()).push(rel);
+        layoutDiagram(chartData);
+        const index = relations().indexOf(rel);
+        const e = edges().find((x) => x.members.includes(index));
+        sel = e ? [{ kind: 'edge', id: e.id }] : [];
+        newLink = rel;   // no action bar over the arrow while its label is asked
+        render({ snap, prevEdges, duration: 200 });
+        if (e) askLabel(e.id, true, rel); else newLink = null;
+        return true;
+      }
+      const sameRelation = (a, b) => a !== b && a.from === b.from && a.to === b.to && String(a.label) === String(b.label);
+      function dropNewRelation(rel, back) {
+        newLink = null;
+        motion.cancelAll();
+        const snap = motion.enabled() && html.childElementCount > 0 ? motion.capture(canvas, FLIP_SPECS, { ghosts: true }) : null;
+        const prevEdges = snap ? captureEdges() : null;
+        chartData.relations = relations().filter((r) => r !== rel);
+        layoutDiagram(chartData);
+        sel = back ? [back] : [];
+        render({ snap, prevEdges, ghostExit: true, duration: 180 });
+        // nothing was committed: the model is what the last step left, so this makes no undo step
+      }
+      // The label prompt of an arrow (#c4-label-input): for a new connection (newRel) a label is required and Esc undoes the connection
+      function askLabel(edgeId, isNew, newRel) {
+        const e = edgeOf(edgeId);
+        if (!e || presenting()) return;
+        if (!isNew && !(elementOf(e.from) && elementOf(e.to))) { ui.toast('This arrow merges several relations: open the group to edit them'); return; }
+        const rec = els.edges.get(edgeId), members = e.members.map((i) => relations()[i]).filter(Boolean);
+        const back = isNew ? { kind: 'element', id: newRel.from } : null;
+        openPrompt((rec && (rec.label || rec.g)) || canvas, {
+          id: 'c4-label-input', label: 'Relation label', max: LABEL_MAX, placeholder: 'What does it do? e.g. Sends orders',
+          hint: isNew ? 'Enter saves. Esc undoes the connection.' : 'Enter saves. Esc keeps the old label.',
+          value: isNew ? '' : e.label,
+          onCommit: (v) => {
+            const label = askText(v, 'A label', LABEL_MAX);
+            if (label === null) return false;
+            if (isNew) {
+              if (relations().some((r) => sameRelation(r, Object.assign({}, newRel, { label })))) {
+                ui.toast('That connection already exists with this label');
+                dropNewRelation(newRel, back);
+                return true;
+              }
+              newRel.label = label;
+              newLink = null;
+              commit(true);
+              return true;
+            }
+            if (label === e.label) return true;
+            if (members.some((r) => relations().some((x) => !members.includes(x) && sameRelation(x, Object.assign({}, r, { label }))))) { ui.toast('That connection already exists with this label'); return false; }
+            members.forEach((r) => { r.label = label; });
+            commit(true);
+            return true;
+          },
+          onCancel: () => { if (isNew) dropNewRelation(newRel, back); }
+        });
+      }
+      function askTech(edgeId) {
+        const e = edgeOf(edgeId);
+        if (!e || !(elementOf(e.from) && elementOf(e.to))) return;
+        const rec = els.edges.get(edgeId), members = e.members.map((i) => relations()[i]).filter(Boolean);
+        openPrompt((rec && (rec.label || rec.g)) || canvas, {
+          id: 'c4-edge-tech', label: 'Technology of the relation', max: TECH_MAX, placeholder: 'REST, gRPC, SQL ...',
+          hint: 'Enter saves. Empty removes it. Esc keeps the old one.', value: e.tech || '',
+          onCommit: (v) => {
+            const t = optText(v, TECH_MAX);
+            if (t === (e.tech || '')) return true;
+            members.forEach((r) => setOpt(r, 'tech', t));
+            commit(true);
+            return true;
+          },
+          onCancel: () => {}
+        });
+      }
+
+      // --- Delete ---
+      function dropNoteRefs(gone) {   // a note loses the elements and groups that went; one left with none goes
+        if (!Array.isArray(chartData.notes)) return;
+        chartData.notes = chartData.notes.filter((n) => {
+          let had = 0, left = 0;
+          ['elements', 'groups'].forEach((k) => { if (Array.isArray(n[k])) { had += n[k].length; n[k] = n[k].filter((x) => !gone.has(x)); left += n[k].length; if (!n[k].length) delete n[k]; } });
+          return !had || left;
+        });
+        if (!chartData.notes.length) delete chartData.notes;
+      }
+      // What a selection removes: the selected elements and groups (a group takes everything inside it) and the relations
+      // that touch a removed element, or that a selected arrow stands for
+      function removal() {
+        const gids = new Set(selIds('group')), eids = new Set(selIds('element'));
+        selIds('group').forEach((id) => descendants(groupOf(id)).forEach((d) => { if (groupOf(d)) gids.add(d); else eids.add(d); }));
+        const rels = new Set();
+        selIds('edge').forEach((id) => { const e = edgeOf(id); if (e) e.members.forEach((i) => rels.add(relations()[i])); });
+        relations().forEach((r) => { if (eids.has(r.from) || eids.has(r.to)) rels.add(r); });
+        return { gids, eids, rels };
+      }
+      function removeAll({ gids, eids, rels }) {
+        chartData.elements = elements().filter((e) => !eids.has(e.id));
+        chartData.groups = groups().filter((g) => !gids.has(g.id));
+        chartData.relations = relations().filter((r) => !rels.has(r));
+        dropNoteRefs(new Set([...gids, ...eids]));
+        sel = [];
+        endConnect();
+        commit(true, { captureOpts: { ghosts: true }, ghostExit: true, duration: 200 });
+      }
+      function deleteSelection(anchorEl) {
+        if (presenting() || !sel.length) return;
+        const r = removal(), full = selIds('group').filter((id) => descendants(groupOf(id)).length);
+        if (!full.length) { removeAll(r); return; }
+        const inside = r.eids.size - selIds('element').length, name = full.length === 1 ? nameOf(groupOf(full[0])) : `${full.length} groups`;
+        const what = inside ? ` and its ${inside} element${inside === 1 ? '' : 's'}` : '';
+        ui.confirm(anchorEl || els.groups.get(full[0]), { message: `Delete ${name}${what}?`, label: 'Delete group' }, () => removeAll(removal()));
+      }
+      function ungroup(id) {
+        const g = groupOf(id);
+        if (!g) return;
+        elements().forEach((e) => { if (e.group === id) setOpt(e, 'group', g.parent || ''); });
+        groups().forEach((x) => { if (x.parent === id) setOpt(x, 'parent', g.parent || ''); });
+        chartData.groups = groups().filter((x) => x !== g);
+        dropNoteRefs(new Set([id]));
+        sel = [];
+        commit(true);
+      }
+
+      // --- Property edits ---
+      function setColor(slot) {
+        const objs = sel.filter((s) => s.kind !== 'edge').map((s) => (s.kind === 'group' ? groupOf(s.id) : elementOf(s.id))).filter((o) => o && (o.color || '') !== slot);
+        if (!objs.length) return;
+        objs.forEach((o) => setOpt(o, 'color', slot));
+        if (slot && !(chartData.colorKey && chartData.colorKey[slot])) keyDraft = slot;   // invite a name for the colour (optional: leave it empty)
+        commit(false, { duration: 160 });
+        if (keyDraft) editKey(keyDraft);
+      }
+      function setKind(o, kind) {
+        if (!KINDS.includes(kind) || o.kind === kind) return;
+        o.kind = kind;
+        commit(true);
+      }
+      function moveToGroup(ids, target) {
+        const list = ids.map(elementOf).filter(Boolean);
+        if (!list.length) return;
+        let host = null;
+        if (target === '+new') {
+          const same = list.every((e) => e.group === list[0].group);
+          host = { id: newId('g'), name: 'New group', kind: 'system' };
+          if (same && list[0].group) host.parent = list[0].group;
+          (chartData.groups = groups()).push(host);
+        } else if (target) {
+          host = groupOf(target);
+          if (!host) throw new RangeError(`unknown group "${target}"`);
+          [host].concat(ancestors(host)).forEach((g) => { g.collapsed = false; });   // the result is shown, not hidden in a closed box
+        }
+        list.forEach((e) => setOpt(e, 'group', host ? host.id : ''));
+        commit(true);
+      }
+      const groupItems = (ids) => {
+        const cur = new Set(ids.map(elementOf).filter(Boolean).map((e) => e.group || ''));
+        const out = [{ label: 'No group', value: '', selected: cur.size === 1 && cur.has('') }];
+        groups().filter((g) => placed(g) && !hiddenGroup(g)).sort((a, b) => depthOf(a) - depthOf(b)).forEach((g) => out.push({ label: `${' '.repeat(depthOf(g) - 1)}${nameOf(g)}`, value: g.id, selected: cur.size === 1 && cur.has(g.id) }));
+        out.push({ label: 'New group', value: '+new' });
+        return out;
+      };
+
+      // --- Details popover (#c4-tech, #c4-desc) ---
+      function openDetails(anchor, o) {
+        const box = htmlEl('div', 'c4-pop c4-details');
+        box.id = 'c4-details';
+        box.setAttribute('role', 'dialog');
+        box.setAttribute('aria-label', 'Details');
+        const field = (id, label, tag, max) => {
+          const wrap = htmlEl('label', 'c4-field');
+          wrap.appendChild(htmlEl('span', 'c4-field-label t-detail', label));
+          const input = htmlEl(tag, 'c4-input');
+          input.id = id;
+          input.maxLength = max;
+          if (tag === 'textarea') input.rows = 3; else input.type = 'text';
+          wrap.appendChild(input);
+          box.appendChild(wrap);
+          return input;
+        };
+        const tech = field('c4-tech', 'Technology', 'input', TECH_MAX), desc = field('c4-desc', 'Description', 'textarea', DESC_MAX);
+        tech.value = o.tech || ''; desc.value = o.description || '';
+        tech.placeholder = 'Node.js, PostgreSQL ...'; desc.placeholder = 'What it is or does';
+        box.addEventListener('keydown', (e) => {
+          if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeFloating('cancel'); }
+          else if (e.key === 'Enter' && (e.target === tech || e.ctrlKey || e.metaKey)) { e.preventDefault(); e.stopPropagation(); closeFloating('pick'); }
+        });
+        openFloating(box, anchor, (why) => {
+          if (why === 'cancel') return;
+          const t = optText(tech.value, TECH_MAX), d = optText(desc.value, DESC_MAX);
+          if (t === (o.tech || '') && d === (o.description || '')) return;
+          setOpt(o, 'tech', t); setOpt(o, 'description', d);
+          commit(true);
+        });
+        tech.focus();
+      }
+
+      // --- Icon picker (#c4-icons): the generic icons, searched by name; a pack name the page cannot draw is listed as missing ---
+      function openIcons(anchor, o) {
+        const box = htmlEl('div', 'c4-pop c4-icons');
+        box.id = 'c4-icons';
+        box.setAttribute('role', 'dialog');
+        box.setAttribute('aria-label', 'Icon');
+        const search = htmlEl('input', 'c4-input');
+        search.id = 'c4-icon-search';
+        search.type = 'search';
+        search.placeholder = 'Search icons';
+        search.setAttribute('aria-label', 'Search icons');
+        search.autocomplete = 'off';
+        const grid = htmlEl('div', 'c4-icon-grid');
+        grid.setAttribute('role', 'group');
+        grid.setAttribute('aria-label', 'Icons');
+        const note = htmlEl('div', 'c4-icons-note t-detail');
+        note.setAttribute('role', 'status');
+        const missing = [...new Set(elements().map((e) => e.icon).filter((n) => n && ICONS[n] === undefined))];
+        const pick = (name) => { closeFloating('pick'); if ((o.icon || '') !== name) { setOpt(o, 'icon', name); commit(false, { duration: 160 }); } };
+        const fill = () => {
+          const q = search.value.trim().toLowerCase().replace(/[-_]+/g, ' ');
+          grid.textContent = '';
+          const names = [''].concat(Object.keys(ICONS).filter((n) => !q || n.replace(/-/g, ' ').includes(q)));
+          names.forEach((n) => {
+            const b = htmlEl('button', 'c4-icon-opt');
+            b.type = 'button';
+            b.dataset.icon = n;
+            b.title = n || `Default for ${KIND_NAME[o.kind] || o.kind}`;
+            b.setAttribute('aria-label', b.title);
+            b.setAttribute('aria-pressed', String((o.icon || '') === n));
+            b.innerHTML = ui.icon(n || KIND_ICON[o.kind] || 'cloud', { size: 'md' });
+            b.addEventListener('click', () => pick(n));
+            grid.appendChild(b);
+          });
+          note.textContent = names.length === 1 ? 'No icon matches.' : '';
+        };
+        search.addEventListener('input', fill);
+        box.append(search, grid, note);
+        if (missing.length) {
+          const m = htmlEl('div', 'c4-icons-missing t-detail', `Missing icon pack: ${missing.join(', ')}. Those elements show the icon of their kind.`);
+          m.setAttribute('role', 'status');
+          box.appendChild(m);
+        }
+        box.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeFloating('cancel'); } });
+        fill();
+        openFloating(box, anchor);
+        search.focus();
+      }
+
+      // --- ACTION BARS ---
+      const ab = (act, content, title, pressed, value, extra) => ui.abButton('ab-btn', act, content, title, pressed, value, extra);
+      const abMenu = (act, icon, text, title) => { const b = ab(act, `${ui.icon(icon, { size: 'sm' })}<span>${text}</span>${ui.icon('chevron-down', { size: 'xs', bold: true })}`, title); b.dataset.menu = ''; return b; };
+      const abText = (act, icon, text, title, pressed) => ab(act, `${ui.icon(icon, { size: 'sm' })}<span>${text}</span>`, title, pressed);
+      function colourRow(current) {
+        const row = swatchRow(current || '', setColor, { btnClass: 'ab-swatch' });
+        row.querySelectorAll('.swatch-btn').forEach((b) => { b.dataset.act = 'color'; });
+        return row;
+      }
+      const uniform = (objs) => { const cs = [...new Set(objs.map((o) => o.color || ''))]; return cs.length === 1 ? cs[0] : ''; };
+      const boxOf = (o) => ({ x: o.x, y: o.y, w: o.w || 0, h: o.h || 0 });
+      const anchorOfBox = (b) => ({ x: b.x + b.w / 2, y: b.y, bottom: b.y + b.h });
+
+      function elementBar(bar, o) {
+        bar.setAttribute('aria-label', 'Element');
+        bar.appendChild(ab('rename', ui.icon('rename'), 'Rename (F2)'));
+        bar.appendChild(abMenu('kind', KIND_ICON[o.kind] || 'cloud', 'Kind', `Kind: ${KIND_NAME[o.kind] || o.kind}`));
+        bar.appendChild(abText('icon', 'shapes', 'Icon', 'Icon: pick from the generic icons'));
+        bar.appendChild(abMenu('group', 'frame', 'Group', 'Move to a group'));
+        bar.appendChild(ui.abSep('ab-sep'));
+        bar.appendChild(ab('core', ui.icon('focus'), 'Centre: the rest of the diagram rings round it', o.core === true));
+        bar.appendChild(abMenu('side', 'direction-lr', 'Side', `Side of the centre: ${o.side || 'auto'}`));
+        bar.appendChild(ab('details', ui.icon('note-lines'), 'Details: technology and description'));
+        bar.appendChild(ab('connect', ui.icon('link'), 'Connect to another element'));
+        bar.appendChild(ab('delete', ui.icon('trash'), 'Delete (and its arrows)', undefined, undefined, 'is-danger'));
+        bar.appendChild(ui.abBreak('ab-break'));
+        bar.appendChild(colourRow(o.color));
+        return anchorOfBox(boxOf(o));
+      }
+      function groupBar(bar, g) {
+        bar.setAttribute('aria-label', 'Group');
+        const tile = isTile(g);
+        bar.appendChild(ab('rename', ui.icon('rename'), 'Rename (F2)'));
+        bar.appendChild(abMenu('kind', 'frame', 'Kind', `Kind: ${g.kind === 'boundary' ? 'boundary' : 'system'}`));
+        bar.appendChild(ab('collapse', ui.icon('chevron-down'), tile ? 'Expand' : 'Collapse to one box', tile));
+        bar.appendChild(ui.abSep('ab-sep'));
+        bar.appendChild(ab('core', ui.icon('focus'), 'Centre: the rest of the diagram rings round it', g.core === true));
+        bar.appendChild(abMenu('side', 'direction-lr', 'Side', `Side of the centre: ${g.side || 'auto'}`));
+        bar.appendChild(ab('ungroup', ui.icon('split'), 'Ungroup: keep the members, remove the frame'));
+        bar.appendChild(ab('delete', ui.icon('trash'), 'Delete the group and its members', undefined, undefined, 'is-danger'));
+        bar.appendChild(ui.abBreak('ab-break'));
+        bar.appendChild(colourRow(g.color));
+        return anchorOfBox(boxOf(g));
+      }
+      function edgeBar(bar, e) {
+        bar.setAttribute('aria-label', 'Arrow');
+        const direct = !!(elementOf(e.from) && elementOf(e.to)), rel = direct ? relations()[e.members[0]] : null;
+        if (direct && rel) {
+          bar.appendChild(abText('label', 'label', 'Label', 'Edit the label (Enter)'));
+          bar.appendChild(abText('tech', 'code', 'Tech', 'Technology: REST, gRPC, SQL ...'));
+          bar.appendChild(ab('async', ui.icon('line-dashed'), 'Asynchronous: draw it dashed', rel.async === true));
+          bar.appendChild(ab('reverse', ui.icon('reverse'), 'Reverse the direction'));
+        } else bar.appendChild(htmlEl('span', 'c4-ab-tag', `${e.count} relations`));
+        bar.appendChild(ab('delete', ui.icon('trash'), e.count > 1 ? `Delete these ${e.count} relations` : 'Delete this arrow', undefined, undefined, 'is-danger'));
+        const b = e.labelBox;
+        if (b) return { x: b.x + b.w / 2, y: b.y, bottom: b.y + b.h };
+        const pts = e.points || [], m = pts[Math.floor(pts.length / 2)] || [0, 0];
+        return { x: m[0], y: m[1], bottom: m[1] };
+      }
+      function multiBar(bar) {
+        bar.setAttribute('aria-label', 'Selection');
+        const nodes = sel.filter((s) => s.kind !== 'edge').map((s) => (s.kind === 'group' ? groupOf(s.id) : elementOf(s.id)));
+        bar.appendChild(htmlEl('span', 'c4-ab-tag', `${sel.length} selected`));
+        bar.appendChild(ui.abSep('ab-sep'));
+        if (selIds('element').length) bar.appendChild(abMenu('group', 'frame', 'Group', 'Move the selected elements to a group'));
+        bar.appendChild(ab('delete', `${ui.icon('trash')}<span>Delete ${sel.length}</span>`, `Delete these ${sel.length} items`, undefined, undefined, 'is-danger'));
+        if (nodes.length) { bar.appendChild(ui.abBreak('ab-break')); bar.appendChild(colourRow(uniform(nodes))); }
+        const boxes = nodes.map(boxOf).concat(sel.filter((s) => s.kind === 'edge').map((s) => edgeOf(s.id)).filter((e) => e && e.labelBox).map((e) => e.labelBox));
+        const x0 = Math.min(...boxes.map((b) => b.x)), y0 = Math.min(...boxes.map((b) => b.y));
+        const x1 = Math.max(...boxes.map((b) => b.x + (b.w || 0))), y1 = Math.max(...boxes.map((b) => b.y + (b.h || 0)));
+        return anchorOfBox({ x: x0, y: y0, w: x1 - x0, h: y1 - y0 });
+      }
+
+      let lastBarKey = null;   // which selection the bar was last drawn for: a redraw of the same one makes no entrance
+      function drawBar() {
+        const key = presenting() || connecting || newLink || !sel.length ? null : JSON.stringify(sel);
+        const same = key !== null && key === lastBarKey;
+        lastBarKey = key;
+        html.querySelectorAll('.c4-actionbar').forEach((el) => (same ? el.remove() : motion.hideBar(el)));
+        if (key === null) return;
+        const bar = ui.actionBar('actionbar c4-actionbar is-wrap');
+        const p = primary();
+        let at = null;
+        if (sel.length > 1) at = multiBar(bar);
+        else if (p.kind === 'edge') at = edgeBar(bar, edgeOf(p.id));
+        else if (p.kind === 'group') at = placed(groupOf(p.id)) ? groupBar(bar, groupOf(p.id)) : null;
+        else at = placed(elementOf(p.id)) ? elementBar(bar, elementOf(p.id)) : null;
+        if (!at) return;
+        html.appendChild(bar);
+        ui.fitBar(bar);
+        const w = ui.barSize(bar).w, h = ui.barSize(bar).h;
+        const below = !ui.roomAbove({ getBoundingClientRect: () => ({ top: canvas.getBoundingClientRect().top + at.y * scale }) }, bar);   // by where the anchor is in the window
+        bar.classList.toggle('is-below', below);
+        // centred on its anchor; only the window's edges move it (the bar is not zoomed, so its width on screen is w)
+        const vp = viewport.getBoundingClientRect(), cr = canvas.getBoundingClientRect();
+        const sx = Math.max(vp.left + 8 + w / 2, Math.min(cr.left + at.x * scale, vp.right - 8 - w / 2));
+        Object.assign(bar.style, {
+          left: px(Math.round((sx - cr.left) / scale)),   // the bar is centred on it (translate), so it stays put when collapsed
+          top: px(Math.round(below ? at.bottom + 10 / scale : at.y - 10 / scale - h))
+        });
+        if (!same) motion.showBar(bar);
+      }
+      html.addEventListener('click', (e) => {
+        const b = e.target.closest('.c4-actionbar .ab-btn[data-act]');
+        if (!b || presenting()) return;
+        e.stopPropagation();
+        runAction(b.dataset.act, b.dataset.value, b);
+      });
+
+      // Where a menu or popover opens: under the whole bar (not under its button, which would cover the bar's other rows)
+      function barAnchor(btn) {
+        const a = btn.getBoundingClientRect(), bar = btn.closest('.c4-actionbar').getBoundingClientRect();
+        return bar.height ? { left: a.left, right: a.right, top: bar.top, bottom: bar.bottom } : a;
+      }
+      function runAction(act, value, btn) {
+        const p = primary();
+        if (!p) return;
+        const at = barAnchor(btn);
+        if (sel.length > 1) {
+          if (act === 'delete') deleteSelection(btn);
+          else if (act === 'group') openMenu(at, 'Move to group', groupItems(selIds('element')), (v) => moveToGroup(selIds('element'), v));
+          return;
+        }
+        if (p.kind === 'edge') {
+          const e = edgeOf(p.id);
+          if (!e) return;
+          const members = e.members.map((i) => relations()[i]).filter(Boolean);
+          if (act === 'delete') deleteSelection(btn);
+          else if (act === 'label') askLabel(e.id, false);
+          else if (act === 'tech') askTech(e.id);
+          else if (act === 'async') { const on = !members.every((r) => r.async === true); members.forEach((r) => setOpt(r, 'async', on)); commit(false, { duration: 160 }); }
+          else if (act === 'reverse') {
+            if (members.some((r) => relations().some((x) => !members.includes(x) && x.from === r.to && x.to === r.from && x.label === r.label))) { ui.toast('The reverse connection already exists with this label'); return; }
+            members.forEach((r) => { const t = r.from; r.from = r.to; r.to = t; });
+            commit(true);
+          }
+          return;
+        }
+        const o = p.kind === 'group' ? groupOf(p.id) : elementOf(p.id);
+        if (!o) return;
+        if (act === 'rename') editName(p.kind, p.id);
+        else if (act === 'delete') deleteSelection(btn);
+        else if (act === 'core') { setOpt(o, 'core', o.core !== true); commit(true); }
+        else if (act === 'side') openMenu(at, 'Side of the centre', SIDES.map(([v, label]) => ({ label, value: v, selected: (o.side || '') === v })), (v) => { if ((o.side || '') !== v) { setOpt(o, 'side', v); commit(true); } });
+        else if (p.kind === 'group') {
+          if (act === 'collapse') toggleGroup(o.id);
+          else if (act === 'ungroup') ungroup(o.id);
+          else if (act === 'kind') openMenu(at, 'Group kind', GROUP_KINDS.map(([v, label]) => ({ label, value: v, selected: o.kind === v })), (v) => { if (o.kind !== v) { o.kind = v; commit(true); } });
+        } else if (act === 'kind') openMenu(at, 'Kind', KINDS.map((k) => ({ label: KIND_NAME[k], value: k, selected: o.kind === k })), (v) => setKind(o, v));
+        else if (act === 'icon') openIcons(at, o);
+        else if (act === 'group') openMenu(at, 'Move to group', groupItems([o.id]), (v) => moveToGroup([o.id], v));
+        else if (act === 'details') openDetails(at, o);
+        else if (act === 'connect') startConnect(o.id);
+      }
+
       // --- KEYBOARD ---
-      // Enter or Space on a focused group tile opens it; the arrows move to the nearest element in that direction
+      function cancelInteraction() {
+        let did = false;
+        if (ui.closeConfirm()) did = true;
+        if (closeFloating('cancel')) did = true;
+        if (cancelDrag()) did = true;
+        if (endConnect()) did = true;
+        return did;
+      }
+      function clearSelectionNow() {
+        if (sel.length || hoverEdgeId) { sel = []; hoverEdgeId = null; applyState(); }
+      }
+      window.addEventListener('keydown', (e) => {
+        if (e.key !== 'Escape' || isTyping()) return;
+        if (cancelInteraction()) return;
+        if (sel.length) clearSelectionNow();
+      }, true);
+      window.addEventListener('keydown', (e) => {
+        if (presenting() || e.ctrlKey || e.metaKey || e.altKey || isTyping()) return;
+        const a = document.activeElement;
+        if (a && a.tagName === 'BUTTON' && e.key === 'Enter') return;
+        if (ui.isConfirmOpen() || floating) return;
+        if ((e.key === 'Enter' || e.key === 'F2') && sel.length === 1 && !connecting) { e.preventDefault(); editSelection(); }
+      });
+
+      // Enter / F2 / Space / the arrows on a focused tile, tag or label. While a connection waits, Enter on a tile picks the target
+      // and the arrows only move the focus.
       html.addEventListener('keydown', (ev) => {
-        const item = ev.target.closest('.c4-node, .c4-group');
-        if (!item || ev.target.closest('button')) return;
-        const id = item.dataset.nodeId || item.dataset.groupId;
-        if (ev.key === 'Enter' || ev.key === ' ') {
+        const item = ev.target.closest('.c4-node, .c4-group, .c4-label');
+        if (!item || ev.target.closest('button') || ev.target.isContentEditable) return;
+        const lbl = item.classList.contains('c4-label');
+        const kind = lbl ? 'edge' : item.dataset.nodeId ? 'element' : 'group', id = item.dataset.nodeId || item.dataset.groupId || item.dataset.edgeId;
+        if (ev.key === 'Enter' || ev.key === ' ' || ev.key === 'F2') {
           ev.preventDefault();
-          if (item.classList.contains('is-tile')) toggleGroup(id); else select({ kind: 'element', id });
-        } else if (ev.key.startsWith('Arrow')) {
+          ev.stopPropagation();
+          if (connecting) { if (ev.key === 'Enter' && kind === 'element') finishConnect(id); return; }
+          if (ev.key === ' ') { if (kind === 'group' && item.classList.contains('is-tile')) toggleGroup(id); else select({ kind, id }); return; }
+          select({ kind, id });
+          if (!presenting()) editSelection();
+        } else if (ev.key.startsWith('Arrow') && !lbl) {
           const dir = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[ev.key];
           const here = item.getBoundingClientRect(), hc = { x: here.left + here.width / 2, y: here.top + here.height / 2 };
           let best = null, bestScore = Infinity;
-          [...els.nodes.values(), ...[...els.groups.values()].filter((g) => g.classList.contains('is-tile'))].forEach((el) => {
-            if (el === item) return;
+          [...els.nodes.values(), ...[...els.groups.values()].filter((g) => g.classList.contains('is-tile')), ...[...els.groups.values()].map((g) => g.querySelector('.frame-tag')).filter(Boolean)].forEach((el) => {
+            if (el === item || item.contains(el)) return;
             const r = el.getBoundingClientRect(), dx = r.left + r.width / 2 - hc.x, dy = r.top + r.height / 2 - hc.y;
             const along = dx * dir[0] + dy * dir[1], across = Math.abs(dx * dir[1]) + Math.abs(dy * dir[0]);
             if (along <= 0) return;
             const score = along + 2 * across;
             if (score < bestScore) { bestScore = score; best = el; }
           });
-          if (best) { ev.preventDefault(); select({ kind: best.dataset.nodeId ? 'element' : 'group', id: best.dataset.nodeId || best.dataset.groupId }); best.focus(); }
+          if (!best) return;
+          ev.preventDefault();
+          const host = best.closest('.c4-group'), bid = best.dataset.nodeId || (host && host.dataset.groupId);
+          if (!connecting) select({ kind: best.dataset.nodeId ? 'element' : 'group', id: bid });
+          best.focus();
         }
       });
 
+      // --- SELECTION BOX AND SELECT ALL (the shell draws the box: Shift + drag on blank canvas; Ctrl + Shift toggles) ---
+      function touches(el, r) {
+        const b = el.getBoundingClientRect();
+        return b.left < r.right && b.right > r.left && b.top < r.bottom && b.bottom > r.top;
+      }
+      function selectInRect(r, mode, start) {
+        if (presenting()) return;
+        if (start) boxBase = sel.slice();
+        const hit = [];
+        els.nodes.forEach((el, id) => { if (touches(el, r)) hit.push({ kind: 'element', id }); });
+        els.groups.forEach((el, id) => { if (el.classList.contains('is-tile') && touches(el, r)) hit.push({ kind: 'group', id }); });
+        const has = (list, s) => list.some((x) => x.kind === s.kind && x.id === s.id);
+        const next = mode === 'toggle' ? boxBase.filter((s) => !has(hit, s)).concat(hit.filter((s) => !has(boxBase, s))) : hit;
+        if (next.length === sel.length && next.every((s) => has(sel, s))) return;
+        setSel(next);
+      }
+      function selectAll() {
+        if (presenting()) return;
+        setSel([...els.nodes.keys()].map((id) => ({ kind: 'element', id })).concat([...els.groups.keys()].map((id) => ({ kind: 'group', id }))));
+      }
+
       // --- DISK FORMAT ---
-      // The same bytes as c4_to_disk / c4_from_disk in scripts/disk_format.py (contract: the codec spec above C4_KEYS there). A
-      // page-made id (e_<ms>) is renamed to its name slug by the editing step, which is also what makes them.
+      // The same bytes as c4_to_disk / c4_from_disk in scripts/disk_format.py (contract: the codec spec above C4_KEYS there). An
+      // editor id (e_<ms>, g_<ms>, n_<ms>) is renamed to its name slug; authored ids are never touched.
       const DISK_KEYS = ['diagramType', 'schemaVersion', 'title', 'arrange', 'showTech', 'showNotes', 'colorKey', 'groups', 'elements', 'relations', 'notes', 'layout'];
       const DISK_DERIVED = [['groups', ['w', 'h']], ['elements', ['w', 'h']], ['relations', ['points', 'labelBox']]];
       const DISK_OBJECTS = ['groups', 'elements', 'relations', 'notes'];
+      const GENERATED_ID = /^(e|g|n)_\d{12,}(_\d+)?$/;
+      const SLUG_MAX = 30;
+      function slug(text) {
+        let s = String(text || '').toLowerCase().replace(/đ/g, 'd').normalize('NFKD').replace(/[̀-ͯ]/g, '');
+        s = s.replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+        if (s.length > SLUG_MAX) s = s.slice(0, SLUG_MAX).replace(/_+$/, '');
+        return s;
+      }
+      function renameGeneratedIds(d) {
+        const gs = d.groups || [], es = d.elements || [], ns = d.notes || [];
+        const used = new Set([...gs, ...es, ...ns].map((o) => o.id));
+        const rename = new Map();
+        const take = (base) => { let id = base, k = 2; while (used.has(id)) id = `${base}_${k++}`; used.add(id); return id; };
+        const generated = (o) => GENERATED_ID.test(String(o.id == null ? '' : o.id));
+        [[es, 'element'], [gs, 'group']].forEach(([items, fallback]) => items.forEach((o) => { if (generated(o)) rename.set(o.id, take(slug(o.name) || fallback)); }));
+        let count = 1;
+        ns.forEach((o) => {
+          if (!generated(o)) return;
+          while (used.has(`n${count}`)) count++;
+          rename.set(o.id, take(`n${count}`));
+        });
+        if (!rename.size) return;
+        const r = (id) => (rename.has(id) ? rename.get(id) : id);
+        [...gs, ...es, ...ns].forEach((o) => { o.id = r(o.id); });
+        (d.relations || []).forEach((rel) => ['from', 'to'].forEach((k) => { rel[k] = r(rel[k]); }));
+        es.forEach((o) => { if ('group' in o) o.group = r(o.group); });
+        gs.forEach((g) => { if ('parent' in g) g.parent = r(g.parent); });
+        ns.forEach((n) => ['elements', 'groups'].forEach((k) => { if (Array.isArray(n[k])) n[k] = n[k].map(r); }));
+      }
       const isNum = (v) => typeof v === 'number' && Number.isFinite(v);
       function toDisk(data) {
         const d = JSON.parse(JSON.stringify(data));
@@ -409,6 +1309,7 @@
         slotColors(d, 'elements', 'groups');
         DISK_OBJECTS.forEach((name) => (d[name] || []).forEach((o) => Object.keys(o).forEach((k) => { if (k[0] === '_') delete o[k]; })));
         DISK_DERIVED.forEach(([list, keys]) => (d[list] || []).forEach((o) => keys.forEach((k) => { delete o[k]; })));
+        renameGeneratedIds(d);
         const layout = {};
         ['elements', 'groups'].forEach((list) => (d[list] || []).forEach((o) => {
           if (isNum(o.x) && isNum(o.y)) { layout[o.id] = { x: o.x, y: o.y }; delete o.x; delete o.y; }
@@ -431,7 +1332,6 @@
       }
 
       // --- REGISTER WITH THE SHELL ---
-      const clearSelectionNow = () => { if (sel || hoverEdgeId) { sel = null; hoverEdgeId = null; applyState(); } };
       registerDiagramPlugin({
         id: 'c4',
         defaultTitle: 'Interactive C4 Diagram',
@@ -440,12 +1340,14 @@
         contentEl: canvas,
         report: { node: '.c4-node, .c4-group.is-tile', label: '.c4-label', labelText: '.c4-label-text', nodeText: '.c4-name' },
         render,
-        isBackground: (el) => el === canvas || el === svg || el === html || el === legendEl,
+        isBackground: (el) => el === canvas || el === svg || el === html || el === legendEl || el.id === 'c4-overlay',
         contentOverflow: () => (legendEl ? { top: 40 } : null),   // the colour key sits above the diagram
         clearSelection: clearSelectionNow,
-        cancelInteraction: () => false,
-        hasSelection: () => false,   // nothing can be deleted until the editing step
-        deleteSelection() {},
+        cancelInteraction,
+        hasSelection: () => !presenting() && sel.length > 0,
+        selectInRect,
+        selectAll,
+        deleteSelection,
         // Search: the live DOM, top to bottom then left to right: elements (name, technology, description), groups, arrow labels
         searchItems() {
           const out = [], clean = (t) => (t || '').replace(/\s+/g, ' ').trim();

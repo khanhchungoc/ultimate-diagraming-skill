@@ -62,7 +62,7 @@
     .c4-edge.is-async .edge-line { stroke-dasharray: var(--dash); }
     .c4-edge .edge-line.hl-in { stroke: var(--edge-in); stroke-width: var(--ring-md); marker-end: var(--mk-e-in); }
     .c4-edge .edge-line.hl-out { stroke: var(--edge-out); stroke-width: var(--ring-md); marker-end: var(--mk-e-out); }
-    .c4-edge:is(.hover, .selected) .edge-line { stroke: var(--primary); stroke-width: var(--ring-md); marker-end: var(--mk-e-sel); }
+    .c4-edge:is(.hover, .selected) .edge-line, .c4-edge .edge-line.selected { stroke: var(--primary); stroke-width: var(--ring-md); marker-end: var(--mk-e-sel); }
     .c4-edge.is-dim { opacity: var(--dim-line); }
     .c4-mk path { fill: var(--mk, var(--connector)); stroke: var(--mk, var(--connector)); stroke-width: var(--ring-thin); stroke-linejoin: round; }
 
@@ -77,8 +77,74 @@
     .c4-label.is-dim { opacity: var(--dim); }
     .c4-label.selected { border-color: var(--primary); box-shadow: var(--shadow-glow) var(--primary-glow); }
 
-    /* The colour key (ui.colorKey), under the diagram */
+    /* The colour key (ui.colorKey), under the diagram; its entries can be renamed (double-click, or the prompt after a colour pick) */
     .c4-key { position: absolute; left: 0; top: -34px; pointer-events: none; }
+    .c4-key .color-key-label { pointer-events: auto; }
+    .color-key-label.is-editing { -webkit-user-select: text; user-select: text; outline: 1.5px solid var(--primary-ring); border-radius: var(--radius-xs); background: var(--bg-panel); min-width: 24px; }
+
+    /* --- Editing aids (every one is [data-export-skip] and hidden in ?present) --- */
+    /* A name being edited in place: plain text with a ring, never clamped */
+    .c4-name.is-editing, .c4-tag-name.is-editing {
+      display: block; -webkit-line-clamp: unset; overflow: visible; -webkit-user-select: text; user-select: text; min-width: 24px; cursor: text;
+      background: var(--bg-panel); color: var(--text-main); outline: 1.5px solid var(--primary-ring); border-radius: var(--radius-xs); padding: 0 3px;
+    }
+    .c4-group.selected.is-frame { border-color: var(--primary); }
+    /* Ports: a dot on each side of an element, shown on hover and on the selected one; drag onto another element to connect */
+    .c4-port {
+      position: absolute; width: 12px; height: 12px; box-sizing: border-box; padding: 0; z-index: 4; touch-action: none; display: none; cursor: crosshair;
+      border-radius: var(--radius-round); border: 2px solid var(--primary); background: var(--bg-panel);
+      animation: c4-port-in var(--dur-micro) var(--curve-spring-tactile);
+    }
+    @keyframes c4-port-in { from { transform: scale(0.55); } to { transform: none; } }
+    .c4-port[data-side="N"] { top: -7px; left: 50%; margin-left: -6px; }
+    .c4-port[data-side="S"] { bottom: -7px; left: 50%; margin-left: -6px; }
+    .c4-port[data-side="W"] { left: -7px; top: 50%; margin-top: -6px; }
+    .c4-port[data-side="E"] { right: -7px; top: 50%; margin-top: -6px; }
+    .c4-port:hover, .c4-port:focus-visible { background: var(--primary); outline: none; }
+    .c4-node:hover > .c4-port, .c4-node.selected > .c4-port, .c4-node:focus-within > .c4-port { display: block; }
+    .c4-multi .c4-port, body.c4-dragging .c4-port:not(:hover), body.presentation .c4-port { display: none !important; }
+    body.c4-touch .c4-port { width: 22px; height: 22px; border-width: 2.5px; }
+    #c4-overlay { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; z-index: 54; }
+    #c4-rubber { stroke: var(--primary); stroke-width: var(--ring-md); stroke-dasharray: var(--dash); display: none; fill: none; pointer-events: none; }
+    .c4-node.c4-target { --ring: var(--primary); background: var(--primary-wash); }
+    .c4-connecting .c4-node:not(.selected) { cursor: crosshair; }
+    body.c4-dragging .c4-actionbar { display: none !important; }
+
+    /* The action bar: the shared one (components/actionbar.css) centred on its anchor, with a few C4 additions */
+    .c4-actionbar { translate: -50% 0; pointer-events: auto; }
+    .c4-actionbar .ab-btn:focus-visible, .c4-actionbar .swatch-btn:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+    .c4-actionbar .ab-btn[aria-pressed="true"] svg { color: var(--primary); }
+    .c4-ab-tag { padding: 0 4px 0 6px; font-size: var(--t-overline-size); font-weight: var(--t-overline-weight); letter-spacing: var(--t-overline-tracking); text-transform: uppercase; color: var(--text-muted); }
+    .c4-menu { position: fixed; right: auto; top: auto; z-index: 2100; max-height: calc(100vh - 16px); overflow-y: auto; }
+    .c4-menu button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+    body.presentation .c4-actionbar, body.exporting .c4-actionbar { display: none !important; }
+
+    /* The popovers: the label prompt, the details and the icon picker (screen-fixed, under their button) */
+    .c4-pop {
+      position: fixed; z-index: 2100; box-sizing: border-box; display: flex; flex-direction: column; gap: 8px; width: 280px; max-width: calc(100vw - 16px); padding: 10px;
+      background: var(--bg-panel); border: 1px solid var(--border-dark); border-radius: var(--radius-xl); box-shadow: var(--shadow-xl); color: var(--text-main);
+    }
+    .c4-pop-hint, .c4-field-label, .c4-icons-note, .c4-icons-missing { color: var(--text-muted); }
+    .c4-field { display: flex; flex-direction: column; gap: 4px; }
+    .c4-input {
+      width: 100%; box-sizing: border-box; padding: 6px 8px; border: 1px solid var(--border-dark); border-radius: var(--radius-md);
+      background: var(--bg-input); color: var(--text-main); font: inherit; font-size: var(--t-control-size); font-weight: var(--t-control-weight);
+    }
+    textarea.c4-input { resize: vertical; min-height: 56px; }
+    .c4-input:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+    .c4-icons { width: 300px; }
+    .c4-icon-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(36px, 1fr)); gap: 4px; max-height: 200px; overflow-y: auto; }
+    .c4-icon-opt {
+      display: inline-flex; align-items: center; justify-content: center; height: 36px; padding: 0; border: 1px solid transparent; border-radius: var(--radius-md);
+      background: transparent; color: var(--text-soft); cursor: pointer;
+    }
+    .c4-icon-opt:hover { background: var(--bg-hover); color: var(--text-main); }
+    .c4-icon-opt[aria-pressed="true"] { background: var(--primary-wash); border-color: var(--primary-ring); color: var(--primary); }
+    .c4-icon-opt:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+
+    /* ?present: the shell hides the whole dock; the Level control stays (a presenter zooms between the C4 levels), nothing else of it does */
+    body.presentation .dock-area .toolbar-center { display: flex !important; }
+    body.presentation .dock-area .toolbar-center > :not([data-level]) { display: none !important; }
 
     /* ?present: read only. Selecting and collapsing still work. */
     body.presentation .c4-node, body.presentation .c4-group.is-tile { cursor: pointer; }
