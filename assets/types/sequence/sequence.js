@@ -1290,7 +1290,7 @@
           const to = snapTarget(pt.x);
           return to && to.id === from.id && d.away < SELF_OUT ? null : to;
         };
-        const click = () => { hidePlus(); if (fromLine) select('participant', from.id); };
+        const click = () => { hidePlus(); select('participant', from.id); };   // the + sits on the lifeline: a click on it is a click on the lifeline
         return {
           move(pt, d) {
             hidePlus();
