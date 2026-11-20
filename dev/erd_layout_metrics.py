@@ -24,7 +24,9 @@ VIEW_W, VIEW_H = 1760, 856
 def load_fixtures():
     out = {}
     for path in sorted((ROOT / "dev" / "fixtures" / "erd").glob("*.json")):
-        out[path.stem] = json.loads(path.read_text(encoding="utf8"))
+        data = json.loads(path.read_text(encoding="utf8"))
+        if data.get("entities"):   # the blank fixture has no table: nothing to measure
+            out[path.stem] = data
     out["example-erd"] = json.loads((ROOT / "dev" / "examples" / "example-erd.json").read_text(encoding="utf8"))
     return out
 

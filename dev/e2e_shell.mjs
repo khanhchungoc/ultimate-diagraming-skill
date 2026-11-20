@@ -471,7 +471,7 @@ try {
   await t.open(laid);
   const refLaid = await t.ev(positions);
   await t.ev(`document.getElementById('btn-direction').click()`);
-  await sleep(300);
+  await sleep(700);   // the direction switch animates for 520 ms
   const columns = `(() => {
     const lanes = [...document.querySelectorAll('.swimlane')].map(l => l.getBoundingClientRect());
     const sideBySide = lanes.every((r, i) => i === 0 || (r.left >= lanes[i - 1].right - 2 && Math.abs(r.top - lanes[0].top) < 1));
@@ -509,7 +509,7 @@ try {
   t.check('vertical: the saved file reopens top-to-bottom', reopened.tb && reopened.sideBySide && reopened.overlaps === 0 && reopened.label === 'Horizontal' && t.errors.length === 0,
     JSON.stringify(reopened) + ' ' + t.errors.join(' | '));
   await t.ev(`document.getElementById('btn-direction').click()`);
-  await sleep(300);
+  await sleep(700);   // the direction switch animates for 520 ms
   const back = await t.ev(positions);
   t.check('toggling back to Horizontal restores the left-to-right layout exactly', back === refLaid && !(await t.ev(`document.getElementById('swimlanes-container').classList.contains('dir-tb')`)),
     `got ${back.slice(0, 120)}...`);

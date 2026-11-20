@@ -918,7 +918,7 @@ sys.stdout.write(format_json(out))`;
   // --- Types and Notes are switches ---
   await freshPage();
   const typeAria = () => t.ev(`document.getElementById('btn-types').getAttribute('aria-checked') + ':' + (document.querySelector('.erd-col-type') ? 'shown' : 'none')`);
-  const typeBtn = await t.ev(`(() => { const b = document.getElementById('btn-types'); return b.classList.contains('btn-switch') && b.getAttribute('role') === 'switch' && !b.hasAttribute('aria-pressed') && !!b.querySelector('.switch-knob'); })()`);
+  const typeBtn = await t.ev(`(() => { const b = document.getElementById('btn-types'); return b.classList.contains('btn-switch') && b.getAttribute('role') === 'switch' && !b.hasAttribute('aria-pressed') && !!b.querySelector('svg'); })()`);
   const typesOn = await typeAria();
   await t.clickOn('#btn-types');
   const typesOff = await typeAria();

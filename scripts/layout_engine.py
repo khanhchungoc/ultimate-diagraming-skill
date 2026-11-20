@@ -1054,7 +1054,7 @@ class FlowchartAudit:
                                 yield fp, tp, [(sx, sy), (sx, y), (ex, y), (ex, ey)], abs(y - (sy + ey) / 2)
                                 y += 10
                         else:
-                            for d in (14, 20, 28, 36, 48, 72):
+                            for d in (28, 36, 48, 72):
                                 g = min(sy, ey) - d if fp == "top" else max(sy, ey) + d
                                 if g >= 8:
                                     yield fp, tp, [(sx, sy), (sx, g), (ex, g), (ex, ey)], 0.0
