@@ -1239,6 +1239,7 @@
         updateStatus(false);
         committedJson = savedJson = JSON.stringify(chartData);
         updateHistoryButtons();
+        document.documentElement.classList.remove('is-loading');
         document.documentElement.dataset.diagramReady = '1';
 
         requestAnimationFrame(() => {
@@ -1430,7 +1431,7 @@
       });
 
       // --- THEME (light / dark) ---
-      // Priority: ?theme=dark|light  >  saved choice (localStorage)  >  OS preference
+      // Priority (script in shell.html's <head>): ?theme=dark|light  >  saved choice (localStorage)  >  OS preference
       const menuTheme = document.getElementById('menu-theme');
       function currentTheme() {
         return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
@@ -1463,16 +1464,8 @@
         themeTimer = setTimeout(() => document.body.classList.remove('theme-animating'), 180);
         flip();
       }
-      function initTheme() {
-        let theme = null;
-        const q = new URLSearchParams(window.location.search).get('theme');
-        if (q === 'dark' || q === 'light') theme = q;
-        if (!theme) { try { theme = localStorage.getItem('flowchart-theme'); } catch (e) {} }
-        if (theme !== 'dark' && theme !== 'light') {
-          theme = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
-        }
-        applyTheme(theme, false);
-      }
+      // The theme was chosen by the script at the top of <head> (shell.html), before the first paint: read it back
+      function initTheme() { applyTheme(currentTheme(), false); }
       menuTheme.addEventListener('click', () => applyTheme(currentTheme() === 'dark' ? 'light' : 'dark', true));
 
       // --- VIEWPORT PAN & ZOOM & FIT ---
@@ -3055,7 +3048,9 @@
         btn.appendChild(icon);
         wrap.append(btn, menu);
         const setOpen = (open) => { animateMenuToggle(menu, open, true); btn.setAttribute('aria-expanded', String(open)); };
-        const goTo = (id) => { location.assign('../' + id + '/index.html'); };
+        // The theme travels in the URL, so the next page matches even where storage is blocked; the spinner shows until it renders
+        const goTo = (id) => { document.documentElement.classList.add('is-loading'); location.assign('../' + id + '/index.html?theme=' + currentTheme()); };
+        window.addEventListener('pageshow', (e) => { if (e.persisted) document.documentElement.classList.remove('is-loading'); });
         for (const t of playground.types) {
           const item = document.createElement('button');
           item.type = 'button'; item.dataset.type = t.id; item.setAttribute('role', 'menuitemradio');

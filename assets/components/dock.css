@@ -25,7 +25,7 @@
     .toolbar-center {
       grid-column: 2;
       grid-row: 1;
-      flex-wrap: wrap;
+      flex-wrap: nowrap;   /* one row at every width: the labels go first (see below). Never overflow:auto here, it would clip the popovers that open above the dock */
       justify-content: center;
     }
     .toolbar-zoom { gap: 2px; }
@@ -195,14 +195,18 @@
     @media (max-width: 720px) {
       .dock-area { left: 12px; right: 12px; bottom: 12px; grid-template-columns: 1fr; }
       .toolbar-center { grid-column: 1; grid-row: 1; justify-content: space-evenly; }
-      .toolbar-center > .btn, .toolbar-center > .dock-pop-wrap { flex: 1 1 0; justify-content: center; }
+      .toolbar-center > .btn, .toolbar-center > .dock-pop-wrap { flex: 1 1 0; min-width: 0; justify-content: center; }
       .dock-pop-wrap > .dock-pop-trigger { flex: 1 1 auto; justify-content: center; }
       .toolbar-center > .dock-delete:not(.show) { flex: 0 0 0; }
       .toolbar-zoom { grid-column: 1; grid-row: 2; }
     }
-    /* Medium widths: keep one row, but centre the add dock in the space right of the zoom dock instead of on the
-       viewport, so the two never collide. If the add dock still runs out of room, its buttons wrap inside it. */
-    @media (min-width: 721px) and (max-width: 1100px) {
+    /* Below 1300px the dock is icon-only (the labels need about 800px beside the zoom dock): same icons, same tooltips, one row.
+       Between 721px and 1300px the add dock is centred in the space right of the zoom dock, so the two never collide. */
+    @media (max-width: 1300px) {
+      .toolbar-center .btn-label { display: none; }
+      .toolbar-center > .btn:not(:has(.btn-count:not([hidden]))) { padding-inline: 8px; }
+    }
+    @media (min-width: 721px) and (max-width: 1300px) {
       .dock-area { grid-template-columns: auto minmax(0, 1fr); }
       .toolbar-zoom { grid-column: 1; grid-row: 1; }
       .toolbar-center { grid-column: 2; grid-row: 1; justify-self: center; }

@@ -285,8 +285,7 @@
       let dragStartY = 0;
       let dragStartGlobalX = 0;
       let dragStartGlobalY = 0;
-      let autoLayout = true;   // see AUTO LAYOUT
-      try { autoLayout = localStorage.getItem('flowchart-auto-layout') !== 'off'; } catch (e) {}
+      let autoLayout = true;   // see AUTO LAYOUT: always on for now (the button is hidden), so a saved 'off' is not read
       let dragCanInsert = false;   // the dragged node has no arrows, so it may be dropped into one
       let dragGroup = null;        // the other selected steps moving with draggingNode: [{ node, x, gy, lane }]
       let dragOrigin = null;       // where the drag started: { x, gy, lane, saved: [{ node, x, y, laneId }] }
@@ -4378,7 +4377,6 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
       }
       if (btnAutoLayout) btnAutoLayout.addEventListener('click', () => {
         autoLayout = !autoLayout;
-        try { localStorage.setItem('flowchart-auto-layout', autoLayout ? 'on' : 'off'); } catch (e) {}
         updateAutoLayoutButton();
         if (autoLayout) relayout();
       });

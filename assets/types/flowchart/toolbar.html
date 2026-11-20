@@ -76,7 +76,7 @@
       <button id="btn-direction"class="btn" data-dock-group="layout" title="Switch to a top-to-bottom layout" aria-label="Vertical">
         {{icon:direction-tb}}<span class="btn-label">Vertical</span>
       </button>
-      <!-- Auto-Tidy on/off (see AUTO LAYOUT in flowchart.js), a sliding switch; the shell places it just before Tidy -->
-      <button id="btn-auto-layout" class="btn btn-switch" role="switch" data-dock-group="layout" title="Auto-Tidy is on: the diagram re-arranges itself after every step edit (click to place steps by hand)" aria-label="Auto-Tidy" aria-checked="true">
-        <span class="switch-track" aria-hidden="true"><span class="switch-knob"></span></span><span class="btn-label">Auto-Tidy</span>
+      <!-- Auto-Tidy on/off (see AUTO LAYOUT in flowchart.js): hidden for now, Auto-Tidy is always on (the code stays for when it returns) -->
+      <button id="btn-auto-layout" hidden class="btn btn-switch" role="switch" data-dock-group="layout" title="Auto-Tidy is on: the diagram re-arranges itself after every step edit (click to place steps by hand)" aria-label="Auto-Tidy" aria-checked="true">
+        {{icon:auto}}<span class="btn-label">Auto-Tidy</span>
       </button>

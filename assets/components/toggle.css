@@ -1,31 +1,11 @@
-    /* Pressed toggle (dock buttons that switch a view on, such as Notes, Types, Numbers): tinted while aria-pressed is true */
-    .btn[aria-pressed="true"] {
+    /* Toggle buttons in the dock (Notes, Numbers, Types, Refs, Auto-Tidy...): an icon button like the others, tinted while it is
+       on (aria-pressed or, for a role="switch" button, aria-checked), so the icon says what it switches and the tint says
+       whether it is on. No bare slider that would need a label. */
+    .btn[aria-pressed="true"],
+    .btn-switch[aria-checked="true"] {
       background: var(--primary-wash);
       border-color: var(--primary-ring);
       color: var(--primary);
     }
-    .btn[aria-pressed="true"] .btn-count { background: var(--primary); color: var(--bg-panel); }
-
-    /* Sliding switch (Auto-Tidy in the dock): knob right and track filled while aria-checked is true */
-    .btn-switch .switch-track {
-      position: relative;
-      width: 28px; height: 16px;
-      flex: none;
-      border-radius: var(--radius-pill);
-      background: var(--border-dark);
-      transition: background-color var(--dur-base) var(--curve-inout);
-    }
-    .btn-switch .switch-knob {
-      position: absolute;
-      top: 2px; left: 2px;
-      width: 12px; height: 12px;
-      border-radius: var(--radius-round);
-      background: var(--toggle-knob);   /* white in both themes: reads on the grey (off) and the primary (on) track */
-      box-shadow: var(--shadow-knob);
-      transition: transform var(--dur-base) var(--curve-spring-tactile);
-    }
-    .btn-switch[aria-checked="true"] .switch-track { background: var(--primary); }
-    .btn-switch[aria-checked="true"] .switch-knob { transform: translateX(12px); }
-    @media (prefers-reduced-motion: reduce) {
-      .btn-switch .switch-track, .btn-switch .switch-knob { transition: none; }
-    }
+    .btn[aria-pressed="true"] .btn-count,
+    .btn-switch[aria-checked="true"] .btn-count { background: var(--primary); color: var(--bg-panel); }
