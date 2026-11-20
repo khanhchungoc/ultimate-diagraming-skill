@@ -322,6 +322,7 @@ Recommended, to confirm before phase 1.
 11. **Nodes:** icon cards, disc about 54px with a 32px glyph, text underneath.
 12. **Layers are a layout, not a group kind** (settled 2026-11-21): `arrange: "layers"` turns the top-level groups into stacked bands. No new group kind, and Level 3 readiness is unchanged. Layer bands do not map to Mermaid C4.
 13. **Links inside a group are allowed** (settled 2026-11-21), including between members that are not neighbours; the group lays out its members as a small flow when a row would put an arrow through a sibling.
+14. **Editing is Auto-Tidy only at first** (settled 2026-11-21): every edit re-lays the diagram out; dragging boxes to move them is a later step.
 
 ## Sources
 
@@ -331,4 +332,3 @@ Recommended, to confirm before phase 1.
 - C4 model: https://c4model.com
 - Mermaid C4 syntax (experimental): https://mermaid.js.org/syntax/c4.html
 - Lucide (existing icon source, ISC): https://lucide.dev
-14. **Editing is Auto-Tidy only at first** (settled 2026-11-21): every edit re-lays the diagram out; dragging boxes to move them is a later step.
