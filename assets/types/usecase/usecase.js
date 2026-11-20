@@ -1684,7 +1684,7 @@
       }
       const abSep = () => htmlEl('span', 'uc-ab-sep');
       const abBreak = () => htmlEl('span', 'uc-ab-break');
-      const lineGlyph = (type, arrow) => `<svg width="30" height="14" viewBox="0 0 30 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 7H${type === 'association' && !arrow ? 28 : 26}"${type === 'association' ? '' : ' stroke-dasharray="4 3"'}/>${type === 'association' && !arrow ? '' : '<path d="M21 2.5 28 7 21 11.5"/>'}</svg>`;
+      const lineGlyph = (type, arrow) => `<svg width="22" height="10" viewBox="0 0 30 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 7H${type === 'association' && !arrow ? 28 : 26}"${type === 'association' ? '' : ' stroke-dasharray="4 3"'}/>${type === 'association' && !arrow ? '' : '<path d="M21 2.5 28 7 21 11.5"/>'}</svg>`;
       const swatchOf = (ids) => { const cs = [...new Set(ids.map((id) => (itemOf(id) || {}).color || ''))]; return cs.length === 1 ? cs[0] : ''; };
 
       function drawSelectionTools() {
