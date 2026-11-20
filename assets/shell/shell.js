@@ -249,7 +249,7 @@
             const was = bars.map((b) => b.getBoundingClientRect());
             document.body.classList.toggle('bars-collapsed');
             document.querySelectorAll('.ab-toggle').forEach(syncToggle);
-            bars.forEach((b, i) => motion.ghostMorph(was[i], b, 170, 'curve-spring-settle'));
+            bars.forEach((b, i) => { if (b.classList.contains('is-wrap')) fitBar(b); motion.ghostMorph(was[i], b, 170, 'curve-spring-settle'); });
           });
           syncToggle(t);
           bar.appendChild(t);
@@ -275,20 +275,34 @@
         }
         const abSep = (cls) => { const s = document.createElement('span'); s.className = cls || 'ab-sep'; return s; };
         const abBreak = (cls) => { const s = document.createElement('span'); s.className = cls || 'ab-break'; return s; };
+        // The size a bar has when expanded, even while the bars are collapsed (a bar is placed for its full size, so showing the
+        // bars again never puts one over its anchor)
+        function barSize(bar) {
+          const off = document.body.classList.contains('bars-collapsed');
+          if (off) document.body.classList.remove('bars-collapsed');
+          const size = { w: bar.offsetWidth, h: bar.offsetHeight };
+          if (off) document.body.classList.add('bars-collapsed');
+          return size;
+        }
         // Does an action bar fit above `anchor` (an element or rect on screen) inside the viewport? Every type decides over or
         // under its element with this, by where the element is in the window, not in the diagram. A bar is not zoomed (--ui-scale).
         function roomAbove(anchor, bar) {
           const top = (anchor.getBoundingClientRect ? anchor.getBoundingClientRect() : anchor).top;
-          return top - document.getElementById('viewport').getBoundingClientRect().top >= bar.offsetHeight + 16;
+          return top - document.getElementById('viewport').getBoundingClientRect().top >= barSize(bar).h + 16;
         }
         // A wrapped bar (is-wrap, rows split by a `-ab-break` item) is as wide as its widest row, not as its max-width: call
         // it once the bar is in the page. No empty side padding, and a row that fits never wraps on its own.
         function fitBar(bar) {
           const kids = [...bar.children].filter((k) => !/(^|-)ab-break$|(^| )ab-toggle$/.test(k.className));   // not the corner chevron
           if (!kids.length) return;
+          // measured expanded and unclamped, whatever the state: a bar built (or shown again) while the bars are collapsed must not be squeezed
+          const off = document.body.classList.contains('bars-collapsed');
+          if (off) document.body.classList.remove('bars-collapsed');
+          bar.style.maxWidth = '';
           const l = Math.min(...kids.map((k) => k.offsetLeft)), r = Math.max(...kids.map((k) => k.offsetLeft + k.offsetWidth));
           const cs = getComputedStyle(bar), edge = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight) + parseFloat(cs.borderLeftWidth) + parseFloat(cs.borderRightWidth);
           bar.style.maxWidth = `${Math.ceil(r - l + edge) + 2}px`;   // +2: fractional text widths must not tip a full row into wrapping
+          if (off) document.body.classList.add('bars-collapsed');
         }
         // The colour legend: one entry per colour in `used` (slots), a dot and its label from `key` ({slot: text}). An entry
         // with no label is drawn only with opts.prompts (a prompt "What does Blue mean?" for the edit, left out of ?present and
@@ -318,7 +332,7 @@
           });
           return box;
         }
-        return { confirm, closeConfirm, isConfirmOpen: () => !!confirmEl, noteCard, actionBar, abButton, abSep, abBreak, roomAbove, fitBar, colorKey, icon, iconEl, toast: (m) => showToast(m) };
+        return { confirm, closeConfirm, isConfirmOpen: () => !!confirmEl, noteCard, actionBar, abButton, abSep, abBreak, roomAbove, barSize, fitBar, colorKey, icon, iconEl, toast: (m) => showToast(m) };
       })();
 
       // --- ENGINE SOURCE (for plugins that run a background Web Worker, e.g. ERD) ---

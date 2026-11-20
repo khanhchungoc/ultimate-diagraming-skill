@@ -1555,29 +1555,35 @@
       }
       // The line's bar sits above or below a point near the middle of its curve, wherever it hides the fewest tables
       function placeRelBar(bar, rel, handles) {
-        const k = 1 / scale, p = rel.points, w = bar.offsetWidth * k, h = bar.offsetHeight * k;   // the bar is not zoomed: its footprint in the diagram grows with 1 / zoom
+        const k = 1 / scale, p = rel.points, size = ui.barSize(bar), w = size.w * k, h = size.h * k;   // the bar is not zoomed: its footprint in the diagram grows with 1 / zoom
         const segs = [8, 6, 10, 4, 12].filter((i) => p[i]).map((i) => ({ x: p[i][0], y: p[i][1] }));
         const boxes = erdEntities().filter((e) => e.box).map((e) => e.box);
         // the label pills are obstacles too: a double-click on one must not land on the bar the first click opened
         erdHtml.querySelectorAll('.edge-label').forEach((l) => boxes.push({ x: parseFloat(l.style.left), y: parseFloat(l.style.top), w: l.offsetWidth, h: l.offsetHeight }));
         const C = chartData.canvas || { width: 1e9, height: 1e9 };
-        let best = null;
-        segs.slice(0, 3).forEach((s, k) => {
-          [0, -0.5, -0.3, 0.3, 0.5, -0.8, 0.8, -1.1, 1.1].forEach((shift) => [false, true].forEach((below) => {
+        // Candidates in a fixed order of preference: centred on the middle of the line, over it (or under it when the window has no
+        // room above), then under/over, then slid sideways, then the next points along. The first with no overlap wins, so the bar
+        // stays put while the line is only moved; an end handle under the bar outweighs everything else.
+        const pad = 14 * k;
+        const room = (s) => ui.roomAbove({ getBoundingClientRect: () => ({ top: erdHtml.getBoundingClientRect().top + s.y * scale }) }, bar);
+        let best = null, rank = 0;
+        segs.slice(0, 3).forEach((s) => [1, 3, 6].forEach((far) => {   // then further from the line, where tables are in the way
+          const gap = 16 * k * far, preferBelow = !room(s);
+          [0, -0.5, 0.5, -0.8, 0.8, -1.1, 1.1].forEach((shift) => [preferBelow, !preferBelow].forEach((below) => {
             // the bar's left edge: centred on the point, or slid along it, never off the canvas
-            const x = Math.max(4, Math.min(s.x - w / 2 + shift * w, C.width - w - 4)), y = below ? s.y + 16 * k : s.y - 16 * k - h;
-            let cost = k * 40 + (below ? 10 : 0) + Math.abs(x - (s.x - w / 2)) / 8;
+            const x = Math.max(4, Math.min(s.x - w / 2 + shift * w, C.width - w - 4)), y = below ? s.y + gap : s.y - gap - h;
+            let cost = rank++ * 0.01;
             boxes.forEach((b) => {
               const ox = Math.max(0, Math.min(x + w, b.x + b.w) - Math.max(x, b.x)), oy = Math.max(0, Math.min(y + h, b.y + b.h) - Math.max(y, b.y));
               cost += ox * oy;
             });
-            if (y < 0) cost += 5000;
-            handles.forEach((h) => { if (h[0] > x - 14 * k && h[0] < x + w + 14 * k && h[1] > y - 14 * k && h[1] < y + h + 14 * k) cost += 3000; });   // never over an end handle
-            if (!best || cost < best.cost) best = { cost, x: x + w / 2, y: below ? s.y + 16 * k : s.y - 16 * k, below };
+            if (y < 0) cost += 300;   // past the top of the canvas is fine (the bar floats), but a clear spot inside is better
+            handles.forEach((hd) => { if (hd[0] > x - pad && hd[0] < x + w + pad && hd[1] > y - pad && hd[1] < y + h + pad) cost += 1e6; });
+            if (!best || cost < best.cost) best = { cost, x: x + w / 2, y: below ? s.y + gap : s.y - gap, below };
           }));
-        });
+        }));
         bar.classList.toggle('is-below', best.below);
-        Object.assign(bar.style, { left: erdPx(best.x), top: erdPx(Math.max(2, best.y)) });
+        Object.assign(bar.style, { left: erdPx(best.x), top: erdPx(best.y) });
       }
 
       erdHtml.addEventListener('click', (e) => {

@@ -1764,7 +1764,7 @@
         if (at.pill) bar.classList.add('is-pill');
         bar.classList.toggle('is-below', !above);
         const gap = 8 / scale;   // a bar is not zoomed, so its gap to the anchor is screen pixels
-        bar.style.top = px(above ? at.top - gap - bar.offsetHeight : at.bottom + gap);
+        bar.style.top = px(above ? at.top - gap - ui.barSize(bar).h : at.bottom + gap);
         if (fromRect && fromRect.width > 0) barGhostAnim = motion.ghostMorph(fromRect, bar, 170, 'curve-spring-settle');
         else motion.showBar(bar);
       }
