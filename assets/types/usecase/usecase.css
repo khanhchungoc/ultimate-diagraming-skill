@@ -171,7 +171,7 @@
       background: var(--bg-panel); border: 1px solid var(--border-dark); border-radius: var(--radius-lg); box-shadow: var(--shadow-md);
       white-space: nowrap; pointer-events: auto; cursor: default; -webkit-user-select: none; user-select: none; translate: -50% 0;
     }
-    .uc-actionbar.is-wrap { flex-wrap: wrap; justify-content: center; max-width: 340px; row-gap: 2px; }
+    .uc-actionbar.is-wrap { flex-wrap: wrap; justify-content: center; width: max-content; max-width: 340px; row-gap: 2px; }
     .uc-ab-break { flex-basis: 100%; height: 0; }
     .uc-ab-btn {
       display: inline-flex; align-items: center; justify-content: center; gap: 4px; height: 26px; min-width: 26px; padding: 0 6px; box-sizing: border-box;

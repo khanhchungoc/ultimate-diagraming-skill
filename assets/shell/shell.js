@@ -244,8 +244,12 @@
           t.addEventListener('pointerdown', (e) => e.stopPropagation());
           t.addEventListener('click', (e) => {
             e.stopPropagation();
+            // Every bar on the page morphs from its old box to its new one (motion kernel: ghostMorph)
+            const bars = [...document.querySelectorAll('.actionbar, .uc-actionbar, .erd-actionbar, .seq-actionbar')];
+            const was = bars.map((b) => b.getBoundingClientRect());
             document.body.classList.toggle('bars-collapsed');
             document.querySelectorAll('.ab-toggle').forEach(syncToggle);
+            bars.forEach((b, i) => motion.ghostMorph(was[i], b, 170, 'curve-spring-settle'));
           });
           syncToggle(t);
           bar.appendChild(t);
@@ -280,7 +284,7 @@
         // A wrapped bar (is-wrap, rows split by a `-ab-break` item) is as wide as its widest row, not as its max-width: call
         // it once the bar is in the page. No empty side padding, and a row that fits never wraps on its own.
         function fitBar(bar) {
-          const kids = [...bar.children].filter((k) => !/(^|-)ab-break$/.test(k.className));
+          const kids = [...bar.children].filter((k) => !/(^|-)ab-break$|(^| )ab-toggle$/.test(k.className));   // not the corner chevron
           if (!kids.length) return;
           const l = Math.min(...kids.map((k) => k.offsetLeft)), r = Math.max(...kids.map((k) => k.offsetLeft + k.offsetWidth));
           const cs = getComputedStyle(bar), edge = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight) + parseFloat(cs.borderLeftWidth) + parseFloat(cs.borderRightWidth);
