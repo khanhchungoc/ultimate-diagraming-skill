@@ -49,7 +49,7 @@ def build(out: Path) -> None:
     (out / "index.html").write_text(
         le.ARTIFACT_HEAD + "\n<title>Diagram playground</title>\n"
         f'<script>location.replace("{FIRST}/index.html");</script>\n'
-        f'<p><a href="{FIRST}/index.html">Open the blank flowchart</a></p>\n'
+        f'<p><a href="{FIRST}/index.html">Open the flowchart</a></p>\n'
         + le.ARTIFACT_END_MARKER + "\n" + le.ARTIFACT_TAIL + "\n", encoding="utf-8", newline="\n")
 
 
