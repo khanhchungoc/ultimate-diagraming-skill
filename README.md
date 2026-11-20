@@ -37,7 +37,7 @@ Describe a process, and your AI agent hands back a single HTML file. Open it in 
 | **Use case** | Actors, goals and system boundaries | ✅ |
 | **BPMN** | Pools, lanes, events and gateways | 🔜 |
 | **State machine** | States and transitions | 🔜 |
-| **C4** | System landscape: people, systems and containers (levels 1 and 2), with grouping frames and cloud or technology icons ([plan](dev/plans/plan-c4.md)) | 🔜 |
+| **C4** | System landscape: people, systems and containers (levels 1 and 2), laid out around a centre, with no centre or in layers, with grouping frames you can colour, icon cards and hand editing; no dragging boxes, notes or logo packs yet ([plan](dev/plans/plan-c4.md)) | 🔜 |
 | **Mind map** | Ideas branching from a central topic | 🕐  |
 | **Gantt chart** | Tasks on a timeline | 🕐 |
 

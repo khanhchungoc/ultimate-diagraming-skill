@@ -36,7 +36,7 @@ The first line of the Mermaid decides the type.
 | `sequenceDiagram` | Messages between participants over time (API calls, system interactions) | [references/types/sequence.md](references/types/sequence.md) |
 | `erDiagram` | Database schema: tables, columns, keys and relationships (crow's-foot), tables colour-coded by domain | [references/types/erd.md](references/types/erd.md) |
 | `flowchart` with `%% @type usecase` | UML use case diagram: who (actors) wants what (use cases) from which system (subject boundary), with include, extend and generalization; use cases coloured by feature area | [references/types/usecase.md](references/types/usecase.md) |
-| `c4` (JSON, `diagramType: "c4"`) | C4 system landscape: people, software systems and, one level down, the containers of one system (Level 1 context, Level 2 containers; Level 3 not supported); view, collapse/expand, search and Save only, no editing UI yet | [references/types/c4.md](references/types/c4.md) |
+| `c4` (JSON, `diagramType: "c4"`) | C4 system landscape: people, software systems and, one level down, the containers of one system (Level 1 context, Level 2 containers; Level 3 not supported); the page views, collapses and expands, searches (Level control) and edits by hand (add, connect, rename, colour, group, delete, undo, Save); no moving boxes by dragging, no notes or logo packs, no Mermaid | [references/types/c4.md](references/types/c4.md) |
 
 `state` is planned, not supported: say so; do not force it into a flowchart. The type reference owns the Mermaid conventions, the writing rules and the one complete example to copy.
 
@@ -75,7 +75,7 @@ Use to summarize, explain or answer questions about a diagram page: an `.html` f
    ```shell
    python "<skill-dir>/scripts/layout_engine.py" --extract <page.html or diagram.json>
    ```
-   If that cannot run on an `.html` file, read only the lines the page's line 2 names (the `"diagram-data"` JSON block).
+   For a `c4` page `--extract` does not print Mermaid yet: add `--json`, or read only the lines the page's line 2 names (the `"diagram-data"` JSON block).
    A flowchart with subprocess flows prints an outline, the parent, then the children; add `--sub <slug>` for one child or `--flat` for the whole flow expanded in place.
 2. Answer from that Mermaid alone. [references/reading.md](references/reading.md) lists the conventions that are not plain Mermaid.
 

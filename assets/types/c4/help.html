@@ -6,8 +6,19 @@
       <li><kbd>Hover</kbd> an element : its arrows in and out stay lit and the rest greys out</li>
       <li><b>Arrows</b> : each says what it does; the technology (REST, SQL, AMQP) is under the label; a dashed arrow is asynchronous</li>
       <li><b>Colour</b> : People and your own systems take a colour each (the legend says which); a third-party system is neutral and sits in its own boundary</li>
+      <li><b>Add</b> (dock) : Click a tile (person, system, container, database, queue, external system or group) to add it; there is no dragging a tile onto the canvas. Added while a group is selected, it joins that group. The new item is selected and its name opens for editing</li>
+      <li><kbd>Select Several</kbd> : <kbd>Ctrl</kbd> or <kbd>Shift</kbd>+click adds an element, group or arrow to the selection; a box dragged on empty canvas selects the elements it covers; <kbd>Ctrl</kbd>/<kbd>Cmd</kbd>+<kbd>A</kbd> selects all; <kbd>Esc</kbd> clears. The action bar of several offers <b>Colour</b>, <b>Group</b> and <b>Delete</b> with the count</li>
+      <li><b>Action bar</b> of an element : <b>Rename</b>, <b>Kind</b> (person, system, container, database, queue, external), <b>Icon</b> (search the generic icons; a name it cannot find is listed as a missing pack), <b>Colour</b> (a swatch row and the colour key entry), <b>Group</b> (none, a group, or a new group), <b>Centre</b>, <b>Side</b> (auto, N, S, E, W), <b>Details</b> (technology and description), <b>Connect</b> and the bin</li>
+      <li><b>Action bar</b> of a group : <b>Rename</b>, <b>Colour</b>, <b>Collapse</b>, <b>Centre</b>, <b>Side</b>, <b>Ungroup</b> (the members stay) and the bin (deletes the group and its members; with members it asks first). A group's colour tints its frame and is named in the colour key</li>
+      <li><b>Action bar</b> of an arrow : edit its <b>label</b>, set its <b>technology</b>, toggle <b>Async</b> (dashed), <b>Reverse</b> and the bin</li>
+      <li><kbd>Double Click</kbd> a name, or <kbd>F2</kbd> or <kbd>Enter</kbd> : Rename the selection; <kbd>Enter</kbd> saves, <kbd>Esc</kbd> keeps the old name. An empty name is refused</li>
+      <li><b>Connect</b> : Drag from a port (the dot on each side of an element, shown on hover and when selected) onto another element, or choose <b>Connect</b> in the action bar and click the target. The label box opens at once and a label is required; <kbd>Esc</kbd> there cancels the label and undoes the connection. An arrow to itself, or a second arrow between the same pair with the same label, is refused</li>
+      <li><kbd>Delete</kbd> or <kbd>Backspace</kbd> : Remove the selection; an element's arrows go with it</li>
+      <li><kbd>Ctrl</kbd>/<kbd>Cmd</kbd>+<kbd>Z</kbd> and <kbd>Ctrl</kbd>/<kbd>Cmd</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd> : Undo and redo every action. An add and its first rename, and a connection and its label, are one step each</li>
+      <li><b>Auto-Tidy</b> : Always on. Every add, connect, delete, group change or collapse lays the diagram out again, so boxes are not moved by dragging</li>
+      <li><b>Centre</b> and <b>Side</b> : Mark an element or group as a centre of the diagram (the rest rings round it), and ask for the side of the centre it sits on. A side is a hint, not an order. With no centre the layout flows down in layers</li>
       <li><kbd>/</kbd> or the <b>Find</b> field : Match names, technologies, groups and arrow labels; matches light up, <b>Fit to matches</b> zooms to them</li>
       <li><b>Notes</b> : Show every note on the canvas, or hide them</li>
       <li><kbd>&uarr;</kbd> <kbd>&darr;</kbd> <kbd>&larr;</kbd> <kbd>&rarr;</kbd> : Move to the nearest element in that direction</li>
       <li><kbd>Esc</kbd> : Clear the selection</li>
-      <li><b>Save</b> : Writes the diagram, including which systems are open, back to the page</li>
+      <li><b>Save</b> : Writes the diagram, including which systems are open, back to the page. Names you gave become the ids</li>
