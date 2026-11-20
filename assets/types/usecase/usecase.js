@@ -1261,10 +1261,20 @@
       // --- Move actors and use cases (one or the whole selection) ---
       function itemDrag(ids) {
         const targetSubjects = allSubjects();
+        // Lines (and labels) of the moved items fade while they move, as they would lag behind; the drop re-routes them
+        let faded = null;
+        const fade = (on) => {
+          if (!faded && on) {
+            const g = [...linksG.querySelectorAll('.uc-link')].filter((x) => ids.includes(x.dataset.from) || ids.includes(x.dataset.to));
+            const lab = [...html.querySelectorAll('.uc-label')].filter((x) => g.some((y) => y.dataset.edgeId && y.dataset.edgeId === x.dataset.edgeId));
+            faded = g.concat(lab);
+          }
+          (faded || []).forEach((x) => x.classList.toggle('drag-fade', on));
+        };
         return {
-          cleanup() { liveEnd(this); },
+          cleanup() { fade(false); },
           move(e, d) {
-            liveDrag(d, () => ids.forEach((id) => { const o = itemOf(id), i = (d.snap[0].concat(d.snap[1])).find((x) => x.id === id); if (o && i && placed(o)) { o.x = i.x + d.dx; o.y = i.y + d.dy; } }));
+            fade(true);
             ids.forEach((id) => { const el = els.items.get(id); if (el) { el.classList.add('is-dragging'); el.style.translate = `${d.dx}px ${d.dy}px`; } });
             canvas.querySelectorAll('.drop-target').forEach((el) => el.classList.remove('drop-target'));
             if (ids.some((id) => kindOf(id) === 'case') && realSubjects().length) {
