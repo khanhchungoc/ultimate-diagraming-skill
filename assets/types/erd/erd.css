@@ -303,7 +303,7 @@
     }
     .erd-actionbar.is-below { translate: -50% 0; }
     .erd-actionbar.is-left { translate: none; }
-    .erd-actionbar.is-wrap { flex-wrap: wrap; justify-content: center; max-width: 360px; row-gap: 2px; }
+    .erd-actionbar.is-wrap { flex-wrap: wrap; justify-content: center; width: max-content; max-width: 360px; row-gap: 2px; }
     .erd-actionbar.is-wide { max-width: none; }
     .erd-ab-break { flex-basis: 100%; height: 0; }
     .erd-ab-btn {

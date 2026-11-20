@@ -1563,7 +1563,7 @@
         const C = chartData.canvas || { width: 1e9, height: 1e9 };
         let best = null;
         segs.slice(0, 3).forEach((s, k) => {
-          [0, -0.5, -0.3, 0.3, 0.5].forEach((shift) => [false, true].forEach((below) => {
+          [0, -0.5, -0.3, 0.3, 0.5, -0.8, 0.8, -1.1, 1.1].forEach((shift) => [false, true].forEach((below) => {
             // the bar's left edge: centred on the point, or slid along it, never off the canvas
             const x = Math.max(4, Math.min(s.x - w / 2 + shift * w, C.width - w - 4)), y = below ? s.y + 16 * k : s.y - 16 * k - h;
             let cost = k * 40 + (below ? 10 : 0) + Math.abs(x - (s.x - w / 2)) / 8;
