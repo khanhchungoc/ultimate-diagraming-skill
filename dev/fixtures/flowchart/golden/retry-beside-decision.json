@@ -8,7 +8,7 @@
       "id": "lane_1",
       "name": "Lane 1",
       "icon": "user",
-      "height": 424
+      "height": 504
     }
   ],
   "nodes": [
@@ -18,7 +18,7 @@
       "type": "start",
       "label": "Start",
       "x": 56,
-      "y": 32
+      "y": 72
     },
     {
       "id": "n_new_step",
@@ -26,7 +26,7 @@
       "type": "task",
       "label": "New Step",
       "x": 56,
-      "y": 248
+      "y": 288
     },
     {
       "id": "n2",
@@ -34,7 +34,7 @@
       "type": "task",
       "label": "Do something",
       "x": 192,
-      "y": 32
+      "y": 72
     },
     {
       "id": "n_decision",
@@ -42,7 +42,7 @@
       "type": "decision",
       "label": "Decision?",
       "x": 328,
-      "y": 32
+      "y": 72
     },
     {
       "id": "n_new_step_2",
@@ -50,7 +50,7 @@
       "type": "task",
       "label": "New Step",
       "x": 481,
-      "y": 32
+      "y": 72
     },
     {
       "id": "n_new_step_3",
@@ -58,7 +58,7 @@
       "type": "task",
       "label": "New Step",
       "x": 328,
-      "y": 248
+      "y": 288
     },
     {
       "id": "n3",
@@ -66,7 +66,7 @@
       "type": "end",
       "label": "End",
       "x": 617,
-      "y": 32
+      "y": 72
     }
   ],
   "edges": [

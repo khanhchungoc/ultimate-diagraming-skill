@@ -7,7 +7,7 @@
       "id": "lane_hiring_mgr",
       "name": "Hiring Manager",
       "icon": "briefcase",
-      "height": 424
+      "height": 504
     },
     {
       "id": "lane_hr_ops",
@@ -19,7 +19,7 @@
       "id": "lane_recruiter",
       "name": "Recruiter",
       "icon": "user",
-      "height": 424
+      "height": 504
     },
     {
       "id": "lane_candidate",
@@ -71,7 +71,7 @@
       "type": "start",
       "label": "Raise Hiring Request",
       "x": 56,
-      "y": 32
+      "y": 72
     },
     {
       "id": "ad_approved",
@@ -79,7 +79,7 @@
       "type": "decision",
       "label": "Job Ad Approved?",
       "x": 498,
-      "y": 32
+      "y": 72
     },
     {
       "id": "round1_interview",
@@ -87,7 +87,7 @@
       "type": "task",
       "label": "Conduct Round 1 Interview",
       "x": 923,
-      "y": 32
+      "y": 72
     },
     {
       "id": "round1_pass",
@@ -95,7 +95,7 @@
       "type": "decision",
       "label": "Advance to Round 2?",
       "x": 1059,
-      "y": 32
+      "y": 72
     },
     {
       "id": "round2_interview",
@@ -103,7 +103,7 @@
       "type": "task",
       "label": "Conduct Round 2 Interview",
       "x": 1212,
-      "y": 32
+      "y": 72
     },
     {
       "id": "round2_pass",
@@ -111,7 +111,7 @@
       "type": "decision",
       "label": "Select Candidate?",
       "x": 1348,
-      "y": 32
+      "y": 72
     },
     {
       "id": "probation_review",
@@ -119,7 +119,7 @@
       "type": "task",
       "label": "Run 90-Day Probation Review",
       "x": 4589,
-      "y": 32
+      "y": 72
     },
     {
       "id": "probation_outcome",
@@ -127,7 +127,7 @@
       "type": "decision",
       "label": "Probation Review Outcome?",
       "x": 4725,
-      "y": 32
+      "y": 72
     },
     {
       "id": "extend_probation",
@@ -135,7 +135,7 @@
       "type": "delay",
       "label": "Extend Probation 30 Days",
       "x": 4725,
-      "y": 248
+      "y": 288
     },
     {
       "id": "probation_passed",
@@ -143,7 +143,7 @@
       "type": "end",
       "label": "Probation Passed",
       "x": 4878,
-      "y": 32
+      "y": 72
     },
     {
       "id": "headcount_approved",
@@ -263,7 +263,7 @@
       "type": "task",
       "label": "Draft Job Ad",
       "x": 362,
-      "y": 32
+      "y": 72
     },
     {
       "id": "revise_ad",
@@ -271,7 +271,7 @@
       "type": "task",
       "label": "Revise Job Ad",
       "x": 498,
-      "y": 32
+      "y": 72
     },
     {
       "id": "publish_ad",
@@ -279,7 +279,7 @@
       "type": "task",
       "label": "Publish Job Ad",
       "x": 651,
-      "y": 32
+      "y": 72
     },
     {
       "id": "screen_apps",
@@ -287,7 +287,7 @@
       "type": "task",
       "label": "Screen & Shortlist Candidates",
       "x": 787,
-      "y": 32
+      "y": 72
     },
     {
       "id": "schedule_interviews",
@@ -295,7 +295,7 @@
       "type": "task",
       "label": "Schedule Interviews",
       "x": 923,
-      "y": 32
+      "y": 72
     },
     {
       "id": "send_rejection",
@@ -303,7 +303,7 @@
       "type": "io",
       "label": "Send Rejection Email",
       "x": 1348,
-      "y": 32
+      "y": 72
     },
     {
       "id": "cand_rejected",
@@ -311,7 +311,7 @@
       "type": "end",
       "label": "Candidate Rejected",
       "x": 1501,
-      "y": 248
+      "y": 288
     },
     {
       "id": "within_band",
@@ -319,7 +319,7 @@
       "type": "decision",
       "label": "Salary Within Band?",
       "x": 1501,
-      "y": 32
+      "y": 72
     },
     {
       "id": "renegotiate_salary",
@@ -327,7 +327,7 @@
       "type": "task",
       "label": "Renegotiate Salary",
       "x": 1807,
-      "y": 32
+      "y": 72
     },
     {
       "id": "issue_offer",
@@ -335,7 +335,7 @@
       "type": "document",
       "label": "Issue Offer Letter",
       "x": 1807,
-      "y": 248
+      "y": 288
     },
     {
       "id": "offer_response",

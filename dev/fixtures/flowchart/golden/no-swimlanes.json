@@ -9,7 +9,7 @@
       "name": "Process",
       "color": "1",
       "icon": "users",
-      "height": 288
+      "height": 360
     }
   ],
   "nodes": [
@@ -19,7 +19,7 @@
       "label": "Receive Form",
       "laneId": "lane-main",
       "x": 56,
-      "y": 36
+      "y": 72
     },
     {
       "id": "n2",
@@ -27,7 +27,7 @@
       "label": "Check Form",
       "laneId": "lane-main",
       "x": 256,
-      "y": 36
+      "y": 72
     },
     {
       "id": "n3",
@@ -35,7 +35,7 @@
       "label": "Complete?",
       "laneId": "lane-main",
       "x": 456,
-      "y": 20
+      "y": 56
     },
     {
       "id": "n4",
@@ -43,7 +43,7 @@
       "label": "Request Missing Info",
       "laneId": "lane-main",
       "x": 456,
-      "y": 156
+      "y": 192
     },
     {
       "id": "n5",
@@ -51,7 +51,7 @@
       "label": "File Form",
       "laneId": "lane-main",
       "x": 674.2,
-      "y": 36
+      "y": 72
     },
     {
       "id": "n6",
@@ -59,7 +59,7 @@
       "label": "Done",
       "laneId": "lane-main",
       "x": 874.2,
-      "y": 36
+      "y": 72
     }
   ],
   "edges": [

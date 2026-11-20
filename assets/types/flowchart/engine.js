@@ -317,11 +317,14 @@
             if (inLane.length) maxH = Math.max(...inLane.map(nodeH));
             const rows = subrows[l.id] || 1;
             // In LR mode with visible swimlanes, the pinned .lane-pill sits at y=12..54px; reserve 56px top pad on multi-row lanes so row-0 nodes never collide with the pill when panned
-            const topPad = (rows > 1 && !LE.LABEL_ACROSS && lanes.length > 1) ? 56 : LE.TOP_PAD;
             const rooms = loopRooms(l.id);
+            // A stacked lane keeps the room its loop-backs need on both sides of the node block, so the nodes and
+            // the arrows around them sit centred in the lane (the renderer sizes the lane's far side with the same rule)
+            const loopSpace = Math.max(rooms.far, rooms.near);
+            const topPad = Math.max((rows > 1 && !LE.LABEL_ACROSS && lanes.length > 1) ? 56 : LE.TOP_PAD, rows > 1 ? loopSpace : 0);
             const req = rows === 1 && (rooms.far || rooms.near)
               ? (rooms.near || LE.NEAR_MIN) + maxH + (rooms.far || LE.NEAR_MIN)
-              : topPad + (rows - 1) * LE.ROW_HEIGHT + maxH + LE.BOTTOM_PAD;
+              : topPad + (rows - 1) * LE.ROW_HEIGHT + maxH + Math.max(LE.BOTTOM_PAD, rows > 1 ? loopSpace : 0);
             const inner = Math.max(LE.LANE_MIN, req);
             l.height = inner;
             lanePos[l.id] = { top: curY, h: l.height, inner, maxH, topPad, rooms };
