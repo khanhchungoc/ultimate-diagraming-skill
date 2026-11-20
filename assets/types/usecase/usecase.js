@@ -1702,12 +1702,12 @@
         html.appendChild(bar);
         ui.fitBar(bar);
         const C = chartData.canvas || { width: 1e9, height: 1e9 }, w = bar.offsetWidth, h = bar.offsetHeight;
-        const below = !ui.roomAbove({ getBoundingClientRect: () => ({ top: canvas.getBoundingClientRect().top + at.y * scale }) }, bar, scale);   // by where the anchor is in the window
+        const below = !ui.roomAbove({ getBoundingClientRect: () => ({ top: canvas.getBoundingClientRect().top + at.y * scale }) }, bar);   // by where the anchor is in the window
         bar.classList.toggle('is-below', below);
         const cx = Math.max(w / 2 - 30, Math.min(at.x, C.width - w / 2 + 30));
         Object.assign(bar.style, {
           left: px(Math.round(cx - w / 2)),
-          top: px(Math.round(Math.max(2, below ? at.bottom + 10 : at.y - 10 - h)))
+          top: px(Math.round(below ? at.bottom + 10 / scale : at.y - 10 / scale - h))
         });
         motion.showBar(bar);
       }

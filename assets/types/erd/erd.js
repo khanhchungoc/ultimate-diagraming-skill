@@ -1505,8 +1505,8 @@
           bar.appendChild(erdHtmlEl('span', 'erd-ab-break'));
           bar.appendChild(swatchRow(e.color || '', (slot) => setEntityColor(e.id, slot), { btnClass: 'erd-ab-swatch' }));
           if (e.color) bar.appendChild(abButton('namecolor', '<span>Name colour</span>', 'Say what this colour means: it is then shown in a legend above the tables'));
-          at = { x: e.box.x + e.box.w / 2, y: e.box.y - 10 };
-          at.top = e.box.y; at.bottom = e.box.y + e.box.h + 10;
+          at = { x: e.box.x + e.box.w / 2, y: e.box.y - 10 / scale };
+          at.top = e.box.y; at.bottom = e.box.y + e.box.h + 10 / scale;
         } else if (erdSel.kind === 'col') {
           const e = erdEntity(erdSel.entity);
           const col = e && (e.columns || []).find((c) => c.name === erdSel.col);
@@ -1523,8 +1523,8 @@
           bar.appendChild(abSep());
           bar.appendChild(abButton('delcol', ui.icon('trash'), 'Delete this column', undefined, undefined, 'is-danger'));
           // Over the table's header, not over its rows: the bar must not hide the neighbouring rows (the row itself is marked)
-          at = { x: e.box.x + e.box.w / 2, y: e.box.y - 10 };
-          at.top = e.box.y; at.bottom = e.box.y + e.box.h + 10;
+          at = { x: e.box.x + e.box.w / 2, y: e.box.y - 10 / scale };
+          at.top = e.box.y; at.bottom = e.box.y + e.box.h + 10 / scale;
         } else if (erdSel.kind === 'rel') {
           const rel = erdRel(erdSel.id);
           if (!rel || !rel.curve || !rel.points || rel.points.length < 2) return;
@@ -1553,14 +1553,14 @@
           lastHandleRelId = erdSel.id;
           erdHtml.appendChild(bar);
           ui.fitBar(bar);
-          placeRelBar(bar, rel);
+          placeRelBar(bar, rel, [hFrom, hTo]);
           if (prevBarRect && prevBarRect.width > 0 && prevBarRect.height > 0) motion.ghostMorph(prevBarRect, bar, 170, 'curve-spring-settle');
           else motion.showBar(bar);
           return;
         } else return;
         erdHtml.appendChild(bar);
         if (at.top !== undefined) {   // over its table, or under it when there is no room above in the window
-          below = !ui.roomAbove({ getBoundingClientRect: () => ({ top: erdHtml.getBoundingClientRect().top + at.top * scale }) }, bar, scale);
+          below = !ui.roomAbove({ getBoundingClientRect: () => ({ top: erdHtml.getBoundingClientRect().top + at.top * scale }) }, bar);
           if (below) at.y = at.bottom;
         }
         bar.classList.toggle('is-below', below);
@@ -1570,8 +1570,8 @@
         else motion.showBar(bar);
       }
       // The line's bar sits above or below a point near the middle of its curve, wherever it hides the fewest tables
-      function placeRelBar(bar, rel) {
-        const p = rel.points, w = bar.offsetWidth, h = bar.offsetHeight;
+      function placeRelBar(bar, rel, handles) {
+        const k = 1 / scale, p = rel.points, w = bar.offsetWidth * k, h = bar.offsetHeight * k;   // the bar is not zoomed: its footprint in the diagram grows with 1 / zoom
         const segs = [8, 6, 10, 4, 12].filter((i) => p[i]).map((i) => ({ x: p[i][0], y: p[i][1] }));
         const boxes = erdEntities().filter((e) => e.box).map((e) => e.box);
         const C = chartData.canvas || { width: 1e9, height: 1e9 };
@@ -1579,14 +1579,15 @@
         segs.slice(0, 3).forEach((s, k) => {
           [0, -0.5, -0.3, 0.3, 0.5].forEach((shift) => [false, true].forEach((below) => {
             // the bar's left edge: centred on the point, or slid along it, never off the canvas
-            const x = Math.max(4, Math.min(s.x - w / 2 + shift * w, C.width - w - 4)), y = below ? s.y + 16 : s.y - 16 - h;
+            const x = Math.max(4, Math.min(s.x - w / 2 + shift * w, C.width - w - 4)), y = below ? s.y + 16 * k : s.y - 16 * k - h;
             let cost = k * 40 + (below ? 10 : 0) + Math.abs(x - (s.x - w / 2)) / 8;
             boxes.forEach((b) => {
               const ox = Math.max(0, Math.min(x + w, b.x + b.w) - Math.max(x, b.x)), oy = Math.max(0, Math.min(y + h, b.y + b.h) - Math.max(y, b.y));
               cost += ox * oy;
             });
             if (y < 0) cost += 5000;
-            if (!best || cost < best.cost) best = { cost, x: x + w / 2, y: below ? s.y + 16 : s.y - 16, below };
+            handles.forEach((h) => { if (h[0] > x - 14 * k && h[0] < x + w + 14 * k && h[1] > y - 14 * k && h[1] < y + h + 14 * k) cost += 3000; });   // never over an end handle
+            if (!best || cost < best.cost) best = { cost, x: x + w / 2, y: below ? s.y + 16 * k : s.y - 16 * k, below };
           }));
         });
         bar.classList.toggle('is-below', best.below);

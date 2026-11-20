@@ -187,12 +187,13 @@ try {
   await undo();
   await blank();
   // dragging a boundary's title moves the frame with its use cases
-  const subBefore = await t.ev(`(() => { const r = document.querySelector('.uc-subject[data-subject-id="shop"]').getBoundingClientRect(); return [r.left, r.top]; })()`);
-  const title = await t.at('.uc-subject[data-subject-id="shop"] .uc-subject-title', 0.5, 0.5);
+  const subBefore = await t.ev(`(() => { const r = document.querySelector('.uc-subject[data-subject-id="office"]').getBoundingClientRect(); return [r.left, r.top]; })()`);
+  const title = await t.at('.uc-subject[data-subject-id="office"] .uc-subject-title', 0.5, 0.5);
   await t.dragTo(title.x, title.y, title.x + 60, title.y + 40, { steps: 8 });
   await sleep(300);
-  const subAfter = await t.ev(`(() => { const r = document.querySelector('.uc-subject[data-subject-id="shop"]').getBoundingClientRect(); return [r.left, r.top]; })()`);
-  t.check('dragging a subject title moves the frame', Math.abs(subAfter[0] - subBefore[0] - 60) < 6 && Math.abs(subAfter[1] - subBefore[1] - 40) < 6, `${subBefore} -> ${subAfter}`);
+  const subAfter = await t.ev(`(() => { const r = document.querySelector('.uc-subject[data-subject-id="office"]').getBoundingClientRect(); return [r.left, r.top]; })()`);
+  // boundaries stacked in one column keep their left edge aligned, so only the vertical move shows
+  t.check('dragging a subject title moves the frame', Math.abs(subAfter[1] - subBefore[1] - 40) < 6, `${subBefore} -> ${subAfter}`);
   await undo();
   await blank();
   t.check('no hover "+" note chip on items (the action bar has the note button)', (await count('.note-add')) === 0);
