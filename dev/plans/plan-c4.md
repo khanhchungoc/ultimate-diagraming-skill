@@ -249,7 +249,7 @@ Auto-Tidy is always on, as in the use case type: every add, connect, delete, gro
 
 **Save.** `toDisk` renames editor ids to name slugs (unique, references and `core` and `side` hints kept) exactly as `c4_to_disk` in `scripts/disk_format.py` does, and drops every `_` field.
 
-**Present mode** (`?present`): no editing UI, the Level control, search and hover still work.
+**Present mode** (`?present`): no editing UI. The Level control, hover and collapse still work (a presenter zooms between C4 levels); search is hidden, as in every other type.
 
 ## Audit (`scripts/audit_c4.py`)
 
