@@ -3443,8 +3443,40 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           }
         }
 
+        // A click on the anchor (released on the source step, not dragged): connect to the nearest step that way
+        if (targetNodeEl && connectingFromPort) {
+          const t = nearestNodeInDirection(connectingFromNodeId, connectingFromPort);
+          if (t) createConnection(connectingFromNodeId, t);
+          else flashHint('No step in that direction');
+          cancelConnecting();
+          return;
+        }
+
         // Released away from any node: drop the connection attempt
         cancelConnecting();
+      }
+
+      // Closest step whose centre lies in the port's direction (within a 45° cone), skipping connectors and steps
+      // already linked from the source
+      function nearestNodeInDirection(fromId, port) {
+        const fromEl = document.getElementById(`node-${fromId}`);
+        if (!fromEl) return null;
+        const fr = fromEl.getBoundingClientRect();
+        const fx = fr.left + fr.width / 2, fy = fr.top + fr.height / 2;
+        const dir = { right: [1, 0], left: [-1, 0], top: [0, -1], bottom: [0, 1] }[port];
+        let best = null, bestD = Infinity;
+        document.querySelectorAll('.flow-node').forEach(el => {
+          const id = el.dataset.nodeId;
+          if (!id || id === fromId || isConnector(nodeById(id))) return;
+          if (chartData.edges.some(e => e.from === fromId && e.to === id)) return;
+          const r = el.getBoundingClientRect();
+          const dx = r.left + r.width / 2 - fx, dy = r.top + r.height / 2 - fy;
+          const along = dx * dir[0] + dy * dir[1], across = Math.abs(dx * dir[1] + dy * dir[0]);
+          if (along <= 0 || across > along) return;
+          const d = Math.hypot(dx, dy);
+          if (d < bestD) { bestD = d; best = id; }
+        });
+        return best;
       }
 
       // --- RE-ATTACH AN EXISTING ARROW END TO A DIFFERENT NODE ---
