@@ -26,6 +26,7 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
 
+from audit_c4 import C4Audit
 from audit_erd import ErdAudit
 from audit_sequence import SequenceAudit
 from audit_usecase import UsecaseAudit
@@ -1370,7 +1371,7 @@ def resolve_theme(theme_arg: Optional[str], page_html: Optional[str] = None) -> 
     return tokens, theme, note
 
 
-AUDITS = {"flowchart": FlowchartAudit, "sequence": SequenceAudit, "erd": ErdAudit, "usecase": UsecaseAudit}
+AUDITS = {"flowchart": FlowchartAudit, "sequence": SequenceAudit, "erd": ErdAudit, "usecase": UsecaseAudit, "c4": C4Audit}
 
 
 def make_audit(data: Dict[str, Any], tokens: Optional[Dict[str, Any]] = None):
