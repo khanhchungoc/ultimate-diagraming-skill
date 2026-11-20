@@ -42,8 +42,8 @@
       "type": "task",
       "label": "Request Missing Info",
       "laneId": "lane-main",
-      "x": 674.2,
-      "y": 36
+      "x": 456,
+      "y": 156
     },
     {
       "id": "n5",
@@ -51,7 +51,7 @@
       "label": "File Form",
       "laneId": "lane-main",
       "x": 674.2,
-      "y": 156
+      "y": 36
     },
     {
       "id": "n6",

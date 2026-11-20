@@ -161,7 +161,7 @@
         }
 
         // Horizontal room each labelled edge needs: label width (capped, then wrapped) plus arrow stubs
-        const labelGap = {};
+        const labelGap = {}, labelW = {};
         edges.forEach(e => {
           const t = String(e.label || '').trim();
           if (!t) return;
@@ -170,6 +170,7 @@
           const w = Math.max(longest * FONT_M.label + 20, Math.min(t.length * FONT_M.edgeWrap + 18, LE.LABEL_MAX_W));
           // Top-to-bottom: the label wraps at LABEL_MAX_W and sits on the vertical arrow, so it needs its height
           const lines = Math.ceil((t.length * FONT_M.edgeWrap + 18) / LE.LABEL_MAX_W);
+          labelW[KEY(e.from, e.to)] = w;
           labelGap[KEY(e.from, e.to)] = (LE.LABEL_ACROSS ? 8 + 17 * Math.min(lines, 3) : w) + 2 * LE.LABEL_STUB;
         });
 
@@ -660,7 +661,12 @@
           const s = nodeMap[e.from], d = nodeMap[e.to];
           if (!s || !d) return;
           const sl = laneIdx[s.laneId], dl = laneIdx[d.laneId];
-          if (sl === undefined || dl === undefined || sl === dl) return;
+          if (sl === undefined || dl === undefined) return;
+          // Same lane: only a decision's branch that exits solely by looping back (a retry step) may sit beside it,
+          // and only when its label fits the gap between the two rows (the diamond's tip leaves one stub of extra room)
+          if (sl === dl && !(s.type === 'decision' && !forwardEdges.some(x => x.from === e.to)
+            && edges.some(x => x.from === e.to && back.has(KEY(x.from, x.to)))
+            && (!LE.LABEL_ACROSS || (labelW[KEY(e.from, e.to)] || 0) <= LE.ROW_HEIGHT - LE.NODE_H + LE.LABEL_STUB))) return;
           if (cands.some(c => c.k === KEY(e.from, e.to))) return;
           cands.push({ k: KEY(e.from, e.to), from: e.from, to: e.to, side: dl < sl ? 'up' : 'down' });
         });
