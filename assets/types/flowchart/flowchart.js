@@ -294,6 +294,7 @@
       // Edge Connecting state
       let connectingFromNodeId = null;
       let connectingFromPort = null;
+      let connectingDownAt = null;       // where the anchor was pressed: a release close to it is a click, not a drag
       let connectingStartPoint = null;
 
       // Last computed arrow routes (renderEdges), and the arrow a dragged node would be inserted into
@@ -3385,6 +3386,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
       function startConnecting(e, nodeId, port) {
         connectingFromNodeId = nodeId;
         connectingFromPort = port;
+        connectingDownAt = { x: e.clientX, y: e.clientY };
         document.body.classList.add('connecting');
 
         const fromEl = document.getElementById(`node-${nodeId}`);
@@ -3434,6 +3436,16 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         const targetEl = document.elementFromPoint(ev.clientX, ev.clientY);
         const targetNodeEl = targetEl ? targetEl.closest('.flow-node') : null;
 
+        // A click on the anchor (not dragged; the anchor itself ignores the pointer while connecting, so a release
+        // there may land on the lane): connect to the nearest step in its direction
+        if (connectingDownAt && connectingFromPort && Math.hypot(ev.clientX - connectingDownAt.x, ev.clientY - connectingDownAt.y) < 6) {
+          const t = nearestNodeInDirection(connectingFromNodeId, connectingFromPort);
+          if (t) createConnection(connectingFromNodeId, t);
+          else flashHint('No step in that direction');
+          cancelConnecting();
+          return;
+        }
+
         if (targetNodeEl) {
           const targetNodeId = targetNodeEl.dataset.nodeId;
           if (targetNodeId && targetNodeId !== connectingFromNodeId) {
@@ -3441,15 +3453,6 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
             cancelConnecting();
             return;
           }
-        }
-
-        // A click on the anchor (released on the source step, not dragged): connect to the nearest step that way
-        if (targetNodeEl && connectingFromPort) {
-          const t = nearestNodeInDirection(connectingFromNodeId, connectingFromPort);
-          if (t) createConnection(connectingFromNodeId, t);
-          else flashHint('No step in that direction');
-          cancelConnecting();
-          return;
         }
 
         // Released away from any node: drop the connection attempt
@@ -3591,6 +3594,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
       function cancelConnecting() {
         connectingFromNodeId = null;
         connectingFromPort = null;
+        connectingDownAt = null;
         connectingStartPoint = null;
         document.body.classList.remove('connecting');
         dragEdge.style.display = 'none';
