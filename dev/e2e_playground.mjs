@@ -1,4 +1,4 @@
-// The playground (dev/build_playground.py): one folder, a blank page per diagram type, a type menu, Save = download.
+// The playground (dev/build_playground.py): one folder, a blank page per diagram type, type tabs, Save = download.
 //   node dev/e2e_playground.mjs [--dir <built playground folder>] [-v]
 // Without --dir it builds one into a temp folder. Serves the folder over loopback HTTP and drives it with Playwright
 // (preinstalled; this test never installs a browser). Exit codes: 0 all passed, 1 setup error, 2 a check failed.
@@ -68,8 +68,8 @@ try {
   for (const id of ids) {
     const T = TYPES[id];
     await open(id);
-    const menuItems = await page.locator('#type-menu [role=menuitemradio]').evaluateAll((els) => els.map((e) => [e.dataset.type, e.getAttribute('aria-checked')]));
-    check(`${id}: starter page, menu lists the four types with only this one checked`,
+    const menuItems = await page.locator('#type-tabs [role=radio]').evaluateAll((els) => els.map((e) => [e.dataset.type, e.getAttribute('aria-checked')]));
+    check(`${id}: starter page, tabs list the four types with only this one checked`,
       JSON.stringify(menuItems.map((m) => m[0])) === JSON.stringify(ids) && menuItems.filter((m) => m[1] === 'true').map((m) => m[0]).join() === id, JSON.stringify(menuItems));
     check(`${id}: the title is the type's blank title and the page is not unsaved`, (await page.locator('#chart-title').textContent()) === T.name && !(await unsaved()));
     // Nothing drawn yet: Fit, Tidy and the exports must not fail on zero items
@@ -106,36 +106,36 @@ try {
     const solo = await ctx.newPage();
     await solo.goto('file://' + file);
     await solo.waitForSelector('#chart-title'); await solo.waitForTimeout(300);
-    check(`${id}: the saved file opens as a normal page (no type menu, Save present)`, (await solo.locator('#btn-type').count()) === 0 && (await solo.locator('#btn-save').count()) === 1);
+    check(`${id}: the saved file opens as a normal page (no type tabs, Save present)`, (await solo.locator('#type-tabs').count()) === 0 && (await solo.locator('#btn-save').count()) === 1);
     await solo.close();
   }
 
   // Switching: with edits a confirm appears; Cancel stays; Switch lands on a blank of the other type
   await open('flowchart');
-  const open_menu = () => page.click('#btn-type');
-  await open_menu(); await page.click('#type-menu [data-type="erd"]');
+  const open_menu = async () => {};   // the tabs are always visible
+  await open_menu(); await page.click('#type-tabs [data-type="erd"]');
   check('flowchart, no edits: switching goes straight to the ER diagram', await page.waitForURL(/\/erd\/index\.html/, { timeout: 5000 }).then(() => true, () => false), page.url());
   await page.waitForSelector('#chart-title');
 
   await open('flowchart');
   await page.click('#btn-add-shape'); await page.click('#btn-add-step'); await page.waitForTimeout(300);
-  await open_menu(); await page.click('#type-menu [data-type="sequence"]');
+  await open_menu(); await page.click('#type-tabs [data-type="sequence"]');
   const confirmText = await page.locator('.confirm').textContent().catch(() => '');
   check('with edits, switching asks first (Switch, Save, Cancel)', /Switch to Sequence diagram\?/.test(confirmText) && /lost unless you save/.test(confirmText) && /Cancel/.test(confirmText) && /Save/.test(confirmText), confirmText);
   await page.click('.confirm .confirm-cancel');
   check('Cancel stays on the flowchart with its edit', page.url().endsWith('/flowchart/index.html') && (await count('[data-node-id]')) > 0);
-  await open_menu(); await page.click('#type-menu [data-type="sequence"]');
+  await open_menu(); await page.click('#type-tabs [data-type="sequence"]');
   await Promise.all([page.waitForURL(/\/sequence\/index\.html/), page.click('.confirm .confirm-ok')]);
   await page.waitForSelector('#chart-title'); await page.waitForTimeout(300);
   check('Switch lands on a blank sequence diagram (not unsaved, no messages)', !(await unsaved()) && (await page.locator('#chart-title').textContent()) === 'Sequence diagram');
-  await open_menu(); await page.click('#type-menu [data-type="flowchart"]');
+  await open_menu(); await page.click('#type-tabs [data-type="flowchart"]');
   await page.waitForURL(/\/flowchart\/index\.html/);
   await page.waitForSelector('#chart-title'); await page.waitForTimeout(300);
   check('switching back shows the flowchart starter again', (await count('.flow-node')) === 3 && !(await unsaved()), String(await count('.flow-node')));
 
   // The confirm's Save choice downloads, then switches
   await page.click('#btn-add-shape'); await page.click('#btn-add-step'); await page.waitForTimeout(300);
-  await open_menu(); await page.click('#type-menu [data-type="usecase"]');
+  await open_menu(); await page.click('#type-tabs [data-type="usecase"]');
   const [dl2] = await Promise.all([page.waitForEvent('download'), page.click('.confirm .confirm-alt')]);
   await page.waitForURL(/\/usecase\/index\.html/);
   check('Save in the confirm downloads the file, then switches', dl2.suggestedFilename().endsWith('.html'));

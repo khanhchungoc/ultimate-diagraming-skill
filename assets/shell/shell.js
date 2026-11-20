@@ -3078,30 +3078,21 @@
         });
         btnSave.title = 'Download this diagram as an HTML file (Ctrl+S)';
         const icon = document.querySelector('.toolbar-left > svg');
-        const wrap = document.createElement('div');
-        wrap.className = 'menu-wrap type-switch';
-        const btn = document.createElement('button');
-        btn.type = 'button'; btn.id = 'btn-type'; btn.className = 'btn btn-icon';
-        btn.title = 'Diagram type'; btn.setAttribute('aria-label', 'Diagram type');
-        btn.setAttribute('aria-haspopup', 'menu'); btn.setAttribute('aria-expanded', 'false');
-        const menu = document.createElement('div');
-        menu.id = 'type-menu'; menu.className = 'menu menu-left'; menu.setAttribute('role', 'menu'); menu.hidden = true;
-        icon.replaceWith(wrap);
-        btn.appendChild(icon);
-        wrap.append(btn, menu);
-        const setOpen = (open) => { animateMenuToggle(menu, open, true); btn.setAttribute('aria-expanded', String(open)); };
-        // The theme travels in the URL, so the next page matches even where storage is blocked; the spinner shows until it renders
+        const tabs = document.createElement('div');
+        tabs.id = 'type-tabs'; tabs.className = 'type-tabs'; tabs.setAttribute('role', 'radiogroup'); tabs.setAttribute('aria-label', 'Diagram type');
+        icon.replaceWith(tabs);
+        const btn = tabs;   // the confirm bubble anchors here
         const goTo = (id) => { document.documentElement.classList.add('is-loading'); location.assign('../' + id + '/index.html?theme=' + currentTheme()); };
         window.addEventListener('pageshow', (e) => { if (e.persisted) document.documentElement.classList.remove('is-loading'); });
         for (const t of playground.types) {
           const item = document.createElement('button');
-          item.type = 'button'; item.dataset.type = t.id; item.setAttribute('role', 'menuitemradio');
+          item.type = 'button'; item.dataset.type = t.id; item.setAttribute('role', 'radio'); item.title = t.name;
           const here = t.id === playground.type;
           item.setAttribute('aria-checked', String(here));
-          if (here) item.appendChild(ui.iconEl('check', { size: 'sm' }));
-          item.append(here ? ' ' + t.name : t.name);
+          item.append(ui.iconEl('type-' + t.id, { size: 'sm' }));
+          const label = document.createElement('span'); label.className = 'type-tab-label'; label.textContent = t.name.replace(/ diagram$/i, '');
+          item.append(label);
           item.addEventListener('click', () => {
-            setOpen(false);
             if (here) return;
             if (!hasUnsavedChanges) { goTo(t.id); return; }
             const mine = playground.types.find((x) => x.id === playground.type).name;
@@ -3111,11 +3102,8 @@
               alt: { text: 'Save', onClick: async () => { await saveToFile(); if (!hasUnsavedChanges) goTo(t.id); } }
             }, () => goTo(t.id));
           });
-          menu.appendChild(item);
+          tabs.appendChild(item);
         }
-        btn.addEventListener('click', (e) => { e.stopPropagation(); setOpen(menu.hidden); });
-        document.addEventListener('click', () => setOpen(false));
-        window.addEventListener('keydown', (e) => { if (e.key === 'Escape') setOpen(false); });
       }
 
       window.addEventListener('keydown', (e) => {
