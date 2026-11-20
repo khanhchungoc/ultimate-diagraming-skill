@@ -1011,18 +1011,14 @@
         const showBar = (barEl, opts) => {
           if (!barEl || !enabled()) return;
           const o = opts || {};
-          if (lastBar && !lastBar.claimed && performance.now() - lastBar.at < 50) {
-            lastBar.claimed = true;
-            const r = lastBar.rect;
-            lastBar = null;
-            morphRect(r, barEl, { duration: o.duration ?? 170, easing: o.easing || 'curve-spring-settle' });
-            return;
-          }
+          // A bar that closed an instant ago (another element was picked) fades out first; this one then opens in its own place.
+          // It never travels from the old bar to the new one.
+          const after = lastBar && !lastBar.claimed && performance.now() - lastBar.at < 50;
           // Opacity + transform only: a clip-path would cut the box-shadow off until it ends, so the shadow showed up late.
           const slide = o.clipRight || barEl.classList.contains('edge-bar');
           trackAnim(barEl, barEl.animate(
             [{ opacity: 0, transform: slide ? 'translateX(-8px)' : 'scale(0.94) translateY(4px)' }, { opacity: 1, transform: 'none' }],
-            { duration: dur('dur-fast', 140), easing: curve('curve-out') }
+            { duration: dur('dur-fast', 140), easing: curve('curve-out'), delay: after ? 70 : 0, fill: 'backwards' }
           ));
         };
 

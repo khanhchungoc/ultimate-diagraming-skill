@@ -1468,12 +1468,13 @@
 
       // The tools drawn on the selection: never exported ([data-export-skip]), not in ?present, hidden while dragging
       let lastHandleRelId = null;
-      function drawSelectionTools(prevBarRect) {
+      let lastBarKey = null;   // which selection the bar was last drawn for: a redraw of the same one makes no entrance
+      function drawSelectionTools() {
         const oldBar = erdHtml.querySelector('.erd-actionbar');
-        if (oldBar) {
-          if (!erdSel || erdPresenting()) motion.hideBar(oldBar);
-          else { prevBarRect = oldBar.getBoundingClientRect(); oldBar.remove(); }
-        }
+        const barKey = erdSel && !erdPresenting() ? JSON.stringify([erdSel.kind, erdSel.id, erdSel.entity || null, erdSel.col || null, erdMultiIds]) : null;
+        const sameBar = barKey !== null && barKey === lastBarKey;
+        lastBarKey = barKey;
+        if (oldBar) { if (sameBar) oldBar.remove(); else motion.hideBar(oldBar); }   // another element: the old bar closes, then the new one opens
         erdHtml.querySelectorAll('.erd-handle').forEach((el) => el.remove());
         if (!erdSel || erdPresenting()) { lastHandleRelId = null; return; }
         if (erdSel.kind !== 'rel') lastHandleRelId = null;
@@ -1539,8 +1540,7 @@
           erdHtml.appendChild(bar);
           ui.fitBar(bar);
           placeRelBar(bar, rel, [hFrom, hTo]);
-          if (prevBarRect && prevBarRect.width > 0 && prevBarRect.height > 0) motion.ghostMorph(prevBarRect, bar, 170, 'curve-spring-settle');
-          else motion.showBar(bar);
+          if (!sameBar) motion.showBar(bar);
           return;
         } else return;
         erdHtml.appendChild(bar);
@@ -1551,8 +1551,7 @@
         bar.classList.toggle('is-below', below);
         Object.assign(bar.style, { left: erdPx(at.x), top: erdPx(Math.max(2, at.y)) });
         if (bar.classList.contains('is-wrap')) ui.fitBar(bar);
-        if (prevBarRect && prevBarRect.width > 0 && prevBarRect.height > 0) motion.ghostMorph(prevBarRect, bar, 170, 'curve-spring-settle');
-        else motion.showBar(bar);
+        if (!sameBar) motion.showBar(bar);
       }
       // The line's bar sits above or below a point near the middle of its curve, wherever it hides the fewest tables
       function placeRelBar(bar, rel, handles) {

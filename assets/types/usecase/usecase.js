@@ -1633,8 +1633,13 @@
       const lineGlyph = (type, arrow) => `<svg width="22" height="10" viewBox="0 0 30 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 7H${type === 'association' && !arrow ? 28 : 26}"${type === 'association' ? '' : ' stroke-dasharray="4 3"'}/>${type === 'association' && !arrow ? '' : '<path d="M21 2.5 28 7 21 11.5"/>'}</svg>`;
       const swatchOf = (ids) => { const cs = [...new Set(ids.map((id) => (itemOf(id) || {}).color || ''))]; return cs.length === 1 ? cs[0] : ''; };
 
+      let lastBarKey = null;   // which selection the bar was last drawn for: a redraw of the same one makes no entrance
       function drawSelectionTools() {
-        html.querySelectorAll('.uc-actionbar').forEach((el) => motion.hideBar(el));
+        const barKey = presenting() ? null : JSON.stringify([selIds, selOther]);
+        const sameBar = barKey !== null && barKey === lastBarKey;
+        lastBarKey = barKey;
+        // another element: the old bar closes, then the new one opens in its own place; the same one is redrawn quietly
+        html.querySelectorAll('.uc-actionbar').forEach((el) => { if (sameBar) el.remove(); else motion.hideBar(el); });
         if (presenting()) return;
         const bar = ui.actionBar('uc-actionbar is-wrap');
         let at = null;
@@ -1656,7 +1661,7 @@
           left: px(Math.round(cx)),   // the bar is centred on it (translate), so it stays put when collapsed
           top: px(Math.round(below ? at.bottom + 10 / scale : at.y - 10 / scale - h))
         });
-        motion.showBar(bar);
+        if (!sameBar) motion.showBar(bar);
       }
       const anchorOfBox = (b) => ({ x: b.x + b.w / 2, y: b.y, bottom: b.y + b.h });
       function itemBar(bar, o) {
