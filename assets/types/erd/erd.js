@@ -1707,8 +1707,8 @@
         const id = entEl.dataset.nodeId;
         if (notePicking) { e.preventDefault(); const nr = t.closest('.erd-row'); giveNoteTo(id, nr ? nr.dataset.col : null); return; }
         if (selectedNoteId && e.shiftKey) { e.preventDefault(); toggleNoteLink(selectedNoteId, id); return; }
-        // MULTI-SELECT: Ctrl/Cmd+click adds the table or takes it out; it never starts a drag
-        if ((e.ctrlKey || e.metaKey) && !t.closest('.erd-port')) { e.preventDefault(); toggleEntity(id); return; }
+        // MULTI-SELECT: Ctrl/Cmd/Shift+click adds the table or takes it out; it never starts a drag
+        if ((e.ctrlKey || e.metaKey || e.shiftKey) && !t.closest('.erd-port')) { e.preventDefault(); toggleEntity(id); return; }
         // A table of several selected: a press anywhere on it (ports are hidden) drags them all
         const group = isMultiSelected() && selectedEntityIds().includes(id) ? selectedEntityIds() : null;
         if (group) {

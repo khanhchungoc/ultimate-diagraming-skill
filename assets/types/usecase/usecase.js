@@ -1203,7 +1203,7 @@
         if (!itemEl) return;
         const id = itemEl.dataset.nodeId;
         if (notePicking) { e.preventDefault(); giveNoteTo(id); return; }
-        if ((e.ctrlKey || e.metaKey) && !t.closest('.uc-port')) { e.preventDefault(); toggleItem(id); return; }
+        if ((e.ctrlKey || e.metaKey || e.shiftKey) && !t.closest('.uc-port')) { e.preventDefault(); toggleItem(id); return; }
         if (t.closest('.uc-port')) { beginDrag(e, connectDrag(id)); return; }
         const group = selIds.length > 1 && selIds.includes(id) ? selIds.slice() : null;
         if (group) {

@@ -286,6 +286,10 @@
     .flow-node.type-decision.selected .diamond-poly {
       stroke: var(--node-accent);
     }
+    /* A selected decision or classic shape has no box to carry the step's halo: glow its outline instead */
+    .flow-node.selected:is(.type-decision, .type-subprocess, .type-io, .type-document, .type-database, .type-delay) :is(.decision-diamond-svg, .shape-outline) {
+      filter: drop-shadow(0 0 var(--ring-lg) color-mix(in srgb, var(--node-accent) 60%, transparent));
+    }
     /* Classic flowchart shapes (subprocess, io, document, database, delay): the task's 144x64 slot and colours,
        the box transparent and the outline drawn inside it (SHAPE_OUTLINES in flowchart.js); the outline carries
        the meaning. Each label is inset clear of its outline. */
