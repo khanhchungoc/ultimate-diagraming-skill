@@ -2528,7 +2528,7 @@
       // fromDisk only turns old colours (palette hex, frame colour names) into slots: the block is the model minus positions.
       const DISK_KEYS = ['diagramType', 'schemaVersion', 'title', 'numbered', 'showDetails', 'rails', 'lifespans', 'participantOrder', 'colorKey', 'participants', 'messages', 'fragments', 'notes'];
       // Engine output, never saved: positions, hidden (inside a collapsed frame), frame dividers, note boxes
-      const DISK_LAYOUT = [['participants', ['x', 'rail', 'top', 'bottom']], ['messages', ['y', 'hidden']], ['fragments', ['x', 'y', 'w', 'h', 'elseY', 'dividers']], ['notes', ['x', 'y', 'w', 'h']]];
+      const DISK_LAYOUT = [['participants', ['x', 'rail', 'top', 'bottom']], ['messages', ['y', 'hidden', 'lab', 'det']], ['fragments', ['x', 'y', 'w', 'h', 'elseY', 'dividers']], ['notes', ['x', 'y', 'w', 'h']]];
       // Ids made in the page are renamed on save so the file stays readable to an agent: m<next free number>,
       // p_<name slug>, f<N>, n<N>; every reference follows. Ids an author chose are never touched.
       const GENERATED_ID = /^(p|m|f|n)_\d{12,}(_\d+)?$/;
