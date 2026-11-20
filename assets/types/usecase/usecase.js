@@ -1398,7 +1398,9 @@
         const l = addLink(kindOf(fromId) === 'actor' ? 'association' : 'include', fromId, u.id);
         selectItem(u.id);
         commit(true, false);
-        placeCentred(u, pt, { snap, svgSnap, enterScale: 0.82, duration: 180, easing: 'curve-spring-tactile', drawLinkIds: new Set([l.id]) });
+        const mo = { snap, svgSnap, enterScale: 0.82, duration: 180, easing: 'curve-spring-tactile', drawLinkIds: new Set([l.id]) };
+        if (autoTidy) { render(mo); updateStatus(true); }   // Auto-Tidy: the layout placed it, not the drop point
+        else placeCentred(u, pt, mo);
         editName(u.id);
       }
 
@@ -1410,7 +1412,6 @@
       // Put the item's centre at pt once its size is known (a new item is routed first)
       function placeCentred(o, pt, motionOpts) {
         routeDiagram(chartData);
-        if (autoTidy && !pt._keep) { /* the layout decides */ }
         o.x = Math.round(pt.x - (o.w || 0) / 2);
         o.y = Math.round(pt.y - (o.h || 0) / 2);
         render(motionOpts);
