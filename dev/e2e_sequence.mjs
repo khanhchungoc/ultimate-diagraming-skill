@@ -664,6 +664,7 @@ try {
   const sum = await t.ev(`document.querySelector('.frame-summary')?.textContent`);
   t.check('collapsing a frame hides its messages behind one summary row and keeps every step number',
     sum === '9 messages hidden (steps 2–10)' && (await count('.seq-msg-label')) === 33 && (await num('m11')) === '11' && (await num('m1')) === '1', `${sum} ${await count('.seq-msg-label')}`);
+  await t.press('Escape');   // the bar is not zoomed: at this zoom it would cover the row
   await t.clickOn('.frame-summary');
   t.check('clicking the summary row expands the frame again', (await count('.seq-msg-label')) === 42 && (await count('.frame-summary')) === 0);
   // Focus

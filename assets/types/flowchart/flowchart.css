@@ -463,7 +463,7 @@
     }
     /* The selected arrow's toolbar (an .actionbar): just right of the midpoint (past the label); hidden while an end is
        dragged, while the label is typed, in presentation and in capture. Its Connector button opens the menu below. */
-    .edge-bar { translate: 0 -50%; z-index: 33; pointer-events: auto; }
+    .edge-bar { translate: 0 -50%; transform-origin: 0 50%; z-index: 33; pointer-events: auto; }
     body:is(.presentation, .capture, .reconnecting) .edge-bar { display: none !important; }
     .edge-split-menu {
       position: absolute;
@@ -568,16 +568,17 @@
        it under the pill near the top of the window. Not hidden while the lane is dragged (removing the drag source from
        layout makes Chrome cancel the drag). */
     /* The step's bar (syncNodeBar): over the node, centred, or under it (placeNodeBar); not while the step is dragged */
-    .node-bar { left: 50%; bottom: calc(100% + 10px); translate: -50% 0; cursor: default; }
-    .node-bar.is-below { bottom: auto; top: calc(100% + 10px); }
+    .node-bar { left: 50%; bottom: calc(100% + 10px * var(--ui-scale, 1)); translate: -50% 0; cursor: default; }
+    .node-bar.is-below { bottom: auto; top: calc(100% + 10px * var(--ui-scale, 1)); }
     .flow-node.dragging .node-bar, body:is(.connecting, .reconnecting, .palette-dragging) .node-bar { display: none; }
     /* The dock's Delete is not needed: the bars carry it */
     #btn-delete-selection { display: none !important; }
-    .lane-bar { display: none; left: 0; bottom: calc(100% + 8px); }
-    .lane-bar.is-below { bottom: auto; top: calc(100% + 8px); }
+    .lane-bar { display: none; left: 0; bottom: calc(100% + 8px * var(--ui-scale, 1)); transform-origin: 0 100%; }
+    .lane-bar.is-below { bottom: auto; top: calc(100% + 8px * var(--ui-scale, 1)); transform-origin: 0 0; }
     .swimlane.lane-selected .lane-bar { display: flex; }
     .lane-pill.editing .lane-bar { display: none !important; }
-    #swimlanes-container.dir-tb .lane-bar { left: 50%; translate: -50% 0; }
+    #swimlanes-container.dir-tb .lane-bar { left: 50%; translate: -50% 0; transform-origin: 50% 100%; }
+    #swimlanes-container.dir-tb .lane-bar.is-below { transform-origin: 50% 0; }
     .lane-pill .lane-icon { width: auto; height: auto; border: none; background: none; border-radius: 0; color: inherit; }
     /* Exports draw each pill and stripe at the lane's own top-left, whatever the view, in the resting style */
     body.exporting .lane-pill { transform: translate(12px, 12px) !important; }

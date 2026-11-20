@@ -1760,9 +1760,11 @@
         if (bar.classList.contains('is-wrap')) ui.fitBar(bar);
         // Over the anchor, or under it when there is no room above in the window (by where it is on screen: a pill rides the pinned row)
         const pillEl = at.pill && seqHtml.querySelector(`.seq-participant[data-node-id="${CSS.escape(sel.id)}"]`);
-        const above = ui.roomAbove(pillEl || { getBoundingClientRect: () => ({ top: seqHtml.getBoundingClientRect().top + at.top * scale }) }, bar, scale);
+        const above = ui.roomAbove(pillEl || { getBoundingClientRect: () => ({ top: seqHtml.getBoundingClientRect().top + at.top * scale }) }, bar);
         if (at.pill) bar.classList.add('is-pill');
-        bar.style.top = px(above ? at.top - 8 - bar.offsetHeight : at.bottom + 8);
+        bar.classList.toggle('is-below', !above);
+        const gap = 8 / scale;   // a bar is not zoomed, so its gap to the anchor is screen pixels
+        bar.style.top = px(above ? at.top - gap - bar.offsetHeight : at.bottom + gap);
         if (fromRect && fromRect.width > 0) barGhostAnim = motion.ghostMorph(fromRect, bar, 170, 'curve-spring-settle');
         else motion.showBar(bar);
       }

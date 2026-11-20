@@ -6,6 +6,11 @@
       box-shadow: var(--shadow-md); white-space: nowrap; cursor: default; font-weight: var(--weight-regular); text-align: left;
       -webkit-user-select: none; user-select: none;
     }
+    /* Never zoomed: every type's bar (shared and the three prefixed twins) undoes the stage zoom (--ui-scale, set by the shell) about
+       the edge that touches its anchor: the bottom centre over the element, the top centre under it. Types override the origin
+       only where the bar hangs off a corner. */
+    :is(.actionbar, .uc-actionbar, .erd-actionbar, .seq-actionbar) { scale: var(--ui-scale, 1); transform-origin: 50% 100%; }
+    :is(.actionbar, .uc-actionbar, .erd-actionbar, .seq-actionbar).is-below { transform-origin: 50% 0; }
     .ab-btn {
       display: inline-flex; align-items: center; justify-content: center; gap: 4px; height: 26px; min-width: 26px; padding: 0 6px; box-sizing: border-box;
       border: 1px solid transparent; border-radius: var(--radius-md); background: transparent; color: var(--text-soft);

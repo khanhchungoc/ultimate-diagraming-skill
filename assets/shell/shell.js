@@ -253,10 +253,10 @@
         const abSep = (cls) => { const s = document.createElement('span'); s.className = cls || 'ab-sep'; return s; };
         const abBreak = (cls) => { const s = document.createElement('span'); s.className = cls || 'ab-break'; return s; };
         // Does an action bar fit above `anchor` (an element or rect on screen) inside the viewport? Every type decides over or
-        // under its element with this, by where the element is in the window, not in the diagram. `scale` is the zoom.
-        function roomAbove(anchor, bar, scale) {
+        // under its element with this, by where the element is in the window, not in the diagram. A bar is not zoomed (--ui-scale).
+        function roomAbove(anchor, bar) {
           const top = (anchor.getBoundingClientRect ? anchor.getBoundingClientRect() : anchor).top;
-          return top - document.getElementById('viewport').getBoundingClientRect().top >= bar.offsetHeight * (scale || 1) + 16;
+          return top - document.getElementById('viewport').getBoundingClientRect().top >= bar.offsetHeight + 16;
         }
         // A wrapped bar (is-wrap, rows split by a `-ab-break` item) is as wide as its widest row, not as its max-width: call
         // it once the bar is in the page. No empty side padding, and a row that fits never wraps on its own.
@@ -1479,6 +1479,7 @@
       function showZoom() { zoomLevelEl.textContent = `${Math.round((vpAnim ? vpAnim.targetScale : scale) * 100)}%`; }   // a glide in flight shows where it lands
       function updateTransform() {
         stage.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
+        stage.style.setProperty('--ui-scale', String(1 / scale));   // action bars undo the zoom: their size is fixed like the dock's
         showZoom();
         if (plugin && plugin.onViewChange) plugin.onViewChange();   // e.g. keep frozen headers pinned
       }

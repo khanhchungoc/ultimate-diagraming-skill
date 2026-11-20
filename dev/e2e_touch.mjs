@@ -238,6 +238,7 @@ if (erd) {
   // A tap on a line selects it
   await tap(10, 300);
   t.check('erd: a tap on blank canvas clears the selection', (await nSelected()) === 0 && (await t.ev(`document.querySelectorAll('.erd-handle').length`)) === 0);
+  await sleep(400);   // the bar fades out (a bar is not zoomed, so at this zoom it is large)
   const lp = await t.ev(`(() => { const p = document.querySelector('.erd-rel[data-edge-id="r8"] .edge-hit'); const L = p.getTotalLength(), m = p.getScreenCTM();
     for (const f of [0.5, 0.4, 0.6, 0.3, 0.7]) { const q = p.getPointAtLength(L * f), x = m.a * q.x + m.e, y = m.d * q.y + m.f;
       const el = document.elementFromPoint(x, y); if (el && el.closest('.erd-rel[data-edge-id="r8"]') && x > 0 && x < ${W} && y > 100 && y < ${H - 120}) return { x, y }; } return null; })()`);

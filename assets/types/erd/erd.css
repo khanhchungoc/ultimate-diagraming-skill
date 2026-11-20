@@ -274,7 +274,7 @@
       width: 10px; height: 10px;
       margin: -5px 0 0 -5px;
       box-sizing: border-box;
-      z-index: 52;
+      z-index: 54;   /* above the action bar (53): a handle under the unzoomed bar stays grabbable */
       border-radius: var(--radius-round);
       border: 1.5px solid var(--primary);
       background: transparent;   /* a hollow ring, so the line shows through */

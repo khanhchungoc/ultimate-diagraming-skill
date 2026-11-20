@@ -452,7 +452,7 @@
         const bar = lanesRoot.querySelector('.lane-selected .lane-bar');
         if (!bar) return;
         const pill = bar.parentElement;
-        bar.classList.toggle('is-below', !ui.roomAbove(pill, bar, scale));
+        bar.classList.toggle('is-below', !ui.roomAbove(pill, bar));
       }
       // A lane's colour: a palette slot, or '' for none (the colour for its position). One undo step.
       function setLaneColor(laneId, slot) {
@@ -3717,7 +3717,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
       function placeNodeBar() {
         const bar = document.querySelector('.node-bar');
         if (!bar) return;
-        bar.classList.toggle('is-below', !ui.roomAbove(bar.parentElement, bar, scale));
+        bar.classList.toggle('is-below', !ui.roomAbove(bar.parentElement, bar));
       }
 
       function clearNodeSelection() {
