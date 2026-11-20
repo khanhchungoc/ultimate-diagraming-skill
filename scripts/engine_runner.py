@@ -167,7 +167,8 @@ def _via_browser(data: Dict[str, Any], timeout: int, browser: Optional[str], tok
     except Exception:
         return None
     kind = data.get("diagramType") or "flowchart"
-    engine_src = ROUTER_PATH.read_text(encoding="utf-8") + "\n" + _engine_path(kind).read_text(encoding="utf-8")
+    route = _engine_path(kind).with_name("route.js")   # a type's own gutter routing loads before its engine
+    engine_src = "\n".join(f.read_text(encoding="utf-8") for f in (ROUTER_PATH, route, _engine_path(kind)) if f.is_file())
     payload = json.dumps({"tokens": tokens_data(tokens), "diagram": data})
     js = (
         f"(() => {{\nconst __req = {payload};\nconst TOKENS = __req.tokens;\n"

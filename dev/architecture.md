@@ -20,6 +20,7 @@ assets/
     meta.json               {"title": ...}
     <type>.css, <type>.js   renderer, editing behaviour, plugin registration
     engine.js               layout engine: pure JS, no DOM; the ONE implementation of the type's layout
+    route.js                optional, c4 only: gutter routing `routeC4Edges(nodes, edges)`, a plain script loaded after ortho-router.js and before engine.js (`ENGINE_JS`, run_engine.mjs, engine_runner.py); `dev/check_c4_route.mjs`
     toolbar.html, stage.html, chrome.html, help.html, default.json
 scripts/
   layout_engine.py          CLI: --layout (Mermaid .mmd or legacy JSON; assembles the HTML page or split artifact folder, prints [DONE]/[NEXT]; --keep-from keeps positions when ids match; --screenshot also renders, dev and theme preview only), --verify, --extract (prints Mermaid; --json for JSON); AUDITS registry
