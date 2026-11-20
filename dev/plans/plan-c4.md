@@ -1,6 +1,6 @@
 # Plan: C4 / system landscape diagram type (`diagramType: "c4"`)
 
-Add a diagram for system landscapes as the fifth type, next to `flowchart`, `sequence`, `erd` and `usecase`. It shows people (actors), the systems they use and the interactions between systems, at the zoom levels of the C4 model: Level 1 system context, Level 2 containers, and optionally Level 3 components. Same promise as the other types: the agent writes a short logical JSON, the tooling lays it out, audits it and assembles one standalone, editable page (or claude.ai Artifact) with the shared shell.
+Add a diagram for system landscapes as the fifth type, next to `flowchart`, `sequence`, `erd` and `usecase`. It shows people (actors), the systems they use and the interactions between systems, at the zoom levels of the C4 model. v1 ships Level 1 (system context) and Level 2 (containers). Level 3 (components) is out of v1 but the model, engine, codec and audit are built so it is a data change plus one constant, not a rewrite (see Level 3 readiness). Same promise as the other types: the agent writes a short logical JSON, the tooling lays it out, audits it and assembles one standalone, editable page (or claude.ai Artifact) with the shared shell.
 
 A clickable prototype of the target look exists as a claude.ai Artifact made in the session that produced this plan (Level 1, Level 2, frames, bent arrows). It uses hand-placed nodes and hardcoded colours, so it is a visual reference only.
 
@@ -28,7 +28,7 @@ Consequence: bundling vendor logo SVGs into this repo and shipping them inside e
 
 ## Goals
 
-- One diagram type that covers Level 1 and Level 2 (and Level 3) from one model, with system boundaries as collapsible frames.
+- One diagram type that covers Level 1 and Level 2 from one model, with system boundaries as collapsible frames, and no code that assumes there are only two levels.
 - Styling and behaviour identical to the flowchart wherever the element is the same: node tiles, palette slots, edge lines and label pills, frame tags, dock, action bar, search, undo, Save, theme, `?present`.
 - Icons on every element: generic by default, brand logos when the user supplies a pack.
 - Scales from a handful of elements to thousands: large landscapes open with groups collapsed and arrows aggregated.
@@ -36,6 +36,7 @@ Consequence: bundling vendor logo SVGs into this repo and shipping them inside e
 
 ## Non-goals (v1)
 
+- Level 3 (components) UI, authoring guidance and examples in v1. The structure for it is in place, switched off by one limit.
 - Deployment and dynamic C4 views.
 - Bundling AWS, Azure or Google Cloud logo files in the repo.
 - Import from Structurizr, PlantUML C4 or Mermaid C4 (Copy as Mermaid C4 is phase 6, optional).
@@ -69,10 +70,21 @@ Logical JSON the agent writes. Key order is fixed: `diagramType, schemaVersion, 
 ```
 
 - **Element kinds:** `person`, `system`, `container`, `component`, `database`, `queue`, `external`. The kind sets the default shape and icon; `icon` and `color` (palette slot `c1` to `c8`) override.
-- **Groups:** `kind` is `boundary` (an ownership or trust frame, such as "Third-party services") or `system` (a software system whose inside is the next level). Nesting depth is at most 2 in v1. An element belongs to at most one group.
+- **Groups:** `kind` is `boundary` (an ownership or trust frame, such as "Third-party services") or `system` (a software system whose inside is the next level). Groups form a tree of any depth in the model, engine and codec; v1 allows depth 2 and rejects deeper nesting in the audit only. An element belongs to at most one group.
 - **Relations:** between elements only. `label` is required (C4 requires it); `tech` is optional but warned about on container-to-container links; `async: true` draws a dashed line.
 - **One model, all levels.** The level is the collapse state of the `system` groups. A collapsed group draws as one system box, and relations that cross its border are aggregated onto it (one arrow per neighbour, labelled with the count when it merges several). Level 1 is every system group collapsed; Level 2 is one expanded. `collapsed` is saved, so the page reopens where the user left it.
 - **Disk format:** a trailing `layout` map `{id: {x, y}}` (elements, then groups), as the ERD and use case types. `toDisk` drops every `_`-prefixed field, sizes, points and canvas. The codec lives in `scripts/disk_format.py`.
+
+## Level 3 readiness
+
+Level 3 is the same operation one level down: a `container` expands into its `component` elements. Four rules keep v1 from blocking it.
+
+1. **Groups are a tree, not two tiers.** `groups[].parent` is recursive everywhere: the codec, the engine's compound layout (one function that lays out a group by laying out its children, which may be groups), collapse and aggregation. No code branches on "system" versus "container"; behaviour hangs on `collapsed` and on having children.
+2. **One limit, one place.** `MAX_GROUP_DEPTH = 2` lives in `scripts/audit_c4.py` and is the only thing that makes v1 reject a third level. The group `kind` enum already reserves `container`; the audit rejects it in v1 with the message "container groups arrive with Level 3".
+3. **Aggregation uses the nearest visible ancestor.** A relation between two hidden elements is drawn between whichever ancestors are visible, at any depth, so Level 3 needs no new routing code.
+4. **The Level control is a depth number.** "Show to depth N" sets `collapsed` on every group at depth N or deeper; v1 offers 1 and 2. The saved model stores `collapsed` per group, never a level number, so a future third level is not a migration.
+
+A c4 fixture with a `component` element inside a `container` group runs through the engine and codec tests with the audit limit raised, so the readiness is tested, not assumed. Enabling Level 3 later means raising `MAX_GROUP_DEPTH`, allowing the `container` group kind, adding the third Level step, and adding docs and an example.
 
 ## Icons
 
@@ -167,6 +179,7 @@ Each phase ends with its checker passing and the playground e2e still green; no 
 - `dev/test_audit_c4.py`: one failing and one passing case per audit rule.
 - `check_golden.py`: engine output per fixture, and laying out the saved model again moves nothing. A fixture with 2,000 elements across 40 groups proves the scale budget (opens collapsed, lays out within the bench limit in `dev/bench_layout.py`).
 - Flowchart golden stays byte-identical after the router extraction.
+- Level 3 readiness: a fixture with system > container > component runs through the engine and codec with `MAX_GROUP_DEPTH` raised in the test; with the v1 limit the audit rejects it with the documented message.
 - `dev/e2e_c4.mjs`: add each kind from the dock; connect and label a relation; collapse and expand a system group and check aggregated arrows appear and disappear; Level control; set an icon from the picker; a missing pack falls back to the generic icon with one warning; Save round trip keeps ids, collapse state and positions; `?present` disables editing.
 - `e2e_motion.mjs` extended with c4: no orphan ghost after expand, collapse, undo bursts; reduced motion creates no animation.
 - `check_themes.py` on every fixture under every theme; `check_overflow.mjs`; `build_examples.py --check`; vendor logos checked for unmodified aspect ratio.
@@ -176,7 +189,7 @@ Each phase ends with its checker passing and the playground e2e still green; no 
 Recommended, to confirm before phase 1.
 
 1. **Type name:** `c4`.
-2. **Levels:** one model with collapsible `system` groups, not separate diagrams per level. Recommended because it keeps one source of truth and gives the morph between levels for free.
+2. **Levels:** one model with collapsible groups, not separate diagrams per level. v1 ships two levels; Level 3 is deferred (settled 2026-11-20) and kept cheap by the Level 3 readiness rules. Recommended because it keeps one source of truth and gives the morph between levels for free.
 3. **Arrows:** orthogonal, one bend per route, shared with the flowchart router.
 4. **Cloud-provider logos:** not bundled; user-built local packs from the vendor download.
 5. **Technology logos (open decision 1):** bundle a small Simple Icons subset, or ship generic icons only? Recommended: generic icons in v1, technology pack after a licence and trademark check of the specific marks. Needs the user's call.
