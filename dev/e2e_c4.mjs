@@ -914,9 +914,7 @@ try {
     t.check('?present: Level 2 opens it again', (await count(A.frame)) === 1);
     await t.press('f', { modifiers: 2 });
     await sleep(200);
-    await t.type('reads');
-    await sleep(300);
-    t.check('?present: search still works (Ctrl+F opens the bar, one match)', /1/.test((await text('#search-count')) || ''), `${await text('#search-count')}`);
+    t.check('?present: search is not available (the shell hides it, as for every type)', await t.ev(`getComputedStyle(document.getElementById('search-bar')).display === 'none' && getComputedStyle(document.getElementById('btn-search')).display === 'none'`));
     await t.press('Escape');
     const q = await t.at(await sel('Web API'));
     await t.mouse('mouseMoved', q.x, q.y);
