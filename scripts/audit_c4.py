@@ -162,7 +162,7 @@ class C4Audit:
         score = max(0, 100 - ERROR_PENALTY * len(errors))
         grade = "A+" if score >= 98 else "A" if score >= 90 else "B" if score >= 80 else "C" if score >= 60 else "F"
         return {
-            "passed": score >= 90 and not errors, "score": score, "grade": grade, "issues": errors,
+            "passed": score >= 90 and not errors, "score": score, "grade": grade, "issues": errors, "data_issues": list(errors),  # all c4 audit errors are data errors; geometry is the engine's job
             "group_count": len(gs), "element_count": len(es), "relation_count": len(rs),
             "info": info, "budget_warnings": warns,
         }

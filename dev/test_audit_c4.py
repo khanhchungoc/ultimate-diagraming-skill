@@ -159,6 +159,7 @@ no_warn("generic icon", lambda d: d["elements"][1].update(icon="server"), "pack"
 # Info: the level it opens at.
 check("info level 2", has(run()["info"], "Level 2"))
 check("info level 1", has(run(lambda d: d["groups"][1].update(collapsed=True))["info"], "Level 1"))
+check("data_issues mirrors errors (the page assembler reads it)", run(lambda d: d["relations"][0].update(label=""))["data_issues"] == run(lambda d: d["relations"][0].update(label=""))["issues"] != [])
 
 if FAILED:
     print(f"{len(FAILED)} case(s) failed")
