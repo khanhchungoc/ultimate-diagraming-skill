@@ -41,6 +41,11 @@ ERD_DERIVED = (("entities", ("box",)), ("relationships", ("curve", "points", "la
 USECASE_KEYS = ("diagramType", "schemaVersion", "title", "showRefs", "showNotes", "colorKey",
                 "subjects", "actors", "useCases", "links", "notes", "layout")
 USECASE_SCHEMA_VERSION = 1
+C4_KEYS = ("diagramType", "schemaVersion", "title", "showTech", "showNotes", "colorKey",
+           "groups", "elements", "relations", "notes", "layout")
+C4_SCHEMA_VERSION = 1
+C4_ELEMENT_KINDS = ("person", "system", "container", "component", "database", "queue", "external")
+C4_GROUP_KINDS = ("boundary", "system", "container")  # "container" is reserved for Level 3; the audit rejects it in v1
 NODE_LAYOUT = ("x", "y")
 LANE_LAYOUT = ("height", "color")
 GENERATED_ID = re.compile(r"^(n|c|e|lane)_\d{12,}(_\d+)?$")  # editor ids: <prefix>_<Date.now()>[_k]
@@ -514,12 +519,161 @@ def usecase_from_disk(data: Dict[str, Any]) -> Dict[str, Any]:
     return d
 
 
+# --- C4 diagrams (diagramType "c4") -------------------------------------------------------------------------------------
+# Codec spec. The page's toDisk/fromDisk (assets/types/c4/c4.js) must produce the same bytes:
+#  to_disk(model): validate_c4(); deep copy; set schemaVersion 1; drop the top-level "layout", "canvas" and every top-level
+#   key that starts with "_" except "_readme".
+#   colours: `color` of elements and groups, and colorKey, become palette slots (_slot_colors).
+#   derived fields dropped: every "_" key on groups, elements, relations and notes; "w", "h" on groups (x, y go to layout), "w", "h"
+#   on elements, "points" and "labelBox" on relations.
+#   ids: editor ids <prefix>_<Date.now()>[_k] (prefix e element, g group, n note, 12+ digits) are renamed to the name slug
+#   (slug(), "_"; "element"/"group" when empty, suffix _2, _3 ... when taken); elements and groups share one id namespace;
+#   notes become the next free n<N> counting from 1. Followed in: relations from/to, elements[].group, groups[].parent,
+#   notes[].elements, notes[].groups. Authored ids are never touched. Relations have no id.
+#   layout: {id: {"x", "y"}} for elements, then groups, in array order, for those with numeric x and y (removed from the
+#   object); omitted when empty. Key order C4_KEYS, then unknown keys in their existing order.
+#  from_disk(block): validate_c4(); deep copy; when schemaVersion is absent or 1 the layout x/y go back on the element or
+#   group with that id (any other version: layout dropped); "layout" removed; colours as slots.
+#  Groups are a tree of any depth through `parent`; the depth limit belongs to the audit, not the codec.
+C4_GENERATED_ID = re.compile(r"^(e|g|n)_\d{12,}(_\d+)?$")
+C4_DERIVED = (("groups", ("w", "h")), ("elements", ("w", "h")), ("relations", ("points", "labelBox")))
+C4_OBJECTS = ("groups", "elements", "relations", "notes")
+
+
+def validate_c4(d: Dict[str, Any]) -> None:
+    """Boundary check of a c4 model: fails loudly (ValueError) on duplicate or unknown ids, unknown kinds and group
+    cycles. The group depth limit is not checked here (audit_c4)."""
+    groups, elements = d.get("groups") or [], d.get("elements") or []
+    relations, notes = d.get("relations") or [], d.get("notes") or []
+    seen: set = set()
+    for o in groups + elements + notes:
+        i = o.get("id")
+        if not isinstance(i, str) or not i:
+            raise ValueError(f"c4: object without an id: {o!r}")
+        if i in seen:
+            raise ValueError(f"c4: duplicate id {i!r}")
+        seen.add(i)
+    gids, eids = {g["id"] for g in groups}, {e["id"] for e in elements}
+    for g in groups:
+        if g.get("kind", "boundary") not in C4_GROUP_KINDS:
+            raise ValueError(f"c4: group {g['id']!r} has unknown kind {g.get('kind')!r}")
+        if g.get("parent") is not None and g["parent"] not in gids:
+            raise ValueError(f"c4: group {g['id']!r} has unknown parent {g['parent']!r}")
+    for e in elements:
+        if e.get("kind") not in C4_ELEMENT_KINDS:
+            raise ValueError(f"c4: element {e['id']!r} has unknown kind {e.get('kind')!r}")
+        if e.get("group") is not None and e["group"] not in gids:
+            raise ValueError(f"c4: element {e['id']!r} has unknown group {e['group']!r}")
+    for r in relations:
+        for k in ("from", "to"):
+            if r.get(k) not in eids:
+                raise ValueError(f"c4: relation {k} {r.get(k)!r} is not an element id")
+    for n in notes:
+        for k, ids in (("elements", eids), ("groups", gids)):
+            for i in n.get(k) or []:
+                if i not in ids:
+                    raise ValueError(f"c4: note {n['id']!r} references unknown {k[:-1]} {i!r}")
+    parent = {g["id"]: g.get("parent") for g in groups}
+    for start in parent:
+        cur, hops = start, 0
+        while cur is not None:
+            cur, hops = parent[cur], hops + 1
+            if hops > len(parent):
+                raise ValueError(f"c4: group cycle through {start!r}")
+
+
+def _rename_c4_ids(d: Dict[str, Any]) -> Dict[str, str]:
+    """Readable names for page-generated ids (in place); returns the old -> new map."""
+    gs, es, ns = d.get("groups") or [], d.get("elements") or [], d.get("notes") or []
+    used = {o.get("id") for o in gs + es + ns}
+    rename: Dict[str, str] = {}
+
+    def take(base: str) -> str:
+        new, k = base, 2
+        while new in used:
+            new, k = f"{base}_{k}", k + 1
+        used.add(new)
+        return new
+
+    def generated(o: Dict[str, Any]) -> bool:
+        return bool(C4_GENERATED_ID.match(str(o.get("id", ""))))
+
+    for items, fallback in ((es, "element"), (gs, "group")):
+        for o in items:
+            if generated(o):
+                rename[o["id"]] = take(slug(o.get("name")) or fallback)
+    count = 1
+    for o in ns:
+        if generated(o):
+            while f"n{count}" in used:
+                count += 1
+            rename[o["id"]] = take(f"n{count}")
+    if not rename:
+        return rename
+    r = lambda i: rename.get(i, i)  # noqa: E731
+    for o in gs + es + ns:
+        o["id"] = r(o["id"])
+    for rel in d.get("relations") or []:
+        for k in ("from", "to"):
+            rel[k] = r(rel[k])
+    for o in es:
+        if "group" in o:
+            o["group"] = r(o["group"])
+    for g in gs:
+        if "parent" in g:
+            g["parent"] = r(g["parent"])
+    for n in ns:
+        for k in ("elements", "groups"):
+            if isinstance(n.get(k), list):
+                n[k] = [r(i) for i in n[k]]
+    return rename
+
+
+def c4_to_disk(data: Dict[str, Any]) -> Dict[str, Any]:
+    validate_c4(data)
+    d = copy.deepcopy(data)
+    for k in [k for k in d if k in ("layout", "canvas") or (k.startswith("_") and k != README_KEY)]:
+        del d[k]
+    d["schemaVersion"] = C4_SCHEMA_VERSION
+    _slot_colors(d, "elements", "groups")
+    for name in C4_OBJECTS:
+        for o in d.get(name) or []:
+            for k in [k for k in o if k.startswith("_")]:
+                del o[k]
+    for items, keys in C4_DERIVED:
+        for o in d.get(items) or []:
+            for k in keys:
+                o.pop(k, None)
+    _rename_c4_ids(d)
+    layout: Dict[str, Any] = {}
+    for items in ("elements", "groups"):
+        for o in d.get(items) or []:
+            if _is_num(o.get("x")) and _is_num(o.get("y")):
+                layout[o["id"]] = {"x": o.pop("x"), "y": o.pop("y")}
+    if layout:
+        d["layout"] = layout
+    return _ordered(d, C4_KEYS)
+
+
+def c4_from_disk(data: Dict[str, Any]) -> Dict[str, Any]:
+    validate_c4(data)
+    d = copy.deepcopy(data)
+    layout = d.pop("layout", None) or {}
+    if d.get("schemaVersion", C4_SCHEMA_VERSION) == C4_SCHEMA_VERSION:
+        for name in ("elements", "groups"):
+            for o in d.get(name) or []:
+                o.update(layout.get(o.get("id")) or {})
+    _slot_colors(d, "elements", "groups")
+    return d
+
+
 Codec = Tuple[Callable[[Dict[str, Any]], Dict[str, Any]], Callable[[Dict[str, Any]], Dict[str, Any]]]
 DISK_CODECS: Dict[str, Codec] = {
     "flowchart": (flowchart_to_disk, flowchart_from_disk),
     "sequence": (sequence_to_disk, sequence_from_disk),
     "erd": (erd_to_disk, erd_from_disk),
     "usecase": (usecase_to_disk, usecase_from_disk),
+    "c4": (c4_to_disk, c4_from_disk),
 }
 
 

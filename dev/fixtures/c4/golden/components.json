@@ -1,0 +1,90 @@
+{
+  "diagramType": "c4",
+  "schemaVersion": 1,
+  "title": "Order Platform components",
+  "groups": [
+    {
+      "id": "platform",
+      "name": "Order Platform",
+      "kind": "system"
+    },
+    {
+      "id": "apiapp",
+      "name": "API Application",
+      "kind": "container",
+      "parent": "platform"
+    }
+  ],
+  "elements": [
+    {
+      "id": "cust",
+      "kind": "person",
+      "name": "Customer"
+    },
+    {
+      "id": "web",
+      "kind": "container",
+      "name": "Web App",
+      "tech": "React",
+      "group": "platform"
+    },
+    {
+      "id": "ctrl",
+      "kind": "component",
+      "name": "Order Controller",
+      "tech": "Express",
+      "group": "apiapp"
+    },
+    {
+      "id": "svc",
+      "kind": "component",
+      "name": "Order Service",
+      "tech": "TypeScript",
+      "group": "apiapp"
+    },
+    {
+      "id": "repo",
+      "kind": "component",
+      "name": "Order Repository",
+      "tech": "TypeScript",
+      "group": "apiapp"
+    },
+    {
+      "id": "orddb",
+      "kind": "database",
+      "name": "Order DB",
+      "tech": "PostgreSQL",
+      "group": "platform"
+    }
+  ],
+  "relations": [
+    {
+      "from": "cust",
+      "to": "web",
+      "label": "Orders",
+      "tech": "HTTPS"
+    },
+    {
+      "from": "web",
+      "to": "ctrl",
+      "label": "Calls",
+      "tech": "JSON/HTTPS"
+    },
+    {
+      "from": "ctrl",
+      "to": "svc",
+      "label": "Delegates to"
+    },
+    {
+      "from": "svc",
+      "to": "repo",
+      "label": "Persists through"
+    },
+    {
+      "from": "repo",
+      "to": "orddb",
+      "label": "Reads and writes",
+      "tech": "SQL"
+    }
+  ]
+}

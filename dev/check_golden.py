@@ -224,6 +224,23 @@ def main() -> int:
     passed = 0
     failed = 0
     for path in fixtures:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+        if not (ROOT / "assets" / "types" / path.parent.name / "engine.js").exists():
+            # A type with no engine yet: the golden is the disk format of the fixture (the codec contract)
+            disk = to_disk(raw["diagramType"], raw)
+            golden_path = path.parent / "golden" / path.name
+            if args.update:
+                golden_path.parent.mkdir(exist_ok=True)
+                golden_path.write_text(json.dumps(disk, indent=2) + "\n", encoding="utf-8")
+                print(f"[UPDATED] {path.parent.name}/{path.name} (codec only)")
+                continue
+            problems = list(differences(json.loads(golden_path.read_text(encoding="utf-8")), disk))
+            failed += bool(problems)
+            passed += not problems
+            print(f"[{'MISMATCH' if problems else 'PASS'}] {path.parent.name}/{path.name}: codec golden (no engine yet)")
+            for line in problems[:8]:
+                print(f"  - {line}")
+            continue
         data = normalize_diagram_type(json.loads(path.read_text(encoding="utf-8")))
         laid = run_layout(data["diagramType"], copy.deepcopy(data))
         golden_dir = path.parent / "golden"

@@ -129,7 +129,7 @@ Nothing is invented; every item below already exists.
 | Relation label pill with tech tag | `.edge-label`, masking the line, same metrics (`edgeLabel`, `edgeWrap`) |
 | Groups and system boundaries | `assets/components/frame.css`: `.frame-tag`, the collapse chevron, the dashed `.frame-summary` row |
 | Dock, line action bar, multi-select bar, search, help drawer, colour key, notes | `assets/shell` and `assets/components`, unchanged |
-| Routing | the flowchart's orthogonal router. `dev/architecture.md` says to extract the router and layered ranking into shared modules when a second type needs them; this is that moment, done in phase 1 |
+| Routing | the flowchart's orthogonal router, extracted in phase 1 into `assets/shell/ortho-router.js` (`dev/architecture.md` says to extract shared code when a second type needs it; the layered ranking stays in the flowchart engine until c4 shows what it shares) |
 
 Motion follows the repo principle, morph not fade: expanding a system group morphs its collapsed box into the frame (`morphRect`), the contained elements grow out of it, and relations re-route with the existing edge motion (`ghostMorph` for the aggregated arrows). Reduced motion jumps straight to the end state. This is covered by `e2e_motion.mjs`.
 
@@ -183,7 +183,7 @@ Changed: `SKILL.md` (type table, read-back line), `scripts/layout_engine.py` (`S
 
 ## Phases
 
-1. **Shared router and model.** Extract the router and layered ranking from the flowchart engine with no behaviour change (golden unchanged). Schema, codec, `engine.js` with groups and collapse, `audit_c4.py`, fixtures and golden. `--layout` produces a static page.
+1. **Shared router and model.** Extract the orthogonal router (`computeAllEdgeRoutes` and its path and label helpers, which live in `flowchart.js`) into `assets/shell/ortho-router.js` with no behaviour change (golden unchanged). The layered ranking in `engine.js` is flowchart-specific and stays; extract it only when c4 shows what it truly shares. Schema, codec, `engine.js` with groups and collapse, `audit_c4.py`, fixtures and golden. `--layout` produces a static page.
 2. **Render.** Tiles with generic icons, person avatar, database shape, groups as frames, orthogonal arrows with label pills, aggregated arrows, notes, colour key.
 3. **Levels and motion.** Collapse and expand, the Level control, morph motion, reduced-motion path.
 4. **Edit.** Dock, ports, label prompt, icon picker, action bar, Auto-Tidy, Save, undo, multi-select.

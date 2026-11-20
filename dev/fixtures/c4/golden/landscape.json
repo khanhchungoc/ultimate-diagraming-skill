@@ -1,0 +1,144 @@
+{
+  "diagramType": "c4",
+  "schemaVersion": 1,
+  "title": "ShopCo system landscape",
+  "colorKey": {
+    "1": "People",
+    "2": "ShopCo systems"
+  },
+  "groups": [
+    {
+      "id": "shopco",
+      "name": "ShopCo",
+      "kind": "boundary"
+    },
+    {
+      "id": "platform",
+      "name": "Order Platform",
+      "kind": "system",
+      "parent": "shopco",
+      "collapsed": false
+    },
+    {
+      "id": "third",
+      "name": "Third-party services",
+      "kind": "boundary"
+    }
+  ],
+  "elements": [
+    {
+      "id": "cust",
+      "kind": "person",
+      "name": "Customer",
+      "description": "Buys products online",
+      "color": "1"
+    },
+    {
+      "id": "support",
+      "kind": "person",
+      "name": "Support agent",
+      "description": "Handles order questions",
+      "color": "1"
+    },
+    {
+      "id": "web",
+      "kind": "container",
+      "name": "Web App",
+      "tech": "React",
+      "group": "platform",
+      "icon": "monitor"
+    },
+    {
+      "id": "api",
+      "kind": "container",
+      "name": "API Gateway",
+      "tech": "Node.js, REST",
+      "group": "platform",
+      "icon": "server"
+    },
+    {
+      "id": "orddb",
+      "kind": "database",
+      "name": "Order DB",
+      "tech": "PostgreSQL",
+      "group": "platform",
+      "icon": "database"
+    },
+    {
+      "id": "crm",
+      "kind": "system",
+      "name": "CRM",
+      "description": "Customer records",
+      "color": "2",
+      "group": "shopco"
+    },
+    {
+      "id": "pay",
+      "kind": "external",
+      "name": "Payment Provider",
+      "group": "third",
+      "icon": "credit-card"
+    },
+    {
+      "id": "mail",
+      "kind": "external",
+      "name": "Email Service",
+      "group": "third",
+      "icon": "mail"
+    }
+  ],
+  "relations": [
+    {
+      "from": "cust",
+      "to": "web",
+      "label": "Browses and orders",
+      "tech": "HTTPS"
+    },
+    {
+      "from": "web",
+      "to": "api",
+      "label": "Calls",
+      "tech": "JSON/HTTPS"
+    },
+    {
+      "from": "api",
+      "to": "orddb",
+      "label": "Reads and writes orders",
+      "tech": "SQL"
+    },
+    {
+      "from": "api",
+      "to": "pay",
+      "label": "Charges cards",
+      "tech": "REST",
+      "async": false
+    },
+    {
+      "from": "api",
+      "to": "mail",
+      "label": "Sends receipts",
+      "tech": "SMTP",
+      "async": true
+    },
+    {
+      "from": "support",
+      "to": "crm",
+      "label": "Looks up customers"
+    },
+    {
+      "from": "api",
+      "to": "crm",
+      "label": "Syncs customers",
+      "tech": "REST"
+    }
+  ],
+  "notes": [
+    {
+      "id": "n1",
+      "text": "Open the Order Platform to see its containers.",
+      "groups": [
+        "platform"
+      ]
+    }
+  ]
+}
