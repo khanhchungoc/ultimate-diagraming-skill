@@ -1864,8 +1864,8 @@
       }
 
       // --- INLINE TEXT EDITING (double-click, Enter / F2, or straight after creating something) ---
-      // Enter commits; Escape keeps the old text. A note takes Shift+Enter for a line break. Tab in a message's label
-      // moves on to its detail; an empty detail removes it.
+      // Enter commits; Escape keeps the old text. A note takes Shift+Enter for a line break. Tab or Shift+Enter in a message's label
+      // moves on to its detail (the second line, a <br> in Mermaid); an empty detail removes it.
       const EDIT_TEXT = '.seq-participant-name, .seq-msg-label-text, .seq-frag-text';
       const EDIT_OWNER = { participant: '.seq-participant[data-node-id="ID"]', message: '.seq-msg-label[data-edge-id="ID"]', fragment: '.frame-tag[data-frag-id="ID"]' };
       function applyText(el, value) {
@@ -1904,9 +1904,10 @@
           // The keys an edit uses stop here: an Enter that reached the window would open the selection's edit again
           if (ke.key === 'Enter' || ke.key === 'Tab' || ke.key === 'F2') ke.stopPropagation();
           if (ke.key === 'Enter' && multi && ke.shiftKey) { ke.preventDefault(); document.execCommand('insertText', false, '\n'); }
+          else if (ke.key === 'Enter' && ke.shiftKey && opts.onTab) { ke.preventDefault(); tabbed = true; el.blur(); }
           else if (ke.key === 'Enter') { ke.preventDefault(); el.blur(); }
           else if (ke.key === 'Escape') { ke.preventDefault(); ke.stopPropagation(); el.textContent = original; el.blur(); }
-          else if (ke.key === 'Tab' && opts.onTab) { ke.preventDefault(); tabbed = true; el.blur(); }
+          else if ((ke.key === 'Tab' || (ke.key === 'Enter' && ke.shiftKey)) && opts.onTab) { ke.preventDefault(); tabbed = true; el.blur(); }
         };
         el.addEventListener('blur', commit);
         el.addEventListener('keydown', onKey);

@@ -55,6 +55,8 @@
     .seq-msg-label.is-self { translate: none; }
     .seq-msg-label.selected { color: var(--primary); font-weight: var(--weight-semibold); }
     .seq-msg-label-text { outline: none; }
+    .seq-msg-label-text[contenteditable], .seq-msg-detail-text[contenteditable], .seq-participant-name[contenteditable], .seq-frag-text[contenteditable] { cursor: text; user-select: text; }
+    .seq-msg-label:has([contenteditable]) { cursor: text; min-width: 60px; background: var(--bg-panel); outline: 1.5px solid var(--primary-ring); border-radius: var(--radius-xs); }
     .seq-frag-kind { font-weight: var(--weight-bold); text-transform: lowercase; margin-right: 6px; }
     .seq-frag-text { outline: none; color: var(--text-soft); }
     .seq-frag-else-label { position: absolute; font-size: var(--t-detail-size); font-weight: var(--weight-semibold); color: var(--text-soft); user-select: none; translate: -100% 0; }
