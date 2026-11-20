@@ -227,6 +227,30 @@ Rules it implements: one bend, the run placed between the facing edges of the tw
 - Present mode (`?present`) is read-only with Level switching allowed.
 - Accessibility: every tile is focusable and named `name, kind, technology`; group tags are buttons with `aria-expanded`; arrows have text labels, so no meaning rests on colour alone.
 
+## Editing (phase 4)
+
+Auto-Tidy is always on, as in the use case type: every add, connect, delete, group change or collapse re-lays the diagram out (positions are dropped, the engine places everything, the shell's morph motion plays). Dragging boxes to move them, and notes, come later. This is the contract the page (`c4.js`) and the end-to-end test (`dev/e2e_c4.mjs`) share.
+
+**Dock.** `#btn-add` opens the popover `#c4-pop` with tiles `#btn-add-person`, `#btn-add-system`, `#btn-add-container`, `#btn-add-database`, `#btn-add-queue`, `#btn-add-external`, `#btn-add-group`. A click adds the item; an item added while a group is selected joins that group; the new item is selected and its name is in rename mode. New ids are `e_<ms>` for elements and `g_<ms>` for groups; relations have no ids.
+
+**Selection.** Click an element, a group tag or an arrow; Ctrl or Shift click adds; a box dragged on empty canvas selects the elements it covers; Ctrl+A selects all; Esc clears. Selected items carry the class `selected` (`.c4-node`, `.c4-group`, `.edge-line`).
+
+**Action bar** (`ui.actionBar`, class `c4-actionbar`, buttons carry `data-act`):
+- Element: `rename`, `kind` (menu), `icon` (picker `#c4-icons` with search over the generic icons; names it cannot find are listed as missing packs), `color` (swatch row, with the colour key entry prompt), `group` (menu: none, each group, new group), `core` (toggle: centre), `side` (menu: auto, N, S, E, W), `details` (popover with `#c4-tech` and `#c4-desc`), `connect`, `delete`.
+- Group: `rename`, `color`, `collapse`, `core`, `side`, `ungroup`, `delete` (deletes the group and its members; with members it asks first).
+- Arrow: `label` (edit), `tech`, `async` (toggle), `reverse`, `delete`.
+- Several selected: `color`, `group`, `delete` with the count.
+
+**Rename.** Double-click a name, or F2 or Enter on the selection: an inline editor; Enter saves, Esc cancels. Empty names are refused.
+
+**Connect.** Drag from a port (`.c4-port`, shown on hover and on the selected element, one per side) onto another element, or choose `connect` and click the target. The new arrow immediately opens `#c4-label-input` (a label is required); Esc cancels the label and the whole connection is undone. A connection to itself is refused with a toast; a duplicate (same pair and label) is refused.
+
+**Delete.** Delete or Backspace removes the selection (an element's arrows go with it). **Undo and redo** cover every action; add plus first rename, and connect plus its label, are one step each.
+
+**Save.** `toDisk` renames editor ids to name slugs (unique, references and `core` and `side` hints kept) exactly as `c4_to_disk` in `scripts/disk_format.py` does, and drops every `_` field.
+
+**Present mode** (`?present`): no editing UI, the Level control, search and hover still work.
+
 ## Audit (`scripts/audit_c4.py`)
 
 Registered in `AUDITS`. Each rule has a failing and a passing unit case.
@@ -307,3 +331,4 @@ Recommended, to confirm before phase 1.
 - C4 model: https://c4model.com
 - Mermaid C4 syntax (experimental): https://mermaid.js.org/syntax/c4.html
 - Lucide (existing icon source, ISC): https://lucide.dev
+14. **Editing is Auto-Tidy only at first** (settled 2026-11-21): every edit re-lays the diagram out; dragging boxes to move them is a later step.
