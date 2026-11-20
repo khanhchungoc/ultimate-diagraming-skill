@@ -4314,24 +4314,34 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
       // stretch them: instead one childless backdrop per lane morphs from the old box to the new one behind the steps while
       // the real lane backgrounds are hidden. One transform animation per lane, so the cost follows the lane count, not the
       // step count.
-      const laneBoxes = () => new Map([...lanesRoot.querySelectorAll('.swimlane[data-lane-id]')].map(el => [el.dataset.laneId, el.getBoundingClientRect()]));
+      const laneBoxes = () => {
+        const m = new Map([...lanesRoot.querySelectorAll('.swimlane[data-lane-id]')].map(el => [el.dataset.laneId, el.getBoundingClientRect()]));
+        m.set('', swimlanesContainer.getBoundingClientRect());   // the card behind the lanes (key '': no lane has an empty id)
+        return m;
+      };
       function morphLaneBackdrops(prev) {
-        if (!motion.enabled() || !prev.size) return;
+        if (!motion.enabled() || prev.size < 2) return;
         const cr = swimlanesContainer.getBoundingClientRect();
         const k = (swimlanesContainer.offsetWidth ? cr.width / swimlanesContainer.offsetWidth : scale) || 1;
+        const dur = Math.max(40, Math.round(BIG_MS * motion.speedScale())), eas = motion.curve('curve-inout');
         const made = [];
-        lanesRoot.querySelectorAll('.swimlane[data-lane-id]').forEach(el => {
-          const from = prev.get(el.dataset.laneId), to = el.getBoundingClientRect(), track = el.querySelector('.lane-track');
-          if (!from || !track || !to.width || !to.height) return;
+        const backdrop = (from, to, css) => {
+          if (!from || !to.width || !to.height) return;
           const back = document.createElement('div');
           back.setAttribute('data-export-skip', '');
-          back.style.cssText = `position:absolute;pointer-events:none;transform-origin:0 0;left:${(to.left - cr.left) / k}px;top:${(to.top - cr.top) / k}px;width:${to.width / k}px;height:${to.height / k}px;background:${getComputedStyle(track).backgroundColor}`;
+          back.style.cssText = `position:absolute;box-sizing:border-box;pointer-events:none;transform-origin:0 0;left:${(to.left - cr.left) / k}px;top:${(to.top - cr.top) / k}px;width:${to.width / k}px;height:${to.height / k}px;${css}`;
           swimlanesContainer.insertBefore(back, lanesRoot);
-          const a = back.animate([{ transform: `translate(${(from.left - to.left) / k}px, ${(from.top - to.top) / k}px) scale(${from.width / to.width}, ${from.height / to.height})` }, { transform: 'none' }],
-            { duration: Math.max(40, Math.round(BIG_MS * motion.speedScale())), easing: motion.curve('curve-inout') });
+          const a = back.animate([{ transform: `translate(${(from.left - to.left) / k}px, ${(from.top - to.top) / k}px) scale(${from.width / to.width}, ${from.height / to.height})` }, { transform: 'none' }], { duration: dur, easing: eas });
           made.push(a);
           a.addEventListener('finish', () => back.remove(), { once: true });
           a.addEventListener('cancel', () => back.remove(), { once: true });
+        };
+        // The card first (the lanes sit on it): its own look is copied, then hidden while the backdrops run
+        const card = getComputedStyle(swimlanesContainer);
+        backdrop(prev.get(''), cr, `left:-${card.borderLeftWidth};top:-${card.borderTopWidth};background:${card.backgroundColor};border:${card.border};border-radius:${card.borderRadius};box-shadow:${card.boxShadow}`);
+        lanesRoot.querySelectorAll('.swimlane[data-lane-id]').forEach(el => {
+          const track = el.querySelector('.lane-track');
+          if (track) backdrop(prev.get(el.dataset.laneId), el.getBoundingClientRect(), `background:${getComputedStyle(track).backgroundColor}`);
         });
         if (!made.length) return;
         swimlanesContainer.classList.add('lane-morph');

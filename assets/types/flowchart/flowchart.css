@@ -97,6 +97,7 @@
     /* While the lane backdrops morph (direction switch), the real lane backgrounds and dividers wait */
     .lane-morph .lane-track, .lane-morph .lane-gutter { background: transparent !important; transition: none; }
     .lane-morph .swimlane { border-color: transparent !important; }
+    #swimlanes-container.lane-morph { background: transparent !important; border-color: transparent !important; box-shadow: none !important; }
     .lane-gutter {
       flex: none;
       width: var(--lane-gutter, 0px);
