@@ -4310,7 +4310,36 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         btnDirection.title = next === 'TB' ? 'Switch to a top-to-bottom layout' : 'Switch to a left-to-right layout';
         btnDirection.setAttribute('aria-label', label);
       }
+      // The lanes change shape on a direction switch (rows become columns). A lane box holds its steps, so scaling it would
+      // stretch them: instead one childless backdrop per lane morphs from the old box to the new one behind the steps while
+      // the real lane backgrounds are hidden. One transform animation per lane, so the cost follows the lane count, not the
+      // step count.
+      const laneBoxes = () => new Map([...lanesRoot.querySelectorAll('.swimlane[data-lane-id]')].map(el => [el.dataset.laneId, el.getBoundingClientRect()]));
+      function morphLaneBackdrops(prev) {
+        if (!motion.enabled() || !prev.size) return;
+        const cr = swimlanesContainer.getBoundingClientRect();
+        const k = (swimlanesContainer.offsetWidth ? cr.width / swimlanesContainer.offsetWidth : scale) || 1;
+        const made = [];
+        lanesRoot.querySelectorAll('.swimlane[data-lane-id]').forEach(el => {
+          const from = prev.get(el.dataset.laneId), to = el.getBoundingClientRect(), track = el.querySelector('.lane-track');
+          if (!from || !track || !to.width || !to.height) return;
+          const back = document.createElement('div');
+          back.setAttribute('data-export-skip', '');
+          back.style.cssText = `position:absolute;pointer-events:none;transform-origin:0 0;left:${(to.left - cr.left) / k}px;top:${(to.top - cr.top) / k}px;width:${to.width / k}px;height:${to.height / k}px;background:${getComputedStyle(track).backgroundColor}`;
+          swimlanesContainer.insertBefore(back, lanesRoot);
+          const a = back.animate([{ transform: `translate(${(from.left - to.left) / k}px, ${(from.top - to.top) / k}px) scale(${from.width / to.width}, ${from.height / to.height})` }, { transform: 'none' }],
+            { duration: Math.max(40, Math.round(BIG_MS * motion.speedScale())), easing: motion.curve('curve-inout') });
+          made.push(a);
+          a.addEventListener('finish', () => back.remove(), { once: true });
+          a.addEventListener('cancel', () => back.remove(), { once: true });
+        });
+        if (!made.length) return;
+        swimlanesContainer.classList.add('lane-morph');
+        Promise.allSettled(made.map(a => a.finished)).then(() => swimlanesContainer.classList.remove('lane-morph'));
+      }
+
       if (btnDirection) btnDirection.addEventListener('click', () => {
+        const prevLanes = laneBoxes();
         withMotion(() => {
           if (isTB()) delete chartData.direction;
           else chartData.direction = 'TB';
@@ -4323,6 +4352,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           render();
           updateStatus(true);
         }, { duration: BIG_MS });   // arrows morph from their old routes (as in Tidy); the view stays where the reader had it
+        morphLaneBackdrops(prevLanes);
       });
 
       // --- AUTO LAYOUT TOGGLE ---

@@ -94,6 +94,9 @@
     .swimlane.lane-dragging .lane-pill { opacity: 0.45; }
 
     /* Empty left gutter that indents nodes past the lane name pill (width set by sizeLaneGutter) */
+    /* While the lane backdrops morph (direction switch), the real lane backgrounds and dividers wait */
+    .lane-morph .lane-track, .lane-morph .lane-gutter { background: transparent !important; transition: none; }
+    .lane-morph .swimlane { border-color: transparent !important; }
     .lane-gutter {
       flex: none;
       width: var(--lane-gutter, 0px);
