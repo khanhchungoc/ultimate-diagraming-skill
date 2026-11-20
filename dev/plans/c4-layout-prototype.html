@@ -1,0 +1,299 @@
+<title>C4 Surround Layout</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: the centre (one box, a group, or several) in the middle; every other item sits in a ring around it by distance from the centre; arrows bend. */
+:root{
+  --bg:#f6f7f9; --fg:#1b2330; --muted:#5d6878; --line:#7a8597; --frame:#eceff4;
+  --person:#0f5c75; --system:#1f4fd6; --internal:#4f6fc4; --system-fg:#fff;
+  --ext:#d3d9e3; --ext-fg:#1b2330; --hl:#e0662a; --label-bg:#f6f7f9; --btn:#e3e7ee; --card:#fff;
+  --display:"Space Grotesk",system-ui,sans-serif; --body:"Inter",system-ui,sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#10151d; --fg:#e6eaf0; --muted:#9aa5b5; --line:#6b778a; --frame:#171e2a;
+  --person:#2a8bab; --system:#3e6ef2; --internal:#4f6fc4; --ext:#3a4558; --ext-fg:#e6eaf0; --hl:#ff8b4d; --label-bg:#10151d; --btn:#222b3a; --card:#1a2230; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#10151d; --fg:#e6eaf0; --muted:#9aa5b5; --line:#6b778a; --frame:#171e2a;
+  --person:#2a8bab; --system:#3e6ef2; --internal:#4f6fc4; --ext:#3a4558; --ext-fg:#e6eaf0; --hl:#ff8b4d; --label-bg:#10151d; --btn:#222b3a; --card:#1a2230; color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);padding-block:20px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:1200px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+h1{font:600 1.4rem/1.2 var(--display);margin:0}
+p{margin:0;color:var(--muted);max-width:68ch;line-height:1.5;font-size:.9rem}
+.tabs{display:flex;flex-wrap:wrap;gap:8px}
+.tabs button{font:500 .85rem var(--body);color:var(--fg);background:var(--btn);border:0;border-radius:6px;padding:8px 14px;cursor:pointer}
+.tabs button[aria-pressed="true"]{background:var(--system);color:var(--system-fg)}
+.tabs button:focus-visible{outline:2px solid var(--hl);outline-offset:2px}
+.scroll{overflow-x:auto}
+svg{display:block;min-width:760px;width:100%;height:auto}
+.grp rect{fill:var(--frame);stroke:var(--line);stroke-width:1.3;stroke-dasharray:6 4}
+.grp text{fill:var(--muted);font:600 12px var(--body)}
+.node .card{fill:var(--card);stroke:var(--line);stroke-width:1.2}
+.node text{fill:var(--fg);font:600 14px var(--body);text-anchor:middle}
+.node .sub{fill:var(--muted);font:400 12px var(--body)}
+.node .disc{stroke:none} .node .glyph{color:var(--system-fg)}
+.node.person .disc{fill:var(--person)} .node.system .disc{fill:var(--system)} .node.internal .disc{fill:var(--internal)}
+.node.ext .disc{fill:var(--ext)} .node.ext .glyph{color:var(--ext-fg)}
+.edge{fill:none;stroke:var(--line);stroke-width:1.5}
+.lbl rect{fill:var(--label-bg)} .lbl text{fill:var(--fg);font:500 11px var(--body);text-anchor:middle}
+.lbl .tech{fill:var(--muted);font-size:10px}
+.edge.on{stroke:var(--hl);stroke-width:2.5} .edge.dim,.lbl.dim{opacity:.25}
+.node:focus-visible rect{outline:2px solid var(--hl)}
+</style>
+<div class="wrap">
+  <h1>ShopCo landscape, things around things</h1>
+  <p id="intro"></p>
+  <div class="tabs" role="group" aria-label="Centre" id="tabs"></div>
+  <div class="scroll"><svg id="d" role="img" aria-label="ShopCo system landscape, concentric layout"></svg></div>
+</div>
+<script>
+const W=156,H=112,GAP=20,PAD=14,TOP=30,PADB=14,GV=84,GH=130,IGAP=34;
+const ICONS={"cart": "<circle cx=\"8\" cy=\"21\" r=\"1\"/><circle cx=\"19\" cy=\"21\" r=\"1\"/><path d=\"M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12\"/>", "headset": "<path d=\"M3 14v-2a9 9 0 0 1 18 0v2\"/><path d=\"M21 16a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 16a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z\"/><path d=\"M21 17v1a4 4 0 0 1-4 4h-4\"/>", "monitor": "<rect width=\"20\" height=\"14\" x=\"2\" y=\"3\" rx=\"2\"/><path d=\"M8 21h8M12 17v4\"/>", "building": "<rect width=\"16\" height=\"20\" x=\"4\" y=\"2\" rx=\"2\"/><path d=\"M9 22v-4h6v4\"/><path d=\"M8 6h.01M12 6h.01M16 6h.01M8 10h.01M12 10h.01M16 10h.01M8 14h.01M12 14h.01M16 14h.01\"/>", "database": "<ellipse cx=\"12\" cy=\"5\" rx=\"9\" ry=\"3\"/><path d=\"M3 5v14a9 3 0 0 0 18 0V5\"/><path d=\"M3 12a9 3 0 0 0 18 0\"/>", "users": "<path d=\"M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2\"/><circle cx=\"9\" cy=\"7\" r=\"4\"/><path d=\"M22 21v-2a4 4 0 0 0-3-3.87\"/><path d=\"M16 3.13a4 4 0 0 1 0 7.75\"/>", "user": "<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><circle cx=\"12\" cy=\"7\" r=\"4\"/>", "truck": "<path d=\"M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2\"/><path d=\"M15 18H9\"/><path d=\"M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14\"/><circle cx=\"17\" cy=\"18\" r=\"2\"/><circle cx=\"7\" cy=\"18\" r=\"2\"/>", "package": "<path d=\"m7.5 4.27 9 5.15\"/><path d=\"M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z\"/><path d=\"m3.3 7 8.7 5 8.7-5M12 22V12\"/>", "credit-card": "<rect width=\"20\" height=\"14\" x=\"2\" y=\"5\" rx=\"2\"/><path d=\"M2 10h20\"/>", "key": "<circle cx=\"7.5\" cy=\"15.5\" r=\"5\"/><path d=\"m21 2-9.6 9.6\"/><path d=\"m15.5 7.5 3 3L22 7l-3-3\"/>", "mail": "<rect width=\"20\" height=\"16\" x=\"2\" y=\"4\" rx=\"2\"/><path d=\"m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7\"/>", "banknote": "<rect width=\"20\" height=\"12\" x=\"2\" y=\"6\" rx=\"2\"/><circle cx=\"12\" cy=\"12\" r=\"2\"/><path d=\"M6 12h.01M18 12h.01\"/>", "mobile": "<rect width=\"14\" height=\"20\" x=\"5\" y=\"2\" rx=\"2\" ry=\"2\"/><path d=\"M12 18h.01\"/>", "gateway": "<path d=\"M3 21V9a9 9 0 0 1 18 0v12\"/><path d=\"M3 21h18\"/><path d=\"M8 21v-8a4 4 0 0 1 8 0v8\"/>", "storage": "<path d=\"M3 8h18l-2 12H5z\"/><path d=\"M2 4h20v4H2z\"/><path d=\"M10 12h4\"/>", "bell": "<path d=\"M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9\"/><path d=\"M10.3 21a1.94 1.94 0 0 0 3.4 0\"/>", "queue": "<rect x=\"2\" y=\"7\" width=\"5\" height=\"10\" rx=\"1\"/><rect x=\"9.5\" y=\"7\" width=\"5\" height=\"10\" rx=\"1\"/><path d=\"M17 12h5M19.5 9.5 22 12l-2.5 2.5\"/>", "cloud": "<path d=\"M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z\"/>", "server": "<rect width=\"20\" height=\"8\" x=\"2\" y=\"2\" rx=\"2\"/><rect width=\"20\" height=\"8\" x=\"2\" y=\"14\" rx=\"2\"/><path d=\"M6 6h.01M6 18h.01\"/>", "cpu": "<rect width=\"16\" height=\"16\" x=\"4\" y=\"4\" rx=\"2\"/><rect width=\"6\" height=\"6\" x=\"9\" y=\"9\" rx=\"1\"/><path d=\"M15 2v2M15 20v2M9 2v2M9 20v2M2 15h2M2 9h2M20 15h2M20 9h2\"/>"}; // inner markup from assets/icons/default.json (Lucide, ISC)
+const EL={
+  core:{k:"system",i:"cart",t:"Order Platform",s:"Cart and checkout"},
+  portal:{k:"system",i:"monitor",t:"Support Portal",s:"Agent workspace"},
+  erp:{k:"internal",i:"building",t:"ERP",s:"Stock, invoicing"},
+  crm:{k:"internal",i:"users",t:"CRM",s:"Customer records"},
+  cust:{k:"person",i:"user",t:"Customer",s:"Buys online"},
+  agent:{k:"person",i:"headset",t:"Support Agent",s:"Handles orders"},
+  wh:{k:"person",i:"package",t:"Warehouse Operator",s:"Packs orders"},
+  pay:{k:"ext",i:"credit-card",t:"Payment Provider",s:"Card processing"},
+  idp:{k:"ext",i:"key",t:"Identity Provider",s:"Single sign-on"},
+  ship:{k:"ext",i:"truck",t:"Carrier API",s:"Labels, tracking"},
+  mail:{k:"ext",i:"mail",t:"Email Service",s:"Transactional"},
+  cards:{k:"ext",i:"banknote",t:"Card Network",s:"Authorises"},
+  web:{k:"system",i:"monitor",t:"Storefront",s:"Web app"},
+  app:{k:"system",i:"mobile",t:"Mobile App",s:"iOS, Android"},
+  gw:{k:"system",i:"gateway",t:"API Gateway",s:"Routing, auth"},
+  orders:{k:"system",i:"cart",t:"Orders",s:"Order lifecycle"},
+  catalog:{k:"system",i:"database",t:"Catalogue",s:"Products, prices"},
+  bill:{k:"system",i:"credit-card",t:"Billing",s:"Invoices, refunds"},
+  inv:{k:"system",i:"storage",t:"Inventory",s:"Stock levels"},
+  notif:{k:"system",i:"bell",t:"Notifications",s:"Events to messages"},
+  supp:{k:"ext",i:"truck",t:"Supplier EDI",s:"Replenishment"},
+  smtp:{k:"ext",i:"mail",t:"Email Service",s:"Transactional"}
+};
+// an item is a framed group (has name) or one loose element; "center" lists the items in the middle; "side" is an optional hint
+const MODES={
+  one:{label:"One centre",
+    intro:"One system in the middle. Everything that talks to it sits in a ring around it; things that only talk to those sit in a second ring around the first (Card Network).",
+    center:["core"],
+    items:[{id:"core",ids:["core"]},{id:"cust",name:"Customers",ids:["cust"]},{id:"staff",name:"Staff",ids:["agent","wh"]},
+      {id:"erp",name:"ShopCo systems",ids:["erp"],side:"E"},{id:"pay",name:"Payments and identity",ids:["pay","idp"]},
+      {id:"logi",name:"Logistics and comms",ids:["ship","mail"]},{id:"cards",ids:["cards"]}],
+    edges:[["cust","core","Places orders","HTTPS"],["agent","core","Manages orders","HTTPS"],["wh","core","Fulfils orders","HTTPS"],
+      ["core","erp","Syncs stock","Events"],["core","pay","Charges cards","REST"],["core","idp","Signs in","OIDC"],
+      ["core","ship","Books shipments","REST"],["core","mail","Sends receipts","SMTP"],["pay","cards","Authorises","ISO 8583"]]},
+  group:{label:"Centre is a group",
+    intro:"The middle is itself a group: the ShopCo frame holds three systems side by side. The rings form around the whole frame, and arrows still reach the system inside it.",
+    center:["shopco"],
+    items:[{id:"shopco",name:"ShopCo systems",ids:["core","erp","crm"]},{id:"cust",name:"Customers",ids:["cust"]},{id:"staff",name:"Staff",ids:["agent","wh"]},
+      {id:"pay",name:"Payments and identity",ids:["pay","idp"]},{id:"logi",name:"Logistics and comms",ids:["ship","mail"]},{id:"cards",ids:["cards"]}],
+    edges:[["cust","core","Places orders","HTTPS"],["agent","core","Manages orders","HTTPS"],["wh","core","Fulfils orders","HTTPS"],
+      ["core","erp","Syncs stock","Events"],["erp","crm","Shares accounts","REST"],["core","pay","Charges cards","REST"],
+      ["core","idp","Signs in","OIDC"],["core","ship","Books shipments","REST"],["core","mail","Sends receipts","SMTP"],["pay","cards","Authorises","ISO 8583"]]},
+  four:{label:"Four centres",
+    intro:"Four systems share the middle as a small grid. Each outer item still lines up on the side of the centre it talks to.",
+    center:["core","portal","erp","crm"],
+    items:[{id:"core",ids:["core"]},{id:"portal",ids:["portal"]},{id:"erp",ids:["erp"]},{id:"crm",ids:["crm"]},
+      {id:"cust",name:"Customers",ids:["cust"]},{id:"staff",name:"Staff",ids:["agent","wh"]},{id:"pay",ids:["pay"]},
+      {id:"ship",ids:["ship"],side:"W"},{id:"mail",ids:["mail"],side:"E"},{id:"cards",ids:["cards"]}],
+    edges:[["cust","core","Places orders","HTTPS"],["agent","portal","Manages orders","HTTPS"],["wh","core","Fulfils orders","HTTPS"],
+      ["portal","core","Reads orders","REST"],["core","erp","Syncs stock","Events"],["portal","crm","Looks up customers","REST"],
+      ["erp","crm","Shares accounts","REST"],["core","pay","Charges cards","REST"],["core","ship","Books shipments","REST"],
+      ["portal","mail","Sends replies","SMTP"],["pay","cards","Authorises","ISO 8583"]]},
+  none:{label:"No centre",
+    intro:"Nothing is in the middle: a service mesh. With no centre marked, the layout starts from the items nobody points at and flows down, layer by layer, in the same boxes and bent arrows.",
+    center:[],
+    items:[{id:"clients",name:"Clients",ids:["web","app"]},{id:"gw",ids:["gw"]},{id:"svc",name:"Core services",ids:["orders","catalog"]},
+      {id:"back",name:"Back office",ids:["bill","inv"]},{id:"notif",ids:["notif"]},{id:"supp",ids:["supp"]},{id:"smtp",ids:["smtp"]}],
+    edges:[["web","gw","Browses","HTTPS"],["app","gw","Calls","HTTPS"],["gw","orders","Routes orders","gRPC"],["gw","catalog","Routes search","gRPC"],
+      ["orders","bill","Charges","gRPC"],["orders","inv","Reserves stock","AMQP"],["orders","notif","Emits events","AMQP"],
+      ["bill","notif","Emits receipts","AMQP"],["inv","supp","Orders stock","EDI"],["notif","smtp","Sends","SMTP"]]},
+  two:{label:"Two centres",
+    intro:"Two systems share the middle, side by side. Each ring item lines up on the side of the centre it talks to, so arrows stay short.",
+    center:["core","portal"],
+    items:[{id:"core",ids:["core"]},{id:"portal",ids:["portal"]},{id:"cust",name:"Customers",ids:["cust"]},{id:"staff",name:"Staff",ids:["agent","wh"]},
+      {id:"pay",name:"Payments and identity",ids:["pay","idp"]},{id:"ship",ids:["ship"],side:"W"},{id:"mail",ids:["mail"],side:"E"},{id:"cards",ids:["cards"]}],
+    edges:[["cust","core","Places orders","HTTPS"],["agent","portal","Manages orders","HTTPS"],["wh","core","Fulfils orders","HTTPS"],
+      ["portal","core","Reads orders","REST"],["core","pay","Charges cards","REST"],["core","idp","Signs in","OIDC"],
+      ["core","ship","Books shipments","REST"],["portal","mail","Sends replies","SMTP"],["pay","cards","Authorises","ISO 8583"]]}
+};
+
+// ---- layout: concentric rings by distance from the centre (see dev/plans/plan-c4.md) ----
+const union=(rs)=>{const x0=Math.min(...rs.map(r=>r.x)),y0=Math.min(...rs.map(r=>r.y)),x1=Math.max(...rs.map(r=>r.x+r.w)),y1=Math.max(...rs.map(r=>r.y+r.h));return {x:x0,y:y0,w:x1-x0,h:y1-y0}};
+function layout(M){
+  const items=M.items.map(it=>({...it,framed:!!it.name})),byId=Object.fromEntries(items.map(i=>[i.id,i])),ofEl={};
+  items.forEach(it=>it.ids.forEach(e=>ofEl[e]=it));
+  const adj=new Map(items.map(i=>[i,[]]));
+  for(const [f,t] of M.edges){const a=ofEl[f],b=ofEl[t];if(a!==b){adj.get(a).push(b);adj.get(b).push(a)}}
+  // 1. ring = distance from the centre
+  items.forEach(i=>i.ring=-1);
+  // no centre marked: a layered flow that starts from the items nobody points at
+  const flat=!M.center.length,pointed=new Set();
+  for(const [f,t] of M.edges){const a=ofEl[f],b=ofEl[t];if(a!==b)pointed.add(b)}
+  const roots=items.filter(i=>!pointed.has(i)),seeds=flat?(roots.length?roots:[items[0]]):M.center.map(id=>byId[id]);
+  const q=[...seeds];q.forEach(i=>i.ring=0);
+  for(let h=0;h<q.length;h++)for(const n of adj.get(q[h]))if(n.ring<0){n.ring=q[h].ring+1;q.push(n)}
+  // the centre as a grid (any number of items); which sides of each centre element face open space
+  const cols0=Math.ceil(Math.sqrt(seeds.length)),grid=[];
+  for(let i=0;i<seeds.length;i+=cols0)grid.push(seeds.slice(i,i+cols0));
+  const exposed={};
+  grid.forEach((row,ri)=>row.forEach((c,ci)=>{
+    const item=new Set([ri===0&&"N",ri===grid.length-1&&"S",ci===0&&"W",ci===row.length-1&&"E"].filter(Boolean));
+    c.ids.forEach((e,ei)=>{const n=c.ids.length;exposed[e]=new Set(["N","S",ei===0&&"W",ei===n-1&&"E"].filter(x=>x&&(item.has(x)||!flat&&false||true)&&(x==="N"||x==="S"?item.has(x):item.has(x))))});
+  }));
+  // 2. side of every ring item: hints and people first, then the emptiest of S, W, E; further rings follow their inner neighbour
+  const maxRing=Math.max(...items.map(i=>i.ring)),isPeople=i=>i.ids.every(e=>EL[e].k==="person");
+  for(let r=1;r<=maxRing;r++){
+    const ring=items.filter(i=>i.ring===r),cnt={N:0,S:0,E:0,W:0};
+    const allowed=it=>{ // sides every linked centre element exposes; a ring-1 item may only attach there
+      let a=null;
+      for(const [f,t] of M.edges)for(const [x,y] of [[f,t],[t,f]])if(it.ids.includes(x)&&exposed[y])a=a?new Set([...a].filter(k=>exposed[y].has(k))):new Set(exposed[y]);
+      return a&&a.size?a:new Set(["N","S","E","W"]);
+    };
+    for(const it of ring){
+      if(flat){it.sd="S";cnt.S++;continue}
+      if(r>1){const nb=adj.get(it).find(n=>n.ring===r-1);it.sd=nb?nb.sd:"S"}
+      else if(it.side)it.sd=it.side;else if(isPeople(it)&&allowed(it).has("N"))it.sd="N";else continue;
+      cnt[it.sd]++;
+    }
+    for(const it of ring)if(!it.sd){const ok=["S","W","E","N"].filter(k=>allowed(it).has(k));it.sd=ok.reduce((a,b)=>cnt[b]<cnt[a]?b:a);cnt[it.sd]++}
+  }
+  // 3. size each item: members in a row (a column beside the centre); room for arrow labels between members that are linked
+  for(const it of items){
+    const n=it.ids.length,col=it.sd==="E"||it.sd==="W",linked=M.edges.some(([f,t])=>it.ids.includes(f)&&it.ids.includes(t));
+    const gap=linked?120:GAP,cols=it.framed?(col?1:Math.min(n,3)):1,rows=Math.ceil(n/cols);
+    it.w=it.framed?cols*W+(cols-1)*gap+2*PAD:W;it.h=it.framed?rows*H+(rows-1)*GAP+TOP+PADB:H;
+    it.rel=it.ids.map((e,i)=>({e,x:(it.framed?PAD:0)+(i%cols)*(W+gap),y:(it.framed?TOP:0)+Math.floor(i/cols)*(H+GAP)}));
+  }
+  const place=(it,x,y)=>{it.x=x;it.y=y};
+  // 4. the centre in a row on the origin, then each ring around the box so far
+  const linked=(a,b)=>adj.get(a).includes(b);
+  const cs=seeds,ccols=Math.ceil(Math.sqrt(cs.length)),crows=[];
+  for(let i=0;i<cs.length;i+=ccols)crows.push(cs.slice(i,i+ccols));
+  const anyLinked=(list)=>list.some((a,i)=>list.some((b,j)=>j>i&&linked(a,b)));
+  const gx=anyLinked(cs)?150:50,gy=anyLinked(cs)?90:50;
+  const rh=crows.map(r=>Math.max(...r.map(c=>c.h))),th=rh.reduce((s,h)=>s+h,0)+(crows.length-1)*gy;let cy=-th/2;
+  crows.forEach((r,ri)=>{const w=r.reduce((s,c)=>s+c.w,0)+(r.length-1)*gx;let x=-w/2;for(const c of r){place(c,x,cy+(rh[ri]-c.h)/2);x+=c.w+gx}cy+=rh[ri]+gy});
+  let B=union(cs.map(c=>({x:c.x,y:c.y,w:c.w,h:c.h})));
+  const centreOf=i=>({x:i.x+i.w/2,y:i.y+i.h/2});
+  for(let r=1;r<=maxRing;r++){
+    const ring=items.filter(i=>i.ring===r);
+    const bary=it=>{const ns=adj.get(it).filter(n=>n.ring<r).map(centreOf);const v=it.sd==="N"||it.sd==="S"?"x":"y";return ns.length?ns.reduce((s,p)=>s+p[v],0)/ns.length:0};
+    const side=s=>ring.filter(i=>i.sd===s).sort((a,b)=>bary(a)-bary(b));
+    const rg=its=>anyLinked(its)?150:IGAP,cg=its=>anyLinked(its)?90:IGAP;
+    const row=(its,y0,bottom)=>{const g=rg(its),w=its.reduce((s,i)=>s+i.w,0)+(its.length-1)*g;let x=-w/2;for(const i of its){place(i,x,bottom?y0-i.h:y0);x+=i.w+g}};
+    const col=(its,x0,left)=>{const g=cg(its),h=its.reduce((s,i)=>s+i.h,0)+(its.length-1)*g;let y=-h/2;for(const i of its){place(i,left?x0-i.w:x0,y);y+=i.h+g}};
+    const N=side("N"),S=side("S"),E=side("E"),Wt=side("W"),all=[];
+    if(N.length){row(N,B.y-GV,true);all.push(...N)}
+    if(S.length){row(S,B.y+B.h+GV,false);all.push(...S)}
+    const B2=union([B,...all]);
+    if(E.length){col(E,B2.x+B2.w+GH,false);all.push(...E)}
+    if(Wt.length){col(Wt,B2.x-GH,true);all.push(...Wt)}
+    B=union([B,...all]);
+  }
+  const nodes={},frames=[];
+  for(const it of items){
+    if(it.framed)frames.push({name:it.name,x:it.x,y:it.y,w:it.w,h:it.h});
+    for(const m of it.rel)nodes[m.e]={x:it.x+m.x+W/2,y:it.y+m.y+H/2,w:W,h:H,item:{x:it.x+it.w/2,y:it.y+it.h/2,w:it.w,h:it.h,id:it.id}};
+  }
+  // an arrow between rings runs along the side its outer box sits on: down for N and S, across for E and W
+  const lane=it=>items.filter(i=>i.ring===it.ring&&i.sd===it.sd).sort((p,q)=>(p.x+p.w/2)-(q.x+q.w/2));
+  const hinted=M.edges.map(([f,t,l,k])=>{const a=ofEl[f],b=ofEl[t];
+    if(a.ring===b.ring){ // a link inside one layer loops under the row unless the two boxes are single and side by side
+      if(a===b||a.sd!==b.sd||(a.sd!=="N"&&a.sd!=="S"))return [f,t,l,k];
+      const ln=lane(a),adjacent=Math.abs(ln.indexOf(a)-ln.indexOf(b))===1;
+      return [f,t,l,k,adjacent&&a.ids.length===1&&b.ids.length===1?undefined:"u"];
+    }const o=a.ring>b.ring?a:b;return [f,t,l,k,o.sd==="N"||o.sd==="S"?"v":"h"]});
+  return {nodes,frames,edges:route(nodes,hinted)};
+}
+
+// ---- orthogonal routing: one bend per arrow, ports spread along a side, bends staggered so arrows nest ----
+function route(N,edges){
+  const info=edges.map(([f,t,label,tech,hint])=>{
+    const A=N[f],B=N[t],dx=B.x-A.x,dy=B.y-A.y;
+    const vert=hint?hint==="v":Math.abs(dy)-(A.h+B.h)/2>=Math.abs(dx)-(A.w+B.w)/2;
+    const M=vert?"y":"x",C=vert?"x":"y",S=vert?"h":"w",Z=vert?"w":"h",s=Math.sign(B[M]-A[M])||1;
+    return {f,t,label,tech,A,B,M,C,S,Z,s,vert,u:hint==="u",t0:vert?.5:.2,keyA:f+M+s,keyB:t+M+(-s)};
+  });
+  const G={};
+  info.forEach(e=>{if(e.u)return;(G[e.keyA]??=[]).push({e,end:"a",o:e.B});(G[e.keyB]??=[]).push({e,end:"b",o:e.A})});
+  for(const g of Object.values(G)){
+    g.sort((p,q)=>p.o[p.e.C]-q.o[q.e.C]);
+    g.forEach((p,k)=>{const n=p.end==="a"?p.e.A:p.e.B;p.e["p"+p.end]=n[p.e.C]+((k+1)/(g.length+1)-.5)*n[p.e.Z]});
+  }
+  for(const e of info){
+    if(e.u||Math.abs(e.pa-e.pb)>=24)continue;
+    const lo=Math.max(e.A[e.C]-e.A[e.Z]/2,e.B[e.C]-e.B[e.Z]/2)+10,hi=Math.min(e.A[e.C]+e.A[e.Z]/2,e.B[e.C]+e.B[e.Z]/2)-10;
+    if(lo<=hi)e.pa=e.pb=Math.min(hi,Math.max(lo,(e.pa+e.pb)/2));
+  }
+  for(const g of Object.values(G)){
+    const a=g.filter(p=>p.end==="a"&&p.e.pa!==p.e.pb).sort((p,q)=>Math.abs(q.e.pb-q.e.pa)-Math.abs(p.e.pb-p.e.pa));
+    a.forEach((p,r)=>{if(a.length>1)p.e.t0=p.e.vert?.3+.55*r/(a.length-1):.2+.3*r/(a.length-1)});
+  }
+  let nu=0;
+  for(const e of info){
+    if(e.u){ // loop under the row: down from the source, along the gutter, up into the target
+      const yb=Math.max(e.A.item.y+e.A.item.h/2,e.B.item.y+e.B.item.h/2)+40+16*nu++,ya=e.A.y+e.A.h/2,yt=e.B.y+e.B.h/2;
+      e.d=`M${e.A.x} ${ya}L${e.A.x} ${yb}L${e.B.x} ${yb}L${e.B.x} ${yt}`;
+      e.w=Math.max(e.label.length*6.2,e.tech.length*5.6+10)+14;e.lx=(e.A.x+e.B.x)/2;e.ly=yb;continue;
+    }
+    const {A,B,M,S,s,pa,pb}=e,m0=A[M]+s*A[S]/2,m1=B[M]-s*B[S]/2;
+    // the bend sits between the facing edges of the two items (frames), so a run along the gutter never cuts through a frame
+    const same=A.item.id===B.item.id,g0=same?m0:A.item[M]+s*A.item[S]/2,g1=same?m1:B.item[M]-s*B.item[S]/2,bend=g0+(g1-g0)*e.t0;
+    const xy=(m,c)=>e.vert?[c,m]:[m,c];
+    const pts=pa===pb?[xy(m0,pa),xy(m1,pb)]:[xy(m0,pa),xy(bend,pa),xy(bend,pb),xy(m1,pb)];
+    e.d="M"+pts.map(p=>p.join(" ")).join("L");
+    e.w=Math.max(e.label.length*6.2,e.tech.length*5.6+10)+14;
+    let lm,lc;
+    if(pa===pb){lm=(m0+m1)/2;lc=pa}
+    else if(e.vert&&Math.abs(pb-pa)>=e.w+8){lm=bend;lc=(pa+pb)/2}
+    else if(Math.abs(bend-m0)>Math.abs(m1-bend)){lm=(m0+bend)/2;lc=pa}
+    else{lm=(bend+m1)/2;lc=pb}
+    [e.lx,e.ly]=xy(lm,lc);
+  }
+  return info;
+}
+
+// ---- drawing ----
+const NS="http://www.w3.org/2000/svg",svg=document.getElementById("d");
+const el=(n,a={},p=svg)=>{const e=document.createElementNS(NS,n);for(const k in a)e.setAttribute(k,a[k]);p.appendChild(e);return e};
+function draw(key){
+  const M=MODES[key],L=layout(M);
+  svg.replaceChildren();
+  document.getElementById("intro").textContent=M.intro;
+  const rects=[...L.frames,...Object.values(L.nodes).map(n=>({x:n.x-n.w/2,y:n.y-n.h/2,w:n.w,h:n.h}))],b=union(rects);
+  svg.setAttribute("viewBox",`${b.x-30} ${b.y-30} ${b.w+60} ${b.h+60}`);
+  const defs=el("defs"),mk=el("marker",{id:"ah",viewBox:"0 0 10 10",refX:"9",refY:"5",markerWidth:"8",markerHeight:"8",orient:"auto"},defs);
+  el("path",{d:"M0 0L10 5L0 10z",fill:"context-stroke"},mk);
+  for(const f of L.frames){const g=el("g",{class:"grp"});el("rect",{x:f.x,y:f.y,width:f.w,height:f.h,rx:12},g);el("text",{x:f.x+14,y:f.y+20},g).textContent=f.name}
+  const lines=L.edges.map(e=>el("path",{class:"edge",d:e.d,"marker-end":"url(#ah)"}));
+  const nodeEls={};
+  for(const [id,n] of Object.entries(L.nodes)){
+    const e=EL[id],g=el("g",{class:"node "+e.k,tabindex:0,transform:`translate(${n.x-n.w/2} ${n.y-n.h/2})`});
+    el("rect",{class:"card",width:n.w,height:n.h,rx:12},g);
+    el("circle",{class:"disc",cx:n.w/2,cy:36,r:25},g);
+    const gl=el("svg",{class:"glyph",x:n.w/2-16,y:20,width:32,height:32,viewBox:"0 0 24 24",fill:"none",stroke:"currentColor","stroke-width":1.7,"stroke-linecap":"round","stroke-linejoin":"round","aria-hidden":"true"},g);
+    gl.innerHTML=ICONS[e.i];
+    el("text",{x:n.w/2,y:80},g).textContent=e.t;el("text",{x:n.w/2,y:98,class:"sub"},g).textContent=e.s;
+    nodeEls[id]=g;
+  }
+  const lbls=L.edges.map(e=>{
+    const g=el("g",{class:"lbl",transform:`translate(${e.lx} ${e.ly})`});
+    el("rect",{x:-e.w/2,y:-16,width:e.w,height:32,rx:4},g);
+    el("text",{y:-2},g).textContent=e.label;el("text",{y:11,class:"tech"},g).textContent="["+e.tech+"]";
+    return g;
+  });
+  for(const [id,g] of Object.entries(nodeEls)){
+    const on=()=>L.edges.forEach((e,i)=>{const h=e.f===id||e.t===id;lines[i].classList.toggle("on",h);lines[i].classList.toggle("dim",!h);lbls[i].classList.toggle("dim",!h)});
+    const off=()=>L.edges.forEach((_,i)=>{lines[i].classList.remove("on","dim");lbls[i].classList.remove("dim")});
+    g.addEventListener("mouseenter",on);g.addEventListener("mouseleave",off);g.addEventListener("focus",on);g.addEventListener("blur",off);
+  }
+  for(const bt of document.querySelectorAll("#tabs button"))bt.setAttribute("aria-pressed",bt.dataset.k===key);
+}
+const tabs=document.getElementById("tabs");
+for(const [k,M] of Object.entries(MODES)){
+  const b=document.createElement("button");b.textContent=M.label;b.dataset.k=k;b.addEventListener("click",()=>draw(k));tabs.appendChild(b);
+}
+draw("one");
+</script>

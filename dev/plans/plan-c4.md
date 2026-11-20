@@ -14,7 +14,7 @@ A clickable prototype of the target look exists as a claude.ai Artifact made in 
 
 ### Arrows: orthogonal, not diagonal
 
-Bent arrows line up with the box grid, let many arrows share one side of a box, keep labels on a straight run, and stay readable as the diagram grows. Diagonals turn into a tangle past about 10 nodes. The flowchart engine already routes orthogonal arrows with the same label pill, so the type reuses that router.
+Bent arrows line up with the box grid, let many arrows share one side of a box, keep labels on a straight run, and stay readable as the diagram grows. Diagonals turn into a tangle past about 10 nodes. The flowchart already routes bent arrows with the same label pill, so c4 keeps that look: one bend per arrow, labels on a straight run. The routing itself is c4's own (see Layout), because the ring structure gives it gutters to run in; it reuses the flowchart's path rounding and label placement from `ortho-router.js`.
 
 ### Icons and logos: licensing
 
@@ -28,6 +28,7 @@ Consequence: bundling vendor logo SVGs into this repo and shipping them inside e
 
 ## Goals
 
+- A layout that handles any number of centres, from none (a layered flow, for a service mesh) to many, with groups kept as boxes and bent arrows.
 - One diagram type that covers Level 1 and Level 2 from one model, with system boundaries as collapsible frames, and no code that assumes there are only two levels.
 - Styling and behaviour identical to the flowchart wherever the element is the same: node tiles, palette slots, edge lines and label pills, frame tags, dock, action bar, search, undo, Save, theme, `?present`.
 - Icons on every element: generic by default, brand logos when the user supplies a pack.
@@ -73,6 +74,7 @@ Logical JSON the agent writes. Key order is fixed: `diagramType, schemaVersion, 
 - **Groups:** `kind` is `boundary` (an ownership or trust frame, such as "Third-party services") or `system` (a software system whose inside is the next level). Groups form a tree of any depth in the model, engine and codec; v1 allows depth 2 and rejects deeper nesting in the audit only. An element belongs to at most one group.
 - **Relations:** between elements only. `label` is required (C4 requires it); `tech` is optional but warned about on container-to-container links; `async: true` draws a dashed line.
 - **One model, all levels.** The level is the collapse state of the `system` groups. A collapsed group draws as one system box, and relations that cross its border are aggregated onto it (one arrow per neighbour, labelled with the count when it merges several). Level 1 is every system group collapsed; Level 2 is one expanded. `collapsed` is saved, so the page reopens where the user left it.
+- **Centre:** `core: true` on an element or a group marks it as a centre; zero, one or many may be marked. Nothing is picked automatically: with none marked, the layout is the layered flow described under Layout. A group can be the centre.
 - **Disk format:** a trailing `layout` map `{id: {x, y}}` (elements, then groups), as the ERD and use case types. `toDisk` drops every `_`-prefixed field, sizes, points and canvas. The codec lives in `scripts/disk_format.py`.
 
 ## Level 3 readiness
@@ -106,7 +108,7 @@ Mermaid has a native C4 syntax: `C4Context`, `C4Container`, `C4Component`, `C4Dy
 
 ## Icons
 
-Three tiers, one rendering path.
+Icons are the main way to tell nodes apart, so each node leads with one: a coloured disc, about 54px, holding a 32px glyph, centred at the top of the card (smaller than a hero icon on purpose, so the name and detail line keep their room). The disc colour is the kind colour; a provider or technology logo replaces the glyph inside a white disc and keeps its own colours. Three tiers, one rendering path.
 
 1. **Generic icons (ship in the repo).** Add the missing infrastructure glyphs to `assets/icons/default.json` in the existing Lucide style (monochrome, `currentColor`, 24x24): `queue`, `function`, `storage`, `cdn`, `gateway`, `container`, `kubernetes`-neutral `cluster`, `cache`, `lock`, `api`, `mobile`, `browser`, `bell`. Reuse the ones already there (`database`, `server`, `cloud`, `cpu`, `mail`, `credit-card`, `truck`, `shield`, `key`, `user`, `users`, `headset`, `monitor`, `kind-*`). Update `assets/icons/LICENSE` for any new source.
 2. **Technology logos (ship in the repo only if the licence check passes).** A small pack of widely used technology marks (databases, brokers, frameworks) from Simple Icons, written as `logo:<slug>`. Open decision 1 covers whether to bundle it.
@@ -122,45 +124,69 @@ Nothing is invented; every item below already exists.
 
 | Item | Source |
 |---|---|
-| Node tile, title, detail line, selected/hover/focus states | the flowchart node tile classes in `flowchart.css`, extended with `tech` as the detail line |
+| Node: icon card | the flowchart node tile classes in `flowchart.css`, drawn as a card with a coloured disc and glyph at the top (about 54px disc, 32px glyph) and the name and `tech` or description below in the normal label and detail sizes, so the text keeps the room. Sizes come from `TOKENS`. Selected, hover and focus states as the flowchart |
 | Colour | palette slots `c1` to `c8` from `assets/tokens/default.json`; defaults by kind: person `c1`, system `c2`, container `c3`, database `c4`, external neutral. Never a hardcoded colour; contrast pairs added to the tokens and checked by `check_contrast.py` |
-| Shapes | `shape-database` for databases; rounded tile for the rest; person uses the round avatar of the use case actor |
+| Shapes | every kind is the same icon card; the kind shows in the disc colour and in the glyph, so nodes are told apart at a glance. A database keeps the `shape-database` glyph; a person uses the use case actor colour |
 | Arrow, hover in/out highlight, selected state | `assets/components/edge.css` (`.edge-line`, `--edge-in`, `--edge-out`) |
 | Relation label pill with tech tag | `.edge-label`, masking the line, same metrics (`edgeLabel`, `edgeWrap`) |
 | Groups and system boundaries | `assets/components/frame.css`: `.frame-tag`, the collapse chevron, the dashed `.frame-summary` row |
 | Dock, line action bar, multi-select bar, search, help drawer, colour key, notes | `assets/shell` and `assets/components`, unchanged |
-| Routing | the flowchart's orthogonal router, extracted in phase 1 into `assets/shell/ortho-router.js` (`dev/architecture.md` says to extract shared code when a second type needs it; the layered ranking stays in the flowchart engine until c4 shows what it shares) |
+| Routing | one-bend arrows routed through the gutters the ring layout leaves; path rounding, hops and label placement come from `assets/shell/ortho-router.js` (extracted in phase 1). The flowchart's own router stays as it is |
 
 Motion follows the repo principle, morph not fade: expanding a system group morphs its collapsed box into the frame (`morphRect`), the contained elements grow out of it, and relations re-route with the existing edge motion (`ghostMorph` for the aggregated arrows). Reduced motion jumps straight to the end state. This is covered by `e2e_motion.mjs`.
 
 ## Layout (engine.js)
 
-Input is the model; output is positions, sizes, routes and the canvas. Reads text widths only from `TOKENS.font.metrics`, like the other engines.
+Input is the model; output is positions, sizes, routes and the canvas. Reads text widths only from `TOKENS.font.metrics`, like the other engines. The reference is `dev/plans/c4-layout-prototype.html` (open it in a browser: buttons switch between one centre, a group as the centre, two centres, four centres and no centre). The first engine written for this type was layered; it is replaced by this layout in phase 1b.
 
-1. Collapse state decides the visible items; relations that cross a collapsed group border are aggregated.
-2. Rank visible items by relation direction (persons first, externals last when ambiguous), as the flowchart does; ties by input order so the result is deterministic.
-3. Place each expanded group as a compound box: lay out its children inside, then treat the box as one item for the outer ranking.
-4. Order within a rank by barycentre to cut crossings, as the flowchart and use case engines do.
-5. Route every relation with the orthogonal router: ports spread along a side in the order of the other end, bend depth staggered so arrows nest, near-aligned ends become one straight line (the rules the prototype uses).
-6. Direction is chosen like the flowchart (`choose_flowchart_direction`) unless `direction` is set.
+**Items.** A top-level item is a framed group or one loose element. Collapsed groups count as one item; relations that cross a collapsed border are aggregated onto the nearest visible ancestor. The layout works on items, so the same code serves groups of any depth.
 
-Scale budget: ranking and ordering are O(n log n) per pass with a fixed pass count; a landscape that would open with more than 80 visible elements opens with `system` groups collapsed, and the audit says so. Expanding one group never re-lays-out the rest of the canvas (positions of everything outside the group are kept and shifted as one block).
+**Rings.** The centre is the set of items marked `core` (0 to n). Every other item gets a ring number: its distance, in links, to the nearest centre item (breadth first from all centres at once). A link only ever joins the same ring or neighbouring rings, which is what keeps every arrow short.
+
+**Centre placement.**
+- One or more centre items are placed in the middle as a grid of `ceil(sqrt(n))` columns, with room for a label between linked neighbours.
+- A centre that is a group is one item: its frame sits in the middle with its members in a row inside.
+- **No centre:** ring 0 is the items nobody points at (the first item if every item is pointed at), and every ring goes on the bottom side, so the result is a layered top-to-bottom flow. Same boxes, frames and arrows.
+
+**Sides.** Each ring item sits on one side of everything inside it (N, S, E or W):
+- An author hint (`side`) wins.
+- People go on top (N) when that side is open.
+- Otherwise the emptiest allowed side, in the order S, W, E, N.
+- **Exposure rule:** a ring-1 item may only sit on a side that every centre element it links to exposes to open space. In a 2x2 centre grid the top-left element exposes N and W only, so an item linked to it cannot sit below, where its arrow would cross another centre.
+- A ring-2 or later item follows the side of the inner neighbour it links to.
+
+**Rings are placed around the box built so far.** Ring r puts its N items in a row above, its S items in a row below, then its E and W items in columns beside the result, all centred on the origin. A framed item's members form a row above or below the centre and a column beside it, so an arrow to the far member never crosses a sibling. Order along a side is the average position of the inner neighbours (barycentre), ties by input order. A gutter between rings is left for arrows and labels.
+
+**Arrows bend.**
+1. An arrow between rings runs along the side its outer item sits on: down for N and S, across for E and W.
+2. It has one bend. The horizontal run sits in the gutter between the facing edges of the two items (frames, not the boxes inside), so a run never cuts through a frame.
+3. Several arrows leaving one side get ports spread along it in the order of their targets, and their bends are staggered so they nest instead of crossing.
+4. A link inside one ring loops under the row (down, along the gutter, up into the target) unless the two items are single boxes side by side. Loops are staggered so they do not share a line.
+5. Near-aligned ends become one straight line.
+
+**Direction and frames.** Frames are drawn behind everything, titles at the top-left (at the bottom for a box below the centre, away from the arrows). Collapsed groups draw as one system tile.
+
+**Scale.** Rings, sides and ordering are linear or n log n per pass with a fixed number of passes. A ring that gets long wraps into extra rows. A landscape that would open with more than 80 visible elements opens with `system` groups collapsed and the audit says so. Expanding one group does not re-lay-out the rest: positions outside it are kept and shifted as one block.
+
+**Known gaps in the prototype that the engine must close.** Arrows that loop under a row can share a gutter with other arrows and need stagger logic; loop-unders for left and right columns are missing; crossings between arrows are only reduced by the order along a side; when the preferred side is not allowed, items pile onto the next open side.
 
 ## Engine contract
 
 The one interface between `engine.js`, the page (`c4.js`) and the audit. Coordinates are canvas pixels, top-left origin. Derived fields are recomputed, never saved. Mirrors the use case contract.
 
-`layoutDiagram(data)` mutates `data` in place (full layout); `routeDiagram(data)` keeps every element and group `x`/`y` and recomputes everything else (group boxes, arrows, labels, canvas), and calls `layoutDiagram` when any visible item has no `x`/`y`. Both read text widths only from `TOKENS.font.metrics` and sizes from `TOKENS`, and call `routeEdgesOrthogonal` from `assets/shell/ortho-router.js` for arrows. `layoutDiagram` must be a top-level function (loaded by `scripts/run_engine.mjs`). Deterministic: ties break by input order.
+`layoutDiagram(data)` mutates `data` in place (full layout); `routeDiagram(data)` keeps every element and group `x`/`y` and recomputes everything else (group boxes, arrows, labels, canvas), and calls `layoutDiagram` when any visible item has no `x`/`y`. Both read text widths only from `TOKENS.font.metrics` and sizes from `TOKENS`, and route arrows with the layout's own gutter routing, reusing path rounding and label placement from `assets/shell/ortho-router.js`. `layoutDiagram` must be a top-level function (loaded by `scripts/run_engine.mjs`). Deterministic: ties break by input order.
 
 | Field | Meaning |
 |---|---|
 | `elements[].x, y, w, h` | Top-left and size of the tile. |
 | `elements[]._hidden` | True when an ancestor group is collapsed; a hidden element has `w`/`h` 0 and no arrows of its own. |
 | `groups[].x, y, w, h` | The frame box, tag band included; a collapsed group has the size of one system tile. |
+| `elements[]._ring`, `groups[]._ring` | Ring number: 0 for a centre item, then distance in links; a hidden item has none. |
+| `groups[]._side`, `elements[]._side` | `N`, `S`, `E`, `W` or none for a centre item, resolved from the hint or the rules under Layout. |
 | `groups[]._depth` | 1 for a top-level group, 2 for its child, and so on (any depth). |
 | `groups[]._collapsed` | Effective state: true when the group or any ancestor is collapsed. |
 | `data._edges` | The arrows actually drawn: `[{id, from, to, label, tech, async, count, members, points, path, labelBox}]`. `from`/`to` are the nearest visible ancestor (or the element itself) of each relation end; relations with the same visible pair and the same label merge, `count` is how many, `members` their indexes in `relations`; a merged edge with different labels shows the label of the first and `count`. |
-| `data._edges[].points` | `[[x, y], ...]` orthogonal polyline, from `routeEdgesOrthogonal`. `path` is the SVG path with the router's corner rounding and hops. |
+| `data._edges[].points` | `[[x, y], ...]` orthogonal polyline from the layout's gutter routing. `path` is the SVG path with the rounded corners and hops of `ortho-router.js`. |
 | `data._edges[].labelBox` | `{x, y, w, h}` of the label pill (label line plus `[tech]` line). |
 | `data.canvas` | `{width, height}`. |
 
@@ -206,6 +232,7 @@ Changed: `SKILL.md` (type table, read-back line), `scripts/layout_engine.py` (`S
 ## Phases
 
 1. **Shared router and model.** Extract the orthogonal router (`computeAllEdgeRoutes` and its path and label helpers, which live in `flowchart.js`) into `assets/shell/ortho-router.js` with no behaviour change (golden unchanged). The layered ranking in `engine.js` is flowchart-specific and stays; extract it only when c4 shows what it truly shares. Schema, codec, `engine.js` with groups and collapse, `audit_c4.py`, fixtures and golden. `--layout` produces a static page.
+1b. **Layout rebuild.** Replace the first layered engine with the ring and layered layout under Layout, the reference being `dev/plans/c4-layout-prototype.html`. Same engine contract, plus the ring and side fields. Regenerate the goldens and fix the page for the icon card node.
 2. **Render.** Tiles with generic icons, person avatar, database shape, groups as frames, orthogonal arrows with label pills, aggregated arrows, notes, colour key.
 3. **Levels and motion.** Collapse and expand, the Level control, morph motion, reduced-motion path.
 4. **Edit.** Dock, ports, label prompt, icon picker, action bar, Auto-Tidy, Save, undo, multi-select.
@@ -219,6 +246,7 @@ Each phase ends with its checker passing and the playground e2e still green; no 
 - `dev/test_audit_c4.py`: one failing and one passing case per audit rule.
 - `check_golden.py`: engine output per fixture, and laying out the saved model again moves nothing. A fixture with 2,000 elements across 40 groups proves the scale budget (opens collapsed, lays out within the bench limit in `dev/bench_layout.py`).
 - Flowchart golden stays byte-identical after the router extraction.
+- Layout fixtures for every centre count: one centre, a group as the centre, two, four, and none (layered). Each checks: no overlaps, every box inside its frame, arrows orthogonal with at most one bend (loop-unders aside), no arrow crossing a box or a frame it does not enter, the exposure rule (no ring-1 item on a covered side), ring numbers as expected, determinism (two runs byte-equal), and the 2,000-element run under budget.
 - Level 3 readiness: a fixture with system > container > component runs through the engine and codec with `MAX_GROUP_DEPTH` raised in the test; with the v1 limit the audit rejects it with the documented message.
 - `dev/e2e_c4.mjs`: add each kind from the dock; connect and label a relation; collapse and expand a system group and check aggregated arrows appear and disappear; Level control; set an icon from the picker; a missing pack falls back to the generic icon with one warning; Save round trip keeps ids, collapse state and positions; `?present` disables editing.
 - `e2e_motion.mjs` extended with c4: no orphan ghost after expand, collapse, undo bursts; reduced motion creates no animation.
@@ -230,11 +258,15 @@ Recommended, to confirm before phase 1.
 
 1. **Type name:** `c4`.
 2. **Levels:** one model with collapsible groups, not separate diagrams per level. v1 ships two levels; Level 3 is deferred (settled 2026-11-20) and kept cheap by the Level 3 readiness rules. Recommended because it keeps one source of truth and gives the morph between levels for free.
-3. **Arrows:** orthogonal, one bend per route, shared with the flowchart router.
+3. **Arrows:** orthogonal with one bend per route, as the flowchart; see decision 10 for how they are routed.
 4. **Cloud-provider logos:** not bundled; user-built local packs from the vendor download.
 5. **Technology logos (open decision 1):** bundle a small Simple Icons subset, or ship generic icons only? Recommended: generic icons in v1, technology pack after a licence and trademark check of the specific marks. Needs the user's call.
 6. **Mermaid C4:** optional, phase 6; one level per copy, single-level import (settled 2026-11-20).
 7. **Generic first:** the default icon for each kind is a generic glyph, so a diagram with no packs installed looks finished.
+8. **Layout:** concentric rings around the centre set, with a layered flow when no centre is marked (settled 2026-11-21). Replaces the grid-with-gutters idea and the ring-on-a-polygon idea; groups stay boxes.
+9. **Centre:** an explicit `core` flag on an element or group, any number including none; nothing is picked automatically.
+10. **Arrows:** one bend, run in the gutter between the facing frames, loop under a row for links inside a ring; c4 has its own gutter routing and reuses only path rounding and label placement.
+11. **Nodes:** icon cards, disc about 54px with a 32px glyph, text underneath.
 
 ## Sources
 
