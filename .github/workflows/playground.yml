@@ -8,6 +8,7 @@ on:
       - assets/**
       - scripts/**
       - dev/build_playground.py
+      - .github/workflows/playground.yml
   workflow_dispatch:
 
 permissions:
