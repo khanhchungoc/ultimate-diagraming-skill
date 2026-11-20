@@ -2452,6 +2452,27 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           snap(e.to, pts.length - 1, pts.length - 2);
         });
 
+        // 5z. A Z with a small jog (out of one side, a short step, into the opposite side) between two steps that nearly line up:
+        // one end slides along its own straight edge so the arrow runs level. The end that moves is a plain box, and the other end's
+        // height (a diamond's vertex, say) must lie inside it.
+        const SLIDES = new Set(['task', 'subprocess', 'document']);
+        validEdges.forEach(e => {
+          const pts = edgePolylines[e.id];
+          if (!pts || pts.length !== 4) return;
+          const [a, b, c, d] = pts;
+          if (Math.abs(a[1] - b[1]) > 0.5 || Math.abs(b[0] - c[0]) > 0.5 || Math.abs(c[1] - d[1]) > 0.5) return;
+          const dy = d[1] - a[1];
+          if (Math.abs(dy) < 0.5 || Math.abs(dy) > 28 || Math.abs(d[0] - a[0]) < 30) return;
+          const fits = (id, y) => {
+            const n = nodeMap[id], r = rects[id];
+            if (!n || !r || !SLIDES.has(n.type)) return false;
+            const m = n.type === 'document' ? 10 : 6;
+            return y > r.y + m && y < r.y + r.h - m;
+          };
+          if (fits(e.from, d[1])) edgePolylines[e.id] = [[a[0], d[1]], d];
+          else if (fits(e.to, a[1])) edgePolylines[e.id] = [a, [d[0], a[1]]];
+        });
+
         // 6. Collect vertical segments from edges for planar bridge/hop overpasses
         const verticalSegments = [];
         validEdges.forEach(other => {
