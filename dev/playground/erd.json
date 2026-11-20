@@ -1,0 +1,18 @@
+{
+  "diagramType": "erd",
+  "title": "ER diagram",
+  "direction": "LR",
+  "entities": [
+    { "id": "user", "name": "user", "columns": [
+      { "name": "id", "type": "uuid", "pk": true },
+      { "name": "name", "type": "text" }
+    ] },
+    { "id": "order", "name": "order", "columns": [
+      { "name": "id", "type": "uuid", "pk": true },
+      { "name": "user_id", "type": "uuid", "fk": true }
+    ] }
+  ],
+  "relationships": [
+    { "id": "r1", "from": "order", "to": "user", "columns": ["user_id"], "fromEnd": "zeroOrMany", "toEnd": "one", "label": "places" }
+  ]
+}

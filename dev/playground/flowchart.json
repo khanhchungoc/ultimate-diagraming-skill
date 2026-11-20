@@ -1,0 +1,16 @@
+{
+  "title": "Flowchart",
+  "direction": "LR",
+  "lanes": [
+    { "id": "lane-1", "name": "Lane 1", "icon": "user", "height": 160 }
+  ],
+  "nodes": [
+    { "id": "n1", "laneId": "lane-1", "type": "start", "label": "Start" },
+    { "id": "n2", "laneId": "lane-1", "type": "task", "label": "Do something" },
+    { "id": "n3", "laneId": "lane-1", "type": "end", "label": "End" }
+  ],
+  "edges": [
+    { "id": "e1", "from": "n1", "to": "n2", "label": "" },
+    { "id": "e2", "from": "n2", "to": "n3", "label": "" }
+  ]
+}

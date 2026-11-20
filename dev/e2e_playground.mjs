@@ -69,7 +69,7 @@ try {
     const T = TYPES[id];
     await open(id);
     const menuItems = await page.locator('#type-menu [role=menuitemradio]').evaluateAll((els) => els.map((e) => [e.dataset.type, e.getAttribute('aria-checked')]));
-    check(`${id}: blank page, menu lists the four types with only this one checked`,
+    check(`${id}: starter page, menu lists the four types with only this one checked`,
       JSON.stringify(menuItems.map((m) => m[0])) === JSON.stringify(ids) && menuItems.filter((m) => m[1] === 'true').map((m) => m[0]).join() === id, JSON.stringify(menuItems));
     check(`${id}: the title is the type's blank title and the page is not unsaved`, (await page.locator('#chart-title').textContent()) === T.name && !(await unsaved()));
     // Nothing drawn yet: Fit, Tidy and the exports must not fail on zero items
@@ -77,8 +77,9 @@ try {
     for (const sel of ['[data-export="svg"]', '[data-export="png"]', '[data-copy="svg"]']) {
       await page.click('#btn-export'); await page.click(sel); await page.waitForTimeout(250);
     }
-    check(`${id}: Fit, Tidy and every export work on the blank page (no errors, still not unsaved)`, errors.length === 0 && !(await unsaved()), errors.join(' | '));
+    check(`${id}: Fit, Tidy and every export work on the starter page (no errors, still not unsaved)`, errors.length === 0 && !(await unsaved()), errors.join(' | '));
     const before = await count(T.items);
+    check(`${id}: opens on a starter flow, not an empty page`, before >= 2, String(before));
     for (const sel of T.add) await (sel[0] === '@' ? page.locator(sel.slice(1)).first().click() : page.click(sel));
     await page.waitForTimeout(300);
     check(`${id}: adding from the dock draws an item and marks the page unsaved`, (await unsaved()) && ((await count(T.items)) > before), `${before} -> ${await count(T.items)}`);
@@ -130,7 +131,7 @@ try {
   await open_menu(); await page.click('#type-menu [data-type="flowchart"]');
   await page.waitForURL('**/flowchart/index.html');
   await page.waitForSelector('#chart-title'); await page.waitForTimeout(300);
-  check('switching back shows the flowchart blank again', (await count('[data-node-id]')) === 0 && !(await unsaved()));
+  check('switching back shows the flowchart starter again', (await count('.flow-node')) === 3 && !(await unsaved()), String(await count('.flow-node')));
 
   // The confirm's Save choice downloads, then switches
   await page.click('#btn-add-shape'); await page.click('#btn-add-step'); await page.waitForTimeout(300);

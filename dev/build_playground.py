@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Build the playground folder: a blank page of every diagram type with a type menu, for one claude.ai artifact.
+"""Build the playground folder: a starter page of every diagram type with a type menu, for one claude.ai artifact.
 
 Usage: python dev/build_playground.py -o <dir>
 Writes <dir>/<type>/{index.html,diagram.json,app.css,app.js} for every supported type (assemble_artifact on
-assets/types/<type>/blank.json, plus a <script id="playground"> that turns on the type menu and download-Save in
+dev/playground/<type>.json, plus a <script id="playground"> that turns on the type menu and download-Save in
 shell.js) and <dir>/index.html, which opens the flowchart. Design: dev/plans/plan-playground.md. Prints [DONE].
 """
 from __future__ import annotations
@@ -25,7 +25,10 @@ def build(out: Path) -> None:
     blanks = {k: json.loads((le.ASSETS_DIR / "types" / k / "blank.json").read_text(encoding="utf-8")) for k in le.SUPPORTED_TYPES}
     types = [{"id": k, "name": blanks[k]["title"]} for k in le.SUPPORTED_TYPES]
     for kind in le.SUPPORTED_TYPES:
-        files = le.assemble_artifact(kind, blanks[kind])
+        # Each page opens on a small starter flow (dev/playground/<type>.json: the must-have items of the type, e.g. a
+        # flowchart's Start and End), not on the empty blank, to save the first minutes
+        starter = json.loads((ROOT / "dev" / "playground" / f"{kind}.json").read_text(encoding="utf-8"))
+        files = le.assemble_artifact(kind, starter)
         flag = json.dumps({"type": kind, "types": types}, ensure_ascii=False).replace("<", "\\u003c")
         index = files["index.html"]
         assert index.count(SCRIPT_TAG) == 1, "index.html no longer ends with the app.js tag"

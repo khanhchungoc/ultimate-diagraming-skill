@@ -1935,7 +1935,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
                 const lo = Math.min(sy, ey) + 14, hi = Math.max(sy, ey) - 14;
                 for (let y = lo; y <= hi; y += 10) add([[sx, sy], [sx, y], [ex, y], [ex, ey]], Math.abs(y - (sy + ey) / 2));
               } else {
-                [14, 20, 28, 36, 48, 72].forEach(d => {
+                [28, 36, 48, 72].forEach(d => {
                   const g = fp === 'top' ? Math.min(sy, ey) - d : Math.max(sy, ey) + d;
                   if (g < 8) return;
                   add([[sx, sy], [sx, g], [ex, g], [ex, ey]]);
