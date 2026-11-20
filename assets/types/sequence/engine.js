@@ -34,20 +34,23 @@
         SUMMARY_W: 236                          // a collapsed frame is at least this wide when rails make the diagram narrow
       };
       const sqTextW = (t) => Math.ceil(String(t == null ? '' : t).length * SQ.CHAR_W);
-      // Lines a text takes when wrapped at maxW (words kept whole, "\n" a forced break, a word longer than a line split)
-      function sqLines(t, charW, maxW) {
-        const cpl = Math.max(1, Math.floor(maxW / charW));
-        let n = 0;
+      // A text wrapped at maxW: its lines (words kept whole, breaking after a space, "/" or "-"; "\n" a forced break; a piece longer than a line split).
+      // The page draws exactly these lines, so the rows the engine reserves are the rows that show.
+      function sqWrapText(t, charW, maxW) {
+        const cpl = Math.max(1, Math.floor(maxW / charW)), out = [];
         String(t == null ? '' : t).split('\n').forEach((seg) => {
-          let len = 0, lines = 1;
-          seg.split(' ').forEach((w) => {
-            if (len + (len ? 1 : 0) + w.length <= cpl) { len += (len ? 1 : 0) + w.length; return; }
-            if (len) lines++;
-            if (w.length > cpl) { lines += Math.floor((w.length - 1) / cpl); len = w.length % cpl || cpl; } else len = w.length;
+          let line = '';
+          // Break after a space, "/" or "-", so a path wraps at its separators
+          seg.split(/(?<=[ /-])/).forEach((w) => {
+            if (line.length + w.replace(/ $/, '').length <= cpl) { line += w; return; }
+            if (line) out.push(line.replace(/ $/, ''));
+            line = '';
+            while (w.length > cpl) { out.push(w.slice(0, cpl)); w = w.slice(cpl); }
+            line = w;
           });
-          n += lines;
+          out.push(line.replace(/ $/, ''));
         });
-        return n;
+        return out;
       }
       const sqGrid = (v) => Math.ceil(v / SQ.GRID) * SQ.GRID;
       // A fragment's further branches as [{at, label}]: "branches", or the short form "elseAt" (one unlabelled branch)
@@ -88,8 +91,8 @@
         const labelW = (m) => Math.min(Math.max.apply(null, String(m.label == null ? '' : m.label).split('\n').map(sqTextW)) + numW, SQ.LABEL_MAX_W);
         const detailW = (m) => Math.min(Math.ceil(detailOf(m).length * SQ.DETAIL_CHAR_W), SQ.LABEL_MAX_W);
         const msgW = (m) => Math.max(labelW(m), detailW(m));
-        const labelLines = (m) => sqLines(m.label, SQ.CHAR_W, SQ.LABEL_MAX_W - numW);
-        const detailLines = (m) => (detailOf(m) ? sqLines(m.detail, SQ.DETAIL_CHAR_W, SQ.LABEL_MAX_W) : 0);
+        const labelLines = (m) => sqWrapText(m.label, SQ.CHAR_W, SQ.LABEL_MAX_W - numW).length;
+        const detailLines = (m) => (detailOf(m) ? sqWrapText(m.detail, SQ.DETAIL_CHAR_W, SQ.LABEL_MAX_W).length : 0);
 
         // 1. Fragments: resolve message ranges, nesting level (0 = innermost) and ordering. Done first: which messages a
         //    collapsed frame hides decides which participants are rails, and so the horizontal layout.

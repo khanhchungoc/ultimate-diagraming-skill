@@ -512,7 +512,6 @@
           const marker = !m.kind || m.kind === 'sync' ? 'url(#seq-arrow-solid)' : 'url(#seq-arrow-open)';
           seqMsgG.appendChild(svgEl('path', { class: `seq-line${m.kind === 'reply' ? ' is-reply' : ''}`, d, 'marker-end': marker, 'data-edge-id': m.id }));
           seqMsgG.appendChild(svgEl('path', { class: 'seq-msg-hit', d, 'data-edge-id': m.id }));
-          if (m.lab > 1) labelStyle.width = px(SQ.LABEL_MAX_W);   // wrapped: a fixed width, the text flows inside
           const label = htmlEl('div', `seq-msg-label${self ? ' is-self' : ''}${m.lab > 1 ? ' is-wrapped' : ''}`, labelStyle);
           label.dataset.edgeId = m.id;
           if (chartData.numbered) {
@@ -521,16 +520,15 @@
             label.appendChild(num);
           }
           const text = htmlEl('span', 'seq-msg-label-text');
-          text.textContent = m.label || '';
+          text.textContent = m.lab > 1 ? sqWrapText(m.label, SQ.CHAR_W, SQ.LABEL_MAX_W - (chartData.numbered ? SQ.NUM_W : 0)).join('\n') : (m.label || '');
           label.appendChild(text);
           if (m.detail && !showDetails) label.title = m.detail;   // details hidden: the payload is the tooltip
           seqHtml.appendChild(label);
           if (m.detail && showDetails) {
-            if (m.det > 1) detailStyle.width = px(SQ.LABEL_MAX_W);
             const det = htmlEl('div', `seq-msg-detail${self ? ' is-self' : ''}${m.det > 1 ? ' is-wrapped' : ''}`, detailStyle);
             det.dataset.edgeId = m.id;
             const dt = htmlEl('span', 'seq-msg-detail-text');
-            dt.textContent = m.detail;
+            dt.textContent = m.det > 1 ? sqWrapText(m.detail, SQ.DETAIL_CHAR_W, SQ.LABEL_MAX_W).join('\n') : m.detail;
             det.appendChild(dt);
             seqHtml.appendChild(det);
           }
@@ -1894,6 +1892,7 @@
         const commit = () => {
           el.removeEventListener('blur', commit);
           el.removeEventListener('keydown', onKey);
+          document.removeEventListener('pointerdown', onOutside, true);
           if (box) { box.removeEventListener('pointerdown', onBoxDown); box.removeEventListener('mousedown', onBoxMouse); }
           el.contentEditable = 'false';
           const value = (multi ? el.innerText : el.textContent).replace(/\r/g, '').replace(/^\s+|\s+$/g, '');
@@ -1925,12 +1924,16 @@
         };
         const onBoxMouse = (me) => { if (me.target !== el && !el.contains(me.target)) me.preventDefault(); };
         if (box) { box.addEventListener('pointerdown', onBoxDown); box.addEventListener('mousedown', onBoxMouse); }
+        // A press anywhere outside the edit ends it first (capture phase), whatever the target does with the press:
+        // a lifeline, a bar or the canvas may swallow it and so keep the focus here
+        const onOutside = (pe) => { if (!(box || el).contains(pe.target)) el.blur(); };
+        document.addEventListener('pointerdown', onOutside, true);
         el.addEventListener('blur', commit);
         el.addEventListener('keydown', onKey);
       }
       function editMessage(id) {
         const el = seqHtml.querySelector(`.seq-msg-label[data-edge-id="${id}"] .seq-msg-label-text`);
-        beginEdit(el, { multiline: true, onTab: () => editDetail(id) });
+        beginEdit(el, { multiline: true, raw: (msgById(id) || {}).label, onTab: () => editDetail(id) });
       }
       // The detail line under a message's arrow; one is made for the edit when the message has none (or details are hidden)
       function editDetail(id) {
