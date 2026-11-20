@@ -142,6 +142,7 @@
       white-space: nowrap;
       transition: background-color var(--dur-micro) var(--curve-inout), color var(--dur-fast) var(--curve-inout);
     }
+    .erd-row:last-child { border-radius: 0 0 var(--radius-lg) var(--radius-lg); }   /* a washed last row (key highlight, selection) follows the table's rounded corners */
     .erd-row + .erd-row { border-top: 1px solid color-mix(in srgb, var(--border-color) 55%, transparent); }
     .erd-glyph {
       flex: none;
