@@ -868,9 +868,9 @@
         if (erdBtnColumns) {
           const mode = erdBtnColumns.querySelector('.btn-count');
           if (mode) mode.textContent = modeLabel;
-          const next = { all: 'key columns only', keys: 'table names only', names: 'all columns' }[detail];
-          erdBtnColumns.title = `Columns: ${{ all: 'all', keys: 'key columns only', names: 'table names only' }[detail]}. Click for ${next}`;
+          erdBtnColumns.title = `Columns: ${{ all: 'all', keys: 'key columns only', names: 'table names only' }[detail]}`;
           erdBtnColumns.setAttribute('aria-label', `Columns: ${modeLabel}`);
+          document.querySelectorAll('#columns-pop [data-detail]').forEach((t) => t.setAttribute('aria-checked', String(t.dataset.detail === detail)));
         }
         if (erdBtnTypes) {
           const on = chartData.showTypes !== false;
@@ -954,11 +954,12 @@
         after();
       }
 
-      if (erdBtnColumns) erdBtnColumns.addEventListener('click', () => {
-        const next = ERD_DETAILS[(ERD_DETAILS.indexOf(erdDetail()) + 1) % ERD_DETAILS.length];
+      document.querySelectorAll('#columns-pop [data-detail]').forEach((tile) => tile.addEventListener('click', () => {
+        const next = tile.dataset.detail;
+        if (next === erdDetail()) return;
         if (next === 'all') delete chartData.detail; else chartData.detail = next;
         resizeLayout(() => { render({ duration: 230, easing: 'curve-spring-settle', shrinkGhosts: true, shrinkOpacity: 0.2 }); updateStatus(true); fitView(true); });   // sizes change; rank and order do not (check_golden.py)
-      });
+      }));
       if (erdBtnTypes) erdBtnTypes.addEventListener('click', () => {
         if (chartData.showTypes === false) delete chartData.showTypes; else chartData.showTypes = false;
         resizeLayout(() => { render({ duration: 200, easing: 'curve-spring-settle', shrinkGhosts: true, shrinkOpacity: 0.2 }); updateStatus(true); });
@@ -2580,8 +2581,8 @@
         d.ghost.style.transform = `scale(${scale * 1.015})`;
         d.ghost.style.left = `${e.clientX - ER.MIN_W * scale / 2}px`;
         d.ghost.style.top = `${e.clientY - ER.HEAD_H * scale / 2}px`;
-        const pt = erdPoint(e), C = chartData.canvas || { width: 0, height: 0 };
-        const over = pt.x >= 0 && pt.y >= 0 && pt.x <= C.width && pt.y <= C.height && !!document.elementFromPoint(e.clientX, e.clientY)?.closest('#erd-canvas');
+        const pt = erdPoint(e);
+        const over = !!document.elementFromPoint(e.clientX, e.clientY)?.closest('#viewport');   // anywhere on the view, also past the edge of a small canvas
         d.pt = over ? pt : null;
         d.ghost.classList.toggle('off-target', !over);
       }

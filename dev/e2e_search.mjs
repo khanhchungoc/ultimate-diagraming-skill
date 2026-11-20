@@ -137,9 +137,9 @@ try {
     // 6. a render keeps the highlight and the index (the theme toggle calls plugin.render(); toggled back after)
     if (n > 1) { await press('search-input', 'Enter'); await settle(); }
     const before = await T(`state(${J(q)})`);
-    await t.ev(`document.getElementById('menu-theme').click()`); await settle();
+    await t.ev(`document.getElementById('btn-theme').click()`); await settle();
     s = await T(`state(${J(q)})`);
-    await t.ev(`document.getElementById('menu-theme').click()`); await settle();
+    await t.ev(`document.getElementById('btn-theme').click()`); await settle();
     t.check('a re-render keeps the highlight and the current index',
       s.dimOk && s.curOk && s.c.k === before.c.k && s.c.n === before.c.n,
       J({ before: before.c, after: s.c, dimOk: s.dimOk, curOk: s.curOk }));

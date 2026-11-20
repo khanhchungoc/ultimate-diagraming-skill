@@ -1476,22 +1476,23 @@
 
       // --- THEME (light / dark) ---
       // Priority (script in shell.html's <head>): ?theme=dark|light  >  saved choice (localStorage)  >  OS preference
-      const menuTheme = document.getElementById('menu-theme');
+      const btnTheme = document.getElementById('btn-theme');
       function currentTheme() {
         return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
       }
       let themeTimer = 0;
-      function applyTheme(theme, persist) {
+      function applyTheme(theme, persist, fromClick) {
         const flip = () => {
           document.documentElement.setAttribute('data-theme', theme);
-          menuTheme.setAttribute('aria-checked', String(theme === 'dark'));
+          btnTheme.setAttribute('aria-pressed', String(theme === 'dark'));
+          btnTheme.title = btnTheme.ariaLabel = theme === 'dark' ? 'Light mode' : 'Dark mode';
           if (persist) { try { localStorage.setItem('flowchart-theme', theme); } catch (e) {} }
           if (plugin) plugin.render();   // type colors may depend on the theme
         };
         if (!persist || !motion.enabled()) { flip(); return; }
-        // shortcut: only use async startViewTransition when #more-menu is open; programmatic hidden clicks expect sync data-theme update
-        if (document.startViewTransition && !moreMenu.hidden) {
-          const r = btnMore.getBoundingClientRect();
+        // the ripple only for a real click on the button; a programmatic click expects a sync data-theme update
+        if (document.startViewTransition && fromClick) {
+          const r = btnTheme.getBoundingClientRect();
           const cx = Math.round(r.left + r.width / 2), cy = Math.round(r.top + r.height / 2);
           const maxR = Math.ceil(Math.hypot(Math.max(cx, innerWidth - cx), Math.max(cy, innerHeight - cy)));
           const vt = document.startViewTransition(flip);
@@ -1510,7 +1511,7 @@
       }
       // The theme was chosen by the script at the top of <head> (shell.html), before the first paint: read it back
       function initTheme() { applyTheme(currentTheme(), false); }
-      menuTheme.addEventListener('click', () => applyTheme(currentTheme() === 'dark' ? 'light' : 'dark', true));
+      btnTheme.addEventListener('click', (e) => applyTheme(currentTheme() === 'dark' ? 'light' : 'dark', true, e.isTrusted));
 
       // --- VIEWPORT PAN & ZOOM & FIT ---
       function showZoom() { zoomLevelEl.textContent = `${Math.round((vpAnim ? vpAnim.targetScale : scale) * 100)}%`; }   // a glide in flight shows where it lands
@@ -2022,15 +2023,15 @@
           return;
         }
         if (!on) {
-          motion.ghostExit(searchBar, { duration: 110, transform: 'translateY(-6px)', clipPath: 'inset(0 0 100% 0 round 8px)' });
+          motion.ghostExit(searchBar, { duration: 110, clipPath: 'inset(0 0 0 100% round 8px)' });
         }
         searchBar.hidden = !on;
         btnSearch.setAttribute('aria-expanded', String(on));
         if (on) {
           if (motion.enabled()) {
             motion.anim(searchBar, [
-              { transform: 'translateY(-6px)', clipPath: 'inset(0 0 100% 0 round 8px)' },
-              { transform: 'none', clipPath: 'inset(0 0 0 0 round 8px)' }
+              { clipPath: 'inset(0 0 0 100% round 8px)' },   // opens from the icon, leftwards
+              { clipPath: 'inset(0 0 0 0 round 8px)' }
             ], { duration: 160, easing: motion.curve('curve-out') });
           }
           searchInput.focus(); searchInput.select();

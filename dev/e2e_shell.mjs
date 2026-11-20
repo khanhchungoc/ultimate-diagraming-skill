@@ -176,7 +176,7 @@ try {
 
   // 4. Theme toggle (shell) re-renders through the plugin
   const before = await t.ev(`document.documentElement.getAttribute('data-theme')`);
-  await t.ev(`document.getElementById('menu-theme').click()`);
+  await t.ev(`document.getElementById('btn-theme').click()`);
   const afterTheme = await t.ev(`document.documentElement.getAttribute('data-theme')`);
   t.check('theme toggle flips data-theme and keeps the diagram', before !== afterTheme && (await t.ev(`document.querySelectorAll('.flow-node').length`)) === nodeCount - 1 && t.errors.length === 0, t.errors.join(' | '));
 
@@ -575,10 +575,10 @@ try {
   await t.ev(`document.body.click()`);
   t.check('a click elsewhere closes the More menu', await t.ev(moreHidden));
   const themeNow = await t.ev(`document.documentElement.getAttribute('data-theme')`);
-  t.check('#menu-theme aria-checked follows the theme', await t.ev(`document.getElementById('menu-theme').getAttribute('aria-checked')`) === String(themeNow === 'dark'));
-  await t.ev(`document.getElementById('menu-theme').click()`);
-  t.check('#menu-theme aria-checked flips with the toggle', await t.ev(`document.getElementById('menu-theme').getAttribute('aria-checked')`) === String(themeNow !== 'dark'));
-  await t.ev(`document.getElementById('menu-theme').click()`);
+  t.check('#btn-theme aria-pressed follows the theme', await t.ev(`document.getElementById('btn-theme').getAttribute('aria-pressed')`) === String(themeNow === 'dark'));
+  await t.ev(`document.getElementById('btn-theme').click()`);
+  t.check('#btn-theme aria-pressed flips with the toggle', await t.ev(`document.getElementById('btn-theme').getAttribute('aria-pressed')`) === String(themeNow !== 'dark'));
+  await t.ev(`document.getElementById('btn-theme').click()`);
   await t.ev(`document.getElementById('menu-help').click()`);
   t.check('Keyboard shortcuts item opens the help drawer', await t.ev(`document.getElementById('help-drawer').classList.contains('open')`));
   await t.ev(`document.getElementById('help-close').click()`);

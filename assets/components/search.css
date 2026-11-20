@@ -1,8 +1,13 @@
     /* Search: the bar under the header (input, counter, previous, next, close) and the two classes the shell puts on diagram
        elements (search-dim on non-matches, search-current on the match being shown). View-only: exports and Save never see them.
        Markup: #search-bar > input#search-input, #search-count, button#search-prev, button#search-next, button#search-close. */
+    /* In the canvas, top right (below the header): an icon that opens into the text box; opening hides the icon */
+    #search-dock { position: fixed; top: 68px; right: 16px; z-index: 150; display: flex; justify-content: flex-end; pointer-events: none; }
+    #search-dock > * { pointer-events: auto; }
+    #btn-search { background: var(--bg-panel); border: 1px solid var(--border-dark); box-shadow: var(--shadow-md); }
+    #btn-search[aria-expanded="true"] { display: none; }
+    .search-glyph { display: inline-flex; align-items: center; padding-left: 4px; color: var(--text-muted); }
     #search-bar {
-      position: absolute; top: calc(100% + 8px); right: 16px; z-index: 150;   /* below the header, aligned with its padding */
       display: flex; align-items: center; gap: 6px; padding: 6px;
       background: var(--bg-panel); border: 1px solid var(--border-dark); border-radius: var(--radius-lg);
       box-shadow: var(--shadow-lg);
@@ -18,4 +23,4 @@
     #btn-search[hidden] { display: none; }
     .search-dim { opacity: var(--dim); filter: var(--dim-filter); transition: opacity var(--dur-micro) var(--curve-inout), filter var(--dur-micro) var(--curve-inout); }
     .search-current { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
-    @media (max-width: 720px) { #search-bar { left: 12px; right: 12px; } #search-input { flex: 1 1 auto; min-width: 0; width: auto; } }
+    @media (max-width: 720px) { #search-dock { left: 12px; } #search-bar { flex: 1 1 auto; } #search-input { flex: 1 1 auto; min-width: 0; width: auto; } }

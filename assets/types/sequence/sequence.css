@@ -132,7 +132,7 @@
     .seq-actionbar.is-rows { flex-direction: column; row-gap: 2px; }
     .seq-ab-row { display: flex; align-items: center; gap: 2px; }
     .seq-ab-break { flex-basis: 100%; height: 0; }
-    .seq-ab-swatch { height: 26px; width: 26px; }
+    .seq-ab-swatch { height: 30px; width: 30px; }
     /* Lifespans: a short cap ends a lifeline; a pinned box whose lifeline has ended above the row fades out */
     .seq-cap { stroke: var(--border-dark); stroke-width: 2; stroke-linecap: round; transition: stroke var(--dur-base) var(--curve-inout); }
     .seq-cap.selected { stroke: var(--primary); stroke-width: 3; }
@@ -182,7 +182,7 @@
     }
     #seq-canvas.seq-pinned .seq-actionbar.is-pill { translate: -50% var(--pin-dy, 0px); }
     .seq-ab-btn {
-      display: inline-flex; align-items: center; gap: 4px; height: 26px; min-width: 26px; padding: 0 6px; box-sizing: border-box;
+      display: inline-flex; align-items: center; gap: 4px; height: 30px; min-width: 30px; padding: 0 6px; box-sizing: border-box;
       border: 1px solid transparent; border-radius: var(--radius-md); background: transparent; color: var(--text-soft);
       font: inherit; font-size: var(--t-detail-size); cursor: pointer;
       transition: background-color var(--dur-micro) var(--curve-out), color var(--dur-micro) var(--curve-out), border-color var(--dur-micro) var(--curve-out), transform var(--dur-micro) var(--curve-spring-tactile);

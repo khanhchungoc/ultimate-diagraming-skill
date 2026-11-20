@@ -41,8 +41,8 @@
     </div>
 
     <div class="toolbar-right">
-      <button id="btn-search" class="btn btn-icon" title="Search (Ctrl+F or /)" aria-label="Search" aria-expanded="false" aria-controls="search-bar" hidden>
-        {{icon:search}}
+      <button id="btn-theme" class="btn btn-icon" title="Dark mode" aria-label="Dark mode" aria-pressed="false">
+        <span class="theme-moon">{{icon:moon}}</span><span class="theme-sun">{{icon:sun}}</span>
       </button>
       <div class="menu-wrap">
         <button id="btn-more" class="btn btn-icon" title="More" aria-label="More" aria-haspopup="menu" aria-expanded="false">
@@ -50,7 +50,6 @@
         </button>
         <div id="more-menu" class="menu" role="menu" hidden>
           <button type="button" id="menu-import-mermaid" role="menuitem" hidden>Paste Mermaid…</button>
-          <button type="button" id="menu-theme" role="menuitemcheckbox" aria-checked="false">Dark mode</button>
           <button type="button" id="menu-help" role="menuitem">Keyboard shortcuts<kbd>?</kbd></button>
         </div>
       </div>
@@ -77,15 +76,22 @@
         {{icon:save}}<span class="btn-label">Save</span>
       </button>
     </div>
-    <!-- Text search: opened by #btn-search, Ctrl/Cmd+F or "/" (shell.js, SEARCH); inside the header so it hangs just below it -->
+  </header>
+
+  <!-- Text search, in the canvas at the top right: an icon that opens into a text box (#btn-search, Ctrl/Cmd+F or "/"; shell.js, SEARCH) -->
+  <div id="search-dock">
+    <button id="btn-search" class="btn btn-icon" title="Search (Ctrl+F or /)" aria-label="Search" aria-expanded="false" aria-controls="search-bar" hidden>
+      {{icon:search}}
+    </button>
     <div id="search-bar" role="search" hidden>
+      <span class="search-glyph" aria-hidden="true">{{icon:search}}</span>
       <input id="search-input" type="search" placeholder="Search" aria-label="Search the diagram" autocomplete="off" spellcheck="false">
       <span id="search-count" role="status" aria-live="polite"></span>
       <button id="search-prev" class="btn btn-icon" type="button" title="Previous match (Shift+Enter)" aria-label="Previous match" disabled>{{icon:chevron-up}}</button>
       <button id="search-next" class="btn btn-icon" type="button" title="Next match (Enter)" aria-label="Next match" disabled>{{icon:chevron-down}}</button>
       <button id="search-close" class="btn btn-icon" type="button" title="Close (Esc)" aria-label="Close search">{{icon:close}}</button>
     </div>
-  </header>
+  </div>
 
   <!-- Add controls: a floating dock at the bottom of the viewport, styled like the zoom dock -->
   <div class="dock-area">

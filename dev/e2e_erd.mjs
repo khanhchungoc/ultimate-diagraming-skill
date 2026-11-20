@@ -27,6 +27,8 @@ const t = await launch(browser).catch((e) => { console.error('[ERROR]', e.messag
 let code = 0;
 try {
   const J = JSON.stringify;
+  // Columns is a popover of three radios: open it, pick one
+  const detail = async (mode) => { await t.clickOn('#btn-columns'); await t.clickOn(`#columns-pop [data-detail="${mode}"]`); await sleep(150); };
   const count = (sel) => t.ev(`document.querySelectorAll(${J(sel)}).length`);
   const text = (sel) => t.ev(`(document.querySelector(${J(sel)}) || {}).textContent ?? null`);
   const block = (html) => (html.replace(/\r\n/g, '\n').match(/<script id="diagram-data" type="application\/json">([\s\S]*?)<\/script>/) || [])[1];
@@ -172,6 +174,12 @@ sys.stdout.write(format_json(out))`;
   d = await saved();
   t.check('dragging Table onto the canvas drops a new table there and opens its name in edit', ids.length === 9 && !!dropped && !!ent(d, 'table_9') && !d.entities.some((e) => 'group' in e), `${ids}`);
   t.check('no ghost is left behind and the page has no errors', (await count('.erd-ghost')) === 0 && t.errors.length === 0, t.errors.join(' | '));
+  // a drop past the edge of the diagram (the empty view around it) adds too
+  await freshPage();
+  const btn2 = await t.at('#btn-add-table'), vp = await t.ev(`(() => { const r = document.getElementById('viewport').getBoundingClientRect(); return { x: r.left + 40, y: r.top + 90 }; })()`);
+  await t.dragTo(btn2.x, btn2.y, vp.x, vp.y, { steps: 8 });
+  await t.press('Escape');
+  t.check('dragging Table onto the empty view outside the diagram adds it', (await tableIds()).length === 9, `${(await tableIds()).length}`);
 
   // --- Rename ---
   await freshPage();
@@ -930,8 +938,7 @@ sys.stdout.write(format_json(out))`;
   // --- Columns and Types keep hand-placed tables where they are ---
   await freshPage();
   const cl0 = await layoutOf();
-  await t.clickOn('#btn-columns');
-  await t.clickOn('#btn-columns');
+  await detail('names');
   const cl1 = await layoutOf();
   t.check('Columns (to key columns, then names) moves no table', J(cl1) === J(cl0) && (await text('#btn-columns .btn-count')) === 'Names');
   await t.clickOn('#btn-types');
@@ -943,7 +950,7 @@ sys.stdout.write(format_json(out))`;
   await t.dragTo(hdA.x, hdA.y, hdA.x + (ca.c.l - ca.a.l), hdA.y + (ca.c.b + 8 - ca.a.t));
   const preOverlap = await overlapping();
   const cl2 = await layoutOf();
-  await t.clickOn('#btn-columns');
+  await detail('all');
   const cl3 = await layoutOf();
   const post = await overlapping();
   const moved = Object.keys(cl2).filter((k) => J(cl2[k]) !== J(cl3[k]));
@@ -1084,8 +1091,7 @@ sys.stdout.write(format_json(out))`;
   t.check('hover category (parent of product): product is a child; a table never rings itself', J(await idsWith('rel-child')) === J(['product']) && (await idsWith('rel-parent')).length === 0);
   // detail names and a collapsed table: still no chips or peeks; the line's tooltip names the join
   await freshPage();
-  await t.clickOn('#btn-columns');
-  await t.clickOn('#btn-columns');
+  await detail('names');
   await t.mouse('mouseMoved', 5, 600);
   await hoverOn('order');
   t.check('detail names: no chips or peeks on the related tables', (await count('.erd-key-chip, .erd-key-peek')) === 0 && (await count('.rel-child')) === 2);
@@ -1133,8 +1139,7 @@ sys.stdout.write(format_json(out))`;
   t.check('?present: a click selects a table and shows the same neighbourhood', J(await idsWith('rel-parent')) === J(['address', 'customer']));
   // exports: no ring or tooltip
   await freshPage();
-  await t.clickOn('#btn-columns');
-  await t.clickOn('#btn-columns');
+  await detail('names');
   await hoverOn('order');
   await t.clickOn(head('order'));
   await t.ev(`document.getElementById('btn-export').click()`);

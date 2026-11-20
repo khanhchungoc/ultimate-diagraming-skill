@@ -937,9 +937,9 @@ try {
     return min;
   })()`);
   const lightMin = await contrast();
-  await t.ev(`document.getElementById('menu-theme').click()`);
+  await t.ev(`document.getElementById('btn-theme').click()`);
   const darkMin = await contrast();
-  await t.ev(`document.getElementById('menu-theme').click()`);
+  await t.ev(`document.getElementById('btn-theme').click()`);
   t.check('every swatch\'s line colour reaches 3:1 on the panel and on a frame\'s wash, in both themes', lightMin >= 3 && darkMin >= 3, `light ${lightMin.toFixed(2)} dark ${darkMin.toFixed(2)}`);
   t.check('no page errors in the colour steps', t.errors.length === 0, t.errors.join(' | '));
 

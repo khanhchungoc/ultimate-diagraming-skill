@@ -261,3 +261,10 @@ html.is-loading #page-loading { display: grid; }
 }
 @keyframes page-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { #page-loading::before { animation-duration: 2.4s; } }
+
+    /* The theme button shows the icon of the theme it switches to */
+    #btn-theme .theme-sun, [data-theme="dark"] #btn-theme .theme-moon { display: none; }
+    [data-theme="dark"] #btn-theme .theme-sun { display: inline-flex; }
+    #btn-theme span { display: inline-flex; }
+    #btn-theme[aria-pressed="true"] { background: transparent; border-color: transparent; color: inherit; }
+    #btn-theme[aria-pressed="true"]:hover { background: var(--bg-hover); }

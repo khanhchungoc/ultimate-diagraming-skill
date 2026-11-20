@@ -308,7 +308,7 @@
     .erd-actionbar.is-wide { max-width: none; }
     .erd-ab-break { flex-basis: 100%; height: 0; }
     .erd-ab-btn {
-      display: inline-flex; align-items: center; justify-content: center; gap: 4px; height: 26px; min-width: 26px; padding: 0 6px; box-sizing: border-box;
+      display: inline-flex; align-items: center; justify-content: center; gap: 4px; height: 30px; min-width: 30px; padding: 0 6px; box-sizing: border-box;
       border: 1px solid transparent; border-radius: var(--radius-md); background: transparent; color: var(--text-soft);
       font: inherit; font-size: var(--text-sm); font-weight: var(--weight-semibold); cursor: pointer;
     }
@@ -321,7 +321,7 @@
     .erd-ab-glyph { padding: 0 3px; }
     .erd-ab-sep { width: 1px; height: 18px; margin: 0 3px; background: var(--border-color); }
     .erd-ab-tag { padding: 0 4px 0 6px; font-size: var(--t-overline-size); font-weight: var(--t-overline-weight); letter-spacing: var(--t-overline-tracking); text-transform: uppercase; color: var(--text-muted); }
-    .erd-ab-swatch { height: 26px; width: 26px; }
+    .erd-ab-swatch { height: 30px; width: 30px; }
     body.erd-dragging .erd-actionbar, body.erd-dragging .erd-handle { display: none !important; }
     .edge-label.is-editing-label { z-index: 60; }
 
@@ -378,3 +378,5 @@
 
 /* A row a dragged note would land on */
 .erd-row.note-target { outline: 2px dashed var(--note-accent); outline-offset: -2px; }
+
+    #columns-pop .btn[aria-checked="true"] { background: var(--primary-wash); border-color: var(--primary-ring); color: var(--primary); }
