@@ -46,11 +46,6 @@ Ponytail wins every tie: add an abstraction only when two or more real callers e
 
 ## Playground (GitHub Pages)
 
-The playground is a blank page of every diagram type with a type switcher (design: `dev/plans/plan-playground.md`), hosted on GitHub Pages. Users open it from the README.
-
-It deploys itself: `.github/workflows/playground.yml` runs `python dev/build_playground.py -o _site` and publishes it on every push to `main` that touches `assets/`, `scripts/` or `dev/build_playground.py`. No manual publish step, and any agent can maintain it.
-
-- Before pushing a change that touches what a page runs or looks like, run `python dev/build_playground.py -o <scratchpad>/playground` and check every type in the switcher loads.
-- A new diagram type joins the playground in the same change (switcher entry, `blank.json`, folder).
+The playground (every diagram type, blank, with a type switcher) deploys itself from `main` via `.github/workflows/playground.yml`, after `dev/e2e_playground.mjs` passes. Nothing to publish by hand. A new diagram type joins it in the same change (switcher entry, `blank.json`, folder).
 
 Playground URL: https://khanhchungoc.github.io/ultimate-diagraming-skill/
