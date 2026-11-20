@@ -325,8 +325,8 @@
         swimlanesContainer.classList.toggle('dir-tb', tb);
         updateDirectionButton();
 
-        // Length of the lane tracks along the flow: past the furthest node, and at least a screenful
-        const maxX = chartData.nodes.reduce((m, n) => Math.max(m, (n.x || 0) + (tb ? DECISION_HEIGHT : NODE_WIDTH) + 48), tb ? 640 : 1200);
+        // Length of the lane tracks along the flow: a margin past the furthest node, and a small minimum so an empty diagram still has room
+        const maxX = chartData.nodes.reduce((m, n) => Math.max(m, (n.x || 0) + (tb ? DECISION_HEIGHT : NODE_WIDTH) + 48), tb ? 360 : 560);
 
         renderLanes(maxX);   // also sizes the pill gutter (--lane-gutter)
         const along = `${maxX + 4 + (parseFloat(swimlanesContainer.style.getPropertyValue('--lane-gutter')) || 0)}px`;
