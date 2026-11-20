@@ -26,15 +26,15 @@
       </div>
       <span class="dock-sep" aria-hidden="true"></span>
       <button id="btn-refs" class="btn btn-switch" role="switch" title="Show the requirement ids under each use case" aria-label="Refs" aria-checked="false">
-        <span class="switch-track" aria-hidden="true"><span class="switch-knob"></span></span><span class="btn-label">Refs</span>
+        {{icon:hash}}<span class="btn-label">Refs</span>
       </button>
       <button id="btn-levels" class="btn btn-switch" role="switch" title="Levels: on shows every use case; off hides the subfunctions for a goal-level overview" aria-label="Levels" aria-checked="true">
-        <span class="switch-track" aria-hidden="true"><span class="switch-knob"></span></span><span class="btn-label">Levels</span>
+        {{icon:layers}}<span class="btn-label">Levels</span>
       </button>
       <button id="btn-notes" class="btn btn-switch" role="switch" title="Show all notes" aria-label="Notes" aria-checked="false">
-        <span class="switch-track" aria-hidden="true"><span class="switch-knob"></span></span><span class="btn-label">Notes</span><span class="btn-count" hidden></span>
+        {{icon:notes}}<span class="btn-label">Notes</span><span class="btn-count" hidden></span>
       </button>
-      <!-- Auto-Tidy on/off (see AUTO-TIDY in usecase.js); the shell places it just before Tidy -->
-      <button id="btn-auto-layout" class="btn btn-switch" role="switch" data-dock-group="layout" title="Auto-Tidy is on: the diagram re-arranges itself after adding, deleting or connecting (click to place things by hand)" aria-label="Auto-Tidy" aria-checked="true">
-        <span class="switch-track" aria-hidden="true"><span class="switch-knob"></span></span><span class="btn-label">Auto-Tidy</span>
+      <!-- Auto-Tidy on/off (see AUTO-TIDY in usecase.js): hidden for now, Auto-Tidy is always on (the code stays for when it returns) -->
+      <button id="btn-auto-layout" hidden class="btn btn-switch" role="switch" data-dock-group="layout" title="Auto-Tidy is on: the diagram re-arranges itself after adding, deleting or connecting (click to place things by hand)" aria-label="Auto-Tidy" aria-checked="true">
+        {{icon:auto}}<span class="btn-label">Auto-Tidy</span>
       </button>

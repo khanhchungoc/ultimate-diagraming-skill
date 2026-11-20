@@ -42,8 +42,7 @@
       let searchQ = '';
       let searchIds = [];
       let levelsOn = true;        // view only: off hides the subfunction use cases
-      let autoTidy = true;        // an editing preference of this browser, not part of the file
-      try { autoTidy = localStorage.getItem('usecase-auto-tidy') !== 'off'; } catch (e) {}
+      let autoTidy = true;        // always on for now (the Auto-Tidy button is hidden), so a saved 'off' is not read
       let uidCounter = 0;
       const uid = (prefix) => `${prefix}_${Date.now()}_${uidCounter++}`;
       const els = { items: new Map(), links: new Map(), subjects: new Map(), parents: [] };
@@ -722,7 +721,6 @@
       });
       btnAutoLayout.addEventListener('click', () => {
         autoTidy = !autoTidy;
-        try { localStorage.setItem('usecase-auto-tidy', autoTidy ? 'on' : 'off'); } catch (e) {}
         updateButtons();
         if (autoTidy && !presenting()) commit(true);
       });

@@ -94,6 +94,10 @@
     .swimlane.lane-dragging .lane-pill { opacity: 0.45; }
 
     /* Empty left gutter that indents nodes past the lane name pill (width set by sizeLaneGutter) */
+    /* While the lane backdrops morph (direction switch), the real lane backgrounds and dividers wait */
+    .lane-morph .lane-track, .lane-morph .lane-gutter { background: transparent !important; transition: none; }
+    .lane-morph .swimlane { border-color: transparent !important; }
+    #swimlanes-container.lane-morph { background: transparent !important; border-color: transparent !important; box-shadow: none !important; }
     .lane-gutter {
       flex: none;
       width: var(--lane-gutter, 0px);
@@ -723,7 +727,7 @@
     /* Columns are narrow, so a long lane name wraps (up to two lines) instead of being cut off */
     #swimlanes-container.dir-tb .lane-pill { white-space: normal; border-radius: var(--radius-2xl); justify-content: center; }
     #swimlanes-container.dir-tb .lane-pill .lane-title {
-      display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere;
+      display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; text-overflow: clip; overflow-wrap: anywhere;
     }
     /* Top-to-bottom: the pill is centred on its column (see pinLaneHeaders), wrapped names too, and so in exports */
     #swimlanes-container.dir-tb .lane-pill { text-align: center; }

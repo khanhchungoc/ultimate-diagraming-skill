@@ -285,8 +285,7 @@
       let dragStartY = 0;
       let dragStartGlobalX = 0;
       let dragStartGlobalY = 0;
-      let autoLayout = true;   // see AUTO LAYOUT
-      try { autoLayout = localStorage.getItem('flowchart-auto-layout') !== 'off'; } catch (e) {}
+      let autoLayout = true;   // see AUTO LAYOUT: always on for now (the button is hidden), so a saved 'off' is not read
       let dragCanInsert = false;   // the dragged node has no arrows, so it may be dropped into one
       let dragGroup = null;        // the other selected steps moving with draggingNode: [{ node, x, gy, lane }]
       let dragOrigin = null;       // where the drag started: { x, gy, lane, saved: [{ node, x, y, laneId }] }
@@ -294,6 +293,7 @@
       // Edge Connecting state
       let connectingFromNodeId = null;
       let connectingFromPort = null;
+      let connectingDownAt = null;       // where the anchor was pressed: a release close to it is a click, not a drag
       let connectingStartPoint = null;
 
       // Last computed arrow routes (renderEdges), and the arrow a dragged node would be inserted into
@@ -1934,7 +1934,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
                 const lo = Math.min(sy, ey) + 14, hi = Math.max(sy, ey) - 14;
                 for (let y = lo; y <= hi; y += 10) add([[sx, sy], [sx, y], [ex, y], [ex, ey]], Math.abs(y - (sy + ey) / 2));
               } else {
-                [14, 20, 28, 36, 48, 72].forEach(d => {
+                [28, 36, 48, 72].forEach(d => {
                   const g = fp === 'top' ? Math.min(sy, ey) - d : Math.max(sy, ey) + d;
                   if (g < 8) return;
                   add([[sx, sy], [sx, g], [ex, g], [ex, ey]]);
@@ -3385,6 +3385,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
       function startConnecting(e, nodeId, port) {
         connectingFromNodeId = nodeId;
         connectingFromPort = port;
+        connectingDownAt = { x: e.clientX, y: e.clientY };
         document.body.classList.add('connecting');
 
         const fromEl = document.getElementById(`node-${nodeId}`);
@@ -3434,6 +3435,16 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         const targetEl = document.elementFromPoint(ev.clientX, ev.clientY);
         const targetNodeEl = targetEl ? targetEl.closest('.flow-node') : null;
 
+        // A click on the anchor (not dragged; the anchor itself ignores the pointer while connecting, so a release
+        // there may land on the lane): connect to the nearest step in its direction
+        if (connectingDownAt && connectingFromPort && Math.hypot(ev.clientX - connectingDownAt.x, ev.clientY - connectingDownAt.y) < 6) {
+          const t = nearestNodeInDirection(connectingFromNodeId, connectingFromPort);
+          if (t) createConnection(connectingFromNodeId, t);
+          else flashHint('No step in that direction');
+          cancelConnecting();
+          return;
+        }
+
         if (targetNodeEl) {
           const targetNodeId = targetNodeEl.dataset.nodeId;
           if (targetNodeId && targetNodeId !== connectingFromNodeId) {
@@ -3441,15 +3452,6 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
             cancelConnecting();
             return;
           }
-        }
-
-        // A click on the anchor (released on the source step, not dragged): connect to the nearest step that way
-        if (targetNodeEl && connectingFromPort) {
-          const t = nearestNodeInDirection(connectingFromNodeId, connectingFromPort);
-          if (t) createConnection(connectingFromNodeId, t);
-          else flashHint('No step in that direction');
-          cancelConnecting();
-          return;
         }
 
         // Released away from any node: drop the connection attempt
@@ -3591,6 +3593,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
       function cancelConnecting() {
         connectingFromNodeId = null;
         connectingFromPort = null;
+        connectingDownAt = null;
         connectingStartPoint = null;
         document.body.classList.remove('connecting');
         dragEdge.style.display = 'none';
@@ -4291,6 +4294,9 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         }, { duration: 210, skipFreeNotes: true });
       });
 
+      // A whole-diagram layout change (switching direction, Tidy) moves every step at once: slower than a single edit
+      const BIG_MS = 520;
+
       // --- DIRECTION TOGGLE ---
       // Switches between left-to-right and top-to-bottom ("direction": "TB" in the data, so it is saved with the
       // file and undoable). Node positions mean different things in each, so the switch always re-runs the layout.
@@ -4303,7 +4309,46 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         btnDirection.title = next === 'TB' ? 'Switch to a top-to-bottom layout' : 'Switch to a left-to-right layout';
         btnDirection.setAttribute('aria-label', label);
       }
+      // The lanes change shape on a direction switch (rows become columns). A lane box holds its steps, so scaling it would
+      // stretch them: instead one childless backdrop per lane morphs from the old box to the new one behind the steps while
+      // the real lane backgrounds are hidden. One transform animation per lane, so the cost follows the lane count, not the
+      // step count.
+      const laneBoxes = () => {
+        const m = new Map([...lanesRoot.querySelectorAll('.swimlane[data-lane-id]')].map(el => [el.dataset.laneId, el.getBoundingClientRect()]));
+        m.set('', swimlanesContainer.getBoundingClientRect());   // the card behind the lanes (key '': no lane has an empty id)
+        return m;
+      };
+      function morphLaneBackdrops(prev) {
+        if (!motion.enabled() || prev.size < 2) return;
+        const cr = swimlanesContainer.getBoundingClientRect();
+        const k = (swimlanesContainer.offsetWidth ? cr.width / swimlanesContainer.offsetWidth : scale) || 1;
+        const dur = Math.max(40, Math.round(BIG_MS * motion.speedScale())), eas = motion.curve('curve-inout');
+        const made = [];
+        const backdrop = (from, to, css) => {
+          if (!from || !to.width || !to.height) return;
+          const back = document.createElement('div');
+          back.setAttribute('data-export-skip', '');
+          back.style.cssText = `position:absolute;box-sizing:border-box;pointer-events:none;transform-origin:0 0;left:${(to.left - cr.left) / k}px;top:${(to.top - cr.top) / k}px;width:${to.width / k}px;height:${to.height / k}px;${css}`;
+          swimlanesContainer.insertBefore(back, lanesRoot);
+          const a = back.animate([{ transform: `translate(${(from.left - to.left) / k}px, ${(from.top - to.top) / k}px) scale(${from.width / to.width}, ${from.height / to.height})` }, { transform: 'none' }], { duration: dur, easing: eas });
+          made.push(a);
+          a.addEventListener('finish', () => back.remove(), { once: true });
+          a.addEventListener('cancel', () => back.remove(), { once: true });
+        };
+        // The card first (the lanes sit on it): its own look is copied, then hidden while the backdrops run
+        const card = getComputedStyle(swimlanesContainer);
+        backdrop(prev.get(''), cr, `left:-${card.borderLeftWidth};top:-${card.borderTopWidth};background:${card.backgroundColor};border:${card.border};border-radius:${card.borderRadius};box-shadow:${card.boxShadow}`);
+        lanesRoot.querySelectorAll('.swimlane[data-lane-id]').forEach(el => {
+          const track = el.querySelector('.lane-track');
+          if (track) backdrop(prev.get(el.dataset.laneId), el.getBoundingClientRect(), `background:${getComputedStyle(track).backgroundColor}`);
+        });
+        if (!made.length) return;
+        swimlanesContainer.classList.add('lane-morph');
+        Promise.allSettled(made.map(a => a.finished)).then(() => swimlanesContainer.classList.remove('lane-morph'));
+      }
+
       if (btnDirection) btnDirection.addEventListener('click', () => {
+        const prevLanes = laneBoxes();
         withMotion(() => {
           if (isTB()) delete chartData.direction;
           else chartData.direction = 'TB';
@@ -4315,8 +4360,8 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           layoutOtherFlows();
           render();
           updateStatus(true);
-        }, { duration: 260, forceDrawEdges: true });
-        fitView(true);
+        }, { duration: BIG_MS });   // arrows morph from their old routes (as in Tidy); the view stays where the reader had it
+        morphLaneBackdrops(prevLanes);
       });
 
       // --- AUTO LAYOUT TOGGLE ---
@@ -4332,7 +4377,6 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
       }
       if (btnAutoLayout) btnAutoLayout.addEventListener('click', () => {
         autoLayout = !autoLayout;
-        try { localStorage.setItem('flowchart-auto-layout', autoLayout ? 'on' : 'off'); } catch (e) {}
         updateAutoLayoutButton();
         if (autoLayout) relayout();
       });
@@ -5837,7 +5881,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         contentEl: swimlanesContainer,
         report: { node: '.flow-node', label: '.edge-label', labelText: '.edge-label-text', nodeText: '.node-label' },
         render: () => withMotion(render, { ghostExit: true, ghosts: true }),
-        tidy: () => withMotion(() => { layoutDiagram(chartData); render(); updateStatus(true); }, { duration: 220, skipFreeNotes: true }),
+        tidy: () => withMotion(() => { layoutDiagram(chartData); render(); updateStatus(true); }, { duration: BIG_MS, skipFreeNotes: true }),
         eachTab,
         isBackground: (el) => (isPresenting() && !!el.closest('.flow-node:not(.type-connector)')) || el.id === 'swimlanes-container' || el.classList.contains('lane-track') || el.classList.contains('lane-gutter'),
         clearSelection() {

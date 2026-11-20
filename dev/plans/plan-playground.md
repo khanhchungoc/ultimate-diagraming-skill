@@ -45,3 +45,7 @@ Spike with two dummy pages in one artifact: confirm that (a) a link from one pag
 ## Not doing
 
 Converting between types, keeping a draft per type, several diagrams in one file, saving back into the artifact, a live Mermaid side panel. Each can come later without changing this layout.
+
+## Update: starter flows
+
+Each type now opens on a small starter flow instead of an empty page (`dev/playground/<type>.json`, read by `build_playground.py`): flowchart Start → step → End (Start and End are always there), sequence two participants and a request/response, ER two linked tables, use case one actor linked to one use case. `blank.json` stays the empty template for the skill itself.

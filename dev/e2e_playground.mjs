@@ -63,13 +63,13 @@ try {
   const count = (sel) => page.locator(sel).count();
 
   await page.goto(`${base}/index.html`);
-  await page.waitForURL('**/flowchart/index.html', { timeout: 5000 }).then(() => check('the root opens the flowchart', true), () => check('the root opens the flowchart', false, page.url()));
+  await page.waitForURL(/\/flowchart\/index\.html/, { timeout: 5000 }).then(() => check('the root opens the flowchart', true), () => check('the root opens the flowchart', false, page.url()));
 
   for (const id of ids) {
     const T = TYPES[id];
     await open(id);
     const menuItems = await page.locator('#type-menu [role=menuitemradio]').evaluateAll((els) => els.map((e) => [e.dataset.type, e.getAttribute('aria-checked')]));
-    check(`${id}: blank page, menu lists the four types with only this one checked`,
+    check(`${id}: starter page, menu lists the four types with only this one checked`,
       JSON.stringify(menuItems.map((m) => m[0])) === JSON.stringify(ids) && menuItems.filter((m) => m[1] === 'true').map((m) => m[0]).join() === id, JSON.stringify(menuItems));
     check(`${id}: the title is the type's blank title and the page is not unsaved`, (await page.locator('#chart-title').textContent()) === T.name && !(await unsaved()));
     // Nothing drawn yet: Fit, Tidy and the exports must not fail on zero items
@@ -77,8 +77,9 @@ try {
     for (const sel of ['[data-export="svg"]', '[data-export="png"]', '[data-copy="svg"]']) {
       await page.click('#btn-export'); await page.click(sel); await page.waitForTimeout(250);
     }
-    check(`${id}: Fit, Tidy and every export work on the blank page (no errors, still not unsaved)`, errors.length === 0 && !(await unsaved()), errors.join(' | '));
+    check(`${id}: Fit, Tidy and every export work on the starter page (no errors, still not unsaved)`, errors.length === 0 && !(await unsaved()), errors.join(' | '));
     const before = await count(T.items);
+    check(`${id}: opens on a starter flow, not an empty page`, before >= 2, String(before));
     for (const sel of T.add) await (sel[0] === '@' ? page.locator(sel.slice(1)).first().click() : page.click(sel));
     await page.waitForTimeout(300);
     check(`${id}: adding from the dock draws an item and marks the page unsaved`, (await unsaved()) && ((await count(T.items)) > before), `${before} -> ${await count(T.items)}`);
@@ -113,7 +114,7 @@ try {
   await open('flowchart');
   const open_menu = () => page.click('#btn-type');
   await open_menu(); await page.click('#type-menu [data-type="erd"]');
-  check('flowchart, no edits: switching goes straight to the ER diagram', await page.waitForURL('**/erd/index.html', { timeout: 5000 }).then(() => true, () => false), page.url());
+  check('flowchart, no edits: switching goes straight to the ER diagram', await page.waitForURL(/\/erd\/index\.html/, { timeout: 5000 }).then(() => true, () => false), page.url());
   await page.waitForSelector('#chart-title');
 
   await open('flowchart');
@@ -124,19 +125,19 @@ try {
   await page.click('.confirm .confirm-cancel');
   check('Cancel stays on the flowchart with its edit', page.url().endsWith('/flowchart/index.html') && (await count('[data-node-id]')) > 0);
   await open_menu(); await page.click('#type-menu [data-type="sequence"]');
-  await Promise.all([page.waitForURL('**/sequence/index.html'), page.click('.confirm .confirm-ok')]);
+  await Promise.all([page.waitForURL(/\/sequence\/index\.html/), page.click('.confirm .confirm-ok')]);
   await page.waitForSelector('#chart-title'); await page.waitForTimeout(300);
   check('Switch lands on a blank sequence diagram (not unsaved, no messages)', !(await unsaved()) && (await page.locator('#chart-title').textContent()) === 'Sequence diagram');
   await open_menu(); await page.click('#type-menu [data-type="flowchart"]');
-  await page.waitForURL('**/flowchart/index.html');
+  await page.waitForURL(/\/flowchart\/index\.html/);
   await page.waitForSelector('#chart-title'); await page.waitForTimeout(300);
-  check('switching back shows the flowchart blank again', (await count('[data-node-id]')) === 0 && !(await unsaved()));
+  check('switching back shows the flowchart starter again', (await count('.flow-node')) === 3 && !(await unsaved()), String(await count('.flow-node')));
 
   // The confirm's Save choice downloads, then switches
   await page.click('#btn-add-shape'); await page.click('#btn-add-step'); await page.waitForTimeout(300);
   await open_menu(); await page.click('#type-menu [data-type="usecase"]');
   const [dl2] = await Promise.all([page.waitForEvent('download'), page.click('.confirm .confirm-alt')]);
-  await page.waitForURL('**/usecase/index.html');
+  await page.waitForURL(/\/usecase\/index\.html/);
   check('Save in the confirm downloads the file, then switches', dl2.suggestedFilename().endsWith('.html'));
 
   check('no page errors', errors.length === 0, errors.join(' | '));
