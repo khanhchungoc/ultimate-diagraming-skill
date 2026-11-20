@@ -35,10 +35,10 @@ try {
   // 1. Selecting a step without a note shows its "+" chip; N opens an empty note
   const startCount = await t.ev(countOf);
   await t.ev(t.drag(N));
-  const chip = await t.ev(visible(`document.querySelector('${N} .note-add')`));
+  const chip = await t.ev(visible(`document.querySelector('${N} .node-bar [data-act="note"]')`));
   await t.ev(t.key('n'));
   const editing = await t.ev(`document.activeElement && document.activeElement.classList.contains('note-text') && document.activeElement.isContentEditable`);
-  t.check('a selected step shows the + chip, and N opens an empty note for typing', chip && editing, `chip=${chip} editing=${editing}`);
+  t.check('a selected step shows the note button of its bar (no hover + chip), and N opens an empty note for typing', chip && editing, `chip=${chip} editing=${editing}`);
 
   // 2. Enter adds a line; Ctrl+Enter commits: the node gets a badge, the Notes button counts it
   await t.ev(`document.execCommand('insertText', false, 'Checked against the product checklist')`);

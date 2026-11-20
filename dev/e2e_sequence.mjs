@@ -597,8 +597,8 @@ try {
   t.check('a wobble along a lifeline draws nothing', msgsAfter === msgsBefore, `${msgsBefore} -> ${msgsAfter}`);
   const barClick = await barAt('p4', await gapY('m2', 'm3'));
   await t.click(barClick.x, barClick.y);
-  t.check('a click on an activation bar selects its participant',
-    await t.ev(`document.querySelector('.seq-participant.selected')?.dataset.nodeId`) === 'p4');
+  t.check('a click on an activation bar (or a lifeline) selects nothing: the bar belongs to the pill',
+    await t.ev(`document.querySelector('.seq-participant.selected')?.dataset.nodeId ?? null`) === null && (await count('.seq-actionbar')) === 0);
 
   // Keyboard: arrows walk, Enter edits, Tab moves to the detail, Alt+Down moves, Shift+Down grows a range
   await t.open(page);
@@ -653,6 +653,7 @@ try {
   t.check('long sequence opens at readable zoom (>= 0.85) with top of canvas visible at top of viewport',
     initScale >= 0.85 && initView.cTop >= initView.vTop && initView.cTop < initView.vTop + 80, `${initScale} ${JSON.stringify(initView)}`);
   await t.clickOn('#btn-zoom-reset');
+  await sleep(500);   // the camera glides (dur-camera); read the settled scale
   const fitScale = await stageScale();
   t.check('Fit (#btn-zoom-reset) zooms a long diagram out to show the whole diagram (< 0.5)', fitScale > 0 && fitScale < 0.5, String(fitScale));
   t.check('the long page renders every message, frame and note without errors',
@@ -905,12 +906,12 @@ try {
     && !/What does/.test(svgOut), `${svgOut.includes('Our services')} ${/stroke:rgb\(47, 125, 168\)/.test(svgOut)} ${(svgOut.match(/.{30}What does.{30}/) || [''])[0]}`);
   // Clearing: "none" removes the colour, and an unused key entry is dropped on save
   await t.clickOn('.seq-participant[data-node-id="p2"]');
-  await t.clickOn('.seq-actionbar .swatch-btn[data-value=""]');
+  await t.clickOn('.seq-actionbar .swatch-btn[data-value="#ffffff"]');
   d = await saved();
-  t.check('"none" clears the colour; a key entry no participant uses is dropped on save',
-    (await boxStyle('p2')).bg === plain.bg && d.participants[1].color === undefined && d.colorKey && !(SKY in d.colorKey) && AMBER in d.colorKey, JSON.stringify(d.colorKey));
+  t.check('the first swatch is a real white (not the colour by position); a key entry no participant uses is dropped on save',
+    d.participants[1].color === '#ffffff' && d.colorKey && !(SKY in d.colorKey) && AMBER in d.colorKey, JSON.stringify(d.colorKey));
   await t.clickOn('.seq-participant[data-node-id="p3"]');
-  await t.clickOn('.seq-actionbar .swatch-btn[data-value=""]');
+  await t.clickOn('.seq-actionbar .swatch-btn[data-value="#ffffff"]');
   d = await saved();
   t.check('with no colour left, the key goes too', d.colorKey === undefined && (await count('.seq-key')) === 0, JSON.stringify(d.colorKey));
   // Contrast: every swatch's line colour on the panel and on a frame's wash (one or two layers), both themes

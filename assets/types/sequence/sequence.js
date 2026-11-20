@@ -49,6 +49,7 @@
       // A participant's colour: a palette slot or a custom hex (drawn with the run-time derivation), or none. Anything else is
       // drawn as no colour (the audit reports it). The element then reads the swatch's shades from its slot (data-sw, see
       // setSwatch in shell.js; --sw-stripe, --sw-line, ...).
+      const WHITE = '#ffffff';   // tokens-ok: the stored value of a white participant (a custom colour in the data, not styling)
       const swatchOf = (p) => {
         const c = p && p.color ? colorSlot(p.color) : null;
         return c && (swatchSlot(c) || /^#[0-9a-f]{3,8}$/i.test(c)) ? c : null;
@@ -462,14 +463,15 @@
             box.title = p.name;
           }
         });
-        // Insert a participant between two boxes, or at the right end (shown while the pointer is on the row)
-        ps.forEach((p, i) => {
-          const x = i + 1 < ps.length ? (p.x + ps[i + 1].x) / 2 : p.x + (p.rail ? SQ.RAIL_W : SQ.BOX_W) / 2 + 26;
+        // Insert a participant between two boxes, or past either end (only the one nearest the pointer shows, see onCanvasHover)
+        const half = (p) => (p.rail ? SQ.RAIL_W : SQ.BOX_W) / 2;
+        [-1].concat(ps.map((p, i) => i)).forEach((i) => {
+          const x = i < 0 ? ps[0].x - half(ps[0]) - 26 : i + 1 < ps.length ? (ps[i].x + ps[i + 1].x) / 2 : ps[i].x + half(ps[i]) + 26;
           const ins = htmlEl('button', 'seq-insert', { left: px(x), top: px(SQ.TOP + SQ.BOX_H / 2) });
           ins.type = 'button';
-          ins.dataset.index = i + 1;
+          ins.dataset.index = i + 1;   // -1 is the left end: index 0
           ins.dataset.exportSkip = '';
-          ins.title = i + 1 < ps.length ? 'Insert a participant here' : 'Add a participant at the right end';
+          ins.title = i >= 0 && i + 1 < ps.length ? 'Insert a participant here' : `Add a participant at the ${i < 0 ? 'left' : 'right'} end`;
           ins.setAttribute('aria-label', ins.title);
           ins.textContent = '+';
           seqHtml.appendChild(ins);
@@ -542,7 +544,7 @@
         // Colour key: the swatches in use and what each means ("colorKey"), above the card's top-left corner. An entry
         // with no label yet is a prompt in edit, and left out of ?present and exports.
         const used = [];
-        ps.forEach((p) => { const sw = swatchOf(p); if (sw && !used.includes(sw)) used.push(sw); });
+        ps.forEach((p) => { const sw = swatchOf(p); if (sw && swatchSlot(sw) && !used.includes(sw)) used.push(sw); });   // a white (hex) is no legend entry
         const key = ui.colorKey(used, chartData.colorKey, { prompts: true, cls: 'seq-key' });
         if (key) seqHtml.appendChild(key);
         applySelection();
@@ -1076,8 +1078,10 @@
         pendingColorAnim = slot ? captureColorStyles('participant', pid) : null;
         if (slot) {
           p.color = slot;
-          chartData.colorKey = chartData.colorKey || {};
-          if (!(slot in chartData.colorKey)) chartData.colorKey[slot] = '';
+          if (swatchSlot(slot)) {   // a white (hex) is no legend entry
+            chartData.colorKey = chartData.colorKey || {};
+            if (!(slot in chartData.colorKey)) chartData.colorKey[slot] = '';
+          }
         } else delete p.color;
         relayout();
       }
@@ -1246,7 +1250,15 @@
         if (seqDrag || isPresent() || !chartData.layout || document.body.classList.contains('seq-dragging')) { hidePlus(); return; }
         hoverBarHandle(e.target);
         const pt = canvasPoint(e);
-        seqCanvas.classList.toggle('seq-row-hover', pt.y < SQ.TOP + SQ.BOX_H + 22 && pt.y > 0);
+        // Only the + nearest the pointer shows, within a short reach: a gap between two boxes, or past either end
+        const inRow = pt.y < SQ.TOP + SQ.BOX_H + 22 && pt.y > 0;
+        let near = null;
+        seqHtml.querySelectorAll('.seq-insert').forEach((el) => {
+          const d = Math.abs(parseFloat(el.style.left) - pt.x);
+          if (inRow && d < 40 && (!near || d < near.d)) near = { el, d };
+          el.classList.remove('is-near');
+        });
+        if (near) near.el.classList.add('is-near');
         if (e.target === seqPlus) return;
         // On a lifeline the + wins over a frame's border or a branch divider crossing it
         const free = e.target === seqCanvas || e.target === seqSvg || e.target === seqHtml || e.target.classList.contains('seq-pin-band')
@@ -1270,7 +1282,7 @@
         seqPlus.dataset.slot = slots.indexOf(slot);
       }
       seqCanvas.addEventListener('pointermove', onCanvasHover);
-      seqCanvas.addEventListener('pointerleave', () => { hidePlus(); seqCanvas.classList.remove('seq-row-hover'); });
+      seqCanvas.addEventListener('pointerleave', () => { hidePlus(); seqHtml.querySelectorAll('.seq-insert.is-near').forEach((el) => el.classList.remove('is-near')); });
       // fromLine: the drag started on a lifeline or an activation bar, not on the + (a click there selects the
       // participant). A message needs the pointer near the lifeline it lands on (SNAP_MAX, or a third of the gap to the
       // next lifeline when that is less); a self-message needs the pointer to have gone SELF_OUT out from the lifeline and
@@ -1290,7 +1302,7 @@
           const to = snapTarget(pt.x);
           return to && to.id === from.id && d.away < SELF_OUT ? null : to;
         };
-        const click = () => { hidePlus(); select('participant', from.id); };   // the + sits on the lifeline: a click on it is a click on the lifeline
+        const click = () => { hidePlus(); select(null); };   // a click on a lifeline (or on the + on it) selects nothing: the bar belongs to the pill
         return {
           move(pt, d) {
             hidePlus();
@@ -1620,7 +1632,7 @@
         seqHtml.appendChild(h);
       }
       // The selection's delete button: an icon only, its tooltip says what goes
-      const delButton = (title, icon = 'trash') => abButton('delete', ui.icon(icon), title);
+      const delButton = (title, icon = 'trash') => ui.abButton('seq-ab-btn', 'delete', ui.icon(icon), title, undefined, undefined, 'is-danger');
       const delSep = () => ui.abSep('seq-ab-sep');
       function drawSelectionTools(sel) {
         if (barGhostAnim) { try { barGhostAnim.cancel(); } catch (_) {} barGhostAnim = null; }
@@ -1657,7 +1669,7 @@
           bar.appendChild(delSep());
           bar.appendChild(delButton('Delete this message (Delete key)'));
           const self = m.from === m.to;
-          at = { x: self ? a.x + SQ.SELF_LOOP + 60 : (a.x + b.x) / 2, y: m.y - 62 };
+          at = { x: self ? a.x + SQ.SELF_LOOP + 60 : (a.x + b.x) / 2, top: m.y - 24, bottom: m.y + 10 };
           addBarHandle(m.id);
           // End handles: drag one to another lifeline to move that end
           if (self) { addHandle('from', m.id, a.x, m.y, 'seq-end'); addHandle('to', m.id, a.x, m.y + 28, 'seq-end'); }
@@ -1677,7 +1689,7 @@
           bar.appendChild(delSep());
           bar.appendChild(delButton('Delete this participant and its messages (Delete key)'));
           bar.appendChild(htmlEl('span', 'seq-ab-break'));
-          bar.appendChild(swatchRow(swatchOf(p) || '', (slot) => setParticipantColor(p.id, slot), { btnClass: 'seq-ab-swatch' }));
+          bar.appendChild(swatchRow(swatchOf(p) || '', (slot) => setParticipantColor(p.id, slot), { btnClass: 'seq-ab-swatch', white: WHITE }));
           if (p.column) {
             bar.appendChild(htmlEl('span', 'seq-ab-sep'));
             bar.appendChild(abButton('own', '<span>Own column</span>', 'Give this participant a column of its own again'));
@@ -1686,8 +1698,8 @@
           const sp = chartData.lifespans && p.top !== undefined ? seqSpan(p.id, false) : null;
           if (sp && sp[0] > 0) addHandle('pstart', p.id, p.x, p.top, 'seq-edge');
           if (sp) addHandle('pend', p.id, p.x, p.bottom, 'seq-edge');
-          at = { x: p.x, y: p.top === undefined ? SQ.TOP + (p.rail ? SQ.RAIL_H : SQ.BOX_H) + 8 : p.top + (p.rail ? SQ.RAIL_H : SQ.BOX_H) + 8 };
-          bar.classList.add('is-below');
+          const pTop = p.top === undefined ? SQ.TOP : p.top;
+          at = { x: p.x, top: pTop, bottom: pTop + (p.rail ? SQ.RAIL_H : SQ.BOX_H), pill: true };
         } else if (sel.kind === 'fragment') {
           const f = fragById(sel.id);
           if (!f || f.x === undefined) return;
@@ -1697,13 +1709,13 @@
           const row1 = htmlEl('div', 'seq-ab-row'), row2 = htmlEl('div', 'seq-ab-row');
           FRAG_KINDS.forEach((k) => row1.appendChild(abButton('fkind', `<span>${k}</span>`, `Kind: ${k}`, f.kind === k, k)));
           row1.appendChild(delSep());
-          row1.appendChild(abButton('delete-frame', ui.icon('trash'), 'Delete the frame (asks whether to keep its messages)'));
+          row1.appendChild(ui.abButton('seq-ab-btn', 'delete-frame', ui.icon('trash'), 'Delete the frame (asks whether to keep its messages)', undefined, undefined, 'is-danger'));
           row2.appendChild(abButton('color', '<span class="seq-swatch is-none"></span>', 'No colour', !f.color, ''));
           const fc = swatchOf(f);
           PALETTE.forEach((w) => row2.appendChild(abButton('color', `<span class="seq-swatch" data-sw="${w.slot}"></span>`, `Colour: ${w.name}`, fc === w.slot, w.slot)));
           bar.append(row1, row2);
           // Focus lives in the frame's tag only. Two rows tall: clear of the tag and the top handle
-          at = { x: f.x + 150, y: f.y - 76 };
+          at = { x: f.x + 150, top: f.y, bottom: f.y + 30 };
           if (!f.collapsed) {
             addHandle('top', f.id, f.x + f.w / 2, f.y, 'seq-edge');
             addHandle('bottom', f.id, f.x + f.w / 2, f.y + f.h, 'seq-edge');
@@ -1723,7 +1735,7 @@
           addHandle('stretch', n.id, n.x + n.w, n.y + n.h / 2, 'seq-stretch');
           bar.setAttribute('aria-label', 'Note');
           bar.appendChild(delButton('Delete this note (Delete key)'));
-          at = { x: n.x + n.w / 2, y: n.y - 40 };
+          at = { x: n.x + n.w / 2, top: n.y, bottom: n.y + n.h };
         } else if (sel.kind === 'message' && sel.ids) {
           // A range of messages: frame it, or delete it
           const ms = sel.ids.map(msgById).filter((m) => m && !m.hidden);
@@ -1733,19 +1745,24 @@
           bar.appendChild(delSep());
           bar.appendChild(delButton('Delete the selected messages (Delete key)'));
           const top = ms.reduce((u, v) => (v.y < u.y ? v : u)), a = byId[top.from], b = byId[top.to];
-          at = { x: a && b ? (a.x + b.x) / 2 : top.y, y: top.y - 62 };
+          at = { x: a && b ? (a.x + b.x) / 2 : top.y, top: top.y - 24, bottom: top.y + 10 };
         } else if (sel.kind === 'divider') {
           const f = fragById(sel.id), dv = f && (f.dividers || []).find((d) => d.at === sel.at);
           if (!dv) return;
           bar.setAttribute('aria-label', 'Branch');
           bar.appendChild(delButton('Remove this branch divider (Delete key)'));
-          at = { x: f.x + f.w / 2, y: dv.y - 44 };
+          at = { x: f.x + f.w / 2, top: dv.y, bottom: dv.y + 10 };
         } else {
           return;
         }
-        Object.assign(bar.style, { left: px(at.x), top: px(Math.max(2, at.y)) });
+        bar.style.left = px(at.x);   // before measuring: how far it has to the right edge decides how it wraps
         seqHtml.appendChild(bar);
         if (bar.classList.contains('is-wrap')) ui.fitBar(bar);
+        // Over the anchor, or under it when there is no room above in the window (by where it is on screen: a pill rides the pinned row)
+        const pillEl = at.pill && seqHtml.querySelector(`.seq-participant[data-node-id="${CSS.escape(sel.id)}"]`);
+        const above = ui.roomAbove(pillEl || { getBoundingClientRect: () => ({ top: seqHtml.getBoundingClientRect().top + at.top * scale }) }, bar, scale);
+        if (at.pill) bar.classList.add('is-pill');
+        bar.style.top = px(above ? at.top - 8 - bar.offsetHeight : at.bottom + 8);
         if (fromRect && fromRect.width > 0) barGhostAnim = motion.ghostMorph(fromRect, bar, 170, 'curve-spring-settle');
         else motion.showBar(bar);
       }

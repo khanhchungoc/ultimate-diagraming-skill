@@ -1,4 +1,4 @@
-// Flowchart lane action bar: the colour row, rename, move earlier / later and delete over a selected lane's pill (the manual-parity
+// Flowchart lane action bar: the colour row, rename, delete and the colour row over a selected lane's pill (the manual-parity
 // plan, part A: everything the AI can set in a lane's `color` a person can set in the editor; the icon stays AI-only).
 //   node dev/e2e_lanes.mjs --browser <chrome> --page <default.html> [--tb <default-tb.html>]
 // --page: assets/types/flowchart/default.json (two lanes) laid out with `layout_engine.py --layout`.
@@ -37,9 +37,8 @@ try {
   t.check('the bar sits over the pill (or under it near the top of the window) and follows it', await t.ev(`(() => {
     const bar = document.querySelector(${J(bar())}), p = bar.parentElement.getBoundingClientRect(), r = bar.getBoundingClientRect();
     return bar.classList.contains('is-below') ? r.top >= p.bottom - 1 : r.bottom <= p.top + 1; })()`));
-  t.check('the first lane has no earlier button and the last no later button',
-    await t.ev(`(() => { const L = document.querySelectorAll('.swimlane'); return !L[0].querySelector('[data-act="earlier"]') && !!L[0].querySelector('[data-act="later"]')
-      && !L[L.length - 1].querySelector('[data-act="later"]') && !!L[L.length - 1].querySelector('[data-act="earlier"]'); })()`));
+  t.check('the lane bar has no move buttons (a lane moves by dragging its pill) and Rename is an icon with no label',
+    await t.ev(`(() => { const b = document.querySelector(${J(bar())}); return !b.querySelector('[data-act="earlier"], [data-act="later"]') && b.querySelector('[data-act="rename"]').textContent.trim() === ''; })()`));
   const auto = await sw(1);
 
   // 2. Colour: swatch 3 sets lane.color, none deletes it and the colour for its position returns
@@ -66,21 +65,10 @@ try {
   await undo();
   t.check('Ctrl+Z restores the old name', (await names())[1] === b);
 
-  // 4. A third lane: move later / earlier, delete
+  // 4. A third lane: delete
   await t.clickOn('#btn-add-lane');
   await sleep(300);
   t.check('adding a lane makes three', (await count('.swimlane')) === 3);
-  await selectLane(1);
-  await t.clickOn(bar(' [data-act="later"]'));
-  const afterLater = await names();
-  t.check('Move later swaps the lane with the next one', afterLater[1] === a && afterLater[0] === b, J(afterLater));
-  t.check('the moved lane stays selected with its bar', (await count(bar())) === 1 && await t.ev(`document.querySelector(${J(bar())}).closest('.swimlane').querySelector('.lane-title').textContent`) === a);
-  await t.clickOn(bar(' [data-act="earlier"]'));
-  t.check('Move earlier puts it back', J(await names()) === J([a, b, afterLater[2]]), J(await names()));
-  await undo();
-  t.check('Ctrl+Z undoes a move', (await names())[1] === a);
-  await undo();
-  t.check('and the next Ctrl+Z undoes the first move', (await names())[0] === a && (await names())[1] === b);
   const d = await saved();
   t.check('Save keeps the lane order and colour', d.lanes.map((l) => l.name)[0] === a && colorOf(d, b) === '3', J(d.lanes.map((l) => l.name)));
 
@@ -100,7 +88,7 @@ try {
   await t.ev(`document.querySelector('.confirm-ok').click()`);
   await selectLane(1);
   t.check('the only lane left has no delete button (nor move buttons)', (await count('.swimlane')) === 1 && (await count(bar())) === 1
-    && (await count(bar(' [data-act="delete"], .lane-bar [data-act="later"], .lane-bar [data-act="earlier"]'))) === 0);
+    && (await count(bar(' [data-act="delete"]'))) === 0);
   // One lane left: its bar can hide the lanes ("swimlanes": false); the Lane button then reads Show lanes and brings them back
   await t.clickOn(bar(' [data-act="hide"]'));
   t.check('Hide lanes turns the lane names off and saves "swimlanes": false', (await count('#swimlanes-container.no-swimlanes')) === 1 && (await saved()).swimlanes === false);
@@ -127,11 +115,7 @@ try {
   if (tb) {
     await t.open(tb);
     await selectLane(1);
-    t.check('top to bottom: the bar shows and its arrows turn sideways', await t.ev(`(() => {
-      const m = document.querySelector('.swimlane.lane-selected .lane-bar [data-act="later"]'); return !!m && getComputedStyle(m.querySelector('svg')).rotate !== 'none' && /right/.test(m.title); })()`));
-    const first = (await names())[0];
-    await t.clickOn(bar(' [data-act="later"]'));
-    t.check('top to bottom: Move later moves the column right', (await names())[1] === first, J(await names()));
+    t.check('top to bottom: the bar shows with no move buttons', await t.ev(`!!document.querySelector('.swimlane.lane-selected .lane-bar') && !document.querySelector('.lane-bar [data-act="later"]')`));
   }
 
   // 8. Touch: a tap on a pill selects the lane and a tap on a swatch colours it (the pointer events a finger produces)

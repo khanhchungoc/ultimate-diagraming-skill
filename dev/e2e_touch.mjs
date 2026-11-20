@@ -69,7 +69,7 @@ const pin = await t.ev(`(() => {
 t.check('the participant row pins once panned off by touch', pin.pinned);
 t.check('the pinned row sits at the top of the viewport', pin.boxTop >= pin.vpTop - 1 && pin.boxTop < pin.vpTop + 60, `${pin.boxTop} vs ${pin.vpTop}`);
 
-// --- Sequence: drawing a message by touch: tap a lifeline (selects its participant), then drag from it ---
+// --- Sequence: drawing a message by touch: tap its participant's pill (a lifeline tap selects nothing), then drag from the lifeline ---
 const ids = await t.ev(`[...document.querySelectorAll('.seq-participant')].map((e) => e.dataset.nodeId)`);
 const lineX = (pid) => t.ev(`(() => { const r = document.querySelector('.seq-life-hit[data-pid="${pid}"]').getBoundingClientRect(); return r.left + r.width / 2; })()`);
 const msgCount = () => t.ev(`document.querySelectorAll('.seq-msg-label').length`);
@@ -80,8 +80,9 @@ await drag(xa, ya, xb - xa, 0);
 const u1 = await view();
 t.check('a drag from an unselected lifeline pans and draws nothing', (await msgCount()) === n0 && Math.abs(u1.x - u0.x - (xb - xa)) < 2, `${n0} ${JSON.stringify([u0, u1])}`);
 const xa2 = await lineX(pa), xb2 = await lineX(pb);
-await tap(xa2, ya);
-t.check('a tap on a lifeline selects its participant', await t.ev(`document.querySelector('.seq-participant.selected')?.dataset.nodeId`) === pa);
+const pill = await t.ev(`(() => { const r = document.querySelector('.seq-participant[data-node-id="${pa}"]').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`);
+await tap(pill.x, pill.y);
+t.check('a tap on a participant pill selects it', await t.ev(`document.querySelector('.seq-participant.selected')?.dataset.nodeId`) === pa);
 await drag(xa2, ya, xb2 - xa2, 0);
 await sleep(300);
 const drew = await t.ev(`(() => { const a = document.activeElement; return !!a && a.isContentEditable; })()`);

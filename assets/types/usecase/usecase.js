@@ -872,7 +872,7 @@
       function noteBadgeEl(note) {
         const anchorId = note && linkedItems(note)[0];
         const host = anchorId && els.items.get(anchorId);
-        return host ? host.querySelector('.note-badge, .note-add') : null;
+        return host ? host.querySelector('.note-badge') : null;
       }
       function applyNoteVisibility(animate = false) {
         if (!notesLayer) return;
@@ -919,16 +919,7 @@
       function buildNoteBadge(o) {
         const notes = notesOfItem(o.id);
         if (!notes.length) {
-          if (presenting()) return null;
-          const add = htmlEl('button', 'note-add');
-          add.type = 'button';
-          add.dataset.exportSkip = '';
-          add.title = 'Add a note (N)';
-          add.setAttribute('aria-label', 'Add a note');
-          add.innerHTML = ui.icon('plus', { size: 'sm', bold: true });
-          add.addEventListener('pointerdown', (ev) => ev.stopPropagation());
-          add.addEventListener('click', (ev) => { ev.stopPropagation(); addNoteTo(o.id); });
-          return add;
+          return null;   // no hover (+): the action bar's note button adds one
         }
         const b = htmlEl('button', 'note-badge');
         b.type = 'button';
@@ -1187,7 +1178,7 @@
           else { const st = t.closest('.uc-subject-title'); if (st && !t.closest('.frame-chev')) selectOther('subject', st.parentNode.dataset.subjectId); }
           return;
         }
-        if (t.closest('.uc-actionbar, .confirm, .frame-chev, .note-badge, .note-add, .note-del, .note-link, .note')) return;
+        if (t.closest('.uc-actionbar, .confirm, .frame-chev, .note-badge, .note-del, .note-link, .note')) return;
         closeMenu();
         const grip = t.closest('.uc-subject-resize');
         if (grip) { e.preventDefault(); beginDrag(e, resizeDrag(grip.parentNode.dataset.subjectId)); return; }
@@ -1195,7 +1186,12 @@
         if (title) {
           const id = title.parentNode.dataset.subjectId;
           if (notePicking) return;
-          if (realSubjects().some((s) => s.id === id)) selectOther('subject', id); else setSel([], null);
+          if (realSubjects().some((s) => s.id === id)) {
+            selectOther('subject', id);
+            // Dragging the title moves the frame: it is drawn around its use cases, so they travel with it
+            const inside = (chartData.useCases || []).filter((u) => caseSubjectId(u) === id && placed(u)).map((u) => u.id);
+            if (inside.length) beginDrag(e, Object.assign(itemDrag(inside, true), { click: () => selectOther('subject', id) }));
+          } else setSel([], null);
           return;
         }
         if (!itemEl) return;
@@ -1257,7 +1253,7 @@
       }
 
       // --- Move actors and use cases (one or the whole selection) ---
-      function itemDrag(ids) {
+      function itemDrag(ids, keepSubject) {
         const targetSubjects = allSubjects();
         // Lines (and labels) of the moved items fade while they move, as they would lag behind; the drop re-routes them
         let faded = null;
@@ -1275,14 +1271,14 @@
             fade(true);
             ids.forEach((id) => { const el = els.items.get(id); if (el) { el.classList.add('is-dragging'); el.style.translate = `${d.dx}px ${d.dy}px`; } });
             canvas.querySelectorAll('.drop-target').forEach((el) => el.classList.remove('drop-target'));
-            if (ids.some((id) => kindOf(id) === 'case') && realSubjects().length) {
+            if (!keepSubject && ids.some((id) => kindOf(id) === 'case') && realSubjects().length) {
               const s = subjectAt(canvasPoint(e)), el = s && els.subjects.get(s.id);
               if (el) el.classList.add('drop-target');
             }
           },
           drop(e, d) {
             const dx = Math.round(d.dx), dy = Math.round(d.dy);
-            const s = realSubjects().length ? subjectAt(canvasPoint(e)) : null;
+            const s = !keepSubject && realSubjects().length ? subjectAt(canvasPoint(e)) : null;
             let moved = false;
             ids.forEach((id) => {
               const o = itemOf(id);
@@ -1706,7 +1702,7 @@
         html.appendChild(bar);
         ui.fitBar(bar);
         const C = chartData.canvas || { width: 1e9, height: 1e9 }, w = bar.offsetWidth, h = bar.offsetHeight;
-        const below = at.y < 110;
+        const below = !ui.roomAbove({ getBoundingClientRect: () => ({ top: canvas.getBoundingClientRect().top + at.y * scale }) }, bar, scale);   // by where the anchor is in the window
         bar.classList.toggle('is-below', below);
         const cx = Math.max(w / 2 - 30, Math.min(at.x, C.width - w / 2 + 30));
         Object.assign(bar.style, {
@@ -1756,7 +1752,7 @@
         if (!s || typeof s.x !== 'number') return null;
         bar.setAttribute('aria-label', 'Subject');
         bar.appendChild(abButton('collapse', `${ui.icon('chevron-down', { size: 'sm' })}<span>${s.collapsed ? 'Expand' : 'Collapse'}</span>`, s.collapsed ? 'Show the use cases again' : 'Collapse the subject to its name', s.collapsed === true));
-        bar.appendChild(abButton('rename', ui.icon('label'), 'Rename (F2)'));
+        bar.appendChild(abButton('rename', ui.icon('rename'), 'Rename (F2)'));
         bar.appendChild(abButton('delete', ui.icon('trash'), 'Delete the subject and its use cases', undefined, undefined, 'is-danger'));
         return anchorOfBox(boxOf(s));
       }
@@ -1952,7 +1948,7 @@
       html.addEventListener('dblclick', (e) => {
         if (presenting()) return;
         const t = e.target;
-        if (t.closest('.uc-actionbar, .frame-chev, .note-badge, .note-add, .uc-port, .note') || t.isContentEditable) return;
+        if (t.closest('.uc-actionbar, .frame-chev, .note-badge, .uc-port, .note') || t.isContentEditable) return;
         const ep = t.closest('.uc-ep');
         const item = t.closest('.uc-actor, .uc-case');
         if (item) { e.stopPropagation(); if (ep) editPoint(item.dataset.nodeId, Number(ep.dataset.index)); else editName(item.dataset.nodeId); return; }
@@ -2015,8 +2011,8 @@
           d.ghost.style.transform = `scale(${scale * 1.02})`;
           d.ghost.style.left = px(e.clientX - d.ghost.offsetWidth * scale / 2);
           d.ghost.style.top = px(e.clientY - d.ghost.offsetHeight * scale / 2);
-          const pt = canvasPoint(e), C = chartData.canvas || { width: 0, height: 0 };
-          const over = !!document.elementFromPoint(e.clientX, e.clientY)?.closest('#uc-canvas') && pt.x >= -40 && pt.y >= -40 && pt.x <= C.width + 40 && pt.y <= C.height + 40;
+          const pt = canvasPoint(e);
+          const over = !!document.elementFromPoint(e.clientX, e.clientY)?.closest('#viewport');   // anywhere on the view, also past the edge of a small canvas
           d.pt = over ? pt : null;
           d.id = kind === 'note' ? itemIdAt(e.clientX, e.clientY) : null;
           d.ghost.classList.toggle('off-target', kind === 'note' ? !d.id && !over : !over);

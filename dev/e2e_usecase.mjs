@@ -179,6 +179,23 @@ try {
   t.check('dragging the Actor tile onto blank canvas drops a new actor there, name open', (await count('.uc-actor')) === 8 && (await editing()) === 'New actor', `${await count('.uc-actor')}`);
   await t.press('Escape');
   await blank();
+  // a drop well past the edge of the canvas still adds (the whole view is a drop target)
+  const vp = await t.ev(`(() => { const r = document.getElementById('viewport').getBoundingClientRect(); return { x: r.left + 40, y: r.top + 60 }; })()`);
+  await dragTile('#btn-add-actor', vp.x, vp.y);
+  t.check('dragging a tile onto the empty view, outside the diagram, still adds it', (await count('.uc-actor')) === 9, `${await count('.uc-actor')}`);
+  await t.press('Escape');
+  await undo();
+  await blank();
+  // dragging a boundary's title moves the frame with its use cases
+  const subBefore = await t.ev(`(() => { const r = document.querySelector('.uc-subject[data-subject-id="shop"]').getBoundingClientRect(); return [r.left, r.top]; })()`);
+  const title = await t.at('.uc-subject[data-subject-id="shop"] .uc-subject-title', 0.5, 0.5);
+  await t.dragTo(title.x, title.y, title.x + 60, title.y + 40, { steps: 8 });
+  await sleep(300);
+  const subAfter = await t.ev(`(() => { const r = document.querySelector('.uc-subject[data-subject-id="shop"]').getBoundingClientRect(); return [r.left, r.top]; })()`);
+  t.check('dragging a subject title moves the frame', Math.abs(subAfter[0] - subBefore[0] - 60) < 6 && Math.abs(subAfter[1] - subBefore[1] - 40) < 6, `${subBefore} -> ${subAfter}`);
+  await undo();
+  await blank();
+  t.check('no hover "+" note chip on items (the action bar has the note button)', (await count('.note-add')) === 0);
   // a note by the dock: select a use case, then the Note tile
   await t.clickOn(item('pick'));
   await tile('#btn-add-note');
