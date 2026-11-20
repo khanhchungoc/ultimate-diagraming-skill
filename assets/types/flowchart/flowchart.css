@@ -471,7 +471,7 @@
     }
     /* The selected arrow's toolbar (an .actionbar): just right of the midpoint (past the label); hidden while an end is
        dragged, while the label is typed, in presentation and in capture. Its Connector button opens the menu below. */
-    .edge-bar { translate: 0 -50%; transform-origin: 0 50%; z-index: 33; pointer-events: auto; }
+    .edge-bar { translate: 0 calc(-100% - 8px); transform-origin: 0 50%; z-index: 33; pointer-events: auto; }
     body:is(.presentation, .capture, .reconnecting) .edge-bar { display: none !important; }
     .edge-split-menu {
       position: absolute;
