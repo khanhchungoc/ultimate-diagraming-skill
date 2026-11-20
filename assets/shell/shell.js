@@ -236,7 +236,26 @@
           bar.dataset.exportSkip = '';
           bar.setAttribute('role', 'toolbar');
           if (label) bar.setAttribute('aria-label', label);
+          // The show / hide chevron, first in every bar: one switch for all bars (body.bars-collapsed hides all but the chevron)
+          const t = document.createElement('button');
+          t.type = 'button';
+          t.className = 'ab-toggle';
+          t.innerHTML = icon('chevron-down', { size: 'xs', bold: true });
+          t.addEventListener('pointerdown', (e) => e.stopPropagation());
+          t.addEventListener('click', (e) => {
+            e.stopPropagation();
+            document.body.classList.toggle('bars-collapsed');
+            document.querySelectorAll('.ab-toggle').forEach(syncToggle);
+          });
+          syncToggle(t);
+          bar.appendChild(t);
           return bar;
+        }
+        function syncToggle(t) {
+          const off = document.body.classList.contains('bars-collapsed');
+          t.title = off ? 'Show the action bar' : 'Hide the action bar';
+          t.setAttribute('aria-label', t.title);
+          t.setAttribute('aria-expanded', String(!off));
         }
         function abButton(cls, act, html, title, pressed, value, extra) {
           const b = document.createElement('button');

@@ -407,13 +407,14 @@ sys.stdout.write(format_json(out))`;
   d = await saved();
   t.check('double-clicking a line without a label opens a label edit; Enter saves it and the pill appears',
     labelEdit === '' && rel(d, 'r8').label === 'reviews' && (await text('.edge-label[data-edge-id="r8"] .erd-rel-label-text')) === 'reviews', `${labelEdit} ${J(rel(d, 'r8'))}`);
+  await t.press('Escape');   // the three-row line bar would cover the label
   const lab = await t.at('.edge-label[data-edge-id="r1"]');
   await t.click(lab.x, lab.y, { count: 2 });
   const hadLabel = await editing();
   await t.type('lives at');
   await t.press('Enter');
   d = await saved();
-  t.check('double-clicking a label edits it', hadLabel === 'has' && rel(d, 'r1').label === 'lives at');
+  t.check('double-clicking a label edits it', hadLabel === 'has' && rel(d, 'r1').label === 'lives at', `${hadLabel} ${J(rel(d, 'r1'))}`);
   await t.clickOn('.edge-label[data-edge-id="r1"]');
   await t.clickOn('.erd-actionbar [data-act="label"]');
   await t.press('Backspace');
@@ -505,17 +506,15 @@ sys.stdout.write(format_json(out))`;
   await t.press('Escape');
   d = await saved();
   t.check('Escape finishes an empty note, and an empty note is not kept', d.notes.length === notes0 && (await count('.note-badge')) === notes0);
-  // + chip
-  const addr = await t.at(head('address'), 0.5, 0.5);
-  await t.mouse('mouseMoved', addr.x, addr.y);
-  await sleep(80);
-  const chipShown = await t.ev(`getComputedStyle(document.querySelector('.erd-entity[data-node-id="address"] .note-add')).display`);
-  await t.clickOn('.erd-entity[data-node-id="address"] .note-add');
+  // the table bar's note button (there is no hover + chip)
+  t.check('no hover + chip on tables', (await count('.note-add')) === 0);
+  await t.clickOn(head('address'));
+  await t.clickOn('.erd-actionbar [data-act="note"]');
   const chipEdit = await editing();
   await t.type('Billing and shipping');
   await t.press('Escape');
   d = await saved();
-  t.check('the + chip on a hovered table adds a note; Escape finishes it', chipShown !== 'none' && chipEdit === '' && d.notes.some((n) => n.text === 'Billing and shipping' && n.entities.join() === 'address'), `${chipShown} ${J(d.notes)}`);
+  t.check('the bar note button adds a note; Escape finishes it', chipEdit === '' && d.notes.some((n) => n.text === 'Billing and shipping' && n.entities.join() === 'address'), `${J(d.notes)}`);
   // dock Note: with a table selected
   await t.clickOn(head('product'));
   await t.clickOn('#btn-add-note');
@@ -789,7 +788,7 @@ sys.stdout.write(format_json(out))`;
     ['label a relationship', async () => { const q1 = await onLine('r8'); await t.click(q1.x, q1.y, { count: 2 }); await t.type('reviews'); await t.press('Enter'); }],
     ['delete a relationship', async () => { const q1 = await onLine('r8'); await t.click(q1.x, q1.y); await t.press('Delete'); }],
     ['move a table', async () => { const h1 = await t.at(head((await tableIds())[4])); await t.dragTo(h1.x, h1.y, h1.x + 70, h1.y + 50); }],
-    ['colour a table', async () => { await t.clickOn(head('address')); await t.clickOn('.erd-actionbar .swatch-btn[data-value="2"]'); }],
+    ['colour a table', async () => { await t.clickOn(head('address')); await t.clickOn('.erd-actionbar .swatch-btn[data-value="2"]'); await t.press('Escape'); }],
     ['collapse a table', async () => { await t.clickOn(`${head('order')} .erd-chevron`); }],
     ['add a note', async () => { await t.clickOn(head('address')); await t.press('n'); await t.type('Hi'); await t.press('Escape'); }],
     ['link a note', async () => { await t.clickOn('.erd-entity[data-node-id="order"] > .note-badge'); await t.press('Escape'); const l1 = await t.at('.note.selected .note-link'), c1 = await t.at(head('customer')); await t.dragTo(l1.x, l1.y, c1.x, c1.y); }],
@@ -964,7 +963,7 @@ sys.stdout.write(format_json(out))`;
     return t.ev(`[...document.querySelectorAll('.erd-port')].some((p) => getComputedStyle(p).display !== 'none')`);
   })();
   t.check('?present: no ports, handles, + chips or dock', !portHover && (await t.ev(`getComputedStyle(document.querySelector('.toolbar-center')).display`)) === 'none'
-    && (await t.ev(`[...document.querySelectorAll('.note-add')].every((c) => getComputedStyle(c).display === 'none')`)));
+    && (await count('.note-add')) === 0);
   await t.clickOn(head('order'), { count: 2 });
   t.check('?present: a double-click edits nothing', (await editing()) === null && (await count('.erd-actionbar')) === 0 && (await count('.erd-handle')) === 0);
   await t.press('Delete');
@@ -1370,24 +1369,24 @@ sys.stdout.write(format_json(out))`;
       return t.ev(`window.__svg`);
     };
     const key = '.color-key';
+    // Tinting a table opens its colour's legend entry for naming (optional): type the name into it
     const nameIt = async (name) => {
-      await t.clickOn(head('order'));
-      await t.clickOn('.erd-actionbar [data-act="namecolor"]');
       await t.type(name);
       await t.press('Enter');
     };
     await freshPage(blank);
     t.check('legend: a blank diagram shows no legend', (await count(key)) === 0);
     await t.clickOn(head('customer'));
-    t.check('legend: an untinted table has no Name colour button', (await count('.erd-actionbar [data-act="namecolor"]')) === 0);
+    t.check('legend: no table bar has a Name colour button', (await count('.erd-actionbar [data-act="namecolor"]')) === 0);
     await t.clickOn(head('order'));
     await t.clickOn('.erd-actionbar .swatch-btn[data-value="1"]');
     d = await saved();
-    t.check('legend: tinting a table shows no legend, asks nothing and saves no colorKey', (await count(key)) === 0 && (await editing()) === null && d.colorKey === undefined && ent(d, 'order').color === '1');
-    await t.clickOn('.erd-actionbar [data-act="namecolor"]');
-    t.check('legend: Name colour opens the legend with that colour in edit', (await editing()) === '' && (await count(`${key} .color-key-label.is-editing`)) === 1 && (await count(`${key} .color-key-item`)) === 1);
+    t.check('legend: tinting a table invites a name: the legend opens with that colour in edit, nothing is saved yet', (await editing()) === '' && (await count(`${key} .color-key-label.is-editing`)) === 1 && (await count(`${key} .color-key-item`)) === 1 && d.colorKey === undefined && ent(d, 'order').color === '1');
     await t.press('Escape');
     t.check('legend: Esc with no text leaves no legend and no colorKey', (await count(key)) === 0 && (await saved()).colorKey === undefined);
+    await t.clickOn(head('order'));
+    await t.clickOn('.erd-actionbar .swatch-btn[data-value=""]');
+    await t.clickOn('.erd-actionbar .swatch-btn[data-value="1"]');
     await nameIt('Billing');
     d = await saved();
     const placed = await t.ev(`(() => { const k = document.querySelector('.color-key').getBoundingClientRect(); const ts = [...document.querySelectorAll('.erd-entity')].map((e) => e.getBoundingClientRect());
@@ -1437,6 +1436,7 @@ sys.stdout.write(format_json(out))`;
     await freshPage(blank);
     await t.clickOn(head('order'));
     await t.clickOn('.erd-actionbar .swatch-btn[data-value="1"]');
+    await t.press('Escape');   // the offered name is optional: leave it empty
     const noNames = await svgOf();
     t.check('legend: an SVG export with no names has no legend or prompt', !!noNames && !/What does|Billing/.test(noNames) && !/color-key/.test(noNames));
     await freshPage(blank, '?present');

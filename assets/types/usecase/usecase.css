@@ -169,7 +169,7 @@
     .uc-actionbar {
       position: absolute; display: flex; align-items: center; gap: 2px; padding: 3px; z-index: 53;
       background: var(--bg-panel); border: 1px solid var(--border-dark); border-radius: var(--radius-lg); box-shadow: var(--shadow-md);
-      white-space: nowrap; pointer-events: auto; cursor: default; -webkit-user-select: none; user-select: none;
+      white-space: nowrap; pointer-events: auto; cursor: default; -webkit-user-select: none; user-select: none; translate: -50% 0;
     }
     .uc-actionbar.is-wrap { flex-wrap: wrap; justify-content: center; max-width: 340px; row-gap: 2px; }
     .uc-ab-break { flex-basis: 100%; height: 0; }

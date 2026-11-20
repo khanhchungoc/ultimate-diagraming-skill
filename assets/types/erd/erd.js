@@ -30,7 +30,6 @@
       const ERD_KEY_ICON = ui.icon('key', { size: 'sm', bold: true, class: 'g-pk' });
       const ERD_LINK_ICON = ui.icon('link', { size: 'sm', bold: true, class: 'g-fk' });
       const ERD_CHEVRON_ICON = ui.icon('chevron-down', { size: 'sm', bold: true });
-      const ERD_NOTE_ADD_ICON = ui.icon('plus', { size: 'sm', bold: true });
       const ERD_NOTE_ICON = ui.icon('note-lines', { size: 'xs', bold: true });
 
       // --- STATE ---
@@ -1225,17 +1224,7 @@
       function buildNoteBadge(e) {
         const notes = notesOfEntity(e.id);
         if (!notes.length) {
-          // The + chip (hover or selected table): adds a note. Not in ?present.
-          if (erdPresenting()) return null;
-          const add = erdHtmlEl('button', 'note-add');
-          add.type = 'button';
-          add.dataset.exportSkip = '';
-          add.title = 'Add a note (N)';
-          add.setAttribute('aria-label', 'Add a note');
-          add.innerHTML = ERD_NOTE_ADD_ICON;
-          add.addEventListener('pointerdown', (ev) => ev.stopPropagation());
-          add.addEventListener('click', (ev) => { ev.stopPropagation(); addNoteTo(e.id); });
-          return add;
+          return null;   // no hover +: the table bar's note button adds one
         }
         const b = erdHtmlEl('button', 'note-badge');
         b.type = 'button';
@@ -1447,7 +1436,7 @@
         zeroOrMany: '<circle cx="-15.5" cy="0" r="4"/><path d="M-11 0 0 -6M-11 0H0M-11 0 0 6"/>'
       };
       const ERD_END_NAMES = { one: 'exactly one', zeroOrOne: 'zero or one', oneOrMany: 'one or many', zeroOrMany: 'zero or many' };
-      const erdEndGlyph = (kind) => `<svg width="30" height="16" viewBox="-26 -9 30 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M-26 0H0"/>${ERD_END_PATHS[kind]}</svg>`;
+      const erdEndGlyph = (kind) => `<svg width="22" height="12" viewBox="-26 -9 30 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M-26 0H0"/>${ERD_END_PATHS[kind]}</svg>`;
       const abButton = (act, html, title, pressed, value, extra) => ui.abButton('erd-ab-btn', act, html, title, pressed, value, extra);
       const abSep = () => ui.abSep('erd-ab-sep');
 
@@ -1495,16 +1484,11 @@
           bar.setAttribute('aria-label', 'Table');
           bar.classList.add('is-wrap');
           bar.appendChild(abButton('addcol', `${ui.icon('plus')}<span>Column</span>`, 'Add a column after the last one'));
-          if ((e.columns || []).length) {
-            bar.appendChild(abButton('collapse', `${ui.icon('chevron-down')}<span>${e.collapsed ? 'Expand' : 'Collapse'}</span>`,
-              e.collapsed ? 'Show the columns again' : 'Collapse the table to its header', e.collapsed === true));
-          }
           bar.appendChild(abButton('note', ui.icon('note'), 'Add a note to this table (N)'));
           const nSel = selectedEntityIds().length;
           bar.appendChild(abButton('delete', ui.icon('trash'), nSel > 1 ? `Delete these ${nSel} tables and their relationships` : 'Delete this table and its relationships', undefined, undefined, 'is-danger'));
           bar.appendChild(erdHtmlEl('span', 'erd-ab-break'));
           bar.appendChild(swatchRow(e.color || '', (slot) => setEntityColor(e.id, slot), { btnClass: 'erd-ab-swatch' }));
-          if (e.color) bar.appendChild(abButton('namecolor', '<span>Name colour</span>', 'Say what this colour means: it is then shown in a legend above the tables'));
           at = { x: e.box.x + e.box.w / 2, y: e.box.y - 10 / scale };
           at.top = e.box.y; at.bottom = e.box.y + e.box.h + 10 / scale;
         } else if (erdSel.kind === 'col') {
@@ -1533,7 +1517,7 @@
           const ends = erRelEnds(rel, chartData);
           bar.appendChild(erdHtmlEl('span', 'erd-ab-tag', 'Child'));
           ERD_END_KINDS.forEach((k) => bar.appendChild(abButton('fromEnd', erdEndGlyph(k), `Child end (the table with the key): ${ERD_END_NAMES[k]}`, ends.fromEnd === k, k, 'erd-ab-glyph')));
-          bar.appendChild(abSep());
+          bar.appendChild(erdHtmlEl('span', 'erd-ab-break'));
           bar.appendChild(erdHtmlEl('span', 'erd-ab-tag', 'Parent'));
           ERD_END_KINDS.forEach((k) => bar.appendChild(abButton('toEnd', erdEndGlyph(k), `Parent end (the table it points to): ${ERD_END_NAMES[k]}`, ends.toEnd === k, k, 'erd-ab-glyph')));
           bar.appendChild(erdHtmlEl('span', 'erd-ab-break'));
@@ -1574,6 +1558,8 @@
         const k = 1 / scale, p = rel.points, w = bar.offsetWidth * k, h = bar.offsetHeight * k;   // the bar is not zoomed: its footprint in the diagram grows with 1 / zoom
         const segs = [8, 6, 10, 4, 12].filter((i) => p[i]).map((i) => ({ x: p[i][0], y: p[i][1] }));
         const boxes = erdEntities().filter((e) => e.box).map((e) => e.box);
+        // the label pills are obstacles too: a double-click on one must not land on the bar the first click opened
+        erdHtml.querySelectorAll('.edge-label').forEach((l) => boxes.push({ x: parseFloat(l.style.left), y: parseFloat(l.style.top), w: l.offsetWidth, h: l.offsetHeight }));
         const C = chartData.canvas || { width: 1e9, height: 1e9 };
         let best = null;
         segs.slice(0, 3).forEach((s, k) => {
@@ -1610,7 +1596,6 @@
           else if (act === 'collapse') toggleCollapsed(e.id);
           else if (act === 'note') addNoteTo(e.id);
           else if (act === 'delete') deleteSelection(erdHtml.querySelector('.erd-ab-btn[data-act="delete"]'));
-          else if (act === 'namecolor') nameColor(e.color);
         } else if (sel.kind === 'col') {
           const e = erdEntity(sel.entity);
           if (!e) return;
@@ -1639,6 +1624,7 @@
         ents.forEach((e) => { if (slot) e.color = slot; else delete e.color; });
         render();
         updateStatus(true);
+        if (slot && !(chartData.colorKey && chartData.colorKey[slot])) nameColor(slot);   // invite a name for the colour (optional: leave it empty)
       }
 
       // --- COLOUR LEGEND (optional) ---
@@ -1703,7 +1689,7 @@
           if (entEl && !t.closest('.erd-chevron, .note-badge')) selectEntity(entEl.dataset.nodeId);
           return;
         }
-        if (t.closest('.erd-actionbar, .confirm, .erd-chevron, .note-badge, .note-add, .note-del, .note-link')) return;   // handled on click
+        if (t.closest('.erd-actionbar, .confirm, .erd-chevron, .note-badge, .note-del, .note-link')) return;   // handled on click
         const handle = t.closest('.erd-handle');
         if (handle) { e.stopPropagation(); beginDrag(e, handleDrag(handle.dataset.role, handle.dataset.id)); return; }
         if (!entEl || t.closest('.note')) return;
@@ -2103,14 +2089,16 @@
             if (value) rel.label = value; else delete rel.label;
             return true;
           },
-          restore: rel.label == null ? '' : String(rel.label)
+          restore: rel.label == null ? '' : String(rel.label),
+          // nothing typed on a line with no label: no blank pill is left behind
+          onCancel: () => { box.classList.remove('is-editing-label'); if (rel.label == null && !box.querySelector('.erd-rel-label-text').textContent.trim()) box.remove(); }
         });
       }
 
       erdHtml.addEventListener('dblclick', (e) => {
         if (erdPresenting()) return;
         const t = e.target;
-        if (t.closest('.erd-actionbar, .erd-chevron, .note-badge, .note-add, .erd-port, .erd-handle, .note')) return;
+        if (t.closest('.erd-actionbar, .erd-chevron, .note-badge, .erd-port, .erd-handle, .note')) return;
         if (t.isContentEditable) return;
         const label = t.closest('.edge-label');
         if (label) { e.stopPropagation(); editRelLabel(label.dataset.edgeId); return; }

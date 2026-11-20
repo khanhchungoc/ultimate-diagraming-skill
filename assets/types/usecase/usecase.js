@@ -1690,9 +1690,7 @@
       function drawSelectionTools() {
         html.querySelectorAll('.uc-actionbar').forEach((el) => motion.hideBar(el));
         if (presenting()) return;
-        const bar = htmlEl('div', 'uc-actionbar is-wrap');
-        bar.dataset.exportSkip = '';
-        bar.setAttribute('role', 'toolbar');
+        const bar = ui.actionBar('uc-actionbar is-wrap');
         let at = null;
         if (selOther && selOther.kind === 'link') at = linkBar(bar, linkOf(selOther.id));
         else if (selOther && selOther.kind === 'subject') at = subjectBar(bar, subjectOf(selOther.id));
@@ -1706,7 +1704,7 @@
         bar.classList.toggle('is-below', below);
         const cx = Math.max(w / 2 - 30, Math.min(at.x, C.width - w / 2 + 30));
         Object.assign(bar.style, {
-          left: px(Math.round(cx - w / 2)),
+          left: px(Math.round(cx)),   // the bar is centred on it (translate), so it stays put when collapsed
           top: px(Math.round(below ? at.bottom + 10 / scale : at.y - 10 / scale - h))
         });
         motion.showBar(bar);
