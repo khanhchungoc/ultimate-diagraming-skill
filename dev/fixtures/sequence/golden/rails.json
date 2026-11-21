@@ -8,53 +8,53 @@
       "id": "cust",
       "name": "Customer",
       "kind": "actor",
-      "x": 158
+      "x": 168
     },
     {
       "id": "fe",
       "name": "Q&B UI",
       "kind": "ui",
-      "x": 406
+      "x": 428
     },
     {
       "id": "pol",
       "name": "Policy Svc",
       "kind": "system",
       "rail": true,
-      "x": 522
+      "x": 556
     },
     {
       "id": "pay",
       "name": "Payment Svc",
       "kind": "system",
-      "x": 638
+      "x": 684
     },
     {
       "id": "spm",
       "name": "SPM",
       "kind": "external",
-      "x": 858
+      "x": 912
     },
     {
       "id": "bus",
       "name": "Service Bus",
       "kind": "queue",
       "rail": true,
-      "x": 1082
+      "x": 1144
     },
     {
       "id": "job",
       "name": "Background Job",
       "kind": "system",
       "rail": true,
-      "x": 1142
+      "x": 1204
     },
     {
       "id": "db",
       "name": "Policy DB",
       "kind": "database",
       "rail": true,
-      "x": 1202
+      "x": 1264
     }
   ],
   "messages": [
@@ -73,7 +73,7 @@
       "label": "Pre-purchase validation",
       "detail": "quote id, CPA answers",
       "kind": "sync",
-      "y": 282,
+      "y": 286,
       "hidden": true
     },
     {
@@ -83,7 +83,7 @@
       "label": "Save CPA answers",
       "detail": "quote id, answers, timestamp",
       "kind": "sync",
-      "y": 282,
+      "y": 286,
       "hidden": true
     },
     {
@@ -92,7 +92,7 @@
       "to": "pol",
       "label": "Saved",
       "kind": "reply",
-      "y": 282,
+      "y": 286,
       "hidden": true
     },
     {
@@ -101,7 +101,7 @@
       "to": "fe",
       "label": "Validation passed",
       "kind": "reply",
-      "y": 282,
+      "y": 286,
       "hidden": true
     },
     {
@@ -111,7 +111,7 @@
       "label": "Register payment",
       "detail": "CPA answers, amount, payment method, holding page URL",
       "kind": "sync",
-      "y": 282,
+      "y": 286,
       "hidden": true
     },
     {
@@ -121,7 +121,7 @@
       "label": "Create payment session",
       "detail": "amount, currency, return URL",
       "kind": "sync",
-      "y": 282,
+      "y": 286,
       "hidden": true
     },
     {
@@ -131,7 +131,7 @@
       "label": "Session",
       "detail": "session id, redirect URL",
       "kind": "reply",
-      "y": 282,
+      "y": 286,
       "hidden": true
     },
     {
@@ -141,7 +141,7 @@
       "label": "Store payment",
       "detail": "payment-status = Registered",
       "kind": "async",
-      "y": 282,
+      "y": 286,
       "hidden": true
     },
     {
@@ -151,7 +151,7 @@
       "label": "Payment registered",
       "detail": "payment id, redirect URL",
       "kind": "reply",
-      "y": 282,
+      "y": 286,
       "hidden": true
     },
     {
@@ -160,7 +160,7 @@
       "to": "cust",
       "label": "Redirect to payment page",
       "kind": "async",
-      "y": 362
+      "y": 366
     },
     {
       "id": "m12",
@@ -168,7 +168,7 @@
       "to": "spm",
       "label": "Enter card details",
       "kind": "sync",
-      "y": 462
+      "y": 470
     },
     {
       "id": "m13",
@@ -176,7 +176,7 @@
       "to": "spm",
       "label": "3-D Secure check",
       "kind": "sync",
-      "y": 522
+      "y": 530
     },
     {
       "id": "m14",
@@ -184,7 +184,7 @@
       "to": "cust",
       "label": "Outcome page",
       "kind": "reply",
-      "y": 703
+      "y": 711
     },
     {
       "id": "m15",
@@ -193,7 +193,7 @@
       "label": "Payment notification",
       "detail": "payment id, payment-status",
       "kind": "async",
-      "y": 763
+      "y": 771
     },
     {
       "id": "m16",
@@ -202,7 +202,7 @@
       "label": "Return to holding page",
       "detail": "payment id",
       "kind": "async",
-      "y": 835
+      "y": 843
     },
     {
       "id": "m17",
@@ -211,7 +211,7 @@
       "label": "Update payment status",
       "detail": "payment-status",
       "kind": "sync",
-      "y": 967,
+      "y": 979,
       "hidden": true
     },
     {
@@ -220,7 +220,7 @@
       "to": "pay",
       "label": "Updated",
       "kind": "reply",
-      "y": 967,
+      "y": 979,
       "hidden": true
     },
     {
@@ -230,7 +230,7 @@
       "label": "PaymentStatusChanged",
       "detail": "payment id, payment-status",
       "kind": "async",
-      "y": 967,
+      "y": 979,
       "hidden": true
     },
     {
@@ -240,7 +240,7 @@
       "label": "Get payment status",
       "detail": "payment id",
       "kind": "sync",
-      "y": 1130,
+      "y": 1146,
       "hidden": true
     },
     {
@@ -249,7 +249,7 @@
       "to": "pay",
       "label": "Fetch payment status",
       "kind": "sync",
-      "y": 1130,
+      "y": 1146,
       "hidden": true
     },
     {
@@ -258,7 +258,7 @@
       "to": "pol",
       "label": "payment-status",
       "kind": "reply",
-      "y": 1130,
+      "y": 1146,
       "hidden": true
     },
     {
@@ -267,7 +267,7 @@
       "to": "fe",
       "label": "payment-status",
       "kind": "reply",
-      "y": 1130,
+      "y": 1146,
       "hidden": true
     },
     {
@@ -276,7 +276,7 @@
       "to": "cust",
       "label": "Payment cancelled, try again",
       "kind": "async",
-      "y": 1242,
+      "y": 1262,
       "hidden": true
     },
     {
@@ -286,7 +286,7 @@
       "label": "Release quote lock",
       "detail": "quote id",
       "kind": "async",
-      "y": 1242,
+      "y": 1262,
       "hidden": true
     },
     {
@@ -295,7 +295,7 @@
       "to": "cust",
       "label": "Show error and support number",
       "kind": "async",
-      "y": 1242,
+      "y": 1262,
       "hidden": true
     },
     {
@@ -305,7 +305,7 @@
       "label": "Raise payment incident",
       "detail": "payment id, error code",
       "kind": "async",
-      "y": 1242,
+      "y": 1262,
       "hidden": true
     },
     {
@@ -315,7 +315,7 @@
       "label": "PaymentStatusChanged",
       "detail": "payment-status = Success",
       "kind": "async",
-      "y": 1242,
+      "y": 1262,
       "hidden": true
     },
     {
@@ -325,7 +325,7 @@
       "label": "Complete purchase",
       "detail": "quote id, payment id",
       "kind": "sync",
-      "y": 1242,
+      "y": 1262,
       "hidden": true
     },
     {
@@ -335,7 +335,7 @@
       "label": "Load quote",
       "detail": "quote id",
       "kind": "sync",
-      "y": 1242,
+      "y": 1262,
       "hidden": true
     },
     {
@@ -344,7 +344,7 @@
       "to": "pol",
       "label": "Quote and CPA answers",
       "kind": "reply",
-      "y": 1242,
+      "y": 1262,
       "hidden": true
     },
     {
@@ -354,7 +354,7 @@
       "label": "Issue policy",
       "detail": "quote id, payment id",
       "kind": "sync",
-      "y": 1242,
+      "y": 1262,
       "hidden": true
     },
     {
@@ -364,7 +364,7 @@
       "label": "Create policy",
       "detail": "policy number, start date, premium",
       "kind": "sync",
-      "y": 1242,
+      "y": 1262,
       "hidden": true
     },
     {
@@ -373,7 +373,7 @@
       "to": "job",
       "label": "Policy number",
       "kind": "reply",
-      "y": 1242,
+      "y": 1262,
       "hidden": true
     },
     {
@@ -383,7 +383,7 @@
       "label": "Generate documents",
       "detail": "schedule, certificate, IPID",
       "kind": "sync",
-      "y": 1242,
+      "y": 1262,
       "hidden": true
     },
     {
@@ -393,7 +393,7 @@
       "label": "Policy issued",
       "detail": "policy number, document links",
       "kind": "reply",
-      "y": 1242,
+      "y": 1262,
       "hidden": true
     },
     {
@@ -403,7 +403,7 @@
       "label": "CreateSystemTask",
       "detail": "policy number, reason",
       "kind": "async",
-      "y": 1242,
+      "y": 1262,
       "hidden": true
     },
     {
@@ -413,7 +413,7 @@
       "label": "Processing result (failed)",
       "detail": "error code",
       "kind": "reply",
-      "y": 1242,
+      "y": 1262,
       "hidden": true
     },
     {
@@ -423,7 +423,7 @@
       "label": "PolicyIssued",
       "detail": "policy number",
       "kind": "async",
-      "y": 1242,
+      "y": 1262,
       "hidden": true
     },
     {
@@ -433,7 +433,7 @@
       "label": "Processing result (success)",
       "detail": "policy number",
       "kind": "reply",
-      "y": 1242,
+      "y": 1262,
       "hidden": true
     },
     {
@@ -443,7 +443,7 @@
       "label": "Show confirmation",
       "detail": "policy number, documents link",
       "kind": "async",
-      "y": 1242,
+      "y": 1262,
       "hidden": true
     },
     {
@@ -453,7 +453,7 @@
       "label": "PolicyIssued",
       "detail": "policy number",
       "kind": "async",
-      "y": 1242,
+      "y": 1262,
       "hidden": true
     }
   ],
@@ -466,10 +466,10 @@
       "from": "m2",
       "to": "m10",
       "collapsed": true,
-      "x": 370,
-      "w": 868,
+      "x": 392,
+      "w": 908,
       "y": 228,
-      "h": 72
+      "h": 76
     },
     {
       "id": "f2",
@@ -485,10 +485,10 @@
       "color": "blue",
       "from": "m12",
       "to": "m16",
-      "x": 122,
-      "w": 981,
-      "y": 400,
-      "h": 469
+      "x": 132,
+      "w": 1036,
+      "y": 404,
+      "h": 473
     },
     {
       "id": "f8",
@@ -497,10 +497,10 @@
       "from": "m17",
       "to": "m19",
       "collapsed": true,
-      "x": 602,
-      "w": 636,
-      "y": 913,
-      "h": 72
+      "x": 648,
+      "w": 652,
+      "y": 921,
+      "h": 76
     },
     {
       "id": "f4",
@@ -509,10 +509,10 @@
       "from": "m20",
       "to": "m23",
       "collapsed": true,
-      "x": 370,
-      "w": 304,
-      "y": 1076,
-      "h": 72
+      "x": 392,
+      "w": 328,
+      "y": 1088,
+      "h": 76
     },
     {
       "id": "f5",
@@ -531,10 +531,10 @@
         }
       ],
       "collapsed": true,
-      "x": 122,
-      "w": 1116,
-      "y": 1188,
-      "h": 72
+      "x": 132,
+      "w": 1168,
+      "y": 1204,
+      "h": 76
     },
     {
       "id": "f6",
@@ -558,10 +558,10 @@
       "text": "On Q&B Holding page",
       "over": "fe",
       "before": "m20",
-      "x": 314,
+      "x": 336,
       "w": 184,
       "h": 37,
-      "y": 1017
+      "y": 1029
     },
     {
       "id": "n2",
@@ -577,10 +577,10 @@
       "text": "Card data never reaches Q&B: SPM hosts the payment page",
       "over": "spm",
       "after": "m13",
-      "x": 766,
+      "x": 820,
       "w": 184,
       "h": 71,
-      "y": 588
+      "y": 596
     },
     {
       "id": "n4",
@@ -591,7 +591,7 @@
   ],
   "schemaVersion": 1,
   "layout": {
-    "width": 1294,
-    "height": 1348
+    "width": 1356,
+    "height": 1368
   }
 }

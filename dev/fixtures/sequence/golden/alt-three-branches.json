@@ -6,19 +6,19 @@
       "id": "ui",
       "name": "Checkout UI",
       "kind": "ui",
-      "x": 158
+      "x": 168
     },
     {
       "id": "pay",
       "name": "Payment Service",
       "kind": "system",
-      "x": 358
+      "x": 388
     },
     {
       "id": "psp",
       "name": "Card Provider",
       "kind": "external",
-      "x": 558
+      "x": 608
     }
   ],
   "messages": [
@@ -28,7 +28,7 @@
       "to": "pay",
       "label": "Get payment status",
       "kind": "sync",
-      "y": 166
+      "y": 174
     },
     {
       "id": "m2",
@@ -36,7 +36,7 @@
       "to": "psp",
       "label": "Query transaction",
       "kind": "sync",
-      "y": 226
+      "y": 234
     },
     {
       "id": "m3",
@@ -44,7 +44,7 @@
       "to": "pay",
       "label": "Transaction state",
       "kind": "reply",
-      "y": 286
+      "y": 294
     },
     {
       "id": "m4",
@@ -52,7 +52,7 @@
       "to": "ui",
       "label": "Cancelled",
       "kind": "reply",
-      "y": 386
+      "y": 398
     },
     {
       "id": "m5",
@@ -60,7 +60,7 @@
       "to": "ui",
       "label": "Error code",
       "kind": "reply",
-      "y": 478
+      "y": 490
     },
     {
       "id": "m6",
@@ -68,7 +68,7 @@
       "to": "pay",
       "label": "Mark as paid",
       "kind": "sync",
-      "y": 570
+      "y": 582
     },
     {
       "id": "m7",
@@ -76,7 +76,7 @@
       "to": "ui",
       "label": "Receipt",
       "kind": "reply",
-      "y": 666
+      "y": 678
     }
   ],
   "fragments": [
@@ -96,19 +96,19 @@
           "label": "status = Success"
         }
       ],
-      "x": 122,
-      "w": 425,
-      "y": 324,
-      "h": 364,
+      "x": 132,
+      "w": 452,
+      "y": 332,
+      "h": 368,
       "dividers": [
         {
           "at": "m5",
-          "y": 422,
+          "y": 434,
           "label": "status = any error"
         },
         {
           "at": "m6",
-          "y": 514,
+          "y": 526,
           "label": "status = Success"
         }
       ]
@@ -116,7 +116,7 @@
   ],
   "schemaVersion": 1,
   "layout": {
-    "width": 688,
-    "height": 780
+    "width": 748,
+    "height": 792
   }
 }

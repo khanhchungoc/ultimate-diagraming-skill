@@ -6,20 +6,20 @@
       "id": "p1",
       "name": "User",
       "kind": "actor",
-      "x": 158
+      "x": 168
     },
     {
       "id": "p2",
       "name": "System",
       "kind": "system",
-      "x": 358
+      "x": 388
     }
   ],
   "messages": [],
   "fragments": [],
   "schemaVersion": 1,
   "layout": {
-    "width": 488,
-    "height": 192
+    "width": 528,
+    "height": 200
   }
 }

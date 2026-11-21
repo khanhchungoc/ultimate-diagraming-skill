@@ -6,37 +6,37 @@
       "id": "p1",
       "name": "Customer",
       "kind": "actor",
-      "x": 158
+      "x": 168
     },
     {
       "id": "p2",
       "name": "Web App",
       "kind": "system",
-      "x": 358
+      "x": 388
     },
     {
       "id": "p3",
       "name": "API",
       "kind": "system",
-      "x": 558
+      "x": 608
     },
     {
       "id": "p4",
       "name": "Orders",
       "kind": "system",
-      "x": 758
+      "x": 828
     },
     {
       "id": "p5",
       "name": "Billing",
       "kind": "system",
-      "x": 958
+      "x": 1048
     },
     {
       "id": "p6",
       "name": "Ledger",
       "kind": "system",
-      "x": 1158
+      "x": 1268
     }
   ],
   "messages": [
@@ -46,7 +46,7 @@
       "to": "p2",
       "label": "Open invoice",
       "kind": "sync",
-      "y": 166
+      "y": 174
     },
     {
       "id": "m2",
@@ -54,7 +54,7 @@
       "to": "p3",
       "label": "GET /invoice",
       "kind": "sync",
-      "y": 226
+      "y": 234
     },
     {
       "id": "m3",
@@ -62,7 +62,7 @@
       "to": "p4",
       "label": "Find order",
       "kind": "sync",
-      "y": 286
+      "y": 294
     },
     {
       "id": "m4",
@@ -70,7 +70,7 @@
       "to": "p3",
       "label": "Order",
       "kind": "reply",
-      "y": 346
+      "y": 354
     },
     {
       "id": "m5",
@@ -78,7 +78,7 @@
       "to": "p5",
       "label": "Create invoice",
       "kind": "sync",
-      "y": 406
+      "y": 414
     },
     {
       "id": "m6",
@@ -86,7 +86,7 @@
       "to": "p6",
       "label": "Post entry",
       "kind": "sync",
-      "y": 466
+      "y": 474
     },
     {
       "id": "m7",
@@ -94,7 +94,7 @@
       "to": "p5",
       "label": "Entry id",
       "kind": "reply",
-      "y": 526
+      "y": 534
     },
     {
       "id": "m8",
@@ -102,7 +102,7 @@
       "to": "p3",
       "label": "Invoice",
       "kind": "reply",
-      "y": 586
+      "y": 594
     },
     {
       "id": "m9",
@@ -110,7 +110,7 @@
       "to": "p2",
       "label": "200 OK",
       "kind": "reply",
-      "y": 646
+      "y": 654
     },
     {
       "id": "m10",
@@ -118,13 +118,13 @@
       "to": "p1",
       "label": "Show invoice",
       "kind": "reply",
-      "y": 706
+      "y": 714
     }
   ],
   "fragments": [],
   "schemaVersion": 1,
   "layout": {
-    "width": 1288,
-    "height": 792
+    "width": 1408,
+    "height": 800
   }
 }

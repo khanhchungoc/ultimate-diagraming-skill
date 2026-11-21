@@ -6,25 +6,25 @@
       "id": "p1",
       "name": "Customer",
       "kind": "actor",
-      "x": 158
+      "x": 168
     },
     {
       "id": "p2",
       "name": "Shop",
       "kind": "system",
-      "x": 358
+      "x": 388
     },
     {
       "id": "p3",
       "name": "Payment",
       "kind": "system",
-      "x": 558
+      "x": 608
     },
     {
       "id": "p4",
       "name": "Warehouse",
       "kind": "system",
-      "x": 758
+      "x": 828
     }
   ],
   "messages": [
@@ -34,7 +34,7 @@
       "to": "p2",
       "label": "Place order",
       "kind": "sync",
-      "y": 166
+      "y": 174
     },
     {
       "id": "m2",
@@ -42,7 +42,7 @@
       "to": "p4",
       "label": "Reserve stock",
       "kind": "sync",
-      "y": 266
+      "y": 278
     },
     {
       "id": "m3",
@@ -50,7 +50,7 @@
       "to": "p2",
       "label": "Stock reserved",
       "kind": "reply",
-      "y": 326
+      "y": 338
     },
     {
       "id": "m4",
@@ -58,7 +58,7 @@
       "to": "p3",
       "label": "Charge card",
       "kind": "sync",
-      "y": 454
+      "y": 470
     },
     {
       "id": "m5",
@@ -66,7 +66,7 @@
       "to": "p2",
       "label": "Payment result",
       "kind": "reply",
-      "y": 514
+      "y": 530
     },
     {
       "id": "m6",
@@ -74,7 +74,7 @@
       "to": "p4",
       "label": "Release stock",
       "kind": "sync",
-      "y": 606
+      "y": 622
     },
     {
       "id": "m7",
@@ -82,7 +82,7 @@
       "to": "p1",
       "label": "Order confirmed",
       "kind": "reply",
-      "y": 694
+      "y": 710
     }
   ],
   "fragments": [
@@ -93,14 +93,14 @@
       "from": "m4",
       "to": "m6",
       "elseAt": "m6",
-      "x": 322,
-      "w": 472,
-      "y": 392,
-      "h": 236,
+      "x": 352,
+      "w": 512,
+      "y": 404,
+      "h": 240,
       "dividers": [
         {
           "at": "m6",
-          "y": 550,
+          "y": 566,
           "label": ""
         }
       ]
@@ -111,15 +111,15 @@
       "label": "stock available",
       "from": "m2",
       "to": "m3",
-      "x": 322,
-      "w": 472,
-      "y": 204,
-      "h": 144
+      "x": 352,
+      "w": 512,
+      "y": 212,
+      "h": 148
     }
   ],
   "schemaVersion": 1,
   "layout": {
-    "width": 888,
-    "height": 780
+    "width": 968,
+    "height": 796
   }
 }
