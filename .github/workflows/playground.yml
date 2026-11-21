@@ -1,6 +1,7 @@
 name: playground
 
-# Build the blank playground (every diagram type) and publish it to GitHub Pages on every push to main that changes what a page runs.
+# Build the playground (every diagram type) and every example page, and publish them to GitHub Pages on every push to main
+# (a merged PR) that changes what a page runs or what an example is built from.
 on:
   push:
     branches: [main]
@@ -8,6 +9,9 @@ on:
       - assets/**
       - scripts/**
       - dev/tools/build_playground.py
+      - dev/tools/build_examples.py
+      - dev/examples/**
+      - dev/playground/**
       - .github/workflows/playground.yml
   workflow_dispatch:
 
@@ -32,6 +36,17 @@ jobs:
         with:
           python-version: "3.x"
       - run: python dev/tools/build_playground.py -o _site
+      # One page per example at examples/<name>/, plus examples/index.html linking them.
+      - run: |
+          python dev/tools/build_examples.py
+          mkdir -p _site/examples
+          for f in dev/samples/example-*.html; do
+            n=$(basename "$f" .html); n=${n#example-}
+            mkdir -p "_site/examples/$n"; cp "$f" "_site/examples/$n/index.html"
+          done
+          { echo '<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Diagram examples</title><h1>Diagram examples</h1><ul>'
+            for d in _site/examples/*/; do n=$(basename "$d"); echo "<li><a href=\"$n/\">$n</a></li>"; done
+            echo '</ul>'; } > _site/examples/index.html
       # Gate: a build that does not load every type in a real browser never deploys.
       - uses: actions/setup-node@v4
         with:
