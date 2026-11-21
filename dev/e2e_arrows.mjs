@@ -91,8 +91,8 @@ try {
   const apart = await t.ev(`(() => { const a = ${bar}.getBoundingClientRect(), b = ${labelBox(named)}.getBoundingClientRect();
     return a.left >= b.right - 1 || a.right <= b.left + 1 || a.top >= b.bottom - 1 || a.bottom <= b.top + 1; })()`);
   t.check('on a labelled arrow a click selects it and the toolbar does not cover the label', apart && !(await editing()));
-  t.check('the toolbar sits just past the label, level with it', await t.ev(`(() => { const a = ${bar}.getBoundingClientRect(), b = ${labelBox(named)}.getBoundingClientRect();
-    return a.left - b.right >= 0 && a.left - b.right < 24 && Math.abs((a.top + a.height / 2) - (b.top + b.height / 2)) < 3; })()`));
+  t.check('the toolbar sits just past the label, above midY', await t.ev(`(() => { const a = ${bar}.getBoundingClientRect(), b = ${labelBox(named)}.getBoundingClientRect();
+    return a.left - b.right >= 0 && a.left - b.right < 24 && Math.abs((b.top + b.height / 2) - a.bottom - 8) < 3; })()`));
 
   // 6. Hidden while an end is dragged, in presentation and in capture
   await deselect();
