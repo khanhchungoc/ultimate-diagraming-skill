@@ -611,7 +611,8 @@ function c4Settle(its) {
   const grid = c4Cells(), G = C4.sep, rect = (n) => ({ x: n.ref.x, y: n.ref.y, w: n.ref.w, h: n.ref.h });
   its.forEach((n, i) => grid.add(i, rect(n)));
   const todo = [];
-  its.forEach((n, i) => { if (!n.pin && grid.near(grid.box(i), G).length > 1) todo.push(i); });
+  // an unpinned item is in the way of a pinned one within `sep`; of another unpinned one only when they really overlap
+  its.forEach((n, i) => { if (!n.pin && (grid.near(grid.box(i), G).some((j) => its[j].pin) || grid.near(grid.box(i), 0).length > 1)) todo.push(i); });
   todo.forEach((i) => grid.del(i));
   todo.forEach((i) => {
     const n = its[i], r0 = rect(n);
@@ -813,7 +814,7 @@ function c4Slot(m, g, u, w, h) {
   if (!rowLike && !colLike) return [U.x, U.y1 + C4.innerGap];
   const last = its.reduce((a, q) => ((vert ? q.r.y + q.r.h > a.r.y + a.r.h : q.r.x + q.r.w > a.r.x + a.r.w) ? q : a)), end = last.r;
   const linked = m.rel2.some((r) => (c4In(m, r.a, u) && c4In(m, r.b, last.k)) || (c4In(m, r.b, u) && c4In(m, r.a, last.k)));
-  const gap = linked ? (vert ? C4.innerLinkY : C4.innerLinkX) : C4.innerGap;
+  const gap = Math.max(C4.sep, linked ? (vert ? C4.innerLinkY : C4.innerLinkX) : C4.innerGap);
   return vert ? [Math.round((U.x + U.x1 - w) / 2), end.y + end.h + gap] : [end.x + end.w + gap, Math.round((U.y + U.y1 - h) / 2)];
 }
 

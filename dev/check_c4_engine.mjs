@@ -573,6 +573,8 @@ for (const n of ran) {
   check(nu && Number.isFinite(nu.x) && inside(nu, plat), 'new in group: placed inside the group frame');
   check(kids.every((k) => nu.x >= k.x + k.w) && Math.abs(nu.y + nu.h / 2 - (kids[0].y + kids[0].h / 2)) <= kids[0].h, 'new in group: next slot in the group row, after the last member');
   check(plat.w > lay.groups.find((g) => g.id === 'platform').w, 'new in group: the group grows');
+  const others = lay.elements.filter((e) => e.group === 'platform').map((e) => e.id);   // outside neighbours may be pushed away by the growth
+  sameShift(lay, j, others, 'new in group: no untouched member moves relative to the others (exact)');
   noOverlap(j, 'new in group'); inGroups(j, 'new in group'); orthogonal(j, 'new in group'); arrowsClear('new in group', j);
   // loose and linked: beside the item it is linked to
   const l = clone(base);
