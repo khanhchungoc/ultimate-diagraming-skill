@@ -20,9 +20,11 @@
       <li><kbd>Ctrl</kbd>/<kbd>Cmd</kbd>+<kbd>Z</kbd> and <kbd>Ctrl</kbd>/<kbd>Cmd</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd> : Undo and redo every action. An add and its first rename, and a connection and its label, are one step each</li>
       <li><b>Auto-Tidy</b> : Always on. Every add, connect, delete, group change or collapse lays the diagram out again, so boxes are not moved by dragging</li>
       <li><b>Centre</b> and <b>Side</b> : Mark an element or group as a centre of the diagram (the rest rings round it), and ask for the side of the centre it sits on. A side is a hint, not an order. With no centre the layout flows down in layers</li>
-      <li><b>Present mode</b> (<code>?present</code>) : Read only. The Level control, hover, selecting and collapse still work; the Find field is hidden</li>
+      <li><b>Present mode</b> (<code>?present</code>) : Read only. The Level control, hover, selecting and collapse still work; notes saved as shown are drawn but cannot be edited; the Find field is hidden</li>
       <li><kbd>/</kbd> or the <b>Find</b> field : Match names, technologies, groups and arrow labels; matches light up, <b>Fit to matches</b> zooms to them</li>
-      <li><b>Notes</b> : Show every note on the canvas, or hide them</li>
+      <li><b>Note</b> (Add tiles) : Select an element, group or arrow, then click <b>Note</b> to add a note to it (an arrow's note belongs to both its ends). Type the text; <kbd>Ctrl</kbd>+<kbd>Enter</kbd>, <kbd>Esc</kbd> or a click elsewhere saves it, and an empty note is dropped. An item that has a note edits it instead. With nothing selected you are asked to select something first</li>
+      <li><b>Notes</b> (switch, with a count) : Show every note beside its element or group, or hide them. A note follows what it explains when the diagram is tidied or a group is collapsed; one on a member of a collapsed group is hidden</li>
+      <li><b>Edit a note</b> : <kbd>Double Click</kbd> a card, or <kbd>Tab</kbd> to it and press <kbd>Enter</kbd> or <kbd>F2</kbd>. The <b>x</b> on the card, or <kbd>Delete</kbd> with the card selected, removes it. <kbd>Ctrl</kbd>/<kbd>Cmd</kbd>+<kbd>Z</kbd> undoes it; <b>Find</b> matches note text; Save keeps notes</li>
       <li><kbd>&uarr;</kbd> <kbd>&darr;</kbd> <kbd>&larr;</kbd> <kbd>&rarr;</kbd> : Move to the nearest element in that direction</li>
       <li><kbd>Esc</kbd> : Clear the selection</li>
       <li><b>Save</b> : Writes the diagram, including which systems are open, back to the page. Names you gave become the ids</li>

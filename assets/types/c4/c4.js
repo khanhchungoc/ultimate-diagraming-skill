@@ -44,6 +44,9 @@
       let keyDraft = null;     // the colour slot whose colour key entry is being named
       let boxBase = [];        // the selection a Shift+drag box started from
       let newLink = null;      // the relation whose label is still being asked (its connection is not a step yet)
+      let selNoteId = null;    // the selected note card (no element, group or arrow is selected then)
+      let editingNoteId = null, noteDraft = null;   // the card being typed in; noteDraft: a note added a moment ago and the Notes state it found
+      let notesLayer = null;
       const els = { nodes: new Map(), groups: new Map(), edges: new Map() };   // id -> element; edges: id -> { g, label }
       let byId = new Map();    // group id -> group (rebuilt each render)
 
@@ -139,6 +142,7 @@
         { selector: '.c4-node[data-node-id]', key: 'nodeId' },
         { selector: '.c4-group[data-group-id]', key: 'groupId' },
         { selector: '.edge-label[data-edge-id]', key: 'edgeId' },
+        { selector: '.note[data-note-id]', key: 'noteId' },   // a note glides with what it explains
         { selector: '.c4-actionbar', key: () => 'bar' }   // the action bar follows what it belongs to
       ];
       function captureEdges() {
@@ -189,7 +193,9 @@
         });
         renderLabels();
         renderLegend();
+        renderNotes();
         updateLevelButtons();
+        updateNotesButton();
         applyState();
         const back = hadFocus && (els.nodes.get(hadFocus) || els.groups.get(hadFocus) || (els.edges.get(hadFocus) || {}).label);
         if (back) back.focus({ preventScroll: true });
@@ -390,6 +396,7 @@
       const selIds = (kind) => sel.filter((s) => s.kind === kind).map((s) => s.id);
       const primary = () => sel[sel.length - 1] || null;
       function setSel(list) {
+        selNoteId = null;
         sel = list.filter(selectionExists);
         applyState();
       }
@@ -443,6 +450,7 @@
         });
         canvas.classList.toggle('c4-multi', sel.length > 1);
         canvas.classList.toggle('c4-connecting', !!connecting);
+        applyNoteSelection();
         drawBar();
         if (typeof queueDeleteRefresh === 'function') queueDeleteRefresh();
       }
@@ -460,7 +468,9 @@
         const prevEdges = useMotion ? captureEdges() : null;
         const fromKey = {}, toKey = {};
         [...changes].sort((a, b) => depthOf(groupOf(a[0])) - depthOf(groupOf(b[0]))).forEach(([id, v]) => {   // the outermost group claims what is inside it
-          descendants(groupOf(id)).forEach((d) => { const m = v ? toKey : fromKey; if (!(d in m) && !(d in fromKey) && !(d in toKey)) m[d] = id; });
+          const inside = descendants(groupOf(id)), m = v ? toKey : fromKey;
+          inside.forEach((d) => { if (!(d in m) && !(d in fromKey) && !(d in toKey)) m[d] = id; });
+          notesList().forEach((n) => { if (noteTargets(n).some((t) => inside.includes(t.id)) && !(n.id in fromKey) && !(n.id in toKey)) m[n.id] = id; });   // a note on a member folds into the tile too
         });
         const prev = new Map();
         if (snap) changes.forEach((v, id) => { const r = snap._raw.get(id); if (r) prev.set(id, r.vr); });
@@ -894,7 +904,9 @@
         commit(true, { captureOpts: { ghosts: true }, ghostExit: true, duration: 200 });
       }
       function deleteSelection(anchorEl) {
-        if (presenting() || !sel.length) return;
+        if (presenting()) return;
+        if (selNoteId) { removeNote(selNoteId); return; }
+        if (!sel.length) return;
         const r = removal(), full = selIds('group').filter((id) => descendants(groupOf(id)).length);
         if (!full.length) { removeAll(r); return; }
         const inside = r.eids.size - selIds('element').length, name = full.length === 1 ? nameOf(groupOf(full[0])) : `${full.length} groups`;
@@ -911,6 +923,221 @@
         sel = [];
         commit(true);
       }
+
+      // --- NOTES ---
+      // chartData.notes: { id, text, elements?: [ids], groups?: [ids] } (the codec's shape). A card sits beside the first of its
+      // targets that is on screen: a note on a member of a collapsed group is hidden, one on the collapsed tile stays. Where it
+      // sits is never saved: placeNotes fits it into a free spot on every render, so one model always gives one picture and a
+      // card follows its target through Auto-Tidy and collapse (it is part of the morph: FLIP_SPECS). The Notes switch
+      // (showNotes) shows every card; a note being typed in is shown whatever the switch says. One note per target: adding to an
+      // item that has one edits it.
+      const NOTE_GAP = 8, NOTE_MIN_GAP = 10, NOTE_IDEAL_GAP = 20, NOTE_REACH = 160, NOTE_STEP = 8;
+      const btnNotes = document.getElementById('btn-notes');
+      const notesList = () => (Array.isArray(chartData.notes) ? chartData.notes : []);
+      const noteOf = (id) => notesList().find((n) => n.id === id);
+      const noteText = (n) => (n && typeof n.text === 'string' ? n.text.trim() : '');
+      const noteTargets = (n) => (n.elements || []).map((id) => ({ kind: 'element', id })).concat((n.groups || []).map((id) => ({ kind: 'group', id })));
+      const targetEl = (t) => (t.kind === 'element' ? els.nodes : els.groups).get(t.id);
+      const noteAnchor = (n) => noteTargets(n).find(targetEl);
+      const noteShown = (n) => !!noteAnchor(n) && (n.id === editingNoteId || (!!noteText(n) && chartData.showNotes === true));
+      const noteCard = (id) => notesLayer && [...notesLayer.children].find((c) => c.dataset.noteId === id);
+      const noteNames = (n) => noteTargets(n).map((t) => nameOf(t.kind === 'element' ? elementOf(t.id) : groupOf(t.id))).join(', ');
+
+      function renderNotes() {
+        notesLayer = null;
+        const live = notesList().filter(noteShown);
+        if (selNoteId && !live.some((n) => n.id === selNoteId)) selNoteId = null;
+        if (!live.length) return;
+        notesLayer = htmlEl('div', 'note-layer');
+        notesLayer.id = 'c4-notes';
+        live.forEach((n) => notesLayer.appendChild(buildNoteCard(n)));
+        html.appendChild(notesLayer);
+        placeNotes();
+      }
+      function buildNoteCard(n) {
+        const edit = !presenting();
+        const { card, text } = ui.noteCard(n, edit ? { onDelete: () => removeNote(n.id), onCommit: (el) => commitNote(n, el), onInput: placeNotes } : {});
+        card.classList.add('show');
+        card.tabIndex = 0;
+        card.setAttribute('role', 'note');
+        card.setAttribute('aria-label', `Note on ${noteNames(n)}: ${noteText(n) || 'empty'}`);
+        if (edit) text.addEventListener('blur', () => commitNote(n, text));
+        card.addEventListener('pointerdown', (ev) => {
+          if (ev.button !== 0 || ev.target.isContentEditable) return;
+          ev.stopPropagation();
+          if (edit) selectNote(n.id);
+        });
+        card.addEventListener('dblclick', (ev) => { ev.stopPropagation(); editNote(n.id); });
+        card.addEventListener('keydown', (ev) => {
+          if (ev.target !== card || !edit) return;
+          if (ev.key === 'Enter' || ev.key === 'F2') { ev.preventDefault(); ev.stopPropagation(); editNote(n.id); }
+          else if (ev.key === 'Delete' || ev.key === 'Backspace') selectNote(n.id);   // the shell's Delete handler then removes it
+        });
+        return card;
+      }
+
+      // Fit every card into a free spot beside its target: the nearest one (about NOTE_IDEAL_GAP away) that overlaps no tile,
+      // frame tag, label pill, earlier card or, as a second choice, arrow. Candidates are tried on a NOTE_STEP grid in a fixed
+      // order, and only the obstacles near the target are looked at, so the cost does not grow with the size of the diagram.
+      function placeNotes() {
+        if (!notesLayer) return;
+        const C = chartData.canvas || { width: 0, height: 0 };
+        const boxes = [], segs = [];
+        els.nodes.forEach((el, id) => boxes.push(boxOf(elementOf(id))));
+        els.groups.forEach((el, id) => {
+          const g = groupOf(id), tag = el.querySelector('.frame-tag');
+          if (el.classList.contains('is-tile')) boxes.push(boxOf(g));
+          else if (tag) boxes.push({ x: g.x + tag.offsetLeft, y: g.y + tag.offsetTop, w: tag.offsetWidth, h: tag.offsetHeight });
+        });
+        edges().forEach((e) => {
+          if (e.labelBox) boxes.push(e.labelBox);
+          const p = e.points || [];
+          for (let i = 1; i < p.length; i++) segs.push({ x: Math.min(p[i - 1][0], p[i][0]), y: Math.min(p[i - 1][1], p[i][1]), w: Math.abs(p[i][0] - p[i - 1][0]), h: Math.abs(p[i][1] - p[i - 1][1]) });
+        });
+        const cards = [...notesLayer.children];
+        const sizes = cards.map((c) => ({ w: c.offsetWidth, h: c.offsetHeight }));
+        cards.forEach((card, i) => {
+          const t = noteAnchor(noteOf(card.dataset.noteId));
+          const b = fitNote(boxOf(t.kind === 'element' ? elementOf(t.id) : groupOf(t.id)), sizes[i], boxes, segs, C);
+          boxes.push(b);   // a placed card is an obstacle for the next
+          card.style.left = px(b.x);
+          card.style.top = px(b.y);
+        });
+      }
+      const boxHit = (b, o, g) => b.x < o.x + o.w + g && b.x + b.w + g > o.x && b.y < o.y + o.h + g && b.y + b.h + g > o.y;
+      function fitNote(a, s, boxes, segs, C) {
+        const win = { x: a.x - s.w - NOTE_REACH, y: a.y - s.h - NOTE_REACH, w: a.w + 2 * s.w + 2 * NOTE_REACH, h: a.h + 2 * s.h + 2 * NOTE_REACH };
+        const nearBoxes = boxes.filter((o) => boxHit(win, o, NOTE_GAP)), nearSegs = segs.filter((o) => boxHit(win, o, 3));
+        let best = null;
+        for (let y = Math.round(win.y); y <= a.y + a.h + NOTE_REACH; y += NOTE_STEP) {
+          for (let x = Math.round(win.x); x <= a.x + a.w + NOTE_REACH; x += NOTE_STEP) {
+            const b = { x, y, w: s.w, h: s.h };
+            const gap = Math.hypot(Math.max(0, a.x - (x + s.w), x - (a.x + a.w)), Math.max(0, a.y - (y + s.h), y - (a.y + a.h)));
+            if (gap < NOTE_MIN_GAP) continue;
+            let cost = Math.abs(gap - NOTE_IDEAL_GAP) * 10 + Math.hypot(x + s.w / 2 - a.x - a.w / 2, y + s.h / 2 - a.y - a.h / 2) / 2;   // the nearest side, then the one it faces squarely
+            if (best && cost >= best.cost) continue;
+            if (x < 0 || y < 0 || x + s.w > C.width || y + s.h > C.height) cost += 150;   // outside the canvas is allowed (contentOverflow grows it) but costs a little
+            if (nearBoxes.some((o) => boxHit(b, o, NOTE_GAP))) cost += 1e5;
+            else if (nearSegs.some((o) => boxHit(b, o, 3))) cost += 2e4;
+            if (!best || cost < best.cost) best = { x, y, cost };
+          }
+        }
+        return { x: best.x, y: best.y, w: s.w, h: s.h };
+      }
+      function selectNote(id) { setSel([]); selNoteId = id; applyNoteSelection(); }
+      function applyNoteSelection() {
+        canvas.querySelectorAll('.note-linked').forEach((el) => el.classList.remove('note-linked'));
+        if (!notesLayer) return;
+        [...notesLayer.children].forEach((c) => c.classList.toggle('selected', c.dataset.noteId === selNoteId));
+        const n = noteOf(selNoteId);
+        if (n) noteTargets(n).forEach((t) => { const el = targetEl(t); if (el) el.classList.add('note-linked'); });   // what the selected note explains
+      }
+
+      // The Notes switch: every card grows out of the box it explains, or folds back into it. A note is never a step of its own
+      // while being typed in: the add and its text are one step (commitNote).
+      function noteKeys() { const m = {}; notesList().forEach((n) => { const a = noteAnchor(n); if (a) m[n.id] = a.id; }); return m; }
+      function setShowNotes(on) {
+        if ((chartData.showNotes === true) === on) return;
+        motion.cancelAll();
+        const useMotion = motion.enabled() && html.childElementCount > 0, keys = noteKeys();
+        const snap = useMotion ? motion.capture(canvas, FLIP_SPECS, { ghosts: true }) : null;
+        if (on) chartData.showNotes = true; else delete chartData.showNotes;
+        render({ snap, fromKey: keys, toKey: keys, duration: 170 });
+        if (!presenting()) updateStatus(true);
+      }
+      if (btnNotes) btnNotes.addEventListener('click', () => setShowNotes(chartData.showNotes !== true));
+      function updateNotesButton() {
+        if (!btnNotes) return;
+        const count = notesList().filter(noteText).length, on = chartData.showNotes === true;
+        btnNotes.setAttribute('aria-checked', String(on));
+        btnNotes.disabled = !count && !on;
+        const c = btnNotes.querySelector('.btn-count');
+        if (c) { c.textContent = count ? String(count) : ''; c.hidden = !count; }
+        btnNotes.title = !count ? 'No notes yet: select an element, group or arrow and add a Note from the Add tiles' : on ? 'Hide all notes' : 'Show all notes';
+      }
+
+      // Add: the selected element, group or arrow gets a note (an arrow's note is on both its ends); nothing selected asks for a
+      // selection. The card grows out of its target and its text opens for typing; add and text are one undo step.
+      function addNote() {
+        if (presenting()) return;
+        if (isTyping()) document.activeElement.blur();
+        if (selNoteId) { editNote(selNoteId); return; }
+        const ids = [];
+        sel.forEach((s) => (s.kind === 'edge' ? [(edgeOf(s.id) || {}).from, (edgeOf(s.id) || {}).to] : [s.id]).forEach((id) => { if (id && !ids.includes(id)) ids.push(id); }));
+        if (!ids.length) { ui.toast('Select an element, group or arrow first, then add its note'); return; }
+        const has = ids.length === 1 && notesList().find((n) => noteTargets(n).length === 1 && noteTargets(n)[0].id === ids[0]);
+        if (has) { setShowNotes(true); editNote(has.id); return; }
+        motion.cancelAll();
+        const useMotion = motion.enabled() && html.childElementCount > 0;
+        const snap = useMotion ? motion.capture(canvas, FLIP_SPECS) : null;
+        const note = { id: newId('n'), text: '' }, es = ids.filter(elementOf), gs = ids.filter((id) => !elementOf(id) && groupOf(id));
+        if (es.length) note.elements = es;
+        if (gs.length) note.groups = gs;
+        (chartData.notes = notesList()).push(note);
+        noteDraft = { id: note.id, isNew: true, wasOn: chartData.showNotes === true, before: '' };
+        chartData.showNotes = true;
+        editingNoteId = note.id;
+        sel = [];
+        render({ snap, fromKey: { [note.id]: noteAnchor(note).id }, duration: 170 });
+        editNote(note.id);
+      }
+      function editNote(id) {
+        const n = noteOf(id), card = noteCard(id);
+        if (!n || !card || presenting()) return;
+        if (editingNoteId !== id || !noteDraft) noteDraft = { id, isNew: false, before: noteText(n) };
+        editingNoteId = id;
+        selectNote(id);
+        const text = card.querySelector('.note-text');
+        text.contentEditable = 'true';
+        text.focus();
+        const range = document.createRange();
+        range.selectNodeContents(text);
+        range.collapse(false);
+        const s = window.getSelection();
+        s.removeAllRanges();
+        s.addRange(range);
+      }
+      function commitNote(n, text) {
+        text.contentEditable = 'false';
+        if (editingNoteId !== n.id) return;
+        const d = noteDraft;
+        editingNoteId = null; noteDraft = null;
+        const value = text.innerText.replace(/ /g, ' ').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+        if (!value) {
+          if (d && d.isNew && !d.wasOn) delete chartData.showNotes;   // a note given up leaves the switch as it was
+          removeNote(n.id, !(d && d.isNew));
+          return;
+        }
+        if (value === (d ? d.before : noteText(n))) { text.textContent = n.text; return; }
+        n.text = value;
+        text.textContent = value;
+        text.closest('.note').setAttribute('aria-label', `Note on ${noteNames(n)}: ${value}`);
+        placeNotes();
+        updateNotesButton();
+        updateStatus(true);
+      }
+      function removeNote(id, step = true) {
+        const n = noteOf(id);
+        if (!n) return;
+        const a = noteAnchor(n);
+        motion.cancelAll();
+        const snap = motion.enabled() && html.childElementCount > 0 ? motion.capture(canvas, FLIP_SPECS, { ghosts: true }) : null;
+        chartData.notes = notesList().filter((x) => x.id !== id);
+        if (!chartData.notes.length) delete chartData.notes;
+        if (editingNoteId === id) { editingNoteId = null; noteDraft = null; }
+        if (selNoteId === id) selNoteId = null;
+        render({ snap, toKey: a ? { [id]: a.id } : undefined, duration: 160 });   // the card folds into what it explained
+        if (step) updateStatus(true);
+      }
+      window.addEventListener('pointerdown', (e) => {   // a press anywhere else ends the typing, as in the other types
+        if (!editingNoteId) return;
+        const card = noteCard(editingNoteId);
+        if (card && card.contains(e.target)) return;
+        const text = card && card.querySelector('.note-text'), n = noteOf(editingNoteId);
+        if (text && n) { text.blur(); commitNote(n, text); }
+      }, true);
+      const btnAddNote = document.getElementById('btn-add-note');
+      if (btnAddNote) btnAddNote.addEventListener('click', (e) => { if (e.detail === 0) setTimeout(addNote, 0); else addNote(); });
 
       // --- Property edits ---
       function setColor(slot) {
@@ -1219,12 +1446,12 @@
         return did;
       }
       function clearSelectionNow() {
-        if (sel.length || hoverEdgeId) { sel = []; hoverEdgeId = null; applyState(); }
+        if (sel.length || hoverEdgeId || selNoteId) { sel = []; hoverEdgeId = null; setSel([]); }
       }
       window.addEventListener('keydown', (e) => {
         if (e.key !== 'Escape' || isTyping()) return;
         if (cancelInteraction()) return;
-        if (sel.length) clearSelectionNow();
+        if (sel.length || selNoteId) clearSelectionNow();
       }, true);
       window.addEventListener('keydown', (e) => {
         if (presenting() || e.ctrlKey || e.metaKey || e.altKey || isTyping()) return;
@@ -1361,14 +1588,27 @@
         defaultTitle: 'Interactive C4 Diagram',
         toDisk,
         fromDisk,
+        toMermaid,   // the writer and reader in mermaid.js (Mermaid C4: one level)
+        fromMermaid,
         contentEl: canvas,
         report: { node: '.c4-node, .c4-group.is-tile', label: '.c4-label', labelText: '.c4-label-text', nodeText: '.c4-name' },
         render,
         isBackground: (el) => el === canvas || el === svg || el === html || el === legendEl || el.id === 'c4-overlay',
-        contentOverflow: () => (legendEl ? { top: 40 } : null),   // the colour key sits above the diagram
+        fitPad: (w) => (w < 600 ? 32 : 0),   // Fit leaves 80px round the picture; a phone is 390px wide, so it keeps 32 (0: the shell default)
+        contentOverflow() {   // the colour key sits above the diagram; a note card may stand outside it
+          const o = { left: 0, top: legendEl ? 40 : 0, right: 0, bottom: 0 }, C = chartData.canvas || { width: 0, height: 0 };
+          if (notesLayer) {
+            [...notesLayer.children].forEach((c) => {
+              const x = parseFloat(c.style.left) || 0, y = parseFloat(c.style.top) || 0;
+              o.left = Math.max(o.left, 12 - x); o.top = Math.max(o.top, 12 - y);
+              o.right = Math.max(o.right, x + c.offsetWidth + 12 - C.width); o.bottom = Math.max(o.bottom, y + c.offsetHeight + 12 - C.height);
+            });
+          }
+          return o;
+        },
         clearSelection: clearSelectionNow,
         cancelInteraction,
-        hasSelection: () => !presenting() && sel.length > 0,
+        hasSelection: () => !presenting() && (sel.length > 0 || !!selNoteId),
         selectInRect,
         selectAll,
         deleteSelection,
@@ -1379,6 +1619,10 @@
           els.nodes.forEach((el, id) => add(`element:${id}`, el, el.textContent));
           els.groups.forEach((el, id) => add(`group:${id}`, el, nameOf(groupOf(id))));
           els.edges.forEach((rec, id) => add(`rel:${id}`, rec.label, rec.label && rec.label.textContent));
+          notesList().forEach((n) => {   // a note whose card is hidden (Notes off, or its target inside a closed group) rings its target instead
+            const a = noteAnchor(n), host = noteCard(n.id) || (a && targetEl(a));
+            add(`note:${n.id}`, host, n.text);
+          });
           return out.sort((a, b) => a.y - b.y || a.x - b.x).map(({ id, text, el }) => ({ id, text, el }));
         }
       });

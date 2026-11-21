@@ -5,7 +5,8 @@
 // self and duplicate refused), Delete and Backspace, undo and redo (add + rename and connect + label are one step each, bursts
 // settle like slow steps), Auto-Tidy after every edit (no overlap, everything inside its frame, no orphan motion ghost, nothing
 // still animating), the saved data block (slug ids, arrange / core / side kept, no sizes, a reload shows the same diagram),
-// ?present, reduced motion and a keyboard-only path.
+// ?present, reduced motion and a keyboard-only path; and the notes (add to an element, group or arrow, the Notes switch,
+// edit, delete, undo, save with renamed ids against the Python codec, collapse, search, present, reduced motion).
 // Driven with real mouse and keyboard input over the Chrome DevTools Protocol (see cdp.mjs); a synthetic DOM event is used
 // only where a comment says why. The contract is "Editing (phase 4)" in dev/plans/plan-c4.md; selectors the contract does not
 // pin are in SELECTORS below, one line each.
@@ -67,6 +68,38 @@ const DIAGRAM = {
     { from: 'api', to: 'mail', label: 'Sends mail' }
   ]
 };
+
+const NOTED = {
+  ...DIAGRAM,
+  showNotes: true,
+  notes: [
+    { id: 'n1', text: 'Peak load is 10x on Fridays', elements: ['api'] },
+    { id: 'n2', text: 'Owned by the platform team', groups: ['platform'] }
+  ]
+};
+// Editor-made ids on a model with notes: the page must rename them on Save exactly as c4_to_disk does
+const GENERATED = {
+  diagramType: 'c4', schemaVersion: 1, title: 'Generated', showNotes: true,
+  groups: [{ id: 'g_1700000000001', name: 'Core Platform', kind: 'system' }],
+  elements: [
+    { id: 'e_1700000000002', kind: 'container', name: 'Order API', group: 'g_1700000000001' },
+    { id: 'e_1700000000003', kind: 'person', name: 'Shopper' }
+  ],
+  relations: [{ from: 'e_1700000000003', to: 'e_1700000000002', label: 'Orders' }],
+  notes: [
+    { id: 'n_1700000000004', text: 'about the api', elements: ['e_1700000000002'] },
+    { id: 'n_1700000000005', text: 'about both', elements: ['e_1700000000003'], groups: ['g_1700000000001'] }
+  ]
+};
+const laidOut = (model, name) => {
+  const src = join(work, `${name}.json`), out = join(work, `${name}.html`);
+  writeFileSync(src, JSON.stringify(model));
+  const r = spawnSync('python3', [join(root, 'scripts', 'layout_engine.py'), '--layout', src, '-o', out], { encoding: 'utf8' });
+  if (r.status !== 0) { console.error(`[ERROR] could not lay out ${name}:`, r.stdout, r.stderr); process.exit(1); }
+  return out;
+};
+const notedPage = laidOut(NOTED, 'noted');
+const generatedPage = laidOut(GENERATED, 'generated');
 
 let page = argOf('page');
 if (!page) {
@@ -187,6 +220,7 @@ try {
   };
   // A section that throws is one failed check, and the run goes on with a fresh page
   const section = async (name, fn) => {
+    if (process.env.E2E_SECTIONS && !process.env.E2E_SECTIONS.split(',').includes(name)) return;   // E2E_SECTIONS=notes,render runs just those
     try { await fn(); } catch (err) { t.check(`${name}: ran to the end`, false, (err.stack || err.message).split('\n').slice(0, 3).join(' / ')); }
   };
 
@@ -897,6 +931,254 @@ try {
     t.check('reloading the saved file shows the same diagram (names, boxes) and saves the same text', J(await geometry()) === J(g1) && raw2 === raw, `${raw2 === raw}`);
     const py = spawnSync('python3', [join(root, 'scripts', 'layout_engine.py'), '--layout', copy, '-o', join(work, 'again.html')], { encoding: 'utf8' });
     t.check('the Python layout step accepts the saved file', py.status === 0, py.stdout + py.stderr);
+  });
+
+
+  // --- notes -------------------------------------------------------------------------------------------------
+  await section('notes', async () => {
+    const cards = () => t.ev(`[...document.querySelectorAll('.note[data-note-id]')].map((c) => ({ id: c.dataset.noteId, text: c.querySelector('.note-text').textContent, label: c.getAttribute('aria-label'), tab: c.tabIndex,
+      r: (({ left, top, right, bottom }) => [left, top, right, bottom])(c.getBoundingClientRect()) }))`);
+    const ids = async () => (await cards()).map((c) => c.id).sort().join(',');
+    const sw = () => t.ev(`(() => { const b = document.getElementById('btn-notes'); return { on: b.getAttribute('aria-checked'), count: b.querySelector('.btn-count').textContent, hidden: b.querySelector('.btn-count').hidden, disabled: b.disabled }; })()`);
+    const addNote = async () => { await openAdd(); await t.clickOn('#btn-add-note'); await sleep(250); };
+    const typeNote = async (txt) => { await t.type(txt); await t.press('Escape'); await sleep(250); await t.settle(1500); };
+    const noteOf = (d, text) => (d.notes || []).find((n) => n.text === text);
+    // every card clear of every tile and of the other cards; each within reach of the box it explains
+    const fitState = (pairs) => t.ev(`(() => {
+      const R = (e) => e.getBoundingClientRect(), hit = (a, b) => a.left < b.right - 1 && b.left < a.right - 1 && a.top < b.bottom - 1 && b.top < a.bottom - 1;
+      const cs = [...document.querySelectorAll('.note[data-note-id]')], tiles = [...document.querySelectorAll('.c4-node, .c4-group.is-tile')];
+      const bad = [];
+      cs.forEach((c, i) => { tiles.forEach((n) => { if (hit(R(c), R(n))) bad.push(c.dataset.noteId + '/tile'); }); cs.slice(i + 1).forEach((d) => { if (hit(R(c), R(d))) bad.push(c.dataset.noteId + '/' + d.dataset.noteId); }); });
+      const far = [];
+      Object.entries(${J(pairs || {})}).forEach(([id, sel]) => { const c = document.querySelector('.note[data-note-id="' + id + '"]'), a = document.querySelector(sel); if (!c || !a) { far.push(id + ':missing'); return; }
+        const p = R(c), q = R(a), gap = Math.hypot(Math.max(0, q.left - p.right, p.left - q.right), Math.max(0, q.top - p.bottom, p.top - q.bottom)); if (gap > 90) far.push(id + ':' + Math.round(gap)); });
+      return { bad, far }; })()`);
+    const pairs = { n1: item('api'), n2: grp('platform') };
+
+    // -- shown from the file, named, focusable, clear of the boxes
+    await freshPage(notedPage);
+    await fit();
+    const c0 = await cards();
+    t.check('showNotes in the file draws one card per note, in the note layer', c0.length === 2 && (await t.ev(`!!document.querySelector('#c4-notes') && document.querySelectorAll('#c4-notes > .note').length === 2`)), J(c0.map((c) => c.id)));
+    t.check('each card is focusable and named "Note on <target>: <text>"', c0.every((c) => c.tab === 0 && /^Note on .+: .+/.test(c.label || '')) && c0.some((c) => c.label === 'Note on Web API: Peak load is 10x on Fridays'), J(c0.map((c) => c.label)));
+    const f0 = await fitState(pairs);
+    t.check('the cards overlap no tile and no other card, and stand within reach of their target', !f0.bad.length && !f0.far.length, J(f0));
+    t.check('the Notes switch is on and counts 2', J(await sw()) === J({ on: 'true', count: '2', hidden: false, disabled: false }), J(await sw()));
+    t.check('the diagram data keeps the notes (the Python layout step accepts the page)', (await saved()).notes.length === 2);
+
+    // -- the Notes switch: hide and show, as a morph
+    await t.clickOn('#btn-notes');
+    const midOff = await t.ev(`${WAAPI} + ${GHOSTS}`);
+    await sleep(500); await t.settle(1500);
+    t.check('the Notes switch hides every card (aria-checked false, the count stays)', (await count('.note[data-note-id]')) === 0 && (await sw()).on === 'false' && (await sw()).count === '2' && !(await saved()).showNotes);
+    t.check('hiding folds the cards (an animation or a ghost runs), then nothing is left running', midOff > 0 && (await t.ev(WAAPI)) === 0 && (await t.ev(GHOSTS)) === 0, `${midOff}`);
+    await t.clickOn('#btn-notes');
+    const midOn = await t.ev(WAAPI);
+    await sleep(500); await t.settle(1500);
+    t.check('the switch shows them again, growing out of their targets (animation runs), nothing left running', (await ids()) === 'n1,n2' && midOn > 0 && (await t.ev(WAAPI)) === 0 && (await saved()).showNotes === true, `${midOn}`);
+    await undo();
+    t.check('showing and hiding are undo steps', (await count('.note[data-note-id]')) === 0);
+    await redo();
+    t.check('redo shows them again', (await count('.note[data-note-id]')) === 2);
+
+    // -- add to an element: one step with its text; undo and redo
+    await fit();
+    await blank();
+    await clickName('Customer');
+    await addNote();
+    t.check('Add > Note on a selected element opens a card to type in (focus in it, not yet saved as text)', (await count('.note[data-note-id]')) === 3 && (await editing()) === '' && (await t.ev(`document.activeElement.closest('.note') !== null`)), `${await count('.note[data-note-id]')} ${await editing()}`);
+    await typeNote('Billing rule');
+    const d1 = await saved();
+    const n3 = noteOf(d1, 'Billing rule');
+    t.check('the text is saved with the element, under a fresh id n3', d1.notes.length === 3 && n3?.id === 'n3' && J(n3.elements) === J(['cust']) && !n3.groups, J(n3));
+    t.check('the new card is named after its target', (await cards()).some((c) => c.label === 'Note on Customer: Billing rule'));
+    const newId = (await cards()).find((c) => c.text === 'Billing rule').id;
+    const f1 = await fitState({ ...pairs, [newId]: item('cust') });
+    t.check('the new card clears every tile and card and stands by Customer', !f1.bad.length && !f1.far.length, J(f1));
+    await undo();
+    t.check('one undo takes away the whole note (add and text are one step)', (await count('.note[data-note-id]')) === 2 && (await saved()).notes.length === 2);
+    await redo();
+    t.check('one redo brings it back with its text', (await cards()).some((c) => c.text === 'Billing rule') && (await saved()).notes.length === 3);
+
+    // -- add to a group, and to an arrow (both its ends)
+    await blank();
+    await addNamed('group', 'Edge Zone');
+    await addNote();
+    await typeNote('Group rule');
+    const d2 = await saved();
+    t.check('a note on the selected group is saved under groups', J(noteOf(d2, 'Group rule')?.groups) === J(['edge_zone']) && !noteOf(d2, 'Group rule')?.elements, J(noteOf(d2, 'Group rule')));
+    await blank();
+    await selectEdge('Orders');
+    await addNote();
+    await typeNote('Arrow rule');
+    const d3 = await saved();
+    t.check('a note on a selected arrow is linked to both its ends', J(noteOf(d3, 'Arrow rule')?.elements) === J(['cust', 'api']), J(noteOf(d3, 'Arrow rule')));
+    await undo(); await undo(); await undo();
+
+    // -- nothing selected: a toast, no card
+    await blank();
+    await dropToasts();
+    const before = await count('.note[data-note-id]');
+    await addNote();
+    t.check('with nothing selected the Note tile asks to select something first (toast) and adds nothing', /select/i.test(await toastText()) && (await count('.note[data-note-id]')) === before && (await editing()) === null, await toastText());
+
+    // -- an item that has a note: the tile edits it
+    await clickName('Customer');
+    await addNote();
+    t.check('adding to an item that has a note edits that note', (await count('.note[data-note-id]')) === before && (await editing()) === 'Billing rule', `${await editing()}`);
+    await t.press('Escape'); await sleep(250); await t.settle(1500);
+    t.check('Esc with the text unchanged is no undo step', (await saved()).notes.length === 3);
+
+    // -- an empty note is given up
+    await blank();
+    await clickName('Mail Gateway');
+    await addNote();
+    await t.press('Escape'); await sleep(300); await t.settle(1500);
+    t.check('a note left empty is dropped and leaves no trace', (await count('.note[data-note-id]')) === before && (await saved()).notes.length === 3 && !(await t.ev(`document.querySelector('.note-text:empty')`)));
+
+    // -- edit in place, with the mouse
+    await blank();
+    const tp = await t.at('.note[data-note-id="n1"] .note-text');
+    await t.click(tp.x, tp.y, { count: 2 });
+    await sleep(250);
+    t.check('double-clicking a card opens its text for editing', (await editing()) === 'Peak load is 10x on Fridays', `${await editing()}`);
+    await t.press('a', { modifiers: 2 });
+    await t.type('Ten times on Fridays');
+    await t.press('Enter', { modifiers: 2 });
+    await sleep(300); await t.settle(1500);
+    t.check('Ctrl+Enter saves the new text', noteOf(await saved(), 'Ten times on Fridays')?.id === 'n1' && (await editing()) === null);
+    await undo();
+    t.check('one undo puts the old text back', !!noteOf(await saved(), 'Peak load is 10x on Fridays'));
+
+    // -- delete: the x button, then Delete on a selected card; undo
+    await blank();
+    const cp = await t.at('.note[data-note-id="n1"]');
+    await t.mouse('mouseMoved', cp.x, cp.y);
+    await sleep(200);
+    await t.clickOn('.note[data-note-id="n1"] .note-del');
+    await sleep(400); await t.settle(1500);
+    t.check('the x button deletes the note and its card', !(await ids()).includes('n1') && !noteOf(await saved(), 'Peak load is 10x on Fridays') && (await t.ev(GHOSTS)) === 0);
+    await undo();
+    t.check('one undo brings it back', (await ids()).includes('n1') && !!noteOf(await saved(), 'Peak load is 10x on Fridays'));
+    await blank();
+    const sp = await t.at('.note[data-note-id="n2"]', 0.5, 0.15);
+    await t.click(sp.x, sp.y);
+    await sleep(150);
+    t.check('a click selects a card (class selected) and marks what it explains', (await present('.note[data-note-id="n2"].selected')) && (await present(`${grp('platform')}.note-linked`)) && (await selectedCount()) === 0);
+    await t.press('Delete');
+    await sleep(400); await t.settle(1500);
+    t.check('Delete removes the selected note', !(await ids()).includes('n2') && !noteOf(await saved(), 'Owned by the platform team'));
+    await undo();
+    t.check('undo brings it back', (await ids()).includes('n2'));
+
+    // -- keyboard: a card is a tab stop; Enter edits, Delete removes
+    await t.ev(`document.activeElement && document.activeElement.blur()`);
+    let on = null;
+    for (let i = 0; i < 80 && !on; i++) { await t.press('Tab'); on = await t.ev(`(() => { const a = document.activeElement; return a && a.matches('.note[data-note-id]') ? a.dataset.noteId : null; })()`); }
+    t.check('Tab reaches a note card', !!on, `${on}`);
+    await t.press('Enter'); await sleep(200);
+    t.check('Enter on a focused card edits it', (await editing()) !== null, `${await editing()}`);
+    await t.press('Escape'); await sleep(250); await t.settle(1500);
+
+    // -- Auto-Tidy and collapse: cards follow their target
+    await freshPage(notedPage);
+    await fit();
+    await addNamed('system', 'Billing System');
+    await fit();
+    const f2 = await fitState(pairs);
+    t.check('after an add (Auto-Tidy) the cards still clear every tile and stand by their target', !f2.bad.length && !f2.far.length, J(f2));
+    await t.clickOn('#btn-level-1');
+    const midCollapse = await t.ev(WAAPI);
+    await sleep(500); await t.settle(1500);
+    t.check('Level 1: the note on a member of the closed group is hidden, the one on the collapsed tile stays', (await ids()) === 'n2' && (await present(`${A.tile}.c4-group[data-group-id="platform"]`)), await ids());
+    t.check('the collapse plays the morph (cards included) and leaves nothing running', midCollapse > 0 && (await t.ev(WAAPI)) === 0 && (await t.ev(GHOSTS)) === 0);
+    const f3 = await fitState({ n2: grp('platform') });
+    t.check('the card of the collapsed tile stands by the tile, clear of every tile', !f3.bad.length && !f3.far.length, J(f3));
+    await t.clickOn('#btn-level-2');
+    await sleep(500); await t.settle(1500);
+    t.check('Level 2 brings the member note back', (await ids()) === 'n1,n2');
+
+    // -- search finds note text, shown or not
+    await freshPage(notedPage);
+    await t.press('f', { modifiers: 2 });
+    await sleep(200);
+    await t.type('fridays');
+    await sleep(300);
+    t.check('search finds the text of a shown note (1 match)', /1/.test((await text('#search-count')) || ''), `${await text('#search-count')}`);
+    await t.press('Escape'); await sleep(150);
+    await t.clickOn('#btn-notes');
+    await sleep(500); await t.settle(1500);
+    await t.press('f', { modifiers: 2 });
+    await sleep(200);
+    await t.type('platform team');
+    await sleep(300);
+    t.check('search finds a note whose card is hidden too (it rings the target)', /1/.test((await text('#search-count')) || ''), `${await text('#search-count')}`);
+    await t.press('Escape'); await sleep(150);
+
+    // -- save: editor ids renamed exactly as the Python codec does
+    await freshPage(generatedPage);
+    const rawGen = await rawSaved();
+    const jsOut = JSON.parse(rawGen);
+    const hadLayout = !!jsOut.layout;
+    delete jsOut.layout;
+    delete jsOut._readme;   // the layout step adds it to every page; the input here has none
+    const pyDir = join(work, 'parity');
+    writeFileSync(`${pyDir}_in.json`, J(GENERATED));
+    writeFileSync(`${pyDir}_js.json`, J(jsOut));
+    const py = spawnSync('python3', ['-I', '-c', `
+import json, sys
+sys.path.insert(0, ${J(join(root, 'scripts'))})
+from disk_format import to_disk
+want = to_disk('c4', json.load(open(${J(`${pyDir}_in.json`)})))
+want.pop('layout', None)
+got = json.load(open(${J(`${pyDir}_js.json`)}))
+a, b = json.dumps(want, indent=2), json.dumps(got, indent=2)
+import difflib
+print('SAME' if a == b else 'DIFF\\n' + '\\n'.join(difflib.unified_diff(a.splitlines(), b.splitlines(), 'python', 'page', lineterm='', n=1)))`], { encoding: 'utf8' });
+    t.check('Save on editor ids (e_, g_, n_) gives the bytes of c4_to_disk: slugs for elements and groups, n1, n2 for notes, note references followed', py.stdout.trim() === 'SAME' && hadLayout, py.stdout + py.stderr);
+    t.check('the saved notes are renamed and point at the renamed ids', J(jsOut.notes) === J([{ id: 'n1', text: 'about the api', elements: ['order_api'] }, { id: 'n2', text: 'about both', elements: ['shopper'], groups: ['core_platform'] }]), J(jsOut.notes));
+    // an edited model: the page-made note id (n_<ms>) is renamed to the next free n<N> and the file reloads the same
+    await addNamed('system', 'Ledger');
+    await clickName('Ledger');
+    await addNote();
+    await typeNote('Edited note');
+    const rawEd = await rawSaved(), ed = JSON.parse(rawEd);
+    t.check('a note added in the page is saved as the next free n<N>, pointing at the element slug', J(noteOf(ed, 'Edited note')) === J({ id: 'n3', text: 'Edited note', elements: ['ledger'] }), J(noteOf(ed, 'Edited note')));
+    const copyN = join(work, 'noted-reload.html');
+    writeFileSync(copyN, readFileSync(generatedPage, 'utf8').replace(/(<script id="diagram-data" type="application\/json">)[\s\S]*?(<\/script>)/, (m, a, b) => a + rawEd + b));
+    await freshPage(copyN);
+    t.check('reloading the saved file shows the same notes and saves the same text', (await ids()) === 'n1,n2,n3' && (await rawSaved()) === rawEd);
+
+    // -- present: read only
+    await freshPage(notedPage, '?present');
+    t.check('?present shows the cards from the file, no Notes switch on the dock', (await count('.note[data-note-id]')) === 2 && !(await t.ev(`(() => { const b = document.getElementById('btn-notes'); const r = b.getBoundingClientRect(); return r.width > 0 && getComputedStyle(b).display !== 'none'; })()`)));
+    const pp = await t.at('.note[data-note-id="n1"] .note-text');
+    await t.click(pp.x, pp.y, { count: 2 });
+    await sleep(250);
+    await t.press('Delete'); await t.press('F2'); await sleep(200);
+    t.check('?present: a double-click does not edit, Delete removes nothing, no x button shows', (await editing()) === null && (await count('.note[data-note-id]')) === 2 && !(await t.ev(`[...document.querySelectorAll('.note-del')].some((b) => b.getBoundingClientRect().width > 0)`)) && !(await t.ev(`!!document.querySelector('.note-text[contenteditable="true"]')`)));
+    await clickName('Web API');
+    await t.press('Delete'); await sleep(200);
+    t.check('?present: the saved notes are untouched', (await saved()).notes.length === 2);
+
+    // -- reduced motion: no animation, no ghost
+    await t.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
+    try {
+      await freshPage(notedPage);
+      const probe = async (name, fn) => {
+        await fn();
+        const r = [await t.ev(WAAPI), await t.ev(GHOSTS)];
+        await sleep(80);
+        r.push(await t.ev(WAAPI), await t.ev(GHOSTS));
+        t.check(`reduced motion: ${name} creates no animation and no ghost`, r.every((n) => n === 0), J(r));
+      };
+      await probe('the Notes switch off', () => t.ev(`document.getElementById('btn-notes').click()`));
+      await probe('the Notes switch on', () => t.ev(`document.getElementById('btn-notes').click()`));
+      await probe('adding a note', async () => { await blank(); await clickName('Customer'); await addNote(); await typeNote('Calm'); });
+      await probe('deleting a note', async () => { await t.ev(`document.querySelector('.note[data-note-id="n1"] .note-del').click()`); });
+      await probe('collapsing the group (cards included)', () => t.ev(`document.getElementById('btn-level-1').click()`));
+      t.check('reduced motion: the Notes state is right at the end', (await ids()).includes('n2') && !(await ids()).includes('n1'), await ids());
+    } finally { await t.send('Emulation.setEmulatedMedia', { features: [] }); }
   });
 
   // --- present mode ------------------------------------------------------------------------------------------

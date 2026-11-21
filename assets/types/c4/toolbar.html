@@ -36,6 +36,14 @@
               </button>
             </div>
           </div>
+          <div class="dock-pop-section">
+            <div class="dock-pop-heading" aria-hidden="true">Annotate</div>
+            <div class="dock-pop-grid" role="group" aria-label="Annotate">
+              <button id="btn-add-note" class="btn btn-shape" title="Note: select an element, group or arrow first, then click to add a note to it" aria-label="Note">
+                {{icon:shape-note:tile:fine}}<span class="tile-caption">Note</span>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -46,4 +54,9 @@
       </button>
       <button id="btn-level-2" class="btn" data-level="2" aria-pressed="false" title="Level 2, containers: systems are opened to their containers" aria-label="Level 2">
         {{icon:layers}}<span class="btn-label">Level 2</span>
+      </button>
+      <span class="dock-sep" aria-hidden="true"></span>
+      <!-- Notes (c4.js, NOTES): shows or hides every note card; the count is the notes with text -->
+      <button id="btn-notes" class="btn btn-switch" role="switch" title="Show all notes" aria-label="Notes" aria-checked="false">
+        {{icon:notes}}<span class="btn-label">Notes</span><span class="btn-count" hidden></span>
       </button>
