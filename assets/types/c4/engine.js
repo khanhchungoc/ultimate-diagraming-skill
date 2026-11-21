@@ -740,7 +740,9 @@ function c4Route(m, again) {
     const [A, B] = c4Sibs(m, e.a, e.b);
     return { from: e.from, to: e.to, label: e.text, tech: e.tech, hint: hint(A, B), itemA: item(A), itemB: item(B) };
   });
-  const res = !edges.length ? [] : typeof routeC4Edges === 'function' ? routeC4Edges(nodes, rEdges) : c4Fallback(nodes, rEdges);
+  // manual mode (saved positions kept): boxes can be anywhere, so the router avoids every box and frame (frames: centre x, y)
+  const ropts = data._manual === true ? { manual: true, frames: Array.from(m.gN.values()).filter((g) => g.vis && !g.self).map((g) => ({ id: g.id, x: g.ref.x + g.ref.w / 2, y: g.ref.y + g.ref.h / 2, w: g.ref.w, h: g.ref.h })) } : undefined;
+  const res = !edges.length ? [] : typeof routeC4Edges === 'function' ? routeC4Edges(nodes, rEdges, ropts) : c4Fallback(nodes, rEdges);
   let right = 0, bottom = 0, left = Infinity, top = Infinity;
   const grow = (x, y) => { if (x > right) right = x; if (y > bottom) bottom = y; if (x < left) left = x; if (y < top) top = y; };
   leaves.forEach((n) => { grow(n.ref.x, n.ref.y); grow(n.ref.x + n.ref.w, n.ref.y + n.ref.h); });

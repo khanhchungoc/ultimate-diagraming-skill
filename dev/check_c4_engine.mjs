@@ -536,7 +536,7 @@ for (const n of ran) {
   me.x = tb.x + 10; me.y = tb.y + 6;
   man(mv, { pinned: [A.id] });
   noOverlap(mv, `${n} (moved)`); inGroups(mv, `${n} (moved)`); orthogonal(mv, `${n} (moved)`);
-  // a deliberate move can put arrows across boxes (the gutter router assumes the ring layout), so arrowsClear is not asked here
+  arrowsClear(`${n} (moved)`, mv);   // manual mode routes around every box and frame
 }
 {
   // pinned items never move, others shift away; far items stay (all deltas below are the common canvas shift)

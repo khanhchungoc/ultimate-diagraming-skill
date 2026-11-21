@@ -2,7 +2,7 @@
 // engine.js (ENGINE_JS in layout_engine.py, scripts/run_engine.mjs, scripts/engine_runner.py). Contract: Gutter routing
 // interface in dev/plans/plan-c4.md.
 //
-// routeC4Edges(nodes, edges) -> [{ d, points, lx, ly, w }], one per edge, same order.
+// routeC4Edges(nodes, edges, opts) -> [{ d, points, lx, ly, w }], one per edge, same order.
 //   nodes  { id: { x, y, w, h } }                                         x, y = centre
 //   edges  [{ from, to, label, tech, hint, itemA, itemB }]               hint: 'v' | 'h' | 'u' | 'r' | 'l' | absent
 //          itemA, itemB = { id, x, y, w, h }: the two sibling items below the lowest group holding both ends (missing: the boxes)
@@ -11,9 +11,12 @@
 // frame's padding (side with more room, the 30px tag band excluded) and adds two bends; runs that share a gutter get their own
 // lane; loops get lanes 16px apart (under a row, or sideways out of a column); labels sit on a run (or leg) long enough for them and slide along it off every
 // box, tag band, other route and pill (least overlap if nothing is free). Text widths: TOKENS.font.metrics.
+// Manual mode (opts.manual: boxes dragged anywhere): the same routes first, then every route that crosses a box it does not end on or a
+// frame it does not enter is re-routed by c4rDetours (visibility grid, bends first, then length). opts.frames: [{id, x, y, w, h}] (centre) of all
+// expanded frames. Detours: pad 20, 12 or 6px (the first that leaves a path), regions grown 40 -> 160 -> 600 -> whole scene, a fixed work budget per call (C4R.WORK; routes past it keep their ring route). Without opts the output is the ring layout's, byte for byte.
 // Path rounding: buildCurvedPathWithHops (ortho-router.js). Deterministic; O(n log n) in nodes + edges (grid lookups only).
 
-const C4R = { PILL_H: 32, LOOP_GAP: 40, LOOP_LANE: 16, RUN_LANE: 10, MAX_W: 240, CELL: 96, ARROW: 16, TAG: 30, ESC_MIN: 6 };
+const C4R = { PAD: 12, PADS: [20, 12, 6], SHARE: 2000, WORK: 13000, SEARCH: 4000,  LANE: 12, MARGINS: [40, 160, 600], BIG: 1e6, PILL_H: 32, LOOP_GAP: 40, LOOP_LANE: 16, RUN_LANE: 10, MAX_W: 240, CELL: 96, ARROW: 16, TAG: 30, ESC_MIN: 6 };
 
 function c4rLabelW(label, tech) {
   const M = TOKENS.font.metrics, t = String(label == null ? '' : label);
@@ -70,8 +73,172 @@ function c4rLanes(items, gap) {
   return { lane: out, count: lanes.length };
 }
 
-function routeC4Edges(nodes, edges) {
-  const H = C4R.PILL_H;
+// ---- manual mode: obstacle-avoiding detours ----
+// Binary min-heap on (cost, seq): the seq makes ties deterministic.
+function c4rHeap() {
+  const c = [], q = [], s = [];
+  const less = (a, b) => c[a] < c[b] || (c[a] === c[b] && q[a] < q[b]);
+  const swap = (a, b) => { let t = c[a]; c[a] = c[b]; c[b] = t; t = q[a]; q[a] = q[b]; q[b] = t; t = s[a]; s[a] = s[b]; s[b] = t; };
+  let n = 0, seq = 0;
+  return {
+    cost: 0,
+    get size() { return n; },
+    push(cost, st) {
+      c[n] = cost; q[n] = seq++; s[n] = st;
+      for (let i = n++; i > 0;) { const p = (i - 1) >> 1; if (!less(i, p)) break; swap(i, p); i = p; }
+    },
+    pop() {
+      const st = s[0]; this.cost = c[0]; n--;
+      if (n > 0) {
+        c[0] = c[n]; q[0] = q[n]; s[0] = s[n];
+        for (let i = 0; ;) { const l = 2 * i + 1, r = l + 1; let m = i; if (l < n && less(l, m)) m = l; if (r < n && less(r, m)) m = r; if (m === i) break; swap(i, m); i = m; }
+      }
+      return st;
+    }
+  };
+}
+
+// Shortest orthogonal path on the visibility grid of the obstacle sides (padded). Directions 0 E, 1 S, 2 W, 3 N; cost = bends * BIG + length.
+// starts / goals: [{ x, y, dir, pen, port }] stub points one pad off a box side (dir: the way out of the box). Returns [[x, y]...], null (no path) or false (work budget spent: W.left, per search C4R.SEARCH).
+function c4rGridPath(region, obs, used, starts, goals, W) {
+  const L = C4R.LANE, [rx0, ry0, rx1, ry1] = region;
+  const xs = new Set([rx0, rx1]), ys = new Set([ry0, ry1]);
+  const inX = (v) => v >= rx0 && v <= rx1, inY = (v) => v >= ry0 && v <= ry1;
+  for (const o of obs) { for (const v of [o.x0, o.x1]) if (inX(v)) xs.add(v); for (const v of [o.y0, o.y1]) if (inY(v)) ys.add(v); }
+  for (const t of starts.concat(goals)) { xs.add(t.x); ys.add(t.y); xs.add(t.port[0]); ys.add(t.port[1]); }
+  for (const u of used) {                                                   // lanes beside a detour that is already there, and its corners
+    for (const k of [-1, 0, 1]) { const v = u.c + k * L; if (u.h ? inY(v) : inX(v)) (u.h ? ys : xs).add(v); }
+    for (const v of [u.lo, u.hi]) if (u.h ? inX(v) : inY(v)) (u.h ? xs : ys).add(v);
+  }
+  const X = Array.from(xs).sort((a, b) => a - b), Y = Array.from(ys).sort((a, b) => a - b), nx = X.length, ny = Y.length;
+  W.left -= obs.length * 4;
+  const cap = Math.min(W.left, C4R.SEARCH);                                 // work units: grid cells built + states popped
+  if (nx * ny > cap / 2) { W.left -= (nx + ny) * 4; return false; }
+  W.left -= nx * ny;
+  let pops = 0;
+  const lo = (A, v) => { let a = 0, b = A.length; while (a < b) { const m = (a + b) >> 1; if (A[m] < v) a = m + 1; else b = m; } return a; };   // first index with A[i] >= v
+  const hi = (A, v) => { let a = 0, b = A.length; while (a < b) { const m = (a + b) >> 1; if (A[m] <= v) a = m + 1; else b = m; } return a; };   // first index with A[i] > v
+  const bh = new Uint8Array(ny * (nx - 1)), bv = new Uint8Array((ny - 1) * nx), lh = new Uint8Array(ny * (nx - 1)), lv = new Uint8Array((ny - 1) * nx);
+  for (const o of obs) {                                                    // an edge is blocked when its line is strictly inside and its span lies inside
+    const xa = lo(X, o.x0), xb = hi(X, o.x1), ya = lo(Y, o.y0), yb = hi(Y, o.y1);      // grid lines on the obstacle: [xa, xb), [ya, yb)
+    for (let j = hi(Y, o.y0); j < lo(Y, o.y1); j++) for (let i = xa; i < xb - 1; i++) bh[j * (nx - 1) + i] = 1;
+    for (let i = hi(X, o.x0); i < lo(X, o.x1); i++) for (let j = ya; j < yb - 1; j++) bv[j * nx + i] = 1;
+  }
+  for (const u of used) {                                                   // parallel and overlapping a detour closer than one lane: blocked
+    if (u.h) {
+      for (let j = lo(Y, u.c - L + 1e-6); j < ny && Y[j] < u.c + L - 1e-6; j++) for (let i = lo(X, u.lo); i < nx - 1 && X[i + 1] <= u.hi; i++) lh[j * (nx - 1) + i] = 1;
+    } else {
+      for (let i = lo(X, u.c - L + 1e-6); i < nx && X[i] < u.c + L - 1e-6; i++) for (let j = lo(Y, u.lo); j < ny - 1 && Y[j + 1] <= u.hi; j++) lv[j * nx + i] = 1;
+    }
+  }
+  const idx = (x, y) => { const i = lo(X, x), j = lo(Y, y); return X[i] === x && Y[j] === y ? j * nx + i : -1; };
+  const stubOf = new Uint8Array(nx * ny), goalAt = new Map();
+  const inside = (x, y) => obs.some((o) => x > o.x0 && x < o.x1 && y > o.y0 && y < o.y1);
+  const ok = (t) => !inside(t.x, t.y);
+  starts = starts.filter(ok); goals = goals.filter(ok);
+  starts.forEach((t) => { t.n = idx(t.x, t.y); stubOf[t.n] = 1; });
+  goals.forEach((t) => { t.n = idx(t.x, t.y); stubOf[t.n] = 1; (goalAt.get(t.n) || goalAt.set(t.n, []).get(t.n)).push(t); });
+  if (!starts.length || !goals.length) return null;
+  const DX = [1, 0, -1, 0], DY = [0, 1, 0, -1], NS = nx * ny * 4, GOAL = NS;
+  const dist = new Float64Array(NS + 1).fill(Infinity), par = new Int32Array(NS + 1).fill(-1), heap = c4rHeap();
+  starts.forEach((t) => { const s = t.n * 4 + t.dir; if (t.pen < dist[s]) { dist[s] = t.pen; heap.push(t.pen, s); } });
+  let end = null;
+  while (heap.size) {
+    const st = heap.pop(), cost = heap.cost;
+    if (++pops > cap) { W.left -= pops; return false; }
+    if (cost > dist[st]) continue;
+    if (st === GOAL) { end = par[GOAL]; break; }
+    const n = st >> 2, d = st & 3, i = n % nx, j = (n - i) / nx;
+    const gs = goalAt.get(n);
+    if (gs) for (const g of gs) { const f = cost + g.pen + (g.dir === d ? 0 : C4R.BIG); if (f < dist[GOAL]) { dist[GOAL] = f; par[GOAL] = st; heap.push(f, GOAL); } }
+    for (let t = 0; t < 3; t++) {
+      const nd = t === 0 ? d : (d + (t === 1 ? 1 : 3)) & 3;
+      const ni = i + DX[nd], nj = j + DY[nd];
+      if (ni < 0 || nj < 0 || ni >= nx || nj >= ny) continue;
+      const horiz = nd === 0 || nd === 2, k = horiz ? j * (nx - 1) + Math.min(i, ni) : Math.min(j, nj) * nx + i;
+      if (horiz ? bh[k] : bv[k]) continue;
+      const m = nj * nx + ni;
+      const share = (horiz ? lh[k] : lv[k]) && !stubOf[n] && !stubOf[m] ? C4R.SHARE : 0;               // sharing a lane costs, never blocks
+      const f = cost + share + Math.abs(X[ni] - X[i]) + Math.abs(Y[nj] - Y[j]) + (nd === d ? 0 : C4R.BIG), ns = m * 4 + nd;
+      if (f < dist[ns]) { dist[ns] = f; par[ns] = st; heap.push(f, ns); }
+    }
+  }
+  W.left -= pops;
+  if (end === null) return null;
+  const pts = [];
+  for (let s = end; s !== -1; s = par[s]) { const n = s >> 2; pts.push([X[n % nx], Y[(n - n % nx) / nx]]); }
+  return pts.reverse();
+}
+
+// Re-routes (in input order) every route that crosses a box other than its two ends or a frame that holds neither end. Mutates info[].pts.
+function c4rDetours(info, nodes, frames, boxes, frameGrid, simplify) {
+  const used = [], W = { left: C4R.WORK };                                         // one work budget per call: the rest keep their route
+  let sx0 = Infinity, sy0 = Infinity, sx1 = -Infinity, sy1 = -Infinity;           // the whole scene: the last resort region
+  for (const n of Object.values(nodes).concat(Array.from(frames.values()))) {
+    sx0 = Math.min(sx0, n.x - n.w / 2); sx1 = Math.max(sx1, n.x + n.w / 2); sy0 = Math.min(sy0, n.y - n.h / 2); sy1 = Math.max(sy1, n.y + n.h / 2);
+  }
+  const holds = (f, n) => n.x > f.x && n.x < f.x + f.w && n.y > f.y && n.y < f.y + f.h;
+  const crosses = (e) => {
+    const foreign = (f) => !holds(f, e.A) && !holds(f, e.B);
+    for (let k = 0; k < e.pts.length - 1; k++) {
+      const p = e.pts[k], q = e.pts[k + 1], r = { x: Math.min(p[0], q[0]), y: Math.min(p[1], q[1]), w: Math.abs(q[0] - p[0]), h: Math.abs(q[1] - p[1]) };
+      if (boxes.hit(r, 0, (b) => b.id !== e.from && b.id !== e.to) || frameGrid.hit(r, 0, foreign)) return true;
+    }
+    return false;
+  };
+  for (const e of info) {
+    if (W.left <= 0) break;
+    if (!crosses(e)) continue;
+    const first = e.pts[0], last = e.pts[e.pts.length - 1];
+    const ra = { x0: e.A.x - e.A.w / 2, x1: e.A.x + e.A.w / 2, y0: e.A.y - e.A.h / 2, y1: e.A.y + e.A.h / 2 }, rb = { x0: e.B.x - e.B.w / 2, x1: e.B.x + e.B.w / 2, y0: e.B.y - e.B.h / 2, y1: e.B.y + e.B.h / 2 };
+    // candidate stub points: the side facing the other end first (the route's own port when it sits there), then the rest
+    const cands = (n, r, port, toward, P) => {
+      const dx = toward.x - n.x, dy = toward.y - n.y, ax = Math.abs(dx) >= Math.abs(dy);
+      const order = ax ? [dx >= 0 ? 0 : 2, dy >= 0 ? 1 : 3, dy >= 0 ? 3 : 1, dx >= 0 ? 2 : 0] : [dy >= 0 ? 1 : 3, dx >= 0 ? 0 : 2, dx >= 0 ? 2 : 0, dy >= 0 ? 3 : 1];
+      return order.map((dir, rank) => {
+        const horiz = dir === 0 || dir === 2, edge = dir === 0 ? r.x1 : dir === 1 ? r.y1 : dir === 2 ? r.x0 : r.y0;
+        const onSide = horiz ? Math.abs(port[0] - edge) < 0.01 && port[1] > r.y0 && port[1] < r.y1 : Math.abs(port[1] - edge) < 0.01 && port[0] > r.x0 && port[0] < r.x1;
+        const c = onSide ? (horiz ? port[1] : port[0]) : (horiz ? n.y : n.x), sg = dir === 0 || dir === 1 ? 1 : -1;
+        const pt = horiz ? [edge, c] : [c, edge];
+        return { x: horiz ? edge + sg * P : c, y: horiz ? c : edge + sg * P, dir, pen: rank * 20, port: pt };
+      });
+    };
+    const bx0 = Math.min(ra.x0, rb.x0), bx1 = Math.max(ra.x1, rb.x1), by0 = Math.min(ra.y0, rb.y0), by1 = Math.max(ra.y1, rb.y1);
+    let path = null;
+    // pad 12 first; in a dense group (members closer than 24px) a narrower pad, before a wider region (small regions are cheap)
+    search: for (const m of C4R.MARGINS.concat(Infinity)) for (const P of C4R.PADS) {
+      const A = cands(e.A, ra, first, e.B, P), B = cands(e.B, rb, last, e.A, P);
+      B.forEach((t) => { t.dir = (t.dir + 2) & 3; });                    // goals: the way INTO the box
+      const reg = m === Infinity ? [sx0 - P, sy0 - P, sx1 + P, sy1 + P] : [bx0 - m, by0 - m, bx1 + m, by1 + m], obs = [];
+      const add = (r, pad) => { obs.push({ x0: r.x - pad, x1: r.x + r.w + pad, y0: r.y - pad, y1: r.y + r.h + pad }); };
+      const q = { x: reg[0], y: reg[1], w: reg[2] - reg[0], h: reg[3] - reg[1] };
+      boxes.scan(q, 0, null, (b) => { add(b, P); }, true);
+      frameGrid.scan(q, 0, null, (f) => {
+        if (holds(f, e.A) || holds(f, e.B)) add({ x: f.x, y: f.y, w: f.w, h: Math.min(C4R.TAG, f.h) }, 0);   // a frame an end is in: its tag band only
+        else add(f, P);
+      }, true);
+      const near = used.filter((u) => (u.h ? u.c >= reg[1] - 24 && u.c <= reg[3] + 24 : u.c >= reg[0] - 24 && u.c <= reg[2] + 24));
+      const pts = c4rGridPath(reg, obs, near, A, B, W);
+      if (pts === false) break search;
+      if (pts) {
+        // the grid path runs stub to stub: put the ports on both ends
+        const sa = A.find((t) => t.x === pts[0][0] && t.y === pts[0][1]), sb = B.find((t) => t.x === pts[pts.length - 1][0] && t.y === pts[pts.length - 1][1]);
+        path = simplify([sa.port].concat(pts, [sb.port]));
+        break search;
+      }
+    }
+    if (!path) continue;
+    const pts = path;
+    e.pts = pts;
+    for (let k = 0; k < pts.length - 1; k++) {
+      const p = pts[k], q = pts[k + 1], h = p[1] === q[1];
+      used.push(h ? { h: true, c: p[1], lo: Math.min(p[0], q[0]), hi: Math.max(p[0], q[0]) } : { h: false, c: p[0], lo: Math.min(p[1], q[1]), hi: Math.max(p[1], q[1]) });
+    }
+  }
+}
+
+function routeC4Edges(nodes, edges, opts) {
+  const manual = !!(opts && opts.manual), H = C4R.PILL_H;
   const boxOf = (id) => { const n = nodes[id]; return { id, x: n.x, y: n.y, w: n.w, h: n.h }; };
   const rectOf = (n) => ({ x: n.x - n.w / 2, y: n.y - n.h / 2, w: n.w, h: n.h });
   // ---- per edge: items, axis, direction, side keys ----
@@ -121,9 +288,12 @@ function routeC4Edges(nodes, edges) {
     if (a.length > 1) a.forEach((p, r) => { p.e.t0 = p.e.vert ? 0.3 + 0.55 * r / (a.length - 1) : 0.2 + 0.3 * r / (a.length - 1); });
   }
 
+  // manual mode: every expanded frame is known (opts.frames, centre x, y), not only the ones an edge sees as an item
+  if (manual && opts.frames) for (const f of opts.frames) if (!frames.has(f.id)) frames.set(f.id, f);
+
   // ---- obstacles: boxes, frames, tag bands ----
   const boxes = c4rGrid(), frameGrid = c4rGrid(), tags = c4rGrid();
-  for (const id in nodes) boxes.add(rectOf(nodes[id]));
+  for (const id in nodes) { const r = rectOf(nodes[id]); r.id = id; boxes.add(r); }
   for (const f of frames.values()) {
     const r = rectOf(f); r.id = f.id; frameGrid.add(r);
     tags.add({ x: r.x, y: r.y, w: r.w, h: Math.min(C4R.TAG, r.h) });
@@ -285,6 +455,8 @@ function routeC4Edges(nodes, edges) {
     const mc = half(A, e.ea, e.m0).concat(half(B, e.eb, e.m1).reverse());
     e.pts = simplify(mc.map(([m, c]) => (e.vert ? [c, m] : [m, c])));
   }
+
+  if (manual) c4rDetours(info, nodes, frames, boxes, frameGrid, simplify);
 
   // ---- labels, in input order: on a run long enough, slid along it off every box, tag band, other route and pill ----
   const pills = c4rGrid(), routes = c4rGrid();

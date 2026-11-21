@@ -237,5 +237,81 @@ check(JSON.stringify(routeC4Edges(plain(nodes), edges)) === JSON.stringify(res),
   check(ms < 1000, `5,000 edges took ${ms.toFixed(0)} ms (limit 1000)`);
 }
 
+// ---------- manual mode: boxes anywhere, routes avoid every box and frame ----------
+{
+  const mn = {}, mf = [], FR = (id, ids) => {
+    const bs = ids.map((i) => mn[i]), x0 = Math.min(...bs.map((b) => b.x - b.w / 2)) - PAD, x1 = Math.max(...bs.map((b) => b.x + b.w / 2)) + PAD;
+    const y0 = Math.min(...bs.map((b) => b.y - b.h / 2)) - PAD - TAG, y1 = Math.max(...bs.map((b) => b.y + b.h / 2)) + PAD;
+    mf.push({ id, x: (x0 + x1) / 2, y: (y0 + y1) / 2, w: x1 - x0, h: y1 - y0 });
+  };
+  const mb = (id, x, y, w = BW, h = BH) => { mn[id] = { x, y, w, h }; };
+  // 1: an obstacle exactly between two boxes
+  mb('A', 0, 0); mb('M', 250, 0); mb('B', 500, 0);
+  // 2: a straight run that would cross a third box and a frame
+  mb('C', 0, 600); mb('X', 250, 600); mb('G1', 560, 560); mb('G2', 700, 660); FR('G', ['G1', 'G2']); mb('D', 1000, 600);
+  // 3: an enclosed box (gaps of 8px: no room for a port) and a box far away
+  mb('E', 2000, 0); mb('EN', 2000, -118, BW, BH); mb('ES', 2000, 118); mb('EW', 1842, 0); mb('EE', 2158, 0); mb('F', 2000, 500);
+  // 4: two parallel detours past one wall
+  mb('P1', 0, 1200); mb('P2', 0, 1330); mb('W1', 250, 1200); mb('W2', 250, 1330); mb('Q1', 500, 1200); mb('Q2', 500, 1330);
+  const me = (from, to, hint, label = 'Reads', tech = 'HTTPS') => ({ from, to, label, tech, hint });
+  const ed = [me('A', 'B', 'h', 'Reads from the primary store'), me('C', 'D', 'h', 'Streams'), me('F', 'E', 'v', 'Enclosed'), me('P1', 'Q1', 'h', 'Lane one'), me('P2', 'Q2', 'h', 'Lane two'), me('A', 'M', 'h', 'Near'), me('M', 'B', 'h', 'Out')];
+  const man = { manual: true, frames: mf }, run = () => routeC4Edges(mn, ed, man), r1 = run(), base = routeC4Edges(mn, ed);
+  const holdsC = (f, n) => n.x > f.x - f.w / 2 && n.x < f.x + f.w / 2 && n.y > f.y - f.h / 2 && n.y < f.y + f.h / 2;
+  const crossing = (e, r) => {
+    const ss = segs(r.points);
+    return Object.keys(mn).some((id) => id !== e.from && id !== e.to && ss.some((q) => hits(q, rectOf(mn[id])))) || mf.some((f) => !holdsC(f, mn[e.from]) && !holdsC(f, mn[e.to]) && ss.some((q) => hits(q, frameRect(f))));
+  };
+  const bends = (r) => r.points.length - 2;
+  ed.forEach((e, i) => {
+    const tag = `manual ${e.from}>${e.to}`;
+    check(segs(r1[i].points).every(([p, q]) => eq(p[0], q[0]) || eq(p[1], q[1])), `${tag} is orthogonal`);
+    if (e.to !== 'E') check(!crossing(e, r1[i]), `${tag} crosses nothing`);
+  });
+  check(crossing(ed[0], base[0]) && crossing(ed[1], base[1]), 'the ring router crosses the obstacle (the scene is a real test)');
+  check(bends(r1[0]) <= 3 && bends(r1[1]) <= 3 && bends(r1[3]) <= 3, `detours have at most 3 bends (${bends(r1[0])}, ${bends(r1[1])}, ${bends(r1[3])})`);
+  check(JSON.stringify(r1[2].points) === JSON.stringify(base[2].points), 'an enclosed box keeps the original route');
+  check(JSON.stringify(r1[5].points) === JSON.stringify(base[5].points) && JSON.stringify(r1[6].points) === JSON.stringify(base[6].points), 'a route that crosses nothing is not touched');
+  // lanes: two detours past one wall are 12px apart where they run side by side
+  {
+    const a = segs(r1[3].points), b = segs(r1[4].points);
+    for (const [p, q] of a) for (const [u, v] of b) {
+      const hh = eq(p[1], q[1]) && eq(u[1], v[1]), vv = eq(p[0], q[0]) && eq(u[0], v[0]);
+      if (hh && Math.min(Math.max(p[0], q[0]), Math.max(u[0], v[0])) - Math.max(Math.min(p[0], q[0]), Math.min(u[0], v[0])) > 1 && !eq(p[1], u[1])) check(Math.abs(p[1] - u[1]) >= 12 - 0.01, `detour lanes are ${Math.abs(p[1] - u[1])}px apart`);
+      if (vv && Math.min(Math.max(p[1], q[1]), Math.max(u[1], v[1])) - Math.max(Math.min(p[1], q[1]), Math.min(u[1], v[1])) > 1 && !eq(p[0], u[0])) check(Math.abs(p[0] - u[0]) >= 12 - 0.01, `detour lanes are ${Math.abs(p[0] - u[0])}px apart`);
+    }
+  }
+  // labels: on no box, no tag band, no pill
+  const pl = r1.map((r, i) => ({ i, x0: r.lx - r.w / 2, x1: r.lx + r.w / 2, y0: r.ly - 16, y1: r.ly + 16, w: r.w })).filter((p) => p.w > 0 && ed[p.i].to !== 'E');
+  pl.forEach((p, k) => {
+    for (const id in mn) { const q = rectOf(mn[id]); check(!(p.x0 < q.x1 && q.x0 < p.x1 && p.y0 < q.y1 && q.y0 < p.y1), `manual label ${p.i} sits on box ${id}`); }
+    for (const q of pl.slice(k + 1)) check(!(p.x0 < q.x1 && q.x0 < p.x1 && p.y0 < q.y1 && q.y0 < p.y1), `manual labels ${p.i} and ${q.i} overlap`);
+  });
+  checkPills(r1, pl, mf);
+  check(JSON.stringify(run()) === JSON.stringify(r1), 'manual mode: same input, byte-equal output');
+  // without opts (or manual false) nothing changes, and a scene with no crossing is the same in both modes
+  check(JSON.stringify(routeC4Edges(mn, ed, { manual: false, frames: mf })) === JSON.stringify(base), 'manual: false returns the ring layout output');
+  check(JSON.stringify(routeC4Edges(plain(nodes), edges, { manual: true, frames: Object.values(frames) })) === JSON.stringify(res), 'a scene with no crossing: manual output equals the ring output');
+}
+
+// ---------- manual mode at scale: 500 elements, 2,000 edges, 30 that cross a box ----------
+{
+  const cols = 25, rows = 20, big = {}, es = [];
+  for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) big[`n${r}_${c}`] = { x: c * 260, y: r * 220, w: 150, h: 110 };
+  for (let k = 0; k < 30; k++) { const r = (k * 3) % rows, c = (k * 5) % (cols - 3); es.push({ from: `n${r}_${c}`, to: `n${r}_${c + 2}`, label: `Skips ${k}`, hint: 'h' }); }   // a box lies between
+  for (let k = 0; es.length < 2000; k++) {
+    const r = k % rows, c = (k * 7) % (cols - 1), q = (k >> 1) % 2;
+    es.push(q ? { from: `n${r}_${c}`, to: `n${r}_${c + 1}`, label: `Link ${k}`, hint: 'h' } : { from: `n${r}_${c}`, to: `n${(r + 1) % rows}_${c}`, label: `Link ${k}`, hint: 'v' });
+  }
+  routeC4Edges(big, es);   // warm-up: the timings below are not the JIT's
+  const t0 = process.hrtime.bigint(), plainOut = routeC4Edges(big, es), t1 = process.hrtime.bigint(), out = routeC4Edges(big, es, { manual: true, frames: [] }), t2 = process.hrtime.bigint();
+  const ms = Number(t2 - t1) / 1e6, base = Number(t1 - t0) / 1e6;
+  const changed = out.filter((o, i) => JSON.stringify(o.points) !== JSON.stringify(plainOut[i].points)).length;
+  const ss = (r) => segs(r.points);
+  const still = es.slice(0, 30).filter((e, i) => Object.keys(big).some((id) => id !== e.from && id !== e.to && ss(out[i]).some((q) => hits(q, rectOf(big[id]))))).length;
+  console.log(`manual, ${Object.keys(big).length} elements, ${es.length} edges, ${changed} re-routed: ${ms.toFixed(0)} ms (ring only ${base.toFixed(0)} ms)`);
+  check(changed >= 30 && still === 0, `all 30 crossing routes are re-routed (${changed} changed, ${still} still cross)`);
+  check(ms < 250, `manual mode on 500 elements / 2,000 edges / 30 crossings took ${ms.toFixed(0)} ms (limit 250)`);
+}
+
 console.log(failures ? `${failures} check(s) failed` : `OK: ${edges.length} edges routed, all checks passed`);
 process.exit(failures ? 1 : 0);
