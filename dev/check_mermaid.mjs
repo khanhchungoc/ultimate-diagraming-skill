@@ -6,7 +6,7 @@
 // A type may add its own normalising in dev/check_mermaid_norm.<kind>.mjs: `export function normalise(data, safeId, base)`,
 // where `base` is the generic normaliser below; without that file the generic one is used.
 //
-//   node dev/check_mermaid.mjs --browser <chrome> [--kind flowchart|usecase|sequence|erd] [-v|--verbose]
+//   node dev/check_mermaid.mjs --browser <chrome> [--kind flowchart|usecase|sequence|erd|c4] [-v|--verbose]
 // Exit codes: 0 all pass, 1 setup error or a failed check.
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -19,7 +19,7 @@ import { defaultPalette, loadMermaidIO } from '../scripts/mermaid_io.mjs';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const browser = argOf('browser');
 const onlyKind = argOf('kind');
-const KINDS = ['flowchart', 'usecase', 'sequence', 'erd'];
+const KINDS = ['flowchart', 'usecase', 'sequence', 'erd', 'c4'];
 if (onlyKind && !KINDS.includes(onlyKind)) { console.error(`--kind must be one of ${KINDS.join(', ')}`); process.exit(1); }
 const kinds = onlyKind ? [onlyKind] : KINDS;
 
@@ -136,7 +136,7 @@ for (const kind of kinds) {
     const text = readFileSync(join(corpus, f), 'utf8');
     const body = text.replace(/^---\n[\s\S]*?\n---\n/, '').split('\n').filter((l) => l.trim() && !l.trim().startsWith('%%'))[0] || '';
     const isUse = /^\s*%%\s*@type\s+usecase\b/m.test(text);
-    const fileKind = /^\s*sequenceDiagram\b/.test(body) ? 'sequence' : /^\s*erDiagram\b/.test(body) ? 'erd'
+    const fileKind = /^\s*sequenceDiagram\b/.test(body) ? 'sequence' : /^\s*erDiagram\b/.test(body) ? 'erd' : /^\s*C4(Context|Container|Component)\b/.test(body) ? 'c4'
       : /^\s*(flowchart|graph)\b/.test(body) ? (isUse ? 'usecase' : 'flowchart') : null;
     if (fileKind !== kind) continue;
     const name = `leniency ${f}`;
@@ -240,6 +240,45 @@ if (!onlyKind || onlyKind === 'erd') {
     && erdBack.data.entities[0].note === 'append-only; immutable'
     ? pass('P2 ERD note/entityNote leaves ; unescaped and round-trips')
     : fail('P2 ERD note/entityNote leaves ; unescaped and round-trips', [erdMmd]);
+}
+
+if (!onlyKind || onlyKind === 'c4') {
+  // C4: the text is stable (write, read, write), the lossy fields travel through the %% lines, and the docs sample reads as expected
+  const io = loadMermaidIO('c4');
+  for (const f of fixturesOf('c4').filter((x) => !x.includes('golden') && !x.includes('level3'))) {   // a container group reads back as a system group
+    const t1 = io.toMermaid(extract(f), { palette });
+    const t2 = io.toMermaid(io.fromMermaid(t1).data, { palette });
+    t1 === t2 ? pass(`c4 text is stable ${relative(ROOT, f)}`) : fail(`c4 text is stable ${relative(ROOT, f)}`, [t1, t2]);
+  }
+  const hints = {
+    diagramType: 'c4', arrange: 'surround', showTech: true, colorKey: { 1: 'People' },
+    groups: [{ id: 'g', name: 'G', kind: 'boundary', color: '#ff8800', core: true, side: 'W' }],
+    elements: [{ id: 'a', kind: 'person', name: 'A "quoted"', tech: 'T', color: '2', icon: 'user', core: true, side: 'N', group: 'g' },
+      { id: 'b', kind: 'system', name: 'B' }],
+    relations: [{ from: 'a', to: 'b', label: 'x', tech: 'y', async: true }],
+  };
+  const back = io.fromMermaid(io.toMermaid(hints, { palette })).data;
+  const el = Object.fromEntries(back.elements.map((e) => [e.id, e]));
+  const kept = back.arrange === 'surround' && back.showTech === true && back.colorKey[1] === 'People' && back.title === undefined
+    && JSON.stringify(back.groups) === JSON.stringify(hints.groups)
+    && JSON.stringify(el.a) === JSON.stringify({ id: 'a', kind: 'person', name: 'A "quoted"', group: 'g', tech: 'T', color: '2', icon: 'user', core: true, side: 'N' })
+    && back.relations.length === 1 && back.relations[0].tech === 'y' && back.relations[0].async === undefined;
+  kept ? pass('c4 icon, colour, core, side, arrange, showTech and colour key survive; async is lost') : fail('c4 hint lines survive', [JSON.stringify(back)]);
+  const docs = io.fromMermaid(readFileSync(join(ROOT, 'dev/fixtures/mermaid/corpus/c4-docs-context.mmd'), 'utf8'));
+  const d = docs.data, kinds = Object.fromEntries(d.elements.map((e) => [e.id, `${e.kind}${e.icon ? '+' + e.icon : ''}@${e.group || ''}`]));
+  const want = { customerA: 'person@b0', customerC: 'person@b0', SystemAA: 'system@b0', SystemE: 'external+database@b1', SystemC: 'external@b1',
+    SystemD: 'database@b1', SystemF: 'queue@b3', SystemG: 'external+queue@b3' };
+  const ok = Object.entries(want).every(([k, v]) => kinds[k] === v) && d.title === 'System Context diagram for Internet Banking System'
+    && d.groups.map((g) => `${g.id}:${g.kind}:${g.parent || ''}`).join() === 'b0:boundary:,b1:boundary:b0,b3:boundary:b1'
+    && d.relations.length === 7 && d.relations.some((r) => r.from === 'customerD' || r.to === 'customerD') === false
+    && d.elements.find((e) => e.id === 'customerD').description === 'A customer of the bank, \n with personal bank accounts.'
+    && !docs.warnings.length;
+  ok ? pass('c4 Mermaid docs sample reads as expected') : fail('c4 Mermaid docs sample reads as expected', [JSON.stringify(kinds), JSON.stringify(docs.warnings), JSON.stringify(d.relations.length)]);
+  let refused = '';
+  try { io.fromMermaid('C4Dynamic\n  Person(a, "A")'); } catch (e) { refused = e.message; }
+  /C4Dynamic is not supported/.test(refused) ? pass('c4 C4Dynamic is refused with a message') : fail('c4 C4Dynamic is refused', [refused]);
+  const odd = io.fromMermaid('C4Context\n  Person(a, "A")\n  Frobnicate(x)\n  Rel(a, nope, "x")');
+  odd.warnings.length === 2 ? pass('c4 unknown statements and dangling relations are reported') : fail('c4 unknown statements are reported', odd.warnings);
 }
 
 // ---- dry run: the CLI reads every corpus file and finishes ----

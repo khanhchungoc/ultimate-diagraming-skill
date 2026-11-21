@@ -1,0 +1,17 @@
+{
+  "diagramType": "c4",
+  "schemaVersion": 1,
+  "title": "ShopCo system context",
+  "groups": [
+    { "id": "shopco", "name": "ShopCo", "kind": "boundary" }
+  ],
+  "elements": [
+    { "id": "cust", "kind": "person", "name": "Customer", "description": "Buys products online" },
+    { "id": "shop", "kind": "system", "name": "Web Shop", "description": "Browse and order", "group": "shopco", "core": true },
+    { "id": "pay", "kind": "external", "name": "Payment Provider", "description": "Takes card payments" }
+  ],
+  "relations": [
+    { "from": "cust", "to": "shop", "label": "Orders products", "tech": "HTTPS" },
+    { "from": "shop", "to": "pay", "label": "Charges cards", "tech": "REST" }
+  ]
+}

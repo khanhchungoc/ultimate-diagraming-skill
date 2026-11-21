@@ -1,0 +1,14 @@
+{
+  "diagramType": "c4",
+  "title": "C4 diagram",
+  "groups": [{ "id": "shop", "name": "Shop", "kind": "boundary" }],
+  "elements": [
+    { "id": "user", "kind": "person", "name": "User", "description": "Uses the system" },
+    { "id": "app", "kind": "system", "name": "Software system", "description": "Does something useful", "group": "shop" },
+    { "id": "ext", "kind": "external", "name": "External system", "description": "Provides a service" }
+  ],
+  "relations": [
+    { "from": "user", "to": "app", "label": "Uses", "tech": "HTTPS" },
+    { "from": "app", "to": "ext", "label": "Calls", "tech": "REST" }
+  ]
+}

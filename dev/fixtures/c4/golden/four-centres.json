@@ -1,0 +1,653 @@
+{
+  "diagramType": "c4",
+  "schemaVersion": 1,
+  "title": "Four centres",
+  "colorKey": {
+    "1": "Staff"
+  },
+  "groups": [
+    {
+      "id": "cust_group",
+      "name": "Customers",
+      "kind": "boundary",
+      "x": 620,
+      "y": 48,
+      "_depth": 1,
+      "_collapsed": false,
+      "_hidden": false,
+      "_ring": 1,
+      "_side": "N",
+      "w": 184,
+      "h": 156
+    },
+    {
+      "id": "staff",
+      "name": "Staff",
+      "kind": "boundary",
+      "color": "1",
+      "x": 838,
+      "y": 48,
+      "_depth": 1,
+      "_collapsed": false,
+      "_hidden": false,
+      "_ring": 1,
+      "_side": "N",
+      "w": 372,
+      "h": 156
+    }
+  ],
+  "elements": [
+    {
+      "id": "core",
+      "kind": "system",
+      "name": "Order Platform",
+      "description": "Cart and checkout",
+      "icon": "cart",
+      "core": true,
+      "x": 682,
+      "y": 288,
+      "_hidden": false,
+      "w": 156,
+      "h": 112,
+      "_ring": 0
+    },
+    {
+      "id": "portal",
+      "kind": "system",
+      "name": "Support Portal",
+      "description": "Agent workspace",
+      "icon": "monitor",
+      "core": true,
+      "x": 988,
+      "y": 288,
+      "_hidden": false,
+      "w": 156,
+      "h": 112,
+      "_ring": 0
+    },
+    {
+      "id": "erp",
+      "kind": "system",
+      "name": "ERP",
+      "description": "Stock, invoicing",
+      "icon": "building",
+      "core": true,
+      "x": 682,
+      "y": 490,
+      "_hidden": false,
+      "w": 156,
+      "h": 112,
+      "_ring": 0
+    },
+    {
+      "id": "crm",
+      "kind": "system",
+      "name": "CRM",
+      "description": "Customer records",
+      "icon": "users",
+      "core": true,
+      "x": 988,
+      "y": 490,
+      "_hidden": false,
+      "w": 156,
+      "h": 112,
+      "_ring": 0
+    },
+    {
+      "id": "cust",
+      "kind": "person",
+      "name": "Customer",
+      "description": "Buys online",
+      "icon": "user",
+      "group": "cust_group",
+      "x": 634,
+      "y": 78,
+      "_hidden": false,
+      "w": 156,
+      "h": 112,
+      "_ring": 1,
+      "_side": "N"
+    },
+    {
+      "id": "agent",
+      "kind": "person",
+      "name": "Support Agent",
+      "description": "Handles orders",
+      "icon": "headset",
+      "group": "staff",
+      "x": 1040,
+      "y": 78,
+      "_hidden": false,
+      "w": 156,
+      "h": 112,
+      "_ring": 1,
+      "_side": "N"
+    },
+    {
+      "id": "wh",
+      "kind": "person",
+      "name": "Warehouse Operator",
+      "description": "Packs orders",
+      "icon": "package",
+      "group": "staff",
+      "x": 852,
+      "y": 78,
+      "_hidden": false,
+      "w": 164,
+      "h": 112,
+      "_ring": 1,
+      "_side": "N"
+    },
+    {
+      "id": "pay",
+      "kind": "external",
+      "name": "Payment Provider",
+      "description": "Card processing",
+      "icon": "credit-card",
+      "x": 334,
+      "y": 316,
+      "_hidden": false,
+      "w": 156,
+      "h": 112,
+      "_ring": 1,
+      "_side": "W"
+    },
+    {
+      "id": "ship",
+      "kind": "external",
+      "name": "Carrier API",
+      "description": "Labels, tracking",
+      "icon": "truck",
+      "side": "W",
+      "x": 334,
+      "y": 462,
+      "_hidden": false,
+      "w": 156,
+      "h": 112,
+      "_ring": 1,
+      "_side": "W"
+    },
+    {
+      "id": "mail",
+      "kind": "external",
+      "name": "Email Service",
+      "description": "Transactional",
+      "icon": "mail",
+      "side": "E",
+      "x": 1336,
+      "y": 389,
+      "_hidden": false,
+      "w": 156,
+      "h": 112,
+      "_ring": 1,
+      "_side": "E"
+    },
+    {
+      "id": "cards",
+      "kind": "external",
+      "name": "Card Network",
+      "description": "Authorises",
+      "icon": "banknote",
+      "x": 48,
+      "y": 389,
+      "_hidden": false,
+      "w": 156,
+      "h": 112,
+      "_ring": 2,
+      "_side": "W"
+    }
+  ],
+  "relations": [
+    {
+      "from": "cust",
+      "to": "core",
+      "label": "Places orders",
+      "tech": "HTTPS"
+    },
+    {
+      "from": "agent",
+      "to": "portal",
+      "label": "Manages orders",
+      "tech": "HTTPS"
+    },
+    {
+      "from": "wh",
+      "to": "core",
+      "label": "Fulfils orders",
+      "tech": "HTTPS"
+    },
+    {
+      "from": "portal",
+      "to": "core",
+      "label": "Reads orders",
+      "tech": "REST"
+    },
+    {
+      "from": "core",
+      "to": "erp",
+      "label": "Syncs stock",
+      "tech": "Events"
+    },
+    {
+      "from": "portal",
+      "to": "crm",
+      "label": "Looks up customers",
+      "tech": "REST"
+    },
+    {
+      "from": "erp",
+      "to": "crm",
+      "label": "Shares accounts",
+      "tech": "REST"
+    },
+    {
+      "from": "core",
+      "to": "pay",
+      "label": "Charges cards",
+      "tech": "REST"
+    },
+    {
+      "from": "core",
+      "to": "ship",
+      "label": "Books shipments",
+      "tech": "REST"
+    },
+    {
+      "from": "portal",
+      "to": "mail",
+      "label": "Sends replies",
+      "tech": "SMTP"
+    },
+    {
+      "from": "pay",
+      "to": "cards",
+      "label": "Authorises",
+      "tech": "ISO 8583"
+    }
+  ],
+  "_arrange": "surround",
+  "_edges": [
+    {
+      "id": "r0",
+      "from": "cust",
+      "to": "core",
+      "label": "Places orders",
+      "tech": "HTTPS",
+      "async": false,
+      "count": 1,
+      "members": [
+        0
+      ],
+      "text": "Places orders",
+      "points": [
+        [
+          723,
+          190
+        ],
+        [
+          723,
+          288
+        ]
+      ],
+      "path": "M 723 190 L 723 288",
+      "labelBox": {
+        "x": 668,
+        "y": 215,
+        "w": 111,
+        "h": 32
+      }
+    },
+    {
+      "id": "r1",
+      "from": "agent",
+      "to": "portal",
+      "label": "Manages orders",
+      "tech": "HTTPS",
+      "async": false,
+      "count": 1,
+      "members": [
+        1
+      ],
+      "text": "Manages orders",
+      "points": [
+        [
+          1118,
+          190
+        ],
+        [
+          1118,
+          246
+        ],
+        [
+          1066,
+          246
+        ],
+        [
+          1066,
+          288
+        ]
+      ],
+      "path": "M 1118 190 L 1118.0 238.0 Q 1118.0 246.0 1110.0 246.0 L 1074.0 246.0 Q 1066.0 246.0 1066.0 254.0 L 1066 288",
+      "labelBox": {
+        "x": 1059,
+        "y": 202,
+        "w": 118,
+        "h": 32
+      }
+    },
+    {
+      "id": "r2",
+      "from": "wh",
+      "to": "core",
+      "label": "Fulfils orders",
+      "tech": "HTTPS",
+      "async": false,
+      "count": 1,
+      "members": [
+        2
+      ],
+      "text": "Fulfils orders",
+      "points": [
+        [
+          934,
+          190
+        ],
+        [
+          934,
+          246
+        ],
+        [
+          786,
+          246
+        ],
+        [
+          786,
+          288
+        ]
+      ],
+      "path": "M 934 190 L 934.0 238.0 Q 934.0 246.0 926.0 246.0 L 794.0 246.0 Q 786.0 246.0 786.0 254.0 L 786 288",
+      "labelBox": {
+        "x": 801,
+        "y": 230,
+        "w": 118,
+        "h": 32
+      }
+    },
+    {
+      "id": "r3",
+      "from": "portal",
+      "to": "core",
+      "label": "Reads orders",
+      "tech": "REST",
+      "async": false,
+      "count": 1,
+      "members": [
+        3
+      ],
+      "text": "Reads orders",
+      "points": [
+        [
+          988,
+          344
+        ],
+        [
+          838,
+          344
+        ]
+      ],
+      "path": "M 988 344 L 838 344",
+      "labelBox": {
+        "x": 869,
+        "y": 328,
+        "w": 104,
+        "h": 32
+      }
+    },
+    {
+      "id": "r4",
+      "from": "core",
+      "to": "erp",
+      "label": "Syncs stock",
+      "tech": "Events",
+      "async": false,
+      "count": 1,
+      "members": [
+        4
+      ],
+      "text": "Syncs stock",
+      "points": [
+        [
+          760,
+          400
+        ],
+        [
+          760,
+          490
+        ]
+      ],
+      "path": "M 760 400 L 760 490",
+      "labelBox": {
+        "x": 712,
+        "y": 421,
+        "w": 97,
+        "h": 32
+      }
+    },
+    {
+      "id": "r5",
+      "from": "portal",
+      "to": "crm",
+      "label": "Looks up customers",
+      "tech": "REST",
+      "async": false,
+      "count": 1,
+      "members": [
+        5
+      ],
+      "text": "Looks up customers",
+      "points": [
+        [
+          1066,
+          400
+        ],
+        [
+          1066,
+          490
+        ]
+      ],
+      "path": "M 1066 400 L 1066 490",
+      "labelBox": {
+        "x": 993,
+        "y": 421,
+        "w": 146,
+        "h": 32
+      }
+    },
+    {
+      "id": "r6",
+      "from": "erp",
+      "to": "crm",
+      "label": "Shares accounts",
+      "tech": "REST",
+      "async": false,
+      "count": 1,
+      "members": [
+        6
+      ],
+      "text": "Shares accounts",
+      "points": [
+        [
+          838,
+          546
+        ],
+        [
+          988,
+          546
+        ]
+      ],
+      "path": "M 838 546 L 988 546",
+      "labelBox": {
+        "x": 843,
+        "y": 530,
+        "w": 125,
+        "h": 32
+      }
+    },
+    {
+      "id": "r7",
+      "from": "core",
+      "to": "pay",
+      "label": "Charges cards",
+      "tech": "REST",
+      "async": false,
+      "count": 1,
+      "members": [
+        7
+      ],
+      "text": "Charges cards",
+      "points": [
+        [
+          682,
+          325.3
+        ],
+        [
+          581,
+          325.3
+        ],
+        [
+          581,
+          372
+        ],
+        [
+          490,
+          372
+        ]
+      ],
+      "path": "M 682 325.3333333333333 L 589.0 325.3 Q 581.0 325.3 581.0 333.3 L 581.0 364.0 Q 581.0 372.0 573.0 372.0 L 490 372",
+      "labelBox": {
+        "x": 526,
+        "y": 333,
+        "w": 111,
+        "h": 32
+      }
+    },
+    {
+      "id": "r8",
+      "from": "core",
+      "to": "ship",
+      "label": "Books shipments",
+      "tech": "REST",
+      "async": false,
+      "count": 1,
+      "members": [
+        8
+      ],
+      "text": "Books shipments",
+      "points": [
+        [
+          682,
+          362.7
+        ],
+        [
+          591,
+          362.7
+        ],
+        [
+          591,
+          518
+        ],
+        [
+          490,
+          518
+        ]
+      ],
+      "path": "M 682 362.6666666666667 L 599.0 362.7 Q 591.0 362.7 591.0 370.7 L 591.0 510.0 Q 591.0 518.0 583.0 518.0 L 490 518",
+      "labelBox": {
+        "x": 529,
+        "y": 424,
+        "w": 125,
+        "h": 32
+      }
+    },
+    {
+      "id": "r9",
+      "from": "portal",
+      "to": "mail",
+      "label": "Sends replies",
+      "tech": "SMTP",
+      "async": false,
+      "count": 1,
+      "members": [
+        9
+      ],
+      "text": "Sends replies",
+      "points": [
+        [
+          1144,
+          344
+        ],
+        [
+          1182.4,
+          344
+        ],
+        [
+          1182.4,
+          445
+        ],
+        [
+          1336,
+          445
+        ]
+      ],
+      "path": "M 1144 344 L 1174.4 344.0 Q 1182.4 344.0 1182.4 352.0 L 1182.4 437.0 Q 1182.4 445.0 1190.4 445.0 L 1336 445",
+      "labelBox": {
+        "x": 1196,
+        "y": 429,
+        "w": 111,
+        "h": 32
+      }
+    },
+    {
+      "id": "r10",
+      "from": "pay",
+      "to": "cards",
+      "label": "Authorises",
+      "tech": "ISO 8583",
+      "async": false,
+      "count": 1,
+      "members": [
+        10
+      ],
+      "text": "Authorises",
+      "points": [
+        [
+          334,
+          372
+        ],
+        [
+          308,
+          372
+        ],
+        [
+          308,
+          445
+        ],
+        [
+          204,
+          445
+        ]
+      ],
+      "path": "M 334 372 L 316.0 372.0 Q 308.0 372.0 308.0 380.0 L 308.0 437.0 Q 308.0 445.0 300.0 445.0 L 204 445",
+      "labelBox": {
+        "x": 219,
+        "y": 429,
+        "w": 90,
+        "h": 32
+      }
+    }
+  ],
+  "canvas": {
+    "width": 1540,
+    "height": 650
+  }
+}

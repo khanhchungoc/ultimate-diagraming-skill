@@ -1,0 +1,47 @@
+{
+  "diagramType": "c4",
+  "schemaVersion": 1,
+  "title": "ShopCo system landscape",
+  "colorKey": { "1": "People", "2": "ShopCo systems", "3": "Order Platform" },
+  "groups": [
+    { "id": "shopco", "name": "ShopCo", "kind": "boundary" },
+    { "id": "platform", "name": "Order Platform", "kind": "system", "parent": "shopco", "collapsed": false, "core": true, "color": "3" },
+    { "id": "third", "name": "Third-party services", "kind": "boundary", "side": "E" }
+  ],
+  "elements": [
+    { "id": "cust", "kind": "person", "name": "Customer", "description": "Buys products online", "color": "1" },
+    { "id": "support", "kind": "person", "name": "Support agent", "description": "Handles order questions", "color": "1" },
+    { "id": "ops", "kind": "person", "name": "Warehouse staff", "description": "Packs and ships orders", "color": "1" },
+    { "id": "web", "kind": "container", "name": "Web App", "tech": "React", "group": "platform", "icon": "browser" },
+    { "id": "api", "kind": "container", "name": "API Gateway", "tech": "Node.js, REST", "group": "platform", "icon": "gateway" },
+    { "id": "orders", "kind": "container", "name": "Order Service", "tech": "Java, Spring", "group": "platform", "icon": "server" },
+    { "id": "orddb", "kind": "database", "name": "Order DB", "tech": "PostgreSQL", "group": "platform", "icon": "database" },
+    { "id": "bus", "kind": "queue", "name": "Event Bus", "tech": "RabbitMQ", "group": "platform", "icon": "queue" },
+    { "id": "worker", "kind": "container", "name": "Fulfilment Worker", "tech": "Python", "group": "platform", "icon": "function" },
+    { "id": "crm", "kind": "system", "name": "CRM", "description": "Customer records", "color": "2", "group": "shopco", "icon": "users" },
+    { "id": "pay", "kind": "external", "name": "Payment Provider", "description": "Takes card payments", "group": "third", "icon": "credit-card" },
+    { "id": "mail", "kind": "external", "name": "Email Service", "description": "Sends receipts", "group": "third", "icon": "mail" },
+    { "id": "ship", "kind": "external", "name": "Carrier API", "description": "Books deliveries", "group": "third", "icon": "truck" },
+    { "id": "tax", "kind": "external", "name": "Tax Service", "description": "Calculates sales tax", "group": "third", "icon": "cloud" },
+    { "id": "sms", "kind": "external", "name": "SMS Gateway", "description": "Sends delivery alerts", "group": "third", "icon": "bell" }
+  ],
+  "relations": [
+    { "from": "cust", "to": "web", "label": "Browses and orders", "tech": "HTTPS" },
+    { "from": "ops", "to": "web", "label": "Manages shipments", "tech": "HTTPS" },
+    { "from": "support", "to": "crm", "label": "Looks up customers" },
+    { "from": "web", "to": "api", "label": "Calls", "tech": "JSON/HTTPS" },
+    { "from": "api", "to": "orders", "label": "Routes requests", "tech": "gRPC" },
+    { "from": "orders", "to": "orddb", "label": "Reads and writes orders", "tech": "SQL" },
+    { "from": "orders", "to": "bus", "label": "Publishes order events", "tech": "AMQP", "async": true },
+    { "from": "bus", "to": "worker", "label": "Delivers order events", "tech": "AMQP", "async": true },
+    { "from": "orders", "to": "pay", "label": "Charges cards", "tech": "REST", "async": false },
+    { "from": "orders", "to": "tax", "label": "Gets tax rates", "tech": "REST" },
+    { "from": "orders", "to": "crm", "label": "Syncs customers", "tech": "REST" },
+    { "from": "worker", "to": "ship", "label": "Books carriers", "tech": "REST" },
+    { "from": "worker", "to": "mail", "label": "Sends receipts", "tech": "SMTP", "async": true },
+    { "from": "worker", "to": "sms", "label": "Sends delivery alerts", "tech": "REST", "async": true }
+  ],
+  "notes": [
+    { "id": "n1", "text": "Open the Order Platform to see its containers.", "groups": ["platform"] }
+  ]
+}

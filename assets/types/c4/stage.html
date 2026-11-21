@@ -1,0 +1,15 @@
+      <div id="c4-canvas">
+        <svg id="c4-svg" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <!-- Arrowhead: the tip (x = 0) sits on the element's outline and orient="auto" turns it along the line. c4.js adds the
+                 -in, -out and -sel variants (the in/out highlight colours and the primary colour). -->
+            <marker id="c4-mk" class="c4-mk" viewBox="-12 -7 14 14" markerWidth="14" markerHeight="14" refX="0" refY="0" orient="auto" markerUnits="userSpaceOnUse">
+              <path d="M-9 -4.5 0 0 -9 4.5 -6.5 0z"/>
+            </marker>
+          </defs>
+          <g id="c4-edges"></g>
+        </svg>
+        <div id="c4-html"></div>
+        <!-- The rubber band of a connection being dragged from a port (c4.js, CONNECT); an editing aid, never exported -->
+        <svg id="c4-overlay" data-export-skip width="1" height="1" aria-hidden="true"><line id="c4-rubber" x1="0" y1="0" x2="0" y2="0"/></svg>
+      </div>

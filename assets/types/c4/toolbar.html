@@ -1,0 +1,62 @@
+      <!-- Add popover: click a tile to add the item (one added while a group is selected joins that group); its name opens for editing -->
+      <div class="dock-pop-wrap" data-dock-pop>
+        <button id="btn-add" class="btn dock-pop-trigger" aria-label="Add" aria-haspopup="true" aria-expanded="false" aria-controls="c4-pop">
+          {{icon:plus}}<span class="btn-label">Add</span>
+          <span class="dock-pop-caret" aria-hidden="true">{{icon:chevron-up:xs:bold}}</span>
+        </button>
+        <div id="c4-pop" class="dock-pop" role="group" aria-label="Add: click to add">
+          <div class="dock-pop-section">
+            <div class="dock-pop-heading" aria-hidden="true">Landscape</div>
+            <div class="dock-pop-grid" role="group" aria-label="Landscape">
+              <button id="btn-add-person" class="btn btn-shape" title="Person: someone who uses the system (click to add)" aria-label="Person">
+                {{icon:user:tile:fine}}<span class="tile-caption">Person</span>
+              </button>
+              <button id="btn-add-system" class="btn btn-shape" title="Software system: something that delivers value, shown as one box (click to add)" aria-label="Software system">
+                {{icon:server:tile:fine}}<span class="tile-caption">System</span>
+              </button>
+              <button id="btn-add-external" class="btn btn-shape" title="External system: a third-party system you do not own (click to add)" aria-label="External system">
+                {{icon:cloud:tile:fine}}<span class="tile-caption">External</span>
+              </button>
+              <button id="btn-add-group" class="btn btn-shape" title="Group: a frame around elements; select one first to add into it (click to add)" aria-label="Group">
+                {{icon:frame:tile:fine}}<span class="tile-caption">Group</span>
+              </button>
+            </div>
+          </div>
+          <div class="dock-pop-section">
+            <div class="dock-pop-heading" aria-hidden="true">Inside a system</div>
+            <div class="dock-pop-grid" role="group" aria-label="Inside a system">
+              <button id="btn-add-container" class="btn btn-shape" title="Container: an app, service or data store inside a system (click to add)" aria-label="Container">
+                {{icon:container:tile:fine}}<span class="tile-caption">Container</span>
+              </button>
+              <button id="btn-add-database" class="btn btn-shape" title="Database: a data store (click to add)" aria-label="Database">
+                {{icon:database:tile:fine}}<span class="tile-caption">Database</span>
+              </button>
+              <button id="btn-add-queue" class="btn btn-shape" title="Queue: a message broker or topic (click to add)" aria-label="Queue">
+                {{icon:queue:tile:fine}}<span class="tile-caption">Queue</span>
+              </button>
+            </div>
+          </div>
+          <div class="dock-pop-section">
+            <div class="dock-pop-heading" aria-hidden="true">Annotate</div>
+            <div class="dock-pop-grid" role="group" aria-label="Annotate">
+              <button id="btn-add-note" class="btn btn-shape" title="Note: select an element, group or arrow first, then click to add a note to it" aria-label="Note">
+                {{icon:shape-note:tile:fine}}<span class="tile-caption">Note</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <span class="dock-sep" aria-hidden="true"></span>
+      <!-- Level (c4.js, LEVEL): Level N opens the groups down to N - 1 system levels (Level 1: every system is one box) and collapses the rest -->
+      <button id="btn-level-1" class="btn" data-level="1" aria-pressed="false" title="Level 1, system context: every system is one box" aria-label="Level 1">
+        {{icon:layers}}<span class="btn-label">Level 1</span>
+      </button>
+      <button id="btn-level-2" class="btn" data-level="2" aria-pressed="false" title="Level 2, containers: systems are opened to their containers" aria-label="Level 2">
+        {{icon:layers}}<span class="btn-label">Level 2</span>
+      </button>
+      <span class="dock-sep" aria-hidden="true"></span>
+      <!-- Notes (c4.js, NOTES): shows or hides every note card; the count is the notes with text -->
+      <button id="btn-notes" class="btn btn-switch" role="switch" title="Show all notes" aria-label="Notes" aria-checked="false">
+        {{icon:notes}}<span class="btn-label">Notes</span><span class="btn-count" hidden></span>
+      </button>

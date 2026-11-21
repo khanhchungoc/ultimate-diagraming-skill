@@ -1,0 +1,36 @@
+{
+  "diagramType": "c4",
+  "schemaVersion": 1,
+  "title": "Links inside a group",
+  "colorKey": { "2": "Order Platform" },
+  "groups": [
+    { "id": "front", "name": "Storefront", "kind": "system", "color": "1" },
+    { "id": "checkout", "name": "Checkout", "kind": "system", "color": "3" },
+    { "id": "platform", "name": "Order Platform", "kind": "system", "color": "2", "core": true }
+  ],
+  "elements": [
+    { "id": "cust", "kind": "person", "name": "Customer", "description": "Buys online", "icon": "user" },
+    { "id": "ui", "kind": "container", "name": "Web UI", "tech": "React", "group": "front", "icon": "browser" },
+    { "id": "bff", "kind": "container", "name": "BFF", "tech": "Node.js", "group": "front", "icon": "api" },
+    { "id": "cart", "kind": "container", "name": "Cart", "tech": "Go", "group": "checkout", "icon": "cart" },
+    { "id": "pricing", "kind": "container", "name": "Pricing", "tech": "Java", "group": "checkout", "icon": "server" },
+    { "id": "tax", "kind": "container", "name": "Tax Rules", "tech": "Java", "group": "checkout", "icon": "function" },
+    { "id": "gw", "kind": "container", "name": "API Gateway", "tech": "Envoy", "group": "platform", "icon": "gateway" },
+    { "id": "orders", "kind": "container", "name": "Order Service", "tech": "Java", "group": "platform", "icon": "server" },
+    { "id": "bus", "kind": "container", "name": "Event Bus", "tech": "RabbitMQ", "group": "platform", "icon": "queue" },
+    { "id": "worker", "kind": "container", "name": "Fulfilment Worker", "tech": "Python", "group": "platform", "icon": "function" },
+    { "id": "pay", "kind": "external", "name": "Payment Provider", "description": "Card processing", "icon": "credit-card" }
+  ],
+  "relations": [
+    { "from": "cust", "to": "ui", "label": "Browses", "tech": "HTTPS" },
+    { "from": "ui", "to": "bff", "label": "Calls", "tech": "JSON/HTTPS" },
+    { "from": "bff", "to": "cart", "label": "Reads cart", "tech": "gRPC" },
+    { "from": "cart", "to": "pricing", "label": "Prices items", "tech": "gRPC" },
+    { "from": "cart", "to": "tax", "label": "Adds tax", "tech": "gRPC" },
+    { "from": "bff", "to": "gw", "label": "Places orders", "tech": "gRPC" },
+    { "from": "gw", "to": "orders", "label": "Routes orders", "tech": "gRPC" },
+    { "from": "orders", "to": "bus", "label": "Publishes events", "tech": "AMQP", "async": true },
+    { "from": "bus", "to": "worker", "label": "Delivers events", "tech": "AMQP", "async": true },
+    { "from": "orders", "to": "pay", "label": "Charges cards", "tech": "REST" }
+  ]
+}

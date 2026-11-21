@@ -103,7 +103,7 @@ export async function launch(browser) {
 
   const results = [];
   const verbose = isVerbose();
-  const api = {
+  const api = { send,   // send: the raw DevTools call (e.g. Emulation.setDeviceMetricsOverride)
     get errors() { return state.errors; },
     /** Raw CDP command (e.g. Input.dispatchMouseEvent) and event subscription, for real input such as native drags. */
     send,

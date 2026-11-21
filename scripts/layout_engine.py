@@ -26,12 +26,14 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
 
+from audit_c4 import C4Audit
 from audit_erd import ErdAudit
 from audit_sequence import SequenceAudit
 from audit_usecase import UsecaseAudit
 from disk_format import (DISK_CODECS, authoring_json, color_kind, format_json, free_notes, from_disk,  # noqa: F401 (DISK_CODECS: registry)
                          palette_slots, readme_text, stamp_reading_guide, to_disk, with_readme)
 import subprocess_flow as sub
+from build_icon_pack import installed_packs, load_logos, logo_refs
 from engine_runner import EngineUnavailable, layout_session, run_layout, run_mermaid
 from tokens import expand_icons, load_icons, load_tokens, merge_theme, tokens_css, tokens_js
 
@@ -40,7 +42,7 @@ DEFAULT_COL_WIDTH = 200
 START_X = 56
 
 # Complexity budget (a diagram beyond these is too dense to read at Fit zoom on a 1920px screen)
-SUPPORTED_TYPES = ("flowchart", "sequence", "erd", "usecase")  # add a type here when its engine and reference exist
+SUPPORTED_TYPES = ("flowchart", "sequence", "erd", "usecase", "c4")  # add a type here when its engine and reference exist
 DEFAULT_TYPE = "flowchart"
 SCHEMA_VERSION = 1
 ERD_SCHEMA_VERSION = 3  # ERD layout v3 (disk_format.ERD_SCHEMA_VERSION)
@@ -1263,7 +1265,7 @@ def _load_input(path: Path, force_from_disk: bool = False) -> Tuple[Dict[str, An
     kind = raw.get("diagramType") or DEFAULT_TYPE
     is_disk = force_from_disk or "_readme" in raw or ("layout" in raw and kind != "sequence") or (kind == "erd" and "groups" in raw)
     data = from_disk(kind, raw) if is_disk else raw
-    needs_engine = "_readme" in raw or ("layout" in raw and kind in ("erd", "usecase"))
+    needs_engine = "_readme" in raw or ("layout" in raw and kind in ("erd", "usecase", "c4"))
     return data, html_text, False, needs_engine
 
 
@@ -1285,8 +1287,10 @@ def mermaid_kind(text: str) -> str:
         return "sequence"
     if header == "erDiagram":
         return "erd"
+    if header in ("C4Context", "C4Container", "C4Component", "C4Dynamic", "C4Deployment"):
+        return "c4"
     sys.exit(f"[ERROR] Not a Mermaid diagram this tool reads: the first line is {header!r}. "
-             "Supported: flowchart / graph (use case: add `%% @type usecase`), sequenceDiagram, erDiagram.")
+             "Supported: flowchart / graph (use case: add `%% @type usecase`), sequenceDiagram, erDiagram, C4Context / C4Container / C4Component.")
 
 
 def theme_palette(tokens: Dict[str, Any]) -> List[str]:
@@ -1298,7 +1302,7 @@ def item_ids(kind: str, data: Dict[str, Any]) -> Set[Tuple[str, Any]]:
     """The ids --keep-from compares: lanes and steps, subjects / actors / use cases, tables, participants. A sequence's
     messages have positional ids in Mermaid, so only their count counts."""
     keys = {"flowchart": ("lanes", "nodes"), "usecase": ("subjects", "actors", "useCases"), "erd": ("entities",),
-            "sequence": ("participants",)}[kind]
+            "sequence": ("participants",), "c4": ("groups", "elements")}[kind]
     ids = {(k, it["id"]) for k in keys for it in data.get(k) or []}
     ids |= {("nodes", n["id"]) for c in (data.get("children") or {}).values() for n in c.get("nodes") or []}
     if kind == "sequence":
@@ -1370,13 +1374,26 @@ def resolve_theme(theme_arg: Optional[str], page_html: Optional[str] = None) -> 
     return tokens, theme, note
 
 
-AUDITS = {"flowchart": FlowchartAudit, "sequence": SequenceAudit, "erd": ErdAudit, "usecase": UsecaseAudit}
+AUDITS = {"flowchart": FlowchartAudit, "sequence": SequenceAudit, "erd": ErdAudit, "usecase": UsecaseAudit, "c4": C4Audit}
+
+
+# Where local icon packs (icons/<pack>.json) are looked for: set by main() (--icons, else next to the input, else ./icons)
+ICON_DIRS: List[Path] = [Path("icons")]
 
 
 def make_audit(data: Dict[str, Any], tokens: Optional[Dict[str, Any]] = None):
-    """The audit for `data`'s type; the sequence audit estimates text width from the theme's font.metrics."""
+    """The audit for `data`'s type; the sequence audit estimates text width from the theme's font.metrics, the c4 audit
+    learns which icon packs are installed."""
     cls = AUDITS[data["diagramType"]]
+    if cls is C4Audit:
+        return cls(data, icon_packs=installed_packs(ICON_DIRS))
     return cls(data, tokens["font"]["metrics"] if tokens else None) if cls is SequenceAudit else cls(data)
+
+
+def logo_warnings(data: Dict[str, Any]) -> List[str]:
+    """One [WARN] per `logo:<pack>/<icon>` whose pack is installed but has no such entry (a missing pack is the audit's)."""
+    _, absent = load_logos(logo_refs(data), ICON_DIRS)
+    return [f"Icon pack '{r.split('/', 1)[0]}' has no entry '{r.split('/', 1)[1]}': elements using logo:{r} show the icon of their kind." for r in absent]
 # DISK_CODECS (disk_format.py): per type, (to_disk, from_disk) between the in-memory model and the page block
 
 ASSETS_DIR = Path(__file__).resolve().parent.parent / "assets"
@@ -1552,10 +1569,10 @@ def _build_parts(kind: str, data: Optional[Dict[str, Any]] = None,
         "DATA": payload,
         "THEME": theme_script(theme),
         "SHELL_JS": _read_asset(ASSETS_DIR / "shell" / "shell.js").rstrip(chr(10)),
-        "TOKENS_JS": tokens_js(tokens),
-        "ENGINE_JS": _read_asset(type_dir / "engine.js").rstrip(chr(10)),
+        "TOKENS_JS": tokens_js(tokens, load_logos(logo_refs(data), ICON_DIRS)[0]),
+        "ENGINE_JS": "\n".join(_read_asset(f).rstrip(chr(10)) for f in (ASSETS_DIR / "shell" / "ortho-router.js", type_dir / "route.js", type_dir / "engine.js") if f.is_file()),
         # The Mermaid reader and writer: the shared tokenizer, then the type's own (plain scripts, globals only)
-        "MERMAID_JS": "\n".join(_read_asset(f).rstrip(chr(10)) for f in (ASSETS_DIR / "shell" / "mermaid-flow.js", type_dir / "mermaid.js")),
+        "MERMAID_JS": "\n".join(_read_asset(f).rstrip(chr(10)) for f in (ASSETS_DIR / "shell" / "mermaid-flow.js", type_dir / "mermaid.js") if f.is_file()),   # a type with no Mermaid reader yet has no mermaid.js
         "TYPE_JS": _read_asset(type_dir / f"{kind}.js").rstrip(chr(10)),
     }
     return parts, tokens, icons
@@ -2005,6 +2022,8 @@ def main():
     parser.add_argument("--target", choices=TARGETS, default="file",
                         help="With --layout: file (default) writes the standalone HTML file; artifact writes the page "
                              "in the shape a claude.ai Artifact needs (publish it with the Artifact tool)")
+    parser.add_argument("--icons", metavar="DIR", help="Folder of local icon packs (<pack>.json, see references/icon-packs.md); "
+                        "default: icons/ next to the input file, then ./icons")
     parser.add_argument("--theme", help="Theme file (tokens in the shape of assets/tokens/default.json; omitted keys keep "
                                         "the default): page styles, fonts and text widths for --layout and --verify. Without it: "
                                         "the theme stored in the page, then .ultimate-diagram/theme.json, then the default")
@@ -2017,6 +2036,8 @@ def main():
 
     args = parser.parse_args()
     tokens = theme = None
+    given = next((Path(v) for v in (args.layout, args.verify, args.extract) if v), None)
+    ICON_DIRS[:] = [Path(args.icons)] if args.icons else [(given.parent if given else Path(".")) / "icons", Path("icons")]
 
     if args.extract_theme:
         stored = read_stored_theme(Path(args.extract_theme).read_text(encoding="utf-8"))
@@ -2088,7 +2109,7 @@ def main():
             print(note)
 
         data = normalize_diagram_type(data)
-        if (is_html or needs_engine) and data["diagramType"] in ("sequence", "erd", "usecase"):
+        if (is_html or needs_engine) and data["diagramType"] in ("sequence", "erd", "usecase", "c4"):
             # A sequence page saves no positions and an ER or use case page no routes: run the engine, as the page does on load
             try:
                 data = run_layout(data["diagramType"], data, timeout=args.timeout, browser=args.browser, tokens=tokens)
@@ -2239,7 +2260,7 @@ def main():
         # DATA problems (the agent fixes the JSON) are [WARN]/[ERROR] and the only reason for [NEXT]; LAYOUT problems
         # (the engine's job) are [INFO] Layout lines that never fail the run. --verify keeps the strict gates.
         data_bad = mermaid_bad
-        for warning in report["budget_warnings"]:
+        for warning in list(report["budget_warnings"]) + logo_warnings(laid_out_data):
             data_bad = True
             print(f"[WARN] {warning}")
         if external_refs:

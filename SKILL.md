@@ -1,7 +1,7 @@
 ---
 name: ultimate-diagram
 version: 1.1.38
-description: "Create, verify, edit and read diagrams as one standalone, editable HTML file or claude.ai Artifact (drag-and-drop, Auto-Tidy, Save). Supports swimlane flowcharts, sequence diagrams, ER diagrams (database tables, columns, keys, relationships) and UML use case diagrams (actors, use cases, system boundaries, include/extend). Use for interactive, shareable diagram pages, and to read, summarize or explain an existing diagram page (an .html with a \"diagram-data\" block): run its --extract command, never open the .html whole."
+description: "Create, verify, edit and read diagrams as one standalone, editable HTML file or claude.ai Artifact (drag-and-drop, Auto-Tidy, Save). Supports swimlane flowcharts, sequence diagrams, ER diagrams (database tables, columns, keys, relationships) UML use case diagrams (actors, use cases, system boundaries, include/extend) and C4 system landscape diagrams (people, systems, containers, nested groups, labelled relations; view and edit). Use for interactive, shareable diagram pages, and to read, summarize or explain an existing diagram page (an .html with a \"diagram-data\" block): run its --extract command, never open the .html whole."
 ---
 
 # Ultimate Diagram Skill
@@ -36,6 +36,7 @@ The first line of the Mermaid decides the type.
 | `sequenceDiagram` | Messages between participants over time (API calls, system interactions) | [references/types/sequence.md](references/types/sequence.md) |
 | `erDiagram` | Database schema: tables, columns, keys and relationships (crow's-foot), tables colour-coded by domain | [references/types/erd.md](references/types/erd.md) |
 | `flowchart` with `%% @type usecase` | UML use case diagram: who (actors) wants what (use cases) from which system (subject boundary), with include, extend and generalization; use cases coloured by feature area | [references/types/usecase.md](references/types/usecase.md) |
+| `c4` (JSON, `diagramType: "c4"`) | C4 system landscape: people, software systems and, one level down, the containers of one system (Level 1 context, Level 2 containers; Level 3 not supported); the page views, collapses and expands, searches (Level control) and edits by hand (add, connect, rename, colour, group, delete, undo, Save; boxes can be moved by hand, which saves a `layout` map; omit it for Auto-Tidy); local logo packs are supported (`logo:<pack>/<name>`, built with `scripts/build_icon_pack.py`, see [references/icon-packs.md](references/icon-packs.md)) but none is shipped; no alignment guides, grid snapping or resizing | [references/types/c4.md](references/types/c4.md) |
 
 `state` is planned, not supported: say so; do not force it into a flowchart. The type reference owns the Mermaid conventions, the writing rules and the one complete example to copy.
 
@@ -74,7 +75,7 @@ Use to summarize, explain or answer questions about a diagram page: an `.html` f
    ```shell
    python "<skill-dir>/scripts/layout_engine.py" --extract <page.html or diagram.json>
    ```
-   If that cannot run on an `.html` file, read only the lines the page's line 2 names (the `"diagram-data"` JSON block).
+   For a `c4` page `--extract` prints Mermaid C4 for one level (no notes, no async, nothing inside a collapsed group): add `--json` for the whole model, or read only the lines the page's line 2 names (the `"diagram-data"` JSON block).
    A flowchart with subprocess flows prints an outline, the parent, then the children; add `--sub <slug>` for one child or `--flat` for the whole flow expanded in place.
 2. Answer from that Mermaid alone. [references/reading.md](references/reading.md) lists the conventions that are not plain Mermaid.
 

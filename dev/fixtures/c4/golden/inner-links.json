@@ -1,0 +1,635 @@
+{
+  "diagramType": "c4",
+  "schemaVersion": 1,
+  "title": "Links inside a group",
+  "colorKey": {
+    "2": "Order Platform"
+  },
+  "groups": [
+    {
+      "id": "front",
+      "name": "Storefront",
+      "kind": "system",
+      "color": "1",
+      "x": 558,
+      "y": 135,
+      "_depth": 1,
+      "_collapsed": false,
+      "_hidden": false,
+      "_ring": 1,
+      "_side": "W",
+      "w": 184,
+      "h": 332
+    },
+    {
+      "id": "checkout",
+      "name": "Checkout",
+      "kind": "system",
+      "color": "3",
+      "x": 48,
+      "y": 194,
+      "_depth": 1,
+      "_collapsed": false,
+      "_hidden": false,
+      "_ring": 2,
+      "_side": "W",
+      "w": 380,
+      "h": 360
+    },
+    {
+      "id": "platform",
+      "name": "Order Platform",
+      "kind": "system",
+      "color": "2",
+      "core": true,
+      "x": 872,
+      "y": 223,
+      "_depth": 1,
+      "_collapsed": false,
+      "_hidden": false,
+      "_ring": 0,
+      "w": 1012,
+      "h": 156
+    }
+  ],
+  "elements": [
+    {
+      "id": "cust",
+      "kind": "person",
+      "name": "Customer",
+      "description": "Buys online",
+      "icon": "user",
+      "x": 272,
+      "y": 48,
+      "_hidden": false,
+      "w": 156,
+      "h": 112,
+      "_ring": 2,
+      "_side": "W"
+    },
+    {
+      "id": "ui",
+      "kind": "container",
+      "name": "Web UI",
+      "tech": "React",
+      "group": "front",
+      "icon": "browser",
+      "x": 572,
+      "y": 165,
+      "_hidden": false,
+      "w": 156,
+      "h": 112,
+      "_ring": 1,
+      "_side": "W"
+    },
+    {
+      "id": "bff",
+      "kind": "container",
+      "name": "BFF",
+      "tech": "Node.js",
+      "group": "front",
+      "icon": "api",
+      "x": 572,
+      "y": 341,
+      "_hidden": false,
+      "w": 156,
+      "h": 112,
+      "_ring": 1,
+      "_side": "W"
+    },
+    {
+      "id": "cart",
+      "kind": "container",
+      "name": "Cart",
+      "tech": "Go",
+      "group": "checkout",
+      "icon": "cart",
+      "x": 160,
+      "y": 224,
+      "_hidden": false,
+      "w": 156,
+      "h": 112,
+      "_ring": 2,
+      "_side": "W"
+    },
+    {
+      "id": "pricing",
+      "kind": "container",
+      "name": "Pricing",
+      "tech": "Java",
+      "group": "checkout",
+      "icon": "server",
+      "x": 62,
+      "y": 428,
+      "_hidden": false,
+      "w": 156,
+      "h": 112,
+      "_ring": 2,
+      "_side": "W"
+    },
+    {
+      "id": "tax",
+      "kind": "container",
+      "name": "Tax Rules",
+      "tech": "Java",
+      "group": "checkout",
+      "icon": "function",
+      "x": 258,
+      "y": 428,
+      "_hidden": false,
+      "w": 156,
+      "h": 112,
+      "_ring": 2,
+      "_side": "W"
+    },
+    {
+      "id": "gw",
+      "kind": "container",
+      "name": "API Gateway",
+      "tech": "Envoy",
+      "group": "platform",
+      "icon": "gateway",
+      "x": 886,
+      "y": 253,
+      "_hidden": false,
+      "w": 156,
+      "h": 112,
+      "_ring": 0
+    },
+    {
+      "id": "orders",
+      "kind": "container",
+      "name": "Order Service",
+      "tech": "Java",
+      "group": "platform",
+      "icon": "server",
+      "x": 1162,
+      "y": 253,
+      "_hidden": false,
+      "w": 156,
+      "h": 112,
+      "_ring": 0
+    },
+    {
+      "id": "bus",
+      "kind": "container",
+      "name": "Event Bus",
+      "tech": "RabbitMQ",
+      "group": "platform",
+      "icon": "queue",
+      "x": 1438,
+      "y": 253,
+      "_hidden": false,
+      "w": 156,
+      "h": 112,
+      "_ring": 0
+    },
+    {
+      "id": "worker",
+      "kind": "container",
+      "name": "Fulfilment Worker",
+      "tech": "Python",
+      "group": "platform",
+      "icon": "function",
+      "x": 1714,
+      "y": 253,
+      "_hidden": false,
+      "w": 156,
+      "h": 112,
+      "_ring": 0
+    },
+    {
+      "id": "pay",
+      "kind": "external",
+      "name": "Payment Provider",
+      "description": "Card processing",
+      "icon": "credit-card",
+      "x": 1300,
+      "y": 463,
+      "_hidden": false,
+      "w": 156,
+      "h": 112,
+      "_ring": 1,
+      "_side": "S"
+    }
+  ],
+  "relations": [
+    {
+      "from": "cust",
+      "to": "ui",
+      "label": "Browses",
+      "tech": "HTTPS"
+    },
+    {
+      "from": "ui",
+      "to": "bff",
+      "label": "Calls",
+      "tech": "JSON/HTTPS"
+    },
+    {
+      "from": "bff",
+      "to": "cart",
+      "label": "Reads cart",
+      "tech": "gRPC"
+    },
+    {
+      "from": "cart",
+      "to": "pricing",
+      "label": "Prices items",
+      "tech": "gRPC"
+    },
+    {
+      "from": "cart",
+      "to": "tax",
+      "label": "Adds tax",
+      "tech": "gRPC"
+    },
+    {
+      "from": "bff",
+      "to": "gw",
+      "label": "Places orders",
+      "tech": "gRPC"
+    },
+    {
+      "from": "gw",
+      "to": "orders",
+      "label": "Routes orders",
+      "tech": "gRPC"
+    },
+    {
+      "from": "orders",
+      "to": "bus",
+      "label": "Publishes events",
+      "tech": "AMQP",
+      "async": true
+    },
+    {
+      "from": "bus",
+      "to": "worker",
+      "label": "Delivers events",
+      "tech": "AMQP",
+      "async": true
+    },
+    {
+      "from": "orders",
+      "to": "pay",
+      "label": "Charges cards",
+      "tech": "REST"
+    }
+  ],
+  "_arrange": "surround",
+  "_edges": [
+    {
+      "id": "r0",
+      "from": "cust",
+      "to": "ui",
+      "label": "Browses",
+      "tech": "HTTPS",
+      "async": false,
+      "count": 1,
+      "members": [
+        0
+      ],
+      "text": "Browses",
+      "points": [
+        [
+          428,
+          104
+        ],
+        [
+          454,
+          104
+        ],
+        [
+          454,
+          221
+        ],
+        [
+          572,
+          221
+        ]
+      ],
+      "path": "M 428 104 L 446.0 104.0 Q 454.0 104.0 454.0 112.0 L 454.0 213.0 Q 454.0 221.0 462.0 221.0 L 572 221",
+      "labelBox": {
+        "x": 471,
+        "y": 205,
+        "w": 69,
+        "h": 32
+      }
+    },
+    {
+      "id": "r1",
+      "from": "ui",
+      "to": "bff",
+      "label": "Calls",
+      "tech": "JSON/HTTPS",
+      "async": false,
+      "count": 1,
+      "members": [
+        1
+      ],
+      "text": "Calls",
+      "points": [
+        [
+          650,
+          277
+        ],
+        [
+          650,
+          341
+        ]
+      ],
+      "path": "M 650 277 L 650 341",
+      "labelBox": {
+        "x": 602,
+        "y": 285,
+        "w": 97,
+        "h": 32
+      }
+    },
+    {
+      "id": "r2",
+      "from": "bff",
+      "to": "cart",
+      "label": "Reads cart",
+      "tech": "gRPC",
+      "async": false,
+      "count": 1,
+      "members": [
+        2
+      ],
+      "text": "Reads cart",
+      "points": [
+        [
+          572,
+          397
+        ],
+        [
+          532,
+          397
+        ],
+        [
+          532,
+          280
+        ],
+        [
+          316,
+          280
+        ]
+      ],
+      "path": "M 572 397 L 540.0 397.0 Q 532.0 397.0 532.0 389.0 L 532.0 288.0 Q 532.0 280.0 524.0 280.0 L 316 280",
+      "labelBox": {
+        "x": 487,
+        "y": 303,
+        "w": 90,
+        "h": 32
+      }
+    },
+    {
+      "id": "r3",
+      "from": "cart",
+      "to": "pricing",
+      "label": "Prices items",
+      "tech": "gRPC",
+      "async": false,
+      "count": 1,
+      "members": [
+        3
+      ],
+      "text": "Prices items",
+      "points": [
+        [
+          212,
+          336
+        ],
+        [
+          212,
+          363.6
+        ],
+        [
+          140,
+          363.6
+        ],
+        [
+          140,
+          428
+        ]
+      ],
+      "path": "M 212 336 L 212.0 355.6 Q 212.0 363.6 204.0 363.6 L 148.0 363.6 Q 140.0 363.6 140.0 371.6 L 140 428",
+      "labelBox": {
+        "x": 88,
+        "y": 372,
+        "w": 104,
+        "h": 32
+      }
+    },
+    {
+      "id": "r4",
+      "from": "cart",
+      "to": "tax",
+      "label": "Adds tax",
+      "tech": "gRPC",
+      "async": false,
+      "count": 1,
+      "members": [
+        4
+      ],
+      "text": "Adds tax",
+      "points": [
+        [
+          264,
+          336
+        ],
+        [
+          264,
+          414.2
+        ],
+        [
+          336,
+          414.2
+        ],
+        [
+          336,
+          428
+        ]
+      ],
+      "path": "M 264 336 L 264.0 406.2 Q 264.0 414.2 272.0 414.2 L 329.1 414.2 Q 336.0 414.2 336.0 421.1 L 336 428",
+      "labelBox": {
+        "x": 226,
+        "y": 359,
+        "w": 76,
+        "h": 32
+      }
+    },
+    {
+      "id": "r5",
+      "from": "bff",
+      "to": "gw",
+      "label": "Places orders",
+      "tech": "gRPC",
+      "async": false,
+      "count": 1,
+      "members": [
+        5
+      ],
+      "text": "Places orders",
+      "points": [
+        [
+          728,
+          397
+        ],
+        [
+          768,
+          397
+        ],
+        [
+          768,
+          309
+        ],
+        [
+          886,
+          309
+        ]
+      ],
+      "path": "M 728 397 L 760.0 397.0 Q 768.0 397.0 768.0 389.0 L 768.0 317.0 Q 768.0 309.0 776.0 309.0 L 886 309",
+      "labelBox": {
+        "x": 764,
+        "y": 293,
+        "w": 111,
+        "h": 32
+      }
+    },
+    {
+      "id": "r6",
+      "from": "gw",
+      "to": "orders",
+      "label": "Routes orders",
+      "tech": "gRPC",
+      "async": false,
+      "count": 1,
+      "members": [
+        6
+      ],
+      "text": "Routes orders",
+      "points": [
+        [
+          1042,
+          309
+        ],
+        [
+          1162,
+          309
+        ]
+      ],
+      "path": "M 1042 309 L 1162 309",
+      "labelBox": {
+        "x": 1039,
+        "y": 293,
+        "w": 111,
+        "h": 32
+      }
+    },
+    {
+      "id": "r7",
+      "from": "orders",
+      "to": "bus",
+      "label": "Publishes events",
+      "tech": "AMQP",
+      "async": true,
+      "count": 1,
+      "members": [
+        7
+      ],
+      "text": "Publishes events",
+      "points": [
+        [
+          1318,
+          309
+        ],
+        [
+          1438,
+          309
+        ]
+      ],
+      "path": "M 1318 309 L 1438 309",
+      "labelBox": {
+        "x": 1304,
+        "y": 293,
+        "w": 132,
+        "h": 32
+      }
+    },
+    {
+      "id": "r8",
+      "from": "bus",
+      "to": "worker",
+      "label": "Delivers events",
+      "tech": "AMQP",
+      "async": true,
+      "count": 1,
+      "members": [
+        8
+      ],
+      "text": "Delivers events",
+      "points": [
+        [
+          1594,
+          309
+        ],
+        [
+          1714,
+          309
+        ]
+      ],
+      "path": "M 1594 309 L 1714 309",
+      "labelBox": {
+        "x": 1584,
+        "y": 293,
+        "w": 125,
+        "h": 32
+      }
+    },
+    {
+      "id": "r9",
+      "from": "orders",
+      "to": "pay",
+      "label": "Charges cards",
+      "tech": "REST",
+      "async": false,
+      "count": 1,
+      "members": [
+        9
+      ],
+      "text": "Charges cards",
+      "points": [
+        [
+          1240,
+          365
+        ],
+        [
+          1240,
+          421
+        ],
+        [
+          1378,
+          421
+        ],
+        [
+          1378,
+          463
+        ]
+      ],
+      "path": "M 1240 365 L 1240.0 413.0 Q 1240.0 421.0 1248.0 421.0 L 1370.0 421.0 Q 1378.0 421.0 1378.0 429.0 L 1378 463",
+      "labelBox": {
+        "x": 1254,
+        "y": 405,
+        "w": 111,
+        "h": 32
+      }
+    }
+  ],
+  "canvas": {
+    "width": 1932,
+    "height": 623
+  }
+}

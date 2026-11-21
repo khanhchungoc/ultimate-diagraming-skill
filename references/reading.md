@@ -1,6 +1,6 @@
 # Reading the Mermaid
 
-Used when explaining an existing diagram: `--extract` prints standard Mermaid, so read it as Mermaid. Only these conventions go beyond it (`%% @...` lines are directives; the first line, or `%% @type usecase`, gives the type).
+Used when explaining an existing diagram: `--extract` prints standard Mermaid, so read it as Mermaid. Only these conventions go beyond it (a `c4` page prints Mermaid C4, one level; see the last section) (`%% @...` lines are directives; the first line, or `%% @type usecase`, gives the type).
 
 ## Flowchart
 
@@ -19,3 +19,7 @@ The marker next to a table says how many of its rows relate to one row of the ot
 ## Use case
 
 Inside a `subgraph` (a system boundary) is a use case, outside is an actor. `:::system` and `:::time` mark an external system and a scheduled trigger; `subfunction` a lower-level use case. `a --- b` is an association, `base -.->|include| used` goes from the base to the included use case, `ext -.->|"extend (point): condition"| base` from the extension to its base, `child -->|is a| parent` is a generalization. `:::c1` to `:::c8` and `%% @colorKey` mark feature areas, `%% @refs` the requirement ids, `%% @points` the extension points.
+
+## C4
+
+`--extract` prints Mermaid C4 for a c4 page: `C4Context` when every system group is collapsed (or there are none), else `C4Container` (or `C4Component`) for the first open system group, the rest as one `System` each; boundaries are `Enterprise_Boundary`, `System_Boundary`, `Boundary`. `%% @icon`, `@color`, `@core`, `@side`, `@tech`, `@arrange`, `@showTech`, `@colorKey` lines carry what Mermaid cannot say. `async` and notes are not in it, and a collapsed group hides its inside, so for those read the JSON: `--extract <page.html or diagram.json> --json` prints the canonical diagram, or read only the lines the page's line 2 names (the `"diagram-data"` block). The keys come in this order: `diagramType, schemaVersion, title, arrange, showTech, showNotes, colorKey, groups, elements, relations, notes`, then a trailing `layout` map `{id: {x, y}}` (elements, then groups; ignore it, and `--json` leaves it out). Its presence means the reader moved boxes by hand (manual layout) and the positions are kept; with no map the page places everything itself (Auto-Tidy). It is display-only: it says nothing about the model, so never explain a diagram from it. `arrange` (`surround`, `flow` or `layers`) is the layout; when absent it is `surround` if any item has `core: true`, else `flow`. Groups (`kind` `boundary` or `system`, `parent`, `collapsed`) hold elements through `group`; `collapsed: true` on every system group means the page opens at Level 1. A relation is `from` to `to` with its `label`, `tech` and `async: true` for a dashed arrow. `core` marks a centre, `side` (N, S, E, W) a hint. Sizes and arrow routes are not saved.

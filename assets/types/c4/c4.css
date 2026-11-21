@@ -1,0 +1,176 @@
+    /* C4 diagram. Colours, fonts and the swatch roles (--sw-*) are tokens; the edge line and label, the frame tag and chevron, the
+       buttons and the colour swatches are in assets/components/. Only what is specific to C4 tiles, groups and their arrows is here. */
+
+    #c4-canvas { position: relative; box-sizing: content-box; margin: 40px; }
+    /* No stacking context on the layers below: frames under arrows (10) under tiles (20), frame tags (25) and labels (30) */
+    #c4-svg { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; z-index: 10; }
+    #c4-html { position: absolute; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; }
+    body.capture #c4-canvas { margin: 0; }
+    .c4-node, .c4-group, .c4-label, .frame-tag { -webkit-user-select: none; user-select: none; }
+
+    /* --- Groups: a dashed frame with its tag; collapsed, one system tile --- */
+    .c4-group { position: absolute; box-sizing: border-box; pointer-events: none; color: var(--text-main); }   /* no z-index: the frame paints under the arrows, its tag (25) over them */
+    .c4-group.is-frame {
+      background: color-mix(in srgb, var(--bg-soft) 35%, transparent);
+      border: var(--ring-thin) dashed var(--border-dark); border-radius: var(--radius-2xl);
+      transition: border-color var(--dur-micro) var(--curve-out), background-color var(--dur-micro) var(--curve-out);
+    }
+    /* A group's colour (slot or custom hex, setSwatch) works as a sequence frame's: line, wash and tag at low strength in both themes */
+    .c4-group.is-frame.swatch-scope { background: color-mix(in srgb, var(--sw-line) 7%, transparent); border-color: color-mix(in srgb, var(--sw-line) 45%, var(--border-dark)); }
+    .frame-tag.swatch-scope { background: color-mix(in srgb, var(--sw-line) 18%, var(--bg-panel)); border-color: color-mix(in srgb, var(--sw-line) 45%, var(--border-dark)); }
+    .c4-group[data-kind="boundary"].is-frame { border-style: solid; }   /* an ownership frame is solid, a system (which opens into its containers) dashed */
+    .c4-tag { z-index: 25; left: 12px; top: 8px; display: flex; align-items: center; gap: 2px; pointer-events: auto; cursor: pointer; font-weight: var(--weight-semibold); }
+    .c4-tag:focus-visible, .c4-node:focus-visible, .c4-group.is-tile:focus-visible, .c4-label:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 3px; }
+
+    /* --- Icon cards: the flowchart tile (an inset ring that thickens to the accent on hover and selection) with a coloured disc and
+       its glyph centred at the top, the name and the detail line under it. The disc is the kind colour (--sw-pill-solid), the glyph
+       --sw-on-solid; the box size is the engine's. --- */
+    .c4-node, .c4-group.is-tile {
+      --ring: var(--node-border);
+      position: absolute; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 12px; text-align: center;
+      background: var(--sw-tint, var(--sw-pill-bg, var(--node-bg))); color: var(--sw-pill-ink, var(--text-main));
+      border-radius: var(--radius-lg); box-shadow: inset 0 0 0 var(--ring-thin) var(--ring), var(--shadow-sm);
+      transition: box-shadow var(--dur-micro) var(--curve-out), background-color var(--dur-base) var(--curve-inout), opacity 110ms var(--curve-inout), filter 110ms var(--curve-inout);
+    }
+    .c4-node { z-index: 20; pointer-events: auto; cursor: pointer; }
+    .c4-node[data-sw], .c4-group.is-tile[data-sw] { --ring: var(--sw-line); }
+    .c4-node[data-kind="external"] { background: var(--bg-soft); color: var(--text-main); }   /* a third-party system stays neutral */
+    .c4-group.is-tile { z-index: 20; pointer-events: auto; cursor: pointer; box-shadow: inset 0 0 0 var(--ring-thin) var(--ring), var(--shadow-sm); border: var(--ring-thin) dashed var(--ring); }
+    .c4-group.is-tile:not([data-sw]) { background: var(--node-bg); color: var(--text-main); }
+    .c4-node:hover, .c4-group.is-tile:hover { --ring: var(--primary); box-shadow: inset 0 0 0 var(--ring-thin) var(--ring), var(--shadow-md); }
+    .c4-node.selected, .c4-group.is-tile.selected { --ring: var(--primary); box-shadow: inset 0 0 0 var(--ring-thin) var(--ring), var(--shadow-ring); }
+    .c4-node.is-dim, .c4-group.is-tile.is-dim { opacity: var(--dim); filter: var(--dim-filter); }   /* greyed out, not just faded */
+    body.exporting .is-dim { opacity: 1 !important; filter: none !important; }
+    .c4-disc {
+      flex: none; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-round);
+      width: calc(var(--icon-tile) * 1.7); height: calc(var(--icon-tile) * 1.7); background: var(--sw-disc, var(--swatch-disc-neutral)); color: var(--sw-on-disc, var(--swatch-disc-neutral-ink));
+    }
+    .c4-disc svg { display: block; }
+    .c4-node .c4-disc.is-logo { background: var(--swatch-disc-logo); }   /* a vendor logo keeps its own colours, so its disc is white in both themes (vendor terms) */
+    /* The disc is a solid surface per theme (--sw-disc, --sw-on-disc: tokens swatch-disc-*); the neutral slot and externals take the neutral pair. */
+    .c4-node[data-kind="external"] .c4-disc, .c4-node:not([data-sw]) .c4-disc { background: var(--swatch-disc-neutral); color: var(--swatch-disc-neutral-ink); }
+    .c4-text { min-width: 0; max-width: 100%; flex: 0 1 auto; display: flex; flex-direction: column; align-items: center; overflow: hidden; }
+    .c4-name, .c4-tech, .c4-desc { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
+    .c4-desc { -webkit-line-clamp: 3; }
+    .c4-tech { font-style: italic; }
+    .c4-group.is-tile .frame-chev { position: absolute; left: 4px; top: 4px; width: 24px; height: 24px; margin: 0; color: inherit; }
+    .c4-group.is-tile .frame-chev svg { transform: rotate(-90deg); }
+    .c4-group.is-frame .frame-chev { width: 24px; height: 24px; margin: 0 0 0 -6px; vertical-align: baseline; }
+
+    /* --- Arrows: the shared edge line (edge.css), neutral at rest; in/out lit as the flowchart does --- */
+    .c4-edge { transition: opacity 110ms var(--curve-inout); }
+    .c4-edge .edge-line { stroke: var(--connector); stroke-width: var(--stroke-thin); marker-end: var(--mk-e); }
+    .c4-edge.is-async .edge-line { stroke-dasharray: var(--dash); }
+    .c4-edge .edge-line.hl-in { stroke: var(--edge-in); stroke-width: var(--ring-md); marker-end: var(--mk-e-in); }
+    .c4-edge .edge-line.hl-out { stroke: var(--edge-out); stroke-width: var(--ring-md); marker-end: var(--mk-e-out); }
+    .c4-edge:is(.hover, .selected) .edge-line, .c4-edge .edge-line.selected { stroke: var(--primary); stroke-width: var(--ring-md); marker-end: var(--mk-e-sel); }
+    .c4-edge.is-dim { opacity: var(--dim-line); }
+    .c4-mk path { fill: var(--mk, var(--connector)); stroke: var(--mk, var(--connector)); stroke-width: var(--ring-thin); stroke-linejoin: round; }
+
+    /* The label pill: the shared edge label, the relation's verb over its [technology] */
+    .c4-label {
+      display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 0 8px; white-space: nowrap; pointer-events: auto;
+      font-size: var(--t-detail-size); font-weight: var(--t-detail-weight); line-height: var(--leading-tight);
+      color: var(--text-main); border-radius: var(--radius-lg);
+      transition: border-color var(--dur-micro) var(--curve-out), box-shadow var(--dur-micro) var(--curve-out), opacity 110ms var(--curve-inout);
+    }
+    .c4-label-tech { color: var(--text-soft); }
+    .c4-label.is-dim { opacity: var(--dim); }
+    .c4-label.selected { border-color: var(--primary); box-shadow: var(--shadow-glow) var(--primary-glow); }
+
+    /* The colour key (ui.colorKey), under the diagram; its entries can be renamed (double-click, or the prompt after a colour pick) */
+    .c4-key { position: absolute; left: 0; top: -34px; pointer-events: none; }
+    .c4-key .color-key-label { pointer-events: auto; }
+    .color-key-label.is-editing { -webkit-user-select: text; user-select: text; outline: 1.5px solid var(--primary-ring); border-radius: var(--radius-xs); background: var(--bg-panel); min-width: 24px; }
+
+    /* --- Editing aids (every one is [data-export-skip] and hidden in ?present) --- */
+    /* A name being edited in place: plain text with a ring, never clamped */
+    .c4-name.is-editing, .c4-tag-name.is-editing {
+      display: block; -webkit-line-clamp: unset; overflow: visible; -webkit-user-select: text; user-select: text; min-width: 24px; cursor: text;
+      background: var(--bg-panel); color: var(--text-main); outline: 1.5px solid var(--primary-ring); border-radius: var(--radius-xs); padding: 0 3px;
+    }
+    .c4-group.selected.is-frame { border-color: var(--primary); }
+    /* Ports: a dot on each side of an element, shown on hover and on the selected one; drag onto another element to connect */
+    .c4-port {
+      position: absolute; width: 12px; height: 12px; box-sizing: border-box; padding: 0; z-index: 4; touch-action: none; display: none; cursor: crosshair;
+      border-radius: var(--radius-round); border: 2px solid var(--primary); background: var(--bg-panel);
+      animation: c4-port-in var(--dur-micro) var(--curve-spring-tactile);
+    }
+    @keyframes c4-port-in { from { transform: scale(0.55); } to { transform: none; } }
+    .c4-port[data-side="N"] { top: -7px; left: 50%; margin-left: -6px; }
+    .c4-port[data-side="S"] { bottom: -7px; left: 50%; margin-left: -6px; }
+    .c4-port[data-side="W"] { left: -7px; top: 50%; margin-top: -6px; }
+    .c4-port[data-side="E"] { right: -7px; top: 50%; margin-top: -6px; }
+    .c4-port:hover, .c4-port:focus-visible { background: var(--primary); outline: none; }
+    .c4-node:hover > .c4-port, .c4-node.selected > .c4-port, .c4-node:focus-within > .c4-port { display: block; }
+    .c4-multi .c4-port, body.c4-dragging .c4-port:not(:hover), body.presentation .c4-port { display: none !important; }
+    body.c4-touch .c4-port { width: 22px; height: 22px; border-width: 2.5px; }
+    #c4-overlay { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; z-index: 54; }
+    #c4-rubber { stroke: var(--primary); stroke-width: var(--ring-md); stroke-dasharray: var(--dash); display: none; fill: none; pointer-events: none; }
+    .c4-node.c4-target { --ring: var(--primary); background: var(--primary-wash); }
+    .c4-connecting .c4-node:not(.selected) { cursor: crosshair; }
+    body.c4-dragging .c4-actionbar { display: none !important; }
+
+    /* The action bar: the shared one (components/actionbar.css) centred on its anchor, with a few C4 additions */
+    .c4-actionbar { translate: -50% 0; pointer-events: auto; }
+    .c4-actionbar .ab-btn:focus-visible, .c4-actionbar .swatch-btn:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+    .c4-actionbar .ab-btn[aria-pressed="true"] svg { color: var(--primary); }
+    .c4-ab-tag { padding: 0 4px 0 6px; font-size: var(--t-overline-size); font-weight: var(--t-overline-weight); letter-spacing: var(--t-overline-tracking); text-transform: uppercase; color: var(--text-muted); }
+    .c4-menu { position: fixed; right: auto; top: auto; z-index: 2100; max-height: calc(100vh - 16px); overflow-y: auto; }
+    .c4-menu button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+    body.presentation .c4-actionbar, body.exporting .c4-actionbar { display: none !important; }
+
+    /* The popovers: the label prompt, the details and the icon picker (screen-fixed, under their button) */
+    .c4-pop {
+      position: fixed; z-index: 2100; box-sizing: border-box; display: flex; flex-direction: column; gap: 8px; width: 280px; max-width: calc(100vw - 16px); padding: 10px;
+      background: var(--bg-panel); border: 1px solid var(--border-dark); border-radius: var(--radius-xl); box-shadow: var(--shadow-xl); color: var(--text-main);
+    }
+    .c4-pop-hint, .c4-field-label, .c4-icons-note, .c4-icons-missing { color: var(--text-muted); }
+    .c4-field { display: flex; flex-direction: column; gap: 4px; }
+    .c4-input {
+      width: 100%; box-sizing: border-box; padding: 6px 8px; border: 1px solid var(--border-dark); border-radius: var(--radius-md);
+      background: var(--bg-input); color: var(--text-main); font: inherit; font-size: var(--t-control-size); font-weight: var(--t-control-weight);
+    }
+    textarea.c4-input { resize: vertical; min-height: 56px; }
+    .c4-input:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+    .c4-icons { width: 300px; }
+    .c4-icon-list { max-height: 260px; overflow-y: auto; }
+    .c4-icon-head { color: var(--text-muted); margin: 8px 0 4px; }
+    .c4-icon-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(36px, 1fr)); gap: 4px; }
+    .c4-icon-opt {
+      display: inline-flex; align-items: center; justify-content: center; height: 36px; padding: 0; border: 1px solid transparent; border-radius: var(--radius-md);
+      background: transparent; color: var(--text-soft); cursor: pointer;
+    }
+    .c4-icon-logo { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 50%; background: var(--swatch-disc-logo); }
+    .c4-icon-opt:hover { background: var(--bg-hover); color: var(--text-main); }
+    .c4-icon-opt[aria-pressed="true"] { background: var(--primary-wash); border-color: var(--primary-ring); color: var(--primary); }
+    .c4-icon-opt:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+
+    /* ?present: the shell hides the whole dock; the Level control stays (a presenter zooms between the C4 levels), nothing else of it does */
+    body.presentation .dock-area .toolbar-center { display: flex !important; }
+    body.presentation .dock-area .toolbar-center > :not([data-level]) { display: none !important; }
+
+    /* Notes: the shared card (components/note.css) in a layer of its own; c4 cards are placed by c4.js and do not drag */
+    #c4-notes .note { cursor: default; }
+    #c4-notes .note:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 3px; }
+    .c4-node.note-linked, .c4-group.note-linked { outline-offset: 5px; }
+
+    /* ?present: read only. Selecting and collapsing still work. */
+    body.presentation .c4-node, body.presentation .c4-group.is-tile { cursor: pointer; }
+
+    /* Moving boxes (c4.js, MOVING BOXES): grab cursor while editing, the dragged boxes lift, what touches them fades until it is routed again */
+    body:not(.presentation) .c4-node, body:not(.presentation) .c4-group.is-tile, body:not(.presentation) .c4-tag { cursor: grab; touch-action: none; }   /* a finger on a box drags it; on blank canvas it still pans */
+    /* a class on the body must not match a universal or per-box rule: toggling it would restyle every box on a big diagram */
+    body.c4-moving { cursor: grabbing; }
+    body.c4-moving .c4-actionbar { display: none !important; }
+    .is-dragging, .is-dragging * { cursor: grabbing !important; }
+    .is-dragging > .c4-port { display: none !important; }
+    .c4-node.is-dragging, .c4-group.is-tile.is-dragging { z-index: 50; box-shadow: inset 0 0 0 var(--ring-thin) var(--ring), var(--shadow-lg); will-change: translate; }
+    .c4-group.is-frame.is-dragging { will-change: translate; }
+    .c4-edge.drag-fade, .c4-label.drag-fade, #c4-notes .note.drag-fade { opacity: 0.12 !important; transition: opacity var(--dur-micro) var(--curve-inout); }
+    .c4-group.c4-drop.is-frame, .c4-group.c4-drop.is-frame.swatch-scope { border-color: var(--primary); background: var(--primary-wash); box-shadow: 0 0 0 var(--ring-md) var(--primary-ring); }
+    .c4-group.c4-drop.is-tile { --ring: var(--primary); background: var(--primary-wash); box-shadow: inset 0 0 0 var(--ring-thin) var(--ring), 0 0 0 var(--ring-md) var(--primary-ring); }
+    .c4-group { transition: background-color var(--dur-micro) var(--curve-inout), border-color var(--dur-micro) var(--curve-inout); }
+    /* the manual layout badge, beside the save status (c4.js moves it there) */
+    .c4-mode { margin-left: 6px; transform-origin: left center; background: var(--primary-wash); color: var(--primary); }
+    .c4-mode[hidden] { display: none; }

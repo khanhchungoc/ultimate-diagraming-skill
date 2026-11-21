@@ -114,6 +114,8 @@ def _validate(t: Dict[str, Any]) -> None:
         if isinstance(v, bool) or not isinstance(v, (int, float)) or not 1 <= v <= 30: raise _err(f"font.metrics.{k}", v)
     for k, v in t["size"].items():
         if not (isinstance(v, str) and _LENGTH.match(v)): raise _err(f"size.{k}", v)
+    for k, v in t["c4"].items():  # c4 layout sizes in px, read by assets/types/c4/engine.js
+        if not _KEY.match(k) or isinstance(v, bool) or not isinstance(v, int) or not 1 <= v <= 2000: raise _err(f"c4.{k}", v)
     _validate_type(t["type"])
     _validate_icon(t["icon"])
     for k, v in t.get("effect", {}).items():
@@ -212,6 +214,15 @@ def icon_svg(tokens: Dict[str, Any], icons: Dict[str, str], name: str, size: str
             f'stroke-linecap="{ic["cap"]}" stroke-linejoin="{ic["join"]}" aria-hidden="true">{icons[name]}</svg>')
 
 
+def logo_svg(tokens: Dict[str, Any], logos: Dict[str, Dict[str, str]], name: str, size: str = "tile") -> str:
+    """The <svg> for logo `name` ("<pack>/<icon>", an entry of a local icon pack): filled, in its own colours, at its own aspect
+    ratio (the viewBox) inside a size x size box. ui.logo() in shell.js builds the same text at run time."""
+    px = tokens["icon"]["size"][size] if size in tokens["icon"]["size"] else int(size)
+    if name not in logos:
+        raise KeyError(f"unknown logo {name!r}")
+    return f'<svg width="{px}" height="{px}" viewBox="{logos[name]["vb"]}" aria-hidden="true">{logos[name]["body"]}</svg>'
+
+
 _ICON_PLACEHOLDER = re.compile(r"\{\{icon:([\w-]+)(?::(\w+))?(?::(fine|bold))?\}\}")
 
 
@@ -279,6 +290,15 @@ def _sw_vars(tokens: Dict[str, Any], mode: str, only_mode: bool = False) -> Dict
         fill = {**s["light"], **s[mode]}.get("soft", "")
         tint = _mix(fill, bg, 0.6)
         if tint: out[f"sw-{s['slot']}-tint"] = tint
+        # disc: a solid, saturated surface for a glyph (the c4 icon disc). Light: the slot's solid role. Dark: the line colour
+        # mixed swatch-disc-mix into swatch-disc-base, the glyph swatch-disc-ink (the solid role is a pastel there, made for a dark glyph)
+        full = {**s["light"], **s[mode]}
+        if mode == "light":
+            disc, on = full.get("solid"), full.get("on-solid")
+        else:
+            disc = _mix(full.get("strong", ""), colors.get("swatch-disc-base", ""), float(colors.get("swatch-disc-mix", "0%").rstrip("%")) / 100)
+            on = colors.get("swatch-disc-ink")
+        if disc and on: out[f"sw-{s['slot']}-disc"], out[f"sw-{s['slot']}-on-disc"] = disc, on
     return out
 
 
@@ -320,7 +340,8 @@ def tokens_css(tokens: Dict[str, Any]) -> str:
         f'    [data-sw="{s["slot"]}"] {{ --sw-stripe: var(--sw-{s["slot"]}-line); --sw-line: var(--sw-{s["slot"]}-line); '
         f'--sw-pill-bg: var(--sw-{s["slot"]}-fill); --sw-pill-ink: var(--sw-{s["slot"]}-ink); '
         f'--sw-pill-solid: var(--sw-{s["slot"]}-solid); --sw-on-solid: var(--sw-{s["slot"]}-on-solid); '
-        f'--sw-tint: var(--sw-{s["slot"]}-tint); }}'
+        f'--sw-tint: var(--sw-{s["slot"]}-tint); '
+        f'--sw-disc: var(--sw-{s["slot"]}-disc); --sw-on-disc: var(--sw-{s["slot"]}-on-disc); }}'
         for s in tokens["palette"])
     return (_block(":root", light, "light") + "\n\n" + _block(':root[data-theme="dark"]', dark, "dark") + "\n\n" + slots
             + "\n\n" + _type_classes(tokens))
@@ -329,13 +350,18 @@ def tokens_css(tokens: Dict[str, Any]) -> str:
 def tokens_data(tokens: Dict[str, Any]) -> Dict[str, Any]:
     """The part of the tokens the JS reads: the page, the ERD worker and scripts/run_engine.mjs all get exactly this as TOKENS."""
     return {"palette": tokens["palette"], "font": {"metrics": tokens["font"]["metrics"]}, "motion": tokens["motion"],
-            "type": {k: tokens["type"][k] for k in ("fitMin", "fitMinOverview")}, "icon": tokens["icon"]}
+            "type": {k: tokens["type"][k] for k in ("fitMin", "fitMinOverview")}, "icon": tokens["icon"],
+            "c4": tokens["c4"]}
 
 
-def tokens_js(tokens: Dict[str, Any]) -> str:
-    # ICONS: the registry (name -> inner SVG) for ui.icon() and every type
-    return (f"const TOKENS = {json.dumps(tokens_data(tokens), separators=(',', ':'))};\n"
+def tokens_js(tokens: Dict[str, Any], logos: Optional[Dict[str, Dict[str, str]]] = None) -> str:
+    # ICONS: the registry (name -> inner SVG) for ui.icon() and every type. LOGOS: only the local-pack entries the diagram
+    # uses ("<pack>/<icon>" -> {vb, body}) for ui.logo(); no logo, no LOGOS line, so such a page is unchanged.
+    text = (f"const TOKENS = {json.dumps(tokens_data(tokens), separators=(',', ':'))};\n"
             f"const ICONS = {json.dumps(load_icons(tokens), separators=(',', ':'))};")
+    if logos:
+        text += f"\nconst LOGOS = {json.dumps(logos, separators=(',', ':'), sort_keys=True).replace('<', chr(92) + 'u003c')};"
+    return text
 
 
 if __name__ == "__main__":

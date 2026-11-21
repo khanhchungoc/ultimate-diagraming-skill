@@ -1,0 +1,501 @@
+{
+  "diagramType": "c4",
+  "schemaVersion": 1,
+  "title": "Layers",
+  "arrange": "layers",
+  "colorKey": {
+    "1": "Experience",
+    "2": "Services",
+    "3": "Platform",
+    "4": "External"
+  },
+  "groups": [
+    {
+      "id": "exp",
+      "name": "Experience",
+      "kind": "boundary",
+      "color": "1",
+      "x": 48,
+      "y": 48,
+      "_depth": 1,
+      "_collapsed": false,
+      "_hidden": false,
+      "_ring": 0,
+      "w": 640,
+      "h": 156
+    },
+    {
+      "id": "svc",
+      "name": "Services",
+      "kind": "boundary",
+      "color": "2",
+      "x": 48,
+      "y": 288,
+      "_depth": 1,
+      "_collapsed": false,
+      "_hidden": false,
+      "_ring": 1,
+      "_side": "S",
+      "w": 640,
+      "h": 156
+    },
+    {
+      "id": "plat",
+      "name": "Platform",
+      "kind": "boundary",
+      "color": "3",
+      "x": 48,
+      "y": 528,
+      "_depth": 1,
+      "_collapsed": false,
+      "_hidden": false,
+      "_ring": 2,
+      "_side": "S",
+      "w": 640,
+      "h": 156
+    },
+    {
+      "id": "ext",
+      "name": "External",
+      "kind": "boundary",
+      "color": "4",
+      "x": 48,
+      "y": 768,
+      "_depth": 1,
+      "_collapsed": false,
+      "_hidden": false,
+      "_ring": 3,
+      "_side": "S",
+      "w": 640,
+      "h": 156
+    }
+  ],
+  "elements": [
+    {
+      "id": "web",
+      "kind": "system",
+      "name": "Storefront",
+      "description": "Web app",
+      "icon": "monitor",
+      "group": "exp",
+      "x": 380,
+      "y": 78,
+      "_hidden": false,
+      "w": 156,
+      "h": 112,
+      "_ring": 0
+    },
+    {
+      "id": "app",
+      "kind": "system",
+      "name": "Mobile App",
+      "description": "iOS, Android",
+      "icon": "mobile",
+      "group": "exp",
+      "x": 200,
+      "y": 78,
+      "_hidden": false,
+      "w": 156,
+      "h": 112,
+      "_ring": 0
+    },
+    {
+      "id": "catalog",
+      "kind": "system",
+      "name": "Catalogue",
+      "description": "Products, prices",
+      "icon": "database",
+      "group": "svc",
+      "x": 62,
+      "y": 318,
+      "_hidden": false,
+      "w": 156,
+      "h": 112,
+      "_ring": 1,
+      "_side": "S"
+    },
+    {
+      "id": "orders",
+      "kind": "system",
+      "name": "Orders",
+      "description": "Order lifecycle",
+      "icon": "cart",
+      "group": "svc",
+      "x": 242,
+      "y": 318,
+      "_hidden": false,
+      "w": 156,
+      "h": 112,
+      "_ring": 1,
+      "_side": "S"
+    },
+    {
+      "id": "bill",
+      "kind": "system",
+      "name": "Billing",
+      "description": "Invoices, refunds",
+      "icon": "credit-card",
+      "group": "svc",
+      "x": 518,
+      "y": 318,
+      "_hidden": false,
+      "w": 156,
+      "h": 112,
+      "_ring": 1,
+      "_side": "S"
+    },
+    {
+      "id": "inv",
+      "kind": "system",
+      "name": "Inventory",
+      "description": "Stock levels",
+      "icon": "storage",
+      "group": "plat",
+      "x": 200,
+      "y": 558,
+      "_hidden": false,
+      "w": 156,
+      "h": 112,
+      "_ring": 2,
+      "_side": "S"
+    },
+    {
+      "id": "notif",
+      "kind": "system",
+      "name": "Notifications",
+      "description": "Events to messages",
+      "icon": "bell",
+      "group": "plat",
+      "x": 380,
+      "y": 558,
+      "_hidden": false,
+      "w": 156,
+      "h": 112,
+      "_ring": 2,
+      "_side": "S"
+    },
+    {
+      "id": "supp",
+      "kind": "external",
+      "name": "Supplier EDI",
+      "description": "Replenishment",
+      "icon": "truck",
+      "group": "ext",
+      "x": 200,
+      "y": 798,
+      "_hidden": false,
+      "w": 156,
+      "h": 112,
+      "_ring": 3,
+      "_side": "S"
+    },
+    {
+      "id": "smtp",
+      "kind": "external",
+      "name": "Email Service",
+      "description": "Transactional",
+      "icon": "mail",
+      "group": "ext",
+      "x": 380,
+      "y": 798,
+      "_hidden": false,
+      "w": 156,
+      "h": 112,
+      "_ring": 3,
+      "_side": "S"
+    }
+  ],
+  "relations": [
+    {
+      "from": "web",
+      "to": "orders",
+      "label": "Orders",
+      "tech": "HTTPS"
+    },
+    {
+      "from": "app",
+      "to": "catalog",
+      "label": "Browses",
+      "tech": "HTTPS"
+    },
+    {
+      "from": "orders",
+      "to": "bill",
+      "label": "Charges",
+      "tech": "gRPC"
+    },
+    {
+      "from": "orders",
+      "to": "inv",
+      "label": "Reserves stock",
+      "tech": "AMQP"
+    },
+    {
+      "from": "bill",
+      "to": "notif",
+      "label": "Emits receipts",
+      "tech": "AMQP"
+    },
+    {
+      "from": "inv",
+      "to": "supp",
+      "label": "Orders stock",
+      "tech": "EDI"
+    },
+    {
+      "from": "notif",
+      "to": "smtp",
+      "label": "Sends",
+      "tech": "SMTP"
+    }
+  ],
+  "_arrange": "layers",
+  "_edges": [
+    {
+      "id": "r0",
+      "from": "web",
+      "to": "orders",
+      "label": "Orders",
+      "tech": "HTTPS",
+      "async": false,
+      "count": 1,
+      "members": [
+        0
+      ],
+      "text": "Orders",
+      "points": [
+        [
+          458,
+          190
+        ],
+        [
+          458,
+          246
+        ],
+        [
+          320,
+          246
+        ],
+        [
+          320,
+          318
+        ]
+      ],
+      "path": "M 458 190 L 458.0 238.0 Q 458.0 246.0 450.0 246.0 L 328.0 246.0 Q 320.0 246.0 320.0 254.0 L 320 318",
+      "labelBox": {
+        "x": 357,
+        "y": 230,
+        "w": 65,
+        "h": 32
+      }
+    },
+    {
+      "id": "r1",
+      "from": "app",
+      "to": "catalog",
+      "label": "Browses",
+      "tech": "HTTPS",
+      "async": false,
+      "count": 1,
+      "members": [
+        1
+      ],
+      "text": "Browses",
+      "points": [
+        [
+          278,
+          190
+        ],
+        [
+          278,
+          246
+        ],
+        [
+          140,
+          246
+        ],
+        [
+          140,
+          318
+        ]
+      ],
+      "path": "M 278 190 L 278.0 238.0 Q 278.0 246.0 270.0 246.0 L 148.0 246.0 Q 140.0 246.0 140.0 254.0 L 140 318",
+      "labelBox": {
+        "x": 175,
+        "y": 230,
+        "w": 69,
+        "h": 32
+      }
+    },
+    {
+      "id": "r2",
+      "from": "orders",
+      "to": "bill",
+      "label": "Charges",
+      "tech": "gRPC",
+      "async": false,
+      "count": 1,
+      "members": [
+        2
+      ],
+      "text": "Charges",
+      "points": [
+        [
+          398,
+          374
+        ],
+        [
+          518,
+          374
+        ]
+      ],
+      "path": "M 398 374 L 518 374",
+      "labelBox": {
+        "x": 416,
+        "y": 358,
+        "w": 69,
+        "h": 32
+      }
+    },
+    {
+      "id": "r3",
+      "from": "orders",
+      "to": "inv",
+      "label": "Reserves stock",
+      "tech": "AMQP",
+      "async": false,
+      "count": 1,
+      "members": [
+        3
+      ],
+      "text": "Reserves stock",
+      "points": [
+        [
+          320,
+          430
+        ],
+        [
+          320,
+          486
+        ],
+        [
+          278,
+          486
+        ],
+        [
+          278,
+          558
+        ]
+      ],
+      "path": "M 320 430 L 320.0 478.0 Q 320.0 486.0 312.0 486.0 L 286.0 486.0 Q 278.0 486.0 278.0 494.0 L 278 558",
+      "labelBox": {
+        "x": 219,
+        "y": 494,
+        "w": 118,
+        "h": 32
+      }
+    },
+    {
+      "id": "r4",
+      "from": "bill",
+      "to": "notif",
+      "label": "Emits receipts",
+      "tech": "AMQP",
+      "async": false,
+      "count": 1,
+      "members": [
+        4
+      ],
+      "text": "Emits receipts",
+      "points": [
+        [
+          596,
+          430
+        ],
+        [
+          596,
+          486
+        ],
+        [
+          458,
+          486
+        ],
+        [
+          458,
+          558
+        ]
+      ],
+      "path": "M 596 430 L 596.0 478.0 Q 596.0 486.0 588.0 486.0 L 466.0 486.0 Q 458.0 486.0 458.0 494.0 L 458 558",
+      "labelBox": {
+        "x": 468,
+        "y": 470,
+        "w": 118,
+        "h": 32
+      }
+    },
+    {
+      "id": "r5",
+      "from": "inv",
+      "to": "supp",
+      "label": "Orders stock",
+      "tech": "EDI",
+      "async": false,
+      "count": 1,
+      "members": [
+        5
+      ],
+      "text": "Orders stock",
+      "points": [
+        [
+          278,
+          670
+        ],
+        [
+          278,
+          798
+        ]
+      ],
+      "path": "M 278 670 L 278 798",
+      "labelBox": {
+        "x": 226,
+        "y": 710,
+        "w": 104,
+        "h": 32
+      }
+    },
+    {
+      "id": "r6",
+      "from": "notif",
+      "to": "smtp",
+      "label": "Sends",
+      "tech": "SMTP",
+      "async": false,
+      "count": 1,
+      "members": [
+        6
+      ],
+      "text": "Sends",
+      "points": [
+        [
+          458,
+          670
+        ],
+        [
+          458,
+          798
+        ]
+      ],
+      "path": "M 458 670 L 458 798",
+      "labelBox": {
+        "x": 429,
+        "y": 710,
+        "w": 58,
+        "h": 32
+      }
+    }
+  ],
+  "canvas": {
+    "width": 736,
+    "height": 972
+  }
+}

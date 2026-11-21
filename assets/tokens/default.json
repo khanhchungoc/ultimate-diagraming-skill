@@ -15,6 +15,37 @@
       "edgeWrap": 6.6
     }
   },
+  "c4": {
+    "cardW": 156,
+    "cardMaxW": 240,
+    "cardH": 112,
+    "cardLine": 18,
+    "pad": 14,
+    "tagH": 30,
+    "padB": 14,
+    "tagPad": 72,
+    "emptyW": 200,
+    "emptyH": 96,
+    "innerGap": 20,
+    "innerLinkX": 120,
+    "innerLinkY": 64,
+    "ringV": 84,
+    "ringH": 130,
+    "ringGap": 34,
+    "ringLinkX": 150,
+    "ringLinkY": 90,
+    "ringStagger": 6,
+    "ringStaggerCap": 12,
+    "centreGap": 50,
+    "rowMax": 8,
+    "margin": 48,
+    "sep": 24,
+    "flowAcross": 40,
+    "flowAlong": 72,
+    "flowPerEdge": 10,
+    "flowEdgeCap": 8,
+    "flowRowGap": 40
+  },
   "type": {
     "family": {
       "ui": "font.family",
@@ -476,6 +507,16 @@
       4.5
     ],
     [
+      "sw-*-on-disc",
+      "sw-*-disc",
+      3.5
+    ],
+    [
+      "swatch-disc-neutral-ink",
+      "swatch-disc-neutral",
+      3.5
+    ],
+    [
       "sw-*-line",
       "bg-panel",
       3
@@ -624,6 +665,12 @@
       "swatch-solid-mix": "42%",
       "swatch-solid-base": "#1e293b",
       "swatch-solid-ink": "#ffffff",
+      "swatch-disc-mix": "42%",
+      "swatch-disc-base": "#1e293b",
+      "swatch-disc-ink": "#ffffff",
+      "swatch-disc-logo": "#ffffff",
+      "swatch-disc-neutral": "var(--text-soft)",
+      "swatch-disc-neutral-ink": "var(--bg-panel)",
       "note-bg": "#f8fafc",
       "note-border": "#cbd5e1",
       "note-accent": "#64748b",
@@ -707,6 +754,12 @@
       "swatch-solid-mix": "80%",
       "swatch-solid-base": "#e2e8f0",
       "swatch-solid-ink": "#0f172a",
+      "swatch-disc-mix": "72%",
+      "swatch-disc-base": "#0b1220",
+      "swatch-disc-ink": "#f8fafc",
+      "swatch-disc-logo": "#ffffff",
+      "swatch-disc-neutral": "#757d8a",
+      "swatch-disc-neutral-ink": "#f8fafc",
       "note-bg": "#1c2740",
       "note-border": "#3a4a69",
       "note-accent": "#94a3b8",

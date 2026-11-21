@@ -46,6 +46,8 @@ const TYPES = {
   usecase: { name: 'Use case diagram', add: ['#btn-add', '#btn-add-usecase'], items: '[data-node-id]', header: /^flowchart\b/ },
 };
 const ids = Object.keys(TYPES);
+// c4 is in the menu but joins the per-type checks above once it has dock editing and Mermaid (plan-c4 phases 4 and 6); until then it is opened and checked below
+const menuIds = [...ids, 'c4'];
 // The first Mermaid line that is not front matter or a %% comment
 const headLine = (text) => text.replace(/^---[\s\S]*?\n---\n/, '').split('\n').find((l) => l.trim() && !l.startsWith('%%')) || '';
 
@@ -70,7 +72,7 @@ try {
     await open(id);
     const menuItems = await page.locator('#type-menu [role=menuitemradio]').evaluateAll((els) => els.map((e) => [e.dataset.type, e.getAttribute('aria-checked')]));
     check(`${id}: starter page, menu lists the four types with only this one checked`,
-      JSON.stringify(menuItems.map((m) => m[0])) === JSON.stringify(ids) && menuItems.filter((m) => m[1] === 'true').map((m) => m[0]).join() === id, JSON.stringify(menuItems));
+      JSON.stringify(menuItems.map((m) => m[0])) === JSON.stringify(menuIds) && menuItems.filter((m) => m[1] === 'true').map((m) => m[0]).join() === id, JSON.stringify(menuItems));
     check(`${id}: the title is the type's blank title and the page is not unsaved`, (await page.locator('#chart-title').textContent()) === T.name && !(await unsaved()));
     // Nothing drawn yet: Fit, Tidy and the exports must not fail on zero items
     await page.click('#btn-zoom-reset'); await page.click('#btn-auto-tidy');
@@ -139,6 +141,11 @@ try {
   const [dl2] = await Promise.all([page.waitForEvent('download'), page.click('.confirm .confirm-alt')]);
   await page.waitForURL(/\/usecase\/index\.html/);
   check('Save in the confirm downloads the file, then switches', dl2.suggestedFilename().endsWith('.html'));
+
+  // c4: the starter draws laid-out tiles and arrows; Level 1 / Level 2 only change the view of a diagram with systems, so check the page itself
+  await open('c4');
+  check('c4: opens on a starter landscape (tiles and arrows), not unsaved, title is the blank title',
+    (await count('.c4-node')) >= 3 && (await count('.c4-edge')) >= 2 && !(await unsaved()) && (await page.locator('#chart-title').textContent()) === 'C4 diagram');
 
   check('no page errors', errors.length === 0, errors.join(' | '));
 } catch (e) {

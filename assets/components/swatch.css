@@ -1,5 +1,5 @@
     /* Swatches: the colours (TOKENS.palette) a flowchart lane, a sequence participant or an ERD table may carry. The roles
-       --sw-stripe, --sw-line, --sw-pill-bg, --sw-pill-ink, --sw-pill-solid and --sw-on-solid are fixed per palette slot: an
+       --sw-stripe, --sw-line, --sw-pill-bg, --sw-pill-ink, --sw-pill-solid, --sw-on-solid, --sw-disc and --sw-on-disc are fixed per palette slot: an
        element with data-sw="<slot>" gets them from the generated tokens (scripts/tokens.py). Only a colour that matches no
        slot (no data-sw) derives them here at run time from --swatch-color, and nothing checks that derivation's contrast.
        (.swimlane is the flowchart's lane: its --lane-color becomes --swatch-color in flowchart.css.) */
@@ -11,6 +11,8 @@
       --sw-pill-solid: color-mix(in srgb, var(--swatch-color) var(--swatch-solid-mix), var(--swatch-solid-base));
       --sw-line: color-mix(in srgb, var(--swatch-color) 40%, var(--swatch-line-base));
       --sw-on-solid: var(--swatch-solid-ink);
+      --sw-disc: color-mix(in srgb, var(--swatch-color) var(--swatch-disc-mix), var(--swatch-disc-base));
+      --sw-on-disc: var(--swatch-disc-ink);
     }
     /* Where relative colours are supported, derive deeper, more saturated shades of the colour's own hue: same hue,
        lightness set per role, chroma boosted (capped so strong colours do not turn garish) */
@@ -20,6 +22,7 @@
         --sw-pill-bg: oklch(from var(--swatch-color) 0.9 min(calc(c * 2.4), 0.07) h);
         --sw-pill-ink: oklch(from var(--swatch-color) 0.36 min(calc(c * 4), 0.12) h);
         --sw-pill-solid: oklch(from var(--swatch-color) 0.45 min(calc(c * 4.5), 0.15) h);
+        --sw-disc: var(--sw-pill-solid);   /* light: the solid role */
         --sw-line: oklch(from var(--swatch-color) 0.56 min(calc(c * 4), 0.15) h);   /* a thin line that must stay visible on the panel and on a frame's wash */
       }
       :root[data-theme="dark"] .swatch-scope:not([data-sw]), :root[data-theme="dark"] .swimlane:not([data-sw]) {
@@ -28,6 +31,7 @@
         --sw-pill-ink: oklch(from var(--swatch-color) 0.92 min(calc(c * 2), 0.06) h);
         --sw-pill-solid: oklch(from var(--swatch-color) 0.84 min(calc(c * 3.5), 0.12) h);
         --sw-line: oklch(from var(--swatch-color) 0.74 min(calc(c * 4), 0.14) h);
+        --sw-disc: color-mix(in srgb, var(--sw-line) var(--swatch-disc-mix), var(--swatch-disc-base));   /* dark: the line colour deepened, as the slots do */
       }
     }
     /* swatchRow(): the row of colour buttons (a "none" button, then one per swatch) */

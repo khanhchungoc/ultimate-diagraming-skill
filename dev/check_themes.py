@@ -26,7 +26,8 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-FIXTURES = sorted(p for p in (ROOT / "dev" / "fixtures").glob("*/*.json") if p.parent.name != "themes")
+FIXTURES = sorted(p for p in (ROOT / "dev" / "fixtures").glob("*/*.json")
+                  if p.parent.name != "themes" and (ROOT / "assets" / "types" / p.parent.name / "engine.js").exists())  # a type with no engine yet has nothing to lay out
 # A complete theme has measured font.metrics; brand-guide.json is a partial (the input of extract_tokens.py), so it is skipped.
 THEMES = [None] + sorted(p for p in (ROOT / "dev" / "fixtures" / "themes").glob("*.json")
                          if "metrics" in json.loads(p.read_text(encoding="utf-8")).get("font", {}))

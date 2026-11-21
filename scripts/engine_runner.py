@@ -22,6 +22,7 @@ from tokens import load_tokens, tokens_data
 
 SCRIPTS_DIR = Path(__file__).resolve().parent
 ASSETS_DIR = SCRIPTS_DIR.parent / "assets"
+ROUTER_PATH = ASSETS_DIR / "shell" / "ortho-router.js"   # the shared orthogonal router, loaded ahead of every engine
 _active_session: contextvars.ContextVar[Optional["_NodeSession"]] = contextvars.ContextVar(
     "_active_layout_session", default=None
 )
@@ -166,7 +167,8 @@ def _via_browser(data: Dict[str, Any], timeout: int, browser: Optional[str], tok
     except Exception:
         return None
     kind = data.get("diagramType") or "flowchart"
-    engine_src = _engine_path(kind).read_text(encoding="utf-8")
+    route = _engine_path(kind).with_name("route.js")   # a type's own gutter routing loads before its engine
+    engine_src = "\n".join(f.read_text(encoding="utf-8") for f in (ROUTER_PATH, route, _engine_path(kind)) if f.is_file())
     payload = json.dumps({"tokens": tokens_data(tokens), "diagram": data})
     js = (
         f"(() => {{\nconst __req = {payload};\nconst TOKENS = __req.tokens;\n"
@@ -206,7 +208,7 @@ def run_layout(kind: str, data: Dict[str, Any], timeout: int = 30, browser: Opti
 # --- Mermaid reader and writer ------------------------------------------------------------------------------------------
 # The same JavaScript the page uses (assets/shell/mermaid-flow.js + assets/types/<kind>/mermaid.js). With Node.js it runs
 # through scripts/mermaid_io.mjs (one process per call); without it, in headless Chrome like the layout engines.
-MERMAID_KINDS = ("flowchart", "usecase", "sequence", "erd")
+MERMAID_KINDS = ("flowchart", "usecase", "sequence", "erd", "c4")
 
 # Runs in Chrome after the sources; the same three operations as mermaid_io.mjs (`from`, `to`, `ids`).
 _MERMAID_RUN_JS = """
@@ -214,7 +216,7 @@ const req = %s;
 if (req.op === 'from') return JSON.stringify(fromMermaid(req.payload));
 if (req.op === 'to') return JSON.stringify(toMermaid(req.payload, { palette: req.palette }));
 const used = new Set(), map = {};
-['lanes', 'nodes', 'subjects', 'actors', 'useCases', 'entities', 'participants'].forEach((k) => (req.payload[k] || []).forEach((it) => {
+['lanes', 'nodes', 'subjects', 'actors', 'useCases', 'entities', 'participants', 'groups', 'elements'].forEach((k) => (req.payload[k] || []).forEach((it) => {
   if (it && typeof it.id === 'string' && !(it.id in map)) map[it.id] = mmdSafeId(it.id, used);
 }));
 return JSON.stringify(map);

@@ -9,6 +9,7 @@
       //   optional: onViewChange() after every pan/zoom (body.exporting is set while an export reads styles)
       //   optional: contentOverflow() -> {left, top, right, bottom}: unscaled px that content reaches past
       //             contentEl's edges, so Fit and screenshots frame it too
+      //   optional: fitPad(viewportWidth) -> px of margin Fit leaves around the content (default 80), e.g. less on a phone
       //   optional: toDisk(data) -> a new object to write into the page's data block (the disk format: semantic
       //             fields in a fixed order, positions moved out or dropped); must not mutate data
       //   optional: fromDisk(data) -> the in-memory model read from the data block (inverse of toDisk)
@@ -103,6 +104,15 @@
           const px = typeof opts.size === 'number' ? opts.size : t.size[opts.size || 'md'];
           const stroke = opts.bold ? t.strokeBold : opts.fine ? t.strokeFine : t.stroke;
           return `<svg${opts.class ? ` class="${opts.class}"` : ''} width="${px}" height="${px}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${stroke}" stroke-linecap="${t.cap}" stroke-linejoin="${t.join}" aria-hidden="true">${inner}</svg>`; // tokens-ok: this is the icon renderer
+        }
+        // A logo of a local icon pack (LOGOS, embedded by the build from icons/<pack>.json; name is "<pack>/<icon>"): the filled,
+        // multi-colour <svg> text. Colours and aspect ratio stay as the vendor drew them (the viewBox fits it in a square of
+        // the same sizes as icon(); no recolouring, no stretch). o: { size, class }. scripts/tokens.py logo_svg() builds the same text.
+        function logo(name, o) {
+          const e = typeof LOGOS === 'undefined' ? undefined : LOGOS[name], opts = o || {};
+          if (e === undefined) throw new Error(`unknown logo "${name}"`);
+          const px = typeof opts.size === 'number' ? opts.size : TOKENS.icon.size[opts.size || 'md'];
+          return `<svg${opts.class ? ` class="${opts.class}"` : ''} width="${px}" height="${px}" viewBox="${e.vb}" aria-hidden="true">${e.body}</svg>`;
         }
         function iconEl(name, o) {
           const tpl = document.createElement('template');
@@ -332,7 +342,7 @@
           });
           return box;
         }
-        return { confirm, closeConfirm, isConfirmOpen: () => !!confirmEl, noteCard, actionBar, abButton, abSep, abBreak, roomAbove, barSize, fitBar, colorKey, icon, iconEl, toast: (m) => showToast(m) };
+        return { confirm, closeConfirm, isConfirmOpen: () => !!confirmEl, noteCard, actionBar, abButton, abSep, abBreak, roomAbove, barSize, fitBar, colorKey, icon, iconEl, logo, hasLogo: (n) => typeof LOGOS !== 'undefined' && LOGOS[n] !== undefined, toast: (m) => showToast(m) };
       })();
 
       // --- ENGINE SOURCE (for plugins that run a background Web Worker, e.g. ERD) ---
@@ -1603,7 +1613,7 @@
         const vpRect = viewport.getBoundingClientRect();
         const frame = contentFrame();
         const capture = document.body.classList.contains('capture');
-        const pad = capture ? 0 : 80;
+        const pad = capture ? 0 : (plugin.fitPad && plugin.fitPad(vpRect.width)) || 80;
         // The floating dock covers the bottom of the viewport: fit the diagram into the band above it
         // (this matters for tall diagrams, e.g. a top-to-bottom flowchart, whose fit is limited by height)
         const dock = document.querySelector('.dock-area');
@@ -2340,13 +2350,14 @@
       // The header's Import button (#btn-import-mermaid) and canvas paste (Ctrl+V outside text fields): the text is read
       // by the type's fromMermaid (mermaid.js) and replaces the diagram as one undo step, laid out fresh. What the reader
       // could not map exactly is listed afterwards, and text of another diagram type is refused.
-      const MERMAID_TYPE_NAME = { flowchart: 'flowchart', usecase: 'use case diagram', sequence: 'sequence diagram', erd: 'ER diagram' };
+      const MERMAID_TYPE_NAME = { flowchart: 'flowchart', usecase: 'use case diagram', sequence: 'sequence diagram', erd: 'ER diagram', c4: 'C4 diagram' };
       function mermaidTypeOf(text) {
         const body = String(text).replace(/^\s*---[\s\S]*?\n---[ \t]*(?:\n|$)/, '');
         const head = (body.split(/\r?\n/).map((l) => l.trim()).find((l) => l && !l.startsWith('%%')) || '').toLowerCase();
         if (/^(flowchart|graph)\b/.test(head)) return /^\s*%%\s*@type\s+usecase\b/m.test(body) ? 'usecase' : 'flowchart';
         if (head.startsWith('sequencediagram')) return 'sequence';
         if (head.startsWith('erdiagram')) return 'erd';
+        if (/^c4(context|container|component|dynamic|deployment)\b/.test(head)) return 'c4';
         return '';
       }
 
