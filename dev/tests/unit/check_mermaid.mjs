@@ -1,0 +1,330 @@
+// Harness for the Mermaid reader and writer (flowchart and use case), see dev/plans/plan-mermaid-input.md "Harness".
+//   1. Round trip: fixture JSON -> toMermaid -> fromMermaid must give back the same authoring JSON.
+//   2. Validity: every written .mmd passes mermaid.parse (the pinned devDependency, run in headless Chrome).
+//   3. Leniency: every dev/tests/fixtures/mermaid/corpus/*.mmd imports without throwing or [ERROR] (the type comes from its header).
+// 4. Dry run: every corpus .mmd goes through `layout_engine.py --layout` and ends without [ERROR], with [DONE] or [NEXT].
+// A type may add its own normalising in dev/tests/unit/check_mermaid_norm.<kind>.mjs: `export function normalise(data, safeId, base)`,
+// where `base` is the generic normaliser below; without that file the generic one is used.
+//
+//   node dev/check_mermaid.mjs --browser <chrome> [--kind flowchart|usecase|sequence|erd|c4] [-v|--verbose]
+// Exit codes: 0 all pass, 1 setup error or a failed check.
+import { execFileSync } from 'node:child_process';
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join, relative } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import { argOf, isVerbose, launch } from '../e2e/cdp.mjs';
+import { defaultPalette, loadMermaidIO } from '../../../scripts/mermaid_io.mjs';
+
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
+const browser = argOf('browser');
+const onlyKind = argOf('kind');
+const KINDS = ['flowchart', 'usecase', 'sequence', 'erd', 'c4'];
+if (onlyKind && !KINDS.includes(onlyKind)) { console.error(`--kind must be one of ${KINDS.join(', ')}`); process.exit(1); }
+const kinds = onlyKind ? [onlyKind] : KINDS;
+
+const verbose = isVerbose();
+let passed = 0, failed = 0;
+const pass = (name) => { passed++; if (verbose) console.log(`[PASS] ${name}`); };
+const fail = (name, lines = []) => { failed++; console.log(`[FAIL] ${name}`); lines.forEach((l) => console.log(`       ${l}`)); };
+
+function walk(dir) {
+  if (!existsSync(dir)) return [];
+  return readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(join(dir, e.name)) : e.name.endsWith('.json') ? [join(dir, e.name)] : []));
+}
+
+function fixturesOf(kind) {
+  const examples = readdirSync(join(ROOT, 'dev/examples')).filter((f) => f.startsWith(`example-${kind}`) && f.endsWith('.json')).map((f) => join(ROOT, 'dev/examples', f));
+  return [...walk(join(ROOT, 'dev/tests/fixtures', kind)), ...examples].sort();
+}
+
+const PY = (() => {
+  for (const cmd of process.platform === 'win32' ? ['python', 'python3'] : ['python3', 'python']) {
+    try { execFileSync(cmd, ['-c', 'import sys; sys.exit(0 if sys.version_info[0] >= 3 else 1)'], { stdio: 'ignore' }); return cmd; } catch {}
+  }
+  return 'python3';
+})();
+
+const extract = (file) => JSON.parse(execFileSync(PY, [join(ROOT, 'scripts/layout_engine.py'), '--extract', file, '--json'], { encoding: 'utf8', maxBuffer: 1 << 26 }));
+
+// ---- normaliser: drops only what the plan says to ignore, makes defaults explicit, compares the rest strictly ----
+
+const POSITION_KEYS = new Set(['x', 'y', 'w', 'h', 'layout', 'height', 'schemaVersion']); // positions, the layout map, lane height, internal schemaVersion
+const ID_ARRAYS = ['lanes', 'nodes', 'subjects', 'actors', 'useCases']; // arrays whose items define ids
+const REF_KEYS = new Set(['laneId', 'from', 'to', 'subject', 'parent']); // string values that refer to an id
+const REF_ARRAY_KEYS = new Set(['nodes', 'useCases', 'actors']); // inside a note: arrays of ids
+const LIST_ID_KEYS = ['edges', 'links', 'notes']; // compared as ordered lists of content, their ids are ignored
+
+function normalise(data, safeId) {
+  const used = new Set();
+  const map = new Map();
+  if (safeId) for (const k of ID_ARRAYS) for (const it of data[k] || []) if (it && typeof it.id === 'string' && !map.has(it.id)) map.set(it.id, safeId(it.id, used));
+  const m = (v) => (typeof v === 'string' && map.has(v) ? map.get(v) : v);
+  const out = {};
+  for (const [key, val] of Object.entries(data)) {
+    if (POSITION_KEYS.has(key)) continue;
+    if (ID_ARRAYS.includes(key) || LIST_ID_KEYS.includes(key)) {
+      out[key] = (val || []).map((it) => item(key, it, m));
+      // Flowchart steps are written grouped by lane, so their order changes (decided: compare them by id)
+      if (key === 'nodes' && data.diagramType !== 'usecase') out[key].sort((p, q) => (p.id < q.id ? -1 : p.id > q.id ? 1 : 0));
+    } else out[key] = val;
+  }
+  return out;
+}
+
+function item(listKey, it, m) {
+  const o = {};
+  for (const [k, v] of Object.entries(it)) {
+    if (POSITION_KEYS.has(k)) continue;
+    if (k === 'id') { if (!LIST_ID_KEYS.includes(listKey)) o.id = m(v); continue; }
+    if (REF_KEYS.has(k)) o[k] = m(v);
+    else if (listKey === 'notes' && REF_ARRAY_KEYS.has(k) && Array.isArray(v)) o[k] = v.map(m);
+    else o[k] = v;
+  }
+  // defaults made explicit
+  if (listKey === 'nodes' && o.type === undefined) o.type = 'task';
+  if (listKey === 'edges' && o.label === undefined) o.label = '';
+  if (listKey === 'useCases' && o.level === undefined) o.level = 'user';
+  if (listKey === 'actors' && o.kind === undefined) o.kind = 'human';
+  return o;
+}
+
+function diff(a, b, path = '$') {
+  if (JSON.stringify(a) === JSON.stringify(b)) return [];
+  const isObj = (v) => v && typeof v === 'object' && !Array.isArray(v);
+  if (isObj(a) && isObj(b)) return [...new Set([...Object.keys(a), ...Object.keys(b)])].sort().flatMap((k) => diff(a[k], b[k], `${path}.${k}`));
+  if (Array.isArray(a) && Array.isArray(b)) {
+    const out = [];
+    for (let i = 0; i < Math.max(a.length, b.length); i++) out.push(...diff(a[i], b[i], `${path}[${i}]`));
+    return out;
+  }
+  return [`${path}: ${JSON.stringify(a)} != ${JSON.stringify(b)}`];
+}
+
+// ---- run ----
+
+const written = []; // { name, text } for the validity step
+const palette = defaultPalette();
+
+for (const kind of kinds) {
+  const impl = `assets/types/${kind}/mermaid.js`;
+  if (!existsSync(join(ROOT, impl)) || !existsSync(join(ROOT, 'assets/shell/mermaid-flow.js'))) {
+    console.log(`[SKIP] ${kind}: ${impl} not present`);
+    continue;
+  }
+  const io = loadMermaidIO(kind);
+  const normFile = join(ROOT, `dev/tests/unit/check_mermaid_norm.${kind}.mjs`);
+  const norm = existsSync(normFile) ? (await import(pathToFileURL(normFile).href)).normalise : null;
+  const normaliseKind = (data, safeId) => (norm ? norm(data, safeId, normalise) : normalise(data, safeId));
+  for (const file of fixturesOf(kind)) {
+    const name = `round trip ${relative(ROOT, file)}`;
+    try {
+      const data = extract(file);
+      if (data.diagramType !== kind) continue;
+      const text = io.toMermaid(data, { palette });
+      written.push({ name: relative(ROOT, file), text });
+      const back = io.fromMermaid(text);
+      const a = normaliseKind(data, io.mmdSafeId);
+      const b = normaliseKind(back.data, null);
+      const d = diff(a, b);
+      d.length ? fail(name, d) : pass(name);
+    } catch (e) { fail(name, [String(e.message || e)]); }
+  }
+  // leniency
+  const corpus = join(ROOT, 'dev/tests/fixtures/mermaid/corpus');
+  for (const f of readdirSync(corpus).filter((n) => n.endsWith('.mmd')).sort()) {
+    const text = readFileSync(join(corpus, f), 'utf8');
+    const body = text.replace(/^---\n[\s\S]*?\n---\n/, '').split('\n').filter((l) => l.trim() && !l.trim().startsWith('%%'))[0] || '';
+    const isUse = /^\s*%%\s*@type\s+usecase\b/m.test(text);
+    const fileKind = /^\s*sequenceDiagram\b/.test(body) ? 'sequence' : /^\s*erDiagram\b/.test(body) ? 'erd' : /^\s*C4(Context|Container|Component)\b/.test(body) ? 'c4'
+      : /^\s*(flowchart|graph)\b/.test(body) ? (isUse ? 'usecase' : 'flowchart') : null;
+    if (fileKind !== kind) continue;
+    const name = `leniency ${f}`;
+    try {
+      const r = io.fromMermaid(text);
+      const errs = [...(r.infos || []), ...(r.warnings || [])].filter((l) => /^\[ERROR\]/.test(l));
+      errs.length ? fail(name, errs) : pass(name);
+    } catch (e) { fail(name, [String(e.message || e)]); }
+  }
+}
+// ---- targeted P1/P2 checks: break, sequence column stripping, flowchart connector collapse, ERD comment semicolons ----
+
+if (!onlyKind || onlyKind === 'sequence') {
+  const io = loadMermaidIO('sequence');
+  const seqSrc = [
+    'sequenceDiagram',
+    '  actor c as Customer',
+    '  participant pay as Payment',
+    '  rect rgba(224, 242, 254, 0.25)',
+    '    Note over c,pay: Authorize',
+    '    c->>pay: Pay',
+    '    alt ok',
+    '      pay-->>c: Approved',
+    '    else declined',
+    '      break Payment declined',
+    '        pay-->>c: Declined',
+    '      end',
+    '    end',
+    '  end',
+  ].join('\n');
+  const parsed = io.fromMermaid(seqSrc);
+  const brk = (parsed.data.fragments || []).find((f) => f.kind === 'break');
+  const emitted = io.toMermaid(parsed.data, { palette });
+  const back = io.fromMermaid(emitted);
+  written.push({ name: 'p1 sequence break', text: emitted });
+  brk && brk.label === 'Payment declined' && emitted.includes('break Payment declined') && !parsed.infos.some((x) => /read as an opt/.test(x))
+    && JSON.stringify(parsed.data) === JSON.stringify(back.data)
+    ? pass('P1 sequence break preserves kind and round-trips')
+    : fail('P1 sequence break preserves kind and round-trips', [emitted]);
+
+  const packed = {
+    diagramType: 'sequence', lifespans: true,
+    participants: [
+      { id: 'a', name: 'A' }, { id: 'b', name: 'B' },
+      { id: 'c', name: 'C', column: 'a' }, { id: 'd', name: 'D', column: 'b' },
+    ],
+    messages: [{ id: 'm1', from: 'a', to: 'b', label: '1' }, { id: 'm2', from: 'c', to: 'd', label: '2' }],
+  };
+  const packedMmd = io.toMermaid(packed, { palette });
+  const explicitMmd = io.toMermaid({ ...packed, participants: [{ ...packed.participants[0], start: 'm1' }, ...packed.participants.slice(1)] }, { palette });
+  !packedMmd.includes('@lifespans') && !packedMmd.includes('@column')
+    && explicitMmd.includes('@lifespans') && explicitMmd.includes('@column c a')
+    ? pass('P2 sequence toMermaid strips engine-assigned lifespans/column and keeps explicit')
+    : fail('P2 sequence toMermaid strips engine-assigned lifespans/column and keeps explicit', [packedMmd, explicitMmd]);
+}
+
+if (!onlyKind || onlyKind === 'flowchart') {
+  const io = loadMermaidIO('flowchart');
+  const fcData = {
+    diagramType: 'flowchart', direction: 'LR',
+    lanes: [{ id: 'lane_a', name: 'A' }],
+    nodes: [
+      { id: 'a', laneId: 'lane_a', type: 'task', label: 'A' },
+      { id: 'b', laneId: 'lane_a', type: 'task', label: 'B' },
+      { id: 'c', laneId: 'lane_a', type: 'task', label: 'C' },
+      { id: 'target', laneId: 'lane_a', type: 'end', label: 'Done' },
+      { id: 'c_a_in_1', laneId: 'lane_a', type: 'connector', label: 'A' },
+      { id: 'c_a_in_2', laneId: 'lane_a', type: 'connector', label: 'A' },
+      { id: 'c_a_out', laneId: 'lane_a', type: 'connector', label: 'A' },
+    ],
+    edges: [
+      { id: 'e1', from: 'a', to: 'c_a_in_1', label: '' },
+      { id: 'e2', from: 'b', to: 'c_a_in_2', label: '' },
+      { id: 'e3', from: 'c', to: 'target', label: '' },
+      { id: 'c_a_out_e', from: 'c_a_out', to: 'target', label: '' },
+    ],
+  };
+  const fcMmd = io.toMermaid(fcData, { palette });
+  const fcBack = io.fromMermaid(fcMmd);
+  written.push({ name: 'p2 flowchart collapsed join', text: fcMmd });
+  !fcMmd.includes('c_a_in') && !fcMmd.includes('c_a_out') && fcMmd.includes('a & b & c --> target')
+    && fcBack.data.nodes.length === 4 && fcBack.data.edges.length === 3
+    ? pass('P2 flowchart collapses c_<letter>_in*/out into a & b & c --> target')
+    : fail('P2 flowchart collapses c_<letter>_in*/out into a & b & c --> target', [fcMmd]);
+}
+
+if (!onlyKind || onlyKind === 'erd') {
+  const io = loadMermaidIO('erd');
+  const erdData = {
+    diagramType: 'erd',
+    entities: [{ id: 'orders', name: 'orders', note: 'append-only; immutable', columns: [{ name: 'id', type: 'uuid', pk: true }] }],
+    relationships: [],
+    notes: [{ id: 'n1', text: 'unique per tenant_id; soft deleted', entities: ['orders'] }],
+  };
+  const erdMmd = io.toMermaid(erdData, { palette });
+  const erdBack = io.fromMermaid(erdMmd);
+  written.push({ name: 'p2 erd comment semicolons', text: erdMmd });
+  !erdMmd.includes('#59;') && erdMmd.includes('%% @note orders: unique per tenant_id; soft deleted')
+    && erdMmd.includes('%% @entityNote orders: append-only; immutable')
+    && erdBack.data.notes[0].text === 'unique per tenant_id; soft deleted'
+    && erdBack.data.entities[0].note === 'append-only; immutable'
+    ? pass('P2 ERD note/entityNote leaves ; unescaped and round-trips')
+    : fail('P2 ERD note/entityNote leaves ; unescaped and round-trips', [erdMmd]);
+}
+
+if (!onlyKind || onlyKind === 'c4') {
+  // C4: the text is stable (write, read, write), the lossy fields travel through the %% lines, and the docs sample reads as expected
+  const io = loadMermaidIO('c4');
+  for (const f of fixturesOf('c4').filter((x) => !x.includes('golden') && !x.includes('level3'))) {   // a container group reads back as a system group
+    const t1 = io.toMermaid(extract(f), { palette });
+    const t2 = io.toMermaid(io.fromMermaid(t1).data, { palette });
+    t1 === t2 ? pass(`c4 text is stable ${relative(ROOT, f)}`) : fail(`c4 text is stable ${relative(ROOT, f)}`, [t1, t2]);
+  }
+  const hints = {
+    diagramType: 'c4', arrange: 'surround', showTech: true, colorKey: { 1: 'People' },
+    groups: [{ id: 'g', name: 'G', kind: 'boundary', color: '#ff8800', core: true, side: 'W' }],
+    elements: [{ id: 'a', kind: 'person', name: 'A "quoted"', tech: 'T', color: '2', icon: 'user', core: true, side: 'N', group: 'g' },
+      { id: 'b', kind: 'system', name: 'B' }],
+    relations: [{ from: 'a', to: 'b', label: 'x', tech: 'y', async: true }],
+  };
+  const back = io.fromMermaid(io.toMermaid(hints, { palette })).data;
+  const el = Object.fromEntries(back.elements.map((e) => [e.id, e]));
+  const kept = back.arrange === 'surround' && back.showTech === true && back.colorKey[1] === 'People' && back.title === undefined
+    && JSON.stringify(back.groups) === JSON.stringify(hints.groups)
+    && JSON.stringify(el.a) === JSON.stringify({ id: 'a', kind: 'person', name: 'A "quoted"', group: 'g', tech: 'T', color: '2', icon: 'user', core: true, side: 'N' })
+    && back.relations.length === 1 && back.relations[0].tech === 'y' && back.relations[0].async === undefined;
+  kept ? pass('c4 icon, colour, core, side, arrange, showTech and colour key survive; async is lost') : fail('c4 hint lines survive', [JSON.stringify(back)]);
+  const docs = io.fromMermaid(readFileSync(join(ROOT, 'dev/tests/fixtures/mermaid/corpus/c4-docs-context.mmd'), 'utf8'));
+  const d = docs.data, kinds = Object.fromEntries(d.elements.map((e) => [e.id, `${e.kind}${e.icon ? '+' + e.icon : ''}@${e.group || ''}`]));
+  const want = { customerA: 'person@b0', customerC: 'person@b0', SystemAA: 'system@b0', SystemE: 'external+database@b1', SystemC: 'external@b1',
+    SystemD: 'database@b1', SystemF: 'queue@b3', SystemG: 'external+queue@b3' };
+  const ok = Object.entries(want).every(([k, v]) => kinds[k] === v) && d.title === 'System Context diagram for Internet Banking System'
+    && d.groups.map((g) => `${g.id}:${g.kind}:${g.parent || ''}`).join() === 'b0:boundary:,b1:boundary:b0,b3:boundary:b1'
+    && d.relations.length === 7 && d.relations.some((r) => r.from === 'customerD' || r.to === 'customerD') === false
+    && d.elements.find((e) => e.id === 'customerD').description === 'A customer of the bank, \n with personal bank accounts.'
+    && !docs.warnings.length;
+  ok ? pass('c4 Mermaid docs sample reads as expected') : fail('c4 Mermaid docs sample reads as expected', [JSON.stringify(kinds), JSON.stringify(docs.warnings), JSON.stringify(d.relations.length)]);
+  let refused = '';
+  try { io.fromMermaid('C4Dynamic\n  Person(a, "A")'); } catch (e) { refused = e.message; }
+  /C4Dynamic is not supported/.test(refused) ? pass('c4 C4Dynamic is refused with a message') : fail('c4 C4Dynamic is refused', [refused]);
+  const odd = io.fromMermaid('C4Context\n  Person(a, "A")\n  Frobnicate(x)\n  Rel(a, nope, "x")');
+  odd.warnings.length === 2 ? pass('c4 unknown statements and dangling relations are reported') : fail('c4 unknown statements are reported', odd.warnings);
+}
+
+// ---- dry run: the CLI reads every corpus file and finishes ----
+
+if (!onlyKind) {
+  const corpus = join(ROOT, 'dev/tests/fixtures/mermaid/corpus');
+  const dir = mkdtempSync(join(tmpdir(), 'mmd_run_'));
+  try {
+    for (const f of readdirSync(corpus).filter((n) => n.endsWith('.mmd')).sort()) {
+      const name = `--layout ${f}`;
+      let out = '';
+      try {
+        out = execFileSync(PY, [join(ROOT, 'scripts/layout_engine.py'), '--layout', join(corpus, f), '-o', join(dir, f.replace(/\.mmd$/, '.html'))],
+          { encoding: 'utf8', maxBuffer: 1 << 26, timeout: 120000 });
+      } catch (e) { out = `${e.stdout || ''}${e.stderr || ''}`; }
+      const errors = out.split('\n').filter((l) => l.includes('[ERROR]'));
+      errors.length || !/\[(DONE|NEXT)\]/.test(out) ? fail(name, errors.length ? errors : ['no [DONE] or [NEXT] line']) : pass(name);
+    }
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+}
+
+// ---- validity: mermaid.parse in headless Chrome ----
+
+if (written.length) {
+  const mmJs = join(ROOT, 'node_modules/mermaid/dist/mermaid.min.js');
+  if (!browser || !existsSync(mmJs)) {
+    fail('validity setup', [!browser ? 'pass --browser <chrome>' : 'run npm install (node_modules/mermaid missing)']);
+  } else {
+    const dir = mkdtempSync(join(tmpdir(), 'mmd_'));
+    const page = join(dir, 'parse.html');
+    writeFileSync(page, `<!doctype html><meta charset="utf-8"><script src="${pathToFileURL(mmJs).href}"></script>`);
+    const t = await launch(browser).catch((e) => { console.error('[ERROR]', e.message); process.exit(1); });
+    try {
+      await t.open(page);
+      const res = await t.ev(`(async () => {
+        mermaid.initialize({ startOnLoad: false });
+        const out = [];
+        for (const text of ${JSON.stringify(written.map((w) => w.text))}) {
+          try { await mermaid.parse(text); out.push(null); } catch (e) { out.push(String(e.message || e).split('\\n').slice(0, 3).join(' | ')); }
+        }
+        return out;
+      })()`);
+      written.forEach((w, i) => (res[i] === null ? pass(`valid Mermaid ${w.name}`) : fail(`valid Mermaid ${w.name}`, [res[i]])));
+    } finally { await t.close(); rmSync(dir, { recursive: true, force: true }); }
+  }
+}
+
+console.log(failed ? `${passed}/${passed + failed} checks passed (${failed} failed)` : `${passed}/${passed + failed} checks passed`);
+process.exit(failed ? 1 : 0);

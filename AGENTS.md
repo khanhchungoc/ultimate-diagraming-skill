@@ -10,14 +10,18 @@
 - **DRY.** Share code across types through `assets/components` and `assets/shell`. Extract on the third copy, and not at all if sharing would couple two types together.
 - **Vertical slices.** One diagram type is one slice: its folder, `blank.json`, playground entry, example, checker or e2e test, and docs, all in the same change. Never leave a type half-built across layers.
 - **SOLID, kept light.** The shell and layout engine are open for extension and closed for modification: a new type plugs in through a contract, and core code is not edited per type. Keep component APIs small. Prefer small modules and plain functions; use classes only for real state or polymorphism, not as a rule.
-- **Contract first.** The disk format is the public API. Changing it needs a migration and a golden test (`dev/check_golden.py`).
+- **Contract first.** The disk format is the public API. Changing it needs a migration and a golden test (`dev/tests/unit/check_golden.py`).
 - **Deterministic.** The same input must always give the same layout and output: no randomness, no time-based values.
 - **Validate at the edge.** Check input once at the boundary and fail loudly, then trust it inside.
 - **Verify before done.** Each slice has a checker or e2e test under `dev/`; run it, and check light and dark themes and contrast.
 - **No new dependencies** without a stated reason; the skill must stay portable.
 
+## Implementation plans
+
+Implementation plans live in `dev/plans/`. Once all phases of a plan are complete, mark the plan as completed and move it into `dev/plans/archive/`.
+
 ## Playground (GitHub Pages)
 
-The playground (every diagram type, blank, with a type switcher) deploys itself from `main` via `.github/workflows/playground.yml`, after `dev/e2e_playground.mjs` passes. Nothing to publish by hand. A new diagram type joins it in the same change (switcher entry, `blank.json`, folder).
+The playground (every diagram type, blank, with a type switcher) deploys itself from `main` via `.github/workflows/playground.yml`, after `dev/tests/e2e/e2e_playground.mjs` passes. Nothing to publish by hand. A new diagram type joins it in the same change (switcher entry, `blank.json`, folder).
 
 Playground URL: https://khanhchungoc.github.io/ultimate-diagraming-skill/

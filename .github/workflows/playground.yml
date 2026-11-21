@@ -7,7 +7,7 @@ on:
     paths:
       - assets/**
       - scripts/**
-      - dev/build_playground.py
+      - dev/tools/build_playground.py
       - .github/workflows/playground.yml
   workflow_dispatch:
 
@@ -31,13 +31,13 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.x"
-      - run: python dev/build_playground.py -o _site
+      - run: python dev/tools/build_playground.py -o _site
       # Gate: a build that does not load every type in a real browser never deploys.
       - uses: actions/setup-node@v4
         with:
           node-version: 20
       - run: npm install --no-save playwright && npx playwright install --with-deps chromium
-      - run: node dev/e2e_playground.mjs --dir _site
+      - run: node dev/tests/e2e/e2e_playground.mjs --dir _site
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

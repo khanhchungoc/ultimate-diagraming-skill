@@ -33,10 +33,10 @@ jobs:
         id: v
         run: |
           # Release the committed version as-is if it has no tag yet; otherwise bump patch.
-          if git rev-parse -q --verify "refs/tags/v$(python3 dev/release.py version)" >/dev/null; then
-            python3 dev/release.py bump
+          if git rev-parse -q --verify "refs/tags/v$(python3 dev/tools/release.py version)" >/dev/null; then
+            python3 dev/tools/release.py bump
           fi
-          echo "version=$(python3 dev/release.py version)" >> "$GITHUB_OUTPUT"
+          echo "version=$(python3 dev/tools/release.py version)" >> "$GITHUB_OUTPUT"
       - name: Commit and tag
         run: |
           git config user.name "github-actions[bot]"
@@ -47,7 +47,7 @@ jobs:
           # Lightweight tag: name it explicitly (--follow-tags only pushes annotated tags).
           git push origin HEAD:main "v${{ steps.v.outputs.version }}"
       - name: Build zip
-        run: python3 dev/release.py zip
+        run: python3 dev/tools/release.py zip
       - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}
