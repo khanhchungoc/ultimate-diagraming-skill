@@ -20,17 +20,17 @@
       //         A frame or note inside a collapsed frame gets no box. None of this is saved (see toDisk).
       // A file that uses none of the optional fields is laid out exactly as before they existed.
       const SQ = {
-        BOX_W: 148, BOX_H: 56, TOP: 24, MARGIN: 56, MIN_GAP: 200,
+        BOX_W: 168, BOX_H: 64, TOP: 24, MARGIN: 56, MIN_GAP: 220,
         FIRST_GAP: 56, ROW: 60, SELF_ROW: 96, ARROW_AT: 30,
-        FRAG_TOP: 40, FRAG_STEP_BOTTOM: 28, ELSE_GAP: 32, ROW_BOTTOM_PAD: 8,
-        CHAR_W: TOKENS.font.metrics.label, LABEL_PAD: 44, SELF_LOOP: 40, TAIL: 56, FRAG_PAD: 36, FRAG_PAD_STEP: 14, GRID: 4,
-        NUM_W: 26,                              // room for the step number before a label ("numbered")
-        DETAIL_CHAR_W: TOKENS.font.metrics.detail, DETAIL_ROW: 12,     // a message's detail line: smaller text, and the extra row height
+        FRAG_TOP: 44, FRAG_STEP_BOTTOM: 28, ELSE_GAP: 32, ROW_BOTTOM_PAD: 8,
+        CHAR_W: Math.round(TOKENS.font.metrics.label * (14 / 13) * 10) / 10, LABEL_PAD: 40, SELF_LOOP: 40, TAIL: 56, FRAG_PAD: 36, FRAG_PAD_STEP: 14, GRID: 4,
+        NUM_W: 28,                              // room for the step number before a label ("numbered")
+        DETAIL_CHAR_W: Math.round(TOKENS.font.metrics.detail * (12 / 11) * 10) / 10, DETAIL_ROW: 12,     // a message's detail line: smaller text, and the extra row height
         NOTE_W: 184, NOTE_SPAN_PAD: 64, NOTE_CHAR_W: TOKENS.font.metrics.note, NOTE_PAD: 10, NOTE_LINE: 17, NOTE_GAP: 14,
         SUMMARY_ROW: 44,                        // the one row a collapsed frame takes
         RAIL_W: 36, RAIL_H: 80,                 // a rail's width and height
         GAP_CLEAR: 52, RAIL_CLEAR: 24,          // clear space between two boxes (MIN_GAP - BOX_W), and beside a rail
-        LABEL_MAX_W: 320, LABEL_LINE: 20, DETAIL_LINE: 14,   // a label or detail wider than this wraps to more lines, each adding a line of row height
+        LABEL_MAX_W: 288, LABEL_LINE: 22, DETAIL_LINE: 16,   // a label or detail wider than this wraps to more lines, each adding a line of row height
         SUMMARY_W: 236                          // a collapsed frame is at least this wide when rails make the diagram narrow
       };
       const sqTextW = (t) => Math.ceil(String(t == null ? '' : t).length * SQ.CHAR_W);
@@ -91,8 +91,12 @@
         const labelW = (m) => Math.min(Math.max.apply(null, String(m.label == null ? '' : m.label).split('\n').map(sqTextW)) + numW, SQ.LABEL_MAX_W);
         const detailW = (m) => Math.min(Math.ceil(detailOf(m).length * SQ.DETAIL_CHAR_W), SQ.LABEL_MAX_W);
         const msgW = (m) => Math.max(labelW(m), detailW(m));
-        const labelLines = (m) => sqWrapText(m.label, SQ.CHAR_W, SQ.LABEL_MAX_W - numW).length;
-        const detailLines = (m) => (detailOf(m) ? sqWrapText(m.detail, SQ.DETAIL_CHAR_W, SQ.LABEL_MAX_W).length : 0);
+        const msgMaxW = (m) => {
+          const a = ps[pIdx[m.from]], b = ps[pIdx[m.to]];
+          return !a || !b || a === b ? SQ.LABEL_MAX_W : Math.max(SQ.LABEL_MAX_W, Math.abs(b.x - a.x) - 24);
+        };
+        const labelLines = (m) => sqWrapText(m.label, SQ.CHAR_W, msgMaxW(m)).length;
+        const detailLines = (m) => (detailOf(m) ? sqWrapText(m.detail, SQ.DETAIL_CHAR_W, msgMaxW(m)).length : 0);
 
         // 1. Fragments: resolve message ranges, nesting level (0 = innermost) and ordering. Done first: which messages a
         //    collapsed frame hides decides which participants are rails, and so the horizontal layout.

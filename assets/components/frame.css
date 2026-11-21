@@ -13,7 +13,7 @@
       padding: 0; border: none; border-radius: var(--radius-sm); background: transparent; color: var(--text-soft); cursor: pointer;
       vertical-align: -3px;
     }
-    .frame-chev:hover { background: var(--bg-hover); color: var(--text-main); }
+    .frame-tag:hover .frame-chev, .frame-chev:hover { background: var(--bg-hover); color: var(--text-main); }
     .frame-chev svg { transition: transform var(--dur-base) var(--curve-inout); }
     .frame-tag.is-collapsed .frame-chev svg { transform: rotate(-90deg); }
     .frame-summary {

@@ -240,37 +240,43 @@
         const PORT_SLOT = 10;
         const fromOffX = {};
         const toOffX = {};
-        Object.keys(rects).forEach(nid => {
-          ['top', 'bottom'].forEach(side => {
+        const fromOffY = {};
+        const toOffY = {};
+        const splitPortAxis = (nid, sides, fromMap, toMap, axis) => {
+          sides.forEach(side => {
             const outs = outEdges[nid].filter(e => edgePorts[e.id] && edgePorts[e.id].fromPort === side);
             const ins = inEdges[nid].filter(e => edgePorts[e.id] && edgePorts[e.id].toPort === side);
             if (!outs.length || !ins.length) return;
 
-            // If an edge is a straight vertical line to/from an aligned node, preserve it at cx (offset 0)
-            // and put the slot offset on the other edge(s) so arrowheads never collide with departure points
-            const isStraightOut = outs.some(e => Math.abs(rects[e.to].cx - rects[nid].cx) < 30 && (edgePorts[e.id].toPort === 'top' || edgePorts[e.id].toPort === 'bottom'));
-            const isStraightIn = ins.some(e => Math.abs(rects[e.from].cx - rects[nid].cx) < 30 && (edgePorts[e.id].fromPort === 'top' || edgePorts[e.id].fromPort === 'bottom'));
+            const aligned = (a, b) => Math.abs(rects[a][axis] - rects[b][axis]) < 30;
+            const opp = axis === 'cx' ? ['top', 'bottom'] : ['left', 'right'];
+            const isStraightOut = outs.some(e => aligned(e.to, nid) && opp.includes(edgePorts[e.id].toPort));
+            const isStraightIn = ins.some(e => aligned(e.from, nid) && opp.includes(edgePorts[e.id].fromPort));
 
             if (isStraightOut && !isStraightIn) {
-              outs.forEach(e => { fromOffX[e.id] = 0; });
-              const insMeanX = ins.reduce((s, e) => s + rects[e.from].cx, 0) / ins.length;
-              const slotDir = insMeanX >= rects[nid].cx ? 1 : -1;
-              ins.forEach(e => { toOffX[e.id] = slotDir * PORT_SLOT; });
+              outs.forEach(e => { fromMap[e.id] = 0; });
+              const insMean = ins.reduce((s, e) => s + rects[e.from][axis], 0) / ins.length;
+              const slotDir = insMean >= rects[nid][axis] ? 1 : -1;
+              ins.forEach(e => { toMap[e.id] = slotDir * PORT_SLOT; });
               return;
             } else if (isStraightIn && !isStraightOut) {
-              ins.forEach(e => { toOffX[e.id] = 0; });
-              const outsMeanX = outs.reduce((s, e) => s + rects[e.to].cx, 0) / outs.length;
-              const slotDir = outsMeanX >= rects[nid].cx ? 1 : -1;
-              outs.forEach(e => { fromOffX[e.id] = slotDir * PORT_SLOT; });
+              ins.forEach(e => { toMap[e.id] = 0; });
+              const outsMean = outs.reduce((s, e) => s + rects[e.to][axis], 0) / outs.length;
+              const slotDir = outsMean >= rects[nid][axis] ? 1 : -1;
+              outs.forEach(e => { fromMap[e.id] = slotDir * PORT_SLOT; });
               return;
             }
 
-            const meanX = (list, key) => list.reduce((s, e) => s + rects[e[key]].cx, 0) / list.length;
+            const mean = (list, key) => list.reduce((s, e) => s + rects[e[key]][axis], 0) / list.length;
             // Put each group on the side facing where its other ends are, to avoid new crossings
-            const insFirst = meanX(ins, 'from') <= meanX(outs, 'to');
-            ins.forEach(e => { toOffX[e.id] = insFirst ? -PORT_SLOT : PORT_SLOT; });
-            outs.forEach(e => { fromOffX[e.id] = insFirst ? PORT_SLOT : -PORT_SLOT; });
+            const insFirst = mean(ins, 'from') <= mean(outs, 'to');
+            ins.forEach(e => { toMap[e.id] = insFirst ? -PORT_SLOT : PORT_SLOT; });
+            outs.forEach(e => { fromMap[e.id] = insFirst ? PORT_SLOT : -PORT_SLOT; });
           });
+        };
+        Object.keys(rects).forEach(nid => {
+          splitPortAxis(nid, ['top', 'bottom'], fromOffX, toOffX, 'cx');
+          splitPortAxis(nid, ['left', 'right'], fromOffY, toOffY, 'cy');
         });
 
         // Arrow-end rule (references/types/flowchart.md, checklist item 7): short left/right sides MERGE
@@ -354,14 +360,15 @@
           const p = edgePorts[e.id];
           const f = rects[e.from];
           const t = rects[e.to];
-          const offsetY = toPortOffsetY[e.id] || 0;
+          const offsetY = (toPortOffsetY[e.id] || 0) + (toOffY[e.id] || 0);
+          const srcOffY = fromOffY[e.id] || 0;
           let points = [];
 
           if (p.toPort === 'right') {
             // Backward arrow entering the target's right side
-            const ex = t.x + t.w, ey = t.cy;
+            const ex = t.x + t.w, ey = t.cy + offsetY;
             if (p.fromPort === 'left') {
-              const sx = f.x, sy = f.cy;
+              const sx = f.x, sy = f.cy + srcOffY;
               if (Math.abs(sy - ey) < 6) {
                 points = [[sx, sy], [ex, sy]];
               } else {
@@ -375,7 +382,7 @@
             }
           } else if (p.fromPort === 'left' && (p.toPort === 'top' || p.toPort === 'bottom')) {
             const sx = f.x;
-            const sy = f.cy;
+            const sy = f.cy + srcOffY;
             const ex = t.cx + (toOffX[e.id] || 0);
             const ey = (p.toPort === 'top') ? t.y : (t.y + t.h);
             const xExit = sx - 24;
@@ -407,7 +414,7 @@
           } else if (p.fromPort === 'right' && (p.toPort === 'top' || p.toPort === 'bottom')) {
             // Side exit, then straight into the target's top/bottom: a single bend
             const sx = f.x + f.w;
-            const sy = f.cy;
+            const sy = f.cy + srcOffY;
             const ex = t.cx + (toOffX[e.id] || 0);
             const ey = (p.toPort === 'top') ? t.y : (t.y + t.h);
             points = [[sx, sy], [ex, sy], [ex, ey]];
@@ -419,7 +426,7 @@
             points = [[sx, sy], [sx, ey], [ex, ey]];
           } else {
             const sx = f.x + f.w;
-            const sy = f.cy;
+            const sy = f.cy + srcOffY;
             const ex = t.x;
             const ey = t.cy + offsetY;
 
@@ -527,12 +534,8 @@
           }
           return d;
         };
-        // An arrow must not enter a side of a node that another arrow leaves from (or vice versa)
-        // (top/bottom sides are exempt: they get separate entry/exit slots in 2b and 5a2)
-        const sideOnly = side => (side === 'left' || side === 'right') ? side : null;
-        const portClashes = (edge, fp, tp) => validEdges.filter(o => o !== edge && edgePorts[o.id] && (
-          (o.from === edge.to && sideOnly(tp) && edgePorts[o.id].fromPort === tp) ||
-          (o.to === edge.from && sideOnly(fp) && edgePorts[o.id].toPort === fp))).length;
+        // Entries and exits on any side get separate slots in 2b, so portClashes is 0
+        const portClashes = () => 0;
         // Two branches of one decision that carry different labels should leave from different vertices.
         // Not a hard rule (a diamond has only four): it is a cost, so a branch moves to another side only
         // when that side has less overlap/crossing, and shares a vertex when every alternative is worse.
@@ -588,6 +591,20 @@
           minX: Math.min(b.minX, r.x), maxX: Math.max(b.maxX, r.x + r.w),
           minY: Math.min(b.minY, r.y), maxY: Math.max(b.maxY, r.y + r.h)
         }), { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity });
+        // Gap centers (+/-20px) between node x-bands so tight corridors are never skipped by STEP=16
+        const gapXs = (() => {
+          const ivs = rectList.map(([, r]) => [r.x, r.x + r.w]).sort((a, b) => a[0] - b[0]);
+          const xs = [];
+          let hi = -Infinity;
+          for (const [a, b] of ivs) {
+            if (a > hi + 28 && hi > -Infinity) {
+              const mid = (hi + a) / 2;
+              xs.push(mid, mid - 22, mid + 22);
+            }
+            if (b > hi) hi = b;
+          }
+          return xs;
+        })();
         const altRoutes = (f, t, deep) => {
           const out = [];
           const SIDES = ['top', 'bottom', 'left', 'right'];
@@ -611,8 +628,8 @@
                 for (let y = lo; y <= hi; y += 10) add([[sx, sy], [sx, y], [ex, y], [ex, ey]], Math.abs(y - (sy + ey) / 2));
               } else {
                 [28, 36, 48, 72].forEach(d => {
-                  const g = fp === 'top' ? Math.min(sy, ey) - d : Math.max(sy, ey) + d;
-                  if (g < 8) return;
+                  const g = fp === 'top' ? Math.max(8, Math.min(sy, ey) - d) : Math.max(sy, ey) + d;
+                  if (fp === 'top' && g > Math.min(sy, ey) - 12) return;
                   add([[sx, sy], [sx, g], [ex, g], [ex, ey]]);
                 });
               }
@@ -634,11 +651,13 @@
                 // vertical exit -> corridor above/below -> sideways to x -> vertical -> horizontal entry
                 [16, 20, 36, 56].forEach(d => {
                   const g = fp === 'top' ? sy - d : sy + d;
-                  for (let x = bounds.minX - 24; x <= bounds.maxX + 24; x += STEP) {
-                    if (tp === 'left' ? x > ex - 14 : x < ex + 14) continue;
-                    if (Math.abs(x - sx) < 10 || Math.abs(ey - g) < 10) continue;
+                  const tryX = x => {
+                    if (tp === 'left' ? x > ex - 14 : x < ex + 14) return;
+                    if (Math.abs(x - sx) < 10 || Math.abs(ey - g) < 10) return;
                     add([[sx, sy], [sx, g], [x, g], [x, ey], [ex, ey]], 0);
-                  }
+                  };
+                  for (let x = bounds.minX - 24; x <= bounds.maxX + 24; x += STEP) tryX(x);
+                  gapXs.forEach(tryX);
                 });
               } else {
                 // horizontal exit -> out to x -> vertical to corridor g -> across -> vertical entry

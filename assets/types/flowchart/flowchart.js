@@ -1406,15 +1406,15 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
             // Allow arrow labels to drop into multiple lines if 1 line exceeds the horizontal gap
             const fRect = pathD.fromRect;
             const tRect = pathD.toRect;
-            if (fRect && tRect && tRect.x > (fRect.x + fRect.w)) {
-              const horizGap = tRect.x - (fRect.x + fRect.w);
-              const longestWordW = Math.max(0, ...String(edge.label || '').trim().split(/\s+/).map(w => w.length)) * FONT_M.label + 20;
-              // Fit the gap with the arrow stubs kept clear, never past LABEL_MAX_W, never narrower than the longest word
-              const maxLabelW = Math.max(40, longestWordW, Math.min(LE.LABEL_MAX_W, horizGap - 2 * LE.LABEL_STUB));
-              labelContainer.style.maxWidth = `${maxLabelW}px`;
-            } else {
-              labelContainer.style.maxWidth = `${LE.LABEL_MAX_W}px`;
+            let maxLabelW = LE.LABEL_MAX_W;
+            if (fRect && tRect) {
+              const horizGap = Math.max(tRect.x - (fRect.x + fRect.w), fRect.x - (tRect.x + tRect.w));
+              if (horizGap > 0) {
+                // Fit the gap with 8px clearance per side (LABEL_STUB total), never past LABEL_MAX_W
+                maxLabelW = Math.max(40, Math.min(LE.LABEL_MAX_W, horizGap - LE.LABEL_STUB));
+              }
             }
+            labelContainer.style.setProperty('--edge-label-max-w', `${maxLabelW}px`);
 
             const isSelected = (edge.id === selectedEdgeId);
             const hasLabel = Boolean(edge.label && edge.label.trim());
@@ -1422,6 +1422,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
             if (isSelected) labelContainer.classList.add('selected');
             if (hasLabel) {
               labelContainer.classList.add('has-label');
+              labelContainer.title = edge.label;
             } else {
               labelContainer.classList.add('empty-placeholder');
             }
