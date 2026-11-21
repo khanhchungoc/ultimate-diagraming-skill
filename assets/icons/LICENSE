@@ -1,15 +1,15 @@
-The icon drawings in default.json come from Phosphor Icons (https://phosphoricons.com,
-Duotone style, @phosphor-icons/core 2.1.1) and are used under its MIT license below.
+The icon drawings in default.json come from Tabler Icons (https://tabler.io/icons,
+Outline style, @tabler/icons 3.52.0) and are used under its MIT license below.
 The diagram-type icons (type-erd, type-flowchart, type-sequence, type-usecase, type-c4),
 ERD table/relationship icons (table-add, relationship, split), flowchart shape tiles
 (shape-*), lane/sequence/usecase notation glyphs (lane, participant, message, frame,
-numbers, message-return, lifespans, line-dashed, line-solid, message-async, usecase,
-subject), and participant-kind glyphs (kind-*) were drawn for this skill (24 x 24,
-rounded stroke) and are released with it.
+numbers, message-return, lifespans, line-dashed, line-solid, message-async, actor,
+usecase, subject), and participant-kind/C4 queue glyphs (kind-*, queue) were drawn for
+this skill (24 x 24, rounded stroke) and are released with it.
 
 MIT License
 
-Copyright (c) 2023 Phosphor Icons
+Copyright (c) 2020-2026 Paweł Kuna
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

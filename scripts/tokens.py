@@ -447,8 +447,9 @@ if __name__ == "__main__":
     assert 'width="32" height="32"' in icon_svg(t, icons, "type-flowchart", "tile", ("fine",)) and 'stroke-width="1.75"' in icon_svg(t, icons, "type-flowchart", "tile", ("fine",))
     assert 'stroke-width="2.5"' in icon_svg(t, icons, "type-flowchart", "xs", ("bold",)) and 'width="7"' in icon_svg(t, icons, "type-flowchart", "7")
     plus = icons["plus"]
-    if isinstance(plus, dict):
-        assert icon_svg(t, icons, "plus") == f'<svg width="14" height="14" viewBox="{plus["vb"]}" fill="currentColor" aria-hidden="true">{plus["body"]}</svg>'
+    assert isinstance(plus, str)
+    assert icon_svg(t, icons, "plus") == ('<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" '
+                                          f'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">{plus}</svg>')
     assert expand_icons("a {{icon:type-flowchart}} b {{icon:type-flowchart:xl}} {{icon:plus:tile:fine}}", t, icons).count("<svg") == 3
     try:
         expand_icons("{{icon:nope}}", t, icons)
@@ -471,6 +472,7 @@ if __name__ == "__main__":
         (set_dir / "default.json").write_text((saved / "default.json").read_text())
         other = load_icons(load_tokens(theme({"icon": {"set": "other"}})))
         assert other["trash"] == '<path d="M1 1h2"/>' and other["user"] == {"vb": "0 0 256 256", "body": '<path d="M0 0" opacity="0.2"/>'} and other["type-flowchart"] == icons["type-flowchart"], "a brand set overrides names and falls back for the rest"
+        assert icon_svg(t, other, "user") == '<svg width="14" height="14" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M0 0" opacity="0.2"/></svg>'
         for bad_reg in (
             {"trash": '<path d="M1 1h2" onclick="x"/>'},
             {"trash": {"vb": "0 0 256 256", "body": '<path d="M0 0"/>', "extra": "x"}},
