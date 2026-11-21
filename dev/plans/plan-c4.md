@@ -256,6 +256,37 @@ The `group` menu of an element or of several elements lists No group, each visib
 
 **Present mode** (`?present`): no editing UI. The Level control, hover and collapse still work (a presenter zooms between C4 levels); search is hidden, as in every other type. Notes in the file (`showNotes`) are shown read-only: no x button, no editing, no Notes switch.
 
+## Moving boxes (phase 5)
+
+Auto-Tidy stays the default. Dragging adds a manual mode on top of it, with no new file key.
+
+**Two modes, told apart by the saved `layout` map.** A diagram with no `layout` map (or an empty one) is in Auto-Tidy: every edit re-lays everything out, as in phase 4. A diagram with a `layout` map is in manual mode: its saved positions are kept, an edit never moves anything it did not have to. The first drag in Auto-Tidy turns manual mode on: the current positions of every element and every collapsed group become the layout map, then the drag applies. The Tidy button clears the map and runs the full layout, which turns Auto-Tidy back on. Save writes the `layout` map only in manual mode (elements then groups, as the codec already orders it); a reload of a file with a map opens in manual mode.
+
+**What moves.**
+- An element moves by itself. An expanded group's frame is always derived from its members' boxes, so it follows; its `x`, `y` are not saved. A collapsed group is one tile and moves as one item.
+- Dragging a group (by its tag) moves every descendant by the same delta: each element and each collapsed child group, hidden members included, so they open where the group sits.
+- Several selected items move together (the selection from phase 4).
+- Dropping an element with its centre inside another group's frame makes it a member of that group (the innermost group under the pointer); dropping it outside every frame removes it from its group. Dropping a group onto another group's frame nests it (never into itself or its own descendants). A drop that changes membership is part of the same undo step.
+- Moving is limited to the canvas: nothing leaves the positive quadrant plus the margin; the engine shifts the whole picture on release as it does today.
+
+**During a drag.** The dragged items follow the pointer (after a 4px threshold, so a click still selects); arrows of the moved items are not re-routed live: they fade out as in the other types and are re-routed on release; a frame the item would join is highlighted. Mouse and touch both work; Esc cancels. Nothing moves in `?present`.
+
+**On release.** The page writes the new positions and membership, calls `routeDiagram(data, { pinned })` with the ids that were just moved, and plays the shell's morph motion. One undo step per drag (including any membership change).
+
+**Engine contract (new).**
+- `layoutDiagram(data)`: unchanged, a full layout that ignores any saved positions.
+- `routeDiagram(data, opts)`: keeps every saved position. `opts.pinned` is an array of ids (elements and groups) that were just moved: when frames or boxes now overlap, the pinned items stay and the others are shifted away, as blocks (the existing separation, extended to honour `pinned`). Items with no saved position (a new element, a new group) are placed incrementally: an element joining a group takes the next slot in that group's row or column; a loose new element goes to the nearest free spot beside the item it is linked to, else beside the centre; never over another box; then separation runs. It never calls the full layout.
+- Edits in manual mode do not drop positions: add, connect, delete, group, ungroup and collapse or expand call `routeDiagram`. Expanding a group in manual mode puts its members back where they were saved and shifts what they now overlap.
+- `data._manual` (derived, not saved) tells the page and the audit which mode the engine ran in.
+
+**Audit.** A `layout` map with an id that no longer exists is dropped on read (the codec already does this); a layout that puts two boxes over each other is an Info line, not an error (the engine separates them on the next `routeDiagram`).
+
+**Scale.** A drag release must stay under 100 ms for 500 visible elements and under 400 ms for 2,000 (route plus separation); no work per pointer move except moving the dragged elements.
+
+**Keyboard and accessibility.** Alt+arrow keys move the selection by 8px steps (Shift: 40px) and count as one undo step when the key is released; this is the keyboard way to move boxes. The first move announces "Manual layout on" in the status line.
+
+**Not in this phase:** alignment guides and snapping to a grid, dragging arrows or their labels, resizing boxes, auto-scrolling while dragging near the edge.
+
 ## Audit (`scripts/audit_c4.py`)
 
 Registered in `AUDITS`. Each rule has a failing and a passing unit case.
@@ -328,6 +359,7 @@ Recommended, to confirm before phase 1.
 12. **Layers are a layout, not a group kind** (settled 2026-11-21): `arrange: "layers"` turns the top-level groups into stacked bands. No new group kind, and Level 3 readiness is unchanged. Layer bands do not map to Mermaid C4.
 13. **Links inside a group are allowed** (settled 2026-11-21), including between members that are not neighbours; the group lays out its members as a small flow when a row would put an arrow through a sibling.
 14. **Editing is Auto-Tidy only at first** (settled 2026-11-21): every edit re-lays the diagram out; dragging boxes to move them is a later step.
+15. **Moving boxes** (settled 2026-11-21): Auto-Tidy stays the default; a `layout` map in the file means manual mode; the first drag pins the current positions; Tidy clears the map. No new file key.
 
 ## Sources
 
