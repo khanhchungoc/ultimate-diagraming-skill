@@ -158,7 +158,7 @@
       justify-content: center;
       gap: 6px;
       line-height: var(--t-label-leading);
-      max-width: 140px; /* keep in sync with LE.LABEL_MAX_W */
+      max-width: var(--edge-label-max-w, 140px); /* keep in sync with LE.LABEL_MAX_W */
       transition: border-color var(--dur-micro) var(--curve-inout), background-color var(--dur-micro) var(--curve-inout),
         clip-path var(--dur-micro) var(--curve-out);
       /* At rest only the text's own box masks the line: the label is clipped to the text bounds (box = 1.5px border +
@@ -168,6 +168,10 @@
     }
     .edge-label:is(:hover, .linked, .selected, .hl-in, .hl-out, .editing, :focus-within) {
       clip-path: inset(-12px round var(--radius-lg));
+    }
+    .edge-label:is(.editing, :focus-within) {
+      max-width: max(var(--edge-label-max-w, 140px), 240px);
+      z-index: 40;
     }
     /* Highlighted (hover, selected, linked to a hovered node): the node border weight (2px). The padding gives
        back what the border adds so the label does not jump: the 1.5px rest border is drawn 1px wide at 100%
@@ -179,11 +183,20 @@
     .edge-label-text {
       outline: none;
       min-width: 14px;
-      display: inline-block;
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+      line-clamp: 2;
+      overflow: hidden;
       user-select: text;
       white-space: normal;
       overflow-wrap: break-word;
       text-align: center;
+    }
+    .edge-label:is(.editing, :focus-within) .edge-label-text {
+      -webkit-line-clamp: unset;
+      line-clamp: unset;
+      overflow: visible;
     }
     .edge-label-text:focus {
       color: var(--primary);
