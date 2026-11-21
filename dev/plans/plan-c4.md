@@ -222,7 +222,8 @@ Rules it implements: one bend, the run placed between the facing edges of the tw
 
 - Add from the dock: person, system, container, database, queue, external, group. Connect by dragging between ports; the new relation asks for its label immediately (required).
 - Frame tag: click selects, chevron collapses or expands. "Level" shortcut in the toolbar sets every `system` group collapsed (Level 1) or expands the selected one (Level 2).
-- Icon picker in the action bar: search across generic icons and installed packs; a missing pack is explained in the picker.
+- Icon picker in the action bar: a search field over the generic diagram icons in groups (People, Devices and apps, Infrastructure, Data, Messaging, Business, Security); a missing pack is explained in the picker. Entries of installed packs are not listed in the picker yet: a `logo:<pack>/<name>` is written in the file.
+- Keyboard: an arrow label of a single relation is a tab stop; Enter or F2 edits it and Delete or Backspace removes the arrow.
 - Hover an element: its relations highlight in and out, the rest dim (the flowchart behaviour). Search finds elements, groups and relation labels.
 - Present mode (`?present`) is read-only with Level switching allowed.
 - Accessibility: every tile is focusable and named `name, kind, technology`; group tags are buttons with `aria-expanded`; arrows have text labels, so no meaning rests on colour alone.
@@ -233,17 +234,19 @@ Auto-Tidy is always on, as in the use case type: every add, connect, delete, gro
 
 **Dock.** `#btn-add` opens the popover `#c4-pop` with tiles `#btn-add-person`, `#btn-add-system`, `#btn-add-container`, `#btn-add-database`, `#btn-add-queue`, `#btn-add-external`, `#btn-add-group`. A click adds the item; an item added while a group is selected joins that group; the new item is selected and its name is in rename mode. New ids are `e_<ms>` for elements and `g_<ms>` for groups; relations have no ids.
 
-**Selection.** Click an element, a group tag or an arrow; Ctrl or Shift click adds; a box dragged on empty canvas selects the elements it covers; Ctrl+A selects all; Esc clears. Selected items carry the class `selected` (`.c4-node`, `.c4-group`, `.edge-line`).
+**Selection.** Click an element, a group tag or an arrow; Ctrl or Shift click adds; Shift plus a drag on empty canvas selects the elements and collapsed group tiles the box touches (a plain drag pans); Ctrl or Cmd plus A selects all; Esc clears. Selected items carry the class `selected` (`.c4-node`, `.c4-group`, `.edge-line`).
 
 **Action bar** (`ui.actionBar`, class `c4-actionbar`, buttons carry `data-act`):
 - Element: `rename`, `kind` (menu), `icon` (picker `#c4-icons` with search over the generic icons; names it cannot find are listed as missing packs), `color` (swatch row, with the colour key entry prompt), `group` (menu: none, each group, new group), `core` (toggle: centre), `side` (menu: auto, N, S, E, W), `details` (popover with `#c4-tech` and `#c4-desc`), `connect`, `delete`.
-- Group: `rename`, `color`, `collapse`, `core`, `side`, `ungroup`, `delete` (deletes the group and its members; with members it asks first).
-- Arrow: `label` (edit), `tech`, `async` (toggle), `reverse`, `delete`.
-- Several selected: `color`, `group`, `delete` with the count.
+- Group: `rename`, `kind` (menu: system or boundary), `collapse` (Collapse or Expand), `core`, `side`, `ungroup`, `delete` (deletes the group and its members; with members it asks first), then the colour swatch row (`color`).
+- Arrow: `label` (edit), `tech`, `async` (toggle), `reverse`, `delete`. An arrow that merges several relations (one end is a collapsed group) shows only the text "N relations" and `delete`.
+- Several selected: the text "N selected", `group` (only when an element is among them), `delete` with the count, and the colour swatch row when an element or group is selected.
 
-**Rename.** Double-click a name, or F2 or Enter on the selection: an inline editor; Enter saves, Esc cancels. Empty names are refused.
+The `group` menu of an element or of several elements lists No group, each visible group and New group, which creates a group (kind `system`) and moves them into it. The colour swatch row sits on its own line under the buttons in every bar. A colour with no name in the colour key opens an entry prompt (optional); a key entry is edited by double-click.
 
-**Connect.** Drag from a port (`.c4-port`, shown on hover and on the selected element, one per side) onto another element, or choose `connect` and click the target. The new arrow immediately opens `#c4-label-input` (a label is required); Esc cancels the label and the whole connection is undone. A connection to itself is refused with a toast; a duplicate (same pair and label) is refused.
+**Rename.** Double-click a name, or F2 or Enter on the selection: an inline editor; Enter saves, Esc cancels. Empty names are refused. A collapsed group is a tile: double-click on it expands it, double-click on its name renames it, and Space on the focused tile toggles it.
+
+**Connect.** Drag from a port (`.c4-port`, shown on hover and on the selected element, one per side) onto another element, or choose `connect` and click the target. The new arrow immediately opens `#c4-label-input` (a label is required); Esc cancels the label and the whole connection is undone. A connection to itself is refused with a toast. A duplicate (same pair and label) is refused after the label is typed, with a toast, and the new connection is dropped.
 
 **Delete.** Delete or Backspace removes the selection (an element's arrows go with it). **Undo and redo** cover every action; add plus first rename, and connect plus its label, are one step each.
 
@@ -281,14 +284,14 @@ Changed: `SKILL.md` (type table, read-back line), `scripts/layout_engine.py` (`S
 
 ## Phases
 
-1. **Shared router and model.** Extract the orthogonal router (`computeAllEdgeRoutes` and its path and label helpers, which live in `flowchart.js`) into `assets/shell/ortho-router.js` with no behaviour change (golden unchanged). The layered ranking in `engine.js` is flowchart-specific and stays; extract it only when c4 shows what it truly shares. Schema, codec, `engine.js` with groups and collapse, `audit_c4.py`, fixtures and golden. `--layout` produces a static page.
-1b. **Layout rebuild.** Replace the first layered engine with the ring and layered layout under Layout, the reference being `dev/plans/c4-layout-prototype.html`. Same engine contract, plus the ring and side fields. Regenerate the goldens and fix the page for the icon card node.
-1c. **Layers layout and links inside a group.** The `layers` ring rule, equal-width bands, the audit rules, the small inner flow for groups whose members skip each other, fixtures and goldens. Same engine as 1b, so this is a ring rule and a group rule, not new machinery.
-2. **Render.** Tiles with generic icons, person avatar, database shape, groups as frames, orthogonal arrows with label pills, aggregated arrows, notes, colour key.
-3. **Levels and motion.** Collapse and expand, the Level control, morph motion, reduced-motion path.
-4. **Edit.** Dock, ports, label prompt, icon picker, action bar, Auto-Tidy, Save, undo, multi-select.
-5. **Icon packs.** `ui.logo`, `build_icon_pack.py`, the technology pack if allowed, missing-pack fallback and warning, export.
-6. **Docs and polish.** Help drawer, reference, example, playground entry, README, `check_themes.py` and `check_contrast.py --strict` clean. Optional: Mermaid C4 export and import.
+1. **Shared router and model.** Extract the orthogonal router (`computeAllEdgeRoutes` and its path and label helpers, which live in `flowchart.js`) into `assets/shell/ortho-router.js` with no behaviour change (golden unchanged). The layered ranking in `engine.js` is flowchart-specific and stays; extract it only when c4 shows what it truly shares. Schema, codec, `engine.js` with groups and collapse, `audit_c4.py`, fixtures and golden. `--layout` produces a static page. Done: the router is in `assets/shell/ortho-router.js`, and the model, codec, audit, fixtures and goldens exist.
+1b. **Layout rebuild.** Replace the first layered engine with the ring and layered layout under Layout, the reference being `dev/plans/c4-layout-prototype.html`. Same engine contract, plus the ring and side fields. Regenerate the goldens and fix the page for the icon card node. Done: the ring layout engine (`surround`, `flow`, `layers`) with icon-card sizes from `TOKENS.c4`, and goldens for every fixture.
+1c. **Layers layout and links inside a group.** The `layers` ring rule, equal-width bands, the audit rules, the small inner flow for groups whose members skip each other, fixtures and goldens. Same engine as 1b, so this is a ring rule and a group rule, not new machinery. Done: the `layers` ring rule, the audit rules and the inner flow for links inside a group.
+2. **Render.** Tiles with generic icons, person avatar, database shape, groups as frames, orthogonal arrows with label pills, aggregated arrows, notes, colour key. Done: icon-card tiles, groups as frames, orthogonal arrows with label pills, aggregated arrows, colour key and the playground entry. Notes are drawn from the data but cannot be edited.
+3. **Levels and motion.** Collapse and expand, the Level control, morph motion, reduced-motion path. Done: collapse and expand, the Level control (also in `?present`), morph motion and the reduced-motion path.
+4. **Edit.** Dock, ports, label prompt, icon picker, action bar, Auto-Tidy, Save, undo, multi-select. Done: dock, ports, label prompt, grouped icon picker, action bars, Auto-Tidy, Save with name-slug ids, undo and multi-select, keyboard access to arrow labels; checked by `dev/e2e_c4.mjs`. Not done: dragging boxes and editing notes.
+5. **Icon packs.** `ui.logo`, `build_icon_pack.py`, the technology pack if allowed, missing-pack fallback and warning, export. Partly done: `ui.logo`, `scripts/build_icon_pack.py`, local packs (`logo:<pack>/<name>`, see `references/icon-packs.md`), embedding of only the used entries, and the missing-pack fallback with a warning. Not done: the technology pack (not bundled, open decision 1), pack entries in the picker, and the PNG and SVG export of logos is not verified.
+6. **Docs and polish.** Help drawer, reference, example, playground entry, README, `check_themes.py` and `check_contrast.py --strict` clean. Optional: Mermaid C4 export and import. Not done: Mermaid C4 export and import (`mermaid.js` does not exist). The help drawer, reference, example and playground entry exist from the earlier phases.
 
 Each phase ends with its checker passing and the playground e2e still green; no phase leaves the type half-built across layers.
 
