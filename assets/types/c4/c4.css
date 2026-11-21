@@ -157,3 +157,20 @@
 
     /* ?present: read only. Selecting and collapsing still work. */
     body.presentation .c4-node, body.presentation .c4-group.is-tile { cursor: pointer; }
+
+    /* Moving boxes (c4.js, MOVING BOXES): grab cursor while editing, the dragged boxes lift, what touches them fades until it is routed again */
+    body:not(.presentation) .c4-node, body:not(.presentation) .c4-group.is-tile, body:not(.presentation) .c4-tag { cursor: grab; touch-action: none; }   /* a finger on a box drags it; on blank canvas it still pans */
+    /* a class on the body must not match a universal or per-box rule: toggling it would restyle every box on a big diagram */
+    body.c4-moving { cursor: grabbing; }
+    body.c4-moving .c4-actionbar { display: none !important; }
+    .is-dragging, .is-dragging * { cursor: grabbing !important; }
+    .is-dragging > .c4-port { display: none !important; }
+    .c4-node.is-dragging, .c4-group.is-tile.is-dragging { z-index: 50; box-shadow: inset 0 0 0 var(--ring-thin) var(--ring), var(--shadow-lg); will-change: translate; }
+    .c4-group.is-frame.is-dragging { will-change: translate; }
+    .c4-edge.drag-fade, .c4-label.drag-fade, #c4-notes .note.drag-fade { opacity: 0.12 !important; transition: opacity var(--dur-micro) var(--curve-inout); }
+    .c4-group.c4-drop.is-frame, .c4-group.c4-drop.is-frame.swatch-scope { border-color: var(--primary); background: var(--primary-wash); box-shadow: 0 0 0 var(--ring-md) var(--primary-ring); }
+    .c4-group.c4-drop.is-tile { --ring: var(--primary); background: var(--primary-wash); box-shadow: inset 0 0 0 var(--ring-thin) var(--ring), 0 0 0 var(--ring-md) var(--primary-ring); }
+    .c4-group { transition: background-color var(--dur-micro) var(--curve-inout), border-color var(--dur-micro) var(--curve-inout); }
+    /* the manual layout badge, beside the save status (c4.js moves it there) */
+    .c4-mode { margin-left: 6px; transform-origin: left center; background: var(--primary-wash); color: var(--primary); }
+    .c4-mode[hidden] { display: none; }

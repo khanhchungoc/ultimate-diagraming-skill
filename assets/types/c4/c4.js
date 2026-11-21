@@ -5,11 +5,13 @@
       // arrows in and out of what is hovered, collapses and expands groups (also in one go through the Level control) and
       // searches; and it edits (contract: "Editing (phase 4)" in dev/plans/plan-c4.md): add from the dock, select (click,
       // Ctrl/Shift, Shift+drag box, Ctrl+A), the action bars, inline rename, connect by port or by button with a required label,
-      // delete, ungroup. Auto-Tidy is always on: every edit calls layoutDiagram (positions dropped) and the shell's morph motion
-      // plays. Every finished edit ends in one updateStatus(true) (one undo step); an add waits for its first rename and a
+      // delete, ungroup. Two layout modes (contract: "Moving boxes (phase 5)"): Auto-Tidy (the default) re-lays everything out
+      // after every edit (layoutDiagram, positions dropped); manual layout (chartData._manual, saved as the `layout` map) keeps
+      // positions, an edit calls routeDiagram, and boxes are dragged (MOVING BOXES below). The shell's morph motion plays on
+      // both. Every finished edit ends in one updateStatus(true) (one undo step); an add waits for its first rename and a
       // connection for its label, so each is one step.
       //
-      // x/y of elements and groups are the only saved positions (the "layout" map, toDisk); sizes, _edges, _hidden, _depth,
+      // x/y of elements and groups are the only saved positions (the "layout" map, toDisk, written in manual layout only); sizes, _edges, _hidden, _depth,
       // _collapsed, points, path, labelBox and canvas are derived by routeDiagram on every render and never saved.
       // Everything on screen is absolute within #c4-canvas. The plugin sits in its own function so its names cannot clash with the engine's.
       (function () {
@@ -41,6 +43,7 @@
       let hoverEdgeId = null;
       let connecting = null;   // { from } while the Connect button waits for a target
       let drag = null;         // a connection being dragged from a port
+      let mv = null;           // boxes being moved by the pointer or by Alt+arrows (MOVING BOXES)
       let keyDraft = null;     // the colour slot whose colour key entry is being named
       let boxBase = [];        // the selection a Shift+drag box started from
       let newLink = null;      // the relation whose label is still being asked (its connection is not a step yet)
@@ -165,7 +168,9 @@
         const snap = o.snap || (useMotion ? motion.capture(canvas, FLIP_SPECS) : null);
         const prevEdges = useMotion ? (o.prevEdges || captureEdges()) : null;
         byId = new Map(groups().map((g) => [g.id, g]));
-        routeDiagram(chartData);   // lays out afresh by itself when something visible has no x/y
+        const wasManual = chartData._manual === true;
+        routeDiagram(chartData, o.pinned ? { pinned: o.pinned } : undefined);   // keeps every position; lays out afresh by itself when nothing is placed
+        if (!wasManual) delete chartData._manual;   // the engine marks every route it runs as manual; the page decides the mode (Auto-Tidy keeps its positions in memory only)
         const C = chartData.canvas || { width: 800, height: 400 };
         canvas.style.width = px(C.width);
         canvas.style.height = px(C.height);
@@ -197,6 +202,8 @@
         updateLevelButtons();
         updateNotesButton();
         applyState();
+        updateModeUi();
+        syncTouchDrag();
         const back = hadFocus && (els.nodes.get(hadFocus) || els.groups.get(hadFocus) || (els.edges.get(hadFocus) || {}).label);
         if (back) back.focus({ preventScroll: true });
         if (snap) {
@@ -232,7 +239,9 @@
         if (connecting) { ev.preventDefault(); if (item.kind === 'element') finishConnect(item.id); else ui.toast('Pick an element to connect to'); return; }
         if (ev.ctrlKey || ev.metaKey || ev.shiftKey) { ev.preventDefault(); toggleSel(item); return; }
         if (ev.target.closest && ev.target.closest('.frame-chev')) return;
+        if (item.kind !== 'edge' && sel.length > 1 && inSel(item.kind, item.id)) { startMove(ev, item, sel.slice()); return; }   // the whole selection moves; a click without a move selects this one
         setSel([item]);
+        if (item.kind !== 'edge') startMove(ev, item, [item]);
       }
 
       function buildNode(e) {
@@ -367,6 +376,7 @@
       function renderLegend() {
         const used = [], key = chartData.colorKey || {};
         groups().concat(elements()).forEach((o) => { const c = swatchOf(o); if (c && swatchSlot(c) && !used.includes(c)) used.push(c); });
+        const sameEdges = edges().filter((e) => e.path).length === els.edges.size && edges().every((e) => !e.path || els.edges.has(e.id));
         const shown = used.filter((c) => key[c] || c === keyDraft);
         if (legendEl) legendEl.remove();
         legendEl = ui.colorKey(shown, key, { cls: 'c4-key', prompts: keyDraft !== null });
@@ -405,7 +415,7 @@
       }
       const select = (s) => setSel(s ? [s] : []);
       function hoverable(el, id) {
-        el.addEventListener('pointerenter', (ev) => { if (ev.pointerType !== 'touch') { hoverId = id; applyState(); } });
+        el.addEventListener('pointerenter', (ev) => { if (ev.pointerType !== 'touch' && !(mv && mv.moved)) { hoverId = id; applyState(); } });   // no hover dimming while boxes are carried
         el.addEventListener('pointerleave', () => { if (hoverId === id) { hoverId = null; applyState(); } });
       }
       // What is lit: the arrows in (amber) and out (blue) of the hovered element, as the flowchart does; a lone selected element
@@ -440,9 +450,10 @@
           const isNode = el.classList.contains('c4-node');
           if (isNode) el.classList.toggle('selected', inSel('element', id));
           if (isNode || el.classList.contains('is-tile')) el.classList.toggle('is-dim', !!hoverId && !near.has(id) && !inSel(isNode ? 'element' : 'group', id));
-          el.tabIndex = first && first.kind !== 'edge' && first.id === id ? 0 : -1;
+          const ti = first && first.kind !== 'edge' && first.id === id ? '0' : '-1';
+          if (el.getAttribute('tabindex') !== ti) el.setAttribute('tabindex', ti);   // written only when it changes: a write restyles the box
         });
-        if (!(first && first.kind !== 'edge') && items.length) items[0][1].tabIndex = 0;
+        if (!(first && first.kind !== 'edge') && items.length) items[0][1].setAttribute('tabindex', '0');
         els.groups.forEach((el, id) => {
           el.classList.toggle('selected', inSel('group', id));
           const t = el.querySelector('.frame-tag');
@@ -502,6 +513,10 @@
       // The one way an edit ends: Auto-Tidy (layoutDiagram drops every position and places everything afresh), the morph from
       // the old geometry to the new (render plays it), and one updateStatus(true) = one undo step. relayout false: a change that
       // moves nothing (colour, icon), only drawn again. mo: motion options for render, or false for none.
+      // Auto-Tidy lays everything out again (layoutDiagram); manual layout keeps what is placed (routeDiagram: only what is new
+      // is placed, and what now overlaps is shifted away from the boxes in `pinned`).
+      const manualMode = () => chartData._manual === true;
+      const lay = (pinned) => (manualMode() ? routeDiagram(chartData, { pinned: pinned || [] }) : layoutDiagram(chartData));
       function commit(relayout, mo) {
         const useMotion = mo !== false && motion.enabled() && html.childElementCount > 0;
         const o = mo && typeof mo === 'object' ? Object.assign({}, mo) : {};
@@ -510,7 +525,7 @@
           if (!o.snap) o.snap = motion.capture(canvas, FLIP_SPECS, o.captureOpts);
           if (!o.prevEdges) o.prevEdges = captureEdges();
         }
-        if (relayout !== false) layoutDiagram(chartData);
+        if (relayout !== false) lay();
         render(mo === false ? false : o);
         updateStatus(true);
       }
@@ -698,7 +713,7 @@
         const o = isGroup ? { id: newId('g'), name: 'New group', kind: 'system' } : { id: newId('e'), kind, name: DEFAULT_NAME[kind] };
         if (host) { host.collapsed = false; o[isGroup ? 'parent' : 'group'] = host.id; }
         if (isGroup) (chartData.groups = groups()).push(o); else (chartData.elements = elements()).push(o);
-        layoutDiagram(chartData);
+        lay();
         sel = [{ kind: isGroup ? 'group' : 'element', id: o.id }];
         render({ snap, prevEdges, fromKey: host ? { [o.id]: host.id } : undefined, enterScale: 0.82, duration: 200 });
         editName(sel[0].kind, o.id, true);
@@ -799,7 +814,7 @@
         const snap = useMotion ? motion.capture(canvas, FLIP_SPECS) : null, prevEdges = useMotion ? captureEdges() : null;
         const rel = { from: fromId, to: toId, label: '' };
         (chartData.relations = relations()).push(rel);
-        layoutDiagram(chartData);
+        lay();
         const index = relations().indexOf(rel);
         const e = edges().find((x) => x.members.includes(index));
         sel = e ? [{ kind: 'edge', id: e.id }] : [];
@@ -815,7 +830,7 @@
         const snap = motion.enabled() && html.childElementCount > 0 ? motion.capture(canvas, FLIP_SPECS, { ghosts: true }) : null;
         const prevEdges = snap ? captureEdges() : null;
         chartData.relations = relations().filter((r) => r !== rel);
-        layoutDiagram(chartData);
+        lay();
         sel = back ? [back] : [];
         render({ snap, prevEdges, ghostExit: true, duration: 180 });
         // nothing was committed: the model is what the last step left, so this makes no undo step
@@ -1360,7 +1375,15 @@
       }
 
       let lastBarKey = null;   // which selection the bar was last drawn for: a redraw of the same one makes no entrance
+      let barLater = false;   // patchMoved: the bar is built a frame later, so measuring it does not hold up the release
       function drawBar() {
+        if (barLater) {
+          barLater = false;
+          html.querySelectorAll('.c4-actionbar').forEach((el) => el.remove());
+          lastBarKey = null;
+          requestAnimationFrame(drawBar);
+          return;
+        }
         const key = presenting() || connecting || newLink || !sel.length ? null : JSON.stringify(sel);
         const same = key !== null && key === lastBarKey;
         lastBarKey = key;
@@ -1447,6 +1470,7 @@
         if (ui.closeConfirm()) did = true;
         if (closeFloating('cancel')) did = true;
         if (cancelDrag()) did = true;
+        if (cancelMove()) did = true;
         if (endConnect()) did = true;
         return did;
       }
@@ -1481,7 +1505,7 @@
           if (ev.key === ' ') { if (kind === 'group' && item.classList.contains('is-tile')) toggleGroup(id); else select({ kind, id }); return; }
           select({ kind, id });
           if (!presenting()) editSelection();
-        } else if (ev.key.startsWith('Arrow') && !lbl) {
+        } else if (ev.key.startsWith('Arrow') && !lbl && !ev.altKey) {   // Alt + arrow moves the selection (MOVING BOXES)
           const dir = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[ev.key];
           const here = item.getBoundingClientRect(), hc = { x: here.left + here.width / 2, y: here.top + here.height / 2 };
           let best = null, bestScore = Infinity;
@@ -1500,6 +1524,269 @@
           best.focus();
         }
       });
+
+      // --- MOVING BOXES (contract: "Moving boxes (phase 5)" in dev/plans/plan-c4.md) ---
+      // Drag an element, a collapsed group's tile, a group by its tag, or the whole selection (4 px first, so a click still
+      // selects); Alt + arrows (Shift: 40 px) does the same from the keyboard. While it moves, the boxes follow by `translate`
+      // only (no model change, nothing routed), the arrows and cards that touch them fade, and the group an element would join
+      // is highlighted (.c4-drop). On release the page writes the positions and the new membership, turns manual layout on,
+      // calls routeDiagram(chartData, { pinned }) and lets render() morph from where the boxes were let go: one undo step.
+      // Esc, a cancelled pointer or a second finger puts everything back.
+      const MAX_GROUP_DEPTH = 2;   // scripts/audit_c4.py MAX_GROUP_DEPTH: a group is never dropped where it would nest deeper
+      const MOVE_THRESHOLD = 4, STEP = 8, STEP_BIG = 40;
+      const groupHeight = (g) => 1 + Math.max(0, ...groups().filter((x) => x.parent === g.id).map(groupHeight));
+      const itemOf = (s) => (s.kind === 'group' ? groupOf(s.id) : elementOf(s.id));
+      const parentOf = (s) => (s.kind === 'group' ? itemOf(s).parent : itemOf(s).group) || '';
+
+      // What a move carries: the picked items and, for a group, everything inside it (hidden members too, so they open where
+      // the group sits). `tops` are the picked items that no picked group already carries: only they change membership.
+      function moveSet(items) {
+        const picked = items.filter((s) => s.kind !== 'edge' && itemOf(s)), ids = new Set();
+        const pickedGroups = new Set(picked.filter((s) => s.kind === 'group').map((s) => s.id));
+        picked.forEach((s) => { ids.add(s.id); if (s.kind === 'group') descendants(groupOf(s.id)).forEach((d) => ids.add(d)); });
+        const carried = (s) => { for (let p = parentOf(s), n = 0; p && n < 50; p = (groupOf(p) || {}).parent, n++) if (pickedGroups.has(p)) return true; return false; };
+        const seen = [...ids].map((id) => els.nodes.get(id) || els.groups.get(id)).filter(Boolean);
+        const shown = [...ids].map((id) => elementOf(id) || groupOf(id)).filter((o) => o && placed(o) && (els.nodes.has(o.id) || els.groups.has(o.id)));
+        return {
+          ids, els: seen, tops: picked.filter((s) => !carried(s)),
+          minX: Math.min(...shown.map((o) => o.x)), minY: Math.min(...shown.map((o) => o.y)),
+          dx: 0, dy: 0, moved: false, faded: []
+        };
+      }
+      const clampMove = (m, dx, dy) => ({ dx: Math.max(dx, -m.minX), dy: Math.max(dy, -m.minY) });   // nothing leaves the top-left of the canvas
+
+      function beginVisual(m) {
+        m.moved = true;
+        document.body.classList.add('c4-moving');
+        hoverId = null;
+        applyState();
+        m.els.forEach((el) => el.classList.add('is-dragging'));
+        // the arrows and note cards that touch what moves fade out: they are routed again on release
+        edgesG.querySelectorAll('.c4-edge').forEach((g) => { if (m.ids.has(g.dataset.from) || m.ids.has(g.dataset.to)) m.faded.push(g); });
+        html.querySelectorAll('.c4-label').forEach((l) => { const e = edgeOf(l.dataset.edgeId); if (e && (m.ids.has(e.from) || m.ids.has(e.to))) m.faded.push(l); });
+        notesList().forEach((n) => { if (noteTargets(n).some((t) => m.ids.has(t.id))) { const c = noteCard(n.id); if (c) m.faded.push(c); } });
+        m.faded.forEach((x) => x.classList.add('drag-fade'));
+      }
+      function showMove(m, dx, dy) {
+        const c = clampMove(m, dx, dy);
+        m.dx = c.dx; m.dy = c.dy;
+        const t = `${m.dx}px ${m.dy}px`;
+        m.els.forEach((el) => { el.style.translate = t; });
+      }
+      function clearVisual(m) {
+        document.body.classList.remove('c4-moving');
+        canvas.querySelectorAll('.c4-drop').forEach((el) => el.classList.remove('c4-drop'));
+        m.faded.forEach((x) => x.classList.remove('drag-fade'));
+        m.els.forEach((el) => el.classList.remove('is-dragging'));
+      }
+
+      // The group a box would belong to if it were let go now: the innermost group frame (or collapsed tile) under its centre
+      // that is not the box itself or inside it, and where a group would not nest deeper than the audit allows.
+      function hostAt(m, s, dx, dy) {
+        const o = itemOf(s);
+        if (!placed(o) || !(o.w > 0)) return parentOf(s);
+        const cx = o.x + dx + o.w / 2, cy = o.y + dy + o.h / 2;
+        const height = s.kind === 'group' ? groupHeight(o) : 0;
+        const hit = groups().filter((g) => !m.ids.has(g.id) && placed(g) && g.w > 0 && !hiddenGroup(g)
+          && cx >= g.x && cx <= g.x + g.w && cy >= g.y && cy <= g.y + g.h && depthOf(g) + height <= MAX_GROUP_DEPTH)
+          .sort((a, b) => depthOf(b) - depthOf(a))[0];
+        return hit ? hit.id : '';
+      }
+      // A group let go with its centre over one of its own inner frames would nest into itself: that drop is refused
+      const ownInner = (m, dx, dy) => m.tops.some((s) => {
+        if (s.kind !== 'group') return false;
+        const o = itemOf(s), cx = o.x + dx + o.w / 2, cy = o.y + dy + o.h / 2;
+        return descendants(o).map(groupOf).some((g) => g && placed(g) && g.w > 0 && !hiddenGroup(g) && cx >= g.x && cx <= g.x + g.w && cy >= g.y && cy <= g.y + g.h);
+      });
+      const dropChanges = (m, dx, dy) => m.tops.map((s) => ({ s, host: hostAt(m, s, dx, dy) })).filter(({ s, host }) => host !== parentOf(s));
+      function showDrop(m) {
+        canvas.querySelectorAll('.c4-drop').forEach((el) => el.classList.remove('c4-drop'));
+        dropChanges(m, m.dx, m.dy).forEach(({ host }) => { const el = host && els.groups.get(host); if (el) el.classList.add('c4-drop'); });
+      }
+
+      // Release: write positions and membership, route, morph, one undo step. announce: say "Manual layout on" (the keyboard way)
+      function finishMove(m, reparent, announce) {
+        const dx = Math.round(m.dx), dy = Math.round(m.dy);
+        if (reparent && ownInner(m, dx, dy)) { glideBack(m); ui.toast('A group cannot go inside itself'); return; }
+        const changes = reparent ? dropChanges(m, dx, dy) : [];
+        if (!dx && !dy && !changes.length) { clearVisual(m); m.els.forEach((el) => { el.style.translate = ''; }); return; }
+        motion.cancelAll();
+        const useMotion = motion.enabled() && html.childElementCount > 0;
+        const snap = useMotion ? motion.capture(canvas, FLIP_SPECS) : null, prevEdges = useMotion ? captureEdges() : null;
+        const wasManual = manualMode();
+        chartData._manual = true;   // the first move keeps every position as it is now (they are all on the model) and turns manual layout on
+        m.ids.forEach((id) => { const o = elementOf(id) || groupOf(id); if (o && placed(o)) { o.x += dx; o.y += dy; } });
+        const toKey = {};
+        // groups whose frame could change shape of its tag (the chevron shows only on a group with something inside)
+        const around = new Set(changes.flatMap(({ s, host }) => [parentOf(s), host]).filter(Boolean).flatMap((id) => [id].concat(ancestors(groupOf(id)).map((a) => a.id))));
+        const filled = () => new Map([...around].map((id) => [id, descendants(groupOf(id)).length > 0]));
+        const had = filled();
+        changes.forEach(({ s, host }) => {
+          setOpt(itemOf(s), s.kind === 'group' ? 'parent' : 'group', host);
+          const into = host && groupOf(host);
+          if (into && isTile(into)) toKey[s.id] = host;   // let go over a closed group: it shrinks into the tile
+        });
+        clearVisual(m);
+        const mo = { snap, prevEdges, toKey, pinned: [...m.ids], duration: 200 };   // the route shifts away what now overlaps the moved boxes
+        const same = !Object.keys(toKey).length && [...filled()].every(([id, v]) => had.get(id) === v);   // nothing appears, goes or changes its tag
+        if (!same || !patchMoved(mo)) render(mo);
+        updateStatus(true);
+        if (!wasManual && announce) updateModeUi(true);
+      }
+
+      // The release without a new membership touches only what changed: route, then the boxes whose geometry moved are updated
+      // in place, the arrows, labels and cards are drawn again, and the shell's morph plays over them. False (nothing done) when
+      // a box would appear or go, so that render() redraws everything.
+      function patchMoved(mo) {
+        const was = new Map();
+        const snapGeo = (o) => [o.x, o.y, o.w, o.h];
+        els.nodes.forEach((el, id) => was.set(id, snapGeo(elementOf(id))));
+        els.groups.forEach((el, id) => was.set(id, snapGeo(groupOf(id))));
+        routeDiagram(chartData, { pinned: mo.pinned });
+        chartData._manual = true;
+        const sameEdges = edges().filter((e) => e.path).length === els.edges.size && edges().every((e) => !e.path || els.edges.has(e.id));
+        const shown = new Set(elements().filter((e) => !e._hidden && placed(e) && e.w > 0).map((e) => e.id)
+          .concat(groups().filter((g) => placed(g) && g.w > 0 && !hiddenGroup(g)).map((g) => g.id)));
+        if (!sameEdges || shown.size !== was.size || [...shown].some((id) => !was.has(id))) return false;
+        const C = chartData.canvas || { width: 800, height: 400 };
+        canvas.style.width = px(C.width); canvas.style.height = px(C.height);
+        svg.setAttribute('width', C.width); svg.setAttribute('height', C.height);
+        const put = (el, o) => { el.style.translate = ''; Object.assign(el.style, { left: px(o.x), top: px(o.y), width: px(o.w), height: px(o.h) }); };
+        els.nodes.forEach((el, id) => { const o = elementOf(id); if (el.style.translate || was.get(id).some((v, i) => v !== snapGeo(o)[i])) put(el, o); });
+        els.groups.forEach((el, id) => { const o = groupOf(id); if (el.style.translate || was.get(id).some((v, i) => v !== snapGeo(o)[i])) put(el, o); });
+        edges().forEach((e) => {   // an arrow whose route did not change stays as it is
+          const rec = els.edges.get(e.id);
+          if (!rec) return;
+          const line = rec.g.querySelector('.edge-line');
+          if (line.getAttribute('d') !== e.path) rec.g.querySelectorAll('path').forEach((q) => q.setAttribute('d', e.path));
+          const b = e.labelBox;
+          if (rec.label && b) {
+            const st = rec.label.style, want = [px(b.x), px(b.y), px(b.w), px(b.h)];
+            if (st.left !== want[0] || st.top !== want[1] || st.width !== want[2] || st.height !== want[3]) Object.assign(st, { left: want[0], top: want[1], width: want[2], height: want[3] });
+          }
+        });
+        if (notesLayer) { notesLayer.remove(); renderNotes(); }
+        barLater = true;
+        applyState();
+        if (mo.snap) {
+          motion.play(mo.snap, canvas, FLIP_SPECS, { duration: mo.duration });
+          playEdges(mo.prevEdges);
+        }
+        return true;
+      }
+
+      // The pointer
+      function startMove(ev, item, items) {
+        if (presenting() || connecting || ev.button !== 0 || mv) return;
+        const m = moveSet(items);
+        if (!m.tops.length) return;
+        Object.assign(m, { item, sx: ev.clientX, sy: ev.clientY, pointerId: ev.pointerId, kb: false, multi: items.length > 1 });
+        mv = m;
+        window.addEventListener('pointermove', onMoveMove);
+        window.addEventListener('pointerup', onMoveUp);
+        window.addEventListener('pointercancel', cancelMove);
+      }
+      function endMoveListeners() {
+        window.removeEventListener('pointermove', onMoveMove);
+        window.removeEventListener('pointerup', onMoveUp);
+        window.removeEventListener('pointercancel', cancelMove);
+      }
+      function onMoveMove(e) {
+        const m = mv;
+        if (!m || m.kb || e.pointerId !== m.pointerId) return;
+        if (!m.moved && Math.hypot(e.clientX - m.sx, e.clientY - m.sy) < MOVE_THRESHOLD) return;
+        if (!m.moved) beginVisual(m);
+        showMove(m, (e.clientX - m.sx) / scale, (e.clientY - m.sy) / scale);
+        showDrop(m);
+      }
+      function onMoveUp(e) {
+        const m = mv;
+        if (!m || m.kb || e.pointerId !== m.pointerId) return;
+        mv = null;
+        endMoveListeners();
+        if (!m.moved) { if (m.multi && !e.ctrlKey && !e.shiftKey && !e.metaKey) setSel([m.item]); return; }   // a click: select this one
+        finishMove(m, true);
+      }
+      // Esc, a cancelled pointer, a second finger: the boxes glide back and nothing is written
+      function cancelMove() {
+        const m = mv;
+        if (!m) return false;
+        mv = null;
+        endMoveListeners();
+        glideBack(m);
+        return true;
+      }
+      function glideBack(m) {
+        if (m.moved) {
+          m.els.forEach((el) => {
+            const from = el.style.translate;
+            el.style.translate = '';
+            if (from) motion.anim(el, [{ translate: from }, { translate: '0px 0px' }], { duration: 160, easing: motion.curve('curve-out') });
+          });
+        }
+        clearVisual(m);
+      }
+
+      // The keyboard: Alt + arrows move the selection by 8 px (Shift: 40); the move is written, as one undo step, when the key is let go
+      window.addEventListener('keydown', (e) => {
+        if (!e.altKey || e.ctrlKey || e.metaKey || !e.key.startsWith('Arrow') || presenting() || isTyping() || (mv && !mv.kb) || floating || ui.isConfirmOpen()) return;
+        if (!sel.some((s) => s.kind !== 'edge')) return;
+        e.preventDefault();
+        e.stopPropagation();
+        if (!mv) {
+          const m = moveSet(sel);
+          if (!m.tops.length) return;
+          Object.assign(m, { kb: true, item: null });
+          mv = m;
+          beginVisual(m);
+        }
+        const k = e.shiftKey ? STEP_BIG : STEP, d = { ArrowLeft: [-k, 0], ArrowRight: [k, 0], ArrowUp: [0, -k], ArrowDown: [0, k] }[e.key];
+        showMove(mv, mv.dx + d[0], mv.dy + d[1]);
+        showDrop(mv);
+      }, true);
+      function endKeyMove(e) {
+        if (!mv || !mv.kb || (e.type === 'keyup' && !(e.key.startsWith('Arrow') || e.key === 'Alt'))) return;
+        const m = mv;
+        mv = null;
+        finishMove(m, false, true);
+      }
+      window.addEventListener('keyup', endKeyMove);
+      window.addEventListener('blur', endKeyMove);
+
+      // A finger may drag a box (the shell hands it the touch) only while editing; on blank canvas it still pans
+      const touchBoxes = '.c4-node, .c4-group.is-tile, .c4-tag';
+      function syncTouchDrag() {
+        const edit = !presenting();
+        html.querySelectorAll(touchBoxes).forEach((el) => { if (edit) el.dataset.touchDrag = ''; else delete el.dataset.touchDrag; });
+      }
+      new MutationObserver(syncTouchDrag).observe(document.body, { attributes: true, attributeFilter: ['class'] });
+
+      // --- AUTO-TIDY AND MANUAL LAYOUT, SHOWN ---
+      // The Tidy button is pressed while Auto-Tidy is on; manual layout shows a badge beside the save status and Tidy goes back to Auto-Tidy.
+      const btnTidy = document.getElementById('btn-auto-tidy');
+      const modeBadge = document.getElementById('c4-mode');
+      const TIDY_AUTO = 'Auto-Tidy is on: every edit lays the diagram out again. Drag a box to place it by hand.';
+      const TIDY_MANUAL = 'Manual layout: boxes stay where you put them. Click to lay everything out again and go back to Auto-Tidy.';
+      let modeTimer = 0;
+      if (modeBadge && document.getElementById('save-status')) document.getElementById('save-status').after(modeBadge);
+      function updateModeUi(announce) {
+        const man = manualMode();
+        if (btnTidy) { btnTidy.setAttribute('aria-pressed', String(!man)); btnTidy.title = man ? TIDY_MANUAL : TIDY_AUTO; }
+        if (!modeBadge) return;
+        const show = man && !presenting(), was = !modeBadge.hidden;
+        modeBadge.hidden = !show;
+        clearTimeout(modeTimer);
+        modeBadge.textContent = announce ? 'Manual layout on' : 'Manual layout';   // the badge is a live region: the keyboard move is announced
+        if (announce) modeTimer = setTimeout(() => { modeBadge.textContent = 'Manual layout'; }, 2500);
+        if (show && !was) motion.anim(modeBadge, [{ transform: 'scale(0.7)' }, { transform: 'none' }], { duration: 160, easing: motion.curve('curve-spring-tactile') });
+      }
+      // Tidy: forget the manual layout and lay everything out afresh (one undo step)
+      function tidy() {
+        if (presenting()) return;
+        if (isTyping()) document.activeElement.blur();
+        delete chartData._manual;
+        commit(true, { duration: 260 });
+      }
 
       // --- SELECTION BOX AND SELECT ALL (the shell draws the box: Shift + drag on blank canvas; Ctrl + Shift toggles) ---
       function touches(el, r) {
@@ -1567,10 +1854,11 @@
         DISK_DERIVED.forEach(([list, keys]) => (d[list] || []).forEach((o) => keys.forEach((k) => { delete o[k]; })));
         renameGeneratedIds(d);
         const layout = {};
-        ['elements', 'groups'].forEach((list) => (d[list] || []).forEach((o) => {
-          if (isNum(o.x) && isNum(o.y)) { layout[o.id] = { x: o.x, y: o.y }; delete o.x; delete o.y; }
+        ['elements', 'groups'].forEach((list) => (d[list] || []).forEach((o) => {   // elements, then collapsed groups: an open group's frame is derived from its members
+          if (isNum(o.x) && isNum(o.y) && (list === 'elements' || o.collapsed === true)) layout[o.id] = { x: o.x, y: o.y };
+          delete o.x; delete o.y;
         }));
-        if (Object.keys(layout).length) d.layout = layout;
+        if (data._manual === true && Object.keys(layout).length) d.layout = layout;   // Auto-Tidy saves no positions: the layout is the same every time
         const out = {};
         DISK_KEYS.forEach((k) => { if (k in d) out[k] = d[k]; });
         Object.keys(d).forEach((k) => { if (!(k in out)) out[k] = d[k]; });
@@ -1580,6 +1868,7 @@
         const d = JSON.parse(JSON.stringify(data));
         const layout = d.layout || {};
         delete d.layout;
+        if (Object.keys(layout).length) d._manual = true;   // a saved layout map means manual layout
         if (d.schemaVersion === undefined || d.schemaVersion === 1) {
           ['elements', 'groups'].forEach((list) => (d[list] || []).forEach((o) => Object.assign(o, layout[o.id] || {})));
         }
@@ -1613,6 +1902,7 @@
         },
         clearSelection: clearSelectionNow,
         cancelInteraction,
+        tidy,
         hasSelection: () => !presenting() && (sel.length > 0 || !!selNoteId),
         selectInRect,
         selectAll,
