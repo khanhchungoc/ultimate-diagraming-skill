@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url';
 const require = createRequire(import.meta.url);
 const { chromium } = require('playwright');
 const here = dirname(fileURLToPath(import.meta.url));
-const root = resolve(here, '..');
+const root = resolve(here, '..', '..', '..');
 const argOf = (n) => { const i = process.argv.indexOf(`--${n}`); return i > 0 ? process.argv[i + 1] : undefined; };
 const verbose = process.argv.includes('-v');
 
