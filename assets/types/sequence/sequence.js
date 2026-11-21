@@ -93,15 +93,15 @@
         const finish = (ex, y2) => {
           if (ex.async && ex.lastOut === null) return;   // an async target that did nothing visible
           const end = ex.until !== null ? ex.until : y2;
-          if (ex.hiddenFrom && ex.hiddenTo) return;
+          if (!ex.visible) return;
           bars.push({ pid: ex.pid, mid: ex.mid, y1: ex.y1, y2: Math.max(end, ex.y1 + STUB), caller: ex.caller, callerDepth: ex.callerDepth, closedBy: ex.closedBy || null });
         };
         // Close an execution and everything opened on top of it (left dangling)
         const closeAt = (pid, k, y2, by) => {
           const st = stack(pid);
-          while (st.length > k) { const ex = st.pop(); ex.closedBy = st.length === k ? by : null; ex.hiddenTo = by ? by.hidden : false; finish(ex, ex.lastOut !== null && st.length >= k ? Math.max(y2, ex.lastOut) : y2); }
+          while (st.length > k) { const ex = st.pop(); ex.closedBy = st.length === k ? by : null; if (by && !by.hidden) ex.visible = true; finish(ex, ex.lastOut !== null && st.length >= k ? Math.max(y2, ex.lastOut) : y2); }
         };
-        const touch = (pid, y) => { stack(pid).forEach((ex) => { if (ex.lastOut === null || y > ex.lastOut) ex.lastOut = y; }); };
+        const touch = (pid, y, hidden) => { stack(pid).forEach((ex) => { if (!hidden) ex.visible = true; if (ex.lastOut === null || y > ex.lastOut) ex.lastOut = y; }); };
         ms.forEach((m, i) => {
           const from = m.from, to = m.to;
           if (!partById(from) || !partById(to)) return;
@@ -110,7 +110,7 @@
             const st = stack(from);
             let k = -1;
             for (let j = st.length - 1; j >= 0; j--) if (st[j].caller === to && !st[j].async) { k = j; break; }
-            if (k >= 0) { closeAt(from, k, m.y + 6, m); touch(to, m.y + 6); return; }
+            if (k >= 0) { closeAt(from, k, m.y + 6, m); touch(to, m.y + 6, m.hidden); return; }
             // A further reply to a call already answered in another branch: stretch that bar if the caller has not
             // sent the callee anything since
             const prev = bars.slice().reverse().find((b) => b.pid === from && b.caller === to && b.closedBy);
@@ -118,7 +118,7 @@
               const between = ms.slice(ms.indexOf(prev.closedBy) + 1, i);
               if (!between.some((x) => x.from === to && x.to === from)) { prev.y2 = Math.max(prev.y2, m.y + 6); prev.closedBy = m; }
             }
-            touch(from, m.y); touch(to, m.y + 6);
+            touch(from, m.y, m.hidden); touch(to, m.y + 6, m.hidden);
             return;
           }
           // A call or async message: the sender moves on from earlier unanswered calls it made at this depth
@@ -129,18 +129,18 @@
             if (k >= 0 && pid !== from) closeAt(pid, k, (st[k].lastOut !== null ? st[k].lastOut : st[k].y1 + STUB), null);
           });
           // A system starting the flow is busy until it is next called (unless a bar stretched with "until" already covers it)
-          if (!depth && kindOf(from) !== 'actor' && !self && !bars.some((b) => b.pid === from && b.y1 <= m.y && m.y <= b.y2)) stack(from).push({ pid: from, y1: m.y - 6, caller: null, callerDepth: -1, async: false, lastOut: m.y, until: null, open: false, initiator: true, hiddenFrom: m.hidden });
-          touch(from, m.y);
+          if (!depth && kindOf(from) !== 'actor' && !self && !bars.some((b) => b.pid === from && b.y1 <= m.y && m.y <= b.y2)) stack(from).push({ pid: from, y1: m.y - 6, caller: null, callerDepth: -1, async: false, lastOut: m.y, until: null, open: false, initiator: true, visible: !m.hidden });
+          touch(from, m.y, m.hidden);
           if (m.activate === false) return;
           if (self) {
-            if (m.kind !== 'async') bars.push({ pid: from, y1: m.y + 22, y2: m.y + 48 });   // the loop returns onto it
+            if (!m.hidden && m.kind !== 'async') bars.push({ pid: from, y1: m.y + 22, y2: m.y + 48 });   // the loop returns onto it
             return;
           }
           // The target is called: an initiator execution open on it ends here (it is no longer starting things)
           const tst = stack(to);
           if (tst.length === 1 && tst[0].initiator) closeAt(to, 0, tst[0].lastOut, null);
           stack(to).push({ pid: to, mid: m.id, y1: m.y - 6, caller: from, callerDepth: stack(from).length, async: m.kind === 'async', lastOut: m.kind === 'async' ? null : m.y + 6,
-            until: m.until !== undefined && yOf(m.until) !== null ? yOf(m.until) + 6 : null, open: m.kind !== 'async', hiddenFrom: m.hidden });
+            until: m.until !== undefined && yOf(m.until) !== null ? yOf(m.until) + 6 : null, open: m.kind !== 'async', visible: !m.hidden });
         });
         // Whatever is still open ends at its last message
         Object.keys(stacks).forEach((pid) => closeAt(pid, 0, 0, null));
@@ -702,6 +702,12 @@
           const shift = pinned && f.y < below && f.y + f.h > below + h + 4 ? below - f.y : 0;   // a frame already gone keeps its tag
           tag.style.translate = shift > 0 ? `0 ${shift}px` : '';
           tag.classList.toggle('is-riding', shift > 0);
+          const textEl = tag.querySelector('.seq-frag-text');
+          if (textEl && !textEl.isContentEditable) {
+            const activeDiv = shift > 0 && (f.dividers || []).filter((d) => d.y <= below + h).pop();
+            const want = activeDiv ? (activeDiv.label || (f.kind === 'alt' ? 'else' : 'branch')) : (f.label || (f.kind === 'group' ? 'phase' : 'condition'));
+            if (textEl.textContent !== want) textEl.textContent = want;
+          }
           if (shift > 0) below = f.y + shift + h + 4;
         });
       }
@@ -825,7 +831,8 @@
           }));
           if (divs.length) y = Math.min(y, divs[0].y - 12);
           else if (beforeB.length) y = Math.min(y, beforeB[0].y - 8);
-          const note = index < ms.length ? { before: ms[index].id } : closing.length ? null : { after: A.m.id };
+          const nextId = B ? B.m.id : A && A.i + 1 < ms.length ? ms[A.i + 1].id : null;
+          const note = nextId ? { before: nextId } : closing.length ? null : { after: A.m.id };
           slots.push({ index, y, plain: true, frame: frameAtSlot(index, skipId), join: [], note: divs.length ? { after: A.m.id } : note });
           divs.forEach((dv) => slots.push({
             index, y: dv.y + 20, plain: false, frame: dv.f, join: [{ id: dv.f.id, edge: 'branch', branch: dv.bi }], note: null
@@ -1475,11 +1482,24 @@
         }
         if (role === 'stretch') {
           const n = noteById(h.dataset.id);
+          const card = seqHtml.querySelector(`.note[data-note-id="${n.id}"]`);
+          const firstId = Array.isArray(n.over) ? n.over[0] : n.over;
+          const firstP = firstId ? partById(firstId) : null;
           return {
             move(pt, d) {
               const p = nearestParticipant(pt.x);
               d.target = p;
               lightLifeline(p && p.id);
+              if (card && p) {
+                const lo = firstP ? Math.min(firstP.x, p.x) : p.x, hi = firstP ? Math.max(firstP.x, p.x) : p.x;
+                const w = hi > lo ? hi - lo + 2 * SQ.NOTE_SPAN_PAD : SQ.NOTE_W;
+                const x = Math.round((lo + hi) / 2 - w / 2);
+                card.style.left = px(x);
+                card.style.width = px(w);
+                h.style.left = px(x + w);
+                const nt = card.querySelector('.note-text');
+                if (nt) nt.textContent = sqWrap(n.text, Math.max(4, Math.floor((w - 2 * SQ.NOTE_PAD) / SQ.NOTE_CHAR_W))).join('\n');
+              }
             },
             drop(pt, d) {
               const first = Array.isArray(n.over) ? n.over[0] : n.over;
@@ -1502,9 +1522,9 @@
           move(pt, d) {
             el.classList.add('dragging');
             el.style.transform = `translate(${d.dx}px, ${d.dy}px) scale(1.02)`;
-            d.slot = nearestSlot(rowSlots().filter((s) => s.note), n.y + d.dy);
+            d.slot = nearestSlot(rowSlots().filter((s) => s.note), pt.y);
             showDropLine(d.slot.y, d.slot.frame);
-            const p = snapLifeline(n.x + n.w / 2 + d.dx);
+            const p = snapLifeline(pt.x);
             lightLifeline(p && p.id);
           },
           drop(pt, d) {
@@ -1513,10 +1533,10 @@
             delete n.before;
             Object.assign(n, d.slot.note);
             // A single-lifeline or free note goes where it is dropped: over a lifeline it is near, or free between them
-            if (!Array.isArray(n.over)) { setNoteSpot(n, n.x + n.w / 2 + d.dx); relayout(); return; }
+            if (!Array.isArray(n.over)) { setNoteSpot(n, pt.x); relayout(); return; }
             const over = n.over;
-            const centre = nearestParticipant(n.x + n.w / 2 + d.dx);
-            const was = nearestParticipant(n.x + n.w / 2);
+            const centre = nearestParticipant(pt.x);
+            const was = nearestParticipant(pt.x - d.dx);
             const shift = ps.indexOf(centre) - ps.indexOf(was);
             const idx = over.map((pid) => Math.max(0, Math.min(ps.length - 1, ps.findIndex((p) => p.id === pid) + shift)));
             n.over = idx.length > 1 && idx[0] !== idx[1] ? idx.map((i) => ps[i].id) : ps[idx[0]].id;
@@ -2168,7 +2188,8 @@
       }
       btnShowAll.addEventListener('click', showAll);
       seqHtml.addEventListener('click', (e) => {
-        const btn = e.target.closest('.frame-chev, .frame-summary, .seq-frag-focus');
+        if (e.target.isContentEditable) return;
+        const btn = e.target.closest('.frame-chev, .frame-summary, .seq-frag-focus, .frame-tag');
         if (!btn) return;
         e.stopPropagation();
         const fid = btn.closest('[data-frag-id]').dataset.fragId;
