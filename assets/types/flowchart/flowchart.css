@@ -786,7 +786,7 @@
       width: 18px; height: 18px;
       padding: 0;
       border: none;
-      border-radius: 6px;
+      border-radius: var(--radius-md);
       background: transparent;
       cursor: pointer;
       transition: background var(--ease);

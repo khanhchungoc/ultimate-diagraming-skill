@@ -48,7 +48,7 @@ FONT_RE = re.compile(r"(?<![\w-])font-family\s*:\s*([^;}]*)")
 CUSTOM_RE = re.compile(r"(?<![\w-])--[\w-]+\s*:")
 # a selector that ends in :root (plus attribute or pseudo-class parts); `:root[data-theme="dark"] .x` is a scoped rule, not a token block
 ICON_SVG = re.compile(r'<svg\b[^>]*\bviewBox\s*=\s*["\']0 0 24 24["\']')
-ICON_USE = re.compile(r"\{\{icon:([\w-]+)|\bicon(?:El)?\(\s*['\"]([\w-]+)['\"]")
+ICON_USE = re.compile(r"\{\{icon:([\w-]+)|\bicon(?:El)?\(\s*['\"]([\w-]+)['\"]\s*(?=[,)])")
 ROOT_SEL = re.compile(r"(^|\s)(html)?:root(\[[^\]]*\]|:[\w-]+(\([^)]*\))?)*$")
 
 
@@ -263,6 +263,7 @@ def self_test():
     known = {"plus", "trash"}
     assert icon_name_findings("html", "<b>{{icon:plus}}</b> {{icon:trash:xs:bold}}", known) == []
     assert icon_name_findings("js", "ui.icon('plus'); ui.iconEl(\"trash\", {}); ui.icon(`kind-${k}`)", known) == []
+    assert icon_name_findings("js", "ui.iconEl('type-' + cur.id, { size: 'sm' })", known) == []
     assert icon_name_findings("html", "a\n{{icon:nope:xs}}", known) == [(2, "icon-name", "nope")]
     assert icon_name_findings("js", "x = ui.icon('nope')\nlaneIcon('plus')", known) == [(1, "icon-name", "nope")]
     print("self-test passed")

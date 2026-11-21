@@ -216,8 +216,9 @@ try {
   const b1 = await t.ev(`(() => { const p = document.querySelector('.confirm .save-where'); return p && { path: p.textContent,
     title: document.querySelector('.confirm .confirm-title').textContent, msg: document.querySelector('.confirm .confirm-msg').textContent,
     copied: window.__copied, picked: window.__picked.length }; })()`);
+  const saveShortcut = process.platform === 'win32' ? /Ctrl\+V/ : /Ctrl\+L/;
   t.check('save location: the first Save copies the opened file\'s path at once and shows it, before any dialog',
-    b1 && b1.path === laidPath && b1.title === 'Path copied' && /Ctrl\+L/.test(b1.msg) && JSON.stringify(b1.copied) === JSON.stringify([laidPath]) && b1.picked === 0,
+    b1 && b1.path === laidPath && b1.title === 'Path copied' && saveShortcut.test(b1.msg) && JSON.stringify(b1.copied) === JSON.stringify([laidPath]) && b1.picked === 0,
     JSON.stringify(b1));
   await t.ev(`document.querySelector('.confirm .confirm-ok').click()`);
   await sleep(300);
@@ -517,6 +518,7 @@ try {
   // 9b. Export › Copy › PNG puts a PNG of the diagram on the clipboard and flashes the badge
   await t.open(laid);
   await t.send('Browser.grantPermissions', { permissions: ['clipboardReadWrite', 'clipboardSanitizedWrite'] });
+  await t.send('Page.bringToFront');
   await t.send('Emulation.setFocusEmulationEnabled', { enabled: true });   // headless has no focused window
   const badgeBefore = await t.ev(`document.getElementById('save-status').textContent`);
   const copyVisible = await t.ev(`!document.querySelector('[data-copy="png"]').hidden && !document.querySelector('[data-copy-label]').hidden`);

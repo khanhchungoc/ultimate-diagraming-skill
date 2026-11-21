@@ -1619,7 +1619,7 @@
 #page-loading { position: absolute; inset: 0; display: none; place-items: center; pointer-events: none; z-index: 60; }
 html.is-loading #page-loading { display: grid; }
 #page-loading::before {
-  content: ''; width: 28px; height: 28px; border-radius: 50%;
+  content: ''; width: 28px; height: 28px; border-radius: var(--radius-round);
   border: 3px solid var(--border-dark); border-top-color: var(--primary);
   animation: page-spin 0.8s linear infinite;
 }
@@ -2420,7 +2420,7 @@ html.is-loading #page-loading { display: grid; }
       width: 18px; height: 18px;
       padding: 0;
       border: none;
-      border-radius: 6px;
+      border-radius: var(--radius-md);
       background: transparent;
       cursor: pointer;
       transition: background var(--ease);
