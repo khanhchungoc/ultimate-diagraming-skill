@@ -1,0 +1,112 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xhtml="http://www.w3.org/1999/xhtml" id="root" viewBox="0 0 900 520" width="100%" height="100%" font-family="system-ui, sans-serif">
+<title>Editable SVG diagram (prototype)</title>
+<style><![CDATA[
+  :root { --bg:#fff; --fg:#1b1f24; --muted:#6b7280; --node:#eef3ff; --stroke:#3b5bdb; --sel:#e8590c; --bar:#f3f4f6; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#14171c; --fg:#e8eaed; --muted:#9aa0a6; --node:#1f2a44; --stroke:#8ea2ff; --sel:#ffa94d; --bar:#20242b; } }
+  .bg { fill: var(--bg); }
+  .node rect { fill: var(--node); stroke: var(--stroke); stroke-width: 1.5; }
+  .node.sel rect { stroke: var(--sel); stroke-width: 3; }
+  .node text { fill: var(--fg); font-size: 14px; text-anchor: middle; dominant-baseline: central; pointer-events: none; }
+  .node { cursor: grab; }
+  .edge { fill: none; stroke: var(--stroke); stroke-width: 1.5; marker-end: url(#arrow); }
+  #arrow path { fill: var(--stroke); }
+  .bar { fill: var(--bar); }
+  .hint { fill: var(--muted); font-size: 12px; }
+  button { font: 13px system-ui, sans-serif; padding: 4px 10px; margin-right: 6px; border: 1px solid var(--muted); border-radius: 6px; background: var(--bg); color: var(--fg); cursor: pointer; }
+  input { font: 14px system-ui, sans-serif; width: 100%; box-sizing: border-box; text-align: center; border: 2px solid var(--sel); border-radius: 4px; background: var(--bg); color: var(--fg); }
+]]></style>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z"/></marker></defs>
+<rect class="bg" width="900" height="520"/>
+<g id="edges"></g><g id="nodes"></g>
+<rect class="bar" width="900" height="40"/>
+<foreignObject x="8" y="6" width="700" height="30" id="toolbar"><div xmlns="http://www.w3.org/1999/xhtml">
+  <button data-act="add">Add</button><button data-act="del">Delete</button><button data-act="undo">Undo</button><button data-act="redo">Redo</button><button data-act="tidy">Tidy</button><button data-act="save">Save</button>
+</div></foreignObject>
+<text class="hint" x="892" y="25" text-anchor="end">drag · double-click to rename · shift+click to connect</text>
+<foreignObject id="editor" width="140" height="30" visibility="hidden"><input xmlns="http://www.w3.org/1999/xhtml"/></foreignObject>
+<script type="application/json" id="data"><![CDATA[
+{"nodes":[{"id":"a","x":60,"y":120,"w":140,"h":50,"label":"Request"},{"id":"b","x":300,"y":80,"w":140,"h":50,"label":"Review"},{"id":"c","x":300,"y":220,"w":140,"h":50,"label":"Reject"},{"id":"d","x":560,"y":80,"w":140,"h":50,"label":"Approve"}],
+ "edges":[{"from":"a","to":"b"},{"from":"b","to":"c"},{"from":"b","to":"d"}]}
+]]></script>
+<script><![CDATA[
+(() => {
+  const NS = 'http://www.w3.org/2000/svg', $ = (id) => document.getElementById(id);
+  const root = $('root'), gN = $('nodes'), gE = $('edges'), ed = $('editor'), input = ed.firstElementChild;
+  let S = JSON.parse($('data').textContent), sel = null, undo = [], redo = [];
+  const snap = () => JSON.stringify(S);
+  const push = () => { undo.push(snap()); redo = []; };
+  const by = (id) => S.nodes.find((n) => n.id === id);
+  const pt = (e) => { const p = root.createSVGPoint(); p.x = e.clientX; p.y = e.clientY; return p.matrixTransform(root.getScreenCTM().inverse()); };
+  const el = (t, c) => { const e = document.createElementNS(NS, t); if (c) e.setAttribute('class', c); return e; };
+  const edge = (e) => { // border-to-border straight line
+    const a = by(e.from), b = by(e.to), ax = a.x + a.w / 2, ay = a.y + a.h / 2, bx = b.x + b.w / 2, by_ = b.y + b.h / 2;
+    const clip = (n, dx, dy) => { const k = Math.min((n.w / 2) / (Math.abs(dx) || 1e-9), (n.h / 2) / (Math.abs(dy) || 1e-9)); return [dx * k, dy * k]; };
+    const [sx, sy] = clip(a, bx - ax, by_ - ay), [tx, ty] = clip(b, ax - bx, ay - by_);
+    return `M${ax + sx} ${ay + sy}L${bx + tx} ${by_ + ty}`;
+  };
+  function draw() {
+    gN.replaceChildren(); gE.replaceChildren();
+    S.edges.forEach((e, i) => { const p = el('path', 'edge'); p.dataset.i = i; p.setAttribute('d', edge(e)); gE.append(p); });
+    S.nodes.forEach((n) => {
+      const g = el('g', 'node' + (n.id === sel ? ' sel' : '')); g.dataset.id = n.id;
+      g.setAttribute('transform', `translate(${n.x} ${n.y})`);
+      const r = el('rect'); r.setAttribute('width', n.w); r.setAttribute('height', n.h); r.setAttribute('rx', 8);
+      const t = el('text'); t.setAttribute('x', n.w / 2); t.setAttribute('y', n.h / 2); t.textContent = n.label;
+      g.append(r, t); gN.append(g);
+    });
+  }
+  const live = (n) => { // cheap update while dragging: no rebuild
+    gN.querySelector(`[data-id="${n.id}"]`).setAttribute('transform', `translate(${n.x} ${n.y})`);
+    S.edges.forEach((e, i) => { if (e.from === n.id || e.to === n.id) gE.children[i].setAttribute('d', edge(e)); });
+  };
+  // morph: nodes move from old to new geometry (never snap, never fade)
+  function morphTo(next) {
+    const from = S.nodes.map((n) => [n.x, n.y]), dur = matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 320, t0 = performance.now();
+    const step = (now) => {
+      const k = dur ? Math.min(1, (now - t0) / dur) : 1, e = 1 - Math.pow(1 - k, 3);
+      S.nodes.forEach((n, i) => { n.x = from[i][0] + (next[i][0] - from[i][0]) * e; n.y = from[i][1] + (next[i][1] - from[i][1]) * e; live(n); });
+      if (k < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }
+  function tidy() { // layered: column = longest path from a source; rows stacked per column
+    const d = {}; S.nodes.forEach((n) => (d[n.id] = 0));
+    for (let i = 0; i < S.nodes.length; i++) S.edges.forEach((e) => { d[e.to] = Math.max(d[e.to], d[e.from] + 1); });
+    const row = {}; morphTo(S.nodes.map((n) => { const c = d[n.id], r = (row[c] = (row[c] ?? -1) + 1); return [60 + c * 240, 80 + r * 120]; }));
+  }
+  function edit(n) {
+    ed.setAttribute('x', n.x); ed.setAttribute('y', n.y + n.h / 2 - 15); ed.setAttribute('width', n.w); ed.setAttribute('visibility', 'visible');
+    input.value = n.label; input.focus(); input.select();
+    const done = (ok) => { input.onblur = input.onkeydown = null; ed.setAttribute('visibility', 'hidden'); if (ok && input.value && input.value !== n.label) { push(); n.label = input.value; } draw(); };
+    input.onkeydown = (k) => { if (k.key === 'Enter') done(true); if (k.key === 'Escape') done(false); };
+    input.onblur = () => done(true);
+  }
+  function save() { // the saved file is the editable file: state is serialized back into the SVG
+    $('data').textContent = '\n' + snap() + '\n';
+    const clone = root.cloneNode(true); clone.querySelector('#nodes').replaceChildren(); clone.querySelector('#edges').replaceChildren();
+    const a = document.createElement('a'); a.download = 'diagram.svg';
+    a.href = URL.createObjectURL(new Blob([new XMLSerializer().serializeToString(clone)], { type: 'image/svg+xml' })); a.click();
+  }
+  gN.addEventListener('pointerdown', (e) => {
+    const g = e.target.closest('.node'); if (!g) return; const n = by(g.dataset.id);
+    if (e.shiftKey && sel && sel !== n.id) { push(); S.edges.push({ from: sel, to: n.id }); draw(); return; }
+    sel = n.id; push(); gN.querySelectorAll('.sel').forEach((x) => x.classList.remove('sel')); g.classList.add('sel');
+    const p0 = pt(e), ox = n.x, oy = n.y; let moved = false; g.setPointerCapture(e.pointerId);
+    g.onpointermove = (m) => { const p = pt(m); n.x = ox + p.x - p0.x; n.y = oy + p.y - p0.y; moved = true; live(n); };
+    g.onpointerup = () => { g.onpointermove = g.onpointerup = null; if (!moved) undo.pop(); };
+  });
+  gN.addEventListener('dblclick', (e) => { const g = e.target.closest('.node'); if (g) edit(by(g.dataset.id)); });
+  $('toolbar').addEventListener('click', (e) => {
+    const a = e.target.dataset.act; if (!a) return;
+    if (a === 'add') { push(); const id = 'n' + Date.now().toString(36); S.nodes.push({ id, x: 40 + S.nodes.length * 20, y: 360, w: 140, h: 50, label: 'New step' }); sel = id; draw(); }
+    if (a === 'del' && sel) { push(); S.nodes = S.nodes.filter((n) => n.id !== sel); S.edges = S.edges.filter((x) => x.from !== sel && x.to !== sel); sel = null; draw(); }
+    if (a === 'undo' && undo.length) { redo.push(snap()); S = JSON.parse(undo.pop()); draw(); }
+    if (a === 'redo' && redo.length) { undo.push(snap()); S = JSON.parse(redo.pop()); draw(); }
+    if (a === 'tidy') { push(); tidy(); }
+    if (a === 'save') save();
+  });
+  addEventListener('keydown', (e) => { if (e.key === 'Delete' && sel && document.activeElement === document.body) $('toolbar').querySelector('[data-act=del]').click(); });
+  draw();
+})();
+]]></script>
+</svg>
