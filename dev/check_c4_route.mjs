@@ -49,6 +49,7 @@ const edges = [
   E('E1_0', 'C01', 'h'), E('E1_1', 'C01', 'h'), E('C11', 'E1_1', 'h'), E('E2_0', 'E1_0', 'h'), E('E2_1', 'E1_0', 'h'), E('E2_1', 'E1_1', 'h'),
   E('C00', 'W1_0', 'h'), E('W1_1', 'C00', 'h'), E('W1_1', 'C10', 'h'), E('W2_0', 'W1_0', 'h'), E('W2_1', 'W1_0', 'h'),
   E('S1_0', 'S1_2', 'u', 'Backs up'), E('S1_0', 'S1_1', 'u', 'Replicates'), E('S1_1', 'S1_2', 'u', 'Syncs'), E('S1_2', 'S1_0', 'u', 'Audits', ''),
+  E('E1_0', 'E1_1', 'r', 'Syncs'), E('E1_0', 'E1_1', 'r', 'Mirrors'), E('E2_0', 'E2_1', 'r', 'Audits'), E('W1_0', 'W1_1', 'l', 'Replicates'), E('W2_1', 'W2_0', 'l', 'Backs up'),
   E('C00', 'C01'), E('C10', 'C11', undefined, 'Calls'), E('C00', 'C10'), E('N1_0', 'W1_0', undefined, ''),
 ];
 // itemA / itemB of an edge: the two sibling items under the lowest group holding both ends (here: frames are one level, so the
@@ -81,14 +82,14 @@ function checkScene() {
     check(typeof r.d === 'string' && r.d.startsWith('M') && Array.isArray(r.points) && r.points.length >= 2, `${tag} has d and points`);
     const ss = segs(r.points);
     check(ss.every(([p, q]) => eq(p[0], q[0]) || eq(p[1], q[1])), `${tag} is orthogonal`);
-    if (e.hint === 'u') check(r.points.length === 4, `${tag} loop has two bends`);
+    if (e.hint === 'u' || e.hint === 'r' || e.hint === 'l') check(r.points.length === 4, `${tag} loop has two bends`);
     else check(r.points.length <= 4, `${tag} has at most one bend run`);
     // never through a box or a frame it does not belong to
     for (const id in nodes) if (id !== e.from && id !== e.to) check(!ss.some((s) => hits(s, rectOf(nodes[id]))), `${tag} crosses box ${id}`);
     for (const id in items) if (id !== A.item.id && id !== B.item.id && !items[id].isBox) check(!ss.some((s) => hits(s, frameRect(items[id]))), `${tag} crosses frame ${id}`);
     check(!ss.some((s) => hits(s, rectOf(A)) || hits(s, rectOf(B))), `${tag} runs through its own boxes`);
     // the run lies in the gutter between the facing edges of the two items
-    if (e.hint !== 'u' && r.points.length === 4) {
+    if (!'url'.includes(e.hint || '-') && r.points.length === 4) {
       const vert = eq(r.points[0][0], r.points[1][0]), M = vert ? 1 : 0, S = vert ? 'h' : 'w', c = vert ? 'y' : 'x';
       const [lo, hi] = e.itemA[c] < e.itemB[c]
         ? [e.itemA[c] + e.itemA[S] / 2, e.itemB[c] - e.itemB[S] / 2] : [e.itemB[c] + e.itemB[S] / 2, e.itemA[c] - e.itemA[S] / 2];
@@ -121,6 +122,21 @@ function checkScene() {
     const [, ra] = loops[a], [, rb] = loops[b], ya = ra.points[1][1], yb = rb.points[1][1];
     const xa = [Math.min(ra.points[1][0], ra.points[2][0]), Math.max(ra.points[1][0], ra.points[2][0])], xb = [Math.min(rb.points[1][0], rb.points[2][0]), Math.max(rb.points[1][0], rb.points[2][0])];
     if (xa[1] > xb[0] && xb[1] > xa[0]) check(Math.abs(ya - yb) >= 16 - 0.01, `loops ${loops[a][2]} and ${loops[b][2]} share a gutter line`);
+  }
+
+  // loops out of a column: on the outer side of the column, 16px apart where they overlap along y, label on the run
+  const sl = edges.map((e, i) => [e, res[i], i]).filter(([e]) => e.hint === 'r' || e.hint === 'l');
+  sl.forEach(([e, r, i]) => {
+    const d = e.hint === 'r' ? 1 : -1, far = Math.max(...[e.from, e.to].map((id) => d * (nodes[id].x + d * nodes[id].w / 2)));
+    check(d * r.points[1][0] > far && eq(r.points[1][0], r.points[2][0]), `side loop ${i} runs out beyond its column`);
+    // a loop alone in its stretch carries its label on the run; lanes 16px apart leave no room for a second pill beside the first
+    const rival = sl.some(([f, q, j]) => j !== i && f.hint === e.hint && Math.min(q.points[1][1], q.points[2][1]) < Math.max(r.points[1][1], r.points[2][1]) && Math.min(r.points[1][1], r.points[2][1]) < Math.max(q.points[1][1], q.points[2][1]) && Math.abs(q.points[1][0] - r.points[1][0]) < 90);
+    if (!rival) check(Math.abs(r.lx - r.points[1][0]) < 1 && r.w > 0, `side loop ${i} label sits on the run`);
+  });
+  for (let a = 0; a < sl.length; a++) for (let b = a + 1; b < sl.length; b++) {
+    const [, ra] = sl[a], [, rb] = sl[b], xa = ra.points[1][0], xb = rb.points[1][0];
+    const ya = [Math.min(ra.points[1][1], ra.points[2][1]), Math.max(ra.points[1][1], ra.points[2][1])], yb = [Math.min(rb.points[1][1], rb.points[2][1]), Math.max(rb.points[1][1], rb.points[2][1])];
+    if (ya[1] > yb[0] && yb[1] > ya[0] && Math.sign(xa) === Math.sign(xb)) check(Math.abs(xa - xb) >= 16 - 0.01, `side loops ${sl[a][2]} and ${sl[b][2]} share a line`);
   }
 
   // label pills do not overlap

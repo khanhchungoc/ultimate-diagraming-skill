@@ -4,12 +4,12 @@
 //
 // routeC4Edges(nodes, edges) -> [{ d, points, lx, ly, w }], one per edge, same order.
 //   nodes  { id: { x, y, w, h } }                                         x, y = centre
-//   edges  [{ from, to, label, tech, hint, itemA, itemB }]               hint: 'v' | 'h' | 'u' | absent
+//   edges  [{ from, to, label, tech, hint, itemA, itemB }]               hint: 'v' | 'h' | 'u' | 'r' | 'l' | absent
 //          itemA, itemB = { id, x, y, w, h }: the two sibling items below the lowest group holding both ends (missing: the boxes)
-// One bend (a loop under a row has two); the run sits between the facing edges of itemA and itemB; ports on a side follow the
+// One bend (a loop has two: 'u' under a row, 'r' / 'l' out to the right / left of a column); the run sits between the facing edges of itemA and itemB; ports on a side follow the
 // order of the targets; a leg that would cross a sibling box or a foreign frame moves along the side, else leaves through the
 // frame's padding (side with more room, the 30px tag band excluded) and adds two bends; runs that share a gutter get their own
-// lane; loops under a row get lanes 16px apart; labels sit on a run (or leg) long enough for them and slide along it off every
+// lane; loops get lanes 16px apart (under a row, or sideways out of a column); labels sit on a run (or leg) long enough for them and slide along it off every
 // box, tag band, other route and pill (least overlap if nothing is free). Text widths: TOKENS.font.metrics.
 // Path rounding: buildCurvedPathWithHops (ortho-router.js). Deterministic; O(n log n) in nodes + edges (grid lookups only).
 
@@ -84,18 +84,18 @@ function routeC4Edges(nodes, edges) {
     const dx = iB.x - iA.x, dy = iB.y - iA.y;
     const gapV = Math.abs(dy) - (iA.h + iB.h) / 2, gapH = Math.abs(dx) - (iA.w + iB.w) / 2;
     let vert = e.hint === 'v' || e.hint === 'h' ? e.hint === 'v' : gapV >= gapH;
-    if (e.hint === 'u') vert = true;
+    if (e.hint === 'u' || e.hint === 'r' || e.hint === 'l') vert = true;
     if (e.hint !== 'u' && (vert ? gapV : gapH) < 0 && (vert ? gapH : gapV) > (vert ? gapV : gapH)) vert = !vert;   // items overlap on the chosen axis: use the other
     const M = vert ? 'y' : 'x', C = vert ? 'x' : 'y', S = vert ? 'h' : 'w', Z = vert ? 'w' : 'h';
-    const s = Math.sign(iB[M] - iA[M]) || 1, u = e.hint === 'u';
-    return { i, A, B, iA, iB, M, C, S, Z, s, vert, u, label: e.label, tech: e.tech, t0: vert ? 0.5 : 0.2, from: e.from, to: e.to,
-      keyA: u ? e.from + '|y1' : e.from + '|' + M + s, keyB: u ? e.to + '|y1' : e.to + '|' + M + (-s) };
+    const s = Math.sign(iB[M] - iA[M]) || 1, sd = e.hint === 'r' ? 1 : e.hint === 'l' ? -1 : 0, u = e.hint === 'u' || sd !== 0;
+    return { i, A, B, iA, iB, M, C, S, Z, s, vert, u, sd, label: e.label, tech: e.tech, t0: vert ? 0.5 : 0.2, from: e.from, to: e.to,
+      keyA: u ? e.from + (sd ? '|x' + sd : '|y1') : e.from + '|' + M + s, keyB: u ? e.to + (sd ? '|x' + sd : '|y1') : e.to + '|' + M + (-s) };
   });
 
   // ---- ports: along each node side, in the order of the targets (ties: input order) ----
   const sides = new Map();
   for (const e of info) {
-    const a = e.u ? e.B.x : e.B[e.C], b = e.u ? e.A.x : e.A[e.C];
+    const a = e.sd ? e.B.y : e.u ? e.B.x : e.B[e.C], b = e.sd ? e.A.y : e.u ? e.A.x : e.A[e.C];
     for (const [k, end, o] of [[e.keyA, 'a', a], [e.keyB, 'b', b]]) {
       let g = sides.get(k); if (!g) sides.set(k, g = []);
       g.push({ e, end, o });
@@ -104,7 +104,7 @@ function routeC4Edges(nodes, edges) {
   for (const g of sides.values()) {
     g.sort((p, q) => p.o - q.o || p.e.i - q.e.i || (p.end < q.end ? -1 : 1));
     g.forEach((p, k) => {
-      const n = p.end === 'a' ? p.e.A : p.e.B, C = p.e.u ? 'x' : p.e.C, Z = p.e.u ? 'w' : p.e.Z;
+      const n = p.end === 'a' ? p.e.A : p.e.B, C = p.e.sd ? 'y' : p.e.u ? 'x' : p.e.C, Z = p.e.sd ? 'h' : p.e.u ? 'w' : p.e.Z;
       p.e['p' + p.end] = n[C] + ((k + 1) / (g.length + 1) - 0.5) * n[Z];
     });
   }
@@ -199,7 +199,7 @@ function routeC4Edges(nodes, edges) {
   }
 
   // ---- loops under a row: base line below every item the span passes, then lanes 16px apart ----
-  const loops = info.filter((e) => e.u);
+  const loops = info.filter((e) => e.u && !e.sd);
   if (loops.length) {
     const K = 128, cols = new Map(), seen = new Set();
     const addItem = (it) => {
@@ -230,6 +230,39 @@ function routeC4Edges(nodes, edges) {
     }
   }
 
+  // ---- loops out of a column: base line beside every item the span passes, then lanes 16px apart ----
+  const side = info.filter((e) => e.sd);
+  if (side.length) {
+    const K = 128, rows = new Map(), seen = new Set();
+    const addItem = (it) => {
+      if (seen.has(it.id)) return; seen.add(it.id);
+      for (let c = Math.floor((it.y - it.h / 2) / K); c <= Math.floor((it.y + it.h / 2) / K); c++) {
+        let a = rows.get(c); if (!a) rows.set(c, a = []); a.push(it);
+      }
+    };
+    for (const id in nodes) addItem(boxOf(id));
+    for (const f of frames.values()) addItem(f);
+    const groups = new Map();
+    for (const e of side) {
+      const y0 = Math.min(e.pa, e.pb), y1 = Math.max(e.pa, e.pb), ia = e.iA, ib = e.iB, d = e.sd;
+      const edge = (it) => it.x + d * it.w / 2;
+      let base = d > 0 ? Math.max(edge(ia), edge(ib)) : Math.min(edge(ia), edge(ib));
+      const lo = Math.min(ia.x - ia.w / 2, ib.x - ib.w / 2), hi = Math.max(ia.x + ia.w / 2, ib.x + ib.w / 2);
+      for (let c = Math.floor(y0 / K); c <= Math.floor(y1 / K); c++) {
+        const a = rows.get(c);
+        if (a) for (const it of a) if (it.y + it.h / 2 > y0 && it.y - it.h / 2 < y1 && it.x + it.w / 2 > lo && it.x - it.w / 2 < hi) base = d > 0 ? Math.max(base, edge(it)) : Math.min(base, edge(it));
+      }
+      e.base = base + d * C4R.LOOP_GAP;
+      const k = d + '|' + e.base; let g = groups.get(k); if (!g) groups.set(k, g = []);
+      g.push(e);
+    }
+    for (const g of groups.values()) {
+      const ord = g.slice().sort((p, q) => Math.abs(p.pb - p.pa) - Math.abs(q.pb - q.pa) || p.i - q.i);
+      const { lane } = c4rLanes(ord.map((e) => ({ lo: Math.min(e.pa, e.pb), hi: Math.max(e.pa, e.pb) })), 8);
+      ord.forEach((e, k) => { e.xb = e.base + e.sd * C4R.LOOP_LANE * lane[k]; });
+    }
+  }
+
   // ---- polylines (built in (m, c) = (along the legs, across), then mapped to x, y) ----
   const simplify = (pts) => {
     const q = [];
@@ -246,6 +279,7 @@ function routeC4Edges(nodes, edges) {
   };
   for (const e of info) {
     const { A, B } = e;
+    if (e.sd) { e.pts = [[A.x + e.sd * A.w / 2, e.pa], [e.xb, e.pa], [e.xb, e.pb], [B.x + e.sd * B.w / 2, e.pb]]; continue; }
     if (e.u) { e.pts = [[e.pa, A.y + A.h / 2], [e.pa, e.yb], [e.pb, e.yb], [e.pb, B.y + B.h / 2]]; continue; }
     const half = (n, en, mEdge) => (en.edge === undefined ? [[mEdge, en.c], [e.bend, en.c]] : [[en.m, en.edge], [en.m, en.line], [e.bend, en.line]]);
     const mc = half(A, e.ea, e.m0).concat(half(B, e.eb, e.m1).reverse());

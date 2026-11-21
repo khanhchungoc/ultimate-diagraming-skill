@@ -658,8 +658,8 @@ function c4Route(m, again) {
   leaves.forEach((n) => { nodes[n.id] = Object.assign(box(n), { item: Object.assign(box(n.top), { id: n.top.id }) }); });
   // the lane of every top-level item: same ring and side, in reading order (a loop under the row unless the two are single boxes side by side)
   const lanes = new Map();
-  m.items.forEach((i) => { if (i.side === 'N' || i.side === 'S') { const k = `${i.ring}${i.side}`; (lanes.get(k) || lanes.set(k, []).get(k)).push(i); } });
-  lanes.forEach((l) => { l.sort((p, q) => p.ref.x - q.ref.x); l.forEach((i, k) => { i.lane = k; }); });
+  m.items.forEach((i) => { if (/^[NSEW]$/.test(i.side)) { const k = `${i.ring}${i.side}`; (lanes.get(k) || lanes.set(k, []).get(k)).push(i); } });
+  lanes.forEach((l, k) => { const v = c4Vert(k.slice(-1)); l.sort((p, q) => (v ? p.ref.x - q.ref.x : p.ref.y - q.ref.y)); l.forEach((i, j) => { i.lane = j; }); });
   const single = (i) => i.kind === 'e' || i.self;
   // two siblings inside one group: side by side in a row, 'h' when next to each other and 'u' (loop under) when another member lies
   // between; one above the other, 'v' when next to each other; anywhere else the router chooses by the gap
@@ -678,8 +678,9 @@ function c4Route(m, again) {
   const hint = (A, B) => {
     if (A.par) return innerHint(A, B);
     if (A.ring !== B.ring) { const o = A.ring > B.ring ? A : B; return c4Vert(o.side) ? 'v' : 'h'; }
-    if (A.side !== B.side || !c4Vert(A.side)) return undefined;
-    return Math.abs(A.lane - B.lane) === 1 && single(A) && single(B) ? undefined : 'u';
+    if (A.side !== B.side || !A.side) return undefined;
+    if (Math.abs(A.lane - B.lane) === 1 && single(A) && single(B)) return undefined;
+    return c4Vert(A.side) ? 'u' : A.side === 'E' ? 'r' : 'l';   // under a row; out of a column, away from the centre
   };
   const item = (n) => ({ id: n.id, x: n.ref.x + n.ref.w / 2, y: n.ref.y + n.ref.h / 2, w: n.ref.w, h: n.ref.h });
   const rEdges = edges.map((e) => {

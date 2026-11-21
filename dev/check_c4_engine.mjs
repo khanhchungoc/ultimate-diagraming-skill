@@ -476,6 +476,28 @@ let worst = 0;
   worst = Math.max(worst, ms);
   noOverlap(d, 'big expanded'); inGroups(d, 'big expanded');
 }
+// ---- loop-unders for side columns: an E and a W column of 3, a link first to last (and one between neighbours), no model file
+for (const side of ['E', 'W']) {
+  const d = { diagramType: 'c4', groups: [], elements: [{ id: 'hub', kind: 'system', name: 'Hub', core: true }].concat(
+    ['a', 'b', 'c'].map((k) => ({ id: k, kind: 'external', name: k.toUpperCase(), side })), [{ id: 'z', kind: 'external', name: 'Z', side: 'N' }]),
+    relations: [{ from: 'hub', to: 'a', label: 'x' }, { from: 'hub', to: 'b', label: 'y' }, { from: 'hub', to: 'c', label: 'w' }, { from: 'a', to: 'c', label: 'Loops out' },
+      { from: 'a', to: 'b', label: 'Next' }, { from: 'hub', to: 'z', label: 'v' }] };
+  layoutDiagram(d);
+  const ed = d._edges.find((e) => e.from === 'a' && e.to === 'c'), nb = d._edges.find((e) => e.from === 'a' && e.to === 'b');
+  const col = ['a', 'b', 'c'].map((k) => elOf(d, k)), tag = `column ${side}`;
+  check(col.every((e) => e._side === side), `${tag}: items sit on ${side}`);
+  const far = side === 'E' ? Math.max(...col.map((e) => e.x + e.w)) : Math.min(...col.map((e) => e.x));
+  check(ed && ed.points.length === 4 && ed.points[1][0] === ed.points[2][0], `${tag}: first-to-last link is a loop with a vertical run`);
+  check(ed && (side === 'E' ? ed.points[1][0] > far : ed.points[1][0] < far), `${tag}: the run lies on the outer side of the column`);
+  check(nb && nb.points.length <= 2 + 2, `${tag}: neighbours keep the plain route`);
+  check(ed && ed.labelBox && ed.labelBox.w > 0, `${tag}: label placed`);
+  check(ed && Math.abs(ed.labelBox.x + ed.labelBox.w / 2 - ed.points[1][0]) < 1, `${tag}: label sits on the run`);
+  d.elements.forEach((e) => d._edges.forEach((r) => {
+    if (r.from === e.id || r.to === e.id || e._hidden) return;
+    r.points.slice(1).forEach((q, i) => check(!segHits(r.points[i], q, e), `${tag}: ${r.from}>${r.to} crosses box ${e.id}`));
+  }));
+  d.groups.forEach((g) => d._edges.forEach((r) => r.points.slice(1).forEach((q, i) => { if (!r.points.some((p) => p[0] > g.x && p[0] < g.x + g.w && p[1] > g.y && p[1] < g.y + g.h)) check(!segHits(r.points[i], q, g), `${tag}: crosses frame ${g.id}`); })));
+}
 check(worst < LIMIT_MS, `large fixture under ${LIMIT_MS} ms (worst ${worst.toFixed(0)} ms)`);
 
 console.log(failures ? `\n${failures} check(s) failed` : `\nall c4 engine checks passed (${ran.length} fixtures)`);
