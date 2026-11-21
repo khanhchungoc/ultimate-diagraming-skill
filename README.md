@@ -4,7 +4,7 @@
 
 Describe a process, and your AI agent hands back a single HTML file. Open it in any browser, drag things around, fix a label, and save. No account, no app to install, and it works offline.
 
-[![Swimlane flowchart, horizontal](docs/img/example-flowchart.png)](https://claude.ai/artifact/4GXf3ufVkqEMR9BNy7UuWE)
+[![Swimlane flowchart, horizontal](docs/img/example-flowchart.png)](https://khanhchungoc.github.io/ultimate-diagraming-skill/examples/flowchart/)
 
 ### 👉 **[Try the playground, no install](https://khanhchungoc.github.io/ultimate-diagraming-skill/)** 👈
 
@@ -47,35 +47,35 @@ Describe a process, and your AI agent hands back a single HTML file. Open it in 
 
 *"Draw a swimlane flowchart of our loan approval process."*
 
-[![Swimlane flowchart, horizontal](docs/img/example-flowchart.png)](https://claude.ai/artifact/4GXf3ufVkqEMR9BNy7UuWE)
+[![Swimlane flowchart, horizontal](docs/img/example-flowchart.png)](https://khanhchungoc.github.io/ultimate-diagraming-skill/examples/flowchart/)
 
-▶ [Try the flowchart](https://claude.ai/artifact/4GXf3ufVkqEMR9BNy7UuWE)
+▶ [Try the flowchart](https://khanhchungoc.github.io/ultimate-diagraming-skill/examples/flowchart/)
 
 ### Sequence diagram
 
 *"Draw a sequence diagram of the login flow between the app, API gateway and auth service."*
 
-[![Sequence diagram](docs/img/example-sequence-2026-11.png)](https://claude.ai/artifact/5GAHnbS8tb9bxKxAi4JDYz)
+[![Sequence diagram](docs/img/example-sequence-2026-11.png)](https://khanhchungoc.github.io/ultimate-diagraming-skill/examples/sequence/)
 
-▶ [Try the sequence diagram](https://claude.ai/artifact/5GAHnbS8tb9bxKxAi4JDYz)
+▶ [Try the sequence diagram](https://khanhchungoc.github.io/ultimate-diagraming-skill/examples/sequence/)
 
 ### ER diagram
 
 *"Draw an ER diagram for an online shop: customers, orders, products and payments."*
 
-[![ER diagram](docs/img/example-erd.png)](https://claude.ai/artifact/39Vy8dhSEdN4MjqVe1qQEv)
+[![ER diagram](docs/img/example-erd.png)](https://khanhchungoc.github.io/ultimate-diagraming-skill/examples/erd/)
 
-▶ [Try the ER diagram](https://claude.ai/artifact/39Vy8dhSEdN4MjqVe1qQEv)
+▶ [Try the ER diagram](https://khanhchungoc.github.io/ultimate-diagraming-skill/examples/erd/)
 
 ### Use case diagram
 
 *"Draw a use case diagram for our booking system, with requirement ids."*
 
-[![Use case diagram](docs/img/example-usecase.png)](https://claude.ai/artifact/DyGtj4nxA7nvkmjdfcFddG)
+[![Use case diagram](docs/img/example-usecase.png)](https://khanhchungoc.github.io/ultimate-diagraming-skill/examples/usecase/)
 
 Search by requirement id (such as `FR-4`) to find the use case that covers it.
 
-▶ [Try the use case diagram](https://claude.ai/artifact/DyGtj4nxA7nvkmjdfcFddG)
+▶ [Try the use case diagram](https://khanhchungoc.github.io/ultimate-diagraming-skill/examples/usecase/)
 
 ## Offline samples
 
