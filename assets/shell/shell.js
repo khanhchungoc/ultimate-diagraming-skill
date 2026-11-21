@@ -102,8 +102,12 @@
           const t = TOKENS.icon, inner = ICONS[name], opts = o || {};
           if (inner === undefined) throw new Error(`unknown icon "${name}"`);
           const px = typeof opts.size === 'number' ? opts.size : t.size[opts.size || 'md'];
+          const cls = opts.class ? ` class="${opts.class}"` : '';
+          if (inner && typeof inner === 'object') {
+            return `<svg${cls} width="${px}" height="${px}" viewBox="${inner.vb}" fill="currentColor" aria-hidden="true">${inner.body}</svg>`; // tokens-ok: this is the icon renderer
+          }
           const stroke = opts.bold ? t.strokeBold : opts.fine ? t.strokeFine : t.stroke;
-          return `<svg${opts.class ? ` class="${opts.class}"` : ''} width="${px}" height="${px}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${stroke}" stroke-linecap="${t.cap}" stroke-linejoin="${t.join}" aria-hidden="true">${inner}</svg>`; // tokens-ok: this is the icon renderer
+          return `<svg${cls} width="${px}" height="${px}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${stroke}" stroke-linecap="${t.cap}" stroke-linejoin="${t.join}" aria-hidden="true">${inner}</svg>`; // tokens-ok: this is the icon renderer
         }
         // A logo of a local icon pack (LOGOS, embedded by the build from icons/<pack>.json; name is "<pack>/<icon>"): the filled,
         // multi-colour <svg> text. Colours and aspect ratio stay as the vendor drew them (the viewBox fits it in a square of

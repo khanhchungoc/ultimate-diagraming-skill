@@ -1,6 +1,14 @@
-# Local icon packs (brand and cloud logos)
+# Icon packs (tech and brand logos)
 
-The repo ships no vendor logos: their terms do not clearly allow redistribution. You build a pack from the vendor's own download, on your machine.
+## Bundled tech logos (`devicon`)
+
+A curated **Devicon** pack (MIT license, 69 tech/cloud/database/language/framework logos) ships with the skill in `assets/logos/devicon.json` (with `assets/logos/devicon-LICENSE.txt`).
+
+Use entries directly in C4 diagrams as `"icon": "logo:devicon/<name>"` (for example `logo:devicon/postgresql`, `logo:devicon/kubernetes`, `logo:devicon/react`, `logo:devicon/aws`). They are also listed under **Tech logos** in the C4 icon picker.
+
+## Local icon packs (custom brand and cloud logos)
+
+For vendor packs whose terms do not allow bundling (such as full AWS or Azure icon archives), build a local pack from the vendor's own download on your machine:
 
 ## Build
 

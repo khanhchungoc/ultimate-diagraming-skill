@@ -2875,7 +2875,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         const next = isTB() ? 'LR' : 'TB';
         const label = next === 'TB' ? 'Vertical' : 'Horizontal';
         btnDirection.querySelector('.btn-label').textContent = label;
-        btnDirection.querySelector('svg').innerHTML = ICONS[next === 'TB' ? 'direction-tb' : 'direction-lr'];
+        btnDirection.querySelector('svg').replaceWith(ui.iconEl(next === 'TB' ? 'direction-tb' : 'direction-lr'));
         btnDirection.title = next === 'TB' ? 'Switch to a top-to-bottom layout' : 'Switch to a left-to-right layout';
         btnDirection.setAttribute('aria-label', label);
       }

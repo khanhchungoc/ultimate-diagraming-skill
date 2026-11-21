@@ -179,22 +179,31 @@ def _validate_type(ty: Dict[str, Any]) -> None:
             if prop in st and st[prop] not in ty[prop]: raise _err(f"type.styles.{name}.{prop}", st[prop])
 
 
-# An icon is the inside of a 24 x 24 stroke drawing: self-closing shape elements with a short list of attributes, nothing else,
-# so a brand's icon file can never carry a script, a style or a link into the page
-_ICON_ATTR = r'(?:d|cx|cy|r|rx|ry|x|y|x1|y1|x2|y2|width|height|points|stroke-dasharray|class)="[\w .,\-]*"|(?:fill|stroke)="(?:none|currentColor)"'
+# An icon is either a 24 x 24 stroke drawing (str) or a filled/duotone drawing ({"vb": viewBox, "body": inner markup}):
+# self-closing shape elements with a short list of attributes, nothing else, so a brand's icon file can never carry a script, a style or a link into the page
+_ICON_ATTR = r'(?:d|cx|cy|r|rx|ry|x|y|x1|y1|x2|y2|width|height|points|stroke-dasharray|class)="[\w .,\-]*"|(?:fill|stroke)="(?:none|currentColor)"|opacity="(?:0?\.\d+|0|1)"|fill-rule="(?:evenodd|nonzero)"'
 _ICON_MARKUP = re.compile(rf'(?:<(?:path|circle|rect|line|polyline|polygon|ellipse)(?: (?:{_ICON_ATTR}))*/>)+')
+_ICON_VB = re.compile(r"^\d+ \d+ \d+ \d+$")
 
 
-def _read_registry(path: Path) -> Dict[str, str]:
-    """One icon file ({"_license": ..., "icons": {name: inner markup}}), validated; nothing else is read from it."""
+def _read_registry(path: Path) -> Dict[str, Any]:
+    """One icon file ({"_license": ..., "icons": {name: str | {"vb": ..., "body": ...}}}), validated; nothing else is read from it."""
     icons = json.loads(path.read_text(encoding="utf-8"))["icons"]
-    for name, markup in icons.items():
-        if not _KEY.match(name) or not isinstance(markup, str) or not _ICON_MARKUP.fullmatch(markup):
+    for name, entry in icons.items():
+        if not _KEY.match(name):
+            raise ValueError(f"icons: invalid icon {name!r} in {path.name}")
+        if isinstance(entry, str):
+            if not _ICON_MARKUP.fullmatch(entry):
+                raise ValueError(f"icons: invalid icon {name!r} in {path.name}")
+        elif isinstance(entry, dict):
+            if set(entry.keys()) != {"vb", "body"} or not isinstance(entry["vb"], str) or not _ICON_VB.fullmatch(entry["vb"]) or not isinstance(entry["body"], str) or not _ICON_MARKUP.fullmatch(entry["body"]):
+                raise ValueError(f"icons: invalid icon {name!r} in {path.name}")
+        else:
             raise ValueError(f"icons: invalid icon {name!r} in {path.name}")
     return icons
 
 
-def load_icons(tokens: Dict[str, Any]) -> Dict[str, str]:
+def load_icons(tokens: Dict[str, Any]) -> Dict[str, Any]:
     """The icon registry of tokens["icon"]["set"]. A name that set lacks falls back to the default set, so no icon disappears."""
     icons = _read_registry(ICONS_DIR / "default.json")
     if tokens["icon"]["set"] != "default":
@@ -202,16 +211,19 @@ def load_icons(tokens: Dict[str, Any]) -> Dict[str, str]:
     return icons
 
 
-def icon_svg(tokens: Dict[str, Any], icons: Dict[str, str], name: str, size: str = "md", mods: tuple = ()) -> str:
+def icon_svg(tokens: Dict[str, Any], icons: Dict[str, Any], name: str, size: str = "md", mods: tuple = ()) -> str:
     """The <svg> for icon `name`: size is a token name (icon.size) or a px number; mods may hold "fine" or "bold" (the stroke widths).
     ui.icon() in shell.js builds the same text at run time."""
     ic = tokens["icon"]
     if name not in icons:
         raise KeyError(f"unknown icon {name!r}")
     px = ic["size"][size] if size in ic["size"] else int(size)
+    entry = icons[name]
+    if isinstance(entry, dict):
+        return f'<svg width="{px}" height="{px}" viewBox="{entry["vb"]}" fill="currentColor" aria-hidden="true">{entry["body"]}</svg>'
     stroke = ic["strokeBold"] if "bold" in mods else ic["strokeFine"] if "fine" in mods else ic["stroke"]
     return (f'<svg width="{px}" height="{px}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{stroke}" '
-            f'stroke-linecap="{ic["cap"]}" stroke-linejoin="{ic["join"]}" aria-hidden="true">{icons[name]}</svg>')
+            f'stroke-linecap="{ic["cap"]}" stroke-linejoin="{ic["join"]}" aria-hidden="true">{entry}</svg>')
 
 
 def logo_svg(tokens: Dict[str, Any], logos: Dict[str, Dict[str, str]], name: str, size: str = "tile") -> str:
@@ -428,37 +440,49 @@ if __name__ == "__main__":
     # icons: the registry, the placeholder syntax and what a brand icon file may hold
     icons = load_icons(t)
     assert len(icons) >= 80 and {"trash", "user", "type-flowchart", "type-sequence", "type-erd"} <= icons.keys()
+    tf = icons["type-flowchart"]
+    assert isinstance(tf, str)
+    assert icon_svg(t, icons, "type-flowchart") == ('<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" '
+                                                    f'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">{tf}</svg>')
+    assert 'width="32" height="32"' in icon_svg(t, icons, "type-flowchart", "tile", ("fine",)) and 'stroke-width="1.75"' in icon_svg(t, icons, "type-flowchart", "tile", ("fine",))
+    assert 'stroke-width="2.5"' in icon_svg(t, icons, "type-flowchart", "xs", ("bold",)) and 'width="7"' in icon_svg(t, icons, "type-flowchart", "7")
     plus = icons["plus"]
-    assert icon_svg(t, icons, "plus") == ('<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" '
-                                          f'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">{plus}</svg>')
-    assert 'width="32" height="32"' in icon_svg(t, icons, "plus", "tile", ("fine",)) and 'stroke-width="1.75"' in icon_svg(t, icons, "plus", "tile", ("fine",))
-    assert 'stroke-width="2.5"' in icon_svg(t, icons, "plus", "xs", ("bold",)) and 'width="7"' in icon_svg(t, icons, "plus", "7")
-    assert expand_icons("a {{icon:plus}} b {{icon:plus:xl}} {{icon:plus:tile:fine}}", t, icons).count("<svg") == 3
+    if isinstance(plus, dict):
+        assert icon_svg(t, icons, "plus") == f'<svg width="14" height="14" viewBox="{plus["vb"]}" fill="currentColor" aria-hidden="true">{plus["body"]}</svg>'
+    assert expand_icons("a {{icon:type-flowchart}} b {{icon:type-flowchart:xl}} {{icon:plus:tile:fine}}", t, icons).count("<svg") == 3
     try:
         expand_icons("{{icon:nope}}", t, icons)
         raise AssertionError("accepted an unknown icon")
     except KeyError:
         pass
     assert tokens_js(t).count("const ICONS = {") == 1 and '"icon":{"set":"default"' in tokens_js(t) and "--icon-tile: 32px;" in tokens_css(t)
-    for ok in ('<path d="M3 12h18"/>', '<circle cx="12" cy="12" r="2.5" fill="currentColor"/><path class="tile-line" d="M0.5 12H2" stroke-dasharray="1 2"/>'):
+    for ok in ('<path d="M3 12h18"/>', '<circle cx="12" cy="12" r="2.5" fill="currentColor"/><path class="tile-line" d="M0.5 12H2" stroke-dasharray="1 2"/>',
+               '<path d="M0 0" opacity="0.2"/><path d="M0 0" fill-rule="evenodd"/>'):
         assert _ICON_MARKUP.fullmatch(ok), ok
     for bad in ('<script>alert(1)</script>', '<path d="M0 0" onload="x"/>', '<path d="M0 0"/><style>a{}</style>', '<image href="x"/>',
-                '<path d="M0 0" fill="url(#a)"/>', '<path d="M0 0" d2="x"/>', '<use href="#a"/>', '<path d="a&quot;b"/>', ''):
+                '<path d="M0 0" fill="url(#a)"/>', '<path d="M0 0" d2="x"/>', '<use href="#a"/>', '<path d="a&quot;b"/>',
+                '<path d="M0 0" opacity="2"/>', '<path d="M0 0" fill="red"/>', ''):
         assert not _ICON_MARKUP.fullmatch(bad), bad
     set_dir = Path(tempfile.mkdtemp())
-    (set_dir / "other.json").write_text(json.dumps({"icons": {"trash": '<path d="M1 1h2"/>'}}))
+    (set_dir / "other.json").write_text(json.dumps({"icons": {"trash": '<path d="M1 1h2"/>', "user": {"vb": "0 0 256 256", "body": '<path d="M0 0" opacity="0.2"/>'}}}))
     saved = ICONS_DIR
     ICONS_DIR = set_dir
     try:
         (set_dir / "default.json").write_text((saved / "default.json").read_text())
         other = load_icons(load_tokens(theme({"icon": {"set": "other"}})))
-        assert other["trash"] == '<path d="M1 1h2"/>' and other["user"] == icons["user"], "a brand set overrides names and falls back for the rest"
-        (set_dir / "other.json").write_text(json.dumps({"icons": {"trash": '<path d="M1 1h2" onclick="x"/>'}}))
-        try:
-            load_icons(load_tokens(theme({"icon": {"set": "other"}})))
-            raise AssertionError("accepted an icon with an event handler")
-        except ValueError:
-            pass
+        assert other["trash"] == '<path d="M1 1h2"/>' and other["user"] == {"vb": "0 0 256 256", "body": '<path d="M0 0" opacity="0.2"/>'} and other["type-flowchart"] == icons["type-flowchart"], "a brand set overrides names and falls back for the rest"
+        for bad_reg in (
+            {"trash": '<path d="M1 1h2" onclick="x"/>'},
+            {"trash": {"vb": "0 0 256 256", "body": '<path d="M0 0"/>', "extra": "x"}},
+            {"trash": {"vb": "0 0 256", "body": '<path d="M0 0"/>'}},
+            {"trash": {"vb": "0 0 256 256", "body": '<path d="M0 0" onclick="x"/>'}},
+        ):
+            (set_dir / "other.json").write_text(json.dumps({"icons": bad_reg}))
+            try:
+                load_icons(load_tokens(theme({"icon": {"set": "other"}})))
+                raise AssertionError(f"accepted malformed icon registry {bad_reg!r}")
+            except ValueError:
+                pass
     finally:
         ICONS_DIR = saved
     for bad in ({"icon": {"set": "a/b"}}, {"icon": {"stroke": 9}}, {"icon": {"cap": "x"}}, {"icon": {"size": {"md": "big"}}}):

@@ -1272,7 +1272,7 @@
               const b = htmlEl('button', 'c4-icon-opt');
               b.type = 'button';
               b.dataset.icon = n;
-              b.title = n || `Default for ${KIND_NAME[o.kind] || o.kind}`;
+              b.title = !n ? `Default for ${KIND_NAME[o.kind] || o.kind}` : n.startsWith('logo:devicon/') ? `${n.slice(13)} (devicon)` : n;
               b.setAttribute('aria-label', b.title);
               b.setAttribute('aria-pressed', String((o.icon || '') === n));
               if (n.startsWith('logo:')) b.innerHTML = `<span class="c4-icon-logo">${ui.logo(n.slice(5), { size: 'lg' })}</span>`;   // a vendor logo keeps its own colours on a white disc
@@ -1284,8 +1284,11 @@
           };
           section('', ['']);
           ICON_GROUPS.forEach(([g, names]) => { const m = names.filter((n) => !q || n.replace(/-/g, ' ').includes(q)); shown += m.length; section(g, m); });
-          const packs = packEntries().filter((n) => !q || n.slice(5).replace(/[-_/]+/g, ' ').toLowerCase().includes(q));
-          shown += packs.length; section('Local packs', packs);
+          const allPacks = packEntries().filter((n) => !q || n.slice(5).replace(/[-_/]+/g, ' ').toLowerCase().includes(q));
+          const techLogos = allPacks.filter((n) => n.startsWith('logo:devicon/'));
+          const localPacks = allPacks.filter((n) => !n.startsWith('logo:devicon/'));
+          shown += techLogos.length; section('Tech logos', techLogos);
+          shown += localPacks.length; section('Local packs', localPacks);
           note.textContent = shown ? '' : 'No icon matches.';
         };
         search.addEventListener('input', fill);
@@ -1318,7 +1321,7 @@
         bar.setAttribute('aria-label', 'Element');
         bar.appendChild(ab('rename', ui.icon('rename'), 'Rename (F2)'));
         bar.appendChild(abMenu('kind', KIND_ICON[o.kind] || 'cloud', 'Kind', `Kind: ${KIND_NAME[o.kind] || o.kind}`));
-        bar.appendChild(abText('icon', 'shapes', 'Icon', 'Icon: pick from the generic icons'));
+        bar.appendChild(abText('icon', 'shapes', 'Icon', 'Icon: pick an icon or tech logo'));
         bar.appendChild(abMenu('group', 'frame', 'Group', 'Move to a group'));
         bar.appendChild(ui.abSep('ab-sep'));
         bar.appendChild(ab('core', ui.icon('focus'), 'Centre: the rest of the diagram rings round it', o.core === true));
