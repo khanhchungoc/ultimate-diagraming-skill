@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Build assets/icons/default.json (Phosphor Duotone + custom diagram glyphs) and assets/logos/devicon.json (curated Devicon logos).
+"""Build assets/icons/default.json (Tabler Icons Outline + custom diagram glyphs) and assets/logos/devicon.json (curated Devicon logos).
 
 Stdlib only. Fetches pinned npm tarballs (cached in --cache or system temp) and writes deterministic JSON + license files.
 
 Usage:
-  python dev/tools/build_icons.py [--cache DIR]
+  python dev/tools/build_icons.py [--cache DIR] [--icons-only]
 """
 from __future__ import annotations
 
@@ -24,7 +24,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 import build_icon_pack  # noqa: E402
 import tokens  # noqa: E402
 
-PHOSPHOR_URL = "https://registry.npmjs.org/@phosphor-icons/core/-/core-2.1.1.tgz"
+TABLER_URL = "https://registry.npmjs.org/@tabler/icons/-/icons-3.52.0.tgz"
 DEVICON_URL = "https://registry.npmjs.org/devicon/-/devicon-2.18.0.tgz"
 
 CUSTOM_GLYPHS = (
@@ -35,89 +35,98 @@ CUSTOM_GLYPHS = (
     "shape-delay", "shape-note",
     "lane", "participant", "message", "frame", "numbers", "message-return",
     "lifespans", "line-dashed", "line-solid", "message-async",
-    "usecase", "subject",
+    "actor", "usecase", "subject",
     "kind-system", "kind-ui", "kind-database", "kind-queue", "kind-external",
+    "queue",
 )
 
-PHOSPHOR_MAP: Dict[str, str] = {
+# Original 24x24 stroked glyphs restored from git 9ca74b8 (kept instead of vendor replacements).
+RESTORED_CUSTOM_GLYPHS: Dict[str, str] = {
+    "actor": '<circle cx="12" cy="5" r="3"/><path d="M12 8v7"/><path d="M5 11h14"/><path d="m12 15-5 6"/><path d="m12 15 5 6"/>',
+    "queue": '<rect x="2" y="7" width="5" height="10" rx="1"/><rect x="9.5" y="7" width="5" height="10" rx="1"/><path d="M17 12h5M19.5 9.5 22 12l-2.5 2.5"/>',
+}
+
+TABLER_MAP: Dict[str, str] = {
+    # Header & actions
+    "moon": "moon",
+    "sun": "sun",
+    "help": "help-circle",
+    "present": "presentation",
+    "import": "download",
+    "export": "upload",
+    "save": "device-floppy",
+    "search": "search",
+    "close": "x",
+    "more": "dots",
+    "trash": "trash",
+    # Zoom & navigation
+    "undo": "arrow-back-up",
+    "redo": "arrow-forward-up",
+    "minus": "minus",
+    "plus": "plus",
+    "fit": "maximize",
+    "chevron-down": "chevron-down",
+    "chevron-up": "chevron-up",
+    "direction-tb": "arrow-down",
+    "direction-lr": "arrow-right",
+    "reply": "corner-up-left",
+    "reverse": "arrows-exchange",
+    "auto": "refresh",
+    "focus": "target",
+    "eye": "eye",
+    # Docks & editing
+    "note": "note",
+    "notes": "notes",
+    "note-lines": "align-left",
+    "columns": "list-details",
+    "types": "braces",
+    "tidy": "wand",
+    "grip": "grip-vertical",
+    "shapes": "triangle-square-circle",
+    "rename": "pencil",
+    "label": "typography",
+    "hash": "hash",
+    # People, business, infra & C4
     "user": "user",
     "users": "users",
     "briefcase": "briefcase",
-    "building": "buildings",
+    "building": "building",
     "headset": "headset",
-    "monitor": "desktop",
+    "monitor": "device-desktop",
+    "browser": "browser",
+    "mobile": "device-mobile",
     "code": "code",
-    "server": "hard-drives",
+    "server": "server",
     "database": "database",
     "cloud": "cloud",
     "cpu": "cpu",
-    "cog": "gear",
-    "shield": "shield-check",
-    "scale": "scales",
-    "banknote": "money",
+    "cog": "settings",
+    "shield": "shield",
+    "scale": "scale",
+    "banknote": "cash",
     "credit-card": "credit-card",
-    "mail": "envelope-simple",
+    "mail": "mail",
     "package": "package",
     "truck": "truck",
     "cart": "shopping-cart",
     "clipboard": "clipboard-text",
-    "check": "check-circle",
-    "layers": "stack",
-    "globe": "globe",
+    "check": "circle-check",
+    "layers": "stack-2",
+    "globe": "world",
     "flag": "flag",
-    "undo": "arrow-u-up-left",
-    "redo": "arrow-u-up-right",
-    "export": "export",
-    "save": "floppy-disk",
-    "trash": "trash",
-    "tidy": "magic-wand",
-    "minus": "minus",
-    "plus": "plus",
-    "close": "x",
-    "more": "dots-three",
-    "help": "question",
-    "import": "download-simple",
-    "fit": "corners-out",
-    "sun": "sun",
-    "moon": "moon",
     "key": "key",
+    "lock": "lock",
     "link": "link",
-    "chevron-down": "caret-down",
-    "chevron-up": "caret-up",
-    "note-lines": "text-align-left",
-    "note": "note",
-    "columns": "rows",
-    "types": "brackets-curly",
-    "notes": "note-pencil",
-    "grip": "dots-six-vertical",
-    "shapes": "shapes",
-    "direction-tb": "arrow-down",
-    "direction-lr": "arrow-right",
-    "focus": "crosshair",
-    "eye": "eye",
-    "reverse": "arrows-left-right",
-    "rename": "pencil-simple",
-    "label": "text-t",
-    "auto": "arrows-clockwise",
-    "actor": "person",
     "clock": "clock",
-    "present": "presentation-chart",
-    "search": "magnifying-glass",
-    "hash": "hash",
-    "queue": "queue",
-    "function": "function",
-    "storage": "archive",
-    "cdn": "share-network",
-    "gateway": "arrows-split",
-    "container": "cube",
-    "cluster": "tree-structure",
-    "cache": "lightning",
-    "lock": "lock-simple",
-    "api": "plugs-connected",
-    "mobile": "device-mobile",
-    "browser": "browser",
     "bell": "bell",
-    "reply": "arrow-bend-up-left",
+    "function": "math-function",
+    "storage": "archive",
+    "cdn": "topology-star-3",
+    "gateway": "arrows-split-2",
+    "container": "box",
+    "cluster": "sitemap",
+    "cache": "bolt",
+    "api": "plug-connected",
 }
 
 # Curated ~68 top architecture/C4 logos: (alias_in_pack, devicon_folder_name)
@@ -224,85 +233,96 @@ def _read_tar_files(tgz_path: Path) -> Dict[str, bytes]:
     return out
 
 
-def _convert_phosphor_svg(svg_text: str, name: str) -> Dict[str, str]:
+def _convert_tabler_svg(svg_text: str, name: str) -> str:
     root = ET.fromstring(svg_text)
-    vb = " ".join(re.split(r"[\s,]+", (root.get("viewBox") or "0 0 256 256").strip()))
+    vb = " ".join(re.split(r"[\s,]+", (root.get("viewBox") or "0 0 24 24").strip()))
+    if vb != "0 0 24 24":
+        raise ValueError(f"Tabler {name}: unexpected viewBox {vb!r}")
     parts: List[str] = []
-    for child in root:
-        tag = _LOCAL(child.tag).lower()
-        # Strip the transparent 256x256 spacer rect Phosphor includes in every asset.
-        if tag == "rect" and child.get("width") == "256" and child.get("height") == "256" and child.get("fill") == "none":
-            continue
-        if tag not in ("path", "circle", "rect", "line", "polyline", "polygon", "ellipse"):
-            raise ValueError(f"Phosphor {name}: unexpected element <{tag}>")
-        if list(child):
-            raise ValueError(f"Phosphor {name}: nested children inside <{tag}>")
-        attrs = []
-        for k, v in child.attrib.items():
-            lk = _LOCAL(k)
-            if lk == "fill" and v == "currentColor":
+
+    def walk(parent: ET.Element) -> None:
+        for child in parent:
+            tag = _LOCAL(child.tag).lower()
+            # Strip the transparent 24x24 spacer path Tabler includes in every outline asset.
+            if tag == "path" and child.get("stroke") == "none" and child.get("fill") == "none" and child.get("d") == "M0 0h24v24H0z":
                 continue
-            attrs.append(f'{lk}="{v}"')
-        parts.append(f'<{tag}' + ("" if not attrs else " " + " ".join(attrs)) + "/>")
+            if tag == "g" and not child.attrib:
+                walk(child)
+                continue
+            if tag not in ("path", "circle", "rect", "line", "polyline", "polygon", "ellipse"):
+                raise ValueError(f"Tabler {name}: unexpected element <{tag}>")
+            if list(child):
+                raise ValueError(f"Tabler {name}: nested children inside <{tag}>")
+            attrs = []
+            for k, v in child.attrib.items():
+                lk = _LOCAL(k)
+                if lk in ("class", "xmlns", "stroke", "stroke-width", "stroke-linecap", "stroke-linejoin"):
+                    continue
+                if lk == "fill" and v == "none":
+                    continue
+                attrs.append(f'{lk}="{v}"')
+            parts.append(f'<{tag}' + ("" if not attrs else " " + " ".join(attrs)) + "/>")
+
+    walk(root)
     body = "".join(parts)
     if not tokens._ICON_MARKUP.fullmatch(body):
-        raise ValueError(f"Phosphor {name}: body rejected by tokens._ICON_MARKUP: {body!r}")
-    return {"vb": vb, "body": body}
+        raise ValueError(f"Tabler {name}: body rejected by tokens._ICON_MARKUP: {body!r}")
+    return body
 
 
-def build_default_icons(phosphor_files: Dict[str, bytes]) -> None:
+def build_default_icons(tabler_files: Dict[str, bytes]) -> None:
     icons_path = ROOT / "assets" / "icons" / "default.json"
     existing = json.loads(icons_path.read_text(encoding="utf-8"))["icons"]
     expected_keys = set(existing.keys())
 
-    if set(CUSTOM_GLYPHS) | set(PHOSPHOR_MAP.keys()) != expected_keys:
-        missing = expected_keys - (set(CUSTOM_GLYPHS) | set(PHOSPHOR_MAP.keys()))
-        extra = (set(CUSTOM_GLYPHS) | set(PHOSPHOR_MAP.keys())) - expected_keys
+    if set(CUSTOM_GLYPHS) | set(TABLER_MAP.keys()) != expected_keys:
+        missing = expected_keys - (set(CUSTOM_GLYPHS) | set(TABLER_MAP.keys()))
+        extra = (set(CUSTOM_GLYPHS) | set(TABLER_MAP.keys())) - expected_keys
         raise ValueError(f"Icon key mismatch: missing={missing}, extra={extra}")
 
     new_icons: Dict[str, Any] = {}
     for key in existing:
         if key in CUSTOM_GLYPHS:
-            val = existing[key]
-            if not isinstance(val, str):
-                raise ValueError(f"Expected existing custom glyph {key!r} to be a stroked string")
+            val = RESTORED_CUSTOM_GLYPHS.get(key) or existing[key]
+            if not isinstance(val, str) or not tokens._ICON_MARKUP.fullmatch(val):
+                raise ValueError(f"Expected custom glyph {key!r} to be a valid stroked string")
             new_icons[key] = val
         else:
-            ph_name = PHOSPHOR_MAP[key]
-            tar_key = f"package/assets/duotone/{ph_name}-duotone.svg"
-            if tar_key not in phosphor_files:
-                raise FileNotFoundError(f"Phosphor duotone icon not found: {tar_key}")
-            new_icons[key] = _convert_phosphor_svg(phosphor_files[tar_key].decode("utf-8"), f"{key} ({ph_name})")
+            tb_name = TABLER_MAP[key]
+            tar_key = f"package/icons/outline/{tb_name}.svg"
+            if tar_key not in tabler_files:
+                raise FileNotFoundError(f"Tabler outline icon not found: {tar_key}")
+            new_icons[key] = _convert_tabler_svg(tabler_files[tar_key].decode("utf-8"), f"{key} ({tb_name})")
 
-    license_bytes = phosphor_files.get("package/LICENSE")
+    license_bytes = tabler_files.get("package/LICENSE")
     if not license_bytes:
-        raise FileNotFoundError("package/LICENSE missing from @phosphor-icons/core tarball")
-    ph_license = license_bytes.decode("utf-8").strip()
+        raise FileNotFoundError("package/LICENSE missing from @tabler/icons tarball")
+    tb_license = license_bytes.decode("utf-8").strip()
 
     custom_notice = (
-        "The icon drawings in default.json come from Phosphor Icons (https://phosphoricons.com,\n"
-        "Duotone style, @phosphor-icons/core 2.1.1) and are used under its MIT license below.\n"
+        "The icon drawings in default.json come from Tabler Icons (https://tabler.io/icons,\n"
+        "Outline style, @tabler/icons 3.52.0) and are used under its MIT license below.\n"
         "The diagram-type icons (type-erd, type-flowchart, type-sequence, type-usecase, type-c4),\n"
         "ERD table/relationship icons (table-add, relationship, split), flowchart shape tiles\n"
         "(shape-*), lane/sequence/usecase notation glyphs (lane, participant, message, frame,\n"
-        "numbers, message-return, lifespans, line-dashed, line-solid, message-async, usecase,\n"
-        "subject), and participant-kind glyphs (kind-*) were drawn for this skill (24 x 24,\n"
-        "rounded stroke) and are released with it.\n\n"
+        "numbers, message-return, lifespans, line-dashed, line-solid, message-async, actor,\n"
+        "usecase, subject), and participant-kind/C4 queue glyphs (kind-*, queue) were drawn for\n"
+        "this skill (24 x 24, rounded stroke) and are released with it.\n\n"
     )
-    (ROOT / "assets" / "icons" / "LICENSE").write_text(custom_notice + ph_license + "\n", encoding="utf-8", newline="\n")
+    (ROOT / "assets" / "icons" / "LICENSE").write_text(custom_notice + tb_license + "\n", encoding="utf-8", newline="\n")
 
     out_obj = {
         "_license": (
-            "Most icons are Phosphor Icons Duotone (https://phosphoricons.com, MIT license, "
-            "@phosphor-icons/core 2.1.1); see LICENSE next to this file. Diagram-type, ERD, "
-            "flowchart shape, sequence, use-case, and participant-kind notation glyphs are drawn "
-            "for this skill (24 x 24, rounded stroke) and are released with it."
+            "Most icons are Tabler Icons Outline (https://tabler.io/icons, MIT license, "
+            "@tabler/icons 3.52.0); see LICENSE next to this file. Diagram-type, ERD, "
+            "flowchart shape, sequence, use-case, actor, queue, and participant-kind notation "
+            "glyphs are drawn for this skill (24 x 24, rounded stroke) and are released with it."
         ),
         "icons": new_icons,
     }
     icons_path.write_text(json.dumps(out_obj, indent=2, ensure_ascii=False) + "\n", encoding="utf-8", newline="\n")
     tokens._read_registry(icons_path)
-    print(f"[OK] Wrote {icons_path.relative_to(ROOT)} ({len(new_icons)} icons: {len(CUSTOM_GLYPHS)} custom + {len(PHOSPHOR_MAP)} Phosphor Duotone)")
+    print(f"[OK] Wrote {icons_path.relative_to(ROOT)} ({len(new_icons)} icons: {len(CUSTOM_GLYPHS)} custom + {len(TABLER_MAP)} Tabler Outline)")
 
 
 def _inline_css_styles(svg_text: str, label: str) -> str:
@@ -415,14 +435,16 @@ def build_devicon_pack(devicon_files: Dict[str, bytes]) -> None:
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--cache", help="Directory to cache downloaded npm tarballs")
+    ap.add_argument("--icons-only", action="store_true", help="Only rebuild assets/icons/default.json and LICENSE")
     args = ap.parse_args()
 
     cache_dir = Path(args.cache) if args.cache else Path(tempfile.gettempdir()) / "ultimate-diagram-icon-cache"
-    ph_tgz = fetch_tarball(PHOSPHOR_URL, cache_dir / "phosphor-core-2.1.1.tgz")
-    dv_tgz = fetch_tarball(DEVICON_URL, cache_dir / "devicon-2.18.0.tgz")
+    tb_tgz = fetch_tarball(TABLER_URL, cache_dir / "tabler-icons-3.52.0.tgz")
+    build_default_icons(_read_tar_files(tb_tgz))
 
-    build_default_icons(_read_tar_files(ph_tgz))
-    build_devicon_pack(_read_tar_files(dv_tgz))
+    if not args.icons_only:
+        dv_tgz = fetch_tarball(DEVICON_URL, cache_dir / "devicon-2.18.0.tgz")
+        build_devicon_pack(_read_tar_files(dv_tgz))
     return 0
 
 
