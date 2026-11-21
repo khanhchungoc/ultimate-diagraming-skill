@@ -1225,6 +1225,8 @@
         ['Security', ['lock', 'key', 'shield']]
       ];
       ICON_GROUPS.forEach(([g, names]) => names.forEach((n) => { if (ICONS[n] === undefined) throw new Error(`C4 icon picker: "${n}" (${g}) is not in assets/icons/default.json`); }));
+      // `logo:<pack>/<name>` of every local-pack entry this page embeds (the build embeds only the ones a diagram uses)
+      const packEntries = () => (typeof LOGOS === 'undefined' ? [] : Object.keys(LOGOS).sort().map((n) => `logo:${n}`));
       function openIcons(anchor, o) {
         const box = htmlEl('div', 'c4-pop c4-icons');
         box.id = 'c4-icons';
@@ -1258,7 +1260,8 @@
               b.title = n || `Default for ${KIND_NAME[o.kind] || o.kind}`;
               b.setAttribute('aria-label', b.title);
               b.setAttribute('aria-pressed', String((o.icon || '') === n));
-              b.innerHTML = ui.icon(n || KIND_ICON[o.kind] || 'cloud', { size: 'md' });
+              if (n.startsWith('logo:')) b.innerHTML = `<span class="c4-icon-logo">${ui.logo(n.slice(5), { size: 'lg' })}</span>`;   // a vendor logo keeps its own colours on a white disc
+              else b.innerHTML = ui.icon(n || KIND_ICON[o.kind] || 'cloud', { size: 'md' });
               b.addEventListener('click', () => pick(n));
               grid.appendChild(b);
             });
@@ -1266,6 +1269,8 @@
           };
           section('', ['']);
           ICON_GROUPS.forEach(([g, names]) => { const m = names.filter((n) => !q || n.replace(/-/g, ' ').includes(q)); shown += m.length; section(g, m); });
+          const packs = packEntries().filter((n) => !q || n.slice(5).replace(/[-_/]+/g, ' ').toLowerCase().includes(q));
+          shown += packs.length; section('Local packs', packs);
           note.textContent = shown ? '' : 'No icon matches.';
         };
         search.addEventListener('input', fill);
