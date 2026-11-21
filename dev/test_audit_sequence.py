@@ -137,6 +137,21 @@ def main() -> int:
         if not cond or args.verbose:
             print(f"[{'PASS' if cond else 'FAIL'}] {name}" + (f" - {detail}" if detail and not cond else ""))
 
+    # The audit mirrors the engine's constants; when the engine changes them and the audit is not updated, a label the
+    # engine wraps or spaces correctly is flagged (it happened: box 168, number 28, label cap 288, 14/13 and 12/11 text scale)
+    import math
+    import re
+    import audit_sequence as aud
+    engine = (ROOT / "assets" / "types" / "sequence" / "engine.js").read_text(encoding="utf-8")
+    sq = lambda key: int(re.search(rf"\b{key}: (\d+)", engine).group(1))  # noqa: E731
+    for key, value in (("BOX_W", aud.BOX_W), ("NUM_W", aud.NUM_W), ("LABEL_MAX_W", aud.LABEL_MAX_W), ("SELF_LOOP", aud.SELF_LOOP), ("RAIL_W", aud.RAIL_W)):
+        check(f"audit {key} mirrors SQ.{key} in the engine", sq(key) == value, f"engine {sq(key)}, audit {value}")
+    m = {"label": 6.5, "detail": 5.5}
+    sa = SequenceAudit(copy.deepcopy(BASE), m)
+    check("audit label width uses the engine's 14/13 scale, rounded to a tenth",
+          "TOKENS.font.metrics.label * (14 / 13) * 10) / 10" in engine and sa.label_char_w == math.floor(6.5 * 14 / 13 * 10 + 0.5) / 10)
+    check("audit detail width uses the engine's 12/11 scale, rounded to a tenth",
+          "TOKENS.font.metrics.detail * (12 / 11) * 10) / 10" in engine and sa.detail_char_w == math.floor(5.5 * 12 / 11 * 10 + 0.5) / 10)
     for name, changes, expect in CASES:
         issues, _ = audit(**changes)
         ok = not issues if expect is None else any(expect in i for i in issues)

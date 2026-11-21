@@ -2,8 +2,9 @@ The icon drawings in default.json come from Lucide (https://lucide.dev), or are 
 and are used under its ISC licence. Some Lucide icons derive from Feather and carry the MIT licence below it.
 The diagram-type icons (including type-usecase and type-c4), the infrastructure glyphs (queue, function, storage, cdn,
 gateway, container, cluster, cache, api, browser), the flowchart shape tiles, the participant-kind glyphs, the use case diagram glyphs
-(actor, usecase, subject, hash) and a few toolbar icons (including present) were drawn for this skill and are released with it. The clock, search, lock, bell and mobile (smartphone) icons
-are redrawn from the Lucide designs of the same name.
+(actor, usecase, subject, hash) and a few toolbar icons (including present) were drawn for this skill and are released with it. The clock and search icons
+are redrawn from the Lucide designs of the same name. The lock, bell and mobile (smartphone) icons are Lucide's own
+drawings (lucide-static 1.77.0), unchanged.
 
 ISC License
 

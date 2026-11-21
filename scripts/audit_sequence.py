@@ -13,11 +13,11 @@ from tokens import load_tokens
 
 from disk_format import color_kind, color_slot, palette_slots, slot_key
 
-BOX_W = 148
+BOX_W = 168
 RAIL_W = 36              # a rail: the thin column of a participant with nothing to show outside collapsed frames
 SELF_LOOP = 40
-NUM_W = 26               # the step number before a label when "numbered"
-LABEL_MAX_W = 320         # mirrors SQ.LABEL_MAX_W: a wider label wraps
+NUM_W = 28               # the step number before a label when "numbered"
+LABEL_MAX_W = 288         # mirrors SQ.LABEL_MAX_W: a wider label wraps
 LABEL_MARGIN = 16        # clear space a label needs beside its arrow ends
 MAX_PARTICIPANTS = 6
 MAX_MESSAGES = 16
@@ -134,6 +134,10 @@ class SequenceAudit:
     def __init__(self, data: Dict[str, Any], metrics: Optional[Dict[str, float]] = None):
         self.data = data
         self.metrics = metrics or load_tokens()["font"]["metrics"]   # the theme's average character widths
+        # The engine draws labels at 14px and details at 12px while the metrics are measured at 13px and 11px (SQ.CHAR_W,
+        # SQ.DETAIL_CHAR_W in assets/types/sequence/engine.js: scaled, then rounded to a tenth like Math.round)
+        self.label_char_w = math.floor(self.metrics["label"] * (14 / 13) * 10 + 0.5) / 10
+        self.detail_char_w = math.floor(self.metrics["detail"] * (12 / 11) * 10 + 0.5) / 10
         self.participants: List[Dict[str, Any]] = data.get("participants", [])
         self.messages: List[Dict[str, Any]] = data.get("messages", [])
         self.fragments: List[Dict[str, Any]] = data.get("fragments", [])
@@ -276,8 +280,8 @@ class SequenceAudit:
                         overflows += 1
                     continue
                 detail = m.get("detail") if show_details else None
-                label_w = min(max(math.ceil(max(len(s) for s in ("" if m.get("label") is None else str(m["label"])).split("\n")) * self.metrics["label"]) + (NUM_W if numbered else 0),
-                              math.ceil(len(str(detail or "")) * self.metrics["detail"])), LABEL_MAX_W)
+                label_w = min(max(math.ceil(max(len(s) for s in ("" if m.get("label") is None else str(m["label"])).split("\n")) * self.label_char_w) + (NUM_W if numbered else 0),
+                              math.ceil(len(str(detail or "")) * self.detail_char_w)), LABEL_MAX_W)
                 if a is b:
                     nxt = min((q["x"] for q in ps if q["x"] > a["x"]), default=math.inf)
                     if a["x"] + SELF_LOOP + 8 + label_w + 8 > nxt:
