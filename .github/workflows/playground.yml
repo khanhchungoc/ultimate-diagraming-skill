@@ -10,6 +10,7 @@ on:
       - scripts/**
       - dev/tools/build_playground.py
       - dev/tools/build_examples.py
+      - dev/tests/e2e/e2e_playground.mjs
       - dev/examples/**
       - dev/playground/**
       - .github/workflows/playground.yml
