@@ -6,13 +6,13 @@
       "id": "p1",
       "name": "User",
       "kind": "actor",
-      "x": 158
+      "x": 168
     },
     {
       "id": "p2",
       "name": "Auth Service",
       "kind": "system",
-      "x": 358
+      "x": 388
     }
   ],
   "messages": [
@@ -22,7 +22,7 @@
       "to": "p2",
       "label": "Submit credentials",
       "kind": "sync",
-      "y": 166
+      "y": 174
     },
     {
       "id": "m2",
@@ -30,13 +30,13 @@
       "to": "p1",
       "label": "Session token",
       "kind": "reply",
-      "y": 226
+      "y": 234
     }
   ],
   "fragments": [],
   "schemaVersion": 1,
   "layout": {
-    "width": 488,
-    "height": 312
+    "width": 528,
+    "height": 320
   }
 }

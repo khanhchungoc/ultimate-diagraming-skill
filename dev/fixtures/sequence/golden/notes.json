@@ -6,25 +6,25 @@
       "id": "u",
       "name": "Customer",
       "kind": "actor",
-      "x": 158
+      "x": 168
     },
     {
       "id": "web",
       "name": "Web App",
       "kind": "ui",
-      "x": 358
+      "x": 388
     },
     {
       "id": "api",
       "name": "Session API",
       "kind": "system",
-      "x": 558
+      "x": 608
     },
     {
       "id": "db",
       "name": "Session Store",
       "kind": "database",
-      "x": 758
+      "x": 828
     }
   ],
   "messages": [
@@ -34,7 +34,7 @@
       "to": "web",
       "label": "Sign in",
       "kind": "sync",
-      "y": 217
+      "y": 225
     },
     {
       "id": "m2",
@@ -42,7 +42,7 @@
       "to": "api",
       "label": "Create session",
       "kind": "sync",
-      "y": 277
+      "y": 285
     },
     {
       "id": "m3",
@@ -50,7 +50,7 @@
       "to": "db",
       "label": "Store token",
       "kind": "sync",
-      "y": 445
+      "y": 457
     },
     {
       "id": "m4",
@@ -58,7 +58,7 @@
       "to": "api",
       "label": "Stored",
       "kind": "reply",
-      "y": 573
+      "y": 585
     },
     {
       "id": "m5",
@@ -66,7 +66,7 @@
       "to": "web",
       "label": "Session token",
       "kind": "reply",
-      "y": 712
+      "y": 724
     },
     {
       "id": "m6",
@@ -74,7 +74,7 @@
       "to": "u",
       "label": "Home page",
       "kind": "reply",
-      "y": 772
+      "y": 784
     }
   ],
   "fragments": [
@@ -84,10 +84,10 @@
       "label": "remember me",
       "from": "m3",
       "to": "m4",
-      "x": 522,
-      "w": 336,
-      "y": 383,
-      "h": 212
+      "x": 572,
+      "w": 356,
+      "y": 391,
+      "h": 216
     }
   ],
   "notes": [
@@ -95,20 +95,20 @@
       "id": "n1",
       "text": "Starts on the sign-in page",
       "over": "web",
-      "x": 266,
+      "x": 296,
       "w": 184,
       "h": 37,
-      "y": 136
+      "y": 144
     },
     {
       "id": "n2",
       "text": "Token lives 30 days; it is renewed on every visit",
       "over": "db",
       "after": "m3",
-      "x": 666,
+      "x": 736,
       "w": 184,
       "h": 54,
-      "y": 475
+      "y": 487
     },
     {
       "id": "n3",
@@ -118,25 +118,25 @@
         "api"
       ],
       "before": "m5",
-      "x": 294,
-      "w": 328,
+      "x": 324,
+      "w": 348,
       "h": 37,
-      "y": 631
+      "y": 643
     },
     {
       "id": "n4",
       "text": "Rate limit: 5 attempts a minute",
       "over": "api",
       "before": "m3",
-      "x": 466,
+      "x": 516,
       "w": 184,
       "h": 54,
-      "y": 307
+      "y": 315
     }
   ],
   "schemaVersion": 1,
   "layout": {
-    "width": 914,
-    "height": 858
+    "width": 984,
+    "height": 870
   }
 }

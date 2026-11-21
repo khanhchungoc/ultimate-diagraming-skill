@@ -7,43 +7,43 @@
       "id": "u",
       "name": "User",
       "kind": "actor",
-      "x": 158
+      "x": 168
     },
     {
       "id": "a",
       "name": "App",
       "kind": "system",
-      "x": 358
+      "x": 388
     },
     {
       "id": "b",
       "name": "Service",
       "kind": "system",
-      "x": 558
+      "x": 608
     },
     {
       "id": "c",
       "name": "Store",
       "kind": "database",
-      "x": 758
+      "x": 828
     },
     {
       "id": "q",
       "name": "Events",
       "kind": "queue",
-      "x": 958
+      "x": 1048
     },
     {
       "id": "j",
       "name": "Job",
       "kind": "system",
-      "x": 1158
+      "x": 1268
     },
     {
       "id": "k",
       "name": "Ledger",
       "kind": "system",
-      "x": 1358
+      "x": 1488
     }
   ],
   "messages": [
@@ -53,7 +53,7 @@
       "to": "a",
       "label": "Open",
       "kind": "sync",
-      "y": 166
+      "y": 174
     },
     {
       "id": "m2",
@@ -61,7 +61,7 @@
       "to": "b",
       "label": "Call one",
       "kind": "sync",
-      "y": 226
+      "y": 234
     },
     {
       "id": "m3",
@@ -69,7 +69,7 @@
       "to": "a",
       "label": "Result one",
       "kind": "reply",
-      "y": 286
+      "y": 294
     },
     {
       "id": "m4",
@@ -77,7 +77,7 @@
       "to": "b",
       "label": "Call two",
       "kind": "sync",
-      "y": 346
+      "y": 354
     },
     {
       "id": "m5",
@@ -85,7 +85,7 @@
       "to": "a",
       "label": "Callback",
       "kind": "sync",
-      "y": 406
+      "y": 414
     },
     {
       "id": "m6",
@@ -93,7 +93,7 @@
       "to": "b",
       "label": "Callback done",
       "kind": "reply",
-      "y": 466
+      "y": 474
     },
     {
       "id": "m7",
@@ -101,7 +101,7 @@
       "to": "a",
       "label": "Result two",
       "kind": "reply",
-      "y": 526
+      "y": 534
     },
     {
       "id": "m8",
@@ -109,7 +109,7 @@
       "to": "a",
       "label": "Self check",
       "kind": "sync",
-      "y": 586
+      "y": 594
     },
     {
       "id": "m9",
@@ -117,7 +117,7 @@
       "to": "q",
       "label": "Publish",
       "kind": "async",
-      "y": 682
+      "y": 690
     },
     {
       "id": "m10",
@@ -125,7 +125,7 @@
       "to": "c",
       "label": "Write",
       "kind": "sync",
-      "y": 742
+      "y": 750
     },
     {
       "id": "m11",
@@ -133,7 +133,7 @@
       "to": "c",
       "label": "Write again",
       "kind": "sync",
-      "y": 802
+      "y": 810
     },
     {
       "id": "m12",
@@ -141,7 +141,7 @@
       "to": "u",
       "label": "Done",
       "kind": "reply",
-      "y": 862
+      "y": 870
     },
     {
       "id": "m13",
@@ -149,7 +149,7 @@
       "to": "b",
       "label": "Nightly run",
       "kind": "sync",
-      "y": 922
+      "y": 930
     },
     {
       "id": "m14",
@@ -157,7 +157,7 @@
       "to": "j",
       "label": "Run done",
       "kind": "reply",
-      "y": 982
+      "y": 990
     },
     {
       "id": "m15",
@@ -166,7 +166,7 @@
       "label": "Ping",
       "kind": "sync",
       "activate": false,
-      "y": 1042
+      "y": 1050
     },
     {
       "id": "m16",
@@ -174,7 +174,7 @@
       "to": "j",
       "label": "Pong",
       "kind": "reply",
-      "y": 1102
+      "y": 1110
     },
     {
       "id": "m17",
@@ -183,7 +183,7 @@
       "label": "Archive",
       "kind": "sync",
       "until": "m18",
-      "y": 1162
+      "y": 1170
     },
     {
       "id": "m18",
@@ -191,7 +191,7 @@
       "to": "q",
       "label": "Archived",
       "kind": "async",
-      "y": 1222
+      "y": 1230
     },
     {
       "id": "m19",
@@ -200,7 +200,7 @@
       "label": "Open session",
       "kind": "sync",
       "until": "m22",
-      "y": 1282
+      "y": 1290
     },
     {
       "id": "m20",
@@ -208,7 +208,7 @@
       "to": "j",
       "label": "Session open",
       "kind": "reply",
-      "y": 1342
+      "y": 1350
     },
     {
       "id": "m21",
@@ -216,7 +216,7 @@
       "to": "j",
       "label": "Confirm entry",
       "kind": "sync",
-      "y": 1402
+      "y": 1410
     },
     {
       "id": "m22",
@@ -224,11 +224,11 @@
       "to": "k",
       "label": "Entry confirmed",
       "kind": "reply",
-      "y": 1462
+      "y": 1470
     }
   ],
   "layout": {
-    "width": 1488,
-    "height": 1548
+    "width": 1628,
+    "height": 1556
   }
 }

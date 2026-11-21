@@ -7,19 +7,19 @@
       "id": "a",
       "name": "Client",
       "kind": "ui",
-      "x": 158
+      "x": 168
     },
     {
       "id": "b",
       "name": "Gateway",
       "kind": "system",
-      "x": 358
+      "x": 388
     },
     {
       "id": "c",
       "name": "Ledger",
       "kind": "database",
-      "x": 558
+      "x": 608
     }
   ],
   "messages": [
@@ -29,7 +29,7 @@
       "to": "b",
       "label": "Start transfer",
       "kind": "sync",
-      "y": 206
+      "y": 218
     },
     {
       "id": "m2",
@@ -37,7 +37,7 @@
       "to": "c",
       "label": "Lock account",
       "kind": "sync",
-      "y": 298,
+      "y": 314,
       "hidden": true
     },
     {
@@ -46,7 +46,7 @@
       "to": "b",
       "label": "Locked",
       "kind": "reply",
-      "y": 298,
+      "y": 314,
       "hidden": true
     },
     {
@@ -56,7 +56,7 @@
       "label": "Write entries",
       "detail": "debit, credit, reference",
       "kind": "sync",
-      "y": 298,
+      "y": 314,
       "hidden": true
     },
     {
@@ -65,7 +65,7 @@
       "to": "b",
       "label": "Written",
       "kind": "reply",
-      "y": 298,
+      "y": 314,
       "hidden": true
     },
     {
@@ -74,7 +74,7 @@
       "to": "a",
       "label": "Transfer done",
       "kind": "reply",
-      "y": 378
+      "y": 394
     },
     {
       "id": "m7",
@@ -82,7 +82,7 @@
       "to": "a",
       "label": "Show receipt",
       "kind": "sync",
-      "y": 466
+      "y": 482
     }
   ],
   "fragments": [
@@ -93,10 +93,10 @@
       "color": "green",
       "from": "m1",
       "to": "m6",
-      "x": 94,
-      "w": 528,
-      "y": 144,
-      "h": 256
+      "x": 104,
+      "w": 568,
+      "y": 152,
+      "h": 264
     },
     {
       "id": "f2",
@@ -106,10 +106,10 @@
       "from": "m2",
       "to": "m5",
       "collapsed": true,
-      "x": 308,
-      "w": 300,
-      "y": 244,
-      "h": 72
+      "x": 338,
+      "w": 320,
+      "y": 256,
+      "h": 76
     },
     {
       "id": "f3",
@@ -131,15 +131,15 @@
       "text": "Receipt stays on screen",
       "over": "a",
       "after": "m7",
-      "x": 66,
+      "x": 76,
       "w": 184,
       "h": 37,
-      "y": 532
+      "y": 548
     }
   ],
   "schemaVersion": 1,
   "layout": {
-    "width": 688,
-    "height": 639
+    "width": 748,
+    "height": 655
   }
 }

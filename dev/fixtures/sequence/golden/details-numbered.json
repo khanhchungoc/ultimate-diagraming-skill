@@ -7,25 +7,25 @@
       "id": "c",
       "name": "Support Agent",
       "kind": "actor",
-      "x": 158
+      "x": 168
     },
     {
       "id": "crm",
       "name": "CRM",
       "kind": "ui",
-      "x": 358
+      "x": 388
     },
     {
       "id": "ord",
       "name": "Order Service",
       "kind": "system",
-      "x": 666
+      "x": 716
     },
     {
       "id": "q",
       "name": "Event Queue",
       "kind": "queue",
-      "x": 874
+      "x": 936
     }
   ],
   "messages": [
@@ -36,7 +36,7 @@
       "label": "Search order",
       "detail": "order number or email",
       "kind": "sync",
-      "y": 166
+      "y": 174
     },
     {
       "id": "m2",
@@ -45,7 +45,7 @@
       "label": "Get order",
       "detail": "orderId, include=lines,payments,shipments",
       "kind": "sync",
-      "y": 238
+      "y": 246
     },
     {
       "id": "m3",
@@ -54,7 +54,7 @@
       "label": "Order",
       "detail": "status, lines, totals",
       "kind": "reply",
-      "y": 310
+      "y": 318
     },
     {
       "id": "m4",
@@ -62,7 +62,7 @@
       "to": "q",
       "label": "OrderViewed",
       "kind": "async",
-      "y": 422
+      "y": 434
     },
     {
       "id": "m5",
@@ -71,7 +71,7 @@
       "label": "Mask card data",
       "detail": "PAN to last 4 digits",
       "kind": "sync",
-      "y": 514
+      "y": 526
     },
     {
       "id": "m6",
@@ -79,7 +79,7 @@
       "to": "c",
       "label": "Order summary",
       "kind": "reply",
-      "y": 650
+      "y": 662
     }
   ],
   "fragments": [
@@ -95,14 +95,14 @@
           "label": "privacy"
         }
       ],
-      "x": 630,
-      "w": 280,
-      "y": 360,
-      "h": 224,
+      "x": 680,
+      "w": 292,
+      "y": 368,
+      "h": 228,
       "dividers": [
         {
           "at": "m5",
-          "y": 458,
+          "y": 470,
           "label": "privacy"
         }
       ]
@@ -110,7 +110,7 @@
   ],
   "schemaVersion": 1,
   "layout": {
-    "width": 1004,
-    "height": 736
+    "width": 1076,
+    "height": 748
   }
 }
