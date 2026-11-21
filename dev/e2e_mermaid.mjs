@@ -1,5 +1,5 @@
-// Copy as Mermaid, then Export > Import > Mermaid text, on all four diagram types (split artifact pages, so Save shows the saved JSON).
-//   node dev/e2e_mermaid.mjs --browser <chrome> --flowchart <dir/index.html> --usecase <dir/index.html> --sequence <dir/index.html> --erd <dir/index.html>
+// Copy as Mermaid, then Export > Import > Mermaid text, on all four diagram types, and on c4 when --c4 is given (split artifact pages, so Save shows the saved JSON).
+//   node dev/e2e_mermaid.mjs --browser <chrome> --flowchart <dir/index.html> --usecase <dir/index.html> --sequence <dir/index.html> --erd <dir/index.html> [--c4 <dir/index.html>]
 // Each page is `layout_engine.py --layout dev/examples/example-<type>.json --target artifact` (flowchart: the loan example).
 // Per type: Copy then Import of the same text re-lays out cleanly and copies back identical; an edited text
 // (one label changed, one item added) imports as one undo step (and canvas paste imports too); another type's text is refused with a message; the reader's notes are listed.
@@ -13,9 +13,10 @@ import { argOf, launch, sleep } from './cdp.mjs';
 const browser = argOf('browser');
 const pages = { flowchart: argOf('flowchart'), usecase: argOf('usecase'), sequence: argOf('sequence'), erd: argOf('erd') };
 if (!browser || Object.values(pages).some((p) => !p)) {
-  console.error('usage: --browser <chrome> --flowchart <index.html> --usecase <index.html> --sequence <index.html> --erd <index.html>');
+  console.error('usage: --browser <chrome> --flowchart <index.html> --usecase <index.html> --sequence <index.html> --erd <index.html> [--c4 <index.html>]');
   process.exit(1);
 }
+if (argOf('c4')) pages.c4 = argOf('c4');   // a c4 page is the example built with --target artifact; it is the last, so the other four run as before
 
 // Per type: [text to replace, its replacement] for the label change, the text added (anchor line, then what follows it), and what to look for
 const EDIT = {
@@ -27,6 +28,8 @@ const EDIT = {
     add: ['  p3-->>p2: Payment result\n', '  p2->>p1: Send receipt\n'], after: '', list: 'messages' },
   erd: { label: ['"has"', '"owns"'], found: 'owns',
     add: ['  customer ||..o{ review : ""\n', '  tag {\n    uuid id PK\n    text name\n  }\n  product ||..o{ tag : "is tagged"\n'], after: '', list: 'entities' },
+  c4: { label: ['"Browses and orders"', '"Browses and buys"'], found: 'Browses and buys',
+    add: ['      Container(worker, "Fulfilment Worker", "Python")\n', '      Container(audit, "Audit Log", "Go")\n'], after: '  Rel(worker, audit, "Writes", "gRPC")\n', list: 'elements' },
 };
 // The first path where two saved diagrams differ, for the failure message
 const firstDiff = (a, b, path = '') => {
@@ -36,8 +39,8 @@ const firstDiff = (a, b, path = '') => {
   }
   return `${path}: ${JSON.stringify(a)} vs ${JSON.stringify(b)}`.slice(0, 300);
 };
-const OTHER = { flowchart: 'erd', usecase: 'sequence', sequence: 'flowchart', erd: 'usecase' };
-const TYPE_NAME = { flowchart: 'flowchart', usecase: 'use case diagram', sequence: 'sequence diagram', erd: 'ER diagram' };
+const OTHER = { flowchart: 'erd', usecase: 'sequence', sequence: 'flowchart', erd: 'usecase', c4: 'erd' };
+const TYPE_NAME = { flowchart: 'flowchart', usecase: 'use case diagram', sequence: 'sequence diagram', erd: 'ER diagram', c4: 'C4 diagram' };
 
 const t = await launch(browser).catch((e) => { console.error('[ERROR]', e.message); process.exit(1); });
 let code = 0;
@@ -81,7 +84,7 @@ try {
     t.check(`${kind}: the header offers Import`, await t.ev(`!document.getElementById('btn-import-mermaid').hidden`));
     const base = await save();
     const text = await copyText();
-    t.check(`${kind}: Copy as Mermaid wrote the diagram's own type`, new RegExp(kind === 'erd' ? 'erDiagram' : kind === 'sequence' ? 'sequenceDiagram' : 'flowchart').test(text), text.slice(0, 40));
+    t.check(`${kind}: Copy as Mermaid wrote the diagram's own type`, new RegExp(kind === 'erd' ? 'erDiagram' : kind === 'sequence' ? 'sequenceDiagram' : kind === 'c4' ? 'C4Container' : 'flowchart').test(text), text.slice(0, 40));
 
     // 1. The same text back: lays out fresh and copies back identical
     const err1 = await importText(text);
@@ -90,6 +93,17 @@ try {
     t.check(`${kind}: importing the copied text lays out cleanly`, !err1 && Object.keys(after1.layout || {}).length === Object.keys(base.layout || {}).length, err1);
     t.check(`${kind}: and copying again gives the same Mermaid text`, again === text, firstDiff(text.split('\n'), again.split('\n')));
     t.check(`${kind}: no page errors`, t.errors.length === 0, t.errors.join(' | '));
+    if (kind === 'c4') {
+      // Mermaid has no `async` and no notes; everything else (icon, colour, centre, side, tech) comes back through the %% lines
+      const canon = (v) => JSON.stringify(v, (k, x) => (x && typeof x === 'object' && !Array.isArray(x) ? Object.fromEntries(Object.entries(x).sort(([a], [b]) => (a < b ? -1 : 1))) : x));
+      const rel = (d) => d.relations.map(({ async: _a, ...r }) => r);
+      const grp = (d) => d.groups.map(({ collapsed, ...g }) => (collapsed ? { ...g, collapsed } : g));   // collapsed: false is the default
+      const sorted = (d) => [...d.elements].sort((a, b) => (a.id < b.id ? -1 : 1));
+      t.check('c4: elements (with icon, colour, centre, side) come back as they were', canon(sorted(after1)) === canon(sorted(base)), firstDiff(sorted(base), sorted(after1)));
+      t.check('c4: groups, relations (without async) and the arrange hint come back as they were',
+        canon(grp(after1)) === canon(grp(base)) && canon(rel(after1)) === canon(rel(base)) && after1.arrange === base.arrange && canon(after1.colorKey) === canon(base.colorKey),
+        firstDiff({ g: grp(base), r: rel(base) }, { g: grp(after1), r: rel(after1) }));
+    }
 
     // 2. An edited text: one label changed, one item added
     let edited = text.replace(E.label[0], E.label[1]);

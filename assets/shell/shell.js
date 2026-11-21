@@ -9,6 +9,7 @@
       //   optional: onViewChange() after every pan/zoom (body.exporting is set while an export reads styles)
       //   optional: contentOverflow() -> {left, top, right, bottom}: unscaled px that content reaches past
       //             contentEl's edges, so Fit and screenshots frame it too
+      //   optional: fitPad(viewportWidth) -> px of margin Fit leaves around the content (default 80), e.g. less on a phone
       //   optional: toDisk(data) -> a new object to write into the page's data block (the disk format: semantic
       //             fields in a fixed order, positions moved out or dropped); must not mutate data
       //   optional: fromDisk(data) -> the in-memory model read from the data block (inverse of toDisk)
@@ -1612,7 +1613,7 @@
         const vpRect = viewport.getBoundingClientRect();
         const frame = contentFrame();
         const capture = document.body.classList.contains('capture');
-        const pad = capture ? 0 : 80;
+        const pad = capture ? 0 : (plugin.fitPad && plugin.fitPad(vpRect.width)) || 80;
         // The floating dock covers the bottom of the viewport: fit the diagram into the band above it
         // (this matters for tall diagrams, e.g. a top-to-bottom flowchart, whose fit is limited by height)
         const dock = document.querySelector('.dock-area');
@@ -2349,13 +2350,14 @@
       // The header's Import button (#btn-import-mermaid) and canvas paste (Ctrl+V outside text fields): the text is read
       // by the type's fromMermaid (mermaid.js) and replaces the diagram as one undo step, laid out fresh. What the reader
       // could not map exactly is listed afterwards, and text of another diagram type is refused.
-      const MERMAID_TYPE_NAME = { flowchart: 'flowchart', usecase: 'use case diagram', sequence: 'sequence diagram', erd: 'ER diagram' };
+      const MERMAID_TYPE_NAME = { flowchart: 'flowchart', usecase: 'use case diagram', sequence: 'sequence diagram', erd: 'ER diagram', c4: 'C4 diagram' };
       function mermaidTypeOf(text) {
         const body = String(text).replace(/^\s*---[\s\S]*?\n---[ \t]*(?:\n|$)/, '');
         const head = (body.split(/\r?\n/).map((l) => l.trim()).find((l) => l && !l.startsWith('%%')) || '').toLowerCase();
         if (/^(flowchart|graph)\b/.test(head)) return /^\s*%%\s*@type\s+usecase\b/m.test(body) ? 'usecase' : 'flowchart';
         if (head.startsWith('sequencediagram')) return 'sequence';
         if (head.startsWith('erdiagram')) return 'erd';
+        if (/^c4(context|container|component|dynamic|deployment)\b/.test(head)) return 'c4';
         return '';
       }
 

@@ -208,7 +208,7 @@ def run_layout(kind: str, data: Dict[str, Any], timeout: int = 30, browser: Opti
 # --- Mermaid reader and writer ------------------------------------------------------------------------------------------
 # The same JavaScript the page uses (assets/shell/mermaid-flow.js + assets/types/<kind>/mermaid.js). With Node.js it runs
 # through scripts/mermaid_io.mjs (one process per call); without it, in headless Chrome like the layout engines.
-MERMAID_KINDS = ("flowchart", "usecase", "sequence", "erd")
+MERMAID_KINDS = ("flowchart", "usecase", "sequence", "erd", "c4")
 
 # Runs in Chrome after the sources; the same three operations as mermaid_io.mjs (`from`, `to`, `ids`).
 _MERMAID_RUN_JS = """
@@ -216,7 +216,7 @@ const req = %s;
 if (req.op === 'from') return JSON.stringify(fromMermaid(req.payload));
 if (req.op === 'to') return JSON.stringify(toMermaid(req.payload, { palette: req.palette }));
 const used = new Set(), map = {};
-['lanes', 'nodes', 'subjects', 'actors', 'useCases', 'entities', 'participants'].forEach((k) => (req.payload[k] || []).forEach((it) => {
+['lanes', 'nodes', 'subjects', 'actors', 'useCases', 'entities', 'participants', 'groups', 'elements'].forEach((k) => (req.payload[k] || []).forEach((it) => {
   if (it && typeof it.id === 'string' && !(it.id in map)) map[it.id] = mmdSafeId(it.id, used);
 }));
 return JSON.stringify(map);

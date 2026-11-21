@@ -1287,8 +1287,10 @@ def mermaid_kind(text: str) -> str:
         return "sequence"
     if header == "erDiagram":
         return "erd"
+    if header in ("C4Context", "C4Container", "C4Component", "C4Dynamic", "C4Deployment"):
+        return "c4"
     sys.exit(f"[ERROR] Not a Mermaid diagram this tool reads: the first line is {header!r}. "
-             "Supported: flowchart / graph (use case: add `%% @type usecase`), sequenceDiagram, erDiagram.")
+             "Supported: flowchart / graph (use case: add `%% @type usecase`), sequenceDiagram, erDiagram, C4Context / C4Container / C4Component.")
 
 
 def theme_palette(tokens: Dict[str, Any]) -> List[str]:
@@ -1300,7 +1302,7 @@ def item_ids(kind: str, data: Dict[str, Any]) -> Set[Tuple[str, Any]]:
     """The ids --keep-from compares: lanes and steps, subjects / actors / use cases, tables, participants. A sequence's
     messages have positional ids in Mermaid, so only their count counts."""
     keys = {"flowchart": ("lanes", "nodes"), "usecase": ("subjects", "actors", "useCases"), "erd": ("entities",),
-            "sequence": ("participants",)}[kind]
+            "sequence": ("participants",), "c4": ("groups", "elements")}[kind]
     ids = {(k, it["id"]) for k in keys for it in data.get(k) or []}
     ids |= {("nodes", n["id"]) for c in (data.get("children") or {}).values() for n in c.get("nodes") or []}
     if kind == "sequence":

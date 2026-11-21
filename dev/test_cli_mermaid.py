@@ -47,7 +47,7 @@ def layout_of(page: Path) -> dict:
     return le.read_data_block(page.read_text(encoding="utf-8")).get("layout", {})
 
 
-KINDS = ("flowchart", "usecase", "sequence", "erd")
+KINDS = ("flowchart", "usecase", "sequence", "erd", "c4")
 
 # 1 and 2. each example: JSON -> Mermaid (--extract) -> page (--layout) -> same ids again (--keep-from) ---------------------------
 for kind in KINDS:
@@ -55,7 +55,7 @@ for kind in KINDS:
     mmd, page, page2 = tmp / f"{kind}.mmd", tmp / f"{kind}.html", tmp / f"{kind}-2.html"
     r = cli("--extract", example, "-o", mmd)
     text = mmd.read_text(encoding="utf-8") if mmd.is_file() else ""
-    header = {"flowchart": "flowchart", "usecase": "flowchart", "sequence": "sequenceDiagram", "erd": "erDiagram"}[kind]
+    header = {"flowchart": "flowchart", "usecase": "flowchart", "sequence": "sequenceDiagram", "erd": "erDiagram", "c4": "C4Container"}[kind]
     check(f"{kind}: --extract -o writes Mermaid", r.returncode == 0 and header in text and not text.lstrip().startswith("{"), r.stdout + r.stderr)
     r = cli("--layout", mmd, "-o", page)
     check(f"{kind}: --layout x.mmd ends in [DONE] or [NEXT], no [ERROR]",
@@ -68,6 +68,21 @@ for kind in KINDS:
     check(f"{kind}: --extract of a page prints Mermaid on stdout", page_mmd.lstrip().startswith(("---", header)))
     as_json = json.loads(cli("--extract", page, "--json").stdout)
     check(f"{kind}: --extract --json prints the old JSON", as_json.get("diagramType") == kind and "layout" not in as_json)
+
+# c4: the type comes from the C4 header, a Dynamic or Deployment view is refused, hints come back, a level-1 text reads as a Context
+c4_ctx = tmp / "ctx.mmd"
+c4_ctx.write_text('C4Context\n  title Shop\n  Person(c, "Customer")\n  System(s, "Shop", "Sells things")\n  Rel(c, s, "Buys", "HTTPS")\n  %% @icon c user\n', encoding="utf-8")
+r = cli("--layout", c4_ctx, "-o", tmp / "ctx.html")
+check("c4: C4Context text is read as a c4 page", r.returncode == 0 and "[DONE]" in r.stdout and le.read_data_block((tmp / "ctx.html").read_text(encoding="utf-8")).get("diagramType") == "c4", r.stdout[-300:] + r.stderr[-300:])
+ctx_back = cli("--extract", tmp / "ctx.html").stdout
+check("c4: --extract writes C4Context with the icon hint and the relation", ctx_back.startswith("C4Context") and "%% @icon c user" in ctx_back and 'Rel(c, s, "Buys", "HTTPS")' in ctx_back, ctx_back)
+for view in ("C4Dynamic", "C4Deployment"):
+    (tmp / "view.mmd").write_text(view + '\n  Person(a, "A")\n', encoding="utf-8")
+    r = cli("--layout", tmp / "view.mmd", "-o", tmp / "view.html")
+    check(f"c4: {view} is refused with a message", r.returncode != 0 and f"{view} is not supported" in r.stdout + r.stderr and not (tmp / "view.html").exists(), r.stdout + r.stderr)
+(tmp / "bad.mmd").write_text('C4Context\n  Person(a, "A")\n  Frobnicate(x)\n  Rel(a, nope, "x")\n', encoding="utf-8")
+r = cli("--layout", tmp / "bad.mmd", "-o", tmp / "bad.html")
+check("c4: an unknown statement and a dangling relation are [WARN] lines and end in [NEXT]", r.stdout.count("[WARN]") >= 2 and "Frobnicate" in r.stdout and "[NEXT]" in r.stdout, r.stdout[-400:])
 
 # JSON input still works as before
 r = cli("--layout", ROOT / "dev/examples/example-flowchart.json", "-o", tmp / "old.html")
