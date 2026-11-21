@@ -9,3 +9,12 @@ node_modules/
 /*-mermaid.md
 /*.html
 /*.drawio
+
+# Local agent harness / IDE / index folders
+.codegraph/
+.claude/
+.codex/
+.gemini/
+.kiro/
+.vscode/
+.mcp.json
