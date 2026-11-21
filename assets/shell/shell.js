@@ -104,6 +104,15 @@
           const stroke = opts.bold ? t.strokeBold : opts.fine ? t.strokeFine : t.stroke;
           return `<svg${opts.class ? ` class="${opts.class}"` : ''} width="${px}" height="${px}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${stroke}" stroke-linecap="${t.cap}" stroke-linejoin="${t.join}" aria-hidden="true">${inner}</svg>`; // tokens-ok: this is the icon renderer
         }
+        // A logo of a local icon pack (LOGOS, embedded by the build from icons/<pack>.json; name is "<pack>/<icon>"): the filled,
+        // multi-colour <svg> text. Colours and aspect ratio stay as the vendor drew them (the viewBox fits it in a square of
+        // the same sizes as icon(); no recolouring, no stretch). o: { size, class }. scripts/tokens.py logo_svg() builds the same text.
+        function logo(name, o) {
+          const e = typeof LOGOS === 'undefined' ? undefined : LOGOS[name], opts = o || {};
+          if (e === undefined) throw new Error(`unknown logo "${name}"`);
+          const px = typeof opts.size === 'number' ? opts.size : TOKENS.icon.size[opts.size || 'md'];
+          return `<svg${opts.class ? ` class="${opts.class}"` : ''} width="${px}" height="${px}" viewBox="${e.vb}" aria-hidden="true">${e.body}</svg>`;
+        }
         function iconEl(name, o) {
           const tpl = document.createElement('template');
           tpl.innerHTML = icon(name, o);
@@ -332,7 +341,7 @@
           });
           return box;
         }
-        return { confirm, closeConfirm, isConfirmOpen: () => !!confirmEl, noteCard, actionBar, abButton, abSep, abBreak, roomAbove, barSize, fitBar, colorKey, icon, iconEl, toast: (m) => showToast(m) };
+        return { confirm, closeConfirm, isConfirmOpen: () => !!confirmEl, noteCard, actionBar, abButton, abSep, abBreak, roomAbove, barSize, fitBar, colorKey, icon, iconEl, logo, hasLogo: (n) => typeof LOGOS !== 'undefined' && LOGOS[n] !== undefined, toast: (m) => showToast(m) };
       })();
 
       // --- ENGINE SOURCE (for plugins that run a background Web Worker, e.g. ERD) ---

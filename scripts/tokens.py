@@ -214,6 +214,15 @@ def icon_svg(tokens: Dict[str, Any], icons: Dict[str, str], name: str, size: str
             f'stroke-linecap="{ic["cap"]}" stroke-linejoin="{ic["join"]}" aria-hidden="true">{icons[name]}</svg>')
 
 
+def logo_svg(tokens: Dict[str, Any], logos: Dict[str, Dict[str, str]], name: str, size: str = "tile") -> str:
+    """The <svg> for logo `name` ("<pack>/<icon>", an entry of a local icon pack): filled, in its own colours, at its own aspect
+    ratio (the viewBox) inside a size x size box. ui.logo() in shell.js builds the same text at run time."""
+    px = tokens["icon"]["size"][size] if size in tokens["icon"]["size"] else int(size)
+    if name not in logos:
+        raise KeyError(f"unknown logo {name!r}")
+    return f'<svg width="{px}" height="{px}" viewBox="{logos[name]["vb"]}" aria-hidden="true">{logos[name]["body"]}</svg>'
+
+
 _ICON_PLACEHOLDER = re.compile(r"\{\{icon:([\w-]+)(?::(\w+))?(?::(fine|bold))?\}\}")
 
 
@@ -345,10 +354,14 @@ def tokens_data(tokens: Dict[str, Any]) -> Dict[str, Any]:
             "c4": tokens["c4"]}
 
 
-def tokens_js(tokens: Dict[str, Any]) -> str:
-    # ICONS: the registry (name -> inner SVG) for ui.icon() and every type
-    return (f"const TOKENS = {json.dumps(tokens_data(tokens), separators=(',', ':'))};\n"
+def tokens_js(tokens: Dict[str, Any], logos: Optional[Dict[str, Dict[str, str]]] = None) -> str:
+    # ICONS: the registry (name -> inner SVG) for ui.icon() and every type. LOGOS: only the local-pack entries the diagram
+    # uses ("<pack>/<icon>" -> {vb, body}) for ui.logo(); no logo, no LOGOS line, so such a page is unchanged.
+    text = (f"const TOKENS = {json.dumps(tokens_data(tokens), separators=(',', ':'))};\n"
             f"const ICONS = {json.dumps(load_icons(tokens), separators=(',', ':'))};")
+    if logos:
+        text += f"\nconst LOGOS = {json.dumps(logos, separators=(',', ':'), sort_keys=True).replace('<', chr(92) + 'u003c')};"
+    return text
 
 
 if __name__ == "__main__":

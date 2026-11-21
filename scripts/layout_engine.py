@@ -33,6 +33,7 @@ from audit_usecase import UsecaseAudit
 from disk_format import (DISK_CODECS, authoring_json, color_kind, format_json, free_notes, from_disk,  # noqa: F401 (DISK_CODECS: registry)
                          palette_slots, readme_text, stamp_reading_guide, to_disk, with_readme)
 import subprocess_flow as sub
+from build_icon_pack import installed_packs, load_logos, logo_refs
 from engine_runner import EngineUnavailable, layout_session, run_layout, run_mermaid
 from tokens import expand_icons, load_icons, load_tokens, merge_theme, tokens_css, tokens_js
 
@@ -1374,10 +1375,23 @@ def resolve_theme(theme_arg: Optional[str], page_html: Optional[str] = None) -> 
 AUDITS = {"flowchart": FlowchartAudit, "sequence": SequenceAudit, "erd": ErdAudit, "usecase": UsecaseAudit, "c4": C4Audit}
 
 
+# Where local icon packs (icons/<pack>.json) are looked for: set by main() (--icons, else next to the input, else ./icons)
+ICON_DIRS: List[Path] = [Path("icons")]
+
+
 def make_audit(data: Dict[str, Any], tokens: Optional[Dict[str, Any]] = None):
-    """The audit for `data`'s type; the sequence audit estimates text width from the theme's font.metrics."""
+    """The audit for `data`'s type; the sequence audit estimates text width from the theme's font.metrics, the c4 audit
+    learns which icon packs are installed."""
     cls = AUDITS[data["diagramType"]]
+    if cls is C4Audit:
+        return cls(data, icon_packs=installed_packs(ICON_DIRS))
     return cls(data, tokens["font"]["metrics"] if tokens else None) if cls is SequenceAudit else cls(data)
+
+
+def logo_warnings(data: Dict[str, Any]) -> List[str]:
+    """One [WARN] per `logo:<pack>/<icon>` whose pack is installed but has no such entry (a missing pack is the audit's)."""
+    _, absent = load_logos(logo_refs(data), ICON_DIRS)
+    return [f"Icon pack '{r.split('/', 1)[0]}' has no entry '{r.split('/', 1)[1]}': elements using logo:{r} show the icon of their kind." for r in absent]
 # DISK_CODECS (disk_format.py): per type, (to_disk, from_disk) between the in-memory model and the page block
 
 ASSETS_DIR = Path(__file__).resolve().parent.parent / "assets"
@@ -1553,7 +1567,7 @@ def _build_parts(kind: str, data: Optional[Dict[str, Any]] = None,
         "DATA": payload,
         "THEME": theme_script(theme),
         "SHELL_JS": _read_asset(ASSETS_DIR / "shell" / "shell.js").rstrip(chr(10)),
-        "TOKENS_JS": tokens_js(tokens),
+        "TOKENS_JS": tokens_js(tokens, load_logos(logo_refs(data), ICON_DIRS)[0]),
         "ENGINE_JS": "\n".join(_read_asset(f).rstrip(chr(10)) for f in (ASSETS_DIR / "shell" / "ortho-router.js", type_dir / "route.js", type_dir / "engine.js") if f.is_file()),
         # The Mermaid reader and writer: the shared tokenizer, then the type's own (plain scripts, globals only)
         "MERMAID_JS": "\n".join(_read_asset(f).rstrip(chr(10)) for f in (ASSETS_DIR / "shell" / "mermaid-flow.js", type_dir / "mermaid.js") if f.is_file()),   # a type with no Mermaid reader yet has no mermaid.js
@@ -2006,6 +2020,8 @@ def main():
     parser.add_argument("--target", choices=TARGETS, default="file",
                         help="With --layout: file (default) writes the standalone HTML file; artifact writes the page "
                              "in the shape a claude.ai Artifact needs (publish it with the Artifact tool)")
+    parser.add_argument("--icons", metavar="DIR", help="Folder of local icon packs (<pack>.json, see references/icon-packs.md); "
+                        "default: icons/ next to the input file, then ./icons")
     parser.add_argument("--theme", help="Theme file (tokens in the shape of assets/tokens/default.json; omitted keys keep "
                                         "the default): page styles, fonts and text widths for --layout and --verify. Without it: "
                                         "the theme stored in the page, then .ultimate-diagram/theme.json, then the default")
@@ -2018,6 +2034,8 @@ def main():
 
     args = parser.parse_args()
     tokens = theme = None
+    given = next((Path(v) for v in (args.layout, args.verify, args.extract) if v), None)
+    ICON_DIRS[:] = [Path(args.icons)] if args.icons else [(given.parent if given else Path(".")) / "icons", Path("icons")]
 
     if args.extract_theme:
         stored = read_stored_theme(Path(args.extract_theme).read_text(encoding="utf-8"))
@@ -2240,7 +2258,7 @@ def main():
         # DATA problems (the agent fixes the JSON) are [WARN]/[ERROR] and the only reason for [NEXT]; LAYOUT problems
         # (the engine's job) are [INFO] Layout lines that never fail the run. --verify keeps the strict gates.
         data_bad = mermaid_bad
-        for warning in report["budget_warnings"]:
+        for warning in list(report["budget_warnings"]) + logo_warnings(laid_out_data):
             data_bad = True
             print(f"[WARN] {warning}")
         if external_refs:
