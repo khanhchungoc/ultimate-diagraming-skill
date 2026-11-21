@@ -79,7 +79,7 @@ Search by requirement id (such as `FR-4`) to find the use case that covers it.
 
 ## Offline samples
 
-The same demos as HTML files you can open in your browser without a connection: [flowchart](dev/samples/example-flowchart.html), [sequence](dev/samples/example-sequence.html), [ERD](dev/samples/example-erd.html), [use case](dev/samples/example-usecase.html).
+The same demos as HTML files you can open in your browser without a connection: [flowchart](dev/samples/example-flowchart.html), [sequence](dev/samples/example-sequence.html), [ERD](dev/samples/example-erd.html), [use case](dev/samples/example-usecase.html), [C4](dev/samples/example-c4.html).
 
 ## Get started
 
