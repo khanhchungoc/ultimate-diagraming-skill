@@ -13,7 +13,7 @@
 //   data._arrange                            the layout used after the default is applied
 //   data._edges[{id,from,to,label,tech,async,count,members,points,path,labelBox,text}]   the arrows drawn
 //   data.canvas {width,height}
-// layoutDiagram(data): full layout. routeDiagram(data): keeps every visible x/y, recomputes frames, arrows, canvas.
+// layoutDiagram(data): full layout, ignores saved positions. routeDiagram(data, {pinned}): manual mode, keeps every saved x/y (see below).
 // Groups are a tree of any depth: every step works on "a container and its visible members", never on a group kind.
 // Deterministic: ties break by input order; no randomness.
 
@@ -553,8 +553,35 @@ function c4Shift(n, dx, dy) {
   n.kids.forEach((k) => c4Shift(k, dx, dy));
 }
 
-// Siblings never overlap: when one grows into the next (a group expanded), everything past it moves as one block.
-function c4Separate(its) {
+// Spatial buckets: boxes by id in 256 px cells, so a query touches only what is near it (no all-pairs work).
+function c4Cells() {
+  const S = 256, cells = new Map(), box = new Map();
+  const span = (r, g) => [Math.floor((r.x - g) / S), Math.floor((r.y - g) / S), Math.floor((r.x + r.w + g) / S), Math.floor((r.y + r.h + g) / S)];
+  const each = (r, g, fn) => { const [i0, j0, i1, j1] = span(r, g); for (let i = i0; i <= i1; i++) for (let j = j0; j <= j1; j++) fn(i * 200003 + j); };
+  return {
+    add(id, r) { box.set(id, r); each(r, 0, (k) => { const a = cells.get(k); if (a) a.push(id); else cells.set(k, [id]); }); },
+    box(id) { return box.get(id); },
+    del(id) { const r = box.get(id); if (r) { box.delete(id); each(r, 0, (k) => { const a = cells.get(k); a.splice(a.indexOf(id), 1); }); } },
+    // ids of the boxes within `g` px of rect r (overlapping once both are grown by g)
+    near(r, g) {
+      const seen = new Set(), out = [];
+      each(r, g, (k) => (cells.get(k) || []).forEach((id) => {
+        if (seen.has(id)) return;
+        seen.add(id);
+        const b = box.get(id);
+        if (b.x < r.x + r.w + g && r.x < b.x + b.w + g && b.y < r.y + r.h + g && r.y < b.y + b.h + g) out.push(id);
+      }));
+      return out;
+    }
+  };
+}
+
+// Siblings never overlap. Without pins (a group expanded, a layout): when one grows into the next, everything past it moves as one block.
+// With pins (items just moved or placed, `pin` on the node, set up to every ancestor): a pinned item stays; an unpinned one that touches
+// anything is shifted, as a block, the shortest way (right, down, left or up, ties in that order) to the nearest free spot, one item
+// after the other in input order, so each moves once and the run ends. Two pinned items that overlap stay as they are.
+function c4Separate(its, pins) {
+  if (pins) return c4Settle(its);
   const n = its.length;
   for (let pass = 0; pass <= n; pass++) {
     const byX = its.slice().sort((p, q) => p.ref.x - q.ref.x || p.ref.y - q.ref.y || p.ci - q.ci);
@@ -580,6 +607,31 @@ function c4Separate(its) {
   }
 }
 
+function c4Settle(its) {
+  const grid = c4Cells(), G = C4.sep, rect = (n) => ({ x: n.ref.x, y: n.ref.y, w: n.ref.w, h: n.ref.h });
+  its.forEach((n, i) => grid.add(i, rect(n)));
+  const todo = [];
+  its.forEach((n, i) => { if (!n.pin && grid.near(grid.box(i), G).length > 1) todo.push(i); });
+  todo.forEach((i) => grid.del(i));
+  todo.forEach((i) => {
+    const n = its[i], r0 = rect(n);
+    let best = null;
+    [[1, 0], [0, 1], [-1, 0], [0, -1]].forEach(([sx, sy]) => {
+      const r = Object.assign({}, r0);
+      for (let k = 0; k <= its.length; k++) {
+        const hits = grid.near(r, G).map((j) => grid.box(j));
+        if (!hits.length) break;
+        if (sx) r.x = sx > 0 ? Math.max.apply(null, hits.map((b) => b.x + b.w)) + G : Math.min.apply(null, hits.map((b) => b.x)) - G - r.w;
+        else r.y = sy > 0 ? Math.max.apply(null, hits.map((b) => b.y + b.h)) + G : Math.min.apply(null, hits.map((b) => b.y)) - G - r.h;
+      }
+      const cost = Math.abs(r.x - r0.x) + Math.abs(r.y - r0.y);
+      if (!best || cost < best.cost) best = { cost, dx: r.x - r0.x, dy: r.y - r0.y };
+    });
+    if (best.dx || best.dy) c4Shift(n, best.dx, best.dy);
+    grid.add(i, rect(n));
+  });
+}
+
 // Frames of the expanded groups from their members, deepest first; siblings are separated on the way. In layers every band spans the
 // same width.
 function c4Frames(m) {
@@ -587,7 +639,7 @@ function c4Frames(m) {
   conts.sort((p, q) => q.depth - p.depth);
   conts.forEach((c) => {
     const its = c.kids;
-    c4Separate(its);
+    c4Separate(its, m.pins);
     if (c === m.root) return;
     const g = c.ref;
     if (!its.length) {
@@ -607,7 +659,7 @@ function c4Frames(m) {
     g.x = x0 - C4.pad; g.y = y0 - C4.tagH;
     g.w = Math.max(x1 - x0 + 2 * C4.pad, c4TagW(g)); g.h = y1 - y0 + C4.tagH + C4.padB;
   });
-  if (m.arrange === 'layers') {
+  if (m.arrange === 'layers' && !m.pins) {
     const bands = m.items.filter((i) => i.kind === 'g' && !i.self).map((i) => i.ref);
     if (bands.length) {
       const x0 = Math.min.apply(null, bands.map((g) => g.x)), x1 = Math.max.apply(null, bands.map((g) => g.x + g.w));
@@ -726,36 +778,149 @@ function layoutDiagram(data) {
   c4StampRings(m);
   c4Frames(m);
   data._arrange = m.arrange;
+  delete data._manual;
   delete data._dir;
   c4Route(m);
   return data;
 }
 
-function routeDiagram(data) {
-  const m = c4Model(data), hasPos = (n) => c4Num(n.ref.x) && c4Num(n.ref.y);
-  const anyPos = (n) => hasPos(n) || n.kids.some(anyPos);
-  if (m.items.some((i) => !(i.kind === 'g' && !i.self ? anyPos(i) : hasPos(i)))) return layoutDiagram(data);
+// ---------- manual mode: items without a saved position ----------
+
+const c4Has = (n) => c4Num(n.ref.x) && c4Num(n.ref.y);
+const c4Placed = (n) => c4Has(n) || n.kids.some(c4Placed);
+const c4In = (m, x, u) => { for (let n = x; n; n = m.gN.get(n.par)) if (n === u) return true; return false; };
+
+// The box a visible node takes now: a tile, or the frame its positioned members give an expanded group; null when nothing is positioned.
+function c4Rect(n) {
+  if (!n.vis) return null;
+  const r = n.ref;
+  if (n.kind === 'e' || n.self) return c4Has(n) ? { x: r.x, y: r.y, w: n.kind === 'e' ? n.w : n.tw, h: n.kind === 'e' ? n.h : n.th } : null;
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  n.kids.forEach((k) => {
+    const q = c4Rect(k);
+    if (q) { x0 = Math.min(x0, q.x); y0 = Math.min(y0, q.y); x1 = Math.max(x1, q.x + q.w); y1 = Math.max(y1, q.y + q.h); }
+  });
+  if (x0 === Infinity) return c4Has(n) ? { x: r.x, y: r.y, w: C4.emptyW, h: C4.emptyH } : null;
+  return { x: x0 - C4.pad, y: y0 - C4.tagH, w: Math.max(x1 - x0 + 2 * C4.pad, c4TagW(r)), h: y1 - y0 + C4.tagH + C4.padB };
+}
+
+// The next slot in a group's line of members (its row, or column beside the centre; a flow goes below): after the last member.
+function c4Slot(m, g, u, w, h) {
+  const its = g.kids.filter((k) => k !== u).map((k) => ({ k, r: c4Rect(k) })).filter((q) => q.r);
+  const U = its.reduce((a, q) => ({ x: Math.min(a.x, q.r.x), y: Math.min(a.y, q.r.y), x1: Math.max(a.x1, q.r.x + q.r.w), y1: Math.max(a.y1, q.r.y + q.r.h) }), { x: Infinity, y: Infinity, x1: -Infinity, y1: -Infinity });
+  const f = its[0].r, rowLike = its.every((q) => q.r.y < f.y + f.h && f.y < q.r.y + q.r.h), colLike = its.every((q) => q.r.x < f.x + f.w && f.x < q.r.x + q.r.w);
+  const vert = its.length > 1 ? !rowLike && colLike : g.top.side === 'E' || g.top.side === 'W';
+  if (!rowLike && !colLike) return [U.x, U.y1 + C4.innerGap];
+  const last = its.reduce((a, q) => ((vert ? q.r.y + q.r.h > a.r.y + a.r.h : q.r.x + q.r.w > a.r.x + a.r.w) ? q : a)), end = last.r;
+  const linked = m.rel2.some((r) => (c4In(m, r.a, u) && c4In(m, r.b, last.k)) || (c4In(m, r.b, u) && c4In(m, r.a, last.k)));
+  const gap = linked ? (vert ? C4.innerLinkY : C4.innerLinkX) : C4.innerGap;
+  return vert ? [Math.round((U.x + U.x1 - w) / 2), end.y + end.h + gap] : [end.x + end.w + gap, Math.round((U.y + U.y1 - h) / 2)];
+}
+
+// Nearest free spot (w x h, clear of every top-level box by `sep`) beside the item `u` links to, else beside the item nearest the
+// centre of the picture; rings of growing distance, the side order S, E, W, N (N, E, W, S when u is the source of the link).
+function c4Spot(m, ob, u, w, h) {
+  let A = null, below = true;
+  for (const r of m.rel2) {
+    const other = c4In(m, r.a, u) ? r.b : c4In(m, r.b, u) ? r.a : null, q = other && other.top !== u.top && ob.rects.get(other.top);
+    if (q) { A = q; below = other === r.a; break; }
+  }
+  const all = Array.from(ob.rects.values());
+  if (!all.length) return [C4.margin, C4.margin];
+  if (!A) {
+    const cx = all.reduce((a, q) => a + q.x + q.w / 2, 0) / all.length, cy = all.reduce((a, q) => a + q.y + q.h / 2, 0) / all.length;
+    A = all.reduce((a, q) => (Math.hypot(q.x + q.w / 2 - cx, q.y + q.h / 2 - cy) < Math.hypot(a.x + a.w / 2 - cx, a.y + a.h / 2 - cy) ? q : a));
+  }
+  const step = 40, cx = A.x + A.w / 2, cy = A.y + A.h / 2, K = Math.ceil((Math.max(A.w, A.h) + Math.max(w, h)) / step / 2) + 1;
+  for (let ring = 0; ring < 300; ring++) {
+    for (const s of below ? 'SEWN' : 'NEWS') {
+      const v = c4Vert(s), gap = (v ? C4.ringV : C4.ringH) + ring * step;
+      let best = null;
+      for (let k = 0; k <= K; k++) {
+        for (const sg of k ? [1, -1] : [1]) {
+          const o = sg * k * step;
+          const x = v ? cx - w / 2 + o : s === 'E' ? A.x + A.w + gap : A.x - gap - w, y = v ? (s === 'S' ? A.y + A.h + gap : A.y - gap - h) : cy - h / 2 + o;
+          const d = Math.hypot(x + w / 2 - cx, y + h / 2 - cy);
+          if ((!best || d < best.d) && !ob.grid.near({ x, y, w, h }, C4.sep).length) best = { x, y, d };
+        }
+      }
+      if (best) return [Math.round(best.x), Math.round(best.y)];
+    }
+  }
+  return [Math.round(Math.max.apply(null, all.map((q) => q.x + q.w)) + C4.ringH), Math.round(A.y)];
+}
+
+// Gives every visible item without a saved position one, never by the full layout. A group with nothing positioned inside is one block
+// (its own layout: c4Size) put at its saved position, else at a slot or a free spot; an element or tile joins its group's line of
+// members, or takes a free spot when loose. A collapsed tile with no position sits where its hidden members are. Returns the ids placed.
+function c4Fill(m) {
+  const fixed = [], free = [], done = [];
+  const walk = (c) => c.kids.forEach((k) => {
+    if (!k.vis) return;
+    if (k.kind === 'g' && !k.self && k.kids.some(c4Placed)) { walk(k); return; }
+    if (k.kind === 'g' && !k.self && k.kids.length && c4Has(k)) fixed.push(k);
+    else if (!c4Has(k)) (k.kind === 'g' && k.self && k.kids.some(c4Placed) ? fixed : free).push(k);
+  });
+  walk(m.root);
+  const put = (u, x, y) => {
+    if (u.kind === 'g' && u.kids.length) c4Size(m, u, false);
+    u.ax = x; u.ay = y; c4Assign(u);
+    done.push(u.id);
+  };
+  fixed.forEach((u) => {
+    if (c4Has(u)) { put(u, u.ref.x, u.ref.y); return; }
+    let x = Infinity, y = Infinity;
+    const lo = (n) => { if (n.kind === 'e' && c4Has(n)) { x = Math.min(x, n.ref.x); y = Math.min(y, n.ref.y); } n.kids.forEach(lo); };
+    lo(u);
+    u.ref.x = x - C4.pad; u.ref.y = y - C4.tagH;
+    done.push(u.id);
+  });
+  if (!free.length) return done;
+  const ob = { grid: c4Cells(), rects: new Map() };
+  const set = (it) => { if (ob.rects.has(it)) { ob.grid.del(it); ob.rects.delete(it); } const r = c4Rect(it); if (r) { ob.rects.set(it, r); ob.grid.add(it, r); } };
+  m.items.forEach(set);
+  free.forEach((u) => {
+    if (u.kind === 'g' && u.kids.length) c4Size(m, u, false);
+    const [w, h] = u.kind === 'e' ? [u.w, u.h] : u.self ? [u.tw, u.th] : u.kids.length ? [u.fw, u.fh] : [C4.emptyW, C4.emptyH];
+    const g = m.gN.get(u.par), [x, y] = g ? c4Slot(m, g, u, w, h) : c4Spot(m, ob, u, w, h);
+    put(u, x, y);
+    set(u.top);
+  });
+  return done;
+}
+
+// Keeps every saved position and recomputes frames, arrows and canvas. opts.pinned: ids (elements, groups) just moved; they stay when
+// boxes or frames overlap and the others shift away as blocks. Items without a position are placed incrementally (c4Fill) and pinned.
+// Nothing positioned at all: the full layout. data._manual: true when the saved positions were kept.
+function routeDiagram(data, opts) {
+  const m = c4Model(data);
+  if (!m.items.some(c4Placed)) return layoutDiagram(data);
   m.links = c4Links(m);
   c4Stamp(m);
-  // a node without a position (hidden, or the members of a group just opened) sits where the group's own layout would put it
-  if (Array.from(m.eN.values()).concat(Array.from(m.gN.values())).some((n) => !hasPos(n))) {
+  const pins = new Set((opts && opts.pinned) || []);
+  c4Fill(m).forEach((id) => pins.add(id));
+  // a hidden node without a position sits where its group's own layout would put it
+  if (Array.from(m.eN.values()).concat(Array.from(m.gN.values())).some((n) => !n.vis && !c4Has(n))) {
     m.gN.forEach((g) => { if (!g.par) c4Size(m, g, false); });
     const fill = (g) => {
-      const known = g.kids.find(hasPos);
-      const ox = hasPos(g) ? g.ref.x : known ? known.ref.x - known.rx - C4.pad : 0, oy = hasPos(g) ? g.ref.y : known ? known.ref.y - known.ry - C4.tagH : 0;
+      const known = g.kids.find(c4Has);
+      const ox = c4Has(g) ? g.ref.x : known ? known.ref.x - known.rx - C4.pad : 0, oy = c4Has(g) ? g.ref.y : known ? known.ref.y - known.ry - C4.tagH : 0;
       g.kids.forEach((k) => {
-        if (!hasPos(k)) { k.ref.x = ox + C4.pad + k.rx; k.ref.y = oy + C4.tagH + k.ry; }
+        if (!c4Has(k) && !k.vis) { k.ref.x = ox + C4.pad + k.rx; k.ref.y = oy + C4.tagH + k.ry; }
         if (k.kind === 'g') fill(k);
       });
     };
     m.gN.forEach((g) => { if (!g.par) fill(g); });
   }
+  // a pin counts for every group around it: the frame it sits in moves with it
+  pins.forEach((id) => { for (let n = m.eN.get(id) || m.gN.get(id); n; n = m.gN.get(n.par)) { n.pin = true; m.pins = true; } });
   c4Rings(m);
   m.items.forEach((i) => { c4Leaves(i, []).forEach((n) => { n.ax = n.ref.x; n.ay = n.ref.y; n.w = n.ref.w; n.h = n.ref.h; }); });
   c4Sides(m);
   c4StampRings(m);
   c4Frames(m);
   data._arrange = m.arrange;
+  data._manual = true;
   delete data._dir;
   c4Route(m);
   return data;

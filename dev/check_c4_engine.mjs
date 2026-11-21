@@ -138,7 +138,7 @@ function run(name, d) {
   return ms;
 }
 
-const stable = (d) => JSON.stringify(d);
+const stable = (d) => JSON.stringify(d, (k, v) => (k === '_manual' ? undefined : v));   // _manual only tells the mode
 const withCollapsed = (d, id, v) => { const c = clone(d); c.groups.find((g) => g.id === id).collapsed = v; return c; };
 const elOf = (d, id) => d.elements.find((e) => e.id === id);
 const segHits = (p, q, b) => { // an axis-aligned segment through the inside of box b (1 px clear)
@@ -498,6 +498,185 @@ for (const side of ['E', 'W']) {
   }));
   d.groups.forEach((g) => d._edges.forEach((r) => r.points.slice(1).forEach((q, i) => { if (!r.points.some((p) => p[0] > g.x && p[0] < g.x + g.w && p[1] > g.y && p[1] < g.y + g.h)) check(!segHits(r.points[i], q, g), `${tag}: crosses frame ${g.id}`); })));
 }
+
+// ---- manual mode (phase 5): routeDiagram(data, { pinned }) keeps saved positions
+const savedOf = (d) => { const o = clone(d); ['_edges', 'canvas', '_arrange', '_manual', '_dir'].forEach((k) => delete o[k]); return o; };
+const posOf = (d) => new Map(d.elements.concat(d.groups).map((o) => [o.id, [o.x, o.y]]));
+// every id in `ids` moved by one common (dx, dy) between two pictures (the canvas shift moves a picture as a whole)
+const sameShift = (a, b, ids, msg) => {
+  const pa = posOf(a), pb = posOf(b), ds = new Set(ids.map((id) => `${pb.get(id)[0] - pa.get(id)[0]},${pb.get(id)[1] - pa.get(id)[1]}`));
+  check(ds.size === 1, `${msg} (shifts ${[...ds].slice(0, 3).join(' | ')})`);
+};
+const idsOf = (d) => d.elements.map((e) => e.id).concat(d.groups.map((g) => g.id));
+const man = (d, o) => { routeDiagram(d, o); return d; };
+for (const n of ran) {
+  const d0 = fixture(n), laid = clone(d0);
+  layoutDiagram(laid);
+  const base = savedOf(laid);
+  // routeDiagram with saved positions: _manual, byte-equal twice, layoutDiagram still ignores saved positions
+  const a = man(clone(base)), b = man(clone(savedOf(a)));
+  check(a._manual === true && b._manual === true && laid._manual === undefined, `${n}: _manual is set by routeDiagram only`);
+  check(JSON.stringify(a) === JSON.stringify(b), `${n}: manual mode twice is byte-equal`);
+  const ign = clone(base);
+  ign.elements.forEach((e) => { e.x = 7; e.y = 7; });
+  layoutDiagram(ign);
+  check(stable(ign) === stable(laid), `${n}: layoutDiagram ignores saved positions`);
+  // incomplete positions: every other element keeps its place, the missing one is placed, no full layout
+  const vis = laid.elements.filter((e) => !e._hidden);
+  const gone = vis.find((e) => e.group) || vis[vis.length - 1];
+  const part = clone(base);
+  const pe = part.elements.find((e) => e.id === gone.id);
+  delete pe.x; delete pe.y;
+  man(part);
+  noOverlap(part, `${n} (incomplete)`); inGroups(part, `${n} (incomplete)`); orthogonal(part, `${n} (incomplete)`); arrowsClear(`${n} (incomplete)`, part);
+  check(part._manual === true && Number.isFinite(part.elements.find((e) => e.id === gone.id).x), `${n}: an element without a position is placed`);
+  // move one element onto another: no overlap, the pinned one stays (same shift as an untouched far item), the rest is separated
+  const mv = clone(base), A = vis[0], B = vis.find((e) => e !== A && e.group !== A.group) || vis[1];
+  const me = mv.elements.find((e) => e.id === A.id), tb = mv.elements.find((e) => e.id === B.id);
+  me.x = tb.x + 10; me.y = tb.y + 6;
+  man(mv, { pinned: [A.id] });
+  noOverlap(mv, `${n} (moved)`); inGroups(mv, `${n} (moved)`); orthogonal(mv, `${n} (moved)`);
+  // a deliberate move can put arrows across boxes (the gutter router assumes the ring layout), so arrowsClear is not asked here
+}
+{
+  // pinned items never move, others shift away; far items stay (all deltas below are the common canvas shift)
+  const el = (id, x, y) => ({ id, kind: 'container', name: id, x, y });
+  const d = { diagramType: 'c4', groups: [], elements: [el('a', 200, 200), el('b', 600, 200), el('far', 1200, 200), el('far2', 1200, 600)], relations: [{ from: 'a', to: 'far', label: 'x' }] };
+  const pre = clone(d);
+  pre.elements.find((e) => e.id === 'b').x = 210; pre.elements.find((e) => e.id === 'b').y = 210;
+  const r = man(clone(pre), { pinned: ['b'] }), q = posOf(r), p0 = posOf(pre);
+  const dl = (id) => [q.get(id)[0] - p0.get(id)[0], q.get(id)[1] - p0.get(id)[1]];
+  check(JSON.stringify(dl('b')) === JSON.stringify(dl('far')) && JSON.stringify(dl('far')) === JSON.stringify(dl('far2')), 'pinned: b and the far items share one shift (b did not move)');
+  check(JSON.stringify(dl('a')) !== JSON.stringify(dl('b')), 'pinned: a was shifted away from b');
+  noOverlap(r, 'pinned'); 
+  // pinned frames: dragging a group's member over a neighbour group moves the neighbour (a block, members with it)
+  const g = { diagramType: 'c4', groups: [{ id: 'G', name: 'G', kind: 'system' }, { id: 'H', name: 'H', kind: 'system' }],
+    elements: [{ ...el('g1', 100, 100), group: 'G' }, { ...el('g2', 300, 100), group: 'G' }, { ...el('h1', 700, 100), group: 'H' }, { ...el('h2', 900, 100), group: 'H' }], relations: [] };
+  const g0 = clone(g); g0.elements.find((e) => e.id === 'g2').x = 650;
+  const p = posOf(g0), gr = man(clone(g0), { pinned: ['g2'] }), q2 = posOf(gr);
+  noOverlap(gr, 'pinned frames'); inGroups(gr, 'pinned frames');
+  const sh = (id) => `${q2.get(id)[0] - p.get(id)[0]},${q2.get(id)[1] - p.get(id)[1]}`;
+  check(sh('h1') === sh('h2') && sh('h1') !== sh('g2'), 'pinned frames: H (both members) shifts as one block, away from the pinned member');
+  // two runs byte-equal
+  check(JSON.stringify(man(clone(g0), { pinned: ['g2'] })) === JSON.stringify(gr), 'pinned: two runs are byte-equal');
+}
+{
+  // new element placement
+  const lay = fixture('landscape'); layoutDiagram(lay);
+  const base = savedOf(lay), ids = idsOf(lay);
+  const untouched = (d, extra, msg) => sameShift(lay, d, ids.filter((i) => !extra.includes(i) && !d.groups.some((g) => g.id === i && !g.collapsed && lay.groups.find((q) => q.id === i))), msg);
+  // joins a group: the next slot in its row, the group grows, the picture around is separated
+  const j = clone(base);
+  j.elements.push({ id: 'nu', kind: 'container', name: 'New one', group: 'platform' });
+  man(j);
+  const nu = elOf(j, 'nu'), plat = j.groups.find((g) => g.id === 'platform'), kids = j.elements.filter((e) => e.group === 'platform' && e.id !== 'nu');
+  check(nu && Number.isFinite(nu.x) && inside(nu, plat), 'new in group: placed inside the group frame');
+  check(kids.every((k) => nu.x >= k.x + k.w) && Math.abs(nu.y + nu.h / 2 - (kids[0].y + kids[0].h / 2)) <= kids[0].h, 'new in group: next slot in the group row, after the last member');
+  check(plat.w > lay.groups.find((g) => g.id === 'platform').w, 'new in group: the group grows');
+  noOverlap(j, 'new in group'); inGroups(j, 'new in group'); orthogonal(j, 'new in group'); arrowsClear('new in group', j);
+  // loose and linked: beside the item it is linked to
+  const l = clone(base);
+  l.elements.push({ id: 'lo', kind: 'external', name: 'Loose' });
+  l.relations.push({ from: 'cust', to: 'lo', label: 'Sees' });
+  man(l);
+  const lo = elOf(l, 'lo'), cu = elOf(l, 'cust');
+  noOverlap(l, 'new loose'); inGroups(l, 'new loose'); orthogonal(l, 'new loose'); arrowsClear('new loose', l);
+  check(!l.groups.some((g) => inside(lo, g)), 'new loose: outside every frame');
+  check(Math.hypot(lo.x - cu.x, lo.y - cu.y) < 420, `new loose: close to cust (${Math.round(Math.hypot(lo.x - cu.x, lo.y - cu.y))} px)`);
+  sameShift(lay, l, ids, 'new loose: nothing else moved');
+  // no relation: beside the centre, never over a box; two new ones land apart
+  const c = clone(base);
+  c.elements.push({ id: 'n1', kind: 'container', name: 'One' }, { id: 'n2', kind: 'container', name: 'Two' });
+  man(c);
+  noOverlap(c, 'new beside centre'); inGroups(c, 'new beside centre');
+  sameShift(lay, c, ids, 'new beside centre: nothing else moved');
+  // new empty group gets a free spot
+  const eg = clone(base);
+  eg.groups.push({ id: 'ng', name: 'Empty', kind: 'boundary' });
+  man(eg);
+  const ng = eg.groups.find((g) => g.id === 'ng');
+  check(ng.w === tokens.c4.emptyW && ng.h === tokens.c4.emptyH, 'new empty group: has its size');
+  noOverlap(eg, 'new empty group'); sameShift(lay, eg, ids, 'new empty group: nothing else moved');
+  // a new group with members that have no positions: one block, members in its layout
+  const bg = clone(base);
+  bg.groups.push({ id: 'bg', name: 'Block', kind: 'system' });
+  bg.elements.push({ id: 'b1', kind: 'container', name: 'B1', group: 'bg' }, { id: 'b2', kind: 'container', name: 'B2', group: 'bg' });
+  man(bg);
+  noOverlap(bg, 'new group with members'); inGroups(bg, 'new group with members');
+  check(elOf(bg, 'b1').x < elOf(bg, 'b2').x, 'new group with members: members laid out in a row');
+  // deterministic
+  check(JSON.stringify(man(clone(j), undefined)) === JSON.stringify(man(clone(savedOf(j)))), 'new in group: second route changes nothing');
+  const j2 = clone(base); j2.elements.push({ id: 'nu', kind: 'container', name: 'New one', group: 'platform' });
+  check(stable(man(j2)) === stable(j), 'new in group: two runs are byte-equal');
+}
+{
+  // edits in manual mode keep what they did not touch
+  const lay = fixture('landscape'); layoutDiagram(lay);
+  const base = savedOf(lay), ids = idsOf(lay);
+  const conn = clone(base); conn.relations.push({ from: 'web', to: 'pay', label: 'New link' });
+  man(conn); sameShift(lay, conn, ids, 'connect keeps every position');
+  const del = clone(base); del.relations = del.relations.filter((r) => r.from !== 'crm' && r.to !== 'crm'); del.elements = del.elements.filter((e) => e.id !== 'crm');
+  man(del); sameShift(lay, del, ids.filter((i) => i !== 'crm'), 'delete keeps every other position');
+  const col = clone(base); col.groups.find((g) => g.id === 'platform').collapsed = true;
+  man(col);
+  const members = ['web', 'api', 'orddb'], keep = ids.filter((i) => !members.includes(i) && i !== 'platform');
+  sameShift(lay, col, keep, 'collapse keeps every outside position');
+  noOverlap(col, 'manual collapse');
+  check(members.every((id) => elOf(col, id)._hidden && Number.isFinite(elOf(col, id).x)), 'collapse: hidden members keep their x, y');
+  const ex = clone(savedOf(col)); ex.groups.find((g) => g.id === 'platform').collapsed = false;
+  man(ex);
+  noOverlap(ex, 'manual expand'); inGroups(ex, 'manual expand');
+  // expanding puts the members where they were saved
+  const rel = (d, a, b) => [elOf(d, a).x - elOf(d, b).x, elOf(d, a).y - elOf(d, b).y].join();
+  check(rel(ex, 'web', 'api') === rel(lay, 'web', 'api') && rel(ex, 'api', 'orddb') === rel(lay, 'api', 'orddb'), 'expand: members keep their saved layout among themselves');
+  // a tile dragged elsewhere takes its hidden members along (the page shifts them by the same delta): the engine only keeps them
+  const tile = clone(savedOf(col)); const pl = tile.groups.find((g) => g.id === 'platform');
+  pl.x += 300; pl.y += 200; members.forEach((id) => { const e = elOf(tile, id); e.x += 300; e.y += 200; });
+  const ex2 = clone(tile); ex2.groups.find((g) => g.id === 'platform').collapsed = false;
+  man(ex2, { pinned: ['platform'] });
+  noOverlap(ex2, 'moved tile expands'); inGroups(ex2, 'moved tile expands');
+  check(rel(ex2, 'web', 'api') === rel(lay, 'web', 'api'), 'moved tile: members keep their layout when it opens');
+}
+
+// ---- manual mode at scale: a release (routeDiagram with pinned) on 500 and 2,000 visible elements
+function scaleFixture(groups, per) {
+  const g = [], e = [], r = [];
+  for (let i = 0; i < groups; i++) {
+    g.push({ id: `g${i}`, name: `System ${i}`, kind: 'system' });
+    for (let k = 0; k < per; k++) {
+      e.push({ id: `g${i}e${k}`, kind: 'container', name: `Service ${i}-${k}`, tech: 'Node.js', group: `g${i}` });
+      if (k) r.push({ from: `g${i}e${Math.floor((k - 1) / 3)}`, to: `g${i}e${k}`, label: 'Calls' });
+    }
+    if (i) r.push({ from: `g${i}e1`, to: `g${i - 1}e2`, label: 'Syncs', async: true });
+  }
+  return { diagramType: 'c4', schemaVersion: 1, title: 'Scale', groups: g, elements: e, relations: r };
+}
+const releaseMs = {};
+for (const [label, groups, per, limit] of [['500', 20, 25, 100], ['2000', 40, 50, 400]]) {
+  const d = scaleFixture(groups, per);
+  make('function routeC4Edges(nodes, edges) { return edges.map((e) => ({ d: "M0 0", points: [[0, 0], [0, 1]], lx: 0, ly: 0, w: 48 })); }').layoutDiagram(d);
+  const base = savedOf(d), mv = clone(base);
+  const a = mv.elements.find((e) => e.id === 'g3e5'), b = mv.elements.find((e) => e.id === 'g4e7');
+  a.x = b.x + 12; a.y = b.y + 8;
+  const r1 = clone(mv), r2 = clone(mv);
+  const t0 = performance.now();
+  routeDiagram(r1, { pinned: ['g3e5'] });
+  const ms = performance.now() - t0;
+  releaseMs[label] = ms;
+  console.log(`manual: release on ${label} visible elements (routeDiagram with pinned, real router): ${ms.toFixed(0)} ms (limit ${limit})`);
+  check(ms < limit, `release on ${label} elements under ${limit} ms (${ms.toFixed(0)} ms)`);
+  routeDiagram(r2, { pinned: ['g3e5'] });
+  check(JSON.stringify(r1) === JSON.stringify(r2), `scale ${label}: two releases are byte-equal`);
+  noOverlap(r1, `scale ${label} moved`); inGroups(r1, `scale ${label} moved`);
+  // placement of 20 new elements into groups and loose
+  const nw = clone(base);
+  for (let k = 0; k < 20; k++) nw.elements.push(k % 2 ? { id: `nw${k}`, kind: 'container', name: `New ${k}`, group: `g${k % groups}` } : { id: `nw${k}`, kind: 'external', name: `New ${k}` });
+  const t1 = performance.now();
+  routeDiagram(nw);
+  console.log(`manual: place 20 new elements on ${label}: ${(performance.now() - t1).toFixed(0)} ms`);
+  noOverlap(nw, `scale ${label} new`); inGroups(nw, `scale ${label} new`);
+}
+
 check(worst < LIMIT_MS, `large fixture under ${LIMIT_MS} ms (worst ${worst.toFixed(0)} ms)`);
 
 console.log(failures ? `\n${failures} check(s) failed` : `\nall c4 engine checks passed (${ran.length} fixtures)`);
