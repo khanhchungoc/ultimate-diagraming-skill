@@ -456,6 +456,14 @@ try {
     await sleep(250);
     const some = await count(A.iconBtn);
     t.check('typing in the picker filters the icons', some > 0 && some < all, `${all} -> ${some}`);
+    // the picker is grouped and offers no app chrome (its search is cleared first)
+    await t.ev(`(() => { const i = document.querySelector(${J(A.iconSearch)}); i.value = ''; i.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+    await sleep(200);
+    const CHROME = ['undo', 'redo', 'export', 'import', 'save', 'trash', 'plus', 'minus', 'close', 'chevron-down', 'chevron-up', 'fit', 'focus', 'grip', 'help', 'eye', 'label', 'present', 'search', 'sun', 'moon', 'tidy', 'type-c4', 'type-erd', 'type-flowchart', 'type-sequence', 'type-usecase', 'shape-process', 'shape-decision', 'direction-lr', 'direction-tb', 'line-solid', 'line-dashed', 'lifespans'];
+    const pk = await t.ev(`(() => ({ names: [...document.querySelectorAll('#c4-icons button[data-icon]')].map((b) => b.dataset.icon), groups: [...document.querySelectorAll('#c4-icons .c4-icon-head')].map((h) => [h.textContent, h.nextElementSibling.querySelectorAll('button').length]) }))()`);
+    t.check('the picker offers none of the app chrome icons', !CHROME.some((n) => pk.names.includes(n)), pk.names.filter((n) => CHROME.includes(n)).join(','));
+    t.check('the picker has the seven headed groups and each has icons', J(pk.groups.map((g) => g[0])) === J(['People', 'Devices and apps', 'Infrastructure', 'Data', 'Messaging', 'Business', 'Security']) && pk.groups.every((g) => g[1] > 0), J(pk.groups));
+    t.check('the Default option stays and the current icon is marked', pk.names.includes('') && (await count('#c4-icons button[aria-pressed="true"]')) === 1);
     await t.clickOn(A.iconBtn);
     await sleep(250);
     t.check('choosing an icon sets it on the element', !!byName((await saved()).elements, 'Customer')?.icon, J(byName((await saved()).elements, 'Customer')));
@@ -986,6 +994,30 @@ try {
     await sleep(300); await t.settle(1500);
     t.check('Delete from the keyboard removes the focused tile', !(await tileNames()).includes('Keyed'));
     await undo();
+    // every arrow label is a tab stop, named, editable and deletable from the keyboard
+    {
+      const nLabels = await count(A.label);
+      await t.ev(`document.activeElement && document.activeElement.blur()`);
+      const seen = new Set();
+      for (let i = 0; i < 80 && seen.size < nLabels; i++) {
+        await t.press('Tab');
+        const l = await t.ev(`(() => { const a = document.activeElement; return a && a.matches('.edge-label.c4-label') ? [a.dataset.edgeId, a.getAttribute('aria-label')] : null; })()`);
+        if (l) seen.add(l.join('|'));
+      }
+      const names = [...seen].map((x) => x.split('|')[1]);
+      t.check('every arrow label is reachable by Tab with the name "label, from A to B"', seen.size === nLabels && names.every((n) => /^.+, from .+ to .+$/.test(n)), J(names));
+      await t.press('Enter'); await sleep(250);
+      const was = await t.ev(`document.querySelector('#c4-label-input') ? document.querySelector('#c4-label-input').value : null`);
+      t.check('Enter on a focused label opens the label editor', was !== null, `${was}`);
+      await t.press('a', { modifiers: 2 }); await t.type('Keyed arrow'); await t.press('Enter'); await sleep(300); await t.settle(1500);
+      t.check('Enter saves the label and the focus is back on the label', (await saved()).relations.some((r) => r.label === 'Keyed arrow') && (await t.ev(`!!document.activeElement && document.activeElement.matches('.edge-label.c4-label') && document.activeElement.textContent.includes('Keyed arrow')`)));
+      await t.press('F2'); await sleep(250);
+      await t.press('Escape'); await sleep(250);
+      t.check('F2 opens it and Esc returns the focus to the label', !(await present('#c4-label-input')) && (await t.ev(`!!document.activeElement && document.activeElement.matches('.edge-label.c4-label')`)));
+      await t.press('Delete'); await sleep(300); await t.settle(1500);
+      t.check('Delete on a focused label removes the arrow', (await count(A.edge)) === nLabels - 1 && !(await saved()).relations.some((r) => r.label === 'Keyed arrow'), `${await count(A.edge)}`);
+      await undo(); await undo();
+    }
     // arrow keys move between tiles
     const first = await t.ev(`document.activeElement && document.activeElement.closest && (document.activeElement.closest('.c4-node') || {}).dataset ? document.activeElement.closest('.c4-node').dataset.nodeId : null`);
     t.check('undo keeps the diagram intact', (await count(A.node)) === 4, `${first}`);

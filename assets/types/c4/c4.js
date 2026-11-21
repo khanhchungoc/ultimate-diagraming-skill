@@ -167,7 +167,7 @@
         canvas.style.height = px(C.height);
         svg.setAttribute('width', C.width);
         svg.setAttribute('height', C.height);
-        const hadFocus = document.activeElement && html.contains(document.activeElement) && (document.activeElement.dataset.nodeId || document.activeElement.dataset.groupId);
+        const hadFocus = document.activeElement && html.contains(document.activeElement) && (document.activeElement.dataset.nodeId || document.activeElement.dataset.groupId || document.activeElement.dataset.edgeId);
         edgesG.textContent = '';
         html.textContent = '';
         els.nodes = new Map(); els.groups = new Map(); els.edges = new Map();
@@ -191,7 +191,7 @@
         renderLegend();
         updateLevelButtons();
         applyState();
-        const back = hadFocus && (els.nodes.get(hadFocus) || els.groups.get(hadFocus));
+        const back = hadFocus && (els.nodes.get(hadFocus) || els.groups.get(hadFocus) || (els.edges.get(hadFocus) || {}).label);
         if (back) back.focus({ preventScroll: true });
         if (snap) {
           motion.play(snap, canvas, FLIP_SPECS, { duration: o.duration, fromKey: o.fromKey, toKey: o.toKey, ghostExit: o.ghostExit, enterScale: o.enterScale });
@@ -339,9 +339,9 @@
           if (!b || !rec) return;
           const el = htmlEl('div', 'edge-label c4-label');
           el.dataset.edgeId = e.id;
-          el.tabIndex = -1;
+          el.tabIndex = elementOf(e.from) && elementOf(e.to) ? 0 : -1;   // a merged arrow (a count tag) is not editable: no tab stop
           el.setAttribute('role', 'group');
-          el.setAttribute('aria-label', edgeTitle(e));
+          el.setAttribute('aria-label', `${e.label || 'Arrow'}, from ${nameOf(elementOf(e.from) || groupOf(e.from))} to ${nameOf(elementOf(e.to) || groupOf(e.to))}`);
           Object.assign(el.style, { left: px(b.x), top: px(b.y), width: px(b.w), height: px(b.h) });
           el.title = edgeTitle(e);
           el.appendChild(htmlEl('span', 'c4-label-text', `${e.label || ''}${e.count > 1 ? ` ×${e.count}` : ''}`));
@@ -817,6 +817,7 @@
         const rec = els.edges.get(edgeId), members = e.members.map((i) => relations()[i]).filter(Boolean);
         const back = isNew ? { kind: 'element', id: newRel.from } : null;
         openPrompt((rec && (rec.label || rec.g)) || canvas, {
+        const refocus = () => { if (!isNew) queueMicrotask(() => { const l = (els.edges.get(edgeId) || {}).label; if (l) l.focus({ preventScroll: true }); }); };
           id: 'c4-label-input', label: 'Relation label', max: LABEL_MAX, placeholder: 'What does it do? e.g. Sends orders',
           hint: isNew ? 'Enter saves. Esc undoes the connection.' : 'Enter saves. Esc keeps the old label.',
           value: isNew ? '' : e.label,
@@ -834,13 +835,14 @@
               commit(true);
               return true;
             }
-            if (label === e.label) return true;
+            if (label === e.label) { refocus(); return true; }
             if (members.some((r) => relations().some((x) => !members.includes(x) && sameRelation(x, Object.assign({}, r, { label }))))) { ui.toast('That connection already exists with this label'); return false; }
             members.forEach((r) => { r.label = label; });
             commit(true);
             return true;
+            refocus();
           },
-          onCancel: () => { if (isNew) dropNewRelation(newRel, back); }
+          onCancel: () => { if (isNew) dropNewRelation(newRel, back); else refocus(); }
         });
       }
       function askTech(edgeId) {
@@ -982,7 +984,19 @@
         tech.focus();
       }
 
-      // --- Icon picker (#c4-icons): the generic icons, searched by name; a pack name the page cannot draw is listed as missing ---
+      // --- Icon picker (#c4-icons): the diagram icons in groups, searched by name; a pack name the page cannot draw is listed as missing ---
+      // The one list of what the picker offers (the registry also holds app chrome: undo, export, shape and type glyphs). A name
+      // missing from assets/icons/default.json fails here, at startup.
+      const ICON_GROUPS = [
+        ['People', ['user', 'users', 'actor', 'headset']],
+        ['Devices and apps', ['browser', 'mobile', 'monitor', 'code', 'function', 'package', 'api']],
+        ['Infrastructure', ['server', 'cloud', 'cluster', 'container', 'cdn', 'gateway', 'cpu', 'cog', 'globe', 'layers', 'scale']],
+        ['Data', ['database', 'cache', 'storage', 'columns', 'hash', 'numbers']],
+        ['Messaging', ['queue', 'mail', 'message', 'message-async', 'bell', 'link']],
+        ['Business', ['briefcase', 'building', 'banknote', 'cart', 'credit-card', 'truck', 'clipboard', 'clock', 'flag']],
+        ['Security', ['lock', 'key', 'shield']]
+      ];
+      ICON_GROUPS.forEach(([g, names]) => names.forEach((n) => { if (ICONS[n] === undefined) throw new Error(`C4 icon picker: "${n}" (${g}) is not in assets/icons/default.json`); }));
       function openIcons(anchor, o) {
         const box = htmlEl('div', 'c4-pop c4-icons');
         box.id = 'c4-icons';
@@ -994,32 +1008,40 @@
         search.placeholder = 'Search icons';
         search.setAttribute('aria-label', 'Search icons');
         search.autocomplete = 'off';
-        const grid = htmlEl('div', 'c4-icon-grid');
-        grid.setAttribute('role', 'group');
-        grid.setAttribute('aria-label', 'Icons');
+        const list = htmlEl('div', 'c4-icon-list');
         const note = htmlEl('div', 'c4-icons-note t-detail');
         note.setAttribute('role', 'status');
         const missing = [...new Set(elements().map((e) => e.icon).filter((n) => n && ICONS[n] === undefined))];
         const pick = (name) => { closeFloating('pick'); if ((o.icon || '') !== name) { setOpt(o, 'icon', name); commit(false, { duration: 160 }); } };
         const fill = () => {
           const q = search.value.trim().toLowerCase().replace(/[-_]+/g, ' ');
-          grid.textContent = '';
-          const names = [''].concat(Object.keys(ICONS).filter((n) => !q || n.replace(/-/g, ' ').includes(q)));
-          names.forEach((n) => {
-            const b = htmlEl('button', 'c4-icon-opt');
-            b.type = 'button';
-            b.dataset.icon = n;
-            b.title = n || `Default for ${KIND_NAME[o.kind] || o.kind}`;
-            b.setAttribute('aria-label', b.title);
-            b.setAttribute('aria-pressed', String((o.icon || '') === n));
-            b.innerHTML = ui.icon(n || KIND_ICON[o.kind] || 'cloud', { size: 'md' });
-            b.addEventListener('click', () => pick(n));
-            grid.appendChild(b);
-          });
-          note.textContent = names.length === 1 ? 'No icon matches.' : '';
+          list.textContent = '';
+          let shown = 0;
+          const section = (heading, names) => {
+            if (!names.length) return;
+            if (heading) list.appendChild(htmlEl('div', 'c4-icon-head t-detail', heading));
+            const grid = htmlEl('div', 'c4-icon-grid');
+            grid.setAttribute('role', 'group');
+            grid.setAttribute('aria-label', heading || 'Default');
+            names.forEach((n) => {
+              const b = htmlEl('button', 'c4-icon-opt');
+              b.type = 'button';
+              b.dataset.icon = n;
+              b.title = n || `Default for ${KIND_NAME[o.kind] || o.kind}`;
+              b.setAttribute('aria-label', b.title);
+              b.setAttribute('aria-pressed', String((o.icon || '') === n));
+              b.innerHTML = ui.icon(n || KIND_ICON[o.kind] || 'cloud', { size: 'md' });
+              b.addEventListener('click', () => pick(n));
+              grid.appendChild(b);
+            });
+            list.appendChild(grid);
+          };
+          section('', ['']);
+          ICON_GROUPS.forEach(([g, names]) => { const m = names.filter((n) => !q || n.replace(/-/g, ' ').includes(q)); shown += m.length; section(g, m); });
+          note.textContent = shown ? '' : 'No icon matches.';
         };
         search.addEventListener('input', fill);
-        box.append(search, grid, note);
+        box.append(search, list, note);
         if (missing.length) {
           const m = htmlEl('div', 'c4-icons-missing t-detail', `Missing icon pack: ${missing.join(', ')}. Those elements show the icon of their kind.`);
           m.setAttribute('role', 'status');
@@ -1219,6 +1241,7 @@
         const lbl = item.classList.contains('c4-label');
         const kind = lbl ? 'edge' : item.dataset.nodeId ? 'element' : 'group', id = item.dataset.nodeId || item.dataset.groupId || item.dataset.edgeId;
         if (ev.key === 'Enter' || ev.key === ' ' || ev.key === 'F2') {
+        if (lbl && (ev.key === 'Delete' || ev.key === 'Backspace')) { select({ kind, id }); return; }   // the shell's Delete handler then removes the arrow
           ev.preventDefault();
           ev.stopPropagation();
           if (connecting) { if (ev.key === 'Enter' && kind === 'element') finishConnect(id); return; }
