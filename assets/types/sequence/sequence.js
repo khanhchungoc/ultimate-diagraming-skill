@@ -507,7 +507,7 @@
             const dir = b.x > a.x ? 1 : -1;
             const x1 = edgeX(a, m.y, dir), x2 = edgeX(b, m.y, -dir);
             d = `M ${x1} ${m.y} H ${x2}`;
-            labelStyle = { left: px((x1 + x2) / 2), top: px(m.y - 26 - ((m.lab || 1) - 1) * SQ.LABEL_LINE) };
+            labelStyle = { left: px((x1 + x2) / 2), top: px(m.y - 28 - ((m.lab || 1) - 1) * SQ.LABEL_LINE) };
             detailStyle = { left: px((x1 + x2) / 2), top: px(m.y + 3) };
           }
           const marker = !m.kind || m.kind === 'sync' ? 'url(#seq-arrow-solid)' : 'url(#seq-arrow-open)';
@@ -520,8 +520,9 @@
             num.textContent = stepOf[m.id];
             label.appendChild(num);
           }
+          const maxW = self ? SQ.LABEL_MAX_W : Math.max(SQ.LABEL_MAX_W, Math.abs(b.x - a.x) - 24);
           const text = htmlEl('span', 'seq-msg-label-text');
-          text.textContent = m.lab > 1 ? sqWrapText(m.label, SQ.CHAR_W, SQ.LABEL_MAX_W - (chartData.numbered ? SQ.NUM_W : 0)).join('\n') : (m.label || '');
+          text.textContent = m.lab > 1 ? sqWrapText(m.label, SQ.CHAR_W, maxW).join('\n') : (m.label || '');
           label.appendChild(text);
           if (m.detail && !showDetails) label.title = m.detail;   // details hidden: the payload is the tooltip
           seqHtml.appendChild(label);
@@ -529,7 +530,7 @@
             const det = htmlEl('div', `seq-msg-detail${self ? ' is-self' : ''}${m.det > 1 ? ' is-wrapped' : ''}`, detailStyle);
             det.dataset.edgeId = m.id;
             const dt = htmlEl('span', 'seq-msg-detail-text');
-            dt.textContent = m.det > 1 ? sqWrapText(m.detail, SQ.DETAIL_CHAR_W, SQ.LABEL_MAX_W).join('\n') : m.detail;
+            dt.textContent = m.det > 1 ? sqWrapText(m.detail, SQ.DETAIL_CHAR_W, maxW).join('\n') : m.detail;
             det.appendChild(dt);
             seqHtml.appendChild(det);
           }
@@ -1485,6 +1486,7 @@
           const card = seqHtml.querySelector(`.note[data-note-id="${n.id}"]`);
           const firstId = Array.isArray(n.over) ? n.over[0] : n.over;
           const firstP = firstId ? partById(firstId) : null;
+          h.classList.add('is-drag');
           return {
             move(pt, d) {
               const p = nearestParticipant(pt.x);

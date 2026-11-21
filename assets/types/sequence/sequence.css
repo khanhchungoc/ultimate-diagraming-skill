@@ -33,23 +33,23 @@
     /* A participant is the shared swatch pill (components/pill.css), BOX_W wide and sitting on the lifeline's top end:
        the pill is shorter than the engine's BOX_H slot, so its top margin makes up the rest; it holds two lines of name */
     .seq-participant {
-      position: absolute; width: 148px; height: 44px; margin-top: 12px; box-sizing: border-box; justify-content: center; text-align: center;
-      padding: 0 8px; cursor: grab; touch-action: none;
+      position: absolute; width: 168px; height: 54px; margin-top: 5px; box-sizing: border-box; justify-content: center; text-align: center;
+      padding: 5px 12px; font-size: var(--text-xl); cursor: grab; touch-action: none;
     }
     /* Like an activation bar: the swatch's soft fill and strong outline, no halo */
     .seq-participant.swatch-pill { --halo: 0 0 transparent; border: 2px solid var(--sw-line); }
     .seq-participant.is-external { border: 2.5px dashed var(--sw-line); }
     .seq-participant.selected { box-shadow: 0 0 0 var(--ring-md) var(--primary), var(--halo); }
     .seq-participant.dragging, .seq-msg-label.dragging { opacity: 0.75; z-index: 20; }
-    .seq-participant-name { outline: none; min-width: 20px; white-space: normal; line-height: var(--line-16); }
+    .seq-participant-name { outline: none; min-width: 20px; white-space: normal; line-height: var(--line-20); }
     .seq-participant:not(.is-rail) .seq-kind-icon { margin-right: 4px; }
     .seq-participant:not(.is-rail) .seq-participant-name {
       display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
-      max-height: calc(2 * var(--line-16)); word-break: break-word;
+      max-height: calc(2 * var(--line-20)); word-break: break-word;
     }
     .seq-msg-label {
-      position: absolute; height: 20px; line-height: var(--line-20); padding: 0 6px; border-radius: var(--radius-sm); white-space: nowrap;
-      font-size: var(--t-label-size); color: var(--text-main); cursor: pointer; user-select: none; touch-action: none;
+      position: absolute; height: 22px; line-height: var(--line-22); padding: 0 6px; border-radius: var(--radius-sm); white-space: nowrap;
+      font-size: var(--text-lg); color: var(--text-main); cursor: pointer; user-select: none; touch-action: none;
       translate: -50% 0; transition: opacity var(--dur-micro) var(--curve-inout), color var(--dur-micro) var(--curve-out);
       text-shadow: 0 0 2px var(--bg-panel), 0 0 2px var(--bg-panel), 0 0 5px var(--bg-panel), 0 0 5px var(--bg-panel);
     }
@@ -79,7 +79,7 @@
       padding: 0; border: none; border-radius: var(--radius-sm); background: transparent; color: var(--text-soft); cursor: pointer;
     }
     /* The tag lays its chevron, kind, label and focus button out on one centred row */
-    #seq-html .frame-tag { display: inline-flex; align-items: center; transition: background-color var(--dur-base) var(--curve-inout), border-color var(--dur-base) var(--curve-inout), color var(--dur-micro) var(--curve-inout); }
+    #seq-html .frame-tag { display: inline-flex; align-items: center; height: 26px; line-height: var(--line-22); font-size: var(--text-lg); transition: background-color var(--dur-base) var(--curve-inout), border-color var(--dur-base) var(--curve-inout), color var(--dur-micro) var(--curve-inout); }
     #seq-html .frame-tag .frame-chev { vertical-align: baseline; }
     #seq-html .frame-summary { translate: -50% -50%; }
     .seq-frag-focus:hover { background: var(--bg-hover); color: var(--text-main); }
@@ -91,7 +91,7 @@
     body.capture .seq-frag-focus, body.exporting .seq-frag-focus { display: none; }
     /* Message details (payload) under the arrow, and step numbers before the label */
     .seq-msg-detail {
-      position: absolute; height: 16px; line-height: var(--line-16); padding: 0 4px; white-space: nowrap; font-size: var(--text-xs);
+      position: absolute; height: 18px; line-height: var(--line-18); padding: 0 4px; white-space: nowrap; font-size: var(--text-sm);
       color: var(--text-muted); cursor: pointer; user-select: none; touch-action: none;
       translate: -50% 0; transition: opacity var(--dur-micro) var(--curve-inout), color var(--dur-micro) var(--curve-out);
       text-shadow: 0 0 2px var(--bg-panel), 0 0 2px var(--bg-panel), 0 0 4px var(--bg-panel);
@@ -99,9 +99,9 @@
     .seq-msg-detail.is-self { translate: none; }
     .seq-msg-detail-text { outline: none; }
     .seq-msg-num {
-      display: inline-block; min-width: 16px; height: 16px; line-height: var(--line-16); margin-right: 5px; padding: 0 3px;
+      display: inline-block; min-width: 18px; height: 18px; line-height: var(--line-18); margin-right: 5px; padding: 0 4px;
       box-sizing: border-box; border-radius: var(--radius-lg); background: var(--bg-soft); color: var(--text-soft);
-      font-size: var(--t-overline-size); font-weight: var(--t-overline-weight); text-align: center; vertical-align: 1px; text-shadow: none;
+      font-size: var(--text-sm); font-weight: var(--t-overline-weight); text-align: center; vertical-align: 1px; text-shadow: none;
     }
     .seq-msg-label.selected .seq-msg-num { background: var(--primary); color: var(--bg-panel); }
     /* Participant kinds: a small icon before the name (system and actor have none) */
@@ -215,7 +215,7 @@
     .seq-handle.seq-end { cursor: grab; }
     .seq-handle.seq-edge { width: 22px; height: 10px; margin: -5px 0 0 -11px; border-radius: var(--radius-md); cursor: ns-resize; }
     .seq-handle.seq-stretch { width: 10px; height: 22px; margin: -11px 0 0 -5px; border-radius: var(--radius-md); cursor: ew-resize; }
-    body.seq-dragging .seq-handle.seq-barend:not(.is-drag) { display: none; }
+    body.seq-dragging .seq-handle:not(.is-drag) { display: none; }
     .seq-add-branch {
       position: absolute; height: 22px; padding: 0 9px; translate: 0 -50%; z-index: 9; border-radius: var(--radius-pill);
       border: 1.5px solid var(--primary); background: var(--bg-panel); color: var(--primary); font: inherit; font-size: var(--t-detail-size);
