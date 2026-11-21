@@ -23,6 +23,7 @@ from tokens import load_tokens, tokens_data
 SCRIPTS_DIR = Path(__file__).resolve().parent
 ASSETS_DIR = SCRIPTS_DIR.parent / "assets"
 ROUTER_PATH = ASSETS_DIR / "shell" / "ortho-router.js"   # the shared orthogonal router, loaded ahead of every engine
+DEFAULT_TIMEOUT = 120
 _active_session: contextvars.ContextVar[Optional["_NodeSession"]] = contextvars.ContextVar(
     "_active_layout_session", default=None
 )
@@ -182,7 +183,7 @@ def _via_browser(data: Dict[str, Any], timeout: int, browser: Optional[str], tok
     return json.loads(text)
 
 
-def run_layout(kind: str, data: Dict[str, Any], timeout: int = 30, browser: Optional[str] = None,
+def run_layout(kind: str, data: Dict[str, Any], timeout: int = DEFAULT_TIMEOUT, browser: Optional[str] = None,
                tokens: Optional[Dict[str, Any]] = None, keep: bool = False) -> Dict[str, Any]:
     """Return `data` with positions computed by the type's JS engine (Node first, then headless Chrome).
     `tokens` is the merged token set (the theme); the default set when omitted.
@@ -255,7 +256,7 @@ def _mermaid_via_browser(op: str, kind: str, payload: Any, palette: Optional[lis
     return out
 
 
-def run_mermaid(op: str, kind: str, payload: Any, timeout: int = 30, browser: Optional[str] = None,
+def run_mermaid(op: str, kind: str, payload: Any, timeout: int = DEFAULT_TIMEOUT, browser: Optional[str] = None,
                 palette: Optional[list] = None) -> Any:
     """`from`: Mermaid text -> {data, infos, warnings}. `to`: diagram JSON -> Mermaid text (`palette`: hex colours of the
     slots, for the classDef lines). `ids`: diagram JSON -> {id: id as the writer spells it}. Node first, then Chrome."""

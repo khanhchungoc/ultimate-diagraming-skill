@@ -34,7 +34,7 @@ from disk_format import (DISK_CODECS, authoring_json, color_kind, format_json, f
                          palette_slots, readme_text, stamp_reading_guide, to_disk, with_readme)
 import subprocess_flow as sub
 from build_icon_pack import installed_packs, load_all_logos, load_logos, logo_refs
-from engine_runner import EngineUnavailable, layout_session, run_layout, run_mermaid
+from engine_runner import DEFAULT_TIMEOUT, EngineUnavailable, layout_session, run_layout, run_mermaid
 from tokens import expand_icons, load_icons, load_tokens, merge_theme, tokens_css, tokens_js
 
 
@@ -2011,7 +2011,7 @@ def main():
     parser.add_argument("--layout", "-l", help="Input Mermaid file (.mmd), or a JSON or HTML file, to compute layout for")
     parser.add_argument("--output", "-o", help="Output HTML file path (or the Mermaid / JSON path if extracting)")
     parser.add_argument("--browser", help="Chrome/Chromium path for --layout when Node.js is not installed")
-    parser.add_argument("--timeout", type=int, default=30, help="Seconds allowed for the layout engine (default: 30)")
+    parser.add_argument("--timeout", type=int, default=DEFAULT_TIMEOUT, help=f"Seconds allowed for the layout engine (default: {DEFAULT_TIMEOUT})")
     parser.add_argument("--verify", "-v", help="Verify collisions and layout constraints for an HTML or JSON file")
     parser.add_argument("--extract", "-e", help="Print the diagram of an HTML page (or a diagram.json / JSON file) as Mermaid, "
                                                  "written with the page's stored theme palette")

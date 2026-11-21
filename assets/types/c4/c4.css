@@ -141,7 +141,7 @@
       display: inline-flex; align-items: center; justify-content: center; height: 36px; padding: 0; border: 1px solid transparent; border-radius: var(--radius-md);
       background: transparent; color: var(--text-soft); cursor: pointer;
     }
-    .c4-icon-logo { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 50%; background: var(--swatch-disc-logo); }
+    .c4-icon-logo { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: var(--radius-round); background: var(--swatch-disc-logo); }
     .c4-icon-opt:hover { background: var(--bg-hover); color: var(--text-main); }
     .c4-icon-opt[aria-pressed="true"] { background: var(--primary-wash); border-color: var(--primary-ring); color: var(--primary); }
     .c4-icon-opt:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
