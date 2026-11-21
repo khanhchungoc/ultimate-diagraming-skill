@@ -201,7 +201,7 @@
       }
       const selectionExists = (s) => (s.kind === 'edge' ? edges().some((e) => e.id === s.id) : s.kind === 'group' ? !!groupOf(s.id) && !hiddenGroup(groupOf(s.id)) : !!elementOf(s.id) && !elementOf(s.id)._hidden);
 
-      // The icon of an element: its own `icon`, else the generic one of its kind (`logo:` names are drawn by a later step)
+      // The icon of an element: its own `icon`, else the generic one of its kind (a `logo:` name present in LOGOS is drawn by buildNode; one that is not falls back to this)
       function iconOf(e) {
         const name = e.icon && ICONS[e.icon] !== undefined ? e.icon : KIND_ICON[e.kind] || 'box';
         return ICONS[name] !== undefined ? name : 'cloud';
@@ -239,7 +239,8 @@
         Object.assign(el.style, { left: px(e.x), top: px(e.y), width: px(e.w), height: px(e.h) });
         paint(el, e.color, KIND_SLOT[e.kind] || '9');   // external: the neutral slot
         const chip = htmlEl('span', 'c4-disc');
-        chip.innerHTML = ui.icon(iconOf(e), { size: 'tile', fine: true });
+        if (String(e.icon).startsWith('logo:') && ui.hasLogo(e.icon.slice(5))) { chip.classList.add('is-logo'); chip.innerHTML = ui.logo(e.icon.slice(5), { size: 'tile' }); }   // a local-pack logo keeps its own colours on a white disc
+        else chip.innerHTML = ui.icon(iconOf(e), { size: 'tile', fine: true });
         const text = htmlEl('span', 'c4-text');
         text.appendChild(htmlEl('span', 'c4-name t-title', nameOf(e)));
         if (e.tech && showTech()) text.appendChild(htmlEl('span', 'c4-tech t-detail', `[${e.tech}]`));
@@ -816,8 +817,8 @@
         if (!isNew && !(elementOf(e.from) && elementOf(e.to))) { ui.toast('This arrow merges several relations: open the group to edit them'); return; }
         const rec = els.edges.get(edgeId), members = e.members.map((i) => relations()[i]).filter(Boolean);
         const back = isNew ? { kind: 'element', id: newRel.from } : null;
-        openPrompt((rec && (rec.label || rec.g)) || canvas, {
         const refocus = () => { if (!isNew) queueMicrotask(() => { const l = (els.edges.get(edgeId) || {}).label; if (l) l.focus({ preventScroll: true }); }); };
+        openPrompt((rec && (rec.label || rec.g)) || canvas, {
           id: 'c4-label-input', label: 'Relation label', max: LABEL_MAX, placeholder: 'What does it do? e.g. Sends orders',
           hint: isNew ? 'Enter saves. Esc undoes the connection.' : 'Enter saves. Esc keeps the old label.',
           value: isNew ? '' : e.label,
@@ -839,8 +840,8 @@
             if (members.some((r) => relations().some((x) => !members.includes(x) && sameRelation(x, Object.assign({}, r, { label }))))) { ui.toast('That connection already exists with this label'); return false; }
             members.forEach((r) => { r.label = label; });
             commit(true);
-            return true;
             refocus();
+            return true;
           },
           onCancel: () => { if (isNew) dropNewRelation(newRel, back); else refocus(); }
         });
@@ -1011,7 +1012,7 @@
         const list = htmlEl('div', 'c4-icon-list');
         const note = htmlEl('div', 'c4-icons-note t-detail');
         note.setAttribute('role', 'status');
-        const missing = [...new Set(elements().map((e) => e.icon).filter((n) => n && ICONS[n] === undefined))];
+        const missing = [...new Set(elements().map((e) => e.icon).filter((n) => n && ICONS[n] === undefined && !ui.hasLogo(String(n).slice(5))))];
         const pick = (name) => { closeFloating('pick'); if ((o.icon || '') !== name) { setOpt(o, 'icon', name); commit(false, { duration: 160 }); } };
         const fill = () => {
           const q = search.value.trim().toLowerCase().replace(/[-_]+/g, ' ');
@@ -1240,8 +1241,8 @@
         if (!item || ev.target.closest('button') || ev.target.isContentEditable) return;
         const lbl = item.classList.contains('c4-label');
         const kind = lbl ? 'edge' : item.dataset.nodeId ? 'element' : 'group', id = item.dataset.nodeId || item.dataset.groupId || item.dataset.edgeId;
-        if (ev.key === 'Enter' || ev.key === ' ' || ev.key === 'F2') {
         if (lbl && (ev.key === 'Delete' || ev.key === 'Backspace')) { select({ kind, id }); return; }   // the shell's Delete handler then removes the arrow
+        if (ev.key === 'Enter' || ev.key === ' ' || ev.key === 'F2') {
           ev.preventDefault();
           ev.stopPropagation();
           if (connecting) { if (ev.key === 'Enter' && kind === 'element') finishConnect(id); return; }
