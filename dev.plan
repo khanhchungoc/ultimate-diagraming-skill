@@ -1,0 +1,30 @@
+# Plan: dev repo -> public repo sync
+
+Goal: keep this repo as the only place anyone edits. Publish only the files users install to a separate public repo, automatically on each release.
+
+## Owner (manual)
+
+1. Create the empty public repo, e.g. `khanhchungoc/ultimate-diagram`.
+2. Create a fine-grained PAT with Contents: read/write on that repo only.
+3. Save it in this repo as the secret `PUBLIC_REPO_TOKEN`.
+4. Share the public repo name.
+
+## Implementation (this repo)
+
+1. Add `dev/release.py stage <dir>`: copy the exact zip file set into `<dir>`. Reuse the zip's file list so there is one source of truth.
+2. Extend `.github/workflows/release.yml`, after "Commit and tag": check out the public repo with the token, replace its contents with the staged files, commit `Release vX.Y.Z`, tag, push.
+3. Optional: publish the release zip on the public repo too, so the README download link works there.
+4. Update README, `package.json` `repository` URL, `bin/install.js` and the `SKILL.md` update-check URL to the public repo.
+5. Add a leak check under `dev/`: fail if the staged tree contains `dev/`, `docs/`, `.claude/`, `.codegraph/`, `.github/` or agent-note files. Run it in the workflow before the push.
+
+## Verify
+
+- Run `release.py stage` locally and diff its file list against the zip.
+- Run the leak check.
+- Dry run against a throwaway repo before the real one.
+
+## Open questions
+
+- Should the public repo keep a minimal README, LICENSE and `.github/ISSUE_TEMPLATE`? They are not in the zip today.
+- Does the playground (GitHub Pages) stay on the dev repo? Proposed: yes.
+- Will the dev repo go private? That is a separate step with a GitHub Pages plan constraint.
