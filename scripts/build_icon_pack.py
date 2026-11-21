@@ -45,6 +45,27 @@ def _clean(el: ET.Element, label: str) -> None:
     el.tail = None
 
 
+def _namespace_ids(root: ET.Element, label: str) -> None:
+    """Prefix internal `id` attributes and `#id` references with `lp-<slug>-` so multiple logos on one page never collide."""
+    ids = {el.attrib["id"] for el in root.iter() if "id" in el.attrib}
+    if not ids:
+        return
+    slug = re.sub(r"[^a-z0-9]+", "-", label.lower()).strip("-") or "icon"
+    prefix = f"lp-{slug}-"
+    remap = {eid: eid if eid.startswith(prefix) else prefix + eid for eid in ids}
+    if all(k == v for k, v in remap.items()):
+        return
+    url_re = re.compile(r"url\(\s*(['\"]?)#([^)'\"\s]+)\1\s*\)")
+    for el in root.iter():
+        if "id" in el.attrib:
+            el.attrib["id"] = remap[el.attrib["id"]]
+        for key, val in list(el.attrib.items()):
+            if key == "href" and val.startswith("#") and val[1:] in remap:
+                el.attrib[key] = "#" + remap[val[1:]]
+            elif "#" in val and "url(" in val:
+                el.attrib[key] = url_re.sub(lambda m: f"url(#{remap[m[2]]})" if m[2] in remap else m[0], val)
+
+
 def clean_svg(text: str, label: str = "svg") -> Dict[str, str]:
     """{"vb": viewBox, "body": inner markup} of an SVG text; ValueError when it cannot be reduced to inner markup."""
     try:
@@ -59,6 +80,7 @@ def clean_svg(text: str, label: str = "svg") -> Dict[str, str]:
     _clean(root, label)
     for el in root.iter():
         el.tag = _local(el.tag)
+    _namespace_ids(root, label)
     body = (root.text or "").strip() + "".join(ET.tostring(c, encoding="unicode", short_empty_elements=True).strip() for c in root)
     if "<" not in body:
         raise ValueError(f"{label}: nothing to draw inside the <svg>")
@@ -154,6 +176,27 @@ def load_logos(refs: Iterable[str], dirs: Sequence[Path]) -> Tuple[Dict[str, Dic
             continue
         registry[ref] = clean_svg(f'<svg xmlns="{SVG_NS}" viewBox="{entry["vb"]}">{entry["body"]}</svg>', ref)
     return registry, absent
+
+
+def load_all_logos(dirs: Sequence[Path]) -> Dict[str, Dict[str, str]]:
+    """Every cleaned logo entry ("<pack>/<name>" -> {vb, body}) across all packs in `dirs`; the first dir wins per pack."""
+    registry: Dict[str, Dict[str, str]] = {}
+    seen_packs: Set[str] = set()
+    for d in dirs:
+        if not d.is_dir():
+            continue
+        for path in sorted(d.glob("*.json")):
+            pack = path.stem
+            if pack in seen_packs:
+                continue
+            seen_packs.add(pack)
+            icons = json.loads(path.read_text(encoding="utf-8")).get("icons", {})
+            for name, entry in sorted(icons.items()):
+                if not isinstance(entry, dict) or "vb" not in entry or "body" not in entry:
+                    continue
+                ref = f"{pack}/{name}"
+                registry[ref] = clean_svg(f'<svg xmlns="{SVG_NS}" viewBox="{entry["vb"]}">{entry["body"]}</svg>', ref)
+    return dict(sorted(registry.items()))
 
 
 def main() -> int:

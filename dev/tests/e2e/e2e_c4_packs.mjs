@@ -32,9 +32,10 @@ const diagram = (icon, extra = {}) => ({
   diagramType: 'c4', schemaVersion: 1, title: 'Packs', arrange: 'flow',
   elements: [
     { id: 'a', kind: 'container', name: 'Acme Box', icon },
-    { id: 'b', kind: 'database', name: 'Store' }
+    { id: 'b', kind: 'database', name: 'Store' },
+    { id: 'ext', kind: 'external', name: 'Pg Cloud', icon: 'logo:devicon/postgresql' }
   ],
-  relations: [{ from: 'a', to: 'b', label: 'Writes' }], ...extra
+  relations: [{ from: 'a', to: 'b', label: 'Writes' }, { from: 'a', to: 'ext', label: 'Queries' }], ...extra
 });
 function build(name, icon) {
   const src = join(work, `${name}.json`), out = join(work, `${name}.html`);
@@ -53,7 +54,7 @@ const t = await launch(browser).catch((e) => { console.error('[ERROR]', e.messag
 let code = 0;
 try {
   const html = readFileSync(ok.out, 'utf8');
-  t.check('the page embeds the entry it uses', html.includes('const LOGOS = {"acme/box"') && !html.includes('acme/unused') && !html.includes('#111111'), '');
+  t.check('the page embeds the entry it uses', html.includes('"acme/box"') && !html.includes('acme/unused') && !html.includes('#111111'), '');
   t.check('LOGOS sits outside the data block', !/<script id="diagram-data"[^>]*>[\s\S]*?<\/script>/.exec(html)[0].includes('LOGOS'), '');
   t.check('a good build prints no WARN', warns(ok.log).length === 0, ok.log);
   t.check('a missing entry prints one WARN naming pack and entry', warns(noEntry.log).length === 1 && /acme/.test(warns(noEntry.log)[0]) && /nope/.test(warns(noEntry.log)[0]), noEntry.log);
@@ -62,7 +63,9 @@ try {
   const probe = () => t.ev(`(() => {
     const d = document.querySelector('[data-node-id="a"] .c4-disc'), s = d.querySelector('svg'), r = s.querySelector('rect');
     const dr = d.getBoundingClientRect(), rr = r ? r.getBoundingClientRect() : null;
+    const ext = document.querySelector('[data-node-id="ext"] .c4-disc');
     return JSON.stringify({ logo: d.classList.contains('is-logo'), bg: getComputedStyle(d).backgroundColor, fill: r ? getComputedStyle(r).fill : '',
+      extLogo: ext.classList.contains('is-logo'), extBg: getComputedStyle(ext).backgroundColor,
       ratio: rr ? rr.width / rr.height : 0, inside: !!rr && rr.left >= dr.left && rr.right <= dr.right && rr.top >= dr.top && rr.bottom <= dr.bottom,
       stroked: s.getAttribute('stroke') === 'currentColor', theme: document.documentElement.dataset.theme || 'light' });
   })()`).then(JSON.parse);
@@ -72,8 +75,8 @@ try {
     await t.ev(`document.documentElement.dataset.theme = ${J(theme)}`);
     await sleep(200);
     const p = await probe();
-    t.check(`${theme}: logo in a white disc, own colour, 3:2, inside the disc`,
-      p.logo && p.bg === 'rgb(255, 255, 255)' && p.fill === 'rgb(225, 29, 72)' && Math.abs(p.ratio - 1.5) < 0.02 && p.inside && !p.stroked, J(p));
+    t.check(`${theme}: logo in a white disc, own colour, 3:2, inside the disc (external bundled logo also white disc)`,
+      p.logo && p.bg === 'rgb(255, 255, 255)' && p.extLogo && p.extBg === 'rgb(255, 255, 255)' && p.fill === 'rgb(225, 29, 72)' && Math.abs(p.ratio - 1.5) < 0.02 && p.inside && !p.stroked, J(p));
   }
   await t.ev(`document.documentElement.dataset.theme = 'light'`);
 
@@ -88,15 +91,15 @@ try {
   const again = await probe();
   t.check('after Save and reload the logo is still drawn', again.logo && again.bg === 'rgb(255, 255, 255)' && Math.abs(again.ratio - 1.5) < 0.02, J(again));
   const re = spawnSync('python3', [join(root, 'scripts', 'layout_engine.py'), '--layout', copy, '-o', join(work, 'again.html'), '--icons', icons], { encoding: 'utf8' });
-  t.check('re-laying out the saved page embeds the logo again', re.status === 0 && readFileSync(join(work, 'again.html'), 'utf8').includes('const LOGOS = {"acme/box"'), re.stdout + re.stderr);
+  t.check('re-laying out the saved page embeds the logo again', re.status === 0 && readFileSync(join(work, 'again.html'), 'utf8').includes('"acme/box"'), re.stdout + re.stderr);
 
   // Fallbacks: the kind's generic glyph, no logo class
   for (const [name, b] of [['missing entry', noEntry], ['missing pack', noPack]]) {
     await t.open(b.out);
     const p = await probe().catch(() => null);
     const g = await t.ev(`(() => { const d = document.querySelector('[data-node-id="a"] .c4-disc'); const s = d.querySelector('svg');
-      return JSON.stringify({ logo: d.classList.contains('is-logo'), stroked: !!s && s.getAttribute('stroke') === 'currentColor' }); })()`).then(JSON.parse);
-    t.check(`${name}: the generic glyph, not a logo`, !g.logo && g.stroked, J(g));
+      return JSON.stringify({ logo: d.classList.contains('is-logo'), glyph: !!s && (s.getAttribute('stroke') === 'currentColor' || s.getAttribute('fill') === 'currentColor') }); })()`).then(JSON.parse);
+    t.check(`${name}: the generic glyph, not a logo`, !g.logo && g.glyph, J(g));
   }
   t.check('no errors in the whole run', t.errors.length === 0, t.errors.join(' | '));
 } catch (err) {

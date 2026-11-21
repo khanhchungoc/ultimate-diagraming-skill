@@ -16,6 +16,7 @@ ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT / "scripts"))
 import audit_c4  # noqa: E402
 from audit_c4 import C4Audit  # noqa: E402
+from build_icon_pack import installed_packs  # noqa: E402
 
 BASE = {
     "diagramType": "c4",
@@ -154,6 +155,9 @@ no_warn("same pair, other label", lambda d: d["relations"].append({"from": "cust
 aws = lambda d: d["elements"][1].update(icon="logo:aws/s3")
 warn("missing icon pack", aws, "pack 'aws'")
 no_warn("installed icon pack", aws, "pack", packs=["aws"])
+bundled_packs = installed_packs([ROOT / "assets" / "logos"])
+check("bundled devicon pack installed", "devicon" in bundled_packs)
+no_warn("bundled devicon logo", lambda d: d["elements"][1].update(icon="logo:devicon/postgresql"), "pack", packs=bundled_packs)
 no_warn("generic icon", lambda d: d["elements"][1].update(icon="server"), "pack")
 
 # Arrange.

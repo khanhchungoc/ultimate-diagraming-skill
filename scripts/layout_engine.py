@@ -33,7 +33,7 @@ from audit_usecase import UsecaseAudit
 from disk_format import (DISK_CODECS, authoring_json, color_kind, format_json, free_notes, from_disk,  # noqa: F401 (DISK_CODECS: registry)
                          palette_slots, readme_text, stamp_reading_guide, to_disk, with_readme)
 import subprocess_flow as sub
-from build_icon_pack import installed_packs, load_logos, logo_refs
+from build_icon_pack import installed_packs, load_all_logos, load_logos, logo_refs
 from engine_runner import EngineUnavailable, layout_session, run_layout, run_mermaid
 from tokens import expand_icons, load_icons, load_tokens, merge_theme, tokens_css, tokens_js
 
@@ -1377,8 +1377,8 @@ def resolve_theme(theme_arg: Optional[str], page_html: Optional[str] = None) -> 
 AUDITS = {"flowchart": FlowchartAudit, "sequence": SequenceAudit, "erd": ErdAudit, "usecase": UsecaseAudit, "c4": C4Audit}
 
 
-# Where local icon packs (icons/<pack>.json) are looked for: set by main() (--icons, else next to the input, else ./icons)
-ICON_DIRS: List[Path] = [Path("icons")]
+# Where local icon packs (icons/<pack>.json) are looked for: set by main() (--icons, else next to the input, else ./icons), plus bundled logos
+ICON_DIRS: List[Path] = [Path("icons"), Path(__file__).resolve().parent.parent / "assets" / "logos"]
 
 
 def make_audit(data: Dict[str, Any], tokens: Optional[Dict[str, Any]] = None):
@@ -1397,6 +1397,7 @@ def logo_warnings(data: Dict[str, Any]) -> List[str]:
 # DISK_CODECS (disk_format.py): per type, (to_disk, from_disk) between the in-memory model and the page block
 
 ASSETS_DIR = Path(__file__).resolve().parent.parent / "assets"
+BUNDLED_LOGOS_DIR = ASSETS_DIR / "logos"
 TARGETS = ("file", "artifact")
 
 
@@ -1553,6 +1554,9 @@ def _build_parts(kind: str, data: Optional[Dict[str, Any]] = None,
     def html_part(text: str) -> str:  # {{icon:name}} in a template becomes the icon's <svg> here, so the page does no work at start-up
         return expand_icons(text, tokens, icons)
 
+    logos = load_logos(logo_refs(data), ICON_DIRS)[0]
+    if kind == "c4" and BUNDLED_LOGOS_DIR.is_dir():
+        logos = {**load_all_logos([BUNDLED_LOGOS_DIR]), **logos}
     parts = {
         "PAGE_TITLE": html.escape(str(data.get("title") or meta["title"]), quote=False),
         "TOKENS_CSS": tokens_css(tokens),
@@ -1569,7 +1573,7 @@ def _build_parts(kind: str, data: Optional[Dict[str, Any]] = None,
         "DATA": payload,
         "THEME": theme_script(theme),
         "SHELL_JS": _read_asset(ASSETS_DIR / "shell" / "shell.js").rstrip(chr(10)),
-        "TOKENS_JS": tokens_js(tokens, load_logos(logo_refs(data), ICON_DIRS)[0]),
+        "TOKENS_JS": tokens_js(tokens, logos),
         "ENGINE_JS": "\n".join(_read_asset(f).rstrip(chr(10)) for f in (ASSETS_DIR / "shell" / "ortho-router.js", type_dir / "route.js", type_dir / "engine.js") if f.is_file()),
         # The Mermaid reader and writer: the shared tokenizer, then the type's own (plain scripts, globals only)
         "MERMAID_JS": "\n".join(_read_asset(f).rstrip(chr(10)) for f in (ASSETS_DIR / "shell" / "mermaid-flow.js", type_dir / "mermaid.js") if f.is_file()),   # a type with no Mermaid reader yet has no mermaid.js
@@ -2037,7 +2041,7 @@ def main():
     args = parser.parse_args()
     tokens = theme = None
     given = next((Path(v) for v in (args.layout, args.verify, args.extract) if v), None)
-    ICON_DIRS[:] = [Path(args.icons)] if args.icons else [(given.parent if given else Path(".")) / "icons", Path("icons")]
+    ICON_DIRS[:] = ([Path(args.icons)] if args.icons else [(given.parent if given else Path(".")) / "icons", Path("icons")]) + [BUNDLED_LOGOS_DIR]
 
     if args.extract_theme:
         stored = read_stored_theme(Path(args.extract_theme).read_text(encoding="utf-8"))

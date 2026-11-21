@@ -1,35 +1,15 @@
-The icon drawings in default.json come from Lucide (https://lucide.dev), or are redrawn from Lucide designs,
-and are used under its ISC licence. Some Lucide icons derive from Feather and carry the MIT licence below it.
-The diagram-type icons (including type-usecase and type-c4), the infrastructure glyphs (queue, function, storage, cdn,
-gateway, container, cluster, cache, api, browser), the flowchart shape tiles, the participant-kind glyphs, the use case diagram glyphs
-(actor, usecase, subject, hash) and a few toolbar icons (including present) were drawn for this skill and are released with it. The clock and search icons
-are redrawn from the Lucide designs of the same name. The lock, bell and mobile (smartphone) icons are Lucide's own
-drawings (lucide-static 1.77.0), unchanged.
+The icon drawings in default.json come from Phosphor Icons (https://phosphoricons.com,
+Duotone style, @phosphor-icons/core 2.1.1) and are used under its MIT license below.
+The diagram-type icons (type-erd, type-flowchart, type-sequence, type-usecase, type-c4),
+ERD table/relationship icons (table-add, relationship, split), flowchart shape tiles
+(shape-*), lane/sequence/usecase notation glyphs (lane, participant, message, frame,
+numbers, message-return, lifespans, line-dashed, line-solid, message-async, usecase,
+subject), and participant-kind glyphs (kind-*) were drawn for this skill (24 x 24,
+rounded stroke) and are released with it.
 
-ISC License
+MIT License
 
-Copyright (c) 2026 Lucide Icons and Contributors
-
-Permission to use, copy, modify, and/or distribute this software for any
-purpose with or without fee is hereby granted, provided that the above
-copyright notice and this permission notice appear in all copies.
-
-THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
-WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
-MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
-ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
-WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
-ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
-OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
-
----
-
-Lucide icons derived from the Feather project (for example trash, plus, x, link, chevron-down, chevron-up, download, minus,
-moon, monitor, server, database, clipboard, code; the full list is in Lucide's own LICENSE file):
-
-The MIT License (MIT)
-
-Copyright (c) 2013-present Cole Bemis
+Copyright (c) 2023 Phosphor Icons
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

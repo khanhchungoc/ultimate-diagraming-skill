@@ -6,7 +6,7 @@ import zipfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "scripts"))
-from build_icon_pack import build_pack, load_logos, logo_refs  # noqa: E402
+from build_icon_pack import build_pack, clean_svg, load_all_logos, load_logos, logo_refs  # noqa: E402
 
 BOX = ('<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 48 32" onload="x()">'
        '<script>alert(1)</script><image xlink:href="http://example.com/a.png"/>'
@@ -52,6 +52,19 @@ def main():
                 assert "x" in str(exc) or "svg" in str(exc)
             else:
                 raise AssertionError(f"accepted {text!r}")
+        # internal id namespacing prevents gradient/clipPath collisions across logos and stays idempotent
+        grad_a = clean_svg('<svg viewBox="0 0 10 10"><defs><linearGradient id="g1"/></defs><rect fill="url(#g1)" width="10" height="10"/></svg>', "pack/a")
+        grad_b = clean_svg('<svg viewBox="0 0 10 10"><defs><linearGradient id="g1"/></defs><use href="#g1"/></svg>', "pack/b")
+        assert 'id="lp-pack-a-g1"' in grad_a["body"] and 'fill="url(#lp-pack-a-g1)"' in grad_a["body"], grad_a
+        assert 'id="lp-pack-b-g1"' in grad_b["body"] and 'href="#lp-pack-b-g1"' in grad_b["body"], grad_b
+        grad_a2 = clean_svg(f'<svg viewBox="{grad_a["vb"]}">{grad_a["body"]}</svg>', "pack/a")
+        assert grad_a2 == grad_a, "id namespacing is idempotent"
+        # load_all_logos loads all entries from dir (first dir wins per pack)
+        all_logos = load_all_logos([out1])
+        assert list(all_logos) == ["acme/big-box"], all_logos
+        # bundled devicon pack loads cleanly with >= 60 logos and no duplicate ids
+        bundled = load_all_logos([Path(__file__).resolve().parents[3] / "assets" / "logos"])
+        assert len(bundled) >= 60 and "devicon/postgresql" in bundled and "devicon/kubernetes" in bundled, len(bundled)
     print("[PASS] icon pack builder")
 
 

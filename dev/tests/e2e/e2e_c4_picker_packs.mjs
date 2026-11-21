@@ -57,15 +57,18 @@ try {
   };
 
   await openPicker('Plain');
-  t.check('the picker has a Local packs group after the generic ones', (await heads()).endsWith('Security|Local packs'), await heads());
+  t.check('the picker has Tech logos and Local packs groups after the generic ones', (await heads()).endsWith('Security|Tech logos|Local packs'), await heads());
   let ts = await tiles();
-  t.check('it lists the used entries only', J(ts.map((x) => x.n)) === J(['logo:acme/box', 'logo:acme/ring']), J(ts));
-  t.check('each tile is a logo on the white disc', ts.every((x) => x.svg && x.disc === 'rgb(255, 255, 255)'), J(ts));
-  t.check('no entry is marked for an element with no icon', ts.every((x) => x.pressed === 'false'), J(ts));
+  const localTs = ts.filter((x) => !x.n.startsWith('logo:devicon/'));
+  const deviconTs = ts.filter((x) => x.n.startsWith('logo:devicon/'));
+  t.check('it lists the used local entries only and >= 60 bundled devicon logos', J(localTs.map((x) => x.n)) === J(['logo:acme/box', 'logo:acme/ring']) && deviconTs.length >= 60, J({ local: localTs, deviconCount: deviconTs.length }));
+  t.check('each tile is a logo on the white disc', ts.every((x) => x.svg && x.disc === 'rgb(255, 255, 255)'), J(ts.slice(0, 5)));
+  t.check('no entry is marked for an element with no icon', ts.every((x) => x.pressed === 'false'), J(ts.slice(0, 5)));
   t.check('the missing-pack note stays', /Missing icon pack: logo:ghost\/x/.test(await t.ev(`(document.querySelector('.c4-icons-missing') || {}).textContent || ''`)), '');
   await search('ring');
   await sleep(100);
-  t.check('search narrows the pack entries', J((await tiles()).map((x) => x.n)) === J(['logo:acme/ring']), J(await tiles()));
+  const ringTiles = await tiles();
+  t.check('search narrows the pack entries', J(ringTiles.filter((x) => !x.n.startsWith('logo:devicon/')).map((x) => x.n)) === J(['logo:acme/ring']) && ringTiles.some((x) => x.n === 'logo:devicon/spring'), J(ringTiles));
   await search('zzz');
   await sleep(100);
   t.check('no match: no pack tile and a note', (await tiles()).length === 0 && (await heads()) === '' && /No icon matches/.test(await t.ev(`document.querySelector('.c4-icons-note').textContent`)), await heads());
