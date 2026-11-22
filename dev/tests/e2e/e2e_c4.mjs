@@ -98,8 +98,9 @@ const laidOut = (model, name) => {
   if (r.status !== 0) { console.error(`[ERROR] could not lay out ${name}:`, r.stdout, r.stderr); process.exit(1); }
   return out;
 };
-const notedPage = laidOut(NOTED, 'noted');
-const generatedPage = laidOut(GENERATED, 'generated');
+let _notedPage = null, _generatedPage = null;
+const getNotedPage = () => (_notedPage ||= laidOut(NOTED, 'noted'));
+const getGeneratedPage = () => (_generatedPage ||= laidOut(GENERATED, 'generated'));
 
 let page = argOf('page');
 if (!page) {
@@ -122,19 +123,15 @@ try {
   const WAAPI = `document.getAnimations().filter((a) => !(a instanceof CSSTransition) && !(a instanceof CSSAnimation)).length`;
   const GHOSTS = `document.querySelectorAll('[data-motion-ghost]').length`;
   // The disk model, read the way an agent would: after a save (chartData lives in the page's closure)
-  const saved = async () => {
-    await t.press('s', { modifiers: 2 });
-    await sleep(250);
-    return JSON.parse(await t.ev(`document.getElementById('diagram-data').textContent`));
-  };
-  const rawSaved = async () => { await saved(); return t.ev(`document.getElementById('diagram-data').textContent`); };
+  const saved = () => t.saved();
+  const rawSaved = () => t.saved({ raw: true });
   const editing = () => t.ev(`(() => { const a = document.activeElement; if (!a || !a.matches(${J(A.editor)}) || a.id === 'search-input') return null;
     return a.isContentEditable ? a.textContent : (a.value ?? ''); })()`);
-  const undo = async () => { await t.press('z', { modifiers: 2 }); await sleep(150); await t.settle(); };
-  const redo = async () => { await t.press('y', { modifiers: 2 }); await sleep(150); await t.settle(); };
-  const blank = async () => { await t.press('Escape'); await t.press('Escape'); await sleep(60); };
+  const undo = async () => { await t.press('z', { modifiers: 2 }); await t.settle(); };
+  const redo = async () => { await t.press('y', { modifiers: 2 }); await t.settle(); };
+  const blank = async () => { await t.press('Escape'); await t.press('Escape'); await sleep(40); };
   const undoOff = () => t.ev(`document.getElementById('btn-undo').disabled`);
-  const freshPage = async (file = page, query = '') => { await t.open(file, query); };
+  const freshPage = async (file = page, query = '', opts = {}) => { await t.open(file, query, opts); };
   const byName = (list, name) => (list || []).find((o) => o.name === name);
   const idOf = (name) => t.ev(`(() => { const n = [...document.querySelectorAll('.c4-node, .c4-group.is-tile')].find((e) => (e.querySelector('.c4-name') || {}).textContent === ${J(name)});
     return n ? (n.dataset.nodeId || n.dataset.groupId) : null; })()`);
@@ -149,9 +146,13 @@ try {
   const toastText = () => t.ev(`[...document.querySelectorAll(${J(A.toast)})].map((e) => e.textContent).join(' / ')`);
   const dropToasts = () => t.ev(`document.querySelectorAll(${J(A.toast)}).forEach((e) => e.remove())`);
   // The dock's Add tiles hide until the pointer is over the trigger
-  const openAdd = async () => { const p = await t.at('#btn-add'); await t.mouse('mouseMoved', p.x, p.y); await sleep(550); };
-  const tile = async (kind) => { await openAdd(); await t.clickOn(`#btn-add-${kind}`); await sleep(200); };
-  const addNamed = async (kind, name) => { await tile(kind); await t.press('a', { modifiers: 2 }); await t.type(name); await t.press('Enter'); await sleep(150); await t.settle(); };
+  const openAdd = async () => {
+    const p = await t.at('#btn-add');
+    await t.mouse('mouseMoved', p.x, p.y);
+    await t.waitFor(`(() => { const pop = document.querySelector('#btn-add')?.closest('[data-dock-pop]')?.querySelector('.dock-pop'); return pop && pop.closest('.open') && getComputedStyle(pop).opacity === '1'; })()`);
+  };
+  const tile = async (kind) => { await openAdd(); await t.clickOn(`#btn-add-${kind}`); await t.settle(); };
+  const addNamed = async (kind, name) => { await tile(kind); await t.press('a', { modifiers: 2 }); await t.type(name); await t.press('Enter'); await t.settle(); };
   // Click the visible menu / popover entry whose text matches (the entry is found by text, not by position)
   const menuPick = async (re) => {
     // mark the entry, then clickOn it: clickOn waits for the menu's own open animation to settle
@@ -220,10 +221,7 @@ try {
     return s.data;
   };
   // A section that throws is one failed check, and the run goes on with a fresh page
-  const section = async (name, fn) => {
-    if (process.env.E2E_SECTIONS && !process.env.E2E_SECTIONS.split(',').includes(name)) return;   // E2E_SECTIONS=notes,render runs just those
-    try { await fn(); } catch (err) { t.check(`${name}: ran to the end`, false, (err.stack || err.message).split('\n').slice(0, 3).join(' / ')); }
-  };
+  const section = (name, fn) => t.section(name, fn);
 
   // =========================================================================================================
   await section('render', async () => {
@@ -946,6 +944,8 @@ try {
 
   // --- notes -------------------------------------------------------------------------------------------------
   await section('notes', async () => {
+    const notedPage = getNotedPage();
+    const generatedPage = getGeneratedPage();
     const cards = () => t.ev(`[...document.querySelectorAll('.note[data-note-id]')].map((c) => ({ id: c.dataset.noteId, text: c.querySelector('.note-text').textContent, label: c.getAttribute('aria-label'), tab: c.tabIndex,
       r: (({ left, top, right, bottom }) => [left, top, right, bottom])(c.getBoundingClientRect()) }))`);
     const ids = async () => (await cards()).map((c) => c.id).sort().join(',');
@@ -966,7 +966,7 @@ try {
     const pairs = { n1: item('api'), n2: grp('platform') };
 
     // -- shown from the file, named, focusable, clear of the boxes
-    await freshPage(notedPage);
+    await freshPage(notedPage, '', { motion: true });
     await fit();
     const c0 = await cards();
     t.check('showNotes in the file draws one card per note, in the note layer', c0.length === 2 && (await t.ev(`!!document.querySelector('#c4-notes') && document.querySelectorAll('#c4-notes > .note').length === 2`)), J(c0.map((c) => c.id)));
@@ -980,8 +980,8 @@ try {
     await t.clickOn('#btn-notes');
     const midOff = await t.ev(`${WAAPI} + ${GHOSTS}`);
     await sleep(500); await t.settle(1500);
-    t.check('the Notes switch hides every card (aria-checked false, the count stays)', (await count('.note[data-note-id]')) === 0 && (await sw()).on === 'false' && (await sw()).count === '2' && !(await saved()).showNotes);
     t.check('hiding folds the cards (an animation or a ghost runs), then nothing is left running', midOff > 0 && (await t.ev(WAAPI)) === 0 && (await t.ev(GHOSTS)) === 0, `${midOff}`);
+    t.check('the Notes switch hides every card (aria-checked false, the count stays)', (await count('.note[data-note-id]')) === 0 && (await sw()).on === 'false' && (await sw()).count === '2' && !(await saved()).showNotes);
     await t.clickOn('#btn-notes');
     const midOn = await t.ev(WAAPI);
     await sleep(500); await t.settle(1500);
@@ -1091,7 +1091,7 @@ try {
     await t.press('Escape'); await sleep(250); await t.settle(1500);
 
     // -- Auto-Tidy and collapse: cards follow their target
-    await freshPage(notedPage);
+    await freshPage(notedPage, '', { motion: true });
     await fit();
     await addNamed('system', 'Billing System');
     await fit();
@@ -1174,7 +1174,7 @@ print('SAME' if a == b else 'DIFF\\n' + '\\n'.join(difflib.unified_diff(a.splitl
     // -- reduced motion: no animation, no ghost
     await t.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
     try {
-      await freshPage(notedPage);
+      await freshPage(notedPage, '', { motion: true });
       const probe = async (name, fn) => {
         await fn();
         const r = [await t.ev(WAAPI), await t.ev(GHOSTS)];
@@ -1227,7 +1227,7 @@ print('SAME' if a == b else 'DIFF\\n' + '\\n'.join(difflib.unified_diff(a.splitl
   await section('reduced', async () => {
     await t.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
     try {
-      await freshPage();
+      await freshPage(page, '', { motion: true });
       const probe = async (name, fn) => {
         await fn();
         const r = [await t.ev(WAAPI), await t.ev(GHOSTS)];
@@ -1248,7 +1248,7 @@ print('SAME' if a == b else 'DIFF\\n' + '\\n'.join(difflib.unified_diff(a.splitl
 
   // --- motion: a normal run leaves nothing behind ------------------------------------------------------------
   await section('motion', async () => {
-    await freshPage();
+    await freshPage(page, '', { motion: true });
     await t.clickOn('#btn-level-1');
     const mid = await t.ev(`${WAAPI}`);
     t.check('collapsing plays a morph (animations run) in normal motion', mid > 0, `${mid}`);

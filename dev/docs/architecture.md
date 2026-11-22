@@ -210,6 +210,12 @@ The `sequence` type is the reference for a type that shares nothing with the flo
 
 ## Tests
 
+Run all browser E2E tests in parallel (shared Chrome, lazy batched fixtures, sharding, and change-based filtering):
+
+- `node dev/tests/run_e2e.mjs` (or `npm run test:e2e`) — full E2E suite in parallel
+- `node dev/tests/run_e2e.mjs --changed [ref]` (or `npm run test:e2e:changed`) — only tests affected by git changes
+- `node dev/tests/run_e2e.mjs --type c4,erd` / `--only e2e_shell` / `--jobs 4` / `--list` — targeted subsets
+
 | Command | Proves |
 |---|---|
 | `python dev/build_examples.py --check` | `dev/samples/example-*.html` (built from `dev/examples/example-*.json`) match what the current shell, plugins and engines would build, and each has what an agent reads first: the reading guide on line 2, the data block in `<head>` with its end marker, the real title, and guide commands that print valid JSON. Run without `--check` to rebuild them after any change. |

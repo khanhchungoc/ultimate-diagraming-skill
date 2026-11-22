@@ -13,8 +13,9 @@
 // --large: dev/tests/fixtures/erd/saas-billing.json laid out the same way (~30 tables).
 // --blank (optional): assets/types/erd/default.json laid out (two tables, no colours): the optional colour legend (named in the editor, never prompted).
 // Exit codes: 0 all passed, 1 setup error, 2 a check failed.
-import { readFileSync, writeFileSync, unlinkSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync, unlinkSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
+import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { argOf, launch, sleep } from './cdp.mjs';
@@ -22,6 +23,7 @@ import { argOf, launch, sleep } from './cdp.mjs';
 const browser = argOf('browser'), page = argOf('page'), large = argOf('large'), blank = argOf('blank');
 if (!browser || !page || !large) { console.error('usage: --browser <chrome> --page <example-erd.html> --large <saas-billing.html> [--blank <default-erd.html>]'); process.exit(1); }
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
+const work = mkdtempSync(join(tmpdir(), 'e2e_erd_'));
 
 const t = await launch(browser).catch((e) => { console.error('[ERROR]', e.message); process.exit(1); });
 let code = 0;
@@ -33,11 +35,7 @@ try {
   const text = (sel) => t.ev(`(document.querySelector(${J(sel)}) || {}).textContent ?? null`);
   const block = (html) => (html.replace(/\r\n/g, '\n').match(/<script id="diagram-data" type="application\/json">([\s\S]*?)<\/script>/) || [])[1];
   // chartData lives in the page script's closure: read the model the way an agent would, from a save (the disk model)
-  const saved = async () => {
-    await t.press('s', { modifiers: 2 });
-    await sleep(250);
-    return JSON.parse(await t.ev(`document.getElementById('diagram-data').textContent`));
-  };
+  const saved = () => t.saved();
   const notes0 = (JSON.parse(block(readFileSync(page, 'utf8'))).notes || []).length;   // the example's table note
   const ent = (d, id) => d.entities.find((e) => e.id === id);
   const rel = (d, id) => d.relationships.find((r) => r.id === id);
@@ -94,7 +92,11 @@ sys.stdout.write(format_json(out))`;
     return r.status === 0 && r.stdout.replace(/\r\n/g, '\n').trim() === blockText.trim() ? '' : `python: ${r.stderr || 'differs'}`;
   };
 
+  let ids, d, p, tgt, q;
+  const layoutOf = async () => (await saved()).layout || {};   // every table's absolute x/y
+
   // ---------------------------------------------------------------------------------------------------------
+  await t.section('render-selection', async () => {
   await freshPage();
   const vw = await t.ev(`innerWidth`);
   t.check('the example renders its 8 tables and 9 lines, no group boxes, without errors',
@@ -133,12 +135,14 @@ sys.stdout.write(format_json(out))`;
       inside: s.every((q) => q.left >= g.left - 0.5 && q.right <= g.right + 0.5 && q.top >= r.getBoundingClientRect().top && q.bottom <= r.getBoundingClientRect().bottom), oneGap: n.left - one.right }; })()`);
   t.check('a PK+FK column stacks its two glyphs inside the 22px glyph slot, clear of the name (as much room as a single glyph)',
     Math.abs(glyph.slot / glyphScale - 22) < 0.6 && glyph.stacked && glyph.inside && glyph.gap / glyphScale >= 8, J(glyph));
+  });
 
   // --- Add a table ---
+  await t.section('add-rename-cols', async () => {
   await freshPage();
   await t.clickOn(head('order'));
   await t.clickOn('#btn-add-table');
-  let ids = await tableIds();
+  ids = await tableIds();
   const newId = ids.find((i) => /^t_\d+/.test(i));
   const nameEdit = await editing();
   t.check('Table adds one after the selected table, with an id PK uuid column, and opens its name in edit',
@@ -147,7 +151,7 @@ sys.stdout.write(format_json(out))`;
   await t.type('payment_method');
   await t.press('Enter');
   t.check('typing and Enter renames the new table', (await tableName(newId)) === 'payment_method' && (await editing()) === null);
-  let d = await saved();
+  d = await saved();
   t.check('the saved table has no group and its id column is a uuid primary key',
     ent(d, 'payment_method') && !('group' in ent(d, 'payment_method')) && J(ent(d, 'payment_method').columns) === J([{ name: 'id', type: 'uuid', pk: true }]), J(ent(d, 'payment_method')));
   await undo();
@@ -299,11 +303,14 @@ sys.stdout.write(format_json(out))`;
   await t.clickOn('.erd-actionbar [data-act="delcol"]');
   t.check('the action bar deletes a column too, and selects its table', !(await colNames('order')).includes('status') && (await count('.erd-entity.selected')) === 1);
 
+  });
+
   // --- Draw a relationship ---
+  await t.section('draw-rel', async () => {
   await freshPage();
   const before = (await saved()).relationships.length;
-  let p = await portOf('review', 'rating');
-  let tgt = await t.at(row('category', 'id'));
+  p = await portOf('review', 'rating');
+  tgt = await t.at(row('category', 'id'));
   await t.dragTo(p.x, p.y, tgt.x, tgt.y);
   d = await saved();
   const r10 = d.relationships.find((r) => r.from === 'review' && r.to === 'category');
@@ -378,9 +385,12 @@ sys.stdout.write(format_json(out))`;
     armed === 'truetrue' && disarmed === 'falsefalse' && !!d.relationships.find((r) => r.from === 'review' && r.to === 'category' && r.columns?.join() === 'rating')
       && !(await t.ev(`document.body.classList.contains('erd-armed')`)), `${armed} ${disarmed}`);
 
+  });
+
   // --- A selected relationship: cardinality, identifying, reverse, label, re-point ---
+  await t.section('edit-rel', async () => {
   await freshPage();
-  let q = await onLine('r2');
+  q = await onLine('r2');
   await t.click(q.x, q.y);
   t.check('clicking a line selects it: two crow’s-foot pickers (4 glyphs each), Identifying, Reverse, label and 2 end handles',
     (await count('.erd-rel.selected')) === 1 && (await count('.erd-actionbar [data-act="fromEnd"]')) === 4 && (await count('.erd-actionbar [data-act="toEnd"]')) === 4
@@ -468,7 +478,10 @@ sys.stdout.write(format_json(out))`;
   t.check('a self-reference keeps its column: dropping its child end on the table’s header is refused with a hint',
     (await saved()).relationships.find((r) => r.from === 'category' && r.to === 'category')?.columns?.join() === 'name' && /self-reference needs a column/.test(await text('.hint') || ''));
 
+  });
+
   // --- Table colours (no groups) ---
+  await t.section('colors', async () => {
   await freshPage();
   const col0 = await saved();
   await t.clickOn(head('address'));
@@ -494,7 +507,10 @@ sys.stdout.write(format_json(out))`;
   d = await saved();
   t.check('with several tables selected a swatch colours all of them', ent(d, 'product').color === '5' && ent(d, 'category').color === '5' && ent(d, 'review').color === ent(col0, 'review').color);
 
+  });
+
   // --- Notes ---
+  await t.section('notes-delete', async () => {
   await freshPage();
   await t.clickOn(head('customer'));
   await t.press('n');
@@ -577,7 +593,7 @@ sys.stdout.write(format_json(out))`;
     dropEdit === '' && freeNote(d, 'Dropped free')?.entities.length === 0 && Math.abs(dropCard[0]) < 16 && Math.abs(dropCard[1]) < 16, `${dropEdit} ${J(dropCard)} ${J(freeNote(d, 'Dropped free'))}`);
   const rawFree = await t.ev(`document.getElementById('diagram-data').textContent`);
   t.check('the saved block with free notes agrees with the Python codec', pythonAgrees(rawFree) === '', pythonAgrees(rawFree));
-  const tmpFree = join(root, 'dev', '.e2e_erd_free.html');
+  const tmpFree = join(work, 'e2e_erd_free.html');
   writeFileSync(tmpFree, readFileSync(page, 'utf8').replace(/(<script id="diagram-data" type="application\/json">)[\s\S]*?(<\/script>)/, (m, a2, b2) => a2 + rawFree + b2));
   await freshPage(tmpFree);
   await t.press('s', { modifiers: 2 });
@@ -705,7 +721,10 @@ sys.stdout.write(format_json(out))`;
   await t.press('Delete');
   t.check('a table without relationships is deleted without asking', (await count('.confirm')) === 0 && (await count('.erd-entity')) === 8);
 
+  });
+
   // --- Escape cancels what is under way ---
+  await t.section('escape-layout', async () => {
   await freshPage();
   p = await portOf('review', 'rating');
   await t.mouse('mousePressed', p.x, p.y, { button: 'left', buttons: 1, clickCount: 1 });
@@ -723,7 +742,6 @@ sys.stdout.write(format_json(out))`;
   t.check('Escape while dragging a table puts it back', Math.abs(o2.x - o.x) < 1 && Math.abs(o2.y - o.y) < 1 && (await undoDisabled()));
 
   // --- Tables stay where they are (there is no Auto-Tidy toggle) ---
-  const layoutOf = async () => (await saved()).layout || {};   // every table's absolute x/y
   await freshPage();
   t.check('the dock has no Auto-Tidy toggle on the ERD page (only the shell Tidy button)', (await count('#btn-auto-layout')) === 0 && (await count('#btn-auto-tidy')) === 1);
   const lay0 = await layoutOf();
@@ -776,7 +794,10 @@ sys.stdout.write(format_json(out))`;
   const tidy1 = await layoutOf();
   t.check('Tidy lays the diagram out on request', Object.keys(off5).some((k) => J(off5[k]) !== J(tidy1[k])) && t.errors.length === 0, t.errors.join(' | '));
 
+  });
+
   // --- Every kind of edit is exactly one undo step, and redo puts it back ---
+  await t.section('undo-matrix', async () => {
   // Each case runs on a fresh page: `setup` selects (no edit), `act` is the edit. After one undo the saved model equals
   // the one before and undo is used up; one redo gives the model after.
   const cases = [
@@ -823,7 +844,10 @@ sys.stdout.write(format_json(out))`;
   }
   t.check(`each of ${cases.length} kinds of edit is one undo step and redo puts it back`, stepProblems.length === 0, stepProblems.join('; '));
 
+  });
+
   // --- Multi-select (tables only) ---
+  await t.section('multiselect-switches-present', async () => {
   {
   const selCount = () => count('.erd-entity.selected');
   const selIds = async () => JSON.parse(await t.ev(`JSON.stringify([...document.querySelectorAll('.erd-entity.selected')].map((e) => e.dataset.nodeId).sort())`));
@@ -990,7 +1014,10 @@ sys.stdout.write(format_json(out))`;
   const posAfter = await t.at(head('customer'));
   t.check('?present: dragging a row or a table changes nothing', (await colNames('customer')).join() === 'id,email,name,phone' && posBefore.x === posAfter.x && posBefore.y === posAfter.y && !(await unsaved()));
 
+  });
+
   // --- Saved data block ---
+  await t.section('saved-block', async () => {
   for (const [what, file] of [['the example', page], ['the 30-table schema', large]]) {
     await freshPage(file);
     const gen = block(readFileSync(file, 'utf8'));
@@ -1043,7 +1070,10 @@ sys.stdout.write(format_json(out))`;
   await sleep(100);
   t.check('hover works on the large page (a table lights its lines and dims the rest)', (await count('.erd-entity.is-dim')) > 10);
 
+  });
+
   // --- Hover and selection: the neighbourhood of a table (D8) ---
+  await t.section('neighbourhood', async () => {
   {
   const hoverOn = async (id) => { const r = await t.at(head(id), 0.3, 0.5); await t.mouse('mouseMoved', r.x - 2, r.y - 2); await t.mouse('mouseMoved', r.x, r.y); await sleep(120); };
   const idsWith = async (cls) => JSON.parse(await t.ev(`JSON.stringify([...document.querySelectorAll('.erd-entity.${cls}')].map((e) => e.dataset.nodeId).sort())`));
@@ -1150,14 +1180,17 @@ sys.stdout.write(format_json(out))`;
   t.check('SVG export of a diagram with a selected table has no ring, tooltip or card (names mode: just the headers)', !!svgText && !/→ order|← order/.test(svgText) && !/erd-expand-card/.test(svgText) && svgText.includes('order_item'), (svgText || '').slice(0, 100));
   }
 
+  });
+
   // --- A v1 page (schemaVersion 1, flow-term layout map) opens re-laid out ---
+  await t.section('v1-v2-overview', async () => {
   {
   const v1 = JSON.parse(block(readFileSync(page, 'utf8')));
   v1.schemaVersion = 1;
   v1.direction = 'TB';
   v1.layout = Object.fromEntries(v1.entities.map((e, i) => [e.id, { x: 16 + 220 * i, y: 8 }]));
   const html = readFileSync(page, 'utf8').replace(/(<script id="diagram-data" type="application\/json">)[\s\S]*?(<\/script>)/, (m, a, b) => a + J(v1) + b);
-  const v1File = join(dirname(page), 'v1-erd-test.html');
+  const v1File = join(work, 'v1-erd-test.html');
   writeFileSync(v1File, html);
   await freshPage(v1File);
   const v1Tables = JSON.parse(await t.ev(`JSON.stringify([...document.querySelectorAll('.erd-entity')].map((e) => { const r = e.getBoundingClientRect(); return [Math.round(r.left), Math.round(r.top)]; }))`));
@@ -1175,7 +1208,7 @@ sys.stdout.write(format_json(out))`;
   v2.entities.forEach((e) => { e.group = sales.includes(e.id) ? 'sales' : 'catalog'; delete e.color; });
   v2.colorKey = { '#fef3c7': 'Other' };
   v2.layout = { sales: { x: 16, y: 16 }, catalog: { x: 900, y: 16 }, ...Object.fromEntries(v2.entities.map((e, i) => [e.id, { x: 16 + (i % 3) * 200, y: 40 + Math.floor(i / 3) * 150 }])) };
-  const v2File = join(dirname(page), 'v2-erd-test.html');
+  const v2File = join(work, 'v2-erd-test.html');
   writeFileSync(v2File, readFileSync(page, 'utf8').replace(/(<script id="diagram-data" type="application\/json">)[\s\S]*?(<\/script>)/, (m, a, b) => a + J(v2) + b));
   await freshPage(v2File);
   const v2Colours = JSON.parse(await t.ev(`JSON.stringify([...document.querySelectorAll('.erd-entity')].map((e) => e.dataset.nodeId + ':' + e.style.getPropertyValue('--swatch-color')).sort())`));
@@ -1312,7 +1345,10 @@ sys.stdout.write(format_json(out))`;
   await t.send('Page.removeScriptToEvaluateOnNewDocument', { identifier: clipStub });
   }
 
+  });
+
   // --- A big layout runs in a worker: the page stays responsive, the result is the synchronous layout, undo restores ---
+  await t.section('worker-legend', async () => {
   {
   const layoutOfSaved = async () => J((await saved()).layout);
   // Round trips through requestAnimationFrame while the layout runs: the longest one says whether the page froze
@@ -1353,7 +1389,8 @@ sys.stdout.write(format_json(out))`;
   // a page with no positions (a v1/v2 file) opens, shows a provisional grid, then lands on the same layout; it is not an edit
   const bare = JSON.parse(block(readFileSync(large, 'utf8')));
   delete bare.layout;
-  const bareFile = join(dirname(large), 'bare-erd-test.html');
+  mkdirSync(work, { recursive: true });
+  const bareFile = join(work, 'bare-erd-test.html');
   writeFileSync(bareFile, readFileSync(large, 'utf8').replace(/(<script id="diagram-data" type="application\/json">)[\s\S]*?(<\/script>)/, (m, a, b) => a + J(bare) + b));
   await freshPage(bareFile);
   t.check('large, no positions: the page draws every table while the layout runs', (await count('.erd-entity')) >= 28 && (await t.ev(`document.body.hasAttribute('data-erd-busy')`)));
@@ -1447,6 +1484,7 @@ sys.stdout.write(format_json(out))`;
     await freshPage(blank, '?present');
     t.check('legend: ?present with no names shows nothing', (await count(key)) === 0);
   }
+  });
 
   t.check('no errors in the whole run', t.errors.length === 0, t.errors.join(' | '));
 } catch (err) {
@@ -1454,6 +1492,7 @@ sys.stdout.write(format_json(out))`;
   code = 1;
 } finally {
   await t.close();
+  try { rmSync(work, { recursive: true, force: true }); } catch { /* temp folder */ }
 }
 process.exit(code || t.finish());
 
