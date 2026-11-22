@@ -17,11 +17,10 @@
 // Exit codes: 0 all passed, 1 setup error, 2 one or more tests failed.
 import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { createRequire } from 'node:module';
 import { availableParallelism, cpus, tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { CHROME_FLAGS } from './e2e/cdp.mjs';
+import { CHROME_FLAGS, findBrowser } from './e2e/cdp.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '..', '..');
@@ -60,43 +59,6 @@ function findPython() {
     if (r.status === 0) return cmd;
   }
   return null;
-}
-
-function findBrowser() {
-  const explicit = valueOf('browser') || process.env.CHROME || process.env.E2E_BROWSER;
-  if (explicit) return explicit;
-  const candidates = process.platform === 'win32'
-    ? [
-        join(process.env['PROGRAMFILES'] || 'C:\\Program Files', 'Google', 'Chrome', 'Application', 'chrome.exe'),
-        join(process.env['PROGRAMFILES(X86)'] || 'C:\\Program Files (x86)', 'Google', 'Chrome', 'Application', 'chrome.exe'),
-        join(process.env.LOCALAPPDATA || '', 'Google', 'Chrome', 'Application', 'chrome.exe'),
-        join(process.env['PROGRAMFILES'] || 'C:\\Program Files', 'Chromium', 'Application', 'chrome.exe'),
-      ]
-    : process.platform === 'darwin'
-      ? [
-          '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-          '/Applications/Chromium.app/Contents/MacOS/Chromium',
-        ]
-      : ['google-chrome', 'google-chrome-stable', 'chromium', 'chromium-browser'];
-  for (const c of candidates) {
-    if (!c) continue;
-    if (c.includes('/') || c.includes('\\')) {
-      if (existsSync(c)) return c;
-    } else {
-      const r = spawnSync('which', [c], { encoding: 'utf8' });
-      if (r.status === 0 && r.stdout.trim()) return r.stdout.trim();
-    }
-  }
-  return null;
-}
-
-function hasPlaywright() {
-  try {
-    createRequire(import.meta.url).resolve('playwright');
-    return true;
-  } catch {
-    return false;
-  }
 }
 
 // --- Fixture definitions (built lazily and in parallel only for selected tests) ------------------
@@ -197,7 +159,7 @@ const TESTS = [
   { id: 'search:sequence', file: 'e2e_search.mjs',          types: ['sequence', 'shell'],       weight: 15,  fixtures: ['seq_checkout'], args: (f) => ['--page', f.seq_checkout, '--type', 'sequence'] },
   { id: 'search:erd',      file: 'e2e_search.mjs',          types: ['erd', 'shell'],            weight: 15,  fixtures: ['erd_example'], args: (f) => ['--page', f.erd_example, '--type', 'erd'] },
   { id: 'search:usecase',  file: 'e2e_search.mjs',          types: ['usecase', 'shell'],        weight: 15,  fixtures: ['uc_example'], args: (f) => ['--page', f.uc_example, '--type', 'usecase'] },
-  { id: 'playground',      file: 'e2e_playground.mjs',      types: ['cross', 'shell'],          weight: 30,  requiresPlaywright: true, fixtures: [], args: () => [] },
+  { id: 'playground',      file: 'e2e_playground.mjs',      types: ['cross', 'shell'],          weight: 30,  fixtures: [], args: () => [] },
 ];
 
 // --- Change-based test selection (--changed [ref]) -----------------------------------------------
@@ -274,14 +236,6 @@ if (onlyFilter) {
   selected = selected.filter((t) => onlyFilter.some((q) => t.id.toLowerCase().includes(q) || t.file.toLowerCase().includes(q)));
 }
 
-const pwOk = hasPlaywright();
-const skipped = [];
-const active = [];
-for (const t of selected) {
-  if (t.requiresPlaywright && !pwOk) skipped.push(`${t.id} (playwright not installed)`);
-  else active.push(t);
-}
-
 // Expand sharded tests into concrete runnable tasks (plus quiet serial tasks for timing-sensitive sections)
 function expandTasks(tests) {
   const parallel = [];
@@ -310,25 +264,23 @@ function expandTasks(tests) {
   return { parallel, serial, all: [...parallel, ...serial] };
 }
 
-const { parallel: parallelTasks, serial: serialTasks, all: tasks } = expandTasks(active);
+const { parallel: parallelTasks, serial: serialTasks, all: tasks } = expandTasks(selected);
 if (listOnly) {
-  console.log(`Selected ${tasks.length} task(s) across ${active.length} test(s):`);
+  console.log(`Selected ${tasks.length} task(s) across ${selected.length} test(s):`);
   for (const t of tasks) {
     const flags = [t.shard ? `--shard ${t.shard}` : '', ...(t.extraArgs || []), t.serial ? '(serial)' : ''].filter(Boolean).join(' ');
     console.log(`  - ${t.label.padEnd(22)} (${t.file}${flags ? ' ' + flags : ''})`);
   }
-  if (skipped.length) console.log(`Skipped: ${skipped.join(', ')}`);
   process.exit(0);
 }
 if (!tasks.length) {
   console.log('No E2E tests selected.');
-  if (skipped.length) console.log(`Skipped: ${skipped.join(', ')}`);
   process.exit(0);
 }
 
 const python = findPython();
 if (!python) { console.error('[ERROR] Python 3 not found on PATH.'); process.exit(1); }
-const browser = findBrowser();
+const browser = findBrowser(valueOf('browser'));
 if (!browser) { console.error('[ERROR] Chrome/Chromium not found. Pass --browser <path>.'); process.exit(1); }
 
 // --- Parallel worker pool helper -----------------------------------------------------------------
@@ -415,11 +367,10 @@ const work = mkdtempSync(join(tmpdir(), 'e2e_run_'));
 const tSuite0 = Date.now();
 let sharedChrome = null;
 try {
-  const needsCdp = tasks.some((t) => !t.requiresPlaywright);
-  const chromePromise = needsCdp ? startSharedChrome(browser, work) : Promise.resolve(null);
+  const chromePromise = startSharedChrome(browser, work);
 
   const needed = new Set();
-  for (const t of active) {
+  for (const t of selected) {
     for (const k of t.fixtures) {
       needed.add(k);
       if (FIXTURES[k]?.derivedFrom) needed.add(FIXTURES[k].derivedFrom);
@@ -459,16 +410,14 @@ try {
   }
 
   sharedChrome = await chromePromise;
-  const workerEnv = sharedChrome ? { ...process.env, E2E_BROWSER_WS: sharedChrome.wsUrl } : process.env;
+  const workerEnv = { ...process.env, E2E_BROWSER_WS: sharedChrome.wsUrl };
 
   const runTask = async (task) => {
     const t0 = Date.now();
-    const args = [join(e2eDir, task.file)];
-    if (!task.requiresPlaywright) args.push('--browser', browser);
-    args.push(...task.args(built));
+    const args = [join(e2eDir, task.file), '--browser', browser, ...task.args(built)];
     if (task.shard) args.push('--shard', task.shard);
     if (task.extraArgs?.length) args.push(...task.extraArgs);
-    if (!keepMotion && !task.motion && !task.requiresPlaywright) args.push('--noanim');
+    if (!keepMotion && !task.motion) args.push('--noanim');
     if (verbose) args.push('-v');
     const r = await execAsync(process.execPath, args, { env: workerEnv });
     const ms = Date.now() - t0;
@@ -492,7 +441,7 @@ try {
   const passed = results.filter((r) => r.ok).length;
   const failed = results.length - passed;
   console.log('');
-  console.log(`Done: ${passed}/${results.length} passed${skipped.length ? `, ${skipped.length} skipped (${skipped.join(', ')})` : ''} in ${wallSec.toFixed(1)}s wall (${cpuSec.toFixed(1)}s total worker time, ${(cpuSec / Math.max(wallSec, 0.1)).toFixed(1)}x parallelism)`);
+  console.log(`Done: ${passed}/${results.length} passed in ${wallSec.toFixed(1)}s wall (${cpuSec.toFixed(1)}s total worker time, ${(cpuSec / Math.max(wallSec, 0.1)).toFixed(1)}x parallelism)`);
   const slowest = [...results].sort((a, b) => b.ms - a.ms).slice(0, 5);
   console.log(`Slowest: ${slowest.map((r) => `${r.task.label} ${(r.ms / 1000).toFixed(1)}s`).join(' | ')}`);
   process.exit(failed ? 2 : 0);
