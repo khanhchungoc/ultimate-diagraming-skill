@@ -80,8 +80,12 @@ def create_link(source: Path, target: Path) -> None:
             try:
                 target.symlink_to(source, target_is_directory=True)
             except OSError:
-                res = os.system(f'cmd /c mklink /J "{target}" "{source}" >nul 2>&1')
-                if res != 0:
+                res = subprocess.run(
+                    ["cmd", "/c", "mklink", "/J", str(target), str(source)],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+                if res.returncode != 0:
                     raise
         else:
             target.symlink_to(source, target_is_directory=True)
