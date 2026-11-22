@@ -238,8 +238,11 @@ try {
   //     The stored handle is faked as a plain { name } record (a real one needs the Save dialog).
   const badgeOf = () => t.ev(`(() => { const b = document.getElementById('save-status'); return { text: b.textContent, title: b.title }; })()`);
   await t.open(laid, '?keep-picker');
-  await t.ev(`new Promise((res, rej) => { const q = indexedDB.open('ultimate-diagram', 1);
-    q.onupgradeneeded = () => q.result.createObjectStore('handles');
+  await t.ev(`new Promise((res, rej) => { const q = indexedDB.open('ultimate-diagram', 2);
+    q.onupgradeneeded = () => {
+      if (!q.result.objectStoreNames.contains('handles')) q.result.createObjectStore('handles');
+      if (!q.result.objectStoreNames.contains('folders')) q.result.createObjectStore('folders', { autoIncrement: true });
+    };
     q.onsuccess = () => { const tx = q.result.transaction('handles', 'readwrite'); tx.objectStore('handles').put({ name: 'flow-old.html' }, location.href); tx.oncomplete = res; tx.onerror = rej; };
     q.onerror = rej; })`);
   await t.open(laid, '?keep-picker');
@@ -286,6 +289,77 @@ try {
     noCopy.title === 'Save over this file' && /^Copy path, /.test(noCopy.msg) && /overwrite/i.test(noCopy.msg), JSON.stringify(noCopy));
   await t.ev(`document.querySelector('.confirm .confirm-cancel').click()`);
   await sleep(100);
+
+  // 6e. Linked top parent folder (showDirectoryPicker): bubble explains picking a top parent/repo folder for all child
+  //     folders; linking resolves nested child files verified by diagram-data, rejects mismatched files, and handles system folder blocks.
+  const laidParent = basename(dirname(laidPath));
+  const laidGrandparent = basename(dirname(dirname(laidPath)));
+  const laidName = basename(laidPath);
+  await t.open(laid);
+  await t.ev(`(() => {
+    window.__dirWritten = null; window.__picked = [];
+    window.showSaveFilePicker = async (o) => { window.__picked.push(o); throw new DOMException('x', 'AbortError'); };
+    const makeTree = (dataText) => ({
+      name: ${JSON.stringify(laidGrandparent)},
+      queryPermission: async () => 'granted',
+      getDirectoryHandle: async (sub) => {
+        if (sub !== ${JSON.stringify(laidParent)}) throw new DOMException('not found', 'NotFoundError');
+        return {
+          name: sub,
+          getFileHandle: async (fn) => {
+            if (fn !== ${JSON.stringify(laidName)}) throw new DOMException('not found', 'NotFoundError');
+            return {
+              name: fn,
+              getFile: async () => ({ text: async () => '<script id="diagram-data" type="application/' + 'json">\\n' + dataText + '\\n</' + 'script>' }),
+              createWritable: async () => ({ write: async (h) => { window.__dirWritten = h; }, close: async () => {} })
+            };
+          }
+        };
+      }
+    });
+    window.__makeTree = makeTree;
+    window.showDirectoryPicker = async () => makeTree('{"wrong":"diagram"}');
+  })()`);
+  await t.ev(t.key('s', { ctrlKey: true }));
+  await sleep(300);
+  const tipInfo = await t.ev(`({
+    tip: document.querySelector('.confirm .save-folder-tip')?.textContent || '',
+    alt: document.querySelector('.confirm .confirm-alt')?.textContent || '',
+    ok: document.querySelector('.confirm .confirm-ok')?.textContent || ''
+  })`);
+  t.check('linked folder: first-save bubble explains picking a top parent/repo folder for all child folders',
+    /top parent\/repo folder/i.test(tipInfo.tip) && /all child folders/i.test(tipInfo.tip) && /Link folder/i.test(tipInfo.alt) && /Choose file/i.test(tipInfo.ok),
+    JSON.stringify(tipInfo));
+  // Click Link folder with a same-named folder whose on-disk diagram-data does NOT match: must refuse to overwrite
+  await t.ev(`document.querySelector('.confirm .confirm-alt').click()`);
+  await sleep(300);
+  const mismatch = await t.ev(`({ written: window.__dirWritten, toasts: [...document.querySelectorAll('.toast')].map(e => e.textContent) })`);
+  t.check('linked folder: rejects a same-named file whose on-disk diagram-data does not match',
+    mismatch.written === null && mismatch.toasts.some(s => /does not contain/i.test(s)), JSON.stringify(mismatch));
+
+  // SecurityError (blocked system folder): shows plain-English toast
+  await t.ev(`window.showDirectoryPicker = async () => { throw new DOMException('Cannot open system files', 'SecurityError'); }`);
+  await t.ev(t.key('s', { ctrlKey: true }));
+  await sleep(300);
+  await t.ev(`document.querySelector('.confirm .confirm-alt').click()`);
+  await sleep(300);
+  const sysErr = await t.ev(`[...document.querySelectorAll('.toast')].some(e => /blocks system folders/i.test(e.textContent))`);
+  t.check('linked folder: shows plain-English toast when browser blocks a system folder', sysErr);
+
+  // Matching top grandparent folder: resolves nested child file, verifies diagram-data, and saves directly
+  await t.ev(`window.showDirectoryPicker = async () => window.__makeTree(document.getElementById('diagram-data').textContent.trim())`);
+  await t.ev(t.key('s', { ctrlKey: true }));
+  await sleep(300);
+  await t.ev(`document.querySelector('.confirm .confirm-alt').click()`);
+  await sleep(350);
+  const linkedOk = await t.ev(`({
+    written: !!window.__dirWritten && window.__dirWritten.includes('id="diagram-data"'),
+    status: document.getElementById('save-status').textContent,
+    toast: [...document.querySelectorAll('.toast')].some(e => /Linked /.test(e.textContent)),
+    picked: window.__picked.length
+  })`);
+  t.check('linked folder: linking top parent folder saves nested child diagram straight to disk',
+    linkedOk.written && linkedOk.status === `Saved to ${laidName}` && linkedOk.toast && linkedOk.picked === 0, JSON.stringify(linkedOk));
 
   });
 
