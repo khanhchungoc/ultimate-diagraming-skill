@@ -103,7 +103,7 @@ function fromMermaidAst(ast) {
   // Edges.
   const links = [];
   const EXT = /^(?:(?:<<|«)\s*extend\s*(?:>>|»)\s*(?:\(([^)]*)\))?|(?:<<|«)?\s*extend\s*(?:\(([^)]*)\))?\s*(?:>>|»)?)\s*(?::\s*([\s\S]*))?$/i;
-  const INC = /^(?:<<|«)?\s*include\s*(?:>>|»)?$/i;
+  const INC = /^(?:<<|«)?\s*include\s*(?:>>|»)?(?:\s*:\s*([\s\S]*))?$/i;
   ast.edges.forEach(e => {
     const kf = kind.get(e.from), kt = kind.get(e.to);
     if (!kf || !kt) { warnings.push('[WARN] line ' + e.line + ': edge ends at a subgraph or unknown node, ignored'); return; }
@@ -111,16 +111,16 @@ function fromMermaidAst(ast) {
     const label = String(e.label || '').trim();
     const from = sid(e.from), to = sid(e.to);
     const where = 'line ' + e.line + ': ' + e.from + ' -> ' + e.to;
-    let m;
+    let m, mi;
     if (/^is\s+an?$/i.test(label)) {
       if (kf !== kt) warnings.push('[WARN] ' + where + ' "is a" joins an actor and a use case; use two actors or two use cases');
       else if (byId.get(from).parent) warnings.push('[WARN] ' + where + ' "is a": ' + e.from + ' already has a parent');
       else byId.get(from).parent = to;
-    } else if (INC.test(label) || (m = EXT.exec(label))) {
+    } else if ((mi = INC.exec(label)) || (m = EXT.exec(label))) {
       const type = m ? 'extend' : 'include';
       if (kf !== 'uc' || kt !== 'uc') { warnings.push('[WARN] ' + where + ' ' + type + ' joins two use cases'); return; }
       const l = { id: 'l' + (links.length + 1), type, from, to };
-      const cond = m && m[3] ? m[3].trim() : '';
+      const cond = m ? (m[3] ? m[3].trim() : '') : (mi[1] ? mi[1].trim() : '');
       const ep = m && (m[1] || m[2]) ? (m[1] || m[2]).trim() : '';
       if (cond) l.condition = cond;
       if (ep) l.extensionPoint = ep;
@@ -256,7 +256,7 @@ function toMermaid(data, opts) {
   (data.links || []).forEach(l => {
     if (!known.has(l.from) || !known.has(l.to)) return;
     const a = sid(l.from), b = sid(l.to);
-    if (l.type === 'include') out.push('  ' + a + ' -.->|«include»| ' + b);
+    if (l.type === 'include') out.push('  ' + a + ' -.->|' + (l.condition ? q('«include»: ' + l.condition) : '«include»') + '| ' + b);
     else if (l.type === 'extend') out.push('  ' + a + ' -.->|' + q('«extend»' + (l.extensionPoint ? ' (' + l.extensionPoint + ')' : '') + (l.condition ? ': ' + l.condition : '')) + '| ' + b);
     else { out.push('  ' + a + ' --- ' + b); if (l.navigable) navigable.push('  %% @navigable ' + a + ' ' + b); }
   });
