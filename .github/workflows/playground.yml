@@ -10,6 +10,7 @@ on:
       - scripts/**
       - dev/tools/build_playground.py
       - dev/tools/build_examples.py
+      - dev/tests/e2e/cdp.mjs
       - dev/tests/e2e/e2e_playground.mjs
       - dev/examples/**
       - dev/playground/**
@@ -51,9 +52,10 @@ jobs:
       # Gate: a build that does not load every type in a real browser never deploys.
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
-      - run: npm install --no-save playwright && npx playwright install --with-deps chromium
-      - run: node dev/tests/e2e/e2e_playground.mjs --dir _site
+          node-version: 22
+      - run: |
+          CHROME="$(command -v google-chrome || command -v chromium || command -v chromium-browser)"
+          node dev/tests/e2e/e2e_playground.mjs --browser "$CHROME" --dir _site
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

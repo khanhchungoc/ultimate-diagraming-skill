@@ -1,11 +1,39 @@
 // Minimal Chrome DevTools Protocol driver shared by the dev/e2e_*.mjs tests.
 // Zero dependencies: needs Node >= 22 (built-in WebSocket/fetch) and Chrome/Chromium (Edge cannot be driven the same way).
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { basename, dirname, extname, join, resolve, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
+
+export function findBrowser(explicit) {
+  const chosen = explicit || process.env.CHROME || process.env.E2E_BROWSER;
+  if (chosen) return chosen;
+  const candidates = process.platform === 'win32'
+    ? [
+        join(process.env['PROGRAMFILES'] || 'C:\\Program Files', 'Google', 'Chrome', 'Application', 'chrome.exe'),
+        join(process.env['PROGRAMFILES(X86)'] || 'C:\\Program Files (x86)', 'Google', 'Chrome', 'Application', 'chrome.exe'),
+        join(process.env.LOCALAPPDATA || '', 'Google', 'Chrome', 'Application', 'chrome.exe'),
+        join(process.env['PROGRAMFILES'] || 'C:\\Program Files', 'Chromium', 'Application', 'chrome.exe'),
+      ]
+    : process.platform === 'darwin'
+      ? [
+          '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+          '/Applications/Chromium.app/Contents/MacOS/Chromium',
+        ]
+      : ['google-chrome', 'google-chrome-stable', 'chromium', 'chromium-browser'];
+  for (const c of candidates) {
+    if (!c) continue;
+    if (c.includes('/') || c.includes('\\')) {
+      if (existsSync(c)) return c;
+    } else {
+      const r = spawnSync('which', [c], { encoding: 'utf8' });
+      if (r.status === 0 && r.stdout.trim()) return r.stdout.trim();
+    }
+  }
+  return null;
+}
 
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -168,7 +196,7 @@ export async function launch(browser) {
     /** Raw CDP command (e.g. Input.dispatchMouseEvent) and event subscription, for real input such as native drags. */
     send,
     on(method, fn) { (listeners[method] = listeners[method] || []).push(fn); },
-    async open(file, query = '', { motion = false } = {}) {
+    async open(target, query = '', { motion = false } = {}) {
       state.errors = [];
       if (noAnim && !motion && !autoReduced) {
         await rawSend('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] }, sessionId);
@@ -179,14 +207,21 @@ export async function launch(browser) {
       }
       const q = query || '';
       const loaded = new Promise((r) => { state.onLoad = r; });
-      const abs = resolve(file);
-      const dir = dirname(abs);
-      const html = readFileSync(abs, 'utf8');
-      const isSplit = !html.includes('id="diagram-data"')
-        && (/<script\b[^>]*\bsrc="app\.js"/.test(html) || existsSync(join(dir, 'diagram.json')));
-      const url = isSplit
-        ? `http://127.0.0.1:${await serveDir(dir)}/${encodeURIComponent(basename(abs))}${q}`
-        : pathToFileURL(abs).href + q;
+      const isHttp = /^https?:\/\//i.test(target);
+      let isSplit = false;
+      let url;
+      if (isHttp) {
+        url = target + q;
+      } else {
+        const abs = resolve(target);
+        const dir = dirname(abs);
+        const html = readFileSync(abs, 'utf8');
+        isSplit = !html.includes('id="diagram-data"')
+          && (/<script\b[^>]*\bsrc="app\.js"/.test(html) || existsSync(join(dir, 'diagram.json')));
+        url = isSplit
+          ? `http://127.0.0.1:${await serveDir(dir)}/${encodeURIComponent(basename(abs))}${q}`
+          : pathToFileURL(abs).href + q;
+      }
       const expectUrl = normUrl(url);
       await send('Page.navigate', { url });
       await loaded;
@@ -199,7 +234,7 @@ export async function launch(browser) {
         });
         const [href, ready, diagramReady, settled] = JSON.parse(r.result.value);
         // settled: the web font is in and the shell animates (until then motion is off, so the font-swap render does not FLIP)
-        if (normUrl(href) === expectUrl && ready === 'complete' && (!isSplit || diagramReady === '1') && (!diagramReady || settled === '1')) break;
+        if (normUrl(href) === expectUrl && ready === 'complete' && (!(isSplit || isHttp) || diagramReady === '1') && (!diagramReady || settled === '1')) break;
         await sleep(20);
       }
       await api.ev(`new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))`).catch(() => {});

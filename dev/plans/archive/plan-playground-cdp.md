@@ -1,6 +1,6 @@
 # Plan: Port `e2e_playground.mjs` from Playwright to `cdp.mjs`
 
-Status: proposed (2026-11-22).
+Status: completed (2026-11-22).
 
 ## Why
 
