@@ -32,7 +32,7 @@
   "license": "MIT",
   "devDependencies": {
     "axe-core": "4.11.4",
-    "mermaid": "11.17.2"
+    "mermaid": "12.3.0"
   },
   "files": [
     "bin",
