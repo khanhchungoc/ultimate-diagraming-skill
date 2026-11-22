@@ -294,7 +294,7 @@ function ucLabelLines(l) {
   if (l.type !== 'include' && l.type !== 'extend') return { lines: [], w: 0, h: 0 };
   const lines = ['«' + l.type + '»'];
   let w = ucTextW(lines[0], UC.LABEL_W);
-  if (l.type === 'extend' && l.condition) {
+  if (l.condition) {
     const cond = ucWrap('[' + l.condition + ']', UC.WRAP_W, 150);
     cond.forEach((s) => { lines.push(s); w = Math.max(w, ucTextW(s, UC.WRAP_W)); });
   }
