@@ -3,11 +3,33 @@
   "title": "Sequence diagram",
   "participants": [
     { "id": "p1", "name": "User", "kind": "actor" },
-    { "id": "p2", "name": "System", "kind": "system" }
+    { "id": "p2", "name": "Web App", "kind": "ui" },
+    { "id": "p3", "name": "API Server", "kind": "system" },
+    { "id": "p4", "name": "Database", "kind": "database" }
   ],
   "messages": [
-    { "id": "m1", "from": "p1", "to": "p2", "label": "Request" },
-    { "id": "m2", "from": "p2", "to": "p1", "label": "Response", "kind": "reply" }
+    { "id": "m1", "from": "p1", "to": "p2", "label": "Submit order" },
+    { "id": "m2", "from": "p2", "to": "p3", "label": "POST /orders", "detail": "items, token" },
+    { "id": "m3", "from": "p3", "to": "p4", "label": "Check stock" },
+    { "id": "m4", "from": "p4", "to": "p3", "label": "Stock status", "kind": "reply" },
+    { "id": "m5", "from": "p3", "to": "p4", "label": "Save order" },
+    { "id": "m6", "from": "p3", "to": "p2", "label": "201 Created", "kind": "reply" },
+    { "id": "m7", "from": "p3", "to": "p2", "label": "409 Out of stock", "kind": "reply" },
+    { "id": "m8", "from": "p2", "to": "p1", "label": "Show result", "kind": "reply" }
   ],
-  "fragments": []
+  "fragments": [
+    {
+      "id": "f1",
+      "kind": "alt",
+      "label": "in stock",
+      "from": "m5",
+      "to": "m7",
+      "branches": [
+        { "at": "m7", "label": "out of stock" }
+      ]
+    }
+  ],
+  "notes": [
+    { "id": "n1", "text": "Stock is checked before creating the order", "over": "p4", "after": "m4" }
+  ]
 }

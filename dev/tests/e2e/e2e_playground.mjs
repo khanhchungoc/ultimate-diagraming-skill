@@ -46,6 +46,7 @@ const TYPES = {
   usecase: { name: 'Use case diagram', add: ['#btn-add', '#btn-add-usecase'], items: '[data-node-id]', header: /^flowchart\b/ },
 };
 const ids = Object.keys(TYPES);
+const flowchartStarterNodes = JSON.parse(readFileSync(join(root, 'dev', 'playground', 'flowchart.json'), 'utf8')).nodes.length;
 // c4 is in the menu but joins the per-type checks above once it has dock editing and Mermaid (plan-c4 phases 4 and 6); until then it is opened and checked below
 const menuIds = [...ids, 'c4'];
 // The first Mermaid line that is not front matter or a %% comment
@@ -133,7 +134,7 @@ try {
   await open_menu(); await page.click('#type-menu [data-type="flowchart"]');
   await page.waitForURL(/\/flowchart\/index\.html/);
   await page.waitForSelector('#chart-title'); await page.waitForTimeout(300);
-  check('switching back shows the flowchart starter again', (await count('.flow-node')) === 3 && !(await unsaved()), String(await count('.flow-node')));
+  check('switching back shows the flowchart starter again', (await count('.flow-node')) === flowchartStarterNodes && !(await unsaved()), String(await count('.flow-node')));
 
   // The confirm's Save choice downloads, then switches
   await page.click('#btn-add-shape'); await page.click('#btn-add-step'); await page.waitForTimeout(300);

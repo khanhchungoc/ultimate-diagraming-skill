@@ -1,16 +1,33 @@
 {
+  "diagramType": "flowchart",
   "title": "Flowchart",
   "direction": "LR",
   "lanes": [
-    { "id": "lane-1", "name": "Lane 1", "icon": "user", "height": 160 }
+    { "id": "lane-customer", "name": "Customer", "icon": "user" },
+    { "id": "lane-sales", "name": "Order Desk", "icon": "briefcase" },
+    { "id": "lane-system", "name": "Fulfillment", "icon": "cpu" }
   ],
   "nodes": [
-    { "id": "n1", "laneId": "lane-1", "type": "start", "label": "Start" },
-    { "id": "n2", "laneId": "lane-1", "type": "task", "label": "Do something" },
-    { "id": "n3", "laneId": "lane-1", "type": "end", "label": "End" }
+    { "id": "n1", "laneId": "lane-customer", "type": "start", "label": "Submit Order" },
+    { "id": "n2", "laneId": "lane-sales", "type": "task", "label": "Review Details" },
+    { "id": "n3", "laneId": "lane-sales", "type": "decision", "label": "In Stock?" },
+    { "id": "n4", "laneId": "lane-customer", "type": "task", "label": "Update Order" },
+    { "id": "n5", "laneId": "lane-system", "type": "subprocess", "label": "Charge Payment" },
+    { "id": "n6", "laneId": "lane-system", "type": "database", "label": "Record Shipment" },
+    { "id": "n7", "laneId": "lane-sales", "type": "document", "label": "Send Receipt" },
+    { "id": "n8", "laneId": "lane-customer", "type": "end", "label": "Order Complete" }
   ],
   "edges": [
     { "id": "e1", "from": "n1", "to": "n2", "label": "" },
-    { "id": "e2", "from": "n2", "to": "n3", "label": "" }
+    { "id": "e2", "from": "n2", "to": "n3", "label": "" },
+    { "id": "e3", "from": "n3", "to": "n4", "label": "No" },
+    { "id": "e4", "from": "n4", "to": "n2", "label": "Resubmit", "feedback": true },
+    { "id": "e5", "from": "n3", "to": "n5", "label": "Yes" },
+    { "id": "e6", "from": "n5", "to": "n6", "label": "" },
+    { "id": "e7", "from": "n6", "to": "n7", "label": "" },
+    { "id": "e8", "from": "n7", "to": "n8", "label": "" }
+  ],
+  "notes": [
+    { "id": "note-1", "text": "Payment is captured before stock leaves the warehouse", "nodes": ["n5"] }
   ]
 }

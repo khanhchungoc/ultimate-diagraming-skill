@@ -1,8 +1,34 @@
 {
   "diagramType": "usecase",
   "title": "Use case diagram",
-  "subjects": [{ "id": "system", "name": "System" }],
-  "actors": [{ "id": "user", "name": "User" }],
-  "useCases": [{ "id": "uc1", "name": "Do something", "subject": "system", "refs": ["UC-01"] }],
-  "links": [{ "id": "l1", "type": "association", "from": "user", "to": "uc1" }]
+  "colorKey": { "1": "Shopping", "2": "Account & Billing" },
+  "subjects": [
+    { "id": "store", "name": "Online Store" }
+  ],
+  "actors": [
+    { "id": "customer", "name": "Customer" },
+    { "id": "staff", "name": "Support Staff" },
+    { "id": "gateway", "name": "Payment Gateway", "kind": "system" }
+  ],
+  "useCases": [
+    { "id": "uc_browse", "name": "Browse catalog", "subject": "store", "color": "1", "refs": ["UC-01"] },
+    { "id": "uc_order", "name": "Place order", "subject": "store", "color": "1", "refs": ["UC-02"], "extensionPoints": ["Checkout"] },
+    { "id": "uc_coupon", "name": "Apply discount", "subject": "store", "color": "1", "refs": ["UC-03"] },
+    { "id": "uc_auth", "name": "Sign in", "subject": "store", "color": "2", "level": "subfunction", "refs": ["UC-04"] },
+    { "id": "uc_pay", "name": "Process payment", "subject": "store", "color": "2", "refs": ["UC-05"] },
+    { "id": "uc_refund", "name": "Issue refund", "subject": "store", "color": "2", "refs": ["UC-06"] }
+  ],
+  "links": [
+    { "id": "l1", "type": "association", "from": "customer", "to": "uc_browse" },
+    { "id": "l2", "type": "association", "from": "customer", "to": "uc_order" },
+    { "id": "l3", "type": "association", "from": "staff", "to": "uc_refund" },
+    { "id": "l4", "type": "association", "from": "uc_pay", "to": "gateway" },
+    { "id": "l5", "type": "association", "from": "uc_refund", "to": "gateway" },
+    { "id": "l6", "type": "include", "from": "uc_order", "to": "uc_auth" },
+    { "id": "l7", "type": "include", "from": "uc_order", "to": "uc_pay" },
+    { "id": "l8", "type": "extend", "from": "uc_coupon", "to": "uc_order", "condition": "promo code entered", "extensionPoint": "Checkout" }
+  ],
+  "notes": [
+    { "id": "n1", "text": "Refunds over $500 require manager approval", "useCases": ["uc_refund"] }
+  ]
 }
