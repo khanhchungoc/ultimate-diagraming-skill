@@ -923,10 +923,9 @@ try {
     t.check('editor ids e_/g_ are renamed to name slugs (unique, no e_<digits>)', !d.elements.concat(d.groups).some((o) => /^[eg]_\d/.test(o.id)) && ids.size === d.elements.length + d.groups.length && /^[a-z0-9][a-z0-9_-]*$/.test(byName(d.elements, 'Billing System')?.id || ''), J(d.elements.map((e) => e.id)));
     t.check('relations and group references use the slugs', d.relations.every((r) => ids.has(r.from) && ids.has(r.to)) && d.elements.every((e) => !e.group || ids.has(e.group)), J(d.relations));
     t.check('arrange, core and side are kept', d.arrange === 'surround' && byName(d.elements, 'Billing System')?.core === true && byName(d.elements, 'Billing System')?.side === 'S' && byName(d.elements, 'Mail Gateway')?.side === 'E' && d.groups[0].core === true, J(d.elements));
-    t.check('positions are saved in the layout map, never as sizes or derived fields',
-      !!d.layout && Object.keys(d.layout).length >= 5 && d.elements.every((e) => !('x' in e) && !('w' in e) && !('h' in e) && !Object.keys(e).some((k) => k[0] === '_')) && d.groups.every((g) => !('w' in g) && !('h' in g) && !('x' in g))
+    t.check('Auto-Tidy saves no layout map, sizes or derived fields',
+      !('layout' in d) && d.elements.every((e) => !('x' in e) && !('w' in e) && !('h' in e) && !Object.keys(e).some((k) => k[0] === '_')) && d.groups.every((g) => !('w' in g) && !('h' in g) && !('x' in g))
       && !('canvas' in d) && !('_edges' in d) && d.relations.every((r) => !('points' in r) && !('path' in r) && !('labelBox' in r) && !('id' in r)), J(Object.keys(d)));
-    t.check('layout keys are the saved ids', Object.keys(d.layout).every((k) => ids.has(k)), J(Object.keys(d.layout)));
     // a reload of the saved file shows the same diagram
     const geometry = () => t.ev(`[...document.querySelectorAll('.c4-node, .c4-group')].map((e) => { const r = e.getBoundingClientRect(); return (e.querySelector('.c4-name, .c4-tag-name') || {}).textContent + ':' + [r.left, r.top, r.width, r.height].map((v) => Math.round(v)).join(','); }).sort()`);
     await fit();
@@ -1145,7 +1144,7 @@ got = json.load(open(${J(`${pyDir}_js.json`)}))
 a, b = json.dumps(want, indent=2), json.dumps(got, indent=2)
 import difflib
 print('SAME' if a == b else 'DIFF\\n' + '\\n'.join(difflib.unified_diff(a.splitlines(), b.splitlines(), 'python', 'page', lineterm='', n=1)))`], { encoding: 'utf8' });
-    t.check('Save on editor ids (e_, g_, n_) gives the bytes of c4_to_disk: slugs for elements and groups, n1, n2 for notes, note references followed', py.stdout.trim() === 'SAME' && hadLayout, py.stdout + py.stderr);
+    t.check('Save on editor ids (e_, g_, n_) gives the bytes of c4_to_disk: slugs for elements and groups, n1, n2 for notes, note references followed', py.stdout.trim() === 'SAME' && !hadLayout, py.stdout + py.stderr);
     t.check('the saved notes are renamed and point at the renamed ids', J(jsOut.notes) === J([{ id: 'n1', text: 'about the api', elements: ['order_api'] }, { id: 'n2', text: 'about both', elements: ['shopper'], groups: ['core_platform'] }]), J(jsOut.notes));
     // an edited model: the page-made note id (n_<ms>) is renamed to the next free n<N> and the file reloads the same
     await addNamed('system', 'Ledger');

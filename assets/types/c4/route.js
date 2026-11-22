@@ -16,7 +16,7 @@
 // expanded frames. Detours: pad 20, 12 or 6px (the first that leaves a path), regions grown 40 -> 160 -> 600 -> whole scene, a fixed work budget per call (C4R.WORK; routes past it keep their ring route). Without opts the output is the ring layout's, byte for byte.
 // Path rounding: buildCurvedPathWithHops (ortho-router.js). Deterministic; O(n log n) in nodes + edges (grid lookups only).
 
-const C4R = { PAD: 12, PADS: [20, 12, 6], SHARE: 2000, WORK: 13000, SEARCH: 4000,  LANE: 12, MARGINS: [40, 160, 600], BIG: 1e6, PILL_H: 32, LOOP_GAP: 40, LOOP_LANE: 16, RUN_LANE: 10, MAX_W: 240, CELL: 96, ARROW: 16, TAG: 30, ESC_MIN: 6 };
+const C4R = { PAD: 12, PADS: [20, 12, 6], SHARE: 2000, WORK: 13000, SEARCH: 4000,  LANE: 12, MARGINS: [40, 160, 600], BIG: 1e6, PILL_H: 32, LOOP_GAP: 40, LOOP_LANE: 16, RUN_LANE: 10, MAX_W: 240, CELL: 96, ARROW: 16, TAG: (typeof TOKENS !== 'undefined' && TOKENS.c4 && TOKENS.c4.tagH) || 44, ESC_MIN: 6 };
 
 function c4rLabelW(label, tech) {
   const M = TOKENS.font.metrics, t = String(label == null ? '' : label);
@@ -487,24 +487,56 @@ function routeC4Edges(nodes, edges, opts) {
       const free = (r) => !boxes.hit(r, 2) && !tags.hit(r, 2) && !pills.hit(r, 2) && !routes.hit(r, 2, mine);
       const tried = [];
       search: for (const s of segs) {
-        // centre of the part the arrowhead leaves free on the last segment; slide outwards from there
-        const last = s.k === pts.length - 2, t0 = last ? Math.max(0, s.len - C4R.ARROW) / 2 / (s.len || 1) : 0.5;
-        const steps = Math.min(12, Math.ceil(s.room / 8));
-        for (let n = 0; n <= 2 * steps; n++) {
-          const off = (n === 0 ? 0 : (n & 1 ? 1 : -1) * Math.ceil(n / 2)) * (steps ? s.room / 2 / steps : 0);
-          const f = t0 + (s.len ? off / s.len : 0);
-          const cx = s.p[0] + (s.q[0] - s.p[0]) * f, cy = s.p[1] + (s.q[1] - s.p[1]) * f;
-          const c = { cx, cy, r: { x: cx - w / 2, y: cy - H / 2, w, h: H } };
-          if (free(c.r)) { pos = c; break search; }
-          if (tried.length < 24) tried.push(c);
-          if (!steps) break;
+        if (!s.len) continue;
+        const last = s.k === pts.length - 2;
+        let segTried = 0;
+        const pushCand = (cx, cy) => {
+          const c = { cx, cy, s, r: { x: cx - w / 2, y: cy - H / 2, w, h: H } };
+          if (free(c.r)) { pos = c; return true; }
+          if (segTried < 8 && tried.length < 24) { tried.push(c); segTried++; }
+          return false;
+        };
+        if (s.room > 0) {
+          // centre of the part the arrowhead leaves free on the last segment; slide outwards from there
+          const t0 = last ? Math.max(0, s.len - C4R.ARROW) / 2 / s.len : 0.5;
+          const steps = Math.min(12, Math.ceil(s.room / 8));
+          for (let n = 0; n <= 2 * steps; n++) {
+            const off = (n === 0 ? 0 : (n & 1 ? 1 : -1) * Math.ceil(n / 2)) * (steps ? s.room / 2 / steps : 0);
+            const f = t0 + off / s.len;
+            if (pushCand(s.p[0] + (s.q[0] - s.p[0]) * f, s.p[1] + (s.q[1] - s.p[1]) * f)) break search;
+            if (!steps) break;
+          }
+        } else {
+          const t0 = last && s.len > C4R.ARROW ? Math.max(0.1, (s.len - C4R.ARROW) / 2 / s.len) : 0.5;
+          const fracs = s.len >= 24 ? [t0, 0.25, 0.75] : [t0];
+          for (const f of fracs) {
+            if (pushCand(s.p[0] + (s.q[0] - s.p[0]) * f, s.p[1] + (s.q[1] - s.p[1]) * f)) break search;
+          }
         }
       }
       if (!pos) {                                             // nothing free: the candidate with the least overlap
-        let best = Infinity;
+        const score = (r) => 100 * pills.count(r, 2) + 20 * (boxes.count(r, 2) + tags.count(r, 2)) + routes.count(r, 2, mine);   // pills worst, then boxes and bands, then lines
+        let best = Infinity, bestCand = null;
         for (const c of tried) {
-          const n = 100 * pills.count(c.r, 2) + 10 * (boxes.count(c.r, 2) + tags.count(c.r, 2)) + routes.count(c.r, 2, mine);   // pills worst, then boxes and bands, then lines
-          if (n < best) { best = n; pos = c; }
+          const n = score(c.r);
+          if (n < best) { best = n; bestCand = c; }
+        }
+        pos = bestCand || { cx: pts[0][0], cy: pts[0][1], r: { x: pts[0][0] - w / 2, y: pts[0][1] - H / 2, w, h: H } };
+        if (best >= 20) {
+          const anchors = [pos].concat(tried.filter((c) => c.s !== pos.s).slice(0, 2));
+          nudge: for (const base of anchors) {
+            const seg = base.s;
+            if (!seg) continue;
+            const offs = seg.horiz ? [0, -(H + 4), H + 4] : [0, -(w / 2 + 8), w / 2 + 8];
+            const alongs = [0, 32, -32, 64, -64, 96, -96];
+            for (const d1 of offs) for (const d2 of alongs) {
+              if (!d1 && !d2) continue;
+              const nx = base.cx + (seg.horiz ? d2 : d1), ny = base.cy + (seg.horiz ? d1 : d2);
+              const nr = { x: nx - w / 2, y: ny - H / 2, w, h: H };
+              const n = score(nr) + (d1 ? 5 : 2);
+              if (n < best) { best = n; pos = { cx: nx, cy: ny, r: nr }; if (n < 20) break nudge; }
+            }
+          }
         }
       }
       pills.add(pos.r);

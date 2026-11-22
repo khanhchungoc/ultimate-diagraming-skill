@@ -37,6 +37,8 @@ def build(source: Path) -> str:
     data = normalize_diagram_type(json.loads(source.read_text(encoding="utf-8")))
     if data["diagramType"] == "flowchart" and "direction" not in data:  # as --layout does
         return assemble_page("flowchart", choose_flowchart_direction(data, 30, None)[0])
+    if data["diagramType"] == "c4" and "layout" not in data:
+        return assemble_page("c4", data)
     return assemble_page(data["diagramType"], run_layout(data["diagramType"], data))
 
 

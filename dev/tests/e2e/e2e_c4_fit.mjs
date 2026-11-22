@@ -15,7 +15,7 @@ if (!browser) { console.error('usage: --browser <chrome>'); process.exit(1); }
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const work = mkdtempSync(join(tmpdir(), 'e2e_c4_fit_'));
 // fixture -> [desktop zoom %, phone zoom % at least]
-const EXPECT = { landscape: [97, 32], 'one-centre': [81, 27], 'two-centres': [81, 28], 'group-centre': [78, 30], 'no-centre': [65, 47] };
+const EXPECT = { landscape: [95, 32], 'one-centre': [82, 27], 'two-centres': [82, 28], 'group-centre': [77, 30], 'no-centre': [65, 47] };
 
 const t = await launch(browser).catch((e) => { console.error('[ERROR]', e.message); process.exit(1); });
 let code = 0;

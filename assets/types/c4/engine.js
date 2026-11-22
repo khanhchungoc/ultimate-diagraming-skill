@@ -771,12 +771,54 @@ function c4Route(m, again) {
 
 // ---------- entry points ----------
 
+function c4OrderRings(m) {
+  if (m.arrange !== 'surround') return;
+  const ctr = (n) => ({ x: n.ax + n.w / 2, y: n.ay + n.h / 2 });
+  for (let r = 1; r <= m.maxRing; r++) {
+    const innerPts = new Map();
+    m.rel2.forEach((rel) => {
+      const at = rel.a.top, bt = rel.b.top;
+      if (at.ring === r && bt.ring < r) (innerPts.get(at) || innerPts.set(at, []).get(at)).push(ctr(rel.b));
+      else if (bt.ring === r && at.ring < r) (innerPts.get(bt) || innerPts.set(bt, []).get(bt)).push(ctr(rel.a));
+    });
+    const groups = new Map();
+    m.byRing[r].forEach((it) => {
+      if (!it.side) return;
+      const k = it.side + '|' + (c4Vert(it.side) ? it.ay : it.ax);
+      (groups.get(k) || groups.set(k, []).get(k)).push(it);
+    });
+    groups.forEach((its) => {
+      if (its.length < 2) return;
+      const vert = c4Vert(its[0].side), ax = vert ? 'ax' : 'ay', sz = vert ? 'w' : 'h', coord = vert ? 'x' : 'y';
+      its.sort((a, b) => a[ax] - b[ax]);
+      const lo = its[0][ax], hi = its[its.length - 1][ax] + its[its.length - 1][sz], oldSpan = hi - lo;
+      const keys = new Map(its.map((it, idx) => {
+        const pts = innerPts.get(it);
+        return [it, [pts && pts.length ? pts.reduce((s, p) => s + p[coord], 0) / pts.length : it[ax] + it[sz] / 2, idx]];
+      }));
+      const seq = its.slice().sort((a, b) => keys.get(a)[0] - keys.get(b)[0] || keys.get(a)[1] - keys.get(b)[1]);
+      if (seq.every((it, i) => it === its[i])) return;
+      const gaps = seq.map((it, k) => (k ? (it.nb.has(seq[k - 1]) ? (vert ? C4.ringLinkX : C4.ringLinkY) : C4.ringGap) : 0));
+      const total = seq.reduce((t, it, k) => t + it[sz] + gaps[k], 0);
+      if (total > oldSpan) return;
+      let p = lo + (oldSpan - total) / 2;
+      seq.forEach((it, k) => {
+        p += gaps[k];
+        it[ax] = Math.round(p);
+        p += it[sz];
+        c4Assign(it);
+      });
+    });
+  }
+}
+
 function layoutDiagram(data) {
   const m = c4Model(data);
   m.links = c4Links(m);
   c4Rings(m);
   c4Place(m);
   c4Order(m);
+  c4OrderRings(m);
   c4Stamp(m);
   c4StampRings(m);
   c4Frames(m);

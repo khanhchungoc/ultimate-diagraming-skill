@@ -90,20 +90,20 @@ const PLATFORM_BOXES = ['api', 'db', 'q', 'ia', 'l1', 'l2', 'legacy'];   // what
 const DATA_RE = /(<script id="diagram-data" type="application\/json">)([\s\S]*?)(<\/script>)/;
 const blockOf = (html) => JSON.parse(html.match(DATA_RE)[2]);
 const withBlock = (html, obj) => html.replace(DATA_RE, (m, a, b) => a + (typeof obj === 'string' ? obj : JSON.stringify(obj, null, 2)) + '</script>');
-const layoutPage = (model, name) => {
+const layoutPage = (model, name, keepLayout = false) => {
   const src = join(work, `${name}.json`), out = join(work, `${name}.html`);
   writeFileSync(src, JSON.stringify(model));
-  const r = spawnSync('python3', [join(root, 'scripts', 'layout_engine.py'), '--layout', src, '-o', out], { encoding: 'utf8' });
+  const args = [join(root, 'scripts', 'layout_engine.py'), '--layout', src, ...(keepLayout ? ['--keep-layout'] : []), '-o', out];
+  const r = spawnSync('python3', args, { encoding: 'utf8' });
   if (r.status !== 0) { console.error(`[ERROR] could not lay out ${name}:`, r.stdout, r.stderr); process.exit(1); }
   return out;
 };
 
-// kept: the page with its layout map (manual mode at load); auto: the same page with no map (Auto-Tidy at load)
-const keptPage = argOf('page') || layoutPage(DIAGRAM, 'kept');
+// auto: page with no layout map (Auto-Tidy at load); kept: page with its laid-out positions in `layout` (manual mode at load)
+const autoPage = layoutPage(DIAGRAM, 'auto');
+const keptPage = argOf('page') || layoutPage(DIAGRAM, 'kept', true);
 const keptHtml = readFileSync(keptPage, 'utf8');
 const KEPT = blockOf(keptHtml);
-const autoPage = join(work, 'auto.html');
-{ const b = { ...KEPT }; delete b.layout; writeFileSync(autoPage, withBlock(keptHtml, b)); }
 // shifted: a saved layout map that differs from the tidy one (Customer far right, Mail Gateway lower)
 const SHIFT = { cust: { dx: 520, dy: 0 }, mail: { dx: 0, dy: 140 } };
 const shiftedPage = join(work, 'shifted.html');

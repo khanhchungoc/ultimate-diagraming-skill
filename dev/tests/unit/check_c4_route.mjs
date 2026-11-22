@@ -13,7 +13,7 @@ let failures = 0;
 const check = (ok, msg) => { if (!ok) { failures++; console.log(`  FAIL ${msg}`); } };
 
 // ---------- scene ----------
-const BW = 150, BH = 110, PAD = 16, TAG = 30;
+const BW = 150, BH = 110, PAD = 16, TAG = tokens.c4.tagH;
 const nodes = {}, frames = {};
 function frameOf(id, ids) {
   const bs = ids.map((i) => nodes[i]);

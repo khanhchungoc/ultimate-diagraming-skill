@@ -17,6 +17,7 @@ Zero external dependencies (uses standard library Python 3).
 from __future__ import annotations
 
 import argparse
+import copy
 import html
 import json
 import os
@@ -2251,13 +2252,22 @@ def main():
                                   for k, c in laid_out_data["children"].items())
                 print(f"[INFO] Subprocess flows, one tab each: {names}.")
 
+        page_data = laid_out_data
+        if laid_out_data["diagramType"] == "c4" and not keep:
+            # C4 opens in Auto-Tidy unless --keep-layout was asked: strip computed x/y so to_disk writes no `layout` map.
+            page_data = copy.deepcopy(laid_out_data)
+            for list_key in ("elements", "groups"):
+                for obj in page_data.get(list_key) or []:
+                    obj.pop("x", None)
+                    obj.pop("y", None)
+
         if args.target == "artifact":
             out_path = Path(args.output) if args.output else in_p.with_suffix("")
-            render_target = scaffold_artifact(laid_out_data, out_path, tokens, theme)
+            render_target = scaffold_artifact(page_data, out_path, tokens, theme)
             external_refs = _artifact_external_refs(render_target)
         else:
             out_path = Path(args.output) if args.output else in_p.with_suffix(".html")
-            scaffold_html(laid_out_data, out_path, "file", tokens, theme)
+            scaffold_html(page_data, out_path, "file", tokens, theme)
             external_refs = find_external_refs(out_path.read_text(encoding="utf-8"))
             render_target = out_path
 

@@ -28,7 +28,7 @@
       // The generic glyph per kind (an element's own `icon` wins; a `logo:` name has no renderer yet and falls back to it) and the
       // palette slot per kind (an element's own `color` wins; an external system stays neutral)
       const KIND_ICON = { person: 'user', system: 'server', container: 'container', component: 'cpu', database: 'database', queue: 'queue', external: 'cloud' };
-      const KIND_SLOT = { person: '1', system: '2', container: '3', component: '3', database: '4', queue: '4' };
+      const KIND_SLOT = { person: '1', system: '2', container: '3', component: '3', database: '8', queue: '5' };
       const KIND_NAME = { person: 'Person', system: 'Software system', container: 'Container', component: 'Component', database: 'Database', queue: 'Queue', external: 'External system' };
       const GROUP_SLOT = '2';   // a collapsed system group is drawn as a system tile
       const KINDS = ['person', 'system', 'container', 'database', 'queue', 'external'];   // what the dock adds and the kind menu offers (components wait for Level 3)
@@ -244,6 +244,21 @@
         if (item.kind !== 'edge') startMove(ev, item, [item]);
       }
 
+      function notePin(kind, id, label) {
+        if (chartData.showNotes === true) return null;
+        const n = notesList().find((x) => noteText(x) && (kind === 'element' ? (x.elements || []).includes(id) : (x.groups || []).includes(id)));
+        if (!n) return null;
+        const b = htmlEl('button', 'c4-note-pin');
+        b.type = 'button';
+        b.dataset.exportSkip = '';
+        b.title = `Show note on ${label}`;
+        b.setAttribute('aria-label', b.title);
+        b.innerHTML = ui.icon('notes', { size: 'xs' });
+        b.addEventListener('pointerdown', (ev) => ev.stopPropagation());
+        b.addEventListener('click', (ev) => { ev.stopPropagation(); setShowNotes(true); selectNote(n.id); });
+        return b;
+      }
+
       function buildNode(e) {
         const el = htmlEl('div', 'c4-node');
         el.dataset.nodeId = e.id;
@@ -261,6 +276,8 @@
         if (e.tech && showTech()) text.appendChild(htmlEl('span', 'c4-tech t-detail', `[${e.tech}]`));
         if (e.description) text.appendChild(htmlEl('span', 'c4-desc t-detail', String(e.description)));
         el.append(chip, text);
+        const pin = notePin('element', e.id, nameOf(e));
+        if (pin) el.appendChild(pin);
         ['N', 'E', 'S', 'W'].forEach((side) => {   // a port on each side: drag it onto another element to connect
           const port = htmlEl('span', 'c4-port');
           port.dataset.side = side;
@@ -308,6 +325,8 @@
           const chip = htmlEl('span', 'c4-disc');
           chip.innerHTML = ui.icon(KIND_ICON.system, { size: 'tile', fine: true });
           el.append(chip, text, chevron(g, true));
+          const pin = notePin('group', g.id, nameOf(g));
+          if (pin) el.appendChild(pin);
           hoverable(el, g.id);
         } else {
           const tag = htmlEl('div', 'frame-tag c4-tag');
@@ -319,6 +338,8 @@
           const hasKids = descendants(g).length > 0;
           if (hasKids) tag.appendChild(chevron(g, false));
           tag.appendChild(htmlEl('span', 'c4-tag-name', nameOf(g)));
+          const pin = notePin('group', g.id, nameOf(g));
+          if (pin) tag.appendChild(pin);
           el.appendChild(tag);
         }
         el.addEventListener('pointerdown', (ev) => { if (tile || ev.target.closest('.frame-tag')) press(ev, { kind: 'group', id: g.id }); });
@@ -375,8 +396,11 @@
       let legendEl = null;
       function renderLegend() {
         const used = [], key = chartData.colorKey || {};
-        groups().concat(elements()).forEach((o) => { const c = swatchOf(o); if (c && swatchSlot(c) && !used.includes(c)) used.push(c); });
-        const sameEdges = edges().filter((e) => e.path).length === els.edges.size && edges().every((e) => !e.path || els.edges.has(e.id));
+        groups().forEach((g) => { const c = swatchOf(g); if (c && swatchSlot(c) && !used.includes(c)) used.push(c); });
+        elements().forEach((e) => {
+          const c = swatchOf(e) || KIND_SLOT[e.kind] || (e.kind === 'external' ? '9' : null);
+          if (c && swatchSlot(c) && !used.includes(c)) used.push(c);
+        });
         const shown = used.filter((c) => key[c] || c === keyDraft);
         if (legendEl) legendEl.remove();
         legendEl = ui.colorKey(shown, key, { cls: 'c4-key', prompts: keyDraft !== null });
@@ -470,7 +494,7 @@
       // One path for a chevron and for the Level control: set `collapsed` on some groups, route, and morph. A group that opens
       // morphs from its box into the frame (morphRect) and its contents grow out of that box (fromKey); a group that closes
       // morphs the other way and its contents shrink into the new box (toKey). Reduced motion jumps to the end state.
-      function setCollapsed(changes) {
+      function setCollapsed(changes, opts) {
         changes = new Map([...changes].filter(([id, v]) => groupOf(id) && (groupOf(id).collapsed === true) !== v));
         if (!changes.size) return;
         const useMotion = motion.enabled() && html.childElementCount > 0;
@@ -486,11 +510,12 @@
         const prev = new Map();
         if (snap) changes.forEach((v, id) => { const r = snap._raw.get(id); if (r) prev.set(id, r.vr); });
         changes.forEach((v, id) => { groupOf(id).collapsed = v; });
+        if (!manualMode()) layoutDiagram(chartData);
         render({
           snap, prevEdges, fromKey, toKey, duration: 220,
           afterPlay: () => prev.forEach((rect, id) => { const el = els.groups.get(id); if (el) motion.morphRect(rect, el, { duration: 220, easing: 'curve-spring-settle' }); })
         });
-        updateStatus(true);
+        if (!(opts && opts.silent) && !presenting()) updateStatus(true);
       }
       function toggleGroup(id) { const g = groupOf(id); if (g) setCollapsed(new Map([[id, g.collapsed !== true]])); }
 
@@ -505,7 +530,7 @@
         const n = currentLevel();
         levelBtns.forEach((b) => b.setAttribute('aria-pressed', String(+b.dataset.level === n)));
       }
-      levelBtns.forEach((b) => b.addEventListener('click', () => setCollapsed(levelsWanted(+b.dataset.level))));
+      levelBtns.forEach((b) => b.addEventListener('click', () => setCollapsed(levelsWanted(+b.dataset.level), { silent: true })));
 
       // =====================================================================================================
       // --- EDITING ---
@@ -1893,7 +1918,8 @@
         isBackground: (el) => el === canvas || el === svg || el === html || el === legendEl || el.id === 'c4-overlay',
         fitPad: (w) => (w < 600 ? 32 : 0),   // Fit leaves 80px round the picture; a phone is 390px wide, so it keeps 32 (0: the shell default)
         contentOverflow() {   // the colour key sits above the diagram; a note card may stand outside it
-          const o = { left: 0, top: legendEl ? 40 : 0, right: 0, bottom: 0 }, C = chartData.canvas || { width: 0, height: 0 };
+          const C = chartData.canvas || { width: 0, height: 0 };
+          const o = { left: 0, top: legendEl ? 44 : 0, right: legendEl ? Math.max(0, legendEl.offsetLeft + legendEl.offsetWidth + 16 - C.width) : 0, bottom: 0 };
           if (notesLayer) {
             [...notesLayer.children].forEach((c) => {
               const x = parseFloat(c.style.left) || 0, y = parseFloat(c.style.top) || 0;
