@@ -995,9 +995,12 @@
     /* Save location: the first Save of a file opened from disk copies and shows where that file lives, to paste into the
        browser's Save dialog (shell.js askSaveLocation). */
     .save-where {
-      display: block; margin-bottom: 12px; padding: 6px 8px; overflow-wrap: anywhere; user-select: all;
+      display: block; margin-bottom: 10px; padding: 6px 8px; overflow-wrap: anywhere; user-select: all;
       font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-main); background: var(--bg-page);
       border: 1px solid var(--border-color); border-radius: var(--radius-md);
+    }
+    .save-folder-tip {
+      margin-bottom: 12px; font-size: var(--text-xs); line-height: var(--t-control-leading); color: var(--text-soft);
     }
     /* Note: extra detail kept off the diagram so labels stay short. A neutral slate paper card with a bracket edge (the
        classic flowchart annotation, which has no colour of its own), joined to what it explains by a dashed leader.
@@ -4068,6 +4071,7 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
       }
 
       let dataReadme = null;   // the data block's "_readme" line (written by scripts/layout_engine.py assemble_page)
+      let initialDataText = null;   // raw inline #diagram-data text at load, used to verify linked-folder file matches
 
       async function loadInitialData() {
         try {
@@ -4076,6 +4080,7 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
           if (dataEl) {
             // Read inline JSON synchronously before any await so --target file boots synchronously.
             raw = dataEl.textContent.trim();
+            initialDataText = raw;
           } else {
             const [text] = await Promise.all([
               fetch('diagram.json').then((r) => {
@@ -5470,12 +5475,17 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
       });
 
       // --- SAVE MECHANISM (Direct to HTML File) ---
-      // Remember the file handle per page URL (IndexedDB) so a reopened diagram
-      // can save straight back to its file without showing the folder dialog.
+      // Remember per-file handles and linked top-level workspace folders (IndexedDB) so reopened or
+      // newly created diagrams inside a linked folder save straight back to disk without a file dialog.
+      const FOLDER_STORE_LIMIT = 20;
       function handleDb() {
         return new Promise((resolve, reject) => {
-          const req = indexedDB.open('ultimate-diagram', 1);
-          req.onupgradeneeded = () => req.result.createObjectStore('handles');
+          const req = indexedDB.open('ultimate-diagram', 2);
+          req.onupgradeneeded = () => {
+            const db = req.result;
+            if (!db.objectStoreNames.contains('handles')) db.createObjectStore('handles');
+            if (!db.objectStoreNames.contains('folders')) db.createObjectStore('folders', { autoIncrement: true });
+          };
           req.onsuccess = () => resolve(req.result);
           req.onerror = () => reject(req.error);
         });
@@ -5507,6 +5517,101 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
           const db = await handleDb();
           db.transaction('handles', 'readwrite').objectStore('handles').put(h, location.href);
         } catch (_) {}
+      }
+      async function readStoredFolders() {
+        try {
+          const db = await handleDb();
+          if (!db.objectStoreNames.contains('folders')) return [];
+          return await new Promise((resolve, reject) => {
+            const out = [];
+            const r = db.transaction('folders').objectStore('folders').openCursor(null, 'prev');
+            r.onsuccess = () => {
+              const cur = r.result;
+              if (!cur) { resolve(out); return; }
+              if (cur.value) out.push({ key: cur.key, handle: cur.value });
+              cur.continue();
+            };
+            r.onerror = () => reject(r.error);
+          });
+        } catch (_) { return []; }
+      }
+      async function storeFolderHandle(dir) {
+        try {
+          const existing = await readStoredFolders();
+          for (const item of existing) {
+            if (item.handle && typeof item.handle.isSameEntry === 'function') {
+              try { if (await item.handle.isSameEntry(dir)) return; } catch (_) {}
+            }
+          }
+          const db = await handleDb();
+          const tx = db.transaction('folders', 'readwrite');
+          const store = tx.objectStore('folders');
+          store.add(dir);
+          // Trim oldest entries beyond the cap (existing is newest-first)
+          for (const stale of existing.slice(FOLDER_STORE_LIMIT - 1)) store.delete(stale.key);
+        } catch (_) {}
+      }
+      function extractDataBlockText(htmlText) {
+        const openTag = '<script id="diagram-data" type="application/' + 'json">';
+        const closeTag = '<' + '/script>';
+        const start = htmlText.indexOf(openTag);
+        if (start < 0) return null;
+        const bodyStart = start + openTag.length;
+        const end = htmlText.indexOf(closeTag, bodyStart);
+        if (end < 0) return null;
+        return htmlText.slice(bodyStart, end).trim();
+      }
+      function localPathSegments(loc) {
+        const raw = loc.file.replace(/\\/g, '/').replace(/^[A-Za-z]:/, '').replace(/^\/+/, '');
+        return raw.split('/').filter(Boolean);
+      }
+      function sameSegment(a, b, win) {
+        return win ? a.toLowerCase() === b.toLowerCase() : a === b;
+      }
+      async function resolveFileInFolder(dir, loc, { askPermission = false } = {}) {
+        if (!dir || !dir.name || !loc) return null;
+        const segs = localPathSegments(loc);
+        const matches = [];
+        for (let i = 0; i < segs.length - 1; i++) {
+          if (sameSegment(segs[i], dir.name, loc.win)) matches.push(i);
+        }
+        if (!matches.length) return null;
+        const opts = { mode: 'readwrite' };
+        try {
+          const curPerm = typeof dir.queryPermission === 'function' ? await dir.queryPermission(opts) : 'granted';
+          if (curPerm !== 'granted') {
+            if (!askPermission || typeof dir.requestPermission !== 'function') return null;
+            showToast(`Your browser asks once per session to edit files in ${dir.name}.`);
+            if ((await dir.requestPermission(opts)) !== 'granted') return null;
+          }
+        } catch (_) { return null; }
+
+        for (const idx of matches) {
+          try {
+            let cur = dir;
+            for (let j = idx + 1; j < segs.length - 1; j++) {
+              cur = await cur.getDirectoryHandle(segs[j]);
+            }
+            const fh = await cur.getFileHandle(segs[segs.length - 1]);
+            // Verify on-disk diagram-data matches what this page originally loaded, so same-named folders can never collide
+            if (initialDataText !== null && typeof fh.getFile === 'function') {
+              const diskText = await (await fh.getFile()).text();
+              const diskData = extractDataBlockText(diskText);
+              if (diskData !== initialDataText) continue;
+            }
+            return fh;
+          } catch (_) { /* try next candidate segment */ }
+        }
+        return null;
+      }
+      async function loadFromLinkedFolders(loc, { askPermission = true } = {}) {
+        if (!loc) return null;
+        const folders = await readStoredFolders();
+        for (const item of folders) {
+          const fh = await resolveFileInFolder(item.handle, loc, { askPermission });
+          if (fh) return fh;
+        }
+        return null;
       }
 
       // JSON with one line per flat object (a lane, a node, an edge, a layout entry), so the data block reads as a
@@ -5797,8 +5902,9 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
 
       // Before the first Save dialog of a file opened from disk: copy the file's path right away (the Save click allows it)
       // and show it, so the user can paste it into the dialog and save over the original instead of making a copy elsewhere.
-      // The dialog opens from the bubble's own button, which supplies the click the browser requires.
-      async function askSaveLocation(loc, choose) {
+      // Where showDirectoryPicker is supported, also offer linking a top parent/repo folder once so all nested child folders
+      // save directly with no future file dialogs.
+      async function askSaveLocation(loc, choose, linkFolder) {
         const plat = ((navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || '').toLowerCase();
         const mac = !loc.win && /mac/.test(plat);
         // macOS "Go to folder" takes a folder (the name is already filled in); Windows and GTK file boxes take the whole path
@@ -5809,17 +5915,67 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
           : mac
             ? 'press \u2318\u21e7G, paste (\u2318V) + Return, Save, and overwrite.'
             : 'press Ctrl+L, paste (Ctrl+V), Save, and overwrite.';
+        const extra = document.createDocumentFragment();
         const path = document.createElement('code');
         path.className = 'save-where';
         path.textContent = text;
+        extra.appendChild(path);
+        if (linkFolder) {
+          const tip = document.createElement('div');
+          tip.className = 'save-folder-tip';
+          tip.textContent = 'Or click Link folder and pick a top parent/repo folder (not just this file\u2019s direct folder) so all child folders save directly.';
+          extra.appendChild(tip);
+        }
         ui.confirm(btnSave, {
           label: 'Save over the file you opened',
           title: copied ? 'Path copied' : 'Save over this file',
           message: copied ? where[0].toUpperCase() + where.slice(1) : 'Copy path, ' + where,
-          extra: path,
-          ok: 'Choose\u2026',
+          extra,
+          alt: linkFolder ? { text: 'Link folder\u2026', onClick: linkFolder } : undefined,
+          ok: linkFolder ? 'Choose file\u2026' : 'Choose\u2026',
           okClass: 'btn-primary'
         }, choose);
+      }
+
+      async function writeToHandle(handle, replacedHtml) {
+        const writable = await handle.createWritable();
+        await writable.write(replacedHtml);
+        await writable.close();
+
+        savedJson = JSON.stringify(chartData);
+        everSaved = true;
+        updateStatus(false);
+        motion.pulseEl(btnSave.querySelector('svg'));
+      }
+
+      async function linkFolderAndSave(loc, replacedHtml) {
+        let dir;
+        try {
+          dir = await window.showDirectoryPicker({ id: 'ultimate-diagram-root', mode: 'readwrite' });
+        } catch (err) {
+          if (!err || err.name === 'AbortError') return;
+          if (err.name === 'SecurityError' || /system files/i.test(err.message || '')) {
+            showToast('Browser blocks system folders (like Downloads or C:\\). Pick a repo or project subfolder instead.');
+          } else {
+            showToast('Could not link folder: ' + (err.message || err.name));
+          }
+          return;
+        }
+        const fh = await resolveFileInFolder(dir, loc, { askPermission: true });
+        if (!fh) {
+          showToast(`${dir.name} does not contain ${loc.name}. Pick a parent folder that contains this file.`);
+          return;
+        }
+        await storeFolderHandle(dir);
+        fileHandle = fh;
+        storeHandle(fh);
+        try {
+          await writeToHandle(fh, replacedHtml);
+          showToast(`Linked ${dir.name} \u2014 diagrams in it and its subfolders will save directly.`);
+        } catch (err) {
+          if (err && err.name === 'AbortError') return;
+          showToast('Save failed: ' + ((err && err.message) || err));
+        }
       }
 
       async function pickSaveFile() {
@@ -5847,25 +6003,25 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
         if ('showSaveFilePicker' in window) {
           try {
             if (!fileHandle && !picked) fileHandle = await loadStoredHandle();
+            const loc = !fileHandle && !picked ? localFilePath() : null;
+            if (!fileHandle && loc && 'showDirectoryPicker' in window) {
+              fileHandle = await loadFromLinkedFolders(loc, { askPermission: true });
+              if (fileHandle) storeHandle(fileHandle);
+            }
             if (!fileHandle) {
-              const loc = !picked && localFilePath();
               if (loc) {
-                // The dialog has to open from a fresh click: the bubble's button calls back here
-                askSaveLocation(loc, () => writeFile(replacedHtml, true));
+                // The dialog has to open from a fresh click: the bubble's buttons call back here
+                const linkFolder = 'showDirectoryPicker' in window
+                  ? () => linkFolderAndSave(loc, replacedHtml)
+                  : null;
+                askSaveLocation(loc, () => writeFile(replacedHtml, true), linkFolder);
                 return;
               }
               fileHandle = await pickSaveFile();
               storeHandle(fileHandle);
             }
 
-            const writable = await fileHandle.createWritable();
-            await writable.write(replacedHtml);
-            await writable.close();
-
-            savedJson = JSON.stringify(chartData);
-            everSaved = true;
-            updateStatus(false);
-            motion.pulseEl(btnSave.querySelector('svg'));
+            await writeToHandle(fileHandle, replacedHtml);
             return;
           } catch (err) {
             if (err.name === 'AbortError') return;
@@ -5952,10 +6108,15 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
       }
 
       btnSave.addEventListener('click', saveToFile);
-      // A file opened from disk that was saved before: show which file Save writes to (reading the stored handle asks nothing)
+      // A file opened from disk that was saved before (or sits inside a linked workspace folder): show which file Save writes to
       if (!claudeHost && location.protocol === 'file:' && 'showSaveFilePicker' in window) {
-        readStoredHandle().then((h) => {
-          if (h && h.name && !fileHandle) { storedName = h.name; setStatusBadge(hasUnsavedChanges); }
+        readStoredHandle().then(async (h) => {
+          if (h && h.name && !fileHandle) { storedName = h.name; setStatusBadge(hasUnsavedChanges); return; }
+          if (!fileHandle && 'showDirectoryPicker' in window) {
+            const loc = localFilePath();
+            const fh = loc ? await loadFromLinkedFolders(loc, { askPermission: false }) : null;
+            if (fh && fh.name && !fileHandle) { storedName = fh.name; setStatusBadge(hasUnsavedChanges); }
+          }
         });
       }
 
