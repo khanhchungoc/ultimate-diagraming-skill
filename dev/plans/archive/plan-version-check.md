@@ -1,6 +1,6 @@
 # Plan: Async Version Check (Runtime-Agnostic + SessionStart Hook)
 
-Status: proposed (2026-11-22).
+Status: Completed (2026-11-22, PR #79).
 
 ## Goal
 

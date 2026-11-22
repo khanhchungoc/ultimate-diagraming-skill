@@ -1,6 +1,6 @@
 # Plan: Linked Workspace Folder for One-Click Save (`showDirectoryPicker`)
 
-Status: proposed (2026-11-22).
+Status: Completed (2026-11-22, PR #80).
 
 ## Goal
 
