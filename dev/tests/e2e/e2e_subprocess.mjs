@@ -215,6 +215,7 @@ try {
   t.check('one step selected: no Collapse (a run of two or more), no Expand', !(await visible('#btn-collapse-sub')) && !(await visible('#btn-expand-sub')));
   await clickStep('assign_laptop', 2);
   t.check('two steps in a run: Collapse is offered', await visible('#btn-collapse-sub'));
+  await t.press('Escape');
   await clickStep('configure_laptop');
   await clickStep('close_request', 2);
   t.check('steps that are not one run: no Collapse', !(await visible('#btn-collapse-sub')));
@@ -281,7 +282,7 @@ try {
     await sleep(500);
   }
   const flatPage = JSON.parse(blockOf(await save()));
-  const flatPy = JSON.parse(execFileSync('python3', [join(import.meta.dirname, '..', 'scripts', 'layout_engine.py'), '--extract', page, '--flat', '--json'], { encoding: 'utf8', maxBuffer: 1 << 26 }));
+  const flatPy = JSON.parse(execFileSync('python3', [join(import.meta.dirname, '..', '..', '..', 'scripts', 'layout_engine.py'), '--extract', page, '--flat', '--json'], { encoding: 'utf8', maxBuffer: 1 << 26 }));
   t.check('expanding every subprocess in the editor gives what --extract --flat prints (steps and arrows)', !flatPage.children && stepsOf(flatPage) === stepsOf(flatPy) && edgeSet(flatPage.edges) === edgeSet(flatPy.edges),
     `${stepsOf(flatPage) === stepsOf(flatPy)} ${J(JSON.parse(edgeSet(flatPage.edges)).filter((e) => !JSON.parse(edgeSet(flatPy.edges)).includes(e)))} ${J(JSON.parse(edgeSet(flatPy.edges)).filter((e) => !JSON.parse(edgeSet(flatPage.edges)).includes(e)))}`);
   t.check('with no child left the tab row is gone', await t.ev(`document.getElementById('flow-tabs').hidden`) && !(await t.ev(`!!document.querySelector('.sub-open')`)));

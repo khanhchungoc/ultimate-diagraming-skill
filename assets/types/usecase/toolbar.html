@@ -7,10 +7,10 @@
         <div id="uc-pop" class="dock-pop" role="group" aria-label="Add: click to add, or drag onto the canvas">
           <div class="dock-pop-grid" role="group" aria-label="Add">
             <button id="btn-add-actor" class="btn btn-shape" title="Actor: a role outside the system (click, or drag onto the canvas)" aria-label="Actor">
-              {{icon:user:tile:fine}}<span class="tile-caption">Actor</span>
+              <span class="uc-tile-avatar" aria-hidden="true">{{icon:user:md}}</span><span class="tile-caption">Actor</span>
             </button>
             <button id="btn-add-system" class="btn btn-shape" title="System actor: an external system, such as a payment gateway (click, or drag onto the canvas)" aria-label="System actor">
-              {{icon:server:tile:fine}}<span class="tile-caption">System</span>
+              <span class="uc-tile-avatar" aria-hidden="true">{{icon:server:md}}</span><span class="tile-caption">System</span>
             </button>
             <button id="btn-add-usecase" class="btn btn-shape" title="Use case: a goal an actor has (click, or drag onto the canvas or into a subject)" aria-label="Use case">
               {{icon:usecase:tile:fine}}<span class="tile-caption">Use case</span>
@@ -18,8 +18,8 @@
             <button id="btn-add-subject" class="btn btn-shape" title="Subject: the system boundary (click, or drag onto the canvas)" aria-label="Subject">
               {{icon:subject:tile:fine}}<span class="tile-caption">Subject</span>
             </button>
-            <button id="btn-add-note" class="btn btn-shape" title="Note: drag onto an actor or use case, or click to add one to the selection" aria-label="Note">
-              {{icon:shape-note:tile:fine}}<span class="tile-caption">Note</span>
+            <button id="btn-add-note" class="btn btn-shape btn-note-tool" title="Note: drag onto an actor or use case, or click to add one to the selection" aria-label="Note">
+              {{icon:note:tile:fine}}<span class="tile-caption">Note</span>
             </button>
           </div>
         </div>

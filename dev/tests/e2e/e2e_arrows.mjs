@@ -1,9 +1,9 @@
 // Interaction test for flowchart arrows and anchor points (dev/plans/archive/plan-subprocess-depth.md, sections 9 and 10),
 // with real mouse and keyboard input. Driven over the Chrome DevTools Protocol, see cdp.mjs.
 //
-//   node dev/e2e_arrows.mjs --browser <chrome> --page <default.html> --split <connector-forward.html>
+//   node dev/e2e_arrows.mjs --browser <chrome> --page <loan-application.html> --split <connector-forward.html>
 //
-// --page:  assets/types/flowchart/default.json laid out (has labelled and unlabelled arrows)
+// --page:  dev/tests/fixtures/flowchart/loan-application.json laid out (has labelled and unlabelled arrows)
 // --split: dev/tests/fixtures/flowchart/connector-forward.json laid out (an A pair in place: connector-adjacent arrows)
 // Exit codes: 0 all passed, 1 setup error, 2 a check failed.
 import { argOf, launch, sleep } from './cdp.mjs';

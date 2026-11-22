@@ -175,8 +175,8 @@ try {
   t.check('dragging from a lifeline + to another lifeline draws a call at that row, in edit',
     plusShown && drawn === 'Message' && d.messages[1].label === 'Check fraud' && d.messages[1].from === 'p3' && d.messages[1].to === 'p2' && d.messages[1].kind === 'sync',
     `plus=${plusShown} edit=${drawn} ${JSON.stringify(d.messages[1])}`);
-  // Released on the same lifeline: a self-message
-  const yGap2 = await gapY('m3', 'm4');
+  // Released on the same lifeline: a self-message (pick a gap clear of f1's frame tag)
+  const yGap2 = await gapY('m2', 'm3');
   const shopB = await lifelineAt('p2', yGap2);
   await t.mouse('mouseMoved', shopB.x, yGap2);
   await sleep(80);

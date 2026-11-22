@@ -231,23 +231,57 @@ try {
   t.check('the new line is selected and its action bar shows Association, Include, Extend', (await count('.uc-actionbar [data-act="type"]')) === 3 && (await t.ev(`document.querySelector('.uc-actionbar [data-act="type"][data-value="association"]').getAttribute('aria-pressed')`)) === 'true');
   await blank();
   await connect('browse', 'voucher');
+  const incDomId = await t.ev(`document.querySelector('.uc-link.selected').dataset.edgeId`);
   d = await saved();
   const newInc = d.links[d.links.length - 1];
   t.check('a port drag from a use case onto another draws an include (base to part)', newInc.type === 'include' && newInc.from === 'browse' && newInc.to === 'voucher', J(newInc));
   t.check('the include has its «include» pill', (await count('.uc-label')) === 3);
-  // switch include -> extend: the line reverses (extend points from the extension to the base)
+  t.check('the link action bar has no condition input box', !(await present('.uc-actionbar .uc-ab-input')));
+  // inline condition on «include» pill: Esc cancels cleanly, Enter commits
+  await t.clickOn(`.uc-label[data-edge-id="${incDomId}"]`, { count: 2 });
+  await sleep(100);
+  t.check('double-clicking the «include» pill opens inline condition editing', (await editing()) === '' && (await present(`.uc-label[data-edge-id="${incDomId}"].is-editing-cond .uc-cond.is-editing`)));
+  await t.press('Escape');
+  await sleep(120);
+  d = await saved();
+  t.check('Esc on an empty inline condition removes the temporary field and leaves no condition', !(await present(`.uc-label[data-edge-id="${incDomId}"] .uc-cond`)) && byId(d.links, newInc.id).condition === undefined);
+  await t.clickOn(`.uc-label[data-edge-id="${incDomId}"]`, { count: 2 });
+  await sleep(100);
+  await t.type('always checked');
+  await t.press('Enter');
+  await sleep(150);
+  d = await saved();
+  t.check('typing on the «include» pill sets its condition and shows [always checked]', byId(d.links, newInc.id).condition === 'always checked' && (await text(`.uc-label[data-edge-id="${incDomId}"] .uc-cond`)) === '[always checked]', J(byId(d.links, newInc.id)));
+  // switch include -> extend: the line reverses (extend points from the extension to the base) and keeps the condition
   await t.clickOn('.uc-actionbar [data-act="type"][data-value="extend"]');
   await sleep(120);
   d = await saved();
   const sw = d.links[d.links.length - 1];
-  t.check('choosing Extend on the include reverses it (extension -> base) and says so', sw.type === 'extend' && sw.from === 'voucher' && sw.to === 'browse' && (await present('.hint')), J(sw));
-  // condition
-  await t.clickOn('.uc-actionbar .uc-ab-input');
+  t.check('choosing Extend on the include reverses it (extension -> base), preserves the condition, and says so', sw.type === 'extend' && sw.from === 'voucher' && sw.to === 'browse' && sw.condition === 'always checked' && (await present('.hint')), J(sw));
+  t.check('extend action bar keeps Extension point without a condition input', !(await present('.uc-actionbar .uc-ab-input')) && (await present('.uc-actionbar [data-act="point-menu"]')));
+  // double-clicking the extend connector line opens inline condition editing on the pill
+  await blank();
+  const linePt = await onLine(incDomId);
+  await t.click(linePt.x, linePt.y, { count: 2 });
+  await sleep(100);
+  t.check('double-clicking the connector line opens inline condition editing with the current text', (await editing()) === 'always checked', `${await editing()}`);
   await t.type('first order');
   await t.press('Enter');
   await sleep(150);
   d = await saved();
-  t.check('the condition field sets it and the pill shows [first order]', byId(d.links, sw.id).condition === 'first order' && (await t.ev(`[...document.querySelectorAll('.uc-label .uc-cond')].some((e) => e.textContent === '[first order]')`)), J(byId(d.links, sw.id)));
+  t.check('Enter commits the edited condition and the pill shows [first order]', byId(d.links, sw.id).condition === 'first order' && (await text(`.uc-label[data-edge-id="${incDomId}"] .uc-cond`)) === '[first order]', J(byId(d.links, sw.id)));
+  // clearing the condition on the pill deletes it; undo brings [first order] back
+  await t.clickOn(`.uc-label[data-edge-id="${incDomId}"]`, { count: 2 });
+  await sleep(100);
+  await t.press('Backspace');
+  await t.press('Enter');
+  await sleep(150);
+  d = await saved();
+  t.check('clearing the inline condition removes it from the model and pill', !('condition' in byId(d.links, sw.id)) && !(await present(`.uc-label[data-edge-id="${incDomId}"] .uc-cond`)), J(byId(d.links, sw.id)));
+  await undo();
+  await sleep(150);
+  await t.clickOn(`.uc-label[data-edge-id="${incDomId}"]`);
+  await sleep(100);
   // extension point menu
   await t.clickOn('.uc-actionbar [data-act="point-menu"]');
   await sleep(100);
@@ -426,6 +460,47 @@ try {
   await t.clickOn('#btn-levels');
   t.check('Levels off hides the subfunction use cases and their lines', !(await present(item('pay'))) && !(await present('.uc-link[data-edge-id="l3"]')));
   await t.clickOn('#btn-levels');
+  // Levels disables when no subfunctions exist, and re-enables when one returns
+  const levelsState = () => t.ev(`(() => { const b = document.getElementById('btn-levels'); return { disabled: b.disabled, checked: b.getAttribute('aria-checked') }; })()`);
+  const lvWithSub = await levelsState();
+  await t.clickOn(item('pay'));
+  await t.clickOn('.uc-actionbar [data-act="level"][data-value="user"]');
+  await sleep(150);
+  const lvNoSub = await levelsState();
+  await undo();
+  await sleep(150);
+  const lvRestored = await levelsState();
+  t.check('Levels disables (and clears aria-checked) when no subfunction exists, and re-enables when one returns',
+    !lvWithSub.disabled && lvWithSub.checked === 'true' && lvNoSub.disabled && lvNoSub.checked === 'false' && !lvRestored.disabled && lvRestored.checked === 'true',
+    `${J(lvWithSub)} -> ${J(lvNoSub)} -> ${J(lvRestored)}`);
+  await blank();
+  // Subject hover state: hovering the frame interior or title bar lifts border/shadow without capturing background pointer events
+  const subStyle = (id) => t.ev(`(() => { const el = document.querySelector('.uc-subject[data-subject-id="${id}"]'); const cs = getComputedStyle(el); return { hover: el.classList.contains('is-hover'), pe: cs.pointerEvents, border: cs.borderColor, shadow: cs.boxShadow }; })()`);
+  await t.mouse('mouseMoved', 6, 300);
+  await sleep(200);
+  const subRest = await subStyle('office');
+  const subInner = await t.ev(`(() => { const r = document.querySelector('.uc-subject[data-subject-id="office"]').getBoundingClientRect();
+    for (let y = r.bottom - 10; y > r.top + 44; y -= 10) for (let x = r.right - 10; x > r.left + 10; x -= 10) {
+      const el = document.elementFromPoint(x, y); if (el && (el.id === 'uc-canvas' || el.id === 'uc-html' || el.id === 'uc-svg')) return { x, y }; }
+    return null; })()`);
+  await t.mouse('mouseMoved', subInner.x, subInner.y);
+  await sleep(200);
+  const subHovInner = await subStyle('office');
+  const onPick = await t.at(item('pick'));
+  await t.mouse('mouseMoved', onPick.x, onPick.y);
+  await sleep(80);
+  const subOnCase = await subStyle('office');
+  const onSubTitle = await t.at('.uc-subject[data-subject-id="office"] .uc-subject-title');
+  await t.mouse('mouseMoved', onSubTitle.x, onSubTitle.y);
+  await sleep(80);
+  const subOnTitle = await subStyle('office');
+  await t.mouse('mouseMoved', 6, 300);
+  await sleep(80);
+  const subLeft = await subStyle('office');
+  t.check('hovering a subject interior or title bar applies the hover border/shadow while keeping pointer-events: none',
+    subRest.pe === 'none' && !subRest.hover && subHovInner.hover && subHovInner.border !== subRest.border && subHovInner.shadow !== subRest.shadow
+      && !subOnCase.hover && subOnTitle.hover && !subLeft.hover,
+    `${J(subRest)} | ${J(subHovInner)} | ${J(subOnCase)} | ${J(subOnTitle)} | ${J(subLeft)}`);
   // collapse a subject; expanding it again puts every use case back where it was, with nothing on top of another
   const boxes = () => t.ev(`JSON.stringify([...document.querySelectorAll('.uc-case')].map((e) => [e.dataset.nodeId, e.style.left, e.style.top, e.style.width, e.style.height]).sort())`);
   const caseOverlaps = () => t.ev(`(() => { const r = [...document.querySelectorAll('.uc-case')].map((e) => e.getBoundingClientRect()); let n = 0;

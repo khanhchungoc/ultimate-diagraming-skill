@@ -128,7 +128,16 @@
       color: var(--text-soft);
       border-color: transparent;
     }
+    .dock-pop-grid > .btn svg > * {
+      vector-effect: non-scaling-stroke;
+      stroke-width: var(--ring-thin);
+      transition: stroke var(--dur-micro) var(--curve-out), fill var(--dur-micro) var(--curve-out);
+    }
     .dock-pop-grid > .btn:hover { color: var(--text-main); background: var(--bg-hover); border-color: var(--border-dark); }
+    /* Unified mini-note tile across Flowchart, C4 and Use Case shape menus */
+    .btn-note-tool svg > .note-paper { fill: var(--note-bg); stroke: var(--note-accent); }
+    .btn-note-tool svg > .note-fold { fill: var(--note-border); stroke: var(--note-accent); }
+    .btn-note-tool:hover svg > .note-paper { fill: color-mix(in srgb, var(--note-accent) 16%, var(--note-bg)); }
     /* Optional labelled sections: a small heading above each grid */
     .dock-pop-section { position: relative; z-index: 1; }
     .dock-pop-section + .dock-pop-section { margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--border-color); }
@@ -195,11 +204,11 @@
     /* Narrow screens (a shared link opened on a phone): icon-only docks */
     @media (max-width: 720px) {
       .dock-area { left: 12px; right: 12px; bottom: 12px; grid-template-columns: 1fr; }
-      .toolbar-center { grid-column: 1; grid-row: 1; justify-content: space-evenly; }
+      .toolbar-zoom { grid-column: 1; grid-row: 1; }
+      .toolbar-center { grid-column: 1; grid-row: 2; justify-content: space-evenly; position: relative; z-index: 1; }
       .toolbar-center > .btn, .toolbar-center > .dock-pop-wrap { flex: 1 1 0; min-width: 0; justify-content: center; }
       .dock-pop-wrap > .dock-pop-trigger { flex: 1 1 auto; justify-content: center; }
       .toolbar-center > .dock-delete:not(.show) { flex: 0 0 0; }
-      .toolbar-zoom { grid-column: 1; grid-row: 2; }
     }
     /* Below 1300px the dock is icon-only (the labels need about 800px beside the zoom dock): same icons, same tooltips, one row.
        Between 721px and 1300px the add dock is centred in the space right of the zoom dock, so the two never collide. */

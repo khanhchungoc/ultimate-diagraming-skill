@@ -7,6 +7,7 @@
       background: var(--bg-panel);
       box-shadow: var(--shadow-canvas);
       border-radius: var(--radius-lg);
+      --lane-r: calc(var(--radius-lg) - 1px);
       margin: 40px;
       width: fit-content;
       min-width: 1400px;
@@ -118,6 +119,15 @@
     .lane-track.drag-hover-lane {
       background: var(--primary-wash);
     }
+    /* Outer lane corners: #swimlanes-container stays overflow:visible (bars, ports, notes extend outside), so the
+       outermost gutter and track corners match its inner curve (--lane-r). Individual corner properties let a single
+       lane (both :first-child and :last-child) round all four corners cleanly. */
+    #swimlanes-container:not(.dir-tb) .swimlane:first-child > .lane-gutter { border-top-left-radius: var(--lane-r); }
+    #swimlanes-container:not(.dir-tb) .swimlane:last-child > .lane-gutter  { border-bottom-left-radius: var(--lane-r); }
+    #swimlanes-container:not(.dir-tb) .swimlane:first-child > .lane-track  { border-top-right-radius: var(--lane-r); }
+    #swimlanes-container:not(.dir-tb) .swimlane:last-child > .lane-track   { border-bottom-right-radius: var(--lane-r); }
+    #swimlanes-container.no-swimlanes:not(.dir-tb) .swimlane:first-child > .lane-track { border-top-left-radius: var(--lane-r); }
+    #swimlanes-container.no-swimlanes:not(.dir-tb) .swimlane:last-child > .lane-track  { border-bottom-left-radius: var(--lane-r); }
 
     /* SVG Connector Overlay */
     #connector-svg {
@@ -537,6 +547,7 @@
       margin: 0;
       border: none;
       border-radius: 0;
+      --lane-r: 0;
       box-shadow: none;
     }
 
@@ -564,6 +575,20 @@
       z-index: 39;
       pointer-events: none;
       border-left: var(--rail-b, 3px) solid var(--lane-stripe);
+    }
+    /* Unpinned (or exported) outer rail sits flush against the container's rounded border: give it width --lane-r so
+       border-*-left-radius curves at the full inner radius without shrinking to the 3px border width. */
+    #swimlanes-container:not(.dir-tb):not(.lanes-pinned) .swimlane:is(:first-child, :last-child) > .lane-rail,
+    body.exporting #swimlanes-container:not(.dir-tb) .swimlane:is(:first-child, :last-child) > .lane-rail {
+      width: var(--lane-r);
+    }
+    #swimlanes-container:not(.dir-tb):not(.lanes-pinned) .swimlane:first-child > .lane-rail,
+    body.exporting #swimlanes-container:not(.dir-tb) .swimlane:first-child > .lane-rail {
+      border-top-left-radius: var(--lane-r);
+    }
+    #swimlanes-container:not(.dir-tb):not(.lanes-pinned) .swimlane:last-child > .lane-rail,
+    body.exporting #swimlanes-container:not(.dir-tb) .swimlane:last-child > .lane-rail {
+      border-bottom-left-radius: var(--lane-r);
     }
     .lane-pill {
       position: absolute;
@@ -631,10 +656,13 @@
     .btn-shape:is([data-node-type="subprocess"], [data-node-type="io"], [data-node-type="document"],
       [data-node-type="database"], [data-node-type="delay"]):hover svg > * { stroke: var(--task-accent); }
     .btn-shape svg > .tile-line { fill: none; }
-    /* Connector tile: the pair of violet circles a split arrow becomes */
-    .btn-connector-tool svg > circle { fill: var(--conn-bg); stroke: var(--conn-border); }
-    .btn-connector-tool svg > .tile-line { stroke: var(--border-dark); }
-    .btn-connector-tool:hover svg > circle { stroke: var(--conn-accent); }
+    /* Inner + badge on Subprocess is tiny at 32px: keep it slightly lighter so the plus stays crisp */
+    .btn-shape[data-node-type="subprocess"] svg > .tile-line { stroke-width: var(--stroke-thin); }
+    /* Connector tile: matches real canvas connectors (2px violet circles, 1.25px arrow stubs, 1.5px dashed guide) */
+    .btn-shape.btn-connector-tool svg > circle { fill: var(--conn-bg); stroke: var(--conn-border); stroke-width: var(--ring-md); }
+    .btn-shape.btn-connector-tool svg > .tile-line { stroke: var(--connector); stroke-width: var(--stroke-thin); }
+    .btn-shape.btn-connector-tool svg > .tile-gap { stroke: var(--conn-border); stroke-width: var(--ring-thin); }
+    .btn-shape.btn-connector-tool:hover svg > circle { stroke: var(--conn-accent); }
     /* Dragging the Connector tile: a lettered circle trails the cursor; over an arrow that can be split, it is solid */
     .connector-ghost {
       position: fixed;
@@ -705,11 +733,7 @@
     .flow-node.type-database .note-badge { top: -5px; right: 7px; }
     .flow-node.type-delay .note-badge { top: 1px; right: 2px; }
 
-    /* Note tile in the Shapes menu, drawn as the note card itself; the step a note would land on */
-    .btn-note-tool svg .note-paper { fill: var(--note-bg); stroke: var(--note-accent); }
-    .btn-note-tool svg .note-fold { fill: var(--note-border); stroke: var(--note-accent); }
-    .btn-note-tool svg .note-lines { stroke: var(--note-accent); }
-    .btn-note-tool:hover svg .note-paper { fill: color-mix(in srgb, var(--note-accent) 18%, var(--note-bg)); }
+    /* Highlight the step a note would land on while picking (tile styling lives in components/dock.css) */
     body.note-picking .flow-node:hover {
       outline: 2px dashed var(--note-accent);
       outline-offset: 4px;
@@ -743,6 +767,25 @@
     #swimlanes-container.dir-tb #lane-drop-line::before { left: -4px; top: -2px; }
     #swimlanes-container.dir-tb.no-swimlanes .swimlane { border-right: none; }
     body.exporting #swimlanes-container.dir-tb .lane-rail { top: 0 !important; border-top-width: 3px !important; }
+    /* Top-to-bottom outer lane corners (lanes run left-to-right; gutter is on top, track below) */
+    #swimlanes-container.dir-tb .swimlane:first-child > .lane-gutter { border-top-left-radius: var(--lane-r); }
+    #swimlanes-container.dir-tb .swimlane:last-child > .lane-gutter  { border-top-right-radius: var(--lane-r); }
+    #swimlanes-container.dir-tb .swimlane:first-child > .lane-track  { border-bottom-left-radius: var(--lane-r); }
+    #swimlanes-container.dir-tb .swimlane:last-child > .lane-track   { border-bottom-right-radius: var(--lane-r); }
+    #swimlanes-container.dir-tb.no-swimlanes .swimlane:first-child > .lane-track { border-top-left-radius: var(--lane-r); }
+    #swimlanes-container.dir-tb.no-swimlanes .swimlane:last-child > .lane-track  { border-top-right-radius: var(--lane-r); }
+    #swimlanes-container.dir-tb:not(.lanes-pinned) .swimlane:is(:first-child, :last-child) > .lane-rail,
+    body.exporting #swimlanes-container.dir-tb .swimlane:is(:first-child, :last-child) > .lane-rail {
+      height: var(--lane-r);
+    }
+    #swimlanes-container.dir-tb:not(.lanes-pinned) .swimlane:first-child > .lane-rail,
+    body.exporting #swimlanes-container.dir-tb .swimlane:first-child > .lane-rail {
+      border-top-left-radius: var(--lane-r);
+    }
+    #swimlanes-container.dir-tb:not(.lanes-pinned) .swimlane:last-child > .lane-rail,
+    body.exporting #swimlanes-container.dir-tb .swimlane:last-child > .lane-rail {
+      border-top-right-radius: var(--lane-r);
+    }
     /* Columns are narrow, so a long lane name wraps (up to two lines) instead of being cut off */
     #swimlanes-container.dir-tb .lane-pill { white-space: normal; border-radius: var(--radius-2xl); justify-content: center; }
     #swimlanes-container.dir-tb .lane-pill .lane-title {

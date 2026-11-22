@@ -33,7 +33,9 @@
       let selIds = [];            // selected actors and use cases (primary last)
       let selOther = null;        // { kind: 'link' | 'subject' | 'note', id }
       let hoverLinkId = null;
+      let linkBarAvoid = null;    // { id, x, y }: pointer position of the press that selected a link, so the bar flips away from it
       let hoverItemId = null;     // the actor or use case under the pointer: what it connects to directly stays lit, the rest dims
+      let hoverSubjectId = null;  // the subject frame under the pointer (tracked in JS so the frame keeps pointer-events: none)
       let actorSw = new Map();    // actor id -> its colour slot (its own colour, else one picked for it; see actorSlots)
       let levelsOn = true;        // view only: off hides the subfunction use cases
       let autoTidy = true;        // always on for now (the Auto-Tidy button is hidden), so a saved 'off' is not read
@@ -238,6 +240,7 @@
         selIds = selIds.filter((id) => itemOf(id));
         if (selOther && !otherExists(selOther)) selOther = null;
         if (hoverLinkId && !linkOf(hoverLinkId)) hoverLinkId = null;
+        if (hoverSubjectId && !subjectOf(hoverSubjectId)) hoverSubjectId = null;
 
         allSubjects().forEach((s) => html.appendChild(buildSubject(s)));
         renderLinks();
@@ -272,6 +275,7 @@
         Object.assign(el.style, { left: px(box.x), top: px(box.y), width: px(box.w), height: px(box.h) });
         const titleH = s._titleH || 36;
         if (s.collapsed === true) el.classList.add('is-collapsed');
+        if (s.id === hoverSubjectId) el.classList.add('is-hover');
         const title = htmlEl('div', 'uc-subject-title');
         title.style.height = px(titleH);
         title.tabIndex = -1;
@@ -446,8 +450,14 @@
           setMarkers(line, l.type === 'association' ? (l.navigable === true ? 'open' : null) : 'open');
           g.append(tip, svgEl('path', { class: 'edge-hit', d }), line);
                     g.addEventListener('pointerleave', () => { if (hoverLinkId === l.id) hoverLinkId = null; applyLinkState(); });
-          g.addEventListener('pointerdown', (ev) => { if (ev.button === 0 && !presenting()) { ev.stopPropagation(); selectOther('link', l.id); } });
-          g.addEventListener('dblclick', (ev) => { ev.stopPropagation(); editLinkCondition(l.id); });
+          g.addEventListener('pointerdown', (ev) => {
+            if (ev.button === 0 && !presenting()) {
+              ev.stopPropagation();
+              linkBarAvoid = { id: l.id, x: ev.clientX, y: ev.clientY };
+              selectOther('link', l.id);
+            }
+          });
+          g.addEventListener('dblclick', (ev) => { ev.preventDefault(); ev.stopPropagation(); editLinkCondition(l.id); });
           linksG.appendChild(g);
           els.links.set(l.id, { g, label: null });
         });
@@ -472,10 +482,20 @@
           Object.assign(el.style, { left: px(b.x), top: px(b.y), width: px(b.w), height: px(b.h) });
           el.title = linkTitle(l) + (l.extensionPoint ? ` at ${l.extensionPoint}` : '');
           el.appendChild(htmlEl('span', 'uc-label-text', `«${l.type}»`));
-          if (l.type === 'extend' && l.condition) el.appendChild(htmlEl('span', 'uc-cond', `[${l.condition}]`));
+          if (l.condition) el.appendChild(htmlEl('span', 'uc-cond', `[${l.condition}]`));
           el.addEventListener('pointerleave', () => { if (hoverLinkId === l.id) hoverLinkId = null; applyLinkState(); });
-          el.addEventListener('pointerdown', (ev) => { if (ev.button === 0 && !presenting()) { ev.stopPropagation(); selectOther('link', l.id); } });
-          el.addEventListener('dblclick', (ev) => { ev.stopPropagation(); editLinkCondition(l.id); });
+          el.addEventListener('pointerdown', (ev) => {
+            if (ev.button === 0 && !presenting()) {
+              ev.stopPropagation();
+              if (!ev.target.isContentEditable) selectOther('link', l.id);
+            }
+          });
+          el.addEventListener('dblclick', (ev) => {
+            if (ev.target.isContentEditable) return;
+            ev.preventDefault();
+            ev.stopPropagation();
+            editLinkCondition(l.id);
+          });
           html.appendChild(el);
           rec.label = el;
         });
@@ -515,6 +535,7 @@
       // --- SELECTION ---
       const primaryId = () => selIds[selIds.length - 1] || null;
       function setSel(ids, other) {
+        if (!other || other.kind !== 'link' || (linkBarAvoid && linkBarAvoid.id !== other.id)) linkBarAvoid = null;
         selIds = ids.filter((id) => itemOf(id));
         selOther = other || null;
         applySelection();
@@ -622,7 +643,15 @@
       // --- DOCK BUTTONS: Refs, Levels, Notes, Auto-Tidy ---
       function updateButtons() {
         btnRefs.setAttribute('aria-checked', String(chartData.showRefs === true));
-        btnLevels.setAttribute('aria-checked', String(levelsOn));
+        const hasSub = cases().some((u) => u.level === 'subfunction');
+        if (!hasSub) levelsOn = true;
+        btnLevels.disabled = !hasSub;
+        btnLevels.setAttribute('aria-checked', String(hasSub && levelsOn));
+        btnLevels.title = !hasSub
+          ? 'No subfunctions yet: select a use case and set its level to Sub'
+          : levelsOn
+            ? 'Levels: showing every use case (click to hide subfunctions)'
+            : 'Levels: hiding subfunctions (click to show every use case)';
         btnAutoLayout.setAttribute('aria-checked', String(autoTidy));
         btnAutoLayout.title = autoTidy
           ? 'Auto-Tidy is on: the diagram re-arranges itself after adding, deleting or connecting (click to place things by hand)'
@@ -644,6 +673,7 @@
         updateStatus(true);
       });
       btnLevels.addEventListener('click', () => {
+        if (btnLevels.disabled || !cases().some((u) => u.level === 'subfunction')) return;
         const snap = motion.capture(canvas, FLIP_SPECS, { ghosts: true }), svgSnap = captureSvg();
         levelsOn = !levelsOn;
         let toKey = null;
@@ -1067,7 +1097,7 @@
         const d = drag;
         if (!d) return;
         if (!d.moved && Math.hypot(e.clientX - d.startX, e.clientY - d.startY) < 4) return;
-        if (!d.moved) { d.moved = true; document.body.classList.add('uc-dragging'); hoverLinkId = null; applyLinkState(); }
+        if (!d.moved) { d.moved = true; document.body.classList.add('uc-dragging'); hoverLinkId = null; applyLinkState(); setHoverSubject(null); }
         d.dx = (e.clientX - d.startX) / scale;
         d.dy = (e.clientY - d.startY) / scale;
         if (d.move) d.move(e, d);
@@ -1106,6 +1136,35 @@
       function subjectAt(pt) {
         return allSubjects().filter((s) => typeof s.x === 'number' && inBox(pt, s)).pop() || null;
       }
+      // Subject frame hover: .uc-subject keeps pointer-events: none so background pan/marquee/port-drag work inside it
+      function setHoverSubject(id) {
+        const nextId = id || null;
+        if (nextId === hoverSubjectId) return;
+        const prev = hoverSubjectId && els.subjects.get(hoverSubjectId);
+        if (prev) prev.classList.remove('is-hover');
+        hoverSubjectId = nextId;
+        const next = hoverSubjectId && els.subjects.get(hoverSubjectId);
+        if (next) next.classList.add('is-hover');
+      }
+      function subjectIdAtClient(clientX, clientY) {
+        const r = canvas.getBoundingClientRect();
+        const x = (clientX - r.left) / scale - canvas.clientLeft;
+        const y = (clientY - r.top) / scale - canvas.clientTop;
+        const list = allSubjects();
+        for (let i = list.length - 1; i >= 0; i--) {
+          const s = list[i];
+          if (typeof s.x === 'number' && x >= s.x && x <= s.x + s.w && y >= s.y && y <= s.y + s.h) return s.id;
+        }
+        return null;
+      }
+      canvas.addEventListener('pointermove', (e) => {
+        if (e.pointerType === 'touch' || e.buttons || drag || document.body.classList.contains('palette-dragging')) { setHoverSubject(null); return; }
+        const t = e.target;
+        if (!(t instanceof Element) || t.closest('.uc-actor, .uc-case, .uc-link, .uc-label, .note, .uc-actionbar, .confirm')) { setHoverSubject(null); return; }
+        const subEl = t.closest('.uc-subject');
+        setHoverSubject(subEl ? subEl.dataset.subjectId : subjectIdAtClient(e.clientX, e.clientY));
+      });
+      canvas.addEventListener('pointerleave', () => setHoverSubject(null));
 
       // --- PRESSES ---
       function onPointerDown(e) {
@@ -1561,7 +1620,8 @@
         const reversed = (l.type === 'include' && type === 'extend') || (l.type === 'extend' && type === 'include');
         if (reversed) { const f = l.from; l.from = l.to; l.to = f; }
         l.type = type;
-        if (type !== 'extend') { delete l.condition; delete l.extensionPoint; }
+        if (type !== 'extend') delete l.extensionPoint;
+        if (type === 'association') delete l.condition;
         if (type !== 'association') delete l.navigable;
         if (reversed) hint(type === 'extend' ? '«extend» points from the extension to the base, so the line was reversed' : '«include» points from the base to the part it always needs, so the line was reversed');
         commit(false, reversed ? { drawLinkIds: new Set([l.id]), afterPlay: () => pulseReversedLink(l.id) } : undefined);
@@ -1651,16 +1711,26 @@
         html.appendChild(bar);
         ui.fitBar(bar);
         const w = ui.barSize(bar).w, h = ui.barSize(bar).h;
-        const below = !ui.roomAbove({ getBoundingClientRect: () => ({ top: canvas.getBoundingClientRect().top + at.y * scale }) }, bar);   // by where the anchor is in the window
-        bar.classList.toggle('is-below', below);
+        let below = !ui.roomAbove({ getBoundingClientRect: () => ({ top: canvas.getBoundingClientRect().top + at.y * scale }) }, bar);   // by where the anchor is in the window
         // centred on its anchor; only the window's edges move it (the bar is not zoomed, so its width on screen is w)
         const vp = viewport.getBoundingClientRect(), cr = canvas.getBoundingClientRect();
         const sx = Math.max(vp.left + 8 + w / 2, Math.min(cr.left + at.x * scale, vp.right - 8 - w / 2));
         const cx = (sx - cr.left) / scale;
-        Object.assign(bar.style, {
-          left: px(Math.round(cx)),   // the bar is centred on it (translate), so it stays put when collapsed
-          top: px(Math.round(below ? at.bottom + 10 / scale : at.y - 10 / scale - h))
-        });
+        const place = (isBelow) => {
+          bar.classList.toggle('is-below', isBelow);
+          Object.assign(bar.style, {
+            left: px(Math.round(cx)),   // the bar is centred on it (translate), so it stays put when collapsed
+            top: px(Math.round(isBelow ? at.bottom + 10 / scale : at.y - 10 / scale - h))
+          });
+        };
+        place(below);
+        if (selOther && selOther.kind === 'link' && linkBarAvoid && linkBarAvoid.id === selOther.id) {
+          const r = bar.getBoundingClientRect();
+          if (linkBarAvoid.x >= r.left - 4 && linkBarAvoid.x <= r.right + 4 && linkBarAvoid.y >= r.top - 4 && linkBarAvoid.y <= r.bottom + 4) {
+            below = !below;
+            place(below);
+          }
+        }
         if (!sameBar) motion.showBar(bar);
       }
       const anchorOfBox = (b) => ({ x: b.x + b.w / 2, y: b.y, bottom: b.y + b.h });
@@ -1723,14 +1793,6 @@
         bar.appendChild(abBreak());
         bar.appendChild(abButton('reverse', `${ui.icon('reverse', { size: 'sm' })}<span>Reverse</span>`, 'Reverse the direction of the line'));
         if (l.type === 'extend') {
-          const input = htmlEl('input', 'uc-ab-input');
-          input.type = 'text';
-          input.placeholder = 'condition';
-          input.maxLength = 80;
-          input.value = l.condition || '';
-          input.setAttribute('aria-label', 'Condition: when the extension applies');
-          input.dataset.act = 'condition';
-          bar.appendChild(input);
           const base = caseOf(l.to);
           const b = abButton('point-menu', `<span>${l.extensionPoint ? esc(l.extensionPoint) : 'Extension point'}</span>${ui.icon('chevron-down', { size: 'xs', bold: true })}`, 'The extension point of the base where this extension applies');
           b.dataset.menu = '';
@@ -1738,6 +1800,7 @@
           bar.appendChild(b);
         }
         bar.appendChild(abButton('delete', ui.icon('trash'), 'Delete this line', undefined, undefined, 'is-danger'));
+        if (l.labelBox) return anchorOfBox(l.labelBox);
         const m = midOf(l.points);
         return { x: m.x, y: m.y, bottom: m.y };
       }
@@ -1747,26 +1810,6 @@
         e.stopPropagation();
         if (b.getAttribute('aria-disabled') === 'true' && b.dataset.act !== 'type') return;
         runAction(b.dataset.act, b.dataset.value, b);
-      });
-      html.addEventListener('keydown', (e) => {   // a key inside the condition field is the field's
-        const input = e.target.closest && e.target.closest('.uc-ab-input');
-        if (!input) return;
-        e.stopPropagation();
-        if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
-        else if (e.key === 'Escape') { e.preventDefault(); input.value = (linkOf(selOther && selOther.id) || {}).condition || ''; input.blur(); }
-      });
-      html.addEventListener('focusout', (e) => {
-        const input = e.target.closest && e.target.closest('.uc-ab-input');
-        if (!input || !selOther || selOther.kind !== 'link') return;
-        const l = linkOf(selOther.id), v = input.value.trim().slice(0, 80);
-        if (!l || (l.condition || '') === v) return;
-        if (v) l.condition = v; else delete l.condition;
-        commit(false, v ? {
-          afterPlay: () => {
-            const cond = els.links.get(l.id)?.label?.querySelector('.uc-cond');
-            if (cond) motion.anim(cond, [{ transform: 'translateY(-3px)', clipPath: 'inset(0 0 100% 0)' }, { transform: 'none', clipPath: 'inset(0 0 0 0)' }], { duration: 150, easing: motion.curve('curve-out') });
-          }
-        } : undefined);
       });
 
       function runAction(act, value, btn) {
@@ -1845,7 +1888,11 @@
           el.classList.remove('is-editing');
           const value = el.textContent.replace(/\s*\n\s*/g, ' ').trim();
           const changed = value !== original ? !!opts.apply(value) : false;
-          if (changed) commit(false); else el.textContent = opts.restore !== undefined ? opts.restore : original;
+          if (changed) commit(false, opts.motionOpts);
+          else {
+            el.textContent = opts.restore !== undefined ? opts.restore : original;
+            if (opts.onCancel) opts.onCancel();
+          }
         };
         const onKey = (ke) => {
           if (ke.key === 'Enter' || ke.key === 'Tab' || ke.key === 'F2') ke.stopPropagation();
@@ -1884,10 +1931,48 @@
       }
       function editLinkCondition(id) {
         const l = linkOf(id);
-        if (!l || presenting()) return;
-        if (!selOther || selOther.id !== id) selectOther('link', id);
-        const input = html.querySelector('.uc-ab-input');
-        if (l.type === 'extend' && input) { input.focus(); input.select(); }
+        if (!l || presenting() || (l.type !== 'include' && l.type !== 'extend')) return;
+        if (!selOther || selOther.kind !== 'link' || selOther.id !== id) selectOther('link', id);
+        const labelEl = els.links.get(id) && els.links.get(id).label;
+        if (!labelEl) return;
+        let cond = labelEl.querySelector('.uc-cond');
+        const created = !cond;
+        if (!cond) {
+          cond = htmlEl('span', 'uc-cond');
+          labelEl.appendChild(cond);
+        }
+        labelEl.classList.add('is-editing-cond');
+        if (created && motion.enabled()) {
+          motion.anim(cond, [
+            { transform: 'translateY(-3px)', clipPath: 'inset(0 0 100% 0)' },
+            { transform: 'none', clipPath: 'inset(0 0 0 0)' }
+          ], { duration: 150, easing: motion.curve('curve-out') });
+        }
+        const prev = l.condition || '';
+        beginEdit(cond, {
+          raw: prev,
+          restore: prev ? `[${prev}]` : '',
+          apply: (rawVal) => {
+            const v = rawVal.replace(/^\[([\s\S]*)\]$/, '$1').trim().slice(0, 80);
+            if (v === prev) return false;
+            if (v) l.condition = v; else delete l.condition;
+            return true;
+          },
+          onCancel: () => {
+            labelEl.classList.remove('is-editing-cond');
+            if (created) cond.remove();
+          },
+          motionOpts: {
+            afterPlay: () => {
+              if (!l.condition || prev) return;
+              const c = els.links.get(l.id)?.label?.querySelector('.uc-cond');
+              if (c) motion.anim(c, [
+                { transform: 'translateY(-3px)', clipPath: 'inset(0 0 100% 0)' },
+                { transform: 'none', clipPath: 'inset(0 0 0 0)' }
+              ], { duration: 150, easing: motion.curve('curve-out') });
+            }
+          }
+        });
       }
       function editSelection() {
         if (selOther && selOther.kind === 'note') { editNote(selOther.id); return; }

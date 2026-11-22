@@ -13,16 +13,22 @@
     .uc-subject {
       position: absolute; box-sizing: border-box; z-index: 5; pointer-events: none;
       background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: var(--radius-2xl); color: var(--text-main);
-      box-shadow: var(--shadow-canvas); transition: border-color var(--dur-micro) var(--curve-out), background-color var(--dur-micro) var(--curve-out);
+      box-shadow: var(--shadow-canvas); transition: border-color var(--dur-micro) var(--curve-out), background-color var(--dur-micro) var(--curve-out), box-shadow var(--dur-micro) var(--curve-out);
     }
+    .uc-subject:is(:hover, .is-hover):not(.selected, .drop-target) { border-color: var(--node-border); box-shadow: var(--shadow-md); }
     .uc-subject.selected { border-color: var(--primary); box-shadow: var(--shadow-ring); }
     /* Edge tabs: a short pill centred on the right and on the bottom edge, shown on hover or selection; drag to resize that way */
     .uc-subject-tab { position: absolute; box-sizing: border-box; background: var(--bg-panel); border: 2px solid var(--primary); border-radius: var(--radius-pill); opacity: 0; pointer-events: auto; touch-action: none; transition: opacity var(--dur-micro) var(--curve-out), background-color var(--dur-micro) var(--curve-out); }
     .uc-subject-tab.is-x { right: -5px; top: 50%; width: 10px; height: 36px; margin-top: -18px; cursor: ew-resize; }
     .uc-subject-tab.is-y { bottom: -5px; left: 50%; height: 10px; width: 36px; margin-left: -18px; cursor: ns-resize; }
-    .uc-subject:hover .uc-subject-tab, .uc-subject.selected .uc-subject-tab { opacity: 1; }
+    .uc-subject:is(:hover, .is-hover, .selected) .uc-subject-tab { opacity: 1; }
     .uc-subject-tab:hover { background: var(--primary); }
     .uc-subject.drop-target { border-color: var(--primary); background: var(--primary-wash); }
+    body.exporting .uc-subject:is(:hover, .is-hover):not(.selected),
+    body.capture .uc-subject:is(:hover, .is-hover):not(.selected) { border-color: var(--border-color); box-shadow: var(--shadow-canvas); }
+    body.exporting .uc-subject .uc-subject-tab,
+    body.capture .uc-subject .uc-subject-tab,
+    body.presentation .uc-subject .uc-subject-tab { display: none; }
     .uc-subject-title {
       position: absolute; left: 0; top: 0; right: 0; display: flex; align-items: center; gap: 6px; padding: 0 10px; box-sizing: border-box;
       pointer-events: auto; cursor: move; color: var(--text-main);
@@ -54,6 +60,9 @@
       transition: border-color var(--dur-micro) var(--curve-out), color var(--dur-micro) var(--curve-out), opacity 110ms var(--curve-inout);
     }
     .uc-label .uc-cond { color: var(--text-soft); max-width: 100%; white-space: normal; text-align: center; overflow-wrap: anywhere; }   /* wraps as the engine wrapped it (labelBox is sized for its lines) */
+    .uc-label.is-editing-cond { width: auto !important; height: auto !important; min-width: 96px; padding: 3px 8px; z-index: 60; border-color: var(--primary); box-shadow: var(--shadow-ring); }
+    .uc-cond.is-editing { background: var(--bg-panel); color: var(--text-main); outline: 1.5px solid var(--primary-ring); border-radius: var(--radius-xs); padding: 0 4px; min-width: 64px; min-height: 16px; white-space: nowrap; }
+    .uc-cond.is-editing:empty::before { content: "condition"; color: var(--text-muted); pointer-events: none; }
     .uc-label.is-dim { opacity: var(--dim); }
     .uc-label.hl { border-color: var(--primary); box-shadow: var(--shadow-glow) var(--primary-glow); }
 
@@ -172,14 +181,10 @@
     .uc-ab-btn.is-danger { color: var(--danger); }
     .uc-ab-btn.is-danger:hover { background: color-mix(in srgb, var(--danger) 10%, var(--bg-panel)); color: var(--danger); }
     .uc-ab-btn svg { display: block; }
-    .uc-ab-btn:focus-visible, .uc-ab-input:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+    .uc-ab-btn:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
     .uc-ab-sep { width: 1px; height: 18px; margin: 0 3px; background: var(--border-color); }
     .uc-ab-tag { padding: 0 4px 0 6px; font-size: var(--t-overline-size); font-weight: var(--t-overline-weight); letter-spacing: var(--t-overline-tracking); text-transform: uppercase; color: var(--text-muted); }
     .uc-ab-swatch { height: 30px; width: 30px; }
-    .uc-ab-input {
-      height: 26px; width: 170px; box-sizing: border-box; padding: 0 8px; border: 1px solid var(--border-dark); border-radius: var(--radius-md);
-      background: var(--bg-input); color: var(--text-main); font-size: var(--t-detail-size); font-weight: var(--t-detail-weight);
-    }
     .uc-ab-glyph svg path { stroke: currentColor; fill: none; }
     body.uc-dragging .uc-actionbar { display: none !important; }
     .uc-menu { position: fixed; right: auto; top: auto; z-index: 2100; }
@@ -200,3 +205,23 @@
 
     /* Read only: nothing moves, so the hand */
     body.presentation :is(.uc-subject-title, .uc-case, .uc-actor) { cursor: pointer; }
+
+    /* Add popover tiles: real canvas UC shapes (1px border, matching colours, smooth micro-transition) */
+    #uc-pop .btn-shape { cursor: grab; touch-action: none; }
+    #uc-pop .btn-shape svg > * { transition: stroke var(--dur-micro) var(--curve-out); }
+    .uc-tile-avatar {
+      width: 28px; height: 28px; margin: 2px 0; box-sizing: border-box; border-radius: var(--radius-round);
+      display: inline-flex; align-items: center; justify-content: center;
+      border: 1px solid var(--uc-tile-line); background: var(--uc-tile-bg); color: var(--uc-tile-ink);
+      transition: border-color var(--dur-micro) var(--curve-out);
+    }
+    .uc-tile-avatar svg { display: block; }
+    .uc-tile-avatar svg > * { vector-effect: non-scaling-stroke; stroke-width: var(--ring-thin); }
+    #btn-add-actor .uc-tile-avatar { --uc-tile-bg: var(--sw-1-tint); --uc-tile-line: var(--sw-1-line); --uc-tile-ink: var(--sw-1-ink); }
+    #btn-add-system .uc-tile-avatar { --uc-tile-bg: var(--sw-2-tint); --uc-tile-line: var(--sw-2-line); --uc-tile-ink: var(--sw-2-ink); }
+    #btn-add-actor:hover .uc-tile-avatar, #btn-add-system:hover .uc-tile-avatar { border-color: var(--primary); }
+    #btn-add-usecase svg > * { fill: var(--node-bg); stroke: var(--node-border); stroke-width: 1px; }
+    #btn-add-usecase:hover svg > * { stroke: var(--task-accent); }
+    #btn-add-subject svg > .uc-sub-frame { fill: var(--bg-panel); stroke: var(--border-dark); stroke-width: 1px; }
+    #btn-add-subject:hover svg > .uc-sub-frame { stroke: var(--node-border); }
+    #btn-add-subject svg > .uc-sub-case { fill: var(--node-bg); stroke: var(--node-border); stroke-width: 1px; }

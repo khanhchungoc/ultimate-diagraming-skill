@@ -19,7 +19,9 @@
     .c4-group.is-frame.swatch-scope { background: color-mix(in srgb, var(--sw-line) 7%, transparent); border-color: color-mix(in srgb, var(--sw-line) 45%, var(--border-dark)); }
     .frame-tag.swatch-scope { background: color-mix(in srgb, var(--sw-line) 18%, var(--bg-panel)); border-color: color-mix(in srgb, var(--sw-line) 45%, var(--border-dark)); }
     .c4-group[data-kind="boundary"].is-frame { border-style: solid; }   /* an ownership frame is solid, a system (which opens into its containers) dashed */
-    .c4-tag { z-index: 25; left: 12px; top: 8px; display: flex; align-items: center; gap: 2px; pointer-events: auto; cursor: pointer; font-weight: var(--weight-semibold); }
+    :root[data-theme="dark"] .c4-group.is-frame { border-color: color-mix(in srgb, var(--node-border) 80%, var(--border-dark)); }
+    :root[data-theme="dark"] .c4-group.is-frame.swatch-scope { border-color: color-mix(in srgb, var(--sw-line) 65%, var(--node-border)); }
+    .c4-tag { z-index: 25; left: 12px; top: 8px; box-sizing: border-box; height: 26px; display: flex; align-items: center; gap: 2px; pointer-events: auto; cursor: pointer; font-weight: var(--weight-semibold); }
     .c4-tag:focus-visible, .c4-node:focus-visible, .c4-group.is-tile:focus-visible, .c4-label:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 3px; }
 
     /* --- Icon cards: the flowchart tile (an inset ring that thickens to the accent on hover and selection) with a coloured disc and
@@ -42,13 +44,20 @@
     .c4-node.is-dim, .c4-group.is-tile.is-dim { opacity: var(--dim); filter: var(--dim-filter); }   /* greyed out, not just faded */
     body.exporting .is-dim { opacity: 1 !important; filter: none !important; }
     .c4-disc {
-      flex: none; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-round);
-      width: calc(var(--icon-tile) * 1.7); height: calc(var(--icon-tile) * 1.7); background: var(--sw-disc, var(--swatch-disc-neutral)); color: var(--sw-on-disc, var(--swatch-disc-neutral-ink));
+      flex: none; display: flex; align-items: center; justify-content: center;
+      width: calc(var(--icon-tile) * 1.35); height: calc(var(--icon-tile) * 1.35);
+      background: transparent; color: var(--sw-pill-ink, var(--text-soft));
     }
     .c4-disc svg { display: block; }
-    /* The disc is a solid surface per theme (--sw-disc, --sw-on-disc: tokens swatch-disc-*); the neutral slot and externals take the neutral pair. */
-    .c4-node[data-kind="external"] .c4-disc, .c4-node:not([data-sw]) .c4-disc { background: var(--swatch-disc-neutral); color: var(--swatch-disc-neutral-ink); }
-    .c4-node .c4-disc.is-logo, .c4-node[data-kind="external"] .c4-disc.is-logo { background: var(--swatch-disc-logo); }   /* a vendor logo keeps its own colours, so its disc is white in both themes (vendor terms) */
+    .c4-disc:not(.is-logo) svg { width: calc(var(--icon-tile) * 1.3); height: calc(var(--icon-tile) * 1.3); }
+    /* Built-in icons render outline-only in the card's semantic hue; externals and uncolored tiles use neutral ink; vendor logos keep a white disc. */
+    .c4-node[data-kind="external"] .c4-disc:not(.is-logo), .c4-node:not([data-sw]) .c4-disc:not(.is-logo), .c4-group.is-tile:not([data-sw]) .c4-disc:not(.is-logo) { color: var(--text-soft); }
+    :root[data-theme="dark"] .c4-node .c4-disc:not(.is-logo), :root[data-theme="dark"] .c4-group.is-tile .c4-disc:not(.is-logo) { color: var(--sw-line); }
+    :root[data-theme="dark"] .c4-node[data-kind="external"] .c4-disc:not(.is-logo), :root[data-theme="dark"] .c4-node:not([data-sw]) .c4-disc:not(.is-logo), :root[data-theme="dark"] .c4-group.is-tile:not([data-sw]) .c4-disc:not(.is-logo) { color: var(--text-main); }
+    .c4-node .c4-disc.is-logo, .c4-node[data-kind="external"] .c4-disc.is-logo {
+      width: calc(var(--icon-tile) * 1.5); height: calc(var(--icon-tile) * 1.5);
+      border-radius: var(--radius-round); background: var(--swatch-disc-logo);
+    }   /* a vendor logo keeps its own colours, so its disc is white in both themes (vendor terms) */
     .c4-text { min-width: 0; max-width: 100%; flex: 0 1 auto; display: flex; flex-direction: column; align-items: center; overflow: hidden; }
     .c4-name, .c4-tech, .c4-desc { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
     .c4-desc { -webkit-line-clamp: 3; }
@@ -61,6 +70,7 @@
     .c4-edge { transition: opacity 110ms var(--curve-inout); }
     .c4-edge .edge-line { stroke: var(--connector); stroke-width: var(--stroke-thin); marker-end: var(--mk-e); }
     .c4-edge.is-async .edge-line { stroke-dasharray: var(--dash); }
+    :root[data-theme="dark"] .c4-edge.is-async .edge-line { stroke: var(--text-muted); }
     .c4-edge .edge-line.hl-in { stroke: var(--edge-in); stroke-width: var(--ring-md); marker-end: var(--mk-e-in); }
     .c4-edge .edge-line.hl-out { stroke: var(--edge-out); stroke-width: var(--ring-md); marker-end: var(--mk-e-out); }
     .c4-edge:is(.hover, .selected) .edge-line, .c4-edge .edge-line.selected { stroke: var(--primary); stroke-width: var(--ring-md); marker-end: var(--mk-e-sel); }
@@ -78,8 +88,8 @@
     .c4-label.is-dim { opacity: var(--dim); }
     .c4-label.selected { border-color: var(--primary); box-shadow: var(--shadow-glow) var(--primary-glow); }
 
-    /* The colour key (ui.colorKey), under the diagram; its entries can be renamed (double-click, or the prompt after a colour pick) */
-    .c4-key { position: absolute; left: 0; top: -34px; pointer-events: none; }
+    /* The colour key (ui.colorKey), above the diagram; its entries can be renamed (double-click, or the prompt after a colour pick) */
+    .c4-key { position: absolute; left: 16px; top: -30px; pointer-events: none; }
     .c4-key .color-key-label { pointer-events: auto; }
     .color-key-label.is-editing { -webkit-user-select: text; user-select: text; outline: 1.5px solid var(--primary-ring); border-radius: var(--radius-xs); background: var(--bg-panel); min-width: 24px; }
 
@@ -146,14 +156,24 @@
     .c4-icon-opt[aria-pressed="true"] { background: var(--primary-wash); border-color: var(--primary-ring); color: var(--primary); }
     .c4-icon-opt:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
 
-    /* ?present: the shell hides the whole dock; the Level control stays (a presenter zooms between the C4 levels), nothing else of it does */
-    body.presentation .dock-area .toolbar-center { display: flex !important; }
-    body.presentation .dock-area .toolbar-center > :not([data-level]) { display: none !important; }
+    /* ?present: the shell hides the whole dock; the Level control stays (a presenter zooms between the C4 levels), nothing else of it does; ?capture hides the dock completely */
+    body.presentation:not(.capture) .dock-area .toolbar-center { display: flex !important; }
+    body.presentation:not(.capture) .dock-area .toolbar-center > :not([data-level]) { display: none !important; }
 
     /* Notes: the shared card (components/note.css) in a layer of its own; c4 cards are placed by c4.js and do not drag */
     #c4-notes .note { cursor: default; }
     #c4-notes .note:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 3px; }
     .c4-node.note-linked, .c4-group.note-linked { outline-offset: 5px; }
+    .c4-note-pin {
+      display: inline-flex; align-items: center; justify-content: center;
+      padding: 2px 5px; border: 1px solid var(--note-border); border-radius: var(--radius-pill);
+      background: var(--note-bg); color: var(--note-ink); cursor: pointer; line-height: var(--leading-none);
+    }
+    .c4-node > .c4-note-pin, .c4-group.is-tile > .c4-note-pin { position: absolute; top: 6px; right: 6px; }
+    .c4-tag .c4-note-pin { margin-left: 4px; padding: 1px 4px; }
+    .c4-note-pin:hover { border-color: var(--primary); color: var(--primary); }
+    .c4-note-pin:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+    body.capture .c4-note-pin, body.exporting .c4-note-pin { display: none !important; }
 
     /* ?present: read only. Selecting and collapsing still work. */
     body.presentation .c4-node, body.presentation .c4-group.is-tile { cursor: pointer; }
@@ -174,3 +194,34 @@
     /* the manual layout badge, beside the save status (c4.js moves it there) */
     .c4-mode { margin-left: 6px; transform-origin: left center; background: var(--primary-wash); color: var(--primary); }
     .c4-mode[hidden] { display: none; }
+
+    /* Add-menu shape tiles: miniature C4 cards matching the real canvas swatch tokens, and dashed group frame */
+    .c4-tile-card {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 34px; height: 28px; margin: 2px 0; box-sizing: border-box;
+      border-radius: var(--radius-md); border: var(--ring-thin) solid var(--c4-tile-line); background: var(--c4-tile-bg);
+      transition: border-color var(--dur-micro) var(--curve-out);
+    }
+    .c4-tile-disc {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 20px; height: 20px;
+      background: transparent; color: var(--c4-tile-ink);
+    }
+    .c4-tile-disc svg { display: block; width: 18px; height: 18px; }
+    .c4-tile-disc svg > * { stroke-width: var(--ring-thin); }
+    #btn-add-person { --c4-tile-bg: var(--sw-1-tint); --c4-tile-line: var(--sw-1-line); --c4-tile-ink: var(--sw-1-ink); }
+    #btn-add-system { --c4-tile-bg: var(--sw-2-tint); --c4-tile-line: var(--sw-2-line); --c4-tile-ink: var(--sw-2-ink); }
+    #btn-add-external { --c4-tile-bg: var(--bg-soft); --c4-tile-line: var(--sw-9-line); --c4-tile-ink: var(--text-soft); }
+    #btn-add-container { --c4-tile-bg: var(--sw-3-tint); --c4-tile-line: var(--sw-3-line); --c4-tile-ink: var(--sw-3-ink); }
+    #btn-add-database { --c4-tile-bg: var(--sw-8-tint); --c4-tile-line: var(--sw-8-line); --c4-tile-ink: var(--sw-8-ink); }
+    #btn-add-queue { --c4-tile-bg: var(--sw-5-tint); --c4-tile-line: var(--sw-5-line); --c4-tile-ink: var(--sw-5-ink); }
+    :root[data-theme="dark"] #btn-add-person { --c4-tile-ink: var(--sw-1-line); }
+    :root[data-theme="dark"] #btn-add-system { --c4-tile-ink: var(--sw-2-line); }
+    :root[data-theme="dark"] #btn-add-external { --c4-tile-ink: var(--text-main); }
+    :root[data-theme="dark"] #btn-add-container { --c4-tile-ink: var(--sw-3-line); }
+    :root[data-theme="dark"] #btn-add-database { --c4-tile-ink: var(--sw-8-line); }
+    :root[data-theme="dark"] #btn-add-queue { --c4-tile-ink: var(--sw-5-line); }
+    #c4-pop .btn-shape:hover .c4-tile-card { border-color: var(--primary); }
+    #btn-add-group svg > .c4-grp-frame { fill: color-mix(in srgb, var(--bg-soft) 35%, transparent); stroke: var(--border-dark); stroke-width: var(--ring-thin); }
+    #btn-add-group svg > .c4-grp-tag { fill: var(--bg-soft); stroke: var(--border-dark); stroke-width: 1px; }
+    #btn-add-group:hover svg > * { stroke: var(--primary); }
