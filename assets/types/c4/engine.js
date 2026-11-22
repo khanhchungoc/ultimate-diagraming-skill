@@ -25,11 +25,15 @@ const c4Grid = (v) => Math.ceil(v / C4_GRID) * C4_GRID;
 const c4Vert = (s) => s === 'N' || s === 'S';
 
 // Icon card size from the texts (widths only through TOKENS.font.metrics).
-function c4Card(name, detail) {
-  const M = TOKENS.font.metrics, nm = String(name == null ? '' : name), dt = String(detail == null ? '' : detail).slice(0, 30);
-  const w = Math.min(C4.cardMaxW, Math.max(C4.cardW, c4Grid(Math.max(nm.length * M.title, dt.length * M.detail) + 2 * C4.pad)));
-  const lines = Math.min(2, Math.max(1, Math.ceil(nm.length * M.title / (w - 2 * C4.pad))));
-  return { w, h: C4.cardH + (lines - 1) * C4.cardLine };
+function c4Card(name, detail, extra) {
+  const M = TOKENS.font.metrics, nm = String(name == null ? '' : name);
+  const dt = String(detail == null ? '' : detail), ex = String(extra == null ? '' : extra);
+  const dtW = dt.slice(0, 30).length * M.detail, exW = ex.slice(0, 30).length * M.detail;
+  const w = Math.min(C4.cardMaxW, Math.max(C4.cardW, c4Grid(Math.max(nm.length * M.title, dtW, exW) + 2 * C4.pad)));
+  const avail = Math.max(1, w - 2 * C4.pad);
+  const lines = Math.min(2, Math.max(1, Math.ceil(nm.length * M.title / avail)));
+  const extraLines = dt && ex ? Math.max(1, Math.min(2, Math.max(1, Math.ceil((dt.length + 2) * M.detail / avail))) + Math.min(3, Math.max(1, Math.ceil(ex.length * M.detail / avail))) - 1) : 0;
+  return { w, h: C4.cardH + (lines - 1 + extraLines) * C4.cardLine };
 }
 const c4TagW = (g) => c4Grid(String(g.name || g.id).length * TOKENS.font.metrics.title + C4.tagPad);
 
@@ -74,7 +78,8 @@ function c4Model(data) {
     const c = m.info.has(e.group) ? e.group : '', gi = c ? m.info.get(c) : null;
     const n = mk('e', e, c, gi ? gi.depth + 1 : 1);
     n.eff = !!(gi && gi.eff); n.vis = !n.eff; n.cls = K(e);
-    const t = c4Card(e.name || e.id, e.tech || e.description); n.w = t.w; n.h = t.h;
+    const tech = m.data.showTech === false ? '' : (e.tech || '');
+    const t = c4Card(e.name || e.id, tech || e.description, tech && e.description ? e.description : ''); n.w = t.w; n.h = t.h;
     m.eN.set(e.id, n);
     for (let g = c; g; g = m.info.get(g).par) m.info.get(g).cls[K(e)]++;
   });
@@ -754,7 +759,8 @@ function c4Route(m, again) {
     if (!rt || !rt.points) return;
     e.points = rt.points.map((p) => [Math.round(p[0] * 10) / 10, Math.round(p[1] * 10) / 10]);
     e.path = rt.d;
-    e.labelBox = { x: Math.round(rt.lx - rt.w / 2), y: Math.round(rt.ly - 16), w: Math.round(rt.w), h: 32 };
+    const lh = rt.h || (e.tech ? 38 : 32);
+    e.labelBox = { x: Math.round(rt.lx - rt.w / 2), y: Math.round(rt.ly - lh / 2), w: Math.round(rt.w), h: lh };
     e.points.forEach((p) => grow(p[0], p[1]));
     grow(e.labelBox.x, e.labelBox.y); grow(e.labelBox.x + e.labelBox.w, e.labelBox.y + e.labelBox.h);
     data._edges.push(e);

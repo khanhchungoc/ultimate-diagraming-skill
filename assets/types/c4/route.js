@@ -16,7 +16,7 @@
 // expanded frames. Detours: pad 20, 12 or 6px (the first that leaves a path), regions grown 40 -> 160 -> 600 -> whole scene, a fixed work budget per call (C4R.WORK; routes past it keep their ring route). Without opts the output is the ring layout's, byte for byte.
 // Path rounding: buildCurvedPathWithHops (ortho-router.js). Deterministic; O(n log n) in nodes + edges (grid lookups only).
 
-const C4R = { PAD: 12, PADS: [20, 12, 6], SHARE: 2000, WORK: 13000, SEARCH: 4000,  LANE: 12, MARGINS: [40, 160, 600], BIG: 1e6, PILL_H: 32, LOOP_GAP: 40, LOOP_LANE: 16, RUN_LANE: 10, MAX_W: 240, CELL: 96, ARROW: 16, TAG: (typeof TOKENS !== 'undefined' && TOKENS.c4 && TOKENS.c4.tagH) || 44, ESC_MIN: 6 };
+const C4R = { PAD: 12, PADS: [20, 12, 6], SHARE: 2000, WORK: 13000, SEARCH: 4000,  LANE: 12, MARGINS: [40, 160, 600], BIG: 1e6, PILL_H: 32, PILL_H2: 38, LOOP_GAP: 40, LOOP_LANE: 16, RUN_LANE: 10, MAX_W: 240, CELL: 96, ARROW: 16, TAG: (typeof TOKENS !== 'undefined' && TOKENS.c4 && TOKENS.c4.tagH) || 44, ESC_MIN: 6 };
 
 function c4rLabelW(label, tech) {
   const M = TOKENS.font.metrics, t = String(label == null ? '' : label);
@@ -468,7 +468,7 @@ function routeC4Edges(nodes, edges, opts) {
   }
   const out = new Array(edges.length);
   for (const e of info) {
-    const w = c4rLabelW(e.label, e.tech), pts = e.pts, mine = (o) => o.o !== e.i;
+    const w = c4rLabelW(e.label, e.tech), h = e.tech ? C4R.PILL_H2 : H, pts = e.pts, mine = (o) => o.o !== e.i;
     let pos = null;
     if (w) {
       // segments by preference: a run between the legs first, then the legs, longest first
@@ -478,7 +478,7 @@ function routeC4Edges(nodes, edges, opts) {
         segs.push({ k, p, q, horiz, len: Math.abs(q[0] - p[0]) + Math.abs(q[1] - p[1]), fit: 0 });
       }
       for (const s of segs) {
-        const room = s.horiz ? s.len - w - 16 : s.len - H - C4R.ARROW - 8;
+        const room = s.horiz ? s.len - w - 16 : s.len - h - C4R.ARROW - 8;
         s.fit = room >= 0 ? 1 : 0;
         s.room = Math.max(0, room);
         s.mid = (s.k > 0 && s.k < pts.length - 2) || pts.length === 2 ? 0 : 1;
@@ -491,7 +491,7 @@ function routeC4Edges(nodes, edges, opts) {
         const last = s.k === pts.length - 2;
         let segTried = 0;
         const pushCand = (cx, cy) => {
-          const c = { cx, cy, s, r: { x: cx - w / 2, y: cy - H / 2, w, h: H } };
+          const c = { cx, cy, s, r: { x: cx - w / 2, y: cy - h / 2, w, h } };
           if (free(c.r)) { pos = c; return true; }
           if (segTried < 8 && tried.length < 24) { tried.push(c); segTried++; }
           return false;
@@ -521,18 +521,18 @@ function routeC4Edges(nodes, edges, opts) {
           const n = score(c.r);
           if (n < best) { best = n; bestCand = c; }
         }
-        pos = bestCand || { cx: pts[0][0], cy: pts[0][1], r: { x: pts[0][0] - w / 2, y: pts[0][1] - H / 2, w, h: H } };
+        pos = bestCand || { cx: pts[0][0], cy: pts[0][1], r: { x: pts[0][0] - w / 2, y: pts[0][1] - h / 2, w, h } };
         if (best >= 20) {
           const anchors = [pos].concat(tried.filter((c) => c.s !== pos.s).slice(0, 2));
           nudge: for (const base of anchors) {
             const seg = base.s;
             if (!seg) continue;
-            const offs = seg.horiz ? [0, -(H + 4), H + 4] : [0, -(w / 2 + 8), w / 2 + 8];
+            const offs = seg.horiz ? [0, -(h + 4), h + 4] : [0, -(w / 2 + 8), w / 2 + 8];
             const alongs = [0, 32, -32, 64, -64, 96, -96];
             for (const d1 of offs) for (const d2 of alongs) {
               if (!d1 && !d2) continue;
               const nx = base.cx + (seg.horiz ? d2 : d1), ny = base.cy + (seg.horiz ? d1 : d2);
-              const nr = { x: nx - w / 2, y: ny - H / 2, w, h: H };
+              const nr = { x: nx - w / 2, y: ny - h / 2, w, h };
               const n = score(nr) + (d1 ? 5 : 2);
               if (n < best) { best = n; pos = { cx: nx, cy: ny, r: nr }; if (n < 20) break nudge; }
             }
@@ -544,7 +544,7 @@ function routeC4Edges(nodes, edges, opts) {
       const a = pts[0], b = pts[pts.length - 1];
       pos = { cx: (a[0] + b[0]) / 2, cy: (a[1] + b[1]) / 2 };
     }
-    out[e.i] = { d: buildCurvedPathWithHops(pts, [], 8), points: pts, lx: pos.cx, ly: pos.cy, w };
+    out[e.i] = { d: buildCurvedPathWithHops(pts, [], 8), points: pts, lx: pos.cx, ly: pos.cy, w, h };
   }
   return out;
 }

@@ -584,7 +584,7 @@ try {
     const pp = await portOf('cust'), qq = await centreOf('db');
     await t.dragTo(pp.x, pp.y, qq.x, qq.y, { steps: 8 });
     await sleep(250);
-    if (await present('#c4-label-input')) { await t.type('Browses'); await t.press('Enter'); await sleep(300); await t.settle(1500); }
+    if (await present('.c4-label-text.is-editing')) { await t.type('Browses'); await t.press('Enter'); await sleep(300); await t.settle(1500); }
     d = await saved();
     t.check('connect: the new relation exists', d.relations.some((r) => r.from === 'cust' && r.to === 'db' && r.label === 'Browses'), J(d.relations.length));
     await keep('connecting two elements', L0);

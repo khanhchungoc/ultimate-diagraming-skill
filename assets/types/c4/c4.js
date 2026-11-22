@@ -23,7 +23,9 @@
       const edgesG = document.getElementById('c4-edges');
       const html = document.getElementById('c4-html');
       const rubber = document.getElementById('c4-rubber');
-      const levelBtns = [...document.querySelectorAll('.toolbar-center [data-level]')];
+      const btnLevel = document.getElementById('btn-level');
+      const levelWrap = btnLevel && btnLevel.closest('[data-dock-pop]');
+      const levelBtns = [...document.querySelectorAll('#level-pop [data-level]')];
 
       // The generic glyph per kind (an element's own `icon` wins; a `logo:` name has no renderer yet and falls back to it) and the
       // palette slot per kind (an element's own `color` wins; an external system stays neutral)
@@ -31,22 +33,20 @@
       const KIND_SLOT = { person: '1', system: '2', container: '3', component: '3', database: '8', queue: '5' };
       const KIND_NAME = { person: 'Person', system: 'Software system', container: 'Container', component: 'Component', database: 'Database', queue: 'Queue', external: 'External system' };
       const GROUP_SLOT = '2';   // a collapsed system group is drawn as a system tile
-      const KINDS = ['person', 'system', 'container', 'database', 'queue', 'external'];   // what the dock adds and the kind menu offers (components wait for Level 3)
+      const KINDS = ['person', 'system', 'container', 'database', 'queue', 'external'];   // what the dock adds (components wait for Level 3)
+      const CONTAINER_KINDS = new Set(['container', 'database', 'queue', 'component']);
       const DEFAULT_NAME = { person: 'Person', system: 'Software system', container: 'Container', database: 'Database', queue: 'Queue', external: 'External system' };
-      const GROUP_KINDS = [['system', 'System (opens into containers)'], ['boundary', 'Boundary (an ownership frame)']];
-      const SIDES = [['', 'Auto'], ['N', 'Top (N)'], ['S', 'Bottom (S)'], ['E', 'Right (E)'], ['W', 'Left (W)']];
       const NAME_MAX = 80, LABEL_MAX = 80, TECH_MAX = 60, DESC_MAX = 200;
 
       // --- STATE ---
       let sel = [];            // the selection, primary last: [{ kind: 'element' | 'group' | 'edge', id }]
       let hoverId = null;      // the element or collapsed group under the pointer
       let hoverEdgeId = null;
-      let connecting = null;   // { from } while the Connect button waits for a target
       let drag = null;         // a connection being dragged from a port
       let mv = null;           // boxes being moved by the pointer or by Alt+arrows (MOVING BOXES)
       let keyDraft = null;     // the colour slot whose colour key entry is being named
       let boxBase = [];        // the selection a Shift+drag box started from
-      let newLink = null;      // the relation whose label is still being asked (its connection is not a step yet)
+      let newLink = null;      // the relation whose label is still being edited (its connection is not a step yet)
       let selNoteId = null;    // the selected note card (no element, group or arrow is selected then)
       let editingNoteId = null, noteDraft = null;   // the card being typed in; noteDraft: a note added a moment ago and the Notes state it found
       let notesLayer = null;
@@ -127,8 +127,9 @@
         return out;
       }
       const depthOf = (g) => ancestors(g).length + 1;
-      // The system levels a group sits in: boundaries are ownership frames and do not count, every other kind is one level
-      const levelOf = (g) => [g].concat(ancestors(g)).filter((x) => x.kind !== 'boundary').length;
+      // A group is collapsible at Level 1 when it is a system or directly holds container-tier elements (not an outer ownership boundary)
+      const isCollapsibleGroup = (g) => g.kind === 'system' || elements().some((e) => e.group === g.id && CONTAINER_KINDS.has(e.kind));
+      const levelOf = (g) => [g].concat(ancestors(g)).filter(isCollapsibleGroup).length;
       const hiddenGroup = (g) => ancestors(g).some((a) => a.collapsed === true);
       const isTile = (g) => g.collapsed === true && !hiddenGroup(g);
       function descendants(g) {   // ids of the groups and elements inside g, at any depth
@@ -181,7 +182,6 @@
         html.textContent = '';
         els.nodes = new Map(); els.groups = new Map(); els.edges = new Map();
         sel = sel.filter(selectionExists);
-        if (connecting && !(elementOf(connecting.from) && !elementOf(connecting.from)._hidden)) endConnect();
         if (hoverId && !elementOf(hoverId) && !groupOf(hoverId)) hoverId = null;
 
         groups().filter((g) => placed(g) && g.w > 0 && !hiddenGroup(g)).sort((a, b) => depthOf(a) - depthOf(b)).forEach((g) => {
@@ -228,15 +228,13 @@
       }
       function ariaOf(e) { return [nameOf(e), KIND_NAME[e.kind] || e.kind, e.tech].filter(Boolean).join(', '); }
 
-      // The press on a tile, tag, arrow or label: one rule for all. Ctrl/Shift adds to the selection, a plain press selects it
-      // alone, while a connection waits for its target the press picks that target.
+      // The press on a tile, tag, arrow or label: one rule for all. Ctrl/Shift adds to the selection, a plain press selects it alone.
       function press(ev, item) {
         if (ev.button !== 0) return;
         ev.stopPropagation();
         if (ev.target.closest && ev.target.closest('.is-editing')) return;
-        if (isTyping()) document.activeElement.blur();   // commit a name being edited, as any click on the canvas does
+        if (isTyping()) document.activeElement.blur();   // commit a field being edited, as any click on the canvas does
         if (presenting()) { setSel([item]); return; }
-        if (connecting) { ev.preventDefault(); if (item.kind === 'element') finishConnect(item.id); else ui.toast('Pick an element to connect to'); return; }
         if (ev.ctrlKey || ev.metaKey || ev.shiftKey) { ev.preventDefault(); toggleSel(item); return; }
         if (ev.target.closest && ev.target.closest('.frame-chev')) return;
         if (item.kind !== 'edge' && sel.length > 1 && inSel(item.kind, item.id)) { startMove(ev, item, sel.slice()); return; }   // the whole selection moves; a click without a move selects this one
@@ -259,6 +257,21 @@
         return b;
       }
 
+      function cardPlaceholder(e, field, label, title) {
+        const ph = htmlEl('span', `c4-placeholder c4-${field}-ph`, '');
+        ph.dataset.exportSkip = '';
+        ph.dataset.field = field;
+        ph.dataset.ph = label;
+        ph.title = title;
+        ph.addEventListener('pointerdown', (ev) => {
+          if (ev.button !== 0 || presenting()) return;
+          ev.preventDefault();
+          ev.stopPropagation();
+          if (isTyping()) document.activeElement.blur();
+          editField(e.id, field);
+        });
+        return ph;
+      }
       function buildNode(e) {
         const el = htmlEl('div', 'c4-node');
         el.dataset.nodeId = e.id;
@@ -267,6 +280,7 @@
         el.setAttribute('role', 'group');
         el.setAttribute('aria-label', ariaOf(e));
         Object.assign(el.style, { left: px(e.x), top: px(e.y), width: px(e.w), height: px(e.h) });
+        el.style.setProperty('--c4-h', px(e.h));
         paint(el, e.color, KIND_SLOT[e.kind] || '9');   // external: the neutral slot
         const chip = htmlEl('span', 'c4-disc');
         if (String(e.icon).startsWith('logo:') && ui.hasLogo(e.icon.slice(5))) { chip.classList.add('is-logo'); chip.innerHTML = ui.logo(e.icon.slice(5), { size: 'tile' }); }   // a local-pack logo keeps its own colours on a white disc
@@ -275,6 +289,14 @@
         text.appendChild(htmlEl('span', 'c4-name t-title', nameOf(e)));
         if (e.tech && showTech()) text.appendChild(htmlEl('span', 'c4-tech t-detail', `[${e.tech}]`));
         if (e.description) text.appendChild(htmlEl('span', 'c4-desc t-detail', String(e.description)));
+        const missingTech = !e.tech && showTech(), missingDesc = !e.description;
+        if (missingTech || missingDesc) {
+          const phRow = htmlEl('span', 'c4-ph-row');
+          phRow.dataset.exportSkip = '';
+          if (missingTech) phRow.appendChild(cardPlaceholder(e, 'tech', '+ tech', 'Add technology (e.g. Node.js, PostgreSQL)'));
+          if (missingDesc) phRow.appendChild(cardPlaceholder(e, 'desc', '+ description', 'Add a short description'));
+          text.appendChild(phRow);
+        }
         el.append(chip, text);
         const pin = notePin('element', e.id, nameOf(e));
         if (pin) el.appendChild(pin);
@@ -374,15 +396,33 @@
         edges().forEach((e) => {
           const b = e.labelBox, rec = els.edges.get(e.id);
           if (!b || !rec) return;
+          const direct = !!(elementOf(e.from) && elementOf(e.to));
           const el = htmlEl('div', 'edge-label c4-label');
           el.dataset.edgeId = e.id;
-          el.tabIndex = elementOf(e.from) && elementOf(e.to) ? 0 : -1;   // a merged arrow (a count tag) is not editable: no tab stop
+          el.tabIndex = direct ? 0 : -1;   // a merged arrow (a count tag) is not editable: no tab stop
           el.setAttribute('role', 'group');
           el.setAttribute('aria-label', `${e.label || 'Arrow'}, from ${nameOf(elementOf(e.from) || groupOf(e.from))} to ${nameOf(elementOf(e.to) || groupOf(e.to))}`);
-          Object.assign(el.style, { left: px(b.x), top: px(b.y), width: px(b.w), height: px(b.h) });
+          Object.assign(el.style, { left: px(Math.round(b.x + b.w / 2)), top: px(Math.round(b.y + b.h / 2)) });
           el.title = edgeTitle(e);
           el.appendChild(htmlEl('span', 'c4-label-text', `${e.label || ''}${e.count > 1 ? ` ×${e.count}` : ''}`));
-          if (e.tech && showTech()) el.appendChild(htmlEl('span', 'c4-label-tech', `[${e.tech}]`));
+          if (showTech()) {
+            if (e.tech) el.appendChild(htmlEl('span', 'c4-label-tech', `[${e.tech}]`));
+            else if (direct) {
+              const ph = htmlEl('span', 'c4-placeholder c4-label-tech-ph', '');
+              ph.dataset.exportSkip = '';
+              ph.dataset.field = 'tech';
+              ph.dataset.ph = '+ tech';
+              ph.title = 'Add technology (e.g. REST, gRPC, SQL)';
+              ph.addEventListener('pointerdown', (ev) => {
+                if (ev.button !== 0 || presenting()) return;
+                ev.preventDefault();
+                ev.stopPropagation();
+                if (isTyping()) document.activeElement.blur();
+                editEdgeField(e.id, 'tech');
+              });
+              el.appendChild(ph);
+            }
+          }
           el.addEventListener('pointerenter', () => { hoverEdgeId = e.id; applyState(); });
           el.addEventListener('pointerleave', () => { if (hoverEdgeId === e.id) { hoverEdgeId = null; applyState(); } });
           el.addEventListener('pointerdown', (ev) => press(ev, { kind: 'edge', id: e.id }));
@@ -484,7 +524,6 @@
           if (t) t.classList.toggle('selected', inSel('group', id));
         });
         canvas.classList.toggle('c4-multi', sel.length > 1);
-        canvas.classList.toggle('c4-connecting', !!connecting);
         applyNoteSelection();
         drawBar();
         if (typeof queueDeleteRefresh === 'function') queueDeleteRefresh();
@@ -519,18 +558,62 @@
       }
       function toggleGroup(id) { const g = groupOf(id); if (g) setCollapsed(new Map([[id, g.collapsed !== true]])); }
 
-      // LEVEL: "show to depth N". Level N opens the groups down to N - 1 system levels (Level 1 shows every system as one box;
-      // boundaries are never touched, they hold no inside of their own) and closes the groups below that. The saved model keeps `collapsed` per group, never a level number.
-      const levelsWanted = (n) => new Map(groups().filter((g) => g.kind !== 'boundary').map((g) => [g.id, levelOf(g) >= n]));
-      const currentLevel = () => {
-        const levels = levelBtns.map((b) => +b.dataset.level);
-        return levels.find((n) => [...levelsWanted(n)].every(([id, v]) => (groupOf(id).collapsed === true) === v)) || null;
-      };
-      function updateLevelButtons() {
-        const n = currentLevel();
-        levelBtns.forEach((b) => b.setAttribute('aria-pressed', String(+b.dataset.level === n)));
+      // LEVEL: "show to depth N". Level 1 collapses every collapsible system/container group (leaving outer ownership boundaries open);
+      // Level 2 opens them to their containers and also reopens any group collapsed manually via its chevron. Saved model keeps `collapsed` per group.
+      function levelsWanted(n) {
+        const m = new Map();
+        groups().forEach((g) => {
+          if (isCollapsibleGroup(g)) m.set(g.id, levelOf(g) >= n);
+          else if (n >= 2 && g.collapsed === true) m.set(g.id, false);
+        });
+        return m;
       }
-      levelBtns.forEach((b) => b.addEventListener('click', () => setCollapsed(levelsWanted(+b.dataset.level), { silent: true })));
+      function currentLevel() {
+        const targets = groups().filter(isCollapsibleGroup);
+        const anyCollapsed = groups().some((g) => g.collapsed === true);
+        if (!targets.length && !anyCollapsed) return null;
+        const nonTargetsCollapsed = groups().some((g) => !isCollapsibleGroup(g) && g.collapsed === true);
+        for (const b of levelBtns) {
+          const n = +b.dataset.level;
+          if (n === 1 && !targets.length) continue;
+          if (n >= 2 && nonTargetsCollapsed) continue;
+          const want = levelsWanted(n);
+          if (want.size && [...want].every(([id, v]) => (groupOf(id).collapsed === true) === v)) return n;
+        }
+        return null;
+      }
+      function updateLevelButtons() {
+        const targets = groups().filter(isCollapsibleGroup);
+        const anyCollapsed = groups().some((g) => g.collapsed === true);
+        const disabled = !targets.length && !anyCollapsed;
+        const n = currentLevel();
+        if (btnLevel) {
+          btnLevel.disabled = disabled;
+          if (disabled && levelWrap && levelWrap.classList.contains('open')) {
+            levelWrap.classList.remove('open');
+            btnLevel.setAttribute('aria-expanded', 'false');
+          }
+          const count = btnLevel.querySelector('.btn-count');
+          if (count) {
+            count.textContent = !disabled && n ? `L${n}` : '';
+            count.hidden = disabled || !n;
+          }
+          const desc = n === 1 ? 'Level 1, system context' : n === 2 ? 'Level 2, containers' : 'mixed';
+          btnLevel.title = disabled
+            ? 'No expandable systems yet: add a group with containers to switch levels'
+            : `Level: ${desc}`;
+          btnLevel.setAttribute('aria-label', disabled ? 'Level (unavailable)' : n ? `Level: L${n}` : 'Level');
+        }
+        levelBtns.forEach((b) => {
+          const lv = +b.dataset.level;
+          b.setAttribute('aria-checked', String(!disabled && lv === n));
+          b.disabled = disabled || (lv === 1 && !targets.length);
+        });
+      }
+      levelBtns.forEach((b) => b.addEventListener('click', () => {
+        if (b.disabled) return;
+        setCollapsed(levelsWanted(+b.dataset.level), { silent: true });
+      }));
 
       // =====================================================================================================
       // --- EDITING ---
@@ -609,47 +692,17 @@
         if (cur) cur.focus();
       }
 
-      // A small box with an input (the label prompt, the arrow's technology): Enter saves, Esc or a press elsewhere is `onClose`'s
-      // call. onCommit(value) returns true when the value was accepted (the box closes), false to keep it open.
-      function openPrompt(anchor, o) {
-        const box = htmlEl('div', 'c4-pop c4-prompt');
-        box.setAttribute('role', 'dialog');
-        box.setAttribute('aria-label', o.label);
-        const input = htmlEl('input', 'c4-input');
-        input.id = o.id;
-        input.type = 'text';
-        input.maxLength = o.max;
-        input.value = o.value || '';
-        input.placeholder = o.placeholder;
-        input.setAttribute('aria-label', o.label);
-        input.autocomplete = 'off';
-        input.spellcheck = false;
-        box.append(input, htmlEl('span', 'c4-pop-hint t-detail', o.hint));
-        let done = false;
-        const f = openFloating(box, anchor, (why) => {
-          if (done) return;
-          done = true;
-          if (why === 'cancel' || why === 'replaced') o.onCancel(why);
-          else if (!o.onCommit(input.value, why)) o.onCancel(why);
-        });
-        input.addEventListener('keydown', (e) => {
-          if (e.key === 'Enter') {
-            e.preventDefault(); e.stopPropagation();
-            if (o.onCommit(input.value, 'enter')) { done = true; closeFloating('pick'); } else input.focus();
-          } else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeFloating('cancel'); }
-        });
-        input.focus();
-        input.select();
-        return f;
-      }
-
-      // --- Inline text editing (double-click, Enter / F2, or straight after creating something) ---
-      // o: raw (the text to edit), restore (what to show when nothing changed), apply(value) -> true when it changed the model,
-      // settle(changed) at the end, pending (an add or a connect whose undo step ends here).
+      // --- Inline text editing (double-click, ghost placeholder click, Enter / F2, or straight after creating something) ---
+      // o: raw (text to edit), restore (text when unchanged), placeholder (empty hint), host (element toggled with .editing),
+      // validate(value, why) -> 'ok' | 'keep' | 'drop', forceApply (apply even if value === original), apply(value) -> true when
+      // model changed, onCancel(), onTab(dir), settle(changed), pending (an add whose undo step ends here), after().
       function beginEdit(el, o) {
         if (!el || el.isContentEditable) return;
+        const host = o.host || null;
         if (o.raw !== undefined) el.textContent = o.raw;
+        if (o.placeholder) el.dataset.editPh = o.placeholder;
         el.classList.add('is-editing');
+        if (host) host.classList.add('editing');
         el.contentEditable = 'plaintext-only';
         el.spellcheck = false;
         if (o.label) el.setAttribute('aria-label', o.label);
@@ -660,27 +713,60 @@
         s.removeAllRanges();
         s.addRange(range);
         const original = el.textContent;
-        let done = false, byKey = false;
-        const finish = () => {
-          if (done) return;
-          done = true;
-          el.removeEventListener('blur', finish);
+        let done = false;
+        const cleanup = () => {
+          el.removeEventListener('blur', onBlur);
           el.removeEventListener('keydown', onKey);
           el.contentEditable = 'false';
           el.classList.remove('is-editing');
-          const changed = el.textContent !== original ? !!o.apply(el.textContent) : false;
+          if (host) host.classList.remove('editing');
+          delete el.dataset.editPh;
+        };
+        const finish = (why, tabDir) => {
+          if (done) return;
+          const value = el.textContent;
+          if (why === 'cancel') {
+            done = true;
+            cleanup();
+            if (o.onCancel) { o.onCancel(); return; }
+            el.textContent = o.restore !== undefined ? o.restore : original;
+            if (o.settle) o.settle(false);
+            if (o.pending) updateStatus(true);
+            if (o.after) o.after();
+            return;
+          }
+          if (o.validate && (why === 'enter' || why === 'tab')) {
+            const verdict = o.validate(value, why);
+            if (verdict === 'keep') { el.focus(); return; }
+            if (verdict === 'drop') { done = true; cleanup(); if (o.onCancel) o.onCancel(); return; }
+          }
+          done = true;
+          cleanup();
+          if (o.validate && why === 'blur') {
+            const verdict = o.validate(value, why);
+            if (verdict === 'keep' || verdict === 'drop') {
+              if (o.onCancel) { o.onCancel(); return; }
+              el.textContent = o.restore !== undefined ? o.restore : original;
+              if (o.settle) o.settle(false);
+              if (o.pending) updateStatus(true);
+              return;
+            }
+          }
+          const changed = (o.forceApply || value !== original) ? !!o.apply(value) : false;
           if (o.settle) o.settle(changed);
           if (changed) commit(true);
           else { el.textContent = o.restore !== undefined ? o.restore : original; if (o.pending) updateStatus(true); }
-          if (byKey && o.after) o.after();   // Enter or Esc: the keyboard path goes on from the tile
+          if (why === 'tab' && o.onTab) { o.onTab(tabDir); return; }
+          if (why === 'enter' && o.after) o.after();
         };
+        const onBlur = () => finish('blur', 0);
         const onKey = (ke) => {
-          if (ke.key === 'Enter' || ke.key === 'Escape') byKey = true;
           if (ke.key === 'Enter' || ke.key === 'Tab' || ke.key === 'F2') ke.stopPropagation();
-          if (ke.key === 'Enter') { ke.preventDefault(); el.blur(); finish(); }
-          else if (ke.key === 'Escape') { ke.preventDefault(); ke.stopPropagation(); el.textContent = original; el.blur(); finish(); }
+          if (ke.key === 'Enter') { ke.preventDefault(); finish('enter', 0); if (done) el.blur(); }
+          else if (ke.key === 'Tab' && o.onTab) { ke.preventDefault(); finish('tab', ke.shiftKey ? -1 : 1); }
+          else if (ke.key === 'Escape') { ke.preventDefault(); ke.stopPropagation(); finish('cancel', 0); el.blur(); }
         };
-        el.addEventListener('blur', finish);
+        el.addEventListener('blur', onBlur);
         el.addEventListener('keydown', onKey);
       }
       function nameEl(kind, id) {
@@ -688,12 +774,64 @@
         const g = els.groups.get(id);
         return g && (g.querySelector('.c4-tag-name') || g.querySelector('.c4-name'));
       }
+      function editField(id, field, pending) {
+        const o = elementOf(id), node = els.nodes.get(id);
+        if (!o || !node || presenting()) return;
+        const fields = showTech() ? ['name', 'tech', 'desc'] : ['name', 'desc'];
+        if (!fields.includes(field)) field = 'name';
+        const el = field === 'name'
+          ? node.querySelector('.c4-name')
+          : field === 'tech'
+            ? (node.querySelector('.c4-tech') || node.querySelector('.c4-tech-ph'))
+            : (node.querySelector('.c4-desc') || node.querySelector('.c4-desc-ph'));
+        if (!el) return;
+        const nextOf = (dir) => fields[(fields.indexOf(field) + dir + fields.length) % fields.length];
+        const refocus = () => { const t = els.nodes.get(id); if (t) t.focus({ preventScroll: true }); };
+        if (field === 'name') {
+          beginEdit(el, {
+            raw: nameOf(o), restore: nameOf(o), label: 'Element name', pending,
+            after: refocus,
+            onTab: (dir) => editField(id, nextOf(dir)),
+            apply: (v) => {
+              const t = askText(v, 'A name', NAME_MAX);
+              if (t === null || t === nameOf(o)) return false;
+              o.name = t;
+              return true;
+            }
+          });
+        } else if (field === 'tech') {
+          beginEdit(el, {
+            raw: o.tech || '', restore: o.tech ? `[${o.tech}]` : '', label: 'Technology', placeholder: 'Node.js, PostgreSQL ...',
+            after: refocus,
+            onTab: (dir) => editField(id, nextOf(dir)),
+            apply: (v) => {
+              const t = optText(v, TECH_MAX);
+              if (t === (o.tech || '')) return false;
+              setOpt(o, 'tech', t);
+              return true;
+            }
+          });
+        } else {
+          beginEdit(el, {
+            raw: o.description || '', restore: o.description || '', label: 'Description', placeholder: 'What it is or does',
+            after: refocus,
+            onTab: (dir) => editField(id, nextOf(dir)),
+            apply: (v) => {
+              const t = optText(v, DESC_MAX);
+              if (t === (o.description || '')) return false;
+              setOpt(o, 'description', t);
+              return true;
+            }
+          });
+        }
+      }
       function editName(kind, id, pending) {
-        const o = kind === 'element' ? elementOf(id) : groupOf(id), el = nameEl(kind, id);
+        if (kind === 'element') { editField(id, 'name', pending); return; }
+        const o = groupOf(id), el = nameEl(kind, id);
         if (!o || !el) return;
         beginEdit(el, {
           raw: nameOf(o), pending,
-          after: () => { const t = kind === 'element' ? els.nodes.get(id) : (els.groups.get(id) || {}).querySelector && (els.groups.get(id).querySelector('.frame-tag') || els.groups.get(id)); if (t) t.focus({ preventScroll: true }); },
+          after: () => { const g = els.groups.get(id); const t = g && (g.querySelector('.frame-tag') || g); if (t) t.focus({ preventScroll: true }); },
           apply: (v) => {
             const t = askText(v, 'A name', NAME_MAX);
             if (t === null || t === nameOf(o)) return false;
@@ -702,10 +840,87 @@
           }
         });
       }
+      function editEdgeField(edgeId, field, opts) {
+        const e = edgeOf(edgeId);
+        if (!e || presenting()) return;
+        const isNew = !!(opts && opts.isNew), newRel = opts && opts.newRel;
+        if (!isNew && !(elementOf(e.from) && elementOf(e.to))) { ui.toast('This arrow merges several relations: open the group to edit them'); return; }
+        const rec = els.edges.get(edgeId), lbl = rec && rec.label;
+        if (!lbl) { if (isNew && newRel) dropNewRelation(newRel, { kind: 'element', id: newRel.from }); return; }
+        const members = isNew ? [newRel] : e.members.map((i) => relations()[i]).filter(Boolean);
+        const back = isNew ? { kind: 'element', id: newRel.from } : null;
+        const findEdgeId = () => {
+          if (isNew && newRel) {
+            const idx = relations().indexOf(newRel);
+            const found = idx >= 0 && edges().find((x) => x.members.includes(idx));
+            return found ? found.id : edgeId;
+          }
+          return edgeId;
+        };
+        const refocus = () => queueMicrotask(() => { const l = (els.edges.get(findEdgeId()) || {}).label; if (l) l.focus({ preventScroll: true }); });
+        if (field === 'tech') {
+          if (!showTech()) return;
+          const el = lbl.querySelector('.c4-label-tech') || lbl.querySelector('.c4-label-tech-ph');
+          if (!el) return;
+          beginEdit(el, {
+            raw: e.tech || '', restore: e.tech ? `[${e.tech}]` : '', label: 'Technology of the relation', placeholder: 'REST, gRPC, SQL ...', host: lbl,
+            after: refocus,
+            onTab: () => editEdgeField(edgeId, 'label'),
+            apply: (v) => {
+              const t = optText(v, TECH_MAX);
+              if (t === (e.tech || '')) return false;
+              members.forEach((r) => setOpt(r, 'tech', t));
+              return true;
+            }
+          });
+          return;
+        }
+        const el = lbl.querySelector('.c4-label-text');
+        if (!el) return;
+        beginEdit(el, {
+          raw: isNew ? '' : (e.label || ''),
+          restore: isNew ? '' : `${e.label || ''}${e.count > 1 ? ` ×${e.count}` : ''}`,
+          label: 'Relation label',
+          placeholder: 'Label...',
+          host: lbl,
+          forceApply: isNew,
+          after: refocus,
+          onCancel: () => { if (isNew && newRel) dropNewRelation(newRel, back); else { el.textContent = `${e.label || ''}${e.count > 1 ? ` ×${e.count}` : ''}`; refocus(); } },
+          onTab: showTech() ? () => editEdgeField(findEdgeId(), 'tech') : undefined,
+          validate: (v, why) => {
+            if (isNew && why === 'blur' && !String(v || '').trim()) return 'drop';
+            const label = askText(v, 'A label', LABEL_MAX);
+            if (label === null) return 'keep';
+            if (isNew) {
+              if (relations().some((r) => sameRelation(r, Object.assign({}, newRel, { label })))) {
+                ui.toast('That connection already exists with this label');
+                return 'drop';
+              }
+              return 'ok';
+            }
+            if (label !== e.label && members.some((r) => relations().some((x) => !members.includes(x) && sameRelation(x, Object.assign({}, r, { label }))))) {
+              ui.toast('That connection already exists with this label');
+              return 'keep';
+            }
+            return 'ok';
+          },
+          apply: (v) => {
+            const label = cleanText(v, 'A label', LABEL_MAX);
+            if (isNew) {
+              newRel.label = label;
+              newLink = null;
+              return true;
+            }
+            if (label === e.label) return false;
+            members.forEach((r) => { r.label = label; });
+            return true;
+          }
+        });
+      }
       function editSelection() {
         const p = primary();
         if (!p || sel.length !== 1) return;
-        if (p.kind === 'edge') askLabel(p.id, false);
+        if (p.kind === 'edge') editEdgeField(p.id, 'label');
         else editName(p.kind, p.id);
       }
       html.addEventListener('dblclick', (e) => {
@@ -715,9 +930,18 @@
         if (kl) { if (!kl.isContentEditable) { e.stopPropagation(); keyDraft = kl.dataset.color; editKey(kl.dataset.color); } return; }
         if (t.closest('.c4-actionbar, .frame-chev, .c4-port') || t.isContentEditable) return;
         const lbl = t.closest('.c4-label');
-        if (lbl) { e.stopPropagation(); askLabel(lbl.dataset.edgeId, false); return; }
+        if (lbl) {
+          e.stopPropagation();
+          editEdgeField(lbl.dataset.edgeId, t.closest('.c4-label-tech, .c4-label-tech-ph') ? 'tech' : 'label');
+          return;
+        }
         const node = t.closest('.c4-node');
-        if (node) { e.stopPropagation(); editName('element', node.dataset.nodeId); return; }
+        if (node) {
+          e.stopPropagation();
+          const field = t.closest('.c4-tech, .c4-tech-ph') ? 'tech' : t.closest('.c4-desc, .c4-desc-ph') ? 'desc' : 'name';
+          editField(node.dataset.nodeId, field);
+          return;
+        }
         const grp = t.closest('.c4-group');
         if (!grp) return;
         e.stopPropagation();
@@ -750,7 +974,7 @@
         if (b) b.addEventListener('click', (e) => { if (e.detail === 0) setTimeout(() => addItem(k), 0); else addItem(k); });
       });
 
-      // --- Connect: drag from a port onto another element, or the Connect button and a click on the target ---
+      // --- Connect: drag from a port onto another element ---
       function nodeIdAt(x, y) {
         const el = document.elementFromPoint(x, y), it = el && el.closest('.c4-node, .c4-group.is-tile');
         return it ? { id: it.dataset.nodeId || it.dataset.groupId, tile: !it.dataset.nodeId } : null;
@@ -799,37 +1023,8 @@
         connectItems(d.from, hit.id);
       }
       function cancelDrag() { return !!endDrag(); }
-      // The Connect button: the next element clicked (or picked with Enter) is the target
-      let hintEl = null;
-      function hint(text) {
-        if (text === null) { if (hintEl) { motion.hideHint(hintEl); hintEl = null; } return; }
-        if (!hintEl) {
-          hintEl = htmlEl('div', 'hint');
-          hintEl.setAttribute('role', 'status');
-          hintEl.dataset.exportSkip = '';
-          document.body.appendChild(hintEl);
-        }
-        hintEl.textContent = text;
-      }
-      function startConnect(fromId) {
-        connecting = { from: fromId };
-        hint('Click the element to connect to. Esc cancels.');
-        applyState();
-      }
-      function endConnect() {
-        if (!connecting) return false;
-        connecting = null;
-        hint(null);
-        applyState();
-        return true;
-      }
-      function finishConnect(toId) {
-        const from = connecting.from;
-        endConnect();
-        connectItems(from, toId);
-      }
-      // The new arrow appears at once (laid out, drawn in) and asks for its label; the connection is one undo step with the label,
-      // and Esc on the label (or an empty one) takes the whole connection back.
+      // The new arrow appears at once (laid out, drawn in) and opens inline label editing; the connection is one undo step with the label,
+      // and Esc on the label (or blurring while empty) takes the whole connection back.
       function connectItems(fromId, toId) {
         if (!elementOf(fromId) || !elementOf(toId)) throw new RangeError('connectItems: both ends must be elements');
         if (fromId === toId) { ui.toast('An element cannot connect to itself'); return false; }
@@ -843,9 +1038,9 @@
         const index = relations().indexOf(rel);
         const e = edges().find((x) => x.members.includes(index));
         sel = e ? [{ kind: 'edge', id: e.id }] : [];
-        newLink = rel;   // no action bar over the arrow while its label is asked
+        newLink = rel;   // no action bar over the arrow while its label is edited
         render({ snap, prevEdges, duration: 200 });
-        if (e) askLabel(e.id, true, rel); else newLink = null;
+        if (e) editEdgeField(e.id, 'label', { isNew: true, newRel: rel }); else newLink = null;
         return true;
       }
       const sameRelation = (a, b) => a !== b && a.from === b.from && a.to === b.to && String(a.label) === String(b.label);
@@ -859,59 +1054,6 @@
         sel = back ? [back] : [];
         render({ snap, prevEdges, ghostExit: true, duration: 180 });
         // nothing was committed: the model is what the last step left, so this makes no undo step
-      }
-      // The label prompt of an arrow (#c4-label-input): for a new connection (newRel) a label is required and Esc undoes the connection
-      function askLabel(edgeId, isNew, newRel) {
-        const e = edgeOf(edgeId);
-        if (!e || presenting()) return;
-        if (!isNew && !(elementOf(e.from) && elementOf(e.to))) { ui.toast('This arrow merges several relations: open the group to edit them'); return; }
-        const rec = els.edges.get(edgeId), members = e.members.map((i) => relations()[i]).filter(Boolean);
-        const back = isNew ? { kind: 'element', id: newRel.from } : null;
-        const refocus = () => { if (!isNew) queueMicrotask(() => { const l = (els.edges.get(edgeId) || {}).label; if (l) l.focus({ preventScroll: true }); }); };
-        openPrompt((rec && (rec.label || rec.g)) || canvas, {
-          id: 'c4-label-input', label: 'Relation label', max: LABEL_MAX, placeholder: 'What does it do? e.g. Sends orders',
-          hint: isNew ? 'Enter saves. Esc undoes the connection.' : 'Enter saves. Esc keeps the old label.',
-          value: isNew ? '' : e.label,
-          onCommit: (v) => {
-            const label = askText(v, 'A label', LABEL_MAX);
-            if (label === null) return false;
-            if (isNew) {
-              if (relations().some((r) => sameRelation(r, Object.assign({}, newRel, { label })))) {
-                ui.toast('That connection already exists with this label');
-                dropNewRelation(newRel, back);
-                return true;
-              }
-              newRel.label = label;
-              newLink = null;
-              commit(true);
-              return true;
-            }
-            if (label === e.label) { refocus(); return true; }
-            if (members.some((r) => relations().some((x) => !members.includes(x) && sameRelation(x, Object.assign({}, r, { label }))))) { ui.toast('That connection already exists with this label'); return false; }
-            members.forEach((r) => { r.label = label; });
-            commit(true);
-            refocus();
-            return true;
-          },
-          onCancel: () => { if (isNew) dropNewRelation(newRel, back); else refocus(); }
-        });
-      }
-      function askTech(edgeId) {
-        const e = edgeOf(edgeId);
-        if (!e || !(elementOf(e.from) && elementOf(e.to))) return;
-        const rec = els.edges.get(edgeId), members = e.members.map((i) => relations()[i]).filter(Boolean);
-        openPrompt((rec && (rec.label || rec.g)) || canvas, {
-          id: 'c4-edge-tech', label: 'Technology of the relation', max: TECH_MAX, placeholder: 'REST, gRPC, SQL ...',
-          hint: 'Enter saves. Empty removes it. Esc keeps the old one.', value: e.tech || '',
-          onCommit: (v) => {
-            const t = optText(v, TECH_MAX);
-            if (t === (e.tech || '')) return true;
-            members.forEach((r) => setOpt(r, 'tech', t));
-            commit(true);
-            return true;
-          },
-          onCancel: () => {}
-        });
       }
 
       // --- Delete ---
@@ -940,7 +1082,6 @@
         chartData.relations = relations().filter((r) => !rels.has(r));
         dropNoteRefs(new Set([...gids, ...eids]));
         sel = [];
-        endConnect();
         commit(true, { captureOpts: { ghosts: true }, ghostExit: true, duration: 200 });
       }
       function deleteSelection(anchorEl) {
@@ -1188,11 +1329,6 @@
         commit(false, { duration: 160 });
         if (keyDraft) editKey(keyDraft);
       }
-      function setKind(o, kind) {
-        if (!KINDS.includes(kind) || o.kind === kind) return;
-        o.kind = kind;
-        commit(true);
-      }
       function moveToGroup(ids, target) {
         const list = ids.map(elementOf).filter(Boolean);
         if (!list.length) return;
@@ -1217,40 +1353,6 @@
         out.push({ label: 'New group', value: '+new' });
         return out;
       };
-
-      // --- Details popover (#c4-tech, #c4-desc) ---
-      function openDetails(anchor, o) {
-        const box = htmlEl('div', 'c4-pop c4-details');
-        box.id = 'c4-details';
-        box.setAttribute('role', 'dialog');
-        box.setAttribute('aria-label', 'Details');
-        const field = (id, label, tag, max) => {
-          const wrap = htmlEl('label', 'c4-field');
-          wrap.appendChild(htmlEl('span', 'c4-field-label t-detail', label));
-          const input = htmlEl(tag, 'c4-input');
-          input.id = id;
-          input.maxLength = max;
-          if (tag === 'textarea') input.rows = 3; else input.type = 'text';
-          wrap.appendChild(input);
-          box.appendChild(wrap);
-          return input;
-        };
-        const tech = field('c4-tech', 'Technology', 'input', TECH_MAX), desc = field('c4-desc', 'Description', 'textarea', DESC_MAX);
-        tech.value = o.tech || ''; desc.value = o.description || '';
-        tech.placeholder = 'Node.js, PostgreSQL ...'; desc.placeholder = 'What it is or does';
-        box.addEventListener('keydown', (e) => {
-          if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeFloating('cancel'); }
-          else if (e.key === 'Enter' && (e.target === tech || e.ctrlKey || e.metaKey)) { e.preventDefault(); e.stopPropagation(); closeFloating('pick'); }
-        });
-        openFloating(box, anchor, (why) => {
-          if (why === 'cancel') return;
-          const t = optText(tech.value, TECH_MAX), d = optText(desc.value, DESC_MAX);
-          if (t === (o.tech || '') && d === (o.description || '')) return;
-          setOpt(o, 'tech', t); setOpt(o, 'description', d);
-          commit(true);
-        });
-        tech.focus();
-      }
 
       // --- Icon picker (#c4-icons): the diagram icons in groups, searched by name; a pack name the page cannot draw is listed as missing ---
       // The one list of what the picker offers (the registry also holds app chrome: undo, export, shape and type glyphs). A name
@@ -1344,15 +1446,8 @@
 
       function elementBar(bar, o) {
         bar.setAttribute('aria-label', 'Element');
-        bar.appendChild(ab('rename', ui.icon('rename'), 'Rename (F2)'));
-        bar.appendChild(abMenu('kind', KIND_ICON[o.kind] || 'cloud', 'Kind', `Kind: ${KIND_NAME[o.kind] || o.kind}`));
         bar.appendChild(abText('icon', 'shapes', 'Icon', 'Icon: pick an icon or tech logo'));
-        bar.appendChild(abMenu('group', 'frame', 'Group', 'Move to a group'));
-        bar.appendChild(ui.abSep('ab-sep'));
-        bar.appendChild(ab('core', ui.icon('focus'), 'Centre: the rest of the diagram rings round it', o.core === true));
-        bar.appendChild(abMenu('side', 'direction-lr', 'Side', `Side of the centre: ${o.side || 'auto'}`));
-        bar.appendChild(ab('details', ui.icon('note-lines'), 'Details: technology and description'));
-        bar.appendChild(ab('connect', ui.icon('link'), 'Connect to another element'));
+        if (!o.group) bar.appendChild(ab('core', ui.icon('focus'), 'Centre: the rest of the diagram rings round it', o.core === true));
         bar.appendChild(ab('delete', ui.icon('trash'), 'Delete (and its arrows)', undefined, undefined, 'is-danger'));
         bar.appendChild(ui.abBreak('ab-break'));
         bar.appendChild(colourRow(o.color));
@@ -1360,13 +1455,7 @@
       }
       function groupBar(bar, g) {
         bar.setAttribute('aria-label', 'Group');
-        const tile = isTile(g);
-        bar.appendChild(ab('rename', ui.icon('rename'), 'Rename (F2)'));
-        bar.appendChild(abMenu('kind', 'frame', 'Kind', `Kind: ${g.kind === 'boundary' ? 'boundary' : 'system'}`));
-        bar.appendChild(ab('collapse', ui.icon('chevron-down'), tile ? 'Expand' : 'Collapse to one box', tile));
-        bar.appendChild(ui.abSep('ab-sep'));
-        bar.appendChild(ab('core', ui.icon('focus'), 'Centre: the rest of the diagram rings round it', g.core === true));
-        bar.appendChild(abMenu('side', 'direction-lr', 'Side', `Side of the centre: ${g.side || 'auto'}`));
+        if (!g.parent) bar.appendChild(ab('core', ui.icon('focus'), 'Centre: the rest of the diagram rings round it', g.core === true));
         bar.appendChild(ab('ungroup', ui.icon('split'), 'Ungroup: keep the members, remove the frame'));
         bar.appendChild(ab('delete', ui.icon('trash'), 'Delete the group and its members', undefined, undefined, 'is-danger'));
         bar.appendChild(ui.abBreak('ab-break'));
@@ -1377,14 +1466,16 @@
         bar.setAttribute('aria-label', 'Arrow');
         const direct = !!(elementOf(e.from) && elementOf(e.to)), rel = direct ? relations()[e.members[0]] : null;
         if (direct && rel) {
-          bar.appendChild(abText('label', 'label', 'Label', 'Edit the label (Enter)'));
-          bar.appendChild(abText('tech', 'code', 'Tech', 'Technology: REST, gRPC, SQL ...'));
           bar.appendChild(ab('async', ui.icon('line-dashed'), 'Asynchronous: draw it dashed', rel.async === true));
           bar.appendChild(ab('reverse', ui.icon('reverse'), 'Reverse the direction'));
         } else bar.appendChild(htmlEl('span', 'c4-ab-tag', `${e.count} relations`));
         bar.appendChild(ab('delete', ui.icon('trash'), e.count > 1 ? `Delete these ${e.count} relations` : 'Delete this arrow', undefined, undefined, 'is-danger'));
-        const b = e.labelBox;
-        if (b) return { x: b.x + b.w / 2, y: b.y, bottom: b.y + b.h };
+        const rec = els.edges.get(e.id), b = e.labelBox;
+        if (b) {
+          const cx = Math.round(b.x + b.w / 2), cy = Math.round(b.y + b.h / 2);
+          const h = (rec && rec.label && rec.label.offsetHeight) || b.h;
+          return { x: cx, y: Math.round(cy - h / 2), bottom: Math.round(cy + h / 2) };
+        }
         const pts = e.points || [], m = pts[Math.floor(pts.length / 2)] || [0, 0];
         return { x: m[0], y: m[1], bottom: m[1] };
       }
@@ -1412,7 +1503,7 @@
           requestAnimationFrame(drawBar);
           return;
         }
-        const key = presenting() || connecting || newLink || !sel.length ? null : JSON.stringify(sel);
+        const key = presenting() || newLink || !sel.length ? null : JSON.stringify(sel);
         const same = key !== null && key === lastBarKey;
         lastBarKey = key;
         html.querySelectorAll('.c4-actionbar').forEach((el) => (same ? el.remove() : motion.hideBar(el)));
@@ -1465,8 +1556,6 @@
           if (!e) return;
           const members = e.members.map((i) => relations()[i]).filter(Boolean);
           if (act === 'delete') deleteSelection(btn);
-          else if (act === 'label') askLabel(e.id, false);
-          else if (act === 'tech') askTech(e.id);
           else if (act === 'async') { const on = !members.every((r) => r.async === true); members.forEach((r) => setOpt(r, 'async', on)); commit(false, { duration: 160 }); }
           else if (act === 'reverse') {
             if (members.some((r) => relations().some((x) => !members.includes(x) && x.from === r.to && x.to === r.from && x.label === r.label))) { ui.toast('The reverse connection already exists with this label'); return; }
@@ -1477,19 +1566,11 @@
         }
         const o = p.kind === 'group' ? groupOf(p.id) : elementOf(p.id);
         if (!o) return;
-        if (act === 'rename') editName(p.kind, p.id);
-        else if (act === 'delete') deleteSelection(btn);
+        if (act === 'delete') deleteSelection(btn);
         else if (act === 'core') { setOpt(o, 'core', o.core !== true); commit(true); }
-        else if (act === 'side') openMenu(at, 'Side of the centre', SIDES.map(([v, label]) => ({ label, value: v, selected: (o.side || '') === v })), (v) => { if ((o.side || '') !== v) { setOpt(o, 'side', v); commit(true); } });
         else if (p.kind === 'group') {
-          if (act === 'collapse') toggleGroup(o.id);
-          else if (act === 'ungroup') ungroup(o.id);
-          else if (act === 'kind') openMenu(at, 'Group kind', GROUP_KINDS.map(([v, label]) => ({ label, value: v, selected: o.kind === v })), (v) => { if (o.kind !== v) { o.kind = v; commit(true); } });
-        } else if (act === 'kind') openMenu(at, 'Kind', KINDS.map((k) => ({ label: KIND_NAME[k], value: k, selected: o.kind === k })), (v) => setKind(o, v));
-        else if (act === 'icon') openIcons(at, o);
-        else if (act === 'group') openMenu(at, 'Move to group', groupItems([o.id]), (v) => moveToGroup([o.id], v));
-        else if (act === 'details') openDetails(at, o);
-        else if (act === 'connect') startConnect(o.id);
+          if (act === 'ungroup') ungroup(o.id);
+        } else if (act === 'icon') openIcons(at, o);
       }
 
       // --- KEYBOARD ---
@@ -1499,7 +1580,6 @@
         if (closeFloating('cancel')) did = true;
         if (cancelDrag()) did = true;
         if (cancelMove()) did = true;
-        if (endConnect()) did = true;
         return did;
       }
       function clearSelectionNow() {
@@ -1515,11 +1595,10 @@
         const a = document.activeElement;
         if (a && a.tagName === 'BUTTON' && e.key === 'Enter') return;
         if (ui.isConfirmOpen() || floating) return;
-        if ((e.key === 'Enter' || e.key === 'F2') && sel.length === 1 && !connecting) { e.preventDefault(); editSelection(); }
+        if ((e.key === 'Enter' || e.key === 'F2') && sel.length === 1) { e.preventDefault(); editSelection(); }
       });
 
-      // Enter / F2 / Space / the arrows on a focused tile, tag or label. While a connection waits, Enter on a tile picks the target
-      // and the arrows only move the focus.
+      // Enter / F2 / Space / the arrows on a focused tile, tag or label.
       html.addEventListener('keydown', (ev) => {
         const item = ev.target.closest('.c4-node, .c4-group, .c4-label');
         if (!item || ev.target.closest('button') || ev.target.isContentEditable) return;
@@ -1529,7 +1608,6 @@
         if (ev.key === 'Enter' || ev.key === ' ' || ev.key === 'F2') {
           ev.preventDefault();
           ev.stopPropagation();
-          if (connecting) { if (ev.key === 'Enter' && kind === 'element') finishConnect(id); return; }
           if (ev.key === ' ') { if (kind === 'group' && item.classList.contains('is-tile')) toggleGroup(id); else select({ kind, id }); return; }
           select({ kind, id });
           if (!presenting()) editSelection();
@@ -1548,7 +1626,7 @@
           if (!best) return;
           ev.preventDefault();
           const host = best.closest('.c4-group'), bid = best.dataset.nodeId || (host && host.dataset.groupId);
-          if (!connecting) select({ kind: best.dataset.nodeId ? 'element' : 'group', id: bid });
+          select({ kind: best.dataset.nodeId ? 'element' : 'group', id: bid });
           best.focus();
         }
       });
@@ -1679,7 +1757,7 @@
         const C = chartData.canvas || { width: 800, height: 400 };
         canvas.style.width = px(C.width); canvas.style.height = px(C.height);
         svg.setAttribute('width', C.width); svg.setAttribute('height', C.height);
-        const put = (el, o) => { el.style.translate = ''; Object.assign(el.style, { left: px(o.x), top: px(o.y), width: px(o.w), height: px(o.h) }); };
+        const put = (el, o) => { el.style.translate = ''; Object.assign(el.style, { left: px(o.x), top: px(o.y), width: px(o.w), height: px(o.h) }); if (el.classList.contains('c4-node')) el.style.setProperty('--c4-h', px(o.h)); };
         els.nodes.forEach((el, id) => { const o = elementOf(id); if (el.style.translate || was.get(id).some((v, i) => v !== snapGeo(o)[i])) put(el, o); });
         els.groups.forEach((el, id) => { const o = groupOf(id); if (el.style.translate || was.get(id).some((v, i) => v !== snapGeo(o)[i])) put(el, o); });
         edges().forEach((e) => {   // an arrow whose route did not change stays as it is
@@ -1689,8 +1767,8 @@
           if (line.getAttribute('d') !== e.path) rec.g.querySelectorAll('path').forEach((q) => q.setAttribute('d', e.path));
           const b = e.labelBox;
           if (rec.label && b) {
-            const st = rec.label.style, want = [px(b.x), px(b.y), px(b.w), px(b.h)];
-            if (st.left !== want[0] || st.top !== want[1] || st.width !== want[2] || st.height !== want[3]) Object.assign(st, { left: want[0], top: want[1], width: want[2], height: want[3] });
+            const st = rec.label.style, wantL = px(Math.round(b.x + b.w / 2)), wantT = px(Math.round(b.y + b.h / 2));
+            if (st.left !== wantL || st.top !== wantT) Object.assign(st, { left: wantL, top: wantT });
           }
         });
         if (notesLayer) { notesLayer.remove(); renderNotes(); }
@@ -1705,7 +1783,7 @@
 
       // The pointer
       function startMove(ev, item, items) {
-        if (presenting() || connecting || ev.button !== 0 || mv) return;
+        if (presenting() || ev.button !== 0 || mv) return;
         const m = moveSet(items);
         if (!m.tops.length) return;
         Object.assign(m, { item, sx: ev.clientX, sy: ev.clientY, pointerId: ev.pointerId, kb: false, multi: items.length > 1 });
@@ -1940,9 +2018,15 @@
         searchItems() {
           const out = [], clean = (t) => (t || '').replace(/\s+/g, ' ').trim();
           const add = (id, el, text) => { text = clean(text); if (text && el) out.push({ id, text, el, y: parseFloat(el.style.top) || 0, x: parseFloat(el.style.left) || 0 }); };
-          els.nodes.forEach((el, id) => add(`element:${id}`, el, el.textContent));
+          els.nodes.forEach((el, id) => {
+            const e = elementOf(id);
+            add(`element:${id}`, el, e ? [nameOf(e), showTech() ? e.tech : '', e.description].filter(Boolean).join(' ') : el.textContent);
+          });
           els.groups.forEach((el, id) => add(`group:${id}`, el, nameOf(groupOf(id))));
-          els.edges.forEach((rec, id) => add(`rel:${id}`, rec.label, rec.label && rec.label.textContent));
+          els.edges.forEach((rec, id) => {
+            const e = edgeOf(id);
+            add(`rel:${id}`, rec.label, e ? [e.label, showTech() ? e.tech : ''].filter(Boolean).join(' ') : (rec.label && rec.label.textContent));
+          });
           notesList().forEach((n) => {   // a note whose card is hidden (Notes off, or its target inside a closed group) rings its target instead
             const a = noteAnchor(n), host = noteCard(n.id) || (a && targetEl(a));
             add(`note:${n.id}`, host, n.text);
