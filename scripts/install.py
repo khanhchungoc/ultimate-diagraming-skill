@@ -93,6 +93,75 @@ def create_link(source: Path, target: Path) -> None:
         print(f"  [!] Symlink/junction failed ({e}). Falling back to copy...")
         copy_skill(source, target)
 
+def _is_our_version_hook(entry: object) -> bool:
+    """Return True if a SessionStart hook entry belongs to ultimate-diagram's version check."""
+    if not isinstance(entry, dict):
+        return False
+    hooks = entry.get("hooks")
+    if not isinstance(hooks, list):
+        return False
+    for h in hooks:
+        if not isinstance(h, dict):
+            continue
+        cmd = str(h.get("command", "")).replace("\\", "/")
+        if "ultimate-diagram" in cmd and "version_check.py" in cmd:
+            return True
+    return False
+
+
+def build_version_hook_entry(runtime: str, skill_dest: Path, python_cmd: str | None = None) -> dict:
+    """Build the SessionStart hook entry for a supported runtime ('claude' or 'gemini')."""
+    py = python_cmd or ("python" if sys.platform == "win32" else "python3")
+    script = skill_dest / "scripts" / "version_check.py"
+    command = f'{py} "{script}" --hook {runtime}'
+    if runtime == "claude":
+        hook = {"type": "command", "command": command, "async": True, "timeout": 10}
+    else:
+        hook = {"type": "command", "command": command, "timeout": 5000}
+    return {"hooks": [hook]}
+
+
+def register_version_hook(
+    runtime: str,
+    settings_path: Path,
+    skill_dest: Path,
+    python_cmd: str | None = None,
+) -> tuple[bool, str]:
+    """Idempotently merge ultimate-diagram's SessionStart version check hook into settings.json."""
+    if settings_path.exists():
+        try:
+            data = json.loads(settings_path.read_text(encoding="utf-8"))
+            if not isinstance(data, dict):
+                return False, f"skipped {settings_path} (root JSON is not an object)"
+        except (OSError, ValueError) as exc:
+            return False, f"skipped {settings_path} (could not parse JSON: {exc})"
+    else:
+        data = {}
+
+    hooks = data.get("hooks")
+    if hooks is None:
+        hooks = {}
+        data["hooks"] = hooks
+    elif not isinstance(hooks, dict):
+        return False, f"skipped {settings_path} ('hooks' is not an object)"
+
+    session_start = hooks.get("SessionStart")
+    if session_start is None:
+        session_start = []
+        hooks["SessionStart"] = session_start
+    elif not isinstance(session_start, list):
+        return False, f"skipped {settings_path} ('hooks.SessionStart' is not a list)"
+
+    entry = build_version_hook_entry(runtime, skill_dest, python_cmd=python_cmd)
+    updated = [e for e in session_start if not _is_our_version_hook(e)]
+    updated.append(entry)
+    hooks["SessionStart"] = updated
+
+    settings_path.parent.mkdir(parents=True, exist_ok=True)
+    settings_path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+    return True, str(settings_path)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Install ultimate-diagram into AI agent runtimes (User or Project level)."
@@ -128,6 +197,11 @@ def main() -> int:
              "(default: ask). Saved to .claude/ultimate-diagram.json, never inside the skill folder; "
              "prompted when run in a terminal without this flag.",
     )
+    parser.add_argument(
+        "--no-hooks",
+        action="store_true",
+        help="Skip registering async SessionStart version-check hooks in runtime settings.json files.",
+    )
 
     args = parser.parse_args()
 
@@ -158,10 +232,15 @@ def main() -> int:
     else:
         targets = destinations
 
+    # Snapshot which hook-capable runtime directories already existed before we create skill folders.
+    hook_base = Path.home() if args.scope == "user" else target_path
+    hook_dirs = {"claude": hook_base / ".claude", "gemini": hook_base / ".gemini"}
+    preexisting_hook_dirs = {rt: p.exists() for rt, p in hook_dirs.items()}
+
     # Claude Code only: where a diagram goes. Stored beside Claude Code's own settings, never inside the skill
     # folder (which may be a symlink to this repo). SKILL.md reads it.
     claude_selected = "claude" in targets
-    claude_config = (Path.home() if args.scope == "user" else target_path) / ".claude" / "ultimate-diagram.json"
+    claude_config = hook_dirs["claude"] / "ultimate-diagram.json"
     claude_output = args.claude_output
     if claude_selected and claude_output is None and sys.stdin.isatty() and sys.stdout.isatty():
         print("In Claude Code, publish diagrams as claude.ai Artifacts, write HTML files, or ask each time?")
@@ -186,6 +265,7 @@ def main() -> int:
     canonical_repo = repo_root.resolve()
     installed = 0
     last_dest = repo_root
+    installed_dests: dict[str, Path] = {}
     for rt, dest in targets.items():
         # A link pointing at the repo is safe to replace (only the link is removed); a real folder
         # that IS the repo is not.
@@ -207,6 +287,20 @@ def main() -> int:
             print(f"    [+] Copied to {dest}")
         installed += 1
         last_dest = dest
+        installed_dests[rt] = dest
+
+    if not args.no_hooks:
+        for rt in ("claude", "gemini"):
+            if rt not in installed_dests:
+                continue
+            # Under --runtime all at user scope, only touch runtimes that are actually present.
+            if selected_runtime == "all" and args.scope == "user" and not preexisting_hook_dirs[rt]:
+                continue
+            ok, msg = register_version_hook(rt, hook_dirs[rt] / "settings.json", installed_dests[rt])
+            if ok:
+                print(f"    [+] Registered {rt} SessionStart version-check hook -> {msg}")
+            else:
+                print(f"    [!] Hook warning ({rt}): {msg}")
 
     print()
     print(f"[SUCCESS] Installed ultimate-diagram to {installed} target(s).")

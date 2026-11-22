@@ -33,6 +33,7 @@ let runtime = 'all';
 let mode = 'symlink';
 let targetPath = process.cwd();
 let claudeOutput = null;   // ask | artifact | file; null = not given (prompt when interactive)
+let noHooks = false;
 const CLAUDE_OUTPUTS = ['ask', 'artifact', 'file'];
 
 // Detect if running from a temporary npx cache
@@ -72,6 +73,8 @@ for (let i = 0; i < args.length; i++) {
       process.exit(1);
     }
     claudeOutput = val;
+  } else if (arg === '--no-hooks') {
+    noHooks = true;
   } else if (arg === '--help' || arg === '-h') {
     printHelp();
     process.exit(0);
@@ -97,6 +100,7 @@ ${c.bold}Options:${c.reset}
                             Claude Code only: publish diagrams as claude.ai Artifacts, write HTML files, or ask each
                             time (default: ask). Saved to .claude/ultimate-diagram.json (never in the skill folder);
                             prompted when run in a terminal without this flag.
+  --no-hooks                Skip registering async SessionStart version-check hooks in runtime settings.json files
   -h, --help                Show this help message
 
 ${c.bold}Supported Runtimes:${c.reset}
@@ -248,7 +252,61 @@ function safeRemove(dest) {
   }
 }
 
+const hookBase = scope === 'user' ? USER_HOME : targetPath;
+const hookDirs = {
+  claude: path.join(hookBase, '.claude'),
+  gemini: path.join(hookBase, '.gemini')
+};
+const preexistingHookDirs = {
+  claude: fs.existsSync(hookDirs.claude),
+  gemini: fs.existsSync(hookDirs.gemini)
+};
+
+function isOurVersionHook(entry) {
+  if (!entry || typeof entry !== 'object' || !Array.isArray(entry.hooks)) return false;
+  return entry.hooks.some((h) => {
+    if (!h || typeof h !== 'object') return false;
+    const cmd = String(h.command || '').replace(/\\/g, '/');
+    return cmd.includes('ultimate-diagram') && cmd.includes('version_check.py');
+  });
+}
+
+function registerVersionHook(rt, settingsPath, skillDest) {
+  let data = {};
+  if (fs.existsSync(settingsPath)) {
+    try {
+      const parsed = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        return { ok: false, msg: `skipped ${settingsPath} (root JSON is not an object)` };
+      }
+      data = parsed;
+    } catch (err) {
+      return { ok: false, msg: `skipped ${settingsPath} (could not parse JSON: ${err.message})` };
+    }
+  }
+  if (data.hooks === undefined) data.hooks = {};
+  if (!data.hooks || typeof data.hooks !== 'object' || Array.isArray(data.hooks)) {
+    return { ok: false, msg: `skipped ${settingsPath} ('hooks' is not an object)` };
+  }
+  if (data.hooks.SessionStart === undefined) data.hooks.SessionStart = [];
+  if (!Array.isArray(data.hooks.SessionStart)) {
+    return { ok: false, msg: `skipped ${settingsPath} ('hooks.SessionStart' is not an array)` };
+  }
+  const py = process.platform === 'win32' ? 'python' : 'python3';
+  const script = path.join(skillDest, 'scripts', 'version_check.py');
+  const command = `${py} "${script}" --hook ${rt}`;
+  const hook = rt === 'claude'
+    ? { type: 'command', command, async: true, timeout: 10 }
+    : { type: 'command', command, timeout: 5000 };
+  data.hooks.SessionStart = data.hooks.SessionStart.filter((e) => !isOurVersionHook(e));
+  data.hooks.SessionStart.push({ hooks: [hook] });
+  fs.mkdirSync(path.dirname(settingsPath), { recursive: true });
+  fs.writeFileSync(settingsPath, JSON.stringify(data, null, 2) + '\n');
+  return { ok: true, msg: settingsPath };
+}
+
 let installedDest = null;
+const installedDests = {};
 for (const rt of runtimesToInstall) {
   const dest = destinations[scope][rt];
   const canonicalDest = path.resolve(dest).toLowerCase();
@@ -270,6 +328,7 @@ for (const rt of runtimesToInstall) {
     safeRemove(dest);
   }
   installedDest = dest;
+  installedDests[rt] = dest;
 
   if (mode === 'symlink') {
     const symlinkType = process.platform === 'win32' ? 'junction' : 'dir';
@@ -283,6 +342,19 @@ for (const rt of runtimesToInstall) {
   } else {
     copySkillDirectory(REPO_ROOT, dest);
     console.log(`    ${c.green}✔${c.reset}  ${c.white}${label}${c.reset} ${c.gray}→${c.reset} ${c.dim}${displayDest}${c.reset}`);
+  }
+}
+
+if (!noHooks) {
+  for (const rt of ['claude', 'gemini']) {
+    if (!installedDests[rt]) continue;
+    if (normalizedRuntime === 'all' && scope === 'user' && !preexistingHookDirs[rt]) continue;
+    const res = registerVersionHook(rt, path.join(hookDirs[rt], 'settings.json'), installedDests[rt]);
+    if (res.ok) {
+      console.log(`    ${c.green}✔${c.reset}  ${c.white}${(rt + ' hook').padEnd(16, ' ')}${c.reset} ${c.gray}→${c.reset} ${c.dim}${formatDisplayPath(res.msg)}${c.reset}`);
+    } else {
+      console.log(`    ${c.yellow}⚠${c.reset}  ${c.white}${(rt + ' hook').padEnd(16, ' ')}${c.reset} ${c.yellow}${res.msg}${c.reset}`);
+    }
   }
 }
 
