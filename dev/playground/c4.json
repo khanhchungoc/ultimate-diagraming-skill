@@ -1,14 +1,35 @@
 {
   "diagramType": "c4",
+  "schemaVersion": 1,
   "title": "C4 diagram",
-  "groups": [{ "id": "shop", "name": "Shop", "kind": "boundary" }],
+  "colorKey": { "1": "People", "3": "Order Platform" },
+  "groups": [
+    { "id": "org", "name": "Shop", "kind": "boundary" },
+    { "id": "platform", "name": "Order Platform", "kind": "system", "parent": "org", "collapsed": false, "core": true, "color": "3" },
+    { "id": "third", "name": "External Services", "kind": "boundary", "side": "E" }
+  ],
   "elements": [
-    { "id": "user", "kind": "person", "name": "User", "description": "Uses the system" },
-    { "id": "app", "kind": "system", "name": "Software system", "description": "Does something useful", "group": "shop" },
-    { "id": "ext", "kind": "external", "name": "External system", "description": "Provides a service" }
+    { "id": "customer", "kind": "person", "name": "Customer", "description": "Places orders online", "color": "1" },
+    { "id": "admin", "kind": "person", "name": "Operations", "description": "Monitors fulfillment", "color": "1" },
+    { "id": "web", "kind": "container", "name": "Web App", "tech": "React", "group": "platform", "icon": "browser" },
+    { "id": "api", "kind": "container", "name": "API Gateway", "tech": "Node.js, REST", "group": "platform", "icon": "gateway" },
+    { "id": "orders", "kind": "container", "name": "Order Service", "tech": "Java, Spring", "group": "platform", "icon": "server" },
+    { "id": "db", "kind": "database", "name": "Order DB", "tech": "PostgreSQL", "group": "platform", "icon": "database" },
+    { "id": "queue", "kind": "queue", "name": "Event Bus", "tech": "RabbitMQ", "group": "platform", "icon": "queue" },
+    { "id": "pay", "kind": "external", "name": "Payment Provider", "description": "Processes card payments", "group": "third", "icon": "credit-card" },
+    { "id": "mail", "kind": "external", "name": "Email Service", "description": "Sends order receipts", "group": "third", "icon": "mail" }
   ],
   "relations": [
-    { "from": "user", "to": "app", "label": "Uses", "tech": "HTTPS" },
-    { "from": "app", "to": "ext", "label": "Calls", "tech": "REST" }
+    { "from": "customer", "to": "web", "label": "Browses and orders", "tech": "HTTPS" },
+    { "from": "admin", "to": "web", "label": "Reviews orders", "tech": "HTTPS" },
+    { "from": "web", "to": "api", "label": "Calls", "tech": "JSON/HTTPS" },
+    { "from": "api", "to": "orders", "label": "Routes requests", "tech": "gRPC" },
+    { "from": "orders", "to": "db", "label": "Reads and writes", "tech": "SQL" },
+    { "from": "orders", "to": "queue", "label": "Publishes events", "tech": "AMQP", "async": true },
+    { "from": "orders", "to": "pay", "label": "Charges cards", "tech": "REST" },
+    { "from": "queue", "to": "mail", "label": "Triggers receipts", "tech": "SMTP", "async": true }
+  ],
+  "notes": [
+    { "id": "n1", "text": "Switch between Level 1 and Level 2 to collapse or open the platform", "groups": ["platform"] }
   ]
 }
