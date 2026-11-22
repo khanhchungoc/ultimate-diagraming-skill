@@ -218,9 +218,10 @@ try {
   const b1 = await t.ev(`(() => { const p = document.querySelector('.confirm .save-where'); return p && { path: p.textContent,
     title: document.querySelector('.confirm .confirm-title').textContent, msg: document.querySelector('.confirm .confirm-msg').textContent,
     copied: window.__copied, picked: window.__picked.length }; })()`);
-  const saveShortcut = process.platform === 'win32' ? /Ctrl\+V/ : /Ctrl\+L/;
-  t.check('save location: the first Save copies the opened file\'s path at once and shows it, before any dialog',
-    b1 && b1.path === laidPath && b1.title === 'Path copied' && saveShortcut.test(b1.msg) && JSON.stringify(b1.copied) === JSON.stringify([laidPath]) && b1.picked === 0,
+  const expectedPath = process.platform === 'darwin' ? dirname(laidPath) : laidPath;
+  const saveShortcut = process.platform === 'win32' ? /Ctrl\+A, Ctrl\+V/ : process.platform === 'darwin' ? /⌘⇧G/ : /Ctrl\+L/;
+  t.check('save location: the first Save copies the opened file\'s path at once and shows overwrite instructions, before any dialog',
+    b1 && b1.path === expectedPath && b1.title === 'Path copied' && saveShortcut.test(b1.msg) && /overwrite/i.test(b1.msg) && JSON.stringify(b1.copied) === JSON.stringify([expectedPath]) && b1.picked === 0,
     JSON.stringify(b1));
   await t.ev(`document.querySelector('.confirm .confirm-ok').click()`);
   await sleep(300);
@@ -262,13 +263,29 @@ try {
     dl1.text === 'Downloaded a copy' && /not changed/.test(dl1.title) && toasts1 === 1 && (await t.ev(copyToasts)) === 1, JSON.stringify({ dl1, toasts1 }));
 
   await t.open(laid);
-  await t.ev(`window.__picked = []; window.showSaveFilePicker = async (o) => { window.__picked.push(o); throw new DOMException('x', 'AbortError'); }`);
+  await t.ev(`(() => {
+    window.__picked = []; window.__execCopied = 0; window.__execOk = true;
+    window.showSaveFilePicker = async (o) => { window.__picked.push(o); throw new DOMException('x', 'AbortError'); };
+    navigator.clipboard.writeText = () => Promise.reject(new DOMException('denied', 'NotAllowedError'));
+    document.execCommand = (cmd) => { if (cmd === 'copy') { window.__execCopied++; return window.__execOk; } return false; };
+  })()`);
   await t.ev(t.key('s', { ctrlKey: true }));
   await sleep(300);
+  const fb = await t.ev(`({ execCopied: window.__execCopied, title: document.querySelector('.confirm .confirm-title')?.textContent })`);
+  t.check('save location: falls back to execCommand when clipboard.writeText rejects',
+    fb.execCopied === 1 && fb.title === 'Path copied', JSON.stringify(fb));
   await t.ev(`document.querySelector('.confirm .confirm-cancel').click()`);
   await sleep(100);
   t.check('save location: Cancel closes the bubble without opening the dialog',
     (await t.ev(`!document.querySelector('.save-where') && window.__picked.length === 0`)) && t.errors.length === 0, t.errors.join(' | '));
+  await t.ev(`window.__execOk = false`);
+  await t.ev(t.key('s', { ctrlKey: true }));
+  await sleep(300);
+  const noCopy = await t.ev(`({ title: document.querySelector('.confirm .confirm-title')?.textContent, msg: document.querySelector('.confirm .confirm-msg')?.textContent })`);
+  t.check('save location: when copying fails, prompts to copy the path and overwrite the file',
+    noCopy.title === 'Save over this file' && /^Copy this path, /.test(noCopy.msg) && /overwrite/i.test(noCopy.msg), JSON.stringify(noCopy));
+  await t.ev(`document.querySelector('.confirm .confirm-cancel').click()`);
+  await sleep(100);
 
   });
 

@@ -2911,21 +2911,24 @@
         return { file: p, folder: p.slice(0, i) || sep, name: p.slice(i + 1), win };
       }
 
-      // Copy text from inside a click. The async clipboard first; the old execCommand route where it is missing.
+      // Copy text from inside a click. Try the async clipboard first, falling back to execCommand when missing or rejected.
       function copyText(text) {
+        const legacyCopy = () => {
+          const ta = document.createElement('textarea');
+          ta.value = text;
+          ta.setAttribute('readonly', '');
+          ta.style.cssText = 'position:fixed;left:-9999px;top:0;opacity:0';
+          document.body.appendChild(ta);
+          ta.select();
+          let ok = false;
+          try { ok = document.execCommand('copy'); } catch (_) {}
+          ta.remove();
+          return ok;
+        };
         if (navigator.clipboard && navigator.clipboard.writeText) {
-          return navigator.clipboard.writeText(text).then(() => true, () => false);
+          return navigator.clipboard.writeText(text).then(() => true, legacyCopy);
         }
-        const ta = document.createElement('textarea');
-        ta.value = text;
-        ta.setAttribute('readonly', '');
-        ta.style.cssText = 'position:fixed;left:-9999px;top:0;opacity:0';
-        document.body.appendChild(ta);
-        ta.select();
-        let ok = false;
-        try { ok = document.execCommand('copy'); } catch (_) {}
-        ta.remove();
-        return Promise.resolve(ok);
+        return Promise.resolve(legacyCopy());
       }
 
       // Before the first Save dialog of a file opened from disk: copy the file's path right away (the Save click allows it)
@@ -2937,14 +2940,18 @@
         // macOS "Go to folder" takes a folder (the name is already filled in); Windows and GTK file boxes take the whole path
         const text = mac ? loc.folder : loc.file;
         const copied = await copyText(text);
-        const where = loc.win ? 'click the File name box and press Ctrl+V.' : mac ? 'press \u2318\u21e7G, then \u2318V.' : 'press Ctrl+L, then Ctrl+V.';
+        const where = loc.win
+          ? 'paste in File name (Ctrl+A, Ctrl+V), click Save, and overwrite the file.'
+          : mac
+            ? 'press \u2318\u21e7G, paste (\u2318V) + Return, click Save, and overwrite the file.'
+            : 'press Ctrl+L, paste (Ctrl+V), click Save, and overwrite the file.';
         const path = document.createElement('code');
         path.className = 'save-where';
         path.textContent = text;
         ui.confirm(btnSave, {
           label: 'Save over the file you opened',
-          title: copied ? 'Path copied' : 'Save over the file you opened',
-          message: (copied ? 'In the next window, ' : 'Copy this path. In the next window, ') + where,
+          title: copied ? 'Path copied' : 'Save over this file',
+          message: (copied ? 'Next, ' : 'Copy this path, ') + where,
           extra: path,
           ok: 'Choose\u2026',
           okClass: 'btn-primary'
