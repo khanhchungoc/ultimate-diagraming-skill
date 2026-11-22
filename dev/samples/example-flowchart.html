@@ -682,6 +682,7 @@
       transition: stroke var(--dur-micro) var(--curve-out), fill var(--dur-micro) var(--curve-out);
     }
     .dock-pop-grid > .btn:hover { color: var(--text-main); background: var(--bg-hover); border-color: var(--border-dark); }
+    .dock-pop-grid > .btn[role="radio"][aria-checked="true"] { background: var(--primary-wash); border-color: var(--primary-ring); color: var(--primary); }
     /* Unified mini-note tile across Flowchart, C4 and Use Case shape menus */
     .btn-note-tool svg > .note-paper { fill: var(--note-bg); stroke: var(--note-accent); }
     .btn-note-tool svg > .note-fold { fill: var(--note-border); stroke: var(--note-accent); }
@@ -5406,6 +5407,7 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
         }
         function setOpen(open) {
           clearTimeout(closeTimer);
+          if (open && trigger.disabled) return;
           if (open === isOpen()) return;
           if (open) clampToWindow();
           wrap.classList.toggle('open', open);

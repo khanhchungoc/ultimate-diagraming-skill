@@ -2543,6 +2543,7 @@
         }
         function setOpen(open) {
           clearTimeout(closeTimer);
+          if (open && trigger.disabled) return;
           if (open === isOpen()) return;
           if (open) clampToWindow();
           wrap.classList.toggle('open', open);

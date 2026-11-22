@@ -48,13 +48,23 @@
       </div>
 
       <span class="dock-sep" aria-hidden="true"></span>
-      <!-- Level (c4.js, LEVEL): Level N opens the groups down to N - 1 system levels (Level 1: every system is one box) and collapses the rest -->
-      <button id="btn-level-1" class="btn" data-level="1" aria-pressed="false" title="Level 1, system context: every system is one box" aria-label="Level 1">
-        {{icon:layers}}<span class="btn-label">Level 1</span>
-      </button>
-      <button id="btn-level-2" class="btn" data-level="2" aria-pressed="false" title="Level 2, containers: systems are opened to their containers" aria-label="Level 2">
-        {{icon:layers}}<span class="btn-label">Level 2</span>
-      </button>
+      <!-- Level (c4.js, LEVEL): Level N opens the groups down to N - 1 system levels (Level 1: collapsible systems are one box) and collapses the rest -->
+      <div class="dock-pop-wrap" data-dock-pop data-level>
+        <button id="btn-level" class="btn dock-pop-trigger" aria-label="Level" aria-haspopup="true" aria-expanded="false" aria-controls="level-pop">
+          {{icon:layers}}<span class="btn-label">Level</span><span class="btn-count" hidden></span>
+          <span class="dock-pop-caret" aria-hidden="true">{{icon:chevron-up:xs:bold}}</span>
+        </button>
+        <div id="level-pop" class="dock-pop" role="radiogroup" aria-label="C4 level">
+          <div class="dock-pop-grid">
+            <button type="button" id="btn-level-1" class="btn btn-shape" role="radio" data-level="1" aria-checked="false" title="Level 1, system context: systems are shown as one box" aria-label="Level 1, system context">
+              {{icon:server:tile:fine}}<span class="tile-caption">Level 1</span>
+            </button>
+            <button type="button" id="btn-level-2" class="btn btn-shape" role="radio" data-level="2" aria-checked="false" title="Level 2, containers: systems are opened to their containers" aria-label="Level 2, containers">
+              {{icon:type-c4:tile:fine}}<span class="tile-caption">Level 2</span>
+            </button>
+          </div>
+        </div>
+      </div>
       <span class="dock-sep" aria-hidden="true"></span>
       <!-- Notes (c4.js, NOTES): shows or hides every note card; the count is the notes with text -->
       <button id="btn-notes" class="btn btn-switch" role="switch" title="Show all notes" aria-label="Notes" aria-checked="false">

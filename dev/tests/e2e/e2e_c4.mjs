@@ -145,12 +145,15 @@ try {
   const tileNames = () => t.ev(`[...document.querySelectorAll('.c4-node .c4-name, .c4-group.is-tile .c4-name')].map((e) => e.textContent).sort().join('|')`);
   const toastText = () => t.ev(`[...document.querySelectorAll(${J(A.toast)})].map((e) => e.textContent).join(' / ')`);
   const dropToasts = () => t.ev(`document.querySelectorAll(${J(A.toast)}).forEach((e) => e.remove())`);
-  // The dock's Add tiles hide until the pointer is over the trigger
-  const openAdd = async () => {
-    const p = await t.at('#btn-add');
+  // The dock's Add and Level tiles hide until the pointer is over their trigger
+  const openPop = async (triggerSel) => {
+    const p = await t.at(triggerSel);
     await t.mouse('mouseMoved', p.x, p.y);
-    await t.waitFor(`(() => { const pop = document.querySelector('#btn-add')?.closest('[data-dock-pop]')?.querySelector('.dock-pop'); return pop && pop.closest('.open') && getComputedStyle(pop).opacity === '1'; })()`);
+    await t.waitFor(`(() => { const pop = document.querySelector(${J(triggerSel)})?.closest('[data-dock-pop]')?.querySelector('.dock-pop'); return pop && pop.closest('.open') && getComputedStyle(pop).opacity === '1'; })()`);
   };
+  const openAdd = () => openPop('#btn-add');
+  const openLevel = () => openPop('#btn-level');
+  const pickLevel = async (n) => { await openLevel(); await t.clickOn(`#btn-level-${n}`); await sleep(500); await t.settle(1500); };
   const tile = async (kind) => { await openAdd(); await t.clickOn(`#btn-add-${kind}`); await t.settle(); };
   const addNamed = async (kind, name) => { await tile(kind); await t.press('a', { modifiers: 2 }); await t.type(name); await t.press('Enter'); await t.settle(); };
   // Click the visible menu / popover entry whose text matches (the entry is found by text, not by position)
@@ -181,7 +184,7 @@ try {
     const s = await sel(name);
     const r = await t.at(s);
     await t.mouse('mouseMoved', r.x, r.y);
-    await sleep(120);
+    await sleep(160);
     return t.at(`${s.split(',')[0]} .c4-port${side ? `[data-side="${side}"]` : ''}`);
   };
   const fit = async () => { await t.clickOn('#btn-zoom-reset'); await sleep(200); await t.settle(); };
@@ -235,6 +238,27 @@ try {
     t.check('the frame has a tag with the group name and a chevron button with aria-expanded=true',
       (await text(`${A.tag} .c4-tag-name`)) === 'Platform' && (await t.ev(`document.querySelector(${J(A.chevron)}).getAttribute('aria-expanded')`)) === 'true');
     t.check('every arrow has a text label, and the tech shows under it', (await t.ev(`[...document.querySelectorAll(${J(A.label)})].map((e) => e.textContent).sort().join('|')`)).includes('Orders') && (await text(`${A.label} .c4-label-tech`)) === '[HTTPS]');
+    // connector label pills hug content with balanced vertical padding
+    const pillMetrics = await t.ev(`(() => [...document.querySelectorAll('.c4-label')].map((el) => {
+      const cs = getComputedStyle(el);
+      return { text: el.textContent, w: el.offsetWidth, h: el.offsetHeight, pt: parseFloat(cs.paddingTop), pb: parseFloat(cs.paddingBottom), inlineW: el.style.width, inlineH: el.style.height };
+    }))()`);
+    const readsPill = pillMetrics.find((m) => m.text === 'Reads'), mailPill = pillMetrics.find((m) => m.text === 'Sends mail'), ordersPill = pillMetrics.find((m) => m.text.includes('Orders'));
+    t.check('connector labels hug their text with top/bottom padding and no fixed inline width/height',
+      !!readsPill && !!mailPill && !!ordersPill && readsPill.w < mailPill.w && readsPill.pt >= 3 && readsPill.pb >= 3 && ordersPill.h > readsPill.h && !readsPill.inlineW && !readsPill.inlineH,
+      J(pillMetrics));
+    // connector anchor circles match Flowchart: hidden at rest, visible on hover, 16px diameter centered on edge
+    const portRest = await t.ev(`(() => { const p = document.querySelector('.c4-node .c4-port[data-side="N"]'); const cs = getComputedStyle(p); return { op: cs.opacity, pe: cs.pointerEvents, w: cs.width, h: cs.height, bw: cs.borderTopWidth, bs: cs.boxSizing }; })()`);
+    t.check('connector ports are hidden at rest and use Flowchart 12px content-box + 2px border styling',
+      portRest.op === '0' && portRest.pe === 'none' && portRest.w === '12px' && portRest.h === '12px' && portRest.bw === '2px' && portRest.bs === 'content-box', J(portRest));
+    const custPt = await t.at(await sel('Customer'));
+    await t.mouse('mouseMoved', custPt.x, custPt.y);
+    await sleep(180);
+    const portHover = await t.ev(`(() => { const n = document.querySelector('.c4-node[data-kind="person"]'), p = n.querySelector('.c4-port[data-side="N"]'); const cs = getComputedStyle(p), nr = n.getBoundingClientRect(), pr = p.getBoundingClientRect(); return { op: cs.opacity, pe: cs.pointerEvents, cx: Math.abs((pr.left + pr.width / 2) - (nr.left + nr.width / 2)), cy: Math.abs((pr.top + pr.height / 2) - nr.top) }; })()`);
+    t.check('hovering a card reveals edge-centered anchor circles',
+      portHover.op === '1' && portHover.pe === 'auto' && portHover.cx < 1.5 && portHover.cy < 1.5, J(portHover));
+    await t.mouse('mouseMoved', 5, 5);
+    await sleep(150);
     t.check('the colour key is shown above the diagram', (await present('.c4-key')) || (await present('.color-key')));
     const w = await t.ev(`(() => { const c = document.getElementById('c4-canvas').getBoundingClientRect(), v = document.querySelector(${J(A.stage)}).getBoundingClientRect(); return [c.width, c.height, v.width, v.height]; })()`);
     t.check('the diagram has a size', w[0] > 100 && w[1] > 100, J(w));
@@ -244,17 +268,23 @@ try {
   // --- Level, collapse, expand, hover, search ----------------------------------------------------------------
   await section('level', async () => {
     await freshPage();
-    await t.clickOn('#btn-level-1');
-    await sleep(500); await t.settle(1500);
-    t.check('Level 1 collapses the system group to one tile: its contents leave, the arrows aggregate (3 -> 2), the button is pressed',
+    const lvState = () => t.ev(`(() => {
+      const btn = document.getElementById('btn-level'), c = btn.querySelector('.btn-count');
+      const l1 = document.getElementById('btn-level-1'), l2 = document.getElementById('btn-level-2');
+      return { disabled: btn.disabled, badge: c.hidden ? '' : c.textContent, l1: l1.getAttribute('aria-checked'), l2: l2.getAttribute('aria-checked') };
+    })()`);
+    t.check('Level picker starts enabled with L2 badge and Level 2 radio checked',
+      J(await lvState()) === J({ disabled: false, badge: 'L2', l1: 'false', l2: 'true' }), J(await lvState()));
+    await pickLevel(1);
+    t.check('Level 1 collapses the system group to one tile: its contents leave, the arrows aggregate (3 -> 2), badge shows L1',
       (await count(A.tile)) === 1 && (await count(A.frame)) === 0 && !(await present(item(await idOf('Web API') || 'x'))) && (await count(A.edge)) === 2
-      && (await t.ev(`document.getElementById('btn-level-1').getAttribute('aria-pressed')`)) === 'true', `${await count(A.tile)} ${await count(A.edge)}`);
+      && J(await lvState()) === J({ disabled: false, badge: 'L1', l1: 'true', l2: 'false' }), `${await count(A.tile)} ${await count(A.edge)} ${J(await lvState())}`);
     t.check('the collapsed tile is named "Platform" and says what is inside', (await text(`${A.tile} ${A.name}`)) === 'Platform' && /2 elements/.test(await text(`${A.tile} .c4-desc`) || ''));
     t.check('after Level 1: no ghost, nothing animating', (await t.ev(GHOSTS)) === 0 && (await t.ev(WAAPI)) === 0);
-    await t.clickOn('#btn-level-2');
-    await sleep(500); await t.settle(1500);
-    t.check('Level 2 opens it again: the frame, 3 tiles inside plus Customer and Mail, 3 arrows',
-      (await count(A.frame)) === 1 && (await count(A.node)) === 4 && (await count(A.edge)) === 3 && (await t.ev(`document.getElementById('btn-level-2').getAttribute('aria-pressed')`)) === 'true');
+    await pickLevel(2);
+    t.check('Level 2 opens it again: the frame, 4 tiles, 3 arrows, badge shows L2',
+      (await count(A.frame)) === 1 && (await count(A.node)) === 4 && (await count(A.edge)) === 3
+      && J(await lvState()) === J({ disabled: false, badge: 'L2', l1: 'false', l2: 'true' }));
     // the chevron and the tile
     await t.clickOn(A.chevron);
     await sleep(500); await t.settle(1500);
@@ -264,6 +294,52 @@ try {
     t.check('the chevron on the tile expands it again', (await count(A.frame)) === 1 && (await count(A.edge)) === 3);
     const s = await tidyState();
     t.check('after collapse and expand: no overlap, in frame, no ghost, nothing animating', !s.overlaps.length && !s.outside.length && s.ghosts === 0 && s.waapi === 0, J(s.overlaps));
+
+    // Smart collapse: no collapsible groups disables #btn-level (no vacuous Level 1 highlight), and Level 2 reopens manually collapsed boundary
+    const boundaryOnlyPage = laidOut({
+      diagramType: 'c4', schemaVersion: 1, title: 'BoundaryOnly',
+      groups: [{ id: 'third', name: 'Third-party', kind: 'boundary' }],
+      elements: [
+        { id: 'u', kind: 'person', name: 'User' },
+        { id: 'ext', kind: 'external', name: 'Mail', group: 'third' }
+      ],
+      relations: [{ from: 'u', to: 'ext', label: 'Uses' }]
+    }, 'boundary-only');
+    await freshPage(boundaryOnlyPage);
+    t.check('with no collapsible system/container groups, #btn-level is disabled and neither radio is checked',
+      J(await lvState()) === J({ disabled: true, badge: '', l1: 'false', l2: 'false' }), J(await lvState()));
+    const lvPt = await t.at('#btn-level');
+    await t.mouse('mouseMoved', lvPt.x, lvPt.y);
+    await sleep(160);
+    t.check('hovering disabled #btn-level does not open #level-pop', !(await present('#btn-level:is(:disabled)') && await present('.dock-pop-wrap[data-level].open')));
+    // manually collapse the boundary via chevron -> Level 2 reopens it
+    await t.clickOn(A.chevron);
+    await sleep(400); await t.settle(1500);
+    t.check('manually collapsing a boundary enables #btn-level in mixed state', J(await lvState()) === J({ disabled: false, badge: '', l1: 'false', l2: 'false' }), J(await lvState()));
+    await pickLevel(2);
+    t.check('Level 2 reopens a manually collapsed boundary', (await count(A.frame)) === 1 && (await count(A.tile)) === 0);
+
+    // Smart collapse: boundary holding containers auto-collapses at Level 1 while outer ownership boundary stays open
+    const smartPage = laidOut({
+      diagramType: 'c4', schemaVersion: 1, title: 'SmartCollapse',
+      groups: [
+        { id: 'org', name: 'ShopCo', kind: 'boundary' },
+        { id: 'app', name: 'Checkout', kind: 'boundary', parent: 'org' }
+      ],
+      elements: [
+        { id: 'u', kind: 'person', name: 'Shopper' },
+        { id: 'web', kind: 'container', name: 'Web App', group: 'app' },
+        { id: 'db', kind: 'database', name: 'Cart DB', group: 'app' }
+      ],
+      relations: [{ from: 'u', to: 'web', label: 'Shops' }, { from: 'web', to: 'db', label: 'Reads' }]
+    }, 'smart-collapse');
+    await freshPage(smartPage);
+    await pickLevel(1);
+    t.check('Level 1 collapses container-holding boundary while keeping outer ownership boundary open',
+      (await present(`${A.frame}[data-group-id="org"]`)) && (await present(`${A.tile}[data-group-id="app"]`)));
+    await pickLevel(2);
+    t.check('Level 2 reopens container-holding boundary',
+      (await present(`${A.frame}[data-group-id="org"]`)) && (await present(`${A.frame}[data-group-id="app"]`)));
   });
 
   await section('hover', async () => {
@@ -422,7 +498,79 @@ try {
     await t.press('Enter');
     await sleep(200);
     t.check('the group is renamed', (await text(`${A.tag} .c4-tag-name`)) === 'Core platform');
-    await tidy('renaming');
+
+    // Direct inline editing on cards: tech, description, ghost placeholders, and Tab cycling
+    await freshPage();
+    const apiSel = item(await idOf('Web API')), custSel = item(await idOf('Customer'));
+    const apiTechPt = await t.at(`${apiSel} .c4-tech`);
+    await t.click(apiTechPt.x, apiTechPt.y, { count: 2 });
+    await sleep(200);
+    t.check('double-click on .c4-tech opens inline editor with raw tech (no brackets)', (await editing()) === 'Node', `${await editing()}`);
+    await t.press('a', { modifiers: 2 });
+    await t.type('Go');
+    await t.press('Enter');
+    await sleep(250); await t.settle(1500);
+    t.check('edited tech renders as [Go] and saves on the element', (await text(`${apiSel} .c4-tech`)) === '[Go]' && byName((await saved()).elements, 'Web API')?.tech === 'Go');
+    // double-click .c4-desc on Customer
+    const custDescPt = await t.at(`${custSel} .c4-desc`);
+    await t.click(custDescPt.x, custDescPt.y, { count: 2 });
+    await sleep(200);
+    t.check('double-click on .c4-desc opens inline editor with description', (await editing()) === 'Buys online', `${await editing()}`);
+    await t.press('a', { modifiers: 2 });
+    await t.type('Pays the bills');
+    await t.press('Enter');
+    await sleep(250); await t.settle(1500);
+    t.check('edited description saves on the element', byName((await saved()).elements, 'Customer')?.description === 'Pays the bills');
+    // ghost placeholder + tech on selected card, then Tab / Shift+Tab cycling
+    await clickName('Customer');
+    t.check('selected card with missing tech shows ghost placeholder .c4-tech-ph', await t.ev(`(() => { const el = document.querySelector('.c4-node[data-kind="person"] .c4-tech-ph'); return !!el && getComputedStyle(el).display !== 'none' && el.hasAttribute('data-export-skip'); })()`));
+    const phPt = await t.at('.c4-node[data-kind="person"] .c4-tech-ph');
+    await t.click(phPt.x, phPt.y);
+    await sleep(200);
+    t.check('clicking + tech placeholder opens inline tech editor', (await editing()) === '' && (await present('.c4-node[data-kind="person"] .c4-tech-ph.is-editing')));
+    await t.type('gRPC');
+    await t.press('Enter');
+    await sleep(250); await t.settle(1500);
+    const cd = byName((await saved()).elements, 'Customer');
+    t.check('saving tech via placeholder persists [gRPC] alongside description and grows card height',
+      cd?.tech === 'gRPC' && cd?.description === 'Pays the bills' && (await text(`${custSel} .c4-tech`)) === '[gRPC]' && (await t.ev(`document.querySelector('.c4-node[data-kind="person"]').offsetHeight > 112`)), J(cd));
+    // Tab / Shift+Tab cycling across Name -> Tech -> Description -> Tech
+    const cNamePt = await t.at(`${custSel} .c4-name`);
+    await t.click(cNamePt.x, cNamePt.y, { count: 2 });
+    await sleep(180);
+    t.check('Tab from name moves to tech inline editor', await (async () => { await t.press('Tab'); await sleep(180); return (await editing()) === 'gRPC'; })());
+    t.check('Tab from tech moves to description inline editor', await (async () => { await t.press('Tab'); await sleep(180); return (await editing()) === 'Pays the bills'; })());
+    t.check('Shift+Tab from description moves back to tech inline editor', await (async () => { await t.press('Tab', { modifiers: 8 }); await sleep(180); return (await editing()) === 'gRPC'; })());
+    await t.press('Escape');
+    await sleep(180);
+
+    // Direct inline editing on connectors: label, + tech placeholder, tech, Tab cycling
+    const readsPt = await t.ev(`(() => { const el = [...document.querySelectorAll('.c4-label')].find((x) => x.textContent.includes('Reads')); const r = el.querySelector('.c4-label-text').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`);
+    await t.click(readsPt.x, readsPt.y, { count: 2 });
+    await sleep(200);
+    t.check('double-click on connector label edits inline inside .c4-label-text', (await editing()) === 'Reads' && (await present('.c4-label.editing .c4-label-text.is-editing')), `${await editing()}`);
+    await t.press('a', { modifiers: 2 });
+    await t.type('Queries');
+    await t.press('Enter');
+    await sleep(250); await t.settle(1500);
+    t.check('Enter saves the inline connector label', (await saved()).relations.some((r) => r.label === 'Queries'));
+    await selectEdge('Queries');
+    t.check('selected direct arrow without tech shows + tech ghost placeholder', await t.ev(`(() => { const l = [...document.querySelectorAll('.c4-label')].find((x) => x.textContent.includes('Queries')); const ph = l && l.querySelector('.c4-label-tech-ph'); return !!ph && getComputedStyle(ph).display !== 'none' && ph.hasAttribute('data-export-skip'); })()`));
+    const edgePhPt = await t.ev(`(() => { const l = [...document.querySelectorAll('.c4-label')].find((x) => x.textContent.includes('Queries')); const r = l.querySelector('.c4-label-tech-ph').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`);
+    await t.click(edgePhPt.x, edgePhPt.y);
+    await sleep(200);
+    await t.type('SQL');
+    await t.press('Enter');
+    await sleep(250); await t.settle(1500);
+    t.check('inline arrow tech renders [SQL] and saves on the relation', (await t.ev(`[...document.querySelectorAll('.c4-label-tech')].some((e) => e.textContent === '[SQL]')`)) && (await saved()).relations.some((r) => r.label === 'Queries' && r.tech === 'SQL'));
+    // double-click .c4-label-tech opens raw tech and Tab cycles back to label
+    const edgeTechPt = await t.ev(`(() => { const el = [...document.querySelectorAll('.c4-label-tech')].find((x) => x.textContent === '[SQL]'); const r = el.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`);
+    await t.click(edgeTechPt.x, edgeTechPt.y, { count: 2 });
+    await sleep(180);
+    t.check('double-click on .c4-label-tech edits raw SQL and Tab cycles to label', (await editing()) === 'SQL' && await (async () => { await t.press('Tab'); await sleep(180); return (await editing()) === 'Queries'; })());
+    await t.press('Escape');
+    await sleep(180);
+    await tidy('renaming and inline editing');
   });
 
   // --- selection ---------------------------------------------------------------------------------------------
@@ -467,18 +615,13 @@ try {
   await section('actionbar-element', async () => {
     await freshPage();
     await clickName('Customer');
-    const acts = ['rename', 'kind', 'icon', 'color', 'group', 'core', 'side', 'details', 'connect', 'delete'];
-    const have = await t.ev(`${J(acts)}.filter((a) => !document.querySelector(${J(A.bar)} + ' [data-act="' + a + '"]'))`);
-    t.check('the element action bar has every action (rename kind icon color group core side details connect delete)', (await present(A.bar)) && have.length === 0, `missing: ${J(have)}`);
-    // rename from the bar
-    await clickAct('rename');
-    t.check('rename in the bar opens the editor', (await editing()) === 'Customer', `${await editing()}`);
-    await t.press('Escape');
-    // kind
-    await clickAct('kind');
-    t.check('the kind menu lists the kinds', /person/i.test(await menuTexts()) && /container/i.test(await menuTexts()) && /database/i.test(await menuTexts()), await menuTexts());
-    t.check('choosing Queue changes the kind', (await menuPick(/queue/i)) && byName((await saved()).elements, 'Customer')?.kind === 'queue');
-    await tidy('changing the kind');
+    const topActs = await t.ev(`[...new Set([...document.querySelectorAll(${J(A.bar + ' [data-act]')})].map((e) => e.dataset.act))].sort()`);
+    t.check('top-level element action bar has only icon, core, delete, color',
+      (await present(A.bar)) && J(topActs) === J(['color', 'core', 'delete', 'icon']), J(topActs));
+    await clickName('Web API');
+    const groupedActs = await t.ev(`[...new Set([...document.querySelectorAll(${J(A.bar + ' [data-act]')})].map((e) => e.dataset.act))].sort()`);
+    t.check('grouped element action bar omits core (only icon, delete, color)',
+      J(groupedActs) === J(['color', 'delete', 'icon']), J(groupedActs));
     // icon picker
     await clickName('Customer');
     await clickAct('icon');
@@ -528,30 +671,6 @@ try {
       t.check('choosing a swatch colours the element', !!byName((await saved()).elements, 'Customer')?.color, J(byName((await saved()).elements, 'Customer')));
     } else t.check('the colour action shows a swatch row', false, `swatches: ${sw}`);
     await blank();
-    // group menu
-    await clickName('Customer');
-    await clickAct('group');
-    const gm = await menuTexts();
-    t.check('the group menu offers none, each group and new group', /none|no group/i.test(gm) && /platform/i.test(gm) && /new group/i.test(gm), gm);
-    await menuPick(/platform/i);
-    await sleep(300); await t.settle(1500);
-    t.check('choosing Platform moves it into the group', byName((await saved()).elements, 'Customer')?.group === 'platform');
-    await tidy('moving into a group');
-    await clickName('Customer');
-    await clickAct('group');
-    await menuPick(/new group/i);
-    await sleep(300); await t.settle(1500);
-    if ((await editing()) !== null) { await t.press('Enter'); await sleep(200); }
-    const dg = await saved();
-    const cg = byName(dg.elements, 'Customer')?.group;
-    t.check('New group makes a group and puts it in', !!cg && cg !== 'platform' && dg.groups.some((g) => g.id === cg), J(byName(dg.elements, 'Customer')));
-    await tidy('new group from the menu');
-    await blank();
-    await clickName('Customer');
-    await clickAct('group');
-    await menuPick(/none|no group/i);
-    await sleep(300); await t.settle(1500);
-    t.check('None takes it out of every group', !byName((await saved()).elements, 'Customer')?.group);
     // core
     await clickName('Customer');
     await clickAct('core');
@@ -562,36 +681,6 @@ try {
     await clickAct('core');
     await sleep(300); await t.settle(1500);
     t.check('core toggled again removes it', !byName((await saved()).elements, 'Customer')?.core);
-    // side
-    await clickName('Customer');
-    await clickAct('side');
-    const sm = await menuTexts();
-    t.check('the side menu has auto, N, S, E, W', /auto/i.test(sm) && /\bN\b|north|top/i.test(sm), sm);
-    await menuPick(/^\s*(N|north|top)\b/i);
-    await sleep(300); await t.settle(1500);
-    t.check('choosing N sets side N', byName((await saved()).elements, 'Customer')?.side === 'N', J(byName((await saved()).elements, 'Customer')));
-    await clickName('Customer');
-    await clickAct('side');
-    await menuPick(/auto/i);
-    await sleep(300); await t.settle(1500);
-    t.check('auto removes the side', !byName((await saved()).elements, 'Customer')?.side);
-    // details
-    await clickName('Customer');
-    await clickAct('details');
-    t.check('details opens #c4-tech and #c4-desc', (await present('#c4-tech')) && (await present('#c4-desc')));
-    await t.clickOn('#c4-tech');
-    await t.press('a', { modifiers: 2 });
-    await t.type('gRPC');
-    await t.clickOn('#c4-desc');
-    await t.press('a', { modifiers: 2 });
-    await t.type('Pays the bills');
-    await t.press('Enter', { modifiers: 2 });   // Enter in the textarea is a newline; Ctrl+Enter (or Enter in the tech field) commits
-    await sleep(250);
-    await blank();
-    const cd = byName((await saved()).elements, 'Customer');
-    t.check('tech and description are saved', cd?.tech === 'gRPC' && cd?.description === 'Pays the bills', J(cd));
-    t.check('the tile now shows [gRPC]', /gRPC/.test(await text(`${await sel('Customer')} .c4-tech`) || ''));
-    await tidy('editing details');
     // delete
     await clickName('Customer');
     await clickAct('delete');
@@ -606,27 +695,22 @@ try {
     await freshPage();
     await t.clickOn(A.tag);
     await sleep(150);
-    const acts = ['rename', 'color', 'collapse', 'core', 'side', 'ungroup', 'delete'];
-    const have = await t.ev(`${J(acts)}.filter((a) => !document.querySelector(${J(A.bar)} + ' [data-act="' + a + '"]'))`);
-    t.check('the group action bar has every action (rename color collapse core side ungroup delete)', (await present(A.bar)) && have.length === 0, `missing: ${J(have)}`);
-    await clickAct('collapse');
-    await sleep(400); await t.settle(1500);
-    t.check('collapse folds the group to one tile', (await count(A.tile)) === 1 && (await count(A.frame)) === 0);
-    await t.clickOn(A.tile);
-    await sleep(150);
-    await clickAct('collapse');
-    await sleep(400); await t.settle(1500);
-    t.check('the same button opens it again', (await count(A.frame)) === 1);
+    const gActs = await t.ev(`[...new Set([...document.querySelectorAll(${J(A.bar + ' [data-act]')})].map((e) => e.dataset.act))].sort()`);
+    t.check('top-level group action bar has only core, ungroup, delete, color',
+      (await present(A.bar)) && J(gActs) === J(['color', 'core', 'delete', 'ungroup']), J(gActs));
+    // nested group omits core
+    await tile('group');
+    await t.press('a', { modifiers: 2 });
+    await t.type('Inner');
+    await t.press('Enter');
+    await sleep(250); await t.settle(1500);
+    const nActs = await t.ev(`[...new Set([...document.querySelectorAll(${J(A.bar + ' [data-act]')})].map((e) => e.dataset.act))].sort()`);
+    t.check('nested group action bar omits core (only ungroup, delete, color)', J(nActs) === J(['color', 'delete', 'ungroup']), J(nActs));
+    await undo();
     await t.clickOn(A.tag);
     await clickAct('core');
     await sleep(300); await t.settle(1500);
     t.check('core on the group toggles it off', !(await saved()).groups[0].core);
-    await undo();
-    await t.clickOn(A.tag);
-    await clickAct('side');
-    await menuPick(/^\s*(W|west|left)\b/i);
-    await sleep(300); await t.settle(1500);
-    t.check('side on the group is saved', (await saved()).groups[0].side === 'W', J((await saved()).groups[0]));
     await undo();
     await t.clickOn(A.tag);
     await clickAct('color');
@@ -679,40 +763,25 @@ try {
   await section('actionbar-arrow', async () => {
     await freshPage();
     await selectEdge('Reads');
-    const acts = ['label', 'tech', 'async', 'reverse', 'delete'];
-    const have = await t.ev(`${J(acts)}.filter((a) => !document.querySelector(${J(A.bar)} + ' [data-act="' + a + '"]'))`);
-    t.check('the arrow action bar has every action (label tech async reverse delete)', (await present(A.bar)) && have.length === 0, `missing: ${J(have)}`);
-    await clickAct('label');
-    t.check('label opens an editor with the label', (await editing()) === 'Reads', `${await editing()}`);
-    await t.press('a', { modifiers: 2 });
-    await t.type('Queries');
-    await t.press('Enter');
-    await sleep(250); await t.settle(1500);
-    t.check('the new label shows on the pill and is saved', (await text(A.label + '[data-edge-id]') !== null) && (await t.ev(`[...document.querySelectorAll(${J(A.label)})].some((e) => e.textContent.includes('Queries'))`)) && (await saved()).relations.some((r) => r.label === 'Queries'));
-    await selectEdge('Queries');
-    await clickAct('tech');
-    t.check('tech opens an editor', (await editing()) !== null);
-    await t.type('SQL');
-    await t.press('Enter');
-    await sleep(250); await t.settle(1500);
-    t.check('the tech shows [SQL] on the pill and is saved', (await t.ev(`[...document.querySelectorAll('.c4-label-tech')].some((e) => e.textContent === '[SQL]')`)) && (await saved()).relations.some((r) => r.tech === 'SQL'));
-    await selectEdge('Queries');
+    const eActs = await t.ev(`[...new Set([...document.querySelectorAll(${J(A.bar + ' [data-act]')})].map((e) => e.dataset.act))].sort()`);
+    t.check('direct arrow action bar has only async, reverse, delete (no label or tech)',
+      (await present(A.bar)) && J(eActs) === J(['async', 'delete', 'reverse']), J(eActs));
     await clickAct('async');
     await sleep(300); await t.settle(1500);
-    t.check('async adds the dashed class and is saved', (await t.ev(`!!document.querySelector('.c4-edge.is-async')`)) && (await saved()).relations.some((r) => r.label === 'Queries' && r.async === true));
-    await selectEdge('Queries');
+    t.check('async adds the dashed class and is saved', (await t.ev(`!!document.querySelector('.c4-edge.is-async')`)) && (await saved()).relations.some((r) => r.label === 'Reads' && r.async === true));
+    await selectEdge('Reads');
     await clickAct('async');
     await sleep(300); await t.settle(1500);
     t.check('async again removes it', !(await t.ev(`!!document.querySelector('.c4-edge.is-async')`)));
-    await selectEdge('Queries');
+    await selectEdge('Reads');
     await clickAct('reverse');
     await sleep(300); await t.settle(1500);
-    const rv = (await saved()).relations.find((r) => r.label === 'Queries');
+    const rv = (await saved()).relations.find((r) => r.label === 'Reads');
     t.check('reverse swaps the ends (Order Store -> Web API)', rv && rv.from === 'order-store' && rv.to === 'web-api' || (rv && rv.from === 'db' && rv.to === 'api'), J(rv));
     await tidy('reversing an arrow');
     await undo();
-    t.check('one undo reverses back', (await saved()).relations.find((r) => r.label === 'Queries')?.from !== rv?.from);
-    await selectEdge('Queries');
+    t.check('one undo reverses back', (await saved()).relations.find((r) => r.label === 'Reads')?.from !== rv?.from);
+    await selectEdge('Reads');
     await clickAct('delete');
     await sleep(300); await t.settle(1500);
     t.check('delete removes just the arrow', (await count(A.edge)) === 2 && (await count(A.node)) === 4);
@@ -765,17 +834,20 @@ try {
     t.check('hovering a tile shows connect ports (.c4-port)', !!hover && (await count(`${await sel('Customer')} .c4-port`.replace(/, /, ' .c4-port, ') )) >= 1);
     // Esc cancels the whole connection
     await connect('Customer', 'Order Store');
-    t.check('a port drag onto another tile opens #c4-label-input', (await present('#c4-label-input')) && (await t.ev(`document.activeElement && document.activeElement.id === 'c4-label-input'`)), `${await present('#c4-label-input')}`);
+    t.check('a port drag onto another tile opens inline label editing inside .c4-label-text',
+      (await present('.c4-label.editing .c4-label-text.is-editing')) && (await t.ev(`document.activeElement && document.activeElement.matches('.c4-label-text.is-editing')`)) && !(await present(A.bar)),
+      `${await present('.c4-label-text.is-editing')}`);
     await t.press('Escape');
     await sleep(300); await t.settle(1500);
     t.check('Esc drops the whole connection (no new arrow, no relation) and the undo stack is as it was',
-      (await count(A.edge)) === 3 && (await saved()).relations.length === 3 && !(await present('#c4-label-input')) && (await undoOff()) === startUndoOff, `${await count(A.edge)} undoOff=${await undoOff()} was ${startUndoOff}`);
+      (await count(A.edge)) === 3 && (await saved()).relations.length === 3 && !(await present('.c4-label-text.is-editing')) && (await undoOff()) === startUndoOff, `${await count(A.edge)} undoOff=${await undoOff()} was ${startUndoOff}`);
     // an empty label is refused
     await dropToasts();
     await connect('Customer', 'Order Store');
     await t.press('Enter');
     await sleep(250);
-    t.check('an empty label is refused: the prompt stays and says a label is required', (await present('#c4-label-input')) && /label/i.test(await toastText()), `${await toastText()}`);
+    t.check('an empty label is refused: the inline editor stays open and says a label is required',
+      (await present('.c4-label-text.is-editing')) && /label/i.test(await toastText()), `${await toastText()}`);
     await t.type('Browses');
     await t.press('Enter');
     await sleep(300); await t.settle(1500);
@@ -793,40 +865,24 @@ try {
     await dropToasts();
     await connect('Customer', 'Customer');
     await sleep(300);
-    t.check('a port drag dropped on its own tile is refused with a toast and no prompt', (await saved()).relations.length === 3 && !(await present('#c4-label-input')) && (await toastText()).length > 0, `toast=${await toastText()}`);
+    t.check('a port drag dropped on its own tile is refused with a toast and no editor', (await saved()).relations.length === 3 && !(await present('.c4-label-text.is-editing')) && (await toastText()).length > 0, `toast=${await toastText()}`);
     await blank();
-    await dropToasts();
-    await clickName('Customer');
-    await clickAct('connect');
-    await clickName('Customer');
-    await sleep(250);
-    t.check('the connect button then a click on the same tile is refused with a toast and no prompt', (await saved()).relations.length === 3 && !(await present('#c4-label-input')) && (await toastText()).length > 0, `toast=${await toastText()}`);
-    await blank();
-    // the connect button
-    await clickName('Mail Gateway');
-    await clickAct('connect');
-    await clickName('Customer');
-    await sleep(250);
-    t.check('the connect button then a click on the target opens the label prompt', await t.ev(`document.activeElement && document.activeElement.id === 'c4-label-input'`));
+    // port drag from Mail Gateway to Customer, then duplicate refused
+    await connect('Mail Gateway', 'Customer');
     await t.type('Notifies');
     await t.press('Enter');
     await sleep(300); await t.settle(1500);
     d = await saved();
-    t.check('the connect button made Mail Gateway -> Customer "Notifies"', d.relations.some((r) => r.label === 'Notifies'), J(d.relations));
-    // duplicate
+    t.check('port drag made Mail Gateway -> Customer "Notifies"', d.relations.some((r) => r.label === 'Notifies'), J(d.relations));
     await dropToasts();
     await blank();
-    await clickName('Mail Gateway');
-    await clickAct('connect');
-    await clickName('Customer');
-    await sleep(250);
-    if (await present('#c4-label-input')) { await t.type('Notifies'); await t.press('Enter'); await sleep(300); }
+    await connect('Mail Gateway', 'Customer');
+    if (await present('.c4-label-text.is-editing')) { await t.type('Notifies'); await t.press('Enter'); await sleep(300); }
     t.check('the same pair with the same label is refused (still one "Notifies")', (await saved()).relations.filter((r) => r.label === 'Notifies').length === 1 && (await toastText()).length > 0, `toast=${await toastText()}`);
     await blank();
     await tidy('connecting twice');
-    // connect to a collapsed group tile and to a group's member via the button
-    await t.clickOn('#btn-level-1');
-    await sleep(500); await t.settle(1500);
+    // Level 1 after connecting
+    await pickLevel(1);
     await tidy('Level 1 after connecting');
   });
 
@@ -913,16 +969,12 @@ try {
     await clickName('Billing System');
     await clickAct('core');
     await sleep(300); await t.settle(1500);
-    await clickName('Billing System');
-    await clickAct('side');
-    await menuPick(/^\s*(S|south|bottom)\b/i);
-    await sleep(300); await t.settle(1500);
     const raw = await rawSaved();
     const d = JSON.parse(raw);
     const ids = new Set([...d.elements, ...d.groups].map((o) => o.id));
     t.check('editor ids e_/g_ are renamed to name slugs (unique, no e_<digits>)', !d.elements.concat(d.groups).some((o) => /^[eg]_\d/.test(o.id)) && ids.size === d.elements.length + d.groups.length && /^[a-z0-9][a-z0-9_-]*$/.test(byName(d.elements, 'Billing System')?.id || ''), J(d.elements.map((e) => e.id)));
     t.check('relations and group references use the slugs', d.relations.every((r) => ids.has(r.from) && ids.has(r.to)) && d.elements.every((e) => !e.group || ids.has(e.group)), J(d.relations));
-    t.check('arrange, core and side are kept', d.arrange === 'surround' && byName(d.elements, 'Billing System')?.core === true && byName(d.elements, 'Billing System')?.side === 'S' && byName(d.elements, 'Mail Gateway')?.side === 'E' && d.groups[0].core === true, J(d.elements));
+    t.check('arrange, core and side are kept', d.arrange === 'surround' && byName(d.elements, 'Billing System')?.core === true && byName(d.elements, 'Mail Gateway')?.side === 'E' && d.groups[0].core === true, J(d.elements));
     t.check('Auto-Tidy saves no layout map, sizes or derived fields',
       !('layout' in d) && d.elements.every((e) => !('x' in e) && !('w' in e) && !('h' in e) && !Object.keys(e).some((k) => k[0] === '_')) && d.groups.every((g) => !('w' in g) && !('h' in g) && !('x' in g))
       && !('canvas' in d) && !('_edges' in d) && d.relations.every((r) => !('points' in r) && !('path' in r) && !('labelBox' in r) && !('id' in r)), J(Object.keys(d)));
@@ -1096,6 +1148,7 @@ try {
     await fit();
     const f2 = await fitState(pairs);
     t.check('after an add (Auto-Tidy) the cards still clear every tile and stand by their target', !f2.bad.length && !f2.far.length, J(f2));
+    await openLevel();
     await t.clickOn('#btn-level-1');
     const midCollapse = await t.ev(WAAPI);
     await sleep(500); await t.settle(1500);
@@ -1103,8 +1156,7 @@ try {
     t.check('the collapse plays the morph (cards included) and leaves nothing running', midCollapse > 0 && (await t.ev(WAAPI)) === 0 && (await t.ev(GHOSTS)) === 0);
     const f3 = await fitState({ n2: grp('platform') });
     t.check('the card of the collapsed tile stands by the tile, clear of every tile', !f3.bad.length && !f3.far.length, J(f3));
-    await t.clickOn('#btn-level-2');
-    await sleep(500); await t.settle(1500);
+    await pickLevel(2);
     t.check('Level 2 brings the member note back', (await ids()) === 'n1,n2');
 
     // -- search finds note text, shown or not
@@ -1204,12 +1256,10 @@ print('SAME' if a == b else 'DIFF\\n' + '\\n'.join(difflib.unified_diff(a.splitl
     await t.click(p.x, p.y, { count: 2 });
     await sleep(200);
     t.check('?present: double-click does not rename', (await editing()) === null);
-    t.check('?present: the Level control is on screen', await (async () => (await t.ev(`(() => { const b = document.getElementById('btn-level-1'); const r = b.getBoundingClientRect(); return r.width > 0 && getComputedStyle(b).visibility !== 'hidden' && !!document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)?.closest('#btn-level-1'); })()`)))(), 'the Level buttons are hidden (the shell hides .toolbar-center in present mode)');
-    await t.ev(`document.getElementById('btn-level-1').click()`);
-    await sleep(500); await t.settle(1500);
+    t.check('?present: the Level control is on screen', await (async () => (await t.ev(`(() => { const b = document.getElementById('btn-level'); const r = b.getBoundingClientRect(); return r.width > 0 && getComputedStyle(b).visibility !== 'hidden' && !!document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)?.closest('#btn-level'); })()`)))(), 'the Level picker is hidden (the shell hides .toolbar-center in present mode)');
+    await pickLevel(1);
     t.check('?present: Level 1 collapses the group', (await count(A.tile)) === 1);
-    await t.ev(`document.getElementById('btn-level-2').click()`);
-    await sleep(500); await t.settle(1500);
+    await pickLevel(2);
     t.check('?present: Level 2 opens it again', (await count(A.frame)) === 1);
     await t.press('f', { modifiers: 2 });
     await sleep(200);
@@ -1248,6 +1298,7 @@ print('SAME' if a == b else 'DIFF\\n' + '\\n'.join(difflib.unified_diff(a.splitl
   // --- motion: a normal run leaves nothing behind ------------------------------------------------------------
   await section('motion', async () => {
     await freshPage(page, '', { motion: true });
+    await openLevel();
     await t.clickOn('#btn-level-1');
     const mid = await t.ev(`${WAAPI}`);
     t.check('collapsing plays a morph (animations run) in normal motion', mid > 0, `${mid}`);
@@ -1298,13 +1349,13 @@ print('SAME' if a == b else 'DIFF\\n' + '\\n'.join(difflib.unified_diff(a.splitl
       const names = [...seen].map((x) => x.split('|')[1]);
       t.check('every arrow label is reachable by Tab with the name "label, from A to B"', seen.size === nLabels && names.every((n) => /^.+, from .+ to .+$/.test(n)), J(names));
       await t.press('Enter'); await sleep(250);
-      const was = await t.ev(`document.querySelector('#c4-label-input') ? document.querySelector('#c4-label-input').value : null`);
-      t.check('Enter on a focused label opens the label editor', was !== null, `${was}`);
+      const was = await t.ev(`document.querySelector('.c4-label-text.is-editing') ? document.querySelector('.c4-label-text.is-editing').textContent : null`);
+      t.check('Enter on a focused label opens the inline label editor', was !== null, `${was}`);
       await t.press('a', { modifiers: 2 }); await t.type('Keyed arrow'); await t.press('Enter'); await sleep(300); await t.settle(1500);
       t.check('Enter saves the label and the focus is back on the label', (await saved()).relations.some((r) => r.label === 'Keyed arrow') && (await t.ev(`!!document.activeElement && document.activeElement.matches('.edge-label.c4-label') && document.activeElement.textContent.includes('Keyed arrow')`)));
       await t.press('F2'); await sleep(250);
       await t.press('Escape'); await sleep(250);
-      t.check('F2 opens it and Esc returns the focus to the label', !(await present('#c4-label-input')) && (await t.ev(`!!document.activeElement && document.activeElement.matches('.edge-label.c4-label')`)));
+      t.check('F2 opens it and Esc returns the focus to the label', !(await present('.c4-label-text.is-editing')) && (await t.ev(`!!document.activeElement && document.activeElement.matches('.edge-label.c4-label')`)));
       await t.press('Delete'); await sleep(300); await t.settle(1500);
       t.check('Delete on a focused label removes the arrow', (await count(A.edge)) === nLabels - 1 && !(await saved()).relations.some((r) => r.label === 'Keyed arrow'), `${await count(A.edge)}`);
       await undo(); await undo();
