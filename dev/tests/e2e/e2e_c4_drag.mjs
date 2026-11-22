@@ -193,24 +193,20 @@ try {
   }; true`;
 
   // The disk model, read after a save (chartData lives in the page's closure)
-  const saved = async () => {
-    await t.press('s', { modifiers: 2 });
-    await sleep(250);
-    return JSON.parse(await t.ev(`document.getElementById('diagram-data').textContent`));
-  };
-  const rawSaved = async () => { await saved(); return t.ev(`document.getElementById('diagram-data').textContent`); };
+  const saved = () => t.saved();
+  const rawSaved = () => t.saved({ raw: true });
   const layoutOf = async () => (await saved()).layout || null;
   const isAuto = async () => { const l = (await saved()).layout; return !l || Object.keys(l).length === 0; };
   const undoOff = () => t.ev(`document.querySelector(${J(A.undo)}).disabled`);
   const redoOff = () => t.ev(`document.querySelector(${J(A.redo)}).disabled`);
-  const settleAll = async () => { await sleep(350); await t.settle(1500); await sleep(100); };
-  const undo = async () => { await t.press('z', { modifiers: 2 }); await sleep(150); await t.settle(1500); await sleep(100); };
-  const redo = async () => { await t.press('y', { modifiers: 2 }); await sleep(150); await t.settle(1500); await sleep(100); };
-  const blank = async () => { await t.press('Escape'); await t.press('Escape'); await sleep(60); };
-  const fit = async () => { await t.clickOn(A.fit); await sleep(200); await t.settle(); };
-  const freshPage = async (file = autoPage, query = '') => {
+  const settleAll = async () => { await t.settle(1500); };
+  const undo = async () => { await t.press('z', { modifiers: 2 }); await t.settle(1500); };
+  const redo = async () => { await t.press('y', { modifiers: 2 }); await t.settle(1500); };
+  const blank = async () => { await t.press('Escape'); await t.press('Escape'); await sleep(40); };
+  const fit = async () => { await t.clickOn(A.fit); await t.settle(); };
+  const freshPage = async (file = autoPage, query = '', opts = {}) => {
     errs.push(...t.errors);
-    await t.open(file, query);
+    await t.open(file, query, opts);
     await t.ev(HELP);
     await fit();
   };
@@ -296,16 +292,16 @@ try {
   const up = (q, mods = 0) => t.mouse('mouseReleased', q.x, q.y, { button: 'left', buttons: 0, clickCount: 1, modifiers: mods });
   const dragFull = async (p, q, { steps = 8, mods = 0 } = {}) => { await down(p, mods); await glide(p, q, steps, mods); await up(q, mods); await settleAll(); };
   const spotNear = async (p, clear = 70) => { const s = await t.ev(`__e2e.freeSpot(${p.x}, ${p.y}, ${clear})`); if (!s) throw new Error('no free canvas spot'); return s; };
-  const section = async (name, fn) => {
-    if (process.env.E2E_SECTIONS && !process.env.E2E_SECTIONS.split(',').includes(name)) return;   // E2E_SECTIONS=first,keys runs just those
-    try { await fn(); } catch (err) { t.check(`${name}: ran to the end`, false, (err.stack || err.message).split('\n').slice(0, 3).join(' / ')); }
-    errs.push(...t.errors); t.errors.length = 0;
-  };
+  const section = (name, fn) => t.section(name, fn, () => { errs.push(...t.errors); t.errors.length = 0; });
   // dock, rename, connect (same helpers as dev/e2e_c4.mjs)
-  const openAdd = async () => { const p = await t.at('#btn-add'); await t.mouse('mouseMoved', p.x, p.y); await sleep(550); };
+  const openAdd = async () => {
+    const p = await t.at('#btn-add');
+    await t.mouse('mouseMoved', p.x, p.y);
+    await t.waitFor(`(() => { const pop = document.querySelector('#btn-add')?.closest('[data-dock-pop]')?.querySelector('.dock-pop'); return pop && pop.closest('.open') && getComputedStyle(pop).opacity === '1'; })()`);
+  };
   const addNamed = async (kind, name) => {
-    await openAdd(); await t.clickOn(`#btn-add-${kind}`); await sleep(200);
-    await t.press('a', { modifiers: 2 }); await t.type(name); await t.press('Enter'); await sleep(150); await t.settle(1500);
+    await openAdd(); await t.clickOn(`#btn-add-${kind}`); await t.settle();
+    await t.press('a', { modifiers: 2 }); await t.type(name); await t.press('Enter'); await t.settle(1500);
   };
   const portOf = async (id) => {
     const r = await t.at(item(id));
@@ -752,7 +748,7 @@ print('SAME' if same_data and same_bytes else 'DIFF data=%s bytes=%s\\n%s' % (sa
   await section('reduced', async () => {
     await t.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
     try {
-      await freshPage(autoPage);
+      await freshPage(autoPage, '', { motion: true });
       const probe = async (name, fn) => {
         await fn();
         const r = [await t.ev(WAAPI), await t.ev(GHOSTS)];

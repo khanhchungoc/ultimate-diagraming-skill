@@ -73,13 +73,9 @@ try {
   const text = (sel) => t.ev(`(document.querySelector(${J(sel)}) || {}).textContent ?? null`);
   const block = (html) => (html.replace(/\r\n/g, '\n').match(/<script id="diagram-data" type="application\/json">([\s\S]*?)<\/script>/) || [])[1];
   // chartData lives in the page script's closure: read the model the way an agent would, from a save (the disk model)
-  const saved = async () => {
-    await t.press('s', { modifiers: 2 });
-    await sleep(250);
-    return JSON.parse(await t.ev(`document.getElementById('diagram-data').textContent`));
-  };
+  const saved = () => t.saved();
   const editing = () => t.ev(`(document.activeElement && document.activeElement.isContentEditable) ? document.activeElement.textContent : null`);
-  const undo = async () => { await t.press('z', { modifiers: 2 }); await sleep(120); };
+  const undo = async () => { await t.press('z', { modifiers: 2 }); await t.settle(); };
   const item = (id) => `[data-node-id="${id}"]`;
   const byId = (list, id) => (list || []).find((o) => o.id === id);
   const bySlug = (list, name) => (list || []).find((o) => o.name === name);
@@ -91,13 +87,17 @@ try {
   // The disk model without the page's own positions: compared before and after
   const centreOf = (sel) => t.at(sel);
   // The dock's Add tiles hide until the pointer is over the trigger
-  const openAdd = async () => { const p = await t.at('#btn-add'); await t.mouse('mouseMoved', p.x, p.y); await sleep(550); };
-  const tile = async (id) => { await openAdd(); await t.clickOn(id); await sleep(150); };
+  const openAdd = async () => {
+    const p = await t.at('#btn-add');
+    await t.mouse('mouseMoved', p.x, p.y);
+    await t.waitFor(`(() => { const pop = document.querySelector('#btn-add')?.closest('[data-dock-pop]')?.querySelector('.dock-pop'); return pop && pop.closest('.open') && getComputedStyle(pop).opacity === '1'; })()`);
+  };
+  const tile = async (id) => { await openAdd(); await t.clickOn(id); await t.settle(); };
   const dragTile = async (id, x, y) => {
     await openAdd();
     const p = await t.at(id);
     await t.dragTo(p.x, p.y, x, y, { steps: 10 });
-    await sleep(150);
+    await t.settle();
   };
   // A point on a line that really hits it (the line's own hit path under the pointer), away from its label pill
   const onLine = (id) => t.ev(`(() => {
@@ -123,8 +123,18 @@ try {
     await sleep(120);
   };
   const autoTidy = (on) => t.ev(`(() => { const b = document.getElementById('btn-auto-layout'); if ((b.getAttribute('aria-checked') === 'true') !== ${on}) b.click(); })()`);
+  let d;
+  const py = `import sys, json
+sys.path.insert(0, ${J(join(root, 'scripts'))})
+import disk_format as f
+if 'usecase' not in f.DISK_CODECS or f.DISK_CODECS['usecase'][0] is None: print('SKIP'); sys.exit(0)
+d = json.loads(sys.stdin.read()); readme = d.pop('_readme', None)
+out = f.to_disk('usecase', f.from_disk('usecase', d))
+if readme is not None: out = f.with_readme(out, readme)
+sys.stdout.write(f.format_json(out))`;
 
   // ---------------------------------------------------------------------------------------------------------
+  await t.section('render-dock-connect-rename', async () => {
   await freshPage();
   await autoTidy(false);
   t.check('the page renders 5 actors, 7 use cases, 2 subjects and 8 lines (+ 1 generalization), no errors',
@@ -172,7 +182,7 @@ try {
   // drag: a use case dropped inside the Back office boundary joins it
   const office = await t.at('.uc-subject[data-subject-id="office"]', 0.5, 0.75);
   await dragTile('#btn-add-usecase', office.x, office.y);
-  let d = await saved();
+  d = await saved();
   const dropped = d.useCases.filter((u) => u.name === 'New use case');
   t.check('dragging the Use case tile into Back office adds it to that subject at the drop point',
     dropped.length === 1 && dropped[0].subject === 'office' && (await count('.uc-case')) === 9 && d.layout[dropped[0].id] !== undefined, J(dropped));
@@ -327,8 +337,10 @@ try {
   d = await saved();
   t.check('Enter commits the new name (one undo step)', byId(d.useCases, 'pack').name === 'Pack parcel');
   await blank();
+  });
 
   // --- multi-select ----------------------------------------------------------------------------------------------------
+  await t.section('multiselect-explore-keyboard', async () => {
   await freshPage();
   await autoTidy(false);
   const sub = await t.ev(`(() => { const r = document.querySelector('.uc-subject[data-subject-id="office"]').getBoundingClientRect(); return { l: r.left, t: r.top, r: r.right, b: r.bottom }; })()`);
@@ -528,8 +540,10 @@ try {
   t.check('Enter edits the selected item\'s name', (await editing()) !== null);
   await t.press('Escape');
   await blank();
+  });
 
   // --- Auto-Tidy ---------------------------------------------------------------------------------------------------------------------
+  await t.section('auto-tidy', async () => {
   await freshPage();
   await autoTidy(false);
   const beforePos = await t.at(item('browse'));
@@ -548,8 +562,10 @@ try {
   const tidied = await t.at(item('browse'));
   t.check('turning Auto-Tidy on re-lays the diagram out (a hand placement is thrown away)', Math.abs(tidied.x - movedPos.x) > 2 || Math.abs(tidied.y - movedPos.y) > 2);
   await autoTidy(false);
+  });
 
   // --- the saved block --------------------------------------------------------------------------------------------------------------------
+  await t.section('saved-block', async () => {
   await freshPage();
   await autoTidy(false);
   await tile('#btn-add-actor');
@@ -579,19 +595,13 @@ try {
   t.check('a reload of the saved page keeps every id and every position, and saving it again changes nothing',
     JSON.stringify(again.layout) === JSON.stringify(d.layout) && JSON.stringify(again.actors) === JSON.stringify(d.actors) && JSON.stringify(again.useCases) === JSON.stringify(d.useCases) && JSON.stringify(again.links) === JSON.stringify(d.links) && t.errors.length === 0, t.errors.join(' | '));
     // the Python codec, when the repo has it, writes the same bytes
-  const py = `import sys, json
-sys.path.insert(0, ${J(join(root, 'scripts'))})
-import disk_format as f
-if 'usecase' not in f.DISK_CODECS or f.DISK_CODECS['usecase'][0] is None: print('SKIP'); sys.exit(0)
-d = json.loads(sys.stdin.read()); readme = d.pop('_readme', None)
-out = f.to_disk('usecase', f.from_disk('usecase', d))
-if readme is not None: out = f.with_readme(out, readme)
-sys.stdout.write(f.format_json(out))`;
   const pr = spawnSync('python3', ['-I', '-c', py], { input: await t.ev(`document.getElementById('diagram-data').textContent`), encoding: 'utf8' });
   const blockText = await t.ev(`document.getElementById('diagram-data').textContent`);
   t.check('the Python codec (disk_format.py) reads and writes that block unchanged', pr.status === 0 && (pr.stdout.trim() === 'SKIP' || pr.stdout.replace(/\r\n/g, '\n').trim() === blockText.trim()), pr.stderr || pr.stdout.slice(0, 200));
+  });
 
   // --- present ----------------------------------------------------------------------------------------------------------------------------
+  await t.section('present', async () => {
   // The Present button toggles in place: the search is hidden and cleared, folds are view only
   await freshPage(page);
   await t.press('/'); await t.type('pick');
@@ -629,8 +639,10 @@ sys.stdout.write(f.format_json(out))`;
   t.check('?present: Ctrl+A selects nothing', (await count('.uc-actor.selected, .uc-case.selected')) <= 1);
   await t.clickOn('.uc-subject[data-subject-id="office"] .frame-chev');
   t.check('?present: the chevron still collapses a boundary', !(await present(item('pick'))));
+  });
 
   // --- free notes: no links, an absolute saved pos ---------------------------------------------------------------------------------------
+  await t.section('free-notes', async () => {
   await freshPage(page);
   const freeOf = (dd, txt) => (dd.notes || []).find((n) => n.text === txt);
   const noteCard = (txt) => `[...document.querySelectorAll('.note')].find((x) => x.textContent === ${J(txt)})`;
@@ -701,6 +713,7 @@ sys.stdout.write(f.format_json(out))`;
   const cu2 = await t.at(item('customer'));
   await t.dragTo(h2.x, h2.y, cu2.x, cu2.y, { steps: 8 });
   t.check('the last link of a note stays (it never becomes free by unlinking)', freeOf(await saved(), 'Dropped free')?.actors?.join() === 'customer');
+  });
 
   t.check('no errors in the whole run', t.errors.length === 0, t.errors.join(' | '));
 } catch (err) {

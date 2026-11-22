@@ -17,10 +17,12 @@ const browser = argOf('browser'), laid = argOf('laid'), scrambled = argOf('scram
 if (!browser || !laid || !scrambled) { console.error('usage: --browser <chrome> --laid <html> --scrambled <html>'); process.exit(1); }
 
 const t = await launch(browser).catch((e) => { console.error('[ERROR]', e.message); process.exit(1); });
+const dlDir = mkdtempSync(join(tmpdir(), 'save_'));
 let code = 0;
 try {
   const positions = `JSON.stringify([...document.querySelectorAll('.flow-node')].map(n => [n.dataset.nodeId, n.style.left, n.style.top]).sort())`;
 
+  await t.section('core-tidy-save', async () => {
   // 1. Load: plugin registered, content rendered, no errors
   await t.open(laid);
   const refPositions = await t.ev(positions);
@@ -268,7 +270,10 @@ try {
   t.check('save location: Cancel closes the bubble without opening the dialog',
     (await t.ev(`!document.querySelector('.save-where') && window.__picked.length === 0`)) && t.errors.length === 0, t.errors.join(' | '));
 
+  });
+
   // 7. Drag shapes out of the dock (flowchart plugin): empty canvas adds a node, an arrow gets the node spliced in
+  await t.section('dock-lanes-wheel-copy', async () => {
   await t.open(laid);
   const graph = `JSON.stringify({ n: document.querySelectorAll('.flow-node').length, e: document.querySelectorAll('.edge-line').length })`;
   // Screen points sampled along every arrow, so a test point can keep clear of them
@@ -524,10 +529,12 @@ try {
   const copyVisible = await t.ev(`!document.querySelector('[data-copy="png"]').hidden && !document.querySelector('[data-copy-label]').hidden`);
   // userGesture: the clipboard write must start inside a user activation, as a real click gives
   await t.send('Runtime.evaluate', { expression: `document.querySelector('[data-copy="png"]').click()`, userGesture: true });
-  let copied = null;
+  let copied = null, badgeCopied = '';
   for (let i = 0; i < 40 && !copied; i++) {
     await sleep(100);
-    if (/copied/i.test(await t.ev(`document.getElementById('save-status').textContent`))) {
+    const statusNow = await t.ev(`document.getElementById('save-status').textContent`);
+    if (/copied/i.test(statusNow)) {
+      badgeCopied = statusNow;
       copied = await t.ev(`navigator.clipboard.read().then(async items => {
         const it = items.find(x => x.types.includes('image/png'));
         if (!it) return { types: items.flatMap(x => x.types) };
@@ -537,7 +544,7 @@ try {
       }, e => ({ error: e.message }))`);
     }
   }
-  const badgeCopied = await t.ev(`document.getElementById('save-status').textContent`);
+  if (!badgeCopied) badgeCopied = await t.ev(`document.getElementById('save-status').textContent`);
   await sleep(1700);
   const badgeAfter = await t.ev(`document.getElementById('save-status').textContent`);
   t.check('Copy › PNG puts a 1.5x PNG on the clipboard; the badge says "Copied as PNG" then returns', copyVisible && copied && copied.png && copied.size > 1000
@@ -548,7 +555,10 @@ try {
   t.check('flowchart: the Copy group shows Mermaid, SVG and the heading',
     await t.ev(`!document.querySelector('[data-copy="mermaid"]').hidden && !document.querySelector('[data-copy="svg"]').hidden && !document.querySelector('[data-copy-label]').hidden`));
 
+  });
+
   // 10. ?present hides editing chrome
+  await t.section('present-saved', async () => {
   await t.open(laid, '?present');
   t.check('?present hides Save and toolbar', await t.ev(`document.body.classList.contains('presentation') && getComputedStyle(document.getElementById('btn-save')).display === 'none' && getComputedStyle(document.querySelector('.toolbar-center')).display === 'none'`));
   t.check('?present starts with the Present button pressed', await t.ev(`document.getElementById('btn-present').getAttribute('aria-pressed') === 'true'`));
@@ -609,7 +619,6 @@ try {
 
   // 11. The saved file (dev/plans/plan-agent-readable-data.md). Without a user gesture the file picker refuses, so
   //     Save takes its download path: capture the download and read what an agent would read
-  const dlDir = mkdtempSync(join(tmpdir(), 'save_'));
   await t.send('Browser.setDownloadBehavior', { behavior: 'allow', downloadPath: dlDir });
   const saveAndRead = async () => {
     readdirSync(dlDir).forEach(f => rmSync(join(dlDir, f), { force: true }));
@@ -677,7 +686,10 @@ try {
     return a[0] < b[0] || (a[0] === b[0] && (a[1] < b[1] || (a[1] === b[1] && a[2] <= b[2]))); })());
   t.check('saved steps are in flow order (x, then lane, then y), with positions only in "layout"',
     inFlowOrder && saved2.nodes.every(n => !('x' in n) && !('y' in n)) && saved2.lanes.every(l => !('height' in l)));
+  });
+
   // 12. claude.ai Artifact (only with --artifact): Save publishes files-form updates through the artifact capability.
+  await t.section('artifact', async () => {
   //     window.claude is stubbed before the page's scripts run; use() answers from a script-controlled config.
   if (artifact) {
     const genData = readFileSync(join(dirname(artifact), 'diagram.json'), 'utf8').replace(/\r\n/g, '\n');
@@ -874,10 +886,12 @@ try {
       && await t.ev(`!document.getElementById('btn-download-html') && !document.querySelector('[data-export="html"]')`)
       && t.errors.length === 0, `${await badge()} ${t.errors.join(' | ')}`);
   }
+  });
 } catch (err) {
   console.error('[ERROR]', err.message);
   code = 1;
 } finally {
   await t.close();
+  try { rmSync(dlDir, { recursive: true, force: true }); } catch { /* temp dir */ }
 }
 process.exit(code || t.finish());

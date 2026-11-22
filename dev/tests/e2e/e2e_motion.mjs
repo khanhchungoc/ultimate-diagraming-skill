@@ -70,68 +70,75 @@ const vpPoint = () => t.ev(`(() => { const vp = document.getElementById('viewpor
 
 try {
   // ---------- (a) zero leak into exports and ?capture ----------
-  for (const type of Object.keys(TYPES)) {
-    await setup(type);
-    const settled = await (async () => {
-      await t.ev(`document.getElementById('btn-export').click()`);
-      await t.ev(`document.querySelector('[data-export="svg"]').click()`); await sleep(800);
-      return (await t.ev(`window.__blobs.splice(0)`)).find((b) => /svg/.test(b.type));
-    })();
-    // mid-flight: trigger the action and export in the same task, while WAAPI animations are running
-    const flying = await t.ev(`(() => { ${TYPES[type].act(0)};
-      const n = ${WAAPI};
-      document.getElementById('btn-export').click(); document.querySelector('[data-export="svg"]').click(); return n; })()`);
-    await sleep(800);
-    const svg = (await t.ev(`window.__blobs.splice(0)`)).find((b) => /svg/.test(b.type));
-    t.check(`${type}: the action animates before the export (control)`, flying > 0, `waapi=${flying}`);
-    t.check(`${type}: a mid-animation SVG export has no ghost and no motion class`,
-      !!svg && !/data-motion-ghost|motion-ghost-layer|motion-entering|motion-active/.test(svg.text), svg ? 'leak found' : 'no SVG blob');
-    t.check(`${type}: a mid-animation export holds the settled layout (no inline transform from a FLIP)`,
-      !!svg && !!settled && (svg.text.match(/transform:\s*translate\(/g) || []).length <= (settled.text.match(/transform:\s*translate\(/g) || []).length ,
-      svg && settled ? `translate() styles mid=${(svg.text.match(/transform:\s*translate\(/g) || []).length} settled=${(settled.text.match(/transform:\s*translate\(/g) || []).length}` : '');
+  await t.section('export-capture', async () => {
+    for (const type of Object.keys(TYPES)) {
+      await setup(type);
+      const settled = await (async () => {
+        await t.ev(`document.getElementById('btn-export').click()`);
+        await t.ev(`document.querySelector('[data-export="svg"]').click()`); await sleep(800);
+        return (await t.ev(`window.__blobs.splice(0)`)).find((b) => /svg/.test(b.type));
+      })();
+      // mid-flight: trigger the action and export in the same task, while WAAPI animations are running
+      const flying = await t.ev(`(() => { ${TYPES[type].act(0)};
+        const n = ${WAAPI};
+        document.getElementById('btn-export').click(); document.querySelector('[data-export="svg"]').click(); return n; })()`);
+      await sleep(800);
+      const svg = (await t.ev(`window.__blobs.splice(0)`)).find((b) => /svg/.test(b.type));
+      t.check(`${type}: the action animates before the export (control)`, flying > 0, `waapi=${flying}`);
+      t.check(`${type}: a mid-animation SVG export has no ghost and no motion class`,
+        !!svg && !/data-motion-ghost|motion-ghost-layer|motion-entering|motion-active/.test(svg.text), svg ? 'leak found' : 'no SVG blob');
+      t.check(`${type}: a mid-animation export holds the settled layout (no inline transform from a FLIP)`,
+        !!svg && !!settled && (svg.text.match(/transform:\s*translate\(/g) || []).length <= (settled.text.match(/transform:\s*translate\(/g) || []).length ,
+        svg && settled ? `translate() styles mid=${(svg.text.match(/transform:\s*translate\(/g) || []).length} settled=${(settled.text.match(/transform:\s*translate\(/g) || []).length}` : '');
+      await sleep(400);
+      t.check(`${type}: no orphan ghost 400ms after`, (await t.ev(GHOSTS)) === 0, `${await t.ev(GHOSTS)}`);
+    }
+    // popover leaving (ghostExit) on the flowchart: lane delete confirm, Cancel
+    await setup('flowchart');
+    await t.ev(`document.querySelector('.swimlane:nth-child(2) .lane-pill').click()`);
+    await t.ev(t.key('Delete'));
+    const ghostSeen = await t.ev(`(() => { document.querySelector('.confirm-cancel').click(); return [!!document.querySelector('.confirm'), ${GHOSTS}]; })()`);
+    t.check('flowchart: the confirm popover leaves the DOM at once; a ghost may play on', ghostSeen[0] === false, J(ghostSeen));
     await sleep(400);
-    t.check(`${type}: no orphan ghost 400ms after`, (await t.ev(GHOSTS)) === 0, `${await t.ev(GHOSTS)}`);
-  }
-  // popover leaving (ghostExit) on the flowchart: lane delete confirm, Cancel
-  await setup('flowchart');
-  await t.ev(`document.querySelector('.swimlane:nth-child(2) .lane-pill').click()`);
-  await t.ev(t.key('Delete'));
-  const ghostSeen = await t.ev(`(() => { document.querySelector('.confirm-cancel').click(); return [!!document.querySelector('.confirm'), ${GHOSTS}]; })()`);
-  t.check('flowchart: the confirm popover leaves the DOM at once; a ghost may play on', ghostSeen[0] === false, J(ghostSeen));
-  await sleep(400);
-  t.check('flowchart: the popover ghost is gone 400ms later', (await t.ev(GHOSTS)) === 0);
+    t.check('flowchart: the popover ghost is gone 400ms later', (await t.ev(GHOSTS)) === 0);
 
-  for (const type of Object.keys(TYPES)) {
-    await t.open(pages[type], '?capture');
-    const s = await t.ev(`({ cap: document.body.classList.contains('capture'), settled: document.documentElement.dataset.diagramSettled, ghosts: ${GHOSTS}, waapi: ${WAAPI} })`);
-    t.check(`${type}: ?capture is settled at load with no animation or ghost`, s.cap && s.settled === '1' && s.ghosts === 0 && s.waapi === 0, J(s));
-    const after = await t.ev(`(() => { ${TYPES[type].act(0)}; ${ZOOM_IN}; return [${WAAPI}, ${GHOSTS}]; })()`);
-    t.check(`${type}: in ?capture an action plays no animation`, after[0] === 0 && after[1] === 0, J(after));
-  }
+    for (const type of Object.keys(TYPES)) {
+      await t.open(pages[type], '?capture');
+      const s = await t.ev(`({ cap: document.body.classList.contains('capture'), settled: document.documentElement.dataset.diagramSettled, ghosts: ${GHOSTS}, waapi: ${WAAPI} })`);
+      t.check(`${type}: ?capture is settled at load with no animation or ghost`, s.cap && s.settled === '1' && s.ghosts === 0 && s.waapi === 0, J(s));
+      const after = await t.ev(`(() => { ${TYPES[type].act(0)}; ${ZOOM_IN}; return [${WAAPI}, ${GHOSTS}]; })()`);
+      t.check(`${type}: in ?capture an action plays no animation`, after[0] === 0 && after[1] === 0, J(after));
+    }
+  });
 
   // ---------- (b) reduced motion ----------
-  await t.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
-  for (const type of Object.keys(TYPES)) {
-    await setup(type);
-    const probe = async (name, expr) => {
-      const r = await t.ev(`(() => { ${expr}; return [${WAAPI}, ${GHOSTS}]; })()`);
-      await sleep(60);
-      r.push(await t.ev(WAAPI), await t.ev(GHOSTS));
-      t.check(`reduced motion, ${type}: ${name} creates no animation and no ghost`, r.every((n) => n === 0), J(r));
-    };
-    await probe('the action', TYPES[type].act(0));
-    await probe('Ctrl+Z', undo);
-    await probe('Tidy', `document.getElementById('btn-auto-tidy')?.click()`);
-    const z0 = await t.ev(`(${ZOOM_IN}, ${STAGE})`);
-    await sleep(300);
-    t.check(`reduced motion, ${type}: zoom-in jumps (no camera glide)`, (await t.ev(STAGE)) === z0, `${z0} -> ${await t.ev(STAGE)}`);
-  }
-  if (tabsPage) {
-    await t.open(tabsPage);
-    const n = await t.ev(`(() => { const b = [...document.querySelectorAll('.flow-tab[data-tab]')]; b[b.length - 1].click(); return [${WAAPI}, ${GHOSTS}, b.length]; })()`);
-    t.check('reduced motion, flowchart: a tab switch creates no animation', n[0] === 0 && n[1] === 0 && n[2] > 1, J(n));
-  }
-  await t.send('Emulation.setEmulatedMedia', { features: [] });
+  await t.section('reduced', async () => {
+    await t.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
+    try {
+      for (const type of Object.keys(TYPES)) {
+        await setup(type);
+        const probe = async (name, expr) => {
+          const r = await t.ev(`(() => { ${expr}; return [${WAAPI}, ${GHOSTS}]; })()`);
+          await sleep(60);
+          r.push(await t.ev(WAAPI), await t.ev(GHOSTS));
+          t.check(`reduced motion, ${type}: ${name} creates no animation and no ghost`, r.every((n) => n === 0), J(r));
+        };
+        await probe('the action', TYPES[type].act(0));
+        await probe('Ctrl+Z', undo);
+        await probe('Tidy', `document.getElementById('btn-auto-tidy')?.click()`);
+        const z0 = await t.ev(`(${ZOOM_IN}, ${STAGE})`);
+        await sleep(300);
+        t.check(`reduced motion, ${type}: zoom-in jumps (no camera glide)`, (await t.ev(STAGE)) === z0, `${z0} -> ${await t.ev(STAGE)}`);
+      }
+      if (tabsPage) {
+        await t.open(tabsPage);
+        const n = await t.ev(`(() => { const b = [...document.querySelectorAll('.flow-tab[data-tab]')]; b[b.length - 1].click(); return [${WAAPI}, ${GHOSTS}, b.length]; })()`);
+        t.check('reduced motion, flowchart: a tab switch creates no animation', n[0] === 0 && n[1] === 0 && n[2] > 1, J(n));
+      }
+    } finally {
+      await t.send('Emulation.setEmulatedMedia', { features: [] });
+    }
+  });
 
   // ---------- (c) interruption safety: bursts settle on the ?noanim layout ----------
   // Reference = the same burst with 700ms between steps (every animation finishes), so only the interruption differs.
@@ -142,64 +149,69 @@ try {
   };
   const settle = async (type, burst, gap) => { await setup(type); await burst(gap); await sleep(900); return snapshot(type); };
   for (const type of Object.keys(TYPES)) {
-    for (const [name, mk] of Object.entries(bursts)) {
-      const got = await settle(type, mk(type), 30), ref = await settle(type, mk(type), 700);
-      const d = maxDiff(got.rects, ref.rects);
-      const sd = Math.max(0, ...nums(got.stage).map((v, i) => Math.abs(v - nums(ref.stage)[i])));
-      t.check(`${type}, ${name} 30ms apart: rects settle within 1px of the slow run`, d < 1 && got.rects.length > 0, `maxDiff=${d} n=${got.rects.length}/${ref.rects.length}`);
-      t.check(`${type}, ${name} 30ms apart: camera settles on the slow run's view`, sd < 1, `${got.stage} vs ${ref.stage}`);
-      t.check(`${type}, ${name} 30ms apart: no orphan ghost or running animation after 900ms`, got.ghosts === 0 && got.waapi === 0, `ghosts=${got.ghosts} waapi=${got.waapi}`);
-    }
+    await t.section(`burst-${type}`, async () => {
+      for (const [name, mk] of Object.entries(bursts)) {
+        const got = await settle(type, mk(type), 30), ref = await settle(type, mk(type), 700);
+        const d = maxDiff(got.rects, ref.rects);
+        const sd = Math.max(0, ...nums(got.stage).map((v, i) => Math.abs(v - nums(ref.stage)[i])));
+        t.check(`${type}, ${name} 30ms apart: rects settle within 1px of the slow run`, d < 1 && got.rects.length > 0, `maxDiff=${d} n=${got.rects.length}/${ref.rects.length}`);
+        t.check(`${type}, ${name} 30ms apart: camera settles on the slow run's view`, sd < 1, `${got.stage} vs ${ref.stage}`);
+        t.check(`${type}, ${name} 30ms apart: no orphan ghost or running animation after 900ms`, got.ghosts === 0 && got.waapi === 0, `ghosts=${got.ghosts} waapi=${got.waapi}`);
+      }
+    });
   }
   if (tabsPage) {
-    TYPES.tabs = { rects: TYPES.flowchart.rects };
-    const run = async (gap) => {
-      await t.open(tabsPage);
-      for (let i = 0; i < 5; i++) { await t.ev(`(() => { const b = [...document.querySelectorAll('.flow-tab[data-tab]')]; b[${i} % b.length].click(); })()`); await sleep(gap); }
-      await sleep(900); return snapshot('tabs');
-    };
-    const got = await run(30), ref = await run(700);
-    const d = maxDiff(got.rects, ref.rects);
-    t.check('flowchart, five tab switches 30ms apart: rects settle within 1px of the slow run, no ghost', d < 1 && got.rects.length > 0 && got.ghosts === 0 && got.waapi === 0,
-      `maxDiff=${d} n=${got.rects.length}/${ref.rects.length} ghosts=${got.ghosts} waapi=${got.waapi}`);
-    t.check('flowchart, five tab switches 30ms apart: the fit camera equals the slow run\'s (scale within 0.002)', Math.abs(nums(got.stage)[2] - nums(ref.stage)[2]) < 0.002, `${got.stage} vs ${ref.stage}`);
-    delete TYPES.tabs;
+    await t.section('burst-tabs', async () => {
+      TYPES.tabs = { rects: TYPES.flowchart.rects };
+      const run = async (gap) => {
+        await t.open(tabsPage);
+        for (let i = 0; i < 5; i++) { await t.ev(`(() => { const b = [...document.querySelectorAll('.flow-tab[data-tab]')]; b[${i} % b.length].click(); })()`); await sleep(gap); }
+        await sleep(900); return snapshot('tabs');
+      };
+      const got = await run(30), ref = await run(700);
+      const d = maxDiff(got.rects, ref.rects);
+      t.check('flowchart, five tab switches 30ms apart: rects settle within 1px of the slow run, no ghost', d < 1 && got.rects.length > 0 && got.ghosts === 0 && got.waapi === 0,
+        `maxDiff=${d} n=${got.rects.length}/${ref.rects.length} ghosts=${got.ghosts} waapi=${got.waapi}`);
+      t.check('flowchart, five tab switches 30ms apart: the fit camera equals the slow run\'s (scale within 0.002)', Math.abs(nums(got.stage)[2] - nums(ref.stage)[2]) < 0.002, `${got.stage} vs ${ref.stage}`);
+      delete TYPES.tabs;
+    });
   }
 
-  // ---------- (c2) motion must not change what the page lays out ----------
-  const local = (type) => t.ev(`(() => { const st = document.getElementById('stage'), s = st.getBoundingClientRect(), k = s.width / st.offsetWidth;
-    return [...document.querySelectorAll(${J(TYPES[type].rects)})].map((e) => { const r = e.getBoundingClientRect(); return [(r.left - s.left) / k, (r.top - s.top) / k, r.width / k, r.height / k]; }); })()`);
-  for (const type of Object.keys(TYPES)) {
-    await t.send('Emulation.setEmulatedMedia', { features: [] });
-    await t.open(pages[type]); const on = await local(type);
-    await t.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
-    await t.open(pages[type]); const off = await local(type);
-    await t.send('Emulation.setEmulatedMedia', { features: [] });
-    t.check(`${type}: a page loads to the same layout with motion on and off`, maxDiff(on, off) < 1 && on.length > 0, `maxDiff=${maxDiff(on, off)} n=${on.length}/${off.length}`);
-  }
-
-  // ---------- (d) direct manipulation stays 0ms ----------
-  for (const type of Object.keys(TYPES)) {
-    await setup(type);
-    const p = await vpPoint();
-    if (!p) { t.check(`${type}: found blank canvas to pan from`, false); continue; }
-    const before = nums(await t.ev(STAGE));
-    await t.dragTo(p.x, p.y, p.x + 60, p.y + 40, { steps: 6 });
-    const raw = await t.ev(STAGE);
-    const after = nums(raw);
-    t.check(`${type}: a 60x40 drag pans exactly 60x40 at release (1:1, no lag)`, Math.abs(after[0] - before[0] - 60) < 2 && Math.abs(after[1] - before[1] - 40) < 2 && after[2] === before[2],
-      `${before} -> ${after}`);
-    t.check(`${type}: the stage transform keeps its translate(Xpx, Ypx) scale(S) form`, /^translate\(-?[\d.]+px, -?[\d.]+px\) scale\([\d.]+\)$/.test(raw), raw);
-    // a pan takes over a running camera glide at once
-    await t.ev(ZOOM_IN); await sleep(40);
-    const q = await vpPoint();
-    if (q) {
-      await t.dragTo(q.x, q.y, q.x + 50, q.y, { steps: 4 });
-      const atRelease = await t.ev(STAGE); await sleep(400);
-      t.check(`${type}: a pan cancels the zoom glide (view frozen at release)`, (await t.ev(STAGE)) === atRelease && !(await t.ev(`document.getElementById('viewport').classList.contains('gesturing')`)),
-        `${atRelease} -> ${await t.ev(STAGE)}`);
+  // ---------- (c2) motion must not change what the page lays out + (d) direct manipulation ----------
+  await t.section('layout-pan', async () => {
+    const local = (type) => t.ev(`(() => { const st = document.getElementById('stage'), s = st.getBoundingClientRect(), k = s.width / st.offsetWidth;
+      return [...document.querySelectorAll(${J(TYPES[type].rects)})].map((e) => { const r = e.getBoundingClientRect(); return [(r.left - s.left) / k, (r.top - s.top) / k, r.width / k, r.height / k]; }); })()`);
+    for (const type of Object.keys(TYPES)) {
+      await t.send('Emulation.setEmulatedMedia', { features: [] });
+      await t.open(pages[type]); const on = await local(type);
+      await t.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
+      await t.open(pages[type]); const off = await local(type);
+      await t.send('Emulation.setEmulatedMedia', { features: [] });
+      t.check(`${type}: a page loads to the same layout with motion on and off`, maxDiff(on, off) < 1 && on.length > 0, `maxDiff=${maxDiff(on, off)} n=${on.length}/${off.length}`);
     }
-  }
+
+    for (const type of Object.keys(TYPES)) {
+      await setup(type);
+      const p = await vpPoint();
+      if (!p) { t.check(`${type}: found blank canvas to pan from`, false); continue; }
+      const before = nums(await t.ev(STAGE));
+      await t.dragTo(p.x, p.y, p.x + 60, p.y + 40, { steps: 6 });
+      const raw = await t.ev(STAGE);
+      const after = nums(raw);
+      t.check(`${type}: a 60x40 drag pans exactly 60x40 at release (1:1, no lag)`, Math.abs(after[0] - before[0] - 60) < 2 && Math.abs(after[1] - before[1] - 40) < 2 && after[2] === before[2],
+        `${before} -> ${after}`);
+      t.check(`${type}: the stage transform keeps its translate(Xpx, Ypx) scale(S) form`, /^translate\(-?[\d.]+px, -?[\d.]+px\) scale\([\d.]+\)$/.test(raw), raw);
+      // a pan takes over a running camera glide at once
+      await t.ev(ZOOM_IN); await sleep(40);
+      const q = await vpPoint();
+      if (q) {
+        await t.dragTo(q.x, q.y, q.x + 50, q.y, { steps: 4 });
+        const atRelease = await t.ev(STAGE); await sleep(400);
+        t.check(`${type}: a pan cancels the zoom glide (view frozen at release)`, (await t.ev(STAGE)) === atRelease && !(await t.ev(`document.getElementById('viewport').classList.contains('gesturing')`)),
+          `${atRelease} -> ${await t.ev(STAGE)}`);
+      }
+    }
+  });
   t.check('no page errors', t.errors.length === 0, t.errors.join(' | '));
 } catch (e) {
   console.error('[ERROR]', e.message);

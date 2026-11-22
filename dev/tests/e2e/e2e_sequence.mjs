@@ -24,11 +24,7 @@ try {
   const model = () => t.ev(`JSON.parse(JSON.stringify(chartData))`).catch(() => null);
   // chartData lives in the page script's closure: read the model the way an agent would, from a save
   const block = (html) => (html.replace(/\r\n/g, '\n').match(/<script id="diagram-data" type="application\/json">([\s\S]*?)<\/script>/) || [])[1];
-  const saved = async () => {
-    await t.press('s', { modifiers: 2 });
-    await sleep(300);
-    return JSON.parse(await t.ev(`document.getElementById('diagram-data').textContent`));
-  };
+  const saved = () => t.saved();
   const disabled = (id) => t.ev(`document.getElementById(${JSON.stringify(id)}).disabled`);
   const editing = () => t.ev(`(document.activeElement && document.activeElement.isContentEditable) ? document.activeElement.textContent : null`);
   const onScreen = (sel) => t.ev(`(() => { const r = document.querySelector(${JSON.stringify(sel)}).getBoundingClientRect();
@@ -39,9 +35,25 @@ try {
   const gapY = (a, b) => t.ev(`(() => { const y = (id) => { const r = document.querySelector('.seq-line[data-edge-id="' + id + '"]').getBoundingClientRect(); return r.top + r.height / 2; };
     return ${b ? `(y('${a}') + y('${b}')) / 2` : `y('${a}') + 30`}; })()`);
   void model;
+  const order = JSON.parse(block(readFileSync(page, 'utf8'))).participants.map((p) => ({ id: p.id, name: p.name }));
+  const openFit = async (url, query = '') => { await t.open(url, query); await t.clickOn('#btn-zoom-reset'); };
+  const stageScale = () => t.ev(`+(document.getElementById('stage').style.transform.match(/scale\\(([\\d.]+)\\)/) || [0, 0])[1]`);
+  const summaries = () => count('.frame-summary');
+  const frameEdge = (fid, edge) => t.ev(`(() => { const r = document.querySelector('.seq-frag-box[data-frag-id="${fid}"]').getBoundingClientRect(); return ${edge === 'top' ? 'r.top' : 'r.bottom'}; })()`);
+  const drawAt = async (fromPid, y, toPid) => {
+    const a = await lifelineAt(fromPid, y), b = await lifelineAt(toPid, y);
+    await t.mouse('mouseMoved', a.x + 80, y);
+    await t.mouse('mouseMoved', a.x, y);
+    await sleep(80);
+    const plus = await t.at('.seq-plus');
+    await t.dragTo(plus.x, plus.y, b.x + 4, plus.y + 4);
+    await t.press('Enter');
+    return saved();
+  };
+  let d, f1Bottom;
 
+  await t.section('repair', async () => {
   await t.open(page);
-  const order = JSON.parse(await t.ev(`JSON.stringify([...document.querySelectorAll('.seq-participant')].map(e => ({ id: e.dataset.nodeId, name: e.querySelector('.seq-participant-name').textContent })))`));
   const p0 = JSON.parse(await t.ev(names)), m0 = JSON.parse(await t.ev(labels));
   t.check('renders participants, messages, frames without errors',
     p0.length === 4 && m0.length === 7 && (await count('.frame-tag')) === 2 && t.errors.length === 0, `p=${p0.length} m=${m0.length} ${t.errors.join(' | ')}`);
@@ -157,7 +169,10 @@ try {
   dk = await saved();
   t.check('Message from a selected participant adds a call at the first row', dk.messages[0].kind === 'sync' && dk.messages[0].from === 'p2', JSON.stringify(dk.messages[0]));
 
+  });
+
   // --- Messages and participants (step 4) ---
+  await t.section('messages-participants', async () => {
   // Drag from the + on a lifeline to another lifeline: a call at the dropped row, label in edit
   await t.open(page);
   const yGap = await gapY('m1', 'm2');
@@ -171,7 +186,7 @@ try {
   const drawn = await editing();
   await t.type('Check fraud');
   await t.press('Enter');
-  let d = await saved();
+  d = await saved();
   t.check('dragging from a lifeline + to another lifeline draws a call at that row, in edit',
     plusShown && drawn === 'Message' && d.messages[1].label === 'Check fraud' && d.messages[1].from === 'p3' && d.messages[1].to === 'p2' && d.messages[1].kind === 'sync',
     `plus=${plusShown} edit=${drawn} ${JSON.stringify(d.messages[1])}`);
@@ -270,7 +285,10 @@ try {
   const f1a = d.fragments.find((f) => f.id === 'f1');
   t.check('a branch whose message leaves goes when it would be empty; the frame edge follows', f1a.to === 'm5' && f1a.elseAt === undefined && !f1a.branches, JSON.stringify(f1a));
 
+  });
+
   // --- Frames and notes (step 5) ---
+  await t.section('frames-notes', async () => {
   // Shift+click a range, then Frame
   await t.open(page);
   await t.clickOn('.seq-msg-label[data-edge-id="m1"]');
@@ -371,20 +389,8 @@ try {
 
   // --- Frame-aware drop slots (review fixes S1): the end (and start) of a frame, inside it or just outside it ---
   // On the checkout page f1 (alt) spans m4..m6, m7 follows it, and f2 (opt) spans m2..m3.
-  const frameEdge = (fid, edge) => t.ev(`(() => { const r = document.querySelector('.seq-frag-box[data-frag-id="${fid}"]').getBoundingClientRect(); return ${edge === 'top' ? 'r.top' : 'r.bottom'}; })()`);
-  // Hover a lifeline at screen y, then draw from the + to another lifeline (leaving the label editor with Enter)
-  const drawAt = async (fromPid, y, toPid) => {
-    const a = await lifelineAt(fromPid, y), b = await lifelineAt(toPid, y);
-    await t.mouse('mouseMoved', a.x + 80, y);
-    await t.mouse('mouseMoved', a.x, y);
-    await sleep(80);
-    const plus = await t.at('.seq-plus');
-    await t.dragTo(plus.x, plus.y, b.x + 4, plus.y + 4);
-    await t.press('Enter');
-    return saved();
-  };
   await t.open(page);
-  let f1Bottom = await frameEdge('f1', 'bottom');
+  f1Bottom = await frameEdge('f1', 'bottom');
   // The drawn message is the one id the page did not start with
   const fresh = (dk) => dk.messages.findIndex((m) => !/^m[1-7]$/.test(m.id));
   d = await drawAt('p2', f1Bottom - 10, 'p1');
@@ -412,7 +418,10 @@ try {
   at = fresh(d);
   t.check('a message drawn just above a branch divider ends the branch above', at === 5 && branchAt(d) === 'm6', JSON.stringify(d.fragments));
 
+  });
+
   // --- Drag Frame and Note from the dock ---
+  await t.section('drag-draw-save', async () => {
   // On the checkout page order[1] and order[2] are neighbours; halfway between their lifelines is away from both
   const m2Line = () => t.at('.seq-line[data-edge-id="m2"]');
   // A new note is the one whose id was not there before the drag
@@ -640,9 +649,10 @@ try {
       savedBlock === gen && !/"(x|y|w|h|elseY|dividers|hidden|layout)":/.test(savedBlock), JSON.stringify(savedBlock.slice(0, 200)));
   }
 
+  });
+
   // --- Reading a long diagram (steps 2 and 3) ---
-  const openFit = async (url, query = '') => { await t.open(url, query); await t.clickOn('#btn-zoom-reset'); };
-  const stageScale = () => t.ev(`+(document.getElementById('stage').style.transform.match(/scale\\(([\\d.]+)\\)/) || [0, 0])[1]`);
+  await t.section('long-rails-lifespans', async () => {
   await t.open(long);
   const initView = await t.ev(`(() => {
     const c = document.getElementById('seq-canvas').getBoundingClientRect();
@@ -701,7 +711,6 @@ try {
   // every participant outside the SPM phase has something to fold. Then Focus on SPM.
   await openFit(long);
   const canvasW = () => t.ev(`document.getElementById('seq-canvas').offsetWidth`);
-  const summaries = () => count('.frame-summary');
   const rails = () => t.ev(`JSON.stringify([...document.querySelectorAll('.seq-participant.is-rail')].map((e) => e.dataset.nodeId))`);
   await t.clickOn('.seq-msg-label[data-edge-id="m17"]');
   await t.clickOn('.seq-msg-label[data-edge-id="m19"]', { modifiers: 8 });
@@ -865,7 +874,10 @@ try {
   t.check('turning Trim lifelines off drops the shared columns (they need lifespans)', d.lifespans === undefined && d.participants.every((q) => q.column === undefined));
   t.check('no page errors in the column steps', t.errors.length === 0, t.errors.join(' | '));
 
+  });
+
   // --- Participant colours (step 5) ---
+  await t.section('colors-artifact', async () => {
   await t.open(page);
   const SKY = '1', AMBER = '2';   // palette slots: sky, amber
   const boxStyle = (pid) => t.ev(`(() => { const b = document.querySelector('.seq-participant[data-node-id="${pid}"]'); const c = getComputedStyle(b);
@@ -996,6 +1008,7 @@ try {
       && !/"(x|y|w|h|elseY|layout)":/.test(json) && t.errors.length === 0, `${pub.length} ${t.errors.join(' | ')}`);
     await t.send('Page.removeScriptToEvaluateOnNewDocument', { identifier });
   }
+  });
 } catch (err) {
   console.error('[ERROR]', err.message);
   code = 1;
