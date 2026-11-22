@@ -2191,7 +2191,9 @@
       btnShowAll.addEventListener('click', showAll);
       seqHtml.addEventListener('click', (e) => {
         if (e.target.isContentEditable) return;
-        const btn = e.target.closest('.frame-chev, .frame-summary, .seq-frag-focus, .frame-tag');
+        const btn = e.target.closest(isPresent()
+          ? '.frame-chev, .frame-summary, .seq-frag-focus, .frame-tag'
+          : '.frame-chev, .frame-summary, .seq-frag-focus');
         if (!btn) return;
         e.stopPropagation();
         const fid = btn.closest('[data-frag-id]').dataset.fragId;

@@ -1286,13 +1286,16 @@
           updateTransform();
         };
 
-        plugin.render();
-        applyInitialView();
-        updateStatus(false);
-        committedJson = savedJson = JSON.stringify(chartData);
-        updateHistoryButtons();
-        document.documentElement.classList.remove('is-loading');
-        document.documentElement.dataset.diagramReady = '1';
+        try {
+          plugin.render();
+          applyInitialView();
+          updateStatus(false);
+          committedJson = savedJson = JSON.stringify(chartData);
+          updateHistoryButtons();
+        } finally {
+          document.documentElement.classList.remove('is-loading');
+          document.documentElement.dataset.diagramReady = '1';
+        }
 
         requestAnimationFrame(() => {
           applyInitialView();
@@ -1326,6 +1329,7 @@
         }
         if (on) {
           plugin.cancelInteraction(); plugin.clearSelection();
+          setHelpOpen(false, false);
           setSearchOpen(false); if (plugin.clearSearch) plugin.clearSearch();
           presentEntry = { json: JSON.stringify(chartData), committed: committedJson, undo: undoStack.slice(), redo: redoStack.slice() };
         }
@@ -1936,25 +1940,39 @@
       });
       btnZoomReset.addEventListener('click', () => fitView(true));
 
-      function setHelpOpen(open) {
+      function setHelpOpen(open, restoreFocus) {
         const wasOpen = helpDrawer.classList.contains('open');
         if (open === wasOpen) return;
-        if (!open) motion.ghostExit(helpDrawer, { duration: 110, transform: 'scale(0.92) translateY(10px)', origin: 'bottom right' });
+        if (!open) {
+          motion.ghostExit(helpDrawer, {
+            duration: 110,
+            transform: 'scale(0.92, 0.86) translateY(-4px)',
+            clipPath: 'inset(0 0 25% 0 round 8px)',
+            origin: 'top right'
+          });
+        }
         helpDrawer.classList.toggle('open', open);
         btnHelp.setAttribute('aria-expanded', String(open));
         if (open) {
           if (motion.enabled()) {
-            helpDrawer.style.transformOrigin = 'bottom right';
+            helpDrawer.style.transformOrigin = 'top right';
             motion.anim(helpDrawer, [
-              { transform: 'scale(0.92) translateY(10px)', clipPath: 'inset(100% 0 0 100% round 8px)' },
+              { transform: 'scale(0.92, 0.86) translateY(-4px)', clipPath: 'inset(0 0 25% 0 round 8px)' },
               { transform: 'none', clipPath: 'inset(0 0 0 0 round 8px)' }
-            ], { duration: motion.dur('dur-base', 180), easing: motion.curve('curve-spring-tactile') });
+            ], { duration: motion.dur('dur-base', 160), easing: motion.curve('curve-spring-tactile') });
           }
           document.getElementById('help-close').focus();
-        } else if (helpDrawer.contains(document.activeElement)) btnHelp.focus();
+        } else if (restoreFocus) {
+          btnHelp.focus();
+        }
       }
-      btnHelp.addEventListener('click', () => { setHelpOpen(!helpDrawer.classList.contains('open')); });
-      document.getElementById('help-close').addEventListener('click', () => setHelpOpen(false));
+      btnHelp.addEventListener('click', () => { setHelpOpen(!helpDrawer.classList.contains('open'), false); });
+      document.getElementById('help-close').addEventListener('click', () => setHelpOpen(false, true));
+      document.addEventListener('pointerdown', (e) => {
+        if (helpDrawer.classList.contains('open') && !helpDrawer.contains(e.target) && !btnHelp.contains(e.target)) {
+          setHelpOpen(false, false);
+        }
+      }, true);
 
       // --- SEARCH (spec: dev/plans/search.md) ---
       // Contract: a plugin may define searchItems() -> [{ id, text, el }] in reading order; id is stable across
@@ -3134,11 +3152,11 @@
           if (e.key.toLowerCase() === 'y' || e.shiftKey) redo(); else undo();
         } else if (e.key === 'Escape') {
           if (presentOn() && !document.body.classList.contains('capture')) { setPresent(false); return; }
-          if (helpDrawer.classList.contains('open')) { setHelpOpen(false); return; }
+          if (helpDrawer.classList.contains('open')) { setHelpOpen(false, true); return; }
           plugin.cancelInteraction();
         } else if (e.key === '?' && !e.ctrlKey && !e.metaKey && !e.altKey && !typingInField() && !presentOn()) {
           e.preventDefault();
-          setHelpOpen(!helpDrawer.classList.contains('open'));
+          setHelpOpen(!helpDrawer.classList.contains('open'), true);
         } else if (e.key === 'Delete' || e.key === 'Backspace') {
           if (document.body.classList.contains('presentation')) return;
           if (document.activeElement && (document.activeElement.isContentEditable || document.activeElement.tagName === 'INPUT')) {

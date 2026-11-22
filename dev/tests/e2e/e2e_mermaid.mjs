@@ -90,7 +90,11 @@ try {
     const err1 = await importText(text);
     const after1 = await save();
     const again = await copyText();
-    t.check(`${kind}: importing the copied text lays out cleanly`, !err1 && Object.keys(after1.layout || {}).length === Object.keys(base.layout || {}).length, err1);
+    const layoutOk = kind === 'c4'
+      ? !after1.layout && (await t.ev(`document.querySelectorAll('.c4-node[data-node-id]').length`)) === (base.elements || []).length
+      : Object.keys(after1.layout || {}).length === Object.keys(base.layout || {}).length;
+    t.check(`${kind}: importing the copied text lays out cleanly`, !err1 && layoutOk,
+      err1 || `layout ${Object.keys(after1.layout || {}).length} vs ${Object.keys(base.layout || {}).length}`);
     t.check(`${kind}: and copying again gives the same Mermaid text`, again === text, firstDiff(text.split('\n'), again.split('\n')));
     t.check(`${kind}: no page errors`, t.errors.length === 0, t.errors.join(' | '));
     if (kind === 'c4') {

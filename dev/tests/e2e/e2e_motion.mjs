@@ -45,7 +45,7 @@ const TYPES = {
   },
   erd: {
     rects: '.erd-entity[data-node-id], .edge-label[data-edge-id]',
-    act: () => `document.getElementById('btn-columns').click()`,
+    act: (i) => `document.querySelector('#columns-pop [data-detail="${['keys', 'names', 'all'][i % 3]}"]').click()`,
   },
   usecase: {
     rects: '.uc-actor[data-node-id], .uc-case[data-node-id], .uc-subject[data-subject-id]',

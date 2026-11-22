@@ -195,6 +195,7 @@ try {
   const tidyState = async () => {
     await sleep(500); await t.settle(1500);
     const d = await saved();
+    await dropToasts(); await t.settle(1500);
     const dom = await t.ev(`(() => {
       const R = (e) => { const r = e.getBoundingClientRect(); return { l: r.left, t: r.top, r: r.right, b: r.bottom }; };
       const tiles = [...document.querySelectorAll('.c4-node, .c4-group.is-tile')].map((e) => ({ n: e.querySelector('.c4-name').textContent, ...R(e) }));

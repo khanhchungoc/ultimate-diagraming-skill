@@ -136,18 +136,18 @@
     </div>
   </div>
 
-  <!-- Help & Shortcuts Drawer -->
+  <!-- Help & Shortcuts Popover -->
   <aside id="help-drawer" role="dialog" aria-labelledby="help-title">
     <div class="help-head">
-      <span id="help-title">Shortcuts &amp; Interaction</span>
+      <span id="help-title">Shortcuts</span>
       <button id="help-close" class="help-close" type="button" title="Close (Esc)" aria-label="Close shortcuts">
         {{icon:close}}
       </button>
     </div>
-    <ul class="help-list">
+    <div class="help-body">
 {{TYPE_HELP}}
 {{SHELL_HELP}}
-    </ul>
+    </div>
   </aside>
 
   <!-- Interactive Diagram Script: shell, then the type's engine and plugin -->

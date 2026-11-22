@@ -32,7 +32,7 @@ CUSTOM_GLYPHS = (
     "table-add", "relationship", "split",
     "shape-terminator", "shape-process", "shape-decision", "shape-connector",
     "shape-subprocess", "shape-data", "shape-document", "shape-database",
-    "shape-delay", "shape-note",
+    "shape-delay", "shape-c4-group", "note",
     "lane", "participant", "message", "frame", "numbers", "message-return",
     "lifespans", "line-dashed", "line-solid", "message-async",
     "actor", "usecase", "subject",
@@ -75,7 +75,6 @@ TABLER_MAP: Dict[str, str] = {
     "focus": "target",
     "eye": "eye",
     # Docks & editing
-    "note": "note",
     "notes": "notes",
     "note-lines": "align-left",
     "columns": "list-details",

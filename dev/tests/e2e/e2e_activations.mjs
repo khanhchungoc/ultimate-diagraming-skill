@@ -62,6 +62,7 @@ try {
   const rowY = (id) => t.ev(`document.querySelector('.seq-line[data-edge-id="${id}"]').getBoundingClientRect().top + 6`);
   const handle = (id) => `.seq-barend[data-id="${id}"]`;
   const stretch = async (id, to, escape = false) => {
+    await t.press('Escape');
     await t.clickOn(`.seq-msg-label[data-edge-id="${id}"]`);
     const h = await t.at(handle(id));
     if (!h) throw new Error(`no stretch handle on ${id}`);
