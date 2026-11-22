@@ -66,11 +66,79 @@ def test_posix_create_link_creates_symlink() -> None:
         assert target.is_symlink() and target.resolve() == source.resolve()
 
 
+def test_register_version_hook_merges_and_is_idempotent() -> None:
+    import json
+    with tempfile.TemporaryDirectory() as d:
+        root = Path(d)
+        settings = root / ".claude" / "settings.json"
+        settings.parent.mkdir(parents=True)
+        existing = {
+            "theme": "dark",
+            "hooks": {
+                "SessionStart": [{"hooks": [{"type": "command", "command": "echo hi"}]}],
+                "PreToolUse": [{"hooks": [{"type": "command", "command": "echo pre"}]}],
+            },
+        }
+        settings.write_text(json.dumps(existing), encoding="utf-8")
+        dest = root / ".claude" / "skills" / "ultimate-diagram"
+
+        ok1, _ = install.register_version_hook("claude", settings, dest)
+        ok2, _ = install.register_version_hook("claude", settings, dest)
+        assert ok1 and ok2
+
+        merged = json.loads(settings.read_text(encoding="utf-8"))
+        assert merged["theme"] == "dark"
+        assert len(merged["hooks"]["PreToolUse"]) == 1
+        ss = merged["hooks"]["SessionStart"]
+        assert len(ss) == 2, ss  # original entry + one idempotent ultimate-diagram entry
+        ours = ss[1]["hooks"][0]
+        assert ours["async"] is True and "--hook claude" in ours["command"]
+
+        # Corrupt JSON must not be clobbered
+        bad = root / "bad.json"
+        bad.write_text("{not valid json", encoding="utf-8")
+        ok_bad, msg = install.register_version_hook("gemini", bad, dest)
+        assert not ok_bad and "could not parse JSON" in msg
+        assert bad.read_text(encoding="utf-8") == "{not valid json"
+
+
+def test_node_installer_hooks_and_no_hooks() -> None:
+    import json
+    repo_root = Path(__file__).resolve().parents[3]
+    with tempfile.TemporaryDirectory() as d:
+        proj = Path(d) / "proj"
+        proj.mkdir()
+        res = subprocess.run(
+            ["node", str(repo_root / "bin" / "install.js"), "--project", "--target-path", str(proj),
+             "--runtime", "claude", "--mode", "copy", "--claude-output", "file"],
+            capture_output=True, text=True, encoding="utf-8",
+        )
+        assert res.returncode == 0, res.stdout + res.stderr
+        settings = proj / ".claude" / "settings.json"
+        assert settings.is_file()
+        data = json.loads(settings.read_text(encoding="utf-8"))
+        assert len(data["hooks"]["SessionStart"]) == 1
+        assert data["hooks"]["SessionStart"][0]["hooks"][0]["async"] is True
+
+        # --no-hooks skips writing settings.json
+        proj2 = Path(d) / "proj2"
+        proj2.mkdir()
+        res2 = subprocess.run(
+            ["node", str(repo_root / "bin" / "install.js"), "--project", "--target-path", str(proj2),
+             "--runtime", "claude", "--mode", "copy", "--claude-output", "file", "--no-hooks"],
+            capture_output=True, text=True, encoding="utf-8",
+        )
+        assert res2.returncode == 0, res2.stdout + res2.stderr
+        assert not (proj2 / ".claude" / "settings.json").exists()
+
+
 def main() -> None:
     test_windows_junction_uses_subprocess_argv()
     test_windows_junction_failure_falls_back_to_copy()
     test_posix_create_link_creates_symlink()
-    print("[PASS] install.py create_link")
+    test_register_version_hook_merges_and_is_idempotent()
+    test_node_installer_hooks_and_no_hooks()
+    print("[PASS] install.py + install.js")
 
 
 if __name__ == "__main__":

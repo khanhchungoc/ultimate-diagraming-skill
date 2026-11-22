@@ -37,6 +37,7 @@ import subprocess_flow as sub
 from build_icon_pack import installed_packs, load_all_logos, load_logos, logo_refs
 from engine_runner import DEFAULT_TIMEOUT, EngineUnavailable, layout_session, run_layout, run_mermaid
 from tokens import expand_icons, load_icons, load_tokens, merge_theme, tokens_css, tokens_js
+from version_check import check_nonblocking as check_version_nonblocking
 
 
 DEFAULT_COL_WIDTH = 200
@@ -2094,13 +2095,18 @@ def main():
                 text = re.sub(r"(?m)^flowchart", "\n".join(head) + "\nflowchart", text, count=1)
             if free:
                 text += "\n%% Notes (free: they explain nothing in particular)\n" + "\n".join(free)
+        update_note = check_version_nonblocking()
         if args.output:
             out_p = Path(args.output)
             out_p.parent.mkdir(parents=True, exist_ok=True)
             out_p.write_text(text + chr(10), encoding="utf-8")
             print(f"[OK] {what} saved to: {out_p}")
+            if update_note:
+                print(update_note)
         else:
             print(text)
+            if update_note:
+                print(update_note, file=sys.stderr)
         return
 
     if args.verify:
@@ -2301,6 +2307,10 @@ def main():
             sys.exit(render_code)
         if not data_bad and args.rm_input and is_mmd and in_p.resolve() != render_target.resolve():
             in_p.unlink(missing_ok=True)
+        if not data_bad:
+            update_note = check_version_nonblocking()
+            if update_note:
+                print(update_note)
         print("[NEXT] Fix the [WARN] lines (data) and re-run." if data_bad else
               "[DONE] The diagram is final: report any [INFO] lines, do not re-word, re-run or re-render.")
         if external_refs or report["data_issues"]:
