@@ -283,7 +283,7 @@ try {
   await sleep(300);
   const noCopy = await t.ev(`({ title: document.querySelector('.confirm .confirm-title')?.textContent, msg: document.querySelector('.confirm .confirm-msg')?.textContent })`);
   t.check('save location: when copying fails, prompts to copy the path and overwrite the file',
-    noCopy.title === 'Save over this file' && /^Copy this path, /.test(noCopy.msg) && /overwrite/i.test(noCopy.msg), JSON.stringify(noCopy));
+    noCopy.title === 'Save over this file' && /^Copy path, /.test(noCopy.msg) && /overwrite/i.test(noCopy.msg), JSON.stringify(noCopy));
   await t.ev(`document.querySelector('.confirm .confirm-cancel').click()`);
   await sleep(100);
 

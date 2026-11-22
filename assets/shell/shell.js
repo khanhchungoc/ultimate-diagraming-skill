@@ -2941,17 +2941,17 @@
         const text = mac ? loc.folder : loc.file;
         const copied = await copyText(text);
         const where = loc.win
-          ? 'paste in File name (Ctrl+A, Ctrl+V), click Save, and overwrite the file.'
+          ? 'paste in File name (Ctrl+A, Ctrl+V), Save, and overwrite.'
           : mac
-            ? 'press \u2318\u21e7G, paste (\u2318V) + Return, click Save, and overwrite the file.'
-            : 'press Ctrl+L, paste (Ctrl+V), click Save, and overwrite the file.';
+            ? 'press \u2318\u21e7G, paste (\u2318V) + Return, Save, and overwrite.'
+            : 'press Ctrl+L, paste (Ctrl+V), Save, and overwrite.';
         const path = document.createElement('code');
         path.className = 'save-where';
         path.textContent = text;
         ui.confirm(btnSave, {
           label: 'Save over the file you opened',
           title: copied ? 'Path copied' : 'Save over this file',
-          message: (copied ? 'Next, ' : 'Copy this path, ') + where,
+          message: copied ? where[0].toUpperCase() + where.slice(1) : 'Copy path, ' + where,
           extra: path,
           ok: 'Choose\u2026',
           okClass: 'btn-primary'
