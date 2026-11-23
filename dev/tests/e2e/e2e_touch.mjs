@@ -64,10 +64,11 @@ await drag(30, 750, 0, -500);
 const pin = await t.ev(`(() => {
   const canvas = document.getElementById('seq-canvas');
   const box = canvas.querySelector('.seq-participant').getBoundingClientRect(), vp = document.getElementById('viewport').getBoundingClientRect();
-  return { pinned: canvas.classList.contains('seq-pinned'), boxTop: box.top, vpTop: vp.top };
+  const safeTop = Math.max(vp.top, ...[...document.querySelectorAll('header .toolbar-left, header .toolbar-right')].map((el) => el.getBoundingClientRect().bottom));
+  return { pinned: canvas.classList.contains('seq-pinned'), boxTop: box.top, safeTop };
 })()`);
 t.check('the participant row pins once panned off by touch', pin.pinned);
-t.check('the pinned row sits at the top of the viewport', pin.boxTop >= pin.vpTop - 1 && pin.boxTop < pin.vpTop + 60, `${pin.boxTop} vs ${pin.vpTop}`);
+t.check('the pinned row sits below the floating header pills', pin.boxTop >= pin.safeTop - 1 && pin.boxTop < pin.safeTop + 60, `${pin.boxTop} vs ${pin.safeTop}`);
 
 // --- Sequence: drawing a message by touch: tap its participant's pill (a lifeline tap selects nothing), then drag from the lifeline ---
 const ids = await t.ev(`[...document.querySelectorAll('.seq-participant')].map((e) => e.dataset.nodeId)`);

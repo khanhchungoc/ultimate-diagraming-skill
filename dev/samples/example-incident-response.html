@@ -826,7 +826,7 @@
       .toolbar-center > .dock-delete:not(.show) { flex: 0 0 0; }
     }
     /* Below 1300px the dock is icon-only (the labels need about 800px beside the zoom dock): same icons, same tooltips, one row.
-       Between 721px and 1300px the add dock is centred in the space right of the zoom dock, so the two never collide. */
+       Between 721px and 1300px the edit dock sits at the bottom-right corner to align with the top-right pill. */
     @media (max-width: 1300px) {
       .toolbar-center .btn-label { display: none; }
       .toolbar-center > .btn:not(:has(.btn-count:not([hidden]))) { padding-inline: 8px; }
@@ -834,7 +834,7 @@
     @media (min-width: 721px) and (max-width: 1300px) {
       .dock-area { grid-template-columns: auto minmax(0, 1fr); }
       .toolbar-zoom { grid-column: 1; grid-row: 1; }
-      .toolbar-center { grid-column: 2; grid-row: 1; justify-self: center; }
+      .toolbar-center { grid-column: 2; grid-row: 1; justify-self: end; }
     }
     .badge {
       font-size: var(--text-sm);
@@ -1127,6 +1127,8 @@
     .note-layer .note.show, .note-layer .note.peek { display: block; }
     .note-layer .note.peek:not(.show) { animation: note-in var(--dur-fast) var(--curve-spring-tactile); box-shadow: var(--shadow-lg); }
     @keyframes note-in { from { transform: scale(0.92); clip-path: inset(0 0 25% 0); } to { transform: none; clip-path: inset(0 0 0 0); } }
+    @media (prefers-reduced-motion: reduce) { .note-layer .note.peek:not(.show) { animation: none; } }
+    html[data-noanim] .note-layer .note.peek:not(.show) { animation: none; }
     .note-layer.measuring .note { display: block; visibility: hidden; animation: none; }
 
     /* Leader: the dashed line from a card to what it explains; .linking is the one being dragged to a new target */
@@ -1431,16 +1433,15 @@
     /* Search: the bar under the header (input, counter, previous, next) and the two classes the shell puts on diagram
        elements (search-dim on non-matches, search-current on the match being shown). View-only: exports and Save never see them.
        Markup: #search-bar > input#search-input, #search-count, button#search-prev, button#search-next. */
-    /* In the canvas, top right (below the header): an icon that opens into the text box; opening hides the icon */
-    #search-dock { position: fixed; top: 68px; right: 16px; z-index: 150; display: flex; justify-content: flex-end; pointer-events: none; }
+    /* Below the top-right pill: opens into the search bar; #btn-search stays visible inside the pill */
+    #search-dock { position: fixed; top: 66px; right: 20px; z-index: 150; display: flex; justify-content: flex-end; pointer-events: none; }
     #search-dock > * { pointer-events: auto; }
-    #btn-search { background: var(--bg-panel); border: 1px solid var(--border-dark); box-shadow: var(--shadow-md); }
-    #btn-search[aria-expanded="true"] { display: none; }
     /* One rounded box like the other panels: icon, text, count, previous, next. Controls are flat (no boxes); the focus ring is the pill's */
     #search-bar {
       display: flex; align-items: center; gap: 2px; padding: 4px 4px 4px 12px; height: 40px; box-sizing: border-box;
       background: var(--bg-panel); border: 1px solid var(--border-dark); border-radius: var(--radius-lg);
-      box-shadow: var(--shadow-lg); transition: border-color var(--dur-micro) var(--curve-out), box-shadow var(--dur-micro) var(--curve-out);
+      box-shadow: var(--shadow-lg); transform-origin: top right;
+      transition: border-color var(--dur-micro) var(--curve-out), box-shadow var(--dur-micro) var(--curve-out);
     }
     #search-bar:focus-within { border-color: var(--primary); }
     #search-bar[hidden] { display: none; }
@@ -1458,7 +1459,7 @@
     #search-dock svg { width: var(--icon-lg); height: var(--icon-lg); }   /* same icon size as the header toolbar */
     .search-dim { opacity: var(--dim); filter: var(--dim-filter); transition: opacity var(--dur-micro) var(--curve-inout), filter var(--dur-micro) var(--curve-inout); }
     .search-current { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
-    @media (max-width: 720px) { #search-dock { left: 12px; } #search-bar { flex: 1 1 auto; } #search-input { flex: 1 1 auto; min-width: 0; width: auto; } }
+    @media (max-width: 720px) { #search-dock { top: 60px; left: 12px; right: 12px; } #search-bar { flex: 1 1 auto; } #search-input { flex: 1 1 auto; min-width: 0; width: auto; } }
 
 
     * {
@@ -1482,38 +1483,53 @@
     /* Form controls and kbd do not inherit the page font by default (buttons fall back to Arial, kbd to monospace) */
     button, input, select, textarea, kbd { font-family: inherit; }
 
-    /* Top Navigation Toolbar */
+    /* Top Floating Corner Pills (matching .toolbar-zoom / .toolbar-center in dock.css) */
     header {
-      background: var(--bg-panel);
-      border-bottom: 1px solid var(--border-color);
-      height: 56px;
-      padding: 0 16px;
+      position: fixed;
+      top: 16px;
+      left: 20px;
+      right: 20px;
+      z-index: 100;
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       justify-content: space-between;
       gap: 12px;
-      position: relative;   /* anchors the search bar */
-      z-index: 100;
-      box-shadow: var(--shadow-sm);
+      pointer-events: none;
     }
+    header > * { pointer-events: auto; }
 
     .toolbar-left, .toolbar-right {
       display: flex;
       align-items: center;
-      gap: 10px;
+      min-height: 42px;
+      padding: 4px;
+      background: var(--bg-panel);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-xl);
+      box-shadow: var(--shadow-md);
     }
-    .toolbar-left { min-width: 0; flex: 1 1 auto; }
-    .toolbar-right { flex: none; }
+    .toolbar-left {
+      min-width: 0;
+      flex: 0 1 auto;
+      gap: 8px;
+      padding: 4px 10px 4px 12px;
+    }
+    .toolbar-left:has(.type-switch) { padding-left: 4px; }
+    .toolbar-right { flex: none; gap: 4px; }
     .toolbar-left > svg, .type-switch svg { flex: none; color: var(--primary); }   /* the type's header icon */
     /* Playground type switcher: a labeled button (icon, name, chevron) over a scrollable menu, so it holds any number of types */
-    .type-btn { gap: 8px; padding: 0 10px; height: 36px; }
+    .type-btn { gap: 8px; padding: 0 10px; height: 32px; border-color: transparent; background: transparent; }
     .type-btn svg:last-child { color: var(--text-muted); }
     #type-menu { min-width: 220px; max-height: min(60vh, 420px); overflow-y: auto; }
-    #type-menu button { display: flex; align-items: center; gap: 10px; width: 100%; }
+    #type-menu button,
+    #more-menu button { display: flex; align-items: center; gap: 10px; width: 100%; }
     #type-menu .menu-check { margin-left: auto; }
-    /* Header buttons: universal glyphs (theme, help, import, export) are icon-only 36px squares, borderless until hovered; Present and Save keep a text label when there is room */
+    .more-wrap { display: none; }
+    #more-menu { min-width: 196px; }
+    #more-menu svg { flex: none; color: var(--text-soft); }
+    /* Header buttons: universal glyphs (search, theme, help, import, export, more) are 32px squares matching the bottom docks */
     header .btn-icon {
-      width: 36px; height: 36px; padding: 0;
+      width: 32px; height: 32px; padding: 0;
       justify-content: center;
       border-color: transparent;
       background: transparent;
@@ -1524,15 +1540,32 @@
     }
     header .btn-icon:disabled, header .btn-icon:disabled:hover { background: transparent; border-color: transparent; }
     header .btn-icon svg, header .toolbar-right > .btn svg, header .menu-wrap > .btn svg { width: var(--icon-lg); height: var(--icon-lg); }
-    header .toolbar-right > .btn:not(.btn-icon), header .menu-wrap > .btn:not(.btn-icon) { height: 36px; }   /* labeled buttons (Present, Save) line up with the icon squares */
-    body:not(.presentation) header.is-compact .toolbar-right .btn-label { display: none; }
-    body:not(.presentation) header.is-compact .toolbar-right > .btn:not(.btn-icon),
-    body:not(.presentation) header.is-compact .toolbar-right .menu-wrap > .btn:not(.btn-icon) {
-      width: 36px;
+    header .toolbar-right > .btn:not(.btn-icon), header .menu-wrap > .btn:not(.btn-icon) { height: 32px; padding: 0 10px; font-size: var(--text-md); }
+    header .toolbar-right > .btn-primary { padding: 0 12px; }
+    @media (pointer: coarse) {
+      header .btn { position: relative; }
+      header .btn::after { content: ''; position: absolute; inset: -6px -2px; }
+    }
+    /* Progressive compaction:
+       1) .is-compact: Present drops its label
+       2) .is-tight (or <= 900px): secondary utilities fold into the More (...) menu while Save stays labeled
+       3) .is-compact-save (or <= 560px): Save drops its label too */
+    body:not(.presentation) header.is-compact .toolbar-right #btn-present .btn-label { display: none; }
+    body:not(.presentation) header.is-compact .toolbar-right #btn-present {
+      width: 32px;
       padding: 0;
       justify-content: center;
     }
-    .toolbar-sep { width: 1px; height: 20px; background: var(--border-color); flex: none; }
+    body:not(.presentation) header.is-tight .toolbar-right .pill-secondary,
+    body:not(.presentation) header.is-tight .toolbar-right .toolbar-sep { display: none; }
+    body:not(.presentation) header.is-tight .toolbar-right .more-wrap { display: inline-flex; }
+    body:not(.presentation) header.is-compact-save .toolbar-right #btn-save .btn-label { display: none; }
+    body:not(.presentation) header.is-compact-save .toolbar-right #btn-save {
+      width: 32px;
+      padding: 0;
+      justify-content: center;
+    }
+    .toolbar-sep { width: 1px; height: 18px; margin: 0 2px; background: var(--border-color); flex: none; }
 
     .app-title-container {
       display: flex;
@@ -1543,7 +1576,8 @@
     .app-title-container > .badge-status { flex: none; }
 
     h1#chart-title {
-      font-size: var(--text-2xl);
+      font-size: var(--text-xl);
+      line-height: var(--leading-snug);
       font-weight: var(--weight-bold);
       color: var(--text-main);
       outline: none;
@@ -1626,8 +1660,8 @@
     /* Help & Shortcuts Popover */
     #help-drawer {
       position: fixed;
-      top: 64px;
-      right: 16px;
+      top: 66px;
+      right: 20px;
       bottom: auto;
       width: min(360px, calc(100vw - 32px));
       max-height: calc(100vh - 84px);
@@ -1772,24 +1806,34 @@
     body.presentation #btn-theme,
     body.presentation #search-bar,
     body.presentation #help-drawer { display: none !important; }
-    /* The header collapses to nothing; only the Present button stays, pinned to a corner. The zoom dock is not in the header. */
-    body.presentation header { height: 0; padding: 0; border: 0; box-shadow: none; background: none; }
-    body.presentation #btn-present { position: fixed; top: 12px; right: 16px; z-index: 101; }
+    /* The top pills collapse to nothing; only the Present button stays, pinned to the top-right corner. */
+    body.presentation header { height: 0; top: 16px; right: 20px; left: auto; justify-content: flex-end; }
+    body.presentation .toolbar-right { min-height: 0; padding: 0; border: 0; box-shadow: none; background: none; }
+    body.presentation #btn-present { position: fixed; top: 16px; right: 20px; z-index: 101; box-shadow: var(--shadow-md); }
     /* Capture mode (?capture, used for screenshots): diagram only, edge to edge */
     body.capture header,
     body.capture .toolbar-zoom { display: none; }
 
-    /* Narrow screens (a shared link opened on a phone): icon-only docks, compact header */
+    /* Tablet portrait and narrow screens: tuck secondary tools into More (...) so the title and Save stay readable */
+    @media (max-width: 900px) {
+      body:not(.presentation) header .toolbar-right .pill-secondary,
+      body:not(.presentation) header .toolbar-right .toolbar-sep { display: none; }
+      body:not(.presentation) header .toolbar-right .more-wrap { display: inline-flex; }
+      body:not(.presentation) header .toolbar-right #btn-present .btn-label { display: none; }
+      body:not(.presentation) header .toolbar-right #btn-present { width: 32px; padding: 0; justify-content: center; }
+    }
+    /* Narrow screens (a shared link opened on a phone): tighter corner insets */
     @media (max-width: 720px) {
-      header { padding: 0 10px; }
+      header { top: 12px; left: 12px; right: 12px; gap: 8px; }
+      .toolbar-left { padding: 4px 8px 4px 10px; }
       .type-btn .btn-label { display: inline; max-width: 96px; overflow: hidden; text-overflow: ellipsis; }   /* the type name stays on a phone */
       .type-switch ~ .app-title-container { display: none; }   /* no room for the title beside the switcher on a phone */
-      .toolbar-right { gap: 6px; }
-      header .toolbar-right .btn-label { display: none; }
-      header .toolbar-right > .btn:not(.btn-icon),
-      header .toolbar-right .menu-wrap > .btn:not(.btn-icon) { width: 36px; padding: 0; justify-content: center; }
-      #btn-help { display: none; }   /* a phone has no keyboard shortcuts to list */
-      #help-drawer { top: 64px; right: 12px; bottom: auto; }
+      #btn-help, [data-more="help"] { display: none; }   /* a phone has no keyboard shortcuts to list */
+      #help-drawer { top: 60px; right: 12px; bottom: auto; }
+    }
+    @media (max-width: 560px) {
+      body:not(.presentation) header .toolbar-right #btn-save .btn-label { display: none; }
+      body:not(.presentation) header .toolbar-right #btn-save { width: 32px; padding: 0; justify-content: center; }
     }
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after {
@@ -2637,26 +2681,25 @@ html.is-loading #page-loading { display: grid; }
     #swimlanes-container.dir-tb .lane-pill { text-align: center; }
     body.exporting #swimlanes-container.dir-tb .lane-pill { transform: translate(var(--pill-cx, 12px), 12px) !important; }
 
-    /* Subprocess flows: nested hanging folder tabs merged into the header (renderTabs). Main flow is the outer folder
-       wrapping around its child .flow-subtabs tray (and each expanded parent wraps its own children). The active tab fills
-       its slot edge-to-edge in the header surface and covers the header's 1px bottom border so it opens seamlessly into
-       the navbar; inactive tabs and ancestor shells sit recessed below the seam. */
+    /* Subprocess flows: floating folder tabs tucked below the top-left pill (renderTabs). Main flow sits in the outer
+       pill with nested .flow-subtabs trays along the active path; presentation mode glides the tabs up to top: 16px. */
     .flow-tabs, .flow-subtabs {
-      display: flex; align-items: stretch; gap: 0;
-      background: var(--bg-page);
-      border: 1px solid var(--border-dark); border-top: 0;
-      border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+      display: flex; align-items: stretch; gap: 3px;
+      background: var(--bg-panel);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-xl);
     }
     .flow-tabs {
-      position: fixed; top: 55px; left: 16px; z-index: 120; max-width: calc(100vw - 32px); overflow-x: auto;
-      padding: 0 4px 4px 0;
-      box-shadow: var(--shadow-sm);
+      position: fixed; top: 64px; left: 20px; z-index: 120; max-width: calc(100vw - 40px); overflow-x: auto;
+      padding: 3px;
+      box-shadow: var(--shadow-md);
     }
     .flow-tabs[hidden] { display: none; }
     .flow-subtabs {
       min-width: 0; overflow: hidden;
-      border-radius: 0 0 var(--radius-md) var(--radius-md);
-      border-color: var(--border-dark);
+      background: var(--bg-page);
+      border-radius: var(--radius-md);
+      border-color: var(--border-color);
     }
     .flow-subtabs:has(> .flow-subtabs) {
       padding: 0 3px 3px 0;
@@ -2670,20 +2713,16 @@ html.is-loading #page-loading { display: grid; }
       flex: none; display: inline-flex; align-items: center; min-height: 29px; max-width: 180px; padding: 0 12px; box-sizing: border-box;
       background: transparent;
       border: 0;
-      border-top: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
       font: inherit; font-size: var(--text-md); color: var(--text-soft); cursor: pointer;
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
       transition: background var(--ease), color var(--ease);
     }
-    .flow-tabs > .flow-tab {
-      border-bottom-left-radius: var(--radius-lg);
-    }
     .flow-subtabs > .flow-tab {
-      background: var(--bg-page);
+      background: transparent;
+      border-radius: 0;
     }
-    .flow-subtabs > .flow-tab + .flow-tab {
-      border-left: 1px solid var(--border-color);
-    }
+    .flow-subtabs > .flow-tab + .flow-tab,
     .flow-subtabs > .flow-subtabs + .flow-tab {
       border-left: 1px solid var(--border-color);
     }
@@ -2692,42 +2731,23 @@ html.is-loading #page-loading { display: grid; }
     .flow-tab[aria-selected="true"] {
       z-index: 2;
       font-weight: var(--weight-bold); color: var(--primary);
-      background: var(--bg-panel);
-      border-top-color: var(--bg-panel);
+      background: var(--primary-wash);
     }
     .flow-subtabs > .flow-tab[aria-selected="true"] {
-      border-left: 1px solid var(--border-dark);
-      border-right: 1px solid var(--border-dark);
-      border-bottom: 1px solid var(--border-dark);
-      border-radius: 0 0 var(--radius-md) var(--radius-md);
-      margin: 0 -1px -1px;
-    }
-    .flow-subtabs > .flow-tab[aria-selected="true"]:first-child { margin-left: -1px; }
-    .flow-subtabs > .flow-tab[aria-selected="true"] + .flow-tab { border-left-color: transparent; }
-    .flow-subtabs:has(> .flow-subtabs) > .flow-tab[aria-selected="true"] {
-      border-left-color: transparent;
-      border-right-color: transparent;
-      border-bottom-color: transparent;
-      border-radius: 0;
-      margin: 0;
-    }
-    body.presentation .flow-tabs {
-      top: 12px;
-      border-top: 1px solid var(--border-dark);
-      border-radius: var(--radius-lg);
-      padding: 3px;
-      gap: 3px;
-    }
-    body.presentation .flow-subtabs {
-      border-top: 1px solid var(--border-dark);
+      background: var(--bg-panel);
       border-radius: var(--radius-md);
     }
-    body.presentation .flow-tab { border-top: 0; border-radius: var(--radius-sm); }
-    body.presentation .flow-subtabs > .flow-tab { border-radius: 0; }
-    body.presentation .flow-subtabs > .flow-tab[aria-selected="true"] {
-      border: 1px solid var(--border-dark);
-      border-radius: var(--radius-sm);
-      margin: -1px;
+    .flow-subtabs > .flow-tab[aria-selected="true"] + .flow-tab { border-left-color: transparent; }
+    .flow-subtabs:has(> .flow-subtabs) > .flow-tab[aria-selected="true"] {
+      border-radius: 0;
+    }
+    body.presentation .flow-tabs {
+      top: 16px;
+      left: 20px;
+    }
+    @media (max-width: 720px) {
+      .flow-tabs { top: 60px; left: 12px; max-width: calc(100vw - 24px); }
+      body.presentation .flow-tabs { top: 12px; left: 12px; }
     }
     body.capture .flow-tabs { display: none; }
     /* Over the + marker drawn in the outline (SHAPE_OUTLINES): a transparent hit area that tints on hover */
@@ -2749,7 +2769,7 @@ html.is-loading #page-loading { display: grid; }
 </head>
 <body>
 
-  <!-- Top Toolbar -->
+  <!-- Top Floating Corner Pills -->
   <header>
     <div class="toolbar-left">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M3 15h18"/><path d="M9 3v18"/></svg>
@@ -2759,25 +2779,28 @@ html.is-loading #page-loading { display: grid; }
       </div>
     </div>
 
-    <div class="toolbar-right">
-      <button id="btn-theme" class="btn btn-icon" title="Dark mode" aria-label="Dark mode" aria-pressed="false">
+    <div class="toolbar-right" role="toolbar" aria-label="Diagram actions">
+      <button id="btn-search" class="btn btn-icon" title="Search (Ctrl+F or /)" aria-label="Search" aria-expanded="false" aria-controls="search-bar" hidden>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10a7 7 0 1 0 14 0a7 7 0 1 0 -14 0"/><path d="M21 21l-6 -6"/></svg>
+      </button>
+      <button id="btn-theme" class="btn btn-icon pill-secondary" title="Dark mode" aria-label="Dark mode" aria-pressed="false">
         <span class="theme-moon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454l0 .008"/></svg></span><span class="theme-sun"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 12a4 4 0 1 0 8 0a4 4 0 1 0 -8 0"/><path d="M3 12h1m8 -9v1m8 8h1m-9 8v1m-6.4 -15.4l.7 .7m12.1 -.7l-.7 .7m0 11.4l.7 .7m-12.1 -.7l-.7 .7"/></svg></span>
       </button>
-      <button id="btn-help" class="btn btn-icon" title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts" aria-expanded="false">
+      <button id="btn-help" class="btn btn-icon pill-secondary" title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts" aria-expanded="false">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0"/><path d="M12 16v.01"/><path d="M12 13a2 2 0 0 0 .914 -3.782a1.98 1.98 0 0 0 -2.414 .483"/></svg>
       </button>
       <span class="toolbar-sep" aria-hidden="true"></span>
       <button id="btn-present" class="btn" title="Present: a read-only view (Esc exits)" aria-label="Present" aria-pressed="false">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4l18 0"/><path d="M4 4v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-10"/><path d="M12 16l0 4"/><path d="M9 20l6 0"/><path d="M8 12l3 -3l2 2l3 -3"/></svg><span class="btn-label">Present</span>
       </button>
-      <button id="btn-import-mermaid" class="btn btn-icon" title="Import: replace the diagram from pasted Mermaid text (Ctrl+V on the canvas does the same)" aria-label="Import Mermaid" hidden>
+      <button id="btn-import-mermaid" class="btn btn-icon pill-secondary" title="Import: replace the diagram from pasted Mermaid text (Ctrl+V on the canvas does the same)" aria-label="Import Mermaid" hidden>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2"/><path d="M7 11l5 5l5 -5"/><path d="M12 4l0 12"/></svg>
       </button>
-      <div class="menu-wrap">
+      <div class="menu-wrap pill-secondary">
         <button id="btn-export" class="btn btn-icon" title="Export: download or copy the diagram as an image" aria-label="Export" aria-haspopup="menu" aria-expanded="false">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2"/><path d="M7 9l5 -5l5 5"/><path d="M12 4l0 12"/></svg>
         </button>
-        <div id="export-menu" class="menu" role="menu" hidden>
+        <div id="export-menu" class="menu" role="menu" aria-labelledby="btn-export" hidden>
           <div class="menu-label" role="presentation">Download</div>
           <button type="button" role="menuitem" data-export="svg">SVG image</button>
           <button type="button" role="menuitem" data-export="png">PNG image (1.5x)</button>
@@ -2788,17 +2811,20 @@ html.is-loading #page-loading { display: grid; }
           <button type="button" role="menuitem" data-copy="png">PNG image (1.5x)</button>
         </div>
       </div>
+      <div class="menu-wrap more-wrap">
+        <button id="btn-more" class="btn btn-icon" title="More actions" aria-label="More actions" aria-haspopup="menu" aria-expanded="false" aria-controls="more-menu">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/><path d="M11 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/><path d="M18 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/></svg>
+        </button>
+        <div id="more-menu" class="menu" role="menu" aria-labelledby="btn-more" hidden></div>
+      </div>
       <button id="btn-save" class="btn btn-primary" title="Save directly into this HTML file (Ctrl+S)" aria-label="Save">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4h10l4 4v10a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2"/><path d="M10 14a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"/><path d="M14 4l0 4l-6 0l0 -4"/></svg><span class="btn-label">Save</span>
       </button>
     </div>
   </header>
 
-  <!-- Text search, in the canvas at the top right: an icon that opens into a text box (#btn-search, Ctrl/Cmd+F or "/"; shell.js, SEARCH) -->
+  <!-- Text search bar, opening beneath the top-right pill (#btn-search, Ctrl/Cmd+F or "/"; shell.js, SEARCH) -->
   <div id="search-dock">
-    <button id="btn-search" class="btn btn-icon" title="Search (Ctrl+F or /)" aria-label="Search" aria-expanded="false" aria-controls="search-bar" hidden>
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10a7 7 0 1 0 14 0a7 7 0 1 0 -14 0"/><path d="M21 21l-6 -6"/></svg>
-    </button>
     <div id="search-bar" role="search" hidden>
       <span class="search-glyph" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10a7 7 0 1 0 14 0a7 7 0 1 0 -14 0"/><path d="M21 21l-6 -6"/></svg></span>
       <input id="search-input" type="search" placeholder="Search" aria-label="Search the diagram" autocomplete="off" spellcheck="false">
@@ -3312,11 +3338,30 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
           if (off) document.body.classList.add('bars-collapsed');
           return size;
         }
+        function chromeTop() {
+          if (document.body.classList.contains('capture') || document.body.classList.contains('exporting')) return 0;
+          const vp = document.getElementById('viewport');
+          const vpTop = vp ? vp.getBoundingClientRect().top : 0;
+          let bottom = vpTop;
+          if (!document.body.classList.contains('presentation')) {
+            const hdr = document.querySelector('header');
+            if (hdr) hdr.querySelectorAll('.toolbar-left, .toolbar-right').forEach((el) => {
+              const r = el.getBoundingClientRect();
+              if (r.height > 0 && r.width > 0) bottom = Math.max(bottom, r.bottom);
+            });
+          }
+          const tabs = document.querySelector('.flow-tabs');
+          if (tabs && getComputedStyle(tabs).display !== 'none' && !tabs.hidden) {
+            const r = tabs.getBoundingClientRect();
+            if (r.height > 0 && r.width > 0) bottom = Math.max(bottom, r.bottom);
+          }
+          return Math.max(0, bottom - vpTop);
+        }
         // Does an action bar fit above `anchor` (an element or rect on screen) inside the viewport? Every type decides over or
         // under its element with this, by where the element is in the window, not in the diagram. A bar is not zoomed (--ui-scale).
         function roomAbove(anchor, bar) {
           const top = (anchor.getBoundingClientRect ? anchor.getBoundingClientRect() : anchor).top;
-          return top - document.getElementById('viewport').getBoundingClientRect().top >= barSize(bar).h + 16;
+          return top - (document.getElementById('viewport').getBoundingClientRect().top + chromeTop()) >= barSize(bar).h + 16;
         }
         // A wrapped bar (is-wrap, rows split by a `-ab-break` item) is as wide as its widest row, not as its max-width: call
         // it once the bar is in the page. No empty side padding, and a row that fits never wraps on its own.
@@ -3360,7 +3405,7 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
           });
           return box;
         }
-        return { confirm, closeConfirm, isConfirmOpen: () => !!confirmEl, noteCard, actionBar, abButton, abSep, abBreak, roomAbove, barSize, fitBar, colorKey, icon, iconEl, logo, hasLogo: (n) => typeof LOGOS !== 'undefined' && LOGOS[n] !== undefined, toast: (m) => showToast(m) };
+        return { confirm, closeConfirm, isConfirmOpen: () => !!confirmEl, noteCard, actionBar, abButton, abSep, abBreak, chromeTop, roomAbove, barSize, fitBar, colorKey, icon, iconEl, logo, hasLogo: (n) => typeof LOGOS !== 'undefined' && LOGOS[n] !== undefined, toast: (m) => showToast(m) };
       })();
 
       // --- ENGINE SOURCE (for plugins that run a background Web Worker, e.g. ERD) ---
@@ -3511,9 +3556,13 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
       const viewport = document.getElementById('viewport');
       const stage = document.getElementById('stage');
       const headerEl = document.querySelector('header');
+      const leftBar = headerEl && headerEl.querySelector('.toolbar-left');
+      const rightBar = headerEl && headerEl.querySelector('.toolbar-right');
       const chartTitleEl = document.getElementById('chart-title');
       const saveStatus = document.getElementById('save-status');
       const btnSave = document.getElementById('btn-save');
+      const btnMore = document.getElementById('btn-more');
+      const moreMenu = document.getElementById('more-menu');
       const btnAutoTidy = document.getElementById('btn-auto-tidy');
       const btnZoomIn = document.getElementById('btn-zoom-in');
       const btnZoomOut = document.getElementById('btn-zoom-out');
@@ -3524,13 +3573,23 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
       const btnHelp = document.getElementById('btn-help');
       const helpDrawer = document.getElementById('help-drawer');
 
-      // Switch header action buttons (Present, Save) to icon-only whenever the viewport + diagram title leave no room for labels
+      // Progressive top-pill compaction:
+      // 1) .is-compact: Present drops its label
+      // 2) .is-tight (or <= 900px): secondary utilities fold into the More (...) menu while Save stays labeled
+      // 3) .is-compact-save (or <= 560px): Save drops its label too
       function syncHeaderCompact() {
         if (!headerEl || document.body.classList.contains('presentation')) return;
-        headerEl.classList.remove('is-compact');
-        const overflows = headerEl.scrollWidth > headerEl.clientWidth + 1
-          || (chartTitleEl && chartTitleEl.scrollWidth > chartTitleEl.clientWidth + 1);
-        headerEl.classList.toggle('is-compact', overflows);
+        headerEl.classList.remove('is-compact', 'is-tight', 'is-compact-save');
+        const overflows = () => headerEl.scrollWidth > headerEl.clientWidth + 1
+          || (chartTitleEl && chartTitleEl.scrollWidth > chartTitleEl.clientWidth + 1)
+          || (leftBar && rightBar && rightBar.getBoundingClientRect().left - leftBar.getBoundingClientRect().right < 12);
+        if (overflows()) headerEl.classList.add('is-compact');
+        if (overflows() || window.innerWidth <= 900) headerEl.classList.add('is-tight');
+        if (overflows() || window.innerWidth <= 560) headerEl.classList.add('is-compact-save');
+        if (btnMore && !btnMore.getClientRects().length && moreMenu && !moreMenu.hidden) {
+          moreMenu.hidden = true;
+          btnMore.setAttribute('aria-expanded', 'false');
+        }
       }
       if (typeof ResizeObserver !== 'undefined' && headerEl) {
         new ResizeObserver(syncHeaderCompact).observe(headerEl);
@@ -4378,13 +4437,14 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
         const dockCenter = canAnim ? document.querySelector('.toolbar-center') : null;
         if (canAnim) motion.cancelAll();
         if (on && canAnim) {
-          if (hdr) motion.ghostExit(hdr, { duration: 220, easing: 'curve-inout', transform: 'translateY(-100%)', opacity: 1, skipChild: (el) => el.id === 'btn-present' });
+          if (hdr) motion.ghostExit(hdr, { duration: 220, easing: 'curve-inout', transform: 'translateY(calc(-100% - 20px))', opacity: 1, skipChild: (el) => el.id === 'btn-present' });
           if (dockCenter) motion.ghostExit(dockCenter, { duration: 220, easing: 'curve-inout', transform: 'translateY(calc(100% + 24px))', opacity: 1 });
         }
         if (on) {
           plugin.cancelInteraction(); plugin.clearSelection();
           setHelpOpen(false, false);
           setSearchOpen(false); if (plugin.clearSearch) plugin.clearSearch();
+          if (moreMenu && !moreMenu.hidden) { moreMenu.hidden = true; btnMore.setAttribute('aria-expanded', 'false'); }
           presentEntry = { json: JSON.stringify(chartData), committed: committedJson, undo: undoStack.slice(), redo: redoStack.slice() };
         }
         document.body.classList.toggle('presentation', on);
@@ -4400,7 +4460,7 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
           if (presentRect) motion.ghostMorph(presentRect, btnPresent, 220, 'curve-inout');
           if (!on) {
             const eas = motion.curve('curve-inout');
-            if (hdr) hdr.querySelectorAll('.toolbar-left, .toolbar-right > :not(#btn-present)').forEach((el) => motion.anim(el, [{ transform: 'translateY(-56px)' }, { transform: 'none' }], { duration: 220, easing: eas }));
+            if (hdr) hdr.querySelectorAll('.toolbar-left, .toolbar-right > :not(#btn-present)').forEach((el) => motion.anim(el, [{ transform: 'translateY(-64px)' }, { transform: 'none' }], { duration: 220, easing: eas }));
             if (dockCenter) motion.anim(dockCenter, [{ transform: 'translateY(calc(100% + 24px))' }, { transform: 'none' }], { duration: 220, easing: eas });
           }
           fitView(true);
@@ -4562,7 +4622,8 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
         if (!persist || !motion.enabled()) { flip(); return; }
         // the ripple only for a real click on the button; a programmatic click expects a sync data-theme update
         if (document.startViewTransition && fromClick) {
-          const r = btnTheme.getBoundingClientRect();
+          const anchor = btnTheme.getClientRects().length ? btnTheme : (btnMore && btnMore.getClientRects().length ? btnMore : btnTheme);
+          const r = anchor.getBoundingClientRect();
           const cx = Math.round(r.left + r.width / 2), cy = Math.round(r.top + r.height / 2);
           const maxR = Math.ceil(Math.hypot(Math.max(cx, innerWidth - cx), Math.max(cy, innerHeight - cy)));
           const vt = document.startViewTransition(flip);
@@ -5046,7 +5107,7 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
           }
           document.getElementById('help-close').focus();
         } else if (restoreFocus) {
-          btnHelp.focus();
+          (btnHelp.getClientRects().length ? btnHelp : (btnMore || btnHelp)).focus();
         }
       }
       btnHelp.addEventListener('click', () => { setHelpOpen(!helpDrawer.classList.contains('open'), false); });
@@ -5132,15 +5193,16 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
           return;
         }
         if (!on) {
-          motion.ghostExit(searchBar, { duration: 110, clipPath: 'inset(0 0 0 100% round 8px)' });
+          motion.ghostExit(searchBar, { duration: 110, transform: 'scale(0.94, 0.86) translateY(-4px)', clipPath: 'inset(0 0 100% 0 round 8px)', origin: 'top right' });
         }
         searchBar.hidden = !on;
         btnSearch.setAttribute('aria-expanded', String(on));
         if (on) {
           if (motion.enabled()) {
+            searchBar.style.transformOrigin = 'top right';
             motion.anim(searchBar, [
-              { clipPath: 'inset(0 0 0 100% round 8px)' },   // opens from the icon, leftwards
-              { clipPath: 'inset(0 0 0 0 round 8px)' }
+              { transform: 'scale(0.94, 0.86) translateY(-4px)', clipPath: 'inset(0 0 100% 0 round 8px)' },   // drops from the pill's search button
+              { transform: 'none', clipPath: 'inset(0 0 0 0 round 8px)' }
             ], { duration: 160, easing: motion.curve('curve-out') });
           }
           searchInput.focus(); searchInput.select();
@@ -5167,7 +5229,7 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
         });
         // A click elsewhere closes an empty search bar (one with text stays, its dimming is the result)
         document.addEventListener('pointerdown', (e) => {
-          if (searchOpen() && !searchInput.value && !e.target.closest('#search-dock')) setSearchOpen(false);
+          if (searchOpen() && !searchInput.value && !e.target.closest('#search-dock, #btn-search')) setSearchOpen(false);
         }, true);
         window.addEventListener('keydown', (e) => {
           const mod = (e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === 'f';
@@ -5422,22 +5484,95 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
         animateMenuToggle(exportMenu, open, false);
         btnExport.setAttribute('aria-expanded', String(open));
       }
-      // Arrow keys move between the visible items of whichever menu is open
-      function menuArrowKeys(menu, btn, close) {
-        const items = () => [...menu.querySelectorAll('[role^="menuitem"]')].filter((el) => !el.hidden);
-        const onKey = (e) => {
-          if (menu.hidden || (e.key !== 'ArrowDown' && e.key !== 'ArrowUp')) return;
+      function syncMoreMenu() {
+        if (!moreMenu) return;
+        moreMenu.replaceChildren();
+        const addItem = (label, iconName, onClick, attr) => {
+          const b = document.createElement('button');
+          b.type = 'button';
+          b.setAttribute('role', 'menuitem');
+          if (attr) b.dataset[attr[0]] = attr[1];
+          if (iconName) b.appendChild(ui.iconEl(iconName, { size: 'sm' }));
+          b.appendChild(document.createTextNode(label));
+          b.addEventListener('click', (e) => { e.stopPropagation(); setMoreOpen(false); onClick(); });
+          moreMenu.appendChild(b);
+          return b;
+        };
+        const isDark = currentTheme() === 'dark';
+        addItem(isDark ? 'Light mode' : 'Dark mode', isDark ? 'sun' : 'moon', () => btnTheme.click(), ['more', 'theme']);
+        addItem('Shortcuts', 'help', () => btnHelp.click(), ['more', 'help']);
+        if (btnImportMermaid && !btnImportMermaid.hidden) {
+          addItem('Import Mermaid', 'import', () => openMermaidImport(), ['more', 'import']);
+        }
+        [...exportMenu.children].forEach((node) => {
+          if (node.hidden) return;
+          if (node.classList.contains('menu-label')) {
+            const lbl = document.createElement('div');
+            lbl.className = 'menu-label';
+            lbl.setAttribute('role', 'presentation');
+            lbl.textContent = node.textContent;
+            moreMenu.appendChild(lbl);
+          } else if (node.matches('button[role="menuitem"]')) {
+            const iconName = node.dataset.export ? 'export' : null;
+            addItem(node.textContent, iconName, () => node.click());
+          }
+        });
+      }
+      function setMoreOpen(open) {
+        if (!moreMenu || !btnMore) return;
+        if (open) syncMoreMenu();
+        animateMenuToggle(moreMenu, open, false);
+        btnMore.setAttribute('aria-expanded', String(open));
+      }
+      // Arrow keys, Home/End, Escape and Tab navigation for popup menus
+      function menuArrowKeys(menu, btn, setOpen) {
+        const items = () => [...menu.querySelectorAll('[role^="menuitem"]')].filter((el) => !el.hidden && getComputedStyle(el).display !== 'none');
+        menu.addEventListener('keydown', (e) => {
+          if (menu.hidden) return;
+          if (e.key === 'Tab') { setOpen && setOpen(false); return; }
+          if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); setOpen && setOpen(false); btn.focus(); return; }
+          if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(e.key)) return;
           const list = items();
           if (!list.length) return;
           e.preventDefault();
           const i = list.indexOf(document.activeElement);
-          list[i < 0 ? (e.key === 'ArrowDown' ? 0 : list.length - 1) : (i + (e.key === 'ArrowDown' ? 1 : list.length - 1)) % list.length].focus();
-        };
-        menu.addEventListener('keydown', onKey);
-        btn.addEventListener('keydown', onKey);
+          const next = e.key === 'Home' ? 0 : e.key === 'End' ? list.length - 1
+            : i < 0 ? (e.key === 'ArrowDown' ? 0 : list.length - 1)
+            : (i + (e.key === 'ArrowDown' ? 1 : list.length - 1)) % list.length;
+          list[next].focus();
+        });
+        btn.addEventListener('keydown', (e) => {
+          if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+          e.preventDefault();
+          if (menu.hidden && setOpen) setOpen(true);
+          const list = items();
+          if (list.length) list[e.key === 'ArrowDown' ? 0 : list.length - 1].focus();
+        });
       }
-      menuArrowKeys(exportMenu, btnExport);
-      btnExport.addEventListener('click', (e) => { e.stopPropagation(); closeMermaidImport(); setExportOpen(exportMenu.hidden); });
+      menuArrowKeys(exportMenu, btnExport, setExportOpen);
+      if (moreMenu && btnMore) menuArrowKeys(moreMenu, btnMore, setMoreOpen);
+      btnExport.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeMermaidImport();
+        setMoreOpen(false);
+        const opening = exportMenu.hidden;
+        setExportOpen(opening);
+        if (opening && e.detail === 0) {
+          const first = exportMenu.querySelector('[role^="menuitem"]:not([hidden])');
+          if (first) first.focus();
+        }
+      });
+      if (btnMore) btnMore.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeMermaidImport();
+        setExportOpen(false);
+        const opening = moreMenu.hidden;
+        setMoreOpen(opening);
+        if (opening && e.detail === 0) {
+          const first = moreMenu.querySelector('[role^="menuitem"]:not([hidden])');
+          if (first) first.focus();
+        }
+      });
       exportMenu.addEventListener('click', (e) => {
         const b = e.target.closest('[data-export], [data-copy]');
         if (!b) return;
@@ -5447,11 +5582,13 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
       });
       document.addEventListener('click', (e) => {
         setExportOpen(false);
+        setMoreOpen(false);
         if (importEl && !importEl.contains(e.target) && !btnImportMermaid.contains(e.target)) closeMermaidImport();
       });
       window.addEventListener('keydown', (e) => {
         if (e.key !== 'Escape') return;
         setExportOpen(false);
+        setMoreOpen(false);
         closeMermaidImport();
       });
 
@@ -5503,7 +5640,8 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
         return true;
       }
       function positionImportBox(box) {
-        const anchor = btnImportMermaid.getBoundingClientRect();
+        const anchorEl = btnImportMermaid.getClientRects().length ? btnImportMermaid : (btnMore || btnExport);
+        const anchor = anchorEl.getBoundingClientRect();
         const bw = box.offsetWidth;
         box.style.left = `${Math.max(8, Math.min(anchor.right - bw, innerWidth - bw - 8))}px`;
         box.style.top = `${anchor.bottom + 8}px`;
@@ -5552,7 +5690,8 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
           if (!notes.length) { closeMermaidImport(); flashStatus('Imported Mermaid'); return; }
           showImportNotesBox(box, notes);
         };
-        ok.addEventListener('click', run);
+        ok.addEventListener('click', (e) => { e.stopPropagation(); setExportOpen(false); setMoreOpen(false); run(); });
+        box.addEventListener('click', (e) => { setExportOpen(false); setMoreOpen(false); e.stopPropagation(); });
         box.addEventListener('keydown', (e) => {
           if (e.key === 'Escape') { e.preventDefault(); closeMermaidImport(); }
           else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); run(); }
@@ -6534,7 +6673,16 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
           });
           menu.appendChild(item);
         }
-        btn.addEventListener('click', (e) => { e.stopPropagation(); setOpen(menu.hidden); });
+        menuArrowKeys(menu, btn, setOpen);
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const opening = menu.hidden;
+          setOpen(opening);
+          if (opening && e.detail === 0) {
+            const first = menu.querySelector('[role^="menuitem"]:not([hidden])');
+            if (first) first.focus();
+          }
+        });
         document.addEventListener('click', () => setOpen(false));
         window.addEventListener('keydown', (e) => { if (e.key === 'Escape') setOpen(false); });
       }
@@ -10663,6 +10811,7 @@ function toMermaid(data, opts) {
         const visLeft = -panX / scale - left;   // viewport's left edge in container coords
         const visTop = -panY / scale - top;
         const inset = PILL_INSET;
+        const topSafe = ui.chromeTop ? ui.chromeTop() / scale : 0;
         const cs = swimlanesContainer.style;
         if (scale !== lastPinScale) {
           lastPinScale = scale;
@@ -10676,7 +10825,7 @@ function toMermaid(data, opts) {
           cs.removeProperty('--rail-x');
           cs.removeProperty('--pill-x');
           cs.setProperty('--rail-y', `${y0}px`);
-          cs.setProperty('--pill-y', `${y0 + inset}px`);
+          cs.setProperty('--pill-y', `${y0 + (visTop > 0 ? topSafe : 0) + inset}px`);
           // Each pill is centred on the visible part of its column (the whole column when it is on screen)
           const visRight = visLeft + vpW / scale;
           for (let i = 0; i < lanes.length; i++) {
@@ -10695,10 +10844,11 @@ function toMermaid(data, opts) {
         cs.removeProperty('--pill-y');
         cs.setProperty('--rail-x', `${x0}px`);
         cs.setProperty('--pill-x', `${x0 + inset}px`);
+        const padTop = visTop > 0 ? topSafe : 0;
         for (let i = 0; i < lanes.length; i++) {
           const l = lanes[i];
           const maxY = Math.max(inset, l.h - l.ph - inset);
-          const y = Math.min(Math.max(visTop - l.offsetTop + inset, inset), maxY);
+          const y = Math.min(Math.max(visTop + padTop - l.offsetTop + inset, inset), maxY);
           l.laneEl.style.setProperty('--pill-y', `${y}px`);
         }
         placeLaneBar();

@@ -55,6 +55,8 @@
     .note-layer .note.show, .note-layer .note.peek { display: block; }
     .note-layer .note.peek:not(.show) { animation: note-in var(--dur-fast) var(--curve-spring-tactile); box-shadow: var(--shadow-lg); }
     @keyframes note-in { from { transform: scale(0.92); clip-path: inset(0 0 25% 0); } to { transform: none; clip-path: inset(0 0 0 0); } }
+    @media (prefers-reduced-motion: reduce) { .note-layer .note.peek:not(.show) { animation: none; } }
+    html[data-noanim] .note-layer .note.peek:not(.show) { animation: none; }
     .note-layer.measuring .note { display: block; visibility: hidden; animation: none; }
 
     /* Leader: the dashed line from a card to what it explains; .linking is the one being dragged to a new target */

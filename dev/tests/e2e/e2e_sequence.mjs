@@ -691,7 +691,9 @@ try {
   await t.ev(`document.getElementById('viewport').dispatchEvent(new WheelEvent('wheel', { bubbles: true, cancelable: true, deltaY: 1500, deltaMode: 0, clientX: 600, clientY: 400 }))`);
   await sleep(100);
   const pinned = await t.ev(`(() => { const c = document.getElementById('seq-canvas'); const b = document.querySelector('.seq-participant').getBoundingClientRect();
-    const v = document.getElementById('viewport').getBoundingClientRect(); return c.classList.contains('seq-pinned') && b.top >= v.top - 1 && b.top < v.top + 40; })()`);
+    const v = document.getElementById('viewport').getBoundingClientRect();
+    const safeTop = Math.max(v.top, ...[...document.querySelectorAll('header .toolbar-left, header .toolbar-right')].map((el) => el.getBoundingClientRect().bottom));
+    return c.classList.contains('seq-pinned') && b.top >= safeTop - 1 && b.top < safeTop + 40; })()`);
   t.check('panned down, the participant row is pinned at the top of the viewport', pinned);
   // Every pill stays on screen, in its own column (the row only moves down), wearing a halo and a swatch fill
   const pills = await t.ev(`(() => { const v = document.getElementById('viewport').getBoundingClientRect(), c = document.getElementById('seq-canvas');

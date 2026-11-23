@@ -833,7 +833,7 @@
         document.body.appendChild(wrap);
         const r = el.getBoundingClientRect(), vp = viewport.getBoundingClientRect(), w = wrap.offsetWidth, h = wrap.offsetHeight;
         wrap.style.left = `${Math.max(vp.left + 8, Math.min(r.left, vp.right - w - 8))}px`;
-        wrap.style.top = `${Math.max(vp.top + 8, Math.min(r.top, vp.bottom - h - 8))}px`;
+        wrap.style.top = `${Math.max(vp.top + (ui.chromeTop ? ui.chromeTop() : 0) + 8, Math.min(r.top, vp.bottom - h - 8))}px`;
         erdCardEl = wrap;
         erdCardId = want;
         motion.morphRect(r, wrap, { duration: 190, easing: 'curve-spring-tactile', origin: 'top left' });

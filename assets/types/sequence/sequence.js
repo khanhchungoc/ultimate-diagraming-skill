@@ -693,8 +693,9 @@
         }
         const { top, partEls, fragTags } = seqPinCache;
         const visTop = -panY / scale - top;                        // viewport's top edge in canvas coords
-        const on = visTop + PIN_INSET > SQ.TOP && !document.body.classList.contains('capture');
-        const dy = Math.min(visTop + PIN_INSET - SQ.TOP, L.height - SQ.BOX_H - SQ.TOP - 40);
+        const safeTop = visTop + (ui.chromeTop ? ui.chromeTop() / scale : 0);
+        const on = visTop > 0 && safeTop + PIN_INSET > SQ.TOP && !document.body.classList.contains('capture');
+        const dy = Math.min(safeTop + PIN_INSET - SQ.TOP, L.height - SQ.BOX_H - SQ.TOP - 40);
         const pinned = on && dy > 0;
         const wasPinned = seqCanvas.classList.contains('seq-pinned');
         if (!wasPinned && !pinned) {
@@ -2121,8 +2122,8 @@
         const v = viewport.getBoundingClientRect(), pad = 60;
         const dock = document.querySelector('.dock-area .toolbar-center');
         const bottom = Math.min(v.bottom, dock && dock.offsetHeight ? dock.getBoundingClientRect().top : v.bottom);
-        // The pinned participant row covers the top of the viewport
-        const top = v.top + (seqCanvas.classList.contains('seq-pinned') ? (topRowH() + 24) * scale : 0);
+        // The pinned participant row (or floating corner pills) covers the top of the viewport
+        const top = v.top + (ui.chromeTop ? ui.chromeTop() : 0) + (seqCanvas.classList.contains('seq-pinned') ? (topRowH() + 24) * scale : 0);
         let dx = 0, dy = 0;
         if (r.left < v.left + pad) dx = v.left + pad - r.left; else if (r.right > v.right - pad) dx = v.right - pad - r.right;
         if (r.top < top + pad) dy = top + pad - r.top; else if (r.bottom > bottom - pad) dy = bottom - pad - r.bottom;

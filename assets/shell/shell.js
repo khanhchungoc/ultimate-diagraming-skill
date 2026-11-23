@@ -298,11 +298,30 @@
           if (off) document.body.classList.add('bars-collapsed');
           return size;
         }
+        function chromeTop() {
+          if (document.body.classList.contains('capture') || document.body.classList.contains('exporting')) return 0;
+          const vp = document.getElementById('viewport');
+          const vpTop = vp ? vp.getBoundingClientRect().top : 0;
+          let bottom = vpTop;
+          if (!document.body.classList.contains('presentation')) {
+            const hdr = document.querySelector('header');
+            if (hdr) hdr.querySelectorAll('.toolbar-left, .toolbar-right').forEach((el) => {
+              const r = el.getBoundingClientRect();
+              if (r.height > 0 && r.width > 0) bottom = Math.max(bottom, r.bottom);
+            });
+          }
+          const tabs = document.querySelector('.flow-tabs');
+          if (tabs && getComputedStyle(tabs).display !== 'none' && !tabs.hidden) {
+            const r = tabs.getBoundingClientRect();
+            if (r.height > 0 && r.width > 0) bottom = Math.max(bottom, r.bottom);
+          }
+          return Math.max(0, bottom - vpTop);
+        }
         // Does an action bar fit above `anchor` (an element or rect on screen) inside the viewport? Every type decides over or
         // under its element with this, by where the element is in the window, not in the diagram. A bar is not zoomed (--ui-scale).
         function roomAbove(anchor, bar) {
           const top = (anchor.getBoundingClientRect ? anchor.getBoundingClientRect() : anchor).top;
-          return top - document.getElementById('viewport').getBoundingClientRect().top >= barSize(bar).h + 16;
+          return top - (document.getElementById('viewport').getBoundingClientRect().top + chromeTop()) >= barSize(bar).h + 16;
         }
         // A wrapped bar (is-wrap, rows split by a `-ab-break` item) is as wide as its widest row, not as its max-width: call
         // it once the bar is in the page. No empty side padding, and a row that fits never wraps on its own.
@@ -346,7 +365,7 @@
           });
           return box;
         }
-        return { confirm, closeConfirm, isConfirmOpen: () => !!confirmEl, noteCard, actionBar, abButton, abSep, abBreak, roomAbove, barSize, fitBar, colorKey, icon, iconEl, logo, hasLogo: (n) => typeof LOGOS !== 'undefined' && LOGOS[n] !== undefined, toast: (m) => showToast(m) };
+        return { confirm, closeConfirm, isConfirmOpen: () => !!confirmEl, noteCard, actionBar, abButton, abSep, abBreak, chromeTop, roomAbove, barSize, fitBar, colorKey, icon, iconEl, logo, hasLogo: (n) => typeof LOGOS !== 'undefined' && LOGOS[n] !== undefined, toast: (m) => showToast(m) };
       })();
 
       // --- ENGINE SOURCE (for plugins that run a background Web Worker, e.g. ERD) ---
@@ -497,9 +516,13 @@
       const viewport = document.getElementById('viewport');
       const stage = document.getElementById('stage');
       const headerEl = document.querySelector('header');
+      const leftBar = headerEl && headerEl.querySelector('.toolbar-left');
+      const rightBar = headerEl && headerEl.querySelector('.toolbar-right');
       const chartTitleEl = document.getElementById('chart-title');
       const saveStatus = document.getElementById('save-status');
       const btnSave = document.getElementById('btn-save');
+      const btnMore = document.getElementById('btn-more');
+      const moreMenu = document.getElementById('more-menu');
       const btnAutoTidy = document.getElementById('btn-auto-tidy');
       const btnZoomIn = document.getElementById('btn-zoom-in');
       const btnZoomOut = document.getElementById('btn-zoom-out');
@@ -510,13 +533,23 @@
       const btnHelp = document.getElementById('btn-help');
       const helpDrawer = document.getElementById('help-drawer');
 
-      // Switch header action buttons (Present, Save) to icon-only whenever the viewport + diagram title leave no room for labels
+      // Progressive top-pill compaction:
+      // 1) .is-compact: Present drops its label
+      // 2) .is-tight (or <= 900px): secondary utilities fold into the More (...) menu while Save stays labeled
+      // 3) .is-compact-save (or <= 560px): Save drops its label too
       function syncHeaderCompact() {
         if (!headerEl || document.body.classList.contains('presentation')) return;
-        headerEl.classList.remove('is-compact');
-        const overflows = headerEl.scrollWidth > headerEl.clientWidth + 1
-          || (chartTitleEl && chartTitleEl.scrollWidth > chartTitleEl.clientWidth + 1);
-        headerEl.classList.toggle('is-compact', overflows);
+        headerEl.classList.remove('is-compact', 'is-tight', 'is-compact-save');
+        const overflows = () => headerEl.scrollWidth > headerEl.clientWidth + 1
+          || (chartTitleEl && chartTitleEl.scrollWidth > chartTitleEl.clientWidth + 1)
+          || (leftBar && rightBar && rightBar.getBoundingClientRect().left - leftBar.getBoundingClientRect().right < 12);
+        if (overflows()) headerEl.classList.add('is-compact');
+        if (overflows() || window.innerWidth <= 900) headerEl.classList.add('is-tight');
+        if (overflows() || window.innerWidth <= 560) headerEl.classList.add('is-compact-save');
+        if (btnMore && !btnMore.getClientRects().length && moreMenu && !moreMenu.hidden) {
+          moreMenu.hidden = true;
+          btnMore.setAttribute('aria-expanded', 'false');
+        }
       }
       if (typeof ResizeObserver !== 'undefined' && headerEl) {
         new ResizeObserver(syncHeaderCompact).observe(headerEl);
@@ -1364,13 +1397,14 @@
         const dockCenter = canAnim ? document.querySelector('.toolbar-center') : null;
         if (canAnim) motion.cancelAll();
         if (on && canAnim) {
-          if (hdr) motion.ghostExit(hdr, { duration: 220, easing: 'curve-inout', transform: 'translateY(-100%)', opacity: 1, skipChild: (el) => el.id === 'btn-present' });
+          if (hdr) motion.ghostExit(hdr, { duration: 220, easing: 'curve-inout', transform: 'translateY(calc(-100% - 20px))', opacity: 1, skipChild: (el) => el.id === 'btn-present' });
           if (dockCenter) motion.ghostExit(dockCenter, { duration: 220, easing: 'curve-inout', transform: 'translateY(calc(100% + 24px))', opacity: 1 });
         }
         if (on) {
           plugin.cancelInteraction(); plugin.clearSelection();
           setHelpOpen(false, false);
           setSearchOpen(false); if (plugin.clearSearch) plugin.clearSearch();
+          if (moreMenu && !moreMenu.hidden) { moreMenu.hidden = true; btnMore.setAttribute('aria-expanded', 'false'); }
           presentEntry = { json: JSON.stringify(chartData), committed: committedJson, undo: undoStack.slice(), redo: redoStack.slice() };
         }
         document.body.classList.toggle('presentation', on);
@@ -1386,7 +1420,7 @@
           if (presentRect) motion.ghostMorph(presentRect, btnPresent, 220, 'curve-inout');
           if (!on) {
             const eas = motion.curve('curve-inout');
-            if (hdr) hdr.querySelectorAll('.toolbar-left, .toolbar-right > :not(#btn-present)').forEach((el) => motion.anim(el, [{ transform: 'translateY(-56px)' }, { transform: 'none' }], { duration: 220, easing: eas }));
+            if (hdr) hdr.querySelectorAll('.toolbar-left, .toolbar-right > :not(#btn-present)').forEach((el) => motion.anim(el, [{ transform: 'translateY(-64px)' }, { transform: 'none' }], { duration: 220, easing: eas }));
             if (dockCenter) motion.anim(dockCenter, [{ transform: 'translateY(calc(100% + 24px))' }, { transform: 'none' }], { duration: 220, easing: eas });
           }
           fitView(true);
@@ -1548,7 +1582,8 @@
         if (!persist || !motion.enabled()) { flip(); return; }
         // the ripple only for a real click on the button; a programmatic click expects a sync data-theme update
         if (document.startViewTransition && fromClick) {
-          const r = btnTheme.getBoundingClientRect();
+          const anchor = btnTheme.getClientRects().length ? btnTheme : (btnMore && btnMore.getClientRects().length ? btnMore : btnTheme);
+          const r = anchor.getBoundingClientRect();
           const cx = Math.round(r.left + r.width / 2), cy = Math.round(r.top + r.height / 2);
           const maxR = Math.ceil(Math.hypot(Math.max(cx, innerWidth - cx), Math.max(cy, innerHeight - cy)));
           const vt = document.startViewTransition(flip);
@@ -2032,7 +2067,7 @@
           }
           document.getElementById('help-close').focus();
         } else if (restoreFocus) {
-          btnHelp.focus();
+          (btnHelp.getClientRects().length ? btnHelp : (btnMore || btnHelp)).focus();
         }
       }
       btnHelp.addEventListener('click', () => { setHelpOpen(!helpDrawer.classList.contains('open'), false); });
@@ -2118,15 +2153,16 @@
           return;
         }
         if (!on) {
-          motion.ghostExit(searchBar, { duration: 110, clipPath: 'inset(0 0 0 100% round 8px)' });
+          motion.ghostExit(searchBar, { duration: 110, transform: 'scale(0.94, 0.86) translateY(-4px)', clipPath: 'inset(0 0 100% 0 round 8px)', origin: 'top right' });
         }
         searchBar.hidden = !on;
         btnSearch.setAttribute('aria-expanded', String(on));
         if (on) {
           if (motion.enabled()) {
+            searchBar.style.transformOrigin = 'top right';
             motion.anim(searchBar, [
-              { clipPath: 'inset(0 0 0 100% round 8px)' },   // opens from the icon, leftwards
-              { clipPath: 'inset(0 0 0 0 round 8px)' }
+              { transform: 'scale(0.94, 0.86) translateY(-4px)', clipPath: 'inset(0 0 100% 0 round 8px)' },   // drops from the pill's search button
+              { transform: 'none', clipPath: 'inset(0 0 0 0 round 8px)' }
             ], { duration: 160, easing: motion.curve('curve-out') });
           }
           searchInput.focus(); searchInput.select();
@@ -2153,7 +2189,7 @@
         });
         // A click elsewhere closes an empty search bar (one with text stays, its dimming is the result)
         document.addEventListener('pointerdown', (e) => {
-          if (searchOpen() && !searchInput.value && !e.target.closest('#search-dock')) setSearchOpen(false);
+          if (searchOpen() && !searchInput.value && !e.target.closest('#search-dock, #btn-search')) setSearchOpen(false);
         }, true);
         window.addEventListener('keydown', (e) => {
           const mod = (e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === 'f';
@@ -2408,22 +2444,95 @@
         animateMenuToggle(exportMenu, open, false);
         btnExport.setAttribute('aria-expanded', String(open));
       }
-      // Arrow keys move between the visible items of whichever menu is open
-      function menuArrowKeys(menu, btn, close) {
-        const items = () => [...menu.querySelectorAll('[role^="menuitem"]')].filter((el) => !el.hidden);
-        const onKey = (e) => {
-          if (menu.hidden || (e.key !== 'ArrowDown' && e.key !== 'ArrowUp')) return;
+      function syncMoreMenu() {
+        if (!moreMenu) return;
+        moreMenu.replaceChildren();
+        const addItem = (label, iconName, onClick, attr) => {
+          const b = document.createElement('button');
+          b.type = 'button';
+          b.setAttribute('role', 'menuitem');
+          if (attr) b.dataset[attr[0]] = attr[1];
+          if (iconName) b.appendChild(ui.iconEl(iconName, { size: 'sm' }));
+          b.appendChild(document.createTextNode(label));
+          b.addEventListener('click', (e) => { e.stopPropagation(); setMoreOpen(false); onClick(); });
+          moreMenu.appendChild(b);
+          return b;
+        };
+        const isDark = currentTheme() === 'dark';
+        addItem(isDark ? 'Light mode' : 'Dark mode', isDark ? 'sun' : 'moon', () => btnTheme.click(), ['more', 'theme']);
+        addItem('Shortcuts', 'help', () => btnHelp.click(), ['more', 'help']);
+        if (btnImportMermaid && !btnImportMermaid.hidden) {
+          addItem('Import Mermaid', 'import', () => openMermaidImport(), ['more', 'import']);
+        }
+        [...exportMenu.children].forEach((node) => {
+          if (node.hidden) return;
+          if (node.classList.contains('menu-label')) {
+            const lbl = document.createElement('div');
+            lbl.className = 'menu-label';
+            lbl.setAttribute('role', 'presentation');
+            lbl.textContent = node.textContent;
+            moreMenu.appendChild(lbl);
+          } else if (node.matches('button[role="menuitem"]')) {
+            const iconName = node.dataset.export ? 'export' : null;
+            addItem(node.textContent, iconName, () => node.click());
+          }
+        });
+      }
+      function setMoreOpen(open) {
+        if (!moreMenu || !btnMore) return;
+        if (open) syncMoreMenu();
+        animateMenuToggle(moreMenu, open, false);
+        btnMore.setAttribute('aria-expanded', String(open));
+      }
+      // Arrow keys, Home/End, Escape and Tab navigation for popup menus
+      function menuArrowKeys(menu, btn, setOpen) {
+        const items = () => [...menu.querySelectorAll('[role^="menuitem"]')].filter((el) => !el.hidden && getComputedStyle(el).display !== 'none');
+        menu.addEventListener('keydown', (e) => {
+          if (menu.hidden) return;
+          if (e.key === 'Tab') { setOpen && setOpen(false); return; }
+          if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); setOpen && setOpen(false); btn.focus(); return; }
+          if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(e.key)) return;
           const list = items();
           if (!list.length) return;
           e.preventDefault();
           const i = list.indexOf(document.activeElement);
-          list[i < 0 ? (e.key === 'ArrowDown' ? 0 : list.length - 1) : (i + (e.key === 'ArrowDown' ? 1 : list.length - 1)) % list.length].focus();
-        };
-        menu.addEventListener('keydown', onKey);
-        btn.addEventListener('keydown', onKey);
+          const next = e.key === 'Home' ? 0 : e.key === 'End' ? list.length - 1
+            : i < 0 ? (e.key === 'ArrowDown' ? 0 : list.length - 1)
+            : (i + (e.key === 'ArrowDown' ? 1 : list.length - 1)) % list.length;
+          list[next].focus();
+        });
+        btn.addEventListener('keydown', (e) => {
+          if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+          e.preventDefault();
+          if (menu.hidden && setOpen) setOpen(true);
+          const list = items();
+          if (list.length) list[e.key === 'ArrowDown' ? 0 : list.length - 1].focus();
+        });
       }
-      menuArrowKeys(exportMenu, btnExport);
-      btnExport.addEventListener('click', (e) => { e.stopPropagation(); closeMermaidImport(); setExportOpen(exportMenu.hidden); });
+      menuArrowKeys(exportMenu, btnExport, setExportOpen);
+      if (moreMenu && btnMore) menuArrowKeys(moreMenu, btnMore, setMoreOpen);
+      btnExport.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeMermaidImport();
+        setMoreOpen(false);
+        const opening = exportMenu.hidden;
+        setExportOpen(opening);
+        if (opening && e.detail === 0) {
+          const first = exportMenu.querySelector('[role^="menuitem"]:not([hidden])');
+          if (first) first.focus();
+        }
+      });
+      if (btnMore) btnMore.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeMermaidImport();
+        setExportOpen(false);
+        const opening = moreMenu.hidden;
+        setMoreOpen(opening);
+        if (opening && e.detail === 0) {
+          const first = moreMenu.querySelector('[role^="menuitem"]:not([hidden])');
+          if (first) first.focus();
+        }
+      });
       exportMenu.addEventListener('click', (e) => {
         const b = e.target.closest('[data-export], [data-copy]');
         if (!b) return;
@@ -2433,11 +2542,13 @@
       });
       document.addEventListener('click', (e) => {
         setExportOpen(false);
+        setMoreOpen(false);
         if (importEl && !importEl.contains(e.target) && !btnImportMermaid.contains(e.target)) closeMermaidImport();
       });
       window.addEventListener('keydown', (e) => {
         if (e.key !== 'Escape') return;
         setExportOpen(false);
+        setMoreOpen(false);
         closeMermaidImport();
       });
 
@@ -2489,7 +2600,8 @@
         return true;
       }
       function positionImportBox(box) {
-        const anchor = btnImportMermaid.getBoundingClientRect();
+        const anchorEl = btnImportMermaid.getClientRects().length ? btnImportMermaid : (btnMore || btnExport);
+        const anchor = anchorEl.getBoundingClientRect();
         const bw = box.offsetWidth;
         box.style.left = `${Math.max(8, Math.min(anchor.right - bw, innerWidth - bw - 8))}px`;
         box.style.top = `${anchor.bottom + 8}px`;
@@ -2538,7 +2650,8 @@
           if (!notes.length) { closeMermaidImport(); flashStatus('Imported Mermaid'); return; }
           showImportNotesBox(box, notes);
         };
-        ok.addEventListener('click', run);
+        ok.addEventListener('click', (e) => { e.stopPropagation(); setExportOpen(false); setMoreOpen(false); run(); });
+        box.addEventListener('click', (e) => { setExportOpen(false); setMoreOpen(false); e.stopPropagation(); });
         box.addEventListener('keydown', (e) => {
           if (e.key === 'Escape') { e.preventDefault(); closeMermaidImport(); }
           else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); run(); }
@@ -3520,7 +3633,16 @@
           });
           menu.appendChild(item);
         }
-        btn.addEventListener('click', (e) => { e.stopPropagation(); setOpen(menu.hidden); });
+        menuArrowKeys(menu, btn, setOpen);
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const opening = menu.hidden;
+          setOpen(opening);
+          if (opening && e.detail === 0) {
+            const first = menu.querySelector('[role^="menuitem"]:not([hidden])');
+            if (first) first.focus();
+          }
+        });
         document.addEventListener('click', () => setOpen(false));
         window.addEventListener('keydown', (e) => { if (e.key === 'Escape') setOpen(false); });
       }
