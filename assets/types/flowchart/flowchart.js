@@ -396,15 +396,48 @@
       // exactly like a node, so the lane gutter (sizeLaneGutter) keeps it clear of every node at any zoom. Called
       // after every render and, via plugin.onViewChange, after every pan/zoom.
       const PILL_INSET = 12;     // diagram px from the visible left edge / the lane's visible top
+      let lanePinCache = null;
+      let lastPinScale = null;
+      window.addEventListener('resize', () => { lanePinCache = null; });
       function pinLaneHeaders() {
         if (chartData.swimlanes === false) { swimlanesContainer.classList.remove('lanes-pinned'); return; }
-        const left = swimlanesContainer.offsetLeft + swimlanesContainer.clientLeft;   // container origin, stage coords
-        const top = swimlanesContainer.offsetTop + swimlanesContainer.clientTop;
+        const tb = isTB();
+        if (!lanePinCache) {
+          const left = swimlanesContainer.offsetLeft + swimlanesContainer.clientLeft;
+          const top = swimlanesContainer.offsetTop + swimlanesContainer.clientTop;
+          const vpW = viewport.clientWidth;
+          const lanes = [];
+          lanesRoot.querySelectorAll('.swimlane').forEach(laneEl => {
+            const pill = laneEl.querySelector('.lane-pill');
+            if (!pill) return;
+            lanes.push({
+              laneEl,
+              offsetLeft: laneEl.offsetLeft,
+              offsetTop: laneEl.offsetTop,
+              w: laneEl.offsetWidth,
+              h: laneEl.offsetHeight,
+              pw: pill.offsetWidth,
+              ph: pill.offsetHeight
+            });
+          });
+          if (tb) {
+            for (let i = 0; i < lanes.length; i++) {
+              const l = lanes[i];
+              l.laneEl.style.setProperty('--pill-cx', `${Math.max(PILL_INSET, (l.w - l.pw) / 2)}px`);   // centred at rest (exports)
+            }
+          }
+          lanePinCache = { left, top, vpW, lanes };
+        }
+        const { left, top, vpW, lanes } = lanePinCache;
         const visLeft = -panX / scale - left;   // viewport's left edge in container coords
         const visTop = -panY / scale - top;
         const inset = PILL_INSET;
         const cs = swimlanesContainer.style;
-        if (isTB()) {
+        if (scale !== lastPinScale) {
+          lastPinScale = scale;
+          cs.setProperty('--rail-b', `${3 / scale}px`);
+        }
+        if (tb) {
           // Top-to-bottom: lanes are columns, so the stripe and the pills sit at the visible top edge instead,
           // and each pill follows its column sideways when the column is wider than the screen
           const y0 = Math.max(0, visTop);
@@ -412,20 +445,16 @@
           cs.removeProperty('--rail-x');
           cs.removeProperty('--pill-x');
           cs.setProperty('--rail-y', `${y0}px`);
-          cs.setProperty('--rail-b', `${3 / scale}px`);
           cs.setProperty('--pill-y', `${y0 + inset}px`);
           // Each pill is centred on the visible part of its column (the whole column when it is on screen)
-          const visRight = visLeft + viewport.clientWidth / scale;
-          lanesRoot.querySelectorAll('.swimlane').forEach(laneEl => {
-            const pill = laneEl.querySelector('.lane-pill');
-            if (!pill) return;
-            const w = laneEl.offsetWidth, pw = pill.offsetWidth;
-            const a = Math.max(0, visLeft - laneEl.offsetLeft), b = Math.min(w, visRight - laneEl.offsetLeft);
-            const maxX = Math.max(inset, w - pw - inset);
-            const x = Math.min(Math.max(b > a ? (a + b - pw) / 2 : (w - pw) / 2, inset), maxX);
-            laneEl.style.setProperty('--pill-x', `${x}px`);
-            laneEl.style.setProperty('--pill-cx', `${Math.max(inset, (w - pw) / 2)}px`);   // centred at rest (exports)
-          });
+          const visRight = visLeft + vpW / scale;
+          for (let i = 0; i < lanes.length; i++) {
+            const l = lanes[i];
+            const a = Math.max(0, visLeft - l.offsetLeft), b = Math.min(l.w, visRight - l.offsetLeft);
+            const maxX = Math.max(inset, l.w - l.pw - inset);
+            const x = Math.min(Math.max(b > a ? (a + b - l.pw) / 2 : (l.w - l.pw) / 2, inset), maxX);
+            l.laneEl.style.setProperty('--pill-x', `${x}px`);
+          }
           placeLaneBar();
           return;
         }
@@ -434,16 +463,13 @@
         cs.removeProperty('--rail-y');
         cs.removeProperty('--pill-y');
         cs.setProperty('--rail-x', `${x0}px`);
-        cs.setProperty('--rail-b', `${3 / scale}px`);
         cs.setProperty('--pill-x', `${x0 + inset}px`);
-        lanesRoot.querySelectorAll('.swimlane').forEach(laneEl => {
-          const pill = laneEl.querySelector('.lane-pill');
-          if (!pill) return;
-          const pillH = pill.offsetHeight;
-          const maxY = Math.max(inset, laneEl.offsetHeight - pillH - inset);
-          const y = Math.min(Math.max(visTop - laneEl.offsetTop + inset, inset), maxY);
-          laneEl.style.setProperty('--pill-y', `${y}px`);
-        });
+        for (let i = 0; i < lanes.length; i++) {
+          const l = lanes[i];
+          const maxY = Math.max(inset, l.h - l.ph - inset);
+          const y = Math.min(Math.max(visTop - l.offsetTop + inset, inset), maxY);
+          l.laneEl.style.setProperty('--pill-y', `${y}px`);
+        }
         placeLaneBar();
       }
 
@@ -474,6 +500,8 @@
       }
 
       function renderLanes(trackWidth) {
+        lanePinCache = null;
+        lastPinScale = null;
         const hoverIdx = hoverLaneEl ? [...lanesRoot.children].indexOf(hoverLaneEl) : -1;
         hoverLaneEl = null;
         lanesRoot.innerHTML = '';
@@ -4005,8 +4033,8 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
       const tabLabel = (key) => (key === PARENT ? PARENT_LABEL : chartData.tabNames[key]);
       const hasChild = (nodeId) => !!chartData.flows && nodeId in chartData.tabNames;
 
-      // The tab bar: nested folder boxes along the path Main -> ... -> current flow, then the current flow's direct children
-      // in the innermost box. Siblings of the path are not drawn: go up a level to reach them.
+      // The tab bar: Main flow plus nested boxes along the active path. Siblings at each open level stay visible;
+      // an expanded tab's children sit in an inner box immediately after it so ownership stays clear.
       function renderTabs() {
         flowTabs.hidden = !chartData.flows;
         document.querySelectorAll('[data-export="svg-all"]').forEach(el => { el.hidden = !chartData.flows; });
@@ -4055,13 +4083,18 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         const box = (parent, level) => { const d = document.createElement('div'); d.className = 'flow-subtabs'; d.dataset.level = String(level); d.setAttribute('role', 'none'); parent.appendChild(d); return d; };
         const path = [cur];
         while (path[0] !== PARENT) path.unshift(parentOf(path[0]));
-        let at = flowTabs;
-        path.forEach((key, i) => {
-          if (i) at = box(at, i);
-          at.appendChild(tab(key));
-        });
-        const kids = childrenOf(cur);
-        if (kids.length) { const inner = box(at, path.length); kids.forEach(k => inner.appendChild(tab(k))); }
+        const renderLevel = (parentKey, container, depth) => {
+          const kids = childrenOf(parentKey);
+          if (!kids.length) return;
+          const b = box(container, depth);
+          const nextOnPath = path[depth];
+          kids.forEach(k => {
+            b.appendChild(tab(k));
+            if (k === nextOnPath) renderLevel(k, b, depth + 1);
+          });
+        };
+        flowTabs.appendChild(tab(PARENT));
+        renderLevel(PARENT, flowTabs, 1);
         // hanging boxes: each is one flex row
         const act = flowTabs.querySelector('.flow-tab[aria-selected="true"]');
         if (act && act.scrollIntoView) act.scrollIntoView({ block: 'nearest', inline: 'nearest' });
@@ -4451,6 +4484,9 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         eachTab,
         isBackground: (el) => (isPresenting() && !!el.closest('.flow-node:not(.type-connector)')) || el.id === 'swimlanes-container' || el.classList.contains('lane-track') || el.classList.contains('lane-gutter'),
         clearSelection() {
+          const hadNodes = selectedNodeIds.size > 0;
+          const hadEdge = !!selectedEdgeId;
+          if (!hadNodes && !hadEdge && !selectedLaneId && !selectedNoteId && !peekNodeId && !connectorPicking) return;
           clearNodeSelection();
           selectedEdgeId = null;
           selectedLaneId = null;
@@ -4458,7 +4494,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           peekNodeId = null;
           setConnectorPicking(false);   // a click on the canvas cancels waiting for an arrow
           markSelectedLane();
-          renderEdges();
+          if (hadNodes || hadEdge) renderEdges();
           applyNoteVisibility();
         },
         // Shift + drag on blank canvas: the steps (and connector circles) the box touches. `start` is true on the

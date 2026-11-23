@@ -58,7 +58,7 @@ Make exactly these calls. The type reference and the command below are the compl
    | Last line | Action |
    |---|---|
    | `[NEXT]` | Fix each `[WARN]` line with a targeted edit to the item it names (it says how), re-run step 3. Never rewrite or redesign the Mermaid. |
-   | `[DONE]` | Final, even with `[INFO]` lines: report them, never re-word, re-run or re-render for them. `--rm-input` already deleted `<scratch.mmd>` (keep the scratch artifact folder when publishing an artifact, see Artifact output), then report. |
+   | `[DONE]` | Final, even with `[INFO]` lines: never re-word, re-run or re-render for them. `--rm-input` already deleted `<scratch.mmd>` (keep the scratch artifact folder when publishing an artifact, see Artifact output), then report (see Final Report). |
    | `[ERROR] Layout needs Node.js ... or Chrome` | Retry once with `--browser <chrome path>`. Otherwise stop and report it; never hand-place coordinates. |
 
 **Local HTML file**: create, read and update follow the three procedures here. Never change the diagram with `Edit` or `Write` on the HTML: it is generated output, and almost all of it is editor code. Delete the file only when the user asks; confirm first, and delete any scratch files you made.
@@ -121,7 +121,7 @@ About 5 lines: the file, and anything that needs the user's action. Not a log of
 - the output path (for an artifact: its link, and that it is private until the user shares it from claude.ai) and a concise description (type, and main actors, participants or tables);
 - assumptions: anything you added or reordered that the source did not state, and each conflict between sources with the version you followed;
 - problems only: any `[WARN]` left, labels shortened from the user's wording, a split diagram and why, what a re-layout reset (updates);
-- every `[INFO]` line, as given.
+- actionable `[INFO]` lines only (`Layout:` issues, `Positions reset`, dropped/changed Mermaid items, `Subprocess candidate`, `Update available`); omit routine auto-defaults such as `Lane icons`, `Direction`, and `Subprocess flows`.
 
 ---
 

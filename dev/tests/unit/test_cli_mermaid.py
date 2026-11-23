@@ -76,6 +76,16 @@ r = cli("--layout", c4_ctx, "-o", tmp / "ctx.html")
 check("c4: C4Context text is read as a c4 page", r.returncode == 0 and "[DONE]" in r.stdout and le.read_data_block((tmp / "ctx.html").read_text(encoding="utf-8")).get("diagramType") == "c4", r.stdout[-300:] + r.stderr[-300:])
 ctx_back = cli("--extract", tmp / "ctx.html").stdout
 check("c4: --extract writes C4Context with the icon hint and the relation", ctx_back.startswith("C4Context") and "%% @icon c user" in ctx_back and 'Rel(c, s, "Buys", "HTTPS")' in ctx_back, ctx_back)
+pinned_c4 = tmp / "pinned-c4.html"
+pinned_c4_data = le.read_data_block((tmp / "ctx.html").read_text(encoding="utf-8"))
+pinned_pos = {"c": {"x": 48, "y": 48}, "s": {"x": 500, "y": 200}}
+for el in pinned_c4_data.get("elements") or []:
+    if el["id"] in pinned_pos:
+        el.update(pinned_pos[el["id"]])
+le.scaffold_html(pinned_c4_data, pinned_c4)
+r = cli("--layout", c4_ctx, "--keep-from", pinned_c4, "-o", tmp / "pinned-c4-2.html")
+check("c4: --keep-from with pinned positions keeps them",
+      r.returncode == 0 and layout_of(tmp / "pinned-c4-2.html") == pinned_pos, r.stdout[-300:] + r.stderr[-300:])
 for view in ("C4Dynamic", "C4Deployment"):
     (tmp / "view.mmd").write_text(view + '\n  Person(a, "A")\n', encoding="utf-8")
     r = cli("--layout", tmp / "view.mmd", "-o", tmp / "view.html")
