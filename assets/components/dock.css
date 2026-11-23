@@ -212,7 +212,7 @@
       .toolbar-center > .dock-delete:not(.show) { flex: 0 0 0; }
     }
     /* Below 1300px the dock is icon-only (the labels need about 800px beside the zoom dock): same icons, same tooltips, one row.
-       Between 721px and 1300px the add dock is centred in the space right of the zoom dock, so the two never collide. */
+       Between 721px and 1300px the edit dock sits at the bottom-right corner to align with the top-right pill. */
     @media (max-width: 1300px) {
       .toolbar-center .btn-label { display: none; }
       .toolbar-center > .btn:not(:has(.btn-count:not([hidden]))) { padding-inline: 8px; }
@@ -220,6 +220,6 @@
     @media (min-width: 721px) and (max-width: 1300px) {
       .dock-area { grid-template-columns: auto minmax(0, 1fr); }
       .toolbar-zoom { grid-column: 1; grid-row: 1; }
-      .toolbar-center { grid-column: 2; grid-row: 1; justify-self: center; }
+      .toolbar-center { grid-column: 2; grid-row: 1; justify-self: end; }
     }
 

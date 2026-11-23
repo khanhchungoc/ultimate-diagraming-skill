@@ -796,26 +796,25 @@
     #swimlanes-container.dir-tb .lane-pill { text-align: center; }
     body.exporting #swimlanes-container.dir-tb .lane-pill { transform: translate(var(--pill-cx, 12px), 12px) !important; }
 
-    /* Subprocess flows: nested hanging folder tabs merged into the header (renderTabs). Main flow is the outer folder
-       wrapping around its child .flow-subtabs tray (and each expanded parent wraps its own children). The active tab fills
-       its slot edge-to-edge in the header surface and covers the header's 1px bottom border so it opens seamlessly into
-       the navbar; inactive tabs and ancestor shells sit recessed below the seam. */
+    /* Subprocess flows: floating folder tabs tucked below the top-left pill (renderTabs). Main flow sits in the outer
+       pill with nested .flow-subtabs trays along the active path; presentation mode glides the tabs up to top: 16px. */
     .flow-tabs, .flow-subtabs {
-      display: flex; align-items: stretch; gap: 0;
-      background: var(--bg-page);
-      border: 1px solid var(--border-dark); border-top: 0;
-      border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+      display: flex; align-items: stretch; gap: 3px;
+      background: var(--bg-panel);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-xl);
     }
     .flow-tabs {
-      position: fixed; top: 55px; left: 16px; z-index: 120; max-width: calc(100vw - 32px); overflow-x: auto;
-      padding: 0 4px 4px 0;
-      box-shadow: var(--shadow-sm);
+      position: fixed; top: 64px; left: 20px; z-index: 120; max-width: calc(100vw - 40px); overflow-x: auto;
+      padding: 3px;
+      box-shadow: var(--shadow-md);
     }
     .flow-tabs[hidden] { display: none; }
     .flow-subtabs {
       min-width: 0; overflow: hidden;
-      border-radius: 0 0 var(--radius-md) var(--radius-md);
-      border-color: var(--border-dark);
+      background: var(--bg-page);
+      border-radius: var(--radius-md);
+      border-color: var(--border-color);
     }
     .flow-subtabs:has(> .flow-subtabs) {
       padding: 0 3px 3px 0;
@@ -829,20 +828,16 @@
       flex: none; display: inline-flex; align-items: center; min-height: 29px; max-width: 180px; padding: 0 12px; box-sizing: border-box;
       background: transparent;
       border: 0;
-      border-top: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
       font: inherit; font-size: var(--text-md); color: var(--text-soft); cursor: pointer;
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
       transition: background var(--ease), color var(--ease);
     }
-    .flow-tabs > .flow-tab {
-      border-bottom-left-radius: var(--radius-lg);
-    }
     .flow-subtabs > .flow-tab {
-      background: var(--bg-page);
+      background: transparent;
+      border-radius: 0;
     }
-    .flow-subtabs > .flow-tab + .flow-tab {
-      border-left: 1px solid var(--border-color);
-    }
+    .flow-subtabs > .flow-tab + .flow-tab,
     .flow-subtabs > .flow-subtabs + .flow-tab {
       border-left: 1px solid var(--border-color);
     }
@@ -851,42 +846,23 @@
     .flow-tab[aria-selected="true"] {
       z-index: 2;
       font-weight: var(--weight-bold); color: var(--primary);
-      background: var(--bg-panel);
-      border-top-color: var(--bg-panel);
+      background: var(--primary-wash);
     }
     .flow-subtabs > .flow-tab[aria-selected="true"] {
-      border-left: 1px solid var(--border-dark);
-      border-right: 1px solid var(--border-dark);
-      border-bottom: 1px solid var(--border-dark);
-      border-radius: 0 0 var(--radius-md) var(--radius-md);
-      margin: 0 -1px -1px;
-    }
-    .flow-subtabs > .flow-tab[aria-selected="true"]:first-child { margin-left: -1px; }
-    .flow-subtabs > .flow-tab[aria-selected="true"] + .flow-tab { border-left-color: transparent; }
-    .flow-subtabs:has(> .flow-subtabs) > .flow-tab[aria-selected="true"] {
-      border-left-color: transparent;
-      border-right-color: transparent;
-      border-bottom-color: transparent;
-      border-radius: 0;
-      margin: 0;
-    }
-    body.presentation .flow-tabs {
-      top: 12px;
-      border-top: 1px solid var(--border-dark);
-      border-radius: var(--radius-lg);
-      padding: 3px;
-      gap: 3px;
-    }
-    body.presentation .flow-subtabs {
-      border-top: 1px solid var(--border-dark);
+      background: var(--bg-panel);
       border-radius: var(--radius-md);
     }
-    body.presentation .flow-tab { border-top: 0; border-radius: var(--radius-sm); }
-    body.presentation .flow-subtabs > .flow-tab { border-radius: 0; }
-    body.presentation .flow-subtabs > .flow-tab[aria-selected="true"] {
-      border: 1px solid var(--border-dark);
-      border-radius: var(--radius-sm);
-      margin: -1px;
+    .flow-subtabs > .flow-tab[aria-selected="true"] + .flow-tab { border-left-color: transparent; }
+    .flow-subtabs:has(> .flow-subtabs) > .flow-tab[aria-selected="true"] {
+      border-radius: 0;
+    }
+    body.presentation .flow-tabs {
+      top: 16px;
+      left: 20px;
+    }
+    @media (max-width: 720px) {
+      .flow-tabs { top: 60px; left: 12px; max-width: calc(100vw - 24px); }
+      body.presentation .flow-tabs { top: 12px; left: 12px; }
     }
     body.capture .flow-tabs { display: none; }
     /* Over the + marker drawn in the outline (SHAPE_OUTLINES): a transparent hit area that tints on hover */

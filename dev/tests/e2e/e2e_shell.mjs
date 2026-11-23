@@ -616,8 +616,9 @@ try {
   await t.ev(`document.getElementById('viewport').dispatchEvent(new WheelEvent('wheel', { bubbles: true, cancelable: true, deltaX: 0, deltaY: 500, deltaMode: 0, clientX: 600, clientY: 400 }))`);
   await sleep(100);
   const pinnedTop = await t.ev(`(() => { const vp = document.getElementById('viewport').getBoundingClientRect(), c = document.getElementById('swimlanes-container').getBoundingClientRect();
-    return { below: c.top < vp.top, dy: [...document.querySelectorAll('.lane-pill')].map(p => Math.round(p.getBoundingClientRect().top - vp.top)) }; })()`);
-  t.check('vertical: after panning down, every pill sits at the viewport top edge',
+    const safeTop = Math.max(vp.top, ...[...document.querySelectorAll('header .toolbar-left, header .toolbar-right')].map((el) => el.getBoundingClientRect().bottom));
+    return { below: c.top < vp.top, dy: [...document.querySelectorAll('.lane-pill')].map(p => Math.round(p.getBoundingClientRect().top - safeTop)) }; })()`);
+  t.check('vertical: after panning down, every pill sits below the floating header pills',
     pinnedTop.below && pinnedTop.dy.every(d => d >= 4 && d <= 20), JSON.stringify(pinnedTop));
   // Save, then reopen the saved file: it opens vertical
   await t.ev(t.key('s', { ctrlKey: true }));
@@ -681,25 +682,50 @@ try {
   t.check('?present hides Save and toolbar', await t.ev(`document.body.classList.contains('presentation') && getComputedStyle(document.getElementById('btn-save')).display === 'none' && getComputedStyle(document.querySelector('.toolbar-center')).display === 'none'`));
   t.check('?present starts with the Present button pressed', await t.ev(`document.getElementById('btn-present').getAttribute('aria-pressed') === 'true'`));
 
-  // 10a. Header: labeled actions (Present, Save), icon-only glyphs (Theme, Help, Import, Export), Undo/Redo in the zoom dock
+  // 10a. Top floating corner pills: full-bleed viewport, labeled Present and Save, icon-only tools, progressive tablet/phone compaction
   await t.open(laid);
-  t.check('Present and Save are labeled; Theme, Help, Import and Export are icon-only',
-    await t.ev(`[...document.querySelectorAll('header .toolbar-right > .btn, header .menu-wrap > .btn')].filter(b => b.getClientRects().length).every(b => !!b.textContent.trim() === !['btn-theme', 'btn-help', 'btn-import-mermaid', 'btn-export'].includes(b.id))`));
+  t.check('viewport starts at top: 0 (no full-width top navbar)',
+    await t.ev(`(() => { const r = document.getElementById('viewport').getBoundingClientRect(); return r.top === 0 && r.height === window.innerHeight; })()`));
+  t.check('Present and Save are labeled; Search, Theme, Help, Import and Export are icon-only',
+    await t.ev(`[...document.querySelectorAll('header .toolbar-right > .btn, header .menu-wrap > .btn')].filter(b => b.getClientRects().length).every(b => !!b.textContent.trim() === !['btn-search', 'btn-theme', 'btn-help', 'btn-import-mermaid', 'btn-export', 'btn-more'].includes(b.id))`));
   t.check('every header button has an aria-label and a title',
     await t.ev(`[...document.querySelectorAll('header .toolbar-right > .btn, header .menu-wrap > .btn')].every(b => b.getAttribute('aria-label') && b.title)`));
   t.check('Undo and Redo sit in the zoom dock, not the header',
     await t.ev(`!!document.querySelector('.toolbar-zoom #btn-undo') && !!document.querySelector('.toolbar-zoom #btn-redo') && !document.querySelector('header #btn-undo, header #btn-redo')`));
-  await t.send('Emulation.setDeviceMetricsOverride', { width: 900, height: 800, deviceScaleFactor: 1, mobile: false });
-  await t.ev(`(() => { const h1 = document.getElementById('chart-title'); h1.textContent = 'Justice Proposal Update Flow (EXTENDED) With Extra Long Title'; h1.dispatchEvent(new Event('dblclick')); h1.dispatchEvent(new Event('blur')); })()`);
+  await t.send('Emulation.setDeviceMetricsOverride', { width: 768, height: 1024, deviceScaleFactor: 1, mobile: false });
+  await t.ev(`(() => { const h1 = document.getElementById('chart-title'); h1.textContent = 'Customer Loan Application Process'; h1.dispatchEvent(new Event('dblclick')); h1.dispatchEvent(new Event('blur')); })()`);
   await sleep(60);
-  t.check('narrow viewport + long title switches Present and Save to icon-only and keeps Save on screen',
-    await t.ev(`document.querySelector('header').classList.contains('is-compact') && getComputedStyle(document.querySelector('#btn-present .btn-label')).display === 'none' && getComputedStyle(document.querySelector('#btn-save .btn-label')).display === 'none' && document.getElementById('btn-save').getBoundingClientRect().right <= window.innerWidth`));
+  t.check('tablet portrait folds secondary controls into #btn-more while keeping Save labeled, pills separated, and edit dock bottom-right',
+    await t.ev(`(() => {
+      const tl = document.querySelector('.toolbar-left').getBoundingClientRect();
+      const tr = document.querySelector('.toolbar-right').getBoundingClientRect();
+      const tc = document.querySelector('.toolbar-center').getBoundingClientRect();
+      return document.getElementById('btn-more').getClientRects().length > 0
+        && document.getElementById('btn-theme').getClientRects().length === 0
+        && getComputedStyle(document.querySelector('#btn-present .btn-label')).display === 'none'
+        && getComputedStyle(document.querySelector('#btn-save .btn-label')).display !== 'none'
+        && tr.left - tl.right >= 12 && tr.right <= window.innerWidth
+        && Math.abs(tc.right - tr.right) <= 2;
+    })()`));
+  await t.clickOn('#btn-more');
+  t.check('More menu opens on tablet portrait with theme, shortcuts, and export actions',
+    await t.ev(`!document.getElementById('more-menu').hidden && !![...document.querySelectorAll('#more-menu [role="menuitem"]')].find(b => /Dark mode|Light mode/.test(b.textContent)) && !![...document.querySelectorAll('#more-menu [role="menuitem"]')].find(b => /SVG image/.test(b.textContent))`));
+  await t.ev(t.key('Escape'));
+  t.check('Escape closes the More menu and restores focus to #btn-more',
+    await t.ev(`document.getElementById('more-menu').hidden && document.activeElement.id === 'btn-more'`));
+  await t.send('Emulation.setDeviceMetricsOverride', { width: 480, height: 800, deviceScaleFactor: 1, mobile: false });
+  await sleep(60);
+  t.check('phone width also switches Save to icon-only and keeps Save on screen',
+    await t.ev(`getComputedStyle(document.querySelector('#btn-save .btn-label')).display === 'none' && document.getElementById('btn-save').getBoundingClientRect().right <= window.innerWidth`));
   await t.send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 800, deviceScaleFactor: 1, mobile: false });
   await t.ev(`(() => { const h1 = document.getElementById('chart-title'); h1.textContent = 'Flow'; h1.dispatchEvent(new Event('dblclick')); h1.dispatchEvent(new Event('blur')); })()`);
   await sleep(60);
-  t.check('wide viewport + short title restores Present and Save labels',
-    await t.ev(`!document.querySelector('header').classList.contains('is-compact') && getComputedStyle(document.querySelector('#btn-present .btn-label')).display !== 'none' && getComputedStyle(document.querySelector('#btn-save .btn-label')).display !== 'none'`));
+  t.check('wide viewport + short title restores full right pill and labels',
+    await t.ev(`!document.querySelector('header').classList.contains('is-compact') && !document.querySelector('header').classList.contains('is-tight') && document.getElementById('btn-more').getClientRects().length === 0 && getComputedStyle(document.querySelector('#btn-present .btn-label')).display !== 'none' && getComputedStyle(document.querySelector('#btn-save .btn-label')).display !== 'none'`));
   await t.send('Emulation.clearDeviceMetricsOverride');
+  await sleep(40);
+  t.check('wide desktop (>1300px) keeps bottom edit dock centered',
+    await t.ev(`(() => { const tc = document.querySelector('.toolbar-center').getBoundingClientRect(); return window.innerWidth > 1300 && Math.abs((tc.left + tc.right) / 2 - window.innerWidth / 2) <= 2; })()`));
   await t.clickOn('#btn-export');
   t.check('Export menu opens on click', !(await t.ev(`document.getElementById('export-menu').hidden`)));
   await t.ev(t.key('Escape'));

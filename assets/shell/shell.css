@@ -21,38 +21,53 @@
     /* Form controls and kbd do not inherit the page font by default (buttons fall back to Arial, kbd to monospace) */
     button, input, select, textarea, kbd { font-family: inherit; }
 
-    /* Top Navigation Toolbar */
+    /* Top Floating Corner Pills (matching .toolbar-zoom / .toolbar-center in dock.css) */
     header {
-      background: var(--bg-panel);
-      border-bottom: 1px solid var(--border-color);
-      height: 56px;
-      padding: 0 16px;
+      position: fixed;
+      top: 16px;
+      left: 20px;
+      right: 20px;
+      z-index: 100;
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       justify-content: space-between;
       gap: 12px;
-      position: relative;   /* anchors the search bar */
-      z-index: 100;
-      box-shadow: var(--shadow-sm);
+      pointer-events: none;
     }
+    header > * { pointer-events: auto; }
 
     .toolbar-left, .toolbar-right {
       display: flex;
       align-items: center;
-      gap: 10px;
+      min-height: 42px;
+      padding: 4px;
+      background: var(--bg-panel);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-xl);
+      box-shadow: var(--shadow-md);
     }
-    .toolbar-left { min-width: 0; flex: 1 1 auto; }
-    .toolbar-right { flex: none; }
+    .toolbar-left {
+      min-width: 0;
+      flex: 0 1 auto;
+      gap: 8px;
+      padding: 4px 10px 4px 12px;
+    }
+    .toolbar-left:has(.type-switch) { padding-left: 4px; }
+    .toolbar-right { flex: none; gap: 4px; }
     .toolbar-left > svg, .type-switch svg { flex: none; color: var(--primary); }   /* the type's header icon */
     /* Playground type switcher: a labeled button (icon, name, chevron) over a scrollable menu, so it holds any number of types */
-    .type-btn { gap: 8px; padding: 0 10px; height: 36px; }
+    .type-btn { gap: 8px; padding: 0 10px; height: 32px; border-color: transparent; background: transparent; }
     .type-btn svg:last-child { color: var(--text-muted); }
     #type-menu { min-width: 220px; max-height: min(60vh, 420px); overflow-y: auto; }
-    #type-menu button { display: flex; align-items: center; gap: 10px; width: 100%; }
+    #type-menu button,
+    #more-menu button { display: flex; align-items: center; gap: 10px; width: 100%; }
     #type-menu .menu-check { margin-left: auto; }
-    /* Header buttons: universal glyphs (theme, help, import, export) are icon-only 36px squares, borderless until hovered; Present and Save keep a text label when there is room */
+    .more-wrap { display: none; }
+    #more-menu { min-width: 196px; }
+    #more-menu svg { flex: none; color: var(--text-soft); }
+    /* Header buttons: universal glyphs (search, theme, help, import, export, more) are 32px squares matching the bottom docks */
     header .btn-icon {
-      width: 36px; height: 36px; padding: 0;
+      width: 32px; height: 32px; padding: 0;
       justify-content: center;
       border-color: transparent;
       background: transparent;
@@ -63,15 +78,32 @@
     }
     header .btn-icon:disabled, header .btn-icon:disabled:hover { background: transparent; border-color: transparent; }
     header .btn-icon svg, header .toolbar-right > .btn svg, header .menu-wrap > .btn svg { width: var(--icon-lg); height: var(--icon-lg); }
-    header .toolbar-right > .btn:not(.btn-icon), header .menu-wrap > .btn:not(.btn-icon) { height: 36px; }   /* labeled buttons (Present, Save) line up with the icon squares */
-    body:not(.presentation) header.is-compact .toolbar-right .btn-label { display: none; }
-    body:not(.presentation) header.is-compact .toolbar-right > .btn:not(.btn-icon),
-    body:not(.presentation) header.is-compact .toolbar-right .menu-wrap > .btn:not(.btn-icon) {
-      width: 36px;
+    header .toolbar-right > .btn:not(.btn-icon), header .menu-wrap > .btn:not(.btn-icon) { height: 32px; padding: 0 10px; font-size: var(--text-md); }
+    header .toolbar-right > .btn-primary { padding: 0 12px; }
+    @media (pointer: coarse) {
+      header .btn { position: relative; }
+      header .btn::after { content: ''; position: absolute; inset: -6px -2px; }
+    }
+    /* Progressive compaction:
+       1) .is-compact: Present drops its label
+       2) .is-tight (or <= 900px): secondary utilities fold into the More (...) menu while Save stays labeled
+       3) .is-compact-save (or <= 560px): Save drops its label too */
+    body:not(.presentation) header.is-compact .toolbar-right #btn-present .btn-label { display: none; }
+    body:not(.presentation) header.is-compact .toolbar-right #btn-present {
+      width: 32px;
       padding: 0;
       justify-content: center;
     }
-    .toolbar-sep { width: 1px; height: 20px; background: var(--border-color); flex: none; }
+    body:not(.presentation) header.is-tight .toolbar-right .pill-secondary,
+    body:not(.presentation) header.is-tight .toolbar-right .toolbar-sep { display: none; }
+    body:not(.presentation) header.is-tight .toolbar-right .more-wrap { display: inline-flex; }
+    body:not(.presentation) header.is-compact-save .toolbar-right #btn-save .btn-label { display: none; }
+    body:not(.presentation) header.is-compact-save .toolbar-right #btn-save {
+      width: 32px;
+      padding: 0;
+      justify-content: center;
+    }
+    .toolbar-sep { width: 1px; height: 18px; margin: 0 2px; background: var(--border-color); flex: none; }
 
     .app-title-container {
       display: flex;
@@ -82,7 +114,8 @@
     .app-title-container > .badge-status { flex: none; }
 
     h1#chart-title {
-      font-size: var(--text-2xl);
+      font-size: var(--text-xl);
+      line-height: var(--leading-snug);
       font-weight: var(--weight-bold);
       color: var(--text-main);
       outline: none;
@@ -165,8 +198,8 @@
     /* Help & Shortcuts Popover */
     #help-drawer {
       position: fixed;
-      top: 64px;
-      right: 16px;
+      top: 66px;
+      right: 20px;
       bottom: auto;
       width: min(360px, calc(100vw - 32px));
       max-height: calc(100vh - 84px);
@@ -311,24 +344,34 @@
     body.presentation #btn-theme,
     body.presentation #search-bar,
     body.presentation #help-drawer { display: none !important; }
-    /* The header collapses to nothing; only the Present button stays, pinned to a corner. The zoom dock is not in the header. */
-    body.presentation header { height: 0; padding: 0; border: 0; box-shadow: none; background: none; }
-    body.presentation #btn-present { position: fixed; top: 12px; right: 16px; z-index: 101; }
+    /* The top pills collapse to nothing; only the Present button stays, pinned to the top-right corner. */
+    body.presentation header { height: 0; top: 16px; right: 20px; left: auto; justify-content: flex-end; }
+    body.presentation .toolbar-right { min-height: 0; padding: 0; border: 0; box-shadow: none; background: none; }
+    body.presentation #btn-present { position: fixed; top: 16px; right: 20px; z-index: 101; box-shadow: var(--shadow-md); }
     /* Capture mode (?capture, used for screenshots): diagram only, edge to edge */
     body.capture header,
     body.capture .toolbar-zoom { display: none; }
 
-    /* Narrow screens (a shared link opened on a phone): icon-only docks, compact header */
+    /* Tablet portrait and narrow screens: tuck secondary tools into More (...) so the title and Save stay readable */
+    @media (max-width: 900px) {
+      body:not(.presentation) header .toolbar-right .pill-secondary,
+      body:not(.presentation) header .toolbar-right .toolbar-sep { display: none; }
+      body:not(.presentation) header .toolbar-right .more-wrap { display: inline-flex; }
+      body:not(.presentation) header .toolbar-right #btn-present .btn-label { display: none; }
+      body:not(.presentation) header .toolbar-right #btn-present { width: 32px; padding: 0; justify-content: center; }
+    }
+    /* Narrow screens (a shared link opened on a phone): tighter corner insets */
     @media (max-width: 720px) {
-      header { padding: 0 10px; }
+      header { top: 12px; left: 12px; right: 12px; gap: 8px; }
+      .toolbar-left { padding: 4px 8px 4px 10px; }
       .type-btn .btn-label { display: inline; max-width: 96px; overflow: hidden; text-overflow: ellipsis; }   /* the type name stays on a phone */
       .type-switch ~ .app-title-container { display: none; }   /* no room for the title beside the switcher on a phone */
-      .toolbar-right { gap: 6px; }
-      header .toolbar-right .btn-label { display: none; }
-      header .toolbar-right > .btn:not(.btn-icon),
-      header .toolbar-right .menu-wrap > .btn:not(.btn-icon) { width: 36px; padding: 0; justify-content: center; }
-      #btn-help { display: none; }   /* a phone has no keyboard shortcuts to list */
-      #help-drawer { top: 64px; right: 12px; bottom: auto; }
+      #btn-help, [data-more="help"] { display: none; }   /* a phone has no keyboard shortcuts to list */
+      #help-drawer { top: 60px; right: 12px; bottom: auto; }
+    }
+    @media (max-width: 560px) {
+      body:not(.presentation) header .toolbar-right #btn-save .btn-label { display: none; }
+      body:not(.presentation) header .toolbar-right #btn-save { width: 32px; padding: 0; justify-content: center; }
     }
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after {

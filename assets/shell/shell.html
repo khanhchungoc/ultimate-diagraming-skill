@@ -30,7 +30,7 @@
 </head>
 <body>
 
-  <!-- Top Toolbar -->
+  <!-- Top Floating Corner Pills -->
   <header>
     <div class="toolbar-left">
       {{TYPE_ICON}}
@@ -40,25 +40,28 @@
       </div>
     </div>
 
-    <div class="toolbar-right">
-      <button id="btn-theme" class="btn btn-icon" title="Dark mode" aria-label="Dark mode" aria-pressed="false">
+    <div class="toolbar-right" role="toolbar" aria-label="Diagram actions">
+      <button id="btn-search" class="btn btn-icon" title="Search (Ctrl+F or /)" aria-label="Search" aria-expanded="false" aria-controls="search-bar" hidden>
+        {{icon:search}}
+      </button>
+      <button id="btn-theme" class="btn btn-icon pill-secondary" title="Dark mode" aria-label="Dark mode" aria-pressed="false">
         <span class="theme-moon">{{icon:moon}}</span><span class="theme-sun">{{icon:sun}}</span>
       </button>
-      <button id="btn-help" class="btn btn-icon" title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts" aria-expanded="false">
+      <button id="btn-help" class="btn btn-icon pill-secondary" title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts" aria-expanded="false">
         {{icon:help}}
       </button>
       <span class="toolbar-sep" aria-hidden="true"></span>
       <button id="btn-present" class="btn" title="Present: a read-only view (Esc exits)" aria-label="Present" aria-pressed="false">
         {{icon:present}}<span class="btn-label">Present</span>
       </button>
-      <button id="btn-import-mermaid" class="btn btn-icon" title="Import: replace the diagram from pasted Mermaid text (Ctrl+V on the canvas does the same)" aria-label="Import Mermaid" hidden>
+      <button id="btn-import-mermaid" class="btn btn-icon pill-secondary" title="Import: replace the diagram from pasted Mermaid text (Ctrl+V on the canvas does the same)" aria-label="Import Mermaid" hidden>
         {{icon:import}}
       </button>
-      <div class="menu-wrap">
+      <div class="menu-wrap pill-secondary">
         <button id="btn-export" class="btn btn-icon" title="Export: download or copy the diagram as an image" aria-label="Export" aria-haspopup="menu" aria-expanded="false">
           {{icon:export}}
         </button>
-        <div id="export-menu" class="menu" role="menu" hidden>
+        <div id="export-menu" class="menu" role="menu" aria-labelledby="btn-export" hidden>
           <div class="menu-label" role="presentation">Download</div>
           <button type="button" role="menuitem" data-export="svg">SVG image</button>
           <button type="button" role="menuitem" data-export="png">PNG image (1.5x)</button>
@@ -69,17 +72,20 @@
           <button type="button" role="menuitem" data-copy="png">PNG image (1.5x)</button>
         </div>
       </div>
+      <div class="menu-wrap more-wrap">
+        <button id="btn-more" class="btn btn-icon" title="More actions" aria-label="More actions" aria-haspopup="menu" aria-expanded="false" aria-controls="more-menu">
+          {{icon:more}}
+        </button>
+        <div id="more-menu" class="menu" role="menu" aria-labelledby="btn-more" hidden></div>
+      </div>
       <button id="btn-save" class="btn btn-primary" title="Save directly into this HTML file (Ctrl+S)" aria-label="Save">
         {{icon:save}}<span class="btn-label">Save</span>
       </button>
     </div>
   </header>
 
-  <!-- Text search, in the canvas at the top right: an icon that opens into a text box (#btn-search, Ctrl/Cmd+F or "/"; shell.js, SEARCH) -->
+  <!-- Text search bar, opening beneath the top-right pill (#btn-search, Ctrl/Cmd+F or "/"; shell.js, SEARCH) -->
   <div id="search-dock">
-    <button id="btn-search" class="btn btn-icon" title="Search (Ctrl+F or /)" aria-label="Search" aria-expanded="false" aria-controls="search-bar" hidden>
-      {{icon:search}}
-    </button>
     <div id="search-bar" role="search" hidden>
       <span class="search-glyph" aria-hidden="true">{{icon:search}}</span>
       <input id="search-input" type="search" placeholder="Search" aria-label="Search the diagram" autocomplete="off" spellcheck="false">

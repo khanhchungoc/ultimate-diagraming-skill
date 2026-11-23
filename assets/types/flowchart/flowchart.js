@@ -425,6 +425,7 @@
         const visLeft = -panX / scale - left;   // viewport's left edge in container coords
         const visTop = -panY / scale - top;
         const inset = PILL_INSET;
+        const topSafe = ui.chromeTop ? ui.chromeTop() / scale : 0;
         const cs = swimlanesContainer.style;
         if (scale !== lastPinScale) {
           lastPinScale = scale;
@@ -438,7 +439,7 @@
           cs.removeProperty('--rail-x');
           cs.removeProperty('--pill-x');
           cs.setProperty('--rail-y', `${y0}px`);
-          cs.setProperty('--pill-y', `${y0 + inset}px`);
+          cs.setProperty('--pill-y', `${y0 + (visTop > 0 ? topSafe : 0) + inset}px`);
           // Each pill is centred on the visible part of its column (the whole column when it is on screen)
           const visRight = visLeft + vpW / scale;
           for (let i = 0; i < lanes.length; i++) {
@@ -457,10 +458,11 @@
         cs.removeProperty('--pill-y');
         cs.setProperty('--rail-x', `${x0}px`);
         cs.setProperty('--pill-x', `${x0 + inset}px`);
+        const padTop = visTop > 0 ? topSafe : 0;
         for (let i = 0; i < lanes.length; i++) {
           const l = lanes[i];
           const maxY = Math.max(inset, l.h - l.ph - inset);
-          const y = Math.min(Math.max(visTop - l.offsetTop + inset, inset), maxY);
+          const y = Math.min(Math.max(visTop + padTop - l.offsetTop + inset, inset), maxY);
           l.laneEl.style.setProperty('--pill-y', `${y}px`);
         }
         placeLaneBar();
