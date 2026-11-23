@@ -496,6 +496,7 @@
 // Elements
       const viewport = document.getElementById('viewport');
       const stage = document.getElementById('stage');
+      const headerEl = document.querySelector('header');
       const chartTitleEl = document.getElementById('chart-title');
       const saveStatus = document.getElementById('save-status');
       const btnSave = document.getElementById('btn-save');
@@ -508,6 +509,18 @@
       const btnRedo = document.getElementById('btn-redo');
       const btnHelp = document.getElementById('btn-help');
       const helpDrawer = document.getElementById('help-drawer');
+
+      // Switch header action buttons (Present, Save) to icon-only whenever the viewport + diagram title leave no room for labels
+      function syncHeaderCompact() {
+        if (!headerEl || document.body.classList.contains('presentation')) return;
+        headerEl.classList.remove('is-compact');
+        const overflows = headerEl.scrollWidth > headerEl.clientWidth + 1
+          || (chartTitleEl && chartTitleEl.scrollWidth > chartTitleEl.clientWidth + 1);
+        headerEl.classList.toggle('is-compact', overflows);
+      }
+      if (typeof ResizeObserver !== 'undefined' && headerEl) {
+        new ResizeObserver(syncHeaderCompact).observe(headerEl);
+      }
 
       // --- MOTION KERNEL (shared by shell + all 4 diagram plugins; zero external dependencies) ---
       const noAnimParam = /[?&](?:report|tidy|noanim)(?:=|&|$)/.test(window.location.search);
@@ -1327,8 +1340,9 @@
           applyInitialView();
           // The web font (Google Fonts link in shell.html) loads asynchronously: render again once it is in, so label
           // fitting and edge-label widths are measured with the real glyphs, and only then report, tidy, or settle.
+          syncHeaderCompact();
           const fontsIn = document.fonts && document.fonts.status !== 'loaded'
-            ? document.fonts.ready.then(() => { plugin.render(); applyInitialView(); }).catch(() => {})
+            ? document.fonts.ready.then(() => { plugin.render(); applyInitialView(); syncHeaderCompact(); }).catch(() => {})
             : Promise.resolve();
           fontsIn.then(() => {
             document.documentElement.dataset.diagramSettled = '1';
@@ -1361,6 +1375,7 @@
         }
         document.body.classList.toggle('presentation', on);
         btnPresent.setAttribute('aria-pressed', String(on));
+        if (!on) syncHeaderCompact();
         if (!on && presentEntry) {   // folds made while presenting are view only: put the model and history back as they were
           const e = presentEntry;
           undoStack = e.undo; redoStack = e.redo;
@@ -1396,6 +1411,7 @@
         saveStatus.textContent = text;
         if (cls !== undefined) saveStatus.className = cls;
         if (title !== undefined) saveStatus.title = title;
+        syncHeaderCompact();
         if (prevRect && prevRect.width > 0) {
           motion.morphRect(prevRect, saveStatus, { duration: 180, easing: 'curve-inout' });
           const roll = document.createElement('span');
