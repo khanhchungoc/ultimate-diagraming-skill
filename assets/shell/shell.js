@@ -2670,11 +2670,15 @@
       function isEmbeddedFrame() {
         try { return window.self !== window.top; } catch (_) { return true; }
       }
+      function isElectronHost() {
+        return typeof window.acquireVsCodeApi === 'function' || /\b(Electron|Code)\b/i.test(navigator.userAgent || '');
+      }
+      function canPickSaveFile() {
+        return 'showSaveFilePicker' in window && !isElectronHost();
+      }
       function canPickDirectory() {
         if (dirPickerBlocked || !('showDirectoryPicker' in window)) return false;
-        if (isEmbeddedFrame()) return false;
-        if (typeof window.acquireVsCodeApi === 'function') return false;
-        if (/\b(Electron|Code)\b/i.test(navigator.userAgent || '')) return false;
+        if (isEmbeddedFrame() || isElectronHost()) return false;
         return true;
       }
       function handleStorageKey() { return location.href.split(/[?#]/)[0]; }
@@ -3231,7 +3235,8 @@
       }
 
       async function writeFile(replacedHtml, picked) {
-        if ('showSaveFilePicker' in window) {
+        if (canPickSaveFile()) {
+          let pickedNow = false;
           try {
             if (!fileHandle && !picked) fileHandle = await loadStoredHandle();
             const loc = !fileHandle && !picked ? localFilePath() : null;
@@ -3249,13 +3254,19 @@
                 return;
               }
               fileHandle = await pickSaveFile();
-              storeHandle(fileHandle);
+              pickedNow = true;
             }
 
             await writeToHandle(fileHandle, replacedHtml);
+            if (pickedNow) storeHandle(fileHandle);
             return;
           } catch (err) {
-            if (err.name === 'AbortError') return;
+            if (err && err.name === 'AbortError') return;
+            if (pickedNow) {
+              fileHandle = null;
+              showToast('Could not overwrite file directly: ' + ((err && err.message) || err));
+              return;
+            }
           }
         }
 
@@ -3434,7 +3445,7 @@
 
       btnSave.addEventListener('click', saveToFile);
       // A file opened from disk that was saved before (or sits inside a linked workspace folder): show which file Save writes to
-      if (!claudeHost && location.protocol === 'file:' && 'showSaveFilePicker' in window) {
+      if (!claudeHost && location.protocol === 'file:' && canPickSaveFile()) {
         readStoredHandle().then(async (h) => {
           if (h && h.name && !fileHandle) { storedName = h.name; setStatusBadge(hasUnsavedChanges); return; }
           if (!fileHandle && canPickDirectory()) {
