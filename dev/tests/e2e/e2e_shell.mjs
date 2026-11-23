@@ -681,14 +681,25 @@ try {
   t.check('?present hides Save and toolbar', await t.ev(`document.body.classList.contains('presentation') && getComputedStyle(document.getElementById('btn-save')).display === 'none' && getComputedStyle(document.querySelector('.toolbar-center')).display === 'none'`));
   t.check('?present starts with the Present button pressed', await t.ev(`document.getElementById('btn-present').getAttribute('aria-pressed') === 'true'`));
 
-  // 10a. Header: labeled actions, Undo/Redo in the zoom dock
+  // 10a. Header: labeled actions (Present, Save), icon-only glyphs (Theme, Help, Import, Export), Undo/Redo in the zoom dock
   await t.open(laid);
-  t.check('action buttons are labeled; only the theme and help glyphs are icon-only',
-    await t.ev(`[...document.querySelectorAll('header .toolbar-right > .btn, header .menu-wrap > .btn')].filter(b => b.getClientRects().length).every(b => !!b.textContent.trim() === !['btn-theme', 'btn-help'].includes(b.id))`));
+  t.check('Present and Save are labeled; Theme, Help, Import and Export are icon-only',
+    await t.ev(`[...document.querySelectorAll('header .toolbar-right > .btn, header .menu-wrap > .btn')].filter(b => b.getClientRects().length).every(b => !!b.textContent.trim() === !['btn-theme', 'btn-help', 'btn-import-mermaid', 'btn-export'].includes(b.id))`));
   t.check('every header button has an aria-label and a title',
     await t.ev(`[...document.querySelectorAll('header .toolbar-right > .btn, header .menu-wrap > .btn')].every(b => b.getAttribute('aria-label') && b.title)`));
   t.check('Undo and Redo sit in the zoom dock, not the header',
     await t.ev(`!!document.querySelector('.toolbar-zoom #btn-undo') && !!document.querySelector('.toolbar-zoom #btn-redo') && !document.querySelector('header #btn-undo, header #btn-redo')`));
+  await t.send('Emulation.setDeviceMetricsOverride', { width: 900, height: 800, deviceScaleFactor: 1, mobile: false });
+  await t.ev(`(() => { const h1 = document.getElementById('chart-title'); h1.textContent = 'Justice Proposal Update Flow (EXTENDED) With Extra Long Title'; h1.dispatchEvent(new Event('dblclick')); h1.dispatchEvent(new Event('blur')); })()`);
+  await sleep(60);
+  t.check('narrow viewport + long title switches Present and Save to icon-only and keeps Save on screen',
+    await t.ev(`document.querySelector('header').classList.contains('is-compact') && getComputedStyle(document.querySelector('#btn-present .btn-label')).display === 'none' && getComputedStyle(document.querySelector('#btn-save .btn-label')).display === 'none' && document.getElementById('btn-save').getBoundingClientRect().right <= window.innerWidth`));
+  await t.send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 800, deviceScaleFactor: 1, mobile: false });
+  await t.ev(`(() => { const h1 = document.getElementById('chart-title'); h1.textContent = 'Flow'; h1.dispatchEvent(new Event('dblclick')); h1.dispatchEvent(new Event('blur')); })()`);
+  await sleep(60);
+  t.check('wide viewport + short title restores Present and Save labels',
+    await t.ev(`!document.querySelector('header').classList.contains('is-compact') && getComputedStyle(document.querySelector('#btn-present .btn-label')).display !== 'none' && getComputedStyle(document.querySelector('#btn-save .btn-label')).display !== 'none'`));
+  await t.send('Emulation.clearDeviceMetricsOverride');
   await t.clickOn('#btn-export');
   t.check('Export menu opens on click', !(await t.ev(`document.getElementById('export-menu').hidden`)));
   await t.ev(t.key('Escape'));
