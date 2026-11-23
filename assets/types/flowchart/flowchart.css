@@ -244,8 +244,8 @@
       align-items: center;
       justify-content: center;
       text-align: center;
-      font-size: var(--t-title-size);
-      font-weight: var(--t-title-weight);
+      font-size: var(--text-lg-plus);
+      font-weight: var(--weight-medium);
       line-height: var(--t-title-leading);
       user-select: none;
     }
@@ -371,10 +371,10 @@
       position: relative;
       z-index: 2;
       color: var(--decision-text);
-      font-weight: var(--weight-bold);
+      font-weight: var(--weight-medium);
       max-width: 92px;
       -webkit-line-clamp: 3;   /* a diamond is taller than a step: room for a third line */
-      font-size: var(--t-label-size);
+      font-size: var(--text-lg);
       line-height: var(--leading-tight);
     }
 
@@ -452,8 +452,8 @@
       border: 2px solid var(--conn-border);
       --node-stroke: 0px; /* keeps its own 2px border (a whole pixel, drawn true); no inset ring */
       color: var(--conn-text);
-      font-size: var(--t-title-size);
-      font-weight: var(--t-title-weight);
+      font-size: var(--text-lg-plus);
+      font-weight: var(--weight-medium);
       cursor: pointer;
     }
     /* Pairs tell apart in one hue (no extra colours): by letter, 0 pale disc + 2px ring (above), 1 solid disc,
