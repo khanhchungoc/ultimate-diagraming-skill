@@ -7026,7 +7026,10 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
                 const farther = enterSide === 'bottom' ? s.cy > f.cy + 30 : s.cy < f.cy - 30;
                 return farther && s.cx > f.x + f.w && s.cx < t.cx + 30;
               });
-              if (!verticalEntryUsed[sideKey] && !cutsSiblingTrunk
+              const decisionBranchOnEnter = nodeMap[e.to] && nodeMap[e.to].type === 'decision'
+                && (outEdges[e.to] || []).some(o => rects[o.to]
+                  && (enterSide === 'bottom' ? rects[o.to].cy > t.cy + 30 : rects[o.to].cy < t.cy - 30));
+              if (!verticalEntryUsed[sideKey] && !cutsSiblingTrunk && !decisionBranchOnEnter
                   && segmentClear(f.x + f.w, f.cy, t.cx, f.cy, [uId, e.to])
                   && segmentClear(t.cx, f.cy, t.cx, ey, [uId, e.to])) {
                 toPort = enterSide;
@@ -7046,6 +7049,9 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
         const fromOffY = {};
         const toOffY = {};
         const splitPortAxis = (nid, sides, fromMap, toMap, axis) => {
+          // Keep decision arrowheads/tails on the exact diamond vertices in the initial pass;
+          // step 5a separates colliding entries/exits onto free vertices, and 5a2 only offsets if they still collide.
+          if (nodeMap[nid] && nodeMap[nid].type === 'decision') return;
           sides.forEach(side => {
             const outs = outEdges[nid].filter(e => edgePorts[e.id] && edgePorts[e.id].fromPort === side);
             const ins = inEdges[nid].filter(e => edgePorts[e.id] && edgePorts[e.id].toPort === side);
@@ -7056,7 +7062,8 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
             const isStraightOut = outs.some(e => aligned(e.to, nid) && opp.includes(edgePorts[e.id].toPort));
             const isStraightIn = ins.some(e => aligned(e.from, nid) && opp.includes(edgePorts[e.id].fromPort));
 
-            if (isStraightOut && !isStraightIn) {
+            const isDecision = nodeMap[nid] && nodeMap[nid].type === 'decision';
+            if ((isStraightOut || isDecision) && !isStraightIn) {
               outs.forEach(e => { fromMap[e.id] = 0; });
               const insMean = ins.reduce((s, e) => s + rects[e.from][axis], 0) / ins.length;
               const slotDir = insMean >= rects[nid][axis] ? 1 : -1;
@@ -7331,7 +7338,7 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
           return { overlap, near, cross };
         };
         // Cost model: overlap >> near-parallel > crossing (~1.75 bends) > bend > length
-        const COST = { overlap: 20000, near: 2500, cross: 1750, bend: 1000, divider: 1500, nearNode: 600, portClash: 2500, sharedBranch: 1200, entryShare: 1500 };
+        const COST = { overlap: 20000, near: 2500, cross: 1750, bend: 1000, divider: 1500, nearNode: 600, portClash: 2500, sharedBranch: 1200, entryShare: 2600, backwardExit: 3500, upstreamDetour: 4500, sideOvershoot: 1800 };
         const routeDefects = (pts, ids) => {
           // Penalties independent of other arrows: hugging a lane divider, crowding a node
           let d = 0;
@@ -7383,6 +7390,26 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
           // Every penalty is non-negative, so once the running cost reaches `limit` this route cannot win: stop
           const fixed = (pts.length - 2) * COST.bend + len;
           let defect = portClashes(edge, fp, tp) * COST.portClash + sharedBranchVertex(edge, fp) * COST.sharedBranch;
+          const f = rects[edge.from], t = rects[edge.to];
+          if (t.cx >= f.cx - 30) {
+            if (nodeMap[edge.from] && nodeMap[edge.from].type === 'decision' && fp === 'left') {
+              defect += COST.backwardExit;
+            }
+            let minX = Infinity;
+            for (let i = 0; i < pts.length; i++) if (pts[i][0] < minX) minX = pts[i][0];
+            const upLimit = Math.min(f.x, t.x) - 16;
+            if (minX < upLimit) defect += COST.upstreamDetour + (upLimit - minX) * 4;
+          }
+          if (fp !== tp) {
+            let minY = Infinity, maxY = -Infinity;
+            for (let i = 0; i < pts.length; i++) {
+              if (pts[i][1] < minY) minY = pts[i][1];
+              if (pts[i][1] > maxY) maxY = pts[i][1];
+            }
+            const loY = Math.min(f.y, t.y) - 16, hiY = Math.max(f.y + f.h, t.y + t.h) + 16;
+            const overY = Math.max(0, loY - minY) + Math.max(0, maxY - hiY);
+            if (overY > 0) defect += COST.sideOvershoot + overY * 4;
+          }
           if (fixed + defect >= limit) return Infinity;
           for (let k = 0; k < others.length; k++) {
             const o = others[k], op = edgePorts[o.id];
@@ -7531,39 +7558,51 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
           }));
           return out;
         };
-        // Longest arrows first: they are the most constrained, shorter ones then route around them
+        // Longest arrows first: they are the most constrained, shorter ones then route around them.
+        // Exclude currently obstructed placeholder polylines from `others` so clean edges do not swerve
+        // around lines that cut through nodes and are about to be rerouted.
+        const edgeClear = {};
+        validEdges.forEach(o => {
+          const pts = edgePolylines[o.id];
+          edgeClear[o.id] = Boolean(pts && polyClear(pts, [o.from, o.to]));
+        });
         const manhattan = e => Math.abs(rects[e.from].cx - rects[e.to].cx) + Math.abs(rects[e.from].cy - rects[e.to].cy);
         [...validEdges].sort((a2, b2) => manhattan(b2) - manhattan(a2)).forEach(e => {
           if (e.to === e.from) return;
           const cur = edgePolylines[e.id];
           if (!cur) return;
-          const others = validEdges.filter(o => o !== e && edgePolylines[o.id]);
+          const others = validEdges.filter(o => o !== e && edgePolylines[o.id] && edgeClear[o.id]);
           // A decision branch that leaves from the top/bottom vertex an incoming arrow already takes gets pushed
           // off the vertex onto the diamond's slanted edge (2b/5a2). That is a cost, not a ban: the branch moves
           // to a free vertex only when that route is clean enough to beat it (a detour that adds a crossing does not).
           const srcIsDecision = nodeMap[e.from] && nodeMap[e.from].type === 'decision';
+          const dstIsDecision = nodeMap[e.to] && nodeMap[e.to].type === 'decision';
           const entryVertex = s => srcIsDecision && (s === 'top' || s === 'bottom')
             && (inEdges[e.from] || []).some(o => edgePorts[o.id] && edgePorts[o.id].toPort === s);
-          const entryShare = s => entryVertex(s) ? COST.entryShare : 0;
+          const branchVertex = s => dstIsDecision && (s === 'top' || s === 'bottom' || s === 'right')
+            && (outEdges[e.to] || []).some(o => edgePorts[o.id] && edgePorts[o.id].fromPort === s);
+          const entryShare = (fp, tp) => (entryVertex(fp) ? COST.entryShare : 0) + (branchVertex(tp) ? COST.entryShare : 0);
           const base = routeCost(cur, e, others, edgePorts[e.id].fromPort, edgePorts[e.id].toPort);
+          const baseEntryShare = entryShare(edgePorts[e.id].fromPort, edgePorts[e.id].toPort);
           // Already clean (clear of nodes, no overlap/crossing/crowding, on its own vertex): keep it
-          if (base !== Infinity && base.defect === 0 && !entryVertex(edgePorts[e.id].fromPort)) return;
-          const baseCost = base === Infinity ? Infinity : base.cost + entryShare(edgePorts[e.id].fromPort);
+          if (base !== Infinity && base.defect === 0 && baseEntryShare === 0) return;
+          const baseCost = base === Infinity ? Infinity : base.cost + baseEntryShare;
           let best = null;
           // 3-bend corridor routes are only worth searching when the standard route is in real trouble
-          const deep = base === Infinity || base.defect >= COST.cross;
+          const deep = base === Infinity || base.defect + baseEntryShare >= COST.cross;
           altRoutes(rects[e.from], rects[e.to], deep).forEach(c => {
             const r = routeCost(c.pts, e, others, c.fp, c.tp, best ? best.cost : baseCost - 250);
             if (r === Infinity) return;
             // Changing sides is a bigger visual change than sliding a channel, so it must earn it
             const sideChange = (c.fp !== edgePorts[e.id].fromPort || c.tp !== edgePorts[e.id].toPort) ? 600 : 0;
-            const cost = r.cost + c.dev * 0.3 + sideChange + entryShare(c.fp);
+            const cost = r.cost + c.dev * 0.3 + sideChange + entryShare(c.fp, c.tp);
             if (!best || cost < best.cost) best = { cost, c };
           });
           // Hysteresis: only switch for a clear win, so near-ties keep the standard route
           if (best && best.cost < baseCost - 250) {
             edgePolylines[e.id] = best.c.pts;
             edgePorts[e.id] = { fromPort: best.c.fp, toPort: best.c.tp };
+            edgeClear[e.id] = true;
           }
         });
 
@@ -7680,8 +7719,12 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
             const mean = l => l.reduce((s2, x) => s2 + x.other, 0) / l.length;
             const insLow = mean(ins) <= mean(outs);
             const shift = (x, d) => { edgePolylines[x.e.id][x.a][ai] += d; edgePolylines[x.e.id][x.b][ai] += d; };
-            ins.forEach(x => shift(x, insLow ? -SHIFT : SHIFT));
-            outs.forEach(x => shift(x, insLow ? SHIFT : -SHIFT));
+            if (nodeMap[nid] && nodeMap[nid].type === 'decision') {
+              ins.forEach(x => shift(x, insLow ? -SEP : SEP));
+            } else {
+              ins.forEach(x => shift(x, insLow ? -SHIFT : SHIFT));
+              outs.forEach(x => shift(x, insLow ? SHIFT : -SHIFT));
+            }
           });
         });
 
@@ -7705,7 +7748,8 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
                 if (!units.has(key)) units.set(key, { x: pts[a][0], fixed: false, far, ends: [] });
                 const u = units.get(key);
                 u.ends.push({ pts, a, b });
-                if (n < 3) u.fixed = true;
+                // Straight arrows and decision outgoing branches stay at their vertex (never slide onto a slanted side)
+                if (n < 3 || (role === 'out' && nodeMap[nid] && nodeMap[nid].type === 'decision')) u.fixed = true;
               };
               if (e.from === nid && Math.abs(pts[0][1] - edgeY) < 1 && Math.abs(pts[0][0] - pts[1][0]) < 1) add('out', 0, 1, e.to, pts[n - 1][0]);
               if (e.to === nid && Math.abs(pts[n - 1][1] - edgeY) < 1 && Math.abs(pts[n - 1][0] - pts[n - 2][0]) < 1) add('in', n - 1, n - 2, e.from, pts[0][0]);
@@ -7843,7 +7887,7 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
         // 5b. De-overlap: unrelated edges must not share a collinear stretch. Spread interior
         // segments (never the port-attached first/last ones) onto parallel tracks.
         // Edges sharing a source or a target may still merge/fork on purpose.
-        const TRACK_GAP = 8;
+        const TRACK_GAP = 14;
         ['v', 'h'].forEach(orient => {
           const segs = [];
           validEdges.forEach(e => {
@@ -7876,13 +7920,119 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
             if (cl.length < 2) return;
             // Order tracks by where each edge heads next so nesting stays planar
             cl.sort((p, q) => (orient === 'v' ? rects[p.e.to].cx - rects[q.e.to].cx : rects[p.e.to].cy - rects[q.e.to].cy));
-            cl.forEach((s, idx) => {
-              const shift = (idx - (cl.length - 1) / 2) * TRACK_GAP;
-              const pts = edgePolylines[s.e.id];
-              const k = orient === 'v' ? 0 : 1;
-              pts[s.i][k] += shift;
-              pts[s.i + 1][k] += shift;
+            const k = orient === 'v' ? 0 : 1;
+            const applyGap = (gap) => {
+              const saved = cl.map(s => [edgePolylines[s.e.id][s.i][k], edgePolylines[s.e.id][s.i + 1][k]]);
+              cl.forEach((s, idx) => {
+                const shift = (idx - (cl.length - 1) / 2) * gap;
+                const pts = edgePolylines[s.e.id];
+                pts[s.i][k] += shift;
+                pts[s.i + 1][k] += shift;
+              });
+              if (!cl.every(s => polyClear(edgePolylines[s.e.id], [s.e.from, s.e.to]))) {
+                cl.forEach((s, idx) => {
+                  const pts = edgePolylines[s.e.id];
+                  pts[s.i][k] = saved[idx][0];
+                  pts[s.i + 1][k] = saved[idx][1];
+                });
+                return false;
+              }
+              return true;
+            };
+            if (!applyGap(TRACK_GAP)) {
+              cl.forEach((s, idx) => {
+                const shift = (idx - (cl.length - 1) / 2) * 8;
+                const pts = edgePolylines[s.e.id];
+                pts[s.i][k] += shift;
+                pts[s.i + 1][k] += shift;
+              });
+            }
+          });
+        });
+
+        // 5b2. Decision parallel fan spacing: when multiple arrows leave or enter the same side of a
+        // decision node and share parallel interior segments within 20px, spread those interior legs
+        // apart by 20px (after clearing the vertex stub) so multi-branch fans read cleanly.
+        const DECISION_TRACK_GAP = 20;
+        ['v', 'h'].forEach(orient => {
+          const k = orient === 'v' ? 0 : 1; // fixed axis
+          const m = 1 - k;                  // running axis
+          const segs = [];
+          validEdges.forEach(e => {
+            const pts = edgePolylines[e.id];
+            const p = edgePorts[e.id];
+            if (!pts || !p) return;
+            const srcDec = nodeMap[e.from] && nodeMap[e.from].type === 'decision';
+            const dstDec = nodeMap[e.to] && nodeMap[e.to].type === 'decision';
+            if (!srcDec && !dstDec) return;
+            for (let i = 1; i < pts.length - 2; i++) {
+              const a = pts[i], b = pts[i + 1];
+              const isV = Math.abs(a[0] - b[0]) < 1;
+              const isH = Math.abs(a[1] - b[1]) < 1;
+              if (orient === 'v' ? !isV : !isH) continue;
+              segs.push({ e, p, i, pos: a[k], lo: Math.min(a[m], b[m]), hi: Math.max(a[m], b[m]), srcDec, dstDec });
+            }
+          });
+          const sameDecisionSide = (A, B) =>
+            (A.srcDec && A.e.from === B.e.from && A.p.fromPort === B.p.fromPort) ||
+            (A.dstDec && A.e.to === B.e.to && A.p.toPort === B.p.toPort);
+          const parent = segs.map((_, i) => i);
+          const find = (x) => (parent[x] === x ? x : (parent[x] = find(parent[x])));
+          for (let a = 0; a < segs.length; a++) {
+            for (let b = a + 1; b < segs.length; b++) {
+              const A = segs[a], B = segs[b];
+              if (A.e.id === B.e.id || !sameDecisionSide(A, B)) continue;
+              if (Math.abs(A.pos - B.pos) >= DECISION_TRACK_GAP - 0.5) continue;
+              if (Math.min(A.hi, B.hi) - Math.max(A.lo, B.lo) <= 2) continue;
+              parent[find(a)] = find(b);
+            }
+          }
+          const clusters = {};
+          segs.forEach((s, idx) => { (clusters[find(idx)] = clusters[find(idx)] || []).push(s); });
+          Object.values(clusters).forEach(cl => {
+            if (cl.length < 2) return;
+            cl.sort((p, q) => {
+              if (Math.abs(p.pos - q.pos) >= 1) return p.pos - q.pos;
+              const sharedFrom = p.e.from === q.e.from;
+              const nodeP = sharedFrom ? rects[p.e.to] : rects[p.e.from];
+              const nodeQ = sharedFrom ? rects[q.e.to] : rects[q.e.from];
+              return orient === 'v' ? nodeP.cx - nodeQ.cx : nodeP.cy - nodeQ.cy;
             });
+            const meanPos = cl.reduce((sum, s) => sum + s.pos, 0) / cl.length;
+            let minBase = -Infinity, maxBase = Infinity;
+            cl.forEach((s, idx) => {
+              const pts = edgePolylines[s.e.id];
+              const off = (idx - (cl.length - 1) / 2) * DECISION_TRACK_GAP;
+              const prev = pts[s.i - 1][k], next = pts[s.i + 2][k];
+              const old = s.pos;
+              const dPrev = Math.sign(old - prev);
+              if (dPrev > 0) minBase = Math.max(minBase, prev + 8 - off);
+              else if (dPrev < 0) maxBase = Math.min(maxBase, prev - 8 - off);
+              const dNext = Math.sign(next - old);
+              if (dNext > 0) maxBase = Math.min(maxBase, next - 8 - off);
+              else if (dNext < 0) minBase = Math.max(minBase, next + 8 - off);
+            });
+            const basePos = minBase <= maxBase ? Math.max(minBase, Math.min(maxBase, meanPos)) : meanPos;
+            const saved = cl.map(s => [edgePolylines[s.e.id][s.i][k], edgePolylines[s.e.id][s.i + 1][k]]);
+            let allValid = true;
+            cl.forEach((s, idx) => {
+              const pts = edgePolylines[s.e.id];
+              const target = basePos + (idx - (cl.length - 1) / 2) * DECISION_TRACK_GAP;
+              const prev = pts[s.i - 1][k], next = pts[s.i + 2][k], old = saved[idx][0];
+              if ((old !== prev && (Math.sign(target - prev) !== Math.sign(old - prev) || Math.abs(target - prev) < 8)) ||
+                  (next !== old && (Math.sign(next - target) !== Math.sign(next - old) || Math.abs(next - target) < 8))) {
+                allValid = false;
+              }
+              pts[s.i][k] = target;
+              pts[s.i + 1][k] = target;
+            });
+            if (!allValid || !cl.every(s => polyClear(edgePolylines[s.e.id], [s.e.from, s.e.to]) && ownBodyClear(edgePolylines[s.e.id], s.e))) {
+              cl.forEach((s, idx) => {
+                const pts = edgePolylines[s.e.id];
+                pts[s.i][k] = saved[idx][0];
+                pts[s.i + 1][k] = saved[idx][1];
+              });
+            }
           });
         });
 
@@ -8234,32 +8384,39 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
         const candidates = [];
 
         if (points.length === 2) {
-          // Centred on the part of the line the arrowhead leaves free, so a short gap never puts the label on the head
+          // Centred on the part of the line the arrowhead leaves free, plus staggered spots if a neighbour label sits at mid
           const [a, b] = points, len = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
-          const t = Math.max(0, len - ARROWHEAD_LEN) / 2 / len;
-          candidates.push({ x: a[0] + (b[0] - a[0]) * t, y: a[1] + (b[1] - a[1]) * t });
+          const free = Math.max(0, len - ARROWHEAD_LEN);
+          for (const frac of [0.5, 0.25, 0.78]) {
+            const t = (free * frac) / len;
+            candidates.push({ x: a[0] + (b[0] - a[0]) * t, y: a[1] + (b[1] - a[1]) * t });
+          }
         } else if (points.length === 3) {
+          const p0 = points[0], p1 = points[1], p2 = points[2];
+          const seg1Len = Math.hypot(p2[0] - p1[0], p2[1] - p1[1]) || 1;
+          const free1 = Math.max(0, seg1Len - ARROWHEAD_LEN);
+          const seg1Cand = { x: p1[0] + (p2[0] - p1[0]) * (free1 * 0.5 / seg1Len), y: p1[1] + (p2[1] - p1[1]) * (free1 * 0.5 / seg1Len) };
           if (fromPort === 'top' || fromPort === 'bottom') {
-            const p0 = points[0];
-            const p1 = points[1];
-            const p2 = points[2];
             const sign = p1[1] > p0[1] ? 1 : -1;
             const distY = Math.abs(p1[1] - p0[1]);
             candidates.push({
               x: p0[0],
               y: p0[1] + sign * Math.min(34, distY * 0.45)
             });
-            candidates.push({
-              x: (p1[0] + p2[0]) / 2,
-              y: p1[1]
-            });
+            candidates.push(seg1Cand);
           } else {
             candidates.push({
-              x: (points[0][0] + points[1][0]) / 2,
-              y: points[0][1]
+              x: (p0[0] + p1[0]) / 2,
+              y: p0[1]
             });
             // The second leg too: a short first leg (an arrow into a connector beside its step) has no room
-            candidates.push({ x: (points[1][0] + points[2][0]) / 2, y: (points[1][1] + points[2][1]) / 2 });
+            candidates.push(seg1Cand);
+          }
+          if (free1 >= 36) {
+            for (const frac of [0.24, 0.78]) {
+              const t1 = (free1 * frac) / seg1Len;
+              candidates.push({ x: p1[0] + (p2[0] - p1[0]) * t1, y: p1[1] + (p2[1] - p1[1]) * t1 });
+            }
           }
         } else if (points.length >= 4) {
           const p0 = points[0];
@@ -8289,14 +8446,20 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
         }
 
         // Fallback spots along every long segment, tried after the preferred ones above (middle outwards,
-        // 22px clear of corners). Without them a label whose one preferred spot sits on a crossing or
-        // junction had nowhere else to go and stayed on it.
+        // 22px clear of corners and clear of the arrowhead on the final leg). Without them a label whose
+        // preferred spot sits on a crossing, junction, or node box had nowhere else to go.
         for (let i = 0; i < points.length - 1; i++) {
           const p = points[i], q = points[i + 1];
           const len = Math.abs(q[0] - p[0]) + Math.abs(q[1] - p[1]);
-          if (len < 56) continue;
-          for (const t of [0.5, 0.35, 0.65, 0.25, 0.75, 0.15, 0.85]) {
-            if (len * t < 22 || len * (1 - t) < 22) continue;
+          const isLast = i === points.length - 2;
+          const endClear = isLast ? Math.max(22, ARROWHEAD_LEN + 8) : 22;
+          if (len >= 56) {
+            for (const t of [0.5, 0.35, 0.65, 0.25, 0.75, 0.15, 0.85]) {
+              if (len * t < 22 || len * (1 - t) < endClear) continue;
+              candidates.push({ x: p[0] + (q[0] - p[0]) * t, y: p[1] + (q[1] - p[1]) * t });
+            }
+          } else if (len >= 34) {
+            const t = isLast ? Math.max(0.15, (len - ARROWHEAD_LEN) / 2 / len) : 0.5;
             candidates.push({ x: p[0] + (q[0] - p[0]) * t, y: p[1] + (q[1] - p[1]) * t });
           }
         }
@@ -8388,11 +8551,25 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
           const by = cand.y - lh / 2;
           let penalty = 0;
 
+          const hardPad = cand.pad !== undefined ? Math.min(0, cand.pad) : 0;
+          const softPad = cand.pad ?? 8;
           for (const nb of nodeBoxes) {
-            if (BoxOverlap(bx, by, lw, lh, nb.x, nb.y, nb.w, nb.h, cand.pad ?? 8)) penalty += 1000;
+            if (BoxOverlap(bx, by, lw, lh, nb.x, nb.y, nb.w, nb.h, hardPad)) {
+              const ox = Math.min(bx + lw, nb.x + nb.w + hardPad) - Math.max(bx, nb.x - hardPad);
+              const oy = Math.min(by + lh, nb.y + nb.h + hardPad) - Math.max(by, nb.y - hardPad);
+              penalty += 4000 + Math.max(0, Math.min(ox, oy)) * 20;
+            } else if (BoxOverlap(bx, by, lw, lh, nb.x, nb.y, nb.w, nb.h, softPad)) {
+              penalty += 200;
+            }
           }
           for (const pl of placedLabels) {
-            if (BoxOverlap(bx, by, lw, lh, pl.x, pl.y, pl.w, pl.h, 6)) penalty += 1000;
+            if (BoxOverlap(bx, by, lw, lh, pl.x, pl.y, pl.w, pl.h, 0)) {
+              const ox = Math.min(bx + lw, pl.x + pl.w) - Math.max(bx, pl.x);
+              const oy = Math.min(by + lh, pl.y + pl.h) - Math.max(by, pl.y);
+              penalty += 4000 + Math.max(0, Math.min(ox, oy)) * 20;
+            } else if (BoxOverlap(bx, by, lw, lh, pl.x, pl.y, pl.w, pl.h, 6)) {
+              penalty += 200;
+            }
           }
           if (otherPolylines) {
             for (const poly of otherPolylines) {
@@ -8406,7 +8583,7 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
             }
           }
           for (const st of sharedStretches) {
-            if (BoxOverlap(bx, by, lw, lh, st.x, st.y, st.w, st.h, 2)) { penalty += 300; break; }
+            if (BoxOverlap(bx, by, lw, lh, st.x, st.y, st.w, st.h, 2)) { penalty += 600; break; }
           }
           if (penalty === 0) return { x: cand.x, y: cand.y, w: lw, h: lh, wrapped: lw < singleLineWidth };
           if (!fallback || penalty < fallback.penalty) fallback = { cand, penalty };
@@ -8718,6 +8895,41 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
                 if (slot !== undefined) { X[n.id] = slot; sub[n.id] = 0; return; }
               }
               sub[n.id] = next++;
+            });
+          });
+          // Wrap terminal-node fan-outs that exceed a lane's natural subrow width/height. When a single decision
+          // fans out to 3+ terminal nodes (no outgoing edges) at the same (laneId, rank), stacking them all across
+          // the lane bloats its width/height; wrap the overflow onto subsequent flow columns instead.
+          const hasOut = new Set(edges.filter(e => nodeMap[e.from] && nodeMap[e.to] && e.from !== e.to).map(e => e.from));
+          const isTerminal = (n) => !hasOut.has(n.id);
+          const nonEndSubrows = {};
+          lanes.forEach(l => { nonEndSubrows[l.id] = 1; });
+          nodes.forEach(n => {
+            if (!isTerminal(n)) nonEndSubrows[n.laneId] = Math.max(nonEndSubrows[n.laneId] || 1, sub[n.id] + 1);
+          });
+          [...groups.values()].sort((a, b) => a.r - b.r).forEach(g => {
+            const cap = Math.max(2, nonEndSubrows[g.laneId] || 1);
+            const terms = g.list.filter(isTerminal);
+            if (terms.length <= cap) return;
+            const termSet = new Set(terms.map(n => n.id));
+            const laneNodes = nodes.filter(m => m.laneId === g.laneId && !termSet.has(m.id));
+            const placed = [];
+            terms.forEach((n, idx) => {
+              const baseX = X[n.id];
+              let row = Math.floor(idx / cap), col = idx % cap;
+              while (true) {
+                const candX = baseX + row * LE.COL_WIDTH;
+                const clash = laneNodes.some(m => sub[m.id] === col && !clear(candX, X[m.id]))
+                  || placed.some(p => p.sub === col && !clear(candX, p.x));
+                if (!clash) {
+                  X[n.id] = candX;
+                  sub[n.id] = col;
+                  placed.push({ x: candX, sub: col });
+                  break;
+                }
+                col += 1;
+                if (col >= cap) { col = 0; row += 1; }
+              }
             });
           });
           const subrows = {};
@@ -9446,12 +9658,14 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
         const lanes = data.lanes || [], nodes = data.nodes || [], edges = data.edges || [];
         const c = collapseConnectors(nodes, edges);
         runLayoutEngine(lanes, c.steps, c.edges);
+        centreLooseConnectors(c.inConns);
         if (!c.sats.length && !c.loose.length) return;
         // A connector that fits nowhere widens the column next to its step (the only case where one moves a step),
         // then every connector is placed again on the new layout
         const room = placeConnectors(lanes, c);
         if (room) {
           runLayoutEngine(lanes, c.steps, c.edges, room);
+          centreLooseConnectors(c.inConns);
           placeConnectors(lanes, c, true);
         }
         centreLooseConnectors(c.loose);
@@ -9461,14 +9675,13 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
       // A connector ("type": "connector") is a small lettered circle standing for one end of a long arrow: the flow
       // runs into circle A next to its source and continues out of circle A next to its target. Same letter = one
       // pair: one out-connector (arrows out, none in) and one or more in-connectors (arrows in, none out).
-      // The layout must not see them: an out-connector has no incoming arrow, so it would rank as a new start, and
-      // each circle would cost a column. So layoutDiagram collapses every pair back into the whole arrow
-      // (src -> tgt, with the in-arrow's label and feedback flag), lays that out exactly as without connectors, and
-      // places each circle afterwards as a satellite beside the step it is attached to. Connector x/y are the
-      // circle's own top-left (CONN.SIZE square), in flow terms like a step's, not a slot corner.
+      // In-connectors stay in the layout grid as real leaf nodes (so their incoming arrows get proper grid slots,
+      // label clearance, and crossing minimization), while out-connectors are removed from the grid (so they never
+      // float to rank 0) and placed afterwards as satellites beside their target. Connector x/y are the circle's own
+      // top-left (CONN.SIZE square), in flow terms like a step's, not a slot corner.
       // GAP: stub length without a label; LABEL_PAD: clear room on each side of a stub's label
       const CONN = { SIZE: 32, GAP: 32, GAP_ACROSS: 20, LABEL_PAD: 16, CLEAR: 16, EDGE: 4, OFF_LINE: 8, CORNER_GAP: 12, CORNER_LEG: 56,
-        GAP_TIGHT: 24, LABEL_PAD_TIGHT: 6, CORNER_LEG_TIGHT: 48 };
+        GAP_TIGHT: 24, LABEL_PAD_TIGHT: 6, CORNER_LEG_TIGHT: 48, ARROW: 14 };
       const isConnector = (n) => !!n && n.type === 'connector';
       const connectorLetter = (n) => String((n && n.label) || '').trim().toUpperCase();
       // A, B, ... Z without I and O (read as 1 and 0), then AA, AB, ...
@@ -9485,10 +9698,10 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
       }
 
       // Split the diagram into what the layout sees and the connectors placed around it afterwards.
-      //   steps: every node but the satellites; edges: arrows between steps plus one virtual arrow per split arrow
-      //   (it takes the in-arrow's place and id, so the layout is the one the whole arrow gets)
-      //   sats: { node, anchor, role, stub, other } for each connector with one attached step; `other` is the step at
-      //   the far end of its pair (null without a partner)
+      //   steps: every node except satellite connectors (by default, in-connectors remain in steps as leaf nodes)
+      //   edges: real edges between steps plus virtual ordering edges (src -> tgt) for connector-only targets
+      //   sats: { node, anchor, role, stub, other } for each satellite connector placed beside its anchor afterwards
+      //   inConns: in-connectors kept in steps (to be centred inside their allocated slot after runLayoutEngine)
       //   loose: connectors with arrows both in and out, or none: laid out as ordinary steps (the audit warns)
       function collapseConnectors(nodes, edges) {
         const byId = {};
@@ -9512,6 +9725,7 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
         const outOf = {};   // letter -> its out-connector (the first one, if a letter has two: the audit warns)
         sats.forEach(s => { if (s.role === 'out' && !outOf[connectorLetter(s.node)]) outOf[connectorLetter(s.node)] = s; });
         const flat = [];
+        const virtual = new Set();
         edges.forEach(e => {
           const si = satOf[e.to];
           if (si) {
@@ -9523,6 +9737,7 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
               if (e.feedback) v.feedback = true;
               flat.push(v);
               si.ids.add(v.id); so.ids.add(v.id);
+              virtual.add(v.id);
               if (!si.other) si.other = o.to;
               if (!so.other) so.other = e.from;
             });
@@ -9531,9 +9746,7 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
           if (satOf[e.from]) return;
           flat.push(e);
         });
-        const virtual = new Set();
-        sats.forEach(s => s.ids.forEach(id => virtual.add(id)));
-        return { steps: nodes.filter(n => !satOf[n.id]), edges: flat, sats, loose, virtual };
+        return { steps: nodes.filter(n => !satOf[n.id]), edges: flat, sats, inConns: [], loose, virtual };
       }
 
       // Auto layout off: steps stay where they are; only the connectors are placed beside them (lane heights as drawn)
@@ -9543,7 +9756,7 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
         if (c.sats.length) placeConnectors(data.lanes || [], c, true);
       }
 
-      // A loose connector was laid out in a step's slot: centre its circle there
+      // A loose or grid-placed connector was laid out in a step's slot: centre its circle there
       function centreLooseConnectors(loose) {
         loose.forEach(n => {
           n.x = (n.x || 0) + Math.round((LE.NODE_W - CONN.SIZE) / 2);
@@ -9553,10 +9766,9 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
 
       // Place each satellite beside its step, in that step's lane. Sides, in flow terms: 'after' / 'before' along the
       // flow, 'far' / 'near' across it (toward later / earlier lanes). Tried in order of preference:
-      //   - a split forward arrow: the side facing the other end along the flow (after the source, before the
-      //     target), then across toward the other end's lane, then the other across side, then the remaining side
-      //   - a split loop-back: across first (that is where loops run; along the flow carries the main line), then
-      //     after, then before
+      //   - an out-connector: 'before' when free and clear, then across toward the source's lane, then the other
+      //     across side; never 'after' on an 'end' node
+      //   - an in-connector (in-place mode): 'after' (or across first on a loop-back), then across, then 'before'
       // then the same along-the-flow sides moved just off the step's centre line (beside an arrow leaving straight).
       // A side already used by one of the step's own arrows is taken only when no free side fits. A spot fits when it
       // stays inside the lane, keeps CLEAR from every step and connector and does not sit on a straight arrow. When
@@ -9575,20 +9787,6 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
         c.steps.forEach(n => { byId[n.id] = n; });
         const real = c.edges.filter(e => !c.virtual.has(e.id) && byId[e.from] && byId[e.to]);
 
-        // Straight arrows between steps (centres aligned): a connector must not sit on one
-        const segs = [];
-        real.forEach(e => {
-          const a = box(byId[e.from]), b = box(byId[e.to]);
-          const acx = a.x + a.w / 2, acy = a.y + a.h / 2, bcx = b.x + b.w / 2, bcy = b.y + b.h / 2;
-          if (Math.abs(acy - bcy) < 2) {
-            const [l, r] = acx < bcx ? [a, b] : [b, a];
-            segs.push({ x: l.x + l.w, y: acy - 1, w: r.x - l.x - l.w, h: 2 });
-          } else if (Math.abs(acx - bcx) < 2) {
-            const [t, d] = acy < bcy ? [a, b] : [b, a];
-            segs.push({ x: acx - 1, y: t.y + t.h, w: 2, h: d.y - t.y - t.h });
-          }
-        });
-
         // The side of step `id` an arrow to or from step `o` uses (roughly where the router takes it)
         const sideFor = (id, o, out) => {
           const n = byId[id], m = byId[o];
@@ -9604,6 +9802,25 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
           if (!out && n.x > m.x + LE.NODE_W + 24) return across;
           return out ? (m.x > n.x ? 'after' : across) : (m.x < n.x ? 'before' : across);
         };
+
+        // Straight arrows (and final 'before' entry segments) between steps (including in-connectors):
+        // a satellite connector must not sit on one
+        const segs = [];
+        real.forEach(e => {
+          const a = box(byId[e.from]), b = box(byId[e.to]);
+          const acx = a.x + a.w / 2, acy = a.y + a.h / 2, bcx = b.x + b.w / 2, bcy = b.y + b.h / 2;
+          if (Math.abs(acy - bcy) < 2) {
+            const [l, r] = acx < bcx ? [a, b] : [b, a];
+            segs.push({ x: l.x + l.w, y: acy - 1, w: r.x - l.x - l.w, h: 2 });
+          } else if (Math.abs(acx - bcx) < 2) {
+            const [t, d] = acy < bcy ? [a, b] : [b, a];
+            segs.push({ x: acx - 1, y: t.y + t.h, w: 2, h: d.y - t.y - t.h });
+          } else if (b.x > a.x + a.w && sideFor(e.to, e.from, false) === 'before') {
+            const mx = a.x + a.w + (b.x - a.x - a.w) / 2;
+            segs.push({ x: mx, y: bcy - 1, w: b.x - mx, h: 2 });
+          }
+        });
+
         const used = {};
         const use = (id, side) => { (used[id] = used[id] || new Set()).add(side); };
         const branchSides = {};   // decision id -> sides its outgoing branches take
@@ -9633,7 +9850,7 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
           const w = Math.min(Math.max(40, t.length * FONT_M.edgeWrap + 18), LE.LABEL_MAX_W);
           const lines = Math.ceil((t.length * FONT_M.edgeWrap + 18) / LE.LABEL_MAX_W);
           const vertical = alongFlow ? LE.LABEL_ACROSS : !LE.LABEL_ACROSS;
-          return (vertical ? 24 + 15 * (Math.min(lines, 3) - 1) : w) + 2 * (compact ? CONN.LABEL_PAD_TIGHT : CONN.LABEL_PAD);
+          return (vertical ? 24 + 15 * (Math.min(lines, 3) - 1) : w) + 2 * (compact ? CONN.LABEL_PAD_TIGHT : CONN.LABEL_PAD) + CONN.ARROW;
         };
         // Across-the-flow distance between a step's edge and a corner circle: the label sits centred on the stub's
         // leg, so its half extent across the flow (its width in TB, its height in LR) must clear the step
@@ -9645,9 +9862,9 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
         };
         // Top-left of the circle on `side` of box a, `gap` away. `off` ('far' / 'near') moves an along-the-flow spot just
         // off the step's centre line, so it clears an arrow leaving that side straight.
-        const spot = (a, side, gap, off) => {
+        const spot = (a, side, gap, off, offLine = CONN.OFF_LINE) => {
           const cx = a.x + a.w / 2 - S / 2, mid = a.y + a.h / 2;
-          const y = off === 'far' ? mid + CONN.OFF_LINE : off === 'near' ? mid - CONN.OFF_LINE - S : mid - S / 2;
+          const y = off === 'far' ? mid + offLine : off === 'near' ? mid - offLine - S : mid - S / 2;
           if (side === 'after') return { x: a.x + a.w + gap, y };
           if (side === 'before') return { x: a.x - gap - S, y };
           if (side === 'far') return { x: cx, y: a.y + a.h + gap };
@@ -9655,12 +9872,18 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
         };
 
         const placed = [];
+        const hitBox = (p, b, pad) => p.x < b.x + b.w + pad && p.x + S + pad > b.x && p.y < b.y + b.h + pad && p.y + S + pad > b.y;
         // `ownPad`: clearance from the connector's own step (a corner spot sits closer to it than to anything else)
         const fits = (s, p, ownPad = CONN.CLEAR) => {
           const lt = laneTop[s.anchor.laneId] || 0, lh = laneH[s.anchor.laneId] || LE.LANE_MIN;
           if (p.y < lt + CONN.EDGE || p.y + S > lt + lh - CONN.EDGE || p.x < 8) return false;
-          const hit = (b, pad) => p.x < b.x + b.w + pad && p.x + S + pad > b.x && p.y < b.y + b.h + pad && p.y + S + pad > b.y;
-          return !c.steps.some(n => hit(box(n), n === s.anchor ? ownPad : CONN.CLEAR)) && !placed.some(b => hit(b, CONN.CLEAR)) && !segs.some(g => hit(g, 4));
+          return !c.steps.some(n => hitBox(p, box(n), n === s.anchor ? ownPad : CONN.CLEAR)) && !placed.some(b => hitBox(p, b, CONN.CLEAR)) && !segs.some(g => hitBox(p, g, 4));
+        };
+        const noOverlap = (s, p, pad = 0, inLane = true) => {
+          const lt = laneTop[s.anchor.laneId] || 0, lh = laneH[s.anchor.laneId] || LE.LANE_MIN;
+          if (p.x < 8) return false;
+          if (inLane && (p.y < lt + CONN.EDGE || p.y + S > lt + lh - CONN.EDGE)) return false;
+          return !c.steps.some(n => hitBox(p, box(n), pad)) && !placed.some(b => hitBox(p, b, pad));
         };
 
         let room = null;
@@ -9671,24 +9894,31 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
           const lo = other ? laneIdx[other.laneId] : undefined, la = laneIdx[s.anchor.laneId];
           const toward = lo === undefined || lo === la ? ['far', 'near'] : (lo > la ? ['far', 'near'] : ['near', 'far']);
           const facing = s.role === 'in' ? 'after' : 'before', away = s.role === 'in' ? 'before' : 'after';
-          const sides = back ? [...toward, facing, away] : [facing, ...toward, away];
+          const noAway = (s.role === 'out' && s.anchor.type === 'end') || (s.role === 'in' && !back);
+          const alongSides = noAway ? [facing] : [facing, away];
+          const sides = back
+            ? (noAway ? [...toward, facing] : [...toward, facing, away])
+            : (noAway ? [facing, ...toward] : [facing, ...toward, away]);
           const cands = sides.map(side => ({ side, off: null }));
           // Corner spots: just across the step's edge, moved along the flow toward the other end. The stub leaves
           // the step's top/bottom and turns along the flow into the circle (its label on that leg), all inside the
           // step's own column, so it needs no wider column. Tried before the spots off the centre line.
           toward.forEach(side => cands.push({ side, corner: facing }));
-          [facing, away].forEach(side => toward.forEach(off => cands.push({ side, off })));
+          alongSides.forEach(side => toward.forEach(off => cands.push({ side, off })));
           const at = (k) => {
             if (k.corner) {
-              // Long enough for the stub's label on that leg with CLEAR-ish room on both sides (the router puts it mid-leg)
-              const leg = Math.max(k.compact ? CONN.CORNER_LEG_TIGHT : CONN.CORNER_LEG, String(s.stub.label || '').trim() ? gapFor(s, true, k.compact) : 0);
-              const x = k.corner === 'after' ? a.x + a.w / 2 + leg : a.x + a.w / 2 - leg - S;
               const cg = cornerGap(s);
+              const hasLabel = !!String(s.stub.label || '').trim();
+              // Long enough for the stub's label + arrowhead on that leg, and strictly longer than the across-flow leg
+              // (cg + S/2) so the router puts the label on the along-flow leg instead of the short across-flow stub
+              const leg = Math.max(k.compact ? CONN.CORNER_LEG_TIGHT : CONN.CORNER_LEG, hasLabel ? Math.max(gapFor(s, true, k.compact), cg + S / 2 + 8) : 0);
+              const x = k.corner === 'after' ? a.x + a.w / 2 + leg : a.x + a.w / 2 - leg - S;
               const y = k.side === 'far' ? a.y + a.h + cg : a.y - cg - S;
               return { x: Math.round(x), y: Math.round(y) };
             }
             const along = k.side === 'after' || k.side === 'before';
-            const p = spot(a, k.side, gapFor(s, along, k.compact), k.off);
+            const offLine = (LE.LABEL_ACROSS && k.off && String(s.stub.label || '').trim()) ? 28 : CONN.OFF_LINE;
+            const p = spot(a, k.side, gapFor(s, along, k.compact), k.off, offLine);
             return { x: Math.round(p.x), y: Math.round(p.y) };
           };
           const ok = (k) => fits(s, at(k), k.corner ? cornerGap(s) - 2 : CONN.CLEAR);
@@ -9701,16 +9931,71 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
           // fit, as when the connector fits nowhere. An unlabelled stub just takes the used side.
           const crowded = !pick && !!String(s.stub.label || '').trim();
           pick = pick || cands.find(ok) || tight.find(ok);
+          let p;
           if (!pick || crowded) {
-            pick = pick || tight[0];
             if (!final) {
               // Widen the column on the preferred side along the flow
               const side = sides.find(x => x === 'after' || x === 'before');
               room = room || { after: {}, before: {} };
               room[side][id] = Math.max(room[side][id] || 0, gapFor(s, true, true) + S + CONN.CLEAR);
             }
+            if (pick) {
+              p = at(pick);
+            } else {
+              // Search additional offsets (beside existing connectors, opposite corners, stepped further out) so a
+              // fallback never collides with already-placed connectors or steps
+              const hasLabel = !!String(s.stub.label || '').trim();
+              const step = S + CONN.CLEAR;
+              const lateralStep = (LE.LABEL_ACROSS && hasLabel) ? Math.max(step, S + 48) : step;
+              const mid = a.y + a.h / 2;
+              const extras = [];
+              [false, true].forEach(compact => {
+                alongSides.forEach(side => {
+                  const base = spot(a, side, gapFor(s, true, compact), null);
+                  const dirX = side === 'after' ? 1 : -1;
+                  for (let m = 1; m <= 3; m++) {
+                    toward.forEach(dir => {
+                      const y = dir === 'far'
+                        ? mid + S / 2 + (lateralStep - S) + (m - 1) * lateralStep
+                        : mid - S / 2 - (lateralStep - S) - S - (m - 1) * lateralStep;
+                      extras.push({ side, p: { x: Math.round(base.x), y: Math.round(y) } });
+                    });
+                  }
+                  if (LE.LABEL_ACROSS && hasLabel) {
+                    for (let m = 1; m <= 3; m++) {
+                      const sx = Math.round(base.x + dirX * m * (S + 36));
+                      extras.push({ side, p: { x: sx, y: Math.round(mid - S / 2) } });
+                      toward.forEach(dir => {
+                        const y = dir === 'far' ? mid + S / 2 + CONN.CLEAR : mid - S / 2 - CONN.CLEAR - S;
+                        extras.push({ side, p: { x: sx, y: Math.round(y) } });
+                      });
+                    }
+                  }
+                });
+                if (!noAway) {
+                  toward.forEach(side => extras.push({ side, p: at({ side, corner: away, compact }) }));
+                }
+                sides.forEach(side => {
+                  const along = side === 'after' || side === 'before';
+                  const g0 = gapFor(s, along, compact);
+                  for (let m = 1; m <= 4; m++) {
+                    const q = spot(a, side, g0 + m * step, null);
+                    extras.push({ side, p: { x: Math.round(q.x), y: Math.round(q.y) } });
+                  }
+                });
+              });
+              const all = [...cands, ...tight].map(k => ({ side: k.side, p: at(k) })).concat(extras);
+              const fb = extras.find(e => fits(s, e.p, CONN.CLEAR))
+                || all.find(e => noOverlap(s, e.p, 4, true))
+                || all.find(e => noOverlap(s, e.p, 0, true))
+                || all.find(e => noOverlap(s, e.p, 0, false))
+                || { side: tight[0].side, p: at(tight[0]) };
+              pick = { side: fb.side };
+              p = fb.p;
+            }
+          } else {
+            p = at(pick);
           }
-          const p = at(pick);
           use(id, pick.side);
           placed.push({ x: p.x, y: p.y, w: S, h: S });
           s.node.laneId = s.anchor.laneId;
