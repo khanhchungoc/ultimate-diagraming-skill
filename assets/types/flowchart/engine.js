@@ -301,6 +301,41 @@
               sub[n.id] = next++;
             });
           });
+          // Wrap terminal-node fan-outs that exceed a lane's natural subrow width/height. When a single decision
+          // fans out to 3+ terminal nodes (no outgoing edges) at the same (laneId, rank), stacking them all across
+          // the lane bloats its width/height; wrap the overflow onto subsequent flow columns instead.
+          const hasOut = new Set(edges.filter(e => nodeMap[e.from] && nodeMap[e.to] && e.from !== e.to).map(e => e.from));
+          const isTerminal = (n) => !hasOut.has(n.id);
+          const nonEndSubrows = {};
+          lanes.forEach(l => { nonEndSubrows[l.id] = 1; });
+          nodes.forEach(n => {
+            if (!isTerminal(n)) nonEndSubrows[n.laneId] = Math.max(nonEndSubrows[n.laneId] || 1, sub[n.id] + 1);
+          });
+          [...groups.values()].sort((a, b) => a.r - b.r).forEach(g => {
+            const cap = Math.max(2, nonEndSubrows[g.laneId] || 1);
+            const terms = g.list.filter(isTerminal);
+            if (terms.length <= cap) return;
+            const termSet = new Set(terms.map(n => n.id));
+            const laneNodes = nodes.filter(m => m.laneId === g.laneId && !termSet.has(m.id));
+            const placed = [];
+            terms.forEach((n, idx) => {
+              const baseX = X[n.id];
+              let row = Math.floor(idx / cap), col = idx % cap;
+              while (true) {
+                const candX = baseX + row * LE.COL_WIDTH;
+                const clash = laneNodes.some(m => sub[m.id] === col && !clear(candX, X[m.id]))
+                  || placed.some(p => p.sub === col && !clear(candX, p.x));
+                if (!clash) {
+                  X[n.id] = candX;
+                  sub[n.id] = col;
+                  placed.push({ x: candX, sub: col });
+                  break;
+                }
+                col += 1;
+                if (col >= cap) { col = 0; row += 1; }
+              }
+            });
+          });
           const subrows = {};
           lanes.forEach(l => { subrows[l.id] = 1; });
           nodes.forEach(n => { subrows[n.laneId] = Math.max(subrows[n.laneId] || 1, sub[n.id] + 1); });
@@ -1049,7 +1084,7 @@
       // circle's own top-left (CONN.SIZE square), in flow terms like a step's, not a slot corner.
       // GAP: stub length without a label; LABEL_PAD: clear room on each side of a stub's label
       const CONN = { SIZE: 32, GAP: 32, GAP_ACROSS: 20, LABEL_PAD: 16, CLEAR: 16, EDGE: 4, OFF_LINE: 8, CORNER_GAP: 12, CORNER_LEG: 56,
-        GAP_TIGHT: 24, LABEL_PAD_TIGHT: 6, CORNER_LEG_TIGHT: 48 };
+        GAP_TIGHT: 24, LABEL_PAD_TIGHT: 6, CORNER_LEG_TIGHT: 48, ARROW: 14 };
       const isConnector = (n) => !!n && n.type === 'connector';
       const connectorLetter = (n) => String((n && n.label) || '').trim().toUpperCase();
       // A, B, ... Z without I and O (read as 1 and 0), then AA, AB, ...
@@ -1214,7 +1249,7 @@
           const w = Math.min(Math.max(40, t.length * FONT_M.edgeWrap + 18), LE.LABEL_MAX_W);
           const lines = Math.ceil((t.length * FONT_M.edgeWrap + 18) / LE.LABEL_MAX_W);
           const vertical = alongFlow ? LE.LABEL_ACROSS : !LE.LABEL_ACROSS;
-          return (vertical ? 24 + 15 * (Math.min(lines, 3) - 1) : w) + 2 * (compact ? CONN.LABEL_PAD_TIGHT : CONN.LABEL_PAD);
+          return (vertical ? 24 + 15 * (Math.min(lines, 3) - 1) : w) + 2 * (compact ? CONN.LABEL_PAD_TIGHT : CONN.LABEL_PAD) + CONN.ARROW;
         };
         // Across-the-flow distance between a step's edge and a corner circle: the label sits centred on the stub's
         // leg, so its half extent across the flow (its width in TB, its height in LR) must clear the step
@@ -1236,12 +1271,18 @@
         };
 
         const placed = [];
+        const hitBox = (p, b, pad) => p.x < b.x + b.w + pad && p.x + S + pad > b.x && p.y < b.y + b.h + pad && p.y + S + pad > b.y;
         // `ownPad`: clearance from the connector's own step (a corner spot sits closer to it than to anything else)
         const fits = (s, p, ownPad = CONN.CLEAR) => {
           const lt = laneTop[s.anchor.laneId] || 0, lh = laneH[s.anchor.laneId] || LE.LANE_MIN;
           if (p.y < lt + CONN.EDGE || p.y + S > lt + lh - CONN.EDGE || p.x < 8) return false;
-          const hit = (b, pad) => p.x < b.x + b.w + pad && p.x + S + pad > b.x && p.y < b.y + b.h + pad && p.y + S + pad > b.y;
-          return !c.steps.some(n => hit(box(n), n === s.anchor ? ownPad : CONN.CLEAR)) && !placed.some(b => hit(b, CONN.CLEAR)) && !segs.some(g => hit(g, 4));
+          return !c.steps.some(n => hitBox(p, box(n), n === s.anchor ? ownPad : CONN.CLEAR)) && !placed.some(b => hitBox(p, b, CONN.CLEAR)) && !segs.some(g => hitBox(p, g, 4));
+        };
+        const noOverlap = (s, p, pad = 0, inLane = true) => {
+          const lt = laneTop[s.anchor.laneId] || 0, lh = laneH[s.anchor.laneId] || LE.LANE_MIN;
+          if (p.x < 8) return false;
+          if (inLane && (p.y < lt + CONN.EDGE || p.y + S > lt + lh - CONN.EDGE)) return false;
+          return !c.steps.some(n => hitBox(p, box(n), pad)) && !placed.some(b => hitBox(p, b, pad));
         };
 
         let room = null;
@@ -1261,10 +1302,12 @@
           [facing, away].forEach(side => toward.forEach(off => cands.push({ side, off })));
           const at = (k) => {
             if (k.corner) {
-              // Long enough for the stub's label on that leg with CLEAR-ish room on both sides (the router puts it mid-leg)
-              const leg = Math.max(k.compact ? CONN.CORNER_LEG_TIGHT : CONN.CORNER_LEG, String(s.stub.label || '').trim() ? gapFor(s, true, k.compact) : 0);
-              const x = k.corner === 'after' ? a.x + a.w / 2 + leg : a.x + a.w / 2 - leg - S;
               const cg = cornerGap(s);
+              const hasLabel = !!String(s.stub.label || '').trim();
+              // Long enough for the stub's label + arrowhead on that leg, and strictly longer than the across-flow leg
+              // (cg + S/2) so the router puts the label on the along-flow leg instead of the short across-flow stub
+              const leg = Math.max(k.compact ? CONN.CORNER_LEG_TIGHT : CONN.CORNER_LEG, hasLabel ? Math.max(gapFor(s, true, k.compact), cg + S / 2 + 8) : 0);
+              const x = k.corner === 'after' ? a.x + a.w / 2 + leg : a.x + a.w / 2 - leg - S;
               const y = k.side === 'far' ? a.y + a.h + cg : a.y - cg - S;
               return { x: Math.round(x), y: Math.round(y) };
             }
@@ -1282,16 +1325,69 @@
           // fit, as when the connector fits nowhere. An unlabelled stub just takes the used side.
           const crowded = !pick && !!String(s.stub.label || '').trim();
           pick = pick || cands.find(ok) || tight.find(ok);
+          let p;
           if (!pick || crowded) {
-            pick = pick || tight[0];
             if (!final) {
               // Widen the column on the preferred side along the flow
               const side = sides.find(x => x === 'after' || x === 'before');
               room = room || { after: {}, before: {} };
               room[side][id] = Math.max(room[side][id] || 0, gapFor(s, true, true) + S + CONN.CLEAR);
             }
+            if (pick) {
+              p = at(pick);
+            } else {
+              // Search additional offsets (beside existing connectors, opposite corners, stepped further out) so a
+              // fallback never collides with already-placed connectors or steps
+              const hasLabel = !!String(s.stub.label || '').trim();
+              const step = S + CONN.CLEAR;
+              const lateralStep = (LE.LABEL_ACROSS && hasLabel) ? Math.max(step, S + 48) : step;
+              const mid = a.y + a.h / 2;
+              const extras = [];
+              [false, true].forEach(compact => {
+                [facing, away].forEach(side => {
+                  const base = spot(a, side, gapFor(s, true, compact), null);
+                  const dirX = side === 'after' ? 1 : -1;
+                  for (let m = 1; m <= 3; m++) {
+                    toward.forEach(dir => {
+                      const y = dir === 'far'
+                        ? mid + S / 2 + (lateralStep - S) + (m - 1) * lateralStep
+                        : mid - S / 2 - (lateralStep - S) - S - (m - 1) * lateralStep;
+                      extras.push({ side, p: { x: Math.round(base.x), y: Math.round(y) } });
+                    });
+                  }
+                  if (LE.LABEL_ACROSS && hasLabel) {
+                    for (let m = 1; m <= 3; m++) {
+                      const sx = Math.round(base.x + dirX * m * (S + 36));
+                      extras.push({ side, p: { x: sx, y: Math.round(mid - S / 2) } });
+                      toward.forEach(dir => {
+                        const y = dir === 'far' ? mid + S / 2 + CONN.CLEAR : mid - S / 2 - CONN.CLEAR - S;
+                        extras.push({ side, p: { x: sx, y: Math.round(y) } });
+                      });
+                    }
+                  }
+                });
+                toward.forEach(side => extras.push({ side, p: at({ side, corner: away, compact }) }));
+                sides.forEach(side => {
+                  const along = side === 'after' || side === 'before';
+                  const g0 = gapFor(s, along, compact);
+                  for (let m = 1; m <= 4; m++) {
+                    const q = spot(a, side, g0 + m * step, null);
+                    extras.push({ side, p: { x: Math.round(q.x), y: Math.round(q.y) } });
+                  }
+                });
+              });
+              const all = [...cands, ...tight].map(k => ({ side: k.side, p: at(k) })).concat(extras);
+              const fb = extras.find(e => fits(s, e.p, CONN.CLEAR))
+                || all.find(e => noOverlap(s, e.p, 4, true))
+                || all.find(e => noOverlap(s, e.p, 0, true))
+                || all.find(e => noOverlap(s, e.p, 0, false))
+                || { side: tight[0].side, p: at(tight[0]) };
+              pick = { side: fb.side };
+              p = fb.p;
+            }
+          } else {
+            p = at(pick);
           }
-          const p = at(pick);
           use(id, pick.side);
           placed.push({ x: p.x, y: p.y, w: S, h: S });
           s.node.laneId = s.anchor.laneId;

@@ -51,7 +51,7 @@
       "laneId": "lane-support",
       "type": "connector",
       "label": "A",
-      "x": 472,
+      "x": 486,
       "y": 80
     },
     {
@@ -75,7 +75,7 @@
       "laneId": "lane-eng",
       "type": "connector",
       "label": "A",
-      "x": 600,
+      "x": 614,
       "y": 4
     },
     {
