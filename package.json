@@ -1,6 +1,6 @@
 {
   "name": "ultimate-diagram",
-  "version": "1.1.66",
+  "version": "1.1.67",
   "description": "Produce stakeholder-ready, interactive diagrams as standalone HTML files (drag-and-drop, Auto-Tidy, Save).",
   "type": "module",
   "bin": {
