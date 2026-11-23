@@ -4,7 +4,7 @@
   "description": "Produce stakeholder-ready, interactive diagrams as standalone HTML files (drag-and-drop, Auto-Tidy, Save).",
   "type": "module",
   "bin": {
-    "ultimate-diagram": "./bin/install.js"
+    "ultimate-diagram": "bin/install.js"
   },
   "scripts": {
     "test:e2e": "node dev/tests/run_e2e.mjs",
