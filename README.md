@@ -7,7 +7,7 @@
 
 Describe a process, and your AI agent hands back a single HTML file. Open it in any browser, drag things around, fix a label, and save. No account, no app to install, and it works offline.
 
-[![Swimlane flowchart, horizontal](docs/img/example-flowchart.png)](https://khanhchungoc.github.io/ultimate-diagraming-skill/examples/flowchart/)
+<a href="https://khanhchungoc.github.io/ultimate-diagraming-skill/examples/flowchart/"><picture><source srcset="docs/img/demo.webp" type="image/webp"><img src="docs/img/demo.poster.jpg" alt="Interactive diagram demo: drag across lanes with Auto-Tidy, subprocess tab, copy and import Mermaid, save, and present mode" width="100%" /></picture></a>
 
 ### 👉 **[Try the playground, no install](https://khanhchungoc.github.io/ultimate-diagraming-skill/)** 👈
 
@@ -55,7 +55,7 @@ Describe a process, and your AI agent hands back a single HTML file. Open it in 
 
 *"Draw a swimlane flowchart of our loan approval process."*
 
-[![Swimlane flowchart, horizontal](docs/img/example-flowchart.png)](https://khanhchungoc.github.io/ultimate-diagraming-skill/examples/flowchart/)
+<a href="https://khanhchungoc.github.io/ultimate-diagraming-skill/examples/flowchart/"><picture><source srcset="docs/img/demo-flowchart.webp" type="image/webp"><img src="docs/img/demo-flowchart.poster.jpg" alt="Swimlane flowchart demo: drop a step onto an arrow, reorder a swimlane, split a long arrow with a connector, and switch to vertical layout" width="100%" /></picture></a>
 
 ▶ [Try the flowchart](https://khanhchungoc.github.io/ultimate-diagraming-skill/examples/flowchart/) · [Offline HTML](dev/samples/example-flowchart.html)
 
@@ -63,7 +63,7 @@ Describe a process, and your AI agent hands back a single HTML file. Open it in 
 
 *"Draw a sequence diagram of the login flow between the app, API gateway and auth service."*
 
-[![Sequence diagram](docs/img/example-sequence-2026-11.png)](https://khanhchungoc.github.io/ultimate-diagraming-skill/examples/sequence/)
+<a href="https://khanhchungoc.github.io/ultimate-diagraming-skill/examples/sequence/"><picture><source srcset="docs/img/demo-sequence.webp" type="image/webp"><img src="docs/img/demo-sequence.poster.jpg" alt="Sequence diagram demo: collapse and expand a frame, scroll down for floating participant pills, and add a message and reply" width="100%" /></picture></a>
 
 ▶ [Try the sequence diagram](https://khanhchungoc.github.io/ultimate-diagraming-skill/examples/sequence/) · [Offline HTML](dev/samples/example-sequence.html)
 
@@ -71,7 +71,7 @@ Describe a process, and your AI agent hands back a single HTML file. Open it in 
 
 *"Draw an ER diagram for an online shop: customers, orders, products and payments."*
 
-[![ER diagram](docs/img/example-erd.png)](https://khanhchungoc.github.io/ultimate-diagraming-skill/examples/erd/)
+<a href="https://khanhchungoc.github.io/ultimate-diagraming-skill/examples/erd/"><picture><source srcset="docs/img/demo-erd.webp" type="image/webp"><img src="docs/img/demo-erd.poster.jpg" alt="ER diagram demo: zoom out to overview with detail card, drag and drop a new table, zoom in, connect tables, and highlight related tables" width="100%" /></picture></a>
 
 ▶ [Try the ER diagram](https://khanhchungoc.github.io/ultimate-diagraming-skill/examples/erd/) · [Offline HTML](dev/samples/example-erd.html)
 
@@ -79,7 +79,7 @@ Describe a process, and your AI agent hands back a single HTML file. Open it in 
 
 *"Draw a use case diagram for our booking system, with requirement ids."*
 
-[![Use case diagram](docs/img/example-usecase.png)](https://khanhchungoc.github.io/ultimate-diagraming-skill/examples/usecase/)
+<a href="https://khanhchungoc.github.io/ultimate-diagraming-skill/examples/usecase/"><picture><source srcset="docs/img/demo-usecase.webp" type="image/webp"><img src="docs/img/demo-usecase.poster.jpg" alt="Use case diagram demo: drag and drop an actor and use case, search by requirement ID, and collapse and expand the system subject" width="100%" /></picture></a>
 
 Search by requirement id (such as `FR-4`) to find the use case that covers it.
 
@@ -88,6 +88,8 @@ Search by requirement id (such as `FR-4`) to find the use case that covers it.
 ### C4 diagram
 
 *"Draw a C4 system landscape diagram for our e-commerce platform with customers, web app, API, and payment gateway."*
+
+<a href="https://khanhchungoc.github.io/ultimate-diagraming-skill/examples/c4/"><picture><source srcset="docs/img/demo-c4.webp" type="image/webp"><img src="docs/img/demo-c4.poster.jpg" alt="C4 diagram demo: collapse and expand a system boundary, change icon and colour, and add and move a new system" width="100%" /></picture></a>
 
 ▶ [Try the C4 diagram](https://khanhchungoc.github.io/ultimate-diagraming-skill/examples/c4/) · [Offline HTML](dev/samples/example-c4.html)
 
