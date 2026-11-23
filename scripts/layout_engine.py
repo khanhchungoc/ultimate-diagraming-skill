@@ -489,10 +489,11 @@ class FlowchartAudit:
 
     def _long_arrows(self, polylines: Dict[str, List[Tuple[float, float]]]) -> List[Tuple[Dict[str, Any], float, int]]:
         """Arrows hard to follow (rule 11): routed at least LONG_ARROW_COLS column widths long and crossing at least
-        LONG_ARROW_MIN_CROSSINGS other arrows, crossing one with LONG_ARROW_MIN_BENDS bends or more, or wrapping
-        across lanes for at least twice LONG_ARROW_COLS column widths with LONG_ARROW_MIN_BENDS bends or more.
+        LONG_ARROW_MIN_CROSSINGS other arrows, or (when spanning at least two ranks along the flow) crossing one with
+        LONG_ARROW_MIN_BENDS bends or more, or wrapping across lanes for at least twice LONG_ARROW_COLS column widths
+        with LONG_ARROW_MIN_BENDS bends or more.
         Most crossings first, then longest, as (edge, length in columns, crossings). Arrows into or out of a connector are already split."""
-        candidates = []
+        found = []
         for e in self.edges:
             pts = polylines.get(e["id"])
             ends = (self.node_map.get(e["from"]), self.node_map.get(e["to"]))
@@ -506,13 +507,17 @@ class FlowchartAudit:
                 1 for o in self.edges
                 if o is not e and o["id"] in polylines and self._polylines_intersect(
                     pts, polylines[o["id"]], incident=bool({e["from"], e["to"]} & {o["from"], o["to"]})))
-            candidates.append((e, cols, crossings))
-        found = [item for item in candidates
-                 if item[2] >= LONG_ARROW_MIN_CROSSINGS
-                 or (item[2] and len(polylines[item[0]["id"]]) - 2 >= LONG_ARROW_MIN_BENDS)
-                 or (item[1] >= LONG_ARROW_COLS * 2
-                     and len(polylines[item[0]["id"]]) - 2 >= LONG_ARROW_MIN_BENDS
-                     and self.node_map[item[0]["from"]].get("laneId") != self.node_map[item[0]["to"]].get("laneId"))]
+            bends = len(pts) - 2
+            flow_span = abs((ends[1].get("x") or 0) - (ends[0].get("x") or 0))
+            if crossings >= LONG_ARROW_MIN_CROSSINGS or (
+                flow_span >= self.col_w * 2 and (
+                    (crossings and bends >= LONG_ARROW_MIN_BENDS)
+                    or (cols >= LONG_ARROW_COLS * 2
+                        and bends >= LONG_ARROW_MIN_BENDS
+                        and ends[0].get("laneId") != ends[1].get("laneId"))
+                )
+            ):
+                found.append((e, cols, crossings))
         found.sort(key=lambda f: (-f[2], -f[1]))
         return found
 
