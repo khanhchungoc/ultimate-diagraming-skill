@@ -278,16 +278,16 @@ def main() -> int:
 
     save_helper = args.save_helper
     if save_helper is None and sys.stdin.isatty() and sys.stdout.isatty():
-        print("Enable the local background direct-save helper for HTML diagrams?")
-        print("  It listens only on your machine (127.0.0.1), auto-exits after 60 min idle,")
-        print("  and only updates registered diagram HTML files.")
-        print("  Yes (default): Open docs/flow.html in VS Code's integrated browser, Chrome, Edge,")
-        print("                 Firefox, or Safari -> edit -> press Ctrl+S -> file updates in place.")
-        print("  No:            No background listener runs. Chrome/Edge can still link a folder;")
-        print("                 VS Code's integrated browser, Firefox, and Safari show a Save As")
-        print("                 picker or download a copy (e.g. flow (1).html).")
+        print("One-click saving for diagrams:")
+        print("  Normally, web browsers block HTML files from saving changes back to themselves.")
+        print("  A tiny helper on your computer (stops automatically when idle) lets Save just work:")
+        print("  Yes (default): Click Save (or Ctrl+S) in any browser and your diagram file updates")
+        print("                 right away. No extra popups or duplicate copies.")
+        print("  No:            Nothing runs in the background. You will have to pick and overwrite")
+        print("                 the file on your first save before it can save without opening the")
+        print("                 file browser.")
         try:
-            answer = input("Enable direct-save helper? [Y/n]: ").strip().lower()
+            answer = input("Turn on one-click saving? [Y/n]: ").strip().lower()
         except EOFError:
             answer = ""
         save_helper = answer not in ("n", "no")
