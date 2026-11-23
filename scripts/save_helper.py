@@ -44,7 +44,7 @@ if str(SCRIPT_DIR) not in sys.path:
 from disk_format import SUPPORTED_TYPES, format_json, stamp_reading_guide
 
 APP_NAME = "ultimate-diagram-save-helper"
-HELPER_VERSION = 1
+HELPER_VERSION = 2
 HOST = "127.0.0.1"
 PORT_RANGE = tuple(range(19847, 19852))  # 19847..19851
 DEFAULT_IDLE_TIMEOUT = 60 * 60           # 60 minutes
@@ -498,17 +498,23 @@ def create_server(
     raise OSError(f"Could not bind save helper on {HOST} ports {list(ports)}: {last_err}")
 
 
-def probe_health(port: int, timeout: float = HEALTH_TIMEOUT) -> bool:
+def probe_health_info(port: int, timeout: float = HEALTH_TIMEOUT) -> Optional[Dict[str, Any]]:
     url = f"http://{HOST}:{port}/health"
     req = urllib.request.Request(url, headers={"Accept": "application/json"})
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             if resp.status != 200:
-                return False
+                return None
             data = json.loads(resp.read(4096).decode("utf-8"))
-            return bool(data.get("ok") and data.get("app") == APP_NAME)
+            if isinstance(data, dict) and data.get("ok") and data.get("app") == APP_NAME:
+                return data
+            return None
     except (OSError, urllib.error.URLError, ValueError):
-        return False
+        return None
+
+
+def probe_health(port: int, timeout: float = HEALTH_TIMEOUT) -> bool:
+    return probe_health_info(port, timeout=timeout) is not None
 
 
 def find_running_port(ports: Iterable[int] = PORT_RANGE, timeout: float = HEALTH_TIMEOUT) -> Optional[int]:
@@ -612,9 +618,17 @@ def spawn_detached(idle_timeout: float = DEFAULT_IDLE_TIMEOUT) -> bool:
 
 
 def ensure_running(idle_timeout: float = DEFAULT_IDLE_TIMEOUT) -> bool:
-    """Ensure a single background helper instance is running; return True if running/spawned."""
-    if find_running_port() is not None:
-        return True
+    """Ensure a single background helper instance of HELPER_VERSION is running."""
+    running_port = find_running_port()
+    if running_port is not None:
+        info = probe_health_info(running_port)
+        if info is not None and info.get("version") == HELPER_VERSION:
+            return True
+        # An older helper version is still running; stop it and spawn the updated script.
+        stop_running()
+        deadline = time.monotonic() + 1.0
+        while time.monotonic() < deadline and probe_health(running_port, timeout=0.05):
+            time.sleep(0.05)
     return spawn_detached(idle_timeout=idle_timeout)
 
 
@@ -730,15 +744,21 @@ def main(argv: Optional[list[str]] = None) -> int:
     if args.command == "start":
         port = find_running_port()
         if port is not None:
-            print(f"[OK] Direct-save helper already running on http://{HOST}:{port}")
-            return 0
+            info = probe_health_info(port)
+            if info is not None and info.get("version") == HELPER_VERSION:
+                print(f"[OK] Direct-save helper v{HELPER_VERSION} already running on http://{HOST}:{port}")
+                return 0
+            stop_running()
+            deadline = time.monotonic() + 1.0
+            while time.monotonic() < deadline and probe_health(port, timeout=0.05):
+                time.sleep(0.05)
         if spawn_detached(idle_timeout=args.idle_timeout):
             # Brief poll so CLI callers can report the bound port
             deadline = time.monotonic() + 2.0
             while time.monotonic() < deadline:
                 port = find_running_port()
                 if port is not None:
-                    print(f"[OK] Direct-save helper started on http://{HOST}:{port}")
+                    print(f"[OK] Direct-save helper v{HELPER_VERSION} started on http://{HOST}:{port}")
                     return 0
                 time.sleep(0.05)
             print("[OK] Direct-save helper launched in background.")
@@ -757,7 +777,13 @@ def main(argv: Optional[list[str]] = None) -> int:
         enabled = get_direct_save_enabled()
         cfg_label = "enabled" if enabled is True else "disabled" if enabled is False else "unset"
         port = find_running_port()
-        run_label = f"running on http://{HOST}:{port}" if port is not None else "stopped"
+        if port is not None:
+            info = probe_health_info(port) or {}
+            ver = info.get("version")
+            ver_tag = f"v{ver}" if ver == HELPER_VERSION else f"v{ver}, outdated (expected v{HELPER_VERSION})"
+            run_label = f"running {ver_tag} on http://{HOST}:{port}"
+        else:
+            run_label = "stopped"
         print(f"direct_save_helper: {cfg_label} ({run_label})")
         return 0
 
