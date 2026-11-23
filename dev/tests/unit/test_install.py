@@ -178,16 +178,19 @@ def test_save_helper_opt_in_flags() -> None:
         assert hook_data["version"] == 1
         assert "--hook copilot" in hook_data["hooks"]["sessionStart"][0]["command"]
 
-        # 4. install.js registers copilot hook by default and skips with --no-hooks
+        # 4. install.js registers copilot hook by default, skips with --no-hooks, and stops running helper
         assert not (proj1 / ".github" / "hooks" / "ultimate-diagram.json").exists()
         proj3 = root / "proj3"
         proj3.mkdir()
+        stale_state = cache1 / "server.json"
+        stale_state.write_text(json.dumps({"pid": 999999, "port": 19847}), encoding="utf-8")
         r4 = subprocess.run(
             ["node", str(repo_root / "bin" / "install.js"), "--project", "--target-path", str(proj3),
              "--runtime", "copilot", "--mode", "copy"],
             capture_output=True, text=True, encoding="utf-8", env=env1,
         )
         assert r4.returncode == 0, r4.stdout + r4.stderr
+        assert not stale_state.exists(), "installer should clear/stop running helper state before copying"
         copilot_hook_js = proj3 / ".github" / "hooks" / "ultimate-diagram.json"
         assert copilot_hook_js.is_file()
         assert "--hook copilot" in json.loads(copilot_hook_js.read_text(encoding="utf-8"))["hooks"]["sessionStart"][0]["command"]

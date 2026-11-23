@@ -371,6 +371,22 @@ function registerVersionHook(rt, settingsPath, skillDest) {
   return { ok: true, msg: settingsPath };
 }
 
+function stopRunningSaveHelper() {
+  const statePath = path.join(path.dirname(getCacheConfigPath()), 'server.json');
+  if (!fs.existsSync(statePath)) return;
+  const script = path.join(REPO_ROOT, 'scripts', 'save_helper.py');
+  if (!fs.existsSync(script)) return;
+  const candidates = process.platform === 'win32'
+    ? [['python', []], ['py', ['-3']], ['python3', []]]
+    : [['python3', []], ['python', []]];
+  for (const [cmd, pre] of candidates) {
+    const res = spawnSync(cmd, [...pre, script, 'stop'], { stdio: 'ignore', timeout: 3000 });
+    if (!res.error && res.status === 0) return;
+  }
+}
+
+stopRunningSaveHelper();
+
 let installedDest = null;
 const installedDests = {};
 for (const rt of runtimesToInstall) {

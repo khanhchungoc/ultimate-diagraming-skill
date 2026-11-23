@@ -314,12 +314,18 @@ def main() -> int:
             answer = ""
         save_helper = answer not in ("n", "no")
         print()
+    script_dir = str(Path(__file__).resolve().parent)
+    if script_dir not in sys.path:
+        sys.path.insert(0, script_dir)
     if save_helper is not None:
-        script_dir = str(Path(__file__).resolve().parent)
-        if script_dir not in sys.path:
-            sys.path.insert(0, script_dir)
         from save_helper import set_direct_save_enabled
         set_direct_save_enabled(save_helper)
+    try:
+        from save_helper import server_state_path, stop_running
+        if server_state_path().exists():
+            stop_running()
+    except Exception:
+        pass
 
     canonical_repo = repo_root.resolve()
     installed = 0
