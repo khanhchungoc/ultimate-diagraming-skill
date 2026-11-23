@@ -337,7 +337,7 @@ def patch_diagram_html(
 
 
 def is_allowed_origin(origin: Optional[str]) -> bool:
-    if origin == "null":
+    if origin in ("null", "file://"):
         return True
     if isinstance(origin, str) and LOOPBACK_ORIGIN_RE.match(origin):
         return True

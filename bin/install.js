@@ -302,13 +302,16 @@ function safeRemove(dest) {
 }
 
 const hookBase = scope === 'user' ? USER_HOME : targetPath;
+const copilotHome = (process.env.COPILOT_HOME || '').trim() || path.join(USER_HOME, '.copilot');
 const hookDirs = {
   claude: path.join(hookBase, '.claude'),
-  gemini: path.join(hookBase, '.gemini')
+  gemini: path.join(hookBase, '.gemini'),
+  copilot: scope === 'user' ? copilotHome : path.join(targetPath, '.github')
 };
 const preexistingHookDirs = {
   claude: fs.existsSync(hookDirs.claude),
-  gemini: fs.existsSync(hookDirs.gemini)
+  gemini: fs.existsSync(hookDirs.gemini),
+  copilot: fs.existsSync(hookDirs.copilot)
 };
 
 function isOurVersionHook(entry) {
@@ -321,6 +324,23 @@ function isOurVersionHook(entry) {
 }
 
 function registerVersionHook(rt, settingsPath, skillDest) {
+  const py = process.platform === 'win32' ? 'python' : 'python3';
+  const script = path.join(skillDest, 'scripts', 'version_check.py');
+  const command = `${py} "${script}" --hook ${rt}`;
+  if (rt === 'copilot') {
+    const hookFile = path.join(settingsPath, 'hooks', 'ultimate-diagram.json');
+    const payload = {
+      version: 1,
+      hooks: {
+        sessionStart: [
+          { type: 'command', command, timeoutSec: 10 }
+        ]
+      }
+    };
+    fs.mkdirSync(path.dirname(hookFile), { recursive: true });
+    fs.writeFileSync(hookFile, JSON.stringify(payload, null, 2) + '\n');
+    return { ok: true, msg: hookFile };
+  }
   let data = {};
   if (fs.existsSync(settingsPath)) {
     try {
@@ -341,9 +361,6 @@ function registerVersionHook(rt, settingsPath, skillDest) {
   if (!Array.isArray(data.hooks.SessionStart)) {
     return { ok: false, msg: `skipped ${settingsPath} ('hooks.SessionStart' is not an array)` };
   }
-  const py = process.platform === 'win32' ? 'python' : 'python3';
-  const script = path.join(skillDest, 'scripts', 'version_check.py');
-  const command = `${py} "${script}" --hook ${rt}`;
   const hook = rt === 'claude'
     ? { type: 'command', command, async: true, timeout: 10 }
     : { type: 'command', command, timeout: 5000 };
@@ -395,10 +412,11 @@ for (const rt of runtimesToInstall) {
 }
 
 if (!noHooks) {
-  for (const rt of ['claude', 'gemini']) {
+  for (const rt of ['claude', 'gemini', 'copilot']) {
     if (!installedDests[rt]) continue;
     if (normalizedRuntime === 'all' && scope === 'user' && !preexistingHookDirs[rt]) continue;
-    const res = registerVersionHook(rt, path.join(hookDirs[rt], 'settings.json'), installedDests[rt]);
+    const hookTarget = rt === 'copilot' ? hookDirs.copilot : path.join(hookDirs[rt], 'settings.json');
+    const res = registerVersionHook(rt, hookTarget, installedDests[rt]);
     if (res.ok) {
       console.log(`    ${c.green}✔${c.reset}  ${c.white}${(rt + ' hook').padEnd(16, ' ')}${c.reset} ${c.gray}→${c.reset} ${c.dim}${formatDisplayPath(res.msg)}${c.reset}`);
     } else {

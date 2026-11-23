@@ -127,7 +127,24 @@ def register_version_hook(
     skill_dest: Path,
     python_cmd: str | None = None,
 ) -> tuple[bool, str]:
-    """Idempotently merge ultimate-diagram's SessionStart version check hook into settings.json."""
+    """Idempotently register ultimate-diagram's SessionStart hook for claude, gemini, or copilot."""
+    if runtime == "copilot":
+        py = python_cmd or ("python" if sys.platform == "win32" else "python3")
+        script = skill_dest / "scripts" / "version_check.py"
+        command = f'{py} "{script}" --hook copilot'
+        hook_file = settings_path / "hooks" / "ultimate-diagram.json"
+        payload = {
+            "version": 1,
+            "hooks": {
+                "sessionStart": [
+                    {"type": "command", "command": command, "timeoutSec": 10}
+                ]
+            },
+        }
+        hook_file.parent.mkdir(parents=True, exist_ok=True)
+        hook_file.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+        return True, str(hook_file)
+
     if settings_path.exists():
         try:
             data = json.loads(settings_path.read_text(encoding="utf-8"))
@@ -248,7 +265,12 @@ def main() -> int:
 
     # Snapshot which hook-capable runtime directories already existed before we create skill folders.
     hook_base = Path.home() if args.scope == "user" else target_path
-    hook_dirs = {"claude": hook_base / ".claude", "gemini": hook_base / ".gemini"}
+    copilot_home = Path(os.environ.get("COPILOT_HOME", "").strip()) if os.environ.get("COPILOT_HOME", "").strip() else (Path.home() / ".copilot")
+    hook_dirs = {
+        "claude": hook_base / ".claude",
+        "gemini": hook_base / ".gemini",
+        "copilot": copilot_home if args.scope == "user" else (target_path / ".github"),
+    }
     preexisting_hook_dirs = {rt: p.exists() for rt, p in hook_dirs.items()}
 
     # Claude Code only: where a diagram goes. Stored beside Claude Code's own settings, never inside the skill
@@ -327,15 +349,16 @@ def main() -> int:
         installed_dests[rt] = dest
 
     if not args.no_hooks:
-        for rt in ("claude", "gemini"):
+        for rt in ("claude", "gemini", "copilot"):
             if rt not in installed_dests:
                 continue
             # Under --runtime all at user scope, only touch runtimes that are actually present.
             if selected_runtime == "all" and args.scope == "user" and not preexisting_hook_dirs[rt]:
                 continue
-            ok, msg = register_version_hook(rt, hook_dirs[rt] / "settings.json", installed_dests[rt])
+            hook_target = hook_dirs[rt] if rt == "copilot" else (hook_dirs[rt] / "settings.json")
+            ok, msg = register_version_hook(rt, hook_target, installed_dests[rt])
             if ok:
-                print(f"    [+] Registered {rt} SessionStart version-check hook -> {msg}")
+                print(f"    [+] Registered {rt} SessionStart hook -> {msg}")
             else:
                 print(f"    [!] Hook warning ({rt}): {msg}")
 

@@ -160,18 +160,37 @@ def test_save_helper_opt_in_flags() -> None:
         assert r2.returncode == 0, r2.stdout + r2.stderr
         assert json.loads((cache1 / "config.json").read_text(encoding="utf-8"))["direct_save_helper"] is True
 
-        # 3. --no-save-helper persists false (install.py)
+        # 3. --no-save-helper persists false and registers copilot hook when hooks enabled (install.py)
         cache2 = root / "cache2"
         proj2 = root / "proj2"
         proj2.mkdir()
         env2 = {**os.environ, "ULTIMATE_DIAGRAM_CACHE_DIR": str(cache2)}
         r3 = subprocess.run(
             [sys.executable, str(repo_root / "scripts" / "install.py"), "--scope", "project",
-             "--target-path", str(proj2), "--runtime", "copilot", "--mode", "copy", "--no-hooks", "--no-save-helper"],
+             "--target-path", str(proj2), "--runtime", "copilot", "--mode", "copy", "--no-save-helper"],
             capture_output=True, text=True, encoding="utf-8", env=env2,
         )
         assert r3.returncode == 0, r3.stdout + r3.stderr
         assert json.loads((cache2 / "config.json").read_text(encoding="utf-8"))["direct_save_helper"] is False
+        copilot_hook = proj2 / ".github" / "hooks" / "ultimate-diagram.json"
+        assert copilot_hook.is_file()
+        hook_data = json.loads(copilot_hook.read_text(encoding="utf-8"))
+        assert hook_data["version"] == 1
+        assert "--hook copilot" in hook_data["hooks"]["sessionStart"][0]["command"]
+
+        # 4. install.js registers copilot hook by default and skips with --no-hooks
+        assert not (proj1 / ".github" / "hooks" / "ultimate-diagram.json").exists()
+        proj3 = root / "proj3"
+        proj3.mkdir()
+        r4 = subprocess.run(
+            ["node", str(repo_root / "bin" / "install.js"), "--project", "--target-path", str(proj3),
+             "--runtime", "copilot", "--mode", "copy"],
+            capture_output=True, text=True, encoding="utf-8", env=env1,
+        )
+        assert r4.returncode == 0, r4.stdout + r4.stderr
+        copilot_hook_js = proj3 / ".github" / "hooks" / "ultimate-diagram.json"
+        assert copilot_hook_js.is_file()
+        assert "--hook copilot" in json.loads(copilot_hook_js.read_text(encoding="utf-8"))["hooks"]["sessionStart"][0]["command"]
 
 
 def main() -> None:
