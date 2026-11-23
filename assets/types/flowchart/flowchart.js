@@ -178,11 +178,12 @@
         }
         if (nextRect && nextRect.width > 0 && nextRect.height > 0) {
           const nr = nextRect;
+          const radius = getComputedStyle(nextAct).borderRadius || '0 0 var(--radius-md) var(--radius-md)';
           const chip = document.createElement('div');
           chip.setAttribute('data-motion-ghost', '');
           chip.setAttribute('data-export-skip', '');
           chip.setAttribute('aria-hidden', 'true');
-          chip.style.cssText = `position:fixed;left:${nr.left}px;top:${nr.top}px;width:${nr.width}px;height:${nr.height}px;background:var(--primary-wash);border-radius:0 0 var(--radius-md) var(--radius-md);pointer-events:none;z-index:121;transform-origin:top left;`;
+          chip.style.cssText = `position:fixed;left:${nr.left}px;top:${nr.top}px;width:${nr.width}px;height:${nr.height}px;background:var(--primary-wash);border:1px solid var(--primary);border-top:0;border-radius:${radius};box-sizing:border-box;pointer-events:none;z-index:121;transform-origin:top left;`;
           document.body.appendChild(chip);
           const dx = prevRect.left - nr.left, dy = prevRect.top - nr.top;
           const sx = prevRect.width / nr.width, sy = prevRect.height / nr.height;

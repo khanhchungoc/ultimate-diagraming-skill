@@ -2559,31 +2559,96 @@ html.is-loading #page-loading { display: grid; }
     #swimlanes-container.dir-tb .lane-pill { text-align: center; }
     body.exporting #swimlanes-container.dir-tb .lane-pill { transform: translate(var(--pill-cx, 12px), 12px) !important; }
 
-    /* Subprocess flows: nested folder boxes hanging from the header (renderTabs). One box per level on the path to the current
-       flow, each inside the one before it; the innermost holds the current flow's direct children. The top edge is open, so a
-       box reads as hanging from the header. The outermost floats over the canvas (fitView leaves room for it through
-       [data-overlay-top]) and carries the one shadow. Active flow: a filled chip, no underline. */
+    /* Subprocess flows: nested hanging folder tabs merged into the header (renderTabs). Main flow is the outer folder
+       wrapping around its child .flow-subtabs tray (and each expanded parent wraps its own children). The active tab fills
+       its slot edge-to-edge in the header surface and covers the header's 1px bottom border so it opens seamlessly into
+       the navbar; inactive tabs and ancestor shells sit recessed below the seam. */
     .flow-tabs, .flow-subtabs {
-      display: flex; align-items: flex-start; gap: 4px; padding: 0 4px 4px;
-      background: var(--bg-panel); border: 1.5px solid var(--border-dark); border-top: 0;
+      display: flex; align-items: stretch; gap: 0;
+      background: var(--bg-page);
+      border: 1px solid var(--border-dark); border-top: 0;
       border-radius: 0 0 var(--radius-lg) var(--radius-lg);
     }
     .flow-tabs {
-      position: fixed; top: 56px; left: 16px; z-index: 120; max-width: calc(100vw - 32px); overflow-x: auto;
-      box-shadow: var(--shadow-md);
+      position: fixed; top: 55px; left: 16px; z-index: 120; max-width: calc(100vw - 32px); overflow-x: auto;
+      padding: 0 4px 4px 0;
+      box-shadow: var(--shadow-sm);
     }
     .flow-tabs[hidden] { display: none; }
-    .flow-subtabs { min-width: 0; }
+    .flow-subtabs {
+      min-width: 0; overflow: hidden;
+      border-radius: 0 0 var(--radius-md) var(--radius-md);
+      border-color: var(--border-dark);
+    }
+    .flow-subtabs:has(> .flow-subtabs) {
+      padding: 0 3px 3px 0;
+    }
+    .flow-tabs:has(> .flow-tab[aria-selected="true"]),
+    .flow-subtabs:has(> .flow-subtabs):has(> .flow-tab[aria-selected="true"]) {
+      background: var(--bg-panel);
+    }
     .flow-tab {
-      flex: none; display: inline-flex; align-items: center; height: 28px; max-width: 180px; padding: 0 10px; box-sizing: border-box;
-      background: none; border: 0; border-radius: 0 0 var(--radius-md) var(--radius-md);
+      position: relative;
+      flex: none; display: inline-flex; align-items: center; min-height: 29px; max-width: 180px; padding: 0 12px; box-sizing: border-box;
+      background: transparent;
+      border: 0;
+      border-top: 1px solid var(--border-color);
       font: inherit; font-size: var(--text-md); color: var(--text-soft); cursor: pointer;
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      transition: background var(--ease), color var(--ease);
+    }
+    .flow-tabs > .flow-tab {
+      border-bottom-left-radius: var(--radius-lg);
+    }
+    .flow-subtabs > .flow-tab {
+      background: var(--bg-page);
+    }
+    .flow-subtabs > .flow-tab + .flow-tab {
+      border-left: 1px solid var(--border-color);
+    }
+    .flow-subtabs > .flow-subtabs + .flow-tab {
+      border-left: 1px solid var(--border-color);
     }
     .flow-tab:hover { background: var(--bg-hover); color: var(--text-main); }
     .flow-tab:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
-    .flow-tab[aria-selected="true"] { font-weight: var(--weight-bold); color: var(--primary); background: var(--primary-wash); }
-    body.presentation .flow-tabs { top: 12px; }
+    .flow-tab[aria-selected="true"] {
+      z-index: 2;
+      font-weight: var(--weight-bold); color: var(--primary);
+      background: var(--bg-panel);
+      border-top-color: var(--bg-panel);
+    }
+    .flow-subtabs > .flow-tab[aria-selected="true"] {
+      border-left: 1px solid var(--border-dark);
+      border-right: 1px solid var(--border-dark);
+      border-bottom: 1px solid var(--border-dark);
+      border-radius: 0 0 var(--radius-md) var(--radius-md);
+      margin: 0 -1px -1px;
+    }
+    .flow-subtabs > .flow-tab[aria-selected="true"]:first-child { margin-left: -1px; }
+    .flow-subtabs > .flow-tab[aria-selected="true"] + .flow-tab { border-left-color: transparent; }
+    .flow-subtabs:has(> .flow-subtabs) > .flow-tab[aria-selected="true"] {
+      border-bottom-color: transparent;
+      border-right-color: transparent;
+      margin-bottom: 0;
+    }
+    body.presentation .flow-tabs {
+      top: 12px;
+      border-top: 1px solid var(--border-dark);
+      border-radius: var(--radius-lg);
+      padding: 3px;
+      gap: 3px;
+    }
+    body.presentation .flow-subtabs {
+      border-top: 1px solid var(--border-dark);
+      border-radius: var(--radius-md);
+    }
+    body.presentation .flow-tab { border-top: 0; border-radius: var(--radius-sm); }
+    body.presentation .flow-subtabs > .flow-tab { border-radius: 0; }
+    body.presentation .flow-subtabs > .flow-tab[aria-selected="true"] {
+      border: 1px solid var(--border-dark);
+      border-radius: var(--radius-sm);
+      margin: -1px;
+    }
     body.capture .flow-tabs { display: none; }
     /* Over the + marker drawn in the outline (SHAPE_OUTLINES): a transparent hit area that tints on hover */
     .sub-open {
@@ -9955,11 +10020,12 @@ function toMermaid(data, opts) {
         }
         if (nextRect && nextRect.width > 0 && nextRect.height > 0) {
           const nr = nextRect;
+          const radius = getComputedStyle(nextAct).borderRadius || '0 0 var(--radius-md) var(--radius-md)';
           const chip = document.createElement('div');
           chip.setAttribute('data-motion-ghost', '');
           chip.setAttribute('data-export-skip', '');
           chip.setAttribute('aria-hidden', 'true');
-          chip.style.cssText = `position:fixed;left:${nr.left}px;top:${nr.top}px;width:${nr.width}px;height:${nr.height}px;background:var(--primary-wash);border-radius:0 0 var(--radius-md) var(--radius-md);pointer-events:none;z-index:121;transform-origin:top left;`;
+          chip.style.cssText = `position:fixed;left:${nr.left}px;top:${nr.top}px;width:${nr.width}px;height:${nr.height}px;background:var(--primary-wash);border:1px solid var(--primary);border-top:0;border-radius:${radius};box-sizing:border-box;pointer-events:none;z-index:121;transform-origin:top left;`;
           document.body.appendChild(chip);
           const dx = prevRect.left - nr.left, dy = prevRect.top - nr.top;
           const sx = prevRect.width / nr.width, sy = prevRect.height / nr.height;
