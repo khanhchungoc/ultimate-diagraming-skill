@@ -147,7 +147,7 @@ Target a single runtime with `-r <name>` (e.g. `npx ultimate-diagram -r antigrav
 
 - **Opened as a claude.ai Artifact** (Claude Code with Artifact output): **Save** stores your edits directly in the artifact as a new version, so your agent's next change starts from them. If you only have view access (for example the live demos), use **Export > HTML file (editable)** to get your own editable copy as a standalone HTML file. See [Artifacts](docs/artifacts.md).
 - **Opened as a regular HTML file:** the browser cannot write into the file you opened without permission. In Chrome and Edge, the first **Save** offers two choices:
-  - **Link folder…** (recommended): pick your top workspace or repo folder once so every existing and future diagram inside it (and any subfolder) saves straight back to disk in one click, with no repeated file dialogs.
+  - **Link folder…** (recommended): copies this file's folder path so you can paste it into the folder picker. Pick that folder (or a higher project folder) once so diagrams inside save straight back to disk in one click. Only shown when the browser supports folder linking (hidden in embedded browsers like VS Code).
   - **Choose file…**: copies the opened file's path so you can paste it into the Save window (Windows: Ctrl+V; macOS: ⌘⇧G, then ⌘V; Linux: Ctrl+L, then Ctrl+V) to save over the original.
   After that, Save writes straight to the file, and the badge next to the title names it. Firefox and Safari save a copy to your downloads folder instead, and the page says the file you opened was not changed. To have your agent continue from your edits, tell it which saved file to use.
 

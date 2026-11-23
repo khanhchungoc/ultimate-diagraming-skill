@@ -203,10 +203,11 @@ try {
   await sleep(500);
   t.check('Ctrl+S save path raises no errors', t.errors.length === 0, t.errors.join(' | '));
 
-  // 6b. First Save of a file opened from disk, in a browser with the Save dialog: Save copies the file's path at once and
-  //     shows it in a bubble; the bubble's button opens the dialog. The dialog and clipboard are stubbed.
+  // 6b. First Save of a file opened from disk when directory picking is unavailable (no Link folder button):
+  //     Save copies the file's path at once and shows it in a bubble; the bubble's button opens the dialog.
   await t.open(laid);
   await t.ev(`(() => {
+    delete window.showDirectoryPicker;
     window.__picked = []; window.__copied = []; window.__written = null;
     window.showSaveFilePicker = async (o) => { window.__picked.push(o); return { name: o.suggestedName,
       createWritable: async () => ({ write: async (h) => { window.__written = h; }, close: async () => {} }) }; };
@@ -217,11 +218,12 @@ try {
   await sleep(300);
   const b1 = await t.ev(`(() => { const p = document.querySelector('.confirm .save-where'); return p && { path: p.textContent,
     title: document.querySelector('.confirm .confirm-title').textContent, msg: document.querySelector('.confirm .confirm-msg').textContent,
+    hasAlt: !!document.querySelector('.confirm .confirm-alt'), ok: document.querySelector('.confirm .confirm-ok').textContent,
     copied: window.__copied, picked: window.__picked.length }; })()`);
   const expectedPath = process.platform === 'darwin' ? dirname(laidPath) : laidPath;
   const saveShortcut = process.platform === 'win32' ? /Ctrl\+A, Ctrl\+V/ : process.platform === 'darwin' ? /⌘⇧G/ : /Ctrl\+L/;
-  t.check('save location: the first Save copies the opened file\'s path at once and shows overwrite instructions, before any dialog',
-    b1 && b1.path === expectedPath && b1.title === 'Path copied' && saveShortcut.test(b1.msg) && /overwrite/i.test(b1.msg) && JSON.stringify(b1.copied) === JSON.stringify([expectedPath]) && b1.picked === 0,
+  t.check('save location: when directory picking is unavailable, Link folder is hidden and first Save copies the path with overwrite instructions',
+    b1 && b1.path === expectedPath && b1.title === 'Path copied' && saveShortcut.test(b1.msg) && /overwrite/i.test(b1.msg) && !b1.hasAlt && b1.ok === 'Choose\u2026' && JSON.stringify(b1.copied) === JSON.stringify([expectedPath]) && b1.picked === 0,
     JSON.stringify(b1));
   await t.ev(`document.querySelector('.confirm .confirm-ok').click()`);
   await sleep(300);
@@ -234,7 +236,7 @@ try {
   await sleep(300);
   t.check('save location: the next Save writes straight to the chosen file with no bubble or dialog',
     (await t.ev(`!!window.__written && !document.querySelector('.save-where') && window.__picked.length === 1`)));
-  // 6c. Reopening a file saved on an earlier visit: the badge names the file Save writes to and says the browser may ask.
+  // 6c. Reopening a file saved on an earlier visit (including with a different query string): the badge names the file Save writes to.
   //     The stored handle is faked as a plain { name } record (a real one needs the Save dialog).
   const badgeOf = () => t.ev(`(() => { const b = document.getElementById('save-status'); return { text: b.textContent, title: b.title }; })()`);
   await t.open(laid, '?keep-picker');
@@ -243,11 +245,11 @@ try {
       if (!q.result.objectStoreNames.contains('handles')) q.result.createObjectStore('handles');
       if (!q.result.objectStoreNames.contains('folders')) q.result.createObjectStore('folders', { autoIncrement: true });
     };
-    q.onsuccess = () => { const tx = q.result.transaction('handles', 'readwrite'); tx.objectStore('handles').put({ name: 'flow-old.html' }, location.href); tx.oncomplete = res; tx.onerror = rej; };
+    q.onsuccess = () => { const tx = q.result.transaction('handles', 'readwrite'); tx.objectStore('handles').put({ name: 'flow-old.html' }, location.href.split(/[?#]/)[0]); tx.oncomplete = res; tx.onerror = rej; };
     q.onerror = rej; })`);
-  await t.open(laid, '?keep-picker');
+  await t.open(laid, '?keep-picker&theme=dark');
   const stored = await badgeOf();
-  t.check('remembered file: the badge reads "Saves to <file>" and says the browser may ask once per session',
+  t.check('remembered file: the badge reads "Saves to <file>" even with a different query string and says the browser may ask once per session',
     stored.text === 'Saves to flow-old.html' && /once per session/.test(stored.title), JSON.stringify(stored));
   await t.open(laid);
   t.check('remembered file: a page with no stored file still reads "Ready"', (await badgeOf()).text === 'Ready');
@@ -267,6 +269,7 @@ try {
 
   await t.open(laid);
   await t.ev(`(() => {
+    delete window.showDirectoryPicker;
     window.__picked = []; window.__execCopied = 0; window.__execOk = true;
     window.showSaveFilePicker = async (o) => { window.__picked.push(o); throw new DOMException('x', 'AbortError'); };
     navigator.clipboard.writeText = () => Promise.reject(new DOMException('denied', 'NotAllowedError'));
@@ -290,14 +293,16 @@ try {
   await t.ev(`document.querySelector('.confirm .confirm-cancel').click()`);
   await sleep(100);
 
-  // 6e. Linked top parent folder (showDirectoryPicker): bubble explains picking a top parent/repo folder for all child
-  //     folders; linking resolves nested child files verified by diagram-data, rejects mismatched files, and handles system folder blocks.
+  // 6e. Linked folder (showDirectoryPicker): Link folder is primary, copies parent folder to clipboard on click,
+  //     resolves nested child files (including CRLF on disk), rejects mismatched files, and handles system/host blocks.
   const laidParent = basename(dirname(laidPath));
   const laidGrandparent = basename(dirname(dirname(laidPath)));
   const laidName = basename(laidPath);
+  const laidFolder = dirname(laidPath);
   await t.open(laid);
   await t.ev(`(() => {
-    window.__dirWritten = null; window.__picked = [];
+    window.__dirWritten = null; window.__picked = []; window.__copied = [];
+    navigator.clipboard.writeText = async (s) => { window.__copied.push(s); };
     window.showSaveFilePicker = async (o) => { window.__picked.push(o); throw new DOMException('x', 'AbortError'); };
     const makeTree = (dataText) => ({
       name: ${JSON.stringify(laidGrandparent)},
@@ -310,7 +315,7 @@ try {
             if (fn !== ${JSON.stringify(laidName)}) throw new DOMException('not found', 'NotFoundError');
             return {
               name: fn,
-              getFile: async () => ({ text: async () => '<script id="diagram-data" type="application/' + 'json">\\n' + dataText + '\\n</' + 'script>' }),
+              getFile: async () => ({ text: async () => '<script id="diagram-data" type="application/' + 'json">\\r\\n' + dataText + '\\r\\n</' + 'script>' }),
               createWritable: async () => ({ write: async (h) => { window.__dirWritten = h; }, close: async () => {} })
             };
           }
@@ -323,34 +328,36 @@ try {
   await t.ev(t.key('s', { ctrlKey: true }));
   await sleep(300);
   const tipInfo = await t.ev(`({
-    tip: document.querySelector('.confirm .save-folder-tip')?.textContent || '',
+    title: document.querySelector('.confirm .confirm-title')?.textContent || '',
+    tips: [...document.querySelectorAll('.confirm .save-folder-tip')].map(e => e.textContent).join(' | '),
     alt: document.querySelector('.confirm .confirm-alt')?.textContent || '',
     ok: document.querySelector('.confirm .confirm-ok')?.textContent || ''
   })`);
-  t.check('linked folder: first-save bubble explains picking a top parent/repo folder for all child folders',
-    /top parent\/repo folder/i.test(tipInfo.tip) && /all child folders/i.test(tipInfo.tip) && /Link folder/i.test(tipInfo.alt) && /Choose file/i.test(tipInfo.ok),
+  t.check('linked folder: first-save bubble makes Link folder primary and explains both options clearly',
+    tipInfo.title === 'Save to disk' && /copies this file.s folder/i.test(tipInfo.tips) && /Choose file/i.test(tipInfo.alt) && /Link folder/i.test(tipInfo.ok),
     JSON.stringify(tipInfo));
-  // Click Link folder with a same-named folder whose on-disk diagram-data does NOT match: must refuse to overwrite
-  await t.ev(`document.querySelector('.confirm .confirm-alt').click()`);
+  // Click Link folder with a same-named folder whose on-disk diagram-data does NOT match: copies parent folder, refuses overwrite
+  await t.ev(`window.__copied = []; document.querySelector('.confirm .confirm-ok').click()`);
   await sleep(300);
-  const mismatch = await t.ev(`({ written: window.__dirWritten, toasts: [...document.querySelectorAll('.toast')].map(e => e.textContent) })`);
-  t.check('linked folder: rejects a same-named file whose on-disk diagram-data does not match',
-    mismatch.written === null && mismatch.toasts.some(s => /does not contain/i.test(s)), JSON.stringify(mismatch));
+  const mismatch = await t.ev(`({ copied: window.__copied, written: window.__dirWritten, toasts: [...document.querySelectorAll('.toast')].map(e => e.textContent) })`);
+  t.check('linked folder: clicking Link folder copies parent folder to clipboard and rejects mismatched diagram-data',
+    JSON.stringify(mismatch.copied) === JSON.stringify([laidFolder]) && mismatch.written === null && mismatch.toasts.some(s => /does not contain/i.test(s)),
+    JSON.stringify(mismatch));
 
-  // SecurityError (blocked system folder): shows plain-English toast
+  // SecurityError (blocked system folder): shows plain-English toast and keeps Link folder available
   await t.ev(`window.showDirectoryPicker = async () => { throw new DOMException('Cannot open system files', 'SecurityError'); }`);
   await t.ev(t.key('s', { ctrlKey: true }));
   await sleep(300);
-  await t.ev(`document.querySelector('.confirm .confirm-alt').click()`);
+  await t.ev(`document.querySelector('.confirm .confirm-ok').click()`);
   await sleep(300);
   const sysErr = await t.ev(`[...document.querySelectorAll('.toast')].some(e => /blocks system folders/i.test(e.textContent))`);
   t.check('linked folder: shows plain-English toast when browser blocks a system folder', sysErr);
 
-  // Matching top grandparent folder: resolves nested child file, verifies diagram-data, and saves directly
-  await t.ev(`window.showDirectoryPicker = async () => window.__makeTree(document.getElementById('diagram-data').textContent.trim())`);
+  // Matching top grandparent folder with CRLF line endings on disk: resolves nested child file, verifies diagram-data, and saves directly
+  await t.ev(`window.showDirectoryPicker = async () => window.__makeTree(document.getElementById('diagram-data').textContent.trim().replace(/\\n/g, '\\r\\n'))`);
   await t.ev(t.key('s', { ctrlKey: true }));
   await sleep(300);
-  await t.ev(`document.querySelector('.confirm .confirm-alt').click()`);
+  await t.ev(`document.querySelector('.confirm .confirm-ok').click()`);
   await sleep(350);
   const linkedOk = await t.ev(`({
     written: !!window.__dirWritten && window.__dirWritten.includes('id="diagram-data"'),
@@ -358,8 +365,25 @@ try {
     toast: [...document.querySelectorAll('.toast')].some(e => /Linked /.test(e.textContent)),
     picked: window.__picked.length
   })`);
-  t.check('linked folder: linking top parent folder saves nested child diagram straight to disk',
+  t.check('linked folder: linking parent folder matches CRLF files on disk and saves nested child diagram straight to disk',
     linkedOk.written && linkedOk.status === `Saved to ${laidName}` && linkedOk.toast && linkedOk.picked === 0, JSON.stringify(linkedOk));
+
+  // Non-system SecurityError (embedded/VS Code frame): shows clear unsupported toast and hides Link folder on next Save
+  await t.open(laid);
+  await t.ev(`(() => {
+    window.showSaveFilePicker = async () => { throw new DOMException('x', 'AbortError'); };
+    window.showDirectoryPicker = async () => { throw new DOMException('Cross origin sub frames are not allowed to show a file picker.', 'SecurityError'); };
+  })()`);
+  await t.ev(t.key('s', { ctrlKey: true }));
+  await sleep(300);
+  await t.ev(`document.querySelector('.confirm .confirm-ok').click()`);
+  await sleep(300);
+  const hostBlockedToast = await t.ev(`[...document.querySelectorAll('.toast')].some(e => /not supported in this browser window/i.test(e.textContent))`);
+  await t.ev(t.key('s', { ctrlKey: true }));
+  await sleep(300);
+  const hiddenAfterBlock = await t.ev(`({ hasAlt: !!document.querySelector('.confirm .confirm-alt'), ok: document.querySelector('.confirm .confirm-ok')?.textContent || '' })`);
+  t.check('linked folder: non-system SecurityError explains browser limitation and hides Link folder afterwards',
+    hostBlockedToast && !hiddenAfterBlock.hasAlt && hiddenAfterBlock.ok === 'Choose\u2026', JSON.stringify({ hostBlockedToast, hiddenAfterBlock }));
 
   });
 

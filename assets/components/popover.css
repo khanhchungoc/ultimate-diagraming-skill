@@ -72,5 +72,7 @@
       border: 1px solid var(--border-color); border-radius: var(--radius-md);
     }
     .save-folder-tip {
-      margin-bottom: 12px; font-size: var(--text-xs); line-height: var(--t-control-leading); color: var(--text-soft);
+      margin-bottom: 6px; font-size: var(--text-xs); line-height: var(--t-control-leading); color: var(--text-soft);
     }
+    .save-folder-tip:last-of-type { margin-bottom: 12px; }
+    .save-folder-tip strong { color: var(--text-main); font-weight: var(--weight-semibold); }
