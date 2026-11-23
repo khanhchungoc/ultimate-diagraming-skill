@@ -29,5 +29,28 @@
   ],
   "notes": [
     { "id": "note-1", "text": "Payment is captured before stock leaves the warehouse", "nodes": ["n5"] }
-  ]
+  ],
+  "children": {
+    "n5": {
+      "name": "Charge Payment",
+      "laneOrder": ["lane-customer", "lane-system"],
+      "nodes": [
+        { "id": "pay_start", "laneId": "lane-system", "type": "start", "label": "Receive Order Total" },
+        { "id": "pay_auth", "laneId": "lane-system", "type": "task", "label": "Authorize Card with Gateway" },
+        { "id": "pay_ok", "laneId": "lane-system", "type": "decision", "label": "Approved?" },
+        { "id": "pay_retry", "laneId": "lane-customer", "type": "task", "label": "Update Card Details" },
+        { "id": "pay_capture", "laneId": "lane-system", "type": "task", "label": "Capture Funds" },
+        { "id": "pay_done", "laneId": "lane-system", "type": "end", "label": "Payment Captured" }
+      ],
+      "edges": [
+        { "id": "pay_e1", "from": "pay_start", "to": "pay_auth", "label": "" },
+        { "id": "pay_e2", "from": "pay_auth", "to": "pay_ok", "label": "" },
+        { "id": "pay_e3", "from": "pay_ok", "to": "pay_retry", "label": "Declined" },
+        { "id": "pay_e4", "from": "pay_retry", "to": "pay_auth", "label": "Retry", "feedback": true },
+        { "id": "pay_e5", "from": "pay_ok", "to": "pay_capture", "label": "Yes" },
+        { "id": "pay_e6", "from": "pay_capture", "to": "pay_done", "label": "" }
+      ],
+      "notes": []
+    }
+  }
 }

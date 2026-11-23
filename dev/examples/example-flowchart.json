@@ -49,5 +49,34 @@
     { "id": "note-4", "text": "Sent within 30 days, stating the reason", "nodes": ["n_issue_decline_letter"] },
     { "id": "note-5", "text": "14 days; the applicant may withdraw without penalty", "nodes": ["n_wait_cooling_off_period"] },
     { "id": "note-6", "text": "Payslips checked against the employer; self-employed applicants need 2 years of accounts", "nodes": ["n_verify_income_employment"] }
-  ]
+  ],
+  "children": {
+    "n_run_credit_fraud_check": {
+      "name": "Run Credit & Fraud Check",
+      "laneOrder": ["lane-engine", "lane-risk"],
+      "nodes": [
+        { "id": "sub_cf_start", "laneId": "lane-engine", "type": "start", "label": "Receive Application Data" },
+        { "id": "sub_cf_bureau", "laneId": "lane-engine", "type": "io", "label": "Pull Experian Credit Bureau" },
+        { "id": "sub_cf_fraud", "laneId": "lane-engine", "type": "task", "label": "Run Internal Fraud Rules" },
+        { "id": "sub_cf_flag", "laneId": "lane-engine", "type": "decision", "label": "Fraud Alert Triggered?" },
+        { "id": "sub_cf_review", "laneId": "lane-risk", "type": "task", "label": "Verify Identity & Clear Flag" },
+        { "id": "sub_cf_score", "laneId": "lane-engine", "type": "task", "label": "Compute Composite Credit Score" },
+        { "id": "sub_cf_threshold", "laneId": "lane-engine", "type": "decision", "label": "Score >= 700?" },
+        { "id": "sub_cf_pass", "laneId": "lane-engine", "type": "end", "label": "Auto-Pass (Score >= 700)" },
+        { "id": "sub_cf_refer", "laneId": "lane-risk", "type": "end", "label": "Refer to Risk Committee" }
+      ],
+      "edges": [
+        { "id": "sub_cf_e1", "from": "sub_cf_start", "to": "sub_cf_bureau", "label": "" },
+        { "id": "sub_cf_e2", "from": "sub_cf_bureau", "to": "sub_cf_fraud", "label": "" },
+        { "id": "sub_cf_e3", "from": "sub_cf_fraud", "to": "sub_cf_flag", "label": "" },
+        { "id": "sub_cf_e4", "from": "sub_cf_flag", "to": "sub_cf_review", "label": "Yes" },
+        { "id": "sub_cf_e5", "from": "sub_cf_review", "to": "sub_cf_score", "label": "" },
+        { "id": "sub_cf_e6", "from": "sub_cf_flag", "to": "sub_cf_score", "label": "No" },
+        { "id": "sub_cf_e7", "from": "sub_cf_score", "to": "sub_cf_threshold", "label": "" },
+        { "id": "sub_cf_e8", "from": "sub_cf_threshold", "to": "sub_cf_pass", "label": "Yes" },
+        { "id": "sub_cf_e9", "from": "sub_cf_threshold", "to": "sub_cf_refer", "label": "No" }
+      ],
+      "notes": []
+    }
+  }
 }
