@@ -115,7 +115,7 @@ def detect_update_command(skill_dir: Optional[Path] = None) -> str:
             return f'git -C "{resolved}" pull'
     except OSError:
         pass
-    return f"npx {REPO}"
+    return "npx ultimate-diagram@latest"
 
 
 def read_cache(path: Optional[Path] = None) -> Optional[dict]:

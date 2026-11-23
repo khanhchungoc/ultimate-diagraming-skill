@@ -37,7 +37,7 @@ def test_read_installed_version_and_update_command() -> None:
         root = Path(d)
         (root / "SKILL.md").write_text("---\nname: ultimate-diagram\nversion: 1.2.3\n---\n", encoding="utf-8")
         assert vc.read_installed_version(root) == "1.2.3"
-        assert vc.detect_update_command(root) == f"npx {vc.REPO}"
+        assert vc.detect_update_command(root) == "npx ultimate-diagram@latest"
 
         # Fallback to package.json when SKILL.md is absent
         (root / "SKILL.md").unlink()
@@ -78,7 +78,7 @@ def test_nonblocking_check_and_opt_out() -> None:
             line = vc.check_nonblocking(skill_dir=root, cache_file=cache_file, now=now)
             assert line is not None and line.startswith("[INFO] Update available")
             assert "v1.1.50 -> v1.1.55" in line
-            assert f"npx {vc.REPO}" in line
+            assert "npx ultimate-diagram@latest" in line
             spawn_mock.assert_not_called()
 
         # Stale cache: spawns detached refresh without blocking
