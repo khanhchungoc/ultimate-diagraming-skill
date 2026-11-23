@@ -15,7 +15,7 @@ Describe a process, and your AI agent hands back a single HTML file. Open it in 
 
 - [What you get](#what-you-get)
 - [Diagram types](#diagram-types)
-- [Offline samples](#offline-samples)
+- [Examples](#examples)
 - [Get started](#get-started)
 - [Use your brand](#use-your-brand)
 - [How it compares to Mermaid and draw.io](#how-it-compares-to-mermaid-and-drawio)
@@ -46,6 +46,8 @@ Describe a process, and your AI agent hands back a single HTML file. Open it in 
 
 *Order may change.*
 
+## Examples
+
 <details>
 <summary>See examples for each diagram type</summary>
 
@@ -55,7 +57,7 @@ Describe a process, and your AI agent hands back a single HTML file. Open it in 
 
 [![Swimlane flowchart, horizontal](docs/img/example-flowchart.png)](https://khanhchungoc.github.io/ultimate-diagraming-skill/examples/flowchart/)
 
-▶ [Try the flowchart](https://khanhchungoc.github.io/ultimate-diagraming-skill/examples/flowchart/)
+▶ [Try the flowchart](https://khanhchungoc.github.io/ultimate-diagraming-skill/examples/flowchart/) · [Offline HTML](dev/samples/example-flowchart.html)
 
 ### Sequence diagram
 
@@ -63,7 +65,7 @@ Describe a process, and your AI agent hands back a single HTML file. Open it in 
 
 [![Sequence diagram](docs/img/example-sequence-2026-11.png)](https://khanhchungoc.github.io/ultimate-diagraming-skill/examples/sequence/)
 
-▶ [Try the sequence diagram](https://khanhchungoc.github.io/ultimate-diagraming-skill/examples/sequence/)
+▶ [Try the sequence diagram](https://khanhchungoc.github.io/ultimate-diagraming-skill/examples/sequence/) · [Offline HTML](dev/samples/example-sequence.html)
 
 ### ER diagram
 
@@ -71,7 +73,7 @@ Describe a process, and your AI agent hands back a single HTML file. Open it in 
 
 [![ER diagram](docs/img/example-erd.png)](https://khanhchungoc.github.io/ultimate-diagraming-skill/examples/erd/)
 
-▶ [Try the ER diagram](https://khanhchungoc.github.io/ultimate-diagraming-skill/examples/erd/)
+▶ [Try the ER diagram](https://khanhchungoc.github.io/ultimate-diagraming-skill/examples/erd/) · [Offline HTML](dev/samples/example-erd.html)
 
 ### Use case diagram
 
@@ -81,19 +83,15 @@ Describe a process, and your AI agent hands back a single HTML file. Open it in 
 
 Search by requirement id (such as `FR-4`) to find the use case that covers it.
 
-▶ [Try the use case diagram](https://khanhchungoc.github.io/ultimate-diagraming-skill/examples/usecase/)
+▶ [Try the use case diagram](https://khanhchungoc.github.io/ultimate-diagraming-skill/examples/usecase/) · [Offline HTML](dev/samples/example-usecase.html)
 
 ### C4 diagram
 
 *"Draw a C4 system landscape diagram for our e-commerce platform with customers, web app, API, and payment gateway."*
 
-▶ [Try the C4 diagram](https://khanhchungoc.github.io/ultimate-diagraming-skill/examples/c4/)
+▶ [Try the C4 diagram](https://khanhchungoc.github.io/ultimate-diagraming-skill/examples/c4/) · [Offline HTML](dev/samples/example-c4.html)
 
 </details>
-
-## Offline samples
-
-The same demos as HTML files you can open in your browser without a connection: [flowchart](dev/samples/example-flowchart.html), [sequence](dev/samples/example-sequence.html), [ERD](dev/samples/example-erd.html), [use case](dev/samples/example-usecase.html), [C4](dev/samples/example-c4.html).
 
 ## Get started
 
@@ -101,9 +99,11 @@ The same demos as HTML files you can open in your browser without a connection: 
 
 You need Python 3.9+ and Chrome, Chromium or Edge (used to lay out and check every diagram). Node.js 18+ is optional: if it is installed, layout runs a bit faster. A missing one shows up on the first diagram; ask your agent to install it for you.
 
-### Option A: one command
+### Option A: ask your AI agent
 
-Needs Node.js. Run in a terminal. Installs for **Antigravity**, **Claude Code**, **GitHub Copilot**, **OpenAI Codex**, **Gemini CLI**, and **Kiro**.
+*"Install the ultimate-diagram skill by running `npx ultimate-diagram` (or `npx ultimate-diagram -p` for this project only)."*
+
+### Option B: one command
 
 All your projects (global):
 
@@ -119,7 +119,7 @@ npx ultimate-diagram -p
 
 Target a single runtime with `-r <name>` (e.g. `npx ultimate-diagram -r antigravity`), or pass `--no-hooks` to skip registering `SessionStart` update-check hooks.
 
-### Option B: download (no terminal needed)
+### Option C: download (no terminal needed)
 
 1. Open the [latest release](https://github.com/khanhchungoc/ultimate-diagraming-skill/releases/latest) and download `ultimate-diagram-vX.Y.Z.zip` (under **Assets**).
 2. Unzip it. You get one folder named `ultimate-diagram`.
