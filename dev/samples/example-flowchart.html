@@ -26,8 +26,8 @@
   ],
   "nodes": [
     { "id": "n_submit_application", "laneId": "lane-customer", "type": "start", "label": "Submit Application" },
-    { "id": "n_upload_missing_docs", "laneId": "lane-customer", "type": "io", "label": "Upload Missing Docs" },
     { "id": "n_docs_complete", "laneId": "lane-officer", "type": "decision", "label": "Docs Complete?" },
+    { "id": "n_upload_missing_docs", "laneId": "lane-customer", "type": "io", "label": "Upload Missing Docs" },
     { "id": "n_verify_income_employment", "laneId": "lane-officer", "type": "task", "label": "Verify Income & Employment" },
     { "id": "n_store_application_record", "laneId": "lane-engine", "type": "database", "label": "Store Application Record" },
     { "id": "n_run_credit_fraud_check", "laneId": "lane-engine", "type": "subprocess", "label": "Run Credit & Fraud Check" },
@@ -98,24 +98,24 @@
   },
   "layout": {
     "lane-customer": { "height": 276 },
-    "lane-officer": { "height": 308 },
+    "lane-officer": { "height": 192 },
     "lane-engine": { "height": 192 },
     "lane-risk": { "height": 192 },
     "n_submit_application": { "x": 56, "y": 56 },
-    "n_upload_missing_docs": { "x": 256, "y": 56 },
-    "n_docs_complete": { "x": 256, "y": 56 },
-    "n_verify_income_employment": { "x": 256, "y": 176 },
-    "n_store_application_record": { "x": 256, "y": 64 },
-    "n_run_credit_fraud_check": { "x": 456, "y": 64 },
-    "n_credit_score_700": { "x": 656, "y": 48 },
-    "n_risk_acceptable": { "x": 866.8, "y": 48 },
-    "n_issue_loan_offer": { "x": 1085, "y": 56 },
-    "n_issue_decline_letter": { "x": 1085, "y": 64 },
-    "n_wait_cooling_off_period": { "x": 1285, "y": 56 },
-    "n_application_rejected": { "x": 1285, "y": 176 },
-    "n_sign_loan_agreement": { "x": 1485, "y": 56 },
-    "n_disburse_loan_funds": { "x": 1485, "y": 56 },
-    "n_loan_funded": { "x": 1685, "y": 56 }
+    "n_docs_complete": { "x": 200, "y": 48 },
+    "n_upload_missing_docs": { "x": 418.2, "y": 56 },
+    "n_verify_income_employment": { "x": 418.2, "y": 64 },
+    "n_store_application_record": { "x": 418.2, "y": 64 },
+    "n_run_credit_fraud_check": { "x": 618.2, "y": 64 },
+    "n_credit_score_700": { "x": 818.2, "y": 48 },
+    "n_risk_acceptable": { "x": 1029, "y": 48 },
+    "n_issue_loan_offer": { "x": 1247.2, "y": 64 },
+    "n_issue_decline_letter": { "x": 1247.2, "y": 64 },
+    "n_wait_cooling_off_period": { "x": 1447.2, "y": 56 },
+    "n_application_rejected": { "x": 1447.2, "y": 176 },
+    "n_sign_loan_agreement": { "x": 1647.2, "y": 56 },
+    "n_disburse_loan_funds": { "x": 1647.2, "y": 64 },
+    "n_loan_funded": { "x": 1847.2, "y": 64 }
   }
 }
   </script>
@@ -136,6 +136,7 @@
       --text-sm: 12px;
       --text-md: 13px;
       --text-lg: 14px;
+      --text-lg-plus: 15px;
       --text-xl: 16px;
       --text-2xl: 18px;
       --weight-regular: 400;
@@ -2093,8 +2094,8 @@ html.is-loading #page-loading { display: grid; }
       align-items: center;
       justify-content: center;
       text-align: center;
-      font-size: var(--t-title-size);
-      font-weight: var(--t-title-weight);
+      font-size: var(--text-lg-plus);
+      font-weight: var(--weight-medium);
       line-height: var(--t-title-leading);
       user-select: none;
     }
@@ -2220,10 +2221,10 @@ html.is-loading #page-loading { display: grid; }
       position: relative;
       z-index: 2;
       color: var(--decision-text);
-      font-weight: var(--weight-bold);
+      font-weight: var(--weight-medium);
       max-width: 92px;
       -webkit-line-clamp: 3;   /* a diamond is taller than a step: room for a third line */
-      font-size: var(--t-label-size);
+      font-size: var(--text-lg);
       line-height: var(--leading-tight);
     }
 
@@ -2301,8 +2302,8 @@ html.is-loading #page-loading { display: grid; }
       border: 2px solid var(--conn-border);
       --node-stroke: 0px; /* keeps its own 2px border (a whole pixel, drawn true); no inset ring */
       color: var(--conn-text);
-      font-size: var(--t-title-size);
-      font-weight: var(--t-title-weight);
+      font-size: var(--text-lg-plus);
+      font-weight: var(--weight-medium);
       cursor: pointer;
     }
     /* Pairs tell apart in one hue (no extra colours): by letter, 0 pale disc + 2px ring (above), 1 solid disc,
@@ -2447,6 +2448,7 @@ html.is-loading #page-loading { display: grid; }
       cursor: move;
       transform-origin: 0 0;
       transform: translate(var(--pill-x, 12px), var(--pill-y, 12px));
+      font-size: var(--text-lg-plus);
       --halo-bg: var(--lane-bg);
     }
     /* (The pointer ring on the pill is in components/pill.css; renaming switches it off) */
@@ -9020,13 +9022,22 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
           if (!s || !d) return;
           const sl = laneIdx[s.laneId], dl = laneIdx[d.laneId];
           if (sl === undefined || dl === undefined) return;
-          // Same lane: a decision's side branch that either loops back or immediately hands off to another lane
-          // (no same-lane forward continuation) may sit beside the decision when its label fits the row gap
-          if (sl === dl && !(s.type === 'decision'
-            && !forwardEdges.some(x => x.from === e.to && nodeMap[x.to] && laneIdx[nodeMap[x.to].laneId] === dl)
-            && (edges.some(x => x.from === e.to && back.has(KEY(x.from, x.to)))
-              || forwardEdges.some(x => x.from === e.to && nodeMap[x.to] && laneIdx[nodeMap[x.to].laneId] !== dl))
-            && (!LE.LABEL_ACROSS || (labelW[KEY(e.from, e.to)] || 0) <= LE.ROW_HEIGHT - LE.NODE_H + LE.LABEL_STUB))) return;
+          // Same lane: a decision's side branch that loops back, immediately hands off to another lane, or (on a
+          // 3+ way same-lane split) ends with no outgoing edges may sit beside the decision when its label fits the
+          // row gap. In LR, only stack when the decision has >= 2 forward branches in the same lane; a sole
+          // same-lane step goes to the right instead of cramming beneath the diamond.
+          if (sl === dl) {
+            const sameLaneOuts = forwardEdges.filter(x => x.from === e.from && nodeMap[x.to] && laneIdx[nodeMap[x.to].laneId] === sl).length;
+            const sideBranch = s.type === 'decision'
+              && !forwardEdges.some(x => x.from === e.to && nodeMap[x.to] && laneIdx[nodeMap[x.to].laneId] === dl)
+              && (edges.some(x => x.from === e.to && back.has(KEY(x.from, x.to)))
+                || forwardEdges.some(x => x.from === e.to && nodeMap[x.to] && laneIdx[nodeMap[x.to].laneId] !== dl)
+                || (sameLaneOuts >= 3 && !edges.some(x => x.from === e.to)))
+              && (LE.LABEL_ACROSS
+                ? (labelW[KEY(e.from, e.to)] || 0) <= LE.ROW_HEIGHT - LE.NODE_H + LE.LABEL_STUB
+                : sameLaneOuts >= 2);
+            if (!sideBranch) return;
+          }
           if (cands.some(c => c.k === KEY(e.from, e.to))) return;
           cands.push({ k: KEY(e.from, e.to), from: e.from, to: e.to, side: dl < sl ? 'up' : 'down' });
         });

@@ -309,6 +309,55 @@ def main() -> int:
             check(f"free note ({kind}): --extract prints it in a Notes section after the diagram", run.returncode == 0 and "%% Notes" in out and out.index("%% Notes") > out.index("\n") and "%% n1: Loose remark" in out and out.count("Loose remark") == 1, (out + run.stderr)[-400:])
             check(f"free note ({kind}): --extract still prints the anchored note with its target", "On " in out and out.count("%% Notes") == 1, out[-300:])
 
+    # 11. Decision same-lane branch placement: 1 branch in LR goes right; 2+ may stack; 3+ balances terminal branch
+    from engine_runner import run_layout
+    d11_one = run_layout("flowchart", {
+        "diagramType": "flowchart", "direction": "LR",
+        "lanes": [{"id": "l1", "name": "L1", "icon": "user"}, {"id": "l2", "name": "L2", "icon": "cpu"}],
+        "nodes": [
+            {"id": "s", "laneId": "l1", "type": "start", "label": "Start"},
+            {"id": "d", "laneId": "l1", "type": "decision", "label": "OK?"},
+            {"id": "t", "laneId": "l1", "type": "task", "label": "Next"},
+            {"id": "x", "laneId": "l2", "type": "task", "label": "Other"},
+        ],
+        "edges": [
+            {"id": "e1", "from": "s", "to": "d", "label": ""},
+            {"id": "e2", "from": "d", "to": "t", "label": "Yes"},
+            {"id": "e3", "from": "d", "to": "x", "label": "No"},
+            {"id": "e4", "from": "t", "to": "x", "label": ""},
+        ],
+    })
+    by11 = {n["id"]: n for n in d11_one["nodes"]}
+    check("LR decision with 1 same-lane branch places it to the right",
+          by11["t"]["x"] > by11["d"]["x"], f"d={by11['d']} t={by11['t']}")
+
+    for d11_dir in ("LR", "TB"):
+        d11_three = run_layout("flowchart", {
+            "diagramType": "flowchart", "direction": d11_dir,
+            "lanes": [{"id": "l1", "name": "L1", "icon": "user"}],
+            "nodes": [
+                {"id": "s", "laneId": "l1", "type": "start", "label": "Start"},
+                {"id": "d", "laneId": "l1", "type": "decision", "label": "Route?"},
+                {"id": "a", "laneId": "l1", "type": "task", "label": "Opt A"},
+                {"id": "b", "laneId": "l1", "type": "task", "label": "Opt B"},
+                {"id": "c", "laneId": "l1", "type": "end", "label": "Reject"},
+                {"id": "e", "laneId": "l1", "type": "end", "label": "Done"},
+            ],
+            "edges": [
+                {"id": "e1", "from": "s", "to": "d", "label": ""},
+                {"id": "e2", "from": "d", "to": "a", "label": "A"},
+                {"id": "e3", "from": "d", "to": "b", "label": "B"},
+                {"id": "e4", "from": "d", "to": "c", "label": "No"},
+                {"id": "e5", "from": "a", "to": "e", "label": ""},
+                {"id": "e6", "from": "b", "to": "e", "label": ""},
+            ],
+        })
+        by3 = {n["id"]: n for n in d11_three["nodes"]}
+        r3 = FlowchartAudit(d11_three).verify_collisions()
+        check(f"3-way decision with terminal branch balances to 2 tracks ({d11_dir})",
+              by3["c"]["x"] == by3["d"]["x"] and by3["a"]["x"] == by3["b"]["x"] > by3["d"]["x"] and r3["passed"],
+              f"d={d11_dir} by3={by3} r3={r3}")
+
     print(f"{total - failed}/{total} cases passed")
     return 2 if failed else 0
 
