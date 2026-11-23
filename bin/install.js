@@ -87,7 +87,7 @@ ${c.cyan}${c.bold}Ultimate Diagram Installer${c.reset}
 ${c.dim}Interactive, standalone diagrams (flowcharts, sequence, ERD, use case, and C4) for AI assistants.${c.reset}
 
 ${c.bold}Usage:${c.reset}
-  npx ultimate-diagram [options]
+  npx ultimate-diagram@latest [options]
   # or from GitHub:
   npx khanhchungoc/ultimate-diagraming-skill [options]
   # or when cloned locally:
