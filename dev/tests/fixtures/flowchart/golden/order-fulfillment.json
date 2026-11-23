@@ -1,0 +1,460 @@
+{
+  "diagramType": "flowchart",
+  "title": "Enterprise Order-to-Cash & Returns",
+  "direction": "LR",
+  "lanes": [
+    {
+      "id": "lane_customer",
+      "name": "Customer",
+      "icon": "user",
+      "height": 192
+    },
+    {
+      "id": "lane_storefront",
+      "name": "Order Portal",
+      "icon": "globe",
+      "height": 192
+    },
+    {
+      "id": "lane_risk",
+      "name": "Risk & Billing",
+      "icon": "credit-card",
+      "height": 192
+    },
+    {
+      "id": "lane_warehouse",
+      "name": "Fulfillment Warehouse",
+      "icon": "package",
+      "height": 192
+    },
+    {
+      "id": "lane_carrier",
+      "name": "Shipping Carrier",
+      "icon": "truck",
+      "height": 192
+    },
+    {
+      "id": "lane_support",
+      "name": "Returns & Support",
+      "icon": "headset",
+      "height": 192
+    }
+  ],
+  "nodes": [
+    {
+      "id": "place_order",
+      "laneId": "lane_customer",
+      "type": "start",
+      "label": "Submit Purchase Order",
+      "x": 56,
+      "y": 64
+    },
+    {
+      "id": "validate_cart",
+      "laneId": "lane_storefront",
+      "type": "task",
+      "label": "Validate SKU & Pricing",
+      "x": 56,
+      "y": 64
+    },
+    {
+      "id": "reserve_stock",
+      "laneId": "lane_storefront",
+      "type": "database",
+      "label": "Check Inventory Allocation",
+      "x": 256,
+      "y": 64
+    },
+    {
+      "id": "in_stock",
+      "laneId": "lane_storefront",
+      "type": "decision",
+      "label": "All Items in Stock?",
+      "x": 456,
+      "y": 48
+    },
+    {
+      "id": "offer_backorder",
+      "laneId": "lane_storefront",
+      "type": "task",
+      "label": "Offer Backorder ETA",
+      "x": 666.8,
+      "y": 64
+    },
+    {
+      "id": "accept_backorder",
+      "laneId": "lane_customer",
+      "type": "decision",
+      "label": "Accept Backorder?",
+      "x": 866.8,
+      "y": 48
+    },
+    {
+      "id": "cancel_order",
+      "laneId": "lane_storefront",
+      "type": "end",
+      "label": "Order Cancelled",
+      "x": 866.8,
+      "y": 64
+    },
+    {
+      "id": "fraud_screen",
+      "laneId": "lane_risk",
+      "type": "task",
+      "label": "Run Fraud & Credit Check",
+      "x": 1085,
+      "y": 64
+    },
+    {
+      "id": "payment_ok",
+      "laneId": "lane_risk",
+      "type": "decision",
+      "label": "Payment Authorized?",
+      "x": 1285,
+      "y": 48
+    },
+    {
+      "id": "request_alt_pay",
+      "laneId": "lane_customer",
+      "type": "task",
+      "label": "Update Payment Method",
+      "x": 1285,
+      "y": 64
+    },
+    {
+      "id": "issue_invoice",
+      "laneId": "lane_risk",
+      "type": "document",
+      "label": "Generate Tax Invoice",
+      "x": 1540.2,
+      "y": 64
+    },
+    {
+      "id": "pick_items",
+      "laneId": "lane_warehouse",
+      "type": "task",
+      "label": "Pick & Verify Items",
+      "x": 1285,
+      "y": 88
+    },
+    {
+      "id": "pack_parcel",
+      "laneId": "lane_warehouse",
+      "type": "task",
+      "label": "Pack & Print Label",
+      "x": 1540.2,
+      "y": 88
+    },
+    {
+      "id": "qa_weight",
+      "laneId": "lane_warehouse",
+      "type": "decision",
+      "label": "Weight & Seal OK?",
+      "x": 1740.2,
+      "y": 72
+    },
+    {
+      "id": "repack_parcel",
+      "laneId": "lane_warehouse",
+      "type": "task",
+      "label": "Re-Inspect & Repack",
+      "x": 1951,
+      "y": 88
+    },
+    {
+      "id": "handover_carrier",
+      "laneId": "lane_carrier",
+      "type": "task",
+      "label": "Scan Pickup & Manifest",
+      "x": 1740.2,
+      "y": 64
+    },
+    {
+      "id": "in_transit",
+      "laneId": "lane_carrier",
+      "type": "delay",
+      "label": "Linehaul Transit",
+      "x": 1951,
+      "y": 64
+    },
+    {
+      "id": "deliver_parcel",
+      "laneId": "lane_carrier",
+      "type": "task",
+      "label": "Deliver & Capture POD",
+      "x": 2151,
+      "y": 64
+    },
+    {
+      "id": "confirm_receipt",
+      "laneId": "lane_customer",
+      "type": "task",
+      "label": "Inspect Delivered Goods",
+      "x": 2151,
+      "y": 64
+    },
+    {
+      "id": "goods_ok",
+      "laneId": "lane_customer",
+      "type": "decision",
+      "label": "Order Satisfactory?",
+      "x": 2351,
+      "y": 48
+    },
+    {
+      "id": "open_rma",
+      "laneId": "lane_support",
+      "type": "task",
+      "label": "Issue RMA & Return Label",
+      "x": 2351,
+      "y": 64
+    },
+    {
+      "id": "ship_return",
+      "laneId": "lane_carrier",
+      "type": "task",
+      "label": "Transport Return Parcel",
+      "x": 2606.2,
+      "y": 64
+    },
+    {
+      "id": "inspect_return",
+      "laneId": "lane_warehouse",
+      "type": "task",
+      "label": "Restock or Quarantine",
+      "x": 2750.2,
+      "y": 88
+    },
+    {
+      "id": "issue_refund",
+      "laneId": "lane_risk",
+      "type": "task",
+      "label": "Process Refund Credit",
+      "x": 2894.2,
+      "y": 64
+    },
+    {
+      "id": "notify_refund",
+      "laneId": "lane_support",
+      "type": "task",
+      "label": "Send Refund Confirmation",
+      "x": 2894.2,
+      "y": 64
+    },
+    {
+      "id": "order_refunded",
+      "laneId": "lane_support",
+      "type": "end",
+      "label": "Order Refunded",
+      "x": 3094.2,
+      "y": 64
+    },
+    {
+      "id": "settle_revenue",
+      "laneId": "lane_risk",
+      "type": "database",
+      "label": "Recognize Revenue & Ledger",
+      "x": 2606.2,
+      "y": 64
+    },
+    {
+      "id": "order_complete",
+      "laneId": "lane_customer",
+      "type": "end",
+      "label": "Order Completed",
+      "x": 2606.2,
+      "y": 64
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "from": "place_order",
+      "to": "validate_cart",
+      "label": ""
+    },
+    {
+      "id": "e2",
+      "from": "validate_cart",
+      "to": "reserve_stock",
+      "label": ""
+    },
+    {
+      "id": "e3",
+      "from": "reserve_stock",
+      "to": "in_stock",
+      "label": ""
+    },
+    {
+      "id": "e4",
+      "from": "in_stock",
+      "to": "offer_backorder",
+      "label": "No"
+    },
+    {
+      "id": "e5",
+      "from": "offer_backorder",
+      "to": "accept_backorder",
+      "label": ""
+    },
+    {
+      "id": "e6",
+      "from": "accept_backorder",
+      "to": "cancel_order",
+      "label": "No"
+    },
+    {
+      "id": "e7",
+      "from": "accept_backorder",
+      "to": "fraud_screen",
+      "label": "Yes"
+    },
+    {
+      "id": "e8",
+      "from": "in_stock",
+      "to": "fraud_screen",
+      "label": "Yes"
+    },
+    {
+      "id": "e9",
+      "from": "fraud_screen",
+      "to": "payment_ok",
+      "label": ""
+    },
+    {
+      "id": "e10",
+      "from": "payment_ok",
+      "to": "request_alt_pay",
+      "label": "Declined"
+    },
+    {
+      "id": "e11",
+      "from": "request_alt_pay",
+      "to": "fraud_screen",
+      "label": "Retry",
+      "feedback": true
+    },
+    {
+      "id": "e12",
+      "from": "payment_ok",
+      "to": "issue_invoice",
+      "label": "Approved"
+    },
+    {
+      "id": "e13",
+      "from": "payment_ok",
+      "to": "pick_items",
+      "label": "Release"
+    },
+    {
+      "id": "e14",
+      "from": "pick_items",
+      "to": "pack_parcel",
+      "label": ""
+    },
+    {
+      "id": "e15",
+      "from": "pack_parcel",
+      "to": "qa_weight",
+      "label": ""
+    },
+    {
+      "id": "e16",
+      "from": "qa_weight",
+      "to": "repack_parcel",
+      "label": "No"
+    },
+    {
+      "id": "e17",
+      "from": "repack_parcel",
+      "to": "qa_weight",
+      "label": "",
+      "feedback": true
+    },
+    {
+      "id": "e18",
+      "from": "qa_weight",
+      "to": "handover_carrier",
+      "label": "Yes"
+    },
+    {
+      "id": "e19",
+      "from": "handover_carrier",
+      "to": "in_transit",
+      "label": ""
+    },
+    {
+      "id": "e20",
+      "from": "in_transit",
+      "to": "deliver_parcel",
+      "label": ""
+    },
+    {
+      "id": "e21",
+      "from": "deliver_parcel",
+      "to": "confirm_receipt",
+      "label": ""
+    },
+    {
+      "id": "e22",
+      "from": "confirm_receipt",
+      "to": "goods_ok",
+      "label": ""
+    },
+    {
+      "id": "e23",
+      "from": "goods_ok",
+      "to": "open_rma",
+      "label": "Return"
+    },
+    {
+      "id": "e24",
+      "from": "open_rma",
+      "to": "ship_return",
+      "label": ""
+    },
+    {
+      "id": "e25",
+      "from": "ship_return",
+      "to": "inspect_return",
+      "label": ""
+    },
+    {
+      "id": "e26",
+      "from": "inspect_return",
+      "to": "issue_refund",
+      "label": ""
+    },
+    {
+      "id": "e27",
+      "from": "issue_refund",
+      "to": "notify_refund",
+      "label": ""
+    },
+    {
+      "id": "e28",
+      "from": "notify_refund",
+      "to": "order_refunded",
+      "label": ""
+    },
+    {
+      "id": "e29",
+      "from": "goods_ok",
+      "to": "settle_revenue",
+      "label": "Accepted"
+    },
+    {
+      "id": "e30",
+      "from": "issue_invoice",
+      "to": "settle_revenue",
+      "label": ""
+    },
+    {
+      "id": "e31",
+      "from": "settle_revenue",
+      "to": "order_complete",
+      "label": ""
+    }
+  ],
+  "schemaVersion": 1
+}

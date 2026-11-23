@@ -82,7 +82,7 @@
       "laneId": "lane-risk",
       "type": "decision",
       "label": "Risk Acceptable?",
-      "x": 600,
+      "x": 818.2,
       "y": 48
     },
     {
@@ -100,7 +100,7 @@
       "type": "end",
       "outcome": "failure",
       "label": "Application Rejected",
-      "x": 962.2,
+      "x": 1029,
       "y": 64
     }
   ],
