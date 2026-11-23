@@ -131,7 +131,7 @@ Only when `layout_engine.py` prints `[INFO] Direct-save helper not configured ye
 - **With it (Yes, default):** Normally web browsers block HTML files from saving changes back to themselves; a tiny helper on your computer (stops automatically when idle) lets **Save** (`Ctrl+S`) update your diagram file right away in any browser with no extra popups or duplicate copies.
 - **Without it (No):** Nothing runs in the background. You will have to pick and overwrite the file on your first save before it can save without opening the file browser.
 
-Once the user answers, run `python scripts/save_helper.py config --enable` (Yes) or `python scripts/save_helper.py config --disable` (No) so the choice is saved and never asked again. Never enable or start the helper before the user answers.
+Once the user answers, run `python scripts/save_helper.py config --enable` (Yes) or `python scripts/save_helper.py config --disable` (No) so the choice is saved and never asked again. Never enable or start the helper before the user answers. Once enabled, `layout_engine.py` automatically starts or reuses the helper in the background on every `--layout` / `--extract` run (and `SessionStart` hooks start it where supported)—no manual start step is needed.
 
 ---
 

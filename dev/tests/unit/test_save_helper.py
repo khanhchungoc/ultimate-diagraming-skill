@@ -334,11 +334,37 @@ def test_session_start_hook_starts_helper_when_opted_in() -> None:
                 assert ensure_mock.call_count == 2
 
 
+def test_ensure_running_restarts_stale_version() -> None:
+    # Up-to-date version -> reuses without stop or spawn
+    with (
+        mock.patch.object(save_helper, "find_running_port", return_value=19847),
+        mock.patch.object(save_helper, "probe_health_info", return_value={"ok": True, "app": save_helper.APP_NAME, "version": save_helper.HELPER_VERSION}),
+        mock.patch.object(save_helper, "stop_running") as stop_mock,
+        mock.patch.object(save_helper, "spawn_detached") as spawn_mock,
+    ):
+        assert save_helper.ensure_running() is True
+        stop_mock.assert_not_called()
+        spawn_mock.assert_not_called()
+
+    # Stale version (v1) -> stops old instance and spawns updated helper
+    with (
+        mock.patch.object(save_helper, "find_running_port", return_value=19847),
+        mock.patch.object(save_helper, "probe_health_info", return_value={"ok": True, "app": save_helper.APP_NAME, "version": 1}),
+        mock.patch.object(save_helper, "probe_health", return_value=False),
+        mock.patch.object(save_helper, "stop_running", return_value=True) as stop_mock,
+        mock.patch.object(save_helper, "spawn_detached", return_value=True) as spawn_mock,
+    ):
+        assert save_helper.ensure_running() is True
+        stop_mock.assert_called_once()
+        spawn_mock.assert_called_once()
+
+
 def main() -> None:
     test_opt_in_config_and_layout_hook()
     test_stamp_and_http_save_and_security()
     test_idle_shutdown_cleans_state()
     test_session_start_hook_starts_helper_when_opted_in()
+    test_ensure_running_restarts_stale_version()
     print("[PASS] save_helper.py")
 
 
