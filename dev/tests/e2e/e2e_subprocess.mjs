@@ -24,7 +24,7 @@ try {
   const laneNames = () => t.ev(`[...document.querySelectorAll('.lane-title')].map((e) => e.textContent)`);
   const nodeIds = () => t.ev(`[...document.querySelectorAll('.flow-node[data-node-id]')].map((e) => e.dataset.nodeId).sort()`);
   const positions = () => t.ev(`J = JSON.stringify([...document.querySelectorAll('.flow-node')].map((n) => [n.dataset.nodeId, n.style.left, n.style.top]).sort())`);
-  // Only the path and the current flow's children are drawn: a tab that is not there is reached through the main flow
+  // Sibling tabs stay visible at each open level; a tab not currently shown is reached through the main flow
   const goTab = async (name) => {
     if (!(await t.ev(`!!document.querySelector('.flow-tab[data-tab="${name}"]')`))) { await t.clickOn(`.flow-tab[data-tab=""]`); await sleep(250); }
     await t.clickOn(`.flow-tab[data-tab="${name}"]`); await sleep(250);
@@ -65,10 +65,15 @@ try {
   await t.ev(`document.querySelector('.flow-node[data-node-id="procure_laptop"] .sub-open').click()`);
   await sleep(300);
   const childLanes = await laneNames();
-  t.check('the button opens the child: its tab is selected and it shows only its own three lanes', J(await tabs()) === J(['Main flow', 'Procure Laptop*'])
+  t.check('the button opens the child: its tab is selected and it shows only its own three lanes', J(await tabs()) === J(['Main flow', 'Approve Specification', 'Procure Laptop*', 'Source from Supplier'])
     && J(childLanes) === J(['Procurement', 'Finance', 'Line Manager']), J(await tabs()) + J(childLanes));
   t.check('a child tab: subprocess tabs sit inside the main flow box, no open buttons', (await t.ev(`!!document.querySelector('#flow-tabs > .flow-subtabs .flow-tab[aria-selected="true"]') && !document.querySelector('.flow-up')`)) && (await t.ev(`document.querySelectorAll('.sub-open').length`)) === 0);
   t.check('the child holds its own steps', (await nodeIds()).includes('obtain_price') && !(await nodeIds()).includes('submit_request'));
+  await t.clickOn(`.flow-tab[data-tab="approve_spec"]`);
+  await sleep(300);
+  t.check('sibling tab can be clicked directly without returning to Main flow', J(await tabs()) === J(['Main flow', 'Approve Specification*', 'Procure Laptop', 'Source from Supplier']), J(await tabs()));
+  await t.clickOn(`.flow-tab[data-tab="procure_laptop"]`);
+  await sleep(300);
   await t.clickOn(`#flow-tabs > .flow-tab[data-tab=""]`);
   await sleep(300);
   t.check('Parent returns to the main flow and selects the subprocess step', J(await tabs()) === J(first)
@@ -163,7 +168,7 @@ try {
   writeFileSync(reopen, saved1);
   await t.open(reopen);
   await goTab('source_laptop');
-  t.check('the saved file reopens with the same tabs and the new step in its child', J(await tabs()) === J(['Main flow', 'Source from Supplier*'])
+  t.check('the saved file reopens with the same tabs and the new step in its child', J(await tabs()) === J(['Main flow', 'Approve Specification', 'Procure Laptop', 'Source from Supplier*'])
     && (await nodeIds()).includes(added[0].id) && t.errors.length === 0, t.errors.join(' | '));
 
   // 10. Undo follows the edit into its tab

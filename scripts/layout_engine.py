@@ -2200,6 +2200,11 @@ def main():
             print(note)
 
         data = normalize_diagram_type(data)
+        c4_has_pos = data["diagramType"] == "c4" and any(
+            "x" in obj and "y" in obj
+            for list_key in ("elements", "groups")
+            for obj in (data.get(list_key) or [])
+        )
         if data["diagramType"] == "flowchart" and not args.keep_layout:
             data, icon_note = auto_lane_icons(data)
             if icon_note:
@@ -2259,8 +2264,9 @@ def main():
                 print(f"[INFO] Subprocess flows, one tab each: {names}.")
 
         page_data = laid_out_data
-        if laid_out_data["diagramType"] == "c4" and not keep:
-            # C4 opens in Auto-Tidy unless --keep-layout was asked: strip computed x/y so to_disk writes no `layout` map.
+        if laid_out_data["diagramType"] == "c4" and not (keep and c4_has_pos):
+            # C4 opens in Auto-Tidy unless the source already carried pinned positions (`layout` map):
+            # strip computed x/y so to_disk writes no `layout` map.
             page_data = copy.deepcopy(laid_out_data)
             for list_key in ("elements", "groups"):
                 for obj in page_data.get(list_key) or []:
@@ -2312,7 +2318,7 @@ def main():
             if update_note:
                 print(update_note)
         print("[NEXT] Fix the [WARN] lines (data) and re-run." if data_bad else
-              "[DONE] The diagram is final: report any [INFO] lines, do not re-word, re-run or re-render.")
+              "[DONE] The diagram is final: do not re-word, re-run or re-render; report only actionable [INFO] lines (problems, resets, updates).")
         if external_refs or report["data_issues"]:
             sys.exit(1)
 
