@@ -1531,7 +1531,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
               const words = String(edge.label).trim().split(/\s+/);
               const wordW = Math.max(...words.map(w => ctx.measureText(w).width));
               const need = Math.ceil(wordW + 16 + 3 + 4);   // padding + border + slack
-              if (need > parseFloat(labelContainer.style.maxWidth)) labelContainer.style.maxWidth = `${need}px`;
+              if (need > maxLabelW) labelContainer.style.setProperty('--edge-label-max-w', `${need}px`);
             }
 
             if (isSelected) {

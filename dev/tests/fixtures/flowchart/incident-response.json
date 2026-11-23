@@ -1,0 +1,308 @@
+{
+  "diagramType": "flowchart",
+  "title": "Production Incident Response & Postmortem",
+  "direction": "TB",
+  "lanes": [
+    {
+      "id": "lane_monitoring",
+      "name": "Monitoring & Alerts",
+      "icon": "bell"
+    },
+    {
+      "id": "lane_oncall",
+      "name": "On-Call Engineer",
+      "icon": "user"
+    },
+    {
+      "id": "lane_ic",
+      "name": "Incident Commander",
+      "icon": "briefcase"
+    },
+    {
+      "id": "lane_platform",
+      "name": "Platform Engineering",
+      "icon": "server"
+    },
+    {
+      "id": "lane_security",
+      "name": "Security Team",
+      "icon": "shield"
+    },
+    {
+      "id": "lane_support",
+      "name": "Customer Support",
+      "icon": "headset"
+    },
+    {
+      "id": "lane_leadership",
+      "name": "Engineering Leadership",
+      "icon": "building"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "alert_fired",
+      "laneId": "lane_monitoring",
+      "type": "start",
+      "label": "SLO Alert Triggered"
+    },
+    {
+      "id": "correlate_signals",
+      "laneId": "lane_monitoring",
+      "type": "task",
+      "label": "Correlate Logs & Traces"
+    },
+    {
+      "id": "auto_recovered",
+      "laneId": "lane_monitoring",
+      "type": "decision",
+      "label": "Transient Spike?"
+    },
+    {
+      "id": "close_transient",
+      "laneId": "lane_monitoring",
+      "type": "end",
+      "label": "Auto-Close Alert"
+    },
+    {
+      "id": "page_oncall",
+      "laneId": "lane_monitoring",
+      "type": "task",
+      "label": "Page Primary On-Call"
+    },
+    {
+      "id": "ack_page",
+      "laneId": "lane_oncall",
+      "type": "task",
+      "label": "Acknowledge Page"
+    },
+    {
+      "id": "triage_impact",
+      "laneId": "lane_oncall",
+      "type": "task",
+      "label": "Assess Blast Radius"
+    },
+    {
+      "id": "sev_check",
+      "laneId": "lane_oncall",
+      "type": "decision",
+      "label": "Severity P1 or P2?"
+    },
+    {
+      "id": "log_backlog",
+      "laneId": "lane_oncall",
+      "type": "document",
+      "label": "File P3 Bug Ticket"
+    },
+    {
+      "id": "close_minor",
+      "laneId": "lane_oncall",
+      "type": "end",
+      "label": "Deferred to Sprint"
+    },
+    {
+      "id": "declare_incident",
+      "laneId": "lane_ic",
+      "type": "task",
+      "label": "Declare Incident & Bridge"
+    },
+    {
+      "id": "sec_impact",
+      "laneId": "lane_ic",
+      "type": "decision",
+      "label": "Security Impact Suspected?"
+    },
+    {
+      "id": "post_status_init",
+      "laneId": "lane_support",
+      "type": "task",
+      "label": "Publish Initial Status Notice"
+    },
+    {
+      "id": "notify_vip",
+      "laneId": "lane_support",
+      "type": "task",
+      "label": "Notify Enterprise Accounts"
+    },
+    {
+      "id": "isolate_creds",
+      "laneId": "lane_security",
+      "type": "task",
+      "label": "Rotate Exposed Credentials"
+    },
+    {
+      "id": "forensic_snap",
+      "laneId": "lane_security",
+      "type": "database",
+      "label": "Capture Forensic Snapshot"
+    },
+    {
+      "id": "sec_clearance",
+      "laneId": "lane_security",
+      "type": "task",
+      "label": "Issue Containment Clearance"
+    },
+    {
+      "id": "recent_deploy",
+      "laneId": "lane_platform",
+      "type": "decision",
+      "label": "Caused by Recent Deploy?"
+    },
+    {
+      "id": "trigger_rollback",
+      "laneId": "lane_platform",
+      "type": "task",
+      "label": "Execute Automated Rollback"
+    },
+    {
+      "id": "deep_debug",
+      "laneId": "lane_platform",
+      "type": "task",
+      "label": "Profile & Isolate Root Cause"
+    },
+    {
+      "id": "author_hotfix",
+      "laneId": "lane_platform",
+      "type": "task",
+      "label": "Build & Test Hotfix"
+    },
+    {
+      "id": "peer_review_fix",
+      "laneId": "lane_platform",
+      "type": "task",
+      "label": "Fast-Track Peer Review"
+    },
+    {
+      "id": "deploy_canary",
+      "laneId": "lane_platform",
+      "type": "task",
+      "label": "Deploy Canary Patch"
+    },
+    {
+      "id": "verify_metrics",
+      "laneId": "lane_monitoring",
+      "type": "task",
+      "label": "Verify Error Rate & Latency"
+    },
+    {
+      "id": "mitigated_check",
+      "laneId": "lane_ic",
+      "type": "decision",
+      "label": "SLOs Restored?"
+    },
+    {
+      "id": "escalate_exec",
+      "laneId": "lane_leadership",
+      "type": "task",
+      "label": "Approve Emergency Failover"
+    },
+    {
+      "id": "soak_window",
+      "laneId": "lane_monitoring",
+      "type": "delay",
+      "label": "30-Min Stability Soak"
+    },
+    {
+      "id": "mark_resolved",
+      "laneId": "lane_ic",
+      "type": "task",
+      "label": "Mark Incident Resolved"
+    },
+    {
+      "id": "post_status_clear",
+      "laneId": "lane_support",
+      "type": "task",
+      "label": "Publish All-Clear Update"
+    },
+    {
+      "id": "close_tickets",
+      "laneId": "lane_support",
+      "type": "task",
+      "label": "Resolve Linked Customer Tickets"
+    },
+    {
+      "id": "draft_rca",
+      "laneId": "lane_oncall",
+      "type": "document",
+      "label": "Draft Blameless Postmortem"
+    },
+    {
+      "id": "collect_timeline",
+      "laneId": "lane_ic",
+      "type": "task",
+      "label": "Compile Timeline & Action Items"
+    },
+    {
+      "id": "review_rca",
+      "laneId": "lane_leadership",
+      "type": "task",
+      "label": "Conduct Postmortem Review"
+    },
+    {
+      "id": "rca_approved",
+      "laneId": "lane_leadership",
+      "type": "decision",
+      "label": "Action Items Complete?"
+    },
+    {
+      "id": "schedule_remediation",
+      "laneId": "lane_platform",
+      "type": "task",
+      "label": "Schedule Reliability Follow-Ups"
+    },
+    {
+      "id": "archive_report",
+      "laneId": "lane_leadership",
+      "type": "database",
+      "label": "Publish RCA to Knowledge Base"
+    },
+    {
+      "id": "incident_closed",
+      "laneId": "lane_ic",
+      "type": "end",
+      "label": "Incident Closed"
+    }
+  ],
+  "edges": [
+    { "id": "e1", "from": "alert_fired", "to": "correlate_signals", "label": "" },
+    { "id": "e2", "from": "correlate_signals", "to": "auto_recovered", "label": "" },
+    { "id": "e3", "from": "auto_recovered", "to": "close_transient", "label": "Yes" },
+    { "id": "e4", "from": "auto_recovered", "to": "page_oncall", "label": "No" },
+    { "id": "e5", "from": "page_oncall", "to": "ack_page", "label": "" },
+    { "id": "e6", "from": "ack_page", "to": "triage_impact", "label": "" },
+    { "id": "e7", "from": "triage_impact", "to": "sev_check", "label": "" },
+    { "id": "e8", "from": "sev_check", "to": "log_backlog", "label": "P3 / Low" },
+    { "id": "e9", "from": "log_backlog", "to": "close_minor", "label": "" },
+    { "id": "e10", "from": "sev_check", "to": "declare_incident", "label": "P1 / P2" },
+    { "id": "e11", "from": "declare_incident", "to": "post_status_init", "label": "" },
+    { "id": "e12", "from": "post_status_init", "to": "notify_vip", "label": "" },
+    { "id": "e13", "from": "notify_vip", "to": "sec_impact", "label": "" },
+    { "id": "e14", "from": "sec_impact", "to": "isolate_creds", "label": "Yes" },
+    { "id": "e15", "from": "isolate_creds", "to": "forensic_snap", "label": "" },
+    { "id": "e16", "from": "forensic_snap", "to": "sec_clearance", "label": "" },
+    { "id": "e17", "from": "sec_clearance", "to": "verify_metrics", "label": "" },
+    { "id": "e18", "from": "sec_impact", "to": "recent_deploy", "label": "No" },
+    { "id": "e19", "from": "recent_deploy", "to": "trigger_rollback", "label": "Yes" },
+    { "id": "e20", "from": "trigger_rollback", "to": "verify_metrics", "label": "" },
+    { "id": "e21", "from": "recent_deploy", "to": "deep_debug", "label": "No" },
+    { "id": "e22", "from": "deep_debug", "to": "author_hotfix", "label": "" },
+    { "id": "e23", "from": "author_hotfix", "to": "peer_review_fix", "label": "" },
+    { "id": "e24", "from": "peer_review_fix", "to": "deploy_canary", "label": "" },
+    { "id": "e25", "from": "deploy_canary", "to": "verify_metrics", "label": "" },
+    { "id": "e26", "from": "verify_metrics", "to": "mitigated_check", "label": "" },
+    { "id": "e27", "from": "mitigated_check", "to": "escalate_exec", "label": "No" },
+    { "id": "e28", "from": "escalate_exec", "to": "deploy_canary", "label": "Failover", "feedback": true },
+    { "id": "e29", "from": "mitigated_check", "to": "soak_window", "label": "Yes" },
+    { "id": "e30", "from": "soak_window", "to": "mark_resolved", "label": "" },
+    { "id": "e31", "from": "mark_resolved", "to": "post_status_clear", "label": "" },
+    { "id": "e32", "from": "post_status_clear", "to": "close_tickets", "label": "" },
+    { "id": "e33", "from": "close_tickets", "to": "draft_rca", "label": "" },
+    { "id": "e34", "from": "draft_rca", "to": "collect_timeline", "label": "" },
+    { "id": "e35", "from": "collect_timeline", "to": "review_rca", "label": "" },
+    { "id": "e36", "from": "review_rca", "to": "rca_approved", "label": "" },
+    { "id": "e37", "from": "rca_approved", "to": "review_rca", "label": "Revise", "feedback": true },
+    { "id": "e38", "from": "rca_approved", "to": "archive_report", "label": "Yes" },
+    { "id": "e39", "from": "archive_report", "to": "schedule_remediation", "label": "" },
+    { "id": "e40", "from": "schedule_remediation", "to": "incident_closed", "label": "" }
+  ]
+}

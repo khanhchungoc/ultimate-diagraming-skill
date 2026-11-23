@@ -175,13 +175,17 @@
         });
 
         // Horizontal step an arrow needs: normal = column width, zero = 0, tight = node width; a labelled
-        // arrow also needs room for its label between the two nodes (vertical arrows, step 0, do not)
+        // arrow also needs room for its label between the two nodes (vertical arrows, step 0, do not; in TB a
+        // cross-lane arrow's label sits on the horizontal across-lane leg in ortho-router.js)
         const stepOf = (k, zero, tight) => {
           let step = zero.has(k) ? 0 : (tight.has(k) ? LE.TIGHT_STEP : LE.COL_WIDTH);
-          if (step > 0 && labelGap[k]) step = Math.max(step, LE.NODE_W + labelGap[k]);
+          const [sa, sb] = k.split('\u0001');
+          const crossLane = nodeMap[sa] && nodeMap[sb] && nodeMap[sa].laneId !== nodeMap[sb].laneId;
+          if (step > 0 && labelGap[k] && !(LE.LABEL_ACROSS && crossLane)) {
+            step = Math.max(step, LE.NODE_W + labelGap[k]);
+          }
           if (step > 0 && room) {
-            const [a, b] = k.split('\u0001');
-            step = Math.max(step, LE.NODE_W + (room.after[a] || 0), LE.NODE_W + (room.before[b] || 0));
+            step = Math.max(step, LE.NODE_W + (room.after[sa] || 0), LE.NODE_W + (room.before[sb] || 0));
           }
           return step;
         };
@@ -667,8 +671,19 @@
             }
           });
           const maxX = Math.max(...nodes.map(n => n.x));
+          const defects = overlaps + penetrations + overflows;
           const columns = pyRound((maxX - LE.START_X) / LE.COL_WIDTH) + 1;
-          return [overlaps + penetrations + overflows, crossings, columns, bends, pyRound(length)];
+          // Let several saved columns buy one extra crossing using pixel-exact maxX so single-edge tight/zero
+          // savings are never lost to column rounding; defects stay absolute and raw crossings break ties.
+          const CROSSING_WEIGHT = 4;
+          const weighted = crossings * CROSSING_WEIGHT * LE.COL_WIDTH + pyRound(maxX - LE.START_X);
+          return {
+            key: [defects, weighted, crossings, bends, pyRound(length)],
+            defects,
+            crossings,
+            columns,
+            maxX
+          };
         };
         const keyLess = (a, b) => {
           for (let i = 0; i < a.length; i++) { if (a[i] !== b[i]) return a[i] < b[i]; }
@@ -752,16 +767,19 @@
           return true;
         };
         const cache = new Map();
+        let evals = 0;
         const evaluate = (cfg) => {
           const ck = cands.map(c => cfg.get(c.k) || '-').join(',');
           if (cache.has(ck)) return cache.get(ck);
+          evals += 1;
           const zero = new Set(), tight = new Set();
           cfg.forEach((m, k) => { (m === 'zero' ? zero : tight).add(k); });
           const ranks = ranksWithZero(zero);
           // Always pixel-based, so labelled arrows get room for their labels even without cross-lane candidates
           const xs = xPositions(zero, tight);
           placeNodes(ranks, xs, zero, tight);
-          const res = { key: score(), ranks, xs, zero, tight };
+          const s = score();
+          const res = { ...s, ranks, xs, zero, tight };
           cache.set(ck, res);
           return res;
         };
@@ -786,27 +804,90 @@
           };
           rec(0, new Map());
         } else if (cands.length) {
-          const seeds = [new Map(), new Map(cands.map(c => [c.k, 'tight']))];
+          // Deterministic seeds in cands/edges order: normal, all-tight, clean-zero (guard-free), single-arrow hand-offs zero.
+          const cleanZero = new Map();
+          {
+            const usedSide = new Set();
+            cands.forEach(c => {
+              const sk = c.from + '\u0001' + c.side;
+              if (!usedSide.has(sk) && !loopBlocked(c) && !exitBlocked(c) && !forkBlocked(c) && !joinBlocked(c)) {
+                cleanZero.set(c.k, 'zero');
+                usedSide.add(sk);
+              } else if (!joinBlocked(c)) {
+                cleanZero.set(c.k, 'tight');
+              }
+            });
+          }
+          const singleHandoffZero = new Map();
+          {
+            const outDeg = {}, inDeg = {};
+            forwardEdges.forEach(e => {
+              outDeg[e.from] = (outDeg[e.from] || 0) + 1;
+              inDeg[e.to] = (inDeg[e.to] || 0) + 1;
+            });
+            cands.forEach(c => {
+              const crossLane = laneIdx[nodeMap[c.from].laneId] !== laneIdx[nodeMap[c.to].laneId];
+              if (crossLane && outDeg[c.from] === 1 && inDeg[c.to] === 1
+                && !loopBlocked(c) && !exitBlocked(c) && !forkBlocked(c) && !joinBlocked(c)) {
+                singleHandoffZero.set(c.k, 'zero');
+              } else if (!joinBlocked(c)) {
+                singleHandoffZero.set(c.k, 'tight');
+              }
+            });
+          }
+          const seeds = [new Map(), new Map(cands.map(c => [c.k, 'tight'])), cleanZero, singleHandoffZero];
+          const SEED_EVAL_CAP = 200;
+          const MAX_PASSES = 4;
           seeds.forEach(seed => {
             let cfg = new Map(seed);
             if (!valid(cfg)) return;
+            const startEvals = evals;
             let cur = evaluate(cfg);
             let improved = true;
-            while (improved) {
+            let pass = 0;
+            while (improved && pass < MAX_PASSES && evals - startEvals < SEED_EVAL_CAP) {
               improved = false;
-              cands.forEach(c => {
-                modes.forEach(m => {
-                  if ((cfg.get(c.k) || null) === m) return;
+              pass += 1;
+              for (let ci = 0; ci < cands.length && evals - startEvals < SEED_EVAL_CAP; ci++) {
+                const c = cands[ci];
+                for (let mi = 0; mi < modes.length && evals - startEvals < SEED_EVAL_CAP; mi++) {
+                  const m = modes[mi];
+                  if ((cfg.get(c.k) || null) === m) continue;
                   const trial = new Map(cfg);
                   if (m) trial.set(c.k, m); else trial.delete(c.k);
-                  if (!valid(trial)) return;
+                  if (!valid(trial)) continue;
                   const res = evaluate(trial);
                   if (keyLess(res.key, cur.key)) { cfg = trial; cur = res; improved = true; }
-                });
-              });
+                }
+              }
             }
             if (keyLess(cur.key, best.key)) { best = cur; bestCfg = new Map(cfg); }
           });
+          // Bounded pair pass on the winning layout: unlock tied parallel branches (both -> zero) or swap a zero.
+          const PAIR_EVAL_CAP = 60;
+          const pairStart = evals;
+          for (let i = 0; i < cands.length && evals - pairStart < PAIR_EVAL_CAP; i++) {
+            for (let j = i + 1; j < cands.length && evals - pairStart < PAIR_EVAL_CAP; j++) {
+              const ci = cands[i], cj = cands[j];
+              const mi = bestCfg.get(ci.k) || null, mj = bestCfg.get(cj.k) || null;
+              let nextI = null, nextJ = null;
+              if (mi !== 'zero' && mj !== 'zero') {
+                nextI = 'zero'; nextJ = 'zero';
+              } else if (mi === 'zero' && mj !== 'zero') {
+                nextI = 'tight'; nextJ = 'zero';
+              } else if (mi !== 'zero' && mj === 'zero') {
+                nextI = 'zero'; nextJ = 'tight';
+              } else {
+                continue;
+              }
+              const trial = new Map(bestCfg);
+              trial.set(ci.k, nextI);
+              trial.set(cj.k, nextJ);
+              if (!valid(trial)) continue;
+              const res = evaluate(trial);
+              if (keyLess(res.key, best.key)) { best = res; bestCfg = trial; }
+            }
+          }
         }
         // Undo loop-blocked stacking on the winning layout only (filtering it inside the search would steer the
         // greedy search to a different layout elsewhere). Kept only when it adds no overlap or crossing.
@@ -818,7 +899,7 @@
               const trial = new Map(bestCfg);
               blocked.forEach(c => { if (mode) trial.set(c.k, mode); else trial.delete(c.k); });
               const res = evaluate(trial);
-              if (res.key[0] <= best.key[0] && res.key[1] <= best.key[1]) { best = res; bestCfg = trial; break; }
+              if (res.defects <= best.defects && res.crossings <= best.crossings) { best = res; bestCfg = trial; break; }
             }
           }
           // Un-tighten / unstack join branches that share a side with farther incoming branches so they have a turn corridor.
@@ -827,16 +908,51 @@
             const trial = new Map(bestCfg);
             joinTight.forEach(c => trial.delete(c.k));
             const res = evaluate(trial);
-            if (res.key[0] <= best.key[0] && res.key[1] <= best.key[1]) { best = res; bestCfg = trial; }
+            if (res.defects <= best.defects && res.crossings <= best.crossings) { best = res; bestCfg = trial; }
           }
+        }
+        // Phase 2 (merges): pull short-branch steps later toward their merge when that shortens routed arrow
+        // length without adding defects, crossings, or overall length. Order is canonical (independent of nodes[]).
+        let finalXs = Object.assign({}, best.xs);
+        const floor = {};
+        {
+          const fwdOut = {}, fwdIn = {};
+          forwardEdges.forEach(e => {
+            (fwdOut[e.from] = fwdOut[e.from] || []).push(e.to);
+            (fwdIn[e.to] = fwdIn[e.to] || []).push(e.from);
+          });
+          let curBest = best;
+          const order = nodes.map(n => n.id).sort((a, b) => (
+            (finalXs[b] - finalXs[a]) || ((laneIdx[nodeMap[a].laneId] || 0) - (laneIdx[nodeMap[b].laneId] || 0)) || (a < b ? -1 : a > b ? 1 : 0)
+          ));
+          const MIN_SPAN = LE.NODE_W + LE.MIN_GAP;
+          order.forEach(id => {
+            const succ = fwdOut[id] || [], preds = fwdIn[id] || [];
+            if (!succ.length || !preds.length) return;
+            const n = nodeMap[id];
+            const maxAllowed = Math.min(...succ.map(v => finalXs[v] - stepOf(KEY(id, v), best.zero, best.tight)));
+            if (maxAllowed - finalXs[id] < LE.COL_WIDTH * 0.75) return;
+            const maxPred = Math.max(...preds.map(p => finalXs[p]));
+            // Do not trade a long outgoing arrow for an equally long incoming arrow (> 4 columns)
+            const target = Math.min(maxAllowed, maxPred + 4 * LE.COL_WIDTH);
+            if (target - finalXs[id] < LE.COL_WIDTH * 0.5) return;
+            const laneClear = nodes.every(m => m.id === id || m.laneId !== n.laneId || Math.abs(target - finalXs[m.id]) >= MIN_SPAN);
+            if (!laneClear) return;
+            const trialXs = Object.assign({}, finalXs, { [id]: target });
+            placeNodes(best.ranks, trialXs, best.zero, best.tight);
+            const s = score();
+            if (s.defects <= curBest.defects && s.crossings <= curBest.crossings && s.maxX <= curBest.maxX && s.key[4] < curBest.key[4]) {
+              finalXs = trialXs;
+              floor[id] = target;
+              curBest = s;
+            }
+          });
         }
         // Column alignment: nodes in different lanes that land less than half a node apart (labels of different
         // widths push siblings to slightly different x) snap to the right-most of them, so they share one centre
         // line. Only ever moves nodes right, then re-propagates, so every arrow keeps at least its required room.
-        let finalXs = best.xs;
         {
           const SNAP = LE.NODE_W / 2;
-          const floor = {};
           for (let iter = 0; iter < 8; iter++) {
             const sorted = nodes.map(n => n.id).sort((a, b) => finalXs[a] - finalXs[b]);
             let changed = false;

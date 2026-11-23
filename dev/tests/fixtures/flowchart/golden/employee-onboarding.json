@@ -78,7 +78,7 @@
       "laneId": "lane_hiring_mgr",
       "type": "decision",
       "label": "Job Ad Approved?",
-      "x": 498,
+      "x": 441,
       "y": 72
     },
     {
@@ -86,7 +86,7 @@
       "laneId": "lane_hiring_mgr",
       "type": "task",
       "label": "Conduct Round 1 Interview",
-      "x": 923,
+      "x": 809,
       "y": 72
     },
     {
@@ -94,7 +94,7 @@
       "laneId": "lane_hiring_mgr",
       "type": "decision",
       "label": "Advance to Round 2?",
-      "x": 1059,
+      "x": 945,
       "y": 72
     },
     {
@@ -102,7 +102,7 @@
       "laneId": "lane_hiring_mgr",
       "type": "task",
       "label": "Conduct Round 2 Interview",
-      "x": 1212,
+      "x": 1098,
       "y": 72
     },
     {
@@ -110,7 +110,7 @@
       "laneId": "lane_hiring_mgr",
       "type": "decision",
       "label": "Select Candidate?",
-      "x": 1348,
+      "x": 1234,
       "y": 72
     },
     {
@@ -118,7 +118,7 @@
       "laneId": "lane_hiring_mgr",
       "type": "task",
       "label": "Run 90-Day Probation Review",
-      "x": 4589,
+      "x": 4424,
       "y": 72
     },
     {
@@ -126,7 +126,7 @@
       "laneId": "lane_hiring_mgr",
       "type": "decision",
       "label": "Probation Review Outcome?",
-      "x": 4725,
+      "x": 4560,
       "y": 72
     },
     {
@@ -134,7 +134,7 @@
       "laneId": "lane_hiring_mgr",
       "type": "delay",
       "label": "Extend Probation 30 Days",
-      "x": 4725,
+      "x": 4560,
       "y": 288
     },
     {
@@ -142,7 +142,7 @@
       "laneId": "lane_hiring_mgr",
       "type": "end",
       "label": "Probation Passed",
-      "x": 4878,
+      "x": 4713,
       "y": 72
     },
     {
@@ -174,7 +174,7 @@
       "laneId": "lane_hr_ops",
       "type": "decision",
       "label": "HR Director Approves Offer?",
-      "x": 1654,
+      "x": 1506,
       "y": 32
     },
     {
@@ -182,7 +182,7 @@
       "laneId": "lane_hr_ops",
       "type": "task",
       "label": "Order Background Check",
-      "x": 2096,
+      "x": 1931,
       "y": 32
     },
     {
@@ -190,7 +190,7 @@
       "laneId": "lane_hr_ops",
       "type": "decision",
       "label": "Adverse Finding Found?",
-      "x": 2232,
+      "x": 2067,
       "y": 32
     },
     {
@@ -198,7 +198,7 @@
       "laneId": "lane_hr_ops",
       "type": "task",
       "label": "Review Finding with Legal",
-      "x": 2385,
+      "x": 2220,
       "y": 32
     },
     {
@@ -206,7 +206,7 @@
       "laneId": "lane_hr_ops",
       "type": "decision",
       "label": "Finding Disqualifying?",
-      "x": 2521,
+      "x": 2356,
       "y": 32
     },
     {
@@ -214,7 +214,7 @@
       "laneId": "lane_hr_ops",
       "type": "end",
       "label": "Offer Withdrawn",
-      "x": 2674,
+      "x": 2509,
       "y": 32
     },
     {
@@ -222,7 +222,7 @@
       "laneId": "lane_hr_ops",
       "type": "task",
       "label": "Record Exception",
-      "x": 2674,
+      "x": 2509,
       "y": 248
     },
     {
@@ -230,7 +230,7 @@
       "laneId": "lane_hr_ops",
       "type": "task",
       "label": "Clear Candidate for Onboarding",
-      "x": 2810,
+      "x": 2645,
       "y": 32
     },
     {
@@ -238,7 +238,7 @@
       "laneId": "lane_hr_ops",
       "type": "io",
       "label": "Send Welcome Email",
-      "x": 3507,
+      "x": 3342,
       "y": 32
     },
     {
@@ -246,7 +246,7 @@
       "laneId": "lane_hr_ops",
       "type": "task",
       "label": "Terminate Employment",
-      "x": 4878,
+      "x": 4656,
       "y": 32
     },
     {
@@ -254,7 +254,7 @@
       "laneId": "lane_hr_ops",
       "type": "end",
       "label": "Employment Terminated",
-      "x": 5014,
+      "x": 4792,
       "y": 32
     },
     {
@@ -262,7 +262,7 @@
       "laneId": "lane_recruiter",
       "type": "task",
       "label": "Draft Job Ad",
-      "x": 362,
+      "x": 305,
       "y": 72
     },
     {
@@ -270,7 +270,7 @@
       "laneId": "lane_recruiter",
       "type": "task",
       "label": "Revise Job Ad",
-      "x": 498,
+      "x": 537,
       "y": 72
     },
     {
@@ -278,15 +278,15 @@
       "laneId": "lane_recruiter",
       "type": "task",
       "label": "Publish Job Ad",
-      "x": 651,
-      "y": 72
+      "x": 537,
+      "y": 288
     },
     {
       "id": "screen_apps",
       "laneId": "lane_recruiter",
       "type": "task",
       "label": "Screen & Shortlist Candidates",
-      "x": 787,
+      "x": 673,
       "y": 72
     },
     {
@@ -294,7 +294,7 @@
       "laneId": "lane_recruiter",
       "type": "task",
       "label": "Schedule Interviews",
-      "x": 923,
+      "x": 809,
       "y": 72
     },
     {
@@ -302,7 +302,7 @@
       "laneId": "lane_recruiter",
       "type": "io",
       "label": "Send Rejection Email",
-      "x": 1348,
+      "x": 1234,
       "y": 72
     },
     {
@@ -310,7 +310,7 @@
       "laneId": "lane_recruiter",
       "type": "end",
       "label": "Candidate Rejected",
-      "x": 1501,
+      "x": 1370,
       "y": 288
     },
     {
@@ -318,7 +318,7 @@
       "laneId": "lane_recruiter",
       "type": "decision",
       "label": "Salary Within Band?",
-      "x": 1501,
+      "x": 1370,
       "y": 72
     },
     {
@@ -326,7 +326,7 @@
       "laneId": "lane_recruiter",
       "type": "task",
       "label": "Renegotiate Salary",
-      "x": 1807,
+      "x": 1642,
       "y": 72
     },
     {
@@ -334,7 +334,7 @@
       "laneId": "lane_recruiter",
       "type": "document",
       "label": "Issue Offer Letter",
-      "x": 1807,
+      "x": 1642,
       "y": 288
     },
     {
@@ -342,7 +342,7 @@
       "laneId": "lane_candidate",
       "type": "decision",
       "label": "Candidate Offer Response?",
-      "x": 1943,
+      "x": 1778,
       "y": 32
     },
     {
@@ -350,7 +350,7 @@
       "laneId": "lane_candidate",
       "type": "end",
       "label": "Offer Declined",
-      "x": 2096,
+      "x": 1931,
       "y": 248
     },
     {
@@ -358,7 +358,7 @@
       "laneId": "lane_candidate",
       "type": "task",
       "label": "Sign Contract Electronically",
-      "x": 2096,
+      "x": 1931,
       "y": 32
     },
     {
@@ -366,7 +366,7 @@
       "laneId": "lane_candidate",
       "type": "task",
       "label": "Collect Building Access Card",
-      "x": 3603,
+      "x": 3438,
       "y": 32
     },
     {
@@ -374,7 +374,7 @@
       "laneId": "lane_candidate",
       "type": "task",
       "label": "Receive Assigned Laptop",
-      "x": 3739,
+      "x": 3574,
       "y": 32
     },
     {
@@ -382,7 +382,7 @@
       "laneId": "lane_candidate",
       "type": "task",
       "label": "Sign IT Acceptable-Use Policy",
-      "x": 3875,
+      "x": 3710,
       "y": 32
     },
     {
@@ -390,7 +390,7 @@
       "laneId": "lane_candidate",
       "type": "task",
       "label": "Complete Overdue Training",
-      "x": 4453,
+      "x": 4288,
       "y": 32
     },
     {
@@ -398,7 +398,7 @@
       "laneId": "lane_bg_vendor",
       "type": "document",
       "label": "Verify & Return Report",
-      "x": 2232,
+      "x": 2067,
       "y": 48
     },
     {
@@ -406,7 +406,7 @@
       "laneId": "lane_it",
       "type": "task",
       "label": "Create User Account",
-      "x": 2946,
+      "x": 2781,
       "y": 32
     },
     {
@@ -414,7 +414,7 @@
       "laneId": "lane_it",
       "type": "decision",
       "label": "Laptop in Stock?",
-      "x": 3082,
+      "x": 2917,
       "y": 32
     },
     {
@@ -422,7 +422,7 @@
       "laneId": "lane_it",
       "type": "task",
       "label": "Assign Stock Laptop",
-      "x": 3235,
+      "x": 3070,
       "y": 32
     },
     {
@@ -430,7 +430,7 @@
       "laneId": "lane_it",
       "type": "task",
       "label": "Order New Laptop",
-      "x": 3235,
+      "x": 3070,
       "y": 248
     },
     {
@@ -438,7 +438,7 @@
       "laneId": "lane_it",
       "type": "task",
       "label": "Enrol Device in MDM",
-      "x": 3371,
+      "x": 3206,
       "y": 32
     },
     {
@@ -446,7 +446,7 @@
       "laneId": "lane_it",
       "type": "task",
       "label": "Suspend User Access",
-      "x": 4453,
+      "x": 4288,
       "y": 32
     },
     {
@@ -454,7 +454,7 @@
       "laneId": "lane_facilities",
       "type": "task",
       "label": "Assign Desk",
-      "x": 2946,
+      "x": 2781,
       "y": 48
     },
     {
@@ -462,7 +462,7 @@
       "laneId": "lane_facilities",
       "type": "task",
       "label": "Order Building Access Card",
-      "x": 3082,
+      "x": 2917,
       "y": 48
     },
     {
@@ -470,7 +470,7 @@
       "laneId": "lane_payroll",
       "type": "database",
       "label": "Set Up Payroll Record",
-      "x": 2946,
+      "x": 2781,
       "y": 48
     },
     {
@@ -478,7 +478,7 @@
       "laneId": "lane_security",
       "type": "document",
       "label": "Issue Security Briefing Pack",
-      "x": 2946,
+      "x": 2781,
       "y": 48
     },
     {
@@ -486,7 +486,7 @@
       "laneId": "lane_training",
       "type": "task",
       "label": "Enrol in Mandatory Training",
-      "x": 3875,
+      "x": 3710,
       "y": 48
     },
     {
@@ -494,7 +494,7 @@
       "laneId": "lane_training",
       "type": "decision",
       "label": "Completed by Day 30?",
-      "x": 4011,
+      "x": 3846,
       "y": 48
     },
     {
@@ -502,7 +502,7 @@
       "laneId": "lane_training",
       "type": "io",
       "label": "Send Training Reminder",
-      "x": 4164,
+      "x": 3999,
       "y": 48
     },
     {
@@ -510,7 +510,7 @@
       "laneId": "lane_training",
       "type": "decision",
       "label": "Completed by Day 45?",
-      "x": 4300,
+      "x": 4135,
       "y": 48
     },
     {
@@ -518,7 +518,7 @@
       "laneId": "lane_training",
       "type": "io",
       "label": "Notify Hiring Manager",
-      "x": 4453,
+      "x": 4288,
       "y": 48
     }
   ],
