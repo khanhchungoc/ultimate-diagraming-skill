@@ -29,9 +29,9 @@
   ],
   "nodes": [
     { "id": "n_submit_request", "laneId": "lane-employee", "type": "start", "label": "Submit Laptop Request" },
+    { "id": "n_update_request", "laneId": "lane-employee", "type": "task", "label": "Update Request Details" },
     { "id": "n_check_mandatory", "laneId": "lane-system", "type": "decision", "label": "All Mandatory Info?" },
     { "id": "n_check_existing", "laneId": "lane-it", "type": "decision", "label": "Existing Laptop Fits?" },
-    { "id": "n_update_request", "laneId": "lane-employee", "type": "task", "label": "Update Request Details" },
     { "id": "n_manager_review", "laneId": "lane-manager", "type": "decision", "label": "Justification Approved?" },
     { "id": "n_reserve_laptop", "laneId": "lane-it", "type": "task", "label": "Reserve Existing Laptop" },
     { "id": "n_check_spec", "laneId": "lane-it", "type": "decision", "label": "Standard Specification?" },
@@ -157,57 +157,57 @@
     "lane-finance": { "height": 240 },
     "lane-supplier": { "height": 240 },
     "n_submit_request": { "x": 56, "y": 32 },
-    "n_check_mandatory": { "x": 152, "y": 48 },
-    "n_check_existing": { "x": 152, "y": 32 },
-    "n_update_request": { "x": 248, "y": 32 },
-    "n_manager_review": { "x": 248, "y": 32 },
-    "n_reserve_laptop": { "x": 344, "y": 32 },
-    "n_check_spec": { "x": 344, "y": 248 },
-    "n_notify_allocation": { "x": 480, "y": 32 },
-    "n_notify_rejection": { "x": 480, "y": 32 },
-    "n_end_allocated": { "x": 616, "y": 32 },
-    "n_request_spec_justification": { "x": 616, "y": 248 },
-    "n_end_rejected": { "x": 616, "y": 32 },
-    "n_provide_justification": { "x": 752, "y": 32 },
-    "n_reevaluate_spec": { "x": 888, "y": 32 },
-    "n_suggest_standard": { "x": 1041, "y": 32 },
-    "n_employee_decision": { "x": 1137, "y": 32 },
-    "n_approve_spec": { "x": 1233, "y": 32 },
-    "n_obtain_price": { "x": 1233, "y": 32 },
-    "n_end_withdrawn": { "x": 1290, "y": 32 },
-    "n_check_value_band": { "x": 1369, "y": 32 },
-    "n_obtain_2_quotes": { "x": 1522, "y": 32 },
-    "n_obtain_3_quotes": { "x": 1522, "y": 248 },
-    "n_obtain_budget_approval": { "x": 1658, "y": 32 },
-    "n_select_supplier": { "x": 1794, "y": 32 },
-    "c_c_out": { "x": 1850, "y": 204 },
-    "n_manager_budget_decision": { "x": 1890, "y": 32 },
-    "n_check_budget": { "x": 1890, "y": 48 },
-    "c_a_out": { "x": 1922, "y": 196 },
-    "c_a_in": { "x": 2042, "y": 104 },
-    "n_end_cancelled": { "x": 2070, "y": 32 },
-    "n_update_cost_centre": { "x": 2070, "y": 248 },
-    "n_create_po": { "x": 2070, "y": 32 },
-    "n_supplier_stock": { "x": 2166, "y": 48 },
-    "c_c_in": { "x": 2222, "y": 304 },
-    "n_propose_alternative": { "x": 2319, "y": 48 },
-    "n_it_review_alternative": { "x": 2415, "y": 32 },
-    "n_reselect_supplier": { "x": 2415, "y": 32 },
-    "n_confirm_delivery": { "x": 2511, "y": 48 },
-    "n_deliver_laptop": { "x": 2647, "y": 48 },
-    "n_inspect_delivery": { "x": 2743, "y": 32 },
-    "c_b_out": { "x": 2775, "y": 196 },
-    "n_configure_laptop": { "x": 2896, "y": 32 },
-    "n_return_device": { "x": 2896, "y": 248 },
-    "n_send_replacement": { "x": 2896, "y": 48 },
-    "n_assign_laptop": { "x": 3032, "y": 32 },
-    "c_b_in": { "x": 3048, "y": 104 },
-    "n_confirm_receipt": { "x": 3128, "y": 32 },
-    "n_check_issues": { "x": 3264, "y": 32 },
-    "n_close_request": { "x": 3264, "y": 32 },
-    "n_end_issued": { "x": 3360, "y": 248 },
-    "n_raise_ticket": { "x": 3417, "y": 32 },
-    "n_resolve_issue": { "x": 3417, "y": 32 }
+    "n_update_request": { "x": 192, "y": 32 },
+    "n_check_mandatory": { "x": 192, "y": 48 },
+    "n_check_existing": { "x": 192, "y": 32 },
+    "n_manager_review": { "x": 288, "y": 32 },
+    "n_reserve_laptop": { "x": 384, "y": 32 },
+    "n_check_spec": { "x": 384, "y": 248 },
+    "n_notify_allocation": { "x": 520, "y": 32 },
+    "n_notify_rejection": { "x": 520, "y": 32 },
+    "n_end_allocated": { "x": 656, "y": 32 },
+    "n_request_spec_justification": { "x": 656, "y": 248 },
+    "n_end_rejected": { "x": 656, "y": 32 },
+    "n_provide_justification": { "x": 792, "y": 32 },
+    "n_reevaluate_spec": { "x": 928, "y": 32 },
+    "n_suggest_standard": { "x": 1081, "y": 32 },
+    "n_employee_decision": { "x": 1177, "y": 32 },
+    "n_approve_spec": { "x": 1273, "y": 32 },
+    "n_obtain_price": { "x": 1273, "y": 32 },
+    "n_end_withdrawn": { "x": 1330, "y": 32 },
+    "n_check_value_band": { "x": 1409, "y": 32 },
+    "n_obtain_2_quotes": { "x": 1562, "y": 32 },
+    "n_obtain_3_quotes": { "x": 1562, "y": 248 },
+    "n_obtain_budget_approval": { "x": 1698, "y": 32 },
+    "n_select_supplier": { "x": 1834, "y": 32 },
+    "c_c_out": { "x": 1890, "y": 204 },
+    "n_manager_budget_decision": { "x": 1930, "y": 32 },
+    "n_check_budget": { "x": 1930, "y": 48 },
+    "c_a_out": { "x": 1962, "y": 196 },
+    "c_a_in": { "x": 2082, "y": 104 },
+    "n_end_cancelled": { "x": 2110, "y": 32 },
+    "n_update_cost_centre": { "x": 2110, "y": 248 },
+    "n_create_po": { "x": 2110, "y": 32 },
+    "n_supplier_stock": { "x": 2206, "y": 48 },
+    "c_c_in": { "x": 2262, "y": 304 },
+    "n_propose_alternative": { "x": 2359, "y": 48 },
+    "n_it_review_alternative": { "x": 2455, "y": 32 },
+    "n_reselect_supplier": { "x": 2455, "y": 32 },
+    "n_confirm_delivery": { "x": 2551, "y": 48 },
+    "n_deliver_laptop": { "x": 2687, "y": 48 },
+    "n_inspect_delivery": { "x": 2783, "y": 32 },
+    "c_b_out": { "x": 2815, "y": 196 },
+    "n_configure_laptop": { "x": 2936, "y": 32 },
+    "n_return_device": { "x": 2936, "y": 248 },
+    "n_send_replacement": { "x": 2936, "y": 48 },
+    "n_assign_laptop": { "x": 3072, "y": 32 },
+    "c_b_in": { "x": 3088, "y": 104 },
+    "n_confirm_receipt": { "x": 3168, "y": 32 },
+    "n_check_issues": { "x": 3304, "y": 32 },
+    "n_close_request": { "x": 3304, "y": 32 },
+    "n_end_issued": { "x": 3400, "y": 248 },
+    "n_raise_ticket": { "x": 3457, "y": 32 },
+    "n_resolve_issue": { "x": 3457, "y": 32 }
   }
 }
   </script>
@@ -2748,9 +2748,11 @@ html.is-loading #page-loading { display: grid; }
     .flow-subtabs > .flow-tab[aria-selected="true"]:first-child { margin-left: -1px; }
     .flow-subtabs > .flow-tab[aria-selected="true"] + .flow-tab { border-left-color: transparent; }
     .flow-subtabs:has(> .flow-subtabs) > .flow-tab[aria-selected="true"] {
-      border-bottom-color: transparent;
+      border-left-color: transparent;
       border-right-color: transparent;
-      margin-bottom: 0;
+      border-bottom-color: transparent;
+      border-radius: 0;
+      margin: 0;
     }
     body.presentation .flow-tabs {
       top: 12px;
@@ -3524,6 +3526,8 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
       // --- STATE ---
       let chartData = { title: "", direction: "LR", lanes: [], nodes: [], edges: [] };
       let fileHandle = null;
+      let helperSavedName = '';  // file name saved via the local direct-save helper
+      let helperPort = null;     // cached loopback port for the local direct-save helper
       let everSaved = false;
       let storedName = '';   // the file a stored handle from an earlier visit points at (Save writes there once allowed)
       let downloadToldOnce = false;
@@ -3934,9 +3938,31 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
           const len = pathEl.getTotalLength();
           if (!len) return null;
           cancelEl(pathEl);
-          pathEl.style.strokeDasharray = `${len} ${len}`;
-          pathEl.style.strokeDashoffset = `${len}`;
-          const anim = pathEl.animate([{ strokeDashoffset: len }, { strokeDashoffset: 0 }], {
+          // Preserve an existing CSS dash pattern (e.g. .connector-guide) by repeating it up to `len`
+          // followed by a `len`-long gap, so the line draws on dashed instead of flashing solid.
+          const cs = getComputedStyle(pathEl);
+          const rawDash = (cs.strokeDasharray || '').trim();
+          const nums = rawDash && rawDash !== 'none'
+            ? rawDash.split(/[\s,]+/).map(v => parseFloat(v)).filter(v => Number.isFinite(v) && v > 0)
+            : [];
+          let dashArray = `${len} ${len}`;
+          let startOffset = len;
+          if (nums.length) {
+            const pat = nums.length % 2 === 1 ? nums.concat(nums) : nums;
+            const period = pat.reduce((a, b) => a + b, 0);
+            if (period > 0 && len / period <= 2000) {
+              const reps = Math.ceil(len / period);
+              const seq = [];
+              for (let i = 0; i < reps; i++) seq.push(...pat);
+              const pad = Math.ceil(parseFloat(cs.strokeWidth) || 2);
+              startOffset = reps * period;
+              seq[seq.length - 1] += Math.ceil(len) + pad;
+              dashArray = seq.join(' ');
+            }
+          }
+          pathEl.style.strokeDasharray = dashArray;
+          pathEl.style.strokeDashoffset = `${startOffset}`;
+          const anim = pathEl.animate([{ strokeDashoffset: startOffset }, { strokeDashoffset: 0 }], {
             duration: Math.max(40, Math.round((o.duration ?? dur('dur-fast', 140)) * speedScale())),
             easing: curve(o.easing || 'curve-out')
           });
@@ -4452,9 +4478,11 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
           return;
         }
         // Name the file Save writes to: the one chosen this visit, else the one remembered from an earlier visit
-        const target = fileHandle ? fileHandle.name : storedName;
+        const target = fileHandle ? fileHandle.name : (helperSavedName || storedName);
         if (unsaved) {
           setStatusBadgeText("Unsaved changes", "badge badge-status unsaved", target ? `Save writes to ${target}` : '');
+        } else if (helperSavedName && !fileHandle) {
+          setStatusBadgeText(`Saved to ${helperSavedName}`, "badge badge-status saved", `Saved straight to ${helperSavedName} via local helper`);
         } else if (fileHandle) {
           setStatusBadgeText(`Saved to ${target}`, "badge badge-status saved", `Save writes straight to ${target}`);
         } else if (everSaved) {
@@ -5436,7 +5464,7 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
         btn.addEventListener('keydown', onKey);
       }
       menuArrowKeys(exportMenu, btnExport);
-      btnExport.addEventListener('click', (e) => { e.stopPropagation(); setExportOpen(exportMenu.hidden); });
+      btnExport.addEventListener('click', (e) => { e.stopPropagation(); closeMermaidImport(); setExportOpen(exportMenu.hidden); });
       exportMenu.addEventListener('click', (e) => {
         const b = e.target.closest('[data-export], [data-copy]');
         if (!b) return;
@@ -5444,10 +5472,14 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
         if (b.dataset.copy) copyDiagram(b.dataset.copy);
         else exportDiagram(b.dataset.export);
       });
-      document.addEventListener('click', () => { setExportOpen(false); });
+      document.addEventListener('click', (e) => {
+        setExportOpen(false);
+        if (importEl && !importEl.contains(e.target) && !btnImportMermaid.contains(e.target)) closeMermaidImport();
+      });
       window.addEventListener('keydown', (e) => {
         if (e.key !== 'Escape') return;
         setExportOpen(false);
+        closeMermaidImport();
       });
 
       // --- IMPORT MERMAID ---
@@ -5915,11 +5947,15 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
         return fullHtml;
       }
 
-      function serializeDiagramJson() {
+      function buildDiskData() {
         chartData.title = chartTitleEl.textContent.trim();
         const disk = plugin.toDisk ? plugin.toDisk(chartData) : { ...chartData };
         delete disk._readme;
-        return formatJson(dataReadme === null ? disk : { _readme: dataReadme, ...disk });
+        return dataReadme === null ? disk : { _readme: dataReadme, ...disk };
+      }
+
+      function serializeDiagramJson() {
+        return formatJson(buildDiskData());
       }
 
       // The document to store: `sourceText` (this page's text) with the model, title and reading guide updated.
@@ -6305,6 +6341,99 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
         }
       }
 
+      const HELPER_PORTS = [19847, 19848, 19849, 19850, 19851];
+
+      function getDiagramSaveId() {
+        const meta = document.querySelector('meta[name="diagram-save-id"]');
+        const val = meta ? (meta.getAttribute('content') || '').trim() : '';
+        return /^[0-9a-f]{32}$/.test(val) ? val : '';
+      }
+
+      function isLoopbackPreviewOrigin() {
+        return location.protocol === 'http:' && (location.hostname === '127.0.0.1' || location.hostname === 'localhost');
+      }
+
+      function helperPortsToProbe() {
+        const override = Array.isArray(window.__ULTIMATE_DIAGRAM_HELPER_PORTS__)
+          ? window.__ULTIMATE_DIAGRAM_HELPER_PORTS__
+          : null;
+        return override && override.length ? override : HELPER_PORTS;
+      }
+
+      async function fetchWithTimeout(url, opts, ms) {
+        const ctrl = typeof AbortController === 'function' ? new AbortController() : null;
+        const timer = ctrl ? setTimeout(() => ctrl.abort(), ms) : null;
+        try {
+          return await fetch(url, ctrl ? { ...opts, signal: ctrl.signal } : opts);
+        } finally {
+          if (timer) clearTimeout(timer);
+        }
+      }
+
+      async function findHelperPort() {
+        const ports = helperPortsToProbe();
+        for (const port of ports) {
+          try {
+            const resp = await fetchWithTimeout(`http://127.0.0.1:${port}/health`, { method: 'GET' }, 300);
+            if (!resp.ok) continue;
+            const info = await resp.json();
+            if (info && info.ok && info.app === 'ultimate-diagram-save-helper') return port;
+          } catch (_) {}
+        }
+        return null;
+      }
+
+      async function postSaveToHelper(port, payload) {
+        const resp = await fetchWithTimeout(`http://127.0.0.1:${port}/save`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Ultimate-Diagram-Save': '1'
+          },
+          body: JSON.stringify(payload)
+        }, 3000);
+        if (!resp.ok) return null;
+        const body = await resp.json();
+        return body && body.ok ? body : null;
+      }
+
+      async function saveViaLocalHelper() {
+        if (playground || claudeHost) return false;
+        const isLocalFile = location.protocol === 'file:';
+        if (!isLocalFile && !isLoopbackPreviewOrigin()) return false;
+        const saveId = getDiagramSaveId();
+        if (!saveId) return false;
+
+        const loc = isLocalFile ? localFilePath() : null;
+        const diskData = buildDiskData();
+        const title = chartData.title || plugin.defaultTitle;
+        const payload = { path: loc ? loc.file : null, saveId, data: diskData, title };
+
+        let result = null;
+        if (helperPort !== null) {
+          try { result = await postSaveToHelper(helperPort, payload); } catch (_) { result = null; }
+          if (!result) helperPort = null;
+        }
+        if (!result) {
+          const port = await findHelperPort();
+          if (port === null) return false;
+          try { result = await postSaveToHelper(port, payload); } catch (_) { result = null; }
+          if (!result) return false;
+          helperPort = port;
+        }
+
+        const updatedJson = formatJson(diskData);
+        const dataEl = document.getElementById('diagram-data');
+        if (dataEl) dataEl.textContent = `\n${updatedJson}\n  `;
+        if (title) document.title = title;
+        helperSavedName = result.name || (loc && loc.name) || 'diagram.html';
+        savedJson = JSON.stringify(chartData);
+        everSaved = true;
+        updateStatus(false);
+        motion.pulseEl(btnSave.querySelector('svg'));
+        return true;
+      }
+
       async function saveToFile() {
         if (playground) {
           try {
@@ -6318,6 +6447,7 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
         if (artifactMode === 'publish') return publishToArtifact();
         if (artifactMode === 'view-only') return downloadHtmlFile();
         if (artifactMode === 'pending') return;   // use() has not answered yet; Save is disabled until it does
+        if (await saveViaLocalHelper()) return;
         const html = document.getElementById('diagram-data')
           ? buildSavedHtml(await loadSourceText())
           : await buildExportHtmlFile();
@@ -6519,6 +6649,15 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
             if (ex > sx - 12) return null;
             if (Math.abs(sy - ey) < 6) pts = [[sx, sy], [ex, sy]];
             else { const mx = (sx + ex) / 2; pts = [[sx, sy], [mx, sy], [mx, ey], [ex, ey]]; }
+          } else if (fp === 'left' && tp === 'left') {  // left exit, wrap upstream into target's flow-entry port: two bends
+            const sx = f.x, sy = f.cy, ex = t.x, ey = t.cy;
+            for (const pad of [24, 14, 10]) {
+              const gx = Math.min(sx, ex) - pad;
+              if (gx < 8) continue;
+              const cand = [[sx, sy], [gx, sy], [gx, ey], [ex, ey]];
+              if (cand.slice(0, -1).every((p, i) => segmentClear(p[0], p[1], cand[i + 1][0], cand[i + 1][1], ids))) return 2;
+            }
+            return null;
           } else if (fp === 'left') {            // left exit, vertical entry into top/bottom: one bend
             const sx = f.x, sy = f.cy, ex = t.cx;
             const ey = tp === 'top' ? t.y : t.y + t.h;
@@ -6558,11 +6697,19 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
           const rightEntryFree = !outEdges[e.to].some(o => o !== e && rects[o.to].cx >= t.cx - 30 && Math.abs(rects[o.to].cx - t.cx) >= 30);
           const cands = [];
           const sameRow = Math.abs(dy) <= 30;
+          // If the target is a decision that sends a forward branch back toward this loopback's side, avoid
+          // stealing that side vertex so the outgoing branch does not wrap around the back of the diamond.
+          const decisionBranchOnSide = !sameRow && nodeMap[e.to] && nodeMap[e.to].type === 'decision'
+            && (outEdges[e.to] || []).some(o => rects[o.to] && rects[o.to].cx >= t.cx - 30
+              && (dy > 30 ? rects[o.to].cy < t.cy - 30 : rects[o.to].cy > t.cy + 30));
           if (rightEntryFree) {
             if (leftExitFree) cands.push(['left', 'right']);
             if (!sameRow) cands.push([dy < 0 ? 'top' : 'bottom', 'right']);
           }
-          if (!sameRow && leftExitFree) cands.push(['left', dy < 0 ? 'bottom' : 'top']);
+          if (!sameRow && leftExitFree) {
+            if (decisionBranchOnSide) cands.push(['left', 'left']);
+            else cands.push(['left', dy < 0 ? 'bottom' : 'top']);
+          }
           cands.push([uTurn, uTurn]);
           let best = null;
           cands.forEach(([fp, tp]) => {
@@ -6838,6 +6985,17 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
               const sy = p.fromPort === 'top' ? f.y : f.y + f.h;
               points = [[sx, sy], [sx, ey], [ex, ey]];
             }
+          } else if (p.fromPort === 'left' && p.toPort === 'left') {
+            const sx = f.x, sy = f.cy + srcOffY, ex = t.x, ey = t.cy + offsetY;
+            let gx = Math.min(sx, ex) - 24;
+            for (const pad of [24, 14, 10]) {
+              const cand = Math.min(sx, ex) - pad;
+              if (cand >= 8 && segmentClear(sx, sy, cand, sy, [e.from, e.to]) && segmentClear(cand, sy, cand, ey, [e.from, e.to]) && segmentClear(cand, ey, ex, ey, [e.from, e.to])) {
+                gx = cand;
+                break;
+              }
+            }
+            points = [[sx, sy], [gx, sy], [gx, ey], [ex, ey]];
           } else if (p.fromPort === 'left' && (p.toPort === 'top' || p.toPort === 'bottom')) {
             const sx = f.x;
             const sy = f.cy + srcOffY;
@@ -8355,7 +8513,9 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
                   return Math.abs(X[u.id] - X[v.id]) < 1 && Math.min(lu, lv) < li && li < Math.max(lu, lv)
                     && x - 12 < cx && cx < x + LE.NODE_W + 12;                         // sits on a vertical pass-through
                 });
-                const slot = slots.find(x => (!succ.length ? x === X[n.id] : x - X[n.id] <= 1.5 * LE.COL_WIDTH)
+                const hasSameLanePred = (fwdIn[n.id] || []).some(p => nodeMap[p] && nodeMap[p].laneId === n.laneId);
+                const maxSlide = (!succ.length && hasSameLanePred) ? 0 : 1.5 * LE.COL_WIDTH;
+                const slot = slots.find(x => x - X[n.id] <= maxSlide
                   && row0.every(m => clear(x, X[m.id])) && !blocked(x));
                 if (slot !== undefined) { X[n.id] = slot; sub[n.id] = 0; return; }
               }
@@ -10235,9 +10395,6 @@ function toMermaid(data, opts) {
       function withTabMotion(fn) {
         if (!motion.enabled()) { fn(); return; }
         const wasShown = !flowTabs.hidden;
-        const prevAct = wasShown ? flowTabs.querySelector('.flow-tab[aria-selected="true"]') : null;
-        const prevKey = prevAct ? prevAct.dataset.tab : null;
-        const prevRect = prevAct ? prevAct.getBoundingClientRect() : null;
         const tabSnap = wasShown ? motion.capture(flowTabs, TAB_SPECS, { ghosts: true }) : null;
         fn();
         if (flowTabs.hidden) return;
@@ -10249,8 +10406,6 @@ function toMermaid(data, opts) {
           ], { duration: motion.dur('dur-base', 180), easing: motion.curve('curve-spring-tactile') });
           return;
         }
-        const nextAct = flowTabs.querySelector('.flow-tab[aria-selected="true"]');
-        const nextRect = (prevRect && nextAct && prevKey !== nextAct.dataset.tab) ? nextAct.getBoundingClientRect() : null;
         if (tabSnap) {
           flowTabs.querySelectorAll('.flow-subtabs[data-level]').forEach(box => {
             const prevB = tabSnap.get('0:' + box.dataset.level);
@@ -10269,24 +10424,6 @@ function toMermaid(data, opts) {
             });
           });
           motion.play(tabSnap, flowTabs, TAB_SPECS, { duration: motion.dur('dur-tab', 300), easing: 'curve-inout', ghostExit: true });
-        }
-        if (nextRect && nextRect.width > 0 && nextRect.height > 0) {
-          const nr = nextRect;
-          const radius = getComputedStyle(nextAct).borderRadius || '0 0 var(--radius-md) var(--radius-md)';
-          const chip = document.createElement('div');
-          chip.setAttribute('data-motion-ghost', '');
-          chip.setAttribute('data-export-skip', '');
-          chip.setAttribute('aria-hidden', 'true');
-          chip.style.cssText = `position:fixed;left:${nr.left}px;top:${nr.top}px;width:${nr.width}px;height:${nr.height}px;background:var(--primary-wash);border:1px solid var(--primary);border-top:0;border-radius:${radius};box-sizing:border-box;pointer-events:none;z-index:121;transform-origin:top left;`;
-          document.body.appendChild(chip);
-          const dx = prevRect.left - nr.left, dy = prevRect.top - nr.top;
-          const sx = prevRect.width / nr.width, sy = prevRect.height / nr.height;
-          const a = motion.anim(chip, [
-            { transform: `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})`, opacity: 0.9 },
-            { transform: 'none', opacity: 0 }
-          ], { duration: Math.max(40, Math.round(motion.dur('dur-tab', 300) * 0.9 * motion.speedScale())), easing: motion.curve('curve-inout') });
-          const drop = () => chip.remove();
-          if (a) { a.addEventListener('finish', drop, { once: true }); a.addEventListener('cancel', drop, { once: true }); } else chip.remove();
         }
       }
 
@@ -13026,14 +13163,14 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         m.set('', swimlanesContainer.getBoundingClientRect());   // the card behind the lanes (key '': no lane has an empty id)
         return m;
       };
-      function morphLaneBackdrops(prev) {
+      function morphLaneBackdrops(prev, next) {
         if (!motion.enabled() || prev.size < 2) return;
-        const cr = swimlanesContainer.getBoundingClientRect();
+        const cr = (next && next.get('')) || swimlanesContainer.getBoundingClientRect();
         const k = (swimlanesContainer.offsetWidth ? cr.width / swimlanesContainer.offsetWidth : scale) || 1;
         const dur = Math.max(40, Math.round(BIG_MS * motion.speedScale())), eas = motion.curve('curve-inout');
         const made = [];
         const backdrop = (from, to, css) => {
-          if (!from || !to.width || !to.height) return;
+          if (!from || !to || !to.width || !to.height) return;
           const back = document.createElement('div');
           back.setAttribute('data-export-skip', '');
           back.style.cssText = `position:absolute;box-sizing:border-box;pointer-events:none;transform-origin:0 0;left:${(to.left - cr.left) / k}px;top:${(to.top - cr.top) / k}px;width:${to.width / k}px;height:${to.height / k}px;${css}`;
@@ -13048,7 +13185,8 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         backdrop(prev.get(''), cr, `left:-${card.borderLeftWidth};top:-${card.borderTopWidth};background:${card.backgroundColor};border:${card.border};border-radius:${card.borderRadius};box-shadow:${card.boxShadow}`);
         lanesRoot.querySelectorAll('.swimlane[data-lane-id]').forEach(el => {
           const track = el.querySelector('.lane-track');
-          if (track) backdrop(prev.get(el.dataset.laneId), el.getBoundingClientRect(), `background:${getComputedStyle(track).backgroundColor}`);
+          const to = (next && next.get(el.dataset.laneId)) || el.getBoundingClientRect();
+          if (track) backdrop(prev.get(el.dataset.laneId), to, `background:${getComputedStyle(track).backgroundColor}`);
         });
         if (!made.length) return;
         swimlanesContainer.classList.add('lane-morph');
@@ -13057,6 +13195,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
 
       if (btnDirection) btnDirection.addEventListener('click', () => {
         const prevLanes = laneBoxes();
+        let nextLanes = null;
         withMotion(() => {
           if (isTB()) delete chartData.direction;
           else chartData.direction = 'TB';
@@ -13068,8 +13207,9 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           layoutOtherFlows();
           render();
           updateStatus(true);
+          nextLanes = laneBoxes();
         }, { duration: BIG_MS });   // arrows morph from their old routes (as in Tidy); the view stays where the reader had it
-        morphLaneBackdrops(prevLanes);
+        morphLaneBackdrops(prevLanes, nextLanes);
       });
 
       // --- AUTO LAYOUT TOGGLE ---

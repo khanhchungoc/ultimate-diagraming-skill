@@ -49,7 +49,7 @@ from layout_engine import (  # noqa: E402
 )
 
 DEFAULT_TARGETS = (
-    ROOT / "dev" / "samples" / "corporate-laptop-purchase-request.html",
+    ROOT / "dev" / "samples" / "example-corporate-laptop-purchase-request.html",
     ROOT / "dev" / "samples" / "motor-insurance-claim-processing.html",
     ROOT / "dev" / "tests" / "fixtures" / "flowchart" / "five-lanes-wide.json",
     ROOT / "dev" / "tests" / "fixtures" / "flowchart" / "nested-loops.json",
