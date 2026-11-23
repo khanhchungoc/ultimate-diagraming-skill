@@ -38,7 +38,7 @@ Describe a process, and your AI agent hands back a single HTML file. Open it in 
 | **Sequence** | Who talks to whom, over time | ✅ |
 | **ERD** | Database tables, keys and relationships | ✅ |
 | **Use case** | Actors, goals and system boundaries | ✅ |
-| **C4** | System landscape: people, systems and containers (levels 1–2), grouping frames and tech logos ([packs](references/icon-packs.md)) | ✅ |
+| **C4** | System landscape: people, systems and containers (levels 1–2) | ✅ |
 | **BPMN** | Pools, lanes, events and gateways | 🔜 |
 | **State machine** | States and transitions | 🔜 |
 | **Mind map** | Ideas branching from a central topic | 🕐  |
