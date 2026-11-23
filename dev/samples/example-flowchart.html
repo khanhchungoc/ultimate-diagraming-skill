@@ -3846,9 +3846,31 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
           const len = pathEl.getTotalLength();
           if (!len) return null;
           cancelEl(pathEl);
-          pathEl.style.strokeDasharray = `${len} ${len}`;
-          pathEl.style.strokeDashoffset = `${len}`;
-          const anim = pathEl.animate([{ strokeDashoffset: len }, { strokeDashoffset: 0 }], {
+          // Preserve an existing CSS dash pattern (e.g. .connector-guide) by repeating it up to `len`
+          // followed by a `len`-long gap, so the line draws on dashed instead of flashing solid.
+          const cs = getComputedStyle(pathEl);
+          const rawDash = (cs.strokeDasharray || '').trim();
+          const nums = rawDash && rawDash !== 'none'
+            ? rawDash.split(/[\s,]+/).map(v => parseFloat(v)).filter(v => Number.isFinite(v) && v > 0)
+            : [];
+          let dashArray = `${len} ${len}`;
+          let startOffset = len;
+          if (nums.length) {
+            const pat = nums.length % 2 === 1 ? nums.concat(nums) : nums;
+            const period = pat.reduce((a, b) => a + b, 0);
+            if (period > 0 && len / period <= 2000) {
+              const reps = Math.ceil(len / period);
+              const seq = [];
+              for (let i = 0; i < reps; i++) seq.push(...pat);
+              const pad = Math.ceil(parseFloat(cs.strokeWidth) || 2);
+              startOffset = reps * period;
+              seq[seq.length - 1] += Math.ceil(len) + pad;
+              dashArray = seq.join(' ');
+            }
+          }
+          pathEl.style.strokeDasharray = dashArray;
+          pathEl.style.strokeDashoffset = `${startOffset}`;
+          const anim = pathEl.animate([{ strokeDashoffset: startOffset }, { strokeDashoffset: 0 }], {
             duration: Math.max(40, Math.round((o.duration ?? dur('dur-fast', 140)) * speedScale())),
             easing: curve(o.easing || 'curve-out')
           });

@@ -81,10 +81,11 @@ try {
 
   // 2. Hover lights both circles and draws one guide between them
   await t.ev(`(${conn('in')}).dispatchEvent(new MouseEvent('mouseenter'))`);
-  const lit = await t.ev(`[document.querySelectorAll('.flow-node.type-connector.pair-lit').length, document.querySelectorAll('.connector-guide').length]`);
+  const lit = await t.ev(`(() => { const g = document.querySelector('.connector-guide'); return [document.querySelectorAll('.flow-node.type-connector.pair-lit').length, document.querySelectorAll('.connector-guide').length, g ? getComputedStyle(g).strokeDasharray : '']; })()`);
   await t.ev(`(${conn('in')}).dispatchEvent(new MouseEvent('mouseleave'))`);
   const unlit = await t.ev(`document.querySelectorAll('.pair-lit, .connector-guide').length`);
   t.check('hovering a connector lights its partner and draws one guide; leaving clears both', lit[0] === 2 && lit[1] === 1 && unlit === 0, `lit=${JSON.stringify(lit)} unlit=${unlit}`);
+  t.check('connector guide stays dashed during draw-on (never flashes solid)', /^1px,\s*5px\b/.test(lit[2]), `strokeDasharray=${JSON.stringify(lit[2])}`);
   // Hovering the step the arrow leaves (wired to the in-connector) shows the same pair and guide
   const srcStep = `document.getElementById('node-' + ${JSON.stringify(e8.from)})`;
   await t.ev(`(${srcStep}).dispatchEvent(new MouseEvent('mouseenter'))`);
