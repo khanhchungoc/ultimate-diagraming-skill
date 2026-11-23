@@ -66,6 +66,15 @@
             if (ex > sx - 12) return null;
             if (Math.abs(sy - ey) < 6) pts = [[sx, sy], [ex, sy]];
             else { const mx = (sx + ex) / 2; pts = [[sx, sy], [mx, sy], [mx, ey], [ex, ey]]; }
+          } else if (fp === 'left' && tp === 'left') {  // left exit, wrap upstream into target's flow-entry port: two bends
+            const sx = f.x, sy = f.cy, ex = t.x, ey = t.cy;
+            for (const pad of [24, 14, 10]) {
+              const gx = Math.min(sx, ex) - pad;
+              if (gx < 8) continue;
+              const cand = [[sx, sy], [gx, sy], [gx, ey], [ex, ey]];
+              if (cand.slice(0, -1).every((p, i) => segmentClear(p[0], p[1], cand[i + 1][0], cand[i + 1][1], ids))) return 2;
+            }
+            return null;
           } else if (fp === 'left') {            // left exit, vertical entry into top/bottom: one bend
             const sx = f.x, sy = f.cy, ex = t.cx;
             const ey = tp === 'top' ? t.y : t.y + t.h;
@@ -105,11 +114,19 @@
           const rightEntryFree = !outEdges[e.to].some(o => o !== e && rects[o.to].cx >= t.cx - 30 && Math.abs(rects[o.to].cx - t.cx) >= 30);
           const cands = [];
           const sameRow = Math.abs(dy) <= 30;
+          // If the target is a decision that sends a forward branch back toward this loopback's side, avoid
+          // stealing that side vertex so the outgoing branch does not wrap around the back of the diamond.
+          const decisionBranchOnSide = !sameRow && nodeMap[e.to] && nodeMap[e.to].type === 'decision'
+            && (outEdges[e.to] || []).some(o => rects[o.to] && rects[o.to].cx >= t.cx - 30
+              && (dy > 30 ? rects[o.to].cy < t.cy - 30 : rects[o.to].cy > t.cy + 30));
           if (rightEntryFree) {
             if (leftExitFree) cands.push(['left', 'right']);
             if (!sameRow) cands.push([dy < 0 ? 'top' : 'bottom', 'right']);
           }
-          if (!sameRow && leftExitFree) cands.push(['left', dy < 0 ? 'bottom' : 'top']);
+          if (!sameRow && leftExitFree) {
+            if (decisionBranchOnSide) cands.push(['left', 'left']);
+            else cands.push(['left', dy < 0 ? 'bottom' : 'top']);
+          }
           cands.push([uTurn, uTurn]);
           let best = null;
           cands.forEach(([fp, tp]) => {
@@ -385,6 +402,17 @@
               const sy = p.fromPort === 'top' ? f.y : f.y + f.h;
               points = [[sx, sy], [sx, ey], [ex, ey]];
             }
+          } else if (p.fromPort === 'left' && p.toPort === 'left') {
+            const sx = f.x, sy = f.cy + srcOffY, ex = t.x, ey = t.cy + offsetY;
+            let gx = Math.min(sx, ex) - 24;
+            for (const pad of [24, 14, 10]) {
+              const cand = Math.min(sx, ex) - pad;
+              if (cand >= 8 && segmentClear(sx, sy, cand, sy, [e.from, e.to]) && segmentClear(cand, sy, cand, ey, [e.from, e.to]) && segmentClear(cand, ey, ex, ey, [e.from, e.to])) {
+                gx = cand;
+                break;
+              }
+            }
+            points = [[sx, sy], [gx, sy], [gx, ey], [ex, ey]];
           } else if (p.fromPort === 'left' && (p.toPort === 'top' || p.toPort === 'bottom')) {
             const sx = f.x;
             const sy = f.cy + srcOffY;

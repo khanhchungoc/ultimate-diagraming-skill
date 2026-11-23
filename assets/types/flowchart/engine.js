@@ -292,7 +292,9 @@
                   return Math.abs(X[u.id] - X[v.id]) < 1 && Math.min(lu, lv) < li && li < Math.max(lu, lv)
                     && x - 12 < cx && cx < x + LE.NODE_W + 12;                         // sits on a vertical pass-through
                 });
-                const slot = slots.find(x => (!succ.length ? x === X[n.id] : x - X[n.id] <= 1.5 * LE.COL_WIDTH)
+                const hasSameLanePred = (fwdIn[n.id] || []).some(p => nodeMap[p] && nodeMap[p].laneId === n.laneId);
+                const maxSlide = (!succ.length && hasSameLanePred) ? 0 : 1.5 * LE.COL_WIDTH;
+                const slot = slots.find(x => x - X[n.id] <= maxSlide
                   && row0.every(m => clear(x, X[m.id])) && !blocked(x));
                 if (slot !== undefined) { X[n.id] = slot; sub[n.id] = 0; return; }
               }
