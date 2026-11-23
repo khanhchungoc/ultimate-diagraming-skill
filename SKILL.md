@@ -127,9 +127,9 @@ About 5 lines: the file, and anything that needs the user's action. Not a log of
 
 ## Direct-save helper (first run)
 
-Only when `layout_engine.py` prints `[INFO] Direct-save helper not configured yet`: ask the user once whether to enable the local background direct-save helper (**default: Yes**) and give concrete examples so they can decide:
-- **Yes (recommended):** Runs a tiny local-only Python listener (`127.0.0.1`, auto-exits after 60 min idle, only updates registered diagram `.html` files). Example: open `docs/flow.html` in VS Code's integrated browser, Chrome, Edge, Firefox, or Safari → edit → press `Ctrl+S` → `docs/flow.html` updates directly in place with no file picker.
-- **No:** No background listener runs. Example: in Chrome/Edge you can link a folder once; in VS Code's integrated browser, Firefox, or Safari, Save opens a Save As picker or downloads a copy (`flow (1).html`).
+Only when `layout_engine.py` prints `[INFO] Direct-save helper not configured yet`: ask the user once in plain English whether to turn on one-click saving for diagrams (**default: Yes**), explaining what happens with and without it (avoid technical jargon like `127.0.0.1` or `listener`):
+- **With it (Yes, default):** Normally web browsers block HTML files from saving changes back to themselves; a tiny helper on your computer (stops automatically when idle) lets **Save** (`Ctrl+S`) update your diagram file right away in any browser with no extra popups or duplicate copies.
+- **Without it (No):** Nothing runs in the background. You will have to pick and overwrite the file on your first save before it can save without opening the file browser.
 
 Once the user answers, run `python scripts/save_helper.py config --enable` (Yes) or `python scripts/save_helper.py config --disable` (No) so the choice is saved and never asked again. Never enable or start the helper before the user answers.
 

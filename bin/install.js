@@ -227,17 +227,17 @@ function getCacheConfigPath() {
 }
 
 async function promptSaveHelper() {
-  console.log(`${c.cyan} ?  DIRECT SAVE ON LOCAL HTML DIAGRAMS${c.reset}`);
-  console.log('    Enable the local background save helper? It listens only on your machine (127.0.0.1),');
-  console.log('    auto-exits after 60 min idle, and only updates registered diagram HTML files.');
-  console.log(`      ${c.white}Yes (default)${c.reset}  Open docs/flow.html in VS Code's integrated browser, Chrome, Edge,`);
-  console.log(`                     Firefox, or Safari -> edit -> press Ctrl+S -> file updates in place.`);
-  console.log(`      ${c.white}No${c.reset}             No background listener runs. Chrome/Edge can still link a folder;`);
-  console.log(`                     VS Code's integrated browser, Firefox, and Safari show a Save As picker`);
-  console.log(`                     or download a copy (e.g. flow (1).html).`);
+  console.log(`${c.cyan} ?  ONE-CLICK SAVING FOR DIAGRAMS${c.reset}`);
+  console.log('    Normally, web browsers block HTML files from saving changes back to themselves.');
+  console.log('    A tiny helper on your computer (stops automatically when idle) lets Save just work:');
+  console.log(`      ${c.white}Yes (default)${c.reset}  Click Save (or Ctrl+S) in any browser and your diagram file updates`);
+  console.log('                     right away. No extra popups or duplicate copies.');
+  console.log(`      ${c.white}No${c.reset}             Nothing runs in the background. You will have to pick and overwrite`);
+  console.log('                     the file on your first save before it can save without opening the');
+  console.log('                     file browser.');
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
   try {
-    const answer = (await rl.question('    Enable direct-save helper? [Y/n]: ')).trim().toLowerCase();
+    const answer = (await rl.question('    Turn on one-click saving? [Y/n]: ')).trim().toLowerCase();
     console.log('');
     return !(answer === 'n' || answer === 'no');
   } finally {
