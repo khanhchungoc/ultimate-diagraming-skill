@@ -1455,6 +1455,7 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
+      gap: 12px;
       position: relative;   /* anchors the search bar */
       z-index: 100;
       box-shadow: var(--shadow-sm);
@@ -1465,6 +1466,8 @@
       align-items: center;
       gap: 10px;
     }
+    .toolbar-left { min-width: 0; flex: 1 1 auto; }
+    .toolbar-right { flex: none; }
     .toolbar-left > svg, .type-switch svg { flex: none; color: var(--primary); }   /* the type's header icon */
     /* Playground type switcher: a labeled button (icon, name, chevron) over a scrollable menu, so it holds any number of types */
     .type-btn { gap: 8px; padding: 0 10px; height: 36px; }
@@ -1472,7 +1475,7 @@
     #type-menu { min-width: 220px; max-height: min(60vh, 420px); overflow-y: auto; }
     #type-menu button { display: flex; align-items: center; gap: 10px; width: 100%; }
     #type-menu .menu-check { margin-left: auto; }
-    /* Header buttons: universal glyphs (theme, help) are icon-only 36px squares, borderless until hovered; actions (Import, Present, Export, Save) keep a text label */
+    /* Header buttons: universal glyphs (theme, help, import, export) are icon-only 36px squares, borderless until hovered; Present and Save keep a text label when there is room */
     header .btn-icon {
       width: 36px; height: 36px; padding: 0;
       justify-content: center;
@@ -1485,7 +1488,14 @@
     }
     header .btn-icon:disabled, header .btn-icon:disabled:hover { background: transparent; border-color: transparent; }
     header .btn-icon svg, header .toolbar-right > .btn svg, header .menu-wrap > .btn svg { width: var(--icon-lg); height: var(--icon-lg); }
-    header .toolbar-right > .btn:not(.btn-icon), header .menu-wrap > .btn { height: 36px; }   /* labeled buttons (Import, Present, Export, Save) line up with the icon squares */
+    header .toolbar-right > .btn:not(.btn-icon), header .menu-wrap > .btn:not(.btn-icon) { height: 36px; }   /* labeled buttons (Present, Save) line up with the icon squares */
+    body:not(.presentation) header.is-compact .toolbar-right .btn-label { display: none; }
+    body:not(.presentation) header.is-compact .toolbar-right > .btn:not(.btn-icon),
+    body:not(.presentation) header.is-compact .toolbar-right .menu-wrap > .btn:not(.btn-icon) {
+      width: 36px;
+      padding: 0;
+      justify-content: center;
+    }
     .toolbar-sep { width: 1px; height: 20px; background: var(--border-color); flex: none; }
 
     .app-title-container {
@@ -1494,6 +1504,7 @@
       gap: 8px;
       min-width: 0;
     }
+    .app-title-container > .badge-status { flex: none; }
 
     h1#chart-title {
       font-size: var(--text-2xl);
@@ -1735,11 +1746,12 @@
     /* Narrow screens (a shared link opened on a phone): icon-only docks, compact header */
     @media (max-width: 720px) {
       header { padding: 0 10px; }
-      .toolbar-left { min-width: 0; flex: 1 1 auto; }
       .type-btn .btn-label { display: inline; max-width: 96px; overflow: hidden; text-overflow: ellipsis; }   /* the type name stays on a phone */
       .type-switch ~ .app-title-container { display: none; }   /* no room for the title beside the switcher on a phone */
-      .toolbar-right { gap: 6px; flex: none; }
-      .btn-label { display: none; }
+      .toolbar-right { gap: 6px; }
+      header .toolbar-right .btn-label { display: none; }
+      header .toolbar-right > .btn:not(.btn-icon),
+      header .toolbar-right .menu-wrap > .btn:not(.btn-icon) { width: 36px; padding: 0; justify-content: center; }
       #btn-help { display: none; }   /* a phone has no keyboard shortcuts to list */
       #help-drawer { top: 64px; right: 12px; bottom: auto; }
     }
@@ -2723,12 +2735,12 @@ html.is-loading #page-loading { display: grid; }
       <button id="btn-present" class="btn" title="Present: a read-only view (Esc exits)" aria-label="Present" aria-pressed="false">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4l18 0"/><path d="M4 4v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-10"/><path d="M12 16l0 4"/><path d="M9 20l6 0"/><path d="M8 12l3 -3l2 2l3 -3"/></svg><span class="btn-label">Present</span>
       </button>
-      <button id="btn-import-mermaid" class="btn" title="Import: replace the diagram from pasted Mermaid text (Ctrl+V on the canvas does the same)" aria-label="Import Mermaid" hidden>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2"/><path d="M7 11l5 5l5 -5"/><path d="M12 4l0 12"/></svg><span class="btn-label">Import</span>
+      <button id="btn-import-mermaid" class="btn btn-icon" title="Import: replace the diagram from pasted Mermaid text (Ctrl+V on the canvas does the same)" aria-label="Import Mermaid" hidden>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2"/><path d="M7 11l5 5l5 -5"/><path d="M12 4l0 12"/></svg>
       </button>
       <div class="menu-wrap">
-        <button id="btn-export" class="btn" title="Export: download or copy the diagram as an image" aria-label="Export" aria-haspopup="menu" aria-expanded="false">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2"/><path d="M7 9l5 -5l5 5"/><path d="M12 4l0 12"/></svg><span class="btn-label">Export</span>
+        <button id="btn-export" class="btn btn-icon" title="Export: download or copy the diagram as an image" aria-label="Export" aria-haspopup="menu" aria-expanded="false">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2"/><path d="M7 9l5 -5l5 5"/><path d="M12 4l0 12"/></svg>
         </button>
         <div id="export-menu" class="menu" role="menu" hidden>
           <div class="menu-label" role="presentation">Download</div>
@@ -3463,6 +3475,7 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
 // Elements
       const viewport = document.getElementById('viewport');
       const stage = document.getElementById('stage');
+      const headerEl = document.querySelector('header');
       const chartTitleEl = document.getElementById('chart-title');
       const saveStatus = document.getElementById('save-status');
       const btnSave = document.getElementById('btn-save');
@@ -3475,6 +3488,18 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
       const btnRedo = document.getElementById('btn-redo');
       const btnHelp = document.getElementById('btn-help');
       const helpDrawer = document.getElementById('help-drawer');
+
+      // Switch header action buttons (Present, Save) to icon-only whenever the viewport + diagram title leave no room for labels
+      function syncHeaderCompact() {
+        if (!headerEl || document.body.classList.contains('presentation')) return;
+        headerEl.classList.remove('is-compact');
+        const overflows = headerEl.scrollWidth > headerEl.clientWidth + 1
+          || (chartTitleEl && chartTitleEl.scrollWidth > chartTitleEl.clientWidth + 1);
+        headerEl.classList.toggle('is-compact', overflows);
+      }
+      if (typeof ResizeObserver !== 'undefined' && headerEl) {
+        new ResizeObserver(syncHeaderCompact).observe(headerEl);
+      }
 
       // --- MOTION KERNEL (shared by shell + all 4 diagram plugins; zero external dependencies) ---
       const noAnimParam = /[?&](?:report|tidy|noanim)(?:=|&|$)/.test(window.location.search);
@@ -4294,8 +4319,9 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
           applyInitialView();
           // The web font (Google Fonts link in shell.html) loads asynchronously: render again once it is in, so label
           // fitting and edge-label widths are measured with the real glyphs, and only then report, tidy, or settle.
+          syncHeaderCompact();
           const fontsIn = document.fonts && document.fonts.status !== 'loaded'
-            ? document.fonts.ready.then(() => { plugin.render(); applyInitialView(); }).catch(() => {})
+            ? document.fonts.ready.then(() => { plugin.render(); applyInitialView(); syncHeaderCompact(); }).catch(() => {})
             : Promise.resolve();
           fontsIn.then(() => {
             document.documentElement.dataset.diagramSettled = '1';
@@ -4328,6 +4354,7 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
         }
         document.body.classList.toggle('presentation', on);
         btnPresent.setAttribute('aria-pressed', String(on));
+        if (!on) syncHeaderCompact();
         if (!on && presentEntry) {   // folds made while presenting are view only: put the model and history back as they were
           const e = presentEntry;
           undoStack = e.undo; redoStack = e.redo;
@@ -4363,6 +4390,7 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
         saveStatus.textContent = text;
         if (cls !== undefined) saveStatus.className = cls;
         if (title !== undefined) saveStatus.title = title;
+        syncHeaderCompact();
         if (prevRect && prevRect.width > 0) {
           motion.morphRect(prevRect, saveStatus, { duration: 180, easing: 'curve-inout' });
           const roll = document.createElement('span');
