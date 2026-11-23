@@ -27,6 +27,7 @@
         NUM_W: 28,                              // room for the step number before a label ("numbered")
         DETAIL_CHAR_W: Math.round(TOKENS.font.metrics.detail * (12 / 11) * 10) / 10, DETAIL_ROW: 12,     // a message's detail line: smaller text, and the extra row height
         NOTE_W: 184, NOTE_SPAN_PAD: 64, NOTE_CHAR_W: TOKENS.font.metrics.note, NOTE_PAD: 10, NOTE_LINE: 17, NOTE_GAP: 14,
+        NOTE_CLEAR: 24, NOTE_MAX_W: 360,        // clearance before the next lifeline, and max auto-width on the rightmost lifeline
         SUMMARY_ROW: 44,                        // the one row a collapsed frame takes
         RAIL_W: 36, RAIL_H: 80,                 // a rail's width and height
         GAP_CLEAR: 52, RAIL_CLEAR: 24,          // clear space between two boxes (MIN_GAP - BOX_W), and beside a rail
@@ -75,6 +76,14 @@
           lines.push(line);
         });
         return lines;
+      }
+      // Width for a single-lifeline or free note: starts at NOTE_W and expands rightward into open space
+      // up to the next lifeline (leaving NOTE_CLEAR), or NOTE_MAX_W when there is no lifeline to the right.
+      function sqNoteSingleW(text, leftX, nextX) {
+        const maxLen = String(text == null ? '' : text).split('\n').reduce((m, s) => Math.max(m, s.length), 0);
+        const want = sqGrid(Math.ceil(maxLen * SQ.NOTE_CHAR_W) + 2 * SQ.NOTE_PAD);
+        const avail = nextX !== undefined ? Math.floor(nextX - SQ.NOTE_CLEAR - leftX) : SQ.NOTE_MAX_W;
+        return Math.max(SQ.NOTE_W, Math.min(want, avail));
       }
 
       function layoutDiagram(data) {
@@ -235,16 +244,28 @@
         };
         const noteBox = (n) => {
           if (n.over === undefined && typeof n.place === 'number' && ps.length) {
-            const lines = sqWrap(n.text, Math.max(4, Math.floor((SQ.NOTE_W - 2 * SQ.NOTE_PAD) / SQ.NOTE_CHAR_W)));
-            return { x: Math.max(SQ.GRID, Math.round(placeX(n.place) - SQ.NOTE_W / 2)), w: SQ.NOTE_W, h: lines.length * SQ.NOTE_LINE + 2 * SQ.NOTE_PAD };
+            const cx = placeX(n.place);
+            const x = Math.max(SQ.GRID, Math.round(cx - SQ.NOTE_W / 2));
+            const nextX = colX.find((lx) => lx > cx + 1);
+            const w = sqNoteSingleW(n.text, x, nextX);
+            const lines = sqWrap(n.text, Math.max(4, Math.floor((w - 2 * SQ.NOTE_PAD) / SQ.NOTE_CHAR_W)));
+            return { x, w: Math.round(w), h: lines.length * SQ.NOTE_LINE + 2 * SQ.NOTE_PAD };
           }
           const over = sqNoteOver(n).map((id) => ps[pIdx[id]]);
           if (!over.length || over.some((p) => !p)) return null;
           const xs = over.map((p) => p.x);
           const lo = Math.min.apply(null, xs), hi = Math.max.apply(null, xs);
-          const w = hi > lo ? hi - lo + 2 * SQ.NOTE_SPAN_PAD : SQ.NOTE_W;
+          let x, w;
+          if (hi > lo) {
+            w = hi - lo + 2 * SQ.NOTE_SPAN_PAD;
+            x = Math.round((lo + hi) / 2 - w / 2);
+          } else {
+            x = Math.round(lo - SQ.NOTE_W / 2);
+            const nextX = colX[colOf[pIdx[over[0].id]] + 1];
+            w = sqNoteSingleW(n.text, x, nextX);
+          }
           const lines = sqWrap(n.text, Math.max(4, Math.floor((w - 2 * SQ.NOTE_PAD) / SQ.NOTE_CHAR_W)));
-          return { x: Math.round((lo + hi) / 2 - w / 2), w: Math.round(w), h: lines.length * SQ.NOTE_LINE + 2 * SQ.NOTE_PAD };
+          return { x, w: Math.round(w), h: lines.length * SQ.NOTE_LINE + 2 * SQ.NOTE_PAD };
         };
         ns.forEach((n) => {
           const key = n.after !== undefined ? 'after' : n.before !== undefined ? 'before' : null;

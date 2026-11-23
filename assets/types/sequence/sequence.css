@@ -148,9 +148,13 @@
     body.exporting .seq-participant.is-gone, body.capture .seq-participant.is-gone { opacity: 1 !important; }
     .seq-lifeline.is-rail { stroke-dasharray: 2 5; opacity: 0.6; }
     /* Notes: the shared card (components/note.css) over one lifeline, or stretched over two. The engine sizes it, so the text
-       keeps the engine's line breaks, and the 3px accent edge comes out of the left padding to leave the text area as measured. */
+       keeps the engine's line breaks, and the 3px accent edge comes out of the left padding to leave the text area as measured.
+       While editing, the unwrapped raw text is shown, so wrap inside the card width and let the card grow vertically if needed. */
     #seq-canvas .note { padding: 10px 10px 10px 8px; line-height: var(--line-17); overflow: hidden; cursor: pointer; touch-action: none; }
     #seq-canvas .note-text { white-space: pre; min-height: 0; }
+    #seq-canvas .note-text[contenteditable="true"],
+    #seq-canvas .note-text[contenteditable="plaintext-only"] { white-space: pre-wrap; overflow-wrap: break-word; min-height: var(--line-17); }
+    #seq-canvas .note:has(.note-text[contenteditable="true"], .note-text[contenteditable="plaintext-only"]) { height: auto !important; overflow: visible; z-index: 15; }
     #seq-canvas .note.dragging { opacity: 0.75; z-index: 20; }
     body.presentation .seq-participant, body.presentation .seq-msg-label,
     body.presentation .seq-msg-hit, body.presentation .seq-msg-detail, body.presentation .note,
