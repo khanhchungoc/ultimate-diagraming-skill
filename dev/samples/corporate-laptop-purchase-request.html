@@ -17,7 +17,7 @@
   "diagramType": "flowchart",
   "schemaVersion": 1,
   "title": "Corporate Laptop Purchase Request",
-  "direction": "LR",
+  "direction": "TB",
   "lanes": [
     { "id": "lane-employee", "name": "Employee", "icon": "user" },
     { "id": "lane-system", "name": "System", "icon": "cpu" },
@@ -34,24 +34,24 @@
     { "id": "n_mandatory_info_provided", "laneId": "lane-system", "type": "decision", "label": "All Info Provided?" },
     { "id": "n_check_inventory", "laneId": "lane-it", "type": "task", "label": "Check Inventory" },
     { "id": "n_existing_available", "laneId": "lane-it", "type": "decision", "label": "Existing Match Found?" },
-    { "id": "n_reserve_device", "laneId": "lane-it", "type": "task", "label": "Reserve Device" },
     { "id": "n_review_justification", "laneId": "lane-manager", "type": "task", "label": "Review Justification" },
+    { "id": "n_reserve_device", "laneId": "lane-it", "type": "task", "label": "Reserve Device" },
+    { "id": "n_justification_approved", "laneId": "lane-manager", "type": "decision", "label": "Justification Approved?" },
     { "id": "n_notify_employee_allocated", "laneId": "lane-it", "type": "task", "label": "Notify Employee" },
     { "id": "n_review_spec", "laneId": "lane-it", "type": "task", "label": "Review Specification" },
-    { "id": "n_justification_approved", "laneId": "lane-manager", "type": "decision", "label": "Justification Approved?" },
+    { "id": "n_notify_rejection", "laneId": "lane-manager", "type": "task", "label": "Notify Rejection" },
     { "id": "n_laptop_allocated", "laneId": "lane-it", "type": "end", "label": "Laptop Allocated" },
     { "id": "n_is_spec_standard", "laneId": "lane-it", "type": "decision", "label": "Standard Specification?" },
-    { "id": "n_notify_rejection", "laneId": "lane-manager", "type": "task", "label": "Notify Rejection" },
-    { "id": "n_request_extra_justification", "laneId": "lane-it", "type": "task", "label": "Request Justification" },
     { "id": "n_request_rejected", "laneId": "lane-manager", "type": "end", "label": "Request Rejected" },
     { "id": "n_provide_extra_justification", "laneId": "lane-employee", "type": "task", "label": "Provide Justification" },
+    { "id": "n_request_extra_justification", "laneId": "lane-it", "type": "task", "label": "Request Justification" },
     { "id": "n_reevaluate_spec", "laneId": "lane-it", "type": "task", "label": "Re-evaluate Spec" },
     { "id": "n_spec_approved", "laneId": "lane-it", "type": "decision", "label": "Spec Approved?" },
     { "id": "n_suggest_standard_spec", "laneId": "lane-it", "type": "task", "label": "Suggest Standard Spec" },
     { "id": "n_accept_standard_spec", "laneId": "lane-employee", "type": "decision", "label": "Accept Standard Spec?" },
-    { "id": "n_request_withdrawn", "laneId": "lane-employee", "type": "end", "label": "Request Withdrawn" },
     { "id": "n_approve_spec", "laneId": "lane-it", "type": "task", "label": "Approve Specification" },
     { "id": "n_obtain_price", "laneId": "lane-procurement", "type": "task", "label": "Obtain Price" },
+    { "id": "n_request_withdrawn", "laneId": "lane-employee", "type": "end", "label": "Request Withdrawn" },
     { "id": "n_purchase_value_band", "laneId": "lane-procurement", "type": "decision", "label": "Purchase Value Band?" },
     { "id": "n_obtain_2_quotes", "laneId": "lane-procurement", "type": "task", "label": "Obtain 2 Quotes" },
     { "id": "n_obtain_3_quotes", "laneId": "lane-procurement", "type": "task", "label": "Obtain 3 Quotes" },
@@ -61,8 +61,8 @@
     { "id": "n_update_cost_centre", "laneId": "lane-manager", "type": "task", "label": "Update Cost Centre" },
     { "id": "n_select_cost_centre", "laneId": "lane-manager", "type": "decision", "label": "Select New Cost Centre?" },
     { "id": "n_budget_available", "laneId": "lane-finance", "type": "decision", "label": "Budget Available?" },
-    { "id": "n_request_cancelled", "laneId": "lane-manager", "type": "end", "label": "Request Cancelled" },
     { "id": "n_create_send_po", "laneId": "lane-procurement", "type": "task", "label": "Create & Send PO" },
+    { "id": "n_request_cancelled", "laneId": "lane-manager", "type": "end", "label": "Request Cancelled" },
     { "id": "n_check_stock", "laneId": "lane-supplier", "type": "task", "label": "Check Stock" },
     { "id": "n_item_in_stock", "laneId": "lane-supplier", "type": "decision", "label": "Laptop In Stock?" },
     { "id": "n_review_alternative", "laneId": "lane-it", "type": "task", "label": "Review Alternative" },
@@ -73,15 +73,15 @@
     { "id": "n_deliver_laptop", "laneId": "lane-supplier", "type": "task", "label": "Deliver Laptop" },
     { "id": "n_inspect_device", "laneId": "lane-it", "type": "task", "label": "Inspect Device" },
     { "id": "n_device_condition", "laneId": "lane-it", "type": "decision", "label": "Device Correct & OK?" },
-    { "id": "n_configure_laptop", "laneId": "lane-it", "type": "task", "label": "Configure Laptop" },
     { "id": "n_return_to_supplier", "laneId": "lane-it", "type": "task", "label": "Return to Supplier" },
     { "id": "n_send_replacement", "laneId": "lane-supplier", "type": "task", "label": "Send Replacement" },
+    { "id": "n_configure_laptop", "laneId": "lane-it", "type": "task", "label": "Configure Laptop" },
     { "id": "n_assign_laptop", "laneId": "lane-it", "type": "task", "label": "Assign Laptop" },
     { "id": "n_confirm_receipt", "laneId": "lane-employee", "type": "task", "label": "Confirm Receipt" },
     { "id": "n_issue_found", "laneId": "lane-employee", "type": "decision", "label": "Any Issues Found?" },
-    { "id": "n_close_request", "laneId": "lane-employee", "type": "task", "label": "Close Request" },
     { "id": "n_raise_ticket", "laneId": "lane-employee", "type": "task", "label": "Raise IT Ticket" },
     { "id": "n_resolve_issue", "laneId": "lane-it", "type": "task", "label": "Resolve Ticket Issue" },
+    { "id": "n_close_request", "laneId": "lane-employee", "type": "task", "label": "Close Request" },
     { "id": "n_laptop_issued", "laneId": "lane-employee", "type": "end", "label": "Laptop Issued" }
   ],
   "edges": [
@@ -155,68 +155,68 @@
     { "id": "note-quote-rules", "text": "≤ $1,500: direct to Finance\n$1,500–$5,000: 2 supplier quotes\n> $5,000: 3 supplier quotes + budget approval", "nodes": ["n_purchase_value_band"] }
   ],
   "layout": {
-    "lane-employee": { "height": 308 },
-    "lane-system": { "height": 192 },
-    "lane-it": { "height": 308 },
-    "lane-manager": { "height": 308 },
-    "lane-procurement": { "height": 308 },
-    "lane-finance": { "height": 192 },
-    "lane-supplier": { "height": 192 },
-    "n_submit_request": { "x": 56, "y": 56 },
-    "n_check_mandatory_info": { "x": 200, "y": 64 },
-    "n_update_request": { "x": 400, "y": 56 },
-    "n_mandatory_info_provided": { "x": 400, "y": 48 },
-    "n_check_inventory": { "x": 400, "y": 56 },
-    "n_existing_available": { "x": 600, "y": 56 },
-    "n_reserve_device": { "x": 818.2, "y": 72 },
-    "n_review_justification": { "x": 818.2, "y": 56 },
-    "n_notify_employee_allocated": { "x": 1018.2, "y": 72 },
-    "n_review_spec": { "x": 1018.2, "y": 176 },
-    "n_justification_approved": { "x": 1018.2, "y": 56 },
-    "n_laptop_allocated": { "x": 1229, "y": 72 },
-    "n_is_spec_standard": { "x": 1229, "y": 160 },
-    "n_notify_rejection": { "x": 1229, "y": 72 },
-    "n_request_extra_justification": { "x": 1439.8, "y": 56 },
-    "n_request_rejected": { "x": 1439.8, "y": 72 },
-    "n_provide_extra_justification": { "x": 1639.8, "y": 56 },
-    "n_reevaluate_spec": { "x": 1639.8, "y": 56 },
-    "n_spec_approved": { "x": 1839.8, "y": 56 },
-    "n_suggest_standard_spec": { "x": 2050.6, "y": 72 },
-    "n_accept_standard_spec": { "x": 2250.6, "y": 56 },
-    "n_request_withdrawn": { "x": 2498.4, "y": 72 },
-    "n_approve_spec": { "x": 2498.4, "y": 72 },
-    "n_obtain_price": { "x": 2498.4, "y": 56 },
-    "n_purchase_value_band": { "x": 2698.4, "y": 56 },
-    "n_obtain_2_quotes": { "x": 2991.4, "y": 72 },
-    "n_obtain_3_quotes": { "x": 2991.4, "y": 176 },
-    "n_obtain_budget_approval": { "x": 3191.4, "y": 56 },
-    "n_select_supplier": { "x": 3391.4, "y": 56 },
-    "n_check_budget": { "x": 3535.4, "y": 64 },
-    "n_update_cost_centre": { "x": 3735.4, "y": 56 },
-    "n_select_cost_centre": { "x": 3735.4, "y": 176 },
-    "n_budget_available": { "x": 3735.4, "y": 48 },
-    "n_request_cancelled": { "x": 3975.8, "y": 56 },
-    "n_create_send_po": { "x": 3975.8, "y": 56 },
-    "n_check_stock": { "x": 4119.8, "y": 64 },
-    "n_item_in_stock": { "x": 4319.8, "y": 48 },
-    "n_review_alternative": { "x": 4530.6, "y": 56 },
-    "n_propose_alternative": { "x": 4530.6, "y": 64 },
-    "n_alternative_acceptable": { "x": 4730.6, "y": 56 },
-    "n_select_another_supplier": { "x": 4730.6, "y": 56 },
-    "n_confirm_delivery": { "x": 4971, "y": 64 },
-    "n_deliver_laptop": { "x": 5171, "y": 64 },
-    "n_inspect_device": { "x": 5315, "y": 56 },
-    "n_device_condition": { "x": 5515, "y": 56 },
-    "n_configure_laptop": { "x": 5733.2, "y": 72 },
-    "n_return_to_supplier": { "x": 5733.2, "y": 176 },
-    "n_send_replacement": { "x": 5733.2, "y": 64 },
-    "n_assign_laptop": { "x": 5933.2, "y": 72 },
-    "n_confirm_receipt": { "x": 6077.2, "y": 56 },
-    "n_issue_found": { "x": 6277.2, "y": 56 },
-    "n_close_request": { "x": 6495.4, "y": 72 },
-    "n_raise_ticket": { "x": 6495.4, "y": 176 },
-    "n_resolve_issue": { "x": 6495.4, "y": 56 },
-    "n_laptop_issued": { "x": 6695.4, "y": 72 }
+    "lane-employee": { "height": 424 },
+    "lane-system": { "height": 240 },
+    "lane-it": { "height": 424 },
+    "lane-manager": { "height": 424 },
+    "lane-procurement": { "height": 424 },
+    "lane-finance": { "height": 240 },
+    "lane-supplier": { "height": 240 },
+    "n_submit_request": { "x": 56, "y": 32 },
+    "n_check_mandatory_info": { "x": 152, "y": 48 },
+    "n_update_request": { "x": 288, "y": 32 },
+    "n_mandatory_info_provided": { "x": 288, "y": 48 },
+    "n_check_inventory": { "x": 288, "y": 32 },
+    "n_existing_available": { "x": 424, "y": 32 },
+    "n_review_justification": { "x": 424, "y": 32 },
+    "n_reserve_device": { "x": 577, "y": 32 },
+    "n_justification_approved": { "x": 577, "y": 32 },
+    "n_notify_employee_allocated": { "x": 730, "y": 32 },
+    "n_review_spec": { "x": 730, "y": 248 },
+    "n_notify_rejection": { "x": 730, "y": 32 },
+    "n_laptop_allocated": { "x": 866, "y": 32 },
+    "n_is_spec_standard": { "x": 866, "y": 248 },
+    "n_request_rejected": { "x": 866, "y": 32 },
+    "n_provide_extra_justification": { "x": 1019, "y": 32 },
+    "n_request_extra_justification": { "x": 1019, "y": 32 },
+    "n_reevaluate_spec": { "x": 1155, "y": 32 },
+    "n_spec_approved": { "x": 1291, "y": 32 },
+    "n_suggest_standard_spec": { "x": 1444, "y": 32 },
+    "n_accept_standard_spec": { "x": 1540, "y": 32 },
+    "n_approve_spec": { "x": 1636, "y": 32 },
+    "n_obtain_price": { "x": 1636, "y": 32 },
+    "n_request_withdrawn": { "x": 1693, "y": 32 },
+    "n_purchase_value_band": { "x": 1772, "y": 32 },
+    "n_obtain_2_quotes": { "x": 1925, "y": 32 },
+    "n_obtain_3_quotes": { "x": 1925, "y": 248 },
+    "n_obtain_budget_approval": { "x": 2061, "y": 32 },
+    "n_select_supplier": { "x": 2197, "y": 32 },
+    "n_check_budget": { "x": 2293, "y": 48 },
+    "n_update_cost_centre": { "x": 2429, "y": 32 },
+    "n_select_cost_centre": { "x": 2429, "y": 248 },
+    "n_budget_available": { "x": 2429, "y": 48 },
+    "n_create_send_po": { "x": 2525, "y": 32 },
+    "n_request_cancelled": { "x": 2621, "y": 32 },
+    "n_check_stock": { "x": 2621, "y": 48 },
+    "n_item_in_stock": { "x": 2757, "y": 48 },
+    "n_review_alternative": { "x": 2910, "y": 32 },
+    "n_propose_alternative": { "x": 2910, "y": 48 },
+    "n_alternative_acceptable": { "x": 3046, "y": 32 },
+    "n_select_another_supplier": { "x": 3046, "y": 32 },
+    "n_confirm_delivery": { "x": 3142, "y": 48 },
+    "n_deliver_laptop": { "x": 3278, "y": 48 },
+    "n_inspect_device": { "x": 3374, "y": 32 },
+    "n_device_condition": { "x": 3510, "y": 32 },
+    "n_return_to_supplier": { "x": 3510, "y": 248 },
+    "n_send_replacement": { "x": 3510, "y": 48 },
+    "n_configure_laptop": { "x": 3663, "y": 32 },
+    "n_assign_laptop": { "x": 3799, "y": 32 },
+    "n_confirm_receipt": { "x": 3895, "y": 32 },
+    "n_issue_found": { "x": 4031, "y": 32 },
+    "n_raise_ticket": { "x": 4031, "y": 248 },
+    "n_resolve_issue": { "x": 4031, "y": 32 },
+    "n_close_request": { "x": 4184, "y": 32 },
+    "n_laptop_issued": { "x": 4320, "y": 32 }
   }
 }
   </script>
@@ -6655,9 +6655,14 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
             if (hasLeftLoopback.has(e.to) && fromPort === 'right' && Math.abs(t.cy - f.cy) > 30) {
               toPort = (t.cy < f.cy) ? 'bottom' : 'top';
             } else if (fromPort === 'right' && fwdOuts.length === 1 && uNode && uNode.type !== 'decision') {
-              // One step into another lane: leave via top/bottom for a single bend instead of a Z
+              // One step into another lane: leave via top/bottom for a single bend instead of a Z,
+              // unless an incoming arrow already enters from that same side and a flow-side exit can single-bend
               const dy = t.cy - f.cy;
-              if (Math.abs(dy) > 30 && (Math.abs(t.cx - f.cx) < 30 || t.x > f.cx + 40)) {
+              const incomingSameSide = t.cx > f.x + f.w + 24 && (inEdges[uId] || []).some(o => {
+                const s = rects[o.from];
+                return s && (dy > 0 ? s.cy > f.cy + 30 : s.cy < f.cy - 30);
+              });
+              if (!incomingSameSide && Math.abs(dy) > 30 && (Math.abs(t.cx - f.cx) < 30 || t.x > f.cx + 40)) {
                 const sy = dy > 0 ? f.y + f.h : f.y;
                 if (segmentClear(f.cx, sy, f.cx, t.cy, [uId, e.to]) && segmentClear(f.cx, t.cy, t.x, t.cy, [uId, e.to])) {
                   fromPort = dy > 0 ? 'bottom' : 'top';
@@ -7450,7 +7455,7 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
             const da = Math.sign(a.pts[1][m] - a.pts[0][m]), db = Math.sign(b.pts[1][m] - b.pts[0][m]);
             if (da * db >= 0) return;                              // not facing
             const gap = da > 0 ? b.pts[1][m] - a.pts[1][m] : a.pts[1][m] - b.pts[1][m];
-            if (gap < 0 || gap > 40) return;                       // far apart, or overlapping (not this case)
+            if (gap < 0 || gap > 40 || Math.abs(a.pts[0][m] - b.pts[0][m]) >= 120) return;  // far apart, or overlapping (not this case)
             const dir = Math.sign(b.pts[2][k] - b.pts[1][k]);
             const src = rects[b.e.from], nx = b.pts[0][k] + dir * SLIDE;
             const lo = (k === 0 ? src.x : src.y) + 14, hi = (k === 0 ? src.x + src.w : src.y + src.h) - 14;
@@ -8696,6 +8701,11 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
               const f = rects[e.from], t = rects[e.to];
               const fcx = f[0] + f[2] / 2, fcy = f[1] + f[3] / 2, tcx = t[0] + t[2] / 2, tcy = t[1] + t[3] / 2;
               const alts = [];
+              if (Math.abs(tcy - fcy) < 2 && t[0] > f[0] + f[2]) {
+                const by1 = Math.min(f[1], t[1]) - 20, by2 = Math.max(f[1] + f[3], t[1] + t[3]) + 20;
+                alts.push([[fcx, f[1]], [fcx, by1], [tcx, by1], [tcx, t[1]]]);
+                alts.push([[fcx, f[1] + f[3]], [fcx, by2], [tcx, by2], [tcx, t[1] + t[3]]]);
+              }
               if (t[0] > f[0] + f[2] + 24) {
                 const ey = tcy > fcy ? t[1] : t[1] + t[3];
                 alts.push([[f[0] + f[2], fcy], [tcx, fcy], [tcx, ey]]);                 // right, then up/down into top/bottom
@@ -8764,10 +8774,12 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
           if (!s || !d) return;
           const sl = laneIdx[s.laneId], dl = laneIdx[d.laneId];
           if (sl === undefined || dl === undefined) return;
-          // Same lane: only a decision's branch that exits solely by looping back (a retry step) may sit beside it,
-          // and only when its label fits the gap between the two rows (the diamond's tip leaves one stub of extra room)
-          if (sl === dl && !(s.type === 'decision' && !forwardEdges.some(x => x.from === e.to)
-            && edges.some(x => x.from === e.to && back.has(KEY(x.from, x.to)))
+          // Same lane: a decision's side branch that either loops back or immediately hands off to another lane
+          // (no same-lane forward continuation) may sit beside the decision when its label fits the row gap
+          if (sl === dl && !(s.type === 'decision'
+            && !forwardEdges.some(x => x.from === e.to && nodeMap[x.to] && laneIdx[nodeMap[x.to].laneId] === dl)
+            && (edges.some(x => x.from === e.to && back.has(KEY(x.from, x.to)))
+              || forwardEdges.some(x => x.from === e.to && nodeMap[x.to] && laneIdx[nodeMap[x.to].laneId] !== dl))
             && (!LE.LABEL_ACROSS || (labelW[KEY(e.from, e.to)] || 0) <= LE.ROW_HEIGHT - LE.NODE_H + LE.LABEL_STUB))) return;
           if (cands.some(c => c.k === KEY(e.from, e.to))) return;
           cands.push({ k: KEY(e.from, e.to), from: e.from, to: e.to, side: dl < sl ? 'up' : 'down' });
@@ -9224,7 +9236,10 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
           const n = byId[id], m = byId[o];
           const ln = laneIdx[n.laneId], lm = laneIdx[m.laneId];
           const across = lm > ln ? 'far' : 'near';
-          if (ln === lm) return (m.x > n.x + 1) === out ? (out ? 'after' : 'before') : 'far';
+          if (ln === lm) {
+            if (Math.abs(m.x - n.x) < 30) return m.y > n.y ? 'far' : 'near';
+            return (m.x > n.x + 1) === out ? (out ? 'after' : 'before') : 'far';
+          }
           if (Math.abs(m.x - n.x) < 30) return across;
           // An arrow arriving from a step in another lane whose end is well past that step's edge runs along the
           // source row and enters across, facing the source's lane (the router's one-bend entry)

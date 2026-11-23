@@ -629,6 +629,11 @@
               const f = rects[e.from], t = rects[e.to];
               const fcx = f[0] + f[2] / 2, fcy = f[1] + f[3] / 2, tcx = t[0] + t[2] / 2, tcy = t[1] + t[3] / 2;
               const alts = [];
+              if (Math.abs(tcy - fcy) < 2 && t[0] > f[0] + f[2]) {
+                const by1 = Math.min(f[1], t[1]) - 20, by2 = Math.max(f[1] + f[3], t[1] + t[3]) + 20;
+                alts.push([[fcx, f[1]], [fcx, by1], [tcx, by1], [tcx, t[1]]]);
+                alts.push([[fcx, f[1] + f[3]], [fcx, by2], [tcx, by2], [tcx, t[1] + t[3]]]);
+              }
               if (t[0] > f[0] + f[2] + 24) {
                 const ey = tcy > fcy ? t[1] : t[1] + t[3];
                 alts.push([[f[0] + f[2], fcy], [tcx, fcy], [tcx, ey]]);                 // right, then up/down into top/bottom
@@ -697,10 +702,12 @@
           if (!s || !d) return;
           const sl = laneIdx[s.laneId], dl = laneIdx[d.laneId];
           if (sl === undefined || dl === undefined) return;
-          // Same lane: only a decision's branch that exits solely by looping back (a retry step) may sit beside it,
-          // and only when its label fits the gap between the two rows (the diamond's tip leaves one stub of extra room)
-          if (sl === dl && !(s.type === 'decision' && !forwardEdges.some(x => x.from === e.to)
-            && edges.some(x => x.from === e.to && back.has(KEY(x.from, x.to)))
+          // Same lane: a decision's side branch that either loops back or immediately hands off to another lane
+          // (no same-lane forward continuation) may sit beside the decision when its label fits the row gap
+          if (sl === dl && !(s.type === 'decision'
+            && !forwardEdges.some(x => x.from === e.to && nodeMap[x.to] && laneIdx[nodeMap[x.to].laneId] === dl)
+            && (edges.some(x => x.from === e.to && back.has(KEY(x.from, x.to)))
+              || forwardEdges.some(x => x.from === e.to && nodeMap[x.to] && laneIdx[nodeMap[x.to].laneId] !== dl))
             && (!LE.LABEL_ACROSS || (labelW[KEY(e.from, e.to)] || 0) <= LE.ROW_HEIGHT - LE.NODE_H + LE.LABEL_STUB))) return;
           if (cands.some(c => c.k === KEY(e.from, e.to))) return;
           cands.push({ k: KEY(e.from, e.to), from: e.from, to: e.to, side: dl < sl ? 'up' : 'down' });
@@ -1157,7 +1164,10 @@
           const n = byId[id], m = byId[o];
           const ln = laneIdx[n.laneId], lm = laneIdx[m.laneId];
           const across = lm > ln ? 'far' : 'near';
-          if (ln === lm) return (m.x > n.x + 1) === out ? (out ? 'after' : 'before') : 'far';
+          if (ln === lm) {
+            if (Math.abs(m.x - n.x) < 30) return m.y > n.y ? 'far' : 'near';
+            return (m.x > n.x + 1) === out ? (out ? 'after' : 'before') : 'far';
+          }
           if (Math.abs(m.x - n.x) < 30) return across;
           // An arrow arriving from a step in another lane whose end is well past that step's edge runs along the
           // source row and enters across, facing the source's lane (the router's one-bend entry)

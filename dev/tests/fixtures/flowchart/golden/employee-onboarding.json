@@ -61,7 +61,7 @@
       "id": "lane_training",
       "name": "Training Team",
       "icon": "database",
-      "height": 240
+      "height": 424
     }
   ],
   "nodes": [
@@ -118,7 +118,7 @@
       "laneId": "lane_hiring_mgr",
       "type": "task",
       "label": "Run 90-Day Probation Review",
-      "x": 4424,
+      "x": 4231,
       "y": 72
     },
     {
@@ -126,7 +126,7 @@
       "laneId": "lane_hiring_mgr",
       "type": "decision",
       "label": "Probation Review Outcome?",
-      "x": 4560,
+      "x": 4367,
       "y": 72
     },
     {
@@ -134,7 +134,7 @@
       "laneId": "lane_hiring_mgr",
       "type": "delay",
       "label": "Extend Probation 30 Days",
-      "x": 4560,
+      "x": 4367,
       "y": 288
     },
     {
@@ -142,7 +142,7 @@
       "laneId": "lane_hiring_mgr",
       "type": "end",
       "label": "Probation Passed",
-      "x": 4713,
+      "x": 4520,
       "y": 72
     },
     {
@@ -238,7 +238,7 @@
       "laneId": "lane_hr_ops",
       "type": "io",
       "label": "Send Welcome Email",
-      "x": 3342,
+      "x": 3302,
       "y": 32
     },
     {
@@ -246,7 +246,7 @@
       "laneId": "lane_hr_ops",
       "type": "task",
       "label": "Terminate Employment",
-      "x": 4656,
+      "x": 4463,
       "y": 32
     },
     {
@@ -254,7 +254,7 @@
       "laneId": "lane_hr_ops",
       "type": "end",
       "label": "Employment Terminated",
-      "x": 4792,
+      "x": 4599,
       "y": 32
     },
     {
@@ -326,7 +326,7 @@
       "laneId": "lane_recruiter",
       "type": "task",
       "label": "Renegotiate Salary",
-      "x": 1642,
+      "x": 1506,
       "y": 72
     },
     {
@@ -335,7 +335,7 @@
       "type": "document",
       "label": "Issue Offer Letter",
       "x": 1642,
-      "y": 288
+      "y": 72
     },
     {
       "id": "offer_response",
@@ -366,7 +366,7 @@
       "laneId": "lane_candidate",
       "type": "task",
       "label": "Collect Building Access Card",
-      "x": 3438,
+      "x": 3398,
       "y": 32
     },
     {
@@ -374,7 +374,7 @@
       "laneId": "lane_candidate",
       "type": "task",
       "label": "Receive Assigned Laptop",
-      "x": 3574,
+      "x": 3534,
       "y": 32
     },
     {
@@ -382,7 +382,7 @@
       "laneId": "lane_candidate",
       "type": "task",
       "label": "Sign IT Acceptable-Use Policy",
-      "x": 3710,
+      "x": 3670,
       "y": 32
     },
     {
@@ -390,7 +390,7 @@
       "laneId": "lane_candidate",
       "type": "task",
       "label": "Complete Overdue Training",
-      "x": 4288,
+      "x": 4231,
       "y": 32
     },
     {
@@ -446,7 +446,7 @@
       "laneId": "lane_it",
       "type": "task",
       "label": "Suspend User Access",
-      "x": 4288,
+      "x": 4231,
       "y": 32
     },
     {
@@ -486,40 +486,40 @@
       "laneId": "lane_training",
       "type": "task",
       "label": "Enrol in Mandatory Training",
-      "x": 3710,
-      "y": 48
+      "x": 3670,
+      "y": 32
     },
     {
       "id": "training_done_30",
       "laneId": "lane_training",
       "type": "decision",
       "label": "Completed by Day 30?",
-      "x": 3846,
-      "y": 48
+      "x": 3806,
+      "y": 32
     },
     {
       "id": "send_reminder",
       "laneId": "lane_training",
       "type": "io",
       "label": "Send Training Reminder",
-      "x": 3999,
-      "y": 48
+      "x": 3959,
+      "y": 32
     },
     {
       "id": "training_done_45",
       "laneId": "lane_training",
       "type": "decision",
       "label": "Completed by Day 45?",
-      "x": 4135,
-      "y": 48
+      "x": 4095,
+      "y": 32
     },
     {
       "id": "notify_manager",
       "laneId": "lane_training",
       "type": "io",
       "label": "Notify Hiring Manager",
-      "x": 4288,
-      "y": 48
+      "x": 4095,
+      "y": 248
     }
   ],
   "edges": [

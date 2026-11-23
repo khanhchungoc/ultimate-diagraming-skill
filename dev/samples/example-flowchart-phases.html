@@ -6498,9 +6498,14 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
             if (hasLeftLoopback.has(e.to) && fromPort === 'right' && Math.abs(t.cy - f.cy) > 30) {
               toPort = (t.cy < f.cy) ? 'bottom' : 'top';
             } else if (fromPort === 'right' && fwdOuts.length === 1 && uNode && uNode.type !== 'decision') {
-              // One step into another lane: leave via top/bottom for a single bend instead of a Z
+              // One step into another lane: leave via top/bottom for a single bend instead of a Z,
+              // unless an incoming arrow already enters from that same side and a flow-side exit can single-bend
               const dy = t.cy - f.cy;
-              if (Math.abs(dy) > 30 && (Math.abs(t.cx - f.cx) < 30 || t.x > f.cx + 40)) {
+              const incomingSameSide = t.cx > f.x + f.w + 24 && (inEdges[uId] || []).some(o => {
+                const s = rects[o.from];
+                return s && (dy > 0 ? s.cy > f.cy + 30 : s.cy < f.cy - 30);
+              });
+              if (!incomingSameSide && Math.abs(dy) > 30 && (Math.abs(t.cx - f.cx) < 30 || t.x > f.cx + 40)) {
                 const sy = dy > 0 ? f.y + f.h : f.y;
                 if (segmentClear(f.cx, sy, f.cx, t.cy, [uId, e.to]) && segmentClear(f.cx, t.cy, t.x, t.cy, [uId, e.to])) {
                   fromPort = dy > 0 ? 'bottom' : 'top';
@@ -7293,7 +7298,7 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
             const da = Math.sign(a.pts[1][m] - a.pts[0][m]), db = Math.sign(b.pts[1][m] - b.pts[0][m]);
             if (da * db >= 0) return;                              // not facing
             const gap = da > 0 ? b.pts[1][m] - a.pts[1][m] : a.pts[1][m] - b.pts[1][m];
-            if (gap < 0 || gap > 40) return;                       // far apart, or overlapping (not this case)
+            if (gap < 0 || gap > 40 || Math.abs(a.pts[0][m] - b.pts[0][m]) >= 120) return;  // far apart, or overlapping (not this case)
             const dir = Math.sign(b.pts[2][k] - b.pts[1][k]);
             const src = rects[b.e.from], nx = b.pts[0][k] + dir * SLIDE;
             const lo = (k === 0 ? src.x : src.y) + 14, hi = (k === 0 ? src.x + src.w : src.y + src.h) - 14;
@@ -8539,6 +8544,11 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
               const f = rects[e.from], t = rects[e.to];
               const fcx = f[0] + f[2] / 2, fcy = f[1] + f[3] / 2, tcx = t[0] + t[2] / 2, tcy = t[1] + t[3] / 2;
               const alts = [];
+              if (Math.abs(tcy - fcy) < 2 && t[0] > f[0] + f[2]) {
+                const by1 = Math.min(f[1], t[1]) - 20, by2 = Math.max(f[1] + f[3], t[1] + t[3]) + 20;
+                alts.push([[fcx, f[1]], [fcx, by1], [tcx, by1], [tcx, t[1]]]);
+                alts.push([[fcx, f[1] + f[3]], [fcx, by2], [tcx, by2], [tcx, t[1] + t[3]]]);
+              }
               if (t[0] > f[0] + f[2] + 24) {
                 const ey = tcy > fcy ? t[1] : t[1] + t[3];
                 alts.push([[f[0] + f[2], fcy], [tcx, fcy], [tcx, ey]]);                 // right, then up/down into top/bottom
@@ -8607,10 +8617,12 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
           if (!s || !d) return;
           const sl = laneIdx[s.laneId], dl = laneIdx[d.laneId];
           if (sl === undefined || dl === undefined) return;
-          // Same lane: only a decision's branch that exits solely by looping back (a retry step) may sit beside it,
-          // and only when its label fits the gap between the two rows (the diamond's tip leaves one stub of extra room)
-          if (sl === dl && !(s.type === 'decision' && !forwardEdges.some(x => x.from === e.to)
-            && edges.some(x => x.from === e.to && back.has(KEY(x.from, x.to)))
+          // Same lane: a decision's side branch that either loops back or immediately hands off to another lane
+          // (no same-lane forward continuation) may sit beside the decision when its label fits the row gap
+          if (sl === dl && !(s.type === 'decision'
+            && !forwardEdges.some(x => x.from === e.to && nodeMap[x.to] && laneIdx[nodeMap[x.to].laneId] === dl)
+            && (edges.some(x => x.from === e.to && back.has(KEY(x.from, x.to)))
+              || forwardEdges.some(x => x.from === e.to && nodeMap[x.to] && laneIdx[nodeMap[x.to].laneId] !== dl))
             && (!LE.LABEL_ACROSS || (labelW[KEY(e.from, e.to)] || 0) <= LE.ROW_HEIGHT - LE.NODE_H + LE.LABEL_STUB))) return;
           if (cands.some(c => c.k === KEY(e.from, e.to))) return;
           cands.push({ k: KEY(e.from, e.to), from: e.from, to: e.to, side: dl < sl ? 'up' : 'down' });
@@ -9067,7 +9079,10 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
           const n = byId[id], m = byId[o];
           const ln = laneIdx[n.laneId], lm = laneIdx[m.laneId];
           const across = lm > ln ? 'far' : 'near';
-          if (ln === lm) return (m.x > n.x + 1) === out ? (out ? 'after' : 'before') : 'far';
+          if (ln === lm) {
+            if (Math.abs(m.x - n.x) < 30) return m.y > n.y ? 'far' : 'near';
+            return (m.x > n.x + 1) === out ? (out ? 'after' : 'before') : 'far';
+          }
           if (Math.abs(m.x - n.x) < 30) return across;
           // An arrow arriving from a step in another lane whose end is well past that step's edge runs along the
           // source row and enters across, facing the source's lane (the router's one-bend entry)
