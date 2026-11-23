@@ -174,6 +174,23 @@ def test_stamp_and_http_save_and_security() -> None:
                 assert st == 200 and json.loads(raw)["name"] == "renamed-flow.html"
                 assert "<title>Preview Title</title>" in moved.read_text(encoding="utf-8")
 
+                # VS Code integrated browser (Electron) sends Origin: file://
+                st, hdrs, _ = _http_request(port, "OPTIONS", "/save", headers={"Origin": "file://"})
+                assert st == 204 and hdrs.get("access-control-allow-origin") == "file://"
+                data["title"] = "VS Code Browser Title"
+                body4 = json.dumps({"path": str(moved), "saveId": sid, "data": data, "title": data["title"]}).encode("utf-8")
+                st, hdrs, raw = _http_request(
+                    port, "POST", "/save", body=body4,
+                    headers={
+                        "Origin": "file://",
+                        "Content-Type": "application/json",
+                        "X-Ultimate-Diagram-Save": "1",
+                    },
+                )
+                assert st == 200 and hdrs.get("access-control-allow-origin") == "file://"
+                assert json.loads(raw)["name"] == "renamed-flow.html"
+                assert "<title>VS Code Browser Title</title>" in moved.read_text(encoding="utf-8")
+
                 # Security rejections
                 # 1. Remote Origin
                 st, _, _ = _http_request(
@@ -309,11 +326,12 @@ def test_session_start_hook_starts_helper_when_opted_in() -> None:
                 assert version_check.run_hook("gemini") == ""
                 ensure_mock.assert_not_called()
 
-            # Enabled -> starts on SessionStart even when update check is disabled
+            # Enabled -> starts on SessionStart even when update check is disabled (claude + copilot)
             save_helper.set_direct_save_enabled(True)
             with mock.patch.object(save_helper, "ensure_running") as ensure_mock:
                 assert version_check.run_hook("claude") == ""
-                ensure_mock.assert_called_once()
+                assert version_check.run_hook("copilot") == ""
+                assert ensure_mock.call_count == 2
 
 
 def main() -> None:

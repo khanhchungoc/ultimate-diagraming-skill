@@ -316,7 +316,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--check", action="store_true", help="Non-blocking cache check (prints [INFO] line if outdated)")
     group.add_argument("--refresh", action="store_true", help="Fetch latest GitHub release and update cache")
-    group.add_argument("--hook", choices=("claude", "gemini"), help="Emit SessionStart hook JSON for the given runtime")
+    group.add_argument("--hook", choices=("claude", "gemini", "copilot"), help="Emit SessionStart hook JSON for the given runtime")
     args = parser.parse_args(argv)
 
     if args.refresh:
