@@ -3623,7 +3623,7 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
           const sf = markPlay();
           const baseDur = Math.max(40, Math.round((o.duration ?? dur('dur-layout', 230)) * sf));
           const easing = curve(o.easing || 'curve-spring-settle');
-          const cull = items.length > 120;
+          const cull = items.length > 60;
           const ox = o.originRect ? (inStage ? (o.originRect.left - st.left) / k : o.originRect.left) : 0;
           const oy = o.originRect ? (inStage ? (o.originRect.top - st.top) / k : o.originRect.top) : 0;
           const ow = o.originRect ? o.originRect.width / k : 0;
@@ -3784,7 +3784,7 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
           if (svgJob) { cancelAnimationFrame(svgJob.raf); svgJob = null; syncBusy(); }
           if (!enabled() || !tracks || !tracks.length) return;
           const o = opts || {};
-          const polyCap = tracks.length > 60;
+          const polyCap = tracks.length > 35;
           const active = [];
           let total = 0;
           for (let i = 0; i < tracks.length; i++) {
@@ -3792,7 +3792,7 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
             if (!tr || !tr.el || !tr.from || !tr.to) continue;
             if (tr.type === 'polyline') {
               if (polyCap || Math.abs(tr.from.length - tr.to.length) > 24 || tr.from.length < 4 || tr.to.length < 4) {
-                if (tr.el.tagName === 'path') drawPath(tr.el, o);
+                if (!polyCap && tr.el.tagName === 'path') drawPath(tr.el, o);
                 continue;
               }
               const f = tr.from.length < tr.to.length ? normPoly(tr.from, tr.to) : tr.from;
@@ -4368,11 +4368,15 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
       btnTheme.addEventListener('click', (e) => applyTheme(currentTheme() === 'dark' ? 'light' : 'dark', true, e.isTrusted));
 
       // --- VIEWPORT PAN & ZOOM & FIT ---
+      let lastAppliedScale = null;
       function showZoom() { zoomLevelEl.textContent = `${Math.round((vpAnim ? vpAnim.targetScale : scale) * 100)}%`; }   // a glide in flight shows where it lands
       function updateTransform() {
         stage.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
-        stage.style.setProperty('--ui-scale', String(1 / scale));   // action bars undo the zoom: their size is fixed like the dock's
-        showZoom();
+        if (scale !== lastAppliedScale) {
+          lastAppliedScale = scale;
+          stage.style.setProperty('--ui-scale', String(1 / scale));   // action bars undo the zoom: their size is fixed like the dock's
+          showZoom();
+        }
         if (plugin && plugin.onViewChange) plugin.onViewChange();   // e.g. keep frozen headers pinned
       }
 
@@ -4546,7 +4550,7 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
         isPanning = true;
         panStartX = e.clientX - panX;
         panStartY = e.clientY - panY;
-        viewport.classList.add('panning');
+        viewport.classList.add('panning', 'gesturing');
       }, true);
       viewport.addEventListener('mousedown', (e) => { if (e.button === 1) e.preventDefault(); }, true);
       viewport.addEventListener('auxclick', (e) => { if (e.button === 1) { e.preventDefault(); e.stopPropagation(); } }, true);
@@ -4559,7 +4563,7 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
           isPanning = true;
           panStartX = e.clientX - panX;
           panStartY = e.clientY - panY;
-          viewport.classList.add('panning');
+          viewport.classList.add('panning', 'gesturing');
           plugin.clearSelection();
         }
       });
@@ -4576,11 +4580,16 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
       let touchGesture = null;       // { kind: 'pan', sx, sy, panX, panY, moved, bg, target, init } | { kind: 'pinch', ... }
       let replayingTap = false;
       const TAP_SLOP = 8;            // px a finger may wander and still be a tap
-      let transformQueued = false;
+      let transformRaf = 0;
       function scheduleTransform() {
-        if (transformQueued) return;
-        transformQueued = true;
-        requestAnimationFrame(() => { transformQueued = false; updateTransform(); });
+        if (transformRaf) return;
+        transformRaf = requestAnimationFrame(() => { transformRaf = 0; updateTransform(); });
+      }
+      function flushTransform() {
+        if (!transformRaf) return;
+        cancelAnimationFrame(transformRaf);
+        transformRaf = 0;
+        updateTransform();
       }
       const isBlankCanvas = (el) => el === viewport || el.id === 'stage' || plugin.isBackground(el);
       function startPinch() {
@@ -4730,15 +4739,29 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
         if (!isPanning) return;
         panX = e.clientX - panStartX;
         panY = e.clientY - panStartY;
-        updateTransform();
+        scheduleTransform();
       });
 
-      window.addEventListener('pointerup', () => {
+      function endMousePan() {
+        if (!isPanning) return;
+        flushTransform();
         isPanning = false;
         viewport.classList.remove('panning');
-      });
+        if (!touchGesture && !vpAnim) viewport.classList.remove('gesturing');
+      }
+      window.addEventListener('pointerup', endMousePan);
+      window.addEventListener('pointercancel', endMousePan);
 
       const WHEEL_SCROLL = 0.4;   // canvas px per px a mouse wheel notch reports (~40px per notch)
+      let wheelGestureTimer = 0;
+      function bumpWheelGesture() {
+        viewport.classList.add('gesturing');
+        clearTimeout(wheelGestureTimer);
+        wheelGestureTimer = setTimeout(() => {
+          wheelGestureTimer = 0;
+          if (!isPanning && !touchGesture && !vpAnim) viewport.classList.remove('gesturing');
+        }, 140);
+      }
       viewport.addEventListener('wheel', (e) => {
         e.preventDefault();
         cancelViewportAnim();
@@ -4754,6 +4777,7 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
           const sideways = e.shiftKey && !dX;
           panX -= (sideways ? dY : dX) * k;
           panY -= (sideways ? 0 : dY) * k;
+          bumpWheelGesture();
           updateTransform();
           return;
         }
@@ -4767,6 +4791,7 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
         panX = cx - (cx - panX) * (newScale / scale);
         panY = cy - (cy - panY) * (newScale / scale);
         scale = newScale;
+        bumpWheelGesture();
         updateTransform();
       }, { passive: false });
 
@@ -6765,20 +6790,36 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
           minX: Math.min(b.minX, r.x), maxX: Math.max(b.maxX, r.x + r.w),
           minY: Math.min(b.minY, r.y), maxY: Math.max(b.maxY, r.y + r.h)
         }), { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity });
-        // Gap centers (+/-20px) between node x-bands so tight corridors are never skipped by STEP=16
-        const gapXs = (() => {
-          const ivs = rectList.map(([, r]) => [r.x, r.x + r.w]).sort((a, b) => a[0] - b[0]);
-          const xs = [];
+        // Gap centers (+/-22px) between node bands and node clearance edges so tight corridors are never skipped
+        const buildCorridors = (loKey, sizeKey, minBound, maxBound) => {
+          const ivs = rectList.map(([, r]) => [r[loKey], r[loKey] + r[sizeKey]]).sort((a, b) => a[0] - b[0]);
+          const seen = new Set();
+          const out = [];
+          const push = (v) => {
+            const q = Math.round(v / 8);
+            if (seen.has(q)) return;
+            seen.add(q);
+            out.push(v);
+          };
           let hi = -Infinity;
           for (const [a, b] of ivs) {
             if (a > hi + 28 && hi > -Infinity) {
               const mid = (hi + a) / 2;
-              xs.push(mid, mid - 22, mid + 22);
+              push(mid); push(mid - 22); push(mid + 22);
             }
             if (b > hi) hi = b;
           }
-          return xs;
-        })();
+          for (let k = 0; k < rectList.length; k++) {
+            const r = rectList[k][1];
+            push(r[loKey] - 16);
+            push(r[loKey] + r[sizeKey] + 16);
+          }
+          push(minBound - 24);
+          push(maxBound + 24);
+          return out;
+        };
+        const corridorXs = buildCorridors('x', 'w', bounds.minX, bounds.maxX);
+        const corridorYs = buildCorridors('y', 'h', bounds.minY, bounds.maxY);
         const altRoutes = (f, t, deep) => {
           const out = [];
           const SIDES = ['top', 'bottom', 'left', 'right'];
@@ -6791,15 +6832,25 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
               const dirOk = fp === 'right' ? ex > sx + 28 : ex < sx - 28;
               if (!dirOk) return;
               if (Math.abs(sy - ey) < 6) { add([[sx, sy], [ex, sy]]); return; }
-              const lo = Math.min(sx, ex) + 14, hi = Math.max(sx, ex) - 14;
-              for (let x = lo; x <= hi; x += 10) add([[sx, sy], [x, sy], [x, ey], [ex, ey]], Math.abs(x - (sx + ex) / 2));
+              const lo = Math.min(sx, ex) + 14, hi = Math.max(sx, ex) - 14, mid = (sx + ex) / 2;
+              let hasMid = false;
+              for (let x = lo; x <= hi; x += 16) {
+                if (Math.abs(x - mid) < 4) hasMid = true;
+                add([[sx, sy], [x, sy], [x, ey], [ex, ey]], Math.abs(x - mid));
+              }
+              if (!hasMid && lo <= mid && mid <= hi) add([[sx, sy], [mid, sy], [mid, ey], [ex, ey]], 0);
             } else if (!horiz(fp) && !horiz(tp)) {
               if (fp !== tp) {
                 const dirOk = fp === 'bottom' ? ey > sy + 28 : ey < sy - 28;
                 if (!dirOk) return;
                 if (Math.abs(sx - ex) < 1) { add([[sx, sy], [ex, ey]]); return; }
-                const lo = Math.min(sy, ey) + 14, hi = Math.max(sy, ey) - 14;
-                for (let y = lo; y <= hi; y += 10) add([[sx, sy], [sx, y], [ex, y], [ex, ey]], Math.abs(y - (sy + ey) / 2));
+                const lo = Math.min(sy, ey) + 14, hi = Math.max(sy, ey) - 14, mid = (sy + ey) / 2;
+                let hasMid = false;
+                for (let y = lo; y <= hi; y += 16) {
+                  if (Math.abs(y - mid) < 4) hasMid = true;
+                  add([[sx, sy], [sx, y], [ex, y], [ex, ey]], Math.abs(y - mid));
+                }
+                if (!hasMid && lo <= mid && mid <= hi) add([[sx, sy], [sx, mid], [ex, mid], [ex, ey]], 0);
               } else {
                 [28, 36, 48, 72].forEach(d => {
                   const g = fp === 'top' ? Math.max(8, Math.min(sy, ey) - d) : Math.max(sy, ey) + d;
@@ -6820,28 +6871,40 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
             }
             if (deep && horiz(fp) !== horiz(tp)) {
               // Three bends through a corridor: leave, run along a corridor, drop/rise, then enter
-              const STEP = 16;
+              const STEP = 64;
               if (!horiz(fp)) {
                 // vertical exit -> corridor above/below -> sideways to x -> vertical -> horizontal entry
                 [16, 20, 36, 56].forEach(d => {
                   const g = fp === 'top' ? sy - d : sy + d;
+                  const seenX = new Set();
                   const tryX = x => {
+                    const q = Math.round(x / 8);
+                    if (seenX.has(q)) return;
+                    seenX.add(q);
                     if (tp === 'left' ? x > ex - 14 : x < ex + 14) return;
                     if (Math.abs(x - sx) < 10 || Math.abs(ey - g) < 10) return;
                     add([[sx, sy], [sx, g], [x, g], [x, ey], [ex, ey]], 0);
                   };
-                  for (let x = bounds.minX - 24; x <= bounds.maxX + 24; x += STEP) tryX(x);
-                  gapXs.forEach(tryX);
+                  corridorXs.forEach(tryX);
+                  const xLo = Math.min(sx, ex) - 64, xHi = Math.max(sx, ex) + 64;
+                  for (let x = xLo; x <= xHi; x += STEP) tryX(x);
                 });
               } else {
                 // horizontal exit -> out to x -> vertical to corridor g -> across -> vertical entry
                 [16, 20, 36, 56].forEach(d => {
                   const x = fp === 'right' ? sx + d : sx - d;
-                  for (let g = bounds.minY - 24; g <= bounds.maxY + 24; g += STEP) {
-                    if (tp === 'top' ? g > ey - 14 : g < ey + 14) continue;
-                    if (Math.abs(g - sy) < 10 || Math.abs(ex - x) < 10) continue;
+                  const seenG = new Set();
+                  const tryG = g => {
+                    const q = Math.round(g / 8);
+                    if (seenG.has(q)) return;
+                    seenG.add(q);
+                    if (tp === 'top' ? g > ey - 14 : g < ey + 14) return;
+                    if (Math.abs(g - sy) < 10 || Math.abs(ex - x) < 10) return;
                     add([[sx, sy], [x, sy], [x, g], [ex, g], [ex, ey]], 0);
-                  }
+                  };
+                  corridorYs.forEach(tryG);
+                  const gLo = Math.min(sy, ey) - 64, gHi = Math.max(sy, ey) + 64;
+                  for (let g = gLo; g <= gHi; g += STEP) tryG(g);
                 });
               }
             }
@@ -8264,7 +8327,19 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
           if (h1 && h2) return Math.abs(y1 - y3) < 1 && Math.min(x2, x4) - Math.max(x1, x3) > 1;
           return false;
         };
-        const polyCross = (a, b) => {
+        const polyBox = (pts) => {
+          let x1 = Infinity, y1 = Infinity, x2 = -Infinity, y2 = -Infinity;
+          for (let i = 0; i < pts.length; i++) {
+            const x = pts[i][0], y = pts[i][1];
+            if (x < x1) x1 = x;
+            if (x > x2) x2 = x;
+            if (y < y1) y1 = y;
+            if (y > y2) y2 = y;
+          }
+          return [x1, y1, x2, y2];
+        };
+        const polyCross = (a, b, ba, bb) => {
+          if (ba && bb && (ba[2] < bb[0] - 1 || bb[2] < ba[0] - 1 || ba[3] < bb[1] - 1 || bb[3] < ba[1] - 1)) return false;
           for (let i = 0; i < a.length - 1; i++) for (let j = 0; j < b.length - 1; j++) {
             if (segCross(a[i], a[i + 1], b[j], b[j + 1])) return true;
           }
@@ -8300,6 +8375,8 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
           const rects = {};
           nodes.forEach(n => { rects[n.id] = [n.x, (laneTop[n.laneId] || 0) + n.y, LE.NODE_W, nodeH(n)]; });
           const poly = routeAll(rects);
+          const pBoxes = {};
+          Object.keys(poly).forEach(id => { pBoxes[id] = polyBox(poly[id]); });
 
           edges.forEach(e => {
             const pts = poly[e.id];
@@ -8333,17 +8410,18 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
               return n;
             };
             // Crossings of a route against the other arrows' current routes
-            const crossesOf = (rt) => {
+            const crossesOf = (rt, rb) => {
               let n = 0;
               edges.forEach(o => {
                 const op = poly[o.id];
                 if (!op || o === e || o.from === e.from || o.from === e.to || o.to === e.from || o.to === e.to) return;
-                if (polyCross(rt, op)) n += 1;
+                if (polyCross(rt, op, rb, pBoxes[o.id])) n += 1;
               });
               return n;
             };
             let pen = through(pts);
-            if (pen > 0 || crossesOf(pts) > 0) {
+            const cross0 = crossesOf(pts, pBoxes[e.id]);
+            if (pen > 0 || cross0 > 0) {
               const f = rects[e.from], t = rects[e.to];
               const fcx = f[0] + f[2] / 2, fcy = f[1] + f[3] / 2, tcx = t[0] + t[2] / 2, tcy = t[1] + t[3] / 2;
               const alts = [];
@@ -8360,13 +8438,15 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
                 alts.push([[fcx, tcy < fcy ? f[1] : f[1] + f[3]], [fcx, tcy], [t[0] + t[2], tcy]]);
               }
               // Keep whichever route has the fewest penetrations, then crossings (the standard route wins ties)
-              let bestRt = pts, bestKey = [pen, crossesOf(pts)];
+              let bestRt = pts, bestBox = pBoxes[e.id], bestKey = [pen, cross0];
               alts.forEach(rt => {
-                const k = [through(rt), crossesOf(rt)];
-                if (k[0] < bestKey[0] || (k[0] === bestKey[0] && k[1] < bestKey[1])) { bestRt = rt; bestKey = k; }
+                const rb = polyBox(rt);
+                const k = [through(rt), crossesOf(rt, rb)];
+                if (k[0] < bestKey[0] || (k[0] === bestKey[0] && k[1] < bestKey[1])) { bestRt = rt; bestBox = rb; bestKey = k; }
               });
               pen = bestKey[0];
               poly[e.id] = bestRt;
+              pBoxes[e.id] = bestBox;
             }
             penetrations += pen;
           });
@@ -8376,7 +8456,7 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
           for (let i = 0; i < listed.length; i++) for (let j = i + 1; j < listed.length; j++) {
             const a = listed[i], b = listed[j];
             if (a.from === b.from || a.from === b.to || a.to === b.from || a.to === b.to) continue;
-            if (polyCross(poly[a.id], poly[b.id])) crossings += 1;
+            if (polyCross(poly[a.id], poly[b.id], pBoxes[a.id], pBoxes[b.id])) crossings += 1;
           }
           let bends = 0, length = 0;
           Object.keys(poly).forEach(id => {
@@ -9964,10 +10044,25 @@ function toMermaid(data, opts) {
         // lane without the extra, so it shrinks back; it only re-renders when the needed room changed.
         const need = outerReach();
         if (need !== outerExtra) {
+          const delta = need - outerExtra;
           outerExtra = need;
-          renderLanes(maxX);
-          renderNodes();
-          renderEdges();
+          const lastLaneEl = lanesRoot.lastElementChild;
+          const lastLane = chartData.lanes[chartData.lanes.length - 1];
+          if (lastLaneEl && lastLane) {
+            lastLane.height += delta;
+            if (tb) {
+              lastLaneEl.style.minWidth = `${lastLane.height}px`;
+              lastLaneEl.style.width = `${lastLane.height}px`;
+            } else {
+              lastLaneEl.style.minHeight = `${lastLane.height}px`;
+              lastLaneEl.style.height = `${lastLane.height}px`;
+            }
+            lanePinCache = null;
+          } else {
+            renderLanes(maxX);
+            renderNodes();
+            renderEdges();
+          }
         }
         renderNotes(true);   // last: notes are fitted around the final nodes, arrows and labels
         pinLaneHeaders();
@@ -10021,15 +10116,48 @@ function toMermaid(data, opts) {
       // exactly like a node, so the lane gutter (sizeLaneGutter) keeps it clear of every node at any zoom. Called
       // after every render and, via plugin.onViewChange, after every pan/zoom.
       const PILL_INSET = 12;     // diagram px from the visible left edge / the lane's visible top
+      let lanePinCache = null;
+      let lastPinScale = null;
+      window.addEventListener('resize', () => { lanePinCache = null; });
       function pinLaneHeaders() {
         if (chartData.swimlanes === false) { swimlanesContainer.classList.remove('lanes-pinned'); return; }
-        const left = swimlanesContainer.offsetLeft + swimlanesContainer.clientLeft;   // container origin, stage coords
-        const top = swimlanesContainer.offsetTop + swimlanesContainer.clientTop;
+        const tb = isTB();
+        if (!lanePinCache) {
+          const left = swimlanesContainer.offsetLeft + swimlanesContainer.clientLeft;
+          const top = swimlanesContainer.offsetTop + swimlanesContainer.clientTop;
+          const vpW = viewport.clientWidth;
+          const lanes = [];
+          lanesRoot.querySelectorAll('.swimlane').forEach(laneEl => {
+            const pill = laneEl.querySelector('.lane-pill');
+            if (!pill) return;
+            lanes.push({
+              laneEl,
+              offsetLeft: laneEl.offsetLeft,
+              offsetTop: laneEl.offsetTop,
+              w: laneEl.offsetWidth,
+              h: laneEl.offsetHeight,
+              pw: pill.offsetWidth,
+              ph: pill.offsetHeight
+            });
+          });
+          if (tb) {
+            for (let i = 0; i < lanes.length; i++) {
+              const l = lanes[i];
+              l.laneEl.style.setProperty('--pill-cx', `${Math.max(PILL_INSET, (l.w - l.pw) / 2)}px`);   // centred at rest (exports)
+            }
+          }
+          lanePinCache = { left, top, vpW, lanes };
+        }
+        const { left, top, vpW, lanes } = lanePinCache;
         const visLeft = -panX / scale - left;   // viewport's left edge in container coords
         const visTop = -panY / scale - top;
         const inset = PILL_INSET;
         const cs = swimlanesContainer.style;
-        if (isTB()) {
+        if (scale !== lastPinScale) {
+          lastPinScale = scale;
+          cs.setProperty('--rail-b', `${3 / scale}px`);
+        }
+        if (tb) {
           // Top-to-bottom: lanes are columns, so the stripe and the pills sit at the visible top edge instead,
           // and each pill follows its column sideways when the column is wider than the screen
           const y0 = Math.max(0, visTop);
@@ -10037,20 +10165,16 @@ function toMermaid(data, opts) {
           cs.removeProperty('--rail-x');
           cs.removeProperty('--pill-x');
           cs.setProperty('--rail-y', `${y0}px`);
-          cs.setProperty('--rail-b', `${3 / scale}px`);
           cs.setProperty('--pill-y', `${y0 + inset}px`);
           // Each pill is centred on the visible part of its column (the whole column when it is on screen)
-          const visRight = visLeft + viewport.clientWidth / scale;
-          lanesRoot.querySelectorAll('.swimlane').forEach(laneEl => {
-            const pill = laneEl.querySelector('.lane-pill');
-            if (!pill) return;
-            const w = laneEl.offsetWidth, pw = pill.offsetWidth;
-            const a = Math.max(0, visLeft - laneEl.offsetLeft), b = Math.min(w, visRight - laneEl.offsetLeft);
-            const maxX = Math.max(inset, w - pw - inset);
-            const x = Math.min(Math.max(b > a ? (a + b - pw) / 2 : (w - pw) / 2, inset), maxX);
-            laneEl.style.setProperty('--pill-x', `${x}px`);
-            laneEl.style.setProperty('--pill-cx', `${Math.max(inset, (w - pw) / 2)}px`);   // centred at rest (exports)
-          });
+          const visRight = visLeft + vpW / scale;
+          for (let i = 0; i < lanes.length; i++) {
+            const l = lanes[i];
+            const a = Math.max(0, visLeft - l.offsetLeft), b = Math.min(l.w, visRight - l.offsetLeft);
+            const maxX = Math.max(inset, l.w - l.pw - inset);
+            const x = Math.min(Math.max(b > a ? (a + b - l.pw) / 2 : (l.w - l.pw) / 2, inset), maxX);
+            l.laneEl.style.setProperty('--pill-x', `${x}px`);
+          }
           placeLaneBar();
           return;
         }
@@ -10059,16 +10183,13 @@ function toMermaid(data, opts) {
         cs.removeProperty('--rail-y');
         cs.removeProperty('--pill-y');
         cs.setProperty('--rail-x', `${x0}px`);
-        cs.setProperty('--rail-b', `${3 / scale}px`);
         cs.setProperty('--pill-x', `${x0 + inset}px`);
-        lanesRoot.querySelectorAll('.swimlane').forEach(laneEl => {
-          const pill = laneEl.querySelector('.lane-pill');
-          if (!pill) return;
-          const pillH = pill.offsetHeight;
-          const maxY = Math.max(inset, laneEl.offsetHeight - pillH - inset);
-          const y = Math.min(Math.max(visTop - laneEl.offsetTop + inset, inset), maxY);
-          laneEl.style.setProperty('--pill-y', `${y}px`);
-        });
+        for (let i = 0; i < lanes.length; i++) {
+          const l = lanes[i];
+          const maxY = Math.max(inset, l.h - l.ph - inset);
+          const y = Math.min(Math.max(visTop - l.offsetTop + inset, inset), maxY);
+          l.laneEl.style.setProperty('--pill-y', `${y}px`);
+        }
         placeLaneBar();
       }
 
@@ -10099,6 +10220,8 @@ function toMermaid(data, opts) {
       }
 
       function renderLanes(trackWidth) {
+        lanePinCache = null;
+        lastPinScale = null;
         const hoverIdx = hoverLaneEl ? [...lanesRoot.children].indexOf(hoverLaneEl) : -1;
         hoverLaneEl = null;
         lanesRoot.innerHTML = '';
@@ -13630,8 +13753,8 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
       const tabLabel = (key) => (key === PARENT ? PARENT_LABEL : chartData.tabNames[key]);
       const hasChild = (nodeId) => !!chartData.flows && nodeId in chartData.tabNames;
 
-      // The tab bar: nested folder boxes along the path Main -> ... -> current flow, then the current flow's direct children
-      // in the innermost box. Siblings of the path are not drawn: go up a level to reach them.
+      // The tab bar: Main flow plus nested boxes along the active path. Siblings at each open level stay visible;
+      // an expanded tab's children sit in an inner box immediately after it so ownership stays clear.
       function renderTabs() {
         flowTabs.hidden = !chartData.flows;
         document.querySelectorAll('[data-export="svg-all"]').forEach(el => { el.hidden = !chartData.flows; });
@@ -13680,13 +13803,18 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         const box = (parent, level) => { const d = document.createElement('div'); d.className = 'flow-subtabs'; d.dataset.level = String(level); d.setAttribute('role', 'none'); parent.appendChild(d); return d; };
         const path = [cur];
         while (path[0] !== PARENT) path.unshift(parentOf(path[0]));
-        let at = flowTabs;
-        path.forEach((key, i) => {
-          if (i) at = box(at, i);
-          at.appendChild(tab(key));
-        });
-        const kids = childrenOf(cur);
-        if (kids.length) { const inner = box(at, path.length); kids.forEach(k => inner.appendChild(tab(k))); }
+        const renderLevel = (parentKey, container, depth) => {
+          const kids = childrenOf(parentKey);
+          if (!kids.length) return;
+          const b = box(container, depth);
+          const nextOnPath = path[depth];
+          kids.forEach(k => {
+            b.appendChild(tab(k));
+            if (k === nextOnPath) renderLevel(k, b, depth + 1);
+          });
+        };
+        flowTabs.appendChild(tab(PARENT));
+        renderLevel(PARENT, flowTabs, 1);
         // hanging boxes: each is one flex row
         const act = flowTabs.querySelector('.flow-tab[aria-selected="true"]');
         if (act && act.scrollIntoView) act.scrollIntoView({ block: 'nearest', inline: 'nearest' });
@@ -14076,6 +14204,9 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         eachTab,
         isBackground: (el) => (isPresenting() && !!el.closest('.flow-node:not(.type-connector)')) || el.id === 'swimlanes-container' || el.classList.contains('lane-track') || el.classList.contains('lane-gutter'),
         clearSelection() {
+          const hadNodes = selectedNodeIds.size > 0;
+          const hadEdge = !!selectedEdgeId;
+          if (!hadNodes && !hadEdge && !selectedLaneId && !selectedNoteId && !peekNodeId && !connectorPicking) return;
           clearNodeSelection();
           selectedEdgeId = null;
           selectedLaneId = null;
@@ -14083,7 +14214,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           peekNodeId = null;
           setConnectorPicking(false);   // a click on the canvas cancels waiting for an arrow
           markSelectedLane();
-          renderEdges();
+          if (hadNodes || hadEdge) renderEdges();
           applyNoteVisibility();
         },
         // Shift + drag on blank canvas: the steps (and connector circles) the box touches. `start` is true on the

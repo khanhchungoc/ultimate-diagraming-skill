@@ -339,10 +339,25 @@
         // lane without the extra, so it shrinks back; it only re-renders when the needed room changed.
         const need = outerReach();
         if (need !== outerExtra) {
+          const delta = need - outerExtra;
           outerExtra = need;
-          renderLanes(maxX);
-          renderNodes();
-          renderEdges();
+          const lastLaneEl = lanesRoot.lastElementChild;
+          const lastLane = chartData.lanes[chartData.lanes.length - 1];
+          if (lastLaneEl && lastLane) {
+            lastLane.height += delta;
+            if (tb) {
+              lastLaneEl.style.minWidth = `${lastLane.height}px`;
+              lastLaneEl.style.width = `${lastLane.height}px`;
+            } else {
+              lastLaneEl.style.minHeight = `${lastLane.height}px`;
+              lastLaneEl.style.height = `${lastLane.height}px`;
+            }
+            lanePinCache = null;
+          } else {
+            renderLanes(maxX);
+            renderNodes();
+            renderEdges();
+          }
         }
         renderNotes(true);   // last: notes are fitted around the final nodes, arrows and labels
         pinLaneHeaders();

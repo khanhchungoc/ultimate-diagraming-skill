@@ -114,8 +114,8 @@
       // built from the engine's own source (provided by the shell's loadEngineSource() helper).
       // The result is applied only if the model is unchanged since it was posted, else it is dropped. Without Worker, Blob or
       // the markers, or under ?tidy / ?report (which read the finished layout at once), the layout runs synchronously.
-      // shortcut: 12 tables is the point where the worker's start-up stops costing more than the layout, upgrade if that moves.
-      const ERD_ASYNC_MIN = 12;
+      // shortcut: 10 tables is the point where the worker's start-up stops costing more than the layout, upgrade if that moves.
+      const ERD_ASYNC_MIN = 10;
       const erdEngineSrc = () => (typeof loadEngineSource === 'function' ? loadEngineSource() : '');
       const ERD_WORKER_TAIL = '\nonmessage = (e) => { const { seq, data, opts } = e.data; layoutDiagram(data, opts); postMessage({ seq, data }); };';
       let erdJob = null, erdSeq = 0;
@@ -212,11 +212,13 @@
         { selector: '.note[data-note-id]', key: 'noteId' },
         { selector: '.color-key-item[data-color]', key: 'color' }
       ];
+      const ERD_TIDY_FLIP_SPECS = ERD_FLIP_SPECS.filter((_, i) => i !== 1);
       const ERD_NUM_RE = /-?[\d.]+(?:e[-+]?\d+)?/gi;
       let erdInRender = false;
       function erdCapture(opts) {
         if (!motion.enabled()) return null;
-        const html = motion.capture(erdCanvas, ERD_FLIP_SPECS, opts);
+        const specs = opts && opts.skipRows ? ERD_TIDY_FLIP_SPECS : ERD_FLIP_SPECS;
+        const html = motion.capture(erdCanvas, specs, opts);
         if (!html) return null;
         const beziers = new Map();
         erdRels.querySelectorAll('.erd-rel[data-edge-id] .edge-line').forEach((line) => {
@@ -235,7 +237,8 @@
         const o = opts || {};
         const skipKeys = o.skipKeys ? new Set(o.skipKeys) : new Set();
         if (o.skipFreeNotes) notesList().forEach((n) => { if (isFreeNote(n)) skipKeys.add(n.id); });
-        const durMs = motion.play(snap.html, erdCanvas, ERD_FLIP_SPECS, Object.assign({}, o, { skipKeys }));
+        const specs = o.skipRows ? ERD_TIDY_FLIP_SPECS : ERD_FLIP_SPECS;
+        const durMs = motion.play(snap.html, erdCanvas, specs, Object.assign({}, o, { skipKeys }));
         if (o.shrinkGhosts) {
           const st = stage.getBoundingClientRect();
           const k = (stage.offsetWidth ? st.width / stage.offsetWidth : scale) || 1;
@@ -281,7 +284,7 @@
 
       function render(motionOpts) {
         const m = motionOpts === false ? null : (motionOpts || {});
-        const snap = m ? (m.snap || erdCapture(m.shrinkGhosts ? { ghosts: true } : undefined)) : null;
+        const snap = m ? (m.snap || erdCapture(m.shrinkGhosts || m.skipRows ? { ghosts: !!m.shrinkGhosts, skipRows: !!m.skipRows } : undefined)) : null;
         ensureLayout();
         const C = chartData.canvas || { width: 800, height: 400 };
         erdCanvas.style.width = `${C.width}px`;
@@ -733,9 +736,11 @@
       // (--inv on the canvas) so they stay readable; a label that would then cover another label or a table is hidden
       // until its line or either table is hovered. All of it is CSS keyed to body.erd-overview:not(.exporting), so every
       // export and copy is the full diagram. Nothing here changes the layout or the saved file.
-      let erdOverview = false, erdMeasuredAt = null, lastWheelZoomAt = 0;
+      let erdOverview = false, erdMeasuredAt = null, erdLastScale = null, lastWheelZoomAt = 0;
       window.addEventListener('wheel', (e) => { if (e.ctrlKey || e.metaKey) lastWheelZoomAt = performance.now(); }, { passive: true, capture: true });
       function erdUpdateOverview(force) {
+        if (force !== true && scale === erdLastScale) return;
+        erdLastScale = scale;
         const was = erdOverview;
         if (!erdOverview && scale < 0.5) erdOverview = true; else if (erdOverview && scale > 0.6) erdOverview = false;
         const canMorph = was !== erdOverview && force !== true && motion.enabled()
@@ -2892,7 +2897,7 @@
         },
         // The Tidy button: a cold layout, one undo step
         tidy() {
-          const done = () => { render({ duration: 520, easing: 'curve-spring-settle', skipFreeNotes: true }); updateStatus(true); };   // every table moves: slower than a single edit
+          const done = () => { render({ duration: 360, easing: 'curve-spring-settle', skipFreeNotes: true, skipRows: true }); updateStatus(true); };   // every table moves: slower than a single edit
           if (!(erdAsyncOK() && erdStartJob(done))) { erdLayout(); done(); }
         },
         // Text search (spec: dev/plans/search.md): areas, tables by position each followed by its columns, then relation labels.

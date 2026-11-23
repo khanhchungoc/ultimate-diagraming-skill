@@ -38,7 +38,7 @@ const ER = {
   REFINE: 2, REFINE_SMALL: 12, SMALL: 16,        // candidates refined by the local search (a diagram of up to SMALL tables refines more)
   REPAIR_PASSES: 10, POLISH_T: [600, 300, 150, 0], REPAIR_T: [2500, 1200, 600, 300, 150, 0], WARM_T: [300, 0],
   VARIANTS: 18,                                  // candidate layouts tried (seed angle and direction differ)
-  LITE: 10, LITE_VARIANTS: 6, LITE_REFINE: 1, LITE_T: [600, 150, 0],   // above LITE tables: fewer candidates, LITE_REFINE refined, a short schedule, no polish
+  LITE: 9, LITE_VARIANTS: 6, LITE_REFINE: 1, LITE_T: [600, 150, 0],   // above LITE tables: fewer candidates, LITE_REFINE refined, a short schedule, no polish
   SEG: 16,                                       // segments per sampled curve
   PORT_GAP: 22, PORT_MARGIN: 14,                 // spacing of lines on one side, and the corner margin
   CTRL_MIN: 40, CTRL_MAX: 160, CTRL_DIV: 2.5,    // control distance = clamp(distance / CTRL_DIV, CTRL_MIN, CTRL_MAX)

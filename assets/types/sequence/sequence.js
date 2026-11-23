@@ -551,6 +551,7 @@
         const key = ui.colorKey(used, chartData.colorKey, { prompts: true, cls: 'seq-key' });
         if (key) seqHtml.appendChild(key);
         applySelection();
+        seqPinCache = null;
         pinParticipants();
 
         if (canAnim) {
@@ -673,44 +674,61 @@
       const PIN_INSET = 8;
       // Height of the participant row: taller when a rail is in it
       const topRowH = () => (chartData.participants.some((p) => p.rail) ? SQ.RAIL_H : SQ.BOX_H);
+      let seqPinCache = null;
       function pinParticipants() {
         const L = chartData.layout;
         if (!L) return;
-        const top = seqCanvas.offsetTop + seqCanvas.clientTop;     // canvas origin, stage coords
+        if (!seqPinCache) {
+          const top = seqCanvas.offsetTop + seqCanvas.clientTop;
+          const partEls = [...seqHtml.querySelectorAll('.seq-participant')].map((el) => ({
+            el,
+            p: partById(el.dataset.nodeId)
+          }));
+          const fragTags = chartData.fragments.filter((f) => f.x !== undefined).sort((u, v) => u.y - v.y).map((f) => {
+            const tag = seqHtml.querySelector(`.frame-tag[data-frag-id="${f.id}"]`);
+            if (!tag) return null;
+            return { f, tag, textEl: tag.querySelector('.seq-frag-text'), h: tag.offsetHeight || 22 };
+          }).filter(Boolean);
+          seqPinCache = { top, partEls, fragTags };
+        }
+        const { top, partEls, fragTags } = seqPinCache;
         const visTop = -panY / scale - top;                        // viewport's top edge in canvas coords
         const on = visTop + PIN_INSET > SQ.TOP && !document.body.classList.contains('capture');
         const dy = Math.min(visTop + PIN_INSET - SQ.TOP, L.height - SQ.BOX_H - SQ.TOP - 40);
-        seqCanvas.classList.toggle('seq-pinned', on && dy > 0);
-        seqCanvas.style.setProperty('--pin-dy', `${on ? Math.max(0, dy) : 0}px`);
+        const pinned = on && dy > 0;
+        const wasPinned = seqCanvas.classList.contains('seq-pinned');
+        if (!wasPinned && !pinned) {
+          seqCanvas.style.setProperty('--pin-dy', '0px');
+          return;
+        }
+        seqCanvas.classList.toggle('seq-pinned', pinned);
+        seqCanvas.style.setProperty('--pin-dy', `${pinned ? dy : 0}px`);
         // With lifespans the row names only the lifelines alive at the rows under it: a box rides at the top once its
         // own place has scrolled past it, and fades out when its lifeline has ended above. Nothing moves sideways.
-        const pinTop = SQ.TOP + (on ? Math.max(0, dy) : 0);
-        seqHtml.querySelectorAll('.seq-participant').forEach((el) => {
-          const p = chartData.lifespans ? partById(el.dataset.nodeId) : null;
-          if (!p || !seqCanvas.classList.contains('seq-pinned')) { el.style.translate = ''; el.classList.remove('is-gone'); return; }
+        const pinTop = SQ.TOP + (pinned ? dy : 0);
+        for (let i = 0; i < partEls.length; i++) {
+          const { el, p } = partEls[i];
+          if (!p || !pinned) { el.style.translate = ''; el.classList.remove('is-gone'); continue; }
+          if (!chartData.lifespans) continue;
           const own = Math.max(0, pinTop - (p.top === undefined ? SQ.TOP : p.top));
           el.style.translate = own > 0 ? `0 ${own}px` : 'none';
           el.classList.toggle('is-gone', p.bottom !== undefined && p.bottom < pinTop);
-        });
+        }
         // A frame cut by the pinned row keeps its tag readable: the tag rides just below the row (nested frames' tags
         // stack, outer first) until the frame's bottom comes up to it
-        const pinned = seqCanvas.classList.contains('seq-pinned');
         let below = pinTop + topRowH() + PIN_INSET;
-        chartData.fragments.filter((f) => f.x !== undefined).sort((u, v) => u.y - v.y).forEach((f) => {
-          const tag = seqHtml.querySelector(`.frame-tag[data-frag-id="${f.id}"]`);
-          if (!tag) return;
-          const h = tag.offsetHeight || 22;
+        for (let i = 0; i < fragTags.length; i++) {
+          const { f, tag, textEl, h } = fragTags[i];
           const shift = pinned && f.y < below && f.y + f.h > below + h + 4 ? below - f.y : 0;   // a frame already gone keeps its tag
           tag.style.translate = shift > 0 ? `0 ${shift}px` : '';
           tag.classList.toggle('is-riding', shift > 0);
-          const textEl = tag.querySelector('.seq-frag-text');
           if (textEl && !textEl.isContentEditable) {
             const activeDiv = shift > 0 && (f.dividers || []).filter((d) => d.y <= below + h).pop();
             const want = activeDiv ? (activeDiv.label || (f.kind === 'alt' ? 'else' : 'branch')) : (f.label || (f.kind === 'group' ? 'phase' : 'condition'));
             if (textEl.textContent !== want) textEl.textContent = want;
           }
           if (shift > 0) below = f.y + shift + h + 4;
-        });
+        }
       }
 
       // --- LOOKUPS ---
