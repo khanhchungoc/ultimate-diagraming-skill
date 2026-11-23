@@ -206,7 +206,7 @@
       "laneId": "lane_support",
       "type": "task",
       "label": "Issue RMA & Return Label",
-      "x": 2351,
+      "x": 2591.4,
       "y": 64
     },
     {
@@ -214,7 +214,7 @@
       "laneId": "lane_carrier",
       "type": "task",
       "label": "Transport Return Parcel",
-      "x": 2606.2,
+      "x": 2591.4,
       "y": 64
     },
     {
@@ -222,7 +222,7 @@
       "laneId": "lane_warehouse",
       "type": "task",
       "label": "Restock or Quarantine",
-      "x": 2750.2,
+      "x": 2735.4,
       "y": 88
     },
     {
@@ -230,7 +230,7 @@
       "laneId": "lane_risk",
       "type": "task",
       "label": "Process Refund Credit",
-      "x": 2894.2,
+      "x": 2879.4,
       "y": 64
     },
     {
@@ -238,7 +238,7 @@
       "laneId": "lane_support",
       "type": "task",
       "label": "Send Refund Confirmation",
-      "x": 2894.2,
+      "x": 2879.4,
       "y": 64
     },
     {
@@ -246,7 +246,7 @@
       "laneId": "lane_support",
       "type": "end",
       "label": "Order Refunded",
-      "x": 3094.2,
+      "x": 3079.4,
       "y": 64
     },
     {
@@ -254,7 +254,7 @@
       "laneId": "lane_risk",
       "type": "database",
       "label": "Recognize Revenue & Ledger",
-      "x": 2606.2,
+      "x": 2351,
       "y": 64
     },
     {
@@ -262,7 +262,7 @@
       "laneId": "lane_customer",
       "type": "end",
       "label": "Order Completed",
-      "x": 2606.2,
+      "x": 2551,
       "y": 64
     }
   ],
