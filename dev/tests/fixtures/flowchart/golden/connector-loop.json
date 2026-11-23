@@ -12,7 +12,7 @@
       "id": "lane-reviewer",
       "name": "Credit Reviewer",
       "icon": "shield",
-      "height": 360
+      "height": 192
     }
   ],
   "nodes": [
@@ -38,7 +38,7 @@
       "type": "task",
       "label": "Check Identity",
       "x": 256,
-      "y": 72
+      "y": 40
     },
     {
       "id": "n4",
@@ -46,7 +46,7 @@
       "type": "task",
       "label": "Check Income",
       "x": 456,
-      "y": 72
+      "y": 40
     },
     {
       "id": "n5",
@@ -54,7 +54,7 @@
       "type": "task",
       "label": "Check Credit History",
       "x": 656,
-      "y": 72
+      "y": 40
     },
     {
       "id": "n6",
@@ -62,15 +62,15 @@
       "type": "decision",
       "label": "Risk Acceptable?",
       "x": 856,
-      "y": 56
+      "y": 24
     },
     {
       "id": "c1",
       "laneId": "lane-reviewer",
       "type": "connector",
       "label": "A",
-      "x": 1072,
-      "y": 88
+      "x": 1000,
+      "y": 132
     },
     {
       "id": "c2",
@@ -78,22 +78,22 @@
       "type": "connector",
       "label": "A",
       "x": 312,
-      "y": 156
+      "y": 124
     },
     {
       "id": "n7",
       "laneId": "lane-reviewer",
       "type": "task",
       "label": "Approve Loan",
-      "x": 856,
-      "y": 192
+      "x": 1074.2,
+      "y": 40
     },
     {
       "id": "n8",
       "laneId": "lane-applicant",
       "type": "end",
       "label": "Loan Granted",
-      "x": 1056,
+      "x": 1074.2,
       "y": 64
     }
   ],

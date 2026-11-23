@@ -598,6 +598,7 @@
       cursor: move;
       transform-origin: 0 0;
       transform: translate(var(--pill-x, 12px), var(--pill-y, 12px));
+      font-size: var(--text-lg-plus);
       --halo-bg: var(--lane-bg);
     }
     /* (The pointer ring on the pill is in components/pill.css; renaming switches it off) */

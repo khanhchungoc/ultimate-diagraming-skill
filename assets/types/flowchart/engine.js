@@ -705,12 +705,16 @@
           const sl = laneIdx[s.laneId], dl = laneIdx[d.laneId];
           if (sl === undefined || dl === undefined) return;
           // Same lane: a decision's side branch that either loops back or immediately hands off to another lane
-          // (no same-lane forward continuation) may sit beside the decision when its label fits the row gap
+          // (no same-lane forward continuation) may sit beside the decision when its label fits the row gap.
+          // In LR, only stack when the decision has >= 2 forward branches in the same lane; a sole same-lane
+          // step goes to the right instead of cramming beneath the diamond.
           if (sl === dl && !(s.type === 'decision'
             && !forwardEdges.some(x => x.from === e.to && nodeMap[x.to] && laneIdx[nodeMap[x.to].laneId] === dl)
             && (edges.some(x => x.from === e.to && back.has(KEY(x.from, x.to)))
               || forwardEdges.some(x => x.from === e.to && nodeMap[x.to] && laneIdx[nodeMap[x.to].laneId] !== dl))
-            && (!LE.LABEL_ACROSS || (labelW[KEY(e.from, e.to)] || 0) <= LE.ROW_HEIGHT - LE.NODE_H + LE.LABEL_STUB))) return;
+            && (LE.LABEL_ACROSS
+              ? (labelW[KEY(e.from, e.to)] || 0) <= LE.ROW_HEIGHT - LE.NODE_H + LE.LABEL_STUB
+              : forwardEdges.filter(x => x.from === e.from && nodeMap[x.to] && laneIdx[nodeMap[x.to].laneId] === sl).length >= 2))) return;
           if (cands.some(c => c.k === KEY(e.from, e.to))) return;
           cands.push({ k: KEY(e.from, e.to), from: e.from, to: e.to, side: dl < sl ? 'up' : 'down' });
         });
