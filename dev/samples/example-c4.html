@@ -5951,9 +5951,14 @@ const LOGOS = {"devicon/airflow":{"body":"\u003cpath d=\"m2.5441 127 60.809-62.3
             if (hasLeftLoopback.has(e.to) && fromPort === 'right' && Math.abs(t.cy - f.cy) > 30) {
               toPort = (t.cy < f.cy) ? 'bottom' : 'top';
             } else if (fromPort === 'right' && fwdOuts.length === 1 && uNode && uNode.type !== 'decision') {
-              // One step into another lane: leave via top/bottom for a single bend instead of a Z
+              // One step into another lane: leave via top/bottom for a single bend instead of a Z,
+              // unless an incoming arrow already enters from that same side and a flow-side exit can single-bend
               const dy = t.cy - f.cy;
-              if (Math.abs(dy) > 30 && (Math.abs(t.cx - f.cx) < 30 || t.x > f.cx + 40)) {
+              const incomingSameSide = t.cx > f.x + f.w + 24 && (inEdges[uId] || []).some(o => {
+                const s = rects[o.from];
+                return s && (dy > 0 ? s.cy > f.cy + 30 : s.cy < f.cy - 30);
+              });
+              if (!incomingSameSide && Math.abs(dy) > 30 && (Math.abs(t.cx - f.cx) < 30 || t.x > f.cx + 40)) {
                 const sy = dy > 0 ? f.y + f.h : f.y;
                 if (segmentClear(f.cx, sy, f.cx, t.cy, [uId, e.to]) && segmentClear(f.cx, t.cy, t.x, t.cy, [uId, e.to])) {
                   fromPort = dy > 0 ? 'bottom' : 'top';
@@ -6746,7 +6751,7 @@ const LOGOS = {"devicon/airflow":{"body":"\u003cpath d=\"m2.5441 127 60.809-62.3
             const da = Math.sign(a.pts[1][m] - a.pts[0][m]), db = Math.sign(b.pts[1][m] - b.pts[0][m]);
             if (da * db >= 0) return;                              // not facing
             const gap = da > 0 ? b.pts[1][m] - a.pts[1][m] : a.pts[1][m] - b.pts[1][m];
-            if (gap < 0 || gap > 40) return;                       // far apart, or overlapping (not this case)
+            if (gap < 0 || gap > 40 || Math.abs(a.pts[0][m] - b.pts[0][m]) >= 120) return;  // far apart, or overlapping (not this case)
             const dir = Math.sign(b.pts[2][k] - b.pts[1][k]);
             const src = rects[b.e.from], nx = b.pts[0][k] + dir * SLIDE;
             const lo = (k === 0 ? src.x : src.y) + 14, hi = (k === 0 ? src.x + src.w : src.y + src.h) - 14;
