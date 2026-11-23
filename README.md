@@ -101,23 +101,23 @@ You need Python 3.9+ and Chrome, Chromium or Edge (used to lay out and check eve
 
 ### Option A: ask your AI agent
 
-*"Install the ultimate-diagram skill by running `npx ultimate-diagram` (or `npx ultimate-diagram -p` for this project only)."*
+*"Install the ultimate-diagram skill by running `npx ultimate-diagram@latest` (or `npx ultimate-diagram@latest -p` for this project only)."*
 
 ### Option B: one command
 
 All your projects (global):
 
 ```shell
-npx ultimate-diagram
+npx ultimate-diagram@latest
 ```
 
 Current project only:
 
 ```shell
-npx ultimate-diagram -p
+npx ultimate-diagram@latest -p
 ```
 
-Target a single runtime with `-r <name>` (e.g. `npx ultimate-diagram -r antigravity`), or pass `--no-hooks` to skip registering `SessionStart` update-check hooks.
+Target a single runtime with `-r <name>` (e.g. `npx ultimate-diagram@latest -r antigravity`), or pass `--no-hooks` to skip registering `SessionStart` update-check hooks.
 
 ### Option C: download (no terminal needed)
 
