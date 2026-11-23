@@ -271,6 +271,14 @@ def run_hook(
     now: Optional[float] = None,
 ) -> str:
     """Produce SessionStart hook JSON for the given runtime, or empty string when up to date."""
+    try:
+        script_dir = str(Path(__file__).resolve().parent)
+        if script_dir not in sys.path:
+            sys.path.insert(0, script_dir)
+        from save_helper import ensure_running_if_opted_in
+        ensure_running_if_opted_in()
+    except Exception:
+        pass
     if is_disabled():
         return ""
     current = read_installed_version(skill_dir)

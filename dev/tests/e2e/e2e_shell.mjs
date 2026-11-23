@@ -8,9 +8,12 @@
 // --artifact:  split artifact index.html from `layout_engine.py --layout ... --target artifact` (enables the claude.ai
 //              Artifact checks: Save publishes diagram.json through a stubbed window.claude, see dev/plans/plan-artifact-split-files.md)
 // Exit codes: 0 all passed, 1 setup error, 2 a check failed.
+import { spawn } from 'node:child_process';
 import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { argOf, launch, sleep } from './cdp.mjs';
 
 const browser = argOf('browser'), laid = argOf('laid'), scrambled = argOf('scrambled'), artifact = argOf('artifact');
@@ -1001,6 +1004,89 @@ try {
       && await t.ev(`!document.getElementById('btn-download-html') && !document.querySelector('[data-export="html"]')`)
       && t.errors.length === 0, `${await badge()} ${t.errors.join(' | ')}`);
   }
+  });
+
+  // 13. Direct-save helper: file:// diagram with diagram-save-id saves straight through save_helper.py
+  //     on first Ctrl+S with zero bubble and zero picker, and falls back cleanly when stopped
+  await t.section('direct-save-helper', async () => {
+    const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
+    const helperScript = join(repoRoot, 'scripts', 'save_helper.py');
+    const helperCache = mkdtempSync(join(tmpdir(), 'save_helper_cache_'));
+    const helperFile = join(dlDir, 'helper-direct.html');
+    const saveId = '0123456789abcdef0123456789abcdef';
+    const rawHtml = readFileSync(laid, 'utf8');
+    const stampedHtml = rawHtml.includes('name="diagram-save-id"')
+      ? rawHtml.replace(/<meta\s+name="diagram-save-id"\s+content="[0-9a-f]{32}"\s*\/?>/, `<meta name="diagram-save-id" content="${saveId}">`)
+      : rawHtml.replace(/(<meta\s+charset="UTF-8"\s*\/?>)/i, `$1\n  <meta name="diagram-save-id" content="${saveId}">`);
+    writeFileSync(helperFile, stampedHtml, 'utf8');
+    writeFileSync(join(helperCache, 'allowed-ids.json'), JSON.stringify({
+      ids: { [saveId]: { path: resolve(helperFile), updated_at: Date.now() / 1000 } }
+    }), 'utf8');
+
+    const port = await new Promise((res, rej) => {
+      const s = createServer();
+      s.listen(0, '127.0.0.1', () => { const p = s.address().port; s.close(() => res(p)); });
+      s.on('error', rej);
+    });
+    const proc = spawn(process.platform === 'win32' ? 'python' : 'python3',
+      [helperScript, 'serve', '--port', String(port), '--idle-timeout', '30'],
+      { env: { ...process.env, ULTIMATE_DIAGRAM_CACHE_DIR: helperCache }, stdio: 'ignore' });
+    try {
+      let healthy = false;
+      for (let i = 0; i < 40 && !healthy; i++) {
+        try {
+          const r = await fetch(`http://127.0.0.1:${port}/health`);
+          if (r.ok) healthy = true;
+        } catch { /* wait for bind */ }
+        if (!healthy) await sleep(75);
+      }
+      t.check('direct-save helper test server starts and passes /health', healthy, `port=${port}`);
+
+      await t.open(helperFile);
+      await t.ev(`window.__ULTIMATE_DIAGRAM_HELPER_PORTS__ = [${port}]`);
+      await t.ev(`(() => { const h = document.getElementById('chart-title'); h.textContent = 'Saved via Helper'; h.dispatchEvent(new Event('input', { bubbles: true })); h.dispatchEvent(new Event('blur')); })()`);
+      await t.ev(t.key('s', { ctrlKey: true }));
+      let savedBadge = '', savedTip = '', hasPop = false;
+      for (let i = 0; i < 30; i++) {
+        savedBadge = await t.ev(`document.getElementById('save-status').textContent.trim()`);
+        savedTip = await t.ev(`document.getElementById('save-status').getAttribute('title') || ''`);
+        hasPop = await t.ev(`!!document.querySelector('.confirm .save-where')`);
+        if (savedBadge === 'Saved to helper-direct.html') break;
+        await sleep(100);
+      }
+      t.check('file:// Ctrl+S saves straight through local helper with zero bubble or picker',
+        savedBadge === 'Saved to helper-direct.html' && /local helper/i.test(savedTip) && !hasPop,
+        `badge=${savedBadge} tip=${savedTip} pop=${hasPop}`);
+
+      // Reload the file from disk to verify the helper patched it cleanly
+      await t.open(helperFile);
+      const reloadedTitle = await t.ev(`document.getElementById('chart-title').textContent.trim()`);
+      t.check('reloading the helper-saved file shows the edited title and zero runtime errors',
+        reloadedTitle === 'Saved via Helper' && t.errors.length === 0, `title=${reloadedTitle} errors=${t.errors.join(' | ')}`);
+
+      // Stop helper and verify Ctrl+S falls back cleanly to the existing first-save bubble
+      await new Promise((res) => { proc.once('exit', res); proc.kill('SIGKILL'); });
+      await t.ev(`(() => {
+        window.__ULTIMATE_DIAGRAM_HELPER_PORTS__ = [${port}];
+        delete window.showDirectoryPicker;
+        navigator.clipboard.writeText = async () => {};
+        window.showSaveFilePicker = async () => { throw new DOMException('x', 'AbortError'); };
+        const h = document.getElementById('chart-title');
+        h.textContent = 'After Helper Stopped';
+        h.dispatchEvent(new Event('input', { bubbles: true }));
+        h.dispatchEvent(new Event('blur'));
+      })()`);
+      await t.ev(t.key('s', { ctrlKey: true }));
+      let fallbackPop = false;
+      for (let i = 0; i < 20 && !fallbackPop; i++) {
+        fallbackPop = await t.ev(`!!document.querySelector('.confirm .save-where')`);
+        if (!fallbackPop) await sleep(100);
+      }
+      t.check('when helper is stopped, Ctrl+S falls back cleanly to the first-save bubble', fallbackPop);
+    } finally {
+      try { proc.kill(); } catch { /* already stopped */ }
+      try { rmSync(helperCache, { recursive: true, force: true }); } catch { /* temp dir */ }
+    }
   });
 } catch (err) {
   console.error('[ERROR]', err.message);

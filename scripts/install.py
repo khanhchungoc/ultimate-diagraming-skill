@@ -202,6 +202,20 @@ def main() -> int:
         action="store_true",
         help="Skip registering async SessionStart version-check hooks in runtime settings.json files.",
     )
+    helper_group = parser.add_mutually_exclusive_group()
+    helper_group.add_argument(
+        "--save-helper",
+        dest="save_helper",
+        action="store_true",
+        default=None,
+        help="Enable the local background direct-save helper (one-click Ctrl+S on file:// diagrams).",
+    )
+    helper_group.add_argument(
+        "--no-save-helper",
+        dest="save_helper",
+        action="store_false",
+        help="Disable the local background direct-save helper.",
+    )
 
     args = parser.parse_args()
 
@@ -261,6 +275,29 @@ def main() -> int:
         cfg["output"] = claude_output
         claude_config.parent.mkdir(parents=True, exist_ok=True)
         claude_config.write_text(json.dumps(cfg, indent=2) + "\n", encoding="utf-8")
+
+    save_helper = args.save_helper
+    if save_helper is None and sys.stdin.isatty() and sys.stdout.isatty():
+        print("Enable the local background direct-save helper for HTML diagrams?")
+        print("  It listens only on your machine (127.0.0.1), auto-exits after 60 min idle,")
+        print("  and only updates registered diagram HTML files.")
+        print("  Yes (default): Open docs/flow.html in VS Code's integrated browser, Chrome, Edge,")
+        print("                 Firefox, or Safari -> edit -> press Ctrl+S -> file updates in place.")
+        print("  No:            No background listener runs. Chrome/Edge can still link a folder;")
+        print("                 VS Code's integrated browser, Firefox, and Safari show a Save As")
+        print("                 picker or download a copy (e.g. flow (1).html).")
+        try:
+            answer = input("Enable direct-save helper? [Y/n]: ").strip().lower()
+        except EOFError:
+            answer = ""
+        save_helper = answer not in ("n", "no")
+        print()
+    if save_helper is not None:
+        script_dir = str(Path(__file__).resolve().parent)
+        if script_dir not in sys.path:
+            sys.path.insert(0, script_dir)
+        from save_helper import set_direct_save_enabled
+        set_direct_save_enabled(save_helper)
 
     canonical_repo = repo_root.resolve()
     installed = 0

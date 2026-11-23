@@ -34,6 +34,7 @@ let mode = 'symlink';
 let targetPath = process.cwd();
 let claudeOutput = null;   // ask | artifact | file; null = not given (prompt when interactive)
 let noHooks = false;
+let saveHelper = null;
 const CLAUDE_OUTPUTS = ['ask', 'artifact', 'file'];
 
 // Detect if running from a temporary npx cache
@@ -75,6 +76,10 @@ for (let i = 0; i < args.length; i++) {
     claudeOutput = val;
   } else if (arg === '--no-hooks') {
     noHooks = true;
+  } else if (arg === '--save-helper') {
+    saveHelper = true;
+  } else if (arg === '--no-save-helper') {
+    saveHelper = false;
   } else if (arg === '--help' || arg === '-h') {
     printHelp();
     process.exit(0);
@@ -102,6 +107,8 @@ ${c.bold}Options:${c.reset}
                             Claude Code only: publish diagrams as claude.ai Artifacts, write HTML files, or ask each
                             time (default: ask). Saved to .claude/ultimate-diagram.json (never in the skill folder);
                             prompted when run in a terminal without this flag.
+  --save-helper             Enable the local background direct-save helper (one-click Ctrl+S on file:// diagrams)
+  --no-save-helper          Disable the local background direct-save helper
   --no-hooks                Skip registering async SessionStart version-check hooks in runtime settings.json files
   -h, --help                Show this help message
 
@@ -208,6 +215,46 @@ if (claudeSelected && claudeOutput !== null) {
   fs.mkdirSync(path.dirname(claudeConfigPath), { recursive: true });
   fs.writeFileSync(claudeConfigPath, JSON.stringify(cfg, null, 2) + '\n');
   claudeOutputWritten = true;
+}
+
+function getCacheConfigPath() {
+  const override = (process.env.ULTIMATE_DIAGRAM_CACHE_DIR || '').trim();
+  if (override) return path.join(override, 'config.json');
+  const base = process.platform === 'win32'
+    ? (process.env.LOCALAPPDATA || path.join(USER_HOME, 'AppData', 'Local'))
+    : (process.env.XDG_CACHE_HOME || path.join(USER_HOME, '.cache'));
+  return path.join(base, 'ultimate-diagram', 'config.json');
+}
+
+async function promptSaveHelper() {
+  console.log(`${c.cyan} ?  DIRECT SAVE ON LOCAL HTML DIAGRAMS${c.reset}`);
+  console.log('    Enable the local background save helper? It listens only on your machine (127.0.0.1),');
+  console.log('    auto-exits after 60 min idle, and only updates registered diagram HTML files.');
+  console.log(`      ${c.white}Yes (default)${c.reset}  Open docs/flow.html in VS Code's integrated browser, Chrome, Edge,`);
+  console.log(`                     Firefox, or Safari -> edit -> press Ctrl+S -> file updates in place.`);
+  console.log(`      ${c.white}No${c.reset}             No background listener runs. Chrome/Edge can still link a folder;`);
+  console.log(`                     VS Code's integrated browser, Firefox, and Safari show a Save As picker`);
+  console.log(`                     or download a copy (e.g. flow (1).html).`);
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+  try {
+    const answer = (await rl.question('    Enable direct-save helper? [Y/n]: ')).trim().toLowerCase();
+    console.log('');
+    return !(answer === 'n' || answer === 'no');
+  } finally {
+    rl.close();
+  }
+}
+
+if (saveHelper === null && process.stdin.isTTY && process.stdout.isTTY) {
+  saveHelper = await promptSaveHelper();
+}
+if (saveHelper !== null) {
+  const cacheCfgPath = getCacheConfigPath();
+  let cfg = {};
+  try { cfg = JSON.parse(fs.readFileSync(cacheCfgPath, 'utf8')) || {}; } catch { /* none yet */ }
+  cfg.direct_save_helper = saveHelper;
+  fs.mkdirSync(path.dirname(cacheCfgPath), { recursive: true });
+  fs.writeFileSync(cacheCfgPath, JSON.stringify(cfg, null, 2) + '\n');
 }
 
 console.log(`${c.cyan} ✦  INSTALLING RUNTIMES${c.reset}`);
