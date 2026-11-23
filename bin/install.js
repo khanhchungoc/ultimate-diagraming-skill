@@ -84,9 +84,11 @@ for (let i = 0; i < args.length; i++) {
 function printHelp() {
   console.log(`
 ${c.cyan}${c.bold}Ultimate Diagram Installer${c.reset}
-${c.dim}Interactive, standalone diagrams (swimlane flowcharts & sequence diagrams) for AI assistants.${c.reset}
+${c.dim}Interactive, standalone diagrams (flowcharts, sequence, ERD, use case, and C4) for AI assistants.${c.reset}
 
 ${c.bold}Usage:${c.reset}
+  npx ultimate-diagram [options]
+  # or from GitHub:
   npx khanhchungoc/ultimate-diagraming-skill [options]
   # or when cloned locally:
   ultimate-diagram [options]

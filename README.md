@@ -1,5 +1,8 @@
 # Ultimate Diagram Skill
 
+[![npm installs](https://img.shields.io/npm/dt/ultimate-diagram?label=npm%20installs)](https://www.npmjs.com/package/ultimate-diagram)
+[![zip downloads](https://img.shields.io/github/downloads/khanhchungoc/ultimate-diagraming-skill/total?label=zip%20downloads)](https://github.com/khanhchungoc/ultimate-diagraming-skill/releases)
+
 **Ask your AI for a diagram. Get one you can actually edit.**
 
 Describe a process, and your AI agent hands back a single HTML file. Open it in any browser, drag things around, fix a label, and save. No account, no app to install, and it works offline.
@@ -17,7 +20,7 @@ Describe a process, and your AI agent hands back a single HTML file. Open it in 
 - [Use your brand](#use-your-brand)
 - [How it compares to Mermaid and draw.io](#how-it-compares-to-mermaid-and-drawio)
 - [Build your own skills](#build-your-own-skills)
-- [Credits and licence](#credits-and-licence)
+- [Update check](#update-check)
 
 ## What you get
 
@@ -37,7 +40,7 @@ Describe a process, and your AI agent hands back a single HTML file. Open it in 
 | **Use case** | Actors, goals and system boundaries | ✅ |
 | **BPMN** | Pools, lanes, events and gateways | 🔜 |
 | **State machine** | States and transitions | 🔜 |
-| **C4** | System landscape: people, systems and containers (levels 1 and 2), laid out around a centre, with no centre or in layers, with grouping frames you can colour, icon cards and hand editing (add, connect, and move boxes by dragging, with Auto-Tidy back on one click); local logo packs supported but none shipped ([how](references/icon-packs.md)); no alignment guides, grid snapping or resizing ([plan](dev/plans/plan-c4.md)) | 🔜 |
+| **C4** | System landscape: people, systems and containers (levels 1 and 2), laid out around a centre, with no centre or in layers, with grouping frames you can colour, inline editing, Devicon tech logos and local logo packs ([how](references/icon-packs.md)), and hand editing (add, connect, and move boxes by dragging, with Auto-Tidy back on one click) | ✅ |
 | **Mind map** | Ideas branching from a central topic | 🕐  |
 | **Gantt chart** | Tasks on a timeline | 🕐 |
 
@@ -77,6 +80,12 @@ Search by requirement id (such as `FR-4`) to find the use case that covers it.
 
 ▶ [Try the use case diagram](https://khanhchungoc.github.io/ultimate-diagraming-skill/examples/usecase/)
 
+### C4 diagram
+
+*"Draw a C4 system landscape diagram for our e-commerce platform with customers, web app, API, and payment gateway."*
+
+▶ [Try the C4 diagram](https://khanhchungoc.github.io/ultimate-diagraming-skill/examples/c4/)
+
 ## Offline samples
 
 The same demos as HTML files you can open in your browser without a connection: [flowchart](dev/samples/example-flowchart.html), [sequence](dev/samples/example-sequence.html), [ERD](dev/samples/example-erd.html), [use case](dev/samples/example-usecase.html), [C4](dev/samples/example-c4.html).
@@ -89,19 +98,21 @@ You need Python 3.9+ and Chrome, Chromium or Edge (used to lay out and check eve
 
 ### Option A: one command
 
-Needs Node.js. Run in a terminal.
+Needs Node.js. Run in a terminal. Installs for **Antigravity**, **Claude Code**, **GitHub Copilot**, **OpenAI Codex**, **Gemini CLI**, and **Kiro**.
 
-All your projects:
+All your projects (global):
 
 ```shell
-npx skills add khanhchungoc/ultimate-diagraming-skill -g
+npx ultimate-diagram
 ```
 
 Current project only:
 
 ```shell
-npx skills add khanhchungoc/ultimate-diagraming-skill
+npx ultimate-diagram -p
 ```
+
+Target a single runtime with `-r <name>` (e.g. `npx ultimate-diagram -r antigravity`), or pass `--no-hooks` to skip registering `SessionStart` update-check hooks.
 
 ### Option B: download (no terminal needed)
 
@@ -111,8 +122,9 @@ npx skills add khanhchungoc/ultimate-diagraming-skill
 
    | Agent | Skills folder (for all your projects) |
    |---|---|
+   | Antigravity | `.gemini/config/skills` in your home folder (`.agents/skills` per project) |
    | Claude Code | `.claude/skills` in your home folder |
-   | GitHub Copilot | `.copilot/skills` in your home folder |
+   | GitHub Copilot | `.copilot/skills` in your home folder (`.github/skills` per project) |
    | OpenAI Codex | `.agents/skills` in your home folder |
    | Gemini CLI | `.gemini/skills` in your home folder |
    | Kiro | `.kiro/skills` in your home folder |
@@ -129,7 +141,10 @@ npx skills add khanhchungoc/ultimate-diagraming-skill
 ### Save vs Export
 
 - **Opened as a claude.ai Artifact** (Claude Code with Artifact output): **Save** stores your edits directly in the artifact as a new version, so your agent's next change starts from them. If you only have view access (for example the live demos), use **Export > HTML file (editable)** to get your own editable copy as a standalone HTML file. See [Artifacts](docs/artifacts.md).
-- **Opened as a regular HTML file:** the browser cannot write into the file you opened, so the first **Save** works like Save As. In Chrome and Edge, Save first copies the path of the file you opened and shows it: paste it into the Save window (Windows: click the File name box, then Ctrl+V; macOS: ⌘⇧G, then ⌘V; Linux: Ctrl+L, then Ctrl+V) to save over the original. After that, Save writes straight to the file, and the badge next to the title names it. When you reopen the file, the badge shows which file Save writes to, and the browser asks once per session to allow editing. Firefox and Safari save a copy to your downloads folder instead, and the page says the file you opened was not changed. To have your agent continue from your edits, tell it which saved file to use.
+- **Opened as a regular HTML file:** the browser cannot write into the file you opened without permission. In Chrome and Edge, the first **Save** offers two choices:
+  - **Link folder…** (recommended): pick your top workspace or repo folder once so every existing and future diagram inside it (and any subfolder) saves straight back to disk in one click, with no repeated file dialogs.
+  - **Choose file…**: copies the opened file's path so you can paste it into the Save window (Windows: Ctrl+V; macOS: ⌘⇧G, then ⌘V; Linux: Ctrl+L, then Ctrl+V) to save over the original.
+  After that, Save writes straight to the file, and the badge next to the title names it. Firefox and Safari save a copy to your downloads folder instead, and the page says the file you opened was not changed. To have your agent continue from your edits, tell it which saved file to use.
 
 ## Use your brand
 
@@ -171,7 +186,7 @@ For contributors: [references/theme.md](references/theme.md).
 | Wide ↔ tall, 1 click | ✅ | ⚠️ code | ❌ |
 | Re-tidies after edits | ✅ | ⚠️ no drag | ⚠️ limited |
 | In Markdown docs | ❌ | ✅ | ❌ |
-| Diagram types | 4 | many | many |
+| Diagram types | 5 | many | many |
 | Export PNG / SVG / PDF | ❌ planned | ✅ | ✅ |
 | File size | ⚠️ 330-530 KB | ✅ 10-26 KB | ✅ 39-56 KB |
 | Shape / icon library | ❌ | ❌ | ✅ |
@@ -188,4 +203,4 @@ For contributors: [references/theme.md](references/theme.md).
 
 ## Update check
 
-After a diagram, the skill may fetch one public file (`package.json` on `main`) with the client's own web tool to see if a newer version exists. It sends no user data. If you pick "Update now", the agent runs the project installer (`npx khanhchungoc/ultimate-diagraming-skill`), with your approval. Say "no update check" to turn it off.
+`scripts/version_check.py` checks GitHub Releases asynchronously in the background (via `SessionStart` hooks on Claude Code and Gemini CLI, and automatically during `layout_engine.py` runs across all 6 runtimes), cached locally for 24 hours. It sends no user data and never updates without your confirmation. Opt out anytime by setting `ULTIMATE_DIAGRAM_NO_UPDATE_CHECK=1` or installing with `--no-hooks`.
