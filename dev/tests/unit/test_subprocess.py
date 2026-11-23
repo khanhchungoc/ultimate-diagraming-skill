@@ -251,7 +251,7 @@ check("cli: --flat keeps every step except the subprocess steps and the routing 
       {n["id"] for n in flat_data["nodes"] if n["type"] not in ("start", "end")} == steps - {"spec_outcome", "po_sent"}, sorted(steps ^ {n["id"] for n in flat_data["nodes"]}))
 check("cli: --flat arrows all join existing steps", all(e["from"] in {n["id"] for n in flat_data["nodes"]} and e["to"] in {n["id"] for n in flat_data["nodes"]}
                                                         for e in flat_data["edges"]))
-check("cli: a file without children refuses --flat", cli("--extract", ROOT / "dev/samples/example-flowchart.html", "--flat").returncode != 0)
+check("cli: a file without children refuses --flat", cli("--extract", ROOT / "dev/samples/example-flowchart-phases.html", "--flat").returncode != 0)
 two_big = tmp / "big.mmd"
 two_big.write_text("flowchart\n" + "\n".join(f'  t{i}["Task {i}"]' for i in range(32)) + "\n" + "\n".join(f"  t{i} --> t{i + 1}" for i in range(31)) + "\n", encoding="utf-8")
 over = cli("--layout", two_big, "-o", tmp / "big.html")
