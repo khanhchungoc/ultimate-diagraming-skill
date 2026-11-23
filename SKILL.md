@@ -121,7 +121,17 @@ About 5 lines: the file, and anything that needs the user's action. Not a log of
 - the output path (for an artifact: its link, and that it is private until the user shares it from claude.ai) and a concise description (type, and main actors, participants or tables);
 - assumptions: anything you added or reordered that the source did not state, and each conflict between sources with the version you followed;
 - problems only: any `[WARN]` left, labels shortened from the user's wording, a split diagram and why, what a re-layout reset (updates);
-- actionable `[INFO]` lines only (`Layout:` issues, `Positions reset`, dropped/changed Mermaid items, `Subprocess candidate`, `Update available`); omit routine auto-defaults such as `Lane icons`, `Direction`, and `Subprocess flows`.
+- actionable `[INFO]` lines only (`Layout:` issues, `Positions reset`, dropped/changed Mermaid items, `Subprocess candidate`, `Direct-save helper not configured yet`, `Update available`); omit routine auto-defaults such as `Lane icons`, `Direction`, and `Subprocess flows`.
+
+---
+
+## Direct-save helper (first run)
+
+Only when `layout_engine.py` prints `[INFO] Direct-save helper not configured yet`: ask the user once whether to enable the local background direct-save helper (**default: Yes**) and give concrete examples so they can decide:
+- **Yes (recommended):** Runs a tiny local-only Python listener (`127.0.0.1`, auto-exits after 60 min idle, only updates registered diagram `.html` files). Example: open `docs/flow.html` in VS Code's integrated browser, Chrome, Edge, Firefox, or Safari → edit → press `Ctrl+S` → `docs/flow.html` updates directly in place with no file picker.
+- **No:** No background listener runs. Example: in Chrome/Edge you can link a folder once; in VS Code's integrated browser, Firefox, or Safari, Save opens a Save As picker or downloads a copy (`flow (1).html`).
+
+Once the user answers, run `python scripts/save_helper.py config --enable` (Yes) or `python scripts/save_helper.py config --disable` (No) so the choice is saved and never asked again. Never enable or start the helper before the user answers.
 
 ---
 

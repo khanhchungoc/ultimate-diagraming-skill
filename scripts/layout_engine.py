@@ -31,11 +31,13 @@ from audit_c4 import C4Audit
 from audit_erd import ErdAudit
 from audit_sequence import SequenceAudit
 from audit_usecase import UsecaseAudit
-from disk_format import (DISK_CODECS, authoring_json, color_kind, format_json, free_notes, from_disk,  # noqa: F401 (DISK_CODECS: registry)
+from disk_format import (DISK_CODECS, SUPPORTED_TYPES, authoring_json, color_kind, format_json, free_notes, from_disk,  # noqa: F401 (DISK_CODECS: registry)
                          palette_slots, readme_text, stamp_reading_guide, to_disk, with_readme)
 import subprocess_flow as sub
 from build_icon_pack import installed_packs, load_all_logos, load_logos, logo_refs
 from engine_runner import DEFAULT_TIMEOUT, EngineUnavailable, layout_session, run_layout, run_mermaid
+from save_helper import (extract_save_id, generate_save_id, handle_extract_html,
+                         handle_layout_output, stamp_save_id)
 from tokens import expand_icons, load_icons, load_tokens, merge_theme, tokens_css, tokens_js
 from version_check import check_nonblocking as check_version_nonblocking
 
@@ -44,7 +46,6 @@ DEFAULT_COL_WIDTH = 200
 START_X = 56
 
 # Complexity budget (a diagram beyond these is too dense to read at Fit zoom on a 1920px screen)
-SUPPORTED_TYPES = ("flowchart", "sequence", "erd", "usecase", "c4")  # add a type here when its engine and reference exist
 DEFAULT_TYPE = "flowchart"
 SCHEMA_VERSION = 1
 ERD_SCHEMA_VERSION = 3  # ERD layout v3 (disk_format.ERD_SCHEMA_VERSION)
@@ -1639,11 +1640,13 @@ def _artifact_external_refs(index_path: Path) -> List[str]:
 
 
 def scaffold_html(data: Dict[str, Any], output_path: Path, target: str = "file", tokens: Optional[Dict[str, Any]] = None,
-                  theme: Optional[Dict[str, Any]] = None):
+                  theme: Optional[Dict[str, Any]] = None, save_id: Optional[str] = None):
     """Write the standalone HTML for `data` (its diagramType selects the plugin)."""
     if target == "artifact":
         return scaffold_artifact(data, output_path, tokens, theme)
     html_text = assemble_page(data.get("diagramType") or DEFAULT_TYPE, data, target, tokens, theme)
+    if save_id:
+        html_text = stamp_save_id(html_text, save_id)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with output_path.open("w", encoding="utf-8", newline="\n") as fh:
         fh.write(html_text)
@@ -2038,6 +2041,8 @@ def main():
                         help="With --layout: also render a PNG here and run the layout report (one command does both)")
     parser.add_argument("--rm-input", action="store_true",
                         help="With --layout: delete the Mermaid input file once layout finishes with [DONE]")
+    parser.add_argument("--no-save-helper", action="store_true",
+                        help="Skip registering or starting the local direct-save helper for this run")
     parser.epilog = "SKILL.md documents every flag an agent needs; no others are required."
 
     args = parser.parse_args()
@@ -2076,12 +2081,15 @@ def main():
                 data = sub.flat_tab(data, args.sub)
             elif args.flat:
                 data = sub.flatten(data)
+        ext_html_text = ext_p.read_text(encoding="utf-8") if ext_p.is_file() and ext_p.suffix.lower() in (".html", ".htm") else None
         if args.json:
             text, what = format_json(data), "Extracted data"
         else:
             # The palette of --theme, else of the theme the page stores, else the default
-            page = ext_p if ext_p.suffix.lower() == ".html" else ext_p.with_name("index.html")
-            page_text = page.read_text(encoding="utf-8") if page.is_file() and (ext_p.suffix.lower() == ".html" or ext_p.name == "diagram.json") else None
+            page = ext_p if ext_p.suffix.lower() in (".html", ".htm") else ext_p.with_name("index.html")
+            page_text = ext_html_text if ext_html_text is not None else (
+                page.read_text(encoding="utf-8") if page.is_file() and ext_p.name == "diagram.json" else None
+            )
             # A lane's colour sits in the page's layout map, not in the authoring JSON, but Mermaid can say it (`class lane c3`)
             colors = {l["id"]: l["color"] for l in model.get("lanes") or [] if l.get("color")}
             data = {**data, "lanes": [{**l, "color": colors[l["id"]]} if l["id"] in colors else l for l in data.get("lanes") or []]} if colors else data
@@ -2095,6 +2103,8 @@ def main():
                 text = re.sub(r"(?m)^flowchart", "\n".join(head) + "\nflowchart", text, count=1)
             if free:
                 text += "\n%% Notes (free: they explain nothing in particular)\n" + "\n".join(free)
+        if ext_html_text is not None:
+            handle_extract_html(ext_p, ext_html_text, no_helper=args.no_save_helper)
         update_note = check_version_nonblocking()
         if args.output:
             out_p = Path(args.output)
@@ -2273,13 +2283,24 @@ def main():
                     obj.pop("x", None)
                     obj.pop("y", None)
 
+        save_id = None
         if args.target == "artifact":
             out_path = Path(args.output) if args.output else in_p.with_suffix("")
             render_target = scaffold_artifact(page_data, out_path, tokens, theme)
             external_refs = _artifact_external_refs(render_target)
         else:
             out_path = Path(args.output) if args.output else in_p.with_suffix(".html")
-            scaffold_html(page_data, out_path, "file", tokens, theme)
+            for candidate in (Path(args.keep_from) if args.keep_from else None, in_p, out_path):
+                if candidate and candidate.is_file() and candidate.suffix.lower() in (".html", ".htm"):
+                    try:
+                        save_id = extract_save_id(candidate.read_text(encoding="utf-8"))
+                    except OSError:
+                        save_id = None
+                    if save_id:
+                        break
+            if not save_id:
+                save_id = generate_save_id()
+            scaffold_html(page_data, out_path, "file", tokens, theme, save_id=save_id)
             external_refs = find_external_refs(out_path.read_text(encoding="utf-8"))
             render_target = out_path
 
@@ -2314,6 +2335,10 @@ def main():
         if not data_bad and args.rm_input and is_mmd and in_p.resolve() != render_target.resolve():
             in_p.unlink(missing_ok=True)
         if not data_bad:
+            if save_id and args.target == "file":
+                helper_note = handle_layout_output(out_path, save_id, no_helper=args.no_save_helper)
+                if helper_note:
+                    print(helper_note)
             update_note = check_version_nonblocking()
             if update_note:
                 print(update_note)

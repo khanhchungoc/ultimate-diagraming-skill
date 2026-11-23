@@ -24,6 +24,8 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 import subprocess_flow
 from tokens import load_tokens
 
+SUPPORTED_TYPES = ("flowchart", "sequence", "erd", "usecase", "c4")  # add a type here when its engine and reference exist
+
 FLOWCHART_KEYS = ("diagramType", "schemaVersion", "title", "direction", "swimlanes", "showNotes",
                   "lanes", "nodes", "edges", "notes", "children", "layout")
 CHILD_KEYS = ("name", "laneOrder", "laneHeights", "nodes", "edges", "notes")  # a child flow (subprocess tab) of a flowchart

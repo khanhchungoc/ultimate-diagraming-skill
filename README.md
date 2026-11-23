@@ -25,7 +25,7 @@ Describe a process, and your AI agent hands back a single HTML file. Open it in 
 ## What you get
 
 - ✏️ **Fix it yourself, no re-prompting.** Drag, retype, or delete anything. Undo, redo, and **Ctrl+F** search work out of the box.
-- 💬 **Your edits and the AI's edits combine.** Edit by hand, then ask the AI to change or extend the diagram — it builds on your saved version (in-place in [claude.ai Artifacts](docs/artifacts.md) or via [linked folder save](#save-vs-export)).
+- 💬 **Your edits and the AI's edits combine.** Edit by hand, then ask the AI to change or extend the diagram — it builds on your saved version (in-place in [claude.ai Artifacts](docs/artifacts.md) or directly in your saved HTML file).
 - 🧹 **Always tidy.** The AI checks for overlaps and unreadable labels before showing you. Move or edit anything and Auto-Tidy re-layouts and re-routes arrows in one click.
 - ⚡ **Fast and cheap.** The AI writes a short description instead of thousands of lines of drawing code, saving time and tokens.
 - 📦 **Just a file.** Share or open it offline anywhere. Optionally [use your brand](#use-your-brand) (colours, font, corners, contrast-checked).
@@ -142,14 +142,6 @@ Target a single runtime with `-r <name>` (e.g. `npx ultimate-diagram@latest -r a
 1. Ask your agent: *"Draw a swimlane flowchart of our loan approval process."*
 2. It saves an HTML file in your project folder and tells you the path. Open it in your browser and edit.
 3. Press **Save** in the diagram to keep your edits.
-
-### Save vs Export
-
-- **Opened as a claude.ai Artifact** (Claude Code with Artifact output): **Save** stores your edits directly in the artifact as a new version, so your agent's next change starts from them. If you only have view access (for example the live demos), use **Export > HTML file (editable)** to get your own editable copy as a standalone HTML file. See [Artifacts](docs/artifacts.md).
-- **Opened as a regular HTML file:** the browser cannot write into the file you opened without permission. In Chrome and Edge, the first **Save** offers two choices:
-  - **Link folder…** (recommended): copies this file's folder path so you can paste it into the folder picker. Pick that folder (or a higher project folder) once so diagrams inside save straight back to disk in one click. Only shown when the browser supports folder linking (hidden in embedded browsers like VS Code).
-  - **Choose file…**: copies the opened file's path so you can paste it into the Save window (Windows: Ctrl+V; macOS: ⌘⇧G, then ⌘V; Linux: Ctrl+L, then Ctrl+V) to save over the original.
-  After that, Save writes straight to the file, and the badge next to the title names it. Firefox and Safari save a copy to your downloads folder instead, and the page says the file you opened was not changed. To have your agent continue from your edits, tell it which saved file to use.
 
 ## Use your brand
 

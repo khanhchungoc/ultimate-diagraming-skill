@@ -132,12 +132,55 @@ def test_node_installer_hooks_and_no_hooks() -> None:
         assert not (proj2 / ".claude" / "settings.json").exists()
 
 
+def test_save_helper_opt_in_flags() -> None:
+    import json
+    repo_root = Path(__file__).resolve().parents[3]
+    with tempfile.TemporaryDirectory() as d:
+        root = Path(d)
+        # 1. Non-interactive install without flag leaves config.json unset
+        cache1 = root / "cache1"
+        proj1 = root / "proj1"
+        proj1.mkdir()
+        env1 = {**os.environ, "ULTIMATE_DIAGRAM_CACHE_DIR": str(cache1)}
+        r1 = subprocess.run(
+            ["node", str(repo_root / "bin" / "install.js"), "--project", "--target-path", str(proj1),
+             "--runtime", "copilot", "--mode", "copy", "--no-hooks"],
+            capture_output=True, text=True, encoding="utf-8", env=env1,
+        )
+        assert r1.returncode == 0, r1.stdout + r1.stderr
+        assert not (cache1 / "config.json").exists()
+        assert (proj1 / ".github" / "skills" / "ultimate-diagram" / "scripts" / "save_helper.py").is_file()
+
+        # 2. --save-helper persists true (install.js)
+        r2 = subprocess.run(
+            ["node", str(repo_root / "bin" / "install.js"), "--project", "--target-path", str(proj1),
+             "--runtime", "copilot", "--mode", "copy", "--no-hooks", "--save-helper"],
+            capture_output=True, text=True, encoding="utf-8", env=env1,
+        )
+        assert r2.returncode == 0, r2.stdout + r2.stderr
+        assert json.loads((cache1 / "config.json").read_text(encoding="utf-8"))["direct_save_helper"] is True
+
+        # 3. --no-save-helper persists false (install.py)
+        cache2 = root / "cache2"
+        proj2 = root / "proj2"
+        proj2.mkdir()
+        env2 = {**os.environ, "ULTIMATE_DIAGRAM_CACHE_DIR": str(cache2)}
+        r3 = subprocess.run(
+            [sys.executable, str(repo_root / "scripts" / "install.py"), "--scope", "project",
+             "--target-path", str(proj2), "--runtime", "copilot", "--mode", "copy", "--no-hooks", "--no-save-helper"],
+            capture_output=True, text=True, encoding="utf-8", env=env2,
+        )
+        assert r3.returncode == 0, r3.stdout + r3.stderr
+        assert json.loads((cache2 / "config.json").read_text(encoding="utf-8"))["direct_save_helper"] is False
+
+
 def main() -> None:
     test_windows_junction_uses_subprocess_argv()
     test_windows_junction_failure_falls_back_to_copy()
     test_posix_create_link_creates_symlink()
     test_register_version_hook_merges_and_is_idempotent()
     test_node_installer_hooks_and_no_hooks()
+    test_save_helper_opt_in_flags()
     print("[PASS] install.py + install.js")
 
 

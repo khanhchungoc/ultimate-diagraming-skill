@@ -2723,6 +2723,8 @@ const LOGOS = {"devicon/airflow":{"body":"\u003cpath d=\"m2.5441 127 60.809-62.3
       // --- STATE ---
       let chartData = { title: "", direction: "LR", lanes: [], nodes: [], edges: [] };
       let fileHandle = null;
+      let helperSavedName = '';  // file name saved via the local direct-save helper
+      let helperPort = null;     // cached loopback port for the local direct-save helper
       let everSaved = false;
       let storedName = '';   // the file a stored handle from an earlier visit points at (Save writes there once allowed)
       let downloadToldOnce = false;
@@ -3651,9 +3653,11 @@ const LOGOS = {"devicon/airflow":{"body":"\u003cpath d=\"m2.5441 127 60.809-62.3
           return;
         }
         // Name the file Save writes to: the one chosen this visit, else the one remembered from an earlier visit
-        const target = fileHandle ? fileHandle.name : storedName;
+        const target = fileHandle ? fileHandle.name : (helperSavedName || storedName);
         if (unsaved) {
           setStatusBadgeText("Unsaved changes", "badge badge-status unsaved", target ? `Save writes to ${target}` : '');
+        } else if (helperSavedName && !fileHandle) {
+          setStatusBadgeText(`Saved to ${helperSavedName}`, "badge badge-status saved", `Saved straight to ${helperSavedName} via local helper`);
         } else if (fileHandle) {
           setStatusBadgeText(`Saved to ${target}`, "badge badge-status saved", `Save writes straight to ${target}`);
         } else if (everSaved) {
@@ -5114,11 +5118,15 @@ const LOGOS = {"devicon/airflow":{"body":"\u003cpath d=\"m2.5441 127 60.809-62.3
         return fullHtml;
       }
 
-      function serializeDiagramJson() {
+      function buildDiskData() {
         chartData.title = chartTitleEl.textContent.trim();
         const disk = plugin.toDisk ? plugin.toDisk(chartData) : { ...chartData };
         delete disk._readme;
-        return formatJson(dataReadme === null ? disk : { _readme: dataReadme, ...disk });
+        return dataReadme === null ? disk : { _readme: dataReadme, ...disk };
+      }
+
+      function serializeDiagramJson() {
+        return formatJson(buildDiskData());
       }
 
       // The document to store: `sourceText` (this page's text) with the model, title and reading guide updated.
@@ -5504,6 +5512,99 @@ const LOGOS = {"devicon/airflow":{"body":"\u003cpath d=\"m2.5441 127 60.809-62.3
         }
       }
 
+      const HELPER_PORTS = [19847, 19848, 19849, 19850, 19851];
+
+      function getDiagramSaveId() {
+        const meta = document.querySelector('meta[name="diagram-save-id"]');
+        const val = meta ? (meta.getAttribute('content') || '').trim() : '';
+        return /^[0-9a-f]{32}$/.test(val) ? val : '';
+      }
+
+      function isLoopbackPreviewOrigin() {
+        return location.protocol === 'http:' && (location.hostname === '127.0.0.1' || location.hostname === 'localhost');
+      }
+
+      function helperPortsToProbe() {
+        const override = Array.isArray(window.__ULTIMATE_DIAGRAM_HELPER_PORTS__)
+          ? window.__ULTIMATE_DIAGRAM_HELPER_PORTS__
+          : null;
+        return override && override.length ? override : HELPER_PORTS;
+      }
+
+      async function fetchWithTimeout(url, opts, ms) {
+        const ctrl = typeof AbortController === 'function' ? new AbortController() : null;
+        const timer = ctrl ? setTimeout(() => ctrl.abort(), ms) : null;
+        try {
+          return await fetch(url, ctrl ? { ...opts, signal: ctrl.signal } : opts);
+        } finally {
+          if (timer) clearTimeout(timer);
+        }
+      }
+
+      async function findHelperPort() {
+        const ports = helperPortsToProbe();
+        for (const port of ports) {
+          try {
+            const resp = await fetchWithTimeout(`http://127.0.0.1:${port}/health`, { method: 'GET' }, 300);
+            if (!resp.ok) continue;
+            const info = await resp.json();
+            if (info && info.ok && info.app === 'ultimate-diagram-save-helper') return port;
+          } catch (_) {}
+        }
+        return null;
+      }
+
+      async function postSaveToHelper(port, payload) {
+        const resp = await fetchWithTimeout(`http://127.0.0.1:${port}/save`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Ultimate-Diagram-Save': '1'
+          },
+          body: JSON.stringify(payload)
+        }, 3000);
+        if (!resp.ok) return null;
+        const body = await resp.json();
+        return body && body.ok ? body : null;
+      }
+
+      async function saveViaLocalHelper() {
+        if (playground || claudeHost) return false;
+        const isLocalFile = location.protocol === 'file:';
+        if (!isLocalFile && !isLoopbackPreviewOrigin()) return false;
+        const saveId = getDiagramSaveId();
+        if (!saveId) return false;
+
+        const loc = isLocalFile ? localFilePath() : null;
+        const diskData = buildDiskData();
+        const title = chartData.title || plugin.defaultTitle;
+        const payload = { path: loc ? loc.file : null, saveId, data: diskData, title };
+
+        let result = null;
+        if (helperPort !== null) {
+          try { result = await postSaveToHelper(helperPort, payload); } catch (_) { result = null; }
+          if (!result) helperPort = null;
+        }
+        if (!result) {
+          const port = await findHelperPort();
+          if (port === null) return false;
+          try { result = await postSaveToHelper(port, payload); } catch (_) { result = null; }
+          if (!result) return false;
+          helperPort = port;
+        }
+
+        const updatedJson = formatJson(diskData);
+        const dataEl = document.getElementById('diagram-data');
+        if (dataEl) dataEl.textContent = `\n${updatedJson}\n  `;
+        if (title) document.title = title;
+        helperSavedName = result.name || (loc && loc.name) || 'diagram.html';
+        savedJson = JSON.stringify(chartData);
+        everSaved = true;
+        updateStatus(false);
+        motion.pulseEl(btnSave.querySelector('svg'));
+        return true;
+      }
+
       async function saveToFile() {
         if (playground) {
           try {
@@ -5517,6 +5618,7 @@ const LOGOS = {"devicon/airflow":{"body":"\u003cpath d=\"m2.5441 127 60.809-62.3
         if (artifactMode === 'publish') return publishToArtifact();
         if (artifactMode === 'view-only') return downloadHtmlFile();
         if (artifactMode === 'pending') return;   // use() has not answered yet; Save is disabled until it does
+        if (await saveViaLocalHelper()) return;
         const html = document.getElementById('diagram-data')
           ? buildSavedHtml(await loadSourceText())
           : await buildExportHtmlFile();
