@@ -37,7 +37,7 @@ def main() -> int:
     parser.add_argument("-v", "--verbose", action="store_true", help="Print passing cases")
     args = parser.parse_args()
     loan = json.loads((ROOT / "dev" / "examples" / "example-flowchart.json").read_text(encoding="utf-8"))
-    page = (ROOT / "dev" / "samples" / "corporate-laptop-purchase-request.html").read_text(encoding="utf-8")
+    page = (ROOT / "dev" / "samples" / "example-corporate-laptop-purchase-request.html").read_text(encoding="utf-8")
     laptop = authoring_json("flowchart", read_data_block(page))
     laptop.pop("direction", None)
     cases = [("loan example, 4 lanes, 17 steps", loan, "LR"), ("laptop sample, 7 lanes, 55 steps", laptop, "TB")]

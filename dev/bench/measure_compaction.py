@@ -39,8 +39,8 @@ from layout_engine import (  # noqa: E402
 from tokens import load_tokens, tokens_data  # noqa: E402
 
 BENCHMARK_PATHS: Tuple[Path, ...] = (
-    ROOT / "dev" / "samples" / "corporate-laptop-purchase-request.html",
-    ROOT / "dev" / "samples" / "corporate-laptop-purchase-request-alternative.html",
+    ROOT / "dev" / "samples" / "example-corporate-laptop-purchase-request.html",
+    ROOT / "dev" / "samples" / "example-corporate-laptop-purchase-request-alternative.html",
     ROOT / "dev" / "tests" / "fixtures" / "flowchart" / "employee-onboarding.json",
     ROOT / "dev" / "tests" / "fixtures" / "flowchart" / "incident-response.json",
     ROOT / "dev" / "tests" / "fixtures" / "flowchart" / "order-fulfillment.json",
