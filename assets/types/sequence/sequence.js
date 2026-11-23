@@ -540,7 +540,7 @@
         ns.forEach((n) => {
           if (n.x === undefined) return;
           const { card, text } = ui.noteCard(n, {});
-          Object.assign(card.style, { left: px(n.x), top: px(n.y), width: px(n.w), height: px(n.h) });
+          Object.assign(card.style, { left: px(n.x), top: px(n.y), width: px(n.w), height: px(n.h), minHeight: px(n.h) });
           text.textContent = sqWrap(n.text, Math.max(4, Math.floor((n.w - 2 * SQ.NOTE_PAD) / SQ.NOTE_CHAR_W))).join('\n');
           seqHtml.appendChild(card);
         });
@@ -1513,8 +1513,15 @@
               lightLifeline(p && p.id);
               if (card && p) {
                 const lo = firstP ? Math.min(firstP.x, p.x) : p.x, hi = firstP ? Math.max(firstP.x, p.x) : p.x;
-                const w = hi > lo ? hi - lo + 2 * SQ.NOTE_SPAN_PAD : SQ.NOTE_W;
-                const x = Math.round((lo + hi) / 2 - w / 2);
+                let x, w;
+                if (hi > lo) {
+                  w = hi - lo + 2 * SQ.NOTE_SPAN_PAD;
+                  x = Math.round((lo + hi) / 2 - w / 2);
+                } else {
+                  x = Math.round(lo - SQ.NOTE_W / 2);
+                  const nextX = (chartData.participants || []).map((q) => q.x).filter((qx) => qx > lo + 1).sort((a, b) => a - b)[0];
+                  w = sqNoteSingleW(n.text, x, nextX);
+                }
                 card.style.left = px(x);
                 card.style.width = px(w);
                 h.style.left = px(x + w);

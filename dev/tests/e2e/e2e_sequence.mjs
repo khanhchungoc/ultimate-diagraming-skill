@@ -386,6 +386,35 @@ try {
   await t.dragTo(st.x, st.y, wh.x, st.y);
   d = await saved();
   t.check("the note's stretch handle spans it over a second lifeline", JSON.stringify(d.notes[0].over) === '["p3","p4"]', JSON.stringify(d.notes[0]));
+  // A long single-lifeline note expands into open space toward the next lifeline, and wraps inside its box in edit mode
+  await t.clickOn('.seq-msg-label[data-edge-id="m2"]');
+  await t.clickOn('#btn-add-note');
+  const longNoteText = 'Start with benefits[].levelCode and resolve overrides before keeping one OPEX per Benefit';
+  await t.type(longNoteText);
+  await t.press('Enter');
+  const noteGeom = await t.ev(`(() => {
+    const cards = [...document.querySelectorAll('.note')];
+    const card = cards[cards.length - 1];
+    const r = card.getBoundingClientRect();
+    const p3 = document.querySelector('.seq-lifeline[data-node-id="p3"]').getBoundingClientRect();
+    return { w: r.width, right: r.right, nextX: p3.left + p3.width / 2, id: card.dataset.noteId };
+  })()`);
+  t.check('a long single-lifeline note expands toward the next lifeline without crossing it',
+    noteGeom.w > 184 && noteGeom.right < noteGeom.nextX, JSON.stringify(noteGeom));
+  const lnPos = await t.at(`.note[data-note-id="${noteGeom.id}"]`);
+  await t.click(lnPos.x, lnPos.y, { count: 2 });
+  const editWrap = await t.ev(`(() => {
+    const card = document.querySelector('.note[data-note-id="${noteGeom.id}"]');
+    const nt = card && card.querySelector('.note-text');
+    if (!nt) return null;
+    const cs = getComputedStyle(nt);
+    const cr = card.getBoundingClientRect(), tr = nt.getBoundingClientRect();
+    return { editable: nt.isContentEditable, ws: cs.whiteSpace, sw: nt.scrollWidth, cw: nt.clientWidth, ch: cr.height, th: tr.height };
+  })()`);
+  await t.press('Escape');
+  t.check('editing a sequence note wraps text inside the text box without clipping',
+    editWrap && editWrap.editable && editWrap.ws === 'pre-wrap' && editWrap.sw <= editWrap.cw + 2 && editWrap.ch >= editWrap.th,
+    JSON.stringify(editWrap));
 
   // --- Frame-aware drop slots (review fixes S1): the end (and start) of a frame, inside it or just outside it ---
   // On the checkout page f1 (alt) spans m4..m6, m7 follows it, and f2 (opt) spans m2..m3.
@@ -758,6 +787,7 @@ try {
   t.check('pressing Focus again on the focused frame shows everything', viaBar === 4 && (await summaries()) === 0, `${viaBar} ${await summaries()}`);
   // Drawing a message to a rail opens the frames that hide it first
   await t.clickOn('.frame-tag[data-frag-id="f3"] .seq-frag-focus');
+  await t.press('Escape');   // dismiss f3's action bar so it does not cover m14's row
   const railX = await t.ev(`(() => { const r = document.querySelector('.seq-life-hit[data-pid="pol"]').getBoundingClientRect(); return r.left + r.width / 2; })()`);
   const fromX = await t.ev(`(() => { const r = document.querySelector('.seq-life-hit[data-pid="spm"]').getBoundingClientRect(); return r.left + r.width / 2; })()`);
   const rowY = (await t.at('.seq-msg-label[data-edge-id="m14"]')).y + 14;

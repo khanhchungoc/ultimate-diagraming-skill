@@ -184,7 +184,7 @@
       "to": "cust",
       "label": "Outcome page",
       "kind": "reply",
-      "y": 711
+      "y": 694
     },
     {
       "id": "m15",
@@ -193,7 +193,7 @@
       "label": "Payment notification",
       "detail": "payment id, payment-status",
       "kind": "async",
-      "y": 771
+      "y": 754
     },
     {
       "id": "m16",
@@ -202,7 +202,7 @@
       "label": "Return to holding page",
       "detail": "payment id",
       "kind": "async",
-      "y": 843
+      "y": 826
     },
     {
       "id": "m17",
@@ -211,7 +211,7 @@
       "label": "Update payment status",
       "detail": "payment-status",
       "kind": "sync",
-      "y": 979,
+      "y": 962,
       "hidden": true
     },
     {
@@ -220,7 +220,7 @@
       "to": "pay",
       "label": "Updated",
       "kind": "reply",
-      "y": 979,
+      "y": 962,
       "hidden": true
     },
     {
@@ -230,7 +230,7 @@
       "label": "PaymentStatusChanged",
       "detail": "payment id, payment-status",
       "kind": "async",
-      "y": 979,
+      "y": 962,
       "hidden": true
     },
     {
@@ -240,7 +240,7 @@
       "label": "Get payment status",
       "detail": "payment id",
       "kind": "sync",
-      "y": 1146,
+      "y": 1129,
       "hidden": true
     },
     {
@@ -249,7 +249,7 @@
       "to": "pay",
       "label": "Fetch payment status",
       "kind": "sync",
-      "y": 1146,
+      "y": 1129,
       "hidden": true
     },
     {
@@ -258,7 +258,7 @@
       "to": "pol",
       "label": "payment-status",
       "kind": "reply",
-      "y": 1146,
+      "y": 1129,
       "hidden": true
     },
     {
@@ -267,7 +267,7 @@
       "to": "fe",
       "label": "payment-status",
       "kind": "reply",
-      "y": 1146,
+      "y": 1129,
       "hidden": true
     },
     {
@@ -276,7 +276,7 @@
       "to": "cust",
       "label": "Payment cancelled, try again",
       "kind": "async",
-      "y": 1262,
+      "y": 1245,
       "hidden": true
     },
     {
@@ -286,7 +286,7 @@
       "label": "Release quote lock",
       "detail": "quote id",
       "kind": "async",
-      "y": 1262,
+      "y": 1245,
       "hidden": true
     },
     {
@@ -295,7 +295,7 @@
       "to": "cust",
       "label": "Show error and support number",
       "kind": "async",
-      "y": 1262,
+      "y": 1245,
       "hidden": true
     },
     {
@@ -305,7 +305,7 @@
       "label": "Raise payment incident",
       "detail": "payment id, error code",
       "kind": "async",
-      "y": 1262,
+      "y": 1245,
       "hidden": true
     },
     {
@@ -315,7 +315,7 @@
       "label": "PaymentStatusChanged",
       "detail": "payment-status = Success",
       "kind": "async",
-      "y": 1262,
+      "y": 1245,
       "hidden": true
     },
     {
@@ -325,7 +325,7 @@
       "label": "Complete purchase",
       "detail": "quote id, payment id",
       "kind": "sync",
-      "y": 1262,
+      "y": 1245,
       "hidden": true
     },
     {
@@ -335,7 +335,7 @@
       "label": "Load quote",
       "detail": "quote id",
       "kind": "sync",
-      "y": 1262,
+      "y": 1245,
       "hidden": true
     },
     {
@@ -344,7 +344,7 @@
       "to": "pol",
       "label": "Quote and CPA answers",
       "kind": "reply",
-      "y": 1262,
+      "y": 1245,
       "hidden": true
     },
     {
@@ -354,7 +354,7 @@
       "label": "Issue policy",
       "detail": "quote id, payment id",
       "kind": "sync",
-      "y": 1262,
+      "y": 1245,
       "hidden": true
     },
     {
@@ -364,7 +364,7 @@
       "label": "Create policy",
       "detail": "policy number, start date, premium",
       "kind": "sync",
-      "y": 1262,
+      "y": 1245,
       "hidden": true
     },
     {
@@ -373,7 +373,7 @@
       "to": "job",
       "label": "Policy number",
       "kind": "reply",
-      "y": 1262,
+      "y": 1245,
       "hidden": true
     },
     {
@@ -383,7 +383,7 @@
       "label": "Generate documents",
       "detail": "schedule, certificate, IPID",
       "kind": "sync",
-      "y": 1262,
+      "y": 1245,
       "hidden": true
     },
     {
@@ -393,7 +393,7 @@
       "label": "Policy issued",
       "detail": "policy number, document links",
       "kind": "reply",
-      "y": 1262,
+      "y": 1245,
       "hidden": true
     },
     {
@@ -403,7 +403,7 @@
       "label": "CreateSystemTask",
       "detail": "policy number, reason",
       "kind": "async",
-      "y": 1262,
+      "y": 1245,
       "hidden": true
     },
     {
@@ -413,7 +413,7 @@
       "label": "Processing result (failed)",
       "detail": "error code",
       "kind": "reply",
-      "y": 1262,
+      "y": 1245,
       "hidden": true
     },
     {
@@ -423,7 +423,7 @@
       "label": "PolicyIssued",
       "detail": "policy number",
       "kind": "async",
-      "y": 1262,
+      "y": 1245,
       "hidden": true
     },
     {
@@ -433,7 +433,7 @@
       "label": "Processing result (success)",
       "detail": "policy number",
       "kind": "reply",
-      "y": 1262,
+      "y": 1245,
       "hidden": true
     },
     {
@@ -443,7 +443,7 @@
       "label": "Show confirmation",
       "detail": "policy number, documents link",
       "kind": "async",
-      "y": 1262,
+      "y": 1245,
       "hidden": true
     },
     {
@@ -453,7 +453,7 @@
       "label": "PolicyIssued",
       "detail": "policy number",
       "kind": "async",
-      "y": 1262,
+      "y": 1245,
       "hidden": true
     }
   ],
@@ -488,7 +488,7 @@
       "x": 132,
       "w": 1036,
       "y": 404,
-      "h": 473
+      "h": 456
     },
     {
       "id": "f8",
@@ -499,7 +499,7 @@
       "collapsed": true,
       "x": 648,
       "w": 652,
-      "y": 921,
+      "y": 904,
       "h": 76
     },
     {
@@ -511,7 +511,7 @@
       "collapsed": true,
       "x": 392,
       "w": 328,
-      "y": 1088,
+      "y": 1071,
       "h": 76
     },
     {
@@ -533,7 +533,7 @@
       "collapsed": true,
       "x": 132,
       "w": 1168,
-      "y": 1204,
+      "y": 1187,
       "h": 76
     },
     {
@@ -561,7 +561,7 @@
       "x": 336,
       "w": 184,
       "h": 37,
-      "y": 1029
+      "y": 1012
     },
     {
       "id": "n2",
@@ -578,8 +578,8 @@
       "over": "spm",
       "after": "m13",
       "x": 820,
-      "w": 184,
-      "h": 71,
+      "w": 300,
+      "h": 54,
       "y": 596
     },
     {
@@ -592,6 +592,6 @@
   "schemaVersion": 1,
   "layout": {
     "width": 1356,
-    "height": 1368
+    "height": 1351
   }
 }
