@@ -6232,11 +6232,16 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
                 }
                 if (!hasMid && lo <= mid && mid <= hi) add([[sx, sy], [sx, mid], [ex, mid], [ex, ey]], 0);
               } else {
-                [28, 36, 48, 72].forEach(d => {
-                  const g = fp === 'top' ? Math.max(8, Math.min(sy, ey) - d) : Math.max(sy, ey) + d;
-                  if (fp === 'top' && g > Math.min(sy, ey) - 12) return;
+                const seenG = new Set();
+                const tryU = g => {
+                  if (fp === 'top' ? g > Math.min(sy, ey) - 12 : g < Math.max(sy, ey) + 12) return;
+                  const q = Math.round(g / 8);
+                  if (seenG.has(q)) return;
+                  seenG.add(q);
                   add([[sx, sy], [sx, g], [ex, g], [ex, ey]]);
-                });
+                };
+                [28, 36, 48, 72].forEach(d => tryU(fp === 'top' ? Math.max(8, Math.min(sy, ey) - d) : Math.max(sy, ey) + d));
+                if (deep) corridorYs.forEach(tryU);
               }
             } else if (horiz(fp)) {
               // horizontal exit, vertical entry: one bend
@@ -6348,9 +6353,8 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
           const r = rects[nid];
           [['top', r.y], ['bottom', r.y + r.h]].forEach(([side, edgeY]) => {
             ['out', 'in'].forEach(role => {
-              // A decision's top/bottom side is a single vertex: never spread arrows along it (incoming
-              // ones share one arrowhead; outgoing branches each get their own vertex in step 2)
-              if (nodeMap[nid] && nodeMap[nid].type === 'decision') return;
+              // A decision's outgoing branches each get their own vertex in step 2; incoming fan-in arrows still merge onto one shared arrowhead
+              if (role === 'out' && nodeMap[nid] && nodeMap[nid].type === 'decision') return;
               const ends = [];
               validEdges.forEach(e => {
                 const pts = edgePolylines[e.id];
