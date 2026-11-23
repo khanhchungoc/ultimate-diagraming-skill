@@ -24,11 +24,11 @@ Describe a process, and your AI agent hands back a single HTML file. Open it in 
 
 ## What you get
 
-- ✏️ **Fix it yourself, no re-prompting.** Wrong label? Step in the wrong lane? Drag it, retype it, delete it. Undo and redo work. **Ctrl+F** searches the diagram's text.
-- 💬 **Your edits and the AI's edits combine.** Tweak the diagram by hand, then tell the AI "add an approval step after review". It picks up from your edited version instead of starting over. This works best as a [claude.ai Artifact](docs/artifacts.md), where **Save** stores your edits straight into the artifact. With a plain HTML file, **Save** works like Save As (see [Save vs Export](#save-vs-export)), so you point the AI at the saved file.
-- 🧹 **Always tidy.** The AI checks its own result for overlapping boxes and unreadable labels before showing you. After that, add, move or delete a step and the diagram re-arranges itself and re-routes the arrows. Flip between wide and tall with one button. Long arrows become lettered circles (A → A): hover to see where the flow continues, click to jump there.
-- ⚡ **Fast and cheap.** The AI writes a short description instead of thousands of lines of drawing code, so you wait less and spend fewer tokens ([numbers](#how-it-compares-to-mermaid-and-drawio)).
-- 📦 **Just a file.** Email it, put it in a repo, attach it to a ticket, or open it offline. Optionally [use your brand](#use-your-brand): colours, font and corners, contrast-checked.
+- ✏️ **Fix it yourself, no re-prompting.** Drag, retype, or delete anything. Undo, redo, and **Ctrl+F** search work out of the box.
+- 💬 **Your edits and the AI's edits combine.** Edit by hand, then ask the AI to change or extend the diagram — it builds on your saved version (in-place in [claude.ai Artifacts](docs/artifacts.md) or via [linked folder save](#save-vs-export)).
+- 🧹 **Always tidy.** The AI checks for overlaps and unreadable labels before showing you. Move or edit anything and Auto-Tidy re-layouts and re-routes arrows in one click.
+- ⚡ **Fast and cheap.** The AI writes a short description instead of thousands of lines of drawing code, saving time and tokens.
+- 📦 **Just a file.** Share or open it offline anywhere. Optionally [use your brand](#use-your-brand) (colours, font, corners, contrast-checked).
 
 ## Diagram types
 
@@ -38,13 +38,16 @@ Describe a process, and your AI agent hands back a single HTML file. Open it in 
 | **Sequence** | Who talks to whom, over time | ✅ |
 | **ERD** | Database tables, keys and relationships | ✅ |
 | **Use case** | Actors, goals and system boundaries | ✅ |
+| **C4** | System landscape: people, systems and containers (levels 1–2), grouping frames and tech logos ([packs](references/icon-packs.md)) | ✅ |
 | **BPMN** | Pools, lanes, events and gateways | 🔜 |
 | **State machine** | States and transitions | 🔜 |
-| **C4** | System landscape: people, systems and containers (levels 1 and 2), laid out around a centre, with no centre or in layers, with grouping frames you can colour, inline editing, Devicon tech logos and local logo packs ([how](references/icon-packs.md)), and hand editing (add, connect, and move boxes by dragging, with Auto-Tidy back on one click) | ✅ |
 | **Mind map** | Ideas branching from a central topic | 🕐  |
 | **Gantt chart** | Tasks on a timeline | 🕐 |
 
 *Order may change.*
+
+<details>
+<summary>See examples for each diagram type</summary>
 
 ### Flowchart
 
@@ -85,6 +88,8 @@ Search by requirement id (such as `FR-4`) to find the use case that covers it.
 *"Draw a C4 system landscape diagram for our e-commerce platform with customers, web app, API, and payment gateway."*
 
 ▶ [Try the C4 diagram](https://khanhchungoc.github.io/ultimate-diagraming-skill/examples/c4/)
+
+</details>
 
 ## Offline samples
 
@@ -183,23 +188,18 @@ For contributors: [references/theme.md](references/theme.md).
 | Hand-edit everything the AI wrote | ✅ | ❌ | ✅ |
 | Nothing to install | ✅ | ✅ | ⚠️ app or site |
 | Real swimlanes | ✅ | ❌ | ✅ |
-| Wide ↔ tall, 1 click | ✅ | ⚠️ code | ❌ |
-| Re-tidies after edits | ✅ | ⚠️ no drag | ⚠️ limited |
+| Re-layout (wide ↔ tall, 1 click) | ✅ | ⚠️ code | ❌ |
+| Auto-layout / re-layout after edits | ✅ | ⚠️ no drag | ⚠️ limited |
 | In Markdown docs | ❌ | ✅ | ❌ |
-| Diagram types | 5 | many | many |
-| Export PNG / SVG / PDF | ❌ planned | ✅ | ✅ |
+| Export PNG / SVG / PDF | ✅ PNG, SVG | ✅ | ✅ |
 | File size | ⚠️ 330-530 KB | ✅ 10-26 KB | ✅ 39-56 KB |
-| Shape / icon library | ❌ | ❌ | ✅ |
+| Shape / icon library | ✅ Devicon + custom packs | ❌ | ✅ |
 
 </details>
 
 ## Build your own skills
 
-> ### 🛠️ [craft-agent-skill](https://github.com/khanhchungoc/craft-agent-skill)
->
-> Liked this skill? Make your own. **craft-agent-skill** creates, updates and audits agents and skills for Copilot, Claude Code, Codex, Gemini and Kiro.
->
-> **[Get craft-agent-skill →](https://github.com/khanhchungoc/craft-agent-skill)**
+Liked this skill? Make your own with [**craft-agent-skill**](https://github.com/khanhchungoc/craft-agent-skill) — creates, updates and audits agents and skills for Copilot, Claude Code, Codex, Gemini and Kiro.
 
 ## Update check
 
