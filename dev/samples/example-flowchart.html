@@ -2656,9 +2656,11 @@ html.is-loading #page-loading { display: grid; }
     .flow-subtabs > .flow-tab[aria-selected="true"]:first-child { margin-left: -1px; }
     .flow-subtabs > .flow-tab[aria-selected="true"] + .flow-tab { border-left-color: transparent; }
     .flow-subtabs:has(> .flow-subtabs) > .flow-tab[aria-selected="true"] {
-      border-bottom-color: transparent;
+      border-left-color: transparent;
       border-right-color: transparent;
-      margin-bottom: 0;
+      border-bottom-color: transparent;
+      border-radius: 0;
+      margin: 0;
     }
     body.presentation .flow-tabs {
       top: 12px;
@@ -5348,7 +5350,7 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
         btn.addEventListener('keydown', onKey);
       }
       menuArrowKeys(exportMenu, btnExport);
-      btnExport.addEventListener('click', (e) => { e.stopPropagation(); setExportOpen(exportMenu.hidden); });
+      btnExport.addEventListener('click', (e) => { e.stopPropagation(); closeMermaidImport(); setExportOpen(exportMenu.hidden); });
       exportMenu.addEventListener('click', (e) => {
         const b = e.target.closest('[data-export], [data-copy]');
         if (!b) return;
@@ -5356,10 +5358,14 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
         if (b.dataset.copy) copyDiagram(b.dataset.copy);
         else exportDiagram(b.dataset.export);
       });
-      document.addEventListener('click', () => { setExportOpen(false); });
+      document.addEventListener('click', (e) => {
+        setExportOpen(false);
+        if (importEl && !importEl.contains(e.target) && !btnImportMermaid.contains(e.target)) closeMermaidImport();
+      });
       window.addEventListener('keydown', (e) => {
         if (e.key !== 'Escape') return;
         setExportOpen(false);
+        closeMermaidImport();
       });
 
       // --- IMPORT MERMAID ---
@@ -10230,9 +10236,6 @@ function toMermaid(data, opts) {
       function withTabMotion(fn) {
         if (!motion.enabled()) { fn(); return; }
         const wasShown = !flowTabs.hidden;
-        const prevAct = wasShown ? flowTabs.querySelector('.flow-tab[aria-selected="true"]') : null;
-        const prevKey = prevAct ? prevAct.dataset.tab : null;
-        const prevRect = prevAct ? prevAct.getBoundingClientRect() : null;
         const tabSnap = wasShown ? motion.capture(flowTabs, TAB_SPECS, { ghosts: true }) : null;
         fn();
         if (flowTabs.hidden) return;
@@ -10244,8 +10247,6 @@ function toMermaid(data, opts) {
           ], { duration: motion.dur('dur-base', 180), easing: motion.curve('curve-spring-tactile') });
           return;
         }
-        const nextAct = flowTabs.querySelector('.flow-tab[aria-selected="true"]');
-        const nextRect = (prevRect && nextAct && prevKey !== nextAct.dataset.tab) ? nextAct.getBoundingClientRect() : null;
         if (tabSnap) {
           flowTabs.querySelectorAll('.flow-subtabs[data-level]').forEach(box => {
             const prevB = tabSnap.get('0:' + box.dataset.level);
@@ -10264,24 +10265,6 @@ function toMermaid(data, opts) {
             });
           });
           motion.play(tabSnap, flowTabs, TAB_SPECS, { duration: motion.dur('dur-tab', 300), easing: 'curve-inout', ghostExit: true });
-        }
-        if (nextRect && nextRect.width > 0 && nextRect.height > 0) {
-          const nr = nextRect;
-          const radius = getComputedStyle(nextAct).borderRadius || '0 0 var(--radius-md) var(--radius-md)';
-          const chip = document.createElement('div');
-          chip.setAttribute('data-motion-ghost', '');
-          chip.setAttribute('data-export-skip', '');
-          chip.setAttribute('aria-hidden', 'true');
-          chip.style.cssText = `position:fixed;left:${nr.left}px;top:${nr.top}px;width:${nr.width}px;height:${nr.height}px;background:var(--primary-wash);border:1px solid var(--primary);border-top:0;border-radius:${radius};box-sizing:border-box;pointer-events:none;z-index:121;transform-origin:top left;`;
-          document.body.appendChild(chip);
-          const dx = prevRect.left - nr.left, dy = prevRect.top - nr.top;
-          const sx = prevRect.width / nr.width, sy = prevRect.height / nr.height;
-          const a = motion.anim(chip, [
-            { transform: `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})`, opacity: 0.9 },
-            { transform: 'none', opacity: 0 }
-          ], { duration: Math.max(40, Math.round(motion.dur('dur-tab', 300) * 0.9 * motion.speedScale())), easing: motion.curve('curve-inout') });
-          const drop = () => chip.remove();
-          if (a) { a.addEventListener('finish', drop, { once: true }); a.addEventListener('cancel', drop, { once: true }); } else chip.remove();
         }
       }
 
@@ -13021,14 +13004,14 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         m.set('', swimlanesContainer.getBoundingClientRect());   // the card behind the lanes (key '': no lane has an empty id)
         return m;
       };
-      function morphLaneBackdrops(prev) {
+      function morphLaneBackdrops(prev, next) {
         if (!motion.enabled() || prev.size < 2) return;
-        const cr = swimlanesContainer.getBoundingClientRect();
+        const cr = (next && next.get('')) || swimlanesContainer.getBoundingClientRect();
         const k = (swimlanesContainer.offsetWidth ? cr.width / swimlanesContainer.offsetWidth : scale) || 1;
         const dur = Math.max(40, Math.round(BIG_MS * motion.speedScale())), eas = motion.curve('curve-inout');
         const made = [];
         const backdrop = (from, to, css) => {
-          if (!from || !to.width || !to.height) return;
+          if (!from || !to || !to.width || !to.height) return;
           const back = document.createElement('div');
           back.setAttribute('data-export-skip', '');
           back.style.cssText = `position:absolute;box-sizing:border-box;pointer-events:none;transform-origin:0 0;left:${(to.left - cr.left) / k}px;top:${(to.top - cr.top) / k}px;width:${to.width / k}px;height:${to.height / k}px;${css}`;
@@ -13043,7 +13026,8 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
         backdrop(prev.get(''), cr, `left:-${card.borderLeftWidth};top:-${card.borderTopWidth};background:${card.backgroundColor};border:${card.border};border-radius:${card.borderRadius};box-shadow:${card.boxShadow}`);
         lanesRoot.querySelectorAll('.swimlane[data-lane-id]').forEach(el => {
           const track = el.querySelector('.lane-track');
-          if (track) backdrop(prev.get(el.dataset.laneId), el.getBoundingClientRect(), `background:${getComputedStyle(track).backgroundColor}`);
+          const to = (next && next.get(el.dataset.laneId)) || el.getBoundingClientRect();
+          if (track) backdrop(prev.get(el.dataset.laneId), to, `background:${getComputedStyle(track).backgroundColor}`);
         });
         if (!made.length) return;
         swimlanesContainer.classList.add('lane-morph');
@@ -13052,6 +13036,7 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
 
       if (btnDirection) btnDirection.addEventListener('click', () => {
         const prevLanes = laneBoxes();
+        let nextLanes = null;
         withMotion(() => {
           if (isTB()) delete chartData.direction;
           else chartData.direction = 'TB';
@@ -13063,8 +13048,9 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
           layoutOtherFlows();
           render();
           updateStatus(true);
+          nextLanes = laneBoxes();
         }, { duration: BIG_MS });   // arrows morph from their old routes (as in Tidy); the view stays where the reader had it
-        morphLaneBackdrops(prevLanes);
+        morphLaneBackdrops(prevLanes, nextLanes);
       });
 
       // --- AUTO LAYOUT TOGGLE ---

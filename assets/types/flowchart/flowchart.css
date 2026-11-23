@@ -863,9 +863,11 @@
     .flow-subtabs > .flow-tab[aria-selected="true"]:first-child { margin-left: -1px; }
     .flow-subtabs > .flow-tab[aria-selected="true"] + .flow-tab { border-left-color: transparent; }
     .flow-subtabs:has(> .flow-subtabs) > .flow-tab[aria-selected="true"] {
-      border-bottom-color: transparent;
+      border-left-color: transparent;
       border-right-color: transparent;
-      margin-bottom: 0;
+      border-bottom-color: transparent;
+      border-radius: 0;
+      margin: 0;
     }
     body.presentation .flow-tabs {
       top: 12px;

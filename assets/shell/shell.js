@@ -2385,7 +2385,7 @@
         btn.addEventListener('keydown', onKey);
       }
       menuArrowKeys(exportMenu, btnExport);
-      btnExport.addEventListener('click', (e) => { e.stopPropagation(); setExportOpen(exportMenu.hidden); });
+      btnExport.addEventListener('click', (e) => { e.stopPropagation(); closeMermaidImport(); setExportOpen(exportMenu.hidden); });
       exportMenu.addEventListener('click', (e) => {
         const b = e.target.closest('[data-export], [data-copy]');
         if (!b) return;
@@ -2393,10 +2393,14 @@
         if (b.dataset.copy) copyDiagram(b.dataset.copy);
         else exportDiagram(b.dataset.export);
       });
-      document.addEventListener('click', () => { setExportOpen(false); });
+      document.addEventListener('click', (e) => {
+        setExportOpen(false);
+        if (importEl && !importEl.contains(e.target) && !btnImportMermaid.contains(e.target)) closeMermaidImport();
+      });
       window.addEventListener('keydown', (e) => {
         if (e.key !== 'Escape') return;
         setExportOpen(false);
+        closeMermaidImport();
       });
 
       // --- IMPORT MERMAID ---
