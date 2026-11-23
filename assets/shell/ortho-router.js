@@ -591,20 +591,36 @@
           minX: Math.min(b.minX, r.x), maxX: Math.max(b.maxX, r.x + r.w),
           minY: Math.min(b.minY, r.y), maxY: Math.max(b.maxY, r.y + r.h)
         }), { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity });
-        // Gap centers (+/-20px) between node x-bands so tight corridors are never skipped by STEP=16
-        const gapXs = (() => {
-          const ivs = rectList.map(([, r]) => [r.x, r.x + r.w]).sort((a, b) => a[0] - b[0]);
-          const xs = [];
+        // Gap centers (+/-22px) between node bands and node clearance edges so tight corridors are never skipped
+        const buildCorridors = (loKey, sizeKey, minBound, maxBound) => {
+          const ivs = rectList.map(([, r]) => [r[loKey], r[loKey] + r[sizeKey]]).sort((a, b) => a[0] - b[0]);
+          const seen = new Set();
+          const out = [];
+          const push = (v) => {
+            const q = Math.round(v / 8);
+            if (seen.has(q)) return;
+            seen.add(q);
+            out.push(v);
+          };
           let hi = -Infinity;
           for (const [a, b] of ivs) {
             if (a > hi + 28 && hi > -Infinity) {
               const mid = (hi + a) / 2;
-              xs.push(mid, mid - 22, mid + 22);
+              push(mid); push(mid - 22); push(mid + 22);
             }
             if (b > hi) hi = b;
           }
-          return xs;
-        })();
+          for (let k = 0; k < rectList.length; k++) {
+            const r = rectList[k][1];
+            push(r[loKey] - 16);
+            push(r[loKey] + r[sizeKey] + 16);
+          }
+          push(minBound - 24);
+          push(maxBound + 24);
+          return out;
+        };
+        const corridorXs = buildCorridors('x', 'w', bounds.minX, bounds.maxX);
+        const corridorYs = buildCorridors('y', 'h', bounds.minY, bounds.maxY);
         const altRoutes = (f, t, deep) => {
           const out = [];
           const SIDES = ['top', 'bottom', 'left', 'right'];
@@ -617,15 +633,25 @@
               const dirOk = fp === 'right' ? ex > sx + 28 : ex < sx - 28;
               if (!dirOk) return;
               if (Math.abs(sy - ey) < 6) { add([[sx, sy], [ex, sy]]); return; }
-              const lo = Math.min(sx, ex) + 14, hi = Math.max(sx, ex) - 14;
-              for (let x = lo; x <= hi; x += 10) add([[sx, sy], [x, sy], [x, ey], [ex, ey]], Math.abs(x - (sx + ex) / 2));
+              const lo = Math.min(sx, ex) + 14, hi = Math.max(sx, ex) - 14, mid = (sx + ex) / 2;
+              let hasMid = false;
+              for (let x = lo; x <= hi; x += 16) {
+                if (Math.abs(x - mid) < 4) hasMid = true;
+                add([[sx, sy], [x, sy], [x, ey], [ex, ey]], Math.abs(x - mid));
+              }
+              if (!hasMid && lo <= mid && mid <= hi) add([[sx, sy], [mid, sy], [mid, ey], [ex, ey]], 0);
             } else if (!horiz(fp) && !horiz(tp)) {
               if (fp !== tp) {
                 const dirOk = fp === 'bottom' ? ey > sy + 28 : ey < sy - 28;
                 if (!dirOk) return;
                 if (Math.abs(sx - ex) < 1) { add([[sx, sy], [ex, ey]]); return; }
-                const lo = Math.min(sy, ey) + 14, hi = Math.max(sy, ey) - 14;
-                for (let y = lo; y <= hi; y += 10) add([[sx, sy], [sx, y], [ex, y], [ex, ey]], Math.abs(y - (sy + ey) / 2));
+                const lo = Math.min(sy, ey) + 14, hi = Math.max(sy, ey) - 14, mid = (sy + ey) / 2;
+                let hasMid = false;
+                for (let y = lo; y <= hi; y += 16) {
+                  if (Math.abs(y - mid) < 4) hasMid = true;
+                  add([[sx, sy], [sx, y], [ex, y], [ex, ey]], Math.abs(y - mid));
+                }
+                if (!hasMid && lo <= mid && mid <= hi) add([[sx, sy], [sx, mid], [ex, mid], [ex, ey]], 0);
               } else {
                 [28, 36, 48, 72].forEach(d => {
                   const g = fp === 'top' ? Math.max(8, Math.min(sy, ey) - d) : Math.max(sy, ey) + d;
@@ -646,28 +672,40 @@
             }
             if (deep && horiz(fp) !== horiz(tp)) {
               // Three bends through a corridor: leave, run along a corridor, drop/rise, then enter
-              const STEP = 16;
+              const STEP = 64;
               if (!horiz(fp)) {
                 // vertical exit -> corridor above/below -> sideways to x -> vertical -> horizontal entry
                 [16, 20, 36, 56].forEach(d => {
                   const g = fp === 'top' ? sy - d : sy + d;
+                  const seenX = new Set();
                   const tryX = x => {
+                    const q = Math.round(x / 8);
+                    if (seenX.has(q)) return;
+                    seenX.add(q);
                     if (tp === 'left' ? x > ex - 14 : x < ex + 14) return;
                     if (Math.abs(x - sx) < 10 || Math.abs(ey - g) < 10) return;
                     add([[sx, sy], [sx, g], [x, g], [x, ey], [ex, ey]], 0);
                   };
-                  for (let x = bounds.minX - 24; x <= bounds.maxX + 24; x += STEP) tryX(x);
-                  gapXs.forEach(tryX);
+                  corridorXs.forEach(tryX);
+                  const xLo = Math.min(sx, ex) - 64, xHi = Math.max(sx, ex) + 64;
+                  for (let x = xLo; x <= xHi; x += STEP) tryX(x);
                 });
               } else {
                 // horizontal exit -> out to x -> vertical to corridor g -> across -> vertical entry
                 [16, 20, 36, 56].forEach(d => {
                   const x = fp === 'right' ? sx + d : sx - d;
-                  for (let g = bounds.minY - 24; g <= bounds.maxY + 24; g += STEP) {
-                    if (tp === 'top' ? g > ey - 14 : g < ey + 14) continue;
-                    if (Math.abs(g - sy) < 10 || Math.abs(ex - x) < 10) continue;
+                  const seenG = new Set();
+                  const tryG = g => {
+                    const q = Math.round(g / 8);
+                    if (seenG.has(q)) return;
+                    seenG.add(q);
+                    if (tp === 'top' ? g > ey - 14 : g < ey + 14) return;
+                    if (Math.abs(g - sy) < 10 || Math.abs(ex - x) < 10) return;
                     add([[sx, sy], [x, sy], [x, g], [ex, g], [ex, ey]], 0);
-                  }
+                  };
+                  corridorYs.forEach(tryG);
+                  const gLo = Math.min(sy, ey) - 64, gHi = Math.max(sy, ey) + 64;
+                  for (let g = gLo; g <= gHi; g += STEP) tryG(g);
                 });
               }
             }

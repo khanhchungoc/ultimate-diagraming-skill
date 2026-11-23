@@ -527,7 +527,19 @@
           if (h1 && h2) return Math.abs(y1 - y3) < 1 && Math.min(x2, x4) - Math.max(x1, x3) > 1;
           return false;
         };
-        const polyCross = (a, b) => {
+        const polyBox = (pts) => {
+          let x1 = Infinity, y1 = Infinity, x2 = -Infinity, y2 = -Infinity;
+          for (let i = 0; i < pts.length; i++) {
+            const x = pts[i][0], y = pts[i][1];
+            if (x < x1) x1 = x;
+            if (x > x2) x2 = x;
+            if (y < y1) y1 = y;
+            if (y > y2) y2 = y;
+          }
+          return [x1, y1, x2, y2];
+        };
+        const polyCross = (a, b, ba, bb) => {
+          if (ba && bb && (ba[2] < bb[0] - 1 || bb[2] < ba[0] - 1 || ba[3] < bb[1] - 1 || bb[3] < ba[1] - 1)) return false;
           for (let i = 0; i < a.length - 1; i++) for (let j = 0; j < b.length - 1; j++) {
             if (segCross(a[i], a[i + 1], b[j], b[j + 1])) return true;
           }
@@ -563,6 +575,8 @@
           const rects = {};
           nodes.forEach(n => { rects[n.id] = [n.x, (laneTop[n.laneId] || 0) + n.y, LE.NODE_W, nodeH(n)]; });
           const poly = routeAll(rects);
+          const pBoxes = {};
+          Object.keys(poly).forEach(id => { pBoxes[id] = polyBox(poly[id]); });
 
           edges.forEach(e => {
             const pts = poly[e.id];
@@ -596,17 +610,18 @@
               return n;
             };
             // Crossings of a route against the other arrows' current routes
-            const crossesOf = (rt) => {
+            const crossesOf = (rt, rb) => {
               let n = 0;
               edges.forEach(o => {
                 const op = poly[o.id];
                 if (!op || o === e || o.from === e.from || o.from === e.to || o.to === e.from || o.to === e.to) return;
-                if (polyCross(rt, op)) n += 1;
+                if (polyCross(rt, op, rb, pBoxes[o.id])) n += 1;
               });
               return n;
             };
             let pen = through(pts);
-            if (pen > 0 || crossesOf(pts) > 0) {
+            const cross0 = crossesOf(pts, pBoxes[e.id]);
+            if (pen > 0 || cross0 > 0) {
               const f = rects[e.from], t = rects[e.to];
               const fcx = f[0] + f[2] / 2, fcy = f[1] + f[3] / 2, tcx = t[0] + t[2] / 2, tcy = t[1] + t[3] / 2;
               const alts = [];
@@ -623,13 +638,15 @@
                 alts.push([[fcx, tcy < fcy ? f[1] : f[1] + f[3]], [fcx, tcy], [t[0] + t[2], tcy]]);
               }
               // Keep whichever route has the fewest penetrations, then crossings (the standard route wins ties)
-              let bestRt = pts, bestKey = [pen, crossesOf(pts)];
+              let bestRt = pts, bestBox = pBoxes[e.id], bestKey = [pen, cross0];
               alts.forEach(rt => {
-                const k = [through(rt), crossesOf(rt)];
-                if (k[0] < bestKey[0] || (k[0] === bestKey[0] && k[1] < bestKey[1])) { bestRt = rt; bestKey = k; }
+                const rb = polyBox(rt);
+                const k = [through(rt), crossesOf(rt, rb)];
+                if (k[0] < bestKey[0] || (k[0] === bestKey[0] && k[1] < bestKey[1])) { bestRt = rt; bestBox = rb; bestKey = k; }
               });
               pen = bestKey[0];
               poly[e.id] = bestRt;
+              pBoxes[e.id] = bestBox;
             }
             penetrations += pen;
           });
@@ -639,7 +656,7 @@
           for (let i = 0; i < listed.length; i++) for (let j = i + 1; j < listed.length; j++) {
             const a = listed[i], b = listed[j];
             if (a.from === b.from || a.from === b.to || a.to === b.from || a.to === b.to) continue;
-            if (polyCross(poly[a.id], poly[b.id])) crossings += 1;
+            if (polyCross(poly[a.id], poly[b.id], pBoxes[a.id], pBoxes[b.id])) crossings += 1;
           }
           let bends = 0, length = 0;
           Object.keys(poly).forEach(id => {

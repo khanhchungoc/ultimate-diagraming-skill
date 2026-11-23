@@ -3035,7 +3035,7 @@ const LOGOS = {"devicon/airflow":{"body":"\u003cpath d=\"m2.5441 127 60.809-62.3
           const sf = markPlay();
           const baseDur = Math.max(40, Math.round((o.duration ?? dur('dur-layout', 230)) * sf));
           const easing = curve(o.easing || 'curve-spring-settle');
-          const cull = items.length > 120;
+          const cull = items.length > 60;
           const ox = o.originRect ? (inStage ? (o.originRect.left - st.left) / k : o.originRect.left) : 0;
           const oy = o.originRect ? (inStage ? (o.originRect.top - st.top) / k : o.originRect.top) : 0;
           const ow = o.originRect ? o.originRect.width / k : 0;
@@ -3196,7 +3196,7 @@ const LOGOS = {"devicon/airflow":{"body":"\u003cpath d=\"m2.5441 127 60.809-62.3
           if (svgJob) { cancelAnimationFrame(svgJob.raf); svgJob = null; syncBusy(); }
           if (!enabled() || !tracks || !tracks.length) return;
           const o = opts || {};
-          const polyCap = tracks.length > 60;
+          const polyCap = tracks.length > 35;
           const active = [];
           let total = 0;
           for (let i = 0; i < tracks.length; i++) {
@@ -3204,7 +3204,7 @@ const LOGOS = {"devicon/airflow":{"body":"\u003cpath d=\"m2.5441 127 60.809-62.3
             if (!tr || !tr.el || !tr.from || !tr.to) continue;
             if (tr.type === 'polyline') {
               if (polyCap || Math.abs(tr.from.length - tr.to.length) > 24 || tr.from.length < 4 || tr.to.length < 4) {
-                if (tr.el.tagName === 'path') drawPath(tr.el, o);
+                if (!polyCap && tr.el.tagName === 'path') drawPath(tr.el, o);
                 continue;
               }
               const f = tr.from.length < tr.to.length ? normPoly(tr.from, tr.to) : tr.from;
@@ -3780,11 +3780,15 @@ const LOGOS = {"devicon/airflow":{"body":"\u003cpath d=\"m2.5441 127 60.809-62.3
       btnTheme.addEventListener('click', (e) => applyTheme(currentTheme() === 'dark' ? 'light' : 'dark', true, e.isTrusted));
 
       // --- VIEWPORT PAN & ZOOM & FIT ---
+      let lastAppliedScale = null;
       function showZoom() { zoomLevelEl.textContent = `${Math.round((vpAnim ? vpAnim.targetScale : scale) * 100)}%`; }   // a glide in flight shows where it lands
       function updateTransform() {
         stage.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
-        stage.style.setProperty('--ui-scale', String(1 / scale));   // action bars undo the zoom: their size is fixed like the dock's
-        showZoom();
+        if (scale !== lastAppliedScale) {
+          lastAppliedScale = scale;
+          stage.style.setProperty('--ui-scale', String(1 / scale));   // action bars undo the zoom: their size is fixed like the dock's
+          showZoom();
+        }
         if (plugin && plugin.onViewChange) plugin.onViewChange();   // e.g. keep frozen headers pinned
       }
 
@@ -3958,7 +3962,7 @@ const LOGOS = {"devicon/airflow":{"body":"\u003cpath d=\"m2.5441 127 60.809-62.3
         isPanning = true;
         panStartX = e.clientX - panX;
         panStartY = e.clientY - panY;
-        viewport.classList.add('panning');
+        viewport.classList.add('panning', 'gesturing');
       }, true);
       viewport.addEventListener('mousedown', (e) => { if (e.button === 1) e.preventDefault(); }, true);
       viewport.addEventListener('auxclick', (e) => { if (e.button === 1) { e.preventDefault(); e.stopPropagation(); } }, true);
@@ -3971,7 +3975,7 @@ const LOGOS = {"devicon/airflow":{"body":"\u003cpath d=\"m2.5441 127 60.809-62.3
           isPanning = true;
           panStartX = e.clientX - panX;
           panStartY = e.clientY - panY;
-          viewport.classList.add('panning');
+          viewport.classList.add('panning', 'gesturing');
           plugin.clearSelection();
         }
       });
@@ -3988,11 +3992,16 @@ const LOGOS = {"devicon/airflow":{"body":"\u003cpath d=\"m2.5441 127 60.809-62.3
       let touchGesture = null;       // { kind: 'pan', sx, sy, panX, panY, moved, bg, target, init } | { kind: 'pinch', ... }
       let replayingTap = false;
       const TAP_SLOP = 8;            // px a finger may wander and still be a tap
-      let transformQueued = false;
+      let transformRaf = 0;
       function scheduleTransform() {
-        if (transformQueued) return;
-        transformQueued = true;
-        requestAnimationFrame(() => { transformQueued = false; updateTransform(); });
+        if (transformRaf) return;
+        transformRaf = requestAnimationFrame(() => { transformRaf = 0; updateTransform(); });
+      }
+      function flushTransform() {
+        if (!transformRaf) return;
+        cancelAnimationFrame(transformRaf);
+        transformRaf = 0;
+        updateTransform();
       }
       const isBlankCanvas = (el) => el === viewport || el.id === 'stage' || plugin.isBackground(el);
       function startPinch() {
@@ -4142,15 +4151,29 @@ const LOGOS = {"devicon/airflow":{"body":"\u003cpath d=\"m2.5441 127 60.809-62.3
         if (!isPanning) return;
         panX = e.clientX - panStartX;
         panY = e.clientY - panStartY;
-        updateTransform();
+        scheduleTransform();
       });
 
-      window.addEventListener('pointerup', () => {
+      function endMousePan() {
+        if (!isPanning) return;
+        flushTransform();
         isPanning = false;
         viewport.classList.remove('panning');
-      });
+        if (!touchGesture && !vpAnim) viewport.classList.remove('gesturing');
+      }
+      window.addEventListener('pointerup', endMousePan);
+      window.addEventListener('pointercancel', endMousePan);
 
       const WHEEL_SCROLL = 0.4;   // canvas px per px a mouse wheel notch reports (~40px per notch)
+      let wheelGestureTimer = 0;
+      function bumpWheelGesture() {
+        viewport.classList.add('gesturing');
+        clearTimeout(wheelGestureTimer);
+        wheelGestureTimer = setTimeout(() => {
+          wheelGestureTimer = 0;
+          if (!isPanning && !touchGesture && !vpAnim) viewport.classList.remove('gesturing');
+        }, 140);
+      }
       viewport.addEventListener('wheel', (e) => {
         e.preventDefault();
         cancelViewportAnim();
@@ -4166,6 +4189,7 @@ const LOGOS = {"devicon/airflow":{"body":"\u003cpath d=\"m2.5441 127 60.809-62.3
           const sideways = e.shiftKey && !dX;
           panX -= (sideways ? dY : dX) * k;
           panY -= (sideways ? 0 : dY) * k;
+          bumpWheelGesture();
           updateTransform();
           return;
         }
@@ -4179,6 +4203,7 @@ const LOGOS = {"devicon/airflow":{"body":"\u003cpath d=\"m2.5441 127 60.809-62.3
         panX = cx - (cx - panX) * (newScale / scale);
         panY = cy - (cy - panY) * (newScale / scale);
         scale = newScale;
+        bumpWheelGesture();
         updateTransform();
       }, { passive: false });
 
@@ -6177,20 +6202,36 @@ const LOGOS = {"devicon/airflow":{"body":"\u003cpath d=\"m2.5441 127 60.809-62.3
           minX: Math.min(b.minX, r.x), maxX: Math.max(b.maxX, r.x + r.w),
           minY: Math.min(b.minY, r.y), maxY: Math.max(b.maxY, r.y + r.h)
         }), { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity });
-        // Gap centers (+/-20px) between node x-bands so tight corridors are never skipped by STEP=16
-        const gapXs = (() => {
-          const ivs = rectList.map(([, r]) => [r.x, r.x + r.w]).sort((a, b) => a[0] - b[0]);
-          const xs = [];
+        // Gap centers (+/-22px) between node bands and node clearance edges so tight corridors are never skipped
+        const buildCorridors = (loKey, sizeKey, minBound, maxBound) => {
+          const ivs = rectList.map(([, r]) => [r[loKey], r[loKey] + r[sizeKey]]).sort((a, b) => a[0] - b[0]);
+          const seen = new Set();
+          const out = [];
+          const push = (v) => {
+            const q = Math.round(v / 8);
+            if (seen.has(q)) return;
+            seen.add(q);
+            out.push(v);
+          };
           let hi = -Infinity;
           for (const [a, b] of ivs) {
             if (a > hi + 28 && hi > -Infinity) {
               const mid = (hi + a) / 2;
-              xs.push(mid, mid - 22, mid + 22);
+              push(mid); push(mid - 22); push(mid + 22);
             }
             if (b > hi) hi = b;
           }
-          return xs;
-        })();
+          for (let k = 0; k < rectList.length; k++) {
+            const r = rectList[k][1];
+            push(r[loKey] - 16);
+            push(r[loKey] + r[sizeKey] + 16);
+          }
+          push(minBound - 24);
+          push(maxBound + 24);
+          return out;
+        };
+        const corridorXs = buildCorridors('x', 'w', bounds.minX, bounds.maxX);
+        const corridorYs = buildCorridors('y', 'h', bounds.minY, bounds.maxY);
         const altRoutes = (f, t, deep) => {
           const out = [];
           const SIDES = ['top', 'bottom', 'left', 'right'];
@@ -6203,15 +6244,25 @@ const LOGOS = {"devicon/airflow":{"body":"\u003cpath d=\"m2.5441 127 60.809-62.3
               const dirOk = fp === 'right' ? ex > sx + 28 : ex < sx - 28;
               if (!dirOk) return;
               if (Math.abs(sy - ey) < 6) { add([[sx, sy], [ex, sy]]); return; }
-              const lo = Math.min(sx, ex) + 14, hi = Math.max(sx, ex) - 14;
-              for (let x = lo; x <= hi; x += 10) add([[sx, sy], [x, sy], [x, ey], [ex, ey]], Math.abs(x - (sx + ex) / 2));
+              const lo = Math.min(sx, ex) + 14, hi = Math.max(sx, ex) - 14, mid = (sx + ex) / 2;
+              let hasMid = false;
+              for (let x = lo; x <= hi; x += 16) {
+                if (Math.abs(x - mid) < 4) hasMid = true;
+                add([[sx, sy], [x, sy], [x, ey], [ex, ey]], Math.abs(x - mid));
+              }
+              if (!hasMid && lo <= mid && mid <= hi) add([[sx, sy], [mid, sy], [mid, ey], [ex, ey]], 0);
             } else if (!horiz(fp) && !horiz(tp)) {
               if (fp !== tp) {
                 const dirOk = fp === 'bottom' ? ey > sy + 28 : ey < sy - 28;
                 if (!dirOk) return;
                 if (Math.abs(sx - ex) < 1) { add([[sx, sy], [ex, ey]]); return; }
-                const lo = Math.min(sy, ey) + 14, hi = Math.max(sy, ey) - 14;
-                for (let y = lo; y <= hi; y += 10) add([[sx, sy], [sx, y], [ex, y], [ex, ey]], Math.abs(y - (sy + ey) / 2));
+                const lo = Math.min(sy, ey) + 14, hi = Math.max(sy, ey) - 14, mid = (sy + ey) / 2;
+                let hasMid = false;
+                for (let y = lo; y <= hi; y += 16) {
+                  if (Math.abs(y - mid) < 4) hasMid = true;
+                  add([[sx, sy], [sx, y], [ex, y], [ex, ey]], Math.abs(y - mid));
+                }
+                if (!hasMid && lo <= mid && mid <= hi) add([[sx, sy], [sx, mid], [ex, mid], [ex, ey]], 0);
               } else {
                 [28, 36, 48, 72].forEach(d => {
                   const g = fp === 'top' ? Math.max(8, Math.min(sy, ey) - d) : Math.max(sy, ey) + d;
@@ -6232,28 +6283,40 @@ const LOGOS = {"devicon/airflow":{"body":"\u003cpath d=\"m2.5441 127 60.809-62.3
             }
             if (deep && horiz(fp) !== horiz(tp)) {
               // Three bends through a corridor: leave, run along a corridor, drop/rise, then enter
-              const STEP = 16;
+              const STEP = 64;
               if (!horiz(fp)) {
                 // vertical exit -> corridor above/below -> sideways to x -> vertical -> horizontal entry
                 [16, 20, 36, 56].forEach(d => {
                   const g = fp === 'top' ? sy - d : sy + d;
+                  const seenX = new Set();
                   const tryX = x => {
+                    const q = Math.round(x / 8);
+                    if (seenX.has(q)) return;
+                    seenX.add(q);
                     if (tp === 'left' ? x > ex - 14 : x < ex + 14) return;
                     if (Math.abs(x - sx) < 10 || Math.abs(ey - g) < 10) return;
                     add([[sx, sy], [sx, g], [x, g], [x, ey], [ex, ey]], 0);
                   };
-                  for (let x = bounds.minX - 24; x <= bounds.maxX + 24; x += STEP) tryX(x);
-                  gapXs.forEach(tryX);
+                  corridorXs.forEach(tryX);
+                  const xLo = Math.min(sx, ex) - 64, xHi = Math.max(sx, ex) + 64;
+                  for (let x = xLo; x <= xHi; x += STEP) tryX(x);
                 });
               } else {
                 // horizontal exit -> out to x -> vertical to corridor g -> across -> vertical entry
                 [16, 20, 36, 56].forEach(d => {
                   const x = fp === 'right' ? sx + d : sx - d;
-                  for (let g = bounds.minY - 24; g <= bounds.maxY + 24; g += STEP) {
-                    if (tp === 'top' ? g > ey - 14 : g < ey + 14) continue;
-                    if (Math.abs(g - sy) < 10 || Math.abs(ex - x) < 10) continue;
+                  const seenG = new Set();
+                  const tryG = g => {
+                    const q = Math.round(g / 8);
+                    if (seenG.has(q)) return;
+                    seenG.add(q);
+                    if (tp === 'top' ? g > ey - 14 : g < ey + 14) return;
+                    if (Math.abs(g - sy) < 10 || Math.abs(ex - x) < 10) return;
                     add([[sx, sy], [x, sy], [x, g], [ex, g], [ex, ey]], 0);
-                  }
+                  };
+                  corridorYs.forEach(tryG);
+                  const gLo = Math.min(sy, ey) - 64, gHi = Math.max(sy, ey) + 64;
+                  for (let g = gLo; g <= gHi; g += STEP) tryG(g);
                 });
               }
             }

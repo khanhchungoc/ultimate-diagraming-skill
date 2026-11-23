@@ -783,7 +783,7 @@
           const sf = markPlay();
           const baseDur = Math.max(40, Math.round((o.duration ?? dur('dur-layout', 230)) * sf));
           const easing = curve(o.easing || 'curve-spring-settle');
-          const cull = items.length > 120;
+          const cull = items.length > 60;
           const ox = o.originRect ? (inStage ? (o.originRect.left - st.left) / k : o.originRect.left) : 0;
           const oy = o.originRect ? (inStage ? (o.originRect.top - st.top) / k : o.originRect.top) : 0;
           const ow = o.originRect ? o.originRect.width / k : 0;
@@ -944,7 +944,7 @@
           if (svgJob) { cancelAnimationFrame(svgJob.raf); svgJob = null; syncBusy(); }
           if (!enabled() || !tracks || !tracks.length) return;
           const o = opts || {};
-          const polyCap = tracks.length > 60;
+          const polyCap = tracks.length > 35;
           const active = [];
           let total = 0;
           for (let i = 0; i < tracks.length; i++) {
@@ -952,7 +952,7 @@
             if (!tr || !tr.el || !tr.from || !tr.to) continue;
             if (tr.type === 'polyline') {
               if (polyCap || Math.abs(tr.from.length - tr.to.length) > 24 || tr.from.length < 4 || tr.to.length < 4) {
-                if (tr.el.tagName === 'path') drawPath(tr.el, o);
+                if (!polyCap && tr.el.tagName === 'path') drawPath(tr.el, o);
                 continue;
               }
               const f = tr.from.length < tr.to.length ? normPoly(tr.from, tr.to) : tr.from;
@@ -1528,11 +1528,15 @@
       btnTheme.addEventListener('click', (e) => applyTheme(currentTheme() === 'dark' ? 'light' : 'dark', true, e.isTrusted));
 
       // --- VIEWPORT PAN & ZOOM & FIT ---
+      let lastAppliedScale = null;
       function showZoom() { zoomLevelEl.textContent = `${Math.round((vpAnim ? vpAnim.targetScale : scale) * 100)}%`; }   // a glide in flight shows where it lands
       function updateTransform() {
         stage.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
-        stage.style.setProperty('--ui-scale', String(1 / scale));   // action bars undo the zoom: their size is fixed like the dock's
-        showZoom();
+        if (scale !== lastAppliedScale) {
+          lastAppliedScale = scale;
+          stage.style.setProperty('--ui-scale', String(1 / scale));   // action bars undo the zoom: their size is fixed like the dock's
+          showZoom();
+        }
         if (plugin && plugin.onViewChange) plugin.onViewChange();   // e.g. keep frozen headers pinned
       }
 
@@ -1706,7 +1710,7 @@
         isPanning = true;
         panStartX = e.clientX - panX;
         panStartY = e.clientY - panY;
-        viewport.classList.add('panning');
+        viewport.classList.add('panning', 'gesturing');
       }, true);
       viewport.addEventListener('mousedown', (e) => { if (e.button === 1) e.preventDefault(); }, true);
       viewport.addEventListener('auxclick', (e) => { if (e.button === 1) { e.preventDefault(); e.stopPropagation(); } }, true);
@@ -1719,7 +1723,7 @@
           isPanning = true;
           panStartX = e.clientX - panX;
           panStartY = e.clientY - panY;
-          viewport.classList.add('panning');
+          viewport.classList.add('panning', 'gesturing');
           plugin.clearSelection();
         }
       });
@@ -1736,11 +1740,16 @@
       let touchGesture = null;       // { kind: 'pan', sx, sy, panX, panY, moved, bg, target, init } | { kind: 'pinch', ... }
       let replayingTap = false;
       const TAP_SLOP = 8;            // px a finger may wander and still be a tap
-      let transformQueued = false;
+      let transformRaf = 0;
       function scheduleTransform() {
-        if (transformQueued) return;
-        transformQueued = true;
-        requestAnimationFrame(() => { transformQueued = false; updateTransform(); });
+        if (transformRaf) return;
+        transformRaf = requestAnimationFrame(() => { transformRaf = 0; updateTransform(); });
+      }
+      function flushTransform() {
+        if (!transformRaf) return;
+        cancelAnimationFrame(transformRaf);
+        transformRaf = 0;
+        updateTransform();
       }
       const isBlankCanvas = (el) => el === viewport || el.id === 'stage' || plugin.isBackground(el);
       function startPinch() {
@@ -1890,15 +1899,29 @@
         if (!isPanning) return;
         panX = e.clientX - panStartX;
         panY = e.clientY - panStartY;
-        updateTransform();
+        scheduleTransform();
       });
 
-      window.addEventListener('pointerup', () => {
+      function endMousePan() {
+        if (!isPanning) return;
+        flushTransform();
         isPanning = false;
         viewport.classList.remove('panning');
-      });
+        if (!touchGesture && !vpAnim) viewport.classList.remove('gesturing');
+      }
+      window.addEventListener('pointerup', endMousePan);
+      window.addEventListener('pointercancel', endMousePan);
 
       const WHEEL_SCROLL = 0.4;   // canvas px per px a mouse wheel notch reports (~40px per notch)
+      let wheelGestureTimer = 0;
+      function bumpWheelGesture() {
+        viewport.classList.add('gesturing');
+        clearTimeout(wheelGestureTimer);
+        wheelGestureTimer = setTimeout(() => {
+          wheelGestureTimer = 0;
+          if (!isPanning && !touchGesture && !vpAnim) viewport.classList.remove('gesturing');
+        }, 140);
+      }
       viewport.addEventListener('wheel', (e) => {
         e.preventDefault();
         cancelViewportAnim();
@@ -1914,6 +1937,7 @@
           const sideways = e.shiftKey && !dX;
           panX -= (sideways ? dY : dX) * k;
           panY -= (sideways ? 0 : dY) * k;
+          bumpWheelGesture();
           updateTransform();
           return;
         }
@@ -1927,6 +1951,7 @@
         panX = cx - (cx - panX) * (newScale / scale);
         panY = cy - (cy - panY) * (newScale / scale);
         scale = newScale;
+        bumpWheelGesture();
         updateTransform();
       }, { passive: false });
 
