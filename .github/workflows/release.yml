@@ -1,18 +1,14 @@
 name: release
 
-# Every push to main: bump the patch version, commit it, tag it, publish a release zip.
+# Manual release (via GitHub Actions UI or `gh workflow run release.yml`):
+# bump the patch version, commit it, tag it, publish a release zip and npm package.
 on:
-  push:
-    branches: [main]
-    # Only changes to what users install. README, dev/, docs/, .github/ and agent notes do not release.
-    paths:
-      - SKILL.md
-      - package.json
-      - assets/**
-      - references/**
-      - scripts/**
-      - bin/**
   workflow_dispatch:
+    inputs:
+      notes:
+        description: 'Release notes (leave blank to auto-generate from PRs/commits)'
+        required: false
+        type: string
 
 permissions:
   contents: write
@@ -24,8 +20,6 @@ concurrency:
 
 jobs:
   release:
-    # The bump commit below carries [skip ci]; this guard is a second stop against loops.
-    if: ${{ !contains(github.event.head_commit.message, '[skip ci]') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -70,10 +64,17 @@ jobs:
         if: steps.v.outputs.skip != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
+          RELEASE_NOTES: ${{ inputs.notes }}
         run: |
-          gh release create "v${{ steps.v.outputs.version }}" \
-            "ultimate-diagram-v${{ steps.v.outputs.version }}.zip" \
-            --title "v${{ steps.v.outputs.version }}" --generate-notes
+          if [ -n "$RELEASE_NOTES" ]; then
+            gh release create "v${{ steps.v.outputs.version }}" \
+              "ultimate-diagram-v${{ steps.v.outputs.version }}.zip" \
+              --title "v${{ steps.v.outputs.version }}" --notes "$RELEASE_NOTES"
+          else
+            gh release create "v${{ steps.v.outputs.version }}" \
+              "ultimate-diagram-v${{ steps.v.outputs.version }}.zip" \
+              --title "v${{ steps.v.outputs.version }}" --generate-notes
+          fi
       - name: Setup Node
         if: steps.v.outputs.skip != 'true'
         uses: actions/setup-node@v4
