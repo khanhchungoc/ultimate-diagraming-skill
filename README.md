@@ -58,15 +58,15 @@ Describe a process, and your AI agent hands back a single HTML file. Open it in 
 
 ## Get started
 
-### Before you start
-
-You need Python 3.9+ and Chrome, Chromium or Edge (used to lay out and check every diagram). Node.js 18+ is optional: if it is installed, layout runs a bit faster. A missing one shows up on the first diagram; ask your agent to install it for you.
-
 ### Option A: ask your AI agent
 
-*"Install the ultimate-diagram skill by running `npx ultimate-diagram@latest` (or `npx ultimate-diagram@latest -p` for this project only)."*
+```text
+Install the ultimate-diagram skill from https://github.com/khanhchungoc/ultimate-diagraming-skill (pick the best install method from the README for this environment).
+```
 
-### Option B: one command
+### Option B: one command (terminal)
+
+Run in your terminal (requires **Node.js 18+**).
 
 All your projects (global):
 
@@ -84,9 +84,16 @@ Target a single runtime with `-r <name>` (e.g. `npx ultimate-diagram@latest -r a
 
 ### Option C: download (no terminal needed)
 
-1. Open the [latest release](https://github.com/khanhchungoc/ultimate-diagraming-skill/releases/latest) and download `ultimate-diagram-vX.Y.Z.zip` (under **Assets**).
-2. Unzip it. You get one folder named `ultimate-diagram`.
-3. Move that folder into your agent's `skills` folder (create it if it is missing):
+Open the [latest release](https://github.com/khanhchungoc/ultimate-diagraming-skill/releases/latest) and download `ultimate-diagram-vX.Y.Z.zip` (under **Assets**).
+
+**On claude.ai (web or desktop):**
+
+Keep it zipped. Turn on **Code execution and file creation** in **Settings > Capabilities**, then go to **Customize > Skills > `+` > Create skill > Upload a skill**, upload the `.zip`, and turn it on.
+
+**On local agents:**
+
+1. Unzip it. You get one folder named `ultimate-diagram`.
+2. Move that folder into your agent's `skills` folder (create it if it is missing):
 
    | Agent | Skills folder (for all your projects) |
    |---|---|
@@ -98,7 +105,11 @@ Target a single runtime with `-r <name>` (e.g. `npx ultimate-diagram@latest -r a
    | Kiro | `.kiro/skills` in your home folder |
 
    Folders starting with a dot are hidden. Mac: in Finder press `Cmd` + `Shift` + `.` to show them. Windows: your home folder is `C:\Users\<your name>`; turn on **View > Show > Hidden items**. For one project only, use the same folder inside that project instead.
-4. Restart your agent.
+3. Restart your agent.
+
+### Requirements
+
+Needs **Python 3.9+** and **Node.js 18+** or **Chrome / Chromium / Edge** (if missing, your agent flags it on the first diagram).
 
 ### Then
 
