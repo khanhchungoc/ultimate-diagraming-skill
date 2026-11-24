@@ -26,8 +26,8 @@ Describe a process, and your AI agent hands back a single HTML file. Open it in 
 
 - ✏️ **Fix it yourself, no re-prompting.** Drag, retype, or delete anything. Undo, redo, and **Ctrl+F** search work out of the box.
 - 💬 **Your edits and the AI's edits combine.** Edit by hand, then ask the AI to change or extend the diagram — it builds on your saved version (in-place in [claude.ai Artifacts](docs/artifacts.md) or directly in your saved HTML file).
-- 🧹 **Always tidy.** The AI checks for overlaps and unreadable labels before showing you. Move or edit anything and Auto-Tidy re-layouts and re-routes arrows in one click.
-- ⚡ **Fast and cheap.** The AI writes a short description instead of thousands of lines of drawing code, saving time and tokens.
+- 🧹 **Always tidy.** Diagrams lay themselves out cleanly — no overlaps or unreadable labels. Edit anything and it stays tidy, or click **Tidy** to re-layout and re-route arrows in one click.
+- ⚡ **Fast and cheap.** The AI writes compact Mermaid instead of thousands of lines of drawing code — fast to generate and cheap on tokens.
 - 📦 **Just a file.** Share or open it offline anywhere. Optionally [use your brand](#use-your-brand) (colours, font, corners, contrast-checked).
 
 ## Diagram types
@@ -48,52 +48,13 @@ Describe a process, and your AI agent hands back a single HTML file. Open it in 
 
 ## Examples
 
-<details>
-<summary>See examples for each diagram type</summary>
-
-### Flowchart
-
-*"Draw a swimlane flowchart of our loan approval process."*
-
-<a href="https://khanhchungoc.github.io/ultimate-diagraming-skill/examples/flowchart/"><picture><source srcset="docs/img/demo-flowchart.webp" type="image/webp"><img src="docs/img/demo-flowchart.poster.jpg" alt="Swimlane flowchart demo: drop a step onto an arrow, reorder a swimlane, split a long arrow with a connector, and switch to vertical layout" width="100%" /></picture></a>
-
-▶ [Try the flowchart](https://khanhchungoc.github.io/ultimate-diagraming-skill/examples/flowchart/) · [Offline HTML](dev/samples/example-flowchart.html)
-
-### Sequence diagram
-
-*"Draw a sequence diagram of the login flow between the app, API gateway and auth service."*
-
-<a href="https://khanhchungoc.github.io/ultimate-diagraming-skill/examples/sequence/"><picture><source srcset="docs/img/demo-sequence.webp" type="image/webp"><img src="docs/img/demo-sequence.poster.jpg" alt="Sequence diagram demo: collapse and expand a frame, scroll down for floating participant pills, and add a message and reply" width="100%" /></picture></a>
-
-▶ [Try the sequence diagram](https://khanhchungoc.github.io/ultimate-diagraming-skill/examples/sequence/) · [Offline HTML](dev/samples/example-sequence.html)
-
-### ER diagram
-
-*"Draw an ER diagram for an online shop: customers, orders, products and payments."*
-
-<a href="https://khanhchungoc.github.io/ultimate-diagraming-skill/examples/erd/"><picture><source srcset="docs/img/demo-erd.webp" type="image/webp"><img src="docs/img/demo-erd.poster.jpg" alt="ER diagram demo: zoom out to overview with detail card, drag and drop a new table, zoom in, connect tables, and highlight related tables" width="100%" /></picture></a>
-
-▶ [Try the ER diagram](https://khanhchungoc.github.io/ultimate-diagraming-skill/examples/erd/) · [Offline HTML](dev/samples/example-erd.html)
-
-### Use case diagram
-
-*"Draw a use case diagram for our booking system, with requirement ids."*
-
-<a href="https://khanhchungoc.github.io/ultimate-diagraming-skill/examples/usecase/"><picture><source srcset="docs/img/demo-usecase.webp" type="image/webp"><img src="docs/img/demo-usecase.poster.jpg" alt="Use case diagram demo: drag and drop an actor and use case, search by requirement ID, and collapse and expand the system subject" width="100%" /></picture></a>
-
-Search by requirement id (such as `FR-4`) to find the use case that covers it.
-
-▶ [Try the use case diagram](https://khanhchungoc.github.io/ultimate-diagraming-skill/examples/usecase/) · [Offline HTML](dev/samples/example-usecase.html)
-
-### C4 diagram
-
-*"Draw a C4 system landscape diagram for our e-commerce platform with customers, web app, API, and payment gateway."*
-
-<a href="https://khanhchungoc.github.io/ultimate-diagraming-skill/examples/c4/"><picture><source srcset="docs/img/demo-c4.webp" type="image/webp"><img src="docs/img/demo-c4.poster.jpg" alt="C4 diagram demo: collapse and expand a system boundary, change icon and colour, and add and move a new system" width="100%" /></picture></a>
-
-▶ [Try the C4 diagram](https://khanhchungoc.github.io/ultimate-diagraming-skill/examples/c4/) · [Offline HTML](dev/samples/example-c4.html)
-
-</details>
+| Diagram | Demo |
+|---|---|
+| Flowchart<br>[Try live](https://khanhchungoc.github.io/ultimate-diagraming-skill/examples/flowchart/) | <a href="https://khanhchungoc.github.io/ultimate-diagraming-skill/examples/flowchart/"><picture><source srcset="docs/img/demo-flowchart.webp" type="image/webp"><img src="docs/img/demo-flowchart.poster.jpg" alt="Swimlane flowchart demo: drop a step onto an arrow, reorder a swimlane, split a long arrow with a connector, and switch to vertical layout" width="100%" /></picture></a> |
+| Sequence diagram<br>[Try live](https://khanhchungoc.github.io/ultimate-diagraming-skill/examples/sequence/) | <a href="https://khanhchungoc.github.io/ultimate-diagraming-skill/examples/sequence/"><picture><source srcset="docs/img/demo-sequence.webp" type="image/webp"><img src="docs/img/demo-sequence.poster.jpg" alt="Sequence diagram demo: collapse and expand a frame, scroll down for floating participant pills, and add a message and reply" width="100%" /></picture></a> |
+| ER diagram<br>[Try live](https://khanhchungoc.github.io/ultimate-diagraming-skill/examples/erd/) | <a href="https://khanhchungoc.github.io/ultimate-diagraming-skill/examples/erd/"><picture><source srcset="docs/img/demo-erd.webp" type="image/webp"><img src="docs/img/demo-erd.poster.jpg" alt="ER diagram demo: zoom out to overview with detail card, drag and drop a new table, zoom in, connect tables, and highlight related tables" width="100%" /></picture></a> |
+| Use case diagram<br>[Try live](https://khanhchungoc.github.io/ultimate-diagraming-skill/examples/usecase/) | <a href="https://khanhchungoc.github.io/ultimate-diagraming-skill/examples/usecase/"><picture><source srcset="docs/img/demo-usecase.webp" type="image/webp"><img src="docs/img/demo-usecase.poster.jpg" alt="Use case diagram demo: drag and drop an actor and use case, search by requirement ID, and collapse and expand the system subject" width="100%" /></picture></a> |
+| C4 diagram<br>[Try live](https://khanhchungoc.github.io/ultimate-diagraming-skill/examples/c4/) | <a href="https://khanhchungoc.github.io/ultimate-diagraming-skill/examples/c4/"><picture><source srcset="docs/img/demo-c4.webp" type="image/webp"><img src="docs/img/demo-c4.poster.jpg" alt="C4 diagram demo: collapse and expand a system boundary, change icon and colour, and add and move a new system" width="100%" /></picture></a> |
 
 ## Get started
 
