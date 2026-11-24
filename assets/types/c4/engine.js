@@ -262,6 +262,12 @@ function c4Line(its, vert, gapOf) {
   return vert ? { w: cross, h: p } : { w: p, h: cross };
 }
 
+const c4LinkGap = (a, b, vert) => {
+  if (vert) return C4.innerLinkY;
+  const exp = (it) => it && it.kind === 'g' && !it.self;
+  return exp(a) || exp(b) ? Math.max(C4.innerGap, Math.round(C4.innerLinkX * 0.55)) : C4.innerLinkX;
+};
+
 // Sizes group `g` (and the groups below it): lays its members out, sets the frame (fw, fh) and w, h as drawn inside its parent.
 // vert: the group sits beside the centre, so its members form a column. Members: no links, a row; links between neighbours,
 // the row with room for the label; a link that skips a member (or too many members), a small flow.
@@ -273,21 +279,22 @@ function c4Size(m, g, vert) {
   if (!n) c = { w: 0, h: 0 };
   else if (pairs.some((p) => p[1] - p[0] !== 1) || (pairs.length && n > C4.rowMax)) c = c4Flow(its, pairs);
   else {
-    const linked = new Set(pairs.map((p) => p[0])), gap = (a) => (linked.has(a.ci) ? (vert ? C4.innerLinkY : C4.innerLinkX) : C4.innerGap);
+    const linked = new Set(pairs.map((p) => p[0]));
+    const gap = (a, b) => (linked.has(a.ci) ? c4LinkGap(a, b, vert) : C4.innerGap);
     const lines = [];
     for (let o = 0; o < n; o += C4.rowMax) lines.push(its.slice(o, o + C4.rowMax));
     if (lines.length === 1) g.line = vert ? 'col' : 'row';
     c = { w: 0, h: 0 };
     let off = 0;
     lines.forEach((ln) => {
-      const s = c4Line(ln, vert, (a) => gap(a));
+      const s = c4Line(ln, vert, (a, b) => gap(a, b));
       ln.forEach((it) => { if (vert) it.rx += off; else it.ry += off; });
       off += (vert ? s.w : s.h) + C4.innerGap;
       c = vert ? { w: off - C4.innerGap, h: Math.max(c.h, s.h) } : { w: Math.max(c.w, s.w), h: off - C4.innerGap };
     });
   }
-  g.cx = 0;
   g.fw = n ? Math.max(c.w + 2 * C4.pad, c4TagW(g.ref)) : C4.emptyW;
+  g.cx = n ? Math.round((g.fw - 2 * C4.pad - c.w) / 2) : 0;
   g.fh = n ? c.h + C4.tagH + C4.padB : C4.emptyH;
   g.w = g.self ? g.tw : g.fw; g.h = g.self ? g.th : g.fh;
 }
@@ -519,8 +526,8 @@ function c4Order(m) {
     const order = its.map((_, i) => i).sort((p, q) => key[p] - key[q] || tie[p] - tie[q] || p - q);
     if (order.every((i, k) => i === k)) return;
     const seq = order.map((i) => its[i]), linked = new Set(pairs.map((p) => p[0] * n + p[1]));
-    const link = vert ? C4.innerLinkY : C4.innerLinkX, size = (k) => (vert ? k.h : k.w);
-    const base = seq.map((k, i) => (i ? (linked.has(Math.min(k.ci, seq[i - 1].ci) * n + Math.max(k.ci, seq[i - 1].ci)) ? link : C4.innerGap) : 0));
+    const size = (k) => (vert ? k.h : k.w);
+    const base = seq.map((k, i) => (i ? (linked.has(Math.min(k.ci, seq[i - 1].ci) * n + Math.max(k.ci, seq[i - 1].ci)) ? c4LinkGap(seq[i - 1], k, vert) : C4.innerGap) : 0));
     const total = seq.reduce((s, k, i) => s + size(k) + base[i], 0);
     const old = Math.max.apply(null, its.map((k) => (vert ? k.ry : k.rx) + size(k)));
     if (total > old) return;
@@ -662,8 +669,11 @@ function c4Frames(m) {
       if (r.x + r.w > x1) x1 = r.x + r.w;
       if (r.y + r.h > y1) y1 = r.y + r.h;
     });
-    g.x = x0 - C4.pad; g.y = y0 - C4.tagH;
-    g.w = Math.max(x1 - x0 + 2 * C4.pad, c4TagW(g)); g.h = y1 - y0 + C4.tagH + C4.padB;
+    const contentW = x1 - x0 + 2 * C4.pad;
+    g.w = Math.max(contentW, c4TagW(g));
+    g.x = x0 - C4.pad - Math.round((g.w - contentW) / 2);
+    g.y = y0 - C4.tagH;
+    g.h = y1 - y0 + C4.tagH + C4.padB;
   });
   if (m.arrange === 'layers' && !m.pins) {
     const bands = m.items.filter((i) => i.kind === 'g' && !i.self).map((i) => i.ref);
@@ -781,12 +791,16 @@ function c4OrderRings(m) {
   if (m.arrange !== 'surround') return;
   const ctr = (n) => ({ x: n.ax + n.w / 2, y: n.ay + n.h / 2 });
   for (let r = 1; r <= m.maxRing; r++) {
-    const innerPts = new Map();
+    // pairs: [innerTargetCoord, outerMemberCenter] per ring-r item, so a framed side group aligns its members to their callers
+    const innerPairs = new Map();
+    const pushPair = (it, target, member) => { (innerPairs.get(it) || innerPairs.set(it, []).get(it)).push([ctr(target), ctr(member)]); };
     m.rel2.forEach((rel) => {
       const at = rel.a.top, bt = rel.b.top;
-      if (at.ring === r && bt.ring < r) (innerPts.get(at) || innerPts.set(at, []).get(at)).push(ctr(rel.b));
-      else if (bt.ring === r && at.ring < r) (innerPts.get(bt) || innerPts.set(bt, []).get(bt)).push(ctr(rel.a));
+      if (at.ring === r && bt.ring < r) pushPair(at, rel.b, rel.a);
+      else if (bt.ring === r && at.ring < r) pushPair(bt, rel.a, rel.b);
     });
+    const innerItems = m.items.filter((i) => i.ring < r);
+    const innerBox = innerItems.length ? c4Union(innerItems) : null;
     const groups = new Map();
     m.byRing[r].forEach((it) => {
       if (!it.side) return;
@@ -794,24 +808,33 @@ function c4OrderRings(m) {
       (groups.get(k) || groups.set(k, []).get(k)).push(it);
     });
     groups.forEach((its) => {
-      if (its.length < 2) return;
       const vert = c4Vert(its[0].side), ax = vert ? 'ax' : 'ay', sz = vert ? 'w' : 'h', coord = vert ? 'x' : 'y';
       its.sort((a, b) => a[ax] - b[ax]);
-      const lo = its[0][ax], hi = its[its.length - 1][ax] + its[its.length - 1][sz], oldSpan = hi - lo;
+      const lo = its[0][ax], hi = its[its.length - 1][ax] + its[its.length - 1][sz];
+      const minB = innerBox ? Math.min(lo, innerBox[ax]) : lo;
+      const maxB = innerBox ? Math.max(hi, innerBox[ax] + innerBox[sz]) : hi;
       const keys = new Map(its.map((it, idx) => {
-        const pts = innerPts.get(it);
-        return [it, [pts && pts.length ? pts.reduce((s, p) => s + p[coord], 0) / pts.length : it[ax] + it[sz] / 2, idx]];
+        const ps = innerPairs.get(it);
+        const key = ps && ps.length ? ps.reduce((s, p) => s + p[0][coord], 0) / ps.length : it[ax] + it[sz] / 2;
+        return [it, { key, idx }];
       }));
-      const seq = its.slice().sort((a, b) => keys.get(a)[0] - keys.get(b)[0] || keys.get(a)[1] - keys.get(b)[1]);
-      if (seq.every((it, i) => it === its[i])) return;
+      const seq = its.slice().sort((a, b) => keys.get(a).key - keys.get(b).key || keys.get(a).idx - keys.get(b).idx);
       const gaps = seq.map((it, k) => (k ? (it.nb.has(seq[k - 1]) ? (vert ? C4.ringLinkX : C4.ringLinkY) : C4.ringGap) : 0));
       const total = seq.reduce((t, it, k) => t + it[sz] + gaps[k], 0);
-      if (total > oldSpan) return;
-      let p = lo + (oldSpan - total) / 2;
-      seq.forEach((it, k) => {
-        p += gaps[k];
-        it[ax] = Math.round(p);
-        p += it[sz];
+      if (total > maxB - minB) return;
+      // Shift the lane as one evenly-spaced unit to align with its connected inner targets (never breaking uniform gaps)
+      const off = [0];
+      for (let i = 1; i < seq.length; i++) off.push(off[i - 1] + seq[i - 1][sz] + gaps[i]);
+      let sum = 0, cnt = 0;
+      seq.forEach((it, i) => {
+        const ps = innerPairs.get(it);
+        if (!ps) return;
+        for (const p of ps) { sum += p[0][coord] - (off[i] + (p[1][coord] - it[ax])); cnt++; }
+      });
+      let p0 = cnt ? sum / cnt : lo + (hi - lo - total) / 2;
+      p0 = Math.max(minB, Math.min(maxB - total, p0));
+      seq.forEach((it, i) => {
+        it[ax] = Math.round(p0 + off[i]);
         c4Assign(it);
       });
     });

@@ -92,7 +92,7 @@
       translate: -50% -50%;
       display: inline-flex; flex-direction: column; align-items: center; justify-content: center;
       gap: 2px; padding: 4px 10px;
-      width: max-content; height: auto; max-width: 240px;
+      width: max-content; height: auto; max-width: var(--c4-label-max-w, 140px);
       white-space: normal; text-align: center; pointer-events: auto;
       font-size: var(--t-detail-size); font-weight: var(--t-detail-weight); line-height: var(--leading-tight);
       color: var(--text-main); border-radius: var(--radius-lg);

@@ -16,13 +16,36 @@
 // expanded frames. Detours: pad 20, 12 or 6px (the first that leaves a path), regions grown 40 -> 160 -> 600 -> whole scene, a fixed work budget per call (C4R.WORK; routes past it keep their ring route). Without opts the output is the ring layout's, byte for byte.
 // Path rounding: buildCurvedPathWithHops (ortho-router.js). Deterministic; O(n log n) in nodes + edges (grid lookups only).
 
-const C4R = { PAD: 12, PADS: [20, 12, 6], SHARE: 2000, WORK: 13000, SEARCH: 4000,  LANE: 12, MARGINS: [40, 160, 600], BIG: 1e6, PILL_H: 32, PILL_H2: 38, LOOP_GAP: 40, LOOP_LANE: 16, RUN_LANE: 10, MAX_W: 240, CELL: 96, ARROW: 16, TAG: (typeof TOKENS !== 'undefined' && TOKENS.c4 && TOKENS.c4.tagH) || 44, ESC_MIN: 6 };
+const C4R = { PAD: 12, PADS: [20, 12, 6], SHARE: 2000, WORK: 13000, SEARCH: 4000,  LANE: 12, MARGINS: [40, 160, 600], BIG: 1e6, PILL_H: 32, PILL_H2: 38, LINE_H: 15, LOOP_GAP: 40, LOOP_LANE: 16, RUN_LANE: 14, MAX_W: (typeof TOKENS !== 'undefined' && TOKENS.c4 && TOKENS.c4.labelMaxW) || 140, CELL: 96, ARROW: 16, TAG: (typeof TOKENS !== 'undefined' && TOKENS.c4 && TOKENS.c4.tagH) || 44, ESC_MIN: 6 };
 
-function c4rLabelW(label, tech) {
+function c4rWrap(text, charW, maxInner) {
+  const words = text.trim().split(/\s+/);
+  let lines = 1, cur = 0, maxW = 0;
+  for (const word of words) {
+    const ww = word.length * charW;
+    if (!cur) { cur = ww; }
+    else if (cur + charW + ww <= maxInner) { cur += charW + ww; }
+    else { if (cur > maxW) maxW = cur; lines++; cur = ww; }
+    if (cur > maxInner) {
+      const extra = Math.ceil(cur / maxInner) - 1;
+      lines += extra;
+      maxW = maxInner;
+      cur = cur - extra * maxInner;
+    }
+  }
+  if (cur > maxW) maxW = cur;
+  return { lines, maxW: Math.min(maxW, maxInner) };
+}
+
+function c4rLabelSize(label, tech) {
   const M = TOKENS.font.metrics, t = String(label == null ? '' : label);
-  if (!t) return 0;
-  const techW = tech ? (String(tech).length + 2) * M.detail + 20 : 0;
-  return Math.round(Math.max(48, Math.min(t.length * M.edgeLabel + 20, C4R.MAX_W), Math.min(techW, C4R.MAX_W)));
+  if (!t) return { w: 0, h: 0 };
+  const maxInner = C4R.MAX_W - 20;
+  const main = c4rWrap(t, M.edgeLabel, maxInner);
+  const sub = tech ? c4rWrap('[' + String(tech) + ']', M.detail, maxInner) : null;
+  const w = Math.round(Math.max(48, Math.min(Math.max(main.maxW, sub ? sub.maxW : 0) + 20, C4R.MAX_W)));
+  const h = (sub ? C4R.PILL_H2 : C4R.PILL_H) + (main.lines - 1 + (sub ? sub.lines - 1 : 0)) * C4R.LINE_H;
+  return { w, h };
 }
 
 // Hash grid of rectangles {x, y, w, h} (top-left): cells hold the rects touching them.
@@ -357,15 +380,53 @@ function routeC4Edges(nodes, edges, opts) {
     let r = runs.get(k); if (!r) runs.set(k, r = { lo, hi, list: [] });
     r.list.push(e);
   }
-  // runs sharing a gutter and a stretch get a lane each (lanes evenly across the gutter), the rest keep their bend
+  // runs sharing a gutter get crossing-minimizing lanes (ordered by bend direction so turns nest without crossing)
   for (const r of runs.values()) {
     if (r.list.length < 2) continue;
-    const ord = r.list.slice().sort((p, q) => p.bend - q.bend || p.i - q.i);
-    const { lane, count } = c4rLanes(ord.map((e) => ({ lo: Math.min(e.ea.c, e.eb.c), hi: Math.max(e.ea.c, e.eb.c) })), 6);
+    const items = r.list.map((e) => {
+      const cLo = e.s > 0 ? e.ea.c : e.eb.c, cHi = e.s > 0 ? e.eb.c : e.ea.c;
+      return { e, cLo, cHi, dir: Math.sign(cHi - cLo), lo: Math.min(cLo, cHi), hi: Math.max(cLo, cHi) };
+    });
+    items.sort((p, q) => {
+      if (p.dir !== q.dir) return p.dir - q.dir;
+      if (p.dir < 0) return p.cLo - q.cLo || p.cHi - q.cHi || p.e.i - q.e.i;
+      if (p.dir > 0) return q.cLo - p.cLo || q.cHi - p.cHi || p.e.i - q.e.i;
+      return p.e.bend - q.e.bend || p.e.i - q.e.i;
+    });
+    const lanes = [], lane = [];
+    const spans = (L, c) => {
+      let a = 0, b = L.length;
+      while (a < b) { const m = (a + b) >> 1; if (L[m].hi <= c) a = m + 1; else b = m; }
+      return a < L.length && L[a].lo < c;
+    };
+    const overlaps = (L, lo, hi) => {
+      let a = 0, b = L.length;
+      while (a < b) { const m = (a + b) >> 1; if (L[m].lo < lo) a = m + 1; else b = m; }
+      return !((a === 0 || L[a - 1].hi + 6 <= lo) && (a === L.length || hi + 6 <= L[a].lo));
+    };
+    for (const it of items) {
+      let bestL = lanes.length, bestCross = Infinity;
+      for (let l = 0; l <= lanes.length; l++) {
+        if (l < lanes.length && overlaps(lanes[l], it.lo, it.hi)) continue;
+        let cross = 0;
+        for (let j = 0; j < l; j++) if (spans(lanes[j], it.cLo)) cross++;
+        for (let j = l + 1; j < lanes.length; j++) if (spans(lanes[j], it.cHi)) cross++;
+        if (cross < bestCross) { bestCross = cross; bestL = l; if (!cross) break; }
+      }
+      if (bestL === lanes.length) lanes.push([it]);
+      else {
+        const L = lanes[bestL];
+        let a = 0, b = L.length;
+        while (a < b) { const m = (a + b) >> 1; if (L[m].lo < it.lo) a = m + 1; else b = m; }
+        L.splice(a, 0, it);
+      }
+      lane.push(bestL);
+    }
+    const count = lanes.length;
     if (count < 2) continue;
     const slot = Math.min(C4R.RUN_LANE, (r.hi - r.lo) / (count + 1));
     const span = slot * (count - 1), mid = (r.lo + r.hi) / 2;
-    ord.forEach((e, k) => { e.bend = mid - span / 2 + lane[k] * slot; });
+    items.forEach((it, k) => { it.e.bend = mid - span / 2 + lane[k] * slot; });
   }
 
   // ---- loops under a row: base line below every item the span passes, then lanes 16px apart ----
@@ -458,8 +519,16 @@ function routeC4Edges(nodes, edges, opts) {
 
   if (manual) c4rDetours(info, nodes, frames, boxes, frameGrid, simplify);
 
-  // ---- labels, in input order: on a run long enough, slid along it off every box, tag band, other route and pill ----
-  const pills = c4rGrid(), routes = c4rGrid();
+  // ---- labels, in input order: on a run long enough, slid along it off every box, tag band, frame border, other route and pill ----
+  const pills = c4rGrid(), routes = c4rGrid(), borders = c4rGrid();
+  const allFrames = opts && opts.frames ? opts.frames : Array.from(frames.values());
+  for (const f of allFrames) {
+    const r = rectOf(f);
+    borders.add({ x: r.x, y: r.y - 1, w: r.w, h: 2 });
+    borders.add({ x: r.x, y: r.y + r.h - 1, w: r.w, h: 2 });
+    borders.add({ x: r.x - 1, y: r.y, w: 2, h: r.h });
+    borders.add({ x: r.x + r.w - 1, y: r.y, w: 2, h: r.h });
+  }
   for (const e of info) {
     for (let k = 0; k < e.pts.length - 1; k++) {
       const p = e.pts[k], q = e.pts[k + 1];
@@ -468,7 +537,7 @@ function routeC4Edges(nodes, edges, opts) {
   }
   const out = new Array(edges.length);
   for (const e of info) {
-    const w = c4rLabelW(e.label, e.tech), h = e.tech ? C4R.PILL_H2 : H, pts = e.pts, mine = (o) => o.o !== e.i;
+    const { w, h } = c4rLabelSize(e.label, e.tech), pts = e.pts, mine = (o) => o.o !== e.i;
     let pos = null;
     if (w) {
       // segments by preference: a run between the legs first, then the legs, longest first
@@ -484,7 +553,7 @@ function routeC4Edges(nodes, edges, opts) {
         s.mid = (s.k > 0 && s.k < pts.length - 2) || pts.length === 2 ? 0 : 1;
       }
       segs.sort((a, b) => b.fit - a.fit || a.mid - b.mid || b.len - a.len || a.k - b.k);
-      const free = (r) => !boxes.hit(r, 2) && !tags.hit(r, 2) && !pills.hit(r, 2) && !routes.hit(r, 2, mine);
+      const free = (r) => !boxes.hit(r, 2) && !tags.hit(r, 2) && !pills.hit(r, 2) && (e.u || !borders.hit(r, 2)) && !routes.hit(r, 2, mine);
       const tried = [];
       search: for (const s of segs) {
         if (!s.len) continue;
@@ -515,7 +584,7 @@ function routeC4Edges(nodes, edges, opts) {
         }
       }
       if (!pos) {                                             // nothing free: the candidate with the least overlap
-        const score = (r) => 100 * pills.count(r, 2) + 20 * (boxes.count(r, 2) + tags.count(r, 2)) + routes.count(r, 2, mine);   // pills worst, then boxes and bands, then lines
+        const score = (r) => 100 * pills.count(r, 2) + 20 * (boxes.count(r, 2) + tags.count(r, 2)) + 8 * borders.count(r, 2) + 4 * routes.count(r, 2, mine);   // pills worst, then boxes/bands, then borders, then lines
         let best = Infinity, bestCand = null;
         for (const c of tried) {
           const n = score(c.r);

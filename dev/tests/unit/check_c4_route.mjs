@@ -215,6 +215,28 @@ checkScene();
   check(r2[0].points.length === 4, 'far-apart ends bend');
 }
 
+// wrapped label size, crossing-free gutter lanes, and frame border avoidance
+{
+  const n = {
+    s1: { x: 0, y: 220, w: 156, h: 112 }, s2: { x: 0, y: 420, w: 156, h: 112 },
+    t1: { x: 400, y: 60, w: 156, h: 112 }, t2: { x: 400, y: 180, w: 156, h: 112 },
+  };
+  const itemA = { id: 'L', x: 0, y: 310, w: 184, h: 360 }, itemB = { id: 'R', x: 400, y: 140, w: 184, h: 300 };
+  const ed = [
+    { from: 's1', to: 't1', label: 'Reads and writes orders', tech: 'SQL', hint: 'h', itemA, itemB },
+    { from: 's2', to: 't2', label: 'Publishes order events', tech: 'AMQP', hint: 'h', itemA, itemB },
+  ];
+  const r = routeC4Edges(n, ed, { frames: [itemA, itemB] });
+  check(r[0].w <= 140 && r[0].h > 38, 'long label wraps within 140px max width and increases height');
+  // s1 -> t1 starts higher and goes up, so its vertical bend sits left of s2 -> t2 (zero crossing)
+  check(r[0].points[1][0] < r[1].points[1][0], 'upward gutter lanes nest without crossing');
+  // neither label straddles the right border of itemA (x = 92) or left border of itemB (x = 308)
+  for (let i = 0; i < r.length; i++) {
+    const x0 = r[i].lx - r[i].w / 2, x1 = r[i].lx + r[i].w / 2;
+    check(!(x0 < 92 && 92 < x1) && !(x0 < 308 && 308 < x1), `gutter label ${i} stays off frame borders`);
+  }
+}
+
 // determinism
 check(JSON.stringify(routeC4Edges(plain(nodes), edges)) === JSON.stringify(res), 'same input, byte-equal output');
 
