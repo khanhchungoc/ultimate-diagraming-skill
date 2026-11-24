@@ -30,16 +30,28 @@ npm install
 
 ## Running checks
 
-Run end-to-end tests:
+Run fast non-browser checks while iterating (takes a few seconds):
 
 ```shell
-npm run test:e2e
+npm run test:fast:changed
 ```
 
-Or run only tests affected by your changes:
+Or run all fast unit/checker tests:
+
+```shell
+npm run test:fast
+```
+
+Run end-to-end browser tests before opening a PR:
 
 ```shell
 npm run test:e2e:changed
+```
+
+Or run the full end-to-end suite:
+
+```shell
+npm run test:e2e
 ```
 
 If you edit `assets/` or page-assembly scripts, rebuild and verify the example HTML files:

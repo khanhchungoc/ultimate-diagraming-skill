@@ -7,6 +7,8 @@
     "ultimate-diagram": "bin/install.js"
   },
   "scripts": {
+    "test:fast": "node dev/tests/run_unit.mjs",
+    "test:fast:changed": "node dev/tests/run_unit.mjs --changed",
     "test:e2e": "node dev/tests/run_e2e.mjs",
     "test:e2e:changed": "node dev/tests/run_e2e.mjs --changed"
   },
