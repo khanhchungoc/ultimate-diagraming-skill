@@ -278,6 +278,20 @@ run('landscape (platform collapsed)', clone(landC));
   const e = d._edges.find((q) => q.from === 's' && q.to === 't');
   check(d._edges.length === 2 && e && e.count === 2 && e.label === 'One' && e.members.join() === '0,1', 'two collapsed groups: 2 relations merge (count 2, first label), inside one dropped, reverse kept apart');
 }
+{
+  const shop = JSON.parse(readFileSync(at('../../examples/example-c4.json'), 'utf8'));
+  layoutDiagram(shop);
+  const byId = (id) => shop.elements.find((e) => e.id === id) || shop.groups.find((g) => g.id === id);
+  const cx = (o) => o.x + o.w / 2, cy = (o) => o.y + o.h / 2;
+  const sup = byId('support'), cust = byId('cust'), ops = byId('ops');
+  const g1 = cust.x - (sup.x + sup.w), g2 = ops.x - (cust.x + cust.w);
+  check(Math.abs(g1 - g2) <= 1, 'example-c4: top people row keeps even spacing');
+  const supEdge = shop._edges.find((e) => e.from === 'support' && e.to === 'crm');
+  check(supEdge && supEdge.points.length === 2 && supEdge.points[0][0] === supEdge.points[1][0], 'example-c4: Support agent -> CRM is a straight vertical line');
+  check(Math.abs(cx(byId('pay')) - cx(byId('third'))) <= 1, 'example-c4: Third-party services cards are centered inside their frame');
+  check(cy(byId('third')) > cy(byId('shopco')), 'example-c4: Third-party services shifts down to align with its callers');
+  check(shop._edges.every((e) => !e.labelBox || e.labelBox.w <= 140), 'example-c4: every edge label fits within 140px max width');
+}
 
 // ---- components (system > container > component: any depth)
 const comp = fixture('level3/components');

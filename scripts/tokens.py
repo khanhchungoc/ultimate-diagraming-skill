@@ -343,6 +343,7 @@ def tokens_css(tokens: Dict[str, Any]) -> str:
     """The :root (light) and :root[data-theme="dark"] blocks. Dark lists only what it overrides; the cascade does the rest."""
     light = {**_type_vars(tokens),
              **{f"icon-{k}": f"{v}px" for k, v in tokens["icon"]["size"].items()},
+             "c4-label-max-w": f"{tokens['c4']['labelMaxW']}px",
              **tokens["size"], **tokens.get("effect", {}), **tokens["motion"], **{f"radius-{k}": v for k, v in tokens["radius"].items()},
              **{f"shadow-{k}": v for k, v in tokens["shadow"].items()},
              **tokens["color"]["light"], **_sw_vars(tokens, "light")}

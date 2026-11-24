@@ -44,7 +44,8 @@
     "flowAlong": 72,
     "flowPerEdge": 10,
     "flowEdgeCap": 8,
-    "flowRowGap": 40
+    "flowRowGap": 40,
+    "labelMaxW": 140
   },
   "type": {
     "family": {
