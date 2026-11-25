@@ -1,0 +1,281 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style><script>document.documentElement.classList.add("is-loading"); for (const ev of ["pageswap", "pagereveal"]) addEventListener(ev, (e) => { const t = e.viewTransition; if (t) for (const k of ["ready", "finished", "updateCallbackDone"]) t[k].catch(() => {}); }); addEventListener("unhandledrejection", (e) => { if (e.reason && /Transition was (skipped|aborted)/.test(e.reason.message || "")) e.preventDefault(); });</script>
+</head><body>
+<title>Flowchart</title>
+<!-- For agents: the diagram model (JSON, disk format) is in diagram.json in this artifact (Artifact read with path: "diagram.json"). Do not read app.css or app.js to understand the diagram. -->
+  <!-- The theme is set before the first paint (priority: ?theme=dark|light, then the saved choice, then the OS), so a page never flashes the other theme. shell.js reads it back. -->
+  <script>(function () { var t = null; try { t = new URLSearchParams(location.search).get('theme'); } catch (e) {} if (t !== 'dark' && t !== 'light') { try { t = localStorage.getItem('flowchart-theme'); } catch (e) {} } if (t !== 'dark' && t !== 'light') t = window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'; document.documentElement.setAttribute('data-theme', t); })();</script>
+  <!-- Nunito Sans from Google Fonts (the only network request). Offline it fails fast and the page uses the
+       system fallback in shell.css; label fitting measures whichever font is in use. A blocking stylesheet on
+       purpose: the @font-face rules exist before the main script runs, so its fonts.ready re-render still fires. -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito+Sans:opsz,wght@6..12,400..700&amp;display=swap">
+  <link rel="stylesheet" href="app.css">
+
+
+  <!-- Top Floating Corner Pills -->
+  <header>
+    <div class="toolbar-left">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M3 15h18"/><path d="M9 3v18"/></svg>
+      <div class="app-title-container">
+        <h1 id="chart-title" contenteditable="false" spellcheck="false" title="Double-click to rename diagram">Flowchart</h1>
+        <span id="save-status" class="badge badge-status">Ready</span>
+      </div>
+    </div>
+
+    <div class="toolbar-right" role="toolbar" aria-label="Diagram actions">
+      <button id="btn-search" class="btn btn-icon" title="Search (Ctrl+F or /)" aria-label="Search" aria-expanded="false" aria-controls="search-bar" hidden>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10a7 7 0 1 0 14 0a7 7 0 1 0 -14 0"/><path d="M21 21l-6 -6"/></svg>
+      </button>
+      <button id="btn-theme" class="btn btn-icon pill-secondary" title="Dark mode" aria-label="Dark mode" aria-pressed="false">
+        <span class="theme-moon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454l0 .008"/></svg></span><span class="theme-sun"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 12a4 4 0 1 0 8 0a4 4 0 1 0 -8 0"/><path d="M3 12h1m8 -9v1m8 8h1m-9 8v1m-6.4 -15.4l.7 .7m12.1 -.7l-.7 .7m0 11.4l.7 .7m-12.1 -.7l-.7 .7"/></svg></span>
+      </button>
+      <button id="btn-help" class="btn btn-icon pill-secondary" title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts" aria-expanded="false">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0"/><path d="M12 16v.01"/><path d="M12 13a2 2 0 0 0 .914 -3.782a1.98 1.98 0 0 0 -2.414 .483"/></svg>
+      </button>
+      <span class="toolbar-sep" aria-hidden="true"></span>
+      <button id="btn-present" class="btn" title="Present: a read-only view (Esc exits)" aria-label="Present" aria-pressed="false">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4l18 0"/><path d="M4 4v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-10"/><path d="M12 16l0 4"/><path d="M9 20l6 0"/><path d="M8 12l3 -3l2 2l3 -3"/></svg><span class="btn-label">Present</span>
+      </button>
+      <button id="btn-import-mermaid" class="btn btn-icon pill-secondary" title="Import: replace the diagram from pasted Mermaid text (Ctrl+V on the canvas does the same)" aria-label="Import Mermaid" hidden>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2"/><path d="M7 11l5 5l5 -5"/><path d="M12 4l0 12"/></svg>
+      </button>
+      <div class="menu-wrap pill-secondary">
+        <button id="btn-export" class="btn btn-icon" title="Export: download or copy the diagram as an image" aria-label="Export" aria-haspopup="menu" aria-expanded="false">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2"/><path d="M7 9l5 -5l5 5"/><path d="M12 4l0 12"/></svg>
+        </button>
+        <div id="export-menu" class="menu" role="menu" aria-labelledby="btn-export" hidden>
+          <div class="menu-label" role="presentation">Download</div>
+          <button type="button" role="menuitem" data-export="svg">SVG image</button>
+          <button type="button" role="menuitem" data-export="png">PNG image (1.5x)</button>
+          <button type="button" role="menuitem" data-export="svg-all" hidden>SVG images, every tab</button>
+          <div class="menu-label" role="presentation" data-copy-label>Copy</div>
+          <button type="button" role="menuitem" data-copy="mermaid">Mermaid</button>
+          <button type="button" role="menuitem" data-copy="svg">SVG (text)</button>
+          <button type="button" role="menuitem" data-copy="png">PNG image (1.5x)</button>
+        </div>
+      </div>
+      <div class="menu-wrap more-wrap">
+        <button id="btn-more" class="btn btn-icon" title="More actions" aria-label="More actions" aria-haspopup="menu" aria-expanded="false" aria-controls="more-menu">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/><path d="M11 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/><path d="M18 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/></svg>
+        </button>
+        <div id="more-menu" class="menu" role="menu" aria-labelledby="btn-more" hidden></div>
+      </div>
+      <button id="btn-save" class="btn btn-primary" title="Save directly into this HTML file (Ctrl+S)" aria-label="Save">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4h10l4 4v10a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2"/><path d="M10 14a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"/><path d="M14 4l0 4l-6 0l0 -4"/></svg><span class="btn-label">Save</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Text search bar, opening beneath the top-right pill (#btn-search, Ctrl/Cmd+F or "/"; shell.js, SEARCH) -->
+  <div id="search-dock">
+    <div id="search-bar" role="search" hidden>
+      <span class="search-glyph" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10a7 7 0 1 0 14 0a7 7 0 1 0 -14 0"/><path d="M21 21l-6 -6"/></svg></span>
+      <input id="search-input" type="search" placeholder="Search" aria-label="Search the diagram" autocomplete="off" spellcheck="false">
+      <span id="search-count" role="status" aria-live="polite"></span>
+      <button id="search-prev" class="btn btn-icon" type="button" title="Previous match (Shift+Enter)" aria-label="Previous match" disabled><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 15l6 -6l6 6"/></svg></button>
+      <button id="search-next" class="btn btn-icon" type="button" title="Next match (Enter)" aria-label="Next match" disabled><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6l6 -6"/></svg></button>
+    </div>
+  </div>
+
+  <!-- Add controls: a floating dock at the bottom of the viewport, styled like the zoom dock -->
+  <div class="dock-area">
+  <div class="toolbar-center" role="toolbar" aria-label="Edit the diagram">
+      <!-- Shapes popover: hover (or click / tap) the trigger, then click a tile or drag it onto the canvas.
+           Tiles are grouped in labelled .dock-pop-section blocks (Flow, Classic, Annotate), each tile captioned.
+           To add a shape, add one more .btn-shape tile with its data-node-type to a section; the grid wraps on its own.
+           The last tile, Note, attaches a note to a step rather than adding a node. -->
+      <div class="dock-pop-wrap" data-dock-pop>
+        <button id="btn-add-shape" class="btn dock-pop-trigger" aria-label="Shapes" aria-haspopup="true" aria-expanded="false" aria-controls="shape-pop">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l-4 7h8l-4 -7"/><path d="M14 17a3 3 0 1 0 6 0a3 3 0 1 0 -6 0"/><path d="M4 15a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1l0 -4"/></svg><span class="btn-label">Shapes</span>
+          <span class="dock-pop-caret" aria-hidden="true"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 15l6 -6l6 6"/></svg></span>
+        </button>
+        <div id="shape-pop" class="dock-pop" role="group" aria-label="Shapes: click to add, or drag onto the canvas">
+          <div class="dock-pop-section">
+            <div class="dock-pop-heading" aria-hidden="true">Flow</div>
+            <div class="dock-pop-grid" role="group" aria-label="Flow">
+              <button id="btn-add-start" class="btn btn-shape" data-node-type="start" title="Start (click, or drag onto the canvas)" aria-label="Start">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="7" width="20" height="10" rx="5"/></svg><span class="tile-caption">Start</span>
+              </button>
+              <button id="btn-add-end" class="btn btn-shape" data-node-type="end" title="End (click, or drag onto the canvas)" aria-label="End">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="7" width="20" height="10" rx="5"/></svg><span class="tile-caption">End</span>
+              </button>
+              <button id="btn-add-step" class="btn btn-shape" data-node-type="task" title="Step (click, or drag onto the canvas or onto an arrow)" aria-label="Step">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="2.5"/></svg><span class="tile-caption">Step</span>
+              </button>
+              <button id="btn-add-decision" class="btn btn-shape" data-node-type="decision" title="Decision (click, or drag onto the canvas or onto an arrow)" aria-label="Decision">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.7 4.2 3.3 10.8q-1.3 1.2 0 2.4l7.4 6.6q1.3 1.2 2.6 0l7.4-6.6q1.3-1.2 0-2.4L13.3 4.2q-1.3-1.2-2.6 0z"/></svg><span class="tile-caption">Decision</span>
+              </button>
+              <!-- Not a node of its own: a connector pair replaces an arrow (no data-node-type; see the CONNECTOR TOOL in flowchart.js) -->
+              <button id="btn-add-connector" class="btn btn-shape btn-connector-tool" title="Connector: drag onto an arrow to break it into a lettered pair (or click to split the selected arrow)" aria-label="Connector">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path class="tile-line" d="M0.5 12H2M22 12h1.5"/><path class="tile-line tile-gap" d="M10.5 12h3" stroke-dasharray="1 2"/><circle cx="6" cy="12" r="4"/><circle cx="18" cy="12" r="4"/></svg><span class="tile-caption">Connector</span>
+              </button>
+            </div>
+          </div>
+          <div class="dock-pop-section">
+            <div class="dock-pop-heading" aria-hidden="true">Classic</div>
+            <div class="dock-pop-grid" role="group" aria-label="Classic">
+              <button id="btn-add-subprocess" class="btn btn-shape" data-node-type="subprocess" title="Subprocess: a process documented elsewhere (click, or drag onto the canvas or onto an arrow)" aria-label="Subprocess">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="2.5"/><path class="tile-line" d="M6 8.5h1a1.5 1.5 0 0 1 1.5 1.5v1a1.5 1.5 0 0 1-1.5 1.5h-1a1.5 1.5 0 0 1-1.5-1.5v-1a1.5 1.5 0 0 1 1.5-1.5zM6.5 9.5v2M5.5 10.5h2"/></svg><span class="tile-caption">Subprocess</span>
+              </button>
+              <button id="btn-add-io" class="btn btn-shape" data-node-type="io" title="Data (input or output; click, or drag onto the canvas or onto an arrow)" aria-label="Data">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6h16l-4 12H2z"/></svg><span class="tile-caption">Data</span>
+              </button>
+              <button id="btn-add-document" class="btn btn-shape" data-node-type="document" title="Document (click, or drag onto the canvas or onto an arrow)" aria-label="Document">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5h18v11c-3-1.6-6-1.6-9 0s-6 1.6-9 0z"/></svg><span class="tile-caption">Document</span>
+              </button>
+              <button id="btn-add-database" class="btn btn-shape" data-node-type="database" title="Database: stored data (click, or drag onto the canvas or onto an arrow)" aria-label="Database">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6.5a8 2.5 0 0 1 16 0v11a8 2.5 0 0 1-16 0z"/><path class="tile-line" d="M4 6.5a8 2.5 0 0 0 16 0"/></svg><span class="tile-caption">Database</span>
+              </button>
+              <button id="btn-add-delay" class="btn btn-shape" data-node-type="delay" title="Delay: a wait (click, or drag onto the canvas or onto an arrow)" aria-label="Delay">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h11a6 6 0 0 1 0 12H3z"/></svg><span class="tile-caption">Delay</span>
+              </button>
+            </div>
+          </div>
+          <div class="dock-pop-section">
+            <div class="dock-pop-heading" aria-hidden="true">Annotate</div>
+            <div class="dock-pop-grid" role="group" aria-label="Annotate">
+              <!-- Not a shape of its own: a note belongs to a step (no data-node-type; see the NOTE TOOL in flowchart.js) -->
+              <button id="btn-add-note" class="btn btn-shape btn-note-tool" title="Note (drag onto a step, or click to add one to the selected step)" aria-label="Note">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path class="note-paper" d="M4 6a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v7l-7 7h-7a2 2 0 0 1 -2 -2z"/><path class="note-fold" d="M13 20v-6a1 1 0 0 1 1 -1h6"/></svg><span class="tile-caption">Note</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <button id="btn-add-lane" class="btn" title="Add a swimlane" aria-label="Lane">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 12h18"/></svg><span class="btn-label">Lane</span>
+      </button>
+      <button id="btn-notes" class="btn" title="Show all notes" aria-label="Notes" aria-pressed="false">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 5a2 2 0 0 1 2 -2h10a2 2 0 0 1 2 2v14a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2l0 -14"/><path d="M9 7l6 0"/><path d="M9 11l6 0"/><path d="M9 15l4 0"/></svg><span class="btn-label">Notes</span><span class="btn-count" hidden></span>
+      </button>
+      <!-- Shown by updateSubButtons (flowchart.js) when the selection can be moved into a subprocess, or is one -->
+      <button id="btn-collapse-sub" class="btn btn-sub" title="Move the selected steps into a subprocess flow of their own" aria-label="Collapse to subprocess" hidden>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4l-8 4l8 4l8 -4l-8 -4"/><path d="M4 12l8 4l8 -4"/><path d="M4 16l8 4l8 -4"/></svg><span class="btn-label">Collapse</span>
+      </button>
+      <button id="btn-expand-sub" class="btn btn-sub" title="Put this subprocess flow back in place of the step" aria-label="Expand subprocess" hidden>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4l-8 4l8 4l8 -4l-8 -4"/><path d="M4 12l8 4l8 -4"/><path d="M4 16l8 4l8 -4"/></svg><span class="btn-label">Expand</span>
+      </button>
+      <button id="btn-direction"class="btn" data-dock-group="layout" title="Switch to a top-to-bottom layout" aria-label="Vertical">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5l0 14"/><path d="M18 13l-6 6"/><path d="M6 13l6 6"/></svg><span class="btn-label">Vertical</span>
+      </button>
+      <!-- Auto-Tidy on/off (see AUTO LAYOUT in flowchart.js): hidden for now, Auto-Tidy is always on (the code stays for when it returns) -->
+      <button id="btn-auto-layout" hidden class="btn btn-switch" role="switch" data-dock-group="layout" title="Auto-Tidy is on: the diagram re-arranges itself after every step edit (click to place steps by hand)" aria-label="Auto-Tidy" aria-checked="true">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4"/><path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4"/></svg><span class="btn-label">Auto-Tidy</span>
+      </button>
+      <!-- Shown only while something is selected (plugin.hasSelection) -->
+      <button id="btn-delete-selection" class="btn dock-delete" title="Delete the selection (Delete key)" aria-label="Delete selection" aria-hidden="true" tabindex="-1">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7l16 0"/><path d="M10 11l0 6"/><path d="M14 11l0 6"/><path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12"/><path d="M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3"/></svg><span class="btn-label">Delete</span>
+      </button>
+      <!-- Layout controls: type buttons marked data-dock-group="layout" are moved here, before Tidy -->
+      <span class="dock-sep" aria-hidden="true"></span>
+      <button id="btn-auto-tidy" class="btn" title="Tidy: re-align and lay out the whole diagram now" aria-label="Tidy">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 21l15 -15l-3 -3l-15 15l3 3"/><path d="M15 6l3 3"/><path d="M9 3a2 2 0 0 0 2 2a2 2 0 0 0 -2 2a2 2 0 0 0 -2 -2a2 2 0 0 0 2 -2"/><path d="M19 13a2 2 0 0 0 2 2a2 2 0 0 0 -2 2a2 2 0 0 0 -2 -2a2 2 0 0 0 2 -2"/></svg><span class="btn-label">Tidy</span>
+      </button>
+  </div>
+
+  <!-- Zoom controls: floating in the bottom-left corner of the viewport -->
+  <div class="toolbar-zoom" role="group" aria-label="View">
+    <button id="btn-undo" class="btn btn-icon" title="Undo (Ctrl+Z)" aria-label="Undo" disabled>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14l-4 -4l4 -4"/><path d="M5 10h11a4 4 0 1 1 0 8h-1"/></svg>
+    </button>
+    <button id="btn-redo" class="btn btn-icon" title="Redo (Ctrl+Y / Ctrl+Shift+Z)" aria-label="Redo" disabled>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 14l4 -4l-4 -4"/><path d="M19 10h-11a4 4 0 1 0 0 8h1"/></svg>
+    </button>
+    <span class="dock-sep" aria-hidden="true"></span>
+    <button id="btn-zoom-out" class="btn btn-icon" title="Zoom out" aria-label="Zoom out">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l14 0"/></svg>
+    </button>
+    <span id="zoom-level">100%</span>
+    <button id="btn-zoom-in" class="btn btn-icon" title="Zoom in" aria-label="Zoom in">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5l0 14"/><path d="M5 12l14 0"/></svg>
+    </button>
+    <button id="btn-zoom-reset" class="btn btn-icon" title="Fit to screen" aria-label="Fit to screen">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8v-2a2 2 0 0 1 2 -2h2"/><path d="M4 16v2a2 2 0 0 0 2 2h2"/><path d="M16 4h2a2 2 0 0 1 2 2v2"/><path d="M16 20h2a2 2 0 0 0 2 -2v-2"/></svg>
+    </button>
+  </div>
+  </div>
+
+  <!-- The flow tabs: shown only when the diagram has subprocess flows (renderTabs in flowchart.js). A connecting arrow shows no banner, so the canvas never shifts -->
+  <div id="flow-tabs" class="flow-tabs" role="tablist" aria-label="Flows" data-overlay-top hidden></div>
+
+
+  <!-- Viewport for Pan and Zoom -->
+  <div id="viewport">
+    <div id="page-loading" role="status" aria-label="Loading"></div>
+    <div id="stage">
+      <div id="swimlanes-container">
+        <!-- SVG Connections Overlay -->
+        <svg id="connector-svg">
+          <defs>
+            <marker id="arrowhead" markerWidth="12" markerHeight="12" refX="10.6" refY="6" orient="auto">
+              <polygon points="0 1.5, 11 6, 0 10.5" style="fill:var(--connector)"/>
+            </marker>
+            <marker id="arrowhead-selected" markerWidth="8" markerHeight="8" refX="6.8" refY="4" orient="auto">
+              <polygon points="0 1, 7 4, 0 7" style="fill:var(--primary)"/>
+            </marker>
+            <marker id="arrowhead-in" markerWidth="8" markerHeight="8" refX="6.8" refY="4" orient="auto">
+              <polygon points="0 1, 7 4, 0 7" style="fill:var(--edge-in)"/>
+            </marker>
+            <marker id="arrowhead-out" markerWidth="8" markerHeight="8" refX="6.8" refY="4" orient="auto">
+              <polygon points="0 1, 7 4, 0 7" style="fill:var(--edge-out)"/>
+            </marker>
+          </defs>
+          <!-- Dashed leaders from each visible note to its node (under the nodes, so they stop at the node's edge) -->
+          <g id="note-leader-group"></g>
+          <g id="edge-group"></g>
+          <path id="drag-edge" d="" style="display:none; fill:none; stroke:var(--primary); stroke-width:3px; stroke-dasharray: 6 6; pointer-events:none;"/>
+        </svg>
+
+        <!-- HTML Edge Labels Container -->
+        <div id="edge-labels-group" style="position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:30;"></div>
+
+        <!-- Swimlane Rows will be rendered here -->
+        <div id="lanes-root"></div>
+        <!-- Node notes: free-floating cards above the diagram, fitted into gaps near their node (see renderNotes) -->
+        <div id="notes-layer" class="note-layer"></div>
+        <div id="lane-drop-line"></div>
+        <div id="snap-guide-v" class="snap-guide snap-guide-v"></div>
+        <div id="snap-guide-h" class="snap-guide snap-guide-h"></div>
+        <div id="insert-hint" data-export-skip aria-hidden="true">+ Insert step</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Help & Shortcuts Popover -->
+  <aside id="help-drawer" role="dialog" aria-labelledby="help-title">
+    <div class="help-head">
+      <span id="help-title">Shortcuts</span>
+      <button id="help-close" class="help-close" type="button" title="Close (Esc)" aria-label="Close shortcuts">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6l-12 12"/><path d="M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="help-body">
+      <div class="help-group">
+        <div class="help-group-title">Flowchart</div>
+        <ul class="help-list">
+          <li class="help-row"><span class="help-label">Edit step, lane, or arrow</span><span class="help-keys"><kbd>Double-click</kbd></span></li>
+          <li class="help-row"><span class="help-label">Connect or insert step</span><span class="help-keys"><kbd>Drag port</kbd> &middot; <kbd>Drop on arrow</kbd></span></li>
+          <li class="help-row"><span class="help-label">Multi-select</span><span class="help-keys"><kbd>Shift</kbd>+<kbd>Click</kbd> &middot; <kbd>Shift</kbd>+<kbd>Drag</kbd></span></li>
+          <li class="help-row"><span class="help-label">Add note</span><span class="help-keys"><kbd>N</kbd></span></li>
+          <li class="help-row"><span class="help-label">Reorder lane</span><span class="help-keys"><kbd>Drag lane name</kbd></span></li>
+          <li class="help-row"><span class="help-label">Open subprocess</span><span class="help-keys"><kbd>Click +</kbd></span></li>
+        </ul>
+      </div>
+      <div class="help-group">
+        <div class="help-group-title">Canvas</div>
+        <ul class="help-list">
+          <li class="help-row"><span class="help-label">Pan</span><span class="help-keys"><kbd>Drag</kbd> &middot; <kbd>Space</kbd>+<kbd>Drag</kbd></span></li>
+          <li class="help-row"><span class="help-label">Zoom</span><span class="help-keys"><kbd>Ctrl</kbd>+<kbd>Scroll</kbd> &middot; <kbd>Pinch</kbd></span></li>
+          <li class="help-row"><span class="help-label">Search</span><span class="help-keys"><kbd>Ctrl</kbd>+<kbd>F</kbd> &middot; <kbd>/</kbd></span></li>
+          <li class="help-row"><span class="help-label">Undo / Redo</span><span class="help-keys"><kbd>Ctrl</kbd>+<kbd>Z</kbd> &middot; <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd></span></li>
+          <li class="help-row"><span class="help-label">Delete</span><span class="help-keys"><kbd>Del</kbd></span></li>
+        </ul>
+      </div>
+    </div>
+  </aside>
+
+  <script id="playground" type="application/json">{"type": "flowchart", "types": [{"id": "flowchart", "name": "Flowchart"}, {"id": "sequence", "name": "Sequence diagram"}, {"id": "erd", "name": "ER diagram"}, {"id": "usecase", "name": "Use case diagram"}, {"id": "c4", "name": "C4 diagram"}]}</script>
+  <script src="app.js"></script>
+<!-- end ultimate-diagram page -->
+</body></html>

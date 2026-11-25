@@ -1,0 +1,259 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style><script>document.documentElement.classList.add("is-loading"); for (const ev of ["pageswap", "pagereveal"]) addEventListener(ev, (e) => { const t = e.viewTransition; if (t) for (const k of ["ready", "finished", "updateCallbackDone"]) t[k].catch(() => {}); }); addEventListener("unhandledrejection", (e) => { if (e.reason && /Transition was (skipped|aborted)/.test(e.reason.message || "")) e.preventDefault(); });</script>
+</head><body>
+<title>C4 diagram</title>
+<!-- For agents: the diagram model (JSON, disk format) is in diagram.json in this artifact (Artifact read with path: "diagram.json"). Do not read app.css or app.js to understand the diagram. -->
+  <!-- The theme is set before the first paint (priority: ?theme=dark|light, then the saved choice, then the OS), so a page never flashes the other theme. shell.js reads it back. -->
+  <script>(function () { var t = null; try { t = new URLSearchParams(location.search).get('theme'); } catch (e) {} if (t !== 'dark' && t !== 'light') { try { t = localStorage.getItem('flowchart-theme'); } catch (e) {} } if (t !== 'dark' && t !== 'light') t = window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'; document.documentElement.setAttribute('data-theme', t); })();</script>
+  <!-- Nunito Sans from Google Fonts (the only network request). Offline it fails fast and the page uses the
+       system fallback in shell.css; label fitting measures whichever font is in use. A blocking stylesheet on
+       purpose: the @font-face rules exist before the main script runs, so its fonts.ready re-render still fires. -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito+Sans:opsz,wght@6..12,400..700&amp;display=swap">
+  <link rel="stylesheet" href="app.css">
+
+
+  <!-- Top Floating Corner Pills -->
+  <header>
+    <div class="toolbar-left">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2" stroke-dasharray="3 2"/><rect x="8" y="8" width="8" height="8" rx="1.5"/><path d="M12 3v5M12 16v5"/></svg>
+      <div class="app-title-container">
+        <h1 id="chart-title" contenteditable="false" spellcheck="false" title="Double-click to rename diagram">C4 diagram</h1>
+        <span id="save-status" class="badge badge-status">Ready</span>
+      </div>
+    </div>
+
+    <div class="toolbar-right" role="toolbar" aria-label="Diagram actions">
+      <button id="btn-search" class="btn btn-icon" title="Search (Ctrl+F or /)" aria-label="Search" aria-expanded="false" aria-controls="search-bar" hidden>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10a7 7 0 1 0 14 0a7 7 0 1 0 -14 0"/><path d="M21 21l-6 -6"/></svg>
+      </button>
+      <button id="btn-theme" class="btn btn-icon pill-secondary" title="Dark mode" aria-label="Dark mode" aria-pressed="false">
+        <span class="theme-moon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454l0 .008"/></svg></span><span class="theme-sun"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 12a4 4 0 1 0 8 0a4 4 0 1 0 -8 0"/><path d="M3 12h1m8 -9v1m8 8h1m-9 8v1m-6.4 -15.4l.7 .7m12.1 -.7l-.7 .7m0 11.4l.7 .7m-12.1 -.7l-.7 .7"/></svg></span>
+      </button>
+      <button id="btn-help" class="btn btn-icon pill-secondary" title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts" aria-expanded="false">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0"/><path d="M12 16v.01"/><path d="M12 13a2 2 0 0 0 .914 -3.782a1.98 1.98 0 0 0 -2.414 .483"/></svg>
+      </button>
+      <span class="toolbar-sep" aria-hidden="true"></span>
+      <button id="btn-present" class="btn" title="Present: a read-only view (Esc exits)" aria-label="Present" aria-pressed="false">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4l18 0"/><path d="M4 4v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-10"/><path d="M12 16l0 4"/><path d="M9 20l6 0"/><path d="M8 12l3 -3l2 2l3 -3"/></svg><span class="btn-label">Present</span>
+      </button>
+      <button id="btn-import-mermaid" class="btn btn-icon pill-secondary" title="Import: replace the diagram from pasted Mermaid text (Ctrl+V on the canvas does the same)" aria-label="Import Mermaid" hidden>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2"/><path d="M7 11l5 5l5 -5"/><path d="M12 4l0 12"/></svg>
+      </button>
+      <div class="menu-wrap pill-secondary">
+        <button id="btn-export" class="btn btn-icon" title="Export: download or copy the diagram as an image" aria-label="Export" aria-haspopup="menu" aria-expanded="false">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2"/><path d="M7 9l5 -5l5 5"/><path d="M12 4l0 12"/></svg>
+        </button>
+        <div id="export-menu" class="menu" role="menu" aria-labelledby="btn-export" hidden>
+          <div class="menu-label" role="presentation">Download</div>
+          <button type="button" role="menuitem" data-export="svg">SVG image</button>
+          <button type="button" role="menuitem" data-export="png">PNG image (1.5x)</button>
+          <button type="button" role="menuitem" data-export="svg-all" hidden>SVG images, every tab</button>
+          <div class="menu-label" role="presentation" data-copy-label>Copy</div>
+          <button type="button" role="menuitem" data-copy="mermaid">Mermaid</button>
+          <button type="button" role="menuitem" data-copy="svg">SVG (text)</button>
+          <button type="button" role="menuitem" data-copy="png">PNG image (1.5x)</button>
+        </div>
+      </div>
+      <div class="menu-wrap more-wrap">
+        <button id="btn-more" class="btn btn-icon" title="More actions" aria-label="More actions" aria-haspopup="menu" aria-expanded="false" aria-controls="more-menu">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/><path d="M11 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/><path d="M18 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/></svg>
+        </button>
+        <div id="more-menu" class="menu" role="menu" aria-labelledby="btn-more" hidden></div>
+      </div>
+      <button id="btn-save" class="btn btn-primary" title="Save directly into this HTML file (Ctrl+S)" aria-label="Save">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4h10l4 4v10a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2"/><path d="M10 14a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"/><path d="M14 4l0 4l-6 0l0 -4"/></svg><span class="btn-label">Save</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Text search bar, opening beneath the top-right pill (#btn-search, Ctrl/Cmd+F or "/"; shell.js, SEARCH) -->
+  <div id="search-dock">
+    <div id="search-bar" role="search" hidden>
+      <span class="search-glyph" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10a7 7 0 1 0 14 0a7 7 0 1 0 -14 0"/><path d="M21 21l-6 -6"/></svg></span>
+      <input id="search-input" type="search" placeholder="Search" aria-label="Search the diagram" autocomplete="off" spellcheck="false">
+      <span id="search-count" role="status" aria-live="polite"></span>
+      <button id="search-prev" class="btn btn-icon" type="button" title="Previous match (Shift+Enter)" aria-label="Previous match" disabled><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 15l6 -6l6 6"/></svg></button>
+      <button id="search-next" class="btn btn-icon" type="button" title="Next match (Enter)" aria-label="Next match" disabled><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6l6 -6"/></svg></button>
+    </div>
+  </div>
+
+  <!-- Add controls: a floating dock at the bottom of the viewport, styled like the zoom dock -->
+  <div class="dock-area">
+  <div class="toolbar-center" role="toolbar" aria-label="Edit the diagram">
+      <!-- Add popover: click a tile to add the item (one added while a group is selected joins that group); its name opens for editing -->
+      <div class="dock-pop-wrap" data-dock-pop>
+        <button id="btn-add" class="btn dock-pop-trigger" aria-label="Add" aria-haspopup="true" aria-expanded="false" aria-controls="c4-pop">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5l0 14"/><path d="M5 12l14 0"/></svg><span class="btn-label">Add</span>
+          <span class="dock-pop-caret" aria-hidden="true"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 15l6 -6l6 6"/></svg></span>
+        </button>
+        <div id="c4-pop" class="dock-pop" role="group" aria-label="Add: click to add">
+          <div class="dock-pop-section">
+            <div class="dock-pop-heading" aria-hidden="true">Landscape</div>
+            <div class="dock-pop-grid" role="group" aria-label="Landscape">
+              <button id="btn-add-person" class="btn btn-shape" title="Person: someone who uses the system (click to add)" aria-label="Person">
+                <span class="c4-tile-card" aria-hidden="true"><span class="c4-tile-disc"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0"/><path d="M6 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2"/></svg></span></span><span class="tile-caption">Person</span>
+              </button>
+              <button id="btn-add-system" class="btn btn-shape" title="Software system: something that delivers value, shown as one box (click to add)" aria-label="Software system">
+                <span class="c4-tile-card" aria-hidden="true"><span class="c4-tile-disc"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v2a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3v-2"/><path d="M3 15a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v2a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3l0 -2"/><path d="M7 8l0 .01"/><path d="M7 16l0 .01"/></svg></span></span><span class="tile-caption">System</span>
+              </button>
+              <button id="btn-add-external" class="btn btn-shape" title="External system: a third-party system you do not own (click to add)" aria-label="External system">
+                <span class="c4-tile-card" aria-hidden="true"><span class="c4-tile-disc"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.657 18c-2.572 0 -4.657 -2.007 -4.657 -4.483c0 -2.475 2.085 -4.482 4.657 -4.482c.393 -1.762 1.794 -3.2 3.675 -3.773c1.88 -.572 3.956 -.193 5.444 1c1.488 1.19 2.162 3.007 1.77 4.769h.99c1.913 0 3.464 1.56 3.464 3.486c0 1.927 -1.551 3.487 -3.465 3.487h-11.878"/></svg></span></span><span class="tile-caption">External</span>
+              </button>
+              <button id="btn-add-group" class="btn btn-shape" title="Group: a frame around elements; select one first to add into it (click to add)" aria-label="Group">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect class="c4-grp-frame" x="2.5" y="4" width="19" height="16" rx="3" stroke-dasharray="3 2"/><rect class="c4-grp-tag" x="5" y="6.5" width="7" height="3.5" rx="1"/></svg><span class="tile-caption">Group</span>
+              </button>
+            </div>
+          </div>
+          <div class="dock-pop-section">
+            <div class="dock-pop-heading" aria-hidden="true">Inside a system</div>
+            <div class="dock-pop-grid" role="group" aria-label="Inside a system">
+              <button id="btn-add-container" class="btn btn-shape" title="Container: an app, service or data store inside a system (click to add)" aria-label="Container">
+                <span class="c4-tile-card" aria-hidden="true"><span class="c4-tile-disc"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 4.5l0 9l-8 4.5l-8 -4.5l0 -9l8 -4.5"/><path d="M12 12l8 -4.5"/><path d="M12 12l0 9"/><path d="M12 12l-8 -4.5"/></svg></span></span><span class="tile-caption">Container</span>
+              </button>
+              <button id="btn-add-database" class="btn btn-shape" title="Database: a data store (click to add)" aria-label="Database">
+                <span class="c4-tile-card" aria-hidden="true"><span class="c4-tile-disc"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6a8 3 0 1 0 16 0a8 3 0 1 0 -16 0"/><path d="M4 6v6a8 3 0 0 0 16 0v-6"/><path d="M4 12v6a8 3 0 0 0 16 0v-6"/></svg></span></span><span class="tile-caption">Database</span>
+              </button>
+              <button id="btn-add-queue" class="btn btn-shape" title="Queue: a message broker or topic (click to add)" aria-label="Queue">
+                <span class="c4-tile-card" aria-hidden="true"><span class="c4-tile-disc"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="7" width="5" height="10" rx="1"/><rect x="9.5" y="7" width="5" height="10" rx="1"/><path d="M17 12h5M19.5 9.5 22 12l-2.5 2.5"/></svg></span></span><span class="tile-caption">Queue</span>
+              </button>
+            </div>
+          </div>
+          <div class="dock-pop-section">
+            <div class="dock-pop-heading" aria-hidden="true">Annotate</div>
+            <div class="dock-pop-grid" role="group" aria-label="Annotate">
+              <button id="btn-add-note" class="btn btn-shape btn-note-tool" title="Note: select an element, group or arrow first, then click to add a note to it" aria-label="Note">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path class="note-paper" d="M4 6a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v7l-7 7h-7a2 2 0 0 1 -2 -2z"/><path class="note-fold" d="M13 20v-6a1 1 0 0 1 1 -1h6"/></svg><span class="tile-caption">Note</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <span class="dock-sep" aria-hidden="true"></span>
+      <!-- Level (c4.js, LEVEL): Level N opens the groups down to N - 1 system levels (Level 1: collapsible systems are one box) and collapses the rest -->
+      <div class="dock-pop-wrap" data-dock-pop data-level>
+        <button id="btn-level" class="btn dock-pop-trigger" aria-label="Level" aria-haspopup="true" aria-expanded="false" aria-controls="level-pop">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4l-8 4l8 4l8 -4l-8 -4"/><path d="M4 12l8 4l8 -4"/><path d="M4 16l8 4l8 -4"/></svg><span class="btn-label">Level</span><span class="btn-count" hidden></span>
+          <span class="dock-pop-caret" aria-hidden="true"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 15l6 -6l6 6"/></svg></span>
+        </button>
+        <div id="level-pop" class="dock-pop" role="radiogroup" aria-label="C4 level">
+          <div class="dock-pop-grid">
+            <button type="button" id="btn-level-1" class="btn btn-shape" role="radio" data-level="1" aria-checked="false" title="Level 1, system context: systems are shown as one box" aria-label="Level 1, system context">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v2a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3v-2"/><path d="M3 15a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v2a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3l0 -2"/><path d="M7 8l0 .01"/><path d="M7 16l0 .01"/></svg><span class="tile-caption">Level 1</span>
+            </button>
+            <button type="button" id="btn-level-2" class="btn btn-shape" role="radio" data-level="2" aria-checked="false" title="Level 2, containers: systems are opened to their containers" aria-label="Level 2, containers">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2" stroke-dasharray="3 2"/><rect x="8" y="8" width="8" height="8" rx="1.5"/><path d="M12 3v5M12 16v5"/></svg><span class="tile-caption">Level 2</span>
+            </button>
+          </div>
+        </div>
+      </div>
+      <span class="dock-sep" aria-hidden="true" data-layer-dir hidden></span>
+      <!-- Layers direction (c4.js): switches arrange: "layers" between horizontal bands and vertical columns -->
+      <button id="btn-layer-dir" class="btn" data-layer-dir hidden title="Switch between horizontal bands and vertical columns" aria-label="Layer direction">
+        <span class="c4-dir-icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l14 0"/><path d="M13 18l6 -6"/><path d="M13 6l6 6"/></svg></span><span class="btn-label">Columns</span>
+      </button>
+      <span class="dock-sep" aria-hidden="true"></span>
+      <!-- Steps (c4.js, STEPS): shows or hides numbered step badges on arrows -->
+      <button id="btn-steps" class="btn btn-switch" role="switch" data-steps hidden title="Show step numbers on arrows" aria-label="Steps" aria-checked="true">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 6h11M10 12h11M10 18h11"/><path d="M4 6h1v4"/><path d="M4 10h2"/><path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"/></svg><span class="btn-label">Steps</span><span class="btn-count" hidden></span>
+      </button>
+      <!-- Notes (c4.js, NOTES): shows or hides every note card; the count is the notes with text -->
+      <button id="btn-notes" class="btn btn-switch" role="switch" title="Show all notes" aria-label="Notes" aria-checked="false">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 5a2 2 0 0 1 2 -2h10a2 2 0 0 1 2 2v14a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2l0 -14"/><path d="M9 7l6 0"/><path d="M9 11l6 0"/><path d="M9 15l4 0"/></svg><span class="btn-label">Notes</span><span class="btn-count" hidden></span>
+      </button>
+      <!-- Shown only while something is selected (plugin.hasSelection) -->
+      <button id="btn-delete-selection" class="btn dock-delete" title="Delete the selection (Delete key)" aria-label="Delete selection" aria-hidden="true" tabindex="-1">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7l16 0"/><path d="M10 11l0 6"/><path d="M14 11l0 6"/><path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12"/><path d="M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3"/></svg><span class="btn-label">Delete</span>
+      </button>
+      <!-- Layout controls: type buttons marked data-dock-group="layout" are moved here, before Tidy -->
+      <span class="dock-sep" aria-hidden="true"></span>
+      <button id="btn-auto-tidy" class="btn" title="Tidy: re-align and lay out the whole diagram now" aria-label="Tidy">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 21l15 -15l-3 -3l-15 15l3 3"/><path d="M15 6l3 3"/><path d="M9 3a2 2 0 0 0 2 2a2 2 0 0 0 -2 2a2 2 0 0 0 -2 -2a2 2 0 0 0 2 -2"/><path d="M19 13a2 2 0 0 0 2 2a2 2 0 0 0 -2 2a2 2 0 0 0 -2 -2a2 2 0 0 0 2 -2"/></svg><span class="btn-label">Tidy</span>
+      </button>
+  </div>
+
+  <!-- Zoom controls: floating in the bottom-left corner of the viewport -->
+  <div class="toolbar-zoom" role="group" aria-label="View">
+    <button id="btn-undo" class="btn btn-icon" title="Undo (Ctrl+Z)" aria-label="Undo" disabled>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14l-4 -4l4 -4"/><path d="M5 10h11a4 4 0 1 1 0 8h-1"/></svg>
+    </button>
+    <button id="btn-redo" class="btn btn-icon" title="Redo (Ctrl+Y / Ctrl+Shift+Z)" aria-label="Redo" disabled>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 14l4 -4l-4 -4"/><path d="M19 10h-11a4 4 0 1 0 0 8h1"/></svg>
+    </button>
+    <span class="dock-sep" aria-hidden="true"></span>
+    <button id="btn-zoom-out" class="btn btn-icon" title="Zoom out" aria-label="Zoom out">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l14 0"/></svg>
+    </button>
+    <span id="zoom-level">100%</span>
+    <button id="btn-zoom-in" class="btn btn-icon" title="Zoom in" aria-label="Zoom in">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5l0 14"/><path d="M5 12l14 0"/></svg>
+    </button>
+    <button id="btn-zoom-reset" class="btn btn-icon" title="Fit to screen" aria-label="Fit to screen">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8v-2a2 2 0 0 1 2 -2h2"/><path d="M4 16v2a2 2 0 0 0 2 2h2"/><path d="M16 4h2a2 2 0 0 1 2 2v2"/><path d="M16 20h2a2 2 0 0 0 2 -2v-2"/></svg>
+    </button>
+  </div>
+  </div>
+
+  <!-- Manual layout badge (c4.js, updateModeUi): moved beside the save status; shown only while boxes keep the places they were dragged to -->
+  <span id="c4-mode" class="badge badge-status c4-mode" role="status" hidden>Manual layout</span>
+
+
+  <!-- Viewport for Pan and Zoom -->
+  <div id="viewport">
+    <div id="page-loading" role="status" aria-label="Loading"></div>
+    <div id="stage">
+      <div id="c4-canvas">
+        <svg id="c4-svg" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <!-- Arrowhead: the tip (x = 0) sits on the element's outline and orient="auto" turns it along the line. c4.js adds the
+                 -in, -out and -sel variants (the in/out highlight colours and the primary colour). -->
+            <marker id="c4-mk" class="c4-mk" viewBox="-12 -7 14 14" markerWidth="14" markerHeight="14" refX="0" refY="0" orient="auto" markerUnits="userSpaceOnUse">
+              <path d="M-9 -4.5 0 0 -9 4.5 -6.5 0z"/>
+            </marker>
+          </defs>
+          <g id="c4-edges"></g>
+        </svg>
+        <div id="c4-html"></div>
+        <!-- The rubber band of a connection being dragged from a port (c4.js, CONNECT); an editing aid, never exported -->
+        <svg id="c4-overlay" data-export-skip width="1" height="1" aria-hidden="true"><line id="c4-rubber" x1="0" y1="0" x2="0" y2="0"/></svg>
+      </div>
+    </div>
+  </div>
+
+  <!-- Help & Shortcuts Popover -->
+  <aside id="help-drawer" role="dialog" aria-labelledby="help-title">
+    <div class="help-head">
+      <span id="help-title">Shortcuts</span>
+      <button id="help-close" class="help-close" type="button" title="Close (Esc)" aria-label="Close shortcuts">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6l-12 12"/><path d="M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="help-body">
+      <div class="help-group">
+        <div class="help-group-title">C4</div>
+        <ul class="help-list">
+          <li class="help-row"><span class="help-label">Edit name, tech, description, or arrow</span><span class="help-keys"><kbd>Double-click</kbd> &middot; <kbd>Tab</kbd></span></li>
+          <li class="help-row"><span class="help-label">Connect elements</span><span class="help-keys"><kbd>Drag port</kbd></span></li>
+          <li class="help-row"><span class="help-label">Collapse or expand group</span><span class="help-keys"><kbd>Click chevron</kbd></span></li>
+          <li class="help-row"><span class="help-label">Move or nudge boxes</span><span class="help-keys"><kbd>Drag</kbd> &middot; <kbd>Alt</kbd>+<kbd>Arrows</kbd></span></li>
+          <li class="help-row"><span class="help-label">Multi-select</span><span class="help-keys"><kbd>Shift</kbd>+<kbd>Click</kbd> &middot; <kbd>Shift</kbd>+<kbd>Drag</kbd></span></li>
+        </ul>
+      </div>
+      <div class="help-group">
+        <div class="help-group-title">Canvas</div>
+        <ul class="help-list">
+          <li class="help-row"><span class="help-label">Pan</span><span class="help-keys"><kbd>Drag</kbd> &middot; <kbd>Space</kbd>+<kbd>Drag</kbd></span></li>
+          <li class="help-row"><span class="help-label">Zoom</span><span class="help-keys"><kbd>Ctrl</kbd>+<kbd>Scroll</kbd> &middot; <kbd>Pinch</kbd></span></li>
+          <li class="help-row"><span class="help-label">Search</span><span class="help-keys"><kbd>Ctrl</kbd>+<kbd>F</kbd> &middot; <kbd>/</kbd></span></li>
+          <li class="help-row"><span class="help-label">Undo / Redo</span><span class="help-keys"><kbd>Ctrl</kbd>+<kbd>Z</kbd> &middot; <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd></span></li>
+          <li class="help-row"><span class="help-label">Delete</span><span class="help-keys"><kbd>Del</kbd></span></li>
+        </ul>
+      </div>
+    </div>
+  </aside>
+
+  <script id="playground" type="application/json">{"type": "c4", "types": [{"id": "flowchart", "name": "Flowchart"}, {"id": "sequence", "name": "Sequence diagram"}, {"id": "erd", "name": "ER diagram"}, {"id": "usecase", "name": "Use case diagram"}, {"id": "c4", "name": "C4 diagram"}]}</script>
+  <script src="app.js"></script>
+<!-- end ultimate-diagram page -->
+</body></html>

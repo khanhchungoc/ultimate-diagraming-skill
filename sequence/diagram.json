@@ -1,0 +1,36 @@
+{
+  "_readme": "How to read this model: \"participants\" are in column order and \"messages\" in time order (with \"numbered\", a step number is a message's position in that list); a message's \"detail\" is its payload; a fragment frames the messages \"from\" .. \"to\" (message ids, inclusive); an \"alt\" or \"par\" fragment's \"label\" is its first branch's condition, and each \"branches\" entry (or \"elseAt\", one unlabelled else) starts a further branch at message \"at\"; a note sits \"over\" one participant (or two, stretched) \"after\" or \"before\" a message; \"collapsed\" frames open folded, and with \"rails\": true a participant that takes part only in collapsed frames shows as a thin rail; with \"lifespans\": true a lifeline runs only from its participant's first message to its last (\"start\" / \"end\" are message ids that widen it, and \"column\" is the earlier participant whose column it shares). a participant's \"color\" is one of the lane swatches (hex) and \"colorKey\" says what each colour in use means. Positions are not saved: the page lays them out on load.",
+  "diagramType": "sequence",
+  "title": "Sequence diagram",
+  "participants": [
+    { "id": "p1", "name": "User", "kind": "actor" },
+    { "id": "p2", "name": "Web App", "kind": "ui" },
+    { "id": "p3", "name": "API Server", "kind": "system" },
+    { "id": "p4", "name": "Database", "kind": "database" }
+  ],
+  "messages": [
+    { "id": "m1", "from": "p1", "to": "p2", "label": "Submit order" },
+    { "id": "m2", "from": "p2", "to": "p3", "label": "POST /orders", "detail": "items, token" },
+    { "id": "m3", "from": "p3", "to": "p4", "label": "Check stock" },
+    { "id": "m4", "from": "p4", "to": "p3", "label": "Stock status", "kind": "reply" },
+    { "id": "m5", "from": "p3", "to": "p4", "label": "Save order" },
+    { "id": "m6", "from": "p3", "to": "p2", "label": "201 Created", "kind": "reply" },
+    { "id": "m7", "from": "p3", "to": "p2", "label": "409 Out of stock", "kind": "reply" },
+    { "id": "m8", "from": "p2", "to": "p1", "label": "Show result", "kind": "reply" }
+  ],
+  "fragments": [
+    {
+      "id": "f1",
+      "kind": "alt",
+      "label": "in stock",
+      "from": "m5",
+      "to": "m7",
+      "branches": [
+        { "at": "m7", "label": "out of stock" }
+      ]
+    }
+  ],
+  "notes": [
+    { "id": "n1", "text": "Stock is checked before creating the order", "over": "p4", "after": "m4" }
+  ]
+}
