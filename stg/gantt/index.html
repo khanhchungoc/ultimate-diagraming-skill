@@ -1,0 +1,268 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style><script>document.documentElement.classList.add("is-loading"); for (const ev of ["pageswap", "pagereveal"]) addEventListener(ev, (e) => { const t = e.viewTransition; if (t) for (const k of ["ready", "finished", "updateCallbackDone"]) t[k].catch(() => {}); }); addEventListener("unhandledrejection", (e) => { if (e.reason && /Transition was (skipped|aborted)/.test(e.reason.message || "")) e.preventDefault(); });</script>
+</head><body>
+<title>Q2–Q3 Product Roadmap</title>
+<!-- For agents: the diagram model (JSON, disk format) is in diagram.json in this artifact (Artifact read with path: "diagram.json"). Do not read app.css or app.js to understand the diagram. -->
+  <!-- The theme is set before the first paint (priority: ?theme=dark|light, then the saved choice, then the OS), so a page never flashes the other theme. shell.js reads it back. -->
+  <script>(function () { var t = null; try { t = new URLSearchParams(location.search).get('theme'); } catch (e) {} if (t !== 'dark' && t !== 'light') { try { t = localStorage.getItem('flowchart-theme'); } catch (e) {} } if (t !== 'dark' && t !== 'light') t = window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'; document.documentElement.setAttribute('data-theme', t); })();</script>
+  <!-- Nunito Sans from Google Fonts (the only network request). Offline it fails fast and the page uses the
+       system fallback in shell.css; label fitting measures whichever font is in use. A blocking stylesheet on
+       purpose: the @font-face rules exist before the main script runs, so its fonts.ready re-render still fires. -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito+Sans:opsz,wght@6..12,400..700&amp;display=swap">
+  <link rel="stylesheet" href="app.css">
+
+
+  <!-- Top Floating Corner Pills -->
+  <header>
+    <div class="toolbar-left">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="10" height="3.5" rx="1.5"/><rect x="8" y="10.25" width="11" height="3.5" rx="1.5"/><rect x="12" y="16.5" width="8" height="3.5" rx="1.5"/><path d="M6 16.5l2 2-2 2-2-2z"/></svg>
+      <div class="app-title-container">
+        <h1 id="chart-title" contenteditable="false" spellcheck="false" title="Double-click to rename diagram">Q2–Q3 Product Roadmap</h1>
+        <span id="save-status" class="badge badge-status">Ready</span>
+      </div>
+    </div>
+
+    <div class="toolbar-right" role="toolbar" aria-label="Diagram actions">
+      <button id="btn-search" class="btn btn-icon" title="Search (Ctrl+F or /)" aria-label="Search" aria-expanded="false" aria-controls="search-bar" hidden>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10a7 7 0 1 0 14 0a7 7 0 1 0 -14 0"/><path d="M21 21l-6 -6"/></svg>
+      </button>
+      <button id="btn-theme" class="btn btn-icon pill-secondary" title="Dark mode" aria-label="Dark mode" aria-pressed="false">
+        <span class="theme-moon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454l0 .008"/></svg></span><span class="theme-sun"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 12a4 4 0 1 0 8 0a4 4 0 1 0 -8 0"/><path d="M3 12h1m8 -9v1m8 8h1m-9 8v1m-6.4 -15.4l.7 .7m12.1 -.7l-.7 .7m0 11.4l.7 .7m-12.1 -.7l-.7 .7"/></svg></span>
+      </button>
+      <button id="btn-help" class="btn btn-icon pill-secondary" title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts" aria-expanded="false">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0"/><path d="M12 16v.01"/><path d="M12 13a2 2 0 0 0 .914 -3.782a1.98 1.98 0 0 0 -2.414 .483"/></svg>
+      </button>
+      <span class="toolbar-sep" aria-hidden="true"></span>
+      <button id="btn-present" class="btn" title="Present: a read-only view (Esc exits)" aria-label="Present" aria-pressed="false">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4l18 0"/><path d="M4 4v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-10"/><path d="M12 16l0 4"/><path d="M9 20l6 0"/><path d="M8 12l3 -3l2 2l3 -3"/></svg><span class="btn-label">Present</span>
+      </button>
+      <button id="btn-import-mermaid" class="btn btn-icon pill-secondary" title="Import: replace the diagram from pasted Mermaid text (Ctrl+V on the canvas does the same)" aria-label="Import Mermaid" hidden>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2"/><path d="M7 11l5 5l5 -5"/><path d="M12 4l0 12"/></svg>
+      </button>
+      <div class="menu-wrap pill-secondary">
+        <button id="btn-export" class="btn btn-icon" title="Export: download or copy the diagram as an image" aria-label="Export" aria-haspopup="menu" aria-expanded="false">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2"/><path d="M7 9l5 -5l5 5"/><path d="M12 4l0 12"/></svg>
+        </button>
+        <div id="export-menu" class="menu" role="menu" aria-labelledby="btn-export" hidden>
+          <div class="menu-label" role="presentation">Download</div>
+          <button type="button" role="menuitem" data-export="svg">SVG image</button>
+          <button type="button" role="menuitem" data-export="png">PNG image (1.5x)</button>
+          <button type="button" role="menuitem" data-export="svg-all" hidden>SVG images, every tab</button>
+          <div class="menu-label" role="presentation" data-copy-label>Copy</div>
+          <button type="button" role="menuitem" data-copy="mermaid">Mermaid</button>
+          <button type="button" role="menuitem" data-copy="svg">SVG (text)</button>
+          <button type="button" role="menuitem" data-copy="png">PNG image (1.5x)</button>
+        </div>
+      </div>
+      <div class="menu-wrap more-wrap">
+        <button id="btn-more" class="btn btn-icon" title="More actions" aria-label="More actions" aria-haspopup="menu" aria-expanded="false" aria-controls="more-menu">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/><path d="M11 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/><path d="M18 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/></svg>
+        </button>
+        <div id="more-menu" class="menu" role="menu" aria-labelledby="btn-more" hidden></div>
+      </div>
+      <button id="btn-save" class="btn btn-primary" title="Save directly into this HTML file (Ctrl+S)" aria-label="Save">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4h10l4 4v10a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2"/><path d="M10 14a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"/><path d="M14 4l0 4l-6 0l0 -4"/></svg><span class="btn-label">Save</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Text search bar, opening beneath the top-right pill (#btn-search, Ctrl/Cmd+F or "/"; shell.js, SEARCH) -->
+  <div id="search-dock">
+    <div id="search-bar" role="search" hidden>
+      <span class="search-glyph" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10a7 7 0 1 0 14 0a7 7 0 1 0 -14 0"/><path d="M21 21l-6 -6"/></svg></span>
+      <input id="search-input" type="search" placeholder="Search" aria-label="Search the diagram" autocomplete="off" spellcheck="false">
+      <span id="search-count" role="status" aria-live="polite"></span>
+      <button id="search-prev" class="btn btn-icon" type="button" title="Previous match (Shift+Enter)" aria-label="Previous match" disabled><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 15l6 -6l6 6"/></svg></button>
+      <button id="search-next" class="btn btn-icon" type="button" title="Next match (Enter)" aria-label="Next match" disabled><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6l6 -6"/></svg></button>
+    </div>
+  </div>
+
+  <!-- Add controls: a floating dock at the bottom of the viewport, styled like the zoom dock -->
+  <div class="dock-area">
+  <div class="toolbar-center" role="toolbar" aria-label="Edit the diagram">
+      <!-- Add popover: click a tile to add a task, subtask, milestone, vertical line, or note -->
+      <div class="dock-pop-wrap" data-dock-pop>
+        <button id="btn-add" type="button" class="btn dock-pop-trigger" aria-label="Add" aria-haspopup="true" aria-expanded="false" aria-controls="gantt-add-pop">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5l0 14"/><path d="M5 12l14 0"/></svg><span class="btn-label">Add</span>
+          <span class="dock-pop-caret" aria-hidden="true"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 15l6 -6l6 6"/></svg></span>
+        </button>
+        <div id="gantt-add-pop" class="dock-pop" role="group" aria-label="Add: click to add">
+          <div class="dock-pop-section">
+            <div class="dock-pop-heading" aria-hidden="true">Roadmap</div>
+            <div class="dock-pop-grid" role="group" aria-label="Roadmap">
+              <button id="btn-add-task" type="button" class="btn btn-shape" title="Task: add a roadmap task bar" aria-label="Task">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="2.5"/></svg><span class="tile-caption">Task</span>
+              </button>
+              <button id="btn-add-subtask" type="button" class="btn btn-shape" title="Subtask: add a nested task under the selected item" aria-label="Subtask">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4l-8 4l8 4l8 -4l-8 -4"/><path d="M4 12l8 4l8 -4"/><path d="M4 16l8 4l8 -4"/></svg><span class="tile-caption">Subtask</span>
+              </button>
+              <button id="btn-add-milestone" type="button" class="btn btn-shape" title="Row Milestone: add a diamond milestone row" aria-label="Row Milestone">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.7 4.2 3.3 10.8q-1.3 1.2 0 2.4l7.4 6.6q1.3 1.2 2.6 0l7.4-6.6q1.3-1.2 0-2.4L13.3 4.2q-1.3-1.2-2.6 0z"/></svg><span class="tile-caption">Row Milestone</span>
+              </button>
+              <button id="btn-add-marker" type="button" class="btn btn-shape" title="Date Line: add a chart-wide vertical date marker line" aria-label="Date Line">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 5a5 5 0 0 1 7 0a5 5 0 0 0 7 0v9a5 5 0 0 1 -7 0a5 5 0 0 0 -7 0v-9"/><path d="M5 21v-7"/></svg><span class="tile-caption">Date Line</span>
+              </button>
+            </div>
+          </div>
+          <div class="dock-pop-section">
+            <div class="dock-pop-heading" aria-hidden="true">Annotate</div>
+            <div class="dock-pop-grid" role="group" aria-label="Annotate">
+              <button id="btn-add-note" type="button" class="btn btn-shape btn-note-tool" title="Note: select a task or milestone first, then click to attach a note" aria-label="Note">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path class="note-paper" d="M4 6a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v7l-7 7h-7a2 2 0 0 1 -2 -2z"/><path class="note-fold" d="M13 20v-6a1 1 0 0 1 1 -1h6"/></svg><span class="tile-caption">Note</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <span class="dock-sep" aria-hidden="true"></span>
+      <!-- Segmented zoom preset bar: moved into .toolbar-zoom on init -->
+      <div id="gantt-zoom-pills" class="gantt-zoom-pills" role="group" aria-label="Timeline zoom">
+        <button type="button" class="gantt-zoom-pill" data-zoom-set="day" aria-pressed="false">Day</button>
+        <button type="button" class="gantt-zoom-pill" data-zoom-set="week" aria-pressed="false">Week</button>
+        <button type="button" class="gantt-zoom-pill" data-zoom-set="month" aria-pressed="true">Month</button>
+        <button type="button" class="gantt-zoom-pill" data-zoom-set="quarter" aria-pressed="false">Quarter</button>
+        <button type="button" class="gantt-zoom-pill" data-zoom-set="year" aria-pressed="false">Year</button>
+      </div>
+      <!-- Notes: shows or hides every task note card; the count is the notes with text -->
+      <button id="btn-notes" type="button" class="btn btn-switch" role="switch" title="Show all notes" aria-label="Notes" aria-checked="false">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 5a2 2 0 0 1 2 -2h10a2 2 0 0 1 2 2v14a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2l0 -14"/><path d="M9 7l6 0"/><path d="M9 11l6 0"/><path d="M9 15l4 0"/></svg><span class="btn-label">Notes</span><span class="btn-count" hidden></span>
+      </button>
+      <!-- Arrows: shows or hides dependency arrows -->
+      <button id="btn-deps" type="button" class="btn btn-switch" role="switch" data-dock-group="layout" title="Hide dependency arrows" aria-label="Arrows" aria-checked="true">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 15l6 -6"/><path d="M11 6l.463 -.536a5 5 0 0 1 7.071 7.072l-.534 .464"/><path d="M13 18l-.397 .534a5.068 5.068 0 0 1 -7.127 0a4.972 4.972 0 0 1 0 -7.071l.524 -.463"/></svg><span class="btn-label">Arrows</span>
+      </button>
+      <!-- Today: scrolls smoothly to center today's date -->
+      <button id="btn-today" type="button" class="btn" data-dock-group="layout" title="Jump to Today" aria-label="Today">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0"/><path d="M12 7v5l3 3"/></svg><span class="btn-label">Today</span>
+      </button>
+      <!-- Holidays: opens the public holidays popover -->
+      <button id="btn-holidays" type="button" class="btn" data-dock-group="layout" title="Manage public holidays" aria-label="Holidays" aria-haspopup="dialog" aria-expanded="false" aria-controls="gantt-holidays-pop">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M16 3v4M8 3v4M4 11h16"/></svg><span class="btn-label">Holidays</span>
+      </button>
+      <!-- Shown only while something is selected (plugin.hasSelection) -->
+      <button id="btn-delete-selection" class="btn dock-delete" title="Delete the selection (Delete key)" aria-label="Delete selection" aria-hidden="true" tabindex="-1">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7l16 0"/><path d="M10 11l0 6"/><path d="M14 11l0 6"/><path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12"/><path d="M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3"/></svg><span class="btn-label">Delete</span>
+      </button>
+      <!-- Layout controls: type buttons marked data-dock-group="layout" are moved here, before Tidy -->
+      <span class="dock-sep" aria-hidden="true"></span>
+      <button id="btn-auto-tidy" class="btn" title="Tidy: re-align and lay out the whole diagram now" aria-label="Tidy">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 21l15 -15l-3 -3l-15 15l3 3"/><path d="M15 6l3 3"/><path d="M9 3a2 2 0 0 0 2 2a2 2 0 0 0 -2 2a2 2 0 0 0 -2 -2a2 2 0 0 0 2 -2"/><path d="M19 13a2 2 0 0 0 2 2a2 2 0 0 0 -2 2a2 2 0 0 0 -2 -2a2 2 0 0 0 2 -2"/></svg><span class="btn-label">Tidy</span>
+      </button>
+  </div>
+
+  <!-- Zoom controls: floating in the bottom-left corner of the viewport -->
+  <div class="toolbar-zoom" role="group" aria-label="View">
+    <button id="btn-undo" class="btn btn-icon" title="Undo (Ctrl+Z)" aria-label="Undo" disabled>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14l-4 -4l4 -4"/><path d="M5 10h11a4 4 0 1 1 0 8h-1"/></svg>
+    </button>
+    <button id="btn-redo" class="btn btn-icon" title="Redo (Ctrl+Y / Ctrl+Shift+Z)" aria-label="Redo" disabled>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 14l4 -4l-4 -4"/><path d="M19 10h-11a4 4 0 1 0 0 8h1"/></svg>
+    </button>
+    <span class="dock-sep" aria-hidden="true"></span>
+    <button id="btn-zoom-out" class="btn btn-icon" title="Zoom out" aria-label="Zoom out">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l14 0"/></svg>
+    </button>
+    <span id="zoom-level">100%</span>
+    <button id="btn-zoom-in" class="btn btn-icon" title="Zoom in" aria-label="Zoom in">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5l0 14"/><path d="M5 12l14 0"/></svg>
+    </button>
+    <button id="btn-zoom-reset" class="btn btn-icon" title="Fit to screen" aria-label="Fit to screen">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8v-2a2 2 0 0 1 2 -2h2"/><path d="M4 16v2a2 2 0 0 0 2 2h2"/><path d="M16 4h2a2 2 0 0 1 2 2v2"/><path d="M16 20h2a2 2 0 0 0 2 -2v-2"/></svg>
+    </button>
+  </div>
+  </div>
+
+  <!-- Color key legend popover & compact bottom-right toggle button -->
+  <div id="gantt-color-key" class="color-key gantt-color-key" role="region" aria-label="Color key" hidden></div>
+  <button id="btn-legend" type="button" class="btn gantt-legend-btn" aria-expanded="false" aria-controls="gantt-color-key" aria-label="Legend" title="Toggle legend" data-export-skip>
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4l-8 4l8 4l8 -4l-8 -4"/><path d="M4 12l8 4l8 -4"/><path d="M4 16l8 4l8 -4"/></svg><span class="btn-label">Legend</span>
+  </button>
+
+  <!-- Public holidays popover: view, add, or remove shaded holidays -->
+  <div id="gantt-holidays-pop" class="popover gantt-holidays-pop" role="dialog" aria-label="Public holidays" hidden>
+    <div class="gantt-hol-head">
+      <span class="gantt-hol-title">Holidays</span>
+      <button id="gantt-hol-close" type="button" class="btn btn-icon gantt-hol-close" title="Close" aria-label="Close"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6l-12 12"/><path d="M6 6l12 12"/></svg></button>
+    </div>
+    <div id="gantt-holidays-list" class="gantt-holidays-list"></div>
+    <div class="gantt-hol-form">
+      <input id="gantt-hol-date" type="date" aria-label="Holiday date">
+      <input id="gantt-hol-name" type="text" placeholder="Holiday name" aria-label="Holiday name">
+      <button id="gantt-hol-add" type="button" class="btn btn-primary">Add</button>
+    </div>
+  </div>
+
+
+  <!-- Viewport for Pan and Zoom -->
+  <div id="viewport">
+    <div id="page-loading" role="status" aria-label="Loading"></div>
+    <div id="stage">
+      <div id="gantt-root" class="gantt-root" data-zoom="month">
+        <aside id="gantt-sidebar" class="gantt-sidebar" aria-label="Task list">
+          <div class="gantt-sidebar-head">
+            <span>Tasks</span>
+            <button id="btn-add-inline" type="button" class="btn btn-icon gantt-add-inline" title="Add task" aria-label="Add task"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5l0 14"/><path d="M5 12l14 0"/></svg></button>
+          </div>
+          <div id="gantt-tree" class="gantt-tree" role="tree" aria-label="Roadmap tasks"></div>
+        </aside>
+        <div id="gantt-splitter" class="gantt-splitter" role="separator" aria-orientation="vertical" tabindex="0" aria-label="Resize task list"></div>
+        <section id="gantt-timeline" class="gantt-timeline" aria-label="Timeline">
+          <div id="gantt-header" class="gantt-header">
+            <div id="gantt-header-top" class="gantt-header-top"></div>
+            <div id="gantt-header-bottom" class="gantt-header-bottom"></div>
+            <div id="gantt-header-markers" class="gantt-header-markers"></div>
+          </div>
+          <div id="gantt-body" class="gantt-body">
+            <div id="gantt-grid" class="gantt-grid"></div>
+            <div id="gantt-markers" class="gantt-markers"></div>
+            <div id="gantt-today" class="gantt-today"></div>
+            <svg id="gantt-deps" class="gantt-deps" aria-hidden="true"></svg>
+            <div id="gantt-bars" class="gantt-bars"></div>
+            <div id="gantt-marquee" class="gantt-marquee" hidden></div>
+            <div id="gantt-notes" class="note-layer"></div>
+            <div id="gantt-drag-tip" class="gantt-drag-tip" hidden></div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <!-- Help & Shortcuts Popover -->
+  <aside id="help-drawer" role="dialog" aria-labelledby="help-title">
+    <div class="help-head">
+      <span id="help-title">Shortcuts</span>
+      <button id="help-close" class="help-close" type="button" title="Close (Esc)" aria-label="Close shortcuts">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6l-12 12"/><path d="M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="help-body">
+      <div class="help-group">
+        <div class="help-group-title">Gantt</div>
+        <ul class="help-list">
+          <li class="help-row"><span class="help-label">Rename task or milestone</span><span class="help-keys"><kbd>Double-click</kbd></span></li>
+          <li class="help-row"><span class="help-label">Move or resize bar</span><span class="help-keys"><kbd>Drag bar</kbd> &middot; <kbd>Drag edge</kbd></span></li>
+          <li class="help-row"><span class="help-label">Multi-select &amp; shift together</span><span class="help-keys"><kbd>Shift</kbd>+<kbd>Click</kbd> &middot; <kbd>Shift</kbd>+<kbd>Drag</kbd></span></li>
+          <li class="help-row"><span class="help-label">Draw dependency (FS / SS)</span><span class="help-keys"><kbd>Drag port</kbd></span></li>
+          <li class="help-row"><span class="help-label">Collapse or expand parent</span><span class="help-keys"><kbd>Click chevron</kbd></span></li>
+          <li class="help-row"><span class="help-label">Reorder or reparent row</span><span class="help-keys"><kbd>Drag handle</kbd></span></li>
+        </ul>
+      </div>
+      <div class="help-group">
+        <div class="help-group-title">Canvas</div>
+        <ul class="help-list">
+          <li class="help-row"><span class="help-label">Pan</span><span class="help-keys"><kbd>Drag</kbd> &middot; <kbd>Space</kbd>+<kbd>Drag</kbd></span></li>
+          <li class="help-row"><span class="help-label">Zoom</span><span class="help-keys"><kbd>Ctrl</kbd>+<kbd>Scroll</kbd> &middot; <kbd>Pinch</kbd></span></li>
+          <li class="help-row"><span class="help-label">Search</span><span class="help-keys"><kbd>Ctrl</kbd>+<kbd>F</kbd> &middot; <kbd>/</kbd></span></li>
+          <li class="help-row"><span class="help-label">Undo / Redo</span><span class="help-keys"><kbd>Ctrl</kbd>+<kbd>Z</kbd> &middot; <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd></span></li>
+          <li class="help-row"><span class="help-label">Delete</span><span class="help-keys"><kbd>Del</kbd></span></li>
+        </ul>
+      </div>
+    </div>
+  </aside>
+
+  <script id="playground" type="application/json">{"type": "gantt", "types": [{"id": "flowchart", "name": "Flowchart"}, {"id": "sequence", "name": "Sequence diagram"}, {"id": "erd", "name": "ER diagram"}, {"id": "usecase", "name": "Use case diagram"}, {"id": "c4", "name": "C4 diagram"}, {"id": "gantt", "name": "Project Roadmap"}]}</script>
+  <script src="app.js"></script>
+<!-- end ultimate-diagram page -->
+</body></html>
