@@ -899,7 +899,9 @@ sys.stdout.write(format_json(out))`;
   })();
   t.check('multi: the box previews the selection live while it is drawn', live.box === 1 && live.sel === expectBox.length, J(live));
   await t.press('Escape');
+  await sleep(60);
   await t.press('a', { modifiers: 2 });
+  await sleep(60);
   t.check('multi: Ctrl+A selects every table (Delete 8)', (await selCount()) === 8 && (await deleteLabel()) === 'Delete 8');
   await t.press('Escape');
   await t.dragTo(bp.x, bp.y, bp.x + 30, bp.y + 30);
@@ -1229,7 +1231,11 @@ sys.stdout.write(format_json(out))`;
   {
   const scaleNow = () => t.ev(`(() => { const c = document.getElementById('erd-canvas'); return c.getBoundingClientRect().width / c.offsetWidth; })()`);
   const inOverview = () => t.ev(`document.body.classList.contains('erd-overview')`);
-  const zoom = async (dir) => { await t.ev(`document.getElementById('btn-zoom-${dir}').click()`); await sleep(80); };
+  const zoom = async (dir) => {
+    if (dir === 'reset') await t.ev(`document.getElementById('btn-zoom-reset').click()`);
+    else await t.ev(t.key(dir === 'in' ? '=' : '-', { ctrlKey: true }));
+    await t.settle();
+  };
   await freshPage(page);
   t.check('the example at Fit is not an overview', !(await inOverview()) && (await scaleNow()) > 0.5);
   await freshPage(large);
