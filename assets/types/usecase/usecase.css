@@ -173,10 +173,9 @@
 
     .uc-actionbar {
       position: absolute; display: flex; align-items: center; gap: 2px; padding: 3px; z-index: 53;
-      background: var(--bg-panel); border: 1px solid var(--border-dark); border-radius: var(--radius-lg); box-shadow: var(--shadow-md);
       white-space: nowrap; pointer-events: auto; cursor: default; -webkit-user-select: none; user-select: none; translate: -50% 0;
     }
-    .uc-actionbar.is-wrap { flex-wrap: wrap; justify-content: center; width: max-content; max-width: 340px; row-gap: 2px; }
+    .uc-actionbar.is-wrap { flex-wrap: wrap; justify-content: center; width: max-content; max-width: min(340px, calc(100vw - 24px)); row-gap: 2px; }
     .uc-ab-break { flex-basis: 100%; height: 0; }
     .uc-ab-btn {
       display: inline-flex; align-items: center; justify-content: center; gap: 4px; height: 30px; min-width: 30px; padding: 0 6px; box-sizing: border-box;
@@ -185,7 +184,6 @@
       transition: background-color var(--dur-micro) var(--curve-out), color var(--dur-micro) var(--curve-out),
                   border-color var(--dur-micro) var(--curve-out), transform var(--dur-micro) var(--curve-spring-tactile);
     }
-    .uc-ab-btn:hover { background: var(--bg-hover); color: var(--text-main); }
     .uc-ab-btn:active { transform: scale(0.94); }
     .uc-ab-btn[aria-pressed="true"] { background: var(--primary-wash); border-color: var(--primary-ring); color: var(--primary); }
     .uc-ab-btn.is-danger { color: var(--danger); }

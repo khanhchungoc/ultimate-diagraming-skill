@@ -135,7 +135,7 @@
     /* The colour key above the card's top-left corner */
     .seq-key { position: absolute; left: 0; top: -34px; }
     /* The participant action bar has a second row for the swatches */
-    .seq-actionbar.is-wrap { flex-wrap: wrap; justify-content: center; width: max-content; max-width: 400px; row-gap: 2px; }
+    .seq-actionbar.is-wrap { flex-wrap: wrap; justify-content: center; width: max-content; max-width: min(360px, calc(100vw - 24px)); row-gap: 2px; }
     .seq-actionbar.is-rows { flex-direction: column; row-gap: 2px; }
     .seq-ab-row { display: flex; align-items: center; gap: 2px; }
     .seq-ab-break { flex-basis: 100%; height: 0; }
@@ -190,8 +190,7 @@
     .seq-plus:active, .seq-insert:active { transform: scale(0.92); }
     .seq-actionbar {
       position: absolute; display: flex; align-items: center; gap: 2px; padding: 3px; z-index: 9;
-      translate: -50% 0; background: var(--bg-panel); border: 1px solid var(--border-dark); border-radius: var(--radius-lg);
-      box-shadow: var(--shadow-md); white-space: nowrap;
+      translate: -50% 0; white-space: nowrap;
     }
     #seq-canvas.seq-pinned .seq-actionbar.is-pill { translate: -50% var(--pin-dy, 0px); }
     .seq-ab-btn {
@@ -200,7 +199,6 @@
       font: inherit; font-size: var(--t-detail-size); cursor: pointer;
       transition: background-color var(--dur-micro) var(--curve-out), color var(--dur-micro) var(--curve-out), border-color var(--dur-micro) var(--curve-out), transform var(--dur-micro) var(--curve-spring-tactile);
     }
-    .seq-ab-btn:hover { background: var(--bg-hover); color: var(--text-main); }
     .seq-ab-btn.is-danger { color: var(--danger); }
     .seq-ab-btn.is-danger:hover { background: color-mix(in srgb, var(--danger) 10%, var(--bg-panel)); color: var(--danger); }
     .seq-ab-btn:active { transform: scale(0.94); }

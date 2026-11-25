@@ -6,7 +6,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <!-- The theme is set before the first paint (priority: ?theme=dark|light, then the saved choice, then the OS), so a page never flashes the other theme. shell.js reads it back. -->
   <script>(function () { var t = null; try { t = new URLSearchParams(location.search).get('theme'); } catch (e) {} if (t !== 'dark' && t !== 'light') { try { t = localStorage.getItem('flowchart-theme'); } catch (e) {} } if (t !== 'dark' && t !== 'light') t = window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'; document.documentElement.setAttribute('data-theme', t); })();</script>
   <title>{{PAGE_TITLE}}</title>
