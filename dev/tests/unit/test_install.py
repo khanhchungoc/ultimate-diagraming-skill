@@ -218,6 +218,44 @@ def test_save_helper_opt_in_flags() -> None:
         assert "--hook copilot" in json.loads(copilot_hook_js.read_text(encoding="utf-8"))["hooks"]["sessionStart"][0]["command"]
 
 
+def test_reinstall_preserves_skill_theme_json() -> None:
+    import json
+    repo_root = Path(__file__).resolve().parents[3]
+    with tempfile.TemporaryDirectory() as d:
+        proj = Path(d) / "proj"
+        proj.mkdir()
+        dest = proj / ".claude" / "skills" / "ultimate-diagram"
+        saved = {"tokensVersion": 1, "name": "acme", "color": {"light": {"primary": "#0e7c66"}}}
+
+        # 1. Initial copy install via install.js, then write theme.json inside the skill folder
+        r1 = subprocess.run(
+            ["node", str(repo_root / "bin" / "install.js"), "--project", "--target-path", str(proj),
+             "--runtime", "claude", "--mode", "copy", "--claude-output", "file", "--no-hooks"],
+            capture_output=True, text=True, encoding="utf-8",
+        )
+        assert r1.returncode == 0, r1.stdout + r1.stderr
+        theme_file = dest / "theme.json"
+        theme_file.write_text(json.dumps(saved), encoding="utf-8")
+
+        # 2. Reinstall via install.js preserves theme.json
+        r2 = subprocess.run(
+            ["node", str(repo_root / "bin" / "install.js"), "--project", "--target-path", str(proj),
+             "--runtime", "claude", "--mode", "copy", "--claude-output", "file", "--no-hooks"],
+            capture_output=True, text=True, encoding="utf-8",
+        )
+        assert r2.returncode == 0, r2.stdout + r2.stderr
+        assert theme_file.is_file() and json.loads(theme_file.read_text(encoding="utf-8")) == saved
+
+        # 3. Reinstall via install.py also preserves theme.json
+        r3 = subprocess.run(
+            [sys.executable, str(repo_root / "scripts" / "install.py"), "--scope", "project",
+             "--target-path", str(proj), "--runtime", "claude", "--mode", "copy", "--claude-output", "file", "--no-hooks"],
+            capture_output=True, text=True, encoding="utf-8",
+        )
+        assert r3.returncode == 0, r3.stdout + r3.stderr
+        assert theme_file.is_file() and json.loads(theme_file.read_text(encoding="utf-8")) == saved
+
+
 def main() -> None:
     test_windows_junction_uses_subprocess_argv()
     test_windows_junction_failure_falls_back_to_copy()
@@ -225,6 +263,7 @@ def main() -> None:
     test_register_version_hook_merges_and_is_idempotent()
     test_node_installer_hooks_and_no_hooks()
     test_save_helper_opt_in_flags()
+    test_reinstall_preserves_skill_theme_json()
     print("[PASS] install.py + install.js")
 
 

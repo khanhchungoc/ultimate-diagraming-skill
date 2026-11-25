@@ -46,7 +46,7 @@ def normalize_runtime(runtime: str) -> str:
     return r
 
 COPY_IGNORED = (".git", "node_modules", ".github", "agent", ".agents", ".claude", "dev", "bin", "docs",
-                "skills-lock.json", "__pycache__", ".gitignore")
+                "skills-lock.json", "__pycache__", ".gitignore", "theme.json")
 
 
 def is_link(target: Path) -> bool:
@@ -341,15 +341,22 @@ def main() -> int:
 
         print(f"==> Processing [{rt}] -> {dest}")
         dest.parent.mkdir(parents=True, exist_ok=True)
+        saved_theme: bytes | None = None
         if dest.exists() or is_link(dest):
+            if not is_link(dest) and (dest / "theme.json").is_file():
+                saved_theme = (dest / "theme.json").read_bytes()
             print(f"    Existing installation found at {dest}. Replacing...")
             remove_existing(dest)
 
         if args.mode == "symlink":
             create_link(repo_root, dest)
+            if saved_theme is not None and not is_link(dest):
+                (dest / "theme.json").write_bytes(saved_theme)
             print(f"    [+] Linked to {dest}")
         else:
             copy_skill(repo_root, dest)
+            if saved_theme is not None:
+                (dest / "theme.json").write_bytes(saved_theme)
             print(f"    [+] Copied to {dest}")
         installed += 1
         last_dest = dest

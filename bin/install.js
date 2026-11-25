@@ -278,7 +278,7 @@ function copySkillDirectory(src, dest) {
   fs.mkdirSync(dest, { recursive: true });
   const entries = fs.readdirSync(src, { withFileTypes: true });
 
-  const ignored = new Set(['.git', 'node_modules', '.github', 'agent', '.agents', '.claude', 'dev', 'bin', 'docs', 'skills-lock.json', '__pycache__', '.gitignore']);
+  const ignored = new Set(['.git', 'node_modules', '.github', 'agent', '.agents', '.claude', 'dev', 'bin', 'docs', 'skills-lock.json', '__pycache__', '.gitignore', 'theme.json']);
 
   for (const entry of entries) {
     if (ignored.has(entry.name)) continue;
@@ -412,7 +412,15 @@ for (const rt of runtimesToInstall) {
     fs.mkdirSync(parentDir, { recursive: true });
   }
 
+  let savedTheme = null;
   if (lexists(dest)) {
+    try {
+      const st = fs.lstatSync(dest);
+      const themePath = path.join(dest, 'theme.json');
+      if (st.isDirectory() && !st.isSymbolicLink() && fs.existsSync(themePath) && fs.lstatSync(themePath).isFile()) {
+        savedTheme = fs.readFileSync(themePath);
+      }
+    } catch { /* ignore */ }
     safeRemove(dest);
   }
   installedDest = dest;
@@ -425,10 +433,12 @@ for (const rt of runtimesToInstall) {
       console.log(`    ${c.green}✔${c.reset}  ${c.white}${label}${c.reset} ${c.gray}→${c.reset} ${c.dim}${displayDest}${c.reset}`);
     } catch {
       copySkillDirectory(REPO_ROOT, dest);
+      if (savedTheme !== null) fs.writeFileSync(path.join(dest, 'theme.json'), savedTheme);
       console.log(`    ${c.green}✔${c.reset}  ${c.white}${label}${c.reset} ${c.gray}→${c.reset} ${c.dim}${displayDest}${c.reset} ${c.yellow}(copy fallback)${c.reset}`);
     }
   } else {
     copySkillDirectory(REPO_ROOT, dest);
+    if (savedTheme !== null) fs.writeFileSync(path.join(dest, 'theme.json'), savedTheme);
     console.log(`    ${c.green}✔${c.reset}  ${c.white}${label}${c.reset} ${c.gray}→${c.reset} ${c.dim}${displayDest}${c.reset}`);
   }
 }

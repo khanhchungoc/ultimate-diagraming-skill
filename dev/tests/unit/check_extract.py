@@ -183,6 +183,62 @@ check("--extract-theme on a page without one says so", "no stored theme" in ext2
 (work / ".ultimate-diagram" / "theme.json").write_text('{"tokensVersion": 1, "color": {"light": {"primary": "red; }"}}}', encoding="utf-8")
 r6 = run(*LAY, "a.json", "-o", "bad.html", cwd=work)
 check("lookup: an invalid project theme is an error, not a silent default", r6.returncode != 0 and "[ERROR] theme" in r6.stderr + r6.stdout)
+(work / ".ultimate-diagram" / "theme.json").unlink()
+
+# skill-folder theme (<skill-dir>/theme.json): default output path and lookup priority
+check("default output is <skill-dir>/theme.json", ex.DEFAULT_OUT == ROOT / "theme.json", ex.DEFAULT_OUT)
+skill_theme_path = tmp / "fake-skill" / "theme.json"
+skill_theme_path.parent.mkdir(parents=True)
+skill_theme_path.write_text(json.dumps({"tokensVersion": 1, "name": "skilltheme", "color": {"light": {"primary": "#0e7c66"}}}), encoding="utf-8")
+orig_skill_theme, orig_project_theme = le.SKILL_THEME, le.PROJECT_THEME
+try:
+    le.SKILL_THEME = skill_theme_path
+    le.PROJECT_THEME = work / ".ultimate-diagram" / "theme.json"
+    tk_s, th_s, note_s = le.resolve_theme(None)
+    check("lookup: skill theme used when no project theme exists", tk_s["name"] == "skilltheme" and "skill theme" in note_s, note_s)
+    tk_old, _, note_old = le.resolve_theme(None, le.assemble_page("flowchart", data))
+    check("lookup: pre-theme page takes skill theme and notes it", tk_old["name"] == "skilltheme" and "saved before themes" in note_old, note_old)
+    tk_stored, _, note_stored = le.resolve_theme(None, page)
+    check("lookup: stored page theme beats skill theme", tk_stored["name"] == "test-wide" and "stored in the page" in note_stored, note_stored)
+    (work / ".ultimate-diagram" / "theme.json").write_text(json.dumps(proj), encoding="utf-8")
+    tk_proj, _, note_proj = le.resolve_theme(None)
+    check("lookup: project theme overrides skill theme", tk_proj["name"] == "projtheme" and "project theme" in note_proj, note_proj)
+finally:
+    le.SKILL_THEME = orig_skill_theme
+    le.PROJECT_THEME = orig_project_theme
+    if (work / ".ultimate-diagram" / "theme.json").exists():
+        (work / ".ultimate-diagram" / "theme.json").unlink()
+
+# 5. no meaningful styling: browser capture fallback + suggestions, no theme file written -----------------------------
+blank_html = tmp / "blank.html"
+blank_html.write_text("<!doctype html><html><body><h1>Access denied</h1><p>Please sign in.</p></body></html>", encoding="utf-8")
+blank_out = tmp / "blank-theme.json"
+blank_cap = tmp / "blank-capture.png"
+p_blank = run("extract_tokens.py", "--url", blank_html.as_uri(), "--complete", "--out", str(blank_out),
+              "--capture", str(blank_cap), "--offline")
+check("empty site: exits 2 and writes no theme file", p_blank.returncode == 2 and not blank_out.exists(), p_blank.stdout + p_blank.stderr)
+check("empty site: captures browser PNG screenshot and prints [CAPTURE] + [SUGGEST]",
+      blank_cap.is_file() and blank_cap.read_bytes().startswith(b"\x89PNG")
+      and "[CAPTURE]" in p_blank.stdout and "[SUGGEST]" in p_blank.stdout, p_blank.stdout[-400:])
+
+empty_partial = tmp / "empty-partial.json"
+empty_partial.write_text(json.dumps({"tokensVersion": 1, "name": "nothing"}), encoding="utf-8")
+empty_out = tmp / "empty-out.json"
+p_empty = run("extract_tokens.py", "--from", str(empty_partial), "--complete", "--out", str(empty_out), "--offline")
+check("empty --from: exits 2, writes no theme file, and prints [SUGGEST]",
+      p_empty.returncode == 2 and not empty_out.exists() and "[SUGGEST]" in p_empty.stdout, p_empty.stdout + p_empty.stderr)
+
+# 6. reset to default: extract_tokens.py --reset and layout_engine.py --theme default ---------------------------------
+reset_target = tmp / "reset-theme.json"
+reset_target.write_text(json.dumps(proj), encoding="utf-8")
+p_reset1 = run("extract_tokens.py", "--reset", "--out", str(reset_target))
+check("--reset removes the saved theme file", p_reset1.returncode == 0 and not reset_target.exists() and "Reset to default" in p_reset1.stdout, p_reset1.stdout + p_reset1.stderr)
+p_reset2 = run("extract_tokens.py", "--reset", "--out", str(reset_target))
+check("--reset when already default exits 0 with a NOTE", p_reset2.returncode == 0 and "Already using the default theme" in p_reset2.stdout, p_reset2.stdout + p_reset2.stderr)
+r_reset_page = run(*LAY, "b.html", "-o", "b-default.html", "--theme", "default", cwd=work)
+check("--theme default strips stored theme from an existing page",
+      r_reset_page.returncode == 0 and "Theme reset to default" in r_reset_page.stdout
+      and le.THEME_OPEN not in (work / "b-default.html").read_text(encoding="utf-8"), r_reset_page.stdout + r_reset_page.stderr)
 
 print(f"{total - failures}/{total} checks passed" + (f" ({failures} failed)" if failures else ""))
 sys.exit(2 if failures else 0)

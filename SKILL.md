@@ -110,7 +110,7 @@ Only when creating or updating a diagram linked with or alongside another HTML p
 
 ## Use your brand
 
-Only when the user gives a website URL or brand guide and wants diagrams in that look: read [references/theme.md](references/theme.md) and follow its workflow.
+Only when the user wants to set, edit, or reset a brand theme (from a website URL, brand guide, or direct instructions): read [references/theme.md](references/theme.md) and follow its workflow.
 
 ---
 

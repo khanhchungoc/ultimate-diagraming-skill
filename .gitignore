@@ -19,3 +19,4 @@ node_modules/
 .kiro/
 .vscode/
 .mcp.json
+/theme.json

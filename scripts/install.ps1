@@ -53,7 +53,7 @@ param (
 $ErrorActionPreference = 'Stop'
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $lastDest = $repoRoot
-$copyExcluded = @(".git", "node_modules", ".github", "agent", ".agents", ".claude", "dev", "bin", "docs", "skills-lock.json", ".gitignore")
+$copyExcluded = @(".git", "node_modules", ".github", "agent", ".agents", ".claude", "dev", "bin", "docs", "skills-lock.json", ".gitignore", "theme.json")
 $userHome = [System.Environment]::GetFolderPath([System.Environment+SpecialFolder]::UserProfile)
 
 $version = "unknown"
@@ -133,10 +133,18 @@ foreach ($rt in $runtimesToInstall) {
     }
 
     # Get-Item (not Test-Path) so a junction whose source moved is still found and replaced.
+    $savedTheme = $null
     $item = Get-Item $dest -Force -ErrorAction SilentlyContinue
     if ($item) {
+        $isReparse = [bool]($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint)
+        if (-not $isReparse) {
+            $existingTheme = Join-Path $dest "theme.json"
+            if (Test-Path $existingTheme -PathType Leaf) {
+                $savedTheme = [System.IO.File]::ReadAllBytes($existingTheme)
+            }
+        }
         Write-Host "    Removing existing target at $dest" -ForegroundColor Yellow
-        if ($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) {
+        if ($isReparse) {
             cmd /c rmdir "$dest" | Out-Null
         } else {
             Remove-Item -Path $dest -Recurse -Force | Out-Null
@@ -160,6 +168,9 @@ foreach ($rt in $runtimesToInstall) {
             Copy-Item -Path $_.FullName -Destination $dest -Recurse -Force
         }
         Get-ChildItem -Path $dest -Recurse -Directory -Filter "__pycache__" | Remove-Item -Recurse -Force
+        if ($null -ne $savedTheme) {
+            [System.IO.File]::WriteAllBytes((Join-Path $dest "theme.json"), $savedTheme)
+        }
     }
     $lastDest = $dest
 }
