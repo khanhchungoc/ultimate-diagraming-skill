@@ -56,10 +56,20 @@
     :is(.ab-btn, .uc-ab-btn, .erd-ab-btn, .seq-ab-btn).swatch-trigger svg.swatch-caret { width: 11px; height: 11px; transition: rotate var(--dur-micro) var(--curve-out); }
     .swatch-trigger[aria-expanded="true"] svg.swatch-caret { rotate: 180deg; }
     .swatch-popover {
-      position: absolute; top: calc(100% + 6px); left: 50%; translate: calc(-50% + var(--pop-shift, 0px)) 0; z-index: 60;
+      position: absolute; top: calc(100% + 6px); left: 50%; translate: calc(-50% + var(--pop-shift, 0px)) 0;
       padding: 4px; border-radius: var(--radius-lg);
-      background: var(--bg-panel); border: 1px solid var(--border-dark); box-shadow: var(--shadow-lg);
+      background: var(--bg-panel); border: 1px solid var(--border-dark); box-shadow: var(--shadow-md);
       white-space: nowrap;
     }
+    .swatch-popover::before { content: ""; position: absolute; left: 0; right: 0; top: -8px; height: 8px; }
     .swatch-popover.is-above { top: auto; bottom: calc(100% + 6px); }
+    .swatch-popover.is-above::before { top: auto; bottom: -8px; }
     .swatch-popover[hidden] { display: none; }
+    /* Same z-plane as its action bar: one shared drop shadow so neither casts a shadow onto the other */
+    :is(.actionbar, .uc-actionbar, .erd-actionbar, .seq-actionbar):has(.swatch-popover:not([hidden])) {
+      box-shadow: none;
+      filter: drop-shadow(var(--shadow-md));
+    }
+    :is(.actionbar, .uc-actionbar, .erd-actionbar, .seq-actionbar):has(.swatch-popover:not([hidden])) .swatch-popover {
+      box-shadow: none;
+    }

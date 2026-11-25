@@ -173,23 +173,23 @@
     .c4-port {
       position: absolute; width: 12px; height: 12px; box-sizing: content-box; padding: 0; z-index: 35; touch-action: none; cursor: crosshair;
       border-radius: var(--radius-round); border: 2px solid var(--primary); background: var(--node-bg); box-shadow: var(--shadow-chip);
-      opacity: 0; pointer-events: none; transform: translate(-50%, -50%) scale(0.55);
+      opacity: 0; pointer-events: none; translate: -50% -50%; scale: var(--ui-scale, 1); transform: scale(0.55);
       transition: opacity var(--dur-micro) var(--curve-out), transform var(--dur-micro) var(--curve-spring-tactile), background-color var(--dur-micro) var(--curve-out);
     }
     .c4-port[data-side="N"] { top: 0; left: 50%; }
     .c4-port[data-side="S"] { top: 100%; left: 50%; }
     .c4-port[data-side="W"] { top: 50%; left: 0; }
     .c4-port[data-side="E"] { top: 50%; left: 100%; }
-    .c4-node:hover > .c4-port, .c4-node:focus-within > .c4-port { opacity: 1; pointer-events: auto; transform: translate(-50%, -50%) scale(1); }
-    @media (hover: none) { .c4-node.selected > .c4-port { opacity: 1; pointer-events: auto; transform: translate(-50%, -50%) scale(1); } }
-    body.c4-touch .c4-node.selected > .c4-port { opacity: 1; pointer-events: auto; transform: translate(-50%, -50%) scale(1); }
-    .c4-port:hover, .c4-port:focus-visible { transform: translate(-50%, -50%) scale(1.35); background: var(--primary); outline: none; }
+    .c4-node:hover > .c4-port, .c4-node:focus-within > .c4-port { opacity: 1; pointer-events: auto; transform: scale(1); }
+    @media (hover: none) { .c4-node.selected > .c4-port { opacity: 1; pointer-events: auto; transform: scale(1); } }
+    body.c4-touch .c4-node.selected > .c4-port { opacity: 1; pointer-events: auto; transform: scale(1); }
+    .c4-port:hover, .c4-port:focus-visible { transform: scale(1.35); background: var(--primary); outline: none; }
     .c4-multi .c4-port, body.c4-dragging .c4-port, body.c4-moving .c4-port, .is-dragging > .c4-port, .c4-node:has(.is-editing) > .c4-port { opacity: 0 !important; pointer-events: none !important; }
     body.presentation .c4-port, body.exporting .c4-port { display: none !important; }
     body.c4-touch .c4-port { width: 20px; height: 20px; border-width: 2.5px; }
     @media (prefers-reduced-motion: reduce) {
-      .c4-port { transition: none; transform: translate(-50%, -50%); }
-      .c4-port:hover, .c4-port:focus-visible { transform: translate(-50%, -50%); }
+      .c4-port { transition: none; transform: none; }
+      .c4-port:hover, .c4-port:focus-visible { transform: none; }
     }
     #c4-overlay { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; z-index: 54; }
     #c4-rubber { stroke: var(--primary); stroke-width: var(--ring-md); stroke-dasharray: var(--dash); display: none; fill: none; pointer-events: none; }

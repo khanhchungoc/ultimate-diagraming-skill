@@ -973,6 +973,7 @@
       background: transparent;
       border: 0;
       opacity: 0;
+      scale: var(--ui-scale, 1);
       transform: scale(0.75);
       cursor: crosshair;
       z-index: 6;
