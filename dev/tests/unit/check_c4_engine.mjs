@@ -418,9 +418,10 @@ function orderChecks(name, d, minHits) {
   orderChecks('landscape', d, 1);
   const x = (id) => elOf(d, id).x;
   check(x('api') > x('web') && x('api') > x('orddb') && elOf(d, 'crm').x > x('api'), 'landscape: api is the member nearest crm');
-  const w = fixture('landscape');   // the written order is not the drawn order, and the frame did not change
-  const before = w.groups.find((g) => g.id === 'platform');
-  check(before && d.groups.find((g) => g.id === 'platform').w === 736, 'landscape: reordering keeps the frame size');
+  const w = fixture('landscape');   // the written order is not the drawn order, and reordering keeps the frame size
+  w.relations = w.relations.filter((r) => !(r.from === 'api' && r.to === 'crm'));
+  layoutDiagram(w);
+  check(d.groups.find((g) => g.id === 'platform').w === w.groups.find((g) => g.id === 'platform').w, 'landscape: reordering keeps the frame size');
   const i = fixture('inner-links'); layoutDiagram(i);
   orderChecks('inner-links', i, 1);
 }
@@ -865,6 +866,129 @@ for (const [label, groups, per, limit] of [['500', 20, 25, 100], ['2000', 40, 50
   check(b0.x === b1.x && b0.w === b1.w && b1.w === b2.w, 'horiz shared: main bands equalized width');
   check(ops.x > b0.x + b0.w && ops.y <= b0.y && ops.y + ops.h >= b2.y + b2.h, 'horiz shared: default shared layer sits on E spanning all bands');
   check(sec.x + sec.w < b0.x && sec.y <= b0.y && sec.y + sec.h >= b1.y + b1.h, 'horiz shared: W partial shared layer spans b0..b1');
+}
+
+// ---- Label-aware vertical stem clearance and parallel fan-out / fan-in non-overlap
+if (hasRoute) {
+  const assertLabelsCleanAndVisible = (name, d) => {
+    const labels = d._edges.filter((e) => e.labelBox && e.labelBox.w > 0).map((e) => ({ id: e.id, ...e.labelBox }));
+    for (let i = 0; i < labels.length; i++) {
+      for (let j = i + 1; j < labels.length; j++) {
+        check(!overlap(labels[i], labels[j]), `${name}: labels ${labels[i].id} and ${labels[j].id} overlap`);
+      }
+    }
+    d._edges.forEach((e) => {
+      if (!e.labelBox || !e.labelBox.h || e.points.length !== 2) return;
+      const [p, q] = e.points;
+      if (Math.abs(p[0] - q[0]) < 1) {
+        const y0 = Math.min(p[1], q[1]), y1 = Math.max(p[1], q[1]);
+        const b = e.labelBox;
+        const centered = Math.abs(b.x + b.w / 2 - p[0]) < b.w / 2;
+        if (centered) {
+          const topStem = b.y - y0, botStem = y1 - (b.y + b.h);
+          const needBot = q[1] > p[1] ? 28 : 12;
+          const needTop = p[1] > q[1] ? 28 : 12;
+          check(topStem >= needTop && botStem >= needBot, `${name}: ${e.id} vertical stems too short (top=${topStem}, bot=${botStem})`);
+        }
+      }
+    });
+  };
+
+  // 1. Flow chain + 2-branch and 3-branch fan-out with 2-line and 3-line [tech] labels
+  const fan2 = {
+    diagramType: 'c4', schemaVersion: 1, title: 'Flow Fan-Out 2',
+    groups: [{ id: 'hub', name: 'Delivery Hub', kind: 'system' }],
+    elements: [
+      { id: 'web', kind: 'container', name: 'Web Portal', tech: 'React', group: 'hub' },
+      { id: 'gw', kind: 'container', name: 'API Gateway', tech: '.NET 9', group: 'hub' },
+      { id: 'svc', kind: 'container', name: 'Release Service', tech: 'C#', group: 'hub' },
+      { id: 'db', kind: 'database', name: 'Delivery DB', tech: 'PostgreSQL', group: 'hub' },
+      { id: 'bus', kind: 'queue', name: 'Event Bus', tech: 'Azure Service Bus', group: 'hub' },
+    ],
+    relations: [
+      { from: 'web', to: 'gw', label: 'Calls API', tech: 'JSON/HTTPS' },
+      { from: 'gw', to: 'svc', label: 'Routes commands', tech: 'REST' },
+      { from: 'svc', to: 'db', label: 'Reads and writes state', tech: 'SQL' },
+      { from: 'svc', to: 'bus', label: 'Publishes release events', tech: 'AMQP', async: true },
+    ],
+  };
+  layoutDiagram(fan2);
+  noOverlap(fan2, 'flow fan2'); inGroups(fan2, 'flow fan2');
+  assertLabelsCleanAndVisible('flow fan2', fan2);
+
+  const fan3 = {
+    diagramType: 'c4', schemaVersion: 1, title: 'Flow Fan-Out 3',
+    groups: [{ id: 'g', name: 'Core', kind: 'system' }],
+    elements: [
+      { id: 'svc', kind: 'container', name: 'Service', tech: 'Go', group: 'g' },
+      { id: 'd1', kind: 'database', name: 'Primary DB', tech: 'Postgres', group: 'g' },
+      { id: 'd2', kind: 'database', name: 'Search Index', tech: 'OpenSearch', group: 'g' },
+      { id: 'd3', kind: 'queue', name: 'Event Stream', tech: 'Kafka', group: 'g' },
+    ],
+    relations: [
+      { from: 'svc', to: 'd1', label: 'Reads and writes state', tech: 'SQL' },
+      { from: 'svc', to: 'd2', label: 'Indexes searchable docs', tech: 'HTTP' },
+      { from: 'svc', to: 'd3', label: 'Publishes domain events', tech: 'AMQP' },
+    ],
+  };
+  layoutDiagram(fan3);
+  noOverlap(fan3, 'flow fan3'); inGroups(fan3, 'flow fan3');
+  assertLabelsCleanAndVisible('flow fan3', fan3);
+
+  // 2. Vertical side-group column (c4Line vert=true) expands to keep stems visible
+  const sideCol = {
+    diagramType: 'c4', schemaVersion: 1, title: 'Side Column',
+    groups: [{ id: 'ext', name: 'External', kind: 'boundary' }],
+    elements: [
+      { id: 'core', kind: 'system', name: 'Platform', core: true },
+      { id: 'e1', kind: 'external', name: 'Auth', group: 'ext' },
+      { id: 'e2', kind: 'external', name: 'Audit', group: 'ext' },
+    ],
+    relations: [
+      { from: 'core', to: 'e1', label: 'Authenticates users', tech: 'OIDC' },
+      { from: 'e1', to: 'e2', label: 'Streams security logs', tech: 'HTTPS' },
+    ],
+  };
+  layoutDiagram(sideCol);
+  noOverlap(sideCol, 'sideCol'); inGroups(sideCol, 'sideCol');
+  assertLabelsCleanAndVisible('sideCol', sideCol);
+
+  // 3. Aligned boxes: vertically aligned boxes share width; horizontally aligned boxes share height
+  const alignDoc = {
+    diagramType: 'c4', schemaVersion: 1, title: 'Alignment Match',
+    groups: [
+      { id: 'sys', name: 'Main System', kind: 'system', core: true },
+      { id: 'ext', name: 'Third-Party', kind: 'boundary' },
+    ],
+    elements: [
+      { id: 'u1', kind: 'person', name: 'Short', description: 'One line' },
+      { id: 'u2', kind: 'person', name: 'Much Longer Role Name', description: 'Detailed description spanning multiple lines here' },
+      { id: 'a', kind: 'container', name: 'Web', tech: 'UI', group: 'sys' },
+      { id: 'b', kind: 'container', name: 'API Gateway Service', tech: 'TypeScript, GraphQL', group: 'sys' },
+      { id: 'c', kind: 'database', name: 'DB', tech: 'SQL', group: 'sys' },
+      { id: 'd', kind: 'queue', name: 'Queue', tech: 'AMQP', description: 'Longer queue note spanning multiple lines', group: 'sys' },
+      { id: 'e1', kind: 'external', name: 'IdP', description: 'SSO', group: 'ext' },
+      { id: 'e2', kind: 'external', name: 'GitHub Actions', description: 'Build and deployment pipelines', group: 'ext' },
+    ],
+    relations: [
+      { from: 'u1', to: 'a', label: 'Uses' },
+      { from: 'u2', to: 'a', label: 'Administers' },
+      { from: 'a', to: 'b', label: 'Calls' },
+      { from: 'b', to: 'c', label: 'Writes' },
+      { from: 'b', to: 'd', label: 'Publishes' },
+      { from: 'b', to: 'e1', label: 'Auth' },
+      { from: 'b', to: 'e2', label: 'Deploys' },
+    ],
+  };
+  layoutDiagram(alignDoc);
+  noOverlap(alignDoc, 'alignDoc'); inGroups(alignDoc, 'alignDoc');
+  const u1 = elOf(alignDoc, 'u1'), u2 = elOf(alignDoc, 'u2');
+  const ea = elOf(alignDoc, 'a'), eb = elOf(alignDoc, 'b'), ec = elOf(alignDoc, 'c'), ed = elOf(alignDoc, 'd');
+  const ee1 = elOf(alignDoc, 'e1'), ee2 = elOf(alignDoc, 'e2');
+  check(u1.h === u2.h, `alignDoc: horizontal lane items share height (${u1.h} vs ${u2.h})`);
+  check(ea.w === eb.w && eb.w > 156, `alignDoc: vertically aligned flow column items share width (${ea.w} vs ${eb.w})`);
+  check(ec.h === ed.h, `alignDoc: horizontal flow row items share height (${ec.h} vs ${ed.h})`);
+  check(ee1.w === ee2.w && ee1.w > 156, `alignDoc: vertically aligned group column items share width (${ee1.w} vs ${ee2.w})`);
 }
 
 check(worst < LIMIT_MS, `large fixture under ${LIMIT_MS} ms (worst ${worst.toFixed(0)} ms)`);

@@ -16,7 +16,7 @@
 // expanded frames. Detours: pad 20, 12 or 6px (the first that leaves a path), regions grown 40 -> 160 -> 600 -> whole scene, a fixed work budget per call (C4R.WORK; routes past it keep their ring route). Without opts the output is the ring layout's, byte for byte.
 // Path rounding: buildCurvedPathWithHops (ortho-router.js). Deterministic; O(n log n) in nodes + edges (grid lookups only).
 
-const C4R = { PAD: 12, PADS: [20, 12, 6], SHARE: 2000, WORK: 13000, SEARCH: 4000,  LANE: 12, MARGINS: [40, 160, 600], BIG: 1e6, PILL_H: 32, PILL_H2: 38, LINE_H: 15, LOOP_GAP: 40, LOOP_LANE: 16, RUN_LANE: 14, MAX_W: (typeof TOKENS !== 'undefined' && TOKENS.c4 && TOKENS.c4.labelMaxW) || 140, CELL: 96, ARROW: 16, TAG: (typeof TOKENS !== 'undefined' && TOKENS.c4 && TOKENS.c4.tagH) || 44, ESC_MIN: 6 };
+const C4R = { PAD: 12, PADS: [20, 12, 6], SHARE: 2000, WORK: 13000, SEARCH: 4000,  LANE: 12, MARGINS: [40, 160, 600], BIG: 1e6, PILL_H: 30, PILL_H2: 44, LINE_H: 15, LOOP_GAP: 40, LOOP_LANE: 16, RUN_LANE: 14, MAX_W: (typeof TOKENS !== 'undefined' && TOKENS.c4 && TOKENS.c4.labelMaxW) || 140, MIN_STEM: (typeof TOKENS !== 'undefined' && TOKENS.c4 && TOKENS.c4.minStem) || 20, PILL_PAD: 8, CELL: 96, ARROW: 16, TAG: (typeof TOKENS !== 'undefined' && TOKENS.c4 && TOKENS.c4.tagH) || 44, ESC_MIN: 6 };
 
 function c4rWrap(text, charW, maxInner) {
   const words = text.trim().split(/\s+/);
@@ -40,10 +40,16 @@ function c4rWrap(text, charW, maxInner) {
 function c4rLabelSize(label, tech) {
   const M = TOKENS.font.metrics, t = String(label == null ? '' : label);
   if (!t) return { w: 0, h: 0 };
-  const maxInner = C4R.MAX_W - 20;
+  const maxInner = C4R.MAX_W - 23;   // 20px horizontal padding + 3px border (box-sizing: border-box)
+  const rawCharW = M.detail ? M.detail / 1.15 : M.edgeLabel * 0.8;
   const main = c4rWrap(t, M.edgeLabel, maxInner);
-  const sub = tech ? c4rWrap('[' + String(tech) + ']', M.detail, maxInner) : null;
-  const w = Math.round(Math.max(48, Math.min(Math.max(main.maxW, sub ? sub.maxW : 0) + 20, C4R.MAX_W)));
+  const mainLo = main.lines > 1 ? c4rWrap(t, rawCharW, maxInner) : main;
+  const mainW = mainLo.lines < main.lines ? Math.min(maxInner, mainLo.maxW * 1.15) : main.maxW;
+  const techText = tech ? '[' + String(tech) + ']' : '';
+  const sub = techText ? c4rWrap(techText, M.edgeLabel, maxInner) : null;
+  const subLo = sub && sub.lines > 1 ? c4rWrap(techText, rawCharW, maxInner) : sub;
+  const subW = sub ? (subLo.lines < sub.lines ? Math.min(maxInner, subLo.maxW * 1.15) : sub.maxW) : 0;
+  const w = Math.round(Math.max(48, Math.min(Math.max(mainW, subW) + 23, C4R.MAX_W)));
   const h = (sub ? C4R.PILL_H2 : C4R.PILL_H) + (main.lines - 1 + (sub ? sub.lines - 1 : 0)) * C4R.LINE_H;
   return { w, h };
 }
@@ -661,14 +667,16 @@ function routeC4Edges(nodes, edges, opts) {
         const p = pts[k], q = pts[k + 1], horiz = p[1] === q[1];
         segs.push({ k, p, q, horiz, len: Math.abs(q[0] - p[0]) + Math.abs(q[1] - p[1]), fit: 0 });
       }
+      const minStem = Math.min(C4R.MIN_STEM, 14);
       for (const s of segs) {
-        const room = s.horiz ? s.len - w - 16 : s.len - h - C4R.ARROW - 8;
+        const last = s.k === pts.length - 2;
+        const room = s.horiz ? s.len - w - 16 : s.len - h - minStem - (minStem + (last ? C4R.ARROW : 0));
         s.fit = room >= 0 ? 1 : 0;
         s.room = Math.max(0, room);
         s.mid = (s.k > 0 && s.k < pts.length - 2) || pts.length === 2 ? 0 : 1;
       }
       segs.sort((a, b) => b.fit - a.fit || a.mid - b.mid || b.len - a.len || a.k - b.k);
-      const free = (r) => !boxes.hit(r, 2) && !tags.hit(r, 2) && !pills.hit(r, 2) && (e.u || !borders.hit(r, 2)) && !routes.hit(r, 2, mine);
+      const free = (r) => !boxes.hit(r, 2) && !tags.hit(r, 2) && !pills.hit(r, C4R.PILL_PAD) && (e.u || !borders.hit(r, 2)) && !routes.hit(r, 2, mine);
       const tried = [];
       search: for (const s of segs) {
         if (!s.len) continue;
@@ -682,7 +690,7 @@ function routeC4Edges(nodes, edges, opts) {
         };
         const tightHoriz = s.horiz && (s.len < w + 64 || (e.step && s.len < w + 96));
         const yOffs = tightHoriz ? [h / 2 + 8, -(h / 2 + 8), 0] : [0];
-        if (s.room > 0) {
+        if (s.fit) {
           // centre of the part the arrowhead leaves free on the last segment; slide outwards from there
           const t0 = last ? Math.max(0, s.len - C4R.ARROW - 6) / 2 / s.len : 0.5;
           const steps = Math.min(8, Math.ceil(s.room / 12));
@@ -695,18 +703,19 @@ function routeC4Edges(nodes, edges, opts) {
             }
           }
         } else {
+          const xOffs = !s.horiz ? [w / 2 + 8, -(w / 2 + 8), 0] : [0];
           const t0 = last && s.len > C4R.ARROW ? Math.max(0.1, (s.len - C4R.ARROW - 6) / 2 / s.len) : 0.5;
           const fracs = s.len >= 24 ? [t0, 0.25, 0.75] : [t0];
-          for (const dy of yOffs) {
+          for (const dx of xOffs) for (const dy of yOffs) {
             for (const f of fracs) {
-              if (pushCand(s.p[0] + (s.q[0] - s.p[0]) * f, s.p[1] + (s.q[1] - s.p[1]) * f + dy)) break search;
+              if (pushCand(s.p[0] + (s.q[0] - s.p[0]) * f + dx, s.p[1] + (s.q[1] - s.p[1]) * f + dy)) break search;
             }
           }
         }
       }
       if (!pos) {                                             // nothing free: the candidate with the least overlap
         const score = (r, cap) => {
-          let sc = 100 * pills.count(r, 2, null, Math.ceil(cap / 100));
+          let sc = 100 * pills.count(r, C4R.PILL_PAD, null, Math.ceil(cap / 100));
           if (sc >= cap) return sc;
           const bLim = Math.ceil((cap - sc) / 20);
           sc += 20 * boxes.count(r, 2, null, bLim);
