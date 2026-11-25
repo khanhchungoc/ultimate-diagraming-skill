@@ -1,0 +1,19 @@
+  <!-- Color key legend popover & compact bottom-right toggle button -->
+  <div id="gantt-color-key" class="color-key gantt-color-key" role="region" aria-label="Color key" hidden></div>
+  <button id="btn-legend" type="button" class="btn gantt-legend-btn" aria-expanded="false" aria-controls="gantt-color-key" aria-label="Legend" title="Toggle legend" data-export-skip>
+    {{icon:layers}}<span class="btn-label">Legend</span>
+  </button>
+
+  <!-- Public holidays popover: view, add, or remove shaded holidays -->
+  <div id="gantt-holidays-pop" class="popover gantt-holidays-pop" role="dialog" aria-label="Public holidays" hidden>
+    <div class="gantt-hol-head">
+      <span class="gantt-hol-title">Holidays</span>
+      <button id="gantt-hol-close" type="button" class="btn btn-icon gantt-hol-close" title="Close" aria-label="Close">{{icon:close}}</button>
+    </div>
+    <div id="gantt-holidays-list" class="gantt-holidays-list"></div>
+    <div class="gantt-hol-form">
+      <input id="gantt-hol-date" type="date" aria-label="Holiday date">
+      <input id="gantt-hol-name" type="text" placeholder="Holiday name" aria-label="Holiday name">
+      <button id="gantt-hol-add" type="button" class="btn btn-primary">Add</button>
+    </div>
+  </div>

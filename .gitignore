@@ -3,6 +3,7 @@ __pycache__/
 
 # Local working diagrams (not shipped examples)
 /dev/samples/*
+!/dev/samples/example-*.html
 node_modules/
 
 

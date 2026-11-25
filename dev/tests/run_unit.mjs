@@ -68,6 +68,9 @@ const TESTS = [
   { id: 'audit_erd',       file: 'test_audit_erd.py',        types: ['erd'] },
   { id: 'audit_usecase',   file: 'test_audit_usecase.py',    types: ['usecase'] },
   { id: 'audit_c4',        file: 'test_audit_c4.py',         types: ['c4'] },
+  { id: 'audit_gantt',     file: 'test_audit_gantt.py',      types: ['gantt'] },
+  { id: 'gantt_engine',    file: 'test_gantt_engine.mjs',    types: ['gantt'] },
+  { id: 'gantt_mermaid',   file: 'test_gantt_mermaid.mjs',   types: ['gantt'] },
   { id: 'c4_codec',        file: 'test_c4_codec.py',         types: ['c4'] },
   { id: 'usecase_engine',  file: 'check_usecase_engine.mjs', types: ['usecase'] },
   { id: 'icon_pack',       file: 'test_icon_pack.py',        types: ['c4', 'tokens'] },
@@ -77,7 +80,7 @@ const TESTS = [
   { id: 'version_check',   file: 'test_version_check.py',    types: ['cli'] },
 
   // Heavier / perf-sensitive non-browser checks (included with --all or explicit --only / direct edit)
-  { id: 'golden',          file: 'check_golden.py',          types: ['cross', 'flowchart', 'sequence', 'erd', 'usecase', 'c4'], slow: true },
+  { id: 'golden',          file: 'check_golden.py',          types: ['cross', 'flowchart', 'sequence', 'erd', 'usecase', 'c4', 'gantt'], slow: true },
   { id: 'artifact_shape',  file: 'check_artifact_shape.py',  types: ['shell', 'cross'], slow: true },
   { id: 'direction',       file: 'check_direction.py',       types: ['flowchart'], slow: true },
   { id: 'extract',         file: 'check_extract.py',         types: ['tokens', 'theme'], slow: true },

@@ -1742,8 +1742,21 @@
 
       // --- VIEWPORT PAN & ZOOM & FIT ---
       let lastAppliedScale = null;
-      function showZoom() { zoomLevelEl.textContent = `${Math.round((vpAnim ? vpAnim.targetScale : scale) * 100)}%`; }   // a glide in flight shows where it lands
+      function showZoom() {
+        if (plugin && plugin.zoomController && plugin.zoomController.getLabel) {
+          zoomLevelEl.textContent = plugin.zoomController.getLabel();
+          return;
+        }
+        zoomLevelEl.textContent = `${Math.round((vpAnim ? vpAnim.targetScale : scale) * 100)}%`;
+      }   // a glide in flight shows where it lands
       function updateTransform() {
+        if (plugin && plugin.customViewport) {
+          stage.style.transform = '';
+          stage.style.setProperty('--ui-scale', '1');
+          showZoom();
+          if (plugin.onViewChange) plugin.onViewChange();
+          return;
+        }
         stage.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
         if (scale !== lastAppliedScale) {
           lastAppliedScale = scale;
@@ -1859,6 +1872,11 @@
       }
 
       function fitView(animate) {
+        if (plugin && plugin.zoomController && plugin.zoomController.reset) {
+          plugin.zoomController.reset(animate);
+          showZoom();
+          return;
+        }
         const { vpRect, frame, capture, dockBand, topBand, scaleX, scaleY, minPan } = fitMetrics();
 
         // Capture mode: scale to the exact width requested (?capture&w=1600) and pin to the top-left,
@@ -1916,6 +1934,7 @@
       }, true);
 
       viewport.addEventListener('pointerdown', (e) => {
+        if (plugin && plugin.customViewport) return;
         if (!(e.button === 1 || (e.button === 0 && spaceHeld))) return;
         e.preventDefault();
         e.stopImmediatePropagation();
@@ -1929,6 +1948,7 @@
       viewport.addEventListener('auxclick', (e) => { if (e.button === 1) { e.preventDefault(); e.stopPropagation(); } }, true);
 
       viewport.addEventListener('pointerdown', (e) => {
+        if (plugin && plugin.customViewport) return;
         if (e.target === viewport || e.target.id === 'stage' || plugin.isBackground(e.target)) {
           if (plugin.cancelInteraction()) return;
           if (startMarquee(e)) return;   // Shift + drag draws a selection box instead of panning
@@ -1971,6 +1991,7 @@
           mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2, scale, panX, panY };
       }
       viewport.addEventListener('pointerdown', (e) => {
+        if (plugin && plugin.customViewport) return;
         if (e.pointerType !== 'touch' || replayingTap) return;
         touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
         if (touches.size >= 2) {
@@ -2136,6 +2157,15 @@
         }, 140);
       }
       viewport.addEventListener('wheel', (e) => {
+        if (plugin && plugin.customViewport) {
+          if ((e.ctrlKey || e.metaKey) && plugin.zoomController) {
+            e.preventDefault();
+            if (e.deltaY < 0 && plugin.zoomController.zoomIn) plugin.zoomController.zoomIn(e);
+            else if (e.deltaY > 0 && plugin.zoomController.zoomOut) plugin.zoomController.zoomOut(e);
+            showZoom();
+          }
+          return;
+        }
         e.preventDefault();
         cancelViewportAnim();
         const unit = e.deltaMode === 1 ? 16 : (e.deltaMode === 2 ? 400 : 1);
@@ -2169,11 +2199,21 @@
       }, { passive: false });
 
       btnZoomIn.addEventListener('click', () => {
+        if (plugin && plugin.zoomController && plugin.zoomController.zoomIn) {
+          plugin.zoomController.zoomIn();
+          showZoom();
+          return;
+        }
         const base = vpAnim ? vpAnim.targetScale : scale;
         const tx = vpAnim ? vpAnim.targetPanX : panX, ty = vpAnim ? vpAnim.targetPanY : panY;
         animateViewport(tx, ty, Math.min(base * 1.15, 2.5), { duration: 200, easing: 'curve-out' });
       });
       btnZoomOut.addEventListener('click', () => {
+        if (plugin && plugin.zoomController && plugin.zoomController.zoomOut) {
+          plugin.zoomController.zoomOut();
+          showZoom();
+          return;
+        }
         const base = vpAnim ? vpAnim.targetScale : scale;
         const tx = vpAnim ? vpAnim.targetPanX : panX, ty = vpAnim ? vpAnim.targetPanY : panY;
         animateViewport(tx, ty, Math.max(base * 0.85, 0.2), { duration: 200, easing: 'curve-out' });

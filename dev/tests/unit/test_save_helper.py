@@ -64,8 +64,29 @@ def test_opt_in_config_and_layout_hook() -> None:
             save_helper.ALLOW_HEADLESS_ENV: "1",
         }
         with mock.patch.dict(os.environ, env, clear=False):
-            for k in (save_helper.OPT_OUT_ENV, "CI", "GITHUB_ACTIONS", "SSH_CONNECTION", "SSH_CLIENT"):
+            for k in (
+                save_helper.SAVE_HELPER_FEATURE_ENV,
+                save_helper.OPT_OUT_ENV,
+                "CI",
+                "GITHUB_ACTIONS",
+                "SSH_CONNECTION",
+                "SSH_CLIENT",
+            ):
                 os.environ.pop(k, None)
+
+            # Default feature flag off -> never registers ID, never prompts, never starts
+            assert not save_helper.is_feature_enabled()
+            save_helper.set_direct_save_enabled(True)
+            with mock.patch.object(save_helper, "ensure_running") as ensure_mock:
+                assert save_helper.handle_layout_output(target, sid) is None
+                assert not save_helper.ensure_running_if_opted_in()
+                ensure_mock.assert_not_called()
+            assert save_helper.lookup_registered_id(sid) is None
+
+            # Reset config and enable feature flag -> opt-in flow works
+            (cache / "config.json").unlink(missing_ok=True)
+            os.environ[save_helper.SAVE_HELPER_FEATURE_ENV] = "1"
+            assert save_helper.is_feature_enabled()
 
             # Unset -> does NOT start helper, returns first-run [INFO] line, still registers ID
             with mock.patch.object(save_helper, "ensure_running") as ensure_mock:
@@ -312,8 +333,25 @@ def test_session_start_hook_starts_helper_when_opted_in() -> None:
             version_check.OPT_OUT_ENV: "1",  # update check off, save helper still honors its own opt-in
         }
         with mock.patch.dict(os.environ, env, clear=False):
-            for k in (save_helper.OPT_OUT_ENV, "CI", "GITHUB_ACTIONS", "SSH_CONNECTION", "SSH_CLIENT"):
+            for k in (
+                save_helper.SAVE_HELPER_FEATURE_ENV,
+                save_helper.OPT_OUT_ENV,
+                "CI",
+                "GITHUB_ACTIONS",
+                "SSH_CONNECTION",
+                "SSH_CLIENT",
+            ):
                 os.environ.pop(k, None)
+
+            # Feature flag off -> never starts even when config.json has direct_save_helper=True
+            save_helper.set_direct_save_enabled(True)
+            with mock.patch.object(save_helper, "ensure_running") as ensure_mock:
+                assert version_check.run_hook("claude") == ""
+                ensure_mock.assert_not_called()
+
+            # Feature flag on -> honors opt-in setting
+            os.environ[save_helper.SAVE_HELPER_FEATURE_ENV] = "1"
+            (cache / "config.json").unlink(missing_ok=True)
 
             # Unset -> does not start
             with mock.patch.object(save_helper, "ensure_running") as ensure_mock:

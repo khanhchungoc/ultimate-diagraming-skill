@@ -52,6 +52,10 @@ MAX_BODY_BYTES = 10 * 1024 * 1024        # 10 MB
 MAX_ALLOWED_IDS = 500
 HEALTH_TIMEOUT = 0.15                    # seconds
 
+# Feature flag: disabled by default (native file picker already supports one-click overwrite after first save).
+SAVE_HELPER_ENABLED = False
+SAVE_HELPER_FEATURE_ENV = "ULTIMATE_DIAGRAM_ENABLE_SAVE_HELPER"
+
 OPT_OUT_ENV = "ULTIMATE_DIAGRAM_NO_SAVE_HELPER"
 CACHE_DIR_ENV = "ULTIMATE_DIAGRAM_CACHE_DIR"
 ALLOW_HEADLESS_ENV = "ULTIMATE_DIAGRAM_ALLOW_HEADLESS_SAVE_HELPER"
@@ -149,6 +153,16 @@ def set_direct_save_enabled(enabled: bool) -> Path:
     target = config_path()
     _atomic_write_json(target, cfg, private=True)
     return target
+
+
+def is_feature_enabled() -> bool:
+    """Return True when the direct-save helper feature flag is enabled."""
+    override = os.environ.get(SAVE_HELPER_FEATURE_ENV, "").strip().lower()
+    if override in ("1", "true", "yes"):
+        return True
+    if override in ("0", "false", "no"):
+        return False
+    return SAVE_HELPER_ENABLED
 
 
 def is_env_disabled() -> bool:
@@ -633,8 +647,8 @@ def ensure_running(idle_timeout: float = DEFAULT_IDLE_TIMEOUT) -> bool:
 
 
 def ensure_running_if_opted_in(idle_timeout: float = DEFAULT_IDLE_TIMEOUT) -> bool:
-    """Start the background helper only when opted in and allowed by the environment."""
-    if is_env_disabled() or get_direct_save_enabled() is not True:
+    """Start the background helper only when feature-enabled, opted in, and allowed by the environment."""
+    if not is_feature_enabled() or is_env_disabled() or get_direct_save_enabled() is not True:
         return False
     return ensure_running(idle_timeout=idle_timeout)
 
@@ -683,6 +697,8 @@ def handle_layout_output(file_path: Path, save_id: str, no_helper: bool = False)
     Returns FIRST_RUN_INFO_LINE when opt-in has not been configured yet; otherwise None.
     Starts the background helper only when opted in and allowed by the environment.
     """
+    if not is_feature_enabled():
+        return None
     try:
         register_save_id(save_id, file_path)
     except OSError:
@@ -700,6 +716,8 @@ def handle_layout_output(file_path: Path, save_id: str, no_helper: bool = False)
 
 def handle_extract_html(file_path: Path, html_text: str, no_helper: bool = False) -> None:
     """Register an existing diagram-save-id on --extract and ensure helper is running if opted in."""
+    if not is_feature_enabled():
+        return
     save_id = extract_save_id(html_text)
     if not save_id:
         return
@@ -742,6 +760,9 @@ def main(argv: Optional[list[str]] = None) -> int:
         return 0
 
     if args.command == "start":
+        if not is_feature_enabled():
+            print("[INFO] Direct-save helper is disabled by feature flag.")
+            return 0
         port = find_running_port()
         if port is not None:
             info = probe_health_info(port)
@@ -776,6 +797,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     if args.command == "status":
         enabled = get_direct_save_enabled()
         cfg_label = "enabled" if enabled is True else "disabled" if enabled is False else "unset"
+        flag_note = "" if is_feature_enabled() else ", feature flag off"
         port = find_running_port()
         if port is not None:
             info = probe_health_info(port) or {}
@@ -784,7 +806,7 @@ def main(argv: Optional[list[str]] = None) -> int:
             run_label = f"running {ver_tag} on http://{HOST}:{port}"
         else:
             run_label = "stopped"
-        print(f"direct_save_helper: {cfg_label} ({run_label})")
+        print(f"direct_save_helper: {cfg_label} ({run_label}{flag_note})")
         return 0
 
     if args.command == "config":
@@ -793,6 +815,9 @@ def main(argv: Optional[list[str]] = None) -> int:
             print("enabled" if enabled is True else "disabled" if enabled is False else "unset")
             return 0
         if args.enable:
+            if not is_feature_enabled():
+                print("[INFO] Direct-save helper is disabled by feature flag.")
+                return 0
             path = set_direct_save_enabled(True)
             started = not is_env_disabled() and ensure_running()
             suffix = " (helper running)" if started else ""

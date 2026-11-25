@@ -1,0 +1,35 @@
+{
+  "diagramType": "gantt",
+  "schemaVersion": 1,
+  "title": "Q2–Q3 Product Roadmap",
+  "zoom": "month",
+  "showNotes": false,
+  "showToday": true,
+  "colorKey": {
+    "1": "Engineering",
+    "2": "Design",
+    "4": "Go-to-Market"
+  },
+  "markers": [
+    { "id": "m_launch_day", "label": "Launch Day", "date": "2026-07-15", "color": "4" }
+  ],
+  "items": [
+    { "id": "discovery", "kind": "group", "label": "Discovery" },
+    { "id": "res", "kind": "task", "label": "User research", "parent": "discovery", "start": "2026-04-01", "end": "2026-04-14", "color": "2" },
+    { "id": "build", "kind": "group", "label": "Build" },
+    { "id": "plat", "kind": "task", "label": "Core platform", "parent": "build", "start": "2026-04-10", "end": "2026-06-15", "color": "1" },
+    { "id": "api", "kind": "task", "label": "API layer", "parent": "plat", "start": "2026-04-14", "end": "2026-05-05", "color": "1" },
+    { "id": "auth", "kind": "task", "label": "Auth & SSO", "parent": "api", "start": "2026-04-20", "end": "2026-05-04", "color": "1" },
+    { "id": "ui", "kind": "task", "label": "Web UI", "parent": "plat", "start": "2026-05-05", "end": "2026-06-15", "color": "2" },
+    { "id": "beta", "kind": "milestone", "label": "Beta ready", "parent": "plat", "start": "2026-06-15", "end": "2026-06-15" }
+  ],
+  "dependencies": [
+    { "from": "res", "to": "api", "type": "fs" },
+    { "from": "api", "to": "auth", "type": "ss" },
+    { "from": "api", "to": "ui", "type": "fs" },
+    { "from": "ui", "to": "beta", "type": "fs" }
+  ],
+  "notes": [
+    { "id": "n1", "text": "Interview 12 enterprise buyers across US and APAC.", "target": "res" }
+  ]
+}

@@ -58,6 +58,7 @@ async function setup(type, query = '') {
   await t.open(pages[type], query);
   await t.ev(HOOK);
   if (TYPES[type].prep) await TYPES[type].prep();
+  await t.settle();
 }
 const snapshot = (type) => t.ev(`(() => ({
   rects: [...document.querySelectorAll(${J(TYPES[type].rects)})].map((e) => { const r = e.getBoundingClientRect(); return [r.left, r.top, r.width, r.height]; }),

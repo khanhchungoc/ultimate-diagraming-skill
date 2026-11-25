@@ -166,6 +166,7 @@ sys.stdout.write(f.format_json(out))`;
   await tile('#btn-add-system');
   await t.type('Mail service');
   await t.press('Enter');
+  await t.settle();
   t.check('Add > System actor: an avatar with «system»', (await count('.uc-actor[data-kind="system"] .uc-figure')) === 2 && (await t.ev(`[...document.querySelectorAll('.uc-actor-name')].some((e) => e.textContent === 'Mail service')`)));
   await tile('#btn-add-usecase');
   t.check('Add > Use case: a new ellipse with its name open', (await count('.uc-case')) === 8 && (await editing()) === 'New use case', `${await editing()}`);
