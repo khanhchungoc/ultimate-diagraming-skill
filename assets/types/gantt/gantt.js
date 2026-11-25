@@ -1861,14 +1861,20 @@
     }
     const target = ancestors[ancestors.length - 1];
     const breadcrumb = ancestors.map((a) => a.label || a.id).join(' › ');
-    stickyPhaseEl.dataset.targetId = target.id;
-    stickyPhaseEl.textContent = '';
-    const dot = htmlEl('span', 'gantt-sticky-phase-dot');
     const col = effectiveColor(target);
-    if (col) dot.style.background = `var(--c-${col}-border, var(--primary))`;
-    const lbl = htmlEl('span', 'gantt-sticky-phase-label', breadcrumb);
-    const cue = htmlEl('span', 'gantt-sticky-phase-cue', '↑');
-    stickyPhaseEl.append(dot, lbl, cue);
+    let dot = stickyPhaseEl.querySelector('.gantt-sticky-phase-dot');
+    let lbl = stickyPhaseEl.querySelector('.gantt-sticky-phase-label');
+    if (!dot || !lbl) {
+      stickyPhaseEl.textContent = '';
+      dot = htmlEl('span', 'gantt-sticky-phase-dot');
+      lbl = htmlEl('span', 'gantt-sticky-phase-label', breadcrumb);
+      const cue = htmlEl('span', 'gantt-sticky-phase-cue', '↑');
+      stickyPhaseEl.append(dot, lbl, cue);
+    } else if (lbl.textContent !== breadcrumb) {
+      lbl.textContent = breadcrumb;
+    }
+    stickyPhaseEl.dataset.targetId = target.id;
+    dot.style.background = col ? `var(--c-${col}-border, var(--primary))` : '';
     stickyPhaseEl.hidden = false;
   }
 
@@ -3474,11 +3480,18 @@
     }
   }
 
+  let expectedTreeScrollTop = null;
+  let expectedTimelineScrollTop = null;
   if (timeline && treeEl) {
     timeline.addEventListener('scroll', () => {
-      if (!isSyncingScroll) {
+      if (expectedTimelineScrollTop !== null && timeline.scrollTop === expectedTimelineScrollTop) {
+        expectedTimelineScrollTop = null;
+      } else if (!isSyncingScroll) {
         isSyncingScroll = true;
-        if (treeEl.scrollTop !== timeline.scrollTop) treeEl.scrollTop = timeline.scrollTop;
+        if (treeEl.scrollTop !== timeline.scrollTop) {
+          treeEl.scrollTop = timeline.scrollTop;
+          expectedTreeScrollTop = treeEl.scrollTop;
+        }
         if (actionBarEl) removeActionBar();
         isSyncingScroll = false;
       }
@@ -3488,9 +3501,16 @@
     }, { passive: true });
 
     treeEl.addEventListener('scroll', () => {
+      if (expectedTreeScrollTop !== null && treeEl.scrollTop === expectedTreeScrollTop) {
+        expectedTreeScrollTop = null;
+        return;
+      }
       if (isSyncingScroll) return;
       isSyncingScroll = true;
-      if (timeline.scrollTop !== treeEl.scrollTop) timeline.scrollTop = treeEl.scrollTop;
+      if (timeline.scrollTop !== treeEl.scrollTop) {
+        timeline.scrollTop = treeEl.scrollTop;
+        expectedTimelineScrollTop = timeline.scrollTop;
+      }
       if (actionBarEl) removeActionBar();
       isSyncingScroll = false;
       scheduleScrollOverlays();
