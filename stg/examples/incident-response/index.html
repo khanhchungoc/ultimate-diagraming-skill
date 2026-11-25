@@ -2888,7 +2888,7 @@ html.is-loading #page-loading { display: grid; }
       cursor: move;
       transform-origin: 0 0;
       transform: translate(var(--pill-x, 12px), var(--pill-y, 12px));
-      font-size: var(--text-lg-plus);
+      font-size: var(--text-2xl);
       --halo-bg: var(--lane-bg);
     }
     .lane-pill:has(.actionbar) { z-index: 53; }
@@ -3093,7 +3093,7 @@ html.is-loading #page-loading { display: grid; }
       display: flex; align-items: stretch; gap: 3px;
       background: var(--bg-panel);
       border: 1px solid var(--border-color);
-      border-radius: var(--radius-xl);
+      border-radius: var(--radius-2xl);
     }
     .flow-tabs {
       position: fixed;
@@ -3109,39 +3109,34 @@ html.is-loading #page-loading { display: grid; }
     .flow-tabs[hidden] { display: none; }
     .flow-subtabs {
       min-width: 0; overflow: hidden;
-      background: var(--bg-page);
-      border-radius: var(--radius-md);
+      gap: 2px;
+      padding: 2px;
+      background: color-mix(in srgb, var(--text-main) 2.5%, transparent);
+      border-radius: var(--radius-2xl);
       border-color: var(--border-color);
     }
-    .flow-subtabs:has(> .flow-subtabs) {
-      padding: 0 3px 3px 0;
-    }
-    .flow-tabs:has(> .flow-tab[aria-selected="true"]),
-    .flow-subtabs:has(> .flow-subtabs):has(> .flow-tab[aria-selected="true"]) {
-      background: var(--bg-panel);
-    }
+    .flow-subtabs[data-level="2"] { border-radius: var(--radius-xl); }
+    .flow-subtabs[data-level="3"] { border-radius: var(--radius-lg); }
     .flow-tab {
       position: relative;
       flex: none; display: inline-flex; align-items: center; min-height: 29px; max-width: 180px; padding: 0 12px; box-sizing: border-box;
       background: transparent;
-      border: 0;
-      border-radius: var(--radius-inner);
+      border: 1px solid transparent;
+      border-radius: var(--radius-2xl);
       font: inherit; font-size: var(--text-md); color: var(--text-soft); cursor: pointer;
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-      transition: background var(--ease), color var(--ease);
+      transition: background var(--ease), color var(--ease), border-color var(--ease);
     }
     .flow-subtabs > .flow-tab {
-      background: transparent;
-      border-radius: 0;
+      min-height: 25px;
+      padding: 0 10px;
+      border-radius: var(--radius-xl);
     }
-    .flow-subtabs > .flow-tab + .flow-tab,
-    .flow-subtabs > .flow-subtabs + .flow-tab {
-      border-left: 1px solid var(--border-color);
-    }
+    .flow-subtabs[data-level="2"] > .flow-tab { border-radius: var(--radius-lg); }
+    .flow-subtabs[data-level="3"] > .flow-tab { border-radius: var(--radius-md); }
     .flow-tab:hover { background: var(--bg-hover); color: var(--text-main); }
     @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-      .flow-tabs,
-      .flow-tabs:has(> .flow-tab[aria-selected="true"]) {
+      .flow-tabs {
         background: linear-gradient(180deg, var(--glass-top) 0%, var(--glass-bottom) 100%);
         border-color: var(--glass-border);
         backdrop-filter: blur(var(--glass-blur)) saturate(190%);
@@ -3151,8 +3146,7 @@ html.is-loading #page-loading { display: grid; }
       .flow-tab:hover { background: var(--glass-hover); color: var(--text-glass); }
     }
     @media (prefers-reduced-transparency: reduce) {
-      .flow-tabs,
-      .flow-tabs:has(> .flow-tab[aria-selected="true"]) {
+      .flow-tabs {
         background: var(--bg-panel);
         border-color: var(--border-dark);
         backdrop-filter: none;
@@ -3160,18 +3154,13 @@ html.is-loading #page-loading { display: grid; }
       }
     }
     .flow-tab:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
-    .flow-tab[aria-selected="true"] {
+    .flow-tab[aria-selected="true"],
+    .flow-tab[aria-selected="true"]:hover {
       z-index: 2;
-      font-weight: var(--weight-bold); color: var(--primary);
+      font-weight: var(--weight-bold);
+      color: var(--primary);
       background: var(--primary-wash);
-    }
-    .flow-subtabs > .flow-tab[aria-selected="true"] {
-      background: var(--bg-panel);
-      border-radius: var(--radius-md);
-    }
-    .flow-subtabs > .flow-tab[aria-selected="true"] + .flow-tab { border-left-color: transparent; }
-    .flow-subtabs:has(> .flow-subtabs) > .flow-tab[aria-selected="true"] {
-      border-radius: 0;
+      border-color: var(--primary-ring);
     }
     body.presentation .flow-tabs {
       top: calc(16px + env(safe-area-inset-top, 0px));
@@ -5265,6 +5254,7 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
       const isClamped = (el) => { const s = getComputedStyle(el); return s.textOverflow === 'ellipsis' || (s.webkitLineClamp && s.webkitLineClamp !== 'none'); };
       document.addEventListener('pointerover', (e) => {
         for (let el = e.target; el && el.nodeType === 1; el = el.parentElement) {
+          if (el.dataset.noTip !== undefined) return;
           if (el.title && !el.dataset.autoTitle) return;   // a title the type set itself wins
           const tip = el.dataset.tip || (isClamped(el) && isCut(el) ? el.textContent.trim() : '');
           if (tip) { el.title = tip; el.dataset.autoTitle = '1'; return; }
@@ -11764,6 +11754,7 @@ function toMermaid(data, opts) {
         const visTop = -panY / scale - top;
         const inset = PILL_INSET;
         const topSafe = ui.chromeTop ? ui.chromeTop() / scale : 0;
+        const safeTop = visTop + topSafe;
         const cs = swimlanesContainer.style;
         if (scale !== lastPinScale) {
           lastPinScale = scale;
@@ -11773,11 +11764,13 @@ function toMermaid(data, opts) {
           // Top-to-bottom: lanes are columns, so the stripe and the pills sit at the visible top edge instead,
           // and each pill follows its column sideways when the column is wider than the screen
           const y0 = Math.max(0, visTop);
+          const maxPillY = lanes.length ? Math.max(inset, Math.min(...lanes.map(l => l.h - l.ph - inset))) : inset;
+          const pillY = Math.min(Math.max(inset, safeTop + inset), maxPillY);
           swimlanesContainer.classList.toggle('lanes-pinned', visTop > 0);
           cs.removeProperty('--rail-x');
           cs.removeProperty('--pill-x');
           cs.setProperty('--rail-y', `${y0}px`);
-          cs.setProperty('--pill-y', `${y0 + (visTop > 0 ? topSafe : 0) + inset}px`);
+          cs.setProperty('--pill-y', `${pillY}px`);
           // Each pill is centred on the visible part of its column (the whole column when it is on screen)
           const visRight = visLeft + vpW / scale;
           for (let i = 0; i < lanes.length; i++) {
@@ -11796,11 +11789,10 @@ function toMermaid(data, opts) {
         cs.removeProperty('--pill-y');
         cs.setProperty('--rail-x', `${x0}px`);
         cs.setProperty('--pill-x', `${x0 + inset}px`);
-        const padTop = visTop > 0 ? topSafe : 0;
         for (let i = 0; i < lanes.length; i++) {
           const l = lanes[i];
           const maxY = Math.max(inset, l.h - l.ph - inset);
-          const y = Math.min(Math.max(visTop + padTop - l.offsetTop + inset, inset), maxY);
+          const y = Math.min(Math.max(safeTop - l.offsetTop + inset, inset), maxY);
           l.laneEl.style.setProperty('--pill-y', `${y}px`);
         }
         placeLaneBar();
@@ -11895,7 +11887,7 @@ function toMermaid(data, opts) {
             e.stopPropagation();
             if (editable && !pill.classList.contains('editing')) selectLane(lane.id);
           });
-          pill.appendChild(laneIconEl(lane, 15));
+          pill.appendChild(laneIconEl(lane, 18));
           const title = document.createElement('span');
           title.className = 'lane-title';
           title.contentEditable = 'false';
@@ -12245,7 +12237,7 @@ function toMermaid(data, opts) {
         el.dataset.nodeId = node.id;
         el.setAttribute('role', 'button');
         el.setAttribute('aria-label', connectorAria(node));
-        el.dataset.tip = `${connectorAria(node)}\nClick to jump there · Drag onto a step to move this end there · Double-click to change the letter`;
+        el.dataset.noTip = '';
         placeNodeEl(el, node);
         if (selectedNodeIds.has(node.id)) el.classList.add('selected');
         const label = document.createElement('div');
@@ -12603,6 +12595,7 @@ function toMermaid(data, opts) {
           nodeEl.className = `flow-node type-${node.type}` + (isDot(node) ? ' terminal-dot' : '');
           nodeEl.id = `node-${node.id}`;
           nodeEl.dataset.nodeId = node.id;
+          nodeEl.dataset.noTip = '';
           placeNodeEl(nodeEl, node);
           if (selectedNodeIds.has(node.id)) nodeEl.classList.add('selected');
 
@@ -12615,8 +12608,7 @@ function toMermaid(data, opts) {
           label.className = 'node-label';
           label.contentEditable = 'false';
           label.spellcheck = false;
-          label.dataset.tip = `${node.label || ''}
-Double-click to edit text`;   // full text: the label is clamped to 2 lines
+          label.dataset.noTip = '';
           label.textContent = node.label || '';
 
           label.addEventListener('dblclick', (e) => {
@@ -12654,7 +12646,6 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
             port.className = `port port-${pos}`;
             port.dataset.port = pos;
             port.dataset.nodeId = node.id;
-            port.dataset.tip = `Click or drag to connect`;
             port.addEventListener('pointerdown', (e) => handlePortPointerDown(e, node.id, pos));
             nodeEl.appendChild(port);
           });

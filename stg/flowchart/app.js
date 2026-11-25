@@ -1796,6 +1796,7 @@ const ICONS = {"user":"<path d=\"M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0\"/><path d=\"
       const isClamped = (el) => { const s = getComputedStyle(el); return s.textOverflow === 'ellipsis' || (s.webkitLineClamp && s.webkitLineClamp !== 'none'); };
       document.addEventListener('pointerover', (e) => {
         for (let el = e.target; el && el.nodeType === 1; el = el.parentElement) {
+          if (el.dataset.noTip !== undefined) return;
           if (el.title && !el.dataset.autoTitle) return;   // a title the type set itself wins
           const tip = el.dataset.tip || (isClamped(el) && isCut(el) ? el.textContent.trim() : '');
           if (tip) { el.title = tip; el.dataset.autoTitle = '1'; return; }
@@ -8295,6 +8296,7 @@ function toMermaid(data, opts) {
         const visTop = -panY / scale - top;
         const inset = PILL_INSET;
         const topSafe = ui.chromeTop ? ui.chromeTop() / scale : 0;
+        const safeTop = visTop + topSafe;
         const cs = swimlanesContainer.style;
         if (scale !== lastPinScale) {
           lastPinScale = scale;
@@ -8304,11 +8306,13 @@ function toMermaid(data, opts) {
           // Top-to-bottom: lanes are columns, so the stripe and the pills sit at the visible top edge instead,
           // and each pill follows its column sideways when the column is wider than the screen
           const y0 = Math.max(0, visTop);
+          const maxPillY = lanes.length ? Math.max(inset, Math.min(...lanes.map(l => l.h - l.ph - inset))) : inset;
+          const pillY = Math.min(Math.max(inset, safeTop + inset), maxPillY);
           swimlanesContainer.classList.toggle('lanes-pinned', visTop > 0);
           cs.removeProperty('--rail-x');
           cs.removeProperty('--pill-x');
           cs.setProperty('--rail-y', `${y0}px`);
-          cs.setProperty('--pill-y', `${y0 + (visTop > 0 ? topSafe : 0) + inset}px`);
+          cs.setProperty('--pill-y', `${pillY}px`);
           // Each pill is centred on the visible part of its column (the whole column when it is on screen)
           const visRight = visLeft + vpW / scale;
           for (let i = 0; i < lanes.length; i++) {
@@ -8327,11 +8331,10 @@ function toMermaid(data, opts) {
         cs.removeProperty('--pill-y');
         cs.setProperty('--rail-x', `${x0}px`);
         cs.setProperty('--pill-x', `${x0 + inset}px`);
-        const padTop = visTop > 0 ? topSafe : 0;
         for (let i = 0; i < lanes.length; i++) {
           const l = lanes[i];
           const maxY = Math.max(inset, l.h - l.ph - inset);
-          const y = Math.min(Math.max(visTop + padTop - l.offsetTop + inset, inset), maxY);
+          const y = Math.min(Math.max(safeTop - l.offsetTop + inset, inset), maxY);
           l.laneEl.style.setProperty('--pill-y', `${y}px`);
         }
         placeLaneBar();
@@ -8426,7 +8429,7 @@ function toMermaid(data, opts) {
             e.stopPropagation();
             if (editable && !pill.classList.contains('editing')) selectLane(lane.id);
           });
-          pill.appendChild(laneIconEl(lane, 15));
+          pill.appendChild(laneIconEl(lane, 18));
           const title = document.createElement('span');
           title.className = 'lane-title';
           title.contentEditable = 'false';
@@ -8776,7 +8779,7 @@ function toMermaid(data, opts) {
         el.dataset.nodeId = node.id;
         el.setAttribute('role', 'button');
         el.setAttribute('aria-label', connectorAria(node));
-        el.dataset.tip = `${connectorAria(node)}\nClick to jump there · Drag onto a step to move this end there · Double-click to change the letter`;
+        el.dataset.noTip = '';
         placeNodeEl(el, node);
         if (selectedNodeIds.has(node.id)) el.classList.add('selected');
         const label = document.createElement('div');
@@ -9134,6 +9137,7 @@ function toMermaid(data, opts) {
           nodeEl.className = `flow-node type-${node.type}` + (isDot(node) ? ' terminal-dot' : '');
           nodeEl.id = `node-${node.id}`;
           nodeEl.dataset.nodeId = node.id;
+          nodeEl.dataset.noTip = '';
           placeNodeEl(nodeEl, node);
           if (selectedNodeIds.has(node.id)) nodeEl.classList.add('selected');
 
@@ -9146,8 +9150,7 @@ function toMermaid(data, opts) {
           label.className = 'node-label';
           label.contentEditable = 'false';
           label.spellcheck = false;
-          label.dataset.tip = `${node.label || ''}
-Double-click to edit text`;   // full text: the label is clamped to 2 lines
+          label.dataset.noTip = '';
           label.textContent = node.label || '';
 
           label.addEventListener('dblclick', (e) => {
@@ -9185,7 +9188,6 @@ Double-click to edit text`;   // full text: the label is clamped to 2 lines
             port.className = `port port-${pos}`;
             port.dataset.port = pos;
             port.dataset.nodeId = node.id;
-            port.dataset.tip = `Click or drag to connect`;
             port.addEventListener('pointerdown', (e) => handlePortPointerDown(e, node.id, pos));
             nodeEl.appendChild(port);
           });
