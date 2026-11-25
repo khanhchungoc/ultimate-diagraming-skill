@@ -71,6 +71,8 @@
   const btnInViewHintApply = document.getElementById('btn-inview-hint-apply');
   const btnInViewHintDismiss = document.getElementById('btn-inview-hint-dismiss');
   const emptyFilterEl = document.getElementById('gantt-empty-filter');
+  const modeSwitchEl = document.getElementById('gantt-mode-switch');
+  const tableViewEl = document.getElementById('gantt-table-view');
 
   const EXTEND_DAYS = { day: 90, week: 180, month: 180, quarter: 365, year: 365 };
   const VIEW_LABELS = {
@@ -86,7 +88,14 @@
   }
   const _initView = initialViewMode();
 
+  function initialDisplayMode() {
+    const param = new URLSearchParams(window.location.search).get('mode');
+    return param === 'table' ? 'table' : 'timeline';
+  }
+
   // --- STATE ---
+  let displayMode = initialDisplayMode(); // 'timeline' | 'table'
+  let tableCtrl = null;            // GanttTable controller instance
   let selItems = new Set();        // selected item IDs (tasks, groups, milestones)
   let lastSelItemId = null;        // anchor for Shift+click range selection
   let selMarkerId = null;          // selected chart-wide vertical marker ID
@@ -1998,9 +2007,39 @@
     }, 220);
   }
 
+  function syncDisplayModeUi() {
+    if (root) root.dataset.mode = displayMode;
+    document.body.dataset.ganttMode = displayMode;
+    if (tableViewEl) tableViewEl.hidden = displayMode !== 'table';
+    if (modeSwitchEl) {
+      modeSwitchEl.querySelectorAll('[data-gantt-mode]').forEach((btn) => {
+        const active = btn.dataset.ganttMode === displayMode;
+        btn.classList.toggle('is-active', active);
+        btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+      });
+    }
+  }
+
+  function setDisplayMode(nextMode) {
+    const mode = nextMode === 'table' ? 'table' : 'timeline';
+    if (mode === displayMode) return;
+    removeActionBar();
+    if (window.GanttDatePicker) window.GanttDatePicker.close();
+    displayMode = mode;
+    syncDisplayModeUi();
+    render();
+  }
+
   // --- MAIN RENDER ---
   function render() {
     applyLayout();
+    syncDisplayModeUi();
+    if (displayMode === 'table') {
+      if (tableCtrl && typeof tableCtrl.render === 'function') tableCtrl.render();
+      renderHolidaysList();
+      if (typeof showZoom === 'function') showZoom();
+      return;
+    }
     const range = chartData._range;
     const zoomKey = currentZoom();
     if (root) root.dataset.zoom = zoomKey;
@@ -2467,6 +2506,19 @@
         pop.append(row2);
       }
 
+      if (window.GanttDatePicker && typeof window.GanttDatePicker.attachInput === 'function') {
+        window.GanttDatePicker.attachInput(inStart, {
+          onChange: (val) => {
+            if (inEnd && val && inEnd.value && inEnd.value < val) inEnd.value = val;
+          }
+        });
+        if (inEnd) {
+          window.GanttDatePicker.attachInput(inEnd, {
+            min: () => ganttFormatDate(inStart.value) || ''
+          });
+        }
+      }
+
       const apply = htmlEl('button', 'btn gantt-pop-apply', 'Apply');
       apply.type = 'button';
       apply.addEventListener('click', () => {
@@ -2558,6 +2610,9 @@
       const input = htmlEl('input', 'gantt-pop-input');
       input.type = 'date';
       input.value = m.date || getTodayStr();
+      if (window.GanttDatePicker && typeof window.GanttDatePicker.attachInput === 'function') {
+        window.GanttDatePicker.attachInput(input);
+      }
       const apply = htmlEl('button', 'btn gantt-pop-apply', 'Save');
       apply.type = 'button';
       apply.addEventListener('click', () => {
@@ -2674,6 +2729,7 @@
       const p = itemById(parentId);
       if (p) {
         it.parent = p.id;
+        if (p.kind === 'task') p.kind = 'group';
         if (p.collapsed) delete p.collapsed;
       }
     }
@@ -2681,8 +2737,12 @@
     selectSingleItem(it.id);
     render();
     updateStatus(true);
-    const row = els.rows.get(it.id);
-    if (row) startInlineRename(it.id, row.querySelector('.gantt-tree-label'));
+    if (displayMode === 'table' && tableCtrl) {
+      tableCtrl.focusItem(it.id);
+    } else {
+      const row = els.rows.get(it.id);
+      if (row) startInlineRename(it.id, row.querySelector('.gantt-tree-label'));
+    }
   }
 
   function addSubtask(parentId, opts) {
@@ -2711,8 +2771,12 @@
     selectSingleItem(it.id);
     render();
     updateStatus(true);
-    const row = els.rows.get(it.id);
-    if (row) startInlineRename(it.id, row.querySelector('.gantt-tree-label'));
+    if (displayMode === 'table' && tableCtrl) {
+      tableCtrl.focusItem(it.id);
+    } else {
+      const row = els.rows.get(it.id);
+      if (row) startInlineRename(it.id, row.querySelector('.gantt-tree-label'));
+    }
   }
 
   function addVerticalMarker(opts) {
@@ -3677,6 +3741,30 @@
       updateStatus(true);
     });
   }
+  if (window.GanttDatePicker && typeof window.GanttDatePicker.attachInput === 'function') {
+    if (holDateInput) {
+      window.GanttDatePicker.attachInput(holDateInput, {
+        allowClear: true,
+        onChange: (val) => {
+          if (holEndInput && val && holEndInput.value && holEndInput.value < val) holEndInput.value = val;
+        }
+      });
+    }
+    if (holEndInput) {
+      window.GanttDatePicker.attachInput(holEndInput, {
+        allowClear: true,
+        min: () => (holDateInput ? ganttFormatDate(holDateInput.value) : '') || ''
+      });
+    }
+  }
+
+  if (modeSwitchEl) {
+    modeSwitchEl.addEventListener('click', (e) => {
+      const btn = e.target && e.target.closest ? e.target.closest('[data-gantt-mode]') : null;
+      if (!btn) return;
+      setDisplayMode(btn.dataset.ganttMode);
+    });
+  }
 
   // --- TOOLBAR BUTTON WIRING (+ DRAG-FROM-ADD TILES) ---
   function wireAddTileDrag(btn, kind, label, onClickFn) {
@@ -3928,10 +4016,11 @@
 
   // Close popovers / commit note on outside click
   window.addEventListener('pointerdown', (e) => {
-    if (floatingPop && !floatingPop.contains(e.target) && (!actionBarEl || !actionBarEl.contains(e.target))) {
+    const inCalPop = Boolean(e.target && e.target.closest && e.target.closest('.gantt-cal-pop'));
+    if (!inCalPop && floatingPop && !floatingPop.contains(e.target) && (!actionBarEl || !actionBarEl.contains(e.target))) {
       closeFloatingPop();
     }
-    if (holidaysPop && !holidaysPop.hidden && !holidaysPop.contains(e.target) && (!btnHolidays || !btnHolidays.contains(e.target))) {
+    if (!inCalPop && holidaysPop && !holidaysPop.hidden && !holidaysPop.contains(e.target) && (!btnHolidays || !btnHolidays.contains(e.target))) {
       toggleHolidaysPop(false);
     }
     if (colorKeyHost && !colorKeyHost.hidden && !colorKeyHost.contains(e.target) && (!btnLegend || !btnLegend.contains(e.target))) {
@@ -3952,6 +4041,10 @@
     if (connectState) {
       connectState = null;
       if (root) root.classList.remove('is-connecting');
+      cancelled = true;
+    }
+    if (window.GanttDatePicker && window.GanttDatePicker.isOpen()) {
+      window.GanttDatePicker.close();
       cancelled = true;
     }
     if (floatingPop) {
@@ -4277,6 +4370,72 @@
     delete d.layout;
     slotColors(d, 'items', 'markers');
     return d;
+  }
+
+  // --- TABLE VIEW CONTROLLER ---
+  if (tableViewEl && window.GanttTable && typeof window.GanttTable.create === 'function') {
+    tableCtrl = window.GanttTable.create(tableViewEl, {
+      getData: () => chartData,
+      getAllItems: () => itemsList(),
+      getVisibleItems: () => visibleItems(),
+      getMarkers: () => markersList(),
+      getDeps: () => depsList(),
+      getNotes: () => notesList(),
+      getColorKey: () => (chartData && chartData.colorKey) || {},
+      getSelectedIds: () => selItems,
+      setSelectedIds: (nextSet) => {
+        selItems = nextSet instanceof Set ? new Set(nextSet) : new Set(nextSet || []);
+        selMarkerId = null;
+        selDepKey = null;
+        selNoteId = null;
+      },
+      isPresenting: () => presenting(),
+      commit: () => {
+        render();
+        updateStatus(true);
+      },
+      commitSilent: () => {
+        render();
+      },
+      newId: (prefix) => newId(prefix),
+      getTodayStr: () => getTodayStr(),
+      cleanLabel: (val, fallback) => cleanLabel(val, fallback),
+      getNoteForItem: (id) => notesList().find((n) => n && n.target === id) || null,
+      setNoteForItem: (id, text) => {
+        const trimmed = String(text == null ? '' : text).trim();
+        if (!Array.isArray(chartData.notes)) chartData.notes = [];
+        const existing = chartData.notes.find((n) => n && n.target === id);
+        if (!trimmed) {
+          if (existing) {
+            chartData.notes = chartData.notes.filter((n) => n !== existing);
+            if (!chartData.notes.length) delete chartData.notes;
+          }
+        } else if (existing) {
+          existing.text = trimmed;
+        } else {
+          chartData.notes.push({ id: newId('n'), text: trimmed, target: id });
+        }
+        render();
+        updateStatus(true);
+      },
+      getPaletteSlots: () => {
+        const ck = (chartData && chartData.colorKey) || {};
+        const out = [];
+        for (let i = 1; i <= 9; i++) {
+          const slot = String(i);
+          const sw = swatchColors(slot);
+          const lbl = (ck[slot] && String(ck[slot]).trim()) || `Color ${slot}`;
+          out.push({ slot, label: lbl, color: sw.solid || sw.border || sw.fill });
+        }
+        return out;
+      },
+      resolveColor: (slot) => {
+        const sw = swatchColors(slot || '1');
+        return sw.solid || sw.border || sw.fill;
+      },
+      toast: (msg) => ui.toast(msg),
+      icon: (name, opts) => ui.iconEl(name, opts)
+    });
   }
 
   // --- REGISTER WITH THE SHELL ---
