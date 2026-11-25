@@ -41,7 +41,10 @@ from engine_runner import DEFAULT_TIMEOUT, EngineUnavailable, layout_session, ru
 from save_helper import (extract_save_id, generate_save_id, handle_extract_html,
                          handle_layout_output, is_feature_enabled, stamp_save_id)
 from tokens import expand_icons, load_icons, load_tokens, merge_theme, tokens_css, tokens_js
-from version_check import check_nonblocking as check_version_nonblocking
+from version_check import REPO as GITHUB_REPO, check_nonblocking as check_version_nonblocking
+
+
+REPO_URL = f"https://github.com/{GITHUB_REPO}"
 
 
 DEFAULT_COL_WIDTH = 200
@@ -1580,6 +1583,8 @@ def _build_parts(kind: str, data: Optional[Dict[str, Any]] = None,
     extra_js = [type_dir / name for name in meta.get("extraJs", ())]
     parts = {
         "PAGE_TITLE": html.escape(str(data.get("title") or meta["title"]), quote=False),
+        "REPO_NAME": html.escape(GITHUB_REPO, quote=True),
+        "REPO_URL": html.escape(REPO_URL, quote=True),
         "TOKENS_CSS": tokens_css(tokens),
         "FONT_HREF": html.escape(tokens["font"]["href"]),
         "COMPONENTS_CSS": components_css(),
@@ -1636,13 +1641,18 @@ def assemble_artifact(kind: str, data: Optional[Dict[str, Any]] = None,
 
 # The web font (shell.html) is the one allowed network request: without it the page still works, in a system font
 ALLOWED_EXTERNAL = re.compile(r"^https://fonts\.(googleapis|gstatic)\.com(/|$)")
+_ANCHOR_TAG = re.compile(r"""<a\b(?:[^>"']|"[^"]*"|'[^']*')*>""", re.I)
+_ANCHOR_HREF = re.compile(r"""\bhref\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)""", re.I)
 
 
 def find_external_refs(html_text: str) -> List[str]:
     """Network references that would break the self-contained page."""
+    # Passive <a href="..."> links only navigate on user click; strip href inside <a> tags
+    # while still scanning any other attributes on <a> (e.g. style="url(...)") and all resource tags.
+    stripped = _ANCHOR_TAG.sub(lambda m: _ANCHOR_HREF.sub("", m.group(0)), html_text)
     refs = re.findall(
         r"""(?:src|href)\s*=\s*["']https?://[^"']+|@import[^;]+|url\(\s*["']?https?://[^)]+""",
-        html_text,
+        stripped,
     )
     return sorted({r for r in refs if not ALLOWED_EXTERNAL.match(re.sub(r"""^(?:src|href)\s*=\s*["']""", "", r))})
 
