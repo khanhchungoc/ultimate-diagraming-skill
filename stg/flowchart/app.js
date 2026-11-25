@@ -8434,11 +8434,11 @@ function toMermaid(data, opts) {
             const btn = (act, html, title, extra) => ui.abButton('ab-btn', act, html, title, undefined, undefined, extra);
             bar.appendChild(btn('rename', ui.icon('rename'), 'Rename the lane (or double-click its name)'));
             bar.appendChild(ui.abSep());
+            bar.appendChild(swatchPicker(lane.color || '', (slot) => setLaneColor(lane.id, slot), { triggerClass: 'ab-btn', btnClass: 'ab-swatch' }));
+            bar.appendChild(ui.abSep());
             if (chartData.lanes.length > 1) bar.appendChild(btn('delete', ui.icon('trash'), 'Delete swimlane (with its steps)', 'is-danger'));
             // One lane is a one-actor diagram: the lane names and borders can go ("swimlanes": false; Show lanes brings them back)
             else bar.appendChild(btn('hide', `${ui.icon('eye')}<span>Hide lanes</span>`, 'Hide the lane name and borders (the Lane button then reads Show lanes)'));
-            bar.appendChild(ui.abSep());
-            bar.appendChild(swatchPicker(lane.color || '', (slot) => setLaneColor(lane.id, slot), { triggerClass: 'ab-btn', btnClass: 'ab-swatch' }));
             // Buttons are not drag handles for the pill they sit in, and a press on the bar neither pans nor selects
             bar.addEventListener('pointerdown', (e) => e.stopPropagation());
             bar.addEventListener('dragstart', (e) => { e.preventDefault(); e.stopPropagation(); });

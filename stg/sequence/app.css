@@ -1457,6 +1457,7 @@
     body.bars-collapsed :is(.actionbar, .uc-actionbar, .erd-actionbar, .seq-actionbar) > :not(.ab-toggle) { display: none !important; }
     /* Bar icons (the 24-grid icons; the line glyphs keep their own size) are 18px, easy to hit and read */
     :is(.ab-btn, .uc-ab-btn, .erd-ab-btn, .seq-ab-btn) { border-radius: var(--radius-lg); }
+    :is(.ab-btn, .uc-ab-btn, .erd-ab-btn, .seq-ab-btn) svg { shape-rendering: geometricPrecision; }
     :is(.ab-btn, .uc-ab-btn, .erd-ab-btn, .seq-ab-btn) svg[viewBox="0 0 24 24"] { width: 18px; height: 18px; }
     :is(.ab-btn, .uc-ab-btn, .erd-ab-btn, .seq-ab-btn):hover { background: var(--bg-hover); color: var(--text-main); }
     .ab-btn:active { transform: scale(0.94); }
@@ -2308,13 +2309,13 @@ html.is-loading #page-loading { display: grid; }
     .seq-plus:hover, .seq-insert:hover { background: var(--primary); color: var(--bg-panel); }
     .seq-plus:active, .seq-insert:active { transform: scale(0.92); }
     .seq-actionbar {
-      position: absolute; display: flex; align-items: center; gap: 2px; padding: 3px; z-index: 9;
+      position: absolute; display: flex; align-items: center; gap: 2px; padding: 3px; z-index: 53;
       translate: -50% 0; white-space: nowrap;
     }
     #seq-canvas.seq-pinned .seq-actionbar.is-pill { translate: -50% var(--pin-dy, 0px); }
     .seq-ab-btn {
-      display: inline-flex; align-items: center; gap: 4px; height: 30px; min-width: 30px; padding: 0 6px; box-sizing: border-box;
-      border: 1px solid transparent; border-radius: var(--radius-md); background: transparent; color: var(--text-soft);
+      display: inline-flex; align-items: center; justify-content: center; gap: 4px; height: 30px; min-width: 30px; padding: 0 6px; box-sizing: border-box;
+      border: 1px solid transparent; border-radius: var(--radius-lg); background: transparent; color: var(--text-soft);
       font: inherit; font-size: var(--t-detail-size); cursor: pointer;
       transition: background-color var(--dur-micro) var(--curve-out), color var(--dur-micro) var(--curve-out), border-color var(--dur-micro) var(--curve-out), transform var(--dur-micro) var(--curve-spring-tactile);
     }
