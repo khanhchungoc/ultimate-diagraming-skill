@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- For agents: the whole diagram is the JSON (application/json) in the "diagram-data" script on lines 14-76 of this file. Read lines 1-76 only (offset 1, limit 76); everything after line 76 is editor code (CSS, JS, icons) and says nothing about the diagram.
+<!-- For agents: the whole diagram is the JSON (application/json) in the "diagram-data" script on lines 14-117 of this file. Read lines 1-117 only (offset 1, limit 117); everything after line 117 is editor code (CSS, JS, icons) and says nothing about the diagram.
      The model's first key, "_readme", says how to read it. The "end diagram-data" comment marks the true end: if it is not on the line named above (the JSON was edited by hand since the last save), trust the comment. To print just the model:
      sed -n '/<script id="diagram-data" type="application\/json">/,/<\/script>/p' FILE
      python -c "import re,sys;print(re.search(r'<script id=\"diagram-data\" type=\"application\/json\">(.*?)<\/script>',open(sys.argv[1],encoding='utf8').read(),re.S)[1])" FILE -->
@@ -9,67 +9,108 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <!-- The theme is set before the first paint (priority: ?theme=dark|light, then the saved choice, then the OS), so a page never flashes the other theme. shell.js reads it back. -->
   <script>(function () { var t = null; try { t = new URLSearchParams(location.search).get('theme'); } catch (e) {} if (t !== 'dark' && t !== 'light') { try { t = localStorage.getItem('flowchart-theme'); } catch (e) {} } if (t !== 'dark' && t !== 'light') t = window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'; document.documentElement.setAttribute('data-theme', t); })();</script>
-  <title>Q2–Q3 Product Roadmap</title>
+  <title>2026 Platform Transformation Roadmap</title>
   <!-- Diagram model: the source of truth for this page. Everything after this block is the editor. -->
   <script id="diagram-data" type="application/json">
 {
   "_readme": "How to read this model: `items` are groups, tasks, and row milestones in row order (nesting through `parent`; `collapsed` folds children; parent bars roll up from child `start`/`end`); `dependencies` link items with `fs` (finish-to-start) or `ss` (start-to-start); `markers` are chart-wide vertical milestone lines; `holidays` shade non-working days; `notes` attach to an item by `target`; `color` is a palette slot (`1`..`9`) or `#hex` and `colorKey` names slots. Positions are not saved: the page lays them out from dates and `zoom`.",
   "diagramType": "gantt",
   "schemaVersion": 1,
-  "title": "Q2–Q3 Product Roadmap",
+  "title": "2026 Platform Transformation Roadmap",
   "zoom": "month",
   "showNotes": false,
   "showToday": true,
-  "colorKey": { "1": "Engineering", "2": "Design", "3": "Security", "4": "Go-to-Market" },
+  "colorKey": { "1": "Engineering", "2": "Design", "3": "Security", "4": "Go-to-Market", "5": "Data & AI" },
   "holidays": [
     { "date": "2026-05-25", "end": "2026-05-25", "name": "Memorial Day" },
-    { "date": "2026-07-03", "end": "2026-07-03", "name": "Independence Day (Observed)" }
+    { "date": "2026-07-03", "end": "2026-07-03", "name": "Independence Day (Observed)" },
+    { "date": "2026-09-07", "end": "2026-09-07", "name": "Labor Day" }
   ],
   "markers": [
-    { "id": "m_launch_day", "label": "Launch Day", "date": "2026-07-15", "color": "4" }
+    { "id": "m_beta_freeze", "label": "Beta Freeze", "date": "2026-06-22", "color": "1" },
+    { "id": "m_launch_day", "label": "Launch Day", "date": "2026-08-20", "color": "4" }
   ],
   "items": [
-    { "id": "discovery", "kind": "group", "label": "Discovery" },
-    { "id": "res", "kind": "task", "label": "User research", "parent": "discovery", "start": "2026-04-01", "end": "2026-04-14", "color": "2" },
-    { "id": "ux", "kind": "task", "label": "Wireframes & prototypes", "parent": "discovery", "start": "2026-04-14", "end": "2026-04-28", "color": "2" },
-    { "id": "spec", "kind": "task", "label": "Technical architecture", "parent": "discovery", "start": "2026-04-10", "end": "2026-04-24", "color": "1" },
-    { "id": "signoff", "kind": "milestone", "label": "Scope sign-off", "parent": "discovery", "start": "2026-04-28", "end": "2026-04-28", "color": "2" },
-    { "id": "build", "kind": "group", "label": "Build" },
-    { "id": "plat", "kind": "task", "label": "Core platform", "parent": "build", "start": "2026-04-25", "end": "2026-06-22", "color": "1" },
-    { "id": "api", "kind": "task", "label": "API layer", "parent": "plat", "start": "2026-04-25", "end": "2026-05-26", "color": "1" },
-    { "id": "auth", "kind": "task", "label": "Auth & SSO", "parent": "api", "start": "2026-04-29", "end": "2026-05-15", "color": "3" },
-    { "id": "audit", "kind": "task", "label": "Security review", "parent": "api", "start": "2026-05-15", "end": "2026-05-25", "color": "3" },
-    { "id": "ui", "kind": "task", "label": "Web application", "parent": "plat", "start": "2026-05-18", "end": "2026-06-15", "color": "2" },
-    { "id": "qa", "kind": "task", "label": "Integration & load testing", "parent": "plat", "start": "2026-06-15", "end": "2026-06-22", "color": "1" },
-    { "id": "beta", "kind": "milestone", "label": "Beta ready", "parent": "plat", "start": "2026-06-22", "end": "2026-06-22", "color": "1" },
-    { "id": "launch", "kind": "group", "label": "Launch" },
-    { "id": "docs", "kind": "task", "label": "Docs & migration guide", "parent": "launch", "start": "2026-06-18", "end": "2026-07-08", "color": "4" },
-    { "id": "pilot", "kind": "task", "label": "Customer beta pilot", "parent": "launch", "start": "2026-06-22", "end": "2026-07-08", "color": "4" },
-    { "id": "gtm", "kind": "task", "label": "Launch campaign", "parent": "launch", "start": "2026-07-01", "end": "2026-07-22", "color": "4" },
-    { "id": "ga", "kind": "milestone", "label": "General availability", "parent": "launch", "start": "2026-07-15", "end": "2026-07-15", "color": "4" }
+    { "id": "discovery", "kind": "group", "label": "Phase 1 · Discovery & Strategy" },
+    { "id": "res", "kind": "task", "label": "User research & interviews", "parent": "discovery", "start": "2026-02-02", "end": "2026-02-20", "color": "2" },
+    { "id": "market", "kind": "task", "label": "Competitive & pricing teardown", "parent": "discovery", "start": "2026-02-09", "end": "2026-02-27", "color": "4" },
+    { "id": "ux", "kind": "task", "label": "Wireframes & interactive prototypes", "parent": "discovery", "start": "2026-02-21", "end": "2026-03-18", "color": "2" },
+    { "id": "spec", "kind": "task", "label": "Technical architecture RFC", "parent": "discovery", "start": "2026-02-23", "end": "2026-03-20", "color": "1" },
+    { "id": "signoff", "kind": "milestone", "label": "Scope sign-off", "parent": "discovery", "start": "2026-03-20", "end": "2026-03-20", "color": "2" },
+    { "id": "cab", "kind": "task", "label": "Customer advisory board sync", "parent": "discovery", "start": "2026-05-04", "end": "2026-06-12", "color": "4" },
+    { "id": "foundations", "kind": "group", "label": "Phase 2 · Cloud Foundations" },
+    { "id": "infra", "kind": "task", "label": "Multi-region Kubernetes clusters", "parent": "foundations", "start": "2026-03-02", "end": "2026-03-27", "color": "1" },
+    { "id": "ci", "kind": "task", "label": "CI/CD & canary rollout pipeline", "parent": "foundations", "start": "2026-03-16", "end": "2026-04-10", "color": "1" },
+    { "id": "obs", "kind": "task", "label": "OpenTelemetry & SLO dashboards", "parent": "foundations", "start": "2026-03-28", "end": "2026-04-24", "color": "1" },
+    { "id": "dr", "kind": "task", "label": "Disaster recovery failover drill", "parent": "foundations", "start": "2026-07-06", "end": "2026-07-24", "color": "3" },
+    { "id": "build", "kind": "group", "label": "Phase 3 · Core Platform Build" },
+    { "id": "plat", "kind": "task", "label": "Core platform", "parent": "build", "start": "2026-04-13", "end": "2026-06-26", "color": "1" },
+    { "id": "api", "kind": "task", "label": "API layer & webhooks", "parent": "plat", "start": "2026-04-13", "end": "2026-05-28", "color": "1" },
+    { "id": "auth", "kind": "task", "label": "Auth & enterprise SSO", "parent": "api", "start": "2026-04-20", "end": "2026-05-12", "color": "3" },
+    { "id": "audit", "kind": "task", "label": "Security review", "parent": "api", "start": "2026-05-12", "end": "2026-05-26", "color": "3" },
+    { "id": "cache", "kind": "task", "label": "Edge caching & rate limits", "parent": "plat", "start": "2026-05-04", "end": "2026-06-05", "color": "1" },
+    { "id": "ui", "kind": "task", "label": "Web application shell", "parent": "plat", "start": "2026-05-18", "end": "2026-06-18", "color": "2" },
+    { "id": "mobile", "kind": "task", "label": "Responsive mobile workflows", "parent": "plat", "start": "2026-05-25", "end": "2026-06-22", "color": "2" },
+    { "id": "qa", "kind": "task", "label": "Integration & load testing", "parent": "plat", "start": "2026-06-15", "end": "2026-06-26", "color": "1" },
+    { "id": "beta", "kind": "milestone", "label": "Beta ready", "parent": "plat", "start": "2026-06-26", "end": "2026-06-26", "color": "1" },
+    { "id": "data_ai", "kind": "group", "label": "Phase 4 · Data & AI Pipeline" },
+    { "id": "ingest", "kind": "task", "label": "Streaming event ingestion", "parent": "data_ai", "start": "2026-06-01", "end": "2026-06-26", "color": "5" },
+    { "id": "warehouse", "kind": "task", "label": "Analytics warehouse schema", "parent": "data_ai", "start": "2026-06-22", "end": "2026-07-17", "color": "5" },
+    { "id": "search_idx", "kind": "task", "label": "Semantic search indexing", "parent": "data_ai", "start": "2026-07-06", "end": "2026-07-31", "color": "5" },
+    { "id": "evals", "kind": "task", "label": "Copilot quality & safety evals", "parent": "data_ai", "start": "2026-07-20", "end": "2026-08-14", "color": "5" },
+    { "id": "ai_ready", "kind": "milestone", "label": "AI pipeline ready", "parent": "data_ai", "start": "2026-08-14", "end": "2026-08-14", "color": "5" },
+    { "id": "security", "kind": "group", "label": "Phase 5 · Security & Compliance" },
+    { "id": "soc2", "kind": "task", "label": "SOC 2 Type II evidence collection", "parent": "security", "start": "2026-05-04", "end": "2026-06-19", "color": "3" },
+    { "id": "pentest", "kind": "task", "label": "External penetration test", "parent": "security", "start": "2026-05-18", "end": "2026-06-12", "color": "3" },
+    { "id": "remed", "kind": "task", "label": "Vulnerability remediation", "parent": "security", "start": "2026-06-12", "end": "2026-06-26", "color": "3" },
+    { "id": "gdpr", "kind": "task", "label": "EU data residency sign-off", "parent": "security", "start": "2026-06-29", "end": "2026-07-17", "color": "3" },
+    { "id": "comp_done", "kind": "milestone", "label": "Compliance cleared", "parent": "security", "start": "2026-07-17", "end": "2026-07-17", "color": "3" },
+    { "id": "launch", "kind": "group", "label": "Phase 6 · Launch & Rollout" },
+    { "id": "docs", "kind": "task", "label": "Docs & migration guide", "parent": "launch", "start": "2026-06-22", "end": "2026-07-24", "color": "4" },
+    { "id": "pilot", "kind": "task", "label": "Customer beta pilot", "parent": "launch", "start": "2026-06-29", "end": "2026-08-07", "color": "4" },
+    { "id": "billing", "kind": "task", "label": "Metered billing & plans", "parent": "launch", "start": "2026-07-06", "end": "2026-07-31", "color": "1" },
+    { "id": "support", "kind": "task", "label": "Support playbooks & training", "parent": "launch", "start": "2026-07-20", "end": "2026-08-14", "color": "4" },
+    { "id": "gtm", "kind": "task", "label": "Launch campaign & press kit", "parent": "launch", "start": "2026-07-27", "end": "2026-08-28", "color": "4" },
+    { "id": "ga", "kind": "milestone", "label": "General availability", "parent": "launch", "start": "2026-08-20", "end": "2026-08-20", "color": "4" },
+    { "id": "onboard", "kind": "task", "label": "Enterprise customer migration", "parent": "launch", "start": "2026-08-24", "end": "2026-09-25", "color": "4" },
+    { "id": "post_tel", "kind": "task", "label": "Post-launch telemetry review", "parent": "launch", "start": "2026-09-01", "end": "2026-09-30", "color": "5" }
   ],
   "dependencies": [
     { "from": "res", "to": "ux", "type": "fs" },
-    { "from": "ux", "to": "signoff", "type": "fs" },
-    { "from": "auth", "to": "audit", "type": "fs" },
-    { "from": "ui", "to": "qa", "type": "fs" },
-    { "from": "qa", "to": "beta", "type": "fs" },
-    { "from": "beta", "to": "pilot", "type": "fs" },
     { "from": "res", "to": "spec", "type": "ss" },
+    { "from": "ux", "to": "signoff", "type": "fs" },
+    { "from": "spec", "to": "infra", "type": "ss" },
+    { "from": "infra", "to": "ci", "type": "ss" },
     { "from": "spec", "to": "api", "type": "fs" },
     { "from": "api", "to": "auth", "type": "ss" },
+    { "from": "auth", "to": "audit", "type": "fs" },
     { "from": "api", "to": "ui", "type": "fs" },
+    { "from": "ui", "to": "qa", "type": "fs" },
+    { "from": "qa", "to": "beta", "type": "fs" },
+    { "from": "api", "to": "ingest", "type": "fs" },
+    { "from": "ingest", "to": "warehouse", "type": "fs" },
+    { "from": "warehouse", "to": "search_idx", "type": "ss" },
+    { "from": "search_idx", "to": "evals", "type": "ss" },
+    { "from": "evals", "to": "ai_ready", "type": "fs" },
+    { "from": "audit", "to": "pentest", "type": "ss" },
+    { "from": "pentest", "to": "remed", "type": "fs" },
+    { "from": "remed", "to": "gdpr", "type": "fs" },
+    { "from": "gdpr", "to": "comp_done", "type": "fs" },
+    { "from": "beta", "to": "pilot", "type": "fs" },
     { "from": "qa", "to": "docs", "type": "ss" },
     { "from": "pilot", "to": "gtm", "type": "ss" },
     { "from": "pilot", "to": "ga", "type": "fs" },
-    { "from": "docs", "to": "ga", "type": "fs" }
+    { "from": "comp_done", "to": "ga", "type": "fs" },
+    { "from": "ai_ready", "to": "ga", "type": "fs" },
+    { "from": "ga", "to": "onboard", "type": "fs" }
   ],
   "notes": [
-    { "id": "n1", "text": "Interview 12 enterprise buyers across US and APAC.", "target": "res" },
+    { "id": "n1", "text": "Interview 18 enterprise buyers across US, EU, and APAC.", "target": "res" },
     { "id": "n2", "text": "GraphQL and REST endpoints with versioned webhooks.", "target": "api" },
     { "id": "n3", "text": "External pen-test and SOC 2 access controls check.", "target": "audit" },
     { "id": "n4", "text": "Starts on mocked API contracts; intentional overlap with API freeze.", "target": "ui" },
-    { "id": "n5", "text": "Five design-partner teams running production workloads.", "target": "pilot" }
+    { "id": "n5", "text": "Five design-partner teams running production workloads.", "target": "pilot" },
+    { "id": "n6", "text": "Monthly executive check-in carried over from Discovery.", "target": "cab" }
   ]
 }
   </script>
@@ -3428,6 +3469,371 @@ html.is-loading #page-loading { display: grid; }
       fill: var(--text-muted);
     }
 
+    /* --- View filter dropdown (toolbar bottom dock popover) --- */
+    .gantt-view-trigger.is-filtered {
+      color: var(--primary);
+      background: var(--primary-wash);
+      border-color: var(--primary-ring);
+    }
+    .gantt-view-pop {
+      min-width: 244px;
+      padding: 6px;
+    }
+    .gantt-view-menu {
+      --menu-icon-size: 16px;
+      display: flex;
+      flex-direction: column;
+    }
+    .gantt-view-menu [role="group"] {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .gantt-view-opt {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      width: 100%;
+      padding: 7px 10px;
+      border: 1px solid transparent;
+      border-radius: var(--radius-md);
+      background: transparent;
+      color: var(--text-main);
+      font-family: var(--font-ui);
+      text-align: left;
+      cursor: pointer;
+      transition: background-color var(--dur-micro) var(--curve-out), border-color var(--dur-micro) var(--curve-out), color var(--dur-micro) var(--curve-out);
+    }
+    .gantt-view-opt::before {
+      content: "";
+      flex: none;
+      inline-size: var(--menu-icon-size);
+      line-height: 1.35;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--primary);
+      text-align: center;
+    }
+    .gantt-view-opt[aria-checked="true"]::before {
+      content: "✓";
+    }
+    .gantt-view-opt:hover {
+      background: var(--bg-hover);
+    }
+    .gantt-view-opt:focus-visible {
+      outline: 2px solid var(--focus-ring);
+      outline-offset: -1px;
+    }
+    .gantt-view-opt[aria-checked="true"] {
+      background: var(--primary-wash);
+      border-color: var(--primary-ring);
+    }
+    .gantt-view-opt-text {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+      min-width: 0;
+    }
+    .gantt-view-opt-title {
+      font-size: var(--t-caption-size);
+      font-weight: var(--weight-semibold);
+      line-height: 1.3;
+      color: var(--text-main);
+    }
+    .gantt-view-opt[aria-checked="true"] .gantt-view-opt-title {
+      color: var(--primary);
+    }
+    .gantt-view-opt-desc {
+      font-size: var(--t-overline-size);
+      font-weight: var(--weight-regular);
+      line-height: 1.3;
+      color: var(--text-muted);
+    }
+
+    /* --- Sidebar filter status strip (bottom of sidebar, preserves 1:1 row alignment) --- */
+    .gantt-sidebar {
+      position: relative;
+    }
+    .gantt-filter-bar {
+      flex: none;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      padding: 6px 10px 6px 14px;
+      background: var(--primary-wash);
+      border-top: 1px solid var(--primary-ring);
+      font-family: var(--font-ui);
+      font-size: var(--t-overline-size);
+      font-weight: var(--weight-medium);
+      color: var(--text-main);
+      z-index: 22;
+    }
+    .gantt-filter-bar[hidden] {
+      display: none;
+    }
+    .gantt-filter-bar-text {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .gantt-filter-bar-reset {
+      flex: none;
+      padding: 2px 7px;
+      border: 1px solid var(--primary-ring);
+      border-radius: var(--radius-pill, 999px);
+      background: var(--bg-panel);
+      color: var(--primary);
+      font-family: var(--font-ui);
+      font-size: var(--t-overline-size);
+      font-weight: var(--weight-semibold);
+      cursor: pointer;
+      transition: background-color var(--dur-micro) var(--curve-out), color var(--dur-micro) var(--curve-out);
+    }
+    .gantt-filter-bar-reset:hover {
+      background: var(--primary);
+      color: #fff;
+    }
+    .gantt-filter-bar-reset:focus-visible {
+      outline: 2px solid var(--focus-ring);
+      outline-offset: 1px;
+    }
+
+    /* --- Sticky current-phase header overlay when scrolled down --- */
+    .gantt-sticky-phase {
+      position: absolute;
+      top: var(--gantt-header-h);
+      left: 0;
+      right: 0;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      width: 100%;
+      padding: 6px 12px 6px 14px;
+      border: 0;
+      border-bottom: 1px solid var(--border-color);
+      background: color-mix(in srgb, var(--bg-page) 95%, var(--bg-panel));
+      box-shadow: var(--shadow-sm);
+      color: var(--text-main);
+      font-family: var(--font-ui);
+      font-size: var(--t-caption-size);
+      font-weight: var(--weight-semibold);
+      text-align: left;
+      cursor: pointer;
+      z-index: 20;
+      transition: background-color var(--dur-micro) var(--curve-out);
+    }
+    .gantt-sticky-phase[hidden] {
+      display: none;
+    }
+    .gantt-sticky-phase:hover {
+      background: var(--bg-hover);
+    }
+    .gantt-sticky-phase:focus-visible {
+      outline: 2px solid var(--focus-ring);
+      outline-offset: -2px;
+    }
+    .gantt-sticky-phase-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex: none;
+      background: var(--primary);
+    }
+    .gantt-sticky-phase-label {
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .gantt-sticky-phase-cue {
+      flex: none;
+      font-size: var(--t-overline-size);
+      color: var(--text-muted);
+    }
+
+    /* --- Off-screen bar jump pills (left/right edges of visible timeline rows) --- */
+    .gantt-offscreen {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 16;
+    }
+    .gantt-offscreen-pill {
+      position: absolute;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      height: 22px;
+      padding: 0 8px;
+      border: 1px solid var(--border-dark);
+      border-radius: var(--radius-pill, 999px);
+      background: color-mix(in srgb, var(--bg-panel) 94%, transparent);
+      box-shadow: var(--shadow-sm);
+      color: var(--text-main);
+      font-family: var(--font-ui);
+      font-size: var(--t-overline-size);
+      font-weight: var(--weight-semibold);
+      line-height: 1;
+      white-space: nowrap;
+      cursor: pointer;
+      pointer-events: auto;
+      transition: background-color var(--dur-micro) var(--curve-out), border-color var(--dur-micro) var(--curve-out), color var(--dur-micro) var(--curve-out), transform var(--dur-micro) var(--curve-out);
+    }
+    .gantt-offscreen-pill:hover {
+      background: var(--bg-hover);
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+    .gantt-offscreen-pill:focus-visible {
+      outline: 2px solid var(--focus-ring);
+      outline-offset: 1px;
+    }
+    .gantt-offscreen-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      flex: none;
+    }
+
+    /* --- Floating In View hint banner (when in-window tasks are off-screen vertically) --- */
+    .gantt-inview-hint {
+      position: sticky;
+      bottom: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: max-content;
+      max-width: calc(100% - 28px);
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 8px 6px 12px;
+      margin: 0 auto 12px;
+      border: 1px solid var(--primary-ring);
+      border-radius: var(--radius-pill, 999px);
+      background: color-mix(in srgb, var(--bg-panel) 96%, var(--primary-wash));
+      box-shadow: var(--shadow-md);
+      color: var(--text-main);
+      font-family: var(--font-ui);
+      font-size: var(--t-caption-size);
+      z-index: 26;
+    }
+    .gantt-inview-hint[hidden] {
+      display: none;
+    }
+    .gantt-inview-hint-text {
+      color: var(--text-main);
+      font-weight: var(--weight-medium);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .gantt-inview-hint-btn {
+      flex: none;
+      height: 24px;
+      padding: 0 10px;
+      border: 0;
+      border-radius: var(--radius-pill, 999px);
+      background: var(--primary);
+      color: #fff;
+      font-family: var(--font-ui);
+      font-size: var(--t-overline-size);
+      font-weight: var(--weight-semibold);
+      cursor: pointer;
+      white-space: nowrap;
+      transition: filter var(--dur-micro) var(--curve-out);
+    }
+    .gantt-inview-hint-btn:hover {
+      filter: brightness(1.08);
+    }
+    .gantt-inview-hint-btn:focus-visible {
+      outline: 2px solid var(--focus-ring);
+      outline-offset: 1px;
+    }
+    .gantt-inview-hint-close {
+      flex: none;
+      width: 22px;
+      height: 22px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      border: 0;
+      border-radius: 50%;
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+    }
+    .gantt-inview-hint-close:hover {
+      background: var(--bg-hover);
+      color: var(--text-main);
+    }
+
+    /* --- Empty filter state inside timeline --- */
+    .gantt-empty-filter {
+      position: sticky;
+      left: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 24px 20px;
+      text-align: center;
+      font-family: var(--font-ui);
+      color: var(--text-muted);
+      z-index: 15;
+    }
+    .gantt-empty-filter[hidden] {
+      display: none;
+    }
+    .gantt-empty-filter-title {
+      font-size: var(--t-body-size, 14px);
+      font-weight: var(--weight-semibold);
+      color: var(--text-main);
+    }
+    .gantt-empty-filter-actions {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* --- Dense dependency arrow dimming (restores full opacity on hover/selection) --- */
+    .gantt-deps.is-dense:not(.has-focus) .gantt-dep-group:not(.violated):not(.selected) {
+      opacity: 0.42;
+    }
+    .gantt-deps.is-dense:not(.has-focus) .gantt-dep-group:hover {
+      opacity: 1;
+    }
+
+    /* --- Interactive legend filtering --- */
+    .gantt-color-key .color-key-item {
+      cursor: pointer;
+      padding: 2px 6px;
+      border-radius: var(--radius-sm);
+      border: 1px solid transparent;
+      transition: background-color var(--dur-micro) var(--curve-out), border-color var(--dur-micro) var(--curve-out), opacity var(--dur-micro) var(--curve-out);
+    }
+    .gantt-color-key .color-key-item:hover {
+      background: var(--bg-hover);
+    }
+    .gantt-color-key .color-key-item.is-filter-active {
+      background: var(--primary-wash);
+      border-color: var(--primary-ring);
+    }
+    .gantt-color-key .color-key-item.is-filter-dim {
+      opacity: 0.45;
+    }
+    .gantt-legend-btn.is-filtered {
+      color: var(--primary);
+      background: var(--primary-wash);
+      border-color: var(--primary-ring);
+    }
+
     /* --- Present / read-only mode (?present) --- */
     body.presentation .gantt-root,
     body.present .gantt-root {
@@ -3505,7 +3911,7 @@ html.is-loading #page-loading { display: grid; }
     <div class="toolbar-left">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="10" height="3.5" rx="1.5"/><rect x="8" y="10.25" width="11" height="3.5" rx="1.5"/><rect x="12" y="16.5" width="8" height="3.5" rx="1.5"/><path d="M6 16.5l2 2-2 2-2-2z"/></svg>
       <div class="app-title-container">
-        <h1 id="chart-title" contenteditable="false" spellcheck="false" title="Double-click to rename diagram">Q2–Q3 Product Roadmap</h1>
+        <h1 id="chart-title" contenteditable="false" spellcheck="false" title="Double-click to rename diagram">2026 Platform Transformation Roadmap</h1>
         <span id="save-status" class="badge badge-status">Ready</span>
       </div>
     </div>
@@ -3620,7 +4026,38 @@ html.is-loading #page-loading { display: grid; }
       <button id="btn-deps" type="button" class="btn btn-switch" role="switch" data-dock-group="layout" title="Hide dependency arrows" aria-label="Arrows" aria-checked="true">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 15l6 -6"/><path d="M11 6l.463 -.536a5 5 0 0 1 7.071 7.072l-.534 .464"/><path d="M13 18l-.397 .534a5.068 5.068 0 0 1 -7.127 0a4.972 4.972 0 0 1 0 -7.071l.524 -.463"/></svg><span class="btn-label">Arrows</span>
       </button>
-      <!-- Today: scrolls smoothly to center today's date -->
+      <!-- View filter dropdown: Active & Upcoming (default), In View, or All Tasks -->
+      <div id="gantt-view-wrap" class="dock-pop-wrap gantt-view-wrap" data-dock-pop data-dock-group="layout">
+        <button id="btn-view-filter" type="button" class="btn dock-pop-trigger gantt-view-trigger" aria-label="Filter visible tasks" aria-haspopup="menu" aria-expanded="false" aria-controls="gantt-view-pop" title="Filter visible tasks">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0"/><path d="M21 12c-2.4 4 -5.4 6 -9 6c-3.6 0 -6.6 -2 -9 -6c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6"/></svg><span id="gantt-view-label" class="btn-label">Active &amp; Upcoming</span>
+          <span class="dock-pop-caret" aria-hidden="true"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 15l6 -6l6 6"/></svg></span>
+        </button>
+        <div id="gantt-view-pop" class="dock-pop gantt-view-pop" aria-labelledby="btn-view-filter">
+          <div class="gantt-view-menu" focusgroup="menu nomemory" aria-labelledby="btn-view-filter">
+            <div role="group" aria-label="Task visibility">
+              <button type="button" class="gantt-view-opt" role="menuitemradio" data-view-mode="active" aria-checked="true">
+                <span class="gantt-view-opt-text">
+                  <span class="gantt-view-opt-title">Active &amp; Upcoming</span>
+                  <span class="gantt-view-opt-desc">Hide tasks finished before today</span>
+                </span>
+              </button>
+              <button type="button" class="gantt-view-opt" role="menuitemradio" data-view-mode="in-view" aria-checked="false">
+                <span class="gantt-view-opt-text">
+                  <span class="gantt-view-opt-title">In View</span>
+                  <span class="gantt-view-opt-desc">Compact to tasks in current dates</span>
+                </span>
+              </button>
+              <button type="button" class="gantt-view-opt" role="menuitemradio" data-view-mode="all" aria-checked="false">
+                <span class="gantt-view-opt-text">
+                  <span class="gantt-view-opt-title">All Tasks</span>
+                  <span class="gantt-view-opt-desc">Show the complete roadmap</span>
+                </span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Today: scrolls smoothly to center today's date and active work -->
       <button id="btn-today" type="button" class="btn" data-dock-group="layout" title="Jump to Today" aria-label="Today">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0"/><path d="M12 7v5l3 3"/></svg><span class="btn-label">Today</span>
       </button>
@@ -3710,7 +4147,9 @@ html.is-loading #page-loading { display: grid; }
             <span>Tasks</span>
             <div class="gantt-sidebar-actions"><button id="btn-toggle-all" type="button" class="btn btn-icon gantt-toggle-all" title="Collapse all phases" aria-label="Collapse all phases"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 15l6 -6l6 6"/></svg></button><button id="btn-add-inline" type="button" class="btn btn-icon gantt-add-inline" title="Add task" aria-label="Add task"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5l0 14"/><path d="M5 12l14 0"/></svg></button></div>
           </div>
+          <button id="gantt-sticky-phase" type="button" class="gantt-sticky-phase" hidden title="Jump to phase header" data-export-skip></button>
           <div id="gantt-tree" class="gantt-tree" role="tree" aria-label="Roadmap tasks"></div>
+          <div id="gantt-filter-bar" class="gantt-filter-bar" role="status" aria-live="polite" hidden data-export-skip></div>
         </aside>
         <div id="gantt-splitter" class="gantt-splitter" role="separator" aria-orientation="vertical" tabindex="0" aria-label="Resize task list"></div>
         <section id="gantt-timeline" class="gantt-timeline" aria-label="Timeline">
@@ -3725,9 +4164,16 @@ html.is-loading #page-loading { display: grid; }
             <div id="gantt-today" class="gantt-today"></div>
             <svg id="gantt-deps" class="gantt-deps" aria-hidden="true"></svg>
             <div id="gantt-bars" class="gantt-bars"></div>
+            <div id="gantt-offscreen" class="gantt-offscreen" data-export-skip></div>
             <div id="gantt-marquee" class="gantt-marquee" hidden></div>
             <div id="gantt-notes" class="note-layer"></div>
             <div id="gantt-drag-tip" class="gantt-drag-tip" hidden></div>
+          </div>
+          <div id="gantt-empty-filter" class="gantt-empty-filter" role="status" aria-live="polite" hidden data-export-skip></div>
+          <div id="gantt-inview-hint" class="gantt-inview-hint" role="status" aria-live="polite" hidden data-export-skip>
+            <span id="gantt-inview-hint-text" class="gantt-inview-hint-text"></span>
+            <button id="btn-inview-hint-apply" type="button" class="gantt-inview-hint-btn">Compact to In View</button>
+            <button id="btn-inview-hint-dismiss" type="button" class="gantt-inview-hint-close" title="Dismiss hint" aria-label="Dismiss hint"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6l-12 12"/><path d="M6 6l12 12"/></svg></button>
           </div>
         </section>
       </div>
@@ -9628,6 +10074,7 @@ function layoutDiagram(data) {
   }
 
   // 2. Depth-first traversal: compute _depth, _hasChildren, _hidden, _row, and bottom-up _start/_end rollup
+  const filterSet = (data._filterIds && typeof data._filterIds.has === 'function') ? data._filterIds : null;
   let visibleRow = 0;
   const orderedItems = [];
 
@@ -9635,7 +10082,7 @@ function layoutDiagram(data) {
     const kids = childrenByParent.get(it.id) || [];
     it._depth = depth;
     it._hasChildren = kids.length > 0;
-    it._hidden = Boolean(ancestorCollapsed);
+    it._hidden = Boolean(ancestorCollapsed) || Boolean(filterSet && !filterSet.has(it.id));
     it._row = it._hidden ? -1 : visibleRow++;
     orderedItems.push(it);
 
@@ -10973,8 +11420,32 @@ function toMermaid(data, opts) {
   const holAddBtn = document.getElementById('gantt-hol-add');
   const holCloseBtn = document.getElementById('gantt-hol-close');
   const zoomPills = document.getElementById('gantt-zoom-pills');
+  const viewWrap = document.getElementById('gantt-view-wrap');
+  const btnViewFilter = document.getElementById('btn-view-filter');
+  const viewLabelEl = document.getElementById('gantt-view-label');
+  const viewPop = document.getElementById('gantt-view-pop');
+  const filterBarEl = document.getElementById('gantt-filter-bar');
+  const stickyPhaseEl = document.getElementById('gantt-sticky-phase');
+  const offscreenEl = document.getElementById('gantt-offscreen');
+  const inViewHintEl = document.getElementById('gantt-inview-hint');
+  const inViewHintTextEl = document.getElementById('gantt-inview-hint-text');
+  const btnInViewHintApply = document.getElementById('btn-inview-hint-apply');
+  const btnInViewHintDismiss = document.getElementById('btn-inview-hint-dismiss');
+  const emptyFilterEl = document.getElementById('gantt-empty-filter');
 
   const EXTEND_DAYS = { day: 90, week: 180, month: 180, quarter: 365, year: 365 };
+  const VIEW_LABELS = {
+    active: 'Active & Upcoming',
+    'in-view': 'In View',
+    all: 'All Tasks'
+  };
+
+  function initialViewMode() {
+    const param = new URLSearchParams(window.location.search).get('view');
+    if (param === 'all' || param === 'active' || param === 'in-view') return { mode: param, explicit: true };
+    return { mode: 'active', explicit: false };
+  }
+  const _initView = initialViewMode();
 
   // --- STATE ---
   let selItems = new Set();        // selected item IDs (tasks, groups, milestones)
@@ -10990,6 +11461,14 @@ function toMermaid(data, opts) {
   let showDeps = true;             // whether dependency arrows layer is visible
   let legendOpen = false;          // whether #gantt-color-key popover is open (closed by default)
   let legendPinned = false;        // whether legend was explicitly pinned open via click/keyboard
+  let viewMode = _initView.mode;   // 'active' | 'in-view' | 'all'
+  let viewModeExplicit = _initView.explicit;
+  let colorFilter = null;          // active legend color slot filter, or null
+  let focusChainId = null;         // isolated dependency-chain seed item ID, or null
+  let inViewHintDismissed = false; // dismissed In View hint for this session
+  let scrollOverlaysRaf = 0;       // rAF token for sticky phase, offscreen pills, and hint
+  let inViewDebounceTimer = null;  // debounce timer for horizontal scroll in In View mode
+  let lastInViewWindowKey = '';    // tracks visible date range to avoid redundant In View re-renders
   let connectState = null;         // { fromId, type: 'fs' | 'ss', pointerDrag?: boolean }
   let activeDrag = null;           // active bar/resize/marker/marquee/splitter/row drag state
   let actionBarEl = null;          // floating ui.actionBar element
@@ -11262,9 +11741,122 @@ function toMermaid(data, opts) {
     return [...leafMap.values()];
   }
 
+  // --- VIEW & BIG-PLAN FILTERING ---
+  function getVisibleDateWindow() {
+    const range = chartData._range;
+    if (!timeline || !range || !range.pxPerDay) return null;
+    const width = timeline.clientWidth || 800;
+    const startDays = Math.floor(timeline.scrollLeft / range.pxPerDay);
+    const endDays = Math.ceil((timeline.scrollLeft + width) / range.pxPerDay);
+    return {
+      start: ganttAddDays(range.start, startDays),
+      end: ganttAddDays(range.start, endDays)
+    };
+  }
+
+  function computeConnectedItemIds(seedId) {
+    const visited = new Set([seedId]);
+    const queue = [seedId];
+    const allDeps = depsList();
+    while (queue.length) {
+      const cur = queue.shift();
+      for (let i = 0; i < allDeps.length; i++) {
+        const d = allDeps[i];
+        if (!d || !d.from || !d.to) continue;
+        if (d.from === cur && !visited.has(d.to)) {
+          visited.add(d.to);
+          queue.push(d.to);
+        } else if (d.to === cur && !visited.has(d.from)) {
+          visited.add(d.from);
+          queue.push(d.from);
+        }
+      }
+    }
+    return visited;
+  }
+
+  function addWithAncestors(id, targetSet) {
+    let cur = id;
+    const guard = new Set();
+    while (cur && !guard.has(cur)) {
+      guard.add(cur);
+      targetSet.add(cur);
+      const it = itemById(cur);
+      cur = it ? it.parent : null;
+    }
+  }
+
+  function computeFilterIds() {
+    const allItems = itemsList();
+    if (!allItems.length) return null;
+
+    if (focusChainId) {
+      if (!itemById(focusChainId)) {
+        focusChainId = null;
+      } else {
+        const keep = new Set();
+        computeConnectedItemIds(focusChainId).forEach((id) => addWithAncestors(id, keep));
+        return keep;
+      }
+    }
+
+    const todayStr = getTodayStr();
+    if (viewMode === 'active' && !viewModeExplicit) {
+      const scheduledLeaves = allItems.filter((it) => it && !it._hasChildren && it.kind !== 'group' && it._end);
+      const anyActiveOrUpcoming = scheduledLeaves.some((it) => it._end >= todayStr);
+      if (scheduledLeaves.length > 0 && !anyActiveOrUpcoming) {
+        viewMode = 'all';
+      }
+    }
+
+    if (viewMode === 'all' && !colorFilter) return null;
+
+    const win = viewMode === 'in-view' ? getVisibleDateWindow() : null;
+    if (viewMode === 'in-view' && win) {
+      lastInViewWindowKey = `${win.start}|${win.end}`;
+    }
+
+    const keep = new Set();
+    for (let i = 0; i < allItems.length; i++) {
+      const it = allItems[i];
+      if (!it || !it.id) continue;
+      const isParent = Boolean(it._hasChildren || it.kind === 'group');
+      if (isParent) {
+        // Keep empty groups only in 'all' mode when matching colorFilter
+        if (!it._hasChildren && viewMode === 'all' && (!colorFilter || effectiveColor(it) === colorFilter)) {
+          addWithAncestors(it.id, keep);
+        }
+        continue;
+      }
+      if (colorFilter && effectiveColor(it) !== colorFilter) continue;
+
+      let timeMatch = true;
+      if (viewMode === 'active') {
+        timeMatch = !it._end || it._end >= todayStr;
+      } else if (viewMode === 'in-view') {
+        timeMatch = Boolean(win && it._start && it._end && it._start <= win.end && it._end >= win.start);
+      }
+      if (timeMatch) addWithAncestors(it.id, keep);
+    }
+    return keep;
+  }
+
   // --- LAYOUT & RENDERING ---
-  function applyLayout() {
+  function applyLayout(preserveFilter = false) {
+    if (preserveFilter) {
+      layoutDiagram(chartData);
+      return;
+    }
+    if (viewMode === 'all' && !colorFilter && !focusChainId) {
+      chartData._filterIds = null;
+      layoutDiagram(chartData);
+      return;
+    }
+    chartData._filterIds = null;
     layoutDiagram(chartData);
+    const filterIds = computeFilterIds();
+    chartData._filterIds = filterIds;
+    if (filterIds) layoutDiagram(chartData);
   }
 
   function applySidebarWidth(w) {
@@ -11960,6 +12552,7 @@ function toMermaid(data, opts) {
       els.deps.set(key, { g, path, hit });
     });
 
+    if (depsEl) depsEl.classList.toggle('is-dense', (chartData._deps || []).length > 12);
     syncDepsVisibility();
     syncDepSpotlight();
   }
@@ -12066,6 +12659,7 @@ function toMermaid(data, opts) {
       colorKeyHost.hidden = true;
       if (btnLegend) {
         btnLegend.hidden = true;
+        btnLegend.classList.remove('is-filtered');
         btnLegend.setAttribute('aria-expanded', 'false');
       }
       return;
@@ -12077,6 +12671,7 @@ function toMermaid(data, opts) {
       colorKeyHost.hidden = true;
       if (btnLegend) {
         btnLegend.hidden = true;
+        btnLegend.classList.remove('is-filtered');
         btnLegend.setAttribute('aria-expanded', 'false');
       }
       return;
@@ -12094,18 +12689,42 @@ function toMermaid(data, opts) {
     }
     if (btnLegend) {
       btnLegend.hidden = false;
+      btnLegend.classList.toggle('is-filtered', Boolean(colorFilter));
       btnLegend.setAttribute('aria-expanded', String(legendOpen));
     }
     colorKeyHost.hidden = !legendOpen;
     colorKeyHost.appendChild(box);
-    if (!presenting()) {
-      box.querySelectorAll('.color-key-label').forEach((lbl) => {
-        lbl.addEventListener('click', (e) => {
-          e.stopPropagation();
-          editColorKeySlot(lbl.dataset.color, lbl);
-        });
+    box.querySelectorAll('.color-key-item').forEach((itemEl) => {
+      const lbl = itemEl.querySelector('.color-key-label');
+      const slot = lbl ? lbl.dataset.color : '';
+      if (!slot) return;
+      itemEl.dataset.color = slot;
+      itemEl.tabIndex = 0;
+      itemEl.setAttribute('role', 'button');
+      itemEl.setAttribute('aria-pressed', String(colorFilter === slot));
+      itemEl.title = presenting() ? 'Click to filter by stream' : 'Click to filter · Double-click label to rename';
+      itemEl.classList.toggle('is-filter-active', colorFilter === slot);
+      itemEl.classList.toggle('is-filter-dim', Boolean(colorFilter && colorFilter !== slot));
+      itemEl.addEventListener('click', (e) => {
+        if (lbl && lbl.isContentEditable) return;
+        e.stopPropagation();
+        toggleColorFilter(slot);
       });
-    }
+      itemEl.addEventListener('keydown', (e) => {
+        if (lbl && lbl.isContentEditable) return;
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          e.stopPropagation();
+          toggleColorFilter(slot);
+        }
+      });
+      if (!presenting() && lbl) {
+        lbl.addEventListener('dblclick', (e) => {
+          e.stopPropagation();
+          editColorKeySlot(slot, lbl);
+        });
+      }
+    });
   }
 
   function editColorKeySlot(slot, lbl) {
@@ -12388,6 +13007,358 @@ function toMermaid(data, opts) {
     btn.innerHTML = ui.icon(anyExpanded ? 'chevron-up' : 'chevron-down', { size: 'xs', bold: true });
   }
 
+  // --- BIG-PLAN UX: VIEW FILTER, MORPH, STICKY PHASE, OFF-SCREEN PILLS & IN-VIEW HINT ---
+  function syncViewFilterUi() {
+    if (viewLabelEl) viewLabelEl.textContent = VIEW_LABELS[viewMode] || VIEW_LABELS.active;
+    if (btnViewFilter) {
+      btnViewFilter.classList.toggle('is-filtered', viewMode !== 'all' || Boolean(focusChainId));
+    }
+    if (viewPop) {
+      viewPop.querySelectorAll('[data-view-mode]').forEach((opt) => {
+        const active = opt.dataset.viewMode === viewMode;
+        opt.setAttribute('aria-checked', String(active));
+      });
+    }
+    if (root) root.dataset.view = viewMode;
+  }
+
+  function renderFilterBar(visItems) {
+    if (!filterBarEl) return;
+    const allLeaves = itemsList().filter((it) => it && !it._hasChildren && it.kind !== 'group');
+    const visLeaves = visItems.filter((it) => it && !it._hasChildren && it.kind !== 'group');
+    const hiddenCount = Math.max(0, allLeaves.length - visLeaves.length);
+
+    let msg = '';
+    if (focusChainId) {
+      const seed = itemById(focusChainId);
+      msg = `Chain: ${seed ? (seed.label || seed.id) : focusChainId} (${visLeaves.length})`;
+    } else if (colorFilter) {
+      const streamName = (chartData.colorKey && chartData.colorKey[colorFilter]) || `Stream ${colorFilter}`;
+      msg = `${streamName} · ${visLeaves.length} of ${allLeaves.length}`;
+    } else if (viewMode === 'in-view') {
+      msg = `In View · ${visLeaves.length} of ${allLeaves.length} tasks`;
+    } else if (viewMode === 'active' && hiddenCount > 0) {
+      msg = `${hiddenCount} past ${hiddenCount === 1 ? 'task' : 'tasks'} hidden`;
+    }
+
+    if (!msg) {
+      filterBarEl.hidden = true;
+      filterBarEl.textContent = '';
+      return;
+    }
+
+    filterBarEl.hidden = false;
+    filterBarEl.textContent = '';
+    const txt = htmlEl('span', 'gantt-filter-bar-text', msg);
+    txt.title = msg;
+    const resetBtn = htmlEl('button', 'gantt-filter-bar-reset', focusChainId ? 'Exit' : 'Show all');
+    resetBtn.type = 'button';
+    resetBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (focusChainId) toggleFocusChain(null);
+      else resetAllFilters();
+    });
+    filterBarEl.append(txt, resetBtn);
+  }
+
+  function renderEmptyFilterState(visItems) {
+    if (!emptyFilterEl) return;
+    const hasItems = itemsList().length > 0;
+    const isEmpty = hasItems && visItems.length === 0;
+    emptyFilterEl.hidden = !isEmpty;
+    if (!isEmpty) {
+      emptyFilterEl.textContent = '';
+      return;
+    }
+    emptyFilterEl.textContent = '';
+    const title = viewMode === 'in-view'
+      ? 'No tasks in this date window'
+      : colorFilter
+        ? 'No matching tasks in this stream'
+        : 'No active or upcoming tasks';
+    emptyFilterEl.appendChild(htmlEl('div', 'gantt-empty-filter-title', title));
+    const actions = htmlEl('div', 'gantt-empty-filter-actions');
+    const btnAll = htmlEl('button', 'btn btn-primary', 'Show All Tasks');
+    btnAll.type = 'button';
+    btnAll.addEventListener('click', () => resetAllFilters());
+    actions.appendChild(btnAll);
+    if (viewMode === 'in-view') {
+      const btnT = htmlEl('button', 'btn', 'Jump to Today');
+      btnT.type = 'button';
+      btnT.addEventListener('click', () => jumpToToday());
+      actions.appendChild(btnT);
+    }
+    emptyFilterEl.appendChild(actions);
+  }
+
+  function captureLayoutRects() {
+    const bars = new Map();
+    els.bars.forEach((el, id) => { bars.set(id, el.getBoundingClientRect()); });
+    const rows = new Map();
+    els.rows.forEach((el, id) => { rows.set(id, el.getBoundingClientRect()); });
+    return { bars, rows };
+  }
+
+  function playLayoutMorph(oldRects) {
+    if (!motion.enabled() || !oldRects) return;
+    const dur = motion.dur('dur-base', 200);
+    const easing = motion.curve('curve-out');
+    const animateMap = (domMap, prevMap) => {
+      if (!prevMap || !prevMap.size) return;
+      domMap.forEach((el, id) => {
+        const prev = prevMap.get(id);
+        if (!prev) return;
+        const next = el.getBoundingClientRect();
+        const dy = prev.top - next.top;
+        if (Math.abs(dy) < 0.5) return;
+        motion.anim(el, [
+          { transform: `translateY(${dy}px)` },
+          { transform: 'none' }
+        ], { duration: dur, easing });
+      });
+    };
+    animateMap(els.bars, oldRects.bars);
+    animateMap(els.rows, oldRects.rows);
+  }
+
+  function setViewMode(nextMode, opts = {}) {
+    if (!Object.prototype.hasOwnProperty.call(VIEW_LABELS, nextMode)) return;
+    const prevMode = viewMode;
+    viewMode = nextMode;
+    viewModeExplicit = true;
+    if (nextMode === 'in-view') inViewHintDismissed = false;
+    if (focusChainId) focusChainId = null;
+    if (prevMode === nextMode && !opts.force) {
+      syncViewFilterUi();
+      return;
+    }
+    const oldRects = (opts.animate !== false && motion.enabled()) ? captureLayoutRects() : null;
+    render();
+    if (oldRects) playLayoutMorph(oldRects);
+  }
+
+  function toggleColorFilter(slot) {
+    const next = colorFilter === slot ? null : slot;
+    colorFilter = next;
+    const oldRects = motion.enabled() ? captureLayoutRects() : null;
+    render();
+    if (oldRects) playLayoutMorph(oldRects);
+  }
+
+  function toggleFocusChain(itemId) {
+    const next = (!itemId || focusChainId === itemId) ? null : itemId;
+    focusChainId = next;
+    const oldRects = motion.enabled() ? captureLayoutRects() : null;
+    render();
+    if (oldRects) playLayoutMorph(oldRects);
+    if (next) {
+      const it = itemById(next);
+      if (it) ui.toast(`Focused dependency chain for ${it.label || it.id}`);
+    }
+  }
+
+  function resetAllFilters() {
+    focusChainId = null;
+    colorFilter = null;
+    viewMode = 'all';
+    viewModeExplicit = true;
+    const oldRects = motion.enabled() ? captureLayoutRects() : null;
+    render();
+    if (oldRects) playLayoutMorph(oldRects);
+  }
+
+  function scrollBarHorizontallyIntoView(it) {
+    if (!timeline || !it || !it._bar) return;
+    const targetLeft = Math.max(0, Math.round(it._bar.x + it._bar.w / 2 - timeline.clientWidth / 2));
+    suppressExtendUntil = performance.now() + 700;
+    timeline.scrollTo({
+      left: targetLeft,
+      behavior: motion.enabled() ? 'smooth' : 'auto'
+    });
+  }
+
+  function updateStickyPhase() {
+    if (!stickyPhaseEl || !timeline) return;
+    const scrollTop = timeline.scrollTop || 0;
+    const rowH = GANTT_METRICS.ROW_H;
+    if (scrollTop < rowH * 0.5) {
+      stickyPhaseEl.hidden = true;
+      return;
+    }
+    const vis = visibleItems();
+    if (!vis.length) {
+      stickyPhaseEl.hidden = true;
+      return;
+    }
+    const topIdx = Math.min(vis.length - 1, Math.max(0, Math.floor(scrollTop / rowH)));
+    const topItem = vis[topIdx];
+    if (!topItem || !topItem.parent) {
+      stickyPhaseEl.hidden = true;
+      return;
+    }
+    // Walk up ancestor chain to build breadcrumb and find highest scrolled-past phase
+    const ancestors = [];
+    let cur = itemById(topItem.parent);
+    const guard = new Set();
+    while (cur && !guard.has(cur.id)) {
+      guard.add(cur.id);
+      if (!cur._hidden && typeof cur._row === 'number' && cur._row * rowH < scrollTop) {
+        ancestors.unshift(cur);
+      }
+      cur = cur.parent ? itemById(cur.parent) : null;
+    }
+    if (!ancestors.length) {
+      stickyPhaseEl.hidden = true;
+      return;
+    }
+    const target = ancestors[ancestors.length - 1];
+    const breadcrumb = ancestors.map((a) => a.label || a.id).join(' › ');
+    stickyPhaseEl.dataset.targetId = target.id;
+    stickyPhaseEl.textContent = '';
+    const dot = htmlEl('span', 'gantt-sticky-phase-dot');
+    const col = effectiveColor(target);
+    if (col) dot.style.background = `var(--c-${col}-border, var(--primary))`;
+    const lbl = htmlEl('span', 'gantt-sticky-phase-label', breadcrumb);
+    const cue = htmlEl('span', 'gantt-sticky-phase-cue', '↑');
+    stickyPhaseEl.append(dot, lbl, cue);
+    stickyPhaseEl.hidden = false;
+  }
+
+  function renderOffscreenPills() {
+    if (!offscreenEl || !timeline || !chartData._range) return;
+    offscreenEl.textContent = '';
+    const viewW = timeline.clientWidth;
+    if (!viewW) return;
+    const headerH = headerEl ? headerEl.offsetHeight : 58;
+    const viewH = Math.max(0, timeline.clientHeight - headerH);
+    const scrollLeft = timeline.scrollLeft;
+    const scrollTop = timeline.scrollTop;
+    const rowH = GANTT_METRICS.ROW_H;
+    const vis = visibleItems();
+    const frag = document.createDocumentFragment();
+
+    for (let i = 0; i < vis.length; i++) {
+      const it = vis[i];
+      if (!it || !it._bar) continue;
+      const isParent = Boolean(it._hasChildren || it.kind === 'group');
+      if (isParent) continue;
+      const rowTop = it._row * rowH;
+      if (rowTop + rowH < scrollTop || rowTop > scrollTop + viewH) continue;
+      const b = it._bar;
+      const barLeft = b.x;
+      const barRight = b.x + Math.max(4, b.w);
+      const isLeft = barRight < scrollLeft + 4;
+      const isRight = barLeft > scrollLeft + viewW - 4;
+      if (!isLeft && !isRight) continue;
+
+      const pill = htmlEl('button', `gantt-offscreen-pill ${isLeft ? 'is-left' : 'is-right'}`);
+      pill.type = 'button';
+      pill.dataset.itemId = it.id;
+      const dateStr = formatShortDate(it._start);
+      pill.title = `Jump to ${it.label || it.id} (${formatDateRange(it._start, it._end)})`;
+      pill.setAttribute('aria-label', `Jump to ${it.label || it.id}`);
+      pill.style.top = `${Math.round(rowTop + (rowH - 22) / 2)}px`;
+      if (isLeft) {
+        pill.style.left = `${Math.round(scrollLeft + 8)}px`;
+      } else {
+        pill.style.left = `${Math.round(scrollLeft + viewW - 8)}px`;
+        pill.style.transform = 'translateX(-100%)';
+      }
+      const dot = htmlEl('span', 'gantt-offscreen-dot');
+      const col = effectiveColor(it);
+      dot.style.background = col ? `var(--c-${col}-border, var(--primary))` : 'var(--primary)';
+      const txt = htmlEl('span', '', isLeft ? `← ${dateStr}` : `${dateStr} →`);
+      if (isLeft) pill.append(txt, dot);
+      else pill.append(dot, txt);
+      pill.addEventListener('pointerdown', (e) => e.stopPropagation());
+      pill.addEventListener('click', (e) => {
+        e.stopPropagation();
+        selectSingleItem(it.id);
+        scrollBarHorizontallyIntoView(it);
+      });
+      frag.appendChild(pill);
+    }
+    offscreenEl.appendChild(frag);
+  }
+
+  function updateInViewHint() {
+    if (!inViewHintEl || !inViewHintTextEl) return;
+    if (viewMode === 'in-view' || focusChainId || inViewHintDismissed || !timeline || !chartData._range) {
+      inViewHintEl.hidden = true;
+      return;
+    }
+    const win = getVisibleDateWindow();
+    if (!win) {
+      inViewHintEl.hidden = true;
+      return;
+    }
+    const headerH = headerEl ? headerEl.offsetHeight : 58;
+    const viewH = Math.max(0, timeline.clientHeight - headerH);
+    const visTop = timeline.scrollTop;
+    const visBot = visTop + viewH;
+    const rowH = GANTT_METRICS.ROW_H;
+    const vis = visibleItems();
+    const allItems = itemsList();
+    let inWindowCount = 0;
+    let offVertCount = 0;
+    const inViewKeep = new Set();
+
+    for (let i = 0; i < allItems.length; i++) {
+      const it = allItems[i];
+      if (!it || it._hasChildren || it.kind === 'group') continue;
+      if (!it._start || !it._end) continue;
+      if (it._start <= win.end && it._end >= win.start) {
+        addWithAncestors(it.id, inViewKeep);
+      }
+    }
+
+    for (let i = 0; i < vis.length; i++) {
+      const it = vis[i];
+      if (!it || !it._bar || it._hasChildren || it.kind === 'group') continue;
+      if (!it._start || !it._end) continue;
+      if (it._start <= win.end && it._end >= win.start) {
+        inWindowCount++;
+        const rowTop = it._row * rowH;
+        if (rowTop + rowH <= visTop + 4 || rowTop >= visBot - 4) {
+          offVertCount++;
+        }
+      }
+    }
+
+    if (offVertCount >= 1 && inWindowCount >= 2 && inViewKeep.size < vis.length - 1) {
+      inViewHintTextEl.textContent = `${offVertCount} ${offVertCount === 1 ? 'task' : 'tasks'} in this timeframe ${offVertCount === 1 ? 'is' : 'are'} off-screen`;
+      inViewHintEl.hidden = false;
+    } else {
+      inViewHintEl.hidden = true;
+    }
+  }
+
+  function scheduleScrollOverlays() {
+    if (scrollOverlaysRaf) return;
+    scrollOverlaysRaf = requestAnimationFrame(() => {
+      scrollOverlaysRaf = 0;
+      updateStickyPhase();
+      renderOffscreenPills();
+      updateInViewHint();
+    });
+  }
+
+  function scheduleInViewRefresh() {
+    if (viewMode !== 'in-view' || focusChainId || activeDrag) return;
+    clearTimeout(inViewDebounceTimer);
+    inViewDebounceTimer = setTimeout(() => {
+      inViewDebounceTimer = null;
+      if (viewMode !== 'in-view' || focusChainId || activeDrag) return;
+      const win = getVisibleDateWindow();
+      if (!win) return;
+      const key = `${win.start}|${win.end}`;
+      if (key === lastInViewWindowKey) return;
+      const oldRects = motion.enabled() ? captureLayoutRects() : null;
+      render();
+      if (oldRects) playLayoutMorph(oldRects);
+    }, 220);
+  }
+
   // --- MAIN RENDER ---
   function render() {
     applyLayout();
@@ -12434,6 +13405,9 @@ function toMermaid(data, opts) {
     updateNotesButton();
     syncWeekendsButton();
     syncToggleAllButton();
+    syncViewFilterUi();
+    renderFilterBar(visItems);
+    renderEmptyFilterState(visItems);
     renderHolidaysList();
     syncSelectionUi();
     syncZoomPills(zoomKey);
@@ -12441,18 +13415,35 @@ function toMermaid(data, opts) {
 
     if (!didInitialScroll && timeline && range) {
       didInitialScroll = true;
-      const anchorDate = range.contentStart || range.start;
-      const anchorX = ganttDiffDays(range.start, anchorDate) * range.pxPerDay;
-      const targetLeft = Math.max(0, Math.round(anchorX - 48));
+      let targetLeft = 0;
+      if (viewMode === 'active' && todayStr >= range.start && todayStr <= range.end) {
+        const todayX = (ganttDiffDays(range.start, todayStr) + 0.5) * range.pxPerDay;
+        targetLeft = Math.max(0, Math.round(todayX - timeline.clientWidth * 0.35));
+      } else {
+        let earliestVis = null;
+        for (let i = 0; i < visItems.length; i++) {
+          const s = visItems[i]._start;
+          if (s && (!earliestVis || s < earliestVis)) earliestVis = s;
+        }
+        const anchorDate = earliestVis || range.contentStart || range.start;
+        const anchorX = ganttDiffDays(range.start, anchorDate) * range.pxPerDay;
+        targetLeft = Math.max(0, Math.round(anchorX - 48));
+      }
       isExtendingTimeline = true;
       timeline.scrollLeft = targetLeft;
-      requestAnimationFrame(() => { isExtendingTimeline = false; });
+      requestAnimationFrame(() => {
+        isExtendingTimeline = false;
+        if (viewMode === 'in-view') render();
+        else scheduleScrollOverlays();
+      });
+    } else {
+      scheduleScrollOverlays();
     }
   }
 
   // Fast live geometry refresh during drag/resize without rebuilding the entire DOM
   function updateLiveGeometry() {
-    applyLayout();
+    applyLayout(true);
     const range = chartData._range;
     const visItems = visibleItems();
     const todayStr = getTodayStr();
@@ -12758,6 +13749,19 @@ function toMermaid(data, opts) {
       btnConn.addEventListener('click', () => startClickConnect(id));
       bar.append(btnConn);
 
+      const hasDeps = depsList().some((d) => d && (d.from === id || d.to === id));
+      if (hasDeps || focusChainId === id) {
+        const isFocused = focusChainId === id;
+        const btnFocus = ui.abButton(
+          `ab-btn${isFocused ? ' is-active' : ''}`,
+          'focus-chain',
+          ui.icon('focus', { size: 'sm' }),
+          isFocused ? 'Exit focus chain' : 'Focus dependency chain'
+        );
+        btnFocus.addEventListener('click', () => toggleFocusChain(id));
+        bar.append(btnFocus);
+      }
+
       const btnNote = ui.abButton('ab-btn', 'note', ui.icon('note', { size: 'sm' }), noteForTarget(id) ? 'Edit note' : 'Add note');
       btnNote.addEventListener('click', () => addOrEditNoteForTarget(id));
       bar.append(btnNote, ui.abSep('ab-sep'));
@@ -12991,19 +13995,30 @@ function toMermaid(data, opts) {
 
   // --- ADD / DELETE ---
   function defaultNewDates(parentId) {
+    const todayStr = getTodayStr();
     const p = parentId ? itemById(parentId) : null;
     if (p && p._start) {
-      return { start: p._start, end: ganttAddDays(p._start, 13) };
+      const s = (viewMode === 'active' && p._start < todayStr) ? todayStr : p._start;
+      return { start: s, end: ganttAddDays(s, 13) };
     }
     const selId = selItems.size ? [...selItems][0] : null;
     const selIt = selId ? itemById(selId) : null;
     if (selIt && selIt._end) {
-      const s = ganttAddDays(selIt._end, 1);
+      let s = ganttAddDays(selIt._end, 1);
+      if (viewMode === 'active' && s < todayStr) s = todayStr;
       return { start: s, end: ganttAddDays(s, 13) };
     }
-    const base = (chartData._range && (chartData._range.contentStart || chartData._range.start))
+    if (viewMode === 'in-view') {
+      const win = getVisibleDateWindow();
+      if (win && win.start) {
+        const s = (todayStr >= win.start && todayStr <= win.end) ? todayStr : ganttAddDays(win.start, 3);
+        return { start: s, end: ganttAddDays(s, 13) };
+      }
+    }
+    let base = (chartData._range && (chartData._range.contentStart || chartData._range.start))
       ? ganttAddDays(chartData._range.contentStart || chartData._range.start, 7)
-      : getTodayStr();
+      : todayStr;
+    if (viewMode === 'active' && base < todayStr) base = todayStr;
     return { start: base, end: ganttAddDays(base, 13) };
   }
 
@@ -13015,6 +14030,7 @@ function toMermaid(data, opts) {
     const start = o.start || def.start;
     const end = o.end || (o.start ? ganttAddDays(o.start, 13) : def.end);
     const it = { id: newId('t'), kind: 'task', label: 'New task', start, end };
+    if (colorFilter && !parentId) it.color = colorFilter;
     if (parentId) {
       const p = itemById(parentId);
       if (p) {
@@ -13764,6 +14780,8 @@ function toMermaid(data, opts) {
         isSyncingScroll = false;
       }
       maybeExtendTimeline();
+      scheduleScrollOverlays();
+      scheduleInViewRefresh();
     }, { passive: true });
 
     treeEl.addEventListener('scroll', () => {
@@ -13772,8 +14790,10 @@ function toMermaid(data, opts) {
       if (timeline.scrollTop !== treeEl.scrollTop) timeline.scrollTop = treeEl.scrollTop;
       if (actionBarEl) removeActionBar();
       isSyncingScroll = false;
+      scheduleScrollOverlays();
     }, { passive: true });
   }
+  window.addEventListener('resize', scheduleScrollOverlays, { passive: true });
 
   // --- ZOOM CONTROLLER & MORPH TRANSITION ("morph, not fade") ---
   function captureBarRects() {
@@ -13830,7 +14850,11 @@ function toMermaid(data, opts) {
       const newCenterPx = ganttDiffDays(chartData._range.start, centerDate) * chartData._range.pxPerDay;
       isExtendingTimeline = true;
       timeline.scrollTo({ left: Math.max(0, Math.round(newCenterPx - timeline.clientWidth / 2)), behavior: 'instant' });
-      requestAnimationFrame(() => { isExtendingTimeline = false; });
+      requestAnimationFrame(() => {
+        isExtendingTimeline = false;
+        if (viewMode === 'in-view') render();
+        else scheduleScrollOverlays();
+      });
     }
 
     // 5. Morph bars from old rects to new rects
@@ -13890,20 +14914,45 @@ function toMermaid(data, opts) {
     }
   };
 
-  // --- JUMP TO TODAY ---
+  // --- JUMP TO TODAY (smart horizontal + vertical scroll to active work) ---
   function jumpToToday() {
     if (!timeline || !chartData._range) return;
     const todayStr = getTodayStr();
     const range = chartData._range;
     const x = (ganttDiffDays(range.start, todayStr) + 0.5) * range.pxPerDay;
-    const targetScroll = Math.max(0, Math.round(x - timeline.clientWidth / 2));
-    suppressExtendUntil = performance.now() + 700;
-    timeline.scrollTo({
-      left: targetScroll,
-      behavior: motion.enabled() ? 'smooth' : 'auto'
+    const targetLeft = Math.max(0, Math.round(x - timeline.clientWidth / 2));
+
+    // Also bring active work into vertical view if none is currently visible
+    const vis = visibleItems();
+    const headerH = headerEl ? headerEl.offsetHeight : 58;
+    const viewH = Math.max(0, timeline.clientHeight - headerH);
+    const visTop = timeline.scrollTop;
+    const visBot = visTop + viewH;
+    const rowH = GANTT_METRICS.ROW_H;
+    const activeLeaves = vis.filter((it) => it && !it._hasChildren && it.kind !== 'group' && getTimeState(it, todayStr) === 'active');
+    const candidates = activeLeaves.length
+      ? activeLeaves
+      : vis.filter((it) => it && !it._hasChildren && it.kind !== 'group' && getTimeState(it, todayStr) === 'upcoming');
+    const anyVisibleVert = candidates.some((it) => {
+      const y = it._row * rowH;
+      return y + rowH > visTop + 4 && y < visBot - 4;
     });
+    const scrollOpts = {
+      left: targetLeft,
+      behavior: motion.enabled() ? 'smooth' : 'auto'
+    };
+    if (candidates.length && !anyVisibleVert) {
+      const firstY = candidates[0]._row * rowH;
+      scrollOpts.top = Math.max(0, Math.round(firstY - Math.min(rowH * 2, viewH * 0.25)));
+    }
+
+    suppressExtendUntil = performance.now() + 700;
+    timeline.scrollTo(scrollOpts);
     if (todayStr < range.start || todayStr > range.end) {
       ui.toast(`Today (${todayStr}) is outside the current roadmap range`);
+    }
+    if (viewMode === 'in-view') {
+      scheduleInViewRefresh();
     }
   }
 
@@ -14122,6 +15171,77 @@ function toMermaid(data, opts) {
     });
   }
   if (btnToday) btnToday.addEventListener('click', () => jumpToToday());
+  if (viewPop) {
+    const viewMenu = viewPop.querySelector('.gantt-view-menu');
+    const viewOpts = () => [...viewPop.querySelectorAll('.gantt-view-opt')];
+    const closeViewPop = (restoreFocus) => {
+      if (viewWrap) viewWrap.classList.remove('open');
+      if (btnViewFilter) {
+        btnViewFilter.setAttribute('aria-expanded', 'false');
+        if (restoreFocus) btnViewFilter.focus();
+      }
+    };
+    viewPop.addEventListener('click', (e) => {
+      const opt = e.target.closest('[data-view-mode]');
+      if (!opt || !viewPop.contains(opt)) return;
+      const mode = opt.dataset.viewMode;
+      const fromKeyboard = e.detail === 0;
+      if (mode) setViewMode(mode);
+      closeViewPop(fromKeyboard);
+    });
+    if (btnViewFilter) {
+      btnViewFilter.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          if (viewWrap && !viewWrap.classList.contains('open')) {
+            viewWrap.classList.add('open');
+            btnViewFilter.setAttribute('aria-expanded', 'true');
+          }
+          const first = viewOpts()[0];
+          if (first) first.focus({ preventScroll: true });
+        }
+      });
+    }
+    if (viewMenu && !('focusGroup' in HTMLElement.prototype)) {
+      viewMenu.setAttribute('role', 'menu');
+      viewMenu.addEventListener('keydown', (e) => {
+        if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(e.key)) return;
+        const items = viewOpts();
+        const idx = items.indexOf(document.activeElement);
+        if (idx < 0 || !items.length) return;
+        const next = e.key === 'Home' ? 0 : e.key === 'End' ? items.length - 1 :
+          (idx + (e.key === 'ArrowUp' ? -1 : 1) + items.length) % items.length;
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        items[next].focus({ preventScroll: true });
+      }, true);
+    }
+  }
+  if (stickyPhaseEl) {
+    stickyPhaseEl.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const targetId = stickyPhaseEl.dataset.targetId;
+      const target = targetId ? itemById(targetId) : null;
+      if (!target || target._hidden || typeof target._row !== 'number' || !timeline) return;
+      timeline.scrollTo({
+        top: Math.max(0, target._row * GANTT_METRICS.ROW_H),
+        behavior: motion.enabled() ? 'smooth' : 'auto'
+      });
+    });
+  }
+  if (btnInViewHintApply) {
+    btnInViewHintApply.addEventListener('click', (e) => {
+      e.stopPropagation();
+      setViewMode('in-view');
+    });
+  }
+  if (btnInViewHintDismiss) {
+    btnInViewHintDismiss.addEventListener('click', (e) => {
+      e.stopPropagation();
+      inViewHintDismissed = true;
+      if (inViewHintEl) inViewHintEl.hidden = true;
+    });
+  }
   if (zoomPills) {
     const zoomDock = document.querySelector('.toolbar-zoom');
     if (zoomDock) {
@@ -14205,6 +15325,10 @@ function toMermaid(data, opts) {
     }
     if (colorKeyHost && !colorKeyHost.hidden) {
       toggleLegendPop(false);
+      cancelled = true;
+    }
+    if (focusChainId) {
+      toggleFocusChain(null);
       cancelled = true;
     }
     return cancelled;

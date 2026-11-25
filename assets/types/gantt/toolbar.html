@@ -50,7 +50,38 @@
       <button id="btn-deps" type="button" class="btn btn-switch" role="switch" data-dock-group="layout" title="Hide dependency arrows" aria-label="Arrows" aria-checked="true">
         {{icon:link}}<span class="btn-label">Arrows</span>
       </button>
-      <!-- Today: scrolls smoothly to center today's date -->
+      <!-- View filter dropdown: Active & Upcoming (default), In View, or All Tasks -->
+      <div id="gantt-view-wrap" class="dock-pop-wrap gantt-view-wrap" data-dock-pop data-dock-group="layout">
+        <button id="btn-view-filter" type="button" class="btn dock-pop-trigger gantt-view-trigger" aria-label="Filter visible tasks" aria-haspopup="menu" aria-expanded="false" aria-controls="gantt-view-pop" title="Filter visible tasks">
+          {{icon:eye}}<span id="gantt-view-label" class="btn-label">Active &amp; Upcoming</span>
+          <span class="dock-pop-caret" aria-hidden="true">{{icon:chevron-up:xs:bold}}</span>
+        </button>
+        <div id="gantt-view-pop" class="dock-pop gantt-view-pop" aria-labelledby="btn-view-filter">
+          <div class="gantt-view-menu" focusgroup="menu nomemory" aria-labelledby="btn-view-filter">
+            <div role="group" aria-label="Task visibility">
+              <button type="button" class="gantt-view-opt" role="menuitemradio" data-view-mode="active" aria-checked="true">
+                <span class="gantt-view-opt-text">
+                  <span class="gantt-view-opt-title">Active &amp; Upcoming</span>
+                  <span class="gantt-view-opt-desc">Hide tasks finished before today</span>
+                </span>
+              </button>
+              <button type="button" class="gantt-view-opt" role="menuitemradio" data-view-mode="in-view" aria-checked="false">
+                <span class="gantt-view-opt-text">
+                  <span class="gantt-view-opt-title">In View</span>
+                  <span class="gantt-view-opt-desc">Compact to tasks in current dates</span>
+                </span>
+              </button>
+              <button type="button" class="gantt-view-opt" role="menuitemradio" data-view-mode="all" aria-checked="false">
+                <span class="gantt-view-opt-text">
+                  <span class="gantt-view-opt-title">All Tasks</span>
+                  <span class="gantt-view-opt-desc">Show the complete roadmap</span>
+                </span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Today: scrolls smoothly to center today's date and active work -->
       <button id="btn-today" type="button" class="btn" data-dock-group="layout" title="Jump to Today" aria-label="Today">
         {{icon:clock}}<span class="btn-label">Today</span>
       </button>

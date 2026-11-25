@@ -30,7 +30,8 @@ if (!browser) {
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const noAnim = isNoAnim();
 const todayParam = '2026-05-20';
-const baseQuery = `?today=${todayParam}${noAnim ? '&noanim=1' : ''}`;
+const defaultQuery = `?today=${todayParam}${noAnim ? '&noanim=1' : ''}`;
+const baseQuery = `?today=${todayParam}&view=all${noAnim ? '&noanim=1' : ''}`;
 const presentQuery = `?present&today=${todayParam}${noAnim ? '&noanim=1' : ''}`;
 const WEEK_PX_PER_DAY = 18;
 
@@ -217,7 +218,7 @@ try {
   await cdp.section('collapse-expand', async () => {
     await cdp.open(pagePath, baseQuery);
 
-    const childrenIds = ['api', 'auth', 'audit', 'ui', 'qa', 'beta'];
+    const childrenIds = ['api', 'auth', 'audit', 'cache', 'ui', 'mobile', 'qa', 'beta'];
     const snapshot = () => cdp.ev(`(() => {
       const rows = [...document.querySelectorAll('#gantt-tree .gantt-tree-row')].map(r => r.dataset.itemId);
       const bars = [...document.querySelectorAll('#gantt-bars [data-item-id]')].map(b => b.dataset.itemId);
@@ -495,7 +496,7 @@ try {
       rows: [...document.querySelectorAll('#gantt-holidays-list .gantt-hol-row')].map(r => r.textContent.trim()),
     })`);
     cdp.check('holidays: popover opens on #btn-holidays click', opened.hidden === false && opened.expanded === 'true', JSON.stringify(opened));
-    cdp.check('holidays: shows 2 embedded holidays', opened.rows.length === 2, `rows=${opened.rows.length}`);
+    cdp.check('holidays: shows 3 embedded holidays', opened.rows.length === 3, `rows=${opened.rows.length}`);
 
     // Fill date & name and click Add
     await cdp.ev(`(() => {
@@ -515,7 +516,7 @@ try {
     })`);
     cdp.check(
       'holidays: adding custom holiday adds it to list',
-      after.rows.length === 3 && after.rows.some((r) => r.includes('Juneteenth')),
+      after.rows.length === 4 && after.rows.some((r) => r.includes('Juneteenth')),
       `rows=${after.rows.join(' | ')}`
     );
     cdp.check(
@@ -759,6 +760,158 @@ try {
       JSON.stringify(hoverBar)
     );
     checkNoErrors('search-and-synced-hover');
+  });
+
+  // ---------------------------------------------------------------------------
+  // 12. Big-plan UX (Active & Upcoming default, View dropdown, In View hint &
+  //     compaction, off-screen jump pills, sticky phase, legend filter, focus chain)
+  // ---------------------------------------------------------------------------
+  await cdp.section('big-plan-ux', async () => {
+    await cdp.open(pagePath, defaultQuery);
+    await sleep(noAnim ? 40 : 120);
+
+    const defState = await cdp.ev(`({
+      viewAttr: document.getElementById('gantt-root')?.getAttribute('data-view'),
+      viewLabel: (document.getElementById('gantt-view-label')?.textContent || '').trim(),
+      pastBars: document.querySelectorAll('#gantt-bars [data-time-state="past"]').length,
+      activeBars: document.querySelectorAll('#gantt-bars [data-time-state="active"]').length,
+      rowCount: document.querySelectorAll('#gantt-tree .gantt-tree-row').length,
+      filterBarHidden: document.getElementById('gantt-filter-bar')?.hidden,
+      filterBarText: (document.getElementById('gantt-filter-bar')?.textContent || '').trim(),
+      hintHidden: document.getElementById('gantt-inview-hint')?.hidden,
+      hintText: (document.getElementById('gantt-inview-hint-text')?.textContent || '').trim(),
+    })`);
+    cdp.check(
+      'big-plan: defaults to Active & Upcoming and hides past tasks',
+      defState.viewAttr === 'active' && defState.viewLabel === 'Active & Upcoming' && defState.pastBars === 0 && defState.activeBars > 0 && defState.filterBarHidden === false,
+      JSON.stringify(defState)
+    );
+
+    // At Week zoom around Today, active tasks at top (Phase 1) and bottom (Phase 5) are separated by other phases -> In View hint appears
+    await selectZoom('week');
+    await cdp.clickOn('#btn-today');
+    await sleep(noAnim ? 40 : 120);
+    const weekHintState = await cdp.ev(`({
+      rowCount: document.querySelectorAll('#gantt-tree .gantt-tree-row').length,
+      hintHidden: document.getElementById('gantt-inview-hint')?.hidden,
+      hintText: (document.getElementById('gantt-inview-hint-text')?.textContent || '').trim(),
+    })`);
+    cdp.check(
+      'big-plan: In View hint appears when in-window tasks are off-screen vertically',
+      weekHintState.hintHidden === false && /off-screen/.test(weekHintState.hintText),
+      JSON.stringify(weekHintState)
+    );
+
+    // Clicking "Compact to In View" on the hint switches to In View, compacts rows, and hides hint
+    await cdp.clickOn('#btn-inview-hint-apply');
+    await cdp.settle();
+    const inViewState = await cdp.ev(`({
+      viewAttr: document.getElementById('gantt-root')?.getAttribute('data-view'),
+      viewLabel: (document.getElementById('gantt-view-label')?.textContent || '').trim(),
+      rowCount: document.querySelectorAll('#gantt-tree .gantt-tree-row').length,
+      hintHidden: document.getElementById('gantt-inview-hint')?.hidden,
+    })`);
+    cdp.check(
+      'big-plan: Compact to In View switches view, reduces rows, and hides hint',
+      inViewState.viewAttr === 'in-view' && inViewState.viewLabel === 'In View' && inViewState.rowCount < weekHintState.rowCount && inViewState.hintHidden === true,
+      `before=${weekHintState.rowCount} after=${inViewState.rowCount} ${JSON.stringify(inViewState)}`
+    );
+
+    // Switch via toolbar View dropdown to All Tasks
+    await cdp.clickOn('#btn-view-filter');
+    await sleep(noAnim ? 20 : 80);
+    await cdp.clickOn('#gantt-view-pop [data-view-mode="all"]');
+    await cdp.settle();
+    const allState = await cdp.ev(`({
+      viewAttr: document.getElementById('gantt-root')?.getAttribute('data-view'),
+      pastBars: document.querySelectorAll('#gantt-bars [data-time-state="past"]').length,
+      rowCount: document.querySelectorAll('#gantt-tree .gantt-tree-row').length,
+    })`);
+    cdp.check(
+      'big-plan: View dropdown switches to All Tasks and reveals past tasks',
+      allState.viewAttr === 'all' && allState.pastBars > 0 && allState.rowCount > defState.rowCount,
+      JSON.stringify(allState)
+    );
+
+    // Sticky phase header appears when scrolling down into a phase and jumps back on click
+    await cdp.ev(`(() => {
+      const tl = document.getElementById('gantt-timeline');
+      tl.scrollTop = 520;
+    })()`);
+    await sleep(noAnim ? 30 : 80);
+    const stickyState = await cdp.ev(`({
+      hidden: document.getElementById('gantt-sticky-phase')?.hidden,
+      text: (document.getElementById('gantt-sticky-phase')?.textContent || '').trim(),
+      scrollBefore: document.getElementById('gantt-timeline').scrollTop,
+    })`);
+    cdp.check(
+      'big-plan: sticky phase header appears on vertical scroll',
+      stickyState.hidden === false && stickyState.text.length > 0,
+      JSON.stringify(stickyState)
+    );
+    if (!stickyState.hidden) {
+      await cdp.clickOn('#gantt-sticky-phase');
+      await sleep(noAnim ? 30 : 120);
+      const scrollAfterSticky = await cdp.ev(`document.getElementById('gantt-timeline').scrollTop`);
+      cdp.check('big-plan: clicking sticky phase header scrolls up to phase', scrollAfterSticky < stickyState.scrollBefore, `${stickyState.scrollBefore}->${scrollAfterSticky}`);
+    }
+
+    // Off-screen bar jump pills render for off-screen rows and jump horizontally on click
+    await cdp.ev(`(() => {
+      const tl = document.getElementById('gantt-timeline');
+      tl.scrollTop = 0;
+      tl.scrollLeft = 200;
+    })()`);
+    await sleep(noAnim ? 30 : 80);
+    const pillBefore = await cdp.ev(`(() => {
+      const pill = document.querySelector('#gantt-offscreen .gantt-offscreen-pill');
+      return { count: document.querySelectorAll('#gantt-offscreen .gantt-offscreen-pill').length, hasPill: !!pill, scrollLeft: document.getElementById('gantt-timeline').scrollLeft };
+    })()`);
+    cdp.check('big-plan: off-screen jump pills render for bars outside viewport', pillBefore.count > 0, JSON.stringify(pillBefore));
+    if (pillBefore.hasPill) {
+      await cdp.clickOn('#gantt-offscreen .gantt-offscreen-pill');
+      await sleep(noAnim ? 40 : 120);
+      const pillAfterLeft = await cdp.ev(`document.getElementById('gantt-timeline').scrollLeft`);
+      cdp.check('big-plan: clicking off-screen jump pill scrolls timeline horizontally', pillAfterLeft !== pillBefore.scrollLeft, `${pillBefore.scrollLeft}->${pillAfterLeft}`);
+    }
+
+    // Legend click-to-filter narrows tasks to one stream and clears on second click
+    await cdp.clickOn('#btn-legend');
+    await sleep(noAnim ? 20 : 60);
+    await cdp.clickOn('#gantt-color-key .color-key-item[data-color="3"]');
+    await cdp.settle();
+    const legFiltered = await cdp.ev(`({
+      rows: document.querySelectorAll('#gantt-tree .gantt-tree-row').length,
+      btnFiltered: document.getElementById('btn-legend')?.classList.contains('is-filtered'),
+    })`);
+    cdp.check(
+      'big-plan: clicking legend stream filters rows',
+      legFiltered.rows < allState.rowCount && legFiltered.btnFiltered === true,
+      `all=${allState.rowCount} filtered=${legFiltered.rows}`
+    );
+    await cdp.clickOn('#gantt-color-key .color-key-item[data-color="3"]');
+    await cdp.settle();
+    const legRestored = await cdp.ev(`document.querySelectorAll('#gantt-tree .gantt-tree-row').length`);
+    cdp.check('big-plan: clicking legend stream again clears filter', legRestored === allState.rowCount, `${legRestored} vs ${allState.rowCount}`);
+    await cdp.press('Escape'); // close legend popover cleanly
+    await cdp.mouse('mouseMoved', 20, 20);
+    await cdp.settle();
+
+    // Focus chain isolates connected dependencies and Escape exits
+    await scrollBarIntoView('audit');
+    await sleep(noAnim ? 40 : 80);
+    await cdp.clickOn('.gantt-bar[data-item-id="audit"]');
+    await cdp.settle();
+    await cdp.clickOn('.gantt-actionbar [data-act="focus-chain"]');
+    await cdp.settle();
+    const focusedRows = await cdp.ev(`document.querySelectorAll('#gantt-tree .gantt-tree-row').length`);
+    cdp.check('big-plan: Focus chain isolates connected tasks', focusedRows > 0 && focusedRows < allState.rowCount, `focused=${focusedRows} all=${allState.rowCount}`);
+    await cdp.press('Escape');
+    await cdp.settle();
+    const afterEscRows = await cdp.ev(`document.querySelectorAll('#gantt-tree .gantt-tree-row').length`);
+    cdp.check('big-plan: Escape exits Focus chain', afterEscRows === allState.rowCount, `${afterEscRows} vs ${allState.rowCount}`);
+
+    checkNoErrors('big-plan-ux');
   });
 
   exitCode = cdp.finish();

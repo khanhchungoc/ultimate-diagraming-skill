@@ -59,8 +59,32 @@
   const holAddBtn = document.getElementById('gantt-hol-add');
   const holCloseBtn = document.getElementById('gantt-hol-close');
   const zoomPills = document.getElementById('gantt-zoom-pills');
+  const viewWrap = document.getElementById('gantt-view-wrap');
+  const btnViewFilter = document.getElementById('btn-view-filter');
+  const viewLabelEl = document.getElementById('gantt-view-label');
+  const viewPop = document.getElementById('gantt-view-pop');
+  const filterBarEl = document.getElementById('gantt-filter-bar');
+  const stickyPhaseEl = document.getElementById('gantt-sticky-phase');
+  const offscreenEl = document.getElementById('gantt-offscreen');
+  const inViewHintEl = document.getElementById('gantt-inview-hint');
+  const inViewHintTextEl = document.getElementById('gantt-inview-hint-text');
+  const btnInViewHintApply = document.getElementById('btn-inview-hint-apply');
+  const btnInViewHintDismiss = document.getElementById('btn-inview-hint-dismiss');
+  const emptyFilterEl = document.getElementById('gantt-empty-filter');
 
   const EXTEND_DAYS = { day: 90, week: 180, month: 180, quarter: 365, year: 365 };
+  const VIEW_LABELS = {
+    active: 'Active & Upcoming',
+    'in-view': 'In View',
+    all: 'All Tasks'
+  };
+
+  function initialViewMode() {
+    const param = new URLSearchParams(window.location.search).get('view');
+    if (param === 'all' || param === 'active' || param === 'in-view') return { mode: param, explicit: true };
+    return { mode: 'active', explicit: false };
+  }
+  const _initView = initialViewMode();
 
   // --- STATE ---
   let selItems = new Set();        // selected item IDs (tasks, groups, milestones)
@@ -76,6 +100,14 @@
   let showDeps = true;             // whether dependency arrows layer is visible
   let legendOpen = false;          // whether #gantt-color-key popover is open (closed by default)
   let legendPinned = false;        // whether legend was explicitly pinned open via click/keyboard
+  let viewMode = _initView.mode;   // 'active' | 'in-view' | 'all'
+  let viewModeExplicit = _initView.explicit;
+  let colorFilter = null;          // active legend color slot filter, or null
+  let focusChainId = null;         // isolated dependency-chain seed item ID, or null
+  let inViewHintDismissed = false; // dismissed In View hint for this session
+  let scrollOverlaysRaf = 0;       // rAF token for sticky phase, offscreen pills, and hint
+  let inViewDebounceTimer = null;  // debounce timer for horizontal scroll in In View mode
+  let lastInViewWindowKey = '';    // tracks visible date range to avoid redundant In View re-renders
   let connectState = null;         // { fromId, type: 'fs' | 'ss', pointerDrag?: boolean }
   let activeDrag = null;           // active bar/resize/marker/marquee/splitter/row drag state
   let actionBarEl = null;          // floating ui.actionBar element
@@ -348,9 +380,122 @@
     return [...leafMap.values()];
   }
 
+  // --- VIEW & BIG-PLAN FILTERING ---
+  function getVisibleDateWindow() {
+    const range = chartData._range;
+    if (!timeline || !range || !range.pxPerDay) return null;
+    const width = timeline.clientWidth || 800;
+    const startDays = Math.floor(timeline.scrollLeft / range.pxPerDay);
+    const endDays = Math.ceil((timeline.scrollLeft + width) / range.pxPerDay);
+    return {
+      start: ganttAddDays(range.start, startDays),
+      end: ganttAddDays(range.start, endDays)
+    };
+  }
+
+  function computeConnectedItemIds(seedId) {
+    const visited = new Set([seedId]);
+    const queue = [seedId];
+    const allDeps = depsList();
+    while (queue.length) {
+      const cur = queue.shift();
+      for (let i = 0; i < allDeps.length; i++) {
+        const d = allDeps[i];
+        if (!d || !d.from || !d.to) continue;
+        if (d.from === cur && !visited.has(d.to)) {
+          visited.add(d.to);
+          queue.push(d.to);
+        } else if (d.to === cur && !visited.has(d.from)) {
+          visited.add(d.from);
+          queue.push(d.from);
+        }
+      }
+    }
+    return visited;
+  }
+
+  function addWithAncestors(id, targetSet) {
+    let cur = id;
+    const guard = new Set();
+    while (cur && !guard.has(cur)) {
+      guard.add(cur);
+      targetSet.add(cur);
+      const it = itemById(cur);
+      cur = it ? it.parent : null;
+    }
+  }
+
+  function computeFilterIds() {
+    const allItems = itemsList();
+    if (!allItems.length) return null;
+
+    if (focusChainId) {
+      if (!itemById(focusChainId)) {
+        focusChainId = null;
+      } else {
+        const keep = new Set();
+        computeConnectedItemIds(focusChainId).forEach((id) => addWithAncestors(id, keep));
+        return keep;
+      }
+    }
+
+    const todayStr = getTodayStr();
+    if (viewMode === 'active' && !viewModeExplicit) {
+      const scheduledLeaves = allItems.filter((it) => it && !it._hasChildren && it.kind !== 'group' && it._end);
+      const anyActiveOrUpcoming = scheduledLeaves.some((it) => it._end >= todayStr);
+      if (scheduledLeaves.length > 0 && !anyActiveOrUpcoming) {
+        viewMode = 'all';
+      }
+    }
+
+    if (viewMode === 'all' && !colorFilter) return null;
+
+    const win = viewMode === 'in-view' ? getVisibleDateWindow() : null;
+    if (viewMode === 'in-view' && win) {
+      lastInViewWindowKey = `${win.start}|${win.end}`;
+    }
+
+    const keep = new Set();
+    for (let i = 0; i < allItems.length; i++) {
+      const it = allItems[i];
+      if (!it || !it.id) continue;
+      const isParent = Boolean(it._hasChildren || it.kind === 'group');
+      if (isParent) {
+        // Keep empty groups only in 'all' mode when matching colorFilter
+        if (!it._hasChildren && viewMode === 'all' && (!colorFilter || effectiveColor(it) === colorFilter)) {
+          addWithAncestors(it.id, keep);
+        }
+        continue;
+      }
+      if (colorFilter && effectiveColor(it) !== colorFilter) continue;
+
+      let timeMatch = true;
+      if (viewMode === 'active') {
+        timeMatch = !it._end || it._end >= todayStr;
+      } else if (viewMode === 'in-view') {
+        timeMatch = Boolean(win && it._start && it._end && it._start <= win.end && it._end >= win.start);
+      }
+      if (timeMatch) addWithAncestors(it.id, keep);
+    }
+    return keep;
+  }
+
   // --- LAYOUT & RENDERING ---
-  function applyLayout() {
+  function applyLayout(preserveFilter = false) {
+    if (preserveFilter) {
+      layoutDiagram(chartData);
+      return;
+    }
+    if (viewMode === 'all' && !colorFilter && !focusChainId) {
+      chartData._filterIds = null;
+      layoutDiagram(chartData);
+      return;
+    }
+    chartData._filterIds = null;
     layoutDiagram(chartData);
+    const filterIds = computeFilterIds();
+    chartData._filterIds = filterIds;
+    if (filterIds) layoutDiagram(chartData);
   }
 
   function applySidebarWidth(w) {
@@ -1046,6 +1191,7 @@
       els.deps.set(key, { g, path, hit });
     });
 
+    if (depsEl) depsEl.classList.toggle('is-dense', (chartData._deps || []).length > 12);
     syncDepsVisibility();
     syncDepSpotlight();
   }
@@ -1152,6 +1298,7 @@
       colorKeyHost.hidden = true;
       if (btnLegend) {
         btnLegend.hidden = true;
+        btnLegend.classList.remove('is-filtered');
         btnLegend.setAttribute('aria-expanded', 'false');
       }
       return;
@@ -1163,6 +1310,7 @@
       colorKeyHost.hidden = true;
       if (btnLegend) {
         btnLegend.hidden = true;
+        btnLegend.classList.remove('is-filtered');
         btnLegend.setAttribute('aria-expanded', 'false');
       }
       return;
@@ -1180,18 +1328,42 @@
     }
     if (btnLegend) {
       btnLegend.hidden = false;
+      btnLegend.classList.toggle('is-filtered', Boolean(colorFilter));
       btnLegend.setAttribute('aria-expanded', String(legendOpen));
     }
     colorKeyHost.hidden = !legendOpen;
     colorKeyHost.appendChild(box);
-    if (!presenting()) {
-      box.querySelectorAll('.color-key-label').forEach((lbl) => {
-        lbl.addEventListener('click', (e) => {
-          e.stopPropagation();
-          editColorKeySlot(lbl.dataset.color, lbl);
-        });
+    box.querySelectorAll('.color-key-item').forEach((itemEl) => {
+      const lbl = itemEl.querySelector('.color-key-label');
+      const slot = lbl ? lbl.dataset.color : '';
+      if (!slot) return;
+      itemEl.dataset.color = slot;
+      itemEl.tabIndex = 0;
+      itemEl.setAttribute('role', 'button');
+      itemEl.setAttribute('aria-pressed', String(colorFilter === slot));
+      itemEl.title = presenting() ? 'Click to filter by stream' : 'Click to filter · Double-click label to rename';
+      itemEl.classList.toggle('is-filter-active', colorFilter === slot);
+      itemEl.classList.toggle('is-filter-dim', Boolean(colorFilter && colorFilter !== slot));
+      itemEl.addEventListener('click', (e) => {
+        if (lbl && lbl.isContentEditable) return;
+        e.stopPropagation();
+        toggleColorFilter(slot);
       });
-    }
+      itemEl.addEventListener('keydown', (e) => {
+        if (lbl && lbl.isContentEditable) return;
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          e.stopPropagation();
+          toggleColorFilter(slot);
+        }
+      });
+      if (!presenting() && lbl) {
+        lbl.addEventListener('dblclick', (e) => {
+          e.stopPropagation();
+          editColorKeySlot(slot, lbl);
+        });
+      }
+    });
   }
 
   function editColorKeySlot(slot, lbl) {
@@ -1474,6 +1646,358 @@
     btn.innerHTML = ui.icon(anyExpanded ? 'chevron-up' : 'chevron-down', { size: 'xs', bold: true });
   }
 
+  // --- BIG-PLAN UX: VIEW FILTER, MORPH, STICKY PHASE, OFF-SCREEN PILLS & IN-VIEW HINT ---
+  function syncViewFilterUi() {
+    if (viewLabelEl) viewLabelEl.textContent = VIEW_LABELS[viewMode] || VIEW_LABELS.active;
+    if (btnViewFilter) {
+      btnViewFilter.classList.toggle('is-filtered', viewMode !== 'all' || Boolean(focusChainId));
+    }
+    if (viewPop) {
+      viewPop.querySelectorAll('[data-view-mode]').forEach((opt) => {
+        const active = opt.dataset.viewMode === viewMode;
+        opt.setAttribute('aria-checked', String(active));
+      });
+    }
+    if (root) root.dataset.view = viewMode;
+  }
+
+  function renderFilterBar(visItems) {
+    if (!filterBarEl) return;
+    const allLeaves = itemsList().filter((it) => it && !it._hasChildren && it.kind !== 'group');
+    const visLeaves = visItems.filter((it) => it && !it._hasChildren && it.kind !== 'group');
+    const hiddenCount = Math.max(0, allLeaves.length - visLeaves.length);
+
+    let msg = '';
+    if (focusChainId) {
+      const seed = itemById(focusChainId);
+      msg = `Chain: ${seed ? (seed.label || seed.id) : focusChainId} (${visLeaves.length})`;
+    } else if (colorFilter) {
+      const streamName = (chartData.colorKey && chartData.colorKey[colorFilter]) || `Stream ${colorFilter}`;
+      msg = `${streamName} · ${visLeaves.length} of ${allLeaves.length}`;
+    } else if (viewMode === 'in-view') {
+      msg = `In View · ${visLeaves.length} of ${allLeaves.length} tasks`;
+    } else if (viewMode === 'active' && hiddenCount > 0) {
+      msg = `${hiddenCount} past ${hiddenCount === 1 ? 'task' : 'tasks'} hidden`;
+    }
+
+    if (!msg) {
+      filterBarEl.hidden = true;
+      filterBarEl.textContent = '';
+      return;
+    }
+
+    filterBarEl.hidden = false;
+    filterBarEl.textContent = '';
+    const txt = htmlEl('span', 'gantt-filter-bar-text', msg);
+    txt.title = msg;
+    const resetBtn = htmlEl('button', 'gantt-filter-bar-reset', focusChainId ? 'Exit' : 'Show all');
+    resetBtn.type = 'button';
+    resetBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (focusChainId) toggleFocusChain(null);
+      else resetAllFilters();
+    });
+    filterBarEl.append(txt, resetBtn);
+  }
+
+  function renderEmptyFilterState(visItems) {
+    if (!emptyFilterEl) return;
+    const hasItems = itemsList().length > 0;
+    const isEmpty = hasItems && visItems.length === 0;
+    emptyFilterEl.hidden = !isEmpty;
+    if (!isEmpty) {
+      emptyFilterEl.textContent = '';
+      return;
+    }
+    emptyFilterEl.textContent = '';
+    const title = viewMode === 'in-view'
+      ? 'No tasks in this date window'
+      : colorFilter
+        ? 'No matching tasks in this stream'
+        : 'No active or upcoming tasks';
+    emptyFilterEl.appendChild(htmlEl('div', 'gantt-empty-filter-title', title));
+    const actions = htmlEl('div', 'gantt-empty-filter-actions');
+    const btnAll = htmlEl('button', 'btn btn-primary', 'Show All Tasks');
+    btnAll.type = 'button';
+    btnAll.addEventListener('click', () => resetAllFilters());
+    actions.appendChild(btnAll);
+    if (viewMode === 'in-view') {
+      const btnT = htmlEl('button', 'btn', 'Jump to Today');
+      btnT.type = 'button';
+      btnT.addEventListener('click', () => jumpToToday());
+      actions.appendChild(btnT);
+    }
+    emptyFilterEl.appendChild(actions);
+  }
+
+  function captureLayoutRects() {
+    const bars = new Map();
+    els.bars.forEach((el, id) => { bars.set(id, el.getBoundingClientRect()); });
+    const rows = new Map();
+    els.rows.forEach((el, id) => { rows.set(id, el.getBoundingClientRect()); });
+    return { bars, rows };
+  }
+
+  function playLayoutMorph(oldRects) {
+    if (!motion.enabled() || !oldRects) return;
+    const dur = motion.dur('dur-base', 200);
+    const easing = motion.curve('curve-out');
+    const animateMap = (domMap, prevMap) => {
+      if (!prevMap || !prevMap.size) return;
+      domMap.forEach((el, id) => {
+        const prev = prevMap.get(id);
+        if (!prev) return;
+        const next = el.getBoundingClientRect();
+        const dy = prev.top - next.top;
+        if (Math.abs(dy) < 0.5) return;
+        motion.anim(el, [
+          { transform: `translateY(${dy}px)` },
+          { transform: 'none' }
+        ], { duration: dur, easing });
+      });
+    };
+    animateMap(els.bars, oldRects.bars);
+    animateMap(els.rows, oldRects.rows);
+  }
+
+  function setViewMode(nextMode, opts = {}) {
+    if (!Object.prototype.hasOwnProperty.call(VIEW_LABELS, nextMode)) return;
+    const prevMode = viewMode;
+    viewMode = nextMode;
+    viewModeExplicit = true;
+    if (nextMode === 'in-view') inViewHintDismissed = false;
+    if (focusChainId) focusChainId = null;
+    if (prevMode === nextMode && !opts.force) {
+      syncViewFilterUi();
+      return;
+    }
+    const oldRects = (opts.animate !== false && motion.enabled()) ? captureLayoutRects() : null;
+    render();
+    if (oldRects) playLayoutMorph(oldRects);
+  }
+
+  function toggleColorFilter(slot) {
+    const next = colorFilter === slot ? null : slot;
+    colorFilter = next;
+    const oldRects = motion.enabled() ? captureLayoutRects() : null;
+    render();
+    if (oldRects) playLayoutMorph(oldRects);
+  }
+
+  function toggleFocusChain(itemId) {
+    const next = (!itemId || focusChainId === itemId) ? null : itemId;
+    focusChainId = next;
+    const oldRects = motion.enabled() ? captureLayoutRects() : null;
+    render();
+    if (oldRects) playLayoutMorph(oldRects);
+    if (next) {
+      const it = itemById(next);
+      if (it) ui.toast(`Focused dependency chain for ${it.label || it.id}`);
+    }
+  }
+
+  function resetAllFilters() {
+    focusChainId = null;
+    colorFilter = null;
+    viewMode = 'all';
+    viewModeExplicit = true;
+    const oldRects = motion.enabled() ? captureLayoutRects() : null;
+    render();
+    if (oldRects) playLayoutMorph(oldRects);
+  }
+
+  function scrollBarHorizontallyIntoView(it) {
+    if (!timeline || !it || !it._bar) return;
+    const targetLeft = Math.max(0, Math.round(it._bar.x + it._bar.w / 2 - timeline.clientWidth / 2));
+    suppressExtendUntil = performance.now() + 700;
+    timeline.scrollTo({
+      left: targetLeft,
+      behavior: motion.enabled() ? 'smooth' : 'auto'
+    });
+  }
+
+  function updateStickyPhase() {
+    if (!stickyPhaseEl || !timeline) return;
+    const scrollTop = timeline.scrollTop || 0;
+    const rowH = GANTT_METRICS.ROW_H;
+    if (scrollTop < rowH * 0.5) {
+      stickyPhaseEl.hidden = true;
+      return;
+    }
+    const vis = visibleItems();
+    if (!vis.length) {
+      stickyPhaseEl.hidden = true;
+      return;
+    }
+    const topIdx = Math.min(vis.length - 1, Math.max(0, Math.floor(scrollTop / rowH)));
+    const topItem = vis[topIdx];
+    if (!topItem || !topItem.parent) {
+      stickyPhaseEl.hidden = true;
+      return;
+    }
+    // Walk up ancestor chain to build breadcrumb and find highest scrolled-past phase
+    const ancestors = [];
+    let cur = itemById(topItem.parent);
+    const guard = new Set();
+    while (cur && !guard.has(cur.id)) {
+      guard.add(cur.id);
+      if (!cur._hidden && typeof cur._row === 'number' && cur._row * rowH < scrollTop) {
+        ancestors.unshift(cur);
+      }
+      cur = cur.parent ? itemById(cur.parent) : null;
+    }
+    if (!ancestors.length) {
+      stickyPhaseEl.hidden = true;
+      return;
+    }
+    const target = ancestors[ancestors.length - 1];
+    const breadcrumb = ancestors.map((a) => a.label || a.id).join(' › ');
+    stickyPhaseEl.dataset.targetId = target.id;
+    stickyPhaseEl.textContent = '';
+    const dot = htmlEl('span', 'gantt-sticky-phase-dot');
+    const col = effectiveColor(target);
+    if (col) dot.style.background = `var(--c-${col}-border, var(--primary))`;
+    const lbl = htmlEl('span', 'gantt-sticky-phase-label', breadcrumb);
+    const cue = htmlEl('span', 'gantt-sticky-phase-cue', '↑');
+    stickyPhaseEl.append(dot, lbl, cue);
+    stickyPhaseEl.hidden = false;
+  }
+
+  function renderOffscreenPills() {
+    if (!offscreenEl || !timeline || !chartData._range) return;
+    offscreenEl.textContent = '';
+    const viewW = timeline.clientWidth;
+    if (!viewW) return;
+    const headerH = headerEl ? headerEl.offsetHeight : 58;
+    const viewH = Math.max(0, timeline.clientHeight - headerH);
+    const scrollLeft = timeline.scrollLeft;
+    const scrollTop = timeline.scrollTop;
+    const rowH = GANTT_METRICS.ROW_H;
+    const vis = visibleItems();
+    const frag = document.createDocumentFragment();
+
+    for (let i = 0; i < vis.length; i++) {
+      const it = vis[i];
+      if (!it || !it._bar) continue;
+      const isParent = Boolean(it._hasChildren || it.kind === 'group');
+      if (isParent) continue;
+      const rowTop = it._row * rowH;
+      if (rowTop + rowH < scrollTop || rowTop > scrollTop + viewH) continue;
+      const b = it._bar;
+      const barLeft = b.x;
+      const barRight = b.x + Math.max(4, b.w);
+      const isLeft = barRight < scrollLeft + 4;
+      const isRight = barLeft > scrollLeft + viewW - 4;
+      if (!isLeft && !isRight) continue;
+
+      const pill = htmlEl('button', `gantt-offscreen-pill ${isLeft ? 'is-left' : 'is-right'}`);
+      pill.type = 'button';
+      pill.dataset.itemId = it.id;
+      const dateStr = formatShortDate(it._start);
+      pill.title = `Jump to ${it.label || it.id} (${formatDateRange(it._start, it._end)})`;
+      pill.setAttribute('aria-label', `Jump to ${it.label || it.id}`);
+      pill.style.top = `${Math.round(rowTop + (rowH - 22) / 2)}px`;
+      if (isLeft) {
+        pill.style.left = `${Math.round(scrollLeft + 8)}px`;
+      } else {
+        pill.style.left = `${Math.round(scrollLeft + viewW - 8)}px`;
+        pill.style.transform = 'translateX(-100%)';
+      }
+      const dot = htmlEl('span', 'gantt-offscreen-dot');
+      const col = effectiveColor(it);
+      dot.style.background = col ? `var(--c-${col}-border, var(--primary))` : 'var(--primary)';
+      const txt = htmlEl('span', '', isLeft ? `← ${dateStr}` : `${dateStr} →`);
+      if (isLeft) pill.append(txt, dot);
+      else pill.append(dot, txt);
+      pill.addEventListener('pointerdown', (e) => e.stopPropagation());
+      pill.addEventListener('click', (e) => {
+        e.stopPropagation();
+        selectSingleItem(it.id);
+        scrollBarHorizontallyIntoView(it);
+      });
+      frag.appendChild(pill);
+    }
+    offscreenEl.appendChild(frag);
+  }
+
+  function updateInViewHint() {
+    if (!inViewHintEl || !inViewHintTextEl) return;
+    if (viewMode === 'in-view' || focusChainId || inViewHintDismissed || !timeline || !chartData._range) {
+      inViewHintEl.hidden = true;
+      return;
+    }
+    const win = getVisibleDateWindow();
+    if (!win) {
+      inViewHintEl.hidden = true;
+      return;
+    }
+    const headerH = headerEl ? headerEl.offsetHeight : 58;
+    const viewH = Math.max(0, timeline.clientHeight - headerH);
+    const visTop = timeline.scrollTop;
+    const visBot = visTop + viewH;
+    const rowH = GANTT_METRICS.ROW_H;
+    const vis = visibleItems();
+    const allItems = itemsList();
+    let inWindowCount = 0;
+    let offVertCount = 0;
+    const inViewKeep = new Set();
+
+    for (let i = 0; i < allItems.length; i++) {
+      const it = allItems[i];
+      if (!it || it._hasChildren || it.kind === 'group') continue;
+      if (!it._start || !it._end) continue;
+      if (it._start <= win.end && it._end >= win.start) {
+        addWithAncestors(it.id, inViewKeep);
+      }
+    }
+
+    for (let i = 0; i < vis.length; i++) {
+      const it = vis[i];
+      if (!it || !it._bar || it._hasChildren || it.kind === 'group') continue;
+      if (!it._start || !it._end) continue;
+      if (it._start <= win.end && it._end >= win.start) {
+        inWindowCount++;
+        const rowTop = it._row * rowH;
+        if (rowTop + rowH <= visTop + 4 || rowTop >= visBot - 4) {
+          offVertCount++;
+        }
+      }
+    }
+
+    if (offVertCount >= 1 && inWindowCount >= 2 && inViewKeep.size < vis.length - 1) {
+      inViewHintTextEl.textContent = `${offVertCount} ${offVertCount === 1 ? 'task' : 'tasks'} in this timeframe ${offVertCount === 1 ? 'is' : 'are'} off-screen`;
+      inViewHintEl.hidden = false;
+    } else {
+      inViewHintEl.hidden = true;
+    }
+  }
+
+  function scheduleScrollOverlays() {
+    if (scrollOverlaysRaf) return;
+    scrollOverlaysRaf = requestAnimationFrame(() => {
+      scrollOverlaysRaf = 0;
+      updateStickyPhase();
+      renderOffscreenPills();
+      updateInViewHint();
+    });
+  }
+
+  function scheduleInViewRefresh() {
+    if (viewMode !== 'in-view' || focusChainId || activeDrag) return;
+    clearTimeout(inViewDebounceTimer);
+    inViewDebounceTimer = setTimeout(() => {
+      inViewDebounceTimer = null;
+      if (viewMode !== 'in-view' || focusChainId || activeDrag) return;
+      const win = getVisibleDateWindow();
+      if (!win) return;
+      const key = `${win.start}|${win.end}`;
+      if (key === lastInViewWindowKey) return;
+      const oldRects = motion.enabled() ? captureLayoutRects() : null;
+      render();
+      if (oldRects) playLayoutMorph(oldRects);
+    }, 220);
+  }
+
   // --- MAIN RENDER ---
   function render() {
     applyLayout();
@@ -1520,6 +2044,9 @@
     updateNotesButton();
     syncWeekendsButton();
     syncToggleAllButton();
+    syncViewFilterUi();
+    renderFilterBar(visItems);
+    renderEmptyFilterState(visItems);
     renderHolidaysList();
     syncSelectionUi();
     syncZoomPills(zoomKey);
@@ -1527,18 +2054,35 @@
 
     if (!didInitialScroll && timeline && range) {
       didInitialScroll = true;
-      const anchorDate = range.contentStart || range.start;
-      const anchorX = ganttDiffDays(range.start, anchorDate) * range.pxPerDay;
-      const targetLeft = Math.max(0, Math.round(anchorX - 48));
+      let targetLeft = 0;
+      if (viewMode === 'active' && todayStr >= range.start && todayStr <= range.end) {
+        const todayX = (ganttDiffDays(range.start, todayStr) + 0.5) * range.pxPerDay;
+        targetLeft = Math.max(0, Math.round(todayX - timeline.clientWidth * 0.35));
+      } else {
+        let earliestVis = null;
+        for (let i = 0; i < visItems.length; i++) {
+          const s = visItems[i]._start;
+          if (s && (!earliestVis || s < earliestVis)) earliestVis = s;
+        }
+        const anchorDate = earliestVis || range.contentStart || range.start;
+        const anchorX = ganttDiffDays(range.start, anchorDate) * range.pxPerDay;
+        targetLeft = Math.max(0, Math.round(anchorX - 48));
+      }
       isExtendingTimeline = true;
       timeline.scrollLeft = targetLeft;
-      requestAnimationFrame(() => { isExtendingTimeline = false; });
+      requestAnimationFrame(() => {
+        isExtendingTimeline = false;
+        if (viewMode === 'in-view') render();
+        else scheduleScrollOverlays();
+      });
+    } else {
+      scheduleScrollOverlays();
     }
   }
 
   // Fast live geometry refresh during drag/resize without rebuilding the entire DOM
   function updateLiveGeometry() {
-    applyLayout();
+    applyLayout(true);
     const range = chartData._range;
     const visItems = visibleItems();
     const todayStr = getTodayStr();
@@ -1844,6 +2388,19 @@
       btnConn.addEventListener('click', () => startClickConnect(id));
       bar.append(btnConn);
 
+      const hasDeps = depsList().some((d) => d && (d.from === id || d.to === id));
+      if (hasDeps || focusChainId === id) {
+        const isFocused = focusChainId === id;
+        const btnFocus = ui.abButton(
+          `ab-btn${isFocused ? ' is-active' : ''}`,
+          'focus-chain',
+          ui.icon('focus', { size: 'sm' }),
+          isFocused ? 'Exit focus chain' : 'Focus dependency chain'
+        );
+        btnFocus.addEventListener('click', () => toggleFocusChain(id));
+        bar.append(btnFocus);
+      }
+
       const btnNote = ui.abButton('ab-btn', 'note', ui.icon('note', { size: 'sm' }), noteForTarget(id) ? 'Edit note' : 'Add note');
       btnNote.addEventListener('click', () => addOrEditNoteForTarget(id));
       bar.append(btnNote, ui.abSep('ab-sep'));
@@ -2077,19 +2634,30 @@
 
   // --- ADD / DELETE ---
   function defaultNewDates(parentId) {
+    const todayStr = getTodayStr();
     const p = parentId ? itemById(parentId) : null;
     if (p && p._start) {
-      return { start: p._start, end: ganttAddDays(p._start, 13) };
+      const s = (viewMode === 'active' && p._start < todayStr) ? todayStr : p._start;
+      return { start: s, end: ganttAddDays(s, 13) };
     }
     const selId = selItems.size ? [...selItems][0] : null;
     const selIt = selId ? itemById(selId) : null;
     if (selIt && selIt._end) {
-      const s = ganttAddDays(selIt._end, 1);
+      let s = ganttAddDays(selIt._end, 1);
+      if (viewMode === 'active' && s < todayStr) s = todayStr;
       return { start: s, end: ganttAddDays(s, 13) };
     }
-    const base = (chartData._range && (chartData._range.contentStart || chartData._range.start))
+    if (viewMode === 'in-view') {
+      const win = getVisibleDateWindow();
+      if (win && win.start) {
+        const s = (todayStr >= win.start && todayStr <= win.end) ? todayStr : ganttAddDays(win.start, 3);
+        return { start: s, end: ganttAddDays(s, 13) };
+      }
+    }
+    let base = (chartData._range && (chartData._range.contentStart || chartData._range.start))
       ? ganttAddDays(chartData._range.contentStart || chartData._range.start, 7)
-      : getTodayStr();
+      : todayStr;
+    if (viewMode === 'active' && base < todayStr) base = todayStr;
     return { start: base, end: ganttAddDays(base, 13) };
   }
 
@@ -2101,6 +2669,7 @@
     const start = o.start || def.start;
     const end = o.end || (o.start ? ganttAddDays(o.start, 13) : def.end);
     const it = { id: newId('t'), kind: 'task', label: 'New task', start, end };
+    if (colorFilter && !parentId) it.color = colorFilter;
     if (parentId) {
       const p = itemById(parentId);
       if (p) {
@@ -2850,6 +3419,8 @@
         isSyncingScroll = false;
       }
       maybeExtendTimeline();
+      scheduleScrollOverlays();
+      scheduleInViewRefresh();
     }, { passive: true });
 
     treeEl.addEventListener('scroll', () => {
@@ -2858,8 +3429,10 @@
       if (timeline.scrollTop !== treeEl.scrollTop) timeline.scrollTop = treeEl.scrollTop;
       if (actionBarEl) removeActionBar();
       isSyncingScroll = false;
+      scheduleScrollOverlays();
     }, { passive: true });
   }
+  window.addEventListener('resize', scheduleScrollOverlays, { passive: true });
 
   // --- ZOOM CONTROLLER & MORPH TRANSITION ("morph, not fade") ---
   function captureBarRects() {
@@ -2916,7 +3489,11 @@
       const newCenterPx = ganttDiffDays(chartData._range.start, centerDate) * chartData._range.pxPerDay;
       isExtendingTimeline = true;
       timeline.scrollTo({ left: Math.max(0, Math.round(newCenterPx - timeline.clientWidth / 2)), behavior: 'instant' });
-      requestAnimationFrame(() => { isExtendingTimeline = false; });
+      requestAnimationFrame(() => {
+        isExtendingTimeline = false;
+        if (viewMode === 'in-view') render();
+        else scheduleScrollOverlays();
+      });
     }
 
     // 5. Morph bars from old rects to new rects
@@ -2976,20 +3553,45 @@
     }
   };
 
-  // --- JUMP TO TODAY ---
+  // --- JUMP TO TODAY (smart horizontal + vertical scroll to active work) ---
   function jumpToToday() {
     if (!timeline || !chartData._range) return;
     const todayStr = getTodayStr();
     const range = chartData._range;
     const x = (ganttDiffDays(range.start, todayStr) + 0.5) * range.pxPerDay;
-    const targetScroll = Math.max(0, Math.round(x - timeline.clientWidth / 2));
-    suppressExtendUntil = performance.now() + 700;
-    timeline.scrollTo({
-      left: targetScroll,
-      behavior: motion.enabled() ? 'smooth' : 'auto'
+    const targetLeft = Math.max(0, Math.round(x - timeline.clientWidth / 2));
+
+    // Also bring active work into vertical view if none is currently visible
+    const vis = visibleItems();
+    const headerH = headerEl ? headerEl.offsetHeight : 58;
+    const viewH = Math.max(0, timeline.clientHeight - headerH);
+    const visTop = timeline.scrollTop;
+    const visBot = visTop + viewH;
+    const rowH = GANTT_METRICS.ROW_H;
+    const activeLeaves = vis.filter((it) => it && !it._hasChildren && it.kind !== 'group' && getTimeState(it, todayStr) === 'active');
+    const candidates = activeLeaves.length
+      ? activeLeaves
+      : vis.filter((it) => it && !it._hasChildren && it.kind !== 'group' && getTimeState(it, todayStr) === 'upcoming');
+    const anyVisibleVert = candidates.some((it) => {
+      const y = it._row * rowH;
+      return y + rowH > visTop + 4 && y < visBot - 4;
     });
+    const scrollOpts = {
+      left: targetLeft,
+      behavior: motion.enabled() ? 'smooth' : 'auto'
+    };
+    if (candidates.length && !anyVisibleVert) {
+      const firstY = candidates[0]._row * rowH;
+      scrollOpts.top = Math.max(0, Math.round(firstY - Math.min(rowH * 2, viewH * 0.25)));
+    }
+
+    suppressExtendUntil = performance.now() + 700;
+    timeline.scrollTo(scrollOpts);
     if (todayStr < range.start || todayStr > range.end) {
       ui.toast(`Today (${todayStr}) is outside the current roadmap range`);
+    }
+    if (viewMode === 'in-view') {
+      scheduleInViewRefresh();
     }
   }
 
@@ -3208,6 +3810,77 @@
     });
   }
   if (btnToday) btnToday.addEventListener('click', () => jumpToToday());
+  if (viewPop) {
+    const viewMenu = viewPop.querySelector('.gantt-view-menu');
+    const viewOpts = () => [...viewPop.querySelectorAll('.gantt-view-opt')];
+    const closeViewPop = (restoreFocus) => {
+      if (viewWrap) viewWrap.classList.remove('open');
+      if (btnViewFilter) {
+        btnViewFilter.setAttribute('aria-expanded', 'false');
+        if (restoreFocus) btnViewFilter.focus();
+      }
+    };
+    viewPop.addEventListener('click', (e) => {
+      const opt = e.target.closest('[data-view-mode]');
+      if (!opt || !viewPop.contains(opt)) return;
+      const mode = opt.dataset.viewMode;
+      const fromKeyboard = e.detail === 0;
+      if (mode) setViewMode(mode);
+      closeViewPop(fromKeyboard);
+    });
+    if (btnViewFilter) {
+      btnViewFilter.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          if (viewWrap && !viewWrap.classList.contains('open')) {
+            viewWrap.classList.add('open');
+            btnViewFilter.setAttribute('aria-expanded', 'true');
+          }
+          const first = viewOpts()[0];
+          if (first) first.focus({ preventScroll: true });
+        }
+      });
+    }
+    if (viewMenu && !('focusGroup' in HTMLElement.prototype)) {
+      viewMenu.setAttribute('role', 'menu');
+      viewMenu.addEventListener('keydown', (e) => {
+        if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(e.key)) return;
+        const items = viewOpts();
+        const idx = items.indexOf(document.activeElement);
+        if (idx < 0 || !items.length) return;
+        const next = e.key === 'Home' ? 0 : e.key === 'End' ? items.length - 1 :
+          (idx + (e.key === 'ArrowUp' ? -1 : 1) + items.length) % items.length;
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        items[next].focus({ preventScroll: true });
+      }, true);
+    }
+  }
+  if (stickyPhaseEl) {
+    stickyPhaseEl.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const targetId = stickyPhaseEl.dataset.targetId;
+      const target = targetId ? itemById(targetId) : null;
+      if (!target || target._hidden || typeof target._row !== 'number' || !timeline) return;
+      timeline.scrollTo({
+        top: Math.max(0, target._row * GANTT_METRICS.ROW_H),
+        behavior: motion.enabled() ? 'smooth' : 'auto'
+      });
+    });
+  }
+  if (btnInViewHintApply) {
+    btnInViewHintApply.addEventListener('click', (e) => {
+      e.stopPropagation();
+      setViewMode('in-view');
+    });
+  }
+  if (btnInViewHintDismiss) {
+    btnInViewHintDismiss.addEventListener('click', (e) => {
+      e.stopPropagation();
+      inViewHintDismissed = true;
+      if (inViewHintEl) inViewHintEl.hidden = true;
+    });
+  }
   if (zoomPills) {
     const zoomDock = document.querySelector('.toolbar-zoom');
     if (zoomDock) {
@@ -3291,6 +3964,10 @@
     }
     if (colorKeyHost && !colorKeyHost.hidden) {
       toggleLegendPop(false);
+      cancelled = true;
+    }
+    if (focusChainId) {
+      toggleFocusChain(null);
       cancelled = true;
     }
     return cancelled;
