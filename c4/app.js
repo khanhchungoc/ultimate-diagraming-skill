@@ -131,7 +131,11 @@ const LOGOS = {"devicon/airflow":{"body":"\u003cpath d=\"m2.5441 127 60.809-62.3
         pop.className = 'swatch-popover';
         pop.hidden = true;
         let offDoc = null;
+        let closeTimer = null;
+        const cancelClose = () => { clearTimeout(closeTimer); closeTimer = null; };
+        const closeSoon = () => { cancelClose(); closeTimer = setTimeout(() => close(false), 160); };
         const close = (restoreFocus) => {
+          cancelClose();
           if (pop.hidden) return;
           const above = pop.classList.contains('is-above');
           if (typeof motion !== 'undefined' && motion.enabled()) {
@@ -158,7 +162,9 @@ const LOGOS = {"devicon/airflow":{"body":"\u003cpath d=\"m2.5441 127 60.809-62.3
         pop.appendChild(row);
         picker.append(trig, pop);
 
-        const open = () => {
+        const open = (focusItem = true) => {
+          cancelClose();
+          if (!pop.hidden) return;
           document.querySelectorAll('.swatch-popover:not([hidden])').forEach((el) => {
             if (el !== pop && el._closeSwatchPop) el._closeSwatchPop(false);
           });
@@ -191,8 +197,10 @@ const LOGOS = {"devicon/airflow":{"body":"\u003cpath d=\"m2.5441 127 60.809-62.3
               { transform: 'none', clipPath: 'inset(0 0 0 0 round 8px)' }
             ], { duration: 130, easing: motion.curve('curve-out') });
           }
-          const active = row.querySelector('.swatch-btn[aria-pressed="true"]') || row.querySelector('.swatch-btn');
-          if (active) active.focus();
+          if (focusItem) {
+            const active = row.querySelector('.swatch-btn[aria-pressed="true"]') || row.querySelector('.swatch-btn');
+            if (active) active.focus();
+          }
           const onDocPointer = (e) => {
             if (!picker.isConnected) { close(false); return; }
             if (!picker.contains(e.target)) close(false);
@@ -210,10 +218,22 @@ const LOGOS = {"devicon/airflow":{"body":"\u003cpath d=\"m2.5441 127 60.809-62.3
         };
         pop._closeSwatchPop = close;
 
-        trig.addEventListener('pointerdown', (e) => e.stopPropagation());
+        let lastPointerType = '';
+        picker.addEventListener('pointerenter', (e) => {
+          if (e.pointerType === 'touch') return;
+          cancelClose();
+          if (pop.hidden) open(false);
+        });
+        picker.addEventListener('pointerleave', (e) => {
+          if (e.pointerType !== 'touch') closeSoon();
+        });
+        trig.addEventListener('pointerdown', (e) => { lastPointerType = e.pointerType; e.stopPropagation(); });
         trig.addEventListener('click', (e) => {
           e.stopPropagation();
-          if (pop.hidden) open(); else close(false);
+          const kind = e.detail === 0 ? '' : (e.pointerType || lastPointerType);
+          const isHover = kind === 'mouse' || kind === 'pen';
+          if (pop.hidden) open(!isHover);
+          else if (!isHover) close(false);
         });
         pop.addEventListener('pointerdown', (e) => e.stopPropagation());
         pop.addEventListener('keydown', (e) => {

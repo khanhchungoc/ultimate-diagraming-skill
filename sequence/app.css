@@ -920,7 +920,7 @@
       border-radius: var(--radius-xs) var(--radius-lg) var(--radius-lg) var(--radius-xs);
       background: var(--note-bg);
       color: var(--note-ink);
-      font-size: var(--t-detail-size);
+      font-size: var(--text-md);
       font-weight: var(--t-detail-weight);
       line-height: var(--t-detail-leading);
       text-align: left;
@@ -1139,13 +1139,23 @@
     :is(.ab-btn, .uc-ab-btn, .erd-ab-btn, .seq-ab-btn).swatch-trigger svg.swatch-caret { width: 11px; height: 11px; transition: rotate var(--dur-micro) var(--curve-out); }
     .swatch-trigger[aria-expanded="true"] svg.swatch-caret { rotate: 180deg; }
     .swatch-popover {
-      position: absolute; top: calc(100% + 6px); left: 50%; translate: calc(-50% + var(--pop-shift, 0px)) 0; z-index: 60;
+      position: absolute; top: calc(100% + 6px); left: 50%; translate: calc(-50% + var(--pop-shift, 0px)) 0;
       padding: 4px; border-radius: var(--radius-lg);
-      background: var(--bg-panel); border: 1px solid var(--border-dark); box-shadow: var(--shadow-lg);
+      background: var(--bg-panel); border: 1px solid var(--border-dark); box-shadow: var(--shadow-md);
       white-space: nowrap;
     }
+    .swatch-popover::before { content: ""; position: absolute; left: 0; right: 0; top: -8px; height: 8px; }
     .swatch-popover.is-above { top: auto; bottom: calc(100% + 6px); }
+    .swatch-popover.is-above::before { top: auto; bottom: -8px; }
     .swatch-popover[hidden] { display: none; }
+    /* Same z-plane as its action bar: one shared drop shadow so neither casts a shadow onto the other */
+    :is(.actionbar, .uc-actionbar, .erd-actionbar, .seq-actionbar):has(.swatch-popover:not([hidden])) {
+      box-shadow: none;
+      filter: drop-shadow(var(--shadow-md));
+    }
+    :is(.actionbar, .uc-actionbar, .erd-actionbar, .seq-actionbar):has(.swatch-popover:not([hidden])) .swatch-popover {
+      box-shadow: none;
+    }
     /* Swatch pill: a name on a swatch's pale fill with the swatch's ink, in a halo of the surface behind it, so a line passing
        behind is cut cleanly around the pill. Used by the flowchart's lane name and the sequence's participant. An element
        with it reads its colours from the swatch roles (see swatch.css); the surface behind sets --halo-bg (default: the panel). */
@@ -1917,6 +1927,7 @@ html.is-loading #page-loading { display: grid; }
     }
     .seq-plus {
       left: 0; top: 0;
+      scale: var(--ui-scale, 1);
       transition: translate var(--dur-micro) var(--curve-out), background-color var(--dur-micro) var(--curve-out), color var(--dur-micro) var(--curve-out);
     }
     .seq-insert { cursor: pointer; transition: background-color var(--dur-micro) var(--curve-out), color var(--dur-micro) var(--curve-out), transform var(--dur-micro) var(--curve-spring-tactile); }
